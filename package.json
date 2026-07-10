@@ -10,6 +10,7 @@
     "shot": "node scripts/shot.mjs"
   },
   "devDependencies": {
+    "js-beautify": "^2.0.3",
     "playwright": "^1.61.1",
     "vite": "^8.1.4"
   }
