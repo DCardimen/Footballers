@@ -4113,11 +4113,137 @@ class Po{state;constructor(t){this.state=t>>>0||1831565813}next(){let t=this.sta
         return '<div class="fb-item"><span class="fb-l">' + label + '</span><span class="fb-v">' + val + plus + "</span></div>";
       }).join("");
     }
+    // ===== Position-aware game grade (0-100) with a transparent breakdown =====
+    // The visible box score (o._liveGame.stat) is graded directly, so the number
+    // always maps to what happened on the field. Efficiency (yards per attempt,
+    // per carry, per target) and splash plays (TD/INT/sack/FF) dominate; raw
+    // volume matters little. A big play on a handful of snaps grades high; heavy
+    // usage with nothing to show for it grades low. Every rubric is per-position.
+    function ggLetter(s){ return s>=93?"A+":s>=86?"A":s>=79?"A-":s>=72?"B+":s>=64?"B":s>=56?"C+":s>=48?"C":s>=39?"D":"F"; }
+    function ggColor(s){ return s>=72?"var(--good)":s>=56?"var(--gold)":s>=42?"#c9a13b":"var(--blood)"; }
+    function ggSummary(s){ return s>=90?"Dominant performance":s>=79?"Excellent game":s>=64?"Strong outing":s>=52?"Solid contribution":s>=42?"Quiet day":"Rough game"; }
+    function gradeGame(pos, st, snaps){
+      st = st || {}; snaps = Number(snaps) || 0;
+      var N = function(k){ return Number(st[k]) || 0; };
+      var lines = [], base = 50, bigPlay = false;
+      var add = function(label, detail, pts){ pts = Math.round(pts || 0); lines.push({ l: label, d: detail, p: pts }); };
+      var cap = function(v, hi){ return Math.min(hi, v); };
+      if (pos === "QB"){
+        var att=N("att"), cmp=N("comp"), yds=N("pass"), td=N("td"), ints=N("int"), rush=N("rush"), lng=N("longest");
+        var ypa = att>0 ? yds/att : 0;
+        var e = ypa>=9?[24,"elite"]:ypa>=7.5?[15,"strong"]:ypa>=6?[6,"steady"]:att>0?(ypa>=4.5?[-2,"below average"]:[-13,"poor"]):[0,"no attempts"];
+        add("Yards / attempt", (att>0?ypa.toFixed(1):"0.0")+" yd · "+e[1], e[0]);
+        if (td){ add("Passing TDs", td+" thrown", cap(td*12,34)); bigPlay=true; }
+        if (ints) add("Interceptions", ints+" thrown", -ints*15);
+        if (att>=5){ var cp=cmp/att; var c=cp>=.7?[8,"sharp"]:cp>=.6?[4,"accurate"]:cp>=.45?[0,""]:[-7,"erratic"];
+          add("Completion %", Math.round(cp*100)+"%"+(c[1]?" · "+c[1]:""), c[0]); }
+        if (rush>=8) add("Scramble yards", rush+" yd on the ground", cap(Math.round(rush/6),8));
+        if (lng>=30) add("Long strike", lng+" yd completion", 5);
+      } else if (pos === "RB"){
+        var car=N("carries"), ry=N("rush"), td=N("td"), fum=N("fum"), rec=N("rec"), lng=N("longest");
+        var ypc = car>0 ? ry/car : 0;
+        var e = ypc>=6?[26,"elite"]:ypc>=5?[16,"explosive"]:ypc>=4.3?[8,"efficient"]:car>0?(ypc>=3.5?[1,"grinding"]:[-10,"bottled up"]):[0,"no carries"];
+        add("Yards / carry", (car>0?ypc.toFixed(1):"0.0")+" yd · "+e[1], e[0]);
+        if (ry) add("Rushing volume", ry+" yd on "+car+" car", cap(Math.round(ry/12),12));
+        if (td){ add("Touchdowns", td+" scored", cap(td*14,32)); bigPlay=true; }
+        if (lng>=20){ add("Breakaway run", lng+" yd", 7); bigPlay=true; }
+        if (rec>=10) add("Receiving yards", rec+" yd catching", cap(Math.round(rec/10),9));
+        if (fum) add("Fumbles lost", fum+" turnover"+(fum>1?"s":""), -fum*16);
+      } else if (pos === "WR" || pos === "TE"){
+        var tgt=N("tgt"), rc=N("rec_c"), ry=N("rec"), td=N("td"), lng=N("longest");
+        var ypt = tgt>0 ? ry/tgt : 0;
+        var e = ypt>=12?[23,"elite"]:ypt>=9?[14,"dangerous"]:ypt>=6?[6,"productive"]:tgt>0?[-6,"contained"]:[0,"not targeted"];
+        add("Yards / target", (tgt>0?ypt.toFixed(1):"0.0")+" yd · "+e[1], e[0]);
+        if (tgt>=2){ var cr=rc/tgt; var c=cr>=.75?[8,"sure hands"]:cr>=.55?[3,""]:[-7,"drops"];
+          add("Catch rate", rc+"/"+tgt+(c[1]?" · "+c[1]:""), c[0]); }
+        if (ry) add("Receiving yards", ry+" yd on "+rc+" rec", cap(Math.round(ry/12),12));
+        if (td){ add("Touchdowns", td+" scored", cap(td*14,32)); bigPlay=true; }
+        if (lng>=25){ add("Explosive catch", lng+" yd", 6); bigPlay=true; }
+      } else if (pos === "OL"){
+        base = 52;
+        var pan=N("pancake"), sa=N("sackAllowed");
+        if (pan) add("Pancake blocks", pan+" defender"+(pan>1?"s":"")+" flattened", cap(pan*7,28));
+        if (sa) add("Sacks allowed", sa+" surrendered", -sa*12);
+        else add("Pass protection", "clean sheet · 0 sacks allowed", 15);
+      } else if (pos === "DL"){
+        var tkl=N("tackle"), sk=N("sack"), tfl=N("tfl"), qh=N("qbhit"), ff=N("ff");
+        if (sk){ add("Sacks", sk+" on the QB", cap(sk*18,40)); bigPlay=true; }
+        if (tfl) add("Tackles for loss", tfl+" behind the line", cap(tfl*10,24));
+        if (tkl) add("Tackles", tkl+" stop"+(tkl>1?"s":""), cap(tkl*3,18));
+        if (qh) add("QB hits", qh+" pressure"+(qh>1?"s":""), cap(qh*5,15));
+        if (ff){ add("Forced fumbles", ff+" pried loose", ff*16); bigPlay=true; }
+        if (!sk && !tfl && !tkl && !qh && !ff) add("Quiet front", "no disruptive plays", -10);
+      } else if (pos === "LB"){
+        var tkl=N("tackle"), sk=N("sack"), tfl=N("tfl"), ints=N("int"), ff=N("ff");
+        if (tkl) add("Tackles", tkl+" stop"+(tkl>1?"s":""), cap(tkl*4,28));
+        if (sk){ add("Sacks", sk+" on the QB", cap(sk*14,28)); bigPlay=true; }
+        if (tfl) add("Tackles for loss", tfl+" behind the line", cap(tfl*9,22));
+        if (ints){ add("Interceptions", ints+" pick"+(ints>1?"s":""), ints*26); bigPlay=true; }
+        if (ff){ add("Forced fumbles", ff+" pried loose", ff*16); bigPlay=true; }
+        if (!tkl && !sk && !tfl && !ints && !ff) add("Quiet game", "no impact plays", -10);
+      } else if (pos === "CB"){
+        var tkl=N("tackle"), pd=N("pd"), ints=N("int"), tgt=N("tgt");
+        var allowed = Math.max(0, tgt - pd - ints);
+        if (ints){ add("Interceptions", ints+" pick"+(ints>1?"s":""), ints*30); bigPlay=true; }
+        if (pd) add("Pass breakups", pd+" contested away", cap(pd*14,28));
+        if (tgt>=3 && allowed===0 && (pd+ints)>0) add("Lockdown coverage", "0 catches on "+tgt+" targets", 12);
+        if (allowed) add("Coverage given up", allowed+" catch"+(allowed>1?"es":"")+" allowed", -cap(allowed*7,26));
+        if (tkl) add("Tackles", tkl+" stop"+(tkl>1?"s":""), cap(tkl*3,12));
+        if (!ints && !pd && !allowed && !tkl) add("Not tested", "few plays your way", -4);
+      } else if (pos === "S"){
+        var tkl=N("tackle"), pd=N("pd"), ints=N("int"), tfl=N("tfl");
+        if (ints){ add("Interceptions", ints+" pick"+(ints>1?"s":""), ints*30); bigPlay=true; }
+        if (pd) add("Pass breakups", pd+" contested away", cap(pd*13,26));
+        if (tfl) add("Tackles for loss", tfl+" behind the line", cap(tfl*10,20));
+        if (tkl) add("Tackles", tkl+" stop"+(tkl>1?"s":""), cap(Math.round(tkl*3.5),18));
+        if (!ints && !pd && !tfl && !tkl) add("Quiet game", "no impact plays", -8);
+      } else {
+        var gtkl=N("tackle"), gtd=N("td");
+        if (gtkl) add("Tackles", gtkl+" stop"+(gtkl>1?"s":""), cap(gtkl*4,24));
+        if (gtd){ add("Touchdowns", gtd+" scored", gtd*14); bigPlay=true; }
+      }
+      var sum0 = lines.reduce(function(a,x){ return a+x.p; }, 0);
+      if (snaps>0){
+        if (snaps<=14 && bigPlay && sum0>0) add("Snap efficiency", "made it count on "+snaps+" snaps", 8);
+        else if (snaps>=26 && sum0<8) add("Limited impact", "quiet across "+snaps+" snaps", -6);
+      }
+      var sum = lines.reduce(function(a,x){ return a+x.p; }, 0);
+      var score = Math.max(2, Math.min(100, Math.round(base + sum)));
+      return { score: score, grade: ggLetter(score), color: ggColor(score), summary: ggSummary(score), lines: lines, snaps: snaps };
+    }
+    function gradeCardHtml(pos, grade){
+      var rows = grade.lines.map(function(L){
+        var c = L.p>0 ? "var(--good)" : L.p<0 ? "#e08a8a" : "var(--chalk-dim)";
+        var v = L.p>0 ? "+"+L.p : L.p<0 ? String(L.p) : "—";
+        return '<div style="display:flex;align-items:baseline;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+
+          '<span style="font-family:Barlow Condensed;font-size:14.5px;color:var(--chalk);min-width:116px">'+L.l+'</span>'+
+          '<span style="font-family:Barlow Condensed;font-size:12.5px;color:var(--chalk-dim);flex:1">'+L.d+'</span>'+
+          '<span style="font-family:Oswald;font-weight:700;font-size:15px;color:'+c+'">'+v+'</span>'+
+        '</div>';
+      }).join("");
+      var snapBadge = grade.snaps>0 ? '<span style="margin-left:auto;font-family:Oswald;font-size:11px;color:var(--chalk-dim);letter-spacing:1px">'+grade.snaps+' SNAPS</span>' : '';
+      return '<div class="stat-sec-label" style="margin-top:14px;color:'+grade.color+'">GAME GRADE · '+pos+'</div>'+
+        '<div style="display:flex;align-items:center;gap:14px;padding:10px 13px;border-radius:12px;background:#00000038;border:1px solid rgba(255,255,255,.08);margin-bottom:9px">'+
+          '<div style="font-family:Oswald;font-weight:700;font-size:46px;line-height:.85;color:'+grade.color+'">'+grade.score+
+            '<span style="font-size:15px;color:var(--chalk-dim);font-weight:600">/100</span></div>'+
+          '<div>'+
+            '<div style="font-family:Oswald;font-weight:700;font-size:23px;color:'+grade.color+';line-height:1">'+grade.grade+'</div>'+
+            '<div class="threshold-note" style="margin-top:2px">'+grade.summary+'</div>'+
+          '</div>'+ snapBadge +
+        '</div>'+
+        '<div style="margin-bottom:2px">'+rows+'</div>';
+    }
     function showPostGame(cont) {
       var p = o && o.player, g = o && o._liveGame;
       if (!p || !p.pos || !g || !g.stat) return false;
       var wr = (p.weekResults && p.currentWeek != null) ? p.weekResults[p.currentWeek] : null;
       var counted = !!(wr && wr._pgCounted);
+      // Grade THIS game from its box score and REPLACE the position-blind perf so the
+      // season average, national rank, and schedule rating all use the explainable number.
+      var snaps = Number(wr && wr.snaps) || Number(g.snaps) || 0;
+      var grade = gradeGame(p.pos, g.stat, snaps);
+      if (wr) { wr.perf = grade.score; wr._gameGrade = grade.grade; }
+      g.perf = grade.score;
       var seasonBox = counted ? (p._pgSeasonBox || {}) : pgAccumulate(p, g.stat);
       var rank = (counted && p._pgRankCache) ? p._pgRankCache : pgRankLine(p);
       if (wr) { wr._pgCounted = true; p._pgRankCache = rank; }
@@ -4136,6 +4262,7 @@ class Po{state;constructor(t){this.state=t>>>0||1831565813}next(){let t=this.sta
           '<small style="color:var(--chalk-dim)">of ' + rank.of.toLocaleString() + '</small>' +
           '<em style="margin-left:auto;font-style:normal;font-weight:700;color:' + rank.col + '">' + rank.arrow + '</em>' +
         '</div>' +
+        gradeCardHtml(p.pos, grade) +
         '<div class="stat-sec-label">THIS GAME</div>' +
         '<div class="fullbox">' + pgGrid(p.pos, g.stat, null) + '</div>' +
         '<div class="stat-sec-label" style="margin-top:12px">SEASON TOTALS <small style="color:var(--good);letter-spacing:0">+ from this game</small></div>' +
