@@ -4209,29 +4209,84 @@ class Po{state;constructor(t){this.state=t>>>0||1831565813}next(){let t=this.sta
       }
       var sum = lines.reduce(function(a,x){ return a+x.p; }, 0);
       var score = Math.max(2, Math.min(100, Math.round(base + sum)));
-      return { score: score, grade: ggLetter(score), color: ggColor(score), summary: ggSummary(score), lines: lines, snaps: snaps };
+      return { score: score, grade: ggLetter(score), color: ggColor(score), summary: ggSummary(score), lines: lines, snaps: snaps, base: base };
     }
     function gradeCardHtml(pos, grade){
-      var rows = grade.lines.map(function(L){
+      // Rows start hidden (opacity 0) but still occupy space, so the card's height is
+      // final from the outset — the reveal animation never reflows or shifts Continue.
+      var rows = grade.lines.map(function(L, i){
         var c = L.p>0 ? "var(--good)" : L.p<0 ? "#e08a8a" : "var(--chalk-dim)";
         var v = L.p>0 ? "+"+L.p : L.p<0 ? String(L.p) : "—";
-        return '<div style="display:flex;align-items:baseline;gap:8px;padding:2.5px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+
+        return '<div class="pg-row" data-p="'+L.p+'" style="opacity:0;transform:translateY(5px);display:flex;align-items:baseline;gap:8px;padding:2.5px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+
           '<span style="font-family:Barlow Condensed;font-size:13.5px;color:var(--chalk);min-width:104px">'+L.l+'</span>'+
           '<span style="font-family:Barlow Condensed;font-size:11.5px;color:var(--chalk-dim);flex:1">'+L.d+'</span>'+
-          '<span style="font-family:Oswald;font-weight:700;font-size:14px;color:'+c+'">'+v+'</span>'+
+          '<span class="pg-val" style="font-family:Oswald;font-weight:700;font-size:14px;color:'+c+';transform-origin:right center">'+v+'</span>'+
         '</div>';
       }).join("");
       var snapLine = grade.snaps>0 ? ' · '+grade.snaps+' snaps' : '';
-      return '<div class="stat-sec-label" style="margin-top:11px;color:'+grade.color+'">GAME GRADE · '+pos+'</div>'+
+      // Initialise on the baseline; animateGradeCard() tallies each line into it.
+      var b = grade.base;
+      return '<div id="pgGradeLabel" class="stat-sec-label" style="margin-top:11px;color:'+ggColor(b)+';transition:color .3s ease">GAME GRADE · '+pos+'</div>'+
         '<div style="display:flex;align-items:center;gap:12px;padding:7px 11px;border-radius:11px;background:#00000038;border:1px solid rgba(255,255,255,.08);margin-bottom:6px">'+
-          '<div style="font-family:Oswald;font-weight:700;font-size:36px;line-height:.8;color:'+grade.color+'">'+grade.score+
+          '<div style="font-family:Oswald;font-weight:700;font-size:36px;line-height:.8;transition:color .3s ease"><span id="pgScore" style="color:'+ggColor(b)+';display:inline-block;transform-origin:left center">'+b+'</span>'+
             '<span style="font-size:13px;color:var(--chalk-dim);font-weight:600">/100</span></div>'+
           '<div style="min-width:0">'+
-            '<div style="font-family:Oswald;font-weight:700;font-size:18px;color:'+grade.color+';line-height:1.1">'+grade.grade+
-              ' <span style="font-size:12.5px;color:var(--chalk-dim);font-weight:600;letter-spacing:.3px">'+grade.summary+snapLine+'</span></div>'+
+            '<div style="font-family:Oswald;font-weight:700;font-size:18px;line-height:1.1"><span id="pgLetter" style="color:'+ggColor(b)+';transition:color .3s ease">'+ggLetter(b)+'</span>'+
+              ' <span id="pgSummary" style="font-size:12.5px;color:var(--chalk-dim);font-weight:600;letter-spacing:.3px">'+ggSummary(b)+snapLine+'</span></div>'+
           '</div>'+
         '</div>'+
-        '<div style="margin-bottom:2px">'+rows+'</div>';
+        '<div id="pgBreakdown" style="margin-bottom:2px">'+rows+'</div>';
+    }
+    function pgApplyScore(val, snapLine){
+      var s = Math.max(2, Math.min(100, Math.round(val))), col = ggColor(s);
+      var scoreEl = document.getElementById("pgScore"),
+          letterEl = document.getElementById("pgLetter"),
+          sumEl = document.getElementById("pgSummary"),
+          labelEl = document.getElementById("pgGradeLabel");
+      if (scoreEl){ scoreEl.textContent = s; scoreEl.style.color = col; }
+      if (letterEl){ letterEl.textContent = ggLetter(s); letterEl.style.color = col; }
+      if (sumEl){ sumEl.textContent = ggSummary(s) + (snapLine || ""); }
+      if (labelEl){ labelEl.style.color = col; }
+    }
+    // Reveal each scoring factor in turn and count the big number up (or down) to the
+    // final grade — "line by line, tally up, watch the number move."
+    function animateGradeCard(grade){
+      var overlay = document.getElementById("pgOverlayV13"); if (!overlay) return;
+      var rows = [].slice.call(overlay.querySelectorAll(".pg-row"));
+      var snapLine = grade.snaps>0 ? " · "+grade.snaps+" snaps" : "";
+      var reduce = (typeof REDUCED_MOTION !== "undefined" && REDUCED_MOTION) ||
+        (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      if (reduce || !rows.length){
+        pgApplyScore(grade.score, snapLine);
+        rows.forEach(function(r){ r.style.opacity = 1; r.style.transform = "none"; });
+        return;
+      }
+      pgApplyScore(grade.base, snapLine);
+      var i = 0, running = grade.base;
+      function pulseScore(){
+        var el = document.getElementById("pgScore"); if (!el) return;
+        el.style.transition = "transform .12s ease"; el.style.transform = "scale(1.16)";
+        setTimeout(function(){ if (el) el.style.transform = "scale(1)"; }, 120);
+      }
+      function step(){
+        if (i >= rows.length){ pgApplyScore(grade.score, snapLine); pulseScore(); return; }
+        var row = rows[i], p = Number(row.getAttribute("data-p")) || 0;
+        row.style.transition = "opacity .26s ease, transform .26s ease";
+        row.style.opacity = 1; row.style.transform = "none";
+        var val = row.querySelector(".pg-val");
+        if (val){ val.style.transition = "transform .16s ease"; val.style.transform = "scale(1.4)";
+          setTimeout(function(){ if (val) val.style.transform = "scale(1)"; }, 150); }
+        var from = running, to = running + p, t0 = null, dur = 360;
+        function tick(ts){
+          if (t0 === null) t0 = ts;
+          var k = Math.min(1, (ts - t0) / dur), e = 1 - Math.pow(1 - k, 2);
+          pgApplyScore(from + (to - from) * e, snapLine);
+          if (k < 1) requestAnimationFrame(tick);
+          else { running = to; pulseScore(); i++; setTimeout(step, 190); }
+        }
+        requestAnimationFrame(tick);
+      }
+      setTimeout(step, 300);
     }
     function showPostGame(cont) {
       var p = o && o.player, g = o && o._liveGame;
@@ -4271,6 +4326,7 @@ class Po{state;constructor(t){this.state=t>>>0||1831565813}next(){let t=this.sta
         '</div></div>';
       var old = document.getElementById("pgOverlayV13"); if (old) old.remove();
       document.body.insertAdjacentHTML("beforeend", html);
+      requestAnimationFrame(function(){ try { animateGradeCard(grade); } catch (e) { pgApplyScore(grade.score, grade.snaps>0?" · "+grade.snaps+" snaps":""); } });
       window.__pgContinueV13 = function () {
         var el = document.getElementById("pgOverlayV13"); if (el) el.remove();
         try { cont(); } catch (e) { console.warn("[postgame continue]", e); }
