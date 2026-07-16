@@ -57,6 +57,27 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 .field-wrap>.field-legend{order:5;border-top:0;border-bottom:1px solid var(--line)}
 .field-wrap>#field,.field-wrap>canvas{order:6}
 .field-wrap>.commentary{order:7}
+/* broadcast-style scoreboard bar (logos · records · big scores · angled panels) */
+.live-scoreboard{display:grid!important;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:0!important;padding:0!important;background:#0a0f16!important;border-radius:0!important;border-bottom:1px solid var(--line);overflow:hidden}
+.live-scoreboard .sb-side{position:relative;display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;justify-content:flex-start!important;align-items:center!important;gap:10px;min-height:0!important;padding:11px 16px!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:hidden}
+.live-scoreboard .sb-side.us{background:linear-gradient(100deg,#206c3a,#0c2417 92%)!important;clip-path:polygon(0 0,100% 0,calc(100% - 20px) 100%,0 100%);padding-right:28px!important;text-align:left;align-items:center}
+.live-scoreboard .sb-side.them{background:linear-gradient(260deg,#7c2429,#250c0e 92%)!important;clip-path:polygon(20px 0,100% 0,100% 100%,0 100%);padding-left:28px!important;text-align:right;align-items:center}
+.live-scoreboard .sb-side:before,.live-scoreboard .sb-side:after{display:none!important}
+.sb-logo{width:38px;height:38px;flex:0 0 38px;border-radius:50%;display:grid;place-items:center;font:700 16px Oswald,sans-serif;color:#fff;background:rgba(0,0,0,.3);box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.sb-logo:before{content:attr(data-mark)}
+.sb-side.us .sb-logo{border:2px solid #7fe0a0;color:#daffe8}
+.sb-side.them .sb-logo{border:2px solid #ff9a9a;color:#ffe1e1}
+.sb-meta{display:flex;flex-direction:column;line-height:1.05}
+.live-scoreboard .sb-side .team{font:700 15px Oswald,sans-serif!important;letter-spacing:1.2px;text-transform:uppercase;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.live-scoreboard .sb-side .rec{font:600 10px Oswald,sans-serif;letter-spacing:1px;color:var(--chalk-dim);margin-top:2px}
+.live-scoreboard .sb-side .sc{position:relative;font:700 32px Oswald,sans-serif!important;line-height:1;margin:0!important;text-shadow:0 0 16px currentColor}
+.live-scoreboard .sb-side.us .sc{color:#5fe082;margin-left:auto}
+.live-scoreboard .sb-side.them .sc{color:#ff6167;margin-right:auto}
+.live-scoreboard .clock{display:flex!important;flex-direction:column;align-items:center;justify-content:center;background:#0a0f16;padding:6px 16px!important;min-width:96px!important;z-index:2}
+.live-scoreboard .clock .qline{display:flex;flex-direction:column;align-items:center;line-height:1}
+.live-scoreboard .clock .qline b{font:700 23px Oswald,sans-serif!important;color:var(--gold)!important;display:block!important;text-shadow:0 0 14px rgba(240,187,69,.4)}
+.live-scoreboard .clock .qline span{font:600 8px Oswald,sans-serif;letter-spacing:2.5px;color:var(--chalk-dim)}
+.live-scoreboard .clock #downDist{margin-top:4px!important;font:600 12px Oswald,sans-serif!important;letter-spacing:.5px;color:var(--chalk)!important;white-space:nowrap;display:block}
 </style>
 </head>
 <body>
@@ -3543,16 +3564,19 @@ class Po{state;constructor(t){this.state=t>>>0||1831565813}next(){let t=this.sta
     `}}function lt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){te("season");return}t.currentWeek=a;const s=t.weekResults[a];e?(o._liveGame=Yr(s.perf,t.pos),o._oppName=s.opp,o.view="live",q()):(s.played=!0,te("season"))}function wt(){o.player.weekResults.filter(t=>!t.playoff).forEach(t=>{t.played=!0}),te("season")}function Ea(){const e=o.player;e.weekResults&&e.currentWeek!=null&&(e.weekResults[e.currentWeek].played=!0),o._oppName=null,te("season")}function fs(){const e=o.player;if(dn(e),e.weekResults&&e.weekResults.some(a=>!a.played)){te("season");return}const t=tt(e);e.seasonStats=t,e.weekResults=null,e.currentWeek=null,es(),o.view="result",I(),q()}function nl(){La()}let Z=null;function il(){o.view="live",q()}function Dt(e){const t=[["Cubs","Ducks","Tigers","Colts","Jr. Rams"],["Wolves","Hawks","Bears","Broncos","Panthers"],["Vipers","Raiders","Chargers","Eagles","Wildcats"],["Titans","Spartans","Knights","Jaguars","Cobras"],["Bulldogs","Mustangs","Warriors","Falcons","Gators"],["State","Tech","A&M","U","Central"],["Combine Field","Draft Prospects","All-Stars"],["Storm","Kings","Empire","Blitz","Reign"],["Void Titans","Nebula Reapers","Solar Wraiths","Meteor Legion","Andromeda Sovereigns","Lunar Command","Europa Frost"]],a=["Dallas","Miami","Denver","Austin","Tampa","Reno","Akron","Boise"],s=t[Math.min(e,t.length-1)];return e===5?W(a)+" "+W(s):W(s).toUpperCase()}function ol(){const e=o.player,t=o._liveGame;A[e.level];const a=o._oppName||(o._oppName=Dt(e.level)),s=e.name.split(" ")[1].slice(0,8).toUpperCase(),n=a.split(" ").pop().slice(0,8).toUpperCase(),i=["DL","LB","CB","S"].includes(e.pos);x("screen").innerHTML=`
     <div class="field-wrap">
       <div class="live-scoreboard">
-        <div class="sb-side us" data-mark="${s[0]}">
-          <div class="team">${s}</div>
-          <div class="team-ovr-badge">${t.roster.us.ovr} OVR</div>
+        <div class="sb-side us">
+          <div class="sb-logo" data-mark="${s[0]}"></div>
+          <div class="sb-meta"><span class="team">${s}</span><span class="rec">${t.roster.us.ovr} OVR</span></div>
           <div class="sc" id="usScore">0</div>
         </div>
-        <div class="clock"><span>QTR</span><b id="qtr">1</b><span id="downDist">1st & 10</span></div>
-        <div class="sb-side them" data-mark="${n[0]}">
-          <div class="team">${n}</div>
-          <div class="team-ovr-badge">${t.roster.opp.ovr} OVR</div>
+        <div class="clock">
+          <div class="qline"><b id="qtr">1</b><span>QTR</span></div>
+          <div id="downDist">1st & 10</div>
+        </div>
+        <div class="sb-side them">
           <div class="sc" id="themScore">0</div>
+          <div class="sb-meta"><span class="team">${n}</span><span class="rec">${t.roster.opp.ovr} OVR</span></div>
+          <div class="sb-logo" data-mark="${n[0]}"></div>
         </div>
       </div>
       <div class="sb-dots"><i></i><i class="on"></i><i></i></div>
@@ -3563,11 +3587,11 @@ class Po{state;constructor(t){this.state=t>>>0||1831565813}next(){let t=this.sta
       </div>
       <canvas id="field" width="360" height="230"></canvas>
       <div class="field-legend">
+        <span><span class="ldot" style="background:${i?"#d1494f":"#3fae5c"};color:${i?"#d1494f":"#3fae5c"}"></span>${s}</span>
+        <span><span class="ldot" style="background:#3fae5c;color:#3fae5c"></span>Offense</span>
         <span><span class="ldot" style="background:#f0bb45;color:#f0bb45"></span>You</span>
-        <span><span class="ldot" style="background:#3fae5c;color:#3fae5c"></span>${s}</span>
-        <span><span class="ldot" style="background:#d1494f;color:#d1494f"></span>${n}</span>
-        <span><span class="lline" style="background:#5aa0dc"></span>LOS</span>
-        <span><span class="lline" style="background:#f0bb45"></span>1st Down</span>
+        <span><span class="ldot" style="background:${i?"#3fae5c":"#d1494f"};color:${i?"#3fae5c":"#d1494f"}"></span>${n}</span>
+        <span><span class="ldot" style="background:#d1494f;color:#d1494f"></span>Defense</span>
       </div>
       <div class="commentary" id="commentary"><span class="ev-ic">🏈</span><div class="ev-body">Kickoff! ${e.name} takes the field…</div><span class="chev">›</span></div>
     </div>
