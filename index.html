@@ -2785,10 +2785,10 @@ class Ot extends mt.Scene {
   }
   faceMarker(m, dx, dy) {
     const ax = Math.abs(dx), ay = Math.abs(dy);
-    if (ax > 2.414 * ay) { m.dirKey = "sd"; m.flip = dx < 0; }
+    if (ax > 2.414 * ay) { m.dirKey = "sd"; m.flip = dx > 0; }
     else if (ay > 2.414 * ax) { m.dirKey = dy < 0 ? "up" : "dn"; m.flip = false; }
-    else if (dy > 0) { m.dirKey = "dr"; m.flip = dx < 0; }      // down diagonals
-    else { m.dirKey = "ur"; m.flip = dx < 0; }                  // up diagonals
+    else if (dy > 0) { m.dirKey = "dr"; m.flip = dx > 0; }      // down diagonals
+    else { m.dirKey = "ur"; m.flip = dx > 0; }                  // up diagonals
   }
   setTeam(m, team) {
     m.team = team;
