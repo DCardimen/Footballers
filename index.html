@@ -4215,21 +4215,21 @@ class Po{state;constructor(t){this.state=t>>>0||1831565813}next(){let t=this.sta
       var rows = grade.lines.map(function(L){
         var c = L.p>0 ? "var(--good)" : L.p<0 ? "#e08a8a" : "var(--chalk-dim)";
         var v = L.p>0 ? "+"+L.p : L.p<0 ? String(L.p) : "—";
-        return '<div style="display:flex;align-items:baseline;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+
-          '<span style="font-family:Barlow Condensed;font-size:14.5px;color:var(--chalk);min-width:116px">'+L.l+'</span>'+
-          '<span style="font-family:Barlow Condensed;font-size:12.5px;color:var(--chalk-dim);flex:1">'+L.d+'</span>'+
-          '<span style="font-family:Oswald;font-weight:700;font-size:15px;color:'+c+'">'+v+'</span>'+
+        return '<div style="display:flex;align-items:baseline;gap:8px;padding:2.5px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+
+          '<span style="font-family:Barlow Condensed;font-size:13.5px;color:var(--chalk);min-width:104px">'+L.l+'</span>'+
+          '<span style="font-family:Barlow Condensed;font-size:11.5px;color:var(--chalk-dim);flex:1">'+L.d+'</span>'+
+          '<span style="font-family:Oswald;font-weight:700;font-size:14px;color:'+c+'">'+v+'</span>'+
         '</div>';
       }).join("");
-      var snapBadge = grade.snaps>0 ? '<span style="margin-left:auto;font-family:Oswald;font-size:11px;color:var(--chalk-dim);letter-spacing:1px">'+grade.snaps+' SNAPS</span>' : '';
-      return '<div class="stat-sec-label" style="margin-top:14px;color:'+grade.color+'">GAME GRADE · '+pos+'</div>'+
-        '<div style="display:flex;align-items:center;gap:14px;padding:10px 13px;border-radius:12px;background:#00000038;border:1px solid rgba(255,255,255,.08);margin-bottom:9px">'+
-          '<div style="font-family:Oswald;font-weight:700;font-size:46px;line-height:.85;color:'+grade.color+'">'+grade.score+
-            '<span style="font-size:15px;color:var(--chalk-dim);font-weight:600">/100</span></div>'+
-          '<div>'+
-            '<div style="font-family:Oswald;font-weight:700;font-size:23px;color:'+grade.color+';line-height:1">'+grade.grade+'</div>'+
-            '<div class="threshold-note" style="margin-top:2px">'+grade.summary+'</div>'+
-          '</div>'+ snapBadge +
+      var snapLine = grade.snaps>0 ? ' · '+grade.snaps+' snaps' : '';
+      return '<div class="stat-sec-label" style="margin-top:11px;color:'+grade.color+'">GAME GRADE · '+pos+'</div>'+
+        '<div style="display:flex;align-items:center;gap:12px;padding:7px 11px;border-radius:11px;background:#00000038;border:1px solid rgba(255,255,255,.08);margin-bottom:6px">'+
+          '<div style="font-family:Oswald;font-weight:700;font-size:36px;line-height:.8;color:'+grade.color+'">'+grade.score+
+            '<span style="font-size:13px;color:var(--chalk-dim);font-weight:600">/100</span></div>'+
+          '<div style="min-width:0">'+
+            '<div style="font-family:Oswald;font-weight:700;font-size:18px;color:'+grade.color+';line-height:1.1">'+grade.grade+
+              ' <span style="font-size:12.5px;color:var(--chalk-dim);font-weight:600;letter-spacing:.3px">'+grade.summary+snapLine+'</span></div>'+
+          '</div>'+
         '</div>'+
         '<div style="margin-bottom:2px">'+rows+'</div>';
     }
