@@ -2002,7 +2002,10 @@ function ribField(scene) {
     // every yard number read backwards). Flip it on draw so the text/numbers read
     // correctly. The turf is left/right symmetric, so hash marks and yard lines stay
     // aligned to play — only the reversed glyphs get corrected.
-    scene.fieldSpr = scene.add.image(FW / 2, NSTOP + NSH / 2, "rib_field").setScale(2).setDepth(0.6).setFlipX(true).setTint(0x7e9276);
+    scene.fieldSpr = scene.add.image(FW / 2, NSTOP + NSH / 2, "rib_field").setScale(2).setDepth(0.6).setFlipX(true).setTint(0x60566f);
+    // subtle desaturating overlay: the baked turf has almost no blue, so a
+    // faint cool wash nudges the grass toward the muted olive of the reference.
+    try { scene.add.rectangle(FW / 2, NSTOP + NSH / 2, FW * 2, (NSH + 120) * 2, 0x1f3c66, 0.16).setDepth(0.62); } catch (e) {}
     console.log("[RIB] field art active");
   } catch (e) { console.error("[RIB] field art failed", e); }
 }
@@ -2073,6 +2076,7 @@ class Ot extends mt.Scene {
     ribEnsureFallback(this);
     ribInit(this);
     this.field = this.add.graphics(); this.trail = this.add.graphics().setDepth(3);
+    this.fieldLines = this.add.graphics().setDepth(3.4);   // LOS + first-down markers, above turf art, below players
     this.speedFx = this.add.graphics().setDepth(3.6);
     this.drawField(50, 60);
     // Madden rig: the main camera lives on the field and follows the ball; the legend gets its own fixed camera
@@ -2954,6 +2958,14 @@ class Ot extends mt.Scene {
     pline(fx(losYd), F_TOP, F_BOT, 3, 0x4a90e2, 0.95);
     pline(fx(tgtYd), F_TOP, F_BOT, 7, 0xf0bb45, 0.22);
     pline(fx(tgtYd), F_TOP, F_BOT, 3, 0xf0bb45, 0.95);
+    // the turf art is opaque, so also stroke the scrimmage/first-down lines on a
+    // layer above it (below players) — the broadcast-style blue LOS + gold to-go marker.
+    if (this.fieldLines) {
+      const fl = this.fieldLines; fl.clear();
+      const stroke = (x, w, col, al) => { const a = PJ(x, F_TOP), b = PJ(x, F_BOT); fl.lineStyle(w, col, al).lineBetween(a.x, a.y, b.x, b.y); };
+      stroke(fx(losYd), 6, 0x4a90e2, 0.22); stroke(fx(losYd), 2.5, 0x6bb2ff, 0.92);
+      stroke(fx(tgtYd), 6, 0xf0bb45, 0.22); stroke(fx(tgtYd), 2.5, 0xffcf5e, 0.95);
+    }
     this.focusPt = PJ(fx(losYd), (F_TOP + F_BOT) / 2);
     this.drawFieldText();
   }
