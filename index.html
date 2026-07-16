@@ -1926,6 +1926,9 @@ function ribRegisterTeam(scene, team, p1, p2) {
   put("spr_" + team + "_dn_stance2", "stance_dn"); put("spr_" + team + "_up_stance2", "stance_up"); put("spr_" + team + "_sd_stance2", "stance_up");
   put("spr_" + team + "_sd_dive", "dive2"); put("spr_" + team + "_dn_dive", "dive2"); put("spr_" + team + "_up_dive", "dive2");
   put("spr_" + team + "_sd_grab", "grab"); put("spr_" + team + "_dn_grab", "grab"); put("spr_" + team + "_up_grab", "grab");
+  // tackle-to-ground sequence: the carrier visibly folds to the turf after the whistle.
+  // dive0-3 are the fall arc, down0-1 settle him flat — driven by the "tackleSeq" pose.
+  ["dive0", "dive1", "dive2", "dive3", "down0", "down1"].forEach((src, i) => put("spr_" + team + "_tackle" + i, src));
   put("spr_" + team + "_down", "down1");
   for (let ti = 0; ti < 6; ti++) {
     put("spr_" + team + "_up_throw" + ti, "throw" + ti);
@@ -2421,14 +2424,15 @@ class Ot extends mt.Scene {
         const m = this.markers[P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier)];
         const tk = this.markers[this.actorIdx(e.tackler)];
         if (tk) {
-          // fast closers launch a flying tackle; otherwise it's a jersey-grab drag-down
+          // fast closers launch a flying tackle; otherwise it's a jersey-grab drag-down,
+          // then the tackler folds to the turf and STAYS down — the pile holds until the
+          // next snap resets the formation (no popping back up to idle mid-replay).
           tk.forceState = big || e.gang !== true && Math.random() < TU("diveChance",0.4) ? "dive" : "grab";
-          this.time.delayedCall(150, () => { if (tk.active !== false) tk.forceState = "down"; });
-          this.time.delayedCall(620, () => { if (tk.forceState === "down") tk.forceState = null; });
+          this.time.delayedCall(150, () => { if (tk.active !== false && tk.forceState != null) { tk.forceState = "tackleSeq"; tk.seqT = tk.tms; } });
         }
         if (m) {
-          m.forceState = "down";
-          this.time.delayedCall(700, () => { if (m.forceState === "down") m.forceState = null; });
+          // the carrier visibly folds to the ground after the whistle and stays down
+          m.forceState = "tackleSeq"; m.seqT = m.tms;
         }
         if (e.sack) this.popText(e.x, e.y - 26, "SACKED!", "#ff9fa5", 17);
         else if (e.oob) this.popText(e.x, e.y - 26, "PUSHED OUT OF BOUNDS", "#8fe7ff", 13);
@@ -2823,6 +2827,10 @@ class Ot extends mt.Scene {
         if (fi9 >= 7) { m.forceState = null; st = "idle"; }
         else { st = "throw" + Math.min(5, fi9); m.flip = false; }
       }
+      if (st === "tackleSeq") {                       // 6-frame fall to the turf, then HOLD flat
+        const fi = Math.floor((m.tms - (m.seqT || 0)) / TU("tackleFrameMs", 70));
+        st = "tackle" + Math.min(5, fi);              // clamps on the final grounded frame — he stays down
+      }
     }
     else if (m.tms < m.cutUntil) st = "cut";
     else if (m.sSm < 8) st = "idle";
@@ -2830,18 +2838,20 @@ class Ot extends mt.Scene {
     // v11: engaged linemen BLOCK across the whole grind band — one stable state, no flapping
     if (!m.forceState && m.isLine && m.sSm > 3 && m.sSm < TU("blockBand",78) && (st === "idle" || st.indexOf("run") === 0)) st = "block";
     if (st === "block") { m.bt = (m.bt || 0) + (dtms || 16); st = "block" + (Math.floor(m.bt / TU("blockFrameMs",170)) % (window.__RIB_BLOCKF || 1)); }
-    let tex = st === "down" ? "spr_" + m.team + "_down" : "spr_" + m.team + "_" + m.dirKey + "_" + st;
+    let tex = st === "down" ? "spr_" + m.team + "_down"
+      : st.indexOf("tackle") === 0 ? "spr_" + m.team + "_" + st          // non-directional fall-to-ground frames
+      : "spr_" + m.team + "_" + m.dirKey + "_" + st;
     if (!this.textures.exists(tex)) tex = "spr_" + m.team + "_sd_" + st;
     if (!this.textures.exists(tex)) tex = "spr_" + m.team + "_" + m.dirKey + "_idle";
     if (!this.textures.exists(tex)) tex = "rib_player_fallback";
     if (m.tex !== tex) { m.tex = tex; m.body.setTexture(tex); }
     if (tex === "rib_player_fallback") m.body.setTint(m.team === "def" ? 0xe86560 : m.team === "you" ? 0xf0bb45 : 0x5fce74); else m.body.clearTint();
-    m.body.setFlipX(m.flip && (m.dirKey === "sd" || m.dirKey === "dr" || m.dirKey === "ur" || st === "down" || st === "dive" || st === "grab" || st === "stance"));
+    m.body.setFlipX(m.flip && (m.dirKey === "sd" || m.dirKey === "dr" || m.dirKey === "ur" || st === "down" || st === "dive" || st === "grab" || st === "stance" || st.indexOf("tackle") === 0));
     // flat, clean sprites — only the diving tackle gets a slight tilt
     m.body.setRotation(st === "dive" ? (m.flip ? 0.3 : -0.3) : 0);
     const ribSideRun = m.dirKey === "sd" && (st.indexOf("run") === 0 || st === "cut") && m.sSm > 18;
     const ribRearFacing = m.dirKey === "up" || m.dirKey === "ur";
-    const numberAllowed = st !== "down" && st !== "dive" && st !== "stance" && st !== "stance2" && !ribSideRun;
+    const numberAllowed = st !== "down" && st !== "dive" && st !== "stance" && st !== "stance2" && st.indexOf("tackle") !== 0 && !ribSideRun;
     m.label.setVisible(numberAllowed);
     // Back-facing jersey numbers sit lower on the shoulder blades; front numbers
     // retain their original chest position. Side profiles remain number-free.
@@ -4734,7 +4744,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     const side=(m.flip&&(m.dirKey==="sd"||m.dirKey==="dr"||m.dirKey==="ur"))?-1:1;
     const rear=m.dirKey==="up"||m.dirKey==="ur";
     app.setScale(side*t.width,t.height);app.x=0;app.y=t.posture==="compact"?1:(t.posture==="forward"?2:0);
-    app.setVisible(state!=="down"&&state!=="dive"&&state!=="stance"&&state!=="stance2");app.setAlpha(1);
+    app.setVisible(state!=="down"&&state!=="dive"&&state!=="stance"&&state!=="stance2"&&state.indexOf("tackle")!==0);app.setAlpha(1);
     if(m._rib20FrontGroup)m._rib20FrontGroup.setVisible(!rear);
     if(m._rib20RearGroup)m._rib20RearGroup.setVisible(rear);
     m._ribRearApparelVisible=rear&&!!m._rib20RearGroup&&m._rib20RearGroup.visible;
