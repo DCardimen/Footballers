@@ -25,13 +25,13 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 .fate-odds-row .fo-lose{color:#93a0b1}
 .fate-odds-row .fo-fx{color:#8ec3ee;flex-basis:100%}
 .fate-odds-row .fo-perk{color:#c9b8ff}
-#field{aspect-ratio:720/500}
+#field{aspect-ratio:720/384}
 
   </style>
 
 <style id="rib-v1520-phaser-css">
 /* v15.20 — the Phaser backing store stays 720x500, while the DOM canvas scales responsively. */
-#field{display:block!important;width:100%!important;max-width:100%!important;height:auto!important;aspect-ratio:720/500!important;object-fit:contain!important}
+#field{display:block!important;width:100%!important;max-width:100%!important;height:auto!important;aspect-ratio:720/384!important;object-fit:contain!important}
 .field-wrap{width:100%!important;max-width:100%!important;overflow:hidden!important}
 </style>
 <style>
@@ -46,6 +46,17 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 .headline-card{padding:8px 12px;margin:6px 0}
 .stat-sec-label{margin:6px 0 3px}
 .fullbox{gap:1px 5px}
+/* live-sim reorder — scoreboard drops to just above the field (matches broadcast reference):
+   player identity + momentum meters + coach/fan bars sit at the top of the card. CSS-only. */
+.field-wrap{display:flex;flex-direction:column}
+.field-wrap>.live-down{order:1}
+.field-wrap>.live-loop-strip{order:2}
+.field-wrap>.live-pulse{order:3}
+.field-wrap>.live-scoreboard{order:4;border-radius:0}
+.field-wrap>.sb-dots{order:4}
+.field-wrap>.field-legend{order:5;border-top:0;border-bottom:1px solid var(--line)}
+.field-wrap>#field,.field-wrap>canvas{order:6}
+.field-wrap>.commentary{order:7}
 </style>
 </head>
 <body>
@@ -1833,7 +1844,7 @@ function pickFeaturedIndex(payload, offLabels, defLabels, rand) {
   return { index: usOffense ? 8 : 14, isMe: false };
 }
 
-const FW = 720, FH = 440, LEG = 46, CH = FH + LEG;
+const FW = 720, FH = 440, FVH = 384, LEG = 46, CH = FVH;
 const REDUCED_MOTION = (() => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } })();
 function vib(ms) { try { if (!REDUCED_MOTION && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 const EZ = 66, PLAY_L = EZ, PLAY_R = FW - EZ, PLAY_W = PLAY_R - PLAY_L;
@@ -1851,7 +1862,7 @@ function PJ(x, y) {
   const fy = 1 - u / FW;                                  // 0 at the attacking (top) end
   return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (1.52 + 0.1 * fy),
            y: NSTOP + fy * NSH,
-           s: 0.84 + 0.14 * fy };
+           s: 1.02 + 0.16 * fy };
 }
 const OFF_NUMS = [80, 81, 87, 72, 74, 75, 76, 77, 12, 24, 83];
 const DEF_NUMS = [21, 29, 31, 38, 52, 54, 56, 91, 95, 97, 94];
@@ -1970,7 +1981,7 @@ function ribField(scene) {
     // every yard number read backwards). Flip it on draw so the text/numbers read
     // correctly. The turf is left/right symmetric, so hash marks and yard lines stay
     // aligned to play — only the reversed glyphs get corrected.
-    scene.fieldSpr = scene.add.image(FW / 2, NSTOP + NSH / 2, "rib_field").setScale(2).setDepth(0.6).setFlipX(true);
+    scene.fieldSpr = scene.add.image(FW / 2, NSTOP + NSH / 2, "rib_field").setScale(2).setDepth(0.6).setFlipX(true).setTint(0x7e9276);
     console.log("[RIB] field art active");
   } catch (e) { console.error("[RIB] field art failed", e); }
 }
@@ -2042,13 +2053,11 @@ class Ot extends mt.Scene {
     ribInit(this);
     this.field = this.add.graphics(); this.trail = this.add.graphics().setDepth(3);
     this.speedFx = this.add.graphics().setDepth(3.6);
-    this.drawField(50, 60); this.drawLegend();
+    this.drawField(50, 60);
     // Madden rig: the main camera lives on the field and follows the ball; the legend gets its own fixed camera
     try {
       const cam = this.cameras.main;
-      cam.setViewport(0, 0, FW, FH); cam.setBounds(0, 0, FW, WORLD_H);
-      const leg = this.cameras.add(0, FH, FW, LEG);
-      leg.setScroll(0, WORLD_H + 120);   // the legend lives outside the field camera's world
+      cam.setViewport(0, 0, FW, FVH); cam.setBounds(0, 0, FW, WORLD_H);
       this.hitStop = 0; this.zoomPunch = 0;
     } catch (e) {}
   }
@@ -2087,8 +2096,8 @@ class Ot extends mt.Scene {
     this.resetCamera();
   }
   resetCamera() {
-    try { const c = this.cameras.main; c.setZoom(1.02);
-      const f = this.focusPt || { x: FW / 2, y: WORLD_H / 2 }; c.centerOn(f.x, f.y); } catch (e) {}
+    try { const c = this.cameras.main; c.setZoom(1.16);
+      const f = this.focusPt || { x: FW / 2, y: WORLD_H / 2 }; c.centerOn(f.x, f.y + 40); } catch (e) {}
   }
   animatePlay(et, rt) {
     this.softStop();
@@ -2176,7 +2185,7 @@ class Ot extends mt.Scene {
         const targetZoom = (gliding0 ? 1.0 : (P.big ? TU("zoomBig",1.04) : TU("zoomPlay",1.2))) + this.zoomPunch;
         cam.setZoom(cam.zoom + (targetZoom - cam.zoom) * 0.07);
         const bx = this.ballSpr ? this.ballSpr.x : FW / 2, by = this.ballSpr ? this.ballSpr.y : WORLD_H / 2;
-        const hw = FW / (2 * cam.zoom), hh = FH / (2 * cam.zoom);
+        const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom);
         const cx = mt.Math.Clamp(bx, hw, FW - hw);
         const cy = mt.Math.Clamp(by - 46, hh, WORLD_H - hh);   // look ahead toward the attack (north)
         if (Math.abs(cx - cam.midPoint.x) > 2.5 || Math.abs(cy - cam.midPoint.y) > 2.5)
@@ -2958,11 +2967,11 @@ class Dt {
   destroy() { this.scene = void 0; this.canvas = void 0; this.pending = []; this.game?.destroy(!1); this.game = void 0; }
   withScene(et, rt) { (this.canvas !== et || !this.game) && this.mount(et); this.scene ? rt(this.scene) : this.pending.push(rt); }
   mount(et) {
-    this.destroy(); this.canvas = et; et.width = 720; et.height = 500;
+    this.destroy(); this.canvas = et; et.width = 720; et.height = CH;
     const rt = this;
     class it extends Ot { create() { super.create(); rt.scene = this; rt.pending.splice(0).forEach((p) => p(this)); } }
     this.game = new mt.Game({
-      type: mt.CANVAS, width: 720, height: 486, canvas: et, transparent: !1, backgroundColor: "#0a1018",
+      type: mt.CANVAS, width: 720, height: CH, canvas: et, transparent: !1, backgroundColor: "#0a1018",
       render: { antialias: !0, pixelArt: !1, roundPixels: !0 }, audio: { noAudio: !0 }, scene: it,
     });
   }
