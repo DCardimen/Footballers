@@ -1406,15 +1406,17 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       if (Math.random() < p) { r.shed = true; r.releaseT = t; emit("shed",{who:r.id}); } };
 
     // ---- v16.2 contact resolution: momentum + strength + elusiveness ----
-    // weight ≈ mass by position; momentum = weight × speed. A carry ends in a
-    // WHIFF (shifty back dodges in space), a TRUCK / broken tackle (carrier power
-    // wins — the defender is knocked down), a BIG-STICK or BOTH-FALL collision
-    // (violent even momentum), or a clean WRAP. Only one defender commits at a
-    // time so most stops read as SOLO; a clearly stronger carrier drags the first
-    // man and a second defender finishes it (the ~30% that are gang tackles).
+    // weight ≈ mass by position; momentum = weight × speed. A contact resolves to
+    // a WHIFF (shifty back dodges in space), a STIFF-ARM (carrier strength wards the
+    // tackler off), a TRUCK / broken tackle (carrier power + momentum flattens him),
+    // a STAGGER (grazing arm-tackle that only knocks the runner off-stride — he
+    // stays up), a BIG-STICK / BOTH-FALL collision (violent even momentum), or a
+    // clean WRAP. Only one defender commits at a time so most stops read as SOLO; a
+    // second man in on it makes ~30% assisted (gang). Big stat gaps swing every roll
+    // hard — a superstar back beats a scrub far more often — but nothing hits 100%.
     const WT = {DT:1.06,DE:.96,DL:1.0,NT:1.08,LB:.86,S:.7,CB:.58,QB:.6,RB:.72,WR:.54,TE:.82,OL:1.12};
     let brokenShown = 0, committerId = null, ganged = false;
-    // returns: "cooldown" | "whiff" | "broken" | "drag" (stays up) | "tackle" (play ends)
+    // returns: "cooldown" | "whiff" | "stiffarm" | "broken" | "stagger" (stays up) | "tackle" (play ends)
     const contact = (d, c) => {
       if (t < d.cool) return "cooldown";
       d.cool = t + 420 - (d.grit-50)*2;                          // grit: tacklers reload faster
@@ -1426,8 +1428,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const dStr = d.str*0.55 + d.tkl*0.45, cStr = c.str*0.6 + (c.burst||c.spdA||50)*0.4;
       const elus = c.agi*0.55 + c.quick*0.45;                    // juke/elusiveness
       emit("tackleLunge",{who:d.id, carrier:c.id, x:c.lx, y:c.y, behind, dMom:Math.round(dMom), cMom:Math.round(cMom)});
-      // 1) WHIFF — an elusive back makes him miss in space (never from behind)
-      const whiffP = cl(0.12 + (elus - d.tkl)*0.006 + (openField?0.14:0) - (behind?0.24:0) - (dMom>cMom+40?0.05:0), 0.02, 0.6);
+      // 1) WHIFF — an elusive back makes him miss in space (never from behind).
+      // Steeper gap term + a high (never-100%) ceiling so a huge mismatch shows:
+      // even ≈26% open, star-vs-weak ≈70%, generational-vs-scrub ≈78%, floor ≈2%.
+      const whiffP = cl(0.12 + (elus - d.tkl)*0.008 + (openField?0.14:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0), 0.02, 0.80);
       if (!behind && Math.random() < whiffP) {
         d.beaten = t + 640; d.cool = t + 520; c.burstUntil = t + 460;
         emit("tackleWhiff",{who:d.id, carrier:c.id, x:d.lx, y:d.y});
@@ -1435,9 +1439,21 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         if (committerId===d.id) committerId = null;
         return "whiff";
       }
-      // 2) TRUCK / BROKEN — carrier momentum + power beats the tackler
+      // 2) STIFF-ARM — the carrier's strength wards the tackler off at the point of
+      // attack. Works even at low speed (unlike a truck), not from behind. The
+      // defender is shoved off and stumbles; the runner is slowed a touch, keeps going.
+      const armEdge = (cStr - dStr) + (c.str - 50)*0.45;
+      const stiffP = behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007, 0, 0.5);
+      if (Math.random() < stiffP) {
+        d.beaten = t + 520; d.stagger = t; c._v = (c._v||c.spd)*0.9; c.burstUntil = t + 300;
+        emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
+        if (committerId===d.id) committerId = null;
+        return "stiffarm";
+      }
+      // 3) TRUCK / BROKEN — carrier momentum + power beats the tackler (raised ceiling
+      // so a bruiser vs a small DB runs through him far more than through a stout LB)
       const powerEdge = (cMom - dMom)*0.85 + (cStr - dStr)*0.5;
-      const truckP = cl(0.20 + powerEdge*0.010 + (behind?-0.09:0), 0.02, 0.6);
+      const truckP = cl(0.18 + powerEdge*0.011 + (behind?-0.09:0), 0.02, 0.72);
       if (Math.random() < truckP) {
         d.beaten = t + 600; c.burstUntil = t + 500;
         if (powerEdge > 20 && !behind) d.trucked = t;            // flattened — he stays down
@@ -1445,9 +1461,22 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         if (committerId===d.id) committerId = null;
         return "broken";
       }
-      // 3) WRAP lands. Assisted if a second defender is in on the play — common
-      // in traffic, rarer in the open field (targets ~30% gang overall). Most
-      // stops are plain wraps; genuine big hits and both-fall collisions are rare.
+      // 4) STAGGER — the defender makes contact but can't wrap up (weak tackling, bad
+      // angle, or a well-balanced runner). He grazes the carrier, costing him a step,
+      // and stumbles himself — the arm-tackle that only slows the runner down. Bumps
+      // matter: a staggered carrier bleeds speed and is easier to bring down next hit.
+      const wrapQ = d.tkl*0.62 + (dMom>cMom?14:0) + (behind?22:0);
+      const balance = c.str*0.4 + c.agi*0.35 + (c.burst||c.spdA||50)*0.25;
+      const staggerP = cl(0.11 + (balance - wrapQ)*0.006 - (behind?0.22:0) - (c._staggered&&t-c._staggered<500?0.20:0), 0.03, 0.46);
+      if (Math.random() < staggerP) {
+        d.stagger = t; d.cool = t + 300;
+        c._v = (c._v||c.spd)*0.6; c._staggered = t;              // knocked off-stride, loses a step
+        emit("stagger",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
+        return "stagger";
+      }
+      // 5) WRAP lands. Assisted if a second defender is in on the play — common in
+      // traffic, rarer in the open field (~30% gang overall). Most stops are plain
+      // wraps; genuine big hits and both-fall collisions are rare.
       emit("tackleHit",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
       let nSupport = 0;
       for (const a of S.all) { if (a.side===d.side && a!==d && a.lb!=="OL"
@@ -1732,7 +1761,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             committerId = dfd.id;
             const r = contact(dfd, c);
             if (r === "tackle") { endTackle(dfd); break; }
-            // whiff / broken / cooldown: carrier stays up, play continues
+            // whiff / stiffarm / broken / stagger / cooldown: carrier stays up, play continues
           }
         }
         // sidelines end the play at the spot
@@ -2522,6 +2551,27 @@ class Ot extends mt.Scene {
         this.popText(e.x, e.y - 22, e.kind === "spin" ? "SPIN!" : "JUKE!", "#8fe7ff", 14);
         const cm2 = this.markers[P.carrierId];
         if (cm2) { cm2.cutUntil = cm2.tms + 240; this.skidFx(e.x, e.y); this.puffFx(e.x, e.y, 2); }
+        break;
+      }
+      case "stiffarm": {
+        // the carrier wards the tackler off — defender is shoved back and stumbles down
+        const tk = this.markers[this.actorIdx(e.who)];
+        if (tk) { tk.forceState = "grab";
+          this.time.delayedCall(160, () => { if (tk.active !== false) tk.forceState = "down"; });
+          this.time.delayedCall(760, () => { if (tk.forceState === "down") tk.forceState = null; }); }
+        this.popText(e.x, e.y - 22, "STIFF ARM!", "#ffd97a", 14);
+        this.puffFx(e.x, e.y, 2); vib(16);
+        break;
+      }
+      case "stagger": {
+        // grazing arm-tackle: the runner is knocked off-stride but stays up; the
+        // defender stumbles a beat. Bumps read as real contact, not a clean stop.
+        const tk = this.markers[this.actorIdx(e.who)];
+        if (tk) { tk.forceState = "grab"; this.time.delayedCall(300, () => { if (tk.forceState === "grab") tk.forceState = null; }); }
+        const cm3 = this.markers[P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier)];
+        if (cm3) this.tweens.add({ targets: cm3.body, scaleX: 0.78, angle: (Math.random()<0.5?-8:8), yoyo: true, duration: 110 });
+        this.popText(e.x, e.y - 20, "SHAKES IT OFF!", "#bfe3ae", 12);
+        this.puffFx(e.x, e.y, 1);
         break;
       }
       case "beaten": {
@@ -3708,7 +3758,7 @@ if(base&&base.yards>=0&&base.yards<=5){
   // concept shapes the tail: draws are boom-or-bust (more gashes), power runs
   // grind (fewer big gains but they stay positive), sweeps hit the edge.
   const cMul=concept==="draw"?1.4:concept==="power"?0.55:concept==="sweep"?1.05:1;
-  const edge=(_(K,"burst")+_(K,"speed"))/2-N,gashP=f((.17+edge*.006)*cMul,.05,.44);
+  const edge=(_(K,"burst")+_(K,"speed"))/2-N,gashP=f((.06+edge*.006)*cMul,.03,.34);
   if(Math.random()<gashP){const r3=Math.random(),big=concept==="draw",gain=r3<(big?.5:.6)?le(6,12):r3<(big?.82:.89)?le(13,22):le(23,38+Math.max(0,Math.round(edge)));dropSimLog();base={carrier:K,yards:gain,breakaway:gain>=15}}
 }
 return base}

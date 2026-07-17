@@ -29,27 +29,31 @@ const res = await page.evaluate(() => {
   for (let g=0; g<80; g++) window.__simGameV2(60, "RB")
   // analyze RUN plays that ended in a tackle
   const runs = rec.filter(p => p.kind==='run')
-  let solo=0, gang=0, tackled=0, whiffPlays=0, brokenPlays=0, cutPlays=0, bigHit=0, bothFall=0
-  let lunges=0, whiffs=0, brokens=0
+  let solo=0, gang=0, tackled=0, whiffPlays=0, brokenPlays=0, stiffPlays=0, stagPlays=0, bigHit=0, bothFall=0
+  let lunges=0, whiffs=0, brokens=0, stiffs=0, stags=0
   for (const p of runs) {
     const evs = p.ev
     const tk = [...evs].reverse().find(e => e.type==='tackle')
     const wl = evs.filter(e=>e.type==='tackleWhiff').length
     const bk = evs.filter(e=>e.type==='brokenTackle').length
-    const cu = evs.filter(e=>e.type==='cut').length
+    const sa = evs.filter(e=>e.type==='stiffarm').length
+    const sg = evs.filter(e=>e.type==='stagger').length
     const lu = evs.filter(e=>e.type==='tackleLunge').length
-    lunges+=lu; whiffs+=wl; brokens+=bk
+    lunges+=lu; whiffs+=wl; brokens+=bk; stiffs+=sa; stags+=sg
     if (wl>0) whiffPlays++
     if (bk>0) brokenPlays++
-    if (cu>0) cutPlays++
+    if (sa>0) stiffPlays++
+    if (sg>0) stagPlays++
     if (tk) { tackled++; if (tk.gang) gang++; else solo++; if (tk.bigHit) bigHit++; if (tk.bothFall) bothFall++ }
   }
   const pct = (n,d) => d? +(n/d*100).toFixed(0) : 0
   return { runPlays: runs.length, tackled,
     soloPct: pct(solo,tackled), gangPct: pct(gang,tackled),
     whiffPlayPct: pct(whiffPlays,runs.length), brokenPlayPct: pct(brokenPlays,runs.length),
-    cutPlayPct: pct(cutPlays,runs.length), bigHitPct: pct(bigHit,tackled), bothFallPct: pct(bothFall,tackled),
+    stiffArmPlayPct: pct(stiffPlays,runs.length), staggerPlayPct: pct(stagPlays,runs.length),
+    bigHitPct: pct(bigHit,tackled), bothFallPct: pct(bothFall,tackled),
     whiffsPerPlay: +(whiffs/runs.length).toFixed(2), brokensPerPlay: +(brokens/runs.length).toFixed(2),
+    stiffsPerPlay: +(stiffs/runs.length).toFixed(2), stagsPerPlay: +(stags/runs.length).toFixed(2),
     lungesPerPlay: +(lunges/runs.length).toFixed(2) }
 })
 console.log('RUN tackling:', JSON.stringify(res, null, 0))

@@ -47,8 +47,23 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
     the nearest closing defender to avoid the wrap, and force more missed tackles,
     jukes/spins, and broken tackles — all rendered in the broadcast view
     (JUKE!/MISSED TACKLE!/BROKEN! + dive/grab/pull-down poses).
+  - **Stat gaps swing every contact, capped below 100%.** The juke and truck rolls
+    scale hard with the attribute mismatch so a huge discrepancy dynamically shows:
+    a one-on-one juke runs ~26% for an even matchup, ~62% for a star vs a weak
+    defender, ~80% (the ceiling) for a generational back vs a scrub, and floors near
+    ~2% for a weak back vs an elite defender. Trucks scale the same way on strength
+    + momentum.
+  - **Stiff-arm** — the carrier's strength wards the tackler off at the point of
+    attack (works even at low speed, unlike a truck); the defender is shoved off and
+    stumbles, the runner slows a touch and keeps going (STIFF ARM!).
+  - **Glancing contact matters.** A defender who makes contact but can't wrap up
+    grazes the carrier — a **stagger** that costs the runner a step (bleeds speed,
+    easier to bring down next hit) and stumbles the defender, instead of a binary
+    miss-or-tackle (SHAKES IT OFF!).
   - Dev: `node scripts/tacklecheck.mjs` reports the solo/gang split and
-    whiff/truck/big-hit rates (current tune: ~70% solo, ~13% whiff, ~13% big hit).
+    whiff/truck/stiff-arm/stagger/big-hit rates (current tune: ~72% solo, ~13% whiff,
+    ~5% broken, ~5% stiff-arm, ~8% stagger); `node scripts/jukecheck.mjs` shows how
+    stat gaps drive juke rates across superstar/scrub matchups.
 - **Emergent game engine (v16).** Live games are no longer scripted outcome-first
   (the old engine pre-decided the final score, shuffled a list of predetermined
   drive outcomes, and backfilled plays to match). Every drive is now resolved
