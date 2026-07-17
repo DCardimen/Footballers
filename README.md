@@ -50,6 +50,11 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
     builds read higher); high aggression/brashness raises **clash risk → lower coach
     trust & snap share**; IQ/EQ/coachability/loyalty lower it. Stored on
     `player.personaV13`.
+  - **Persona boosts are percentage-capped (v16.7).** Each trait's starting-attribute
+    boost is now a share of a **±30% tilt** off the attribute's prestige-inclusive
+    base — so a stat can be at most **30% higher** than its built base, and the
+    prestige menu (which raises the base) raises the absolute boost while the ceiling
+    stays 30%. The story-arc **wheel spins noticeably faster** now, too.
   - **Story arcs are rolled, not chosen.** When a story-arc / decision popup appears,
     each option gets a **personality-weighted %** and a wheel-of-fortune arrow sweeps
     and lands on one. Aggressive/brash builds rarely land on the safe option (but it
