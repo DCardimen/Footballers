@@ -29,6 +29,19 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **Render-path fix (v16.4) — the agent-sim changes now actually reach the screen.**
+  Most run/pass plays are meant to render from the FieldSim agent log (frames +
+  events), but a queue bug meant only **~21%** of them did — the other ~4 in 5
+  silently fell back to the older `buildPlayScript` choreographer, so the new
+  tackle physics, jukes, stiff-arm, stagger, short sprint, swim moves and pancakes
+  were invisible on most plays. Two fixes:
+  - `dropSimLog()` popped the wrong end of the queue (`shift()` removed the oldest
+    log instead of `pop()`-ing the play's own just-pushed one), desyncing everything.
+  - `takeLog()` only matched the queue **head**, so any play that doesn't push a log
+    (sacks, scrambles, fumbles, scores) permanently desynced the FIFO. It now
+    **searches** the queue for a matching `(kind, off, yards)` log, order-independent.
+  - Result: **~87–90%** of plays now render from the agent sim. Diagnose with
+    `node scripts/renderpathcheck.mjs`. (Render-only — resolved outcomes unchanged.)
 - **Short sprint, line-play overhaul & pre-snap preview (v16.3).**
   - **Short sprint.** The ballcarrier and his single nearest pursuer can kick a
     ~0.5s burst worth up to **+20%** speed (its length extended by awareness +
