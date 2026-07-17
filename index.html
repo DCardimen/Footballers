@@ -1948,12 +1948,24 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     _sim: sim, _Q: Q,
     takeLog(sig) {
       if (!Q.length) return null;
-      const h = Q[0];
-      const kindOk = sig.kind === h.sig.kind || (sig.kind === "passfam" && h.sig.kind === "pass");
-      if (kindOk && h.sig.off === sig.off && h.sig.yards === sig.yards &&
-          (sig.intercepted === undefined || sig.intercepted === !!h.sig.intercepted)) return Q.shift().log;
-      // stale head protection: drop if the queue runs long
-      if (Q.length > 40) Q.shift();
+      // SEARCH for the first matching log rather than requiring it at the head.
+      // The whole game is resolved up front (pushing every play's log) and then
+      // rendered play-by-play; plays that don't push a log (sacks, scrambles,
+      // fumbles, scores) and reshaped runs used to desync the FIFO permanently,
+      // so ~4 of every 5 plays fell back to the old choreography and none of the
+      // agent-sim tackle/sprint/line events reached the screen. Matching by
+      // (kind, off, yards, intercepted) anywhere in the queue is order-independent.
+      for (let i = 0; i < Q.length; i++) {
+        const h = Q[i];
+        const kindOk = sig.kind === h.sig.kind || (sig.kind === "passfam" && h.sig.kind === "pass");
+        if (kindOk && h.sig.off === sig.off && h.sig.yards === sig.yards &&
+            (sig.intercepted === undefined || sig.intercepted === !!h.sig.intercepted)) {
+          Q.splice(i, 1); return h.log;
+        }
+      }
+      // no match (a play with no pushed log) — trim stale entries so the queue
+      // can't grow unbounded across a long game
+      if (Q.length > 30) Q.shift();
       return null;
     },
   };
@@ -3903,8 +3915,12 @@ if(base&&base.yards>=0&&base.yards<=5){
 }
 return base}
 function b(w,concept){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]),N=Y(T.def,["CB","S","LB"]);const __r=window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept);if(__r)return __r;const H=_(g,"speed")*.5+_(g,"agility")*.5-_(N,"coverage")*.85+_(K,"awareness")*.25,oe=f(.48+H/150,.12,.9);if(!(Math.random()<oe)){const ge=f((_(N,"coverage")-H-45)/320,0,.12);return{qb:K,rec:g,cover:N,complete:!1,intercepted:Math.random()<ge,yards:0}}let ke=Math.round(5+(_(g,"catching")+_(K,"awareness"))/2*.06+D(-2,4));return Math.random()<f((_(g,"speed")-_(N,"coverage"))/280+.04,.02,.22)&&(ke+=le(9,16+Math.round(_(g,"speed")/6))),ke=f(ke,1,80);const air=f(Math.round(ke*(.45+Math.random()*.35)),0,ke);return{qb:K,rec:g,cover:N,complete:!0,intercepted:!1,yards:ke,breakaway:ke>=20,air,yac:Math.max(0,ke-air)}}
-// keep the FieldSim render queue aligned when we alter a play's bookkept yards
-function dropSimLog(){try{const g=window.__FieldSim&&window.__FieldSim._Q;g&&g.length&&g.shift()}catch(w){}}
+// keep the FieldSim render queue aligned when we alter a play's bookkept yards:
+// the log we're discarding is the one this play just pushed — the TAIL, not the
+// head. Popping the tail (was shift(), a bug) keeps every other play's log lined
+// up with its render, so the agent-sim animation + its tackle/sprint/line events
+// actually reach the broadcast view instead of falling back to the old script.
+function dropSimLog(){try{const g=window.__FieldSim&&window.__FieldSim._Q;g&&g.length&&g.pop()}catch(w){}}
 function xe(){return`(${h}–${p})`}
 function st(){const w=c.us.off.filter(k=>["RB","WR","TE"].includes(k.pos)&&!k.you);return w.length?`${W(w).name}`:"your team"}
 function Tt(){const w=c.opp.off.filter(k=>["RB","WR","TE","QB"].includes(k.pos));return w.length?`${W(w).name}`:"the opponent"}
