@@ -1356,6 +1356,17 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const S = makeAgents(kOff, tDef, att, picks);
     const A_all = Object.fromEntries(S.all.map(a=>[a.id,a]));   // id → agent lookup
     const events = [], ballFrames = [];
+    // ---- v16.3 short sprint: a ~0.5s burst worth up to +20% speed, its length
+    // extended by intelligence (awareness) + acceleration + stamina, then a
+    // recovery before it can fire again. Only the ballcarrier and his nearest
+    // pursuer kick it in; the renderer shows a draining stamina bar over the head.
+    const SPRINT_BOOST = TU("sprintBoost", 0.20);
+    const sprintDur = a => cl(500 + (a.aware-50)*4 + (a.accel-50)*3 + (a.stam-50)*3, 320, 900);
+    const kickSprint = a => { if (!a || t < (a.sprintCool||0) || (a.sprintUntil && t < a.sprintUntil)
+        || (a.gas!==undefined && a.gas < 22)) return;
+      const dur = Math.round(sprintDur(a)); a.sprintUntil = t + dur; a.sprintCool = t + dur + 650;
+      emit("sprint",{who:a.id, dur, x:a.lx, y:a.y}); };
+    const sprinting = a => !!(a && a.sprintUntil && t < a.sprintUntil);
     let t = 0, done = false, result = null, carrier = null, ballFlight = null;
     let ball = { lx: S.off[8].lx, y: S.off[8].y, h: 0 };
     const emit = (type, extra) => events.push(Object.assign({ t, type }, extra));
@@ -1401,9 +1412,31 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       blitzer = S.def.filter(a=>a.lb==="LB")[Math.floor(Math.random()*3)];
       if (blitzer) blitzer.blitzing = true;
     }
-    const shedTick = (r) => { if (r.shed) return;
+    const shedTick = (r) => { if (r.shed || (r.stunned && t<r.stunned)) return;
       const p = cl(((r.str*0.55 + r.quick*0.45) - r.engaging.blk) * 0.00042 + 0.0035, 0.0008, 0.028) * (kind==="run"?0.55:1) * (r.doubled?0.32:1);
       if (Math.random() < p) { r.shed = true; r.releaseT = t; emit("shed",{who:r.id}); } };
+    // ---- v16.3 line play: the two widest D-linemen are edge rushers (DEs). They
+    // work the corner to bend the pocket and can beat the tackle with a fast SWIM
+    // move (finesse: quickness + agility). An O-lineman who dominates his man
+    // PANCAKES him — the rusher is stunned flat for a few seconds and the blocker
+    // peels off to double-team another rusher.
+    const edges = rushers.slice().sort((a2,b2)=>Math.abs(b2.y-MIDY)-Math.abs(a2.y-MIDY)).slice(0,2);
+    edges.forEach(e=>{ e.edge = true; });
+    const swimTick = (r) => { if (r.shed || !r.edge || !r.engaging || (r.stunned && t<r.stunned)) return;
+      const p = cl(((r.quick*0.5 + r.agi*0.5) - r.engaging.blk*0.9) * 0.0006 + 0.004, 0.001, 0.03) * (kind==="run"?0.6:1) * (r.doubled?0.4:1);
+      if (Math.random() < p) { r.shed = true; r.swim = true; r.releaseT = t; emit("swim",{who:r.id, x:r.lx, y:r.y}); } };
+    const pancakeTick = (o) => { if (o._free || o.pancaked) return;
+      const r = o.engagedBy; if (!r || r.shed || (r.stunned && t<r.stunned)) return;
+      const edge = o.blk - (r.str*0.6 + r.quick*0.4);
+      if (edge <= 10) return;                                  // only a real mismatch flattens a man
+      if (Math.random() < cl((edge-10)*0.0009, 0, 0.02)) {
+        r.stunned = t + 1800 + Math.random()*1000; r.shed = false; if (r.engaging) r.engaging = null;
+        o._free = true; o.pancaked = t; emit("pancake",{who:r.id, by:o.id, x:r.lx, y:r.y}); } };
+    const freeOLHelp = (qb) => { blockers.forEach(o=>{ if(!o._free) return;
+      let tgt=null, td=1e9;
+      for (const r of rushers) { if (r.stunned && t<r.stunned) continue;
+        const d2=Math.hypot(r.lx-qb.lx,r.y-qb.y); if(d2<td){td=d2;tgt=r;} }
+      if (tgt) { mv(o, tgt.lx-6, tgt.y, 0.6); if (Math.hypot(o.lx-tgt.lx,o.y-tgt.y)<14){ tgt._doubled=t; tgt.doubled=true; } } }); };
 
     // ---- v16.2 contact resolution: momentum + strength + elusiveness ----
     // weight ≈ mass by position; momentum = weight × speed. A contact resolves to
@@ -1433,7 +1466,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // even ≈26% open, star-vs-weak ≈70%, generational-vs-scrub ≈78%, floor ≈2%.
       const whiffP = cl(0.12 + (elus - d.tkl)*0.008 + (openField?0.14:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0), 0.02, 0.80);
       if (!behind && Math.random() < whiffP) {
-        d.beaten = t + 640; d.cool = t + 520; c.burstUntil = t + 460;
+        d.beaten = t + 640; d.cool = t + 520; c.burstUntil = t + 460; kickSprint(c);
         emit("tackleWhiff",{who:d.id, carrier:c.id, x:d.lx, y:d.y});
         emit("cut",{kind: Math.random()<0.28?"spin":"juke", x:c.lx, y:c.y, carrier:c.id});
         if (committerId===d.id) committerId = null;
@@ -1445,7 +1478,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const armEdge = (cStr - dStr) + (c.str - 50)*0.45;
       const stiffP = behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007, 0, 0.5);
       if (Math.random() < stiffP) {
-        d.beaten = t + 520; d.stagger = t; c._v = (c._v||c.spd)*0.9; c.burstUntil = t + 300;
+        d.beaten = t + 520; d.stagger = t; c._v = (c._v||c.spd)*0.9; c.burstUntil = t + 300; kickSprint(c);
         emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
         if (committerId===d.id) committerId = null;
         return "stiffarm";
@@ -1455,7 +1488,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const powerEdge = (cMom - dMom)*0.85 + (cStr - dStr)*0.5;
       const truckP = cl(0.18 + powerEdge*0.011 + (behind?-0.09:0), 0.02, 0.72);
       if (Math.random() < truckP) {
-        d.beaten = t + 600; c.burstUntil = t + 500;
+        d.beaten = t + 600; c.burstUntil = t + 500; kickSprint(c);
         if (powerEdge > 20 && !behind) d.trucked = t;            // flattened — he stays down
         if (brokenShown++ < 4) emit("brokenTackle",{who:d.id, x:d.lx, y:d.y});
         if (committerId===d.id) committerId = null;
@@ -1555,8 +1588,14 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       else if (phase === "drop") {
         const qb = S.off[8];
         rushers.forEach(shedTick);
-        rushers.forEach(r=>{ if(!r.shed && r.engaging){
-          r.engaging.lx -= Math.max(0,(r.str-r.engaging.str))*0.000027*TICK; }});
+        rushers.forEach(swimTick);
+        blockers.forEach(pancakeTick);
+        freeOLHelp(qb);
+        rushers.forEach(r=>{ if(!r.shed && r.engaging && !(r.stunned && t<r.stunned)){
+          // edge rushers bend the corner (push wide + up); interior bull-rush straight
+          const wide = r.edge ? (r.y<MIDY?-1:1)*0.4 : 0;
+          r.engaging.lx -= Math.max(0,(r.str-r.engaging.str))*0.000027*TICK;
+          r.engaging.y += wide; }});
         if (doubled && !doubled._ann) { doubled._ann=1; emit("doubleTeam",{on:doubled.id}); }
         if (blitzer && blitzer.blitzing && !blitzer._ann) { blitzer._ann=1; emit("blitz",{who:blitzer.id}); }
         if (blitzer && blitzer.blitzing && !blitzer.picked && !blitzer.freeRun) {
@@ -1688,9 +1727,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         if (kind==="run" && c.lx > 24 && !c._sprang) {
           const near = S.all.filter(a=>a.side!==c.side && a.lb!=="OL" && t>(a.beaten||0)
             && Math.hypot(a.lx-c.lx, a.y-c.y) < 38);
-          if (!near.length) { c._sprang = true; c.burstUntil = t + 900; emit("spring",{x:c.lx,y:c.y}); }
+          if (!near.length) { c._sprang = true; c.burstUntil = t + 900; kickSprint(c); emit("spring",{x:c.lx,y:c.y}); }
         }
-        const jets = t < (c.burstUntil||0) ? 0.22 : 0;
         // v16.2 behavioral evasion: an elusive back bends his path AWAY from the
         // nearest closing defender to avoid getting wrapped — the setup that buys
         // the whiff. Straight-line runners (low agility) can't shake free.
@@ -1702,8 +1740,11 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             const elus = c.agi*0.5 + c.quick*0.5;
             const dodge = cl((elus-48)*0.02, 0, 1.15) * (nb.y >= c.y ? -1 : 1);
             laneY = clampY(laneY + dodge * (34-nd));
+            if (nd < 48 && c.lx > 4) kickSprint(c);            // a defender is closing — kick the sprint
           }
         }
+        // sprint = the visible +20% burst; the old daylight jet is now a small tail
+        const jets = sprinting(c) ? SPRINT_BOOST : (t < (c.burstUntil||0) ? 0.10 : 0);
         mv(c, c.lx + dirSign*40, laneY, cl((hole?1.12:0.9) + jets + (c.burst-50)*0.004, 0.72, 1.5));
         // defense pursues with lead angles; contacts roll tackle contests
         // climbing linemen wall off linebackers (shed contests apply)
@@ -1728,9 +1769,14 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           const yds = c.side==="off" ? Math.round(c.lx/YD) : 0;
           if (!out) out = { kind, yards: yds }; else out.yards = 0;           // pick return: passer line stays 0
         };
+        // the single nearest pursuer is the one who kicks a sprint to run him down
+        let nearestChaser=null, nearestGap=1e9;
+        for (const a of chasers) { if (t<(a.beaten||0)||(a.trucked&&t<a.trucked+900)||(a.stunned&&t<a.stunned)||(a.lb==="DL"&&!a.shed)) continue;
+          const g2=Math.hypot(a.lx-c.lx,a.y-c.y); if(g2<nearestGap){nearestGap=g2;nearestChaser=a;} }
         for (const dfd of chasers) {
           if (t < (dfd.beaten||0)) continue;
           if (dfd.trucked && t < dfd.trucked + 900) continue;                 // flattened: he's on the ground
+          if (dfd.stunned && t < dfd.stunned) continue;                       // pancaked: on the ground
           for (const wblk of walls) {
             if (dfd === wblk.engagedBy) continue;
             if (Math.hypot(dfd.lx-wblk.lx, dfd.y-wblk.y) < 15) { dfd.y += (dfd.y > wblk.y ? 1 : -1) * 2.2; dfd.y = clampY(dfd.y); }
@@ -1755,7 +1801,12 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             mv(dfd, c.lx - (c._dx||0)*9, c.y, 0.35);             // close but hold off the pile
             continue;
           }
-          const beatenPace = gap > 62 && c.spd > dfd.spd + 6 ? 0.9 : 1;
+          let beatenPace = gap > 62 && c.spd > dfd.spd + 6 ? 0.9 : 1;
+          // nearest pursuer kicks a sprint only to run DOWN a breakaway (a real
+          // chase) — not to close a routine short gap, which would just nerf every
+          // run. Keeps the safety-vs-speedster footrace without over-buffing D.
+          if (dfd===nearestChaser && gap>46 && gap<140) kickSprint(dfd);
+          if (sprinting(dfd)) beatenPace += SPRINT_BOOST;
           mv(dfd, c.lx + (c._dx||0)*c.spd*lead, c.y + (c._dy||0)*c.spd*lead, beatenPace);
           if (Math.hypot(dfd.lx-c.lx, dfd.y-c.y) < 13 && (!committerId || committerId===dfd.id)) {
             committerId = dfd.id;
@@ -1805,8 +1856,11 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           else if(a.lb==="RB"&&kind==="pass"){ if(!(blitzer&&blitzer.blitzing&&!blitzer.picked&&!blitzer.freeRun)) mv(a,-20,a.y,0.5); } });
       }
       if (phase==="handoff"||phase==="snap") {
-        // engaged DL fight through the block — continuous movement, never a snap
-        rushers.forEach(r=>{ if(!r.shed&&r.engaging) mv(r, r.engaging.lx+8, r.engaging.y, 0.4); });
+        // engaged DL fight through the block — continuous movement, never a snap.
+        // Run downs get pancakes too: a dominated lineman is flattened and his
+        // blocker climbs to the second level.
+        blockers.forEach(pancakeTick);
+        rushers.forEach(r=>{ if(!r.shed&&r.engaging&&!(r.stunned&&t<r.stunned)) mv(r, r.engaging.lx+8, r.engaging.y, 0.4); });
       }
       rec();
     }
@@ -2393,6 +2447,8 @@ class Ot extends mt.Scene {
         }
       }
     }
+    // v16.3 pre-snap play preview — your team's design, until the snap
+    if (!P.snapped) this.drawPreview(P);
     // v10: speed trails — fast movers leave streaks
     if (this.speedFx) {
       this.speedFx.clear();
@@ -2403,6 +2459,19 @@ class Ot extends mt.Scene {
         this.speedFx.lineStyle(2, col, 0.26).lineBetween(h[1].x, h[1].y + 7, m.root.x, m.root.y + 7);
       });
     }
+    // v16.3 sprint stamina bars — a small draining bar over a player only while
+    // their short-sprint burst is active
+    if (!this.sprintBars) this.sprintBars = this.add.graphics().setDepth(26);
+    this.sprintBars.clear();
+    this.markers.forEach(m => {
+      if (!m || !m._sprintEnd || P.t >= m._sprintEnd || !m.root) return;
+      const frac = Math.max(0, Math.min(1, (m._sprintEnd - P.t) / Math.max(1, m._sprintDur || 500)));
+      const sc = m.root.scale || 1, w = 16 * sc, h = 3 * sc;
+      const bx = m.root.x - w / 2, by = m.root.y - 30 * sc;
+      this.sprintBars.fillStyle(0x000000, 0.5).fillRect(bx - 1, by - 1, w + 2, h + 2);
+      const col = frac > 0.5 ? 0x5fce74 : frac > 0.25 ? 0xf0bb45 : 0xe0645a;
+      this.sprintBars.fillStyle(col, 0.95).fillRect(bx, by, w * frac, h);
+    });
     // ball
     const bf = Array.isArray(S.ball) ? S.ball : [], bn = bf.length;
     const validBallFrame = f => !!f && Number.isFinite(Number(f.x)) && Number.isFinite(Number(f.y)) && Number.isFinite(Number(f.h));
@@ -2530,7 +2599,9 @@ class Ot extends mt.Scene {
       case "handoff": P.carrierId = 9; break;
       case "windup": { const qb = this.markers[8]; if (qb) { qb.forceState = "throwSeq"; qb.seqT = qb.tms; } break; }
       case "contest": { P.awaitCatch2 = this.actorIdx(e.def); P.contestDef = P.awaitCatch2; break; }
-      case "snap": { this.markers.forEach((m) => { if (m.forceState === "stance") m.forceState = null; }); break; }
+      case "snap": { P.snapped = true; if (this.previewG) this.previewG.clear();
+        if (this.previewTxt) { this.previewTxt.forEach(t => t && t.destroy && t.destroy()); this.previewTxt = []; }
+        this.markers.forEach((m) => { if (m.forceState === "stance") m.forceState = null; }); break; }
       case "pick": {
         this.clearLand();
         P.carrierId = this.actorIdx(e.by);
@@ -2572,6 +2643,21 @@ class Ot extends mt.Scene {
         if (cm3) this.tweens.add({ targets: cm3.body, scaleX: 0.78, angle: (Math.random()<0.5?-8:8), yoyo: true, duration: 110 });
         this.popText(e.x, e.y - 20, "SHAKES IT OFF!", "#bfe3ae", 12);
         this.puffFx(e.x, e.y, 1);
+        break;
+      }
+      case "sprint": {
+        // a burst is triggered — arm the draining stamina bar over that player's head
+        const m = this.markers[this.actorIdx(e.who)];
+        if (m) { m._sprintEnd = P.t + (e.dur || 500); m._sprintDur = e.dur || 500; }
+        break;
+      }
+      case "swim": {
+        // a defensive end beats the tackle with a quick finesse move
+        const m = this.markers[this.actorIdx(e.who)];
+        if (m) { m.forceState = null; m.cutUntil = m.tms + 200; m.body && m.body.setTint(0xbfe0ff);
+          this.time.delayedCall(360, () => { m.body && m.body.clearTint(); }); }
+        this.popText(e.x, e.y - 20, "SWIM MOVE!", "#8fe7ff", 13);
+        this.puffFx(e.x, e.y, 2);
         break;
       }
       case "beaten": {
@@ -2843,6 +2929,60 @@ class Ot extends mt.Scene {
     g.lineBetween(t.x, t.y, b.x, b.y);                       // crossbar (horizontal, at the attacking end)
     g.lineBetween(t.x, t.y, t.x, t.y - 16);                  // uprights point skyward
     g.lineBetween(b.x, b.y, b.x, b.y - 16);
+  }
+  // v16.3 pre-snap play preview (your team only). Shows the DESIGN of the play —
+  // never the outcome — during the pre-snap beat, then clears at the snap. If your
+  // team has the ball: routes, OL block direction, the RB's aim. If your defense is
+  // out: the coverage read (man vs zone), safety deep zones, LB box.
+  drawPreview(P) {
+    try {
+      if (!this.previewG) { this.previewG = this.add.graphics().setDepth(6); this.previewTxt = []; }
+      const g = this.previewG; g.clear();
+      (this.previewTxt || []).forEach(t => t && t.destroy && t.destroy()); this.previewTxt = [];
+      const et = P.payload; if (!et || et.header || et.event === "drive" || et.event === "fg" || et.event === "punt") return;
+      const dir = (P.script.meta && P.script.meta.dir) || 1, M = this.markers, YP = PLAY_W / 100;
+      const line = (ax, ay, bx, by, col, a, w) => { const p1 = PJ(ax, ay), p2 = PJ(bx, by);
+        g.lineStyle(w || 2, col, a == null ? 0.7 : a).lineBetween(p1.x, p1.y, p2.x, p2.y); };
+      const dot = (sx, sy, r, col, a) => { const p = PJ(sx, sy); g.fillStyle(col, a == null ? 0.6 : a).fillCircle(p.x, p.y, r); };
+      const label = (sx, sy, txt, col) => { const p = PJ(sx, sy);
+        this.previewTxt.push(this.add.text(p.x, p.y, txt, { fontFamily: "Oswald, sans-serif", fontSize: "8px", fontStyle: "bold", color: col, stroke: "#0a0f16", strokeThickness: 3 }).setOrigin(0.5).setDepth(7)); };
+      if (et.offense === "us") {
+        const isPass = et.isPass || et.event === "pass" || et.event === "incomplete";
+        const depth = ({ shot: 26, deep: 24, fade: 9, quick: 7, dropback: 13, screen: -2 })[et.concept] || (isPass ? 12 : 0);
+        const routes = ["go", "post", "out", "slant", "dig"]; let ri = 0;
+        M.forEach((m, i) => { if (i > 10 || !m) return; const lb = m.posLabel;
+          if (isPass && (lb === "WR" || lb === "TE" || lb === "RB")) {
+            const d = (lb === "TE" ? Math.max(5, depth * 0.6) : depth) * YP * dir, side = m.sy < 220 ? -1 : 1;
+            const type = et.concept === "screen" ? "screen" : routes[ri++ % routes.length];
+            const pts = [[m.sx, m.sy]];
+            if (type === "screen") pts.push([m.sx - dir * 2 * YP, m.sy + side * 8]);
+            else if (type === "slant") { pts.push([m.sx + dir * 2 * YP, m.sy], [m.sx + d, m.sy - side * 40]); }
+            else if (type === "out") { pts.push([m.sx + d, m.sy], [m.sx + d, m.sy + side * 36]); }
+            else if (type === "post") { pts.push([m.sx + d * 0.6, m.sy], [m.sx + d, 220]); }
+            else if (type === "dig") { pts.push([m.sx + d, m.sy], [m.sx + d, m.sy - side * 42]); }
+            else pts.push([m.sx + d, m.sy]);
+            for (let k = 1; k < pts.length; k++) line(pts[k-1][0], pts[k-1][1], pts[k][0], pts[k][1], 0xffd97a, 0.85, 2);
+            dot(pts[pts.length-1][0], pts[pts.length-1][1], 3, 0xffd97a, 0.9);
+          } else if (!isPass && lb === "RB") {
+            const gapY = et.concept === "sweep" ? (m.sy < 220 ? 150 : 290) : 220;
+            line(m.sx, m.sy, m.sx + dir * 8 * YP, gapY, 0x8fe7ff, 0.85, 2);
+            dot(m.sx + dir * 8 * YP, gapY, 3, 0x8fe7ff, 0.9);
+          } else if (lb === "OL") { line(m.sx, m.sy, m.sx + dir * 3 * YP, m.sy, 0x9fb0c0, 0.55, 2); }
+        });
+        if (M[8]) label(M[8].sx - dir * 7 * YP, 202, isPass ? "PASS" : "RUN", "#ffd97a");
+      } else {
+        const manLook = (Number(et.down) >= 3 && Number(et.toGo) <= 7);
+        const wrs = M.map((m, i) => ({ m, i })).filter(o => o.i >= 0 && o.i <= 10 && o.m && (o.m.posLabel === "WR" || o.m.posLabel === "TE"));
+        M.forEach((m, i) => { if (i < 11 || !m) return; const lb = m.posLabel;
+          if (lb === "S") { const p = PJ(m.sx, m.sy); g.fillStyle(0xe0645a, 0.12).fillEllipse(p.x, p.y, 120, 58); g.lineStyle(1.5, 0xe0645a, 0.45).strokeEllipse(p.x, p.y, 120, 58); }
+          else if (lb === "CB") {
+            if (manLook && wrs.length) { const w = wrs.slice().sort((a, b) => Math.hypot(a.m.sx - m.sx, a.m.sy - m.sy) - Math.hypot(b.m.sx - m.sx, b.m.sy - m.sy))[0]; line(m.sx, m.sy, w.m.sx, w.m.sy, 0xe0645a, 0.6, 1.5); }
+            else { const p = PJ(m.sx, m.sy); g.lineStyle(1.5, 0xe0645a, 0.4).strokeCircle(p.x, p.y, 26); }
+          } else if (lb === "LB") { const p = PJ(m.sx, m.sy); g.lineStyle(1.5, 0xffd97a, 0.32).strokeCircle(p.x, p.y, 22); }
+        });
+        if (M[13]) label(M[13].sx, 118, manLook ? "MAN" : "ZONE", "#ff9fa5");
+      }
+    } catch (e) {}
   }
   routeLine(pts, isMe) {
     const g = this.trackFx(this.add.graphics().setDepth(2));

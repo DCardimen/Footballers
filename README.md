@@ -29,6 +29,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **Short sprint, line-play overhaul & pre-snap preview (v16.3).**
+  - **Short sprint.** The ballcarrier and his single nearest pursuer can kick a
+    ~0.5s burst worth up to **+20%** speed (its length extended by awareness +
+    acceleration + stamina, then a recovery). It fires for evasion, on a broken
+    tackle, and to run down a breakaway. A small **draining stamina bar** appears
+    over the player's head only while the burst is active. Tunable: `RIB_TUNE.sprintBoost`.
+  - **Line-play overhaul.** An O-lineman who wins a real **mismatch pancakes** his
+    man — the rusher is stunned flat for a few seconds and the blocker peels off to
+    double-team another rusher. The two widest D-linemen are **edge rushers (DEs)**:
+    they bend the corner to shape the pocket and can beat the tackle with a fast
+    **SWIM MOVE** (finesse: quickness + agility). More momentum in the trench.
+  - **Pre-snap play preview (your team only).** During the pre-snap beat the field
+    overlays the play's **design — never the outcome** — then clears at the snap.
+    Your offense: every route, OL block direction, the RB's aim. Your defense: the
+    coverage read (man vs zone), safety deep zones, LB box.
 - **Tackling & contact physics (v16.2).** Most run/pass plays render from the
   FieldSim agent log, whose carry loop used to swarm every defender onto the
   ballcarrier (so almost every stop read as a group effort) and resolved contact
