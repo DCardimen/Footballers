@@ -29,6 +29,31 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **UI + character overhaul (v16.6).**
+  - **Readable scoreboard.** The live scoreboard was a vertical column that clipped
+    the score under the logo/name and let the QTR number dominate. It's now a row
+    with the two **scores as the big numbers flanking the clock** — score · CLOCK ·
+    score — so the score reads at a glance.
+  - **Real routes in playback.** FieldSim receivers used to run straight lines (even
+    the target). Every receiver now runs an **actual concept-based route** (go/post/
+    out/dig/slant/curl/corner/screen…), the throw goes to the target's break, and
+    plays look distinct snap to snap.
+  - **Pregame overalls fixed.** The pregame "Top Talent" screen fell back to generic
+    "Team Captain" placeholders because the roster generator used a different state
+    accessor and never populated. It now generates + persists real players, so both
+    teams show real names and ratings.
+  - **8 personality sliders (replaces archetypes).** Character creation is now 8
+    trait sliders — Aggression, Football IQ, Composure (EQ), Long-Term Focus, Work
+    Ethic, Loyalty, Confidence, Coachability — each 0–10, neutral 5, with **10
+    shift-points** (sum of moves from neutral ≤ 10, capped so you can't max one).
+    Some give a clearly-shown flat **starting-attribute boost** (aggressive/physical
+    builds read higher); high aggression/brashness raises **clash risk → lower coach
+    trust & snap share**; IQ/EQ/coachability/loyalty lower it. Stored on
+    `player.personaV13`.
+  - **Story arcs are rolled, not chosen.** When a story-arc / decision popup appears,
+    each option gets a **personality-weighted %** and a wheel-of-fortune arrow sweeps
+    and lands on one. Aggressive/brash builds rarely land on the safe option (but it
+    keeps a floor, so it's still possible). Reads `player.personaV13`.
 - **Render-path fix (v16.4) — the agent-sim changes now actually reach the screen.**
   Most run/pass plays are meant to render from the FieldSim agent log (frames +
   events), but a queue bug meant only **~21%** of them did — the other ~4 in 5
