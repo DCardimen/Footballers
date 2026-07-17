@@ -25,13 +25,13 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 .fate-odds-row .fo-lose{color:#93a0b1}
 .fate-odds-row .fo-fx{color:#8ec3ee;flex-basis:100%}
 .fate-odds-row .fo-perk{color:#c9b8ff}
-#field{aspect-ratio:720/384}
+#field{aspect-ratio:720/576}
 
   </style>
 
 <style id="rib-v1520-phaser-css">
 /* v15.20 — the Phaser backing store stays 720x500, while the DOM canvas scales responsively. */
-#field{display:block!important;width:100%!important;max-width:100%!important;height:auto!important;aspect-ratio:720/384!important;object-fit:contain!important}
+#field{display:block!important;width:100%!important;max-width:100%!important;height:auto!important;aspect-ratio:720/576!important;object-fit:contain!important}
 .field-wrap{width:100%!important;max-width:100%!important;overflow:hidden!important}
 </style>
 <style>
@@ -1865,7 +1865,7 @@ function pickFeaturedIndex(payload, offLabels, defLabels, rand) {
   return { index: usOffense ? 8 : 14, isMe: false };
 }
 
-const FW = 720, FH = 440, FVH = 384, LEG = 46, CH = FVH;
+const FW = 720, FH = 440, FVH = 576, LEG = 46, CH = FVH;
 const REDUCED_MOTION = (() => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } })();
 function vib(ms) { try { if (!REDUCED_MOTION && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 const EZ = 66, PLAY_L = EZ, PLAY_R = FW - EZ, PLAY_W = PLAY_R - PLAY_L;
@@ -1881,9 +1881,9 @@ function PJ(x, y) {
   const u = VDIR > 0 ? x : FW - x;                       // distance advanced toward the attacking end
   const v = VDIR > 0 ? y : (F_TOP + F_BOT) - y;          // mirror across so left/right stay coherent
   const fy = 1 - u / FW;                                  // 0 at the attacking (top) end
-  return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (1.52 + 0.1 * fy),
+  return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (1.824 + 0.12 * fy),
            y: NSTOP + fy * NSH,
-           s: 1.02 + 0.16 * fy };
+           s: 0.714 + 0.112 * fy };
 }
 const OFF_NUMS = [80, 81, 87, 72, 74, 75, 76, 77, 12, 24, 83];
 const DEF_NUMS = [21, 29, 31, 38, 52, 54, 56, 91, 95, 97, 94];
@@ -2122,7 +2122,7 @@ class Ot extends mt.Scene {
   }
   resetCamera() {
     try { const c = this.cameras.main; c.setZoom(1.16);
-      const f = this.focusPt || { x: FW / 2, y: WORLD_H / 2 }; c.centerOn(f.x, f.y + 40); } catch (e) {}
+      const f = this.focusPt || { x: FW / 2, y: WORLD_H / 2 }; c.centerOn(f.x, f.y - 80); } catch (e) {}
   }
   animatePlay(et, rt) {
     this.softStop();
