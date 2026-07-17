@@ -29,6 +29,56 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **Short sprint, line-play overhaul & pre-snap preview (v16.3).**
+  - **Short sprint.** The ballcarrier and his single nearest pursuer can kick a
+    ~0.5s burst worth up to **+20%** speed (its length extended by awareness +
+    acceleration + stamina, then a recovery). It fires for evasion, on a broken
+    tackle, and to run down a breakaway. A small **draining stamina bar** appears
+    over the player's head only while the burst is active. Tunable: `RIB_TUNE.sprintBoost`.
+  - **Line-play overhaul.** An O-lineman who wins a real **mismatch pancakes** his
+    man — the rusher is stunned flat for a few seconds and the blocker peels off to
+    double-team another rusher. The two widest D-linemen are **edge rushers (DEs)**:
+    they bend the corner to shape the pocket and can beat the tackle with a fast
+    **SWIM MOVE** (finesse: quickness + agility). More momentum in the trench.
+  - **Pre-snap play preview (your team only).** During the pre-snap beat the field
+    overlays the play's **design — never the outcome** — then clears at the snap.
+    Your offense: every route, OL block direction, the RB's aim. Your defense: the
+    coverage read (man vs zone), safety deep zones, LB box.
+- **Tackling & contact physics (v16.2).** Most run/pass plays render from the
+  FieldSim agent log, whose carry loop used to swarm every defender onto the
+  ballcarrier (so almost every stop read as a group effort) and resolved contact
+  as a plain proximity check. The carry phase now models real tackling:
+  - **Momentum + strength collisions.** Weight (by position) × velocity gives each
+    player's momentum; a contact resolves to a **whiff** (shifty back dodges in
+    space), a **truck / broken tackle** (carrier power wins — the defender is
+    knocked down and stays down), a **big-stick or both-fall** collision (violent
+    even momentum), or a clean **wrap**. Clear stat gaps show: a strong/fast back
+    trucks a weak defender, a great tackler wraps up cleanly.
+  - **Solo by default (~70/30).** Only one defender commits to a tackle at a time;
+    others hold off the pile. A stop is credited as an assisted/gang tackle only
+    when a second defender is genuinely in on it — landing near the NFL ~70% solo
+    / ~30% assisted split instead of a pile on every play.
+  - **More evasion.** Elusive backs (agility/quickness) bend their path *away* from
+    the nearest closing defender to avoid the wrap, and force more missed tackles,
+    jukes/spins, and broken tackles — all rendered in the broadcast view
+    (JUKE!/MISSED TACKLE!/BROKEN! + dive/grab/pull-down poses).
+  - **Stat gaps swing every contact, capped below 100%.** The juke and truck rolls
+    scale hard with the attribute mismatch so a huge discrepancy dynamically shows:
+    a one-on-one juke runs ~26% for an even matchup, ~62% for a star vs a weak
+    defender, ~80% (the ceiling) for a generational back vs a scrub, and floors near
+    ~2% for a weak back vs an elite defender. Trucks scale the same way on strength
+    + momentum.
+  - **Stiff-arm** — the carrier's strength wards the tackler off at the point of
+    attack (works even at low speed, unlike a truck); the defender is shoved off and
+    stumbles, the runner slows a touch and keeps going (STIFF ARM!).
+  - **Glancing contact matters.** A defender who makes contact but can't wrap up
+    grazes the carrier — a **stagger** that costs the runner a step (bleeds speed,
+    easier to bring down next hit) and stumbles the defender, instead of a binary
+    miss-or-tackle (SHAKES IT OFF!).
+  - Dev: `node scripts/tacklecheck.mjs` reports the solo/gang split and
+    whiff/truck/stiff-arm/stagger/big-hit rates (current tune: ~72% solo, ~13% whiff,
+    ~5% broken, ~5% stiff-arm, ~8% stagger); `node scripts/jukecheck.mjs` shows how
+    stat gaps drive juke rates across superstar/scrub matchups.
 - **Emergent game engine (v16).** Live games are no longer scripted outcome-first
   (the old engine pre-decided the final score, shuffled a list of predetermined
   drive outcomes, and backfilled plays to match). Every drive is now resolved
