@@ -25,13 +25,13 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 .fate-odds-row .fo-lose{color:#93a0b1}
 .fate-odds-row .fo-fx{color:#8ec3ee;flex-basis:100%}
 .fate-odds-row .fo-perk{color:#c9b8ff}
-#field{aspect-ratio:720/500}
+#field{aspect-ratio:720/384}
 
   </style>
 
 <style id="rib-v1520-phaser-css">
 /* v15.20 — the Phaser backing store stays 720x500, while the DOM canvas scales responsively. */
-#field{display:block!important;width:100%!important;max-width:100%!important;height:auto!important;aspect-ratio:720/500!important;object-fit:contain!important}
+#field{display:block!important;width:100%!important;max-width:100%!important;height:auto!important;aspect-ratio:720/384!important;object-fit:contain!important}
 .field-wrap{width:100%!important;max-width:100%!important;overflow:hidden!important}
 </style>
 <style>
@@ -46,6 +46,38 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 .headline-card{padding:8px 12px;margin:6px 0}
 .stat-sec-label{margin:6px 0 3px}
 .fullbox{gap:1px 5px}
+/* live-sim reorder — scoreboard drops to just above the field (matches broadcast reference):
+   player identity + momentum meters + coach/fan bars sit at the top of the card. CSS-only. */
+.field-wrap{display:flex;flex-direction:column}
+.field-wrap>.live-down{order:1}
+.field-wrap>.live-loop-strip{order:2}
+.field-wrap>.live-pulse{order:3}
+.field-wrap>.live-scoreboard{order:4;border-radius:0}
+.field-wrap>.sb-dots{order:4}
+.field-wrap>.field-legend{order:5;border-top:0;border-bottom:1px solid var(--line)}
+.field-wrap>#field,.field-wrap>canvas{order:6}
+.field-wrap>.commentary{order:7}
+/* broadcast-style scoreboard bar (logos · records · big scores · angled panels) */
+.live-scoreboard{display:grid!important;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:0!important;padding:0!important;background:#0a0f16!important;border-radius:0!important;border-bottom:1px solid var(--line);overflow:hidden}
+.live-scoreboard .sb-side{position:relative;display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;justify-content:flex-start!important;align-items:center!important;gap:10px;min-height:0!important;padding:11px 16px!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:hidden}
+.live-scoreboard .sb-side.us{background:linear-gradient(100deg,#206c3a,#0c2417 92%)!important;clip-path:polygon(0 0,100% 0,calc(100% - 20px) 100%,0 100%);padding-right:28px!important;text-align:left;align-items:center}
+.live-scoreboard .sb-side.them{background:linear-gradient(260deg,#7c2429,#250c0e 92%)!important;clip-path:polygon(20px 0,100% 0,100% 100%,0 100%);padding-left:28px!important;text-align:right;align-items:center}
+.live-scoreboard .sb-side:before,.live-scoreboard .sb-side:after{display:none!important}
+.sb-logo{width:38px;height:38px;flex:0 0 38px;border-radius:50%;display:grid;place-items:center;font:700 16px Oswald,sans-serif;color:#fff;background:rgba(0,0,0,.3);box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.sb-logo:before{content:attr(data-mark)}
+.sb-side.us .sb-logo{border:2px solid #7fe0a0;color:#daffe8}
+.sb-side.them .sb-logo{border:2px solid #ff9a9a;color:#ffe1e1}
+.sb-meta{display:flex;flex-direction:column;line-height:1.05}
+.live-scoreboard .sb-side .team{font:700 15px Oswald,sans-serif!important;letter-spacing:1.2px;text-transform:uppercase;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.live-scoreboard .sb-side .rec{font:600 10px Oswald,sans-serif;letter-spacing:1px;color:var(--chalk-dim);margin-top:2px}
+.live-scoreboard .sb-side .sc{position:relative;font:700 32px Oswald,sans-serif!important;line-height:1;margin:0!important;text-shadow:0 0 16px currentColor}
+.live-scoreboard .sb-side.us .sc{color:#5fe082;margin-left:auto}
+.live-scoreboard .sb-side.them .sc{color:#ff6167;margin-right:auto}
+.live-scoreboard .clock{display:flex!important;flex-direction:column;align-items:center;justify-content:center;background:#0a0f16;padding:6px 16px!important;min-width:96px!important;z-index:2}
+.live-scoreboard .clock .qline{display:flex;flex-direction:column;align-items:center;line-height:1}
+.live-scoreboard .clock .qline b{font:700 23px Oswald,sans-serif!important;color:var(--gold)!important;display:block!important;text-shadow:0 0 14px rgba(240,187,69,.4)}
+.live-scoreboard .clock .qline span{font:600 8px Oswald,sans-serif;letter-spacing:2.5px;color:var(--chalk-dim)}
+.live-scoreboard .clock #downDist{margin-top:4px!important;font:600 12px Oswald,sans-serif!important;letter-spacing:.5px;color:var(--chalk)!important;white-space:nowrap;display:block}
 </style>
 </head>
 <body>
@@ -1833,7 +1865,7 @@ function pickFeaturedIndex(payload, offLabels, defLabels, rand) {
   return { index: usOffense ? 8 : 14, isMe: false };
 }
 
-const FW = 720, FH = 440, LEG = 46, CH = FH + LEG;
+const FW = 720, FH = 440, FVH = 384, LEG = 46, CH = FVH;
 const REDUCED_MOTION = (() => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } })();
 function vib(ms) { try { if (!REDUCED_MOTION && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 const EZ = 66, PLAY_L = EZ, PLAY_R = FW - EZ, PLAY_W = PLAY_R - PLAY_L;
@@ -1851,7 +1883,7 @@ function PJ(x, y) {
   const fy = 1 - u / FW;                                  // 0 at the attacking (top) end
   return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (1.52 + 0.1 * fy),
            y: NSTOP + fy * NSH,
-           s: 0.84 + 0.14 * fy };
+           s: 1.02 + 0.16 * fy };
 }
 const OFF_NUMS = [80, 81, 87, 72, 74, 75, 76, 77, 12, 24, 83];
 const DEF_NUMS = [21, 29, 31, 38, 52, 54, 56, 91, 95, 97, 94];
@@ -1970,7 +2002,10 @@ function ribField(scene) {
     // every yard number read backwards). Flip it on draw so the text/numbers read
     // correctly. The turf is left/right symmetric, so hash marks and yard lines stay
     // aligned to play — only the reversed glyphs get corrected.
-    scene.fieldSpr = scene.add.image(FW / 2, NSTOP + NSH / 2, "rib_field").setScale(2).setDepth(0.6).setFlipX(true);
+    scene.fieldSpr = scene.add.image(FW / 2, NSTOP + NSH / 2, "rib_field").setScale(2).setDepth(0.6).setFlipX(true).setTint(0x60566f);
+    // subtle desaturating overlay: the baked turf has almost no blue, so a
+    // faint cool wash nudges the grass toward the muted olive of the reference.
+    try { scene.add.rectangle(FW / 2, NSTOP + NSH / 2, FW * 2, (NSH + 120) * 2, 0x1f3c66, 0.16).setDepth(0.62); } catch (e) {}
     console.log("[RIB] field art active");
   } catch (e) { console.error("[RIB] field art failed", e); }
 }
@@ -2041,14 +2076,13 @@ class Ot extends mt.Scene {
     ribEnsureFallback(this);
     ribInit(this);
     this.field = this.add.graphics(); this.trail = this.add.graphics().setDepth(3);
+    this.fieldLines = this.add.graphics().setDepth(3.4);   // LOS + first-down markers, above turf art, below players
     this.speedFx = this.add.graphics().setDepth(3.6);
-    this.drawField(50, 60); this.drawLegend();
+    this.drawField(50, 60);
     // Madden rig: the main camera lives on the field and follows the ball; the legend gets its own fixed camera
     try {
       const cam = this.cameras.main;
-      cam.setViewport(0, 0, FW, FH); cam.setBounds(0, 0, FW, WORLD_H);
-      const leg = this.cameras.add(0, FH, FW, LEG);
-      leg.setScroll(0, WORLD_H + 120);   // the legend lives outside the field camera's world
+      cam.setViewport(0, 0, FW, FVH); cam.setBounds(0, 0, FW, WORLD_H);
       this.hitStop = 0; this.zoomPunch = 0;
     } catch (e) {}
   }
@@ -2087,8 +2121,8 @@ class Ot extends mt.Scene {
     this.resetCamera();
   }
   resetCamera() {
-    try { const c = this.cameras.main; c.setZoom(1.02);
-      const f = this.focusPt || { x: FW / 2, y: WORLD_H / 2 }; c.centerOn(f.x, f.y); } catch (e) {}
+    try { const c = this.cameras.main; c.setZoom(1.16);
+      const f = this.focusPt || { x: FW / 2, y: WORLD_H / 2 }; c.centerOn(f.x, f.y + 40); } catch (e) {}
   }
   animatePlay(et, rt) {
     this.softStop();
@@ -2176,7 +2210,7 @@ class Ot extends mt.Scene {
         const targetZoom = (gliding0 ? 1.0 : (P.big ? TU("zoomBig",1.04) : TU("zoomPlay",1.2))) + this.zoomPunch;
         cam.setZoom(cam.zoom + (targetZoom - cam.zoom) * 0.07);
         const bx = this.ballSpr ? this.ballSpr.x : FW / 2, by = this.ballSpr ? this.ballSpr.y : WORLD_H / 2;
-        const hw = FW / (2 * cam.zoom), hh = FH / (2 * cam.zoom);
+        const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom);
         const cx = mt.Math.Clamp(bx, hw, FW - hw);
         const cy = mt.Math.Clamp(by - 46, hh, WORLD_H - hh);   // look ahead toward the attack (north)
         if (Math.abs(cx - cam.midPoint.x) > 2.5 || Math.abs(cy - cam.midPoint.y) > 2.5)
@@ -2924,6 +2958,14 @@ class Ot extends mt.Scene {
     pline(fx(losYd), F_TOP, F_BOT, 3, 0x4a90e2, 0.95);
     pline(fx(tgtYd), F_TOP, F_BOT, 7, 0xf0bb45, 0.22);
     pline(fx(tgtYd), F_TOP, F_BOT, 3, 0xf0bb45, 0.95);
+    // the turf art is opaque, so also stroke the scrimmage/first-down lines on a
+    // layer above it (below players) — the broadcast-style blue LOS + gold to-go marker.
+    if (this.fieldLines) {
+      const fl = this.fieldLines; fl.clear();
+      const stroke = (x, w, col, al) => { const a = PJ(x, F_TOP), b = PJ(x, F_BOT); fl.lineStyle(w, col, al).lineBetween(a.x, a.y, b.x, b.y); };
+      stroke(fx(losYd), 6, 0x4a90e2, 0.22); stroke(fx(losYd), 2.5, 0x6bb2ff, 0.92);
+      stroke(fx(tgtYd), 6, 0xf0bb45, 0.22); stroke(fx(tgtYd), 2.5, 0xffcf5e, 0.95);
+    }
     this.focusPt = PJ(fx(losYd), (F_TOP + F_BOT) / 2);
     this.drawFieldText();
   }
@@ -2958,11 +3000,11 @@ class Dt {
   destroy() { this.scene = void 0; this.canvas = void 0; this.pending = []; this.game?.destroy(!1); this.game = void 0; }
   withScene(et, rt) { (this.canvas !== et || !this.game) && this.mount(et); this.scene ? rt(this.scene) : this.pending.push(rt); }
   mount(et) {
-    this.destroy(); this.canvas = et; et.width = 720; et.height = 500;
+    this.destroy(); this.canvas = et; et.width = 720; et.height = CH;
     const rt = this;
     class it extends Ot { create() { super.create(); rt.scene = this; rt.pending.splice(0).forEach((p) => p(this)); } }
     this.game = new mt.Game({
-      type: mt.CANVAS, width: 720, height: 486, canvas: et, transparent: !1, backgroundColor: "#0a1018",
+      type: mt.CANVAS, width: 720, height: CH, canvas: et, transparent: !1, backgroundColor: "#0a1018",
       render: { antialias: !0, pixelArt: !1, roundPixels: !0 }, audio: { noAudio: !0 }, scene: it,
     });
   }
@@ -3531,19 +3573,22 @@ class Po{state;constructor(t){this.state=t>>>0||1831565813}next(){let t=this.sta
         <button class="btn ghost" onclick="go('stats')">📊 Leaders</button>
         <button class="btn ghost" onclick="STATS_TAB='standings';go('stats')">🏟 Standings</button>
       </div>
-    `}}function lt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){te("season");return}t.currentWeek=a;const s=t.weekResults[a];e?(o._liveGame=Yr(s.perf,t.pos),o._oppName=s.opp,o.view="live",q()):(s.played=!0,te("season"))}function wt(){o.player.weekResults.filter(t=>!t.playoff).forEach(t=>{t.played=!0}),te("season")}function Ea(){const e=o.player;e.weekResults&&e.currentWeek!=null&&(e.weekResults[e.currentWeek].played=!0),o._oppName=null,te("season")}function fs(){const e=o.player;if(dn(e),e.weekResults&&e.weekResults.some(a=>!a.played)){te("season");return}const t=tt(e);e.seasonStats=t,e.weekResults=null,e.currentWeek=null,es(),o.view="result",I(),q()}function nl(){La()}let Z=null;function il(){o.view="live",q()}function Dt(e){const t=[["Cubs","Ducks","Tigers","Colts","Jr. Rams"],["Wolves","Hawks","Bears","Broncos","Panthers"],["Vipers","Raiders","Chargers","Eagles","Wildcats"],["Titans","Spartans","Knights","Jaguars","Cobras"],["Bulldogs","Mustangs","Warriors","Falcons","Gators"],["State","Tech","A&M","U","Central"],["Combine Field","Draft Prospects","All-Stars"],["Storm","Kings","Empire","Blitz","Reign"],["Void Titans","Nebula Reapers","Solar Wraiths","Meteor Legion","Andromeda Sovereigns","Lunar Command","Europa Frost"]],a=["Dallas","Miami","Denver","Austin","Tampa","Reno","Akron","Boise"],s=t[Math.min(e,t.length-1)];return e===5?W(a)+" "+W(s):W(s).toUpperCase()}function ol(){const e=o.player,t=o._liveGame;A[e.level];const a=o._oppName||(o._oppName=Dt(e.level)),s=e.name.split(" ")[1].slice(0,8).toUpperCase(),n=a.split(" ").pop().slice(0,8).toUpperCase(),i=["DL","LB","CB","S"].includes(e.pos);x("screen").innerHTML=`
+    `}}function lt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){te("season");return}t.currentWeek=a;const s=t.weekResults[a];e?(o._liveGame=Yr(s.perf,t.pos),o._oppName=s.opp,o.view="live",q()):(s.played=!0,te("season"))}function wt(){o.player.weekResults.filter(t=>!t.playoff).forEach(t=>{t.played=!0}),te("season")}function Ea(){const e=o.player;e.weekResults&&e.currentWeek!=null&&(e.weekResults[e.currentWeek].played=!0),o._oppName=null,te("season")}function fs(){const e=o.player;if(dn(e),e.weekResults&&e.weekResults.some(a=>!a.played)){te("season");return}const t=tt(e);e.seasonStats=t,e.weekResults=null,e.currentWeek=null,es(),o.view="result",I(),q()}function nl(){La()}let Z=null;function il(){o.view="live",q()}function Dt(e){const t=[["Cubs","Ducks","Tigers","Colts","Jr. Rams"],["Wolves","Hawks","Bears","Broncos","Panthers"],["Vipers","Raiders","Chargers","Eagles","Wildcats"],["Titans","Spartans","Knights","Jaguars","Cobras"],["Bulldogs","Mustangs","Warriors","Falcons","Gators"],["State","Tech","A&M","U","Central"],["Combine Field","Draft Prospects","All-Stars"],["Storm","Kings","Empire","Blitz","Reign"],["Void Titans","Nebula Reapers","Solar Wraiths","Meteor Legion","Andromeda Sovereigns","Lunar Command","Europa Frost"]],a=["Dallas","Miami","Denver","Austin","Tampa","Reno","Akron","Boise"],s=t[Math.min(e,t.length-1)];return e===5?W(a)+" "+W(s):W(s).toUpperCase()}function ol(){const e=o.player,t=o._liveGame;A[e.level];const a=o._oppName||(o._oppName=Dt(e.level)),s=e.name.split(" ")[1].slice(0,8).toUpperCase(),n=a.split(" ").pop().slice(0,8).toUpperCase(),i=["DL","LB","CB","S"].includes(e.pos);const _pl=(e.weekResults||[]).filter(w=>w.played),_uw=_pl.filter(w=>w.won).length,usRec=_pl.length?_uw+"-"+(_pl.length-_uw):t.roster.us.ovr+" OVR",_os=Array.from(a||"").reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,7),_ow=_pl.length?_os%(_pl.length+1):0,oppRec=_pl.length?_ow+"-"+(_pl.length-_ow):t.roster.opp.ovr+" OVR";x("screen").innerHTML=`
     <div class="field-wrap">
       <div class="live-scoreboard">
-        <div class="sb-side us" data-mark="${s[0]}">
-          <div class="team">${s}</div>
-          <div class="team-ovr-badge">${t.roster.us.ovr} OVR</div>
+        <div class="sb-side us">
+          <div class="sb-logo" data-mark="${s[0]}"></div>
+          <div class="sb-meta"><span class="team">${s}</span><span class="rec">${usRec}</span></div>
           <div class="sc" id="usScore">0</div>
         </div>
-        <div class="clock"><span>QTR</span><b id="qtr">1</b><span id="downDist">1st & 10</span></div>
-        <div class="sb-side them" data-mark="${n[0]}">
-          <div class="team">${n}</div>
-          <div class="team-ovr-badge">${t.roster.opp.ovr} OVR</div>
+        <div class="clock">
+          <div class="qline"><b id="qtr">1</b><span>QTR</span></div>
+          <div id="downDist">1st & 10</div>
+        </div>
+        <div class="sb-side them">
           <div class="sc" id="themScore">0</div>
+          <div class="sb-meta"><span class="team">${n}</span><span class="rec">${oppRec}</span></div>
+          <div class="sb-logo" data-mark="${n[0]}"></div>
         </div>
       </div>
       <div class="sb-dots"><i></i><i class="on"></i><i></i></div>
@@ -3554,11 +3599,11 @@ class Po{state;constructor(t){this.state=t>>>0||1831565813}next(){let t=this.sta
       </div>
       <canvas id="field" width="360" height="230"></canvas>
       <div class="field-legend">
+        <span><span class="ldot" style="background:${i?"#d1494f":"#3fae5c"};color:${i?"#d1494f":"#3fae5c"}"></span>${s}</span>
+        <span><span class="ldot" style="background:#3fae5c;color:#3fae5c"></span>Offense</span>
         <span><span class="ldot" style="background:#f0bb45;color:#f0bb45"></span>You</span>
-        <span><span class="ldot" style="background:#3fae5c;color:#3fae5c"></span>${s}</span>
-        <span><span class="ldot" style="background:#d1494f;color:#d1494f"></span>${n}</span>
-        <span><span class="lline" style="background:#5aa0dc"></span>LOS</span>
-        <span><span class="lline" style="background:#f0bb45"></span>1st Down</span>
+        <span><span class="ldot" style="background:${i?"#3fae5c":"#d1494f"};color:${i?"#3fae5c":"#d1494f"}"></span>${n}</span>
+        <span><span class="ldot" style="background:#d1494f;color:#d1494f"></span>Defense</span>
       </div>
       <div class="commentary" id="commentary"><span class="ev-ic">🏈</span><div class="ev-body">Kickoff! ${e.name} takes the field…</div><span class="chev">›</span></div>
     </div>
