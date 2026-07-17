@@ -52,8 +52,22 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   - **The score you watch is the score that counts.** The emergent live result
     is written back to the week's record/standings (previously the standings
     used a separate pre-rolled score that could disagree with the watched game).
+  - **Situational play-calling & concepts (v16.1).** Each snap picks a concept
+    from the game state — deep shot, screen, quick game, fade at the goal line,
+    draw on 3rd-and-long, power in short yardage, sweep to the edge. The concept
+    is shown in the play-by-play ("Deep shot — …", "Screen — …") *and* fed to the
+    resolver, so a shot actually throws deep (fewer completions, more air yards)
+    and a screen stays short and YAC-heavy.
+  - **Realistic yardage distributions (v16.1).** The agent sim compressed runs
+    into a 0-5 yard spike; runs now carry a real shape — ~7% stuffed behind the
+    line (backfield penetration driven by the DL-vs-OL trench mismatch), a fat
+    6-24 yard middle, and the occasional breakaway (carrier burst/speed vs the
+    front seven). Completed passes split into **air yards vs YAC**, tracked and
+    shown in the live team-stats box.
   - Dev: `window.__simGameV2(perf, pos)` runs a full game headless;
-    `node scripts/simcheck.mjs` batch-runs 60 games and prints distributions.
+    `node scripts/simcheck.mjs` batch-runs 60 games and prints distributions
+    (current tune: ~22-17 avg score, run mean ~3.9 with a full tail, pass
+    mean ~12 air+YAC).
 - **Player gear overlay removed (temporarily).** A vector "appearance" layer used
   to draw a second procedural player (helmet shell, facemask, visor, sleeves,
   gloves, neck roll, back plate, towel, knee pads, high socks, …) on top of the
