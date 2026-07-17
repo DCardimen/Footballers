@@ -29,6 +29,26 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **Tackling & contact physics (v16.2).** Most run/pass plays render from the
+  FieldSim agent log, whose carry loop used to swarm every defender onto the
+  ballcarrier (so almost every stop read as a group effort) and resolved contact
+  as a plain proximity check. The carry phase now models real tackling:
+  - **Momentum + strength collisions.** Weight (by position) × velocity gives each
+    player's momentum; a contact resolves to a **whiff** (shifty back dodges in
+    space), a **truck / broken tackle** (carrier power wins — the defender is
+    knocked down and stays down), a **big-stick or both-fall** collision (violent
+    even momentum), or a clean **wrap**. Clear stat gaps show: a strong/fast back
+    trucks a weak defender, a great tackler wraps up cleanly.
+  - **Solo by default (~70/30).** Only one defender commits to a tackle at a time;
+    others hold off the pile. A stop is credited as an assisted/gang tackle only
+    when a second defender is genuinely in on it — landing near the NFL ~70% solo
+    / ~30% assisted split instead of a pile on every play.
+  - **More evasion.** Elusive backs (agility/quickness) bend their path *away* from
+    the nearest closing defender to avoid the wrap, and force more missed tackles,
+    jukes/spins, and broken tackles — all rendered in the broadcast view
+    (JUKE!/MISSED TACKLE!/BROKEN! + dive/grab/pull-down poses).
+  - Dev: `node scripts/tacklecheck.mjs` reports the solo/gang split and
+    whiff/truck/big-hit rates (current tune: ~70% solo, ~13% whiff, ~13% big hit).
 - **Emergent game engine (v16).** Live games are no longer scripted outcome-first
   (the old engine pre-decided the final score, shuffled a list of predetermined
   drive outcomes, and backfilled plays to match). Every drive is now resolved

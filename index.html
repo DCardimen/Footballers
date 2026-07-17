@@ -1354,6 +1354,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
 
   function sim(kind, kOff, tDef, att, picks, opts) {
     const S = makeAgents(kOff, tDef, att, picks);
+    const A_all = Object.fromEntries(S.all.map(a=>[a.id,a]));   // id → agent lookup
     const events = [], ballFrames = [];
     let t = 0, done = false, result = null, carrier = null, ballFlight = null;
     let ball = { lx: S.off[8].lx, y: S.off[8].y, h: 0 };
@@ -1404,25 +1405,61 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const p = cl(((r.str*0.55 + r.quick*0.45) - r.engaging.blk) * 0.00042 + 0.0035, 0.0008, 0.028) * (kind==="run"?0.55:1) * (r.doubled?0.32:1);
       if (Math.random() < p) { r.shed = true; r.releaseT = t; emit("shed",{who:r.id}); } };
 
-    // ---- tackle attempt: break rolls from real attributes ----
-    let brokenShown = 0;
-    const tryTackle = (d, c) => {
-      if (t < d.cool) return false;
-      d.cool = t + 450 - (d.grit-50)*2;                          // grit: tacklers reload faster
-      const behind = (d._dx||0)*(c._dx||0) + (d._dy||0)*(c._dy||0) > 0.6;
-      const dMom = (d.vel||0)*d.spd, cMom = (c.vel||0)*c.spd;
-      let breakP = breakProb(c, d, c.lx, behind, cMom, dMom);
-      emit("tackleTry",{who:d.id, behind, dMom:Math.round(dMom), cMom:Math.round(cMom)});
-      if (Math.random() < breakP) {
-        d.beaten = t + 620;
-        c.burstUntil = t + 520;                                 // daylight: hit the jets
-        if (brokenShown++ < 3) emit("brokenTackle",{who:d.id,x:d.lx,y:d.y});
-        return false;
+    // ---- v16.2 contact resolution: momentum + strength + elusiveness ----
+    // weight ≈ mass by position; momentum = weight × speed. A carry ends in a
+    // WHIFF (shifty back dodges in space), a TRUCK / broken tackle (carrier power
+    // wins — the defender is knocked down), a BIG-STICK or BOTH-FALL collision
+    // (violent even momentum), or a clean WRAP. Only one defender commits at a
+    // time so most stops read as SOLO; a clearly stronger carrier drags the first
+    // man and a second defender finishes it (the ~30% that are gang tackles).
+    const WT = {DT:1.06,DE:.96,DL:1.0,NT:1.08,LB:.86,S:.7,CB:.58,QB:.6,RB:.72,WR:.54,TE:.82,OL:1.12};
+    let brokenShown = 0, committerId = null, ganged = false;
+    // returns: "cooldown" | "whiff" | "broken" | "drag" (stays up) | "tackle" (play ends)
+    const contact = (d, c) => {
+      if (t < d.cool) return "cooldown";
+      d.cool = t + 420 - (d.grit-50)*2;                          // grit: tacklers reload faster
+      const behind = (d._dx||0)*(c._dx||0) + (d._dy||0)*(c._dy||0) > 0.55;
+      const openField = c.lx > 30;
+      const dW = WT[d.lb]||.7, cW = WT[c.lb]||.7;
+      const dSpd = Math.max(0.12,(d.vel||0))*d.spd, cSpd = Math.max(0.12,(c.vel||0))*c.spd;
+      const dMom = dW*dSpd, cMom = cW*cSpd;                       // mass × velocity
+      const dStr = d.str*0.55 + d.tkl*0.45, cStr = c.str*0.6 + (c.burst||c.spdA||50)*0.4;
+      const elus = c.agi*0.55 + c.quick*0.45;                    // juke/elusiveness
+      emit("tackleLunge",{who:d.id, carrier:c.id, x:c.lx, y:c.y, behind, dMom:Math.round(dMom), cMom:Math.round(cMom)});
+      // 1) WHIFF — an elusive back makes him miss in space (never from behind)
+      const whiffP = cl(0.12 + (elus - d.tkl)*0.006 + (openField?0.14:0) - (behind?0.24:0) - (dMom>cMom+40?0.05:0), 0.02, 0.6);
+      if (!behind && Math.random() < whiffP) {
+        d.beaten = t + 640; d.cool = t + 520; c.burstUntil = t + 460;
+        emit("tackleWhiff",{who:d.id, carrier:c.id, x:d.lx, y:d.y});
+        emit("cut",{kind: Math.random()<0.28?"spin":"juke", x:c.lx, y:c.y, carrier:c.id});
+        if (committerId===d.id) committerId = null;
+        return "whiff";
       }
+      // 2) TRUCK / BROKEN — carrier momentum + power beats the tackler
+      const powerEdge = (cMom - dMom)*0.85 + (cStr - dStr)*0.5;
+      const truckP = cl(0.20 + powerEdge*0.010 + (behind?-0.09:0), 0.02, 0.6);
+      if (Math.random() < truckP) {
+        d.beaten = t + 600; c.burstUntil = t + 500;
+        if (powerEdge > 20 && !behind) d.trucked = t;            // flattened — he stays down
+        if (brokenShown++ < 4) emit("brokenTackle",{who:d.id, x:d.lx, y:d.y});
+        if (committerId===d.id) committerId = null;
+        return "broken";
+      }
+      // 3) WRAP lands. Assisted if a second defender is in on the play — common
+      // in traffic, rarer in the open field (targets ~30% gang overall). Most
+      // stops are plain wraps; genuine big hits and both-fall collisions are rare.
+      emit("tackleHit",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
+      let nSupport = 0;
+      for (const a of S.all) { if (a.side===d.side && a!==d && a.lb!=="OL"
+        && t>(a.beaten||0) && !(a.trucked&&t<a.trucked+900)
+        && Math.hypot(a.lx-c.lx,a.y-c.y) < 16) nSupport++; }
+      const gang = nSupport>=1 && Math.random() < (openField ? 0.16 : 0.40);
+      const bigStick = !gang && dMom > cMom + 52 && dSpd > d.spd*0.82;   // rare violent stop
+      const bothFall = !gang && !bigStick && Math.abs(dMom - cMom) < 13 && dMom > 105 && cMom > 105;
       const kb = cl((dMom - cMom)*0.012, -3, 6);
       c.lx -= kb * (c.side==="off"?1:-1) * 0.5;
-      if (dMom > cMom + 60) emit("bigStick",{x:c.lx,y:c.y});
-      return true;
+      emit("tackle",{tackler:d.id, carrier:c.id, x:c.lx, y:c.y, gang, bigHit: bigStick||bothFall, bothFall});
+      return "tackle";
     };
 
     const finishCarry = (why) => {
@@ -1625,6 +1662,19 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           if (!near.length) { c._sprang = true; c.burstUntil = t + 900; emit("spring",{x:c.lx,y:c.y}); }
         }
         const jets = t < (c.burstUntil||0) ? 0.22 : 0;
+        // v16.2 behavioral evasion: an elusive back bends his path AWAY from the
+        // nearest closing defender to avoid getting wrapped — the setup that buys
+        // the whiff. Straight-line runners (low agility) can't shake free.
+        if (c.lx > 1) {
+          let nb=null, nd=1e9;
+          for (const a of chasersNear(c)) { if (t<(a.beaten||0)||(a.trucked&&t<a.trucked+900)) continue;
+            const dd=Math.hypot(a.lx-c.lx,a.y-c.y); if(dd<nd){nd=dd;nb=a;} }
+          if (nb && nd < 34) {
+            const elus = c.agi*0.5 + c.quick*0.5;
+            const dodge = cl((elus-48)*0.02, 0, 1.15) * (nb.y >= c.y ? -1 : 1);
+            laneY = clampY(laneY + dodge * (34-nd));
+          }
+        }
         mv(c, c.lx + dirSign*40, laneY, cl((hole?1.12:0.9) + jets + (c.burst-50)*0.004, 0.72, 1.5));
         // defense pursues with lead angles; contacts roll tackle contests
         // climbing linemen wall off linebackers (shed contests apply)
@@ -1641,8 +1691,17 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         function chasersNear(cc){ return S.all.filter(a=>a.side!==cc.side && a.lb!=="OL" && Math.hypot(a.lx-cc.lx,a.y-cc.y)<90); }
         const chasers = S.all.filter(a=>a.side!==c.side && a.lb!=="OL");
         const walls = blockers.filter(o=>o.engagedBy && !o.engagedBy.shed);
+        // the committer may have been beaten/trucked/whiffed — free up the role
+        if (committerId && (function(){const cm=A_all[committerId]; return !cm || t<(cm.beaten||0) || (cm.trucked&&t<cm.trucked+900);})()) committerId = null;
+        const endTackle = (dfd) => {
+          c.lx += Math.max(0, (c.grit-50)) * 0.018 * (c.side==="off"?1:-1);   // grit: falls forward
+          done = true;
+          const yds = c.side==="off" ? Math.round(c.lx/YD) : 0;
+          if (!out) out = { kind, yards: yds }; else out.yards = 0;           // pick return: passer line stays 0
+        };
         for (const dfd of chasers) {
           if (t < (dfd.beaten||0)) continue;
+          if (dfd.trucked && t < dfd.trucked + 900) continue;                 // flattened: he's on the ground
           for (const wblk of walls) {
             if (dfd === wblk.engagedBy) continue;
             if (Math.hypot(dfd.lx-wblk.lx, dfd.y-wblk.y) < 15) { dfd.y += (dfd.y > wblk.y ? 1 : -1) * 2.2; dfd.y = clampY(dfd.y); }
@@ -1657,18 +1716,23 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           let lead = Math.min(0.35, Math.hypot(c.lx-dfd.lx,c.y-dfd.y)/Math.max(40,dfd.spd)*0.6);
           lead *= 1 + Math.max(0, 50-dfd.disc)*0.012;            // discipline: overpursuit takes bad angles
           const gap = Math.hypot(c.lx-dfd.lx, c.y-dfd.y);
+          // SOLO look: while one defender is committed to the tackle and the
+          // carrier hasn't broken free, other pursuers close but hold a step off
+          // the pile instead of swarming — support within range still counts
+          // toward an assisted (gang) tackle inside contact(), but we don't get
+          // 5-man cartoon piles on every stop.
+          const otherCommitted = committerId && committerId!==dfd.id;
+          if (otherCommitted && gap < 18) {
+            mv(dfd, c.lx - (c._dx||0)*9, c.y, 0.35);             // close but hold off the pile
+            continue;
+          }
           const beatenPace = gap > 62 && c.spd > dfd.spd + 6 ? 0.9 : 1;
           mv(dfd, c.lx + (c._dx||0)*c.spd*lead, c.y + (c._dy||0)*c.spd*lead, beatenPace);
-          if (Math.hypot(dfd.lx-c.lx, dfd.y-c.y) < 9) {
-            if (tryTackle(dfd, c)) {
-              c.lx += Math.max(0, (c.grit-50)) * 0.018 * (c.side==="off"?1:-1);   // grit: falls forward
-              emit("tackle",{tackler:dfd.id, carrier:c.id, x:c.lx, y:c.y});
-              done = true;
-              const yds = c.side==="off" ? Math.round(c.lx/YD) : 0;
-              if (!out) out = { kind, yards: yds };
-              else out.yards = 0;  // pick return: passer line stays 0
-              break;
-            }
+          if (Math.hypot(dfd.lx-c.lx, dfd.y-c.y) < 13 && (!committerId || committerId===dfd.id)) {
+            committerId = dfd.id;
+            const r = contact(dfd, c);
+            if (r === "tackle") { endTackle(dfd); break; }
+            // whiff / broken / cooldown: carrier stays up, play continues
           }
         }
         // sidelines end the play at the spot
@@ -3644,7 +3708,7 @@ if(base&&base.yards>=0&&base.yards<=5){
   // concept shapes the tail: draws are boom-or-bust (more gashes), power runs
   // grind (fewer big gains but they stay positive), sweeps hit the edge.
   const cMul=concept==="draw"?1.4:concept==="power"?0.55:concept==="sweep"?1.05:1;
-  const edge=(_(K,"burst")+_(K,"speed"))/2-N,gashP=f((.14+edge*.006)*cMul,.05,.42);
+  const edge=(_(K,"burst")+_(K,"speed"))/2-N,gashP=f((.17+edge*.006)*cMul,.05,.44);
   if(Math.random()<gashP){const r3=Math.random(),big=concept==="draw",gain=r3<(big?.5:.6)?le(6,12):r3<(big?.82:.89)?le(13,22):le(23,38+Math.max(0,Math.round(edge)));dropSimLog();base={carrier:K,yards:gain,breakaway:gain>=15}}
 }
 return base}
