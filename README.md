@@ -29,6 +29,31 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **Emergent game engine (v16).** Live games are no longer scripted outcome-first
+  (the old engine pre-decided the final score, shuffled a list of predetermined
+  drive outcomes, and backfilled plays to match). Every drive is now resolved
+  play-by-play — FieldSim agents when available — and the final score *emerges*:
+  - **Real game clock.** Quarters count down (default 9 min, `RIB_TUNE.qtrMinutes`),
+    the clock stops on incompletions/out-of-bounds/scores, trailing teams go
+    hurry-up late, leading teams milk it and kneel out the win. The HUD shows the
+    clock next to QTR; ties go to sudden-death OT (shown as "OT").
+  - **Alternating possessions + field-position continuity.** Coin toss, opening
+    and second-half kickoffs, touchbacks/returns, punts with gross/return/net
+    and coffin-corner downing, missed-FG spots, and turnovers at the spot of the
+    pick/fumble. Drive headers announce where the ball is ("at the own 25").
+  - **Situational play-calling.** Down-and-distance pass/run tendencies,
+    distance-based FG probability, analytics-style 4th-down go-for-it,
+    end-of-half FG steals, PATs and late-game two-point chart.
+  - **Per-play sacks, scrambles, and strip-sacks** resolved from OL blocking vs
+    DL rush ratings (they were previously only a pre-rolled box-score number).
+  - **League-relative attributes.** Play resolvers see attributes normalized
+    around the league average, so a high-school game plays like real football
+    and outcomes ride on *relative* roster strength.
+  - **The score you watch is the score that counts.** The emergent live result
+    is written back to the week's record/standings (previously the standings
+    used a separate pre-rolled score that could disagree with the watched game).
+  - Dev: `window.__simGameV2(perf, pos)` runs a full game headless;
+    `node scripts/simcheck.mjs` batch-runs 60 games and prints distributions.
 - **Player gear overlay removed (temporarily).** A vector "appearance" layer used
   to draw a second procedural player (helmet shell, facemask, visor, sleeves,
   gloves, neck roll, back plate, towel, knee pads, high socks, …) on top of the

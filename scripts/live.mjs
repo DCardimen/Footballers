@@ -26,7 +26,7 @@ async function click(t) {
   console.log(`>> ${t} -> ${ok||'MISS'}`)
   await page.waitForTimeout(900)
 }
-for (const s of ["START NEW CAREER","ARCH","QB Quarterback","PLAY 8-GAME SEASON","Balanced Program","PLAY WEEK 1 LIVE","PLAN"]) await click(s)
+for (const s of ["START NEW CAREER","ARCH","QB Quarterback","PLAY 8-GAME SEASON","Balanced Program","PLAY WEEK 1 LIVE","PLAN","CONTINUE TO MATCH"]) await click(s)
 // wait for live canvas
 let live=false
 for (let i=0;i<20;i++){ const c=await page.evaluate(()=>document.querySelectorAll('canvas').length); if(c){live=true;break} await page.waitForTimeout(300) }
