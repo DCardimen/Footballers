@@ -1,6 +1,7 @@
 // Dev check: what fraction of run/pass plays actually render from the FieldSim
 // agent log (meta.fieldSim) vs falling back to the buildPlayScript choreographer.
 // Low numbers mean sim-level changes aren't reaching the screen. node scripts/renderpathcheck.mjs
+import { chromium } from 'playwright'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
 const page = await b.newPage({ viewport: { width: 520, height: 900 } })
 await page.addInitScript(() => { setInterval(() => { try { const s=window.__getGridironState&&window.__getGridironState(); if (s) s.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
