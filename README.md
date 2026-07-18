@@ -42,6 +42,45 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v20 — stamina/gassed system, two-sided personality, honest pregame odds, QB
+  vision cone, and a fix batch.**
+  - **Gassed stamina loop (FieldSim).** The sprint gas tank now persists play to
+    play on the roster player (`_gasV20`). Sprints cost real gas
+    (`gasSprintCost`); emptying the tank makes the player **GASSED** for
+    `gassedPlays` (default 5) recovery plays — moderately slower
+    (`gassedSpeedMul`) — with both the recovery-play count and between-play regen
+    scaling with the **stamina** stat. **Stamina IQ:** low-awareness players torch
+    their burst at random moments (`gasIQDumb`/`gasDumbSprintP`); smart players
+    protect a reserve unless they're the ballcarrier (`gasIQSmart`/
+    `gasSmartReserve`). The broadcast pops "GASSED"/"TANK EMPTY" over the
+    you-player.
+  - **Two-sided personality sliders.** Every trait now has two real identities:
+    each side raises the MAX-LEVEL ceiling of its own stats (+10%/pt) AND carries
+    its own drawback — injury risk, boom/bust variance, coach clashes, stamina
+    burn, or slower starts — aggregated into `player.personaFxV20` and wired into
+    the game (perf baseline, variance, injury rolls, FieldSim gas). Two new
+    Mental-branch prestige nodes modify the system: **Sports Psychologist**
+    (softens drawbacks 15%/lvl) and **Identity Coach** (+2 slider points).
+  - **Roll-result popups.** Every wheel roll (pregame game plans and story
+    decisions) now pops a card naming what was rolled, which personality trait
+    tipped the wheel, and its concrete effects.
+  - **Next-game boost = real stats.** The old "+N perf" next-game boost is now
+    **+N% to ALL attributes for that game**, applied inside the sim's attribute
+    accessor and allowed to exceed the player's normal caps.
+  - **Honest pregame.** The pregame now shows a **% win chance** calibrated
+    against actual `__simGameV2` win rates (`window.__gameOddsV20`), both team
+    OVRs on the sim's own per-level scale (no more 17-vs-43 scale mixing), and a
+    unit-by-unit composition summary of how the game is likely to play out.
+  - **QB vision cone.** During the dropback the sim emits `look` events and the
+    broadcast draws a cone from the QB to his current read — green when the
+    receiver is open, red when covered — swinging as he cycles reads.
+  - **National board thresholds.** The stat-leaders screen shows which national
+    rank tiers (top #18 / #1.8k / #18k / …) map to which promotion odds, with
+    your current rank highlighted.
+  - **Fixes.** Dock "Back" buttons no longer reference the unexported state
+    global (they threw and appeared dead); the opponent's jersey palette can
+    never collide with your team's; the scouting/game-plan overlay is compacted
+    to fit one screen with the plan deck scrolling internally.
 - **Speed-vs-power tackle physics + realism pass (v19).**
   - **Physics-based collisions.** A tackle now launches from ~2 sprite-lengths out
     (`tackleLaunchDist`), the defender GRABS the carrier on contact
