@@ -42,6 +42,47 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **Speed-vs-power tackle physics + realism pass (v19).**
+  - **Physics-based collisions.** A tackle now launches from ~2 sprite-lengths out
+    (`tackleLaunchDist`), the defender GRABS the carrier on contact
+    (`tackleGrabDist`), and the outcome is decided by a head-to-head of **speed AND
+    strength/tackling**: a carrier who wins both runs *through* the tackler and
+    flings him backward along the carrier's line of motion (broken tackle); a
+    defender who wins drives the carrier back and can level him; an even hit drops
+    both where they meet. Nobody freezes on contact — a won collision **drags the
+    pile forward** for real forward progress and a lost one flings the carrier back,
+    both decaying to a stop across the post-whistle coast. Tunables:
+    `tackleLaunchDist`, `tackleGrabDist`. (`node scripts/tacklecheck.mjs`: ~71%
+    solo, ~11% big hit, ~6% broken.)
+  - **Real penalties.** The single generic flag is replaced by typed fouls (False
+    Start, Holding, OPI, Delay, Offside, Encroachment, Defensive Holding, DPI,
+    Face Mask, …) with correct consequences — offensive fouls replay the down,
+    defensive holding/PI/face-mask are automatic first downs, DPI is a spot foul —
+    each naming the actual player, with undisciplined (low-awareness) teams drawing
+    more flags. Penalties are now tracked for **both** teams.
+  - **Bell-cow RB + RB2.** The offense runs a two-back set; carrier selection is
+    weighted so a feature back handles the load (a lead RB now sees ~15+ carries a
+    game instead of splitting evenly with the QB), and carries/receptions are
+    **counted**, not derived from yardage.
+  - **Level-scaled kicking.** FG range, kick accuracy, punt distance, and PAT
+    reliability all scale with league level — pee-wee teams shank chip shots, punt
+    short, and go for two more often; pro legs hit from distance.
+  - **Special-teams chaos.** Blocked FGs and punts, muffed punts, punt- and
+    kickoff-return touchdowns, and onside kicks (when a team scores but is still
+    trailing late) now occur.
+  - **Timeouts.** Each team gets 3 per half; the trailing team burns them late to
+    stop the clock, shown in the play log.
+  - **Honest matchup label.** The pregame Top-Talent header reflects the real
+    team-OVR spread (Heavy Favorite → Toss-Up → Heavy Underdog) instead of a
+    player-level threshold.
+  - **Symmetric team stats.** The opponent box now carries third-down conversions,
+    time of possession, penalties, and sacks — the full telecast line.
+  - **Result-matched commentary.** Your-player run/catch flavor is bucketed by the
+    actual yardage (stuffed / short / chunk / breakaway) instead of a random line.
+  - **Correct down & distance.** The play payload carries the **pre-snap** down and
+    distance, so the scoreboard and the renderer's coverage shell read the right
+    situation (was showing the post-play down).
+  - **Unique names.** Generated rosters are de-duplicated within a matchup.
 - **Tackle stat-credit truth (v18.1).** Your player was racking up tackles he
   didn't make. Four dishonest credit paths are gone:
   - Being within ~4.4 yards of the pile at the whistle counted as an "assist"
