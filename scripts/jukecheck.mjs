@@ -1,6 +1,7 @@
 // Dev check: measure how player stat gaps drive missed tackles. Prints the single
 // one-on-one juke probability across matchups and per-play evasion rates for
 // controlled superstar/scrub rosters. Usage: npm run dev, then: node scripts/jukecheck.mjs
+import { chromium } from 'playwright'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
 const page = await b.newPage({ viewport: { width: 520, height: 900 } })
 await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 })
