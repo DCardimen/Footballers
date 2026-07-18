@@ -1594,16 +1594,23 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const kb = cl((dMom - cMom)*0.016 + strEdge*0.14, -3, 16);
       c.lx -= Math.max(-3,kb) * (c.side==="off"?1:-1) * 0.5;
       if (kb > 2) { c._kb = kb; c._kbdx = d._dx!=null?d._dx:(c.side==="off"?-1:1); c._kbdy = d._dy||0; }
-      const youIn = S.all.some(a=>a.player&&a.player.you&&a.side===d.side&&a!==d&&Math.hypot(a.lx-c.lx,a.y-c.y)<26)||undefined;
+      // YOU are "in on it" only when the stop is actually assisted AND you are one
+      // of the supporting wrappers — standing near the pile is not participation
+      const youIn = (gang && supIds.some(id=>{const s=A_all[id];return !!(s&&s.player&&s.player.you);}))||undefined;
       emit("tackle",{tackler:d.id, carrier:c.id, x:c.lx, y:c.y, gang, bigHit: bigStick||bothFall||kb>9, bothFall, kb:Math.round(kb), sup:supIds, youIn});
       return "tackle";
     };
 
     const finishCarry = (why) => {
       const yards = Math.round(carrier.lx / YD);
-      const youIn = S.all.some(a=>a.player&&a.player.you&&a.side!==carrier.side&&Math.hypot(a.lx-carrier.lx,a.y-carrier.y)<26)||undefined;
-      emit(why==="oob"?"tackle":"tackle", { tackler: (S.def.concat(S.off).filter(a=>a.side!==carrier.side)
-          .sort((p,q)=>Math.hypot(p.lx-carrier.lx,p.y-carrier.y)-Math.hypot(q.lx-carrier.lx,q.y-carrier.y))[0]||{}).id,
+      const nearest = S.def.concat(S.off).filter(a=>a.side!==carrier.side)
+        .sort((p,q)=>Math.hypot(p.lx-carrier.lx,p.y-carrier.y)-Math.hypot(q.lx-carrier.lx,q.y-carrier.y))[0]||{};
+      // no phantom assists at the whistle: an out-of-bounds finish credits nobody
+      // as an assist, and otherwise YOU must be a genuine second man at the pile
+      // (same 16px support radius as gang tackles), not just trailing the play
+      const youIn = (why!=="oob" && S.all.some(a=>a.player&&a.player.you&&a.side!==carrier.side
+          &&a!==nearest&&Math.hypot(a.lx-carrier.lx,a.y-carrier.y)<16))||undefined;
+      emit("tackle", { tackler: nearest.id,
         carrier: carrier.id, x: carrier.lx, y: carrier.y, oob: why==="oob", youIn });
       done = true; return yards;
     };
@@ -1989,7 +1996,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     }
     if (!done) { // clock safety: down him where he stands
       if (carrier && carrier.side==="off") { out = out || { kind, yards: Math.round(carrier.lx/YD) };
-        emit("tackle",{tackler:"def4",carrier:carrier.id,x:carrier.lx,y:carrier.y}); }
+        // credit the actual nearest defender, not a hard-coded slot (which could
+        // hand YOUR player a tackle he was nowhere near)
+        const nr = S.def.slice().sort((p,q)=>Math.hypot(p.lx-carrier.lx,p.y-carrier.y)-Math.hypot(q.lx-carrier.lx,q.y-carrier.y))[0]||{};
+        emit("tackle",{tackler:nr.id,carrier:carrier.id,x:carrier.lx,y:carrier.y}); }
       else if (!out) out = { kind, yards: 0, complete:false, intercepted:false };
     }
     out = out || { kind, yards: 0 };
@@ -4281,15 +4291,17 @@ while(!gameOver&&plays<MAXP){
     if(r2<sackP){
       // SACK — resolved in the trenches, not pre-rolled into the box score
       isPassFam=!1;de=-le(4,9);ne="sack";
-      const skr=Y(Dk.def,["DL","DL","LB"]);
+      // stat-credit truth: the sack belongs to the sacker the play names — YOU get
+      // the stat only when YOU are that man, never a side roll on a teammate's sack
+      const skr=Y(Dk.def,["DL","DL","LB"]),meSk=!usDrive&&pe(skr);
       if(Math.random()<.07){ // strip sack — defense recovers
         ne="turnover";flip={spot:f(100-f(pos+de,1,99),1,99),why:"scoops up the fumble"};
         ue=`💥 STRIP SACK — ${nm(skr)} knocks it loose and the defense recovers the FUMBLE!`;
         usDrive?v.turn++:j.turn++;
-        !usDrive&&ce&&["DL","LB"].includes(t)&&Math.random()<.4&&(P.sack++,P.tackle++,me=!0,ue=`💥 STRIP SACK — YOU blindside ${nm(qb2)} and force the FUMBLE!`)
+        meSk&&(P.sack++,P.tackle++,me=!0,ue=`💥 STRIP SACK — YOU blindside ${nm(qb2)} and force the FUMBLE!`)
       }else{
         ue=`🪖 SACKED — ${nm(skr)} drags down ${nm(qb2)} for a loss of ${-de}.`;
-        !usDrive&&ce&&["DL","LB"].includes(t)&&Math.random()<.42&&(P.sack++,P.tackle++,me=!0,ue=`🪖 SACK — YOU bury ${nm(qb2)} for a loss of ${-de}!`);
+        meSk&&(P.sack++,P.tackle++,me=!0,ue=`🪖 SACK — YOU bury ${nm(qb2)} for a loss of ${-de}!`);
         usDrive&&t==="QB"&&(me=!0)
       }
       !usDrive&&v.sacks++;
@@ -4374,8 +4386,11 @@ while(!gameOver&&plays<MAXP){
         ue=usDrive?(me?J2("run"):`${nm(X.carrier)} ${X.breakaway?"breaks free for "+de+"!":de<=1?"is stuffed at the line.":"picks up "+de+"."}`):`${nm(X.carrier)} runs for ${de}.`;
         usDrive&&Ye(me,!1,de,!1);
         if(!usDrive&&ce){
-          const _solo=X.tackler!==undefined&&pe(X.tackler),_asst=!_solo&&pe(X.assist),_leg=X.tackler===undefined&&Math.random()<.5;
-          if(_solo||_asst||_leg){
+          // stat-credit truth: YOU get the tackle only when the sim names you the
+          // tackler or a genuine gang assist — no coin-flip credit on plays where
+          // the tackler is unknown (formula fallback / promoted gash runs)
+          const _solo=pe(X.tackler),_asst=!_solo&&pe(X.assist);
+          if(_solo||_asst){
             ["DL","LB"].includes(t)&&de<=1&&Math.random()<.3?(P.tackle++,me=!0,Pt=!0,ue="💥 TACKLE FOR LOSS — you blow up the run!"):(P.tackle++,me=!0,ue=_asst?"🤝 You rally to the ball — in on the gang tackle.":"🔨 You read it and make the tackle.")
           }
         }
