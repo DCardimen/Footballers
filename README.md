@@ -12,6 +12,19 @@ npm run build    # production build -> dist/
 npm run shot     # screenshot the running game (headless) for quick validation
 ```
 
+**Start here when editing code:**
+
+- **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** — the codebase map: every
+  `<script>` block in `index.html` with its grep anchor, the two engines
+  (FieldSim resolver vs legacy choreographer), the stat-credit flow, the render
+  path, and the known gotchas.
+- **[`scripts/README.md`](scripts/README.md)** — catalog of the headless dev
+  checks (`node scripts/<name>.mjs` against the running dev server) and how to
+  write a new one.
+- **[`CLAUDE.md`](CLAUDE.md)** — the condensed version of both, plus the house
+  rules (stat-credit truth, `TU()` tunables, which check to run for which
+  change).
+
 The whole game ships as a single self-contained `index.html` (baked sprite
 atlas + field art as data URLs, Phaser bundled inline). The readable systems
 worth knowing about live in these inline `<script>` blocks:
@@ -29,6 +42,22 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **Tackle stat-credit truth (v18.1).** Your player was racking up tackles he
+  didn't make. Four dishonest credit paths are gone:
+  - Being within ~4.4 yards of the pile at the whistle counted as an "assist"
+    (and an assist counts as a tackle). You're now only "in on the stop" when
+    the tackle is genuinely gang-assisted **and** you're one of the supporting
+    wrappers (the same 16px radius the gang roll uses). Out-of-bounds finishes
+    credit no assist at all.
+  - Run plays with no sim-named tackler (formula fallback / promoted gash runs)
+    gave you the tackle on a 50% coin flip — removed; no truth, no credit.
+  - Sacks credited you via an independent 40–42% roll even when the play text
+    named a teammate — credit now follows the named sacker.
+  - Clock-safety downs credited a hard-coded actor slot (`def4`) instead of the
+    nearest defender.
+  - Net effect for an LB: ~14 → ~7.5 tackles/game, now matching what the sim
+    actually attributes. Dev: `node scripts/creditcheck.mjs` asserts credited
+    tackles never exceed sim truth + sacks.
 - **UI + character overhaul (v16.6).**
   - **Readable scoreboard.** The live scoreboard was a vertical column that clipped
     the score under the logo/name and let the QTR number dominate. It's now a row
