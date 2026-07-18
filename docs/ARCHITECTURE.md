@@ -50,9 +50,17 @@ yard, `TICK = 33` ms per sim step. Key pieces, in order:
 - `contact()` (anchor: `returns: "cooldown" | "whiff"`) — one committed tackler at
   a time; resolves whiff / hurdle / stiff-arm / truck / stagger / tackle.
   Computes `supIds` (support wrappers within 16px) and the `gang` roll, and emits
-  the final `tackle` event with `tackler`, `sup`, `gang`, `youIn`.
+  the final `tackle` event with `tackler`, `sup`, `gang`, `youIn`, `kb`, `drive`.
   **`youIn` is only set when the stop is gang-assisted AND the you-player is one
   of the supporting wrappers** — proximity alone is not participation.
+  **v19 physics:** the truck/broken and wrap branches resolve from a head-to-head
+  of speed AND strength/tackling — a carrier who wins both flings the tackler back
+  along his line of motion (`brokenTackle`), a defender who wins drives the carrier
+  back (`kb` knockback), and a carrier who keeps his legs gets a forward `drive`.
+  `kb` (backward) and `drive` (forward) are applied to the tackled man during the
+  post-whistle coast, so he finishes his motion instead of freezing on contact.
+  The commit is split: the defender leaps at `TU("tackleLaunchDist",30)` (~2 sprite
+  lengths) and the grab/collision resolves at `TU("tackleGrabDist",16)`.
 - `finishCarry(why)` — out-of-bounds / whistle finishes. Credits the *nearest*
   opponent as tackler; no assist on OOB.
 - Stat truth extraction (anchor: `who ACTUALLY made the stop`) — after the play,
