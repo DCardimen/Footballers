@@ -42,6 +42,19 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v22.1 — sprite overlay made ADDITIVE (revert the base-look override).** v22
+  had replaced the base run cycle + idle for every player with the detailed art,
+  which changed the whole look. Reverted: **base run/idle are the original cells
+  again** (`__RIB_FRAMES` back to 8, `RIB_META_V22` no longer carries `run_*`/
+  `idle_*`). The overlay now only **enhances motion moments** by overriding the
+  named action cells the engine already builds those textures from:
+  - **Tackle-to-ground + dive** — `dive0-3`, `down0-1`, `grab` from the
+    diving-tackle sheet (auto-override; drives the `tackleSeq`/`dive`/`down` poses).
+  - **Cutting/plant** — a dedicated `cut_<dir>` frame from the cuts sheet
+    overrides ONLY the `cut` state (base run frame 2 untouched).
+  Everything else stays the original sprite. Repack with
+  `node scripts/spritekit/pack.mjs && node scripts/spritekit/bake.mjs`. Renderer
+  only (creditcheck 0 violations, render path ~87–90%).
 - **v22 — real sprite-art integration (stage 1: run + idle).** The player run
   cycle and idle now render from the uploaded high-fidelity pixel-art sheets
   (`art/source/`) instead of the chunky baked cells. A reusable asset pipeline
