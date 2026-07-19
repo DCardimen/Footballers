@@ -12,15 +12,24 @@ const ROOT = 'public'
 // ---- MAP: atlasCellName -> {sheet,row,col}. Directions the engine uses:
 // dn(front/toward viewer), up(back/away), sd(side), dr(down-diag), ur(up-diag).
 // The renderer mirrors L/R via flip, so base art faces one way (left here).
-const RUN = 'cuts and jukes pixel art.png'
-// row facings read from survey: 0=back(up) 1=3/4back(ur) 2=3/4front 4=3/4front(dr) 6=front(dn)
-const dirRow = { up: 0, ur: 1, dr: 2, dn: 6, sd: 4 }
-const FR = 7   // frames per run cycle
+// v22 is ADDITIVE now: base run/idle stay the original chunky sprites. The
+// overlay only enhances MOTION MOMENTS — the tackle-to-ground/dive sequence and
+// the cutting/plant frame — by overriding the named action cells the engine
+// already builds those textures from (dive0-3, down0-1, grab, cut_<dir>).
+const DIVE = 'diving tackle pixel art.png'   // 8 dirs x 9 frames: col0 upright, 1-8 dive->grounded
+const CUTS = 'cuts and jukes pixel art.png'
 const MAP = {}
-for (const [dir, row] of Object.entries(dirRow)) {
-  for (let f = 0; f < FR; f++) MAP[`run_${dir}${f}`] = { sheet: RUN, row, col: f }
-  MAP[`idle_${dir}`] = { sheet: RUN, row, col: 3 }   // mid-neutral frame as idle
-}
+// dive arc + grounded fold, from a clean side row (row 2)
+MAP['dive0'] = { sheet: DIVE, row: 2, col: 1 }   // launch
+MAP['dive1'] = { sheet: DIVE, row: 2, col: 2 }   // extend
+MAP['dive2'] = { sheet: DIVE, row: 2, col: 3 }   // full extension (also the standalone `dive` pose)
+MAP['dive3'] = { sheet: DIVE, row: 2, col: 4 }   // landing
+MAP['down0'] = { sheet: DIVE, row: 2, col: 6 }   // grounded
+MAP['down1'] = { sheet: DIVE, row: 2, col: 8 }   // flat (also the `down` pose)
+MAP['grab']  = { sheet: DIVE, row: 2, col: 2 }   // wrap/extended
+// cutting/plant frame per direction (enhances the `cut` state only — base run untouched)
+const cutRow = { dn: 6, dr: 2, sd: 4, ur: 1, up: 0 }, CUTF = 5
+for (const [d, r] of Object.entries(cutRow)) MAP[`cut_${d}`] = { sheet: CUTS, row: r, col: CUTF }
 // atlas grid
 const names = Object.keys(MAP)
 const COLS = 12
@@ -96,5 +105,5 @@ const url = await page.evaluate(async ({ files, MAP, cellmap, COLS, rowsN }) => 
 }, { files, MAP, cellmap, COLS, rowsN })
 fs.writeFileSync(path.join(ROOT, 'rib_atlas_v22.png'), Buffer.from(url.split(',')[1], 'base64'))
 fs.writeFileSync('art/atlas_v22.cellmap.json', JSON.stringify(cellmap))
-console.log('wrote rib_atlas_v22.png  (' + COLS * 48 + 'x' + rowsN * 48 + ')  cells=' + names.length + '  frames/run=' + FR)
+console.log('wrote rib_atlas_v22.png cells=' + names.length)
 await browser.close()

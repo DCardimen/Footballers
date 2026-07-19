@@ -42,6 +42,69 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v23 — team-strength variance, QB read progression, 2.5D camera, flat-stat
+  cleanup.** A batch of seven gameplay/feel changes:
+  - **Wider team OVR variance.** `Wr`'s quality math now spreads opponents from
+    roughly −10% below the per-level base to +30% above it (deterministic per
+    week via `__oppMulForV22(name)` so the pregame preview and the live game
+    agree), with per-player roll noise on top. Prestige/upgrades lift *your*
+    team past the strongest opponents (up to ~+20% above), via a prestige factor
+    `_prF` folded into the us-quality term and a widened per-player clamp.
+  - **Every "+performance" bonus is now a flat stat boost.** Gear
+    ("Conditioning +X to ALL stats"), prestige nodes, **and the personality
+    Win-Now / Me-First traits** all feed `perfFlat`, which is applied inside the
+    sim's attribute accessor (`_raw`) as a real +N to every attribute for the
+    game — so it shows up as actual production (and flows into the box-score
+    grade) instead of an abstract rating bump. The old personality rating-bump
+    (`et` wrapper) was removed to avoid double-counting; `varMult`/`injMult`
+    personality effects stay. Verified: +12 flat → +15 pass yds, +16 rush yds,
+    +0.4 TD/game for a QB.
+  - **QB read progression.** The QB now scans his vision cone THROUGH a short
+    read progression during the drop — a couple of decoy reads (covered → red
+    cone) before landing on the actual target (green when open) — and can only
+    release to the man he is focused on at that instant. Built in the FieldSim
+    pass setup (`readProg`) and driven by the per-tick `look` emit. Verified:
+    2–3 distinct reads on most pass plays, ~98% of throws land on the
+    last-focused receiver.
+  - **2.5D camera — resets to the line every play, more depth, bigger scale.**
+    `animatePlay` now re-centers on the fresh line of scrimmage right after
+    `drawField` refreshes `focusPt` (the pre-play `resetCamera` in `softStop`
+    fired before the LOS updated). Perspective defaults raised: tilt 15→20,
+    depth 0.15→0.38, player size 1.0→1.32, with the Settings sliders' ranges
+    widened to match.
+  - **Defender teleport fixed.** The punt returner used to hard-snap to the
+    catch spot (`returner.x = landX`); replaced with a hang-time flight + small
+    catch nudge, plus a general single-frame step clamp (`choreoMaxStep`) on the
+    choreographer's frames. A beaten/trailing defender who can't run the carrier
+    down no longer kick-sprints back into the play, so offenses that get behind
+    the coverage keep their real chance to score.
+  - **Team colors vary each new career.** A fresh run rerolls the team
+    palette/logo (`__randomizeTeamLookV22`, called from `Di`) unless the user
+    has explicitly set them (`userSetV22`).
+- **v22.2 — pregame OVRs now match the team you actually play.** The pregame
+  generated its display roster from a separate scouting-scale generator
+  (`__GRIDIRON_GENERATE_ROSTER_V157`), whose numbers were unrelated to the
+  in-game opponent that `Wr`/`__simGameV2` builds around the per-level base — so
+  the shown overalls were way off (e.g. opponent shown ~24 with top-5 in the
+  30s, but actually played at ~17 with top-5 ~20). Added
+  `window.__previewMatchupV22(pos, perf)` that builds the matchup with the SAME
+  `Wr` the game uses, and rewired `showPregame` to display its team OVRs +
+  top-5. The win % and composition notes now derive from those same OVRs, so the
+  whole panel is internally consistent and matches the game (verified: preview
+  18/18 vs actual game 18/18).
+- **v22.1 — sprite overlay made ADDITIVE (revert the base-look override).** v22
+  had replaced the base run cycle + idle for every player with the detailed art,
+  which changed the whole look. Reverted: **base run/idle are the original cells
+  again** (`__RIB_FRAMES` back to 8, `RIB_META_V22` no longer carries `run_*`/
+  `idle_*`). The overlay now only **enhances motion moments** by overriding the
+  named action cells the engine already builds those textures from:
+  - **Tackle-to-ground + dive** — `dive0-3`, `down0-1`, `grab` from the
+    diving-tackle sheet (auto-override; drives the `tackleSeq`/`dive`/`down` poses).
+  - **Cutting/plant** — a dedicated `cut_<dir>` frame from the cuts sheet
+    overrides ONLY the `cut` state (base run frame 2 untouched).
+  Everything else stays the original sprite. Repack with
+  `node scripts/spritekit/pack.mjs && node scripts/spritekit/bake.mjs`. Renderer
+  only (creditcheck 0 violations, render path ~87–90%).
 - **v22 — real sprite-art integration (stage 1: run + idle).** The player run
   cycle and idle now render from the uploaded high-fidelity pixel-art sheets
   (`art/source/`) instead of the chunky baked cells. A reusable asset pipeline
