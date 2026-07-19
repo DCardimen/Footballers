@@ -1805,6 +1805,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           slideY = th.y > qb.y ? -14 : 14;
           if (Math.abs(th.y - qb.y) > 26) climb = 10;
           if (!qb._slid) { qb._slid = true; emit("pocketSlide",{}); }
+          // v23: a defender has broken the line and is closing on the QB — flag him
+          // early (before the hit) so the broadcast can warn "scramble incoming".
+          if (th && !th._presAlert && Math.hypot(th.lx-qb.lx, th.y-qb.y) < 72) { th._presAlert = true; emit("pressureAlert",{who:th.id}); }
         }
         mv(qb, -34 + climb, qb.y + slideY, 0.8);
         const nearest = free.map(r=>Math.hypot(r.lx-qb.lx, r.y-qb.y)).sort((a,b)=>a-b)[0];
@@ -2676,6 +2679,7 @@ class Ot extends mt.Scene {
         tgtAbs = mt.Math.Clamp(losAbs + (it ? 1 : -1) * (et.preToGo ?? 10), 0, 100);
       this.drawField(losAbs, tgtAbs);
       this.resetCamera();   // v23: re-center on THIS play's line of scrimmage (focusPt was just refreshed by drawField)
+      this.clearAlerts();   // v23: reset any scramble-warning ❗ from the previous play
       // build or GLIDE markers to the new formation (no teleporting between plays)
       let glide = this.markers.length === script.actors.length;
       if (glide) {
@@ -3253,6 +3257,9 @@ class Ot extends mt.Scene {
       }
       case "qbHit": { this.flash(e.x, e.y, 0xff6b52); this.popText(e.x, e.y - 22, "QB HIT!", "#ff9fa5", 13);
         REDUCED_MOTION || this.cameras.main.shake(110, 0.005); break; }
+      // v23: a defender has broken through and is bearing down on the QB — flag him
+      // so the player sees the scramble/sack coming a beat early.
+      case "pressureAlert": case "freeRusher": { const m = this.markers[this.actorIdx(e.who)]; if (m) this.alertMark(m, true); break; }
       case "tip": { this.flash(e.x, e.y, 0xffffff); this.popText(e.x, e.y - 20, "TIPPED!", "#f7e2a8", 13); break; }
       case "pull": break;
       case "stunt": break;
@@ -3279,6 +3286,7 @@ class Ot extends mt.Scene {
       }
       case "throw": {
         P.lookIdx = null; if (this.lookG) this.lookG.clear();
+        this.clearAlerts();   // v23: ball's out — the scramble warning is moot
         const ti = P.script.meta.targetId ? this.actorIdx(P.script.meta.targetId) : -1;
         if (ti >= 0) P.awaitCatch = ti;
         this.zoomPunch = Math.max(this.zoomPunch, 0.06);
@@ -3524,6 +3532,25 @@ class Ot extends mt.Scene {
     if (this.ballSpr) { try { this.ballSpr.destroy(); } catch (e) {} this.ballSpr = void 0; }
     if (this.ballShad) { try { this.ballShad.destroy(); } catch (e) {} this.ballShad = void 0; }
   }
+  // v23 SCRAMBLE WARNING: a red ❗ that floats over a defender's head the moment he
+  // breaks through the line and bears down on the QB — telegraphing that a
+  // scramble (or sack) is coming so the player can read it live. The badge is a
+  // child of the marker container, so it tracks + depth-scales with the defender.
+  alertMark(m, on) {
+    if (!m || !m.root || !m.root.scene) return;
+    if (on) {
+      if (!m.alert || !m.alert.scene) {
+        m.alert = this.add.text(0, -30, "❗", { fontFamily: "Oswald, sans-serif", fontSize: "18px", fontStyle: "bold", color: "#ff5a5a" }).setOrigin(0.5);
+        m.alert.setStroke("#2a0808", 3);
+        try { m.root.add(m.alert); } catch (e) {}
+        m._alertTw = this.tweens.add({ targets: m.alert, y: -36, scale: 1.18, yoyo: true, repeat: -1, duration: 300, ease: "Sine.easeInOut" });
+      }
+      m.alert.setVisible(true);
+    } else if (m.alert) {
+      m.alert.setVisible(false);
+    }
+  }
+  clearAlerts() { for (const m of this.markers) { if (m && m.alert) m.alert.setVisible(false); } }
   staticFormation(losAbs, usOff) {
     this.clearActors();
     const it = usOff ? 1 : -1, ht = PLAY_L + (losAbs / 100) * PLAY_W;
@@ -4603,6 +4630,9 @@ while(!gameOver&&plays<MAXP){
   hurry?passP=Math.max(passP,.85):milk&&(passP=Math.min(passP,.3));
   margin<=-14&&quarter>=3&&(passP+=.12);
   usDrive&&(passP+=((M("callPass")||0)-(M("callRun")||0))*.07);
+  // v23: your adopted PREGAME game-plan bends your play-mix toward the pass rate
+  // the coach agreed to run. Blended (not forced) so down/distance still matters.
+  if(usDrive&&window.__gameScriptBiasV23!=null){passP=passP*0.45+window.__gameScriptBiasV23*0.55;}
   passP=f(passP,.05,.97);
   const isPassCall=Math.random()<passP,{O:Ok,D:Dk}=ie(usDrive),qb2=Y(Ok.off,["QB"]);
   // pick a concept from the situation — surfaced in commentary and fed to the
@@ -4827,8 +4857,9 @@ function __seasonSeed(e){const s=Pa(e),n=A[e.level],base=(s-(n.need-6))*1.35+52;
 function __aiSeasonGame(e,opts){opts=opts||{};let seed=__seasonSeed(e);
   const gm=Math.max(1,A[e.level].games);
   seed+=(opts.perfSeed||0)/gm*2;
-  // v17 intra-game modifiers: SMALL current-season boost (persists all year)
-  seed+=(e._seasonPerfBoost||0);
+  // v23: the rest-of-season "Season Momentum" boost was removed (too strong — it
+  // compounded a flat rating bump into every game). Story-arc picks now grant a
+  // single-game, personality-driven outcome only (see the wheel land() handler).
   // v20: the next-game boost is no longer an abstract "perf" bump — it is a REAL
   // +1% per point to every attribute for this one game, applied inside the sim's
   // attribute accessor (_raw), and it may push stats past the player's normal cap.
@@ -4836,7 +4867,8 @@ function __aiSeasonGame(e,opts){opts=opts||{};let seed=__seasonSeed(e);
   if(opts.playoff)seed+=G("playoffPerf")+ft("playoffPerf");
   if(opts.oppBoost)seed-=opts.oppBoost*30;   // tougher slate lowers effective quality
   seed=f(seed,5,100);
-  let g=null;try{window.__youStatBoostPctV20=_sb;g=window.__simGameV2(seed,e.pos)}catch(_){g=null}finally{window.__youStatBoostPctV20=0}
+  const _gsB=(e._gameScriptV23&&e._gameScriptV23.gsPass!=null)?e._gameScriptV23.gsPass:null;e._gameScriptV23=null;
+  let g=null;try{window.__youStatBoostPctV20=_sb;window.__gameScriptBiasV23=_gsB;g=window.__simGameV2(seed,e.pos)}catch(_){g=null}finally{window.__youStatBoostPctV20=0;window.__gameScriptBiasV23=null}
   const etRoll=et(e,opts.perfSeed||0,opts),injRoll=etRoll.injured;
   const grader=(typeof gradeGame==="function"?gradeGame:window.__gradeGame);
   if(!g||!g.stat||typeof grader!=="function"){const sc=ia(e,etRoll.perf,opts);return{perf:etRoll.perf,ovr:Pa(e),injured:injRoll,us:sc.us,them:sc.them,won:sc.won,statLine:null}}
@@ -4861,7 +4893,6 @@ window.__gameOddsV20=function(){
   const e=o.player;if(!e||!e.weekResults)return null;
   const wk=e.weekResults.find(w=>!w.played);if(!wk)return null;
   let seed=__seasonSeed(e);
-  seed+=(e._seasonPerfBoost||0);
   const oppR=wk.opponentV11&&wk.opponentV11.rating!=null?Number(wk.opponentV11.rating):45+e.level*5.5;
   const rel=oppR-(45+e.level*5.5);
   const oppBoost=rel/180+(wk.playoff?.08:0);
@@ -4939,7 +4970,7 @@ function sitOutWeekV18(e,s){
     if(inj.weeksRemaining<=0){e.recentlyRecoveredV18=inj.name;c.injury=null;try{toast("✅ Healed: "+inj.name+" — cleared to play")}catch(x){}}}
   c.fatigue=Math.max(0,(c.fatigue||0)-22);
 }
-function lt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){te("season");return}t.currentWeek=a;const s=t.weekResults[a];if(e){window.__oppMulV22=__oppMulForV22(s.opp);o._liveGame=Yr(s.perf,t.pos);window.__oppMulV22=null;o._oppName=s.opp;o.view="live";q()}else{s.played=!0;te("season")}}function wt(){const e=o.player;e.weekResults.filter(t=>!t.playoff).forEach(t=>{if(t.played)return;if(mustSitV18(e)){sitOutWeekV18(e,t)}else{const c=cv18(e);t.played=!0;materializeInjuryV18(e,t);c.fatigue=Math.min(100,(c.fatigue||0)+5)}}),I(),te("season")}function Ea(){const e=o.player;if(e.weekResults&&e.currentWeek!=null){const w=e.weekResults[e.currentWeek];w.played=!0;const g=o._liveGame;g&&g.usScore!=null&&g.plays&&(w.us=g.usScore,w.them=g.themScore,w.won=g.usScore>g.themScore)}o._oppName=null,te("season")}function fs(){const e=o.player;if(dn(e),e.weekResults&&e.weekResults.some(a=>!a.played)){te("season");return}
+function lt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){te("season");return}t.currentWeek=a;const s=t.weekResults[a];if(e){window.__oppMulV22=__oppMulForV22(s.opp);let _sb=0;if(t._nextGameBoost){_sb=Math.round(t._nextGameBoost);t._nextGameBoost=0}window.__youStatBoostPctV20=_sb;window.__gameScriptBiasV23=(t._gameScriptV23&&t._gameScriptV23.gsPass!=null)?t._gameScriptV23.gsPass:null;t._gameScriptV23=null;try{o._liveGame=Yr(s.perf,t.pos)}finally{window.__youStatBoostPctV20=0;window.__oppMulV22=null;window.__gameScriptBiasV23=null}o._oppName=s.opp;o.view="live";q()}else{s.played=!0;te("season")}}function wt(){const e=o.player;e.weekResults.filter(t=>!t.playoff).forEach(t=>{if(t.played)return;if(mustSitV18(e)){sitOutWeekV18(e,t)}else{const c=cv18(e);t.played=!0;materializeInjuryV18(e,t);c.fatigue=Math.min(100,(c.fatigue||0)+5)}}),I(),te("season")}function Ea(){const e=o.player;if(e.weekResults&&e.currentWeek!=null){const w=e.weekResults[e.currentWeek];w.played=!0;const g=o._liveGame;g&&g.usScore!=null&&g.plays&&(w.us=g.usScore,w.them=g.themScore,w.won=g.usScore>g.themScore)}o._oppName=null,te("season")}function fs(){const e=o.player;if(dn(e),e.weekResults&&e.weekResults.some(a=>!a.played)){te("season");return}
   // v18: the offseason heals — season-enders clear, lingering knocks fade, fatigue resets
   {const c=cv18(e);if(c.injury&&(c.injury.seasonEnding||Math.random()<.7))c.injury=null;c.fatigue=Math.max(0,Math.min(30,(c.fatigue||0)-40))}const t=tt(e);e.seasonStats=t,e.weekResults=null,e.currentWeek=null,es(),o.view="result",I(),q()}function nl(){La()}let Z=null;function il(){o.view="live",q()}function Dt(e){const t=[["Cubs","Ducks","Tigers","Colts","Jr. Rams"],["Wolves","Hawks","Bears","Broncos","Panthers"],["Vipers","Raiders","Chargers","Eagles","Wildcats"],["Titans","Spartans","Knights","Jaguars","Cobras"],["Bulldogs","Mustangs","Warriors","Falcons","Gators"],["State","Tech","A&M","U","Central"],["Combine Field","Draft Prospects","All-Stars"],["Storm","Kings","Empire","Blitz","Reign"],["Void Titans","Nebula Reapers","Solar Wraiths","Meteor Legion","Andromeda Sovereigns","Lunar Command","Europa Frost"]],a=["Dallas","Miami","Denver","Austin","Tampa","Reno","Akron","Boise"],s=t[Math.min(e,t.length-1)];return e===5?W(a)+" "+W(s):W(s).toUpperCase()}function ol(){const e=o.player,t=o._liveGame;A[e.level];const a=o._oppName||(o._oppName=Dt(e.level)),s=e.name.split(" ")[1].slice(0,8).toUpperCase(),n=a.split(" ").pop().slice(0,8).toUpperCase(),i=["DL","LB","CB","S"].includes(e.pos);const _pl=(e.weekResults||[]).filter(w=>w.played),_uw=_pl.filter(w=>w.won).length,usRec=_pl.length?_uw+"-"+(_pl.length-_uw):t.roster.us.ovr+" OVR",_os=Array.from(a||"").reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,7),_ow=_pl.length?_os%(_pl.length+1):0,oppRec=_pl.length?_ow+"-"+(_pl.length-_ow):t.roster.opp.ovr+" OVR";x("screen").innerHTML=`
     <div class="field-wrap">
@@ -5332,6 +5363,8 @@ window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;w
         desc: "Your coaches call 7% more RUN plays per level. AI effect: the play-caller's pass/run dice shift toward the ground game in every game you play." },
       { key: "callPass", icon: "🎯", name: "Air Raid", max: 3, cost: 4, mult: 1.6,
         desc: "Your coaches call 7% more PASS plays per level. AI effect: the play-caller's pass/run dice shift toward the air in every game you play." },
+      { key: "fieldGeneral", icon: "🧠", name: "Field General", max: 4, cost: 5, mult: 1.7,
+        desc: "The staff listens to you. +18% per level to how much of your PREGAME game-plan suggestion the coach actually adopts — so scouting the opponent's weak unit and calling for more runs (or more air) really bends the play-mix." },
     ];
     if (sa && sa.fate && Array.isArray(sa.fate.nodes)) {
       newNodes.forEach(function (n) {
@@ -6259,8 +6292,7 @@ function continuePregame(){const q=pending;document.getElementById('pregameV1513
 // know exactly what buffs (and debuffs) you carry into the upcoming matchup.
 function pregameTempStats(pl,wk){
   const out=[]; if(!pl) return out;
-  const nb=Math.round(pl._nextGameBoost||0); if(nb) out.push({l:'Next-Game Boost',v:(nb>0?'+':'')+nb+'% ALL stats (can exceed cap)',good:nb>0});
-  const sb=Math.round((pl._seasonPerfBoost||0)*10)/10; if(sb) out.push({l:'Season Momentum',v:(sb>0?'+':'')+sb+'/gm',good:sb>0});
+  const nb=Math.round(pl._nextGameBoost||0); if(nb) out.push({l:nb>0?'Next-Game Boost':'Off-Field Setback',v:(nb>0?'+':'')+nb+'% ALL stats'+(nb>0?' (can exceed cap)':' this game'),good:nb>0});
   if(pl.momentum103!=null&&Math.abs(pl.momentum103-50)>=3) out.push({l:'Momentum',v:Math.round(pl.momentum103)+'/100',good:pl.momentum103>=50});
   if(pl.composure103!=null&&Math.abs(pl.composure103-50)>=3) out.push({l:'Composure',v:Math.round(pl.composure103)+'/100',good:pl.composure103>=50});
   if(pl.coachTrust!=null&&Math.abs(pl.coachTrust-50)>=4) out.push({l:'Coach Trust',v:Math.round(pl.coachTrust)+'/100',good:pl.coachTrust>=50});
@@ -6285,6 +6317,82 @@ function tempStatsPanel(pl,wk){
     <div style="display:flex;flex-wrap:wrap;gap:6px">${ts.map(s=>`<span style="display:inline-flex;gap:5px;align-items:center;font:600 11px Barlow Condensed,sans-serif;padding:3px 8px;border-radius:14px;background:${s.good?'rgba(107,191,89,.14)':'rgba(224,100,90,.14)'};border:1px solid ${s.good?'rgba(107,191,89,.4)':'rgba(224,100,90,.4)'}"><span style="color:var(--chalk-dim)">${esc(s.l)}</span><b style="color:${s.good?'#8fe0a0':'#e8938b'}">${esc(s.v)}</b></span>`).join('')}</div>
   </div>`;
 }
+/* ===== v23 PREGAME GAME PLAN — you scout the opponent's weak unit and pitch a
+ * play-mix to your coordinator. He adopts it in proportion to your standing
+ * (coach trust + recent form + the Field General prestige node), and the adopted
+ * pass/run lean is fed into the game's per-play passP so your read actually bends
+ * the script. The impact bar shows exactly how much of your suggestion took. ===== */
+function gsUnitAvg(r,ps){const a=(Array.isArray(r)?r:[]).map(normalize).filter(p=>ps.includes(p.pos));return a.length?a.reduce((s,p)=>s+p.ovr,0)/a.length:null}
+function gsScenariosV23(oursR,theirsR){
+  const theirAvg=rosterAvg(theirsR,50);
+  const secD=gsUnitAvg(theirsR,['CB','S']), frontD=gsUnitAvg(theirsR,['DL','LB','EDGE','DT']);
+  const ourPass=gsUnitAvg(oursR,['QB','WR','TE']), ourRun=gsUnitAvg(oursR,['RB','OL','LT','LG','C','RG','RT']);
+  const secWeak=theirAvg-(secD==null?theirAvg:secD), frontWeak=theirAvg-(frontD==null?theirAvg:frontD);
+  const airPass=Math.max(.6,Math.min(.75,.62+Math.max(0,secWeak)*.02+(ourPass&&secD?Math.max(0,ourPass-secD)*.006:0)));
+  const groundPass=Math.max(.25,Math.min(.42,.4-Math.max(0,frontWeak)*.02-(ourRun&&frontD?Math.max(0,ourRun-frontD)*.006:0)));
+  const air={key:'air',icon:'🎯',name:'Air It Out',pass:airPass,
+    why:secD!=null?`Their secondary grades ${Math.round(secD)} — ${secWeak>=3?'a soft spot to attack through the air':'stout, but you can test them deep'}.`:'Spread them out and throw.'};
+  const ground={key:'ground',icon:'🐗',name:'Pound the Rock',pass:groundPass,
+    why:frontD!=null?`Their front seven grades ${Math.round(frontD)} — ${frontWeak>=3?'you can run right at them':'physical, but you can wear them down'}.`:'Line up and run it.'};
+  const balanced={key:'bal',icon:'⚖️',name:'Stay Balanced',pass:.54,why:'Keep them honest — take what the defense gives you.'};
+  if(secWeak>=3&&secWeak>=frontWeak) air.edge=true; else if(frontWeak>=3) ground.edge=true;
+  return [air,ground,balanced];
+}
+function gsAdoptV23(pl,wk){
+  const trust=pl&&pl.coachTrust!=null?pl.coachTrust:50;
+  let form=50; try{const w=(pl&&pl.weekResults||[]).filter(x=>x&&x.played&&x.perf!=null);
+    if(w.length) form=w.reduce((s,x)=>s+x.perf,0)/w.length; else if(pl&&pl.perf) form=pl.perf;}catch(e){}
+  let fgLvl=0; try{const s=getState(); fgLvl=(s&&s.tree&&s.tree.fieldGeneral)||0;}catch(e){}
+  return Math.max(.04,Math.min(1,.12+(trust-50)/120+(form-55)/220+fgLvl*.18));
+}
+function gsFinalPass(scnPass,adopt){return .5+(scnPass-.5)*(0.35+adopt*0.5);}
+function gsImpactHTML(scn,adopt){
+  if(!scn) return `<div class="gs-impact-empty">Pick a plan above to pitch it to your coordinator. Your <b>coach trust</b>, recent form and <b>Field General</b> prestige decide how much he runs with it.</div>`;
+  const finalPass=gsFinalPass(scn.pass,adopt), took=Math.round(adopt*100);
+  return `<div class="gs-impact-row"><span>You called <b>${Math.round(scn.pass*100)}% pass</b></span><span>Coach bought in <b>${took}%</b></span></div>
+    <div class="gs-field"><div class="gs-field-fill" style="width:${Math.round(finalPass*100)}%"></div></div>
+    <div class="gs-field-lab">GAME SCRIPT · ~${Math.round(finalPass*100)}% PASS · ${Math.round((1-finalPass)*100)}% RUN</div>
+    <div class="gs-impact-note">${took>=70?'He’s all-in on your read.':took>=40?'He’ll lean your way when the down lets him.':'He hears you out but keeps mostly his own script.'} <span style="color:var(--chalk-dim)">Raise adoption in Prestige → Field General.</span></div>`;
+}
+let gsStateV23=null;
+function gsSectionV23(oursR,theirsR,pl,wk){
+  if(!document.getElementById('gsStyleV23')) document.head.insertAdjacentHTML('beforeend',`<style id="gsStyleV23">
+    .gs-wrap-v23{margin:12px 14px 4px;padding:10px 12px;border:1px solid rgba(120,180,255,.32);border-radius:10px;background:rgba(120,170,255,.06)}
+    .gs-head{font:700 11px Oswald,sans-serif;letter-spacing:1px;color:#8fb7ff;margin-bottom:8px}
+    .gs-head small{display:block;font:400 10px system-ui;color:var(--chalk-dim);letter-spacing:0;margin-top:2px}
+    .gs-cards{display:flex;flex-direction:column;gap:6px}
+    .gs-card-v23{text-align:left;width:100%;cursor:pointer;background:rgba(20,30,48,.7);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:8px 10px;transition:border-color .12s,background .12s}
+    .gs-card-v23:hover{border-color:rgba(143,183,255,.55)}
+    .gs-card-v23.gs-sel{border-color:#8fb7ff;background:rgba(120,170,255,.16);box-shadow:0 0 0 1px #8fb7ff inset}
+    .gs-card-top{display:flex;align-items:center;gap:7px;font:700 13px Oswald,sans-serif;color:#eaf1ff}
+    .gs-ico{font-size:15px}
+    .gs-edge{margin-left:auto;font:800 9px Oswald;letter-spacing:1px;color:#0b1119;background:var(--gold);border-radius:10px;padding:2px 7px}
+    .gs-mix{font:700 11px Barlow Condensed,sans-serif;color:#8fb7ff;margin:3px 0 2px}
+    .gs-why{font:400 11px system-ui;color:var(--chalk-dim);line-height:1.3}
+    .gs-impact{margin-top:9px}
+    .gs-impact-empty{font:400 11px system-ui;color:var(--chalk-dim);line-height:1.35}
+    .gs-impact-row{display:flex;justify-content:space-between;font:600 11px Barlow Condensed,sans-serif;color:#cdd8e8;margin-bottom:5px}
+    .gs-field{position:relative;height:16px;border-radius:8px;overflow:hidden;background:linear-gradient(90deg,rgba(107,191,89,.25),rgba(107,191,89,.1) 40%,rgba(120,170,255,.1) 60%,rgba(120,170,255,.3));border:1px solid rgba(255,255,255,.12)}
+    .gs-field-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#5a8fd6,#8fb7ff);opacity:.55;transition:width .35s cubic-bezier(.2,.9,.3,1)}
+    .gs-field-lab{font:700 9px Oswald;letter-spacing:1px;color:#8fb7ff;text-align:center;margin-top:3px}
+    .gs-impact-note{font:400 10px system-ui;color:#cdd8e8;margin-top:5px;line-height:1.3}
+  </style>`);
+  const scn=gsScenariosV23(oursR,theirsR), adopt=gsAdoptV23(pl,wk);
+  gsStateV23={scn,adopt,pl};
+  if(pl) pl._gameScriptV23=null;   // start each pregame with no suggestion until picked
+  const cards=scn.map((s,i)=>`<button class="gs-card-v23" id="gsCard${i}" onclick="__gsPickV23(${i})">
+    <div class="gs-card-top"><span class="gs-ico">${s.icon}</span><b>${esc(s.name)}</b>${s.edge?'<span class="gs-edge">SCOUTED EDGE</span>':''}</div>
+    <div class="gs-mix">${Math.round(s.pass*100)}% pass · ${Math.round((1-s.pass)*100)}% run</div>
+    <div class="gs-why">${esc(s.why)}</div></button>`).join('');
+  return `<div class="gs-wrap-v23"><div class="gs-head">🧠 SUGGEST A GAME PLAN<small>Scout their weak unit and pitch a play-mix — the coach adopts it based on your standing.</small></div>
+    <div class="gs-cards">${cards}</div><div class="gs-impact" id="gsImpactV23">${gsImpactHTML(null,adopt)}</div></div>`;
+}
+window.__gsPickV23=function(idx){
+  const S=gsStateV23; if(!S) return; const scn=S.scn[idx]; if(!scn) return;
+  document.querySelectorAll('.gs-card-v23').forEach((c,i)=>c.classList.toggle('gs-sel',i===idx));
+  const imp=document.getElementById('gsImpactV23'); if(imp) imp.innerHTML=gsImpactHTML(scn,S.adopt);
+  if(S.pl) S.pl._gameScriptV23={gsPass:gsFinalPass(scn.pass,S.adopt),name:scn.name,adopt:S.adopt};
+};
 // v20: full-roster average on the shared scale (falls back to the level anchor)
 function rosterAvg(roster,fb){const a=(Array.isArray(roster)?roster:[]).map(normalize).filter(p=>p.ovr>0);return a.length?a.reduce((s,p)=>s+p.ovr,0)/a.length:fb}
 // v20: unit-by-unit comparison → 2-3 plain-language lines about how this game
@@ -6328,7 +6436,7 @@ function showPregame(ctx,args){
   const lab=winClamped>=70?'Heavy Favorite':winClamped>=57?'Favored':winClamped>45?'Toss-Up':winClamped>=30?'Underdog':'Heavy Underdog';
   const notes=matchupNotes(oursR,theirsR,player);
   pending={ctx,args};document.getElementById('pregameV1513')?.remove();
-  document.body.insertAdjacentHTML('beforeend',`<div class="pregame-v1513" id="pregameV1513"><div class="pregame-panel-v1513"><div class="pregame-head-v1513"><div class="pregame-kicker-v1513">PREGAME · PLAYERS TO WATCH</div><div class="pregame-title-v1513">Top Talent Matchup</div><div class="pregame-sub-v1513">${week?.playoff?esc(week.round||'Playoff'):'Week '+(week?.week||'—')} · your next opponent — top five from each roster</div></div><div class="pregame-match-v1513"><div class="pregame-team-v1513"><b>${esc(ourName)}</b><small>${Math.round(ourOvr)} TEAM OVR</small></div><div class="pregame-vs-v1513">VS</div><div class="pregame-team-v1513 away"><b>${esc(theirName)}</b><small>${Math.round(theirOvr)} TEAM OVR</small></div></div><div class="pregame-odds-v20"><div class="odds-head-v20"><div class="odds-big-v20" style="color:${winClamped>=57?'#7fe0a0':winClamped>45?'var(--gold)':'#ff9a9a'}">${winClamped}%<small>WIN CHANCE</small></div><div class="odds-lab-v20"><b>${esc(lab)}</b><small>${Math.round(ourOvr)} vs ${Math.round(theirOvr)} team OVR${week?.playoff?' · playoff':''}</small></div></div><div class="odds-bar-v20"><i style="width:${winClamped}%"></i></div><div class="odds-notes-v20">${notes.map(n=>`<div class="${n.good?'g':'b'}">${n.good?'▲':'▼'} ${esc(n.txt)}</div>`).join('')}</div></div><div class="pregame-lists-v1513"><div class="pregame-card-v1513"><h3>${esc(ourName)} · TOP 5</h3>${rows(ours)}</div><div class="pregame-card-v1513"><h3>${esc(theirName)} · TOP 5</h3>${rows(theirs)}</div></div>${tempStatsPanel(player,week)}<div class="pregame-actions-v1513"><button class="btn secondary" onclick="closePregameV1513()">Back</button><button class="btn" onclick="continuePregameV1513()">Continue to Match</button></div></div></div>`);
+  document.body.insertAdjacentHTML('beforeend',`<div class="pregame-v1513" id="pregameV1513"><div class="pregame-panel-v1513"><div class="pregame-head-v1513"><div class="pregame-kicker-v1513">PREGAME · PLAYERS TO WATCH</div><div class="pregame-title-v1513">Top Talent Matchup</div><div class="pregame-sub-v1513">${week?.playoff?esc(week.round||'Playoff'):'Week '+(week?.week||'—')} · your next opponent — top five from each roster</div></div><div class="pregame-match-v1513"><div class="pregame-team-v1513"><b>${esc(ourName)}</b><small>${Math.round(ourOvr)} TEAM OVR</small></div><div class="pregame-vs-v1513">VS</div><div class="pregame-team-v1513 away"><b>${esc(theirName)}</b><small>${Math.round(theirOvr)} TEAM OVR</small></div></div><div class="pregame-odds-v20"><div class="odds-head-v20"><div class="odds-big-v20" style="color:${winClamped>=57?'#7fe0a0':winClamped>45?'var(--gold)':'#ff9a9a'}">${winClamped}%<small>WIN CHANCE</small></div><div class="odds-lab-v20"><b>${esc(lab)}</b><small>${Math.round(ourOvr)} vs ${Math.round(theirOvr)} team OVR${week?.playoff?' · playoff':''}</small></div></div><div class="odds-bar-v20"><i style="width:${winClamped}%"></i></div><div class="odds-notes-v20">${notes.map(n=>`<div class="${n.good?'g':'b'}">${n.good?'▲':'▼'} ${esc(n.txt)}</div>`).join('')}</div></div><div class="pregame-lists-v1513"><div class="pregame-card-v1513"><h3>${esc(ourName)} · TOP 5</h3>${rows(ours)}</div><div class="pregame-card-v1513"><h3>${esc(theirName)} · TOP 5</h3>${rows(theirs)}</div></div>${tempStatsPanel(player,week)}${gsSectionV23(oursR,theirsR,player,week)}<div class="pregame-actions-v1513"><button class="btn secondary" onclick="closePregameV1513()">Back</button><button class="btn" onclick="continuePregameV1513()">Continue to Match</button></div></div></div>`);
 }
 function installPregame(){
   const fn=window.chooseGamePlanV11;
@@ -6968,26 +7076,45 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       if(c>bv){bv=c;best={name:PREF_W[k][1],val:p[k]??5};} }
     return bv>=0.5?best:null;
   }
-  function showRollPopup(panel, optName, bold, season, next, chosen){
+  // v23: the roll now resolves to a SINGLE-GAME outcome driven by the kid's
+  // character (coach trust). Good kids stack reliable small edges; problem
+  // children risk a real off-field incident that costs stats AND trust.
+  function showRollPopup(panel, optName, bold, next, chosen, incident, negTrust){
     try{
       document.getElementById('rollPopV20')?.remove();
       const tr=drivingTrait(bold);
       const isPlan=!!panel.querySelector('[onclick*="chooseGamePlanV11"]');
       const kicker=isPlan?'PREGAME ROLL':'STORY ROLL';
-      const why=tr?`Your <b>${tr.name} ${tr.val}</b> tipped the wheel toward this call.`
-                  :'A neutral personality — this one was pure dice.';
-      const fx=[`<span class="rollfx up">▲ +${next}% ALL stats next game <small>(can exceed your caps)</small></span>`,
-                `<span class="rollfx up">▲ +${season} performance/gm rest of season</span>`];
-      if(bold>=0.66) fx.push('<span class="rollfx dn">▼ bold call — higher bust risk if the game goes sideways</span>');
-      document.body.insertAdjacentHTML('beforeend',
-        `<div class="roll-pop-v20" id="rollPopV20" onclick="this.remove()">
-          <div class="roll-pop-card">
-            <div class="roll-pop-kick">🎲 ${kicker} · LANDED</div>
-            <div class="roll-pop-name">${optName}</div>
-            <div class="roll-pop-why">${why}</div>
-            <div class="roll-pop-fx">${fx.join('')}</div>
-            <div class="roll-pop-hint">tap to dismiss</div>
-          </div></div>`);
+      const fx=[];
+      if(incident){
+        const why=`His <b>character</b> got the better of him — a disciplined kid never lets this happen.`;
+        fx.push(`<span class="rollfx dn">▼ ${incident.e} — ${next}% ALL stats this game</span>`);
+        if(negTrust) fx.push(`<span class="rollfx dn">▼ ${negTrust} coach trust</span>`);
+        document.body.insertAdjacentHTML('beforeend',
+          `<div class="roll-pop-v20" id="rollPopV20" onclick="this.remove()">
+            <div class="roll-pop-card" style="border-color:rgba(255,120,120,.6)">
+              <div class="roll-pop-kick" style="color:#ff9a9a">⚠️ OFF-FIELD · ${incident.t.toUpperCase()}</div>
+              <div class="roll-pop-name">${optName}</div>
+              <div class="roll-pop-why">${why}</div>
+              <div class="roll-pop-fx">${fx.join('')}</div>
+              <div class="roll-pop-hint">tap to dismiss</div>
+            </div></div>`);
+      } else {
+        const why=tr?`Your <b>${tr.name} ${tr.val}</b> tipped the wheel toward this call.`
+                    :'A neutral personality — this one was pure dice.';
+        if(next>0) fx.push(`<span class="rollfx up">▲ +${next}% ALL stats next game <small>(can exceed your caps)</small></span>`);
+        else fx.push(`<span class="rollfx">a clean, quiet week — no swing this game</span>`);
+        if(bold>=0.66) fx.push('<span class="rollfx dn">▼ bold call — higher bust risk if the game goes sideways</span>');
+        document.body.insertAdjacentHTML('beforeend',
+          `<div class="roll-pop-v20" id="rollPopV20" onclick="this.remove()">
+            <div class="roll-pop-card">
+              <div class="roll-pop-kick">🎲 ${kicker} · LANDED</div>
+              <div class="roll-pop-name">${optName}</div>
+              <div class="roll-pop-why">${why}</div>
+              <div class="roll-pop-fx">${fx.join('')}</div>
+              <div class="roll-pop-hint">tap to dismiss</div>
+            </div></div>`);
+      }
       setTimeout(()=>{const el=document.getElementById('rollPopV20'); if(el){el.classList.add('bye'); setTimeout(()=>el.remove(),450);} },4200);
     }catch(e){}
   }
@@ -7028,24 +7155,44 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     function land(){
       btns.forEach(b=>b.classList.remove('wheel-live-v13'));
       const win=btns[chosen]; win.classList.add('wheel-win-v13');
-      // v17: EVERY intra-game option is also a modifier — the auto-picked choice grants
-      // a SMALL current-season boost (builds all year) and a MODERATE next-game boost,
-      // scaled by how bold the roll landed. Bolder calls swing harder both ways.
+      // v23: the auto-picked choice resolves into a SINGLE-GAME outcome that
+      // depends on the kid's CHARACTER (coach trust), not a flat generic buff.
+      // Good kids stack reliable, modest, VARIED positives. Problem children (low
+      // trust / high clash) risk a real off-field INCIDENT — out late, late to
+      // practice, told off a coach, blew off film — that costs stats AND coach
+      // trust. Bolder picks widen both tails. The rest-of-season boost is gone.
       try{
         const s=st(), pl=s&&s.player;
         if(pl){
           const bold=bolds[chosen];                              // 0..1
-          const season=Math.round((0.4+bold*1.1)*10)/10;         // small: +0.4..+1.5 perf/game
-          const next=Math.round(3+bold*5);                        // v20: +3..+8% ALL stats next game
-          pl._seasonPerfBoost=Math.max(0,Math.min(6,(pl._seasonPerfBoost||0)+season));
+          const optName=(win.querySelector('b')?.textContent||'Your call').replace(/\s+/g,' ').trim();
+          const trust=pl.coachTrust!=null?pl.coachTrust:50;      // 5..100, higher = better kid
+          const good=Math.max(0,Math.min(1,(trust-20)/70));      // 0 at trust≤20, 1 at trust≥90
+          // chance a low-character kid does something dumb this week — rises as
+          // trust falls and the pick gets bolder; a disciplined kid ~never does.
+          const incidentChance=Math.max(0,Math.min(.72,(1-good)*.6+bold*.16-0.04));
+          let next=0, incident=null, negTrust=0;
+          if(Math.random()<incidentChance){
+            const INC=[
+              {t:"Out too late",e:"showed up heavy-legged"},
+              {t:"Late to practice",e:"benched a series, coaches fuming"},
+              {t:"Told off a coach",e:"in the doghouse this week"},
+              {t:"Blew off film",e:"a step slow reading it"},
+              {t:"Ran his mouth",e:"the locker room tightened up"}];
+            incident=INC[Math.floor(Math.random()*INC.length)];
+            next=-(Math.round(4+(1-good)*7+bold*3));             // −4..−14% ALL stats this game
+            negTrust=-(2+Math.round((1-good)*4+bold*2));         // −2..−8 coach trust
+            pl.coachTrust=Math.max(5,Math.min(100,trust+negTrust));
+          } else {
+            // clean week — a MODEST, VARIED single-game edge (prepared/good kids a
+            // touch more), small enough that it isn't the same number every time.
+            next=Math.round(1+bold*4+good*3+(optName.length%3));  // ~1..10, varies by pick
+          }
           pl._nextGameBoost=next;
           try{ window.I && window.I(); }catch(e){}
           const tg=panel.querySelector('.wheel-note-v13');
-          const optName=(win.querySelector('b')?.textContent||'Your call').replace(/\s+/g,' ').trim();
-          if(tg) tg.textContent='🎡 '+optName+' · +'+season+'/gm season · +'+next+'% stats next game';
-          // v20 ROLL RESULT POPUP — say exactly what was rolled, which personality
-          // trait tipped the wheel, and what it does to the upcoming game.
-          showRollPopup(panel, optName, bold, season, next, chosen);
+          if(tg) tg.textContent = incident ? ('⚠️ '+incident.t+' — '+next+'% stats this game') : ('🎡 '+optName+' · +'+next+'% stats next game');
+          showRollPopup(panel, optName, bold, next, chosen, incident, negTrust);
         }
       }catch(e){}
       const tag=panel.querySelector('.wheel-note-v13'); if(tag&&!/next game/.test(tag.textContent)) tag.textContent='🎡 Landed: '+(win.querySelector('b')?.textContent||'your call');
