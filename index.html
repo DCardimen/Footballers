@@ -1558,11 +1558,22 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // (lev<0) gets under the pads and wins the wrap. Small per-inch swings, but the
       // per-play height jitter makes every rep a slightly different collision.
       const lev = cl((d.ht||73) - (c.ht||73), -8, 8);
+      // v25 GROUP TACKLING: how many OTHER defenders already have hands on the carrier
+      // (close and still live). One extra man and he goes down FAST; two and it's a wrap.
+      // This is the fix for the 600-yard back — you can juke one man in space, not three.
+      let handsOn = 0;
+      for (const a of S.all) { if (a.side===d.side && a!==d && a.lb!=="OL"
+        && t>(a.beaten||0) && !(a.trucked&&t<a.trucked+900) && !(a.stunned&&t<a.stunned)
+        && Math.hypot(a.lx-c.lx,a.y-c.y) < TU("swarmRadius", 14)) handsOn++; }
+      // fraction by which EVERY evasion (whiff/hurdle/stiff/truck) is choked by the swarm.
+      // Tuned so ONE extra man ≈ −40% (you go down pretty quickly) and TWO ≈ −78% (three
+      // men = mostly a wrap), without crushing the base run game to dust.
+      const swarmChoke = handsOn <= 0 ? 0 : Math.min(0.9, 1 - Math.pow(0.6, handsOn));
       emit("tackleLunge",{who:d.id, carrier:c.id, x:c.lx, y:c.y, behind, dMom:Math.round(dMom), cMom:Math.round(cMom)});
       // 1) WHIFF — an elusive back makes him miss in space (never from behind).
       // Steeper gap term + a high (never-100%) ceiling so a huge mismatch shows:
       // even ≈26% open, star-vs-weak ≈70%, generational-vs-scrub ≈78%, floor ≈2%.
-      const whiffP = cl(0.12 + (elus - d.tkl)*0.008 + (openField?0.14:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006, 0.02, 0.80);
+      const whiffP = cl(0.12 + (elus - d.tkl)*0.008 + (openField?0.14:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006, 0.02, 0.80) * (1 - swarmChoke);
       if (!behind && Math.random() < whiffP) {
         d.beaten = t + 640; d.cool = t + 520; c.burstUntil = t + 460; kickSprint(c);
         emit("tackleWhiff",{who:d.id, carrier:c.id, x:d.lx, y:d.y});
@@ -1577,7 +1588,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // 1.5) HURDLE — a springy carrier leaps clean OVER a low tackle attempt.
       // Driven by jumping + agility vs the tackler's wrap skill; open field helps,
       // never works from behind. The carrier sails over and keeps his momentum.
-      const hurdleP = behind ? 0 : cl(0.03 + ((c.jump*0.6 + c.agi*0.4) - d.tkl)*0.006 + (openField?0.07:0) + Math.max(0,-lev)*0.005, 0.02, 0.38);
+      const hurdleP = (behind ? 0 : cl(0.03 + ((c.jump*0.6 + c.agi*0.4) - d.tkl)*0.006 + (openField?0.07:0) + Math.max(0,-lev)*0.005, 0.02, 0.38)) * (1 - swarmChoke);
       if (Math.random() < hurdleP) {
         d.beaten = t + 560; d.cool = t + 480; c.burstUntil = t + 380; kickSprint(c);
         c._v = (c._v||c.spd)*0.94;
@@ -1589,7 +1600,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // attack. Works even at low speed (unlike a truck), not from behind. The
       // defender is shoved off and stumbles; the runner is slowed a touch, keeps going.
       const armEdge = (cStr - dStr) + (c.str - 50)*0.45;
-      const stiffP = behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005, 0, 0.5);
+      const stiffP = (behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005, 0, 0.5)) * (1 - swarmChoke);
       if (Math.random() < stiffP) {
         d.beaten = t + 520; d.stagger = t; c._v = (c._v||c.spd)*0.9; c.burstUntil = t + 300; kickSprint(c);
         emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
@@ -1607,6 +1618,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const bothWin = cFaster && cStronger && !behind;
       let truckP = cl(0.16 + powerEdge*0.011 + (behind?-0.09:0) + Math.max(0,lev)*0.006, 0.02, 0.72);
       if (bothWin) truckP = cl(truckP + 0.22 + (cSpd - dSpd)*0.006, 0.05, 0.90);
+      truckP *= (1 - swarmChoke);                                  // v25: you don't truck THROUGH a gang
       if (Math.random() < truckP) {
         d.beaten = t + 600; c.burstUntil = t + 500; kickSprint(c);
         if ((powerEdge > 20 || bothWin) && !behind) d.trucked = t;   // flattened — he stays down
@@ -1616,7 +1628,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         const tkb = cl(3 + powerEdge*0.12 + (bothWin?(cSpd - dSpd)*0.05:0), 2, 18);
         d.lx += (c._dx||0)*tkb; d.y = clampY(d.y + (c._dy||0)*tkb);
         c._v = (c._v||c.spd) * (bothWin ? 0.94 : 0.86);
-        if (brokenShown++ < 4) emit("brokenTackle",{who:d.id, x:d.lx, y:d.y, kb:Math.round(tkb)});
+        // v25 HIT STICK (offense): a violent truck flattens the defender — flagged so the
+        // renderer flings him with the baked dive/down frames and pops "HIT STICK".
+        const hitStick = (powerEdge > 24 || bothWin) && tkb > 9;
+        if (brokenShown++ < 4) emit("brokenTackle",{who:d.id, carrier:c.id, x:d.lx, y:d.y, kb:Math.round(tkb), hitStick});
         if (committerId===d.id) committerId = null;
         return "broken";
       }
@@ -1626,7 +1641,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // matter: a staggered carrier bleeds speed and is easier to bring down next hit.
       const wrapQ = d.tkl*0.62 + (dMom>cMom?14:0) + (behind?22:0);
       const balance = c.str*0.4 + c.agi*0.35 + (c.burst||c.spdA||50)*0.25;
-      const staggerP = cl(0.11 + (balance - wrapQ)*0.006 - (behind?0.22:0) - (c._staggered&&t-c._staggered<500?0.20:0), 0.03, 0.46);
+      const staggerP = cl(0.11 + (balance - wrapQ)*0.006 - (behind?0.22:0) - (c._staggered&&t-c._staggered<500?0.20:0), 0.03, 0.46) * (1 - swarmChoke);
       if (Math.random() < staggerP) {
         d.stagger = t; d.cool = t + 300;
         c._v = (c._v||c.spd)*0.6; c._staggered = t;              // knocked off-stride, loses a step
@@ -1644,28 +1659,34 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       let nSupport = 0; const supIds = [];
       for (const a of S.all) { if (a.side===d.side && a!==d && a.lb!=="OL"
         && t>(a.beaten||0) && !(a.trucked&&t<a.trucked+900)
-        && Math.hypot(a.lx-c.lx,a.y-c.y) < 16) { nSupport++; supIds.push(a.id); } }
-      const gang = nSupport>=1 && Math.random() < (openField ? 0.16 : 0.40);
-      // signed collision edge: >0 the defender wins the point of contact (his speed +
-      // strength/tackling + momentum), <0 the carrier does. Support and a rear angle
-      // both swing it to the defense. Kept small so most wraps are ordinary stops and
-      // only a genuine speed+power mismatch produces a violent one.
+        && Math.hypot(a.lx-c.lx,a.y-c.y) < 18) { nSupport++; supIds.push(a.id); } }
+      // v25: gang odds SCALE with the swarm — one helper makes most stops assisted,
+      // two makes it a certainty (handsOn was counted at the top of contact()).
+      const gang = nSupport>=1 && Math.random() < Math.min(0.97, (openField ? 0.34 : 0.58) + handsOn*0.28);
+      // signed collision edge: >0 the defender wins the point of contact. Support, a
+      // rear angle, and the SWARM all swing it hard to the defense.
       const collEdge = (dSpd - cSpd)*0.018 + (dStr - cStr)*0.02 + (dMom - cMom)*0.006
-        + (gang ? 0.35 : 0) + (behind ? 0.3 : 0) + (-lev)*0.02;   // v24: a shorter tackler's leverage wins the point of contact
+        + (gang ? 0.35 : 0) + (behind ? 0.3 : 0) + (-lev)*0.02 + handsOn*0.12;   // v24 leverage + v25 swarm
+      // v25 tackle GEOMETRY by height: a HIGH tackle (taller man, hits the chest) rides
+      // the carrier down and they FALL TOGETHER on the spot; a LOW tackle (shoestring)
+      // trips him and both tumble APART, carried by their own momentum.
+      const style = lev > 1.5 ? "high" : lev < -1.5 ? "low" : "even";
       const bigStick = !gang && collEdge > 1.2 && dMom > cMom + 26 && dSpd > d.spd*0.82;  // rare violent stop
-      const bothFall = !gang && !bigStick && Math.abs(collEdge) < 0.24 && dMom > 105 && cMom > 105;
+      const bothFall = (!gang && !bigStick && Math.abs(collEdge) < 0.24 && dMom > 105 && cMom > 105) || (style === "high" && !bigStick);
       // knockback: a defender-won collision drives the carrier BACK (kb>0, flung along
-      // the defender's line); forward drive: a carrier who still has his legs (won the
-      // collision, or high grit) DRAGS the pile ahead a beat before the whistle.
+      // the defender's line). High tackles drop them where they meet; low/shoestring
+      // tackles let the carrier's momentum stumble him a step forward as he trips.
       const kb = cl(collEdge*6, -6, 16);
       c.lx -= Math.max(0,kb) * (c.side==="off"?1:-1) * 0.5;
       if (kb > 2) { c._kb = kb; c._kbdx = d._dx!=null?d._dx:(c.side==="off"?-1:1); c._kbdy = d._dy||0; }
-      const drive = cl(-collEdge*4 + Math.max(0,(c.grit-50))*0.05, 0, 12);
+      let drive = cl(-collEdge*4 + Math.max(0,(c.grit-50))*0.05, 0, 12);
+      if (style === "high") drive *= 0.35;                          // fall together, minimal forward slide
+      else if (style === "low") drive = cl(drive + cMom*0.03 + Math.max(0, cSpd - dSpd)*0.04, 0, 16);   // momentum stumble
       if (drive > 0.5) { c._drive = drive; c._drivedx = c._dx!=null?c._dx:(c.side==="off"?1:0); c._drivedy = c._dy||0; }
       // YOU are "in on it" only when the stop is actually assisted AND you are one
       // of the supporting wrappers — standing near the pile is not participation
       const youIn = (gang && supIds.some(id=>{const s=A_all[id];return !!(s&&s.player&&s.player.you);}))||undefined;
-      emit("tackle",{tackler:d.id, carrier:c.id, x:c.lx, y:c.y, gang, bigHit: bigStick||bothFall||kb>9, bothFall, kb:Math.round(kb), drive:Math.round(drive), sup:supIds, youIn});
+      emit("tackle",{tackler:d.id, carrier:c.id, x:c.lx, y:c.y, gang, bigHit: bigStick||kb>9, bothFall, kb:Math.round(kb), drive:Math.round(drive), sup:supIds, youIn, style, hitStick: bigStick, handsOn});
       return "tackle";
     };
 
@@ -2384,25 +2405,29 @@ const F_TOP = 14, F_BOT = FH - 14;
 /* North-south presentation: the field runs vertically and the OFFENSE always
  * attacks toward the top of the screen. VDIR flips the world when possession
  * changes, exactly like a broadcast camera swinging ends. */
-/* ===== v24 FIELD DEPTH — the perspective RESETS at the line of scrimmage =====
- * The on-screen Y position stays LINEAR with field position so every player still
- * stands on the correct baked yard line. But the depth CUE — how big a man reads
- * and how far the sidelines splay — is now measured from the LINE OF SCRIMMAGE
- * (LOS_U), not from the fixed field ends. LOS_U is refreshed every play in
- * drawField, so the depth framing snaps back to the same reference at each snap:
- * the carrier is the same size at the line whether the ball is on the 5 or the 45,
- * and everyone up/downfield looms nearer or recedes smaller relative to HIM. */
-let VDIR = 1, LOS_U = null;
+/* ===== v25 FIELD DEPTH — anchored at the OFFENSIVE BACKFIELD, resets every snap =====
+ * Screen-Y stays linear with field position (players stand on the right yard line),
+ * but the depth CUE — player size, sideline splay, and now the whole procedural
+ * field (yard lines, numbers, hashes, mowing stripes) — is measured from the
+ * OFFENSE'S BACKFIELD (ANCHOR_U ≈ a few yards behind the LOS). That plane is the
+ * "near / biggest" reference, so the offense is ALWAYS the same large size at the
+ * snap no matter where the ball is spotted, and everything downfield recedes and
+ * shrinks from there. ANCHOR_U is refreshed each play in drawField, so the framing
+ * snaps back the instant a new play starts. The falloff distance is the "field
+ * radius" (__FIELD_FX.radius) — one dial scaling players AND field together. */
+let VDIR = 1, ANCHOR_U = null;
 const NSTOP = 30, NSH = 1340, WORLD_H = NSTOP + NSH + 30;
+function fieldRadius() { const r = (window.__FIELD_FX || {}).radius; return r == null ? 360 : r; }
 function PJ(x, y) {
   const u = VDIR > 0 ? x : FW - x;                       // distance advanced toward the attacking end
   const v = VDIR > 0 ? y : (F_TOP + F_BOT) - y;          // mirror across so left/right stay coherent
-  const fy = 1 - u / FW;                                  // 0 at the attacking (top) end — drives screen Y (matches the baked art)
-  // depth term anchored at the LOS: 0.5 exactly at the scrimmage, >0.5 in the
-  // backfield (nearer/bigger), <0.5 downfield (farther/smaller). Falls back to the
-  // absolute field ramp before the first snap has set LOS_U.
-  const span = TU("depthSpan", 620);
-  const fd = LOS_U == null ? fy : Math.max(0, Math.min(1, 0.5 + (LOS_U - u) / span));
+  const fy = 1 - u / FW;                                  // 0 at the attacking (top) end — drives screen Y
+  // depth term anchored at the offensive backfield: ≥ near at/behind the anchor
+  // (offense is big), falling toward the floor downfield. Falls back to the absolute
+  // ramp before the first snap has set ANCHOR_U.
+  const near = 0.94, floorFd = 0.12;
+  const fd = ANCHOR_U == null ? fy
+    : Math.max(floorFd, Math.min(1, near - (u - ANCHOR_U) / fieldRadius()));
   const _FX = window.__FIELD_FX || {};
   const _sp = _FX.spread == null ? 1 : _FX.spread, _sz = _FX.size == null ? 1.32 : _FX.size, _dp = _FX.depth == null ? 0.38 : _FX.depth;
   return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (1.824 * _sp + 0.12 * fd),
@@ -2579,7 +2604,11 @@ function ribField(scene) {
     scene.fieldSpr = scene.add.image(FW / 2, NSTOP + NSH / 2, "rib_field").setScale(2).setDepth(0.6).setFlipX(true).setTint(0x60566f);
     // subtle desaturating overlay: the baked turf has almost no blue, so a
     // faint cool wash nudges the grass toward the muted olive of the reference.
-    try { scene.add.rectangle(FW / 2, NSTOP + NSH / 2, FW * 2, (NSH + 120) * 2, 0x1f3c66, 0.16).setDepth(0.62); } catch (e) {}
+    try { scene.fieldWash = scene.add.rectangle(FW / 2, NSTOP + NSH / 2, FW * 2, (NSH + 120) * 2, 0x1f3c66, 0.16).setDepth(0.62); } catch (e) {}
+    // v25: the baked field is FLAT (its yard numbers/lines don't foreshorten). The
+    // live procedural field (drawField) now draws a fully perspective turf on top, so
+    // hide the baked art + wash — kept around only as a fallback if drawField never runs.
+    try { scene.fieldSpr.setVisible(false); scene.fieldWash && scene.fieldWash.setVisible(false); } catch (e) {}
     console.log("[RIB] field art active");
   } catch (e) { console.error("[RIB] field art failed", e); }
 }
@@ -2650,7 +2679,7 @@ class Ot extends mt.Scene {
     window.__gridironScene = this;
     ribEnsureFallback(this);
     ribInit(this);
-    this.field = this.add.graphics(); this.trail = this.add.graphics().setDepth(3);
+    this.field = this.add.graphics().setDepth(0.8); this.trail = this.add.graphics().setDepth(3);   // v25: procedural turf sits ABOVE the baked art (which we hide)
     this.fieldLines = this.add.graphics().setDepth(3.4);   // LOS + first-down markers, above turf art, below players
     this.speedFx = this.add.graphics().setDepth(3.6);
     this.drawField(50, 60);
@@ -3178,9 +3207,20 @@ class Ot extends mt.Scene {
           // the carrier visibly folds to the ground after the whistle and stays down
           m.forceState = "tackleSeq"; m.seqT = m.tms;
         }
+        // v25 HIT STICK (defense levels the carrier): the baked dive→down flight + a
+        // heavy freeze-frame. Height geometry adds flavor: high wrap = they fold
+        // together, low hit = a shoestring trip.
+        if (e.hitStick && m) {
+          m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + 300; m._launchH = 14;
+          this.time.delayedCall(280, () => { if (m.active !== false) { m.forceState = "down"; } });
+          this.popText(e.x, e.y - 56, "HIT STICK!", "#ffd257", 18);
+          this.hitStop = Math.max(this.hitStop, TU("hitStopBig", 120));
+          this.puffFx(e.x, e.y, 6); vib(48);
+          REDUCED_MOTION || this.cameras.main.shake(240, 0.014);
+        } else if (e.style === "low") this.popText(e.x, e.y - 30, "SHOESTRING!", "#8fe7ff", 12);
         if (e.sack) this.popText(e.x, e.y - 26, "SACKED!", "#ff9fa5", 17);
         else if (e.oob) this.popText(e.x, e.y - 26, "PUSHED OUT OF BOUNDS", "#8fe7ff", 13);
-        else if (e.gang) this.popText(e.x, e.y - 40, "GANG TACKLE", "#93a0b1", 12);
+        else if (e.gang) this.popText(e.x, e.y - 40, e.handsOn >= 2 ? "GANG TACKLE ×" + (e.handsOn + 1) : "GANG TACKLE", "#93a0b1", 12);
         if (!(P.ydDone && Number(pay.yards ?? 0) > 0)) this.impact(e.x, e.y, Number(pay.yards ?? 0));
         break;
       }
@@ -3261,6 +3301,18 @@ class Ot extends mt.Scene {
       }
       case "brokenTackle": {
         const m = this.markers[this.actorIdx(e.who)];
+        // v25 HIT STICK (offense trucks the defender): fling the beaten man with the
+        // baked dive→down frames along the carrier's motion, big shake + freeze-frame.
+        if (e.hitStick && m) {
+          m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + 300; m._launchH = 15;
+          this.time.delayedCall(280, () => { if (m.body) { m.forceState = "down"; m.body.setAlpha(0.85);
+            this.time.delayedCall(720, () => { if (m.body) { m.body.setAlpha(1); if (m.forceState === "down") m.forceState = null; } }); } });
+          this.popText(e.x, e.y - 30, "HIT STICK!", "#ffd257", 18);
+          this.hitStop = Math.max(this.hitStop, TU("hitStopBig", 120));
+          this.puffFx(e.x, e.y, 6); vib(48);
+          REDUCED_MOTION || this.cameras.main.shake(240, 0.014);
+          break;
+        }
         if (m) { m.forceState = "down"; m.body.setAlpha(0.7);
           this.time.delayedCall(720, () => { if (m.body) { m.body.setAlpha(1); if (m.forceState === "down") m.forceState = null; } }); }
         this.popText(e.x, e.y - 20, Number(e.kb||0) >= 8 ? "TRUCKED!" : "BROKEN!", Number(e.kb||0) >= 8 ? "#ff9fa5" : "#8fe7ff", Number(e.kb||0) >= 8 ? 15 : 13);
@@ -3780,53 +3832,81 @@ class Ot extends mt.Scene {
   }
   drawField(losYd, tgtYd) {
     const g = this.field; g.clear();
-    g.fillStyle(0x08130c, 1).fillRect(0, 0, FW, WORLD_H + 20);
-    const fx = (yd) => PLAY_L + (mt.Math.Clamp(yd, 0, 100) / 100) * PLAY_W;
-    // v24: RESET the depth perspective at THIS play's line of scrimmage. LOS_U is
-    // the scrimmage in PJ's own "u" coordinate, so every projection this play reads
-    // depth relative to the line — the framing snaps to the same reference at the snap.
-    { const lxw = fx(losYd); LOS_U = VDIR > 0 ? lxw : FW - lxw; }
-    // v24: paint a depth ramp over the turf — the far (downfield) end sinks into
-    // shadow and a soft ground-glow pools at the LOS, so the field reads as receding
-    // into the distance from the scrimmage instead of lying flat. Drawn below the
-    // live lines and players. Bands are stepped in PJ space so they foreshorten too.
-    { const midX = (F_TOP + F_BOT) / 2;
-      for (let i = 0; i < 22; i++) {
-        const yd0 = i / 22 * 100, yd1 = (i + 1) / 22 * 100;
-        const uMid = VDIR > 0 ? fx((yd0 + yd1) / 2) : FW - fx((yd0 + yd1) / 2);
-        const depth = LOS_U == null ? 0 : Math.max(0, Math.min(1, (uMid - LOS_U) / TU("depthSpan", 620)));
-        if (depth <= 0.02) continue;                              // no shade in front of / at the LOS
-        const a = PJ(fx(yd0), F_TOP), b = PJ(fx(yd0), F_BOT), c = PJ(fx(yd1), F_BOT), d = PJ(fx(yd1), F_TOP);
-        g.fillStyle(0x040a08, Math.min(0.5, depth * 0.5)).fillPoints([a, b, c, d], true);
-      }
-      // near-LOS ground glow — the reference plane the eye locks onto each snap
-      const gl = PJ(fx(losYd), midX);
-      g.fillStyle(0x2a5238, 0.14).fillEllipse(gl.x, gl.y + 6 * gl.s, 150 * gl.s, 34 * gl.s);
-    }
-    const pline = (x, y0, y1, w, col, alpha) => {
-      const a = PJ(x, y0), b = PJ(x, y1);
-      g.lineStyle(w, col, alpha == null ? 1 : alpha).lineBetween(a.x, a.y, b.x, b.y);
+    if (this.fieldSpr) { try { this.fieldSpr.setVisible(false); this.fieldWash && this.fieldWash.setVisible(false); } catch (e) {} }
+    // raw field-x (yd may run past the goal lines into the endzones)
+    const fxr = (yd) => PLAY_L + (yd / 100) * PLAY_W;
+    const fx = (yd) => fxr(mt.Math.Clamp(yd, 0, 100));
+    // v25: ANCHOR the depth at the offensive backfield (~8 yd behind the ball) so the
+    // offense reads the SAME large size at every snap and the field recedes from there.
+    { const lxw = fx(losYd), losU = VDIR > 0 ? lxw : FW - lxw; ANCHOR_U = losU - TU("depthAnchorBack", 46); }
+    // convenience: a foreshortened cross-field BAND between two yard lines, and a
+    // cross-field LINE at one yard line (both narrow as they recede downfield).
+    const band = (yd0, yd1, col, al) => {
+      const a = PJ(fxr(yd0), F_TOP), b = PJ(fxr(yd0), F_BOT), c = PJ(fxr(yd1), F_BOT), d = PJ(fxr(yd1), F_TOP);
+      g.fillStyle(col, al == null ? 1 : al).fillPoints([a, b, c, d], true);
     };
-    // turf, yard lines, numbers, hashes and endzone lettering are REAL ART now
-    // (window.__RIB_FIELD, pre-warped through this exact PJ projection). Only live paint is drawn:
-    pline(fx(losYd), F_TOP, F_BOT, 7, 0x4a90e2, 0.22);
-    pline(fx(losYd), F_TOP, F_BOT, 3, 0x4a90e2, 0.95);
-    pline(fx(tgtYd), F_TOP, F_BOT, 7, 0xf0bb45, 0.22);
-    pline(fx(tgtYd), F_TOP, F_BOT, 3, 0xf0bb45, 0.95);
-    // the turf art is opaque, so also stroke the scrimmage/first-down lines on a
-    // layer above it (below players) — the broadcast-style blue LOS + gold to-go marker.
+    const yline = (yd, w, col, al) => {
+      const a = PJ(fxr(yd), F_TOP), b = PJ(fxr(yd), F_BOT);
+      g.lineStyle(w * ((a.s + b.s) / 2), col, al == null ? 1 : al).lineBetween(a.x, a.y, b.x, b.y);
+    };
+    // ---- surround (out of bounds) ----
+    g.fillStyle(0x0a0f14, 1).fillRect(0, 0, FW, WORLD_H + 20);
+    // ---- turf: mowing stripes every 5 yds (alternating shade) + a downfield depth
+    // wash so the far end sinks away. The stripes foreshorten, selling the distance. ----
+    for (let yd = -15; yd < 115; yd += 5) {
+      const mid = yd + 2.5, uMid = VDIR > 0 ? fxr(mid) : FW - fxr(mid);
+      const depth = ANCHOR_U == null ? 0 : mt.Math.Clamp((uMid - ANCHOR_U) / (fieldRadius() * 1.6), 0, 1);
+      const lite = (Math.round(yd / 5) & 1) === 0;
+      // base green, darkened with distance
+      let base = lite ? [0x3f, 0x74, 0x3e] : [0x35, 0x67, 0x36];
+      const dk = 1 - depth * 0.5;
+      band(yd, yd + 5, (Math.round(base[0]*dk)<<16)|(Math.round(base[1]*dk)<<8)|Math.round(base[2]*dk), 1);
+    }
+    // ---- endzones ----
+    const ezCol = this._ezTint || 0x1b2b40;
+    band(-15, 0, ezCol, 0.92); band(100, 115, ezCol, 0.92);
+    // ---- sidelines (run the length of the field; converge toward the far end) ----
+    { const sl = (wy) => { const pts = []; for (let yd = -15; yd <= 115; yd += 5) pts.push(PJ(fxr(yd), wy)); g.lineStyle(3, 0xffffff, 0.5); g.strokePoints(pts, false); };
+      sl(F_TOP); sl(F_BOT); }
+    // ---- yard lines every 5 yds; bolder on the 10s and goal lines ----
+    for (let yd = 0; yd <= 100; yd += 5) {
+      const goal = yd === 0 || yd === 100, ten = yd % 10 === 0;
+      yline(yd, goal ? 3.4 : ten ? 2.4 : 1.5, 0xffffff, goal ? 0.95 : ten ? 0.82 : 0.5);
+    }
+    // ---- hash marks: two rows near the middle, a tick each yard ----
+    { const rows = [(F_TOP + F_BOT) / 2 - 44, (F_TOP + F_BOT) / 2 + 44];
+      for (let yd = 1; yd < 100; yd++) { if (yd % 5 === 0) continue;
+        rows.forEach((ry) => { const a = PJ(fxr(yd), ry - 3.2), b = PJ(fxr(yd), ry + 3.2); g.lineStyle(1.4 * a.s, 0xffffff, 0.4).lineBetween(a.x, a.y, b.x, b.y); }); } }
+    // ---- LOS (blue) + first-down target (gold), foreshortened, above the turf ----
+    yline(losYd, 6, 0x4a90e2, 0.22); yline(losYd, 2.6, 0x6bb2ff, 0.95);
+    yline(tgtYd, 6, 0xf0bb45, 0.22); yline(tgtYd, 2.6, 0xffcf5e, 0.96);
     if (this.fieldLines) {
       const fl = this.fieldLines; fl.clear();
-      const stroke = (x, w, col, al) => { const a = PJ(x, F_TOP), b = PJ(x, F_BOT); fl.lineStyle(w, col, al).lineBetween(a.x, a.y, b.x, b.y); };
-      stroke(fx(losYd), 6, 0x4a90e2, 0.22); stroke(fx(losYd), 2.5, 0x6bb2ff, 0.92);
-      stroke(fx(tgtYd), 6, 0xf0bb45, 0.22); stroke(fx(tgtYd), 2.5, 0xffcf5e, 0.95);
+      const stroke = (yd, w, col, al) => { const a = PJ(fxr(yd), F_TOP), b = PJ(fxr(yd), F_BOT); fl.lineStyle(w * ((a.s + b.s) / 2), col, al).lineBetween(a.x, a.y, b.x, b.y); };
+      stroke(losYd, 2.6, 0x6bb2ff, 0.95); stroke(tgtYd, 2.6, 0xffcf5e, 0.96);
     }
     this.focusPt = PJ(fx(losYd), (F_TOP + F_BOT) / 2);
-    this.drawFieldText();
+    this.drawFieldText(fxr);
   }
-  drawFieldText() {
+  drawFieldText(fxr) {
     if (this.ftext) this.ftext.forEach((t) => { try { t.destroy(); } catch (e) {} });
-    this.ftext = [];   // numbers / hashes / midfield logo / endzone lettering are painted into the field art
+    this.ftext = [];
+    if (!fxr) fxr = (yd) => PLAY_L + (yd / 100) * PLAY_W;
+    // perspective yard NUMBERS: painted live through PJ so they grow near the camera
+    // and shrink downfield exactly like the players (the flat baked numbers are hidden).
+    const st = { fontFamily: "Oswald, sans-serif", fontStyle: "700", color: "#eef2f7" };
+    const midW = (F_TOP + F_BOT) / 2;
+    for (let yd = 10; yd <= 90; yd += 10) {
+      const lbl = String(Math.round((yd <= 50 ? yd : 100 - yd) / 10) * 10);
+      [(midW - 100), (midW + 100)].forEach((wy) => {                // inboard of the numbers so the zoomed camera keeps them
+        const p = PJ(fxr(yd), wy);
+        if (p.s < 0.22) return;                                     // too far/tiny to bother
+        const t = this.add.text(p.x, p.y, lbl, st).setOrigin(0.5).setDepth(1.1)
+          .setScale(mt.Math.Clamp(p.s * 0.82, 0.2, 1.5)).setAlpha(0.85);
+        t.setFontSize(22);
+        this.ftext.push(t);
+      });
+    }
   }
   drawLegend() {
     const LEGY = WORLD_H + 120;          // parked far below the field so the main camera can never see it
@@ -4284,6 +4364,7 @@ const _pick6=[...P,...ie].reduce((_n,R)=>_n+((R&&R.statLine&&R.statLine.pick6)||
         ["fxDepth","Depth falloff","How much bigger near players are than far ones",0,0.9,0.05,0.38],
         ["fxSize","Player size","Overall size of every player",0.5,1.9,0.05,1.32],
         ["fxSpread","Player spread","Sideline-to-sideline spacing",0.7,1.4,0.05,1],
+        ["fxRadius","Field radius","How fast players AND the field shrink into the distance — smaller = deeper 3D, larger = flatter",200,900,20,360],
         ["fxZoom","Field zoom","How large the field is drawn",0.85,1.5,0.02,1.16],
       ].map(function(r){var k=r[0],lab=r[1],desc=r[2],mn=r[3],mx=r[4],st=r[5],df=r[6];var val=(o.settings&&o.settings[k]!=null)?o.settings[k]:df;return `<div class="fx-row">
         <div class="fx-head"><span class="fx-label">${lab}</span><span class="fx-val" id="${k}_val">${window.__fxFmt(k,val)}</span></div>
@@ -5383,7 +5464,7 @@ function jl(){const e=o.player,a=Ee[e.pos].w;drAutoAlloc(Object.keys(a).sort((i,
     ${e.age>=40?`<div class="threshold-note" style="color:var(--blood);margin-top:8px">⏳ ${Math.max(0,Qt-e.age)} season${Qt-e.age===1?"":"s"} remain before mandatory retirement.</div>`:""}</div>`}const cc=et;et=function(e,t,a){const s=mn(e.age),n=cc(e,(t||0)+s.perf,a);return n.injured&&Math.random()<s.recovery?(n.injured=!1,n.ageRecovery=!0):!n.injured&&s.inj>1&&Math.random()<Math.min(.22,(s.inj-1)*.105)&&(n.injured=!0,n.ageInjury=!0),n.ageStage=s.name,n.agePerf=s.perf,n.ageInjuryMult=s.inj,n};function dc(e,t){const a=mn(e.age);e.level>=7&&t.attrsAfter&&ee.forEach(n=>{t.attrsAfter[n]!=null&&(e.attrs[n]=t.attrsAfter[n])});const s={};if(e.level>=7&&a.decline>0&&(["speed","strength","quickness","acceleration","agility","jumping","stamina","tackling","blocking"].forEach(i=>{if(e.attrs[i]==null)return;let r=0;const l=Math.min(.92,a.decline*.32);if(Math.random()<l&&(r=1),a.decline>=1.5&&Math.random()<.28&&r++,r){const d=e.attrs[i];e.attrs[i]=Math.max(10,e.attrs[i]-r),s[i]={from:d,to:e.attrs[i],delta:-r}}}),e.age<=36&&Math.random()<.42)){const i=Math.random()<.5?"awareness":"vision",r=e.attrs[i];e.attrs[i]=Math.min(we(),e.attrs[i]+1),s[i]={from:r,to:e.attrs[i],delta:1}}t.ageChanges=s,t.ageProfile=a,t.youngRecoveries=(t.sampleGames||[]).filter(n=>n.ageRecovery).length,t.ageInjuries=(t.sampleGames||[]).filter(n=>n.ageInjury).length,e.age>=Qt&&(e.retirementPending=!0,t.mandatoryRetirement=!0)}const uc=tt;tt=function(e){const t=uc(e);return dc(e,t),t};const fc=Aa;Aa=function(){fc();const e=o.player,t=x("screen");if(!(!e||!t)){if(o.view==="hub"&&!t.querySelector(".age-card")){const a=t.querySelector(".depth-card")||t.querySelector(".card");a&&a.insertAdjacentHTML("afterend",An(e))}if(o.view==="result"&&!t.querySelector(".age-card")){const a=t.querySelector(".depth-card")||t.querySelector(".season-grade")||t.firstElementChild;a&&a.insertAdjacentHTML("afterend",An(e));const s=e.lastResult||o.lastResult;s&&s.youngRecoveries>0&&t.insertAdjacentHTML("afterbegin",`<div class="card tight" style="border-color:var(--good)"><div class="small">🩹 Youth recovery prevented <b style="color:var(--good)">${s.youngRecoveries}</b> game injur${s.youngRecoveries===1?"y":"ies"} this season.</div></div>`),e.retirementPending&&(t.insertAdjacentHTML("afterbegin",`<div class="banner nfl"><div class="big-emoji">🏛️</div><div class="bt">Mandatory Retirement — Age ${e.age}</div><div class="bs">No player may begin another season after age ${Qt}. Your final season is complete.</div></div>`),x("dock").innerHTML=`<button class="btn" onclick="endCareer()">Retire at Age ${e.age} · View Legacy</button>`)}}};const hc=na;na=function(){if(o.player&&o.player.age>=Qt){o.player.retirementPending=!0,o.view="result",q();return}return hc()};function mc(){if(o=dr()||Zs(),o.tree||(o.tree={}),o.shop){const t={genetics:"genetics",talent:"talent",iron:"iron",coachable:"coachable",headstart:"headstart"};for(const a in o.shop)t[a]&&o.shop[a]>0&&(o.tree[t[a]]=Math.max(o.tree[t[a]]||0,o.shop[a]));delete o.shop}if(o.player&&!o.player.body&&(o.player.body=Pi({height:0,weight:0,muscle:0})),o.challenges||(o.challenges={}),o.titlesWon==null&&(o.titlesWon=0),o.recordOvr==null&&(o.recordOvr=0),o.careersCompleted==null&&(o.careersCompleted=0),o.objectivesCompleted==null&&(o.objectivesCompleted=0),o.rings==null&&(o.rings=0),o.chaos||(o.chaos={}),o.mastery||(o.mastery={}),o.chaosUnlocked==null&&(o.chaosUnlocked=!1),o.chaosCap==null&&(o.chaosCap=Math.max(Ie(),o.chaosUnlocked?6:0)),o.era==null&&(o.era=0),o.hof||(o.hof=[]),o.hofWings==null&&(o.hofWings=0),o.posMastery||(o.posMastery={}),o.inventory||(o.inventory=[]),o.equipped||(o.equipped={}),o.player&&!o.player.nemesis&&_i(o.player),o.player){const t=o.player;t.traits||(t.traits=Ai()),t.teamIdentity||(t.teamIdentity=Xs()),t.titles==null&&(t.titles=0),t.declareBonus==null&&(t.declareBonus=0),t.seasonSeed||(t.seasonSeed=le(1,2e9)),oa(t)}(o.view==="sim"||o.view==="live"||o.view==="training"||o.view==="event")&&(o.view="hub"),q(),setTimeout(hr,1850);const e=document.getElementById("splash");e&&(setTimeout(()=>e.classList.add("gone"),1100),setTimeout(()=>{e.parentNode&&e.parentNode.removeChild(e)},1700))}window.go=te;/* v20 fix: dock Back buttons reference a global `S` (the state) that was never exported — every `go(S.player...)` onclick threw a ReferenceError, so Back appeared dead on menu-reachable screens. Expose the live state as a getter. */try{Object.defineProperty(window,"S",{configurable:!0,get:()=>o})}catch(_e){window.S=o}
 /* v20 personality side-effects (two-sided sliders): varMult widens/narrows game-to-game swings around 50, injMult scales injury rolls both ways. v23: perfFlat is NO LONGER a rating bump here — it is a REAL flat stat boost applied inside the sim's attribute accessor (_raw), so it shows up as actual production (and flows into the box-score grade) instead of an abstract "+performance" number. */
 const _pfxEt=et;et=function(e,t,a){const fx=e&&e.personaFxV20;if(!fx)return _pfxEt(e,t,a);const r=_pfxEt(e,(t||0),a);if(fx.varMult&&fx.varMult!==1)r.perf=f(Math.round(50+(r.perf-50)*fx.varMult),1,100);if((fx.injMult||1)>1&&!r.injured)r.injured=Math.random()<(fx.injMult-1)*.06;else if((fx.injMult||1)<1&&r.injured&&Math.random()<1-fx.injMult)r.injured=!1;return r};
-window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;window.startSeason=Br;window.alloc=Nl;window.doneUpgrade=Fl;window.autoAllocKey=jl;window.autoAllocSpread=Il;window.endCareer=fn;window.prestigeReset=Hl;window.buy=Yl;window.shopBack=ys;window.continueNFL=Gl;window.chooseTraining=Ir;window.chooseEvent=Fr;window.setBranch=Wl;window.watchLive=il;window.quickSimSeason=El;window.startSeasonGames=La;window.playWeek=lt;window.simRemainingWeeks=wt;window.finishSeasonGames=fs;window.finishWeekGame=Ea;window.setSpeed=ml;window.skipLive=pl;window.setRosterTab=rl;window.respecTree=ql;window.choosePath=oo;window.exportSave=Rr;window.importSave=Pr;window.hardReset=Cr;window.toggleSetting=ar;window.applyFieldFx=function(){var FX=window.__FIELD_FX||{},el=document.querySelector("#field");if(el){var t=+FX.tilt||0;el.style.transformOrigin="50% 44%";el.style.transform=t>0.5?("perspective(540px) rotateX("+t+"deg)"):"";}};function __pushFieldFx(){var s=(typeof o!=="undefined"&&o&&o.settings)||{};window.__FIELD_FX={tilt:s.fxTilt==null?20:s.fxTilt,depth:s.fxDepth==null?0.38:s.fxDepth,size:s.fxSize==null?1.32:s.fxSize,spread:s.fxSpread==null?1:s.fxSpread,zoom:s.fxZoom==null?1.16:s.fxZoom};window.applyFieldFx();}window.__fxFmt=function(k,v){v=+v;return k==="fxTilt"?(Math.round(v)+"°"):(Math.round(v*100)+"%");};window.fieldFxSet=function(k,v,save){o.settings||(o.settings={});o.settings[k]=parseFloat(v);__pushFieldFx();var el=document.getElementById(k+"_val");el&&(el.textContent=window.__fxFmt(k,o.settings[k]));if(save)try{I()}catch(e){}};window.fieldFxReset=function(){o.settings||(o.settings={});["fxTilt","fxDepth","fxSize","fxSpread","fxZoom"].forEach(function(k){delete o.settings[k]});try{I()}catch(e){}__pushFieldFx();o.view==="settings"&&Fi();};__pushFieldFx();window.declareAdvance=Vl;window.declareFromHub=Ar;window.chooseTier=Gi;window.setStatsTab=Sr;window.setLeadPos=Mr;window.setLeadSort=xr;window.setChaos=ir;window.chaosMaxAll=or;window.buyMastery=nr;window.screenDynasty=Ra;window.bigMoment=ye;window.equipGear=zr;window.scrapGear=Qr;window.screenHof=Bi;window.screenLocker=ts;mc();function la(e){return e?(Array.isArray(e.decisionQueue)||(e.decisionQueue=[]),Array.isArray(e.careerArcs)||(e.careerArcs=[]),e.worldState||(e.worldState={coachEra:0,teamChemistry:50,programMomentum:50,mediaHeat:20}),e.tempEffects||(e.tempEffects={}),e.schoolRep==null&&(e.schoolRep=0),e.decisionCount==null&&(e.decisionCount=0),e):null}function co(e){la(e),Object.keys(e.tempEffects).forEach(t=>{const a=e.tempEffects[t];a&&typeof a=="object"&&a.games!=null&&(a.games--,a.games<=0&&delete e.tempEffects[t])})}function Vn(e,t){let a=0;return Object.values(e&&e.tempEffects||{}).forEach(s=>{s&&s.fx&&s.fx[t]&&(a+=s.fx[t])}),a}const pc=[{id:"film",title:"The Film Room Is Waiting",copy:"Coaches found several correctable mistakes. How do you spend the night?",choices:[{n:"Stay Late With Coaches",d:"Build trust and awareness, but fatigue may follow.",risk:"Reliable · mild fatigue risk",good:.78,win:{trust:5,mental:1,arc:"Film-room regular"},lose:{trust:1,injuryRisk:.08,nextPerf:-4}},{n:"Study Alone",d:"Smaller trust gain, stronger personal development.",risk:"Safe · steady growth",good:.9,win:{mental:1,rep:1},lose:{nextPerf:-2}},{n:"Clear Your Head",d:"Prioritize recovery and confidence instead.",risk:"High variance",good:.58,win:{recovery:1,nextPerf:7,hype:2},lose:{trust:-4,media:5}}]},{id:"practice",title:"A Starting Spot Is Within Reach",copy:"The staff opens a competitive practice after your latest performance.",choices:[{n:"Challenge the Player Ahead of You",d:"A direct depth-chart battle with major upside.",risk:"Risky · role-changing",good:.52,win:{trust:8,depth:10,hype:4,arc:"Won a depth-chart duel"},lose:{trust:-5,injuryRisk:.16,nextPerf:-5}},{n:"Master Your Current Role",d:"Bank trust through consistency.",risk:"Safe · lower ceiling",good:.86,win:{trust:4,depth:3,nextPerf:2},lose:{trust:-1}},{n:"Ask for Special Teams Snaps",d:"Earn extra opportunities with added injury exposure.",risk:"Moderate · more playing time",good:.68,win:{trust:6,snap:.1,rep:2},lose:{injuryRisk:.13,trust:-2}}]},{id:"media",title:"The Cameras Find You",copy:"A reporter asks about your role and the team after the game.",choices:[{n:"Praise the Team",d:"Low-risk leadership answer.",risk:"Safe · chemistry boost",good:.9,win:{trust:3,chem:7,hype:2},lose:{hype:-1}},{n:"Say You Deserve More Snaps",d:"Apply public pressure to the coaching staff.",risk:"Volatile · large snap upside",good:.46,win:{snap:.15,hype:9,arc:"Publicly demanded a larger role"},lose:{trust:-9,media:12,arc:"Clashed with the staff"}},{n:"Guarantee a Win",d:"Create a high-pressure storyline for next week.",risk:"Boom or bust",good:.5,win:{nextPerf:10,hype:8,pp:2},lose:{nextPerf:-7,hype:-7,media:10}}]},{id:"recovery",title:"Your Body Needs Attention",copy:"The medical staff offers three very different plans.",choices:[{n:"Full Recovery Protocol",d:"Protect health but sacrifice some preparation.",risk:"Safe · performance cost",good:.94,win:{recovery:2,injuryRisk:-.18,nextPerf:-2},lose:{nextPerf:-4}},{n:"Play Through It",d:"Keep momentum but increase injury risk.",risk:"Dangerous · performance upside",good:.57,win:{nextPerf:9,hype:4},lose:{injuryRisk:.28,physical:-1}},{n:"Experimental Treatment",d:"Could accelerate recovery or create a setback.",risk:"Very high variance",good:.43,win:{recovery:3,physical:1,nextPerf:5},lose:{injuryRisk:.35,nextPerf:-9}}]},{id:"team",title:"The Locker Room Is Splitting",copy:"Two groups of teammates are at odds. Your response may define your leadership reputation.",choices:[{n:"Mediate the Conflict",d:"Use leadership to repair chemistry.",risk:"Moderate · leadership roll",good:.66,win:{chem:14,trust:5,rep:3,arc:"Locker-room leader"},lose:{chem:-6,trust:-2}},{n:"Back the Veterans",d:"Gain veteran support but risk alienating younger players.",risk:"Political tradeoff",good:.65,win:{trust:4,nextPerf:5,chem:3},lose:{chem:-9,hype:-3}},{n:"Stay Out of It",d:"Avoid immediate risk while the conflict grows.",risk:"Safe now · future cost",good:.82,win:{recovery:1},lose:{chem:-10,media:5}}]},{id:"opportunity",title:"A Bigger Program Calls",copy:"A stronger team offers exposure and facilities, but your depth-chart standing would reset.",choices:[{n:"Take the Opportunity",d:"Higher program momentum; lose immediate role security.",risk:"Long-term upside",good:.62,win:{momentum:15,rep:5,depth:-8,arc:"Bet on a bigger program"},lose:{depth:-15,trust:-5}},{n:"Stay Loyal",d:"Strengthen coach trust and local reputation.",risk:"Reliable",good:.9,win:{trust:7,rep:4,chem:5,arc:"Chose loyalty"},lose:{momentum:-3}},{n:"Use the Offer as Leverage",d:"Try to secure promises without leaving.",risk:"High social risk",good:.45,win:{trust:4,snap:.12,hype:6},lose:{trust:-10,depth:-5,media:8}}]}];function vc(e,t){la(e);const a=pc.filter(n=>!(e.level<4&&n.id==="opportunity")),s=a[Math.floor(Math.random()*a.length)];return{uid:Date.now()+"-"+Math.random(),id:s.id,title:s.title,copy:s.copy,choices:s.choices,week:t&&t.week||e.currentWeek,opp:t&&t.opp||"",perf:Number(t&&t.perf)||50}}function yc(e,t){la(e),e.decisionQueue.push(vc(e,t)),I()}function gc(){const e=o.player;la(e);const t=e.decisionQueue[0];return t?`<div class="decision-overlay"><div class="decision-panel"><div class="decision-kicker">POST-GAME DECISION · ${t.opp?S(t.opp):"CAREER CROSSROADS"}</div><div class="decision-title">${S(t.title)}</div><div class="decision-copy">${S(t.copy)} Your previous game rating was <b>${Math.round(t.perf)}</b>.</div>${t.choices.map((a,s)=>`<button class="decision-choice" onclick="resolveDecision102(${s})"><b>${S(a.n)}</b><small>${S(a.d)}</small><span class="decision-risk">${S(a.risk)} · ${Math.round(f(a.good,0,1)*100)}% base success</span></button>`).join("")}</div></div>`:""}function bc(e){la(e);const t=e.worldState,a=e.careerArcs.slice(0,4);return`<div class="card world-card"><div class="eyebrow">LIVING FOOTBALL WORLD</div><div class="h2" style="margin:2px 0 7px">Your Career Has Consequences</div><div class="depth-grid"><div class="depth-cell"><div class="n">${Math.round(t.teamChemistry)}</div><div class="l">Chemistry</div></div><div class="depth-cell"><div class="n">${Math.round(t.programMomentum)}</div><div class="l">Program</div></div><div class="depth-cell"><div class="n">${Math.round(t.mediaHeat)}</div><div class="l">Media Heat</div></div></div>${a.length?`<div style="margin-top:8px">${a.map(s=>`<span class="arc-chip ${s.tone||""}">${S(s.text)}</span>`).join("")}</div>`:'<div class="small" style="margin-top:8px">Major decisions will create permanent story arcs here.</div>'}</div>`}const uo=He;He=function(e,t){const a=!!(e&&e._pulse95);uo(e,t),e&&!a&&(co(t),yc(t,e))};const kc=q;q=function(){kc();const e=o.player,t=x("screen");!e||!t||(la(e),o.view==="hub"&&!t.querySelector(".world-card")&&(t.querySelector(".depth-card")||t.firstElementChild).insertAdjacentHTML("afterend",bc(e)),e.decisionQueue.length&&!document.querySelector(".decision-overlay")&&document.body.insertAdjacentHTML("beforeend",gc()))};wt=function(){F("Major decisions must be made after every game. Play games individually.")};const wc=et;et=function(e,t,a){const s=Vn(e,"nextPerf"),n=e.worldState||{teamChemistry:50,programMomentum:50},i=(n.teamChemistry-50)*.08+(n.programMomentum-50)*.05,r=wc(e,(t||0)+s+i,a),l=Vn(e,"injuryRisk");return l>0&&!r.injured&&Math.random()<l&&(r.injured=!0),l<0&&r.injured&&Math.random()<Math.min(.8,Math.abs(l)*2)&&(r.injured=!1),r};const yt=[{id:"disciplined",icon:"📋",name:"Disciplined Execution",desc:"Reduce volatility, protect the ball, and build composure.",perf:2,varMult:.55,inj:-.05,snap:0,trust:1,comp:3,mom:1,tags:["LOW VARIANCE","SAFE"]},{id:"feature",icon:"🎯",name:"Demand the Spotlight",desc:"Ask the staff to feature you. More snaps and upside, but mistakes are magnified.",perf:5,varMult:1.28,inj:.05,snap:.1,trust:0,comp:-1,mom:2,tags:["MORE SNAPS","VOLATILE"]},{id:"explosive",icon:"⚡",name:"Chase the Highlight",desc:"Hunt explosive plays. Huge ceiling, higher injury and turnover risk.",perf:7,varMult:1.72,inj:.12,snap:.04,trust:-1,comp:-2,mom:4,tags:["BOOM/BUST","INJURY RISK"]},{id:"team",icon:"🛡️",name:"Do the Dirty Work",desc:"Block, cover, and execute assignments. Lower box-score ceiling, strong trust gains.",perf:-1,varMult:.8,inj:.01,snap:.06,trust:3,comp:2,mom:1,tags:["COACH TRUST","ROLE GROWTH"]},
+window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;window.startSeason=Br;window.alloc=Nl;window.doneUpgrade=Fl;window.autoAllocKey=jl;window.autoAllocSpread=Il;window.endCareer=fn;window.prestigeReset=Hl;window.buy=Yl;window.shopBack=ys;window.continueNFL=Gl;window.chooseTraining=Ir;window.chooseEvent=Fr;window.setBranch=Wl;window.watchLive=il;window.quickSimSeason=El;window.startSeasonGames=La;window.playWeek=lt;window.simRemainingWeeks=wt;window.finishSeasonGames=fs;window.finishWeekGame=Ea;window.setSpeed=ml;window.skipLive=pl;window.setRosterTab=rl;window.respecTree=ql;window.choosePath=oo;window.exportSave=Rr;window.importSave=Pr;window.hardReset=Cr;window.toggleSetting=ar;window.applyFieldFx=function(){var FX=window.__FIELD_FX||{},el=document.querySelector("#field");if(el){var t=+FX.tilt||0;el.style.transformOrigin="50% 44%";el.style.transform=t>0.5?("perspective(540px) rotateX("+t+"deg)"):"";}};function __pushFieldFx(){var s=(typeof o!=="undefined"&&o&&o.settings)||{};window.__FIELD_FX={tilt:s.fxTilt==null?20:s.fxTilt,depth:s.fxDepth==null?0.38:s.fxDepth,size:s.fxSize==null?1.32:s.fxSize,spread:s.fxSpread==null?1:s.fxSpread,radius:s.fxRadius==null?360:s.fxRadius,zoom:s.fxZoom==null?1.16:s.fxZoom};window.applyFieldFx();}window.__fxFmt=function(k,v){v=+v;return k==="fxTilt"?(Math.round(v)+"°"):k==="fxRadius"?(Math.round(v)+"px"):(Math.round(v*100)+"%");};window.fieldFxSet=function(k,v,save){o.settings||(o.settings={});o.settings[k]=parseFloat(v);__pushFieldFx();var el=document.getElementById(k+"_val");el&&(el.textContent=window.__fxFmt(k,o.settings[k]));if(save)try{I()}catch(e){}};window.fieldFxReset=function(){o.settings||(o.settings={});["fxTilt","fxDepth","fxSize","fxSpread","fxRadius","fxZoom"].forEach(function(k){delete o.settings[k]});try{I()}catch(e){}__pushFieldFx();o.view==="settings"&&Fi();};__pushFieldFx();window.declareAdvance=Vl;window.declareFromHub=Ar;window.chooseTier=Gi;window.setStatsTab=Sr;window.setLeadPos=Mr;window.setLeadSort=xr;window.setChaos=ir;window.chaosMaxAll=or;window.buyMastery=nr;window.screenDynasty=Ra;window.bigMoment=ye;window.equipGear=zr;window.scrapGear=Qr;window.screenHof=Bi;window.screenLocker=ts;mc();function la(e){return e?(Array.isArray(e.decisionQueue)||(e.decisionQueue=[]),Array.isArray(e.careerArcs)||(e.careerArcs=[]),e.worldState||(e.worldState={coachEra:0,teamChemistry:50,programMomentum:50,mediaHeat:20}),e.tempEffects||(e.tempEffects={}),e.schoolRep==null&&(e.schoolRep=0),e.decisionCount==null&&(e.decisionCount=0),e):null}function co(e){la(e),Object.keys(e.tempEffects).forEach(t=>{const a=e.tempEffects[t];a&&typeof a=="object"&&a.games!=null&&(a.games--,a.games<=0&&delete e.tempEffects[t])})}function Vn(e,t){let a=0;return Object.values(e&&e.tempEffects||{}).forEach(s=>{s&&s.fx&&s.fx[t]&&(a+=s.fx[t])}),a}const pc=[{id:"film",title:"The Film Room Is Waiting",copy:"Coaches found several correctable mistakes. How do you spend the night?",choices:[{n:"Stay Late With Coaches",d:"Build trust and awareness, but fatigue may follow.",risk:"Reliable · mild fatigue risk",good:.78,win:{trust:5,mental:1,arc:"Film-room regular"},lose:{trust:1,injuryRisk:.08,nextPerf:-4}},{n:"Study Alone",d:"Smaller trust gain, stronger personal development.",risk:"Safe · steady growth",good:.9,win:{mental:1,rep:1},lose:{nextPerf:-2}},{n:"Clear Your Head",d:"Prioritize recovery and confidence instead.",risk:"High variance",good:.58,win:{recovery:1,nextPerf:7,hype:2},lose:{trust:-4,media:5}}]},{id:"practice",title:"A Starting Spot Is Within Reach",copy:"The staff opens a competitive practice after your latest performance.",choices:[{n:"Challenge the Player Ahead of You",d:"A direct depth-chart battle with major upside.",risk:"Risky · role-changing",good:.52,win:{trust:8,depth:10,hype:4,arc:"Won a depth-chart duel"},lose:{trust:-5,injuryRisk:.16,nextPerf:-5}},{n:"Master Your Current Role",d:"Bank trust through consistency.",risk:"Safe · lower ceiling",good:.86,win:{trust:4,depth:3,nextPerf:2},lose:{trust:-1}},{n:"Ask for Special Teams Snaps",d:"Earn extra opportunities with added injury exposure.",risk:"Moderate · more playing time",good:.68,win:{trust:6,snap:.1,rep:2},lose:{injuryRisk:.13,trust:-2}}]},{id:"media",title:"The Cameras Find You",copy:"A reporter asks about your role and the team after the game.",choices:[{n:"Praise the Team",d:"Low-risk leadership answer.",risk:"Safe · chemistry boost",good:.9,win:{trust:3,chem:7,hype:2},lose:{hype:-1}},{n:"Say You Deserve More Snaps",d:"Apply public pressure to the coaching staff.",risk:"Volatile · large snap upside",good:.46,win:{snap:.15,hype:9,arc:"Publicly demanded a larger role"},lose:{trust:-9,media:12,arc:"Clashed with the staff"}},{n:"Guarantee a Win",d:"Create a high-pressure storyline for next week.",risk:"Boom or bust",good:.5,win:{nextPerf:10,hype:8,pp:2},lose:{nextPerf:-7,hype:-7,media:10}}]},{id:"recovery",title:"Your Body Needs Attention",copy:"The medical staff offers three very different plans.",choices:[{n:"Full Recovery Protocol",d:"Protect health but sacrifice some preparation.",risk:"Safe · performance cost",good:.94,win:{recovery:2,injuryRisk:-.18,nextPerf:-2},lose:{nextPerf:-4}},{n:"Play Through It",d:"Keep momentum but increase injury risk.",risk:"Dangerous · performance upside",good:.57,win:{nextPerf:9,hype:4},lose:{injuryRisk:.28,physical:-1}},{n:"Experimental Treatment",d:"Could accelerate recovery or create a setback.",risk:"Very high variance",good:.43,win:{recovery:3,physical:1,nextPerf:5},lose:{injuryRisk:.35,nextPerf:-9}}]},{id:"team",title:"The Locker Room Is Splitting",copy:"Two groups of teammates are at odds. Your response may define your leadership reputation.",choices:[{n:"Mediate the Conflict",d:"Use leadership to repair chemistry.",risk:"Moderate · leadership roll",good:.66,win:{chem:14,trust:5,rep:3,arc:"Locker-room leader"},lose:{chem:-6,trust:-2}},{n:"Back the Veterans",d:"Gain veteran support but risk alienating younger players.",risk:"Political tradeoff",good:.65,win:{trust:4,nextPerf:5,chem:3},lose:{chem:-9,hype:-3}},{n:"Stay Out of It",d:"Avoid immediate risk while the conflict grows.",risk:"Safe now · future cost",good:.82,win:{recovery:1},lose:{chem:-10,media:5}}]},{id:"opportunity",title:"A Bigger Program Calls",copy:"A stronger team offers exposure and facilities, but your depth-chart standing would reset.",choices:[{n:"Take the Opportunity",d:"Higher program momentum; lose immediate role security.",risk:"Long-term upside",good:.62,win:{momentum:15,rep:5,depth:-8,arc:"Bet on a bigger program"},lose:{depth:-15,trust:-5}},{n:"Stay Loyal",d:"Strengthen coach trust and local reputation.",risk:"Reliable",good:.9,win:{trust:7,rep:4,chem:5,arc:"Chose loyalty"},lose:{momentum:-3}},{n:"Use the Offer as Leverage",d:"Try to secure promises without leaving.",risk:"High social risk",good:.45,win:{trust:4,snap:.12,hype:6},lose:{trust:-10,depth:-5,media:8}}]}];function vc(e,t){la(e);const a=pc.filter(n=>!(e.level<4&&n.id==="opportunity")),s=a[Math.floor(Math.random()*a.length)];return{uid:Date.now()+"-"+Math.random(),id:s.id,title:s.title,copy:s.copy,choices:s.choices,week:t&&t.week||e.currentWeek,opp:t&&t.opp||"",perf:Number(t&&t.perf)||50}}function yc(e,t){la(e),e.decisionQueue.push(vc(e,t)),I()}function gc(){const e=o.player;la(e);const t=e.decisionQueue[0];return t?`<div class="decision-overlay"><div class="decision-panel"><div class="decision-kicker">POST-GAME DECISION · ${t.opp?S(t.opp):"CAREER CROSSROADS"}</div><div class="decision-title">${S(t.title)}</div><div class="decision-copy">${S(t.copy)} Your previous game rating was <b>${Math.round(t.perf)}</b>.</div>${t.choices.map((a,s)=>`<button class="decision-choice" onclick="resolveDecision102(${s})"><b>${S(a.n)}</b><small>${S(a.d)}</small><span class="decision-risk">${S(a.risk)} · ${Math.round(f(a.good,0,1)*100)}% base success</span></button>`).join("")}</div></div>`:""}function bc(e){la(e);const t=e.worldState,a=e.careerArcs.slice(0,4);return`<div class="card world-card"><div class="eyebrow">LIVING FOOTBALL WORLD</div><div class="h2" style="margin:2px 0 7px">Your Career Has Consequences</div><div class="depth-grid"><div class="depth-cell"><div class="n">${Math.round(t.teamChemistry)}</div><div class="l">Chemistry</div></div><div class="depth-cell"><div class="n">${Math.round(t.programMomentum)}</div><div class="l">Program</div></div><div class="depth-cell"><div class="n">${Math.round(t.mediaHeat)}</div><div class="l">Media Heat</div></div></div>${a.length?`<div style="margin-top:8px">${a.map(s=>`<span class="arc-chip ${s.tone||""}">${S(s.text)}</span>`).join("")}</div>`:'<div class="small" style="margin-top:8px">Major decisions will create permanent story arcs here.</div>'}</div>`}const uo=He;He=function(e,t){const a=!!(e&&e._pulse95);uo(e,t),e&&!a&&(co(t),yc(t,e))};const kc=q;q=function(){kc();const e=o.player,t=x("screen");!e||!t||(la(e),o.view==="hub"&&!t.querySelector(".world-card")&&(t.querySelector(".depth-card")||t.firstElementChild).insertAdjacentHTML("afterend",bc(e)),e.decisionQueue.length&&!document.querySelector(".decision-overlay")&&document.body.insertAdjacentHTML("beforeend",gc()))};wt=function(){F("Major decisions must be made after every game. Play games individually.")};const wc=et;et=function(e,t,a){const s=Vn(e,"nextPerf"),n=e.worldState||{teamChemistry:50,programMomentum:50},i=(n.teamChemistry-50)*.08+(n.programMomentum-50)*.05,r=wc(e,(t||0)+s+i,a),l=Vn(e,"injuryRisk");return l>0&&!r.injured&&Math.random()<l&&(r.injured=!0),l<0&&r.injured&&Math.random()<Math.min(.8,Math.abs(l)*2)&&(r.injured=!1),r};const yt=[{id:"disciplined",icon:"📋",name:"Disciplined Execution",desc:"Reduce volatility, protect the ball, and build composure.",perf:2,varMult:.55,inj:-.05,snap:0,trust:1,comp:3,mom:1,tags:["LOW VARIANCE","SAFE"]},{id:"feature",icon:"🎯",name:"Demand the Spotlight",desc:"Ask the staff to feature you. More snaps and upside, but mistakes are magnified.",perf:5,varMult:1.28,inj:.05,snap:.1,trust:0,comp:-1,mom:2,tags:["MORE SNAPS","VOLATILE"]},{id:"explosive",icon:"⚡",name:"Chase the Highlight",desc:"Hunt explosive plays. Huge ceiling, higher injury and turnover risk.",perf:7,varMult:1.72,inj:.12,snap:.04,trust:-1,comp:-2,mom:4,tags:["BOOM/BUST","INJURY RISK"]},{id:"team",icon:"🛡️",name:"Do the Dirty Work",desc:"Block, cover, and execute assignments. Lower box-score ceiling, strong trust gains.",perf:-1,varMult:.8,inj:.01,snap:.06,trust:3,comp:2,mom:1,tags:["COACH TRUST","ROLE GROWTH"]},
 /* v18: five more prep paths — real buffs AND real costs, so the weekly scouting/prep choice matters */
 {id:"filmgrind",icon:"🎬",name:"Film Marathon",desc:"Bury yourself in tape. You will see the play before it happens — but the extra hours wear on the body.",perf:4,varMult:.7,inj:.02,snap:.02,trust:2,comp:2,mom:0,tags:["PREPARED","FATIGUE"]},
 {id:"recover",icon:"🛌",name:"Rest & Recover",desc:"A light week: treatment, sleep, and legs for Sunday. Heals fatigue and cuts injury risk, at the cost of sharpness.",perf:-2,varMult:.75,inj:-.12,snap:-.02,trust:0,comp:1,mom:-1,rest:1,tags:["HEALS BODY","−INJURY RISK"]},
