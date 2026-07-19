@@ -2878,7 +2878,10 @@ class Ot extends mt.Scene {
           P.contestDef = null; P.awaitCatch2 = null;
         }
         const cm = this.markers[P.carrierId];
-        if (cm) { cm.forceState = "catch"; this.time.delayedCall(170, () => { if (cm.forceState === "catch") cm.forceState = null; }); }
+        // v21.2 HIGH-POINT CATCH: the receiver LEAPS for the ball (arms-up catch cell
+        // + a launch-parabola hop) instead of a flat static grab, then settles.
+        if (cm) { cm.forceState = "catch"; cm._launchT0 = cm.tms; cm._launchUntil = cm.tms + TU("catchHopMs", 300); cm._launchH = TU("catchHopH", 12);
+          this.time.delayedCall(TU("catchHoldMs", 230), () => { if (cm.forceState === "catch") cm.forceState = null; }); }
         P.awaitCatch = null;
         this.flash(e.x, e.y, 0xf0bb45);
         this.puffFx(e.x, e.y, 2, 0xffe9ad, 0.55);
@@ -2902,7 +2905,9 @@ class Ot extends mt.Scene {
           P.contestDef = null; P.awaitCatch2 = null;
         }
         const pm = this.markers[P.carrierId];
-        if (pm) { pm.forceState = "catch"; this.time.delayedCall(170, () => { if (pm.forceState === "catch") pm.forceState = null; }); }
+        // v21.2: the defender high-points the pick too — leap + settle
+        if (pm) { pm.forceState = "catch"; pm._launchT0 = pm.tms; pm._launchUntil = pm.tms + 260; pm._launchH = 10;
+          this.time.delayedCall(200, () => { if (pm.forceState === "catch") pm.forceState = null; }); }
         P.awaitCatch = null;
         this.popText(e.x, e.y - 26, "INTERCEPTED!", "#ff9fa5", 18);
         this.hitStop = Math.max(this.hitStop, 70);
@@ -3516,6 +3521,8 @@ class Ot extends mt.Scene {
       if (st === "tackleSeq") {                       // 6-frame fall to the turf, then HOLD flat
         const fi = Math.floor((m.tms - (m.seqT || 0)) / TU("tackleFrameMs", 70));
         st = "tackle" + Math.min(5, fi);              // clamps on the final grounded frame — he stays down
+        // v21.2: kick up a spray of turf the instant the body hits the ground (once per takedown)
+        if (fi >= 4 && m._puffSeq !== m.seqT) { m._puffSeq = m.seqT; this.puffFx(sx, sy + 3, 3, 0x8a7a55, 0.42); }
       }
     }
     else if (m.tms < m.cutUntil) st = "cut";
@@ -3524,6 +3531,18 @@ class Ot extends mt.Scene {
     // v11: engaged linemen BLOCK across the whole grind band — one stable state, no flapping
     if (!m.forceState && m.isLine && m.sSm > 3 && m.sSm < TU("blockBand",78) && (st === "idle" || st.indexOf("run") === 0)) st = "block";
     if (st === "block") { m.bt = (m.bt || 0) + (dtms || 16); st = "block" + (Math.floor(m.bt / TU("blockFrameMs",170)) % (window.__RIB_BLOCKF || 1)); }
+    // v21.2 GET-UP RECOVERY: a downed player no longer teleports upright. Track the
+    // last frame he was on the turf; the moment he's free and roughly stationary,
+    // play a brief crouch (stance) → stand (idle) recovery before normal states
+    // resume — killing the pile "pop" and reading as the get-up the sim implies.
+    const _grounded = st === "down" || st.indexOf("tackle") === 0;
+    if (_grounded) m._groundT = m.tms;
+    else if (m._groundT && !m.forceState && m.sSm < TU("getupSpd", 30)) {
+      const gk = m.tms - m._groundT;
+      if (gk < TU("getupMs", 320)) st = gk < TU("getupMs", 320) * 0.5 ? "stance" : "idle";
+      else m._groundT = 0;
+    } else if (m._groundT) m._groundT = 0;
+    if (st === "stance" && (m.num % 2)) st = "stance2";
     let tex = st === "down" ? "spr_" + m.team + "_down"
       : st.indexOf("tackle") === 0 ? "spr_" + m.team + "_" + st          // non-directional fall-to-ground frames
       : "spr_" + m.team + "_" + m.dirKey + "_" + st;
@@ -3546,8 +3565,8 @@ class Ot extends mt.Scene {
     m._ribRearFacing=ribRearFacing;
     if (window.__RIB20_updateAppearance) window.__RIB20_updateAppearance(this, m, st, spdPx);
     // turf spray at speed, skid streaks on hard cuts
-    if (cutSkid && st !== "down") this.skidFx(sx, sy);
-    if (st.indexOf("run") === 0 && spdPx > 115 && m.tms - (m.lastDust || 0) > 150) { m.lastDust = m.tms; this.puffFx(sx, sy + 6, 1, 0x6d9a5e, 0.35); }
+    if (cutSkid && st !== "down") { this.skidFx(sx, sy); this.puffFx(sx, sy + 3, 2, 0x8a7a55, 0.34); }   // v21.2: jukes/plants kick turf
+    if (st.indexOf("run") === 0 && spdPx > TU("runDustSpd", 100) && m.tms - (m.lastDust || 0) > 140) { m.lastDust = m.tms; this.puffFx(sx, sy + 6, spdPx > 190 ? 2 : 1, 0x7c6a48, 0.32); }
     const p = PJ(sx, sy);
     // v17 tackle-launch hop: lift the whole sprite along a parabola while a leap is
     // in flight, so a committed tackle reads as an airborne launch into the carrier.

@@ -42,6 +42,24 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v21.2 — animation fluidity pass (broadcast renderer).** Closes the most
+  jarring gaps in the on-field motion using the existing sprite atlas cells plus
+  the renderer's own launch/puff mechanisms — no new art required:
+  - **Get-up recovery.** A downed player no longer teleports upright. The pose
+    machine (`placeMarker`) tracks the last frame he was on the turf and, once
+    he's free and roughly stationary, plays a brief crouch (`stance`) → stand
+    (`idle`) recovery before normal states resume. Tunables `getupMs`,
+    `getupSpd`.
+  - **High-point catches & picks.** Receptions and interceptions now LEAP for the
+    ball — the arms-up `catch` cell plus a launch-parabola hop, then a settle —
+    instead of a flat static grab. Tunables `catchHopMs`, `catchHopH`,
+    `catchHoldMs`.
+  - **Impact & motion turf.** Tackles kick up a spray of turf the instant the
+    body grounds (once per takedown); hard cuts/jukes and fast runs kick dust
+    (`runDustSpd`). All screenshot-tested; render-path hit rate unchanged
+    (~88–92%). NOTE: this delivers the *fluidity* the five commissioned sprite
+    sheets target; baking those exact sheets in still requires the source PNG
+    files on disk (they were supplied as chat images only).
 - **v21.1 — rolled personalities + prestige adjustment points.** Your starting
   personality is now ROLLED (bell-ish, centered on neutral, tails possible) —
   the white tick on each slider marks what the dice gave you. Free slider
