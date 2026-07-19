@@ -42,6 +42,104 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v22 — real sprite-art integration (stage 1: run + idle).** The player run
+  cycle and idle now render from the uploaded high-fidelity pixel-art sheets
+  (`art/source/`) instead of the chunky baked cells. A reusable asset pipeline
+  lives in `scripts/spritekit/`:
+  - `analyze.mjs` / `survey.mjs` — detect each sheet's grid and per-row facing.
+  - `slice.mjs` — trim frames (drop-shadow-aware).
+  - `recolor_test.mjs` — proves the detailed art recolors through the existing
+    `ribRecolor` keys (navy→primary, gold→secondary) — it does, cleanly.
+  - `pack.mjs` — flood-fills out the white matte + shadow, bottom-aligns feet,
+    downscales to the engine's 48×48 cell, and packs a second atlas
+    (`public/rib_atlas_v22.png`) + `art/atlas_v22.cellmap.json`.
+  - `bake.mjs` — inlines that atlas into `index.html` as
+    `window.__RIB_ATLAS_V22` (data URL) so it works offline in the single file.
+  Runtime wiring: `ribCellV22` + a preference in `ribRegisterTeam`'s `put()` make
+  the overlay cells override the baked ones by name through the SAME recolor
+  path, so every team still recolors. If the overlay is ever absent the game
+  falls back to the original atlas — it can't be broken by its absence. Renderer
+  only (creditcheck 0 violations, render path ~84–87%). Remaining sheets
+  (get-up, catches, diving tackle, block/pancake, stiff-arm/hurdle) are sliced
+  and ready to add in follow-up stages; QB throw + pre-snap stance still use the
+  original cells.
+- **v21.2 — animation fluidity pass (broadcast renderer).** Closes the most
+  jarring gaps in the on-field motion using the existing sprite atlas cells plus
+  the renderer's own launch/puff mechanisms — no new art required:
+  - **Get-up recovery.** A downed player no longer teleports upright. The pose
+    machine (`placeMarker`) tracks the last frame he was on the turf and, once
+    he's free and roughly stationary, plays a brief crouch (`stance`) → stand
+    (`idle`) recovery before normal states resume. Tunables `getupMs`,
+    `getupSpd`.
+  - **High-point catches & picks.** Receptions and interceptions now LEAP for the
+    ball — the arms-up `catch` cell plus a launch-parabola hop, then a settle —
+    instead of a flat static grab. Tunables `catchHopMs`, `catchHopH`,
+    `catchHoldMs`.
+  - **Impact & motion turf.** Tackles kick up a spray of turf the instant the
+    body grounds (once per takedown); hard cuts/jukes and fast runs kick dust
+    (`runDustSpd`). All screenshot-tested; render-path hit rate unchanged
+    (~88–92%). NOTE: this delivers the *fluidity* the five commissioned sprite
+    sheets target; baking those exact sheets in still requires the source PNG
+    files on disk (they were supplied as chat images only).
+- **v21.1 — rolled personalities + prestige adjustment points.** Your starting
+  personality is now ROLLED (bell-ish, centered on neutral, tails possible) —
+  the white tick on each slider marks what the dice gave you. Free slider
+  points are gone: what you get are **adjustment points** — **+1 per
+  prestige** (plus Identity Coach's +2/level) — so early careers largely play
+  the hand they're dealt, and stacked-prestige runs can fully sculpt an
+  identity. Moving a slider back toward its rolled value is always free; the
+  rolled baseline is kept on `player.personaRolledV21`.
+- **v21 — diminishing-returns training (no hard stat wall).** The "At potential
+  ceiling" hard stop is gone. Each stat now has a **soft cap**: +1 costs 1 point
+  below it, then **2, 3, 4…** per band of `drBandWidth` (10) above it, forever.
+  The soft cap = potential ceiling × (star base % + fixed % per prestige) × the
+  stat's personality ceiling multiplier — `drStarBase` (60% at 1★) +
+  `drStarStep` (+6.25%/★, 85% at 5★) + `drPrestigePct` (+5% per prestige,
+  uncapped), so stars and stacked prestige massively raise the cheap zone over
+  the course of the meta-game. Auto: Key Stats / Auto: Balanced pay the same
+  escalated costs cheapest-first (they never buy a 3-pt band while a 1-pt stat
+  is open), undo refunds exactly what each step paid, and the Train screen
+  shows the live cost on every + button (gold 2-3 pts, red 4+), gold stat
+  values past their soft cap, and per-stat soft caps in the tooltips.
+- **v20 — stamina/gassed system, two-sided personality, honest pregame odds, QB
+  vision cone, and a fix batch.**
+  - **Gassed stamina loop (FieldSim).** The sprint gas tank now persists play to
+    play on the roster player (`_gasV20`). Sprints cost real gas
+    (`gasSprintCost`); emptying the tank makes the player **GASSED** for
+    `gassedPlays` (default 5) recovery plays — moderately slower
+    (`gassedSpeedMul`) — with both the recovery-play count and between-play regen
+    scaling with the **stamina** stat. **Stamina IQ:** low-awareness players torch
+    their burst at random moments (`gasIQDumb`/`gasDumbSprintP`); smart players
+    protect a reserve unless they're the ballcarrier (`gasIQSmart`/
+    `gasSmartReserve`). The broadcast pops "GASSED"/"TANK EMPTY" over the
+    you-player.
+  - **Two-sided personality sliders.** Every trait now has two real identities:
+    each side raises the MAX-LEVEL ceiling of its own stats (+10%/pt) AND carries
+    its own drawback — injury risk, boom/bust variance, coach clashes, stamina
+    burn, or slower starts — aggregated into `player.personaFxV20` and wired into
+    the game (perf baseline, variance, injury rolls, FieldSim gas). Two new
+    Mental-branch prestige nodes modify the system: **Sports Psychologist**
+    (softens drawbacks 15%/lvl) and **Identity Coach** (+2 slider points).
+  - **Roll-result popups.** Every wheel roll (pregame game plans and story
+    decisions) now pops a card naming what was rolled, which personality trait
+    tipped the wheel, and its concrete effects.
+  - **Next-game boost = real stats.** The old "+N perf" next-game boost is now
+    **+N% to ALL attributes for that game**, applied inside the sim's attribute
+    accessor and allowed to exceed the player's normal caps.
+  - **Honest pregame.** The pregame now shows a **% win chance** calibrated
+    against actual `__simGameV2` win rates (`window.__gameOddsV20`), both team
+    OVRs on the sim's own per-level scale (no more 17-vs-43 scale mixing), and a
+    unit-by-unit composition summary of how the game is likely to play out.
+  - **QB vision cone.** During the dropback the sim emits `look` events and the
+    broadcast draws a cone from the QB to his current read — green when the
+    receiver is open, red when covered — swinging as he cycles reads.
+  - **National board thresholds.** The stat-leaders screen shows which national
+    rank tiers (top #18 / #1.8k / #18k / …) map to which promotion odds, with
+    your current rank highlighted.
+  - **Fixes.** Dock "Back" buttons no longer reference the unexported state
+    global (they threw and appeared dead); the opponent's jersey palette can
+    never collide with your team's; the scouting/game-plan overlay is compacted
+    to fit one screen with the plan deck scrolling internally.
 - **Speed-vs-power tackle physics + realism pass (v19).**
   - **Physics-based collisions.** A tackle now launches from ~2 sprite-lengths out
     (`tackleLaunchDist`), the defender GRABS the carrier on contact
