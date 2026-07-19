@@ -42,6 +42,17 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v22.2 — pregame OVRs now match the team you actually play.** The pregame
+  generated its display roster from a separate scouting-scale generator
+  (`__GRIDIRON_GENERATE_ROSTER_V157`), whose numbers were unrelated to the
+  in-game opponent that `Wr`/`__simGameV2` builds around the per-level base — so
+  the shown overalls were way off (e.g. opponent shown ~24 with top-5 in the
+  30s, but actually played at ~17 with top-5 ~20). Added
+  `window.__previewMatchupV22(pos, perf)` that builds the matchup with the SAME
+  `Wr` the game uses, and rewired `showPregame` to display its team OVRs +
+  top-5. The win % and composition notes now derive from those same OVRs, so the
+  whole panel is internally consistent and matches the game (verified: preview
+  18/18 vs actual game 18/18).
 - **v22.1 — sprite overlay made ADDITIVE (revert the base-look override).** v22
   had replaced the base run cycle + idle for every player with the detailed art,
   which changed the whole look. Reverted: **base run/idle are the original cells

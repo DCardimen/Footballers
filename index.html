@@ -4754,6 +4754,19 @@ ua={yds:j.yds,pass:j.pass,rush:j.rush,first:j.first,third:j.third_a>0?`${Math.mi
 fa=qi(t,P,r);
 return{plays:u,usScore:h,themScore:p,stat:fa,team:xt,oppTeam:ua,roster:c}}
 window.__simGameV2=Yr;
+/* v22.2: pregame preview built from the SAME roster builder the game uses (Wr),
+ * so the displayed team OVRs + top-5 MATCH the team you actually play. The old
+ * pregame generated a separate scouting-scale roster (__GRIDIRON_GENERATE_ROSTER_V157)
+ * whose numbers were unrelated to the in-game opponent — hence the mismatch. */
+window.__previewMatchupV22=function(pos,perf){
+  try{
+    const e=o.player; if(!e||!e.pos) return null;
+    const seed=f(Math.round(Number(perf!=null&&!isNaN(perf)?perf:__seasonSeed(e))),5,100);
+    const c=Wr(pos||e.pos, seed/100, {}, {sacks:0}, {}, e.level, ae(e));
+    const roster=t=>[...t.off,...t.def].map(x=>({name:x.name,pos:x.pos,ovr:Math.round(x.ovr||0),you:!!x.you}));
+    return {seed, us:{ovr:c.us.ovr, players:roster(c.us)}, opp:{ovr:c.opp.ovr, players:roster(c.opp)}};
+  }catch(err){ return null; }
+};
 /* ===== v17 AI-DRIVEN SEASON GAMES ========================================
  * Every season game — watched OR quick-simmed — is now resolved by the
  * emergent physics engine (__simGameV2). Running, passing, INTs, pick-sixes,
@@ -6226,8 +6239,8 @@ function rosterAvg(roster,fb){const a=(Array.isArray(roster)?roster:[]).map(norm
 function matchupNotes(oursR,theirsR,player){
   const UNITS=[['QB',['QB'],'they attack through the air — expect shootout tempo','you win the quarterback duel — lean on the pass'],
     ['playmakers',['RB','WR','TE'],'their skill guys can break any play open — gang-tackle or bleed','your playmakers win their one-on-ones — feed them'],
-    ['offensive line',['LT','LG','C','RG','RT','OL'],'their line should control the trenches — expect them to grind the clock','your front lives in their backfield — stack the box and tee off'],
-    ['front seven',['EDGE','DT','LB','DL'],'their front seven closes fast — quick throws or die','their front is soft — run right at them'],
+    ['offensive line',['OL','LT','LG','C','RG','RT'],'their line should control the trenches — expect them to grind the clock','your front lives in their backfield — stack the box and tee off'],
+    ['front seven',['DL','LB','EDGE','DT'],'their front seven closes fast — quick throws or die','their front is soft — run right at them'],
     ['secondary',['CB','S'],'their secondary blankets receivers — tough sledding through the air','their secondary leaks — throw on them early and often']];
   const avg=(r,ps)=>{const a=(Array.isArray(r)?r:[]).map(normalize).filter(p=>ps.includes(p.pos));return a.length?a.reduce((s,p)=>s+p.ovr,0)/a.length:null};
   const notes=[];
@@ -6246,19 +6259,23 @@ function matchupNotes(oursR,theirsR,player){
 function showPregame(ctx,args){
   const state=getState(),player=state?.player,week=currentWeek(),opp=week?.opponentV11||{};
   const anchor=[18,30,42,54,66,78,86,90][player?.level||0]||55;
-  const oursR=userRoster(),theirsR=opponentRoster(week);
+  // v22.2: build the matchup from the SAME roster builder the game uses (Wr), so
+  // the team OVRs + top-5 shown MATCH the opponent you actually play. Falls back
+  // to the old scouting-scale roster only if the preview hook is unavailable.
+  const pv=(window.__previewMatchupV22&&player&&player.pos)?window.__previewMatchupV22(player.pos, week&&week.perf):null;
+  let oursR,theirsR,ourOvr,theirOvr;
+  if(pv){ oursR=pv.us.players; theirsR=pv.opp.players; ourOvr=pv.us.ovr; theirOvr=pv.opp.ovr; }
+  else { oursR=userRoster(); theirsR=opponentRoster(week); ourOvr=rosterAvg(oursR,anchor); theirOvr=rosterAvg(theirsR,anchor); }
   let ours=topFive(oursR),theirs=topFive(theirsR);
-  const ourOvr=rosterAvg(oursR,anchor),theirOvr=rosterAvg(theirsR,anchor);
   if(ours.length<5)ours=fallbackFive(ourOvr,player?.seasonSeed||1);if(theirs.length<5)theirs=fallbackFive(theirOvr,(player?.seasonSeed||1)+31);
   const ourName=player?.schoolName||player?.teamName||player?.school||'YOUR TEAM',theirName=opp.name||opp.team||week?.opp||'OPPONENT';
-  // v20: real win probability from the same inputs the engine plays with
-  const odds=(window.__gameOddsV20&&window.__gameOddsV20())||null;
-  const winP=odds?odds.win:Math.round(50+(ourOvr-theirOvr)*1.6);
-  const winClamped=Math.max(4,Math.min(96,winP));
+  // win % is derived from the SAME OVRs shown, so the number and the rosters agree
+  const gap=(ourOvr||0)-(theirOvr||0);
+  const winClamped=Math.max(5,Math.min(95,Math.round(50+gap*2.4)));
   const lab=winClamped>=70?'Heavy Favorite':winClamped>=57?'Favored':winClamped>45?'Toss-Up':winClamped>=30?'Underdog':'Heavy Underdog';
   const notes=matchupNotes(oursR,theirsR,player);
   pending={ctx,args};document.getElementById('pregameV1513')?.remove();
-  document.body.insertAdjacentHTML('beforeend',`<div class="pregame-v1513" id="pregameV1513"><div class="pregame-panel-v1513"><div class="pregame-head-v1513"><div class="pregame-kicker-v1513">PREGAME · PLAYERS TO WATCH</div><div class="pregame-title-v1513">Top Talent Matchup</div><div class="pregame-sub-v1513">${week?.playoff?esc(week.round||'Playoff'):'Week '+(week?.week||'—')} · your next opponent — top five from each roster</div></div><div class="pregame-match-v1513"><div class="pregame-team-v1513"><b>${esc(ourName)}</b><small>${Math.round(ourOvr)} TEAM OVR</small></div><div class="pregame-vs-v1513">VS</div><div class="pregame-team-v1513 away"><b>${esc(theirName)}</b><small>${Math.round(theirOvr)} TEAM OVR</small></div></div><div class="pregame-odds-v20"><div class="odds-head-v20"><div class="odds-big-v20" style="color:${winClamped>=57?'#7fe0a0':winClamped>45?'var(--gold)':'#ff9a9a'}">${winClamped}%<small>WIN CHANCE</small></div><div class="odds-lab-v20"><b>${esc(lab)}</b><small>from team OVR gap${odds&&odds.playoff?' · playoff pressure':''}${odds&&odds.oppRel?` · opp ${odds.oppRel>0?'+':''}${odds.oppRel} vs level avg`:''}</small></div></div><div class="odds-bar-v20"><i style="width:${winClamped}%"></i></div><div class="odds-notes-v20">${notes.map(n=>`<div class="${n.good?'g':'b'}">${n.good?'▲':'▼'} ${esc(n.txt)}</div>`).join('')}</div></div><div class="pregame-lists-v1513"><div class="pregame-card-v1513"><h3>${esc(ourName)} · TOP 5</h3>${rows(ours)}</div><div class="pregame-card-v1513"><h3>${esc(theirName)} · TOP 5</h3>${rows(theirs)}</div></div>${tempStatsPanel(player,week)}<div class="pregame-actions-v1513"><button class="btn secondary" onclick="closePregameV1513()">Back</button><button class="btn" onclick="continuePregameV1513()">Continue to Match</button></div></div></div>`);
+  document.body.insertAdjacentHTML('beforeend',`<div class="pregame-v1513" id="pregameV1513"><div class="pregame-panel-v1513"><div class="pregame-head-v1513"><div class="pregame-kicker-v1513">PREGAME · PLAYERS TO WATCH</div><div class="pregame-title-v1513">Top Talent Matchup</div><div class="pregame-sub-v1513">${week?.playoff?esc(week.round||'Playoff'):'Week '+(week?.week||'—')} · your next opponent — top five from each roster</div></div><div class="pregame-match-v1513"><div class="pregame-team-v1513"><b>${esc(ourName)}</b><small>${Math.round(ourOvr)} TEAM OVR</small></div><div class="pregame-vs-v1513">VS</div><div class="pregame-team-v1513 away"><b>${esc(theirName)}</b><small>${Math.round(theirOvr)} TEAM OVR</small></div></div><div class="pregame-odds-v20"><div class="odds-head-v20"><div class="odds-big-v20" style="color:${winClamped>=57?'#7fe0a0':winClamped>45?'var(--gold)':'#ff9a9a'}">${winClamped}%<small>WIN CHANCE</small></div><div class="odds-lab-v20"><b>${esc(lab)}</b><small>${Math.round(ourOvr)} vs ${Math.round(theirOvr)} team OVR${week?.playoff?' · playoff':''}</small></div></div><div class="odds-bar-v20"><i style="width:${winClamped}%"></i></div><div class="odds-notes-v20">${notes.map(n=>`<div class="${n.good?'g':'b'}">${n.good?'▲':'▼'} ${esc(n.txt)}</div>`).join('')}</div></div><div class="pregame-lists-v1513"><div class="pregame-card-v1513"><h3>${esc(ourName)} · TOP 5</h3>${rows(ours)}</div><div class="pregame-card-v1513"><h3>${esc(theirName)} · TOP 5</h3>${rows(theirs)}</div></div>${tempStatsPanel(player,week)}<div class="pregame-actions-v1513"><button class="btn secondary" onclick="closePregameV1513()">Back</button><button class="btn" onclick="continuePregameV1513()">Continue to Match</button></div></div></div>`);
 }
 function installPregame(){
   const fn=window.chooseGamePlanV11;
