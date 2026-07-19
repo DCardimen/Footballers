@@ -42,6 +42,27 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v22 — real sprite-art integration (stage 1: run + idle).** The player run
+  cycle and idle now render from the uploaded high-fidelity pixel-art sheets
+  (`art/source/`) instead of the chunky baked cells. A reusable asset pipeline
+  lives in `scripts/spritekit/`:
+  - `analyze.mjs` / `survey.mjs` — detect each sheet's grid and per-row facing.
+  - `slice.mjs` — trim frames (drop-shadow-aware).
+  - `recolor_test.mjs` — proves the detailed art recolors through the existing
+    `ribRecolor` keys (navy→primary, gold→secondary) — it does, cleanly.
+  - `pack.mjs` — flood-fills out the white matte + shadow, bottom-aligns feet,
+    downscales to the engine's 48×48 cell, and packs a second atlas
+    (`public/rib_atlas_v22.png`) + `art/atlas_v22.cellmap.json`.
+  - `bake.mjs` — inlines that atlas into `index.html` as
+    `window.__RIB_ATLAS_V22` (data URL) so it works offline in the single file.
+  Runtime wiring: `ribCellV22` + a preference in `ribRegisterTeam`'s `put()` make
+  the overlay cells override the baked ones by name through the SAME recolor
+  path, so every team still recolors. If the overlay is ever absent the game
+  falls back to the original atlas — it can't be broken by its absence. Renderer
+  only (creditcheck 0 violations, render path ~84–87%). Remaining sheets
+  (get-up, catches, diving tackle, block/pancake, stiff-arm/hurdle) are sliced
+  and ready to add in follow-up stages; QB throw + pre-snap stance still use the
+  original cells.
 - **v21.2 — animation fluidity pass (broadcast renderer).** Closes the most
   jarring gaps in the on-field motion using the existing sprite atlas cells plus
   the renderer's own launch/puff mechanisms — no new art required:
