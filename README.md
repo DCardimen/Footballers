@@ -42,6 +42,18 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v21 — diminishing-returns training (no hard stat wall).** The "At potential
+  ceiling" hard stop is gone. Each stat now has a **soft cap**: +1 costs 1 point
+  below it, then **2, 3, 4…** per band of `drBandWidth` (10) above it, forever.
+  The soft cap = potential ceiling × (star base % + fixed % per prestige) × the
+  stat's personality ceiling multiplier — `drStarBase` (60% at 1★) +
+  `drStarStep` (+6.25%/★, 85% at 5★) + `drPrestigePct` (+5% per prestige,
+  uncapped), so stars and stacked prestige massively raise the cheap zone over
+  the course of the meta-game. Auto: Key Stats / Auto: Balanced pay the same
+  escalated costs cheapest-first (they never buy a 3-pt band while a 1-pt stat
+  is open), undo refunds exactly what each step paid, and the Train screen
+  shows the live cost on every + button (gold 2-3 pts, red 4+), gold stat
+  values past their soft cap, and per-stat soft caps in the tooltips.
 - **v20 — stamina/gassed system, two-sided personality, honest pregame odds, QB
   vision cone, and a fix batch.**
   - **Gassed stamina loop (FieldSim).** The sprint gas tank now persists play to

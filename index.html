@@ -5009,6 +5009,7 @@ function lt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){
     <div class="eyebrow">${e.pos} · Current OVR ${t}</div>
     <div class="h1">Train Your Player</div>
     <div class="sub">Invest points into attributes. Stats marked <span class="weight-tag">KEY</span> matter most for your position and raise your OVR the fastest.</div>
+    ${(()=>{const st=f(Math.round(e.stars||1),1,5),bp=Math.round((TU("drStarBase",.60)+(st-1)*TU("drStarStep",.0625))*100),pp=Math.round(TU("drPrestigePct",.05)*(o.prestige||0)*100);return`<div class="threshold-note" style="margin-top:8px">📉 <b>Diminishing returns — no hard cap.</b> Each stat costs <b>1 pt</b> up to its <b style="color:var(--gold)">soft cap</b>, then <b>2, 3, 4…</b> per band of ${TU("drBandWidth",10)} above it. ★${st} sets your soft caps at <b>${bp}%</b> of ceiling${pp?` · prestige adds <b style="color:#7fe0a0">+${pp}%</b>`:""} — more stars &amp; prestige push the cheap zone massively higher. Gold values are past their soft cap.</div>`})()}
     <div class="pts-banner mt" style="margin-top:14px">
       <div><span class="n" id="ptsLeft">${e.points}</span> <span class="l">POINTS TO SPEND</span></div>
       <div style="font-family:'Oswald';font-size:20px;color:var(--gold)" id="liveOvr">OVR ${t}</div>
@@ -5029,7 +5030,20 @@ function lt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){
       <button class="btn secondary" onclick="autoAllocSpread()">⚖️ Auto: Balanced</button>
     </div>
     <div style="height:8px"></div>
-    <button class="btn" onclick="doneUpgrade()">Done</button>`}function hs(e){return Math.min(we(),(e.potentialCeil||70)+12)}function jl(){const e=o.player,t=hs(e),a=Ee[e.pos].w,s=Object.keys(a).sort((i,r)=>a[r]-a[i]);let n=0;for(;e.points>0&&n++<5e3;){const i=s[n%Math.min(6,s.length)];if(e.attrs[i]<t)e.attrs[i]++,e.points--,Qe[i]=(Qe[i]||0)+1;else if(n>s.length*3&&s.every(r=>e.attrs[r]>=t))break}un()}function Il(){const e=o.player,t=hs(e);let a=0;for(;e.points>0&&a++<5e3;){const s=ee[a%ee.length];if(e.attrs[s]<t)e.attrs[s]++,e.points--,Qe[s]=(Qe[s]||0)+1;else if(a>ee.length*3&&ee.every(n=>e.attrs[n]>=t))break}un()}let Qe={};function Nl(e,t){const a=o.player,s=hs(a);if(t>0){if(a.points<=0)return;if(a.attrs[e]>=s){F("At potential ceiling — raise it with Prestige");return}a.attrs[e]++,a.points--,Qe[e]=(Qe[e]||0)+1}else{if((Qe[e]||0)<=0)return;a.attrs[e]--,a.points++,Qe[e]--}x("uv-"+e).textContent=a.attrs[e];const n=x("mtr-"+e),i=Le[e].metric;n&&i&&(n.textContent=i.fmt(a.attrs[e])),x("ptsLeft").textContent=a.points,x("liveOvr").textContent="OVR "+ae(a),so()}function so(){const e=o.player,t=hs(e);ee.forEach(a=>{const s=x("plus-"+a),n=x("minus-"+a);s&&(s.disabled=e.points<=0||e.attrs[a]>=t),n&&(n.disabled=(Qe[a]||0)<=0)})}function Fl(){Qe={},I(),F("Player upgraded!"),te("hub")}function Dl(){const e=o.player,t=A[e.level],a=ae(e),s=sn(e,a),n=M("scout")>0,i=e.rivals.filter(c=>c.alive).map(c=>({name:c.name,ovr:c.ovr,stars:c.stars,me:!1}));i.push({name:e.name,ovr:a,stars:e.stars,me:!0}),i.sort((c,u)=>u.ovr-c.ovr);const r=i.findIndex(c=>c.me)+1,l=i.map((c,u)=>{const h=c.me?0:c.ovr-a;return`<div class="lb-row ${c.me?"me":""}">
+    <button class="btn" onclick="doneUpgrade()">Done</button>`}function hs(e){return Math.min(we(),(e.potentialCeil||70)+12)}
+/* ===== v21 DIMINISHING RETURNS — the hard stat wall is GONE. Each stat has a
+ * SOFT CAP instead: below it every +1 costs 1 point; above it the price climbs
+ * in bands of TU("drBandWidth",10) — 2 pts, then 3, then 4… forever. The soft
+ * cap = potential ceiling × (star base % + fixed % per prestige) × the stat's
+ * personality ceiling multiplier: a 1★ low-prestige kid pays double early
+ * (~60% of ceiling), a 5★ stacked-prestige legend keeps the cheap zone
+ * massively higher (85% + 5%/prestige, uncapped). */
+function drSoftCap(e,k){const st=f(Math.round(e.stars||1),1,5),base=TU("drStarBase",.60)+(st-1)*TU("drStarStep",.0625),pres=TU("drPrestigePct",.05)*(o.prestige||0),m=(e.statCeilV17&&e.statCeilV17[k])||1;return Math.min(we(),Math.max(20,Math.round(hs(e)*(base+pres)*m)))}
+function drCost(e,k){const v=e.attrs[k]||0,sc=drSoftCap(e,k);return v<sc?1:2+Math.floor((v-sc)/Math.max(1,TU("drBandWidth",10)))}/* v21: auto-alloc pays the same diminishing-return costs, cheapest-first with a
+ * round-robin tiebreak — it never buys a 3-pt band while a 1-pt stat is open,
+ * which is exactly "stop pushing a stat once it's inefficient vs alternatives". */
+function drAutoAlloc(pool){const e=o.player;let n=0,g=0;for(;e.points>0&&g++<5e3;){const open=pool.filter(i=>(e.attrs[i]||0)<we()&&drCost(e,i)<=e.points);if(!open.length)break;const mc=Math.min.apply(null,open.map(i=>drCost(e,i)));let pick=null;for(let j=0;j<pool.length;j++){const i=pool[(n+j)%pool.length];if(open.indexOf(i)>=0&&drCost(e,i)===mc){pick=i;n=(n+j+1)%pool.length;break}}if(!pick)break;e.attrs[pick]++,e.points-=mc,Qe[pick]=(Qe[pick]||0)+1,(Q2[pick]=Q2[pick]||[]).push(mc)}un()}
+function jl(){const e=o.player,a=Ee[e.pos].w;drAutoAlloc(Object.keys(a).sort((i,r)=>a[r]-a[i]).slice(0,Math.min(6,Object.keys(a).length)))}function Il(){drAutoAlloc(ee.slice())}let Qe={},Q2={};function Nl(e,t){const a=o.player;if(t>0){const c=drCost(a,e);if(a.attrs[e]>=we()){F("Absolute limit reached");return}if(a.points<c){F(c>1?"Needs "+c+" pts — diminishing returns past "+drSoftCap(a,e):"No points left");return}a.attrs[e]++,a.points-=c,Qe[e]=(Qe[e]||0)+1,(Q2[e]=Q2[e]||[]).push(c)}else{if((Qe[e]||0)<=0)return;a.attrs[e]--,a.points+=Q2[e]&&Q2[e].length?Q2[e].pop():1,Qe[e]--}x("uv-"+e).textContent=a.attrs[e];const n=x("mtr-"+e),i=Le[e].metric;n&&i&&(n.textContent=i.fmt(a.attrs[e])),x("ptsLeft").textContent=a.points,x("liveOvr").textContent="OVR "+ae(a),so()}function so(){const e=o.player;ee.forEach(a=>{const s=x("plus-"+a),n=x("minus-"+a),v=x("uv-"+a),c=drCost(e,a),sc=drSoftCap(e,a),over=(e.attrs[a]||0)>=sc;s&&(s.disabled=e.points<c||(e.attrs[a]||0)>=we(),s.innerHTML=c>1?'+<i class="stepcost'+(c>=4?" deep":"")+'">'+c+"</i>":"+",s.title=over?"Past soft cap "+sc+" — each +1 costs "+c+" pts here":"1 pt per +1 until soft cap "+sc),v&&(v.style.color=over?c>=4?"#ff8a80":"var(--gold)":"",v.title="Soft cap: "+sc),n&&(n.disabled=(Qe[a]||0)<=0)})}function Fl(){Qe={},Q2={},I(),F("Player upgraded!"),te("hub")}function Dl(){const e=o.player,t=A[e.level],a=ae(e),s=sn(e,a),n=M("scout")>0,i=e.rivals.filter(c=>c.alive).map(c=>({name:c.name,ovr:c.ovr,stars:c.stars,me:!1}));i.push({name:e.name,ovr:a,stars:e.stars,me:!0}),i.sort((c,u)=>u.ovr-c.ovr);const r=i.findIndex(c=>c.me)+1,l=i.map((c,u)=>{const h=c.me?0:c.ovr-a;return`<div class="lb-row ${c.me?"me":""}">
       <div class="lb-rank">${u+1}</div>
       <div class="lb-name">${c.name}${c.me?" (You)":""} <span style="color:var(--gold);font-size:12px">${"★".repeat(c.stars)}</span></div>
       <div class="lb-ovr">${n||c.me?c.ovr:"?"}${!c.me&&n?`<span style="font-size:11px;color:${h>0?"#e08a8a":"var(--good)"}"> ${h>0?"+"+h:h}</span>`:""}</div>
@@ -6959,6 +6973,9 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
 .impact-plan-choice .gameplan-meta span{font-size:8.5px!important;padding:1px 5px!important}
 .plan-bars{width:66px!important}
 .mini-rating{margin:2px 0!important}
+/* v21 diminishing-returns cost badge on the train screen's + buttons */
+.step .stepcost{display:block;font:700 9px Oswald;font-style:normal;line-height:1;margin-top:-2px;color:#f0bb45}
+.step .stepcost.deep{color:#ff8a80}
 </style>
 
 </body>
