@@ -42,6 +42,37 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v24 — field depth that resets at the LOS, 30% slower base movement, rating-
+  driven cuts, and tackle height leverage.** A broadcast + feel pass:
+  - **Depth perception resets at the line of scrimmage.** `PJ()` still places every
+    player's screen-Y linearly with field position (so they stand on the correct
+    baked yard line), but the depth CUE — how big a man reads and how far the
+    sidelines splay — is now measured from the scrimmage (`LOS_U`), not the fixed
+    field ends. `LOS_U` is refreshed every snap in `drawField`, so the framing snaps
+    back to the same reference each play: the carrier is the same size at the line
+    whether the ball's on the 5 or the 45, and everyone up/downfield looms nearer or
+    recedes smaller relative to HIM. Span is a live dial (`TU("depthSpan",620)`).
+  - **Field depth overlay.** `drawField` paints a foreshortened depth ramp over the
+    turf — the downfield end sinks into shadow and a soft ground-glow pools at the
+    LOS — so the field reads as receding into the distance from the scrimmage.
+  - **Base movement 30% slower for everyone** (`TU("basePlayRate",0.7)`, applied in
+    the render `update` loop). A more deliberate, readable pace where cuts, jukes and
+    pursuit angles land as real moves; the user's 1×/2× control multiplies on top and
+    the stall watchdog was widened to match.
+  - **Cutting / jukes / spins are rating-driven and fluid.** Which move beats a
+    tackler is now chosen by ratings (spin favors agility, jump-cut juke favors
+    quickness), the carrier's elusiveness (`agi`/`quickness`) rides on the `cut`
+    event, and the renderer scales the animation's crispness and recovery speed off
+    it — an elite back's move is fast and clean, a scrub's is slow and wobbly. The
+    agility→speed-retention coupling through a hard plant was widened (`0.0022→0.0026`,
+    mirrored in `turnTest`).
+  - **Tackle variability with height.** Every agent carries a real height (inches;
+    the you-player's actual body when on the roster, otherwise a role base + jitter).
+    Contact leverage reads off the tackler-vs-carrier gap: a shorter man gets under
+    the pads and wins the wrap, a taller man tackles high and gets ducked, hurdled,
+    trucked and stiff-armed more — a small per-inch swing on every branch, and the
+    per-play jitter makes each rep a slightly different collision.
+
 - **v23.1 — character-driven story arcs, scramble warnings, pregame game-plan
   suggestions.** Four gameplay systems:
   - **Story-arc auto choices are no longer generic.** Removed the rest-of-season

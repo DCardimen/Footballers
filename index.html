@@ -1378,6 +1378,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
   const DEF_Y = [78,372,140,306,172,222,276,176,208,240,268];
   const OFF_LX = (lb,i)=> lb==="QB"?-38: lb==="RB"?-54: (lb==="WR"&&i===10)?-10:0;
   const DEF_LX = (lb)=> lb==="S"?88: lb==="LB"?52: lb==="CB"?25:15;
+  // v24 TACKLE HEIGHT: rough real-life heights (inches) by role. Contact leverage
+  // reads off the tackler-vs-carrier gap — a shorter man gets under pads and wraps
+  // clean; a taller man tackles high and gets ducked, hurdled and trucked more.
+  const HT_BY_POS = { QB:75, RB:71, WR:73, TE:77, OL:77, CB:71, S:72, LB:74, DL:75, DE:76, DT:75, NT:74 };
   const clampY = y=>Math.max(F_TOP+34,Math.min(F_BOT-30,y));
   const cl = (v,a,b)=>Math.min(b,Math.max(a,v));
 
@@ -1390,7 +1394,11 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const jit = () => (Math.random()*10 - 5) + (Math.random()*6 - 3);
       const g = n => Math.max(20, Math.min(99, (p ? att(p,n) : avg(side==="off"?kOff:tDef, n)) + jit()));
       const speed=g("speed"), quick=g("quickness")||g("speed"), accel=g("acceleration")||g("burst")||speed;
-      return { id:(side==="off"?"off":"def")+i, side, lb,
+      // real height (inches) drives tackle leverage: the you-player's actual body if
+      // it's on the roster, otherwise the role base with a couple inches of jitter.
+      const ht = (p && p.body && p.body.height >= 64 && p.body.height <= 84)
+        ? p.body.height : Math.round((HT_BY_POS[lb] || 73) + (Math.random()*5 - 2.5));
+      return { id:(side==="off"?"off":"def")+i, side, lb, ht,
         lx: side==="off"?OFF_LX(lb,i):DEF_LX(lb), y: side==="off"?OFF_Y[i]:DEF_Y[i],
         spd: 92 + speed*0.85, spdA: speed, str:g("strength"), blk:g("blocking"),
         tkl:g("tackling"), cov:g("coverage"), agi:g("agility"),
@@ -1458,12 +1466,15 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       ballFrames.push({t, x:Math.round(ball.lx*10)/10, y:Math.round(ball.y*10)/10, h:Math.round(ball.h)}); };
     const mv = (a, tx, ty, mult) => { let dx=tx-a.lx, dy=ty-a.y; const d=Math.hypot(dx,dy);
       if(d<0.5) { a.vel*=0.8; return; } dx/=d; dy/=d;
-      // agility: tighter turns for agile players
-      const carry = Math.max(0.06, (0.28 - (a.agi-50)*0.0022) * (0.6 + (a.vel||0)*0.7));
+      // agility: tighter turns for agile players. v24 widened the per-point effect
+      // (0.0022→0.0026) so cuts are visibly cleaner for elite agility and sloppier
+      // for low — an elite back keeps his speed through a hard plant, a stiff one
+      // bleeds it. Mirrored in turnTest() so the unit hook stays honest.
+      const carry = Math.max(0.06, (0.28 - (a.agi-50)*0.0026) * (0.6 + (a.vel||0)*0.7));
       if(a._dx!=null){
         const dot = dx*a._dx + dy*a._dy;
         dx=dx*(1-carry)+a._dx*carry; dy=dy*(1-carry)+a._dy*carry; const n=Math.hypot(dx,dy)||1; dx/=n; dy/=n;
-        const turnCost = (1 - Math.max(-1, Math.min(1, dot))) * (0.30 - (a.agi-50)*0.0022);
+        const turnCost = (1 - Math.max(-1, Math.min(1, dot))) * (0.30 - (a.agi-50)*0.0026);
         if (turnCost > 0.002) a.vel *= Math.max(0.55, 1 - turnCost);   // turning bleeds speed, agility saves it
       }
       a._dx=dx; a._dy=dy;
@@ -1542,22 +1553,31 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const dMom = dW*dSpd, cMom = cW*cSpd;                       // mass × velocity
       const dStr = d.str*0.55 + d.tkl*0.45, cStr = c.str*0.6 + (c.burst||c.spdA||50)*0.4;
       const elus = c.agi*0.55 + c.quick*0.45;                    // juke/elusiveness
+      // v24 height leverage: gap = tackler − carrier height (in). A TALLER tackler
+      // (lev>0) plays high and is easier to duck / hurdle / truck; a SHORTER tackler
+      // (lev<0) gets under the pads and wins the wrap. Small per-inch swings, but the
+      // per-play height jitter makes every rep a slightly different collision.
+      const lev = cl((d.ht||73) - (c.ht||73), -8, 8);
       emit("tackleLunge",{who:d.id, carrier:c.id, x:c.lx, y:c.y, behind, dMom:Math.round(dMom), cMom:Math.round(cMom)});
       // 1) WHIFF — an elusive back makes him miss in space (never from behind).
       // Steeper gap term + a high (never-100%) ceiling so a huge mismatch shows:
       // even ≈26% open, star-vs-weak ≈70%, generational-vs-scrub ≈78%, floor ≈2%.
-      const whiffP = cl(0.12 + (elus - d.tkl)*0.008 + (openField?0.14:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0), 0.02, 0.80);
+      const whiffP = cl(0.12 + (elus - d.tkl)*0.008 + (openField?0.14:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006, 0.02, 0.80);
       if (!behind && Math.random() < whiffP) {
         d.beaten = t + 640; d.cool = t + 520; c.burstUntil = t + 460; kickSprint(c);
         emit("tackleWhiff",{who:d.id, carrier:c.id, x:d.lx, y:d.y});
-        emit("cut",{kind: Math.random()<0.28?"spin":"juke", x:c.lx, y:c.y, carrier:c.id});
+        // v24: which move beat him is rating-driven — spin favors raw agility (whipping
+        // the hips around), a jump-cut juke favors quickness. `elus` rides the event so
+        // the renderer can make an elite back's move crisp and a scrub's sloppy.
+        const spinPref = cl(0.18 + (c.agi - c.quick)*0.006 + (c._staggered?-0.1:0), 0.08, 0.55);
+        emit("cut",{kind: Math.random() < spinPref ? "spin" : "juke", x:c.lx, y:c.y, carrier:c.id, elus:Math.round(elus)});
         if (committerId===d.id) committerId = null;
         return "whiff";
       }
       // 1.5) HURDLE — a springy carrier leaps clean OVER a low tackle attempt.
       // Driven by jumping + agility vs the tackler's wrap skill; open field helps,
       // never works from behind. The carrier sails over and keeps his momentum.
-      const hurdleP = behind ? 0 : cl(0.03 + ((c.jump*0.6 + c.agi*0.4) - d.tkl)*0.006 + (openField?0.07:0), 0.02, 0.38);
+      const hurdleP = behind ? 0 : cl(0.03 + ((c.jump*0.6 + c.agi*0.4) - d.tkl)*0.006 + (openField?0.07:0) + Math.max(0,-lev)*0.005, 0.02, 0.38);
       if (Math.random() < hurdleP) {
         d.beaten = t + 560; d.cool = t + 480; c.burstUntil = t + 380; kickSprint(c);
         c._v = (c._v||c.spd)*0.94;
@@ -1569,7 +1589,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // attack. Works even at low speed (unlike a truck), not from behind. The
       // defender is shoved off and stumbles; the runner is slowed a touch, keeps going.
       const armEdge = (cStr - dStr) + (c.str - 50)*0.45;
-      const stiffP = behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007, 0, 0.5);
+      const stiffP = behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005, 0, 0.5);
       if (Math.random() < stiffP) {
         d.beaten = t + 520; d.stagger = t; c._v = (c._v||c.spd)*0.9; c.burstUntil = t + 300; kickSprint(c);
         emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
@@ -1585,7 +1605,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const cFaster = cSpd > dSpd, cStronger = cStr > dStr;
       const powerEdge = (cMom - dMom)*0.85 + (cStr - dStr)*0.5;
       const bothWin = cFaster && cStronger && !behind;
-      let truckP = cl(0.16 + powerEdge*0.011 + (behind?-0.09:0), 0.02, 0.72);
+      let truckP = cl(0.16 + powerEdge*0.011 + (behind?-0.09:0) + Math.max(0,lev)*0.006, 0.02, 0.72);
       if (bothWin) truckP = cl(truckP + 0.22 + (cSpd - dSpd)*0.006, 0.05, 0.90);
       if (Math.random() < truckP) {
         d.beaten = t + 600; c.burstUntil = t + 500; kickSprint(c);
@@ -1631,7 +1651,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // both swing it to the defense. Kept small so most wraps are ordinary stops and
       // only a genuine speed+power mismatch produces a violent one.
       const collEdge = (dSpd - cSpd)*0.018 + (dStr - cStr)*0.02 + (dMom - cMom)*0.006
-        + (gang ? 0.35 : 0) + (behind ? 0.3 : 0);
+        + (gang ? 0.35 : 0) + (behind ? 0.3 : 0) + (-lev)*0.02;   // v24: a shorter tackler's leverage wins the point of contact
       const bigStick = !gang && collEdge > 1.2 && dMom > cMom + 26 && dSpd > d.spd*0.82;  // rare violent stop
       const bothFall = !gang && !bigStick && Math.abs(collEdge) < 0.24 && dMom > 105 && cMom > 105;
       // knockback: a defender-won collision drives the carrier BACK (kb>0, flung along
@@ -2176,9 +2196,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const saveT = 500;
     // simulate the mv turn math directly at t=saveT
     let dx=0, dy=1;                                             // 90° turn demand
-    const carry = Math.max(0.06, (0.28 - (a.agi-50)*0.0022) * (0.6 + a.vel*0.7));
+    const carry = Math.max(0.06, (0.28 - (a.agi-50)*0.0026) * (0.6 + a.vel*0.7));
     const dot = dx*a._dx + dy*a._dy;                            // = 0
-    const turnCost = (1 - Math.max(-1, Math.min(1, dot))) * (0.30 - (a.agi-50)*0.0022);
+    const turnCost = (1 - Math.max(-1, Math.min(1, dot))) * (0.30 - (a.agi-50)*0.0026);
     if (turnCost > 0.002) a.vel *= Math.max(0.55, 1 - turnCost);
     return a.vel;
   }
@@ -2364,17 +2384,30 @@ const F_TOP = 14, F_BOT = FH - 14;
 /* North-south presentation: the field runs vertically and the OFFENSE always
  * attacks toward the top of the screen. VDIR flips the world when possession
  * changes, exactly like a broadcast camera swinging ends. */
-let VDIR = 1;
+/* ===== v24 FIELD DEPTH — the perspective RESETS at the line of scrimmage =====
+ * The on-screen Y position stays LINEAR with field position so every player still
+ * stands on the correct baked yard line. But the depth CUE — how big a man reads
+ * and how far the sidelines splay — is now measured from the LINE OF SCRIMMAGE
+ * (LOS_U), not from the fixed field ends. LOS_U is refreshed every play in
+ * drawField, so the depth framing snaps back to the same reference at each snap:
+ * the carrier is the same size at the line whether the ball is on the 5 or the 45,
+ * and everyone up/downfield looms nearer or recedes smaller relative to HIM. */
+let VDIR = 1, LOS_U = null;
 const NSTOP = 30, NSH = 1340, WORLD_H = NSTOP + NSH + 30;
 function PJ(x, y) {
   const u = VDIR > 0 ? x : FW - x;                       // distance advanced toward the attacking end
   const v = VDIR > 0 ? y : (F_TOP + F_BOT) - y;          // mirror across so left/right stay coherent
-  const fy = 1 - u / FW;                                  // 0 at the attacking (top) end
+  const fy = 1 - u / FW;                                  // 0 at the attacking (top) end — drives screen Y (matches the baked art)
+  // depth term anchored at the LOS: 0.5 exactly at the scrimmage, >0.5 in the
+  // backfield (nearer/bigger), <0.5 downfield (farther/smaller). Falls back to the
+  // absolute field ramp before the first snap has set LOS_U.
+  const span = TU("depthSpan", 620);
+  const fd = LOS_U == null ? fy : Math.max(0, Math.min(1, 0.5 + (LOS_U - u) / span));
   const _FX = window.__FIELD_FX || {};
   const _sp = _FX.spread == null ? 1 : _FX.spread, _sz = _FX.size == null ? 1.32 : _FX.size, _dp = _FX.depth == null ? 0.38 : _FX.depth;
-  return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (1.824 * _sp + 0.12 * fy),
+  return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (1.824 * _sp + 0.12 * fd),
            y: NSTOP + fy * NSH,
-           s: _sz * (0.714 - _dp * 0.4 + (0.112 + _dp * 1.4) * fy) };
+           s: _sz * (0.714 - _dp * 0.4 + (0.112 + _dp * 1.4) * fd) };
 }
 const OFF_NUMS = [80, 81, 87, 72, 74, 75, 76, 77, 12, 24, 83];
 const DEF_NUMS = [21, 29, 31, 38, 52, 54, 56, 91, 95, 97, 94];
@@ -2734,8 +2767,9 @@ class Ot extends mt.Scene {
       if (et.event === "fg") this.drawUprights(script.meta.dir);
       // pre-play broadcast ribbon: down & distance from the scoreboard
       // (pre-play ribbon removed by request — only the post-play result ribbon shows)
-      // stall watchdog — script durations are ≤6s at 1x
-      this.time.delayedCall(script.duration / 0.5 + 2200, () => this.complete());
+      // stall watchdog — script durations are ≤6s at 1x. Widen it for the v24 base
+      // slow-down so the slowest setting (½× × basePlayRate) never trips it early.
+      this.time.delayedCall(script.duration / (0.5 * TU("basePlayRate", 0.7)) + 2600, () => this.complete());
     } catch (err) { console.warn("[LiveField] animate error:", err); this.complete(); }
   }
 
@@ -2743,7 +2777,10 @@ class Ot extends mt.Scene {
     const P = this.play;
     if (!P || P.done) return;
     if (this.hitStop > 0) { this.hitStop -= delta; return; }   // freeze-frame on big moments
-    const spd = Math.max(0.5, window.__getGridironLiveSpeed?.() ?? 1);
+    // v24: base movement runs 30% slower for everyone — a more deliberate, readable
+    // pace where cuts, jukes and pursuit angles land as real moves instead of a blur.
+    // The user's 1x/2x speed control still multiplies on top of this base.
+    const spd = Math.max(0.5, window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7);
     P.t += delta * spd;
     const S = P.script, T = Math.min(Math.max(0, P.t - (P.delay || 0)), S.duration);
     // Madden-style follow camera: track the ball with look-ahead, wider on big plays
@@ -3004,12 +3041,20 @@ class Ot extends mt.Scene {
         this.popText(e.x, e.y - 22, isSpin ? "SPIN!" : "JUKE!", "#8fe7ff", 14);
         const cm2 = this.markers[P.carrierId];
         if (cm2) {
-          cm2.cutUntil = cm2.tms + 240; this.skidFx(e.x, e.y); this.puffFx(e.x, e.y, 2);
-          // v17 juke/spin body animation — a spin whips the body around; a juke throws
-          // a sharp lateral lean-and-recover. Reads as a real move, not just a skid.
+          // v24: FLUIDITY scales with the carrier's elusiveness (agility+quickness,
+          // rode in on the event). An elite back's move is crisp and fast to recover;
+          // a low-rated one is slower, wobblier, and hangs in the cut longer.
+          const flu = mt.Math.Clamp(((e.elus != null ? e.elus : 55) - 30) / 55, 0, 1);
+          cm2.cutUntil = cm2.tms + (300 - flu * 130);            // higher rating recovers quicker
+          this.skidFx(e.x, e.y); this.puffFx(e.x, e.y, 2);
+          // a spin whips the body around; a juke throws a sharp lateral lean-and-recover.
           if (cm2.body) {
-            if (isSpin) { this.tweens.add({ targets: cm2.body, angle: (Math.random()<0.5?360:-360), duration: 300, ease: "Cubic.Out", onComplete: () => { if (cm2.body) cm2.body.setAngle(0); } }); }
-            else { const dir = Math.random()<0.5?1:-1; this.tweens.add({ targets: cm2.body, x: (cm2.body.x||0) + dir*5, angle: dir*16, duration: 100, yoyo: true, ease: "Sine.InOut", onComplete: () => { if (cm2.body) { cm2.body.setAngle(0); } } }); }
+            if (isSpin) {
+              this.tweens.add({ targets: cm2.body, angle: (Math.random()<0.5?360:-360), duration: 360 - flu*150, ease: flu>0.6 ? "Cubic.Out" : "Sine.InOut", onComplete: () => { if (cm2.body) cm2.body.setAngle(0); } });
+            } else {
+              const dir = Math.random()<0.5?1:-1;
+              this.tweens.add({ targets: cm2.body, x: (cm2.body.x||0) + dir*(3 + flu*4), angle: dir*(12 + flu*10), duration: 130 - flu*55, yoyo: true, ease: "Sine.InOut", onComplete: () => { if (cm2.body) { cm2.body.setAngle(0); } } });
+            }
           }
         }
         break;
@@ -3736,13 +3781,34 @@ class Ot extends mt.Scene {
   drawField(losYd, tgtYd) {
     const g = this.field; g.clear();
     g.fillStyle(0x08130c, 1).fillRect(0, 0, FW, WORLD_H + 20);
+    const fx = (yd) => PLAY_L + (mt.Math.Clamp(yd, 0, 100) / 100) * PLAY_W;
+    // v24: RESET the depth perspective at THIS play's line of scrimmage. LOS_U is
+    // the scrimmage in PJ's own "u" coordinate, so every projection this play reads
+    // depth relative to the line — the framing snaps to the same reference at the snap.
+    { const lxw = fx(losYd); LOS_U = VDIR > 0 ? lxw : FW - lxw; }
+    // v24: paint a depth ramp over the turf — the far (downfield) end sinks into
+    // shadow and a soft ground-glow pools at the LOS, so the field reads as receding
+    // into the distance from the scrimmage instead of lying flat. Drawn below the
+    // live lines and players. Bands are stepped in PJ space so they foreshorten too.
+    { const midX = (F_TOP + F_BOT) / 2;
+      for (let i = 0; i < 22; i++) {
+        const yd0 = i / 22 * 100, yd1 = (i + 1) / 22 * 100;
+        const uMid = VDIR > 0 ? fx((yd0 + yd1) / 2) : FW - fx((yd0 + yd1) / 2);
+        const depth = LOS_U == null ? 0 : Math.max(0, Math.min(1, (uMid - LOS_U) / TU("depthSpan", 620)));
+        if (depth <= 0.02) continue;                              // no shade in front of / at the LOS
+        const a = PJ(fx(yd0), F_TOP), b = PJ(fx(yd0), F_BOT), c = PJ(fx(yd1), F_BOT), d = PJ(fx(yd1), F_TOP);
+        g.fillStyle(0x040a08, Math.min(0.5, depth * 0.5)).fillPoints([a, b, c, d], true);
+      }
+      // near-LOS ground glow — the reference plane the eye locks onto each snap
+      const gl = PJ(fx(losYd), midX);
+      g.fillStyle(0x2a5238, 0.14).fillEllipse(gl.x, gl.y + 6 * gl.s, 150 * gl.s, 34 * gl.s);
+    }
     const pline = (x, y0, y1, w, col, alpha) => {
       const a = PJ(x, y0), b = PJ(x, y1);
       g.lineStyle(w, col, alpha == null ? 1 : alpha).lineBetween(a.x, a.y, b.x, b.y);
     };
     // turf, yard lines, numbers, hashes and endzone lettering are REAL ART now
     // (window.__RIB_FIELD, pre-warped through this exact PJ projection). Only live paint is drawn:
-    const fx = (yd) => PLAY_L + (mt.Math.Clamp(yd, 0, 100) / 100) * PLAY_W;
     pline(fx(losYd), F_TOP, F_BOT, 7, 0x4a90e2, 0.22);
     pline(fx(losYd), F_TOP, F_BOT, 3, 0x4a90e2, 0.95);
     pline(fx(tgtYd), F_TOP, F_BOT, 7, 0xf0bb45, 0.22);
