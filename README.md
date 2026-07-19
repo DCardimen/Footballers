@@ -42,6 +42,36 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v23.1 — character-driven story arcs, scramble warnings, pregame game-plan
+  suggestions.** Four gameplay systems:
+  - **Story-arc auto choices are no longer generic.** Removed the rest-of-season
+    "Season Momentum" boost entirely (it compounded a flat rating bump into every
+    game). The auto-picked choice now resolves into a SINGLE-GAME outcome driven
+    by the kid's **character** (coach trust): good kids stack reliable, modest,
+    *varied* positives; problem children (low trust / high clash) roll a real
+    off-field **incident** — out too late, late to practice, told off a coach,
+    blew off film, ran his mouth — that costs `−4..−14%` stats for the game AND
+    `−2..−8` coach trust, shown red in the roll popup. Bolder picks widen both
+    tails. The next-game boost is now also applied in **live** games (`lt`), not
+    just quick-sim.
+  - **Scramble warning ❗.** When a defender breaks through the line and bears
+    down on the QB (`pressureAlert`/`freeRusher`), a pulsing red exclamation mark
+    floats over that defender's head as a child of his marker (tracks + depth-
+    scales with him), telegraphing the scramble/sack a beat early. Cleared when
+    the ball comes out or the play resets.
+  - **Pregame game-plan suggestions.** The pregame panel now offers **3 scenarios**
+    built from the opponent's scouted weak units (their secondary → *Air It Out*,
+    their front seven → *Pound the Rock*, plus *Stay Balanced*), each showing a
+    concrete pass/run split (~60–75% pass on the air plan). You pitch one to the
+    coordinator.
+  - **Coach adoption + Field General prestige + play-mix injection.** The coach
+    adopts your suggestion in proportion to your standing — coach trust, recent
+    form, and a new **Field General** prestige node (+18%/level, max 4). The
+    adopted pass rate is blended into the sim's per-play `passP` for that game
+    (`window.__gameScriptBiasV23`), so your read actually bends the script
+    (verified: a run-lean call → 38% pass vs a pass-lean call → 58% pass). An
+    impact bar shows exactly how much of your suggestion the coach took and the
+    resulting game-script pass/run split.
 - **v23 — team-strength variance, QB read progression, 2.5D camera, flat-stat
   cleanup.** A batch of seven gameplay/feel changes:
   - **Wider team OVR variance.** `Wr`'s quality math now spreads opponents from
