@@ -42,6 +42,14 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v21.1 — rolled personalities + prestige adjustment points.** Your starting
+  personality is now ROLLED (bell-ish, centered on neutral, tails possible) —
+  the white tick on each slider marks what the dice gave you. Free slider
+  points are gone: what you get are **adjustment points** — **+1 per
+  prestige** (plus Identity Coach's +2/level) — so early careers largely play
+  the hand they're dealt, and stacked-prestige runs can fully sculpt an
+  identity. Moving a slider back toward its rolled value is always free; the
+  rolled baseline is kept on `player.personaRolledV21`.
 - **v21 — diminishing-returns training (no hard stat wall).** The "At potential
   ceiling" hard stop is gone. Each stat now has a **soft cap**: +1 costs 1 point
   below it, then **2, 3, 4…** per band of `drBandWidth` (10) above it, forever.
