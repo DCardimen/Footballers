@@ -42,6 +42,38 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v25 — 3D field, group tackling, hit-stick, named temp boosts, realistic
+  progression, and randomized team colors.** A large gameplay + presentation pass:
+  - **Procedural perspective field.** The flat baked field art is retired; the turf,
+    mowing stripes, converging sidelines, yard lines, hash marks and yard NUMBERS are
+    now drawn live through `PJ()` so they foreshorten with depth. Depth anchors at the
+    OFFENSIVE BACKFIELD and resets every snap, so the offense reads the same large size
+    at the line no matter the yard line. New **Field radius** slider tunes the falloff
+    for players and field together.
+  - **Group tackling.** A live "hands-on" swarm count chokes every evasion and scales
+    the gang-wrap odds — two men bring you down fast, three is mostly a wrap (kills the
+    600-yard-back outlier; team rushing ~71→~55/game, gang tackles 26%→~66%).
+  - **Height tackle geometry + hit stick.** High tackles fold both men together; low
+    shoestring tackles let the carrier's momentum stumble him forward. A violent truck
+    (offense) or big-stick tackle (defense) flings the loser with the baked dive→down
+    sprite frames and a freeze-frame.
+  - **Named temporary stat boosts.** The "+X% ALL stats" edge is gone. The personality
+    wheel and story/game-plan rolls now grant 1–2 varied, position-relevant NAMED stat
+    buffs for a single game (some at the player's MAX); incidents dock one stat. All
+    persistent/season-long boosts are removed (prestige tree kept). The pregame lists
+    YOUR STATS as bars with the temp boost in a separate colour (green / gold MAX).
+  - **Bonkers national leaders + realistic funnel.** The top of the country posts
+    ~260–340 rush and ~490 pass yds/game at the elite ranks (leaderboard only — the
+    player's game sim is untouched). Advancement is now percentile-gated per level:
+    reach youth on a coin flip, tighten through HS, then only a sliver make college →
+    combine → the pros.
+  - **Team colours actually randomize.** The team-creator block was throwing at load
+    (a cross-`<script>` `TEAM_PALETTES` reference), so every team fell back to the
+    default palette; fixed, so each career rolls a fresh look and the in-canvas jerseys
+    follow it.
+  - **Personality screen fits on one page** — all 8 trait rows visible without
+    scrolling at any viewport, Lock-In button always in view.
+
 - **v24 — field depth that resets at the LOS, 30% slower base movement, rating-
   driven cuts, and tackle height leverage.** A broadcast + feel pass:
   - **Depth perception resets at the line of scrimmage.** `PJ()` still places every
