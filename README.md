@@ -55,6 +55,19 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v27 — consistent in-renderer perspective, billboard sprites, ball arcs, predictive
+  camera.** The CSS `rotateX` canvas tilt is fully retired. One size curve `s(u)` (anchored
+  at the offensive backfield each snap, `fxDepth` slider 0–0.9) now drives EVERYTHING:
+  player sprite scale, x-spread, row spacing, and the field image itself — `warpField()`
+  re-bakes the uploaded field art through the same curve into a canvas texture every snap
+  (rows compress + narrow going north, edge pixels stretched so grass always fills the
+  frame; a horizon is impossible). Numbers and players on the same yard line shrink by the
+  identical ratio, and sprites stay upright — true 2.5D billboards. Plus: **throw arcs**
+  (airborne ball climbs up to ~64px with a mid-flight swell, `ballAirCap`/`ballAirK`),
+  **stronger smooth carrier zoom** (`zoomPlay` 1.2→1.34 + `zoomCarrier` once someone has
+  the ball), and a **predictive camera** that leads along the ball's smoothed velocity
+  (`camLeadMs`/`camLeadMax`) instead of a fixed offset, resetting between plays.
+
 - **v26.4 — stronger, self-scaling field perspective.** The `perspective()` distance behind
   the tilt was hardwired at a mild `540px`, so far yard numbers barely shrank. It now
   auto-tightens as the tilt rises — `perspective(max(300, 1500 − tilt·38)px) rotateX(tilt°)`
