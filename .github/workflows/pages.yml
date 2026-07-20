@@ -1,0 +1,40 @@
+name: Deploy playable build to GitHub Pages
+
+# Publishes the self-contained index.html to GitHub Pages on every push, so the
+# "play / read the current build" link always serves the newest committed game.
+on:
+  push:
+    branches:
+      - main
+      - claude/football-field-depth-9fcesb
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a newer push cancel an in-flight deploy rather than queueing.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble site (self-contained game + fallback assets)
+        run: |
+          mkdir -p _site
+          cp index.html _site/index.html
+          if [ -d public ]; then cp -r public/. _site/; fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

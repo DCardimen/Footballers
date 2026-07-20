@@ -3,6 +3,19 @@
 A football career-simulation game (Phaser + canvas). The live game is
 **GRIDIRON v15.21**.
 
+## ▶ Play / read the current build
+
+`index.html` is fully self-contained (Phaser + all art baked inline), so it runs
+straight from the browser — no install. The GitHub Pages workflow
+(`.github/workflows/pages.yml`) redeploys it on **every push**, so this link
+always serves the newest committed build:
+
+**▶ Play the latest build:** <https://dcardimen.github.io/Footballers/>
+
+> First-time setup (one click): repo **Settings → Pages → Build and deployment →
+> Source: GitHub Actions**. After that the link stays live and self-updates on
+> every push.
+
 ## Develop
 
 ```bash
