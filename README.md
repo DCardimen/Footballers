@@ -55,6 +55,13 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v26.4 — adjustable perspective radius (telephoto ↔ fisheye).** The CSS perspective
+  distance behind the field tilt was a small, hardwired `540px`, which bowed the field into
+  a strong fisheye. It is now the tunable `fxPersp` (default `2400px`) with a new
+  **"Perspective radius"** slider (600–6000px): higher = flatter, wider and less warped
+  (telephoto); lower = a stronger fisheye 3D bow. Applied in `applyFieldFx` as
+  `perspective(<fxPersp>px) rotateX(<fxTilt>deg)`.
+
 - **v26.3 — players foreshorten with depth (true 2.5D).** On the image field, players used
   to draw the same size everywhere, so the scene read flat. `PJ()` now scales player SIZE by
   depth — near (offensive-backfield / camera) players read big and downfield players shrink —
