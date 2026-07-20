@@ -55,6 +55,14 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v26.3 — players foreshorten with depth (true 2.5D).** On the image field, players used
+  to draw the same size everywhere, so the scene read flat. `PJ()` now scales player SIZE by
+  depth — near (offensive-backfield / camera) players read big and downfield players shrink —
+  while their feet POSITION stays orthographic so they still sit exactly on the CSS-tilted
+  field image. Depth is anchored at the backfield and reset each snap (the offense is the same
+  size at every line of scrimmage). New **"Player depth scale"** slider (`fxDepth`, default
+  0.4) controls how aggressively far players shrink; 0 restores the old uniform size.
+
 - **v26 — uploaded field image with an adjustable 2.5D perspective.** The field surface
   is now a real IMAGE (`window.__RIB_FIELD`, `scene.fieldSpr`) instead of the procedurally
   drawn v25 turf. A flat overhead field PNG is baked in, pre-rotated to the game's vertical
