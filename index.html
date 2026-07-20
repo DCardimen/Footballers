@@ -2405,39 +2405,51 @@ const F_TOP = 14, F_BOT = FH - 14;
 /* North-south presentation: the field runs vertically and the OFFENSE always
  * attacks toward the top of the screen. VDIR flips the world when possession
  * changes, exactly like a broadcast camera swinging ends. */
-/* ===== v26.2 USER FIELD IMAGE + adjustable 2.5D =====
- * The field is a flat uploaded IMAGE (scene.fieldSpr, baked in window.__RIB_FIELD, pre-
- * rotated to the vertical north-south field). PJ() is orthographic — screen-Y linear with
- * field position AND screen-X linear across the field — so the image and every player sit
- * on ONE flat plane (no foreshortening baked into world coords, no backfield depth anchor;
- * ANCHOR_U stays a harmless null). The 2.5D look comes entirely from a CSS perspective
- * TILT applied to the whole #field canvas in applyFieldFx (image + players + lines tilt
- * together), controlled live by the "Field perspective (2.5D)" slider in Settings.
- * drawField no longer paints turf — it only lays the moving LOS/first-down lines on top. */
-let VDIR = 1, ANCHOR_U = null;
-const NSTOP = 30, NSH = 1340, WORLD_H = NSTOP + NSH + 30;
-function fieldRadius() { const r = (window.__FIELD_FX || {}).radius; return r == null ? 360 : r; }
+/* ===== v27 CONSISTENT IN-RENDERER PERSPECTIVE (CSS tilt retired) =====
+ * ONE size curve s(u) drives EVERYTHING — player sprites, the field image's width AND its
+ * row height — so numbers and players on the same yard line always shrink by the identical
+ * ratio (the "consistent sizing" rule). s falls from 1.0 at the offensive backfield anchor
+ * (ANCHOR_U, reset every snap) to (1 − fxDepth) over fieldRadius() world px, then floors —
+ * no vanishing point, so a horizon can never appear. PJ projects: y = cumulative integral
+ * of s (near rows expand, far rows compress), x-spread ∝ s, sprite scale ∝ s; the uploaded
+ * field image is re-warped through the SAME mapping into a canvas texture each snap
+ * (warpField), with its edge pixels stretched sideways so grass always fills the frame.
+ * The old CSS rotateX on the #field canvas is dead — applyFieldFx clears it. */
+let VDIR = 1, ANCHOR_U = null, PERSP = null;
+const NSTOP = 30, NSH = 1340, WORLD_H = 2400;
+const PERSP_OA = 1.45, PERSP_AB = 46;          // art overscan; anchor sits ~8 yds behind the LOS
+function fieldRadius() { const r = (window.__FIELD_FX || {}).radius; return r == null ? 300 : r; }
+function buildPersp() {
+  if (ANCHOR_U == null) { PERSP = null; return; }
+  const FX = window.__FIELD_FX || {};
+  const dp = Math.max(0, Math.min(0.9, FX.depth == null ? 0.45 : +FX.depth));
+  const R = Math.max(60, fieldRadius());
+  const AU = ANCHOR_U, sMin = 1 - dp;
+  const s = (u) => u <= AU ? 1 : (u >= AU + R ? sMin : 1 - dp * (u - AU) / R);
+  const C = (u) => {                     // ∫0..u s dt (piecewise, closed-form)
+    let c = Math.max(0, Math.min(u, AU));
+    const lo = Math.max(0, AU), hi = Math.max(lo, Math.min(u, AU + R));
+    if (hi > lo) { const F = (t) => t - dp * (t - AU) * (t - AU) / (2 * R); c += F(hi) - F(lo); }
+    if (u > AU + R) c += (u - Math.max(AU + R, 0)) * sMin;
+    return c;
+  };
+  const sN = s(AU + PERSP_AB);           // normalizer: the LOS row keeps the pre-v27 baseline size
+  PERSP = { s, C, total: C(FW), sN, VB: 2 * PERSP_OA / sN };
+}
 function PJ(x, y) {
-  // v26.3 FLAT POSITIONS + PERSPECTIVE SIZE. Screen X/Y stay orthographic (linear) so every
-  // player's FEET land on the correct spot of the flat field IMAGE, which the shared CSS
-  // tilt then leans into the distance. On TOP of that, the SIZE now foreshortens with depth
-  // — players near the offensive backfield (the camera) read big and downfield players
-  // shrink — so the scene reads as a true 2.5D perspective instead of flat cut-outs. Depth
-  // is measured from ANCHOR_U (a few yards behind the ball) and reset every snap, so the
-  // offense is always the same size at the line. The "Player depth scale" slider (_dp) sets
-  // how aggressively far players shrink; _dp = 0 restores the old uniform size.
+  // v27: ONE consistent perspective. Position AND size come from the same curve s(u), so a
+  // player and the yard number he stands on always shrink together. Falls back to the flat
+  // orthographic map until the first snap builds PERSP.
   const u = VDIR > 0 ? x : FW - x;                       // distance advanced toward the attacking end
   const v = VDIR > 0 ? y : (F_TOP + F_BOT) - y;          // mirror across so left/right stay coherent
-  const fy = 1 - u / FW;                                  // 0 at the attacking (top) end — drives screen Y
   const _FX = window.__FIELD_FX || {};
-  const _sp = _FX.spread == null ? 1 : _FX.spread, _sz = _FX.size == null ? 1.32 : _FX.size, _dp = _FX.depth == null ? 0.4 : _FX.depth;
-  // depth cue in [floorFd..near]: ~near at/behind the anchor (big), falling downfield.
-  const near = 0.94, floorFd = 0.12;
-  const fd = ANCHOR_U == null ? 0.5
-    : Math.max(floorFd, Math.min(1, near - (u - ANCHOR_U) / fieldRadius()));
-  return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (1.30 * _sp),
-           y: NSTOP + fy * NSH,
-           s: _sz * 0.80 * (1 + _dp * (fd - 0.5) * 2) };
+  const _sp = _FX.spread == null ? 1 : _FX.spread, _sz = _FX.size == null ? 1.32 : _FX.size;
+  const P = PERSP;
+  if (!P) return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (1.30 * _sp), y: NSTOP + (1 - u / FW) * NSH, s: _sz * 0.80 };
+  const k = P.s(u) / P.sN;                               // 1.0 at the LOS row; <1 downfield, >1 behind
+  return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (1.30 * _sp * PERSP_OA * k),
+           y: NSTOP + P.VB * (P.total - P.C(u)),
+           s: _sz * 0.80 * k };
 }
 const OFF_NUMS = [80, 81, 87, 72, 74, 75, 76, 77, 12, 24, 83];
 const DEF_NUMS = [21, 29, 31, 38, 52, 54, 56, 91, 95, 97, 94];
@@ -2603,14 +2615,13 @@ function ribField(scene) {
   if (!RIB.fieldImg || !scene || !scene.add || scene.fieldSpr) return;
   try {
     if (!scene.textures.exists("rib_field")) scene.textures.addImage("rib_field", RIB.fieldImg);
-    // v26.2 USER FIELD ART: the uploaded flat field image IS the turf. It is baked
-    // pre-rotated to the game's vertical (north-south) orientation and reads correctly,
-    // so no mirror/tint/wash is applied. It stays VISIBLE — drawField() only paints the
-    // moving LOS / first-down lines on top, and the whole canvas is tilted into a
-    // adjustable 2.5D perspective by the CSS transform in applyFieldFx (the tilt slider).
+    // v27 USER FIELD ART: the uploaded flat field image IS the turf, but it is displayed
+    // through warpField() — re-baked each snap with the same consistent perspective curve
+    // the players use. Created flat here, then refreshPersp() swaps in the warped texture.
     scene.fieldSpr = scene.add.image(FW / 2, NSTOP + NSH / 2, "rib_field").setScale(2).setDepth(0.6);
     scene.fieldWash = null;
-    console.log("[RIB] user field art active");
+    try { scene.refreshPersp && scene.refreshPersp(); } catch (e) {}
+    console.log("[RIB] user field art active (v27 warp)");
   } catch (e) { console.error("[RIB] field art failed", e); }
 }
 function ribActivate(scene) {
@@ -2727,7 +2738,9 @@ class Ot extends mt.Scene {
     this.resetCamera();
   }
   resetCamera() {
-    try { const c = this.cameras.main; c.setZoom((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16);
+    try { const c = this.cameras.main;
+      c.setZoom((((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16)) * TU("perspZoomK", 0.78));
+      this._pcam = null; this._cvx = 0; this._cvy = 0;     // v27: clear the predictive lead between plays
       const f = this.focusPt || { x: FW / 2, y: WORLD_H / 2 }; c.centerOn(f.x, f.y - 80); } catch (e) {}
   }
   animatePlay(et, rt) {
@@ -2819,13 +2832,26 @@ class Ot extends mt.Scene {
       if (!REDUCED_MOTION) {
         if (this.zoomPunch > 0) this.zoomPunch = Math.max(0, this.zoomPunch - delta * 0.0016);
         const gliding0 = P.t < (P.delay || 0);
-        const _zf = ((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16) / 1.16;
-        const targetZoom = (gliding0 ? 1.0 * _zf : (P.big ? TU("zoomBig",1.04) : TU("zoomPlay",1.2)) * _zf) + this.zoomPunch;
-        cam.setZoom(cam.zoom + (targetZoom - cam.zoom) * 0.07);
+        // v27: perspZoomK compensates for the overscanned warp art (near field draws
+        // ~1.45x bigger), zoomCarrier leans in harder once someone has the ball, and the
+        // camera leads PREDICTIVELY along the ball's smoothed velocity instead of a
+        // fixed northward offset — it arrives where the carrier is going.
+        const _zf = (((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16) / 1.16) * TU("perspZoomK", 0.78);
+        const carZ = (!gliding0 && P.carrierId != null) ? TU("zoomCarrier", 0.12) : 0;
+        const targetZoom = (gliding0 ? 1.0 * _zf : ((P.big ? TU("zoomBig",1.04) : TU("zoomPlay",1.34)) + carZ) * _zf) + this.zoomPunch;
+        cam.setZoom(cam.zoom + (targetZoom - cam.zoom) * TU("zoomLerp", 0.06));
         const bx = this.ballSpr ? this.ballSpr.x : FW / 2, by = this.ballSpr ? this.ballSpr.y : WORLD_H / 2;
+        if (this._pcam) { const dtc = Math.max(16, delta);
+          const nvx = (bx - this._pcam.x) / dtc * 1000, nvy = (by - this._pcam.y) / dtc * 1000;
+          this._cvx = (this._cvx || 0) + (nvx - (this._cvx || 0)) * 0.15;
+          this._cvy = (this._cvy || 0) + (nvy - (this._cvy || 0)) * 0.15; }
+        this._pcam = { x: bx, y: by };
+        let lx = (this._cvx || 0) * TU("camLeadMs", 420) / 1000, ly = (this._cvy || 0) * TU("camLeadMs", 420) / 1000;
+        const lm = Math.hypot(lx, ly), mL = TU("camLeadMax", 130);
+        if (lm > mL) { lx *= mL / lm; ly *= mL / lm; }
         const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom);
-        const cx = mt.Math.Clamp(bx, hw, FW - hw);
-        const cy = mt.Math.Clamp(by - 46, hh, WORLD_H - hh);   // look ahead toward the attack (north)
+        const cx = hw >= FW / 2 ? FW / 2 : mt.Math.Clamp(bx + lx, hw, FW - hw);
+        const cy = mt.Math.Clamp(by + ly - 40, hh, WORLD_H - hh);
         if (Math.abs(cx - cam.midPoint.x) > 2.5 || Math.abs(cy - cam.midPoint.y) > 2.5)
           cam.centerOn(cam.midPoint.x + (cx - cam.midPoint.x) * 0.09, cam.midPoint.y + (cy - cam.midPoint.y) * 0.09);
       }
@@ -2920,8 +2946,12 @@ class Ot extends mt.Scene {
       const bgx = Number(BA.x) + (Number(BB.x) - Number(BA.x)) * safeFrac,
         bgy = Number(BA.y) + (Number(BB.y) - Number(BA.y)) * safeFrac;
       const bpp = PJ(Number.isFinite(bgx) ? bgx : Number(BA.x), Number.isFinite(bgy) ? bgy : Number(BA.y));
-      this.ballSpr.setPosition(bpp.x, bpp.y - Math.min(26, bh * 0.34) * bpp.s);
-      this.ballSpr.setScale((P.carrierId != null && bh <= 1 ? 0.46 : 0.62) * bpp.s, (P.carrierId != null && bh <= 1 ? 0.34 : 0.44) * bpp.s);
+      // v27: REAL arc height — throws climb far above the field (was capped at 26px) and
+      // the ball swells slightly at the top of its flight, selling the vertical.
+      const airY = Math.min(TU("ballAirCap", 64), bh * TU("ballAirK", 0.8)) * bpp.s;
+      const airSw = bh > 2 ? 1 + Math.min(0.45, bh / 150) : 1;
+      this.ballSpr.setPosition(bpp.x, bpp.y - airY);
+      this.ballSpr.setScale((P.carrierId != null && bh <= 1 ? 0.46 : 0.62) * airSw * bpp.s, (P.carrierId != null && bh <= 1 ? 0.34 : 0.44) * airSw * bpp.s);
       this.ballSpr.setDepth(bh > 2 ? 20 : 9);
       // carried balls tuck small against the runner; flight balls fly big and spiral
       // v10: TIGHT SPIRAL — the ball noses along its flight path with a fast subtle roll
@@ -2940,7 +2970,7 @@ class Ot extends mt.Scene {
       if (this.ballShad) { this.ballShad.setPosition(bpp.x, bpp.y + 3 * bpp.s);
         this.ballShad.setScale(Math.max(0.35, 1 - bh / 90) * bpp.s); this.ballShad.setAlpha(bh > 1 ? 0.28 : 0.36); }
       if (bh > 3 && T - (P.lastBallDot || 0) > 50) { P.lastBallDot = T;
-        this.trail.fillStyle(0xffffff, 0.10).fillEllipse(bpp.x, bpp.y - Math.min(26, bh * 0.34) * bpp.s, 5, 1.5); }
+        this.trail.fillStyle(0xffffff, 0.10).fillEllipse(bpp.x, bpp.y - airY, 5, 1.5); }
       // catch anticipation: the target raises his hands as the ball arrives
       if (P.awaitCatch2 != null && bh > 1) {
         const tm2 = this.markers[P.awaitCatch2];
@@ -3831,22 +3861,58 @@ class Ot extends mt.Scene {
     g.lineBetween(p.x - 4 * p.s, p.y + 11 * p.s, p.x + 6 * p.s, p.y + 12 * p.s);
     this.tweens.add({ targets: g, alpha: 0, duration: 700, onComplete: () => this.dropFx(g) });
   }
+  refreshPersp() {   // re-project + re-warp after a slider change or late art decode
+    if (this._lastField) this.drawField(this._lastField[0], this._lastField[1]);
+  }
+  warpField() {
+    // v27: bake the uploaded field image through the SAME s(u) curve the players use —
+    // each output row samples the art row the projection puts there, drawn at width ∝ s.
+    // The outermost art pixels (plain grass) are stretched across the margins so every
+    // row bleeds grass to the canvas edge: full-bleed, horizon impossible.
+    try {
+      const fimg = RIB.fieldImg, P = PERSP;
+      if (!fimg || !P) return;
+      const CW = 1200, CH = WORLD_H, AW = FW * PERSP_OA;
+      if (!this._warpCv) { this._warpCv = document.createElement("canvas"); this._warpCv.width = CW; this._warpCv.height = CH; }
+      const ctx = this._warpCv.getContext("2d");
+      const SWa = fimg.width, SHa = fimg.height;         // 360x700 art
+      for (let i = 0; i < CH; i++) {
+        const target = (i - NSTOP) / P.VB;               // = total − C(u) at this row
+        let u;
+        if (target <= 0) u = FW;
+        else if (target >= P.total) u = 0;
+        else { let lo = 0, hi = FW; const want = P.total - target;
+          for (let it = 0; it < 18; it++) { const mid = (lo + hi) / 2; if (P.C(mid) < want) lo = mid; else hi = mid; }
+          u = (lo + hi) / 2; }
+        const sY = Math.max(3, Math.min(SHa - 4, (1 - u / FW) * SHa));   // skip the photo's dark edge rows
+        const w = AW * (P.s(u) / P.sN), x0 = (CW - w) / 2;
+        if (x0 > 0) {                                     // edge-extend the grass margins
+          ctx.drawImage(fimg, 0, sY, 2, 1, 0, i, x0 + 1, 1);
+          ctx.drawImage(fimg, SWa - 2, sY, 2, 1, x0 + w - 1, i, CW - x0 - w + 1, 1);
+        }
+        ctx.drawImage(fimg, 0, sY, SWa, 1, x0, i, w, 1);
+      }
+      if (this.textures.exists("rib_field_warp")) this.textures.get("rib_field_warp").refresh();
+      else this.textures.addCanvas("rib_field_warp", this._warpCv);
+      if (this.fieldSpr) this.fieldSpr.setTexture("rib_field_warp").setPosition(FW / 2, CH / 2).setScale(1).setVisible(true);
+    } catch (e) { console.warn("[v27 warpField]", e); }
+  }
   drawField(losYd, tgtYd) {
-    // v26.2 USER FIELD IMAGE + adjustable 2.5D. The uploaded field art (scene.fieldSpr,
-    // baked pre-rotated to the vertical field) IS the turf, yard lines, numbers and end
-    // zones — we do NOT redraw any of that. PJ is orthographic, so the image and every
-    // player sit on a FLAT plane that share one CSS perspective tilt (applyFieldFx →
-    // the "Field perspective" slider), which is what distorts the whole scene into 2.5D.
-    // drawField only paints the moving LOS (blue) + first-down (gold) markers on top.
+    // v27: the WARPED field image (see warpField) is the turf/lines/numbers; drawField
+    // only rebuilds the projection for this snap and lays the moving LOS (blue) +
+    // first-down (gold) markers on top through the same PJ curve.
     const g = this.field; g.clear();
-    if (this.fieldSpr) { try { this.fieldSpr.setVisible(true); } catch (e) {} }
-    else { g.fillStyle(0x2f5f2c, 1).fillRect(0, 0, FW, WORLD_H + 20); }   // fallback until the field image decodes
+    this._lastField = [losYd, tgtYd];
     const fxr = (yd) => PLAY_L + (yd / 100) * PLAY_W;
     const fx = (yd) => fxr(mt.Math.Clamp(yd, 0, 100));
-    // v26.3: anchor the perspective SIZE falloff at the offensive backfield (~a few yards
-    // behind the ball) and reset it every snap, so the offense reads the same size at the
-    // line no matter where the ball is spotted and everything downfield shrinks from there.
-    { const lxw = fx(losYd), losU = VDIR > 0 ? lxw : FW - lxw; ANCHOR_U = losU - TU("depthAnchorBack", 46); }
+    // v27: anchor the perspective at the offensive backfield, rebuild the projection and
+    // re-warp the field image through it — the offense reads the same size at every snap
+    // and the WHOLE scene (art + sprites + lines) recedes with one consistent curve.
+    { const lxw = fx(losYd), losU = VDIR > 0 ? lxw : FW - lxw; ANCHOR_U = losU - PERSP_AB; }
+    buildPersp();
+    this.warpField();
+    if (this.fieldSpr) { try { this.fieldSpr.setVisible(true); } catch (e) {} }
+    else { g.fillStyle(0x2f5f2c, 1).fillRect(0, 0, FW, WORLD_H + 20); }   // fallback until the field image decodes
     const yline = (yd, w, col, al) => {
       const a = PJ(fxr(yd), F_TOP), b = PJ(fxr(yd), F_BOT);
       g.lineStyle(w * ((a.s + b.s) / 2), col, al == null ? 1 : al).lineBetween(a.x, a.y, b.x, b.y);
@@ -4317,10 +4383,9 @@ const _pick6=[...P,...ie].reduce((_n,R)=>_n+((R&&R.statLine&&R.statLine.pick6)||
     </div>
     <div class="card">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:4px">📐 FIELD VIEW</div>
-      <div class="small" style="margin-bottom:10px">Adjust the 2.5D perspective — how far the field tilts back and how much players shrink into the distance — plus size, spacing, and zoom.</div>
+      <div class="small" style="margin-bottom:10px">Adjust the 2.5D perspective — one dial shrinks the far field, numbers AND players together (always consistent) — plus size, spacing, and zoom.</div>
       ${[
-        ["fxTilt","Field perspective (2.5D)","Tilt the field back into the distance — 0 is flat top-down, higher leans it into a 3D broadcast angle",0,34,1,18],
-        ["fxDepth","Player depth scale","How much smaller far (downfield) players get vs. near ones — 0 draws every player the same size",0,0.9,0.05,0.4],
+        ["fxDepth","Field perspective (2.5D)","How hard everything recedes — 0 is flat top-down; higher = the far (north) field, numbers and players all shrink harder, always in step",0,0.9,0.05,0.45],
         ["fxSize","Player size","Overall size of every player",0.5,1.9,0.05,1.32],
         ["fxSpread","Player spread","Sideline-to-sideline spacing",0.7,1.4,0.05,1],
         ["fxZoom","Field zoom","How large the field is drawn",0.85,1.5,0.02,1.16],
@@ -5447,7 +5512,7 @@ function jl(){const e=o.player,a=Ee[e.pos].w;drAutoAlloc(Object.keys(a).sort((i,
     ${e.age>=40?`<div class="threshold-note" style="color:var(--blood);margin-top:8px">⏳ ${Math.max(0,Qt-e.age)} season${Qt-e.age===1?"":"s"} remain before mandatory retirement.</div>`:""}</div>`}const cc=et;et=function(e,t,a){const s=mn(e.age),n=cc(e,(t||0)+s.perf,a);return n.injured&&Math.random()<s.recovery?(n.injured=!1,n.ageRecovery=!0):!n.injured&&s.inj>1&&Math.random()<Math.min(.22,(s.inj-1)*.105)&&(n.injured=!0,n.ageInjury=!0),n.ageStage=s.name,n.agePerf=s.perf,n.ageInjuryMult=s.inj,n};function dc(e,t){const a=mn(e.age);e.level>=7&&t.attrsAfter&&ee.forEach(n=>{t.attrsAfter[n]!=null&&(e.attrs[n]=t.attrsAfter[n])});const s={};if(e.level>=7&&a.decline>0&&(["speed","strength","quickness","acceleration","agility","jumping","stamina","tackling","blocking"].forEach(i=>{if(e.attrs[i]==null)return;let r=0;const l=Math.min(.92,a.decline*.32);if(Math.random()<l&&(r=1),a.decline>=1.5&&Math.random()<.28&&r++,r){const d=e.attrs[i];e.attrs[i]=Math.max(10,e.attrs[i]-r),s[i]={from:d,to:e.attrs[i],delta:-r}}}),e.age<=36&&Math.random()<.42)){const i=Math.random()<.5?"awareness":"vision",r=e.attrs[i];e.attrs[i]=Math.min(we(),e.attrs[i]+1),s[i]={from:r,to:e.attrs[i],delta:1}}t.ageChanges=s,t.ageProfile=a,t.youngRecoveries=(t.sampleGames||[]).filter(n=>n.ageRecovery).length,t.ageInjuries=(t.sampleGames||[]).filter(n=>n.ageInjury).length,e.age>=Qt&&(e.retirementPending=!0,t.mandatoryRetirement=!0)}const uc=tt;tt=function(e){const t=uc(e);return dc(e,t),t};const fc=Aa;Aa=function(){fc();const e=o.player,t=x("screen");if(!(!e||!t)){if(o.view==="hub"&&!t.querySelector(".age-card")){const a=t.querySelector(".depth-card")||t.querySelector(".card");a&&a.insertAdjacentHTML("afterend",An(e))}if(o.view==="result"&&!t.querySelector(".age-card")){const a=t.querySelector(".depth-card")||t.querySelector(".season-grade")||t.firstElementChild;a&&a.insertAdjacentHTML("afterend",An(e));const s=e.lastResult||o.lastResult;s&&s.youngRecoveries>0&&t.insertAdjacentHTML("afterbegin",`<div class="card tight" style="border-color:var(--good)"><div class="small">🩹 Youth recovery prevented <b style="color:var(--good)">${s.youngRecoveries}</b> game injur${s.youngRecoveries===1?"y":"ies"} this season.</div></div>`),e.retirementPending&&(t.insertAdjacentHTML("afterbegin",`<div class="banner nfl"><div class="big-emoji">🏛️</div><div class="bt">Mandatory Retirement — Age ${e.age}</div><div class="bs">No player may begin another season after age ${Qt}. Your final season is complete.</div></div>`),x("dock").innerHTML=`<button class="btn" onclick="endCareer()">Retire at Age ${e.age} · View Legacy</button>`)}}};const hc=na;na=function(){if(o.player&&o.player.age>=Qt){o.player.retirementPending=!0,o.view="result",q();return}return hc()};function mc(){if(o=dr()||Zs(),o.tree||(o.tree={}),o.shop){const t={genetics:"genetics",talent:"talent",iron:"iron",coachable:"coachable",headstart:"headstart"};for(const a in o.shop)t[a]&&o.shop[a]>0&&(o.tree[t[a]]=Math.max(o.tree[t[a]]||0,o.shop[a]));delete o.shop}if(o.player&&!o.player.body&&(o.player.body=Pi({height:0,weight:0,muscle:0})),o.challenges||(o.challenges={}),o.titlesWon==null&&(o.titlesWon=0),o.recordOvr==null&&(o.recordOvr=0),o.careersCompleted==null&&(o.careersCompleted=0),o.objectivesCompleted==null&&(o.objectivesCompleted=0),o.rings==null&&(o.rings=0),o.chaos||(o.chaos={}),o.mastery||(o.mastery={}),o.chaosUnlocked==null&&(o.chaosUnlocked=!1),o.chaosCap==null&&(o.chaosCap=Math.max(Ie(),o.chaosUnlocked?6:0)),o.era==null&&(o.era=0),o.hof||(o.hof=[]),o.hofWings==null&&(o.hofWings=0),o.posMastery||(o.posMastery={}),o.inventory||(o.inventory=[]),o.equipped||(o.equipped={}),o.player&&!o.player.nemesis&&_i(o.player),o.player){const t=o.player;t.traits||(t.traits=Ai()),t.teamIdentity||(t.teamIdentity=Xs()),t.titles==null&&(t.titles=0),t.declareBonus==null&&(t.declareBonus=0),t.seasonSeed||(t.seasonSeed=le(1,2e9)),oa(t)}(o.view==="sim"||o.view==="live"||o.view==="training"||o.view==="event")&&(o.view="hub"),q(),setTimeout(hr,1850);const e=document.getElementById("splash");e&&(setTimeout(()=>e.classList.add("gone"),1100),setTimeout(()=>{e.parentNode&&e.parentNode.removeChild(e)},1700))}window.go=te;/* v20 fix: dock Back buttons reference a global `S` (the state) that was never exported — every `go(S.player...)` onclick threw a ReferenceError, so Back appeared dead on menu-reachable screens. Expose the live state as a getter. */try{Object.defineProperty(window,"S",{configurable:!0,get:()=>o})}catch(_e){window.S=o}
 /* v20 personality side-effects (two-sided sliders): varMult widens/narrows game-to-game swings around 50, injMult scales injury rolls both ways. v23: perfFlat is NO LONGER a rating bump here — it is a REAL flat stat boost applied inside the sim's attribute accessor (_raw), so it shows up as actual production (and flows into the box-score grade) instead of an abstract "+performance" number. */
 const _pfxEt=et;et=function(e,t,a){const fx=e&&e.personaFxV20;if(!fx)return _pfxEt(e,t,a);const r=_pfxEt(e,(t||0),a);if(fx.varMult&&fx.varMult!==1)r.perf=f(Math.round(50+(r.perf-50)*fx.varMult),1,100);if((fx.injMult||1)>1&&!r.injured)r.injured=Math.random()<(fx.injMult-1)*.06;else if((fx.injMult||1)<1&&r.injured&&Math.random()<1-fx.injMult)r.injured=!1;return r};
-window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;window.startSeason=Br;window.alloc=Nl;window.doneUpgrade=Fl;window.autoAllocKey=jl;window.autoAllocSpread=Il;window.endCareer=fn;window.prestigeReset=Hl;window.buy=Yl;window.shopBack=ys;window.continueNFL=Gl;window.chooseTraining=Ir;window.chooseEvent=Fr;window.setBranch=Wl;window.watchLive=il;window.quickSimSeason=El;window.startSeasonGames=La;window.playWeek=lt;window.simRemainingWeeks=wt;window.finishSeasonGames=fs;window.finishWeekGame=Ea;window.setSpeed=ml;window.skipLive=pl;window.setRosterTab=rl;window.respecTree=ql;window.choosePath=oo;window.exportSave=Rr;window.importSave=Pr;window.hardReset=Cr;window.toggleSetting=ar;window.applyFieldFx=function(){var FX=window.__FIELD_FX||{},el=document.querySelector("#field");if(el){var t=+FX.tilt||0;el.style.transformOrigin="50% 44%";el.style.transform=t>0.5?("perspective(540px) rotateX("+t+"deg)"):"";}};function __pushFieldFx(){var s=(typeof o!=="undefined"&&o&&o.settings)||{};window.__FIELD_FX={tilt:s.fxTilt==null?18:s.fxTilt,depth:s.fxDepth==null?0.4:s.fxDepth,size:s.fxSize==null?1.32:s.fxSize,spread:s.fxSpread==null?1:s.fxSpread,radius:s.fxRadius==null?360:s.fxRadius,zoom:s.fxZoom==null?1.16:s.fxZoom};window.applyFieldFx();}window.__fxFmt=function(k,v){v=+v;return k==="fxTilt"?(Math.round(v)+"°"):k==="fxRadius"?(Math.round(v)+"px"):(Math.round(v*100)+"%");};window.fieldFxSet=function(k,v,save){o.settings||(o.settings={});o.settings[k]=parseFloat(v);__pushFieldFx();var el=document.getElementById(k+"_val");el&&(el.textContent=window.__fxFmt(k,o.settings[k]));if(save)try{I()}catch(e){}};window.fieldFxReset=function(){o.settings||(o.settings={});["fxTilt","fxDepth","fxSize","fxSpread","fxRadius","fxZoom"].forEach(function(k){delete o.settings[k]});try{I()}catch(e){}__pushFieldFx();o.view==="settings"&&Fi();};__pushFieldFx();window.declareAdvance=Vl;window.declareFromHub=Ar;window.chooseTier=Gi;window.setStatsTab=Sr;window.setLeadPos=Mr;window.setLeadSort=xr;window.setChaos=ir;window.chaosMaxAll=or;window.buyMastery=nr;window.screenDynasty=Ra;window.bigMoment=ye;window.equipGear=zr;window.scrapGear=Qr;window.screenHof=Bi;window.screenLocker=ts;mc();function la(e){return e?(Array.isArray(e.decisionQueue)||(e.decisionQueue=[]),Array.isArray(e.careerArcs)||(e.careerArcs=[]),e.worldState||(e.worldState={coachEra:0,teamChemistry:50,programMomentum:50,mediaHeat:20}),e.tempEffects||(e.tempEffects={}),e.schoolRep==null&&(e.schoolRep=0),e.decisionCount==null&&(e.decisionCount=0),e):null}function co(e){la(e),Object.keys(e.tempEffects).forEach(t=>{const a=e.tempEffects[t];a&&typeof a=="object"&&a.games!=null&&(a.games--,a.games<=0&&delete e.tempEffects[t])})}function Vn(e,t){let a=0;return Object.values(e&&e.tempEffects||{}).forEach(s=>{s&&s.fx&&s.fx[t]&&(a+=s.fx[t])}),a}const pc=[{id:"film",title:"The Film Room Is Waiting",copy:"Coaches found several correctable mistakes. How do you spend the night?",choices:[{n:"Stay Late With Coaches",d:"Build trust and awareness, but fatigue may follow.",risk:"Reliable · mild fatigue risk",good:.78,win:{trust:5,mental:1,arc:"Film-room regular"},lose:{trust:1,injuryRisk:.08,nextPerf:-4}},{n:"Study Alone",d:"Smaller trust gain, stronger personal development.",risk:"Safe · steady growth",good:.9,win:{mental:1,rep:1},lose:{nextPerf:-2}},{n:"Clear Your Head",d:"Prioritize recovery and confidence instead.",risk:"High variance",good:.58,win:{recovery:1,nextPerf:7,hype:2},lose:{trust:-4,media:5}}]},{id:"practice",title:"A Starting Spot Is Within Reach",copy:"The staff opens a competitive practice after your latest performance.",choices:[{n:"Challenge the Player Ahead of You",d:"A direct depth-chart battle with major upside.",risk:"Risky · role-changing",good:.52,win:{trust:8,depth:10,hype:4,arc:"Won a depth-chart duel"},lose:{trust:-5,injuryRisk:.16,nextPerf:-5}},{n:"Master Your Current Role",d:"Bank trust through consistency.",risk:"Safe · lower ceiling",good:.86,win:{trust:4,depth:3,nextPerf:2},lose:{trust:-1}},{n:"Ask for Special Teams Snaps",d:"Earn extra opportunities with added injury exposure.",risk:"Moderate · more playing time",good:.68,win:{trust:6,snap:.1,rep:2},lose:{injuryRisk:.13,trust:-2}}]},{id:"media",title:"The Cameras Find You",copy:"A reporter asks about your role and the team after the game.",choices:[{n:"Praise the Team",d:"Low-risk leadership answer.",risk:"Safe · chemistry boost",good:.9,win:{trust:3,chem:7,hype:2},lose:{hype:-1}},{n:"Say You Deserve More Snaps",d:"Apply public pressure to the coaching staff.",risk:"Volatile · large snap upside",good:.46,win:{snap:.15,hype:9,arc:"Publicly demanded a larger role"},lose:{trust:-9,media:12,arc:"Clashed with the staff"}},{n:"Guarantee a Win",d:"Create a high-pressure storyline for next week.",risk:"Boom or bust",good:.5,win:{nextPerf:10,hype:8,pp:2},lose:{nextPerf:-7,hype:-7,media:10}}]},{id:"recovery",title:"Your Body Needs Attention",copy:"The medical staff offers three very different plans.",choices:[{n:"Full Recovery Protocol",d:"Protect health but sacrifice some preparation.",risk:"Safe · performance cost",good:.94,win:{recovery:2,injuryRisk:-.18,nextPerf:-2},lose:{nextPerf:-4}},{n:"Play Through It",d:"Keep momentum but increase injury risk.",risk:"Dangerous · performance upside",good:.57,win:{nextPerf:9,hype:4},lose:{injuryRisk:.28,physical:-1}},{n:"Experimental Treatment",d:"Could accelerate recovery or create a setback.",risk:"Very high variance",good:.43,win:{recovery:3,physical:1,nextPerf:5},lose:{injuryRisk:.35,nextPerf:-9}}]},{id:"team",title:"The Locker Room Is Splitting",copy:"Two groups of teammates are at odds. Your response may define your leadership reputation.",choices:[{n:"Mediate the Conflict",d:"Use leadership to repair chemistry.",risk:"Moderate · leadership roll",good:.66,win:{chem:14,trust:5,rep:3,arc:"Locker-room leader"},lose:{chem:-6,trust:-2}},{n:"Back the Veterans",d:"Gain veteran support but risk alienating younger players.",risk:"Political tradeoff",good:.65,win:{trust:4,nextPerf:5,chem:3},lose:{chem:-9,hype:-3}},{n:"Stay Out of It",d:"Avoid immediate risk while the conflict grows.",risk:"Safe now · future cost",good:.82,win:{recovery:1},lose:{chem:-10,media:5}}]},{id:"opportunity",title:"A Bigger Program Calls",copy:"A stronger team offers exposure and facilities, but your depth-chart standing would reset.",choices:[{n:"Take the Opportunity",d:"Higher program momentum; lose immediate role security.",risk:"Long-term upside",good:.62,win:{momentum:15,rep:5,depth:-8,arc:"Bet on a bigger program"},lose:{depth:-15,trust:-5}},{n:"Stay Loyal",d:"Strengthen coach trust and local reputation.",risk:"Reliable",good:.9,win:{trust:7,rep:4,chem:5,arc:"Chose loyalty"},lose:{momentum:-3}},{n:"Use the Offer as Leverage",d:"Try to secure promises without leaving.",risk:"High social risk",good:.45,win:{trust:4,snap:.12,hype:6},lose:{trust:-10,depth:-5,media:8}}]}];function vc(e,t){la(e);const a=pc.filter(n=>!(e.level<4&&n.id==="opportunity")),s=a[Math.floor(Math.random()*a.length)];return{uid:Date.now()+"-"+Math.random(),id:s.id,title:s.title,copy:s.copy,choices:s.choices,week:t&&t.week||e.currentWeek,opp:t&&t.opp||"",perf:Number(t&&t.perf)||50}}function yc(e,t){la(e),e.decisionQueue.push(vc(e,t)),I()}function gc(){const e=o.player;la(e);const t=e.decisionQueue[0];return t?`<div class="decision-overlay"><div class="decision-panel"><div class="decision-kicker">POST-GAME DECISION · ${t.opp?S(t.opp):"CAREER CROSSROADS"}</div><div class="decision-title">${S(t.title)}</div><div class="decision-copy">${S(t.copy)} Your previous game rating was <b>${Math.round(t.perf)}</b>.</div>${t.choices.map((a,s)=>`<button class="decision-choice" onclick="resolveDecision102(${s})"><b>${S(a.n)}</b><small>${S(a.d)}</small><span class="decision-risk">${S(a.risk)} · ${Math.round(f(a.good,0,1)*100)}% base success</span></button>`).join("")}</div></div>`:""}function bc(e){la(e);const t=e.worldState,a=e.careerArcs.slice(0,4);return`<div class="card world-card"><div class="eyebrow">LIVING FOOTBALL WORLD</div><div class="h2" style="margin:2px 0 7px">Your Career Has Consequences</div><div class="depth-grid"><div class="depth-cell"><div class="n">${Math.round(t.teamChemistry)}</div><div class="l">Chemistry</div></div><div class="depth-cell"><div class="n">${Math.round(t.programMomentum)}</div><div class="l">Program</div></div><div class="depth-cell"><div class="n">${Math.round(t.mediaHeat)}</div><div class="l">Media Heat</div></div></div>${a.length?`<div style="margin-top:8px">${a.map(s=>`<span class="arc-chip ${s.tone||""}">${S(s.text)}</span>`).join("")}</div>`:'<div class="small" style="margin-top:8px">Major decisions will create permanent story arcs here.</div>'}</div>`}const uo=He;He=function(e,t){const a=!!(e&&e._pulse95);uo(e,t),e&&!a&&(co(t),yc(t,e))};const kc=q;q=function(){kc();const e=o.player,t=x("screen");!e||!t||(la(e),o.view==="hub"&&!t.querySelector(".world-card")&&(t.querySelector(".depth-card")||t.firstElementChild).insertAdjacentHTML("afterend",bc(e)),e.decisionQueue.length&&!document.querySelector(".decision-overlay")&&document.body.insertAdjacentHTML("beforeend",gc()))};wt=function(){F("Major decisions must be made after every game. Play games individually.")};const wc=et;et=function(e,t,a){const r=wc(e,(t||0),a),l=Vn(e,"injuryRisk");return l>0&&!r.injured&&Math.random()<l&&(r.injured=!0),l<0&&r.injured&&Math.random()<Math.min(.8,Math.abs(l)*2)&&(r.injured=!1),r};const yt=[{id:"disciplined",icon:"📋",name:"Disciplined Execution",desc:"Reduce volatility, protect the ball, and build composure.",perf:2,varMult:.55,inj:-.05,snap:0,trust:1,comp:3,mom:1,tags:["LOW VARIANCE","SAFE"]},{id:"feature",icon:"🎯",name:"Demand the Spotlight",desc:"Ask the staff to feature you. More snaps and upside, but mistakes are magnified.",perf:5,varMult:1.28,inj:.05,snap:.1,trust:0,comp:-1,mom:2,tags:["MORE SNAPS","VOLATILE"]},{id:"explosive",icon:"⚡",name:"Chase the Highlight",desc:"Hunt explosive plays. Huge ceiling, higher injury and turnover risk.",perf:7,varMult:1.72,inj:.12,snap:.04,trust:-1,comp:-2,mom:4,tags:["BOOM/BUST","INJURY RISK"]},{id:"team",icon:"🛡️",name:"Do the Dirty Work",desc:"Block, cover, and execute assignments. Lower box-score ceiling, strong trust gains.",perf:-1,varMult:.8,inj:.01,snap:.06,trust:3,comp:2,mom:1,tags:["COACH TRUST","ROLE GROWTH"]},
+window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;window.startSeason=Br;window.alloc=Nl;window.doneUpgrade=Fl;window.autoAllocKey=jl;window.autoAllocSpread=Il;window.endCareer=fn;window.prestigeReset=Hl;window.buy=Yl;window.shopBack=ys;window.continueNFL=Gl;window.chooseTraining=Ir;window.chooseEvent=Fr;window.setBranch=Wl;window.watchLive=il;window.quickSimSeason=El;window.startSeasonGames=La;window.playWeek=lt;window.simRemainingWeeks=wt;window.finishSeasonGames=fs;window.finishWeekGame=Ea;window.setSpeed=ml;window.skipLive=pl;window.setRosterTab=rl;window.respecTree=ql;window.choosePath=oo;window.exportSave=Rr;window.importSave=Pr;window.hardReset=Cr;window.toggleSetting=ar;window.applyFieldFx=function(){var el=document.querySelector("#field");if(el){el.style.transform="";}try{var sc=window.__gridironScene;sc&&sc.refreshPersp&&sc.refreshPersp();}catch(e){}};function __pushFieldFx(){var s=(typeof o!=="undefined"&&o&&o.settings)||{};window.__FIELD_FX={tilt:0,depth:s.fxDepth==null?0.45:s.fxDepth,size:s.fxSize==null?1.32:s.fxSize,spread:s.fxSpread==null?1:s.fxSpread,radius:s.fxRadius==null?300:s.fxRadius,zoom:s.fxZoom==null?1.16:s.fxZoom};window.applyFieldFx();}window.__fxFmt=function(k,v){v=+v;return k==="fxTilt"?(Math.round(v)+"°"):(k==="fxRadius"||k==="fxPersp")?(Math.round(v)+"px"):(Math.round(v*100)+"%");};window.fieldFxSet=function(k,v,save){o.settings||(o.settings={});o.settings[k]=parseFloat(v);__pushFieldFx();var el=document.getElementById(k+"_val");el&&(el.textContent=window.__fxFmt(k,o.settings[k]));if(save)try{I()}catch(e){}};window.fieldFxReset=function(){o.settings||(o.settings={});["fxTilt","fxPersp","fxDepth","fxSize","fxSpread","fxRadius","fxZoom"].forEach(function(k){delete o.settings[k]});try{I()}catch(e){}__pushFieldFx();o.view==="settings"&&Fi();};__pushFieldFx();window.declareAdvance=Vl;window.declareFromHub=Ar;window.chooseTier=Gi;window.setStatsTab=Sr;window.setLeadPos=Mr;window.setLeadSort=xr;window.setChaos=ir;window.chaosMaxAll=or;window.buyMastery=nr;window.screenDynasty=Ra;window.bigMoment=ye;window.equipGear=zr;window.scrapGear=Qr;window.screenHof=Bi;window.screenLocker=ts;mc();function la(e){return e?(Array.isArray(e.decisionQueue)||(e.decisionQueue=[]),Array.isArray(e.careerArcs)||(e.careerArcs=[]),e.worldState||(e.worldState={coachEra:0,teamChemistry:50,programMomentum:50,mediaHeat:20}),e.tempEffects||(e.tempEffects={}),e.schoolRep==null&&(e.schoolRep=0),e.decisionCount==null&&(e.decisionCount=0),e):null}function co(e){la(e),Object.keys(e.tempEffects).forEach(t=>{const a=e.tempEffects[t];a&&typeof a=="object"&&a.games!=null&&(a.games--,a.games<=0&&delete e.tempEffects[t])})}function Vn(e,t){let a=0;return Object.values(e&&e.tempEffects||{}).forEach(s=>{s&&s.fx&&s.fx[t]&&(a+=s.fx[t])}),a}const pc=[{id:"film",title:"The Film Room Is Waiting",copy:"Coaches found several correctable mistakes. How do you spend the night?",choices:[{n:"Stay Late With Coaches",d:"Build trust and awareness, but fatigue may follow.",risk:"Reliable · mild fatigue risk",good:.78,win:{trust:5,mental:1,arc:"Film-room regular"},lose:{trust:1,injuryRisk:.08,nextPerf:-4}},{n:"Study Alone",d:"Smaller trust gain, stronger personal development.",risk:"Safe · steady growth",good:.9,win:{mental:1,rep:1},lose:{nextPerf:-2}},{n:"Clear Your Head",d:"Prioritize recovery and confidence instead.",risk:"High variance",good:.58,win:{recovery:1,nextPerf:7,hype:2},lose:{trust:-4,media:5}}]},{id:"practice",title:"A Starting Spot Is Within Reach",copy:"The staff opens a competitive practice after your latest performance.",choices:[{n:"Challenge the Player Ahead of You",d:"A direct depth-chart battle with major upside.",risk:"Risky · role-changing",good:.52,win:{trust:8,depth:10,hype:4,arc:"Won a depth-chart duel"},lose:{trust:-5,injuryRisk:.16,nextPerf:-5}},{n:"Master Your Current Role",d:"Bank trust through consistency.",risk:"Safe · lower ceiling",good:.86,win:{trust:4,depth:3,nextPerf:2},lose:{trust:-1}},{n:"Ask for Special Teams Snaps",d:"Earn extra opportunities with added injury exposure.",risk:"Moderate · more playing time",good:.68,win:{trust:6,snap:.1,rep:2},lose:{injuryRisk:.13,trust:-2}}]},{id:"media",title:"The Cameras Find You",copy:"A reporter asks about your role and the team after the game.",choices:[{n:"Praise the Team",d:"Low-risk leadership answer.",risk:"Safe · chemistry boost",good:.9,win:{trust:3,chem:7,hype:2},lose:{hype:-1}},{n:"Say You Deserve More Snaps",d:"Apply public pressure to the coaching staff.",risk:"Volatile · large snap upside",good:.46,win:{snap:.15,hype:9,arc:"Publicly demanded a larger role"},lose:{trust:-9,media:12,arc:"Clashed with the staff"}},{n:"Guarantee a Win",d:"Create a high-pressure storyline for next week.",risk:"Boom or bust",good:.5,win:{nextPerf:10,hype:8,pp:2},lose:{nextPerf:-7,hype:-7,media:10}}]},{id:"recovery",title:"Your Body Needs Attention",copy:"The medical staff offers three very different plans.",choices:[{n:"Full Recovery Protocol",d:"Protect health but sacrifice some preparation.",risk:"Safe · performance cost",good:.94,win:{recovery:2,injuryRisk:-.18,nextPerf:-2},lose:{nextPerf:-4}},{n:"Play Through It",d:"Keep momentum but increase injury risk.",risk:"Dangerous · performance upside",good:.57,win:{nextPerf:9,hype:4},lose:{injuryRisk:.28,physical:-1}},{n:"Experimental Treatment",d:"Could accelerate recovery or create a setback.",risk:"Very high variance",good:.43,win:{recovery:3,physical:1,nextPerf:5},lose:{injuryRisk:.35,nextPerf:-9}}]},{id:"team",title:"The Locker Room Is Splitting",copy:"Two groups of teammates are at odds. Your response may define your leadership reputation.",choices:[{n:"Mediate the Conflict",d:"Use leadership to repair chemistry.",risk:"Moderate · leadership roll",good:.66,win:{chem:14,trust:5,rep:3,arc:"Locker-room leader"},lose:{chem:-6,trust:-2}},{n:"Back the Veterans",d:"Gain veteran support but risk alienating younger players.",risk:"Political tradeoff",good:.65,win:{trust:4,nextPerf:5,chem:3},lose:{chem:-9,hype:-3}},{n:"Stay Out of It",d:"Avoid immediate risk while the conflict grows.",risk:"Safe now · future cost",good:.82,win:{recovery:1},lose:{chem:-10,media:5}}]},{id:"opportunity",title:"A Bigger Program Calls",copy:"A stronger team offers exposure and facilities, but your depth-chart standing would reset.",choices:[{n:"Take the Opportunity",d:"Higher program momentum; lose immediate role security.",risk:"Long-term upside",good:.62,win:{momentum:15,rep:5,depth:-8,arc:"Bet on a bigger program"},lose:{depth:-15,trust:-5}},{n:"Stay Loyal",d:"Strengthen coach trust and local reputation.",risk:"Reliable",good:.9,win:{trust:7,rep:4,chem:5,arc:"Chose loyalty"},lose:{momentum:-3}},{n:"Use the Offer as Leverage",d:"Try to secure promises without leaving.",risk:"High social risk",good:.45,win:{trust:4,snap:.12,hype:6},lose:{trust:-10,depth:-5,media:8}}]}];function vc(e,t){la(e);const a=pc.filter(n=>!(e.level<4&&n.id==="opportunity")),s=a[Math.floor(Math.random()*a.length)];return{uid:Date.now()+"-"+Math.random(),id:s.id,title:s.title,copy:s.copy,choices:s.choices,week:t&&t.week||e.currentWeek,opp:t&&t.opp||"",perf:Number(t&&t.perf)||50}}function yc(e,t){la(e),e.decisionQueue.push(vc(e,t)),I()}function gc(){const e=o.player;la(e);const t=e.decisionQueue[0];return t?`<div class="decision-overlay"><div class="decision-panel"><div class="decision-kicker">POST-GAME DECISION · ${t.opp?S(t.opp):"CAREER CROSSROADS"}</div><div class="decision-title">${S(t.title)}</div><div class="decision-copy">${S(t.copy)} Your previous game rating was <b>${Math.round(t.perf)}</b>.</div>${t.choices.map((a,s)=>`<button class="decision-choice" onclick="resolveDecision102(${s})"><b>${S(a.n)}</b><small>${S(a.d)}</small><span class="decision-risk">${S(a.risk)} · ${Math.round(f(a.good,0,1)*100)}% base success</span></button>`).join("")}</div></div>`:""}function bc(e){la(e);const t=e.worldState,a=e.careerArcs.slice(0,4);return`<div class="card world-card"><div class="eyebrow">LIVING FOOTBALL WORLD</div><div class="h2" style="margin:2px 0 7px">Your Career Has Consequences</div><div class="depth-grid"><div class="depth-cell"><div class="n">${Math.round(t.teamChemistry)}</div><div class="l">Chemistry</div></div><div class="depth-cell"><div class="n">${Math.round(t.programMomentum)}</div><div class="l">Program</div></div><div class="depth-cell"><div class="n">${Math.round(t.mediaHeat)}</div><div class="l">Media Heat</div></div></div>${a.length?`<div style="margin-top:8px">${a.map(s=>`<span class="arc-chip ${s.tone||""}">${S(s.text)}</span>`).join("")}</div>`:'<div class="small" style="margin-top:8px">Major decisions will create permanent story arcs here.</div>'}</div>`}const uo=He;He=function(e,t){const a=!!(e&&e._pulse95);uo(e,t),e&&!a&&(co(t),yc(t,e))};const kc=q;q=function(){kc();const e=o.player,t=x("screen");!e||!t||(la(e),o.view==="hub"&&!t.querySelector(".world-card")&&(t.querySelector(".depth-card")||t.firstElementChild).insertAdjacentHTML("afterend",bc(e)),e.decisionQueue.length&&!document.querySelector(".decision-overlay")&&document.body.insertAdjacentHTML("beforeend",gc()))};wt=function(){F("Major decisions must be made after every game. Play games individually.")};const wc=et;et=function(e,t,a){const r=wc(e,(t||0),a),l=Vn(e,"injuryRisk");return l>0&&!r.injured&&Math.random()<l&&(r.injured=!0),l<0&&r.injured&&Math.random()<Math.min(.8,Math.abs(l)*2)&&(r.injured=!1),r};const yt=[{id:"disciplined",icon:"📋",name:"Disciplined Execution",desc:"Reduce volatility, protect the ball, and build composure.",perf:2,varMult:.55,inj:-.05,snap:0,trust:1,comp:3,mom:1,tags:["LOW VARIANCE","SAFE"]},{id:"feature",icon:"🎯",name:"Demand the Spotlight",desc:"Ask the staff to feature you. More snaps and upside, but mistakes are magnified.",perf:5,varMult:1.28,inj:.05,snap:.1,trust:0,comp:-1,mom:2,tags:["MORE SNAPS","VOLATILE"]},{id:"explosive",icon:"⚡",name:"Chase the Highlight",desc:"Hunt explosive plays. Huge ceiling, higher injury and turnover risk.",perf:7,varMult:1.72,inj:.12,snap:.04,trust:-1,comp:-2,mom:4,tags:["BOOM/BUST","INJURY RISK"]},{id:"team",icon:"🛡️",name:"Do the Dirty Work",desc:"Block, cover, and execute assignments. Lower box-score ceiling, strong trust gains.",perf:-1,varMult:.8,inj:.01,snap:.06,trust:3,comp:2,mom:1,tags:["COACH TRUST","ROLE GROWTH"]},
 /* v18: five more prep paths — real buffs AND real costs, so the weekly scouting/prep choice matters */
 {id:"filmgrind",icon:"🎬",name:"Film Marathon",desc:"Bury yourself in tape. You will see the play before it happens — but the extra hours wear on the body.",perf:4,varMult:.7,inj:.02,snap:.02,trust:2,comp:2,mom:0,tags:["PREPARED","FATIGUE"]},
 {id:"recover",icon:"🛌",name:"Rest & Recover",desc:"A light week: treatment, sleep, and legs for Sunday. Heals fatigue and cuts injury risk, at the cost of sharpness.",perf:-2,varMult:.75,inj:-.12,snap:-.02,trust:0,comp:1,mom:-1,rest:1,tags:["HEALS BODY","−INJURY RISK"]},
@@ -6834,7 +6899,9 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     shedDelay: 430, shedRand: 520, shed2Gap: 280, flushRadius: 44, convergeCap: 300, leadAir: 3.8,
     contactSlow: 0.5, pileFloor: 0.34, dtPush: 0.74, pancakeRun: 0.07, pancakePass: 0.04, stunMs: 1450,
     jogSpeed: 340, trailMin: 170, blockBand: 78, blockFrameMs: 170, hitStopBig: 80,
-    zoomPlay: 1.2, zoomBig: 1.04, diveChance: 0.4, finishPop: 2.0
+    zoomPlay: 1.34, zoomBig: 1.04, diveChance: 0.4, finishPop: 2.0,
+    ballAirCap: 64, ballAirK: 0.8, camLeadMs: 420, camLeadMax: 130,
+    perspZoomK: 0.78, zoomCarrier: 0.12, zoomLerp: 0.06
   };
   const DEV = window.DEV = {
     defaults: DEFAULTS,
