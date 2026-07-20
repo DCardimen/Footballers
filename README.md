@@ -55,6 +55,19 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v26 — flat top-down field.** The 2.5D broadcast perspective is retired in favour of
+  the classic overhead field map. `PJ()` is now an orthographic projection: screen-Y is
+  linear with field position and screen-X is linear across the field, so the turf is a
+  flat rectangle and every player is drawn the same size no matter where the ball is
+  spotted (no more foreshortening or backfield depth-anchor). The CSS `rotateX` tilt on
+  the `#field` canvas defaults off. `drawField` was rebuilt to match a real overhead
+  field: uniform green mowing stripes, a bold white sideline + end-line frame, navy end
+  zones with **TOUCHDOWN / END ZONE** words, yard NUMBERS down BOTH sidelines (the far
+  set upside-down like a real field) with directional arrows, interior + sideline hash
+  rows, and orange corner **pylons**. The Settings "Field 2.5D View" card is now "Field
+  View" (player size / spread / zoom; the perspective-only tilt, depth and radius dials
+  are gone).
+
 - **v25 — 3D field, group tackling, hit-stick, named temp boosts, realistic
   progression, and randomized team colors.** A large gameplay + presentation pass:
   - **Procedural perspective field.** The flat baked field art is retired; the turf,
