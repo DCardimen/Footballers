@@ -55,12 +55,12 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
-- **v26.4 — adjustable perspective radius (telephoto ↔ fisheye).** The CSS perspective
-  distance behind the field tilt was a small, hardwired `540px`, which bowed the field into
-  a strong fisheye. It is now the tunable `fxPersp` (default `2400px`) with a new
-  **"Perspective radius"** slider (600–6000px): higher = flatter, wider and less warped
-  (telephoto); lower = a stronger fisheye 3D bow. Applied in `applyFieldFx` as
-  `perspective(<fxPersp>px) rotateX(<fxTilt>deg)`.
+- **v26.4 — stronger, self-scaling field perspective.** The `perspective()` distance behind
+  the tilt was hardwired at a mild `540px`, so far yard numbers barely shrank. It now
+  auto-tightens as the tilt rises — `perspective(max(300, 1500 − tilt·38)px) rotateX(tilt°)`
+  — so one **"Field perspective (2.5D)"** slider goes flat → dramatic and the far (north)
+  numbers shrink hard into the distance. Default tilt raised to **30** (range 0–42). Power
+  users can still pin the distance directly via `fxPersp` (0 = auto).
 
 - **v26.3 — players foreshorten with depth (true 2.5D).** On the image field, players used
   to draw the same size everywhere, so the scene read flat. `PJ()` now scales player SIZE by
