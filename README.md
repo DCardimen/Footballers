@@ -55,6 +55,29 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v29 — tackling realism pass: solo-first stops, pursuit IQ, overshoot, pile strength,
+  held wraps, broadcast lighting.** Measured with `tacklecheck.mjs`: stops were 64%
+  gang piles; they are now **67% solo** — gang odds start low (`gangOpen`/`gangBox`) and
+  only climb with genuine hands on the carrier, while support holds a leverage spot a
+  full stride off the tackle (`supportHold`) instead of stacking the pile (the
+  choreographer fallback's pushback scrum is likewise gated to short-yardage concepts,
+  `pilePushP`). Pursuit angles are now stat-driven: awareness + discipline roll one
+  signed per-play angle error (`angleErrK`) — elite defenders run near-perfect intercept
+  lines, low-IQ defenders overrun the spot or take a chase angle, plus a lateral
+  misjudgment (`angleLatPx`) that fades as the gap closes. A defender beaten by a juke,
+  spin, or cutback no longer freezes: his momentum carries him PAST the move
+  (`overshootMs`) before he can gather and re-pursue. When a stop IS a group push, raw
+  strength now dominates: the combined grip of every wrapper vs the carrier's power
+  (`pileStrK`) swings the collision, and a carrier who wins that contest churns the pile
+  forward for extra yards (`pileDriveK`). Renderer: the wrap-up GRAB is held for the
+  whole drag/drive/knockback fight (`grabHoldMs`/`grabHoldK`, `wrapGrabMs`) instead of a
+  150 ms blink, and an assisted stop shows the support man latching on before joining
+  the pile. The LOS/first-down stripes run to the broadcast edge (`lineExtend`), and
+  players get dynamic lighting — ambient falls off into the far field (`lightDepth`)
+  with a soft spotlight riding the ball (`lightSpotR`/`lightAmb`), quantized so the
+  canvas tint path isn't thrashed. Invariants re-verified: `creditcheck` 0 violations,
+  `statcreditcheck` clean, `simcheck` distributions unchanged, render path 84–91%.
+
 - **v28.1 — defense no longer plays a whole game as white fallback figures.**
   `ribSyncOpp` cached the opponent name globally and early-returned when it hadn't
   changed — but the live view remounts the Phaser game, wiping every texture while the

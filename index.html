@@ -1023,7 +1023,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         // wrestle him down. Three men bring a full-speed back down inside ~1s;
         // two men take longer — and a clearly stronger carrier drags the pile.
         // maxCarrierD remains the forward-progress spot even while the body is pushed back.
-        if(!scored&&!isFumble&&nNear>=2&&carrierD>=carrierLen-4.2*YD){
+        // v29: group pushes are the EXCEPTION — only short-yardage concepts pile up by
+        // default; in space a second man arriving stays a clean assist, not a scrum.
+        const pileConcept=(concept==="dive"||concept==="stuff");
+        if(!scored&&!isFumble&&nNear>=2&&carrierD>=carrierLen-4.2*YD&&(pileConcept||(c._pushRoll==null&&(c._pushRoll=rand())<TU("pilePushP",0.3)))){
           if(!c._pushStart){
             const pullMs=(nNear>=3?TU("pull3Ms",700):TU("pull2Ms",1300))*(strongCarrier?1.9:1);
             c._pushStart=t; c._pushUntil=t+pullMs; c._pushDefenders=nNear; c._pushStrong=strongCarrier;
@@ -1032,8 +1035,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           }
         }
         if(c._pushUntil&&t<c._pushUntil){
-          // a strong carrier still churns forward against 2; otherwise the pile drives him back
-          const pushRate=(c._pushDefenders>=3?5.4:3.2)*YD*(c._pushStrong?0.35:1);
+          // a strong carrier still churns forward against 2; otherwise the pile drives him
+          // back — v29: the grip-vs-carrier STRENGTH gap sets how hard the pile moves
+          const strGap=Math.max(-0.3,Math.min(0.45,(avgGrip-carrierStr)*2));
+          const pushRate=(c._pushDefenders>=3?5.4:3.2)*YD*(c._pushStrong?0.35:1)*(1+strGap);
           carrierD=Math.max(0,carrierD+(c._pushStrong&&c._pushDefenders<3?0.4:-1)*pushRate*dt/1000);
           maxCarrierD=Math.max(maxCarrierD,carrierD);
           contactMult=0;
@@ -1576,6 +1581,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const whiffP = cl(0.12 + (elus - d.tkl)*0.008 + (openField?0.14:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006, 0.02, 0.80) * (1 - swarmChoke);
       if (!behind && Math.random() < whiffP) {
         d.beaten = t + 640; d.cool = t + 520; c.burstUntil = t + 460; kickSprint(c);
+        // v29 OVERSHOOT: the juked man's momentum carries him PAST the cut point — he
+        // keeps flying along his old line while beaten instead of freezing in place.
+        d._osUntil = t + TU("overshootMs",420); d._osdx = d._dx||((c.lx-d.lx)>=0?1:-1); d._osdy = d._dy||0;
         emit("tackleWhiff",{who:d.id, carrier:c.id, x:d.lx, y:d.y});
         // v24: which move beat him is rating-driven — spin favors raw agility (whipping
         // the hips around), a jump-cut juke favors quickness. `elus` rides the event so
@@ -1660,13 +1668,18 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       for (const a of S.all) { if (a.side===d.side && a!==d && a.lb!=="OL"
         && t>(a.beaten||0) && !(a.trucked&&t<a.trucked+900)
         && Math.hypot(a.lx-c.lx,a.y-c.y) < 18) { nSupport++; supIds.push(a.id); } }
-      // v25: gang odds SCALE with the swarm — one helper makes most stops assisted,
-      // two makes it a certainty (handsOn was counted at the top of contact()).
-      const gang = nSupport>=1 && Math.random() < Math.min(0.97, (openField ? 0.34 : 0.58) + handsOn*0.28);
+      // v29 SOLO-FIRST: most stops are ONE man wrapping and finishing — support that is
+      // merely in the frame no longer converts the stop to assisted. Gang odds start low
+      // and only climb when extra defenders genuinely have hands on the carrier.
+      const gang = nSupport>=1 && Math.random() < Math.min(0.9, (openField ? TU("gangOpen",0.10) : TU("gangBox",0.24)) + handsOn*TU("gangHandsK",0.24));
+      // v29 PILE STRENGTH: when it IS a group push, raw strength dominates — the combined
+      // grip of every wrapper against the carrier's power decides who moves whom.
+      let supStr = 0; for (const sid of supIds) { const s=A_all[sid]; if (s) supStr += (s.str||50); }
+      const pileEdge = gang ? cl(((d.str + supStr*0.6) - c.str*(1 + nSupport*0.55)) * TU("pileStrK",0.014), -0.9, 1.3) : 0;
       // signed collision edge: >0 the defender wins the point of contact. Support, a
       // rear angle, and the SWARM all swing it hard to the defense.
       const collEdge = (dSpd - cSpd)*0.018 + (dStr - cStr)*0.02 + (dMom - cMom)*0.006
-        + (gang ? 0.35 : 0) + (behind ? 0.3 : 0) + (-lev)*0.02 + handsOn*0.12;   // v24 leverage + v25 swarm
+        + (gang ? 0.35 : 0) + (behind ? 0.3 : 0) + (-lev)*0.02 + handsOn*0.12 + pileEdge;   // v24 leverage + v25 swarm + v29 pile strength
       // v25 tackle GEOMETRY by height: a HIGH tackle (taller man, hits the chest) rides
       // the carrier down and they FALL TOGETHER on the spot; a LOW tackle (shoestring)
       // trips him and both tumble APART, carried by their own momentum.
@@ -1680,6 +1693,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       c.lx -= Math.max(0,kb) * (c.side==="off"?1:-1) * 0.5;
       if (kb > 2) { c._kb = kb; c._kbdx = d._dx!=null?d._dx:(c.side==="off"?-1:1); c._kbdy = d._dy||0; }
       let drive = cl(-collEdge*4 + Math.max(0,(c.grit-50))*0.05, 0, 12);
+      // v29: a genuinely powerful carrier CHURNS a pile forward — leg drive through the
+      // group push earns extra ground exactly when strength wins the pileEdge contest.
+      if (gang && pileEdge < 0) drive = cl(drive + (-pileEdge)*TU("pileDriveK",7), 0, 16);
       if (style === "high") drive *= 0.35;                          // fall together, minimal forward slide
       else if (style === "low") drive = cl(drive + cMom*0.03 + Math.max(0, cSpd - dSpd)*0.04, 0, 16);   // momentum stumble
       if (drive > 0.5) { c._drive = drive; c._drivedx = c._dx!=null?c._dx:(c.side==="off"?1:0); c._drivedy = c._dy||0; }
@@ -1964,7 +1980,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           const above = near.filter(a=>a.y<c.y).length, below = near.filter(a=>a.y>=c.y).length;
           if (Math.abs(above-below) >= 2 && Math.random() < 0.3 + (c.vis-50)*0.005) {
             c._cut = true; laneY = clampY(c.y + (above>below?70:-70)); emit("cutback",{x:c.lx,y:c.y});
-            near.slice(0,2).forEach(a=>{ if (50-a.disc>0 || Math.random()<0.4) a.beaten = t + 480; });
+            // v29: defenders who bite on the cutback overshoot along their old pursuit line
+            near.slice(0,2).forEach(a=>{ if (50-a.disc>0 || Math.random()<0.4) {
+              a.beaten = t + 480; a._osUntil = t + TU("overshootMs",420); a._osdx = a._dx||0; a._osdy = a._dy||0; } });
           }
         }
         const hole = kind==="run" && c.lx > -8 && c.lx < 24;
@@ -2022,7 +2040,13 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         for (const a of chasers) { if (t<(a.beaten||0)||(a.trucked&&t<a.trucked+900)||(a.stunned&&t<a.stunned)||(a.lb==="DL"&&!a.shed)) continue;
           const g2=Math.hypot(a.lx-c.lx,a.y-c.y); if(g2<nearestGap){nearestGap=g2;nearestChaser=a;} }
         for (const dfd of chasers) {
-          if (t < (dfd.beaten||0)) continue;
+          if (t < (dfd.beaten||0)) {
+            // v29 OVERSHOOT: a beaten man doesn't freeze — his momentum carries him past
+            // the move that beat him before he can gather himself and re-pursue.
+            if (dfd._osUntil && t < dfd._osUntil && (dfd._osdx || dfd._osdy))
+              mv(dfd, dfd.lx + dfd._osdx*34, clampY(dfd.y + dfd._osdy*34), TU("overshootPace",1.0));
+            continue;
+          }
           if (dfd.trucked && t < dfd.trucked + 900) continue;                 // flattened: he's on the ground
           if (dfd.stunned && t < dfd.stunned) continue;                       // pancaked: on the ground
           for (const wblk of walls) {
@@ -2037,6 +2061,20 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             if (dfd.lb==="LB" && dfd.engagedBy && !dfd.shed2) { mv(dfd, c.lx, c.y, 0.16); continue; }   // walled off
           }
           let lead = Math.min(0.35, Math.hypot(c.lx-dfd.lx,c.y-dfd.y)/Math.max(40,dfd.spd)*0.6);
+          // v29 PURSUIT IQ: awareness sizes up the intercept point, discipline holds the
+          // angle. Each defender rolls ONE signed angle error per play, scaled by how far
+          // his IQ falls short — elite defenders run near-perfect lines every rep; low-IQ
+          // defenders either overrun the spot (aim too far ahead) or take a chase angle
+          // (aim at where the carrier WAS), plus a lateral misjudgment that fades as the
+          // gap closes so a bad angle costs ground without looking like blindness.
+          if (dfd._angErr == null) {
+            const iq = dfd.aware*0.55 + dfd.disc*0.45;
+            const mag = Math.max(0, 58 - iq) * TU("angleErrK",0.022);
+            dfd._angErr = (Math.random()*2-1) * mag;
+            dfd._angLat = (Math.random()*2-1) * mag * TU("angleLatPx",26);
+          }
+          if (dfd._angErr >= 0) lead *= 1 + dfd._angErr;                       // overruns the intercept
+          else lead *= Math.max(0.2, 1 + dfd._angErr);                          // late read: chases the body
           lead *= 1 + Math.max(0, 50-dfd.disc)*0.012;            // discipline: overpursuit takes bad angles
           const gap = Math.hypot(c.lx-dfd.lx, c.y-dfd.y);
           // SOLO look: while one defender is committed to the tackle and the
@@ -2045,8 +2083,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           // toward an assisted (gang) tackle inside contact(), but we don't get
           // 5-man cartoon piles on every stop.
           const otherCommitted = committerId && committerId!==dfd.id;
-          if (otherCommitted && gap < 18) {
-            mv(dfd, c.lx - (c._dx||0)*9, c.y, 0.35);             // close but hold off the pile
+          if (otherCommitted && gap < TU("supportHold",26)) {
+            // v29: support settles into a leverage spot a full stride off the tackle —
+            // he's there to clean up a break, not to pile on. Solo stops stay solo.
+            mv(dfd, c.lx - (c._dx||0)*14, c.y + (dfd.y>c.y?8:-8), 0.3);
             continue;
           }
           let beatenPace = gap > 62 && c.spd > dfd.spd + 6 ? 0.9 : 1;
@@ -2067,7 +2107,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           // on the tackleLunge that contact() emits for every commit.
           if (dfd._leapUntil && t < dfd._leapUntil) beatenPace += 1.4;    // the dive carries him in — v19: bigger launch
               if (dfd.player && dfd.player.you) beatenPace += 0.07;      // v18: YOUR player has a nose for the ball
-          mv(dfd, c.lx + (c._dx||0)*c.spd*lead, c.y + (c._dy||0)*c.spd*lead, beatenPace);
+          const latErr = (dfd._angLat||0) * Math.min(1, gap/60);          // v29: lateral aim error, gone at contact range
+          mv(dfd, c.lx + (c._dx||0)*c.spd*lead, clampY(c.y + (c._dy||0)*c.spd*lead + latErr), beatenPace);
           const gapNow = Math.hypot(dfd.lx-c.lx, dfd.y-c.y);
           // v19 TACKLE LAUNCH — from ~2 sprite-lengths out (tackleLaunchDist) the
           // committer LEAPS: the dive carries him the last stretch so contact resolves
@@ -3227,9 +3268,10 @@ class Ot extends mt.Scene {
         break;
       }
       case "tackleHit": {
-        // the lunge landed — wrap him up
+        // the lunge landed — wrap him up. v29: the grab HOLDS while the carrier fights
+        // (the tackle event that follows re-arms it into the fall) instead of a blink.
         const tk = this.markers[this.actorIdx(e.who)];
-        if (tk) { tk._whiffed = false; tk.forceState = "grab"; this.time.delayedCall(240, () => { if (tk.forceState === "grab") tk.forceState = null; }); }
+        if (tk) { tk._whiffed = false; tk.forceState = "grab"; this.time.delayedCall(TU("wrapGrabMs",700), () => { if (tk.forceState === "grab") tk.forceState = null; }); }
         break;
       }
       case "tackleWhiff": {
@@ -3260,8 +3302,21 @@ class Ot extends mt.Scene {
           // fast closers launch a flying tackle; otherwise it's a jersey-grab drag-down,
           // then the tackler folds to the turf and STAYS down — the pile holds until the
           // next snap resets the formation (no popping back up to idle mid-replay).
+          // v29 INTRICATE TACKLES: the wrap is a visible GRAB held for the whole
+          // drag/drive/knockback phase — the longer the carrier fights (drive or kb),
+          // the longer the tackler hangs on before both fold with the tackleSeq arc.
           tk.forceState = big || e.gang !== true && Math.random() < TU("diveChance",0.4) ? "dive" : "grab";
-          this.time.delayedCall(150, () => { if (tk.active !== false && tk.forceState != null) { tk.forceState = "tackleSeq"; tk.seqT = tk.tms; } });
+          const holdMs = TU("grabHoldMs",260) + Math.max(Number(e.drive||0), Number(e.kb||0)) * TU("grabHoldK",30);
+          this.time.delayedCall(holdMs, () => { if (tk.active !== false && tk.forceState != null) { tk.forceState = "tackleSeq"; tk.seqT = tk.tms; } });
+          // a genuinely assisted stop shows it: the nearest support wrapper latches on
+          // with his own grab a beat later, then joins the pile on the ground
+          if (e.gang === true && Array.isArray(e.sup) && e.sup.length) {
+            const sm = this.markers[this.actorIdx(e.sup[0])];
+            if (sm && sm !== tk) {
+              this.time.delayedCall(TU("supGrabMs",120), () => { if (sm.active !== false) sm.forceState = "grab"; });
+              this.time.delayedCall(holdMs + 180, () => { if (sm.active !== false && sm.forceState === "grab") { sm.forceState = "tackleSeq"; sm.seqT = sm.tms; } });
+            }
+          }
         }
         if (m) {
           // the carrier visibly folds to the ground after the whistle and stays down
@@ -3816,7 +3871,21 @@ class Ot extends mt.Scene {
     if (!this.textures.exists(tex)) tex = "spr_" + m.team + "_" + m.dirKey + "_idle";
     if (!this.textures.exists(tex)) tex = "rib_player_fallback";
     if (m.tex !== tex) { m.tex = tex; m.body.setTexture(tex); }
-    if (tex === "rib_player_fallback") m.body.setTint(m.team === "def" ? 0xe86560 : m.team === "you" ? 0xf0bb45 : 0x5fce74); else m.body.clearTint();
+    if (tex === "rib_player_fallback") m.body.setTint(m.team === "def" ? 0xe86560 : m.team === "you" ? 0xf0bb45 : 0x5fce74);
+    else {
+      // v29 DYNAMIC LIGHTING: a broadcast key light on the players — ambient falls off
+      // with depth into the far field, and a soft spotlight rides the ball so the men
+      // around the action read a touch brighter than the fringes. Brightness quantizes
+      // to 8-value steps so the canvas tint path isn't thrashed with unique tints.
+      let lb = 1 - Math.min(1, Math.max(0, (VDIR > 0 ? sx : FW - sx) / FW)) * TU("lightDepth", 0.12);
+      if (this.ballSpr && this.ballSpr.active !== false) {
+        const dd = Math.hypot(m.root.x - this.ballSpr.x, m.root.y - this.ballSpr.y);
+        const spot = Math.max(0, 1 - dd / TU("lightSpotR", 200));
+        lb *= TU("lightAmb", 0.9) + (1 - TU("lightAmb", 0.9)) * spot;
+      }
+      const lv = Math.max(0, Math.min(255, Math.round(lb * 255 / 8) * 8));
+      m.body.setTint((lv << 16) | (lv << 8) | lv);
+    }
     m.body.setFlipX(m.flip && (m.dirKey === "sd" || m.dirKey === "dr" || m.dirKey === "ur" || st === "down" || st === "dive" || st === "grab" || st === "stance" || st.indexOf("tackle") === 0));
     // flat, clean sprites — only the diving tackle gets a slight tilt
     m.body.setRotation(st === "dive" ? (m.flip ? 0.3 : -0.3) : 0);
@@ -3943,7 +4012,9 @@ class Ot extends mt.Scene {
     if (this.fieldSpr) { try { this.fieldSpr.setVisible(true); } catch (e) {} }
     else { g.fillStyle(0x2f5f2c, 1).fillRect(0, 0, FW, WORLD_H + 20); }   // fallback until the field image decodes
     const yline = (yd, w, col, al) => {
-      const a = PJ(fxr(yd), F_TOP), b = PJ(fxr(yd), F_BOT);
+      // v29: the LOS/first-down stripes run past the numbers to the broadcast edge
+      const ext = TU("lineExtend", 34);
+      const a = PJ(fxr(yd), F_TOP - ext), b = PJ(fxr(yd), F_BOT + ext);
       g.lineStyle(w * ((a.s + b.s) / 2), col, al == null ? 1 : al).lineBetween(a.x, a.y, b.x, b.y);
     };
     // ---- LOS (blue) + first-down target (gold), painted over the field image ----
@@ -3951,7 +4022,7 @@ class Ot extends mt.Scene {
     yline(tgtYd, 6, 0xf0bb45, 0.22); yline(tgtYd, 2.6, 0xffcf5e, 0.96);
     if (this.fieldLines) {
       const fl = this.fieldLines; fl.clear();
-      const stroke = (yd, w, col, al) => { const a = PJ(fxr(yd), F_TOP), b = PJ(fxr(yd), F_BOT); fl.lineStyle(w * ((a.s + b.s) / 2), col, al).lineBetween(a.x, a.y, b.x, b.y); };
+      const stroke = (yd, w, col, al) => { const ext = TU("lineExtend", 34); const a = PJ(fxr(yd), F_TOP - ext), b = PJ(fxr(yd), F_BOT + ext); fl.lineStyle(w * ((a.s + b.s) / 2), col, al).lineBetween(a.x, a.y, b.x, b.y); };
       stroke(losYd, 2.6, 0x6bb2ff, 0.95); stroke(tgtYd, 2.6, 0xffcf5e, 0.96);
     }
     this.focusPt = PJ(fx(losYd), (F_TOP + F_BOT) / 2);
@@ -6931,7 +7002,11 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     zoomPlay: 1.34, zoomBig: 1.04, diveChance: 0.4, finishPop: 2.0,
     ballAirCap: 64, ballAirK: 0.8, camLeadMs: 420, camLeadMax: 130,
     perspZoomK: 0.78, zoomLerp: 0.06,
-    zoomLockMin: 0.6, zoomLockMax: 2.4, zoomLockLerp: 0.12
+    zoomLockMin: 0.6, zoomLockMax: 2.4, zoomLockLerp: 0.12,
+    gangOpen: 0.10, gangBox: 0.24, gangHandsK: 0.24, pileStrK: 0.014, pileDriveK: 7,
+    overshootMs: 420, overshootPace: 1.0, angleErrK: 0.022, angleLatPx: 26,
+    supportHold: 26, pilePushP: 0.3, grabHoldMs: 260, grabHoldK: 30, supGrabMs: 120,
+    wrapGrabMs: 700, lineExtend: 34, lightDepth: 0.12, lightSpotR: 200, lightAmb: 0.9
   };
   const DEV = window.DEV = {
     defaults: DEFAULTS,
