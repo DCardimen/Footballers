@@ -2405,36 +2405,54 @@ const F_TOP = 14, F_BOT = FH - 14;
 /* North-south presentation: the field runs vertically and the OFFENSE always
  * attacks toward the top of the screen. VDIR flips the world when possession
  * changes, exactly like a broadcast camera swinging ends. */
-/* ===== v27 CONSISTENT IN-RENDERER PERSPECTIVE (CSS tilt retired) =====
- * ONE size curve s(u) drives EVERYTHING — player sprites, the field image's width AND its
- * row height — so numbers and players on the same yard line always shrink by the identical
- * ratio (the "consistent sizing" rule). s falls from 1.0 at the offensive backfield anchor
- * (ANCHOR_U, reset every snap) to (1 − fxDepth) over fieldRadius() world px, then floors —
- * no vanishing point, so a horizon can never appear. PJ projects: y = cumulative integral
- * of s (near rows expand, far rows compress), x-spread ∝ s, sprite scale ∝ s; the uploaded
- * field image is re-warped through the SAME mapping into a canvas texture each snap
+/* ===== v28 TRUE PROJECTIVE PERSPECTIVE (v27's piecewise curve retired) =====
+ * ONE lateral-scale curve s(u) still drives sprites, the field image's width and the
+ * x-spread (the "consistent sizing" rule) — but it is now a genuine pinhole curve,
+ * s(u) = 1 / (1 + q·(u − ANCHOR_U)), and the row height integrates s² (a tilted ground
+ * plane compresses rows quadratically while widths shrink linearly). That pair is a real
+ * projective map, so every straight line in the art stays STRAIGHT on screen — v27's
+ * taper-then-floor curve bent the sidelines into a mid-field kink ("the far half warps").
+ * q is derived from the same dials: scale is exactly (1 − fxDepth) at fieldRadius() world
+ * px past the anchor, no floor needed (s never reaches 0, so no horizon). Behind the
+ * anchor s expands like a real camera, clamped at PERSP_BACKMAX so it can't blow up.
+ * PJ projects: y = VB·(total − ∫s²), x-spread ∝ s, sprite scale ∝ s; the uploaded field
+ * image is re-warped through the SAME mapping into a canvas texture each snap
  * (warpField), with its edge pixels stretched sideways so grass always fills the frame.
  * The old CSS rotateX on the #field canvas is dead — applyFieldFx clears it. */
 let VDIR = 1, ANCHOR_U = null, PERSP = null;
-const NSTOP = 30, NSH = 1340, WORLD_H = 2400;
+const NSTOP = 30, NSH = 1340, WORLD_H = 2800;
 const PERSP_OA = 1.45, PERSP_AB = 46;          // art overscan; anchor sits ~8 yds behind the LOS
+const PERSP_BACKMAX = 1.2;                     // behind-anchor magnification cap
 function fieldRadius() { const r = (window.__FIELD_FX || {}).radius; return r == null ? 300 : r; }
 function buildPersp() {
   if (ANCHOR_U == null) { PERSP = null; return; }
   const FX = window.__FIELD_FX || {};
   const dp = Math.max(0, Math.min(0.9, FX.depth == null ? 0.45 : +FX.depth));
   const R = Math.max(60, fieldRadius());
-  const AU = ANCHOR_U, sMin = 1 - dp;
-  const s = (u) => u <= AU ? 1 : (u >= AU + R ? sMin : 1 - dp * (u - AU) / R);
-  const C = (u) => {                     // ∫0..u s dt (piecewise, closed-form)
-    let c = Math.max(0, Math.min(u, AU));
-    const lo = Math.max(0, AU), hi = Math.max(lo, Math.min(u, AU + R));
-    if (hi > lo) { const F = (t) => t - dp * (t - AU) * (t - AU) / (2 * R); c += F(hi) - F(lo); }
-    if (u > AU + R) c += (u - Math.max(AU + R, 0)) * sMin;
+  const AU = ANCHOR_U, kMax = PERSP_BACKMAX;
+  const q = dp / ((1 - dp) * R);         // pinhole rate: s(AU + R) = 1 − dp, same dial meaning as v27
+  const s = (u) => Math.min(kMax, 1 / Math.max(1 / kMax, 1 + q * (u - AU)));
+  const C = (u) => {                     // ∫0..u s² dt (piecewise, closed-form)
+    if (q <= 0) return u;
+    const uc = AU - (1 - 1 / kMax) / q;  // where the behind-anchor clamp engages
+    let c = 0;
+    const cl = Math.max(0, Math.min(u, uc));
+    if (cl > 0) c += kMax * kMax * cl;
+    const lo = Math.max(0, uc);
+    if (u > lo) { const G = (t) => -1 / (q * (1 + q * (t - AU))); c += G(u) - G(lo); }
     return c;
   };
   const sN = s(AU + PERSP_AB);           // normalizer: the LOS row keeps the pre-v27 baseline size
-  PERSP = { s, C, total: C(FW), sN, VB: 2 * PERSP_OA / sN };
+  const total = C(FW);
+  // ideal row density keeps the LOS yard spacing of the flat view; cap it so the whole
+  // projected field always fits inside the WORLD_H warp canvas
+  const VB = Math.min(2 * PERSP_OA / (sN * sN), (WORLD_H - NSTOP - 10) / Math.max(1, total));
+  PERSP = { s, C, total, sN, VB };
+}
+function perspK(x) {
+  // carrier-lock helper: the pure perspective ratio at sim-x (1 at the LOS row)
+  const u = VDIR > 0 ? x : FW - x;
+  return PERSP ? PERSP.s(u) / PERSP.sN : 1;
 }
 function PJ(x, y) {
   // v27: ONE consistent perspective. Position AND size come from the same curve s(u), so a
@@ -2833,25 +2851,32 @@ class Ot extends mt.Scene {
         if (this.zoomPunch > 0) this.zoomPunch = Math.max(0, this.zoomPunch - delta * 0.0016);
         const gliding0 = P.t < (P.delay || 0);
         // v27: perspZoomK compensates for the overscanned warp art (near field draws
-        // ~1.45x bigger), zoomCarrier leans in harder once someone has the ball, and the
-        // camera leads PREDICTIVELY along the ball's smoothed velocity instead of a
-        // fixed northward offset — it arrives where the carrier is going.
+        // ~1.45x bigger); the camera leads PREDICTIVELY along the smoothed velocity of
+        // its focus instead of a fixed northward offset — it arrives where he's going.
+        // v28 CARRIER LOCK: once someone has the ball the camera FOLLOWS HIM and the
+        // zoom rides 1/perspK(carrier), so his on-screen size stays CONSTANT while the
+        // field around him rescales dynamically as he moves through the perspective.
         const _zf = (((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16) / 1.16) * TU("perspZoomK", 0.78);
-        const carZ = (!gliding0 && P.carrierId != null) ? TU("zoomCarrier", 0.12) : 0;
-        const targetZoom = (gliding0 ? 1.0 * _zf : ((P.big ? TU("zoomBig",1.04) : TU("zoomPlay",1.34)) + carZ) * _zf) + this.zoomPunch;
-        cam.setZoom(cam.zoom + (targetZoom - cam.zoom) * TU("zoomLerp", 0.06));
-        const bx = this.ballSpr ? this.ballSpr.x : FW / 2, by = this.ballSpr ? this.ballSpr.y : WORLD_H / 2;
+        const carM = (!gliding0 && P.carrierId != null) ? this.markers[P.carrierId] : null;
+        const kc = carM && carM.root ? Math.max(0.2, perspK(carM.sx)) : null;
+        const fx = kc ? carM.root.x : (this.ballSpr ? this.ballSpr.x : FW / 2),
+          fy = kc ? carM.root.y : (this.ballSpr ? this.ballSpr.y : WORLD_H / 2);
+        // locked plays ignore the zoomBig wide-angle: the carrier reads the SAME size on
+        // every play, and the compensating zoom already widens/narrows the view for him
+        const baseZ = (gliding0 ? 1.0 : (P.big ? TU("zoomBig",1.04) : TU("zoomPlay",1.34))) * _zf;
+        const targetZoom = (kc ? mt.Math.Clamp(TU("zoomPlay",1.34) * _zf / kc, TU("zoomLockMin", 0.6), TU("zoomLockMax", 2.4)) : baseZ) + this.zoomPunch;
+        cam.setZoom(cam.zoom + (targetZoom - cam.zoom) * (kc ? TU("zoomLockLerp", 0.12) : TU("zoomLerp", 0.06)));
         if (this._pcam) { const dtc = Math.max(16, delta);
-          const nvx = (bx - this._pcam.x) / dtc * 1000, nvy = (by - this._pcam.y) / dtc * 1000;
+          const nvx = (fx - this._pcam.x) / dtc * 1000, nvy = (fy - this._pcam.y) / dtc * 1000;
           this._cvx = (this._cvx || 0) + (nvx - (this._cvx || 0)) * 0.15;
           this._cvy = (this._cvy || 0) + (nvy - (this._cvy || 0)) * 0.15; }
-        this._pcam = { x: bx, y: by };
+        this._pcam = { x: fx, y: fy };
         let lx = (this._cvx || 0) * TU("camLeadMs", 420) / 1000, ly = (this._cvy || 0) * TU("camLeadMs", 420) / 1000;
         const lm = Math.hypot(lx, ly), mL = TU("camLeadMax", 130);
         if (lm > mL) { lx *= mL / lm; ly *= mL / lm; }
         const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom);
-        const cx = hw >= FW / 2 ? FW / 2 : mt.Math.Clamp(bx + lx, hw, FW - hw);
-        const cy = mt.Math.Clamp(by + ly - 40, hh, WORLD_H - hh);
+        const cx = hw >= FW / 2 ? FW / 2 : mt.Math.Clamp(fx + lx, hw, FW - hw);
+        const cy = mt.Math.Clamp(fy + ly - 40, hh, WORLD_H - hh);
         if (Math.abs(cx - cam.midPoint.x) > 2.5 || Math.abs(cy - cam.midPoint.y) > 2.5)
           cam.centerOn(cam.midPoint.x + (cx - cam.midPoint.x) * 0.09, cam.midPoint.y + (cy - cam.midPoint.y) * 0.09);
       }
@@ -6901,7 +6926,8 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     jogSpeed: 340, trailMin: 170, blockBand: 78, blockFrameMs: 170, hitStopBig: 80,
     zoomPlay: 1.34, zoomBig: 1.04, diveChance: 0.4, finishPop: 2.0,
     ballAirCap: 64, ballAirK: 0.8, camLeadMs: 420, camLeadMax: 130,
-    perspZoomK: 0.78, zoomCarrier: 0.12, zoomLerp: 0.06
+    perspZoomK: 0.78, zoomLerp: 0.06,
+    zoomLockMin: 0.6, zoomLockMax: 2.4, zoomLockLerp: 0.12
   };
   const DEV = window.DEV = {
     defaults: DEFAULTS,

@@ -55,6 +55,19 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v28 — true projective perspective + carrier-locked camera.** v27's piecewise size
+  curve (linear taper, then a hard floor) was not a real perspective map, so straight
+  field lines bent into a visible mid-field kink — "the far half of the field warps."
+  The curve is now a genuine pinhole: lateral scale `s(u) = 1/(1 + q·(u − anchor))`
+  with row spacing integrating `s²`, which is exactly a projective map — every straight
+  line in the field art stays straight on screen, verified to sub-pixel residuals. The
+  `fxDepth`/`fxRadius` dials keep their meaning (scale is `1 − fxDepth` at `fxRadius`
+  world px past the anchor); behind the anchor the view expands like a real camera,
+  capped at `PERSP_BACKMAX`. And the camera now **locks onto the ball carrier**: it
+  follows him (predictive lead intact) and the zoom rides `1/perspK(carrier)`
+  (`zoomLockMin/Max/Lerp` dials), so his on-screen size stays constant on every play
+  while the field visibly rescales around him as he moves through the perspective.
+
 - **v27 — consistent in-renderer perspective, billboard sprites, ball arcs, predictive
   camera.** The CSS `rotateX` canvas tilt is fully retired. One size curve `s(u)` (anchored
   at the offensive backfield each snap, `fxDepth` slider 0–0.9) now drives EVERYTHING:
