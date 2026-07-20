@@ -2583,7 +2583,11 @@ function ribSyncOpp(scene) {
   if (!RIB.ready) return;
   try {
     const opp = scene.teamNames ? (scene.teamNames().them || "") : "";
-    if (opp === RIB.defName) return;
+    // v28.1: the name cache alone is NOT proof this scene owns the def textures — the
+    // live view remounts the Phaser game, wiping them while RIB.defName survives. That
+    // left the whole defense on the white fallback for a full game. Skip only when this
+    // scene really has the keys; otherwise fall through and re-register.
+    if (opp === RIB.defName && scene.textures && scene.textures.exists("spr_def_dn_idle")) return;
     RIB.defName = opp;
     // v20: never let the opponent land on the user team's palette (or any palette
     // with the same jersey color) — walk forward from the hashed pick until the

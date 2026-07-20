@@ -55,6 +55,15 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v28.1 — defense no longer plays a whole game as white fallback figures.**
+  `ribSyncOpp` cached the opponent name globally and early-returned when it hadn't
+  changed — but the live view remounts the Phaser game, wiping every texture while the
+  cache survived, so the `"def"` sprite set was never re-registered and all 11 defenders
+  stayed on `rib_player_fallback` until the next opponent. The skip now also requires the
+  current scene to actually own the def textures (`spr_def_dn_idle` exists), otherwise it
+  falls through and re-registers. Verified headlessly: all 402 expected team texture keys
+  present and zero fallback-textured markers across full live drives.
+
 - **v28 — true projective perspective + carrier-locked camera.** v27's piecewise size
   curve (linear taper, then a hard floor) was not a real perspective map, so straight
   field lines bent into a visible mid-field kink — "the far half of the field warps."
