@@ -55,6 +55,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v32 — calibrated simulation realism.** Opening-level games now use six-minute
+  youth quarters and a run-heavy play mix, scaling toward 15-minute/pro-style
+  football by league. Matchup strength is compressed to reduce noncompetitive
+  results. RB workload rotates naturally; run blocking creates more 3–6 yard
+  gains instead of relying on stuffs plus synthetic breakaways. Pressure now
+  produces sacks, scrambles, throwaways, batted balls, stationary pressured
+  throws and throws on the move—the last two carry separate accuracy and
+  interception penalties mitigated by QB awareness. Ordinary fumbles, strip
+  sacks and muffed punts create contested recovery scrums instead of automatic
+  turnovers. Defensive holding, OPI and roughing require matching play events.
+  Kick blocks and return touchdowns are substantially rarer. In a 300-game
+  opening-level calibration, average margin fell 18.6→13.4, 21-point blowouts
+  38%→22%, turnovers 3.35→1.73/game, stuff rate 43%→34%, third downs
+  32%→36%, return TDs 0.20→0.033/game, and blocked kicks 0.26→0.08/game.
+
 - **v31 — 15-part situational realism pass.** Team personnel now creates an
   offensive identity and matchup-specific play mix; field position changes
   risk tolerance; route depth trades completion rate for interception and

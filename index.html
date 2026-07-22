@@ -4819,8 +4819,9 @@ nm=w=>{const g=String(w&&w.name||"");return g.split(" ")[1]||g||"—"};
 const avgAttr=(arr,key)=>arr.reduce((s,pl)=>s+_(pl,key),0)/Math.max(1,arr.length),
 teamProfile=tm=>{const qb=Y(tm.off,["QB"]),rb=Y(tm.off,["RB"]),ol=tm.off.filter(pl=>pl.pos==="OL"),rec=tm.off.filter(pl=>["WR","TE"].includes(pl.pos)),sec=tm.def.filter(pl=>["CB","S"].includes(pl.pos)),front=tm.def.filter(pl=>["DL","LB"].includes(pl.pos));return{qbIq:_(qb,"awareness"),qbSpeed:_(qb,"speed"),rbSkill:(_(rb,"speed")+_(rb,"burst")+_(rb,"strength"))/3,ballSecurity:(_(rb,"awareness")+_(rb,"strength"))/2,line:avgAttr(ol,"blocking"),receivers:(avgAttr(rec,"catching")+avgAttr(rec,"speed"))/2,front:(avgAttr(front,"strength")+avgAttr(front,"tackling"))/2,coverage:(avgAttr(sec,"coverage")+avgAttr(sec,"speed"))/2,discipline:avgAttr([...tm.off,...tm.def],"awareness")}},
 profiles={us:teamProfile(c.us),them:teamProfile(c.opp)},weatherRoll=Math.random(),weather=weatherRoll<.10?"rain":weatherRoll<.15?"wind":weatherRoll<.18?"snow":"clear",weatherFx={pass:weather==="rain"?.94:weather==="wind"?.91:weather==="snow"?.9:1,kick:weather==="wind"?.88:weather==="snow"?.9:weather==="rain"?.95:1,fumble:weather==="rain"?1.35:weather==="snow"?1.22:1};
+const usage=new Map(),touches=pl=>usage.get(pl)||0,addTouch=pl=>usage.set(pl,touches(pl)+1);
 // ---- play resolvers (FieldSim agents when available, formula fallback) ----
-function B(w,concept){const{O:k,D:T}=ie(w),K=(()=>{const yu=k.off.find(z=>z.you),rbs=k.off.filter(z=>z.pos==="RB"),qb=Y(k.off,["QB"]);if(yu&&yu.pos==="RB"&&Math.random()<.72)return yu;if(rbs.length){if(qb&&Math.random()<.08)return qb;const sr=rbs.slice().sort((A,B2)=>(B2.ovr||0)-(A.ovr||0));return Math.random()<.72?sr[0]:(sr[1]||sr[0])}return qb||Y(k.off,["RB","RB","QB"])})(),g=T.def.filter(ge=>["DL","LB","S"].includes(ge.pos)),N=g.length?g.reduce((ge,$e)=>ge+_($e,"tackling")+_($e,"strength"),0)/(g.length*2):45,H=k.off.filter(ge=>ge.pos==="OL"),oe=H.length?H.reduce((ge,$e)=>ge+_($e,"blocking"),0)/H.length:45;const __r2=window.__FieldSim&&window.__FieldSim.run(w,k,T,K,_);let base;if(__r2)base=__r2;else{const be=(_(K,"strength")*.5+_(K,"burst")*.5)*.5+oe*.5-N*.85;let ke=Math.round(2.4+be*.05+D(-3,3));be<-6&&Math.random()<.45&&(ke=le(-3,1)),Math.random()<f((_(K,"speed")-N)/300+.02,.01,.16)&&(ke+=le(8,16+Math.round(_(K,"speed")/6))),ke=f(ke,-5,75),base={carrier:K,yards:ke,breakaway:ke>=15}}
+function B(w,concept){const{O:k,D:T}=ie(w),K=(()=>{const yu=k.off.find(z=>z.you),rbs=k.off.filter(z=>z.pos==="RB"),qb=Y(k.off,["QB"]);if(rbs.length){if(qb&&Math.random()<.055)return qb;const sr=rbs.slice().sort((A,B2)=>(B2.ovr||0)-(A.ovr||0)),lead=yu&&yu.pos==="RB"?yu:sr[0],backup=sr.find(pl=>pl!==lead)||lead,leadShare=f(.72-touches(lead)*.012,.46,.72);return Math.random()<leadShare?lead:backup}return qb||Y(k.off,["RB","RB","QB"])})(),g=T.def.filter(ge=>["DL","LB","S"].includes(ge.pos)),N=g.length?g.reduce((ge,$e)=>ge+_($e,"tackling")+_($e,"strength"),0)/(g.length*2):45,H=k.off.filter(ge=>ge.pos==="OL"),oe=H.length?H.reduce((ge,$e)=>ge+_($e,"blocking"),0)/H.length:45;addTouch(K);const __r2=window.__FieldSim&&window.__FieldSim.run(w,k,T,K,_);let base;if(__r2)base=__r2;else{const be=(_(K,"strength")*.5+_(K,"burst")*.5)*.5+oe*.5-N*.85;let ke=Math.round(2.8+be*.045+D(-2.5,3));be<-7&&Math.random()<.38&&(ke=le(-2,1)),Math.random()<f((_(K,"speed")-N)/360+.015,.008,.11)&&(ke+=le(7,13+Math.round(_(K,"speed")/8))),ke=f(ke,-5,60),base={carrier:K,yards:ke,breakaway:ke>=15}}
 // v16.1 run-curve calibration: the agent sim compresses gains into 0-5 yds
 // (its 7-defender pursuit converges before a back can break clean). Real backs
 // gash the second level and break the occasional long one, so promote a
@@ -4831,11 +4832,12 @@ if(base&&base.yards>=0&&base.yards<=2){
   // concept shapes the tail: draws are boom-or-bust (more gashes), power runs
   // grind (fewer big gains but they stay positive), sweeps hit the edge.
   const cMul=concept==="draw"?1.4:concept==="power"?0.55:concept==="sweep"?1.05:1;
-  const edge=(_(K,"burst")+_(K,"speed"))/2-N,gashP=f((.03+edge*.004)*cMul,.015,.16);
-  if(Math.random()<gashP){const r3=Math.random(),big=concept==="draw",gain=r3<(big?.55:.65)?le(6,12):r3<(big?.88:.94)?le(13,22):le(23,38+Math.max(0,Math.round(edge)));dropSimLog();base={carrier:K,yards:gain,breakaway:gain>=15}}
+  const edge=(_(K,"burst")+_(K,"speed"))/2-N,gashP=f((.018+edge*.0025)*cMul,.008,.09),sustainP=f(.16+(oe-N)*.006,.08,.34);
+  if(Math.random()<gashP){const r3=Math.random(),big=concept==="draw",gain=r3<(big?.72:.8)?le(6,11):r3<.97?le(12,18):le(19,30+Math.max(0,Math.round(edge*.4)));dropSimLog();base={carrier:K,yards:gain,breakaway:gain>=15}}
+  else if(Math.random()<sustainP){dropSimLog();base={carrier:K,yards:le(3,6),breakaway:!1}}
 }
 return base}
-function b(w,concept){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=(()=>{const g0=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]);const yu=k.off.find(z=>z.you);if(yu&&yu!==g0){const tp=yu.pos==="WR"?.32:yu.pos==="TE"?.2:yu.pos==="RB"?.1:0,ok=concept==="shot"?["WR","TE"].includes(yu.pos):["WR","TE","RB"].includes(yu.pos);if(tp&&ok&&Math.random()<tp)return yu}return g0})(),N=(()=>{const yu=T.def.find(z=>z.you);return yu&&["CB","S","LB"].includes(yu.pos)&&Math.random()<.45?yu:Y(T.def,["CB","S","LB"])})();const __r=window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept);if(__r)return __r;const depth=concept==="shot"?24:concept==="fade"?18:concept==="dropback"?11:concept==="quick"?5:concept==="screen"?1:8,H=_(g,"speed")*.5+_(g,"agility")*.5-_(N,"coverage")*.85+_(K,"awareness")*.25,oe=f((.57-depth*.008+H/150)*weatherFx.pass,.1,.91);if(!(Math.random()<oe)){const ge=f(.012+depth*.0022+(_(N,"coverage")-_(K,"awareness"))*.0015,0,.16);return{qb:K,rec:g,cover:N,complete:!1,intercepted:Math.random()<ge,yards:0}}let ke=Math.round(depth+(_(g,"catching")+_(K,"awareness"))/2*.045+D(-2,4)),explosiveP=f((_(g,"speed")-_(N,"coverage"))/240+(concept==="shot"?.13:concept==="screen"?.07:.035),.015,.3);Math.random()<explosiveP&&(ke+=le(concept==="shot"?12:8,18+Math.round(_(g,"speed")/7))),ke=f(ke,1,80);const air=f(Math.round(concept==="screen"?D(-1,2):ke*(concept==="shot"?.75:.45+Math.random()*.3)),0,ke);return{qb:K,rec:g,cover:N,complete:!0,intercepted:!1,yards:ke,breakaway:ke>=20,air,yac:Math.max(0,ke-air)}}
+function b(w,concept,ctx={}){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=(()=>{const g0=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]);const yu=k.off.find(z=>z.you);if(yu&&yu!==g0){const tp=yu.pos==="WR"?.32:yu.pos==="TE"?.2:yu.pos==="RB"?.1:0,ok=concept==="shot"?["WR","TE"].includes(yu.pos):["WR","TE","RB"].includes(yu.pos);if(tp&&ok&&Math.random()<tp)return yu}return g0})(),N=(()=>{const yu=T.def.find(z=>z.you);return yu&&["CB","S","LB"].includes(yu.pos)&&Math.random()<.45?yu:Y(T.def,["CB","S","LB"])})();const __r=!ctx.pressured&&window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept);if(__r)return __r;const need=(typeof down!=="undefined"&&down>=3)?Math.max(1,toGo):0,depth0=concept==="shot"?24:concept==="fade"?18:concept==="dropback"?11:concept==="quick"?5:concept==="screen"?1:8,depth=need&&concept!=="screen"?Math.max(depth0,Math.min(need+1,18)):depth0,H=_(g,"speed")*.5+_(g,"agility")*.5-_(N,"coverage")*.85+_(K,"awareness")*.25,poise=f((_(K,"awareness")-35)/100,0,.55),pressureAcc=ctx.pressured?(ctx.moving?.78:.86)+poise*(ctx.moving?.16:.1):1,oe=f((.57-depth*.008+H/150)*weatherFx.pass*pressureAcc,.07,.91);if(!(Math.random()<oe)){const ge=f(.012+depth*.0022+(_(N,"coverage")-_(K,"awareness"))*.0015+(ctx.pressured?.012:0)+(ctx.moving?.012:0),0,.18);return{qb:K,rec:g,cover:N,complete:!1,intercepted:Math.random()<ge,yards:0,pressured:!!ctx.pressured,moving:!!ctx.moving}}let ke=Math.round(depth+(_(g,"catching")+_(K,"awareness"))/2*.045+D(-2,4)),explosiveP=f((_(g,"speed")-_(N,"coverage"))/240+(concept==="shot"?.13:concept==="screen"?.07:.035)-(ctx.pressured?.035:0),.01,.3);Math.random()<explosiveP&&(ke+=le(concept==="shot"?12:8,18+Math.round(_(g,"speed")/7))),ke=f(ke,1,80);need&&ke<need&&Math.random()<f((_(K,"awareness")-40)/120,.05,.45)&&(ke=need+le(0,3));const air=f(Math.round(concept==="screen"?D(-1,2):ke*(concept==="shot"?.75:.45+Math.random()*.3)),0,ke);return{qb:K,rec:g,cover:N,complete:!0,intercepted:!1,yards:ke,breakaway:ke>=20,air,yac:Math.max(0,ke-air),pressured:!!ctx.pressured,moving:!!ctx.moving}}
 // keep the FieldSim render queue aligned when we alter a play's bookkept yards:
 // the log we're discarding is the one this play just pushed — the TAIL, not the
 // head. Popping the tail (was shift(), a bug) keeps every other play's log lined
@@ -4853,7 +4855,7 @@ function J2(w,yd,brk){yd=yd==null?6:yd;const run=brk||yd>=20?["You break it outs
 // league level 0 (Pee Wee) → ~7 (Pro): kf scales kicking legs, kick range, and how
 // often young teams go for 2 because kicks are genuinely hard at that age.
 const LVL=(o.player&&o.player.level)||0,kf=f(LVL/7,0,1);
-const QSEC=Math.round(f((window.TU?window.TU("qtrMinutes",9):9),3,15)*60);
+const leagueQ=[6,7,8,9,10,12,15,15][LVL]||9,QSEC=Math.round(f((window.TU?window.TU("qtrMinutes",leagueQ):leagueQ),3,15)*60);
 let quarter=1,clock=QSEC,gameOver=!1,plays=0;
 const MAXP=400,rc1=Math.random()<.5?"us":"them",rc2=rc1==="us"?"them":"us";
 let T=null,pos=25,marker=35,down=1,toGo=10;
@@ -4870,7 +4872,7 @@ function kickoffTo(team,tag,onside){
   const retTm=team==="us"?c.us:c.opp,returner=Y(retTm.off,["RB","WR"]),retSkill=(_(returner,"speed")+_(returner,"agility"))/2,touchP=f(.46+kf*.3+(weather==="wind"?-.08:0),.35,.82),w=Math.random();let g=25,N="touchback";
   w>=touchP&&w<.985?(g=f(Math.round(20+(retSkill-50)*.12+D(-7,9)),10,42),N="kick returned"):w>=.985&&(g=f(le(37,55)+Math.round((retSkill-55)*.15),30,65),N="a HUGE return!");
   // rare kickoff return TD — the returner takes it the distance
-  if(N!=="touchback"&&Math.random()<.012){
+  if(N!=="touchback"&&Math.random()<f(.004+(retSkill-60)*.00008,.0015,.006)){
     team==="us"?h+=6:p+=6;const sfx=quarter>=5?" WALK-OFF!":tryAfter(team==="us");
     u.push({offense:team,event:"run",yards:100,involved:!1,big:!0,isPass:!1,scored:!0,penalty:!1,desc:`🏈💨 KICKOFF RETURN TOUCHDOWN — housed on the return!${sfx} ${xe()}`,startBall:1,endBall:100,quarter:Math.min(quarter,5),clock:fmtC(clock),usScore:h,themScore:p,down:1,toGo:10,preDown:1,preToGo:10,stat:{...P},team:{...v},oppStat:{...j}});
     if(quarter>=5){gameOver=!0;return}
@@ -4919,7 +4921,7 @@ while(!gameOver&&plays<MAXP){
   }
   if(kicking==="fg"){
     // rare block — the kicking team loses it, other team takes over at the spot
-    if(Math.random()<f(.03-kf*.012,.012,.03)){
+    if(Math.random()<f(.012-kf*.006,.004,.012)){
       mkPlay({T0,pre,o:{event:"fg",scored:!1,desc:usDrive?`🧱 ${kickDist}-yard field goal is BLOCKED!`:`🧱 Opponent's ${kickDist}-yard field goal is BLOCKED!`}});
       spend(5);
       if(clock<=0){if(quarterRoll()||gameOver)continue}
@@ -4936,33 +4938,34 @@ while(!gameOver&&plays<MAXP){
     continue}
   if(kicking==="punt"){
     // blocked punt — receiving team takes over deep in kicking territory
-    if(Math.random()<f(.012-kf*.004,.006,.012)){
+    if(Math.random()<f(.005-kf*.002,.002,.005)){
       mkPlay({T0,pre,o:{event:"punt",endBall:f(100-pos,1,99),desc:`🧱 PUNT IS BLOCKED! ${usDrive?"You":"The opponent"} lose it at the spot.`}});
       spend(6);
       if(clock<=0){if(quarterRoll()||gameOver)continue}
       newDrive(other(T0),f(100-pos+le(0,6),1,99),"takes over on the blocked punt");continue}
     // muffed punt — returner bobbles it, kicking team recovers (turnover for returner)
-    if(Math.random()<.02){
-      const land=f(pos+Math.round((26+kf*16)),20,96);
-      mkPlay({T0,pre,o:{event:"punt",endBall:f(100-(100-land),1,99),desc:`😱 MUFFED PUNT — the returner can't handle it and ${usDrive?"you recover":"the opponent recovers"}!`}});
+    if(Math.random()<.012){
+      const land=f(pos+Math.round((26+kf*16)),20,96),kickRec=Math.random()<.48;
+      mkPlay({T0,pre,o:{event:"punt",endBall:f(100-(100-land),1,99),desc:`😱 MUFFED PUNT — the returner can't handle it and ${kickRec?"the coverage team":"the return team"} recovers!`}});
       spend(7);
       if(clock<=0){if(quarterRoll()||gameOver)continue}
-      newDrive(T0,land,"recovers the muffed punt");continue}
+      kickRec?newDrive(T0,land,"recovers the muffed punt"):newDrive(other(T0),f(100-land,1,99),"recovers its own muff");continue}
     // punt distance scales with league level (a pee-wee punt is short and wobbly)
     const gross=f(Math.round((26+kf*16)+D(-7,9)),16,Math.max(20,99-pos)),land=pos+gross;let rec,note;
     if(land>=99){rec=20;note="touchback"}
     else{const deep=100-land;
       if(deep<=10&&Math.random()<.5){rec=deep;note="downed at the "+deep}
       else{
+        const rtTm=other(T0)==="us"?c.us:c.opp,rt=Y(rtTm.off,["RB","WR"]),rs=(_(rt,"speed")+_(rt,"agility"))/2;
         // punt return TD — the returner houses it
-        if(Math.random()<.015){
+        if(Math.random()<f(.004+(rs-60)*.00008,.0015,.006)){
           const rt=other(T0);rt==="us"?h+=6:p+=6;const sfx=quarter>=5?" WALK-OFF!":tryAfter(rt==="us");
           mkPlay({T0,pre,o:{event:"punt",scored:!0,endBall:100,desc:`🏈💨 PUNT RETURN TOUCHDOWN — taken all the way back!${sfx} ${xe()}`}});
           spend(7);
           if(quarter>=5){gameOver=!0;continue}
           if(clock<=0){if(quarterRoll()||gameOver)continue}
           kickoffTo(T0);continue}
-        const rtTm=other(T0)==="us"?c.us:c.opp,rt=Y(rtTm.off,["RB","WR"]),rs=(_(rt,"speed")+_(rt,"agility"))/2,fairP=f(.38-(rs-50)*.003+(deep<8?.18:0),.16,.62),ret=Math.random()<fairP?0:f(Math.round(6+(rs-50)*.1+D(-4,8)),0,22);rec=f(deep+ret,1,50);note=ret?`returned ${ret} yards`:"fair catch"}}
+        const fairP=f(.38-(rs-50)*.003+(deep<8?.18:0),.16,.62),ret=Math.random()<fairP?0:f(Math.round(6+(rs-50)*.1+D(-4,8)),0,22);rec=f(deep+ret,1,50);note=ret?`returned ${ret} yards`:"fair catch"}}
     mkPlay({T0,pre,o:{event:"punt",endBall:f(100-rec,1,99),desc:`🦶 4th down punt — ${gross} yards, ${note}. Possession flips.`}});
     spend(7);
     if(clock<=0){if(quarterRoll()||gameOver)continue}
@@ -5000,6 +5003,7 @@ while(!gameOver&&plays<MAXP){
   // ---- play call ------------------------------------------------------------
   let passP;
   if(down===1)passP=.48;else if(down===2)passP=toGo>=8?.62:toGo<=3?.4:.52;else passP=toGo>=8?.86:toGo>=4?.68:.36;
+  passP+=(-.1+kf*.1); // youth football is run-heavy; sophistication rises by level
   {const op=profiles[T0],dp=profiles[other(T0)],identity=(op.qbIq+op.receivers-op.rbSkill-op.line)/180,matchup=(op.receivers-dp.coverage)/220;passP+=f(identity+matchup,-.14,.14);pos<=10&&(passP-=.11);pos>=80&&(passP+=.04)}
   (pos>=97||(toGo<=1&&pos>=90))&&(passP=Math.min(passP,.35));
   hurry?passP=Math.max(passP,.85):milk&&(passP=Math.min(passP,.3));
@@ -5032,8 +5036,9 @@ while(!gameOver&&plays<MAXP){
     isPassFam=!0;
     const olB=(w=>w.length?w.reduce((g,N)=>g+_(N,"blocking"),0)/w.length:45)(Ok.off.filter(w=>w.pos==="OL")),
     dlR=(w=>w.length?w.reduce((g,N)=>g+(_(N,"strength")+_(N,"burst"))/2,0)/w.length:45)(Dk.def.filter(w=>w.pos==="DL")),
-    sackP=f(.105+(dlR-olB)*.0038+(toGo>=8?.016:0)-(_(qb2,"awareness")-50)*.0012-(_(qb2,"speed")-50)*.0007+(concept==="shot"?.025:concept==="quick"?-.025:0),.025,.23),
-    scrP=f(.055+(_(qb2,"speed")-62)*.0026,.02,.15),r2=Math.random();   // v30: mobile QBs actually pull it down and run
+    pressureBase=f(.15+(dlR-olB)*.004+(concept==="shot"?.055:concept==="quick"?-.05:0),.06,.34),
+    sackP=f(pressureBase*(.48-(_(qb2,"awareness")-50)*.003-(_(qb2,"speed")-50)*.0015),.025,.19),
+    scrP=f(pressureBase*(.22+(_(qb2,"speed")-55)*.003),.018,.13),pressureP=f(pressureBase-sackP-scrP,.025,.2),r2=Math.random();
     if(r2<sackP){
       // SACK — resolved in the trenches, not pre-rolled into the box score
       isPassFam=!1;de=-f(Math.round(7-(_(qb2,"speed")-50)*.035+D(-3,3)),2,12);ne="sack";
@@ -5042,10 +5047,10 @@ while(!gameOver&&plays<MAXP){
       const skr=Y(Dk.def,["DL","DL","LB"]),meSk=!usDrive&&pe(skr);
       const stripP=f(.045+(_(skr,"strength")-_(qb2,"awareness"))*.0015+(weatherFx.fumble-1)*.08,.02,.14);
       if(Math.random()<stripP){ // strip sack — defender power, QB awareness and weather matter
-        ne="turnover";flip={spot:f(100-f(pos+de,1,99),1,99),why:"scoops up the fumble"};
-        ue=`💥 STRIP SACK — ${nm(skr)} knocks it loose and the defense recovers the FUMBLE!`;
-        usDrive?v.turn++:j.turn++;
-        meSk&&(P.sack++,P.tackle++,me=!0,ue=`💥 STRIP SACK — YOU blindside ${nm(qb2)} and force the FUMBLE!`)
+        const defRecP=f(.48+(dlR-olB)*.004,.32,.68),defRec=Math.random()<defRecP;
+        if(defRec){ne="turnover";flip={spot:f(100-f(pos+de,1,99),1,99),why:"scoops up the fumble"};usDrive?v.turn++:j.turn++;ue=`💥 STRIP SACK — ${nm(skr)} knocks it loose and the defense recovers the FUMBLE!`}
+        else ue=`💥 STRIP SACK — ${nm(skr)} jars it free, but the offense dives on the loose ball.`;
+        meSk&&(P.sack++,P.tackle++,me=!0,ue=defRec?`💥 STRIP SACK — YOU blindside ${nm(qb2)} and your defense recovers!`:`💥 STRIP SACK — YOU knock it loose, but the offense recovers.`)
       }else{
         ue=`🪖 SACKED — ${nm(skr)} drags down ${nm(qb2)} for a loss of ${-de}.`;
         meSk&&(P.sack++,P.tackle++,me=!0,ue=`🪖 SACK — YOU bury ${nm(qb2)} for a loss of ${-de}!`);
@@ -5063,7 +5068,15 @@ while(!gameOver&&plays<MAXP){
       me=usDrive&&t==="QB";me&&(P.rush+=Math.max(0,de),_e&&P.td++);
       ue=_e?(usDrive?(me?"🏈 TOUCHDOWN — YOU take off on the SCRAMBLE and score! ":`🏈 TOUCHDOWN — ${nm(qb2)} SCRAMBLES in for the score! `):`${nm(qb2)} SCRAMBLES in — touchdown for the opponent. `):(usDrive?(me?`💨 You escape the pocket — SCRAMBLE for ${de}!`:`${nm(qb2)} escapes and SCRAMBLES for ${de}.`):`${nm(qb2)} SCRAMBLES for ${de}.`)
     }else{
-      const X=b(usDrive,concept);
+      const pressured=r2<sackP+scrP+pressureP,moving=pressured&&Math.random()<f(.35+(_(qb2,"speed")-50)*.006,.2,.72);
+      let X=b(usDrive,concept,{pressured,moving});
+      if(pressured){const throwawayP=f(.08+(_(qb2,"awareness")-40)*.004,.04,.3),batP=f(.025+(dlR-50)*.001,.015,.07),pr=Math.random();if(pr<batP)X={...X,complete:!1,intercepted:!1,batted:!0};else if(pr<batP+throwawayP)X={...X,complete:!1,intercepted:!1,throwaway:!0}}
+      // v32: coverage and pocket contact can create the less-visible penalties
+      // missing from v30. Each requires a matching play event; none are blind rolls.
+      const defHold=!X.complete&&!X.intercepted&&!X.throwaway&&!X.batted&&Math.random()<f(.018+(_(X.rec,"speed")-_(X.cover,"coverage"))*.0004,.008,.035),
+      opi=X.complete&&["shot","fade"].includes(concept)&&Math.random()<.014,
+      rough=pressured&&!X.intercepted&&Math.random()<f(.01+(dlR-55)*.00035,.006,.025);
+      if(opi||defHold||rough){dropSimLog();const committedOff=opi,onUs=committedOff===usDrive,who=opi?X.rec:defHold?X.cover:Y(Dk.def,["DL","LB"]),raw=opi?-10:defHold?5:15,dyd=raw<0?-Math.min(-raw,pos-1):Math.min(raw,99-pos);pos=f(pos+dyd,1,99);if(committedOff){toGo=marker-pos}else{down=1;marker=Math.min(100,pos+10);toGo=marker-pos}onUs?(v.pen++,v.penYds+=Math.abs(dyd)):(j.pen++,j.penYds+=Math.abs(dyd));const label=opi?"OFFENSIVE PASS INTERFERENCE":defHold?"DEFENSIVE HOLDING":"ROUGHING THE PASSER";mkPlay({T0,pre,o:{event:"penalty",penalty:!0,yards:dyd,endBall:pos,desc:`🚩 ${label} (#${who.num||""} ${nm(who)}) — ${Math.abs(dyd)} yards${committedOff?", replay the down.":", automatic first down."}`}});spend(5);clock<=0&&quarterRoll();continue}
       // v30 FLAG ON THE PLAY — DPI: the sim recorded the defender IN the receiver on a
       // real route with the ball arriving incomplete; some of those draw the flag.
       if(!X.complete&&!X.intercepted&&X.flags&&X.flags.dpi&&Math.random()<(window.TU?window.TU("dpiFlagP",.2):.2)){
@@ -5115,20 +5128,20 @@ while(!gameOver&&plays<MAXP){
       }else{
         ne="incomplete";de=0;endB=pos;
         me=usDrive&&U&&pe(X.rec)&&Math.random()<.4;
-        ue=usDrive?(me?"Pass sails just past your fingertips.":`${nm(X.qb)}'s pass falls incomplete.`):"Incomplete pass.";
+        ue=X.batted?`🖐 ${nm(X.qb)}'s pass is BATTED at the line.`:X.throwaway?`${nm(X.qb)} escapes pressure and throws it away.`:usDrive?(me?"Pass sails just past your fingertips.":`${nm(X.qb)}'s pass falls incomplete.`):"Incomplete pass.";
         !usDrive&&ce&&["CB","S"].includes(t)&&pe(X.cover)&&Math.random()<.6&&(P.pd++,me=!0,ue="🖐 PASS BREAKUP — you blanket your man!")
       }
+      X.pressured&&X.complete&&(ue+=X.moving?" 🎯 Delivered accurately while moving.":" 🎯 Stands in against the rush.");
     }
   }else{
     // ---- called run ----
     const runCarrier=Y(Ok.off,["RB","RB","QB"]),hitPower=avgAttr(Dk.def.filter(pl=>["DL","LB","S"].includes(pl.pos)),"tackling"),fumbleP=f((.012+(hitPower-_(runCarrier,"awareness"))*.00035)*weatherFx.fumble,.004,.035);
     if(Math.random()<fumbleP){
       // fumble — resolved without FieldSim so the render queue stays aligned
-      de=le(0,4);ne="turnover";
-      const spotOff=f(pos+de,2,98);endB=spotOff;flip={spot:f(100-spotOff,1,99),why:"recovers the fumble"};
-      usDrive?v.turn++:j.turn++;
+      de=le(-1,4);const spotOff=f(pos+de,2,98),nearOff=Ok.off.filter(pl=>["OL","RB","QB"].includes(pl.pos)).length,nearDef=Dk.def.filter(pl=>["DL","LB","S"].includes(pl.pos)).length,defRecP=f(.48+(nearDef-nearOff)*.025+(hitPower-50)*.002,.3,.7),defRec=Math.random()<defRecP;endB=spotOff;
       me=!usDrive&&ce&&["DL","LB","S"].includes(t)&&Math.random()<.45;
-      ue=me?"💥 FORCED FUMBLE — you punch it out and the defense recovers!":`💥 FUMBLE — ${nm(Y(Ok.off,["RB","RB","QB"]))} coughs it up and the defense recovers!`
+      if(defRec){ne="turnover";flip={spot:f(100-spotOff,1,99),why:"recovers the fumble"};usDrive?v.turn++:j.turn++;ue=me?"💥 FORCED FUMBLE — you punch it out and the defense recovers!":`💥 FUMBLE — ${nm(runCarrier)} loses it and the defense wins the scramble!`}
+      else{ne="run";pos=spotOff;usDrive?(v.rush+=de,v.yds+=de):(j.rush+=de,j.yds+=de);ue=`💥 FUMBLE — ${nm(runCarrier)} loses it, but the offense recovers in the pile.`}
     }else{
       const X=B(usDrive,concept);de=X.yards;ne="run";
       // v30 FLAG ON THE PLAY — holding: the sim recorded a blocker beaten instantly
@@ -5238,7 +5251,7 @@ window.__simGameV2=Yr;
 // v22.3: deterministic per-opponent team-strength multiplier (0.9x..1.3x of the
 // level base). Keyed on opponent name + season so the SAME opponent gets the
 // SAME strength in the pregame preview and the live game — varied week to week.
-function __oppMulForV22(name){let h=0;const s=String(name||'')+'|'+((o.player&&o.player.seasonSeed)||0);for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return .9+(h%1000)/1000*.4;}
+function __oppMulForV22(name){let h=0;const s=String(name||'')+'|'+((o.player&&o.player.seasonSeed)||0);for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return .94+(h%1000)/1000*.2;}
 window.__previewMatchupV22=function(pos,perf){
   try{
     const e=o.player; if(!e||!e.pos) return null;
