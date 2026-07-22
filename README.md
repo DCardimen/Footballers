@@ -55,6 +55,40 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v38 — whole-field acceleration.** Every movement command now requests a
+  target gear instead of multiplying velocity instantly. Acceleration and burst
+  control launches and restarts; agility governs speed retained through cuts and
+  braking; fatigue, contact, blocking pace, pursuit, routes, sprint bursts, pile
+  drive, and post-whistle coast all enter the same curve. Fallback ball carriers
+  no longer bypass acceleration, and FieldSim contact now changes the velocity it
+  actually uses. A deterministic low/mid/elite acceleration profile is included
+  in the ten-run movement check so rating progression and balance stay measurable.
+
+- **v37 — exact boundary planes, movement IQ, and cinematic contact.** Goal lines
+  and sidelines are now zero-width planes resolved at the first interpolated
+  crossing point: fast runners cannot skip a line, out-of-bounds spots land on
+  the stripe, and touchdowns/pick-sixes present on the frame the carrier breaks
+  the goal line. Route breaks now force rating-based coverage read/reaction
+  delays; low-awareness defenders can bite on the receiver's old direction,
+  while disciplined defenders stay square. Pursuit angles retain the last-man
+  safeguard but can be compromised by directional cutbacks and jukes; successful
+  jukes now move the runner into a real lateral lane instead of playing a cosmetic
+  animation. High-point catches, interceptions, tackles, hurdles, stiff-arms, and
+  broken tackles receive a single non-stacking one-second cinematic window at
+  50% speed. The renderer uses field coordinates—not sprite-local coordinates—
+  for goal-line presentation, and all new timing/AI values are live `TU()` dials.
+
+- **v36 — hand-mounted football and real rotation dynamics.** Possessed balls now
+  sit on a visible carrying arm instead of rendering through a player's center;
+  the QB keeps the ball in one throwing hand through tuck, cock, extension, and
+  release, with a short hand-to-flight blend that removes the center-point snap.
+  Airborne footballs keep their nose on the velocity vector while the laces,
+  seam, highlight, and profile roll around the long axis at bullet-, touch-, or
+  lob-specific rates. Tips wobble, kicks and fumbles turn end-over-end, held-ball
+  shadows are suppressed, and carrier-facing depth decides whether the ball sits
+  just in front of or behind the torso. This is a presentation-only pass: play
+  outcomes, catches, turnovers, yardage, and scoring are unchanged.
+
 - **v33 — read, throw, and location-driven passing.** QBs now scan a
   rating-limited progression and grade each visible throwing window green,
   yellow, or red before deciding; awareness expands the scan and reduces bad

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "shot": "node scripts/shot.mjs"
+    "shot": "node scripts/shot.mjs",
+    "check:movement": "node scripts/movementcheck.mjs"
   },
   "devDependencies": {
     "js-beautify": "^2.0.3",
