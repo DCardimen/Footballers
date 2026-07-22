@@ -1932,7 +1932,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // Route endpoints are calibrated to the game's existing result scale. The
       // prior abstract resolver folded route depth and YAC together; explicit ball
       // locations otherwise overstate both and inflate passing by several YPA.
-      const _depthK=_cc==="screen"?1:_cc==="quick"?.95:_cc==="shot"?.96:_cc==="fade"?.94:.86;
+      const _depthK=_cc==="screen"?1:_cc==="quick"?.95:_cc==="shot"?.96:_cc==="fade"?.94:(root.__fullGameBalanceV39?.98:.86);
       routeDepth=Math.max(_cc==="screen"?-2:2,routeDepth*_depthK);
       throwAt = cl(620 + routeDepth*30 + Math.random()*180, 680, 1750);
       // ---- v16.5 real routes: every receiver runs an actual route (not a straight
@@ -2176,7 +2176,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
               // separated catch an automatic long YAC play. This keeps the legacy
               // completion/YPA mix while early defenders still create real danger.
               const arrivalCatch=cl(-arrivalEdgeMs/2100,-.045,.025), placementCatch=(locationQuality-.72)*.08;
-              const catchP = cl(0.54 + sep*0.05 + (qbA.aware-50)*0.003 + (qbA.thr-50)*0.003
+              const catchP = cl(TU("catchBaseV39",root.__fullGameBalanceV39?.76:.54) + sep*0.05 + (qbA.aware-50)*0.003 + (qbA.thr-50)*0.003
                 + (target.cat-50)*0.0035 + jumpEdge + secure + arrivalCatch + placementCatch
                 - helperContest - (underPressure?0.12:0) - (movingThrow?.055:0), 0.08, 0.93);
               if (Math.random() < catchP) {
@@ -5228,6 +5228,7 @@ function Fr(e){const t=o.player,a=Za.find(n=>n.id===t.pendingEvent),s=a.choices[
  * The final score EMERGES from the plays — nothing is pre-decided.
  * Payload shape per play is unchanged (plus a new `clock` field).
  * Tunables: RIB_TUNE.qtrMinutes (default 9). ============================= */
+window.__fullGameBalanceV39=!0;
 const a=e/100,i=(w,k)=>Math.max(0,Math.round(w*a+D(-k,k))),
 r={pass:0,rush:0,rec:0,td:0,tackle:0,sack:0,int:0,pd:0,comp:0,att:0,rec_c:0,tgt:0,carries:0,longest:0,fum:0,ff:0,tfl:0,qbhit:0};
 switch(t){case"QB":r.pass=i(250,50),r.td=i(3,1),r.att=i(32,6),r.comp=Math.min(r.att,i(22,5)),r.int=Math.max(0,Math.round((1-a)*2)),r.longest=i(38,12),r.rush=i(18,12);break;case"RB":r.rush=i(100,30),r.td=i(1.5,1),r.carries=i(20,5),r.longest=i(28,10),r.rec=i(22,14),r.rec_c=i(3,2),r.fum=Math.random()<(1-a)*.4?1:0;break;case"WR":r.rec=i(85,30),r.td=i(1,1),r.rec_c=i(6,3),r.tgt=r.rec_c+i(3,2),r.longest=i(34,14);break;case"TE":r.rec=i(60,22),r.td=i(.8,1),r.rec_c=i(5,2),r.tgt=r.rec_c+i(2,2),r.longest=i(24,10);break;case"OL":r.tackle=0,r.pancake=i(6,3),r.sackAllowed=Math.max(0,Math.round((1-a)*3));break;case"DL":r.sack=i(1.2,1),r.tackle=i(4,2),r.tfl=i(1.6,1),r.qbhit=i(3,2),r.ff=Math.random()<a*.3?1:0;break;case"LB":r.tackle=i(9,3),r.sack=i(.6,1),r.tfl=i(1.8,1),r.int=Math.random()<a*.3?1:0,r.ff=Math.random()<a*.25?1:0;break;case"CB":r.tackle=i(4,2),r.int=i(.5,1),r.pd=i(2,1),r.tgt=i(7,2);break;case"S":r.tackle=i(7,3),r.int=i(.4,1),r.pd=i(1.5,1),r.tfl=i(.6,1);break}
@@ -5269,9 +5270,9 @@ if(base&&base.yards>=0&&base.yards<=2){
   // concept shapes the tail: draws are boom-or-bust (more gashes), power runs
   // grind (fewer big gains but they stay positive), sweeps hit the edge.
   const cMul=concept==="draw"?1.4:concept==="power"?0.55:concept==="sweep"?1.05:1;
-  const edge=(_(K,"burst")+_(K,"speed"))/2-N,gashP=f((.018+edge*.0025)*cMul,.008,.09),sustainP=f(.16+(oe-N)*.006,.08,.34);
+  const edge=(_(K,"burst")+_(K,"speed"))/2-N,gashP=f((.05+edge*.0025)*cMul,.02,.14),sustainP=f(.58+(oe-N)*.006,.38,.75);
   if(Math.random()<gashP){const r3=Math.random(),big=concept==="draw",gain=r3<(big?.72:.8)?le(6,11):r3<.97?le(12,18):le(19,30+Math.max(0,Math.round(edge*.4)));dropSimLog();base={carrier:K,yards:gain,breakaway:gain>=15}}
-  else if(Math.random()<sustainP){dropSimLog();base={carrier:K,yards:le(3,6),breakaway:!1}}
+  else if(Math.random()<sustainP){dropSimLog();base={carrier:K,yards:le(4,8),breakaway:!1}}
 }
 return base}
 function b(w,concept,ctx={}){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=(()=>{const g0=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]);const yu=k.off.find(z=>z.you);if(yu&&yu!==g0){const tp=yu.pos==="WR"?.32:yu.pos==="TE"?.2:yu.pos==="RB"?.1:0,ok=concept==="shot"?["WR","TE"].includes(yu.pos):["WR","TE","RB"].includes(yu.pos);if(tp&&ok&&Math.random()<tp)return yu}return g0})(),N=(()=>{const yu=T.def.find(z=>z.you);return yu&&["CB","S","LB"].includes(yu.pos)&&Math.random()<.45?yu:Y(T.def,["CB","S","LB"])})();const need=(typeof down!=="undefined"&&down>=3)?Math.max(1,toGo):0;const __r=!ctx.pressured&&window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept,{pressured:!!ctx.pressured,moving:!!ctx.moving,fieldPos:typeof pos!=="undefined"?pos:50,down:typeof down!=="undefined"?down:1,toGo:typeof toGo!=="undefined"?toGo:10});if(__r)return __r;const depth0=concept==="shot"?24:concept==="fade"?18:concept==="dropback"?11:concept==="quick"?5:concept==="screen"?1:8,depth=need&&concept!=="screen"?Math.max(depth0,Math.min(need+1,18)):depth0,H=_(g,"speed")*.5+_(g,"agility")*.5-_(N,"coverage")*.85+_(K,"awareness")*.25,poise=f((_(K,"awareness")-35)/100,0,.55),pressureAcc=ctx.pressured?(ctx.moving?.78:.86)+poise*(ctx.moving?.16:.1):1,oe=f((.57-depth*.008+H/150)*weatherFx.pass*pressureAcc,.07,.91);if(!(Math.random()<oe)){const ge=f(.012+depth*.0022+(_(N,"coverage")-_(K,"awareness"))*.0015+(ctx.pressured?.012:0)+(ctx.moving?.012:0),0,.18);return{qb:K,rec:g,cover:N,complete:!1,intercepted:Math.random()<ge,yards:0,pressured:!!ctx.pressured,moving:!!ctx.moving}}let ke=Math.round(depth+(_(g,"catching")+_(K,"awareness"))/2*.045+D(-2,4)),explosiveP=f((_(g,"speed")-_(N,"coverage"))/240+(concept==="shot"?.13:concept==="screen"?.07:.035)-(ctx.pressured?.035:0),.01,.3);Math.random()<explosiveP&&(ke+=le(concept==="shot"?12:8,18+Math.round(_(g,"speed")/7))),ke=f(ke,1,80);need&&ke<need&&Math.random()<f((_(K,"awareness")-40)/120,.05,.45)&&(ke=need+le(0,3));const air=f(Math.round(concept==="screen"?D(-1,2):ke*(concept==="shot"?.75:.45+Math.random()*.3)),0,ke);return{qb:K,rec:g,cover:N,complete:!0,intercepted:!1,yards:ke,breakaway:ke>=20,air,yac:Math.max(0,ke-air),pressured:!!ctx.pressured,moving:!!ctx.moving}}
@@ -5673,7 +5674,8 @@ while(!gameOver&&plays<MAXP){
     spend(runoff);clock<=0&&quarterRoll()}
 }
 // somebody has to win — if the play cap ever hits with a tie, a walk-off FG
-if(h===p){const w=c.us.ovr>=c.opp.ovr;w?h+=3:p+=3;u.push({offense:w?"us":"them",event:"fg",yards:0,involved:!1,big:!0,isPass:!1,scored:!0,penalty:!1,desc:w?`✅ WALK-OFF field goal is GOOD! ${xe()}`:`Opponent nails the walk-off field goal. ${xe()}`,startBall:75,endBall:75,quarter:Math.min(quarter,5),clock:"0:00",usScore:h,themScore:p,down:4,toGo:3,preDown:4,preToGo:3,stat:{...P},team:{...v},oppStat:{...j}})}
+if(h===p){const w=c.us.ovr===c.opp.ovr?Math.random()<.5:c.us.ovr>c.opp.ovr;w?h+=3:p+=3;u.push({offense:w?"us":"them",event:"fg",yards:0,involved:!1,big:!0,isPass:!1,scored:!0,penalty:!1,desc:w?`✅ WALK-OFF field goal is GOOD! ${xe()}`:`Opponent nails the walk-off field goal. ${xe()}`,startBall:75,endBall:75,quarter:Math.min(quarter,5),clock:"0:00",usScore:h,themScore:p,down:4,toGo:3,preDown:4,preToGo:3,stat:{...P},team:{...v},oppStat:{...j}})}
+window.__fullGameBalanceV39=!1;
 l.sacks=v.sacks;
 const Mt2=v.third_a>0?`${Math.min(v.third_c,v.third_a)}/${v.third_a}`:"0/0",
 xt={yds:v.yds,pass:v.pass,rush:v.rush,first:v.first,third:Mt2,top:fmtC(topSec.us),pen:v.pen,penYds:v.penYds,turn:v.turn,sacks:v.sacks,air:v.air,yac:v.yac},
@@ -7571,7 +7573,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     linebackerPassDropsV1521:true,receiverBracketCoverageV1521:true,continuousCornerCoverageV1521:true,
     handMountedFootballV36:true,longAxisSpiralV36:true,ballisticDragV36:true,
     exactBoundaryPlanesV37:true,movementIQV37:true,directionalJukesV37:true,contactSlowMoV37:true,
-    wholeFieldAccelerationV38:true
+    wholeFieldAccelerationV38:true,equalTalentBalanceV39:true
   });
 })();
 </script>

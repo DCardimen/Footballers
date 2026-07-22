@@ -1,14 +1,15 @@
 // Dev check: boot the game headless and batch-run the emergent game engine (window.__simGameV2),
 // printing score/pace/event distributions. Usage: npm run dev, then: node scripts/simcheck.mjs
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 20000 })
-await page.waitForTimeout(1000)
+await page.goto(process.env.GAME_URL || 'http://localhost:5173/', { waitUntil: 'commit', timeout: 30000 })
+await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 })
+await page.waitForTimeout(500)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 async function click(t) {
   const ok = await page.evaluate(({t, visSrc}) => {
@@ -23,9 +24,10 @@ async function click(t) {
   return ok
 }
 for (const s of ["START NEW CAREER","ARCH","QB Quarterback","PLAY 8-GAME SEASON","Balanced Program"]) await click(s)
-const res = await page.evaluate(() => {
+const gameCount = Math.max(1, Number(process.env.GAMES || 60))
+const res = await page.evaluate((gameCount) => {
   const out = { games: [], errors: [] }
-  for (let g = 0; g < 60; g++) {
+  for (let g = 0; g < gameCount; g++) {
     try {
       const r = window.__simGameV2(45 + Math.random() * 45, ["QB","RB","WR","DL","CB"][g % 5])
       const plays = r.plays
@@ -50,7 +52,7 @@ const res = await page.evaluate(() => {
     } catch (e) { out.errors.push(String(e && e.stack || e)) }
   }
   return out
-})
+}, gameCount)
 if (res.errors.length) { console.log('ENGINE ERRORS:\n' + res.errors.slice(0,3).join('\n---\n')) }
 const G = res.games
 const avg = (f) => (G.reduce((n, g) => n + f(g), 0) / G.length).toFixed(1)

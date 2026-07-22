@@ -55,6 +55,16 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v39 — equal-talent game calibration.** Full games now have a deterministic
+  mirrored-roster benchmark covering wins, scoring, rushing, passing,
+  interceptions, sacks, drives, shutouts, and blowout frequency. Tied play-cap
+  games no longer default to the user team, normal dropbacks create more
+  realistic depth and catch rates, and the run curve converts more genuinely
+  sustained blocks into medium gains. In 240 exact-mirror games the sides
+  finished at 50.4% wins, 23.9–24.3 points, 3.53–3.53 YPC, 62.6–62.3%
+  completions, 5.52–5.55 pass YPA, 0.84–0.67 interceptions, and 2.86–2.90
+  sacks; no team reached 60 points and no game approached 100.
+
 - **v38 — whole-field acceleration.** Every movement command now requests a
   target gear instead of multiplying velocity instantly. Acceleration and burst
   control launches and restarts; agility governs speed retained through cuts and

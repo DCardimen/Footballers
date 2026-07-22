@@ -6,9 +6,11 @@ Chromium is launched from `/opt/pw-browsers/chromium` (pre-installed; no
 `playwright install` needed). Every check prints JSON plus a `page errors`
 line — treat any page error as a failure even if the numbers look right.
 
-`movementcheck.mjs` is the exception: it loads the pure choreography/FieldSim
-block directly in Node, needs no browser or dev server, and can compare an older
-revision with `node scripts/movementcheck.mjs --git-ref=<commit>`.
+`movementcheck.mjs` and `equaltalentcheck.mjs` are the exceptions. The movement
+check loads the pure choreography/FieldSim block directly in Node and can compare
+an older revision with `node scripts/movementcheck.mjs --git-ref=<commit>`.
+The equal-talent check launches Chromium but injects the real engine directly,
+so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 
 ## Checks (assert game behavior)
 
@@ -19,6 +21,7 @@ revision with `node scripts/movementcheck.mjs --git-ref=<commit>`.
 | `tacklecheck.mjs` | Solo/gang tackle split (~70/30 target) and whiff / truck / stiff-arm / stagger / big-hit rates across ~3,000 run plays. |
 | `jukecheck.mjs` | Stat gaps drive evasion: one-on-one juke probability across superstar/scrub matchups. |
 | `simcheck.mjs` | Batch-runs the emergent game engine (`window.__simGameV2`) — score, pace, and yardage distributions. |
+| `equaltalentcheck.mjs` | Loads the real full-game engine with exact mirrored rosters and asserts fair wins, realistic scoring, YPC, completion/YPA, interceptions, sacks, and blowout frequency. Runs without a dev server. |
 | `realismprobe.mjs` | The v30 realism dashboard over 60 full games: yards-per-carry + run-distance histogram, sacks/scrambles, punts vs FG attempts, penalty counts BY TYPE (holding/DPI/face-mask are flag-on-the-play), and average scores. Run after any tuning that touches the run game, kicking decisions, or penalties. |
 | `movementcheck.mjs` | Ten seeded 120-play batches (1,200 plays total): exact sideline spots, no out-of-field frames, first-frame offensive TD/pick-six crossings, route-break reactions, directional cuts/bad angles, low/mid/elite acceleration curves, and run/pass/YAC stability. Pure Node; no server required. |
 | `renderpathcheck.mjs` | Fraction of plays rendering from the FieldSim agent log vs falling back to the legacy choreographer (healthy: ~87–90%). Run when sim changes don't show on screen. |
