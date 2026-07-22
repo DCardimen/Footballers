@@ -55,6 +55,56 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v30 — the 8-item realism pass (measured with the new `scripts/realismprobe.mjs`).**
+  **(1) No phantom tacklers:** an out-of-bounds/whistle finish only credits a defender
+  genuinely at the ball (`tackleCreditPx`) — otherwise the tackle event names no one and
+  no stat is granted. **(2) Real fatigue:** collisions now burn gas on both players
+  (`gasHitCostC/D`), and GAME WEAR permanently sinks each player's tank ceiling with
+  accumulated workload (`wearK`/`wearMax`, slower for high stamina) — fourth-quarter legs
+  are genuinely heavier; wear resets each game. **(3) Run game lifted from 2.6 → ~4.7-5
+  ypc** (team rush 50 → ~70-95): the v16.1 synthetic gash promotion is halved now that the
+  sim breaks its own long runs, offset by a SAFETY ROOF (the deep safety stays a cushion
+  over the ball until the runner is truly through, `safetyRoofLx`/`safetyCushion`) and a
+  LAST-MAN RULE (the deepest live defender always runs the textbook angle — busted
+  pursuit can't auto-house). **(4) Sacks ~2.3/team and scrambles ~1.4/team per game**
+  (from 1.2/0.75) via the trench-roll bases. **(5) Tackle finishes:** both-fall 73% → ~32%
+  and big hits 14% → ~7%; a tackler who clearly wins the wrap now STAYS ON HIS FEET
+  (`stayUp` on the tackle event; the renderer holds his grab standing over the runner).
+  **(6) Edge contain:** wide defenders hold outside leverage and funnel runs back inside
+  until the carrier clears the box; low discipline abandons the assignment
+  (`containWideY/LxMax/Depth/Wide`). **(7) Kicking game:** legs are `42 + level·17` yards
+  and accuracy floors are realistic — FG attempts up ~2.5×, punts 13.9 → ~10 per game.
+  **(8) Flag-on-the-play penalties:** the sim records what an official could have flagged
+  (a blocker beaten instantly = HOLDING candidate, tight contact on an incomplete deep
+  ball = DPI candidate, a wrap from dead behind = FACE MASK candidate) and the game layer
+  rolls the call (`holdFlagP`/`dpiFlagP`/`fmFlagP`) — holding is now the most common flag
+  and every in-play penalty names a player who did something real; the random pre-play
+  block is reduced to genuine pre-snap fouls. Invariants: `creditcheck` 0 violations,
+  `statcreditcheck` clean, render path 87-91%.
+
+- **v29 — tackling realism pass: solo-first stops, pursuit IQ, overshoot, pile strength,
+  held wraps, broadcast lighting.** Measured with `tacklecheck.mjs`: stops were 64%
+  gang piles; they are now **67% solo** — gang odds start low (`gangOpen`/`gangBox`) and
+  only climb with genuine hands on the carrier, while support holds a leverage spot a
+  full stride off the tackle (`supportHold`) instead of stacking the pile (the
+  choreographer fallback's pushback scrum is likewise gated to short-yardage concepts,
+  `pilePushP`). Pursuit angles are now stat-driven: awareness + discipline roll one
+  signed per-play angle error (`angleErrK`) — elite defenders run near-perfect intercept
+  lines, low-IQ defenders overrun the spot or take a chase angle, plus a lateral
+  misjudgment (`angleLatPx`) that fades as the gap closes. A defender beaten by a juke,
+  spin, or cutback no longer freezes: his momentum carries him PAST the move
+  (`overshootMs`) before he can gather and re-pursue. When a stop IS a group push, raw
+  strength now dominates: the combined grip of every wrapper vs the carrier's power
+  (`pileStrK`) swings the collision, and a carrier who wins that contest churns the pile
+  forward for extra yards (`pileDriveK`). Renderer: the wrap-up GRAB is held for the
+  whole drag/drive/knockback fight (`grabHoldMs`/`grabHoldK`, `wrapGrabMs`) instead of a
+  150 ms blink, and an assisted stop shows the support man latching on before joining
+  the pile. The LOS/first-down stripes run to the broadcast edge (`lineExtend`), and
+  players get dynamic lighting — ambient falls off into the far field (`lightDepth`)
+  with a soft spotlight riding the ball (`lightSpotR`/`lightAmb`), quantized so the
+  canvas tint path isn't thrashed. Invariants re-verified: `creditcheck` 0 violations,
+  `statcreditcheck` clean, `simcheck` distributions unchanged, render path 84–91%.
+
 - **v28.1 — defense no longer plays a whole game as white fallback figures.**
   `ribSyncOpp` cached the opponent name globally and early-returned when it hadn't
   changed — but the live view remounts the Phaser game, wiping every texture while the
