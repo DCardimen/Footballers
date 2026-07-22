@@ -55,6 +55,17 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v36 — hand-mounted football and real rotation dynamics.** Possessed balls now
+  sit on a visible carrying arm instead of rendering through a player's center;
+  the QB keeps the ball in one throwing hand through tuck, cock, extension, and
+  release, with a short hand-to-flight blend that removes the center-point snap.
+  Airborne footballs keep their nose on the velocity vector while the laces,
+  seam, highlight, and profile roll around the long axis at bullet-, touch-, or
+  lob-specific rates. Tips wobble, kicks and fumbles turn end-over-end, held-ball
+  shadows are suppressed, and carrier-facing depth decides whether the ball sits
+  just in front of or behind the torso. This is a presentation-only pass: play
+  outcomes, catches, turnovers, yardage, and scoring are unchanged.
+
 - **v33 — read, throw, and location-driven passing.** QBs now scan a
   rating-limited progression and grade each visible throwing window green,
   yellow, or red before deciding; awareness expands the scan and reduces bad

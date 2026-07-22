@@ -581,7 +581,11 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       if(ballFlight){
         const flight=ballFlight;
         const f=Math.max(0,Math.min(1,(t-flight.t0)/Math.max(1,flight.dur)));
-        bx=flight.x0+(flight.x1-flight.x0)*f; by=flight.y0+(flight.y1-flight.y0)*f;
+        // Real throws leave fastest and give up a little speed to drag. The style only
+        // changes visual progress; arrival time and the resolved play stay identical.
+        const drag=flight.style==="bullet"?.04:flight.style==="lob"?.13:.08;
+        const q=f*(1+drag-drag*f);
+        bx=flight.x0+(flight.x1-flight.x0)*q; by=flight.y0+(flight.y1-flight.y0)*q;
         bh=Math.sin(f*Math.PI)*flight.arc;
         if(f>=1&&!flight.landed){
           flight.landed=true; const fin=flight.onLand;
@@ -628,9 +632,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const safeY=Number.isFinite(toY)?toY:origin.y;
       // A fresh immutable flight state for every throw prevents a previous pass
       // from leaking stale start/end coordinates into the next animation.
-      ballFlight={id:(ballFlightSeq=(ballFlightSeq||0)+1),t0:t,dur:safeDur,x0:origin.x,y0:origin.y,x1:safeX,y1:safeY,arc:Math.max(4,Math.min(42,Number(arc)||18)),onLand,landed:false};
+      const style=Number(arc)>=44?"lob":Number(arc)<=24?"bullet":"touch";
+      ballFlight={id:(ballFlightSeq=(ballFlightSeq||0)+1),t0:t,dur:safeDur,x0:origin.x,y0:origin.y,x1:safeX,y1:safeY,arc:Math.max(4,Math.min(42,Number(arc)||18)),style,onLand,landed:false};
       ballPos={x:origin.x,y:origin.y,h:0};
-      emit("throw",{x:origin.x,y:origin.y,tx:safeX,ty:safeY,flightId:ballFlight.id});
+      emit("throw",{x:origin.x,y:origin.y,tx:safeX,ty:safeY,style,flightId:ballFlight.id});
     }
     function startRAC(id, fromX, fromY){
       ballCarrier=id; racStart=t; commitT=Math.min(commitT,t);
@@ -1493,12 +1498,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const emit = (type, extra) => events.push(Object.assign({ t, type }, extra));
     const rec = () => { S.all.forEach(a=>a.frames.push({t, x:Math.round(a.lx*10)/10, y:Math.round(a.y*10)/10}));
       if (ballFlight) { const f=Math.min(1,(t-ballFlight.t0)/ballFlight.dur);
-        // v33: the three pass families do not travel at one constant screen speed.
-        // Bullets get on the receiver quickly, touch throws build smoothly, and
-        // lobs hang; every trajectory still arrives at the resolved field location.
-        const q = ballFlight.style==="bullet" ? f*f*(3-2*f)
-          : ballFlight.style==="lob" ? 1-Math.pow(1-f,1.18)
-          : f*f*(2.6-1.6*f);
+        // v36: the football starts fastest and loses a style-specific amount of
+        // longitudinal speed to drag. Arrival time and outcome callbacks are unchanged.
+        const drag=ballFlight.style==="bullet"?.04:ballFlight.style==="lob"?.13:.08;
+        const q=f*(1+drag-drag*f);
         ball={ lx: ballFlight.x0+(ballFlight.x1-ballFlight.x0)*q, y: ballFlight.y0+(ballFlight.y1-ballFlight.y0)*q,
                h: Math.sin(f*Math.PI)*ballFlight.arc };
         if(f>=1){ const cb=ballFlight.done; ballFlight=null; cb&&cb(); } }
@@ -3059,7 +3062,9 @@ class Ot extends mt.Scene {
       if (script.meta.targetRoute) this.routeLine(script.meta.targetRoute, feat.isMe && ["WR","TE","RB"].includes(et.playerPos));
       this.trail.clear();
       const big = Math.abs(Number(et.yards ?? 0)) >= 15 || et.scored || /INTERCEPT|FUMBLE/i.test(String(et.desc||""));
-      this.play = { script, t: 0, evIdx: 0, done: false, payload: et, featIdx: feat.index, lastTrail: 0, carrierId: null, delay: glide ? (this._jogDelay || 420) : 0, big };
+      this.play = { script, t: 0, evIdx: 0, done: false, payload: et, featIdx: feat.index, lastTrail: 0,
+        carrierId: null, ballHolderId: null, ballMode: "ground", ballStyle: "touch",
+        delay: glide ? (this._jogDelay || 420) : 0, big };
       // v15.14: never inherit football interpolation/spiral state from a prior play.
       this.play._pbx = null; this.play._pby = null; this.play.lastBallDot = 0;
       this.play.__ballTokenV1514 = (Date.now() + Math.random()).toString(36);
@@ -3186,6 +3191,7 @@ class Ot extends mt.Scene {
       const col = frac > 0.5 ? 0x5fce74 : frac > 0.25 ? 0xf0bb45 : 0xe0645a;
       this.sprintBars.fillStyle(col, 0.95).fillRect(bx, by, w * frac, h);
     });
+    /* ===== v36 HAND-MOUNTED FOOTBALL + FLIGHT ROTATION ===== */
     // ball
     const bf = Array.isArray(S.ball) ? S.ball : [], bn = bf.length;
     const validBallFrame = f => !!f && Number.isFinite(Number(f.x)) && Number.isFinite(Number(f.y)) && Number.isFinite(Number(f.h));
@@ -3211,31 +3217,81 @@ class Ot extends mt.Scene {
       const bgx = Number(BA.x) + (Number(BB.x) - Number(BA.x)) * safeFrac,
         bgy = Number(BA.y) + (Number(BB.y) - Number(BA.y)) * safeFrac;
       const bpp = PJ(Number.isFinite(bgx) ? bgx : Number(BA.x), Number.isFinite(bgy) ? bgy : Number(BA.y));
-      // v27: REAL arc height — throws climb far above the field (was capped at 26px) and
-      // the ball swells slightly at the top of its flight, selling the vertical.
+      // v36 BALL OWNERSHIP + ROTATION. A possessed football is mounted to one hand,
+      // never the actor's center point. In the air its nose follows the velocity vector
+      // while the laces roll around that axis; tips and loose balls tumble instead.
       const airY = Math.min(TU("ballAirCap", 64), bh * TU("ballAirK", 0.8)) * bpp.s;
       const airSw = bh > 2 ? 1 + Math.min(0.45, bh / 150) : 1;
-      this.ballSpr.setPosition(bpp.x, bpp.y - airY);
-      this.ballSpr.setScale((P.carrierId != null && bh <= 1 ? 0.46 : 0.62) * airSw * bpp.s, (P.carrierId != null && bh <= 1 ? 0.34 : 0.44) * airSw * bpp.s);
-      this.ballSpr.setDepth(bh > 2 ? 20 : 9);
-      // carried balls tuck small against the runner; flight balls fly big and spiral
-      // v10: TIGHT SPIRAL — the ball noses along its flight path with a fast subtle roll
-      if (bh > 2) {
-        if (P._pbx != null) {
-          const bang = Math.atan2(this.ballSpr.y - P._pby, this.ballSpr.x - P._pbx);
-          this.ballSpr.rotation = bang;
+      const mode = P.ballMode || (bh > 2 ? "flight" : "ground");
+      const flight = bh > 2 || mode === "flight" || mode === "tip" || mode === "kick";
+      const loose = !!P.__looseBall || mode === "loose" || mode === "bounce";
+      const holder = !flight && !loose && P.ballHolderId != null ? this.markers[P.ballHolderId] : null;
+      let ballX = bpp.x, ballY = bpp.y - airY, ballDepth = flight ? 20 : loose ? 30 : 9;
+      let baseSX = (flight ? 0.58 : loose ? 0.52 : 0.40) * airSw * bpp.s;
+      let baseSY = (flight ? 0.52 : loose ? 0.45 : 0.36) * airSw * bpp.s;
+      if (mode === "bounce") {
+        const age = Math.max(0, P.t - (P.ballReleaseAt || P.t)), decay = Math.max(0, 1 - age / 720);
+        ballX += (P.ballBounceDir || 1) * Math.min(18, age * 0.024) * bpp.s;
+        ballY -= Math.abs(Math.sin(age / 92)) * 13 * decay * bpp.s;
+      }
+      if (holder && holder.root) {
+        const sc = holder.root.scale || bpp.s || 1, rightHand = holder._rib20Traits?.handed !== "left";
+        const sideView = holder.dirKey === "sd", rear = holder.dirKey === "up" || holder.dirKey === "ur";
+        const facingX = sideView || holder.dirKey === "dr" || holder.dirKey === "ur" ? (holder.flip ? 1 : -1) : 0;
+        // Anatomical right appears screen-left from the front and screen-right from behind.
+        let handX = sideView ? facingX : (rightHand === rear ? 1 : -1);
+        let ox = handX * (holder.posLabel === "QB" ? 8.5 : 7.2), oy = holder.posLabel === "QB" ? -3.5 : -1.5;
+        if (holder.posLabel === "QB" && holder.forceState === "throwSeq") {
+          const wp = Math.max(0, Math.min(1, (holder.tms - (holder.seqT || holder.tms)) / 430));
+          // One throwing arm: tuck -> cock beside the helmet -> extend through release.
+          const cock = Math.sin(Math.min(1, wp / 0.58) * Math.PI * 0.5);
+          const follow = Math.max(0, (wp - 0.58) / 0.42);
+          ox = handX * (8.5 + cock * 2.2) + facingX * follow * 5.5;
+          oy = -3.5 - cock * 7.2 + follow * 5.2;
         }
-      } else if (P.carrierId) this.ballSpr.rotation = -0.12 * VDIR;
-      else this.ballSpr.rotation = 0;
+        ballX = holder.root.x + ox * sc; ballY = holder.root.y + oy * sc;
+        // A back-facing carry sits just behind the torso plane; front/side carries sit
+        // just above it. The lateral hand offset keeps either case out of the body core.
+        ballDepth = holder.root.depth + (rear ? -0.06 : 0.08);
+        baseSX = 0.40 * sc; baseSY = 0.36 * sc;
+      }
+      // The first frames leave the actual throwing hand, rather than snapping from the
+      // hand to the QB's center-based simulation coordinate.
+      if (flight && P.ballReleasePos && P.ballReleaseAt != null) {
+        const age = Math.max(0, P.t - P.ballReleaseAt), rf = Math.min(1, age / TU("ballReleaseBlendMs", 135));
+        const rq = rf * rf * (3 - 2 * rf);
+        ballX = P.ballReleasePos.x + (ballX - P.ballReleasePos.x) * rq;
+        ballY = P.ballReleasePos.y + (ballY - P.ballReleasePos.y) * rq;
+      }
+      this.ballSpr.setPosition(ballX, ballY).setScale(baseSX, baseSY).setDepth(ballDepth);
+      if (flight && mode !== "kick") {
+        if (P._pbx != null && Math.hypot(ballX - P._pbx, ballY - P._pby) > 0.18) {
+          const target = Math.atan2(ballY - P._pby, ballX - P._pbx);
+          if (!Number.isFinite(P._ballNoseAngle)) P._ballNoseAngle = target;
+          let da = target - P._ballNoseAngle; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
+          P._ballNoseAngle += da * 0.42;
+        }
+        const wobble = mode === "tip" ? Math.sin(P.t * 0.036) * 0.22 : Math.sin(P.t * 0.014) * 0.015;
+        this.ballSpr.rotation = (P._ballNoseAngle || 0) + wobble;
+      } else if (mode === "kick" || loose) {
+        const rate = mode === "kick" ? 0.017 : 0.021;
+        this.ballSpr.rotation = (P._ballTumbleBase || 0) + (P.t - (P.ballReleaseAt || 0)) * rate * VDIR;
+      } else if (holder) {
+        const rear = holder.dirKey === "up" || holder.dirKey === "ur";
+        this.ballSpr.rotation = rear ? 0.34 : holder.dirKey === "dn" || holder.dirKey === "dr" ? -0.34 : (holder.flip ? 0.14 : -0.14);
+        P._ballNoseAngle = null;
+      } else this.ballSpr.rotation = 0;
       if (!Number.isFinite(this.ballSpr.x) || !Number.isFinite(this.ballSpr.y)) {
         this.ballSpr.setPosition(bpp.x, bpp.y);
       }
       P._pbx = this.ballSpr.x; P._pby = this.ballSpr.y;
       if (window.__RIB20_syncFootballFx) window.__RIB20_syncFootballFx(this, P, bh);
-      if (this.ballShad) { this.ballShad.setPosition(bpp.x, bpp.y + 3 * bpp.s);
-        this.ballShad.setScale(Math.max(0.35, 1 - bh / 90) * bpp.s); this.ballShad.setAlpha(bh > 1 ? 0.28 : 0.36); }
-      if (bh > 3 && T - (P.lastBallDot || 0) > 50) { P.lastBallDot = T;
-        this.trail.fillStyle(0xffffff, 0.10).fillEllipse(bpp.x, bpp.y - airY, 5, 1.5); }
+      if (this.ballShad) { this.ballShad.setPosition(bpp.x, bpp.y + 3 * bpp.s).setVisible(!holder);
+        this.ballShad.setScale(Math.max(0.28, 1 - bh / 90) * bpp.s); this.ballShad.setAlpha(bh > 1 ? 0.25 : 0.32); }
+      if (flight && T - (P.lastBallDot || 0) > 50) { P.lastBallDot = T;
+        if (P._trailBallX != null) this.trail.lineStyle(P.ballStyle === "bullet" ? 1.7 : 1.2, 0xe8c39a, P.ballStyle === "bullet" ? 0.17 : 0.11).lineBetween(P._trailBallX, P._trailBallY, ballX, ballY);
+        this.trail.fillStyle(0xffffff, 0.08).fillEllipse(ballX, ballY, 4.5, 1.3); P._trailBallX = ballX; P._trailBallY = ballY;
+      } else if (!flight) { P._trailBallX = null; P._trailBallY = null; }
       // catch anticipation: the target raises his hands as the ball arrives
       if (P.awaitCatch2 != null && bh > 1) {
         const tm2 = this.markers[P.awaitCatch2];
@@ -3319,6 +3375,7 @@ class Ot extends mt.Scene {
       case "catch": {
         this.clearLand();
         P.carrierId = this.actorIdx(e.by);
+        P.ballHolderId = P.carrierId; P.ballMode = "held"; P.__looseBall = false;
         // the contesting defender lost the ball battle — he stumbles out of the rep
         if (P.contestDef != null && P.contestDef !== P.carrierId) {
           const lm = this.markers[P.contestDef];
@@ -3337,8 +3394,8 @@ class Ot extends mt.Scene {
         vib(30);
         break;
       }
-      case "handoff": P.carrierId = 9; break;
-      case "windup": { const qb = this.markers[8]; if (qb) { qb.forceState = "throwSeq"; qb.seqT = qb.tms; } break; }
+      case "handoff": P.carrierId = 9; P.ballHolderId = 9; P.ballMode = "held"; break;
+      case "windup": { P.ballHolderId = 8; P.ballMode = "held"; const qb = this.markers[8]; if (qb) { qb.forceState = "throwSeq"; qb.seqT = qb.tms; } break; }
       case "contest": { P.awaitCatch2 = this.actorIdx(e.def); P.contestDef = P.awaitCatch2; break; }
       case "handfight": {
         const om=this.markers[this.actorIdx(e.off)], dm=this.markers[this.actorIdx(e.def)];
@@ -3355,11 +3412,13 @@ class Ot extends mt.Scene {
         break;
       }
       case "snap": { P.snapped = true; if (this.previewG) this.previewG.clear();
+        P.ballHolderId = 8; P.ballMode = "held";
         if (this.previewTxt) { this.previewTxt.forEach(t => t && t.destroy && t.destroy()); this.previewTxt = []; }
         this.markers.forEach((m) => { if (m.forceState === "stance") m.forceState = null; }); break; }
       case "pick": {
         this.clearLand();
         P.carrierId = this.actorIdx(e.by);
+        P.ballHolderId = P.carrierId; P.ballMode = "held"; P.__looseBall = false;
         // the receiver lost this one — beaten at the catch point
         if (P.contestDef != null) {
           const lw = this.markers[P.contestDef === P.carrierId ? -1 : P.contestDef];
@@ -3573,7 +3632,9 @@ class Ot extends mt.Scene {
       }
       case "incomplete": {
         this.clearLand(); P.awaitCatch2 = null; P.contestDef = null;
-        this.popText(e.x, e.y - 24, "INCOMPLETE", "#ff9fa5", 15); this.bounceBall(e.x, e.y);
+        P.ballHolderId = null; P.ballMode = "bounce"; P.ballReleaseAt = P.t; P._ballTumbleBase = this.ballSpr?.rotation || 0;
+        P.ballBounceDir = ((P.ballSpr?.x || 0) < PJ(e.x, e.y).x ? 1 : -1);
+        this.popText(e.x, e.y - 24, "INCOMPLETE", "#ff9fa5", 15);
         const ti = P.script.meta.targetId ? this.actorIdx(P.script.meta.targetId) : -1;
         const m = this.markers[ti];
         if (m) { const ip = PJ(e.x, e.y + 8); this.tweens.add({ targets: m.root, x: ip.x, y: ip.y, duration: 200 }); m.sx = e.x; m.sy = e.y + 8; }
@@ -3653,6 +3714,7 @@ class Ot extends mt.Scene {
         this.popText(e.x, e.y - 26, "FUMBLE!", "#ff6b52", 19);
         REDUCED_MOTION || this.cameras.main.shake(200, 0.009);
         P.carrierId = null;
+        P.ballHolderId = null; P.ballMode = "loose"; P.ballReleaseAt = P.t; P._ballTumbleBase = this.ballSpr?.rotation || 0;
         P.__looseBall = true;
         if (window.__RIB20_onFumble) window.__RIB20_onFumble(this, P, e);
         break;
@@ -3662,14 +3724,15 @@ class Ot extends mt.Scene {
         if (m) this.flash(m.sx, m.sy, 0xff6b52);
         this.popText(e.x, e.y - 24, "RECOVERED — " + (e.side === "def" ? "DEFENSE" : "OFFENSE") + "!", "#f7e2a8", 15);
         P.__looseBall = false;
+        P.ballHolderId = this.actorIdx(e.by); P.ballMode = "held";
         if (window.__RIB20_onRecovery) window.__RIB20_onRecovery(this, P, e);
         break;
       }
       case "fgResult": this.popText(e.x, e.y, e.good ? "IT'S GOOD!" : "NO GOOD", e.good ? "#57e07a" : "#ff9fa5", 19);
         if (e.good) REDUCED_MOTION || this.cameras.main.shake(140, 0.004); break;
-      case "puntCatch": { P.carrierId = this.actorIdx(e.by); this.flash(e.x, e.y, 0xffffff); break; }
+      case "puntCatch": { P.carrierId = this.actorIdx(e.by); P.ballHolderId = P.carrierId; P.ballMode = "held"; this.flash(e.x, e.y, 0xffffff); break; }
       case "faircatch": this.popText(e.x, e.y - 20, "FAIR CATCH", "#93a0b1", 13); break;
-      case "scramble": { P.carrierId = 8; this.popText(e.x, e.y - 22, "SCRAMBLING!", "#8fe7ff", 13); break; }
+      case "scramble": { P.carrierId = 8; P.ballHolderId = 8; P.ballMode = "held"; this.popText(e.x, e.y - 22, "SCRAMBLING!", "#8fe7ff", 13); break; }
       case "toetap": this.popText(e.x, e.y - 18, "TOE TAP!", "#57e07a", 13); break;
       case "wrap": {
         this.popText(e.x, e.y - 18, e.gang ? "GANG WRAP — DRAGGED DOWN!" : "WRAPPED UP", e.gang ? "#ffb08a" : "#93a0b1", e.gang ? 13 : 11);
@@ -3686,7 +3749,8 @@ class Ot extends mt.Scene {
       // v23: a defender has broken through and is bearing down on the QB — flag him
       // so the player sees the scramble/sack coming a beat early.
       case "pressureAlert": case "freeRusher": { const m = this.markers[this.actorIdx(e.who)]; if (m) this.alertMark(m, true); break; }
-      case "tip": { this.flash(e.x, e.y, 0xffffff); this.popText(e.x, e.y - 20, "TIPPED!", "#f7e2a8", 13); break; }
+      case "tip": { P.ballMode = "tip"; P.ballHolderId = null; P._ballNoseAngle = this.ballSpr?.rotation || P._ballNoseAngle;
+        this.flash(e.x, e.y, 0xffffff); this.popText(e.x, e.y - 20, "TIPPED!", "#f7e2a8", 13); break; }
       case "pull": break;
       case "stunt": break;
       case "shell": break;
@@ -3711,6 +3775,11 @@ class Ot extends mt.Scene {
       }
       case "throw": {
         P.lookIdx = null; if (this.lookG) this.lookG.clear();
+        P.ballReleasePos = this.ballSpr ? { x: this.ballSpr.x, y: this.ballSpr.y } : null;
+        P.ballReleaseAt = P.t; P.ballHolderId = null; P._ballNoseAngle = null; P._ballTumbleBase = this.ballSpr?.rotation || 0;
+        const kicking = /^(fg|punt|kickoff|xp)$/i.test(String(pay.event || ""));
+        P.ballMode = kicking ? "kick" : "flight";
+        P.ballStyle = e.style || (kicking ? "kick" : Math.abs(Number(pay.yards || 0)) >= 18 ? "lob" : Math.abs(Number(pay.yards || 0)) <= 7 ? "bullet" : "touch");
         this.clearAlerts();   // v23: ball's out — the scramble warning is moot
         const ti = e.to ? this.actorIdx(e.to) : (P.script.meta.targetId ? this.actorIdx(P.script.meta.targetId) : -1);
         if (ti >= 0) P.awaitCatch = ti;
@@ -6797,7 +6866,7 @@ function recreateBall(scene,force){
   if(!projected||![projected.x,projected.y,projected.s].every(finite))return false;
   if(force||!objectValid(scene.ballSpr)){
     safeDestroy(scene.ballSpr); scene.ballSpr=null;
-    try{scene.ballSpr=scene.add.image(projected.x,projected.y,'spr_ball').setScale(.43*Math.max(.45,projected.s||1),.25*Math.max(.45,projected.s||1)).setDepth(9)}catch(e){console.warn('[v15.13 ball recreate]',e);return false}
+    try{scene.ballSpr=window.__RIB20_createFootball?window.__RIB20_createFootball(scene,projected.x,projected.y):scene.add.image(projected.x,projected.y,'spr_ball').setScale(.43*Math.max(.45,projected.s||1),.25*Math.max(.45,projected.s||1)).setDepth(9)}catch(e){console.warn('[v15.13 ball recreate]',e);return false}
   }
   if(force||!objectValid(scene.ballShad)){
     safeDestroy(scene.ballShad);scene.ballShad=null;
@@ -7206,7 +7275,11 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     const lace=scene.add.graphics();lace.lineStyle(.9,0xffffff,.96);for(let i=-3.5;i<=3.5;i+=1.75)lace.strokeLineShape(new Phaser.Geom.Line(i,-1.7,i,1.7));
     const stripe1=scene.add.rectangle(-7.3,0,1,8.5,0xf5f1df,.88),stripe2=scene.add.rectangle(7.3,0,1,8.5,0xf5f1df,.88);
     const ball=scene.add.container(x,y,[shell,stripe1,stripe2,shine,seam,lace]).setDepth(19);
-    ball.name="rib21-sleek-football";ball.__rib20Football=true;ball.__rib21Football=true;ball.__baseWidth=24;ball.__baseHeight=12;ball.setVisible(true).setAlpha(1);return ball;
+    ball.name="rib21-sleek-football";ball.__rib20Football=true;ball.__rib21Football=true;ball.__baseWidth=24;ball.__baseHeight=12;
+    // Child references let the renderer roll the laces around the long axis while
+    // keeping the pointed nose aligned to the actual flight path.
+    ball.__shell=shell;ball.__shine=shine;ball.__seam=seam;ball.__lace=lace;ball.__stripes=[stripe1,stripe2];
+    ball.setVisible(true).setAlpha(1);return ball;
   };
   window.__RIB20_onFumble=function(scene,P,e){
     if(!scene||!P)return;
@@ -7217,12 +7290,27 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   };
   window.__RIB20_syncFootballFx=function(scene,P,bh){
     if(!scene||!P||!scene.ballSpr)return;
-    scene.ballSpr.setVisible(true).setAlpha(1);
+    const ball=scene.ballSpr;ball.setVisible(true).setAlpha(1);
+    const mode=P.ballMode||"ground",spiral=mode==="flight"||mode==="tip";
+    if(ball.__lace&&ball.__seam&&ball.__shell){
+      if(spiral){
+        const rate=P.ballStyle==="bullet"?.072:P.ballStyle==="lob"?.038:.052;
+        const phase=Math.max(0,P.t-(P.ballReleaseAt||0))*rate, face=Math.cos(phase), edge=Math.abs(face);
+        ball.__shell.setScale(1,.88+edge*.12);
+        ball.__lace.setY(Math.sin(phase)*1.7).setScale(1,.24+edge*.76).setAlpha(.18+Math.max(0,face)*.82);
+        ball.__seam.setY(Math.sin(phase)*1.15).setAlpha(.22+edge*.72);
+        if(ball.__shine)ball.__shine.setY(-2.8+Math.sin(phase)*1.25).setAlpha(.20+edge*.28);
+        if(ball.__stripes)ball.__stripes.forEach(s=>s.setScale(1,.42+edge*.58).setAlpha(.42+edge*.46));
+      }else{
+        ball.__shell.setScale(1,1);ball.__lace.setPosition(0,0).setScale(1,1).setAlpha(.96);ball.__seam.setY(0).setAlpha(1);
+        if(ball.__shine)ball.__shine.setY(-2.8).setAlpha(.42);
+        if(ball.__stripes)ball.__stripes.forEach(s=>s.setScale(1,1).setAlpha(.88));
+      }
+    }
     if(P.__looseBall){
-      scene.ballSpr.setDepth(30);
-      scene.ballSpr.setScale(Math.max(scene.ballSpr.scaleX||0,.54),Math.max(scene.ballSpr.scaleY||0,.38));
+      ball.setDepth(30);
       if(P.__rib20Glow&&P.__rib20Glow.active){
-        P.__rib20Glow.setPosition(scene.ballSpr.x,scene.ballSpr.y+4).setScale(1+Math.sin(P.t/85)*.12).setVisible(true);
+        P.__rib20Glow.setPosition(ball.x,ball.y+4).setScale(1+Math.sin(P.t/85)*.12).setVisible(true);
       }
     }
   };
@@ -7263,7 +7351,10 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       rearNumbersVisible:ms.filter(m=>m&&m._ribRearFacing&&m.label&&m.label.visible).length,
       rearApparelVisible:ms.filter(m=>m&&m._ribRearApparelVisible).length,
       sideNumbersVisible:ms.filter(m=>m&&m.dirKey==='sd'&&m._spdPx>18&&m.label&&m.label.visible).length,
-      coveragePlan:sc&&sc.play&&sc.play.script&&sc.play.script.meta&&sc.play.script.meta.coveragePlan||null
+      coveragePlan:sc&&sc.play&&sc.play.script&&sc.play.script.meta&&sc.play.script.meta.coveragePlan||null,
+      ballMode:sc&&sc.play&&sc.play.ballMode||null,ballHolderId:sc&&sc.play&&sc.play.ballHolderId,
+      handMountedBall:!!(sc&&sc.play&&sc.play.ballHolderId!=null&&ball&&sc.markers&&sc.markers[sc.play.ballHolderId]
+        &&Math.abs(ball.x-sc.markers[sc.play.ballHolderId].root.x)>2)
     });
   };
   window.__GRIDIRON_BUILD__="15.21-sleek-ball-coverage-ai";
@@ -7271,7 +7362,8 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     version:"15.21",cleanPhaserRuntime:true,responsivePhaserCanvas:true,vectorFootball:true,
     sleekFootballV1521:true,persistentPlayerAppearance:true,rearFacingNumbersV1521:true,
     rearFacingApparelV1521:true,sideRunNumbersHidden:true,naturalFumblePursuit:true,
-    linebackerPassDropsV1521:true,receiverBracketCoverageV1521:true,continuousCornerCoverageV1521:true
+    linebackerPassDropsV1521:true,receiverBracketCoverageV1521:true,continuousCornerCoverageV1521:true,
+    handMountedFootballV36:true,longAxisSpiralV36:true,ballisticDragV36:true
   });
 })();
 </script>
@@ -7284,7 +7376,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     contactSlow: 0.5, pileFloor: 0.34, dtPush: 0.74, pancakeRun: 0.07, pancakePass: 0.04, stunMs: 1450,
     jogSpeed: 340, trailMin: 170, blockBand: 78, blockFrameMs: 170, hitStopBig: 80,
     zoomPlay: 1.34, zoomBig: 1.04, diveChance: 0.4, finishPop: 2.0,
-    ballAirCap: 64, ballAirK: 0.8, camLeadMs: 420, camLeadMax: 130,
+    ballAirCap: 64, ballAirK: 0.8, ballReleaseBlendMs: 135, camLeadMs: 420, camLeadMax: 130,
     perspZoomK: 0.78, zoomLerp: 0.06,
     zoomLockMin: 0.6, zoomLockMax: 2.4, zoomLockLerp: 0.12,
     gangOpen: 0.10, gangBox: 0.24, gangHandsK: 0.24, pileStrK: 0.014, pileDriveK: 7,
