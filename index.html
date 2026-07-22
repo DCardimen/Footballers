@@ -217,7 +217,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const { PLAY_L, PLAY_R, F_TOP, F_BOT } = cfg.dims;
     const PLAY_W = PLAY_R-PLAY_L, YD = PLAY_W/100, MIDY=(F_TOP+F_BOT)/2;
     const clampX=(x)=>Math.max(PLAY_L-YD*9,Math.min(PLAY_R+YD*9,x));
-    const clampY=(y)=>Math.max(F_TOP+34,Math.min(F_BOT-30,y));
+    const SIDELINE_TOP=F_TOP+34, SIDELINE_BOT=F_BOT-30;
+    const clampY=(y)=>Math.max(SIDELINE_TOP,Math.min(SIDELINE_BOT,y));
 
     const usOff = payload.offense !== "them";
     const dir = usOff ? 1 : -1;
@@ -230,20 +231,25 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     // the carry covers exactly `yards` so the +N YD popup mirrors the sim.
     let effEndYd = endYd;
     const isKick0 = payload.event==="punt"||payload.event==="fg";
-    const isPick0 = String(payload.desc||"").toUpperCase().includes("INTERCEPT");
+    const isPick0 = !!payload.pickSix || /INTERCEPT|PICK SIX/.test(String(payload.desc||"").toUpperCase());
     const isFumble0 = String(payload.desc||"").toUpperCase().includes("FUMBLE");
     if (!isKick0 && !isPick0 && !isFumble0 && !payload.scored && Number.isFinite(yards)) {
       const statEnd = losYd + dir*yards;
       if (Math.abs(statEnd - endYd) > 3) effEndYd = Math.max(0, Math.min(100, statEnd));
     }
-    const reachedGoal = dir>0 ? effEndYd>=99.5 : effEndYd<=0.5;
+    // Interception returns travel toward the opposite goal from the offense.
+    // Keeping that direction explicit prevents pick-sixes from running through
+    // the wrong end zone before the scoring event appears.
+    const scoreDir = isPick0 ? -dir : dir;
+    if(payload.scored&&isPick0)effEndYd=scoreDir>0?100:0;
+    const reachedGoal = scoreDir>0 ? effEndYd>=99.5 : effEndYd<=0.5;
     const endX = fieldX(effEndYd);
     const firstDownYd = Math.max(0,Math.min(100, losYd + dir*(payload.preToGo ?? 10)));
     const firstDownX = fieldX(firstDownYd);
     // fumble spot: the stat marks yards gained before the ball came out
     const fumbleX = fieldX(Math.max(0,Math.min(100, losYd + dir*(Number.isFinite(yards)?yards:0))));
     const desc = String(payload.desc||"").toUpperCase();
-    const isSack = desc.includes("SACK"), isPick = desc.includes("INTERCEPT");
+    const isSack = desc.includes("SACK"), isPick = !!payload.pickSix || /INTERCEPT|PICK SIX/.test(desc);
     const isFumble = desc.includes("FUMBLE") && !isPick;
     const isPass = payload.event==="pass"||payload.event==="incomplete"||isPick;
     const isKick = payload.event==="punt"||payload.event==="fg";
@@ -554,7 +560,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const motionId = pick(["off0","off1","off10"].filter(id=>id!==targetId));
     const motionToY = clampY(A[motionId].y + (A[motionId].y>MIDY?-1:1)*R(96,150));
     // ---- timeline simulation ----
-    let t=0, phase="snap", done=false, motionDone=false, paDone=false, fdFired=false, brokenLeft=(fx.miss?1:0)+(Math.abs(yards)>=15?1:0);
+    let t=0, phase="snap", done=false, motionDone=false, paDone=false, fdFired=false, tdFired=false, brokenLeft=(fx.miss?1:0)+(Math.abs(yards)>=15?1:0);
     const snapT=640; let dropT=isPass? (concept==="deep"?1050:concept==="screen"?800:750) : (concept==="draw"?820:concept==="scramble"?540:380);
     let commitT=Infinity;         // when defense keys the ball
     let carrierPath=null, carrierLen=0, carrierD=0, maxCarrierD=0, carrierDone=false, returner=null, oobPlanned=false, wrapped=false, epiUntil=0, mobIds=null;
@@ -628,14 +634,14 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     }
     function startRAC(id, fromX, fromY){
       ballCarrier=id; racStart=t; commitT=Math.min(commitT,t);
-      const remaining = (endX-fromX)*dir;
-      const tx = isFumble ? fumbleX : (scored&&reachedGoal) ? (dir>0?PLAY_R+YD*5:PLAY_L-YD*5) : endX;
+      const remaining = (endX-fromX)*scoreDir;
+      const tx = isFumble ? fumbleX : (scored&&reachedGoal) ? (scoreDir>0?PLAY_R+YD*5:PLAY_L-YD*5) : endX;
       let oobTy = null;
       if(!scored && !isFumble && Math.abs(remaining)>YD*6 && rand()<0.22){
-        oobTy = rand()<0.5 ? F_TOP+37 : F_BOT-33;
+        oobTy = rand()<0.5 ? SIDELINE_TOP : SIDELINE_BOT;
       }
       const ty = oobTy!=null ? oobTy : clampY(fromY + R(-40,40)*(Math.abs(remaining)>60?1:0.4));
-      oobPlanned = oobTy!=null || ty<=F_TOP+40 || ty>=F_BOT-36;
+      oobPlanned = oobTy!=null;
       const useCuts = Math.abs(remaining)>YD*5 ? cuts : [];
       carrierPath = weavePath(fromX,fromY,tx,ty,useCuts);
       carrierLen = pathLen(carrierPath); carrierD=0; carrierDone=false;
@@ -660,7 +666,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     let shedId2=null; const shed2At = shedAt + TU("shed2Gap",280) + R(140,380);                             // and a second man can follow
     let flushT=0, flushBy=null, wound=false;
     let qbHitChase=0;
-    let flyConverge=null, flyConverge2=null;   // v13: WR and CB BOTH attack the ball   // v9: whoever will meet the ball steers to the landing spot ON TIME — no more catch teleports
+    let flyConverge=null, flyConverge2=null, flyHandfight=false, flyHighpoint=false;   // WR and CB both attack and contest the ball
     // v5: pancake plan — RARE and earned; flattening a rusher stuns him and frees the blocker to double-team
     let pancakePlan=null;
     if(!isKick&&!payload.penalty&&!isSack){
@@ -701,7 +707,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       }
     }
     // main loop
-    const HARD_CAP = 6000;
+    const HARD_CAP = scored ? 9000 : 7000;
     while(!done && t<HARD_CAP){
       const dt=TICK; t+=dt;
       // v4: a pass-rusher breaks free once the pocket has been collapsing long enough
@@ -740,6 +746,17 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         }
       }
       if(!ballFlight) flyConverge=null;
+      if(ballFlight&&flyConverge&&flyConverge2&&A[flyConverge]&&A[flyConverge2]){
+        const _bf=ballFlight, _left=Math.max(0,_bf.t0+_bf.dur-t);
+        const _a=A[flyConverge], _b=A[flyConverge2];
+        const _ad=Math.hypot(_bf.x1-_a.x,_bf.y1-_a.y), _bd=Math.hypot(_bf.x1-_b.x,_bf.y1-_b.y);
+        if(!flyHandfight&&_ad<38&&_bd<38&&_left>120){
+          flyHandfight=true; emit("handfight",{off:_a.side==="off"?_a.id:_b.id,def:_a.side==="def"?_a.id:_b.id,x:_bf.x1,y:_bf.y1});
+        }
+        if(!flyHighpoint&&_left<=260){
+          flyHighpoint=true; emit("highpoint",{off:_a.side==="off"?_a.id:_b.id,def:_a.side==="def"?_a.id:_b.id,x:_bf.x1,y:_bf.y1,deep:Math.abs(_bf.x1-_bf.x0)>YD*12});
+        }
+      }
       // v8: a second rusher can break free while the QB holds the ball
       if(shedId&&!shedId2&&t>=shed2At&&ballCarrier==="off8"&&isPass&&!isSack){
         let _p2=["def7","def8","def9","def10"].filter(id=>id!==shedId
@@ -826,9 +843,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           else {
             // throw to target's route end (or pick point)
             const rp=targetRoute[targetRoute.length-1];
-            let dur=Math.max(300, Math.hypot(rp.x-A.off8.x,rp.y-A.off8.y)*2.6);
+            let dur=Math.max(390, Math.hypot(rp.x-A.off8.x,rp.y-A.off8.y)*(concept==="deep"?5.25:4.35));
             // v9: the QB puts AIR under the ball so his man can get there — flight respects the receiver's distance
-            const strFly=(du,a2)=>Math.min(1500, Math.max(du, Math.hypot(rp.x-a2.x,rp.y-a2.y)*TU("leadAir",3.8)));
+            const strFly=(du,a2)=>Math.min(1800, Math.max(du, Math.hypot(rp.x-a2.x,rp.y-a2.y)*TU("leadAir",4.8)));
             const arc= concept==="deep"?64: concept==="screen"?10:34;
             if(isPick&&rand()<0.4){
               // tipped at the second level, then picked off
@@ -1069,6 +1086,17 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         });
         c.vx=(p.x-c.x)/dt*1000; c.vy=(p.y-c.y)/dt*1000;
         c.x=p.x; c.y=p.y;
+        // The instant the ball carrier breaks the plane is the touchdown. Stop
+        // the return/run choreography there instead of waiting for an arbitrary
+        // end-zone waypoint (especially important on pick-sixes).
+        if(phase==="carry"&&scored&&reachedGoal&&!tdFired&&
+          (scoreDir>0?c.x>=PLAY_R:c.x<=PLAY_L)){
+          tdFired=true; carrierDone=true;
+          emit("td",{x:scoreDir>0?PLAY_R:PLAY_L,y:c.y,carrier:ballCarrier});
+          mobIds = actors.filter(a=>a.side===c.side&&a.id!==ballCarrier&&a.label!=="OL")
+            .sort((p,q)=>Math.hypot(p.x-c.x,p.y-c.y)-Math.hypot(q.x-c.x,q.y-c.y)).slice(0,3).map(a=>a.id);
+          phase="epilogue"; epiUntil=t+1000;
+        }
         // v4 realism: subtle open-field avoidance — the carrier bends his path away from contact
         if(threat&&tdist<30&&!carrierDone&&!wrapped&&!scored){
           const away=c.y>=threat.y?1:-1; c.y=clampY(c.y+away*Math.min(2.1,(30-tdist)*0.08));
@@ -1090,7 +1118,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         }
         if(phase==="carry"&&carrierD>=carrierLen&&!carrierDone){
           carrierDone=true;
-          if(scored&&reachedGoal){
+          if(scored&&reachedGoal&&!tdFired){
             emit("td",{x:c.x,y:c.y,carrier:ballCarrier});
             // TD mob: nearest teammates converge
             mobIds = actors.filter(a=>a.side===c.side&&a.id!==ballCarrier&&a.label!=="OL")
@@ -1146,6 +1174,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
                 cl.x=c.x-dir*(c.side==="off"?6:-6); cl.y=c.y+R(-3,3);
               }
             }
+            if(oobPlanned)c.y=c.y<MIDY?SIDELINE_TOP:SIDELINE_BOT;
             emit("tackle",{tackler:closerId,carrier:ballCarrier,x:c.x,y:c.y,
               bigHit:hitStick||!!fx.bigHit, hitStick, hitForce, launch:launchDist, drag:dragDist, rearGrab, contactType, oob:oobPlanned, gang:wrapped});
             phase="epilogue"; epiUntil=t+Math.max(1000,(rearGrab?Math.min(1080,520+dragDist*14):(hitStick?760:440)));
@@ -1349,7 +1378,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     // <=17px/frame (well under the cap), so this only touches choreographer output.
     const _deTPv22=(fr)=>{ if(!fr||fr.length<2)return fr; const MAX=TU("choreoMaxStep",22); const out=[fr[0]]; let px=fr[0].x, py=fr[0].y; for(let k=1;k<fr.length;k++){ const dx=fr[k].x-px, dy=fr[k].y-py, d=Math.hypot(dx,dy); if(d>MAX){ px+=dx/d*MAX; py+=dy/d*MAX; } else { px=fr[k].x; py=fr[k].y; } out.push(Object.assign({},fr[k],{x:px,y:py})); } return out; };
     return { duration:t, actors:actors.map(a=>({id:a.id,side:a.side,label:a.label,frames:_deTPv22(a.frames)})),
-             ball:ballFrames, events, meta:{concept,targetId,losX,endX,dir,scored,
+             ball:ballFrames, events, meta:{concept,targetId,losX,endX,dir,scoreDir,scored,
                featured, involved, targetRoute: targetRoute||null,
                coveragePlan:{shell,bracketTargetId,bracketHelperId,manAssignments,
                  cbRatings:cbIds.map(id=>({id,ovr:Math.round(A[id]._ovr),coverage:Math.round(A[id]._cov)})),
@@ -1754,6 +1783,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     // phase state
     let phase = "snap", throwAt = 0, sep = -0.5, hurried = false, target = null, coverA = null, routeDepth = 0;
     let throwStyle = "touch", throwWindow = "yellow", arrivalEdgeMs = 0, locationQuality = 1;
+    let handfightShown = false, highpointShown = false;
     const passConcept = opts && opts.concept;
     let coverHelp=null, bracketed=false, lbDrops=[];
     // v23 QB read progression: the cone shifts through the QB's reads during the
@@ -1986,9 +2016,11 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           arrivalEdgeMs=wrEta-cbEta; // positive means the defender owns the spot first
           emit("throw",{x:qb.lx,y:qb.y,tx:cx,ty:cyy,to:target.id,style:throwStyle,window:throwWindow,locationQuality});
           emit("contest",{def:coverA.id,off:target.id,x:cx,y:cyy,arrivalEdgeMs:Math.round(arrivalEdgeMs)});
-          const styleK=throwStyle==="bullet"?.86:throwStyle==="lob"?1.18:1;
+          const styleK=throwStyle==="bullet"?.84:throwStyle==="lob"?1.30:1;
           const styleArc=throwStyle==="bullet"?18+routeDepth*.55:throwStyle==="lob"?52+routeDepth*1.65:31+routeDepth*1.05;
-          ballFlight = { t0:t, style:throwStyle, dur: cl(Math.hypot(cx-qb.lx,cyy-qb.y)*(3.05-(S.off[8].thr-50)*0.007)*styleK, 310, 1120),
+          // Downfield throws need real hang time. Ratings still shape placement
+          // and outcome; arm strength only trims a small amount off travel time.
+          ballFlight = { t0:t, style:throwStyle, dur: cl(Math.hypot(cx-qb.lx,cyy-qb.y)*(4.45-(S.off[8].thr-50)*0.006)*styleK, 390, 1700),
             x0:qb.lx, y0:qb.y, x1:cx, y1:cyy, arc: styleArc, done: ()=>{
               // soft correction only — they tracked the ball through its flight
               const capTo=(a,tx,ty)=>{ const d=Math.hypot(tx-a.lx,ty-a.y);
@@ -2043,8 +2075,19 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       }
       else if (phase === "fly") {
         if (ballFlight) {
-          mv(target, ballFlight.x1, ballFlight.y1, 1.08);
-          mv(coverA, ballFlight.x1 - sep*2.4, ballFlight.y1 + 3, 1.02);
+          const remain=Math.max(0,ballFlight.t0+ballFlight.dur-t);
+          const wrD=Math.hypot(ballFlight.x1-target.lx,ballFlight.y1-target.y);
+          const cbD=Math.hypot(ballFlight.x1-coverA.lx,ballFlight.y1-coverA.y);
+          const battling=wrD<38&&cbD<38&&remain>120;
+          // When both players arrive before the ball, keep the rep alive: they
+          // fight for leverage instead of becoming two statues under the pass.
+          const jostle=battling?Math.sin(t/72)*4.5:0;
+          mv(target, ballFlight.x1-3, ballFlight.y1+jostle, 1.08);
+          mv(coverA, ballFlight.x1-sep*2.4+2, ballFlight.y1+3-jostle, 1.02);
+          if(battling&&!handfightShown){ handfightShown=true;
+            emit("handfight",{off:target.id,def:coverA.id,x:ballFlight.x1,y:ballFlight.y1}); }
+          if(remain<=260&&!highpointShown){ highpointShown=true;
+            emit("highpoint",{off:target.id,def:coverA.id,x:ballFlight.x1,y:ballFlight.y1,deep:routeDepth>13}); }
           if(bracketed&&coverHelp)mv(coverHelp,ballFlight.x1+5,ballFlight.y1+(coverHelp.y<MIDY?-9:9),.94+coverHelp.aware*.0015);
         }
       }
@@ -2254,6 +2297,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         // sidelines end the play at the spot — v30: credit only a defender actually
         // close enough to have forced him out, never a random slot across the field
         if (!done && (c.y <= F_TOP+35 || c.y >= F_BOT-31)) {
+          // Place the runner and the dead-ball event on the actual inner edge of
+          // the sideline, never a few pixels in the field or beyond the stripe.
+          c.y = c.y <= F_TOP+35 ? F_TOP+34 : F_BOT-30;
           const push = chasers.filter(a=>Math.hypot(a.lx-c.lx,a.y-c.y)<TU("tackleCreditPx",20))
             .sort((p,q)=>Math.hypot(p.lx-c.lx,p.y-c.y)-Math.hypot(q.lx-c.lx,q.y-c.y))[0];
           emit("tackle",{tackler:push?push.id:null, carrier:c.id, x:c.lx, y:c.y, oob:true});
@@ -3273,7 +3319,7 @@ class Ot extends mt.Scene {
         const cm = this.markers[P.carrierId];
         // v21.2 HIGH-POINT CATCH: the receiver LEAPS for the ball (arms-up catch cell
         // + a launch-parabola hop) instead of a flat static grab, then settles.
-        if (cm) { cm.forceState = "catch"; cm._launchT0 = cm.tms; cm._launchUntil = cm.tms + TU("catchHopMs", 300); cm._launchH = TU("catchHopH", 12);
+        if (cm) { cm._preCatch=false; cm.forceState = "catch"; cm._launchT0 = cm.tms; cm._launchUntil = cm.tms + TU("catchHopMs", 300); cm._launchH = TU("catchHopH", 12);
           this.time.delayedCall(TU("catchHoldMs", 230), () => { if (cm.forceState === "catch") cm.forceState = null; }); }
         P.awaitCatch = null;
         this.flash(e.x, e.y, 0xf0bb45);
@@ -3285,6 +3331,20 @@ class Ot extends mt.Scene {
       case "handoff": P.carrierId = 9; break;
       case "windup": { const qb = this.markers[8]; if (qb) { qb.forceState = "throwSeq"; qb.seqT = qb.tms; } break; }
       case "contest": { P.awaitCatch2 = this.actorIdx(e.def); P.contestDef = P.awaitCatch2; break; }
+      case "handfight": {
+        const om=this.markers[this.actorIdx(e.off)], dm=this.markers[this.actorIdx(e.def)];
+        [om,dm].forEach(m=>{ if(m){ m.forceState="grab"; m._handfight=true;
+          this.time.delayedCall(170,()=>{ if(m._handfight){m._handfight=false;if(m.forceState==="grab")m.forceState=null;} }); }});
+        this.puffFx(e.x,e.y,2,0xdce7f3,0.3);
+        break;
+      }
+      case "highpoint": {
+        const om=this.markers[this.actorIdx(e.off)], dm=this.markers[this.actorIdx(e.def)];
+        [om,dm].forEach((m,i)=>{ if(m){ m._handfight=false; m._preCatch=true; m.forceState="catch";
+          m._launchT0=m.tms; m._launchUntil=m.tms+(e.deep?280:210); m._launchH=e.deep?(i?10:12):(i?7:9);
+          this.time.delayedCall(e.deep?250:190,()=>{if(m._preCatch){m._preCatch=false;if(m.forceState==="catch")m.forceState=null;}}); }});
+        break;
+      }
       case "snap": { P.snapped = true; if (this.previewG) this.previewG.clear();
         if (this.previewTxt) { this.previewTxt.forEach(t => t && t.destroy && t.destroy()); this.previewTxt = []; }
         this.markers.forEach((m) => { if (m.forceState === "stance") m.forceState = null; }); break; }
@@ -3299,7 +3359,7 @@ class Ot extends mt.Scene {
         }
         const pm = this.markers[P.carrierId];
         // v21.2: the defender high-points the pick too — leap + settle
-        if (pm) { pm.forceState = "catch"; pm._launchT0 = pm.tms; pm._launchUntil = pm.tms + 260; pm._launchH = 10;
+        if (pm) { pm._preCatch=false; pm.forceState = "catch"; pm._launchT0 = pm.tms; pm._launchUntil = pm.tms + 260; pm._launchH = 10;
           this.time.delayedCall(200, () => { if (pm.forceState === "catch") pm.forceState = null; }); }
         P.awaitCatch = null;
         this.popText(e.x, e.y - 26, "INTERCEPTED!", "#ff9fa5", 18);
@@ -3485,7 +3545,7 @@ class Ot extends mt.Scene {
       case "td": { this.zoomPunch = Math.max(this.zoomPunch || 0, 0.2); this.finishYd(e);
         // HARD RULE: the TOUCHDOWN celebration only fires once the carrier's
         // rendered position has crossed the goal line — never before.
-        const dirTD = P.script.meta.dir || 1;
+        const dirTD = P.script.meta.scoreDir || P.script.meta.dir || 1;
         const goalX = dirTD > 0 ? PLAY_R : PLAY_L;
         const cm = this.markers[P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier)];
         const crossed = cm && (dirTD > 0 ? cm.body.x >= goalX - 1 : cm.body.x <= goalX + 1);
@@ -4777,7 +4837,7 @@ const _pick6=[...P,...ie].reduce((_n,R)=>_n+((R&&R.statLine&&R.statLine.pick6)||
   `}// v17: national standing → promotion floor. The rank on the declare screen IS
 // the rank that decides your fate: #1 in the country is an automatic call-up.
 function __natAdvFloor(e){try{const rk=sn(e,ae(e));if(!rk||!rk.of)return 0;const p=1-(rk.rank-1)/rk.of;/* v25 realistic funnel: percentile you must CLEAR rises sharply by level */const NEED=[0.50,0.55,0.62,0.70,0.93,0.985,0.997,0.99999];const need=NEED[Math.min(Math.max(0,e.level),NEED.length-1)];if(p>=need){const over=(p-need)/Math.max(1e-4,1-need);return f(72+over*27.5,72,99.5);}return 0;}catch(_){return 0}}
-function Ar(){const e=o.player;if(e.seasonsAtLevel<ss()){F("You must finish this level first!");return}const t=Math.max(Math.min(97,qt(ae(e),e.level)+(e.declareBonus||0)),__natAdvFloor(e));e.seasonStats||(e.seasonStats={}),e.seasonStats.chance=t,Math.random()*100<t?na():(e.declareBonus=(e.declareBonus||0)+7+G("detPlus"),o.view="declineResult",I(),q())}window.__mkTempBuffsV25=function(pl,sign,bold,good){var pos=(pl&&pl.pos)||"ATH";var POS={QB:["throwing","awareness","vision","acceleration"],RB:["speed","agility","acceleration","ballControl","vision"],WR:["speed","catching","agility","jumping"],TE:["catching","blocking","strength","agility"],OL:["blocking","strength","awareness"],DL:["strength","tackling","quickness","acceleration"],LB:["tackling","awareness","speed","strength"],CB:["speed","agility","jumping","awareness"],S:["tackling","speed","awareness","jumping"],K:["awareness","discipline"]};var pool=(POS[pos]||["speed","strength","agility","awareness","acceleration"]).filter(function(k){return Le&&Le[k]});if(!pool.length)pool=["speed","strength","agility","awareness"];var picks=[],p=pool.slice();var n=1+((bold>0.55||Math.random()<0.4)?1:0);for(var i=0;i<n&&p.length;i++){var idx=Math.floor(Math.random()*p.length);picks.push(p.splice(idx,1)[0]);}return picks.map(function(k,i){if(sign>0){var mx=(i===0&&bold>0.6&&Math.random()<0.35);var amt=Math.round(6+good*10+bold*8+Math.random()*4);return{stat:k,amt:mx?0:amt,max:mx};}return{stat:k,amt:-(Math.round(5+(1-good)*8+bold*3)),max:false};});};window.__statLabelV25=function(k){return(Le&&Le[k]&&Le[k].name)||k;};
+function Ar(){const e=o.player;if(e.seasonsAtLevel<ss()){F("You must finish this level first!");return}const t=Math.max(Math.min(97,qt(ae(e),e.level)+(e.declareBonus||0)),__natAdvFloor(e));e.seasonStats||(e.seasonStats={}),e.seasonStats.chance=t,Math.random()*100<t?na():(e.declareBonus=(e.declareBonus||0)+7+G("detPlus"),o.view="declineResult",I(),q())}window.__mkTempBuffsV25=function(pl,sign,bold,good){var pos=(pl&&pl.pos)||"ATH";var POS={QB:["throwing","awareness","vision","acceleration"],RB:["speed","agility","acceleration","ballControl","vision"],WR:["speed","catching","agility","jumping"],TE:["catching","blocking","strength","agility"],OL:["blocking","strength","awareness"],DL:["strength","tackling","quickness","acceleration"],LB:["tackling","awareness","speed","strength"],CB:["speed","agility","jumping","awareness"],S:["tackling","speed","awareness","jumping"],K:["awareness","discipline"]};var pool=(POS[pos]||["speed","strength","agility","awareness","acceleration"]).filter(function(k){return Le&&Le[k]});if(!pool.length)pool=["speed","strength","agility","awareness"];var picks=[],p=pool.slice();var n=1+((bold>0.55||Math.random()<0.4)?1:0);for(var i=0;i<n&&p.length;i++){var idx=Math.floor(Math.random()*p.length);picks.push(p.splice(idx,1)[0]);}return picks.map(function(k){if(sign>0){var amt=Math.round(3+good*4+bold*3+Math.random()*3);return{stat:k,amt:amt,max:false};}return{stat:k,amt:-(Math.round(5+(1-good)*8+bold*3)),max:false};});};window.__statLabelV25=function(k){return(Le&&Le[k]&&Le[k].name)||k;};
 function pregamePlayerStatsV25(pl){
   if(!pl||!pl.attrs) return "";
   const cap=we();
@@ -4785,19 +4845,19 @@ function pregamePlayerStatsV25(pl){
   const posW=(pl.pos&&Ee[pl.pos]&&Ee[pl.pos].w)||{};
   let list=ee.filter(k=>Le[k]&&(posW[k]||buffs[k]));
   if(list.length<6) list=ee.filter(k=>Le[k]).slice(0,10);
-  const row=(k)=>{const base=pl.attrs[k]||0,b=buffs[k],eff=b?(b.max?cap:base+b.amt):base;
-    const bp=f(base/cap*100,0,100),ep=f(eff/cap*100,0,100),up=b&&(b.amt>0||b.max),dn=b&&b.amt<0&&!b.max;
+  const row=(k)=>{const base=pl.attrs[k]||0,b=buffs[k],amt=b?(b.max?10:b.amt):0,eff=b?base+amt:base;
+    const bp=f(base/cap*100,0,100),ep=f(eff/cap*100,0,100),up=b&&amt>0,dn=b&&amt<0;
     return `<div style="display:flex;align-items:center;gap:8px;margin:3px 0">`
       +`<span style="flex:0 0 92px;font:600 11px Barlow Condensed,sans-serif;color:var(--chalk-dim)">${Le[k].name}</span>`
       +`<div style="flex:1;height:8px;border-radius:5px;background:#1a2330;position:relative;overflow:hidden">`
         +`<i style="position:absolute;left:0;top:0;bottom:0;width:${up?bp:ep}%;background:linear-gradient(90deg,#3a6cff,#6b9bff)"></i>`
-        +(up?`<i style="position:absolute;left:${bp}%;top:0;bottom:0;width:${Math.max(0,ep-bp)}%;background:${b.max?'#f0bb45':'#57e07a'}"></i>`:``)
+        +(up?`<i style="position:absolute;left:${bp}%;top:0;bottom:0;width:${Math.max(0,ep-bp)}%;background:#57e07a"></i>`:``)
         +(dn?`<i style="position:absolute;left:${ep}%;top:0;bottom:0;width:${Math.max(0,bp-ep)}%;background:#e0645a"></i>`:``)
       +`</div>`
-      +`<span style="flex:0 0 auto;min-width:52px;text-align:right;font:700 11px Oswald,sans-serif;color:${b&&b.max?'var(--gold)':up?'#57e07a':dn?'#e0645a':'var(--chalk)'}">${Math.round(eff)}${b&&b.max?' MAX':up?' (+'+b.amt+')':dn?' ('+b.amt+')':''}</span>`
+      +`<span style="flex:0 0 auto;min-width:52px;text-align:right;font:700 11px Oswald,sans-serif;color:${up?'#57e07a':dn?'#e0645a':'var(--chalk)'}">${Math.round(eff)}${up?' (+'+amt+')':dn?' ('+amt+')':''}</span>`
     +`</div>`;};
   return `<div style="margin:12px 14px 4px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.03)">`
-    +`<div style="font:700 11px Oswald,sans-serif;letter-spacing:1px;color:var(--chalk);margin-bottom:7px">📋 YOUR STATS <span style="color:var(--chalk-dim);font-weight:400">· temp boosts in <span style="color:#57e07a">green</span> / <span style="color:var(--gold)">MAX gold</span></span></div>`
+    +`<div style="font:700 11px Oswald,sans-serif;letter-spacing:1px;color:var(--chalk);margin-bottom:7px">📋 YOUR STATS <span style="color:var(--chalk-dim);font-weight:400">· temporary changes shown in color</span></div>`
     +list.map(row).join("")
   +`</div>`;
 }
@@ -4878,7 +4938,7 @@ const P={pass:0,rush:0,rec:0,td:0,tackle:0,sack:0,int:0,pd:0,pick6:0,carries:0,r
 v={yds:0,pass:0,rush:0,first:0,pen:0,penYds:0,turn:0,sacks:0,third_c:0,third_a:0,air:0,yac:0},
 j={yds:0,pass:0,rush:0,first:0,turn:0,air:0,yac:0,third_c:0,third_a:0,pen:0,penYds:0,sacks:0},
 U=["QB","RB","WR","TE"].includes(t),ce=["DL","LB","CB","S"].includes(t),
-_raw=(w,k)=>{let _v=(w&&w.attrs&&w.attrs[k])||45;if(w&&w.you){if(window.__isWornV18&&window.__isWornV18(o.player))_v*=.9;var _tb=window.__youTempBuffsV25;if(_tb)for(var _bi=0;_bi<_tb.length;_bi++){if(_tb[_bi].stat===k)_v=_tb[_bi].max?we():_v+_tb[_bi].amt;}_v+=(G("perfFlat")||0)+((window.__youPersonaFxV20&&window.__youPersonaFxV20.perfFlat)||0)}return _v},
+_raw=(w,k)=>{let _v=(w&&w.attrs&&w.attrs[k])||45;if(w&&w.you){if(window.__isWornV18&&window.__isWornV18(o.player))_v*=.9;var _tb=window.__youTempBuffsV25;if(_tb)for(var _bi=0;_bi<_tb.length;_bi++){if(_tb[_bi].stat===k)_v+=_tb[_bi].max?10:_tb[_bi].amt;}_v+=(G("perfFlat")||0)+((window.__youPersonaFxV20&&window.__youPersonaFxV20.perfFlat)||0)}return _v},
 // league-normalized attribute accessor: every league plays real football —
 // outcomes ride on RELATIVE strength, not absolute ratings (a high-school
 // game shouldn't end 6-3 because everyone is 22 OVR)
@@ -5282,7 +5342,7 @@ while(!gameOver&&plays<MAXP){
   }
   // prepend the concept tag on ordinary run/pass snaps (scores keep their own flavor)
   const dTag=(cTag&&!_e&&(ne==="run"||ne==="pass"||ne==="incomplete"))?cTag:"";
-  mkPlay({T0,pre,o:{event:ne,yards:de,involved:me,big:Pt||Math.abs(de)>=15,isPass:isPassFam,scored:_e,concept,desc:dTag+ue,endBall:endB}});
+  mkPlay({T0,pre,o:{event:ne,yards:de,involved:me,big:Pt||Math.abs(de)>=15,isPass:isPassFam,scored:_e||!!pickSix,pickSix:!!pickSix,concept,desc:dTag+ue,endBall:endB}});
   // ---- clock & possession ---------------------------------------------------
   spend(ne==="sack"?7:ne==="scramble"?8:concept==="shot"?8:concept==="quick"||concept==="screen"?4:ne==="run"?6:5);
   if(scoredNow){
@@ -6784,7 +6844,7 @@ function continuePregame(){const q=pending;document.getElementById('pregameV1513
 
 function pregameTempStats(pl,wk){
   const out=[]; if(!pl) return out;
-  (pl._tempStatBuffsV25||[]).forEach(b=>out.push({l:(b.amt<0?'Setback':'Boost')+' (this game)',v:(b.max?'MAX ':(b.amt>0?'+'+b.amt+' ':b.amt+' '))+((window.__statLabelV25&&window.__statLabelV25(b.stat))||b.stat),good:b.amt>=0||b.max}));
+  (pl._tempStatBuffsV25||[]).forEach(b=>{const a=b.max?10:b.amt;out.push({l:(a<0?'Setback':'Boost')+' (this game)',v:(a>0?'+'+a+' ':a+' ')+((window.__statLabelV25&&window.__statLabelV25(b.stat))||b.stat),good:a>=0});});
   if(pl.momentum103!=null&&Math.abs(pl.momentum103-50)>=3) out.push({l:'Momentum',v:Math.round(pl.momentum103)+'/100',good:pl.momentum103>=50});
   if(pl.composure103!=null&&Math.abs(pl.composure103-50)>=3) out.push({l:'Composure',v:Math.round(pl.composure103)+'/100',good:pl.composure103>=50});
   if(pl.coachTrust!=null&&Math.abs(pl.coachTrust-50)>=4) out.push({l:'Coach Trust',v:Math.round(pl.coachTrust)+'/100',good:pl.coachTrust>=50});
@@ -6907,7 +6967,7 @@ function matchupNotes(oursR,theirsR,player){
   notes.sort((a,b)=>b.d-a.d);
   const out=notes.slice(0,3);
   if(!out.length)out.push({good:true,txt:'Even matchup across the board — execution and the bounce of the ball decide this one.'});
-  if(player&&player._tempStatBuffsV25&&player._tempStatBuffsV25.length)out.push({good:true,txt:`Temporary edge this game: ${player._tempStatBuffsV25.map(b=>b.max?('MAX '+(window.__statLabelV25?window.__statLabelV25(b.stat):b.stat)):((b.amt>0?'+':'')+b.amt+' '+(window.__statLabelV25?window.__statLabelV25(b.stat):b.stat))).join(', ')}.`});
+  if(player&&player._tempStatBuffsV25&&player._tempStatBuffsV25.length)out.push({good:true,txt:`Temporary edge this game: ${player._tempStatBuffsV25.map(b=>{const a=b.max?10:b.amt;return(a>0?'+':'')+a+' '+(window.__statLabelV25?window.__statLabelV25(b.stat):b.stat)}).join(', ')}.`});
   return out;
 }
 function showPregame(ctx,args){
@@ -7616,7 +7676,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       const isPlan=!!panel.querySelector('[onclick*="chooseGamePlanV11"]');
       const kicker=isPlan?'PREGAME ROLL':'STORY ROLL';
       const fx=[];
-      const _bt=(buffs||[]).map(b=>b.max?('MAX '+(window.__statLabelV25?window.__statLabelV25(b.stat):b.stat)):((b.amt>0?'+':'')+b.amt+' '+(window.__statLabelV25?window.__statLabelV25(b.stat):b.stat))).join(', ');
+      const _bt=(buffs||[]).map(b=>{const a=b.max?10:b.amt;return(a>0?'+':'')+a+' '+(window.__statLabelV25?window.__statLabelV25(b.stat):b.stat)}).join(', ');
       if(incident){
         const why=`His <b>character</b> got the better of him — a disciplined kid never lets this happen.`;
         fx.push(`<span class="rollfx dn">▼ ${incident.e} — ${_bt||(next+"% stats")} this game</span>`);
@@ -7720,10 +7780,10 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
             next=Math.round(1+bold*4+good*3+(optName.length%3));  // ~1..10, varies by pick
           }
           // v25: retire the "+X% ALL stats" edge — grant 1-2 VARIED named-stat buffs
-          // for a SINGLE game (some land at the player's MAX). Incidents dock one stat.
+          // for a SINGLE game. Incidents dock one stat; positive edges stay modest.
           pl._nextGameBoost=0;
           pl._tempStatBuffsV25 = (window.__mkTempBuffsV25 ? window.__mkTempBuffsV25(pl, incident?-1:1, bold, good) : []);
-          const _buffTxt = pl._tempStatBuffsV25.map(b=>b.max?('MAX '+window.__statLabelV25(b.stat)):((b.amt>0?'+':'')+b.amt+' '+window.__statLabelV25(b.stat))).join(' · ') || (next+'%');
+          const _buffTxt = pl._tempStatBuffsV25.map(b=>{const a=b.max?10:b.amt;return(a>0?'+':'')+a+' '+window.__statLabelV25(b.stat)}).join(' · ') || (next+'%');
           try{ window.I && window.I(); }catch(e){}
           const tg=panel.querySelector('.wheel-note-v13');
           if(tg) tg.textContent = incident ? ('⚠️ '+incident.t+' — '+_buffTxt) : ('🎡 '+optName+' · '+_buffTxt);
