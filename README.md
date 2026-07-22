@@ -55,6 +55,18 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v31 — 15-part situational realism pass.** Team personnel now creates an
+  offensive identity and matchup-specific play mix; field position changes
+  risk tolerance; route depth trades completion rate for interception and
+  explosive-play risk; QB awareness, mobility, protection and concept depth
+  jointly determine sacks and sack loss; strip sacks and run fumbles use the
+  actual players plus weather; rain, wind and snow affect passing, kicking and
+  ball security; fourth-down decisions account for leverage and roster edge;
+  kickoff touchbacks/returns and punt returns use league level, conditions and
+  returner skill; pre-snap penalties respond more strongly to discipline and
+  hurry-up stress; and snap/runoff timing now reflects the play type. The
+  realism probe accepts `CHROME_PATH` and `GAME_URL` for portable headless runs.
+
 - **v30 — the 8-item realism pass (measured with the new `scripts/realismprobe.mjs`).**
   **(1) No phantom tacklers:** an out-of-bounds/whistle finish only credits a defender
   genuinely at the ball (`tackleCreditPx`) — otherwise the tackle event names no one and
