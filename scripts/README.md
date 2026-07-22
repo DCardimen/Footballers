@@ -20,7 +20,7 @@ revision with `node scripts/movementcheck.mjs --git-ref=<commit>`.
 | `jukecheck.mjs` | Stat gaps drive evasion: one-on-one juke probability across superstar/scrub matchups. |
 | `simcheck.mjs` | Batch-runs the emergent game engine (`window.__simGameV2`) — score, pace, and yardage distributions. |
 | `realismprobe.mjs` | The v30 realism dashboard over 60 full games: yards-per-carry + run-distance histogram, sacks/scrambles, punts vs FG attempts, penalty counts BY TYPE (holding/DPI/face-mask are flag-on-the-play), and average scores. Run after any tuning that touches the run game, kicking decisions, or penalties. |
-| `movementcheck.mjs` | Ten seeded 120-play batches (1,200 plays total): exact sideline spots, no out-of-field frames, first-frame offensive TD/pick-six crossings, route-break reactions, directional cuts/bad angles, and run/pass/YAC stability. Pure Node; no server required. |
+| `movementcheck.mjs` | Ten seeded 120-play batches (1,200 plays total): exact sideline spots, no out-of-field frames, first-frame offensive TD/pick-six crossings, route-break reactions, directional cuts/bad angles, low/mid/elite acceleration curves, and run/pass/YAC stability. Pure Node; no server required. |
 | `renderpathcheck.mjs` | Fraction of plays rendering from the FieldSim agent log vs falling back to the legacy choreographer (healthy: ~87–90%). Run when sim changes don't show on screen. |
 | `injurycheck.mjs` | Serious injuries force DNP weeks, heal on schedule, clear the worn flag. |
 

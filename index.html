@@ -196,7 +196,7 @@ window.addEventListener('unhandledrejection', function(e){
 
 </script>
 <script>
-/* ===== v37 EXACT PLANES + MOVEMENT IQ + CINEMATIC CONTACT ===== */
+/* ===== v38 WHOLE-FIELD ACCELERATION + v37 EXACT PLANES / MOVEMENT IQ ===== */
 /* ===== RIB_TUNE: every gameplay dial reads through TU(key, default) so DEV can retune live ===== */
 window.RIB_TUNE = window.RIB_TUNE || {};
 window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined ? t[k] : d; };
@@ -306,7 +306,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const ovr=Math.max(1,Math.min(99,Number(p&&p.ovr)||Number(fallback)||55));
       const val=(name,fb)=>Math.max(1,Math.min(99,Number(attrs[name])||Number(p&&p[name])||fb));
       return {player:p||null,ovr,coverage:val('coverage',ovr),awareness:val('awareness',ovr),
-        discipline:val('discipline',ovr),speed:val('speed',ovr),quickness:val('quickness',ovr)};
+        discipline:val('discipline',ovr),speed:val('speed',ovr),quickness:val('quickness',ovr),
+        acceleration:val('acceleration',val('quickness',ovr)),agility:val('agility',ovr),burst:val('burst',val('acceleration',ovr))};
     }
     // ---- formation ----
     const offRow = [78,372,306,158,190,222,254,286,222,262,120];
@@ -325,7 +326,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const pr=_profile(side,label), ratingSpeed=0.92+pr.speed/520;
       return {id,side,label,x,y,vx:0,vy:0,frames:[],state:"idle",
         spd:SPEED[label]*R(0.94,1.06)*ratingSpeed,beatenUntil:-1,
-        _ovr:pr.ovr,_cov:pr.coverage,_aware:pr.awareness,_disc:pr.discipline,_quick:pr.quickness,_player:pr.player};
+        _ovr:pr.ovr,_cov:pr.coverage,_aware:pr.awareness,_disc:pr.discipline,_quick:pr.quickness,
+        _accRating:pr.acceleration,_agiRating:pr.agility,_burstRating:pr.burst,_player:pr.player};
     }
     const A = Object.fromEntries(actors.map(a=>[a.id,a]));
     const isDLine=(lb)=>lb==="DL"||lb==="DE"||lb==="DT";   // v5: the D-line is now DE/DT
@@ -364,8 +366,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         const _st = root.__getGridironState(), _pl = _st && _st.player, _at = (_pl && _pl.attrs) || {};
         const _me = A[featured.actorId], _cap = 40;
         _me.spd *= 0.82 + 0.44 * Math.min(1, ((_at.speed||18)*0.65 + (_at.acceleration||_at.quickness||18)*0.35) / _cap);
-        _me._acc = 0.72 + 1.2 * Math.min(1, (_at.acceleration||_at.quickness||18) / _cap);   // start/stop rate
-        _me._agi = Math.min(1, (_at.agility||18) / _cap);                                    // cut speed retention
+        _me._accRating = 99*Math.min(1,(_at.acceleration||_at.quickness||18)/_cap);            // start/recovery rate
+        _me._agiRating = 99*Math.min(1,(_at.agility||18)/_cap);                                // cut speed retention + braking
+        _me._burstRating = 99*Math.min(1,(_at.burst||_at.acceleration||18)/_cap);               // first 250ms drive
+        _me._agi = Math.min(1, (_at.agility||18) / _cap);
         _me._pwr = Math.min(1, ((_at.strength||18)*0.6 + (_at.tackling||_at.blocking||18)*0.4) / _cap); // fight through contact
         _me._blkSkill = Math.max(_me._blkSkill||0, Math.min(1, (_at.blocking||14) / _cap));            // escort blocking IQ
       }
@@ -607,9 +611,35 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       ballPos={x:bx,y:by,h:bh};
       ballFrames.push({t,x:Math.round(bx*10)/10,y:Math.round(by*10)/10,h:Math.round(bh)});
     }
+    function advanceSpeed(a,targetFrac,dt,turn,brakeScale){
+      const accel=Math.max(1,Math.min(99,a._accRating||a._quick||a._ovr||55));
+      const agility=Math.max(1,Math.min(99,a._agiRating||a._ovr||55));
+      const burst=Math.max(1,Math.min(99,a._burstRating||accel));
+      let frac=Math.max(0,(a._v||0)/Math.max(1,a.spd));
+      const hardTurn=(turn||0)>TU("accelRestartTurn",.34);
+      const wantsMove=targetFrac>.12;
+      if(!wantsMove&&frac<TU("accelResetFrac",.08))a._launchReady=true;
+      const turnEdge=hardTurn&&!a._hardTurning;
+      if(a._launchAt==null||(wantsMove&&a._launchReady)||turnEdge){a._launchAt=t;a._launchReady=false;}
+      a._hardTurning=hardTurn;
+      if((turn||0)>.04){
+        const loss=Math.max(.08,TU("turnLossBase",.30)-(agility-50)*TU("turnLossAgilityK",.0024));
+        frac*=Math.max(TU("turnRetentionFloor",.54),1-(turn||0)*loss);
+      }
+      const launchAge=Math.max(0,t-(a._launchAt==null?t:a._launchAt));
+      const launch=launchAge<TU("accelLaunchMs",260)
+        ? Math.max(.80,Math.min(1.22,1+(burst-50)*TU("burstAccelK",.0042))):1;
+      const accelRate=Math.max(.9,TU("accelBasePerSec",3.0)+(accel-50)*TU("accelRatingK",.040))*launch;
+      const brakeRate=Math.max(1.2,TU("brakeBasePerSec",3.0)+(agility-50)*TU("brakeAgilityK",.020)+(accel-50)*TU("brakeAccelK",.006))*(brakeScale||1);
+      const rolling=targetFrac>frac&&frac>.18&&launchAge>=TU("rollingReadyMs",132)?TU("rollingAccelScale",3.0):1;
+      const rate=targetFrac>=frac?accelRate*rolling:brakeRate;
+      frac+=Math.sign(targetFrac-frac)*Math.min(Math.abs(targetFrac-frac),rate*dt/1000);
+      a._v=Math.max(0,frac*a.spd);a._speedFrac=frac;
+      return a._v;
+    }
     function moveToward(a,tx,ty,dt,mult){
       let dx=tx-a.x,dy=ty-a.y; const dist=Math.hypot(dx,dy);
-      if(dist<0.5){ a._v=Math.max(0,(a._v||0)-a.spd*3*dt/1000); return; }   // v4: decelerate to a stop, no freeze-frames
+      if(dist<0.5){advanceSpeed(a,0,dt,0,1);return;}
       dx/=dist; dy/=dist;
       // inertia: players can't turn on a dime at speed
       let turn=0;
@@ -625,11 +655,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         if(dx*targetDx+dy*targetDy<0.05){ dx=targetDx; dy=targetDy; }
         const n=Math.hypot(dx,dy)||1; dx/=n; dy/=n; }
       a._dx=dx; a._dy=dy;
-      // v4 realism: speed builds and bleeds — nobody starts or stops instantly
-      const want=a.spd*(mult||1); if(a._v==null)a._v=0;
-      const rate=a.spd*(a._v<want?4.6:5.4)*(a._acc||1);   // quick ramp: visible ease-in without breaking route timing
-      a._v+=Math.sign(want-a._v)*Math.min(Math.abs(want-a._v),rate*dt/1000);
-      if(turn>0.2) a._v*=Math.max(0.62+(a._agi||0)*0.18,1-turn*0.38);       // cuts scrub speed (agility keeps more)
+      // v38: every movement context requests a target gear; acceleration and
+      // braking reach it over time. Multipliers no longer teleport velocity.
+      advanceSpeed(a,Math.max(0,Math.min(TU("choreoSpeedCap",2.15),mult||1)),dt,turn,1);
       const step=Math.min(dist,a._v*dt/1000);
       a.x+=dx*step; a.y+=dy*step;
     }
@@ -959,8 +987,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           if(a.id===ballCarrier) return;
           if(hitCarrier&&hitCarrier._dragTackler===a.id) return;
           if(mobIds&&mobIds.includes(a.id)) return;
-          const v=Math.max(0,(a._v||0)-(a.spd||100)*1.4*dt/1000);
-          a._v=v;
+          const v=advanceSpeed(a,0,dt,0,TU("whistleBrakeScale",.46));
           if(v>2&&a._dx!=null){ a.x=clampX(a.x+a._dx*v*dt/1000); a.y=clampY(a.y+a._dy*v*dt/1000); }
         });
         if(t>=epiUntil) done=true;
@@ -1072,9 +1099,18 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           const pushRate=(c._pushDefenders>=3?5.4:3.2)*YD*(c._pushStrong?0.35:1)*(1+strGap);
           carrierD=Math.max(0,carrierD+(c._pushStrong&&c._pushDefenders<3?0.4:-1)*pushRate*dt/1000);
           maxCarrierD=Math.max(maxCarrierD,carrierD);
+          advanceSpeed(c,TU("pileSpeedFrac",.12),dt,0,1.55);
           contactMult=0;
         } else {
-          carrierD += c.spd*spdMult(f)*contactMult*dt/1000;
+          // The fallback carrier used to bypass movement acceleration entirely.
+          // Follow the path's real heading and request a gear so launches, cuts,
+          // contact slowdowns and re-acceleration use the same curve as everyone else.
+          const ahead=pointAt(carrierPath,Math.min(carrierLen,carrierD+Math.max(8,(c._v||0)*dt/500)));
+          let pdx=ahead.x-c.x,pdy=ahead.y-c.y,pn=Math.hypot(pdx,pdy)||1;pdx/=pn;pdy/=pn;
+          const pturn=c._dx==null?0:1-Math.max(-1,Math.min(1,pdx*c._dx+pdy*c._dy));
+          c._dx=pdx;c._dy=pdy;
+          const carrySpeed=advanceSpeed(c,Math.max(0,spdMult(f)*contactMult),dt,pturn,contactMult<.8?1.45:1);
+          carrierD += carrySpeed*dt/1000;
           maxCarrierD=Math.max(maxCarrierD,carrierD);
           if(c._pushUntil&&!c._pushFinished){
             c._pushFinished=true; carrierDone=true;
@@ -1450,6 +1486,34 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
   const clampY = y=>Math.max(SIDELINE_TOP,Math.min(SIDELINE_BOT,y));
   const cl = (v,a,b)=>Math.min(b,Math.max(a,v));
 
+  // v38: one acceleration model for every FieldSim movement command. Callers
+  // request a target gear; ratings determine how quickly the player launches,
+  // brakes, survives a cut, and rebuilds speed afterward.
+  function evolveSpeed(a,targetFrac,dt,now,turn=0,brakeScale=1) {
+    const accel=cl(a.accel||a.quick||a.spdA||55,1,99), agility=cl(a.agi||55,1,99), burst=cl(a.burst||accel,1,99);
+    let frac=Math.max(0,a.vel||0);
+    const hardTurn=turn>TU("accelRestartTurn",.34), wantsMove=targetFrac>.12;
+    if(!wantsMove&&frac<TU("accelResetFrac",.08))a._launchReady=true;
+    const turnEdge=hardTurn&&!a._hardTurning;
+    if(a._launchAt==null||(wantsMove&&a._launchReady)||turnEdge){a._launchAt=now;a._launchReady=false;}
+    a._hardTurning=hardTurn;
+    if(turn>.04){
+      const loss=Math.max(.08,TU("turnLossBase",.30)-(agility-50)*TU("turnLossAgilityK",.0024));
+      frac*=Math.max(TU("turnRetentionFloor",.54),1-turn*loss);
+    }
+    const launchAge=Math.max(0,now-(a._launchAt==null?now:a._launchAt));
+    const launch=launchAge<TU("accelLaunchMs",260)
+      ? cl(1+(burst-50)*TU("burstAccelK",.0042),.80,1.22):1;
+    const accelRate=Math.max(.75,TU("accelBasePerSec",3.0)+(accel-50)*TU("accelRatingK",.040))*launch;
+    const brakeRate=Math.max(1.1,TU("brakeBasePerSec",3.0)+(agility-50)*TU("brakeAgilityK",.020)+(accel-50)*TU("brakeAccelK",.006))*brakeScale;
+    const target=cl(targetFrac,0,TU("fieldSpeedCap",1.35));
+    const rolling=target>frac&&frac>.18&&launchAge>=TU("rollingReadyMs",132)?TU("rollingAccelScale",3.0):1;
+    const rate=target>=frac?accelRate*rolling:brakeRate;
+    frac+=Math.sign(target-frac)*Math.min(Math.abs(target-frac),rate*dt/1000);
+    a.vel=Math.max(0,frac);
+    return a.vel;
+  }
+
   function makeAgents(kOff, tDef, att, picks) {
     const byPos = (arr,pos)=>arr.filter(p=>p&&p.pos===pos);
     const avg = (arr,name)=>{ const v=arr.map(p=>att(p,name)).filter(Number.isFinite);
@@ -1535,35 +1599,34 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       ballFrames.push({t, x:Math.round(ball.lx*10)/10, y:Math.round(ball.y*10)/10, h:Math.round(ball.h)}); };
     const mv = (a, tx, ty, mult) => { let dx=tx-a.lx, dy=ty-a.y; const d=Math.hypot(dx,dy);
       a._sidelineCross=null;
-      if(d<0.5) { a.vel*=0.8; return; } dx/=d; dy/=d;
+      if(d<0.5) { evolveSpeed(a,0,TICK,t,0,1); return; } dx/=d; dy/=d;
       const wantDx=dx,wantDy=dy;
       // agility: tighter turns for agile players. v24 widened the per-point effect
       // (0.0022→0.0026) so cuts are visibly cleaner for elite agility and sloppier
       // for low — an elite back keeps his speed through a hard plant, a stiff one
       // bleeds it. Mirrored in turnTest() so the unit hook stays honest.
       const carry = Math.max(0.06, (0.28 - (a.agi-50)*0.0026) * (0.6 + (a.vel||0)*0.7));
+      let turn=0;
       if(a._dx!=null){
         const dot = dx*a._dx + dy*a._dy;
+        turn=1-Math.max(-1,Math.min(1,dot));
         dx=dx*(1-carry)+a._dx*carry; dy=dy*(1-carry)+a._dy*carry; const n=Math.hypot(dx,dy)||1; dx/=n; dy/=n;
-        const turnCost = (1 - Math.max(-1, Math.min(1, dot))) * (0.30 - (a.agi-50)*0.0026);
-        if (turnCost > 0.002) a.vel *= Math.max(0.55, 1 - turnCost);   // turning bleeds speed, agility saves it
       }
       a._turnDemand=a._wantDx==null?0:1-Math.max(-1,Math.min(1,wantDx*a._wantDx+wantDy*a._wantDy));
       a._wantDx=wantDx; a._wantDy=wantDy; a._dx=dx; a._dy=dy;
-      // acceleration: velocity ramps toward the target
-      const rampRate = 0.10 + (a.accel-50)*0.0016;
-      a.vel = Math.min(1, (a.vel||0) + rampRate);
       // stamina: legs fade late in the play
       const fade = t > 2200 ? Math.max(0.62, 1 - (t-2200)/1000 * (0.16 * (1 - (a.stam-50)/100))) : 1;
       // grit: released blockers close cooldown faster (handled in tryTackle); release ramp here
       const rel = a.releaseT && t < a.releaseT + 520 ? 0.45 + (t - a.releaseT)/520 * 0.55 : 1;
       a.gas = a.gas===undefined ? (a.gas0!==undefined ? a.gas0 : 100) : a.gas;
-      if (mult*a.vel > 0.92) a.gas = Math.max(0, a.gas - 0.42*(a._gasBurnMul||1)); else a.gas = Math.min(100, a.gas + 0.2);
       const tank = a.gas < 30 ? 0.88 : 1;
       // v20: a GASSED player (emptied his tank on a recent play) is moderately
       // slower everywhere until his recovery plays run out
       const gassed = a.gassedV20 ? TU("gassedSpeedMul", 0.9) : 1;
-      const step=Math.min(d, a.spd*mult*a.vel*fade*rel*tank*gassed*TICK/1000);
+      const targetGear=Math.max(0,(mult||0)*fade*rel*tank*gassed);
+      evolveSpeed(a,targetGear,TICK,t,turn,1);
+      if (a.vel > 0.92) a.gas = Math.max(0, a.gas - 0.42*(a._gasBurnMul||1)); else a.gas = Math.min(100, a.gas + 0.2);
+      const step=Math.min(d, a.spd*a.vel*TICK/1000);
       const x0=a.lx,y0=a.y,x1=x0+dx*step,y1=y0+dy*step;
       // Preserve the un-clamped segment long enough to resolve the exact first
       // sideline contact. Clamping alone made fast players live on the stripe for
@@ -1701,7 +1764,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const hurdleP = (behind ? 0 : cl(0.03 + ((c.jump*0.6 + c.agi*0.4) - d.tkl)*0.006 + (openField?0.07:0) + Math.max(0,-lev)*0.005, 0.02, 0.38)) * (1 - swarmChoke);
       if (Math.random() < hurdleP) {
         d.beaten = t + 560; d.cool = t + 480; c.burstUntil = t + 380; kickSprint(c);
-        c._v = (c._v||c.spd)*0.94;
+        c.vel = Math.max(0,(c.vel||0)*0.98);
         emit("hurdle",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
         if (committerId===d.id) committerId = null;
         return "hurdle";
@@ -1712,7 +1775,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const armEdge = (cStr - dStr) + (c.str - 50)*0.45;
       const stiffP = (behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005, 0, 0.5)) * (1 - swarmChoke);
       if (Math.random() < stiffP) {
-        d.beaten = t + 520; d.stagger = t; c._v = (c._v||c.spd)*0.9; c.burstUntil = t + 300; kickSprint(c);
+        d.beaten = t + 520; d.stagger = t; c.vel = Math.max(0,(c.vel||0)*0.95); c.burstUntil = t + 300; kickSprint(c);
         emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
         if (committerId===d.id) committerId = null;
         return "stiffarm";
@@ -1737,7 +1800,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         // barely slows and keeps his feet, so his movement continues into the next hit.
         const tkb = cl(3 + powerEdge*0.12 + (bothWin?(cSpd - dSpd)*0.05:0), 2, 18);
         d.lx += (c._dx||0)*tkb; d.y = clampY(d.y + (c._dy||0)*tkb);
-        c._v = (c._v||c.spd) * (bothWin ? 0.94 : 0.86);
+        c.vel = Math.max(0,(c.vel||0) * (bothWin ? 0.97 : 0.90));
         // v25 HIT STICK (offense): a violent truck flattens the defender — flagged so the
         // renderer flings him with the baked dive/down frames and pops "HIT STICK".
         const hitStick = (powerEdge > 24 || bothWin) && tkb > 9;
@@ -1754,7 +1817,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const staggerP = cl(0.11 + (balance - wrapQ)*0.006 - (behind?0.22:0) - (c._staggered&&t-c._staggered<500?0.20:0), 0.03, 0.46) * (1 - swarmChoke);
       if (Math.random() < staggerP) {
         d.stagger = t; d.cool = t + 300;
-        c._v = (c._v||c.spd)*0.6; c._staggered = t;              // knocked off-stride, loses a step
+        c.vel = Math.max(0,(c.vel||0)*0.75); c._staggered = t;  // knocked off-stride, loses a step
         emit("stagger",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
         return "stagger";
       }
@@ -1982,7 +2045,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       });
       if (phase === "snap") { if (t >= 140) { carrier = S.off[8]; emit("snap",{}); phase = kind==="pass"?"drop":"handoff"; } }
       else if (phase === "handoff") {
-        if (t >= 420) { carrier = S.off[9]; carrier.vel = Math.max(carrier.vel||0, 0.55); emit("handoff",{}); phase = "carry";
+        if (t >= 420) { carrier = S.off[9]; emit("handoff",{}); phase = "carry";
           // second-level blocking: uncovered linemen climb to linebackers
           const covered = new Set(rushers.map(r=>r.engaging&&r.engaging.id));
           const lbs = S.def.filter(a=>a.lb==="LB");
@@ -2118,7 +2181,12 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
                 - helperContest - (underPressure?0.12:0) - (movingThrow?.055:0), 0.08, 0.93);
               if (Math.random() < catchP) {
                 emit("catch",{by:target.id,x:cx,y:cyy,catchType:locationQuality<.62&&routeDepth>7?"dive":routeDepth>12?"high":"secure"});
-                carrier = target; carrier.vel = Math.max(carrier.vel||0, 0.6);
+                carrier = target;
+                // Placement that lets the receiver catch in stride carries into
+                // the acceleration target for a short run-through window. Poorly
+                // located/dive catches get almost none; this is not a velocity snap.
+                target._catchRunThroughUntil=t+TU("catchRunThroughMs",550);
+                target._catchStrideBoost=cl((locationQuality-.35)*TU("catchStrideLocationK",.32),.02,TU("catchStrideMax",.16));
                 // A defender who arrived with the receiver usually finishes the
                 // catch immediately; late/trailing coverage concedes real YAC.
                 // This makes location/arrival matter while retaining broken-play upside.
@@ -2239,7 +2307,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           }
         }
         // sprint = the visible +20% burst; the old daylight jet is now a small tail
-        const jets = sprinting(c) ? SPRINT_BOOST : (t < (c.burstUntil||0) ? 0.10 : 0);
+        const catchStride=t<(c._catchRunThroughUntil||0)?(c._catchStrideBoost||0):0;
+        const jets = (sprinting(c) ? SPRINT_BOOST : (t < (c.burstUntil||0) ? 0.10 : 0)) + catchStride;
         mv(c, c.lx + dirSign*40, laneY, cl((hole?1.12:0.9) + jets + (c.burst-50)*0.004, 0.72, 1.5));
         // A catch/return secured on the boundary is dead at that possession
         // point. It has no incoming carry segment this tick, so preserve the
@@ -2489,6 +2558,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
               a.lx += (a._kbdx||0)*s; a.y = clampY(a.y + (a._kbdy||0)*s); }
             return;                                        // then the tackled man stays down
           }
+          evolveSpeed(a,0,TICK,t,0,TU("whistleBrakeScale",.46));
           const v = Math.max(0,(a.vel||0)) * (a.spd||120) * ease * (TICK/1000) * 0.8;
           if (v > 0.15) { a.lx += (a._dx||0)*v; a.y = clampY(a.y + (a._dy||0)*v); }
         });
@@ -2540,15 +2610,23 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
   }
   // unit hook: velocity retained through a 90-degree cut at a given agility
   function turnTest(agi) {
-    const a = { lx:0, y:0, spd:140, agi, accel:60, stam:60, gas:100, vel:1, _dx:1, _dy:0 };
-    const saveT = 500;
-    // simulate the mv turn math directly at t=saveT
-    let dx=0, dy=1;                                             // 90° turn demand
-    const carry = Math.max(0.06, (0.28 - (a.agi-50)*0.0026) * (0.6 + a.vel*0.7));
-    const dot = dx*a._dx + dy*a._dy;                            // = 0
-    const turnCost = (1 - Math.max(-1, Math.min(1, dot))) * (0.30 - (a.agi-50)*0.0026);
-    if (turnCost > 0.002) a.vel *= Math.max(0.55, 1 - turnCost);
-    return a.vel;
+    const a = { spd:140, spdA:60, agi, accel:60, burst:60, vel:1, _launchAt:0 };
+    return evolveSpeed(a,1,TICK,500,1,1);
+  }
+  // Unit hook: compare ratings without sim noise. Times are milliseconds and
+  // distance is pixels covered in the first 330ms from a standing start.
+  function accelerationTest(accel,burst=accel,agi=accel) {
+    const a={spd:140,spdA:60,accel,burst,agi,vel:0},dt=33;
+    let now=0,dist=0,t50=null,t80=null,t90=null;
+    for(let i=0;i<90;i++){
+      const prev=a.vel;now+=dt;evolveSpeed(a,1,dt,now,0,1);if(now<=330)dist+=a.spd*a.vel*dt/1000;
+      const crossing=threshold=>+(now-dt+dt*cl((threshold-prev)/Math.max(.0001,a.vel-prev),0,1)).toFixed(1);
+      if(t50==null&&a.vel>=.5)t50=crossing(.5);if(t80==null&&a.vel>=.8)t80=crossing(.8);if(t90==null&&a.vel>=.9)t90=crossing(.9);
+      if(now>=330&&t90!=null)break;
+    }
+    const startBrake=a.vel;let brake50=null;
+    for(let i=0;i<90&&brake50==null;i++){now+=dt;evolveSpeed(a,0,dt,now,0,1);if(a.vel<=startBrake*.5)brake50=(i+1)*dt;}
+    return {accel,burst,agility:agi,t50:t50||2970,t80:t80||2970,t90:t90||2970,distance330:+dist.toFixed(2),brake50:brake50||2970};
   }
   const Q = [];
   function pushLog(sig, log) { Q.push({ sig, log }); if (Q.length > 120) Q.shift(); }
@@ -2574,7 +2652,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     ballControl:  "secures contested catches in tight coverage",
   };
   root.__FieldSim = {
-    skillMap: SKILL_MAP, _breakP: breakProb, _turnTest: turnTest,
+    skillMap: SKILL_MAP, _breakP: breakProb, _turnTest: turnTest, _accelTest: accelerationTest,
     pass(w, k, T, K, g, N, att, concept, ctx={}) {
       try {
         // place the resolved target/cover into their actual formation slots so the
@@ -7492,7 +7570,8 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     rearFacingApparelV1521:true,sideRunNumbersHidden:true,naturalFumblePursuit:true,
     linebackerPassDropsV1521:true,receiverBracketCoverageV1521:true,continuousCornerCoverageV1521:true,
     handMountedFootballV36:true,longAxisSpiralV36:true,ballisticDragV36:true,
-    exactBoundaryPlanesV37:true,movementIQV37:true,directionalJukesV37:true,contactSlowMoV37:true
+    exactBoundaryPlanesV37:true,movementIQV37:true,directionalJukesV37:true,contactSlowMoV37:true,
+    wholeFieldAccelerationV38:true
   });
 })();
 </script>
@@ -7519,7 +7598,13 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     safetyRoofLx: 55, safetyCushion: 44,
     routeReactBase: 285, routeReactMin: 70, routeReactMax: 390, routeBadBiteK: 0.008,
     jukePlantMs: 170, jukeLanePx: 14, cinematicScale: 0.5, cinematicMs: 1000,
-    planeEpsilon: 0.05
+    planeEpsilon: 0.05,
+    accelRestartTurn: 0.34, accelResetFrac: 0.08, turnLossBase: 0.30, turnLossAgilityK: 0.0024,
+    turnRetentionFloor: 0.54, accelLaunchMs: 260, burstAccelK: 0.0042,
+    accelBasePerSec: 3.0, accelRatingK: 0.040, rollingAccelScale: 3.0, rollingReadyMs: 132, brakeBasePerSec: 3.0,
+    brakeAgilityK: 0.020, brakeAccelK: 0.006, whistleBrakeScale: 0.46,
+    fieldSpeedCap: 1.35, choreoSpeedCap: 2.15, pileSpeedFrac: 0.12,
+    catchRunThroughMs: 550, catchStrideLocationK: 0.32, catchStrideMax: 0.16
   };
   const DEV = window.DEV = {
     defaults: DEFAULTS,

@@ -143,6 +143,7 @@ passes.forEach(p => console.log(JSON.stringify(p)));
 const sum = key => passes.reduce((n, p) => n + p[key], 0);
 const average = key => +(sum(key) / passes.length).toFixed(2);
 const range = key => +(Math.max(...passes.map(p => p[key])) - Math.min(...passes.map(p => p[key]))).toFixed(2);
+const V37_REFERENCE = { avgRunYpc: 7.8, avgCompletionPct: 68.5, avgPassYpa: 7.98, avgAirYpa: 4.78, avgYacPerCompletion: 4.68 };
 const summary = {
   source: gitRef || "worktree",
   simulations: passes.length,
@@ -154,6 +155,16 @@ const summary = {
   goalLineChecks: sum("goalLineChecks"), routeBreaks: sum("routeBreaks"), routeReactions: sum("routeReactions"),
   badRouteBites: sum("badRouteBites"), cuts: sum("cuts"), badAngles: sum("badAngles"),
 };
+const profileCtx = runtime(0xACC311);
+summary.accelerationProfile = typeof profileCtx.__FieldSim?._accelTest === "function" ? {
+  low: profileCtx.__FieldSim._accelTest(25, 25, 40),
+  mid: profileCtx.__FieldSim._accelTest(60, 60, 60),
+  elite: profileCtx.__FieldSim._accelTest(90, 90, 90),
+} : null;
+const pctDelta = (value, baseline) => +((value - baseline) / baseline * 100).toFixed(1);
+summary.balanceVsV37 = Object.fromEntries(Object.entries(V37_REFERENCE).map(([key, baseline]) => [key, {
+  baseline, current: summary[key], deltaPct: pctDelta(summary[key], baseline),
+}]));
 console.log("summary", JSON.stringify(summary, null, 2));
 
 if (!gitRef) {
@@ -163,6 +174,18 @@ if (!gitRef) {
   if (summary.goalLineChecks !== 20) failures.push(`${20 - summary.goalLineChecks} goal-line crossings were late/misplaced`);
   if (!summary.routeBreaks || !summary.routeReactions) failures.push("route breaks did not affect coverage movement");
   if (!summary.cuts || !summary.badAngles) failures.push("directional cuts did not produce any pursuit mistakes");
+  const ap = summary.accelerationProfile;
+  if (!ap) failures.push("acceleration profile hook is missing");
+  else {
+    if (!(ap.elite.t50 < ap.mid.t50 && ap.mid.t50 < ap.low.t50)) failures.push("acceleration rating did not order 0-50 times");
+    if (!(ap.elite.t80 < ap.mid.t80 && ap.mid.t80 < ap.low.t80)) failures.push("acceleration rating did not order 0-80 times");
+    if (!(ap.elite.t90 <= ap.mid.t90 && ap.mid.t90 <= ap.low.t90)) failures.push("acceleration rating inverted 0-90 times");
+    if (!(ap.elite.distance330 > ap.mid.distance330 && ap.mid.distance330 > ap.low.distance330)) failures.push("burst rating did not order first-step distance");
+    if (!(ap.elite.brake50 < ap.low.brake50)) failures.push("agility did not improve braking time");
+  }
+  for (const [key, comparison] of Object.entries(summary.balanceVsV37)) {
+    if (Math.abs(comparison.deltaPct) > 12) failures.push(`${key} moved ${comparison.deltaPct}% from the v37 calibration`);
+  }
   if (failures.length) {
     console.error("movementcheck failed:", failures.join("; "));
     process.exitCode = 1;

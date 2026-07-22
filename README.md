@@ -55,6 +55,15 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v38 — whole-field acceleration.** Every movement command now requests a
+  target gear instead of multiplying velocity instantly. Acceleration and burst
+  control launches and restarts; agility governs speed retained through cuts and
+  braking; fatigue, contact, blocking pace, pursuit, routes, sprint bursts, pile
+  drive, and post-whistle coast all enter the same curve. Fallback ball carriers
+  no longer bypass acceleration, and FieldSim contact now changes the velocity it
+  actually uses. A deterministic low/mid/elite acceleration profile is included
+  in the ten-run movement check so rating progression and balance stay measurable.
+
 - **v37 — exact boundary planes, movement IQ, and cinematic contact.** Goal lines
   and sidelines are now zero-width planes resolved at the first interpolated
   crossing point: fast runners cannot skip a line, out-of-bounds spots land on
