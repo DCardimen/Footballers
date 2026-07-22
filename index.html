@@ -196,6 +196,7 @@ window.addEventListener('unhandledrejection', function(e){
 
 </script>
 <script>
+/* ===== v37 EXACT PLANES + MOVEMENT IQ + CINEMATIC CONTACT ===== */
 /* ===== RIB_TUNE: every gameplay dial reads through TU(key, default) so DEV can retune live ===== */
 window.RIB_TUNE = window.RIB_TUNE || {};
 window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined ? t[k] : d; };
@@ -219,6 +220,14 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const clampX=(x)=>Math.max(PLAY_L-YD*9,Math.min(PLAY_R+YD*9,x));
     const SIDELINE_TOP=F_TOP+34, SIDELINE_BOT=F_BOT-30;
     const clampY=(y)=>Math.max(SIDELINE_TOP,Math.min(SIDELINE_BOT,y));
+    // A boundary is a zero-width plane, not a fuzzy zone. Every dead-ball/score
+    // spot below is interpolated onto the FIRST plane touched by the carrier's
+    // movement segment, so high speed can never skip a sideline or goal line.
+    const crossedPlane=(a,b,plane,sign)=>{const eps=TU("planeEpsilon",.05);
+      return sign>0?a<plane&&b>=plane-eps:a>plane&&b<=plane+eps;};
+    const planePoint=(x0,y0,x1,y1,axis,plane)=>{ const d=(axis==="x"?x1-x0:y1-y0);
+      const q=Math.max(0,Math.min(1,Math.abs(d)<1e-6?0:(plane-(axis==="x"?x0:y0))/d));
+      return {x:axis==="x"?plane:x0+(x1-x0)*q,y:axis==="y"?plane:y0+(y1-y0)*q}; };
 
     const usOff = payload.offense !== "them";
     const dir = usOff ? 1 : -1;
@@ -1076,16 +1085,23 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           }
         }
         const p=pointAt(carrierPath,Math.min(carrierD,carrierLen));
+        const prevCarryX=c.x, prevCarryY=c.y;
         // fire cut events when passing cut waypoints
         carrierPath.forEach((wp,i)=>{
           if(wp.cut&&!wp.cut.fired){
             const dPast=pointAt(carrierPath,carrierD);
             if(dPast.seg>i){ wp.cut.fired=true; emit("cut",{kind:wp.cut.type,x:wp.x,y:wp.y,carrier:ballCarrier});
-              // beat the nearest chaser (overrun)
+              // A cut has direction and defenders must diagnose it. Low-awareness/
+              // discipline pursuers false-step down the old angle; elite defenders
+              // stay square. The primary closer is eligible too — no magnet tackle.
               const chaseSide=c.side==="off"?"def":"off";
-              let nb=null,nd=1e9;
-              actors.filter(a=>a.side===chaseSide&&a.id!==closerId&&a.label!=="OL").forEach(a=>{const d=Math.hypot(a.x-wp.x,a.y-wp.y); if(d<nd){nd=d;nb=a;}});
-              if(nb&&nd<70){ nb.beatenUntil=t+520; nb.vx=(wp.x-nb.x); nb.vy=(wp.y-nb.y); emit("beaten",{who:nb.id}); }
+              const oldDx=c._dx||scoreDir, oldDy=c._dy||0;
+              actors.filter(a=>a.side===chaseSide&&a.label!=="OL")
+                .sort((a,b)=>Math.hypot(a.x-wp.x,a.y-wp.y)-Math.hypot(b.x-wp.x,b.y-wp.y)).slice(0,2)
+                .forEach((nb,rank)=>{ const nd=Math.hypot(nb.x-wp.x,nb.y-wp.y), iq=(nb._aware||50)*.55+(nb._disc||50)*.45;
+                  const bite=Math.max(.05,Math.min(.66,.18+((c._agi||.55)*100-iq)*.007-rank*.08));
+                  if(nd<76&&rand()<bite){ nb.beatenUntil=t+Math.round(310+(70-iq)*4); nb.vx=oldDx*nb.spd*.72; nb.vy=oldDy*nb.spd*.72;
+                    emit("badAngle",{who:nb.id,x:nb.x,y:nb.y,reason:"juke",delay:Math.round(nb.beatenUntil-t)}); } });
             }
           }
         });
@@ -1094,10 +1110,15 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         // The instant the ball carrier breaks the plane is the touchdown. Stop
         // the return/run choreography there instead of waiting for an arbitrary
         // end-zone waypoint (especially important on pick-sixes).
+        const goalPlane=scoreDir>0?PLAY_R:PLAY_L;
         if(phase==="carry"&&scored&&reachedGoal&&!tdFired&&
-          (scoreDir>0?c.x>=PLAY_R:c.x<=PLAY_L)){
+          crossedPlane(prevCarryX,c.x,goalPlane,scoreDir)){
+          const gp=planePoint(prevCarryX,prevCarryY,c.x,c.y,"x",goalPlane);
+          // Keyframes are stored to tenths. Snap the last sub-tenth to the plane
+          // so the visible marker and scoring event can never disagree by a frame.
+          if((c.x-goalPlane)*scoreDir<0){c.x=goalPlane;c.y=gp.y;}
           tdFired=true; carrierDone=true;
-          emit("td",{x:scoreDir>0?PLAY_R:PLAY_L,y:c.y,carrier:ballCarrier});
+          emit("td",{x:gp.x,y:gp.y,carrier:ballCarrier,plane:"goal"});
           mobIds = actors.filter(a=>a.side===c.side&&a.id!==ballCarrier&&a.label!=="OL")
             .sort((p,q)=>Math.hypot(p.x-c.x,p.y-c.y)-Math.hypot(q.x-c.x,q.y-c.y)).slice(0,3).map(a=>a.id);
           phase="epilogue"; epiUntil=t+1000;
@@ -1124,7 +1145,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         if(phase==="carry"&&carrierD>=carrierLen&&!carrierDone){
           carrierDone=true;
           if(scored&&reachedGoal&&!tdFired){
-            emit("td",{x:c.x,y:c.y,carrier:ballCarrier});
+            // Degenerate fallback (for example a catch already sitting on the
+            // plane): the scoring event still belongs to the exact goal line.
+            const gx=scoreDir>0?PLAY_R:PLAY_L;
+            emit("td",{x:gx,y:c.y,carrier:ballCarrier,plane:"goal"}); tdFired=true;
             // TD mob: nearest teammates converge
             mobIds = actors.filter(a=>a.side===c.side&&a.id!==ballCarrier&&a.label!=="OL")
               .sort((p,q)=>Math.hypot(p.x-c.x,p.y-c.y)-Math.hypot(q.x-c.x,q.y-c.y)).slice(0,3).map(a=>a.id);
@@ -1181,7 +1205,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             }
             if(oobPlanned)c.y=c.y<MIDY?SIDELINE_TOP:SIDELINE_BOT;
             emit("tackle",{tackler:closerId,carrier:ballCarrier,x:c.x,y:c.y,
-              bigHit:hitStick||!!fx.bigHit, hitStick, hitForce, launch:launchDist, drag:dragDist, rearGrab, contactType, oob:oobPlanned, gang:wrapped});
+              bigHit:hitStick||!!fx.bigHit, hitStick, hitForce, launch:launchDist, drag:dragDist, rearGrab, contactType,
+              oob:oobPlanned, plane:oobPlanned?"sideline":undefined, gang:wrapped});
             phase="epilogue"; epiUntil=t+Math.max(1000,(rearGrab?Math.min(1080,520+dragDist*14):(hitStick?760:440)));
           }
         }
@@ -1411,6 +1436,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
  */
 (function (root) {
   const TICK = 33, YD = 5.88, F_TOP = 14, F_BOT = 426, MIDY = 220;
+  const SIDELINE_TOP = F_TOP + 34, SIDELINE_BOT = F_BOT - 30;
   const OFF_L = ["WR","WR","TE","OL","OL","OL","OL","OL","QB","RB","WR"];
   const DEF_L = ["CB","CB","S","S","LB","LB","LB","DL","DL","DL","DL"];
   const OFF_Y = [78,372,306,158,190,222,254,286,222,262,120];
@@ -1421,7 +1447,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
   // reads off the tackler-vs-carrier gap — a shorter man gets under pads and wraps
   // clean; a taller man tackles high and gets ducked, hurdled and trucked more.
   const HT_BY_POS = { QB:75, RB:71, WR:73, TE:77, OL:77, CB:71, S:72, LB:74, DL:75, DE:76, DT:75, NT:74 };
-  const clampY = y=>Math.max(F_TOP+34,Math.min(F_BOT-30,y));
+  const clampY = y=>Math.max(SIDELINE_TOP,Math.min(SIDELINE_BOT,y));
   const cl = (v,a,b)=>Math.min(b,Math.max(a,v));
 
   function makeAgents(kOff, tDef, att, picks) {
@@ -1508,7 +1534,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       else if (carrier) ball = { lx: carrier.lx, y: carrier.y+4, h:0 };
       ballFrames.push({t, x:Math.round(ball.lx*10)/10, y:Math.round(ball.y*10)/10, h:Math.round(ball.h)}); };
     const mv = (a, tx, ty, mult) => { let dx=tx-a.lx, dy=ty-a.y; const d=Math.hypot(dx,dy);
+      a._sidelineCross=null;
       if(d<0.5) { a.vel*=0.8; return; } dx/=d; dy/=d;
+      const wantDx=dx,wantDy=dy;
       // agility: tighter turns for agile players. v24 widened the per-point effect
       // (0.0022→0.0026) so cuts are visibly cleaner for elite agility and sloppier
       // for low — an elite back keeps his speed through a hard plant, a stiff one
@@ -1520,7 +1548,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         const turnCost = (1 - Math.max(-1, Math.min(1, dot))) * (0.30 - (a.agi-50)*0.0026);
         if (turnCost > 0.002) a.vel *= Math.max(0.55, 1 - turnCost);   // turning bleeds speed, agility saves it
       }
-      a._dx=dx; a._dy=dy;
+      a._turnDemand=a._wantDx==null?0:1-Math.max(-1,Math.min(1,wantDx*a._wantDx+wantDy*a._wantDy));
+      a._wantDx=wantDx; a._wantDy=wantDy; a._dx=dx; a._dy=dy;
       // acceleration: velocity ramps toward the target
       const rampRate = 0.10 + (a.accel-50)*0.0016;
       a.vel = Math.min(1, (a.vel||0) + rampRate);
@@ -1534,7 +1563,17 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // v20: a GASSED player (emptied his tank on a recent play) is moderately
       // slower everywhere until his recovery plays run out
       const gassed = a.gassedV20 ? TU("gassedSpeedMul", 0.9) : 1;
-      const step=Math.min(d, a.spd*mult*a.vel*fade*rel*tank*gassed*TICK/1000); a.lx+=dx*step; a.y+=dy*step; a.y=clampY(a.y); };
+      const step=Math.min(d, a.spd*mult*a.vel*fade*rel*tank*gassed*TICK/1000);
+      const x0=a.lx,y0=a.y,x1=x0+dx*step,y1=y0+dy*step;
+      // Preserve the un-clamped segment long enough to resolve the exact first
+      // sideline contact. Clamping alone made fast players live on the stripe for
+      // a tick and moved the dead-ball spot downfield.
+      let plane=null;
+      if(y0>SIDELINE_TOP&&y1<=SIDELINE_TOP)plane=SIDELINE_TOP;
+      else if(y0<SIDELINE_BOT&&y1>=SIDELINE_BOT)plane=SIDELINE_BOT;
+      if(plane!=null){const den=y1-y0,q=Math.max(0,Math.min(1,Math.abs(den)<1e-9?0:(plane-y0)/den));
+        a._sidelineCross={x:x0+(x1-x0)*q,y:plane};}
+      a.lx=x1; a.y=clampY(y1); };
 
     // ---- trench: paired blocking contests; engaged rushers CRAWL ----
     const rushers = S.def.filter(a=>a.lb==="DL");
@@ -1639,7 +1678,20 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         // the hips around), a jump-cut juke favors quickness. `elus` rides the event so
         // the renderer can make an elite back's move crisp and a scrub's sloppy.
         const spinPref = cl(0.18 + (c.agi - c.quick)*0.006 + (c._staggered?-0.1:0), 0.08, 0.55);
-        emit("cut",{kind: Math.random() < spinPref ? "spin" : "juke", x:c.lx, y:c.y, carrier:c.id, elus:Math.round(elus)});
+        const moveKind=Math.random()<spinPref?"spin":"juke", side=(d.y>=c.y?-1:1);
+        c._jukeUntil=t+cl(TU("jukePlantMs",170)+(c.quick-40)*2.0,170,300);
+        c._jukeY=clampY(c.y+side*cl(TU("jukeLanePx",14)+(c.agi-45)*.22,12,26));
+        emit("cut",{kind:moveKind,x:c.lx,y:c.y,carrier:c.id,elus:Math.round(elus),direction:side,targetY:c._jukeY});
+        // Nearby help can also bite on the first move. Their awareness/discipline
+        // decides whether they false-step; the last layer still has the separate
+        // safety-roof/last-man protection below.
+        S.all.filter(a=>a!==d&&a.side===d.side&&a.lb!=="OL"&&Math.hypot(a.lx-c.lx,a.y-c.y)<58)
+          .sort((p,q)=>Math.hypot(p.lx-c.lx,p.y-c.y)-Math.hypot(q.lx-c.lx,q.y-c.y)).slice(0,2).forEach((a,rank)=>{
+            const iq=a.aware*.55+a.disc*.45,biteP=cl(.10+(elus-iq)*.007-rank*.04,.025,.48);
+            if(Math.random()<biteP){const delay=Math.round(cl(190+(elus-iq)*2.6,140,390));
+              a.beaten=Math.max(a.beaten||0,t+delay);a._osUntil=t+Math.min(delay,TU("overshootMs",420));a._osdx=a._dx||0;a._osdy=a._dy||0;
+              emit("badAngle",{who:a.id,x:a.lx,y:a.y,reason:"juke-help",delay});}
+          });
         if (committerId===d.id) committerId = null;
         return "whiff";
       }
@@ -1789,6 +1841,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     let handfightShown = false, highpointShown = false;
     const passConcept = opts && opts.concept;
     let coverHelp=null, bracketed=false, lbDrops=[];
+    // Coverage does not receive the receiver's new direction for free. This
+    // callback is upgraded after routes are built; the neutral form keeps run
+    // and non-route movement untouched.
+    let coverageAim=(d,w)=>({lx:w.lx,y:w.y});
     // v23 QB read progression: the cone shifts through the QB's reads during the
     // drop and LANDS on the man he actually throws to — he can only release to the
     // receiver he is focused on at that instant. Built in the pass setup below.
@@ -1835,6 +1891,25 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           case "screen": return [P(sx,sy), P(sx-2*YD, sy - s*12)];
           default:       return [P(sx,sy), P(sx+D, sy)];
         }
+      };
+      coverageAim=(d,w)=>{
+        const br=w&&w._routeBreak;
+        const breakKey=br&&`${w.id}:${br.serial}`;
+        if(br&&d._seenRouteBreak!==breakKey){
+          d._seenRouteBreak=breakKey;
+          const iq=d.aware*.58+d.quick*.24+d.disc*.18;
+          const angleK=Math.max(.2,Math.min(1.35,br.angle/1.2));
+          const badBite=Math.random()<cl((62-iq)*TU("routeBadBiteK",.008)*angleK,.02,.34);
+          const delay=Math.round(cl((TU("routeReactBase",285)-(iq-50)*3.0)*angleK*(badBite?1.35:1),TU("routeReactMin",70),TU("routeReactMax",390)));
+          d._routeReactUntil=t+delay; d._routeGhost=br; d._routeBadBite=badBite;
+          emit("routeReaction",{who:d.id,on:w.id,x:d.lx,y:d.y,delay,badBite});
+        }
+        if(d._routeGhost&&t<(d._routeReactUntil||0)){
+          const g=d._routeGhost, age=Math.max(0,t-g.t)/1000;
+          const extra=(w.spd||130)*age*(d._routeBadBite?1.08:.92);
+          return {lx:g.lx+g.inDx*extra,y:clampY(g.y+g.inDy*extra)};
+        }
+        return {lx:w.lx,y:w.y};
       };
       const _recv = S.off.filter(a=>["WR","TE"].includes(a.lb));
       const _deep=["go","post","corner"], _med=["out","dig","curl","corner"], _short=["slant","flat","curl","out"];
@@ -2026,8 +2101,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           ballFlight = { t0:t, style:throwStyle, dur: cl(Math.hypot(cx-qb.lx,cyy-qb.y)*(4.45-(S.off[8].thr-50)*0.006)*styleK, 390, 1700),
             x0:qb.lx, y0:qb.y, x1:cx, y1:cyy, arc: styleArc, done: ()=>{
               // soft correction only — they tracked the ball through its flight
-              const capTo=(a,tx,ty)=>{ const d=Math.hypot(tx-a.lx,ty-a.y);
-                if(d>0.1){ const f=Math.min(1,9/d); a.lx+=(tx-a.lx)*f; a.y+=(ty-a.y)*f; } };
+              const capTo=(a,tx,ty)=>{ const safeY=clampY(ty),d=Math.hypot(tx-a.lx,safeY-a.y);
+                if(d>0.1){const f=Math.min(1,9/d);a.lx+=(tx-a.lx)*f;a.y=clampY(a.y+(safeY-a.y)*f);} };
               capTo(target,cx,cyy); capTo(coverA,cx-sep*2.4,cyy+3);
               const qbA = S.off[8];
               // jumping decides the high-point on deep shots; ballControl secures contested grabs
@@ -2096,6 +2171,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       }
       else if (phase === "carry") {
         const c = carrier;
+        const carryStartX=c.lx;
+        const boundaryAtStart=c.y<=SIDELINE_TOP+TU("planeEpsilon",.05)?SIDELINE_TOP:
+          c.y>=SIDELINE_BOT-TU("planeEpsilon",.05)?SIDELINE_BOT:null;
         // trench keeps resolving during ANY carry (YAC included)
         rushers.forEach(r => { if (!r.shed) {
           if(!r.engaging){r.shed=true;return;}
@@ -2121,12 +2199,21 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           const near = chasersNear(c);
           const above = near.filter(a=>a.y<c.y).length, below = near.filter(a=>a.y>=c.y).length;
           if (Math.abs(above-below) >= 2 && Math.random() < 0.3 + (c.vis-50)*0.005) {
-            c._cut = true; laneY = clampY(c.y + (above>below?70:-70)); emit("cutback",{x:c.lx,y:c.y});
+            c._cut = true; laneY = clampY(c.y + (above>below?70:-70)); emit("cutback",{x:c.lx,y:c.y,direction:above>below?1:-1});
             // v29: defenders who bite on the cutback overshoot along their old pursuit line
-            near.slice(0,2).forEach(a=>{ if (50-a.disc>0 || Math.random()<0.4) {
-              a.beaten = t + 480; a._osUntil = t + TU("overshootMs",420); a._osdx = a._dx||0; a._osdy = a._dy||0; } });
+            near.sort((p,q)=>Math.hypot(p.lx-c.lx,p.y-c.y)-Math.hypot(q.lx-c.lx,q.y-c.y)).slice(0,3).forEach((a,rank)=>{
+              const moveIQ=c.agi*.45+c.quick*.55, defendIQ=a.aware*.55+a.disc*.45;
+              const biteP=cl(.14+(moveIQ-defendIQ)*.008-rank*.045,.035,.62);
+              if(Math.random()<biteP){const delay=Math.round(cl(260+(moveIQ-defendIQ)*3.2,180,540));
+                a.beaten=t+delay; a._osUntil=t+Math.min(delay,TU("overshootMs",420)); a._osdx=a._dx||0; a._osdy=a._dy||0;
+                emit("badAngle",{who:a.id,x:a.lx,y:a.y,reason:"cutback",delay});} });
           }
         }
+        // A successful contact juke now changes the runner's actual lane, not just
+        // the sprite animation. The plant lasts briefly and then releases back to
+        // normal path-finding, so it can shake a poor angle without becoming a
+        // permanent sideline sprint.
+        if(c._jukeUntil&&t<c._jukeUntil)laneY=c._jukeY;
         const hole = kind==="run" && c.lx > -8 && c.lx < 24;
         // v16.1: springing clean into the open field. Once the back clears the
         // line with no defender in his immediate area, he turns it upfield and
@@ -2154,6 +2241,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         // sprint = the visible +20% burst; the old daylight jet is now a small tail
         const jets = sprinting(c) ? SPRINT_BOOST : (t < (c.burstUntil||0) ? 0.10 : 0);
         mv(c, c.lx + dirSign*40, laneY, cl((hole?1.12:0.9) + jets + (c.burst-50)*0.004, 0.72, 1.5));
+        // A catch/return secured on the boundary is dead at that possession
+        // point. It has no incoming carry segment this tick, so preserve the
+        // exact spot explicitly instead of letting the runner turn back infield.
+        if(boundaryAtStart!=null&&!c._sidelineCross)c._sidelineCross={x:carryStartX,y:boundaryAtStart};
         // defense pursues with lead angles; contacts roll tackle contests
         // climbing linemen wall off linebackers (shed contests apply)
         if (kind === "run") blockers.forEach(o => {
@@ -2297,15 +2388,14 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             // whiff / stiffarm / broken / stagger / cooldown: carrier stays up, play continues
           }
         }
-        // sidelines end the play at the spot — v30: credit only a defender actually
-        // close enough to have forced him out, never a random slot across the field
-        if (!done && (c.y <= F_TOP+35 || c.y >= F_BOT-31)) {
-          // Place the runner and the dead-ball event on the actual inner edge of
-          // the sideline, never a few pixels in the field or beyond the stripe.
-          c.y = c.y <= F_TOP+35 ? F_TOP+34 : F_BOT-30;
+        // sidelines end the play at the first point the movement segment touches
+        // the plane — v30: credit only a defender actually close enough to have
+        // forced him out, never a random slot across the field
+        if (!done && c._sidelineCross) {
+          const boundary=c._sidelineCross; c.lx=boundary.x; c.y=boundary.y;
           const push = chasers.filter(a=>Math.hypot(a.lx-c.lx,a.y-c.y)<TU("tackleCreditPx",20))
             .sort((p,q)=>Math.hypot(p.lx-c.lx,p.y-c.y)-Math.hypot(q.lx-c.lx,q.y-c.y))[0];
-          emit("tackle",{tackler:push?push.id:null, carrier:c.id, x:c.lx, y:c.y, oob:true});
+          emit("tackle",{tackler:push?push.id:null, carrier:c.id, x:boundary.x, y:boundary.y, oob:true, plane:"sideline"});
           done = true; if (!out) out = { kind, yards: Math.round(c.lx/YD) };
         }
         // offense blockers escort
@@ -2314,26 +2404,26 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // pre-carry defense shell drift
       if (phase==="drop"||phase==="fly") {
         S.def.forEach(a=>{
-          if(a===coverA){ mv(a,target.lx-sep*2.4,target.y,.90+a.cov*.0016); }
-          else if(a===coverHelp&&bracketed){ mv(a,target.lx+7,target.y+(a.y<MIDY?-10:10),.78+a.aware*.0018); }
+          if(a===coverA){ const aim=coverageAim(a,target); mv(a,aim.lx-sep*2.4,aim.y,.90+a.cov*.0016); }
+          else if(a===coverHelp&&bracketed){ const aim=coverageAim(a,target); mv(a,aim.lx+7,aim.y+(a.y<MIDY?-10:10),.78+a.aware*.0018); }
           else if(a.lb==="CB"){
             const receivers=S.off.filter(w=>["WR","TE"].includes(w.lb));
             const w=receivers.slice().sort((p,q)=>Math.hypot(p.lx-a.lx,p.y-a.y)-Math.hypot(q.lx-a.lx,q.y-a.y))[0];
             const error=Math.max(0,55-a.aware)/55;
             const wrong=error>.2&&Math.random()<error*.035;
-            const wy=wrong?clampY(w.y+(Math.random()<.5?-55:55)):w.y;
-            mv(a,w.lx+6+(55-a.cov)*.12,wy,.76+a.cov*.0028+a.quick*.0012);
+            const aim=coverageAim(a,w), wy=wrong?clampY(aim.y+(Math.random()<.5?-55:55)):aim.y;
+            mv(a,aim.lx+6+(55-a.cov)*.12,wy,.76+a.cov*.0028+a.quick*.0012);
           }
           else if(a.lb==="S"){
             const deepest=S.off.filter(w=>["WR","TE"].includes(w.lb)).sort((p,q)=>q.lx-p.lx)[0];
-            mv(a,deepest.lx+20,(deepest.y+MIDY)/2,.54+a.aware*.0022);
+            const aim=coverageAim(a,deepest); mv(a,aim.lx+20,(aim.y+MIDY)/2,.54+a.aware*.0022);
           }
           else if(a.lb==="LB"){
             const plan=lbDrops.find(x=>x.a===a);
             if(plan&&t>=plan.readAt){
               if(!plan.ann){plan.ann=true;emit("linebackerDrop",{who:a.id,delay:Math.round(plan.readAt)});}
               const inside=S.off.filter(w=>["TE","RB","WR"].includes(w.lb)).sort((p,q)=>Math.abs(p.y-a.y)-Math.abs(q.y-a.y))[0];
-              mv(a,Math.max(24,inside.lx+5),inside.y+(inside.y<MIDY?7:-7),.58+a.cov*.0022+a.aware*.0014);
+              const aim=coverageAim(a,inside); mv(a,Math.max(24,aim.lx+5),aim.y+(aim.y<MIDY?7:-7),.58+a.cov*.0022+a.aware*.0014);
             } else mv(a,22,a.y,.32+a.quick*.0015);
           }
         });
@@ -2342,7 +2432,15 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             if(a._rwp==null)a._rwp=1;
             const wp=a.route[Math.min(a._rwp, a.route.length-1)];
             mv(a, wp.lx, wp.y, a===target?1.0:0.93);
-            if(a._rwp<a.route.length-1 && Math.hypot(a.lx-wp.lx,a.y-wp.y)<9) a._rwp++;
+            if(a._rwp<a.route.length-1 && Math.hypot(a.lx-wp.lx,a.y-wp.y)<9){
+              const prev=a.route[Math.max(0,a._rwp-1)], next=a.route[a._rwp+1];
+              const inX=wp.lx-prev.lx,inY=wp.y-prev.y,outX=next.lx-wp.lx,outY=next.y-wp.y;
+              const inN=Math.hypot(inX,inY)||1,outN=Math.hypot(outX,outY)||1;
+              const inDx=inX/inN,inDy=inY/inN,outDx=outX/outN,outDy=outY/outN;
+              const angle=Math.acos(cl(inDx*outDx+inDy*outDy,-1,1));
+              a._rwp++; a._routeBreak={serial:(a._breakSerial=(a._breakSerial||0)+1),t,lx:a.lx,y:a.y,inDx,inDy,outDx,outDy,angle};
+              emit("routeBreak",{who:a.id,x:a.lx,y:a.y,route:a._routeName||"route",angle:Math.round(angle*180/Math.PI),direction:Math.sign(outDy)||0});
+            }
           }
           else if(["WR","TE"].includes(a.lb)){ mv(a, a.lx+50, a.y, 0.9); }
           else if(a.lb==="OL"){ const push = a.engagedBy&&!a.engagedBy.shed ? Math.min(18,(t)*0.012):2; mv(a,-6-push*0.7,a.y,0.5);
@@ -3075,7 +3173,7 @@ class Ot extends mt.Scene {
       // (pre-play ribbon removed by request — only the post-play result ribbon shows)
       // stall watchdog — script durations are ≤6s at 1x. Widen it for the v24 base
       // slow-down so the slowest setting (½× × basePlayRate) never trips it early.
-      this.time.delayedCall(script.duration / (0.5 * TU("basePlayRate", 0.7)) + 2600, () => this.complete());
+      this.time.delayedCall(script.duration / (0.5 * TU("basePlayRate", 0.7)) + 4200, () => this.complete());
     } catch (err) { console.warn("[LiveField] animate error:", err); this.complete(); }
   }
 
@@ -3086,7 +3184,11 @@ class Ot extends mt.Scene {
     // v24: base movement runs 30% slower for everyone — a more deliberate, readable
     // pace where cuts, jukes and pursuit angles land as real moves instead of a blur.
     // The user's 1x/2x speed control still multiplies on top of this base.
-    const spd = Math.max(0.5, window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7);
+    // v37 cinematic contact: one real-world second at half playback speed. It is
+    // intentionally layered on top of the user's speed setting and never changes
+    // sim events/outcomes — only how clearly the decisive movement reads.
+    const cineScale=(P.slowMoUntilReal||0)>performance.now()?(P.slowMoScale||TU("cinematicScale",0.5)):1;
+    const spd = Math.max(0.5, window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7) * cineScale;
     P.t += delta * spd;
     const S = P.script, T = Math.min(Math.max(0, P.t - (P.delay || 0)), S.duration);
     // Madden-style follow camera: track the ball with look-ahead, wider on big plays
@@ -3332,8 +3434,9 @@ class Ot extends mt.Scene {
     // pending TD: celebrate the exact frame the carrier crosses the plane (sim space)
     if (P.pendTD) {
       const cm = this.markers[P.pendTD.idx];
-      if (cm && (P.pendTD.dirTD > 0 ? cm.sx >= P.pendTD.goalX - 1 : cm.sx <= P.pendTD.goalX + 1)) {
-        this.celebrate(P.pendTD.x, P.pendTD.y); vib([30, 40, 60]); this.endzoneFlash(); this.setSpot(P.pendTD.x, P.pendTD.y);
+      const cross=cm&&this.markerPlaneCross(cm,P.pendTD.goalX,P.pendTD.dirTD);
+      if (cross) {
+        this.celebrate(P.pendTD.goalX, cross.y); vib([30, 40, 60]); this.endzoneFlash(); this.setSpot(P.pendTD.goalX, cross.y);
         P.pendTD = null;
       } else if (T >= S.duration - 33 && P.pendTD) {   // absolute fallback: never lose the moment
         this.celebrate(P.pendTD.x, P.pendTD.y); this.endzoneFlash(); P.pendTD = null;
@@ -3368,6 +3471,22 @@ class Ot extends mt.Scene {
   }
   actorIdxSafe(m) { return this.markers.indexOf(m); }
   clearLand() { const P = this.play; if (P && P.landG) { this.dropFx(P.landG); P.landG = null; } }
+  slowMoment(P, scale=TU("cinematicScale",0.5), realMs=TU("cinematicMs",1000)) {
+    if(!P)return;
+    const now=performance.now();
+    // One decisive beat per contact/catch sequence. A catch event a few frames
+    // after its high-point does not extend the effect into a long replay.
+    if((P.slowMoUntilReal||0)>now)return;
+    P.slowMoScale=scale; P.slowMoUntilReal=now+realMs;
+  }
+  markerPlaneCross(m, plane, dir) {
+    if(!m)return null;
+    const x0=m.prevSx==null?m.sx:m.prevSx,y0=m.prevSy==null?m.sy:m.prevSy,x1=m.sx,y1=m.sy;
+    const beyond=dir>0?x1>=plane:x1<=plane;
+    if(!beyond)return null;
+    const den=x1-x0,q=Math.max(0,Math.min(1,Math.abs(den)<1e-6?1:(plane-x0)/den));
+    return {x:plane,y:y0+(y1-y0)*q};
+  }
 
   fireEvent(e, P) {
     const pay = P.payload;
@@ -3391,6 +3510,7 @@ class Ot extends mt.Scene {
         this.flash(e.x, e.y, 0xf0bb45);
         this.puffFx(e.x, e.y, 2, 0xffe9ad, 0.55);
         this.hitStop = Math.max(this.hitStop, 55); this.zoomPunch = Math.max(this.zoomPunch, 0.16);
+        if(e.catchType==="high"||e.catchType==="dive")this.slowMoment(P);
         vib(30);
         break;
       }
@@ -3409,6 +3529,7 @@ class Ot extends mt.Scene {
         [om,dm].forEach((m,i)=>{ if(m){ m._handfight=false; m._preCatch=true; m.forceState="catch";
           m._launchT0=m.tms; m._launchUntil=m.tms+(e.deep?280:210); m._launchH=e.deep?(i?10:12):(i?7:9);
           this.time.delayedCall(e.deep?250:190,()=>{if(m._preCatch){m._preCatch=false;if(m.forceState==="catch")m.forceState=null;}}); }});
+        if(e.deep)this.slowMoment(P);
         break;
       }
       case "snap": { P.snapped = true; if (this.previewG) this.previewG.clear();
@@ -3431,6 +3552,7 @@ class Ot extends mt.Scene {
         P.awaitCatch = null;
         this.popText(e.x, e.y - 26, "INTERCEPTED!", "#ff9fa5", 18);
         this.hitStop = Math.max(this.hitStop, 70);
+        this.slowMoment(P);
         REDUCED_MOTION || this.cameras.main.shake(140, 0.005); break;
       }
       case "cut": {
@@ -3450,7 +3572,7 @@ class Ot extends mt.Scene {
             if (isSpin) {
               this.tweens.add({ targets: cm2.body, angle: (Math.random()<0.5?360:-360), duration: 360 - flu*150, ease: flu>0.6 ? "Cubic.Out" : "Sine.InOut", onComplete: () => { if (cm2.body) cm2.body.setAngle(0); } });
             } else {
-              const dir = Math.random()<0.5?1:-1;
+              const dir = Number(e.direction)|| (Math.random()<0.5?1:-1);
               this.tweens.add({ targets: cm2.body, x: (cm2.body.x||0) + dir*(3 + flu*4), angle: dir*(12 + flu*10), duration: 130 - flu*55, yoyo: true, ease: "Sine.InOut", onComplete: () => { if (cm2.body) { cm2.body.setAngle(0); } } });
             }
           }
@@ -3466,6 +3588,7 @@ class Ot extends mt.Scene {
           this.time.delayedCall(160, () => { if (tk.active !== false) tk.forceState = "down"; });
           this.time.delayedCall(760, () => { if (tk.forceState === "down") tk.forceState = null; }); }
         this.popText(e.x, e.y - 22, "STIFF ARM!", "#ffd97a", 14);
+        this.slowMoment(P);
         this.puffFx(e.x, e.y, 2); vib(16);
         break;
       }
@@ -3534,6 +3657,7 @@ class Ot extends mt.Scene {
         if (htk) { htk.forceState = "dive"; this.time.delayedCall(220, () => { if (htk.active !== false) htk.forceState = "down"; });
           this.time.delayedCall(820, () => { if (htk.forceState === "down") htk.forceState = null; }); }
         this.popText(e.x, e.y - 26, "HURDLED!", "#8fe7ff", 14);
+        this.slowMoment(P);
         this.puffFx(e.x, e.y, 2);
         break;
       }
@@ -3542,6 +3666,7 @@ class Ot extends mt.Scene {
         // (the tackle event that follows re-arms it into the fall) instead of a blink.
         const tk = this.markers[this.actorIdx(e.who)];
         if (tk) { tk._whiffed = false; tk.forceState = "grab"; this.time.delayedCall(TU("wrapGrabMs",700), () => { if (tk.forceState === "grab") tk.forceState = null; }); }
+        this.slowMoment(P);
         break;
       }
       case "tackleWhiff": {
@@ -3555,6 +3680,7 @@ class Ot extends mt.Scene {
         break;
       }
       case "tackle": {
+        this.slowMoment(P);
         const big = e.bigHit || (pay.yards ?? 0) <= 0;
         const bump = Number(e.kb || 0);
         REDUCED_MOTION || this.cameras.main.shake(big ? 190 : 110, big ? (bump >= 10 ? 0.011 : 0.008) : 0.004);
@@ -3618,9 +3744,9 @@ class Ot extends mt.Scene {
         const dirTD = P.script.meta.scoreDir || P.script.meta.dir || 1;
         const goalX = dirTD > 0 ? PLAY_R : PLAY_L;
         const cm = this.markers[P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier)];
-        const crossed = cm && (dirTD > 0 ? cm.body.x >= goalX - 1 : cm.body.x <= goalX + 1);
-        if (crossed) { this.celebrate(e.x, e.y); vib([30, 40, 60]); this.endzoneFlash(); this.setSpot(e.x, e.y); }
-        else P.pendTD = { x: e.x, y: e.y, goalX, dirTD, idx: P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier) };
+        const crossed = this.markerPlaneCross(cm,goalX,dirTD);
+        if (crossed) { this.celebrate(goalX,crossed.y); vib([30,40,60]); this.endzoneFlash(); this.setSpot(goalX,crossed.y); }
+        else P.pendTD = { x: goalX, y: e.y, goalX, dirTD, idx: P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier) };
         break;
       }
       case "score": {
@@ -3691,6 +3817,7 @@ class Ot extends mt.Scene {
       }
       case "brokenTackle": {
         const m = this.markers[this.actorIdx(e.who)];
+        this.slowMoment(P);
         // v25 HIT STICK (offense trucks the defender): fling the beaten man with the
         // baked dive→down frames along the carrier's motion, big shake + freeze-frame.
         if (e.hitStick && m) {
@@ -3820,7 +3947,7 @@ class Ot extends mt.Scene {
     this.spotG.lineStyle(1.5, 0xffffff, 0.35).strokeCircle(p.x, p.y, 8 * p.s);
   }
   endzoneFlash() {
-    const dir = this.play && this.play.script.meta.dir || 1;
+    const dir = this.play && (this.play.script.meta.scoreDir || this.play.script.meta.dir) || 1;
     const x0 = dir > 0 ? PLAY_R : 0, x1 = dir > 0 ? FW : PLAY_L;
     const g = this.trackFx(this.add.graphics().setDepth(6));
     const a = PJ(x0, F_TOP), b = PJ(x1, F_TOP), c = PJ(x1, F_BOT), d = PJ(x0, F_BOT);
@@ -4101,6 +4228,7 @@ class Ot extends mt.Scene {
   }
   placeMarker(m, sx, sy, dtms) {
     const dx = sx - m.sx, dy = sy - m.sy;
+    m.prevSx=m.sx; m.prevSy=m.sy;
     m.sx = sx; m.sy = sy; m.tms += (dtms || 16);
     const spdPx = Math.hypot(dx, dy) / Math.max(1, dtms || 16) * 1000;
     m.sSm = m.sSm == null ? spdPx : m.sSm * 0.7 + spdPx * 0.3;   // v11: smoothed speed kills state flicker
@@ -7363,7 +7491,8 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     sleekFootballV1521:true,persistentPlayerAppearance:true,rearFacingNumbersV1521:true,
     rearFacingApparelV1521:true,sideRunNumbersHidden:true,naturalFumblePursuit:true,
     linebackerPassDropsV1521:true,receiverBracketCoverageV1521:true,continuousCornerCoverageV1521:true,
-    handMountedFootballV36:true,longAxisSpiralV36:true,ballisticDragV36:true
+    handMountedFootballV36:true,longAxisSpiralV36:true,ballisticDragV36:true,
+    exactBoundaryPlanesV37:true,movementIQV37:true,directionalJukesV37:true,contactSlowMoV37:true
   });
 })();
 </script>
@@ -7387,7 +7516,10 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     bigStickEdge: 1.6, rideDownEdge: 0.5, stayUpEdge: 0.42,
     containWideY: 46, containLxMax: 22, containDepth: 10, containWide: 16,
     holdFlagMs: 900, dpiSep: -0.8, holdFlagP: 0.5, dpiFlagP: 0.2, fmFlagP: 0.08,
-    safetyRoofLx: 55, safetyCushion: 44
+    safetyRoofLx: 55, safetyCushion: 44,
+    routeReactBase: 285, routeReactMin: 70, routeReactMax: 390, routeBadBiteK: 0.008,
+    jukePlantMs: 170, jukeLanePx: 14, cinematicScale: 0.5, cinematicMs: 1000,
+    planeEpsilon: 0.05
   };
   const DEV = window.DEV = {
     defaults: DEFAULTS,

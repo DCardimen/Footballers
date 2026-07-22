@@ -55,6 +55,20 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v37 — exact boundary planes, movement IQ, and cinematic contact.** Goal lines
+  and sidelines are now zero-width planes resolved at the first interpolated
+  crossing point: fast runners cannot skip a line, out-of-bounds spots land on
+  the stripe, and touchdowns/pick-sixes present on the frame the carrier breaks
+  the goal line. Route breaks now force rating-based coverage read/reaction
+  delays; low-awareness defenders can bite on the receiver's old direction,
+  while disciplined defenders stay square. Pursuit angles retain the last-man
+  safeguard but can be compromised by directional cutbacks and jukes; successful
+  jukes now move the runner into a real lateral lane instead of playing a cosmetic
+  animation. High-point catches, interceptions, tackles, hurdles, stiff-arms, and
+  broken tackles receive a single non-stacking one-second cinematic window at
+  50% speed. The renderer uses field coordinates—not sprite-local coordinates—
+  for goal-line presentation, and all new timing/AI values are live `TU()` dials.
+
 - **v36 — hand-mounted football and real rotation dynamics.** Possessed balls now
   sit on a visible carrying arm instead of rendering through a player's center;
   the QB keeps the ball in one throwing hand through tuck, cock, extension, and
