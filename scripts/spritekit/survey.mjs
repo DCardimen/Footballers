@@ -4,10 +4,10 @@ import { chromium } from 'playwright'
 import fs from 'fs'
 import path from 'path'
 const SRC = 'art/source'
-const OUT = '/tmp/claude-0/-home-user-Footballers/a0f4f9fa-21d7-5b3a-bcfc-e0e403d2b6b1/scratchpad'
+const OUT = process.env.SPRITE_SURVEY_OUT || '/tmp'
 const name = process.argv[2]
 const b64 = fs.readFileSync(path.join(SRC, name)).toString('base64')
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage()
 const url = await page.evaluate(async ({ b64 }) => {
   const img = new Image(); await new Promise(r => { img.onload = r; img.src = 'data:image/png;base64,' + b64 })

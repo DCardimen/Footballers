@@ -13,11 +13,14 @@ const ROOT = 'public'
 // dn(front/toward viewer), up(back/away), sd(side), dr(down-diag), ur(up-diag).
 // The renderer mirrors L/R via flip, so base art faces one way (left here).
 // v22 is ADDITIVE now: base run/idle stay the original chunky sprites. The
-// overlay only enhances MOTION MOMENTS — the tackle-to-ground/dive sequence and
-// the cutting/plant frame — by overriding the named action cells the engine
-// already builds those textures from (dive0-3, down0-1, grab, cut_<dir>).
+// overlay only enhances MOTION MOMENTS — catches, cuts, contact, blocking and
+// recovery — by overriding/adding named action cells the engine already knows.
 const DIVE = 'diving tackle pixel art.png'   // 8 dirs x 9 frames: col0 upright, 1-8 dive->grounded
 const CUTS = 'cuts and jukes pixel art.png'
+const CATCH = 'catches pixel art.png'
+const POWER = 'stiff arm and hurdle pixel art.png'
+const BLOCK = 'block and pancake pixel art.png'
+const GETUP = 'get up pixel art.png'
 const MAP = {}
 // dive arc + grounded fold, from a clean side row (row 2)
 MAP['dive0'] = { sheet: DIVE, row: 2, col: 1 }   // launch
@@ -27,9 +30,30 @@ MAP['dive3'] = { sheet: DIVE, row: 2, col: 4 }   // landing
 MAP['down0'] = { sheet: DIVE, row: 2, col: 6 }   // grounded
 MAP['down1'] = { sheet: DIVE, row: 2, col: 8 }   // flat (also the `down` pose)
 MAP['grab']  = { sheet: DIVE, row: 2, col: 2 }   // wrap/extended
-// cutting/plant frame per direction (enhances the `cut` state only — base run untouched)
-const cutRow = { dn: 6, dr: 2, sd: 4, ur: 1, up: 0 }, CUTF = 5
-for (const [d, r] of Object.entries(cutRow)) MAP[`cut_${d}`] = { sheet: CUTS, row: r, col: CUTF }
+// The uploaded sheets share the same facing order: front, diagonals, side and
+// back. Left/right is mirrored by the renderer, so five source rows cover eight
+// screen directions.
+const faceRow = { dn: 0, dr: 1, sd: 2, ur: 3, up: 4 }
+for (const [d, r] of Object.entries(faceRow)) {
+  // plant -> skid -> recover. `cut` keeps the strongest planted silhouette for
+  // spins and legacy callers; juke0-3 supplies the full animation.
+  MAP[`cut_${d}`] = { sheet: CUTS, row: r, col: 2 }
+  for (let i = 0; i < 4; i++) MAP[`juke_${d}${i}`] = { sheet: CUTS, row: r, col: i }
+  // high/secure catch and full-extension diving catch.
+  for (let i = 0; i < 3; i++) {
+    MAP[`catch_${d}${i}`] = { sheet: CATCH, row: r, col: i + 1 }
+    MAP[`divecatch_${d}${i}`] = { sheet: CATCH, row: r, col: i + 4 }
+    MAP[`hurdle_${d}${i}`] = { sheet: POWER, row: r, col: i + 7 }
+  }
+  for (let i = 0; i < 4; i++) MAP[`stiff_${d}${i}`] = { sheet: POWER, row: r, col: i }
+  // Replace the generic blocking loop with the uploaded hand-placement and
+  // drive progression while keeping the existing six-frame state contract.
+  for (let i = 0; i < 6; i++) MAP[`block_${d}${i}`] = { sheet: BLOCK, row: r, col: i }
+}
+// Pancake and get-up are non-directional sequences; side-profile rows read best
+// at broadcast scale and avoid a sudden facing change while a player is down.
+for (let i = 0; i < 3; i++) MAP[`pancake${i}`] = { sheet: BLOCK, row: 2, col: i + 9 }
+for (let i = 0; i < 4; i++) MAP[`getup${i}`] = { sheet: GETUP, row: 2, col: i }
 // atlas grid
 const names = Object.keys(MAP)
 const COLS = 12
@@ -40,7 +64,7 @@ names.forEach((n, i) => { cellmap[n] = [i % COLS, Math.floor(i / COLS)] })
 const sheetsNeeded = [...new Set(names.map(n => MAP[n].sheet))]
 const files = {}; for (const s of sheetsNeeded) files[s] = fs.readFileSync(path.join(SRC, s)).toString('base64')
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage()
 const url = await page.evaluate(async ({ files, MAP, cellmap, COLS, rowsN }) => {
   const imgs = {}, DATA = {}
