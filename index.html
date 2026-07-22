@@ -1464,7 +1464,13 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const emit = (type, extra) => events.push(Object.assign({ t, type }, extra));
     const rec = () => { S.all.forEach(a=>a.frames.push({t, x:Math.round(a.lx*10)/10, y:Math.round(a.y*10)/10}));
       if (ballFlight) { const f=Math.min(1,(t-ballFlight.t0)/ballFlight.dur);
-        ball={ lx: ballFlight.x0+(ballFlight.x1-ballFlight.x0)*f, y: ballFlight.y0+(ballFlight.y1-ballFlight.y0)*f,
+        // v33: the three pass families do not travel at one constant screen speed.
+        // Bullets get on the receiver quickly, touch throws build smoothly, and
+        // lobs hang; every trajectory still arrives at the resolved field location.
+        const q = ballFlight.style==="bullet" ? f*f*(3-2*f)
+          : ballFlight.style==="lob" ? 1-Math.pow(1-f,1.18)
+          : f*f*(2.6-1.6*f);
+        ball={ lx: ballFlight.x0+(ballFlight.x1-ballFlight.x0)*q, y: ballFlight.y0+(ballFlight.y1-ballFlight.y0)*q,
                h: Math.sin(f*Math.PI)*ballFlight.arc };
         if(f>=1){ const cb=ballFlight.done; ballFlight=null; cb&&cb(); } }
       else if (carrier) ball = { lx: carrier.lx, y: carrier.y+4, h:0 };
@@ -1747,6 +1753,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const HARD = 6600;
     // phase state
     let phase = "snap", throwAt = 0, sep = -0.5, hurried = false, target = null, coverA = null, routeDepth = 0;
+    let throwStyle = "touch", throwWindow = "yellow", arrivalEdgeMs = 0, locationQuality = 1;
+    const passConcept = opts && opts.concept;
     let coverHelp=null, bracketed=false, lbDrops=[];
     // v23 QB read progression: the cone shifts through the QB's reads during the
     // drop and LANDS on the man he actually throws to — he can only release to the
@@ -1760,13 +1768,20 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           .sort((p,q)=>Math.hypot(p.lx-target.lx,p.y-target.y)-Math.hypot(q.lx-target.lx,q.y-target.y))[0];
       // route depth is throwing-range bounded, then shaped by the called concept:
       // shots go deep (fewer completions, more air), screens/quick stay short (YAC).
-      const _cc = opts && opts.concept;
-      let _rBase = 4 + (target.spdA-50)*0.1 + Math.random()*12, _rMin = 3, _rMax = 16 + (S.off[8].thr-50)*0.12;
+      const _cc = passConcept;
+      const _lvl = cl(Number(root.__getGridironState?.()?.player?.level)||0, 0, 7);
+      const _ageArm = [12,15,19,25,34,45,55,60][_lvl] + (S.off[8].thr-50)*0.08;
+      let _rBase = 4 + (target.spdA-50)*0.1 + Math.random()*12, _rMin = 3, _rMax = Math.min(_ageArm, 16 + (S.off[8].thr-50)*0.12);
       if (_cc==="screen") { _rBase = -1 + Math.random()*4; _rMin = -2; _rMax = 5; }
       else if (_cc==="quick") { _rBase = 3 + Math.random()*5; _rMax = 11; }
-      else if (_cc==="shot") { _rBase = 12 + Math.random()*8; _rMin = 10; _rMax = 22 + (S.off[8].thr-50)*0.12; }
+      else if (_cc==="shot") { _rBase = 12 + Math.random()*8; _rMin = Math.min(10,_ageArm); _rMax = Math.min(_ageArm, 22 + (S.off[8].thr-50)*0.12); }
       else if (_cc==="fade") { _rBase = 6 + Math.random()*5; _rMin = 4; _rMax = 13; }
       routeDepth = cl(_rBase, _rMin, _rMax);   // throwing: arm range
+      // Route endpoints are calibrated to the game's existing result scale. The
+      // prior abstract resolver folded route depth and YAC together; explicit ball
+      // locations otherwise overstate both and inflate passing by several YPA.
+      const _depthK=_cc==="screen"?1:_cc==="quick"?.95:_cc==="shot"?.96:_cc==="fade"?.94:.86;
+      routeDepth=Math.max(_cc==="screen"?-2:2,routeDepth*_depthK);
       throwAt = cl(620 + routeDepth*30 + Math.random()*180, 680, 1750);
       // ---- v16.5 real routes: every receiver runs an actual route (not a straight
       // line up the field), varied by concept so plays look distinct, and the ball
@@ -1795,32 +1810,54 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         const rn = a===target
           ? (_cc==="screen"?"screen": _cc==="shot"?_pick(_deep): _cc==="quick"?_pick(_short): _cc==="fade"?"corner":_pick(_med))
           : _pick(["go","post","out","dig","slant","curl","corner","flat"]);
-        const dep = a===target ? routeDepth : cl(routeDepth + (Math.random()*10-4), 3, 26);
+        const dep = a===target ? routeDepth : cl(routeDepth + (Math.random()*7-4), Math.min(3,_rMin*_depthK), _rMax*_depthK);
         a.route = mkRoute(a, rn, dep); a._rwp = 1; a._routeName = rn;
       });
       if (_cc==="screen" || (_cc==="quick" && Math.random()<0.4)) { const rb=S.off[9]; if(rb){ rb.route=mkRoute(rb, _cc==="screen"?"screen":"flat", 2); rb._rwp=1; } }
-      if (target.route && target.route.length){ const e=target.route[target.route.length-1]; target._throwLX=e.lx; target._throwY=e.y; }
-      const relWin = Math.random() < 0.5 + (target.agi - coverA.cov)*0.006;
-      sep = relWin ? -0.2 : -2.4;
+      // v33 QB FIELD SCAN: grade every eligible route against its nearest coverage
+      // defender. Awareness controls how many reads the QB reaches and how much
+      // noise contaminates the grade; young/raw QBs can still lock onto a bad read.
+      // The called primary receives a small preference, not a guaranteed target.
+      const _window = v => v > -0.25 ? "green" : v > -1.75 ? "yellow" : "red";
+      const _elig = S.off.filter(a=>["WR","TE","RB"].includes(a.lb) && a.route);
+      const _grade = a => {
+        const e=a.route[a.route.length-1], nearest=S.def.filter(x=>["CB","S","LB"].includes(x.lb))
+          .sort((p2,q2)=>Math.hypot(p2.lx-e.lx,p2.y-e.y)-Math.hypot(q2.lx-e.lx,q2.y-e.y))[0];
+        const d=a===target?coverA:(nearest||coverA);
+        const matchup=(a.spdA*.42+a.agi*.38+a.cat*.20)-(d.cov*.55+d.spdA*.25+d.aware*.20);
+        const leverage=(Math.abs(e.y-MIDY)>145?0.25:0)+(a._routeName==="slant"||a._routeName==="out"?0.18:0);
+        // Preserve the calibrated won/lost-release shape underneath the richer
+        // three-color read: clean releases create green/yellow space; lost ones
+        // remain red instead of every route collapsing toward an average window.
+        const releaseWin=Math.random()<cl(.5+(a.agi-d.cov)*.006,.22,.78);
+        const est=cl((releaseWin?-.25:-2.4)+matchup*.024+leverage+(Math.random()-.5)*.7,-3.4,1.8);
+        const depth=Math.max(-2,e.lx/YD), situ=(opts?.toGo&&depth>=opts.toGo?0.35:0)+(a===target?0.3:0);
+        return {a,d,sep:est,window:_window(est),score:est*10+a.cat*.055+situ};
+      };
+      const _grades=_elig.map(_grade), _awr=S.off[8].aware;
+      for(let i=_grades.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[_grades[i],_grades[j]]=[_grades[j],_grades[i]];}
+      _grades.sort((a,b)=>(a.a===target?-1:b.a===target?1:0));
+      const _readN=(_cc==="screen"||_cc==="quick")?1:cl(1+Math.floor((_awr-32)/15),1,Math.min(4,_grades.length));
+      const _seen=_grades.slice(0,_readN), _noise=Math.max(1.2,(88-_awr)*.16);
+      const _primary=_seen.find(r=>r.a===target)||_grades.find(r=>r.a===target)||_seen[0];
+      const _best=_seen.slice().sort((a,b)=>(b.score+(Math.random()-.5)*_noise)-(a.score+(Math.random()-.5)*_noise))[0]||_primary;
+      let _choice=_primary;
+      const _moveOnP=cl(.08+(_awr-45)*.004,.05,.28);
+      if(_best&&_primary&&_best.score>_primary.score+2.4&&Math.random()<_moveOnP)_choice=_best;
+      const _badReadP=cl(.14-(_awr-35)*.0018,.025,.15);
+      if(_seen.length>1&&Math.random()<_badReadP)_choice=_seen[Math.floor(Math.random()*_seen.length)];
+      if(_choice){ target=_choice.a; coverA=_choice.d; sep=_choice.sep; throwWindow=_choice.window;
+        const e=target.route[target.route.length-1]; target._throwLX=e.lx; target._throwY=e.y; routeDepth=Math.max(-2,e.lx/YD); }
+      const relWin = sep > -1.05;
       const secondLevel=S.def.filter(a=>a!==coverA&&["S","LB"].includes(a.lb))
         .sort((p,q)=>(q.aware+q.cov)-(p.aware+p.cov));
       const threat=(target.spdA+target.agi+target.cat)/3, defenseIQ=(coverA.aware+coverA.cov)/2;
       const bracketP=cl(.10+(threat-defenseIQ)*.012+defenseIQ*.004,.08,.78);
       if(secondLevel.length&&Math.random()<bracketP){coverHelp=secondLevel[0];bracketed=true;emit("doubleCoverage",{target:target.id,helper:coverHelp.id});}
       lbDrops=S.def.filter(a=>a.lb==="LB"&&a!==blitzer).map(a=>({a,readAt:220+(100-a.aware)*5+Math.random()*260,ann:false}));
-      // v23: assemble the read progression the QB works through before releasing.
-      // A few decoy reads (other eligibles, covered) precede the TARGET, who is
-      // always the final focus — so whoever the cone is on at throwAt is who the
-      // ball goes to. A sharper QB (awareness) works through more reads faster.
-      {
-        const _elig = S.off.filter(a=>["WR","TE"].includes(a.lb) && a!==target && a.route);
-        for (let i=_elig.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const tmp=_elig[i]; _elig[i]=_elig[j]; _elig[j]=tmp; }
-        const _awr = S.off[8].aware;
-        const _nDecoy = Math.min(_elig.length, (_cc==="screen"||_cc==="quick") ? 0 : (_awr>62?2:1));
-        readProg = _elig.slice(0,_nDecoy).map(a=>({ id:a.id, open:false }));   // decoys read as covered — that's why he moves on
-        readProg.push({ id:target.id, open:null });                            // final read = the throw target (verdict filled live from sep)
-        readStart = 300;
-      }
+      readProg = _seen.filter(r=>r.a!==target).map(r=>({id:r.a.id,window:r.window,sep:r.sep}));
+      readProg.push({id:target.id,window:null,sep:null});
+      readStart = 300;
       emit("release",{win:relWin,bracketed});
     }
 
@@ -1848,7 +1885,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           // snap blows the run up for a loss. Rate scales with the trench
           // mismatch, so a strong front vs a weak line produces real TFLs and
           // the negative/stuffed tail that a bell-curve run engine never had.
-          const pen = rushers.filter(r=>!r.doubled).sort((a2,b2)=>
+          const pen = rushers.filter(r=>!r.doubled&&r.engaging).sort((a2,b2)=>
             (b2.str+b2.quick-b2.engaging.blk)-(a2.str+a2.quick-a2.engaging.blk))[0];
           if (pen) { const pp = cl(0.05 + ((pen.str*0.55+pen.quick*0.45) - pen.engaging.blk)*0.006, 0.02, 0.34);
             if (Math.random() < pp) { pen.shed = true; pen.releaseT = t; pen.penetrator = true; emit("penetrate",{who:pen.id}); } }
@@ -1907,8 +1944,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           const _ri = Math.max(0, Math.min(readProg.length - 1, Math.floor((t - readStart) / _seg)));
           const _r = readProg[_ri];
           curFocus = _r.id;
-          const _open = _r.open == null ? (sep > TU("lookOpenSep", -1.1)) : _r.open;
-          emit("look", { to: _r.id, open: _open });
+          const _liveWindow = sep > -0.25 ? "green" : sep > -1.75 ? "yellow" : "red";
+          const _lookWindow = _r.window == null ? _liveWindow : _r.window;
+          emit("look", { to: _r.id, window:_lookWindow, sep:_r.sep==null?sep:_r.sep, open:_lookWindow==="green" });
         }
         if (t >= throwAt - 400 && !target._broke) { target._broke = true;
           sep += (target.agi - coverA.cov) * 0.04;
@@ -1917,14 +1955,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             if (Math.random() < 0.3 + Math.max(0,(50-coverA.disc))*0.012) { sep += 2.2; coverA.beaten = t + 380; }
           } }
         if (t >= throwAt || (hurried && t >= 680)) {
-          const alt = S.off.filter(a=>["WR","TE"].includes(a.lb) && a!==target)[0];
-          if (sep < -1.8 && alt && Math.random() < 0.35 + (S.off[8].aware-50)*0.006) {
-            emit("read",{to:alt.id});
-            target = alt;
-            coverA = S.def.filter(a=>["CB","S"].includes(a.lb))
-              .sort((p2,q2)=>Math.hypot(p2.lx-alt.lx,p2.y-alt.y)-Math.hypot(q2.lx-alt.lx,q2.y-alt.y))[0] || coverA;
-            sep = -1.3 + Math.random()*1.3; routeDepth = cl(routeDepth*0.7, 3, 14);   // the second read is covered too
-          } else if (sep < -1.6 && hurried && Math.random() < 0.45 + (S.off[8].aware-50)*0.008) {
+          const underPressure = hurried || !!opts?.pressured;
+          const movingThrow = !!opts?.moving || (underPressure && !!qb._slid);
+          if (sep < -1.6 && underPressure && Math.random() < 0.28 + (S.off[8].aware-50)*0.005) {
             emit("throwaway",{x:S.off[8].lx,y:S.off[8].y});
             emit("incomplete",{x:routeDepth*YD, y: F_TOP+40});
             done = true; out = { kind:"pass", complete:false, intercepted:false, yards:0 };
@@ -1936,10 +1969,27 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           }
           // release: ball flies to the TARGET's route break (so it meets him there)
           const _re = target.route && target.route.length ? target.route[target.route.length-1] : null;
-          const cx = _re ? _re.lx : routeDepth*YD, cyy = _re ? _re.y : clampY(target.y + (Math.random()<0.5?-1:1)*30);
-          emit("throw",{x:qb.lx,y:qb.y,tx:cx,ty:cyy});
-          ballFlight = { t0:t, dur: cl(Math.hypot(cx-qb.lx,cyy-qb.y)*(2.7-(S.off[8].thr-50)*0.008), 260, 900),   // throwing: velocity
-            x0:qb.lx, y0:qb.y, x1:cx, y1:cyy, arc: 30+routeDepth*1.4, done: ()=>{
+          const idealX = _re ? _re.lx : routeDepth*YD, idealY = _re ? _re.y : clampY(target.y + (Math.random()<0.5?-1:1)*30);
+          throwWindow = sep > -0.25 ? "green" : sep > -1.75 ? "yellow" : "red";
+          throwStyle = (passConcept==="shot"&&throwWindow!=="red") || (routeDepth>15&&sep>.1) ? "lob"
+            : (routeDepth<9 || throwWindow==="red" || underPressure) ? "bullet" : "touch";
+          // Placement is a football location, not an abstract accuracy roll. Pressure,
+          // throwing on the move, depth, and a raw QB widen the miss ellipse.
+          const acc=(S.off[8].thr*.58+S.off[8].aware*.42), errYd=cl(1.05+(62-acc)*.025+routeDepth*.025
+            +(underPressure?.85:0)+(movingThrow?.8:0),.35,3.8);
+          const errAng=Math.random()*Math.PI*2, errMag=(Math.random()+Math.random())*.5*errYd*YD;
+          const cx=cl(idealX+Math.cos(errAng)*errMag,-3*YD,Math.max(idealX+4*YD,routeDepth*YD+4*YD));
+          const cyy=clampY(idealY+Math.sin(errAng)*errMag*1.35);
+          locationQuality=cl(1-Math.hypot(cx-idealX,cyy-idealY)/(YD*4.6),0,1);
+          const _speed=a=>Math.max(110,a.spd||140), _eta=(a,knows)=>Math.hypot(cx-a.lx,cyy-a.y)/_speed(a)*1000+(knows?55:cl(300-a.aware*2,95,250));
+          const wrEta=_eta(target,true), cbEta=_eta(coverA,false);
+          arrivalEdgeMs=wrEta-cbEta; // positive means the defender owns the spot first
+          emit("throw",{x:qb.lx,y:qb.y,tx:cx,ty:cyy,to:target.id,style:throwStyle,window:throwWindow,locationQuality});
+          emit("contest",{def:coverA.id,off:target.id,x:cx,y:cyy,arrivalEdgeMs:Math.round(arrivalEdgeMs)});
+          const styleK=throwStyle==="bullet"?.86:throwStyle==="lob"?1.18:1;
+          const styleArc=throwStyle==="bullet"?18+routeDepth*.55:throwStyle==="lob"?52+routeDepth*1.65:31+routeDepth*1.05;
+          ballFlight = { t0:t, style:throwStyle, dur: cl(Math.hypot(cx-qb.lx,cyy-qb.y)*(3.05-(S.off[8].thr-50)*0.007)*styleK, 310, 1120),
+            x0:qb.lx, y0:qb.y, x1:cx, y1:cyy, arc: styleArc, done: ()=>{
               // soft correction only — they tracked the ball through its flight
               const capTo=(a,tx,ty)=>{ const d=Math.hypot(tx-a.lx,ty-a.y);
                 if(d>0.1){ const f=Math.min(1,9/d); a.lx+=(tx-a.lx)*f; a.y+=(ty-a.y)*f; } };
@@ -1949,16 +1999,34 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
               const jumpEdge = routeDepth > 13 ? (target.jump - coverA.jump) * 0.003 : 0;
               const secure = sep < 0 ? (target.bc-50)*0.002 : 0;
               const helperContest=bracketed&&coverHelp?cl(((coverHelp.cov+coverHelp.aware)/2-45)*.0025,0,.16):0;
-              const catchP = cl(0.60 + sep*0.05 + (qbA.aware-50)*0.003 + (qbA.thr-50)*0.003
-                + (target.cat-50)*0.0035 + jumpEdge + secure - helperContest - (hurried?0.18:0), 0.08, 0.93);
+              // Arrival changes *who owns the window* without making every cleanly
+              // separated catch an automatic long YAC play. This keeps the legacy
+              // completion/YPA mix while early defenders still create real danger.
+              const arrivalCatch=cl(-arrivalEdgeMs/2100,-.045,.025), placementCatch=(locationQuality-.72)*.08;
+              const catchP = cl(0.54 + sep*0.05 + (qbA.aware-50)*0.003 + (qbA.thr-50)*0.003
+                + (target.cat-50)*0.0035 + jumpEdge + secure + arrivalCatch + placementCatch
+                - helperContest - (underPressure?0.12:0) - (movingThrow?.055:0), 0.08, 0.93);
               if (Math.random() < catchP) {
                 emit("catch",{by:target.id,x:cx,y:cyy});
-                carrier = target; carrier.vel = Math.max(carrier.vel||0, 0.6); phase = "carry";
+                carrier = target; carrier.vel = Math.max(carrier.vel||0, 0.6);
+                // A defender who arrived with the receiver usually finishes the
+                // catch immediately; late/trailing coverage concedes real YAC.
+                // This makes location/arrival matter while retaining broken-play upside.
+                const catchGap=Math.hypot(coverA.lx-target.lx,coverA.y-target.y);
+                const catchStopP=cl(.10+arrivalEdgeMs/1400+(coverA.tkl-target.agi*.55-target.str*.25)*.004-Math.max(0,sep)*.07,.04,.38);
+                if(catchGap<24&&Math.random()<catchStopP){
+                  emit("tackle",{tackler:coverA.id,carrier:target.id,x:cx,y:cyy,stayUp:true,catchTackle:true});
+                  out={kind:"pass",complete:true,intercepted:false,yards:Math.max(1,Math.round(cx/YD))}; done=true;
+                } else phase = "carry";
               } else {
+                const absSpot=(Number(opts?.fieldPos)||50)+cx/YD, sideline=Math.abs(cyy-MIDY)>165;
+                const fieldRisk=(absSpot>=90?.012:0)+(absSpot<=12?.006:0)+(routeDepth>12&&!sideline?.008:0)-(sideline?.012:0);
+                const earlyRisk=cl((arrivalEdgeMs-70)/1700,0,.05), badLocation=(1-locationQuality)*.02;
                 const intP = cl((coverA.cov - target.spdA*0.5 - target.agi*0.5) * 0.004
                   + (routeDepth>13 ? (coverA.jump-target.jump)*0.002 : 0)
                   + (bracketed&&coverHelp?(coverHelp.cov-45)*.0012:0)
-                  - (S.off[8].aware-50)*0.0007 + (sep < -2 ? 0.05 : 0.025), 0.006, 0.18);
+                  - (S.off[8].aware-50)*0.0007 + (sep < -2 ? 0.028 : 0.012)
+                  + earlyRisk + badLocation + fieldRisk + (underPressure?.008:0), 0.004, 0.18);
                 if (Math.random() < intP) {
                   emit("pick",{by:coverA.id,x:cx,y:cyy});
                   carrier = coverA; phase = "carry";           // live return!
@@ -1984,6 +2052,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         const c = carrier;
         // trench keeps resolving during ANY carry (YAC included)
         rushers.forEach(r => { if (!r.shed) {
+          if(!r.engaging){r.shed=true;return;}
           // easier to disengage once the ball is past the trench, but still a contest
           const past = c.side==="off" && c.lx > 20;
           const pFactor = (kind==="run"?0.55:1) * (past?3:1);
@@ -2252,6 +2321,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     }
     out = out || { kind, yards: 0 };
     out.yards = cl(out.yards, -6, 80);
+    if(kind==="pass"&&target){ out.targetPlayer=target.player||picks.target||null; out.coverPlayer=coverA&&coverA.player||picks.cover||null;
+      out.throwStyle=throwStyle; out.throwWindow=throwWindow; out.arrivalEdgeMs=Math.round(arrivalEdgeMs); out.locationQuality=locationQuality; }
     // v18 post-whistle coast: bodies don't freeze at the whistle — everyone keeps
     // moving and decelerates naturally for ~1 second after the play is blown dead.
     (function(){
@@ -2357,14 +2428,14 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
   };
   root.__FieldSim = {
     skillMap: SKILL_MAP, _breakP: breakProb, _turnTest: turnTest,
-    pass(w, k, T, K, g, N, att, concept) {
+    pass(w, k, T, K, g, N, att, concept, ctx={}) {
       try {
         // place the resolved target/cover into their actual formation slots so the
         // animation features the SAME roster players the box score credits
         const tSlot = g && g.pos === "TE" ? 2 : g && g.pos === "RB" ? 9 : 0;
         const cSlot = N && N.pos === "S" ? 2 : N && N.pos === "LB" ? 4 : 0;
-        const r = sim("pass", k.off, T.def, att, { target: g, cover: N, off: { 8: K, [tSlot]: g }, def: { [cSlot]: N } }, { concept });
-        const X = { qb: K, rec: g, cover: N, complete: !!(r.kind==="pass" && !r.intercepted && r.yards!==undefined && r.complete!==false),
+        const r = sim("pass", k.off, T.def, att, { target: g, cover: N, off: { 8: K, [tSlot]: g }, def: { [cSlot]: N } }, Object.assign({ concept },ctx));
+        const X = { qb: K, rec: r.targetPlayer||g, cover: r.coverPlayer||N, complete: !!(r.kind==="pass" && !r.intercepted && r.yards!==undefined && r.complete!==false),
           intercepted: !!r.intercepted, yards: 0, breakaway: false };
         // completed = we entered carry as the target and got tackled with yards
         const catchEv = r.log.events.find(e=>e.type==="catch");
@@ -2374,6 +2445,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         // (catch event x, in local coords with LOS at 0), the rest is YAC.
         if (comp) { X.air = cl(Math.round(catchEv.x/YD), 0, X.yards); X.yac = Math.max(0, X.yards - X.air); }
         X.tackler = r.tackler||null; X.assist = r.assist||null; X.flags = r.flags||null;
+        X.throwStyle=r.throwStyle; X.throwWindow=r.throwWindow; X.arrivalEdgeMs=r.arrivalEdgeMs; X.locationQuality=r.locationQuality;
         pushLog({ off: !!w, kind: "pass", yards: X.yards, intercepted: X.intercepted, complete: X.complete }, r.log);
         return X;
       } catch (e) { console.warn("[FieldSim.pass]", e); return null; }
@@ -3127,8 +3199,8 @@ class Ot extends mt.Scene {
       if (m) { this.trail.fillStyle(tc, 0.16).fillCircle(m.root.x, m.root.y + 10 * PJ(m.sx, m.sy).s, 4); }
     }
     // v20 QB VISION CONE — while the QB cycles his reads, draw a translucent cone
-    // from the QB to the receiver he's currently looking at: green = OPEN,
-    // red = COVERED, so you can see the read before the ball comes out.
+    // from the QB to the receiver he's currently looking at: green = separated,
+    // yellow = close window, red = tight/unsafe throw.
     try {
       if (!this.lookG || !this.lookG.scene) this.lookG = this.add.graphics().setDepth(3.1);
       this.lookG.clear();
@@ -3139,7 +3211,7 @@ class Ot extends mt.Scene {
           const dx = x2 - x1, y = y2 - y1, len = Math.hypot(dx, y) || 1;
           const px = -y / len, py = dx / len;                    // perpendicular
           const w = Math.min(34, 8 + len * 0.16);                // cone half-width at target
-          const col = P.lookOpen ? 0x57e07a : 0xe0484f;
+          const col = P.lookWindow==="green" ? 0x57e07a : P.lookWindow==="yellow" ? 0xf0bb45 : 0xe0484f;
           this.lookG.fillStyle(col, 0.13).fillTriangle(x1, y1, x2 + px * w, y2 + py * w, x2 - px * w, y2 - py * w);
           this.lookG.lineStyle(1.5, col, 0.45).lineBetween(x1, y1, x2, y2);
           this.lookG.lineStyle(2, col, 0.8).strokeCircle(x2, y2, 10 * (PJ(rm.sx, rm.sy).s || 1) + 6);
@@ -3557,9 +3629,8 @@ class Ot extends mt.Scene {
       }
       case "blitzLook": { const m = this.markers[this.actorIdx(e.who)]; if (m) this.flash(m.sx, m.sy, 0xff6b52); break; }
       case "look": {
-        // v20 QB vision cone — remember who the QB is reading and whether the
-        // sim says that receiver is open; the cone itself is drawn per-frame.
-        P.lookIdx = this.actorIdx(e.to); P.lookOpen = !!e.open; break;
+        // v33: the cone is a three-state throwing-window grade from the sim.
+        P.lookIdx = this.actorIdx(e.to); P.lookWindow=e.window||(e.open?"green":"red"); P.lookOpen=e.window?e.window==="green":!!e.open; break;
       }
       case "read": {
         // the QB comes off his first read — swing the cone to the new man
@@ -3570,9 +3641,10 @@ class Ot extends mt.Scene {
       case "throw": {
         P.lookIdx = null; if (this.lookG) this.lookG.clear();
         this.clearAlerts();   // v23: ball's out — the scramble warning is moot
-        const ti = P.script.meta.targetId ? this.actorIdx(P.script.meta.targetId) : -1;
+        const ti = e.to ? this.actorIdx(e.to) : (P.script.meta.targetId ? this.actorIdx(P.script.meta.targetId) : -1);
         if (ti >= 0) P.awaitCatch = ti;
         this.zoomPunch = Math.max(this.zoomPunch, 0.06);
+        if(e.style)this.popText(e.x,e.y-24,String(e.style).toUpperCase(),e.style==="bullet"?"#8fe7ff":e.style==="lob"?"#f7e2a8":"#bfe3ae",12);
         // v13: landing-spot reticle — find where this flight returns to earth and mark it
         try {
           const bf = P.script.ball, idx = Math.max(0, Math.floor((P.t - (P.delay || 0)) / 33));
@@ -3581,13 +3653,15 @@ class Ot extends mt.Scene {
             if (bf[k].h > 2) up = true;
             else if (up && bf[k].h <= 1.4) { land = bf[k]; break; }
           }
+          if (e.tx!=null&&e.ty!=null) land={x:e.tx,y:e.ty};
           if (land) {
             this.clearLand();
             const lp = PJ(land.x, land.y);
             const gL = this.trackFx(this.add.graphics().setDepth(2.8));
-            gL.lineStyle(2.5, 0xf0bb45, 0.9).strokeEllipse(lp.x, lp.y, 26 * lp.s, 12 * lp.s);
-            gL.lineStyle(1.5, 0xf0bb45, 0.5).strokeEllipse(lp.x, lp.y, 40 * lp.s, 18 * lp.s);
-            gL.fillStyle(0xf0bb45, 0.75).fillCircle(lp.x, lp.y, 2.5 * lp.s);
+            const lc=e.window==="green"?0x57e07a:e.window==="red"?0xe0484f:0xf0bb45;
+            gL.lineStyle(2.5, lc, 0.9).strokeEllipse(lp.x, lp.y, 26 * lp.s, 12 * lp.s);
+            gL.lineStyle(1.5, lc, 0.5).strokeEllipse(lp.x, lp.y, 40 * lp.s, 18 * lp.s);
+            gL.fillStyle(lc, 0.75).fillCircle(lp.x, lp.y, 2.5 * lp.s);
             this.tweens.add({ targets: gL, alpha: 0.4, yoyo: true, repeat: -1, duration: 300 });
             P.landG = gL;
           }
@@ -4837,7 +4911,7 @@ if(base&&base.yards>=0&&base.yards<=2){
   else if(Math.random()<sustainP){dropSimLog();base={carrier:K,yards:le(3,6),breakaway:!1}}
 }
 return base}
-function b(w,concept,ctx={}){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=(()=>{const g0=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]);const yu=k.off.find(z=>z.you);if(yu&&yu!==g0){const tp=yu.pos==="WR"?.32:yu.pos==="TE"?.2:yu.pos==="RB"?.1:0,ok=concept==="shot"?["WR","TE"].includes(yu.pos):["WR","TE","RB"].includes(yu.pos);if(tp&&ok&&Math.random()<tp)return yu}return g0})(),N=(()=>{const yu=T.def.find(z=>z.you);return yu&&["CB","S","LB"].includes(yu.pos)&&Math.random()<.45?yu:Y(T.def,["CB","S","LB"])})();const __r=!ctx.pressured&&window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept);if(__r)return __r;const need=(typeof down!=="undefined"&&down>=3)?Math.max(1,toGo):0,depth0=concept==="shot"?24:concept==="fade"?18:concept==="dropback"?11:concept==="quick"?5:concept==="screen"?1:8,depth=need&&concept!=="screen"?Math.max(depth0,Math.min(need+1,18)):depth0,H=_(g,"speed")*.5+_(g,"agility")*.5-_(N,"coverage")*.85+_(K,"awareness")*.25,poise=f((_(K,"awareness")-35)/100,0,.55),pressureAcc=ctx.pressured?(ctx.moving?.78:.86)+poise*(ctx.moving?.16:.1):1,oe=f((.57-depth*.008+H/150)*weatherFx.pass*pressureAcc,.07,.91);if(!(Math.random()<oe)){const ge=f(.012+depth*.0022+(_(N,"coverage")-_(K,"awareness"))*.0015+(ctx.pressured?.012:0)+(ctx.moving?.012:0),0,.18);return{qb:K,rec:g,cover:N,complete:!1,intercepted:Math.random()<ge,yards:0,pressured:!!ctx.pressured,moving:!!ctx.moving}}let ke=Math.round(depth+(_(g,"catching")+_(K,"awareness"))/2*.045+D(-2,4)),explosiveP=f((_(g,"speed")-_(N,"coverage"))/240+(concept==="shot"?.13:concept==="screen"?.07:.035)-(ctx.pressured?.035:0),.01,.3);Math.random()<explosiveP&&(ke+=le(concept==="shot"?12:8,18+Math.round(_(g,"speed")/7))),ke=f(ke,1,80);need&&ke<need&&Math.random()<f((_(K,"awareness")-40)/120,.05,.45)&&(ke=need+le(0,3));const air=f(Math.round(concept==="screen"?D(-1,2):ke*(concept==="shot"?.75:.45+Math.random()*.3)),0,ke);return{qb:K,rec:g,cover:N,complete:!0,intercepted:!1,yards:ke,breakaway:ke>=20,air,yac:Math.max(0,ke-air),pressured:!!ctx.pressured,moving:!!ctx.moving}}
+function b(w,concept,ctx={}){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=(()=>{const g0=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]);const yu=k.off.find(z=>z.you);if(yu&&yu!==g0){const tp=yu.pos==="WR"?.32:yu.pos==="TE"?.2:yu.pos==="RB"?.1:0,ok=concept==="shot"?["WR","TE"].includes(yu.pos):["WR","TE","RB"].includes(yu.pos);if(tp&&ok&&Math.random()<tp)return yu}return g0})(),N=(()=>{const yu=T.def.find(z=>z.you);return yu&&["CB","S","LB"].includes(yu.pos)&&Math.random()<.45?yu:Y(T.def,["CB","S","LB"])})();const need=(typeof down!=="undefined"&&down>=3)?Math.max(1,toGo):0;const __r=!ctx.pressured&&window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept,{pressured:!!ctx.pressured,moving:!!ctx.moving,fieldPos:typeof pos!=="undefined"?pos:50,down:typeof down!=="undefined"?down:1,toGo:typeof toGo!=="undefined"?toGo:10});if(__r)return __r;const depth0=concept==="shot"?24:concept==="fade"?18:concept==="dropback"?11:concept==="quick"?5:concept==="screen"?1:8,depth=need&&concept!=="screen"?Math.max(depth0,Math.min(need+1,18)):depth0,H=_(g,"speed")*.5+_(g,"agility")*.5-_(N,"coverage")*.85+_(K,"awareness")*.25,poise=f((_(K,"awareness")-35)/100,0,.55),pressureAcc=ctx.pressured?(ctx.moving?.78:.86)+poise*(ctx.moving?.16:.1):1,oe=f((.57-depth*.008+H/150)*weatherFx.pass*pressureAcc,.07,.91);if(!(Math.random()<oe)){const ge=f(.012+depth*.0022+(_(N,"coverage")-_(K,"awareness"))*.0015+(ctx.pressured?.012:0)+(ctx.moving?.012:0),0,.18);return{qb:K,rec:g,cover:N,complete:!1,intercepted:Math.random()<ge,yards:0,pressured:!!ctx.pressured,moving:!!ctx.moving}}let ke=Math.round(depth+(_(g,"catching")+_(K,"awareness"))/2*.045+D(-2,4)),explosiveP=f((_(g,"speed")-_(N,"coverage"))/240+(concept==="shot"?.13:concept==="screen"?.07:.035)-(ctx.pressured?.035:0),.01,.3);Math.random()<explosiveP&&(ke+=le(concept==="shot"?12:8,18+Math.round(_(g,"speed")/7))),ke=f(ke,1,80);need&&ke<need&&Math.random()<f((_(K,"awareness")-40)/120,.05,.45)&&(ke=need+le(0,3));const air=f(Math.round(concept==="screen"?D(-1,2):ke*(concept==="shot"?.75:.45+Math.random()*.3)),0,ke);return{qb:K,rec:g,cover:N,complete:!0,intercepted:!1,yards:ke,breakaway:ke>=20,air,yac:Math.max(0,ke-air),pressured:!!ctx.pressured,moving:!!ctx.moving}}
 // keep the FieldSim render queue aligned when we alter a play's bookkept yards:
 // the log we're discarding is the one this play just pushed — the TAIL, not the
 // head. Popping the tail (was shift(), a bug) keeps every other play's log lined

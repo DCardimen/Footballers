@@ -55,6 +55,19 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v33 — read, throw, and location-driven passing.** QBs now scan a
+  rating-limited progression and grade each visible throwing window green,
+  yellow, or red before deciding; awareness expands the scan and reduces bad
+  reads without eliminating them. Releases select bullet, touch, or lob
+  trajectories with slower, style-specific acceleration and arc. The replay
+  lights the actual target location, and throwing, awareness, depth, pressure,
+  and movement determine placement error around it. Receiver and defender
+  arrival times, sideline/end-zone location, separation, and help coverage now
+  drive catches, immediate tackles, and interception danger. League-specific
+  arm caps prevent young QBs from making adult-distance throws. A 300-game
+  calibration held completion rate at 64.3% (64.2% before), YPA at 6.7 (6.88),
+  and attempts at 30.4 (31.1) while keeping scoring in the prior range.
+
 - **v32 — calibrated simulation realism.** Opening-level games now use six-minute
   youth quarters and a run-heavy play mix, scaling toward 15-minute/pro-style
   football by league. Matchup strength is compressed to reduce noncompetitive
