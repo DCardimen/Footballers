@@ -2,9 +2,9 @@
   'use strict';
 
   const assets = [
-    ['--rib-hero-sheet', './a_clean_high_resolution_game_ui_asset_sheet_on_a_1_batch_1.png'],
-    ['--rib-panel-sheet', './a_clean_ui_graphic_assets_sprite_sheet_mockup_im_2_batch_2.png'],
-    ['--rib-icon-sheet', './a_clean_graphic_artwork_ui_icon_sheet_on_a_trans_3_batch_3.png'],
+    { property: '--rib-hero-sheet', src: './a_clean_high_resolution_game_ui_asset_sheet_on_a_1_batch_1.png', enclosedBackgroundSeeds: [[132, 1100]] },
+    { property: '--rib-panel-sheet', src: './a_clean_ui_graphic_assets_sprite_sheet_mockup_im_2_batch_2.png', enclosedBackgroundSeeds: [] },
+    { property: '--rib-icon-sheet', src: './a_clean_graphic_artwork_ui_icon_sheet_on_a_trans_3_batch_3.png', enclosedBackgroundSeeds: [[627, 528]] },
   ];
 
   const isBackground = (data, offset) => {
@@ -24,7 +24,7 @@
     image.src = src;
   });
 
-  async function removeCheckerboard(src) {
+  async function removeCheckerboard(src, enclosedBackgroundSeeds = []) {
     const image = await loadImage(src);
     const canvas = document.createElement('canvas');
     canvas.width = image.naturalWidth;
@@ -40,7 +40,7 @@
     let tail = 0;
 
     const enqueue = (index) => {
-      if (seen[index]) return;
+      if (index < 0 || index >= count || seen[index]) return;
       const offset = index * 4;
       if (!isBackground(data, offset)) return;
       seen[index] = 1;
@@ -55,6 +55,7 @@
       enqueue(y * width);
       enqueue(y * width + width - 1);
     }
+    for (const [x, y] of enclosedBackgroundSeeds) enqueue(Math.round(y) * width + Math.round(x));
 
     while (head < tail) {
       const index = queue[head++];
@@ -78,9 +79,9 @@
   async function start() {
     const root = document.documentElement;
     try {
-      for (const [property, src] of assets) {
-        const cleaned = await removeCheckerboard(src);
-        root.style.setProperty(property, `url("${cleaned}")`);
+      for (const asset of assets) {
+        const cleaned = await removeCheckerboard(asset.src, asset.enclosedBackgroundSeeds);
+        root.style.setProperty(asset.property, `url("${cleaned}")`);
       }
       root.classList.add('rib-assets-ready');
       window.__RIB_MENU_ASSETS = { ready: true };
