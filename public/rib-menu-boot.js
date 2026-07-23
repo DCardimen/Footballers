@@ -18,6 +18,13 @@
     return style.display !== 'none' && style.visibility !== 'hidden';
   }) || app.querySelector('.screen');
 
+  const originalText = (root) => {
+    if (!root) return '';
+    const copy = root.cloneNode(true);
+    copy.querySelectorAll('[data-rib-main-marker], [data-rib-bridge], [data-rib-main-sentinel]').forEach((el) => el.remove());
+    return clean(copy.textContent);
+  };
+
   const labelFrom = (text) => /CONTINUE\s+CAREER/i.test(text)
     ? 'CONTINUE CAREER'
     : /START\s+NEW\s+CAREER/i.test(text)
@@ -30,7 +37,7 @@
     return ACTIONS[action]?.some((pattern) => pattern.test(text));
   });
 
-  const clearScreen = (screen) => screen?.querySelectorAll('[data-rib-main-marker], [data-rib-bridge], [data-rib-main-sentinel]').forEach((el) => el.remove());
+  const clearInjected = (root) => root?.querySelectorAll('[data-rib-main-marker], [data-rib-bridge], [data-rib-main-sentinel]').forEach((el) => el.remove());
 
   const sync = () => {
     const app = document.getElementById('app');
@@ -38,19 +45,19 @@
     const screen = visibleScreen(app);
     if (!screen) return;
 
-    const screenText = clean(screen.textContent);
-    const appText = clean(app.textContent);
+    const screenText = originalText(screen);
+    const appText = originalText(app);
     const viewName = clean(window.o?.view).toLowerCase();
     const viewLooksMain = /^(main|menu|home|title)$/.test(viewName);
-    const hasHero = !!screen.querySelector('.hero');
-    const label = labelFrom(screenText) || ((hasHero || viewLooksMain) ? labelFrom(appText) : '');
+    const hasOriginalHero = !!screen.querySelector('.hero:not([data-rib-main-sentinel])');
+    const label = labelFrom(screenText) || ((hasOriginalHero || viewLooksMain) ? labelFrom(appText) : '');
 
     if (!label) {
-      clearScreen(screen);
+      clearInjected(app);
       return;
     }
 
-    if (!hasHero) {
+    if (!hasOriginalHero && !screen.querySelector('[data-rib-main-sentinel]')) {
       const sentinel = document.createElement('span');
       sentinel.className = 'hero';
       sentinel.dataset.ribMainSentinel = 'true';
