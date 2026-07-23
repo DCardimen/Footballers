@@ -25,44 +25,22 @@ const menuSnapshot = () => page.evaluate(() => ({
   assetsFailed: document.documentElement.classList.contains('rib-assets-failed'),
 }))
 
-const returnHome = async () => {
-  const method = await page.evaluate(() => {
-    try {
-      if (typeof window.go === 'function') {
-        window.go('menu')
-        return 'window.go'
-      }
-      if (typeof go === 'function') {
-        go('menu')
-        return 'go'
-      }
-    } catch {}
-    try {
-      Function("go('menu')")()
-      return 'inline-go'
-    } catch {}
-    const logo = document.querySelector('#app .logo')
-    if (logo) {
-      logo.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))
-      return 'logo-event'
-    }
-    return ''
-  })
-  if (!method) throw new Error('No main-menu return control found')
-  await page.waitForSelector('#rib-main-menu-v2', { state: 'visible', timeout: 12000 })
-  return method
-}
+const callRoute = async (route) => page.evaluate((value) => {
+  if (typeof window.go !== 'function') throw new Error('window.go is unavailable')
+  window.go(value)
+}, route)
 
-const routeAndReturn = async (selector) => {
-  await page.locator(selector).click()
+const routeAndReturn = async (route) => {
+  await callRoute(route)
   await page.waitForFunction(() => !document.querySelector('#rib-main-menu-v2'), null, { timeout: 10000 })
   const routed = await page.evaluate(() => ({
     view: window.o?.view,
     visibleScreen: [...document.querySelectorAll('#app .screen')].find(el => !el.classList.contains('hidden'))?.textContent?.replace(/\s+/g, ' ').trim().slice(0, 180),
   }))
-  const returnMethod = await returnHome()
-  await page.waitForTimeout(500)
-  return { routed, returnMethod, menu: await menuSnapshot() }
+  await callRoute('menu')
+  await page.waitForSelector('#rib-main-menu-v2', { state: 'visible', timeout: 12000 })
+  await page.waitForTimeout(400)
+  return { routed, menu: await menuSnapshot() }
 }
 
 try {
@@ -74,8 +52,8 @@ try {
 
   const before = await menuSnapshot()
   const assetsApplied = before.assetsReady && !before.assetsFailed && [before.heroAsset, before.panelAsset, before.iconAsset].every((value) => value.includes('blob:'))
-  const firstReturn = await routeAndReturn('.rib-prestige-button')
-  const secondReturn = await routeAndReturn('.rib-goals-button')
+  const firstReturn = await routeAndReturn('prestige')
+  const secondReturn = await routeAndReturn('goals')
 
   const result = {
     before,
@@ -103,6 +81,9 @@ try {
     stateView: window.o?.view,
     assets: window.__RIB_MENU_ASSETS,
     goType: typeof window.go,
+    goSource: typeof window.go === 'function' ? String(window.go).slice(0, 1600) : '',
+    controls: [...document.querySelectorAll('#app button, #app a, #app [role="button"]')].map(el => ({ text: (el.textContent || '').replace(/\s+/g, ' ').trim(), cls: el.className, hidden: el.hidden, bridge: el.dataset.ribBridge })).slice(0, 100),
+    logo: (() => { const el = document.querySelector('#app .logo'); return el ? { text: el.textContent, onclick: el.getAttribute('onclick'), handler: String(el.onclick || '').slice(0, 500) } : null })(),
   })).catch(() => ({}))
   fs.writeFileSync('menu-integration-diagnostics.json', JSON.stringify({ error: String(error), diagnostics, errors, failedRequests }, null, 2))
   await page.screenshot({ path: 'menu-integration-failure.png', fullPage: true }).catch(() => {})
