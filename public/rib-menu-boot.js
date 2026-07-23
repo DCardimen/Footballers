@@ -65,7 +65,7 @@
       marker.hidden = true;
       screen.appendChild(marker);
     }
-    marker.textContent = label;
+    if (marker.textContent !== label) marker.textContent = label;
 
     for (const [action] of Object.entries(ACTIONS)) {
       const original = findOriginal(app, action);
@@ -83,22 +83,25 @@
     }
   };
 
+  let resyncTimer = 0;
   const resyncSoon = () => {
-    sync();
-    setTimeout(sync, 40);
-    setTimeout(sync, 180);
-    setTimeout(sync, 500);
+    clearTimeout(resyncTimer);
+    resyncTimer = setTimeout(sync, 0);
   };
 
   const start = () => {
-    resyncSoon();
+    sync();
     new MutationObserver(resyncSoon).observe(document.getElementById('app') || document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'style'] });
-    document.addEventListener('click', () => setTimeout(resyncSoon, 0), true);
-    window.addEventListener('pageshow', resyncSoon);
-    window.addEventListener('popstate', resyncSoon);
-    window.addEventListener('hashchange', resyncSoon);
+    document.addEventListener('click', () => {
+      setTimeout(sync, 0);
+      setTimeout(sync, 160);
+      setTimeout(sync, 480);
+    }, true);
+    window.addEventListener('pageshow', sync);
+    window.addEventListener('popstate', sync);
+    window.addEventListener('hashchange', sync);
     setInterval(sync, 650);
-    window.__RIB_MENU_BRIDGE = { sync: resyncSoon };
+    window.__RIB_MENU_BRIDGE = { sync };
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
