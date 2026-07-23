@@ -28,18 +28,27 @@
     document.getElementById('rib-main-menu-v2')?.remove();
   }
 
+  let routing = false;
+
   function activate(action) {
+    if (routing) return false;
     const original = findOriginal(action);
     if (!original) {
       console.warn('[RIB menu] Original navigation target unavailable:', action);
       return false;
     }
 
-    closeOverlay();
-    original.click();
-    setTimeout(() => window.__RIB_MENU_BRIDGE?.sync?.(), 0);
-    setTimeout(() => window.__RIB_MENU_BRIDGE?.sync?.(), 120);
-    setTimeout(() => window.__RIB_MENU_BRIDGE?.sync?.(), 420);
+    // Route after a beat so the press animation lands before the transition.
+    const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    routing = true;
+    setTimeout(() => {
+      routing = false;
+      closeOverlay();
+      original.click();
+      setTimeout(() => window.__RIB_MENU_BRIDGE?.sync?.(), 0);
+      setTimeout(() => window.__RIB_MENU_BRIDGE?.sync?.(), 120);
+      setTimeout(() => window.__RIB_MENU_BRIDGE?.sync?.(), 420);
+    }, reduced ? 0 : 150);
     return true;
   }
 
@@ -57,6 +66,7 @@
     if (!target) return;
     event.preventDefault();
     event.stopImmediatePropagation();
+    target.classList.add('rib-pressed');
     activate(target.dataset.ribAction);
   }, true);
 

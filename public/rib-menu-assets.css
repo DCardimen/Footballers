@@ -42,7 +42,29 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   background-size:100% 100%;
   background-repeat:no-repeat;
 }
-.rib-stadium-lines,.rib-floodlight{display:none!important}
+.rib-stadium-lines{display:none!important}
+/* Floodlight boost layers: extra glow on top of the static :before glows so
+   each side can flicker on its own clock. */
+.rib-floodlight{
+  position:absolute;
+  inset:0;
+  width:auto;
+  height:auto;
+  pointer-events:none;
+  opacity:.5;
+  background-repeat:no-repeat;
+  background-size:100% 100%;
+}
+.rib-floodlight-left{
+  background-image:
+    radial-gradient(circle at 7% 11%,rgba(255,255,255,.55) 0 .9%,rgba(206,224,255,.2) 3.4%,transparent 10%),
+    radial-gradient(circle at 1.5% 47%,rgba(255,255,255,.3) 0 .6%,rgba(198,214,255,.1) 2.6%,transparent 7%);
+}
+.rib-floodlight-right{
+  background-image:
+    radial-gradient(circle at 93% 11%,rgba(255,255,255,.55) 0 .9%,rgba(206,224,255,.2) 3.4%,transparent 10%),
+    radial-gradient(circle at 98.5% 47%,rgba(255,255,255,.3) 0 .6%,rgba(198,214,255,.1) 2.6%,transparent 7%);
+}
 .rib-menu-hero:after{
   content:"";
   display:block;
@@ -115,7 +137,21 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   background-position:88.73% 3.89%;
   box-shadow:none;
 }
-.rib-ovr-ring:after{display:none}
+/* Dynamic OVR arc: a live conic ring driven by --rib-ovr (0..1, set from the
+   player's overall) drawn over the sprite's baked static arc. */
+.rib-ovr-ring:after{
+  display:block;
+  content:"";
+  position:absolute;
+  inset:6%;
+  border:0;
+  border-radius:50%;
+  background:conic-gradient(var(--rib-ovr-color,#ffd15d) calc(var(--rib-ovr,0)*1turn),rgba(19,34,53,.94) 0);
+  -webkit-mask:radial-gradient(closest-side,transparent 74%,#000 76% 96%,transparent 98%);
+  mask:radial-gradient(closest-side,transparent 74%,#000 76% 96%,transparent 98%);
+  transition:--rib-ovr .9s cubic-bezier(.3,.7,.3,1) .35s;
+  pointer-events:none;
+}
 .rib-legacy-card{
   position:relative;
   overflow:hidden;
@@ -242,4 +278,107 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
     width:21px;
     height:21px;
   }
+}
+
+/* ===== v2 menu motion: flicker, sweeps, press feedback, entrances ===== */
+@property --rib-ovr{syntax:'<number>';initial-value:0;inherits:false}
+
+/* Golden band type: heavy Oswald, deep ink, subtle top-light emboss. */
+.rib-primary-button{
+  font-family:Oswald,'Arial Narrow',sans-serif;
+  color:#1a1206;
+  text-shadow:0 1px 0 rgba(255,238,180,.42);
+}
+.rib-primary-button span{position:relative}
+.rib-stars span u{text-decoration:none}
+
+/* Sweep + press layers need their own clipping. */
+.rib-career-card,.rib-primary-button,.rib-secondary-grid .rib-nav-button{overflow:hidden}
+
+/* Press feedback: squash, spring back, glow bloom that outlives a fast tap. */
+.rib-primary-button{--rib-press-glow:rgba(255,196,66,.6)}
+.rib-career-card{--rib-press-glow:rgba(255,196,66,.5)}
+.rib-nav-button{--rib-press-glow:rgba(126,178,255,.45)}
+.rib-pressed{animation:ribpress .38s cubic-bezier(.22,.9,.36,1)}
+@keyframes ribpress{
+  0%{transform:scale(.965);filter:drop-shadow(0 0 3px var(--rib-press-glow)) brightness(1.04)}
+  45%{transform:scale(1.012);filter:drop-shadow(0 0 15px var(--rib-press-glow)) brightness(1.09)}
+  100%{transform:scale(1);filter:none}
+}
+.rib-primary-button:focus-visible,.rib-nav-button:focus-visible,.rib-career-card:focus-visible{
+  outline:2px solid rgba(255,209,93,.85);
+  outline-offset:2px;
+}
+
+@media (prefers-reduced-motion: no-preference){
+  /* Staggered entrance whenever the menu (re)mounts and the art is ready. */
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-menu-hud{animation:ribenter .45s .02s both}
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-menu-hero{animation:ribenter .45s 0s both}
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-career-card{animation:ribenter .5s .1s both}
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-legacy-card{animation:ribenter .5s .16s both}
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-primary-button{animation:ribenter .5s .22s both,ribbreath 4.6s ease-in-out 1.2s infinite}
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-secondary-grid{animation:ribenter .5s .28s both}
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-bottom-grid{animation:ribenter .5s .34s both}
+  @keyframes ribenter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+  /* Stadium floodlights flicker on independent clocks. */
+  .rib-floodlight-left{animation:ribflickerA 5.2s linear infinite}
+  .rib-floodlight-right{animation:ribflickerB 6.9s linear infinite .8s}
+  @keyframes ribflickerA{0%,100%{opacity:.3}11%{opacity:.72}16%{opacity:.38}45%{opacity:.66}51%{opacity:.42}76%{opacity:.8}83%{opacity:.44}}
+  @keyframes ribflickerB{0%,100%{opacity:.42}8%{opacity:.78}14%{opacity:.46}39%{opacity:.7}64%{opacity:.34}86%{opacity:.76}}
+
+  /* Occasional glint on the football divider. */
+  .rib-menu-hero:after{animation:ribglint 9s ease-in-out 2.5s infinite}
+  @keyframes ribglint{0%,90%,100%{filter:none}94%{filter:brightness(1.7) drop-shadow(0 0 8px rgba(255,214,96,.85))}}
+
+  /* Gentle luminance breathing on the gold CTA. */
+  @keyframes ribbreath{0%,100%{filter:brightness(1)}50%{filter:brightness(1.07)}}
+
+  /* Glistening sweep across the gold band, echoed faintly on the secondary row. */
+  .rib-primary-button:after,.rib-secondary-grid .rib-nav-button:after{
+    content:"";
+    position:absolute;
+    top:-25%;
+    bottom:-25%;
+    left:-35%;
+    width:26%;
+    transform:translateX(-140%) skewX(-18deg);
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.34),transparent);
+    animation:ribsweep 5.5s ease-in-out 1.4s infinite;
+    pointer-events:none;
+  }
+  .rib-secondary-grid .rib-nav-button:after{
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.16),transparent);
+    animation-duration:8.5s;
+  }
+  .rib-prestige-button:after{animation-delay:3.1s}
+  .rib-new-button:after{animation-delay:5.9s}
+  @keyframes ribsweep{0%{transform:translateX(-140%) skewX(-18deg)}16%{transform:translateX(620%) skewX(-18deg)}100%{transform:translateX(620%) skewX(-18deg)}}
+
+  /* One-time gleam across the career card frame after mount. */
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-career-card:before{
+    display:block;
+    content:"";
+    position:absolute;
+    inset:auto;
+    top:-25%;
+    bottom:-25%;
+    left:-30%;
+    width:24%;
+    border-radius:0;
+    background:linear-gradient(90deg,transparent,rgba(255,224,140,.3),transparent);
+    transform:translateX(-140%) skewX(-18deg);
+    animation:ribsweeponce .9s ease-out .8s both;
+    pointer-events:none;
+  }
+  @keyframes ribsweeponce{to{transform:translateX(680%) skewX(-18deg)}}
+
+  /* Filled stars pop in left to right. */
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-stars span u{display:inline-block;animation:ribstar .34s cubic-bezier(.34,1.56,.64,1) both}
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-stars span u:nth-child(1){animation-delay:.55s}
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-stars span u:nth-child(2){animation-delay:.62s}
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-stars span u:nth-child(3){animation-delay:.69s}
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-stars span u:nth-child(4){animation-delay:.76s}
+  html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-stars span u:nth-child(5){animation-delay:.83s}
+  @keyframes ribstar{from{opacity:0;transform:scale(.2)}to{opacity:1;transform:scale(1)}}
 }

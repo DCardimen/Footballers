@@ -5,7 +5,24 @@
   const BODY_CLASS = 'rib-menu-open';
   const previewMode = new URLSearchParams(location.search).has('menuPreview');
   let lastFingerprint = '';
+  let lastData = null;
+  let countedUp = false;
   let syncing = false;
+
+  const prefersReduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  // The menu stays invisible until the asset runtime finishes; hold JS-driven
+  // reveals (count-up, arc fill) until then so they play where users see them.
+  const whenAssetsReady = (fn) => {
+    if (document.documentElement.classList.contains('rib-assets-ready')) { fn(); return; }
+    const observer = new MutationObserver(() => {
+      if (document.documentElement.classList.contains('rib-assets-ready')) {
+        observer.disconnect();
+        fn();
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  };
 
   const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -98,7 +115,7 @@
     return {
       hasCareer,
       playerName: hasCareer ? playerName : 'BUILD YOUR PLAYER',
-      league: hasCareer ? league : 'Begin at age 3',
+      league: hasCareer ? league : 'Begin at age 8',
       position: hasCareer ? position : '—',
       height,
       weight,
@@ -138,7 +155,7 @@
     </button>`;
 
   function renderMenu(data) {
-    const filledStars = '★'.repeat(data.stars);
+    const filledStars = Array.from({ length: data.stars }, () => '<u>★</u>').join('');
     const emptyStars = '★'.repeat(Math.max(0, 5 - data.stars));
     const measurements = [data.height, data.weight].filter(Boolean);
     const showPosition = !!data.position && data.position !== '—';
@@ -152,7 +169,7 @@
             <span class="rib-hud-pill">${icon('stopwatch')}</span>
             <span class="rib-hud-coin">${icon('coin')}</span>
           </div>
-          <span class="rib-hud-value">${esc(data.topCurrency)}</span>
+          <span class="rib-hud-value" data-rib-field="topCurrency">${esc(data.topCurrency)}</span>
         </div>
 
         <div class="rib-menu-hero" aria-label="Running It Back">
@@ -190,14 +207,14 @@
           <section class="rib-career-card" data-rib-action="${primaryAction}" tabindex="0" role="button">
             <div class="rib-career-copy">
               <div class="rib-career-label"><i></i>${esc(primaryLabel)}</div>
-              <div class="rib-player-name">${esc(data.playerName)}</div>
+              <div class="rib-player-name" data-rib-field="playerName">${esc(data.playerName)}</div>
               <div class="rib-player-meta">
-                <span>${esc(data.league)}</span>${showPosition ? `<b></b><span>${esc(data.position)}</span>` : ''}
+                <span data-rib-field="league">${esc(data.league)}</span>${showPosition ? `<b></b><span data-rib-field="position">${esc(data.position)}</span>` : ''}
               </div>
               <div class="rib-stars"><span>${filledStars}</span><em>${emptyStars}</em>${measurements.map((entry) => `<b></b><i>${esc(entry)}</i>`).join('')}</div>
             </div>
-            <div class="rib-ovr-ring">
-              <div class="rib-ovr-value">${esc(data.overall)}</div>
+            <div class="rib-ovr-ring" style="--rib-ovr:0">
+              <div class="rib-ovr-value" data-rib-field="overall">${esc(data.overall)}</div>
               <div class="rib-ovr-label">OVR</div>
             </div>
             <div class="rib-card-dots" aria-hidden="true"></div>
@@ -206,12 +223,12 @@
           <section class="rib-legacy-card">
             <div class="rib-section-title"><span></span><b>YOUR LEGACY</b><span></span></div>
             <div class="rib-legacy-grid">
-              <div class="rib-legacy-stat rib-gold"><i>${icon('star')}</i><strong>${esc(data.prestige)}</strong><small>PRESTIGE</small></div>
-              <div class="rib-legacy-stat"><strong>${esc(data.careers)}</strong><small>CAREERS</small></div>
-              <div class="rib-legacy-stat rib-green"><strong>${esc(data.nflReached)}</strong><small>NFL REACHED</small></div>
-              <div class="rib-legacy-stat rib-purple"><i>${icon('bolt')}</i><strong>${esc(data.interstellar)}</strong><small>INTERSTELLAR</small></div>
-              <div class="rib-legacy-stat"><i>${icon('laurel')}</i><strong>${esc(data.hallPoints)}</strong><small>HALL OF FAME POINTS</small></div>
-              <div class="rib-legacy-stat rib-red"><i>${icon('target')}</i><strong>${esc(data.iconicMoments)}</strong><small>ICONIC MOMENTS</small></div>
+              <div class="rib-legacy-stat rib-gold"><i>${icon('star')}</i><strong data-rib-field="prestige">${esc(data.prestige)}</strong><small>PRESTIGE</small></div>
+              <div class="rib-legacy-stat"><strong data-rib-field="careers">${esc(data.careers)}</strong><small>CAREERS</small></div>
+              <div class="rib-legacy-stat rib-green"><strong data-rib-field="nflReached">${esc(data.nflReached)}</strong><small>NFL REACHED</small></div>
+              <div class="rib-legacy-stat rib-purple"><i>${icon('bolt')}</i><strong data-rib-field="interstellar">${esc(data.interstellar)}</strong><small>INTERSTELLAR</small></div>
+              <div class="rib-legacy-stat"><i>${icon('laurel')}</i><strong data-rib-field="hallPoints">${esc(data.hallPoints)}</strong><small>HALL OF FAME POINTS</small></div>
+              <div class="rib-legacy-stat rib-red"><i>${icon('target')}</i><strong data-rib-field="iconicMoments">${esc(data.iconicMoments)}</strong><small>ICONIC MOMENTS</small></div>
             </div>
           </section>
 
@@ -282,6 +299,70 @@
         activate(event.target.dataset.ribAction);
       }
     });
+    menu.addEventListener('pointerdown', (event) => {
+      const target = event.target.closest('[data-rib-action]');
+      if (!target) return;
+      target.classList.remove('rib-pressed');
+      void target.offsetWidth;
+      target.classList.add('rib-pressed');
+    });
+    menu.addEventListener('animationend', (event) => {
+      if (event.animationName === 'ribpress') event.target.classList.remove('rib-pressed');
+    });
+  }
+
+  // Dynamic touches that cannot live in static markup: the OVR arc fill,
+  // its quality color, and the one-time count-up of the big numbers.
+  function applyDynamic(menu, data, animateIn) {
+    const ring = menu.querySelector('.rib-ovr-ring');
+    if (ring) {
+      const overall = Math.max(0, Math.min(99, Number(data.overall) || 0));
+      ring.style.setProperty('--rib-ovr-color', overall >= 85 ? '#ffe9a0' : overall >= 50 ? '#ffd15d' : '#e8734a');
+      const applyArc = () => ring.style.setProperty('--rib-ovr', String(overall / 100));
+      if (animateIn && !prefersReduced()) whenAssetsReady(() => requestAnimationFrame(() => requestAnimationFrame(applyArc)));
+      else applyArc();
+    }
+    if (!animateIn || countedUp || prefersReduced()) return;
+    countedUp = true;
+    whenAssetsReady(() => ['overall', 'prestige', 'careers', 'nflReached', 'interstellar', 'hallPoints', 'iconicMoments'].forEach((field, index) => {
+      const el = menu.querySelector(`[data-rib-field="${field}"]`);
+      const target = Number(data[field]) || 0;
+      if (!el || !target) return;
+      const startAt = performance.now() + 380 + index * 70;
+      const duration = 620;
+      const step = (now) => {
+        if (!el.isConnected) return;
+        if (now < startAt) { requestAnimationFrame(step); return; }
+        const progress = Math.min(1, (now - startAt) / duration);
+        el.textContent = String(Math.round(target * (1 - Math.pow(1 - progress, 3))));
+        if (progress < 1) requestAnimationFrame(step);
+      };
+      el.textContent = '0';
+      requestAnimationFrame(step);
+    }));
+  }
+
+  // Targeted refresh for data-only changes so running animations never restart.
+  function updateMenu(menu, data) {
+    const set = (field, value) => {
+      const el = menu.querySelector(`[data-rib-field="${field}"]`);
+      if (el && el.textContent !== String(value)) el.textContent = String(value);
+    };
+    set('playerName', data.playerName);
+    set('league', data.league);
+    set('position', data.position);
+    set('overall', data.overall);
+    set('topCurrency', data.topCurrency);
+    set('prestige', data.prestige);
+    set('careers', data.careers);
+    set('nflReached', data.nflReached);
+    set('interstellar', data.interstellar);
+    set('hallPoints', data.hallPoints);
+    set('iconicMoments', data.iconicMoments);
+    const measurements = [data.height, data.weight].filter(Boolean);
+    menu.querySelectorAll('.rib-stars i').forEach((el, index) => {
+      if (measurements[index] && el.textContent !== measurements[index]) el.textContent = measurements[index];
+    });
   }
 
   function mountMenu() {
@@ -290,6 +371,11 @@
     let menu = document.getElementById(MENU_ID);
     if (menu && fingerprint === lastFingerprint) return;
 
+    const structural = !menu || !lastData ||
+      lastData.hasCareer !== data.hasCareer ||
+      lastData.stars !== data.stars ||
+      [lastData.height, lastData.weight].filter(Boolean).length !== [data.height, data.weight].filter(Boolean).length;
+
     if (!menu) {
       menu = document.createElement('div');
       menu.id = MENU_ID;
@@ -297,15 +383,26 @@
       bindMenu(menu);
     }
 
-    menu.innerHTML = renderMenu(data);
+    if (structural) {
+      menu.innerHTML = renderMenu(data);
+      menu.classList.remove('rib-anim-in');
+      void menu.offsetWidth;
+      menu.classList.add('rib-anim-in');
+      applyDynamic(menu, data, true);
+    } else {
+      updateMenu(menu, data);
+      applyDynamic(menu, data, false);
+    }
     document.body.classList.add(BODY_CLASS);
     lastFingerprint = fingerprint;
+    lastData = data;
   }
 
   function unmountMenu() {
     document.body.classList.remove(BODY_CLASS);
     document.getElementById(MENU_ID)?.remove();
     lastFingerprint = '';
+    lastData = null;
   }
 
   function syncMenu() {
