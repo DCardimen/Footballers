@@ -186,30 +186,21 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
 /* Career buttons: true 9-slice frames cut from the sheet's button cells at
    runtime, filled with the uniform-scale texture swatches - no more mid-band
    crops or squashed grain, and the frame corners are the art's own corners. */
+/* The gold bar asset, whole and untouched: the entire cell (own frame,
+   corners, shine, baked chevron) stretched to the band. Nothing added. */
 .rib-primary-button{
   height:auto;
   aspect-ratio:318/46;
   border:0;
   border-radius:10px;
-  border-image:var(--rib-cell-gold) 30 28 fill / 10px 9px stretch;
-  background-color:#d59a24;
-  background-image:none;
-  box-shadow:0 0 18px rgba(255,188,43,.3);
+  background-color:transparent;
+  background-image:var(--rib-cell-gold);
+  background-repeat:no-repeat;
+  background-size:100% 100%;
+  background-position:center;
+  box-shadow:none;
 }
-.rib-primary-button:before{display:none}
-.rib-primary-button b{
-  display:block;
-  position:absolute;
-  right:18px;
-  top:50%;
-  width:17px;
-  height:25px;
-  transform:translateY(-50%);
-  font-size:0;
-  color:transparent;
-  background:var(--rib-chevron) center/contain no-repeat;
-  filter:drop-shadow(0 0 6px rgba(255,214,96,.45));
-}
+.rib-primary-button:before,.rib-primary-button b{display:none}
 .rib-secondary-grid .rib-nav-button{
   height:auto;
   aspect-ratio:156/43;
@@ -296,8 +287,7 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   .rib-hero-tagline{bottom:7px}
   .rib-legacy-card:before{inset:2px;border-radius:8px}
   .rib-section-title span{height:4px}
-  .rib-primary-button{border-image-width:8px 7px;border-radius:8px}
-  .rib-primary-button b{right:13px;width:13px;height:19px}
+  .rib-primary-button{border-radius:8px}
   .rib-secondary-grid .rib-nav-button{border-image-width:7px 6px;border-radius:7px}
   #rib-main-menu-v2.rib-no-career .rib-secondary-grid .rib-nav-button{height:43px}
   .rib-bottom-grid .rib-nav-button{border-image-width:7px;border-radius:7px}

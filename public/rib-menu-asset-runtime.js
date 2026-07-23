@@ -148,16 +148,7 @@
           const cell = document.createElement('canvas');
           cell.width = w;
           cell.height = h;
-          const cellContext = cell.getContext('2d');
-          cellContext.drawImage(cleaned, x, y, w, h, 0, 0, w, h);
-          if (property === '--rib-cell-gold') {
-            // Rebuild the fill interior from the clean strip left of the baked
-            // chevron, stretched across the middle region (continuous gradient,
-            // no seam) and slightly blurred so the squashed grain stays smooth.
-            cellContext.filter = 'blur(.6px)';
-            cellContext.drawImage(cell, 28, 30, 272, 75, 28, 30, 336, 75);
-            cellContext.filter = 'none';
-          }
+          cell.getContext('2d').drawImage(cleaned, x, y, w, h, 0, 0, w, h);
           root.style.setProperty(property, `url("${await canvasUrl(cell, property)}")`);
         }
       }
