@@ -50,9 +50,12 @@ jobs:
       - run: node scripts/menu-preview-shot.mjs
       - run: node scripts/menu-integration-check.mjs
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: main-menu-preview
           path: |
             menu-preview.png
             menu-preview-metrics.json
-          if-no-files-found: error
+            menu-integration-diagnostics.json
+            menu-integration-failure.png
+          if-no-files-found: warn
