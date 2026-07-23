@@ -57,14 +57,34 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 - **v40 — position-aware single-star impact.** A player who sits 20 OVR above
   otherwise equal teammates now creates a position-specific matchup edge instead
-  of multiplying every related play into a blowout. Ten separately seeded
-  calibration passes cover 27 archetypes across every playable position. The
-  final +20 OVR projected margins cluster at QB +4.7, RB +4.1, WR +3.4, TE +4.0,
-  OL +2.9, DL +4.3, LB +1.4, CB +3.4, and S +4.0. Elite DL, LB, and S outliers
-  now earn extra responsibility in pass rush, run fits, and deep coverage for
-  either team—not only the user roster—and sack credit still belongs to the
-  actual rusher. All extreme-score guards passed. Run `npm run check:star` for
-  the paired benchmark.
+  of multiplying every related play into a blowout. The compression curve is
+  monotonic from +10 onward, so increasing an outlier from +10 to +20 cannot
+  accidentally reduce his effective attribute advantage. Elite DL, LB, and S
+  outliers earn extra responsibility in pass rush, run fits, and deep coverage
+  for either team—not only the user roster—and sack credit still belongs to the
+  actual rusher. The QB calibration now targets a 7–8 point swing at +20; LB
+  front-seven influence is restored to a roughly 4–5 point swing.
+
+  The table is the measured paired point-differential swing versus the exact
+  same seeded game with no star (90 games per position/gap, 4,050 full-game
+  simulations). Small adjacent reversals are within normal score variance, not
+  hard-coded spreads:
+
+  | Position | +10 OVR | +20 OVR | +30 OVR | +40 OVR |
+  |---|---:|---:|---:|---:|
+  | QB | +4.0 | **+6.8** | +8.0 | +12.7 |
+  | RB | +1.2 | +2.0 | +6.7 | +6.6 |
+  | WR | +0.4 | +3.5 | +4.4 | +8.8 |
+  | TE | +3.2 | +2.4 | +5.1 | +6.5 |
+  | OL | +2.1 | +4.0 | +3.5 | +3.5 |
+  | DL | +0.4 | +5.9 | +5.4 | +5.6 |
+  | LB | +3.9 | **+4.6** | +7.0 | +9.3 |
+  | CB | +1.5 | +2.6 | +3.1 | +3.2 |
+  | S | +4.4 | +4.0 | +6.1 | +6.1 |
+
+  `GAPS=10,20,30,40 npm run check:star` reproduces the ladder and reports
+  paired/projected standard errors and 95% intervals. All extreme-score guards
+  remain in the assertion mode.
 
 - **v39 — equal-talent game calibration.** Full games now have a deterministic
   mirrored-roster benchmark covering wins, scoring, rushing, passing,
