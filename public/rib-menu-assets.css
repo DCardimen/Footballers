@@ -15,13 +15,33 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
 .rib-menu-hero{
   height:auto;
   aspect-ratio:358/218;
+  border-bottom:0;
   background-color:#06101c;
-  background-image:linear-gradient(180deg,rgba(2,7,14,.08),rgba(2,7,14,.02) 65%,rgba(1,4,9,.68)),var(--rib-hero-sheet);
-  background-repeat:no-repeat,no-repeat;
-  background-size:100% 100%,167.598% auto;
-  background-position:center,50% 9.424%;
+  background-image:linear-gradient(180deg,transparent 76%,rgba(2,7,14,.66) 92%,#04090f 100%),linear-gradient(180deg,rgba(2,7,14,.08),rgba(2,7,14,.02) 65%,rgba(1,4,9,.5)),var(--rib-hero-sheet);
+  background-repeat:no-repeat,no-repeat,no-repeat;
+  background-size:100% 100%,100% 100%,167.598% auto;
+  background-position:center,center,50% 9.424%;
 }
-.rib-menu-hero:before{display:none!important}
+/* Stadium floodlight glows (pure CSS, matching the reference's four lights). */
+.rib-menu-hero:before{
+  content:"";
+  display:block;
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  transform:none;
+  filter:none;
+  opacity:1;
+  pointer-events:none;
+  background-image:
+    radial-gradient(circle at 7% 11%,rgba(255,255,255,.92) 0 1%,rgba(216,230,255,.32) 3.6%,rgba(160,192,255,.11) 8%,transparent 14%),
+    radial-gradient(circle at 93% 11%,rgba(255,255,255,.92) 0 1%,rgba(216,230,255,.32) 3.6%,rgba(160,192,255,.11) 8%,transparent 14%),
+    radial-gradient(circle at 1.5% 47%,rgba(255,255,255,.5) 0 .7%,rgba(198,214,255,.16) 3%,transparent 8%),
+    radial-gradient(circle at 98.5% 47%,rgba(255,255,255,.5) 0 .7%,rgba(198,214,255,.16) 3%,transparent 8%);
+  background-size:100% 100%;
+  background-repeat:no-repeat;
+}
 .rib-stadium-lines,.rib-floodlight{display:none!important}
 .rib-menu-hero:after{
   content:"";
@@ -31,9 +51,9 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   top:auto!important;
   right:auto!important;
   left:50%;
-  bottom:32px;
-  width:132px;
-  height:24px;
+  bottom:33px;
+  width:171px;
+  height:32px;
   transform:translateX(-50%);
   background-image:var(--rib-hero-sheet);
   background-repeat:no-repeat;
@@ -42,9 +62,9 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   pointer-events:none;
 }
 .rib-hero-player{
-  right:-9px;
+  right:-26px;
   top:20px;
-  width:232px;
+  width:229px;
   height:296px;
   opacity:1;
   filter:drop-shadow(-18px 13px 24px rgba(0,0,0,.82));
@@ -52,12 +72,14 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   background-repeat:no-repeat;
   background-size:391.875% auto;
   background-position:6.424% 94.048%;
+  -webkit-mask-image:linear-gradient(180deg,#000 80%,transparent 99%);
+  mask-image:linear-gradient(180deg,#000 80%,transparent 99%);
 }
 .rib-hero-player svg{display:none!important}
 .rib-hero-mark{
-  top:20px;
-  width:294px;
-  height:102px;
+  top:12px;
+  width:218px;
+  height:77px;
   clip-path:none;
   border:0;
   border-radius:0;
@@ -89,8 +111,8 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   background-color:transparent;
   background-image:var(--rib-panel-sheet);
   background-repeat:no-repeat;
-  background-size:484.286% auto;
-  background-position:86.245% 4.089%;
+  background-size:451.08% auto;
+  background-position:88.73% 3.89%;
   box-shadow:none;
 }
 .rib-ovr-ring:after{display:none}
@@ -125,13 +147,13 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
 .rib-primary-button{
   height:auto;
   aspect-ratio:318/46;
-  border-color:transparent;
+  border-color:rgba(233,182,78,.9);
   background-color:#d59a24;
   background-image:var(--rib-panel-sheet);
   background-repeat:no-repeat;
-  background-size:324.843% auto;
-  background-position:94.545% 31.408%;
-  box-shadow:0 0 18px rgba(255,188,43,.3);
+  background-size:319.9% auto;
+  background-position:95.48% 32.08%;
+  box-shadow:0 1px 0 rgba(255,224,138,.7) inset,0 -2px 0 rgba(99,63,7,.85) inset,0 0 18px rgba(255,188,43,.3);
 }
 .rib-primary-button:before,.rib-primary-button b{display:none}
 .rib-secondary-grid .rib-nav-button{
@@ -140,8 +162,8 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   background-color:#0b1a2b;
   background-image:var(--rib-panel-sheet);
   background-repeat:no-repeat;
-  background-size:325% auto;
-  background-position:94.302% 43.103%;
+  background-size:319.9% 1129.7%;
+  background-position:95.48% 43.31%;
   border-color:transparent;
 }
 .rib-bottom-grid .rib-nav-button{
@@ -150,87 +172,74 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   background-color:#0b1a2b;
   background-image:var(--rib-panel-sheet);
   background-repeat:no-repeat;
-  background-size:761.716% auto;
-  background-position:75.212% 54.476%;
+  background-size:847.3% 778.9%;
+  background-position:74.41% 56.82%;
   border-color:transparent;
 }
 
-/* Generated icon sheet replaces the outline SVG placeholders. Icon boxes are
-   fixed-size, so their crops stay in px per breakpoint. */
+/* Generated icon sheet replaces the outline SVG placeholders. Crops are
+   percentage-based, centered on each icon's measured bounding box, so the
+   same values hold at every icon size and nothing gets clipped. */
 .rib-nav-icon,.rib-legacy-stat i,.rib-hud-pill,.rib-hud-coin{
   flex:0 0 auto;
   background-image:var(--rib-icon-sheet);
   background-repeat:no-repeat;
 }
 .rib-nav-icon svg,.rib-legacy-stat i svg,.rib-hud-pill svg,.rib-hud-coin svg{display:none!important}
-.rib-nav-icon{width:36px;height:36px;background-size:251px 251px}
-.rib-prestige-button .rib-nav-icon{background-position:-18px -14px}
-.rib-new-button .rib-nav-icon{background-position:-80px -17px}
-.rib-goals-button .rib-nav-icon{background-position:-136px -17px}
-.rib-hall-button .rib-nav-icon{background-position:-192px -17px}
-.rib-locker-button .rib-nav-icon{background-position:-24px -87px}
-.rib-settings-button .rib-nav-icon{background-position:-103px -88px}
-.rib-legacy-stat i{width:31px;height:31px;background-size:220px 220px}
-.rib-legacy-stat:nth-child(1) i{background-position:-151px -71px}
-.rib-legacy-stat:nth-child(4) i{background-position:-25px -121px}
-.rib-legacy-stat:nth-child(5) i{background-position:-85px -122px}
-.rib-legacy-stat:nth-child(6) i{background-position:-157px -122px}
+.rib-nav-icon{width:36px;height:36px}
+.rib-prestige-button .rib-nav-icon{background-size:529.1% auto;background-position:8.6% 10.13%}
+.rib-new-button .rib-nav-icon{background-size:630.2% auto;background-position:37.54% 12.28%}
+.rib-goals-button .rib-nav-icon{background-size:600% auto;background-position:64.07% 11.67%}
+.rib-hall-button .rib-nav-icon{background-size:614.7% auto;background-position:90.9% 11.33%}
+.rib-locker-button .rib-nav-icon{background-size:540.5% auto;background-position:14.58% 40.61%}
+.rib-settings-button .rib-nav-icon{background-size:646.4% auto;background-position:49.95% 40.57%}
+.rib-legacy-stat i{width:31px;height:31px}
+.rib-legacy-stat:nth-child(1) i{background-size:633.3% auto;background-position:82.81% 39.77%}
+.rib-legacy-stat:nth-child(4) i{background-size:594.3% auto;background-position:13.52% 66.35%}
+.rib-legacy-stat:nth-child(5) i{background-size:547.6% auto;background-position:49.76% 67.51%}
+.rib-legacy-stat:nth-child(6) i{background-size:660% auto;background-position:85.2% 66.73%}
 .rib-hud-pill{
   background-color:transparent;
-  background-size:313px 313px;
-  background-position:-159px -247px;
+  background-size:588.7% auto;
+  background-position:61.86% 88.55%;
   box-shadow:none;
 }
 .rib-hud-coin{
-  width:25px;
-  height:25px;
-  background-size:313px 313px;
-  background-position:-242px -248px;
+  width:28px;
+  height:28px;
+  background-size:1062.7% auto;
+  background-position:85.21% 87.94%;
   opacity:1;
 }
 
 @media(max-width:519.98px){
   .rib-menu-hero:after{
-    bottom:22px;
-    width:94px;
-    height:18px;
+    bottom:23px;
+    width:118px;
+    height:22px;
   }
   .rib-hero-player{
-    right:-10px;
-    top:7px;
-    width:160px;
-    height:207px;
+    right:-18px;
+    top:14px;
+    width:158px;
+    height:204px;
   }
   .rib-hero-mark{
-    top:7px;
-    width:210px;
-    height:74px;
+    top:8px;
+    width:150px;
+    height:53px;
     transform:translateX(-50%);
   }
   .rib-hero-tagline{bottom:7px}
   .rib-legacy-card:before{inset:2px;border-radius:8px}
-  .rib-nav-icon{width:20px;height:20px;background-size:139px 139px}
-  .rib-prestige-button .rib-nav-icon{background-position:-10px -8px}
-  .rib-new-button .rib-nav-icon{background-position:-44px -9px}
-  .rib-goals-button .rib-nav-icon{background-position:-75px -9px}
-  .rib-hall-button .rib-nav-icon{background-position:-106px -9px}
-  .rib-locker-button .rib-nav-icon{background-position:-13px -48px}
-  .rib-settings-button .rib-nav-icon{background-position:-57px -49px}
-  .rib-legacy-stat i{width:17px;height:17px;background-size:122px 122px}
-  .rib-legacy-stat:nth-child(1) i{background-position:-84px -39px}
-  .rib-legacy-stat:nth-child(4) i{background-position:-14px -67px}
-  .rib-legacy-stat:nth-child(5) i{background-position:-47px -68px}
-  .rib-legacy-stat:nth-child(6) i{background-position:-87px -68px}
+  .rib-nav-icon{width:20px;height:20px}
+  .rib-legacy-stat i{width:17px;height:17px}
   .rib-hud-pill{
-    width:33px;
-    height:18px;
-    background-size:174px 174px;
-    background-position:-88px -137px;
+    width:38px;
+    height:24px;
   }
   .rib-hud-coin{
-    width:18px;
-    height:18px;
-    background-size:174px 174px;
-    background-position:-134px -138px;
+    width:21px;
+    height:21px;
   }
 }

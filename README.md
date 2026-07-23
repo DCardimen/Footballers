@@ -55,6 +55,18 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **Main menu game-quality pass (reference fidelity).** The asset runtime now
+  de-fringes sprite edges (white-matte alpha correction beside removed
+  background), killing the white halos around the player, crest, football and
+  HUD coin. Hero recomposed to the design reference: crest sits clear above a
+  beveled-gold wordmark (`drop-shadow` extrude — `text-shadow` paints over
+  background-clipped fills), the player silhouette is larger with a bottom
+  fade, four CSS floodlight glows match the reference, and the hero fades into
+  the content column. Career card rows now mirror the reference
+  (league | position, stars | height | weight, no dangling separators in the
+  no-career state), HUD/coin/pill sized up with a white counter, control
+  typography retuned at every breakpoint, and a ≤344px block keeps small
+  phones inside the art frames.
 - **Main menu quality pass (responsive sprite crops).** The redesigned menu's
   generated-art crops are now percentage-based with aspect-locked panels, so
   the hero, career card, legacy grid, and buttons stay aligned to the sprite

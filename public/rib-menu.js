@@ -140,7 +140,8 @@
   function renderMenu(data) {
     const filledStars = '★'.repeat(data.stars);
     const emptyStars = '★'.repeat(Math.max(0, 5 - data.stars));
-    const measurement = [data.height, data.weight].filter(Boolean).join('  |  ');
+    const measurements = [data.height, data.weight].filter(Boolean);
+    const showPosition = !!data.position && data.position !== '—';
     const primaryLabel = data.hasCareer ? 'CONTINUE CAREER' : 'START NEW CAREER';
     const primaryAction = data.hasCareer ? 'continue' : 'new';
 
@@ -191,9 +192,9 @@
               <div class="rib-career-label"><i></i>${esc(primaryLabel)}</div>
               <div class="rib-player-name">${esc(data.playerName)}</div>
               <div class="rib-player-meta">
-                <span>${esc(data.league)}</span><b></b><span>${esc(data.position)}</span>${measurement ? `<b></b><span>${esc(measurement)}</span>` : ''}
+                <span>${esc(data.league)}</span>${showPosition ? `<b></b><span>${esc(data.position)}</span>` : ''}
               </div>
-              <div class="rib-stars"><span>${filledStars}</span><em>${emptyStars}</em></div>
+              <div class="rib-stars"><span>${filledStars}</span><em>${emptyStars}</em>${measurements.map((entry) => `<b></b><i>${esc(entry)}</i>`).join('')}</div>
             </div>
             <div class="rib-ovr-ring">
               <div class="rib-ovr-value">${esc(data.overall)}</div>
