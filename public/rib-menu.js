@@ -236,7 +236,7 @@
   const actionMatchers = {
     continue: [/CONTINUE\s+CAREER/i],
     new: [/START\s+NEW\s+CAREER/i, /NEW\s+CAREER/i],
-    prestige: [/^\s*PRESTIGE\s*$/i, /PRESTIGE/i],
+    prestige: [/^\s*PRESTIGE\s*$/i, /PRESTIGE/i, /\bPP\s*\+/],
     goals: [/^\s*GOALS\s*$/i],
     hall: [/^\s*HALL\s*$/i, /HALL\s+OF\s+FAME/i],
     locker: [/^\s*LOCKER\s*$/i],

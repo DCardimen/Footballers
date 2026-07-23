@@ -4,7 +4,7 @@
   const ACTIONS = {
     continue: [/CONTINUE\s+CAREER/i],
     new: [/START\s+NEW\s+CAREER/i, /NEW\s+CAREER/i],
-    prestige: [/PRESTIGE/i],
+    prestige: [/PRESTIGE/i, /\bPP\s*\+/],
     goals: [/GOALS/i],
     hall: [/\bHALL\b/i, /HALL\s+OF\s+FAME/i],
     locker: [/LOCKER/i],

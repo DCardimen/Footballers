@@ -1,6 +1,4 @@
-@media(max-width:440px){
-  .rib-career-card{height:114px;min-height:0}
-  .rib-legacy-card{height:130px;overflow:hidden}
+@media(max-width:519.98px){
   .rib-section-title{height:18px}
   .rib-legacy-stat{min-height:46px;padding:4px 3px}
   .rib-legacy-stat small{margin-top:3px}
