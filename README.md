@@ -55,6 +55,19 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **Main menu interactive animations.** The menu is now alive: stadium
+  floodlights flicker on independent clocks, a glistening sweep crosses the
+  gold CTA (echoed faintly on the secondary row), the career card gleams once
+  on mount, the football divider glints, filled stars pop in left-to-right,
+  and the OVR ring fills as a live conic arc driven by the player's actual
+  overall (color-ramped by quality) while the big numbers count up on first
+  reveal. Buttons squash-and-bloom on press (gold for the CTA, blue for navy
+  buttons) with a 150 ms route delay so the feedback lands, plus
+  `:focus-visible` rings for keyboard. Rendering was reworked to build-once +
+  targeted text updates so live data changes never restart animations, all
+  reveals wait for the asset runtime, and everything respects
+  `prefers-reduced-motion`. Also: the no-career card now reads "Begin at age
+  8" (matching the real career start).
 - **Main menu game-quality pass (reference fidelity).** The asset runtime now
   de-fringes sprite edges (white-matte alpha correction beside removed
   background), killing the white halos around the player, crest, football and
