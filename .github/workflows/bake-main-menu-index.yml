@@ -1,0 +1,55 @@
+name: Bake redesigned menu into root index
+
+on:
+  push:
+    branches:
+      - agent/main-menu-direct-index-v3
+    paths:
+      - 'scripts/bake-menu-into-index.mjs'
+      - 'public/rib-menu*.css'
+      - 'public/rib-menu*.js'
+      - 'a_clean_high_resolution_game_ui_asset_sheet_on_a_1_batch_1.png'
+      - 'a_clean_ui_graphic_assets_sprite_sheet_mockup_im_2_batch_2.png'
+      - 'a_clean_graphic_artwork_ui_icon_sheet_on_a_trans_3_batch_3.png'
+      - '.github/workflows/bake-main-menu-index.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/main-menu-direct-index-v3
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Bake external menu files into the playable root index
+        env:
+          RIB_MENU_VERSION: direct-${{ github.sha }}
+        run: node scripts/bake-menu-into-index.mjs
+
+      - name: Verify direct integration
+        run: |
+          grep -q 'RIB_DIRECT_MENU_HEAD_BEGIN' index.html
+          grep -q './public/rib-menu-assets.css?v=' index.html
+          grep -q './public/rib-menu-navigation.js?v=' index.html
+
+      - name: Commit the playable index update
+        run: |
+          if git diff --quiet -- index.html; then
+            echo 'index.html is already baked'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Bake redesigned menu directly into index.html'
+          git push origin HEAD:agent/main-menu-direct-index-v3
