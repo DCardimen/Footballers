@@ -55,6 +55,16 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v40 — position-aware single-star impact.** A player who sits 20 OVR above
+  otherwise equal teammates now creates a position-specific matchup edge instead
+  of multiplying every related play into a blowout. Ten separately seeded
+  calibration passes cover pocket/mobile/balanced QBs, three RB and WR styles,
+  and power/coverage/speed variants across DL, LB, and CB. The accepted +20 OVR
+  sample projected margins of QB +7.6, RB +4.4, WR +4.2, DL +2.1, LB +2.2,
+  and CB +4.1; no team reached 60 or 100 points. Elite user defensive linemen
+  also carry realistic extra pass-rush weight and receive sack credit only when
+  they are the actual rusher. Run `npm run check:star` for the paired benchmark.
+
 - **v39 — equal-talent game calibration.** Full games now have a deterministic
   mirrored-roster benchmark covering wins, scoring, rushing, passing,
   interceptions, sacks, drives, shutouts, and blowout frequency. Tied play-cap

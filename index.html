@@ -5247,7 +5247,15 @@ _raw=(w,k)=>{let _v=(w&&w.attrs&&w.attrs[k])||45;if(w&&w.you){if(window.__isWorn
 // outcomes ride on RELATIVE strength, not absolute ratings (a high-school
 // game shouldn't end 6-3 because everyone is 22 OVR)
 _lgAvg=(()=>{const g=[...c.us.off,...c.us.def,...c.opp.off,...c.opp.def];return g.reduce((N,H)=>N+(Number(H.ovr)||45),0)/Math.max(1,g.length)})(),
-_=(w,k)=>f(Math.round(51+(_raw(w,k)-_lgAvg)*1.15),20,95),
+// v40 single-star AI calibration: a 20-OVR outlier should move a game, not
+// become the whole game. Compress only the attribute advantage above his own
+// unit's peers; equal teams and ordinary rating gaps remain completely intact.
+_starUnits=[c.us.off,c.us.def,c.opp.off,c.opp.def],_starUnit=new Map(),
+_starInit=_starUnits.forEach(unit=>unit.forEach(pl=>_starUnit.set(pl,unit))),
+_starScaleDefault={QB:.5,RB:.2,WR:.4,TE:.4,OL:.65,DL:1,LB:.22,CB:.25,S:.35},
+_starScale=(w,k)=>{const unit=_starUnit.get(w);if(!unit||unit.length<2)return 1;const peers=unit.filter(pl=>pl!==w),peerOvr=peers.reduce((sum,pl)=>sum+(Number(pl.ovr)||45),0)/peers.length,gap=(Number(w&&w.ovr)||peerOvr)-peerOvr,blend=f((gap-8)/10,0,1),override=window.__starImpactScalesV40&&window.__starImpactScalesV40[w.pos],floor=override==null?(_starScaleDefault[w.pos]??.5):override;return 1-(1-floor)*blend},
+_starPeerRaw=(w,k)=>{const unit=_starUnit.get(w),peers=unit&&unit.filter(pl=>pl!==w);return peers&&peers.length?peers.reduce((sum,pl)=>sum+_raw(pl,k),0)/peers.length:_lgAvg},
+_=(w,k)=>{const raw=_raw(w,k),scale=_starScale(w,k),peer=scale<.999?_starPeerRaw(w,k):raw,adjusted=peer+(raw-peer)*scale;return f(Math.round(51+(adjusted-_lgAvg)*1.15),20,95)},
 Y=(w,k)=>{const g=w.filter(N=>k.includes(N.pos));return g.length?W(g):w[0]},
 ie=w=>w?{O:c.us,D:c.opp}:{O:c.opp,D:c.us},
 pe=w=>w&&w.you,
@@ -5473,7 +5481,7 @@ while(!gameOver&&plays<MAXP){
   if(isPassCall){
     isPassFam=!0;
     const olB=(w=>w.length?w.reduce((g,N)=>g+_(N,"blocking"),0)/w.length:45)(Ok.off.filter(w=>w.pos==="OL")),
-    dlR=(w=>w.length?w.reduce((g,N)=>g+(_(N,"strength")+_(N,"burst"))/2,0)/w.length:45)(Dk.def.filter(w=>w.pos==="DL")),
+    dlR=(w=>{if(!w.length)return 45;const base=w.reduce((g,N)=>g+(_(N,"strength")+_(N,"burst"))/2,0)/w.length,you=w.find(N=>N.you&&N.pos==="DL");return you?base+((_(you,"strength")+_(you,"burst"))/2-base)*.2:base})(Dk.def.filter(w=>w.pos==="DL")),
     pressureBase=f(.15+(dlR-olB)*.004+(concept==="shot"?.055:concept==="quick"?-.05:0),.06,.34),
     sackP=f(pressureBase*(.48-(_(qb2,"awareness")-50)*.003-(_(qb2,"speed")-50)*.0015),.025,.19),
     scrP=f(pressureBase*(.22+(_(qb2,"speed")-55)*.003),.018,.13),pressureP=f(pressureBase-sackP-scrP,.025,.2),r2=Math.random();
@@ -5482,7 +5490,7 @@ while(!gameOver&&plays<MAXP){
       isPassFam=!1;de=-f(Math.round(7-(_(qb2,"speed")-50)*.035+D(-3,3)),2,12);ne="sack";
       // stat-credit truth: the sack belongs to the sacker the play names — YOU get
       // the stat only when YOU are that man, never a side roll on a teammate's sack
-      const skr=Y(Dk.def,["DL","DL","LB"]),meSk=!usDrive&&pe(skr);
+      const youRush=Dk.def.find(N=>N.you&&N.pos==="DL"),skr=youRush&&Math.random()<.4?youRush:Y(Dk.def,["DL","DL","LB"]),meSk=!usDrive&&pe(skr);
       const stripP=f(.045+(_(skr,"strength")-_(qb2,"awareness"))*.0015+(weatherFx.fumble-1)*.08,.02,.14);
       if(Math.random()<stripP){ // strip sack — defender power, QB awareness and weather matter
         const defRecP=f(.48+(dlR-olB)*.004,.32,.68),defRec=Math.random()<defRecP;
@@ -7573,7 +7581,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     linebackerPassDropsV1521:true,receiverBracketCoverageV1521:true,continuousCornerCoverageV1521:true,
     handMountedFootballV36:true,longAxisSpiralV36:true,ballisticDragV36:true,
     exactBoundaryPlanesV37:true,movementIQV37:true,directionalJukesV37:true,contactSlowMoV37:true,
-    wholeFieldAccelerationV38:true,equalTalentBalanceV39:true
+    wholeFieldAccelerationV38:true,equalTalentBalanceV39:true,positionAwareStarImpactV40:true
   });
 })();
 </script>
