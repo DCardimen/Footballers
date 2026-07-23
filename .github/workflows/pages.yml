@@ -8,6 +8,7 @@ on:
       - main
       - claude/football-field-depth-9fcesb
       - agent/main-menu-reference-v1
+      - agent/main-menu-generated-assets
   workflow_dispatch:
 
 permissions:
@@ -28,23 +29,33 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Assemble site (self-contained game + fallback assets)
+      - name: Assemble site (self-contained game + menu assets)
         run: |
           mkdir -p _site
           cp index.html _site/index.html
           if [ -d public ]; then cp -r public/. _site/; fi
           if [ -f menu-preview.html ]; then cp menu-preview.html _site/menu-preview.html; fi
+          for asset in \
+            a_clean_high_resolution_game_ui_asset_sheet_on_a_1_batch_1.png \
+            a_clean_ui_graphic_assets_sprite_sheet_mockup_im_2_batch_2.png \
+            a_clean_graphic_artwork_ui_icon_sheet_on_a_trans_3_batch_3.png; do
+            test -f "$asset"
+            cp "$asset" "_site/$asset"
+          done
           python - <<'PY'
           from pathlib import Path
           path = Path('_site/index.html')
           html = path.read_text(encoding='utf-8')
-          css = '<link rel="stylesheet" href="./rib-menu-reset.css"><link rel="stylesheet" href="./rib-menu.css"><link rel="stylesheet" href="./rib-menu-mobile.css"><link rel="stylesheet" href="./rib-menu-final.css">'
+          css = '<link rel="stylesheet" href="./rib-menu-reset.css"><link rel="stylesheet" href="./rib-menu.css"><link rel="stylesheet" href="./rib-menu-mobile.css"><link rel="stylesheet" href="./rib-menu-final.css"><link rel="stylesheet" href="./rib-menu-assets.css">'
           js = '<script src="./rib-menu-boot.js"></script><script src="./rib-menu.js"></script>'
           if 'rib-menu.css' not in html:
               head, sep, tail = html.rpartition('</head>')
               if not sep:
                   raise RuntimeError('Missing closing head tag')
               html = head + css + sep + tail
+          elif 'rib-menu-assets.css' not in html:
+              head, sep, tail = html.rpartition('</head>')
+              html = head + '<link rel="stylesheet" href="./rib-menu-assets.css">' + sep + tail
           if 'rib-menu.js' not in html:
               body, sep, tail = html.rpartition('</body>')
               if not sep:
