@@ -1,0 +1,43 @@
+name: Main menu visual check
+
+on:
+  pull_request:
+    paths:
+      - 'public/rib-menu*.css'
+      - 'public/rib-menu.js'
+      - 'menu-preview.html'
+      - 'scripts/menu-preview-shot.mjs'
+      - '.github/workflows/menu-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Start preview server
+        run: |
+          npm run dev -- --host 127.0.0.1 > /tmp/rib-vite.log 2>&1 &
+          for i in {1..40}; do
+            curl -fsS http://127.0.0.1:5173/menu-preview.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/rib-vite.log
+          exit 1
+      - run: node scripts/menu-preview-shot.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: main-menu-preview
+          path: |
+            menu-preview.png
+            menu-preview-metrics.json
+          if-no-files-found: error
