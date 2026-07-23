@@ -46,5 +46,13 @@ const dataUrl = await page.evaluate(async ({ srcs, COLS_SRC, ROWS_SRC, CELL, COL
 
 const buf = Buffer.from(dataUrl.split(',')[1], 'base64')
 fs.writeFileSync(OUT, buf)
-console.log(JSON.stringify({ out: OUT, cells: COLS_SRC * ROWS_SRC * SHEETS.length, bytes: buf.length }))
+// Re-bake the sheet into index.html (window.__RIB_LOGOS_V44) so the single-file /
+// GitHub Pages build ships the emblems too — public/ is only reachable in vite dev.
+const INDEX = 'index.html'
+const html = fs.readFileSync(INDEX, 'utf8')
+const line = `window.__RIB_LOGOS_V44 = "${dataUrl}";`
+const re = /window\.__RIB_LOGOS_V44 = "data:image\/png;base64,[^"]*";/
+if (!re.test(html)) throw new Error('index.html is missing the baked __RIB_LOGOS_V44 line')
+fs.writeFileSync(INDEX, html.replace(re, line))
+console.log(JSON.stringify({ out: OUT, cells: COLS_SRC * ROWS_SRC * SHEETS.length, bytes: buf.length, baked: true }))
 await browser.close()
