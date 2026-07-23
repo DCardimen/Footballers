@@ -30,6 +30,12 @@ const allArchetypes = [
   { pos: 'WR', name: 'deep', attrs: { speed: 30, accel: 30, burst: 30, catching: 30, hands: 10, agility: 10, awareness: 10, strength: 10 } },
   { pos: 'WR', name: 'route', attrs: { agility: 30, awareness: 30, catching: 30, hands: 30, speed: 10, accel: 10, burst: 10, strength: 10 } },
   { pos: 'WR', name: 'contested', attrs: { catching: 30, hands: 30, strength: 30, power: 30, speed: 10, accel: 10, agility: 10, awareness: 10 } },
+  { pos: 'TE', name: 'seam', attrs: { speed: 30, accel: 30, catching: 30, hands: 30, awareness: 10, agility: 10, strength: 10, blocking: 10 } },
+  { pos: 'TE', name: 'inline', attrs: { strength: 30, blocking: 30, catching: 30, hands: 30, awareness: 10, power: 10, speed: 10, accel: 10 } },
+  { pos: 'TE', name: 'red-zone', attrs: { catching: 30, hands: 30, strength: 30, power: 30, speed: 10, accel: 10, awareness: 10, blocking: 10 } },
+  { pos: 'OL', name: 'pass-protector', attrs: { blocking: 30, strength: 30, awareness: 30, agility: 30, power: 10, accel: 10, burst: 10, tackling: 10 } },
+  { pos: 'OL', name: 'mauler', attrs: { blocking: 30, strength: 30, power: 30, burst: 30, awareness: 10, agility: 10, accel: 10, speed: 10 } },
+  { pos: 'OL', name: 'athletic', attrs: { blocking: 30, agility: 30, accel: 30, burst: 30, strength: 10, power: 10, awareness: 10, speed: 10 } },
   { pos: 'DL', name: 'power', attrs: { strength: 30, power: 30, tackling: 30, awareness: 30, speed: 10, accel: 10, burst: 10, agility: 10 } },
   { pos: 'DL', name: 'edge', attrs: { speed: 30, accel: 30, burst: 30, agility: 30, strength: 10, power: 10, tackling: 10, awareness: 10 } },
   { pos: 'DL', name: 'balanced', attrs: { strength: 30, burst: 30, tackling: 30, speed: 30, power: 10, awareness: 10, accel: 10, agility: 10 } },
@@ -38,9 +44,12 @@ const allArchetypes = [
   { pos: 'LB', name: 'blitzer', attrs: { burst: 30, accel: 30, tackling: 30, strength: 30, speed: 10, power: 10, awareness: 10, agility: 10 } },
   { pos: 'CB', name: 'man', attrs: { coverage: 30, speed: 30, agility: 30, awareness: 30, accel: 10, burst: 10, hands: 10, tackling: 10 } },
   { pos: 'CB', name: 'ballhawk', attrs: { coverage: 30, awareness: 30, hands: 30, speed: 30, agility: 10, accel: 10, burst: 10, tackling: 10 } },
-  { pos: 'CB', name: 'press', attrs: { coverage: 30, strength: 30, tackling: 30, awareness: 30, speed: 10, accel: 10, agility: 10, hands: 10 } }
+  { pos: 'CB', name: 'press', attrs: { coverage: 30, strength: 30, tackling: 30, awareness: 30, speed: 10, accel: 10, agility: 10, hands: 10 } },
+  { pos: 'S', name: 'centerfield', attrs: { coverage: 30, speed: 30, awareness: 30, hands: 30, agility: 10, accel: 10, tackling: 10, burst: 10 } },
+  { pos: 'S', name: 'box', attrs: { tackling: 30, strength: 30, power: 30, awareness: 30, speed: 10, accel: 10, coverage: 10, burst: 10 } },
+  { pos: 'S', name: 'hybrid', attrs: { coverage: 30, tackling: 30, speed: 30, awareness: 30, agility: 10, accel: 10, hands: 10, strength: 10 } }
 ]
-const requestedPositions = new Set((process.env.POSITIONS || 'QB,RB,WR,DL,LB,CB').split(',').map(value => value.trim().toUpperCase()).filter(Boolean))
+const requestedPositions = new Set((process.env.POSITIONS || 'QB,RB,WR,TE,OL,DL,LB,CB,S').split(',').map(value => value.trim().toUpperCase()).filter(Boolean))
 const archetypes = allArchetypes.filter(archetype => requestedPositions.has(archetype.pos))
 if (!archetypes.length) throw new Error('POSITIONS did not select a benchmark position')
 
@@ -170,7 +179,7 @@ const summary = {
   pairsPerArchetype: pairs,
   pairedGames: rows.length,
   fullGameSimulations: rows.length * 2,
-  scales: { QB: .5, RB: .2, WR: .4, DL: 1, LB: .22, CB: .25, ...scaleOverrides },
+  scales: { QB: .525, RB: .18, WR: .36, TE: .32, OL: .55, DL: 1, LB: .24, CB: .25, S: .4, ...scaleOverrides },
   passes: passSummaries,
   positions: byPosition,
   archetypes: byArchetype,
@@ -179,7 +188,7 @@ const summary = {
 console.log(JSON.stringify(summary, null, 2))
 
 if (assertBalance) {
-  const bands = { QB: [3, 8], RB: [2, 6], WR: [2, 6], DL: [.5, 5], LB: [1, 6], CB: [1, 6] }
+  const bands = { QB: [4, 7], RB: [2, 6], WR: [2, 6], TE: [1, 5], OL: [.5, 4], DL: [.5, 5], LB: [.5, 4], CB: [1, 6], S: [1, 5] }
   const checks = positions.map(pos => [`${pos} projected margin is ${bands[pos][0]}–${bands[pos][1]}`, byPosition[pos].projectedMargin >= bands[pos][0] && byPosition[pos].projectedMargin <= bands[pos][1]])
   checks.push(['every benchmark star is exactly +20 OVR', positions.every(pos => Math.abs(byPosition[pos].avgStarGap - 20) <= .1)])
   checks.push(['40-point wins are <= 5%', rows.filter(row => row.boostedMargin >= 40).length / rows.length <= .05])
