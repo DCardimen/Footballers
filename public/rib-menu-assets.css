@@ -1,8 +1,10 @@
-#rib-main-menu-v2{
+:root{
   --rib-hero-sheet:url("./a_clean_high_resolution_game_ui_asset_sheet_on_a_1_batch_1.png");
   --rib-panel-sheet:url("./a_clean_ui_graphic_assets_sprite_sheet_mockup_im_2_batch_2.png");
   --rib-icon-sheet:url("./a_clean_graphic_artwork_ui_icon_sheet_on_a_trans_3_batch_3.png");
 }
+html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
+html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
 
 /* Generated hero artwork replaces the CSS shorthand stadium, lights, crest and player. */
 .rib-menu-hero{
@@ -90,6 +92,7 @@
   background-position:-30px -246px;
 }
 .rib-section-title span{opacity:0}
+.rib-section-title b{position:relative;z-index:1;padding:0 10px;background:#081725}
 .rib-legacy-stat{
   border-color:transparent;
   background:rgba(4,14,25,.12);
@@ -104,7 +107,7 @@
   background-position:-970px -445px;
   box-shadow:0 0 18px rgba(255,188,43,.3);
 }
-.rib-primary-button:before{display:none}
+.rib-primary-button:before,.rib-primary-button b{display:none}
 .rib-secondary-grid .rib-nav-button{
   background-color:#0b1a2b;
   background-image:var(--rib-panel-sheet);
