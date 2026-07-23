@@ -3,12 +3,12 @@
 
   const MATCHERS = {
     continue: [/CONTINUE\s+CAREER/i],
-    new: [/START\s+NEW\s+CAREER/i, /^\s*NEW\s+CAREER\s*$/i],
-    prestige: [/^\s*PRESTIGE\s*$/i],
-    goals: [/^\s*GOALS\s*$/i],
-    hall: [/^\s*HALL\s*$/i, /HALL\s+OF\s+FAME/i],
-    locker: [/^\s*LOCKER\s*$/i],
-    settings: [/^\s*SETTINGS\s*$/i, /^\s*⚙\s*$/],
+    new: [/START\s+NEW\s+CAREER/i, /NEW\s+CAREER/i],
+    prestige: [/PRESTIGE/i],
+    goals: [/GOALS/i],
+    hall: [/\bHALL\b/i, /HALL\s+OF\s+FAME/i],
+    locker: [/LOCKER/i],
+    settings: [/SETTINGS/i, /⚙/],
   };
 
   const clean = (value) => (value || '').replace(/\s+/g, ' ').trim();
