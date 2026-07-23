@@ -7,6 +7,7 @@ on:
       - 'public/rib-menu.js'
       - 'menu-preview.html'
       - 'scripts/menu-preview-shot.mjs'
+      - 'scripts/menu-integration-check.mjs'
       - '.github/workflows/menu-preview.yml'
   workflow_dispatch:
 
@@ -24,6 +25,19 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - name: Assemble real-game integration page
+        run: |
+          cp index.html menu-integration.html
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('menu-integration.html')
+          html = path.read_text(encoding='utf-8')
+          css = '<link rel="stylesheet" href="/rib-menu-reset.css"><link rel="stylesheet" href="/rib-menu.css"><link rel="stylesheet" href="/rib-menu-mobile.css"><link rel="stylesheet" href="/rib-menu-final.css">'
+          js = '<script src="/rib-menu.js"></script>'
+          html = html.replace('</head>', css + '</head>', 1)
+          html = html.replace('</body>', js + '</body>', 1)
+          path.write_text(html, encoding='utf-8')
+          PY
       - name: Start preview server
         run: |
           npm run dev -- --host 127.0.0.1 > /tmp/rib-vite.log 2>&1 &
@@ -34,6 +48,7 @@ jobs:
           cat /tmp/rib-vite.log
           exit 1
       - run: node scripts/menu-preview-shot.mjs
+      - run: node scripts/menu-integration-check.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: main-menu-preview
