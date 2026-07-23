@@ -55,6 +55,23 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v44.1 — EMBLEM DELIVERY + LIVE CREATOR PREVIEW.** The emblem sheet is now
+  **baked into `index.html`** as `window.__RIB_LOGOS_V44` (the v22-atlas
+  pattern) — v44 loaded it from `/rib_logos_v44.png`, which 404s on the GitHub
+  Pages subpath and `file://`, so no logos appeared outside vite dev. One shared
+  injected CSS rule (`.emblem-v44`) carries the multi-MB URL; per-element styles
+  are %-based sprite cells (`background-size:1000% 900%`), so the same emblem
+  call scales cleanly from a 20px chip to a 100px crest and creator tiles stay
+  inside their buttons at every viewport. The Team Creator gained a **live
+  identity preview** card (jersey in the selected palette + emblem + palette
+  swatches) that re-renders on every palette pick, emblem pick, and team-name
+  keystroke (typing "Wolves" pulls up the wolf until you hand-pick otherwise),
+  and the pregame Top Talent Matchup screen now shows both teams' emblems.
+  `emblemcheck.mjs` grew into a full surface audit: baked delivery, tile/chip/
+  crest geometry and containment at 520px and 320px, preview reactivity, and
+  the ✓-marked matched palette. `pack_logos.mjs` re-bakes the data URL whenever
+  the sheet is rebuilt.
+
 - **v44 — TEAM EMBLEMS.** The three uploaded logo sheets (animals / warriors /
   concepts) are packed into `public/rib_logos_v44.png` (90 emblems, built by
   `scripts/spritekit/pack_logos.mjs`) and wired through the whole identity
