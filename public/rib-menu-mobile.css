@@ -1,0 +1,31 @@
+@media(max-width:440px){
+  .rib-menu-shell{min-height:100dvh;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+  .rib-menu-hud{height:66px;padding:calc(env(safe-area-inset-top) + 9px) 22px 7px}
+  .rib-hud-left{gap:22px}.rib-hud-pill{width:33px;height:18px}.rib-hud-pill svg,.rib-hud-coin svg{width:11px;height:11px}.rib-hud-value{font-size:10px;margin-top:2px}
+  .rib-menu-hero{height:218px}
+  .rib-menu-hero:before,.rib-menu-hero:after{top:44px;width:65px;height:40px;background-size:14px 14px}
+  .rib-stadium-lines{inset:95px -8% 0;background:repeating-linear-gradient(180deg,transparent 0 13px,rgba(99,136,180,.13) 14px 15px),radial-gradient(110% 58% at 50% 20%,transparent 0 58%,rgba(110,150,198,.13) 59% 60%,transparent 62%)}
+  .rib-hero-player{right:-5px;top:10px;width:115px;height:188px}
+  .rib-hero-mark{top:15px;width:38px;height:38px;transform:translateX(-50%);border-width:1px}
+  .rib-hero-mark:before,.rib-hero-mark:after{top:18px;width:39px}.rib-hero-mark:before{right:35px}.rib-hero-mark:after{left:35px}.rib-hero-mark span{top:5px;font-size:3px}.rib-hero-mark b{font-size:13px}
+  .rib-hero-wordmark{top:50px;padding-left:28px;letter-spacing:-2px;line-height:.82}
+  .rib-hero-wordmark span{font-size:50px}.rib-hero-wordmark strong{font-size:54px;margin-left:41px;margin-top:13px}
+  .rib-hero-tagline{bottom:9px;font-size:7px;letter-spacing:1px}
+  .rib-menu-content{padding:0 20px 10px}
+  .rib-career-card{min-height:114px;padding:13px 15px 12px;border-radius:10px}
+  .rib-career-card:before{border-radius:9px}.rib-career-copy{width:72%}
+  .rib-career-label{gap:7px;font-size:8px;letter-spacing:2px}.rib-career-label i{width:4px;height:4px}
+  .rib-player-name{margin-top:9px;font-size:27px;letter-spacing:-.5px}
+  .rib-player-meta{gap:7px;margin-top:8px;font-size:10px}.rib-player-meta b{height:11px}
+  .rib-stars{margin-top:5px;font-size:15px;letter-spacing:1.5px}
+  .rib-ovr-ring{right:12px;top:12px;width:70px;height:70px;box-shadow:0 0 0 4px #06101d inset,0 0 0 5px rgba(109,142,179,.25) inset,0 0 12px rgba(255,201,73,.16)}
+  .rib-ovr-ring:after{inset:9px}.rib-ovr-value{font-size:35px}.rib-ovr-label{font-size:8px;letter-spacing:2px;margin-top:5px}.rib-card-dots{right:9px;bottom:7px;width:28px;height:13px;background-size:6px 4px}
+  .rib-legacy-card{margin-top:8px;padding:5px 6px 7px;border-radius:9px}
+  .rib-section-title{gap:8px;height:20px}.rib-section-title span{max-width:45px}.rib-section-title b{font-size:8px;letter-spacing:2px}
+  .rib-legacy-grid{gap:4px}.rib-legacy-stat{min-height:51px;padding:6px 3px 5px;border-radius:6px;column-gap:3px}.rib-legacy-stat strong{font-size:21px}.rib-legacy-stat small{margin-top:4px;font-size:6px;letter-spacing:.6px}.rib-legacy-stat svg{width:15px;height:15px}
+  .rib-primary-button{height:46px;margin-top:8px;border-radius:8px;font-size:16px;letter-spacing:2px}.rib-primary-button:before{inset:2px;border-radius:6px}.rib-primary-button b{right:13px;top:9px;font-size:29px}
+  .rib-secondary-grid{gap:6px;margin-top:8px}.rib-bottom-grid{gap:5px;margin-top:6px}
+  .rib-nav-button{min-height:43px;border-radius:7px;gap:7px;font-size:11px;letter-spacing:1px}.rib-bottom-grid .rib-nav-button{min-height:52px;gap:3px;font-size:8px}
+  .rib-nav-icon svg{width:18px;height:18px}.rib-bottom-grid .rib-nav-icon svg{width:17px;height:17px}
+}
+@media(max-width:360px){.rib-menu-content{padding-left:20px;padding-right:20px}.rib-menu-hero{height:218px}.rib-hero-wordmark span{font-size:50px}.rib-hero-wordmark strong{font-size:54px}.rib-player-name{font-size:27px}.rib-career-label{font-size:8px}.rib-ovr-ring{width:70px;height:70px}.rib-bottom-grid{gap:5px}}
