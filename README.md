@@ -55,6 +55,49 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v40 — position-aware single-star impact.** A player who sits 20 OVR above
+  otherwise equal teammates now creates a position-specific matchup edge instead
+  of multiplying every related play into a blowout. The compression curve is
+  monotonic from +10 onward, so increasing an outlier from +10 to +20 cannot
+  accidentally reduce his effective attribute advantage. Elite DL, LB, and S
+  outliers earn extra responsibility in pass rush, run fits, and deep coverage
+  for either team—not only the user roster—and sack credit still belongs to the
+  actual rusher. The QB calibration targets a 7–8 point swing at +20. A final
+  endgame fine-tune reduces the LB attribute factor from .30 to .27 and its
+  extra front-seven weight from .12 to .10, while raising CB from .25 to .28.
+  That targets roughly +3.5–4 points for a +20 LB and about +3 for a +20 CB.
+
+  The table is the measured paired point-differential swing immediately before
+  that final LB/CB fine-tune, versus the exact same seeded game with no star
+  (90 games per position/gap, 4,050 full-game simulations). Small adjacent
+  reversals are within normal score variance, not hard-coded spreads:
+
+  | Position | +10 OVR | +20 OVR | +30 OVR | +40 OVR |
+  |---|---:|---:|---:|---:|
+  | QB | +4.0 | **+6.8** | +8.0 | +12.7 |
+  | RB | +1.2 | +2.0 | +6.7 | +6.6 |
+  | WR | +0.4 | +3.5 | +4.4 | +8.8 |
+  | TE | +3.2 | +2.4 | +5.1 | +6.5 |
+  | OL | +2.1 | +4.0 | +3.5 | +3.5 |
+  | DL | +0.4 | +5.9 | +5.4 | +5.6 |
+  | LB | +3.9 | **+4.6** | +7.0 | +9.3 |
+  | CB | +1.5 | +2.6 | +3.1 | +3.2 |
+  | S | +4.4 | +4.0 | +6.1 | +6.1 |
+
+  `GAPS=10,20,30,40 npm run check:star` reproduces the ladder and reports
+  paired/projected standard errors and 95% intervals. All extreme-score guards
+  remain in the assertion mode.
+
+- **v39 — equal-talent game calibration.** Full games now have a deterministic
+  mirrored-roster benchmark covering wins, scoring, rushing, passing,
+  interceptions, sacks, drives, shutouts, and blowout frequency. Tied play-cap
+  games no longer default to the user team, normal dropbacks create more
+  realistic depth and catch rates, and the run curve converts more genuinely
+  sustained blocks into medium gains. In 240 exact-mirror games the sides
+  finished at 50.4% wins, 23.9–24.3 points, 3.53–3.53 YPC, 62.6–62.3%
+  completions, 5.52–5.55 pass YPA, 0.84–0.67 interceptions, and 2.86–2.90
+  sacks; no team reached 60 points and no game approached 100.
+
 - **v38 — whole-field acceleration.** Every movement command now requests a
   target gear instead of multiplying velocity instantly. Acceleration and burst
   control launches and restarts; agility governs speed retained through cuts and

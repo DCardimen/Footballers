@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "shot": "node scripts/shot.mjs",
-    "check:movement": "node scripts/movementcheck.mjs"
+    "check:movement": "node scripts/movementcheck.mjs",
+    "check:equal": "node scripts/equaltalentcheck.mjs",
+    "check:star": "node scripts/starimpactcheck.mjs"
   },
   "devDependencies": {
     "js-beautify": "^2.0.3",
