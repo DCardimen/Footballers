@@ -55,6 +55,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v45 — REFEREE CREW.** A seven-official crew now works every live play in the
+  broadcast view (`LiveField` scene: `spawnRefs` / `updateRefs` / `placeRef` +
+  the `refThrowFlag` / `refSignalTD` helpers, all after `resolveOverlaps`). The
+  officials are a render-only layer — not sim actors, no stats, never in
+  `this.markers` — kept in `this.refs`. They wear a dedicated **`ref` recolor
+  team** (white kit, then `ribZebra` paints the striped shirt over the chest
+  band; `ribRegisterTeam` gained an optional `deco` hook that persists across the
+  v22-overlay reload). Each frame every official eases toward a role-based mark
+  keyed on the ball-carrier (referee in the offensive backfield, umpire off the
+  middle, two wings on the LOS, two deep on the numbers, back judge deepest),
+  **runs when the players run at ~85% of ball speed** (`TU("refSpeedFrac")`), and
+  is repelled out of any nearby body so he stays off the pile. A `flag` event now
+  pulls the nearest official into a flag-heave animation (falling back to the old
+  dropped flag only before the atlas decodes), and a score raises the nearest
+  official's arms via `celebrate()`. `refcheck.mjs` verifies the crew.
 - **v44.1 — EMBLEM DELIVERY + LIVE CREATOR PREVIEW.** The emblem sheet is now
   **baked into `index.html`** as `window.__RIB_LOGOS_V44` (the v22-atlas
   pattern) — v44 loaded it from `/rib_logos_v44.png`, which 404s on the GitHub
