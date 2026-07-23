@@ -1,14 +1,11 @@
 name: Deploy playable build to GitHub Pages
 
-# Publishes the self-contained index.html to GitHub Pages on every push, so the
-# "play / read the current build" link always serves the newest committed game.
+# Only the protected main branch deploys. Pull requests are validated by the
+# separate main-menu visual workflow and never compete for the Pages environment.
 on:
   push:
     branches:
       - main
-      - claude/football-field-depth-9fcesb
-      - agent/main-menu-reference-v1
-      - agent/main-menu-generated-assets
   workflow_dispatch:
 
 permissions:
@@ -16,56 +13,46 @@ permissions:
   pages: write
   id-token: write
 
-# Let a newer push cancel an in-flight deploy rather than queueing.
 concurrency:
-  group: pages
+  group: github-pages-main
   cancel-in-progress: true
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Assemble site (self-contained game + menu assets)
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Assemble cache-busted playable site
+        env:
+          RIB_BUILD_VERSION: ${{ github.sha }}
+        run: node scripts/assemble-pages.mjs _site
+
+      - name: Verify redesigned menu is in deployed index
         run: |
-          mkdir -p _site
-          cp index.html _site/index.html
-          if [ -d public ]; then cp -r public/. _site/; fi
-          if [ -f menu-preview.html ]; then cp menu-preview.html _site/menu-preview.html; fi
-          for asset in \
-            a_clean_high_resolution_game_ui_asset_sheet_on_a_1_batch_1.png \
-            a_clean_ui_graphic_assets_sprite_sheet_mockup_im_2_batch_2.png \
-            a_clean_graphic_artwork_ui_icon_sheet_on_a_trans_3_batch_3.png; do
-            test -f "$asset"
-            cp "$asset" "_site/$asset"
-          done
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('_site/index.html')
-          html = path.read_text(encoding='utf-8')
-          css = '<link rel="stylesheet" href="./rib-menu-reset.css"><link rel="stylesheet" href="./rib-menu.css"><link rel="stylesheet" href="./rib-menu-mobile.css"><link rel="stylesheet" href="./rib-menu-final.css"><link rel="stylesheet" href="./rib-menu-assets.css">'
-          js = '<script src="./rib-menu-asset-runtime.js"></script><script src="./rib-menu-boot.js"></script><script src="./rib-menu.js"></script><script src="./rib-menu-navigation.js"></script>'
-          if 'rib-menu.css' not in html:
-              head, sep, tail = html.rpartition('</head>')
-              if not sep:
-                  raise RuntimeError('Missing closing head tag')
-              html = head + css + sep + tail
-          elif 'rib-menu-assets.css' not in html:
-              head, sep, tail = html.rpartition('</head>')
-              html = head + '<link rel="stylesheet" href="./rib-menu-assets.css">' + sep + tail
-          if 'rib-menu.js' not in html:
-              body, sep, tail = html.rpartition('</body>')
-              if not sep:
-                  raise RuntimeError('Missing closing body tag')
-              html = body + js + sep + tail
-          path.write_text(html, encoding='utf-8')
-          PY
+          test -f _site/.nojekyll
+          test -f _site/rib-build.json
+          grep -q 'RIB_MENU_HEAD_BEGIN' _site/index.html
+          grep -q 'rib-menu-assets.css?v=' _site/index.html
+          grep -q 'rib-menu-navigation.js?v=' _site/index.html
+          test -f _site/a_clean_high_resolution_game_ui_asset_sheet_on_a_1_batch_1.png
+          test -f _site/a_clean_ui_graphic_assets_sprite_sheet_mockup_im_2_batch_2.png
+          test -f _site/a_clean_graphic_artwork_ui_icon_sheet_on_a_trans_3_batch_3.png
+
       - uses: actions/configure-pages@v5
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
+
       - id: deployment
         uses: actions/deploy-pages@v4
