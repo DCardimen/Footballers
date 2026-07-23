@@ -21,15 +21,17 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   display:block;
   position:absolute;
   z-index:4;
+  top:auto!important;
+  right:auto!important;
   left:50%;
-  bottom:35px;
-  width:244px;
-  height:42px;
+  bottom:60px;
+  width:132px;
+  height:24px;
   transform:translateX(-50%);
   background-image:var(--rib-hero-sheet);
   background-repeat:no-repeat;
-  background-size:878px 878px;
-  background-position:-315px -588px;
+  background-size:474px 474px;
+  background-position:-170px -317px;
   pointer-events:none;
 }
 .rib-hero-player{
@@ -84,6 +86,8 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
 }
 .rib-ovr-ring:after{display:none}
 .rib-legacy-card{
+  position:relative;
+  overflow:hidden;
   border-color:transparent;
   background-color:#071423;
   background-image:var(--rib-panel-sheet);
@@ -91,12 +95,21 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   background-size:760px 760px;
   background-position:-30px -246px;
 }
-.rib-section-title span{opacity:0}
+.rib-legacy-card:before{
+  content:"";
+  position:absolute;
+  inset:3px;
+  border-radius:14px;
+  background:linear-gradient(180deg,rgba(6,20,35,.82),rgba(3,12,22,.9));
+  pointer-events:none;
+}
+.rib-section-title,.rib-legacy-grid{position:relative;z-index:1}
+.rib-section-title span{opacity:.7}
 .rib-section-title b{position:relative;z-index:1;padding:0 10px;background:#081725}
 .rib-legacy-stat{
-  border-color:transparent;
-  background:rgba(4,14,25,.12);
-  box-shadow:none;
+  border:1px solid rgba(65,96,130,.48);
+  background:linear-gradient(180deg,rgba(17,37,59,.9),rgba(7,20,34,.96));
+  box-shadow:0 1px rgba(255,255,255,.025) inset;
 }
 .rib-primary-button{
   border-color:transparent;
@@ -164,11 +177,12 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
     background-position:center,center -36px;
   }
   .rib-menu-hero:after{
-    bottom:18px;
-    width:174px;
-    height:30px;
-    background-size:627px 627px;
-    background-position:-225px -420px;
+    top:auto!important;
+    bottom:22px;
+    width:94px;
+    height:18px;
+    background-size:339px 339px;
+    background-position:-122px -227px;
   }
   .rib-hero-player{
     right:-10px;
@@ -199,6 +213,7 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
     background-size:532px 532px;
     background-position:-21px -172px;
   }
+  .rib-legacy-card:before{inset:2px;border-radius:8px}
   .rib-primary-button{
     background-size:1033px 1033px;
     background-position:-676px -310px;
