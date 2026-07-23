@@ -15,13 +15,33 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
 .rib-menu-hero{
   height:auto;
   aspect-ratio:358/218;
+  border-bottom:0;
   background-color:#06101c;
-  background-image:linear-gradient(180deg,rgba(2,7,14,.08),rgba(2,7,14,.02) 65%,rgba(1,4,9,.68)),var(--rib-hero-sheet);
-  background-repeat:no-repeat,no-repeat;
-  background-size:100% 100%,167.598% auto;
-  background-position:center,50% 9.424%;
+  background-image:linear-gradient(180deg,transparent 76%,rgba(2,7,14,.66) 92%,#04090f 100%),linear-gradient(180deg,rgba(2,7,14,.08),rgba(2,7,14,.02) 65%,rgba(1,4,9,.5)),var(--rib-hero-sheet);
+  background-repeat:no-repeat,no-repeat,no-repeat;
+  background-size:100% 100%,100% 100%,167.598% auto;
+  background-position:center,center,50% 9.424%;
 }
-.rib-menu-hero:before{display:none!important}
+/* Stadium floodlight glows (pure CSS, matching the reference's four lights). */
+.rib-menu-hero:before{
+  content:"";
+  display:block;
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  transform:none;
+  filter:none;
+  opacity:1;
+  pointer-events:none;
+  background-image:
+    radial-gradient(circle at 7% 11%,rgba(255,255,255,.92) 0 1%,rgba(216,230,255,.32) 3.6%,rgba(160,192,255,.11) 8%,transparent 14%),
+    radial-gradient(circle at 93% 11%,rgba(255,255,255,.92) 0 1%,rgba(216,230,255,.32) 3.6%,rgba(160,192,255,.11) 8%,transparent 14%),
+    radial-gradient(circle at 1.5% 47%,rgba(255,255,255,.5) 0 .7%,rgba(198,214,255,.16) 3%,transparent 8%),
+    radial-gradient(circle at 98.5% 47%,rgba(255,255,255,.5) 0 .7%,rgba(198,214,255,.16) 3%,transparent 8%);
+  background-size:100% 100%;
+  background-repeat:no-repeat;
+}
 .rib-stadium-lines,.rib-floodlight{display:none!important}
 .rib-menu-hero:after{
   content:"";
@@ -31,9 +51,9 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   top:auto!important;
   right:auto!important;
   left:50%;
-  bottom:32px;
-  width:132px;
-  height:24px;
+  bottom:33px;
+  width:171px;
+  height:32px;
   transform:translateX(-50%);
   background-image:var(--rib-hero-sheet);
   background-repeat:no-repeat;
@@ -42,9 +62,9 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   pointer-events:none;
 }
 .rib-hero-player{
-  right:-9px;
+  right:-26px;
   top:20px;
-  width:232px;
+  width:229px;
   height:296px;
   opacity:1;
   filter:drop-shadow(-18px 13px 24px rgba(0,0,0,.82));
@@ -52,12 +72,14 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   background-repeat:no-repeat;
   background-size:391.875% auto;
   background-position:6.424% 94.048%;
+  -webkit-mask-image:linear-gradient(180deg,#000 80%,transparent 99%);
+  mask-image:linear-gradient(180deg,#000 80%,transparent 99%);
 }
 .rib-hero-player svg{display:none!important}
 .rib-hero-mark{
-  top:20px;
-  width:294px;
-  height:102px;
+  top:12px;
+  width:218px;
+  height:77px;
   clip-path:none;
   border:0;
   border-radius:0;
@@ -177,34 +199,34 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
 .rib-legacy-stat:nth-child(6) i{background-position:-157px -122px}
 .rib-hud-pill{
   background-color:transparent;
-  background-size:313px 313px;
-  background-position:-159px -247px;
+  background-size:527.3% auto;
+  background-position:62.4% 87.8%;
   box-shadow:none;
 }
 .rib-hud-coin{
-  width:25px;
-  height:25px;
-  background-size:313px 313px;
-  background-position:-242px -248px;
+  width:28px;
+  height:28px;
+  background-size:966.7% auto;
+  background-position:85.9% 88.5%;
   opacity:1;
 }
 
 @media(max-width:519.98px){
   .rib-menu-hero:after{
-    bottom:22px;
-    width:94px;
-    height:18px;
+    bottom:23px;
+    width:118px;
+    height:22px;
   }
   .rib-hero-player{
-    right:-10px;
-    top:7px;
-    width:160px;
-    height:207px;
+    right:-18px;
+    top:14px;
+    width:158px;
+    height:204px;
   }
   .rib-hero-mark{
-    top:7px;
-    width:210px;
-    height:74px;
+    top:8px;
+    width:150px;
+    height:53px;
     transform:translateX(-50%);
   }
   .rib-hero-tagline{bottom:7px}
@@ -222,15 +244,11 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   .rib-legacy-stat:nth-child(5) i{background-position:-47px -68px}
   .rib-legacy-stat:nth-child(6) i{background-position:-87px -68px}
   .rib-hud-pill{
-    width:33px;
-    height:18px;
-    background-size:174px 174px;
-    background-position:-88px -137px;
+    width:40px;
+    height:22px;
   }
   .rib-hud-coin{
-    width:18px;
-    height:18px;
-    background-size:174px 174px;
-    background-position:-134px -138px;
+    width:21px;
+    height:21px;
   }
 }

@@ -71,6 +71,53 @@
       if (seen[index]) data[index * 4 + 3] = 0;
     }
 
+    // De-fringe: foreground pixels within a few px of removed background were
+    // blended with the white backdrop, which leaves a white halo around every
+    // sprite edge. Estimate their true coverage from how far they are from
+    // white and un-blend the color so edges stay clean against dark UI.
+    const fringe = new Uint8Array(count);
+    let frontier = [];
+    for (let index = 0; index < count; index += 1) {
+      if (seen[index]) continue;
+      const x = index % width;
+      const y = (index - x) / width;
+      if ((x > 0 && seen[index - 1]) || (x + 1 < width && seen[index + 1]) ||
+          (y > 0 && seen[index - width]) || (y + 1 < height && seen[index + width])) {
+        fringe[index] = 1;
+        frontier.push(index);
+      }
+    }
+    for (let ringNo = 2; ringNo <= 3; ringNo += 1) {
+      const next = [];
+      for (const index of frontier) {
+        const x = index % width;
+        const y = (index - x) / width;
+        const neighbors = [x > 0 ? index - 1 : -1, x + 1 < width ? index + 1 : -1, y > 0 ? index - width : -1, y + 1 < height ? index + width : -1];
+        for (const n of neighbors) {
+          if (n >= 0 && !seen[n] && !fringe[n]) {
+            fringe[n] = ringNo;
+            next.push(n);
+          }
+        }
+      }
+      frontier = next;
+    }
+    for (let index = 0; index < count; index += 1) {
+      if (!fringe[index]) continue;
+      const offset = index * 4;
+      const lo = Math.min(data[offset], data[offset + 1], data[offset + 2]);
+      const coverage = Math.min(1, (255 - lo) / 200);
+      if (coverage <= 0.03) {
+        data[offset + 3] = 0;
+        continue;
+      }
+      for (let channel = 0; channel < 3; channel += 1) {
+        const value = (data[offset + channel] - (1 - coverage) * 255) / coverage;
+        data[offset + channel] = Math.max(0, Math.min(255, Math.round(value)));
+      }
+      data[offset + 3] = Math.round(data[offset + 3] * coverage);
+    }
+
     context.putImageData(pixels, 0, 0);
     const blob = await new Promise((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error(`Failed to encode menu asset: ${src}`)), 'image/png'));
     return URL.createObjectURL(blob);
