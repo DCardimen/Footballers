@@ -1,4 +1,4 @@
-@media(max-width:440px){
+@media(max-width:519.98px){
   .rib-menu-shell{min-height:100dvh;padding-bottom:max(8px,env(safe-area-inset-bottom))}
   .rib-menu-hud{height:66px;padding:calc(env(safe-area-inset-top) + 9px) 22px 7px}
   .rib-hud-left{gap:22px}.rib-hud-pill{width:33px;height:18px}.rib-hud-pill svg,.rib-hud-coin svg{width:11px;height:11px}.rib-hud-value{font-size:10px;margin-top:2px}
@@ -12,7 +12,7 @@
   .rib-hero-wordmark span{font-size:50px}.rib-hero-wordmark strong{font-size:54px;margin-left:41px;margin-top:13px}
   .rib-hero-tagline{bottom:9px;font-size:7px;letter-spacing:1px}
   .rib-menu-content{padding:0 20px 10px}
-  .rib-career-card{min-height:114px;padding:13px 15px 12px;border-radius:10px}
+  .rib-career-card{padding:13px 15px 12px;border-radius:10px}
   .rib-career-card:before{border-radius:9px}.rib-career-copy{width:72%}
   .rib-career-label{gap:7px;font-size:8px;letter-spacing:2px}.rib-career-label i{width:4px;height:4px}
   .rib-player-name{margin-top:9px;font-size:27px;letter-spacing:-.5px}
@@ -25,7 +25,7 @@
   .rib-legacy-grid{gap:4px}.rib-legacy-stat{min-height:51px;padding:6px 3px 5px;border-radius:6px;column-gap:3px}.rib-legacy-stat strong{font-size:21px}.rib-legacy-stat small{margin-top:4px;font-size:6px;letter-spacing:.6px}.rib-legacy-stat svg{width:15px;height:15px}
   .rib-primary-button{height:46px;margin-top:8px;border-radius:8px;font-size:16px;letter-spacing:2px}.rib-primary-button:before{inset:2px;border-radius:6px}.rib-primary-button b{right:13px;top:9px;font-size:29px}
   .rib-secondary-grid{gap:6px;margin-top:8px}.rib-bottom-grid{gap:5px;margin-top:6px}
-  .rib-nav-button{min-height:43px;border-radius:7px;gap:7px;font-size:11px;letter-spacing:1px}.rib-bottom-grid .rib-nav-button{min-height:52px;gap:3px;font-size:8px}
+  .rib-nav-button{border-radius:7px;gap:7px;font-size:11px;letter-spacing:1px}.rib-bottom-grid .rib-nav-button{gap:3px;font-size:8px}
   .rib-nav-icon svg{width:18px;height:18px}.rib-bottom-grid .rib-nav-icon svg{width:17px;height:17px}
 }
-@media(max-width:360px){.rib-menu-content{padding-left:20px;padding-right:20px}.rib-menu-hero{height:218px}.rib-hero-wordmark span{font-size:50px}.rib-hero-wordmark strong{font-size:54px}.rib-player-name{font-size:27px}.rib-career-label{font-size:8px}.rib-ovr-ring{width:70px;height:70px}.rib-bottom-grid{gap:5px}}
+@media(max-width:360px){.rib-menu-content{padding-left:20px;padding-right:20px}.rib-hero-wordmark span{font-size:50px}.rib-hero-wordmark strong{font-size:54px}.rib-player-name{font-size:27px}.rib-career-label{font-size:8px}.rib-bottom-grid{gap:5px}}

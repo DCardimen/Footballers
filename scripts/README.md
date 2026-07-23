@@ -26,6 +26,7 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 | `movementcheck.mjs` | Ten seeded 120-play batches (1,200 plays total): exact sideline spots, no out-of-field frames, first-frame offensive TD/pick-six crossings, route-break reactions, directional cuts/bad angles, low/mid/elite acceleration curves, and run/pass/YAC stability. Pure Node; no server required. |
 | `renderpathcheck.mjs` | Fraction of plays rendering from the FieldSim agent log vs falling back to the legacy choreographer (healthy: ~87–90%). Run when sim changes don't show on screen. |
 | `injurycheck.mjs` | Serious injuries force DNP weeks, heal on schedule, clear the worn flag. |
+| `menu-integration-check.mjs` | Redesigned main menu on the real `index.html`: generated art applied (blob URLs), routes out via GOALS/HALL and returns to an identical menu, no page errors or failed requests. `MENU_INTEGRATION_URL` overrides the target. |
 
 ## Utilities (look at the game)
 
@@ -37,6 +38,9 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 | `live.mjs` | Boot into a live game and capture frames of the broadcast view. |
 | `scroll.mjs` | Phone-viewport scroll-through screenshots (layout/overflow checks). |
 | `crop.mjs` | High-DPI cropped screenshots of a screen region. |
+| `menu-preview-shot.mjs` | Screenshot + layout metrics of the standalone `menu-preview.html` (`?menuPreview=1` sample data). |
+| `bake-menu-into-index.mjs` | Rewrites the `RIB_DIRECT_MENU_*` marker blocks in `index.html` to reference the versioned menu CSS/JS in `public/`. |
+| `assemble-pages.mjs` | Builds the exact GitHub Pages site into `_site/` (root index + `public/` + generated menu sheets) and verifies the baked menu references. |
 
 ## Writing a new check
 

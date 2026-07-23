@@ -55,6 +55,15 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **Main menu quality pass (responsive sprite crops).** The redesigned menu's
+  generated-art crops are now percentage-based with aspect-locked panels, so
+  the hero, career card, legacy grid, and buttons stay aligned to the sprite
+  sheets at every viewport width (previously only exact 358px phones lined up;
+  desktop spilled content outside the frames). Fixed the
+  `#rib-main-menu-v2 button{font:inherit}` specificity bug that forced every
+  menu button to the page's 16px body font, and retuned the ≥520px layout to
+  the art's proportions. `menu-integration-check.mjs` now defaults to the real
+  `index.html`.
 - **v40 — position-aware single-star impact.** A player who sits 20 OVR above
   otherwise equal teammates now creates a position-specific matchup edge instead
   of multiplying every related play into a blowout. The compression curve is

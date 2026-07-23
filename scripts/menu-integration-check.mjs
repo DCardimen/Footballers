@@ -1,7 +1,7 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
-const integrationUrl = process.env.MENU_INTEGRATION_URL || 'http://127.0.0.1:5173/menu-integration.html'
+const integrationUrl = process.env.MENU_INTEGRATION_URL || 'http://127.0.0.1:5173/index.html'
 const browser = await chromium.launch({ headless: true })
 const context = await browser.newContext({ viewport: { width: 358, height: 768 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
 const page = await context.newPage()
