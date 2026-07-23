@@ -1,6 +1,7 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
+const integrationUrl = process.env.MENU_INTEGRATION_URL || 'http://127.0.0.1:5173/menu-integration.html'
 const browser = await chromium.launch({ headless: true })
 const context = await browser.newContext({ viewport: { width: 358, height: 768 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
 const page = await context.newPage()
@@ -42,7 +43,7 @@ const routeAndReturn = async (selector) => {
 }
 
 try {
-  await page.goto('http://127.0.0.1:5173/menu-integration.html', { waitUntil: 'domcontentloaded', timeout: 30000 })
+  await page.goto(integrationUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
   await page.waitForSelector('#rib-main-menu-v2', { state: 'attached', timeout: 20000 })
   await page.waitForFunction(() => document.documentElement.classList.contains('rib-assets-ready'), null, { timeout: 30000 })
   await page.waitForSelector('#rib-main-menu-v2', { state: 'visible', timeout: 10000 })
@@ -54,6 +55,7 @@ try {
   const secondReturn = await routeAndReturn('.rib-hall-button')
 
   const result = {
+    integrationUrl,
     before,
     firstReturn,
     secondReturn,
@@ -82,9 +84,9 @@ try {
     controls: [...document.querySelectorAll('#app button, #app a, #app [role="button"]')].map(el => ({ text: (el.textContent || '').replace(/\s+/g, ' ').trim(), cls: el.className, hidden: el.hidden, bridge: el.dataset.ribBridge })).slice(0, 100),
     logo: (() => { const el = document.querySelector('#app .logo'); return el ? { text: el.textContent, onclick: el.getAttribute('onclick'), handler: String(el.onclick || '').slice(0, 500) } : null })(),
   })).catch(() => ({}))
-  fs.writeFileSync('menu-integration-diagnostics.json', JSON.stringify({ error: String(error), diagnostics, errors, failedRequests }, null, 2))
+  fs.writeFileSync('menu-integration-diagnostics.json', JSON.stringify({ error: String(error), integrationUrl, diagnostics, errors, failedRequests }, null, 2))
   await page.screenshot({ path: 'menu-integration-failure.png', fullPage: true }).catch(() => {})
-  console.error(JSON.stringify({ error: String(error), diagnostics, errors, failedRequests }, null, 2))
+  console.error(JSON.stringify({ error: String(error), integrationUrl, diagnostics, errors, failedRequests }, null, 2))
   process.exitCode = 1
 }
 
