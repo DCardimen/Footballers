@@ -55,6 +55,23 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v41 — presentation + run-game + single-pregame pass.** Renderer: side-profile
+  sprites never show a jersey number (any state), linemen keep theirs in the
+  pre-snap stance, sprite depth ties break on a stable per-marker epsilon (no
+  z-flicker through engaged bodies), and trench pairs get a wider separation
+  berth (`sepRadiusLine`). FieldSim: gang piles still churn but the carry caps
+  shorter (`pileDriveMax`), open-field misses spring more clean breakaways
+  (`bpOpenBonus`/`bpOpenCap`), and a new sideline-economy rule (`oobWideY`,
+  `oobGap`, `oobBailP`) has a strung-out runner step out of bounds when the
+  angle is lost instead of cutting back into the pursuit — validated to hold
+  the spreadsheets (YPC 5.64→5.59, solo/gang 72/28→73/27, whiff/broken rates
+  unchanged). Pregame: post-game story decisions no longer queue, the career
+  storyline never blocks starting a game, and the legacy game-plan overlay
+  auto-resolves silently (same trust/personality buff-or-incident roll the
+  wheel made) — the only pregame stop is the v1513 matchup screen: one manual
+  selection (the game script) and one temp-stats panel, which is exactly what
+  the sim consumes.
+
 - **Main menu: 9-slice art frames + texture swatches for every button.** The
   asset runtime now exports measured sheet cells as standalone images (button
   frames, texture swatches, the gold spike divider, the chevron), so the
