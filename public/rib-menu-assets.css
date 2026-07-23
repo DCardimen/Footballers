@@ -191,14 +191,9 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   aspect-ratio:318/46;
   border:0;
   border-radius:10px;
-  border-image:var(--rib-cell-gold) 30 28 / 10px 9px stretch;
+  border-image:var(--rib-cell-gold) 30 28 fill / 10px 9px stretch;
   background-color:#d59a24;
-  background-image:
-    linear-gradient(180deg,rgba(255,255,255,.16),transparent 42%,rgba(96,60,6,.32) 100%),
-    var(--rib-tex-gold);
-  background-repeat:no-repeat;
-  background-size:100% 100%,cover;
-  background-position:center;
+  background-image:none;
   box-shadow:0 0 18px rgba(255,188,43,.3);
 }
 .rib-primary-button:before{display:none}
@@ -321,11 +316,13 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
 /* ===== v2 menu motion: flicker, sweeps, press feedback, entrances ===== */
 @property --rib-ovr{syntax:'<number>';initial-value:0;inherits:false}
 
-/* Golden band type: heavy Oswald, deep ink, subtle top-light emboss. */
+/* Golden band type: heavy Oswald fattened with a matching stroke, deep ink,
+   subtle top-light emboss. */
 .rib-primary-button{
   font-family:Oswald,'Arial Narrow',sans-serif;
   font-weight:700;
   color:#191104;
+  -webkit-text-stroke:.7px #191104;
   text-shadow:0 1px 0 rgba(255,242,196,.55);
 }
 .rib-primary-button span{position:relative}
