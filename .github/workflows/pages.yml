@@ -47,7 +47,7 @@ jobs:
           path = Path('_site/index.html')
           html = path.read_text(encoding='utf-8')
           css = '<link rel="stylesheet" href="./rib-menu-reset.css"><link rel="stylesheet" href="./rib-menu.css"><link rel="stylesheet" href="./rib-menu-mobile.css"><link rel="stylesheet" href="./rib-menu-final.css"><link rel="stylesheet" href="./rib-menu-assets.css">'
-          js = '<script src="./rib-menu-boot.js"></script><script src="./rib-menu.js"></script>'
+          js = '<script src="./rib-menu-asset-runtime.js"></script><script src="./rib-menu-boot.js"></script><script src="./rib-menu.js"></script>'
           if 'rib-menu.css' not in html:
               head, sep, tail = html.rpartition('</head>')
               if not sep:
