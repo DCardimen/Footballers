@@ -20,7 +20,8 @@ async function boot(viewport) {
     }, 60)
   })
   await page.goto('http://localhost:5173/', { waitUntil: 'load', timeout: 30000 })
-  await page.waitForTimeout(2000)
+  await page.waitForFunction(() => window.TEAM_LOGOS_V44 && window.openTeamCreatorV153, { timeout: 20000 })
+  await page.waitForTimeout(800)
   return page
 }
 

@@ -55,6 +55,17 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v44.2 — CONTENT-AWARE EMBLEM SLICING.** The source logo sheets are not on
+  exact uniform grids — naive rectangular slicing left 42/90 emblems up to
+  ~16px off-center, split logos that crossed a grid line, and let neighbors
+  bleed slivers into each other's cells. `pack_logos.mjs` now finds connected
+  alpha components across each whole sheet, assigns every component to the
+  nominal cell holding its center of mass, crops each cell's true union bbox
+  (recovering parts that crossed the line), masks out other cells' pixels, and
+  re-centers exactly. A built-in QA pass re-measures the finished atlas and
+  fails the build if any cell is off-center (>2.5px) or touches its cell edge;
+  an independent re-measure reports 0/90 flagged.
+
 - **v44.1 — EMBLEM DELIVERY + LIVE CREATOR PREVIEW.** The emblem sheet is now
   **baked into `index.html`** as `window.__RIB_LOGOS_V44` (the v22-atlas
   pattern) — v44 loaded it from `/rib_logos_v44.png`, which 404s on the GitHub
