@@ -405,6 +405,7 @@
       updateMenu(menu, data);
       applyDynamic(menu, data, false);
     }
+    menu.classList.toggle('rib-no-career', !data.hasCareer);
     document.body.classList.add(BODY_CLASS);
     lastFingerprint = fingerprint;
     lastData = data;

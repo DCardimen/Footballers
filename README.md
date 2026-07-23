@@ -55,6 +55,16 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **Main menu: 9-slice art frames + texture swatches for every button.** The
+  asset runtime now exports measured sheet cells as standalone images (button
+  frames, texture swatches, the gold spike divider, the chevron), so the
+  career buttons use true `border-image` 9-slice frames — authentic art
+  corners and rims at any size — filled with the sheet's gold-leaf / brushed
+  navy swatches at uniform scale (no more mid-band crops or squashed grain).
+  The CTA gets a standalone 3D chevron that launches on press with a shine
+  dash, the legacy card interior is backed by the stadium swatch with gold
+  spike dividers flanking the title, and the duplicate NEW CAREER button
+  hides in the no-career state (PRESTIGE spans the row at capped height).
 - **Main menu: stable CONTINUE CAREER + CTA redesign + aligned legacy grid.**
   Root-caused the vanishing CONTINUE button: the game's `#app` is
   `visibility:hidden` while the menu overlay is open, and `innerText` reads
