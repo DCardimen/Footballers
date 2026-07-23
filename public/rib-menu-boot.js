@@ -11,28 +11,52 @@
     settings: [/^\s*SETTINGS\s*$/i],
   };
 
+  const clean = (value) => (value || '').replace(/\s+/g, ' ').trim();
+  const visibleScreen = (app) => [...app.querySelectorAll('.screen')].find((el) => {
+    if (el.classList.contains('hidden')) return false;
+    const style = getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+  }) || app.querySelector('.screen');
+
+  const labelFrom = (text) => /CONTINUE\s+CAREER/i.test(text)
+    ? 'CONTINUE CAREER'
+    : /START\s+NEW\s+CAREER/i.test(text)
+      ? 'START NEW CAREER'
+      : '';
+
   const findOriginal = (app, action) => [...app.querySelectorAll('button, a, [onclick], [role="button"]')].find((el) => {
     if (el.dataset.ribBridge) return false;
-    const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    const text = clean(el.textContent);
     return ACTIONS[action]?.some((pattern) => pattern.test(text));
   });
+
+  const clearScreen = (screen) => screen?.querySelectorAll('[data-rib-main-marker], [data-rib-bridge], [data-rib-main-sentinel]').forEach((el) => el.remove());
 
   const sync = () => {
     const app = document.getElementById('app');
     if (!app) return;
-    const screen = [...app.querySelectorAll('.screen')].find((el) => !el.classList.contains('hidden')) || app.querySelector('.screen');
-    if (!screen?.querySelector('.hero')) {
-      screen?.querySelectorAll('[data-rib-main-marker], [data-rib-bridge]').forEach((el) => el.remove());
+    const screen = visibleScreen(app);
+    if (!screen) return;
+
+    const screenText = clean(screen.textContent);
+    const appText = clean(app.textContent);
+    const viewName = clean(window.o?.view).toLowerCase();
+    const viewLooksMain = /^(main|menu|home|title)$/.test(viewName);
+    const hasHero = !!screen.querySelector('.hero');
+    const label = labelFrom(screenText) || ((hasHero || viewLooksMain) ? labelFrom(appText) : '');
+
+    if (!label) {
+      clearScreen(screen);
       return;
     }
 
-    const appText = app.textContent || '';
-    const label = /CONTINUE\s+CAREER/i.test(appText)
-      ? 'CONTINUE CAREER'
-      : /START\s+NEW\s+CAREER/i.test(appText)
-        ? 'START NEW CAREER'
-        : '';
-    if (!label) return;
+    if (!hasHero) {
+      const sentinel = document.createElement('span');
+      sentinel.className = 'hero';
+      sentinel.dataset.ribMainSentinel = 'true';
+      sentinel.hidden = true;
+      screen.appendChild(sentinel);
+    }
 
     let marker = screen.querySelector('[data-rib-main-marker]');
     if (!marker) {
@@ -59,10 +83,24 @@
     }
   };
 
-  const start = () => {
+  const resyncSoon = () => {
     sync();
-    new MutationObserver(sync).observe(document.getElementById('app') || document.body, { childList: true, subtree: true, characterData: true });
+    setTimeout(sync, 40);
+    setTimeout(sync, 180);
+    setTimeout(sync, 500);
   };
+
+  const start = () => {
+    resyncSoon();
+    new MutationObserver(resyncSoon).observe(document.getElementById('app') || document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'style'] });
+    document.addEventListener('click', () => setTimeout(resyncSoon, 0), true);
+    window.addEventListener('pageshow', resyncSoon);
+    window.addEventListener('popstate', resyncSoon);
+    window.addEventListener('hashchange', resyncSoon);
+    setInterval(sync, 650);
+    window.__RIB_MENU_BRIDGE = { sync: resyncSoon };
+  };
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 })();
