@@ -55,6 +55,25 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v44 — TEAM EMBLEMS.** The three uploaded logo sheets (animals / warriors /
+  concepts) are packed into `public/rib_logos_v44.png` (90 emblems, built by
+  `scripts/spritekit/pack_logos.mjs`) and wired through the whole identity
+  pipeline. Every team auto-matches its emblem by name — Wolves take the field
+  under the wolf, Storm under the thundercloud, Chargers under the bolt — with a
+  deterministic per-name fallback for nicknames no emblem covers. Every emblem
+  carries a matched uniform palette (13 new palettes were added, `TEAM_PALETTES`
+  40 → 53, for combos the original set didn't have), so team colors follow the
+  crest by default: your team's kit auto-matches its emblem unless you've saved
+  an explicit look, and `ribSyncOpp` now dresses the opponent in their emblem's
+  palette (the v20 distinguishability walk still prevents kit clashes). The live
+  scoreboard chips show both teams' emblems, and the HOME team's crest (home =
+  even season week) is composited onto the flat field art at the 50
+  (`__setFieldLogoV44`, dials: `TU("fieldLogoSize"/"fieldLogoAlpha")`), riding
+  the v27 `warpField()` perspective for free. The Team Creator now shows the 90
+  real emblems; picking one selects and ✓-marks its matched palette (still
+  overridable), and the uniform preview wears the real crest. Guarded by
+  `scripts/emblemcheck.mjs`.
+
 - **v42 — Growth Decisions.** Championship-moment prompts and story arcs are
   gone; in their place, ONE system: an auto-rolled, personality-weighted
   commitment wheel at season start (Train Harder with a fatigue tax, Live in

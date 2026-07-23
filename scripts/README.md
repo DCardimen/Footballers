@@ -28,6 +28,7 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 | `growthcheck.mjs` | v42 Growth Decisions entertainment probe: Monte-Carlos the outcome generator (mix, magnitudes, durations, permanents, story variety) via `window.__GROWTH_V42.simulate`. |
 | `injurycheck.mjs` | Serious injuries force DNP weeks, heal on schedule, clear the worn flag. |
 | `menu-integration-check.mjs` | Redesigned main menu on the real `index.html`: generated art applied (blob URLs), routes out via GOALS/HALL and returns to an identical menu, no page errors or failed requests. `MENU_INTEGRATION_URL` overrides the target. |
+| `emblemcheck.mjs` | v44 team emblems: every generated team nickname resolves to the right emblem (Wolves → wolf), every emblem's matched palette index exists, the packed sheet loads, and a driven live game shows emblem chips in the scoreboard plus the home crest composited into the field art. |
 
 ## Utilities (look at the game)
 
@@ -42,6 +43,7 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 | `menu-preview-shot.mjs` | Screenshot + layout metrics of the standalone `menu-preview.html` (`?menuPreview=1` sample data). |
 | `bake-menu-into-index.mjs` | Rewrites the `RIB_DIRECT_MENU_*` marker blocks in `index.html` to reference the versioned menu CSS/JS in `public/`. |
 | `assemble-pages.mjs` | Builds the exact GitHub Pages site into `_site/` (root index + `public/` + generated menu sheets) and verifies the baked menu references. |
+| `spritekit/pack_logos.mjs` | Rebuilds `public/rib_logos_v44.png` from the three `art/football-logo-sheet-*.png` masters (90 emblems, 10×9 grid of 128px cells, index order = sheet order). Re-run only if the master sheets change. |
 
 ## Writing a new check
 
