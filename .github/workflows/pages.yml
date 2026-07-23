@@ -41,9 +41,15 @@ jobs:
           css = '<link rel="stylesheet" href="./rib-menu-reset.css"><link rel="stylesheet" href="./rib-menu.css"><link rel="stylesheet" href="./rib-menu-mobile.css"><link rel="stylesheet" href="./rib-menu-final.css">'
           js = '<script src="./rib-menu.js"></script>'
           if 'rib-menu.css' not in html:
-              html = html.replace('</head>', css + '</head>', 1)
+              head, sep, tail = html.rpartition('</head>')
+              if not sep:
+                  raise RuntimeError('Missing closing head tag')
+              html = head + css + sep + tail
           if 'rib-menu.js' not in html:
-              html = html.replace('</body>', js + '</body>', 1)
+              body, sep, tail = html.rpartition('</body>')
+              if not sep:
+                  raise RuntimeError('Missing closing body tag')
+              html = body + js + sep + tail
           path.write_text(html, encoding='utf-8')
           PY
       - uses: actions/configure-pages@v5
