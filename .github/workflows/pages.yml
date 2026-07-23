@@ -38,7 +38,7 @@ jobs:
           from pathlib import Path
           path = Path('_site/index.html')
           html = path.read_text(encoding='utf-8')
-          css = '<link rel="stylesheet" href="./rib-menu.css"><link rel="stylesheet" href="./rib-menu-mobile.css">'
+          css = '<link rel="stylesheet" href="./rib-menu-reset.css"><link rel="stylesheet" href="./rib-menu.css"><link rel="stylesheet" href="./rib-menu-mobile.css">'
           js = '<script src="./rib-menu.js"></script>'
           if 'rib-menu.css' not in html:
               html = html.replace('</head>', css + '</head>', 1)
