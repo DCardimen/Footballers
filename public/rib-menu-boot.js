@@ -3,36 +3,67 @@
 
   const ACTIONS = {
     continue: [/CONTINUE\s+CAREER/i],
-    new: [/START\s+NEW\s+CAREER/i, /^\s*NEW\s+CAREER\s*$/i],
-    prestige: [/^\s*PRESTIGE\s*$/i],
-    goals: [/^\s*GOALS\s*$/i],
-    hall: [/^\s*HALL\s*$/i, /HALL\s+OF\s+FAME/i],
-    locker: [/^\s*LOCKER\s*$/i],
-    settings: [/^\s*SETTINGS\s*$/i],
+    new: [/START\s+NEW\s+CAREER/i, /NEW\s+CAREER/i],
+    prestige: [/PRESTIGE/i],
+    goals: [/GOALS/i],
+    hall: [/\bHALL\b/i, /HALL\s+OF\s+FAME/i],
+    locker: [/LOCKER/i],
+    settings: [/SETTINGS/i, /⚙/],
   };
+
+  const clean = (value) => (value || '').replace(/\s+/g, ' ').trim();
+  const visibleScreen = (app) => [...app.querySelectorAll('.screen')].find((el) => {
+    if (el.classList.contains('hidden')) return false;
+    const style = getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+  }) || app.querySelector('.screen');
+
+  const originalText = (root) => {
+    if (!root) return '';
+    const copy = root.cloneNode(true);
+    copy.querySelectorAll('[data-rib-main-marker], [data-rib-bridge], [data-rib-main-sentinel]').forEach((el) => el.remove());
+    return clean(copy.textContent);
+  };
+
+  const labelFrom = (text) => /CONTINUE\s+CAREER/i.test(text)
+    ? 'CONTINUE CAREER'
+    : /START\s+NEW\s+CAREER/i.test(text)
+      ? 'START NEW CAREER'
+      : '';
 
   const findOriginal = (app, action) => [...app.querySelectorAll('button, a, [onclick], [role="button"]')].find((el) => {
     if (el.dataset.ribBridge) return false;
-    const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    const text = clean(el.textContent);
     return ACTIONS[action]?.some((pattern) => pattern.test(text));
   });
+
+  const clearInjected = (root) => root?.querySelectorAll('[data-rib-main-marker], [data-rib-bridge], [data-rib-main-sentinel]').forEach((el) => el.remove());
 
   const sync = () => {
     const app = document.getElementById('app');
     if (!app) return;
-    const screen = [...app.querySelectorAll('.screen')].find((el) => !el.classList.contains('hidden')) || app.querySelector('.screen');
-    if (!screen?.querySelector('.hero')) {
-      screen?.querySelectorAll('[data-rib-main-marker], [data-rib-bridge]').forEach((el) => el.remove());
+    const screen = visibleScreen(app);
+    if (!screen) return;
+
+    const screenText = originalText(screen);
+    const appText = originalText(app);
+    const viewName = clean(window.o?.view).toLowerCase();
+    const viewLooksMain = /^(main|menu|home|title)$/.test(viewName);
+    const hasOriginalHero = !!screen.querySelector('.hero:not([data-rib-main-sentinel])');
+    const label = labelFrom(screenText) || ((hasOriginalHero || viewLooksMain) ? labelFrom(appText) : '');
+
+    if (!label) {
+      clearInjected(app);
       return;
     }
 
-    const appText = app.textContent || '';
-    const label = /CONTINUE\s+CAREER/i.test(appText)
-      ? 'CONTINUE CAREER'
-      : /START\s+NEW\s+CAREER/i.test(appText)
-        ? 'START NEW CAREER'
-        : '';
-    if (!label) return;
+    if (!hasOriginalHero && !screen.querySelector('[data-rib-main-sentinel]')) {
+      const sentinel = document.createElement('span');
+      sentinel.className = 'hero';
+      sentinel.dataset.ribMainSentinel = 'true';
+      sentinel.hidden = true;
+      screen.appendChild(sentinel);
+    }
 
     let marker = screen.querySelector('[data-rib-main-marker]');
     if (!marker) {
@@ -41,7 +72,7 @@
       marker.hidden = true;
       screen.appendChild(marker);
     }
-    marker.textContent = label;
+    if (marker.textContent !== label) marker.textContent = label;
 
     for (const [action] of Object.entries(ACTIONS)) {
       const original = findOriginal(app, action);
@@ -59,10 +90,27 @@
     }
   };
 
+  let resyncTimer = 0;
+  const resyncSoon = () => {
+    clearTimeout(resyncTimer);
+    resyncTimer = setTimeout(sync, 0);
+  };
+
   const start = () => {
     sync();
-    new MutationObserver(sync).observe(document.getElementById('app') || document.body, { childList: true, subtree: true, characterData: true });
+    new MutationObserver(resyncSoon).observe(document.getElementById('app') || document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'style'] });
+    document.addEventListener('click', () => {
+      setTimeout(sync, 0);
+      setTimeout(sync, 160);
+      setTimeout(sync, 480);
+    }, true);
+    window.addEventListener('pageshow', sync);
+    window.addEventListener('popstate', sync);
+    window.addEventListener('hashchange', sync);
+    setInterval(sync, 650);
+    window.__RIB_MENU_BRIDGE = { sync };
   };
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 })();

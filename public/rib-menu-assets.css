@@ -1,0 +1,253 @@
+:root{
+  --rib-hero-sheet:url("./a_clean_high_resolution_game_ui_asset_sheet_on_a_1_batch_1.png");
+  --rib-panel-sheet:url("./a_clean_ui_graphic_assets_sprite_sheet_mockup_im_2_batch_2.png");
+  --rib-icon-sheet:url("./a_clean_graphic_artwork_ui_icon_sheet_on_a_trans_3_batch_3.png");
+}
+html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
+html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
+
+/* Generated hero artwork replaces the CSS shorthand stadium, lights, crest and player. */
+.rib-menu-hero{
+  background-color:#06101c;
+  background-image:linear-gradient(180deg,rgba(2,7,14,.08),rgba(2,7,14,.02) 65%,rgba(1,4,9,.68)),var(--rib-hero-sheet);
+  background-repeat:no-repeat,no-repeat;
+  background-size:100% 100%,850px 850px;
+  background-position:center,center -51px;
+}
+.rib-menu-hero:before{display:none!important}
+.rib-stadium-lines,.rib-floodlight{display:none!important}
+.rib-menu-hero:after{
+  content:"";
+  display:block;
+  position:absolute;
+  z-index:4;
+  top:auto!important;
+  right:auto!important;
+  left:50%;
+  bottom:60px;
+  width:132px;
+  height:24px;
+  transform:translateX(-50%);
+  background-image:var(--rib-hero-sheet);
+  background-repeat:no-repeat;
+  background-size:474px 474px;
+  background-position:-170px -317px;
+  pointer-events:none;
+}
+.rib-hero-player{
+  right:-9px;
+  top:20px;
+  width:232px;
+  height:296px;
+  opacity:1;
+  filter:drop-shadow(-18px 13px 24px rgba(0,0,0,.82));
+  background-image:var(--rib-hero-sheet);
+  background-repeat:no-repeat;
+  background-size:878px 878px;
+  background-position:-42px -553px;
+}
+.rib-hero-player svg{display:none!important}
+.rib-hero-mark{
+  top:20px;
+  width:294px;
+  height:102px;
+  clip-path:none;
+  border:0;
+  border-radius:0;
+  color:transparent;
+  box-shadow:none;
+  background-color:transparent;
+  background-image:var(--rib-hero-sheet);
+  background-repeat:no-repeat;
+  background-size:878px 878px;
+  background-position:-280px -420px;
+}
+.rib-hero-mark:before,.rib-hero-mark:after,.rib-hero-mark span,.rib-hero-mark b{display:none!important}
+.rib-hero-tagline{z-index:5}
+
+/* Generated UI panel artwork replaces flat gradients while live text remains selectable. */
+.rib-career-card{
+  border-color:transparent;
+  background-color:#071423;
+  background-image:var(--rib-panel-sheet);
+  background-repeat:no-repeat;
+  background-size:760px 760px;
+  background-position:-30px -30px;
+}
+.rib-career-card:before{display:none}
+.rib-card-dots{display:none}
+.rib-ovr-ring{
+  background-color:transparent;
+  background-image:var(--rib-panel-sheet);
+  background-repeat:no-repeat;
+  background-size:483px 483px;
+  background-position:-330px -16px;
+  box-shadow:none;
+}
+.rib-ovr-ring:after{display:none}
+.rib-legacy-card{
+  position:relative;
+  overflow:hidden;
+  border-color:transparent;
+  background-color:#071423;
+  background-image:var(--rib-panel-sheet);
+  background-repeat:no-repeat;
+  background-size:760px 760px;
+  background-position:-30px -246px;
+}
+.rib-legacy-card:before{
+  content:"";
+  position:absolute;
+  inset:3px;
+  border-radius:14px;
+  background:linear-gradient(180deg,rgba(6,20,35,.82),rgba(3,12,22,.9));
+  pointer-events:none;
+}
+.rib-section-title,.rib-legacy-grid{position:relative;z-index:1}
+.rib-section-title span{opacity:.7}
+.rib-section-title b{position:relative;z-index:1;padding:0 10px;background:#081725}
+.rib-legacy-stat{
+  border:1px solid rgba(65,96,130,.48);
+  background:linear-gradient(180deg,rgba(17,37,59,.9),rgba(7,20,34,.96));
+  box-shadow:0 1px rgba(255,255,255,.025) inset;
+}
+.rib-primary-button{
+  border-color:transparent;
+  background-color:#d59a24;
+  background-image:var(--rib-panel-sheet);
+  background-repeat:no-repeat;
+  background-size:1483px 1483px;
+  background-position:-970px -445px;
+  box-shadow:0 0 18px rgba(255,188,43,.3);
+}
+.rib-primary-button:before,.rib-primary-button b{display:none}
+.rib-secondary-grid .rib-nav-button{
+  background-color:#0b1a2b;
+  background-image:var(--rib-panel-sheet);
+  background-repeat:no-repeat;
+  background-size:746px 746px;
+  background-position:-488px -294px;
+  border-color:transparent;
+}
+.rib-bottom-grid .rib-nav-button{
+  background-color:#0b1a2b;
+  background-image:var(--rib-panel-sheet);
+  background-repeat:no-repeat;
+  background-size:848px 848px;
+  background-position:-554px -419px;
+  border-color:transparent;
+}
+
+/* Generated icon sheet replaces the outline SVG placeholders. */
+.rib-nav-icon,.rib-legacy-stat i,.rib-hud-pill,.rib-hud-coin{
+  flex:0 0 auto;
+  background-image:var(--rib-icon-sheet);
+  background-repeat:no-repeat;
+}
+.rib-nav-icon svg,.rib-legacy-stat i svg,.rib-hud-pill svg,.rib-hud-coin svg{display:none!important}
+.rib-nav-icon{width:36px;height:36px;background-size:251px 251px}
+.rib-prestige-button .rib-nav-icon{background-position:-18px -14px}
+.rib-new-button .rib-nav-icon{background-position:-80px -17px}
+.rib-goals-button .rib-nav-icon{background-position:-136px -17px}
+.rib-hall-button .rib-nav-icon{background-position:-192px -17px}
+.rib-locker-button .rib-nav-icon{background-position:-24px -87px}
+.rib-settings-button .rib-nav-icon{background-position:-103px -88px}
+.rib-legacy-stat i{width:31px;height:31px;background-size:220px 220px}
+.rib-legacy-stat:nth-child(1) i{background-position:-151px -71px}
+.rib-legacy-stat:nth-child(4) i{background-position:-25px -121px}
+.rib-legacy-stat:nth-child(5) i{background-position:-85px -122px}
+.rib-legacy-stat:nth-child(6) i{background-position:-157px -122px}
+.rib-hud-pill{
+  background-color:transparent;
+  background-size:313px 313px;
+  background-position:-159px -247px;
+  box-shadow:none;
+}
+.rib-hud-coin{
+  width:25px;
+  height:25px;
+  background-size:313px 313px;
+  background-position:-242px -248px;
+  opacity:1;
+}
+
+@media(max-width:440px){
+  .rib-menu-hero{
+    background-size:100% 100%,600px 600px;
+    background-position:center,center -36px;
+  }
+  .rib-menu-hero:after{
+    top:auto!important;
+    bottom:22px;
+    width:94px;
+    height:18px;
+    background-size:339px 339px;
+    background-position:-122px -227px;
+  }
+  .rib-hero-player{
+    right:-10px;
+    top:7px;
+    width:160px;
+    height:207px;
+    background-size:627px 627px;
+    background-position:-30px -395px;
+  }
+  .rib-hero-mark{
+    top:7px;
+    width:210px;
+    height:74px;
+    background-size:627px 627px;
+    background-position:-200px -300px;
+    transform:translateX(-50%);
+  }
+  .rib-hero-tagline{bottom:7px}
+  .rib-career-card{
+    background-size:532px 532px;
+    background-position:-21px -21px;
+  }
+  .rib-ovr-ring{
+    background-size:339px 339px;
+    background-position:-232px -11px;
+  }
+  .rib-legacy-card{
+    background-size:532px 532px;
+    background-position:-21px -172px;
+  }
+  .rib-legacy-card:before{inset:2px;border-radius:8px}
+  .rib-primary-button{
+    background-size:1033px 1033px;
+    background-position:-676px -310px;
+  }
+  .rib-secondary-grid .rib-nav-button{
+    background-size:507px 507px;
+    background-position:-331px -200px;
+  }
+  .rib-bottom-grid .rib-nav-button{
+    background-size:577px 577px;
+    background-position:-377px -286px;
+  }
+  .rib-nav-icon{width:20px;height:20px;background-size:139px 139px}
+  .rib-prestige-button .rib-nav-icon{background-position:-10px -8px}
+  .rib-new-button .rib-nav-icon{background-position:-44px -9px}
+  .rib-goals-button .rib-nav-icon{background-position:-75px -9px}
+  .rib-hall-button .rib-nav-icon{background-position:-106px -9px}
+  .rib-locker-button .rib-nav-icon{background-position:-13px -48px}
+  .rib-settings-button .rib-nav-icon{background-position:-57px -49px}
+  .rib-legacy-stat i{width:17px;height:17px;background-size:122px 122px}
+  .rib-legacy-stat:nth-child(1) i{background-position:-84px -39px}
+  .rib-legacy-stat:nth-child(4) i{background-position:-14px -67px}
+  .rib-legacy-stat:nth-child(5) i{background-position:-47px -68px}
+  .rib-legacy-stat:nth-child(6) i{background-position:-87px -68px}
+  .rib-hud-pill{
+    width:33px;
+    height:18px;
+    background-size:174px 174px;
+    background-position:-88px -137px;
+  }
+  .rib-hud-coin{
+    width:18px;
+    height:18px;
+    background-size:174px 174px;
+    background-position:-134px -138px;
+  }
+}
