@@ -55,6 +55,22 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v42 — Growth Decisions.** Championship-moment prompts and story arcs are
+  gone; in their place, ONE system: an auto-rolled, personality-weighted
+  commitment wheel at season start (Train Harder with a fatigue tax, Live in
+  the Film Room, Every Optional Session, Speed Camp, Run the Social Scene,
+  Keep It Balanced) plus 2-3 seeded midseason decisions. Outcomes grant
+  +-3..10 on 3-5 position-aware stats lasting 5 games, a season, or multiple
+  seasons by severity - best rolls mint small permanents (+1..3). Prestige
+  stretches positive durations and shrinks negatives; repeat commitments form
+  habits and bad rolls set up redemption bumps. Effects compose into the same
+  `_tempStatBuffsV25` array the sim consumes (the pregame panel shows exactly
+  what counts), decrement only on played games, and surface as hub chips with
+  games-remaining. Settings gains three dials: midseason frequency, outcome
+  luck bias, and game-day debuff softening. `scripts/growthcheck.mjs` is the
+  entertainment probe (outcome mix 66% positive, durations 50/31/15/5 across
+  5-game/season/multi-season/permanent, 24 distinct outcome stories).
+
 - **v41 — presentation + run-game + single-pregame pass.** Renderer: side-profile
   sprites never show a jersey number (any state), linemen keep theirs in the
   pre-snap stance, sprite depth ties break on a stable per-marker epsilon (no
