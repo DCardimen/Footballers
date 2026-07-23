@@ -42,20 +42,6 @@ function copyFile(relativeSource, relativeDestination = relativeSource) {
   fs.copyFileSync(source, destination)
 }
 
-function removeOldMenuInjection(html) {
-  const headBlock = /\s*<!-- RIB_MENU_HEAD_BEGIN -->[\s\S]*?<!-- RIB_MENU_HEAD_END -->\s*/g
-  const bodyBlock = /\s*<!-- RIB_MENU_BODY_BEGIN -->[\s\S]*?<!-- RIB_MENU_BODY_END -->\s*/g
-  const oldStyles = /\s*<link\b[^>]*href=["'][^"']*rib-menu[^"']*\.css(?:\?[^"']*)?["'][^>]*>\s*/gi
-  const oldScripts = /\s*<script\b[^>]*src=["'][^"']*rib-menu[^"']*\.js(?:\?[^"']*)?["'][^>]*><\/script>\s*/gi
-  const oldBuildMeta = /\s*<meta\b[^>]*name=["']rib-menu-build["'][^>]*>\s*/gi
-  return html
-    .replace(headBlock, '\n')
-    .replace(bodyBlock, '\n')
-    .replace(oldStyles, '\n')
-    .replace(oldScripts, '\n')
-    .replace(oldBuildMeta, '\n')
-}
-
 fs.rmSync(outputDir, { recursive: true, force: true })
 fs.mkdirSync(outputDir, { recursive: true })
 
@@ -64,55 +50,31 @@ if (fs.existsSync(path.resolve(root, 'menu-preview.html'))) copyFile('menu-previ
 
 const publicDir = path.resolve(root, 'public')
 if (!fs.existsSync(publicDir)) throw new Error('Required public directory is missing')
-fs.cpSync(publicDir, outputDir, { recursive: true })
+fs.cpSync(publicDir, path.resolve(outputDir, 'public'), { recursive: true })
 
 for (const asset of generatedAssets) copyFile(asset)
 fs.writeFileSync(path.resolve(outputDir, '.nojekyll'), '')
 
 const indexPath = path.resolve(outputDir, 'index.html')
-let html = removeOldMenuInjection(fs.readFileSync(indexPath, 'utf8'))
+const html = fs.readFileSync(indexPath, 'utf8')
 
-const headMarkup = [
-  '<!-- RIB_MENU_HEAD_BEGIN -->',
-  `<meta name="rib-menu-build" content="${version}">`,
-  '<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">',
-  ...menuCss.map((file) => `<link rel="stylesheet" href="./${file}?v=${version}">`),
-  '<!-- RIB_MENU_HEAD_END -->',
-].join('')
-
-const bodyMarkup = [
-  '<!-- RIB_MENU_BODY_BEGIN -->',
-  ...menuJs.map((file) => `<script defer src="./${file}?v=${version}"></script>`),
-  '<!-- RIB_MENU_BODY_END -->',
-].join('')
-
-const headIndex = html.lastIndexOf('</head>')
-const bodyIndex = html.lastIndexOf('</body>')
-if (headIndex < 0) throw new Error('index.html is missing </head>')
-if (bodyIndex < 0) throw new Error('index.html is missing </body>')
-
-html = `${html.slice(0, headIndex)}${headMarkup}${html.slice(headIndex)}`
-const updatedBodyIndex = html.lastIndexOf('</body>')
-html = `${html.slice(0, updatedBodyIndex)}${bodyMarkup}${html.slice(updatedBodyIndex)}`
-fs.writeFileSync(indexPath, html)
-
-for (const file of [...menuCss, ...menuJs, ...generatedAssets]) {
-  requireFile(path.resolve(outputDir, file))
+if (!html.includes('RIB_DIRECT_MENU_HEAD_BEGIN') || !html.includes('RIB_DIRECT_MENU_BODY_BEGIN')) {
+  throw new Error('Root index.html does not contain the directly baked redesigned menu')
 }
 
 for (const file of menuCss) {
-  if (!html.includes(`./${file}?v=${version}`)) throw new Error(`Missing stylesheet injection: ${file}`)
+  requireFile(path.resolve(outputDir, 'public', file))
+  if (!html.includes(`./public/${file}?v=`)) throw new Error(`Missing direct stylesheet reference: ${file}`)
 }
 for (const file of menuJs) {
-  if (!html.includes(`./${file}?v=${version}`)) throw new Error(`Missing script injection: ${file}`)
+  requireFile(path.resolve(outputDir, 'public', file))
+  if (!html.includes(`./public/${file}?v=`)) throw new Error(`Missing direct script reference: ${file}`)
 }
-if (!html.includes('RIB_MENU_HEAD_BEGIN') || !html.includes('RIB_MENU_BODY_BEGIN')) {
-  throw new Error('Menu injection markers were not written')
-}
+for (const asset of generatedAssets) requireFile(path.resolve(outputDir, asset))
 
 fs.writeFileSync(
   path.resolve(outputDir, 'rib-build.json'),
-  `${JSON.stringify({ version, generatedAt: new Date().toISOString(), menuCss, menuJs, generatedAssets }, null, 2)}\n`,
+  `${JSON.stringify({ version, generatedAt: new Date().toISOString(), directIndexMenu: true, menuCss, menuJs, generatedAssets }, null, 2)}\n`,
 )
 
-console.log(`Assembled GitHub Pages site in ${path.relative(root, outputDir)} with menu build ${version}`)
+console.log(`Assembled direct-index GitHub Pages site in ${path.relative(root, outputDir)} (${version})`)
