@@ -207,7 +207,7 @@ const summary = {
   fullGameSimulations: rows.length + rows.length / gaps.length,
   gaps,
   calibrationGap,
-  scales: { QB: .55, RB: .18, WR: .36, TE: .32, OL: .55, DL: 1, LB: .3, CB: .25, S: .4, ...scaleOverrides },
+  scales: { QB: .55, RB: .18, WR: .36, TE: .32, OL: .55, DL: 1, LB: .27, CB: .28, S: .4, ...scaleOverrides },
   passes: passSummaries,
   gapResults,
   positions: byPosition,
@@ -217,7 +217,7 @@ const summary = {
 console.log(JSON.stringify(summary, null, 2))
 
 if (assertBalance) {
-  const bands = { QB: [6.5, 8.5], RB: [1, 7], WR: [1, 7], TE: [1, 7], OL: [.5, 6], DL: [.5, 7], LB: [3, 6], CB: [1, 6], S: [1, 7] }
+  const bands = { QB: [6.5, 8.5], RB: [1, 7], WR: [1, 7], TE: [1, 7], OL: [.5, 6], DL: [.5, 7], LB: [2.5, 5], CB: [1.5, 6.5], S: [1, 7] }
   const calibrationRows = rows.filter(row => row.gap === calibrationGap)
   const checks = positions.map(pos => [`${pos} paired margin swing is ${bands[pos][0]}–${bands[pos][1]}`, byPosition[pos].pairedMarginDelta >= bands[pos][0] && byPosition[pos].pairedMarginDelta <= bands[pos][1]])
   checks.push(['every benchmark star has the requested OVR gap', rows.every(row => Math.abs(row.starOvr - row.peerOvr - row.gap) <= .1)])

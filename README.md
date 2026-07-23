@@ -62,13 +62,15 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   accidentally reduce his effective attribute advantage. Elite DL, LB, and S
   outliers earn extra responsibility in pass rush, run fits, and deep coverage
   for either team—not only the user roster—and sack credit still belongs to the
-  actual rusher. The QB calibration now targets a 7–8 point swing at +20; LB
-  front-seven influence is restored to a roughly 4–5 point swing.
+  actual rusher. The QB calibration targets a 7–8 point swing at +20. A final
+  endgame fine-tune reduces the LB attribute factor from .30 to .27 and its
+  extra front-seven weight from .12 to .10, while raising CB from .25 to .28.
+  That targets roughly +3.5–4 points for a +20 LB and about +3 for a +20 CB.
 
-  The table is the measured paired point-differential swing versus the exact
-  same seeded game with no star (90 games per position/gap, 4,050 full-game
-  simulations). Small adjacent reversals are within normal score variance, not
-  hard-coded spreads:
+  The table is the measured paired point-differential swing immediately before
+  that final LB/CB fine-tune, versus the exact same seeded game with no star
+  (90 games per position/gap, 4,050 full-game simulations). Small adjacent
+  reversals are within normal score variance, not hard-coded spreads:
 
   | Position | +10 OVR | +20 OVR | +30 OVR | +40 OVR |
   |---|---:|---:|---:|---:|

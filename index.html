@@ -5252,11 +5252,11 @@ _lgAvg=(()=>{const g=[...c.us.off,...c.us.def,...c.opp.off,...c.opp.def];return 
 // unit's peers; equal teams and ordinary rating gaps remain completely intact.
 _starUnits=[c.us.off,c.us.def,c.opp.off,c.opp.def],_starUnit=new Map(),
 _starInit=_starUnits.forEach(unit=>unit.forEach(pl=>_starUnit.set(pl,unit))),
-_starScaleDefault={QB:.55,RB:.18,WR:.36,TE:.32,OL:.55,DL:1,LB:.3,CB:.25,S:.4},
+_starScaleDefault={QB:.55,RB:.18,WR:.36,TE:.32,OL:.55,DL:1,LB:.27,CB:.28,S:.4},
 _starScale=(w,k)=>{const unit=_starUnit.get(w);if(!unit||unit.length<2)return 1;const peers=unit.filter(pl=>pl!==w),peerOvr=peers.reduce((sum,pl)=>sum+(Number(pl.ovr)||45),0)/peers.length,gap=(Number(w&&w.ovr)||peerOvr)-peerOvr,blend=f((gap-8)/2,0,1),override=window.__starImpactScalesV40&&window.__starImpactScalesV40[w.pos],floor=override==null?(_starScaleDefault[w.pos]??.5):override;return 1-(1-floor)*blend},
 _starPeerRaw=(w,k)=>{const unit=_starUnit.get(w),peers=unit&&unit.filter(pl=>pl!==w);return peers&&peers.length?peers.reduce((sum,pl)=>sum+_raw(pl,k),0)/peers.length:_lgAvg},
 _starOutlier=(unit,pos)=>{if(!unit||unit.length<2)return null;const candidates=unit.filter(pl=>!pos||pl.pos===pos);if(!candidates.length)return null;const player=candidates.reduce((best,pl)=>(Number(pl.ovr)||0)>(Number(best.ovr)||0)?pl:best,candidates[0]),peers=unit.filter(pl=>pl!==player),peerOvr=peers.reduce((sum,pl)=>sum+(Number(pl.ovr)||45),0)/Math.max(1,peers.length),blend=f(((Number(player.ovr)||peerOvr)-peerOvr-8)/10,0,1);return blend>0?{player,blend}:null},
-_starFrontRating=(unit,front)=>{if(!front.length)return 45;const base=front.reduce((sum,pl)=>sum+_(pl,"tackling")+_(pl,"strength"),0)/(front.length*2);return[["S",.12],["LB",.12]].reduce((rating,[pos,weight])=>{const star=_starOutlier(unit,pos);return star?rating+((_(star.player,"tackling")+_(star.player,"strength"))/2-base)*weight*star.blend:rating},base)},
+_starFrontRating=(unit,front)=>{if(!front.length)return 45;const base=front.reduce((sum,pl)=>sum+_(pl,"tackling")+_(pl,"strength"),0)/(front.length*2);return[["S",.12],["LB",.1]].reduce((rating,[pos,weight])=>{const star=_starOutlier(unit,pos);return star?rating+((_(star.player,"tackling")+_(star.player,"strength"))/2-base)*weight*star.blend:rating},base)},
 _=(w,k)=>{const raw=_raw(w,k),scale=_starScale(w,k),peer=scale<.999?_starPeerRaw(w,k):raw,adjusted=peer+(raw-peer)*scale;return f(Math.round(51+(adjusted-_lgAvg)*1.15),20,95)},
 Y=(w,k)=>{const g=w.filter(N=>k.includes(N.pos));return g.length?W(g):w[0]},
 ie=w=>w?{O:c.us,D:c.opp}:{O:c.opp,D:c.us},
