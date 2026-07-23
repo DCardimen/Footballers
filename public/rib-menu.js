@@ -86,10 +86,13 @@
       };
     }
 
+    // textContent, not innerText: the game's #app is visibility:hidden while
+    // the menu overlay is open, and innerText reads as empty on hidden trees
+    // (which used to flip the CTA back to START NEW CAREER mid-session).
     const screen = visibleScreen();
-    const screenText = (screen?.innerText || '').replace(/\u00a0/g, ' ');
+    const screenText = (screen?.textContent || '').replace(/\u00a0/g, ' ');
     const continueCard = screen?.querySelector('.continue-card') || screen?.querySelector('[class*="continue"]');
-    const cardText = (continueCard?.innerText || '').replace(/\u00a0/g, ' ');
+    const cardText = (continueCard?.textContent || '').replace(/\u00a0/g, ' ');
     const hasCareer = /CONTINUE\s+CAREER/i.test(screenText) && !!continueCard;
 
     let playerName = textFrom(continueCard, ['.pname', '[class*="name"]']);
@@ -109,7 +112,7 @@
     const weight = measure?.[2]?.replace(/\s+/g, ' ') || '';
     const stars = Math.max(0, Math.min(5, (cardText.match(/★/g) || []).length || Math.round(overall / 20)));
 
-    const topbarText = (document.querySelector('#app .topbar')?.innerText || '').replace(/,/g, '');
+    const topbarText = (document.querySelector('#app .topbar')?.textContent || '').replace(/,/g, '');
     const prestige = valueByLabel(screenText, ['PRESTIGE'], numeric(document.querySelector('.prestige-chip')?.textContent, 0));
 
     return {
@@ -206,7 +209,7 @@
         <div class="rib-menu-content">
           <section class="rib-career-card" data-rib-action="${primaryAction}" tabindex="0" role="button">
             <div class="rib-career-copy">
-              <div class="rib-career-label"><i></i>${esc(primaryLabel)}</div>
+              <div class="rib-career-label"><i></i><span data-rib-field="careerLabel">${esc(primaryLabel)}</span></div>
               <div class="rib-player-name" data-rib-field="playerName">${esc(data.playerName)}</div>
               <div class="rib-player-meta">
                 <span data-rib-field="league">${esc(data.league)}</span>${showPosition ? `<b></b><span data-rib-field="position">${esc(data.position)}</span>` : ''}
@@ -233,7 +236,7 @@
           </section>
 
           <button class="rib-primary-button" type="button" data-rib-action="${primaryAction}">
-            <span>${esc(primaryLabel)}</span><b>›</b>
+            <span data-rib-field="primaryLabel">${esc(primaryLabel)}</span><b>›</b>
           </button>
 
           <div class="rib-secondary-grid">
@@ -342,12 +345,22 @@
     }));
   }
 
-  // Targeted refresh for data-only changes so running animations never restart.
+  // Targeted refresh for data changes so the menu never rebuilds after mount:
+  // a rebuild replays the entrance animation (buttons at opacity 0 during
+  // their stagger delay), which made the CTA vanish whenever the game's DOM
+  // flickered mid-transition.
   function updateMenu(menu, data) {
     const set = (field, value) => {
       const el = menu.querySelector(`[data-rib-field="${field}"]`);
       if (el && el.textContent !== String(value)) el.textContent = String(value);
     };
+    const primaryLabel = data.hasCareer ? 'CONTINUE CAREER' : 'START NEW CAREER';
+    const primaryAction = data.hasCareer ? 'continue' : 'new';
+    set('careerLabel', primaryLabel);
+    set('primaryLabel', primaryLabel);
+    for (const el of [menu.querySelector('.rib-career-card'), menu.querySelector('.rib-primary-button')]) {
+      if (el && el.dataset.ribAction !== primaryAction) el.dataset.ribAction = primaryAction;
+    }
     set('playerName', data.playerName);
     set('league', data.league);
     set('position', data.position);
@@ -359,10 +372,19 @@
     set('interstellar', data.interstellar);
     set('hallPoints', data.hallPoints);
     set('iconicMoments', data.iconicMoments);
-    const measurements = [data.height, data.weight].filter(Boolean);
-    menu.querySelectorAll('.rib-stars i').forEach((el, index) => {
-      if (measurements[index] && el.textContent !== measurements[index]) el.textContent = measurements[index];
-    });
+    if (!lastData || lastData.stars !== data.stars ||
+        lastData.height !== data.height || lastData.weight !== data.weight) {
+      const stars = menu.querySelector('.rib-stars');
+      if (stars) {
+        const measurements = [data.height, data.weight].filter(Boolean);
+        stars.innerHTML = `<span>${Array.from({ length: data.stars }, () => '<u>★</u>').join('')}</span><em>${'★'.repeat(Math.max(0, 5 - data.stars))}</em>${measurements.map((entry) => `<b></b><i>${esc(entry)}</i>`).join('')}`;
+      }
+    }
+    if (!lastData || (lastData.position !== data.position && (data.position === '—' || lastData.position === '—'))) {
+      const meta = menu.querySelector('.rib-player-meta');
+      const showPosition = !!data.position && data.position !== '—';
+      if (meta) meta.innerHTML = `<span data-rib-field="league">${esc(data.league)}</span>${showPosition ? `<b></b><span data-rib-field="position">${esc(data.position)}</span>` : ''}`;
+    }
   }
 
   function mountMenu() {
@@ -371,22 +393,12 @@
     let menu = document.getElementById(MENU_ID);
     if (menu && fingerprint === lastFingerprint) return;
 
-    const structural = !menu || !lastData ||
-      lastData.hasCareer !== data.hasCareer ||
-      lastData.stars !== data.stars ||
-      [lastData.height, lastData.weight].filter(Boolean).length !== [data.height, data.weight].filter(Boolean).length;
-
     if (!menu) {
       menu = document.createElement('div');
       menu.id = MENU_ID;
       document.body.appendChild(menu);
       bindMenu(menu);
-    }
-
-    if (structural) {
       menu.innerHTML = renderMenu(data);
-      menu.classList.remove('rib-anim-in');
-      void menu.offsetWidth;
       menu.classList.add('rib-anim-in');
       applyDynamic(menu, data, true);
     } else {

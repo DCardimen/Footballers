@@ -55,6 +55,18 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **Main menu: stable CONTINUE CAREER + CTA redesign + aligned legacy grid.**
+  Root-caused the vanishing CONTINUE button: the game's `#app` is
+  `visibility:hidden` while the menu overlay is open, and `innerText` reads
+  empty on hidden trees, so every sync after the first flipped `hasCareer`
+  off and rebuilt the menu (replaying the entrance stagger with the CTA at
+  opacity 0). Scraping now uses `textContent`, the menu builds once and
+  applies targeted updates only (label/action swap included), and the CTA
+  falls through to START NEW CAREER if no continue target exists. The gold
+  band got a redesign — gloss overlay, heavier embossed Oswald, tighter
+  tracking — and the YOUR LEGACY numbers are now pixel-aligned: number rows
+  pinned to a fixed top so all six sit on identical centered baselines with
+  icons as consistent left badges, immune to label wrapping.
 - **Main menu interactive animations.** The menu is now alive: stadium
   floodlights flicker on independent clocks, a glistening sweep crosses the
   gold CTA (echoed faintly on the secondary row), the career card gleams once

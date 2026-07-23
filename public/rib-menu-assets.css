@@ -185,10 +185,10 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   aspect-ratio:318/46;
   border-color:rgba(233,182,78,.9);
   background-color:#d59a24;
-  background-image:var(--rib-panel-sheet);
-  background-repeat:no-repeat;
-  background-size:319.9% auto;
-  background-position:95.48% 32.08%;
+  background-image:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,.06) 40%,transparent 58%,rgba(96,60,6,.3) 100%),var(--rib-panel-sheet);
+  background-repeat:no-repeat,no-repeat;
+  background-size:100% 100%,319.9% auto;
+  background-position:center,95.48% 32.08%;
   box-shadow:0 1px 0 rgba(255,224,138,.7) inset,0 -2px 0 rgba(99,63,7,.85) inset,0 0 18px rgba(255,188,43,.3);
 }
 .rib-primary-button:before,.rib-primary-button b{display:none}
@@ -229,7 +229,7 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
 .rib-hall-button .rib-nav-icon{background-size:614.7% auto;background-position:90.9% 11.33%}
 .rib-locker-button .rib-nav-icon{background-size:540.5% auto;background-position:14.58% 40.61%}
 .rib-settings-button .rib-nav-icon{background-size:646.4% auto;background-position:49.95% 40.57%}
-.rib-legacy-stat i{width:31px;height:31px}
+.rib-legacy-stat i{width:31px;height:31px;position:absolute;left:10px;top:calc(50% - 8px);transform:translateY(-50%)}
 .rib-legacy-stat:nth-child(1) i{background-size:633.3% auto;background-position:82.81% 39.77%}
 .rib-legacy-stat:nth-child(4) i{background-size:594.3% auto;background-position:13.52% 66.35%}
 .rib-legacy-stat:nth-child(5) i{background-size:547.6% auto;background-position:49.76% 67.51%}
@@ -269,7 +269,7 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   .rib-hero-tagline{bottom:7px}
   .rib-legacy-card:before{inset:2px;border-radius:8px}
   .rib-nav-icon{width:20px;height:20px}
-  .rib-legacy-stat i{width:17px;height:17px}
+  .rib-legacy-stat i{width:17px;height:17px;left:6px;top:calc(50% - 6px)}
   .rib-hud-pill{
     width:38px;
     height:24px;
@@ -286,8 +286,9 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
 /* Golden band type: heavy Oswald, deep ink, subtle top-light emboss. */
 .rib-primary-button{
   font-family:Oswald,'Arial Narrow',sans-serif;
-  color:#1a1206;
-  text-shadow:0 1px 0 rgba(255,238,180,.42);
+  font-weight:700;
+  color:#191104;
+  text-shadow:0 1px 0 rgba(255,242,196,.55);
 }
 .rib-primary-button span{position:relative}
 .rib-stars span u{text-decoration:none}
