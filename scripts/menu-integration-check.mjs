@@ -19,25 +19,23 @@ const menuSnapshot = () => page.evaluate(() => ({
   text: document.querySelector('#rib-main-menu-v2')?.innerText?.replace(/\s+/g, ' ').trim(),
   heroAsset: getComputedStyle(document.querySelector('.rib-menu-hero')).backgroundImage,
   panelAsset: getComputedStyle(document.querySelector('.rib-career-card')).backgroundImage,
-  iconAsset: getComputedStyle(document.querySelector('.rib-prestige-button .rib-nav-icon')).backgroundImage,
+  iconAsset: getComputedStyle(document.querySelector('.rib-goals-button .rib-nav-icon')).backgroundImage,
   menuHeight: Math.round(document.querySelector('#rib-main-menu-v2')?.getBoundingClientRect().height || 0),
   assetsReady: document.documentElement.classList.contains('rib-assets-ready'),
   assetsFailed: document.documentElement.classList.contains('rib-assets-failed'),
 }))
 
-const callRoute = async (route) => page.evaluate((value) => {
-  if (typeof window.go !== 'function') throw new Error('window.go is unavailable')
-  window.go(value)
-}, route)
-
-const routeAndReturn = async (route) => {
-  await callRoute(route)
+const routeAndReturn = async (selector) => {
+  await page.locator(selector).click()
   await page.waitForFunction(() => !document.querySelector('#rib-main-menu-v2'), null, { timeout: 10000 })
   const routed = await page.evaluate(() => ({
-    view: window.o?.view,
-    visibleScreen: [...document.querySelectorAll('#app .screen')].find(el => !el.classList.contains('hidden'))?.textContent?.replace(/\s+/g, ' ').trim().slice(0, 180),
+    visibleScreen: [...document.querySelectorAll('#app .screen')].find(el => !el.classList.contains('hidden'))?.textContent?.replace(/\s+/g, ' ').trim().slice(0, 220),
   }))
-  await callRoute('menu')
+  await page.evaluate(() => {
+    const logo = document.querySelector('#app .logo')
+    if (!logo?.onclick) throw new Error('Main-menu logo handler is unavailable')
+    logo.onclick.call(logo, new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))
+  })
   await page.waitForSelector('#rib-main-menu-v2', { state: 'visible', timeout: 12000 })
   await page.waitForTimeout(400)
   return { routed, menu: await menuSnapshot() }
@@ -52,8 +50,8 @@ try {
 
   const before = await menuSnapshot()
   const assetsApplied = before.assetsReady && !before.assetsFailed && [before.heroAsset, before.panelAsset, before.iconAsset].every((value) => value.includes('blob:'))
-  const firstReturn = await routeAndReturn('prestige')
-  const secondReturn = await routeAndReturn('goals')
+  const firstReturn = await routeAndReturn('.rib-goals-button')
+  const secondReturn = await routeAndReturn('.rib-hall-button')
 
   const result = {
     before,
@@ -78,7 +76,6 @@ try {
     visibleScreens: [...document.querySelectorAll('#app .screen')].filter(el => !el.classList.contains('hidden')).map(el => ({ className: el.className, text: el.innerText.slice(0, 500) })),
     menuExists: !!document.querySelector('#rib-main-menu-v2'),
     hasHero: !!document.querySelector('#app .hero'),
-    stateView: window.o?.view,
     assets: window.__RIB_MENU_ASSETS,
     goType: typeof window.go,
     goSource: typeof window.go === 'function' ? String(window.go).slice(0, 1600) : '',
