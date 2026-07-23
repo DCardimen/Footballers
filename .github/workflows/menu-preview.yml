@@ -3,17 +3,20 @@ name: Main menu visual check
 on:
   pull_request:
     paths:
+      - 'index.html'
       - 'public/rib-menu*.css'
       - 'public/rib-menu*.js'
       - 'menu-preview.html'
       - 'scripts/menu-preview-shot.mjs'
       - 'scripts/menu-integration-check.mjs'
       - 'scripts/assemble-pages.mjs'
+      - 'scripts/bake-menu-into-index.mjs'
       - 'a_clean_high_resolution_game_ui_asset_sheet_on_a_1_batch_1.png'
       - 'a_clean_ui_graphic_assets_sprite_sheet_mockup_im_2_batch_2.png'
       - 'a_clean_graphic_artwork_ui_icon_sheet_on_a_trans_3_batch_3.png'
       - '.github/workflows/menu-preview.yml'
       - '.github/workflows/pages.yml'
+      - '.github/workflows/bake-main-menu-index.yml'
   workflow_dispatch:
 
 permissions:
@@ -37,33 +40,15 @@ jobs:
           node scripts/assemble-pages.mjs _site
           test -f _site/.nojekyll
           test -f _site/rib-build.json
-          grep -q 'RIB_MENU_HEAD_BEGIN' _site/index.html
-          grep -q 'rib-menu-assets.css?v=' _site/index.html
-          grep -q 'rib-menu-navigation.js?v=' _site/index.html
+          grep -q 'RIB_DIRECT_MENU_HEAD_BEGIN' _site/index.html
+          grep -q './public/rib-menu-assets.css?v=' _site/index.html
+          grep -q './public/rib-menu-navigation.js?v=' _site/index.html
+          test -f _site/public/rib-menu-assets.css
+          test -f _site/public/rib-menu-navigation.js
 
       - run: npx playwright install --with-deps chromium
 
-      - name: Assemble real-game integration page
-        run: |
-          cp index.html menu-integration.html
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('menu-integration.html')
-          html = path.read_text(encoding='utf-8')
-          css = '<link rel="stylesheet" href="/rib-menu-reset.css"><link rel="stylesheet" href="/rib-menu.css"><link rel="stylesheet" href="/rib-menu-mobile.css"><link rel="stylesheet" href="/rib-menu-final.css"><link rel="stylesheet" href="/rib-menu-assets.css">'
-          js = '<script src="/rib-menu-asset-runtime.js"></script><script src="/rib-menu-boot.js"></script><script src="/rib-menu.js"></script><script src="/rib-menu-navigation.js"></script>'
-          head, sep, tail = html.rpartition('</head>')
-          if not sep:
-              raise RuntimeError('Missing closing head tag')
-          html = head + css + sep + tail
-          body, sep, tail = html.rpartition('</body>')
-          if not sep:
-              raise RuntimeError('Missing closing body tag')
-          html = body + js + sep + tail
-          path.write_text(html, encoding='utf-8')
-          PY
-
-      - name: Start preview server
+      - name: Start Vite preview server
         run: |
           npm run dev -- --host 127.0.0.1 > /tmp/rib-vite.log 2>&1 &
           for i in {1..40}; do
@@ -74,7 +59,22 @@ jobs:
           exit 1
 
       - run: node scripts/menu-preview-shot.mjs
-      - run: node scripts/menu-integration-check.mjs
+
+      - name: Start exact Pages-output server
+        run: |
+          pkill -f 'vite' || true
+          python3 -m http.server 5173 --directory _site > /tmp/rib-pages.log 2>&1 &
+          for i in {1..40}; do
+            curl -fsS http://127.0.0.1:5173/index.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/rib-pages.log
+          exit 1
+
+      - name: Verify direct menu and repeated return behavior
+        env:
+          MENU_INTEGRATION_URL: http://127.0.0.1:5173/index.html
+        run: node scripts/menu-integration-check.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()
