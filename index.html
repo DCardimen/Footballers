@@ -8275,68 +8275,88 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
   const POOLS={QB:["throwing","awareness","vision","acceleration","discipline"],RB:["speed","agility","acceleration","ballControl","vision"],WR:["speed","catching","agility","jumping","acceleration"],TE:["catching","blocking","strength","agility","awareness"],OL:["blocking","strength","awareness","discipline"],DL:["strength","tackling","quickness","acceleration","awareness"],LB:["tackling","awareness","speed","strength","vision"],CB:["speed","agility","jumping","awareness","quickness"],S:["tackling","speed","awareness","jumping","vision"]};
   const LBL={speed:"SPD",agility:"AGI",acceleration:"ACC",ballControl:"BCT",vision:"VIS",throwing:"THR",awareness:"AWR",catching:"CTH",blocking:"BLK",strength:"STR",tackling:"TKL",quickness:"QCK",jumping:"JMP",discipline:"DIS"};
-  // Commitment cards: personality weights (persona keys 0-10, neutral 5),
-  // a stat identity, a fatigue tax, and outcome flavor for both sides.
-  const CARDS=[
-    {id:"grind",icon:"🏋️",name:"Train Harder",tag:"fatigue tax",w:p=>2+p.workethic*1.4+p.aggression*.5,stats:["strength","speed","acceleration"],fatigue:8,
-     up:["Dawn patrol. 5 AM lifts before anyone's awake — the strength shows up by week two.","The extra plates stopped feeling heavy. Coaches noticed the burst first."],
-     down:["Overtrained. Heavy legs and nagging soreness follow you into the season.","Your body never caught up with the workload — everything feels a step slow."]},
-    {id:"film",icon:"🎞️",name:"Live in the Film Room",tag:"miss social events",w:p=>2+p.iq*1.5+p.longterm*.7-p.confidence*.2,stats:["awareness","vision","discipline"],
-     up:["You start seeing plays before they happen. The game slowed down.","Coach hands you the clicker mid-meeting. You're the smartest player in the room now."],
-     down:["All tape, no life. Isolated and pressing, your instincts got quieter.","You memorized their playbook and forgot to trust your eyes."]},
-    {id:"optional",icon:"🎯",name:"Every Optional Session",tag:"coach favorite",w:p=>2+p.coachability*1.5+p.workethic*.6,stats:["discipline","awareness","ballControl","tackling"],
-     up:["Never missed one. The staff runs plays through you now.","First name the coaches call in walkthroughs. Trust compounds."],
-     down:["Showed up to everything and wore down to nothing. The tank is low.","Volunteering for it all made you sharp at none of it."]},
-    {id:"speedcamp",icon:"💨",name:"Speed Camp",tag:"technique risk",w:p=>2+p.aggression*.7+p.confidence*.8+(10-p.longterm)*.3,stats:["speed","agility","quickness"],
-     up:["New mechanics clicked. You're a different gear in the open field.","Track coaches rebuilt your stride — the burners are real."],
-     down:["The new form fought your old instincts all season.","Hamstrings hated the transition. Explosion comes and goes."]},
-    {id:"social",icon:"🎉",name:"Run the Social Scene",tag:"chemistry vs focus",w:p=>2+(10-p.longterm)*.9+p.confidence*.9+(10-p.workethic)*.6,stats:["confidenceProxy"],
-     up:["Locker room orbits you now. Loose, confident, dangerous.","The team plays FOR you. Swagger travels."],
-     down:["Late nights collected their tax. You're a beat behind everything.","The season became background noise to your calendar."]},
-    {id:"balanced",icon:"⚖️",name:"Keep It Balanced",tag:"steady",w:p=>4+p.eq*.8+p.loyalty*.4,stats:["discipline","awareness"],
-     up:["Nothing flashy — just steady, sustainable growth everywhere.","Slept right, lifted right, studied right. Boring works."],
-     down:["Balanced into mediocrity. No edge anywhere.","A little of everything, mastery of nothing."]}
+  // v43: combinatorial option pool - THEME x NAME x INTENSITY generates ~160
+  // distinct commitments. Bigger boosts appear rarer AND carry more risk.
+  const THEMES=[
+    {id:"iron",icon:"🏋️",names:["Dawn Patrol Lifts","Sled Work Till Dark","Old-School Iron","Strongman Saturdays"],stats:["strength","tackling"],w:p=>1+p.workethic*.9+p.aggression*.6,fat:6},
+    {id:"track",icon:"💨",names:["Sprint Mechanics Rebuild","Hill Repeats at Dusk","Parachute Sprints","Summer Track Club"],stats:["speed","acceleration"],w:p=>1+p.confidence*.6+p.workethic*.6,fat:4},
+    {id:"film",icon:"🎞️",names:["All-22 Deep Dives","Opponent Tendency Book","Midnight Film Sessions","Chart Every Snap"],stats:["awareness","vision"],w:p=>1+p.iq*.9+p.longterm*.5},
+    {id:"hands",icon:"🧤",names:["Jugs Machine Marathons","Tennis-Ball Wall Drills","Blindfold Catch Reps","One-Hand Ladder Work"],stats:["catching","ballControl"],w:p=>1+p.workethic*.6+p.eq*.4},
+    {id:"feet",icon:"🪜",names:["Ladder & Cone Hell","Barefoot Sand Work","Dance-Studio Footwork","Mirror Drill Obsession"],stats:["agility","quickness"],w:p=>1+p.confidence*.5+p.workethic*.5},
+    {id:"flex",icon:"🧘",names:["Hot Yoga Block","Mobility Mornings","Breathwork & Ice Baths","Sleep-Doctor Protocol"],stats:["discipline","awareness"],w:p=>1+p.eq*.8+p.longterm*.5},
+    {id:"mentor",icon:"🎓",names:["Shadow the Veterans","Coach's Office Hours","Playbook Ride-Alongs","Captain's Council Seat"],stats:["awareness","discipline"],w:p=>1+p.coachability*1.0+p.loyalty*.4},
+    {id:"social",icon:"🎉",names:["Host the Team Cookouts","Community Spotlight Tour","Squad Road Trips","Locker-Room DJ Era"],stats:null,w:p=>1+(10-p.longterm)*.6+p.confidence*.7},
+    {id:"plyo",icon:"🦘",names:["Plyo Box Ladders","Bounding Circuits","Dunk-Practice Nights","Broad-Jump Ladder"],stats:["jumping","acceleration"],w:p=>1+p.aggression*.6+p.confidence*.4,fat:4},
+    {id:"lab",icon:"🧠",names:["Cognitive Reaction Lab","VR Rep Simulator","Chess & Playbooks","Film-Quiz League"],stats:["awareness","quickness"],w:p=>1+p.iq*.8+p.longterm*.4},
+    {id:"craft",icon:"🎯",names:["Position Master Class","Technique Tune-Up","Fundamentals Bootcamp","Private Skills Guru"],stats:null,w:p=>1+p.workethic*.6+p.coachability*.6},
+    {id:"edge",icon:"🔥",names:["Underground 7-on-7s","Boxing Cross-Training","Parkour Conditioning","Beach Gauntlet League"],stats:null,w:p=>1+p.aggression*.8+(10-p.eq)*.5,fat:5,risky:.08}
+  ];
+  const TIERS=[
+    {tag:"LIGHT",p:.45,amt:[3,4],dur:r=>({games:5+((r||0)*3|0)}),risk:.16},
+    {tag:"COMMITTED",p:.32,amt:[5,6],dur:r=>r<.5?{games:6+(r*6|0)%3}:{season:true},risk:.26},
+    {tag:"OBSESSIVE",p:.17,amt:[7,8],dur:()=>({season:true}),risk:.38},
+    {tag:"ALL-IN",p:.06,amt:[9,10],dur:r=>r<.6?{season:true}:{seasons:2},risk:.5}
   ];
   const seededRand=(pl,tag)=>{let h=2166136261>>>0;const s=String(pl&&pl.seasonSeed||1)+"|"+String((pl&&pl.seasonsPlayedTotal)||0)+"|"+tag;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return()=>{h+=0x6D2B79F5;let t=Math.imul(h^h>>>15,1|h);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}};
   function persona(pl){const p=pl&&pl.personaV13||{};const g=k=>p[k]==null?5:+p[k];return{aggression:g("aggression"),iq:g("iq"),eq:g("eq"),longterm:g("longterm"),workethic:g("workethic"),loyalty:g("loyalty"),confidence:g("confidence"),coachability:g("coachability")}}
   function prestigeOf(pl){return cl(Number(pl&&(pl.prestigeLifetime!=null?pl.prestigeLifetime:pl.prestige))||0,0,30)}
   function dial(k,d){const v=SET()["growth_"+k];return v==null?d:+v}
-  // Outcome generator: fit + luck dial + prestige -> sign, severity -> 3-5
-  // stats at +-3..10, duration tier. Off-character landings raise variance.
-  function rollOutcome(pl,card,rand,ctx){
-    const p=persona(pl),fitRaw=card.w(p),fit=cl((fitRaw-2)/12,0,1);
-    const luck=cl(dial("luck",0)*.08,-.16,.16);
-    const prest=prestigeOf(pl);
-    const history=pl.growthHistV42=pl.growthHistV42||[];
-    const streak=history.filter(h=>h.card===card.id).length;
-    const lastBad=history.length&&history[history.length-1].sign<0;
-    let pGood=cl(.36+fit*.32+luck+prest*.006+(lastBad?.08:0),.15,.88);   // redemption bump
-    const offChar=fit<.3, variance=offChar?1.35:1;
-    const good=rand()<pGood, sev=cl(rand()*variance+(streak>=2?.15:0),0,1);
-    const n=3+Math.floor(rand()*3);                                       // 3-5 stats
-    const pool=(POOLS[pl.pos]||POOLS.LB).slice();
-    const idStats=card.stats.filter(s=>s!=="confidenceProxy");
-    const stats=[];
-    while(stats.length<n&&(idStats.length||pool.length)){
-      const src=idStats.length?idStats:pool;
-      const i=Math.floor(rand()*src.length);const k=src.splice(i,1)[0];
-      if(!stats.includes(k)&&LBL[k])stats.push(k);
-      if(!src.length&&src===idStats)continue;
+  function genOptions(pl,rand,count){
+    const p=persona(pl),pool=(POOLS[pl.pos]||POOLS.LB);
+    const opts=[],used=new Set();
+    let guard=0;
+    while(opts.length<(count||5)&&guard++<90){
+      const th=THEMES[(rand()*THEMES.length)|0];
+      if(used.has(th.id))continue;
+      let tr=rand(),tier=TIERS[0],acc=0;for(const T of TIERS){acc+=T.p;if(tr<=acc){tier=T;break}}
+      const stats=[];const base=(th.stats||pool).slice();
+      const n=3+(rand()*3|0);
+      while(stats.length<n){const s=base.length?base:pool.filter(k=>!stats.includes(k));if(!s.length)break;const k=s.splice((rand()*s.length)|0,1)[0];if(k&&!stats.includes(k)&&LBL[k])stats.push(k)}
+      if(stats.length<3)continue;
+      used.add(th.id);
+      const amt=tier.amt[0]+((rand()*(tier.amt[1]-tier.amt[0]+1))|0);
+      const dur=tier.dur(rand());
+      opts.push({theme:th.id,icon:th.icon,name:th.names[(rand()*th.names.length)|0],tag:tier.tag,stats,amt,dur,risk:tier.risk+(th.risky||0),fat:th.fat||0,w:Math.max(.4,th.w(p))});
     }
-    while(stats.length<3){const k=pool[Math.floor(rand()*pool.length)];if(k&&!stats.includes(k))stats.push(k)}
-    const amt=Math.round(3+sev*7);                                        // 3-10
-    // duration: mild=5-7 games, standard=season, severe=2 seasons.
-    // prestige stretches positives, shrinks negatives.
-    let tier;
-    if(sev<.45)tier={games:5+Math.floor(rand()*3)};
-    else if(sev<.85)tier={season:true};
-    else tier={seasons:2};
-    if(good&&prest>=8&&sev>=.72)tier={seasons:2};
-    if(!good&&prest>=8&&tier.seasons)tier={season:true};
-    if(!good&&prest>=16)tier={games:5+Math.floor(rand()*3)};
-    const permanent=good&&sev>.78&&rand()<(.18+prest*.008);
-    const story=(good?card.up:card.down)[Math.floor(rand()*2)]+(streak>=2&&good?" (Habit formed — it runs deeper this time.)":"")+(lastBad&&good?" (Redemption.)":"");
-    return{card:card.id,icon:card.icon,name:card.name,sign:good?1:-1,stats,amt,tier,permanent,story,sev:+sev.toFixed(2),fit:+fit.toFixed(2),fatigue:card.fatigue&&good===false?card.fatigue:card.fatigue?Math.round(card.fatigue/2):0,ctx:ctx||"season"}
+    return opts;
+  }
+  // Modifier roll: personality fit + randomness + prestige + coach trust +
+  // momentum/composure/fatigue + luck dial -> GREEN (full, boon chance),
+  // NEUTRAL (muted), or RED (backfires).
+  function rollOutcome(pl,opt,rand,ctx){
+    const prest=prestigeOf(pl);
+    const trust=pl.coachTrust!=null?pl.coachTrust:50;
+    const mom=pl.momentum103!=null?pl.momentum103:50;
+    const compz=pl.composure103!=null?pl.composure103:50;
+    const fatg=pl.conditionV11&&pl.conditionV11.fatigue||0;
+    const hist=pl.growthHistV42=pl.growthHistV42||[];
+    const streak=hist.filter(h=>h.card===opt.theme).length;
+    const lastBad=hist.length&&hist[hist.length-1].sign<0;
+    let q=.58-opt.risk
+      +(opt.w-3)*.02
+      +(rand()-.5)*.3
+      +prest*.008
+      +(trust-50)*.004
+      +(mom-50)*.002+(compz-50)*.002-fatg*.004
+      +cl(dial("luck",0)*.07,-.14,.14)+(lastBad?.07:0)+(streak>=2?.05:0);
+    q=cl(q,.06,.94);
+    const r2=rand();
+    const band=r2<q?"green":r2<q+.22?"neutral":"red";
+    let amt=opt.amt,sign=1,story;
+    const NEU=["It helped... some. Life kept getting in the way.","Decent reps, nothing transformative.","You did the work on the easy days only."];
+    const GOOD=["It clicked. Everyone can see the difference.","Best decision of the offseason - it shows on tape.","The work compounded week after week."];
+    const BAD=["It backfired - bad habits, worn body, worse tape.","You forced it and paid for it.","The plan collapsed and took your rhythm with it."];
+    if(band==="green"){story=GOOD[(rand()*3)|0];if(rand()<.22+prest*.006)amt=Math.min(10,amt+1)}
+    else if(band==="neutral"){amt=Math.max(2,Math.round(amt*.45));story=NEU[(rand()*3)|0]}
+    else{sign=-1;amt=Math.max(3,Math.round(amt*.75));story=BAD[(rand()*3)|0]}
+    let tier=Object.assign({},opt.dur);
+    if(sign>0&&prest>=8&&opt.tag==="ALL-IN")tier={seasons:2};
+    if(sign<0&&prest>=8&&tier.seasons)tier={season:true};
+    if(sign<0&&prest>=16)tier={games:5+(rand()*3|0)};
+    const permanent=band==="green"&&opt.tag!=="LIGHT"&&rand()<(.1+prest*.008);
+    if(streak>=2&&band==="green")story+=" (Habit formed - it runs deeper.)";
+    if(lastBad&&band==="green")story+=" (Redemption.)";
+    return{card:opt.theme,icon:opt.icon,name:opt.name,band,sign,stats:opt.stats,amt,tier,permanent,story,fatigue:opt.fat?(band==="red"?opt.fat:Math.round(opt.fat/2)):0,ctx:ctx||"season",tag:opt.tag,fit:+opt.w.toFixed(1)}
   }
   function applyOutcome(pl,out){
     pl.growthFxV42=pl.growthFxV42||[];
@@ -8362,34 +8382,43 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   function seasonKey(pl){return(pl.level||0)+"-"+(pl.seasonsAtLevel||0)+"-"+(pl.seasonSeed||0)}
   // ---- wheel overlay (auto-rolled, personality-weighted) ----
   let showing=false;
+  const durTxtOf=(t,perm)=>perm?"PERMANENT":t.games?t.games+" GAMES":t.seasons?t.seasons+" SEASONS":"THIS SEASON";
   function showWheel(pl,ctx,title,onDone){
     if(showing||document.getElementById("growthV42"))return;showing=true;
-    const p=persona(pl);
-    const weights=CARDS.map(c=>Math.max(.4,c.w(p)));
-    const tot=weights.reduce((a,b)=>a+b,0);
     const rand=seededRand(pl,ctx+"|"+(pl.currentWeek||0)+"|"+(pl.growthHistV42||[]).length);
-    let pick=rand()*tot,idx=0;for(let i=0;i<CARDS.length;i++){pick-=weights[i];if(pick<=0){idx=i;break}}
-    const out=rollOutcome(pl,CARDS[idx],rand,ctx);
-    const durTxt=out.permanent?"PERMANENT":out.tier.games?out.tier.games+" GAMES":out.tier.seasons?out.tier.seasons+" SEASONS":"THIS SEASON";
-    const rows=CARDS.map((c,i)=>`<div class="gv42-opt" data-i="${i}"><span>${c.icon} ${c.name}</span><em>${Math.round(weights[i]/tot*100)}%</em></div>`).join("");
-    document.body.insertAdjacentHTML("beforeend",`<div id="growthV42" style="position:fixed;inset:0;z-index:960;background:rgba(3,7,13,.88);display:flex;align-items:center;justify-content:center;padding:16px"><div style="max-width:430px;width:100%;background:linear-gradient(180deg,#152238,#0a111c);border:1px solid rgba(240,187,69,.45);border-radius:16px;padding:16px;font-family:Oswald,sans-serif;color:#e8ecf2">
+    const opts=genOptions(pl,rand,5);
+    if(!opts.length){showing=false;return}
+    const tot=opts.reduce((s,o)=>s+o.w,0);
+    let pick=rand()*tot,idx=0;for(let i=0;i<opts.length;i++){pick-=opts[i].w;if(pick<=0){idx=i;break}}
+    const out=rollOutcome(pl,opts[idx],rand,ctx);
+    const rows=opts.map((o,i)=>`<div class="gv42-opt" data-i="${i}"><div style="display:flex;justify-content:space-between"><span>${o.icon} ${o.name}</span><em>${Math.round(o.w/tot*100)}%</em></div><div style="font-size:11px;color:#9fd08f;margin-top:2px">+${o.amt} ${o.stats.map(k=>LBL[k]).join(" / ")} · ${durTxtOf(o.dur)}</div><div style="font-size:9px;letter-spacing:1.5px;margin-top:2px;color:${o.tag==="ALL-IN"?"#ff9d5c":o.tag==="OBSESSIVE"?"#f0bb45":"#8fa2bb"}">${o.tag} · RISK ${Math.round(o.risk*100)}%</div></div>`).join("");
+    document.body.insertAdjacentHTML("beforeend",`<div id="growthV42" style="position:fixed;inset:0;z-index:960;background:rgba(3,7,13,.9);display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto"><div style="max-width:440px;width:100%;background:linear-gradient(180deg,#152238,#0a111c);border:1px solid rgba(240,187,69,.45);border-radius:16px;padding:15px;font-family:Oswald,sans-serif;color:#e8ecf2">
       <div style="font-size:10px;letter-spacing:3px;color:#f0bb45">${title}</div>
-      <div style="font-size:19px;font-weight:700;margin:4px 0 10px">Your habits decide this one.</div>
+      <div style="font-size:18px;font-weight:700;margin:3px 0 9px">Your habits decide. Then fate rolls.</div>
       <div id="gv42opts">${rows}</div>
-      <div id="gv42out" style="display:none;margin-top:10px;padding:11px;border-radius:10px;border:1px solid ${out.sign>0?"#3f7d4d":"#7d3f3f"};background:${out.sign>0?"rgba(46,90,58,.25)":"rgba(90,46,46,.25)"}">
-        <b style="font-size:15px">${out.icon} ${out.name} — ${out.sign>0?"IT PAYS OFF":"IT BACKFIRES"}</b>
+      <div id="gv42out" style="display:none;margin-top:10px;padding:11px;border-radius:10px">
+        <b style="font-size:15px">${out.icon} ${out.name} — ${out.band==="green"?"IT PAYS OFF":out.band==="neutral"?"HALF MEASURES":"IT BACKFIRES"}</b>
         <div style="font-size:13px;color:#c6cdd8;margin:5px 0">${out.story}</div>
-        <div style="font-size:13px;color:${out.sign>0?"#6fe08a":"#ff8a80"}">${out.stats.map(k=>(out.sign>0?"+":"−")+(out.permanent?"1-3":out.amt)+" "+(LBL[k]||k)).join(" · ")}</div>
-        <div style="font-size:10px;letter-spacing:2px;color:#f0bb45;margin-top:5px">${durTxt}</div>
+        <div style="font-size:13px;color:${out.sign>0?(out.band==="neutral"?"#cfd6a8":"#6fe08a"):"#ff8a80"}">${out.stats.map(k=>(out.sign>0?"+":"−")+(out.permanent?"1-3":out.amt)+" "+(LBL[k]||k)).join(" · ")}</div>
+        <div style="font-size:10px;letter-spacing:2px;color:#f0bb45;margin-top:5px">${durTxtOf(out.tier,out.permanent)}</div>
       </div>
       <button id="gv42go" style="display:none;width:100%;margin-top:11px;padding:11px;border:0;border-radius:9px;background:linear-gradient(180deg,#ffd76f,#daa128);font:700 15px Oswald;color:#1a1206">CONTINUE</button>
-      <style>.gv42-opt{display:flex;justify-content:space-between;padding:8px 10px;border:1px solid #ffffff14;border-radius:8px;margin-top:5px;font-size:14px;transition:all .12s}.gv42-opt em{font-style:normal;color:#8fa2bb;font-size:12px}.gv42-opt.on{border-color:#f0bb45;background:rgba(240,187,69,.14);transform:scale(1.02)}</style>
+      <style>.gv42-opt{padding:8px 10px;border:1px solid #ffffff14;border-radius:8px;margin-top:5px;font-size:14px;transition:all .14s}.gv42-opt em{font-style:normal;color:#8fa2bb;font-size:12px}.gv42-opt.on{border-color:#f0bb45;background:rgba(240,187,69,.14);transform:scale(1.02)}.gv42-opt.g{border-color:#57e07a;background:rgba(60,150,84,.2)}.gv42-opt.n{border-color:#9aa4b2;background:rgba(140,150,164,.14)}.gv42-opt.r{border-color:#ff5a5a;background:rgba(150,58,58,.22)}</style>
     </div></div>`);
-    const opts=[...document.querySelectorAll("#growthV42 .gv42-opt")];
-    let t=0,steps=16+idx+CARDS.length*2;
-    const spin=()=>{opts.forEach(o=>o.classList.remove("on"));opts[t%CARDS.length].classList.add("on");
-      if(t++<steps){setTimeout(spin,60+Math.pow(t/steps,2)*260)}
-      else{opts[idx].classList.add("on");setTimeout(()=>{document.getElementById("gv42out").style.display="";const b=document.getElementById("gv42go");b.style.display="";b.onclick=()=>{document.getElementById("growthV42").remove();showing=false;applyOutcome(pl,out);onDone&&onDone(out)}},420)}};
+    const nodes=[...document.querySelectorAll("#growthV42 .gv42-opt")];
+    let t=0,steps=14+idx+opts.length*2;
+    const spin=()=>{nodes.forEach(n=>n.className="gv42-opt");nodes[t%opts.length].classList.add("on");
+      if(t++<steps){setTimeout(spin,60+Math.pow(t/steps,2)*250)}
+      else{
+        const el=nodes[idx];let k=0;const seq=["r","n","g","n","r","g","n","r","g"];
+        const pulse=()=>{el.className="gv42-opt "+(k<seq.length?seq[k]:out.band[0]);
+          if(k++<=seq.length){setTimeout(pulse,110+k*28)}
+          else{const oc=document.getElementById("gv42out");oc.style.display="";
+            oc.style.border="1px solid "+(out.band==="green"?"#3f7d4d":out.band==="neutral"?"#77808d":"#7d3f3f");
+            oc.style.background=out.band==="green"?"rgba(46,90,58,.25)":out.band==="neutral"?"rgba(90,96,106,.2)":"rgba(90,46,46,.25)";
+            const b=document.getElementById("gv42go");b.style.display="";
+            b.onclick=()=>{document.getElementById("growthV42").remove();showing=false;applyOutcome(pl,out);onDone&&onDone(out)}}};
+        setTimeout(pulse,340)}};
     setTimeout(spin,350);
   }
   // ---- hooks ----
@@ -8445,12 +8474,12 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     }
   }catch(e){}},900);
   // telemetry / harness
-  window.__GROWTH_V42={compose,rollOutcome,applyOutcome,CARDS,persona,
+  window.__GROWTH_V42={compose,rollOutcome,applyOutcome,genOptions,THEMES,TIERS,persona,
     simulate(n){const out=[];for(let i=0;i<(n||100);i++){
-      const pl={pos:["QB","RB","WR","LB","CB"][i%5],seasonSeed:1e6+i,seasonsPlayedTotal:i,personaV13:{aggression:i*3%11,iq:i*5%11,eq:i*7%11,longterm:i*2%11,workethic:i*4%11,loyalty:5,confidence:i*6%11,coachability:i*8%11},prestigeLifetime:i%3===0?0:i%3===1?8:18,conditionV11:{fatigue:10}};
-      const p=persona(pl);const ws=CARDS.map(c=>Math.max(.4,c.w(p)));const tot=ws.reduce((a,b)=>a+b,0);
-      const rand=seededRand(pl,"sim"+i);let pick=rand()*tot,idx=0;for(let j=0;j<CARDS.length;j++){pick-=ws[j];if(pick<=0){idx=j;break}}
-      out.push(rollOutcome(pl,CARDS[idx],rand,"sim"))}
+      const pl={pos:["QB","RB","WR","LB","CB"][i%5],seasonSeed:1e6+i,seasonsPlayedTotal:i,personaV13:{aggression:i*3%11,iq:i*5%11,eq:i*7%11,longterm:i*2%11,workethic:i*4%11,loyalty:5,confidence:i*6%11,coachability:i*8%11},prestigeLifetime:i%3===0?0:i%3===1?8:18,coachTrust:20+i*7%70,momentum103:30+i*11%50,conditionV11:{fatigue:i*5%30}};
+      const rand=seededRand(pl,"sim"+i);const opts=genOptions(pl,rand,5);if(!opts.length)continue;
+      const tot=opts.reduce((s,o)=>s+o.w,0);let pick=rand()*tot,idx=0;for(let j=0;j<opts.length;j++){pick-=opts[j].w;if(pick<=0){idx=j;break}}
+      const o=rollOutcome(pl,opts[idx],rand,"sim");o._tier=opts[idx].tag;o._names=opts.map(x=>x.name);out.push(o)}
       return out}};
 })();
 </script>

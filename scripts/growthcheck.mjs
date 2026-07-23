@@ -18,13 +18,16 @@ const rep = await page.evaluate(() => {
   const amts = outs.map(o => o.amt)
   const stories = new Set(outs.map(o => o.story.slice(0, 40)))
   const cards = {}; outs.forEach(o => cards[o.card] = (cards[o.card] || 0) + 1)
+  const tiers = {}; outs.forEach(o => tiers[o._tier] = (tiers[o._tier] || 0) + 1)
+  const bands = {}; outs.forEach(o => bands[o.band] = (bands[o.band] || 0) + 1)
+  const names = new Set(); outs.forEach(o => o._names.forEach(x => names.add(x)))
   const statCounts = outs.map(o => o.stats.length)
   return {
     n, goodPct: pct(good.length),
     durations: { fiveGames: pct(dur.g5), fullSeason: pct(dur.season), multiSeason: pct(dur.multi), permanent: pct(dur.perm) },
     magnitude: { min: Math.min(...amts), max: Math.max(...amts), avg: +(amts.reduce((a, b) => a + b) / n).toFixed(1) },
     statsPerOutcome: { min: Math.min(...statCounts), max: Math.max(...statCounts) },
-    cardMix: cards, storyVariety: stories.size,
+    cardMix: cards, tierMix: tiers, bandMix: bands, optionNameVariety: names.size, storyVariety: stories.size,
     offCharacterPct: pct(outs.filter(o => o.fit < .3).length),
     prestigeEffect: {
       lowPrestigeMultiSeasonNeg: pct(outs.filter(o => o.sign < 0 && o.tier.seasons).length),
