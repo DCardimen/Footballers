@@ -1,0 +1,67 @@
+name: Main menu visual check
+
+on:
+  pull_request:
+    paths:
+      - 'public/rib-menu*.css'
+      - 'public/rib-menu*.js'
+      - 'menu-preview.html'
+      - 'scripts/menu-preview-shot.mjs'
+      - 'scripts/menu-integration-check.mjs'
+      - '.github/workflows/menu-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Assemble real-game integration page
+        run: |
+          cp index.html menu-integration.html
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('menu-integration.html')
+          html = path.read_text(encoding='utf-8')
+          css = '<link rel="stylesheet" href="/rib-menu-reset.css"><link rel="stylesheet" href="/rib-menu.css"><link rel="stylesheet" href="/rib-menu-mobile.css"><link rel="stylesheet" href="/rib-menu-final.css">'
+          js = '<script src="/rib-menu-boot.js"></script><script src="/rib-menu.js"></script>'
+          head, sep, tail = html.rpartition('</head>')
+          if not sep:
+              raise RuntimeError('Missing closing head tag')
+          html = head + css + sep + tail
+          body, sep, tail = html.rpartition('</body>')
+          if not sep:
+              raise RuntimeError('Missing closing body tag')
+          html = body + js + sep + tail
+          path.write_text(html, encoding='utf-8')
+          PY
+      - name: Start preview server
+        run: |
+          npm run dev -- --host 127.0.0.1 > /tmp/rib-vite.log 2>&1 &
+          for i in {1..40}; do
+            curl -fsS http://127.0.0.1:5173/menu-preview.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/rib-vite.log
+          exit 1
+      - run: node scripts/menu-preview-shot.mjs
+      - run: node scripts/menu-integration-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: main-menu-preview
+          path: |
+            menu-preview.png
+            menu-preview-metrics.json
+            menu-integration-diagnostics.json
+            menu-integration-failure.png
+          if-no-files-found: warn

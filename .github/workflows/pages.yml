@@ -7,6 +7,7 @@ on:
     branches:
       - main
       - claude/football-field-depth-9fcesb
+      - agent/main-menu-reference-v1
   workflow_dispatch:
 
 permissions:
@@ -32,6 +33,25 @@ jobs:
           mkdir -p _site
           cp index.html _site/index.html
           if [ -d public ]; then cp -r public/. _site/; fi
+          if [ -f menu-preview.html ]; then cp menu-preview.html _site/menu-preview.html; fi
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('_site/index.html')
+          html = path.read_text(encoding='utf-8')
+          css = '<link rel="stylesheet" href="./rib-menu-reset.css"><link rel="stylesheet" href="./rib-menu.css"><link rel="stylesheet" href="./rib-menu-mobile.css"><link rel="stylesheet" href="./rib-menu-final.css">'
+          js = '<script src="./rib-menu-boot.js"></script><script src="./rib-menu.js"></script>'
+          if 'rib-menu.css' not in html:
+              head, sep, tail = html.rpartition('</head>')
+              if not sep:
+                  raise RuntimeError('Missing closing head tag')
+              html = head + css + sep + tail
+          if 'rib-menu.js' not in html:
+              body, sep, tail = html.rpartition('</body>')
+              if not sep:
+                  raise RuntimeError('Missing closing body tag')
+              html = body + js + sep + tail
+          path.write_text(html, encoding='utf-8')
+          PY
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
