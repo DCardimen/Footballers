@@ -44,6 +44,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | game engine / play-calling / yardage | `simcheck.mjs` |
 | anything sim-side that should be visible | `renderpathcheck.mjs` |
 | injuries | `injurycheck.mjs` |
+| team emblems / palettes / identity | `emblemcheck.mjs` |
 | UI / screens | `shot.mjs` (screenshot), `walk.mjs` (click-through) |
 
 ## House rules
