@@ -25,6 +25,7 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 | `realismprobe.mjs` | The v30 realism dashboard over 60 full games: yards-per-carry + run-distance histogram, sacks/scrambles, punts vs FG attempts, penalty counts BY TYPE (holding/DPI/face-mask are flag-on-the-play), and average scores. Run after any tuning that touches the run game, kicking decisions, or penalties. |
 | `movementcheck.mjs` | Ten seeded 120-play batches (1,200 plays total): exact sideline spots, no out-of-field frames, first-frame offensive TD/pick-six crossings, route-break reactions, directional cuts/bad angles, low/mid/elite acceleration curves, and run/pass/YAC stability. Pure Node; no server required. |
 | `renderpathcheck.mjs` | Fraction of plays rendering from the FieldSim agent log vs falling back to the legacy choreographer (healthy: ~87–90%). Run when sim changes don't show on screen. |
+| `growthcheck.mjs` | v42 Growth Decisions entertainment probe: Monte-Carlos the outcome generator (mix, magnitudes, durations, permanents, story variety) via `window.__GROWTH_V42.simulate`. |
 | `injurycheck.mjs` | Serious injuries force DNP weeks, heal on schedule, clear the worn flag. |
 | `menu-integration-check.mjs` | Redesigned main menu on the real `index.html`: generated art applied (blob URLs), routes out via GOALS/HALL and returns to an identical menu, no page errors or failed requests. `MENU_INTEGRATION_URL` overrides the target. |
 
