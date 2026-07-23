@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'public/rib-menu*.css'
-      - 'public/rib-menu.js'
+      - 'public/rib-menu*.js'
       - 'menu-preview.html'
       - 'scripts/menu-preview-shot.mjs'
       - 'scripts/menu-integration-check.mjs'
@@ -33,7 +33,7 @@ jobs:
           path = Path('menu-integration.html')
           html = path.read_text(encoding='utf-8')
           css = '<link rel="stylesheet" href="/rib-menu-reset.css"><link rel="stylesheet" href="/rib-menu.css"><link rel="stylesheet" href="/rib-menu-mobile.css"><link rel="stylesheet" href="/rib-menu-final.css">'
-          js = '<script src="/rib-menu.js"></script>'
+          js = '<script src="/rib-menu-boot.js"></script><script src="/rib-menu.js"></script>'
           head, sep, tail = html.rpartition('</head>')
           if not sep:
               raise RuntimeError('Missing closing head tag')
