@@ -32,7 +32,9 @@
 
   function activate(action) {
     if (routing) return false;
-    const original = findOriginal(action);
+    // The primary CTA doubles as START NEW CAREER: if no continue target
+    // exists (no career yet, or the game relabeled it), fall through to new.
+    const original = findOriginal(action) || (action === 'continue' ? findOriginal('new') : null);
     if (!original) {
       console.warn('[RIB menu] Original navigation target unavailable:', action);
       return false;

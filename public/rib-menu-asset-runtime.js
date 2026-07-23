@@ -1,10 +1,23 @@
 (() => {
   'use strict';
 
+  // cells: measured sub-regions exported as standalone images so buttons can
+  // use true 9-slice frames and uniform-scale textures instead of sheet crops.
   const assets = [
-    { property: '--rib-hero-sheet', src: './a_clean_high_resolution_game_ui_asset_sheet_on_a_1_batch_1.png', enclosedBackgroundSeeds: [[132, 1100]] },
-    { property: '--rib-panel-sheet', src: './a_clean_ui_graphic_assets_sprite_sheet_mockup_im_2_batch_2.png', enclosedBackgroundSeeds: [] },
-    { property: '--rib-icon-sheet', src: './a_clean_graphic_artwork_ui_icon_sheet_on_a_trans_3_batch_3.png', enclosedBackgroundSeeds: [[627, 528]] },
+    { property: '--rib-hero-sheet', src: './a_clean_high_resolution_game_ui_asset_sheet_on_a_1_batch_1.png', enclosedBackgroundSeeds: [[132, 1100]], cells: [] },
+    { property: '--rib-panel-sheet', src: './a_clean_ui_graphic_assets_sprite_sheet_mockup_im_2_batch_2.png', enclosedBackgroundSeeds: [], cells: [
+      ['--rib-cell-gold', 823, 345, 392, 135],
+      ['--rib-cell-navy', 823, 495, 392, 111],
+      ['--rib-cell-square', 823, 621, 148, 161],
+      ['--rib-divider-gold', 62, 823, 719, 29],
+      ['--rib-spark-gold', 633, 900, 362, 44],
+      ['--rib-tex-stadium', 61, 1024, 357, 180],
+      ['--rib-tex-gold', 462, 1020, 351, 183],
+      ['--rib-tex-navy', 857, 1020, 337, 183],
+    ] },
+    { property: '--rib-icon-sheet', src: './a_clean_graphic_artwork_ui_icon_sheet_on_a_trans_3_batch_3.png', enclosedBackgroundSeeds: [[627, 528]], cells: [
+      ['--rib-chevron', 401, 994, 94, 130],
+    ] },
   ];
 
   const isBackground = (data, offset) => {
@@ -119,16 +132,25 @@
     }
 
     context.putImageData(pixels, 0, 0);
-    const blob = await new Promise((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error(`Failed to encode menu asset: ${src}`)), 'image/png'));
-    return URL.createObjectURL(blob);
+    return canvas;
   }
+
+  const canvasUrl = (canvas, label) => new Promise((resolve, reject) =>
+    canvas.toBlob((value) => value ? resolve(URL.createObjectURL(value)) : reject(new Error(`Failed to encode menu asset: ${label}`)), 'image/png'));
 
   async function start() {
     const root = document.documentElement;
     try {
       for (const asset of assets) {
         const cleaned = await removeCheckerboard(asset.src, asset.enclosedBackgroundSeeds);
-        root.style.setProperty(asset.property, `url("${cleaned}")`);
+        root.style.setProperty(asset.property, `url("${await canvasUrl(cleaned, asset.src)}")`);
+        for (const [property, x, y, w, h] of asset.cells) {
+          const cell = document.createElement('canvas');
+          cell.width = w;
+          cell.height = h;
+          cell.getContext('2d').drawImage(cleaned, x, y, w, h, 0, 0, w, h);
+          root.style.setProperty(property, `url("${await canvasUrl(cell, property)}")`);
+        }
       }
       root.classList.add('rib-assets-ready');
       window.__RIB_MENU_ASSETS = { ready: true };

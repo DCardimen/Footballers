@@ -23,7 +23,7 @@
   .rib-legacy-card{margin-top:8px;padding:5px 6px 7px;border-radius:9px}
   .rib-section-title{gap:8px;height:20px}.rib-section-title span{max-width:45px}.rib-section-title b{font-size:8px;letter-spacing:2px}
   .rib-legacy-grid{gap:4px}.rib-legacy-stat{min-height:51px;padding:6px 3px 5px;border-radius:6px;column-gap:3px}.rib-legacy-stat strong{font-size:21px}.rib-legacy-stat small{margin-top:4px;font-size:7px;letter-spacing:.7px}.rib-legacy-stat svg{width:15px;height:15px}
-  .rib-primary-button{height:46px;margin-top:8px;border-radius:8px;font-size:17px;letter-spacing:2px}.rib-primary-button:before{inset:2px;border-radius:6px}.rib-primary-button b{right:13px;top:9px;font-size:29px}
+  .rib-primary-button{height:46px;margin-top:8px;border-radius:8px;font-size:19px;letter-spacing:1.2px}.rib-primary-button:before{inset:2px;border-radius:6px}.rib-primary-button b{right:13px;top:9px;font-size:29px}
   .rib-secondary-grid{gap:6px;margin-top:8px}.rib-bottom-grid{gap:5px;margin-top:6px}
   .rib-nav-button{border-radius:7px;gap:6px;font-size:11.5px;letter-spacing:.8px}.rib-bottom-grid .rib-nav-button{gap:3px;font-size:9.5px;letter-spacing:1px}
   .rib-nav-icon svg{width:18px;height:18px}.rib-bottom-grid .rib-nav-icon svg{width:17px;height:17px}
@@ -39,7 +39,7 @@
   .rib-ovr-ring{width:60px;height:60px;right:10px;top:10px}
   .rib-ovr-value{font-size:30px}.rib-ovr-label{font-size:7px;margin-top:4px}
   .rib-section-title{height:16px}
-  .rib-legacy-stat{min-height:40px;padding:3px 2px}
+  .rib-legacy-stat{min-height:40px;padding:7px 2px 3px}
   .rib-legacy-stat strong{font-size:18px}
   .rib-legacy-stat small{margin-top:2px;font-size:6px;letter-spacing:.4px}
   .rib-primary-button{font-size:15px}

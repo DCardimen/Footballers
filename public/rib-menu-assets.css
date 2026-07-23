@@ -169,49 +169,67 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   position:absolute;
   inset:3px;
   border-radius:14px;
-  background:linear-gradient(180deg,rgba(6,20,35,.82),rgba(3,12,22,.9));
+  background-image:linear-gradient(180deg,rgba(6,20,35,.86),rgba(3,12,22,.93)),var(--rib-tex-stadium);
+  background-repeat:no-repeat;
+  background-size:100% 100%,cover;
+  background-position:center,center 30%;
   pointer-events:none;
 }
 .rib-section-title,.rib-legacy-grid{position:relative;z-index:1}
-.rib-section-title span{opacity:.7}
-.rib-section-title b{position:relative;z-index:1;padding:0 10px;background:#081725}
+.rib-section-title span{height:5px;background:var(--rib-divider-gold);background-size:100% 100%;background-repeat:no-repeat;opacity:.9}
+.rib-section-title b{position:relative;z-index:1;padding:0 10px;background:rgba(8,23,37,.72);border-radius:4px}
 .rib-legacy-stat{
   border:1px solid rgba(65,96,130,.48);
   background:linear-gradient(180deg,rgba(17,37,59,.9),rgba(7,20,34,.96));
   box-shadow:0 1px rgba(255,255,255,.025) inset;
 }
+/* Career buttons: true 9-slice frames cut from the sheet's button cells at
+   runtime, filled with the uniform-scale texture swatches - no more mid-band
+   crops or squashed grain, and the frame corners are the art's own corners. */
+/* The gold bar asset, whole and untouched: the entire cell (own frame,
+   corners, shine, baked chevron) stretched to the band. Nothing added. */
 .rib-primary-button{
   height:auto;
   aspect-ratio:318/46;
-  border-color:rgba(233,182,78,.9);
-  background-color:#d59a24;
-  background-image:var(--rib-panel-sheet);
+  border:0;
+  border-radius:10px;
+  background-color:transparent;
+  background-image:var(--rib-cell-gold);
   background-repeat:no-repeat;
-  background-size:319.9% auto;
-  background-position:95.48% 32.08%;
-  box-shadow:0 1px 0 rgba(255,224,138,.7) inset,0 -2px 0 rgba(99,63,7,.85) inset,0 0 18px rgba(255,188,43,.3);
+  background-size:100% 100%;
+  background-position:center;
+  box-shadow:none;
 }
 .rib-primary-button:before,.rib-primary-button b{display:none}
 .rib-secondary-grid .rib-nav-button{
   height:auto;
   aspect-ratio:156/43;
+  border:0;
+  border-radius:9px;
+  border-image:var(--rib-cell-navy) 28 26 / 9px 8px stretch;
   background-color:#0b1a2b;
-  background-image:var(--rib-panel-sheet);
+  background-image:linear-gradient(180deg,rgba(255,255,255,.07),transparent 42%),var(--rib-tex-navy);
   background-repeat:no-repeat;
-  background-size:319.9% 1129.7%;
-  background-position:95.48% 43.31%;
-  border-color:transparent;
+  background-size:100% 100%,cover;
+  background-position:center;
 }
 .rib-bottom-grid .rib-nav-button{
   height:auto;
   aspect-ratio:76/52;
+  border:0;
+  border-radius:9px;
+  border-image:var(--rib-cell-square) 30 / 9px stretch;
   background-color:#0b1a2b;
-  background-image:var(--rib-panel-sheet);
+  background-image:linear-gradient(180deg,rgba(255,255,255,.05),transparent 45%),var(--rib-tex-navy);
   background-repeat:no-repeat;
-  background-size:847.3% 778.9%;
-  background-position:74.41% 56.82%;
-  border-color:transparent;
+  background-size:100% 100%,cover;
+  background-position:center;
 }
+/* With no career, the CTA already reads START NEW CAREER - hide the duplicate
+   secondary button and let PRESTIGE take the full row. */
+#rib-main-menu-v2.rib-no-career .rib-new-button{display:none}
+#rib-main-menu-v2.rib-no-career .rib-secondary-grid{grid-template-columns:1fr}
+#rib-main-menu-v2.rib-no-career .rib-secondary-grid .rib-nav-button{aspect-ratio:auto;height:62px}
 
 /* Generated icon sheet replaces the outline SVG placeholders. Crops are
    percentage-based, centered on each icon's measured bounding box, so the
@@ -229,7 +247,7 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
 .rib-hall-button .rib-nav-icon{background-size:614.7% auto;background-position:90.9% 11.33%}
 .rib-locker-button .rib-nav-icon{background-size:540.5% auto;background-position:14.58% 40.61%}
 .rib-settings-button .rib-nav-icon{background-size:646.4% auto;background-position:49.95% 40.57%}
-.rib-legacy-stat i{width:31px;height:31px}
+.rib-legacy-stat i{width:31px;height:31px;position:absolute;left:10px;top:calc(50% - 8px);transform:translateY(-50%)}
 .rib-legacy-stat:nth-child(1) i{background-size:633.3% auto;background-position:82.81% 39.77%}
 .rib-legacy-stat:nth-child(4) i{background-size:594.3% auto;background-position:13.52% 66.35%}
 .rib-legacy-stat:nth-child(5) i{background-size:547.6% auto;background-position:49.76% 67.51%}
@@ -268,8 +286,13 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   }
   .rib-hero-tagline{bottom:7px}
   .rib-legacy-card:before{inset:2px;border-radius:8px}
+  .rib-section-title span{height:4px}
+  .rib-primary-button{border-radius:8px}
+  .rib-secondary-grid .rib-nav-button{border-image-width:7px 6px;border-radius:7px}
+  #rib-main-menu-v2.rib-no-career .rib-secondary-grid .rib-nav-button{height:43px}
+  .rib-bottom-grid .rib-nav-button{border-image-width:7px;border-radius:7px}
   .rib-nav-icon{width:20px;height:20px}
-  .rib-legacy-stat i{width:17px;height:17px}
+  .rib-legacy-stat i{width:17px;height:17px;left:6px;top:calc(50% - 6px)}
   .rib-hud-pill{
     width:38px;
     height:24px;
@@ -283,11 +306,14 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
 /* ===== v2 menu motion: flicker, sweeps, press feedback, entrances ===== */
 @property --rib-ovr{syntax:'<number>';initial-value:0;inherits:false}
 
-/* Golden band type: heavy Oswald, deep ink, subtle top-light emboss. */
+/* Golden band type: heavy Oswald fattened with a matching stroke, deep ink,
+   subtle top-light emboss. */
 .rib-primary-button{
   font-family:Oswald,'Arial Narrow',sans-serif;
-  color:#1a1206;
-  text-shadow:0 1px 0 rgba(255,238,180,.42);
+  font-weight:700;
+  color:#191104;
+  -webkit-text-stroke:.7px #191104;
+  text-shadow:0 1px 0 rgba(255,242,196,.55);
 }
 .rib-primary-button span{position:relative}
 .rib-stars span u{text-decoration:none}
@@ -354,6 +380,15 @@ html.rib-assets-ready #rib-main-menu-v2{opacity:1;transition:opacity .18s ease}
   .rib-prestige-button:after{animation-delay:3.1s}
   .rib-new-button:after{animation-delay:5.9s}
   @keyframes ribsweep{0%{transform:translateX(-140%) skewX(-18deg)}16%{transform:translateX(620%) skewX(-18deg)}100%{transform:translateX(620%) skewX(-18deg)}}
+
+  /* Press: the shine bar dashes across the gold band and the chevron launches. */
+  .rib-primary-button.rib-pressed:after{
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent);
+    animation:ribsparkdash .45s ease-out;
+  }
+  @keyframes ribsparkdash{from{transform:translateX(-140%) skewX(-18deg)}to{transform:translateX(620%) skewX(-18deg)}}
+  .rib-primary-button.rib-pressed b{animation:ribchev .45s ease-out}
+  @keyframes ribchev{0%,100%{transform:translateY(-50%)}55%{transform:translate(9px,-50%)}}
 
   /* One-time gleam across the career card frame after mount. */
   html.rib-assets-ready #rib-main-menu-v2.rib-anim-in .rib-career-card:before{
