@@ -34,8 +34,14 @@ jobs:
           html = path.read_text(encoding='utf-8')
           css = '<link rel="stylesheet" href="/rib-menu-reset.css"><link rel="stylesheet" href="/rib-menu.css"><link rel="stylesheet" href="/rib-menu-mobile.css"><link rel="stylesheet" href="/rib-menu-final.css">'
           js = '<script src="/rib-menu.js"></script>'
-          html = html.replace('</head>', css + '</head>', 1)
-          html = html.replace('</body>', js + '</body>', 1)
+          head, sep, tail = html.rpartition('</head>')
+          if not sep:
+              raise RuntimeError('Missing closing head tag')
+          html = head + css + sep + tail
+          body, sep, tail = html.rpartition('</body>')
+          if not sep:
+              raise RuntimeError('Missing closing body tag')
+          html = body + js + sep + tail
           path.write_text(html, encoding='utf-8')
           PY
       - name: Start preview server
