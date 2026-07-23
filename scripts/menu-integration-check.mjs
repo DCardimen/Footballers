@@ -21,30 +21,34 @@ const menuSnapshot = () => page.evaluate(() => ({
   panelAsset: getComputedStyle(document.querySelector('.rib-career-card')).backgroundImage,
   iconAsset: getComputedStyle(document.querySelector('.rib-prestige-button .rib-nav-icon')).backgroundImage,
   menuHeight: Math.round(document.querySelector('#rib-main-menu-v2')?.getBoundingClientRect().height || 0),
+  assetsReady: document.documentElement.classList.contains('rib-assets-ready'),
+  assetsFailed: document.documentElement.classList.contains('rib-assets-failed'),
 }))
 
 const returnHome = async () => {
-  const logo = page.locator('#app .logo').first()
-  if (await logo.count()) {
-    await logo.click({ force: true })
-  } else {
-    const fallback = page.locator('#app button, #app [role="button"], #app a').filter({ hasText: /MAIN MENU|HOME|RUNNING IT BACK/i }).first()
-    await fallback.click({ force: true })
-  }
+  const clicked = await page.evaluate(() => {
+    const logo = document.querySelector('#app .logo');
+    if (logo) {
+      logo.click();
+      return 'logo';
+    }
+    const fallback = [...document.querySelectorAll('#app button, #app [role="button"], #app a')].find((el) => /MAIN MENU|HOME|RUNNING IT BACK/i.test(el.textContent || ''));
+    fallback?.click();
+    return fallback ? 'fallback' : '';
+  })
+  if (!clicked) throw new Error('No main-menu return control found')
   await page.waitForSelector('#rib-main-menu-v2', { state: 'visible', timeout: 12000 })
 }
 
 try {
   await page.goto('http://127.0.0.1:5173/menu-integration.html', { waitUntil: 'domcontentloaded', timeout: 30000 })
-  await page.waitForSelector('#rib-main-menu-v2', { state: 'visible', timeout: 20000 })
-  await page.waitForTimeout(800)
+  await page.waitForSelector('#rib-main-menu-v2', { state: 'attached', timeout: 20000 })
+  await page.waitForFunction(() => document.documentElement.classList.contains('rib-assets-ready'), null, { timeout: 30000 })
+  await page.waitForSelector('#rib-main-menu-v2', { state: 'visible', timeout: 10000 })
+  await page.waitForTimeout(500)
 
   const before = await menuSnapshot()
-  const assetsApplied = [
-    'a_clean_high_resolution_game_ui_asset_sheet_on_a_1_batch_1.png',
-    'a_clean_ui_graphic_assets_sprite_sheet_mockup_im_2_batch_2.png',
-    'a_clean_graphic_artwork_ui_icon_sheet_on_a_trans_3_batch_3.png',
-  ].every((name, index) => [before.heroAsset, before.panelAsset, before.iconAsset][index].includes(name))
+  const assetsApplied = before.assetsReady && !before.assetsFailed && [before.heroAsset, before.panelAsset, before.iconAsset].every((value) => value.includes('blob:'))
 
   await page.locator('.rib-primary-button').click()
   await page.waitForFunction(() => !document.querySelector('#rib-main-menu-v2'), null, { timeout: 10000 })
@@ -54,7 +58,7 @@ try {
   }))
 
   await returnHome()
-  await page.waitForTimeout(700)
+  await page.waitForTimeout(500)
   const afterReturn = await menuSnapshot()
 
   await page.locator('.rib-prestige-button').click()
@@ -88,6 +92,7 @@ try {
     menuExists: !!document.querySelector('#rib-main-menu-v2'),
     hasHero: !!document.querySelector('#app .hero'),
     stateView: window.o?.view,
+    assets: window.__RIB_MENU_ASSETS,
   })).catch(() => ({}))
   fs.writeFileSync('menu-integration-diagnostics.json', JSON.stringify({ error: String(error), diagnostics, errors, failedRequests }, null, 2))
   await page.screenshot({ path: 'menu-integration-failure.png', fullPage: true }).catch(() => {})
