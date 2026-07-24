@@ -45,6 +45,7 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 | `bake-menu-into-index.mjs` | Rewrites the `RIB_DIRECT_MENU_*` marker blocks in `index.html` to reference the versioned menu CSS/JS in `public/`. |
 | `assemble-pages.mjs` | Builds the exact GitHub Pages site into `_site/` (root index + `public/` + generated menu sheets) and verifies the baked menu references. |
 | `spritekit/pack_logos.mjs` | Rebuilds `public/rib_logos_v44.png` from the three `art/football-logo-sheet-*.png` masters (90 emblems, 10×9 grid of 128px cells, index order = sheet order) AND re-bakes the sheet into `index.html` (`window.__RIB_LOGOS_V44` data URL — how deployed builds ship it). Re-run only if the master sheets change. |
+| `spritekit/pack_refs.mjs` | Repacks the raw referee sprite sheet (`art/referee-sprite-sheet.png`) into the compact feet-anchored `public/rib_ref.png` atlas (36 poses, 64px cells) and writes the baked `window.__RIB_REF_SHEET` / `__RIB_REF_META` data (re-inject into `index.html` if the master sheet changes). Front/back/side runs + flag-throw + arms-up touchdown poses. |
 
 ## Writing a new check
 

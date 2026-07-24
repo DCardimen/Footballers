@@ -59,17 +59,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   broadcast view (`LiveField` scene: `spawnRefs` / `updateRefs` / `placeRef` +
   the `refThrowFlag` / `refSignalTD` helpers, all after `resolveOverlaps`). The
   officials are a render-only layer — not sim actors, no stats, never in
-  `this.markers` — kept in `this.refs`. They wear a dedicated **`ref` recolor
-  team** (white kit, then `ribZebra` paints the striped shirt over the chest
-  band; `ribRegisterTeam` gained an optional `deco` hook that persists across the
-  v22-overlay reload). Each frame every official eases toward a role-based mark
-  keyed on the ball-carrier (referee in the offensive backfield, umpire off the
-  middle, two wings on the LOS, two deep on the numbers, back judge deepest),
-  **runs when the players run at ~85% of ball speed** (`TU("refSpeedFrac")`), and
-  is repelled out of any nearby body so he stays off the pile. A `flag` event now
-  pulls the nearest official into a flag-heave animation (falling back to the old
-  dropped flag only before the atlas decodes), and a score raises the nearest
-  official's arms via `celebrate()`. `refcheck.mjs` verifies the crew.
+  `this.markers` — kept in `this.refs`. They have their **own pixel-art zebra
+  sprite sheet** (`art/referee-sprite-sheet.png`): `scripts/spritekit/pack_refs.mjs`
+  slices it into a compact feet-anchored 64px atlas (`public/rib_ref.png`, baked
+  into `index.html` as `window.__RIB_REF_SHEET` / `__RIB_REF_META`), which
+  `ribRegisterRefSheet()` cuts into `spr_ref_*` textures — true front/back/side
+  runs plus dedicated front-facing **flag-throw** and **arms-up touchdown** poses
+  (diagonals reuse the orthogonal art). Each frame every official eases toward a
+  role-based mark keyed on the ball-carrier (referee in the offensive backfield,
+  umpire off the middle, two wings on the LOS, two deep on the numbers, back
+  judge deepest), **runs when the players run at ~85% of ball speed**
+  (`TU("refSpeedFrac")`), and is repelled out of any nearby body so he stays off
+  the pile. A `flag` event pulls the nearest official into the flag-heave
+  animation (with the flag flying to the spot), and a score sends the nearest
+  official into the arms-up signal via `celebrate()`. `refcheck.mjs` verifies the
+  crew.
 - **v44.1 — EMBLEM DELIVERY + LIVE CREATOR PREVIEW.** The emblem sheet is now
   **baked into `index.html`** as `window.__RIB_LOGOS_V44` (the v22-atlas
   pattern) — v44 loaded it from `/rib_logos_v44.png`, which 404s on the GitHub
