@@ -29,6 +29,7 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 | `injurycheck.mjs` | Serious injuries force DNP weeks, heal on schedule, clear the worn flag. |
 | `menu-integration-check.mjs` | Redesigned main menu on the real `index.html`: generated art applied (blob URLs), routes out via GOALS/HALL and returns to an identical menu, no page errors or failed requests. `MENU_INTEGRATION_URL` overrides the target. |
 | `emblemcheck.mjs` | v44 team emblems, full surface audit: every generated nickname resolves to the right emblem (Wolves → wolf), every emblem's matched palette exists, the sheet is baked (data URL — no server file), creator tiles/preview stay sized and contained at 520px AND 320px, palette picks visibly update the live preview, emblem picks select+✓ their palette, pregame chips are 44px inside their tiles, scoreboard chips 28–40px inside the bar, and the midfield crest composites at ~44% field width. |
+| `refcheck.mjs` | v45 referee crew: drives into a live game and asserts 7 officials take the field (referee in the backfield), that they move during a play, and that a foul spot pulls the nearest official into a flag-throw. Screenshots the field so the zebra kit can be eyeballed. |
 
 ## Utilities (look at the game)
 
