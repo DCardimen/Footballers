@@ -55,6 +55,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v46 — SCORE ATTACK + commercial packaging.** A single-player high-score mode
+  ("The Gauntlet"): pick a position, play endless one-game rounds, choose Steady
+  vs Go-for-glory each round, beat a rising score bar to survive, and chase a
+  persistent best. It's a self-contained appended `<script>` block (banner
+  `v46 SCORE ATTACK`) driven entirely by the exported engine
+  (`window.__simGameV2`) — it never touches career state. Reached from the menu
+  (`go('highscore')` → router branch → `window.__hsRender(o)`); best score/streak
+  persist to the save (`o.highScore` / `o.highStreak`). Scoring is calibrated in
+  `scripts/hsprobe.mjs` and behavior is guarded by `scripts/hscheck.mjs`. Same
+  release: an **IP-safety pass** swapped every real NFL nickname in `er`
+  (player's team) and `Dt()` (opponents) for fictional names (real cities kept),
+  plus **installable-app packaging** — `public/manifest.webmanifest`, a maskable
+  icon set (`scripts/genicons.mjs` from `public/icon.svg`), head install meta, and
+  a `capacitor.config.json` for wrapping to iOS/Android. See
+  [`docs/COMMERCIAL.md`](docs/COMMERCIAL.md) for the store roadmap.
 - **v45 — REFEREE CREW.** A seven-official crew now works every live play in the
   broadcast view (`LiveField` scene: `spawnRefs` / `updateRefs` / `placeRef` +
   the `refThrowFlag` / `refSignalTD` helpers, all after `resolveOverlaps`). The

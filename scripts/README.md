@@ -30,6 +30,8 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 | `menu-integration-check.mjs` | Redesigned main menu on the real `index.html`: generated art applied (blob URLs), routes out via GOALS/HALL and returns to an identical menu, no page errors or failed requests. `MENU_INTEGRATION_URL` overrides the target. |
 | `emblemcheck.mjs` | v44 team emblems, full surface audit: every generated nickname resolves to the right emblem (Wolves → wolf), every emblem's matched palette exists, the sheet is baked (data URL — no server file), creator tiles/preview stay sized and contained at 520px AND 320px, palette picks visibly update the live preview, emblem picks select+✓ their palette, pregame chips are 44px inside their tiles, scoreboard chips 28–40px inside the bar, and the midfield crest composites at ~44% field width. |
 | `refcheck.mjs` | v45 referee crew: drives into a live game and asserts 7 officials take the field (referee in the backfield), that they move during a play, and that a foul spot pulls the nearest official into a flag-throw. Screenshots the field so the zebra kit can be eyeballed. |
+| `hscheck.mjs` | v46 Score Attack, end-to-end through the real UI: menu button navigates to the mode, a run plays and survives/ends correctly, the Steady + Glory paths resolve without JS errors, and the best score persists to the save object and to storage. Exits non-zero on any failure. |
+| `hsprobe.mjs` | v46 Score Attack **scoring calibration**: runs the ship scoring formula (`hsScore`, kept identical to the copy baked into `index.html`) over many resolved games and prints per-position + overall percentile bands, so the survival-threshold ramp stays tuned to real engine output. |
 
 ## Utilities (look at the game)
 
@@ -37,6 +39,8 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 |---|---|
 | `shot.mjs` | Boot headless and screenshot: `node scripts/shot.mjs [out.png] [url]` (also `npm run shot`). |
 | `walk.mjs` | Click through screens by button text: `node scripts/walk.mjs "START NEW CAREER" "ARCH" …`, screenshotting each step. |
+| `hsshot.mjs` | Screenshot the v46 Score Attack screens (intro / round / result / over) for visual QA; seeds a save with the first-run tutorial dismissed. |
+| `genicons.mjs` | Rasterize `public/icon.svg` into the manifest / iOS / store PNG icon sizes. Re-run after replacing the placeholder icon art. |
 | `explore.mjs` | Dump visible buttons/text of the current screen — find the exact labels `walk.mjs`/checks should click. |
 | `live.mjs` | Boot into a live game and capture frames of the broadcast view. |
 | `scroll.mjs` | Phone-viewport scroll-through screenshots (layout/overflow checks). |

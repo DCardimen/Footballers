@@ -1,0 +1,15 @@
+{
+  "appId": "com.runningitback.game",
+  "appName": "Running It Back",
+  "webDir": "_site",
+  "backgroundColor": "070b12ff",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "always"
+  },
+  "android": {
+    "backgroundColor": "070b12ff"
+  }
+}
