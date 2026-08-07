@@ -57,11 +57,21 @@ fi
 echo "Java used for build:" >> "$LOG"
 java -version >> "$LOG" 2>&1 || true
 
-echo "Android SDK: ${ANDROID_HOME:-${ANDROID_SDK_ROOT:-unset}}" >> "$LOG"
+SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+echo "Android SDK: $SDK_ROOT" >> "$LOG"
+SDKMANAGER=""
 if command -v sdkmanager >/dev/null 2>&1; then
-  yes | sdkmanager "platforms;android-36" "build-tools;36.0.0" >> "$LOG" 2>&1 || true
+  SDKMANAGER="$(command -v sdkmanager)"
 else
-  echo "sdkmanager not found on PATH" >> "$LOG"
+  SDKMANAGER="$(find "$SDK_ROOT" -type f -name sdkmanager 2>/dev/null | head -n 1)"
+fi
+if [[ -n "$SDKMANAGER" ]]; then
+  echo "sdkmanager: $SDKMANAGER" >> "$LOG"
+  chmod +x "$SDKMANAGER" 2>/dev/null || true
+  yes | "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" >> "$LOG" 2>&1 || true
+else
+  echo "sdkmanager not found under $SDK_ROOT" >> "$LOG"
+  find "$SDK_ROOT" -maxdepth 4 -type f -name '*manager*' -print >> "$LOG" 2>&1 || true
   fail 91 "android_sdk"
 fi
 
