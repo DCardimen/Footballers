@@ -134,8 +134,10 @@ Goal: **real cities allowed, fictional team names only, no real-league marks.**
    fantasy in the first 60 seconds (this drives refunds/ratings on premium).
 2. **Audio** — even minimal SFX + a menu loop dramatically lifts perceived value;
    package audio as local assets (no CDN).
-3. **Score Attack depth** — per-position leaderboards (local first), daily seed
-   challenge, unlockable positions, a share-your-score card. Cheap retention.
+3. **Score Attack depth** — leaderboards are built (v47: Global / Weekly /
+   Per-position, mock backend now, Supabase-ready — see `docs/LEADERBOARDS.md`).
+   Remaining: wire the live Supabase project + platform sign-in, then add a daily
+   seed challenge, unlockable positions, and a share-your-score card.
 4. **Meta progression tie-in** — let Score Attack feed prestige/cosmetics so the
    arcade mode and the career reinforce each other.
 5. **Analytics (optional)** — if you want funnel data, add a privacy-light,

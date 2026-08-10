@@ -5305,7 +5305,7 @@ const _pick6=[...P,...ie].reduce((_n,R)=>_n+((R&&R.statLine&&R.statLine.pick6)||
     <div class="btn-row">
       <button class="btn ghost" onclick="go('rank')">🥊 Recruiting Board</button>
       <button class="btn secondary" onclick="go(S.player.weekResults?'season':'hub')">Back</button>
-    </div>`}function Sr(e){ze=e,os()}function Mr(e){nt=e,Ve=null,os()}function xr(e){Ve=e,os()}function q(){an();const e=o.view,t=document.querySelector&&document.querySelector(".topbar");if(t&&(t.style.display=e==="menu"?"none":""),e==="menu")return Mn();if(e==="highscore")return window.__hsRender&&window.__hsRender(o);if(e==="settings")return Fi();if(e==="choosePos")return Lr();if(e==="hub")return Er();if(e==="training")return jr();if(e==="event")return Nr();if(e==="sim")return nl();if(e==="season")return sl();if(e==="live")return ol();if(e==="result")return Al();if(e==="declineResult")return Ol();if(e==="tier")return Or();if(e==="upgrade")return Bl();if(e==="rank")return Dl();if(e==="stats")return os();if(e==="challenges")return rr();if(e==="dynasty")return Ra();if(e==="hof")return Bi();if(e==="locker")return ts();if(e==="shop")return ps();if(e==="path")return io();if(e==="gameover")return ms();if(e==="win")return no();Mn()}function Mn(){const e=o.player&&o.player.pos,t=o.player,a=Object.values(o.tree||{}).reduce((s,n)=>s+n,0);x("screen").innerHTML=`
+    </div>`}function Sr(e){ze=e,os()}function Mr(e){nt=e,Ve=null,os()}function xr(e){Ve=e,os()}function q(){an();const e=o.view,t=document.querySelector&&document.querySelector(".topbar");if(t&&(t.style.display=e==="menu"?"none":""),e==="menu")return Mn();if(e==="highscore")return window.__hsRender&&window.__hsRender(o);if(e==="leaderboard")return window.__lbRender&&window.__lbRender(o);if(e==="settings")return Fi();if(e==="choosePos")return Lr();if(e==="hub")return Er();if(e==="training")return jr();if(e==="event")return Nr();if(e==="sim")return nl();if(e==="season")return sl();if(e==="live")return ol();if(e==="result")return Al();if(e==="declineResult")return Ol();if(e==="tier")return Or();if(e==="upgrade")return Bl();if(e==="rank")return Dl();if(e==="stats")return os();if(e==="challenges")return rr();if(e==="dynasty")return Ra();if(e==="hof")return Bi();if(e==="locker")return ts();if(e==="shop")return ps();if(e==="path")return io();if(e==="gameover")return ms();if(e==="win")return no();Mn()}function Mn(){const e=o.player&&o.player.pos,t=o.player,a=Object.values(o.tree||{}).reduce((s,n)=>s+n,0);x("screen").innerHTML=`
     <div class="hero">
       <div class="hero-badge">🏈 A Football Life Simulator</div>
       <div class="hero-title"><span class="lead">RUNNING IT BACK</span><span class="big">FROM PEE WEE<br>TO THE LEAGUE</span></div>
@@ -5348,6 +5348,7 @@ const _pick6=[...P,...ie].reduce((_n,R)=>_n+((R&&R.statLine&&R.statLine.pick6)||
     <button class="btn" style="background:linear-gradient(90deg,#f0bb45,#e0484f);color:#0b111b;font-weight:700" onclick="go('highscore')">⚡ SCORE ATTACK${o.highScore?` · BEST ${o.highScore.toLocaleString()}`:""}</button>
     <div style="height:8px"></div>
     <div class="btn-row">
+      <button class="btn ghost" onclick="go('leaderboard')">🏆 Leaderboard</button>
       <button class="btn ghost" onclick="go('challenges')">🎯 Goals</button>
       <button class="btn ghost" onclick="go('hof')">🏛️ Hall</button>
       <button class="btn ghost" onclick="go('locker')">🎒 Locker</button>
@@ -8979,6 +8980,13 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     if (RUN.newBest) STATE.highScore = RUN.total;
     if (RUN.newStreak) STATE.highStreak = survived;
     try { if (window.GridironStorage) window.GridironStorage.save(STATE); } catch (e) {}
+    // v47: submit this run to the leaderboards (no-op until a backend is wired)
+    try {
+      if (window.__lb && RUN.total > 0 && !RUN.submitted) {
+        RUN.submitted = true;
+        RUN.submitPromise = window.__lb.submit({ score: RUN.total, pos: POS, streak: survived });
+      }
+    } catch (e) {}
   }
 
   // ---- one round: resolve a game, score it, decide survival ----
@@ -9093,7 +9101,10 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     $("dock").innerHTML =
       '<button class="btn" style="background:linear-gradient(90deg,#f0bb45,#e0484f);color:#0b111b;font-weight:700" onclick="__hs.again()">↻ Play again</button>' +
       '<div style="height:8px"></div>' +
-      '<button class="btn ghost" onclick="__hs.quit()">← Menu</button>';
+      '<div class="btn-row">' +
+      '<button class="btn secondary" onclick="__hs.board()">🏆 Leaderboard</button>' +
+      '<button class="btn ghost" onclick="__hs.quit()">← Menu</button>' +
+      '</div>';
   }
 
   function draw() {
@@ -9112,6 +9123,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     next:    function () { VIEW = "round"; draw(); },
     cashOut: function () { if (RUN && !RUN.over) { RUN.over = true; persistBest(); } VIEW = "over"; draw(); },
     again:   function () { RUN = { round: 1, total: 0, over: false }; VIEW = "round"; draw(); },
+    board:   function () { if (window.go) window.go("leaderboard"); },
     quit:    function () { if (window.go) window.go("menu"); }
   };
 
@@ -9120,6 +9132,229 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     STATE = state || window.S || null;
     if (!RUN || RUN.over) VIEW = "intro";   // fresh entry from the menu
     draw();
+  };
+})();
+</script>
+<style>
+/* v47 Leaderboards UI */
+.lb-tabs{display:flex;gap:6px;margin-bottom:10px}
+.lb-tab{flex:1;padding:9px 6px;border-radius:10px;border:1px solid var(--line);background:var(--glass);color:var(--chalk-dim);font-family:Oswald;font-size:13px;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;text-align:center;transition:.15s}
+.lb-tab.on{border-color:var(--gold);color:var(--gold);background:rgba(240,187,69,.14)}
+.lb-posbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.lb-posbtn{padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--glass);color:var(--chalk-dim);font-family:Oswald;font-size:12px;cursor:pointer}
+.lb-posbtn.on{border-color:var(--gold);color:var(--gold);background:rgba(240,187,69,.14)}
+.lb-row{display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.05);font-size:15px}
+.lb-row.me{background:#f0bb451a;border-radius:10px;border-bottom:none}
+.lb-rank{width:34px;text-align:center;font-family:Oswald;font-weight:700;color:var(--chalk-dim)}
+.lb-row.me .lb-rank,.lb-row .lb-rank.medal{color:var(--gold)}
+.lb-name{flex:1;font-family:Barlow Condensed;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lb-pos{font-size:11px;color:var(--chalk-dim);border:1px solid var(--line);border-radius:8px;padding:1px 7px;font-family:Oswald}
+.lb-score{font-family:Oswald;font-weight:700;color:var(--chalk);min-width:70px;text-align:right}
+.lb-empty{color:var(--chalk-dim);text-align:center;padding:24px 8px;font-size:14px}
+.lb-note{font-size:11px;color:var(--chalk-dim);margin-top:8px;line-height:1.4}
+</style>
+<script>
+/* ===== v47 LEADERBOARDS — online high-score boards for Score Attack ==========
+   Client-side leaderboard layer behind a PLUGGABLE BACKEND, so the whole UI and
+   submit flow are testable offline today and flip to a real server by config:
+
+     window.__LB_CONFIG = { url, anonKey, getAuthToken? }   // -> Supabase backend
+     (absent)                                               // -> local mock backend
+
+   Identity is also pluggable (this is the seam for Game Center / Play Games via a
+   Capacitor plugin):
+     window.__LB_IDENTITY = async () => ({ id, name })      // platform sign-in
+     (absent)                                               // -> local device id + handle
+
+   Boards: 'global' (all-time), 'weekly' (rolling 7-day), 'position' (per pos).
+   Anti-cheat for v1 is server-side (see supabase/schema.sql submit_score()): the
+   client is never trusted to be honest; the mock backend is for local testing only.
+
+   Wired to Score Attack via persistBest() -> window.__lb.submit(). The shell router
+   calls window.__lbRender(o) when o.view === "leaderboard". Setup runbook:
+   docs/LEADERBOARDS.md.
+============================================================================ */
+(function () {
+  "use strict";
+
+  var POS_LIST = ["QB", "RB", "WR", "TE", "LB", "CB", "S", "DL"];
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt = function (n) { return (n | 0).toLocaleString(); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); };
+
+  // ---- rolling-week key (year + ISO-ish week number) ----
+  function weekKey(ts) {
+    var d = new Date(ts || Date.now());
+    var onejan = new Date(d.getFullYear(), 0, 1);
+    var week = Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+    return d.getFullYear() + "-W" + (week < 10 ? "0" + week : week);
+  }
+  function weekAgoISO() { return new Date(Date.now() - 7 * 86400000).toISOString(); }
+
+  // ---- identity: device id + handle (or platform sign-in via window.__LB_IDENTITY) ----
+  function deviceId() {
+    var k = "rib_lb_device";
+    try { var v = localStorage.getItem(k); if (!v) { v = "d_" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(k, v); } return v; }
+    catch (e) { return "d_anon"; }
+  }
+  function localName() { try { return localStorage.getItem("rib_lb_handle") || ""; } catch (e) { return ""; } }
+  function setLocalName(n) { try { localStorage.setItem("rib_lb_handle", n); } catch (e) {} }
+  var IDENT = null;
+  async function identity() {
+    if (IDENT) return IDENT;
+    if (typeof window.__LB_IDENTITY === "function") { try { IDENT = await window.__LB_IDENTITY(); return IDENT; } catch (e) {} }
+    var name = localName();
+    if (!name) { name = "Player" + String(Math.floor(1000 + Math.random() * 9000)); setLocalName(name); }
+    IDENT = { id: deviceId(), name: name };
+    return IDENT;
+  }
+
+  // ---- MOCK backend: localStorage; for offline testing only ----
+  var Mock = {
+    _key: "rib_lb_entries",
+    _load: function () { try { return JSON.parse(localStorage.getItem(this._key) || "[]"); } catch (e) { return []; } },
+    _save: function (a) { try { localStorage.setItem(this._key, JSON.stringify(a.slice(-500))); } catch (e) {} },
+    _seedOnce: function () {
+      if (this._seeded) return; this._seeded = true;
+      var a = this._load();
+      if (a.length) return;
+      var names = ["Ace", "Blitz", "Cortez", "Dukes", "Echo", "Flash", "Gunner", "Hawk", "Iceman", "Juke", "King", "Laces", "Mamba", "Nitro", "Ozzy", "Prime", "Quill", "Rocket", "Slate", "Torch"];
+      for (var i = 0; i < 24; i++) {
+        var pos = POS_LIST[i % POS_LIST.length];
+        var score = Math.floor(400 + Math.random() * 5200);
+        var ts = Date.now() - Math.floor(Math.random() * 20) * 86400000; // spread over ~20 days
+        a.push({ id: "seed_" + i, name: names[i % names.length] + (i > 19 ? i : ""), score: score, pos: pos, streak: 1 + (score / 220 | 0), ts: ts, week: weekKey(ts) });
+      }
+      this._save(a);
+    },
+    submit: async function (entry, id) {
+      this._seedOnce();
+      var a = this._load();
+      var ts = Date.now();
+      a.push({ id: id, name: entry.name, score: entry.score | 0, pos: entry.pos, streak: entry.streak | 0, ts: ts, week: weekKey(ts) });
+      this._save(a);
+      return { ok: true };
+    },
+    top: async function (opts) {
+      this._seedOnce();
+      var a = this._load();
+      if (opts.board === "weekly") { var wk = weekKey(Date.now()); a = a.filter(function (e) { return e.week === wk; }); }
+      if (opts.board === "position") a = a.filter(function (e) { return e.pos === opts.pos; });
+      a.sort(function (x, y) { return y.score - x.score; });
+      return a.slice(0, opts.limit || 100);
+    }
+  };
+
+  // ---- SUPABASE backend: real server; enabled when window.__LB_CONFIG is set ----
+  function Supa(cfg) {
+    async function headers() {
+      var h = { "apikey": cfg.anonKey, "Content-Type": "application/json" };
+      var tok = cfg.anonKey;
+      if (typeof cfg.getAuthToken === "function") { try { var t = await cfg.getAuthToken(); if (t) tok = t; } catch (e) {} }
+      h["Authorization"] = "Bearer " + tok;
+      return h;
+    }
+    return {
+      submit: async function (entry) {
+        // server validates + stamps identity (see supabase/schema.sql submit_score)
+        var res = await fetch(cfg.url + "/rest/v1/rpc/submit_score", {
+          method: "POST", headers: await headers(),
+          body: JSON.stringify({ p_name: entry.name, p_score: entry.score | 0, p_pos: entry.pos, p_streak: entry.streak | 0 })
+        });
+        return { ok: res.ok, status: res.status };
+      },
+      top: async function (opts) {
+        var q = "?select=name,score,pos,streak,created_at&order=score.desc&limit=" + (opts.limit || 100);
+        if (opts.board === "weekly") q += "&created_at=gte." + encodeURIComponent(weekAgoISO());
+        if (opts.board === "position") q += "&pos=eq." + encodeURIComponent(opts.pos);
+        var res = await fetch(cfg.url + "/rest/v1/leaderboard" + q, { headers: await headers() });
+        if (!res.ok) throw new Error("lb top " + res.status);
+        return await res.json();
+      }
+    };
+  }
+
+  var backend = (window.__LB_CONFIG && window.__LB_CONFIG.url) ? Supa(window.__LB_CONFIG) : Mock;
+  var isMock = backend === Mock;
+
+  // ---- public API (Score Attack submits through this) ----
+  window.__lb = {
+    isMock: isMock,
+    submit: async function (entry) {
+      var me = await identity();
+      try { return await backend.submit({ name: me.name, score: entry.score, pos: entry.pos, streak: entry.streak }, me.id); }
+      catch (e) { return { ok: false, error: String(e) }; }
+    },
+    top: function (opts) { return backend.top(opts || { board: "global" }); },
+    identity: identity,
+    setName: async function (n) { n = (n || "").trim().slice(0, 16); if (!n) return; setLocalName(n); IDENT = null; await identity(); }
+  };
+
+  // ---- leaderboard screen ----
+  var STATE = null, LTAB = "global", LPOS = "RB", ROWS = null, LOADING = false, LERR = null;
+
+  function medal(rank) { return rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank; }
+
+  async function load() {
+    LOADING = true; LERR = null; draw();
+    try { ROWS = await window.__lb.top({ board: LTAB, pos: LPOS, limit: 100 }); }
+    catch (e) { LERR = String(e); ROWS = []; }
+    LOADING = false; draw();
+  }
+
+  function draw() {
+    if (!$("screen") || !$("dock")) return;
+    var meName = localName();
+    var tabs = [["global", "Global"], ["weekly", "Weekly"], ["position", "By position"]]
+      .map(function (t) { return '<div class="lb-tab' + (LTAB === t[0] ? " on" : "") + '" onclick="__lbUI.tab(\'' + t[0] + '\')">' + t[1] + '</div>'; }).join("");
+    var posbar = LTAB === "position"
+      ? '<div class="lb-posbar">' + POS_LIST.map(function (p) { return '<div class="lb-posbtn' + (LPOS === p ? " on" : "") + '" onclick="__lbUI.pos(\'' + p + '\')">' + p + '</div>'; }).join("") + '</div>'
+      : "";
+    var body;
+    if (LOADING) body = '<div class="lb-empty">Loading…</div>';
+    else if (LERR) body = '<div class="lb-empty">Couldn\'t load the board.<br><span style="font-size:12px">' + esc(LERR) + '</span></div>';
+    else if (!ROWS || !ROWS.length) body = '<div class="lb-empty">No scores yet — be the first!<br><span style="font-size:12px">Play Score Attack to post a score.</span></div>';
+    else body = ROWS.map(function (r, i) {
+      var rank = i + 1, mine = meName && r.name === meName;
+      return '<div class="lb-row' + (mine ? " me" : "") + '">' +
+        '<div class="lb-rank' + (rank <= 3 ? " medal" : "") + '">' + medal(rank) + '</div>' +
+        '<div class="lb-name">' + esc(r.name) + '</div>' +
+        '<div class="lb-pos">' + esc(r.pos || "") + '</div>' +
+        '<div class="lb-score">' + fmt(r.score) + '</div>' +
+        '</div>';
+    }).join("");
+    var srcNote = window.__lb.isMock
+      ? '<div class="lb-note">⚠ Local demo board (offline). Connect a backend to go online — see docs/LEADERBOARDS.md.</div>' : "";
+    $("screen").innerHTML =
+      '<div class="eyebrow">Score Attack</div>' +
+      '<div class="h1">🏆 Leaderboard</div>' +
+      '<div class="lb-tabs">' + tabs + '</div>' + posbar +
+      '<div class="card" style="padding:6px 12px">' + body + '</div>' +
+      srcNote;
+    $("dock").innerHTML =
+      '<button class="btn" style="background:linear-gradient(90deg,#f0bb45,#e0484f);color:#0b111b;font-weight:700" onclick="go(\'highscore\')">⚡ Play Score Attack</button>' +
+      '<div style="height:8px"></div>' +
+      '<div class="btn-row">' +
+      '<button class="btn secondary" onclick="__lbUI.rename()">✎ ' + (meName ? esc(meName) : "Set name") + '</button>' +
+      '<button class="btn ghost" onclick="go(\'menu\')">← Menu</button>' +
+      '</div>';
+  }
+
+  window.__lbUI = {
+    tab: function (t) { LTAB = t; load(); },
+    pos: function (p) { LPOS = p; load(); },
+    rename: async function () {
+      var cur = localName();
+      var n = window.prompt("Leaderboard name (max 16 chars):", cur || "");
+      if (n && n.trim()) { await window.__lb.setName(n); draw(); }
+    }
+  };
+
+  // ---- router entry ----
+  window.__lbRender = function (state) {
+    STATE = state || window.S || null;
+    // default the position tab to the player's last Score Attack pick if we can read it
+    load();
   };
 })();
 </script>

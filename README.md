@@ -55,6 +55,18 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v47 — LEADERBOARDS.** Online high-score boards for Score Attack behind a
+  **pluggable backend** — the whole UI and submit flow run offline against a local
+  mock board today and flip to a real server by config. Isolated appended block
+  (banner `v47 LEADERBOARDS`): `window.__lb.submit/top`, the board screen
+  (`window.__lbRender`, router `o.view==="leaderboard"`, reached from the menu +
+  the Score Attack over-screen), with Global / Weekly / Per-position tabs. Score
+  Attack auto-submits each run via `persistBest()`. Set `window.__LB_CONFIG`
+  (Supabase URL + anon key) to go online; `window.__LB_IDENTITY` is the seam for
+  Game Center / Play Games sign-in. Server-side anti-cheat lives in
+  `supabase/schema.sql` (`submit_score` RPC: range/position/name/rate-limit
+  checks). Setup runbook: [`docs/LEADERBOARDS.md`](docs/LEADERBOARDS.md). Guarded
+  by `scripts/lbcheck.mjs`.
 - **v46 — SCORE ATTACK + commercial packaging.** A single-player high-score mode
   ("The Gauntlet"): pick a position, play endless one-game rounds, choose Steady
   vs Go-for-glory each round, beat a rising score bar to survive, and chase a
