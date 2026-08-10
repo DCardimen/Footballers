@@ -98,11 +98,10 @@ npx cap open android   # Android Studio
 
 ### 4. Pre-submission checklist
 
-- [ ] Runs fully offline in the native shell (no network calls block gameplay).
-      **Action item:** the Google-Fonts `@import` in `<head>` currently fetches
-      from a CDN — self-host those fonts so first launch works with no network
-      and to avoid a review flag. (This is why fonts fail to load in the sandbox
-      dev server today.)
+- [x] Runs fully offline in the native shell (no network calls block gameplay).
+      **Done (v48):** fonts are self-hosted in `public/fonts/` (the `@import` now
+      points local), verified with zero requests to Google. Re-run the download
+      via the commands in the git history if you change the font set.
 - [ ] Save data survives app updates (localStorage persists in Capacitor's
       WebView; verify on a real device before launch).
 - [ ] Portrait-lock is honored (manifest sets it; also set it in the native
@@ -135,9 +134,11 @@ Goal: **real cities allowed, fictional team names only, no real-league marks.**
 2. **Audio** — even minimal SFX + a menu loop dramatically lifts perceived value;
    package audio as local assets (no CDN).
 3. **Score Attack depth** — leaderboards are built (v47: Global / Weekly /
-   Per-position, mock backend now, Supabase-ready — see `docs/LEADERBOARDS.md`).
-   Remaining: wire the live Supabase project + platform sign-in, then add a daily
-   seed challenge, unlockable positions, and a share-your-score card.
+   Per-position) and a **cheat-proof Daily Challenge** with server-replay
+   verification is built (v48) — mock backend now, Supabase-ready (see
+   `docs/LEADERBOARDS.md`). Remaining: wire the live Supabase project + platform
+   sign-in + deploy the `verify-daily` function, then add unlockable positions
+   and a share-your-score card.
 4. **Meta progression tie-in** — let Score Attack feed prestige/cosmetics so the
    arcade mode and the career reinforce each other.
 5. **Analytics (optional)** — if you want funnel data, add a privacy-light,

@@ -33,6 +33,8 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 | `hscheck.mjs` | v46 Score Attack, end-to-end through the real UI: menu button navigates to the mode, a run plays and survives/ends correctly, the Steady + Glory paths resolve without JS errors, and the best score persists to the save object and to storage. Exits non-zero on any failure. |
 | `hsprobe.mjs` | v46 Score Attack **scoring calibration**: runs the ship scoring formula (`hsScore`, kept identical to the copy baked into `index.html`) over many resolved games and prints per-position + overall percentile bands, so the survival-threshold ramp stays tuned to real engine output. |
 | `lbcheck.mjs` | v47 Leaderboards, end-to-end on the mock backend: a Score Attack run auto-submits, the score appears on the Global board (sorted, tops the seeds), Weekly + Per-position filters work, the board screen + tabs render, and the player name persists. Exits non-zero on any failure. |
+| `dailycheck.mjs` | v48 Daily Challenge: proves the **browser engine == the canonical `daily-engine.mjs`** over a 160-case parity matrix (no drift), plus determinism, the full 5-round play flow, one-attempt-per-day lock, daily-board submission, and that a tampered score is rejected. |
+| `replay.mjs` | **Server-replay anti-cheat**, runnable in Node: recomputes a daily score from `(daySeed, choices)` via `daily-engine.mjs` and accepts only exact matches — the same logic the `verify-daily` Edge Function runs. `node scripts/replay.mjs` self-tests; `node scripts/replay.mjs <seed> <choices> <claimed>` verifies one submission. |
 
 ## Utilities (look at the game)
 

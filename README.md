@@ -55,6 +55,20 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v48 — DAILY CHALLENGE + server-replay anti-cheat + offline fonts.** A
+  once-a-day Score Attack variant on a **deterministic seeded engine**: everyone
+  worldwide gets the same UTC-day seed, plays 5 rounds (Steady vs Glory), one
+  attempt per day. Because it's deterministic, the daily board is **cheat-proof**
+  — the client submits only `(daySeed, choices)` and the server re-runs the exact
+  engine to compute the score (`supabase/functions/verify-daily/`, mirrored by
+  `scripts/replay.mjs`). The engine has one canonical copy
+  (`scripts/daily-engine.mjs`) mirrored inline in `index.html` and in the Edge
+  Function; `scripts/dailycheck.mjs` enforces byte-parity across a 160-case
+  matrix. Adds a `daily` leaderboard board/tab (banner `v48 DAILY CHALLENGE`;
+  router `o.view==="daily"` → `window.__dailyRender`). Same release: **fonts are
+  now self-hosted** (`public/fonts/`) instead of the Google-Fonts CDN, so the app
+  works fully offline (store-ready). Guarded by `scripts/dailycheck.mjs` +
+  `scripts/replay.mjs`.
 - **v47 — LEADERBOARDS.** Online high-score boards for Score Attack behind a
   **pluggable backend** — the whole UI and submit flow run offline against a local
   mock board today and flip to a real server by config. Isolated appended block

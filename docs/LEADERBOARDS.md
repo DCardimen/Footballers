@@ -79,13 +79,28 @@ positions, clamps names, and rate-limits per signed-in user. Good enough to
 launch. Note: rate-limiting only bites when players are signed in — another
 reason to require platform sign-in before writing to the board.
 
-**Fast-follow — server replay verification (near-uncheatable):** because the game
-engine is JavaScript, the server can re-run it. Have Score Attack submit the RNG
-`seed` (+ the per-round Steady/Glory choices) instead of trusting the score; an
-Edge Function runs the same `__simGameV2` logic headless, recomputes the score,
-and inserts only if it matches. A native game would have to reimplement its
-engine server-side to do this — you don't. Pairs naturally with a daily-seed
-board if you add one later.
+**Daily Challenge — server replay verification (near-uncheatable, SHIPPED in v48).**
+The endless mode's live engine is non-deterministic, so it can't be replayed. The
+**Daily Challenge** solves this with a purpose-built deterministic engine
+(`scripts/daily-engine.mjs`, mirrored inline in `index.html`): everyone gets the
+same UTC-day seed and the only input is the player's Steady/Glory choices. The
+client submits only `(day_seed, choices)` — never a score. The
+[`verify-daily`](../supabase/functions/verify-daily/index.ts) Edge Function
+re-runs the identical engine, computes the score itself, and inserts to
+`daily_leaderboard`. A forged client can't inflate anything.
+
+- Run the anti-cheat locally: `node scripts/replay.mjs` (self-test) or
+  `node scripts/replay.mjs <seed> <choices> <claimed>` to verify one submission.
+- Deploy the function: `supabase functions deploy verify-daily`. It needs
+  `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in the function env (writes bypass
+  RLS; the caller's JWT attributes `user_id` and enforces one-attempt-per-day).
+- **Keep the three engine copies in sync** (`daily-engine.mjs`, the inline mirror
+  in `index.html`, and the TS port in the Edge Function). `scripts/dailycheck.mjs`
+  guards browser↔Node parity across a 160-case matrix.
+
+The same pattern can later verify endless Score Attack too — but only if the core
+`__simGameV2` engine is made seed-deterministic (a larger change, deliberately
+avoided for now).
 
 ## Testing locally
 

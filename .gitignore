@@ -4,3 +4,5 @@ dist
 
 scripts/_*.png
 shot.png
+
+_site

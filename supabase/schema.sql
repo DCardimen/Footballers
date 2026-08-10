@@ -81,5 +81,34 @@ grant execute on function public.submit_score(text, integer, text, integer) to a
 -- Optional hardening / fast-follows:
 --  * Require sign-in: change the guard to `if v_uid is null then raise exception ...`.
 --  * Keep only each user's best: add a unique index and upsert on (user_id) instead.
---  * Server replay verification: add p_seed + p_inputs, re-run the JS engine in an
---    Edge Function, and only insert if the recomputed score matches (see LEADERBOARDS.md).
+
+-- ============================================================================
+-- DAILY CHALLENGE board — server-REPLAY verified (near-uncheatable)
+-- The daily challenge is fully deterministic, so the client submits only
+-- (day_seed, choices) and the Edge Function `verify-daily` re-runs the engine,
+-- computes the score itself, and inserts here. Direct writes are blocked; the
+-- Edge Function writes with the service-role key (bypasses RLS).
+-- ============================================================================
+create table if not exists public.daily_leaderboard (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     text,
+  name        text not null,
+  day_seed    integer not null,      -- YYYYMMDD (UTC)
+  score       integer not null,
+  choices     text,                  -- submitted form choices, for audit
+  created_at  timestamptz not null default now(),
+  unique (user_id, day_seed)         -- one attempt per player per day
+);
+
+create index if not exists daily_lb_day_score_idx on public.daily_leaderboard (day_seed, score desc);
+
+alter table public.daily_leaderboard enable row level security;
+
+drop policy if exists "read daily" on public.daily_leaderboard;
+create policy "read daily" on public.daily_leaderboard
+  for select using (true);
+-- no insert/update/delete policy => only the service-role Edge Function may write.
+
+-- Server replay verification: add p_seed + p_inputs, re-run the JS engine in an
+-- Edge Function, and only insert if the recomputed score matches.
+-- Reference implementation: supabase/functions/verify-daily/index.ts.
