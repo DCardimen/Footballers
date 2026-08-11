@@ -55,6 +55,47 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v48 — DAILY CHALLENGE + server-replay anti-cheat + offline fonts.** A
+  once-a-day Score Attack variant on a **deterministic seeded engine**: everyone
+  worldwide gets the same UTC-day seed, plays 5 rounds (Steady vs Glory), one
+  attempt per day. Because it's deterministic, the daily board is **cheat-proof**
+  — the client submits only `(daySeed, choices)` and the server re-runs the exact
+  engine to compute the score (`supabase/functions/verify-daily/`, mirrored by
+  `scripts/replay.mjs`). The engine has one canonical copy
+  (`scripts/daily-engine.mjs`) mirrored inline in `index.html` and in the Edge
+  Function; `scripts/dailycheck.mjs` enforces byte-parity across a 160-case
+  matrix. Adds a `daily` leaderboard board/tab (banner `v48 DAILY CHALLENGE`;
+  router `o.view==="daily"` → `window.__dailyRender`). Same release: **fonts are
+  now self-hosted** (`public/fonts/`) instead of the Google-Fonts CDN, so the app
+  works fully offline (store-ready). Guarded by `scripts/dailycheck.mjs` +
+  `scripts/replay.mjs`.
+- **v47 — LEADERBOARDS.** Online high-score boards for Score Attack behind a
+  **pluggable backend** — the whole UI and submit flow run offline against a local
+  mock board today and flip to a real server by config. Isolated appended block
+  (banner `v47 LEADERBOARDS`): `window.__lb.submit/top`, the board screen
+  (`window.__lbRender`, router `o.view==="leaderboard"`, reached from the menu +
+  the Score Attack over-screen), with Global / Weekly / Per-position tabs. Score
+  Attack auto-submits each run via `persistBest()`. Set `window.__LB_CONFIG`
+  (Supabase URL + anon key) to go online; `window.__LB_IDENTITY` is the seam for
+  Game Center / Play Games sign-in. Server-side anti-cheat lives in
+  `supabase/schema.sql` (`submit_score` RPC: range/position/name/rate-limit
+  checks). Setup runbook: [`docs/LEADERBOARDS.md`](docs/LEADERBOARDS.md). Guarded
+  by `scripts/lbcheck.mjs`.
+- **v46 — SCORE ATTACK + commercial packaging.** A single-player high-score mode
+  ("The Gauntlet"): pick a position, play endless one-game rounds, choose Steady
+  vs Go-for-glory each round, beat a rising score bar to survive, and chase a
+  persistent best. It's a self-contained appended `<script>` block (banner
+  `v46 SCORE ATTACK`) driven entirely by the exported engine
+  (`window.__simGameV2`) — it never touches career state. Reached from the menu
+  (`go('highscore')` → router branch → `window.__hsRender(o)`); best score/streak
+  persist to the save (`o.highScore` / `o.highStreak`). Scoring is calibrated in
+  `scripts/hsprobe.mjs` and behavior is guarded by `scripts/hscheck.mjs`. Same
+  release: an **IP-safety pass** swapped every real NFL nickname in `er`
+  (player's team) and `Dt()` (opponents) for fictional names (real cities kept),
+  plus **installable-app packaging** — `public/manifest.webmanifest`, a maskable
+  icon set (`scripts/genicons.mjs` from `public/icon.svg`), head install meta, and
+  a `capacitor.config.json` for wrapping to iOS/Android. See
+  [`docs/COMMERCIAL.md`](docs/COMMERCIAL.md) for the store roadmap.
 - **v45 — REFEREE CREW.** A seven-official crew now works every live play in the
   broadcast view (`LiveField` scene: `spawnRefs` / `updateRefs` / `placeRef` +
   the `refThrowFlag` / `refSignalTD` helpers, all after `resolveOverlaps`). The
