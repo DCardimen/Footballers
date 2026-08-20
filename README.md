@@ -55,6 +55,27 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v49 — REAL REFEREE ART.** The officiating crew was the *player* atlas
+  recolored white with stripes painted on per pixel (`ribZebra`) and a drawn
+  ellipse for a cap. It now runs on its own hand-drawn officials sheet
+  (`art/source/referee crew pixel art.png` → `public/rib_refs_v49.png`, baked as
+  `window.__RIB_REFS_V49`): five screen directions of eight-frame run cycles, a
+  four-frame standing weight-shift, the six-frame flag heave, the loose flag
+  itself, both-arms-up for a score, the dead-ball whistle and the extended point.
+  Cells are **64px** (the arms-up signal is taller than a 48 cell) but the feet
+  land on the players' foot line, so a ref and a player standing together match;
+  officials pack a shade shorter than players, who wear pads. The sheet skips the
+  recolor pipeline entirely — officials wear one kit — so `ribRegisterTeam`
+  short-circuits for the `ref` team, which also drops ~200 unused zebra canvases
+  per scene (refs never block, juke, dive or catch). Same release, the crew works
+  the dead ball: `setSpot` (the one hook every dead-ball path already runs
+  through) pulls the nearest free official into a whistle, a converted first down
+  draws the point signal, an official **plants** while signalling instead of
+  sliding downfield, the flag now leaves his hand on the heave frame and tumbles
+  through an arc, and a score plus a dead ball land on two different men. Banner
+  `v49 REF ART` + `v45 REFEREE CREW`; built by `scripts/spritekit/pack_refs.mjs`
+  → `bake_refs.mjs`; guarded by `scripts/refcheck.mjs`.
+
 - **v48 — DAILY CHALLENGE + server-replay anti-cheat + offline fonts.** A
   once-a-day Score Attack variant on a **deterministic seeded engine**: everyone
   worldwide gets the same UTC-day seed, plays 5 rounds (Steady vs Glory), one
