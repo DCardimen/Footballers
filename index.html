@@ -1943,22 +1943,109 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // ---- v16.5 real routes: every receiver runs an actual route (not a straight
       // line up the field), varied by concept so plays look distinct, and the ball
       // is thrown to the TARGET's break so it meets him there — a full playback.
+      // ---- v55 ROUTE TREE: the full tree, not eleven shapes -----------------
+      // The old builder had ten cases and a `default` that drew a straight line —
+      // and `cross`, which the concept layer picks for medium AND short calls, was
+      // never one of them, so every crosser in the game was silently run as a go.
+      //
+      // A route here is THREE choices, and the combinations are the tree:
+      //   * one of 45 shapes below
+      //   * a RELEASE off the line — inside jab, straight, or outside jab, which
+      //     bends the stem before the break instead of everyone firing straight
+      //   * a DEPTH TIER — short / standard / deep, which moves the break point,
+      //     not just the length
+      // 45 x 3 x 3 = 405 distinct shapes against the previous 10.
+      //
+      // Every shape also declares a TAIL: what the receiver does once the route is
+      // finished. Without it they arrived at the last waypoint and stood dead
+      // still — visible in the sim log as a frozen path for the last second of
+      // every play — which is most of what "players don't follow routes" looked
+      // like. Verticals keep climbing, curls settle back toward the ball, crossers
+      // keep working across the field.
       const _sideOf = a => a.y < MIDY ? 1 : -1;
-      const mkRoute = (a, name, depth) => {
-        const sx=a.lx, sy=a.y, D=Math.max(1,depth)*YD, s=_sideOf(a), P=(x,y)=>({lx:x, y:clampY(y)});
-        switch(name){
-          case "go":     return [P(sx,sy), P(sx+D, sy)];
-          case "post":   return [P(sx,sy), P(sx+D*0.55, sy), P(sx+D, sy+(MIDY-sy)*0.7)];
-          case "corner": return [P(sx,sy), P(sx+D*0.55, sy), P(sx+D, sy - s*44)];
-          case "out":    return [P(sx,sy), P(sx+D, sy), P(sx+D, sy - s*40)];
-          case "dig":    return [P(sx,sy), P(sx+D, sy), P(sx+D, sy + s*46)];
-          case "slant":  return [P(sx,sy), P(sx+3*YD, sy), P(sx+D, sy + s*44)];
-          case "curl":   return [P(sx,sy), P(sx+(depth+2)*YD, sy), P(sx+D, sy + s*5)];
-          case "flat":   return [P(sx,sy), P(sx+YD, sy - s*40)];
-          case "wheel":  return [P(sx,sy), P(sx, sy - s*34), P(sx+D, sy - s*34)];
-          case "screen": return [P(sx,sy), P(sx-2*YD, sy - s*12)];
-          default:       return [P(sx,sy), P(sx+D, sy)];
+      const R_REL = ["in", "str", "out"], R_TIER = ["short", "std", "deep"];
+      const R_TIERK = { short: .72, std: 1, deep: 1.34 };
+      // toward the sideline is -s, toward the middle is +s
+      const ROUTE_TREE = {
+        // --- verticals
+        go:        c => ({ w: [c.P(c.sx + c.D, c.sy)], tail: "go" }),
+        fade:      c => ({ w: [c.P(c.sx + c.D * .5, c.sy - c.s * 10), c.P(c.sx + c.D, c.sy - c.s * 30)], tail: "go" }),
+        seam:      c => ({ w: [c.P(c.sx + c.D * .5, c.sy + c.s * 12), c.P(c.sx + c.D, c.sy + c.s * 16)], tail: "go" }),
+        bender:    c => ({ w: [c.P(c.sx + c.D * .55, c.sy), c.P(c.sx + c.D, c.sy + c.s * 26)], tail: "go" }),
+        // --- posts and corners
+        post:      c => ({ w: [c.P(c.sx + c.D * .55, c.sy), c.P(c.sx + c.D, c.sy + (MIDY - c.sy) * .7)], tail: "go" }),
+        deep_post: c => ({ w: [c.P(c.sx + c.D * .68, c.sy), c.P(c.sx + c.D * 1.15, c.sy + (MIDY - c.sy) * .85)], tail: "go" }),
+        skinny_post:c => ({ w: [c.P(c.sx + c.D * .6, c.sy), c.P(c.sx + c.D, c.sy + c.s * 30)], tail: "go" }),
+        corner:    c => ({ w: [c.P(c.sx + c.D * .55, c.sy), c.P(c.sx + c.D, c.sy - c.s * 44)], tail: "go" }),
+        deep_corner:c => ({ w: [c.P(c.sx + c.D * .7, c.sy), c.P(c.sx + c.D * 1.12, c.sy - c.s * 58)], tail: "go" }),
+        // --- breaking in
+        dig:       c => ({ w: [c.P(c.sx + c.D, c.sy), c.P(c.sx + c.D, c.sy + c.s * 46)], tail: "across" }),
+        deep_dig:  c => ({ w: [c.P(c.sx + c.D * 1.2, c.sy), c.P(c.sx + c.D * 1.2, c.sy + c.s * 52)], tail: "across" }),
+        slant:     c => ({ w: [c.P(c.sx + 3 * YD, c.sy), c.P(c.sx + c.D, c.sy + c.s * 44)], tail: "across" }),
+        drag:      c => ({ w: [c.P(c.sx + 2 * YD, c.sy), c.P(c.sx + 4 * YD, c.sy + c.s * 60)], tail: "across" }),
+        shallow:   c => ({ w: [c.P(c.sx + 1.5 * YD, c.sy), c.P(c.sx + 3 * YD, c.sy + c.s * 74)], tail: "across" }),
+        cross:     c => ({ w: [c.P(c.sx + c.D * .5, c.sy), c.P(c.sx + c.D, c.sy + c.s * 88)], tail: "across" }),
+        deep_cross:c => ({ w: [c.P(c.sx + c.D * .6, c.sy), c.P(c.sx + c.D * 1.1, c.sy + c.s * 104)], tail: "across" }),
+        over:      c => ({ w: [c.P(c.sx + c.D * .45, c.sy), c.P(c.sx + c.D * .95, c.sy + c.s * 66), c.P(c.sx + c.D * 1.25, c.sy + c.s * 92)], tail: "across" }),
+        dagger:    c => ({ w: [c.P(c.sx + c.D * .8, c.sy), c.P(c.sx + c.D * .85, c.sy + c.s * 50)], tail: "across" }),
+        // --- breaking out
+        out:       c => ({ w: [c.P(c.sx + c.D, c.sy), c.P(c.sx + c.D, c.sy - c.s * 40)], tail: "out" }),
+        speed_out: c => ({ w: [c.P(c.sx + c.D * .6, c.sy), c.P(c.sx + c.D * .72, c.sy - c.s * 44)], tail: "out" }),
+        sail:      c => ({ w: [c.P(c.sx + c.D * .7, c.sy), c.P(c.sx + c.D * 1.05, c.sy - c.s * 52)], tail: "out" }),
+        flat:      c => ({ w: [c.P(c.sx + YD, c.sy - c.s * 40)], tail: "out" }),
+        swing:     c => ({ w: [c.P(c.sx - YD, c.sy - c.s * 26), c.P(c.sx + 2 * YD, c.sy - c.s * 54)], tail: "out" }),
+        // --- stopping / working back
+        curl:      c => ({ w: [c.P(c.sx + c.D + 2 * YD, c.sy), c.P(c.sx + c.D, c.sy + c.s * 5)], tail: "settle" }),
+        hitch:     c => ({ w: [c.P(c.sx + c.D * .55, c.sy), c.P(c.sx + c.D * .42, c.sy + c.s * 4)], tail: "settle" }),
+        comeback:  c => ({ w: [c.P(c.sx + c.D * 1.1, c.sy), c.P(c.sx + c.D * .82, c.sy - c.s * 26)], tail: "settle" }),
+        stick:     c => ({ w: [c.P(c.sx + c.D * .55, c.sy), c.P(c.sx + c.D * .58, c.sy - c.s * 18)], tail: "settle" }),
+        spot:      c => ({ w: [c.P(c.sx + c.D * .5, c.sy), c.P(c.sx + c.D * .42, c.sy + c.s * 22)], tail: "settle" }),
+        snag:      c => ({ w: [c.P(c.sx + 3 * YD, c.sy + c.s * 18), c.P(c.sx + c.D * .5, c.sy + c.s * 30)], tail: "settle" }),
+        jerk:      c => ({ w: [c.P(c.sx + c.D * .4, c.sy + c.s * 20), c.P(c.sx + c.D * .5, c.sy - c.s * 22)], tail: "settle" }),
+        choice:    c => ({ w: [c.P(c.sx + c.D * .6, c.sy), c.P(c.sx + c.D * .62, c.sy + c.s * (c.rand() < .5 ? 26 : -26))], tail: "settle" }),
+        // --- whips and pivots (break one way, snap back the other)
+        whip:      c => ({ w: [c.P(c.sx + c.D * .45, c.sy + c.s * 26), c.P(c.sx + c.D * .48, c.sy - c.s * 34)], tail: "out" }),
+        pivot:     c => ({ w: [c.P(c.sx + c.D * .4, c.sy - c.s * 22), c.P(c.sx + c.D * .44, c.sy + c.s * 30)], tail: "across" }),
+        angle:     c => ({ w: [c.P(c.sx + c.D * .35, c.sy - c.s * 30), c.P(c.sx + c.D * .7, c.sy + c.s * 34)], tail: "across" }),
+        // --- double moves: sell one break, take another
+        sluggo:    c => ({ w: [c.P(c.sx + 3 * YD, c.sy), c.P(c.sx + c.D * .42, c.sy + c.s * 26), c.P(c.sx + c.D * 1.1, c.sy + c.s * 14)], tail: "go" }),
+        hitch_go:  c => ({ w: [c.P(c.sx + c.D * .4, c.sy), c.P(c.sx + c.D * .34, c.sy + c.s * 6), c.P(c.sx + c.D * 1.05, c.sy) ], tail: "go" }),
+        out_up:    c => ({ w: [c.P(c.sx + c.D * .5, c.sy), c.P(c.sx + c.D * .55, c.sy - c.s * 30), c.P(c.sx + c.D * 1.15, c.sy - c.s * 38)], tail: "go" }),
+        post_corner:c => ({ w: [c.P(c.sx + c.D * .55, c.sy), c.P(c.sx + c.D * .8, c.sy + c.s * 26), c.P(c.sx + c.D * 1.15, c.sy - c.s * 40)], tail: "go" }),
+        corner_post:c => ({ w: [c.P(c.sx + c.D * .55, c.sy), c.P(c.sx + c.D * .8, c.sy - c.s * 30), c.P(c.sx + c.D * 1.15, c.sy + c.s * 44)], tail: "go" }),
+        stutter_go:c => ({ w: [c.P(c.sx + c.D * .45, c.sy), c.P(c.sx + c.D * .52, c.sy + c.s * 8), c.P(c.sx + c.D * 1.12, c.sy - c.s * 8)], tail: "go" }),
+        wheel:     c => ({ w: [c.P(c.sx, c.sy - c.s * 34), c.P(c.sx + c.D, c.sy - c.s * 34)], tail: "go" }),
+        // --- behind the line
+        screen:    c => ({ w: [c.P(c.sx - 2 * YD, c.sy - c.s * 12)], tail: "settle" }),
+        bubble:    c => ({ w: [c.P(c.sx - YD, c.sy - c.s * 30), c.P(c.sx + YD, c.sy - c.s * 46)], tail: "out" }),
+        tunnel:    c => ({ w: [c.P(c.sx - YD, c.sy + c.s * 20), c.P(c.sx + 2 * YD, c.sy + c.s * 8)], tail: "across" }),
+        checkdown: c => ({ w: [c.P(c.sx + 2 * YD, c.sy), c.P(c.sx + 3 * YD, c.sy - c.s * 16)], tail: "settle" }),
+      };
+      const ROUTE_NAMES = Object.keys(ROUTE_TREE);
+      // Routes the QB is allowed to look at by concept depth. `cross` is a real
+      // shape now rather than a name that fell through to a straight line.
+      const R_DEEP = ["go","fade","seam","post","deep_post","skinny_post","corner","deep_corner","bender","deep_cross","sluggo","post_corner","corner_post","out_up","stutter_go","wheel","dagger"];
+      const R_MED = ["out","dig","curl","cross","comeback","sail","speed_out","over","stick","dagger","whip","hitch_go","deep_dig","spot"];
+      const R_SHORT = ["slant","flat","curl","hitch","drag","shallow","snag","stick","spot","whip","pivot","angle","swing","checkdown","jerk","choice","bubble","tunnel"];
+      // exposed so a check can prove every pool name is a real shape: `cross` used
+      // to sit in two pools with no case in the builder, so it silently ran as a go
+      try{window.__ROUTE_TREE_V55={names:ROUTE_NAMES,pools:{deep:R_DEEP,med:R_MED,short:R_SHORT},rel:R_REL,tier:R_TIER}}catch(_e){}
+      const mkRoute = (a, name, depth, rel, tier) => {
+        const sx = a.lx, sy = a.y, s = _sideOf(a), P = (x, y) => ({ lx: x, y: clampY(y) });
+        tier = tier || "std"; rel = rel || "str";
+        const D = Math.max(1, depth) * YD * R_TIERK[tier];
+        const fn = ROUTE_TREE[name] || ROUTE_TREE.go;
+        const built = fn({ sx, sy, D, s, P, YD, tier, rel, rand: Math.random });
+        // the release bends the stem: an inside jab crosses the defender's face,
+        // an outside jab widens him off the ball. It is a real waypoint, so it
+        // changes the shape rather than merely decorating it.
+        const stem = [];
+        if (rel !== "str" && built.w.length && (built.w[0].lx - sx) > YD * 1.2) {
+          stem.push(P(sx + YD * .9, sy + (rel === "in" ? s : -s) * 13));
         }
+        const wps = [P(sx, sy)].concat(stem, built.w);
+        wps.tail = built.tail; wps.rname = name; wps.rel = rel; wps.tier = tier;
+        return wps;
       };
       coverageAim=(d,w)=>{
         const br=w&&w._routeBreak;
@@ -1980,16 +2067,21 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         return {lx:w.lx,y:w.y};
       };
       const _recv = S.off.filter(a=>["WR","TE"].includes(a.lb));
-      const _deep=["go","post","corner"], _med=["out","dig","curl","corner"], _short=["slant","flat","curl","out"];
       const _pick = arr => arr[Math.floor(Math.random()*arr.length)];
       _recv.forEach(a=>{
         const rn = a===target
-          ? (_cc==="screen"?"screen": _cc==="shot"?_pick(_deep): _cc==="quick"?_pick(_short): _cc==="fade"?"corner":_pick(_med))
-          : _pick(["go","post","out","dig","slant","curl","corner","flat"]);
+          ? (_cc==="screen"?"screen": _cc==="shot"?_pick(R_DEEP): _cc==="quick"?_pick(R_SHORT): _cc==="fade"?_pick(["fade","corner","deep_corner"]):_pick(R_MED))
+          : _pick(ROUTE_NAMES);
+        // release and depth tier are rolled per receiver, so the same shape is not
+        // the same picture twice — this is what multiplies 45 routes into 405
+        const rel = _pick(R_REL), tier = _pick(R_TIER);
         const dep = a===target ? routeDepth : cl(routeDepth + (Math.random()*7-4), Math.min(3,_rMin*_depthK), _rMax*_depthK);
-        a.route = mkRoute(a, rn, dep); a._rwp = 1; a._routeName = rn;
+        a.route = mkRoute(a, rn, dep, rel, tier); a._rwp = 1; a._routeName = rn; a._routeRel = rel; a._routeTier = tier;
       });
-      if (_cc==="screen" || (_cc==="quick" && Math.random()<0.4)) { const rb=S.off[9]; if(rb){ rb.route=mkRoute(rb, _cc==="screen"?"screen":"flat", 2); rb._rwp=1; } }
+      try{if(window.__ROUTE_DEBUG){const D=window.__ROUTE_DEBUG;if(D.routes&&D.routes.length&&D.log)D.log.push({routes:D.routes,path:D.path});D.path={};D.routes=_recv.map(a=>({id:a.id,
+        name:a._routeName,rel:a._routeRel,tier:a._routeTier,tail:(a.route||[]).tail,
+        wps:(a.route||[]).map(w=>[Math.round(w.lx),Math.round(w.y)])}))}}catch(_e){}
+      if (_cc==="screen" || (_cc==="quick" && Math.random()<0.4)) { const rb=S.off[9]; if(rb){ const _rn=_cc==="screen"?_pick(["screen","bubble","tunnel"]):_pick(["flat","swing","checkdown"]); rb.route=mkRoute(rb,_rn,2,_pick(R_REL),"short"); rb._rwp=1; rb._routeName=_rn; } }
       // v33 QB FIELD SCAN: grade every eligible route against its nearest coverage
       // defender. Awareness controls how many reads the QB reaches and how much
       // noise contaminates the grade; young/raw QBs can still lock onto a bad read.
@@ -2514,8 +2606,30 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         S.off.forEach(a=>{ if(a.route&&a.route.length){
             // run the assigned route: mv toward the current waypoint, advance on arrival
             if(a._rwp==null)a._rwp=1;
+            const _last=a._rwp>=a.route.length-1;
             const wp=a.route[Math.min(a._rwp, a.route.length-1)];
-            mv(a, wp.lx, wp.y, a===target?1.0:0.93);
+            // v55: once the route is FINISHED keep working. Previously the receiver
+            // parked on his last waypoint and stood dead still for the rest of the
+            // play — a frozen path in the sim log, and most of what "players do not
+            // follow routes" actually looked like on screen.
+            if(_last && Math.hypot(a.lx-wp.lx,a.y-wp.y)<11){
+              const tail=a.route.tail||"go", pv=a.route[Math.max(0,a.route.length-2)];
+              const dx=wp.lx-pv.lx, dy=wp.y-pv.y, n=Math.hypot(dx,dy)||1;
+              if(tail==="settle") mv(a, a.lx-14, a.y+(MIDY-a.y)*.04, .55);       // work back toward the ball
+              else {
+                // Always aim at a point that is actually ON the field and always
+                // carries some downfield: a tail that pushed sideways into the
+                // boundary just pinned the receiver against the paint, where he
+                // stopped dead again — the exact thing the tail exists to prevent.
+                const lat = tail==="across" ? 70 : tail==="out" ? 55 : 20;
+                const fwd = tail==="go" ? 90 : tail==="across" ? 26 : 22;
+                let ty = clampY(a.y + (dy/n)*lat);
+                if (Math.abs(ty - a.y) < 6) ty = a.y + (MIDY - a.y) * .10;        // boundary ate it: work back inside
+                mv(a, a.lx + fwd, ty, .88);
+              }
+            } else mv(a, wp.lx, wp.y, a===target?1.0:0.93);
+            if(window.__ROUTE_DEBUG&&a._routeName){const D=window.__ROUTE_DEBUG;
+              (D.path[a.id]||(D.path[a.id]=[])).push([Math.round(a.lx),Math.round(a.y)])}
             if(a._rwp<a.route.length-1 && Math.hypot(a.lx-wp.lx,a.y-wp.y)<9){
               const prev=a.route[Math.max(0,a._rwp-1)], next=a.route[a._rwp+1];
               const inX=wp.lx-prev.lx,inY=wp.y-prev.y,outX=next.lx-wp.lx,outY=next.y-wp.y;

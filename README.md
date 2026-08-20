@@ -55,6 +55,29 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v55 — a real route tree, and receivers who actually run it.** The builder had
+  **ten** shapes and a `default` that drew a straight line — and `cross`, which the
+  concept layer picks for both medium *and* short calls, had **no case at all**, so
+  every crosser in the game was silently run as a go. Receivers also parked on
+  their final waypoint and stood dead still for the rest of the play, visible in
+  the sim log as a frozen path; that is most of what "players don't follow routes"
+  looked like on screen.
+
+  A route is now three choices — one of **45 shapes** (the full tree, plus double
+  moves, whips, pivots, option routes and the behind-the-line family), a **release**
+  off the line that bends the stem before the break, and a **depth tier** that
+  moves the break point rather than just the length. **45 × 3 × 3 = 405
+  combinations**, against the previous 10. Every shape also declares a **tail** —
+  what the receiver does once the route is finished: verticals keep climbing,
+  curls settle back toward the ball, crossers keep working across, and nothing
+  aims at a point off the field, which was pinning receivers against the paint
+  where they stopped dead again.
+
+  Measured over a real FieldSim sample: **343 distinct combinations reach the
+  field across 772 receivers, all 45 shapes get called, and 99.5% of 2,040
+  waypoints are hit — in sequence, none out of order.** Guarded by
+  `scripts/routecheck.mjs`.
+
 - **v54 — injuries that actually cost you games, scaled by who you play.** Games
   were never missed, and the reason was not one bug but **five layers of
   suppression stacked on each other** — measured over full seasons the `injured`
