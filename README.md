@@ -55,6 +55,26 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v51 — the wheel is where the player actually is.** v50 put the spin wheel on
+  the season/midseason growth decision only, so the surface met *every week* —
+  the **pregame plan** — still showed nothing at all: `v41 SINGLE PREGAME` deleted
+  the plan panel and auto-picked the scout's pick in silence, with no wheel, no
+  odds and nothing to speed through. The plan is now **rolled on the same wheel**,
+  weighted by the same personality appetite the story wheel uses (so the two
+  surfaces can never disagree about who the kid is) and resolved by the same fit
+  roll, with the band granting a real single-game effect through the existing
+  growth pipeline. The deck is read off the panel the game already rendered — id,
+  icon, colour and the UPSIDE / CONTROL / RISK bars — so this stays a presentation
+  layer that invents no plans and changes no plan maths, and it falls straight
+  back to v41's silent auto-pick if the deck can't be parsed. The staff can offer
+  ten plans and ten wedges is an unreadable wheel, so his instincts shortlist the
+  six best-fitting (always keeping the scout's pick) and the panel **says** what
+  was cut. Same release: the wheel renderer is split into a shared `spinWheel`
+  that knows about wedges and nothing about where the options came from — both
+  callers feed it one shape. Guarded by `scripts/wheelcheck.mjs`, which now drives
+  a real week and asserts the wheel is on screen pregame, shortlists readably,
+  keeps the scout pick, speeds up on tap, and **still starts the match**.
+
 - **v50 — SPEED THROUGH + a real SPIN WHEEL + the FIT ROLL as its own system.**
   Three changes to the decision layer, which rolls itself and used to leave the
   player nothing to do but wait. **Speed through:** every rolling decision now
