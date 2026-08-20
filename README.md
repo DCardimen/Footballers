@@ -55,6 +55,29 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v52 — the stat leaders and the national rank now describe the same world.**
+  A player the **leaders board** had inside the national top 20 mid-season was
+  told he was **#200k of 420k** by the rank card on the very same screen. Two
+  separate faults:
+  1. **Three population tables for one population.** `A[].slots` on the level
+     table, a hardcoded array inside `sn()`, and `Ii` for the leaders board. `Ii`
+     turned out to be `A[].slots/9` at nearly every level — the board was right —
+     while `sn()`'s copy had drifted badly: Middle School quoted **420,000**
+     against the table's **600,000**, JV 95k against 280k, Varsity 42k against
+     110k. Everything now derives from `A[].slots`, with the positional pool
+     exactly that split nine ways.
+  2. **Standing ignored production.** `sn()` ranked on the overall rating alone,
+     through a logistic centred on `A[level].need-8` — which is almost exactly
+     where a developing player sits mid-season, because OVR only reaches `need` at
+     the *end* of a level. It parked nearly everyone at the 50th percentile
+     regardless of what they were doing on the field. Standing is now anchored on
+     the leaders board's own answer (`kr`, the same function that ranks the board)
+     with the rating scaling it, and the work is done in **rank space, not
+     percentile space** — out in the tail a tenth of a percentile is the
+     difference between #18 and #4,000, so a percentile blend could never have
+     held the two screens together. With no stat line yet, the rating still
+     carries it alone. Guarded by `scripts/rankcheck.mjs`.
+
 - **v51 — the wheel is where the player actually is.** v50 put the spin wheel on
   the season/midseason growth decision only, so the surface met *every week* —
   the **pregame plan** — still showed nothing at all: `v41 SINGLE PREGAME` deleted
