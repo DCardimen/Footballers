@@ -55,6 +55,40 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v50 — SPEED THROUGH + a real SPIN WHEEL + the FIT ROLL as its own system.**
+  Three changes to the decision layer, which rolls itself and used to leave the
+  player nothing to do but wait. **Speed through:** every rolling decision now
+  schedules its delays through `window.__DECIDE_SPEED_V50.wait()`, so a tap
+  anywhere multiplies the *remainder* of the animation by `TU("decideSpeed", 5)`
+  — it lands mid-spin, not at the next stage, and one shared rate covers both the
+  v16.6 story/pregame sweep and the growth wheel. **Spin wheel:** the growth
+  decision is now an actual canvas wheel where **each option's wedge arc is its
+  personality weight**, so the odds are the picture — a relentless, brash kid
+  sees a fat "Underground 7-on-7s" wedge and a sliver of "Mobility Mornings",
+  and a cerebral one sees the same wheel inverted. The maths did not change
+  (`genOptions` always weighted on persona); it is finally visible, and it still
+  lands on the seeded pick so careers replay identically. **Fit roll:** the
+  +/neutral/− outcome is split out into its own roll (`jiveOf` / `bandOdds`),
+  shown as its own panel *before* the result. Left alone it is a near-even
+  three-way split — a character with no strong opinions is at the mercy of the
+  dice — but **jive**, how far the landed theme sits from what a neutral
+  personality would want, swings it hard: ~74% pays off at full jive, ~72%
+  backfires at the opposite end. Prestige, coach trust, form, fatigue and tier
+  risk survive as a bounded nudge instead of setting the odds (tier risk is now
+  centred on the mean tier, which is what had been quietly pushing every roll
+  negative). Also fixes a latent bug where an overlay torn out of the DOM by a
+  screen change wedged `showing` true and silently swallowed every later
+  decision. The wheel is drawn from its own art sheet — gold bulb rim, football
+  hub, four pointer-deflection frames that settle upright as the wheel stops,
+  twelve pixel-art theme icons and three wax outcome seals
+  (`scripts/spritekit/pack_wheel.mjs` → `bake_wheel.mjs`,
+  `window.__RIB_WHEEL_V50`) — with every element falling back to the procedural
+  shape it replaces, so a sheet that never decodes still gives a complete wheel.
+  The wedge under the pointer **pops**: its icon grows and rides outward, so you
+  feel the pointer tick across the wheel instead of just watching it turn. Dials:
+  `growth_jive` in Settings, `TU("decideSpeed")`, `TU("wheelIconPop")`. Guarded
+  by `scripts/wheelcheck.mjs`.
+
 - **v49 — REAL REFEREE ART.** The officiating crew was the *player* atlas
   recolored white with stripes painted on per pixel (`ribZebra`) and a drawn
   ellipse for a cap. It now runs on its own hand-drawn officials sheet
