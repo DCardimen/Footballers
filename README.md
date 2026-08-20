@@ -55,6 +55,34 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v54 — injuries that actually cost you games, scaled by who you play.** Games
+  were never missed, and the reason was not one bug but **five layers of
+  suppression stacked on each other** — measured over full seasons the `injured`
+  flag never fired once:
+  1. `et()`'s per-game chance was `(12 − injuryResist×0.25)%` clamped to a **0.5%
+     floor**, which every developed player sits on;
+  2. the week plan's own rate (the "1.2% injury" on the plan cards) was rolled as
+     a **second independent gate** on top of it — a relative risk treated as an
+     absolute probability;
+  3. the single-week resolver computed the model's answer and then **discarded
+     it**, rolling its own ~1–5% instead;
+  4. `rollInjuryV18` returned `null` for **65%** of the injuries that survived;
+  5. the age band **cancelled 82%** of what was left outright.
+  And `materializeInjuryV18` was only ever called from the sim-season path, so a
+  normally-played week never got a severity or a `weeksRemaining` at all —
+  `mustSitV18` could never become true.
+
+  Chance now keys on **who you are playing**: the gap between your rating and the
+  opponent's, so 20–30 points of class above them roughly halves the risk and
+  being outmatched raises it. Fatigue, `injuryResist`, perks, prestige and
+  personality all still multiply in. Severity is split so an **average season
+  misses one or two games** (~1.35 measured), while **losing a whole season stays
+  under 1%**. Being worn down now skews the roll toward *worse* injuries — it was
+  inverted, and had been making tired players safer. Same release: health is worth
+  a flat swing either way — **+5% when fresh and clean, −10% when worn or
+  injured** — rather than only ever a penalty. Guarded by
+  `scripts/availabilitycheck.mjs`.
+
 - **v53 — the post-game card leads with the season.** After a whistle the card
   opened with the game grade and the single-game box, and the season line sat at
   the bottom, below the fold on a phone. What a player wants first is where the
