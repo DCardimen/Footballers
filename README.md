@@ -55,6 +55,34 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v56 — reaction time is driven by the stat that claims to drive it.** Three
+  faults, found by reading every reaction path in the sim:
+  1. **`reactMs` was dead code.** Every agent was built with
+     `reactMs: max(100, 340 − (quick−50)×2.4)` — commented "quickness: first-step
+     latency" — and the identifier appeared **exactly once in the file**. Nothing
+     read it. Agents re-aimed instantly every tick; the only brake on a direction
+     change was turn radius, which is *agility*.
+  2. **The clamp ate the bottom half of the stat range.** The route-break delay was
+     capped hard at 390ms, so on a 90° break every defender below the blend's ~46
+     produced the *same* 390ms — awareness 10 and awareness 45 were the same
+     player, a 17ms spread across 40 points. It now eases into a higher ceiling:
+     461 / 427 / 372 / 181ms at stat 10 / 30 / 50 / 99.
+  3. **Recognition and reaction were one blend.** Reading a break is awareness;
+     redirecting once you have read it is quickness. They are scored separately
+     now — `iq` (58% awareness) still drives the bad-bite chance, `rxq` (55%
+     quickness) drives the delay.
+
+  Also: the roster's quickness value is the **team average ±8**, so it came out
+  69–88 for every defender on the field — a nose tackle and a corner were handed
+  the same reaction. Reaction is now **position-aware** (CB 1.14 → DT 0.86), which
+  is the one place position is not a detail.
+
+  The first version of the latency **broke the defence completely** — it held the
+  agent's remembered *intent* as well as its steering vector, so every tick
+  re-measured against a stale heading and re-triggered, and defenders never
+  escaped. Games finished **251-249** while every reaction assertion still passed.
+  The scoreboard is now part of `reactioncheck`'s contract.
+
 - **v55 — a real route tree, and receivers who actually run it.** The builder had
   **ten** shapes and a `default` that drew a straight line — and `cross`, which the
   concept layer picks for both medium *and* short calls, had **no case at all**, so

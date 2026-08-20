@@ -1519,6 +1519,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     return a.vel;
   }
 
+  const RX_POS_V56={CB:1.14,S:1.08,LB:1.00,DE:.94,DT:.86,WR:1.10,RB:1.06,TE:.98,QB:1.00,OL:.84};
   function makeAgents(kOff, tDef, att, picks) {
     const byPos = (arr,pos)=>arr.filter(p=>p&&p.pos===pos);
     const avg = (arr,name)=>{ const v=arr.map(p=>att(p,name)).filter(Number.isFinite);
@@ -1527,7 +1528,20 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // per-agent variability: talent jitter (who they are) + daily form (how they show up)
       const jit = () => (Math.random()*10 - 5) + (Math.random()*6 - 3);
       const g = n => Math.max(20, Math.min(99, (p ? att(p,n) : avg(side==="off"?kOff:tDef, n)) + jit()));
-      const speed=g("speed"), quick=g("quickness")||g("speed"), accel=g("acceleration")||g("burst")||speed;
+      const speed=g("speed"), accel=g("acceleration")||g("burst")||speed;
+       /* ===== v56 REACTION RATING =====
+        * `a.quick` drives first-step latency, DL shed contests and play recognition.
+        * The roster does carry a quickness value, but it is the TEAM AVERAGE plus
+        * jit() of +-8 — measured across a full sim it spanned 69-88 for every
+        * defender on the field, so a nose tackle and a corner were handed the same
+        * reaction. A stat that cannot separate those two is not separating anyone.
+        *
+        * Reaction is the one place position is not a detail: a corner flips his hips
+        * for a living, an interior lineman does not. The roster value still leads
+        * where it exists; position scales it, and acceleration/agility/awareness
+        * stand in when it does not. */
+       const quick=Math.max(20,Math.min(99,Math.round(
+         (g("quickness")||(accel*.55+g("agility")*.25+g("awareness")*.20))*(RX_POS_V56[lb]||1))));
       // real height (inches) drives tackle leverage: the you-player's actual body if
       // it's on the roster, otherwise the role base with a couple inches of jitter.
       const ht = (p && p.body && p.body.height >= 64 && p.body.height <= 84)
@@ -1602,10 +1616,60 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         if(f>=1){ const cb=ballFlight.done; ballFlight=null; cb&&cb(); } }
       else if (carrier) ball = { lx: carrier.lx, y: carrier.y+4, h:0 };
       ballFrames.push({t, x:Math.round(ball.lx*10)/10, y:Math.round(ball.y*10)/10, h:Math.round(ball.h)}); };
+    /* v56: the route-break reaction curve, as one testable function.
+     * The old hard clamp at 390ms ate the bottom half of the stat range — on a
+     * 90-degree break every defender below rxq~46 produced the SAME 390ms — so it
+     * eases into a higher ceiling instead of chopping at a low one. Below the knee
+     * it stays linear, which is where most reads live. */
+    const routeReactDelayV56 = (rxq, angleK, badBite) => {
+      const raw=(TU("routeReactBase",285)-(rxq-50)*3.0)*angleK*(badBite?1.35:1);
+      const lo=TU("routeReactMin",70),hi=TU("routeReactMax",520),knee=TU("routeReactKnee",330);
+      return Math.round(raw<=knee?Math.max(lo,raw)
+        :knee+(hi-knee)*(1-Math.exp(-(raw-knee)/((hi-knee)*.9))));
+    };
+    try{window.__REACT_V56={delay:routeReactDelayV56,posK:RX_POS_V56,
+      rxq:(q,a,d)=>q*.55+a*.30+d*.15, iq:(q,a,d)=>a*.58+q*.24+d*.18,
+      reactMs:q=>Math.max(100,340-(q-50)*2.4)}}catch(_e){}
     const mv = (a, tx, ty, mult) => { let dx=tx-a.lx, dy=ty-a.y; const d=Math.hypot(dx,dy);
       a._sidelineCross=null;
       if(d<0.5) { evolveSpeed(a,0,TICK,t,0,1); return; } dx/=d; dy/=d;
-      const wantDx=dx,wantDy=dy;
+      let wantDx=dx,wantDy=dy;
+      /* ===== v56 PERCEPTION-ACTION LATENCY =====
+       * reactMs has been computed on every agent since the sim was written —
+       * "quickness: first-step latency" — and read by absolutely nothing. Agents
+       * re-aimed instantly every tick; the only brake on a direction change was
+       * turn radius, which is AGILITY. So the stat that says it governs reaction
+       * governed nothing.
+       *
+       * A change of INTENT is not free now. When a defender's aim swings past the
+       * gate, he keeps steering on the intent he already had until reactMs has
+       * elapsed — scaled by how big the swing is, because a slight adjustment is
+       * not a re-decision. Quickness sets the length.
+       *
+       * DEFENCE ONLY, deliberately: an offensive player breaking off a route or a
+       * back making his cut is executing a plan, not reacting to one, and lagging
+       * that would blunt route running (and the route check would catch it).
+       * Blockers reading stunts are the obvious extension, left for later. */
+      if(a.side==="def" && a._wantDx!=null){
+        const demand=1-Math.max(-1,Math.min(1,wantDx*a._wantDx+wantDy*a._wantDy));
+        // Only the STEERING vector is held. The first version also overwrote
+        // wantDx/wantDy, which are stored below as the agent's remembered intent —
+        // so the next tick measured demand against the stale vector, re-triggered,
+        // and the defender never escaped. Defences stopped covering anything and
+        // games finished 251-249. The refractory window stops a hold chaining
+        // straight into the next one during continuous pursuit.
+        if(t<(a._rxUntil||0)){
+          dx=a._rxDx; dy=a._rxDy;                                    // still on the old read
+        } else if(demand>TU("reactGate",.5) && t>(a._rxCool||0)){
+          const hold=(a.reactMs||300)*Math.min(1,demand/1.4)*TU("reactScale",.38);
+          a._rxUntil=t+hold; a._rxCool=t+hold+TU("reactRefractory",320);
+          a._rxDx=a._wantDx; a._rxDy=a._wantDy;
+          dx=a._rxDx; dy=a._rxDy;
+          if(window.__REACT_DEBUG){const D=window.__REACT_DEBUG,k=a.quick<40?"low":a.quick<70?"mid":"high";
+            D.n++;D.ms+=hold;(D.byQuick[k]||(D.byQuick[k]={n:0,ms:0}));D.byQuick[k].n++;D.byQuick[k].ms+=hold;
+            D.qMin=Math.min(D.qMin==null?999:D.qMin,a.quick);D.qMax=Math.max(D.qMax||0,a.quick);D.qSum=(D.qSum||0)+a.quick}
+        }
+      }
       // agility: tighter turns for agile players. v24 widened the per-point effect
       // (0.0022→0.0026) so cuts are visibly cleaner for elite agility and sloppier
       // for low — an elite back keeps his speed through a hard plant, a stiff one
@@ -2052,10 +2116,18 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         const breakKey=br&&`${w.id}:${br.serial}`;
         if(br&&d._seenRouteBreak!==breakKey){
           d._seenRouteBreak=breakKey;
-          const iq=d.aware*.58+d.quick*.24+d.disc*.18;
+          // v56: RECOGNITION and REACTION are different skills and were blurred into
+          // one blend. Reading the break right is awareness; redirecting once you
+          // have read it is quickness. They are scored separately now.
+          const iq=d.aware*.58+d.quick*.24+d.disc*.18;              // recognition — did he read it
+          const rxq=d.quick*.55+d.aware*.30+d.disc*.15;             // reaction — how fast he can go
           const angleK=Math.max(.2,Math.min(1.35,br.angle/1.2));
           const badBite=Math.random()<cl((62-iq)*TU("routeBadBiteK",.008)*angleK,.02,.34);
-          const delay=Math.round(cl((TU("routeReactBase",285)-(iq-50)*3.0)*angleK*(badBite?1.35:1),TU("routeReactMin",70),TU("routeReactMax",390)));
+          // The old hard clamp at 390 ate the bottom half of the stat range: on a
+          // 90-degree break everything below iq~46 produced the SAME 390ms, so
+          // awareness 10 and awareness 45 were the same defender. Ease into a higher
+          // ceiling instead of chopping at a low one.
+          const delay=routeReactDelayV56(rxq,angleK,badBite);
           d._routeReactUntil=t+delay; d._routeGhost=br; d._routeBadBite=badBite;
           emit("routeReaction",{who:d.id,on:w.id,x:d.lx,y:d.y,delay,badBite});
         }
