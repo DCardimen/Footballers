@@ -161,29 +161,57 @@ const geo = await page.evaluate(() => {
   const cv = document.getElementById('gv50wheel')
   const g = cv.getContext('2d'), W = cv.width, R = W / 2 - 4, cx = W / 2, cy = W / 2
   const d = g.getImageData(0, 0, W, W).data
-  const at = (x, y) => { const i = ((y | 0) * W + (x | 0)) * 4; return d[i] + ',' + d[i + 1] + ',' + d[i + 2] }
-  // Walk a ring through the flat part of the wedge band: each wedge is a flat
-  // fill there, so the run lengths around this ring ARE the arc shares the
-  // personality weights produced. r=0.30R sits inside the icon ring (0.47R) and
-  // outside the hub, and clear of the drawn rim, which is textured gold.
+  const last = window.__WHEEL_V50_LAST
+  // The face is a shaded radial ramp now, so exact-colour run detection shatters
+  // on rounding. Every shade of a wedge is its base scaled uniformly, though, and
+  // that preserves HUE exactly — so classify each sample to the nearest option
+  // hue and run-length THAT. Robust to any amount of shading or vignette.
+  const hueOf = (r, gg, b) => {
+    const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), c = mx - mn
+    if (!c) return -1
+    let h = mx === r ? ((gg - b) / c) % 6 : mx === gg ? (b - r) / c + 2 : (r - gg) / c + 4
+    h *= 60; return h < 0 ? h + 360 : h
+  }
+  const want = last.cols.map(hx => { const n = parseInt(hx.slice(1), 16); return hueOf(n >> 16 & 255, n >> 8 & 255, n & 255) })
+  const dist = (a, b) => { const x = Math.abs(a - b) % 360; return x > 180 ? 360 - x : x }
+  const classify = (x, y) => {
+    const i = ((y | 0) * W + (x | 0)) * 4, h = hueOf(d[i], d[i + 1], d[i + 2])
+    if (h < 0) return -1
+    let best = -1, bd = 1e9
+    want.forEach((wh, k) => { const dd = dist(h, wh); if (dd < bd) { bd = dd; best = k } })
+    return bd <= 40 ? best : -1
+  }
+  // r = 0.30R sits inside the icon ring, outside the hub, and clear of both the
+  // drawn rim and the sheen (which is clipped to the outer half)
   const runs = []
   let prev = null
   for (let k = 0; k < 720; k++) {
     const a = k / 720 * Math.PI * 2 - Math.PI / 2
-    const c = at(cx + Math.cos(a) * R * 0.30, cy + Math.sin(a) * R * 0.30)
+    const c = classify(cx + Math.cos(a) * R * 0.30, cy + Math.sin(a) * R * 0.30)
     if (c !== prev) { runs.push({ c, n: 1 }); prev = c } else runs[runs.length - 1].n++
   }
-  const solid = runs.filter(r => r.n > 12)                 // ignore the 1-2px wedge borders
-  const shares = solid.map(r => Math.round(r.n / 720 * 100))
+  const solid = runs.filter(r => r.c >= 0 && r.n > 12)
+  // measured arc per option index, against the weight that asked for it
+  const measured = {}
+  for (const r of solid) measured[r.c] = (measured[r.c] || 0) + r.n / 720
+  const err = last.want.map((w, i) => Math.round(Math.abs((measured[i] || 0) - w) * 100))
   let painted = 0
   for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200) painted++
-  return { w: W, h: cv.height, wedges: solid.length, shares, paintedPct: Math.round(painted / (W * W) * 100) }
+  return {
+    w: W, h: cv.height, wedges: Object.keys(measured).length,
+    want: last.want.map(v => Math.round(v * 100)),
+    drawn: last.want.map((w, i) => Math.round((measured[i] || 0) * 100)),
+    worstErrPP: Math.max(...err),
+    paintedPct: Math.round(painted / (W * W) * 100),
+  }
 })
 console.log('wheel canvas:', JSON.stringify(geo))
 ok(geo.w >= 200 && geo.h >= 200, 'the wheel canvas is a real, sized element', `${geo.w}x${geo.h}`)
-ok(geo.wedges >= 4 && geo.wedges <= 6, 'the face carries one wedge per option', `${geo.wedges} wedges`)
-ok(Math.max(...geo.shares) - Math.min(...geo.shares) >= 6,
-  'the wedges are cut to unequal arcs, not fifths', `arc shares ${geo.shares.join('/')}%`)
+ok(geo.wedges === geo.want.length, 'the face carries one wedge per option', `${geo.wedges} of ${geo.want.length}`)
+ok(geo.worstErrPP <= 3, 'every drawn arc matches the weight that asked for it',
+  `want ${geo.want.join('/')}% drawn ${geo.drawn.join('/')}% (worst ${geo.worstErrPP}pp)`)
+ok(Math.max(...geo.drawn) - Math.min(...geo.drawn) >= 6,
+  'the wedges are cut to unequal arcs, not fifths', `arc shares ${geo.drawn.join('/')}%`)
 ok(geo.paintedPct >= 55, 'the wheel fills its canvas', `${geo.paintedPct}%`)
 await page.screenshot({ path: 'scripts/_wheel.png' })
 

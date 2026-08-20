@@ -85,7 +85,14 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   `window.__RIB_WHEEL_V50`) — with every element falling back to the procedural
   shape it replaces, so a sheet that never decodes still gives a complete wheel.
   The wedge under the pointer **pops**: its icon grows and rides outward, so you
-  feel the pointer tick across the wheel instead of just watching it turn. Dials:
+  feel the pointer tick across the wheel instead of just watching it turn. Each
+  theme carries one **deep jewel base**, and every tint and shade on the face is
+  derived from it — a radial ramp lit near the hub and falling to near-black at
+  the rim, a vignette, and a sheen clipped to the outer half — so the wheel reads
+  as a dished, lacquered surface rather than a pie chart, and nothing can drift
+  out of key. The live wedge burns brighter instead of getting a white wash, and
+  the others dim by **darkening** rather than fading toward the page, so a landed
+  wheel is one lit wedge on a dark field. Dials:
   `growth_jive` in Settings, `TU("decideSpeed")`, `TU("wheelIconPop")`. Guarded
   by `scripts/wheelcheck.mjs`.
 

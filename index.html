@@ -9021,9 +9021,24 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
    * The wheel still lands on the SEEDED pick, so a career replays identically;
    * the target angle is derived from that pick rather than from where a free
    * spin happened to stop. */
-  const WCOL={iron:"#a3542f",track:"#2f7fb8",film:"#6a4f9e",hands:"#2f9e6f",feet:"#c08a2a",flex:"#3f8c9e",
-    mentor:"#8a7534",social:"#c04a86",plyo:"#569e2f",lab:"#7048c4",craft:"#c07a2f",edge:"#c43f3f"};
-  const wcol=id=>WCOL[id]||"#8fa2bb";
+  /* v50.2 WHEEL PALETTE — deep jewel bases, lifted at draw time.
+   * The first pass used flat mid-tones, which went muddy under a gold rim and
+   * gave the face no depth. Each theme now carries ONE deep base; the wedge is
+   * filled with a radial ramp built from it (bright near the hub, near-black at
+   * the rim) so the wheel reads as a dished, lacquered surface instead of a pie
+   * chart. One hex per theme keeps the hues honest — every tint and shade is
+   * derived, so nothing can drift out of key. */
+  const WCOL={iron:"#7d2f16",track:"#10456e",film:"#3a2668",hands:"#0f5b45",feet:"#7a5010",flex:"#17505f",
+    mentor:"#5e4a0a",social:"#6b1a44",plyo:"#28571a",lab:"#331f7d",craft:"#78400f",edge:"#7d1a20"};
+  const wcol=id=>WCOL[id]||"#2a3646";
+  // scale a hex toward white (m>1) or black (m<1); `a` optionally makes it rgba
+  function wshade(hex,m,a){
+    const n=parseInt(String(hex).slice(1),16);
+    const r=Math.min(255,Math.round((n>>16&255)*m)),g=Math.min(255,Math.round((n>>8&255)*m)),b=Math.min(255,Math.round((n&255)*m));
+    return a==null?`rgb(${r},${g},${b})`:`rgba(${r},${g},${b},${a})`;
+  }
+  // the legend chips read against a dark card, so they use the lifted tint
+  const wtint=id=>wshade(wcol(id),1.85);
   /* v50 WHEEL ART — the drawn hardware. Unlike the player/ref atlases this one is
    * NOT a uniform cell grid (a 256px rim and a 56px icon in one grid wastes most
    * of the sheet), so the cellmap is rect-based and shelf-packed. Built by
@@ -9069,25 +9084,52 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     const RIM=WART.ready&&RIB_META_WHEEL.rim, Rw=RIM?R*.74:R;
     const live=landed?winIdx:liveWedge(opts,tot,rot);
     g.clearRect(0,0,W,H);
+    // the face sits on near-black, so an un-filled gap never flashes light
+    g.beginPath();g.arc(cx,cy,Rw,0,Math.PI*2);g.fillStyle="#05080e";g.fill();
     let a=-Math.PI/2+rot;
     opts.forEach((o,i)=>{
       const span=o.w/tot*Math.PI*2,dim=landed&&i!==winIdx,hot=i===live;
+      const base=wcol(o.theme);
       g.beginPath();g.moveTo(cx,cy);g.arc(cx,cy,Rw,a,a+span);g.closePath();
-      g.fillStyle=wcol(o.theme);g.globalAlpha=dim?.38:1;g.fill();
-      if(hot){g.fillStyle="rgba(255,255,255,"+(landed?".22":".10")+")";g.fill()}
-      g.globalAlpha=1;g.strokeStyle="#0a111c";g.lineWidth=2;g.stroke();
+      // radial ramp: lit near the hub, falling to near-black at the rim. The
+      // live wedge burns a stop brighter rather than getting a white wash, which
+      // used to grey the colour out just as it mattered most.
+      const lift=hot?(landed?1.75:1.5):1, gr=g.createRadialGradient(cx,cy,Rw*.12,cx,cy,Rw);
+      gr.addColorStop(0,wshade(base,1.5*lift));
+      gr.addColorStop(.55,wshade(base,1.0*lift));
+      gr.addColorStop(1,wshade(base,dim?.26:.45*lift));
+      g.fillStyle=gr;g.fill();
+      if(dim){g.fillStyle="rgba(4,8,14,.55)";g.fill()}   // dim by DARKENING, never by fading to the page
+      g.strokeStyle="rgba(0,0,0,.62)";g.lineWidth=1;g.stroke();
+      if(hot){                                           // a clean bright edge on the live wedge
+        g.beginPath();g.arc(cx,cy,Rw-1,a,a+span);
+        g.strokeStyle=wshade(base,3.2,.9);g.lineWidth=2;g.stroke();
+      }
       // The icon rides the wedge, upright, and only if the wedge can hold it.
       // v50.1: the wedge the pointer is over pops — the icon grows and rides
       // slightly outward, so you feel the pointer tick across the wheel instead
       // of just watching it turn.
       if(span>.34){const m=a+span/2,r=Rw*(hot?.68:.64),ix=cx+Math.cos(m)*r,iy=cy+Math.sin(m)*r;
         const sz=hot?TU("wheelIconPop",30):24;
-        g.save();g.globalAlpha=dim?.45:1;
+        g.save();g.globalAlpha=dim?.6:1;
         if(!wart(g,"th_"+o.theme,ix,iy,sz)){
           g.font=(hot?sz-6:17)+"px system-ui";g.textAlign="center";g.textBaseline="middle";g.fillText(o.icon,ix,iy)}
         g.restore();g.globalAlpha=1}
       a+=span;
     });
+    // depth pass: a vignette sinks the outer edge, and a soft sheen across the
+    // upper-left reads as lacquer. The sheen is clipped to the OUTER half so the
+    // inner band stays a flat per-wedge colour — that band is what the dev check
+    // ring-samples to prove the arcs match the personality weights.
+    const vg=g.createRadialGradient(cx,cy,Rw*.42,cx,cy,Rw);
+    vg.addColorStop(0,"rgba(0,0,0,0)");vg.addColorStop(1,"rgba(0,0,0,.62)");
+    g.beginPath();g.arc(cx,cy,Rw,0,Math.PI*2);g.fillStyle=vg;g.fill();
+    g.save();
+    g.beginPath();g.arc(cx,cy,Rw,0,Math.PI*2);g.arc(cx,cy,Rw*.55,0,Math.PI*2,true);g.clip();
+    const sh=g.createLinearGradient(cx-Rw,cy-Rw,cx+Rw*.4,cy+Rw*.6);
+    sh.addColorStop(0,"rgba(255,255,255,.13)");sh.addColorStop(.55,"rgba(255,255,255,.02)");sh.addColorStop(1,"rgba(255,255,255,0)");
+    g.fillStyle=sh;g.fillRect(cx-Rw,cy-Rw,Rw*2,Rw*2);
+    g.restore();
     // rim, then hub — drawn over the wedge edges so the wheel reads as one object
     if(!wart(g,"rim",cx,cy,R*2)){g.beginPath();g.arc(cx,cy,Rw,0,Math.PI*2);g.strokeStyle="#f0bb45";g.lineWidth=3;g.stroke()}
     if(!wart(g,"hub",cx,cy,Rw*.42)){
@@ -9112,7 +9154,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     let pick=rand()*tot,idx=0;for(let i=0;i<opts.length;i++){pick-=opts[i].w;if(pick<=0){idx=i;break}}
     const out=rollOutcome(pl,opts[idx],rand,ctx);
     const DS=window.__DECIDE_SPEED_V50||{wait:(ms,fn)=>setTimeout(fn,ms),ms:v=>v,arm(){return this},disarm(){return this},rate:1};
-    const rows=opts.map((o,i)=>`<div class="gv42-opt" data-i="${i}" style="border-left:4px solid ${wcol(o.theme)}"><div style="display:flex;justify-content:space-between"><span>${o.icon} ${o.name}</span><em>${Math.round(o.w/tot*100)}%</em></div><div style="font-size:11px;color:#9fd08f;margin-top:2px">+${o.amt} ${o.stats.map(k=>LBL[k]).join(" / ")} · ${durTxtOf(o.dur)}</div><div style="font-size:9px;letter-spacing:1.5px;margin-top:2px;color:${o.tag==="ALL-IN"?"#ff9d5c":o.tag==="OBSESSIVE"?"#f0bb45":"#8fa2bb"}">${o.tag} · RISK ${Math.round(o.risk*100)}%</div></div>`).join("");
+    const rows=opts.map((o,i)=>`<div class="gv42-opt" data-i="${i}" style="border-left:4px solid ${wtint(o.theme)}"><div style="display:flex;justify-content:space-between"><span>${o.icon} ${o.name}</span><em>${Math.round(o.w/tot*100)}%</em></div><div style="font-size:11px;color:#9fd08f;margin-top:2px">+${o.amt} ${o.stats.map(k=>LBL[k]).join(" / ")} · ${durTxtOf(o.dur)}</div><div style="font-size:9px;letter-spacing:1.5px;margin-top:2px;color:${o.tag==="ALL-IN"?"#ff9d5c":o.tag==="OBSESSIVE"?"#f0bb45":"#8fa2bb"}">${o.tag} · RISK ${Math.round(o.risk*100)}%</div></div>`).join("");
     const jp=Math.round(cl((out.jive+1)/2,0,1)*100);
     const jtxt=(out.jiveTraits||[]).map(t=>`${TRAIT_LBL[t.key]||t.key} ${persona(pl)[t.key]}`).join(" · ");
     const od=out.odds||{g:.34,n:.33,r:.33};
@@ -9144,6 +9186,10 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       <button id="gv42go" style="display:none;width:100%;margin-top:11px;padding:11px;border:0;border-radius:9px;background:linear-gradient(180deg,#ffd76f,#daa128);font:700 15px Oswald;color:#1a1206">CONTINUE</button>
       <style>.gv42-opt{padding:8px 10px;border:1px solid #ffffff14;border-radius:8px;margin-top:5px;font-size:14px;transition:all .14s}.gv42-opt em{font-style:normal;color:#8fa2bb;font-size:12px}.gv42-opt.on{border-color:#f0bb45;background:rgba(240,187,69,.14);transform:scale(1.02)}.gv42-opt.g{border-color:#57e07a;background:rgba(60,150,84,.2)}.gv42-opt.n{border-color:#9aa4b2;background:rgba(140,150,165,.16)}.gv42-opt.r{border-color:#ff8a80;background:rgba(150,60,60,.2)}</style>
     </div></div>`);
+    // telemetry: what the wheel was ASKED to draw, so a check can compare the
+    // arcs actually on the canvas against the weights that produced them
+    try{window.__WHEEL_V50_LAST={themes:opts.map(o=>o.theme),want:opts.map(o=>o.w/tot),win:idx,
+      cols:opts.map(o=>wcol(o.theme))}}catch(e){}
     const root=document.getElementById("growthV42");
     const cv=document.getElementById("gv50wheel");
     const nodes=[...document.querySelectorAll("#growthV42 .gv42-opt")];
