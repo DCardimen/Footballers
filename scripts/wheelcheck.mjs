@@ -6,6 +6,9 @@
 //                      character with no opinion, strongly positive when the
 //                      landed theme jives with them, negative when it fights them
 //   3. SPEED THROUGH   tapping a rolling decision runs the rest of it at 5x
+//   4. WHERE IT LIVES   the wheel is on the PREGAME decision the player meets
+//                       every week, not only the season/midseason one, and the
+//                       match still starts once it resolves
 //
 // Parts 1-2 run headless off window.__GROWTH_V42; part 3 drives the real overlay
 // in a live career and times it. Exits non-zero on any failure.
@@ -228,6 +231,67 @@ ok(landed.fitShown, 'the fit roll is shown as its own panel before the result')
 ok(landed.bars.length === 3 && Math.abs(landed.bars.reduce((a, b) => a + b, 0) - 100) <= 2,
   'the fit panel plots all three bands', JSON.stringify(landed.bars))
 await page.screenshot({ path: 'scripts/_wheel_landed.png' })
+
+// ---- 4. the wheel is where the player actually is -------------------------
+// The wheel first shipped only on the season/midseason growth decision, so the
+// surface met every single week — the PREGAME plan — still showed nothing at all
+// (v41 deleted its panel and auto-picked in silence). Drive a real week and
+// prove the wheel is on screen, that it resolves, and that the match still
+// starts afterwards.
+await page.evaluate(() => { const g = document.getElementById('gv42go'); if (g) g.click(); document.getElementById('growthV42')?.remove() })
+await page.waitForTimeout(500)
+await click('Balanced Program')
+await click('PLAY WEEK 1 LIVE')
+await click('CONTINUE TO MATCH')
+
+let pre = null
+for (let i = 0; i < 40; i++) {
+  pre = await page.evaluate(() => {
+    const ov = document.getElementById('growthV42')
+    if (!ov) return null
+    const rows = [...ov.querySelectorAll('.gv42-opt')]
+    return {
+      wheel: !!document.getElementById('gv50wheel'),
+      title: ov.innerText.replace(/\s+/g, ' ').slice(0, 60),
+      opts: rows.length,
+      scoutKept: rows.some(r => /SCOUT PICK/i.test(r.innerText)),
+      fit: !!document.getElementById('gv50fit'),
+      shortlisted: /shortlisted/i.test(ov.innerText),
+    }
+  })
+  if (pre) break
+  await page.waitForTimeout(250)
+}
+console.log('pregame wheel:', JSON.stringify(pre))
+ok(!!pre, 'a wheel appears for the PREGAME decision, not just the season one')
+if (pre) {
+  ok(pre.wheel, 'the pregame decision draws the real wheel canvas')
+  ok(/PREGAME/i.test(pre.title), 'it is the pregame wheel', pre.title)
+  ok(pre.opts >= 2 && pre.opts <= 6, 'the deck is shortlisted to a readable wheel', `${pre.opts} wedges`)
+  ok(pre.scoutKept || !pre.shortlisted, 'the scout pick survives the shortlist', `scoutKept=${pre.scoutKept} shortlisted=${pre.shortlisted}`)
+  ok(pre.fit, 'the pregame roll shows the fit panel too')
+
+  // a tap must speed this one up as well
+  await page.locator('#gv50wheel').click({ force: true })
+  const preRate = await page.evaluate(() => window.__DECIDE_SPEED_V50.rate)
+  ok(preRate === 5, 'tapping speeds up the pregame roll', String(preRate))
+
+  // ...and the game must still start afterwards
+  await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' }, { timeout: 20000 })
+  await page.screenshot({ path: 'scripts/_wheel_pregame.png' })
+  await page.evaluate(() => document.getElementById('gv42go').click())
+  let live = false
+  for (let i = 0; i < 20; i++) {
+    live = await page.evaluate(() => {
+      // chooseGamePlanV11 is itself wrapped by the v1514 players-to-watch panel
+      if (window.continuePregameV1513 && document.getElementById('pregameV1513')) { window.continuePregameV1513(); return false }
+      return !!window.__gridironScene
+    })
+    if (live) break
+    await page.waitForTimeout(600)
+  }
+  ok(live, 'the match still starts after the pregame wheel resolves')
+}
 
 console.log('page errors:', errs.length ? '\n' + errs.slice(0, 10).join('\n') : 'NONE')
 console.log('VERDICT:', fails.length || errs.length ? 'FAIL ' + JSON.stringify(fails) : 'PASS')

@@ -8766,12 +8766,157 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
 })();
 </script>
 <script>
-/* ===== v41 SINGLE PREGAME — one selection, one temp-stats panel ===== */
+/* ===== v51 PREGAME WHEEL — the game plan is ROLLED, on the same wheel =====
+ * v41 deleted the plan panel and silently auto-picked the scout's pick, so the
+ * decision the player meets most often — every single week — showed nothing at
+ * all: no wheel, no odds, nothing to speed through. The plan is now rolled on
+ * the shared v50 wheel, weighted by the same personality appetite the story
+ * wheel uses, and resolved by the same fit roll.
+ *
+ * The deck is read off the panel the game already rendered (id, icon, colour and
+ * the UPSIDE / CONTROL / RISK bars), so this stays a presentation layer — it
+ * invents no plans and changes no plan maths, and if the deck cannot be parsed
+ * it falls straight back to v41's silent auto-pick. */
 (function(){
   "use strict";
-  const getPl=()=>{try{const st=window.__GRIDIRON_AUDIT__?.getState?.()||window.o||null;return st&&st.player||null}catch(e){return null}};
+  const ST=()=>{try{return window.__GRIDIRON_AUDIT__?.getState?.()||window.o||null}catch(e){return null}};
+  const getPl=()=>{const s=ST();return s&&s.player||null};
+  const G=()=>window.__GROWTH_V42;
+  const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const FALLBACK_COL=["#7d1a20","#10456e","#5e4a0a","#28571a","#3a2668","#6b1a44"];
+
+  // ---- read the deck the game just drew
+  function readPlans(panel){
+    return [...panel.querySelectorAll('[onclick*="chooseGamePlanV11"]')].map((b,i)=>{
+      const m=(b.getAttribute("onclick")||"").match(/chooseGamePlanV11\('([^']+)'\s*,\s*(true|false)/);
+      if(!m)return null;
+      const bars={};
+      b.querySelectorAll(".mini-rating label").forEach(l=>{
+        const sp=l.querySelectorAll("span");
+        if(sp.length>1)bars[sp[0].textContent.trim().toUpperCase()]=parseInt(sp[1].textContent,10)||0;
+      });
+      const nm=(b.querySelector("b")?.textContent||"Plan").replace(/\s*·\s*SCOUT PICK\s*$/i,"").trim();
+      let col=""; try{col=(b.style.getPropertyValue("--planColor")||"").trim()}catch(e){}
+      return {id:m[1],rec:m[2]==="true",
+        icon:(b.querySelector(".plan-icon")?.textContent||"").trim(),
+        name:nm, scout:/SCOUT PICK/i.test(b.querySelector("b")?.textContent||""),
+        col:col||FALLBACK_COL[i%FALLBACK_COL.length],
+        up:bars.UPSIDE==null?50:bars.UPSIDE, ctrl:bars.CONTROL==null?50:bars.CONTROL, risk:bars.RISK==null?50:bars.RISK,
+        tags:[...b.querySelectorAll(".gameplan-meta span")].map(s=>s.textContent.trim()).filter(t=>!/fatigue|injur/i.test(t))};
+    }).filter(Boolean);
+  }
+  // how bold a plan is, 0..1 — upside and risk pulling against control
+  const boldOf=p=>cl(((p.up+p.risk)/2-p.ctrl)/100*.9+.5,0,1);
+  // What this character WANTS. Deliberately the same appetite the v16.6 story
+  // wheel computes, so the two decision surfaces can never disagree about him.
+  function appetite(P){
+    const g=k=>((P[k]==null?5:P[k])-5)/5;
+    return cl((g("aggression")*1.0+g("confidence")*.8-g("eq")*.7-g("coachability")*.6-g("loyalty")*.35-g("longterm")*.25)/1.6,-1,1);
+  }
+  const TRAIT_W={aggression:1.0,confidence:.8,eq:-.7,coachability:-.6,loyalty:-.35,longterm:-.25};
+  function drivers(P,bold){
+    const dir=bold>=.5?1:-1,out=[];
+    for(const k in TRAIT_W){const c=((P[k]==null?5:P[k])-5)*TRAIT_W[k]*dir;if(c>=.5)out.push({k,c})}
+    return out.sort((a,b)=>b.c-a.c).slice(0,2);
+  }
+  function rollPlan(panel){
+    if(!panel||panel._v51done)return false;
+    const g=G(); if(!g||!g.spinWheel)return false;
+    const plans=readPlans(panel); if(plans.length<2)return false;
+    const pl=getPl(); if(!pl)return false;
+    panel._v51done=true;
+    panel.remove();                       // the wheel replaces the deck, as v41 did
+
+    const P=g.persona(pl), pr=appetite(P);
+    const all=plans.map(p=>{
+      const b=boldOf(p), align=(1+pr*(2*b-1))/2;
+      return Object.assign({},p,{bold:b,w:Math.max(.05,.12+.88*Math.pow(cl(align,0,1),1.6))});
+    });
+    // The staff can offer ten plans, and ten wedges is an unreadable wheel. His
+    // instincts shortlist: the best-fitting MAX, always keeping the scout's pick
+    // so the recommendation is never quietly removed from the board. What got cut
+    // is stated on the panel rather than silently dropped.
+    const MAX=6;
+    let opts=all, cut=0;
+    if(all.length>MAX){
+      const keep=all.slice().sort((a,b)=>b.w-a.w).slice(0,MAX);
+      if(!keep.some(o=>o.scout)){const sp=all.find(o=>o.scout);if(sp){keep[keep.length-1]=sp}}
+      opts=all.filter(o=>keep.indexOf(o)>=0);            // shortlist, in the staff's order
+      cut=all.length-opts.length;
+    }
+    const tot=opts.reduce((s,o)=>s+o.w,0);
+    let r=Math.random()*tot,idx=0;
+    for(let i=0;i<opts.length;i++){r-=opts[i].w;if(r<=0){idx=i;break}}
+    const win=opts[idx];
+
+    // ---- fit roll, same system as the growth wheel: jive sets the odds, the
+    // plan's own risk and the kid's form nudge them.
+    const jive=cl(pr*(2*win.bold-1),-1,1);
+    const trust=pl.coachTrust==null?50:pl.coachTrust;
+    const mom=pl.momentum103==null?50:pl.momentum103, compz=pl.composure103==null?50:pl.composure103;
+    const fatg=(pl.conditionV11&&pl.conditionV11.fatigue)||0;
+    const nudge=cl(-(win.risk/100-.42)*.34+(trust-50)*.003+(mom-50)*.0015+(compz-50)*.0015-fatg*.003+(Math.random()-.5)*.10,-.22,.22);
+    const odds=g.bandOdds(jive,nudge);
+    const rr=Math.random();
+    const band=rr<odds.g?"green":rr<odds.g+odds.n?"neutral":"red";
+
+    const dv=drivers(P,win.bold).map(d=>`${(g.TRAIT_LBL&&g.TRAIT_LBL[d.k])||d.k} ${P[d.k]}`).join(" · ");
+    const heavy=win.risk>=55;
+    const why=`${dv?(jive>=.12?`<b>${dv}</b> — this is how you want to play.`:jive<=-.12?`<b>${dv}</b> — this is not how you want to play.`:`<b>${dv}</b> — you could take it or leave it.`):"Nothing in your personality pulls either way here."} ${nudge<=-.06?`Then ${heavy?"the risk in this plan and ":""}your current form drag${heavy?"":"s"} the odds back down.`:nudge>=.06?`Your standing and form push them further up.`:`Nothing else is moving them.`}`;
+
+    // ---- what the band DOES: a single-game effect through the existing growth
+    // pipeline, so it composes into the same array the sim already consumes.
+    const pool=(g.POOLS&&(g.POOLS[pl.pos]||g.POOLS.LB))||[];
+    const stats=[];
+    for(let i=0;i<pool.length&&stats.length<(band==="green"?3:2);i++){
+      const k=pool[(i*2+idx)%pool.length]; if(k&&stats.indexOf(k)<0)stats.push(k);
+    }
+    const amt=band==="green"?3+((Math.random()*3)|0):band==="red"?3+((Math.random()*2)|0):2;
+    const out={card:"plan_"+win.id,icon:win.icon,name:win.name,band,
+      sign:band==="red"?-1:1,stats,amt:band==="neutral"?1:amt,
+      tier:{games:1},permanent:false,fatigue:0,ctx:"pregame",tag:"PLAN",jive,odds,nudge,
+      story:band==="green"?"It came off exactly the way you drew it up."
+        :band==="neutral"?"It worked well enough. Nothing special either way."
+        :"The plan did not survive contact with the game."};
+
+    const LBL=g.LBL||{};
+    const okOpen=g.spinWheel({
+      title:"PREGAME · HOW ARE YOU PLAYING THIS ONE?",
+      sub:cut?`The staff offered ${all.length}. Your instincts shortlisted ${opts.length}.`:"The staff hands you options. Your instincts pick.",
+      opts:opts.map(o=>({key:o.id,icon:o.icon,name:o.name,col:o.col,art:null,w:o.w,
+        line1:`UPSIDE ${o.up} · CONTROL ${o.ctrl} · RISK ${o.risk}${o.scout?"  ·  SCOUT PICK":""}`,
+        line2:o.tags.slice(0,2).join(" · ")||"",
+        line2col:o.scout?"#f0bb45":"#8fa2bb"})),
+      pick:idx, turns:(pl.weekResults||[]).length,
+      fit:{jive,odds,nudge,why},
+      result:{band,
+        headline:`${win.icon} ${win.name} — ${band==="green"?"IT CLICKS":band==="neutral"?"IT'LL DO":"IT BACKFIRES"}`,
+        story:out.story,
+        lines:stats.length?stats.map(k=>(out.sign>0?"+":"−")+out.amt+" "+(LBL[k]||k)).join(" · "):"no swing this game",
+        dur:"THIS GAME"},
+      onDone:()=>{
+        try{
+          if(stats.length&&band!=="neutral")g.applyOutcome(pl,out);
+          pl._nextGameBoost=0;
+          pl._tempStatBuffsV25=g.compose(pl)||null;
+        }catch(e){}
+        try{window.chooseGamePlanV11&&window.chooseGamePlanV11(win.id,win.rec)}catch(e){}
+      },
+    });
+    if(!okOpen){                          // wheel busy — never strand the player pre-snap
+      try{
+        pl._nextGameBoost=0;
+        pl._tempStatBuffsV25=g.compose(pl)||null;
+        window.chooseGamePlanV11&&window.chooseGamePlanV11(win.id,win.rec);
+      }catch(e){}
+    }
+    return true;
+  }
+  // v41 fallback: if the deck cannot be parsed or the growth module is missing,
+  // take the scout pick silently rather than blocking the game.
   function autoPlan(panel){
-    if(!panel||panel._v41done)return;
+    if(!panel||panel._v41done||panel._v51done)return;
+    try{ if(rollPlan(panel))return; }catch(e){}
     panel._v41done=true;
     try{
       const card=panel.querySelector('.recommended-v11[onclick*="chooseGamePlanV11"]')||panel.querySelector('[onclick*="chooseGamePlanV11"]');
@@ -8780,8 +8925,6 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       panel.remove();
       const pl=getPl();
       if(pl){
-        // v42: buffs come from the season growth system - compose the active
-        // effects into the single-game array the sim consumes.
         pl._nextGameBoost=0;
         pl._tempStatBuffsV25=(window.__GROWTH_V42&&window.__GROWTH_V42.compose(pl))||null;
       }
@@ -8791,6 +8934,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   const sweep=()=>{try{document.querySelectorAll('.gameplan-overlay').forEach(autoPlan)}catch(e){}};
   try{new MutationObserver(sweep).observe(document.body,{childList:true,subtree:true})}catch(e){}
   setInterval(sweep,400);
+  window.__PREGAME_V51={readPlans,boldOf,appetite,rollPlan};
 })();
 </script>
 <style>
@@ -9089,7 +9233,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     let a=-Math.PI/2+rot;
     opts.forEach((o,i)=>{
       const span=o.w/tot*Math.PI*2,dim=landed&&i!==winIdx,hot=i===live;
-      const base=wcol(o.theme);
+      const base=o.col||wcol(o.theme);
       g.beginPath();g.moveTo(cx,cy);g.arc(cx,cy,Rw,a,a+span);g.closePath();
       // radial ramp: lit near the hub, falling to near-black at the rim. The
       // live wedge burns a stop brighter rather than getting a white wash, which
@@ -9112,7 +9256,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       if(span>.34){const m=a+span/2,r=Rw*(hot?.68:.64),ix=cx+Math.cos(m)*r,iy=cy+Math.sin(m)*r;
         const sz=hot?TU("wheelIconPop",30):24;
         g.save();g.globalAlpha=dim?.6:1;
-        if(!wart(g,"th_"+o.theme,ix,iy,sz)){
+        if(!wart(g,o.art||("th_"+o.theme),ix,iy,sz)){
           g.font=(hot?sz-6:17)+"px system-ui";g.textAlign="center";g.textBaseline="middle";g.fillText(o.icon,ix,iy)}
         g.restore();g.globalAlpha=1}
       a+=span;
@@ -9142,98 +9286,126 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       g.beginPath();g.moveTo(cx,cy-Rw+13);g.lineTo(cx-9,cy-Rw-9);g.lineTo(cx+9,cy-Rw-9);g.closePath();
       g.fillStyle="#f0bb45";g.fill();g.strokeStyle="#0a111c";g.lineWidth=2;g.stroke()}
   }
-  function showWheel(pl,ctx,title,onDone){
-    // self-heal: a screen change can tear the overlay out without running CONTINUE,
-    // and a stuck `showing` used to silently swallow every later decision
-    if(showing&&!document.getElementById("growthV42"))showing=false;
-    if(showing||document.getElementById("growthV42"))return;showing=true;
-    const rand=seededRand(pl,ctx+"|"+(pl.currentWeek||0)+"|"+(pl.growthHistV42||[]).length);
-    const opts=genOptions(pl,rand,5);
-    if(!opts.length){showing=false;return}
-    const tot=opts.reduce((s,o)=>s+o.w,0);
-    let pick=rand()*tot,idx=0;for(let i=0;i<opts.length;i++){pick-=opts[i].w;if(pick<=0){idx=i;break}}
-    const out=rollOutcome(pl,opts[idx],rand,ctx);
+  /* ===== v51 SHARED SPIN — one wheel, two callers =====
+   * The wheel was welded to the growth decision, so the surface the player sees
+   * most — the PREGAME plan — had no wheel at all (v41 deleted its panel and
+   * auto-picked in silence). This is the presentation split out: it knows about
+   * wedges, spinning, the fit strip and the result card, and nothing about where
+   * the options came from. `showWheel` below and the v51 pregame block both feed
+   * it the same shape. */
+  function spinWheel(cfg){
+    if(showing&&!document.getElementById("growthV42"))showing=false;   // self-heal a torn-out overlay
+    if(showing||document.getElementById("growthV42"))return false;
+    const opts=cfg.opts||[];if(opts.length<2)return false;
+    showing=true;
+    const idx=Math.max(0,Math.min(opts.length-1,cfg.pick|0));
+    const tot=opts.reduce((s,o)=>s+o.w,0)||1;
     const DS=window.__DECIDE_SPEED_V50||{wait:(ms,fn)=>setTimeout(fn,ms),ms:v=>v,arm(){return this},disarm(){return this},rate:1};
-    const rows=opts.map((o,i)=>`<div class="gv42-opt" data-i="${i}" style="border-left:4px solid ${wtint(o.theme)}"><div style="display:flex;justify-content:space-between"><span>${o.icon} ${o.name}</span><em>${Math.round(o.w/tot*100)}%</em></div><div style="font-size:11px;color:#9fd08f;margin-top:2px">+${o.amt} ${o.stats.map(k=>LBL[k]).join(" / ")} · ${durTxtOf(o.dur)}</div><div style="font-size:9px;letter-spacing:1.5px;margin-top:2px;color:${o.tag==="ALL-IN"?"#ff9d5c":o.tag==="OBSESSIVE"?"#f0bb45":"#8fa2bb"}">${o.tag} · RISK ${Math.round(o.risk*100)}%</div></div>`).join("");
-    const jp=Math.round(cl((out.jive+1)/2,0,1)*100);
-    const jtxt=(out.jiveTraits||[]).map(t=>`${TRAIT_LBL[t.key]||t.key} ${persona(pl)[t.key]}`).join(" · ");
-    const od=out.odds||{g:.34,n:.33,r:.33};
-    document.body.insertAdjacentHTML("beforeend",`<div id="growthV42" style="position:fixed;inset:0;z-index:960;background:rgba(3,7,13,.9);display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto"><div style="max-width:440px;width:100%;background:linear-gradient(180deg,#152238,#0a111c);border:1px solid rgba(240,187,69,.45);border-radius:16px;padding:15px;font-family:Oswald,sans-serif;color:#e8ecf2">
-      <div style="font-size:10px;letter-spacing:3px;color:#f0bb45">${title}</div>
-      <div style="font-size:18px;font-weight:700;margin:3px 0 9px">Your habits decide. Then fate rolls.</div>
-      <div style="display:flex;justify-content:center"><canvas id="gv50wheel" width="268" height="268" style="width:min(268px,72vw);height:auto;touch-action:manipulation"></canvas></div>
-      <div id="gv50hint" class="ds50-hint">tap to speed up ▸▸</div>
-      <div id="gv50fit" style="display:none;margin-top:10px;padding:10px;border:1px solid #ffffff1f;border-radius:10px;background:rgba(255,255,255,.03)">
+    const F=cfg.fit,R=cfg.result;
+    const rows=opts.map((o,i)=>`<div class="gv42-opt" data-i="${i}" style="border-left:4px solid ${wshade(o.col||"#2a3646",1.85)}"><div style="display:flex;justify-content:space-between"><span>${o.icon||""} ${o.name}</span><em>${Math.round(o.w/tot*100)}%</em></div>${o.line1?`<div style="font-size:11px;color:#9fd08f;margin-top:2px">${o.line1}</div>`:""}${o.line2?`<div style="font-size:9px;letter-spacing:1.5px;margin-top:2px;color:${o.line2col||"#8fa2bb"}">${o.line2}</div>`:""}</div>`).join("");
+    const od=(F&&F.odds)||{g:.34,n:.33,r:.33};
+    const fitHtml=F?`<div id="gv50fit" style="display:none;margin-top:10px;padding:10px;border:1px solid #ffffff1f;border-radius:10px;background:rgba(255,255,255,.03)">
         <div style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:2px;color:#f0bb45">
-          <span>FIT ROLL · DOES IT SUIT YOU?</span><span id="gv50jv" style="color:${out.jive>=.12?"#6fe08a":out.jive<=-.12?"#ff8a80":"#8fa2bb"}">JIVE ${out.jive>=0?"+":"−"}${Math.abs(Math.round(out.jive*100))}</span></div>
+          <span>FIT ROLL · DOES IT SUIT YOU?</span><span id="gv50jv" style="color:${F.jive>=.12?"#6fe08a":F.jive<=-.12?"#ff8a80":"#8fa2bb"}">JIVE ${F.jive>=0?"+":"−"}${Math.abs(Math.round(F.jive*100))}</span></div>
         <div style="height:7px;border-radius:4px;margin:6px 0 4px;overflow:hidden;display:flex">
           <i style="flex:${Math.round(od.g*100)};background:#6fe08a"></i><i style="flex:${Math.round(od.n*100)};background:#8b939f"></i><i style="flex:${Math.round(od.r*100)};background:#ff8a80"></i></div>
         <div style="display:flex;justify-content:space-between;font-size:10px;color:#8fa2bb">
           <span style="color:#6fe08a">PAYS ${Math.round(od.g*100)}%</span><span>HALF ${Math.round(od.n*100)}%</span><span style="color:#ff8a80">BACKFIRES ${Math.round(od.r*100)}%</span></div>
-        <div style="font-size:11px;color:#c6cdd8;margin-top:5px">${jtxt?(out.jive>=.12?`<b>${jtxt}</b> — this is who you are.`:out.jive<=-.12?`<b>${jtxt}</b> — this cuts against you.`:`<b>${jtxt}</b> — you have no strong feelings here.`):"Nothing in your personality pulls either way here."} ${out.nudge<=-.06?`Then ${out.tag==="OBSESSIVE"||out.tag==="ALL-IN"?`<b>${out.tag}</b> risk and `:""}your current form drag${out.tag==="OBSESSIVE"||out.tag==="ALL-IN"?"":"s"} the odds back down.`:out.nudge>=.06?`Your standing and form push them further up.`:`Nothing else is moving them.`}</div>
+        <div style="font-size:11px;color:#c6cdd8;margin-top:5px">${F.why||""}</div>
         <div style="display:flex;justify-content:space-between;font-size:9px;letter-spacing:1.5px;color:#8fa2bb;margin-top:5px;padding-top:5px;border-top:1px solid #ffffff12">
-          <span>PERSONALITY FIT <b style="color:${out.jive>=0?"#6fe08a":"#ff8a80"}">${out.jive>=0?"+":"−"}${Math.abs(Math.round(out.jive*100))}</b></span>
-          <span>RISK &amp; FORM <b style="color:${out.nudge>=0?"#6fe08a":"#ff8a80"}">${out.nudge>=0?"+":"−"}${Math.abs(Math.round(out.nudge*100))}</b></span></div>
-      </div>
-      <div id="gv42opts" style="margin-top:9px">${rows}</div>
-      <div id="gv42out" style="display:none;margin-top:10px;padding:11px;border-radius:10px;position:relative">
+          <span>PERSONALITY FIT <b style="color:${F.jive>=0?"#6fe08a":"#ff8a80"}">${F.jive>=0?"+":"−"}${Math.abs(Math.round(F.jive*100))}</b></span>
+          <span>RISK &amp; FORM <b style="color:${(F.nudge||0)>=0?"#6fe08a":"#ff8a80"}">${(F.nudge||0)>=0?"+":"−"}${Math.abs(Math.round((F.nudge||0)*100))}</b></span></div>
+      </div>`:"";
+    const resHtml=R?`<div id="gv42out" style="display:none;margin-top:10px;padding:11px;border-radius:10px;position:relative">
         <canvas id="gv50seal" width="46" height="46" style="position:absolute;top:9px;right:9px;width:46px;height:46px"></canvas>
-        <b style="font-size:15px;display:block;padding-right:52px">${out.icon} ${out.name} — ${out.band==="green"?"IT PAYS OFF":out.band==="neutral"?"HALF MEASURES":"IT BACKFIRES"}</b>
-        <div style="font-size:13px;color:#c6cdd8;margin:5px 0">${out.story}</div>
-        <div style="font-size:13px;color:${out.sign>0?(out.band==="neutral"?"#cfd6a8":"#6fe08a"):"#ff8a80"}">${out.stats.map(k=>(out.sign>0?"+":"−")+(out.permanent?"1-3":out.amt)+" "+(LBL[k]||k)).join(" · ")}</div>
-        <div style="font-size:10px;letter-spacing:2px;color:#f0bb45;margin-top:5px">${durTxtOf(out.tier,out.permanent)}</div>
-      </div>
+        <b style="font-size:15px;display:block;padding-right:52px">${R.headline}</b>
+        <div style="font-size:13px;color:#c6cdd8;margin:5px 0">${R.story||""}</div>
+        <div style="font-size:13px;color:${R.band==="green"?"#6fe08a":R.band==="neutral"?"#cfd6a8":"#ff8a80"}">${R.lines||""}</div>
+        ${R.dur?`<div style="font-size:10px;letter-spacing:2px;color:#f0bb45;margin-top:5px">${R.dur}</div>`:""}
+      </div>`:"";
+    document.body.insertAdjacentHTML("beforeend",`<div id="growthV42" style="position:fixed;inset:0;z-index:960;background:rgba(3,7,13,.9);display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto"><div style="max-width:440px;width:100%;background:linear-gradient(180deg,#152238,#0a111c);border:1px solid rgba(240,187,69,.45);border-radius:16px;padding:15px;font-family:Oswald,sans-serif;color:#e8ecf2">
+      <div style="font-size:10px;letter-spacing:3px;color:#f0bb45">${cfg.title||""}</div>
+      <div style="font-size:18px;font-weight:700;margin:3px 0 9px">${cfg.sub||""}</div>
+      <div style="display:flex;justify-content:center"><canvas id="gv50wheel" width="268" height="268" style="width:min(268px,72vw);height:auto;touch-action:manipulation"></canvas></div>
+      <div id="gv50hint" class="ds50-hint">tap to speed up ▸▸</div>
+      ${fitHtml}
+      <div id="gv42opts" style="margin-top:9px">${rows}</div>
+      ${resHtml}
       <button id="gv42go" style="display:none;width:100%;margin-top:11px;padding:11px;border:0;border-radius:9px;background:linear-gradient(180deg,#ffd76f,#daa128);font:700 15px Oswald;color:#1a1206">CONTINUE</button>
       <style>.gv42-opt{padding:8px 10px;border:1px solid #ffffff14;border-radius:8px;margin-top:5px;font-size:14px;transition:all .14s}.gv42-opt em{font-style:normal;color:#8fa2bb;font-size:12px}.gv42-opt.on{border-color:#f0bb45;background:rgba(240,187,69,.14);transform:scale(1.02)}.gv42-opt.g{border-color:#57e07a;background:rgba(60,150,84,.2)}.gv42-opt.n{border-color:#9aa4b2;background:rgba(140,150,165,.16)}.gv42-opt.r{border-color:#ff8a80;background:rgba(150,60,60,.2)}</style>
     </div></div>`);
-    // telemetry: what the wheel was ASKED to draw, so a check can compare the
-    // arcs actually on the canvas against the weights that produced them
-    try{window.__WHEEL_V50_LAST={themes:opts.map(o=>o.theme),want:opts.map(o=>o.w/tot),win:idx,
-      cols:opts.map(o=>wcol(o.theme))}}catch(e){}
-    const root=document.getElementById("growthV42");
-    const cv=document.getElementById("gv50wheel");
+    try{window.__WHEEL_V50_LAST={themes:opts.map(o=>o.key||o.name),want:opts.map(o=>o.w/tot),win:idx,
+      cols:opts.map(o=>o.col||wcol(o.theme))}}catch(e){}
+    const root=document.getElementById("growthV42"),cv=document.getElementById("gv50wheel");
     const nodes=[...document.querySelectorAll("#growthV42 .gv42-opt")];
     DS.arm(root,document.getElementById("gv50hint"));
-    // land the winning wedge under the pointer: its own mid-angle, unwound
     let off=0;for(let i=0;i<idx;i++)off+=opts[i].w/tot*Math.PI*2;
-    const target=Math.PI*2*(4+((rand()*2)|0))-(off+opts[idx].w/tot*Math.PI);
+    const target=Math.PI*2*(4+((cfg.turns||0)%2))-(off+opts[idx].w/tot*Math.PI);
     const RM=(()=>{try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){return false}})();
     const SPIN=RM?260:2600;                  // reduced motion still lands, it just does not sweep
     let done=false,shown0=0;
     const ease=x=>1-Math.pow(1-x,3);
     function frame(now){
       if(!document.getElementById("growthV42")){done=true;showing=false;DS.disarm();return}
-      // the clock, not the frame count, absorbs a mid-spin speed boost
       shown0+=(now-(frame._last||now))*(DS.rate||1);frame._last=now;
       const k=Math.min(1,shown0/SPIN),rot=target*ease(k);
-      drawWheel(cv,opts,tot,rot,idx,k>=1,Math.pow(1-k,2));   // pointer deflection tracks how fast it is still turning
+      drawWheel(cv,opts,tot,rot,idx,k>=1,Math.pow(1-k,2));
       nodes.forEach(n=>n.className="gv42-opt");
-      if(k<1){
-        nodes[liveWedge(opts,tot,rot)].classList.add("on");   // the legend tracks the pointer
-        requestAnimationFrame(frame);
-      } else if(!done){done=true;nodes[idx].classList.add("on");land()}
+      if(k<1){nodes[liveWedge(opts,tot,rot)].classList.add("on");requestAnimationFrame(frame)}
+      else if(!done){done=true;nodes[idx].classList.add("on");land()}
     }
     function land(){
-      const el=nodes[idx];let k=0;const seq=["r","n","g","n","r","g","n","r","g"];
-      // the fit strip goes up FIRST — you see the odds you are about to roll
-      // against before the result lands, which is the whole point of splitting it
-      // out of the wheel.
-      DS.wait(120,()=>{const f=document.getElementById("gv50fit");if(f)f.style.display=""});
-      const pulse=()=>{el.className="gv42-opt "+(k<seq.length?seq[k]:out.band[0]);
-        if(k++<=seq.length){DS.wait(110+k*28,pulse)}
-        else{const oc=document.getElementById("gv42out");if(!oc)return;oc.style.display="";
+      const el=nodes[idx];let k=0;const band=(R&&R.band)||"n";const seq=["r","n","g","n","r","g","n","r","g"];
+      if(F)DS.wait(120,()=>{const f=document.getElementById("gv50fit");if(f)f.style.display=""});
+      const finish=()=>{
+        const oc=document.getElementById("gv42out");
+        if(oc){oc.style.display="";
+          oc.style.border="1px solid "+(band==="green"?"#3f7d4d":band==="neutral"?"#77808d":"#7d3f3f");
+          oc.style.background=band==="green"?"rgba(46,90,58,.25)":band==="neutral"?"rgba(90,96,106,.2)":"rgba(90,46,46,.25)";
           try{const sc=document.getElementById("gv50seal");
-            if(sc&&!wart(sc.getContext("2d"),"seal_"+out.band,23,23,44))sc.style.display="none"}catch(e){}
-          oc.style.border="1px solid "+(out.band==="green"?"#3f7d4d":out.band==="neutral"?"#77808d":"#7d3f3f");
-          oc.style.background=out.band==="green"?"rgba(46,90,58,.25)":out.band==="neutral"?"rgba(90,96,106,.2)":"rgba(90,46,46,.25)";
-          const h=document.getElementById("gv50hint");if(h)h.style.display="none";
-          const b=document.getElementById("gv42go");b.style.display="";
-          DS.disarm();
-          b.onclick=()=>{document.getElementById("growthV42").remove();showing=false;applyOutcome(pl,out);onDone&&onDone(out)}}};
+            if(sc&&!wart(sc.getContext("2d"),"seal_"+band,23,23,44))sc.style.display="none"}catch(e){}}
+        const h=document.getElementById("gv50hint");if(h)h.style.display="none";
+        const b=document.getElementById("gv42go");if(!b)return;
+        b.style.display="";DS.disarm();
+        b.onclick=()=>{const ov=document.getElementById("growthV42");if(ov)ov.remove();showing=false;cfg.onDone&&cfg.onDone(idx)};
+      };
+      const pulse=()=>{el.className="gv42-opt "+(k<seq.length?seq[k]:band[0]);
+        if(k++<=seq.length)DS.wait(110+k*28,pulse); else finish()};
       DS.wait(420,pulse);
     }
     drawWheel(cv,opts,tot,0,idx,false,0);
     DS.wait(350,()=>{frame._last=0;requestAnimationFrame(frame)});
+    return true;
+  }
+  function showWheel(pl,ctx,title,onDone){
+    if(showing&&!document.getElementById("growthV42"))showing=false;
+    if(showing||document.getElementById("growthV42"))return;
+    const rand=seededRand(pl,ctx+"|"+(pl.currentWeek||0)+"|"+(pl.growthHistV42||[]).length);
+    const opts=genOptions(pl,rand,5);
+    if(!opts.length)return;
+    const tot=opts.reduce((s,o)=>s+o.w,0);
+    let pick=rand()*tot,idx=0;for(let i=0;i<opts.length;i++){pick-=opts[i].w;if(pick<=0){idx=i;break}}
+    const out=rollOutcome(pl,opts[idx],rand,ctx);
+    const P=persona(pl);
+    const jtxt=(out.jiveTraits||[]).map(t=>`${TRAIT_LBL[t.key]||t.key} ${P[t.key]}`).join(" · ");
+    const heavy=out.tag==="OBSESSIVE"||out.tag==="ALL-IN";
+    const why=`${jtxt?(out.jive>=.12?`<b>${jtxt}</b> — this is who you are.`:out.jive<=-.12?`<b>${jtxt}</b> — this cuts against you.`:`<b>${jtxt}</b> — you have no strong feelings here.`):"Nothing in your personality pulls either way here."} ${out.nudge<=-.06?`Then ${heavy?`<b>${out.tag}</b> risk and `:""}your current form drag${heavy?"":"s"} the odds back down.`:out.nudge>=.06?`Your standing and form push them further up.`:`Nothing else is moving them.`}`;
+    const ok=spinWheel({
+      title, sub:"Your habits decide. Then fate rolls.",
+      opts:opts.map(o=>({key:o.theme,icon:o.icon,name:o.name,col:wcol(o.theme),art:"th_"+o.theme,w:o.w,
+        line1:`+${o.amt} ${o.stats.map(k=>LBL[k]).join(" / ")} · ${durTxtOf(o.dur)}`,
+        line2:`${o.tag} · RISK ${Math.round(o.risk*100)}%`,
+        line2col:o.tag==="ALL-IN"?"#ff9d5c":o.tag==="OBSESSIVE"?"#f0bb45":"#8fa2bb"})),
+      pick:idx, turns:(pl.growthHistV42||[]).length,
+      fit:{jive:out.jive,odds:out.odds,nudge:out.nudge,why},
+      result:{band:out.band,
+        headline:`${out.icon} ${out.name} — ${out.band==="green"?"IT PAYS OFF":out.band==="neutral"?"HALF MEASURES":"IT BACKFIRES"}`,
+        story:out.story,
+        lines:out.stats.map(k=>(out.sign>0?"+":"−")+(out.permanent?"1-3":out.amt)+" "+(LBL[k]||k)).join(" · "),
+        dur:durTxtOf(out.tier,out.permanent)},
+      onDone:()=>{applyOutcome(pl,out);onDone&&onDone(out)},
+    });
+    if(!ok)showing=false;
   }
   // ---- hooks ----
   const _ss=window.startSeason;
@@ -9289,7 +9461,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     }
   }catch(e){}},900);
   // telemetry / harness
-  window.__GROWTH_V42={compose,rollOutcome,applyOutcome,genOptions,THEMES,TIERS,persona,jiveOf,bandOdds,jiveTraits,showWheel,wcol,NEUTRAL,
+  window.__GROWTH_V42={compose,rollOutcome,applyOutcome,genOptions,THEMES,TIERS,POOLS,LBL,persona,jiveOf,bandOdds,jiveTraits,showWheel,spinWheel,wcol,wshade,NEUTRAL,TRAIT_LBL,
     simulate(n){const out=[];for(let i=0;i<(n||100);i++){
       const pl={pos:["QB","RB","WR","LB","CB"][i%5],seasonSeed:1e6+i,seasonsPlayedTotal:i,personaV13:{aggression:i*3%11,iq:i*5%11,eq:i*7%11,longterm:i*2%11,workethic:i*4%11,loyalty:5,confidence:i*6%11,coachability:i*8%11},prestigeLifetime:i%3===0?0:i%3===1?8:18,coachTrust:20+i*7%70,momentum103:30+i*11%50,conditionV11:{fatigue:i*5%30}};
       const rand=seededRand(pl,"sim"+i);const opts=genOptions(pl,rand,5);if(!opts.length)continue;
