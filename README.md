@@ -55,6 +55,85 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v56 — reaction time is driven by the stat that claims to drive it.** Three
+  faults, found by reading every reaction path in the sim:
+  1. **`reactMs` was dead code.** Every agent was built with
+     `reactMs: max(100, 340 − (quick−50)×2.4)` — commented "quickness: first-step
+     latency" — and the identifier appeared **exactly once in the file**. Nothing
+     read it. Agents re-aimed instantly every tick; the only brake on a direction
+     change was turn radius, which is *agility*.
+  2. **The clamp ate the bottom half of the stat range.** The route-break delay was
+     capped hard at 390ms, so on a 90° break every defender below the blend's ~46
+     produced the *same* 390ms — awareness 10 and awareness 45 were the same
+     player, a 17ms spread across 40 points. It now eases into a higher ceiling:
+     461 / 427 / 372 / 181ms at stat 10 / 30 / 50 / 99.
+  3. **Recognition and reaction were one blend.** Reading a break is awareness;
+     redirecting once you have read it is quickness. They are scored separately
+     now — `iq` (58% awareness) still drives the bad-bite chance, `rxq` (55%
+     quickness) drives the delay.
+
+  Also: the roster's quickness value is the **team average ±8**, so it came out
+  69–88 for every defender on the field — a nose tackle and a corner were handed
+  the same reaction. Reaction is now **position-aware** (CB 1.14 → DT 0.86), which
+  is the one place position is not a detail.
+
+  The first version of the latency **broke the defence completely** — it held the
+  agent's remembered *intent* as well as its steering vector, so every tick
+  re-measured against a stale heading and re-triggered, and defenders never
+  escaped. Games finished **251-249** while every reaction assertion still passed.
+  The scoreboard is now part of `reactioncheck`'s contract.
+
+- **v55 — a real route tree, and receivers who actually run it.** The builder had
+  **ten** shapes and a `default` that drew a straight line — and `cross`, which the
+  concept layer picks for both medium *and* short calls, had **no case at all**, so
+  every crosser in the game was silently run as a go. Receivers also parked on
+  their final waypoint and stood dead still for the rest of the play, visible in
+  the sim log as a frozen path; that is most of what "players don't follow routes"
+  looked like on screen.
+
+  A route is now three choices — one of **45 shapes** (the full tree, plus double
+  moves, whips, pivots, option routes and the behind-the-line family), a **release**
+  off the line that bends the stem before the break, and a **depth tier** that
+  moves the break point rather than just the length. **45 × 3 × 3 = 405
+  combinations**, against the previous 10. Every shape also declares a **tail** —
+  what the receiver does once the route is finished: verticals keep climbing,
+  curls settle back toward the ball, crossers keep working across, and nothing
+  aims at a point off the field, which was pinning receivers against the paint
+  where they stopped dead again.
+
+  Measured over a real FieldSim sample: **343 distinct combinations reach the
+  field across 772 receivers, all 45 shapes get called, and 99.5% of 2,040
+  waypoints are hit — in sequence, none out of order.** Guarded by
+  `scripts/routecheck.mjs`.
+
+- **v54 — injuries that actually cost you games, scaled by who you play.** Games
+  were never missed, and the reason was not one bug but **five layers of
+  suppression stacked on each other** — measured over full seasons the `injured`
+  flag never fired once:
+  1. `et()`'s per-game chance was `(12 − injuryResist×0.25)%` clamped to a **0.5%
+     floor**, which every developed player sits on;
+  2. the week plan's own rate (the "1.2% injury" on the plan cards) was rolled as
+     a **second independent gate** on top of it — a relative risk treated as an
+     absolute probability;
+  3. the single-week resolver computed the model's answer and then **discarded
+     it**, rolling its own ~1–5% instead;
+  4. `rollInjuryV18` returned `null` for **65%** of the injuries that survived;
+  5. the age band **cancelled 82%** of what was left outright.
+  And `materializeInjuryV18` was only ever called from the sim-season path, so a
+  normally-played week never got a severity or a `weeksRemaining` at all —
+  `mustSitV18` could never become true.
+
+  Chance now keys on **who you are playing**: the gap between your rating and the
+  opponent's, so 20–30 points of class above them roughly halves the risk and
+  being outmatched raises it. Fatigue, `injuryResist`, perks, prestige and
+  personality all still multiply in. Severity is split so an **average season
+  misses one or two games** (~1.35 measured), while **losing a whole season stays
+  under 1%**. Being worn down now skews the roll toward *worse* injuries — it was
+  inverted, and had been making tired players safer. Same release: health is worth
+  a flat swing either way — **+5% when fresh and clean, −10% when worn or
+  injured** — rather than only ever a penalty. Guarded by
+  `scripts/availabilitycheck.mjs`.
+
 - **v53 — the post-game card leads with the season.** After a whistle the card
   opened with the game grade and the single-game box, and the season line sat at
   the bottom, below the fold on a phone. What a player wants first is where the
