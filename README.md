@@ -55,6 +55,20 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v53 — the post-game card leads with the season.** After a whistle the card
+  opened with the game grade and the single-game box, and the season line sat at
+  the bottom, below the fold on a phone. What a player wants first is where the
+  year now stands, so **SEASON TOTALS** moved to the top, directly under the
+  result, with the grade and this-game box as detail underneath. The green
+  "+ from this game" deltas still ride on the season row, so leading with the
+  total loses nothing. The season line now also states **how many games it covers
+  and the record** — a stat line means little without knowing whether it is one
+  game or eight. That record has to be built from the live scoreboard rather than
+  `weekResults`: the week is only finalised *after* the card is dismissed, so
+  reading `wr.won` showed a win as 0–1 on its own card. Guarded by
+  `scripts/postgamecheck.mjs`, which plays two live weeks and checks the game is
+  counted once, not twice.
+
 - **v52 — the stat leaders and the national rank now describe the same world.**
   A player the **leaders board** had inside the national top 20 mid-season was
   told he was **#200k of 420k** by the rank card on the very same screen. Two

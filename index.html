@@ -7238,6 +7238,16 @@ window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;w
       var rank = (counted && p._pgRankCache) ? p._pgRankCache : pgRankLine(p);
       if (wr) { wr._pgCounted = true; p._pgRankCache = rank; }
       var us = g.usScore != null ? g.usScore : 0, them = g.themScore != null ? g.themScore : 0;
+      // How many games this season line covers, and the record. THIS game is not on
+      // weekResults yet — the week is finalised only after the card is dismissed — so
+      // its result comes off the live scoreboard, or the card shows a win as 0-1.
+      var played = 0, won = 0;
+      try {
+        (p.weekResults || []).forEach(function (w) { if (w && w.played && !w.playoff) { played++; if (w.won) won++; } });
+        if (!wr || !wr.played) { played++; if (us > them) won++; }
+      } catch (e) {}
+      var seasonThru = played ? ' <small style="color:var(--chalk-dim);letter-spacing:0">through ' +
+        played + ' game' + (played > 1 ? 's' : '') + ' \u00B7 ' + won + '\u2013' + (played - won) + '</small>' : '';
       var opp = String(o._oppName || (wr && wr.opp) || "OPPONENT");
       var wk = (p.currentWeek != null ? p.currentWeek + 1 : (p._pgGames || 1));
       var res = us > them ? "\u2705 WIN" : us < them ? "\u274C LOSS" : "\u2022 TIE";
@@ -7252,11 +7262,16 @@ window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;w
           '<small style="color:var(--chalk-dim)">of ' + rank.of.toLocaleString() + '</small>' +
           '<em style="margin-left:auto;font-style:normal;font-weight:700;color:' + rank.col + '">' + rank.arrow + '</em>' +
         '</div>' +
-        gradeCardHtml(p.pos, grade) +
-        '<div class="stat-sec-label">THIS GAME</div>' +
-        '<div class="fullbox">' + pgGrid(p.pos, g.stat, null) + '</div>' +
-        '<div class="stat-sec-label" style="margin-top:12px">SEASON TOTALS <small style="color:var(--good);letter-spacing:0">+ from this game</small></div>' +
+        // v53: the SEASON line leads. What a player wants after a whistle is where
+        // the year now stands — the single-game box is the detail underneath it.
+        // The green deltas still show what this game contributed, so leading with
+        // the season total loses nothing.
+        '<div class="stat-sec-label">SEASON TOTALS' + seasonThru +
+          ' <small style="color:var(--good);letter-spacing:0">+ from this game</small></div>' +
         '<div class="fullbox">' + pgGrid(p.pos, seasonBox, g.stat) + '</div>' +
+        gradeCardHtml(p.pos, grade) +
+        '<div class="stat-sec-label" style="margin-top:12px">THIS GAME</div>' +
+        '<div class="fullbox">' + pgGrid(p.pos, g.stat, null) + '</div>' +
         '<button class="btn" style="margin-top:14px" onclick="window.__pgContinueV13&&window.__pgContinueV13()">Continue \u203A</button>' +
         '</div></div>';
       var old = document.getElementById("pgOverlayV13"); if (old) old.remove();
