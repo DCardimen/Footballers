@@ -103,16 +103,19 @@ const FWc = 360
 const nearOff = Math.abs(nearS.bx - FWc), farOff = Math.abs(farS.bx - FWc)
 ok(farOff < nearOff, 'far section converges toward the vanishing point', { nearOff, farOff })
 
-// ---- the stands must never cover the playing surface, and must stay clear of the
-// LOS / first-down line extension (those markers are painted on the ground out to
-// F_BOT+lineExtend; a stand inside that reach gets the stripes drawn across it).
-// Measured on the DRAWN PIXELS, not the bounding box: the band runs diagonally, so
-// its axis-aligned box necessarily overhangs the field even when no pixel does.
+// ---- the stands must never cover the playing surface, and must leave a real
+// TEAM AREA between the sideline and the stand's front row (benches, coaches and
+// the players not on the field go there). Measured on the DRAWN PIXELS, not the
+// bounding box: the band runs diagonally, so its axis-aligned box necessarily
+// overhangs the field even when no pixel does.
+//
+// Note the stand is ALLOWED to cover the LOS / first-down line extension. Those
+// markers paint on the ground past the sideline, and ground beyond the stand's
+// front row is behind the bleachers — so the stand occluding them is correct, and
+// crowdDepth sits above fieldLines to make that happen.
 const intrude = await page.evaluate(() => {
   const sc = window.__gridironScene, C = sc.crowd
   const F_TOP = 14, F_BOT = 426, FW = 720, MIDY = 220
-  const ext = (window.RIB_TUNE && window.RIB_TUNE.lineExtend) || 34
-  // screen row -> the sim-x at that row, by bisecting the projection's own y
   const yAt = (x) => window.__PJ_PROBE(x, MIDY).y
   const dec = yAt(0) > yAt(FW)
   const xAtY = (Y) => {
@@ -120,7 +123,7 @@ const intrude = await page.evaluate(() => {
     for (let i = 0; i < 22; i++) { const m = (lo + hi) / 2; if ((yAt(m) > Y) === dec) lo = m; else hi = m }
     return (lo + hi) / 2
   }
-  let overField = 0, overLine = 0, samples = 0
+  let overField = 0, minClearWorld = 1e9, samples = 0
   for (let i = 0; i < C.built; i++) {
     const s = C.secs[i], cv = s.cv.idle
     const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
@@ -128,24 +131,64 @@ const intrude = await page.evaluate(() => {
       const Y = s.by + py, x = xAtY(Y)
       if (x <= 0.5 || x >= FW - 0.5) continue           // past the end lines: no field on this row
       const edge = window.__PJ_PROBE(x, s.sgn < 0 ? F_TOP : F_BOT).x
-      const lim = window.__PJ_PROBE(x, s.sgn < 0 ? F_TOP - ext : F_BOT + ext).x
+      const k = window.__PERSPK_PROBE(x) || 1
       for (let px = 0; px < s.bw; px += 2) {
         if (d[((py * cv.width) + px) * 4 + 3] < 40) continue
         const X = s.bx + px
         samples++
-        // the stand is OUTSIDE when it is further from the centre line than the edge
-        const oF = Math.abs(edge - 360) - Math.abs(X - 360)
-        const oL = Math.abs(lim - 360) - Math.abs(X - 360)
-        if (oF > overField) overField = oF
-        if (oL > overLine) overLine = oL
+        const over = Math.abs(edge - 360) - Math.abs(X - 360)   // >0 means inside the field
+        if (over > overField) overField = over
+        // convert the screen clearance back to WORLD lateral units, so the team area
+        // is measured in yards of sideline rather than in perspective-shrunk pixels
+        const clearWorld = -over / (1.30 * 1.45 * k)
+        if (clearWorld < minClearWorld) minClearWorld = clearWorld
       }
     }
   }
-  return { overField: Math.round(overField), overLine: Math.round(overLine), samples }
+  return { overField: Math.round(overField), minClearWorld: Math.round(minClearWorld), samples,
+    gap: (window.__CROWD_V57 || {}).gap }
 })
 ok(intrude.samples > 500, 'the intrusion scan actually found crowd pixels', intrude.samples)
 ok(intrude.overField <= 2, 'no crowd pixel is drawn over the playing surface (px)', intrude.overField)
-ok(intrude.overLine <= 2, 'no crowd pixel sits inside the LOS/first-down line extension (px)', intrude.overLine)
+// 40 world units is ~5 yards of sideline — enough to stand a bench, a coaching box
+// and a row of players in front of the seats.
+ok(intrude.minClearWorld >= 40, 'a TEAM AREA is reserved between sideline and stands (world units)',
+  { clear: intrude.minClearWorld, gap: intrude.gap })
+
+// ---- depth: the crowd must sit ABOVE fieldLines (so it occludes the marker tips
+// rather than being painted over) but BELOW the ground shadows/rings under players.
+const depths = await page.evaluate(() => {
+  const sc = window.__gridironScene, s = sc.crowd.secs[0]
+  return { idle: s.spr.idle.depth, cheer: s.spr.cheer.depth,
+    fieldLines: sc.fieldLines ? sc.fieldLines.depth : null, field: sc.fieldSpr ? sc.fieldSpr.depth : null }
+})
+ok(depths.idle > depths.fieldLines && depths.cheer < 3.5,
+  'crowd draws above the LOS/first-down lines and below the players\' ground FX', depths)
+
+// ---- decks must butt up: the cell carries headroom for the cheer pose's raised
+// arms, so stacking by cell height instead of the seating pitch leaves transparent
+// bands that show up on screen as green stripes of turf running through the crowd.
+const seams = await page.evaluate(() => {
+  const cv = window.__gridironScene.crowd.strips.idle
+  const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
+  // Measure per-ROW ink coverage, not per-column runs: the art has its own stairwell
+  // silhouette, so plenty of individual columns are legitimately transparent partway
+  // up. A deck seam is different in kind — it is a band that is empty ACROSS THE
+  // WHOLE WIDTH, and that is what puts turf through the middle of the crowd.
+  const frac = []
+  for (let y = 0; y < cv.height; y++) {
+    let n = 0
+    for (let x = 0; x < cv.width; x += 3) if (d[((y * cv.width) + x) * 4 + 3] > 40) n++
+    frac.push(n / Math.ceil(cv.width / 3))
+  }
+  let first = -1, last = -1
+  for (let y = 0; y < frac.length; y++) if (frac[y] >= 0.5) { if (first < 0) first = y; last = y }
+  let worst = 1, worstY = -1
+  for (let y = first; y <= last; y++) if (frac[y] < worst) { worst = frac[y]; worstY = y }
+  return { minRowInk: +worst.toFixed(3), atRow: worstY, solidSpan: [first, last],
+    size: [cv.width, cv.height], decks: (window.__CROWD_V57 || {}).decks }
+})
+ok(seams.minRowInk >= 0.15, 'no turf shows through between stacked decks (min row ink)', seams)
 
 // ---- cheering: heat rises, arrives as a wave, then decays
 const cheer = await page.evaluate(async () => {
@@ -218,21 +261,27 @@ const viaEvent = await page.evaluate(() => {
 ok(viaEvent.sched >= 4, 'a touchdown event schedules a roar across the stands', viaEvent.sched)
 ok(viaEvent.noise === 0, 'an unremarkable event does not move the crowd', viaEvent.noise)
 
-// ---- tiers: the level picks one, and they really differ
+// ---- tiers: the level picks one, and they really differ.
+// Measured as the share of inked pixels that are COLOURED rather than grey. Raw
+// alpha mass does not work: every tier draws the same solid bleacher structure, so
+// the totals sit within noise of each other. What separates a half-empty
+// high-school bleacher from a sold-out deck is how much of that structure is
+// covered by people — skin, shirts, flags — and those are the saturated pixels.
 const tiers = await page.evaluate(() => {
   const sc = window.__gridironScene
   const out = {}
   for (const t of ['sparse', 'mid', 'packed']) {
     window.__CROWD_TIER = t
     sc.buildCrowd()
-    // sample the BIGGEST section: the far ones are a few px tall and the density
-    // gap between tiers there is inside the noise
-    let s = sc.crowd.secs[0]
-    for (let i = 1; i < sc.crowd.built; i++) if (sc.crowd.secs[i].bw * sc.crowd.secs[i].bh > s.bw * s.bh) s = sc.crowd.secs[i]
-    const cv = s.cv.idle, cx = cv.getContext('2d')
-    const d = cx.getImageData(0, 0, cv.width, cv.height).data
-    let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 24) n++
-    out[t] = n
+    const cv = sc.crowd.strips.idle, d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
+    let ink = 0, col = 0
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 40) continue
+      ink++
+      const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2])
+      if (mx - mn > 26) col++
+    }
+    out[t] = +(col / Math.max(1, ink)).toFixed(4)
   }
   delete window.__CROWD_TIER
   const byLevel = {}
@@ -241,10 +290,10 @@ const tiers = await page.evaluate(() => {
   for (const lv of [0, 4, 8]) { st.player.level = lv; byLevel[lv] = window.__CROWD_TIER_PROBE() }
   st.player.level = keep
   sc.buildCrowd()
-  return { ink: out, byLevel }
+  return { peopleShare: out, byLevel }
 })
-ok(tiers.ink.packed > tiers.ink.mid && tiers.ink.mid > tiers.ink.sparse,
-  'the three tiers really differ in crowd density', tiers.ink)
+ok(tiers.peopleShare.packed > tiers.peopleShare.mid && tiers.peopleShare.mid > tiers.peopleShare.sparse,
+  'the three tiers really differ in how full the stand is', tiers.peopleShare)
 ok(tiers.byLevel[0] === 'sparse' && tiers.byLevel[4] === 'mid' && tiers.byLevel[8] === 'packed',
   'the level being played at picks the tier', tiers.byLevel)
 

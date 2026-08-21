@@ -80,6 +80,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   bisection `warpField` uses) rather than in yards — spacing by yards spends most
   of the slices on the near end, which is off the side of the frame.
 
+  The source column advances with the **integral of `k`, not with field distance**.
+  Advancing it linearly squeezes every *spectator* horizontally wherever the
+  sideline foreshortens, which turned the far half of the stand into vertical
+  smears. Real perspective does not distort a person: it scales them by `k` and
+  packs *more* of them into the same screen length. Advancing at a rate ∝ `k`
+  makes the horizontal texture scale `k²/k = k`, matching the vertical scale, so
+  the art keeps its drawn proportions all the way down the sideline. Height then
+  follows from the art's own aspect rather than being dialled in separately, and
+  the stand gets tall enough to read by **stacking decks** — the master draws
+  about five rows of seats and a stadium has many more — which adds height without
+  stretching anybody. Decks stack by the **seating pitch**, not the cell height
+  (the cell carries headroom for the cheer pose's arms; stacking by it puts a band
+  of turf through the crowd), with a few px of overlap because the fringe erode
+  leaves the back railing thin.
+
   Cheering is a **crossfade**, never a redraw: geometry is rebuilt only when the
   perspective is (once per snap, 1.8ms), while the crowd reacts every frame by
   moving alpha (0.008ms). Sections carry their own heat, so `fireEvent` feeding
@@ -98,11 +113,18 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   2. **The poses must be bottom-aligned in same-size cells.** The cheer strips are
      taller (arms and flags go up, the seats do not move); centre them and the
      whole stand visibly sinks as the crowd sits back down.
-  3. **The apron has a hard floor at `lineExtend`.** The LOS and first-down
-     markers are painted on the ground out to `F_BOT+lineExtend`, so a stand
-     parked inside that reach got the blue and gold stripes drawn straight across
-     the crowd — a marker lying on ground behind the bleachers. `crowdGap` is
-     clamped above it.
+  3. **The stand has to sit above the line markers, not dodge them.** The LOS and
+     first-down markers paint on the ground out to `F_BOT+lineExtend`, and a stand
+     inside that reach got the blue and gold stripes drawn straight across the
+     crowd. Widening the apron past `lineExtend` "fixed" it and was the wrong fix:
+     ground beyond the stand's front row is *behind* the bleachers, so the stand
+     should occlude those stripes. `crowdDepth` now sits just above `fieldLines`
+     (and below the ground shadows under the players), which frees the apron to be
+     whatever the sideline actually needs.
+
+  The apron is now a deliberate **team area** — wide enough (~9 yards) to hold
+  benches, coaches, the players not on the field and the chain crew, so that a
+  later system can populate the sideline without the stands having to move.
 
   Render-only, like the officials: no sim actor, no stat, no event of its own.
   Guarded by `scripts/crowdcheck.mjs`, which asserts the stands recede and

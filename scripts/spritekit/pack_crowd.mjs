@@ -29,11 +29,13 @@ import fs from 'fs'
 
 const SRC = 'art/source/crowd stands pixel art.png'
 const OUT = 'public/rib_crowd_v57.png'
-// The stands render a few hundred screen px wide at most (the far-end margin is
-// the widest they ever get), so the master's full 1254px is far more than the
-// renderer can show. 0.55 keeps every tier legible and holds the baked data URL
-// to a few hundred KB instead of two megabytes.
-const SCALE = 0.55
+// The renderer maps this art at a horizontal texture scale of k (see the k-integral
+// mapping in `v57 CROWD STANDS`), and k is well under 1 everywhere the stands are
+// actually visible — measured, the art is DOWNSAMPLED about 3x at draw size. Packing
+// the master's full 1254px therefore buys nothing on screen and costs ~1.8MB of
+// base64 in index.html. Half scale is still finer than anything that reaches a
+// pixel. Override with CROWD_SCALE to re-measure if the geometry dials change.
+const SCALE = +(process.env.CROWD_SCALE || 0.5)
 // tier/pose per strip, in sheet order — the sheet is drawn idle-then-cheer per tier
 const ORDER = ['sparse_idle', 'sparse_cheer', 'mid_idle', 'mid_cheer', 'packed_idle', 'packed_cheer']
 
@@ -116,11 +118,20 @@ const res = await page.evaluate(async ({ src, ORDER, SCALE }) => {
   const ax = atlas.getContext('2d'); ax.imageSmoothingEnabled = true; ax.imageSmoothingQuality = 'high'
 
   const cellmap = {}
+  const drawnH = boxes.map(b => Math.round(b.h * SCALE))
   boxes.forEach((b, k) => {
-    const dw = Math.round(b.w * SCALE), dh = Math.round(b.h * SCALE)
+    const dw = Math.round(b.w * SCALE), dh = drawnH[k]
     const dx = 0, dy = k * CH + (CH - dh)          // BOTTOM-aligned: the seats never move
     ax.drawImage(cv, b.x, b.y, b.w, b.h, dx, dy, dw, dh)
-    cellmap[ORDER[k]] = [0, k * CH, CW, CH]
+    // 5th value is the DECK PITCH: the height of the seating block itself, i.e. the
+    // IDLE strip's drawn height, taken from this tier's idle cell (even index).
+    // The cell is taller than that on purpose — it carries the headroom the cheer
+    // pose needs for raised arms and flags — so a renderer stacking decks by CELL
+    // height leaves a transparent band between them and the turf shows through as
+    // green stripes. Stacking by the pitch butts the seats of one deck exactly onto
+    // the back row of the deck below, and the cheer pose's arms simply overlap into
+    // the deck above, which is what arms do.
+    cellmap[ORDER[k]] = [0, k * CH, CW, CH, drawnH[k & ~1]]
   })
 
   // ---- 5. quantize. Smooth-downscaling pixel art explodes the colour count, and a
