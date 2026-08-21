@@ -55,6 +55,63 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v57 — a crowd in the stands, and it reacts to the game.** The broadcast view
+  was full-bleed turf: `warpField()` stretches the field art's outermost grass
+  pixels across the margins so there is never a horizon. But the perspective
+  leaves a margin that *widens* toward the far end — the playing surface narrows
+  with distance while the canvas does not — and that margin is the apron outside
+  the sideline. It now holds real stands.
+
+  The uploaded sheet is six full-width bleacher strips: three density tiers
+  (sparse / mid / packed) x two poses (idle / cheer, the packed cheer adding
+  flags). Tier is picked from the level being played at — a high-school bleacher
+  is not a sold-out pro deck.
+
+  **A stand is a wall, not ground**, so it could not be baked into `warpField`'s
+  row loop: that loop paints one depth per output row, and a wall occupies many
+  rows at a single depth. It is drawn as a column sweep instead — the same trick
+  from the other side. The sideline is sampled at a series of depths; each sample
+  projects through `PJ` to a ground point and carries the perspective ratio `k`,
+  so the stand's on-screen height there is just `crowdHeight*k`. Consecutive
+  samples bound a thin quad and a three-point affine maps the matching slice of
+  art onto it. Because `PJ` is a genuine projective map, the tiers stay straight
+  and converge on the same vanishing point the yard lines do. Samples are spaced
+  uniformly in **screen Y** (uniform in the `C(u)` integral, inverted by the same
+  bisection `warpField` uses) rather than in yards — spacing by yards spends most
+  of the slices on the near end, which is off the side of the frame.
+
+  Cheering is a **crossfade**, never a redraw: geometry is rebuilt only when the
+  perspective is (once per snap, 1.8ms), while the crowd reacts every frame by
+  moving alpha (0.008ms). Sections carry their own heat, so `fireEvent` feeding
+  `crowdReact` starts a roar **at the play** and rolls it out along the sideline,
+  thinning as it goes, instead of the whole stadium flipping on like a light
+  switch. Only the cheer layer bobs — both cells carry the same bleachers, so
+  bobbing the idle layer too would visibly wobble the concrete.
+
+  Three things the art and the geometry forced:
+  1. **Keying alpha is not enough.** A keyed pixel keeps its magenta RGB, and the
+     downscale resamples colour across it, blending the matte back in as a purple
+     rim. The colour has to die with the alpha. The back railing on several
+     strips is also drawn in a *dark* magenta the bright key never sees and the
+     erode cannot reach without eating the rail — that cast is desaturated in
+     place instead.
+  2. **The poses must be bottom-aligned in same-size cells.** The cheer strips are
+     taller (arms and flags go up, the seats do not move); centre them and the
+     whole stand visibly sinks as the crowd sits back down.
+  3. **The apron has a hard floor at `lineExtend`.** The LOS and first-down
+     markers are painted on the ground out to `F_BOT+lineExtend`, so a stand
+     parked inside that reach got the blue and gold stripes drawn straight across
+     the crowd — a marker lying on ground behind the bleachers. `crowdGap` is
+     clamped above it.
+
+  Render-only, like the officials: no sim actor, no stat, no event of its own.
+  Guarded by `scripts/crowdcheck.mjs`, which asserts the stands recede and
+  converge, that **no drawn pixel** touches the playing surface or the line
+  extension (measured on pixels, not the bounding box — a diagonal band's box
+  necessarily overhangs the field), that the roar arrives as a wave and decays,
+  that the cheer layer moves while the bleachers do not, and that a blocked sheet
+  degrades to plain grass with no page errors.
+
 - **v56 — reaction time is driven by the stat that claims to drive it.** Three
   faults, found by reading every reaction path in the sim:
   1. **`reactMs` was dead code.** Every agent was built with
