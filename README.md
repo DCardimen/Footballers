@@ -55,6 +55,62 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v58 — the stands become a stadium.** Three things the sideline stands were
+  missing, plus the room to build on them.
+
+  **A bowl, not two walls.** The sweep is generalised from "a sideline" to a
+  **wall** — a line of ground points the stand stands on — so an end-zone stand
+  is the same code with the samples running across the field instead of down it.
+  On an end-zone wall every sample sits at one depth, so `k` is constant and the
+  k-integral mapping reduces to the linear one, which is correct there.
+
+  Only the **far** end zone gets a wall. These stands are billboards, so "up the
+  screen" means "further away"; a wall behind the *near* end line is behind the
+  camera and rises out of the bottom of the frame straight over the field it is
+  meant to sit behind. The camera swings ends with possession and the walls
+  rebuild every snap, so both real end zones get their stands — each while it is
+  the one being attacked.
+
+  That needed **headroom**. `NSTOP`, the field's top margin inside the warp
+  canvas, was 30px — invisible, and therefore fine, until something had to live
+  up there. The end-zone stand projects *above* the far end line and was landing
+  at negative world y, outside the camera bounds, drawing nothing. It is 340 now,
+  and everything above the far end line is painted as the dark **beyond** the
+  stadium rather than by stretching the field art's top row across it. The
+  projection shifts down uniformly and the camera centres on `focusPt`, which
+  moves with it, so framing is unchanged.
+
+  **Double the sideline.** `crowdGap` goes 56 → 112 — about 14 yards, deep enough
+  for a bench row, a coaching box in front of it and players standing at the
+  boundary. This costs crowd coverage and that trade is the point.
+
+  **Architecture.** Four identical decks stacked is a texture, not a stadium: it
+  reads flat because nothing says where one tier ends and the next begins. A new
+  pass draws the parts of a stand that are not crowd — the **concourse** walkway
+  at every tier, the **stairways** climbing through the seating, and the
+  **vomitory** tunnels opening onto each concourse. Two things make it read as
+  one building: the stairways line up vertically through every deck (the crowd art
+  is slid sideways deck to deck so faces do not repeat, but structure does not
+  move between floors, and that unbroken line is most of the 3D read), and it is
+  drawn in strip space, so the perspective sweep warps it along with everything
+  else. A stairway is sized off the *tile*, which is a fixed number of people
+  across, so it stays one spectator wide whether the strip is stretched down a
+  sideline or across an end zone.
+
+  Also: the stand is now laid down as **solid structure first**, with the crowd
+  art on top. The master's stairwell leaves sloped transparent wedges and
+  mirroring tiles puts one at every seam — on screen they were turf showing
+  *through* the crowd. Concrete underneath means the art can have all the holes it
+  likes.
+
+  Four assertions in `crowdcheck` were measuring the wrong thing and are corrected
+  rather than kept green: the sideline intrusion scan was including end-zone
+  sections (which sit beyond an end line, where there is no field on their rows at
+  all — they get their own containment test); the concourse test hunted for "the
+  darkest rows" and found the transparent headroom, then the art's own dark rows,
+  instead of the rows the walkways are actually drawn on; and the decay test
+  raced ambient cheering, which put sections on their feet mid-measurement.
+
 - **v57 — a crowd in the stands, and it reacts to the game.** The broadcast view
   was full-bleed turf: `warpField()` stretches the field art's outermost grass
   pixels across the margins so there is never a horizon. But the perspective
