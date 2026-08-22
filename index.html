@@ -3027,7 +3027,14 @@ const F_TOP = 14, F_BOT = FH - 14;
  * (warpField), with its edge pixels stretched sideways so grass always fills the frame.
  * The old CSS rotateX on the #field canvas is dead — applyFieldFx clears it. */
 let VDIR = 1, ANCHOR_U = null, PERSP = null;
-const NSTOP = 30, NSH = 1340, WORLD_H = 2800;
+// NSTOP is the field's top margin inside the warp canvas — everything above the far
+// end line. It used to be 30px, which was invisible and therefore fine. The v57 END
+// ZONE stands live in that band (they sit BEHIND the end line, so they project above
+// it), and 30px is nowhere near enough: they landed at negative world y, outside the
+// camera bounds, and never drew. Raising it costs a little of the warp canvas's
+// height budget (VB's cap below) and shifts the whole projection down uniformly —
+// the camera centres on focusPt, which moves with it, so framing is unchanged.
+const NSTOP = 340, NSH = 1340, WORLD_H = 2800;
 const PERSP_OA = 1.45, PERSP_AB = 46;          // art overscan; anchor sits ~8 yds behind the LOS
 const PERSP_BACKMAX = 1.2;                     // behind-anchor magnification cap
 function fieldRadius() { const r = (window.__FIELD_FX || {}).radius; return r == null ? 300 : r; }
@@ -3345,7 +3352,8 @@ try { window.__PJ_PROBE = (x, y) => PJ(x, y); window.__PERSPK_PROBE = (x) => per
 function ribCrowdStrip(tier, pose, tiles, decks) {
   if (!RIB.crowdImg) return null;
   const c = RIB_META_CROWD[tier + "_" + pose]; if (!c) return null;
-  const key = tier + "_" + pose + "_" + tiles + "x" + decks + "x" + TU("crowdDeckLap", 10);
+  const key = [tier, pose, tiles, decks, TU("crowdDeckLap", 10), TU("crowdArch", 1),
+    TU("crowdStairsPerTile", 4), TU("crowdStairW", 0.09), TU("crowdConcourseH", 0.1), TU("crowdVomEvery", 2), TU("crowdTopShade", 0.2)].join("_");
   if (RIB.crowdCache[key]) return RIB.crowdCache[key];
   const W = c[2] * tiles;
   const row = document.createElement("canvas"); row.width = W; row.height = c[3];
@@ -3376,11 +3384,84 @@ function ribCrowdStrip(tier, pose, tiles, decks) {
   const pitch = Math.max(1, (c[4] || c[3]) - TU("crowdDeckLap", 10));
   const cv = document.createElement("canvas"); cv.width = W; cv.height = (decks - 1) * pitch + c[3];
   const cx = cv.getContext("2d"); cx.imageSmoothingEnabled = false;
+  // A stand is a solid block of concrete with people on it. The art is not: the
+  // master's stairwell leaves sloped transparent wedges, and mirroring tiles puts
+  // those wedges at every seam — on screen they read as turf showing THROUGH the
+  // crowd. Lay the structure down first and the art can have all the holes it
+  // likes. Only the headroom above the top deck stays clear, because that is where
+  // the cheer pose's arms and flags go.
+  const seatTop = Math.max(0, c[3] - (c[4] || c[3]));
+  cx.fillStyle = "#3b3e44"; cx.fillRect(0, seatTop, W, cv.height - seatTop);
   for (let d = 0; d < decks; d++) {
     const off = Math.round(((d * 0.37) % 1) * W), y = (decks - 1 - d) * pitch;
     cx.drawImage(row, off - W, y); cx.drawImage(row, off, y);
   }
+  ribCrowdArchitecture(cx, W, cv.height, pitch, decks, tiles);
   RIB.crowdCache[key] = cv; return cv;
+}
+/* Four identical decks stacked is a TEXTURE, not a stadium. It reads flat because
+ * nothing in it says where one tier ends and the next begins, and there is no
+ * built structure for the eye to take depth from. This draws the parts of a stand
+ * that are not crowd: the concourse walkway between tiers, the stairways climbing
+ * through the seating, and the vomitory tunnels that open onto each concourse.
+ *
+ * Two things make it read as one building rather than a stack:
+ *   - the stairways line up VERTICALLY through every deck. The crowd art is slid
+ *     sideways deck to deck so the faces do not repeat, but structure does not
+ *     move between floors, and that continuous line is most of the 3D read.
+ *   - it is all drawn in STRIP space, so the perspective sweep warps it with
+ *     everything else — stairs climb the stand and concourses follow the tier
+ *     lines, both converging on the yard lines' own vanishing point.
+ *
+ * `source-atop` keeps every mark inside the stand's existing silhouette, so none
+ * of it can spill onto the turf. */
+function ribCrowdArchitecture(cx, W, H, pitch, decks, tiles) {
+  if (TU("crowdArch", 1) <= 0) return;
+  cx.save();
+  cx.globalCompositeOperation = "source-atop";
+  const conH = Math.max(2, Math.round(pitch * TU("crowdConcourseH", 0.1)));
+  // A stairway is about ONE SPECTATOR wide. Sized off the tile (which is a fixed
+  // number of people across) rather than off the wall, so it stays one person wide
+  // whether this strip is stretched down a sideline or across an end zone.
+  const per = Math.max(1, Math.round(TU("crowdStairsPerTile", 4)));
+  const pitchX = W / (tiles * per);
+  const sw = Math.max(2, Math.round(pitchX * TU("crowdStairW", 0.09)));
+  const vomEvery = Math.max(1, Math.round(TU("crowdVomEvery", 2)));
+  const stairX = [];
+  for (let i = 0, x = Math.round(pitchX * 0.5); x < W; i++, x = Math.round(pitchX * (i + 0.5))) stairX.push([i, x]);
+
+  // ---- stairways: full height, aligned across every deck. The crowd art is slid
+  // sideways deck to deck so faces do not repeat, but structure does not move
+  // between floors, and that unbroken vertical line is most of the 3D read.
+  for (const [, x] of stairX) {
+    cx.fillStyle = "#43464d"; cx.fillRect(x, 0, sw, H);                  // the run, darker than the seats
+    cx.fillStyle = "rgba(150,156,166,0.5)";                              // tread nosings catching light
+    for (let y = H - 2; y > 0; y -= 4) cx.fillRect(x, y, sw, 1);
+    cx.fillStyle = "rgba(14,15,19,0.5)";                                 // shadowed cheeks give it width
+    cx.fillRect(x - 1, 0, 1, H); cx.fillRect(x + sw, 0, 1, H);
+  }
+  // ---- concourses: one walkway at the top of every deck but the last
+  for (let m = 1; m < decks; m++) {
+    const y = H - m * pitch;
+    cx.fillStyle = "#2f333a"; cx.fillRect(0, y - conH, W, conH);         // the walkway, in shade
+    cx.fillStyle = "rgba(158,165,176,0.7)"; cx.fillRect(0, y - conH, W, 1);     // front railing
+    cx.fillStyle = "rgba(10,11,14,0.42)"; cx.fillRect(0, y - 1, W, 1);   // shadow onto the seats below
+    // vomitories: tunnel mouths opening onto this concourse
+    for (const [i, x] of stairX) {
+      if (i % vomEvery) continue;
+      const vw = Math.max(3, Math.round(sw * 2.2)), vh = Math.max(3, Math.round(conH * 1.6));
+      const vx = Math.round(x + sw / 2 - vw / 2);
+      cx.fillStyle = "#14171c"; cx.fillRect(vx, y - vh, vw, vh);         // the dark of the tunnel
+      cx.fillStyle = "rgba(132,139,150,0.55)"; cx.fillRect(vx, y - vh, vw, 1);   // lintel
+    }
+  }
+  // ---- the upper deck sits deeper under the roof line: a soft top-down shade
+  // separates the tiers in depth without touching the front rows
+  const g = cx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "rgba(6,8,12," + TU("crowdTopShade", 0.2) + ")");
+  g.addColorStop(0.5, "rgba(6,8,12,0)");
+  cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+  cx.restore();
 }
 function ribRecolor(src, p1hex, p2hex) {
   const cv = document.createElement("canvas"); cv.width = 48; cv.height = 48;
@@ -5052,6 +5133,24 @@ class Ot extends mt.Scene {
    * Render-only, like the officials: no sim actor, no stat, no event of its own.
    * Math.random() here decides which section flutters next — cosmetic only, and it
    * never touches the play. */
+  crowdC(u) {
+    // PERSP.C integrates s² from 0, and clamps anything below 0 to 0 — every negative
+    // u collapses onto the near goal line. The END ZONE stands sit BEHIND the end
+    // lines (u < 0 and u > FW), so extend it linearly through the behind-anchor
+    // region, where s is already pinned at PERSP_BACKMAX and the integral really is
+    // linear. Without this the near end-zone stand is drawn ON the goal line.
+    const P = PERSP;
+    return u >= 0 ? P.C(u) : u * PERSP_BACKMAX * PERSP_BACKMAX;
+  }
+  crowdProject(u, vv) {
+    // PJ, but in the direction-adjusted (u, vv) space the stands are laid out in, and
+    // through crowdC so it keeps working past both end lines.
+    const P = PERSP, FX = window.__FIELD_FX || {};
+    const sp = FX.spread == null ? 1 : FX.spread, sz = FX.size == null ? 1.32 : FX.size;
+    const k = Math.max(0.02, P.s(u) / P.sN);
+    return { x: FW / 2 + (vv - (F_TOP + F_BOT) / 2) * (1.30 * sp * PERSP_OA * k),
+      y: NSTOP + P.VB * (P.total - this.crowdC(u)), k, s: sz * 0.80 * k };
+  }
   crowdInvertC(want) {
     // screen-y -> field depth u. Same 18-step bisection warpField uses.
     const P = PERSP; let lo = 0, hi = FW;
@@ -5076,8 +5175,9 @@ class Ot extends mt.Scene {
     // THE TEAM AREA. The apron between the sideline and the stand's front row is
     // deliberately wide enough to hold everything that belongs on a real sideline —
     // benches, coaches, the players not on the field, the chain crew — so a later
-    // system can populate it without the stands having to move. ~9 yards, which is
-    // about what a real team area occupies between the boundary and the seats.
+    // system can populate it without the stands having to move. ~14 yards: deep
+    // enough for a bench row, a coaching box in front of it and players standing at
+    // the boundary, with room left over.
     //
     // It used to be floored at the LOS/first-down line extension, because those
     // markers paint on the ground out to F_BOT+lineExtend and a stand inside that
@@ -5086,7 +5186,7 @@ class Ot extends mt.Scene {
     // bleachers, so the stand should occlude those stripes, not dodge them.
     // crowdDepth now sits above fieldLines, so the apron is free to be whatever the
     // sideline actually needs.
-    const GAP = TU("crowdGap", 56);
+    const GAP = TU("crowdGap", 112);
     const MIDY = (F_TOP + F_BOT) / 2, HALF = (F_BOT - F_TOP) / 2;
 
     if (!this.crowd || this.crowd.sec !== SEC) { this.clearCrowd(); this.crowd = { secs: [], t: 0, excite: 0, sec: SEC, tier }; }
@@ -5098,40 +5198,69 @@ class Ot extends mt.Scene {
     // take the built strip's real dimensions — decks stack by pitch, not cell height
     const stripW = strips.idle.width, stripH = strips.idle.height;
 
+    // ---- THE BOWL. A wall is just a line of ground points the stand stands on; the
+    // sweep below does not care whether that line runs down a sideline or across the
+    // back of an end zone. Sidelines are sampled uniformly in screen Y (each sample a
+    // different depth); end-zone walls sit at ONE depth and are sampled across the
+    // field, so their k is constant and they come out as a straight band. The end
+    // zone stands span exactly the sideline stands' lateral range, so the four walls
+    // meet at the corners and the bowl closes.
+    const vOut = HALF + GAP, EZG = TU("crowdEndGap", 16);
+    const walls = [
+      { kind: "side", vv: MIDY - vOut, sec: SEC },
+      { kind: "side", vv: MIDY + vOut, sec: SEC },
+      // ONLY the far end zone. A wall behind the NEAR end line is behind the camera,
+      // and these stands are billboards: "up the screen" means "further away", so a
+      // near-end wall rises out of the bottom of the frame and paints itself straight
+      // over the field it is supposed to be behind. The camera swings ends with
+      // possession and this list is rebuilt every snap, so both real end zones get
+      // their stands — each one while it is the end being attacked.
+      { kind: "ez", u: FW + EZG, sec: Math.max(2, Math.round(SEC * 0.6)) },
+    ];
+
     let n = 0, lastHH = 0;
-    for (const sgn of [-1, 1]) {
-      const v = MIDY + sgn * (HALF + GAP);
+    for (const wall of walls) {
       const pts = [];
-      for (let j = 0; j <= NS; j++) {
-        const u = this.crowdInvertC(P.total * (j / NS));
-        const x = VDIR > 0 ? u : FW - u;            // back to stadium-fixed field-x
-        const p = PJ(x, v);
-        pts.push({ x, sx: p.x, sy: p.y, k: Math.max(0.02, P.s(u) / P.sN), c: 0 });
+      if (wall.kind === "side") {
+        for (let j = 0; j <= NS; j++) {
+          const u = this.crowdInvertC(P.total * (j / NS));
+          const p = this.crowdProject(u, wall.vv);
+          // w: distance along the wall, in world units. x: where on the FIELD this
+          // sits, which is what the roar's wave measures its distance from.
+          pts.push({ w: u, x: VDIR > 0 ? u : FW - u, sx: p.x, sy: p.y, k: p.k, c: 0 });
+        }
+      } else {
+        const NE = Math.max(10, Math.round(NS / 4)), xw = VDIR > 0 ? wall.u : FW - wall.u;
+        for (let j = 0; j <= NE; j++) {
+          const vv = MIDY - vOut + (2 * vOut) * (j / NE);
+          const p = this.crowdProject(wall.u, vv);
+          pts.push({ w: vv, x: Math.max(0, Math.min(FW, xw)), sx: p.x, sy: p.y, k: p.k, c: 0 });
+        }
       }
-      // ---- texture coordinate: the INTEGRAL OF k, not field distance.
-      // Advancing the source column linearly with field-x squeezes every PERSON
-      // horizontally wherever the sideline foreshortens, which is what turned the far
-      // half of the stand into vertical smears. Real perspective does not distort a
-      // spectator: it scales them by k and packs MORE of them into the same screen
-      // length. Advancing the source at a rate proportional to k does exactly that —
-      // the local horizontal texture scale becomes (screen-length rate)/(dc/dx) =
-      // k²/k = k, which matches the vertical scale, so the art keeps its drawn
-      // proportions the whole way down the sideline.
+      const NP = pts.length - 1;
+      // ---- texture coordinate: the INTEGRAL OF k along the wall, not raw distance.
+      // Advancing the source column linearly squeezes every PERSON horizontally
+      // wherever the wall foreshortens, which is what turned the far half of a
+      // sideline into vertical smears. Real perspective does not distort a spectator:
+      // it scales them by k and packs MORE of them into the same screen length.
+      // Advancing at a rate proportional to k makes the horizontal texture scale
+      // (screen-length rate)/(dc/dw) = k²/k = k, matching the vertical scale, so the
+      // art keeps its drawn proportions the whole way along. (On an end-zone wall k
+      // is constant and this reduces to the linear mapping, which is correct there.)
       let cum = 0;
-      for (let j = 1; j <= NS; j++) {
-        cum += 0.5 * (pts[j - 1].k + pts[j].k) * Math.abs(pts[j].x - pts[j - 1].x);
+      for (let j = 1; j <= NP; j++) {
+        cum += 0.5 * (pts[j - 1].k + pts[j].k) * Math.abs(pts[j].w - pts[j - 1].w);
         pts[j].c = cum;
       }
-      // normalise, then flip so the art stays pinned to the STADIUM rather than to
-      // the direction of play
-      for (const q of pts) { const f = cum > 0 ? q.c / cum : 0; q.c = (VDIR > 0 ? f : 1 - f) * stripW; }
+      const flip = wall.kind === "side" && VDIR < 0;   // keep sideline art pinned to the stadium
+      for (const q of pts) { const f = cum > 0 ? q.c / cum : 0; q.c = (flip ? 1 - f : f) * stripW; }
       // ---- height follows the art. Once the horizontal scale is k everywhere, the
-      // height that leaves the spectators undistorted is fixed by the cell's own
-      // aspect and how densely it was tiled: h/CELL_H must equal the horizontal
-      // scale, so HH = CELL_H * seg / (dc * k). That is constant along the band up to
+      // height that leaves the spectators undistorted is fixed by the strip's own
+      // aspect and how densely it was tiled: h/stripH must equal the horizontal
+      // scale, so HH = stripH * seg / (dc * k). Constant along the wall up to
       // sampling noise, so take the median and let crowdHeightK trim it by taste.
       const est = [];
-      for (let j = 0; j < NS; j++) {
+      for (let j = 0; j < NP; j++) {
         const dc = Math.abs(pts[j + 1].c - pts[j].c);
         if (dc < 1e-6) continue;
         const seg = Math.hypot(pts[j + 1].sx - pts[j].sx, pts[j + 1].sy - pts[j].sy);
@@ -5141,15 +5270,19 @@ class Ot extends mt.Scene {
       const HH = (est.length ? est[est.length >> 1] : 160) * HK;
       lastHH = HH;
       // sections share their boundary sample, so neighbours butt up with no seam
-      for (let i = 0; i < SEC; i++) {
-        const a = Math.floor(i * NS / SEC), b = Math.floor((i + 1) * NS / SEC);
-        this.crowdSection(n++, sgn, pts.slice(a, b + 1), strips, stripW, stripH, HH);
+      const SS = wall.sec;
+      for (let i = 0; i < SS; i++) {
+        const a = Math.floor(i * NP / SS), b = Math.floor((i + 1) * NP / SS);
+        if (b <= a) continue;
+        this.crowdSection(n++, wall.kind === "side" ? (wall.vv < MIDY ? -1 : 1) : 0,
+          pts.slice(a, b + 1), strips, stripW, stripH, HH);
       }
     }
     for (let i = n; i < C.secs.length; i++) { const s = C.secs[i]; try { s.spr.idle.setVisible(false); s.spr.cheer.setVisible(false); } catch (e) {} }
     C.built = n;
     try {
-      window.__CROWD_V57 = { tier, sections: n, sec: SEC, tiles, decks, height: +lastHH.toFixed(1), gap: GAP,
+      window.__CROWD_V57 = { tier, sections: n, sec: SEC, tiles, decks, height: +lastHH.toFixed(1), gap: GAP, endGap: EZG, walls: walls.length,
+        pitch: Math.max(1, (RIB_META_CROWD[tier + "_idle"][4] || 0) - TU("crowdDeckLap", 10)),
         heat: () => (this.crowd ? this.crowd.secs.slice(0, this.crowd.built).map((s) => +s.heat.toFixed(3)) : []),
         boxes: () => (this.crowd ? this.crowd.secs.slice(0, this.crowd.built).map((s) => [Math.round(s.bx), Math.round(s.by), Math.round(s.bw), Math.round(s.bh)]) : []) };
     } catch (e) {}
@@ -5552,11 +5685,19 @@ class Ot extends mt.Scene {
       const CW = 1200, CH = WORLD_H, AW = FW * PERSP_OA;
       if (!this._warpCv) { this._warpCv = document.createElement("canvas"); this._warpCv.width = CW; this._warpCv.height = CH; }
       const ctx = this._warpCv.getContext("2d");
+      // Everything above the far end line is BEYOND the stadium, not more turf. It
+      // used to be filled by stretching the art's topmost row across it, which was
+      // invisible while that band was 30px tall; now that it is deep enough to hold
+      // the end-zone stands it has to read as the dark behind them instead of as
+      // grass floating above the goal line.
+      const sky = ctx.createLinearGradient(0, 0, 0, NSTOP);
+      sky.addColorStop(0, "#05070a"); sky.addColorStop(1, "#12161d");
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, CW, NSTOP + 1);
       const SWa = fimg.width, SHa = fimg.height;         // 360x700 art
       for (let i = 0; i < CH; i++) {
         const target = (i - NSTOP) / P.VB;               // = total − C(u) at this row
         let u;
-        if (target <= 0) u = FW;
+        if (target <= 0) continue;                        // above the far end line: backdrop, not turf
         else if (target >= P.total) u = 0;
         else { let lo = 0, hi = FW; const want = P.total - target;
           for (let it = 0; it < 18; it++) { const mid = (lo + hi) / 2; if (P.C(mid) < want) lo = mid; else hi = mid; }

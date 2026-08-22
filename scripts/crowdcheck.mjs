@@ -88,7 +88,20 @@ const geom = await page.evaluate(() => {
   }
 })
 const left = geom.secs.filter(s => s.sgn < 0), right = geom.secs.filter(s => s.sgn > 0)
+const ends = geom.secs.filter(s => s.sgn === 0)
 ok(left.length >= 2 && right.length >= 2, 'sections on BOTH sidelines', { left: left.length, right: right.length })
+// The bowl closes behind the end zone being attacked. Only the FAR wall is built:
+// a wall behind the near end line is behind the camera, and these stands are
+// billboards, so it would rise out of the bottom of the frame straight over the
+// field. The camera swings ends with possession and the walls rebuild every snap,
+// so both real end zones get their stands — each while it is the far one.
+ok(ends.length >= 3, 'a stand is built behind the end zone being attacked', { sections: ends.length })
+// an end-zone wall sits at ONE depth, so every section on it shares a k
+const ezK = [...new Set(ends.map(s => s.k))]
+ok(ezK.length <= 2, 'each end-zone wall sits at a single depth (constant k)', ezK)
+// and the far one has to be ABOVE the far end line, in the headroom NSTOP reserves
+ok(Math.min(...ends.map(s => s.by)) < 340, 'the far end-zone stand lands inside the headroom above the field',
+  { minBy: Math.min(...ends.map(s => s.by)) })
 ok(geom.secs.every(s => s.visIdle), 'every section visible')
 ok(geom.secs.every(s => s.depthIdle > geom.fieldDepth && s.depthCheer > s.depthIdle),
   'crowd draws above the turf, cheer above idle', { field: geom.fieldDepth, idle: geom.secs[0].depthIdle, cheer: geom.secs[0].depthCheer })
@@ -126,6 +139,7 @@ const intrude = await page.evaluate(() => {
   let overField = 0, minClearWorld = 1e9, samples = 0
   for (let i = 0; i < C.built; i++) {
     const s = C.secs[i], cv = s.cv.idle
+    if (!s.sgn) continue                                  // end-zone wall: measured separately below
     const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
     for (let py = 0; py < s.bh; py += 3) {
       const Y = s.by + py, x = xAtY(Y)
@@ -154,6 +168,23 @@ ok(intrude.overField <= 2, 'no crowd pixel is drawn over the playing surface (px
 // and a row of players in front of the seats.
 ok(intrude.minClearWorld >= 40, 'a TEAM AREA is reserved between sideline and stands (world units)',
   { clear: intrude.minClearWorld, gap: intrude.gap })
+
+// The end-zone stands span the field's whole width, so the sideline test above says
+// nothing about them. What has to hold for them is CONTAINMENT: each sits wholly
+// beyond an end line, never over the playing surface.
+const ezClear = await page.evaluate(() => {
+  const sc = window.__gridironScene, C = sc.crowd, MIDY = 220
+  const a = window.__PJ_PROBE(0, MIDY).y, b = window.__PJ_PROBE(720, MIDY).y
+  const top = Math.min(a, b), bot = Math.max(a, b)     // the field's far and near end lines, on screen
+  const bad = []
+  for (let i = 0; i < C.built; i++) {
+    const s = C.secs[i]; if (s.sgn) continue
+    const beyondFar = (s.by + s.bh) <= top + 4, beyondNear = s.by >= bot - 4
+    if (!beyondFar && !beyondNear) bad.push({ by: Math.round(s.by), bh: Math.round(s.bh) })
+  }
+  return { bad, top: Math.round(top), bot: Math.round(bot) }
+})
+ok(ezClear.bad.length === 0, 'every end-zone stand sits wholly beyond an end line', ezClear)
 
 // ---- depth: the crowd must sit ABOVE fieldLines (so it occludes the marker tips
 // rather than being painted over) but BELOW the ground shadows/rings under players.
@@ -188,11 +219,72 @@ const seams = await page.evaluate(() => {
   return { minRowInk: +worst.toFixed(3), atRow: worstY, solidSpan: [first, last],
     size: [cv.width, cv.height], decks: (window.__CROWD_V57 || {}).decks }
 })
-ok(seams.minRowInk >= 0.15, 'no turf shows through between stacked decks (min row ink)', seams)
+// the structure base means the seating block is SOLID — no gap in the art (the
+// master's stairwell wedges, or a mirrored tile seam) can show turf through the crowd
+ok(seams.minRowInk >= 0.9, 'the stand is solid — nothing shows through the crowd (min row ink)', seams)
+
+// ---- architecture: the stand has to read as a built structure, not a stack of
+// identical decks. Stairways give it vertical lines that run through every deck and
+// concourses give it a horizontal break at each tier.
+const arch = await page.evaluate(() => {
+  const sc = window.__gridironScene
+  const scan = () => {
+    const cv = sc.crowd.strips.idle, W = cv.width, H = cv.height
+    const d = cv.getContext('2d').getImageData(0, 0, W, H).data
+    const colM = new Float64Array(W), rowM = new Float64Array(H), rowN = new Float64Array(H)
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = ((y * W) + x) * 4
+      if (d[i + 3] < 40) continue
+      const L = d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11
+      colM[x] += L; rowM[y] += L; rowN[y]++
+    }
+    for (let x = 0; x < W; x++) colM[x] /= H
+    // average over INKED pixels: the headroom above the top deck is nearly empty and
+    // dividing by the full width would make it look like the darkest band on the strip
+    for (let y = 0; y < H; y++) rowM[y] = rowN[y] ? rowM[y] / rowN[y] : -1
+    const mean = (a) => a.reduce((p, c) => p + c, 0) / a.length
+    const runs = (a, thr) => { let n = 0, on = false; for (const v of a) { if (v < thr) { if (!on) n++; on = true } else on = false } return n }
+    const solidRows = Array.from(rowM).filter(v => v >= 0)
+    return { rowM: Array.from(rowM), stairs: runs(colM, mean(colM) * 0.8), overall: mean(solidRows), H }
+  }
+  const on = scan()
+  window.RIB_TUNE = window.RIB_TUNE || {}
+  window.RIB_TUNE.crowdArch = 0; sc.buildCrowd()
+  const off = scan()
+  delete window.RIB_TUNE.crowdArch; sc.buildCrowd()
+  const M = window.__CROWD_V57 || {}, decks = M.decks, pitch = M.pitch
+  // Sample the rows the concourses are actually drawn on (a walkway sits just above
+  // each deck boundary at H - m*pitch), rather than hunting for "the darkest rows" —
+  // the crowd art has plenty of dark rows of its own and that search finds those.
+  const bands = []
+  for (let m = 1; m < decks; m++) {
+    const y = on.H - m * pitch
+    const rows = []
+    for (let yy = y - 4; yy < y - 1; yy++) if (on.rowM[yy] >= 0) rows.push(yy)
+    if (!rows.length) continue
+    const mOn = rows.reduce((p, i) => p + on.rowM[i], 0) / rows.length
+    const mOff = rows.reduce((p, i) => p + off.rowM[i], 0) / rows.length
+    bands.push({ y, vsStrip: +(1 - mOn / on.overall).toFixed(3), vsNoArch: +(1 - mOn / mOff).toFixed(3) })
+  }
+  return { stairsOn: on.stairs, stairsOff: off.stairs, bands, decks, pitch, tiles: M.tiles }
+})
+ok(arch.stairsOn >= arch.tiles * 3, 'stairways run up through the stand', { stairs: arch.stairsOn, tiles: arch.tiles })
+// vsStrip is the real claim: the band reads clearly darker than the stand around it.
+// vsNoArch is deliberately a low bar — the art's own tier boundary is already dark
+// there, so the walkway DEEPENS an existing line rather than creating one from
+// nothing; it only has to prove the structure is contributing, not dominating.
+ok(arch.bands.length === arch.decks - 1 && arch.bands.every((b) => b.vsStrip > 0.15 && b.vsNoArch > 0.03),
+  'a concourse darkens the stand at every tier', arch.bands)
+ok(arch.stairsOn > arch.stairsOff * 2,
+  'crowdArch=0 really removes the structure (the check is measuring IT, not the art)',
+  { on: arch.stairsOn, off: arch.stairsOff })
 
 // ---- cheering: heat rises, arrives as a wave, then decays
 const cheer = await page.evaluate(async () => {
   const sc = window.__gridironScene, C = sc.crowd
+  // ambient flutter puts sections on their feet at random; leave it on and the decay
+  // measurement races it (a late ambient bump reads as "heat went UP")
+  window.RIB_TUNE = window.RIB_TUNE || {}; window.RIB_TUNE.crowdAmbientMs = 1e9
   for (const s of C.secs) { s.heat = 0; s.pendAmt = 0 }
   const before = C.secs.slice(0, C.built).map(s => s.heat)
   // roar from one end of the field, so the wave has somewhere to travel
@@ -204,6 +296,7 @@ const cheer = await page.evaluate(async () => {
   const midAlpha = C.secs.slice(0, C.built).map(s => +s.spr.cheer.alpha.toFixed(3))
   await wait(2600)
   const after = C.secs.slice(0, C.built).map(s => +s.heat.toFixed(3))
+  delete window.RIB_TUNE.crowdAmbientMs
   return { before, pend, mid, midAlpha, after }
 })
 ok(cheer.mid.some(h => h > 0.4), 'crowdCheer raises section heat', { peak: Math.max(...cheer.mid) })
@@ -322,7 +415,21 @@ const fb = await (async () => {
     }, { t, visSrc: vis })
     await p2.waitForTimeout(850)
   }
-  for (let i = 0; i < 40; i++) { if (await p2.evaluate(() => !!window.__gridironScene)) break; await p2.waitForTimeout(400) }
+  // same resilient nudge the main path uses — the career flow does not always present
+  // the same screens, and a fixed click list makes this whole block flaky
+  const probe2 = () => p2.evaluate(() => !!window.__gridironScene)
+  for (let round = 0; round < 12 && !(await probe2()); round++) {
+    for (const t of ['CONTINUE TO MATCH', 'Continue to Match', 'PLAY WEEK', 'Lock In', 'Continue', 'CONFIRM', 'Next']) {
+      if (await probe2()) break
+      await p2.evaluate(({ t, visSrc }) => {
+        const vis = eval(visSrc); const els = [...document.querySelectorAll('button,[onclick],a')].filter(vis)
+        const el = els.find(e => ((e.innerText || e.textContent || '').replace(/\s+/g, ' ').includes(t)))
+        if (el) { el.scrollIntoView({ block: 'center' }); el.click() }
+      }, { t, visSrc: vis })
+      await p2.waitForTimeout(700)
+    }
+    if (!(await probe2())) await p2.waitForTimeout(500)
+  }
   const r = await p2.evaluate(() => {
     const sc = window.__gridironScene
     if (!sc) return { scene: false }
@@ -335,7 +442,7 @@ const fb = await (async () => {
   return { ...r, errs: e2 }
 })()
 ok(fb.scene, 'the live field still boots with the crowd sheet blocked')
-ok(!fb.built, 'no stands are built when the sheet never decodes', fb.built)
+ok(fb.scene && !fb.built, 'no stands are built when the sheet never decodes', { scene: fb.scene, built: fb.built })
 ok(fb.markers > 0, 'players still take the field without the crowd sheet', fb.markers)
 ok(fb.errs.length === 0, 'a blocked crowd sheet raises no page errors', fb.errs.slice(0, 4))
 
