@@ -55,6 +55,25 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v58.1 — the stands lean back.** They were drawn as a vertical billboard, which
+  reads as a cardboard cutout stood upright on the grass. A real bowl is **raked**:
+  the seating climbs away from the field, so the back row sits further out than the
+  front.
+
+  The top edge is now projected from **its own ground position** — the base pushed
+  away from the field by a fixed world distance — instead of being the base point
+  with the height subtracted. On a sideline "away" is outward across the lateral
+  axis; on an end-zone wall it is further back in depth, which also lifts the top,
+  exactly as leaning back should. That makes the source's y axis map to a sheared
+  direction on screen rather than straight up, so the slice transform carries a
+  real shear term (`crowdRake` 0 collapses it back to the old upright form).
+
+  The offset is derived from the stand's own on-screen height, so the lean stays
+  **constant all the way down the wall** instead of opening up as the perspective
+  shrinks — the check measures 0.34 at every depth from k=1.35 to the far end.
+  The stairways are what sell it: with the rake off they run straight up the
+  screen, and with it on they climb away from the field.
+
 - **v58 — the stands become a stadium.** Three things the sideline stands were
   missing, plus the room to build on them.
 
