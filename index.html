@@ -5227,14 +5227,14 @@ class Ot extends mt.Scene {
           const p = this.crowdProject(u, wall.vv);
           // w: distance along the wall, in world units. x: where on the FIELD this
           // sits, which is what the roar's wave measures its distance from.
-          pts.push({ w: u, x: VDIR > 0 ? u : FW - u, sx: p.x, sy: p.y, k: p.k, c: 0 });
+          pts.push({ u, vv: wall.vv, w: u, x: VDIR > 0 ? u : FW - u, sx: p.x, sy: p.y, k: p.k, c: 0 });
         }
       } else {
         const NE = Math.max(10, Math.round(NS / 4)), xw = VDIR > 0 ? wall.u : FW - wall.u;
         for (let j = 0; j <= NE; j++) {
           const vv = MIDY - vOut + (2 * vOut) * (j / NE);
           const p = this.crowdProject(wall.u, vv);
-          pts.push({ w: vv, x: Math.max(0, Math.min(FW, xw)), sx: p.x, sy: p.y, k: p.k, c: 0 });
+          pts.push({ u: wall.u, vv, w: vv, x: Math.max(0, Math.min(FW, xw)), sx: p.x, sy: p.y, k: p.k, c: 0 });
         }
       }
       const NP = pts.length - 1;
@@ -5269,6 +5269,24 @@ class Ot extends mt.Scene {
       est.sort((x2, y2) => x2 - y2);
       const HH = (est.length ? est[est.length >> 1] : 160) * HK;
       lastHH = HH;
+      // ---- RAKE. A stand is not a cardboard cutout standing upright: the seating
+      // climbs AWAY from the field, so the back row sits further out than the front.
+      // The top edge is therefore projected from its own ground position — pushed
+      // away from the field by a fixed world distance — rather than being the base
+      // point with the height subtracted. On a sideline "away" is outward across the
+      // lateral axis; on an end-zone wall it is further back in depth, which also
+      // lifts the top a little, exactly as leaning back should.
+      // The offset is derived so the top lands crowdRake * (the stand's on-screen
+      // height) to the outside, which keeps the lean constant all the way down the
+      // wall instead of opening up as the perspective shrinks.
+      const _FXr = window.__FIELD_FX || {}, _spr = _FXr.spread == null ? 1 : _FXr.spread;
+      const RAKE = TU("crowdRake", 0.34) * HH / (1.30 * _spr * PERSP_OA);
+      for (let j = 0; j <= NP; j++) {
+        const q = pts[j];
+        const t = wall.kind === "side" ? this.crowdProject(q.u, wall.vv + (wall.vv < MIDY ? -RAKE : RAKE))
+          : this.crowdProject(q.u + RAKE, q.vv);
+        q.tx = t.x; q.ty = t.y;
+      }
       // sections share their boundary sample, so neighbours butt up with no seam
       const SS = wall.sec;
       for (let i = 0; i < SS; i++) {
@@ -5292,11 +5310,15 @@ class Ot extends mt.Scene {
     const C = this.crowd;
     if (pts.length < 2) return;
     const h = pts.map((p) => HH * p.k);
+    // the top edge is RAKED: it has its own ground position, leaned away from the
+    // field, so the box has to bound both edges rather than one column of points
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (let j = 0; j < pts.length; j++) {
-      const p = pts[j];
+      const p = pts[j], tx = p.tx == null ? p.sx : p.tx, ty = (p.ty == null ? p.sy : p.ty) - h[j];
       if (p.sx < x0) x0 = p.sx; if (p.sx > x1) x1 = p.sx;
-      if (p.sy > y1) y1 = p.sy; if (p.sy - h[j] < y0) y0 = p.sy - h[j];
+      if (tx < x0) x0 = tx; if (tx > x1) x1 = tx;
+      if (p.sy > y1) y1 = p.sy; if (ty > y1) y1 = ty;
+      if (p.sy < y0) y0 = p.sy; if (ty < y0) y0 = ty;
     }
     const PAD = 3;
     x0 = Math.floor(x0 - PAD); y0 = Math.floor(y0 - PAD); x1 = Math.ceil(x1 + PAD); y1 = Math.ceil(y1 + PAD);
@@ -5315,6 +5337,7 @@ class Ot extends mt.Scene {
       s.key = "crowd_" + idx;
     }
     s.sgn = sgn; s.bx = x0; s.by = y0; s.bw = bw; s.bh = bh;
+    s.pts = pts; s.hh = HH;        // kept for the dev check to verify the rake geometry
     s.ux = pts[pts.length >> 1].x; s.k = pts[pts.length >> 1].k;
     // Depth: just above fieldLines (3.4) so the stand OCCLUDES the outer tips of the
     // LOS/first-down stripes — that ground is behind the bleachers — and below the
@@ -5345,9 +5368,15 @@ class Ot extends mt.Scene {
         // 3-point affine: art (c,CELL_H)->ground, (c+dc,CELL_H)->next ground,
         // (c,0)->top of the stand at this depth. Exact for the slice's parallelogram;
         // the trapezoid error across one slice is far under a pixel at this spacing.
-        const a = (q.sx - p.sx) / dc, b = (q.sy - p.sy) / dc, d = h[j] / CELL_H;
-        const e = p.sx - a * p.c - x0, f = p.sy - b * p.c - d * CELL_H - y0;
-        cx.setTransform(a, b, 0, d, e, f);
+        // 3-point affine. The source's y axis no longer maps to straight-up on
+        // screen: it maps from the base point to the RAKED top point, which is a
+        // shear, so the transform's c term is non-zero. (With crowdRake 0 the top
+        // point collapses back onto the base and this reduces to the old form.)
+        const tx = p.tx == null ? p.sx : p.tx, ty = (p.ty == null ? p.sy : p.ty) - h[j];
+        const a = (q.sx - p.sx) / dc, b = (q.sy - p.sy) / dc;
+        const c2 = -(tx - p.sx) / CELL_H, d = (p.sy - ty) / CELL_H;
+        const e = p.sx - a * p.c - c2 * CELL_H - x0, f = p.sy - b * p.c - d * CELL_H - y0;
+        cx.setTransform(a, b, c2, d, e, f);
         // sample one extra column so neighbouring slices overlap instead of hairlining
         const sx = Math.min(p.c, q.c), sw = Math.min(Math.abs(dc) + 1, stripW - sx);
         if (sw > 0) cx.drawImage(img, sx, 0, sw, CELL_H, sx, 0, sw, CELL_H);

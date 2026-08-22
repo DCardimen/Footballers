@@ -223,6 +223,29 @@ const seams = await page.evaluate(() => {
 // master's stairwell wedges, or a mirrored tile seam) can show turf through the crowd
 ok(seams.minRowInk >= 0.9, 'the stand is solid — nothing shows through the crowd (min row ink)', seams)
 
+// ---- rake: the stand LEANS BACK. A vertical billboard reads as a cardboard cutout
+// stood on the grass; a real bowl climbs away from the field, so the back row sits
+// further out than the front. The top edge is projected from its own ground
+// position, so this is geometry, not a skew applied to the sprite.
+const rake = await page.evaluate(() => {
+  const sc = window.__gridironScene, C = sc.crowd
+  const want = (window.RIB_TUNE && window.RIB_TUNE.crowdRake) != null ? window.RIB_TUNE.crowdRake : 0.34
+  const out = []
+  for (let i = 0; i < C.built; i++) {
+    const s = C.secs[i]; if (!s.sgn) continue          // sidelines: the lean shows as lateral offset
+    const p = s.pts && s.pts[0]; if (!p || p.tx == null) continue
+    const h = s.hh * p.k
+    // the top must lean AWAY from the field centre line, by ~crowdRake * its height
+    const outward = (p.tx - p.sx) * s.sgn
+    out.push({ k: +p.k.toFixed(2), ratio: +(outward / h).toFixed(3) })
+  }
+  return { want, samples: out }
+})
+ok(rake.samples.length >= 4, 'sideline sections expose their raked top edge', rake.samples.length)
+ok(rake.samples.every(r => r.ratio > rake.want * 0.7 && r.ratio < rake.want * 1.3),
+  'the stand leans AWAY from the field by the rake amount, at every depth',
+  { want: rake.want, got: rake.samples.slice(0, 4) })
+
 // ---- architecture: the stand has to read as a built structure, not a stack of
 // identical decks. Stairways give it vertical lines that run through every deck and
 // concourses give it a horizontal break at each tier.
