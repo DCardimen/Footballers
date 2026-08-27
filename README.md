@@ -111,6 +111,16 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   `crowdVoiceGapMs` 1100, `crowdVoiceMs` 1500, `crowdVoiceMin` .34,
   `crowdVoiceMinPx` 9, `crowdVoiceMaxPx` 14, `crowdVoiceMax` 4.
 
+  `wheelcheck` also stops asserting the wrong thing about the pregame wheel. It
+  used to drive an entire career all the way to a live field and fail if it did not
+  get there — which fails on the career, not on the wheel: a role battle or a story
+  beat can sit in the way, and a "PLAY WEEK" button walks the season on rather than
+  continuing this one. What v41 actually broke was the plan being committed in
+  silence, so that is what is asserted now, deterministically: resolving the wheel
+  commits `chooseGamePlanV11` exactly once, with the plan the wheel landed on, and
+  takes its overlay down. Reaching the field is reported instead of asserted. Six
+  consecutive clean runs, each committing the plan it landed on.
+
   `crowdcheck` is up to 55 assertions: the north end must *curve* (its depth varies,
   its corners sit nearer the camera and further out than its back), the crowd must
   be one size everywhere, and the voices must be on camera, readable, short,
