@@ -52,6 +52,55 @@ ok(cut.sameSet, 'same seed draws the same five options for both characters')
 ok(cut.moved >= 4, 'personality re-cuts the wedges', `biggest share move ${cut.moved}pp`)
 ok(cut.spreadA >= 8 && cut.spreadB >= 8, 'wedges are visibly unequal', `spreads ${cut.spreadA}pp / ${cut.spreadB}pp`)
 
+// ---- 1b. v62: the plan wheel reads WHAT a plan asks of you, not only how bold
+// it is. The user-facing claim is concrete — a driven, hot-headed, hard-headed kid
+// should hardly ever roll onto a recovery day — so assert exactly that, with a
+// named plan and a named personality, rather than hoping the right deck turns up.
+const plan = await page.evaluate(() => {
+  const V = window.__PLAN_V62
+  const DECK = [
+    { name: 'Rest & Recover', tags: ['LOW VARIANCE'], up: 30, ctrl: 88, risk: 14 },
+    { name: 'Chase the Highlight', tags: ['BOOM/BUST'], up: 100, ctrl: 22, risk: 92 },
+    { name: 'Do the Dirty Work', tags: ['COACH TRUST', 'ROLE GROWTH'], up: 38, ctrl: 78, risk: 42 },
+    { name: 'Film Marathon', tags: ['PREPARED'], up: 38, ctrl: 78, risk: 42 },
+    { name: 'Disciplined Execution', tags: ['LOW VARIANCE', 'SAFE'], up: 45, ctrl: 92, risk: 20 },
+  ]
+  const HOTHEAD = { aggression: 9, workethic: 9, coachability: 2, confidence: 8, eq: 3, iq: 4, longterm: 3, loyalty: 5 }
+  const PRO = { aggression: 2, workethic: 6, coachability: 9, confidence: 4, eq: 8, iq: 9, longterm: 9, loyalty: 6 }
+  const share = P => {
+    const w = DECK.map(p => V.weigh(P, p))
+    // the arc the wheel actually draws, floor and all — not the raw appetite
+    const sh = V.floorShares(w.map(o => o.w))
+    const out = {}
+    DECK.forEach((p, i) => { out[p.name] = +(sh[i] * 100).toFixed(1) })
+    return { pct: out, kinds: w.map(o => o.kind), jive: w.map(o => o.jive) }
+  }
+  return { hot: share(HOTHEAD), pro: share(PRO), kinds: V.kinds }
+})
+console.log('plan kinds:', JSON.stringify(plan.hot.kinds))
+console.log('plan wheel (hot-head):', JSON.stringify(plan.hot.pct))
+console.log('plan wheel (professor):', JSON.stringify(plan.pro.pct))
+ok(plan.hot.kinds.every(k => k), 'every plan in the deck is classified by kind', JSON.stringify(plan.hot.kinds))
+ok(plan.hot.pct['Rest & Recover'] < 7,
+  'a driven, hot-headed kid hardly ever rolls onto a recovery day', plan.hot.pct['Rest & Recover'] + '%')
+// ...but the option is still THERE. Sharpening must not shave a wedge down to an
+// arc the player cannot see; every plan keeps a readable slice of the wheel.
+ok(Math.min(...Object.values(plan.hot.pct)) >= 3 && Math.min(...Object.values(plan.pro.pct)) >= 3,
+  'no plan is sharpened down to an invisible wedge',
+  `min ${Math.min(...Object.values(plan.hot.pct))}% / ${Math.min(...Object.values(plan.pro.pct))}%`)
+ok(plan.hot.pct['Chase the Highlight'] > plan.hot.pct['Rest & Recover'] * 4,
+  'he chases the highlight far more than he rests',
+  `${plan.hot.pct['Chase the Highlight']}% vs ${plan.hot.pct['Rest & Recover']}%`)
+ok(plan.pro.pct['Rest & Recover'] > plan.hot.pct['Rest & Recover'] * 3,
+  'and the cerebral, coachable kid rests far more readily than he does',
+  `${plan.pro.pct['Rest & Recover']}% vs ${plan.hot.pct['Rest & Recover']}%`)
+ok(plan.pro.pct['Chase the Highlight'] < plan.hot.pct['Chase the Highlight'],
+  'while chasing the highlight far less', `${plan.pro.pct['Chase the Highlight']}% vs ${plan.hot.pct['Chase the Highlight']}%`)
+const spreadOf = o => Math.max(...Object.values(o)) - Math.min(...Object.values(o))
+ok(spreadOf(plan.hot.pct) > 25 && spreadOf(plan.pro.pct) > 25,
+  'the plan wheel is visibly cut by personality, not near-even fifths',
+  `spreads ${spreadOf(plan.hot.pct).toFixed(1)}pp / ${spreadOf(plan.pro.pct).toFixed(1)}pp`)
+
 // ---- 2. the fit roll is its own system --------------------------------------
 const fit = await page.evaluate(() => {
   const G = window.__GROWTH_V42

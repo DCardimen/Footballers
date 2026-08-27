@@ -9905,6 +9905,48 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     return cl((g("aggression")*1.0+g("confidence")*.8-g("eq")*.7-g("coachability")*.6-g("loyalty")*.35-g("longterm")*.25)/1.6,-1,1);
   }
   const TRAIT_W={aggression:1.0,confidence:.8,eq:-.7,coachability:-.6,loyalty:-.35,longterm:-.25};
+  /* ===== v62 PLAN KINDS — a plan is not just how BOLD it is =====
+   * Boldness was the only thing the wheel could see, and "Rest & Recover", "Film
+   * Marathon", "Do the Dirty Work" and "Disciplined Execution" all sit at roughly
+   * the same place on upside/control/risk — so they all drew the same wedge and
+   * the wheel came out nearly flat (18/18/18/19 in the wild). Boldness is real but
+   * it is one axis, and it is not the one that says a driven, hot-headed kid will
+   * not sit still for a recovery day.
+   *
+   * So classify the plan by what it ASKS of him — read off the name and tags the
+   * staff panel already rendered — and weight it with the same shape of linear
+   * trait formula the growth themes use, which also means the roll pop-up can show
+   * a ledger for it that adds up. Boldness stays, as the second factor. A plan
+   * whose name matches nothing falls back to boldness alone, exactly as before. */
+  const PLAN_KIND=[
+    {id:"rest",re:/rest|recover|rehab|sleep|ice|load|maintenance|treatment|fresh|preserve|manage/i,
+      w:P=>1+P.longterm*1.0+P.eq*.8+P.coachability*.6-P.aggression*.75-P.workethic*.45},
+    {id:"study",re:/film|tape|study|scout|install|classroom|meeting|walk|prep|book|homework|chart|read/i,
+      w:P=>1+P.iq*1.1+P.longterm*.6+P.coachability*.45-P.aggression*.3},
+    {id:"grind",re:/dirty|grind|grit|physical|punish|trench|extra|iron|nasty|blue|hammer|impose|work/i,
+      w:P=>1+P.workethic*1.0+P.aggression*.8-P.eq*.3-P.iq*.15},
+    {id:"shine",re:/highlight|chase|spotlight|hero|showcase|swing|gamble|freelance|improvis|explode|big play|shot/i,
+      w:P=>1+P.confidence*1.1+P.aggression*.8-P.coachability*.7-P.longterm*.45},
+    {id:"system",re:/disciplin|execut|assignment|fundamental|control|clean|book|structure|script|protect|conservat|safe/i,
+      w:P=>1+P.coachability*1.0+P.iq*.6+P.eq*.55-P.aggression*.5-P.confidence*.3},
+    {id:"team",re:/team|captain|lead|rally|unit|brother|culture|communicat|trust|together|locker/i,
+      w:P=>1+P.loyalty*1.0+P.eq*.6+P.coachability*.45}
+  ];
+  const kindOf=p=>PLAN_KIND.find(k=>k.re.test((p.name||"")+" "+((p.tags||[]).join(" "))))||null;
+  // debug surface for scripts/wheelcheck.mjs: the classifier and the weighting, so
+  // the check can put a named plan and a named personality in and read the wedge
+  // out, instead of hoping the right deck turns up in a live career
+  // the wedge floor, as the wheel applies it — exposed so the dev check measures
+  // the arc that actually gets drawn rather than the raw appetite behind it
+  const floorShares=ws=>{const n=ws.length,fl=cl((window.TU?window.TU("wheelWedgeFloor",.035):.035),0,1/(n+1)),
+    T=ws.reduce((a,w)=>a+w,0)||1;return ws.map(w=>fl+(w/T)*(1-fl*n))};
+  try{window.__PLAN_V62={kinds:PLAN_KIND.map(k=>k.id),kindOf,appetite,boldOf,floorShares,
+    weigh:(P,p)=>{const g=window.__GROWTH_V42,NEU=(g&&g.NEUTRAL)||{},pr=appetite(P),b=boldOf(p),kd=kindOf(p);
+      const POW=cl((window.TU?window.TU("planPersonaPow",1.7):1.7),1,4);
+      const boldW=.45+.55*Math.pow(cl((1+pr*(2*b-1))/2,0,1),1.3);
+      const kindW=kd?Math.pow(Math.max(.2,kd.w(P))/Math.max(.2,kd.w(NEU)),POW):1;
+      return{kind:kd?kd.id:null,bold:+b.toFixed(3),w:Math.max(.04,boldW*kindW),
+        jive:kd&&g&&g.jiveFrom?+g.jiveFrom(P,kd.w).jive.toFixed(3):null}}}}catch(e){}
   function drivers(P,bold){
     const dir=bold>=.5?1:-1,out=[];
     for(const k in TRAIT_W){const c=((P[k]==null?5:P[k])-5)*TRAIT_W[k]*dir;if(c>=.5)out.push({k,c})}
@@ -9919,9 +9961,18 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     panel.remove();                       // the wheel replaces the deck, as v41 did
 
     const P=g.persona(pl), pr=appetite(P);
+    const NEU=g.NEUTRAL||{aggression:5,iq:5,eq:5,longterm:5,workethic:5,loyalty:5,confidence:5,coachability:5};
+    const POW=cl((window.TU?window.TU("planPersonaPow",1.7):1.7),1,4);
     const all=plans.map(p=>{
       const b=boldOf(p), align=(1+pr*(2*b-1))/2;
-      return Object.assign({},p,{bold:b,w:Math.max(.05,.12+.88*Math.pow(cl(align,0,1),1.6))});
+      const kd=kindOf(p);
+      // how much he wants the RISK of it — floored, so boldness alone can no longer
+      // crush a plan on its own and the KIND term is what separates the middle...
+      const boldW=.45+.55*Math.pow(cl(align,0,1),1.3);
+      // ...times how much he wants the WORK of it, sharpened so the difference is
+      // an arc you can see rather than a percentage point
+      const kindW=kd?Math.pow(Math.max(.2,kd.w(P))/Math.max(.2,kd.w(NEU)),POW):1;
+      return Object.assign({},p,{bold:b,kind:kd,w:Math.max(.04,boldW*kindW)});
     });
     // The staff can offer ten plans, and ten wedges is an unreadable wheel. His
     // instincts shortlist: the best-fitting MAX, always keeping the scout's pick
@@ -9935,6 +9986,10 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       opts=all.filter(o=>keep.indexOf(o)>=0);            // shortlist, in the staff's order
       cut=all.length-opts.length;
     }
+    // the same no-wedge-vanishes floor the growth wheel uses, applied AFTER the
+    // shortlist so it cannot change who got cut
+    {const n=opts.length, fl=cl((window.TU?window.TU("wheelWedgeFloor",.035):.035),0,1/(n+1)), T=opts.reduce((a,o)=>a+o.w,0)||1;
+      opts=opts.map(o=>Object.assign({},o,{w:fl+(o.w/T)*(1-fl*n)}))}
     const tot=opts.reduce((s,o)=>s+o.w,0);
     let r=Math.random()*tot,idx=0;
     for(let i=0;i<opts.length;i++){r-=opts[i].w;if(r<=0){idx=i;break}}
@@ -9942,7 +9997,11 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
 
     // ---- fit roll, same system as the growth wheel: jive sets the odds, the
     // plan's own risk and the kid's form nudge them.
-    const jive=cl(pr*(2*win.bold-1),-1,1);
+    // jive comes from the plan's KIND when it has one — same normalisation the
+    // growth wheel uses, and it brings a per-trait ledger with it. A plan the
+    // classifier does not recognise still resolves on boldness alone.
+    const JF=win.kind?g.jiveFrom(P,win.kind.w):null;
+    const jive=JF?JF.jive:cl(pr*(2*win.bold-1),-1,1);
     const trust=pl.coachTrust==null?50:pl.coachTrust;
     const mom=pl.momentum103==null?50:pl.momentum103, compz=pl.composure103==null?50:pl.composure103;
     const fatg=(pl.conditionV11&&pl.conditionV11.fatigue)||0;
@@ -9979,7 +10038,11 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
         line2:o.tags.slice(0,2).join(" · ")||"",
         line2col:o.scout?"#f0bb45":"#8fa2bb"})),
       pick:idx, turns:(pl.weekResults||[]).length,
-      fit:{jive,odds,nudge,why},
+      fit:{jive,odds,nudge,why,
+        rows:JF?JF.rows:drivers(P,win.bold).map(d=>({key:d.k,label:(g.TRAIT_LBL&&g.TRAIT_LBL[d.k])||d.k,val:P[d.k],
+          pp:d.c*(jive>=0?4:2.8)})),
+        rollTitle:"GAME PLAN ROLL · DOES IT COME OFF?",
+        rollSub:"Positive, neutral or negative. The dice decide — your personality loads them."},
       result:{band,
         headline:`${win.icon} ${win.name} — ${band==="green"?"IT CLICKS":band==="neutral"?"IT'LL DO":"IT BACKFIRES"}`,
         story:out.story,
@@ -10133,8 +10196,20 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       used.add(th.id);
       const amt=tier.amt[0]+((rand()*(tier.amt[1]-tier.amt[0]+1))|0);
       const dur=tier.dur(rand());
-      opts.push({theme:th.id,icon:th.icon,name:th.names[(rand()*th.names.length)|0],tag:tier.tag,stats,amt,dur,risk:tier.risk+(th.risky||0),fat:th.fat||0,w:Math.max(.4,th.w(p))});
+      // v62: the wedge is the appetite RAISED TO A POWER. Raw appetite spread the
+      // wheel about as evenly as chance, which made the personality sliders feel
+      // decorative; the exponent is what turns "he likes this a bit more" into a
+      // visibly fatter wedge and "this is not him at all" into a sliver.
+      opts.push({theme:th.id,icon:th.icon,name:th.names[(rand()*th.names.length)|0],tag:tier.tag,stats,amt,dur,risk:tier.risk+(th.risky||0),fat:th.fat||0,
+        w:Math.pow(Math.max(.4,th.w(p)),cl(TU("wheelPersonaPow",1.85),1,4))});
     }
+    // v62: no wedge may VANISH. Sharpening the weights is the point, but a
+    // character who would basically never do a thing still has to be able to see
+    // it on the wheel — an arc of a couple of degrees is not an option the player
+    // can read, it is a rendering artefact. Every share is lifted to a floor and
+    // the rest is redistributed, so the ordering and the story are untouched.
+    const n=opts.length, fl=cl(TU("wheelWedgeFloor",.035),0,1/(n+1)), T=opts.reduce((a,o)=>a+o.w,0)||1;
+    for(const o of opts)o.w=fl+(o.w/T)*(1-fl*n);
     return opts;
   }
   /* ===== v50 FIT ROLL — the +/neutral/- outcome is its OWN system =====
@@ -10160,6 +10235,43 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     // the spread a theme's weight can travel is theme-specific, so normalise by
     // its own neutral value — a 1.5x-of-neutral theme reads the same as any other
     return cl((mine/base-1)/cl(dial("jive",.85),.3,2),-1,1);
+  }
+  /* ===== v62 PERSONALITY GRIP — the sliders decide more, and they show their work =====
+   * Two complaints, one cause. The wheel's wedges came out nearly even, and when
+   * the roll went badly there was one sentence of hand-waving about why.
+   *
+   * Every theme weight in this file is LINEAR in the persona sliders — w = 1 + Σ
+   * c·slider — which means a trait's contribution to the whole is exactly
+   * w(persona) minus w(persona with that one slider put back to neutral), and
+   * those contributions SUM to the difference from neutral. So the ledger below is
+   * not a plausible-looking attribution: it adds up. Each row is converted to the
+   * percentage points it moves the PAYS band, using the same slope bandOdds uses,
+   * and the rows plus the form-and-risk nudge equal the number on the bar.
+   *
+   * The grip itself is TU("wheelPersonaPow"): the wedge is the weight raised to a
+   * power, so a theme a character is 2x keen on is not 2x the arc but nearly 4x
+   * it. A driven, hot-headed kid should almost never roll onto recovery work, and
+   * before this he rolled onto it about as often as anything else. */
+  function traitLedger(P,wfn){
+    let mine,base;
+    try{mine=wfn(P);base=wfn(NEUTRAL)}catch(e){return{rows:[],mine:1,base:1}}
+    const rows=[];
+    for(const k in NEUTRAL){
+      const probe=Object.assign({},P);probe[k]=5;
+      let d;try{d=mine-wfn(probe)}catch(e){continue}
+      if(Math.abs(d)>1e-6)rows.push({key:k,label:TRAIT_LBL[k]||k,val:P[k],d});
+    }
+    rows.sort((a,b)=>Math.abs(b.d)-Math.abs(a.d));
+    return{rows,mine:mine||1,base:base||1};
+  }
+  // jive, and the per-trait ledger that adds up to it, from ANY linear trait
+  // weight function — the growth themes and the v62 plan kinds both feed it
+  function jiveFrom(P,wfn){
+    const L=traitLedger(P,wfn),base=L.base||1,dl=cl(dial("jive",.85),.3,2);
+    const raw=(L.mine/base-1)/dl, jive=cl(raw,-1,1);
+    // when the clamp bites, scale the rows with it so they still total the jive
+    const sc=Math.abs(raw)>1?1/Math.abs(raw):1, slope=(jive>=0?.40:.28)*100;
+    return{jive,rows:L.rows.map(r=>({key:r.key,label:r.label,val:r.val,pp:(r.d/base/dl)*sc*slope}))};
   }
   // which sliders actually made this theme feel like home (or like a chore)
   function jiveTraits(pl,themeId){
@@ -10531,8 +10643,8 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       <div id="gv50hint" class="ds50-hint">tap to speed up ▸▸</div>
       ${fitHtml}
       <div id="gv42opts" style="margin-top:9px">${rows}</div>
-      ${resHtml}
-      <button id="gv42go" style="display:none;width:100%;margin-top:11px;padding:11px;border:0;border-radius:9px;background:linear-gradient(180deg,#ffd76f,#daa128);font:700 15px Oswald;color:#1a1206">CONTINUE</button>
+      ${F?"":resHtml}
+      ${F?"":`<button id="gv42go" style="display:none;width:100%;margin-top:11px;padding:11px;border:0;border-radius:9px;background:linear-gradient(180deg,#ffd76f,#daa128);font:700 15px Oswald;color:#1a1206">CONTINUE</button>`}
       <style>.gv42-opt{padding:8px 10px;border:1px solid #ffffff14;border-radius:8px;margin-top:5px;font-size:14px;transition:all .14s}.gv42-opt em{font-style:normal;color:#8fa2bb;font-size:12px}.gv42-opt.on{border-color:#f0bb45;background:rgba(240,187,69,.14);transform:scale(1.02)}.gv42-opt.g{border-color:#57e07a;background:rgba(60,150,84,.2)}.gv42-opt.n{border-color:#9aa4b2;background:rgba(140,150,165,.16)}.gv42-opt.r{border-color:#ff8a80;background:rgba(150,60,60,.2)}</style>
     </div></div>`);
     try{window.__WHEEL_V50_LAST={themes:opts.map(o=>o.key||o.name),want:opts.map(o=>o.w/tot),win:idx,
@@ -10555,21 +10667,90 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       if(k<1){nodes[liveWedge(opts,tot,rot)].classList.add("on");requestAnimationFrame(frame)}
       else if(!done){done=true;nodes[idx].classList.add("on");land()}
     }
+    /* ===== v62 THE SECOND ROLL — does it pay, and exactly why =====
+     * The wheel decides WHAT he commits to. Whether it PAYS is a separate roll and
+     * always has been, but it used to resolve as a bar that quietly appeared and a
+     * result card underneath it — no moment, and one sentence of hand-waving about
+     * the personality behind it. It gets its own pop-up now: the three bands, a
+     * needle that actually rolls across them and settles, and a LEDGER of what
+     * moved the odds — every trait that pushed, in the percentage points it pushed
+     * by, plus the form-and-risk line. Those rows and that line add up to the
+     * number on the bar, because the weights they come from are linear (see
+     * traitLedger). Tap-to-speed-up reaches it: the pop-up is a child of the
+     * armed overlay, so a tap anywhere still runs the rest at 5x. */
+    function openRoll(band){
+      const host=document.getElementById("growthV42"); if(!host)return null;
+      const win=opts[idx];
+      const g0=Math.round(od.g*100),n0=Math.round(od.n*100),r0=Math.max(0,100-g0-n0);
+      const led=(F&&F.rows||[]).filter(r=>Math.abs(r.pp)>=.5).slice(0,4)
+        .map(r=>`<div class="gv62row"><span>${r.label} <b>${r.val}</b></span><em style="color:${r.pp>=0?"#6fe08a":"#ff8a80"}">${r.pp>=0?"+":"−"}${Math.abs(Math.round(r.pp))}</em></div>`).join("")
+        ||`<div class="gv62row"><span>Nothing in your personality pulls here</span><em>0</em></div>`;
+      const nud=(F&&F.nudge)||0;
+      host.insertAdjacentHTML("beforeend",`<div id="gv62roll" style="position:fixed;inset:0;z-index:972;background:rgba(2,5,10,.9);display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto">
+        <div id="gv62card" style="max-width:420px;width:100%;background:linear-gradient(180deg,#16202f,#070c14);border:1px solid #ffffff26;border-radius:16px;padding:15px;font-family:Oswald,sans-serif;color:#e8ecf2;opacity:0;transform:scale(.93);transition:opacity .2s,transform .2s cubic-bezier(.2,1.35,.45,1)">
+          <div style="font-size:10px;letter-spacing:3px;color:#f0bb45">${(F&&F.rollTitle)||"TRAINING ROLL"}</div>
+          <div style="font-size:17px;font-weight:700;margin:3px 0 1px">${win.icon||""} ${win.name}</div>
+          <div style="font-size:11px;color:#8fa2bb">${(F&&F.rollSub)||"Positive, neutral or negative — the dice decide, your personality loads them."}</div>
+          <div style="position:relative;margin:14px 0 5px">
+            <div style="height:16px;border-radius:8px;overflow:hidden;display:flex;box-shadow:inset 0 1px 3px rgba(0,0,0,.7)">
+              <i style="flex:${g0};background:linear-gradient(180deg,#83efa0,#39a15c)"></i>
+              <i style="flex:${n0};background:linear-gradient(180deg,#aab2bf,#666e7c)"></i>
+              <i style="flex:${r0};background:linear-gradient(180deg,#ff9d95,#bd423a)"></i></div>
+            <div id="gv62pin" style="position:absolute;top:-6px;left:50%;width:3px;height:28px;margin-left:-1.5px;border-radius:2px;background:#fff;box-shadow:0 0 9px rgba(255,255,255,.9)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:1px;color:#8fa2bb">
+            <span style="color:#6fe08a">PAYS ${g0}%</span><span>HALF ${n0}%</span><span style="color:#ff8a80">BACKFIRES ${r0}%</span></div>
+          <div style="margin-top:12px;padding-top:9px;border-top:1px solid #ffffff14">
+            <div style="font-size:9px;letter-spacing:2px;color:#8fa2bb;margin-bottom:4px">WHAT IS LOADING THIS ROLL &nbsp;·&nbsp; POINTS ON "PAYS"</div>
+            ${led}
+            <div class="gv62row gv62sum"><span>Form, standing &amp; risk</span><em style="color:${nud>=0?"#6fe08a":"#ff8a80"}">${nud>=0?"+":"−"}${Math.abs(Math.round(nud*100))}</em></div>
+          </div>
+          <div id="gv62verdict" style="display:none;text-align:center;font-size:22px;font-weight:700;letter-spacing:2px;margin-top:12px"></div>
+          ${resHtml}
+          <button id="gv42go" style="display:none;width:100%;margin-top:11px;padding:11px;border:0;border-radius:9px;background:linear-gradient(180deg,#ffd76f,#daa128);font:700 15px Oswald;color:#1a1206">CONTINUE</button>
+          <style>.gv62row{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:#c6cdd8;padding:2px 0}.gv62row b{color:#fff}.gv62row em{font-style:normal;font-weight:700;font-size:13px;color:#8fa2bb}.gv62sum{margin-top:4px;padding-top:5px;border-top:1px dashed #ffffff14;color:#8fa2bb}</style>
+        </div></div>`);
+      const card=document.getElementById("gv62card");
+      requestAnimationFrame(()=>{if(card){card.style.opacity="1";card.style.transform="scale(1)"}});
+      // the needle: a few decelerating sweeps that converge on a point inside the
+      // band that actually came up, so the roll is watched rather than announced
+      const seg=band==="green"?[0,g0]:band==="neutral"?[g0,g0+n0]:[g0+n0,100];
+      const tgt=Math.max(1.5,Math.min(98.5,seg[0]+(seg[1]-seg[0])*(.28+Math.random()*.44)));
+      const DUR=RM?240:1450;let t=0,last=0;
+      const step=(now)=>{
+        const pin=document.getElementById("gv62pin"); if(!pin)return;
+        t+=(now-(last||now))*(DS.rate||1);last=now;
+        const k=Math.min(1,t/DUR),e=1-Math.pow(1-k,3);
+        const swing=(1-e)*Math.sin(k*Math.PI*5.5)*44;
+        pin.style.left=Math.max(0,Math.min(100,50+(tgt-50)*e+swing))+"%";
+        if(k<1)requestAnimationFrame(step);
+        else{pin.style.left=tgt+"%";revealRoll(band)}
+      };
+      DS.wait(300,()=>{last=0;requestAnimationFrame(step)});
+      return true;
+    }
+    function revealRoll(band){
+      const v=document.getElementById("gv62verdict");
+      if(v){v.style.display="";v.textContent=band==="green"?"IT PAYS":band==="neutral"?"IT HALF-TAKES":"IT BACKFIRES";
+        v.style.color=band==="green"?"#6fe08a":band==="neutral"?"#cfd6a8":"#ff8a80"}
+      DS.wait(360,()=>showResult(band));
+    }
+    function showResult(band){
+      const oc=document.getElementById("gv42out");
+      if(oc){oc.style.display="";
+        oc.style.border="1px solid "+(band==="green"?"#3f7d4d":band==="neutral"?"#77808d":"#7d3f3f");
+        oc.style.background=band==="green"?"rgba(46,90,58,.25)":band==="neutral"?"rgba(90,96,106,.2)":"rgba(90,46,46,.25)";
+        try{const sc=document.getElementById("gv50seal");
+          if(sc&&!wart(sc.getContext("2d"),"seal_"+band,23,23,44))sc.style.display="none"}catch(e){}}
+      const h=document.getElementById("gv50hint");if(h)h.style.display="none";
+      const b=document.getElementById("gv42go");if(!b)return;
+      b.style.display="";DS.disarm();
+      b.onclick=()=>{const ov=document.getElementById("growthV42");if(ov)ov.remove();showing=false;cfg.onDone&&cfg.onDone(idx)};
+    }
     function land(){
       const el=nodes[idx];let k=0;const band=(R&&R.band)||"n";const seq=["r","n","g","n","r","g","n","r","g"];
       if(F)DS.wait(120,()=>{const f=document.getElementById("gv50fit");if(f)f.style.display=""});
-      const finish=()=>{
-        const oc=document.getElementById("gv42out");
-        if(oc){oc.style.display="";
-          oc.style.border="1px solid "+(band==="green"?"#3f7d4d":band==="neutral"?"#77808d":"#7d3f3f");
-          oc.style.background=band==="green"?"rgba(46,90,58,.25)":band==="neutral"?"rgba(90,96,106,.2)":"rgba(90,46,46,.25)";
-          try{const sc=document.getElementById("gv50seal");
-            if(sc&&!wart(sc.getContext("2d"),"seal_"+band,23,23,44))sc.style.display="none"}catch(e){}}
-        const h=document.getElementById("gv50hint");if(h)h.style.display="none";
-        const b=document.getElementById("gv42go");if(!b)return;
-        b.style.display="";DS.disarm();
-        b.onclick=()=>{const ov=document.getElementById("growthV42");if(ov)ov.remove();showing=false;cfg.onDone&&cfg.onDone(idx)};
-      };
+      const finish=()=>{ if(F&&openRoll(band))return; showResult(band) };
       const pulse=()=>{el.className="gv42-opt "+(k<seq.length?seq[k]:band[0]);
         if(k++<=seq.length)DS.wait(110+k*28,pulse); else finish()};
       DS.wait(420,pulse);
@@ -10598,7 +10779,10 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
         line2:`${o.tag} · RISK ${Math.round(o.risk*100)}%`,
         line2col:o.tag==="ALL-IN"?"#ff9d5c":o.tag==="OBSESSIVE"?"#f0bb45":"#8fa2bb"})),
       pick:idx, turns:(pl.growthHistV42||[]).length,
-      fit:{jive:out.jive,odds:out.odds,nudge:out.nudge,why},
+      fit:{jive:out.jive,odds:out.odds,nudge:out.nudge,why,
+        rows:jiveFrom(P,(THEMES.find(t=>t.id===out.card)||{w:()=>1}).w).rows,
+        rollTitle:"TRAINING ROLL · DOES THE WORK TAKE?",
+        rollSub:"Positive, neutral or negative. The dice decide — your personality loads them."},
       result:{band:out.band,
         headline:`${out.icon} ${out.name} — ${out.band==="green"?"IT PAYS OFF":out.band==="neutral"?"HALF MEASURES":"IT BACKFIRES"}`,
         story:out.story,
@@ -10662,7 +10846,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     }
   }catch(e){}},900);
   // telemetry / harness
-  window.__GROWTH_V42={compose,rollOutcome,applyOutcome,genOptions,THEMES,TIERS,POOLS,LBL,persona,jiveOf,bandOdds,jiveTraits,showWheel,spinWheel,wcol,wshade,NEUTRAL,TRAIT_LBL,
+  window.__GROWTH_V42={compose,rollOutcome,applyOutcome,genOptions,THEMES,TIERS,POOLS,LBL,persona,jiveOf,bandOdds,jiveTraits,jiveFrom,traitLedger,showWheel,spinWheel,wcol,wshade,NEUTRAL,TRAIT_LBL,
     simulate(n){const out=[];for(let i=0;i<(n||100);i++){
       const pl={pos:["QB","RB","WR","LB","CB"][i%5],seasonSeed:1e6+i,seasonsPlayedTotal:i,personaV13:{aggression:i*3%11,iq:i*5%11,eq:i*7%11,longterm:i*2%11,workethic:i*4%11,loyalty:5,confidence:i*6%11,coachability:i*8%11},prestigeLifetime:i%3===0?0:i%3===1?8:18,coachTrust:20+i*7%70,momentum103:30+i*11%50,conditionV11:{fatigue:i*5%30}};
       const rand=seededRand(pl,"sim"+i);const opts=genOptions(pl,rand,5);if(!opts.length)continue;
