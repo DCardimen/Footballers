@@ -10313,14 +10313,118 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     for(let i=0;i<opts.length;i++){const sp=opts[i].w/tot*Math.PI*2;if(ang>=acc&&ang<acc+sp)return i;acc+=sp}
     return 0;
   }
+  /* ===== v61 WHEEL FINISH — dark machined metal, not fairground gold =====
+   * The v50 sheet's hardware is a cast gold ring with cabochon studs, a gold
+   * football boss and a matching gold spike. On this app's near-black cards it
+   * reads as a prize wheel bolted onto a broadcast UI — heavy, bright, and
+   * spending a third of the disc on rim instead of on the odds the wheel exists
+   * to show.
+   *
+   * The hardware is drawn now instead of blitted: a slim graphite ring with the
+   * anisotropic sweep turned metal actually has, a machined hub, and a blade
+   * pointer. Two things follow. The rim is a fifth the thickness, so the FACE
+   * gets the space back — Rw goes 0.74R to 0.90R and the wedges, which are the
+   * whole point, are half again as large. And every bright element is now a
+   * specular highlight on dark metal rather than a fill, so the wheel sits down
+   * into the page instead of glowing off it.
+   *
+   * The wedge HUES are untouched. Each arc is its option's personality weight, so
+   * the face is only re-lit, never recoloured: the ramp is pulled further toward
+   * black and the colour survives as sheen on a lacquered surface.
+   * scripts/wheelcheck.mjs ring-samples that face by hue at 0.30R and would catch
+   * any drift. The gold set is still in the sheet — TU("wheelArtHardware",0) = 1
+   * puts it back. */
+  // A conic sweep is what separates turned metal from a grey ring: the highlight
+  // wraps the circumference instead of running across it. Older canvases have no
+  // conic gradient, hence the caller's linear fallback.
+  function wconic(g,cx,cy,stops){
+    if(typeof g.createConicGradient!=="function")return null;
+    const cg=g.createConicGradient(-Math.PI/2,cx,cy);
+    for(const s of stops)cg.addColorStop(s[0],s[1]);
+    return cg;
+  }
+  const WSWEEP=[[0,"rgba(232,241,255,.34)"],[.07,"rgba(232,241,255,.02)"],[.19,"rgba(232,241,255,.24)"],
+    [.3,"rgba(232,241,255,.01)"],[.44,"rgba(232,241,255,.1)"],[.5,"rgba(232,241,255,.4)"],
+    [.57,"rgba(232,241,255,.08)"],[.7,"rgba(232,241,255,.01)"],[.81,"rgba(232,241,255,.22)"],
+    [.93,"rgba(232,241,255,.02)"],[1,"rgba(232,241,255,.34)"]];
+  function wsweep(g,cx,cy,r){
+    const cg=wconic(g,cx,cy,WSWEEP);
+    if(cg){g.fillStyle=cg}
+    else{const lg=g.createLinearGradient(cx-r,cy-r,cx+r,cy+r);
+      lg.addColorStop(0,"rgba(232,241,255,.3)");lg.addColorStop(.5,"rgba(232,241,255,.02)");
+      lg.addColorStop(1,"rgba(232,241,255,.22)");g.fillStyle=lg}
+    g.fillRect(cx-r,cy-r,r*2,r*2);
+  }
+  // the ring itself: a bevelled cross-section (dark shoulder, lit crown, dark
+  // shoulder) with the sweep over it, then the two machined hairlines that make
+  // an edge look cut rather than drawn
+  function wrim(g,cx,cy,rOut,rIn){
+    g.save();
+    g.beginPath();g.arc(cx,cy,rOut,0,Math.PI*2);g.arc(cx,cy,rIn,0,Math.PI*2,true);g.clip();
+    // cross-section: dark shoulder, lit crown, dark shoulder. Tight stops — a soft
+    // ramp across a thin ring is what makes drawn metal read as plastic.
+    const bg=g.createRadialGradient(cx,cy,rIn,cx,cy,rOut);
+    bg.addColorStop(0,"#04060a");bg.addColorStop(.16,"#171b22");bg.addColorStop(.38,"#2e3540");
+    bg.addColorStop(.6,"#12161c");bg.addColorStop(.86,"#1f242c");bg.addColorStop(1,"#030508");
+    g.fillStyle=bg;g.fillRect(cx-rOut,cy-rOut,rOut*2,rOut*2);
+    // one key light across the upper left, so the ring has a light source and not
+    // only a circumferential sweep. It goes down BEFORE the sweep — over it, the
+    // broad ramp washes the specular lobes flat and the ring reads as plastic.
+    const kl=g.createLinearGradient(cx-rOut,cy-rOut,cx+rOut*.3,cy+rOut*.5);
+    kl.addColorStop(0,"rgba(255,255,255,.14)");kl.addColorStop(.45,"rgba(255,255,255,.01)");
+    kl.addColorStop(1,"rgba(0,0,0,.3)");
+    g.fillStyle=kl;g.fillRect(cx-rOut,cy-rOut,rOut*2,rOut*2);
+    wsweep(g,cx,cy,rOut);
+    // turned finish: concentric micro-lines, the tool marks a machined ring keeps
+    g.strokeStyle="rgba(0,0,0,.16)";g.lineWidth=1;
+    for(let rr=rIn+2;rr<rOut-1;rr+=2.5){g.beginPath();g.arc(cx,cy,rr,0,Math.PI*2);g.stroke()}
+    g.restore();
+    g.lineWidth=1;
+    g.beginPath();g.arc(cx,cy,rIn+.75,0,Math.PI*2);g.strokeStyle="rgba(214,228,250,.42)";g.stroke();
+    g.beginPath();g.arc(cx,cy,rOut-.75,0,Math.PI*2);g.strokeStyle="rgba(176,194,222,.3)";g.stroke();
+    g.beginPath();g.arc(cx,cy,rIn-1,0,Math.PI*2);g.strokeStyle="rgba(0,0,0,.92)";g.lineWidth=2;g.stroke();
+    g.beginPath();g.arc(cx,cy,rOut+1.5,0,Math.PI*2);g.strokeStyle="rgba(0,0,0,.5)";g.lineWidth=3;g.stroke();
+  }
+  function whub(g,cx,cy,r){
+    g.beginPath();g.arc(cx,cy,r*1.06,0,Math.PI*2);g.fillStyle="rgba(0,0,0,.55)";g.fill();   // seat shadow
+    const bg=g.createRadialGradient(cx-r*.34,cy-r*.4,r*.06,cx,cy,r);
+    bg.addColorStop(0,"#454d59");bg.addColorStop(.5,"#1b2027");bg.addColorStop(1,"#070910");
+    g.beginPath();g.arc(cx,cy,r,0,Math.PI*2);g.fillStyle=bg;g.fill();
+    g.save();g.beginPath();g.arc(cx,cy,r,0,Math.PI*2);g.clip();wsweep(g,cx,cy,r);g.restore();
+    g.lineWidth=1;
+    g.beginPath();g.arc(cx,cy,r-.5,0,Math.PI*2);g.strokeStyle="rgba(206,220,242,.30)";g.stroke();
+    g.beginPath();g.arc(cx,cy,r*.46,0,Math.PI*2);g.fillStyle="#04060b";g.fill();
+    g.strokeStyle="rgba(150,170,200,.26)";g.stroke();
+  }
+  // A blade, mounted above the rim and hanging into the face. It deflects with the
+  // wheel's speed and settles upright as it stops — the drawn frames did that with
+  // four gold sprites; one rotation does it with none.
+  function wblade(g,cx,cy,rTop,len,defl){
+    g.save();g.translate(cx,cy-rTop);g.rotate(defl);
+    const w=Math.max(6,len*.4);
+    g.beginPath();g.moveTo(0,len);g.lineTo(-w/2,len*.2);g.lineTo(-w*.42,-len*.3);
+    g.lineTo(w*.42,-len*.3);g.lineTo(w/2,len*.2);g.closePath();
+    const lg=g.createLinearGradient(-w/2,0,w/2,0);
+    lg.addColorStop(0,"#dbe4f2");lg.addColorStop(.3,"#8d97a6");lg.addColorStop(.56,"#2a3038");lg.addColorStop(1,"#0b0e13");
+    g.fillStyle=lg;g.fill();
+    g.strokeStyle="rgba(0,0,0,.85)";g.lineWidth=1;g.stroke();
+    g.beginPath();g.arc(0,-len*.14,w*.36,0,Math.PI*2);                       // the mount it pivots on
+    const mb=g.createLinearGradient(-w*.36,0,w*.36,0);
+    mb.addColorStop(0,"#4a5361");mb.addColorStop(.6,"#161b22");mb.addColorStop(1,"#070a0e");
+    g.fillStyle=mb;g.fill();g.strokeStyle="rgba(214,228,250,.4)";g.lineWidth=1;g.stroke();
+    g.restore();
+  }
   function drawWheel(cv,opts,tot,rot,winIdx,landed,spd){
     const g=cv.getContext("2d"),W=cv.width,H=cv.height,cx=W/2,cy=H/2,R=Math.min(cx,cy)-4;
-    // the drawn rim is a ring, so the wedges live inside its inner edge
-    const RIM=WART.ready&&RIB_META_WHEEL.rim, Rw=RIM?R*.74:R;
+    // v61: the drawn ring is slim, so the face keeps almost the whole disc. The
+    // gold sheet's rim is a third of the radius, hence the much smaller Rw when
+    // wheelArtHardware puts it back.
+    const ART=TU("wheelArtHardware",0)>0&&WART.ready&&RIB_META_WHEEL.rim;
+    const Rw=ART?R*.74:R*.915;
     const live=landed?winIdx:liveWedge(opts,tot,rot);
     g.clearRect(0,0,W,H);
     // the face sits on near-black, so an un-filled gap never flashes light
-    g.beginPath();g.arc(cx,cy,Rw,0,Math.PI*2);g.fillStyle="#05080e";g.fill();
+    g.beginPath();g.arc(cx,cy,Rw,0,Math.PI*2);g.fillStyle="#04060b";g.fill();
     let a=-Math.PI/2+rot;
     opts.forEach((o,i)=>{
       const span=o.w/tot*Math.PI*2,dim=landed&&i!==winIdx,hot=i===live;
@@ -10329,16 +10433,20 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       // radial ramp: lit near the hub, falling to near-black at the rim. The
       // live wedge burns a stop brighter rather than getting a white wash, which
       // used to grey the colour out just as it mattered most.
-      const lift=hot?(landed?1.75:1.5):1, gr=g.createRadialGradient(cx,cy,Rw*.12,cx,cy,Rw);
-      gr.addColorStop(0,wshade(base,1.5*lift));
-      gr.addColorStop(.55,wshade(base,1.0*lift));
-      gr.addColorStop(1,wshade(base,dim?.26:.45*lift));
+      // v61: the same ramp, taken down a stop. On a graphite rim the old lift read
+      // as poster paint; darker, the face reads as black lacquer with the theme's
+      // colour surviving as its sheen. Uniform scaling, so every hue is exactly
+      // where it was — which is what the dev check ring-samples for.
+      const lift=hot?(landed?1.5:1.3):1, gr=g.createRadialGradient(cx,cy,Rw*.12,cx,cy,Rw);
+      gr.addColorStop(0,wshade(base,.92*lift));
+      gr.addColorStop(.55,wshade(base,.54*lift));
+      gr.addColorStop(1,wshade(base,dim?.12:.2*lift));
       g.fillStyle=gr;g.fill();
-      if(dim){g.fillStyle="rgba(4,8,14,.55)";g.fill()}   // dim by DARKENING, never by fading to the page
-      g.strokeStyle="rgba(0,0,0,.62)";g.lineWidth=1;g.stroke();
+      if(dim){g.fillStyle="rgba(3,6,11,.6)";g.fill()}   // dim by DARKENING, never by fading to the page
+      g.strokeStyle="rgba(0,0,0,.7)";g.lineWidth=1;g.stroke();
       if(hot){                                           // a clean bright edge on the live wedge
-        g.beginPath();g.arc(cx,cy,Rw-1,a,a+span);
-        g.strokeStyle=wshade(base,3.2,.9);g.lineWidth=2;g.stroke();
+        g.beginPath();g.arc(cx,cy,Rw-1.5,a,a+span);
+        g.strokeStyle=wshade(base,3.4,.92);g.lineWidth=1.5;g.stroke();
       }
       // The icon rides the wedge, upright, and only if the wedge can hold it.
       // v50.1: the wedge the pointer is over pops — the icon grows and rides
@@ -10356,26 +10464,28 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     // upper-left reads as lacquer. The sheen is clipped to the OUTER half so the
     // inner band stays a flat per-wedge colour — that band is what the dev check
     // ring-samples to prove the arcs match the personality weights.
-    const vg=g.createRadialGradient(cx,cy,Rw*.42,cx,cy,Rw);
-    vg.addColorStop(0,"rgba(0,0,0,0)");vg.addColorStop(1,"rgba(0,0,0,.62)");
+    const vg=g.createRadialGradient(cx,cy,Rw*.4,cx,cy,Rw);
+    vg.addColorStop(0,"rgba(0,0,0,0)");vg.addColorStop(1,"rgba(0,0,0,.7)");
     g.beginPath();g.arc(cx,cy,Rw,0,Math.PI*2);g.fillStyle=vg;g.fill();
     g.save();
     g.beginPath();g.arc(cx,cy,Rw,0,Math.PI*2);g.arc(cx,cy,Rw*.55,0,Math.PI*2,true);g.clip();
     const sh=g.createLinearGradient(cx-Rw,cy-Rw,cx+Rw*.4,cy+Rw*.6);
-    sh.addColorStop(0,"rgba(255,255,255,.13)");sh.addColorStop(.55,"rgba(255,255,255,.02)");sh.addColorStop(1,"rgba(255,255,255,0)");
+    sh.addColorStop(0,"rgba(214,230,255,.1)");sh.addColorStop(.5,"rgba(214,230,255,.015)");sh.addColorStop(1,"rgba(214,230,255,0)");
     g.fillStyle=sh;g.fillRect(cx-Rw,cy-Rw,Rw*2,Rw*2);
     g.restore();
-    // rim, then hub — drawn over the wedge edges so the wheel reads as one object
-    if(!wart(g,"rim",cx,cy,R*2)){g.beginPath();g.arc(cx,cy,Rw,0,Math.PI*2);g.strokeStyle="#f0bb45";g.lineWidth=3;g.stroke()}
-    if(!wart(g,"hub",cx,cy,Rw*.42)){
-      g.beginPath();g.arc(cx,cy,Rw*.17,0,Math.PI*2);g.fillStyle="#0e1626";g.fill();g.strokeStyle="#f0bb45";g.lineWidth=2;g.stroke();
-      g.font="700 12px Oswald";g.fillStyle="#f0bb45";g.textAlign="center";g.textBaseline="middle";g.fillText("🏈",cx,cy+1)}
-    // The flapper deflects with the wheel's speed and settles upright as it
-    // stops — four drawn frames, so the pointer looks pushed rather than pasted.
-    const pf=PTR_FRAMES.length?PTR_FRAMES[landed?0:Math.min(PTR_FRAMES.length-1,Math.round((spd||0)*(PTR_FRAMES.length-1)))]:null;
-    if(!pf||!wart(g,pf,cx,cy-R+3,R*.34,true)){
-      g.beginPath();g.moveTo(cx,cy-Rw+13);g.lineTo(cx-9,cy-Rw-9);g.lineTo(cx+9,cy-Rw-9);g.closePath();
-      g.fillStyle="#f0bb45";g.fill();g.strokeStyle="#0a111c";g.lineWidth=2;g.stroke()}
+    // ---- hardware. Drawn over the wedge edges so the wheel reads as one object.
+    if(ART){
+      wart(g,"rim",cx,cy,R*2);
+      if(!wart(g,"hub",cx,cy,Rw*.42)) whub(g,cx,cy,Rw*.2);
+      const pf=PTR_FRAMES.length?PTR_FRAMES[landed?0:Math.min(PTR_FRAMES.length-1,Math.round((spd||0)*(PTR_FRAMES.length-1)))]:null;
+      if(!pf||!wart(g,pf,cx,cy-R+3,R*.34,true)) wblade(g,cx,cy,Rw+(R-Rw)*.5,R*.2,0);
+    } else {
+      wrim(g,cx,cy,R,Rw);
+      whub(g,cx,cy,Rw*.17);
+      // the blade hangs from the ring into the face, and is pushed back by the
+      // spin — the same deflection the gold flapper's four frames used to fake
+      wblade(g,cx,cy,R*.93,R*.26,-(landed?0:Math.min(1,spd||0))*TU("wheelBladeKick",.38));
+    }
   }
   /* ===== v51 SHARED SPIN — one wheel, two callers =====
    * The wheel was welded to the growth decision, so the surface the player sees

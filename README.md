@@ -55,6 +55,37 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v61 — the decision wheel in dark metal.** The v50 art sheet's hardware is a
+  cast gold ring with cabochon studs, a gold football boss and a matching gold
+  spike. Against this app's near-black cards it read as a prize wheel bolted onto
+  a broadcast UI — heavy, bright, and spending a third of the disc on rim instead
+  of on the odds the wheel exists to show.
+
+  The hardware is drawn now rather than blitted: a slim graphite ring with the
+  anisotropic sweep turned metal actually has (a conic gradient, with a linear
+  fallback where `createConicGradient` is missing), a key light across the upper
+  left laid down *under* that sweep — over it, the broad ramp washes the specular
+  lobes flat and the ring goes plastic — concentric tool marks for the turned
+  finish, a machined hub, and a steel blade pointer that keeps the old flapper's
+  deflection with one rotation instead of four gold sprites.
+
+  Two things follow. The rim is a fifth the thickness, so the **face** gets the
+  space back: `Rw` goes 0.74R → 0.915R and the wheel now paints 74% of its canvas
+  instead of a little over half. And every bright element is a specular highlight
+  on dark metal rather than a fill, so the wheel sits down into the page instead
+  of glowing off it.
+
+  The wedge **hues are untouched** — each arc *is* its option's personality
+  weight, so the face is only re-lit, never recoloured. The radial ramp is pulled
+  down about a stop and a half (`1.5/1.0/0.45` → `0.92/0.54/0.20` of base) so the
+  colour survives as sheen on black lacquer rather than as poster paint.
+  `wheelcheck` ring-samples that face by hue at 0.30R and still measures every arc
+  to within 0pp of the weight that asked for it.
+
+  The gold set is still in the sheet: `TU("wheelArtHardware")` = 1 puts it back,
+  rim proportions and all. New dial `wheelBladeKick` (.38) is how far the pointer
+  is pushed back by the spin.
+
 - **v60 — the stands get a third dimension.** v59 put the crowd on screen; it was
   still a flat sheet of texture standing on edge. Five cues, all render-only, all
   on dials.
