@@ -279,6 +279,32 @@ console.log('fit strip:', JSON.stringify(landed))
 ok(landed.fitShown, 'the fit roll is shown as its own panel before the result')
 ok(landed.bars.length === 3 && Math.abs(landed.bars.reduce((a, b) => a + b, 0) - 100) <= 2,
   'the fit panel plots all three bands', JSON.stringify(landed.bars))
+
+// ---- v63: the outcome is rolled ONCE. The landed row used to strobe red / neutral
+// / green nine times before the result appeared — which was the outcome animation
+// back when there was nowhere else to play it. The roll pop-up runs the needle
+// across the bands now, and a colour lottery on the row underneath spoils it twice
+// and flashes bands that never came up. Watch the row from the moment the wheel
+// stops until the pop-up opens: it may mark what was landed on, never a band.
+const strobe = await page.evaluate(async () => {
+  document.getElementById('growthV42')?.remove()
+  const st = window.__GRIDIRON_AUDIT__?.getState?.() || window.o
+  window.__GROWTH_V42.showWheel(st.player, 'strobe|' + Math.random(), 'CHECK ROLL', () => {})
+  const wait = ms => new Promise(r => setTimeout(r, ms))
+  const seen = new Set()
+  for (let i = 0; i < 300; i++) {
+    for (const n of document.querySelectorAll('#growthV42 .gv42-opt')) seen.add(n.className.trim())
+    if (document.getElementById('gv62roll')) break
+    await wait(30)
+  }
+  const rolled = !!document.getElementById('gv62roll')
+  document.getElementById('growthV42')?.remove()
+  return { classes: [...seen], rolled }
+})
+console.log('row classes before the roll:', JSON.stringify(strobe))
+ok(strobe.rolled, 'the roll pop-up opens after the wheel lands')
+ok(strobe.classes.every(c => !/\b(gv42-opt )?[gnr]$/.test(c) || c === 'gv42-opt'),
+  'the landed row never strobes an outcome colour before the roll', strobe.classes)
 await page.screenshot({ path: 'scripts/_wheel_landed.png' })
 
 // ---- 4. the wheel is where the player actually is -------------------------
@@ -329,16 +355,39 @@ if (pre) {
   await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' }, { timeout: 20000 })
   await page.screenshot({ path: 'scripts/_wheel_pregame.png' })
   await page.evaluate(() => document.getElementById('gv42go').click())
+  // Resolving the plan hands off to the v1514 players-to-watch panel, which needs a
+  // beat to render before it can be advanced. The v63 roll pop-up finishes the wheel
+  // sooner than the old nine-frame colour strobe did, so this used to poke the panel
+  // before it existed and then sit waiting for a scene nobody had asked for.
+  await page.waitForTimeout(500)
   let live = false
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 24; i++) {
     live = await page.evaluate(() => {
-      // chooseGamePlanV11 is itself wrapped by the v1514 players-to-watch panel
-      if (window.continuePregameV1513 && document.getElementById('pregameV1513')) { window.continuePregameV1513(); return false }
+      if (window.__gridironScene) return true
+      // drive the hand-off panel the way a player would as well as through its hook —
+      // whichever is ready first gets us to the field
+      const panel = document.getElementById('pregameV1513')
+      if (panel) {
+        if (window.continuePregameV1513) { try { window.continuePregameV1513() } catch (e) {} }
+        const b = [...panel.querySelectorAll('button,[onclick]')].find(el => {
+          const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0
+        })
+        if (b) b.click()
+      }
       return !!window.__gridironScene
     })
     if (live) break
-    await page.waitForTimeout(600)
+    await page.waitForTimeout(500)
   }
+  if (!live) console.log('STUCK:', JSON.stringify(await page.evaluate(() => ({
+    scene: !!window.__gridironScene, ov: !!document.getElementById('growthV42'),
+    roll: !!document.getElementById('gv62roll'), watch: !!document.getElementById('pregameV1513'),
+    hook: typeof window.continuePregameV1513,
+    overlays: [...document.querySelectorAll('[id]')].filter(e => {
+      const s2 = getComputedStyle(e); return s2.position === 'fixed' && s2.display !== 'none'
+    }).map(e => e.id),
+    body: document.body.innerText.replace(/\s+/g, ' ').slice(0, 240),
+  }))))
   ok(live, 'the match still starts after the pregame wheel resolves')
 }
 

@@ -55,6 +55,71 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v63 — the bowl closes, the crowd speaks, and the outcome is rolled once.**
+
+  **One roll, not two.** The landed option row strobed red / neutral / green nine
+  times before the result appeared. That *was* the outcome animation, back when
+  there was nowhere else to play it — but v62 gave the outcome its own pop-up with
+  a needle that runs across the bands, so the strobe now spoils the result twice
+  over and flashes bands that never came up. The row just marks what the wheel
+  landed on.
+
+  **The north end is a bowl, not a third wall.** It was a straight band across the
+  back of the end zone, butted against two sidelines that ran all the way to the
+  end line — which left an open wedge of nothing at each corner and a hard
+  right-angle turn where a stadium has a sweep. The sidelines stop a corner radius
+  short now and the end is one continuous curve: a superellipse in (depth,
+  lateral), `u = (FW − CR) + (CR + EZG)·(1 − |t|^n)^(1/n)`. Two properties earn it
+  — its ends land *on* the sideline ends so the bowl closes with no seam, and its
+  slope there is vertical in `t`, so it leaves the sideline running parallel to it
+  and the join is tangent-continuous.
+
+  The corner has to buy its radius from somewhere: with the bowl's back only 16
+  units behind the end line, a 130-unit corner cut the diagonal so tightly the
+  stand passed within a few units of the field's own corner — closer than the
+  sidelines are allowed anywhere along their length, and it registered as crowd on
+  the pitch. `crowdEndGap` goes 16 → 44 and the exponent 3.5 → 5, plus a hard
+  guarantee: wherever the curve is laterally inside the touchlines it is forced
+  behind the end line. With the shipped dials that guard never binds.
+
+  **One crowd, one size.** Height and texture scale are the same number seen
+  twice, and it was being solved *per wall* — each wall forced the strip to span it
+  exactly once and took whatever height fell out. The long sidelines got tall
+  stands with big spectators; the short north end got a stand a third the height
+  with spectators to match. A different crowd on the same terrace, forty yards
+  away. The sidelines set the size now and every other wall is given the texture
+  span that matches it (`dc = stripH·seg/(HH·k)`), so the end simply uses less of
+  the strip. The dev check pins `stand height / k` to one number all the way round.
+
+  The rake also moved from per-section to per-point: a section-wide lean notches
+  the skyline at every boundary the moment it starts turning, which is exactly what
+  the corners make it do.
+
+  **The stands say something.** The crowd already got louder — heat, and a roar
+  that rolls along the terrace as a wave — but nobody in it ever said anything.
+  Short shouts now pop out of the sections nearest the play, ride up off the
+  terrace and fade. Deliberately small (a floor on the font size, because a corner
+  section draws at k = 0.43 and 15·k there is six pixels of nothing), capped so
+  they never compete with the field, behind a cooldown so a busy play gets a shout
+  rather than a running commentary, and only ever from a stand the camera can
+  actually see — sorting by field position alone handed every line to the near
+  sidelines, which are the sections the perspective throws furthest out of frame.
+  Anchored on the section's own mid sample rather than its bounding box, whose
+  corners hang out over the turf.
+
+  Dials: `crowdCornerR` 130, `crowdBowlN` 5, `crowdEndGap` 44, `crowdEndMin` 8,
+  `crowdVoiceGapMs` 1100, `crowdVoiceMs` 1500, `crowdVoiceMin` .34,
+  `crowdVoiceMinPx` 9, `crowdVoiceMaxPx` 14, `crowdVoiceMax` 4.
+
+  `crowdcheck` is up to 55 assertions: the north end must *curve* (its depth varies,
+  its corners sit nearer the camera and further out than its back), the crowd must
+  be one size everywhere, and the voices must be on camera, readable, short,
+  rationed and self-clearing. The intrusion scan now covers the curved end too —
+  and it round-trips its own depth inversion, because rows above the far end line
+  have no depth that maps to them and the bisection there was handing back the
+  touchlines from the *wrong* end of the field, reporting a stand at the top of the
+  frame as sitting on the near twenty.
+
 - **v62 — personality gets a grip, and the roll shows its work.** Two complaints
   with one cause: the wedges came out near-even however the sliders were set, and
   when a roll went badly there was one sentence of hand-waving about why.
