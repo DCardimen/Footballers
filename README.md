@@ -55,6 +55,87 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v62 — personality gets a grip, and the roll shows its work.** Two complaints
+  with one cause: the wedges came out near-even however the sliders were set, and
+  when a roll went badly there was one sentence of hand-waving about why.
+
+  **The second roll is its own pop-up.** Whether a commitment *pays* was always a
+  separate roll from *what* you commit to, but it resolved as a bar that quietly
+  appeared with a result card under it — no moment. It now opens its own panel
+  over the wheel: the three bands, a needle that sweeps and settles in the one
+  that came up, then the verdict and the result. Tap-to-speed-up reaches it (the
+  pop-up is a child of the armed overlay), and it is a child of `#growthV42`, so
+  tearing that out still takes everything with it.
+
+  **The ledger adds up.** Every theme weight in the file is linear in the persona
+  sliders (`w = 1 + Σ c·slider`), so a trait's contribution is exactly
+  `w(persona) − w(persona with that one slider back at neutral)`, and those
+  contributions **sum** to the distance from neutral. `traitLedger` / `jiveFrom`
+  compute them and convert each to the percentage points it moves the PAYS band,
+  using the slope `bandOdds` itself uses. The rows plus the form-and-risk line
+  equal the number printed on the bar — it is arithmetic, not an attribution
+  story.
+
+  **A plan is not just how bold it is.** The pregame wheel could only see
+  upside/control/risk, and "Rest & Recover", "Film Marathon", "Do the Dirty Work"
+  and "Disciplined Execution" all sit at about the same place on those axes — so
+  they all drew the same wedge and the wheel came out 18/18/18/19 in the wild.
+  `PLAN_KIND` classifies a plan by what it *asks* of the player (rest / study /
+  grind / shine / system / team, matched on the name and tags the staff panel
+  already rendered) and weights it with the same shape of linear trait formula the
+  growth themes use — which also means the roll pop-up can show a real ledger for
+  it. A plan the classifier does not recognise still resolves on boldness alone.
+
+  **And the grip is sharper.** Wedges are the appetite raised to
+  `TU("wheelPersonaPow")` (1.85) / `TU("planPersonaPow")` (1.7), so "he likes this
+  a bit more" becomes an arc you can see. Measured on a fixed five-plan deck:
+
+  | | Rest & Recover | Chase the Highlight | Dirty Work | Film | Disciplined |
+  |---|---|---|---|---|---|
+  | driven, hot-headed, hard-headed | **3.9%** | **67.2%** | 19.8% | 5.2% | 3.9% |
+  | cerebral, coachable, patient | **36.5%** | **3.8%** | 6.3% | 22.2% | 31.3% |
+
+  With a floor: `TU("wheelWedgeFloor")` (.035) lifts every share so sharpening can
+  never shave an option down to an arc of two degrees. A character who would
+  basically never do a thing still has to be able to *see* it on the wheel.
+
+  `wheelcheck` gains six assertions on exactly that claim — the hot-head hardly
+  ever rolls onto a recovery day, the cerebral kid rests far more readily, and no
+  plan is sharpened into an invisible wedge — driven off `window.__PLAN_V62` with
+  named plans and named personalities rather than whatever deck a live career
+  happens to deal.
+
+- **v61 — the decision wheel in dark metal.** The v50 art sheet's hardware is a
+  cast gold ring with cabochon studs, a gold football boss and a matching gold
+  spike. Against this app's near-black cards it read as a prize wheel bolted onto
+  a broadcast UI — heavy, bright, and spending a third of the disc on rim instead
+  of on the odds the wheel exists to show.
+
+  The hardware is drawn now rather than blitted: a slim graphite ring with the
+  anisotropic sweep turned metal actually has (a conic gradient, with a linear
+  fallback where `createConicGradient` is missing), a key light across the upper
+  left laid down *under* that sweep — over it, the broad ramp washes the specular
+  lobes flat and the ring goes plastic — concentric tool marks for the turned
+  finish, a machined hub, and a steel blade pointer that keeps the old flapper's
+  deflection with one rotation instead of four gold sprites.
+
+  Two things follow. The rim is a fifth the thickness, so the **face** gets the
+  space back: `Rw` goes 0.74R → 0.915R and the wheel now paints 74% of its canvas
+  instead of a little over half. And every bright element is a specular highlight
+  on dark metal rather than a fill, so the wheel sits down into the page instead
+  of glowing off it.
+
+  The wedge **hues are untouched** — each arc *is* its option's personality
+  weight, so the face is only re-lit, never recoloured. The radial ramp is pulled
+  down about a stop and a half (`1.5/1.0/0.45` → `0.92/0.54/0.20` of base) so the
+  colour survives as sheen on black lacquer rather than as poster paint.
+  `wheelcheck` ring-samples that face by hue at 0.30R and still measures every arc
+  to within 0pp of the weight that asked for it.
+
+  The gold set is still in the sheet: `TU("wheelArtHardware")` = 1 puts it back,
+  rim proportions and all. New dial `wheelBladeKick` (.38) is how far the pointer
+  is pushed back by the spin.
+
 - **v60 — the stands get a third dimension.** v59 put the crowd on screen; it was
   still a flat sheet of texture standing on edge. Five cues, all render-only, all
   on dials.
