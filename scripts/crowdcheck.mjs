@@ -279,6 +279,92 @@ ok(arch.stairsOn > arch.stairsOff * 2,
   'crowdArch=0 really removes the structure (the check is measuring IT, not the art)',
   { on: arch.stairsOn, off: arch.stairsOff })
 
+// ---- v59 AISLES: a stairway is drawn ON TOP of the finished stand, so the only way
+// it does not slice whoever was sitting there is if the seats under it were cleared
+// first. Measured in SKIN: a face is unmistakable and a bench never has one, so the
+// share of skin pixels inside the stair columns against the share across the stand as
+// a whole says directly whether people are still in the aisle. Also asserts the art's
+// own end stairwells are trimmed out of the tiling, so the flights are the only stairs
+// in the stand and they all sit on the same pitch.
+const aisle = await page.evaluate(() => {
+  const sc = window.__gridironScene, cv = sc.crowd.strips.idle
+  const W = cv.width, H = cv.height, d = cv.getContext('2d').getImageData(0, 0, W, H).data
+  const col = new Int32Array(W)
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = ((y * W) + x) * 4
+    if (d[i + 3] > 40 && d[i] > 130 && d[i] - d[i + 2] > 45 && d[i + 1] > d[i + 2] &&
+      d[i] - d[i + 1] > 15 && d[i] - d[i + 1] < 90) col[x]++
+  }
+  const M = window.__CROWD_V57 || {}
+  const S = window.__CROWD_STAIRS_PROBE(W, M.tiles || 3)
+  const inA = new Uint8Array(W)
+  for (const [, x] of S.xs) for (let k = -1; k < S.sw + 1; k++) if (x + k >= 0 && x + k < W) inA[x + k] = 1
+  let aisleSkin = 0, aisleCols = 0, seatSkin = 0, seatCols = 0
+  for (let x = 0; x < W; x++) {
+    if (inA[x]) { aisleSkin += col[x]; aisleCols++ } else { seatSkin += col[x]; seatCols++ }
+  }
+  return { perAisleCol: +(aisleSkin / Math.max(1, aisleCols)).toFixed(2),
+    perSeatCol: +(seatSkin / Math.max(1, seatCols)).toFixed(2),
+    flights: S.xs.length, sw: S.sw, pitch: +S.pitchX.toFixed(1),
+    gaps: S.xs.slice(1).map((p, i) => p[1] - S.xs[i][1]) }
+})
+ok(aisle.perSeatCol > 0.5, 'the skin scan is finding spectators at all', aisle.perSeatCol)
+ok(aisle.perAisleCol < aisle.perSeatCol * 0.1,
+  'no spectator is left sitting in a stairway (skin per column, aisle vs seats)', aisle)
+ok(new Set(aisle.gaps).size <= 2 && Math.max(...aisle.gaps) - Math.min(...aisle.gaps) <= 1,
+  'every flight sits on the same pitch', aisle.gaps)
+
+// ---- v59 2.5D: the stand has to read as a raked bank of seating, not as a decal
+// standing on edge. Two things carry that and both are measurable on the section
+// canvases the renderer actually uploads.
+//   RAKE — the back row is further from the field than the front row, so the drawn
+//   top edge must sit OUTBOARD of the drawn base. Measured as the mean x of the
+//   inked pixels in the top tenth of the section against the bottom tenth, in the
+//   section's own outward direction.
+//   AERIAL PERSPECTIVE — the far end of the bank goes down in contrast toward the
+//   colour behind it. Measured as a controlled A/B against crowdHaze = 0 on the same
+//   section, so it cannot be confused with the far section simply drawing less ink.
+const solid = await page.evaluate(() => {
+  const sc = window.__gridironScene
+  // Mean brightness across every sideline section that actually has ink in it. The
+  // sections nearest the camera are degenerate slivers — the sideline runs almost
+  // straight down the screen there, so their box is a few px wide — and reading a
+  // single section risks landing on one of those.
+  const lumAll = () => {
+    let n = 0, L = 0
+    for (const s of sc.crowd.secs.slice(0, sc.crowd.built)) {
+      if (!s.sgn) continue
+      const cv = s.cv.idle, d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
+      for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < 40) continue; n++; L += 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2] }
+    }
+    return { lum: n ? +(L / n).toFixed(1) : 0, px: n }
+  }
+  // outboard = the far side of the box from the field, inboard = the near side. The
+  // rake must push the first one out and leave the second exactly where it was.
+  const edges = () => sc.crowd.secs.slice(0, sc.crowd.built).map(s => s.sgn
+    ? { sgn: s.sgn, out: s.sgn > 0 ? s.bx + s.bw : s.bx, inb: s.sgn > 0 ? s.bx : s.bx + s.bw } : null)
+  window.RIB_TUNE = window.RIB_TUNE || {}
+  const withRake = edges(), withHaze = lumAll()
+  window.RIB_TUNE.crowdRake = 0; window.RIB_TUNE.crowdHaze = 0; window.RIB_TUNE.crowdSideShade = 0
+  sc.buildCrowd()
+  const noRake = edges(), noHaze = lumAll()
+  delete window.RIB_TUNE.crowdRake; delete window.RIB_TUNE.crowdHaze; delete window.RIB_TUNE.crowdSideShade
+  sc.buildCrowd()
+  const push = [], creep = []
+  for (let i = 0; i < withRake.length; i++) {
+    const A = withRake[i], B = noRake[i]; if (!A || !B) continue
+    push.push(Math.round((A.out - B.out) * A.sgn))          // outward, away from the field
+    creep.push(Math.round((B.inb - A.inb) * A.sgn))         // inward, toward the field
+  }
+  return { push, creep, minPush: Math.min(...push), maxCreep: Math.max(...creep), withHaze, noHaze }
+})
+ok(solid.minPush > 6, 'the stand RAKES: every section leans OUTBOARD as it rises (px vs crowdRake = 0)',
+  { minPush: solid.minPush, push: solid.push })
+ok(solid.maxCreep <= 1, 'and the rake never leans the stand IN over the field', solid.creep)
+ok(solid.withHaze.lum < solid.noHaze.lum * 0.97,
+  'aerial perspective actually dims the bank (A/B against crowdHaze = 0)',
+  { withHaze: solid.withHaze, noHaze: solid.noHaze })
+
 // ---- cheering: heat rises, arrives as a wave, then decays
 const cheer = await page.evaluate(async () => {
   const sc = window.__gridironScene, C = sc.crowd

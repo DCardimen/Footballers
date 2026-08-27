@@ -3097,7 +3097,7 @@ const RIB_META = {"run_dn0": [0, 0], "run_dn1": [1, 0], "run_dn2": [2, 0], "run_
 const TEAM_PALETTES = window.TEAM_PALETTES = [["#2f9e4f","#e8c86a"],["#c8414b","#c3c9d2"],["#1f4fd0","#ffffff"],["#e07020","#ffffff"],["#12855e","#f2d24e"],["#7a2ea0","#e0d6ee"],["#c8102e","#ffb612"],["#003594","#ffb612"],["#0b6623","#ffffff"],["#5a1414","#c9a44a"],["#101820","#a5acaf"],["#4b92db","#ffffff"],["#aa0000","#b3995d"],["#0c2340","#c8102e"],["#ff7900","#101820"],["#5f259f","#ffc72c"],["#0085ca","#101820"],["#d50a0a","#8c8c8c"],["#125740","#ffffff"],["#7c1415","#ffd100"],["#003f2d","#c0c0c0"],["#241773","#9e7c0c"],["#fb4f14","#101820"],["#311d00","#ff8200"],["#006778","#d7a22a"],["#a71930","#ffffff"],["#002244","#69be28"],["#97233f","#ffb612"],["#0b2265","#a71930"],["#004c54","#a5acaf"],["#ffb612","#101820"],["#008e97","#f58220"],["#4f2683","#ffc62f"],["#002c5f","#a2aaad"],["#d3bc8d","#101820"],["#0080c6","#ffc20e"],["#773141","#c5b358"],["#136d6f","#e8e0c2"],["#2c5e4f","#e57200"],["#3d3d6b","#e6e6fa"],
 /* v44 emblem-matched palettes (40-52): added so every emblem has a kit that reads as its own colors */
 ["#3d4a57","#59e0f0"],["#6b4423","#d9b380"],["#bcd8e8","#26547c"],["#7d8791","#e8e4d8"],["#15151c","#d50a0a"],["#69be28","#0b3d0b"],["#15181e","#d4a017"],["#f5f5f5","#26262e"],["#c0c5cc","#d4a017"],["#101820","#2ec4b6"],["#4a5d3a","#8fae6b"],["#2a7fd4","#bfe6ff"],["#bf5700","#f2e3c6"]];
-const RIB = { img: null, ready: false, loaded: false, pendingScene: null, teams: {}, defName: null, cellCache: {}, v22img: null, v22cache: {}, refImg: null, refCache: {}, crowdImg: null, crowdCache: {}, teamCols: {}, teamDeco: {}, regScenes: [] };
+const RIB = { img: null, ready: false, loaded: false, pendingScene: null, teams: {}, defName: null, cellCache: {}, v22img: null, v22cache: {}, refImg: null, refCache: {}, crowdImg: null, crowdCache: {}, crowdAisle: {}, crowdTrim: {}, teamCols: {}, teamDeco: {}, regScenes: [] };
 function ribHash(str) { let h = 0; for (let i = 0; i < (str || "").length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h; }
 /* ===== v44 TEAM EMBLEMS: 90 real logos, name -> emblem matching, emblem -> palette matching ===== */
 /* The packed sheet (public/rib_logos_v44.png, built by scripts/spritekit/pack_logos.mjs) is a
@@ -3344,26 +3344,198 @@ function crowdTier() {
 }
 // debug surface for scripts/crowdcheck.mjs: the projection and the tier picker, so
 // the check can verify the stands against the SAME map the renderer used.
-try { window.__PJ_PROBE = (x, y) => PJ(x, y); window.__PERSPK_PROBE = (x) => perspK(x); window.__CROWD_TIER_PROBE = crowdTier; } catch (e) {}
+try { window.__PJ_PROBE = (x, y) => PJ(x, y); window.__PERSPK_PROBE = (x) => perspK(x); window.__CROWD_TIER_PROBE = crowdTier;
+  // the stair layout, so the check can look for spectators in the exact columns the
+  // flights are drawn in rather than guessing where they landed
+  window.__CROWD_STAIRS_PROBE = (W, tiles) => ribCrowdStairs(W, tiles); } catch (e) {}
 // One pre-tiled strip per (tier, pose). The stand runs the whole length of the
 // field, which is several times the master's width, so the cell is repeated
 // end to end HERE — once — instead of the slice loop having to wrap a source
 // window around the edge of the cell every frame.
+/* ===== v59 CROWD AISLES — the stairways stop cutting people in half =====
+ * v58 draws the stand's structure ON TOP of the finished crowd (source-atop, so no
+ * mark can spill onto the turf). The stairways are the problem with that: they are
+ * hard vertical bands at a fixed pitch, and the art seats spectators wherever it
+ * likes, so every flight sliced whoever was in its way — a column of half heads and
+ * chopped shoulders down both cheeks of every stairway, worst in the packed tier
+ * where there is a fan in every seat.
+ *
+ * The stairs themselves are right: a stand needs them, and their unbroken vertical
+ * line through every deck is most of the 3D read. What was wrong is that people
+ * were sitting in the aisle. So clear the aisle FIRST, from the art's own bench.
+ *
+ * ribCrowdAisle() builds one narrow column of bare seating by walking the tier's
+ * cell scanline by scanline and, on each line, copying the emptiest stretch of that
+ * same line — the art's real bench pixels, from the row they belong to, so riser,
+ * seat face and shadow line all stay put. Picking per scanline is what makes it
+ * work at all: a stand that never empties out at any single x still empties out at
+ * SOME x on every individual row.
+ *
+ * One patch, reused for every aisle on every deck of every wall, which is also what
+ * makes the flights consistent: identical width, identical bench, identical pitch,
+ * lined up through the whole stand instead of each one landing on whatever the art
+ * happened to draw there. */
+function ribCrowdStairs(W, tiles) {
+  // The stair layout, in ONE place. The strip clears these columns and the
+  // architecture pass draws into them; two copies of the formula is how half an
+  // aisle gets cleared and the flight lands on somebody's face again.
+  //
+  // A stairway is about ONE SPECTATOR wide, and they run at a fixed pitch the whole
+  // length of the stand. Both are sized off the TILE (a fixed number of people
+  // across) rather than off the wall, so a flight stays one person wide and the
+  // flights stay evenly spaced whether this strip is stretched down a sideline or
+  // across an end zone.
+  const per = Math.max(1, Math.round(TU("crowdStairsPerTile", 4)));
+  const pitchX = W / (tiles * per);
+  const sw = Math.max(2, Math.round(pitchX * TU("crowdStairW", 0.09)));
+  const xs = [];
+  for (let i = 0, x = Math.round(pitchX * 0.5); x < W; i++, x = Math.round(pitchX * (i + 0.5))) xs.push([i, x]);
+  return { xs, sw, pitchX };
+}
+function ribCrowdTrim(tier) {
+  // The master is one stand drawn end to end, and it ENDS on a stairwell: a diagonal
+  // flight with its own handrail at each edge of the cell. Tiling the cell whole
+  // therefore scatters a second, unrelated kind of stairway through the stand — at
+  // the cell's rhythm, not the flights', sliding sideways deck to deck with the tile
+  // offset, and mirrored into a facing pair at every other seam. Two stair systems
+  // that agree about nothing.
+  //
+  // So tile the SEATING only. The trim is measured, not hard-coded, because the art
+  // can be repacked: a stairwell block has no faces in it, so the leading and
+  // trailing face-free columns bound it exactly. Taken as the max over the tier's two
+  // poses — idle and cheer are crossfaded and have to overlay pixel for pixel, so a
+  // trim that differed between them would slide the whole stand sideways every time
+  // the crowd stood up.
+  if (RIB.crowdTrim[tier]) return RIB.crowdTrim[tier];
+  const c0 = RIB_META_CROWD[tier + "_idle"];
+  if (!c0 || !RIB.crowdImg) return null;
+  const W = c0[2], H = c0[3];
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const cx = cv.getContext("2d"); cx.imageSmoothingEnabled = false;
+  let L = 0, R = 0;
+  for (const pose of ["idle", "cheer"]) {
+    const c = RIB_META_CROWD[tier + "_" + pose]; if (!c) continue;
+    cx.clearRect(0, 0, W, H);
+    cx.drawImage(RIB.crowdImg, c[0], c[1], c[2], c[3], 0, 0, c[2], c[3]);
+    const d = cx.getImageData(0, 0, W, H).data;
+    const face = new Uint8Array(W);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      if (d[i + 3] > 40 && d[i] > 130 && d[i] - d[i + 2] > 45 && d[i + 1] > d[i + 2] &&
+        d[i] - d[i + 1] > 15 && d[i] - d[i + 1] < 90) face[x] = 1;
+    }
+    let l = 0; while (l < W && !face[l]) l++;
+    let r = 0; while (r < W && !face[W - 1 - r]) r++;
+    if (l > L) L = l; if (r > R) R = r;
+  }
+  // a runaway measurement must never eat the stand: fall back to tiling whole
+  const cap = Math.floor(W * 0.2);
+  if (L + R > W - 40) { L = 0; R = 0; }
+  L = Math.min(L, cap); R = Math.min(R, cap);
+  RIB.crowdTrim[tier] = { l: L, r: R, w: W - L - R };
+  return RIB.crowdTrim[tier];
+}
+function ribCrowdAisle(tier, pose, aw, clr) {
+  const ck = tier + "_" + pose + "_" + aw + "_" + clr;
+  if (RIB.crowdAisle[ck]) return RIB.crowdAisle[ck];
+  const c = RIB_META_CROWD[tier + "_" + pose];
+  if (!c || !RIB.crowdImg || aw < 2 || aw > c[2]) return null;
+  const W = c[2], H = c[3];
+  const src = document.createElement("canvas"); src.width = W; src.height = H;
+  const sx = src.getContext("2d"); sx.imageSmoothingEnabled = false;
+  sx.drawImage(RIB.crowdImg, c[0], c[1], W, H, 0, 0, W, H);
+  const d = sx.getImageData(0, 0, W, H).data;
+  // search the SEATING only — the cell's own stairwell block reads as bare concrete
+  // and would happily be copied in as "empty bench", stairs and handrail included
+  const tr = ribCrowdTrim(tier) || { l: 0, w: W };
+  const sL = tr.l, sR = tr.l + tr.w;
+  // A fan is coloured, or brighter, or darker than the concrete he is sitting on;
+  // bare bench is a desaturated mid grey. A LONG horizontal run of that test is not
+  // a fan though — it is a lit seat nosing or the shadow under a slab, and those run
+  // the whole width of the stand.
+  const fan = new Uint8Array(W);
+  const out = document.createElement("canvas"); out.width = aw; out.height = H;
+  const ox = out.getContext("2d"); ox.imageSmoothingEnabled = false;
+  const dst = ox.createImageData(aw, H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4, r = d[i], g = d[i + 1], b = d[i + 2];
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = 0.3 * r + 0.59 * g + 0.11 * b;
+      fan[x] = d[i + 3] > 40 && ((mx - mn) > 24 || L > 178 || L < 30) ? 1 : 0;
+    }
+    let run = 0;
+    for (let x = 0; x <= W; x++) {
+      const on = x < W && fan[x];
+      if (on) { run++; continue; }
+      if (run > 30) for (let k = x - run; k < x; k++) fan[k] = 0;
+      run = 0;
+    }
+    // The emptiest window of aisle width on this line. The MARGINS are what the
+    // score is really about: the flight itself covers the middle of the window, so
+    // all anyone ever sees of this patch is the few pixels either side of it, and a
+    // window that starts or ends mid-spectator puts that same half a person down the
+    // side of every flight in the stadium. Brute force — the cell is 625 wide and
+    // this runs once per tier and pose, then caches.
+    let bx = sL, bs = 1e9;
+    for (let x = sL; x + aw <= sR; x++) {
+      let q = 0;
+      for (let k = 0; k < aw; k++) if (fan[x + k]) q += (k < clr || k >= aw - clr) ? 10 : 1;
+      q += 30 * (fan[x] + fan[x + aw - 1]);
+      if (q < bs) { bs = q; bx = x; if (!q) break; }
+    }
+    // A sold-out deck has no empty window anywhere on some lines. Take the best one
+    // and scrub what is left: each remaining spectator pixel becomes the nearest
+    // bench pixel in the same window, so the aisle comes out bare either way.
+    let flat = -1;
+    if (bs > 0) {
+      let bsat = 1e9;
+      for (let x = sL; x < sR; x++) {
+        const i = (y * W + x) * 4; if (d[i + 3] < 40) continue;
+        const q = Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]);
+        if (q < bsat) { bsat = q; flat = i; }
+      }
+    }
+    for (let x = 0; x < aw; x++) {
+      let sx2 = bx + x;
+      if (fan[sx2]) {
+        let hit = -1;
+        for (let r = 1; r < aw; r++) {
+          if (x - r >= 0 && !fan[bx + x - r]) { hit = bx + x - r; break; }
+          if (x + r < aw && !fan[bx + x + r]) { hit = bx + x + r; break; }
+        }
+        sx2 = hit >= 0 ? hit : -1;
+      }
+      const si = sx2 >= 0 ? (y * W + sx2) * 4 : flat;
+      const di = (y * aw + x) * 4;
+      if (si < 0) { dst.data[di + 3] = 0; continue; }
+      dst.data[di] = d[si]; dst.data[di + 1] = d[si + 1];
+      dst.data[di + 2] = d[si + 2]; dst.data[di + 3] = d[si + 3];
+    }
+  }
+  ox.putImageData(dst, 0, 0);
+  RIB.crowdAisle[ck] = out; return out;
+}
 function ribCrowdStrip(tier, pose, tiles, decks) {
   if (!RIB.crowdImg) return null;
   const c = RIB_META_CROWD[tier + "_" + pose]; if (!c) return null;
   const key = [tier, pose, tiles, decks, TU("crowdDeckLap", 10), TU("crowdArch", 1),
-    TU("crowdStairsPerTile", 4), TU("crowdStairW", 0.09), TU("crowdConcourseH", 0.1), TU("crowdVomEvery", 2), TU("crowdTopShade", 0.2)].join("_");
+    TU("crowdStairsPerTile", 4), TU("crowdStairW", 0.09), TU("crowdConcourseH", 0.1), TU("crowdVomEvery", 2),
+    TU("crowdTopShade", 0.2), TU("crowdAisleClear", 3)].join("_");
   if (RIB.crowdCache[key]) return RIB.crowdCache[key];
   const W = c[2] * tiles;
   const row = document.createElement("canvas"); row.width = W; row.height = c[3];
   const rx = row.getContext("2d"); rx.imageSmoothingEnabled = false;
-  // every other tile is mirrored: the master ends mid-structure, so butting raw
-  // copies together repeats the same stairwell at a visible rhythm
-  for (let i = 0; i < tiles; i++) {
+  // Tile the SEATING BLOCK, not the whole cell — ribCrowdTrim explains why the cell's
+  // own end stairwells have to go. The copies are butted at their natural width
+  // rather than stretched to keep the old tile count, so nobody is widened; the strip
+  // is the same width either way, which is all the perspective sweep cares about.
+  // Every other copy is still mirrored: the seating ends mid-row, so butting raw
+  // copies together repeats the same faces at a visible rhythm.
+  const tr = ribCrowdTrim(tier) || { l: 0, r: 0, w: c[2] };
+  for (let i = 0, x = 0; x < W; i++, x += tr.w) {
     rx.save();
-    if (i % 2) { rx.translate((i + 1) * c[2], 0); rx.scale(-1, 1); } else rx.translate(i * c[2], 0);
-    rx.drawImage(RIB.crowdImg, c[0], c[1], c[2], c[3], 0, 0, c[2], c[3]);
+    if (i % 2) { rx.translate(x + tr.w, 0); rx.scale(-1, 1); rx.drawImage(RIB.crowdImg, c[0] + tr.l, c[1], tr.w, c[3], 0, 0, tr.w, c[3]); }
+    else rx.drawImage(RIB.crowdImg, c[0] + tr.l, c[1], tr.w, c[3], x, 0, tr.w, c[3]);
     rx.restore();
   }
   // DECKS. The master draws about five rows of seats; a stadium has many more, and
@@ -3392,9 +3564,33 @@ function ribCrowdStrip(tier, pose, tiles, decks) {
   // the cheer pose's arms and flags go.
   const seatTop = Math.max(0, c[3] - (c[4] || c[3]));
   cx.fillStyle = "#3b3e44"; cx.fillRect(0, seatTop, W, cv.height - seatTop);
+  // ---- THE BACK OF THE STAND. Above the top deck's last row the strip was simply
+  // transparent, so the stand ended at whatever silhouette the art's back railing
+  // happened to leave and read as a sheet of seating with nothing behind it. A stand
+  // has a back: a rear wall standing above the top row, in its own shade, with the
+  // coping catching light along the top. It goes down FIRST, so the cheer pose's
+  // raised arms and flags still break the skyline over it — which is the headroom
+  // this band lives in, so it only takes the part of it the arms do not need.
+  const bwH = Math.round(seatTop * Math.max(0, Math.min(1, TU("crowdBackWall", 0.6))));
+  if (bwH > 1) {
+    const wg = cx.createLinearGradient(0, seatTop - bwH, 0, seatTop);
+    wg.addColorStop(0, "#31353c"); wg.addColorStop(1, "#232830");
+    cx.fillStyle = wg; cx.fillRect(0, seatTop - bwH, W, bwH);
+    cx.fillStyle = "rgba(150,158,170,0.55)"; cx.fillRect(0, seatTop - bwH, W, 1);
+  }
+  // Every aisle, on every deck, is the same bare column of the tier's own bench —
+  // laid down BEFORE the architecture pass so the flight it draws next lands on
+  // empty seating instead of on a row of faces. Same patch everywhere is the point:
+  // it is what makes the flights read as one repeated piece of the building rather
+  // than as a band dropped over whatever the art drew underneath.
+  const SR = ribCrowdStairs(W, tiles);
+  const clr = Math.max(0, Math.round(TU("crowdAisleClear", 3)));
+  const aw = SR.sw + clr * 2;
+  const aisle = TU("crowdArch", 1) > 0 ? ribCrowdAisle(tier, pose, aw, clr) : null;
   for (let d = 0; d < decks; d++) {
     const off = Math.round(((d * 0.37) % 1) * W), y = (decks - 1 - d) * pitch;
     cx.drawImage(row, off - W, y); cx.drawImage(row, off, y);
+    if (aisle) for (const [, ax] of SR.xs) cx.drawImage(aisle, ax - clr, y);
   }
   ribCrowdArchitecture(cx, W, cv.height, pitch, decks, tiles);
   RIB.crowdCache[key] = cv; return cv;
@@ -3420,25 +3616,32 @@ function ribCrowdArchitecture(cx, W, H, pitch, decks, tiles) {
   cx.save();
   cx.globalCompositeOperation = "source-atop";
   const conH = Math.max(2, Math.round(pitch * TU("crowdConcourseH", 0.1)));
-  // A stairway is about ONE SPECTATOR wide. Sized off the tile (which is a fixed
-  // number of people across) rather than off the wall, so it stays one person wide
-  // whether this strip is stretched down a sideline or across an end zone.
-  const per = Math.max(1, Math.round(TU("crowdStairsPerTile", 4)));
-  const pitchX = W / (tiles * per);
-  const sw = Math.max(2, Math.round(pitchX * TU("crowdStairW", 0.09)));
   const vomEvery = Math.max(1, Math.round(TU("crowdVomEvery", 2)));
-  const stairX = [];
-  for (let i = 0, x = Math.round(pitchX * 0.5); x < W; i++, x = Math.round(pitchX * (i + 0.5))) stairX.push([i, x]);
+  // Same layout the strip just cleared the seats out of — see ribCrowdStairs.
+  const SR = ribCrowdStairs(W, tiles), stairX = SR.xs, sw = SR.sw;
 
   // ---- stairways: full height, aligned across every deck. The crowd art is slid
   // sideways deck to deck so faces do not repeat, but structure does not move
   // between floors, and that unbroken vertical line is most of the 3D read.
+  // The aisle the strip cleared is a couple of pixels wider than the flight itself,
+  // and its outer edge is where the seating resumes. In the packed tier that edge
+  // has to fall through somebody — there is a fan in every seat, so no cut is
+  // avoidable there — and a bare cut is exactly the sliced-face artefact this is all
+  // about. Put the HANDRAIL on it: a shadow line and a lit rail, drawn over the two
+  // columns the cut lands on. The edge stops reading as a chopped spectator and
+  // starts reading as a fan standing at the rail, which is what it is.
+  const rail = Math.max(0, Math.round(TU("crowdAisleClear", 3)));
   for (const [, x] of stairX) {
     cx.fillStyle = "#43464d"; cx.fillRect(x, 0, sw, H);                  // the run, darker than the seats
     cx.fillStyle = "rgba(150,156,166,0.5)";                              // tread nosings catching light
     for (let y = H - 2; y > 0; y -= 4) cx.fillRect(x, y, sw, 1);
     cx.fillStyle = "rgba(14,15,19,0.5)";                                 // shadowed cheeks give it width
     cx.fillRect(x - 1, 0, 1, H); cx.fillRect(x + sw, 0, 1, H);
+    const l = x - rail, r = x + sw + rail - 1;
+    cx.fillStyle = "rgba(11,12,16,0.62)";                                // the aisle's own shadow
+    cx.fillRect(l - 1, 0, 1, H); cx.fillRect(r + 1, 0, 1, H);
+    cx.fillStyle = "rgba(158,165,176,0.4)";                              // and the rail catching light
+    cx.fillRect(l, 0, 1, H); cx.fillRect(r, 0, 1, H);
   }
   // ---- concourses: one walkway at the top of every deck but the last
   for (let m = 1; m < decks; m++) {
@@ -3446,6 +3649,14 @@ function ribCrowdArchitecture(cx, W, H, pitch, decks, tiles) {
     cx.fillStyle = "#2f333a"; cx.fillRect(0, y - conH, W, conH);         // the walkway, in shade
     cx.fillStyle = "rgba(158,165,176,0.7)"; cx.fillRect(0, y - conH, W, 1);     // front railing
     cx.fillStyle = "rgba(10,11,14,0.42)"; cx.fillRect(0, y - 1, W, 1);   // shadow onto the seats below
+    // ...and the tier above OVERHANGS the one below, so its shadow falls across the
+    // back rows of the next deck down. A hard line says "two textures butt here"; a
+    // shadow that fades out over a few rows says "one deck is in front of the other",
+    // which is the whole point of stacking them.
+    const ovH = Math.max(2, Math.round(pitch * TU("crowdOverhang", 0.24)));
+    const og = cx.createLinearGradient(0, y, 0, y + ovH);
+    og.addColorStop(0, "rgba(7,9,13,0.5)"); og.addColorStop(1, "rgba(7,9,13,0)");
+    cx.fillStyle = og; cx.fillRect(0, y, W, ovH);
     // vomitories: tunnel mouths opening onto this concourse
     for (const [i, x] of stairX) {
       if (i % vomEvery) continue;
@@ -3461,6 +3672,14 @@ function ribCrowdArchitecture(cx, W, H, pitch, decks, tiles) {
   g.addColorStop(0, "rgba(6,8,12," + TU("crowdTopShade", 0.2) + ")");
   g.addColorStop(0.5, "rgba(6,8,12,0)");
   cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+  // ---- and the FRONT FASCIA. The bottom of the strip is the wall the lowest deck
+  // stands on, at ground level and in the stand's own shadow. Without it the seating
+  // runs straight into the turf and the stand reads as a decal lying on the grass;
+  // with it there is a base for the whole thing to stand on.
+  const fh = Math.max(2, Math.round(pitch * TU("crowdFascia", 0.12)));
+  const fg = cx.createLinearGradient(0, H - fh, 0, H);
+  fg.addColorStop(0, "rgba(9,11,15,0)"); fg.addColorStop(1, "rgba(9,11,15,0.6)");
+  cx.fillStyle = fg; cx.fillRect(0, H - fh, W, fh);
   cx.restore();
 }
 function ribRecolor(src, p1hex, p2hex) {
@@ -3657,7 +3876,7 @@ function ribSyncOpp(scene) {
   // before this system existed. Rebuild every live scene when it lands.
   const crowd = new Image();
   crowd.onload = () => {
-    RIB.crowdImg = crowd; RIB.crowdCache = {};
+    RIB.crowdImg = crowd; RIB.crowdCache = {}; RIB.crowdAisle = {}; RIB.crowdTrim = {};
     try { RIB.regScenes.forEach((sc) => { if (sc && sc.buildCrowd) sc.buildCrowd(); }); } catch (e) {}
     console.log("[RIB] v57 crowd art active");
   };
@@ -5186,7 +5405,17 @@ class Ot extends mt.Scene {
     // bleachers, so the stand should occlude those stripes, not dodge them.
     // crowdDepth now sits above fieldLines, so the apron is free to be whatever the
     // sideline actually needs.
-    const GAP = TU("crowdGap", 112);
+    //
+    // v59: back to ~7 yards from v58's ~14. The apron is the one dial that decides
+    // whether the stands are ON SCREEN at all. Lateral spread grows as 1.885*k with
+    // depth, so the stand's front row sits at 1.885*k*(HALF+GAP) px from the centre
+    // line while the camera only ever shows ~400 of them: at GAP 112 the near half of
+    // both stands was outside the frame and all that survived was a sliver in the top
+    // corners, which reads as a smudge rather than as a stadium. 56 still leaves a
+    // real team area — the dev check holds it to at least 40 world units, about five
+    // yards, enough for a bench, a coaching box and players standing at the boundary
+    // — and puts a proper bank of crowd down both edges of the frame.
+    const GAP = TU("crowdGap", 56);
     const MIDY = (F_TOP + F_BOT) / 2, HALF = (F_BOT - F_TOP) / 2;
 
     if (!this.crowd || this.crowd.sec !== SEC) { this.clearCrowd(); this.crowd = { secs: [], t: 0, excite: 0, sec: SEC, tier }; }
@@ -5292,10 +5521,23 @@ class Ot extends mt.Scene {
     const C = this.crowd;
     if (pts.length < 2) return;
     const h = pts.map((p) => HH * p.k);
+    // ---- RAKE. A stand is not a billboard: its back row is both higher AND further
+    // from the field than its front row, so in this projection the top of the stand
+    // has to sit OUTBOARD of its own base, not straight above it. The slice transform
+    // below carries that as a shear — the source column's vertical axis maps to a
+    // sloped screen vector instead of to straight up — which costs nothing and is
+    // what turns a flat wall of texture into something with a face and a back.
+    // Outward is away from the field: sgn is which side of the centre line this wall
+    // is on, and the shear is proportional to the slice's own height, so it
+    // foreshortens with distance exactly as the rest of the stand does. End-zone
+    // walls are seen square on (sgn 0) and rake straight back, which the height
+    // already carries.
+    const RK = sgn * TU("crowdRake", 0.24);
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (let j = 0; j < pts.length; j++) {
-      const p = pts[j];
+      const p = pts[j], tx = p.sx + RK * h[j];
       if (p.sx < x0) x0 = p.sx; if (p.sx > x1) x1 = p.sx;
+      if (tx < x0) x0 = tx; if (tx > x1) x1 = tx;
       if (p.sy > y1) y1 = p.sy; if (p.sy - h[j] < y0) y0 = p.sy - h[j];
     }
     const PAD = 3;
@@ -5345,14 +5587,40 @@ class Ot extends mt.Scene {
         // 3-point affine: art (c,CELL_H)->ground, (c+dc,CELL_H)->next ground,
         // (c,0)->top of the stand at this depth. Exact for the slice's parallelogram;
         // the trapezoid error across one slice is far under a pixel at this spacing.
+        // The third mapping is where the rake lives: the top lands RK*h outboard of
+        // the base rather than directly over it, which is the g term below.
         const a = (q.sx - p.sx) / dc, b = (q.sy - p.sy) / dc, d = h[j] / CELL_H;
-        const e = p.sx - a * p.c - x0, f = p.sy - b * p.c - d * CELL_H - y0;
-        cx.setTransform(a, b, 0, d, e, f);
+        const g = -RK * d;
+        const e = p.sx - a * p.c - g * CELL_H - x0, f = p.sy - b * p.c - d * CELL_H - y0;
+        cx.setTransform(a, b, g, d, e, f);
         // sample one extra column so neighbouring slices overlap instead of hairlining
         const sx = Math.min(p.c, q.c), sw = Math.min(Math.abs(dc) + 1, stripW - sx);
         if (sw > 0) cx.drawImage(img, sx, 0, sw, CELL_H, sx, 0, sw, CELL_H);
       }
       cx.setTransform(1, 0, 0, 1, 0, 0);
+      // ---- AERIAL PERSPECTIVE. The far end of a stand is a quarter of a mile of air
+      // away and reads that way: it goes down in contrast and toward the colour of
+      // the sky behind it. Without this every section is lit identically and the
+      // whole bank sits at one distance however hard the geometry recedes. Ramped
+      // between the section's own end depths and clipped to what is already drawn, so
+      // it is smooth inside a section and continuous across the joins (neighbours
+      // share their boundary sample). A wall at one depth — an end zone — comes out
+      // as a flat tint, which is correct there.
+      const haze = TU("crowdHaze", 0.4);
+      if (haze > 0) {
+        const p0 = pts[0], pN = pts[pts.length - 1];
+        const hz = (kk) => haze * Math.max(0, Math.min(1, (TU("crowdHazeNear", 1.05) - kk) /
+          Math.max(0.05, TU("crowdHazeNear", 1.05) - TU("crowdHazeFar", 0.34))));
+        // one side of the bowl faces the light and the other does not; a touch of
+        // difference between them keeps the two banks from reading as one flat plane
+        const side = sgn < 0 ? TU("crowdSideShade", 0.09) : 0;
+        const gr = cx.createLinearGradient(p0.sx - x0, p0.sy - y0, pN.sx - x0, pN.sy - y0);
+        gr.addColorStop(0, "rgba(15,22,34," + (hz(p0.k) + side).toFixed(3) + ")");
+        gr.addColorStop(1, "rgba(15,22,34," + (hz(pN.k) + side).toFixed(3) + ")");
+        cx.globalCompositeOperation = "source-atop";
+        cx.fillStyle = gr; cx.fillRect(0, 0, bw, bh);
+        cx.globalCompositeOperation = "source-over";
+      }
       try { this.textures.get(key).refresh(); } catch (e) {}
       s.spr[pose].setPosition(x0, y0).setDepth(pose === "idle" ? dep : dep + 0.005).setVisible(true);
     }

@@ -55,6 +55,106 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v60 — the stands get a third dimension.** v59 put the crowd on screen; it was
+  still a flat sheet of texture standing on edge. Five cues, all render-only, all
+  on dials.
+
+  **Rake.** A stand's back row is both higher *and further from the field* than its
+  front row, so in this projection the top of the stand belongs **outboard** of its
+  own base, not straight above it. The slice transform already maps the art through
+  a 3-point affine; the third mapping was "(c,0) → straight up", and it is now
+  "(c,0) → up and out by `crowdRake * h`". One extra term in `setTransform`, no new
+  geometry, and the wall stops reading as a billboard. It leans away from the field
+  only — the dev check asserts the inboard edge does not move by a single pixel, so
+  the team area is untouched.
+
+  It also fixes something that was quietly broken: the sections nearest the camera
+  are where the sideline runs almost straight down the screen, and without a rake
+  their box collapsed to a seven-pixel sliver that drew nothing at all. Raked, they
+  have width and draw. Crowd pixels on screen roughly double.
+
+  **Aerial perspective.** The far end of a bank of seating is a long way away and
+  reads that way — down in contrast, pulled toward the colour of the sky behind it.
+  Each section gets a gradient ramped between its own end depths and clipped to what
+  is already drawn (`source-atop`), so it is smooth within a section and continuous
+  across the joins — neighbours share their boundary sample. An end-zone wall sits
+  at one depth and comes out as a flat tint, which is correct there. A touch of
+  `crowdSideShade` on one bank keeps the two sides from reading as one plane.
+
+  **Tier overhangs.** A hard line at a deck boundary says "two textures butt here".
+  A shadow falling from it across the back rows of the deck below says "one deck is
+  in front of the other", which is the entire reason for stacking them.
+
+  **A front fascia and a back wall.** The strip ran straight into the turf at the
+  bottom and stopped at whatever silhouette the art's back railing left at the top.
+  It now has a shadowed base to stand on, and a rear wall above the top deck with
+  the coping catching light — laid down *under* the crowd, so the cheer pose's arms
+  and flags still break the skyline over it.
+
+  Dials: `crowdRake` .24, `crowdHaze` .4 (`crowdHazeNear` 1.05 / `crowdHazeFar`
+  .34), `crowdSideShade` .09, `crowdOverhang` .24, `crowdFascia` .12,
+  `crowdBackWall` .6. `crowdcheck` gains an A/B against `crowdRake = 0` (every
+  section must lean outboard, none may lean in) and one against `crowdHaze = 0`.
+
+  **On zoom.** The play camera runs `zoomLockMin` .6 → `zoomLockMax` 2.4 around a
+  ~0.9 base. Lateral spread is `1.885*k*(HALF+GAP)` against a half-frame of
+  `360/zoom`, so the stands fill the edges of the frame at the base zoom, open into
+  the whole bowl at .6, and leave frame entirely past about 1.2 — a tight broadcast
+  shot is all turf, which is what a tight broadcast shot looks like. Nothing to fix
+  there; it is the perspective doing its job.
+
+- **v59 — the stands stop cutting people in half, and come into frame.** Three
+  fixes to what the crowd actually looks like on screen.
+
+  **Nobody sits in the stairway.** The architecture pass draws the flights *on
+  top* of the finished stand (`source-atop`, so no mark can spill onto the turf),
+  and the art seats spectators wherever it likes — so every flight sliced whoever
+  was in its way, leaving a column of half heads down both cheeks of all twelve of
+  them, worst in the packed tier where there is a fan in every seat. The stairs
+  are not the problem; people sitting in the aisle is. `ribCrowdAisle()` builds
+  one narrow column of bare seating by walking the tier's cell **scanline by
+  scanline** and copying the emptiest stretch of that same line — the art's real
+  bench pixels, from the row they belong to, so riser, seat face and shadow line
+  all stay put. Per-scanline is what makes it work: a stand that never empties out
+  at any single x still empties out at *some* x on every individual row. The strip
+  lays that patch into every aisle on every deck before the flights are drawn.
+  One patch everywhere is also what makes the flights consistent — identical
+  width, identical bench, identical pitch, all the way through the stand.
+
+  Where the aisle's outer edge meets the seating it still has to fall through
+  somebody in the packed tier (there is no gap to land in), so that edge gets a
+  **handrail**: a shadow line and a lit rail drawn over the two columns the cut
+  lands on. The edge stops reading as a chopped spectator and starts reading as a
+  fan standing at the rail.
+
+  **One kind of stairway, not two.** The master is a stand drawn end to end and it
+  *ends* on a stairwell — a diagonal flight with its own handrail at each edge of
+  the cell. Tiling the cell whole therefore scattered a second, unrelated stair
+  system through the stand: at the cell's rhythm rather than the flights', sliding
+  sideways deck to deck with the tile offset, and mirrored into a facing pair at
+  every other seam. `ribCrowdTrim()` measures those end blocks (a stairwell has no
+  faces in it, so the leading and trailing face-free columns bound it exactly) and
+  the strip tiles the **seating only**. Copies butt at their natural width rather
+  than stretching to keep the old tile count, so nobody is widened. The trim is
+  taken as the max over the tier's two poses — idle and cheer are crossfaded and
+  must overlay pixel for pixel, and a trim that differed between them would slide
+  the whole stand sideways every time the crowd stood up.
+
+  **The apron comes back in.** `crowdGap` goes 112 → 56, undoing half of v58's
+  widening. The apron is the one dial that decides whether the stands are on
+  screen at all: lateral spread grows as `1.885*k`, so the front row sits
+  `1.885*k*(HALF+GAP)` px from the centre line while the camera only ever shows
+  ~400 of them. At 112 the near half of both stands was outside the frame and all
+  that survived was a sliver in the top corners, which reads as a smudge, not as a
+  stadium. 56 still leaves a real team area — the dev check holds it to at least
+  40 world units, about five yards, enough for a bench, a coaching box and players
+  standing at the boundary — and puts a proper bank of crowd down both edges of
+  the frame.
+
+  `scripts/crowdcheck.mjs` gains three assertions: skin per column inside the
+  stair columns against skin per column across the seating (the aisles have to be
+  empty), and that every flight sits on the same pitch.
+
 - **v58 — the stands become a stadium.** Three things the sideline stands were
   missing, plus the room to build on them.
 
