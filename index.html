@@ -3564,6 +3564,20 @@ function ribCrowdStrip(tier, pose, tiles, decks) {
   // the cheer pose's arms and flags go.
   const seatTop = Math.max(0, c[3] - (c[4] || c[3]));
   cx.fillStyle = "#3b3e44"; cx.fillRect(0, seatTop, W, cv.height - seatTop);
+  // ---- THE BACK OF THE STAND. Above the top deck's last row the strip was simply
+  // transparent, so the stand ended at whatever silhouette the art's back railing
+  // happened to leave and read as a sheet of seating with nothing behind it. A stand
+  // has a back: a rear wall standing above the top row, in its own shade, with the
+  // coping catching light along the top. It goes down FIRST, so the cheer pose's
+  // raised arms and flags still break the skyline over it — which is the headroom
+  // this band lives in, so it only takes the part of it the arms do not need.
+  const bwH = Math.round(seatTop * Math.max(0, Math.min(1, TU("crowdBackWall", 0.6))));
+  if (bwH > 1) {
+    const wg = cx.createLinearGradient(0, seatTop - bwH, 0, seatTop);
+    wg.addColorStop(0, "#31353c"); wg.addColorStop(1, "#232830");
+    cx.fillStyle = wg; cx.fillRect(0, seatTop - bwH, W, bwH);
+    cx.fillStyle = "rgba(150,158,170,0.55)"; cx.fillRect(0, seatTop - bwH, W, 1);
+  }
   // Every aisle, on every deck, is the same bare column of the tier's own bench —
   // laid down BEFORE the architecture pass so the flight it draws next lands on
   // empty seating instead of on a row of faces. Same patch everywhere is the point:
@@ -3635,6 +3649,14 @@ function ribCrowdArchitecture(cx, W, H, pitch, decks, tiles) {
     cx.fillStyle = "#2f333a"; cx.fillRect(0, y - conH, W, conH);         // the walkway, in shade
     cx.fillStyle = "rgba(158,165,176,0.7)"; cx.fillRect(0, y - conH, W, 1);     // front railing
     cx.fillStyle = "rgba(10,11,14,0.42)"; cx.fillRect(0, y - 1, W, 1);   // shadow onto the seats below
+    // ...and the tier above OVERHANGS the one below, so its shadow falls across the
+    // back rows of the next deck down. A hard line says "two textures butt here"; a
+    // shadow that fades out over a few rows says "one deck is in front of the other",
+    // which is the whole point of stacking them.
+    const ovH = Math.max(2, Math.round(pitch * TU("crowdOverhang", 0.24)));
+    const og = cx.createLinearGradient(0, y, 0, y + ovH);
+    og.addColorStop(0, "rgba(7,9,13,0.5)"); og.addColorStop(1, "rgba(7,9,13,0)");
+    cx.fillStyle = og; cx.fillRect(0, y, W, ovH);
     // vomitories: tunnel mouths opening onto this concourse
     for (const [i, x] of stairX) {
       if (i % vomEvery) continue;
@@ -3650,6 +3672,14 @@ function ribCrowdArchitecture(cx, W, H, pitch, decks, tiles) {
   g.addColorStop(0, "rgba(6,8,12," + TU("crowdTopShade", 0.2) + ")");
   g.addColorStop(0.5, "rgba(6,8,12,0)");
   cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+  // ---- and the FRONT FASCIA. The bottom of the strip is the wall the lowest deck
+  // stands on, at ground level and in the stand's own shadow. Without it the seating
+  // runs straight into the turf and the stand reads as a decal lying on the grass;
+  // with it there is a base for the whole thing to stand on.
+  const fh = Math.max(2, Math.round(pitch * TU("crowdFascia", 0.12)));
+  const fg = cx.createLinearGradient(0, H - fh, 0, H);
+  fg.addColorStop(0, "rgba(9,11,15,0)"); fg.addColorStop(1, "rgba(9,11,15,0.6)");
+  cx.fillStyle = fg; cx.fillRect(0, H - fh, W, fh);
   cx.restore();
 }
 function ribRecolor(src, p1hex, p2hex) {
@@ -5491,10 +5521,23 @@ class Ot extends mt.Scene {
     const C = this.crowd;
     if (pts.length < 2) return;
     const h = pts.map((p) => HH * p.k);
+    // ---- RAKE. A stand is not a billboard: its back row is both higher AND further
+    // from the field than its front row, so in this projection the top of the stand
+    // has to sit OUTBOARD of its own base, not straight above it. The slice transform
+    // below carries that as a shear — the source column's vertical axis maps to a
+    // sloped screen vector instead of to straight up — which costs nothing and is
+    // what turns a flat wall of texture into something with a face and a back.
+    // Outward is away from the field: sgn is which side of the centre line this wall
+    // is on, and the shear is proportional to the slice's own height, so it
+    // foreshortens with distance exactly as the rest of the stand does. End-zone
+    // walls are seen square on (sgn 0) and rake straight back, which the height
+    // already carries.
+    const RK = sgn * TU("crowdRake", 0.24);
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (let j = 0; j < pts.length; j++) {
-      const p = pts[j];
+      const p = pts[j], tx = p.sx + RK * h[j];
       if (p.sx < x0) x0 = p.sx; if (p.sx > x1) x1 = p.sx;
+      if (tx < x0) x0 = tx; if (tx > x1) x1 = tx;
       if (p.sy > y1) y1 = p.sy; if (p.sy - h[j] < y0) y0 = p.sy - h[j];
     }
     const PAD = 3;
@@ -5544,14 +5587,40 @@ class Ot extends mt.Scene {
         // 3-point affine: art (c,CELL_H)->ground, (c+dc,CELL_H)->next ground,
         // (c,0)->top of the stand at this depth. Exact for the slice's parallelogram;
         // the trapezoid error across one slice is far under a pixel at this spacing.
+        // The third mapping is where the rake lives: the top lands RK*h outboard of
+        // the base rather than directly over it, which is the g term below.
         const a = (q.sx - p.sx) / dc, b = (q.sy - p.sy) / dc, d = h[j] / CELL_H;
-        const e = p.sx - a * p.c - x0, f = p.sy - b * p.c - d * CELL_H - y0;
-        cx.setTransform(a, b, 0, d, e, f);
+        const g = -RK * d;
+        const e = p.sx - a * p.c - g * CELL_H - x0, f = p.sy - b * p.c - d * CELL_H - y0;
+        cx.setTransform(a, b, g, d, e, f);
         // sample one extra column so neighbouring slices overlap instead of hairlining
         const sx = Math.min(p.c, q.c), sw = Math.min(Math.abs(dc) + 1, stripW - sx);
         if (sw > 0) cx.drawImage(img, sx, 0, sw, CELL_H, sx, 0, sw, CELL_H);
       }
       cx.setTransform(1, 0, 0, 1, 0, 0);
+      // ---- AERIAL PERSPECTIVE. The far end of a stand is a quarter of a mile of air
+      // away and reads that way: it goes down in contrast and toward the colour of
+      // the sky behind it. Without this every section is lit identically and the
+      // whole bank sits at one distance however hard the geometry recedes. Ramped
+      // between the section's own end depths and clipped to what is already drawn, so
+      // it is smooth inside a section and continuous across the joins (neighbours
+      // share their boundary sample). A wall at one depth — an end zone — comes out
+      // as a flat tint, which is correct there.
+      const haze = TU("crowdHaze", 0.4);
+      if (haze > 0) {
+        const p0 = pts[0], pN = pts[pts.length - 1];
+        const hz = (kk) => haze * Math.max(0, Math.min(1, (TU("crowdHazeNear", 1.05) - kk) /
+          Math.max(0.05, TU("crowdHazeNear", 1.05) - TU("crowdHazeFar", 0.34))));
+        // one side of the bowl faces the light and the other does not; a touch of
+        // difference between them keeps the two banks from reading as one flat plane
+        const side = sgn < 0 ? TU("crowdSideShade", 0.09) : 0;
+        const gr = cx.createLinearGradient(p0.sx - x0, p0.sy - y0, pN.sx - x0, pN.sy - y0);
+        gr.addColorStop(0, "rgba(15,22,34," + (hz(p0.k) + side).toFixed(3) + ")");
+        gr.addColorStop(1, "rgba(15,22,34," + (hz(pN.k) + side).toFixed(3) + ")");
+        cx.globalCompositeOperation = "source-atop";
+        cx.fillStyle = gr; cx.fillRect(0, 0, bw, bh);
+        cx.globalCompositeOperation = "source-over";
+      }
       try { this.textures.get(key).refresh(); } catch (e) {}
       s.spr[pose].setPosition(x0, y0).setDepth(pose === "idle" ? dep : dep + 0.005).setVisible(true);
     }

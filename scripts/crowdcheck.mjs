@@ -314,6 +314,57 @@ ok(aisle.perAisleCol < aisle.perSeatCol * 0.1,
 ok(new Set(aisle.gaps).size <= 2 && Math.max(...aisle.gaps) - Math.min(...aisle.gaps) <= 1,
   'every flight sits on the same pitch', aisle.gaps)
 
+// ---- v59 2.5D: the stand has to read as a raked bank of seating, not as a decal
+// standing on edge. Two things carry that and both are measurable on the section
+// canvases the renderer actually uploads.
+//   RAKE — the back row is further from the field than the front row, so the drawn
+//   top edge must sit OUTBOARD of the drawn base. Measured as the mean x of the
+//   inked pixels in the top tenth of the section against the bottom tenth, in the
+//   section's own outward direction.
+//   AERIAL PERSPECTIVE — the far end of the bank goes down in contrast toward the
+//   colour behind it. Measured as a controlled A/B against crowdHaze = 0 on the same
+//   section, so it cannot be confused with the far section simply drawing less ink.
+const solid = await page.evaluate(() => {
+  const sc = window.__gridironScene
+  // Mean brightness across every sideline section that actually has ink in it. The
+  // sections nearest the camera are degenerate slivers — the sideline runs almost
+  // straight down the screen there, so their box is a few px wide — and reading a
+  // single section risks landing on one of those.
+  const lumAll = () => {
+    let n = 0, L = 0
+    for (const s of sc.crowd.secs.slice(0, sc.crowd.built)) {
+      if (!s.sgn) continue
+      const cv = s.cv.idle, d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
+      for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < 40) continue; n++; L += 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2] }
+    }
+    return { lum: n ? +(L / n).toFixed(1) : 0, px: n }
+  }
+  // outboard = the far side of the box from the field, inboard = the near side. The
+  // rake must push the first one out and leave the second exactly where it was.
+  const edges = () => sc.crowd.secs.slice(0, sc.crowd.built).map(s => s.sgn
+    ? { sgn: s.sgn, out: s.sgn > 0 ? s.bx + s.bw : s.bx, inb: s.sgn > 0 ? s.bx : s.bx + s.bw } : null)
+  window.RIB_TUNE = window.RIB_TUNE || {}
+  const withRake = edges(), withHaze = lumAll()
+  window.RIB_TUNE.crowdRake = 0; window.RIB_TUNE.crowdHaze = 0; window.RIB_TUNE.crowdSideShade = 0
+  sc.buildCrowd()
+  const noRake = edges(), noHaze = lumAll()
+  delete window.RIB_TUNE.crowdRake; delete window.RIB_TUNE.crowdHaze; delete window.RIB_TUNE.crowdSideShade
+  sc.buildCrowd()
+  const push = [], creep = []
+  for (let i = 0; i < withRake.length; i++) {
+    const A = withRake[i], B = noRake[i]; if (!A || !B) continue
+    push.push(Math.round((A.out - B.out) * A.sgn))          // outward, away from the field
+    creep.push(Math.round((B.inb - A.inb) * A.sgn))         // inward, toward the field
+  }
+  return { push, creep, minPush: Math.min(...push), maxCreep: Math.max(...creep), withHaze, noHaze }
+})
+ok(solid.minPush > 6, 'the stand RAKES: every section leans OUTBOARD as it rises (px vs crowdRake = 0)',
+  { minPush: solid.minPush, push: solid.push })
+ok(solid.maxCreep <= 1, 'and the rake never leans the stand IN over the field', solid.creep)
+ok(solid.withHaze.lum < solid.noHaze.lum * 0.97,
+  'aerial perspective actually dims the bank (A/B against crowdHaze = 0)',
+  { withHaze: solid.withHaze, noHaze: solid.noHaze })
+
 // ---- cheering: heat rises, arrives as a wave, then decays
 const cheer = await page.evaluate(async () => {
   const sc = window.__gridironScene, C = sc.crowd
