@@ -279,6 +279,41 @@ ok(arch.stairsOn > arch.stairsOff * 2,
   'crowdArch=0 really removes the structure (the check is measuring IT, not the art)',
   { on: arch.stairsOn, off: arch.stairsOff })
 
+// ---- v59 AISLES: a stairway is drawn ON TOP of the finished stand, so the only way
+// it does not slice whoever was sitting there is if the seats under it were cleared
+// first. Measured in SKIN: a face is unmistakable and a bench never has one, so the
+// share of skin pixels inside the stair columns against the share across the stand as
+// a whole says directly whether people are still in the aisle. Also asserts the art's
+// own end stairwells are trimmed out of the tiling, so the flights are the only stairs
+// in the stand and they all sit on the same pitch.
+const aisle = await page.evaluate(() => {
+  const sc = window.__gridironScene, cv = sc.crowd.strips.idle
+  const W = cv.width, H = cv.height, d = cv.getContext('2d').getImageData(0, 0, W, H).data
+  const col = new Int32Array(W)
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = ((y * W) + x) * 4
+    if (d[i + 3] > 40 && d[i] > 130 && d[i] - d[i + 2] > 45 && d[i + 1] > d[i + 2] &&
+      d[i] - d[i + 1] > 15 && d[i] - d[i + 1] < 90) col[x]++
+  }
+  const M = window.__CROWD_V57 || {}
+  const S = window.__CROWD_STAIRS_PROBE(W, M.tiles || 3)
+  const inA = new Uint8Array(W)
+  for (const [, x] of S.xs) for (let k = -1; k < S.sw + 1; k++) if (x + k >= 0 && x + k < W) inA[x + k] = 1
+  let aisleSkin = 0, aisleCols = 0, seatSkin = 0, seatCols = 0
+  for (let x = 0; x < W; x++) {
+    if (inA[x]) { aisleSkin += col[x]; aisleCols++ } else { seatSkin += col[x]; seatCols++ }
+  }
+  return { perAisleCol: +(aisleSkin / Math.max(1, aisleCols)).toFixed(2),
+    perSeatCol: +(seatSkin / Math.max(1, seatCols)).toFixed(2),
+    flights: S.xs.length, sw: S.sw, pitch: +S.pitchX.toFixed(1),
+    gaps: S.xs.slice(1).map((p, i) => p[1] - S.xs[i][1]) }
+})
+ok(aisle.perSeatCol > 0.5, 'the skin scan is finding spectators at all', aisle.perSeatCol)
+ok(aisle.perAisleCol < aisle.perSeatCol * 0.1,
+  'no spectator is left sitting in a stairway (skin per column, aisle vs seats)', aisle)
+ok(new Set(aisle.gaps).size <= 2 && Math.max(...aisle.gaps) - Math.min(...aisle.gaps) <= 1,
+  'every flight sits on the same pitch', aisle.gaps)
+
 // ---- cheering: heat rises, arrives as a wave, then decays
 const cheer = await page.evaluate(async () => {
   const sc = window.__gridironScene, C = sc.crowd
