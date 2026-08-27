@@ -75,7 +75,7 @@ ok(!!boot.crowd && boot.sections >= 4, 'crowd built with sections', boot.section
 const geom = await page.evaluate(() => {
   const sc = window.__gridironScene, C = sc.crowd
   const secs = C.secs.slice(0, C.built).map(s => ({
-    sgn: s.sgn, ux: Math.round(s.ux), k: +s.k.toFixed(3),
+    sgn: s.sgn, ux: Math.round(s.ux), k: +s.k.toFixed(3), hh: +(s.hh || 0).toFixed(2),
     bx: Math.round(s.bx), by: Math.round(s.by), bw: Math.round(s.bw), bh: Math.round(s.bh),
     visIdle: s.spr.idle.visible, visCheer: s.spr.cheer.visible,
     depthIdle: s.spr.idle.depth, depthCheer: s.spr.cheer.depth,
@@ -96,9 +96,31 @@ ok(left.length >= 2 && right.length >= 2, 'sections on BOTH sidelines', { left: 
 // field. The camera swings ends with possession and the walls rebuild every snap,
 // so both real end zones get their stands — each while it is the far one.
 ok(ends.length >= 3, 'a stand is built behind the end zone being attacked', { sections: ends.length })
-// an end-zone wall sits at ONE depth, so every section on it shares a k
+// v63: the north end is a CURVE, not a flat wall — so its depth varies along it,
+// and its corners bend back toward the camera and out toward the sidelines.
 const ezK = [...new Set(ends.map(s => s.k))]
-ok(ezK.length <= 2, 'each end-zone wall sits at a single depth (constant k)', ezK)
+const kSpread = Math.max(...ends.map(s => s.k)) - Math.min(...ends.map(s => s.k))
+ok(ezK.length >= 3 && kSpread > 0.02, 'the north end CURVES: its depth varies along the wall',
+  { ks: ezK, spread: +kSpread.toFixed(3) })
+{
+  const mid = ends.slice().sort((a, b) => a.k - b.k)[0]              // flattest = furthest back
+  const corner = ends.slice().sort((a, b) => b.k - a.k)[0]           // deepest = the corner
+  ok(corner.k > mid.k, 'its corners sit nearer the camera than its back', { corner: corner.k, back: mid.k })
+  ok(Math.abs(corner.bx + corner.bw / 2 - 360) > Math.abs(mid.bx + mid.bw / 2 - 360),
+    'and further out toward the sidelines, so the bowl closes instead of cornering',
+    { corner: Math.round(corner.bx + corner.bw / 2), back: Math.round(mid.bx + mid.bw / 2) })
+}
+// ONE crowd, one size. Height and texture scale are the same number seen twice, so
+// solving them per wall gave the long sidelines big spectators and the short north
+// end small ones — a different crowd on the same terrace. hh/k is the bowl's single
+// stand height; it has to be one number everywhere.
+{
+  const hs = geom.secs.filter(s => s.hh > 0 && s.k > 0).map(s => s.hh / s.k)
+  const lo = Math.min(...hs), hi = Math.max(...hs)
+  ok(hs.length === geom.secs.length && hi / lo < 1.02,
+    'the crowd is the SAME SIZE all the way round the bowl (stand height / k)',
+    { lo: +lo.toFixed(1), hi: +hi.toFixed(1), ratio: +(hi / lo).toFixed(4) })
+}
 // and the far one has to be ABOVE the far end line, in the headroom NSTOP reserves
 ok(Math.min(...ends.map(s => s.by)) < 340, 'the far end-zone stand lands inside the headroom above the field',
   { minBy: Math.min(...ends.map(s => s.by)) })
@@ -131,60 +153,66 @@ const intrude = await page.evaluate(() => {
   const F_TOP = 14, F_BOT = 426, FW = 720, MIDY = 220
   const yAt = (x) => window.__PJ_PROBE(x, MIDY).y
   const dec = yAt(0) > yAt(FW)
+  // the screen rows the playing surface actually occupies, with a margin — the
+  // depth inversion is meaningless outside them and its answers are arbitrary there
+  const yFar = Math.min(yAt(0), yAt(FW)) + 2, yNear = Math.max(yAt(0), yAt(FW)) - 2
   const xAtY = (Y) => {
     let lo = 0, hi = FW
     for (let i = 0; i < 22; i++) { const m = (lo + hi) / 2; if ((yAt(m) > Y) === dec) lo = m; else hi = m }
     return (lo + hi) / 2
   }
-  let overField = 0, minClearWorld = 1e9, samples = 0
+  // v63: the bowl curves round the north end, so a section is no longer either "a
+  // sideline" or "a flat wall behind an end line" — a corner section is both at
+  // once. The test that still means something for all of them is the one that
+  // always mattered: NO crowd pixel may land on the playing surface. So for each
+  // drawn pixel, take the field depth its screen row corresponds to and check it
+  // against BOTH touchlines at that depth, rather than against the one touchline a
+  // section was assumed to belong to.
+  let overField = 0, minClearWorld = 1e9, samples = 0, endSamples = 0
   for (let i = 0; i < C.built; i++) {
     const s = C.secs[i], cv = s.cv.idle
-    if (!s.sgn) continue                                  // end-zone wall: measured separately below
     const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
     for (let py = 0; py < s.bh; py += 3) {
-      const Y = s.by + py, x = xAtY(Y)
+      const Y = s.by + py
+      if (Y < yFar || Y > yNear) continue               // no playing surface on this row at all
+      const x = xAtY(Y)
       if (x <= 0.5 || x >= FW - 0.5) continue           // past the end lines: no field on this row
-      const edge = window.__PJ_PROBE(x, s.sgn < 0 ? F_TOP : F_BOT).x
+      // ...and PROVE the inversion. Rows above the far end line have no depth that
+      // maps to them, and the bisection there converges to an arbitrary end of the
+      // field — which then hands back the touchlines from the WRONG end and reports
+      // a stand at the top of the frame as sitting on the near twenty. Rows the
+      // round trip does not reproduce are rows with no playing surface on them.
+      if (Math.abs(yAt(x) - Y) > 1.5) continue
+      const eL = window.__PJ_PROBE(x, F_TOP).x, eR = window.__PJ_PROBE(x, F_BOT).x
+      const lo = Math.min(eL, eR), hi = Math.max(eL, eR)
       const k = window.__PERSPK_PROBE(x) || 1
       for (let px = 0; px < s.bw; px += 2) {
         if (d[((py * cv.width) + px) * 4 + 3] < 40) continue
         const X = s.bx + px
-        samples++
-        const over = Math.abs(edge - 360) - Math.abs(X - 360)   // >0 means inside the field
+        samples++; if (!s.sgn) endSamples++
+        // how far INSIDE the field this pixel is (positive is a violation)
+        const over = Math.min(X - lo, hi - X)
         if (over > overField) overField = over
-        // convert the screen clearance back to WORLD lateral units, so the team area
-        // is measured in yards of sideline rather than in perspective-shrunk pixels
-        const clearWorld = -over / (1.30 * 1.45 * k)
-        if (clearWorld < minClearWorld) minClearWorld = clearWorld
+        // and, for the sidelines, how much apron it leaves — in WORLD lateral units,
+        // so the team area is measured in yards of sideline, not in shrunk pixels
+        if (s.sgn) {
+          const clearWorld = -over / (1.30 * 1.45 * k)
+          if (clearWorld < minClearWorld) minClearWorld = clearWorld
+        }
       }
     }
   }
-  return { overField: Math.round(overField), minClearWorld: Math.round(minClearWorld), samples,
+  return { overField: Math.round(overField), minClearWorld: Math.round(minClearWorld), samples, endSamples,
     gap: (window.__CROWD_V57 || {}).gap }
 })
 ok(intrude.samples > 500, 'the intrusion scan actually found crowd pixels', intrude.samples)
+ok(intrude.endSamples > 200, 'and the scan now covers the curved north end too, not just the sidelines',
+  intrude.endSamples)
 ok(intrude.overField <= 2, 'no crowd pixel is drawn over the playing surface (px)', intrude.overField)
 // 40 world units is ~5 yards of sideline — enough to stand a bench, a coaching box
 // and a row of players in front of the seats.
 ok(intrude.minClearWorld >= 40, 'a TEAM AREA is reserved between sideline and stands (world units)',
   { clear: intrude.minClearWorld, gap: intrude.gap })
-
-// The end-zone stands span the field's whole width, so the sideline test above says
-// nothing about them. What has to hold for them is CONTAINMENT: each sits wholly
-// beyond an end line, never over the playing surface.
-const ezClear = await page.evaluate(() => {
-  const sc = window.__gridironScene, C = sc.crowd, MIDY = 220
-  const a = window.__PJ_PROBE(0, MIDY).y, b = window.__PJ_PROBE(720, MIDY).y
-  const top = Math.min(a, b), bot = Math.max(a, b)     // the field's far and near end lines, on screen
-  const bad = []
-  for (let i = 0; i < C.built; i++) {
-    const s = C.secs[i]; if (s.sgn) continue
-    const beyondFar = (s.by + s.bh) <= top + 4, beyondNear = s.by >= bot - 4
-    if (!beyondFar && !beyondNear) bad.push({ by: Math.round(s.by), bh: Math.round(s.bh) })
-  }
-  return { bad, top: Math.round(top), bot: Math.round(bot) }
-})
-ok(ezClear.bad.length === 0, 'every end-zone stand sits wholly beyond an end line', ezClear)
 
 // ---- depth: the crowd must sit ABOVE fieldLines (so it occludes the marker tips
 // rather than being painted over) but BELOW the ground shadows/rings under players.
@@ -439,6 +467,67 @@ const viaEvent = await page.evaluate(() => {
 })
 ok(viaEvent.sched >= 4, 'a touchdown event schedules a roar across the stands', viaEvent.sched)
 ok(viaEvent.noise === 0, 'an unremarkable event does not move the crowd', viaEvent.noise)
+
+// ---- v63 VOICES: the stands say something. Small enough not to compete with the
+// field, big enough to read at the size a stand actually draws, only ever from a
+// stand the camera can see, and rationed so a busy play gets a shout rather than a
+// running commentary.
+const voice = await page.evaluate(async () => {
+  const sc = window.__gridironScene, C = sc.crowd, cam = sc.cameras.main
+  // Pin the framing on a stand. The play leaves the camera wherever it likes, and
+  // "did the crowd shout" is not a question about where the last tackle happened —
+  // so centre on a section's own anchor and ask it there.
+  // The camera's x is pinned by its bounds, so "centre on it" only works vertically —
+  // pick the stand that is already nearest the centre line laterally.
+  const anchor = C.secs.slice(0, C.built).reduce((b, s) => Math.abs(s.mx - 360) < Math.abs(b.mx - 360) ? s : b)
+  cam.setZoom(0.9); cam.centerOn(anchor.mx, anchor.my)
+  const wait = ms => new Promise(r => setTimeout(r, ms))
+  await wait(80)
+  const w = cam.worldView
+  const onScreen = C.secs.slice(0, C.built).filter(s =>
+    s.mx > w.x + 44 && s.mx < w.right - 44 && s.my > w.y + w.height * .08 && s.my < w.bottom - 24).length
+  const P = sc.play || { payload: { offense: 'us' }, losX: 360 }
+  const clear = () => { for (const v of (C.voices || [])) { try { v.box.destroy() } catch (e) {} } if (C.voices) C.voices.length = 0 }
+  const shout = (type, x) => { C.voiceAt = -1e9; clear(); sc.crowdReact({ type, x }, P); return (C.voices || []).length }
+  const good = shout('td', 360)
+  const info = (C.voices || []).map(v => {
+    const t = v.box.list.find(o => o.text != null)
+    return { x: Math.round(v.box.x), y: Math.round(v.box.y), fs: parseInt(t && t.style.fontSize, 10) || 0,
+      txt: t ? t.text : '', wpx: Math.round((t && t.width) || 0),
+      onCam: v.box.x > w.x && v.box.x < w.right && v.box.y > w.y && v.box.y < w.bottom }
+  })
+  clear(); C.voiceAt = -1e9
+  sc.crowdReact({ type: 'snap', x: 360 }, P)                 // weight .1 — beneath the bar
+  const quiet = (C.voices || []).length
+  // cooldown: a second big play immediately after the first must not double up
+  clear(); C.voiceAt = -1e9
+  sc.crowdReact({ type: 'td', x: 360 }, P)
+  const first = (C.voices || []).length
+  sc.crowdReact({ type: 'pick', x: 360 }, P)
+  const second = (C.voices || []).length
+  // and they go away on their own
+  await wait(60); const alive0 = (C.voices || []).length
+  for (let i = 0; i < 40; i++) { sc.updateCrowd(60); }
+  const alive1 = (C.voices || []).length
+  clear()
+  return { onScreen, good, info, quiet, first, second, alive0, alive1 }
+})
+console.log('crowd voices:', JSON.stringify(voice))
+ok(voice.onScreen > 0, 'at least one stand is on camera to shout from', voice.onScreen)
+ok(voice.good >= 1, 'a big play makes the stands shout', voice.good)
+ok(voice.info.every(v => v.onCam), 'the shout comes from a stand the camera can actually see',
+  voice.info.map(v => [v.x, v.y]))
+ok(voice.info.every(v => v.fs >= 9 && v.fs <= 14), 'small, but never below readable (px)',
+  voice.info.map(v => v.fs))
+ok(voice.info.every(v => v.wpx >= 12 && v.wpx <= 140),
+  'and never big enough to compete with the field (text px wide, frame is 720)', voice.info.map(v => v.wpx))
+ok(voice.info.every(v => v.txt && v.txt.length <= 16), 'the line is short enough to read at a glance',
+  voice.info.map(v => v.txt))
+ok(voice.quiet === 0, 'an unremarkable event does not make them shout', voice.quiet)
+ok(voice.second === voice.first, 'a second big play inside the cooldown does not double the shouting',
+  { first: voice.first, second: voice.second })
+ok(voice.alive0 > 0 && voice.alive1 === 0, 'and the shouts clear themselves up',
+  { alive: voice.alive0, later: voice.alive1 })
 
 // ---- tiers: the level picks one, and they really differ.
 // Measured as the share of inked pixels that are COLOURED rather than grey. Raw

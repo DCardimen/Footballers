@@ -5434,36 +5434,87 @@ class Ot extends mt.Scene {
     // field, so their k is constant and they come out as a straight band. The end
     // zone stands span exactly the sideline stands' lateral range, so the four walls
     // meet at the corners and the bowl closes.
-    const vOut = HALF + GAP, EZG = TU("crowdEndGap", 16);
+    // v63: the end apron goes 16 -> 44. A sweeping corner has to buy its radius from
+    // somewhere: with the bowl's back only 16 units behind the end line, a 130-unit
+    // corner cuts the diagonal so tightly that the stand passes within a few units
+    // of the field's own corner — closer than the sidelines are allowed anywhere
+    // along their length. Pushing the back of the bowl out is what lets the corner
+    // sweep AROUND the end zone instead of across it.
+    const vOut = HALF + GAP, EZG = TU("crowdEndGap", 44);
+    /* v63: the north end is a BOWL, not a third wall. It used to be a straight band
+     * across the back of the end zone, butted against two sidelines that ran all the
+     * way to the end line — which left an open wedge of nothing at each corner, and
+     * a hard right-angle turn where a stadium has a sweep. The sidelines now stop a
+     * corner radius short and the end is one continuous curve that starts exactly
+     * where the near sideline stopped, bows out behind the end line and finishes
+     * exactly where the far sideline starts.
+     *
+     * The curve is a superellipse in (depth, lateral): |t| is the lateral parameter,
+     * and u = (FW - CR) + (CR + EZG)·(1 - |t|^n)^(1/n). Two properties earn it. Its
+     * ends land ON the sideline ends, so the bowl closes with no seam to hide. And
+     * its slope there is vertical in t, so it leaves the sideline running PARALLEL
+     * to it — the join is tangent-continuous and reads as one sweep rather than two
+     * walls meeting. The exponent is the only shape dial: 2 is an ellipse, large is
+     * a rectangle, and around 3.5 is the flat-backed, round-cornered end a real
+     * bowl has. */
+    const CR = Math.max(10, TU("crowdCornerR", 130));          // corner radius, in field depth
+    const BN = Math.max(1.4, TU("crowdBowlN", 5));             // superellipse exponent
+    const uEnd = Math.max(FW * 0.5, FW - CR);                  // where the sidelines stop
     const walls = [
-      { kind: "side", vv: MIDY - vOut, sec: SEC },
-      { kind: "side", vv: MIDY + vOut, sec: SEC },
-      // ONLY the far end zone. A wall behind the NEAR end line is behind the camera,
-      // and these stands are billboards: "up the screen" means "further away", so a
-      // near-end wall rises out of the bottom of the frame and paints itself straight
-      // over the field it is supposed to be behind. The camera swings ends with
-      // possession and this list is rebuilt every snap, so both real end zones get
-      // their stands — each one while it is the end being attacked.
-      { kind: "ez", u: FW + EZG, sec: Math.max(2, Math.round(SEC * 0.6)) },
+      { kind: "side", vv: MIDY - vOut, uMax: uEnd, sec: SEC },
+      { kind: "side", vv: MIDY + vOut, uMax: uEnd, sec: SEC },
+      // ONLY the far end. A bowl behind the NEAR end line is behind the camera, and
+      // these stands are billboards: "up the screen" means "further away", so it
+      // would rise out of the bottom of the frame and paint itself over the field it
+      // is supposed to sit behind. The camera swings ends with possession and this
+      // list is rebuilt every snap, so both real end zones get their bowl — each one
+      // while it is the end being attacked.
+      { kind: "bowl", sec: Math.max(3, Math.round(SEC * 0.9)) },
     ];
 
-    let n = 0, lastHH = 0;
+    const fieldX = (u) => Math.max(0, Math.min(FW, VDIR > 0 ? u : FW - u));
+    let n = 0;
+    const built = [];
     for (const wall of walls) {
       const pts = [];
       if (wall.kind === "side") {
+        const cMax = P.C(wall.uMax);
         for (let j = 0; j <= NS; j++) {
-          const u = this.crowdInvertC(P.total * (j / NS));
+          const u = this.crowdInvertC(cMax * (j / NS));
           const p = this.crowdProject(u, wall.vv);
           // w: distance along the wall, in world units. x: where on the FIELD this
           // sits, which is what the roar's wave measures its distance from.
-          pts.push({ w: u, x: VDIR > 0 ? u : FW - u, sx: p.x, sy: p.y, k: p.k, c: 0 });
+          pts.push({ w: u, x: fieldX(u), sx: p.x, sy: p.y, k: p.k, c: 0, vv: wall.vv });
         }
       } else {
-        const NE = Math.max(10, Math.round(NS / 4)), xw = VDIR > 0 ? wall.u : FW - wall.u;
+        // The curve, sampled dense in t and then RESAMPLED by arc length. Uniform t
+        // spends its samples on the flat back of the bowl and starves the corners,
+        // which are the only part of it that bends.
+        const raw = [], DENSE = 400;
+        for (let j = 0; j <= DENSE; j++) {
+          const t = -1 + 2 * (j / DENSE), at = Math.min(1, Math.abs(t));
+          let u = uEnd + (CR + EZG) * Math.pow(Math.max(0, 1 - Math.pow(at, BN)), 1 / BN);
+          const vv = MIDY + vOut * t;
+          // A guarantee, not a shaper: wherever the curve is laterally INSIDE the
+          // touchlines it must also be behind the end line, or the corner of the
+          // bowl is standing on the corner of the pitch. With the dials above it
+          // never binds — it is here so no future retune can put a stand on the
+          // field by accident.
+          if (Math.abs(vv - MIDY) < HALF) u = Math.max(u, FW + TU("crowdEndMin", 8));
+          raw.push({ u, vv });
+        }
+        const arc = [0];
+        for (let j = 1; j <= DENSE; j++)
+          arc.push(arc[j - 1] + Math.hypot(raw[j].u - raw[j - 1].u, raw[j].vv - raw[j - 1].vv));
+        const L = arc[DENSE] || 1, NE = Math.max(16, Math.round(NS / 2));
+        let g = 0;
         for (let j = 0; j <= NE; j++) {
-          const vv = MIDY - vOut + (2 * vOut) * (j / NE);
-          const p = this.crowdProject(wall.u, vv);
-          pts.push({ w: vv, x: Math.max(0, Math.min(FW, xw)), sx: p.x, sy: p.y, k: p.k, c: 0 });
+          const want = L * (j / NE);
+          while (g < DENSE - 1 && arc[g + 1] < want) g++;
+          const span = Math.max(1e-6, arc[g + 1] - arc[g]), f = Math.max(0, Math.min(1, (want - arc[g]) / span));
+          const u = raw[g].u + (raw[g + 1].u - raw[g].u) * f, vv = raw[g].vv + (raw[g + 1].vv - raw[g].vv) * f;
+          const p = this.crowdProject(u, vv);
+          pts.push({ w: want, x: fieldX(u), sx: p.x, sy: p.y, k: p.k, c: 0, vv });
         }
       }
       const NP = pts.length - 1;
@@ -5474,8 +5525,7 @@ class Ot extends mt.Scene {
       // it scales them by k and packs MORE of them into the same screen length.
       // Advancing at a rate proportional to k makes the horizontal texture scale
       // (screen-length rate)/(dc/dw) = k²/k = k, matching the vertical scale, so the
-      // art keeps its drawn proportions the whole way along. (On an end-zone wall k
-      // is constant and this reduces to the linear mapping, which is correct there.)
+      // art keeps its drawn proportions the whole way along.
       let cum = 0;
       for (let j = 1; j <= NP; j++) {
         cum += 0.5 * (pts[j - 1].k + pts[j].k) * Math.abs(pts[j].w - pts[j - 1].w);
@@ -5487,7 +5537,7 @@ class Ot extends mt.Scene {
       // height that leaves the spectators undistorted is fixed by the strip's own
       // aspect and how densely it was tiled: h/stripH must equal the horizontal
       // scale, so HH = stripH * seg / (dc * k). Constant along the wall up to
-      // sampling noise, so take the median and let crowdHeightK trim it by taste.
+      // sampling noise, so take the median.
       const est = [];
       for (let j = 0; j < NP; j++) {
         const dc = Math.abs(pts[j + 1].c - pts[j].c);
@@ -5496,28 +5546,73 @@ class Ot extends mt.Scene {
         est.push(stripH * seg / (dc * pts[j].k));
       }
       est.sort((x2, y2) => x2 - y2);
-      const HH = (est.length ? est[est.length >> 1] : 160) * HK;
-      lastHH = HH;
+      built.push({ wall, pts, NP, est });
+    }
+    /* ---- ONE height for the whole bowl. This used to be solved per wall, which is
+     * where the north end's sizing went wrong: a wall's height and its texture scale
+     * are two views of the same number, and each wall was forcing the strip to span
+     * it exactly once and then taking whatever height fell out. The sidelines are
+     * long, so they got tall stands with big spectators; the end is short, so it got
+     * a stand a third the height with spectators to match — a different crowd, on
+     * the same terrace, forty yards away. Nobody shrinks when they walk round a
+     * stadium.
+     *
+     * The sidelines set the size (they are the reference — most of the bowl, and
+     * always on camera), and every other wall is given the texture span that MATCHES
+     * it: dc = stripH·seg/(HH·k), integrated along the wall. The end simply uses
+     * less of the strip than the sidelines do, which is what "the same people, seen
+     * across a shorter run of terrace" actually means. */
+    const sideEst = [];
+    for (const B of built) if (B.wall.kind === "side") sideEst.push(...B.est);
+    sideEst.sort((a, b) => a - b);
+    const HH = (sideEst.length ? sideEst[sideEst.length >> 1] : 160) * HK;
+    for (const B of built) {
+      if (B.wall.kind === "side") continue;
+      const P2 = B.pts;
+      let c = 0; const raw = [0];
+      for (let j = 1; j <= B.NP; j++) {
+        const seg = Math.hypot(P2[j].sx - P2[j - 1].sx, P2[j].sy - P2[j - 1].sy);
+        const kk = Math.max(.02, .5 * (P2[j].k + P2[j - 1].k));
+        c += stripH * seg / (HH * kk);
+        raw.push(c);
+      }
+      // If the wall is long enough to want more strip than there is, fall back to
+      // spanning it once — a slightly small crowd beats sampling past the art.
+      const sc = c > stripW ? stripW / c : 1;
+      // and start it at the far end of the strip, so the bowl is not showing the
+      // same faces the sidelines open with
+      const off = c * sc >= stripW ? 0 : stripW - c * sc;
+      for (let j = 0; j <= B.NP; j++) P2[j].c = off + raw[j] * sc;
+    }
+    for (const B of built) {
+      const { wall, pts, NP } = B;
       // sections share their boundary sample, so neighbours butt up with no seam
-      const SS = wall.sec;
+      const SS = wall.sec, side = wall.kind === "side" ? (wall.vv < MIDY ? -1 : 1) : 0;
       for (let i = 0; i < SS; i++) {
         const a = Math.floor(i * NP / SS), b = Math.floor((i + 1) * NP / SS);
         if (b <= a) continue;
-        this.crowdSection(n++, wall.kind === "side" ? (wall.vv < MIDY ? -1 : 1) : 0,
-          pts.slice(a, b + 1), strips, stripW, stripH, HH);
+        const seg = pts.slice(a, b + 1);
+        // The rake leans a stand AWAY from the field, and around the bowl's corners
+        // "away" swings from sideways to straight back. Ramp it with how far round
+        // the curve the section sits, so the lean turns with the wall instead of
+        // snapping off at the corner. Kept separate from `side`, which stays the
+        // wall's identity — the dev checks and the roar both read that.
+        for (const q of seg) q.rk = side || Math.max(-1, Math.min(1, ((q.vv == null ? MIDY : q.vv) - MIDY) / Math.max(1, vOut)));
+        this.crowdSection(n++, side, side, seg, strips, stripW, stripH, HH);
       }
     }
     for (let i = n; i < C.secs.length; i++) { const s = C.secs[i]; try { s.spr.idle.setVisible(false); s.spr.cheer.setVisible(false); } catch (e) {} }
     C.built = n;
     try {
-      window.__CROWD_V57 = { tier, sections: n, sec: SEC, tiles, decks, height: +lastHH.toFixed(1), gap: GAP, endGap: EZG, walls: walls.length,
+      window.__CROWD_V57 = { tier, sections: n, sec: SEC, tiles, decks, height: +HH.toFixed(1), gap: GAP, endGap: EZG,
+        walls: walls.length, cornerR: CR, bowlN: BN,
         pitch: Math.max(1, (RIB_META_CROWD[tier + "_idle"][4] || 0) - TU("crowdDeckLap", 10)),
         heat: () => (this.crowd ? this.crowd.secs.slice(0, this.crowd.built).map((s) => +s.heat.toFixed(3)) : []),
         boxes: () => (this.crowd ? this.crowd.secs.slice(0, this.crowd.built).map((s) => [Math.round(s.bx), Math.round(s.by), Math.round(s.bw), Math.round(s.bh)]) : []) };
     } catch (e) {}
     return true;
   }
-  crowdSection(idx, sgn, pts, strips, stripW, CELL_H, HH) {
+  crowdSection(idx, sgn, rakeSgn, pts, strips, stripW, CELL_H, HH) {
     const C = this.crowd;
     if (pts.length < 2) return;
     const h = pts.map((p) => HH * p.k);
@@ -5532,10 +5627,15 @@ class Ot extends mt.Scene {
     // foreshortens with distance exactly as the rest of the stand does. End-zone
     // walls are seen square on (sgn 0) and rake straight back, which the height
     // already carries.
-    const RK = sgn * TU("crowdRake", 0.24);
+    // Per POINT, not per section. A section-wide rake notches the skyline at every
+    // section boundary as soon as the lean starts turning — which is exactly what
+    // the bowl's corners make it do. Per point the lean turns with the wall and the
+    // remaining discontinuity is one slice wide, which is a pixel or two of source.
+    const RK0 = TU("crowdRake", 0.24);
+    const rk = pts.map((p) => (p.rk == null ? (rakeSgn == null ? sgn : rakeSgn) : p.rk) * RK0);
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (let j = 0; j < pts.length; j++) {
-      const p = pts[j], tx = p.sx + RK * h[j];
+      const p = pts[j], tx = p.sx + rk[j] * h[j];
       if (p.sx < x0) x0 = p.sx; if (p.sx > x1) x1 = p.sx;
       if (tx < x0) x0 = tx; if (tx > x1) x1 = tx;
       if (p.sy > y1) y1 = p.sy; if (p.sy - h[j] < y0) y0 = p.sy - h[j];
@@ -5557,7 +5657,13 @@ class Ot extends mt.Scene {
       s.key = "crowd_" + idx;
     }
     s.sgn = sgn; s.bx = x0; s.by = y0; s.bw = bw; s.bh = bh;
-    s.ux = pts[pts.length >> 1].x; s.k = pts[pts.length >> 1].k;
+    const mid = pts[pts.length >> 1];
+    s.ux = mid.x; s.k = mid.k;
+    // a point that is definitely ON this stand — the box is axis-aligned over a
+    // diagonal band, so its own corners are not
+    s.hh = HH * mid.k;                                // this stand's drawn height here
+    s.mx = mid.sx + (rk[pts.length >> 1] || 0) * HH * mid.k * .22;
+    s.my = mid.sy - HH * mid.k * .22;                 // just above the front rows
     // Depth: just above fieldLines (3.4) so the stand OCCLUDES the outer tips of the
     // LOS/first-down stripes — that ground is behind the bleachers — and below the
     // ground shadows and highlight rings under the players (3.5+), which only ever
@@ -5590,7 +5696,7 @@ class Ot extends mt.Scene {
         // The third mapping is where the rake lives: the top lands RK*h outboard of
         // the base rather than directly over it, which is the g term below.
         const a = (q.sx - p.sx) / dc, b = (q.sy - p.sy) / dc, d = h[j] / CELL_H;
-        const g = -RK * d;
+        const g = -rk[j] * d;
         const e = p.sx - a * p.c - g * CELL_H - x0, f = p.sy - b * p.c - d * CELL_H - y0;
         cx.setTransform(a, b, g, d, e, f);
         // sample one extra column so neighbouring slices overlap instead of hairlining
@@ -5640,6 +5746,75 @@ class Ot extends mt.Scene {
       if (a > s.pendAmt) { s.pendAmt = a; s.pendAt = at; }
     }
   }
+  /* ===== v63 CROWD VOICES — the stands answer back =====
+   * The crowd already reacted: heat rises, the roar rolls out along the terrace as
+   * a wave. All of that is texture, though — you feel a stadium get louder without
+   * anyone in it saying anything. These are the words. A short shout pops out of
+   * the sections nearest the play, rides up off the terrace and fades.
+   *
+   * Deliberately small and deliberately rationed. Big enough to read at the size a
+   * stand draws (a floor on the font size, because a section at the far corner is
+   * drawn at k = 0.43 and 15·k there is six pixels of nothing), capped so it never
+   * competes with the field, and behind a cooldown so a busy play produces a shout
+   * rather than a running commentary. Anchored on a point that is genuinely ON the
+   * stand — the section's own mid sample, half a stand-height up — because the
+   * section's bounding box is axis-aligned over a band that runs diagonally, so its
+   * corners hang out over the turf.
+   *
+   * Render-only, like the rest of the crowd: no sim actor, no stat, no event. The
+   * Math.random() here picks which fan shouts and what they shout, nothing else. */
+  crowdBubble(good, atX) {
+    const C = this.crowd; if (!C || !C.built || !this.add) return;
+    if (C.t - (C.voiceAt == null ? -1e9 : C.voiceAt) < TU("crowdVoiceGapMs", 1100)) return;
+    C.voiceAt = C.t;
+    const GOOD = ["LET'S GO!", "YESSS!", "THAT'S IT!", "HUGE!", "OH MY!", "GO! GO!", "ATTABOY!", "ALL DAY!"];
+    const BAD = ["AWW COME ON", "NO NO NO", "OH NO", "REF?!", "YOU'RE KIDDING", "UGH", "COME ON!", "THAT HURT"];
+    const pool = good ? GOOD : BAD;
+    const x0 = atX == null ? PLAY_L + PLAY_W / 2 : atX;
+    // ON CAMERA first, closest to the play second. Sorting by field position alone
+    // hands the shout to the near sidelines every time — they are the sections
+    // beside the ball, and they are also the ones the perspective throws furthest
+    // outside the frame, so the bubble spawned where nobody could see it. A stand
+    // nobody can see does not get a line.
+    // Comfortably inside the frame, not merely within it: the camera is panning
+    // while the shout is alive, and an anchor sitting on the edge at spawn is gone
+    // by the time it has finished popping in.
+    // Inset by roughly a bubble's half-width at the sides — any more and the test
+    // excludes the frame edges, which is the ONLY place the perspective puts a
+    // stand — and by more at the top, where the camera pans and where the stands
+    // run away up the screen fastest.
+    let view = null;
+    try { const w = this.cameras.main.worldView;
+      view = { x0: w.x + 44, y0: w.y + w.height * .08, x1: w.right - 44, y1: w.bottom - 24 }; } catch (er) {}
+    const on = C.secs.slice(0, C.built).filter((s) => !view ||
+      (s.mx > view.x0 && s.mx < view.x1 && s.my > view.y0 && s.my < view.y1));
+    if (!on.length) return;
+    const near = on.map((s) => ({ s, d: Math.abs(s.ux - x0) })).sort((a, b) => a.d - b.d).slice(0, 5);
+    const howMany = Math.min(near.length, 1 + (Math.random() < .45 ? 1 : 0));
+    C.voices = C.voices || [];
+    for (let i = 0; i < howMany; i++) {
+      const s = near[(Math.random() * Math.min(near.length, 4)) | 0].s;
+      const txt = pool[(Math.random() * pool.length) | 0];
+      const fs = Math.round(Math.max(TU("crowdVoiceMinPx", 9), Math.min(TU("crowdVoiceMaxPx", 14), 15 * s.k)));
+      try {
+        const g = this.add.graphics(), tx = this.add.text(0, 0, txt, {
+          fontFamily: "Oswald, system-ui, sans-serif", fontSize: fs + "px",
+          color: good ? "#dff6e4" : "#ffdad6", fontStyle: "700",
+        }).setOrigin(.5, .5);
+        const w = Math.ceil(tx.width) + fs * .9, h = Math.ceil(tx.height) + fs * .42, r = Math.min(h / 2, fs * .6);
+        g.fillStyle(good ? 0x123021 : 0x33161a, .92); g.fillRoundedRect(-w / 2, -h / 2, w, h, r);
+        g.lineStyle(1, good ? 0x6fe08a : 0xff8a80, .75); g.strokeRoundedRect(-w / 2, -h / 2, w, h, r);
+        g.fillStyle(good ? 0x123021 : 0x33161a, .92);                        // the tail, pointing back down
+        g.fillTriangle(-fs * .3, h / 2 - .5, fs * .3, h / 2 - .5, 0, h / 2 + fs * .5);
+        const box = this.add.container(s.mx + (Math.random() - .5) * s.bw * .3, s.my, [g, tx]);
+        box.setDepth(TU("crowdDepth", 3.45) + .02).setScale(.55).setAlpha(0);
+        C.voices.push({ box, t: 0, life: TU("crowdVoiceMs", 1500), rise: fs * 1.1 });
+      } catch (er) {}
+    }
+    // never let them stack up: the oldest goes when the crowd gets talkative
+    const cap = Math.max(1, Math.round(TU("crowdVoiceMax", 4)));
+    while (C.voices.length > cap) { const v = C.voices.shift(); try { v.box.destroy() } catch (er) {} }
+  }
   crowdReact(e, P) {
     if (!this.crowd || !this.crowd.built) return;
     // off:true = an OFFENSIVE highlight. The stands are the home crowd, so who it is
@@ -5656,12 +5831,29 @@ class Ot extends mt.Scene {
     let ours = true;
     try { ours = ((P && P.payload && P.payload.offense) !== "them") === !!t[1]; } catch (er) {}
     const amt = t[0] * (ours ? 1 : TU("crowdAwayFrac", 0.3));
-    this.crowdCheer(amt, e && e.x != null ? e.x : (P && P.losX));
+    const atX = e && e.x != null ? e.x : (P && P.losX);
+    this.crowdCheer(amt, atX);
+    // A shout needs a moment worth shouting about, judged on the event's own weight
+    // rather than on `amt` — the away version of a big play is a groan, and a groan
+    // is exactly what the stands should be doing there.
+    if (t[0] >= TU("crowdVoiceMin", 0.34)) this.crowdBubble(ours, atX);
   }
   updateCrowd(delta) {
     const C = this.crowd; if (!C || !C.built) return;
     const dt = Math.max(0, Math.min(120, delta));
     C.t += dt;
+    if (C.voices && C.voices.length) {
+      for (let i = C.voices.length - 1; i >= 0; i--) {
+        const v = C.voices[i]; v.t += dt;
+        const f = v.t / v.life;
+        if (f >= 1 || !v.box.active) { try { v.box.destroy() } catch (er) {} C.voices.splice(i, 1); continue; }
+        // pop, ride up off the terrace, then go
+        const pop = Math.min(1, v.t / (REDUCED_MOTION ? 1 : 130));
+        v.box.setScale(REDUCED_MOTION ? 1 : .55 + .45 * (1 - Math.pow(1 - pop, 3)));
+        v.box.y = v.y0 == null ? (v.y0 = v.box.y) : v.y0 - v.rise * f;
+        v.box.setAlpha(f < .12 ? f / .12 : f > .72 ? Math.max(0, (1 - f) / .28) : 1);
+      }
+    }
     C.excite = Math.max(0, C.excite - dt / TU("crowdCalmMs", 2800));
     const bobMs = TU("crowdBobMs", 780), bobPx = TU("crowdBobPx", 1.7), swayPx = TU("crowdSwayPx", 0.9);
     const decay = TU("crowdDecayMs", 1600), ambient = TU("crowdAmbientMs", 7000);
@@ -5683,6 +5875,7 @@ class Ot extends mt.Scene {
   }
   clearCrowd() {
     const C = this.crowd; if (!C) return;
+    if (C.voices) { for (const v of C.voices) { try { v.box.destroy() } catch (e) {} } C.voices.length = 0; }
     for (const s of C.secs) for (const pose of ["idle", "cheer"]) {
       try { s.spr[pose].destroy(); } catch (e) {}
       try { this.textures.remove("crowd_" + C.secs.indexOf(s) + "_" + pose); } catch (e) {}
@@ -10748,12 +10941,16 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       b.onclick=()=>{const ov=document.getElementById("growthV42");if(ov)ov.remove();showing=false;cfg.onDone&&cfg.onDone(idx)};
     }
     function land(){
-      const el=nodes[idx];let k=0;const band=(R&&R.band)||"n";const seq=["r","n","g","n","r","g","n","r","g"];
+      const el=nodes[idx],band=(R&&R.band)||"n";
       if(F)DS.wait(120,()=>{const f=document.getElementById("gv50fit");if(f)f.style.display=""});
-      const finish=()=>{ if(F&&openRoll(band))return; showResult(band) };
-      const pulse=()=>{el.className="gv42-opt "+(k<seq.length?seq[k]:band[0]);
-        if(k++<=seq.length)DS.wait(110+k*28,pulse); else finish()};
-      DS.wait(420,pulse);
+      // v63: the landed row used to strobe red/neutral/green nine times before the
+      // outcome appeared. That WAS the outcome animation, back when there was
+      // nowhere else to play it — now the roll pop-up runs the needle across the
+      // bands, and a colour lottery on the row underneath only spoils it twice and
+      // flashes bands that never came up. The row just marks what the wheel landed
+      // on; the roll is the roll.
+      el.className="gv42-opt on";
+      DS.wait(520,()=>{ if(F&&openRoll(band))return; el.className="gv42-opt "+band[0]; showResult(band) });
     }
     drawWheel(cv,opts,tot,0,idx,false,0);
     DS.wait(350,()=>{frame._last=0;requestAnimationFrame(frame)});
