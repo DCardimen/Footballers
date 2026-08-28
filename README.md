@@ -55,6 +55,46 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v64 — the training themes get drawn instead of typed.** Every training option
+  carried an emoji: 🏋️ 💨 🎞️ 🧤 🪜 🧘 🎓 🎉 🦘 🧠 🎯 🔥. They were doing real work —
+  the only thing telling two options apart at a glance — but an emoji is the
+  platform's font, not the game's art. It renders differently on every device, sits
+  in a different colour world from everything around it, and is a blob at the size
+  the wheel draws an icon.
+
+  Twelve isometric scenes replace them, one per theme, packed from the uploaded
+  sheets by `scripts/spritekit/pack_skills.mjs`. Two things that packer has to do
+  beyond slicing: the scenes do not fill their quadrants and are not centred in
+  them, so each is **tight-cropped to its own ink** and then fitted to a uniform
+  cell by its longest side — crop to the grid instead and every icon lands at a
+  different visual weight for no reason but where the artist put it. And the flat
+  navy ground is keyed at full size **before** the downscale; scaling first
+  resamples it into every edge as a navy halo.
+
+  The art reaches all four places a theme is named — the wheel face, the option
+  list, the roll pop-up's header and the result card — and everything falls back to
+  the emoji it replaced if the sheet never decodes.
+
+  **On the wheel face** the scenes are drawn nearly twice the size the emoji were,
+  each on its own soft shadow. A wedge is a saturated field and isometric art laid
+  straight onto one disappears into it; the shadow is what lets the scene sit on
+  top of the colour instead of in it.
+
+  **The option rows got rebuilt around the art**: a 44px scene tile, then a
+  two-column body with the name and the odds on one baseline (tabular figures, so
+  the percentages line up down the list) and the effect and risk lines under it.
+
+  Nine of the twelve themes are depicted squarely. **`lab`, `mentor` and `social`
+  have no scene of their own in the set** and take the nearest thing it offers —
+  they are the three to re-art or re-assign, and the mapping is one `ORDER` array
+  in the packer.
+
+  `wheelcheck` gains six assertions: every theme has a cell, every row shows art
+  rather than the emoji fallback, each option shows its *own* scene, the wheel face
+  draws them too — and, importantly, that no scene reaches the ring at 0.30R where
+  the same check measures the arcs by hue, so the art cannot quietly invalidate the
+  geometry test sharing its canvas.
+
 - **v63 — the bowl closes, the crowd speaks, and the outcome is rolled once.**
 
   **One roll, not two.** The landed option row strobed red / neutral / green nine
