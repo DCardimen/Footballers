@@ -316,6 +316,97 @@ console.log('row classes before the roll:', JSON.stringify(strobe))
 ok(strobe.rolled, 'the roll pop-up opens after the wheel lands')
 ok(strobe.classes.every(c => !/\b(gv42-opt )?[gnr]$/.test(c) || c === 'gv42-opt'),
   'the landed row never strobes an outcome colour before the roll', strobe.classes)
+
+// ---- v64 SKILL ART: the training themes are drawn, not typed. The emoji they
+// replaced are the platform's font — a different shape on every device, in a
+// different colour world from the rest of the game, and a blob at the size the
+// wheel draws an icon. Assert the art actually reaches all four places a theme is
+// named, and that it cannot break the geometry check that shares the canvas.
+const art = await page.evaluate(async () => {
+  const st = window.__GRIDIRON_AUDIT__?.getState?.() || window.o
+  document.getElementById('growthV42')?.remove()
+  window.__GROWTH_V42.showWheel(st.player, 'art|' + Math.random(), 'CHECK ROLL', () => {})
+  const wait = ms => new Promise(r => setTimeout(r, ms))
+  await wait(220)
+  const rows = [...document.querySelectorAll('#growthV42 .gv64-ico')]
+  // snapshot the row styles as VALUES now. getComputedStyle hands back a live view,
+  // and the A/B below tears this overlay out to redraw with the art off — read it
+  // afterwards and every property comes back empty.
+  const rowStyle = rows.map(e => { const c = getComputedStyle(e)
+    return { w: parseFloat(c.width), h: parseFloat(c.height), img: c.backgroundImage, pos: c.backgroundPosition,
+      emo: e.classList.contains('gv64-emo') } })
+  // the wheel face: is there ink at the icon radius that is NOT the wedge's own hue?
+  const cv = document.getElementById('gv50wheel')
+  const g = cv.getContext('2d'), W = cv.width, R = W / 2 - 4, cx = W / 2, cy = W / 2
+  const d = g.getImageData(0, 0, W, W).data
+  const at = (r, a) => { const x = (cx + Math.cos(a) * R * r) | 0, y = (cy + Math.sin(a) * R * r) | 0
+    const i = ((y * W) + x) * 4; return [d[i], d[i + 1], d[i + 2]] }
+  // skin and grass are in the scenes and in nothing else on the face
+  // A/B the face against ITSELF with the art switched off. Two separate wheels are
+  // not comparable — different options, and a rotation that has moved on — so wait
+  // for this one to land (it is static then) and redraw the very same frame.
+  for (let i = 0; i < 200 && !(window.__WHEEL_V50_LAST || {}).redraw; i++) await wait(60)
+  const redraw = (window.__WHEEL_V50_LAST || {}).redraw
+  const sample = () => {
+    const dd = cv.getContext('2d').getImageData(0, 0, W, W).data
+    const px = (r, a) => { const x = (cx + Math.cos(a) * R * r) | 0, y = (cy + Math.sin(a) * R * r) | 0
+      const i = ((y * W) + x) * 4; return [dd[i], dd[i + 1], dd[i + 2]] }
+    const bandPx = [], ringPx = []
+    for (const rr of [0.50, 0.545, 0.585, 0.63, 0.675]) for (let k = 0; k < 360; k++) {
+      const p2 = px(rr, k / 360 * Math.PI * 2); bandPx.push(p2[0], p2[1], p2[2]) }
+    for (let k = 0; k < 360; k++) { const p2 = px(0.30, k / 360 * Math.PI * 2); ringPx.push(p2[0], p2[1], p2[2]) }
+    return { bandPx, ringPx }
+  }
+  if (redraw) redraw()
+  const on = sample()
+  window.__SKILL_V64.off = true
+  const offRows = [...document.querySelectorAll('#growthV42 .gv64-ico')]   // unchanged until re-rendered
+  if (redraw) redraw()
+  const off = sample()
+  window.__SKILL_V64.off = false
+  if (redraw) redraw()
+  const diff = (A, B, thr) => { let n = 0
+    for (let i = 0; i < Math.min(A.length, B.length); i += 3) {
+      if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) > thr) n++ }
+    return n }
+  const sceneHits = diff(on.bandPx, off.bandPx, 30)
+  const ringTouched = diff(on.ringPx, off.ringPx, 12)
+  // and with the sheet off, a freshly rendered list must fall back to the emoji
+  window.__SKILL_V64.off = true
+  document.getElementById('growthV42')?.remove()
+  window.__GROWTH_V42.showWheel(st.player, 'artoff|' + Math.random(), 'CHECK ROLL', () => {})
+  await wait(220)
+  const fb = [...document.querySelectorAll('#growthV42 .gv64-ico')]
+  const offEmoji = fb.filter(e => e.classList.contains('gv64-emo')).length, offRowN = fb.length
+  window.__SKILL_V64.off = false
+  document.getElementById('growthV42')?.remove()
+  return {
+    cells: Object.keys(window.__SKILL_V64 ? window.__SKILL_V64.cells : {}).length,
+    ready: !!(window.__SKILL_V64 && window.__SKILL_V64.ready),
+    rows: rows.length,
+    fellBackToEmoji: rowStyle.filter(r => r.emo).length,
+    sized: rowStyle.every(r => r.w >= 30 && r.h >= 30),
+    hasImage: rowStyle.every(r => /url\(/.test(r.img)),
+    distinct: new Set(rowStyle.map(r => r.pos)).size,
+    sceneHits, ringTouched, offEmoji, offRows: offRowN, redrawable: !!redraw,
+  }
+})
+console.log('skill art:', JSON.stringify(art))
+ok(art.cells === 12, 'every training theme has a cell in the sheet', art.cells)
+ok(art.ready, 'the skill sheet decodes')
+ok(art.rows >= 2 && art.fellBackToEmoji === 0, 'every option row shows ART, not the emoji it replaced',
+  `${art.rows} rows, ${art.fellBackToEmoji} on the emoji fallback`)
+ok(art.hasImage && art.sized, 'the row icons are a real, sized image',
+  `image=${art.hasImage} sized=${art.sized}`)
+ok(art.distinct === art.rows, 'each option shows its OWN scene, not the same cell repeated', art.distinct)
+ok(art.sceneHits > 60, 'the wheel face draws the scenes too, not just the list (px changed vs art off)',
+  art.sceneHits)
+ok(art.offRows > 0 && art.offEmoji === art.offRows,
+  'and with the sheet switched off every row falls back to the emoji it replaced',
+  `${art.offEmoji}/${art.offRows}`)
+
+ok(art.ringTouched === 0, 'no scene reaches the ring the arc measurement samples', art.ringTouched)
+
 await page.screenshot({ path: 'scripts/_wheel_landed.png' })
 
 // ---- 4. the wheel is where the player actually is -------------------------
