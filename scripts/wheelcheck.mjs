@@ -382,6 +382,10 @@ const art = await page.evaluate(async () => {
   document.getElementById('growthV42')?.remove()
   return {
     cells: Object.keys(window.__SKILL_V64 ? window.__SKILL_V64.cells : {}).length,
+    // count THEMES without a scene rather than cells: the sheet also carries scenes
+    // that belong to no theme, for the offseason board (see skillartcheck.mjs)
+    themesWithoutArt: (window.__GROWTH_V42.THEMES || []).filter(t =>
+      !(window.__SKILL_V64.cells || {})[(window.__SKILL_V64.alias || {})[t.id] || t.id]).map(t => t.id),
     ready: !!(window.__SKILL_V64 && window.__SKILL_V64.ready),
     rows: rows.length,
     fellBackToEmoji: rowStyle.filter(r => r.emo).length,
@@ -392,7 +396,9 @@ const art = await page.evaluate(async () => {
   }
 })
 console.log('skill art:', JSON.stringify(art))
-ok(art.cells === 12, 'every training theme has a cell in the sheet', art.cells)
+ok(art.themesWithoutArt && art.themesWithoutArt.length === 0,
+  'every training theme has a scene in the sheet',
+  art.cells + ' cells, ' + (art.themesWithoutArt || []).length + ' themes without one')
 ok(art.ready, 'the skill sheet decodes')
 ok(art.rows >= 2 && art.fellBackToEmoji === 0, 'every option row shows ART, not the emoji it replaced',
   `${art.rows} rows, ${art.fellBackToEmoji} on the emoji fallback`)
