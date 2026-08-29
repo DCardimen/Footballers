@@ -55,6 +55,28 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v67 — the wheel a player sees every week draws the scenes too.** The art
+  appeared on the season-commitment roll and then never again, which read as the new
+  wheel working once and reverting. It was not reverting: there are **two** wheels,
+  and only one of them had been wired.
+
+  The other is the **PREGAME plan** — the wheel met before every single game. Its
+  options are game plans, not training themes, so no option carried a key any scene
+  answered to, every icon took the emoji fallback, and the whole surface ran on the
+  old artwork. The ten plans now go through `SKILL_ALIAS` like everything else, each
+  on the scene that depicts it: Film Marathon on the tape desk, Rest & Recover in
+  the ice bath, Shadow Study at the analytics desk, Set the Tone in the collision.
+  Ten plans, ten distinct scenes, so a six-wedge shortlist can never show the same
+  picture twice.
+
+  Two things made the miss silent, and both are closed. `.gv64-head` lived in the
+  roll pop-up's own `<style>`, so it died with the pop-up while the result card
+  using it stayed on screen — hoisted to the document sheet with the rest. And the
+  deck is assembled in two places (the base list plus one the patch layer pushes),
+  so it is named once as `window.__PLANS_V67` and `skillartcheck.mjs` now asserts
+  every plan the wheel can offer has a scene, and its own. A plan added without art
+  fails the check instead of quietly falling back.
+
 - **v66 — `mentor`, `lab` and `social` get scenes of their own.** The three themes
   the set never depicted were wearing the nearest thing it offered, so "Squad Road
   Trips" drew an ice bath and "Cognitive Reaction Lab" drew a tyre flip. Three new

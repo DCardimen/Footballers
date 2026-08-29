@@ -440,6 +440,8 @@ for (let i = 0; i < 40; i++) {
       scoutKept: rows.some(r => /SCOUT PICK/i.test(r.innerText)),
       fit: !!document.getElementById('gv50fit'),
       shortlisted: /shortlisted/i.test(ov.innerText),
+      art: [...ov.querySelectorAll('.gv64-ico:not(.gv64-emo)')].length,
+      emo: ov.querySelectorAll('.gv64-emo').length,
     }
   })
   if (pre) break
@@ -453,6 +455,11 @@ if (pre) {
   ok(pre.opts >= 2 && pre.opts <= 6, 'the deck is shortlisted to a readable wheel', `${pre.opts} wedges`)
   ok(pre.scoutKept || !pre.shortlisted, 'the scout pick survives the shortlist', `scoutKept=${pre.scoutKept} shortlisted=${pre.shortlisted}`)
   ok(pre.fit, 'the pregame roll shows the fit panel too')
+  // v67: the weekly wheel is the surface a player sees most, and it was the last one
+  // still running on emoji — the art appeared on the season roll and never again
+  ok(pre.art === pre.opts && pre.opts > 0,
+    'the PREGAME wheel draws the scenes too, not just the season one',
+    `${pre.art} of ${pre.opts} rows on art, ${pre.emo} on the emoji fallback`)
 
   // a tap must speed this one up as well
   await page.locator('#gv50wheel').click({ force: true })

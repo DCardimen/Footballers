@@ -62,7 +62,7 @@ const atlas = await page.evaluate(async () => {
   const cols = m ? +m[1] / 100 : 0, rows = m ? +m[2] / 100 : 0
   const w0 = cells[Object.keys(cells)[0]][2], h0 = cells[Object.keys(cells)[0]][3]
   return { size: im.width + 'x' + im.height, cells: Object.keys(cells).length, dirty,
-    alias: Object.keys(window.__SKILL_V64.alias || {}).length,
+    alias: Object.keys(window.__SKILL_V64.alias || {}).filter(k => /^tp_/.test(k)).length,
     cols, rows, gridFits: cols * w0 === im.width && rows * h0 === im.height,
     grid: cols * rows }
 })
@@ -100,6 +100,31 @@ ok(themes.own === themes.ids,
   'and to a scene of its OWN — no theme is wearing another one’s picture as a near fit',
   themes.own + ' of ' + themes.ids)
 ok(themes.shared === 0, 'no two themes draw the same scene', themes.shared + ' shared')
+
+// ---------- the pregame plan deck ----------
+// The wheel a player meets EVERY week is the pregame plan, not the season
+// commitment. Its options are plans, not themes, so before v67 nothing matched and
+// the whole wheel fell back to emoji: the art showed up on the first roll of the
+// season and then never again. A plan added later without a scene would do the same
+// thing silently, so assert against the DECK rather than against one week's draw.
+const plans = await page.evaluate(() => {
+  const deck = window.__PLANS_V67
+  const S = window.__SKILL_V64
+  if (!deck) return { err: 'the deck is not exposed' }
+  const cell = id => (S.cells || {})[(S.alias || {})['pl_' + id] || 'pl_' + id]
+  const scenes = deck.map(p => (S.alias || {})['pl_' + p.id])
+  return { n: deck.length,
+    missing: deck.filter(p => !cell(p.id)).map(p => p.id),
+    shared: scenes.length - new Set(scenes).size }
+})
+console.log('plans:', JSON.stringify(plans))
+ok(!plans.err && plans.n >= 10, 'the pregame plan deck is reachable', plans.n + ' plans')
+ok(plans.missing && plans.missing.length === 0,
+  'every plan the pregame wheel can offer has a scene',
+  plans.missing && plans.missing.length ? 'no scene for ' + plans.missing.join(', ') : 'all ' + plans.n)
+ok(plans.shared === 0,
+  'and its own scene, so a shortlisted wheel never shows the same picture twice',
+  plans.shared + ' shared')
 
 // ---------- the offseason board ----------
 // the career-creation flow offers its origin and position steps in a different
