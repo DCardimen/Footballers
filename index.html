@@ -6981,17 +6981,17 @@ function Vr(e,t){const a=t.attrs[e],s=t.lastGains[e]||0,n=t.pos&&Ee[t.pos].w[e],
   `,x("dock").innerHTML='<div class="small center">Ambitious players pick the powerhouse: harder path, but the growth and exposure pay off on the road to the NFL.</div>'}function Gi(e){const t=o.player,a=A[t.level],s=_s(a.key).find(n=>n.key===e);t.tiers||(t.tiers={}),t.tiers[a.key]=e,s.stars&&(t.stars=f(t.stars+s.stars,1,5)),I(),F("Committed to "+s.name+"!"),te("hub")}function Br(){o.player.eventChoice=null,o.player.pendingEvent=null,te("training")}function jr(){const e=o.player,t=A[e.level],a=Hi(e);x("screen").innerHTML=`
     <div class="eyebrow">${t.name} · Offseason</div>
     <div class="h1">Choose Your Training</div>
-    <div class="sub">This is where careers are built. Each program develops specific stats — and some carry real injury risk. Match it to what your player needs.</div>
+    <div class="sub">This is where careers are built. Each program develops specific stats — and some carry real injury risk. Match it to what your player needs.<br><span style="color:var(--chalk-dim)">Each stat shows what your next <b>+1</b> costs in skill points: <b style="color:#7fe0a0">1 pt</b> below its soft cap, then <b style="color:#f0bb45">2</b>, <b style="color:#ff9a5a">3</b>, <b style="color:#ff8a80">4+</b> above it. Priority growth into a capped stat is growth you cannot afford to keep.</span></div>
     <div class="mt" style="margin-top:14px">
-      ${Object.entries(pt).map(([s,n])=>{const i=s===a,r=n.injury>=1.4?"var(--blood)":n.injury>=1.1?"var(--gold)":"var(--good)",l=n.injury>=1.4?"HIGH RISK":n.injury>=1.1?"SOME RISK":n.injury<.9?"SAFE":"STEADY",d=Math.round((n.priorityBonus||0)*100),c=n.focus?`PRIORITY +${d}% to selected stats`:`ALL-STATS PRIORITY +${d}%`,u=(n.focus||[]).map(p=>`<span class="train-chip">${Le[p].icon} ${Le[p].name}</span>`).join(""),h=n.cost?Object.entries(n.cost).map(([p,m])=>`<span class="train-chip neg">▼ ${Le[p].name} ${m}</span>`).join(""):"";return`<div class="pos-card ${i?"best":""} train-card" onclick="chooseTraining('${s}')">
+      ${Object.entries(pt).map(([s,n])=>{const i=s===a,r=n.injury>=1.4?"var(--blood)":n.injury>=1.1?"var(--gold)":"var(--good)",l=n.injury>=1.4?"HIGH RISK":n.injury>=1.1?"SOME RISK":n.injury<.9?"SAFE":"STEADY",d=Math.round((n.priorityBonus||0)*100),c=n.focus?`PRIORITY +${d}% to selected stats`:`ALL-STATS PRIORITY +${d}%`,u=(n.focus||[]).map(p=>`<span class="train-chip">${Le[p].icon} ${Le[p].name}${capBadgeV67(e,p)}</span>`).join(""),cp=capPlanV67(e,n.focus),h=n.cost?Object.entries(n.cost).map(([p,m])=>`<span class="train-chip neg">▼ ${Le[p].name} ${m}</span>`).join(""):"";return`<div class="pos-card ${i?"best":""} train-card" onclick="chooseTraining('${s}')">
           <div class="train-head">
             ${window.RIB_SKILL_ICO?window.RIB_SKILL_ICO("tp_"+s,n.icon,54):`<span style="font-size:24px">${n.icon}</span>`}
             <div style="flex:1;min-width:0">
               <div class="pn">${n.name} ${i?'<span class="fit-tag fit-natural">SUGGESTED</span>':""}</div>
-              <div class="train-meta"><span style="color:var(--good)">${c}</span> · <span style="color:${r}">${l}</span>${n.bonusPoints?` · <span style="color:var(--gold)">+${n.bonusPoints} pts</span>`:""}</div>
+              <div class="train-meta"><span style="color:var(--good)">${c}</span> · <span style="color:${r}">${l}</span>${n.bonusPoints?` · <span style="color:var(--gold)">+${n.bonusPoints} pts</span>`:""}${cp?` · <span style="color:${cp.col}">${cp.label}</span>`:""}</div>
             </div>
           </div>
-          <div class="train-chips">${u||'<span class="train-chip">⚖️ All stats evenly</span>'}${h}</div>
+          <div class="train-chips">${u||`<span class="train-chip">⚖️ All stats evenly</span>`+Object.keys(Ee[e.pos].w).sort((p,m)=>Ee[e.pos].w[m]-Ee[e.pos].w[p]).slice(0,4).map(p=>`<span class="train-chip">${Le[p].icon} ${Le[p].name}${capBadgeV67(e,p)}</span>`).join("")}${h}</div>
         </div>`}).join("")}
     </div>
   `,x("dock").innerHTML='<div class="small center">All stats grow from season performance. Your program marks priority stats for a modest extra boost.</div>'}function Hi(e){const t=30+e.level*20;if(e.attrs.injuryResist<t)return"conditioning";const a=Ee[e.pos].w,s=Object.keys(a).sort((n,i)=>e.attrs[n]-e.attrs[i])[0];return["speed","quickness","agility","acceleration"].includes(s)?"speed":["strength","tackling","blocking"].includes(s)?"weight":["catching","throwing","ballControl"].includes(s)?"skills":["awareness","vision","discipline"].includes(s)?"film":"balanced"}function Ir(e){o.player.training=e,I();const t=o.player;t.midInjury=Math.random()<.35;const a=Za.filter(n=>!(t.level<(n.minLevel||0)||n.maxLevel!=null&&t.level>n.maxLevel||n.cond&&!n.cond({player:t,midInjury:t.midInjury}))),s=a.find(n=>n.id==="combine"&&t.level===6);if(s){t.pendingEvent=s.id,te("event");return}if(a.length&&Math.random()<.7){const n=[];a.forEach(i=>{for(let r=0;r<(i.weight||1);r++)n.push(i)}),t.pendingEvent=W(n).id,te("event");return}te("sim")}function Nr(){const e=o.player,t=Za.find(s=>s.id===e.pendingEvent);if(!t){te("sim");return}const a=A[e.level];x("screen").innerHTML=`
@@ -7841,7 +7841,8 @@ function lt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){
       ${ee.map(a=>{const s=Ee[e.pos].w[a]&&Ee[e.pos].w[a]>=.14,n=Le[a].metric;return`<div class="up-attr">
           <div class="info"><div class="un">${Le[a].icon} ${Le[a].name}${s?' <span class="weight-tag">KEY</span>':""}</div>
             <div class="desc">${Le[a].desc}</div>
-            ${n?`<div class="up-metric">${n.label}: <b id="mtr-${a}">${n.fmt(e.attrs[a])}</b></div>`:""}</div>
+            ${n?`<div class="up-metric">${n.label}: <b id="mtr-${a}">${n.fmt(e.attrs[a])}</b></div>`:""}
+            <div class="up-cap" id="cap-${a}"></div></div>
           <button class="step" onclick="alloc('${a}',-1)" id="minus-${a}">−</button>
           <div class="uv" id="uv-${a}">${e.attrs[a]}</div>
           <button class="step" onclick="alloc('${a}',1)" id="plus-${a}">+</button>
@@ -7866,7 +7867,52 @@ function drCost(e,k){const v=e.attrs[k]||0,sc=drSoftCap(e,k);return v<sc?1:2+Mat
  * round-robin tiebreak — it never buys a 3-pt band while a 1-pt stat is open,
  * which is exactly "stop pushing a stat once it's inefficient vs alternatives". */
 function drAutoAlloc(pool){const e=o.player;let n=0,g=0;for(;e.points>0&&g++<5e3;){const open=pool.filter(i=>(e.attrs[i]||0)<we()&&drCost(e,i)<=e.points);if(!open.length)break;const mc=Math.min.apply(null,open.map(i=>drCost(e,i)));let pick=null;for(let j=0;j<pool.length;j++){const i=pool[(n+j)%pool.length];if(open.indexOf(i)>=0&&drCost(e,i)===mc){pick=i;n=(n+j+1)%pool.length;break}}if(!pick)break;e.attrs[pick]++,e.points-=mc,Qe[pick]=(Qe[pick]||0)+1,(Q2[pick]=Q2[pick]||[]).push(mc)}un()}
-function jl(){const e=o.player,a=Ee[e.pos].w;drAutoAlloc(Object.keys(a).sort((i,r)=>a[r]-a[i]).slice(0,Math.min(6,Object.keys(a).length)))}function Il(){drAutoAlloc(ee.slice())}let Qe={},Q2={};function Nl(e,t){const a=o.player;if(t>0){const c=drCost(a,e);if(a.attrs[e]>=we()){F("Absolute limit reached");return}if(a.points<c){F(c>1?"Needs "+c+" pts — diminishing returns past "+drSoftCap(a,e):"No points left");return}a.attrs[e]++,a.points-=c,Qe[e]=(Qe[e]||0)+1,(Q2[e]=Q2[e]||[]).push(c)}else{if((Qe[e]||0)<=0)return;a.attrs[e]--,a.points+=Q2[e]&&Q2[e].length?Q2[e].pop():1,Qe[e]--}x("uv-"+e).textContent=a.attrs[e];const n=x("mtr-"+e),i=Le[e].metric;n&&i&&(n.textContent=i.fmt(a.attrs[e])),x("ptsLeft").textContent=a.points,x("liveOvr").textContent="OVR "+ae(a),so()}function so(){const e=o.player;ee.forEach(a=>{const s=x("plus-"+a),n=x("minus-"+a),v=x("uv-"+a),c=drCost(e,a),sc=drSoftCap(e,a),over=(e.attrs[a]||0)>=sc;s&&(s.disabled=e.points<c||(e.attrs[a]||0)>=we(),s.innerHTML=c>1?'+<i class="stepcost'+(c>=4?" deep":"")+'">'+c+"</i>":"+",s.title=over?"Past soft cap "+sc+" — each +1 costs "+c+" pts here":"1 pt per +1 until soft cap "+sc),v&&(v.style.color=over?c>=4?"#ff8a80":"var(--gold)":"",v.title="Soft cap: "+sc),n&&(n.disabled=(Qe[a]||0)<=0)})}function Fl(){Qe={},Q2={},I(),F("Player upgraded!"),te("hub")}function Dl(){const e=o.player,t=A[e.level],a=ae(e),s=sn(e,a),n=M("scout")>0,i=e.rivals.filter(c=>c.alive).map(c=>({name:c.name,ovr:c.ovr,stars:c.stars,me:!1}));i.push({name:e.name,ovr:a,stars:e.stars,me:!0}),i.sort((c,u)=>u.ovr-c.ovr);const r=i.findIndex(c=>c.me)+1,l=i.map((c,u)=>{const h=c.me?0:c.ovr-a;return`<div class="lb-row ${c.me?"me":""}">
+function jl(){const e=o.player,a=Ee[e.pos].w;drAutoAlloc(Object.keys(a).sort((i,r)=>a[r]-a[i]).slice(0,Math.min(6,Object.keys(a).length)))}function Il(){drAutoAlloc(ee.slice())}let Qe={},Q2={};function Nl(e,t){const a=o.player;if(t>0){const c=drCost(a,e);if(a.attrs[e]>=we()){F("Absolute limit reached");return}if(a.points<c){F(c>1?"Needs "+c+" pts — diminishing returns past "+drSoftCap(a,e):"No points left");return}a.attrs[e]++,a.points-=c,Qe[e]=(Qe[e]||0)+1,(Q2[e]=Q2[e]||[]).push(c)}else{if((Qe[e]||0)<=0)return;a.attrs[e]--,a.points+=Q2[e]&&Q2[e].length?Q2[e].pop():1,Qe[e]--}x("uv-"+e).textContent=a.attrs[e];const n=x("mtr-"+e),i=Le[e].metric;n&&i&&(n.textContent=i.fmt(a.attrs[e])),x("ptsLeft").textContent=a.points,x("liveOvr").textContent="OVR "+ae(a),so()}function so(){const e=o.player;ee.forEach(a=>{const s=x("plus-"+a),n=x("minus-"+a),v=x("uv-"+a),c=drCost(e,a),sc=drSoftCap(e,a),over=(e.attrs[a]||0)>=sc;s&&(s.disabled=e.points<c||(e.attrs[a]||0)>=we(),s.innerHTML=c>1?'+<i class="stepcost'+(c>=4?" deep":"")+'">'+c+"</i>":"+",s.title=over?"Past soft cap "+sc+" — each +1 costs "+c+" pts here":"1 pt per +1 until soft cap "+sc),v&&(v.style.color=over?c>=4?"#ff8a80":"var(--gold)":"",v.title="Soft cap: "+sc),n&&(n.disabled=(Qe[a]||0)<=0);const cp=x("cap-"+a);cp&&(cp.innerHTML=(e.attrs[a]||0)>=we()?'<b style="color:#ff8a80">MAXED</b> at the absolute limit '+we():over?'Past soft cap '+sc+' — <b style="color:'+(c>=4?"#ff8a80":c===3?"#ff9a5a":"var(--gold)")+'">'+c+' pts per +1</b>':'Soft cap '+sc+' — <b style="color:#7fe0a0">1 pt per +1</b> for '+(sc-(e.attrs[a]||0))+' more')})}function Fl(){Qe={},Q2={},I(),F("Player upgraded!"),te("hub")}
+/* ===== v67 SOFT-CAP LEGIBILITY — the price of a point, stated where the choice is
+ * made. v21 gave every stat a soft cap and a rising price above it (2, then 3, then
+ * 4 skill points per +1, forever) but only the UPGRADE screen ever said so, and only
+ * in a hover title — which on a phone is nothing at all. The season's TRAINING is
+ * chosen a screen earlier, and that is the decision the price should inform:
+ * committing a season to the Speed Academy is a completely different bet when those
+ * four stats cost 1 point each than when they cost 4 and one is already pinned at
+ * the absolute limit.
+ *
+ * So the band is named wherever a stat is: a badge on every focus chip on the
+ * training board, a one-line verdict per program, and a permanent readout on the
+ * upgrade rows instead of a tooltip. No pricing changes here — this is exactly the
+ * drCost/drSoftCap v21 already charges, shown before it is paid. ===== */
+function capV67(e,k){const v=e.attrs[k]||0,cap=drSoftCap(e,k),abs=we();
+  return{v,cap,abs,cost:drCost(e,k),atMax:v>=abs,over:v>=cap,room:Math.max(0,cap-v)}}
+// MAX is the absolute wall (v21 kept exactly one); everything else is a price, and
+// the price is the thing worth reading.
+function capBadgeV67(e,k){const c=capV67(e,k);
+  return c.atMax?'<b class="capv67 c5">MAX</b>'
+    :c.cost>=4?'<b class="capv67 c4">'+c.cost+' pts / +1</b>'
+    :c.cost===3?'<b class="capv67 c3">3 pts / +1</b>'
+    :c.cost===2?'<b class="capv67 c2">2 pts / +1</b>'
+    :'<b class="capv67 c1">1 pt · '+c.room+' to cap</b>'}
+// the verdict for a whole PROGRAM: the average price of the stats it prioritises,
+// which is what actually decides whether a season spent here is cheap or wasted
+function capPlanV67(e,keys){
+  const ks=(keys&&keys.length?keys:Object.keys(Ee[e.pos].w)).filter(k=>e.attrs[k]!=null);
+  if(!ks.length)return null;
+  const cs=ks.map(k=>capV67(e,k)),maxed=cs.filter(c=>c.atMax).length,
+    avg=cs.reduce((t,c)=>t+(c.atMax?5:c.cost),0)/cs.length;
+  return{n:ks.length,maxed,avg,
+    label:maxed===ks.length?"ALL CAPPED":avg>=3.2?"MOSTLY CAPPED":avg>=2.2?"EXPENSIVE ("+avg.toFixed(1)+" pts / +1)":avg>=1.35?"PAST SOFT CAP ("+avg.toFixed(1)+" pts / +1)":"CHEAP ZONE (1 pt / +1)",
+    col:maxed===ks.length||avg>=3.2?"var(--blood)":avg>=2.2?"#ff9a5a":avg>=1.35?"var(--gold)":"var(--good)"}}
+// debug surface for scripts/capcheck.mjs — the check has to be able to prove the
+// badge quotes the price the game would actually charge, which means reading the
+// same drCost the badge read, not a copy of the formula.
+try{window.__CAPV67={cap:(e,k)=>drSoftCap(e,k),cost:(e,k)=>drCost(e,k),abs:()=>we(),
+  keyOfLabel:n=>ee.find(k=>Le[k]&&n.indexOf(Le[k].name)>=0)||null}}catch(e){}
+(function(){if(document.getElementById("capv67css"))return;const st=document.createElement("style");st.id="capv67css";
+  st.textContent=".capv67{display:inline-block;margin-left:5px;font:700 9px Oswald,sans-serif;letter-spacing:.6px;padding:1px 5px;border-radius:9px;border:1px solid currentColor;opacity:.95;vertical-align:1px}"
+    +".capv67.c1{color:#7fe0a0}.capv67.c2{color:#f0bb45}.capv67.c3{color:#ff9a5a}.capv67.c4{color:#ff8a80}.capv67.c5{color:#ff8a80;background:rgba(255,138,128,.16)}"
+    +".up-cap{font:600 10px Barlow Condensed,sans-serif;letter-spacing:.4px;color:var(--chalk-dim);margin-top:2px}"
+    +".up-cap b{font-weight:700}";
+  (document.head||document.documentElement).appendChild(st)})();
+function Dl(){const e=o.player,t=A[e.level],a=ae(e),s=sn(e,a),n=M("scout")>0,i=e.rivals.filter(c=>c.alive).map(c=>({name:c.name,ovr:c.ovr,stars:c.stars,me:!1}));i.push({name:e.name,ovr:a,stars:e.stars,me:!0}),i.sort((c,u)=>u.ovr-c.ovr);const r=i.findIndex(c=>c.me)+1,l=i.map((c,u)=>{const h=c.me?0:c.ovr-a;return`<div class="lb-row ${c.me?"me":""}">
       <div class="lb-rank">${u+1}</div>
       <div class="lb-name">${c.name}${c.me?" (You)":""} <span style="color:var(--gold);font-size:12px">${"★".repeat(c.stars)}</span></div>
       <div class="lb-ovr">${n||c.me?c.ovr:"?"}${!c.me&&n?`<span style="font-size:11px;color:${h>0?"#e08a8a":"var(--good)"}"> ${h>0?"+"+h:h}</span>`:""}</div>
