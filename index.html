@@ -5055,20 +5055,24 @@ class Ot extends mt.Scene {
     if (!d) return;
     if (isMe) {
       this.setTeam(d, "you");
-      // v18: unmissable gold — soft glow disc + bright pulsing ring + bouncing chevron
-      d.glow = this.trackFx(this.add.ellipse(d.root.x, d.root.y + 13, 52, 20, 0xf0bb45, 0.16).setDepth(3.7));
-      this.tweens.add({ targets: d.glow, alpha: { from: 0.10, to: 0.30 }, yoyo: true, repeat: -1, duration: 520, ease: "Sine.easeInOut" });
-      d.ring = this.trackFx(this.add.ellipse(d.root.x, d.root.y + 13, 42, 16).setStrokeStyle(3, 0xffd257, 0.95).setDepth(3.78));
-      this.tweens.add({ targets: d.ring, alpha: { from: 0.55, to: 1 }, yoyo: true, repeat: -1, duration: 520, ease: "Sine.easeInOut" });
-      d.chev = this.trackFx(this.add.text(d.root.x, d.root.y - 30, "▼", { fontFamily: "Oswald, sans-serif", fontSize: "13px", fontStyle: "bold", color: "#ffd257", stroke: "#0a0f16", strokeThickness: 3 }).setOrigin(0.5).setDepth(23));
-      this.tweens.add({ targets: d.chev, alpha: { from: 0.65, to: 1 }, yoyo: true, repeat: -1, duration: 520, ease: "Sine.easeInOut" });
-      // rotating gold circle under YOUR player — 4 gold arc segments that spin
-      const spin = this.trackFx(this.add.graphics().setDepth(3.85));
-      spin.lineStyle(3.2, 0xffd257, 1);
-      for (let a = 0; a < Math.PI * 2 - 0.01; a += Math.PI / 2) { spin.beginPath(); spin.arc(0, 0, 19, a, a + Math.PI / 3.2); spin.strokePath(); }
-      spin.setPosition(d.root.x, d.root.y + 13);
-      d.spin = this.trackFx(spin);
-      this.tweens.add({ targets: d.spin, angle: 360, repeat: -1, duration: 1500, ease: "Linear" });
+      /* ===== v70 PLUMBOB — the you-marker is a crystal over the head, not an aura =====
+       * v18 stacked four gold effects on the GROUND under your player: a pulsing glow
+       * disc, a bright pulsing ring, four spinning arc segments, and a bobbing chevron.
+       * On a 22-man field that is a lot of moving gold in the one place the eye is
+       * already busy — the turf, where the ball, the line of scrimmage, the first-down
+       * marker and twenty-one other pairs of feet all live. It also washed out at the
+       * exact moment it mattered: inside a pile, the aura is under the pile.
+       *
+       * A Sims plumbob solves both. It sits in EMPTY SPACE above the head, where
+       * nothing else is drawn, so it survives a pile and a zoom-out; and because it
+       * spins it reads as "this one" instantly without pulsing at you. It is drawn
+       * per frame (drawPlumbob) rather than tweened, because the rotation IS the
+       * silhouette changing shape — there is no sprite to rotate.
+       *
+       * The ground keeps the SAME plain ring every other player gets, in gold rather
+       * than white. That is the marker, not an aura: it says where his feet are. */
+      d.ring = this.trackFx(this.add.ellipse(d.root.x, d.root.y + 13, 30, 12).setStrokeStyle(2, 0xffd257, 0.9).setDepth(3.8));
+      d.bob = this.trackFx(this.add.graphics().setDepth(23));
       let nm = ""; try { const st = window.__getGridironState && window.__getGridironState(); nm = (st && st.player && st.player.name) || ""; } catch (e) {}
       const parts = nm.trim().split(/\s+/);
       const tagTxt = (parts.length > 1 ? parts[0][0] + ". " + parts.slice(1).join(" ") : (nm || "YOU")).toUpperCase().slice(0, 14);
@@ -5167,6 +5171,34 @@ class Ot extends mt.Scene {
     const use = this.textures.exists(k) ? k : "rib_player_fallback";
     m.body.setTexture(use); m.tex = use;
     if (use === "rib_player_fallback") m.body.setTint(team === "def" ? 0xe86560 : team === "you" ? 0xf0bb45 : 0x5fce74); else m.body.clearTint();
+  }
+  /* v70 — one octahedron, orthographic, drawn straight into a Graphics. The
+   * silhouette WIDTH is the rotation (a diamond seen edge-on is narrow, face-on is
+   * wide) and the near vertical crease sweeps across it, which is the whole read;
+   * a spinning sprite would have to be an animation, and a tween on `angle` would
+   * only tip it over rather than turn it. `hot` is the gassed state, because a
+   * plumbob that also carries mood is the reason the Sims one works. */
+  drawPlumbob(g, tms, sc, hot) {
+    const R = TU("bobW", 6.6) * sc, H = TU("bobH", 9.6) * sc;
+    const th = tms / Math.max(120, TU("bobSpinMs", 1700)) * Math.PI * 2;
+    const W = R * (0.42 + 0.58 * Math.abs(Math.cos(th)));   // never fully edge-on: an
+    const seam = W * Math.sin(th) * 0.74;                    // invisible marker is no marker
+    const dark = hot ? 0x9c3524 : 0xb8801a, lit = hot ? 0xff8a5c : 0xffdf78, edge = hot ? 0xffd3bd : 0xfff4c8;
+    g.clear();
+    const dia = (x0, x1) => { g.beginPath(); g.moveTo(0, -H); g.lineTo(x1, 0); g.lineTo(0, H); g.lineTo(x0, 0); g.closePath(); };
+    // a dark outline first, or the crystal disappears into a bright crowd behind it
+    g.lineStyle(2.6 * sc, 0x080d14, 0.62); dia(-W, W); g.strokePath();
+    g.fillStyle(dark, 0.97); dia(-W, W); g.fillPath();       // the far facet, as the whole body
+    g.fillStyle(lit, 0.98); dia(-W, seam); g.fillPath();     // the near facet over its share of it
+    g.lineStyle(1.1 * sc, edge, 0.92); dia(-W, W); g.strokePath();
+    g.lineStyle(0.9 * sc, edge, 0.5);                        // the crease between the two facets
+    g.beginPath(); g.moveTo(0, -H); g.lineTo(seam, 0); g.lineTo(0, H); g.strokePath();
+    // a specular chip high on the lit facet — what makes it read as cut glass
+    g.fillStyle(0xffffff, 0.55);
+    g.beginPath(); g.moveTo(-W * 0.30, -H * 0.44); g.lineTo(-W * 0.06, -H * 0.22); g.lineTo(-W * 0.32, -H * 0.06); g.closePath(); g.fillPath();
+    // what the frame actually drew, for scripts/bobcheck.mjs — the rotation is the
+    // silhouette, and the silhouette is not readable back out of a command buffer
+    g._bobW = W; g._bobSeam = seam;
   }
   placeMarker(m, sx, sy, dtms) {
     const dx = sx - m.sx, dy = sy - m.sy;
@@ -5290,9 +5322,12 @@ class Ot extends mt.Scene {
     (m._hist || (m._hist = [])).push({ x: p.x, y: p.y });
     if (m._hist.length > 4) m._hist.shift();
     if (m.ring && m.ring.active) m.ring.setPosition(p.x, p.y + 16 * p.s).setScale(p.s); else m.ring = null;
-    if (m.glow && m.glow.active) m.glow.setPosition(p.x, p.y + 16 * p.s).setScale(p.s); else m.glow = null;
-    if (m.chev && m.chev.active) m.chev.setPosition(p.x, p.y - 30 * p.s + Math.sin(m.tms / 170) * 3).setScale(p.s); else m.chev = null;
-    if (m.spin && m.spin.active) { m.spin.setPosition(p.x, p.y + 15 * p.s); m.spin.setScale(p.s, p.s * 0.42); } else m.spin = null;
+    if (m.bob && m.bob.active) {
+      // it floats, and it turns. The float is small on purpose — a big bounce reads as
+      // a bug when the player himself is sprinting.
+      m.bob.setPosition(p.x, p.y - TU("bobLift", 31) * p.s + Math.sin(m.tms / 380) * 2 * p.s);
+      this.drawPlumbob(m.bob, m.tms, p.s, !!m._gassedV20);
+    } else m.bob = null;
     if (m.tag && m.tag.active) m.tag.setPosition(p.x, p.y + 27 * p.s).setScale(p.s); else m.tag = null;
     return p;
   }
@@ -5318,8 +5353,7 @@ class Ot extends mt.Scene {
     ms.forEach((m) => {
       if (!m.root) return;
       if (m.ring && m.ring.active) m.ring.setPosition(m.root.x, m.root.y + 16 * m.root.scale);
-      if (m.glow && m.glow.active) m.glow.setPosition(m.root.x, m.root.y + 16 * m.root.scale);
-      if (m.chev && m.chev.active) m.chev.setPosition(m.root.x, m.root.y - 30 * m.root.scale);
+      if (m.bob && m.bob.active) m.bob.setPosition(m.root.x, m.root.y - TU("bobLift", 31) * m.root.scale);
       if (m.tag && m.tag.active) m.tag.setPosition(m.root.x, m.root.y + 27 * m.root.scale);
     });
   }
