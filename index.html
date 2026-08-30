@@ -2373,7 +2373,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
                   + (routeDepth>13 ? (coverA.jump-target.jump)*0.002 : 0)
                   + (bracketed&&coverHelp?(coverHelp.cov-45)*.0012:0)
                   - (S.off[8].aware-50)*0.0007 + (sep < -2 ? 0.028 : 0.012)
-                  + earlyRisk + badLocation + fieldRisk + (underPressure?.008:0), 0.004, 0.18);
+                  + earlyRisk + badLocation + fieldRisk + (underPressure?.008:0), 0.004, 0.18)
+                  * (window.__toMultV76 || 1);      // v76: takeaway swing, damped by mismatch
                 if (Math.random() < intP) {
                   emit("pick",{by:coverA.id,x:cx,y:cyy});
                   carrier = coverA; phase = "carry";           // live return!
@@ -7237,7 +7238,24 @@ function Vr(e,t){const a=t.attrs[e],s=t.lastGains[e]||0,n=t.pos&&Ee[t.pos].w[e],
         <div class="pos-fit" style="font-size:22px">▸</div>
       </div>`}).join("")}
   `,x("dock").innerHTML='<div class="small center">Choices tied to your stats reward you for building the right player — and punish bluffing.</div>'}window.__ZaV18=Za;
-function Fr(e){const t=o.player,a=Za.find(n=>n.id===t.pendingEvent),s=a.choices[e];s.eff.ppCost&&(o.pp-=s.eff.ppCost),t.eventChoice=s.eff,(function(){try{const fx=s.eff,c=(typeof cv18==="function")?cv18(t):null;if(!c)return;if(fx.restWeeks){const cur=c.injury;(!cur||!cur.seasonEnding)&&(c.injury={name:"Recovery rest",severity:1,weeksRemaining:fx.restWeeks,recurrence:.04,resting:!0})}if(fx.healFatigue)c.fatigue=Math.max(0,(c.fatigue||0)-fx.healFatigue)}catch(_e){}})(),t.eventLog=(t.eventLog||[]).concat({title:a.title,choice:s.label}),I(),te("sim")}const Dr=["Jaylen","Marcus","DeShawn","Tyler","Cameron","Malik","Trey","Xavier","Cole","Bryce","Damon","Kaiden","Rashad","Elijah","Jaxon","Dominic","Isaiah","Devin","Cade","Amari","Zion","Kobe","Deon","Landon","Micah","Tariq","Jamal","Nolan","Rex","Hunter"],Gr=["Carter","Brooks","Sylla","Okafor","Ramirez","Bennett","Washington","Freeman","Toledo","Nakamura","Boateng","Vance","Ellison","Duval","Krause","Mbeki","Santos","Rivera","Holloway","Pierce","Dresden","Ansah","Coleman","Reyes","Njoku","Fontaine","Barlow","Greer","Adeyemi","Stroud"];function Hr(){return W(Dr)+" "+W(Gr)}function qr(e,t){const a=o.player;if(!a||!a.attrs)return null;const s=i=>f(Math.round(en?Math.min(99,99*(1-Math.exp(-(i||10)/78))):(i||10)/2.5),5,99),n=a.attrs;return{speed:s(n.speed),accel:s(n.acceleration),agility:s(n.agility),strength:s(n.strength),catching:s(n.catching),tackling:s(n.tackling),awareness:s(n.awareness),hands:s(n.catching),power:s(n.strength),coverage:s(n.awareness*.5+n.speed*.5),blocking:s(n.blocking),burst:s(n.acceleration)}}function xn(e){const a={QB:[1,19],RB:[20,49],WR:[10,19],TE:[80,89],OL:[50,79],DL:[90,99],LB:[40,59],CB:[20,39],S:[20,39]}[e]||[1,99];return le(a[0],a[1])}function Wr(e,t,a,s,n,i,r){const l=["QB","RB","RB","WR","WR","TE","OL","OL","OL","OL","OL"],d=["DL","DL","DL","DL","LB","LB","LB","CB","CB","S","S"],c=["QB","RB","WR","TE","OL"].includes(e);i=i||(o.player?o.player.level:0),r=r||(o.player?ae(o.player):40);const u=[18,30,42,54,66,78,86,90][i]||55;function h(Y,_){const ie=f(_,5,99),B=()=>ie+D(-14,14),b={speed:B(),accel:B(),agility:B(),strength:B(),catching:B(),tackling:B(),awareness:B(),hands:B(),power:B(),coverage:B(),blocking:B(),burst:B()};for(const Q in b)b[Q]=f(Math.round(b[Q]),5,99);const pe=Math.random();return Y==="RB"&&(pe<.4?(b.speed=f(b.speed+14,5,99),b.burst=f(b.burst+12,5,99),b.strength=f(b.strength-8,5,99)):pe<.7&&(b.strength=f(b.strength+15,5,99),b.power=f(b.power+12,5,99),b.speed=f(b.speed-8,5,99))),Y==="WR"&&(pe<.45?(b.speed=f(b.speed+16,5,99),b.burst=f(b.burst+12,5,99)):(b.catching=f(b.catching+12,5,99),b.hands=f(b.hands+12,5,99),b.strength=f(b.strength+6,5,99))),Y==="QB"&&(b.awareness=f(b.awareness+8,5,99),pe<.4&&(b.speed=f(b.speed+16,5,99),b.agility=f(b.agility+12,5,99))),Y==="TE"&&(b.strength=f(b.strength+10,5,99),b.blocking=f(b.blocking+10,5,99)),Y==="OL"&&(b.blocking=f(b.blocking+18,5,99),b.strength=f(b.strength+14,5,99),b.speed=f(b.speed-16,5,99)),Y==="DL"&&(b.strength=f(b.strength+16,5,99),b.power=f(b.power+12,5,99)),Y==="LB"&&(b.tackling=f(b.tackling+14,5,99),b.strength=f(b.strength+8,5,99)),Y==="CB"&&(b.speed=f(b.speed+14,5,99),b.coverage=f(b.coverage+16,5,99),b.agility=f(b.agility+10,5,99)),Y==="S"&&(b.coverage=f(b.coverage+10,5,99),b.tackling=f(b.tackling+10,5,99)),b}function p(Y,_){const ie=f(_,.1,1),B=(pe,Q)=>Math.max(0,Math.round(pe*ie+D(-Q,Q))),b={pos:Y};switch(Y){case"QB":b.pass=B(240,50),b.td=B(2.4,1),b.int=Math.max(0,Math.round((1-ie)*2.2)),b.comp=B(21,4),b.att=b.comp+B(11,3);break;case"RB":b.rush=B(88,28),b.td=B(1.1,1),b.carries=B(18,5),b.rec=B(20,12);break;case"WR":b.rec=B(74,34),b.td=B(.8,1),b.rec_c=B(5,3),b.tgt=b.rec_c+B(3,2);break;case"TE":b.rec=B(48,22),b.td=B(.6,1),b.rec_c=B(4,2),b.tgt=b.rec_c+B(2,2);break;case"OL":b.pancake=B(5,3),b.sackAllowed=Math.max(0,Math.round((1-ie)*3));break;case"DL":b.tackle=B(4,2),b.sack=B(1,1),b.tfl=B(1.4,1),b.qbhit=B(3,2);break;case"LB":b.tackle=B(8,3),b.sack=B(.6,1),b.tfl=B(1.6,1),b.int=Math.random()<ie*.25?1:0;break;case"CB":b.tackle=B(4,2),b.pd=B(1.8,1),b.int=Math.random()<ie*.3?1:0;break;case"S":b.tackle=B(6,3),b.pd=B(1.3,1),b.int=Math.random()<ie*.25?1:0;break}return b}function m(Y){return f(Math.round(u*(.72+Y*.5)+D(-4,4)),3,99)}function y(Y){const _=(ie,B)=>ie.map(b=>{const pe=f(Y+D(-.15,.15),.05,1.7),Q=m(pe);return{name:Hr(),num:xn(b),pos:b,isOff:B,ovr:Q,attrs:h(b,Q),stat:p(b,pe)}});return{off:_(l,!0),def:_(d,!1)}}const _oppMul=(typeof window<"u"&&window.__oppMulV22!=null)?window.__oppMulV22:(.9+Math.random()*.4);const _prF=Math.min(1,((o.prestige||0)/15)+((o.rosterPrestigeV158?Object.values(o.rosterPrestigeV158).reduce((A2,B2)=>A2+B2,0):0)/50)+((o.tree?Object.values(o.tree).reduce((A2,B2)=>A2+B2,0):0)/70));const C=f(.42+t*.35+_prF*1.05,.3,1.65),V=f((_oppMul-.72)*2,.36,1.16),P=y(C),v=y(V),j=c?P.off:P.def,U=j.findIndex(Y=>Y.pos===e);U>=0&&(j[U]={name:o.player&&o.player.name||"You",num:xn(e),pos:e,isOff:c,you:!0,ovr:r,attrs:qr(),stat:a});(function(){const seen=new Set();[...P.off,...P.def,...v.off,...v.def].forEach(pl=>{if(!pl||pl.you){pl&&pl.name&&seen.add(pl.name);return}let nm2=pl.name,guard=0;while(seen.has(nm2)&&guard++<40)nm2=Hr();pl.name=nm2;seen.add(nm2)})})();const ce=Y=>Math.round([...Y.off,...Y.def].reduce((_,ie)=>_+ie.ovr,0)/22);return P.ovr=ce(P),v.ovr=ce(v),P.offOvr=Math.round(P.off.reduce((Y,_)=>Y+_.ovr,0)/11),P.defOvr=Math.round(P.def.reduce((Y,_)=>Y+_.ovr,0)/11),v.offOvr=Math.round(v.off.reduce((Y,_)=>Y+_.ovr,0)/11),v.defOvr=Math.round(v.def.reduce((Y,_)=>Y+_.ovr,0)/11),{us:P,opp:v,usQ:C,oppQ:V}}function qi(e,t,a){const s={pass:0,rush:0,rec:0,td:t.td||0,tackle:t.tackle||0,sack:t.sack||0,int:t.int||0,pd:t.pd||0,pick6:t.pick6||0,comp:0,att:0,rec_c:0,tgt:0,carries:0,longest:0,fum:0,ff:0,tfl:0,qbhit:0,pancake:0,sackAllowed:0},n=(i,r)=>Math.max(0,Math.round(i/Math.max(1,r)));switch(e){case"QB":s.pass=t.pass||0,s.rush=t.rush||0,s.att=Math.max(n(s.pass,8),8),s.comp=Math.min(s.att,Math.max(n(s.pass,12),Math.round(s.att*.6))),s.longest=s.pass>0?f(Math.round(s.pass*.28),8,80):0,s.int=Math.max(0,a.int||0);break;case"RB":s.rush=t.rush||0,s.rec=t.rec||0,s.carries=t.carries>0?t.carries:Math.max(n(s.rush,5),s.rush>0?6:0),s.rec_c=t.rec_c>0?t.rec_c:(s.rec>0?Math.max(1,n(s.rec,9)):0),s.longest=s.rush>0?f(Math.round(s.rush*.35),4,75):0,s.fum=a.fum||0;break;case"WR":case"TE":s.rec=t.rec||0,s.rush=t.rush||0,s.rec_c=t.rec_c>0?t.rec_c:(s.rec>0?Math.max(1,n(s.rec,13)):0),s.tgt=s.rec_c+(s.rec_c>0?le(1,3):le(0,2)),s.longest=s.rec>0?f(Math.round(s.rec*.4),6,80):0;break;case"OL":s.pancake=a.pancake||0,s.sackAllowed=a.sackAllowed||0;break;case"DL":s.sack=t.sack||0,s.tackle=t.tackle||0,s.tfl=Math.max(a.tfl||0,s.sack),s.qbhit=a.qbhit||0,s.ff=a.ff||0;break;case"LB":s.tackle=t.tackle||0,s.sack=t.sack||0,s.tfl=a.tfl||0,s.int=t.int||0,s.ff=a.ff||0;break;case"CB":case"S":s.tackle=t.tackle||0,s.int=t.int||0,s.pd=t.pd||0,s.tfl=a.tfl||0,s.tgt=a.tgt||0;break}return s}function Yr(e,t){
+function Fr(e){const t=o.player,a=Za.find(n=>n.id===t.pendingEvent),s=a.choices[e];s.eff.ppCost&&(o.pp-=s.eff.ppCost),t.eventChoice=s.eff,(function(){try{const fx=s.eff,c=(typeof cv18==="function")?cv18(t):null;if(!c)return;if(fx.restWeeks){const cur=c.injury;(!cur||!cur.seasonEnding)&&(c.injury={name:"Recovery rest",severity:1,weeksRemaining:fx.restWeeks,recurrence:.04,resting:!0})}if(fx.healFatigue)c.fatigue=Math.max(0,(c.fatigue||0)-fx.healFatigue)}catch(_e){}})(),t.eventLog=(t.eventLog||[]).concat({title:a.title,choice:s.label}),I(),te("sim")}const Dr=["Jaylen","Marcus","DeShawn","Tyler","Cameron","Malik","Trey","Xavier","Cole","Bryce","Damon","Kaiden","Rashad","Elijah","Jaxon","Dominic","Isaiah","Devin","Cade","Amari","Zion","Kobe","Deon","Landon","Micah","Tariq","Jamal","Nolan","Rex","Hunter"],Gr=["Carter","Brooks","Sylla","Okafor","Ramirez","Bennett","Washington","Freeman","Toledo","Nakamura","Boateng","Vance","Ellison","Duval","Krause","Mbeki","Santos","Rivera","Holloway","Pierce","Dresden","Ansah","Coleman","Reyes","Njoku","Fontaine","Barlow","Greer","Adeyemi","Stroud"];function Hr(){return W(Dr)+" "+W(Gr)}function qr(e,t){const a=o.player;if(!a||!a.attrs)return null;const s=i=>f(Math.round(en?Math.min(99,99*(1-Math.exp(-(i||10)/78))):(i||10)/2.5),5,99),n=a.attrs;return{speed:s(n.speed),accel:s(n.acceleration),agility:s(n.agility),strength:s(n.strength),catching:s(n.catching),tackling:s(n.tackling),awareness:s(n.awareness),hands:s(n.catching),power:s(n.strength),coverage:s(n.awareness*.5+n.speed*.5),blocking:s(n.blocking),burst:s(n.acceleration)}}function xn(e){const a={QB:[1,19],RB:[20,49],WR:[10,19],TE:[80,89],OL:[50,79],DL:[90,99],LB:[40,59],CB:[20,39],S:[20,39]}[e]||[1,99];return le(a[0],a[1])}function Wr(e,t,a,s,n,i,r){const l=["QB","RB","RB","WR","WR","TE","OL","OL","OL","OL","OL"],d=["DL","DL","DL","DL","LB","LB","LB","CB","CB","S","S"],c=["QB","RB","WR","TE","OL"].includes(e);i=i||(o.player?o.player.level:0),r=r||(o.player?ae(o.player):40);const u=[18,30,42,54,66,78,86,90][i]||55;function h(Y,_){const ie=f(_,5,99),B=()=>ie+D(-14,14),b={speed:B(),accel:B(),agility:B(),strength:B(),catching:B(),tackling:B(),awareness:B(),hands:B(),power:B(),coverage:B(),blocking:B(),burst:B()};for(const Q in b)b[Q]=f(Math.round(b[Q]),5,99);const pe=Math.random();return Y==="RB"&&(pe<.4?(b.speed=f(b.speed+14,5,99),b.burst=f(b.burst+12,5,99),b.strength=f(b.strength-8,5,99)):pe<.7&&(b.strength=f(b.strength+15,5,99),b.power=f(b.power+12,5,99),b.speed=f(b.speed-8,5,99))),Y==="WR"&&(pe<.45?(b.speed=f(b.speed+16,5,99),b.burst=f(b.burst+12,5,99)):(b.catching=f(b.catching+12,5,99),b.hands=f(b.hands+12,5,99),b.strength=f(b.strength+6,5,99))),Y==="QB"&&(b.awareness=f(b.awareness+8,5,99),pe<.4&&(b.speed=f(b.speed+16,5,99),b.agility=f(b.agility+12,5,99))),Y==="TE"&&(b.strength=f(b.strength+10,5,99),b.blocking=f(b.blocking+10,5,99)),Y==="OL"&&(b.blocking=f(b.blocking+18,5,99),b.strength=f(b.strength+14,5,99),b.speed=f(b.speed-16,5,99)),Y==="DL"&&(b.strength=f(b.strength+16,5,99),b.power=f(b.power+12,5,99)),Y==="LB"&&(b.tackling=f(b.tackling+14,5,99),b.strength=f(b.strength+8,5,99)),Y==="CB"&&(b.speed=f(b.speed+14,5,99),b.coverage=f(b.coverage+16,5,99),b.agility=f(b.agility+10,5,99)),Y==="S"&&(b.coverage=f(b.coverage+10,5,99),b.tackling=f(b.tackling+10,5,99)),b}function p(Y,_){const ie=f(_,.1,1),B=(pe,Q)=>Math.max(0,Math.round(pe*ie+D(-Q,Q))),b={pos:Y};switch(Y){case"QB":b.pass=B(240,50),b.td=B(2.4,1),b.int=Math.max(0,Math.round((1-ie)*2.2)),b.comp=B(21,4),b.att=b.comp+B(11,3);break;case"RB":b.rush=B(88,28),b.td=B(1.1,1),b.carries=B(18,5),b.rec=B(20,12);break;case"WR":b.rec=B(74,34),b.td=B(.8,1),b.rec_c=B(5,3),b.tgt=b.rec_c+B(3,2);break;case"TE":b.rec=B(48,22),b.td=B(.6,1),b.rec_c=B(4,2),b.tgt=b.rec_c+B(2,2);break;case"OL":b.pancake=B(5,3),b.sackAllowed=Math.max(0,Math.round((1-ie)*3));break;case"DL":b.tackle=B(4,2),b.sack=B(1,1),b.tfl=B(1.4,1),b.qbhit=B(3,2);break;case"LB":b.tackle=B(8,3),b.sack=B(.6,1),b.tfl=B(1.6,1),b.int=Math.random()<ie*.25?1:0;break;case"CB":b.tackle=B(4,2),b.pd=B(1.8,1),b.int=Math.random()<ie*.3?1:0;break;case"S":b.tackle=B(6,3),b.pd=B(1.3,1),b.int=Math.random()<ie*.25?1:0;break}return b}function m(Y){return f(Math.round(u*(.72+Y*.5)+D(-4,4)),3,99)}function y(Y){const _=(ie,B)=>ie.map(b=>{const pe=f(Y+D(-.15,.15),.05,1.7),Q=m(pe);return{name:Hr(),num:xn(b),pos:b,isOff:B,ovr:Q,attrs:h(b,Q),stat:p(b,pe)}});return{off:_(l,!0),def:_(d,!1)}}const _oppMul=(typeof window<"u"&&window.__oppMulV22!=null)?window.__oppMulV22:(.9+Math.random()*.4);const _prF=Math.min(1,((o.prestige||0)/15)+((o.rosterPrestigeV158?Object.values(o.rosterPrestigeV158).reduce((A2,B2)=>A2+B2,0):0)/50)+((o.tree?Object.values(o.tree).reduce((A2,B2)=>A2+B2,0):0)/70)*f(TU("teamQualK",.1),0,1));/* ===== v76 MARGIN CURVE (1/5) — where the blowouts came from =====
+ * usQ is .42 + seed*.35 + prestige*1.05 (up to 1.65) while oppQ can only ever reach
+ * (1.14-.72)*2 = .84, so a prestiged career fields a roster built at up to TWICE the
+ * opponent's quality factor. Every player attribute derives from that factor, so the
+ * mismatch compounded through every snap of a twelve-drive game: a +10 scoreboard-OVR
+ * edge produced a +28.6 average margin, and one game finished 151 points.
+ *
+ * An earlier cut of v76 fixed it HERE, pulling the two factors toward their midpoint.
+ * That was wrong twice over and the checks caught both. The two factors are not on
+ * the same scale, so a shared "midpoint" tied the opponent's strength to OUR prestige
+ * and cost the v68 team-quality nerf its meaning (`teamqualcheck` went 9.0x -> 2.6x).
+ * And it compressed the BADGE as well, collapsing the matchup range from +28 to +15 —
+ * which does not make blowouts closer, it deletes the lopsided fixtures they happen
+ * in. The schedule is supposed to contain mismatches; what should not follow from one
+ * is a 100-0 scoreline. So the roster is left exactly as it was, and the whole curve
+ * is carried by the four play-level levers below, which act on the game rather than
+ * on the team sheet. ===== */
+const C=f(.42+t*.35+_prF*1.05,.3,1.65),V=f((_oppMul-.72)*2,.36,1.16),P=y(C),v=y(V),j=c?P.off:P.def,U=j.findIndex(Y=>Y.pos===e);U>=0&&(j[U]={name:o.player&&o.player.name||"You",num:xn(e),pos:e,isOff:c,you:!0,ovr:r,attrs:qr(),stat:a});(function(){const seen=new Set();[...P.off,...P.def,...v.off,...v.def].forEach(pl=>{if(!pl||pl.you){pl&&pl.name&&seen.add(pl.name);return}let nm2=pl.name,guard=0;while(seen.has(nm2)&&guard++<40)nm2=Hr();pl.name=nm2;seen.add(nm2)})})();const ce=Y=>Math.round([...Y.off,...Y.def].reduce((_,ie)=>_+ie.ovr,0)/22);return P.ovr=ce(P),v.ovr=ce(v),P.offOvr=Math.round(P.off.reduce((Y,_)=>Y+_.ovr,0)/11),P.defOvr=Math.round(P.def.reduce((Y,_)=>Y+_.ovr,0)/11),v.offOvr=Math.round(v.off.reduce((Y,_)=>Y+_.ovr,0)/11),v.defOvr=Math.round(v.def.reduce((Y,_)=>Y+_.ovr,0)/11),{us:P,opp:v,usQ:C,oppQ:V}}function qi(e,t,a){const s={pass:0,rush:0,rec:0,td:t.td||0,tackle:t.tackle||0,sack:t.sack||0,int:t.int||0,pd:t.pd||0,pick6:t.pick6||0,comp:0,att:0,rec_c:0,tgt:0,carries:0,longest:0,fum:0,ff:0,tfl:0,qbhit:0,pancake:0,sackAllowed:0},n=(i,r)=>Math.max(0,Math.round(i/Math.max(1,r)));switch(e){case"QB":s.pass=t.pass||0,s.rush=t.rush||0,s.att=Math.max(n(s.pass,8),8),s.comp=Math.min(s.att,Math.max(n(s.pass,12),Math.round(s.att*.6))),s.longest=s.pass>0?f(Math.round(s.pass*.28),8,80):0,s.int=Math.max(0,a.int||0);break;case"RB":s.rush=t.rush||0,s.rec=t.rec||0,s.carries=t.carries>0?t.carries:Math.max(n(s.rush,5),s.rush>0?6:0),s.rec_c=t.rec_c>0?t.rec_c:(s.rec>0?Math.max(1,n(s.rec,9)):0),s.longest=s.rush>0?f(Math.round(s.rush*.35),4,75):0,s.fum=a.fum||0;break;case"WR":case"TE":s.rec=t.rec||0,s.rush=t.rush||0,s.rec_c=t.rec_c>0?t.rec_c:(s.rec>0?Math.max(1,n(s.rec,13)):0),s.tgt=s.rec_c+(s.rec_c>0?le(1,3):le(0,2)),s.longest=s.rec>0?f(Math.round(s.rec*.4),6,80):0;break;case"OL":s.pancake=a.pancake||0,s.sackAllowed=a.sackAllowed||0;break;case"DL":s.sack=t.sack||0,s.tackle=t.tackle||0,s.tfl=Math.max(a.tfl||0,s.sack),s.qbhit=a.qbhit||0,s.ff=a.ff||0;break;case"LB":s.tackle=t.tackle||0,s.sack=t.sack||0,s.tfl=a.tfl||0,s.int=t.int||0,s.ff=a.ff||0;break;case"CB":case"S":s.tackle=t.tackle||0,s.int=t.int||0,s.pd=t.pd||0,s.tfl=a.tfl||0,s.tgt=a.tgt||0;break}return s}function Yr(e,t){
 /* ===== v16 EMERGENT GAME ENGINE ==========================================
  * The game is no longer scripted outcome-first. Every drive is resolved
  * play-by-play (FieldSim agents when available), on a real game clock,
@@ -7286,6 +7304,159 @@ teamProfile=tm=>{const qb=Y(tm.off,["QB"]),rb=Y(tm.off,["RB"]),ol=tm.off.filter(
 profiles={us:teamProfile(c.us),them:teamProfile(c.opp)},weatherRoll=Math.random(),weather=weatherRoll<.10?"rain":weatherRoll<.15?"wind":weatherRoll<.18?"snow":"clear",weatherFx={pass:weather==="rain"?.94:weather==="wind"?.91:weather==="snow"?.9:1,kick:weather==="wind"?.88:weather==="snow"?.9:weather==="rain"?.95:1,fumble:weather==="rain"?1.35:weather==="snow"?1.22:1};
 const usage=new Map(),touches=pl=>usage.get(pl)||0,addTouch=pl=>usage.set(pl,touches(pl)+1);
 // ---- play resolvers (FieldSim agents when available, formula fallback) ----
+/* ===== v76 MARGIN CURVE (2/5) — a talent edge buys a better offence, not a
+ * different sport. Diagnosed rather than guessed: at a -5.8 scoreboard gap a team
+ * averaged 2.42 yards a play, and at +14.5 it averaged 5.39. Play count (156 vs
+ * 158) and punts (12.4 vs 12.2) were IDENTICAL, so none of the blowout came from
+ * extra possessions or turnovers — every point of it came from yards per play,
+ * which was responding at .146 yds/play per point of gap and then compounding
+ * through a dozen drives into 45-5.
+ *
+ * `dampV76` pulls that response down to TU("gapYardKeep") of itself, solved on the
+ * measured line rather than applied as a blanket scale: the multiplier is the ratio
+ * of the yards-per-play we WANT at this gap to the yards-per-play the resolvers
+ * just produced. It sits on the resolved gain, so it damps the FieldSim path and
+ * the formula fallback alike — which matters, because the sim resolves most snaps
+ * and its physics is guarded by its own checks and should not be reached into.
+ *
+ * `gtV76` is the garbage-time half: `milk` only ever fired in Q4 inside five
+ * minutes, so a team up forty in the second quarter kept throwing. Once the lead is
+ * clear the starters come out and the playbook shrinks, which is both what really
+ * happens and what stops the tail. ===== */
+let _gapV76=0,_leadV76=0;
+function dampV76(y){
+  if(!y||!isFinite(y))return y;
+  const g=_gapV76,B0=TU("gapYardBase",3.3),K=TU("gapYardSlope",.146),R=f(TU("gapYardKeep",.13),0,1);
+  // want / have, both measured off the same parity baseline
+  const have=B0+K*g,want=B0+K*R*g;
+  let m=have>.4?want/have:1;
+  m*=gtV76();
+  // The diagnostic that started all this found the favoured team converting 43% of
+  // its third downs against the underdog's 23% — a wider discrepancy than yards per
+  // play, and the one that actually turns field position into points. A drive that
+  // dies on third down at midfield costs the same seven points as one stopped on the
+  // goal line, and costs them without denying anybody a goal-line moment.
+  // Scaled by the SIZE of the edge, not switched on by its sign. A flat multiplier
+  // here meant a team one point better on the scoreboard had its third downs cut by
+  // the full amount — a cliff at zero, and the reason the you-player was losing 41%
+  // of his yards in games that were barely mismatches at all.
+  try{
+    if(typeof down!=="undefined"&&down>=3&&_gapV76>0){
+      const t=f(_gapV76/Math.max(1,TU("thirdDownFull",6)),0,1);
+      m*=1-(1-f(TU("thirdDownK",.28),.2,1))*t;
+    }
+  }catch(e){}
+  // Only ever CUT. Boosting the underdog to close the gap was measured doing the
+  // opposite of the job: the favourite lost 28% of its yards and the underdog gained
+  // 50%, the two multipliers cancelled (mean 0.984 across a game) and total scoring
+  // went UP while the margin stayed. Damping one side is symmetric anyway — when you
+  // are the underdog it is THEIR offence that carries the positive gap.
+  m=f(m,TU("gapYardMin",.22),1);
+  // debug surface for scripts/blowoutcheck.mjs — how often the damper actually
+  // fires, and which way, so a tuning pass measures the lever instead of guessing
+  try{const Z=window.__DAMP_V76;if(Z){Z.n++;Z.g+=g;Z.m+=m;Z.y+=y;if(m<.999)Z.dn++;else if(m>1.001)Z.up++}}catch(e){}
+  return y>0?y*m:y;                       // a loss is a loss; never turn one into a gain
+}
+/* The offence that is already clear stops pressing. What counts as "clear" is not a
+ * fixed lead — it is the lead RELATIVE TO WHAT THIS MATCHUP SHOULD PRODUCE, which is
+ * marginPerOvr x the scoreboard gap. A three-score lead in a game you were supposed
+ * to win by three scores is just the game going to form and nothing damps; three
+ * scores clear in an even game is a rout, and the starters come out.
+ *
+ * Keying it this way is what actually lands the curve. Damping the raw yardage
+ * mismatch alone plateaus at a slope near 2.1 however hard it is driven, because
+ * most of the compounding is not in yards per play at all — measured, a favoured
+ * team also converted 43% of third downs against 23%, and turned the ball over 0.12
+ * times a game against 1.15. This term reaches all of that at once, because a team
+ * that cannot move the ball cannot convert or hold a lead either.
+ *
+ * It is deliberately a LATE brake, not an early one: nothing is damped until the
+ * game is already a score clear of its own expectation, so a fast start still runs
+ * away and the rare statement win survives. */
+/* ===== v76 MARGIN CURVE (3/5) — the takeaway swing =====
+ * The yardage damper alone plateaued: across a 3.7x range of its own dial the
+ * margin barely moved past a slope of ~1.9. The diagnostic said why. Between a -5.8
+ * and a +14.5 gap the play count (156 vs 158) and the punts (12.4 vs 12.2) were
+ * IDENTICAL — what differed was yards per play (2.42 -> 5.39) and, once the yards
+ * were damped, the two things yards do not touch: third-down conversion (43% vs 23%)
+ * and TURNOVERS (0.12 vs 1.15 a game). A one-per-game takeaway swing is worth about
+ * five points on its own, and it compounds, because every takeaway is a drive the
+ * favourite gains and the underdog loses.
+ *
+ * So this damps the takeaway swing at its source: the more outmatched the offense on
+ * the field, the less of the gap's turnover penalty it actually pays. It is CUT-ONLY
+ * and one-sided by design (an earlier two-sided version cancelled itself out — the
+ * underdog's boost undid the favourite's damp and total scoring rose while the margin
+ * stayed put), and it never touches the baseline rate two even teams play at. ===== */
+function toV76(){
+  const g=-_gapV76;                                   // how far the team WITH THE BALL is outmatched
+  if(g<=0)return 1;
+  // Continuous, not a ramp down to a floor. A saturating damper stops working exactly
+  // where it is needed most: with a ramp that reached full strength by +8, every gap
+  // past that was undamped and the margin went on climbing unopposed — a +28 edge
+  // still averaged a 43-point win. This one keeps decaying for as long as the
+  // mismatch grows, and never reaches zero.
+  return 1/(1+g/Math.max(1,TU("toFull",8)));
+}
+function gtV76(){
+  // Garbage time is a lead AND a clock, never a lead alone. Keyed on the lead only,
+  // this fired in the first quarter of even games — a nine-point lead in Q1 is not a
+  // decided game, and damping it dragged league-wide yards per carry under 3.2 in
+  // mirrored-roster games that v76 has no business touching at all (`equaltalentcheck`).
+  // It ramps in through the second half and only reaches full strength in the fourth.
+  let late=0;
+  try{
+    if(typeof quarter!=="undefined"){
+      late=quarter>=4?1:quarter===3?.55:0;
+      if(quarter>=4&&typeof clock!=="undefined"&&clock<=420)late=1;
+    }
+  }catch(e){}
+  if(late<=0)return 1;
+  const want=TU("marginPerOvr",.7)*Math.max(0,_gapV76),
+    over=_leadV76-want,
+    a2=TU("gtStart",8),b2=Math.max(a2+1,TU("gtFull",20)),d=f(TU("gtDamp",.9),0,.95)*late;
+  return over<=a2?1:f(1-((over-a2)/(b2-a2))*d,1-d,1);
+}
+/* ===== v76 MARGIN CURVE (4/5) — the goal-line stand =====
+ * Shaving yards could not land the curve on its own: driven from a 90% keep down to
+ * 10%, the measured slope only moved from ~3.0 to ~1.9, because most of a blowout is
+ * not yards per play. The same favoured team also converted 43% of its third downs
+ * against 23%, and turned the ball over 0.12 times a game against 1.15 — a yardage
+ * multiplier reaches none of that.
+ *
+ * A drive that dies on the one does. This is the discrete lever: once the game is
+ * running clear of what the matchup should produce, a would-be touchdown is instead
+ * stopped short and the offence is left with a field goal or a fourth down. That is
+ * worth four to seven points in a single stroke, it is ordinary football, and it
+ * keeps the play-by-play honest — the drive really did stall, the yards really were
+ * gained, and because `_e` never gets set the you-player is never credited a
+ * touchdown he did not score.
+ *
+ * It is probabilistic and starts only once the leader is a converted score past
+ * expectation, so a genuine statement win still gets to happen. ===== */
+function standV76(){
+  // Capped low on purpose. An earlier pass landed the margin curve with this at .92,
+  // which meant a favoured team was stopped on the goal line NINE TIMES IN TEN — the
+  // curve was right and the football was absurd, and it wiped the you-player's
+  // touchdowns out completely (0.09 a game to 0.00 across 104 sampled games). A
+  // goal-line stand is a thing that happens sometimes. The rest of the correction is
+  // taken on third down instead, which costs the same points without staging a
+  // last-minute miracle on every possession.
+  // The cap rises with the mismatch, for the same reason toV76 is continuous: a flat
+  // cap is a damper that quietly switches off past the gap it was tuned at.
+  const mx=f(TU("standMax",.34)+Math.max(0,_gapV76)*TU("standMaxK",.012),0,.72);
+  // Two terms, because they do different jobs. The GAP term runs from the opening
+  // kickoff and is what sets the average — a defence that is outclassed between the
+  // twenties still stiffens inside its own ten, which is the oldest cliche in the
+  // sport and happens to be the only thing that moves a mean. The RUNAWAY term is
+  // the tail brake: it comes in once the game is already past what the matchup
+  // should produce, and it is what keeps a fast start from turning into 70-0.
+  const gapP=TU("standGapK",.07)*Math.max(0,_gapV76),
+    want=TU("marginPerOvr",.7)*Math.max(0,_gapV76),over=_leadV76-want,
+    a2=TU("standStart",4),b2=Math.max(a2+1,TU("standFull",24)),
+    lateP=over>a2?(over-a2)/(b2-a2)*mx:0;
+  return Math.random()<f(gapP+lateP,0,mx);
+}
 function B(w,concept){const{O:k,D:T}=ie(w),K=(()=>{const yu=k.off.find(z=>z.you),rbs=k.off.filter(z=>z.pos==="RB"),qb=Y(k.off,["QB"]);if(rbs.length){if(qb&&Math.random()<.055)return qb;const sr=rbs.slice().sort((A,B2)=>(B2.ovr||0)-(A.ovr||0)),lead=yu&&yu.pos==="RB"?yu:sr[0],backup=sr.find(pl=>pl!==lead)||lead,leadShare=f(.72-touches(lead)*.012,.46,.72);return Math.random()<leadShare?lead:backup}return qb||Y(k.off,["RB","RB","QB"])})(),g=T.def.filter(ge=>["DL","LB","S"].includes(ge.pos)),N=_starFrontRating(T.def,g),H=k.off.filter(ge=>ge.pos==="OL"),oe=H.length?H.reduce((ge,$e)=>ge+_($e,"blocking"),0)/H.length:45;addTouch(K);const __r2=window.__FieldSim&&window.__FieldSim.run(w,k,T,K,_);let base;if(__r2)base=__r2;else{const be=(_(K,"strength")*.5+_(K,"burst")*.5)*.5+oe*.5-N*.85;let ke=Math.round(2.8+be*.045+D(-2.5,3));be<-7&&Math.random()<.38&&(ke=le(-2,1)),Math.random()<f((_(K,"speed")-N)/360+.015,.008,.11)&&(ke+=le(7,13+Math.round(_(K,"speed")/8))),ke=f(ke,-5,60),base={carrier:K,yards:ke,breakaway:ke>=15}}
 // v16.1 run-curve calibration: the agent sim compresses gains into 0-5 yds
 // (its 7-defender pursuit converges before a back can break clean). Real backs
@@ -7301,8 +7472,13 @@ if(base&&base.yards>=0&&base.yards<=2){
   if(Math.random()<gashP){const r3=Math.random(),big=concept==="draw",gain=r3<(big?.72:.8)?le(6,11):r3<.97?le(12,18):le(19,30+Math.max(0,Math.round(edge*.4)));dropSimLog();base={carrier:K,yards:gain,breakaway:gain>=15}}
   else if(Math.random()<sustainP){dropSimLog();base={carrier:K,yards:le(4,8),breakaway:!1}}
 }
+if(base&&base.yards>0){const y2=Math.round(dampV76(base.yards));
+  if(y2!==base.yards){base={...base,yards:y2,breakaway:y2>=15}}}
 return base}
-function b(w,concept,ctx={}){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=(()=>{const g0=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]);const yu=k.off.find(z=>z.you);if(yu&&yu!==g0){const tp=yu.pos==="WR"?.32:yu.pos==="TE"?.2:yu.pos==="RB"?.1:0,ok=concept==="shot"?["WR","TE"].includes(yu.pos):["WR","TE","RB"].includes(yu.pos);if(tp&&ok&&Math.random()<tp)return yu}return g0})(),N=(()=>{const yu=T.def.find(z=>z.you);if(yu&&["CB","S","LB"].includes(yu.pos)&&Math.random()<.45)return yu;const safety=_starOutlier(T.def,"S");return safety&&Math.random()<.2*safety.blend?safety.player:Y(T.def,["CB","S","LB"])})();const need=(typeof down!=="undefined"&&down>=3)?Math.max(1,toGo):0;const __r=!ctx.pressured&&window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept,{pressured:!!ctx.pressured,moving:!!ctx.moving,fieldPos:typeof pos!=="undefined"?pos:50,down:typeof down!=="undefined"?down:1,toGo:typeof toGo!=="undefined"?toGo:10});if(__r)return __r;const depth0=concept==="shot"?24:concept==="fade"?18:concept==="dropback"?11:concept==="quick"?5:concept==="screen"?1:8,depth=need&&concept!=="screen"?Math.max(depth0,Math.min(need+1,18)):depth0,H=_(g,"speed")*.5+_(g,"agility")*.5-_(N,"coverage")*.85+_(K,"awareness")*.25,poise=f((_(K,"awareness")-35)/100,0,.55),pressureAcc=ctx.pressured?(ctx.moving?.78:.86)+poise*(ctx.moving?.16:.1):1,oe=f((.57-depth*.008+H/150)*weatherFx.pass*pressureAcc,.07,.91);if(!(Math.random()<oe)){const ge=f(.012+depth*.0022+(_(N,"coverage")-_(K,"awareness"))*.0015+(ctx.pressured?.012:0)+(ctx.moving?.012:0),0,.18);return{qb:K,rec:g,cover:N,complete:!1,intercepted:Math.random()<ge,yards:0,pressured:!!ctx.pressured,moving:!!ctx.moving}}let ke=Math.round(depth+(_(g,"catching")+_(K,"awareness"))/2*.045+D(-2,4)),explosiveP=f((_(g,"speed")-_(N,"coverage"))/240+(concept==="shot"?.13:concept==="screen"?.07:.035)-(ctx.pressured?.035:0),.01,.3);Math.random()<explosiveP&&(ke+=le(concept==="shot"?12:8,18+Math.round(_(g,"speed")/7))),ke=f(ke,1,80);need&&ke<need&&Math.random()<f((_(K,"awareness")-40)/120,.05,.45)&&(ke=need+le(0,3));const air=f(Math.round(concept==="screen"?D(-1,2):ke*(concept==="shot"?.75:.45+Math.random()*.3)),0,ke);return{qb:K,rec:g,cover:N,complete:!0,intercepted:!1,yards:ke,breakaway:ke>=20,air,yac:Math.max(0,ke-air),pressured:!!ctx.pressured,moving:!!ctx.moving}}
+function b(w,concept,ctx={}){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=(()=>{const g0=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]);const yu=k.off.find(z=>z.you);if(yu&&yu!==g0){const tp=yu.pos==="WR"?.32:yu.pos==="TE"?.2:yu.pos==="RB"?.1:0,ok=concept==="shot"?["WR","TE"].includes(yu.pos):["WR","TE","RB"].includes(yu.pos);if(tp&&ok&&Math.random()<tp)return yu}return g0})(),N=(()=>{const yu=T.def.find(z=>z.you);if(yu&&["CB","S","LB"].includes(yu.pos)&&Math.random()<.45)return yu;const safety=_starOutlier(T.def,"S");return safety&&Math.random()<.2*safety.blend?safety.player:Y(T.def,["CB","S","LB"])})();const need=(typeof down!=="undefined"&&down>=3)?Math.max(1,toGo):0;const __r=!ctx.pressured&&window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept,{pressured:!!ctx.pressured,moving:!!ctx.moving,fieldPos:typeof pos!=="undefined"?pos:50,down:typeof down!=="undefined"?down:1,toGo:typeof toGo!=="undefined"?toGo:10});
+if(__r){if(__r.complete&&__r.yards>0){const y2=Math.max(1,Math.round(dampV76(__r.yards)));
+  if(y2!==__r.yards){const air2=Math.min(__r.air||0,y2);return{...__r,yards:y2,breakaway:y2>=20,air:air2,yac:Math.max(0,y2-air2)}}}
+  return __r}const depth0=concept==="shot"?24:concept==="fade"?18:concept==="dropback"?11:concept==="quick"?5:concept==="screen"?1:8,depth=need&&concept!=="screen"?Math.max(depth0,Math.min(need+1,18)):depth0,H=_(g,"speed")*.5+_(g,"agility")*.5-_(N,"coverage")*.85+_(K,"awareness")*.25,poise=f((_(K,"awareness")-35)/100,0,.55),pressureAcc=ctx.pressured?(ctx.moving?.78:.86)+poise*(ctx.moving?.16:.1):1,oe=f((.57-depth*.008+H/150)*weatherFx.pass*pressureAcc,.07,.91);if(!(Math.random()<oe)){const ge=f(.012+depth*.0022+(_(N,"coverage")-_(K,"awareness"))*.0015+(ctx.pressured?.012:0)+(ctx.moving?.012:0),0,.18);return{qb:K,rec:g,cover:N,complete:!1,intercepted:Math.random()<ge,yards:0,pressured:!!ctx.pressured,moving:!!ctx.moving}}let ke=Math.round(depth+(_(g,"catching")+_(K,"awareness"))/2*.045+D(-2,4)),explosiveP=f((_(g,"speed")-_(N,"coverage"))/240+(concept==="shot"?.13:concept==="screen"?.07:.035)-(ctx.pressured?.035:0),.01,.3);Math.random()<explosiveP&&(ke+=le(concept==="shot"?12:8,18+Math.round(_(g,"speed")/7))),ke=f(ke,1,80);need&&ke<need&&Math.random()<f((_(K,"awareness")-40)/120,.05,.45)&&(ke=need+le(0,3));ke=Math.max(1,Math.round(dampV76(ke)));const air=f(Math.round(concept==="screen"?D(-1,2):ke*(concept==="shot"?.75:.45+Math.random()*.3)),0,ke);return{qb:K,rec:g,cover:N,complete:!0,intercepted:!1,yards:ke,breakaway:ke>=20,air,yac:Math.max(0,ke-air),pressured:!!ctx.pressured,moving:!!ctx.moving}}
 // keep the FieldSim render queue aligned when we alter a play's bookkept yards:
 // the log we're discarding is the one this play just pushed — the TAIL, not the
 // head. Popping the tail (was shift(), a bug) keeps every other play's log lined
@@ -7362,6 +7538,7 @@ kickoffTo(rc1,"Opening kickoff");
 while(!gameOver&&plays<MAXP){
   plays++;
   const usDrive=T==="us",T0=T,margin=usDrive?h-p:p-h,
+  _v76=(_gapV76=usDrive?c.us.ovr-c.opp.ovr:c.opp.ovr-c.us.ovr,_leadV76=Math.max(0,margin),window.__toMultV76=toV76()),
   pre={pos,down,toGo:Math.max(1,Math.round(toGo)),clock:fmtC(clock),q:Math.min(quarter,5)},
   hurry=margin<0&&((quarter===2&&clock<=150)||(quarter>=4&&clock<=330)),
   milk=margin>0&&quarter===4&&clock<=300,
@@ -7472,6 +7649,12 @@ while(!gameOver&&plays<MAXP){
   {const op=profiles[T0],dp=profiles[other(T0)],identity=(op.qbIq+op.receivers-op.rbSkill-op.line)/180,matchup=(op.receivers-dp.coverage)/220;passP+=f(identity+matchup,-.14,.14);pos<=10&&(passP-=.11);pos>=80&&(passP+=.04)}
   (pos>=97||(toGo<=1&&pos>=90))&&(passP=Math.min(passP,.35));
   hurry?passP=Math.max(passP,.85):milk&&(passP=Math.min(passP,.3));
+  // v76: a team that is clear of the script goes to the ground — which is what a
+  // staff really does with a lead, and it is also what gives the carries BACK. The
+  // dampers cost the you-player about a third of his yardage; running the ball to
+  // burn clock returns volume to the backfield while still bleeding points off the
+  // scoreboard, so the correction is paid in scoring rather than in his stat line.
+  if(gtV76()<1)passP=Math.min(passP,TU("gtPassCap",.32));
   margin<=-14&&quarter>=3&&(passP+=.12);
   usDrive&&(passP+=((M("callPass")||0)-(M("callRun")||0))*.07);
   // v23: your adopted PREGAME game-plan bends your play-mix toward the pass rate
@@ -7510,7 +7693,7 @@ while(!gameOver&&plays<MAXP){
       // stat-credit truth: the sack belongs to the sacker the play names — YOU get
       // the stat only when YOU are that man, never a side roll on a teammate's sack
       const starRush=_starOutlier(Dk.def,"DL"),skr=starRush&&Math.random()<.4*starRush.blend?starRush.player:Y(Dk.def,["DL","DL","LB"]),meSk=!usDrive&&pe(skr);
-      const stripP=f(.045+(_(skr,"strength")-_(qb2,"awareness"))*.0015+(weatherFx.fumble-1)*.08,.02,.14);
+      const stripP=f(.045+(_(skr,"strength")-_(qb2,"awareness"))*.0015+(weatherFx.fumble-1)*.08,.02,.14)*toV76();
       if(Math.random()<stripP){ // strip sack — defender power, QB awareness and weather matter
         const defRecP=f(.48+(dlR-olB)*.004,.32,.68),defRec=Math.random()<defRecP;
         if(defRec){ne="turnover";flip={spot:f(100-f(pos+de,1,99),1,99),why:"scoops up the fumble"};usDrive?v.turn++:j.turn++;ue=`💥 STRIP SACK — ${nm(skr)} knocks it loose and the defense recovers the FUMBLE!`}
@@ -7527,7 +7710,7 @@ while(!gameOver&&plays<MAXP){
     }else if(r2<sackP+scrP){
       // SCRAMBLE — the QB escapes and takes off
       isPassFam=!1;de=f(Math.round(3+(_(qb2,"speed")-50)*.09+D(-3,5)),-2,26);ne="scramble";
-      if(pos+de>=100){de=100-pos;_e=!0}
+      if(pos+de>=100){if(standV76()){de=Math.max(0,99-pos)}else{de=100-pos;_e=!0}}
       pos=f(pos+de,1,99);endB=_e?100:pos;
       usDrive?(v.rush+=de,v.yds+=de):(j.rush+=de,j.yds+=de);
       me=usDrive&&t==="QB";me&&(P.rush+=Math.max(0,de),_e&&P.td++);
@@ -7554,7 +7737,7 @@ while(!gameOver&&plays<MAXP){
         spend(4);clock<=0&&quarterRoll();continue}
       if(X.complete){
         de=X.yards;ne="pass";
-        if(pos+de>=100){de=100-pos;_e=!0}
+        if(pos+de>=100){if(standV76()){de=Math.max(0,99-pos)}else{de=100-pos;_e=!0}}
         else if(pos+de<1){dropSimLog();de=1-pos}
         pos=f(pos+de,1,99);endB=_e?100:pos;Pt=!!X.breakaway;
         // air yards vs YAC (prorated if the gain was clamped at the goal line)
@@ -7600,7 +7783,7 @@ while(!gameOver&&plays<MAXP){
     }
   }else{
     // ---- called run ----
-    const runCarrier=Y(Ok.off,["RB","RB","QB"]),hitPower=avgAttr(Dk.def.filter(pl=>["DL","LB","S"].includes(pl.pos)),"tackling"),fumbleP=f((.012+(hitPower-_(runCarrier,"awareness"))*.00035)*weatherFx.fumble,.004,.035);
+    const runCarrier=Y(Ok.off,["RB","RB","QB"]),hitPower=avgAttr(Dk.def.filter(pl=>["DL","LB","S"].includes(pl.pos)),"tackling"),fumbleP=f((.012+(hitPower-_(runCarrier,"awareness"))*.00035)*weatherFx.fumble,.004,.035)*toV76();
     if(Math.random()<fumbleP){
       // fumble — resolved without FieldSim so the render queue stays aligned
       de=le(-1,4);const spotOff=f(pos+de,2,98),nearOff=Ok.off.filter(pl=>["OL","RB","QB"].includes(pl.pos)).length,nearDef=Dk.def.filter(pl=>["DL","LB","S"].includes(pl.pos)).length,defRecP=f(.48+(nearDef-nearOff)*.025+(hitPower-50)*.002,.3,.7),defRec=Math.random()<defRecP;endB=spotOff;
@@ -7619,7 +7802,7 @@ while(!gameOver&&plays<MAXP){
         const meFlag=usDrive&&pe(who);
         mkPlay({T0,pre,o:{event:"penalty",penalty:!0,yards:dyd,endBall:pos,involved:meFlag,desc:`🚩 HOLDING${meFlag?" on YOU":`, offense (#${who.num||""} ${nm(who)})`} — the run comes back, ${Math.abs(dyd)} yards, replay the down.`}});
         spend(4);clock<=0&&quarterRoll();continue}
-      if(pos+de>=100){de=100-pos;_e=!0}
+      if(pos+de>=100){if(standV76()){de=Math.max(0,99-pos)}else{de=100-pos;_e=!0}}
       else if(pos+de<1){dropSimLog();de=1-pos}
       pos=f(pos+de,1,99);endB=_e?100:pos;Pt=!!X.breakaway;
       usDrive?(v.rush+=de,v.yds+=de):(j.rush+=de,j.yds+=de);
@@ -7791,6 +7974,38 @@ window.__gameOddsV20=function(){
   p=f(p,.06,.94);
   return{win:Math.round(p*100),seed:Math.round(seed),oppRel:Math.round(rel),playoff:!!wk.playoff,statBoost:nb};
 };
+/* ===== v76 MARGIN CURVE (5/5) — the simmed week and the watched week agree =====
+ * `ia` generated the two scores as two INDEPENDENT draws: mine off my own player
+ * rating, theirs off an opponent-strength shift, with +/-9 of noise on each. It
+ * therefore had no idea what the scoreboard gap was, and measured across a 60-point
+ * sweep of it the margin only moved 0.23 points per point of gap — against 3.34 for
+ * the live engine. The same fixture was a rout if you watched it and a coin-flip if
+ * you simmed it.
+ *
+ * Both paths now read the SAME pair of team ratings, built by the same arithmetic
+ * Wr() uses for the live rosters, and both aim at the same curve. `ia` models the
+ * MARGIN directly rather than two scores, which is the only way to put it on a
+ * stated line; the total is then split around a level-appropriate scoring baseline.
+ * The tail is a sum of two uniforms rather than one, so it is bell-shaped like the
+ * live engine's rather than flat. ===== */
+function teamPairV76(e,opts){
+  opts=opts||{};
+  const u=[18,30,42,54,66,78,86,90][e.level]||55;
+  const prF=Math.min(1,((o.prestige||0)/15)
+    +((o.rosterPrestigeV158?Object.values(o.rosterPrestigeV158).reduce((a2,b2)=>a2+b2,0):0)/50)
+    +((o.tree?Object.values(o.tree).reduce((a2,b2)=>a2+b2,0):0)/70)*f(TU("teamQualK",.1),0,1));
+  // the same seed the live engine builds its roster from, so the two agree
+  let _sd=opts.seed;if(_sd==null){try{_sd=__seasonSeed(e)}catch(_e){_sd=55}}
+  const t=f((Number(_sd)||55)/100,.05,1);
+  let oppMul=1.04;
+  try{const wk=opts.wk;if(wk&&wk.opp&&typeof __oppMulForV22==="function")oppMul=__oppMulForV22(wk.opp)}catch(_e){}
+  const C=f(.42+t*.35+prF*1.05,.3,1.65),V=f((oppMul-.72)*2,.36,1.16),
+    ovr=Q=>f(Math.round(u*(.72+Q*.5)),3,99);
+  // a playoff/seeding shift arrives as oppBoost — (theirRating - levelAvg)/180 —
+  // so it is folded in as an OVR move on their side rather than a separate axis
+  return{us:ovr(C),opp:f(Math.round(ovr(V)+(Number(opts.oppBoost)||0)*40),3,99)};
+}
+window.__TEAMPAIR_V76=(e,opts)=>teamPairV76(e||o.player,opts);
 /* ===== v68 TEAM QUALITY IS A NUDGE, NOT A CHEAT CODE =====
  * Every team-quality node fed one raw sum here, capped at .34 — against a base of
  * .38 + .04/level and an opponent sitting at ~.48. Stacked out that was nearly a
@@ -7801,7 +8016,25 @@ window.__gameOddsV20=function(){
  * The bornLeader TRAIT is untouched — it is not bought, and it was never the
  * problem. The node descriptions below were restated to the numbers this actually
  * pays. ===== */
-function ia(e,t,a){a=a||{};const s=e.level;ae(e);const n=.38+s*.04,TQK=TU("teamQualK",.1),i=Math.min(.34,M("goodProgram")*.05*Math.min(1,(s+1)/4)+M("dynastyTeam")*.08+G("teamQual"))*TQK+(Oe(e,"bornLeader")?.06:0),r=(Pa(e)-40)/300,l=f(n+i+r+D(-.16,.16),.08,1.18),d=f(.48+(a.oppBoost||0)+Yo()+ft("oppShift")+D(-.22,.22),.1,1.22),c=(t-60)/100*(.13+Math.max(0,t-85)*.004),u=f(l+c,.05,1.32),h=d,p=Math.max(0,Math.round(u*40+D(-9,9))),m=Math.max(0,Math.round(h*40+D(-9,9)));let y=p,C=m;return y===C&&(Math.random()<.5?y+=3:C+=3),{us:y,them:C,won:y>C}}// debug surface for scripts/teamqualcheck.mjs: the score generator itself, so the
+function ia(e,t,a){
+  a=a||{};const s=e.level;ae(e);
+  const pair=teamPairV76(e,a),gap=pair.us-pair.opp;
+  // the stated curve, the same one the live engine is held to
+  let margin=TU("marginPerOvr",.7)*gap;
+  // the prestige team-quality nodes still buy an edge, on the same points scale
+  margin+=Math.min(.34,M("goodProgram")*.05*Math.min(1,(s+1)/4)+M("dynastyTeam")*.08+G("teamQual"))
+    *TU("teamQualK",.1)*40+(Oe(e,"bornLeader")?2.4:0);
+  // and YOUR night still tilts it — a big game is worth a score, not a rout
+  margin+=f((t-60)/100*TU("perfMarginK",9),-7,9);
+  margin+=(Yo()+ft("oppShift"))*-26;                       // seeding / schedule shifts
+  // bell-shaped, not flat: two uniforms so the tail thins out the way the live
+  // engine's does instead of stopping dead at a rectangle edge
+  const sd=TU("marginSd",9.4);
+  margin+=(D(-1,1)+D(-1,1))*sd;
+  // total points: a level-appropriate baseline per team, wobbled a little
+  const base=f(TU("ptsBase",12.5)+s*TU("ptsPerLevel",1.15)+D(-3.5,4.5),6,34);
+  let y=Math.max(0,Math.round(base+margin/2)),C=Math.max(0,Math.round(base-margin/2));
+  return y===C&&(Math.random()<.5?y+=3:C+=3),{us:y,them:C,won:y>C}}// debug surface for scripts/teamqualcheck.mjs: the score generator itself, so the
 // check measures the real thing rather than a re-derivation of the formula
 try{window.__TEAMQUAL_V68={score:(pl,perf,opt)=>ia(pl,perf,opt)}}catch(e){}
 function ls(e){const t=A[e.level],a=pt[e.training||"balanced"];let s=0;const n=e.eventChoice;n&&n.perf&&(s+=n.perf);const i=[];for(let r=0;r<t.games;r++){const l=__aiSeasonGame(e,{perfSeed:s}),d=(1-M("medic")*.05-M("unstoppable")*.15)*Se("injuryMult",1),c=1-M("motor")*.015;l.injured&&(l.injured=Math.random()<injPlanMultV54(a)*Math.max(.1,d)*c);l.opp=Dt(e.level),l.played=!1,i.push(l)}return i}function Pa(e){return!e||!e.pos?0:ae(e)+Ze("power")}function Tn(e){return Math.max(0,Math.round(Ze("power")))}const Rn=["ROOKIE ERA","THE ASCENSION","THE TAKEOVER","THE DYNASTY","THE EMPIRE","THE MYTH","THE LEGEND","THE IMMORTAL","THE ETERNAL","THE INFINITE"];function nn(){const e=o.era||0;return e<Rn.length?Rn[e]:"ERA "+(e+1)+" — BEYOND"}function vt(){return Math.pow(1.2,o.era||0)}function Wi(){return(o.era||0)*15}function _r(){return Ie()>=Wi()&&(o.era||0)<999?(o.era=(o.era||0)+1,!0):!1}const ba=[{key:"common",name:"Common",color:"#9aa6b5",mult:1,w:52},{key:"rare",name:"Rare",color:"#5aa0dc",mult:1.7,w:30},{key:"epic",name:"Epic",color:"#a05ac9",mult:2.8,w:13},{key:"legendary",name:"Legendary",color:"#f0bb45",mult:4.5,w:4.2},{key:"mythic",name:"Mythic",color:"#ff5a5a",mult:7.5,w:.8}],on=[{key:"cleats",icon:"👟",name:"Cleats"},{key:"gloves",icon:"🧤",name:"Gloves"},{key:"chain",icon:"📿",name:"Chain"}],rn=[{key:"power",name:"Power",fmt:e=>"+"+e.toFixed(1)+" Power",base:1.2},{key:"perfFlat",name:"Conditioning",fmt:e=>"+"+e.toFixed(1)+" to ALL stats every game",base:.8},{key:"ppMult",name:"Prestige",fmt:e=>"+"+Math.round(e*100)+"% PP",base:.05},{key:"growth",name:"Growth",fmt:e=>"+"+Math.round(e*100)+"% growth",base:.03},{key:"injDown",name:"Protection",fmt:e=>"−"+Math.round(e*100)+"% injuries",base:.05},{key:"startAll",name:"Talent",fmt:e=>"+"+Math.round(e)+" all starting attrs",base:1.5},{key:"pointsFlat",name:"Coaching",fmt:e=>"+"+Math.round(e)+" points/season",base:.8}],Ur={common:["Worn","Standard","Team-Issue"],rare:["Polished","Custom","Signature"],epic:["Phantom","Vapor","Stealth"],legendary:["Golden","Hall-of-Fame","Prime"],mythic:["GOAT","Celestial","Forbidden"]};function Kr(e){const t=Math.min(30,Ie()*.25),a=ba.map((u,h)=>{let p=u.w;return h>=2&&(p+=t*(h-1)),h<(e||0)&&(p=0),p}),s=a.reduce((u,h)=>u+h,0);let n=Math.random()*s,i=0;for(let u=0;u<a.length;u++)if(n-=a[u],n<=0){i=u;break}const r=ba[i],l=W(on),d=W(rn),c=+(d.base*r.mult*(.85+Math.random()*.3)).toFixed(2);return{id:Date.now()+"_"+le(100,999),slot:l.key,rarity:r.key,name:W(Ur[r.key])+" "+l.name,eff:d.key,val:c,icon:l.icon}}function Ze(e){if(!o||!o.equipped)return 0;let t=0;return on.forEach(a=>{const s=o.equipped[a.key];s&&s.eff===e&&(t+=s.val)}),t}function ln(e,t){o.inventory||(o.inventory=[]);const a=Kr(e);o.inventory.push(a),o.inventory.length>40&&o.inventory.sort((n,i)=>ka(i)-ka(n)).splice(40);const s=ba.find(n=>n.key===a.rarity);return typeof document<"u"&&x("toast")&&F(`🎁 ${t||"Drop"}: <b style="color:${s.color}">${a.name}</b> — ${rn.find(n=>n.key===a.eff).fmt(a.val)}`),a}function ka(e){return ba.findIndex(t=>t.key===e.rarity)}function zr(e){const t=(o.inventory||[]).find(a=>a.id===e);t&&(o.equipped||(o.equipped={}),o.equipped[t.slot]=t,I(),ts())}function Qr(e){const t=(o.inventory||[]).findIndex(i=>i.id===e);if(t<0)return;const a=o.inventory[t];if(o.equipped&&o.equipped[a.slot]&&o.equipped[a.slot].id===e){F("Unequip it first.");return}const n=[1,3,8,20,50][ka(a)];o.inventory.splice(t,1),o.pp+=n,F("♻️ Scrapped for +"+n+" PP"),I(),ts()}const cs=[{key:"passRen",icon:"🎯",name:"Passing Renaissance",desc:"League opens up: +12% passing & receiving production",statPos:["QB","WR","TE"],statProd:.12},{key:"ground",icon:"🐗",name:"Ground & Pound Year",desc:"Smashmouth football: +12% rushing production",statPos:["RB","QB"],statProd:.12},{key:"defense",icon:"🛡️",name:"Year of the Defense",desc:"+12% defensive production, offense grinds",statPos:["DL","LB","CB","S"],statProd:.12},{key:"flu",icon:"🤒",name:"Injury-Plagued Season",desc:"Injuries +30%, but PP earned +20%",injMult:1.3,ppMult:.2},{key:"primetime",icon:"🌙",name:"Prime Time Slate",desc:"Every eye on you: +4 playoff grade, +15% PP",playoffPerf:4,ppMult:.15},{key:"weather",icon:"🌪️",name:"Weather Chaos",desc:"Wild swings — anything can happen any week",varMult:1.5},{key:"drought",icon:"🏜️",name:"Talent Drought",desc:"Weak class — competition is softer this year",peerShift:-3},{key:"golden",icon:"🌟",name:"Golden Generation",desc:"Loaded league: tougher peers, +25% PP",peerShift:4,ppMult:.25},{key:"cupcake",icon:"🧁",name:"Cupcake Schedule",desc:"Soft opponents — easier wins all season",oppShift:-.07},{key:"gauntlet",icon:"⚔️",name:"The Gauntlet",desc:"Brutal schedule: tougher teams, +3 pts/season",oppShift:.07,pointsFlat:3},{key:"scoutFair",icon:"🔭",name:"Scouting Combine Fair",desc:"Scouts everywhere: +4% advance chance",advFlat:4},{key:"mediaCirc",icon:"📺",name:"Media Circus",desc:"Cameras love drama: +20% PP, wilder games",ppMult:.2,varMult:1.25}];function ds(e){e.seasonMod=Math.random()<.75?W(cs).key:null}function ft(e){const t=o&&o.player;if(!t||!t.seasonMod)return 0;const a=cs.find(s=>s.key===t.seasonMod);return a&&a[e]||0}function Jr(e){const t=o&&o.player;if(!t||!t.seasonMod)return 0;const a=cs.find(s=>s.key===t.seasonMod);return!a||!a.statProd?0:!a.statPos||a.statPos.includes(e)?a.statProd:0}function Yi(e){if(!e.seasonMod)return"";const t=cs.find(a=>a.key===e.seasonMod);return t?`<div class="mod-banner">${t.icon} <b>${t.name}</b> — ${t.desc}</div>`:""}function us(e){const t=A[e.level],a=Ne[e.pos],s=a.stats.find(d=>d.key===a.primary),n=Math.round(s.per[e.level]*(s.rate?1:t.games)*1.25),i=.7+e.level*.45,r=[{id:"grade",desc:"Post a season grade of 62+",pp:Math.round(3*i),check:d=>d.avg>=62},{id:"primStat",desc:`${s.lowerBetter?"Hold "+s.name+" under":"Rack up "+n+"+ "+s.name} ${s.lowerBetter?n:""}`.trim(),pp:Math.round(4*i),check:d=>s.lowerBetter?d.statLine[s.key]<=n:d.statLine[s.key]>=n},{id:"wins",desc:`Win ${Math.ceil(t.games*.7)}+ games`,pp:Math.round(3*i),check:d=>d.teamWins>=Math.ceil(t.games*.7)},{id:"standout",desc:"3+ standout games (72+ grade)",pp:Math.round(3*i),check:d=>d.standoutGames>=3},{id:"healthy",desc:"Stay healthy — zero injuries",pp:Math.round(2*i),check:d=>d.injuries===0},{id:"playoff",desc:"Win a playoff game",pp:Math.round(4*i),check:d=>d.playoffs&&d.playoffs.roundsWon>=1},{id:"ring",desc:"WIN IT ALL — take the championship",pp:Math.round(7*i),check:d=>d.playoffs&&d.playoffs.champion},{id:"heater",desc:"Drop one monster game (84+ grade)",pp:Math.round(4*i),check:d=>d.best>=84},{id:"nemesis",desc:"Finish ahead of your nemesis nationally",pp:Math.round(4*i),check:d=>d.beatNemesis}],l=[];for(;l.length<3&&r.length;){const d=le(0,r.length-1);l.push(r.splice(d,1)[0])}e.contracts=l.map(d=>({id:d.id,desc:d.desc,pp:d.pp})),e.contractsSeason=e.totalSeasons}function Xr(e,t){if(!e.contracts||(e.contractsSeason,e.totalSeasons-0),!e.contracts)return[];const a=A[e.level],s=Ne[e.pos],n=s.stats.find(l=>l.key===s.primary),i=Math.round(n.per[e.level]*(n.rate?1:a.games)*1.25),r=e.contracts.map(l=>{let d=!1;try{switch(l.id){case"grade":d=t.avg>=62;break;case"primStat":d=n.lowerBetter?t.statLine[n.key]<=i:t.statLine[n.key]>=i;break;case"wins":d=t.teamWins>=Math.ceil(a.games*.7);break;case"standout":d=t.standoutGames>=3;break;case"healthy":d=t.injuries===0;break;case"playoff":d=t.playoffs&&t.playoffs.roundsWon>=1;break;case"ring":d=t.playoffs&&t.playoffs.champion;break;case"heater":d=t.best>=84;break;case"nemesis":d=!!t.beatNemesis;break}}catch{}const c=d?Math.round(l.pp*it()*vt()):0;return d&&(o.pp+=c,o.objectivesCompleted=(o.objectivesCompleted||0)+1),{...l,ok:d,paid:c}});return e.contracts=null,r}const Zr=["says you peaked in Pee Wee.","called you 'a practice-squad body' on a podcast.","posted your missed tackle. Again.","says he'd start over you on any roster in America.","liked a post ranking you outside the top 100.","told scouts you're 'all hype, no film.'"];function _i(e){e.nemesis={name:W(Rs)+" "+W(Ps),pos:e.pos,beaten:0}}function el(e){return e.nemesis?`<div class="nem-banner">😈 <b>${e.nemesis.name}</b> ${W(Zr)}</div>`:""}function tl(e){return Math.round(e.peak*2+e.power*.5+e.titles*15+e.reached*12+e.seasons*1.5+(e.rings||0)*25)}function Ui(e,t,a){o.hof||(o.hof=[]);const s={name:e.name,pos:e.pos,peak:e.peakOvr||ae(e),power:Math.round(Pa(e)),titles:e.titles||0,rings:e.nflRings||0,reached:t,seasons:e.totalSeasons,won:!!a,era:o.era||0,when:o.careersCompleted||0};s.goat=tl(s),o.hof.push(s),o.hof.sort((r,l)=>l.goat-r.goat),o.hof.length>60&&(o.hof.length=60);const n=o.careersCompleted||0,i=[5,10,25,50].filter(r=>n>=r).length;i>(o.hofWings||0)&&(o.hofWings=i,typeof document<"u"&&x("toast")&&F("🏛️ Museum wing opened — permanent +5% PP!")),o.posMastery||(o.posMastery={}),o.posMastery[e.pos]||(o.posMastery[e.pos]={}),t>=7&&(o.posMastery[e.pos].nfl=!0),e.nflRings>0&&(o.posMastery[e.pos].ring=!0)}function Ca(){return o&&o.hofWings||0}function Zt(e){return!o||!o.posMastery?0:Object.values(o.posMastery).filter(t=>t[e]).length}function al(e){return Math.round((6+(e.titles||0)*2+(e.nflSeasons||0))*it()*vt()*(1+Ca()*.05))}function ea(e){return e===6?[]:e>=8?["Orbital Wild Card","Lunar Semifinal","Galactic Conference Final","THE INTERSTELLAR CHAMPIONSHIP"]:e===7?["Wild Card","Conference Final","LEAGUE CHAMPIONSHIP"]:e>=5?["Playoff Semifinal","NATIONAL CHAMPIONSHIP"]:e>=2?["Semifinal","CHAMPIONSHIP"]:["CHAMPIONSHIP"]}function Ki(e,t){return t>0&&e/t>=.6}function cn(e,t){const a=pt[e.training||"balanced"];let s=0;const n=e.eventChoice;n&&n.perf&&(s+=n.perf);const d=ea(e.level),c=t===d.length-1,i=__aiSeasonGame(e,{perfSeed:s,playoff:!0,oppBoost:.12+t*.11+(c&&e.nemesis?.04:0)}),r=(1-M("medic")*.05-M("unstoppable")*.15)*Se("injuryMult",1),l=1-M("motor")*.015;i.injured&&(i.injured=Math.random()<injPlanMultV54(a)*Math.max(.1,r)*l);return i.opp=c&&e.nemesis?e.nemesis.name+"'s "+Dt(e.level):Dt(e.level),i.playoff=!0,i.round=ea(e.level)[t],i.roundIdx=t,i.played=!1,i}function dn(e){const t=e.weekResults;if(!t)return;const a=t.filter(l=>!l.playoff);if(a.some(l=>!l.played))return;const s=ea(e.level);if(!e.playoffState){const l=a.filter(c=>c.won).length,d=s.length>0&&Ki(l,a.length);e.playoffState={qualified:d,round:0,alive:d,done:!d,champion:!1}}const n=e.playoffState;if(n.done)return;const i=t.filter(l=>l.playoff),r=i[i.length-1];if(!(r&&!r.played)){if(r&&r.played)if(r.won){if(n.round++,n.round>=s.length){n.champion=!0,n.done=!0;return}}else{n.alive=!1,n.done=!0;return}t.push(cn(e,n.round))}}function La(){const e=o.player;e.seasonSeed=le(1,2e9),e.playoffState=null,ds(e),us(e),e.weekResults=ls(e),e.currentWeek=0,te("season")}function sl(){const e=o.player,t=A[e.level];dn(e);const a=e.weekResults||[],s=a.filter(y=>!y.playoff),n=s.filter(y=>y.played&&y.won).length,i=s.every(y=>y.played),r=a.filter(y=>y.played).length,l=e.playoffState,d=r>=a.length&&(!i||l&&l.done),c=a.filter(y=>y.played&&y.won).length,u=a.filter(y=>y.played&&!y.won).length,h=Math.ceil(s.length*.6);let p="";if(i&&l)l.champion?p=`<div class="card tight" style="border-color:var(--gold);background:linear-gradient(180deg,rgba(240,187,69,.18),rgba(15,21,32,.9))"><div class="center" style="font-family:'Oswald';font-weight:700;font-size:17px;color:var(--gold)">🏆 ${Xe(e).toUpperCase()} — CHAMPIONS!</div></div>`:l.qualified?l.alive?p='<div class="card tight" style="border-color:var(--gold)"><div class="small center" style="color:var(--gold)">🔥 <b>PLAYOFFS!</b> Win or go home — every round gets tougher.</div></div>':p='<div class="card tight" style="border-color:var(--blood)"><div class="small center" style="color:#e08a8a">💔 Knocked out of the playoffs. Great season, brutal ending.</div></div>':p=`<div class="card tight"><div class="small center">Season over — <b>${n}-${s.length-n}</b> wasn't enough for the playoffs (needed ${h} wins).</div></div>`;else if(!i&&s.length){const y=s.filter(V=>!V.played).length;p=n+y>=h?`<div class="threshold-note" style="margin:6px 0 0">🎯 Win <b style="color:var(--gold)">${Math.max(0,h-n)}</b> more of your last <b>${y}</b> to make the <b>playoffs</b> — titles pay big.</div>`:'<div class="threshold-note" style="margin:6px 0 0">Playoffs are out of reach this year — finish strong for development.</div>'}let m=0;if(x("screen").innerHTML=`

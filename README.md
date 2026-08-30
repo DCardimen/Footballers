@@ -55,6 +55,43 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v76 — a talent edge is worth points, not a scoreline.** A prestiged save could
+  beat a team 10 OVR worse by 28.6 on average, with a quarter of those games ending
+  five scores apart and one sample finishing on 151 points. The target is ~0.7 points
+  of margin per OVR of scoreboard gap, both ways, with a rare statement win still on
+  the table. The diagnostic ruled out the obvious cause first: between a -5.8 and a
+  +14.5 gap the play count (156 vs 158) and the punts (12.4 vs 12.2) were identical,
+  so nothing was buying extra possessions — the whole margin came from yards per play
+  (2.42 to 5.39) and, once those were damped, from the two things yards do not touch,
+  third-down conversion (43% vs 23%) and takeaways (0.12 vs 1.15 a game). So v76 is
+  four levers on the GAME — explosive-play yardage, third down, the takeaway swing,
+  and a garbage-time script — plus a rewritten quick generator that models the margin
+  directly, so a simmed week and a watched week now agree on the same curve. Measured
+  over 2,600 games: a +10..+14 edge wins by 8.5 (target 8.5), five-score blowouts run
+  at 1.3% of games, and the worst game in the sample is 61 points rather than 151.
+  A +10 edge can still produce a 31-point night, which is the point.
+
+  Two things it deliberately does not do. It does not touch the ROSTERS: an earlier
+  cut compressed the two teams' quality factors toward a midpoint, which cost the v68
+  team-quality nerf its meaning (`teamqualcheck` fell from 9.0x to 2.6x) and collapsed
+  the matchup range from +28 to +15 — that does not make blowouts closer, it deletes
+  the fixtures they happen in. And it does not chase the extreme tail: past a +18 gap
+  the margin is reported by `blowoutcheck.mjs` but not gated, because a defense whose
+  players are 25 OVR worse at every position cannot be damped into a competitive one
+  without lying about the team sheet.
+
+  It did surface one real hole while proving that. The prestige tree fed the roster
+  builder through `prF` at full strength, so the v68 nerf — which the tree was meant
+  to run through — only ever applied to the score generator; the tree's effect on the
+  live roster escaped it entirely. That channel now runs through `TU("teamQualK")`
+  like the rest, which is what put `teamqualcheck` back at exactly 10.0x.
+
+  For the you-player this costs production only where it should. Banded by gap, at
+  parity his scrimmage yards move -5.4% and his game grade -1.0; in a big mismatch
+  they fall 56% and 13.2. Awards, national rank and promotion are unaffected either
+  way — they read `is(pos, perf, level)`, a formula off the perf grade, not the live
+  box score, and the box score reaches perf only through a term capped at +-13.
+
 - **v75 — the career loop stops being a scroll.** Measured on a 390x844 phone, the
   **hub** — the screen the loop returns to after every single action — laid out to
   3898px. That is 3.6 screens: on arrival you see the top of the hero card and

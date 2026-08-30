@@ -103,6 +103,59 @@ Inside it:
 - Sacks/scrambles are resolved **outside** FieldSim (trench-rating rolls), which
   is why the sacker `skr` is picked at this layer and credit follows `pe(skr)`.
 
+## The margin curve (v76) — where a scoreline comes from
+
+Two code paths produce a score and they must agree, because the player picks which
+one runs: **watching** a week runs the live engine `Yr`, **simming** it runs the
+quick generator `ia()`. Both are anchored on the same quantity — the **scoreboard
+team OVR gap**, `c.us.ovr - c.opp.ovr`, the badges either side of the live score —
+and both target the same curve: **~0.7 points of margin per OVR of gap, both ways.**
+
+- `Wr(...)` builds both rosters and returns `{us, opp, usQ, oppQ}`. `usQ` reaches
+  1.65 (`.42 + seed*.35 + prF*1.05`) while `oppQ` caps at .84, and every player
+  attribute derives from that factor — which is the structural reason a prestiged
+  save could field a different class of football team. **v76 does not change this.**
+  An earlier cut compressed the two toward a midpoint and it failed twice: the two
+  factors are not on the same scale, so the opponent's strength became a function of
+  *our* prestige and `teamqualcheck` fell from 9.0x to 2.6x; and it compressed the
+  BADGE too, collapsing the matchup range from +28 to +15, which deletes lopsided
+  fixtures rather than making them closer.
+- `teamPairV76(player, opts)` mirrors that arithmetic for the quick path so both
+  paths agree on the badge. Exported as `window.__TEAMPAIR_V76`.
+- **`prF` (the prestige/roster/tree factor) routes the TREE's share through
+  `TU("teamQualK")`.** Without that the v68 team-quality nerf only ever applied to
+  the score generator — the tree's effect on the live *roster* escaped it entirely.
+
+The four levers all live in `Yr`'s closure and all act on the GAME, never the team
+sheet. `_gapV76` is the gap **from the perspective of whoever has the ball** and
+`_leadV76` their lead, both refreshed once per play in the drive loop:
+
+| lever | what it damps | note |
+|---|---|---|
+| `dampV76(yards)` | explosive-play yardage | cut-only; a two-sided version cancelled itself out |
+| third-down term inside `dampV76` | conversion rate | proportional to the gap, not a cliff |
+| `toV76()` | the takeaway swing (INT + both fumble rolls) | **continuous** in the gap, so it keeps working past the range it was tuned at |
+| `gtV76()` / `standV76()` | garbage time, goal-line stands | keyed on the lead *relative to what the matchup should produce* |
+
+`toV76()` is published as `window.__toMultV76` because FieldSim resolves the
+interception and has no view of drive state — the same pattern as
+`window.__youStatBoostPctV20`.
+
+Two gotchas worth knowing before retuning:
+
+- **Yardage alone plateaus.** Across a 3.7x range of its own dial the margin barely
+  moved past a slope of ~1.9. Play count and punts are *identical* between a -5.8
+  and a +14.5 gap; the compounding that yardage cannot reach lives in third-down
+  conversion and takeaways.
+- **A saturating damper switches itself off.** Anything shaped `min(gap/FULL, 1)`
+  stops damping past `FULL`, which is exactly where the blowouts are. `toV76` and
+  `standV76`'s cap are continuous in the gap for that reason.
+
+`blowoutcheck.mjs` is the gate. It scores **measured band means**, not a line
+fitted across the whole range — the relationship is convex, so one straight line is
+dragged up by the tail and misreports the ordinary band underneath it. Past +18 the
+curve is reported but deliberately **not gated**.
+
 ## Render path (why some changes "don't show up")
 
 Plays are resolved up-front (each pushing a log to `__FieldSim._Q`), then the
@@ -155,6 +208,9 @@ node scripts/statcreditcheck.mjs  # box score credits only involved plays (all s
 node scripts/tacklecheck.mjs      # solo/gang split, whiff/truck/stiff-arm rates
 node scripts/simcheck.mjs         # score/pace/yardage distributions
 node scripts/renderpathcheck.mjs  # sim-log → screen hit rate
+node scripts/blowoutcheck.mjs     # v76 margin curve, both score paths
+node scripts/teamqualcheck.mjs    # v68 prestige-tree nerf holds at ~10x
+node scripts/equaltalentcheck.mjs # mirrored rosters are actually fair
 node scripts/refcheck.mjs         # v45/v49 officiating crew + ref art
 node scripts/crowdcheck.mjs       # v57 stands: perspective, roar wave, fallback
 ```
