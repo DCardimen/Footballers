@@ -6240,6 +6240,76 @@ class Ot extends mt.Scene {
   refreshPersp() {   // re-project + re-warp after a slider change or late art decode
     if (this._lastField) this.drawField(this._lastField[0], this._lastField[1]);
   }
+  /* ===== v72 END-ZONE MAPPING — the painted field and the simulated one are the
+   * same field. warpField sampled the art by mapping its FULL HEIGHT onto the
+   * world's full width. That quietly assumed two things about the art that are not
+   * true of it: that its painted end zones are exactly EZ deep, and that it has no
+   * apron outside them. It has a 10-yard end zone at each end AND ~6 yards of grass
+   * beyond that, so the painted 100 yards occupied 542 world pixels while the sim's
+   * 100 yards occupied 588 — every painted yard line sat off the sim's own yard
+   * line, worst at the goal line, where a carrier the sim had at the 0 was drawn
+   * four yards deep in the end zone.
+   *
+   * The art is mapped by its GOAL LINES instead: yard 0 to the painted 0, yard 100
+   * to the painted 100, extrapolated past both, which puts the painted end zones at
+   * exactly ten yards and leaves the rest of the world width as the apron the art
+   * already draws. The rows are MEASURED off the art rather than typed in, so new
+   * field art works without a code change; the measurement falls back to the values
+   * measured on the shipped image if it cannot find the bands. ===== */
+  fieldGoalRows() {
+    if (this._goalRows) return this._goalRows;
+    const FB = { y0: 613.5, y100: 85.5, src: "fallback" };   // measured on the shipped 360x700 art
+    try {
+      // fieldBase, not fieldImg: v44 composites the home crest onto fieldImg at the 50
+      // at 44% of the field's width, and a crest is not grass — measuring the composite
+      // splits the playing surface in half at midfield and finds a "field" that is one
+      // hemisphere long. fieldBase is the same art before the crest goes on.
+      const fimg = RIB.fieldBase || RIB.fieldImg;
+      if (!fimg || !fimg.width) { FB.why = "art not decoded"; return FB; }   // do NOT cache
+      const W = fimg.width, H = fimg.height;
+      const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+      const g = cv.getContext("2d", { willReadFrequently: true }); g.drawImage(fimg, 0, 0);
+      const d = g.getImageData(0, 0, W, H).data;
+      const xa = Math.round(W * .2), xb = Math.round(W * .8);
+      const grass = [];
+      for (let y = 0; y < H; y++) {
+        let n = 0, k = 0;
+        for (let x = xa; x < xb; x++) { const i = (y * W + x) * 4; k++;
+          if (d[i + 1] > d[i] + 10 && d[i + 1] > d[i + 2] + 10) n++; }
+        grass.push(n / k > .5);
+      }
+      // The painted yard lines are white, so they read as NOT grass and would cut the
+      // playing surface into a dozen short runs. Close any gap too thin to be an end
+      // zone first; then the profile really is apron / EZ / FIELD / EZ / apron and the
+      // longest grass run IS the playing surface.
+      const MINEZ = Math.max(8, Math.round(H * .035));
+      const runs = []; let s0 = 0;
+      for (let y = 1; y <= H; y++) { if (y < H && grass[y] === grass[s0]) continue;
+        runs.push({ g: grass[s0], y0: s0, y1: y - 1, n: y - s0 }); s0 = y; }
+      for (const r of runs) if (!r.g && r.n < MINEZ) for (let y = r.y0; y <= r.y1; y++) grass[y] = true;
+      let best = null; s0 = 0;
+      for (let y = 1; y <= H; y++) { if (y < H && grass[y] === grass[s0]) continue;
+        if (grass[s0] && (!best || y - s0 > best.n)) best = { y0: s0, y1: y - 1, n: y - s0 };
+        s0 = y; }
+      // sanity: the playing surface has to be most of the art, or the detection found
+      // something else and the measured constants are the safer answer
+      // the playing surface is centred in the art: if the run we found is lopsided,
+      // something on the turf (a crest, a logo, a stripe) cut it and the measured
+      // constants are the safer answer
+      const lop = best ? Math.abs(best.y0 - (H - 1 - best.y1)) : 1e9;
+      if (best && best.n > H * .5 && best.y0 > 2 && best.y1 < H - 3 && lop < H * .06)
+        this._goalRows = { y0: best.y1 + .5, y100: best.y0 - .5, src: "measured" };
+      else FB.why = "no plausible playing surface: " + JSON.stringify(best);
+    } catch (e) { FB.why = "threw: " + e.message; }
+    return this._goalRows || FB;
+  }
+  // world u -> the art row that belongs there. Linear through the two goal lines and
+  // extrapolated past them, so the apron beyond each end line comes from the apron
+  // the art actually paints there.
+  fieldArtY(u) {
+    const G = this.fieldGoalRows();
+    return G.y0 + (u - PLAY_L) * (G.y100 - G.y0) / (PLAY_R - PLAY_L);
+  }
   warpField() {
     // v27: bake the uploaded field image through the SAME s(u) curve the players use —
     // each output row samples the art row the projection puts there, drawn at width ∝ s.
@@ -6268,7 +6338,7 @@ class Ot extends mt.Scene {
         else { let lo = 0, hi = FW; const want = P.total - target;
           for (let it = 0; it < 18; it++) { const mid = (lo + hi) / 2; if (P.C(mid) < want) lo = mid; else hi = mid; }
           u = (lo + hi) / 2; }
-        const sY = Math.max(3, Math.min(SHa - 4, (1 - u / FW) * SHa));   // skip the photo's dark edge rows
+        const sY = Math.max(3, Math.min(SHa - 4, this.fieldArtY(u)));   // v72: by goal line, not by height
         const w = AW * (P.s(u) / P.sN), x0 = (CW - w) / 2;
         if (x0 > 0) {                                     // edge-extend the grass margins
           ctx.drawImage(fimg, 0, sY, 2, 1, 0, i, x0 + 1, 1);
@@ -6282,6 +6352,8 @@ class Ot extends mt.Scene {
     } catch (e) { console.warn("[v27 warpField]", e); }
   }
   drawField(losYd, tgtYd) {
+    try { window.__FIELDMAP_V72 = { rows: this.fieldGoalRows(), artY: (u) => this.fieldArtY(u),
+      PLAY_L, PLAY_R, FW, EZ, F_TOP, F_BOT, pj: (x, y) => PJ(x, y) }; } catch (e) {}
     // v27: the WARPED field image (see warpField) is the turf/lines/numbers; drawField
     // only rebuilds the projection for this snap and lays the moving LOS (blue) +
     // first-down (gold) markers on top through the same PJ curve.
