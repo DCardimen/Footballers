@@ -46,6 +46,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | injuries | `injurycheck.mjs` |
 | team emblems / palettes / identity | `emblemcheck.mjs` |
 | training / skill art, the skill atlas | `skillartcheck.mjs`, `wheelcheck.mjs` |
+| training programs / point allocation | `trainingcheck.mjs` |
 | UI / screens | `shot.mjs` (screenshot), `walk.mjs` (click-through) |
 
 ## House rules

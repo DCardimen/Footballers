@@ -55,6 +55,40 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v68 — the offseason training program decides something.** It used to nudge
+  attributes on its own, invisibly, by 8–13% of one growth term. Against the 30–45
+  points a player then spends **by hand** that was noise: a full-screen twelve-way
+  decision worth about three attribute points, none of which the player could ever
+  point at.
+
+  So the program stops competing with the points and starts **pricing** them. A point
+  spent on a stat the program trains buys **×2** of it — **×3** for Track Club,
+  Explosion & Hops and Full-Contact Camp — at the same cost. Everything else still
+  buys one. The effect lands at the moment the player is deciding, with a number in
+  front of them, instead of drifting invisibly across a season.
+
+  ×3 is reserved for programs that are *both* narrow and dangerous. Conditioning and
+  Recovery Lab are just as narrow but are the two safest in the game, so they stay at
+  ×2 — you do not get the elite rate and a bulletproof body. Balanced and The Grind
+  name no stats at all and so have nothing to multiply; their edge is the all-stats
+  growth bonus they already get and the focused programs do not.
+
+  This rides **on top of** the existing diminishing-return bands rather than around
+  them: push a focus stat past its soft cap and the band still charges 2, then 3,
+  which is what stops ×3 running away.
+
+  Two things fell out of it. **`AUTO: Key Stats` now ranks by value** (stat points per
+  point spent) rather than strictly cheapest-first, so it spends into the program the
+  player chose; `AUTO: Balanced` keeps the old cheapest-first round-robin so it still
+  spreads, and the multiplier pays when the spread lands on a trained stat. And the
+  **injury multiplier was dead**: `injPlanMultV54` rebases an *absolute* per-game
+  probability (~.06) into a relative multiplier, which is right for the weekly game
+  plan and wrong for a training program whose `injury` is *already* relative (~1.0).
+  Every program divided to 6.7–29 and clamped flat to the maximum, so all twelve
+  carried identical, maximal risk and the SAFE / HIGH RISK labels meant nothing. The
+  training path now clamps its own multiplier without rebasing it, on its own bounds,
+  and the twelve run 0.40 to 1.75 as authored. Covered by `scripts/trainingcheck.mjs`.
+
 - **v67 — the wheel a player sees every week draws the scenes too.** The art
   appeared on the season-commitment roll and then never again, which read as the new
   wheel working once and reverting. It was not reverting: there are **two** wheels,
