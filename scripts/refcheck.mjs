@@ -127,6 +127,75 @@ const flag = await page.evaluate(() => {
 })
 console.log('flag throw:', JSON.stringify(flag))
 
+// ---- v71 FLAG FOCUS -------------------------------------------------------
+// The crew threw a real flag and the broadcast ignored it: the camera stayed on
+// the ball carrier, who by then is standing still, while the thing that changed
+// the down happened off to the side at six pixels tall. So: does a flag actually
+// take the camera to the official, does the zoom go IN, does he sell it, and does
+// the whole thing hand the camera back on its own?
+const focus = await page.evaluate(async () => {
+  const wait = ms => new Promise(r => setTimeout(r, ms))
+  const sc = window.__gridironScene
+  const cam = sc.cameras.main
+  // The focus and the swell both run off the PLAY clock, so the flag has to be
+  // thrown into a play with time left on it — fired into the dead time between
+  // plays, resetCamera hands the camera straight back and there is nothing to see.
+  // So wait for a play with room, throw, and sample; retry if the whistle beat us.
+  const out = { attempts: 0, played: false, took: false, target: false, z0: 0, zMax: 0, zEnd: 0,
+    dStart: 0, dMin: 1e9, scaleBase: 0, scaleMax: 0, scaleEnd: 0, released: false, emphOff: false, angle: -1 }
+  for (let att = 0; att < 8 && out.zMax <= out.z0 * 1.15; att++) {
+    out.attempts = att + 1
+    sc.endFlagFocus()
+    ;(sc.refs || []).forEach(r => { r.forceState = null; r.emphMs = 0 })
+    let room = false
+    for (let i = 0; i < 150; i++) {
+      const P = sc.play
+      if (P && P.script && (P.script.duration - P.t) > 2200) { room = true; break }
+      await wait(80)
+    }
+    if (!room) continue
+    out.played = true
+    const z0 = cam.zoom
+    sc.refThrowFlag(360, 220)
+    const F = sc._flagCam, ref = F && F.m
+    if (!ref) continue
+    out.took = true; out.target = true; out.z0 = +z0.toFixed(3); out.zMax = +z0.toFixed(3)
+    out.scaleBase = +ref.root.scaleX.toFixed(3)
+    out.dStart = +Math.hypot(cam.midPoint.x - ref.root.x, cam.midPoint.y - ref.root.y).toFixed(1)
+    out.dMin = out.dStart
+    for (let i = 0; i < 24; i++) {
+      out.zMax = Math.max(out.zMax, +cam.zoom.toFixed(3))
+      out.zEnd = +cam.zoom.toFixed(3)
+      if (ref.root) {
+        out.dMin = Math.min(out.dMin, +Math.hypot(cam.midPoint.x - ref.root.x, cam.midPoint.y - ref.root.y).toFixed(1))
+        out.scaleMax = Math.max(out.scaleMax, +ref.root.scaleX.toFixed(3))
+        out.scaleEnd = +ref.root.scaleX.toFixed(3)
+      }
+      await wait(80)
+    }
+    await wait(900)
+    out.released = !sc._flagCam
+    out.emphOff = !ref.emphMs
+    out.angle = +Math.abs(ref.root.angle).toFixed(2)
+  }
+  return out
+})
+console.log('v71 flag focus:', JSON.stringify(focus))
+const f71 = []
+const g71 = (c, m, d) => { console.log((c ? 'ok  ' : 'FAIL') + ' ' + m + (d !== undefined ? '  ' + d : '')); if (!c) f71.push(m) }
+g71(focus.took && focus.target, 'a flag opens a camera focus on the official who threw it', 'attempt ' + focus.attempts)
+g71(focus.zMax > focus.z0 * 1.15, 'the camera zooms IN for the call',
+  focus.z0 + ' -> ' + focus.zMax)
+g71(focus.dMin < focus.dStart, 'and pans onto him', focus.dStart + 'px -> ' + focus.dMin + 'px')
+g71(focus.scaleMax > focus.scaleBase * 1.12, 'the official sells it — he swells for the call',
+  'base ' + focus.scaleBase + ' peak ' + focus.scaleMax)
+g71(focus.scaleEnd < focus.scaleMax * 0.95, '...and settles back, so he is not left permanently bigger',
+  'peak ' + focus.scaleMax + ' settled ' + focus.scaleEnd)
+g71(focus.released && focus.emphOff && focus.angle < 0.5,
+  'the focus hands the camera back on its own clock and leaves nothing behind',
+  'flagCam=' + !focus.released + ' emph=' + !focus.emphOff + ' tilt=' + focus.angle)
+if (f71.length) { console.log('v71 VERDICT: FAIL'); process.exitCode = 1 } else console.log('v71 VERDICT: PASS')
+
 // ---- v49 REF ART ----------------------------------------------------------
 // The crew must be drawn from the officials' own 64px sheet, not the 48px zebra
 // recolor of a player, and every pose the renderer can ask for must exist.

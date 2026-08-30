@@ -1,0 +1,179 @@
+/* ===== v74 MENU POLISH =========================================================
+ * The menu is the first screen anyone sees and it had three structural problems
+ * underneath the art, all of which show at once on a real phone.
+ *
+ * 1. IT DID NOT FIT AND IT COULD NOT SCROLL. The shell laid out to 1045px inside a
+ *    900px window, and #rib-main-menu-v2 carried overflow:hidden while the document
+ *    element carries overflow:hidden too — so the bottom row of buttons was simply
+ *    not reachable. The shell is now the scroll container itself, which does not
+ *    depend on what the app does to <html>.
+ * 2. THE SCALE WAS KEYED ON WIDTH. The compact type/spacing scale was gated on
+ *    max-width:519.98px, but the shell is capped at 520px at EVERY width — so any
+ *    window 520px or wider got a scale designed for a much taller layout inside the
+ *    same 520px column. That is the 1045px. The compact scale is now simply the
+ *    scale, with a bump for genuinely tall windows.
+ * 3. THE HERO WAS RIGID AND THE FOOTER FLOATED. An aspect-locked hero plus a
+ *    fixed-height content block leaves whatever is left over as dead black at the
+ *    bottom (92px at 390x844). The hero is a flex item now: it takes the slack up to
+ *    a cap, and past that the content is pushed to the bottom edge instead.
+ *
+ * Then the polish: the HUD said nothing (two unlabelled pills and a bare number),
+ * two of the six legacy stats had no icon so their numbers sat at a different height
+ * from the other four, and nothing had a focus or press state worth the name.
+ * ============================================================================= */
+
+/* ---- 1. fit, and scroll when it cannot fit --------------------------------- */
+#rib-main-menu-v2 { height: 100dvh; min-height: 100dvh; overflow: hidden }
+.rib-menu-shell {
+  display: flex; flex-direction: column;
+  height: 100dvh; max-height: 100dvh; min-height: 0;
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.rib-menu-shell::-webkit-scrollbar { width: 0; height: 0 }
+.rib-menu-hud { flex: 0 0 auto }
+/* the hero takes the slack, up to a cap; the sheet keeps its own aspect and CROPS
+   from the bottom (background-size is `167.598% auto`, so only the window changes) */
+.rib-menu-hero {
+  flex: 0 1 auto; height: 300px; aspect-ratio: auto;
+  min-height: 172px;
+  /* the sheet is drawn at 167.598% of the element WIDTH, so a shorter hero only
+     changes the window into it. Keep the original anchor so the crest and wordmark
+     sit where they were drawn to sit; the crop comes off the bottom, which is
+     stadium floor. */
+  background-position: center, center, 50% 9.4%;
+}
+/* Two-way, so there is never a dead band: on a short window the HERO gives (it is
+   the only shrinkable item, and its art crops rather than squashes), and on a tall
+   one the CONTENT grows and distributes the slack between the cards. Neither end
+   leaves black at the bottom, which is what the fixed hero + fixed content did. */
+.rib-menu-content {
+  flex: 1 1 auto; min-height: 0; padding: 0 18px 14px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+
+/* ---- 2. one scale, sized for the 520px column the shell actually is -------- */
+.rib-menu-shell { container-type: inline-size }
+.rib-menu-hud { height: 56px; padding: calc(env(safe-area-inset-top) + 8px) 16px 6px }
+/* The crest and the player are SPRITE CROPS with boxes tuned to their cells — a
+   percentage size destroys the crop — so these are the compact boxes verbatim,
+   applied at every width because the shell is never wider than 520px anyway. The
+   lockup is anchored to the TOP of the hero in pixels, since the hero's height is
+   now the flexible dimension and the crop comes off the bottom. */
+.rib-hero-mark { top: 8px; left: 50%; width: 150px; height: 53px; transform: translateX(-50%) }
+.rib-hero-player { right: -18px; top: 14px; width: 158px; height: 204px }
+.rib-hero-wordmark { top: 64px; padding-left: 26px; letter-spacing: -1.4px; line-height: .82 }
+.rib-hero-wordmark span { font-size: min(13.5cqw, 56px) }
+.rib-hero-wordmark strong { font-size: min(15.8cqw, 66px); margin-left: 15%; margin-top: 8px }
+/* back on the hero's bottom edge, where it sits just under the sheet's own ball-and-
+   rule ornament. That only works because the hero is capped at 300px now — while it
+   was free to grow it drifted a long way from the wordmark. */
+.rib-hero-tagline { bottom: 8px; top: auto; font-size: min(2.5cqw, 10px); letter-spacing: 1.3px }
+
+.rib-career-card { padding: 14px 16px 13px; border-radius: 12px }
+.rib-career-card:before { border-radius: 11px }
+.rib-career-copy { width: 73% }
+.rib-career-label { gap: 7px; font-size: 8.5px; letter-spacing: 2.2px }
+.rib-career-label i { width: 5px; height: 5px }
+/* one line, at every width the shell can be: the card is aspect-locked to its sprite
+   frame, so a second line does not make the card taller — it pushes the label out of it */
+.rib-player-name { margin-top: 7px; font-size: min(6.4cqw, 29px); letter-spacing: -.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.rib-player-meta { gap: 7px; margin-top: 7px; font-size: 10.5px }
+.rib-player-meta b { height: 11px }
+.rib-stars { margin-top: 6px; gap: 7px; font-size: 15px; letter-spacing: 1.4px }
+.rib-stars em { margin-left: -7px } .rib-stars b { height: 10px } .rib-stars i { font-size: 10px }
+.rib-ovr-ring { right: 13px; top: 13px; width: 68px; height: 68px }
+.rib-ovr-ring:after { inset: 9px }
+.rib-ovr-value { font-size: 32px } .rib-ovr-label { font-size: 8px; letter-spacing: 2px; margin-top: 4px }
+.rib-card-dots { right: 9px; bottom: 7px; width: 28px; height: 13px; background-size: 6px 4px }
+
+.rib-legacy-card { margin-top: 8px; padding: 6px 8px 6px; border-radius: 14px }
+.rib-section-title { gap: 9px; height: 19px }
+.rib-section-title span { max-width: 48px } .rib-section-title b { font-size: 8.5px; letter-spacing: 2.4px }
+.rib-legacy-grid { gap: 5px }
+.rib-primary-button { height: 52px; margin-top: 9px; border-radius: 10px; font-size: 20px; letter-spacing: 1.3px }
+.rib-primary-button:before { inset: 3px; border-radius: 7px }
+.rib-secondary-grid { gap: 7px; margin-top: 8px }
+.rib-bottom-grid { gap: 6px; margin-top: 7px }
+.rib-nav-button { border-radius: 9px; gap: 7px; font-size: 12px; letter-spacing: .8px }
+.rib-bottom-grid .rib-nav-button { gap: 4px; font-size: 9.5px; letter-spacing: 1px }
+.rib-nav-icon svg { width: 19px; height: 19px }
+.rib-bottom-grid .rib-nav-icon svg { width: 18px; height: 18px }
+#rib-main-menu-v2.rib-no-career .rib-secondary-grid .rib-nav-button { height: 46px }
+
+/* a tall window can afford the roomier lockup it was originally drawn for */
+@media (min-height: 980px) {
+  .rib-player-name { font-size: min(7.4cqw, 34px) }
+  .rib-primary-button { height: 58px; font-size: 23px }
+  .rib-legacy-stat { min-height: 56px }
+}
+
+/* ---- 3. the HUD says what it is ------------------------------------------- */
+.rib-menu-hud {
+  align-items: center;
+  background: linear-gradient(180deg, #000 62%, rgba(0, 0, 0, .82));
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+}
+.rib-hud-left { gap: 8px; align-items: center }
+.rib-hud-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 11px 0 8px; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: linear-gradient(180deg, rgba(28, 42, 64, .95), rgba(8, 16, 27, .95));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .07) inset, 0 2px 6px rgba(0, 0, 0, .5);
+}
+.rib-hud-chip svg { width: 14px; height: 14px; fill: none; stroke-width: 2 }
+.rib-hud-chip b { font-size: 15px; font-weight: 700; line-height: 1; color: #f2f6fb }
+.rib-hud-chip small { font-size: 8px; letter-spacing: 1.6px; color: #8ea2bd }
+.rib-hud-prestige svg { stroke: #f4c34f } .rib-hud-prestige b { color: #ffd76f }
+.rib-hud-pp svg { stroke: #6fd0e8 } .rib-hud-pp b { color: #b9e6f4 }
+.rib-hud-cog {
+  width: 32px; height: 32px; padding: 0; border-radius: 10px; cursor: pointer;
+  display: grid; place-items: center;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: linear-gradient(180deg, rgba(24, 36, 55, .95), rgba(7, 14, 24, .95));
+}
+.rib-hud-cog svg { width: 17px; height: 17px; fill: none; stroke: #9fb0c6; stroke-width: 1.8 }
+/* the old pills are what the chips replace */
+.rib-hud-pill, .rib-hud-coin, .rib-hud-value { display: none !important }
+
+/* ---- 4. the cards fill the frames the art draws --------------------------- */
+/* Both panels are aspect-locked to their sprite frame (318/114 and 318/130), which
+   is right — the frame's bottom edge is part of the art and cropping it would cut
+   the border off. But the CONTENT was laid out to its own height and left the rest
+   as dead space inside the frame. The content stretches to the frame instead. */
+.rib-career-card { align-items: stretch }
+.rib-career-copy { display: flex; flex-direction: column; justify-content: center }
+.rib-legacy-card { display: flex; flex-direction: column }
+.rib-legacy-grid { flex: 1 1 auto; align-content: stretch }
+.rib-legacy-stat { min-height: 0; padding: 9px 4px 5px; border-radius: 8px }
+.rib-legacy-stat strong { font-size: 20px; line-height: 1.05 }
+.rib-legacy-stat small { margin-top: 3px; font-size: 7px; letter-spacing: .7px; line-height: 1.15 }
+/* CAREERS and NFL REACHED have no cell on the icon sheet, so the sprite rules skip
+   them and two of the six tiles came out with an empty icon slot. They show the line
+   icon in the same slot at the same size — a mixed medium at 16px is invisible next
+   to a missing icon, which is not. */
+.rib-legacy-stat:nth-child(2) i, .rib-legacy-stat:nth-child(3) i {
+  background-image: none; display: grid; place-items: center;
+}
+.rib-legacy-stat:nth-child(2) i svg, .rib-legacy-stat:nth-child(3) i svg { display: block !important }
+.rib-legacy-stat i svg { width: 100%; height: 100%; fill: none; stroke-width: 1.8 }
+.rib-legacy-stat:nth-child(2) i svg { stroke: #86a6cd }
+.rib-legacy-stat:nth-child(3) i svg { stroke: #41db72 }
+
+/* ---- 5. states: nothing had a real focus or press ------------------------- */
+.rib-primary-button, .rib-nav-button, .rib-career-card, .rib-hud-cog {
+  transition: transform .12s cubic-bezier(.2, .9, .3, 1), filter .12s, box-shadow .12s;
+}
+.rib-primary-button:active, .rib-nav-button:active, .rib-career-card:active, .rib-hud-cog:active {
+  transform: translateY(1px) scale(.988); filter: brightness(.93);
+}
+.rib-nav-button:hover, .rib-hud-cog:hover { border-color: rgba(233, 173, 47, .5) }
+.rib-primary-button:focus-visible, .rib-nav-button:focus-visible,
+.rib-career-card:focus-visible, .rib-hud-cog:focus-visible {
+  outline: 2px solid #ffd76f; outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rib-primary-button, .rib-nav-button, .rib-career-card, .rib-hud-cog { transition: none }
+}

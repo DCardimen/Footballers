@@ -34,6 +34,52 @@ const GEO = `(el, container) => {
 
 const page = await boot({ width: 520, height: 900 })
 
+// ---- v69: the ATLAS itself. Two failures were on screen before v69 and neither is
+// visible from the DOM: an emblem sat wherever the artist had left it inside its
+// source square (so no two crests lined up), and several emblems overhang that
+// square, so a neighbour's ink survived the crop and came through as a sliver of
+// someone else's logo down the edge of the cell. Both are properties of the packed
+// sheet, so assert them there: every cell's ink must be CENTRED on the cell, must
+// FILL it to the pad on its long axis, and the pad ring must be empty — a sliver of
+// a neighbour lives exactly in that ring.
+const atlas = await page.evaluate(async () => {
+  const src = window.__RIB_LOGOS_V44
+  if (!src) return { why: 'no baked sheet' }
+  const im = new Image()
+  await new Promise((r, j) => { im.onload = r; im.onerror = j; im.src = src })
+  const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height
+  const g = cv.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0)
+  const d = g.getImageData(0, 0, im.width, im.height).data
+  const CELL = 128, COLS = 10, ROWS = 9, PAD = 6, A = 24
+  const offCentre = [], notFilled = [], dirtyRing = [], empty = []
+  for (let i = 0; i < COLS * ROWS; i++) {
+    const ox = (i % COLS) * CELL, oy = ((i / COLS) | 0) * CELL
+    let x0 = CELL, x1 = -1, y0 = CELL, y1 = -1, ring = 0
+    for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) {
+      if (d[((oy + y) * im.width + (ox + x)) * 4 + 3] <= A) continue
+      if (x < x0) x0 = x; if (x > x1) x1 = x
+      if (y < y0) y0 = y; if (y > y1) y1 = y
+      if (x < PAD || y < PAD || x >= CELL - PAD || y >= CELL - PAD) ring++
+    }
+    if (x1 < 0) { empty.push(i); continue }
+    const cx = (x0 + x1 + 1) / 2, cy = (y0 + y1 + 1) / 2
+    const dx = Math.abs(cx - CELL / 2), dy = Math.abs(cy - CELL / 2)
+    if (dx > 2 || dy > 2) offCentre.push(i + ':' + dx.toFixed(1) + ',' + dy.toFixed(1))
+    const long = Math.max(x1 - x0 + 1, y1 - y0 + 1)
+    if (long < CELL - PAD * 2 - 3) notFilled.push(i + ':' + long)
+    if (ring > 0) dirtyRing.push(i + ':' + ring)
+  }
+  return { size: im.width + 'x' + im.height, empty, offCentre, notFilled, dirtyRing }
+})
+console.log('atlas:', JSON.stringify({ ...atlas, }))
+check('atlas: every cell carries an emblem', !atlas.why && atlas.empty.length === 0, atlas.empty)
+check('atlas: every emblem is centred on its own ink, not on the source square',
+  atlas.offCentre && atlas.offCentre.length === 0, atlas.offCentre)
+check('atlas: every emblem fills its cell, so all 90 read at the same weight',
+  atlas.notFilled && atlas.notFilled.length === 0, atlas.notFilled)
+check('atlas: no cell carries ink in its pad ring — where a neighbour\'s sliver would land',
+  atlas.dirtyRing && atlas.dirtyRing.length === 0, atlas.dirtyRing)
+
 // ---- name matching + structure + baked delivery ----
 const api = await page.evaluate(() => {
   const L = window.TEAM_LOGOS_V44, P = window.TEAM_PALETTES

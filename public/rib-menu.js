@@ -160,7 +160,10 @@
   function renderMenu(data) {
     const filledStars = Array.from({ length: data.stars }, () => '<u>★</u>').join('');
     const emptyStars = '★'.repeat(Math.max(0, 5 - data.stars));
+    // v74: with no career the row is five grey stars and nothing else, which reads as
+    // a broken widget rather than as "unrated". Name it.
     const measurements = [data.height, data.weight].filter(Boolean);
+    if (!measurements.length && !data.stars) measurements.push('UNRATED PROSPECT');
     const showPosition = !!data.position && data.position !== '—';
     const primaryLabel = data.hasCareer ? 'CONTINUE CAREER' : 'START NEW CAREER';
     const primaryAction = data.hasCareer ? 'continue' : 'new';
@@ -169,10 +172,10 @@
       <div class="rib-menu-shell" role="main" aria-label="Running It Back main menu">
         <div class="rib-menu-hud">
           <div class="rib-hud-left">
-            <span class="rib-hud-pill">${icon('stopwatch')}</span>
-            <span class="rib-hud-coin">${icon('coin')}</span>
+            <span class="rib-hud-chip rib-hud-prestige">${icon('star')}<b data-rib-field="prestige">${esc(data.prestige)}</b><small>PRESTIGE</small></span>
+            <span class="rib-hud-chip rib-hud-pp">${icon('coin')}<b data-rib-field="topCurrency">${esc(data.topCurrency)}</b><small>PP</small></span>
           </div>
-          <span class="rib-hud-value" data-rib-field="topCurrency">${esc(data.topCurrency)}</span>
+          <button class="rib-hud-cog" type="button" data-rib-action="settings" aria-label="Settings">${icon('gear')}</button>
         </div>
 
         <div class="rib-menu-hero" aria-label="Running It Back">
@@ -227,8 +230,8 @@
             <div class="rib-section-title"><span></span><b>YOUR LEGACY</b><span></span></div>
             <div class="rib-legacy-grid">
               <div class="rib-legacy-stat rib-gold"><i>${icon('star')}</i><strong data-rib-field="prestige">${esc(data.prestige)}</strong><small>PRESTIGE</small></div>
-              <div class="rib-legacy-stat"><strong data-rib-field="careers">${esc(data.careers)}</strong><small>CAREERS</small></div>
-              <div class="rib-legacy-stat rib-green"><strong data-rib-field="nflReached">${esc(data.nflReached)}</strong><small>NFL REACHED</small></div>
+              <div class="rib-legacy-stat"><i>${icon('helmet')}</i><strong data-rib-field="careers">${esc(data.careers)}</strong><small>CAREERS</small></div>
+              <div class="rib-legacy-stat rib-green"><i>${icon('shield')}</i><strong data-rib-field="nflReached">${esc(data.nflReached)}</strong><small>NFL REACHED</small></div>
               <div class="rib-legacy-stat rib-purple"><i>${icon('bolt')}</i><strong data-rib-field="interstellar">${esc(data.interstellar)}</strong><small>INTERSTELLAR</small></div>
               <div class="rib-legacy-stat"><i>${icon('laurel')}</i><strong data-rib-field="hallPoints">${esc(data.hallPoints)}</strong><small>HALL OF FAME POINTS</small></div>
               <div class="rib-legacy-stat rib-red"><i>${icon('target')}</i><strong data-rib-field="iconicMoments">${esc(data.iconicMoments)}</strong><small>ICONIC MOMENTS</small></div>
@@ -328,19 +331,20 @@
     if (!animateIn || countedUp || prefersReduced()) return;
     countedUp = true;
     whenAssetsReady(() => ['overall', 'prestige', 'careers', 'nflReached', 'interstellar', 'hallPoints', 'iconicMoments'].forEach((field, index) => {
-      const el = menu.querySelector(`[data-rib-field="${field}"]`);
+      const els = [...menu.querySelectorAll(`[data-rib-field="${field}"]`)];   // v74: every instance
       const target = Number(data[field]) || 0;
-      if (!el || !target) return;
+      if (!els.length || !target) return;
       const startAt = performance.now() + 380 + index * 70;
       const duration = 620;
       const step = (now) => {
-        if (!el.isConnected) return;
+        if (!els[0].isConnected) return;
         if (now < startAt) { requestAnimationFrame(step); return; }
         const progress = Math.min(1, (now - startAt) / duration);
-        el.textContent = String(Math.round(target * (1 - Math.pow(1 - progress, 3))));
+        const v = String(Math.round(target * (1 - Math.pow(1 - progress, 3))));
+        for (const el of els) el.textContent = v;
         if (progress < 1) requestAnimationFrame(step);
       };
-      el.textContent = '0';
+      for (const el of els) el.textContent = '0';
       requestAnimationFrame(step);
     }));
   }
@@ -350,9 +354,12 @@
   // their stagger delay), which made the CTA vanish whenever the game's DOM
   // flickered mid-transition.
   function updateMenu(menu, data) {
+    // v74: prestige now appears twice (the HUD chip and the legacy tile), so this
+    // updates EVERY instance — querySelector would have frozen the second one.
     const set = (field, value) => {
-      const el = menu.querySelector(`[data-rib-field="${field}"]`);
-      if (el && el.textContent !== String(value)) el.textContent = String(value);
+      for (const el of menu.querySelectorAll(`[data-rib-field="${field}"]`)) {
+        if (el.textContent !== String(value)) el.textContent = String(value);
+      }
     };
     const primaryLabel = data.hasCareer ? 'CONTINUE CAREER' : 'START NEW CAREER';
     const primaryAction = data.hasCareer ? 'continue' : 'new';
@@ -377,6 +384,7 @@
       const stars = menu.querySelector('.rib-stars');
       if (stars) {
         const measurements = [data.height, data.weight].filter(Boolean);
+        if (!measurements.length && !data.stars) measurements.push('UNRATED PROSPECT');
         stars.innerHTML = `<span>${Array.from({ length: data.stars }, () => '<u>★</u>').join('')}</span><em>${'★'.repeat(Math.max(0, 5 - data.stars))}</em>${measurements.map((entry) => `<b></b><i>${esc(entry)}</i>`).join('')}`;
       }
     }
