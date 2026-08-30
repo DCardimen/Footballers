@@ -56,16 +56,50 @@ const atlas = await page.evaluate(async () => {
     }
     if (worst > 8) dirty.push(k + ':' + worst)
   }
+  // the grid the CSS is told to scale to must actually cover every cell
+  const cv2 = getComputedStyle(document.documentElement).getPropertyValue('--skillSize').trim()
+  const m = /^(\d+)% (\d+)%$/.exec(cv2)
+  const cols = m ? +m[1] / 100 : 0, rows = m ? +m[2] / 100 : 0
+  const w0 = cells[Object.keys(cells)[0]][2], h0 = cells[Object.keys(cells)[0]][3]
   return { size: im.width + 'x' + im.height, cells: Object.keys(cells).length, dirty,
-    alias: Object.keys(window.__SKILL_V64.alias || {}).length }
+    alias: Object.keys(window.__SKILL_V64.alias || {}).length,
+    cols, rows, gridFits: cols * w0 === im.width && rows * h0 === im.height,
+    grid: cols * rows }
 })
 console.log('atlas:', JSON.stringify(atlas))
 ok(!atlas.err, 'the skill sheet is on the page and decodes', atlas.size)
-ok(atlas.cells === 12, 'twelve scenes, one per training theme', atlas.cells)
+ok(atlas.cells === 15,
+  'fifteen scenes: one per training theme, plus the three the board still needs after mentor/lab/social got their own art',
+  atlas.cells)
 ok(atlas.dirty && atlas.dirty.length === 0,
   'every cell has an empty gutter, so a CSS background cannot sample its neighbour',
-  atlas.dirty && atlas.dirty.length ? 'ink in the gutter of ' + atlas.dirty.join(', ') : 'all 12 clean')
-ok(atlas.alias === 12, 'the offseason board has an alias onto all twelve cells', atlas.alias)
+  atlas.dirty && atlas.dirty.length ? 'ink in the gutter of ' + atlas.dirty.join(', ') : 'all ' + atlas.cells + ' clean')
+ok(atlas.alias === 12, 'all twelve offseason programs have an alias onto a cell', atlas.alias)
+ok(atlas.grid === atlas.cells || atlas.gridFits,
+  'the runtime reads the sheet grid off the cellmap rather than assuming one',
+  atlas.cols + 'x' + atlas.rows + ' holds ' + atlas.cells)
+
+// ---------- the wheel's themes ----------
+// v66 gave mentor, lab and social scenes of their own. Before that they wore the
+// nearest thing the set offered, so "Squad Road Trips" drew an ice bath. Assert
+// there are no near-fits left: every theme has a cell, and no two themes share one.
+const themes = await page.evaluate(() => {
+  const T = window.__GROWTH_V42 && window.__GROWTH_V42.THEMES
+  const cells = window.__SKILL_V64.cells, alias = window.__SKILL_V64.alias || {}
+  if (!T) return { err: 'no THEMES' }
+  const ids = T.map(t => t.id)
+  const own = ids.filter(id => cells[id])
+  const at = ids.map(id => alias[id] || id)
+  return { ids: ids.length, own: own.length, shared: at.length - new Set(at).size,
+    missing: ids.filter(id => !cells[alias[id] || id]) }
+})
+console.log('themes:', JSON.stringify(themes))
+ok(themes.ids === 12 && themes.missing.length === 0,
+  'every wheel theme resolves to a scene', themes.ids + ' themes, missing ' + JSON.stringify(themes.missing))
+ok(themes.own === themes.ids,
+  'and to a scene of its OWN — no theme is wearing another one’s picture as a near fit',
+  themes.own + ' of ' + themes.ids)
+ok(themes.shared === 0, 'no two themes draw the same scene', themes.shared + ' shared')
 
 // ---------- the offseason board ----------
 // the career-creation flow offers its origin and position steps in a different

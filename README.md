@@ -55,6 +55,27 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v66 — `mentor`, `lab` and `social` get scenes of their own.** The three themes
+  the set never depicted were wearing the nearest thing it offered, so "Squad Road
+  Trips" drew an ice bath and "Cognitive Reaction Lab" drew a tyre flip. Three new
+  sheets replace them: a coach at the chalkboard, an analytics desk, and the team
+  celebrating by the bench.
+
+  The sheet grows to **fifteen** scenes, not twelve, because the three pictures they
+  displace are still wanted — the offseason board's Recovery Lab, Conditioning and
+  The Grind are exactly an ice bath, a stopwatch-timed resisted run and a tyre flip.
+  Those keep cells under names that say what they show (`ice`, `sled`, `tyre`)
+  rather than under the theme ids they used to borrow, so the twelve themes and the
+  twelve programs each get their own picture with none shared.
+
+  Two mechanical follow-ons. The packer now takes sheets of either shape — a 2×2
+  grid or a single scene — via a `grid` field per source, and packs 5×3. And the
+  runtime **reads the grid off the cellmap** instead of restating `4×3`, handing it
+  to CSS as `--skillSize` alongside `--skillArt`; adding art again needs no second
+  place to remember. `skillartcheck.mjs` gained the assertion that makes this
+  visible: every theme resolves to a scene, to a scene of its *own*, and no two
+  themes draw the same one.
+
 - **v65 — the art reaches the other screen a season's training is chosen on.**
   v64 put the twelve scenes on the growth wheel, which is one of *two* places a
   season's training gets picked. The other is the offseason **"Choose Your

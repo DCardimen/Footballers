@@ -12,29 +12,37 @@
 import { chromium } from 'playwright'
 import fs from 'fs'
 
+// Sheets come in two shapes: the first three are 2x2 grids of four scenes each, the
+// three added later are one scene apiece. `grid` says which, and the tiles come out
+// in this order — sheet by sheet, quadrants left to right and top to bottom — which
+// is the order ORDER at the bottom names them in.
 const SRC = [
-  'art/file_0000000082d881f5aa30ee27d96802ef.png',
-  'art/file_00000000def081f58ad0a997692521b7.png',
-  'art/file_00000000efcc81f59fc1c11ce26094ae.png',
+  { file: 'art/file_0000000082d881f5aa30ee27d96802ef.png', grid: 2 },   // tiles 0-3
+  { file: 'art/file_00000000def081f58ad0a997692521b7.png', grid: 2 },   // tiles 4-7
+  { file: 'art/file_00000000efcc81f59fc1c11ce26094ae.png', grid: 2 },   // tiles 8-11
+  { file: 'art/file_00000000a73c81f58395fae3edf949a7.png', grid: 1 },   // tile 12 — coach at the board
+  { file: 'art/file_00000000be8c81f5ac2de724d8cd071b.png', grid: 1 },   // tile 13 — the analytics desk
+  { file: 'art/file_00000000ee5481f5860ba476e59f8c58.png', grid: 1 },   // tile 14 — the team, celebrating
 ]
 const CELL = +(process.env.SKILL_CELL || 176)     // packed size per icon
+const COLS = +(process.env.SKILL_COLS || 5)       // 15 scenes pack 5x3 with no hole
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage()
 page.on('console', m => console.log('  [page]', m.text()))
-const srcs = SRC.map(p => fs.readFileSync(p).toString('base64'))
+const srcs = SRC.map(s => ({ b64: fs.readFileSync(s.file).toString('base64'), grid: s.grid }))
 
-const res = await page.evaluate(async ({ srcs, CELL }) => {
+const res = await page.evaluate(async ({ srcs, CELL, COLS }) => {
   const out = { tiles: [], bg: [], bgRGB: [] }
   const masks = []          // page-local, index-aligned with out.tiles — never returned
   const sheets = []
   for (const s of srcs) {
     const im = new Image()
-    await new Promise(r => { im.onload = r; im.src = 'data:image/png;base64,' + s })
-    sheets.push(im)
+    await new Promise(r => { im.onload = r; im.src = 'data:image/png;base64,' + s.b64 })
+    sheets.push({ im, grid: s.grid })
   }
   // ---- 1. slice each sheet into its 2x2 quadrants, key the flat ground, tight-crop
   for (let si = 0; si < sheets.length; si++) {
-    const im = sheets[si], W = im.width, H = im.height
+    const im = sheets[si].im, G = sheets[si].grid, W = im.width, H = im.height
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H
     const cx = cv.getContext('2d'); cx.imageSmoothingEnabled = false
     cx.drawImage(im, 0, 0)
@@ -43,8 +51,8 @@ const res = await page.evaluate(async ({ srcs, CELL }) => {
     const bg = [d[0], d[1], d[2]]
     out.bg.push(bg.join(',')); (out.bgRGB = out.bgRGB || []).push(bg)
     const near = (i) => Math.abs(d[i] - bg[0]) + Math.abs(d[i + 1] - bg[1]) + Math.abs(d[i + 2] - bg[2]) <= 26
-    for (let q = 0; q < 4; q++) {
-      const qx = (q % 2) * (W / 2), qy = ((q / 2) | 0) * (H / 2), qw = (W / 2) | 0, qh = (H / 2) | 0
+    for (let q = 0; q < G * G; q++) {
+      const qx = (q % G) * (W / G), qy = ((q / G) | 0) * (H / G), qw = (W / G) | 0, qh = (H / G) | 0
       // v65: the bbox cannot just be "every non-ground pixel in this quadrant". Some
       // scenes overhang the 2x2 split, so a neighbour's grass lands inside this
       // quadrant, drags the bbox out to the seam, and comes through as a sliver of
@@ -98,7 +106,7 @@ const res = await page.evaluate(async ({ srcs, CELL }) => {
   // size without a per-icon table, and each scene is fitted INSIDE its cell by its
   // own longest side, so a wide scene and a tall one come out the same visual
   // weight instead of the wide one dominating every row it appears in.
-  const COLS = 4, ROWS = Math.ceil(out.tiles.length / COLS)
+  const ROWS = Math.ceil(out.tiles.length / COLS)
   const atlas = document.createElement('canvas')
   atlas.width = COLS * CELL; atlas.height = ROWS * CELL
   const ax = atlas.getContext('2d')
@@ -106,7 +114,7 @@ const res = await page.evaluate(async ({ srcs, CELL }) => {
   const scratch = document.createElement('canvas')
   const sx2 = scratch.getContext('2d')
   out.tiles.forEach((t, i) => {
-    const im = sheets[t.sheet]
+    const im = sheets[t.sheet].im
     // key the ground on a scratch canvas first: scaling a keyed image is fine, but
     // scaling THEN keying resamples the ground into every edge as a navy halo
     scratch.width = t.w; scratch.height = t.h
@@ -159,15 +167,24 @@ const res = await page.evaluate(async ({ srcs, CELL }) => {
   out.size = [atlas.width, atlas.height]
   out.inkPct = +(ink / (atlas.width * atlas.height)).toFixed(3)
   return out
-}, { srcs, CELL })
+}, { srcs, CELL, COLS })
 
 console.log('background per sheet:', res.bg.join(' | '))
 res.tiles.forEach((t, i) => console.log(`  tile ${i} sheet${t.sheet} q${t.q}  ${t.w}x${t.h} -> cell ${t.cell.join(',')}  ${t.comps} components, ${t.dropped} dropped as overflow`))
 
-// theme order the cells are addressed by. The art depicts nine of the twelve
-// training themes squarely; the three study/social themes have no scene of their
-// own, so they take the nearest thing the set offers and are called out as such.
-const ORDER = ['hands', 'feet', 'iron', 'film', 'flex', 'edge', 'track', 'social', 'craft', 'plyo', 'mentor', 'lab']
+// The keys the cells are addressed by, in tile order. Twelve of them are the wheel's
+// theme ids and every theme now has a scene of its own. The other three — `ice`,
+// `sled`, `tyre` — are scenes with no theme: they were the near-fits `social`,
+// `mentor` and `lab` wore before their real art arrived, and the offseason training
+// board still wants them (Recovery Lab, Conditioning, The Grind), so they keep cells
+// under names that say what they DEPICT. index.html's SKILL_ALIAS points the board's
+// twelve program keys at these.
+const ORDER = [
+  'hands', 'feet', 'iron', 'film',      // sheet 0
+  'flex', 'edge', 'track', 'ice',       // sheet 1 — `ice` is the ice bath
+  'craft', 'plyo', 'sled', 'tyre',      // sheet 2 — `sled` the timed resisted run, `tyre` the flip
+  'mentor', 'lab', 'social',            // the three single-scene sheets
+]
 const cellmap = {}
 ORDER.forEach((k, i) => { if (res.tiles[i]) cellmap[k] = res.tiles[i].cell })
 
@@ -179,5 +196,5 @@ console.log(JSON.stringify({
   bytes: fs.statSync('public/rib_skill_v64.png').size,
   base64KB: Math.round(fs.statSync('public/rib_skill_v64.png').size * 4 / 3 / 1024),
 }, null, 1))
-if (Object.keys(cellmap).length !== 12) { console.error('expected 12 cells'); process.exitCode = 1 }
+if (Object.keys(cellmap).length !== ORDER.length) { console.error('expected ' + ORDER.length + ' cells'); process.exitCode = 1 }
 await browser.close()
