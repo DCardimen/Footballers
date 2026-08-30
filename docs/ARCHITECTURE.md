@@ -69,6 +69,12 @@ yard, `TICK = 33` ms per sim step. Key pieces, in order:
   the last `tackle` event is mapped back to roster players:
   `out.tackler` / `out.assist`. This is the **only** source of tackle credit.
 - `breakProb`, `turnTest` — pure formula hooks for unit checks.
+- `fieldGoalRows()` / `fieldArtY(u)` (anchor `v72 END-ZONE MAPPING`) — the turf art
+  is sampled by its GOAL LINES, not by its full height. The art has a real ten-yard
+  end zone at each end AND an apron outside it, so mapping the image's height onto
+  the world's width put every painted yard line off the sim's own. The rows are
+  measured off `RIB.fieldBase` — **not** `RIB.fieldImg`, which v44 has composited
+  the home crest onto at the 50, and a crest is not grass.
 - `window.__FieldSim` — the public API: `.pass(...)` / `.run(...)` resolve a play
   and push its render log onto the FIFO `_Q`; `.takeLog(sig)` is how the renderer
   claims a log (it **searches** by `(kind, off, yards, intercepted)` rather than
@@ -104,6 +110,41 @@ broadcast view replays them: `takeLog(sig)` matches a play to its sim log; on a
 miss it falls back to `buildPlayScript` choreography. If you change sim behavior
 and can't see it on screen, run `node scripts/renderpathcheck.mjs` — the sim →
 render hit rate should be ~87–90%.
+
+## Screens and their shapes (v73–v75)
+
+Three of the screens below are assembled by a long chain of patch layers, each of
+which inserts its card into `#screen` by querying for a neighbour. Anything that
+reshapes those screens has to sit **on top** of that chain rather than inside it.
+
+- `v75 HUB SECTIONS` (last inline `<script>` in the file, anchor `v75 HUB SECTIONS`)
+  — the hub and the prestige tree are split into tabbed sections. It is purely a
+  presentation pass: it moves the blocks the screen already rendered into
+  containers, adds no card and rewrites no markup. It hooks a **MutationObserver +
+  sweep** rather than the render-wrapper chain, because every render rebuilds
+  `#screen` from scratch and the tab strip goes with it; the next sweep re-sections
+  whatever is there. Classification is by class, then by text for the blocks that
+  carry none, then by **inheriting the block above** — which is what keeps the
+  "Attributes" heading, its sheet and its footnote together as one run. The same
+  block carries the row-height compaction for the two screens that are one long
+  list each (the upgrade sheet, the training board), since a tab strip has nothing
+  to split there. Measured by `scripts/scrollcheck.mjs`, which finds the element
+  that actually scrolls — `<html>` carries `overflow:hidden`, so the document never
+  is.
+- `v73 BODY LEDGER` (next to the v54 availability model) — `bodyLedgerV73(player)`
+  is the one read of what the body is worth in the next game. It quotes
+  `condMultV54` and `injChanceV54` directly, and measures the marginal value of a
+  durability point by asking the real chance function with the stat one higher.
+  `bodyCostV73` is recorded in the weekly resolver either side of the multiplier,
+  which is the only place the charge is knowable.
+- `v74 MENU POLISH` (`public/rib-menu-v74.css`, loaded last by
+  `scripts/bake-menu-into-index.mjs`) — the menu is the one part of the app that is
+  NOT inline: it ships as `public/rib-menu*.{css,js}` linked from `index.html`. The
+  shell is its own scroll container (the app puts `overflow:hidden` on `<html>`),
+  and hero and content flex in opposite directions so neither a short nor a tall
+  window leaves a dead band. Several menu elements are **sprite crops with boxes
+  tuned to their cells** (`.rib-hero-mark`, `.rib-hero-player`, `.rib-nav-icon`,
+  `.rib-legacy-stat i`) — resizing those boxes in percentages destroys the crop.
 
 ## Verification workflow
 

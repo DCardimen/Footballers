@@ -55,6 +55,98 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v75 — the career loop stops being a scroll.** Measured on a 390x844 phone, the
+  **hub** — the screen the loop returns to after every single action — laid out to
+  3898px. That is 3.6 screens: on arrival you see the top of the hero card and
+  nothing else. The prestige tree was 2.4 screens with 862px of specialization and
+  rewards cards sitting *above* the branch row. Neither is a case of too much
+  content; a stack is the wrong shape for eighteen blocks. The hub is grouped into
+  five tabbed sections (NOW / BODY / SKILLS / TEAM / STORY), the tree into two
+  (NODES / PERKS) with its header held above the strip. Purely presentation: it
+  moves blocks the screen already rendered and rewrites none of them, which is what
+  lets it sit on top of a dozen patch layers that insert into `#screen` by querying
+  for their neighbours. Two screens are one long list each, so they get their row
+  height back instead — the upgrade row went from 100px to 62. Hub 3.62 → 0.25
+  screens, tree 2.42 → 1.15, training 1.72 → 1.33, upgrade 1.55 → 1.30. Guarded by
+  `scripts/scrollcheck.mjs`.
+
+- **v74 — the main menu fits, scrolls, and says what it is.** The shell laid out to
+  1045px inside a 900px window while both `<html>` and the menu root carried
+  `overflow:hidden`, so the bottom row of buttons was unreachable; the compact scale
+  was gated on `max-width:519.98px` although the shell is capped at 520px at *every*
+  width; and a rigid hero plus a fixed content block left 92px of dead black at
+  390x844. The shell is its own scroll container, the compact scale is simply the
+  scale, and hero and content flex in opposite directions so neither end leaves a
+  band. The HUD's two unlabelled pills became labelled PRESTIGE/PP chips plus a
+  settings control, the two legacy tiles with no cell on the icon sheet take the
+  line icon, and the career name is held to one line (the card is aspect-locked to
+  its sprite frame, so a second line pushes the label out of it). Asserted at four
+  window heights in `scripts/menu-integration-check.mjs`.
+
+- **v73 — the injury section answers the question it exists for.** The condition
+  card reported fatigue, recovery capacity and mental load: three *inputs* to the
+  availability model and none of them what a player needs to decide anything. It
+  now leads with one signed NET figure — the rating this body adds to or takes off
+  the next game, against the player's own recent average — itemises where it came
+  from, prices the week's risk in expected games missed, and quotes what the next
+  point of `injuryResist` buys, measured by asking the real `injChanceV54` with the
+  stat one higher rather than re-deriving its formula. The weekly resolver records
+  `bodyCostV73` either side of the multiplier, so a bad grade caused by the body
+  says so on the card and on the schedule row. No model changes. `scripts/bodycheck.mjs`.
+
+- **v72 — the painted field and the simulated field are one field.** `warpField`
+  mapped the turf art's full HEIGHT onto the world's full width, which assumed the
+  painted end zones are exactly `EZ` deep and that the art has no apron outside
+  them. It has a real ten-yard end zone at each end *and* ~6 yards of grass beyond,
+  so the painted hundred yards covered 542 world px against the sim's 588 — a
+  carrier the sim had at the 0 was drawn four yards deep in the end zone. The art is
+  mapped by its GOAL LINES now, measured off the image (from `fieldBase`, not
+  `fieldImg`: v44 composites the home crest onto the latter and a crest is not
+  grass). 0.2 yards apart on screen, down from 4.2. `scripts/endzonecheck.mjs`.
+
+- **v71 — a flag takes the camera.** v45/v49 got the crew throwing a real flag and
+  the broadcast ignored it: the camera stayed on the ball carrier, who by then is
+  standing still. The follow re-points at the official and the zoom pushes in ~1.6x
+  on an ease-in / hold / ease-out envelope, with the predictive lead suppressed; the
+  official swells, shivers and drops a ring off his feet. Focus and swell share one
+  clock (`endFlagFocus`) so a play that dies mid-swell cannot leave him permanently
+  40% bigger. New block in `scripts/refcheck.mjs`.
+
+- **v70 — the you-marker moves off the turf and onto the head.** v18 stacked four
+  gold effects on the ground, in the busiest part of the frame — and inside a pile
+  the aura is *under* the pile. It is a Sims-style crystal above the head now, drawn
+  per frame because the rotation IS the silhouette changing shape, with the near
+  crease sweeping across two shaded facets. A gassed player gets a red crystal. The
+  plain foot ring every other player has stays. `scripts/bobcheck.mjs`.
+
+- **v69 — emblems are found by their own ink, not by the grid line.** The packer
+  sliced each sheet on a rigid 5x6 grid and contain-fit the whole square, so crests
+  sat wherever the artist left them and several overhanging emblems dragged a sliver
+  of a neighbour's logo into the cell. The sheet is labelled into connected
+  components once and each is assigned to the cell its centroid falls in, so
+  overhang follows its own emblem and can never follow anyone else's. `emblemcheck`
+  now asserts the atlas directly: every cell centred, filled, empty pad ring.
+
+- **v68 — team quality is a nudge, not a cheat code.** Over 6000 games a maxed
+  team-quality tree took a level-5 career from a 71.4% win rate to 97.7%. The whole
+  prestige contribution runs through `TU("teamQualK", .1)`: +1.3 points a game
+  instead of +13.6, 75.8% instead of 97.7%. The `bornLeader` trait is untouched —
+  it is not bought. `scripts/teamqualcheck.mjs`.
+
+- **v67 — the price of a point, stated where the choice is made.** v21 charges 1
+  skill point per +1 below a stat's soft cap and 2, 3, 4… above it, but only the
+  upgrade screen said so and only in a hover title. Every focus stat on the
+  offseason board now carries the price of its next +1, every program a one-line
+  verdict, and every upgrade row a permanent readout. `scripts/capcheck.mjs` also
+  asserts each badge quotes what `drCost` would actually charge.
+
+- **v66 — the weekly game-plan wheel gets drawn, not typed.** The pregame plan is
+  the decision met every week and its wedges still carried platform emoji — two of
+  the ten plans shared the same glyph. Ten isometric scenes replace them, one per
+  plan, packed and keyed like the v64 training scenes; the mapping is one-to-one so
+  there is no near-fit to call out. Face, option rows, roll pop-up header and result
+  card all address the same atlas. Guarded by the plan-art block in `wheelcheck`.
+
 - **v65 — the art reaches the other screen a season's training is chosen on.**
   v64 put the twelve scenes on the growth wheel, which is one of *two* places a
   season's training gets picked. The other is the offseason **"Choose Your
