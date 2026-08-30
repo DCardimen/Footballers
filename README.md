@@ -55,6 +55,39 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v65 — the art reaches the other screen a season's training is chosen on.**
+  v64 put the twelve scenes on the growth wheel, which is one of *two* places a
+  season's training gets picked. The other is the offseason **"Choose Your
+  Training"** board — the twelve programs behind `PLAY N-GAME SEASON` — and it was
+  still showing ⚖️ 💨 🏋️ 🎞️ 🎯 🦘 🫁 🔥 🧘 💥 🏃 🧊. It is rendered by the legacy
+  career app, in a different scope and at a different time from the wheel, so two
+  things had to move: the `.gv64-*` rules were hoisted out of the wheel overlay's
+  own `<style>` (where they existed only while the wheel was open) into one
+  document-level sheet, and `skillIco()`/`sart()` are exported as
+  `window.RIB_SKILL_ICO`/`RIB_SKILL_ART`.
+
+  The board has its own twelve keys, so it addresses the cells through a
+  `SKILL_ALIAS` table rather than being renamed to match the wheel's theme ids.
+  Each program is paired with the scene that actually **depicts** it, which is why
+  two pairings read oddly next to their key names: the program keyed `lab` is the
+  Recovery Lab and takes the ice-bath scene (packed as `social`), and the program
+  keyed `grind` is The Grind and takes the tyre-flip scene (packed as `lab`).
+  Twelve onto twelve, one each — no picture appears twice on a board that shows
+  every program at once.
+
+  Two things this turned up. A DOM icon no longer waits on `SART.ready`: a CSS
+  background does not need our decode the way a canvas blit does, and gating on it
+  raced the board, which can render on the same tick as page load. And the atlas
+  gutter went **4% → 9%**: a CSS background addresses these cells by percentage at
+  whatever DPR the device has and samples a little past the boundary, so at 4% every
+  tile wore a green sliver of its neighbour's grass down its edge. The wider gutter
+  doubles as the icon's hold-off from its rounded plate, so neither consumer needs
+  padding of its own, and it dropped the baked sheet 392KB → 327KB. The packer also
+  labels each quadrant's ink into connected components now and discards the ones
+  that both touch a quadrant border and are small next to the main scene — scenes
+  that overhang the 2×2 split were dragging a neighbour's grass into the crop.
+  Covered by `scripts/skillartcheck.mjs`.
+
 - **v64 — the training themes get drawn instead of typed.** Every training option
   carried an emoji: 🏋️ 💨 🎞️ 🧤 🪜 🧘 🎓 🎉 🦘 🧠 🎯 🔥. They were doing real work —
   the only thing telling two options apart at a glance — but an emoji is the
