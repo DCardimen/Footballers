@@ -4020,6 +4020,7 @@ class Ot extends mt.Scene {
     try { const c = this.cameras.main;
       c.setZoom((((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16)) * TU("perspZoomK", 0.78));
       this._pcam = null; this._cvx = 0; this._cvy = 0;     // v27: clear the predictive lead between plays
+      this.endFlagFocus();                                 // v71: a focus never outlives its play
       const f = this.focusPt || { x: FW / 2, y: WORLD_H / 2 }; c.centerOn(f.x, f.y - 80); } catch (e) {}
   }
   animatePlay(et, rt) {
@@ -4130,26 +4131,33 @@ class Ot extends mt.Scene {
         const _zf = (((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16) / 1.16) * TU("perspZoomK", 0.78);
         const carM = (!gliding0 && P.carrierId != null) ? this.markers[P.carrierId] : null;
         const kc = carM && carM.root ? Math.max(0.2, perspK(carM.sx)) : null;
-        const fx = kc ? carM.root.x : (this.ballSpr ? this.ballSpr.x : FW / 2),
-          fy = kc ? carM.root.y : (this.ballSpr ? this.ballSpr.y : WORLD_H / 2);
+        // v71: while a flag focus is alive the camera follows the OFFICIAL, not the
+        // ball. A penalty is the one moment in a play where the ball is not the story.
+        const FC = this.flagCamTarget(delta);
+        const fx = FC ? FC.x : (kc ? carM.root.x : (this.ballSpr ? this.ballSpr.x : FW / 2)),
+          fy = FC ? FC.y : (kc ? carM.root.y : (this.ballSpr ? this.ballSpr.y : WORLD_H / 2));
         // locked plays ignore the zoomBig wide-angle: the carrier reads the SAME size on
         // every play, and the compensating zoom already widens/narrows the view for him
         const baseZ = (gliding0 ? 1.0 : (P.big ? TU("zoomBig",1.04) : TU("zoomPlay",1.34))) * _zf;
-        const targetZoom = (kc ? mt.Math.Clamp(TU("zoomPlay",1.34) * _zf / kc, TU("zoomLockMin", 0.6), TU("zoomLockMax", 2.4)) : baseZ) + this.zoomPunch;
-        cam.setZoom(cam.zoom + (targetZoom - cam.zoom) * (kc ? TU("zoomLockLerp", 0.12) : TU("zoomLerp", 0.06)));
+        const targetZoom = FC ? FC.zoom
+          : (kc ? mt.Math.Clamp(TU("zoomPlay",1.34) * _zf / kc, TU("zoomLockMin", 0.6), TU("zoomLockMax", 2.4)) : baseZ) + this.zoomPunch;
+        cam.setZoom(cam.zoom + (targetZoom - cam.zoom) * (FC ? TU("flagCamLerp", 0.14) : kc ? TU("zoomLockLerp", 0.12) : TU("zoomLerp", 0.06)));
         if (this._pcam) { const dtc = Math.max(16, delta);
           const nvx = (fx - this._pcam.x) / dtc * 1000, nvy = (fy - this._pcam.y) / dtc * 1000;
           this._cvx = (this._cvx || 0) + (nvx - (this._cvx || 0)) * 0.15;
           this._cvy = (this._cvy || 0) + (nvy - (this._cvy || 0)) * 0.15; }
         this._pcam = { x: fx, y: fy };
-        let lx = (this._cvx || 0) * TU("camLeadMs", 420) / 1000, ly = (this._cvy || 0) * TU("camLeadMs", 420) / 1000;
+        // the predictive lead exists to keep a RUNNER in frame; on a flag it would
+        // only drag the official back off the edge of it
+        let lx = FC ? 0 : (this._cvx || 0) * TU("camLeadMs", 420) / 1000, ly = FC ? 0 : (this._cvy || 0) * TU("camLeadMs", 420) / 1000;
         const lm = Math.hypot(lx, ly), mL = TU("camLeadMax", 130);
         if (lm > mL) { lx *= mL / lm; ly *= mL / lm; }
         const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom);
         const cx = hw >= FW / 2 ? FW / 2 : mt.Math.Clamp(fx + lx, hw, FW - hw);
         const cy = mt.Math.Clamp(fy + ly - 40, hh, WORLD_H - hh);
+        const panK = FC ? TU("flagCamPan", 0.16) : 0.09;
         if (Math.abs(cx - cam.midPoint.x) > 2.5 || Math.abs(cy - cam.midPoint.y) > 2.5)
-          cam.centerOn(cam.midPoint.x + (cx - cam.midPoint.x) * 0.09, cam.midPoint.y + (cy - cam.midPoint.y) * 0.09);
+          cam.centerOn(cam.midPoint.x + (cx - cam.midPoint.x) * panK, cam.midPoint.y + (cy - cam.midPoint.y) * panK);
       }
     } catch (e) {}
     // interpolate actors (skip during the glide-in so formations flow between plays)
@@ -5996,8 +6004,19 @@ class Ot extends mt.Scene {
     m.body.setFlipX(dirless ? seqFlip : (m.flip && (m.dirKey === "sd" || m.dirKey === "dr" || m.dirKey === "ur")));
     m.body.setRotation(0);
     const p = PJ(sx, sy);
-    m.root.setPosition(p.x, p.y); m.root.setScale(p.s);
-    m.root.setDepth(4 + sy * 0.02 + 0.006);
+    let emph = 1, hop = 0;                                // v71 flag emphasis
+    if (m.emphMs) {
+      m.emphT = (m.emphT || 0) + (dtms || 16);
+      if (m.emphT >= m.emphMs) { m.emphMs = 0; m.root.setAngle(0); }
+      else {
+        const sw = Math.sin(Math.PI * m.emphT / m.emphMs);
+        emph = 1 + TU("flagEmphScale", .42) * sw;
+        hop = -TU("flagEmphHop", 7) * sw;
+        m.root.setAngle(Math.sin(m.emphT / 46) * TU("flagEmphTilt", 3.5) * sw);
+      }
+    }
+    m.root.setPosition(p.x, p.y + hop * p.s); m.root.setScale(p.s * emph);
+    m.root.setDepth(4 + sy * 0.02 + 0.006 + (m.emphMs ? 18 : 0));
     m._spdPx = spdPx;
     return p;
   }
@@ -6095,10 +6114,59 @@ class Ot extends mt.Scene {
     }
     return best || (freeOnly ? this.refNearest(x, y, false) : null);
   }
+  /* ===== v71 FLAG FOCUS — the camera goes to the official =====
+   * v45/v49 got the crew throwing a real flag from a real hand, and then the
+   * broadcast ignored it: the camera stayed locked on the ball carrier, who by then
+   * is standing still, while the one thing that just changed the down happened
+   * somewhere off to the side at 6 pixels tall. A penalty is the single moment in a
+   * play where the ball is NOT the story.
+   *
+   * So a flag takes the frame. `_flagCam` re-points the follow at the official and
+   * pushes the zoom in, on an ease-in / hold / ease-out envelope so the pull-in and
+   * the release are both a move the eye can follow rather than a cut; the predictive
+   * lead is suppressed for its duration, because that lead exists to keep a RUNNER in
+   * frame and here it would only drag the official back off the edge of it.
+   *
+   * Zooming in on a man standing still is not emphasis, so he also SELLS it:
+   * `refEmphasize` swells him, lifts him off his heels and puts a shiver through the
+   * throw, and a ring goes off his feet. Everything is render-only and additive —
+   * no sim actor moves, no call changes, and the whole thing expires on its own
+   * clock, so a dropped frame or a torn-down scene cannot leave the camera stuck. */
+  // the focus and the emphasis are one beat and they end together. They also both
+  // run off the PLAY clock, so if a play dies mid-swell (the whistle came fast, the
+  // scene tore down) the official would otherwise be left permanently 40% bigger and
+  // tilted — this is the one place that can happen and the only place that clears it.
+  endFlagFocus() {
+    const F = this._flagCam; this._flagCam = null;
+    try { if (F && F.m) { F.m.emphMs = 0; F.m.emphT = 0; if (F.m.root) F.m.root.setAngle(0); } } catch (e) {}
+  }
+  flagCamTarget(delta) {
+    const F = this._flagCam;
+    if (!F) return null;
+    F.t += Math.max(0, delta || 16);
+    if (F.t >= F.ms || !F.m || !F.m.root || F.m.root.active === false) { this.endFlagFocus(); return null; }
+    const k = F.t / F.ms, IN = TU("flagCamInK", .22), OUT = TU("flagCamOutK", .26);
+    const w = k < IN ? k / IN : k > 1 - OUT ? (1 - k) / OUT : 1;
+    const e = w * w * (3 - 2 * w);                        // smoothstep in and out of the hold
+    return { x: F.m.root.x, y: F.m.root.y - TU("flagCamRise", 12), zoom: F.z0 + (F.z1 - F.z0) * e, k: e };
+  }
+  // one swell with a shiver on it: the swell says LOOK, the shiver says he means it
+  refEmphasize(m, ms) { if (m) { m.emphT = 0; m.emphMs = ms || TU("flagEmphMs", 950); } }
   refThrowFlag(x, y) {
     const best = this.refNearest(x, y, true);
     if (!best) return false;
     best.forceState = "throwSeq"; best.seqT = best.tms; best.sSm = 0;
+    // v71: take the camera, and give it something to land on
+    try {
+      this._flagCam = { m: best, t: 0, ms: TU("flagCamMs", 1650),
+        z0: this.cameras.main.zoom, z1: this.cameras.main.zoom * TU("flagCamZoomK", 1.62) };
+      this.refEmphasize(best);
+      const hp = PJ(best.sx, best.sy);
+      const ring = this.trackFx(this.add.ellipse(hp.x, hp.y + 16 * hp.s, 20, 8)
+        .setStrokeStyle(2.6, 0xffd75e, .95).setDepth(3.9));
+      this.tweens.add({ targets: ring, scaleX: 5.4, scaleY: 5.4, alpha: 0, duration: 820,
+        ease: "Quad.easeOut", onComplete: () => this.dropFx(ring) });
+    } catch (e) {}
     // heave toward the spot, not away from it — in SCREEN space, since PJ can flip
     // the sim's x for a north-south camera
     best.seqFlip = PJ(x, y).x > PJ(best.sx, best.sy).x;
@@ -6107,6 +6175,7 @@ class Ot extends mt.Scene {
     // tumbles through an arc instead of sliding flat to the spot.
     this.time.delayedCall(frameMs * 4, () => { try {
       if (!best.root || best.root.active === false) return;
+      this.cameras.main.shake(150, TU("flagShake", 0.0035));
       const hand = PJ(best.sx, best.sy), spot = PJ(x, y);
       const key = this.textures.exists("spr_ref_flag") ? "spr_ref_flag" : null;
       const f = this.trackFx(key
