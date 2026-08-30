@@ -448,6 +448,58 @@ if (pre) {
   ok(pre.scoutKept || !pre.shortlisted, 'the scout pick survives the shortlist', `scoutKept=${pre.scoutKept} shortlisted=${pre.shortlisted}`)
   ok(pre.fit, 'the pregame roll shows the fit panel too')
 
+  // ---- 4b. v66: the pregame deck is DRAWN too. Same three claims the v64 skill
+  // art makes, on the surface the player meets every week: a cell per plan, real
+  // art in the rows rather than the emoji it replaced, and the face drawing the
+  // scenes rather than only the list. Two of the ten plans carried the SAME emoji
+  // (🎯 for both Demand the Spotlight and Red Zone Package), so `distinct` is the
+  // claim that actually matters here.
+  const pa = await page.evaluate(async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms))
+    const rows = [...document.querySelectorAll('#growthV42 .gv64-ico')]
+    const rowStyle = rows.map(e => { const c = getComputedStyle(e)
+      return { emo: e.classList.contains('gv64-emo'), img: c.backgroundImage, pos: c.backgroundPosition,
+        w: parseFloat(c.width), h: parseFloat(c.height) } })
+    const cv = document.getElementById('gv50wheel')
+    for (let i = 0; i < 200 && !(window.__WHEEL_V50_LAST || {}).redraw; i++) await wait(60)
+    const redraw = (window.__WHEEL_V50_LAST || {}).redraw
+    const W = cv.width, R = W / 2 - 4, cx = W / 2, cy = W / 2
+    const sample = () => { const dd = cv.getContext('2d').getImageData(0, 0, W, W).data, out = []
+      for (const rr of [0.50, 0.545, 0.585, 0.63, 0.675]) for (let k = 0; k < 360; k++) {
+        const x = (cx + Math.cos(k / 360 * Math.PI * 2) * R * rr) | 0, y = (cy + Math.sin(k / 360 * Math.PI * 2) * R * rr) | 0
+        const i = ((y * W) + x) * 4; out.push(dd[i], dd[i + 1], dd[i + 2]) }
+      return out }
+    if (redraw) redraw()
+    const on = sample()
+    window.__PLAN_ART_V66.off = true
+    if (redraw) redraw()
+    const off = sample()
+    window.__PLAN_ART_V66.off = false
+    if (redraw) redraw()
+    let hits = 0
+    for (let i = 0; i < on.length; i += 3)
+      if (Math.abs(on[i] - off[i]) + Math.abs(on[i + 1] - off[i + 1]) + Math.abs(on[i + 2] - off[i + 2]) > 30) hits++
+    return {
+      cells: Object.keys(window.__PLAN_ART_V66 ? window.__PLAN_ART_V66.cells : {}).length,
+      ready: !!(window.__PLAN_ART_V66 && window.__PLAN_ART_V66.ready),
+      rows: rowStyle.length,
+      fellBackToEmoji: rowStyle.filter(r => r.emo).length,
+      sized: rowStyle.every(r => r.w >= 30 && r.h >= 30),
+      hasImage: rowStyle.every(r => /url\(/.test(r.img)),
+      distinct: new Set(rowStyle.map(r => r.pos)).size,
+      sceneHits: hits, redrawable: !!redraw,
+    }
+  })
+  console.log('plan art:', JSON.stringify(pa))
+  ok(pa.cells === 10, 'every weekly game plan has a cell in the sheet', pa.cells)
+  ok(pa.ready, 'the plan sheet decodes')
+  ok(pa.rows >= 2 && pa.fellBackToEmoji === 0, 'every plan row shows ART, not the emoji it replaced',
+    `${pa.rows} rows, ${pa.fellBackToEmoji} on the emoji fallback`)
+  ok(pa.hasImage && pa.sized, 'the plan row icons are a real, sized image',
+    `image=${pa.hasImage} sized=${pa.sized}`)
+  ok(pa.distinct === pa.rows, 'each plan shows its OWN scene (two plans shared one emoji)', pa.distinct)
+  ok(pa.sceneHits > 60, 'the pregame face draws the scenes too, not just the list', pa.sceneHits)
+
   // a tap must speed this one up as well
   await page.locator('#gv50wheel').click({ force: true })
   const preRate = await page.evaluate(() => window.__DECIDE_SPEED_V50.rate)
