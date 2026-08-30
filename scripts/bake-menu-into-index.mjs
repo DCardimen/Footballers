@@ -13,6 +13,7 @@ const cssFiles = [
   'rib-menu-mobile.css',
   'rib-menu-final.css',
   'rib-menu-assets.css',
+  'rib-menu-v74.css',
 ]
 
 const jsFiles = [
