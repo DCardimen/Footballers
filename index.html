@@ -12370,5 +12370,208 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   };
 })();
 </script>
+<script>
+/* ===== v75 HUB SECTIONS — the screen you come back to after everything fits =====
+ * The hub is where the career loop returns after every single action, and it had
+ * grown to eighteen stacked blocks and 3898px on a 844px phone: 3.6 screens of
+ * scroll, which means that on arrival you can see the top of the hero card and
+ * nothing else. Every one of those eighteen blocks is worth having — the depth
+ * chart, the body ledger, the rival, the promotion target, the attribute sheet —
+ * but a stack is the wrong shape for eighteen of anything.
+ *
+ * They are grouped into five sections behind a tab strip instead: NOW (who you are
+ * and what this week asks), BODY (condition and the age curve), SKILLS (the
+ * attribute sheet), TEAM (the world, the rival, the wire) and STORY (identity,
+ * missions, objectives, legacy). Each one fits a phone on its own.
+ *
+ * This is a PRESENTATION pass and deliberately nothing else: it moves the blocks
+ * the hub already rendered into containers and hides four of the five. It adds no
+ * card, removes none, and changes no card's markup — which is what lets it sit
+ * safely on top of a dozen patch layers that each insert into #screen by querying
+ * for their neighbours. It runs off a MutationObserver plus a sweep, the same way
+ * v51 hooks the game-plan overlay, so it does not have to find the end of the
+ * render-wrapper chain: every render rebuilds #screen from scratch, the tab strip
+ * disappears with it, and the next sweep re-sections whatever is now there.
+ *
+ * Classification is by class first, then by text for the two cards that carry no
+ * class of their own, and anything still unmatched INHERITS the block above it —
+ * which is what keeps the "Attributes" heading, the attribute sheet and its
+ * how-it-works footnote together as one run without naming each of them. ===== */
+(function () {
+  "use strict";
+  // One config per screen that needs splitting. `keep` names the blocks that are the
+  // screen's HEADER and stay above the strip in every tab; `secs` classify by class;
+  // `txt` covers the blocks that carry no class of their own; anything still
+  // unmatched INHERITS the block above it, which is what holds a run like the
+  // "Attributes" heading + its sheet + its footnote together without naming each.
+  const VIEWS = {
+    hub: {
+      start: "now",
+      secs: [
+        { k: "now",    name: "NOW",    re: /player-hero|depth-card/ },
+        { k: "body",   name: "BODY",   re: /condition-card-v11|age-card/ },
+        { k: "skills", name: "SKILLS", re: /(?!)/ },    // reached by text + inheritance only
+        { k: "team",   name: "TEAM",   re: /world-card|rival-card-v11|weekly-loop-card|pulse-card|headline-card|nem-banner/ },
+        { k: "story",  name: "STORY",  re: /identity-card-v11|mission-card|objective-card|legacy-progress-v11|arc-card-v11|nfl-survival-v11|story-feed/ },
+      ],
+      txt: [
+        { k: "now",    re: /PROMOTION TARGET|NATIONAL RANK/i },
+        { k: "skills", re: /^\s*Attributes\s*$/ },
+      ],
+    },
+    // the prestige tree put 862px of specialization and rewards cards ABOVE the
+    // branch row, so the shop you came for started a screen and a half down
+    shop: {
+      start: "nodes",
+      keep: /(^|\s)(eyebrow|h1|sub)(\s|$)|pts-banner/,
+      secs: [
+        { k: "nodes", name: "NODES", re: /btn-row/ },
+        { k: "perks", name: "PERKS", re: /specialization-card-v11|legacy-rewards-v11/ },
+      ],
+      txt: [],
+    },
+  };
+  const ICON = { now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠" };
+  const TAB = { hub: "now", shop: "nodes" };
+
+  function cfg() { const s = window.S; return (s && VIEWS[s.view]) || null }
+  function classify(el, C) {
+    const cls = el.className || "";
+    for (const s of C.secs) if (s.re.test(cls)) return s.k;
+    const t = (el.innerText || "").replace(/\s+/g, " ").trim().slice(0, 80);
+    for (const r of C.txt) if (r.re.test(t)) return r.k;
+    return null;                                        // inherit
+  }
+
+  function css() {
+    if (document.getElementById("hubv75css")) return;
+    const st = document.createElement("style");
+    st.id = "hubv75css";
+    st.textContent =
+      ".hubv75-tabs{display:flex;gap:4px;margin:10px 14px 2px;padding:3px;border-radius:11px;" +
+      "background:rgba(10,17,27,.9);border:1px solid rgba(255,255,255,.07);position:sticky;top:0;z-index:6;" +
+      "box-shadow:0 6px 14px rgba(0,0,0,.45)}" +
+      ".hubv75-tab{flex:1 1 0;min-width:0;padding:7px 2px 6px;border:0;border-radius:8px;cursor:pointer;" +
+      "background:transparent;color:#8fa2bb;font:700 9.5px Oswald,sans-serif;letter-spacing:1.4px;" +
+      "display:flex;flex-direction:column;align-items:center;gap:2px;transition:background .12s,color .12s}" +
+      ".hubv75-tab i{font-style:normal;font-size:13px;line-height:1}" +
+      ".hubv75-tab.on{background:linear-gradient(180deg,rgba(240,187,69,.22),rgba(240,187,69,.08));color:#ffd76f;" +
+      "box-shadow:0 0 0 1px rgba(240,187,69,.4) inset}" +
+      ".hubv75-tab b{position:absolute;opacity:0}" +
+      ".hubv75-sec{display:none}.hubv75-sec.on{display:block}" +
+      "@media(prefers-reduced-motion:reduce){.hubv75-tab{transition:none}}" +
+      /* ---- v75 compaction: two screens are ONE long list each, so a tab strip has
+         nothing to split. They get their row height back instead. The upgrade row
+         carried its metric and its (v67) cap readout on two separate lines under a
+         two-line description; one line each takes 100px a row down to ~62, which is
+         660px off a seventeen-stat sheet. ---- */
+      ".up-attr .desc{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}" +
+      ".up-attr .up-metric,.up-attr .up-cap{display:inline-block;vertical-align:baseline;margin-top:1px}" +
+      ".up-attr .up-metric{margin-right:9px}" +
+      ".up-attr{padding-top:7px;padding-bottom:7px}" +
+      /* the training board is twelve programs; the scene art and the chip rows are
+         what make each one 163px tall */
+      ".train-card{padding:9px 11px}" +
+      ".train-card .gv64-ico{width:40px!important;height:40px!important}" +
+      ".train-head{gap:9px}" +
+      ".train-chips{margin-top:5px;gap:4px}" +
+      ".train-chip{padding:2px 6px;font-size:9.5px}" +
+      ".train-meta{font-size:9.5px}" +
+      /* the prestige tree's eight branch buttons wrapped to three rows before a
+         single node was on screen; one scrollable line gives that back */
+      /* the branch row carries an inline flex-wrap, so this is the one place the
+         compaction has to out-rank a style attribute */
+      ".hubv75-sec[data-sec=\"nodes\"] .btn-row{display:flex;flex-wrap:nowrap!important;overflow-x:auto;gap:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}" +
+      ".hubv75-sec[data-sec=\"nodes\"] .btn-row::-webkit-scrollbar{display:none}" +
+      ".hubv75-sec[data-sec=\"nodes\"] .btn-row>*{flex:0 0 auto;white-space:nowrap}" +
+      ".shop-item{padding-top:8px;padding-bottom:8px}";
+    (document.head || document.documentElement).appendChild(st);
+  }
+
+  function section(screen, C) {
+    const kids = [...screen.children].filter(e => e.nodeType === 1);
+    if (!kids.length) return false;
+    const view = window.S.view;
+    const head = [], bucket = {};
+    for (const s of C.secs) bucket[s.k] = [];
+    let cur = C.start;
+    for (const el of kids) {
+      if (C.keep && C.keep.test(el.className || "")) { head.push(el); continue }
+      const k = classify(el, C);
+      if (k) cur = k;
+      bucket[cur].push(el);
+    }
+    const live = C.secs.filter(s => bucket[s.k].length);
+    if (live.length < 2) return false;                   // nothing to split
+    if (!live.some(s => s.k === TAB[view])) TAB[view] = live[0].k;
+    const on = TAB[view];
+
+    css();
+    const tabs = document.createElement("div");
+    tabs.className = "hubv75-tabs";
+    tabs.innerHTML = live.map(s =>
+      `<button type="button" class="hubv75-tab${s.k === on ? " on" : ""}" data-sec="${s.k}">` +
+      `<i>${ICON[s.k] || "•"}</i>${s.name}</button>`).join("");
+    const frag = document.createDocumentFragment();
+    for (const el of head) frag.appendChild(el);          // the screen's own header, always up
+    frag.appendChild(tabs);
+    for (const s of live) {
+      const box = document.createElement("div");
+      box.className = "hubv75-sec" + (s.k === on ? " on" : "");
+      box.dataset.sec = s.k;
+      for (const el of bucket[s.k]) box.appendChild(el);
+      frag.appendChild(box);
+    }
+    screen.appendChild(frag);
+    tabs.addEventListener("click", (e) => {
+      const b = e.target.closest(".hubv75-tab"); if (!b) return;
+      TAB[view] = b.dataset.sec;
+      screen.querySelectorAll(".hubv75-tab").forEach(t => t.classList.toggle("on", t.dataset.sec === TAB[view]));
+      screen.querySelectorAll(".hubv75-sec").forEach(t => t.classList.toggle("on", t.dataset.sec === TAB[view]));
+      try { screen.scrollIntoView({ block: "start" }) } catch (er) {}
+    });
+    return true;
+  }
+
+  // a later layer can still insert a card straight into #screen after we have
+  // sectioned it; those are adopted into the section they belong to rather than
+  // left floating above the tab strip
+  function adopt(screen, C) {
+    const strays = [...screen.children].filter(e =>
+      !e.classList.contains("hubv75-tabs") && !e.classList.contains("hubv75-sec")
+      && !(C.keep && C.keep.test(e.className || "")));
+    if (!strays.length) return;
+    for (const el of strays) {
+      const k = classify(el, C) || C.start;
+      const box = screen.querySelector('.hubv75-sec[data-sec="' + k + '"]')
+        || screen.querySelector(".hubv75-sec");
+      if (box) box.appendChild(el);
+    }
+  }
+
+  let t = null;
+  function sweep() {
+    try {
+      const C = cfg(); if (!C) { css(); return }          // css() still carries the compaction
+      const screen = document.getElementById("screen");
+      if (!screen) return;
+      if (screen.querySelector(":scope > .hubv75-tabs")) { adopt(screen, C); return; }
+      // wait for the render to settle: these screens are assembled by a chain of patch
+      // layers and sectioning half of one would strand the rest above the strip
+      clearTimeout(t);
+      t = setTimeout(() => {
+        try {
+          const sc = document.getElementById("screen"), C2 = cfg();
+          if (sc && C2 && !sc.querySelector(":scope > .hubv75-tabs")) section(sc, C2);
+        } catch (e) {}
+      }, 90);
+    } catch (e) {}
+  }
+  try { new MutationObserver(sweep).observe(document.body, { childList: true, subtree: true }) } catch (e) {}
+  setInterval(sweep, 300);
+  css();
+  try { window.__HUB_V75 = { views: VIEWS, tabs: TAB, sweep } } catch (e) {}
+})();
+</script>
 <!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-asset-runtime.js?v=v74-polish"></script><script src="./public/rib-menu-boot.js?v=v74-polish"></script><script src="./public/rib-menu.js?v=v74-polish"></script><script src="./public/rib-menu-navigation.js?v=v74-polish"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
 </html>
