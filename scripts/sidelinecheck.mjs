@@ -189,10 +189,13 @@ const facing = await page.evaluate(() => {
   const pick = (n) => ({ L: l.filter(i => i.name === n && i.vv < M).map(i => i.sx), R: l.filter(i => i.name === n && i.vv > M).map(i => i.sx) })
   return { bench: pick('bench_back'), rack: pick('helmet_rack') }
 })
+// the art opens LEFT unflipped, and low-vv is always screen-left, so the left
+// bank must mirror (sx=-1) and the right must not (sx=+1) — asserted by SIGN,
+// not by difference, because "they differ" was also true when both faced away
 const oneWay = (a) => a.length && a.every(v => v === a[0])
-ok(oneWay(facing.bench.L) && oneWay(facing.bench.R) && facing.bench.L[0] !== facing.bench.R[0],
-  'the benches on the two banks face the field, not the same way', `L=${facing.bench.L[0]} R=${facing.bench.R[0]}`)
-ok(oneWay(facing.rack.L) && oneWay(facing.rack.R) && facing.rack.L[0] !== facing.rack.R[0],
+ok(oneWay(facing.bench.L) && oneWay(facing.bench.R) && facing.bench.L[0] === -1 && facing.bench.R[0] === 1,
+  'the benches on both banks open toward the field', `L=${facing.bench.L[0]} R=${facing.bench.R[0]}`)
+ok(oneWay(facing.rack.L) && oneWay(facing.rack.R) && facing.rack.L[0] === -1 && facing.rack.R[0] === 1,
   'so do the racks and the rest of the three-quarter art')
 
 const seated = await page.evaluate(() => {
@@ -206,7 +209,8 @@ const seated = await page.evaluate(() => {
   for (const s2 of sitters) {
     const b = seats.find(b2 => Math.abs(b2.u - s2.u) < 8 && (b2.vv < M) === (s2.vv < M))
     if (b && s2.depth > b.depth) onSeat++
-    if (/_sd_/.test(s2.name || '')) watching++
+    // profile pose AND mirrored toward the touchline (left bank flips right)
+    if (/_sd_/.test(s2.name || '') && (s2.sx < 0) === (s2.vv < M)) watching++
   }
   return { sitters: sitters.length, onSeat, watching }
 })
@@ -221,11 +225,12 @@ const watchers = await page.evaluate(() => {
   // a profile "watches the field" when it faces the touchline: on the
   // screen-left bank that is a FLIPPED (rightward) profile, on the right an
   // unflipped one — sx carries the flip, VDIR carries which bank is which side
-  // which world bank is on screen-left right now: project a point on each
-  // touchline and compare their screen x (PJ carries the VDIR mirror)
-  const lowVvIsLeft = window.__PJ_PROBE(360, 14).x < window.__PJ_PROBE(360, 426).x
+  // crowdProject carries no VDIR mirror, so a bank's screen side IS its world
+  // side: low-vv is ALWAYS screen-left. (The first version probed through PJ,
+  // which does mirror — it asserted the same wrong model the renderer had, and
+  // passed while half the sideline faced away from the game.)
   let toward = 0
-  for (const i of prof) { const screenLeft = (i.vv < M) === lowVvIsLeft; if ((i.sx < 0) === screenLeft) toward++ }
+  for (const i of prof) { const screenLeft = i.vv < M; if ((i.sx < 0) === screenLeft) toward++ }
   return { standing: standing.length, prof: prof.length, toward }
 })
 ok(watchers.prof >= watchers.standing * .6, 'most standing backups watch the field too', `${watchers.prof}/${watchers.standing} in profile`)

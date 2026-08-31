@@ -55,6 +55,27 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v80 — the ball reaches the boundary, and the sideline watches it get there.**
+  Two fixes, one cause each. LATERAL CALIBRATION: the field art draws its
+  painted touchlines to true scale, ~16% wider than the raw lateral map put the
+  sim's F_TOP/F_BOT — a carrier "stepped out" four yards inside the painted
+  boundary. v72 reconciled art and world vertically (by goal lines) and never
+  laterally; `latCal` (1.16, inside PJ/crowdProject — the one place
+  world-lateral becomes screen-x) is the missing counterpart, so the sim's
+  boundary now lands ON the painted line at every depth, within the line's own
+  stroke width on both banks. The world stretches to meet the art, not the
+  reverse: the art, the yard numbers and the crowd mapping are untouched, and
+  `sidelinecheck`'s luminance probe (`sidePaintHalf` = 206 = the sim
+  half-width, now equal by construction) fails if the two ever drift apart.
+  FACING: `crowdProject` carries no VDIR mirror — a bank's screen side IS its
+  world side, always — but the v79 facing logic "corrected" for a camera swing
+  that never reaches the sideline, so every profile and every three-quarter
+  face spent half of each game turned away from the football. The VDIR terms
+  are gone: sitters, standing backups, coaches, trainers and all directional
+  furniture now open toward the field from both banks in both possession
+  states, and the check asserts the mirror by SIGN per bank ("they differ" was
+  also true when both faced away).
+
 - **v79.2 — the painted line is the line.** The field art paints its touchline
   ~35 world units OUTSIDE the sim's F_TOP/F_BOT — the sim plays inside a
   slightly narrower field than the art draws (the rows were reconciled in v72,
