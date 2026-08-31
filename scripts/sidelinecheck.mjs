@@ -68,11 +68,12 @@ ok(!!art && art.registered === art.cells, 'every packed cell reaches a texture',
 
 const S = await page.evaluate(() => {
   const D = window.__SIDE_V78; if (!D) return null
-  return { items: D.items, live: D.live, gap: D.gap, lanes: D.lanes, span: D.span, half: D.half, midy: D.midy, list: D.list() }
+  return { items: D.items, live: D.live, fx: D.fx, gap: D.gap, lanes: D.lanes, span: D.span, half: D.half, midy: D.midy, list: D.list(), _live: null }
 })
 ok(!!S, 'the team area is built', S ? S.items + ' sprites' : 'none')
 if (!S) { console.log('page errors:', errs.join('\n')); await b.close(); process.exit(1) }
 
+const S2 = () => S._live ? S._live() : S
 const named = (re) => S.list.filter(i => re.test(i.name || ''))
 const coaches = named(/^coach\d/), trainers = named(/^trainer\d/)
 const backups = S.list.filter(i => i.kind === 'player')
@@ -150,6 +151,113 @@ ok(chain.a && chain.b && chain.b.u > chain.a.u + 100, 'the chain crew walks the 
 ok(chain.a && chain.b && chain.a.name === 'down1' && chain.b.name === 'down3', 'the box shows the down that is actually being played',
   chain.a && chain.b ? `${chain.a.name} / ${chain.b.name}` : '')
 
+// ================================================================ v79 layer
+console.log('\n-- v79: light & life --')
+ok(S2().fx > 120, 'every sprite casts a contact shadow', S2().fx + ' shadow ellipses')
+
+const lit = await page.evaluate(() => {
+  const l = window.__SIDE_V78.list()
+  const tints = l.filter(i => i.tint != null && i.tint !== 0xffffff)
+  const far = l.filter(i => i.y < 700 && i.tint != null), near = l.filter(i => i.y > 900 && i.tint != null)
+  const lum = (t) => ((t >> 16) & 255) + ((t >> 8) & 255) + (t & 255)
+  const avg = (a) => a.reduce((s2, i) => s2 + lum(i.tint), 0) / Math.max(1, a.length)
+  return { tinted: tints.length, total: l.length, farAvg: avg(far), nearAvg: avg(near), nFar: far.length, nNear: near.length }
+})
+ok(lit.tinted > lit.total * .8, 'the band runs through the lighting, not at full brightness', `${lit.tinted}/${lit.total} tinted`)
+ok(lit.nFar > 4 && lit.nNear > 4 && lit.farAvg < lit.nearAvg, 'the far end of the sideline sits in dimmer air than the near end',
+  `${Math.round(lit.farAvg)} < ${Math.round(lit.nearAvg)}`)
+
+const facing = await page.evaluate(() => {
+  const l = window.__SIDE_V78.list(), M = window.__SIDE_V78.midy
+  const pick = (n) => ({ L: l.filter(i => i.name === n && i.vv < M).map(i => i.sx), R: l.filter(i => i.name === n && i.vv > M).map(i => i.sx) })
+  return { bench: pick('bench_long'), rack: pick('helmet_rack') }
+})
+const oneWay = (a) => a.length && a.every(v => v === a[0])
+ok(oneWay(facing.bench.L) && oneWay(facing.bench.R) && facing.bench.L[0] !== facing.bench.R[0],
+  'the benches on the two banks face the field, not the same way', `L=${facing.bench.L[0]} R=${facing.bench.R[0]}`)
+ok(oneWay(facing.rack.L) && oneWay(facing.rack.R) && facing.rack.L[0] !== facing.rack.R[0],
+  'so do the racks and the rest of the three-quarter art')
+
+const seated = await page.evaluate(() => {
+  const l = window.__SIDE_V78.list(), M = window.__SIDE_V78.midy
+  const benches = l.filter(i => /^bench_/.test(i.name || ''))
+  const sitters = l.filter(i => i.kind === 'player' && i.lane === 'bench')
+  // a sitter is OUTBOARD of his bench and drawn under it (lower depth), so the
+  // bench front hides his legs
+  let occluded = 0
+  for (const s2 of sitters) {
+    const b = benches.find(b2 => Math.abs(b2.u - s2.u) < 26 && (b2.vv < M) === (s2.vv < M))
+    if (b && Math.abs(s2.vv - M) >= Math.abs(b.vv - M) && s2.depth < b.depth) occluded++
+  }
+  return { sitters: sitters.length, occluded }
+})
+ok(seated.sitters >= 16, 'the benches are occupied', seated.sitters + ' sitting')
+ok(seated.occluded >= seated.sitters * .8, 'sitters tuck behind the bench front, legs hidden', `${seated.occluded}/${seated.sitters}`)
+
+const react = await page.evaluate(async () => {
+  const sc = window.__gridironScene
+  sc.side.excite = 0
+  sc.sideReact({ type: 'td' })
+  const peak = sc.side.excite
+  await new Promise(r => setTimeout(r, 1200))
+  return { peak, later: sc.side.excite, quiet: (sc.sideReact({ type: 'snap' }), sc.side.excite) }
+})
+ok(react.peak >= 1, 'a touchdown sends the bench into the air', 'excite=' + react.peak)
+ok(react.later < react.peak * .8, 'and the reaction dies back down', `${react.peak} -> ${+react.later.toFixed(2)}`)
+
+const staffTint = await page.evaluate(() => {
+  const t = window.__gridironScene.textures
+  if (!t.exists('spr_side_coach0') || !t.exists('spr_side_off_coach0')) return null
+  const px = (key) => { const im = t.get(key).getSourceImage(), c = document.createElement('canvas')
+    c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0)
+    return x.getImageData(0, 0, c.width, c.height).data }
+  const a = px('spr_side_coach0'), b = px('spr_side_off_coach0')
+  let diff = 0, skin = 0
+  for (let i = 0; i < a.length; i += 4) {
+    if (a[i + 3] < 40) continue
+    if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 24) diff++
+    // skin/khaki (warm, red-dominant) must be untouched by the tint
+    else if (a[i] > a[i + 2] + 20 && a[i] > 90) skin++
+  }
+  return { diff, skin }
+})
+ok(staffTint && staffTint.diff > 200, 'the staff kit recolors to the team primary', staffTint ? staffTint.diff + 'px changed' : 'textures missing')
+ok(staffTint && staffTint.skin > 200, 'while skin and khakis never tint', staffTint ? staffTint.skin + 'px warm and unchanged' : '')
+
+const paint = await page.evaluate(() => {
+  const sc = window.__gridironScene, cv = sc._warpCv; if (!cv) return null
+  const ctx = cv.getContext('2d'), PJp = window.__PJ_PROBE, GAP = window.__SIDE_V78.gap
+  const lum = (x, y) => { const d = ctx.getImageData(Math.round(x + 240), Math.round(y), 1, 1).data; return d[0] + d[1] + d[2] }
+  const rows = []
+  for (let u = 250; u <= 470; u += 20) rows.push(u)
+  let border = 0, grass = 0, kit = 0, mid = 0
+  for (const x of rows) {
+    const b = PJp(x, 426 + 8), g = PJp(x, 300), k2 = PJp(x, 426 + GAP * .86), m = PJp(x, 426 + GAP * .5)
+    border += lum(b.x, b.y); grass += lum(g.x, g.y); kit += lum(k2.x, k2.y); mid += lum(m.x, m.y)
+  }
+  const n = rows.length
+  return { border: Math.round(border / n), grass: Math.round(grass / n), kit: Math.round(kit / n), mid: Math.round(mid / n) }
+})
+ok(paint && paint.border > paint.grass + 60, 'the white border is painted on the turf outside the touchline',
+  paint ? `${paint.border} vs grass ${paint.grass}` : 'no warp canvas')
+ok(paint && paint.kit < paint.mid - 8, 'a grounding shade sits under the equipment row', paint ? `${paint.kit} vs ${paint.mid}` : '')
+
+const wx = await page.evaluate(() => {
+  const sc = window.__gridironScene
+  const count = (re) => window.__SIDE_V78.list().filter(i => re.test(i.name || '')).length
+  const base = { ponchos: count(/^ponchos$/), towels: count(/^towels$/), heaters: count(/^heater$/), fans: count(/^fan$/) }
+  window.__WX_V79 = 'rain'; sc.buildSideline()
+  const rain = { ponchos: count(/^ponchos$/), towels: count(/^towels$/) }
+  window.__WX_V79 = 'snow'; sc.buildSideline()
+  const snow = { heaters: count(/^heater$/), fans: count(/^fan$/) }
+  window.__WX_V79 = 'clear'; sc.buildSideline()
+  return { base, rain, snow, rolled: true }
+})
+ok(wx.rain.ponchos > wx.base.ponchos && wx.rain.towels === 0, 'rain breaks out the ponchos and strikes the towel service',
+  `${wx.base.ponchos} -> ${wx.rain.ponchos} ponchos`)
+ok(wx.snow.heaters > wx.base.heaters && wx.snow.fans === 0, 'snow doubles the heaters and sends the fans away',
+  `${wx.base.heaters} -> ${wx.snow.heaters} heaters, fans ${wx.base.fans} -> 0`)
+
 try { await page.locator('canvas').first().screenshot({ path: 'scripts/_sideline.png' }) } catch (e) {}
 console.log('page errors:', errs.length ? '\n' + errs.join('\n') : 'none')
 if (errs.length) fails.push('page errors')
@@ -158,10 +266,17 @@ await b.close()
 // ------------------------------------------------------- the blocked-sheet run
 console.log('\n-- sheet blocked --')
 const blocked = await drive(true)
-const bs = await blocked.page.evaluate(() => ({
-  scene: !!window.__gridironScene, side: window.__SIDE_V78 ? window.__SIDE_V78.items : 0,
-  art: window.__SIDE_ART_V78 || null, players: (window.__gridironScene && window.__gridironScene.markers || []).length,
-}))
+// the walk into a live game is timing-sensitive — poll for the 22 markers
+// rather than reading one instant that may fall between snaps
+let bs = null
+for (let i = 0; i < 25; i++) {
+  bs = await blocked.page.evaluate(() => ({
+    scene: !!window.__gridironScene, side: window.__SIDE_V78 ? window.__SIDE_V78.items : 0,
+    art: window.__SIDE_ART_V78 || null, players: (window.__gridironScene && window.__gridironScene.markers || []).length,
+  }))
+  if (bs.players >= 22) break
+  await blocked.page.waitForTimeout(400)
+}
 ok(bs.scene && bs.players >= 22, 'players still take the field without the sideline sheet', bs.players + '')
 ok(!bs.side, 'no team area is built when the sheet never decodes', bs.side + '')
 ok(!blocked.errs.length, 'a blocked sideline sheet raises no page errors', blocked.errs.slice(0, 2).join(' | '))
