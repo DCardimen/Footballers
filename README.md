@@ -55,6 +55,34 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v79 — sideline light & life.** v78 proved the team area; v79 makes it sit in
+  the stadium instead of on it. Every sprite now casts a contact shadow and runs
+  through the SAME lighting the players get — the v29 depth falloff and ball
+  spotlight — plus the crowd's aerial fade and bank shade, so the band no longer
+  reads brighter than the game either side of it. The turf itself gets the frame
+  a team area needs: warpField paints the white boundary border, the dashed
+  coaches' box and a grounding shade under the equipment row (all three are
+  ground, so they ride the row loop the stands cannot). The benches are occupied
+  — backups a step outboard with their legs sunk behind the bench front, mostly
+  in profile, because people on a bench watch the field — and every piece of
+  three-quarter art (benches, racks, carts, tables) mirrors per bank so its open
+  side faces the field from either sideline, whichever end the camera shoots
+  from. The sideline is alive: fireEvent feeds it the same play the crowd hears
+  and a touchdown scales the idle sway into a bench-clearing bounce; a carrier
+  heading out of bounds scatters the boundary figures near his landing spot; a
+  knot of coaches and backups is anchored to the LOS and walks the line with the
+  drive; and Yr's weather roll finally reaches the renderer (`__WX_V79`) — rain
+  breaks out ponchos and strikes the towel service, snow doubles the heaters and
+  sends the fans away. Tidy-ups: staff jackets recolor to each team's primary by
+  masking the drawn navy only (khakis and skin never tint, which is what
+  multiplying the whole sprite would do); clustered placement replaces the ruled
+  rows; a separation pass stops trunks intersecting; far-end props under ~4px
+  are culled instead of rendering as mush; bob phases are seeded, so a snap
+  rebuild no longer teleports every figure mid-sway; and the layout seed
+  includes the season week, so every stadium stops laying out identically.
+  All render-only. `scripts/sidelinecheck.mjs` grew a v79 section covering every
+  claim above.
+
 - **v78 — the sideline is a sideline.** v57 cut an apron between the touchline and
   the stands and called it "the team area … so a later system can populate it".
   This is that system. Five uploaded sheets (coaches, trainers, benches, hydration,
