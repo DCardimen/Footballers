@@ -7141,11 +7141,12 @@ const POS_POOL=e=>Math.max(1,Math.round(NAT_POOL(e)/9));function br(e,t,a){const
     <div class="card">
       <div class="attrs">${ee.map(C=>Vr(C,e)).join("")}</div>
     </div>
-    ${e.totalSeasons===0&&o.careers<=1?`<div class="card tight" style="border-color:var(--gold)"><div class="small"><b style="color:var(--gold)">How it works:</b> Each level has a stat target. Play seasons and spend upgrade points to raise your production and your <b>promotion odds</b>. When you're ready, <b>declare</b> to roll for the next level — hit your target for a strong shot. Run out of seasons and your career ends.</div></div>`:""}
+    ${e.totalSeasons===0&&o.careers<=1?`<div class="card tight" style="border-color:var(--gold)"><div class="small"><b style="color:var(--gold)">How it works:</b> Each level has a stat target. Play seasons and spend upgrade points to raise your production and your <b>promotion odds</b>. When you're ready, <b>declare</b> to roll for the next level — hit your target for a strong shot. A declare is <b>one shot</b>: miss it, or run out of seasons, and the career ends.</div></div>`:""}
   `;const y=n<=0;x("dock").innerHTML=`
     ${e.points>0?`<button class="btn secondary" onclick="go('upgrade')">Spend ${e.points} Upgrade Point${e.points>1?"s":""}</button><div style="height:8px"></div>`:""}
     ${r&&!s?`<button class="btn" ${e.level===7?'style="background:linear-gradient(180deg,#b9a6ff,#7a5adf);color:#120a2e;box-shadow:0 4px 0 #3c2a8a, 0 6px 16px rgba(122,90,223,.4)"':""} onclick="declareFromHub()">${e.level===7?"🛸 Answer the Interstellar Call":e.level===5?"🎓 Declare for the Draft":"⬆️ Declare for "+A[e.level+1].name} · ${Math.round(d)}%</button>
-         ${y?'<div class="small center" style="margin-top:8px;color:var(--gold)">Final season played — you must declare now.</div>':`<div style="height:8px"></div><button class="btn secondary" onclick="startSeason()">▶ Play Another Season (${e.seasonsAtLevel+1}/${Bt()})</button>`}`:`<button class="btn" onclick="startSeason()">▶ Play ${t.games}-Game Season (${e.seasonsAtLevel+1}/${Bt()})</button>`}
+         <div class="small center" style="margin-top:8px;color:var(--blood)">⚠️ One shot — a failed declare ends the career.</div>
+         ${y?'<div class="small center" style="margin-top:4px;color:var(--gold)">Final season played — you must declare now.</div>':`<div style="height:8px"></div><button class="btn secondary" onclick="startSeason()">▶ Play Another Season (${e.seasonsAtLevel+1}/${Bt()})</button>`}`:`<button class="btn" onclick="startSeason()">▶ Play ${t.games}-Game Season (${e.seasonsAtLevel+1}/${Bt()})</button>`}
     ${!s&&!r?`<div style="height:8px"></div><div class="small center" style="color:var(--gold)">📚 ${t.grade} — ${i-e.seasonsAtLevel} more season${i-e.seasonsAtLevel>1?"s":""} to play${e.level===5?" before you can declare":""}.</div>`:""}
     ${t.key==="nfl"&&!(e.nflRings>=1)?'<div style="height:8px"></div><div class="small center" style="color:#c9b8ff">🛸 Rumors of an <b>Interstellar League</b>… they only call <b>champions</b>. Win a ring.</div>':""}
     <div style="height:8px"></div>
@@ -7158,7 +7159,7 @@ const POS_POOL=e=>Math.max(1,Math.round(NAT_POOL(e)/9));function br(e,t,a){const
   `}// v17: national standing → promotion floor. The rank on the declare screen IS
 // the rank that decides your fate: #1 in the country is an automatic call-up.
 function __natAdvFloor(e){try{const rk=sn(e,ae(e));if(!rk||!rk.of)return 0;const p=1-(rk.rank-1)/rk.of;/* v25 realistic funnel: percentile you must CLEAR rises sharply by level */const NEED=[0.50,0.55,0.62,0.70,0.93,0.985,0.997,0.99999];const need=NEED[Math.min(Math.max(0,e.level),NEED.length-1)];if(p>=need){const over=(p-need)/Math.max(1e-4,1-need);return f(72+over*27.5,72,99.5);}return 0;}catch(_){return 0}}
-function Ar(){const e=o.player;if(e.seasonsAtLevel<ss()){F("You must finish this level first!");return}const t=Math.max(Math.min(97,qt(ae(e),e.level)+(e.declareBonus||0)),__natAdvFloor(e));e.seasonStats||(e.seasonStats={}),e.seasonStats.chance=t,Math.random()*100<t?na():(e.declareBonus=(e.declareBonus||0)+7+G("detPlus"),o.view="declineResult",I(),q())}window.__mkTempBuffsV25=function(pl,sign,bold,good){var pos=(pl&&pl.pos)||"ATH";var POS={QB:["throwing","awareness","vision","acceleration"],RB:["speed","agility","acceleration","ballControl","vision"],WR:["speed","catching","agility","jumping"],TE:["catching","blocking","strength","agility"],OL:["blocking","strength","awareness"],DL:["strength","tackling","quickness","acceleration"],LB:["tackling","awareness","speed","strength"],CB:["speed","agility","jumping","awareness"],S:["tackling","speed","awareness","jumping"],K:["awareness","discipline"]};var pool=(POS[pos]||["speed","strength","agility","awareness","acceleration"]).filter(function(k){return Le&&Le[k]});if(!pool.length)pool=["speed","strength","agility","awareness"];var picks=[],p=pool.slice();var n=1+((bold>0.55||Math.random()<0.4)?1:0);for(var i=0;i<n&&p.length;i++){var idx=Math.floor(Math.random()*p.length);picks.push(p.splice(idx,1)[0]);}return picks.map(function(k){if(sign>0){var amt=Math.round(3+good*4+bold*3+Math.random()*3);return{stat:k,amt:amt,max:false};}return{stat:k,amt:-(Math.round(5+(1-good)*8+bold*3)),max:false};});};window.__statLabelV25=function(k){return(Le&&Le[k]&&Le[k].name)||k;};
+function Ar(){const e=o.player;if(e.seasonsAtLevel<ss()){F("You must finish this level first!");return}const t=Math.max(Math.min(97,qt(ae(e),e.level)+(e.declareBonus||0)),__natAdvFloor(e));e.seasonStats||(e.seasonStats={}),e.seasonStats.chance=t,Math.random()*100<t?na():failDeclareV77(e,t)}window.__mkTempBuffsV25=function(pl,sign,bold,good){var pos=(pl&&pl.pos)||"ATH";var POS={QB:["throwing","awareness","vision","acceleration"],RB:["speed","agility","acceleration","ballControl","vision"],WR:["speed","catching","agility","jumping"],TE:["catching","blocking","strength","agility"],OL:["blocking","strength","awareness"],DL:["strength","tackling","quickness","acceleration"],LB:["tackling","awareness","speed","strength"],CB:["speed","agility","jumping","awareness"],S:["tackling","speed","awareness","jumping"],K:["awareness","discipline"]};var pool=(POS[pos]||["speed","strength","agility","awareness","acceleration"]).filter(function(k){return Le&&Le[k]});if(!pool.length)pool=["speed","strength","agility","awareness"];var picks=[],p=pool.slice();var n=1+((bold>0.55||Math.random()<0.4)?1:0);for(var i=0;i<n&&p.length;i++){var idx=Math.floor(Math.random()*p.length);picks.push(p.splice(idx,1)[0]);}return picks.map(function(k){if(sign>0){var amt=Math.round(3+good*4+bold*3+Math.random()*3);return{stat:k,amt:amt,max:false};}return{stat:k,amt:-(Math.round(5+(1-good)*8+bold*3)),max:false};});};window.__statLabelV25=function(k){return(Le&&Le[k]&&Le[k].name)||k;};
 function pregamePlayerStatsV25(pl){
   if(!pl||!pl.attrs) return "";
   const cap=we();
@@ -8121,7 +8122,7 @@ function sitOutWeekV18(e,s){
 }
 function lt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){te("season");return}t.currentWeek=a;const s=t.weekResults[a];if(e){window.__oppMulV22=__oppMulForV22(s.opp);let _sb=0;if(t._nextGameBoost){_sb=Math.round(t._nextGameBoost);t._nextGameBoost=0}window.__youStatBoostPctV20=_sb;window.__youTempBuffsV25=t._tempStatBuffsV25||null;window.__gameScriptBiasV23=(t._gameScriptV23&&t._gameScriptV23.gsPass!=null)?t._gameScriptV23.gsPass:null;t._gameScriptV23=null;try{o._liveGame=Yr(s.perf,t.pos)}finally{window.__youStatBoostPctV20=0;window.__youTempBuffsV25=null;t._tempStatBuffsV25=null;window.__oppMulV22=null;window.__gameScriptBiasV23=null}o._oppName=s.opp;o.view="live";q()}else{s.played=!0;te("season")}}function wt(){const e=o.player;e.weekResults.filter(t=>!t.playoff).forEach(t=>{if(t.played)return;if(mustSitV18(e)){sitOutWeekV18(e,t)}else{const c=cv18(e);t.played=!0;materializeInjuryV18(e,t);c.fatigue=Math.min(100,(c.fatigue||0)+5)}}),I(),te("season")}function Ea(){const e=o.player;if(e.weekResults&&e.currentWeek!=null){const w=e.weekResults[e.currentWeek];w.played=!0;const g=o._liveGame;g&&g.usScore!=null&&g.plays&&(w.us=g.usScore,w.them=g.themScore,w.won=g.usScore>g.themScore)}o._oppName=null,te("season")}function fs(){const e=o.player;if(dn(e),e.weekResults&&e.weekResults.some(a=>!a.played)){te("season");return}
   // v18: the offseason heals — season-enders clear, lingering knocks fade, fatigue resets
-  {const c=cv18(e);if(c.injury&&(c.injury.seasonEnding||Math.random()<.7))c.injury=null;c.fatigue=Math.max(0,Math.min(30,(c.fatigue||0)-40))}const t=tt(e);e.seasonStats=t,e.weekResults=null,e.currentWeek=null,es(),o.view="result",I(),q()}function nl(){La()}let Z=null;function il(){o.view="live",q()}function Dt(e){const t=[["Cubs","Ducks","Tigers","Coyotes","Jr. Rangers"],["Wolves","Hawks","Grizzlies","Stallions","Pumas"],["Vipers","Renegades","Surge","Ospreys","Wildcats"],["Gladiators","Spartans","Knights","Cougars","Cobras"],["Bulldogs","Mustangs","Warriors","Firebirds","Gators"],["State","Tech","A&M","U","Central"],["Combine Field","Draft Prospects","All-Stars"],["Storm","Kings","Empire","Blitz","Reign"],["Void Titans","Nebula Reapers","Solar Wraiths","Meteor Legion","Andromeda Sovereigns","Lunar Command","Europa Frost"]],a=["Dallas","Miami","Denver","Austin","Tampa","Reno","Akron","Boise"],s=t[Math.min(e,t.length-1)];return e===5?W(a)+" "+W(s):W(s).toUpperCase()}function ol(){const e=o.player,t=o._liveGame;A[e.level];const a=o._oppName||(o._oppName=Dt(e.level)),s=e.name.split(" ")[1].slice(0,8).toUpperCase(),n=a.split(" ").pop().slice(0,8).toUpperCase(),i=["DL","LB","CB","S"].includes(e.pos);const _pl=(e.weekResults||[]).filter(w=>w.played),_uw=_pl.filter(w=>w.won).length,usRec=_pl.length?_uw+"-"+(_pl.length-_uw):t.roster.us.ovr+" OVR",_os=Array.from(a||"").reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,7),_ow=_pl.length?_os%(_pl.length+1):0,oppRec=_pl.length?_ow+"-"+(_pl.length-_ow):t.roster.opp.ovr+" OVR";const TL44=window.TEAM_LOGOS_V44,_tc44=window.__GRIDIRON_TEAM_CUSTOM__||{},usLogo44=_tc44.logo!=null?_tc44.logo:(TL44?TL44.forName(_tc44.teamName||s):0),oppLogo44=TL44?TL44.forName(a):0,homeGame44=((e.currentWeek||0)%2)===0;try{window.__setFieldLogoV44&&window.__setFieldLogoV44(homeGame44?usLogo44:oppLogo44)}catch(_e){}x("screen").innerHTML=`
+  {const c=cv18(e);if(c.injury&&(c.injury.seasonEnding||Math.random()<.7))c.injury=null;c.fatigue=Math.max(0,Math.min(30,(c.fatigue||0)-40))}const t=tt(e);e.seasonStats=t,logSeasonV77(e,t),e.weekResults=null,e.currentWeek=null,es(),o.view="result",I(),q()}function nl(){La()}let Z=null;function il(){o.view="live",q()}function Dt(e){const t=[["Cubs","Ducks","Tigers","Coyotes","Jr. Rangers"],["Wolves","Hawks","Grizzlies","Stallions","Pumas"],["Vipers","Renegades","Surge","Ospreys","Wildcats"],["Gladiators","Spartans","Knights","Cougars","Cobras"],["Bulldogs","Mustangs","Warriors","Firebirds","Gators"],["State","Tech","A&M","U","Central"],["Combine Field","Draft Prospects","All-Stars"],["Storm","Kings","Empire","Blitz","Reign"],["Void Titans","Nebula Reapers","Solar Wraiths","Meteor Legion","Andromeda Sovereigns","Lunar Command","Europa Frost"]],a=["Dallas","Miami","Denver","Austin","Tampa","Reno","Akron","Boise"],s=t[Math.min(e,t.length-1)];return e===5?W(a)+" "+W(s):W(s).toUpperCase()}function ol(){const e=o.player,t=o._liveGame;A[e.level];const a=o._oppName||(o._oppName=Dt(e.level)),s=e.name.split(" ")[1].slice(0,8).toUpperCase(),n=a.split(" ").pop().slice(0,8).toUpperCase(),i=["DL","LB","CB","S"].includes(e.pos);const _pl=(e.weekResults||[]).filter(w=>w.played),_uw=_pl.filter(w=>w.won).length,usRec=_pl.length?_uw+"-"+(_pl.length-_uw):t.roster.us.ovr+" OVR",_os=Array.from(a||"").reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,7),_ow=_pl.length?_os%(_pl.length+1):0,oppRec=_pl.length?_ow+"-"+(_pl.length-_ow):t.roster.opp.ovr+" OVR";const TL44=window.TEAM_LOGOS_V44,_tc44=window.__GRIDIRON_TEAM_CUSTOM__||{},usLogo44=_tc44.logo!=null?_tc44.logo:(TL44?TL44.forName(_tc44.teamName||s):0),oppLogo44=TL44?TL44.forName(a):0,homeGame44=((e.currentWeek||0)%2)===0;try{window.__setFieldLogoV44&&window.__setFieldLogoV44(homeGame44?usLogo44:oppLogo44)}catch(_e){}x("screen").innerHTML=`
     <div class="field-wrap">
       <div class="live-scoreboard">
         <div class="sb-side us">
@@ -8213,7 +8214,7 @@ function lt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){
         <div style="font-size:30px">${e.level===5?"🎓":"⬆️"}</div>
         <div style="flex:1">
           <div style="font-family:'Oswald';font-weight:700;font-size:17px;color:var(--gold)">${c?"DECISION TIME":"PROMOTION AVAILABLE"}</div>
-          <div class="small">You've earned a shot at <b>${A[e.level+1].name}</b> — <b style="color:${C}">${Math.round(i)}%</b> odds. ${c?"This is your final season here — declare below.":"Declare below, or play on to raise your odds."}</div>
+          <div class="small">You've earned a shot at <b>${A[e.level+1].name}</b> — <b style="color:${C}">${Math.round(i)}%</b> odds. <b style="color:var(--blood)">One shot</b> — miss the call-up and the career ends here. ${c?"This is your final season at this level anyway.":"Play on to raise your odds, or declare below."}</div>
         </div>
       </div>
     </div>`:""}
@@ -8296,17 +8297,139 @@ function lt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){
          ${P?`<div style="height:8px"></div><button class="btn ghost" onclick="go('hub')">${e.level===5?"Stay in School — Play Another Year":"Play Another Season"}</button>`:""}`:`<button class="btn" onclick="go('hub')">Continue — Play Next Season ▸</button>`}
     <div style="height:8px"></div>
     <button class="btn ghost" onclick="setStatsTab('leaders');go('stats')">📊 See National Leaders — where did your season rank?</button>
-  `}function Vl(){const e=o.player,t=e.seasonStats,a=Math.max(Math.min(97,t.chance+(e.declareBonus||0)),__natAdvFloor(e));Math.random()*100<a?na():(e.declareBonus=(e.declareBonus||0)+7+G("detPlus"),o.view="declineResult",I(),q())}function Ol(){const e=o.player,t=A[e.level],a=Bt()-e.seasonsAtLevel,s=a<=0;x("screen").innerHTML=`
-    <div class="banner ${s?"fail":""}" style="${s?"":"background:linear-gradient(180deg,rgba(240,187,69,.15),transparent);border:1px solid var(--gold)"}">
-      <div class="big-emoji">${s?"🥀":"😤"}</div>
-      <div class="bt">${s?"Didn't Make the Cut":"Passed Over — For Now"}</div>
-      <div class="bs">${s?`The coaches at ${A[e.level+1].name} went another direction. ${e.name}'s climb ends at ${t.name}.`:"You declared but didn't get the call-up this time. Put together a better season and take another shot."}</div>
+  `}function Vl(){const e=o.player,t=e.seasonStats,a=Math.max(Math.min(97,t.chance+(e.declareBonus||0)),__natAdvFloor(e));Math.random()*100<a?na():failDeclareV77(e,a)}/* ===== v77 THE DECLARE IS THE CAREER — one shot, then the epitaph =====
+ * Failing a declare used to be a slap on the wrist: you banked a Determination
+ * bonus, played another season and took another swing, and the career only
+ * actually ended when the level ran out of seasons. That made the single
+ * biggest decision in the game the cheapest one — there was never a reason NOT
+ * to declare the moment the button lit up. A failed declare now ENDS the
+ * career on the spot, and this screen becomes its epitaph.
+ *
+ * An epitaph needs a record to read from, and the game kept none. `seasonStats`
+ * is only the season just finished and `career` holds one row per LEVEL, so
+ * "your best season" was not a question the save could answer. seasonLogV77 is
+ * that missing archive — one compact row per finished season, written once from
+ * fs() — and both the career totals and the best-season card read it. A save
+ * from before this exists simply has a short log, and every screen below
+ * degrades to whatever is in it.
+ *
+ * Rates are the trap in a career total: summing eight seasons of yards-per-carry
+ * produces 38.4. Anything flagged `rate` in Ne[pos].stats is AVERAGED over the
+ * seasons it was measured in; everything else is summed. */
+const SEASON_LOG_MAX=40;
+function logSeasonV77(e,t){
+  if(!e||!t)return;
+  const pl=t.playoffs||{},log=e.seasonLogV77=e.seasonLogV77||[];
+  log.push({n:e.totalSeasons||log.length+1,level:e.level,levelName:(A[e.level]||{}).name||"",pos:e.pos,
+    age:e.age,ovr:t.newOvr||ae(e),avg:t.avg||0,grade:t.grade||"",record:t.record||"",
+    wins:t.teamWins||0,losses:t.teamLosses||0,games:(t.teamWins||0)+(t.teamLosses||0)+((pl.games||[]).length),
+    champion:!!pl.champion,roundsWon:pl.roundsWon||0,statLine:Object.assign({},t.statLine||{}),
+    awards:(t.awards||[]).map(a=>({icon:a.icon,name:a.name}))});
+  if(log.length>SEASON_LOG_MAX)e.seasonLogV77=log.slice(-SEASON_LOG_MAX);
+}
+function careerTotalsV77(e){
+  const log=(e&&e.seasonLogV77)||[],cfg=Ne[e.pos]||{stats:[]},sum={},cnt={};
+  const T={seasons:log.length,games:0,wins:0,losses:0,titles:0,playoffWins:0,awards:0,bestAvg:0,peakOvr:0,lines:[]};
+  for(const s of log){
+    T.games+=s.games||0;T.wins+=s.wins||0;T.losses+=s.losses||0;
+    if(s.champion)T.titles++;
+    T.playoffWins+=s.roundsWon||0;T.awards+=(s.awards||[]).length;
+    T.bestAvg=Math.max(T.bestAvg,s.avg||0);T.peakOvr=Math.max(T.peakOvr,s.ovr||0);
+    for(const st of cfg.stats){const v=s.statLine&&s.statLine[st.key];if(v==null||isNaN(+v))continue;sum[st.key]=(sum[st.key]||0)+ +v;cnt[st.key]=(cnt[st.key]||0)+1}
+  }
+  T.peakOvr=Math.max(T.peakOvr,e.peakOvr||0,ae(e));
+  for(const st of cfg.stats){if(!cnt[st.key])continue;const av=sum[st.key]/cnt[st.key];
+    T.lines.push({key:st.key,name:st.name,rate:!!st.rate,def:st,total:st.rate?av:sum[st.key],per:av})}
+  return T;
+}
+/* What made a season the BEST one. Production carries it (avg is the season
+ * grade's own input), then the things a player actually remembers: a ring, a
+ * playoff run, the hardware, wins — and the LEVEL, because a good year in the
+ * league outranks the same numbers in high school. */
+function seasonScoreV77(s){
+  return (s.avg||0)+(s.champion?12:0)+(s.roundsWon||0)*3.5+((s.awards||[]).length)*2.5+(s.wins||0)*.6+(s.level||0)*1.5;
+}
+function bestSeasonV77(e){
+  const log=(e&&e.seasonLogV77)||[];
+  return log.length?log.reduce((a,b)=>seasonScoreV77(b)>seasonScoreV77(a)?b:a):null;
+}
+/* The one exit. Both declare paths (the hub button and the season-result card)
+ * land here on a miss: no Determination bonus, no season left over — the odds
+ * that failed are kept only so the epitaph can state them. */
+function failDeclareV77(e,chance){
+  e.declareFailV77={chance:chance,level:e.level};
+  o.view="declineResult",I(),q();
+}
+function statRowsV77(pos,line,per){
+  const cfg=Ne[pos]||{stats:[]};
+  return cfg.stats.map(st=>{const v=line&&line[st.key];if(v==null||isNaN(+v))return"";
+    const shown=st.rate?(+v).toFixed(1):Math.round(+v).toLocaleString();
+    const sub=per&&per[st.key]!=null?`<span class="small" style="opacity:.65;margin-left:6px">${st.rate?"":Vt(st,per[st.key])+"/season"}</span>`:"";
+    return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font-family:'Barlow Condensed';font-size:15px;border-bottom:1px solid rgba(255,255,255,.05)"><span>${st.name}${sub}</span><b style="font-family:'Oswald';font-size:17px;color:var(--gold)">${shown}</b></div>`}).join("");
+}
+function careerCardsV77(e){
+  const T=careerTotalsV77(e),best=bestSeasonV77(e),per={};
+  T.lines.forEach(l=>{if(!l.rate)per[l.key]=l.per});
+  const line={};T.lines.forEach(l=>line[l.key]=l.total);
+  const totals=T.seasons?`
+    <div class="h2">Career Totals</div>
+    <div class="card">
+      <div class="statline">
+        <div class="statbox"><div class="n">${T.seasons}</div><div class="l">Seasons</div></div>
+        <div class="statbox"><div class="n">${T.peakOvr}</div><div class="l">Peak OVR</div></div>
+        <div class="statbox"><div class="n">${T.wins}-${T.losses}</div><div class="l">Team Record</div></div>
+      </div>
+      <div style="margin-top:10px">${statRowsV77(e.pos,line,per)}</div>
+      <div class="meta-row" style="margin-top:10px;justify-content:center;flex-wrap:wrap;gap:6px">
+        ${T.titles?`<span class="injury-badge" style="background:rgba(240,187,69,.15);border-color:var(--gold);color:var(--gold)">💍 ${T.titles} title${T.titles>1?"s":""}</span>`:""}
+        ${T.playoffWins?`<span class="injury-badge">🎟️ ${T.playoffWins} playoff win${T.playoffWins>1?"s":""}</span>`:""}
+        ${T.awards?`<span class="injury-badge">🏅 ${T.awards} award${T.awards>1?"s":""}</span>`:""}
+        ${best?`<span class="injury-badge">📊 best year graded ${best.grade}</span>`:""}
+      </div>
+    </div>`:`<div class="card tight"><div class="small center">No completed season to total up — the climb ended before a full year was in the books.</div></div>`;
+  const bs=best?`
+    <div class="h2">Best Season</div>
+    <div class="card" style="border-color:var(--gold);background:linear-gradient(180deg,rgba(240,187,69,.12),rgba(15,21,32,.9))">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <div>
+          <div style="font-family:'Oswald';font-weight:700;font-size:17px;color:var(--gold)">${best.levelName||"Season"} · age ${best.age}</div>
+          <div class="small">Season ${best.n} · ${best.record||"—"} record${best.champion?" · 💍 champions":best.roundsWon?` · ${best.roundsWon} playoff win${best.roundsWon>1?"s":""}`:""}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'Oswald';font-weight:700;font-size:22px;color:var(--gold)">${best.grade||"—"}</div>
+          <div class="l" style="font-size:10px;letter-spacing:1px">GRADE · OVR ${best.ovr}</div>
+        </div>
+      </div>
+      <div style="margin-top:10px">${statRowsV77(best.pos||e.pos,best.statLine)}</div>
+      ${(best.awards||[]).length?`<div class="meta-row" style="margin-top:10px;flex-wrap:wrap;gap:6px">${best.awards.map(a=>`<span class="injury-badge">${a.icon} ${a.name}</span>`).join("")}</div>`:""}
+    </div>`:"";
+  return totals+bs;
+}
+// debug surface: the archive and both readings of it, for scripts/declarecheck.mjs
+window.__CAREER_V77={totals:careerTotalsV77,best:bestSeasonV77,score:seasonScoreV77,log:()=>(o.player&&o.player.seasonLogV77)||[]};
+function Ol(){
+  const e=o.player,t=A[e.level],nx=A[e.level+1],ch=e.declareFailV77&&e.declareFailV77.chance;
+  x("screen").innerHTML=`
+    <div class="banner fail">
+      <div class="big-emoji">🥀</div>
+      <div class="bt">Didn't Make the Cut</div>
+      <div class="bs">${nx?`The coaches at <b>${nx.name}</b> went another direction.`:"The call never came."} ${e.name}'s climb ends at <b>${t.name}</b>.</div>
     </div>
-    ${s?"":`<div class="card tight"><div class="small center">You have <b>${a}</b> season${a>1?"s":""} left at ${t.name}. Raise your stats to improve your odds next time.</div></div>`}
-    ${!s&&e.declareBonus?`<div class="card tight" style="border-color:var(--gold)"><div class="small center">😤 <b style="color:var(--gold)">Determination +${e.declareBonus}%</b> — getting passed over lit a fire. Your next declare gets this bonus.</div></div>`:""}
-  `,s?x("dock").innerHTML='<button class="btn danger" onclick="endCareer()">See Career Result ▸</button>':x("dock").innerHTML=`
-      ${e.points>0?`<button class="btn secondary" onclick="go('upgrade')">Spend ${e.points} Points First</button><div style="height:8px"></div>`:""}
-      <button class="btn" onclick="go('hub')">Back to Career</button>`}function Bl(){o.player,un()}function un(){const e=o.player,t=ae(e);x("screen").innerHTML=`
+    <div class="card tight">
+      <div class="small center">You declared${ch!=null?` at <b style="color:var(--gold)">${Math.round(ch)}%</b>`:""} and it didn't land. A declare is <b>one shot</b> — there is no next season to take another.</div>
+    </div>
+    <div class="card">
+      <div class="statline">
+        <div class="statbox"><div class="n" style="font-size:20px">${t.name}</div><div class="l">Reached</div></div>
+        <div class="statbox"><div class="n">${ae(e)}</div><div class="l">Final OVR</div></div>
+        <div class="statbox"><div class="n">${e.age}</div><div class="l">Age</div></div>
+      </div>
+    </div>
+    ${careerCardsV77(e)}
+    <div class="h2">Career Log</div>
+    <div class="card"><div class="career-log">${e.career.map(h=>`<div><span class="lvl-done">✓</span> ${h.level} — reached OVR ${h.ovr} at age ${h.age}</div>`).join("")}<div><span style="color:var(--blood)">✗</span> ${t.name} — declare failed at OVR ${ae(e)}, age ${e.age}</div></div></div>
+  `,x("dock").innerHTML='<button class="btn danger" onclick="endCareer()">See Career Result ▸</button>'}
+function Bl(){o.player,un()}function un(){const e=o.player,t=ae(e);x("screen").innerHTML=`
     <div class="eyebrow">${e.pos} · Current OVR ${t}</div>
     <div class="h1">Train Your Player</div>
     <div class="sub">Invest points into attributes. Stats marked <span class="weight-tag">KEY</span> matter most for your position and raise your OVR the fastest.</div>
@@ -8564,7 +8687,7 @@ window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;w
         const bad=u.satOut?"OUT · "+String(u.injName||"INJURED").toUpperCase()
           :(u.bodyCostV73<=-1?"🩹 PLAYED HURT "+u.bodyCostV73:null);
         if(bad)d.querySelector(".sched-opp")?.insertAdjacentHTML("beforeend",
-          ` <small class="bodyv73-chip" style="font:700 9px Oswald,sans-serif;letter-spacing:1px;color:#ff8a80;border:1px solid #ff8a8055;border-radius:9px;padding:1px 5px;margin-left:4px">${bad}</small>`)}})}if(o.view==="shop"){const n=t.querySelector(".pts-banner");t.querySelector(".specialization-card-v11")||Ce(n,jc()),t.querySelector(".legacy-rewards-v11")||Ce(t.querySelector(".specialization-card-v11")||n,nd())}if(o.view==="result"&&!t.querySelector(".legacy-progress-v11")){const n=t.querySelector(".card")||t.firstElementChild;Ce(n,In(e)),e.level>=7&&!t.querySelector(".nfl-survival-v11")&&Ce(t.querySelector(".legacy-progress-v11"),va(e))}if((o.view==="gameover"||o.view==="win")&&!t.querySelector(".legacy-summary-v11")){const n=t.querySelector(".banner")||t.firstElementChild;Ce(n,_c(e))}const a=e.storyDecisionQueueV11?.[0],s=document.querySelector(".story-overlay-v11");a&&!s&&!["menu","gameover","win"].includes(o.view)&&document.body.insertAdjacentHTML("beforeend",ko(e)),!a&&s&&s.remove()}const ld=q;q=function(){o?.player&&Re(o.player),ld(),rd()};Object.assign(window,{chooseOriginV11:Vc,chooseSpecializationV11:Bc,chooseGamePlanV11:Nc,resolveMomentV11:Dc,resolveStoryChoiceV11:Uc,showNflOffersV11:go,acceptNflOfferV11:Wc,declineNflOffersV11:Yc,showPositionChangeV11:Xc,changePositionV11:Zc,buyLegacyUnlockV11:id,prepareWeek103:$t,playWeek:lt,pickPos:rs,finishWeekGame:Ea,finishSeasonGames:fs,simRemainingWeeks:wt,startSeasonGames:La,render:q});window.__GRIDIRON_LEGACY_VERSION__="11.0-career-loop";window.__GRIDIRON_FEATURES__={sequentialWeeks:!0,storyArcs:!0,namedRivals:!0,highLeverageMoments:!0,prestigeSpecialization:!0,partialVictories:!0,scouting:!0,conditionManagement:!0,nflSurvival:!0,runIdentity:!0};o?.player&&Re(o.player);q();let Lt="overview";function ks(){Ws(o),o.player&&(Re(o.player),o.player.level>=7&&re(o.player))}const cd=kt;kt=function(){const e=cd();return Ws(o),ci(o,e),e};function dd(e){return String(e.nflStateV11?.status||"camp").replaceAll("-"," ").replace(/\b\w/g,a=>a.toUpperCase())}function wo(e,t=!1){const a=re(e);if(!a)return"";const s=Ht(e),n=ta(e),i=e.nflStateV11?.contract||{};return`<div class="card nfl-life-summary-v12">
+          ` <small class="bodyv73-chip" style="font:700 9px Oswald,sans-serif;letter-spacing:1px;color:#ff8a80;border:1px solid #ff8a8055;border-radius:9px;padding:1px 5px;margin-left:4px">${bad}</small>`)}})}if(o.view==="shop"){const n=t.querySelector(".pts-banner");t.querySelector(".specialization-card-v11")||Ce(n,jc()),t.querySelector(".legacy-rewards-v11")||Ce(t.querySelector(".specialization-card-v11")||n,nd())}if(o.view==="result"&&!t.querySelector(".legacy-progress-v11")){const n=t.querySelector(".card")||t.firstElementChild;Ce(n,In(e)),e.level>=7&&!t.querySelector(".nfl-survival-v11")&&Ce(t.querySelector(".legacy-progress-v11"),va(e))}if((o.view==="gameover"||o.view==="win")&&!t.querySelector(".legacy-summary-v11")){const n=t.querySelector(".banner")||t.firstElementChild;Ce(n,_c(e))}const a=e.storyDecisionQueueV11?.[0],s=document.querySelector(".story-overlay-v11");a&&!s&&!["menu","gameover","win","declineResult"].includes(o.view)&&document.body.insertAdjacentHTML("beforeend",ko(e)),!a&&s&&s.remove()}const ld=q;q=function(){o?.player&&Re(o.player),ld(),rd()};Object.assign(window,{chooseOriginV11:Vc,chooseSpecializationV11:Bc,chooseGamePlanV11:Nc,resolveMomentV11:Dc,resolveStoryChoiceV11:Uc,showNflOffersV11:go,acceptNflOfferV11:Wc,declineNflOffersV11:Yc,showPositionChangeV11:Xc,changePositionV11:Zc,buyLegacyUnlockV11:id,prepareWeek103:$t,playWeek:lt,pickPos:rs,finishWeekGame:Ea,finishSeasonGames:fs,simRemainingWeeks:wt,startSeasonGames:La,render:q});window.__GRIDIRON_LEGACY_VERSION__="11.0-career-loop";window.__GRIDIRON_FEATURES__={sequentialWeeks:!0,storyArcs:!0,namedRivals:!0,highLeverageMoments:!0,prestigeSpecialization:!0,partialVictories:!0,scouting:!0,conditionManagement:!0,nflSurvival:!0,runIdentity:!0};o?.player&&Re(o.player);q();let Lt="overview";function ks(){Ws(o),o.player&&(Re(o.player),o.player.level>=7&&re(o.player))}const cd=kt;kt=function(){const e=cd();return Ws(o),ci(o,e),e};function dd(e){return String(e.nflStateV11?.status||"camp").replaceAll("-"," ").replace(/\b\w/g,a=>a.toUpperCase())}function wo(e,t=!1){const a=re(e);if(!a)return"";const s=Ht(e),n=ta(e),i=e.nflStateV11?.contract||{};return`<div class="card nfl-life-summary-v12">
     <div class="impact-head"><div><div class="impact-kicker">NFL LIFE · MONEY COMPOUNDS EVERY WEEK</div><div class="h2" style="margin:2px 0 0">${z(s.netWorth)} Net Worth</div></div><div class="life-ready-v12 ${s.ready?"ready":""}">${Math.round(s.ratio*100)}%<small>RETIREMENT</small></div></div>
     <div class="life-money-grid-v12"><div><b>${z(a.cash)}</b><small>Cash</small></div><div><b>${z(Ma(e))}</b><small>Invested</small></div><div><b style="color:${a.debt>0?"var(--blood)":"var(--chalk)"}">${z(a.debt||0)}</b><small>Debt</small></div><div><b>${z(i.salary||0)}</b><small>Salary</small></div><div><b>${z(n.weeklyCost*52)}</b><small>Annual life</small></div><div><b>${S(s.plan.name)}</b><small>Exit plan</small></div></div>
     ${t?"":`<div class="retirement-track-v12"><i style="width:${f(s.ratio*100,0,100)}%"></i></div><div class="small">Retirement assets ${z(s.retirementAssets)} · safe investment income ${z(s.annualIncome)}/yr · family security ${Math.round(a.familySecurity)} · fulfillment ${Math.round(a.fulfillment)}</div>`}
