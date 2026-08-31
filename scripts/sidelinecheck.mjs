@@ -68,7 +68,7 @@ ok(!!art && art.registered === art.cells, 'every packed cell reaches a texture',
 
 const S = await page.evaluate(() => {
   const D = window.__SIDE_V78; if (!D) return null
-  return { items: D.items, live: D.live, fx: D.fx, gap: D.gap, lanes: D.lanes, span: D.span, half: D.half, midy: D.midy, list: D.list(), _live: null }
+  return { items: D.items, live: D.live, fx: D.fx, gap: D.gap, lanes: D.lanes, span: D.span, half: D.half, midy: D.midy, paint: D.paint, apron: D.apron, list: D.list(), _live: null }
 })
 ok(!!S, 'the team area is built', S ? S.items + ' sprites' : 'none')
 if (!S) { console.log('page errors:', errs.join('\n')); await b.close(); process.exit(1) }
@@ -104,10 +104,27 @@ const rightKit = [...new Set(backups.filter(i => i.vv > S.midy).map(i => i.team)
 ok(leftKit.length === 1 && rightKit.length === 1 && leftKit[0] !== rightKit[0],
   'a team camps on one side of the stadium and stays there', `${leftKit} | ${rightKit}`)
 
-// ---- nothing but the pylons stands on the playing surface
-const onField = S.list.filter(i => i.name !== 'pylon' && Math.abs(i.vv - S.midy) < S.half)
-ok(onField.length === 0, 'nothing but the pylons stands on the playing surface',
-  onField.length ? onField.slice(0, 4).map(i => `${i.name}@${Math.round(i.vv)}`).join(',') : 'clear')
+// ---- nothing stands on the playing surface — measured against the PAINTED
+// touchline (the art draws its boundary ~35 world units outside the sim's, see
+// v79.2), and on the sprite's whole drawn BOX, not just its ground point
+const overhang = await page.evaluate(() => {
+  const sc = window.__gridironScene, S2 = sc.side, M = window.__SIDE_V78.midy
+  const rows = []
+  for (const im of S2.items) {
+    const sd = im._side; if (!sd) continue
+    const bank = sd.vv < M ? -1 : 1
+    const tl = sc.crowdProject(sd.u, M + bank * (S2.paint || 238))
+    const halfW = Math.abs(im.displayWidth) / 2
+    const over = bank < 0 ? (im.x + halfW) - tl.x : tl.x - (im.x - halfW)
+    rows.push({ name: sd.name, over: Math.round(over) })
+  }
+  return rows
+})
+const pylons = overhang.filter(r => r.name === 'pylon')
+const rest = overhang.filter(r => r.name !== 'pylon').sort((a, b) => b.over - a.over)
+ok(rest.length && rest[0].over <= 0, 'no sprite box crosses the painted touchline — nobody is on the field',
+  rest.length ? `worst ${rest[0].name} at ${rest[0].over}px` : 'none')
+ok(pylons.every(r => Math.abs(r.over) <= 5), 'the pylons alone stand ON the line', pylons.map(r => r.over).join(','))
 
 // ---- the lanes run outward, in order, inside the apron
 const out = (arr) => arr.reduce((a, i) => a + (Math.abs(i.vv - S.midy) - S.half), 0) / Math.max(1, arr.length)
@@ -246,20 +263,19 @@ ok(staffTint && staffTint.skin > 200, 'while skin and khakis never tint', staffT
 
 const paint = await page.evaluate(() => {
   const sc = window.__gridironScene, cv = sc._warpCv; if (!cv) return null
-  const ctx = cv.getContext('2d'), PJp = window.__PJ_PROBE, GAP = window.__SIDE_V78.gap
-  const lum = (x, y) => { const d = ctx.getImageData(Math.round(x + 240), Math.round(y), 1, 1).data; return d[0] + d[1] + d[2] }
-  const rows = []
-  for (let u = 250; u <= 470; u += 20) rows.push(u)
-  let border = 0, grass = 0, kit = 0, mid = 0
-  for (const x of rows) {
-    const b = PJp(x, 426 + 8), g = PJp(x, 300), k2 = PJp(x, 426 + GAP * .86), m = PJp(x, 426 + GAP * .5)
-    border += lum(b.x, b.y); grass += lum(g.x, g.y); kit += lum(k2.x, k2.y); mid += lum(m.x, m.y)
+  const ctx = cv.getContext('2d'), S2 = sc.side
+  const PW = S2.paint || 238, APR = window.__SIDE_V78.apron || 66, M = window.__SIDE_V78.midy
+  const lum = (u, vv) => { const p = sc.crowdProject(u, vv), d = ctx.getImageData(Math.round(p.x + 240), Math.round(p.y), 1, 1).data; return d[0] + d[1] + d[2] }
+  let line = 0, grass = 0, kit = 0, mid = 0, n = 0
+  for (let u = 250; u <= 470; u += 20) {
+    line += Math.max(lum(u, M + PW), lum(u, M + PW + 2), lum(u, M + PW - 2))
+    grass += lum(u, M + PW * .5)
+    kit += lum(u, M + PW + APR * .78); mid += lum(u, M + PW + APR * .5); n++
   }
-  const n = rows.length
-  return { border: Math.round(border / n), grass: Math.round(grass / n), kit: Math.round(kit / n), mid: Math.round(mid / n) }
+  return { line: Math.round(line / n), grass: Math.round(grass / n), kit: Math.round(kit / n), mid: Math.round(mid / n) }
 })
-ok(paint && paint.border > paint.grass + 60, 'the white border is painted on the turf outside the touchline',
-  paint ? `${paint.border} vs grass ${paint.grass}` : 'no warp canvas')
+ok(paint && paint.line > paint.grass + 100, "sidePaintHalf really is the art's painted touchline",
+  paint ? `${paint.line} on the line vs ${paint.grass} grass` : 'no warp canvas')
 ok(paint && paint.kit < paint.mid - 8, 'a grounding shade sits under the equipment row', paint ? `${paint.kit} vs ${paint.mid}` : '')
 
 const wx = await page.evaluate(() => {

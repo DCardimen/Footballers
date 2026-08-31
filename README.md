@@ -55,6 +55,22 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v79.2 — the painted line is the line.** The field art paints its touchline
+  ~35 world units OUTSIDE the sim's F_TOP/F_BOT — the sim plays inside a
+  slightly narrower field than the art draws (the rows were reconciled in v72,
+  the columns never were). The sideline was anchored on the SIM's line, which
+  parked the whole team area visibly on the painted playing surface, and the
+  v79 turf border painted a phantom second boundary in the grass between the
+  two lines. Everything now measures from `sidePaintHalf` (240.5 world units,
+  measured off the warp canvas, constant in depth because art and projection
+  share the same k): the lanes, the chain crew, the yardage markers, the
+  coaches' box and kit shade, and the pylons — which stand ON the painted
+  corners, the one sprite allowed to. The phantom border is deleted. And it is
+  now guaranteed, not just laid out: every sprite placement clamps outboard
+  until its whole drawn BOX clears the painted line, and `sidelinecheck`
+  measures the worst overhang in screen pixels across all ~175 sprites (worst
+  offender after the clamp: −6px, i.e. six pixels of daylight).
+
 - **v79 — sideline light & life.** v78 proved the team area; v79 makes it sit in
   the stadium instead of on it. Every sprite now casts a contact shadow and runs
   through the SAME lighting the players get — the v29 depth falloff and ball

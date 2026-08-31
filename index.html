@@ -6146,6 +6146,14 @@ class Ot extends mt.Scene {
     // markers are exempt — a silhouette still reads where a latch cannot)
     const mc = RIB_META_SIDE[name];
     if (!o.keep && mc && mc[3] * sc < TU("sideMinPx", 3.5)) return null;
+    // OFF THE FIELD, guaranteed: the ground point being outside the paint is not
+    // enough, because sprites have WIDTH — push the placement outboard until the
+    // whole drawn box clears the painted line (pylons opt out: they stand ON it)
+    if (!o.onLine) {
+      const halfW = ((mc ? mc[2] : 40) * sc) / 2, latPx = 1.30 * ((window.__FIELD_FX && window.__FIELD_FX.spread) || 1) * PERSP_OA * p.k;
+      const MID2 = (F_TOP + F_BOT) / 2, need = ((this.side && this.side.paint) || 238) + TU("sideLineMargin", 6) + halfW / Math.max(.01, latPx);
+      if (Math.abs(vv - MID2) < need) { vv = MID2 + (vv < MID2 ? -need : need); const p2 = this.crowdProject(u, vv); p.x = p2.x; p.y = p2.y; p.k = p2.k; }
+    }
     const im = this.add.image(p.x, p.y, tex).setOrigin(.5, 1);
     // FACING: mirror three-quarter art so its open side points at the field from
     // either bank — resolved on the SCREEN side, because the camera swinging
@@ -6171,7 +6179,14 @@ class Ot extends mt.Scene {
     if (!this.textures.exists(tex)) tex = "spr_" + team + "_dn_idle";
     if (!this.textures.exists(tex)) tex = "rib_player_fallback";
     if (!this.textures.exists(tex)) return null;
-    const p = this.crowdProject(u, vv);
+    let p = this.crowdProject(u, vv);
+    // the same off-the-field clamp the props get — a backup's shoulder can hang
+    // over the boundary as easily as a bench end can
+    {
+      const halfW = 24 * (o.sc || 1), latPx = 1.30 * ((window.__FIELD_FX && window.__FIELD_FX.spread) || 1) * PERSP_OA * p.k;
+      const MID2 = (F_TOP + F_BOT) / 2, need = ((this.side && this.side.paint) || 238) + TU("sideLineMargin", 6) + (halfW * p.s) / Math.max(.01, latPx);
+      if (Math.abs(vv - MID2) < need) { vv = MID2 + (vv < MID2 ? -need : need); p = this.crowdProject(u, vv); }
+    }
     // the player cell draws its feet at +23 from centre in a 48px cell — the same
     // offset the on-field marker puts its shadow at
     const im = this.add.image(p.x, p.y, tex).setOrigin(.5, 47 / 48);
@@ -6203,10 +6218,24 @@ class Ot extends mt.Scene {
     try { const pl = window.S && window.S.player; if (pl) seed += ((pl.currentWeek || 0) + (pl.totalSeasons || 0) * 31) * 2903; } catch (e) {}
     this.clearSideline();
     this.side = { items: [], live: [], fx: [], seed, t: 0, excite: 0, _lt: 0 };
+    this.side.paint = TU("sidePaintHalf", 238) / ((window.__FIELD_FX && window.__FIELD_FX.spread) || 1);
     const wx = (typeof window !== "undefined" && window.__WX_V79) || "clear";
 
     const MIDY = (F_TOP + F_BOT) / 2, HALF = (F_BOT - F_TOP) / 2, GAP = TU("crowdGap", 104);
-    const LANE = { edge: HALF + GAP * TU("sideLaneEdge", .32), bench: HALF + GAP * TU("sideLaneBench", .62), kit: HALF + GAP * TU("sideLaneKit", .88) };
+    /* THE PAINTED LINE IS THE LINE. The field ART paints its touchline ~35 world
+     * units OUTSIDE the sim's F_TOP/F_BOT — the sim plays inside a slightly
+     * narrower field than the art draws (pre-existing lateral calibration; the
+     * rows were reconciled in v72, the columns never were). v78/v79 anchored the
+     * team area on the SIM's line, which parked the whole formation visibly ON
+     * the painted playing surface. Everything here now measures from PAINT: the
+     * art's painted boundary in world-lateral units, measured off the warp
+     * canvas (240.5 on both banks, constant in depth because the art and the
+     * projection share the same k; /sp because the spread FX scales the
+     * projection's lateral map but never the art's). */
+    const sp = (window.__FIELD_FX && window.__FIELD_FX.spread) || 1;
+    const PAINT = TU("sidePaintHalf", 238) / sp;
+    const APR = Math.max(24, HALF + GAP - PAINT);        // the apron actually outside the paint
+    const LANE = { edge: PAINT + APR * TU("sideLaneEdge", .16), bench: PAINT + APR * TU("sideLaneBench", .48), kit: PAINT + APR * TU("sideLaneKit", .8) };
     // the team area runs 25 to 25, like a real one — but `at` is unclamped, so
     // the dressing that belongs OUTSIDE the numbers (carts, nets, cameras) can
     // spill toward the end zones the way it actually does
@@ -6330,7 +6359,7 @@ class Ot extends mt.Scene {
 
     try {
       window.__SIDE_V78 = { items: this.side.items.length, live: this.side.live.length, fx: this.side.fx.length,
-        gap: GAP, lanes: LANE, span: [Math.round(U0), Math.round(U1)], half: HALF, midy: MIDY, wx,
+        gap: GAP, lanes: LANE, span: [Math.round(U0), Math.round(U1)], half: HALF, midy: MIDY, wx, paint: +PAINT.toFixed(1), apron: +APR.toFixed(1),
         excite: () => this.side ? +this.side.excite.toFixed(3) : 0,
         list: () => this.side.items.map((i) => Object.assign({}, i._side, { x: Math.round(i.x), y: Math.round(i.y),
           w: Math.round(i.displayWidth), h: Math.round(i.displayHeight), depth: +i.depth.toFixed(4),
@@ -6344,9 +6373,12 @@ class Ot extends mt.Scene {
   // part of the playing field. PLAY_L/PLAY_R are the GOAL lines (the end zones
   // are the EZ margins outside them), so the eight are those two plus the ends.
   sidePylons() {
+    // on the PAINTED corners — the pylon is the one sprite that belongs on the
+    // line itself, so it alone opts out of the off-the-field clamp
+    const MIDY = (F_TOP + F_BOT) / 2, PAINT = (this.side && this.side.paint) || 238;
     for (const x of [3, PLAY_L, PLAY_R, FW - 3])
-      for (const y of [F_TOP, F_BOT]) {
-        const im = this.sideItem("pylon", x, y, { sc: TU("sidePylonScale", .55), keep: 1, noshadow: 1 });
+      for (const dy of [-PAINT, PAINT]) {
+        const im = this.sideItem("pylon", x, MIDY + dy, { sc: TU("sidePylonScale", .55), keep: 1, noshadow: 1, onLine: 1 });
         if (im) im.setDepth(this.sideDepth(im.y) + .002);
       }
   }
@@ -6362,7 +6394,7 @@ class Ot extends mt.Scene {
     const losX = fxr(lf[0]), togo = fxr(lf[1]);
     const pay = this.play && this.play.payload;
     const dn = Math.max(1, Math.min(4, Math.round(Number(pay && pay.down) || 1)));
-    const vv = MIDY + (HALF + GAP * TU("sideLaneEdge", .32) * .62);
+    const vv = MIDY + ((this.side && this.side.paint) || 238) + 8;
     this.sideItem("down" + dn, adj(losX), vv, { sc: .8, keep: 1, fu: losX });
     this.sideItem("chain_rod", adj(losX - 3), vv + 5, { sc: .7, keep: 1, fu: losX - 3 });
     this.sideItem("chain_rod", adj(togo), vv + 5, { sc: .7, keep: 1, fu: togo });
@@ -6371,7 +6403,7 @@ class Ot extends mt.Scene {
   // yard line, opposite the chain crew.
   sideYardMarks(MIDY, HALF, GAP) {
     const YDF = PLAY_W / 100;
-    const vv = MIDY - (HALF + GAP * TU("sideLaneEdge", .32) * .5);
+    const vv = MIDY - (((this.side && this.side.paint) || 238) + 7);
     for (const [n, yd] of [["yard10", 10], ["yard20", 20], ["yard30", 30], ["yard30", 70], ["yard20", 80], ["yard10", 90]])
       this.sideItem(n, PLAY_L + yd * YDF, vv, { sc: .6, keep: 1 });
   }
@@ -6866,27 +6898,29 @@ class Ot extends mt.Scene {
           ctx.drawImage(fimg, SWa - 2, sY, 2, 1, x0 + w - 1, i, CW - x0 - w + 1, 1);
         }
         ctx.drawImage(fimg, 0, sY, SWa, 1, x0, i, w, 1);
-        /* v79: the painted apron. A real team area is FRAMED — a solid white
-         * border along the touchline, the dashed coaches' box in front of the
-         * bench, and a soft dark band under the equipment row that grounds the
-         * kit as one mass. All three are ground, so unlike the stands they can
-         * ride this same row loop; lateral placement uses the exact PJ formula
-         * (canvas x = CW/2 + (v-MIDY)*1.30*spread*OA*k), which is what keeps the
-         * paint under the sprites' own feet at every depth. Skipped past the end
-         * lines — the border belongs to the sidelines, the end zones paint their
-         * own. */
+        /* v79: the painted apron — REBASED in v79.2 on the art's OWN touchline.
+         * The art paints its boundary ~35 world units outside the sim's F_BOT,
+         * so the first cut of this block laid a second white "border" in the
+         * open grass between the two lines, which read as a phantom boundary
+         * with the team standing on the field side of the real one. The solid
+         * band is gone — the art already HAS a boundary — and what the apron
+         * genuinely lacks stays: the dashed coaches' box in front of the bench
+         * and a grounding shade under the equipment row, both measured outward
+         * from the same PAINT the sprites are anchored to. Lateral placement is
+         * the exact PJ formula, which is what keeps the paint under the
+         * sprites' own feet at every depth. Skipped past the end lines. */
         if (target < P.total && u > 4 && u < FW - 4) {
           const _fx2 = window.__FIELD_FX || {}, _sp2 = _fx2.spread == null ? 1 : _fx2.spread;
           const kk = P.s(u) / P.sN, lat = 1.30 * _sp2 * PERSP_OA * kk;
-          const MID2 = (F_TOP + F_BOT) / 2, HALF2 = (F_BOT - F_TOP) / 2, GAP2 = TU("crowdGap", 104);
+          const HALF2 = (F_BOT - F_TOP) / 2, GAP2 = TU("crowdGap", 104);
+          const PW = TU("sidePaintHalf", 238) / _sp2, APR2 = Math.max(24, HALF2 + GAP2 - PW);
           const band = (v0, v1, style) => { ctx.fillStyle = style;
-            const a2 = (HALF2 + v0) * lat, b2 = (HALF2 + v1) * lat;
+            const a2 = (PW + v0) * lat, b2 = (PW + v1) * lat;
             ctx.fillRect(CW / 2 + a2, i, b2 - a2, 1); ctx.fillRect(CW / 2 - b2, i, b2 - a2, 1); };
-          band(3, 3 + TU("sideBorderW", 11), "rgba(255,255,255," + TU("sideBorderA", .4) + ")");
           const inBox = u > PLAY_L + 25 * (PLAY_W / 100) && u < PLAY_R - 25 * (PLAY_W / 100);
           if (inBox && Math.floor(u / 11) % 2 === 0)
-            band(GAP2 * .24, GAP2 * .24 + 2.6, "rgba(255,255,255," + TU("sideBoxA", .3) + ")");
-          band(GAP2 * .74, GAP2 * .99, "rgba(0,0,0," + TU("sideKitShadeA", .10) + ")");
+            band(APR2 * .3, APR2 * .3 + 2.6, "rgba(255,255,255," + TU("sideBoxA", .3) + ")");
+          band(APR2 * .62, APR2 * .95, "rgba(0,0,0," + TU("sideKitShadeA", .10) + ")");
         }
       }
       if (this.textures.exists("rib_field_warp")) this.textures.get("rib_field_warp").refresh();
