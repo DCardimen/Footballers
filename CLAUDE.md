@@ -20,6 +20,8 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   play-calling, the you-player's box score `P`
 - `GRIDIRON live-field bridge v3` — broadcast renderer (after a minified
   Phaser bundle — **never edit the bundle**)
+- `v78 SIDELINE` / `v78 SIDELINE ART` — the team area outside both touchlines:
+  staff, backups, benches, equipment, the chain crew
 - `RIB DEV HARNESS` — console `DEV.help()`
 
 ## Dev loop
@@ -46,6 +48,8 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | injuries | `injurycheck.mjs` |
 | team emblems / palettes / identity | `emblemcheck.mjs` |
 | training / skill art, the skill atlas | `skillartcheck.mjs`, `wheelcheck.mjs` |
+| the crowd, the sideline, the team area | `crowdcheck.mjs`, `sidelinecheck.mjs` |
+| the declare / career-end screens | `declarecheck.mjs` |
 | UI / screens | `shot.mjs` (screenshot), `walk.mjs` (click-through) |
 
 ## House rules
