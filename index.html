@@ -1527,17 +1527,20 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const byPos = (arr,pos)=>arr.filter(p=>p&&p.pos===pos);
     const avg = (arr,name)=>{ const v=arr.map(p=>att(p,name)).filter(Number.isFinite);
       return v.length? v.reduce((a,b)=>a+b,0)/v.length : 45; };
-    /* v81.1 PRO PARITY. Talent advantages COMPOUND inside a play — a better
-     * line holds longer × a wider hole × a back who wins more contacts × a
-     * footrace that fades less — so feeding the raw team gap in made a
-     * 4-point paper edge triple run YPC. On a real field the gap between a
-     * 90 side and a 70 side is tenths of a second, and blowouts come from
-     * that small edge repeating for sixty minutes. So the BETWEEN-TEAM mean
-     * difference is compressed before agents are built; every player keeps
-     * his full deviation from his own team, so the star still plays like one. */
+    /* v81.1 PRO PARITY dial. Talent advantages COMPOUND inside a play — a
+     * better line holds longer × a wider hole × a back who wins more
+     * contacts × a footrace that fades less — so the sim's response to a
+     * team-wide attribute gap is steep by construction. The GRADED FOOTRACE
+     * (see the pursuit loop) removes the cliffs that made it an S-curve;
+     * this dial can additionally compress the BETWEEN-TEAM mean difference
+     * before agents are built (each player keeps his full deviation from
+     * his own team, so the star still plays like one). Default 1 = raw gap:
+     * with the footrace de-cliffed, the v76 margin levers own the badge-gap
+     * → points curve and blowoutcheck gates it; turn this below 1 only
+     * alongside a blowoutcheck retune, never in isolation. */
     const PARITY_BASKET = ["speed","strength","agility","quickness","blocking","tackling","acceleration","burst"];
     const tMean = arr => PARITY_BASKET.reduce((s,n)=>s+avg(arr,n),0)/PARITY_BASKET.length;
-    const _mOff = tMean(kOff), _mDef = tMean(tDef), _parK = TU("talentParity", .4);
+    const _mOff = tMean(kOff), _mDef = tMean(tDef), _parK = TU("talentParity", 1);
     const _lean = side => ((side==="off"? _mOff-_mDef : _mDef-_mOff)/2) * (_parK - 1);
     const A = (p, side, i, lb) => {
       // per-agent variability: talent jitter (who they are) + daily form (how they show up)
@@ -2731,6 +2734,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           // standing 40% speed edge no angle can pay back. Defenders chase the
           // football like the football matters.
           let beatenPace = TU("pursuitEffort", 1.15);
+          // v81.1: on a pass the ball is OUT and every defender drives on the
+          // catch — YAC pursuit comes downhill a touch harder than a run fit,
+          // where gap discipline holds them a beat.
+          if (kind !== "run") beatenPace += TU("yacDrive", .05);
           // v22: a defender who is TRAILING a faster carrier can't rubber-band back.
           // If the offense gets BEHIND the defense they get a real shot at the end
           // zone — no catch-up sprint "out of nowhere" on a footrace he'd lose.
@@ -8182,7 +8189,12 @@ function standV76(){
   // last-minute miracle on every possession.
   // The cap rises with the mismatch, for the same reason toV76 is continuous: a flat
   // cap is a damper that quietly switches off past the gap it was tuned at.
-  const mx=f(TU("standMax",.34)+Math.max(0,_gapV76)*TU("standMaxK",.012),0,.72);
+  // v81.1: .34 → .28. The v81 run game moved where the margin lands: the mid
+  // bands (+4..+10 OVR) sat 5 points under the 0.7/OVR line because this cap —
+  // not standGapK — was the binding term there (gapP hits mx from +6 up), so
+  // the favoured team stood down on ~44% of its chances. Retuned against
+  // blowoutcheck's live bands, which gate the result.
+  const mx=f(TU("standMax",.28)+Math.max(0,_gapV76)*TU("standMaxK",.012),0,.72);
   // Two terms, because they do different jobs. The GAP term runs from the opening
   // kickoff and is what sets the average — a defence that is outclassed between the
   // twenties still stiffens inside its own ten, which is the oldest cliche in the

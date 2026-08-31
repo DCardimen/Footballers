@@ -137,7 +137,14 @@ function batch(passIndex) {
   };
 }
 
-const passes = Array.from({ length: 10 }, (_, i) => batch(i));
+// 30 batches, not 10. YAC per completion is the fat-tailed statistic here — a
+// handful of catch-and-run breakaways move a batch mean by yards, so batch-level
+// sd is ~1.1 yd. At 10 batches the estimator's ±2σ band (~±15%) was WIDER than
+// the ±12% gate it feeds: the same physics drew -9.8% and +18.8% on the fixed
+// seeds across two near-identical builds, i.e. the verdict was luck. 30 batches
+// (5,400 plays) brings the standard error to ~0.2 yd so the corridor judges the
+// build, not the draw. The corridor itself is unchanged.
+const passes = Array.from({ length: 30 }, (_, i) => batch(i));
 passes.forEach(p => console.log(JSON.stringify(p)));
 
 const sum = key => passes.reduce((n, p) => n + p[key], 0);
@@ -171,7 +178,7 @@ if (!gitRef) {
   const failures = [];
   if (summary.oobSpotErrors) failures.push(`${summary.oobSpotErrors} out-of-bounds spots missed the plane`);
   if (summary.outsideFrames) failures.push(`${summary.outsideFrames} player frames escaped the field`);
-  if (summary.goalLineChecks !== 20) failures.push(`${20 - summary.goalLineChecks} goal-line crossings were late/misplaced`);
+  if (summary.goalLineChecks !== passes.length * 2) failures.push(`${passes.length * 2 - summary.goalLineChecks} goal-line crossings were late/misplaced`);
   if (!summary.routeBreaks || !summary.routeReactions) failures.push("route breaks did not affect coverage movement");
   if (!summary.cuts || !summary.badAngles) failures.push("directional cuts did not produce any pursuit mistakes");
   const ap = summary.accelerationProfile;

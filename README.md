@@ -77,22 +77,26 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   ends it, the last man squares up (reduced whiff/truck/hurdle against him),
   momentum can help a truck but no longer BE one, and the pile's forward drive
   became real yardage instead of a cosmetic coast — the spot now matches the
-  picture. TALENT feeds the play through PRO PARITY (`talentParity`): in-play
-  advantages compound (a better line holds longer × a wider hole × a back who
-  wins more contacts × a footrace that fades less), so the raw team attribute
-  gap made a +4 paper edge TRIPLE run YPC and broke the v76 margin curve; the
-  between-team mean gap is compressed before agents are built while every
-  player keeps his full deviation from his own team, and the open-field
-  footrace is GRADED (`trailFadeK2` — a trailing defender's pace fades with
-  the square of his speed deficit) instead of the old spd+6/runDown-margin
-  cliffs that flipped every defender on the worse team at once.
+  picture. The TALENT response was de-cliffed (v81.1): the old open-field
+  footrace had two hard edges (trail pace at spd+6, a 0.9 rubber-band cap past
+  the runDown margin) that flipped every defender on the worse team at once —
+  a 4-point team attribute gap tripled run YPC and bent the v76 margin curve
+  into an S. The footrace is now GRADED (`trailFadeK2` — a trailing defender's
+  pace fades with the square of his speed deficit), pass-play pursuit drives
+  on the catch a touch harder than a run fit (`yacDrive`), a `talentParity`
+  dial can compress the between-team mean attribute gap if ever needed
+  (default 1 = raw gap), and the v76 stand-down cap (`standMax` .34 → .28,
+  the binding term in the +6..+10 OVR bands) was retuned against
+  blowoutcheck's live margin bands, which gate the badge-gap → points curve.
   Measured (1,200-play probe, now `scripts/trenchcheck.mjs`): defenders
   on a block one second in 4.5 → 8.0, contacts per play 1.6 → 1.4 with 220ms
   from first contact to whistle, gang share 31% (design 70/30), 20+ tail 22% →
   8.8% of carries, raw YPC inside movementcheck's ±12% calibration corridor,
-  and a smooth monotone YPC-vs-talent curve (≈3 ypc at −12, ≈8 at 0, ≈15 at
-  +12 attribute points, no cliffs). creditcheck, statcreditcheck, jukecheck,
-  routecheck, reactioncheck, simcheck, equaltalentcheck (full-engine YPC 4.0),
+  and a smooth monotone YPC-vs-talent curve with no cliffs. movementcheck now
+  runs 30 batches (5,400 plays) instead of 10 — YAC per completion is fat-
+  tailed and the 10-batch estimator's noise was wider than the ±12% gate it
+  fed. creditcheck, statcreditcheck, tacklecheck, jukecheck, routecheck,
+  reactioncheck, simcheck, equaltalentcheck (full-engine YPC 4.0),
   movementcheck and blowoutcheck all green.
 
 - **v80 — the ball reaches the boundary, and the sideline watches it get there.**
