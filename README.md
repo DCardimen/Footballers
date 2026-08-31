@@ -55,6 +55,36 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v78 — the sideline is a sideline.** v57 cut an apron between the touchline and
+  the stands and called it "the team area … so a later system can populate it".
+  This is that system. Five uploaded sheets (coaches, trainers, benches, hydration,
+  medical, equipment racks, storage, coaching tech, the chain crew's markers) are
+  packed into one atlas by `scripts/spritekit/pack_sideline.mjs` and laid out in
+  three CATEGORISED lanes running outward from the line: the boundary the coaches
+  work and the backups watch from, the bench row with the hydration and the
+  trainers' cart, and the equipment row behind it. The backups are the sim's own
+  player sprites, so each bench wears its own team's kit; the staff wear one drawn
+  kit for the same reason the officials do. The apron widens from 56 world units
+  to 104 to hold all three lanes — the stands move back with it. Pylons stand on
+  all eight end-zone corners, the yardage markers on their own yard lines, and the
+  chain crew follows the ball: the down box shows the down actually being played
+  and the two sticks stand on the line of scrimmage and on the line to gain. The layout is
+  SEEDED, because the geometry is rebuilt at every snap and an unseeded sideline
+  would reshuffle the bench on every play. Render-only — no sim actor, no stat.
+  Guarded by `scripts/sidelinecheck.mjs`.
+
+- **v77 — a failed declare ends the career.** Failing a declare used to bank a
+  Determination bonus and hand you another season, so the biggest decision in the
+  game had no downside: there was never a reason not to declare the moment the
+  button lit up. A miss now ends the career on the spot, on both paths that offer
+  the roll, and both screens state the stakes before it. The decline screen becomes
+  the epitaph — career totals and the single best season — which needed a record
+  the save did not keep: `seasonStats` is only the season just finished and
+  `career` holds one row per LEVEL, so "your best season" was not a question the
+  game could answer. `seasonLogV77` is that archive, one compact row per finished
+  season. Rates are averaged rather than summed; eight years of 4.8 YPC is not
+  38.4. Guarded by `scripts/declarecheck.mjs`.
+
 - **v76 — a talent edge is worth points, not a scoreline.** A prestiged save could
   beat a team 10 OVR worse by 28.6 on average, with a quarter of those games ending
   five scores apart and one sample finishing on 151 points. The target is ~0.7 points

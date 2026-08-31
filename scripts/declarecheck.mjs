@@ -140,6 +140,24 @@ if (totals) {
 }
 
 await clearWheel()
+
+// The epitaph is a long screen on a small phone — v75's budget is 1.35 screens
+// of scroll, and scrollcheck cannot reach this view (it never fails a declare).
+await page.setViewportSize({ width: 390, height: 844 })
+await page.waitForTimeout(400)
+const scroll = await page.evaluate(() => {
+  let worst = 0
+  for (const el of document.querySelectorAll('body *')) {
+    const s = getComputedStyle(el)
+    if (!/auto|scroll/.test(s.overflowY)) continue
+    if (el.scrollHeight > el.clientHeight + 4) worst = Math.max(worst, el.scrollHeight / Math.max(1, el.clientHeight))
+  }
+  return +worst.toFixed(2)
+})
+ok(scroll <= 1.35, 'the epitaph fits inside v75\'s scroll budget on a phone', scroll + ' screens')
+await page.setViewportSize({ width: 520, height: 1100 })
+await page.waitForTimeout(300)
+
 try { await page.locator('#screen').screenshot({ path: 'scripts/_declare.png' }) } catch (e) { await page.screenshot({ path: 'scripts/_declare.png' }) }
 
 // ---- and the settlement screen still works from here
