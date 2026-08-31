@@ -41,7 +41,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 
 | You changed… | Run |
 |---|---|
-| tackling / contact physics | `tacklecheck.mjs`, `jukecheck.mjs` |
+| tackling / contact physics / the trench | `trenchcheck.mjs`, `tacklecheck.mjs`, `jukecheck.mjs` |
 | stat credit / box score | `creditcheck.mjs`, `statcreditcheck.mjs` |
 | game engine / play-calling / yardage | `simcheck.mjs` |
 | anything sim-side that should be visible | `renderpathcheck.mjs` |

@@ -18,6 +18,7 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 |---|---|
 | `creditcheck.mjs` | **Tackle-credit truth.** Sims 60 games as an LB, wraps `__FieldSim.run/pass` to record who the sim actually named tackler/assist, and asserts the credited tackle stat never exceeds sim-truth + sacks. Exits non-zero on violation. |
 | `statcreditcheck.mjs` | Box score may only credit plays the user's roster actor actually made or was in the pile for (all stats, several positions). |
+| `trenchcheck.mjs` | v81 real football, pure Node (loads the FieldSim block directly — no server): a run play blocks most of the defense (~8 of 11 on a block at 1s, was 4.5), no eight-man piles at the whistle (mean ~2.8 within 30px), one or two contacts settle a play (~220ms first contact to whistle), solo/gang holds the 70/30 design, TFLs exist, the 20+ tail stays a tail, receivers genuinely stalk-block and the blocks genuinely shed. Prints the yardage histogram; `TUNE='{"dial":v}'` overrides RIB_TUNE for sweeps, `N` sets the play count. Exits non-zero on any failure. |
 | `tacklecheck.mjs` | Solo/gang tackle split (~70/30 target) and whiff / truck / stiff-arm / stagger / big-hit rates across ~3,000 run plays. |
 | `jukecheck.mjs` | Stat gaps drive evasion: one-on-one juke probability across superstar/scrub matchups. |
 | `simcheck.mjs` | Batch-runs the emergent game engine (`window.__simGameV2`) — score, pace, and yardage distributions. |

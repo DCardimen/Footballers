@@ -55,6 +55,46 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v81 — real football: blocks, holes, and plays that end on contact.** A run
+  play used to block exactly four defenders — the paired D-line — while both
+  corners, both safeties and two linebackers ran unblocked at the ball on every
+  snap: the "eight defenders vs one runner" swarm. v81 gives every offensive
+  player a RUN ASSIGNMENT (receivers stalk-block the corners, the tight end
+  seals a linebacker, uncovered linemen actually climb — the run double-team is
+  gone because the fifth lineman has a second level to reach), and a defender
+  being blocked in space now FIGHTS the block, with a shed contest that grows
+  urgent as the ball comes past, instead of running through it. Structure the
+  diagnosis exposed and v81 fixes: BOTH safeties sat in the deep roof (the
+  branch never picked one — now the deeper roofs and the other fills downhill),
+  contain was parking the safeties wide with the corners, linebackers aligned
+  nine yards off the ball so their natural meet point was double digits (now
+  ~5), and the carrier surged at up to 1.42× his own top speed while pursuit
+  attacked at a polite 1.0× — effort parity ends the track meet. Pursuit deals
+  ROLES: the two nearest attack, the next two run to a spot ahead of the runner,
+  the rest rally through the wake — so a stop reads as one or two tacklers with
+  help arriving, not a ring. Contact FINISHES: a second pair of hands chokes
+  evasion ~58% (two ~82%), a staggered runner is `wounded` and the follow-up hit
+  ends it, the last man squares up (reduced whiff/truck/hurdle against him),
+  momentum can help a truck but no longer BE one, and the pile's forward drive
+  became real yardage instead of a cosmetic coast — the spot now matches the
+  picture. TALENT feeds the play through PRO PARITY (`talentParity`): in-play
+  advantages compound (a better line holds longer × a wider hole × a back who
+  wins more contacts × a footrace that fades less), so the raw team attribute
+  gap made a +4 paper edge TRIPLE run YPC and broke the v76 margin curve; the
+  between-team mean gap is compressed before agents are built while every
+  player keeps his full deviation from his own team, and the open-field
+  footrace is GRADED (`trailFadeK2` — a trailing defender's pace fades with
+  the square of his speed deficit) instead of the old spd+6/runDown-margin
+  cliffs that flipped every defender on the worse team at once.
+  Measured (1,200-play probe, now `scripts/trenchcheck.mjs`): defenders
+  on a block one second in 4.5 → 8.0, contacts per play 1.6 → 1.4 with 220ms
+  from first contact to whistle, gang share 31% (design 70/30), 20+ tail 22% →
+  8.8% of carries, raw YPC inside movementcheck's ±12% calibration corridor,
+  and a smooth monotone YPC-vs-talent curve (≈3 ypc at −12, ≈8 at 0, ≈15 at
+  +12 attribute points, no cliffs). creditcheck, statcreditcheck, jukecheck,
+  routecheck, reactioncheck, simcheck, equaltalentcheck (full-engine YPC 4.0),
+  movementcheck and blowoutcheck all green.
+
 - **v80 — the ball reaches the boundary, and the sideline watches it get there.**
   Two fixes, one cause each. LATERAL CALIBRATION: the field art draws its
   painted touchlines to true scale, ~16% wider than the raw lateral map put the

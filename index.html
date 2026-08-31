@@ -1483,7 +1483,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
   const OFF_Y = [78,372,306,158,190,222,254,286,222,262,120];
   const DEF_Y = [78,372,140,306,172,222,276,176,208,240,268];
   const OFF_LX = (lb,i)=> lb==="QB"?-38: lb==="RB"?-54: (lb==="WR"&&i===10)?-10:0;
-  const DEF_LX = (lb)=> lb==="S"?88: lb==="LB"?52: lb==="CB"?25:15;
+  // v81: real alignment depths — backers play ~5 yards off the ball, not nine.
+  // Nine put the second level's natural meet point at 8-14 yards, which is why
+  // every decent run reached double digits before a hat arrived.
+  const DEF_LX = (lb)=> lb==="S"?TU("alignS",76): lb==="LB"?TU("alignLB",32): lb==="CB"?25:15;
   // v24 TACKLE HEIGHT: rough real-life heights (inches) by role. Contact leverage
   // reads off the tackler-vs-carrier gap — a shorter man gets under pads and wraps
   // clean; a taller man tackles high and gets ducked, hurdled and trucked more.
@@ -1524,10 +1527,22 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const byPos = (arr,pos)=>arr.filter(p=>p&&p.pos===pos);
     const avg = (arr,name)=>{ const v=arr.map(p=>att(p,name)).filter(Number.isFinite);
       return v.length? v.reduce((a,b)=>a+b,0)/v.length : 45; };
+    /* v81.1 PRO PARITY. Talent advantages COMPOUND inside a play — a better
+     * line holds longer × a wider hole × a back who wins more contacts × a
+     * footrace that fades less — so feeding the raw team gap in made a
+     * 4-point paper edge triple run YPC. On a real field the gap between a
+     * 90 side and a 70 side is tenths of a second, and blowouts come from
+     * that small edge repeating for sixty minutes. So the BETWEEN-TEAM mean
+     * difference is compressed before agents are built; every player keeps
+     * his full deviation from his own team, so the star still plays like one. */
+    const PARITY_BASKET = ["speed","strength","agility","quickness","blocking","tackling","acceleration","burst"];
+    const tMean = arr => PARITY_BASKET.reduce((s,n)=>s+avg(arr,n),0)/PARITY_BASKET.length;
+    const _mOff = tMean(kOff), _mDef = tMean(tDef), _parK = TU("talentParity", .4);
+    const _lean = side => ((side==="off"? _mOff-_mDef : _mDef-_mOff)/2) * (_parK - 1);
     const A = (p, side, i, lb) => {
       // per-agent variability: talent jitter (who they are) + daily form (how they show up)
       const jit = () => (Math.random()*10 - 5) + (Math.random()*6 - 3);
-      const g = n => Math.max(20, Math.min(99, (p ? att(p,n) : avg(side==="off"?kOff:tDef, n)) + jit()));
+      const g = n => Math.max(20, Math.min(99, (p ? att(p,n) : avg(side==="off"?kOff:tDef, n)) + _lean(side) + jit()));
       const speed=g("speed"), accel=g("acceleration")||g("burst")||speed;
        /* ===== v56 REACTION RATING =====
         * `a.quick` drives first-step latency, DL shed contests and play recognition.
@@ -1714,7 +1729,44 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const freeOL = blockers.find(o=>!o.engagedBy);
     const best = rushers.slice().sort((a2,b2)=>(b2.str+b2.quick)-(a2.str+a2.quick))[0];
     let doubled = null, blitzer = null;
-    if (freeOL && best) { doubled = best; best.doubled = true; freeOL.doubling = best; }
+    // v81: the double-team is a PASS protection. On a run the fifth lineman has a
+    // linebacker to climb to — spending him on a man who is already blocked is
+    // why the second level arrived unblocked on every carry.
+    if (freeOL && best && kind === "pass") { doubled = best; best.doubled = true; freeOL.doubling = best; }
+    /* ===== v81 REAL FOOTBALL — every offensive player has a RUN assignment =====
+     * Before this, a run play blocked exactly four defenders (the paired DL) and
+     * sometimes one linebacker. Both corners, both safeties and two linebackers
+     * ran free at the ball on every snap — which is where "eight defenders vs one
+     * runner" came from. Real offenses block ELEVEN: receivers stalk the corners,
+     * the tight end seals the edge, uncovered linemen climb. A defender who is
+     * being blocked in space FIGHTS the block (with a shed contest that grows
+     * urgent as the ball comes past) instead of running through it. */
+    if (kind === "run") {
+      const cbs = S.def.filter(a=>a.lb==="CB");
+      S.off.filter(a=>a.lb==="WR").forEach(w=>{
+        const cb = cbs.filter(d=>!d._stalkBy).sort((p2,q2)=>Math.hypot(p2.lx-w.lx,p2.y-w.y)-Math.hypot(q2.lx-w.lx,q2.y-w.y))[0];
+        if (cb && Math.abs(cb.y - w.y) < 90) { w._stalk = cb; cb._stalkBy = w; }
+      });
+      const te = S.off.find(a=>a.lb==="TE");
+      if (te) {
+        // LB only — sealing a safety deletes the roof, and 80-yard runs on every
+        // other carry is what a football game without a roof looks like
+        const tgt = S.def.filter(a=>a.lb==="LB" && !a._stalkBy)
+          .sort((p2,q2)=>Math.hypot(p2.lx-te.lx,p2.y-te.y)-Math.hypot(q2.lx-te.lx,q2.y-te.y))[0];
+        if (tgt) { te._stalk = tgt; tgt._stalkBy = te; }
+      }
+    }
+    // the blocker's half of a stalk block: release to the man, then mirror him.
+    // The DEFENDER's half (fighting it, shedding it) lives in the pursuit loop.
+    const stalkTick = (w) => {
+      const d2 = w._stalk; if (!d2) return true;
+      if (d2._stalkShed || (d2.stunned && t < d2.stunned)) { w._stalk = null; return true; }
+      if (!w._stalkOn) {
+        mv(w, d2.lx - 4, d2.y, 0.96);
+        if (Math.hypot(w.lx - d2.lx, w.y - d2.y) < TU("stalkEngagePx", 13)) { w._stalkOn = t; emit("stalk", { who: w.id, on: d2.id, x: w.lx, y: w.y }); }
+      } else mv(w, d2.lx - 4, d2.y, 0.55);
+      return false;
+    };
     if (kind === "pass" && Math.random() < 0.18) {
       blitzer = S.def.filter(a=>a.lb==="LB")[Math.floor(Math.random()*3)];
       if (blitzer) blitzer.blitzing = true;
@@ -1767,9 +1819,13 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     // returns: "cooldown" | "whiff" | "stiffarm" | "broken" | "stagger" (stays up) | "tackle" (play ends)
     const contact = (d, c) => {
       if (t < d.cool) return "cooldown";
-      d.cool = t + 420 - (d.grit-50)*2;                          // grit: tacklers reload faster
+      d.cool = t + TU("tackleCoolMs", 360) - (d.grit-50)*2;      // grit: tacklers reload faster (v81: shorter — follow-up hits come quicker)
       const behind = (d._dx||0)*(c._dx||0) + (d._dy||0)*(c._dy||0) > 0.55;
       const openField = c.lx > 30;
+      // v81: a carrier still recovering from an arm tackle (recent stagger) has
+      // no move left — the follow-up contact finishes. This is the "first contact
+      // slows him, second contact ends it" rhythm of a real run.
+      const wounded = c._staggered && (t - c._staggered) < TU("woundedMs", 1100) ? TU("woundedChoke", .55) : 0;
       const dW = WT[d.lb]||.7, cW = WT[c.lb]||.7;
       const dSpd = Math.max(0.12,(d.vel||0))*d.spd, cSpd = Math.max(0.12,(c.vel||0))*c.spd;
       const dMom = dW*dSpd, cMom = cW*cSpd;                       // mass × velocity
@@ -1790,7 +1846,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // fraction by which EVERY evasion (whiff/hurdle/stiff/truck) is choked by the swarm.
       // Tuned so ONE extra man ≈ −40% (you go down pretty quickly) and TWO ≈ −78% (three
       // men = mostly a wrap), without crushing the base run game to dust.
-      const swarmChoke = handsOn <= 0 ? 0 : Math.min(0.9, 1 - Math.pow(0.6, handsOn));
+      // v81: sharpened — in real football a second man in contact all but ends
+      // the play. One extra pair of hands chokes evasion ~58%, two ~82%.
+      const swarmChoke = handsOn <= 0 ? 0 : Math.min(TU("swarmChokeCap", .92), 1 - Math.pow(TU("swarmChokeBase", .42), handsOn));
       emit("tackleLunge",{who:d.id, carrier:c.id, x:c.lx, y:c.y, behind, dMom:Math.round(dMom), cMom:Math.round(cMom)});
       // v30 fatigue: collisions cost real gas on BOTH sides — a back who absorbs six
       // hits finishes the game on heavier legs than one who ran untouched.
@@ -1799,7 +1857,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // 1) WHIFF — an elusive back makes him miss in space (never from behind).
       // Steeper gap term + a high (never-100%) ceiling so a huge mismatch shows:
       // even ≈26% open, star-vs-weak ≈70%, generational-vs-scrub ≈78%, floor ≈2%.
-      const whiffP = cl(0.12 + (elus - d.tkl)*0.008 + (openField?0.10:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006, 0.02, 0.72) * (1 - swarmChoke);
+      const whiffP = cl(TU("whiffBase",.10) + (elus - d.tkl)*0.008 + (openField?0.10:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006, 0.02, TU("whiffCap",.55)) * (1 - swarmChoke) * (1 - wounded) * (d._isLast ? TU("lastManWhiffMul", .48) : 1);
       if (!behind && Math.random() < whiffP) {
         d.beaten = t + 640; d.cool = t + 520; c.burstUntil = t + 460; kickSprint(c);
         // v29 OVERSHOOT: the juked man's momentum carries him PAST the cut point — he
@@ -1830,7 +1888,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // 1.5) HURDLE — a springy carrier leaps clean OVER a low tackle attempt.
       // Driven by jumping + agility vs the tackler's wrap skill; open field helps,
       // never works from behind. The carrier sails over and keeps his momentum.
-      const hurdleP = (behind ? 0 : cl(0.03 + ((c.jump*0.6 + c.agi*0.4) - d.tkl)*0.006 + (openField?0.07:0) + Math.max(0,-lev)*0.005, 0.02, 0.38)) * (1 - swarmChoke);
+      const hurdleP = (behind ? 0 : cl(0.03 + ((c.jump*0.6 + c.agi*0.4) - d.tkl)*0.006 + (openField?0.07:0) + Math.max(0,-lev)*0.005, 0.02, TU("hurdleCap",.30))) * (1 - swarmChoke) * (1 - wounded) * (d._isLast ? TU("lastManHurdleMul", .6) : 1);
       if (Math.random() < hurdleP) {
         d.beaten = t + 560; d.cool = t + 480; c.burstUntil = t + 380; kickSprint(c);
         c.vel = Math.max(0,(c.vel||0)*0.98);
@@ -1842,7 +1900,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // attack. Works even at low speed (unlike a truck), not from behind. The
       // defender is shoved off and stumbles; the runner is slowed a touch, keeps going.
       const armEdge = (cStr - dStr) + (c.str - 50)*0.45;
-      const stiffP = (behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005, 0, 0.5)) * (1 - swarmChoke);
+      const stiffP = (behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005, 0, TU("stiffCap",.40))) * (1 - swarmChoke) * (1 - wounded);
       if (Math.random() < stiffP) {
         d.beaten = t + 520; d.stagger = t; c.vel = Math.max(0,(c.vel||0)*0.95); c.burstUntil = t + 300; kickSprint(c);
         emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
@@ -1858,9 +1916,11 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const cFaster = cSpd > dSpd, cStronger = cStr > dStr;
       const powerEdge = (cMom - dMom)*0.85 + (cStr - dStr)*0.5;
       const bothWin = cFaster && cStronger && !behind;
-      let truckP = cl(0.16 + powerEdge*0.011 + (behind?-0.09:0) + Math.max(0,lev)*0.006, 0.02, 0.72);
-      if (bothWin) truckP = cl(truckP + 0.22 + (cSpd - dSpd)*0.006, 0.05, 0.90);
-      truckP *= (1 - swarmChoke);                                  // v25: you don't truck THROUGH a gang
+      // v81: momentum helps a truck but cannot BE the truck — a sprinting back
+      // does not run over a squared-up last man on speed alone
+      let truckP = cl(TU("truckBase",.13) + Math.min(TU("truckMomCap",.22), powerEdge*0.011) + (behind?-0.09:0) + Math.max(0,lev)*0.006, 0.02, TU("truckCap",.58));
+      if (bothWin) truckP = cl(truckP + 0.22 + (cSpd - dSpd)*0.006, 0.05, TU("truckWinCap",.74));
+      truckP *= (1 - swarmChoke) * (1 - wounded) * (d._isLast ? TU("lastManTruckMul", .45) : 1);   // v25: you don't truck THROUGH a gang
       if (Math.random() < truckP) {
         d.beaten = t + 600; c.burstUntil = t + 500; kickSprint(c);
         if ((powerEdge > 20 || bothWin) && !behind) d.trucked = t;   // flattened — he stays down
@@ -1883,9 +1943,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // matter: a staggered carrier bleeds speed and is easier to bring down next hit.
       const wrapQ = d.tkl*0.62 + (dMom>cMom?14:0) + (behind?22:0);
       const balance = c.str*0.4 + c.agi*0.35 + (c.burst||c.spdA||50)*0.25;
-      const staggerP = cl(0.11 + (balance - wrapQ)*0.006 - (behind?0.22:0) - (c._staggered&&t-c._staggered<500?0.20:0), 0.03, 0.46) * (1 - swarmChoke);
+      const staggerP = cl(0.11 + (balance - wrapQ)*0.006 - (behind?0.22:0) - (c._staggered&&t-c._staggered<500?0.20:0), 0.03, TU("staggerCap",.34)) * (1 - swarmChoke) * (1 - wounded);
       if (Math.random() < staggerP) {
-        d.stagger = t; d.cool = t + 300;
+        d.stagger = t; d.cool = t + TU("staggerCoolMs", 220);
         c.vel = Math.max(0,(c.vel||0)*0.75); c._staggered = t;  // knocked off-stride, loses a step
         emit("stagger",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
         return "stagger";
@@ -2217,9 +2277,13 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         if (t >= 420) { carrier = S.off[9]; emit("handoff",{}); phase = "carry";
           // second-level blocking: uncovered linemen climb to linebackers
           const covered = new Set(rushers.map(r=>r.engaging&&r.engaging.id));
-          const lbs = S.def.filter(a=>a.lb==="LB");
-          blockers.filter(o=>!covered.has(o.id)).forEach((o,i)=>{
-            const lb = lbs[i]; if (lb) { o.climb = lb; lb.engagedBy = o; }
+          // v81: climb to the linebackers who are actually THERE — nearest first,
+          // skipping any the tight end already sealed — and the lineman v81 freed
+          // from the run double climbs with them.
+          const lbs = S.def.filter(a=>a.lb==="LB" && !a._stalkBy);
+          blockers.filter(o=>!covered.has(o.id) && !o.doubling).forEach((o)=>{
+            const lb = lbs.filter(l=>!l.engagedBy).sort((p2,q2)=>Math.hypot(p2.lx-o.lx,p2.y-o.y)-Math.hypot(q2.lx-o.lx,q2.y-o.y))[0];
+            if (lb) { o.climb = lb; lb.engagedBy = o; }
           });
           // v16.1: backfield penetration — a DL who wins his gap cleanly at the
           // snap blows the run up for a loss. Rate scales with the trench
@@ -2426,10 +2490,26 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         const dirSign = c.side === "off" ? 1 : -1;
         let laneY = c.y;
         if (kind === "run" && c.lx < 8) {
-          const lanes = [158,190,222,254,286].map((ly,i)=>({ly, open: !blockers[i].engagedBy || blockers[i].engagedBy.shed ? 0 : 1 }));
-          const sorted = lanes.sort((p,q)=> (q.open - p.open) || (Math.abs(p.ly-c.y)-Math.abs(q.ly-c.y)));
+          /* v81: a HOLE is not just "my lineman still has his man" — it is a gap
+           * with no free hat behind it. Score each lane by the maintained block
+           * in front of it MINUS every live, unblocked defender sitting in that
+           * lane's corridor past the line, so the back presses the actual
+           * daylight instead of running into an unblocked linebacker because his
+           * guard happened to still be engaged. */
+          const lanes = [158,190,222,254,286].map((ly,i)=>{
+            let open = (!blockers[i].engagedBy || blockers[i].engagedBy.shed) ? 0 : 1;
+            for (const a2 of S.def) {
+              if (a2.lb === "DL" && !a2.shed) continue;                              // still in the trench
+              if (a2._stalkBy && !a2._stalkShed) continue;                           // stalked in space
+              if (a2.engagedBy && !a2.shed2) continue;                               // climbed onto
+              if ((a2.stunned && t < a2.stunned) || (a2.trucked && t < a2.trucked + 900) || t < (a2.beaten||0)) continue;
+              if (a2.lx > 2 && a2.lx < TU("laneScanLx", 42) && Math.abs(a2.y - ly) < TU("laneHatY", 18)) open -= 1;
+            }
+            return { ly, open };
+          });
+          const sorted = lanes.slice().sort((p,q)=> (q.open - p.open) || (Math.abs(p.ly-c.y)-Math.abs(q.ly-c.y)));
           // vision: does he actually SEE the open lane, or guess?
-          const sees = Math.random() < 0.38 + (c.vis-50)*0.008;
+          const sees = Math.random() < TU("laneSeeBase", 0.45) + (c.vis-50)*0.008;
           const best = sees ? sorted[0] : lanes[Math.floor(Math.random()*lanes.length)];
           laneY = best.ly + (Math.random()*10-5);
         } else laneY = clampY(c.y + Math.sin(t/300)*14);
@@ -2489,7 +2569,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         // sprint = the visible +20% burst; the old daylight jet is now a small tail
         const catchStride=t<(c._catchRunThroughUntil||0)?(c._catchStrideBoost||0):0;
         const jets = (sprinting(c) ? SPRINT_BOOST : (t < (c.burstUntil||0) ? 0.10 : 0)) + catchStride;
-        mv(c, c.lx + dirSign*40, laneY, cl((hole?1.12:0.9) + jets + (c.burst-50)*0.004, 0.72, 1.5));
+        mv(c, c.lx + dirSign*40, laneY, cl((hole?TU("holeSurge",1.15):0.9) + jets + (c.burst-50)*0.004, 0.72, 1.5));
         // A catch/return secured on the boundary is dead at that possession
         // point. It has no incoming carry segment this tick, so preserve the
         // exact spot explicitly instead of letting the runner turn back infield.
@@ -2500,7 +2580,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           if (o.climb && !o.climb.shed2) {
             mv(o, o.climb.lx-8, o.climb.y, 0.7);
             if (Math.hypot(o.lx-o.climb.lx, o.y-o.climb.y) < 16) {
-              const pshed = cl(((o.climb.str*0.6+o.climb.agi*0.4) - o.blk) * 0.0005 + 0.006, 0.001, 0.05);
+              const pshed = cl(((o.climb.str*0.6+o.climb.agi*0.4) - o.blk) * 0.0005 + TU("climbShedBase", 0.011), 0.001, 0.05);
               if (Math.random() < pshed) { o.climb.shed2 = true; o.climb.engagedBy = null; }
               else o.climb.held = t + 60;
             }
@@ -2513,15 +2593,25 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         if (committerId && (function(){const cm=A_all[committerId]; return !cm || t<(cm.beaten||0) || (cm.trucked&&t<cm.trucked+900);})()) committerId = null;
         const endTackle = (dfd) => {
           c.lx += Math.max(0, (c.grit-50)) * 0.018 * (c.side==="off"?1:-1);   // grit: falls forward
+          // v81: the drive the renderer already shows (the pile churning, the
+          // back falling forward through the wrap) becomes REAL yardage instead
+          // of a cosmetic coast — the dead-ball spot now matches the picture,
+          // and a stuffed run finishes at 2 instead of 0 the way real ones do.
+          if (c._drive) c.lx += Math.min(TU("fallFwdMax", 14), c._drive * TU("fallFwdK", 1.0)) * (c.side==="off"?1:-1);
           done = true;
           const yds = c.side==="off" ? Math.round(c.lx/YD) : 0;
           if (!out) out = { kind, yards: yds }; else out.yards = 0;           // pick return: passer line stays 0
         };
         // the single nearest pursuer is the one who kicks a sprint to run him down
         let nearestChaser=null, nearestGap=1e9, lastMan=null;
-        for (const a of chasers) { if (t<(a.beaten||0)||(a.trucked&&t<a.trucked+900)||(a.stunned&&t<a.stunned)||(a.lb==="DL"&&!a.shed)) continue;
-          const g2=Math.hypot(a.lx-c.lx,a.y-c.y); if(g2<nearestGap){nearestGap=g2;nearestChaser=a;}
+        const liveRank = [];   // v81: live pursuers by distance — the ranking that deals pursuit ROLES
+        for (const a of chasers) { if (t<(a.beaten||0)||(a.trucked&&t<a.trucked+900)||(a.stunned&&t<a.stunned)||(a.lb==="DL"&&!a.shed)
+          ||(a._stalkBy&&!a._stalkShed)||(a.engagedBy&&!a.shed2&&a.lb==="LB")) continue;
+          const g2=Math.hypot(a.lx-c.lx,a.y-c.y); liveRank.push({a,g2});
+          if(g2<nearestGap){nearestGap=g2;nearestChaser=a;}
           if(!lastMan||a.lx>lastMan.lx) lastMan=a; }   // v30: the deepest live defender is the LAST MAN
+        liveRank.sort((p2,q2)=>p2.g2-q2.g2);
+        const pursuitRole = new Map(liveRank.map((r2,ix)=>[r2.a.id,ix]));
         for (const dfd of chasers) {
           if (t < (dfd.beaten||0)) {
             // v29 OVERSHOOT: a beaten man doesn't freeze — his momentum carries him past
@@ -2537,19 +2627,39 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             if (Math.hypot(dfd.lx-wblk.lx, dfd.y-wblk.y) < 15) { dfd.y += (dfd.y > wblk.y ? 1 : -1) * 2.2; dfd.y = clampY(dfd.y); }
           }
           if (dfd.lb==="DL" && !dfd.shed) { mv(dfd, dfd.engaging.lx+6, dfd.engaging.y, 0.18); continue; }   // still blocked: fight, don't fly
+          // v81: a corner being stalked (or a safety the tight end sealed) is
+          // BLOCKED — he works the block, he doesn't run through it. The contest
+          // grows urgent once the ball is past him; a shed corner rejoins pursuit.
+          if (dfd._stalkBy && !dfd._stalkShed) {
+            const w2 = dfd._stalkBy, past2 = c.lx > dfd.lx - 6;
+            mv(dfd, c.lx, c.y, TU("stalkFightPace", 0.14));
+            const p2 = cl(((dfd.str*.5 + dfd.quick*.5) - w2.blk*TU("stalkBlkK",.9)) * TU("stalkShedK",.00055) + TU("stalkShedBase",.012), .0012, .05)
+              * (past2 ? TU("stalkPastMul", 4) : 1);
+            if (Math.random() < p2) { dfd._stalkShed = t; w2._stalk = null; emit("shedBlock", { who: dfd.id, x: dfd.lx, y: dfd.y }); }
+            continue;
+          }
           if (kind==="run") {
-            const readMs = 880 - (dfd.aware-50)*4 - (dfd.quick-50)*2;   // awareness+quickness: play recognition
+            const readMs = TU("lbReadMs", 880) - (dfd.aware-50)*4 - (dfd.quick-50)*2;   // awareness+quickness: play recognition
             if (dfd.lb==="LB" && (t < readMs || t < (dfd.held||0))) { if(t<(dfd.held||0)) continue; mv(dfd, 30, dfd.y, 0.35); continue; }
             // v30 SAFETY ROOF: the deep safety never outruns his responsibility — until
             // the carrier is genuinely through the second level he stays a cushion
             // DEEPER than the ball, shading toward it, so a sprung run meets one more
             // hat instead of an empty field.
             if (dfd.lb==="S"  && c.lx < TU("safetyRoofLx", 55)) {
-              mv(dfd, Math.max(60, c.lx + TU("safetyCushion", 44)), c.y + (dfd.y > c.y ? 14 : -14), 0.55); continue;
+              // v81: ONE safety keeps the roof — the deeper one. The other is the
+              // strong safety and he FILLS downhill like a linebacker. Both of
+              // them roofing (and both being parked wide by contain) left one
+              // free linebacker as the entire second level, and the run game
+              // turned into a track meet.
+              const otherS = S.def.find(a2=>a2.lb==="S" && a2!==dfd);
+              if (!otherS || dfd.lx >= otherS.lx - 2) {
+                mv(dfd, Math.max(60, c.lx + TU("safetyCushion", 44)), c.y + (dfd.y > c.y ? 14 : -14), 0.55); continue;
+              }
+              // strong safety: fall through and attack the ball
             }
             if (dfd.lb==="LB" && dfd.engagedBy && !dfd.shed2) { mv(dfd, c.lx, c.y, 0.16); continue; }   // walled off
           }
-          let lead = Math.min(0.35, Math.hypot(c.lx-dfd.lx,c.y-dfd.y)/Math.max(40,dfd.spd)*0.6);
+          let lead = Math.min(TU("pursuitLeadCap", .5), Math.hypot(c.lx-dfd.lx,c.y-dfd.y)/Math.max(40,dfd.spd)*0.6);
           // v29 PURSUIT IQ: awareness sizes up the intercept point, discipline holds the
           // angle. Each defender rolls ONE signed angle error per play, scaled by how far
           // his IQ falls short — elite defenders run near-perfect lines every rep; low-IQ
@@ -2584,7 +2694,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           // chases; once the carrier clears the box or beats them wide, contain is off
           // and they attack like everyone else.
           if (kind === "run" && dfd._contain === undefined)
-            dfd._contain = dfd.lb !== "DL" && Math.abs(dfd.y - MIDY) > TU("containWideY", 46) ? (dfd.y > MIDY ? 1 : -1) : 0;
+            // v81: contain is the CORNERS' job (and the widest backer's). Handing
+            // it to the safeties as well held the middle of the field empty.
+            dfd._contain = (dfd.lb === "CB" || (dfd.lb === "LB" && Math.abs(dfd.y - MIDY) > 50)) && Math.abs(dfd.y - MIDY) > TU("containWideY", 46) ? (dfd.y > MIDY ? 1 : -1) : 0;
           if (dfd._contain) {
             const outsideGap = Math.abs(dfd.y - MIDY) - (c.y - MIDY) * dfd._contain;
             if (c.lx < TU("containLxMax", 22) && outsideGap > 6) {
@@ -2594,20 +2706,47 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             } else dfd._contain = 0;                       // he's through, or bounced outside past me — attack
           }
           const otherCommitted = committerId && committerId!==dfd.id;
-          if (otherCommitted && gap < TU("supportHold",26)) {
+          if (otherCommitted && gap < TU("supportHold",34)) {
             // v29: support settles into a leverage spot a full stride off the tackle —
             // he's there to clean up a break, not to pile on. Solo stops stay solo.
             mv(dfd, c.lx - (c._dx||0)*14, c.y + (dfd.y>c.y?8:-8), 0.3);
             continue;
           }
-          let beatenPace = gap > 62 && c.spd > dfd.spd + 6 ? 0.9 : 1;
+          /* v81 RALLY AND LEVERAGE. A defense does not send eleven men at the
+           * ball — it sends the two nearest, the next pair runs to a spot AHEAD
+           * of the runner to cut the field off, and everyone else RALLIES through
+           * the ball's wake at pursuit pace. The last man is never demoted (his
+           * angle is the touchdown insurance), and anyone close enough to help
+           * still attacks — this only spreads out the men who were sprinting in
+           * from three gaps away to join a pile that already had six hats. */
+          const rk81 = pursuitRole.get(dfd.id);
+          if (rk81 != null && rk81 >= 2 && dfd !== lastMan
+              && gap > (rk81 <= 3 ? TU("levGap", 64) : TU("rallyGap", 46))) {
+            if (rk81 <= 3) mv(dfd, c.lx + dirSign*Math.min(TU("levLeadMax", 60), gap*0.7), clampY(c.y + (c._dy||0)*30 + (dfd.y > c.y ? 10 : -10)), TU("levPace", .96));
+            else mv(dfd, c.lx - dirSign*8, clampY(c.y + (dfd.y > c.y ? 14 : -14)), TU("rallyPace", .72));
+            continue;
+          }
+          // v81 EFFORT PARITY: the carrier surges through the hole at 1.12 and
+          // sprints on top; pursuit that attacks at a polite 1.0 hands him a
+          // standing 40% speed edge no angle can pay back. Defenders chase the
+          // football like the football matters.
+          let beatenPace = TU("pursuitEffort", 1.15);
           // v22: a defender who is TRAILING a faster carrier can't rubber-band back.
           // If the offense gets BEHIND the defense they get a real shot at the end
           // zone — no catch-up sprint "out of nowhere" on a footrace he'd lose.
+          // v81.1 GRADED FOOTRACE. The first cut of this was two cliffs — trail
+          // pace at spd+6, a hard 0.9 rubber-band cap past the runDown margin —
+          // and a cliff is a matchup bomb: a 4-point team talent gap marched
+          // every CB on the worse side across both edges at once and TRIPLED
+          // run YPC. Speed still wins, but continuously: the fade grows with
+          // the square of the deficit, so a step of quickness costs a step and
+          // only a genuine burner (+15 spd) in the clear gets the old 0.9 floor.
           const _trailing = c.side==="off" ? dfd.lx < c.lx-4 : dfd.lx > c.lx+4;
-          const _canRunDown = dfd.spd >= c.spd - (isLastMan ? 9 : 5);   // the last man's angle beats raw speed
+          const _canRunDown = dfd.spd >= c.spd - (isLastMan ? TU("runDownLast", 13) : TU("runDownMargin", 8));   // the last man's angle beats raw speed
           if (isLastMan && gap < 170) beatenPace += 0.15;         // v30: the free safety breaks downhill NOW
-          if (_trailing && !_canRunDown) beatenPace = Math.min(beatenPace, 0.9);
+          const _spdDef = c.spd - dfd.spd;
+          if (_trailing && _spdDef > 0 && gap > TU("trailFadeFrom", 0))
+            beatenPace -= Math.min(TU("trailFadeMax", .26), _spdDef * _spdDef * TU("trailFadeK2", .0025));
           // nearest pursuer kicks a sprint only to run DOWN a breakaway on a real
           // ANGLE (or when genuinely fast enough) — never a pure trailing footrace.
           if (dfd===nearestChaser && gap>46 && gap<140 && (_canRunDown || !_trailing)) kickSprint(dfd);
@@ -2632,6 +2771,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           }
           // the grab/collision itself resolves once he's actually on the carrier
           if (gapNow < TU("tackleGrabDist", 16) && committerId===dfd.id) {
+            dfd._isLast = dfd === lastMan;               // v81: the last man squares up
             const r = contact(dfd, c);
             if (r === "tackle") { endTackle(dfd); break; }
             // whiff / stiffarm / broken / stagger / cooldown: carrier stays up, play continues
@@ -2647,8 +2787,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           emit("tackle",{tackler:push?push.id:null, carrier:c.id, x:boundary.x, y:boundary.y, oob:true, plane:"sideline"});
           done = true; if (!out) out = { kind, yards: Math.round(c.lx/YD) };
         }
-        // offense blockers escort
-        S.off.forEach(o=>{ if(o!==c && o.lb!=="OL" && c.side==="off") mv(o, c.lx+26, o.y, 0.45); });
+        // offense blockers escort — v81: a man with a stalk assignment WORKS it
+        // (that is the downfield blocking a real run game is made of); only the
+        // unassigned trail the play as escorts.
+        S.off.forEach(o=>{ if(o!==c && o.lb!=="OL" && c.side==="off") { if (o._stalk) { stalkTick(o); } else mv(o, c.lx+26, o.y, 0.45); } });
       }
       // pre-carry defense shell drift
       if (phase==="drop"||phase==="fly") {
@@ -2724,6 +2866,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         // blocker climbs to the second level.
         blockers.forEach(pancakeTick);
         rushers.forEach(r=>{ if(!r.shed&&r.engaging&&!(r.stunned&&t<r.stunned)) mv(r, r.engaging.lx+8, r.engaging.y, 0.4); });
+        // v81: receivers release into their stalk blocks off the snap — by the
+        // hand-off the corners are already being played, not spectating.
+        if (kind === "run" && t >= 140) S.off.forEach(o=>{ if (o._stalk) stalkTick(o); });
       }
       rec();
     }
