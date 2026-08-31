@@ -55,6 +55,43 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v80 — the ball reaches the boundary, and the sideline watches it get there.**
+  Two fixes, one cause each. LATERAL CALIBRATION: the field art draws its
+  painted touchlines to true scale, ~16% wider than the raw lateral map put the
+  sim's F_TOP/F_BOT — a carrier "stepped out" four yards inside the painted
+  boundary. v72 reconciled art and world vertically (by goal lines) and never
+  laterally; `latCal` (1.16, inside PJ/crowdProject — the one place
+  world-lateral becomes screen-x) is the missing counterpart, so the sim's
+  boundary now lands ON the painted line at every depth, within the line's own
+  stroke width on both banks. The world stretches to meet the art, not the
+  reverse: the art, the yard numbers and the crowd mapping are untouched, and
+  `sidelinecheck`'s luminance probe (`sidePaintHalf` = 206 = the sim
+  half-width, now equal by construction) fails if the two ever drift apart.
+  FACING: `crowdProject` carries no VDIR mirror — a bank's screen side IS its
+  world side, always — but the v79 facing logic "corrected" for a camera swing
+  that never reaches the sideline, so every profile and every three-quarter
+  face spent half of each game turned away from the football. The VDIR terms
+  are gone: sitters, standing backups, coaches, trainers and all directional
+  furniture now open toward the field from both banks in both possession
+  states, and the check asserts the mirror by SIGN per bank ("they differ" was
+  also true when both faced away).
+
+- **v79.2 — the painted line is the line.** The field art paints its touchline
+  ~35 world units OUTSIDE the sim's F_TOP/F_BOT — the sim plays inside a
+  slightly narrower field than the art draws (the rows were reconciled in v72,
+  the columns never were). The sideline was anchored on the SIM's line, which
+  parked the whole team area visibly on the painted playing surface, and the
+  v79 turf border painted a phantom second boundary in the grass between the
+  two lines. Everything now measures from `sidePaintHalf` (240.5 world units,
+  measured off the warp canvas, constant in depth because art and projection
+  share the same k): the lanes, the chain crew, the yardage markers, the
+  coaches' box and kit shade, and the pylons — which stand ON the painted
+  corners, the one sprite allowed to. The phantom border is deleted. And it is
+  now guaranteed, not just laid out: every sprite placement clamps outboard
+  until its whole drawn BOX clears the painted line, and `sidelinecheck`
+  measures the worst overhang in screen pixels across all ~175 sprites (worst
+  offender after the clamp: −6px, i.e. six pixels of daylight).
+
 - **v79 — sideline light & life.** v78 proved the team area; v79 makes it sit in
   the stadium instead of on it. Every sprite now casts a contact shadow and runs
   through the SAME lighting the players get — the v29 depth falloff and ball
@@ -63,11 +100,16 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   a team area needs: warpField paints the white boundary border, the dashed
   coaches' box and a grounding shade under the equipment row (all three are
   ground, so they ride the row loop the stands cannot). The benches are occupied
-  — backups a step outboard with their legs sunk behind the bench front, mostly
-  in profile, because people on a bench watch the field — and every piece of
-  three-quarter art (benches, racks, carts, tables) mirrors per bank so its open
-  side faces the field from either sideline, whichever end the camera shoots
-  from. The sideline is alive: fireEvent feeds it the same play the crowd hears
+  and everyone is WATCHING THE FIELD: seating is compact two-seaters, stools and
+  chairs repeated down the lane (the five-man bench sheets are drawn in full side
+  view, and laid as billboards they ran ACROSS a lane that runs up the screen —
+  furniture angled ninety degrees wrong, so they stay in the trunk), and every
+  sitter rides his own seat's field depth, cropped at the knee so he ends at the
+  seat line, in profile facing the touchline. Standing backups watch in profile
+  too (one in five turned away — a sideline that ALL faces one way reads as a
+  paper doll chain), and every piece of three-quarter art (benches, racks,
+  carts, tables) mirrors per bank so its open side faces the field from either
+  sideline, whichever end the camera shoots from. The sideline is alive: fireEvent feeds it the same play the crowd hears
   and a touchdown scales the idle sway into a bench-clearing bounce; a carrier
   heading out of bounds scatters the boundary figures near his landing spot; a
   knot of coaches and backups is anchored to the LOS and walks the line with the

@@ -3078,9 +3078,21 @@ function PJ(x, y) {
   const _FX = window.__FIELD_FX || {};
   const _sp = _FX.spread == null ? 1 : _FX.spread, _sz = _FX.size == null ? 1.32 : _FX.size;
   const P = PERSP;
-  if (!P) return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (1.30 * _sp), y: NSTOP + (1 - u / FW) * NSH, s: _sz * 0.80 };
+  /* v80 LATERAL CALIBRATION: the field ART draws its painted touchlines to true
+   * scale, ~16% wider than the raw lateral map put the sim's F_TOP/F_BOT — so a
+   * carrier "stepped out" four yards inside the painted boundary, and v72's fix
+   * (rows reconciled by goal lines) had no lateral counterpart. latCal is that
+   * counterpart: it scales the ONE place world-lateral becomes screen-x, so the
+   * sim's boundary now lands ON the painted line at every depth. 1.16 = the
+   * painted line's measured world position (239, warp-canvas probe, constant in
+   * depth) over the sim half-width (206); sidelinecheck's luminance probe
+   * asserts the coincidence, so drift here fails a check instead of moving the
+   * boundary. Applied inside PJ/crowdProject only — the art (AW) is untouched,
+   * which is the point: the world stretches to meet the art, not the reverse. */
+  const _lc = 1.30 * TU("latCal", 1.16);
+  if (!P) return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (_lc * _sp), y: NSTOP + (1 - u / FW) * NSH, s: _sz * 0.80 };
   const k = P.s(u) / P.sN;                               // 1.0 at the LOS row; <1 downfield, >1 behind
-  return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (1.30 * _sp * PERSP_OA * k),
+  return { x: FW / 2 + (v - (F_TOP + F_BOT) / 2) * (_lc * _sp * PERSP_OA * k),
            y: NSTOP + P.VB * (P.total - P.C(u)),
            s: _sz * 0.80 * k };
 }
@@ -5509,7 +5521,7 @@ class Ot extends mt.Scene {
     const P = PERSP, FX = window.__FIELD_FX || {};
     const sp = FX.spread == null ? 1 : FX.spread, sz = FX.size == null ? 1.32 : FX.size;
     const k = Math.max(0.02, P.s(u) / P.sN);
-    return { x: FW / 2 + (vv - (F_TOP + F_BOT) / 2) * (1.30 * sp * PERSP_OA * k),
+    return { x: FW / 2 + (vv - (F_TOP + F_BOT) / 2) * (1.30 * TU("latCal", 1.16) * sp * PERSP_OA * k),
       y: NSTOP + P.VB * (P.total - this.crowdC(u)), k, s: sz * 0.80 * k };
   }
   crowdInvertC(want) {
@@ -6146,23 +6158,21 @@ class Ot extends mt.Scene {
     // markers are exempt — a silhouette still reads where a latch cannot)
     const mc = RIB_META_SIDE[name];
     if (!o.keep && mc && mc[3] * sc < TU("sideMinPx", 3.5)) return null;
+    // OFF THE FIELD, guaranteed: the ground point being outside the paint is not
+    // enough, because sprites have WIDTH — push the placement outboard until the
+    // whole drawn box clears the painted line (pylons opt out: they stand ON it)
+    if (!o.onLine) {
+      const halfW = ((mc ? mc[2] : 40) * sc) / 2, latPx = 1.30 * TU("latCal", 1.16) * ((window.__FIELD_FX && window.__FIELD_FX.spread) || 1) * PERSP_OA * p.k;
+      const MID2 = (F_TOP + F_BOT) / 2, need = ((this.side && this.side.paint) || 206) + TU("sideLineMargin", 6) + halfW / Math.max(.01, latPx);
+      if (Math.abs(vv - MID2) < need) { vv = MID2 + (vv < MID2 ? -need : need); const p2 = this.crowdProject(u, vv); p.x = p2.x; p.y = p2.y; p.k = p2.k; }
+    }
     const im = this.add.image(p.x, p.y, tex).setOrigin(.5, 1);
     // FACING: mirror three-quarter art so its open side points at the field from
     // either bank — resolved on the SCREEN side, because the camera swinging
     // ends is exactly when "toward the field" flips on screen
     let flip = !!o.flip;
-    if (o.face) flip = ((VDIR > 0 ? (vv > (F_TOP + F_BOT) / 2) : (vv < (F_TOP + F_BOT) / 2)) ? false : true) !== !!o.flip;
+    if (o.face) flip = (vv < (F_TOP + F_BOT) / 2) !== !!o.flip;
     im.setScale(flip ? -sc : sc, sc);
-    // ALONG: a capped lean toward the sideline's own screen direction for long
-    // low items. Capped hard — the line runs steeply up-screen, and fully
-    // aligning a side-view billboard to it stands the furniture on end.
-    if (o.along) {
-      const p0 = this.crowdProject(u - 8, vv), p1 = this.crowdProject(u + 8, vv);
-      let a = Math.atan2(p1.y - p0.y, p1.x - p0.x);
-      if (a > Math.PI / 2) a -= Math.PI; if (a < -Math.PI / 2) a += Math.PI;
-      const cap = TU("sideAlongMax", .22);
-      im.setRotation(Math.max(-cap, Math.min(cap, a * TU("sideAlongK", .35))));
-    }
     im.setDepth(this.sideDepth(p.y) + (o.dbias || 0));
     im._side = { name, u: (o.fu != null ? o.fu : u), vv, lane: o.lane || null, kind: "kit" };
     im._lbase = this.sideShadeBase(u, p.k, vv < (F_TOP + F_BOT) / 2 ? -1 : 1);
@@ -6181,22 +6191,30 @@ class Ot extends mt.Scene {
     if (!this.textures.exists(tex)) tex = "spr_" + team + "_dn_idle";
     if (!this.textures.exists(tex)) tex = "rib_player_fallback";
     if (!this.textures.exists(tex)) return null;
-    const p = this.crowdProject(u, vv);
+    let p = this.crowdProject(u, vv);
+    // the same off-the-field clamp the props get — a backup's shoulder can hang
+    // over the boundary as easily as a bench end can
+    {
+      const halfW = 24 * (o.sc || 1), latPx = 1.30 * TU("latCal", 1.16) * ((window.__FIELD_FX && window.__FIELD_FX.spread) || 1) * PERSP_OA * p.k;
+      const MID2 = (F_TOP + F_BOT) / 2, need = ((this.side && this.side.paint) || 206) + TU("sideLineMargin", 6) + (halfW * p.s) / Math.max(.01, latPx);
+      if (Math.abs(vv - MID2) < need) { vv = MID2 + (vv < MID2 ? -need : need); p = this.crowdProject(u, vv); }
+    }
     // the player cell draws its feet at +23 from centre in a 48px cell — the same
     // offset the on-field marker puts its shadow at
     const im = this.add.image(p.x, p.y, tex).setOrigin(.5, 47 / 48);
     const sc = p.s * (o.sc || 1);
     im.setScale(o.flip ? -sc : sc, sc);
     im.setDepth(this.sideDepth(p.y) + (o.dbias || 0));
-    // SEATED: sink the figure so his legs disappear behind the bench drawn just
-    // inboard of him — at this sprite size that reads as sitting on it
-    if (o.sink) im.y += o.sink * sc;
+    // SEATED: crop the sprite at the knee and drop it a step, so the figure
+    // ends at the seat line instead of pushing his feet through the turf — he
+    // sits IN FRONT of the seat sprite, so the backrest shows behind him
+    if (o.seat) { im.setCrop(0, 0, 48, TU("sideSitCrop", 34)); im.y += TU("sideSitDrop", 6) * sc; }
     if (tex === "rib_player_fallback") { im.setTint(team === "def" ? 0xe86560 : 0x5fce74); im._noLight = true; }
-    im._side = { name: tex, u: (o.fu != null ? o.fu : u), vv, lane: o.lane || null, kind: "player", team };
+    im._side = { name: tex, u: (o.fu != null ? o.fu : u), vv, lane: o.lane || null, kind: "player", team, seated: !!o.seat };
     im._lbase = this.sideShadeBase(u, p.k, vv < (F_TOP + F_BOT) / 2 ? -1 : 1);
     this.side.items.push(im);
-    if (!o.sink) this.sideShadow(im, p, false);
-    im._bob = o.sink ? .3 : .6; im._ph = (this.side.items.length * 2.399) % 6.2832;
+    if (!o.seat) this.sideShadow(im, p, false);
+    im._bob = o.seat ? .25 : .6; im._ph = (this.side.items.length * 2.399) % 6.2832;
     im._y0 = im.y; im._x0 = im.x; im._k = p.s;
     this.side.live.push(im);
     return im;
@@ -6212,10 +6230,24 @@ class Ot extends mt.Scene {
     try { const pl = window.S && window.S.player; if (pl) seed += ((pl.currentWeek || 0) + (pl.totalSeasons || 0) * 31) * 2903; } catch (e) {}
     this.clearSideline();
     this.side = { items: [], live: [], fx: [], seed, t: 0, excite: 0, _lt: 0 };
+    this.side.paint = TU("sidePaintHalf", 206) / ((window.__FIELD_FX && window.__FIELD_FX.spread) || 1);
     const wx = (typeof window !== "undefined" && window.__WX_V79) || "clear";
 
     const MIDY = (F_TOP + F_BOT) / 2, HALF = (F_BOT - F_TOP) / 2, GAP = TU("crowdGap", 104);
-    const LANE = { edge: HALF + GAP * TU("sideLaneEdge", .32), bench: HALF + GAP * TU("sideLaneBench", .62), kit: HALF + GAP * TU("sideLaneKit", .88) };
+    /* THE PAINTED LINE IS THE LINE. The field ART paints its touchline ~35 world
+     * units OUTSIDE the sim's F_TOP/F_BOT — the sim plays inside a slightly
+     * narrower field than the art draws (pre-existing lateral calibration; the
+     * rows were reconciled in v72, the columns never were). v78/v79 anchored the
+     * team area on the SIM's line, which parked the whole formation visibly ON
+     * the painted playing surface. Everything here now measures from PAINT: the
+     * art's painted boundary in world-lateral units, measured off the warp
+     * canvas (240.5 on both banks, constant in depth because the art and the
+     * projection share the same k; /sp because the spread FX scales the
+     * projection's lateral map but never the art's). */
+    const sp = (window.__FIELD_FX && window.__FIELD_FX.spread) || 1;
+    const PAINT = TU("sidePaintHalf", 206) / sp;
+    const APR = Math.max(24, HALF + GAP - PAINT);        // the apron actually outside the paint
+    const LANE = { edge: PAINT + APR * TU("sideLaneEdge", .16), bench: PAINT + APR * TU("sideLaneBench", .48), kit: PAINT + APR * TU("sideLaneKit", .8) };
     // the team area runs 25 to 25, like a real one — but `at` is unclamped, so
     // the dressing that belongs OUTSIDE the numbers (carts, nets, cameras) can
     // spill toward the end zones the way it actually does
@@ -6240,33 +6272,36 @@ class Ot extends mt.Scene {
 
       // ---- KIT lane. Everything the equipment staff brought, categorised: racks
       // together, storage together, the heavy stuff at the ends. `face` marks the
-      // three-quarter art that has to open toward the field; `along` the long low
-      // pieces that lean with the line.
+      // three-quarter art that has to open toward the field.
       const KIT = [
         ["trunk", .02, { face: 1, sc: .9 }], ["trunk_b", .07, { face: 1, sc: .9 }], ["case_up", .11, { face: 1 }], ["duffel", .145],
         ["helmet_rack", .19, { face: 1, sc: .92 }], ["pad_rack", .26, { face: 1, sc: .92 }], ["ball_rack", .33, { face: 1, sc: .9 }], ["ball_bin", .38, { face: 1 }],
-        ["tape_bin", .42], ["stretcher", .45, { sc: .8, along: 1 }], ["med_kit", .48, { sc: .7 }],
-        ["table_b", .5, { face: 1, sc: .8, along: 1 }], ["play_board", .53, { sc: .7 }], ["whiteboard", .57, { face: 1 }], ["comms", .6, { sc: .7 }],
+        ["tape_bin", .42], ["stretcher", .45, { sc: .8 }], ["med_kit", .48, { sc: .7 }],
+        ["table_b", .5, { face: 1, sc: .8 }], ["play_board", .53, { sc: .7 }], ["whiteboard", .57, { face: 1 }], ["comms", .6, { sc: .7 }],
         ["ponchos", .64, { sc: .85 }], ["camera", .66, { sc: .75, face: 1 }],
         ["kick_net", .68, { sc: .9 }], ["heater", .73, { sc: .85 }], ["fan", .77, { sc: .85 }],
-        ["trunk_c", .81, { face: 1, sc: .9 }], ["case_up_b", .85, { face: 1 }], ["duffel_b", .88, { sc: .8 }],
+        ["trunk_c", .81, { face: 1, sc: .9 }], ["table", .835, { sc: .75, face: 1 }], ["case_up_b", .85, { face: 1 }], ["duffel_b", .88, { sc: .8 }],
         ["trash", .91, { sc: .8 }], ["recycle", .94, { sc: .8 }], ["cart", .97, { face: 1 }],
       ];
       // weather dressing (Yr's own roll, via __WX_V79): rain strikes the towel
       // service and breaks out ponchos; snow doubles the heaters and the fans go
       // back on the truck
       if (wx === "snow") { KIT.push(["heater", .35, { sc: .85 }]); const fi = KIT.findIndex((k2) => k2[0] === "fan"); if (fi >= 0) KIT.splice(fi, 1); }
-      // ---- BENCH lane. Benches end to end down the middle — occupied (each
-      // carries its sitters) — hydration at both ends where it always is, the
-      // trainers' cart with the medical staff. [name, t, opts, sitters]
+      // ---- BENCH lane. COMPACT seating only, repeated down the lane — the long
+      // bench sheets are drawn in full side view, and a five-man bench laid as a
+      // billboard runs ACROSS a lane that runs up the screen: it read as
+      // furniture angled ninety degrees wrong, so it stays in the trunk. A
+      // two-seater is as deep as it is wide and reads right from any angle.
+      // [name, t, opts, sitters] — sitters ride the SAME field depth as their
+      // seat, spread along its lateral width, all facing the field.
       const BENCH = [
-        ["cooler_table", .03, { face: 1 }], ["cup_stand", .08, { sc: .8 }], [wx === "rain" ? "ponchos" : "towels", .5, { sc: .6 }],
+        ["cooler_table", .03, { face: 1 }], ["cup_stand", .08, { sc: .8 }], [wx === "rain" ? "ponchos" : "towels", .58, { sc: .6 }],
         ["bottles", .12, { sc: .8 }],
-        ["bench_long", .2, { face: 1 }, 3], ["bench_long_b", .32, { face: 1 }, 3], ["bench_back", .44, { face: 1 }, 2],
-        ["bench_long", .56, { face: 1 }, 3], ["bench_back_b", .67, { face: 1 }, 2], ["bench_short", .76, { face: 1 }, 1],
-        ["bench_wood", .83, { face: 1 }, 2],
-        ["chairs", .88, { sc: .9, face: 1 }], ["cooler", .93], ["cooler_table_b", .97, { face: 1 }], ["table", .3, { sc: .8, face: 1, along: 1 }],
+        ["bench_back", .18, { face: 1, sc: .85 }, 2], ["bench_short", .27, { face: 1 }, 1], ["bench_wood", .35, { face: 1, sc: .9 }, 2],
+        ["bench_back_b", .44, { face: 1 }, 2], ["stool", .52, { sc: .9 }, 1],
         ["med_cart", .62, { face: 1 }],
+        ["bench_wood", .7, { face: 1, sc: .9 }, 2], ["bench_short", .78, { face: 1 }, 1],
+        ["chairs", .85, { sc: .9, face: 1 }], ["cooler", .93], ["cooler_table_b", .97, { face: 1 }],
       ];
       // ---- a separation pass per lane: fixed t plus jitter happily parks a
       // trunk inside a bench; walk each lane in order and hold a minimum gap
@@ -6277,18 +6312,22 @@ class Ot extends mt.Scene {
         for (let i = 1; i < placed.length; i++) if (placed[i].u - placed[i - 1].u < min) placed[i].u = placed[i - 1].u + min;
         return placed;
       };
+      // which way a profile faces so it looks AT the field: unflipped side art
+      // faces screen-left, so flip on the screen-left bank. crowdProject does
+      // NOT carry PJ's VDIR mirror — a bank's screen side IS its world side,
+      // always — so no VDIR term belongs here. The first cut had one, and every
+      // figure and every three-quarter face on the sideline spent half of each
+      // game turned politely away from the football.
+      const fieldFlip = sgn < 0;
       for (const it of sep(KIT, "kit", 6, 4)) this.sideItem(it.n, it.u, it.vv, Object.assign({ lane: "kit" }, it.o));
       for (const it of sep(BENCH, "bench", 4, 3)) {
-        const bench = this.sideItem(it.n, it.u, it.vv, Object.assign({ lane: "bench", dbias: .0004 }, it.o));
-        // the sitters: a step outboard, legs sunk behind the bench front, mostly
-        // in PROFILE — people on a bench watch the field
-        if (bench && it.sit) for (let s2 = 0; s2 < it.sit; s2++) {
-          const prof = rnd() < .6;
-          this.sidePlayer(team, it.u + (s2 - (it.sit - 1) / 2) * 9 + jit(3), it.vv + sgn * 2, {
-            lane: "bench", dbias: -.0008, sink: TU("sideSitSink", 15), sc: .94,
-            dir: prof ? "sd" : "dn", flip: prof ? bench.scaleX < 0 : rnd() < .5,
+        const seat = this.sideItem(it.n, it.u, it.vv, Object.assign({ lane: "bench" }, it.o));
+        // everyone on a bench is WATCHING THE FIELD: same depth as the seat,
+        // spread along its width, in profile, facing the touchline
+        if (seat && it.sit) for (let s2 = 0; s2 < it.sit; s2++)
+          this.sidePlayer(team, it.u, it.vv + (s2 - (it.sit - 1) / 2) * 4.5 + jit(1.5), {
+            lane: "bench", dbias: .0008, seat: 1, sc: .94, dir: "sd", flip: fieldFlip,
           });
-        }
       }
       // the carts park at the ends of the area, out of the way
       this.sideItem("golf_cart", at(-.06), lane("kit"), { sc: .85, face: 1, lane: "kit" });
@@ -6300,14 +6339,14 @@ class Ot extends mt.Scene {
       const knot = (i2) => anchors[i2 % anchors.length] + (rnd() + rnd() - 1) * .07;
       for (let i2 = 0; i2 < 6; i2++)
         this.sideItem("coach" + ((i2 * 3 + (stadium < 0 ? 1 : 0)) % 10), at(knot(i2)), lane("edge") + jit(5),
-          { lane: "edge", bob: .5, flip: rnd() < .5, team });
+          { lane: "edge", bob: .5, flip: fieldFlip, team });
       [.58, .64, .9].forEach((t, i2) => this.sideItem("trainer" + ((i2 * 4 + (stadium < 0 ? 2 : 0)) % 10),
-        at(t + jit(.05)), lane("edge") + jit(6), { lane: "edge", bob: .5, flip: rnd() < .5, team }));
+        at(t + jit(.05)), lane("edge") + jit(6), { lane: "edge", bob: .5, flip: fieldFlip, team }));
       const N = Math.max(0, Math.round(TU("sideBackups", 8)));
       for (let i2 = 0; i2 < N; i2++) {
-        const r2 = rnd(), prof = r2 < .5;
+        const prof = rnd() < TU("sideWatchP", .85);
         this.sidePlayer(team, at(knot(i2 + 2)) + jit(6), lane("edge") + jit(5),
-          { lane: "edge", dir: prof ? "sd" : r2 < .8 ? "dn" : "up", flip: prof ? sgn * (VDIR > 0 ? 1 : -1) < 0 : rnd() < .5 });
+          { lane: "edge", dir: prof ? "sd" : "dn", flip: prof ? fieldFlip : rnd() < .5 });
       }
       // ---- the knot that follows the ball: a coach on the spot with two
       // backups craning past him. losU moves with _lastField, so this group
@@ -6315,8 +6354,8 @@ class Ot extends mt.Scene {
       // anchored to the GAME rather than to the stadium.
       const cl = (x2) => Math.max(U0 - 30, Math.min(U1 + 30, x2));
       this.sideItem("coach" + ((stadium < 0 ? 4 : 7)) , cl(losU - 10), lane("edge") + 2, { lane: "edge", bob: .6, team });
-      this.sidePlayer(team, cl(losU + 12), lane("edge") + jit(4), { lane: "edge", dir: "sd", flip: sgn * (VDIR > 0 ? 1 : -1) < 0 });
-      this.sidePlayer(team, cl(losU - 26), lane("edge") + jit(4), { lane: "edge", dir: "dn", flip: rnd() < .5 });
+      this.sidePlayer(team, cl(losU + 12), lane("edge") + jit(4), { lane: "edge", dir: "sd", flip: fieldFlip });
+      this.sidePlayer(team, cl(losU - 26), lane("edge") + jit(4), { lane: "edge", dir: "sd", flip: fieldFlip });
 
       // ---- outside the numbers: the dressing that belongs beyond the 25s, so
       // the biggest, nearest stretch of apron is not bare grass
@@ -6324,7 +6363,7 @@ class Ot extends mt.Scene {
       this.sideItem("discs", at(1.03), lane("edge"), { sc: .7, lane: "edge" });
       this.sideItem("barrier", at(1.07), lane("bench"), { sc: .8, lane: "bench" });
       this.sideItem("camera", at(1.11), lane("edge") + 4, { sc: .8, face: 1, lane: "edge" });
-      this.sideItem("trainer" + (stadium < 0 ? 5 : 8), at(-.09), lane("edge") + 2, { sc: .9, bob: .5, lane: "edge", team });
+      this.sideItem("trainer" + (stadium < 0 ? 5 : 8), at(-.09), lane("edge") + 2, { sc: .9, bob: .5, lane: "edge", team, flip: fieldFlip });
       if (wx === "rain") for (let i2 = 0; i2 < 2; i2++) this.sideItem("ponchos", at(.15 + i2 * .5 + jit(.06)), lane("edge") + 8, { sc: .95, lane: "edge" });
     }
 
@@ -6335,7 +6374,7 @@ class Ot extends mt.Scene {
 
     try {
       window.__SIDE_V78 = { items: this.side.items.length, live: this.side.live.length, fx: this.side.fx.length,
-        gap: GAP, lanes: LANE, span: [Math.round(U0), Math.round(U1)], half: HALF, midy: MIDY, wx,
+        gap: GAP, lanes: LANE, span: [Math.round(U0), Math.round(U1)], half: HALF, midy: MIDY, wx, paint: +PAINT.toFixed(1), apron: +APR.toFixed(1),
         excite: () => this.side ? +this.side.excite.toFixed(3) : 0,
         list: () => this.side.items.map((i) => Object.assign({}, i._side, { x: Math.round(i.x), y: Math.round(i.y),
           w: Math.round(i.displayWidth), h: Math.round(i.displayHeight), depth: +i.depth.toFixed(4),
@@ -6349,9 +6388,12 @@ class Ot extends mt.Scene {
   // part of the playing field. PLAY_L/PLAY_R are the GOAL lines (the end zones
   // are the EZ margins outside them), so the eight are those two plus the ends.
   sidePylons() {
+    // on the PAINTED corners — the pylon is the one sprite that belongs on the
+    // line itself, so it alone opts out of the off-the-field clamp
+    const MIDY = (F_TOP + F_BOT) / 2, PAINT = (this.side && this.side.paint) || 206;
     for (const x of [3, PLAY_L, PLAY_R, FW - 3])
-      for (const y of [F_TOP, F_BOT]) {
-        const im = this.sideItem("pylon", x, y, { sc: TU("sidePylonScale", .55), keep: 1, noshadow: 1 });
+      for (const dy of [-PAINT, PAINT]) {
+        const im = this.sideItem("pylon", x, MIDY + dy, { sc: TU("sidePylonScale", .55), keep: 1, noshadow: 1, onLine: 1 });
         if (im) im.setDepth(this.sideDepth(im.y) + .002);
       }
   }
@@ -6367,7 +6409,7 @@ class Ot extends mt.Scene {
     const losX = fxr(lf[0]), togo = fxr(lf[1]);
     const pay = this.play && this.play.payload;
     const dn = Math.max(1, Math.min(4, Math.round(Number(pay && pay.down) || 1)));
-    const vv = MIDY + (HALF + GAP * TU("sideLaneEdge", .32) * .62);
+    const vv = MIDY + ((this.side && this.side.paint) || 206) + 8;
     this.sideItem("down" + dn, adj(losX), vv, { sc: .8, keep: 1, fu: losX });
     this.sideItem("chain_rod", adj(losX - 3), vv + 5, { sc: .7, keep: 1, fu: losX - 3 });
     this.sideItem("chain_rod", adj(togo), vv + 5, { sc: .7, keep: 1, fu: togo });
@@ -6376,7 +6418,7 @@ class Ot extends mt.Scene {
   // yard line, opposite the chain crew.
   sideYardMarks(MIDY, HALF, GAP) {
     const YDF = PLAY_W / 100;
-    const vv = MIDY - (HALF + GAP * TU("sideLaneEdge", .32) * .5);
+    const vv = MIDY - (((this.side && this.side.paint) || 206) + 7);
     for (const [n, yd] of [["yard10", 10], ["yard20", 20], ["yard30", 30], ["yard30", 70], ["yard20", 80], ["yard10", 90]])
       this.sideItem(n, PLAY_L + yd * YDF, vv, { sc: .6, keep: 1 });
   }
@@ -6871,27 +6913,29 @@ class Ot extends mt.Scene {
           ctx.drawImage(fimg, SWa - 2, sY, 2, 1, x0 + w - 1, i, CW - x0 - w + 1, 1);
         }
         ctx.drawImage(fimg, 0, sY, SWa, 1, x0, i, w, 1);
-        /* v79: the painted apron. A real team area is FRAMED — a solid white
-         * border along the touchline, the dashed coaches' box in front of the
-         * bench, and a soft dark band under the equipment row that grounds the
-         * kit as one mass. All three are ground, so unlike the stands they can
-         * ride this same row loop; lateral placement uses the exact PJ formula
-         * (canvas x = CW/2 + (v-MIDY)*1.30*spread*OA*k), which is what keeps the
-         * paint under the sprites' own feet at every depth. Skipped past the end
-         * lines — the border belongs to the sidelines, the end zones paint their
-         * own. */
+        /* v79: the painted apron — REBASED in v79.2 on the art's OWN touchline.
+         * The art paints its boundary ~35 world units outside the sim's F_BOT,
+         * so the first cut of this block laid a second white "border" in the
+         * open grass between the two lines, which read as a phantom boundary
+         * with the team standing on the field side of the real one. The solid
+         * band is gone — the art already HAS a boundary — and what the apron
+         * genuinely lacks stays: the dashed coaches' box in front of the bench
+         * and a grounding shade under the equipment row, both measured outward
+         * from the same PAINT the sprites are anchored to. Lateral placement is
+         * the exact PJ formula, which is what keeps the paint under the
+         * sprites' own feet at every depth. Skipped past the end lines. */
         if (target < P.total && u > 4 && u < FW - 4) {
           const _fx2 = window.__FIELD_FX || {}, _sp2 = _fx2.spread == null ? 1 : _fx2.spread;
-          const kk = P.s(u) / P.sN, lat = 1.30 * _sp2 * PERSP_OA * kk;
-          const MID2 = (F_TOP + F_BOT) / 2, HALF2 = (F_BOT - F_TOP) / 2, GAP2 = TU("crowdGap", 104);
+          const kk = P.s(u) / P.sN, lat = 1.30 * TU("latCal", 1.16) * _sp2 * PERSP_OA * kk;
+          const HALF2 = (F_BOT - F_TOP) / 2, GAP2 = TU("crowdGap", 104);
+          const PW = TU("sidePaintHalf", 206) / _sp2, APR2 = Math.max(24, HALF2 + GAP2 - PW);
           const band = (v0, v1, style) => { ctx.fillStyle = style;
-            const a2 = (HALF2 + v0) * lat, b2 = (HALF2 + v1) * lat;
+            const a2 = (PW + v0) * lat, b2 = (PW + v1) * lat;
             ctx.fillRect(CW / 2 + a2, i, b2 - a2, 1); ctx.fillRect(CW / 2 - b2, i, b2 - a2, 1); };
-          band(3, 3 + TU("sideBorderW", 11), "rgba(255,255,255," + TU("sideBorderA", .4) + ")");
           const inBox = u > PLAY_L + 25 * (PLAY_W / 100) && u < PLAY_R - 25 * (PLAY_W / 100);
           if (inBox && Math.floor(u / 11) % 2 === 0)
-            band(GAP2 * .24, GAP2 * .24 + 2.6, "rgba(255,255,255," + TU("sideBoxA", .3) + ")");
-          band(GAP2 * .74, GAP2 * .99, "rgba(0,0,0," + TU("sideKitShadeA", .10) + ")");
+            band(APR2 * .3, APR2 * .3 + 2.6, "rgba(255,255,255," + TU("sideBoxA", .3) + ")");
+          band(APR2 * .62, APR2 * .95, "rgba(0,0,0," + TU("sideKitShadeA", .10) + ")");
         }
       }
       if (this.textures.exists("rib_field_warp")) this.textures.get("rib_field_warp").refresh();

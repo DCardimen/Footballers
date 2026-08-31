@@ -68,7 +68,7 @@ ok(!!art && art.registered === art.cells, 'every packed cell reaches a texture',
 
 const S = await page.evaluate(() => {
   const D = window.__SIDE_V78; if (!D) return null
-  return { items: D.items, live: D.live, fx: D.fx, gap: D.gap, lanes: D.lanes, span: D.span, half: D.half, midy: D.midy, list: D.list(), _live: null }
+  return { items: D.items, live: D.live, fx: D.fx, gap: D.gap, lanes: D.lanes, span: D.span, half: D.half, midy: D.midy, paint: D.paint, apron: D.apron, list: D.list(), _live: null }
 })
 ok(!!S, 'the team area is built', S ? S.items + ' sprites' : 'none')
 if (!S) { console.log('page errors:', errs.join('\n')); await b.close(); process.exit(1) }
@@ -104,10 +104,27 @@ const rightKit = [...new Set(backups.filter(i => i.vv > S.midy).map(i => i.team)
 ok(leftKit.length === 1 && rightKit.length === 1 && leftKit[0] !== rightKit[0],
   'a team camps on one side of the stadium and stays there', `${leftKit} | ${rightKit}`)
 
-// ---- nothing but the pylons stands on the playing surface
-const onField = S.list.filter(i => i.name !== 'pylon' && Math.abs(i.vv - S.midy) < S.half)
-ok(onField.length === 0, 'nothing but the pylons stands on the playing surface',
-  onField.length ? onField.slice(0, 4).map(i => `${i.name}@${Math.round(i.vv)}`).join(',') : 'clear')
+// ---- nothing stands on the playing surface — measured against the PAINTED
+// touchline (the art draws its boundary ~35 world units outside the sim's, see
+// v79.2), and on the sprite's whole drawn BOX, not just its ground point
+const overhang = await page.evaluate(() => {
+  const sc = window.__gridironScene, S2 = sc.side, M = window.__SIDE_V78.midy
+  const rows = []
+  for (const im of S2.items) {
+    const sd = im._side; if (!sd) continue
+    const bank = sd.vv < M ? -1 : 1
+    const tl = sc.crowdProject(sd.u, M + bank * (S2.paint || 238))
+    const halfW = Math.abs(im.displayWidth) / 2
+    const over = bank < 0 ? (im.x + halfW) - tl.x : tl.x - (im.x - halfW)
+    rows.push({ name: sd.name, over: Math.round(over) })
+  }
+  return rows
+})
+const pylons = overhang.filter(r => r.name === 'pylon')
+const rest = overhang.filter(r => r.name !== 'pylon').sort((a, b) => b.over - a.over)
+ok(rest.length && rest[0].over <= 0, 'no sprite box crosses the painted touchline — nobody is on the field',
+  rest.length ? `worst ${rest[0].name} at ${rest[0].over}px` : 'none')
+ok(pylons.every(r => Math.abs(r.over) <= 5), 'the pylons alone stand ON the line', pylons.map(r => r.over).join(','))
 
 // ---- the lanes run outward, in order, inside the apron
 const out = (arr) => arr.reduce((a, i) => a + (Math.abs(i.vv - S.midy) - S.half), 0) / Math.max(1, arr.length)
@@ -170,29 +187,54 @@ ok(lit.nFar > 4 && lit.nNear > 4 && lit.farAvg < lit.nearAvg, 'the far end of th
 const facing = await page.evaluate(() => {
   const l = window.__SIDE_V78.list(), M = window.__SIDE_V78.midy
   const pick = (n) => ({ L: l.filter(i => i.name === n && i.vv < M).map(i => i.sx), R: l.filter(i => i.name === n && i.vv > M).map(i => i.sx) })
-  return { bench: pick('bench_long'), rack: pick('helmet_rack') }
+  return { bench: pick('bench_back'), rack: pick('helmet_rack') }
 })
+// the art opens LEFT unflipped, and low-vv is always screen-left, so the left
+// bank must mirror (sx=-1) and the right must not (sx=+1) — asserted by SIGN,
+// not by difference, because "they differ" was also true when both faced away
 const oneWay = (a) => a.length && a.every(v => v === a[0])
-ok(oneWay(facing.bench.L) && oneWay(facing.bench.R) && facing.bench.L[0] !== facing.bench.R[0],
-  'the benches on the two banks face the field, not the same way', `L=${facing.bench.L[0]} R=${facing.bench.R[0]}`)
-ok(oneWay(facing.rack.L) && oneWay(facing.rack.R) && facing.rack.L[0] !== facing.rack.R[0],
+ok(oneWay(facing.bench.L) && oneWay(facing.bench.R) && facing.bench.L[0] === -1 && facing.bench.R[0] === 1,
+  'the benches on both banks open toward the field', `L=${facing.bench.L[0]} R=${facing.bench.R[0]}`)
+ok(oneWay(facing.rack.L) && oneWay(facing.rack.R) && facing.rack.L[0] === -1 && facing.rack.R[0] === 1,
   'so do the racks and the rest of the three-quarter art')
 
 const seated = await page.evaluate(() => {
   const l = window.__SIDE_V78.list(), M = window.__SIDE_V78.midy
-  const benches = l.filter(i => /^bench_/.test(i.name || ''))
-  const sitters = l.filter(i => i.kind === 'player' && i.lane === 'bench')
-  // a sitter is OUTBOARD of his bench and drawn under it (lower depth), so the
-  // bench front hides his legs
-  let occluded = 0
+  const seats = l.filter(i => /^(bench_|stool)/.test(i.name || ''))
+  const sitters = l.filter(i => i.kind === 'player' && i.seated)
+  // a sitter rides his seat's own field depth (same u), sits in FRONT of the
+  // seat sprite (higher depth, backrest behind him), and faces the field: on
+  // the screen-left bank a leftward-facing profile is flipped to look right
+  let onSeat = 0, watching = 0
   for (const s2 of sitters) {
-    const b = benches.find(b2 => Math.abs(b2.u - s2.u) < 26 && (b2.vv < M) === (s2.vv < M))
-    if (b && Math.abs(s2.vv - M) >= Math.abs(b.vv - M) && s2.depth < b.depth) occluded++
+    const b = seats.find(b2 => Math.abs(b2.u - s2.u) < 8 && (b2.vv < M) === (s2.vv < M))
+    if (b && s2.depth > b.depth) onSeat++
+    // profile pose AND mirrored toward the touchline (left bank flips right)
+    if (/_sd_/.test(s2.name || '') && (s2.sx < 0) === (s2.vv < M)) watching++
   }
-  return { sitters: sitters.length, occluded }
+  return { sitters: sitters.length, onSeat, watching }
 })
 ok(seated.sitters >= 16, 'the benches are occupied', seated.sitters + ' sitting')
-ok(seated.occluded >= seated.sitters * .8, 'sitters tuck behind the bench front, legs hidden', `${seated.occluded}/${seated.sitters}`)
+ok(seated.onSeat >= seated.sitters * .9, 'every sitter rides his own seat, in front of the backrest', `${seated.onSeat}/${seated.sitters}`)
+ok(seated.watching === seated.sitters, 'everyone on a bench is watching the field (profile pose)', `${seated.watching}/${seated.sitters}`)
+
+const watchers = await page.evaluate(() => {
+  const l = window.__SIDE_V78.list(), M = window.__SIDE_V78.midy
+  const standing = l.filter(i => i.kind === 'player' && !i.seated)
+  const prof = standing.filter(i => /_sd_/.test(i.name || ''))
+  // a profile "watches the field" when it faces the touchline: on the
+  // screen-left bank that is a FLIPPED (rightward) profile, on the right an
+  // unflipped one — sx carries the flip, VDIR carries which bank is which side
+  // crowdProject carries no VDIR mirror, so a bank's screen side IS its world
+  // side: low-vv is ALWAYS screen-left. (The first version probed through PJ,
+  // which does mirror — it asserted the same wrong model the renderer had, and
+  // passed while half the sideline faced away from the game.)
+  let toward = 0
+  for (const i of prof) { const screenLeft = i.vv < M; if ((i.sx < 0) === screenLeft) toward++ }
+  return { standing: standing.length, prof: prof.length, toward }
+})
+ok(watchers.prof >= watchers.standing * .6, 'most standing backups watch the field too', `${watchers.prof}/${watchers.standing} in profile`)
+ok(watchers.toward === watchers.prof, 'and every profile faces the touchline, not the stands', `${watchers.toward}/${watchers.prof}`)
 
 const react = await page.evaluate(async () => {
   const sc = window.__gridironScene
@@ -226,20 +268,19 @@ ok(staffTint && staffTint.skin > 200, 'while skin and khakis never tint', staffT
 
 const paint = await page.evaluate(() => {
   const sc = window.__gridironScene, cv = sc._warpCv; if (!cv) return null
-  const ctx = cv.getContext('2d'), PJp = window.__PJ_PROBE, GAP = window.__SIDE_V78.gap
-  const lum = (x, y) => { const d = ctx.getImageData(Math.round(x + 240), Math.round(y), 1, 1).data; return d[0] + d[1] + d[2] }
-  const rows = []
-  for (let u = 250; u <= 470; u += 20) rows.push(u)
-  let border = 0, grass = 0, kit = 0, mid = 0
-  for (const x of rows) {
-    const b = PJp(x, 426 + 8), g = PJp(x, 300), k2 = PJp(x, 426 + GAP * .86), m = PJp(x, 426 + GAP * .5)
-    border += lum(b.x, b.y); grass += lum(g.x, g.y); kit += lum(k2.x, k2.y); mid += lum(m.x, m.y)
+  const ctx = cv.getContext('2d'), S2 = sc.side
+  const PW = S2.paint || 238, APR = window.__SIDE_V78.apron || 66, M = window.__SIDE_V78.midy
+  const lum = (u, vv) => { const p = sc.crowdProject(u, vv), d = ctx.getImageData(Math.round(p.x + 240), Math.round(p.y), 1, 1).data; return d[0] + d[1] + d[2] }
+  let line = 0, grass = 0, kit = 0, mid = 0, n = 0
+  for (let u = 250; u <= 470; u += 20) {
+    line += Math.max(lum(u, M + PW), lum(u, M + PW + 2), lum(u, M + PW - 2))
+    grass += lum(u, M + PW * .5)
+    kit += lum(u, M + PW + APR * .78); mid += lum(u, M + PW + APR * .5); n++
   }
-  const n = rows.length
-  return { border: Math.round(border / n), grass: Math.round(grass / n), kit: Math.round(kit / n), mid: Math.round(mid / n) }
+  return { line: Math.round(line / n), grass: Math.round(grass / n), kit: Math.round(kit / n), mid: Math.round(mid / n) }
 })
-ok(paint && paint.border > paint.grass + 60, 'the white border is painted on the turf outside the touchline',
-  paint ? `${paint.border} vs grass ${paint.grass}` : 'no warp canvas')
+ok(paint && paint.line > paint.grass + 100, "sidePaintHalf really is the art's painted touchline",
+  paint ? `${paint.line} on the line vs ${paint.grass} grass` : 'no warp canvas')
 ok(paint && paint.kit < paint.mid - 8, 'a grounding shade sits under the equipment row', paint ? `${paint.kit} vs ${paint.mid}` : '')
 
 const wx = await page.evaluate(() => {
@@ -269,14 +310,23 @@ const blocked = await drive(true)
 // the walk into a live game is timing-sensitive — poll for the 22 markers
 // rather than reading one instant that may fall between snaps
 let bs = null
-for (let i = 0; i < 25; i++) {
+for (let i = 0; i < 40; i++) {
   bs = await blocked.page.evaluate(() => ({
     scene: !!window.__gridironScene, side: window.__SIDE_V78 ? window.__SIDE_V78.items : 0,
     art: window.__SIDE_ART_V78 || null, players: (window.__gridironScene && window.__gridironScene.markers || []).length,
   }))
   if (bs.players >= 22) break
-  await blocked.page.waitForTimeout(400)
+  // the walk into a live game is timing-sensitive; keep clearing whatever is in
+  // the way (wheel, players-to-watch, a stray continue) while we poll
+  await blocked.page.evaluate(() => {
+    const g = document.getElementById('gv42go'); if (g && g.style.display !== 'none') g.click()
+    if (document.getElementById('pregameV1513')) window.continuePregameV1513 && window.continuePregameV1513()
+    const btn = [...document.querySelectorAll('button')].find(b => /CONTINUE TO MATCH|PLAY WEEK 1 LIVE/i.test(b.innerText || ''))
+    if (btn) btn.click()
+  })
+  await blocked.page.waitForTimeout(500)
 }
+if (bs && bs.players < 22) console.log('  [blocked-run stuck]', JSON.stringify(bs))
 ok(bs.scene && bs.players >= 22, 'players still take the field without the sideline sheet', bs.players + '')
 ok(!bs.side, 'no team area is built when the sheet never decodes', bs.side + '')
 ok(!blocked.errs.length, 'a blocked sideline sheet raises no page errors', blocked.errs.slice(0, 2).join(' | '))
