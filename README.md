@@ -63,11 +63,16 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   a team area needs: warpField paints the white boundary border, the dashed
   coaches' box and a grounding shade under the equipment row (all three are
   ground, so they ride the row loop the stands cannot). The benches are occupied
-  — backups a step outboard with their legs sunk behind the bench front, mostly
-  in profile, because people on a bench watch the field — and every piece of
-  three-quarter art (benches, racks, carts, tables) mirrors per bank so its open
-  side faces the field from either sideline, whichever end the camera shoots
-  from. The sideline is alive: fireEvent feeds it the same play the crowd hears
+  and everyone is WATCHING THE FIELD: seating is compact two-seaters, stools and
+  chairs repeated down the lane (the five-man bench sheets are drawn in full side
+  view, and laid as billboards they ran ACROSS a lane that runs up the screen —
+  furniture angled ninety degrees wrong, so they stay in the trunk), and every
+  sitter rides his own seat's field depth, cropped at the knee so he ends at the
+  seat line, in profile facing the touchline. Standing backups watch in profile
+  too (one in five turned away — a sideline that ALL faces one way reads as a
+  paper doll chain), and every piece of three-quarter art (benches, racks,
+  carts, tables) mirrors per bank so its open side faces the field from either
+  sideline, whichever end the camera shoots from. The sideline is alive: fireEvent feeds it the same play the crowd hears
   and a touchdown scales the idle sway into a bench-clearing bounce; a carrier
   heading out of bounds scatters the boundary figures near his landing spot; a
   knot of coaches and backups is anchored to the LOS and walks the line with the

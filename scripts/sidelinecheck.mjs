@@ -170,7 +170,7 @@ ok(lit.nFar > 4 && lit.nNear > 4 && lit.farAvg < lit.nearAvg, 'the far end of th
 const facing = await page.evaluate(() => {
   const l = window.__SIDE_V78.list(), M = window.__SIDE_V78.midy
   const pick = (n) => ({ L: l.filter(i => i.name === n && i.vv < M).map(i => i.sx), R: l.filter(i => i.name === n && i.vv > M).map(i => i.sx) })
-  return { bench: pick('bench_long'), rack: pick('helmet_rack') }
+  return { bench: pick('bench_back'), rack: pick('helmet_rack') }
 })
 const oneWay = (a) => a.length && a.every(v => v === a[0])
 ok(oneWay(facing.bench.L) && oneWay(facing.bench.R) && facing.bench.L[0] !== facing.bench.R[0],
@@ -180,19 +180,39 @@ ok(oneWay(facing.rack.L) && oneWay(facing.rack.R) && facing.rack.L[0] !== facing
 
 const seated = await page.evaluate(() => {
   const l = window.__SIDE_V78.list(), M = window.__SIDE_V78.midy
-  const benches = l.filter(i => /^bench_/.test(i.name || ''))
-  const sitters = l.filter(i => i.kind === 'player' && i.lane === 'bench')
-  // a sitter is OUTBOARD of his bench and drawn under it (lower depth), so the
-  // bench front hides his legs
-  let occluded = 0
+  const seats = l.filter(i => /^(bench_|stool)/.test(i.name || ''))
+  const sitters = l.filter(i => i.kind === 'player' && i.seated)
+  // a sitter rides his seat's own field depth (same u), sits in FRONT of the
+  // seat sprite (higher depth, backrest behind him), and faces the field: on
+  // the screen-left bank a leftward-facing profile is flipped to look right
+  let onSeat = 0, watching = 0
   for (const s2 of sitters) {
-    const b = benches.find(b2 => Math.abs(b2.u - s2.u) < 26 && (b2.vv < M) === (s2.vv < M))
-    if (b && Math.abs(s2.vv - M) >= Math.abs(b.vv - M) && s2.depth < b.depth) occluded++
+    const b = seats.find(b2 => Math.abs(b2.u - s2.u) < 8 && (b2.vv < M) === (s2.vv < M))
+    if (b && s2.depth > b.depth) onSeat++
+    if (/_sd_/.test(s2.name || '')) watching++
   }
-  return { sitters: sitters.length, occluded }
+  return { sitters: sitters.length, onSeat, watching }
 })
 ok(seated.sitters >= 16, 'the benches are occupied', seated.sitters + ' sitting')
-ok(seated.occluded >= seated.sitters * .8, 'sitters tuck behind the bench front, legs hidden', `${seated.occluded}/${seated.sitters}`)
+ok(seated.onSeat >= seated.sitters * .9, 'every sitter rides his own seat, in front of the backrest', `${seated.onSeat}/${seated.sitters}`)
+ok(seated.watching === seated.sitters, 'everyone on a bench is watching the field (profile pose)', `${seated.watching}/${seated.sitters}`)
+
+const watchers = await page.evaluate(() => {
+  const l = window.__SIDE_V78.list(), M = window.__SIDE_V78.midy
+  const standing = l.filter(i => i.kind === 'player' && !i.seated)
+  const prof = standing.filter(i => /_sd_/.test(i.name || ''))
+  // a profile "watches the field" when it faces the touchline: on the
+  // screen-left bank that is a FLIPPED (rightward) profile, on the right an
+  // unflipped one — sx carries the flip, VDIR carries which bank is which side
+  // which world bank is on screen-left right now: project a point on each
+  // touchline and compare their screen x (PJ carries the VDIR mirror)
+  const lowVvIsLeft = window.__PJ_PROBE(360, 14).x < window.__PJ_PROBE(360, 426).x
+  let toward = 0
+  for (const i of prof) { const screenLeft = (i.vv < M) === lowVvIsLeft; if ((i.sx < 0) === screenLeft) toward++ }
+  return { standing: standing.length, prof: prof.length, toward }
+})
+ok(watchers.prof >= watchers.standing * .6, 'most standing backups watch the field too', `${watchers.prof}/${watchers.standing} in profile`)
+ok(watchers.toward === watchers.prof, 'and every profile faces the touchline, not the stands', `${watchers.toward}/${watchers.prof}`)
 
 const react = await page.evaluate(async () => {
   const sc = window.__gridironScene
@@ -269,14 +289,23 @@ const blocked = await drive(true)
 // the walk into a live game is timing-sensitive — poll for the 22 markers
 // rather than reading one instant that may fall between snaps
 let bs = null
-for (let i = 0; i < 25; i++) {
+for (let i = 0; i < 40; i++) {
   bs = await blocked.page.evaluate(() => ({
     scene: !!window.__gridironScene, side: window.__SIDE_V78 ? window.__SIDE_V78.items : 0,
     art: window.__SIDE_ART_V78 || null, players: (window.__gridironScene && window.__gridironScene.markers || []).length,
   }))
   if (bs.players >= 22) break
-  await blocked.page.waitForTimeout(400)
+  // the walk into a live game is timing-sensitive; keep clearing whatever is in
+  // the way (wheel, players-to-watch, a stray continue) while we poll
+  await blocked.page.evaluate(() => {
+    const g = document.getElementById('gv42go'); if (g && g.style.display !== 'none') g.click()
+    if (document.getElementById('pregameV1513')) window.continuePregameV1513 && window.continuePregameV1513()
+    const btn = [...document.querySelectorAll('button')].find(b => /CONTINUE TO MATCH|PLAY WEEK 1 LIVE/i.test(b.innerText || ''))
+    if (btn) btn.click()
+  })
+  await blocked.page.waitForTimeout(500)
 }
+if (bs && bs.players < 22) console.log('  [blocked-run stuck]', JSON.stringify(bs))
 ok(bs.scene && bs.players >= 22, 'players still take the field without the sideline sheet', bs.players + '')
 ok(!bs.side, 'no team area is built when the sheet never decodes', bs.side + '')
 ok(!blocked.errs.length, 'a blocked sideline sheet raises no page errors', blocked.errs.slice(0, 2).join(' | '))

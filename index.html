@@ -6153,16 +6153,6 @@ class Ot extends mt.Scene {
     let flip = !!o.flip;
     if (o.face) flip = ((VDIR > 0 ? (vv > (F_TOP + F_BOT) / 2) : (vv < (F_TOP + F_BOT) / 2)) ? false : true) !== !!o.flip;
     im.setScale(flip ? -sc : sc, sc);
-    // ALONG: a capped lean toward the sideline's own screen direction for long
-    // low items. Capped hard — the line runs steeply up-screen, and fully
-    // aligning a side-view billboard to it stands the furniture on end.
-    if (o.along) {
-      const p0 = this.crowdProject(u - 8, vv), p1 = this.crowdProject(u + 8, vv);
-      let a = Math.atan2(p1.y - p0.y, p1.x - p0.x);
-      if (a > Math.PI / 2) a -= Math.PI; if (a < -Math.PI / 2) a += Math.PI;
-      const cap = TU("sideAlongMax", .22);
-      im.setRotation(Math.max(-cap, Math.min(cap, a * TU("sideAlongK", .35))));
-    }
     im.setDepth(this.sideDepth(p.y) + (o.dbias || 0));
     im._side = { name, u: (o.fu != null ? o.fu : u), vv, lane: o.lane || null, kind: "kit" };
     im._lbase = this.sideShadeBase(u, p.k, vv < (F_TOP + F_BOT) / 2 ? -1 : 1);
@@ -6188,15 +6178,16 @@ class Ot extends mt.Scene {
     const sc = p.s * (o.sc || 1);
     im.setScale(o.flip ? -sc : sc, sc);
     im.setDepth(this.sideDepth(p.y) + (o.dbias || 0));
-    // SEATED: sink the figure so his legs disappear behind the bench drawn just
-    // inboard of him — at this sprite size that reads as sitting on it
-    if (o.sink) im.y += o.sink * sc;
+    // SEATED: crop the sprite at the knee and drop it a step, so the figure
+    // ends at the seat line instead of pushing his feet through the turf — he
+    // sits IN FRONT of the seat sprite, so the backrest shows behind him
+    if (o.seat) { im.setCrop(0, 0, 48, TU("sideSitCrop", 34)); im.y += TU("sideSitDrop", 6) * sc; }
     if (tex === "rib_player_fallback") { im.setTint(team === "def" ? 0xe86560 : 0x5fce74); im._noLight = true; }
-    im._side = { name: tex, u: (o.fu != null ? o.fu : u), vv, lane: o.lane || null, kind: "player", team };
+    im._side = { name: tex, u: (o.fu != null ? o.fu : u), vv, lane: o.lane || null, kind: "player", team, seated: !!o.seat };
     im._lbase = this.sideShadeBase(u, p.k, vv < (F_TOP + F_BOT) / 2 ? -1 : 1);
     this.side.items.push(im);
-    if (!o.sink) this.sideShadow(im, p, false);
-    im._bob = o.sink ? .3 : .6; im._ph = (this.side.items.length * 2.399) % 6.2832;
+    if (!o.seat) this.sideShadow(im, p, false);
+    im._bob = o.seat ? .25 : .6; im._ph = (this.side.items.length * 2.399) % 6.2832;
     im._y0 = im.y; im._x0 = im.x; im._k = p.s;
     this.side.live.push(im);
     return im;
@@ -6240,33 +6231,36 @@ class Ot extends mt.Scene {
 
       // ---- KIT lane. Everything the equipment staff brought, categorised: racks
       // together, storage together, the heavy stuff at the ends. `face` marks the
-      // three-quarter art that has to open toward the field; `along` the long low
-      // pieces that lean with the line.
+      // three-quarter art that has to open toward the field.
       const KIT = [
         ["trunk", .02, { face: 1, sc: .9 }], ["trunk_b", .07, { face: 1, sc: .9 }], ["case_up", .11, { face: 1 }], ["duffel", .145],
         ["helmet_rack", .19, { face: 1, sc: .92 }], ["pad_rack", .26, { face: 1, sc: .92 }], ["ball_rack", .33, { face: 1, sc: .9 }], ["ball_bin", .38, { face: 1 }],
-        ["tape_bin", .42], ["stretcher", .45, { sc: .8, along: 1 }], ["med_kit", .48, { sc: .7 }],
-        ["table_b", .5, { face: 1, sc: .8, along: 1 }], ["play_board", .53, { sc: .7 }], ["whiteboard", .57, { face: 1 }], ["comms", .6, { sc: .7 }],
+        ["tape_bin", .42], ["stretcher", .45, { sc: .8 }], ["med_kit", .48, { sc: .7 }],
+        ["table_b", .5, { face: 1, sc: .8 }], ["play_board", .53, { sc: .7 }], ["whiteboard", .57, { face: 1 }], ["comms", .6, { sc: .7 }],
         ["ponchos", .64, { sc: .85 }], ["camera", .66, { sc: .75, face: 1 }],
         ["kick_net", .68, { sc: .9 }], ["heater", .73, { sc: .85 }], ["fan", .77, { sc: .85 }],
-        ["trunk_c", .81, { face: 1, sc: .9 }], ["case_up_b", .85, { face: 1 }], ["duffel_b", .88, { sc: .8 }],
+        ["trunk_c", .81, { face: 1, sc: .9 }], ["table", .835, { sc: .75, face: 1 }], ["case_up_b", .85, { face: 1 }], ["duffel_b", .88, { sc: .8 }],
         ["trash", .91, { sc: .8 }], ["recycle", .94, { sc: .8 }], ["cart", .97, { face: 1 }],
       ];
       // weather dressing (Yr's own roll, via __WX_V79): rain strikes the towel
       // service and breaks out ponchos; snow doubles the heaters and the fans go
       // back on the truck
       if (wx === "snow") { KIT.push(["heater", .35, { sc: .85 }]); const fi = KIT.findIndex((k2) => k2[0] === "fan"); if (fi >= 0) KIT.splice(fi, 1); }
-      // ---- BENCH lane. Benches end to end down the middle — occupied (each
-      // carries its sitters) — hydration at both ends where it always is, the
-      // trainers' cart with the medical staff. [name, t, opts, sitters]
+      // ---- BENCH lane. COMPACT seating only, repeated down the lane — the long
+      // bench sheets are drawn in full side view, and a five-man bench laid as a
+      // billboard runs ACROSS a lane that runs up the screen: it read as
+      // furniture angled ninety degrees wrong, so it stays in the trunk. A
+      // two-seater is as deep as it is wide and reads right from any angle.
+      // [name, t, opts, sitters] — sitters ride the SAME field depth as their
+      // seat, spread along its lateral width, all facing the field.
       const BENCH = [
-        ["cooler_table", .03, { face: 1 }], ["cup_stand", .08, { sc: .8 }], [wx === "rain" ? "ponchos" : "towels", .5, { sc: .6 }],
+        ["cooler_table", .03, { face: 1 }], ["cup_stand", .08, { sc: .8 }], [wx === "rain" ? "ponchos" : "towels", .58, { sc: .6 }],
         ["bottles", .12, { sc: .8 }],
-        ["bench_long", .2, { face: 1 }, 3], ["bench_long_b", .32, { face: 1 }, 3], ["bench_back", .44, { face: 1 }, 2],
-        ["bench_long", .56, { face: 1 }, 3], ["bench_back_b", .67, { face: 1 }, 2], ["bench_short", .76, { face: 1 }, 1],
-        ["bench_wood", .83, { face: 1 }, 2],
-        ["chairs", .88, { sc: .9, face: 1 }], ["cooler", .93], ["cooler_table_b", .97, { face: 1 }], ["table", .3, { sc: .8, face: 1, along: 1 }],
+        ["bench_back", .18, { face: 1, sc: .85 }, 2], ["bench_short", .27, { face: 1 }, 1], ["bench_wood", .35, { face: 1, sc: .9 }, 2],
+        ["bench_back_b", .44, { face: 1 }, 2], ["stool", .52, { sc: .9 }, 1],
         ["med_cart", .62, { face: 1 }],
+        ["bench_wood", .7, { face: 1, sc: .9 }, 2], ["bench_short", .78, { face: 1 }, 1],
+        ["chairs", .85, { sc: .9, face: 1 }], ["cooler", .93], ["cooler_table_b", .97, { face: 1 }],
       ];
       // ---- a separation pass per lane: fixed t plus jitter happily parks a
       // trunk inside a bench; walk each lane in order and hold a minimum gap
@@ -6277,18 +6271,19 @@ class Ot extends mt.Scene {
         for (let i = 1; i < placed.length; i++) if (placed[i].u - placed[i - 1].u < min) placed[i].u = placed[i - 1].u + min;
         return placed;
       };
+      // which way a profile faces so it looks AT the field: unflipped side art
+      // faces screen-left, so flip on the screen-left bank — resolved through
+      // VDIR, because the camera swinging ends is when the banks swap sides
+      const fieldFlip = (VDIR > 0 ? sgn : -sgn) < 0;
       for (const it of sep(KIT, "kit", 6, 4)) this.sideItem(it.n, it.u, it.vv, Object.assign({ lane: "kit" }, it.o));
       for (const it of sep(BENCH, "bench", 4, 3)) {
-        const bench = this.sideItem(it.n, it.u, it.vv, Object.assign({ lane: "bench", dbias: .0004 }, it.o));
-        // the sitters: a step outboard, legs sunk behind the bench front, mostly
-        // in PROFILE — people on a bench watch the field
-        if (bench && it.sit) for (let s2 = 0; s2 < it.sit; s2++) {
-          const prof = rnd() < .6;
-          this.sidePlayer(team, it.u + (s2 - (it.sit - 1) / 2) * 9 + jit(3), it.vv + sgn * 2, {
-            lane: "bench", dbias: -.0008, sink: TU("sideSitSink", 15), sc: .94,
-            dir: prof ? "sd" : "dn", flip: prof ? bench.scaleX < 0 : rnd() < .5,
+        const seat = this.sideItem(it.n, it.u, it.vv, Object.assign({ lane: "bench" }, it.o));
+        // everyone on a bench is WATCHING THE FIELD: same depth as the seat,
+        // spread along its width, in profile, facing the touchline
+        if (seat && it.sit) for (let s2 = 0; s2 < it.sit; s2++)
+          this.sidePlayer(team, it.u, it.vv + (s2 - (it.sit - 1) / 2) * 4.5 + jit(1.5), {
+            lane: "bench", dbias: .0008, seat: 1, sc: .94, dir: "sd", flip: fieldFlip,
           });
-        }
       }
       // the carts park at the ends of the area, out of the way
       this.sideItem("golf_cart", at(-.06), lane("kit"), { sc: .85, face: 1, lane: "kit" });
@@ -6305,9 +6300,9 @@ class Ot extends mt.Scene {
         at(t + jit(.05)), lane("edge") + jit(6), { lane: "edge", bob: .5, flip: rnd() < .5, team }));
       const N = Math.max(0, Math.round(TU("sideBackups", 8)));
       for (let i2 = 0; i2 < N; i2++) {
-        const r2 = rnd(), prof = r2 < .5;
+        const prof = rnd() < TU("sideWatchP", .8);
         this.sidePlayer(team, at(knot(i2 + 2)) + jit(6), lane("edge") + jit(5),
-          { lane: "edge", dir: prof ? "sd" : r2 < .8 ? "dn" : "up", flip: prof ? sgn * (VDIR > 0 ? 1 : -1) < 0 : rnd() < .5 });
+          { lane: "edge", dir: prof ? "sd" : "dn", flip: prof ? fieldFlip : rnd() < .5 });
       }
       // ---- the knot that follows the ball: a coach on the spot with two
       // backups craning past him. losU moves with _lastField, so this group
@@ -6315,8 +6310,8 @@ class Ot extends mt.Scene {
       // anchored to the GAME rather than to the stadium.
       const cl = (x2) => Math.max(U0 - 30, Math.min(U1 + 30, x2));
       this.sideItem("coach" + ((stadium < 0 ? 4 : 7)) , cl(losU - 10), lane("edge") + 2, { lane: "edge", bob: .6, team });
-      this.sidePlayer(team, cl(losU + 12), lane("edge") + jit(4), { lane: "edge", dir: "sd", flip: sgn * (VDIR > 0 ? 1 : -1) < 0 });
-      this.sidePlayer(team, cl(losU - 26), lane("edge") + jit(4), { lane: "edge", dir: "dn", flip: rnd() < .5 });
+      this.sidePlayer(team, cl(losU + 12), lane("edge") + jit(4), { lane: "edge", dir: "sd", flip: fieldFlip });
+      this.sidePlayer(team, cl(losU - 26), lane("edge") + jit(4), { lane: "edge", dir: "sd", flip: fieldFlip });
 
       // ---- outside the numbers: the dressing that belongs beyond the 25s, so
       // the biggest, nearest stretch of apron is not bare grass
