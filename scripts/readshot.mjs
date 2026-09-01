@@ -46,10 +46,12 @@ for (let i = 0; i < FRAMES; i++) {
   // capture the GAME'S OWN framebuffer (a DOM screenshot grabs whatever overlay sits on top)
   const snap = async (path) => { const src = await page.evaluate(() => new Promise(res => { try { window.__gridironScene.game.renderer.snapshot(img => res(img.src || null)) } catch (e) { res(null) } }));
     if (src) fs.writeFileSync(path, Buffer.from(src.split(',')[1], 'base64')) }
+  if (st && process.env.READ_DEBUG && i % 3 === 0) console.log('frame', i, JSON.stringify(st))
   if (st) { qMax = Math.max(qMax, st.q); if (st.q) { qFrames++; if (!qShot) { qShot = true; await snap('scripts/_read_q.png') } } }
+  if (st && (st.event === 'run' || st.event === 'pass' || st.event === 'incomplete') && st.fs && st.t > 560 && st.t < 1300 && !kickShots.block) { kickShots.block = 1; await snap('scripts/_read_block.png'); console.log('captured block frame at', st.t) }
   if (st && st.event && /^(punt|kickoff|fg)$/.test(st.event)) { evSeen[st.event] = (evSeen[st.event] || 0) + 1; if (!kickShots[st.event] && st.t > 900) { kickShots[st.event] = 1; await snap(`scripts/_read_${st.event}.png`); console.log('captured', st.event, 'fieldsim=', st.fs) } }
   if (i % 8 === 0) await snap(`scripts/_read_${shots++}.png`)
-  await page.waitForTimeout(qShot ? 350 : 120)
+  await page.waitForTimeout(150)
 }
 // which v81 events reached fireEvent (instrumented after the fact through the scene's play log)
 const evs = await page.evaluate(() => { const sc = window.__gridironScene; const S = sc && sc.play && sc.play.script; const out = {}

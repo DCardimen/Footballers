@@ -148,6 +148,16 @@ yard, `TICK = 33` ms per sim step. Key pieces, in order:
   play when the sim resolved it) and the FG branch; the choreographer's `kindWant` takes
   kick logs. Special-teams tackles are deliberately not credited to the box score
   (`creditcheck`'s sim truth counts scrimmage wraps).
+- **v83 BLOCK FACING + 2.5D** (renderer anchor `v83 BLOCK FACING + 2.5D`, next to `faceMarker`):
+  `pairUp(i, j)` / `unpair(i)` keep `m._pair` from the sim's engagement events; in
+  `placeMarker` an engaged marker faces its partner in SCREEN space (through `PJ`, so it
+  is NS-aware), takes the block state whenever it is slow and paired, cycles the block
+  frames at `blockDriveFrameMs` when the pair moves faster than `driveSpd`, is nudged
+  `engageSpread` px to a stable side (lower slot left), and — offence only — lifts by
+  `engageLift` in depth. A pair breaks itself when the two drift past `engageBreakPx`.
+  The sim side is only events: `engage {pairs}` at the snap (scrimmage and kicks),
+  `stuntPassOff {pairs}` on a passed-off twist, `pickup {by, on}`, `disengage {who, by}`
+  when a lineman releases once the ball is past him.
 - `breakProb`, `turnTest` — pure formula hooks for unit checks.
 - `fieldGoalRows()` / `fieldArtY(u)` (anchor `v72 END-ZONE MAPPING`) — the turf art
   is sampled by its GOAL LINES, not by its full height. The art has a real ten-yard

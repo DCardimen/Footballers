@@ -55,6 +55,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v83 — blockers square up to their man, and both bodies read.** The renderer
+  used to hold an engaged lineman on his pre-snap facing for the whole block, so a
+  guard washing his man sideways or a tight end sealing an end was drawn square to
+  the line; and an engaged pair stood on one screen column with the nearer sprite
+  hiding the other. The sim now announces who has hands on whom (`engage` at the
+  snap, `block` / `blockWin` / `pickup` / `chip` as blocks land, `shed` / `swim` /
+  `pancake` / `stuntWin` / `disengage` as they end) and each man in a pair FACES his
+  partner every frame — the up, down or side block frames by the direction to him
+  — with the block frames cycling faster while the pair is moving (a drive or a
+  wash, `blockDriveFrameMs`) than in a stalemate. Paired sprites are nudged apart
+  laterally on screen (`engageSpread`) and the offensive man lifts a hair in depth
+  (`engageLift`), so the lineman no longer vanishes under the defender the sim
+  glues a few px downfield of him. Anchor `v83 BLOCK FACING + 2.5D`;
+  `scripts/readshot.mjs` now also captures a trench frame (`_read_block.png`).
+
 - **v82 — ten more ways the sim reads like football.** THE FRONT HAS A PLAN:
   the pass rush runs TWISTS (the interior man crashes outside, the edge loops
   into the vacated lane; the line has to pass it off — `passOffBase` — or the

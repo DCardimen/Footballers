@@ -2466,7 +2466,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
               done: () => { carrier = to; emit("snapCatch", { by: to.id, x: to.lx, y: to.y }); } };
           }
         }
-        else { carrier = S.off[8]; emit("snap",{}); phase = kind==="pass"?"drop":"handoff"; } } }
+        else { carrier = S.off[8]; emit("snap",{}); phase = kind==="pass"?"drop":"handoff"; }
+        // v83: who has hands on whom — the broadcast faces each blocker at his man
+        emit("engage", { pairs: S.def.filter(r => r.engaging).map(r => [r.engaging.id, r.id]) }); } }
       else if (phase === "kickset" || phase === "kickfly") {
         const kicker = S.off[8], holder = S.off[9];
         const kickPoint = () => kind === "fg" ? { x: holder.lx + 2, y: holder.y } : kind === "punt" ? { x: kicker.lx + 10, y: kicker.y } : { x: 0, y: MIDY };
@@ -2601,7 +2603,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           if (Math.random() < passOffP) {
             // passed off: the looper is met by the interior man, the penetrator by the tackle
             stunt.looper.engaging = oP; oP.engagedBy = stunt.looper; stunt.pen.engaging = oL; oL.engagedBy = stunt.pen;
-            emit("stuntPassOff", { a: stunt.looper.id, b: stunt.pen.id, x: oP.lx, y: oP.y });
+            emit("stuntPassOff", { a: stunt.looper.id, b: stunt.pen.id, x: oP.lx, y: oP.y, pairs: [[oP.id, stunt.looper.id], [oL.id, stunt.pen.id]] });
           } else {
             stunt.looper.shed = true; stunt.looper.releaseT = t; oL.engagedBy = null; stunt.pen.doubled = true;
             emit("stuntWin", { who: stunt.looper.id, x: stunt.looper.lx, y: stunt.looper.y });
@@ -2627,10 +2629,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             const slider = blockers.slice().sort((a2,b2)=>Math.abs(a2.y-blitzer.y)-Math.abs(b2.y-blitzer.y))[0];
             if (slider && Math.hypot(blitzer.lx-slider.lx, blitzer.y-slider.y) < 22 && Math.random() < TU("slidePickP", .8)) {
               blitzer.picked = true; blitzer.engaging = slider; if (slider.engagedBy && slider.engagedBy.engaging === slider) { rb.engagedBy = slider.engagedBy; slider.engagedBy.engaging = rb; }
-              slider.engagedBy = blitzer; emit("pickup", { by: slider.id, slide: true }); }
+              slider.engagedBy = blitzer; emit("pickup", { by: slider.id, on: blitzer.id, slide: true }); }
           }
           if (!blitzer.picked && Math.hypot(blitzer.lx-rb.lx, blitzer.y-rb.y) < 27) {
-            if (Math.random() < 0.3 + rb.vis*0.006 + rb.blk*0.004 - (protection.read ? 0 : TU("wrongSlidePen", .2))) { blitzer.picked = true; blitzer.engaging = rb; rb.engagedBy = blitzer; emit("pickup",{by:rb.id}); }
+            if (Math.random() < 0.3 + rb.vis*0.006 + rb.blk*0.004 - (protection.read ? 0 : TU("wrongSlidePen", .2))) { blitzer.picked = true; blitzer.engaging = rb; rb.engagedBy = blitzer; emit("pickup",{by:rb.id, on: blitzer.id}); }
             else { blitzer.freeRun = true; emit("freeRusher",{who:blitzer.id, wrongCall: !protection.read}); }
           }
         }
@@ -2878,7 +2880,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           const lat = b.kind === "drive" ? TU("blockDriveLat", 16) : b.kind === "push" ? TU("blockPushLat", 8) : 3;
           mv(o, b.x0 + fwd * age, clampY(b.y0 + b.dir * lat * age), b.kind === "stalemate" ? .25 : .6);
           if (c.side === "off" && c.lx > o.lx + TU("releasePastPx", 20) && !o._released) {
-            o._released = t; r.shed = true; r.releaseT = t; o.engagedBy = null; }
+            o._released = t; r.shed = true; r.releaseT = t; o.engagedBy = null; emit("disengage", { who: r.id, by: o.id }); }
         });
         // carrier picks his path: best open lane (runs) or upfield (YAC/returns)
         const dirSign = c.side === "off" ? 1 : -1;
@@ -5326,6 +5328,7 @@ class Ot extends mt.Scene {
       case "swim": {
         // a defensive end beats the tackle with a quick finesse move
         const m = this.markers[this.actorIdx(e.who)];
+        this.unpair(this.actorIdx(e.who));   // v83
         if (m) { m.forceState = null; m.cutUntil = m.tms + 200; m.body && m.body.setTint(0xbfe0ff);
           this.time.delayedCall(360, () => { m.body && m.body.clearTint(); }); }
         this.popText(e.x, e.y - 20, "SWIM MOVE!", "#8fe7ff", 13);
@@ -5469,6 +5472,7 @@ class Ot extends mt.Scene {
       }
       case "shed": {
         const m = this.markers[this.actorIdx(e.who)];
+        this.unpair(this.actorIdx(e.who));   // v83
         if (m) { this.flash(m.sx, m.sy, 0xff8a5c); m.body.setTint(0xffc9a8); }
         this.popText(e.x, e.y - 20, "SHEDS THE BLOCK!", "#ffb08a", 12); break;
       }
@@ -5478,6 +5482,7 @@ class Ot extends mt.Scene {
         break;
       }
       case "pancake": {
+        this.unpair(this.actorIdx(e.who));   // v83
         const m = this.markers[this.actorIdx(e.who)];
         if (m) { m.forceState = "pancakeSeq"; m.seqT=m.tms; m.body.setAlpha(0.8); }
         this.puffFx(e.x, e.y, 3);
@@ -5496,6 +5501,7 @@ class Ot extends mt.Scene {
         if (e.big) { this.popText(e.x, e.y - 18, "BIG BLOCK!", "#bfe3ae", 12); REDUCED_MOTION || this.cameras.main.shake(70, 0.002); }
         const bm = this.markers[this.actorIdx(e.by)];
         if (bm) { bm.forceState = "block"; this.time.delayedCall(420, () => { if (bm.forceState === "block") bm.forceState = null; }); }
+        if (e.on || e.who) this.pairUp(this.actorIdx(e.by), this.actorIdx(e.on || e.who));   // v83
         break;
       }
       case "flush": {
@@ -5533,6 +5539,7 @@ class Ot extends mt.Scene {
       }
       case "blockWin": {
         const bm = this.markers[this.actorIdx(e.who)], dm = this.markers[this.actorIdx(e.on)];
+        this.pairUp(this.actorIdx(e.who), this.actorIdx(e.on));   // v83
         if (bm) { bm.forceState = "block"; this.time.delayedCall(600, () => { if (bm.forceState === "block") bm.forceState = null; }); }
         if (e.kind === "drive") { this.puffFx(e.x, e.y, 2, 0xd8e6da, 0.45);
           if (dm) { dm.forceState = null; dm.cutUntil = dm.tms + 300; }
@@ -5553,11 +5560,12 @@ class Ot extends mt.Scene {
         break;
       }
       /* ===== v82 — the front's plan, the disguise, the pocket, the catch point, the pile ===== */
-      case "stuntWin": { const m = this.markers[this.actorIdx(e.who)]; if (m) { this.flash(m.sx, m.sy, 0xff8a5c); m.body && m.body.setTint(0xffc9a8); }
+      case "stuntWin": { const m = this.markers[this.actorIdx(e.who)]; this.unpair(this.actorIdx(e.who)); if (m) { this.flash(m.sx, m.sy, 0xff8a5c); m.body && m.body.setTint(0xffc9a8); }
         this.popText(e.x, e.y - 22, "STUNT — HE'S FREE!", "#ffb08a", 13); break; }
       case "stuntPassOff": this.puffFx(e.x, e.y, 1, 0xd8e6da, 0.35); break;
       case "spyAttack": { const m = this.markers[this.actorIdx(e.who)]; if (m && m.team === "you") this.popText(e.x, e.y - 22, "SPY — GO!", "#8fe7ff", 12); break; }
       case "spy": case "protection": case "disguise": case "effort": case "comeback": case "boxOut": case "press": break;
+      case "chip": { this.pairUp(this.actorIdx(e.who), this.actorIdx(e.on)); this.time.delayedCall(560, () => this.unpair(this.actorIdx(e.who))); break; }
       case "rotate": { const m = this.markers[this.actorIdx(e.who)]; if (m) this.popText(e.x, e.y - 24, "ROTATES DOWN", "#8ec3ee", 11); break; }
       case "fooled": this.popText(e.x, e.y - 24, "DISGUISED!", "#ff9a9a", 12); break;
       case "jam": { const m = this.markers[this.actorIdx(e.on)]; if (m) { m.forceState = null; m.cutUntil = m.tms + 240; }
@@ -5570,6 +5578,9 @@ class Ot extends mt.Scene {
         this.puffFx(e.x, e.y, 2); this.popText(e.x, e.y - 22, "BOUNCES OFF!", "#8fe7ff", 13); break; }
       case "pilePush": this.puffFx(e.x, e.y, 1, 0xd8e6da, 0.4); break;
       case "snapCatch": { P.carrierId = this.actorIdx(e.by); P.ballHolderId = P.carrierId; P.ballMode = "held"; break; }
+      /* ===== v83 BLOCK FACING + 2.5D — each blocker squares up to HIS man ===== */
+      case "engage": case "stuntPassOff": { (e.pairs || []).forEach(pr => this.pairUp(this.actorIdx(pr[0]), this.actorIdx(pr[1]))); if (e.type === "stuntPassOff") this.puffFx(e.x, e.y, 1, 0xd8e6da, 0.35); break; }
+      case "disengage": { this.unpair(this.actorIdx(e.who)); break; }
       case "kickBlocked": { this.flash(e.x, e.y, 0xff6b52); this.popText(e.x, e.y - 26, "BLOCKED!!", "#ff9fa5", 18); REDUCED_MOTION || this.cameras.main.shake(140, 0.005); break; }
       case "kick": break;
       case "firstdown": {
@@ -5940,6 +5951,7 @@ class Ot extends mt.Scene {
       try { et.ring && et.ring.destroy(); } catch (e) {}
       try { et.tag && et.tag.destroy(); } catch (e) {}
       try { et._qTxt && this.dropFx(et._qTxt); } catch (e) {}   // v81
+      et._pair = null;   // v83
     }
     this.markers = [];
     if (this.ballSpr) { try { this.ballSpr.destroy(); } catch (e) {} this.ballSpr = void 0; }
@@ -6000,6 +6012,29 @@ class Ot extends mt.Scene {
     this.placeMarker(m, sx, sy, 16);
     return m;
   }
+  /* ===== v83 BLOCK FACING + 2.5D =====
+   * A blocker used to hold his pre-snap facing for the whole block ("engaged
+   * linemen hold their facing"), so a guard driving his man sideways or a tight end
+   * sealing an end was drawn square to the line, and an engaged pair stood on one
+   * screen column with the nearer sprite hiding the other. The sim now says who has
+   * hands on whom (`engage`, `block`, `blockWin`, `pickup`, `chip`; `shed`, `swim`,
+   * `pancake`, `stuntWin`, `disengage` end it), and each man in a pair SQUARES UP to
+   * his partner every frame — up, down or side frames by the direction to him — with
+   * the block frames cycling faster while the pair is moving (a drive) than while it
+   * is a stalemate. Paired sprites are also NUDGED apart laterally on screen, and the
+   * offensive man lifts a hair in depth, so both bodies read (2.5D), not one. */
+  pairUp(i, j) {
+    const a = this.markers[i], b = this.markers[j];
+    if (!a || !b || a === b) return;
+    if (a._pair != null && a._pair !== j) this.unpair(i);
+    if (b._pair != null && b._pair !== i) this.unpair(j);
+    a._pair = j; b._pair = i; a._pairT = a.tms; b._pairT = b.tms;
+  }
+  unpair(i) {
+    const a = this.markers[i]; if (!a || a._pair == null) return;
+    const b = this.markers[a._pair]; if (b && b._pair === i) b._pair = null;
+    a._pair = null;
+  }
   faceMarker(m, dx, dy) {
     const ax = Math.abs(dx), ay = Math.abs(dy);
     if (ax > 2.414 * ay) { m.dirKey = "sd"; m.flip = dx > 0; }
@@ -6055,6 +6090,13 @@ class Ot extends mt.Scene {
       this.faceMarker(m, p1.x - p0.x, p1.y - p0.y);       // facing in SCREEN space (NS aware)
     }
     if (lineLocked && m.homeDir) { m.dirKey = m.homeDir; m.flip = false; }
+    // v83: a man with hands on someone faces THAT man, whatever the line's home facing
+    let engaged = null;
+    if (m._pair != null) { const pm = this.markers[m._pair];
+      if (pm && pm.root && Math.hypot(pm.sx - sx, pm.sy - sy) < TU("engagePx", 34)) { engaged = pm;
+        const p0 = PJ(sx, sy), p1 = PJ(pm.sx, pm.sy); this.faceMarker(m, p1.x - p0.x, p1.y - p0.y);
+        m._engFace = m.dirKey; }
+      else if (pm && Math.hypot(pm.sx - sx, pm.sy - sy) > TU("engageBreakPx", 60)) this.unpair(this.markers.indexOf(m)); }
     const hd = Math.atan2(dy, dx);
     let cutSkid = false;
     if (m.hd != null && spdPx > 30 && !lineLocked) { let d = Math.abs(hd - m.hd); if (d > Math.PI) d = 2 * Math.PI - d;
@@ -6096,7 +6138,12 @@ class Ot extends mt.Scene {
     else { m.ft += (dtms || 16) * Math.min(2.4, m.sSm / 58); st = "run" + (Math.floor(m.ft / 96) % (window.__RIB_FRAMES || 4)); }
     // v11: engaged linemen BLOCK across the whole grind band — one stable state, no flapping
     if (!m.forceState && m.isLine && m.sSm > 3 && m.sSm < TU("blockBand",78) && (st === "idle" || st.indexOf("run") === 0)) st = "block";
-    if (st === "block") { m.bt = (m.bt || 0) + (dtms || 16); st = "block" + (Math.floor(m.bt / TU("blockFrameMs",170)) % (window.__RIB_BLOCKF || 1)); }
+    // v83: anyone squared up on a partner is blocking (or being blocked) — and the pair's own
+    // motion sets the tempo: a stalemate churns slowly, a drive or a wash cycles fast
+    if (engaged && !m.forceState && m.sSm < TU("blockBand",78) && (st === "idle" || st.indexOf("run") === 0 || st === "cut")) st = "block";
+    if (st === "block") { const pairSpd = engaged ? Math.max(m.sSm, engaged.sSm || 0) : m.sSm;
+      const frameMs = pairSpd > TU("driveSpd", 22) ? TU("blockDriveFrameMs", 105) : TU("blockFrameMs",170);
+      m.bt = (m.bt || 0) + (dtms || 16); st = "block" + (Math.floor(m.bt / frameMs) % (window.__RIB_BLOCKF || 1)); }
     // v21.2 GET-UP RECOVERY: a downed player no longer teleports upright. Track the
     // last frame he was on the turf; the moment he's free and roughly stationary,
     // play a brief crouch (stance) → stand (idle) recovery before normal states
@@ -6153,6 +6200,11 @@ class Ot extends mt.Scene {
     if (cutSkid && st !== "down") { this.skidFx(sx, sy); this.puffFx(sx, sy + 3, 2, 0x8a7a55, 0.34); }   // v21.2: jukes/plants kick turf
     if (st.indexOf("run") === 0 && spdPx > TU("runDustSpd", 100) && m.tms - (m.lastDust || 0) > 140) { m.lastDust = m.tms; this.puffFx(sx, sy + 6, spdPx > 190 ? 2 : 1, 0x7c6a48, 0.32); }
     const p = PJ(sx, sy);
+    // v83 2.5D: paired sprites are pushed apart on screen so the man behind still reads —
+    // a stable side per marker (the lower slot goes left), scaled with the projection
+    if (engaged) { const side = this.markers.indexOf(m) < m._pair ? -1 : 1; m._nudgeX = side * TU("engageSpread", 6) * p.s; }
+    else m._nudgeX = 0;
+    p.x += m._nudgeX || 0;
     // v17 tackle-launch hop: lift the whole sprite along a parabola while a leap is
     // in flight, so a committed tackle reads as an airborne launch into the carrier.
     if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms)); p.y -= Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11) * p.s; }
@@ -6160,7 +6212,9 @@ class Ot extends mt.Scene {
     m.root.setPosition(p.x, p.y); m.root.setScale(p.s);
     // v41: stable per-marker epsilon breaks depth ties so engaged sprites at equal
     // sy don't z-flicker through each other frame to frame.
-    m.root.setDepth(4 + sy * 0.02 + (m.num % 16) * 0.0004);
+    // v83: inside a pair the OFFENSIVE man draws in front — the sim glues his man a few
+    // px downfield of him, which put the defender in front on every snap
+    m.root.setDepth(4 + sy * 0.02 + (m.num % 16) * 0.0004 + (engaged && m.team !== "def" ? TU("engageLift", 0.12) : 0));
     m._spdPx = spdPx;
     (m._hist || (m._hist = [])).push({ x: p.x, y: p.y });
     if (m._hist.length > 4) m._hist.shift();
