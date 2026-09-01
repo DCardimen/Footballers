@@ -55,6 +55,89 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v83 — blockers square up to their man, and both bodies read.** The renderer
+  used to hold an engaged lineman on his pre-snap facing for the whole block, so a
+  guard washing his man sideways or a tight end sealing an end was drawn square to
+  the line; and an engaged pair stood on one screen column with the nearer sprite
+  hiding the other. The sim now announces who has hands on whom (`engage` at the
+  snap, `block` / `blockWin` / `pickup` / `chip` as blocks land, `shed` / `swim` /
+  `pancake` / `stuntWin` / `disengage` as they end) and each man in a pair FACES his
+  partner every frame — the up, down or side block frames by the direction to him
+  — with the block frames cycling faster while the pair is moving (a drive or a
+  wash, `blockDriveFrameMs`) than in a stalemate. Paired sprites are nudged apart
+  laterally on screen (`engageSpread`) and the offensive man lifts a hair in depth
+  (`engageLift`), so the lineman no longer vanishes under the defender the sim
+  glues a few px downfield of him. Anchor `v83 BLOCK FACING + 2.5D`;
+  `scripts/readshot.mjs` now also captures a trench frame (`_read_block.png`).
+
+- **v82 — ten more ways the sim reads like football.** THE FRONT HAS A PLAN:
+  the pass rush runs TWISTS (the interior man crashes outside, the edge loops
+  into the vacated lane; the line has to pass it off — `passOffBase` — or the
+  looper comes free), a SPY mirrors a mobile quarterback instead of dropping,
+  and the offence answers with a PROTECTION CALL (the centre reads the blitz
+  side and slides; read it wrong and the back is alone from the wrong side) and
+  a CHIP from the tight end. DISGUISE: safeties show two-high and ROTATE one
+  down as a robber after the snap (a quarterback who graded his reads off the
+  old picture and does not see it — awareness — loses the window), and corners
+  PRESS and jam the release. THE POCKET: the quarterback steps up into edge
+  pressure instead of sliding into the other edge, runs designed ROLLOUTS, and a
+  smart one TAKES THE SACK with nothing open and a man on him — booked like a
+  trench sack, sacker named by the sim. BALL SKILLS: box-outs, working back to
+  an underthrown ball, and a corner who plays the hands (a SWAT) or the ball.
+  CONTACT: a glancing hit can BOUNCE off the runner while the tackler goes down
+  reaching, and a late man adds his push to the PILE after the whistle. EFFORT:
+  a man who has lost the footrace or is on the far side with the ball going
+  away JOGS; an empty tank costs a step. THE BACK HAS EYES: gaps are judged by
+  where defenders WILL be (their committed lines projected), a gap behind a
+  blocker who has his man is the one to press, and a closed hole is bounced.
+  LEVERAGE: a won block only washes the man away from the hole if the blocker
+  gets his head across — a lost reach seals him INTO it. SPECIAL TEAMS run on
+  the engine: punts, kickoffs and field goals are agent plays (the long snap,
+  protection against a real rush, blocks when a free man reaches the kick point,
+  the kick's own flight, coverage lanes narrowing on the returner, gunners vs
+  jammers, a fair catch when the coverage is on him, a wedge, the return and
+  the tackle) and the broadcast renders them from their logs — kickoffs are now
+  plays in the drive log. The game engine keeps its level-scaled leg and its rare
+  rolls; the sim decides the block, the fair catch and the return. Balance: a
+  back who has already made two men miss finds the third one gets him
+  (`evadeRepeatK`), which is what let elite and ordinary backs share one set of
+  dials. Special-teams tackles are not booked to the box score. Every system is
+  asserted by `scripts/readcheck.mjs`; `gamerunprobe.mjs` reads the in-game
+  balance and `readshot.mjs` captures the broadcast.
+
+- **v81 — the defence has to FIND the ball.** Every defender used to know who had
+  it the instant the sim did: the carry loop handed all eleven the carrier's exact
+  position every tick, so the whole defence converged like it had read the play
+  sheet. Now each man reads KEYS on his own clock (`_readMs`, awareness-led, with
+  position and a jitter) and plays his assignment until he has diagnosed the
+  play — linebackers hold their gap with a read step, then FIT downhill at the
+  line before they chase; the play-side safety fills the alley while the other
+  stays over the top as the roof; the force corner squats on the edge; a freed
+  rusher chases what he can see. Once the ball is past the line it is in plain
+  sight and everyone goes looking for a job. Fakes move the moment the play
+  declares itself: a DRAW drops the QB and pass-sets the line before the late
+  mesh, PLAY ACTION rides a real fake to the back, and a linebacker or safety
+  who BITES steps the wrong way first (`fakeBiteBase`, cut by awareness and
+  discipline) and finds the ball later. Play action pays out on the reveal
+  (`paBiteSep`, `paVacateSep`) and the play-caller calls it on early downs
+  (`paRate`). Pursuit runs COMMITTED LINES: a chaser picks an intercept point and
+  runs his line to it, re-reading on an awareness clock (`angleRefreshMs`), so a
+  cut or a bounce leaves the bad slant you can see. THE POINT OF ATTACK: a run has
+  a designated hole (the concept picks the gap), each lineman rolls his block at
+  the mesh — stalemate / push / drive / lost / the rare PANCAKE — and won blocks
+  wash their men away from the hole so the gap visibly opens (`holeOpen`); the
+  back attacks the hole first and reads from there; linemen release once the
+  ball is past them and climb to the next man, the TE and receivers stalk-block,
+  and the backside receiver runs his corner off. Two latent bugs surfaced by the
+  spacing: a released lineman trailing the play could hold the "committed
+  tackler" role and the support rule then held every other defender a stride
+  off the runner (untouched 80s) — the role now needs a closing, moving man and
+  drops when he falls off; and the v16.3 per-tick pancake rate flattened someone
+  on a third of a dominant line's snaps (`pancakeTickK`). On screen: a "?" floats
+  over each defender still reading and drops the tick he finds it, bites,
+  driven blocks and the lane pop, and the you-player's own reads are called out.
+  Guarded by `scripts/readcheck.mjs` (pure Node, no server).
+
 - **v80 — the ball reaches the boundary, and the sideline watches it get there.**
   Two fixes, one cause each. LATERAL CALIBRATION: the field art draws its
   painted touchlines to true scale, ~16% wider than the raw lateral map put the

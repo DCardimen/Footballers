@@ -68,6 +68,96 @@ yard, `TICK = 33` ms per sim step. Key pieces, in order:
 - Stat truth extraction (anchor: `who ACTUALLY made the stop`) — after the play,
   the last `tackle` event is mapped back to roster players:
   `out.tackler` / `out.assist`. This is the **only** source of tackle credit.
+- **v81 BALL AWARENESS** (anchors `v81 BALL AWARENESS — the defence has to FIND the ball`
+  and `v81 THE POINT OF ATTACK`, both inside `sim()`; the renderer's cases sit under
+  `v81 BALL AWARENESS — you can watch the defence find the ball`): every defender gets
+  `_readMs` (awareness-led, position-scaled, jittered) and `_seenAt = declareT + _readMs`,
+  where `declareT` is when the play declares itself — early for a straight run, the late
+  mesh for a draw, the QB pulling the ball back for play action. `seesBall(a)` gates the
+  carry loop: until it is true a man plays his ASSIGNMENT (LB read step, safety keys the
+  back, force corner squats, freed rusher chases what he can see); once the ball is past
+  the line (`ballVisibleLx`) everyone sees it. `keyTick()` emits `keyLook` at the snap
+  (the renderer's "?"), `keyRead` when the diagnosis lands, `keyBite` for a man who bit
+  on a fake. After the read: linebackers FIT their gap at the line (`lbFitLx`) before
+  they chase; the play-side safety fills while the other is the roof (`_roof`); pursuit
+  runs a COMMITTED LINE (`_aimX/_aimY/_aimUntil`, refreshed on `angleRefreshMs` less
+  awareness — always every tick inside `angleLockGap` and for the last man). Blocks:
+  `rollBlockV81(o, r)` at the mesh returns stalemate / push / drive / lost / pancake with
+  a wash direction away from `holeY` (the concept picks the gap via `GAP_Y`); the carry
+  loop plays the block out over `blockPlayMs`, frees the rusher on a lost block, and
+  RELEASES a lineman once the ball is `releasePastPx` past him, after which he climbs
+  to the nearest live defender (`climbReachPx`, `_climbedBy` prevents stacking). The
+  back attacks `holeY` first and re-reads gaps every `laneHoldMs`. Receivers stalk-block
+  (`stalkReachPx`, capped by `stalkHoldMax`); the backside receiver runs his corner off.
+  A HELD defender (`held`) crawls but can still fall off onto a runner inside
+  `heldReachPx`. **Gotchas found here:** (1) the committed-tackler role
+  (`committerId`) must belong to a CLOSING man — a released lineman trailing the play
+  used to take it from launch range and the support rule then held every other
+  defender a stride off the carrier (untouched 80-yard runs); it now requires
+  `commitMinVel`, is taken over by anyone closer, and drops on `commitDropGap` /
+  `commitMaxMs`. (2) The per-tick pancake roll in `pancakeTick` was `.0009*(edge-10)`,
+  which flattened a man on a third of a dominant line's snaps; `pancakeTickK` is .00012.
+  (3) Passive second-level defenders (a safety holding a 44px cushion) are what turns a
+  broken tackle into a touchdown — the roof is ONE safety, and he pursues once the ball
+  is out. The you-player's stats are untouched: awareness (recognition), quickness
+  (redirect) and discipline (fake resistance) are the three that pay here, the same
+  three the v56 route-break reaction uses. `__FieldSim.run` takes the concept
+  (`inside|sweep|power|draw`) and `.pass` ctx carries `pa`; `Yr` rolls play action on
+  early downs (`paRate`) and prefixes "Play action — ". Debug: `window.__V81_TRACE = []`
+  collects per-tick pursuit rows (id, gap, committer, aim, vel). Guarded by
+  `scripts/readcheck.mjs`.
+- **v82 — the ten systems** (anchors `v82 THE FRONT HAS A PLAN`, `v82 DISGUISE`, `v82 THE CHIP`,
+  `v82 THE TWIST`, `v82 THE PROTECTION CALL`, `v82 STEP UP`, `v82 THE SACK HE TAKES`,
+  `v82 BALL SKILLS`, `v82 3.5) BOUNCE`, `v82 EFFORT`, `v82 THE PILE`, `v82 THE BACK HAS EYES`,
+  `v82 LEVERAGE`, `v82 SPECIAL TEAMS`). Pass setup rolls `stunt` (looper + penetrator, resolved
+  at `stuntLoopMs` by a pass-off roll off the two linemen's awareness), `spy` (an LB on a QB
+  with `spyQbSpd`+ speed, attacking once the pocket moves), `protection` (`slideReadBase`
+  + centre awareness; a read slide lets a lineman pick the blitzer up at `slidePickP`, a
+  missed one sends the back the wrong way for `wrongSlideMs`), `chipper` (the TE holds the
+  edge for `chipUntilMs` — chipped rushers cannot shed) and `disguise` (a robber rotates at
+  `rotateAt`; press corners jam at t=200 on `jamBase` vs agility, `jamMs` slows the route,
+  `jamSep`/`beatPressSep` move the window; a rotation over the target's route fools the QB on
+  `disguiseFoolBase` less awareness and costs `disguiseSep`). The QB climbs on edge pressure
+  (`stepUpPx`), rolls on `rolloutRate` (throws count as moving), and takes the sack on
+  `takeSackP` when smart (`sackSmartAware`) — `out.sack`/`out.sacker` flow through
+  `__FieldSim.pass` to `b()` in `Yr`, which books it like a trench sack; the choreographer
+  accepts a `sack` event for the pass log. Catch point: `boxK` (body between man and ball),
+  `comebackK` (underthrow), `swatP` on a contested window (`contestSep`, `swatBase`).
+  Contact adds `bounce` (glancing side hits, `bounceBase`) before the stagger; the coast
+  adds `pilePush` (cosmetic — yards are booked before it). Pursuit: `jogGap`/`farSideY`
+  drop a beaten or far-side man to `jogPace`, `tiredGas` costs `tiredPace`; the last man
+  never jogs. Run game: `liveIn` projects each defender `lookaheadS` ahead along his
+  committed line, `sealed` gaps behind a held blocker sort first, `press` fires when the
+  designed hole is closed and the back bounces; `rollBlockV81` rolls `reachP` and flips the
+  wash (`lev: "lost"`) when the head does not get across. **Balance gotcha:** every evasion
+  after the first is cut by `evadeRepeatK` — without it an elite back strung together four
+  one-on-ones and the check roster ran at 10 YPC while the in-game roster ran at 3.
+  **Special teams** (`sim("punt"|"kickoff"|"fg")`): formations are laid over the eleven
+  standard slots (QB = kicker/punter, RB = holder/personal protector, S = returner, WRs =
+  gunners/wings) so the you-player keeps his slot; phases `kickset` (protection vs
+  `kRushers`, wings on the edge, `kickBlockPx`/`kickBlockP` at `puntKickMs`/`fgKickMs`) →
+  `kickfly` (coverage runs `_laneY` narrowing on the returner, jammers via `blockTick`,
+  the returner settles and fair-catches inside `fairCatchPx` on `fairCatchP`) → the carry
+  phase with `isKick` tweaks (linemen are chasers, the last man by `dirSign`, `held`
+  coverage, the return team blocks with `blockTick`, `goalLx` ends a housed return). **The
+  sim clock runs ~2.5x real** (a sprint is 25 yd/s), so hang times are `puntHangBase`
+  ~1.25s and `kickoffHangBase` ~0.9s, and a field goal is kicked at 640ms — the first cut
+  used real-time hangs and 85% of field goals were blocked. `__FieldSim.punt/kickoff/fg`
+  return `{ret, fair, blocked, td}` / `{blocked, good}` and push logs with kind = event;
+  `Yr` calls them from the punt branch, `kickoffTo` (which now pushes an `event:"kickoff"`
+  play when the sim resolved it) and the FG branch; the choreographer's `kindWant` takes
+  kick logs. Special-teams tackles are deliberately not credited to the box score
+  (`creditcheck`'s sim truth counts scrimmage wraps).
+- **v83 BLOCK FACING + 2.5D** (renderer anchor `v83 BLOCK FACING + 2.5D`, next to `faceMarker`):
+  `pairUp(i, j)` / `unpair(i)` keep `m._pair` from the sim's engagement events; in
+  `placeMarker` an engaged marker faces its partner in SCREEN space (through `PJ`, so it
+  is NS-aware), takes the block state whenever it is slow and paired, cycles the block
+  frames at `blockDriveFrameMs` when the pair moves faster than `driveSpd`, is nudged
+  `engageSpread` px to a stable side (lower slot left), and — offence only — lifts by
+  `engageLift` in depth. A pair breaks itself when the two drift past `engageBreakPx`.
+  The sim side is only events: `engage {pairs}` at the snap (scrimmage and kicks),
+  `stuntPassOff {pairs}` on a passed-off twist, `pickup {by, on}`, `disengage {who, by}`
+  when a lineman releases once the ball is past him.
 - `breakProb`, `turnTest` — pure formula hooks for unit checks.
 - `fieldGoalRows()` / `fieldArtY(u)` (anchor `v72 END-ZONE MAPPING`) — the turf art
   is sampled by its GOAL LINES, not by its full height. The art has a real ten-yard
@@ -203,6 +293,7 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
 
 ```bash
 npm run dev                        # leave running; all checks drive it headlessly
+node scripts/readcheck.mjs        # v81 ball awareness: reads, fakes, blocks, the run curve (pure Node)
 node scripts/creditcheck.mjs      # tackle credit ≤ sim truth (this repo's invariant)
 node scripts/statcreditcheck.mjs  # box score credits only involved plays (all stats)
 node scripts/tacklecheck.mjs      # solo/gang split, whiff/truck/stiff-arm rates
@@ -213,6 +304,8 @@ node scripts/teamqualcheck.mjs    # v68 prestige-tree nerf holds at ~10x
 node scripts/equaltalentcheck.mjs # mirrored rosters are actually fair
 node scripts/refcheck.mjs         # v45/v49 officiating crew + ref art
 node scripts/crowdcheck.mjs       # v57 stands: perspective, roar wave, fallback
+node scripts/gamerunprobe.mjs     # v81 balance probe: in-game run/pass stats by concept (GAME_URL for a base build)
+node scripts/readshot.mjs         # v81 visual QA: framebuffer captures of the live game
 ```
 
 See `scripts/README.md` for the full catalog (including screenshot/exploration
