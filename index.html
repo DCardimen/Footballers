@@ -244,7 +244,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     // THE STAT IS AUTHORITATIVE: if endBall disagrees with startBall+yards,
     // the carry covers exactly `yards` so the +N YD popup mirrors the sim.
     let effEndYd = endYd;
-    const isKick0 = payload.event==="punt"||payload.event==="fg";
+    const isKick0 = payload.event==="punt"||payload.event==="fg"||payload.event==="kickoff";
     const isPick0 = !!payload.pickSix || /INTERCEPT|PICK SIX/.test(String(payload.desc||"").toUpperCase());
     const isFumble0 = String(payload.desc||"").toUpperCase().includes("FUMBLE");
     if (!isKick0 && !isPick0 && !isFumble0 && !payload.scored && Number.isFinite(yards)) {
@@ -266,7 +266,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const isSack = desc.includes("SACK"), isPick = !!payload.pickSix || /INTERCEPT|PICK SIX/.test(desc);
     const isFumble = desc.includes("FUMBLE") && !isPick;
     const isPass = payload.event==="pass"||payload.event==="incomplete"||isPick;
-    const isKick = payload.event==="punt"||payload.event==="fg";
+    const isKick = payload.event==="punt"||payload.event==="fg"||payload.event==="kickoff";
     const fx = payload.fx || {};
     const scored = !!payload.scored;
 
@@ -389,9 +389,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const h = root.__FieldSim._Q[0];
       if (h && h.sig.off === usOff) root.__FieldSim._Q.shift();
     }
-    if (!payload.penalty && !isKick && !isFumble && !payload.scored && typeof (root.__FieldSim||{}).takeLog === "function") {
+    if (!payload.penalty && !isFumble && !payload.scored && typeof (root.__FieldSim||{}).takeLog === "function") {
       const kindWant = (payload.event==="run") ? "run" :
-        (payload.event==="pass"||payload.event==="incomplete"||payload.event==="turnover") ? "pass" : null;
+        (payload.event==="pass"||payload.event==="incomplete"||payload.event==="turnover"||payload.event==="sack") ? "pass" :   // v82: a taken sack renders from its log
+        (payload.event==="punt"||payload.event==="fg"||payload.event==="kickoff") ? payload.event : null;                         // v82: special teams render from theirs
       if (kindWant) {
         const log = root.__FieldSim.takeLog({ off: usOff, kind: kindWant, yards: yards,
           intercepted: isPick ? true : (payload.event==="turnover"?true:undefined) });
@@ -1707,6 +1708,23 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         a._sidelineCross={x:x0+(x1-x0)*q,y:plane};}
       a.lx=x1; a.y=clampY(y1); };
 
+    // v82: one blocker on one man — used by return-team wedges and the kick teams'
+    // jammers. Reaches, holds him for a stretch, sheds off strength/agility against
+    // blocking; a shed man is free of everyone for a beat rather than forever.
+    const blockTick = (o, pool, reach) => {
+      let tgt = o._stalk && !(o._stalk.stunned && t < o._stalk.stunned) && !(t < (o._stalk._freeUntil||0)) ? o._stalk : null;
+      if (!tgt) { let td = reach || 90;
+        for (const a of pool) { if ((a.stunned && t < a.stunned) || t < (a._freeUntil||0) || a._climbedBy) continue;
+          const d2 = Math.hypot(a.lx - o.lx, a.y - o.y); if (d2 < td) { td = d2; tgt = a; } }
+        if (tgt) { o._stalk = tgt; tgt._climbedBy = o.id; } }
+      if (!tgt) return false;
+      mv(o, tgt.lx + (o.side === "def" ? 6 : -6), tgt.y, .85);
+      if (Math.hypot(o.lx - tgt.lx, o.y - tgt.y) < 14) {
+        const pshed = cl(((tgt.str*.5 + tgt.agi*.5) - o.blk) * .0006 + TU("kickShedBase", .03), .004, .08);
+        if (Math.random() < pshed) { tgt._freeUntil = t + TU("kickFreeMs", 700); tgt._climbedBy = null; o._stalk = null; }
+        else { if (o._blockAnn !== tgt.id) { o._blockAnn = tgt.id; emit("block", { by: o.id, on: tgt.id, x: o.lx, y: o.y }); } tgt.held = t + 60; } }
+      return true;
+    };
     // ---- trench: paired blocking contests; engaged rushers CRAWL ----
     const rushers = S.def.filter(a=>a.lb==="DL");
     const blockers = S.off.filter(a=>a.lb==="OL");
@@ -1732,6 +1750,107 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     // peels off to double-team another rusher.
     const edges = rushers.slice().sort((a2,b2)=>Math.abs(b2.y-MIDY)-Math.abs(a2.y-MIDY)).slice(0,2);
     edges.forEach(e=>{ e.edge = true; });
+    /* ===== v82 SPECIAL TEAMS — the third phase runs on the same engine =====
+     * Punts, kickoffs and field goals used to resolve as numbers outside the sim
+     * and render from the choreographer. Now they are agent plays: a snap to the
+     * punter or holder, protection that has to hold while the rush comes (a free man
+     * who reaches the kick point BLOCKS it), the kick's own flight, coverage men
+     * running their LANES and narrowing on the returner, gunners fighting jammers,
+     * a returner who settles under the ball and fair-catches when the coverage is on
+     * him, a return with blockers forming in front of him, and the same contact
+     * model deciding where he goes down. The offence slots keep their labels (the
+     * "QB" is the kicker/punter, the "RB" the holder or personal protector) so the
+     * you-player takes the field at his own position and the art stays right.
+     * Special-teams tackles are NOT booked to the box score (creditcheck's sim
+     * truth counts scrimmage wraps), which is noted in the docs. */
+    const isKick = kind === "punt" || kind === "kickoff" || kind === "fg";
+    const kickOpts = opts || {};
+    let kRushers = [], kBlockers = [], returner = null, kickPhaseAt = 0;
+    if (isKick) {
+      const put = (a, lx, y) => { a.lx = lx; a.y = clampY(y); };
+      const O = S.off, D = S.def;
+      S.all.forEach(a => { a.engagedBy = null; a.engaging = null; a.doubled = false; a.doubling = null; a.edge = false; });
+      if (kind === "punt") {
+        [O[3],O[4],O[5],O[6],O[7]].forEach((a,i)=>put(a, 0, 174 + i*24));
+        put(O[2],-6,150); put(O[10],-6,294); put(O[9],-40,232); put(O[8],TU("punterLx",-82),222);
+        put(O[0],0,60); put(O[1],0,380);
+        [D[7],D[8],D[9],D[10]].forEach((a,i)=>put(a, 8, 180 + i*28));
+        put(D[4],14,150); put(D[5],14,222); put(D[6],14,296);
+        put(D[0],16,66); put(D[1],16,374);
+        const land = (kickOpts.gross || 40) * YD;
+        put(D[2], land - 6, 222); put(D[3], Math.max(60, land - 70), 262);
+        kBlockers = [O[3],O[4],O[5],O[6],O[7],O[2],O[10],O[9]]; kRushers = [D[7],D[8],D[9],D[10],D[4],D[5],D[6]];
+      } else if (kind === "kickoff") {
+        put(O[8], -40, 232);
+        [O[0],O[1],O[2],O[3],O[4],O[5],O[6],O[7],O[9],O[10]].forEach((a,i)=>put(a, -10, 72 + i*31));
+        const land = (kickOpts.gross || 60) * YD;
+        put(D[2], land - 8, 222); put(D[3], land - 80, 262);
+        [D[7],D[8],D[9],D[10],D[4],D[5],D[6],D[0],D[1]].forEach((a,i)=>put(a, 200 + (i%3)*22, 96 + i*31));
+      } else {
+        [O[3],O[4],O[5],O[6],O[7],O[2],O[10]].forEach((a,i)=>put(a, 0, 150 + i*24));
+        put(O[0], -4, 126); put(O[1], -4, 318);
+        put(O[9], TU("holderLx", -42), 226); put(O[8], TU("kickerLx", -58), 244);
+        [D[7],D[8],D[9],D[10],D[4],D[5],D[6]].forEach((a,i)=>put(a, 8, 150 + i*24));
+        put(D[0], 2, 164); put(D[1], 2, 284); put(D[2], 34, 200); put(D[3], 34, 250);
+        kBlockers = [O[3],O[4],O[5],O[6],O[7],O[2],O[10]]; kRushers = [D[7],D[8],D[9],D[10],D[4],D[5],D[6],D[0],D[1]];
+      }
+      returner = D[2];
+      // a wing who misses his edge man: the free rusher off the corner is where blocks come from
+      S.off[0]._wingMiss = kind === "fg" && Math.random() < TU("fgWingMissP", .3) && Math.random() < .5;
+      S.off[1]._wingMiss = kind === "fg" && Math.random() < TU("fgWingMissP", .3) && !S.off[0]._wingMiss;
+      kRushers.forEach(r => { if (kind === "fg" && (r === D[0] || r === D[1])) { r._edgeRush = true; return; }   // the corners come off the edge
+        const o = kBlockers.filter(b=>!b.engagedBy).sort((p2,q2)=>Math.abs(p2.y-r.y)-Math.abs(q2.y-r.y))[0];
+        if (o && Math.abs(o.y - r.y) < 30) { r.engaging = o; o.engagedBy = r; } else r._edgeRush = true; });
+      S.all.forEach(a => { a._laneY = a.y; });
+    }
+    /* ===== v82 THE FRONT HAS A PLAN — stunts, a spy, the protection call, the chip =====
+     * The pass rush was one dimension: four men shed or did not. Now the front can
+     * run a TWIST (the interior man crashes the outside gap first, the edge loops
+     * behind him into the vacated lane — the line has to pass it off, and a line
+     * that does not read it hands the looper a free run), a SPY mirrors a mobile
+     * quarterback instead of dropping, and the offence answers with a PROTECTION
+     * CALL (the centre reads the blitz side and slides the line toward it — read it
+     * wrong and the back is alone on the blitzer from the wrong side) and a CHIP
+     * (the tight end hits the edge on his way into the route). */
+    let stunt = null, spy = null, protection = { slide: 0, read: true }, chipper = null, disguise = null;
+    if (kind === "pass") {
+      const qb0 = S.off[8];
+      if (Math.random() < TU("stuntRate", .22)) {
+        const looper = edges[Math.floor(Math.random()*edges.length)];
+        const pen = rushers.filter(r=>!r.edge).sort((a2,b2)=>Math.abs(a2.y-looper.y)-Math.abs(b2.y-looper.y))[0];
+        if (looper && pen && looper.engaging && pen.engaging) {
+          stunt = { looper, pen, at: TU("stuntLoopMs", 380) + Math.random()*160, resolved: false };
+          looper._stunt = "loop"; pen._stunt = "pen";
+        }
+      }
+      if (qb0.spdA >= TU("spyQbSpd", 62) && Math.random() < TU("spyRate", .55)) {
+        spy = S.def.filter(a=>a.lb==="LB" && a!==blitzer).sort((a2,b2)=>Math.abs(a2.y-MIDY)-Math.abs(b2.y-MIDY))[0] || null;
+        if (spy) spy._spy = true;
+      }
+      if (blitzer) {
+        const c0 = blockers[2];
+        const readP = cl(TU("slideReadBase", .55) + (c0.aware - 50) * TU("slideReadAwareK", .008), .2, .92);
+        protection.read = Math.random() < readP;
+        protection.slide = protection.read ? (Math.sign(blitzer.y - MIDY) || 1) : (Math.random() < .5 ? -(Math.sign(blitzer.y - MIDY) || 1) : 0);
+      }
+      const te0 = S.off[2];
+      if (te0 && te0.player !== (picks && picks.target) && Math.random() < TU("chipRate", .5)) {
+        const edge = edges.slice().sort((a2,b2)=>Math.abs(a2.y-te0.y)-Math.abs(b2.y-te0.y))[0];
+        if (edge) chipper = { te: te0, edge, until: TU("chipUntilMs", 520) };
+      }
+      /* ===== v82 DISGUISE — the shell the quarterback sees is not the shell he gets =====
+       * Safeties can show two-high and ROTATE one down as a robber after the snap;
+       * corners can PRESS and jam the release instead of playing off. The QB grades
+       * his reads off the pre-snap picture, so a rotation he does not see coming
+       * (awareness) takes the window away after he has already decided. */
+      const safeties = S.def.filter(a=>a.lb==="S");
+      const rot = safeties.length >= 2 && Math.random() < TU("rotateRate", .35);
+      const robber = rot ? safeties[Math.floor(Math.random()*safeties.length)] : null;
+      disguise = { rot, robber, rotateAt: 160 + Math.random()*260, press: [], fooled: null };
+      if (robber) robber._robber = true;
+      S.def.filter(a=>a.lb==="CB").forEach(cb => {
+        if (Math.random() < cl(TU("pressRate", .4) + (cb.cov-55)*.004, .15, .7)) { cb._press = true; cb.lx = TU("pressLx", 6); disguise.press.push(cb.id); } });
+    }
     const swimTick = (r) => { if (r.shed || !r.edge || !r.engaging || (r.stunned && t<r.stunned)) return;
       const p = cl(((r.quick*0.5 + r.agi*0.5) - r.engaging.blk*0.9) * 0.0006 + 0.004, 0.001, 0.03) * (kind==="run"?0.6:1) * (r.doubled?0.4:1);
       if (Math.random() < p) { r.shed = true; r.swim = true; r.releaseT = t; emit("swim",{who:r.id, x:r.lx, y:r.y}); } };
@@ -1799,7 +1918,10 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // pack), so nearly every contact became a one-on-one in space — and the
       // one-on-one odds were tuned for a swarm era. A true solo contact on a run is
       // trimmed by soloEvadeK; the stat gaps still decide who wins it.
-      const soloK = handsOn <= 0 && kind === "run" ? TU("soloEvadeK", .9) : 1;
+      // v82: he has already made men miss this play — the third one gets him. Each
+      // evasion after the first cuts the next one's odds; a back does not shake
+      // the whole defence one at a time, and the swarm is arriving by then.
+      const soloK = (handsOn <= 0 && kind === "run" ? TU("soloEvadeK", 1.0) : 1) * Math.pow(TU("evadeRepeatK", .6), Math.max(0, (c._evades||0) - 1));
       emit("tackleLunge",{who:d.id, carrier:c.id, x:c.lx, y:c.y, behind, dMom:Math.round(dMom), cMom:Math.round(cMom)});
       // v30 fatigue: collisions cost real gas on BOTH sides — a back who absorbs six
       // hits finishes the game on heavier legs than one who ran untouched.
@@ -1814,7 +1936,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         // v29 OVERSHOOT: the juked man's momentum carries him PAST the cut point — he
         // keeps flying along his old line while beaten instead of freezing in place.
         d._osUntil = t + TU("overshootMs",420); d._osdx = d._dx||((c.lx-d.lx)>=0?1:-1); d._osdy = d._dy||0;
-        emit("tackleWhiff",{who:d.id, carrier:c.id, x:d.lx, y:d.y});
+        c._evades = (c._evades||0) + 1; emit("tackleWhiff",{who:d.id, carrier:c.id, x:d.lx, y:d.y});
         // v24: which move beat him is rating-driven — spin favors raw agility (whipping
         // the hips around), a jump-cut juke favors quickness. `elus` rides the event so
         // the renderer can make an elite back's move crisp and a scrub's sloppy.
@@ -1843,7 +1965,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       if (Math.random() < hurdleP) {
         d.beaten = t + 560; d.cool = t + 480; c.burstUntil = t + 380; kickSprint(c);
         c.vel = Math.max(0,(c.vel||0)*0.98);
-        emit("hurdle",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
+        c._evades = (c._evades||0) + 1; emit("hurdle",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
         if (committerId===d.id) committerId = null;
         return "hurdle";
       }
@@ -1854,7 +1976,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const stiffP = (behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005, 0, 0.5)) * (1 - swarmChoke) * soloK;
       if (Math.random() < stiffP) {
         d.beaten = t + 520; d.stagger = t; c.vel = Math.max(0,(c.vel||0)*0.95); c.burstUntil = t + 300; kickSprint(c);
-        emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
+        c._evades = (c._evades||0) + 1; emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
         if (committerId===d.id) committerId = null;
         return "stiffarm";
       }
@@ -1882,7 +2004,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         // v25 HIT STICK (offense): a violent truck flattens the defender — flagged so the
         // renderer flings him with the baked dive/down frames and pops "HIT STICK".
         const hitStick = (powerEdge > 24 || bothWin) && tkb > 9;
-        if (brokenShown++ < 4) emit("brokenTackle",{who:d.id, carrier:c.id, x:d.lx, y:d.y, kb:Math.round(tkb), hitStick});
+        c._evades = (c._evades||0) + 1; if (brokenShown++ < 4) emit("brokenTackle",{who:d.id, carrier:c.id, x:d.lx, y:d.y, kb:Math.round(tkb), hitStick});
         if (committerId===d.id) committerId = null;
         return "broken";
       }
@@ -1892,6 +2014,18 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       // matter: a staggered carrier bleeds speed and is easier to bring down next hit.
       const wrapQ = d.tkl*0.62 + (dMom>cMom?14:0) + (behind?22:0);
       const balance = c.str*0.4 + c.agi*0.35 + (c.burst||c.spdA||50)*0.25;
+      // v82 3.5) BOUNCE — a glancing hit from the side: the carrier absorbs it and keeps
+      // his feet while the tackler goes to the ground reaching. Balance against the wrap,
+      // and the ANGLE of the hit, decide it. Distinct from a stagger, where both stay up.
+      const glancing = !behind && Math.abs(d._dy||0) > TU("glancingDy", .7);
+      const bounceP = cl(TU("bounceBase", .02) + (balance - wrapQ)*0.004 + (glancing ? TU("glancingBonus", .04) : 0) - (c._staggered&&t-c._staggered<500?0.05:0), 0.01, 0.3) * (1 - swarmChoke) * soloK;
+      if (Math.random() < bounceP) {
+        d.beaten = t + 520; d.cool = t + 480; d._osUntil = t + TU("overshootMs",420); d._osdx = d._dx||0; d._osdy = d._dy||0;
+        c.vel = Math.max(0,(c.vel||0)*0.78); c._staggered = t;
+        c._evades = (c._evades||0) + 1; emit("bounce",{who:d.id, carrier:c.id, x:c.lx, y:c.y, glancing});
+        if (committerId===d.id) committerId = null;
+        return "bounce";
+      }
       const staggerP = cl(0.11 + (balance - wrapQ)*0.006 - (behind?0.22:0) - (c._staggered&&t-c._staggered<500?0.20:0), 0.03, 0.46) * (1 - swarmChoke);
       if (Math.random() < staggerP) {
         d.stagger = t; d.cool = t + 300;
@@ -2023,7 +2157,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const keyTick = () => {
       // once the ball is past the line it is in plain sight: everyone still reading
       // finds it now and goes looking for a job
-      const ballOut = carrier && carrier.side === "off" && carrier !== S.off[8] && carrier.lx > TU("ballVisibleLx", 8);
+      const ballOut = !isKick && carrier && carrier.side === "off" && carrier !== S.off[8] && carrier.lx > TU("ballVisibleLx", 8);
       S.def.forEach(a => {
         if (a._seenAt == null && t >= 140) { a._seenAt = declareT + a._readMs; emit("keyLook", { who: a.id, until: a._seenAt, bite: a._bite }); }
         if (ballOut && a._seenAt != null && a._seenAt > t) a._seenAt = t;
@@ -2055,8 +2189,13 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       else if (edge > TU("pushEdge", -2)) bk = Math.random() < .45 ? "push" : "stalemate";
       else if (edge < TU("lostEdge", -12)) bk = "lost";
       // wash the man AWAY from the hole; a lineman on the hole's own y gets a coin flip
-      const dir = o.y < holeY - 4 ? -1 : o.y > holeY + 4 ? 1 : (Math.random() < .5 ? -1 : 1);
-      return { kind: bk, dir, t0: t, x0: o.lx, y0: o.y };
+      const dir0 = o.y < holeY - 4 ? -1 : o.y > holeY + 4 ? 1 : (Math.random() < .5 ? -1 : 1);
+      // v82 LEVERAGE: the wash only goes the right way if he gets his head across. A
+      // reach block that is not reached seals nothing — the defender ends up washed
+      // INTO the hole, which is how a "won" block still blows up a run.
+      const reachP = cl(TU("reachBase", .64) + (o.agi - r.quick) * TU("reachK", .006) + (o.aware - 50) * .003, .15, .95);
+      const reached = bk === "stalemate" || bk === "lost" || bk === "pancake" || Math.random() < reachP;
+      return { kind: bk, dir: reached ? dir0 : -dir0, lev: reached ? "reach" : "lost", t0: t, x0: o.lx, y0: o.y };
     };
     let holeShown = false;
     // phase state
@@ -2096,7 +2235,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       const _depthK=_cc==="screen"?1:_cc==="quick"?.95:_cc==="shot"?.96:_cc==="fade"?.94:(root.__fullGameBalanceV39?.98:.86);
       routeDepth=Math.max(_cc==="screen"?-2:2,routeDepth*_depthK);
       throwAt = cl(620 + routeDepth*30 + Math.random()*180, 680, 1750);
-      if (playAction) throwAt = Math.max(throwAt, declareT + TU("paThrowMin", 420));   // v81: the fake costs the QB a beat
+      if (playAction) throwAt = Math.max(throwAt, declareT + TU("paThrowMin", 360));   // v81: the fake costs the QB a beat
       // ---- v16.5 real routes: every receiver runs an actual route (not a straight
       // line up the field), varied by concept so plays look distinct, and the ball
       // is thrown to the TARGET's break so it meets him there — a full playback.
@@ -2292,6 +2431,15 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       readProg.push({id:target.id,window:null,sep:null});
       readStart = 300;
       emit("release",{win:relWin,bracketed});
+      // v82: the plans, announced so the broadcast can show them
+      if (stunt) emit("stunt", { a: stunt.looper.id, b: stunt.pen.id });
+      if (spy) emit("spy", { who: spy.id, on: S.off[8].id });
+      if (blitzer) emit("protection", { slide: protection.slide, read: protection.read, blitz: blitzer.id });
+      if (chipper) emit("chip", { who: chipper.te.id, on: chipper.edge.id, x: chipper.te.lx, y: chipper.te.y });
+      if (disguise) emit("disguise", { show: disguise.rot ? "two-high" : (Math.random() < .5 ? "two-high" : "one-high"), press: disguise.press, rotate: disguise.robber ? disguise.robber.id : null });
+      // v82: a designed ROLLOUT — the QB moves the pocket to one side and throws on the run
+      if (!playAction && (passConcept === "dropback" || passConcept === "shot") && Math.random() < TU("rolloutRate", .12)) {
+        S.off[8]._roll = target.y >= MIDY ? 1 : -1; emit("rollout", { side: S.off[8]._roll, x: S.off[8].lx, y: S.off[8].y }); }
     }
 
     // v20: announce anyone who takes the field gassed (renderer pops it over the you-player)
@@ -2305,8 +2453,92 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       if ((t / TICK) % 4 < 1) S.all.forEach(a => {
         if ((a.aware + (a._sprintIQV20 || 0)) < TU("gasIQDumb", 46) && Math.random() < TU("gasDumbSprintP", 0.02)) kickSprint(a);
       });
-      keyTick();   // v81: who has found the ball this tick
-      if (phase === "snap") { if (t >= 140) { carrier = S.off[8]; emit("snap",{}); phase = kind==="pass"?"drop":"handoff"; } }
+      if (!isKick) keyTick();   // v81: who has found the ball this tick
+      if (phase === "snap") { if (t >= 140) {
+        if (isKick) {
+          phase = "kickset"; kickPhaseAt = t;
+          if (kind === "kickoff") { carrier = null; ball = { lx: 0, y: MIDY, h: 0 }; emit("snap", { kickoff: true }); }
+          else {
+            // the long snap: the ball travels to the punter or the holder
+            const to = kind === "fg" ? S.off[9] : S.off[8];
+            emit("snap", {}); carrier = null;
+            ballFlight = { t0: t, style: "bullet", dur: kind === "fg" ? 420 : 560, x0: 0, y0: MIDY, x1: to.lx + 4, y1: to.y, arc: 5,
+              done: () => { carrier = to; emit("snapCatch", { by: to.id, x: to.lx, y: to.y }); } };
+          }
+        }
+        else { carrier = S.off[8]; emit("snap",{}); phase = kind==="pass"?"drop":"handoff"; } } }
+      else if (phase === "kickset" || phase === "kickfly") {
+        const kicker = S.off[8], holder = S.off[9];
+        const kickPoint = () => kind === "fg" ? { x: holder.lx + 2, y: holder.y } : kind === "punt" ? { x: kicker.lx + 10, y: kicker.y } : { x: 0, y: MIDY };
+        const launchKick = () => {
+          const kp = kickPoint(); let x1, y1, dur, arc;
+          if (kind === "fg") {
+            const posts = ((kickOpts.pos != null ? 100 - kickOpts.pos : (kickOpts.dist || 35) - 7) + 10) * YD;
+            const good = !!kickOpts.good; const miss = (Math.random() < .5 ? -1 : 1) * (56 + Math.random() * 28);
+            x1 = posts + 14; y1 = clampY(MIDY + (good ? (Math.random() * 28 - 14) : miss));
+            dur = cl((x1 - kp.x) * 3.2, 900, 2400); arc = 70 + (x1 - kp.x) * .18;
+            ballFlight = { t0: t, style: "kick", dur, x0: kp.x, y0: kp.y, x1, y1, arc, done: () => { emit("fgResult", { good, x: x1, y: y1 }); emit("land", { x: x1, y: y1 });
+              out = { kind, yards: 0, blocked: false, good }; done = true; } };
+            emit("throw", { x: kp.x, y: kp.y, tx: x1, ty: y1, style: "kick", fg: true });
+          } else {
+            const gross = kickOpts.gross || (kind === "punt" ? cl(28 + (kicker.str-50)*.3 + (kicker.thr-50)*.2 + (Math.random()*14-7), 18, 62)
+              : cl(58 + (kicker.str-50)*.35 + (Math.random()*10-5), 45, 72));
+            x1 = gross * YD; y1 = clampY(MIDY + (Math.random()*2-1) * (kind === "punt" ? TU("puntSpreadY", 110) : TU("kickoffSpreadY", 60)));
+            // the sim clock runs about 2.5x real (a sprint is 25 yd/s here), so a 4.5s real hang is ~1.4s
+            dur = kind === "punt" ? cl(TU("puntHangBase", 1250) + gross*9 + (Math.random()*220-110), 900, 1700) : cl(TU("kickoffHangBase", 900) + gross*8, 1200, 1900);
+            arc = kind === "punt" ? TU("puntArc", 110) : TU("kickoffArc", 130);
+            const ret = returner;
+            ballFlight = { t0: t, style: "kick", dur, x0: kp.x, y0: kp.y, x1, y1, arc, done: () => {
+              const catchable = Math.hypot(ret.lx - x1, ret.y - y1) < TU("returnCatchPx", 26);
+              const near = S.off.filter(a => a !== kicker).map(a => Math.hypot(a.lx - ret.lx, a.y - ret.y)).sort((a2,b2)=>a2-b2)[0] || 999;
+              if (kind === "punt" && (!catchable || (near < TU("fairCatchPx", 52) && Math.random() < TU("fairCatchP", .7)))) {
+                emit(catchable ? "faircatch" : "land", { x: x1, y: y1 }); out = { kind, yards: 0, ret: 0, fair: true, spotLx: x1 }; done = true; return; }
+              if (!catchable) { ret.lx = x1; ret.y = y1; }
+              ret._catchLx = ret.lx; carrier = ret; phase = "carry";
+              emit("puntCatch", { by: ret.id, x: ret.lx, y: ret.y, kickoff: kind === "kickoff" }); } };
+            emit("throw", { x: kp.x, y: kp.y, tx: x1, ty: y1, style: "kick", to: ret.id, gross });
+          }
+          emit("kick", { fg: kind === "fg", x: kp.x, y: kp.y }); carrier = null; phase = "kickfly";
+          S.off.forEach(a => { a._laneY = a.y; });
+        };
+        if (phase === "kickset") {
+          if (kind === "kickoff") {
+            mv(kicker, 2, MIDY, .8);
+            if (t >= TU("kickoffMs", 600)) launchKick();
+          } else {
+            // protection holds while the rush comes; a free man at the kick point blocks it
+            kRushers.forEach(r => { if (r.shed || !r.engaging || (r.stunned && t < r.stunned)) return;
+              const pr = cl(((r.str*.55 + r.quick*.45) - r.engaging.blk) * .0004 + .003, .0006, .02) * TU("kickShedK", .25);
+              if (Math.random() < pr) { r.shed = true; r.releaseT = t; r.engaging.engagedBy = null; emit("shed", { who: r.id }); } });
+            const kp = kickPoint();
+            kRushers.forEach(r => { if (t < (r.held||0)) return; if (r.shed || r._edgeRush) mv(r, kp.x, kp.y, 1.0); else if (r.engaging) mv(r, r.engaging.lx + 8, r.engaging.y, .4); });
+            kBlockers.forEach(o => { if (o.engagedBy && !o.engagedBy.shed) mv(o, o.lx - 1, o.y, .3); });
+            if (kind === "punt") { blockTick(S.def[0], [S.off[0]], 40); blockTick(S.def[1], [S.off[1]], 40); }   // jammers on the gunners
+            if (kind === "fg") { mv(kicker, kicker.lx, kicker.y, 0); if (!S.off[0]._wingMiss) blockTick(S.off[0], [S.def[0]], 40); if (!S.off[1]._wingMiss) blockTick(S.off[1], [S.def[1]], 40); }   // the wings take the edge
+            const kickAt = kind === "fg" ? TU("fgKickMs", 640) : TU("puntKickMs", 960);
+            if (t >= kickAt && carrier) {
+              const blocker = kRushers.find(r => (r.shed || r._edgeRush) && Math.hypot(r.lx - kp.x, r.y - kp.y) < TU("kickBlockPx", 12) && Math.random() < TU("kickBlockP", .04));
+              if (blocker) { emit("kickBlocked", { who: blocker.id, x: kp.x, y: kp.y }); out = { kind, yards: 0, blocked: true }; done = true; }
+              else launchKick();
+            }
+          }
+        } else {
+          // the ball is in the air: coverage runs its lanes and narrows on the returner,
+          // the returner settles under it, the return team turns and forms in front
+          const bx = ballFlight ? ballFlight.x1 : ball.lx, by = ballFlight ? ballFlight.y1 : ball.y;
+          if (kind !== "fg") {
+            mv(returner, bx - 2, by, .9); mv(S.def[3], bx - 50, by + (by < MIDY ? 30 : -30), .7);
+            S.off.forEach(a => { if (a === kicker || (kind !== "kickoff" && a === holder && false)) return;
+              const k = cl((a.lx - 40) / 160, 0, 1);
+              mv(a, bx - 14, a._laneY * (1 - k) + returner.y * k, t < (a.held||0) ? .2 : .95); });
+            S.def.forEach(a => { if (a === returner || a === S.def[3]) return;
+              if (kind === "punt" && (a === S.def[0] || a === S.def[1])) { blockTick(a, [a === S.def[0] ? S.off[0] : S.off[1]], 60); return; }
+              if (!blockTick(a, S.off.filter(o => o !== kicker && o.lx > a.lx - 30), 110)) mv(a, Math.max(20, bx - 90), a.y, .7); });
+          } else {
+            kRushers.forEach(r => mv(r, Math.max(r.lx, 10), r.y, .3));
+          }
+        }
+      }
       else if (phase === "handoff") {
         if (isDraw && t < HANDOFF_T) {
           // v81 DRAW: the QB drops and the line pass-sets — to a man reading his
@@ -2327,7 +2559,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             o._blk = rollBlockV81(o, r);
             if (o._blk.kind==="pancake") { r.stunned = t + TU("pancakeStunMs",1500) + Math.random()*800; r.shed=false; r.engaging=null;
               o._free=true; o.pancaked=t; o.engagedBy=null; emit("pancake",{who:r.id,by:o.id,x:r.lx,y:r.y,run:true}); }
-            else if (o._blk.kind!=="stalemate") emit("blockWin",{who:o.id,on:r.id,kind:o._blk.kind,dir:o._blk.dir,x:o.lx,y:o.y}); });
+            else if (o._blk.kind!=="stalemate") emit("blockWin",{who:o.id,on:r.id,kind:o._blk.kind,dir:o._blk.dir,lev:o._blk.lev,x:o.lx,y:o.y}); });
           // second-level blocking: uncovered linemen climb to linebackers — v81: to
           // the linebacker nearest the HOLE first, since that is the man the design
           // has to account for, not whichever one the roster listed first
@@ -2348,13 +2580,37 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       }
       else if (phase === "drop") {
         const qb = S.off[8];
-        rushers.forEach(shedTick);
-        rushers.forEach(swimTick);
+        // v82 THE CHIP: the tight end hits the edge on his way out — the rusher is
+        // stood up for a beat and cannot work his move while the hands are on him
+        if (chipper && t < chipper.until) {
+          mv(chipper.te, chipper.edge.lx - 6, chipper.edge.y, .9);
+          if (Math.hypot(chipper.te.lx - chipper.edge.lx, chipper.te.y - chipper.edge.y) < 14) {
+            chipper.edge._chipUntil = t + 120; if (!chipper.landed) { chipper.landed = true; emit("block", { by: chipper.te.id, on: chipper.edge.id, x: chipper.te.lx, y: chipper.te.y, chip: true }); } }
+        }
+        rushers.forEach(r => { if (t < (r._chipUntil||0)) return; shedTick(r); });
+        rushers.forEach(r => { if (t < (r._chipUntil||0)) return; swimTick(r); });
         blockers.forEach(pancakeTick);
         freeOLHelp(qb);
-        rushers.forEach(r=>{ if(!r.shed && r.engaging && !(r.stunned && t<r.stunned)){
+        // v82 THE TWIST: at the loop the two rushers trade gaps. The line has to see it
+        // and pass the men off; if it does not, the looper comes through untouched.
+        if (stunt && !stunt.resolved && t >= stunt.at && !stunt.looper.shed && !stunt.pen.shed && stunt.looper.engaging && stunt.pen.engaging) {
+          stunt.resolved = true;
+          const oL = stunt.looper.engaging, oP = stunt.pen.engaging;
+          const passOffP = cl(TU("passOffBase", .58) + ((oL.aware + oP.aware) / 2 - 50) * TU("passOffAwareK", .009) + (oL.doubling || oP.doubling ? .1 : 0), .15, .95);
+          stunt.looper._loopVia = { x: oP.lx - 10, y: oP.y }; stunt.looper._loopUntil = t + 360;
+          if (Math.random() < passOffP) {
+            // passed off: the looper is met by the interior man, the penetrator by the tackle
+            stunt.looper.engaging = oP; oP.engagedBy = stunt.looper; stunt.pen.engaging = oL; oL.engagedBy = stunt.pen;
+            emit("stuntPassOff", { a: stunt.looper.id, b: stunt.pen.id, x: oP.lx, y: oP.y });
+          } else {
+            stunt.looper.shed = true; stunt.looper.releaseT = t; oL.engagedBy = null; stunt.pen.doubled = true;
+            emit("stuntWin", { who: stunt.looper.id, x: stunt.looper.lx, y: stunt.looper.y });
+          }
+        }
+        rushers.forEach(r=>{ if(!r.shed && r.engaging && !(r.stunned && t<r.stunned) && t >= (r._chipUntil||0)){
           // edge rushers bend the corner (push wide + up); interior bull-rush straight
-          const wide = r.edge ? (r.y<MIDY?-1:1)*0.4 : 0;
+          // v82: a penetrator on a twist crashes the OUTSIDE gap before the loop
+          const wide = r.edge ? (r.y<MIDY?-1:1)*0.4 : (r._stunt === "pen" && stunt && !stunt.resolved ? (r.y<MIDY?-1:1)*0.6 : 0);
           r.engaging.lx -= Math.max(0,(r.str-r.engaging.str))*0.000027*TICK;
           r.engaging.y += wide; }});
         if (doubled && !doubled._ann) { doubled._ann=1; emit("doubleTeam",{on:doubled.id}); }
@@ -2362,20 +2618,35 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         if (blitzer && blitzer.blitzing && !blitzer.picked && !blitzer.freeRun) {
           mv(blitzer, qb.lx, qb.y, 1.0);
           const rb = S.off[9];
-          mv(rb, (blitzer.lx+qb.lx)/2, (blitzer.y+qb.y)/2, 0.95);   // back scans, steps up to meet it
-          if (Math.hypot(blitzer.lx-rb.lx, blitzer.y-rb.y) < 27) {
-            if (Math.random() < 0.3 + rb.vis*0.006 + rb.blk*0.004) { blitzer.picked = true; blitzer.engaging = rb; rb.engagedBy = blitzer; emit("pickup",{by:rb.id}); }
-            else { blitzer.freeRun = true; emit("freeRusher",{who:blitzer.id}); }
+          // v82 THE PROTECTION CALL: a slide read right puts a lineman on the blitzer with
+          // the back doubling; a slide read wrong sends the back the wrong way first
+          const wrongWay = !protection.read && t < TU("wrongSlideMs", 480);
+          if (wrongWay) mv(rb, qb.lx + 6, qb.y - (Math.sign(blitzer.y - qb.y) || 1) * 22, 0.85);
+          else mv(rb, (blitzer.lx+qb.lx)/2, (blitzer.y+qb.y)/2, 0.95);   // back scans, steps up to meet it
+          if (protection.read && protection.slide) {
+            const slider = blockers.slice().sort((a2,b2)=>Math.abs(a2.y-blitzer.y)-Math.abs(b2.y-blitzer.y))[0];
+            if (slider && Math.hypot(blitzer.lx-slider.lx, blitzer.y-slider.y) < 22 && Math.random() < TU("slidePickP", .8)) {
+              blitzer.picked = true; blitzer.engaging = slider; if (slider.engagedBy && slider.engagedBy.engaging === slider) { rb.engagedBy = slider.engagedBy; slider.engagedBy.engaging = rb; }
+              slider.engagedBy = blitzer; emit("pickup", { by: slider.id, slide: true }); }
+          }
+          if (!blitzer.picked && Math.hypot(blitzer.lx-rb.lx, blitzer.y-rb.y) < 27) {
+            if (Math.random() < 0.3 + rb.vis*0.006 + rb.blk*0.004 - (protection.read ? 0 : TU("wrongSlidePen", .2))) { blitzer.picked = true; blitzer.engaging = rb; rb.engagedBy = blitzer; emit("pickup",{by:rb.id}); }
+            else { blitzer.freeRun = true; emit("freeRusher",{who:blitzer.id, wrongCall: !protection.read}); }
           }
         }
         if (blitzer && blitzer.picked) mv(blitzer, blitzer.engaging.lx+7, blitzer.engaging.y, 0.2);
-        const free = rushers.filter(r=>r.shed).concat(blitzer&&blitzer.freeRun?[blitzer]:[]);
-        free.forEach(r=>mv(r, qb.lx, qb.y, 1.0));
+        // v82: the spy comes when the pocket moves — a rollout, a climb, or the QB
+        // flushed by pressure — and is a free rusher from then on
+        if (spy && !spy._attack && (qb._roll || qb._climbing || hurried) && t > 500) { spy._attack = true; emit("spyAttack", { who: spy.id, x: spy.lx, y: spy.y }); }
+        const free = rushers.filter(r=>r.shed).concat(blitzer&&blitzer.freeRun?[blitzer]:[]).concat(spy && spy._attack ? [spy] : []);
+        free.forEach(r=>{ if (r._loopVia && t < (r._loopUntil||0)) mv(r, r._loopVia.x, r._loopVia.y, .95); else mv(r, qb.lx, qb.y, 1.0); });
         let slideY = 0, climb = 0;
         if (free.length) {
           const th = free.slice().sort((a2,b2)=>Math.hypot(a2.lx-qb.lx,a2.y-qb.y)-Math.hypot(b2.lx-qb.lx,b2.y-qb.y))[0];
           slideY = th.y > qb.y ? -14 : 14;
-          if (Math.abs(th.y - qb.y) > 26) climb = 10;
+          // v82 STEP UP: pressure off the EDGE is answered by climbing the pocket, not
+          // sliding into the other edge — a real quarterback steps into the lane
+          if (Math.abs(th.y - qb.y) > 26) { climb = TU("stepUpPx", 18); slideY *= .4; if (!qb._climbing) { qb._climbing = true; emit("stepUp", { x: qb.lx, y: qb.y }); } }
           if (!qb._slid) { qb._slid = true; emit("pocketSlide",{}); }
           // v23: a defender has broken the line and is closing on the QB — flag him
           // early (before the hit) so the broadcast can warn "scramble incoming".
@@ -2384,6 +2655,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         // v81 PLAY ACTION: the QB turns and rides the fake to the back before he sets
         if (playAction && t < declareT) { if (!qb._paAnn && t >= 400) { qb._paAnn = 1; emit("playfake",{x:qb.lx,y:qb.y}); }
           mv(qb, -30, S.off[9].y + (qb.y - S.off[9].y) * .5, 0.75); }
+        else if (qb._roll) mv(qb, TU("rolloutLx", -28), MIDY + qb._roll * TU("rolloutY", 66), 0.95);      // v82: the pocket moves
         else mv(qb, (playAction ? TU("paDropLx", -46) : -34) + climb, qb.y + slideY, playAction ? 0.95 : 0.8);
         const nearest = free.map(r=>Math.hypot(r.lx-qb.lx, r.y-qb.y)).sort((a,b)=>a-b)[0];
         if (nearest !== undefined && nearest < 26 && !hurried) { hurried = true; emit("qbHit",{x:qb.lx,y:qb.y}); }
@@ -2391,12 +2663,33 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         // window; low-awareness help arrives late and may not affect the play.
         const helpFactor=bracketed&&coverHelp&&t>260+(100-coverHelp.aware)*4 ? (coverHelp.cov*.34+coverHelp.aware*.18) : 0;
         sep += ((target.spdA*0.5 + target.agi*0.5) - (coverA.cov*0.85 + coverA.spdA*0.15 + helpFactor)) * 0.00085;
+        // v82 DISGUISE pays out: the robber rotates down over the middle; a quarterback
+        // who graded his reads off the two-high picture and does not see it (awareness)
+        // has his window taken away. A press corner who wins the jam delays the route.
+        if (disguise && disguise.robber && !disguise.rotated && t >= disguise.rotateAt) {
+          disguise.rotated = true; emit("rotate", { who: disguise.robber.id, x: disguise.robber.lx, y: disguise.robber.y });
+          const e = target.route && target.route[target.route.length - 1];
+          const overMiddle = e && Math.abs(e.y - MIDY) < TU("robberY", 70) && e.lx > 15 && e.lx < 90;
+          if (overMiddle) {
+            const fooled = Math.random() < cl(TU("disguiseFoolBase", .55) - (qb.aware - 50) * TU("disguiseAwareK", .01), .1, .85);
+            disguise.fooled = fooled;
+            if (fooled) { sep -= TU("disguiseSep", 1.2); if (!bracketed) { bracketed = true; coverHelp = disguise.robber; } emit("fooled", { x: qb.lx, y: qb.y, by: disguise.robber.id }); }
+          }
+        }
+        if (disguise && !disguise.jammed && t >= 200) { disguise.jammed = true;
+          S.def.filter(cb => cb._press).forEach(cb => {
+            const w = S.off.filter(x=>["WR","TE"].includes(x.lb)).sort((p,q)=>Math.hypot(p.lx-cb.lx,p.y-cb.y)-Math.hypot(q.lx-cb.lx,q.y-cb.y))[0];
+            if (!w || Math.hypot(w.lx-cb.lx, w.y-cb.y) > 30) return;
+            const jamP = cl(TU("jamBase", .4) + (cb.cov - w.agi) * TU("jamK", .008) + (cb.str - w.str) * .003, .12, .82);
+            if (Math.random() < jamP) { w._jamUntil = t + TU("jamMs", 280); if (w === target) sep -= TU("jamSep", .6); emit("jam", { who: cb.id, on: w.id, x: w.lx, y: w.y }); }
+            else { if (w === target) sep += TU("beatPressSep", .35); emit("release", { who: w.id, beatPress: true, x: w.lx, y: w.y }); }
+          }); }
         // v81: the fake pays out the moment the QB pulls the ball back — a cover man who
         // bit is a step behind, and every linebacker who stepped up vacated his zone
         if (playAction && !qb._paSep && t >= declareT) { qb._paSep = 1;
           const bit = (coverA && coverA._bite) || (bracketed && coverHelp && coverHelp._bite);
-          const vacated = S.def.filter(a=>a.lb==="LB"&&a._bite).length * TU("paVacateSep", .45);
-          if (bit) sep += TU("paBiteSep", 1.8);
+          const vacated = S.def.filter(a=>a.lb==="LB"&&a._bite).length * TU("paVacateSep", .55);
+          if (bit) sep += TU("paBiteSep", 2.2);
           sep += vacated; }
         // v23 QB VISION CONE: shift the cone THROUGH the read progression so the
         // broadcast shows him scanning receivers, then landing on the man he
@@ -2421,7 +2714,16 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           } }
         if (t >= throwAt || (hurried && t >= 680)) {
           const underPressure = hurried || !!opts?.pressured;
-          const movingThrow = !!opts?.moving || (underPressure && !!qb._slid);
+          const movingThrow = !!opts?.moving || (underPressure && !!qb._slid) || !!qb._roll;
+          // v82 THE SACK HE TAKES: a smart quarterback with nothing open and a man on him
+          // eats the ball instead of forcing it — the sacker is the free man who got there
+          if (sep < -1.6 && underPressure && S.off[8].aware >= TU("sackSmartAware", 60) && Math.random() < TU("takeSackP", .32)) {
+            const th = free.slice().sort((a2,b2)=>Math.hypot(a2.lx-qb.lx,a2.y-qb.y)-Math.hypot(b2.lx-qb.lx,b2.y-qb.y))[0];
+            if (th) {
+              emit("tackle", { tackler: th.id, carrier: qb.id, x: qb.lx, y: qb.y, sack: true, taken: true });
+              done = true; out = { kind: "pass", complete: false, intercepted: false, yards: Math.round(qb.lx / YD), sack: true, sacker: th.player || null };
+              rec(); continue; }
+          }
           if (sep < -1.6 && underPressure && Math.random() < 0.28 + (S.off[8].aware-50)*0.005) {
             emit("throwaway",{x:S.off[8].lx,y:S.off[8].y});
             emit("incomplete",{x:routeDepth*YD, y: F_TOP+40});
@@ -2462,6 +2764,19 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
                 if(d>0.1){const f=Math.min(1,9/d);a.lx+=(tx-a.lx)*f;a.y=clampY(a.y+(safeY-a.y)*f);} };
               capTo(target,cx,cyy); capTo(coverA,cx-sep*2.4,cyy+3);
               const qbA = S.off[8];
+              /* ===== v82 BALL SKILLS — the catch point is a contest, not a timer =====
+               * BOX OUT: a receiver between the defender and the ball uses his body.
+               * WORK BACK: an underthrown ball is the receiver's to come back for — a
+               * smart one does, a lazy one lets the corner undercut it. HANDS OR BALL:
+               * a corner in a tight window plays the hands (a swat) or the ball (a pick). */
+              const shortBall = cx < idealX - TU("underthrowPx", 9);
+              const boxOut = target.lx > coverA.lx - 2 && arrivalEdgeMs > -80;
+              const boxK = boxOut ? cl((target.str * .5 + ((target.ht||73) - 73) * 1.2 - coverA.str * .4) * .002 + .03, 0, .09) : 0;
+              const comebackK = shortBall ? cl((target.aware - 50) * .002 + .02, -.02, .06) - (sep < .4 ? TU("underthrowRisk", .05) : 0) : 0;
+              const contested = sep < TU("contestSep", .2) && Math.hypot(coverA.lx - cx, coverA.y - cyy) < 22;
+              const swatP = contested ? cl((coverA.cov - 50) * .004 + (coverA.jump - 50) * .002 + TU("swatBase", .04), 0, .3) * (coverA.cov >= target.cat ? 1 : .6) : 0;
+              if (shortBall) emit("comeback", { who: target.id, x: cx, y: cyy, smart: comebackK > 0 });
+              if (boxOut && boxK > .04) emit("boxOut", { who: target.id, on: coverA.id, x: cx, y: cyy });
               // jumping decides the high-point on deep shots; ballControl secures contested grabs
               const jumpEdge = routeDepth > 13 ? (target.jump - coverA.jump) * 0.003 : 0;
               const secure = sep < 0 ? (target.bc-50)*0.002 : 0;
@@ -2471,9 +2786,13 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
               // completion/YPA mix while early defenders still create real danger.
               const arrivalCatch=cl(-arrivalEdgeMs/2100,-.045,.025), placementCatch=(locationQuality-.72)*.08;
               const catchP = cl(TU("catchBaseV39",root.__fullGameBalanceV39?.76:.54) + sep*0.05 + (qbA.aware-50)*0.003 + (qbA.thr-50)*0.003
-                + (target.cat-50)*0.0035 + jumpEdge + secure + arrivalCatch + placementCatch
+                + (target.cat-50)*0.0035 + jumpEdge + secure + arrivalCatch + placementCatch + boxK + comebackK
                 - helperContest - (underPressure?0.12:0) - (movingThrow?.055:0), 0.08, 0.93);
-              if (Math.random() < catchP) {
+              if (contested && Math.random() < swatP) {
+                // v82: the corner plays the hands — ball knocked away, nobody has it
+                emit("swat", { by: coverA.id, on: target.id, x: cx, y: cyy }); emit("incomplete", { x: cx, y: cyy }); done = true;
+                out = { kind: "pass", complete: false, intercepted: false, yards: 0, swat: true };
+              } else if (Math.random() < catchP) {
                 emit("catch",{by:target.id,x:cx,y:cyy,catchType:locationQuality<.62&&routeDepth>7?"dive":routeDepth>12?"high":"secure"});
                 carrier = target;
                 // Placement that lets the receiver catch in stride carries into
@@ -2570,16 +2889,26 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           // engaged lineman's man is not, he is being handled. The pick is held for
           // a beat so the back commits to a lane instead of flickering between two.
           if (c._laneUntil == null || t >= c._laneUntil) {
-            const liveIn = gy => S.def.some(a => !(a.stunned && t < a.stunned) && t > (a.beaten||0) && !(a.lb === "DL" && !a.shed)
-              && !(t < (a.held||0)) && a.lx > -6 && a.lx < 26 && Math.abs(a.y - gy) < TU("gapCloseY", 13));
-            const gaps = [110,142,174,206,238,270,302,334].map(gy => ({ ly: gy, open: liveIn(gy) ? 0 : 1, home: gy === holeY ? 1 : 0 }));
-            const sorted = gaps.slice().sort((p,q) => (q.open - p.open) || (q.home - p.home) || (Math.abs(p.ly-c.y) - Math.abs(q.ly-c.y)));
+            // v82 THE BACK HAS EYES: a gap is judged by where the defenders WILL be — each
+            // man's committed line projected a step ahead — not where they stand, and a
+            // gap behind a blocker who has his man is the one to press
+            const ahead = TU("lookaheadS", .1);
+            const liveIn = gy => S.def.some(a => { if ((a.stunned && t < a.stunned) || t <= (a.beaten||0) || (a.lb === "DL" && !a.shed) || t < (a.held||0)) return false;
+              const px = a.lx + (a._dx||0) * (a.spd||120) * (a.vel||0) * ahead, py = a.y + (a._dy||0) * (a.spd||120) * (a.vel||0) * ahead;
+              return px > -6 && px < 26 && Math.abs(py - gy) < TU("gapCloseY", 13); });
+            const sealed = gy => S.def.some(a => t < (a.held||0) && Math.abs(a.y - gy) > 8 && Math.abs(a.y - gy) < 30 && a.lx > -4 && a.lx < 30);
+            const gaps = [110,142,174,206,238,270,302,334].map(gy => ({ ly: gy, open: liveIn(gy) ? 0 : 1, home: gy === holeY ? 1 : 0, seal: sealed(gy) ? 1 : 0 }));
+            const sorted = gaps.slice().sort((p,q) => (q.open - p.open) || (q.home - p.home) || (q.seal - p.seal) || (Math.abs(p.ly-c.y) - Math.abs(q.ly-c.y)));
             const home = gaps.find(g => g.home) || sorted[0];
             // vision: does he actually SEE the open lane, or guess?
             const sees = Math.random() < 0.38 + (c.vis-50)*0.008;
             const best = home.open ? home : (sees ? sorted[0] : gaps[Math.floor(Math.random()*gaps.length)]);
+            if (!home.open && best !== home && sees && c._laneY != null && Math.abs(best.ly - c._laneY) > 20 && !c._pressed) {
+              c._pressed = t; emit("press", { x: c.lx, y: c.y, from: home.ly, to: best.ly, direction: best.ly > home.ly ? 1 : -1 }); }
             c._laneY = best.ly + (Math.random()*8-4); c._laneUntil = t + TU("laneHoldMs", 200);
-            if (!holeShown && home.open && c.lx > -30) { holeShown = true; emit("holeOpen", { x: 6, y: holeY, gap: holeGapKey, concept: runConcept }); }
+            // the lane lights up on what is there NOW (the projection is the back's read, not the picture)
+            const openNow = !S.def.some(a => !(a.stunned && t < a.stunned) && t > (a.beaten||0) && !(a.lb === "DL" && !a.shed) && !(t < (a.held||0)) && a.lx > -6 && a.lx < 26 && Math.abs(a.y - holeY) < TU("gapCloseY", 13));
+            if (!holeShown && openNow && c.lx > -30) { holeShown = true; emit("holeOpen", { x: 6, y: holeY, gap: holeGapKey, concept: runConcept }); }
           }
           laneY = c._laneY;
         } else laneY = clampY(c.y + Math.sin(t/300)*14);
@@ -2670,8 +2999,11 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             }
           }
         });
-        function chasersNear(cc){ return S.all.filter(a=>a.side!==cc.side && a.lb!=="OL" && Math.hypot(a.lx-cc.lx,a.y-cc.y)<90); }
-        const chasers = S.all.filter(a=>a.side!==c.side && a.lb!=="OL");
+        function chasersNear(cc){ return S.all.filter(a=>a.side!==cc.side && (a.lb!=="OL" || isKick) && Math.hypot(a.lx-cc.lx,a.y-cc.y)<90); }
+        const chasers = S.all.filter(a=>a.side!==c.side && (a.lb!=="OL" || isKick) && !(isKick && a === S.off[8] && kind !== "kickoff"));
+        // v82: a kick return ends at the returner's goal line
+        if (isKick && kickOpts.goalLx != null && c.side === "def" && c.lx <= kickOpts.goalLx) {
+          out = { kind, yards: 0, ret: Math.round(((c._catchLx||0) - c.lx) / YD), td: true, spotLx: c.lx }; done = true; emit("td", { x: c.lx, y: c.y, carrier: c.id }); }
         const walls = blockers.filter(o=>o.engagedBy && !o.engagedBy.shed);
         // the committer may have been beaten/trucked/whiffed — free up the role.
         // v81: or he simply FELL OFF — a man who committed from launch range and then
@@ -2683,13 +3015,14 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           c.lx += Math.max(0, (c.grit-50)) * 0.018 * (c.side==="off"?1:-1);   // grit: falls forward
           done = true;
           const yds = c.side==="off" ? Math.round(c.lx/YD) : 0;
+          if (isKick) { out = { kind, yards: 0, ret: Math.round(((c._catchLx||0) - c.lx) / YD), spotLx: c.lx }; return; }   // v82: the return is booked as return yards
           if (!out) out = { kind, yards: yds }; else out.yards = 0;           // pick return: passer line stays 0
         };
         // the single nearest pursuer is the one who kicks a sprint to run him down
         let nearestChaser=null, nearestGap=1e9, lastMan=null;
         for (const a of chasers) { if (t<(a.beaten||0)||(a.trucked&&t<a.trucked+900)||(a.stunned&&t<a.stunned)||(a.lb==="DL"&&!a.shed)) continue;
           const g2=Math.hypot(a.lx-c.lx,a.y-c.y); if(g2<nearestGap){nearestGap=g2;nearestChaser=a;}
-          if(!lastMan||a.lx>lastMan.lx) lastMan=a; }   // v30: the deepest live defender is the LAST MAN
+          if(!lastMan||a.lx*dirSign>lastMan.lx*dirSign) lastMan=a; }   // v30: the deepest live defender is the LAST MAN (v82: in the carrier's direction)
         for (const dfd of chasers) {
           if (t < (dfd.beaten||0)) {
             // v29 OVERSHOOT: a beaten man doesn't freeze — his momentum carries him past
@@ -2704,7 +3037,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             if (dfd === wblk.engagedBy) continue;
             if (Math.hypot(dfd.lx-wblk.lx, dfd.y-wblk.y) < 15) { dfd.y += (dfd.y > wblk.y ? 1 : -1) * 2.2; dfd.y = clampY(dfd.y); }
           }
-          if (dfd.lb==="DL" && !dfd.shed) { mv(dfd, dfd.engaging.lx+6, dfd.engaging.y, 0.18); continue; }   // still blocked: fight, don't fly
+          if (!isKick && dfd.lb==="DL" && !dfd.shed) { mv(dfd, dfd.engaging.lx+6, dfd.engaging.y, 0.18); continue; }   // still blocked: fight, don't fly
+          if (isKick && t < (dfd.held||0)) { mv(dfd, c.lx, c.y, 0.16); continue; }                                   // v82: a return blocker has him
           if (kind==="run") {
             // v81: a blocker with his hands on him — walled off until he sheds
             if (t < (dfd.held||0)) { mv(dfd, c.lx, c.y, 0.16);
@@ -2822,6 +3156,14 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           const _canRunDown = dfd.spd >= c.spd - (isLastMan ? 9 : 5);   // the last man's angle beats raw speed
           if (isLastMan && gap < 170) beatenPace += 0.15;         // v30: the free safety breaks downhill NOW
           if (_trailing && !_canRunDown) beatenPace = Math.min(beatenPace, 0.9);
+          // v82 EFFORT: a man who has lost the footrace, or is on the far side of the
+          // field with the ball going away, JOGS — a real broadcast is full of it. A
+          // tired man (empty tank) is a step slow everywhere. The last man never quits.
+          const behindPlay = _trailing && !_canRunDown && gap > TU("jogGap", 95);
+          const farSide = Math.abs(dfd.y - c.y) > TU("farSideY", 150) && gap > 90 && dfd !== nearestChaser;
+          if ((behindPlay || farSide) && !isLastMan) { beatenPace = Math.min(beatenPace, TU("jogPace", .55));
+            if (!dfd._jogAnn) { dfd._jogAnn = 1; emit("effort", { who: dfd.id, kind: behindPlay ? "givesUp" : "jog", x: dfd.lx, y: dfd.y }); } }
+          if (dfd.gas !== undefined && dfd.gas < TU("tiredGas", 35)) beatenPace *= TU("tiredPace", .92);
           // nearest pursuer kicks a sprint only to run DOWN a breakaway on a real
           // ANGLE (or when genuinely fast enough) — never a pure trailing footrace.
           if (dfd===nearestChaser && gap>46 && gap<140 && (_canRunDown || !_trailing)) kickSprint(dfd);
@@ -2870,8 +3212,11 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           const push = chasers.filter(a=>Math.hypot(a.lx-c.lx,a.y-c.y)<TU("tackleCreditPx",20))
             .sort((p,q)=>Math.hypot(p.lx-c.lx,p.y-c.y)-Math.hypot(q.lx-c.lx,q.y-c.y))[0];
           emit("tackle",{tackler:push?push.id:null, carrier:c.id, x:boundary.x, y:boundary.y, oob:true, plane:"sideline"});
-          done = true; if (!out) out = { kind, yards: Math.round(c.lx/YD) };
+          done = true; if (isKick) out = { kind, yards: 0, ret: Math.round(((c._catchLx||0) - c.lx) / YD), spotLx: c.lx }; else if (!out) out = { kind, yards: Math.round(c.lx/YD) };
         }
+        // v82: the return team forms in front of the returner
+        if (isKick && c.side === "def") S.def.forEach(o => { if (o === c) return;
+          if (!blockTick(o, chasers.filter(a => a.lx * dirSign > c.lx * dirSign - 12), 110)) mv(o, c.lx + dirSign * 24, o.y + (c.y - o.y) * .4, .7); });
         // offense blockers escort — v81: on a run the receivers STALK-BLOCK the man
         // in front of them instead of jogging alongside the play
         S.off.forEach(o=>{ if(o===c || o.lb==="OL" || c.side!=="off") return;
@@ -2901,6 +3246,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           if(a===coverA){ const aim=coverageAim(a,target); mv(a,aim.lx-sep*2.4,aim.y,.90+a.cov*.0016); }
           else if(a===coverHelp&&bracketed){ const aim=coverageAim(a,target); mv(a,aim.lx+7,aim.y+(a.y<MIDY?-10:10),.78+a.aware*.0018); }
           else if(a.lb==="CB"){
+            // v82: a press corner stays in the receiver's face until the jam resolves
+            if (a._press && t < 200) { mv(a, a.lx, a.y, .2); return; }
             const receivers=S.off.filter(w=>["WR","TE"].includes(w.lb));
             const w=receivers.slice().sort((p,q)=>Math.hypot(p.lx-a.lx,p.y-a.y)-Math.hypot(q.lx-a.lx,q.y-a.y))[0];
             const error=Math.max(0,55-a.aware)/55;
@@ -2909,12 +3256,16 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             mv(a,aim.lx+6+(55-a.cov)*.12,wy,.76+a.cov*.0028+a.quick*.0012);
           }
           else if(a.lb==="S"){
+            // v82: the robber rotates down over the middle after the snap
+            if (a._robber && disguise && t >= disguise.rotateAt) { mv(a, TU("robberLx", 42), MIDY + (a.y < MIDY ? -8 : 8), .9); return; }
             // v81: a safety who bit on play action comes downhill before he realises
             if (playAction && a._bite && !seesBall(a)) { mv(a, Math.min(a.lx, TU("paBiteSafetyLx", 48)), a.y, .6); return; }
             const deepest=S.off.filter(w=>["WR","TE"].includes(w.lb)).sort((p,q)=>q.lx-p.lx)[0];
             const aim=coverageAim(a,deepest); mv(a,aim.lx+20,(aim.y+MIDY)/2,.54+a.aware*.0022);
           }
           else if(a.lb==="LB"){
+            // v82: the spy mirrors the quarterback at the line instead of dropping
+            if (a._spy) { if (!a._attack) mv(a, TU("spyLx", 16), S.off[8].y, .75); return; }
             // v81: a linebacker who bit fills his gap first; the drop only starts once he
             // has found the ball, which is what opens the window behind him
             if (playAction && a._bite && !seesBall(a)) { mv(a, TU("paBiteLx", 8), a.y, .7); return; }
@@ -2927,6 +3278,8 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           }
         });
         S.off.forEach(a=>{ if(a.route&&a.route.length){
+            if (chipper && a === chipper.te && t < chipper.until) return;     // v82: still chipping
+            const jammed = t < (a._jamUntil||0) ? TU("jamPace", .35) : 1;   // v82: hands on him at the line
             // run the assigned route: mv toward the current waypoint, advance on arrival
             if(a._rwp==null)a._rwp=1;
             const _last=a._rwp>=a.route.length-1;
@@ -2950,7 +3303,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
                 if (Math.abs(ty - a.y) < 6) ty = a.y + (MIDY - a.y) * .10;        // boundary ate it: work back inside
                 mv(a, a.lx + fwd, ty, .88);
               }
-            } else mv(a, wp.lx, wp.y, a===target?1.0:0.93);
+            } else mv(a, wp.lx, wp.y, (a===target?1.0:0.93) * jammed);
             if(window.__ROUTE_DEBUG&&a._routeName){const D=window.__ROUTE_DEBUG;
               (D.path[a.id]||(D.path[a.id]=[])).push([Math.round(a.lx),Math.round(a.y)])}
             if(a._rwp<a.route.length-1 && Math.hypot(a.lx-wp.lx,a.y-wp.y)<9){
@@ -2964,7 +3317,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             }
           }
           else if(["WR","TE"].includes(a.lb)){ mv(a, a.lx+50, a.y, 0.9); }
-          else if(a.lb==="OL"){ const push = a.engagedBy&&!a.engagedBy.shed ? Math.min(18,(t)*0.012):2; mv(a,-6-push*0.7,a.y,0.5);
+          else if(a.lb==="OL"){ const push = a.engagedBy&&!a.engagedBy.shed ? Math.min(18,(t)*0.012):2;
+            const shift = (S.off[8]._roll ? S.off[8]._roll * TU("rolloutLineShift", 10) : 0) + (protection.slide ? protection.slide * TU("slideShift", 6) : 0);   // v82: the line moves with the call
+            mv(a,-6-push*0.7,a.y + shift,0.5);
             if(a.engagedBy&&!a.engagedBy.shed) mv(a.engagedBy, a.lx-8, a.y, 0.42); }
           else if(a.lb==="RB"&&kind==="pass"){
             if (playAction && t < declareT + 200) mv(a, 4, a.y, 0.9);                      // v81: sells the fake into the line
@@ -2987,6 +3342,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         const nr = S.def.slice().sort((p,q)=>Math.hypot(p.lx-carrier.lx,p.y-carrier.y)-Math.hypot(q.lx-carrier.lx,q.y-carrier.y))[0]||{};
         const nrd = nr.id ? Math.hypot(nr.lx-carrier.lx, nr.y-carrier.y) : 1e9;
         emit("tackle",{tackler:nrd<TU("tackleCreditPx",20)?nr.id:null,carrier:carrier.id,x:carrier.lx,y:carrier.y}); }
+      else if (isKick && carrier) out = { kind, yards: 0, ret: Math.round(((carrier._catchLx||0) - carrier.lx) / YD), spotLx: carrier.lx };
       else if (!out) out = { kind, yards: 0, complete:false, intercepted:false };
     }
     out = out || { kind, yards: 0 };
@@ -3015,6 +3371,14 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           evolveSpeed(a,0,TICK,t,0,TU("whistleBrakeScale",.46));
           const v = Math.max(0,(a.vel||0)) * (a.spd||120) * ease * (TICK/1000) * 0.8;
           if (v > 0.15) { a.lx += (a._dx||0)*v; a.y = clampY(a.y + (a._dy||0)*v); }
+          // v82 THE PILE: a second man arriving after the whistle adds his push — the
+          // pile moves a step his way and he stops in it. Cosmetic: the spot is booked.
+          if (downMan && a.side !== downMan.side && ct < 12 && (a.vel||0) > .4 && Math.hypot(a.lx-downMan.lx, a.y-downMan.y) < TU("pileReachPx", 16)) {
+            const push = TU("pilePushPx", .55) * (1 - ct/12);
+            downMan.lx += (a._dx||0) * push; downMan.y = clampY(downMan.y + (a._dy||0) * push);
+            a.vel = Math.max(0, a.vel * .5);
+            if (!a._piled) { a._piled = 1; events.push({ t, type: "pilePush", who: a.id, x: downMan.lx, y: downMan.y }); }
+          }
         });
         rec();
       }
@@ -3125,6 +3489,9 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         if (comp) { X.air = cl(Math.round(catchEv.x/YD), 0, X.yards); X.yac = Math.max(0, X.yards - X.air); }
         X.tackler = r.tackler||null; X.assist = r.assist||null; X.flags = r.flags||null;
         X.throwStyle=r.throwStyle; X.throwWindow=r.throwWindow; X.arrivalEdgeMs=r.arrivalEdgeMs; X.locationQuality=r.locationQuality;
+        // v82: the quarterback took the sack inside the sim — the sacker is the free man
+        // who got there, and the log renders as the sack the box score books
+        if (r.sack) { X.sack = true; X.sacker = r.sacker || null; X.yards = Math.min(-1, r.yards); X.complete = false; }
         pushLog({ off: !!w, kind: "pass", yards: X.yards, intercepted: X.intercepted, complete: X.complete }, r.log);
         return X;
       } catch (e) { console.warn("[FieldSim.pass]", e); return null; }
@@ -3136,6 +3503,27 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         pushLog({ off: !!w, kind: "run", yards: X.yards }, r.log);
         return X;
       } catch (e) { console.warn("[FieldSim.run]", e); return null; }
+    },
+    // v82 SPECIAL TEAMS — the game engine keeps its level-scaled leg (gross yards)
+    // and its own rare rolls (muffs, onside kicks); the sim decides the block, the
+    // fair catch and the return, and pushes the play's log for the broadcast.
+    punt(w, k, T, att, o) {
+      try { const r = sim("punt", k.off, T.def, att, {}, o || {});
+        pushLog({ off: !!w, kind: "punt", yards: 0 }, r.log);
+        return { ret: r.ret || 0, fair: !!r.fair, blocked: !!r.blocked, td: !!r.td, tackler: r.tackler || null };
+      } catch (e) { console.warn("[FieldSim.punt]", e); return null; }
+    },
+    kickoff(w, k, T, att, o) {
+      try { const r = sim("kickoff", k.off, T.def, att, {}, o || {});
+        pushLog({ off: !!w, kind: "kickoff", yards: 0 }, r.log);
+        return { ret: r.ret || 0, td: !!r.td, tackler: r.tackler || null };
+      } catch (e) { console.warn("[FieldSim.kickoff]", e); return null; }
+    },
+    fg(w, k, T, att, o) {
+      try { const r = sim("fg", k.off, T.def, att, {}, o || {});
+        pushLog({ off: !!w, kind: "fg", yards: 0 }, r.log);
+        return { blocked: !!r.blocked, good: !!r.good };
+      } catch (e) { console.warn("[FieldSim.fg]", e); return null; }
     },
     _sim: sim, _Q: Q,
     takeLog(sig) {
@@ -5148,7 +5536,7 @@ class Ot extends mt.Scene {
         if (bm) { bm.forceState = "block"; this.time.delayedCall(600, () => { if (bm.forceState === "block") bm.forceState = null; }); }
         if (e.kind === "drive") { this.puffFx(e.x, e.y, 2, 0xd8e6da, 0.45);
           if (dm) { dm.forceState = null; dm.cutUntil = dm.tms + 300; }
-          this.popText(e.x, e.y - 18, bm && bm.team === "you" ? "YOU DRIVE HIM BACK!" : "DRIVEN BACK!", "#bfe3ae", 12); }
+          this.popText(e.x, e.y - 18, bm && bm.team === "you" ? "YOU DRIVE HIM BACK!" : (e.lev === "lost" ? "WASHED INTO THE HOLE" : "SEALED!"), e.lev === "lost" ? "#ffb08a" : "#bfe3ae", 12); }
         else if (e.kind === "push") this.puffFx(e.x, e.y, 1, 0xd8e6da, 0.35);
         else if (e.kind === "lost" && bm && bm.team === "you") this.popText(e.x, e.y - 18, "BEATEN!", "#ff9a9a", 11);
         break;
@@ -5164,6 +5552,26 @@ class Ot extends mt.Scene {
           if (m.team === "you") this.popText(e.x, e.y - 22, "BAD ANGLE", "#ff9a9a", 11); }
         break;
       }
+      /* ===== v82 — the front's plan, the disguise, the pocket, the catch point, the pile ===== */
+      case "stuntWin": { const m = this.markers[this.actorIdx(e.who)]; if (m) { this.flash(m.sx, m.sy, 0xff8a5c); m.body && m.body.setTint(0xffc9a8); }
+        this.popText(e.x, e.y - 22, "STUNT — HE'S FREE!", "#ffb08a", 13); break; }
+      case "stuntPassOff": this.puffFx(e.x, e.y, 1, 0xd8e6da, 0.35); break;
+      case "spyAttack": { const m = this.markers[this.actorIdx(e.who)]; if (m && m.team === "you") this.popText(e.x, e.y - 22, "SPY — GO!", "#8fe7ff", 12); break; }
+      case "spy": case "protection": case "disguise": case "effort": case "comeback": case "boxOut": case "press": break;
+      case "rotate": { const m = this.markers[this.actorIdx(e.who)]; if (m) this.popText(e.x, e.y - 24, "ROTATES DOWN", "#8ec3ee", 11); break; }
+      case "fooled": this.popText(e.x, e.y - 24, "DISGUISED!", "#ff9a9a", 12); break;
+      case "jam": { const m = this.markers[this.actorIdx(e.on)]; if (m) { m.forceState = null; m.cutUntil = m.tms + 240; }
+        this.puffFx(e.x, e.y, 1); this.popText(e.x, e.y - 20, "JAMMED", "#93a0b1", 11); break; }
+      case "rollout": this.popText(e.x, e.y - 22, "ROLLOUT", "#8ec3ee", 12); break;
+      case "stepUp": this.popText(e.x, e.y - 22, "STEPS UP", "#bfe3ae", 11); break;
+      case "swat": { const m = this.markers[this.actorIdx(e.by)]; if (m) { m.forceState = null; m.cutUntil = m.tms + 200; }
+        this.flash(e.x, e.y, 0xffffff); this.popText(e.x, e.y - 22, "SWATTED AWAY!", "#f7e2a8", 14); break; }
+      case "bounce": { const tk = this.markers[this.actorIdx(e.who)]; if (tk) { tk.forceState = null; tk.cutUntil = tk.tms + 320; }
+        this.puffFx(e.x, e.y, 2); this.popText(e.x, e.y - 22, "BOUNCES OFF!", "#8fe7ff", 13); break; }
+      case "pilePush": this.puffFx(e.x, e.y, 1, 0xd8e6da, 0.4); break;
+      case "snapCatch": { P.carrierId = this.actorIdx(e.by); P.ballHolderId = P.carrierId; P.ballMode = "held"; break; }
+      case "kickBlocked": { this.flash(e.x, e.y, 0xff6b52); this.popText(e.x, e.y - 26, "BLOCKED!!", "#ff9fa5", 18); REDUCED_MOTION || this.cameras.main.shake(140, 0.005); break; }
+      case "kick": break;
       case "firstdown": {
         P.fdConverted = true;
         this.popText(e.x, 60, "FIRST DOWN ✓", "#f0bb45", 16);
@@ -5330,6 +5738,7 @@ class Ot extends mt.Scene {
     if (pay.scored && pay.event !== "fg") return "TOUCHDOWN";
     if (pay.event === "fg") return d.includes("NO GOOD") || d.includes("MISS") ? "FIELD GOAL NO GOOD" : "FIELD GOAL IS GOOD";
     if (pay.event === "punt") return "PUNT · " + yd + " YDS";
+    if (pay.event === "kickoff") return "KICKOFF · " + String(pay.desc || "").replace(/^.*returned (\d+).*$/, "RETURNED $1");
     if (d.includes("FUMBLE")) return "FUMBLE — TURNOVER";
     if (d.includes("INTERCEPT")) return "INTERCEPTED";
     if (d.includes("SACK")) return "SACKED FOR " + yd;
@@ -8421,8 +8830,15 @@ function kickoffTo(team,tag,onside){
     newDrive(team,f(46+le(-2,8),1,70),"onside kick fails — short field");return}
   const retTm=team==="us"?c.us:c.opp,returner=Y(retTm.off,["RB","WR"]),retSkill=(_(returner,"speed")+_(returner,"agility"))/2,touchP=f(.46+kf*.3+(weather==="wind"?-.08:0),.35,.82),w=Math.random();let g=25,N="touchback";
   w>=touchP&&w<.985?(g=f(Math.round(20+(retSkill-50)*.12+D(-7,9)),10,42),N="kick returned"):w>=.985&&(g=f(le(37,55)+Math.round((retSkill-55)*.15),30,65),N="a HUGE return!");
+  // v82: a returned kickoff is an agent play — the kicking team's lanes against the wedge
+  let __ko=null;
+  if(N!=="touchback"){const kUs=other(team)==="us",__kk=ie(kUs),gross=f(Math.round(50+kf*14+D(-6,6)),40,64);
+    __ko=window.__FieldSim&&window.__FieldSim.kickoff&&window.__FieldSim.kickoff(kUs,__kk.O,__kk.D,_,{gross,goalLx:-35*5.88});
+    if(__ko){const ret=f(__ko.ret,0,99);g=f(65-gross+ret,1,99);N=ret>=35?"a HUGE return!":"kick returned";
+      if(!__ko.td)u.push({offense:other(team),event:"kickoff",yards:0,involved:!1,big:ret>=35,isPass:!1,scored:!1,penalty:!1,desc:`🦶 Kickoff — ${gross} yards, returned ${ret} to the ${g}.`,startBall:35,endBall:f(100-g,1,99),quarter:Math.min(quarter,5),clock:fmtC(clock),usScore:h,themScore:p,down:1,toGo:10,preDown:1,preToGo:10,stat:{...P},team:{...v},oppStat:{...j}});
+      else if(typeof dropSimLog==="function")dropSimLog()}}
   // rare kickoff return TD — the returner takes it the distance
-  if(N!=="touchback"&&Math.random()<f(.004+(retSkill-60)*.00008,.0015,.006)){
+  if(N!=="touchback"&&(__ko?__ko.td:Math.random()<f(.004+(retSkill-60)*.00008,.0015,.006))){
     team==="us"?h+=6:p+=6;const sfx=quarter>=5?" WALK-OFF!":tryAfter(team==="us");
     u.push({offense:team,event:"run",yards:100,involved:!1,big:!0,isPass:!1,scored:!0,penalty:!1,desc:`🏈💨 KICKOFF RETURN TOUCHDOWN — housed on the return!${sfx} ${xe()}`,startBall:1,endBall:100,quarter:Math.min(quarter,5),clock:fmtC(clock),usScore:h,themScore:p,down:1,toGo:10,preDown:1,preToGo:10,stat:{...P},team:{...v},oppStat:{...j}});
     if(quarter>=5){gameOver=!0;return}
@@ -8471,15 +8887,18 @@ while(!gameOver&&plays<MAXP){
     if(!go)kicking=kickDist<=fgMax+(desperate?5:0)?"fg":"punt";
   }
   if(kicking==="fg"){
+    // v82: the kick is an agent play — the rush decides the block, the leg decides the make
+    const __mkP=kickDist<=32?.97:kickDist<=39?.9:kickDist<=45?.82:kickDist<=49?.72:kickDist<=52?.6:kickDist<=57?.38:.2,
+    __good=Math.random()<f(__mkP*(.78+.22*kf)*weatherFx.kick+((usDrive?c.us.ovr:c.opp.ovr)-55)*.002,.05,.99),
+    __fk=ie(usDrive),__fg=window.__FieldSim&&window.__FieldSim.fg&&window.__FieldSim.fg(usDrive,__fk.O,__fk.D,_,{dist:kickDist,pos,good:__good});
     // rare block — the kicking team loses it, other team takes over at the spot
-    if(Math.random()<f(.012-kf*.006,.004,.012)){
+    if(__fg?__fg.blocked:Math.random()<f(.012-kf*.006,.004,.012)){
       mkPlay({T0,pre,o:{event:"fg",scored:!1,desc:usDrive?`🧱 ${kickDist}-yard field goal is BLOCKED!`:`🧱 Opponent's ${kickDist}-yard field goal is BLOCKED!`}});
       spend(5);
       if(clock<=0){if(quarterRoll()||gameOver)continue}
       newDrive(other(T0),f(107-pos,1,99),"takes over on the blocked kick");continue}
     // youth legs shank even chip shots; range accuracy climbs with level (kf)
-    const mkP=kickDist<=32?.97:kickDist<=39?.9:kickDist<=45?.82:kickDist<=49?.72:kickDist<=52?.6:kickDist<=57?.38:.2,
-    good=Math.random()<f(mkP*(.78+.22*kf)*weatherFx.kick+((usDrive?c.us.ovr:c.opp.ovr)-55)*.002,.05,.99);
+    const good=__good;
     good&&(usDrive?h+=3:p+=3);
     mkPlay({T0,pre,o:{event:"fg",scored:good,desc:good?(usDrive?`✅ ${kickDist}-yard field goal is GOOD. ${xe()}`:`Opponent nails a ${kickDist}-yard field goal. ${xe()}`):(usDrive?`❌ ${kickDist}-yard field goal is NO GOOD — pushed wide!`:`Opponent's ${kickDist}-yard field goal is NO GOOD!`)}});
     spend(5);
@@ -8508,15 +8927,18 @@ while(!gameOver&&plays<MAXP){
       if(deep<=10&&Math.random()<.5){rec=deep;note="downed at the "+deep}
       else{
         const rtTm=other(T0)==="us"?c.us:c.opp,rt=Y(rtTm.off,["RB","WR"]),rs=(_(rt,"speed")+_(rt,"agility"))/2;
+        // v82: the punt is an agent play — coverage lanes, jammers, the returner's decision
+        const __pk=ie(usDrive),__st=window.__FieldSim&&window.__FieldSim.punt&&window.__FieldSim.punt(usDrive,__pk.O,__pk.D,_,{gross,deep,pos,goalLx:-pos*5.88});
         // punt return TD — the returner houses it
-        if(Math.random()<f(.004+(rs-60)*.00008,.0015,.006)){
+        if(__st?__st.td:Math.random()<f(.004+(rs-60)*.00008,.0015,.006)){
+          if(__st&&typeof dropSimLog==="function")dropSimLog();
           const rt=other(T0);rt==="us"?h+=6:p+=6;const sfx=quarter>=5?" WALK-OFF!":tryAfter(rt==="us");
           mkPlay({T0,pre,o:{event:"punt",scored:!0,endBall:100,desc:`🏈💨 PUNT RETURN TOUCHDOWN — taken all the way back!${sfx} ${xe()}`}});
           spend(7);
           if(quarter>=5){gameOver=!0;continue}
           if(clock<=0){if(quarterRoll()||gameOver)continue}
           kickoffTo(T0);continue}
-        const fairP=f(.38-(rs-50)*.003+(deep<8?.18:0),.16,.62),ret=Math.random()<fairP?0:f(Math.round(6+(rs-50)*.1+D(-4,8)),0,22);rec=f(deep+ret,1,50);note=ret?`returned ${ret} yards`:"fair catch"}}
+        const fairP=f(.38-(rs-50)*.003+(deep<8?.18:0),.16,.62),ret=__st?f(__st.ret,0,60):(Math.random()<fairP?0:f(Math.round(6+(rs-50)*.1+D(-4,8)),0,22));rec=f(deep+ret,1,60);note=__st?(__st.fair?"fair catch":ret?`returned ${ret} yards`:"no return"):(ret?`returned ${ret} yards`:"fair catch")}}
     mkPlay({T0,pre,o:{event:"punt",endBall:f(100-rec,1,99),desc:`🦶 4th down punt — ${gross} yards, ${note}. Possession flips.`}});
     spend(7);
     if(clock<=0){if(quarterRoll()||gameOver)continue}
@@ -8645,7 +9067,13 @@ const cTag=(paV81?"Play action — ":"")+({screen:"Screen — ",shot:"Deep shot 
         const meFlag=!usDrive&&pe(who);
         mkPlay({T0,pre,o:{event:"penalty",penalty:!0,yards:dyd,endBall:pos,involved:meFlag,desc:`🚩 DEFENSIVE PASS INTERFERENCE${meFlag?" — flag on YOU":` (#${who.num||""} ${nm(who)})`} — spot foul, ${dyd} yards, automatic first down.`}});
         spend(4);clock<=0&&quarterRoll();continue}
-      if(X.complete){
+      if(X.sack){
+        // v82: the sim's quarterback ate the ball — same books as a trench sack, sacker named by the sim
+        isPassFam=!1;de=f(X.yards,-12,-1);ne="sack";const skr=X.sacker||Y(Dk.def,["DL","DL","LB"]),meSk=!usDrive&&pe(skr);
+        ue=`🪖 SACKED — ${nm(skr)} gets home and ${nm(qb2)} takes the sack for a loss of ${-de}.`;
+        meSk&&(P.sack++,P.tackle++,me=!0,ue=`🪖 SACK — YOU get home and ${nm(qb2)} has nowhere to go: loss of ${-de}!`);
+        usDrive&&t==="QB"&&(me=!0);!usDrive?v.sacks++:j.sacks++;pos=f(pos+de,1,99);endB=pos}
+      else if(X.complete){
         de=X.yards;ne="pass";
         if(pos+de>=100){if(standV76()){de=Math.max(0,99-pos)}else{de=100-pos;_e=!0}}
         else if(pos+de<1){dropSimLog();de=1-pos}

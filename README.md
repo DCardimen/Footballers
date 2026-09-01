@@ -55,6 +55,41 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v82 — ten more ways the sim reads like football.** THE FRONT HAS A PLAN:
+  the pass rush runs TWISTS (the interior man crashes outside, the edge loops
+  into the vacated lane; the line has to pass it off — `passOffBase` — or the
+  looper comes free), a SPY mirrors a mobile quarterback instead of dropping,
+  and the offence answers with a PROTECTION CALL (the centre reads the blitz
+  side and slides; read it wrong and the back is alone from the wrong side) and
+  a CHIP from the tight end. DISGUISE: safeties show two-high and ROTATE one
+  down as a robber after the snap (a quarterback who graded his reads off the
+  old picture and does not see it — awareness — loses the window), and corners
+  PRESS and jam the release. THE POCKET: the quarterback steps up into edge
+  pressure instead of sliding into the other edge, runs designed ROLLOUTS, and a
+  smart one TAKES THE SACK with nothing open and a man on him — booked like a
+  trench sack, sacker named by the sim. BALL SKILLS: box-outs, working back to
+  an underthrown ball, and a corner who plays the hands (a SWAT) or the ball.
+  CONTACT: a glancing hit can BOUNCE off the runner while the tackler goes down
+  reaching, and a late man adds his push to the PILE after the whistle. EFFORT:
+  a man who has lost the footrace or is on the far side with the ball going
+  away JOGS; an empty tank costs a step. THE BACK HAS EYES: gaps are judged by
+  where defenders WILL be (their committed lines projected), a gap behind a
+  blocker who has his man is the one to press, and a closed hole is bounced.
+  LEVERAGE: a won block only washes the man away from the hole if the blocker
+  gets his head across — a lost reach seals him INTO it. SPECIAL TEAMS run on
+  the engine: punts, kickoffs and field goals are agent plays (the long snap,
+  protection against a real rush, blocks when a free man reaches the kick point,
+  the kick's own flight, coverage lanes narrowing on the returner, gunners vs
+  jammers, a fair catch when the coverage is on him, a wedge, the return and
+  the tackle) and the broadcast renders them from their logs — kickoffs are now
+  plays in the drive log. The game engine keeps its level-scaled leg and its rare
+  rolls; the sim decides the block, the fair catch and the return. Balance: a
+  back who has already made two men miss finds the third one gets him
+  (`evadeRepeatK`), which is what let elite and ordinary backs share one set of
+  dials. Special-teams tackles are not booked to the box score. Every system is
+  asserted by `scripts/readcheck.mjs`; `gamerunprobe.mjs` reads the in-game
+  balance and `readshot.mjs` captures the broadcast.
+
 - **v81 — the defence has to FIND the ball.** Every defender used to know who had
   it the instant the sim did: the carry loop handed all eleven the carrier's exact
   position every tick, so the whole defence converged like it had read the play

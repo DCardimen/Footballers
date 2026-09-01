@@ -48,7 +48,7 @@ const sd = a => { const m = avg(a); return Math.sqrt(avg(a.map(v => (v - m) ** 2
 
 function runs(seed, concept, defOver = {}, offOver = {}, n = N) {
   const ctx = runtime(seed);
-  const m = { n: 0, yds: 0, long: 0, untouched80: 0, reads: [], lb: [], cb: [], bites: 0, blocks: { push: 0, drive: 0, lost: 0 }, pancakes: 0, holes: 0, jobPlays: 0, lookPlays: 0, simul: 0 };
+  const m = { n: 0, yds: 0, long: 0, untouched80: 0, reads: [], lb: [], cb: [], bites: 0, blocks: { push: 0, drive: 0, lost: 0 }, pancakes: 0, holes: 0, jobPlays: 0, lookPlays: 0, simul: 0, ev: {} };
   for (let i = 0; i < n; i++) {
     const off = POS_OFF.map((p, j) => player(p, j, "off", offOver)), def = POS_DEF.map((p, j) => player(p, j, "def", defOver));
     const out = ctx.__FieldSim._sim("run", off, def, att, { off: { 9: off[9] } }, { concept });
@@ -63,34 +63,58 @@ function runs(seed, concept, defOver = {}, offOver = {}, n = N) {
     if (ev.some(e => e.type === "holeOpen")) m.holes++;
     if (ev.some(e => e.type === "block")) m.jobPlays++;
     if (out.yards >= 80 && !ev.some(e => e.type === "tackleLunge")) m.untouched80++;
+    for (const e of ev) m.ev[e.type] = (m.ev[e.type] || 0) + 1;
   }
   return { concept, ypc: +(m.yds / m.n).toFixed(2), longPct: +(m.long / m.n * 100).toFixed(1), untouched80: m.untouched80,
     readAvg: Math.round(avg(m.reads)), readSd: Math.round(sd(m.reads)), lbRead: Math.round(avg(m.lb)), cbRead: Math.round(avg(m.cb)),
     lookPct: +(m.lookPlays / m.n * 100).toFixed(0), simultaneousPct: +(m.simul / m.n * 100).toFixed(0),
     bitesPerPlay: +(m.bites / m.n).toFixed(2), blocksPerPlay: +((m.blocks.push + m.blocks.drive) / m.n).toFixed(2), lostPerPlay: +(m.blocks.lost / m.n).toFixed(2),
-    pancakesPerPlay: +(m.pancakes / m.n).toFixed(3), holePct: +(m.holes / m.n * 100).toFixed(0), jobPct: +(m.jobPlays / m.n * 100).toFixed(0) };
+    pancakesPerPlay: +(m.pancakes / m.n).toFixed(3), holePct: +(m.holes / m.n * 100).toFixed(0), jobPct: +(m.jobPlays / m.n * 100).toFixed(0),
+    ev: Object.fromEntries(Object.entries(m.ev).map(([k, v]) => [k, +(v / m.n).toFixed(3)])) };
 }
-function passes(seed, pa, defOver = {}) {
+function passes(seed, pa, defOver = {}, n = N, offOver = {}) {
   const ctx = runtime(seed), concepts = ["dropback", "shot", "dropback", "quick"];
-  const m = { n: 0, comp: 0, yds: 0, bites: 0, fakes: 0 };
-  for (let i = 0; i < N; i++) {
-    const off = POS_OFF.map((p, j) => player(p, j, "off")), def = POS_DEF.map((p, j) => player(p, j, "def", defOver));
+  const m = { n: 0, comp: 0, yds: 0, bites: 0, fakes: 0, ev: {}, sacks: 0 };
+  for (let i = 0; i < n; i++) {
+    const off = POS_OFF.map((p, j) => player(p, j, "off", offOver)), def = POS_DEF.map((p, j) => player(p, j, "def", defOver));
     const qb = off[8], wr = off.filter(p => p.pos === "WR")[i % 3], cb = def.filter(p => p.pos === "CB")[i % 2];
     const out = ctx.__FieldSim._sim("pass", off, def, att, { target: wr, cover: cb, off: { 8: qb, 0: wr }, def: { 0: cb } }, { concept: concepts[i % 4], pa, fieldPos: 40, down: 1, toGo: 10 });
     m.n++; if (out.log.events.some(e => e.type === "catch")) { m.comp++; m.yds += out.yards; }
     m.bites += out.log.events.filter(e => e.type === "keyBite").length;
     if (out.log.events.some(e => e.type === "playfake")) m.fakes++;
+    if (out.sack) m.sacks++;
+    for (const e of out.log.events) m.ev[e.type] = (m.ev[e.type] || 0) + 1;
   }
-  return { pa, compPct: +(m.comp / m.n * 100).toFixed(1), ypa: +(m.yds / m.n).toFixed(2), bitesPerPlay: +(m.bites / m.n).toFixed(2), fakePct: +(m.fakes / m.n * 100).toFixed(0) };
+  return { pa, compPct: +(m.comp / m.n * 100).toFixed(1), ypa: +(m.yds / m.n).toFixed(2), bitesPerPlay: +(m.bites / m.n).toFixed(2), fakePct: +(m.fakes / m.n * 100).toFixed(0),
+    sackPct: +(m.sacks / m.n * 100).toFixed(1), ev: Object.fromEntries(Object.entries(m.ev).map(([k, v]) => [k, +(v / m.n).toFixed(3)])) };
+}
+// v82 special teams: the kick kinds through the public API (the game engine's entry point)
+function kicks(seed, kind, n = N) {
+  const ctx = runtime(seed), FS = ctx.__FieldSim;
+  const m = { n: 0, fair: 0, ret: 0, retN: 0, td: 0, blocked: 0, good: 0, outside: 0, ev: {} };
+  for (let i = 0; i < n; i++) {
+    const off = POS_OFF.map((p, j) => player(p, j, "off")), def = POS_DEF.map((p, j) => player(p, j, "def"));
+    const opts = kind === "punt" ? { gross: 40, deep: 35, pos: 35, goalLx: -35 * 5.88 } : kind === "kickoff" ? { gross: 58, goalLx: -35 * 5.88 } : { dist: 38, pos: 79, good: i % 3 !== 0 };
+    const r = FS[kind](true, { off }, { def }, att, opts); m.n++; if (!r) continue;
+    if (kind === "fg") { if (r.blocked) m.blocked++; if (r.good) m.good++; }
+    else { if (r.fair) m.fair++; else { m.retN++; m.ret += r.ret; } if (r.td) m.td++; if (r.blocked) m.blocked++; }
+    const log = FS._Q[FS._Q.length - 1].log;
+    for (const e of log.events) m.ev[e.type] = (m.ev[e.type] || 0) + 1;
+    for (const a of log.actors) for (const f of a.frames) if (f.y < 48 - 1e-6 || f.y > 396 + 1e-6) m.outside++;
+  }
+  return { kind, fairPct: +(m.fair / m.n * 100).toFixed(0), avgRet: +(m.ret / Math.max(1, m.retN)).toFixed(1), tdPct: +(m.td / m.n * 100).toFixed(1), blockedPct: +(m.blocked / m.n * 100).toFixed(1),
+    goodPct: +(m.good / m.n * 100).toFixed(0), outside: m.outside, ev: Object.fromEntries(Object.entries(m.ev).map(([k, v]) => [k, +(v / m.n).toFixed(2)])) };
 }
 
 const R = { inside: runs(0xC0FFEE, "inside"), power: runs(0xC0FFEE, "power"), sweep: runs(0xC0FFEE, "sweep"), draw: runs(0xC0FFEE, "draw"),
   lowIQ: runs(0xC0FFEE, "inside", { awareness: 30, discipline: 30 }, {}, N * 2), highIQ: runs(0xC0FFEE, "inside", { awareness: 90, discipline: 90 }, {}, N * 2),
   drawLowIQ: runs(0xBEEF, "draw", { awareness: 30, discipline: 30 }), drawHighIQ: runs(0xBEEF, "draw", { awareness: 90, discipline: 90 }),
   bigOL: runs(0xC0FFEE, "inside", {}, { blocking: 88, strength: 88 }) };
-const Pz = { plain: passes(0xBEEF, false), pa: passes(0xBEEF, true), paLowIQ: passes(0xBEEF, true, { awareness: 30, discipline: 30 }), paHighIQ: passes(0xBEEF, true, { awareness: 90, discipline: 90 }) };
+const Pz = { plain: passes(0xBEEF, false, {}, N * 2), pa: passes(0xBEEF, true, {}, N * 2), paLowIQ: passes(0xBEEF, true, { awareness: 30, discipline: 30 }), paHighIQ: passes(0xBEEF, true, { awareness: 90, discipline: 90 }) };
+Pz.mobileQB = passes(0xBEEF, false, {}, N, { speed: 78 });
+const K = { punt: kicks(0xF00D, "punt"), kickoff: kicks(0xF00D, "kickoff"), fg: kicks(0xF00D, "fg") };
 const mixed = +((R.inside.ypc * .49 + R.sweep.ypc * .21 + R.power.ypc * .15 + R.draw.ypc * .15)).toFixed(2);   // roughly the play-caller's mix
-console.log(JSON.stringify({ runs: R, passes: Pz, mixedYpc: mixed }, null, 1));
+console.log(JSON.stringify({ runs: R, passes: Pz, kicks: K, mixedYpc: mixed }, null, 1));
 
 const fails = [];
 const ok = (c, msg) => { console.log((c ? "ok   " : "FAIL ") + msg); if (!c) fails.push(msg); };
@@ -117,5 +141,22 @@ const untouched = Object.values(R).reduce((n, r) => n + r.untouched80, 0), sampl
 // stalk-blocked, the linebacker chases from behind) can let one go untouched — that is
 // football, at about one in two thousand; a pattern is not
 ok(untouched <= 2, `an untouched 80 is a freak, not a pattern (${untouched} in ~${sampled} runs)`);
+/* ===== v82 — the front's plan, the disguise, the pocket, eyes, leverage, effort, the pile, ball skills, special teams ===== */
+const pe = Pz.plain.ev, re = R.inside.ev, kp = K.punt.ev, kk = K.kickoff.ev, kf = K.fg.ev;
+ok(pe.stunt > .1 && pe.stunt < .4 && (pe.stuntPassOff || 0) + (pe.stuntWin || 0) > pe.stunt * .5, `twists are run and resolved — passed off or won (${pe.stunt}/play, ${pe.stuntPassOff || 0} passed off, ${pe.stuntWin || 0} free)`);
+ok((Pz.mobileQB.ev.spy || 0) > .3 && (pe.spy || 0) < .05, `a spy shadows a mobile quarterback, not a statue (${Pz.mobileQB.ev.spy || 0} vs ${pe.spy || 0} per play)`);
+ok((pe.protection || 0) > .1 && (pe.chip || 0) > .2, `protection calls and chips happen (${pe.protection || 0} calls, ${pe.chip || 0} chips per play)`);
+ok((pe.disguise || 0) === 1 && (pe.rotate || 0) > .2 && (pe.jam || 0) > .15 && (pe.fooled || 0) > 0, `the shell disguises, rotates and presses (${pe.rotate || 0} rotations, ${pe.jam || 0} jams, ${pe.fooled || 0} fooled per play)`);
+ok((pe.stepUp || 0) > .1 && (pe.rollout || 0) > .03 && Pz.plain.sackPct <= 5, `the quarterback moves the pocket and can take the sack (${pe.stepUp || 0} step-ups, ${pe.rollout || 0} rollouts, ${Pz.plain.sackPct}% taken)`);
+ok((pe.swat || 0) > .01, `the catch point is contested (${pe.swat || 0} swats/play)`);
+ok((re.bounce || 0) > .005 && (re.bounce || 0) < .15, `carriers bounce off glancing hits, rarely (${re.bounce || 0}/play)`);
+ok((re.effort || 0) > .3 && (re.pilePush || 0) > .2, `effort shows — jogging on the far side, a late man into the pile (${re.effort || 0} effort, ${re.pilePush || 0} pile pushes per play)`);
+ok((re.press || 0) > .02, `the back presses a closed hole and bounces (${re.press || 0}/play)`);
+ok(K.punt.fairPct >= 10 && K.punt.fairPct <= 55 && K.punt.avgRet >= 3 && K.punt.avgRet <= 14, `punts: fair catches when the coverage is on him, real returns otherwise (${K.punt.fairPct}% fair, ${K.punt.avgRet} avg return)`);
+ok(K.kickoff.avgRet >= 10 && K.kickoff.avgRet <= 30 && K.kickoff.tdPct <= 2, `kickoffs: the wedge buys a return (${K.kickoff.avgRet} avg, ${K.kickoff.tdPct}% housed)`);
+ok(K.fg.blockedPct <= 3 && K.punt.blockedPct <= 2.5, `kicks get blocked, rarely (${K.fg.blockedPct}% of field goals, ${K.punt.blockedPct}% of punts)`);
+ok(K.fg.goodPct >= 55 && K.fg.goodPct <= 75, `the field goal animates the result the game engine decided (${K.fg.goodPct}% good of a 67% sample)`);
+ok((kp.puntCatch || 0) + (kp.faircatch || 0) + (kp.land || 0) + (kp.kickBlocked || 0) >= .95 && (kk.puntCatch || 0) >= .95 && (kf.fgResult || 0) + (kf.kickBlocked || 0) >= .95, `every kick resolves on the field`);
+ok(K.punt.outside + K.kickoff.outside + K.fg.outside === 0, `no special-teams frame leaves the field`);
 console.log(fails.length ? `VERDICT: FAIL (${fails.length})` : "VERDICT: PASS");
 process.exitCode = fails.length ? 1 : 0;

@@ -106,6 +106,48 @@ yard, `TICK = 33` ms per sim step. Key pieces, in order:
   early downs (`paRate`) and prefixes "Play action — ". Debug: `window.__V81_TRACE = []`
   collects per-tick pursuit rows (id, gap, committer, aim, vel). Guarded by
   `scripts/readcheck.mjs`.
+- **v82 — the ten systems** (anchors `v82 THE FRONT HAS A PLAN`, `v82 DISGUISE`, `v82 THE CHIP`,
+  `v82 THE TWIST`, `v82 THE PROTECTION CALL`, `v82 STEP UP`, `v82 THE SACK HE TAKES`,
+  `v82 BALL SKILLS`, `v82 3.5) BOUNCE`, `v82 EFFORT`, `v82 THE PILE`, `v82 THE BACK HAS EYES`,
+  `v82 LEVERAGE`, `v82 SPECIAL TEAMS`). Pass setup rolls `stunt` (looper + penetrator, resolved
+  at `stuntLoopMs` by a pass-off roll off the two linemen's awareness), `spy` (an LB on a QB
+  with `spyQbSpd`+ speed, attacking once the pocket moves), `protection` (`slideReadBase`
+  + centre awareness; a read slide lets a lineman pick the blitzer up at `slidePickP`, a
+  missed one sends the back the wrong way for `wrongSlideMs`), `chipper` (the TE holds the
+  edge for `chipUntilMs` — chipped rushers cannot shed) and `disguise` (a robber rotates at
+  `rotateAt`; press corners jam at t=200 on `jamBase` vs agility, `jamMs` slows the route,
+  `jamSep`/`beatPressSep` move the window; a rotation over the target's route fools the QB on
+  `disguiseFoolBase` less awareness and costs `disguiseSep`). The QB climbs on edge pressure
+  (`stepUpPx`), rolls on `rolloutRate` (throws count as moving), and takes the sack on
+  `takeSackP` when smart (`sackSmartAware`) — `out.sack`/`out.sacker` flow through
+  `__FieldSim.pass` to `b()` in `Yr`, which books it like a trench sack; the choreographer
+  accepts a `sack` event for the pass log. Catch point: `boxK` (body between man and ball),
+  `comebackK` (underthrow), `swatP` on a contested window (`contestSep`, `swatBase`).
+  Contact adds `bounce` (glancing side hits, `bounceBase`) before the stagger; the coast
+  adds `pilePush` (cosmetic — yards are booked before it). Pursuit: `jogGap`/`farSideY`
+  drop a beaten or far-side man to `jogPace`, `tiredGas` costs `tiredPace`; the last man
+  never jogs. Run game: `liveIn` projects each defender `lookaheadS` ahead along his
+  committed line, `sealed` gaps behind a held blocker sort first, `press` fires when the
+  designed hole is closed and the back bounces; `rollBlockV81` rolls `reachP` and flips the
+  wash (`lev: "lost"`) when the head does not get across. **Balance gotcha:** every evasion
+  after the first is cut by `evadeRepeatK` — without it an elite back strung together four
+  one-on-ones and the check roster ran at 10 YPC while the in-game roster ran at 3.
+  **Special teams** (`sim("punt"|"kickoff"|"fg")`): formations are laid over the eleven
+  standard slots (QB = kicker/punter, RB = holder/personal protector, S = returner, WRs =
+  gunners/wings) so the you-player keeps his slot; phases `kickset` (protection vs
+  `kRushers`, wings on the edge, `kickBlockPx`/`kickBlockP` at `puntKickMs`/`fgKickMs`) →
+  `kickfly` (coverage runs `_laneY` narrowing on the returner, jammers via `blockTick`,
+  the returner settles and fair-catches inside `fairCatchPx` on `fairCatchP`) → the carry
+  phase with `isKick` tweaks (linemen are chasers, the last man by `dirSign`, `held`
+  coverage, the return team blocks with `blockTick`, `goalLx` ends a housed return). **The
+  sim clock runs ~2.5x real** (a sprint is 25 yd/s), so hang times are `puntHangBase`
+  ~1.25s and `kickoffHangBase` ~0.9s, and a field goal is kicked at 640ms — the first cut
+  used real-time hangs and 85% of field goals were blocked. `__FieldSim.punt/kickoff/fg`
+  return `{ret, fair, blocked, td}` / `{blocked, good}` and push logs with kind = event;
+  `Yr` calls them from the punt branch, `kickoffTo` (which now pushes an `event:"kickoff"`
+  play when the sim resolved it) and the FG branch; the choreographer's `kindWant` takes
+  kick logs. Special-teams tackles are deliberately not credited to the box score
+  (`creditcheck`'s sim truth counts scrimmage wraps).
 - `breakProb`, `turnTest` — pure formula hooks for unit checks.
 - `fieldGoalRows()` / `fieldArtY(u)` (anchor `v72 END-ZONE MAPPING`) — the turf art
   is sampled by its GOAL LINES, not by its full height. The art has a real ten-yard

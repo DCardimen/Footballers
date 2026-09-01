@@ -18,6 +18,9 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   (agents, contact/tackling, stat truth: `who ACTUALLY made the stop`)
 - `v81 BALL AWARENESS` / `v81 THE POINT OF ATTACK` — defenders find the ball on
   their own clock, fakes, committed pursuit lines, rolled blocks, the hole
+- `v82 THE FRONT HAS A PLAN` / `v82 DISGUISE` / `v82 SPECIAL TEAMS` — stunts, spy,
+  protection calls, chips, rotation/press, the pocket, ball skills, bounce/pile,
+  effort, the back's lookahead, leverage, and punts/kickoffs/FGs as agent plays
 - `v16 EMERGENT GAME ENGINE` — `Yr` / `window.__simGameV2`: full games,
   play-calling, the you-player's box score `P`
 - `GRIDIRON live-field bridge v3` — broadcast renderer (after a minified
