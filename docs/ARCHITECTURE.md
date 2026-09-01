@@ -68,6 +68,44 @@ yard, `TICK = 33` ms per sim step. Key pieces, in order:
 - Stat truth extraction (anchor: `who ACTUALLY made the stop`) — after the play,
   the last `tackle` event is mapped back to roster players:
   `out.tackler` / `out.assist`. This is the **only** source of tackle credit.
+- **v81 BALL AWARENESS** (anchors `v81 BALL AWARENESS — the defence has to FIND the ball`
+  and `v81 THE POINT OF ATTACK`, both inside `sim()`; the renderer's cases sit under
+  `v81 BALL AWARENESS — you can watch the defence find the ball`): every defender gets
+  `_readMs` (awareness-led, position-scaled, jittered) and `_seenAt = declareT + _readMs`,
+  where `declareT` is when the play declares itself — early for a straight run, the late
+  mesh for a draw, the QB pulling the ball back for play action. `seesBall(a)` gates the
+  carry loop: until it is true a man plays his ASSIGNMENT (LB read step, safety keys the
+  back, force corner squats, freed rusher chases what he can see); once the ball is past
+  the line (`ballVisibleLx`) everyone sees it. `keyTick()` emits `keyLook` at the snap
+  (the renderer's "?"), `keyRead` when the diagnosis lands, `keyBite` for a man who bit
+  on a fake. After the read: linebackers FIT their gap at the line (`lbFitLx`) before
+  they chase; the play-side safety fills while the other is the roof (`_roof`); pursuit
+  runs a COMMITTED LINE (`_aimX/_aimY/_aimUntil`, refreshed on `angleRefreshMs` less
+  awareness — always every tick inside `angleLockGap` and for the last man). Blocks:
+  `rollBlockV81(o, r)` at the mesh returns stalemate / push / drive / lost / pancake with
+  a wash direction away from `holeY` (the concept picks the gap via `GAP_Y`); the carry
+  loop plays the block out over `blockPlayMs`, frees the rusher on a lost block, and
+  RELEASES a lineman once the ball is `releasePastPx` past him, after which he climbs
+  to the nearest live defender (`climbReachPx`, `_climbedBy` prevents stacking). The
+  back attacks `holeY` first and re-reads gaps every `laneHoldMs`. Receivers stalk-block
+  (`stalkReachPx`, capped by `stalkHoldMax`); the backside receiver runs his corner off.
+  A HELD defender (`held`) crawls but can still fall off onto a runner inside
+  `heldReachPx`. **Gotchas found here:** (1) the committed-tackler role
+  (`committerId`) must belong to a CLOSING man — a released lineman trailing the play
+  used to take it from launch range and the support rule then held every other
+  defender a stride off the carrier (untouched 80-yard runs); it now requires
+  `commitMinVel`, is taken over by anyone closer, and drops on `commitDropGap` /
+  `commitMaxMs`. (2) The per-tick pancake roll in `pancakeTick` was `.0009*(edge-10)`,
+  which flattened a man on a third of a dominant line's snaps; `pancakeTickK` is .00012.
+  (3) Passive second-level defenders (a safety holding a 44px cushion) are what turns a
+  broken tackle into a touchdown — the roof is ONE safety, and he pursues once the ball
+  is out. The you-player's stats are untouched: awareness (recognition), quickness
+  (redirect) and discipline (fake resistance) are the three that pay here, the same
+  three the v56 route-break reaction uses. `__FieldSim.run` takes the concept
+  (`inside|sweep|power|draw`) and `.pass` ctx carries `pa`; `Yr` rolls play action on
+  early downs (`paRate`) and prefixes "Play action — ". Debug: `window.__V81_TRACE = []`
+  collects per-tick pursuit rows (id, gap, committer, aim, vel). Guarded by
+  `scripts/readcheck.mjs`.
 - `breakProb`, `turnTest` — pure formula hooks for unit checks.
 - `fieldGoalRows()` / `fieldArtY(u)` (anchor `v72 END-ZONE MAPPING`) — the turf art
   is sampled by its GOAL LINES, not by its full height. The art has a real ten-yard
@@ -203,6 +241,7 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
 
 ```bash
 npm run dev                        # leave running; all checks drive it headlessly
+node scripts/readcheck.mjs        # v81 ball awareness: reads, fakes, blocks, the run curve (pure Node)
 node scripts/creditcheck.mjs      # tackle credit ≤ sim truth (this repo's invariant)
 node scripts/statcreditcheck.mjs  # box score credits only involved plays (all stats)
 node scripts/tacklecheck.mjs      # solo/gang split, whiff/truck/stiff-arm rates
@@ -213,6 +252,8 @@ node scripts/teamqualcheck.mjs    # v68 prestige-tree nerf holds at ~10x
 node scripts/equaltalentcheck.mjs # mirrored rosters are actually fair
 node scripts/refcheck.mjs         # v45/v49 officiating crew + ref art
 node scripts/crowdcheck.mjs       # v57 stands: perspective, roar wave, fallback
+node scripts/gamerunprobe.mjs     # v81 balance probe: in-game run/pass stats by concept (GAME_URL for a base build)
+node scripts/readshot.mjs         # v81 visual QA: framebuffer captures of the live game
 ```
 
 See `scripts/README.md` for the full catalog (including screenshot/exploration

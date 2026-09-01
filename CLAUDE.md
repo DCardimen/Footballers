@@ -16,6 +16,8 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
 - `GRIDIRON play choreography engine` — legacy render-only choreographer
 - `GRIDIRON FieldSim — agent-based play resolution` — the real play resolver
   (agents, contact/tackling, stat truth: `who ACTUALLY made the stop`)
+- `v81 BALL AWARENESS` / `v81 THE POINT OF ATTACK` — defenders find the ball on
+  their own clock, fakes, committed pursuit lines, rolled blocks, the hole
 - `v16 EMERGENT GAME ENGINE` — `Yr` / `window.__simGameV2`: full games,
   play-calling, the you-player's box score `P`
 - `GRIDIRON live-field bridge v3` — broadcast renderer (after a minified
@@ -42,6 +44,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | You changed… | Run |
 |---|---|
 | tackling / contact physics | `tacklecheck.mjs`, `jukecheck.mjs` |
+| defender reads / blocking / pursuit (v81) | `readcheck.mjs` (pure Node), then `movementcheck.mjs`, `simcheck.mjs` |
 | stat credit / box score | `creditcheck.mjs`, `statcreditcheck.mjs` |
 | game engine / play-calling / yardage | `simcheck.mjs` |
 | anything sim-side that should be visible | `renderpathcheck.mjs` |

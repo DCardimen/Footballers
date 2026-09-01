@@ -55,6 +55,39 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v81 — the defence has to FIND the ball.** Every defender used to know who had
+  it the instant the sim did: the carry loop handed all eleven the carrier's exact
+  position every tick, so the whole defence converged like it had read the play
+  sheet. Now each man reads KEYS on his own clock (`_readMs`, awareness-led, with
+  position and a jitter) and plays his assignment until he has diagnosed the
+  play — linebackers hold their gap with a read step, then FIT downhill at the
+  line before they chase; the play-side safety fills the alley while the other
+  stays over the top as the roof; the force corner squats on the edge; a freed
+  rusher chases what he can see. Once the ball is past the line it is in plain
+  sight and everyone goes looking for a job. Fakes move the moment the play
+  declares itself: a DRAW drops the QB and pass-sets the line before the late
+  mesh, PLAY ACTION rides a real fake to the back, and a linebacker or safety
+  who BITES steps the wrong way first (`fakeBiteBase`, cut by awareness and
+  discipline) and finds the ball later. Play action pays out on the reveal
+  (`paBiteSep`, `paVacateSep`) and the play-caller calls it on early downs
+  (`paRate`). Pursuit runs COMMITTED LINES: a chaser picks an intercept point and
+  runs his line to it, re-reading on an awareness clock (`angleRefreshMs`), so a
+  cut or a bounce leaves the bad slant you can see. THE POINT OF ATTACK: a run has
+  a designated hole (the concept picks the gap), each lineman rolls his block at
+  the mesh — stalemate / push / drive / lost / the rare PANCAKE — and won blocks
+  wash their men away from the hole so the gap visibly opens (`holeOpen`); the
+  back attacks the hole first and reads from there; linemen release once the
+  ball is past them and climb to the next man, the TE and receivers stalk-block,
+  and the backside receiver runs his corner off. Two latent bugs surfaced by the
+  spacing: a released lineman trailing the play could hold the "committed
+  tackler" role and the support rule then held every other defender a stride
+  off the runner (untouched 80s) — the role now needs a closing, moving man and
+  drops when he falls off; and the v16.3 per-tick pancake rate flattened someone
+  on a third of a dominant line's snaps (`pancakeTickK`). On screen: a "?" floats
+  over each defender still reading and drops the tick he finds it, bites,
+  driven blocks and the lane pop, and the you-player's own reads are called out.
+  Guarded by `scripts/readcheck.mjs` (pure Node, no server).
+
 - **v80 — the ball reaches the boundary, and the sideline watches it get there.**
   Two fixes, one cause each. LATERAL CALIBRATION: the field art draws its
   painted touchlines to true scale, ~16% wider than the raw lateral map put the
