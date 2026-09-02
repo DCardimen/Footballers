@@ -55,6 +55,55 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v85 — ratings past 99, the wheel in the background, the body on the sheet, and
+  the season ahead.** Four things the career screens were not saying. (1) OVR is
+  open-ended everywhere, on the same curve: the you-player's `en()` already ran past
+  99 (Transcendent 100+, Interstellar 140+, GALAXY-CLASS 180+) but every roster
+  player, team rating, rival, the scoreboard pair (`teamPairV76`), the v15.7 exact
+  rosters and the "Reach N OVR" goal were clamped at 99, so a prestiged career read
+  a league of 99s by college. The clamps are lifted (the sim-side attribute
+  generator in `Wr` keeps its own 5–99 range, so play balance is untouched) and the
+  menu's OVR ring shows the number as it is. (2) A quick-played week and "Sim
+  Remaining Regular Season" now roll the v51 plan wheel with nothing drawn:
+  `decidePlan` (the wheel's own math, split out of `rollPlan`) picks the plan by
+  personality and rolls the fit band, `applyDecision` composes the swing, and the
+  pick goes through `chooseGamePlanV11` so the v50 fate roll and `ca()` book the
+  week exactly as a played week is booked — engine stat line, plan, condition,
+  injuries materialised. The schedule row carries a chip saying what the wheel did
+  (🎡 RED ZONE PACKAGE · CLICKED). A watched live game now overwrites the game
+  `ca()` pre-booked (`bookLiveGameV85`): the box score you saw is the one the season
+  counts, and the rating moves by the difference in grade. (3) The attribute sheet
+  shows what you take onto the field: every attribute has its EFFECTIVE value for
+  the next game (`condMultV54` — worn or hurt −10%, fresh +5% — plus the wheel's
+  swing) in red or green with the cut drawn on the track, under an injury-risk
+  badge (% this game, games expected missed, fatigue) read off `bodyLedgerV73`. The
+  pregame YOUR STATS list carries the same. (4) Every attribute also shows where the
+  season is taking it: `projectSeasonGainsV85` runs the season resolver's own gain
+  formula as an expected value from the current training program, the games played
+  and the games left (no dice), drawn as a hollow green extension with a `▹+N`
+  label. The offseason training board uses the same projection: each program now
+  states flat expected gains for the season ("FOCUS STATS +3 to +4 · OTHERS +1",
+  a `+N` on every focus chip) instead of "PRIORITY +10%", which read as nothing
+  once attributes ran into the hundreds. `scripts/v85check.mjs` asserts all of it
+  against the game.
+
+- **v84 — the main menu is one kit.** The v74 menu was art-driven but read as pieces
+  from different kits: thick gold picture-frames around the cards, brushed-metal nav
+  tiles with border-image corners, line icons beside 3D icons, a black band between
+  the stadium floor and the tagline, and a HUD in its own black bar.
+  `public/rib-menu-v84.css` (loaded last by the bake) turns it into one system: dark
+  glass panels with a 1px gold hairline and an inner top-light, one radius scale and
+  one spacing rhythm, gold reserved for hairlines, the numbers that matter and the
+  single CTA surface; the hero bleeds under a frosted, transparent HUD and its
+  stadium band is cropped so the floor melts into the page; the tagline is a
+  small-caps rule; the OVR dial is a pure-CSS ring with the live arc; the legacy grid
+  is six quiet tiles with every icon from the same 3D sheet (CAREERS and NFL REACHED
+  take the helmet and shield the nav buttons already cut); the secondary row and the
+  nav strip share one glass pill; the shine sweep is CTA-only; and a footer line
+  finishes the screen without adding height the fit check would count. The DOM is
+  untouched and `menu-integration-check.mjs` passes as is. `scripts/menushot.mjs`
+  captures the live menu at any set of phone sizes.
+
 - **v83 — blockers square up to their man, and both bodies read.** The renderer
   used to hold an engaged lineman on his pre-snap facing for the whole block, so a
   guard washing his man sideways or a tight end sealing an end was drawn square to

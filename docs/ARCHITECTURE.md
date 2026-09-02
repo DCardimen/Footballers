@@ -254,6 +254,51 @@ miss it falls back to `buildPlayScript` choreography. If you change sim behavior
 and can't see it on screen, run `node scripts/renderpathcheck.mjs` — the sim →
 render hit rate should be ~87–90%.
 
+## The silent week (v85) — how a simmed game is booked
+
+Anchor `v85 THE WHEEL SPINS IN THE BACKGROUND` (career block, just before the v11
+`Object.assign(window,{chooseOriginV11…})` export) and `v85 THE DECISION, WITH NO
+WHEEL ATTACHED` (inside the v51 pregame-wheel IIFE).
+
+A played week runs one chain: `$t` renders the plan deck (`bs`) → the v51 wheel
+reads it, picks by personality and rolls the fit band → `chooseGamePlanV11` (wrapped
+by v1514's pregame panel and v50's fate roll) → `Nc` → `ca(e,week,plan)` books the
+engine game (`__aiSeasonGame` → `__simGameV2`) → `Yt` → `po` (the pre-v11 `lt`)
+marks the week played. `silentWeekV85(e,w)` runs that same chain with the UI told
+to stand down: it renders `bs(false)` into a detached element, hands it to
+`__PREGAME_V51.silentPlan` (`decidePlan` + `applyDecision`, the wheel's own math),
+records `w.wheelV85`, sets `window.__silentSimV85` so the v1514 wrapper calls
+straight through, and calls `chooseGamePlanV11(plan,false)`. Quick play goes through
+it from `$t` (dial `quickSilent`); "Sim Remaining" is the v11/v12 `wt` wrappers
+looping it, stopping where a played season stops (a story or life decision queued,
+an NFL offer on the table). Do not add a third `wt`: the v12 wrapper is the one
+that runs.
+
+The live week books twice by design: `ca()` pre-books an engine game when the plan
+is chosen, `lt(true)` runs a second `Yr` for the broadcast, and `Ea` →
+`bookLiveGameV85` overwrites the pre-booked stat line and score with the game that
+was watched, moving `perf` by the grade difference (`gradeGame`, the same dev/win
+terms `__aiSeasonGame` uses). Anything that reads a played week's `statLine` after
+a live game gets the broadcast's box score.
+
+## The sheet (v85) — effective values and the projection
+
+Anchor `v85 THE BODY ON THE SHEET, AND THE SEASON AHEAD` (just before `Vr`).
+`effAttrsV85(e)` = `round(attr × condMultV54(e)) + this game's _tempStatBuffsV25`;
+`bodyBadgeV85(e)` is `bodyLedgerV73` in one line; `projectSeasonGainsV85(e)` is
+`tt(e)`'s gain formula with the dice removed (expected season average from the
+weeks played and the `et` mean for the weeks left, playoff wins from
+`playoffState`, injuries so far, training focus/priority/cost, the ceiling `k` and
+the diminishing term, the fractional `growthBank` carry). **If the gain formula in
+`tt` changes, change it here too** — the projection is a copy, not a call, because
+`tt` mutates the player. `sheetCtxV85` memoises both per render (keyed on fatigue,
+injury, buffs, training, weeks played, attribute sum). `projectSeasonGainsV85(e,training,preseason)` also serves the offseason board
+(`jr`): `training` projects a program other than the chosen one, `preseason` treats
+the whole schedule as ahead (the board is chosen before the weeks exist). `Vr` draws the cut/lift as
+`.loss`/`.gain` segments on the track and the projection as a hollow `.proj`
+extension with a `▹+N` label; the same effective values feed
+`pregamePlayerStatsV25`.
+
 ## Screens and their shapes (v73–v75)
 
 Three of the screens below are assembled by a long chain of patch layers, each of
@@ -274,14 +319,22 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   to split there. Measured by `scripts/scrollcheck.mjs`, which finds the element
   that actually scrolls — `<html>` carries `overflow:hidden`, so the document never
   is.
+- **OVR is open-ended (v85).** `en()` runs past 99 and `$s()` names the tiers above it.
+  Rosters (`Wr`), rivals, `teamPairV76`, the v15.7 exact rosters and the hub bars are
+  clamped at 999, not 99 — new displays must not reintroduce a 99 cap. The sim-side
+  attribute generator `h()` in `Wr` and the you-player's `qr()` stay on 5–99 on
+  purpose: they feed the engine, not the screen.
 - `v73 BODY LEDGER` (next to the v54 availability model) — `bodyLedgerV73(player)`
   is the one read of what the body is worth in the next game. It quotes
   `condMultV54` and `injChanceV54` directly, and measures the marginal value of a
   durability point by asking the real chance function with the stat one higher.
   `bodyCostV73` is recorded in the weekly resolver either side of the multiplier,
   which is the only place the charge is knowable.
-- `v74 MENU POLISH` (`public/rib-menu-v74.css`, loaded last by
-  `scripts/bake-menu-into-index.mjs`) — the menu is the one part of the app that is
+- `v74 MENU POLISH` (`public/rib-menu-v74.css`) and **v84 MENU OVERHAUL**
+  (`public/rib-menu-v84.css`, the visual system: glass panels, one hairline gold, the
+  hero fading into the page, a transparent HUD — the sheet that loads LAST in
+  `scripts/bake-menu-into-index.mjs`, so it overrides everything above it; add new
+  menu rules there, not to the earlier sheets) — the menu is the one part of the app that is
   NOT inline: it ships as `public/rib-menu*.{css,js}` linked from `index.html`. The
   shell is its own scroll container (the app puts `overflow:hidden` on `<html>`),
   and hero and content flex in opposite directions so neither a short nor a tall
