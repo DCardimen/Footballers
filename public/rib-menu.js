@@ -322,9 +322,9 @@
   function applyDynamic(menu, data, animateIn) {
     const ring = menu.querySelector('.rib-ovr-ring');
     if (ring) {
-      const overall = Math.max(0, Math.min(99, Number(data.overall) || 0));
+      const overall = Math.max(0, Number(data.overall) || 0);   // v85: ratings run past 99 — the number is shown as is, the arc just fills
       ring.style.setProperty('--rib-ovr-color', overall >= 85 ? '#ffe9a0' : overall >= 50 ? '#ffd15d' : '#e8734a');
-      const applyArc = () => ring.style.setProperty('--rib-ovr', String(overall / 100));
+      const applyArc = () => ring.style.setProperty('--rib-ovr', String(Math.min(1, overall / 100)));
       if (animateIn && !prefersReduced()) whenAssetsReady(() => requestAnimationFrame(() => requestAnimationFrame(applyArc)));
       else applyArc();
     }
