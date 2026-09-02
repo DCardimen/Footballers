@@ -81,7 +81,11 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   season is taking it: `projectSeasonGainsV85` runs the season resolver's own gain
   formula as an expected value from the current training program, the games played
   and the games left (no dice), drawn as a hollow green extension with a `▹+N`
-  label. `scripts/v85check.mjs` asserts all four against the game.
+  label. The offseason training board uses the same projection: each program now
+  states flat expected gains for the season ("FOCUS STATS +3 to +4 · OTHERS +1",
+  a `+N` on every focus chip) instead of "PRIORITY +10%", which read as nothing
+  once attributes ran into the hundreds. `scripts/v85check.mjs` asserts all of it
+  against the game.
 
 - **v84 — the main menu is one kit.** The v74 menu was art-driven but read as pieces
   from different kits: thick gold picture-frames around the cards, brushed-metal nav

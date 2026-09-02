@@ -8589,14 +8589,16 @@ function bodyBadgeV85(e){
       +`<span>fatigue <b style="color:${fat>=75?"var(--blood)":fat>=50?"var(--gold)":"var(--good)"}">${Math.round(fat)}</b></span></div>`;
   }catch(_){return ""}
 }
-function projectSeasonGainsV85(e){
+function projectSeasonGainsV85(e,training,preseason){
+  // training: a program key to project INSTEAD of the one chosen (the offseason board
+  // asks this for every card); preseason: the whole schedule is still ahead
   const out={};
   try{
     if(!e||!e.attrs||!e.pos||!Ee[e.pos])return out;
     const t=A[e.level];if(!t)return out;
-    const wk=(e.weekResults||[]).filter(R=>!R.playoff);
+    const wk=preseason?[]:(e.weekResults||[]).filter(R=>!R.playoff);
     if(wk.length&&wk.every(R=>R.played))return out;           // the season is in the books: nothing left to project
-    const a=pt[e.training||"balanced"]||pt.balanced,n=e.eventChoice;
+    const a=pt[training||e.training||"balanced"]||pt.balanced,n=e.eventChoice;
     let i=0,l=0;
     if(n){const Pe=M("genius")>0||o.path==="prodigy";n.perf&&(i+=n.perf);
       if(n.gritReqBase){const Ae=Da(n.gritReqBase,e.level);i+=Pe||e.attrs.grit>=Ae?0:-(n.perf||0)*1.6}
@@ -8668,7 +8670,7 @@ function Vr(e,t){const a=t.attrs[e],s=t.lastGains[e]||0,n=t.pos&&Ee[t.pos].w[e],
     <div class="h1">Choose Your Training</div>
     <div class="sub">This is where careers are built. Each program develops specific stats — and some carry real injury risk. Match it to what your player needs.<br><span style="color:var(--chalk-dim)">Each stat shows what your next <b>+1</b> costs in skill points: <b style="color:#7fe0a0">1 pt</b> below its soft cap, then <b style="color:#f0bb45">2</b>, <b style="color:#ff9a5a">3</b>, <b style="color:#ff8a80">4+</b> above it. Priority growth into a capped stat is growth you cannot afford to keep.</span></div>
     <div class="mt" style="margin-top:14px">
-      ${Object.entries(pt).map(([s,n])=>{const i=s===a,r=n.injury>=1.4?"var(--blood)":n.injury>=1.1?"var(--gold)":"var(--good)",l=n.injury>=1.4?"HIGH RISK":n.injury>=1.1?"SOME RISK":n.injury<.9?"SAFE":"STEADY",d=Math.round((n.priorityBonus||0)*100),c=n.focus?`PRIORITY +${d}% to selected stats`:`ALL-STATS PRIORITY +${d}%`,u=(n.focus||[]).map(p=>`<span class="train-chip">${Le[p].icon} ${Le[p].name}${capBadgeV67(e,p)}</span>`).join(""),cp=capPlanV67(e,n.focus),h=n.cost?Object.entries(n.cost).map(([p,m])=>`<span class="train-chip neg">▼ ${Le[p].name} ${m}</span>`).join(""):"";return`<div class="pos-card ${i?"best":""} train-card" onclick="chooseTraining('${s}')">
+      ${Object.entries(pt).map(([s,n])=>{const i=s===a,r=n.injury>=1.4?"var(--blood)":n.injury>=1.1?"var(--gold)":"var(--good)",l=n.injury>=1.4?"HIGH RISK":n.injury>=1.1?"SOME RISK":n.injury<.9?"SAFE":"STEADY",pj=projectSeasonGainsV85(e,s,!0),gv=p=>{const v=pj[p]||0;return v>=.95?"+"+Math.round(v):v>=.25?"+"+v.toFixed(1):v<=-.25?String(Math.round(v)):"+0"},rng=ks=>{const vs=ks.map(p=>pj[p]||0);if(!vs.length)return"";const lo=Math.min(...vs),hi=Math.max(...vs),F=v=>v>=.95?String(Math.round(v)):v.toFixed(1);return lo===hi||F(lo)===F(hi)?"+"+F(hi):"+"+F(lo)+" to +"+F(hi)},others=ee.filter(p=>!(n.focus||[]).includes(p)&&!(n.cost&&n.cost[p])),c=n.focus?`FOCUS STATS ${rng(n.focus)} · OTHERS ${rng(others)} THIS SEASON`:`EVERY STAT ${rng(ee)} THIS SEASON`,u=(n.focus||[]).map(p=>`<span class="train-chip">${Le[p].icon} ${Le[p].name} <b class="v85g" style="color:var(--good);margin:0 6px 0 3px">${gv(p)}</b>${capBadgeV67(e,p)}</span>`).join(""),cp=capPlanV67(e,n.focus),h=n.cost?Object.entries(n.cost).map(([p,m])=>`<span class="train-chip neg">▼ ${Le[p].name} ${m}</span>`).join(""):"";return`<div class="pos-card ${i?"best":""} train-card" onclick="chooseTraining('${s}')">
           <div class="train-head">
             ${window.RIB_SKILL_ICO?window.RIB_SKILL_ICO("tp_"+s,n.icon,54):`<span style="font-size:24px">${n.icon}</span>`}
             <div style="flex:1;min-width:0">

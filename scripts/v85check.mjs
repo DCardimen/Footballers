@@ -148,6 +148,23 @@ ok(proj.speed > proj.speedFilm && proj.awareFilm > proj.aware, 'the projection f
 ok(proj.hollow > 0 && proj.labels.length > 0 && proj.labels.every(l => /^▹[+-]\d+$/.test(l)), 'hollow green extensions with +N labels are on the sheet', `${proj.hollow} bars · ${proj.labels.join(' ')}`)
 ok(proj.legend, 'the legend names what the marks mean')
 
+// ---- 4b. the offseason training board speaks in points, not priority percents
+const board = await page.evaluate(() => {
+  window.go('training')
+  const cards = [...document.querySelectorAll('.train-card')]
+  const metas = cards.map(c => (c.querySelector('.train-meta')?.textContent || '').replace(/\s+/g, ' ').trim())
+  const chips = [...document.querySelectorAll('.train-card .train-chip b.v85g')].map(b => b.textContent.trim())
+  const speedCard = cards.find(c => /Speed Academy/.test(c.textContent)), filmCard = cards.find(c => /Film Study/.test(c.textContent))
+  const chipVal = (card, name) => { const ch = [...card.querySelectorAll('.train-chip')].find(x => x.textContent.includes(name)); return ch ? parseFloat((ch.querySelector('b.v85g') || {}).textContent) : null }
+  const out = { n: cards.length, pct: metas.filter(m => /%/.test(m)).length, flat: metas.filter(m => /(FOCUS STATS|EVERY STAT) \+[\d.]+/.test(m)).length, chips: chips.slice(0, 5),
+    speedOnSpeed: speedCard && chipVal(speedCard, 'Speed'), filmOnAware: filmCard && chipVal(filmCard, 'Awareness'), sample: metas[1] }
+  window.go('season')
+  return out
+})
+console.log('board:', JSON.stringify(board))
+ok(board.n > 5 && board.pct === 0 && board.flat === board.n, 'every program on the training board states flat expected gains and no priority percent', `${board.flat}/${board.n} flat · ${board.pct} with % · e.g. "${board.sample}"`)
+ok(board.chips.length > 0 && board.chips.every(c => /^[+-][\d.]+$/.test(c)) && board.speedOnSpeed > 0 && board.filmOnAware > 0, 'each focus chip carries its own +N for the season', `${board.chips.join(' ')} · Speed Academy speed ${board.speedOnSpeed} · Film Study awareness ${board.filmOnAware}`)
+
 // ---- 2b. sim the rest: every week rolled, every week booked, nothing on screen
 const sim = await page.evaluate(async () => {
   const pl = window.S.player

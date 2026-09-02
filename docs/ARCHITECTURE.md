@@ -292,7 +292,9 @@ weeks played and the `et` mean for the weeks left, playoff wins from
 the diminishing term, the fractional `growthBank` carry). **If the gain formula in
 `tt` changes, change it here too** — the projection is a copy, not a call, because
 `tt` mutates the player. `sheetCtxV85` memoises both per render (keyed on fatigue,
-injury, buffs, training, weeks played, attribute sum). `Vr` draws the cut/lift as
+injury, buffs, training, weeks played, attribute sum). `projectSeasonGainsV85(e,training,preseason)` also serves the offseason board
+(`jr`): `training` projects a program other than the chosen one, `preseason` treats
+the whole schedule as ahead (the board is chosen before the weeks exist). `Vr` draws the cut/lift as
 `.loss`/`.gain` segments on the track and the projection as a hollow `.proj`
 extension with a `▹+N` label; the same effective values feed
 `pregamePlayerStatsV25`.
