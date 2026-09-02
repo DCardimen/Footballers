@@ -280,8 +280,11 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   durability point by asking the real chance function with the stat one higher.
   `bodyCostV73` is recorded in the weekly resolver either side of the multiplier,
   which is the only place the charge is knowable.
-- `v74 MENU POLISH` (`public/rib-menu-v74.css`, loaded last by
-  `scripts/bake-menu-into-index.mjs`) — the menu is the one part of the app that is
+- `v74 MENU POLISH` (`public/rib-menu-v74.css`) and **v84 MENU OVERHAUL**
+  (`public/rib-menu-v84.css`, the visual system: glass panels, one hairline gold, the
+  hero fading into the page, a transparent HUD — the sheet that loads LAST in
+  `scripts/bake-menu-into-index.mjs`, so it overrides everything above it; add new
+  menu rules there, not to the earlier sheets) — the menu is the one part of the app that is
   NOT inline: it ships as `public/rib-menu*.{css,js}` linked from `index.html`. The
   shell is its own scroll container (the app puts `overflow:hidden` on `<html>`),
   and hero and content flex in opposite directions so neither a short nor a tall

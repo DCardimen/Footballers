@@ -14,6 +14,7 @@ const cssFiles = [
   'rib-menu-final.css',
   'rib-menu-assets.css',
   'rib-menu-v74.css',
+  'rib-menu-v84.css',
 ]
 
 const jsFiles = [

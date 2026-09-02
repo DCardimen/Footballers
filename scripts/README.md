@@ -70,6 +70,7 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 | `live.mjs` | Boot into a live game and capture frames of the broadcast view. |
 | `scroll.mjs` | Phone-viewport scroll-through screenshots (layout/overflow checks). |
 | `crop.mjs` | High-DPI cropped screenshots of a screen region. |
+| `menushot.mjs` | v84 menu QA: screenshots the LIVE main menu (onboarding dismissed) at a set of phone sizes — `SIZES=390x844,358x768,520x900 OUT=/tmp/menu node scripts/menushot.mjs` — and prints the hero / card / CTA heights and any page errors; `URL` points it at `menu-preview.html?menuPreview=1` for the saved-career state. |
 | `menu-preview-shot.mjs` | Screenshot + layout metrics of the standalone `menu-preview.html` (`?menuPreview=1` sample data). |
 | `bake-menu-into-index.mjs` | Rewrites the `RIB_DIRECT_MENU_*` marker blocks in `index.html` to reference the versioned menu CSS/JS in `public/`. |
 | `assemble-pages.mjs` | Builds the exact GitHub Pages site into `_site/` (root index + `public/` + generated menu sheets) and verifies the baked menu references. |

@@ -55,6 +55,23 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v84 — the main menu is one kit.** The v74 menu was art-driven but read as pieces
+  from different kits: thick gold picture-frames around the cards, brushed-metal nav
+  tiles with border-image corners, line icons beside 3D icons, a black band between
+  the stadium floor and the tagline, and a HUD in its own black bar.
+  `public/rib-menu-v84.css` (loaded last by the bake) turns it into one system: dark
+  glass panels with a 1px gold hairline and an inner top-light, one radius scale and
+  one spacing rhythm, gold reserved for hairlines, the numbers that matter and the
+  single CTA surface; the hero bleeds under a frosted, transparent HUD and its
+  stadium band is cropped so the floor melts into the page; the tagline is a
+  small-caps rule; the OVR dial is a pure-CSS ring with the live arc; the legacy grid
+  is six quiet tiles with every icon from the same 3D sheet (CAREERS and NFL REACHED
+  take the helmet and shield the nav buttons already cut); the secondary row and the
+  nav strip share one glass pill; the shine sweep is CTA-only; and a footer line
+  finishes the screen without adding height the fit check would count. The DOM is
+  untouched and `menu-integration-check.mjs` passes as is. `scripts/menushot.mjs`
+  captures the live menu at any set of phone sizes.
+
 - **v83 — blockers square up to their man, and both bodies read.** The renderer
   used to hold an engaged lineman on his pre-snap facing for the whole block, so a
   guard washing his man sideways or a tight end sealing an end was drawn square to
