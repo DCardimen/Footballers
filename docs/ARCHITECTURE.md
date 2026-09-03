@@ -299,6 +299,30 @@ the whole schedule as ahead (the board is chosen before the weeks exist). `Vr` d
 extension with a `▹+N` label; the same effective values feed
 `pregamePlayerStatsV25`.
 
+## Between the whistles (v86) — the renderer's post-play, pre-snap and tackle styles
+
+Anchor `v86 BETWEEN THE WHISTLES` (in `LiveField`, right after `update`). A play's
+script ends at `S.duration`; before v86 `update` posted the ribbon and called
+`complete()` 260 ms later, and the next play's glide started from the tackle frame.
+Now `update` returns early into `updatePostV86` while `P.post` is set: `startPostV86`
+marks who is grounded (`tackleSeq`/`down`/`dive`/`pancakeSeq` or a recent
+`_groundT`), gives each marker an `up` delay (tackler first, carrier later) and a
+gather target on his own side of the spot (`P._refBX/_refBY`, the crew's ball
+spot), releases grabs/blocks/pairs, leaves the ball on the ground at the spot, and
+`complete()` fires when the phase's `ms` elapse. `postPlayMsV86` returns 0 (the old
+path) for kicks, scores, penalties and reduced motion. Everything else is a hook:
+`presnapV86` (called while `!P.snapped`, keyed off the script's `snap` event time),
+`qbTickV86` (after actor interpolation; sets `m._dropback`, the hitch tween,
+`m._lean`), `case "tackle"` classifies `tstyle` from the tackler's bearing against
+the carrier's heading `m.hd` and handles the QB slide, `case "tip"` runs the reach,
+the ball block sets `m._lookAt` on the target while the ball is up, and
+`placeMarker` honours `_dropback` / `_lookAt` for facing, `_lean` for rotation and
+stretches `m.shadow` by `payload.quarter`. Wear lives in `this.wearV86` (field
+space; `addWearV86` merges nearby marks) and is redrawn by `drawWearV86` from
+`animatePlay` after `drawField`, wiped in `renderStatic` or when the quarter goes
+backwards. Per-play marker flags are reset in the glide loop of `animatePlay`.
+Counters for the check live on `window.__V86`.
+
 ## Screens and their shapes (v73–v75)
 
 Three of the screens below are assembled by a long chain of patch layers, each of
