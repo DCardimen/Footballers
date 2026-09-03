@@ -55,6 +55,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v88 — the call-up follows the ranking.** A national #1 by double the stats could
+  post a stellar year and still be left out of the league, because the declare roll
+  used a synthetic season rating (`qt` without the season) and the national-rank
+  floor at the combine wanted the top 0.3% of 1,500 — rank 4 or better — before the
+  ranking counted for anything. One curve now answers every screen: your national
+  rank against the SHARE of this level's pool that actually moves up (`ADV_V88`: 9%
+  of college reaches the combine, about a third of the combine sticks, a handful of
+  the league gets the interstellar call). #1 in the country is ~98%, a top-100
+  finish is 90%+, the last man inside the share is a coin flip, well outside it is
+  single digits, and the rating roll still stands as a floor for a player whose
+  numbers beat his rank. The hub card, the season screen and the roll itself all
+  read `declareChanceV88`, so the number you saw is the number that decides, and the
+  card now names your rank. `scripts/v88check.mjs` asserts the curve and the
+  integration. Dials: `advShareK`, `advSoft`.
+
 - **v87 — credit by alignment, the huddle, the posts, the safety, and a quarterback who
   sees the lane.** Playing WR or LB you were being credited for other people's
   plays, and the fix was in three places. The engine handed the sim a "cover" pick
