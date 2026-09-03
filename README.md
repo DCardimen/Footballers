@@ -55,6 +55,30 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v86 — between the whistles: seven animations, no new art.** Live frames showed
+  the play was mostly right and the moments around it were wrong: both lines
+  frozen at the old line of scrimmage while the run ended 25 yards away, a tackle
+  that ended as a static pile until the next glide, 22 statues before every snap.
+  Everything here is built from frames the sheets already carry plus tweens and the
+  graphics layer the renderer already draws dust with, and none of it touches the
+  sim. (1) POST-PLAY: the whistle opens a short phase (`postPlayMs`) in which the
+  pile unpiles — tackler first with a push-off, carrier a beat later — the ball is
+  left at the spot for the crew, and everyone jogs toward the ball on his own side
+  of it. (2) PRE-SNAP: the QB looks down the line and claps, receivers look in for
+  the signal and turn back upfield, the defensive front sways in its stance while
+  the offensive line holds dead still. (3) THE QB: a dropback is drawn as a
+  backpedal facing the line, he hitches when he settles, a scramble leans into the
+  run, and a scramble caught past the line slides with the tackler pulling up.
+  (4) TACKLE STYLES from the geometry the sim resolved: caught from behind is a
+  drag-down, met square with knock-back is a knock-back, low or from the side at
+  speed is a fall forward; the plain fold remains. (5) THE BALL IN THE AIR: the
+  target runs with his head turned to the ball, and a tipped ball pulls every
+  nearby body into a reach. (6) FIELD WEAR + SHADOWS: tackles, piles, cuts and every
+  snap wear the turf, stored in field space and re-projected each snap; player
+  shadows stretch and drift a little further each quarter. `scripts/v86check.mjs`
+  watches a live game and measures all of it (the 22 men are closer to the ball at
+  the end of a post-play phase than at the whistle).
+
 - **v85 — ratings past 99, the wheel in the background, the body on the sheet, and
   the season ahead.** Four things the career screens were not saying. (1) OVR is
   open-ended everywhere, on the same curve: the you-player's `en()` already ran past

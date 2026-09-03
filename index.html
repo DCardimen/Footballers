@@ -4750,6 +4750,7 @@ class Ot extends mt.Scene {
     const it = rt ? (et.startBall ?? 50) : 100 - (et.startBall ?? 50),
       ht = mt.Math.Clamp(it + (rt ? 1 : -1) * (et.preToGo ?? 10), 0, 100);
     this.drawField(it, ht);
+    this.drawWearV86(et);   // v86: the static view keeps the game's wear (a new game wipes it when the quarter goes back to 1)
     this.staticFormation(it, rt);
     const f = pickFeaturedIndex(et, this.offLabels, this.defLabels);
     this.highlight(this.markers[f.index], f.isMe);
@@ -4784,6 +4785,7 @@ class Ot extends mt.Scene {
       const losAbs = it ? (et.startBall ?? 50) : 100 - (et.startBall ?? 50),
         tgtAbs = mt.Math.Clamp(losAbs + (it ? 1 : -1) * (et.preToGo ?? 10), 0, 100);
       this.drawField(losAbs, tgtAbs);
+      this.drawWearV86(et);   // v86: the turf remembers the game so far
       this.resetCamera();   // v23: re-center on THIS play's line of scrimmage (focusPt was just refreshed by drawField)
       this.clearAlerts();   // v23: reset any scramble-warning ❗ from the previous play
       // build or GLIDE markers to the new formation (no teleporting between plays)
@@ -4797,6 +4799,8 @@ class Ot extends mt.Scene {
           m.isLine = (a.label === "OL" || a.label === "DE" || a.label === "DT" || a.label === "DL");
           m.homeDir = i < 11 ? "up" : "dn";
           m.forceState = null;
+          m._dropback = false; m._dropped = false; m._hitched = false; m._lean = 0; m._lookAt = null; m._post = null; m._presnapFace = false;   // v86
+          m.body.setPosition(0, 0);
           m._jog = { x: f0.x, y: f0.y }; m._jogDone = false;
           m.label.setText(String(i < 11 ? OFF_NUMS[i] : DEF_NUMS[i - 11]));
           maxD = Math.max(maxD, Math.hypot(f0.x - m.sx, f0.y - m.sy));
@@ -4854,7 +4858,8 @@ class Ot extends mt.Scene {
     const P = this.play;
     // v57: the crowd lives between plays too, so it ticks BEFORE the no-play return
     this.updateCrowd(delta);
-    if (!P || P.done) return;
+    if (!P) return;
+    if (P.done) { if (P.post) this.updatePostV86(P, delta); return; }   // v86: the whistle is not the end of the picture
     if (this.hitStop > 0) { this.hitStop -= delta; return; }   // freeze-frame on big moments
     // v24: base movement runs 30% slower for everyone — a more deliberate, readable
     // pace where cuts, jukes and pursuit angles land as real moves instead of a blur.
@@ -4938,6 +4943,7 @@ class Ot extends mt.Scene {
         this.placeMarker(m, x, y, delta * spd);
       });
       this.resolveOverlaps();
+      this.qbTickV86(P);   // v86: dropback, hitch, tuck
       // v10: live yardage ticker rides the carrier, counting up as he earns it
       if (P.carrierId != null && this.markers[P.carrierId] && !P.ydDone && P.losX != null) {
         const cmY = this.markers[P.carrierId];
@@ -4955,7 +4961,7 @@ class Ot extends mt.Scene {
     this.updateRefs(delta * spd, gliding);
     this.updateSideline(delta * spd);   // v78: the team area shifts its weight
     // v16.3 pre-snap play preview — your team's design, until the snap
-    if (!P.snapped) this.drawPreview(P);
+    if (!P.snapped) { this.drawPreview(P); if (!gliding) this.presnapV86(P, T, delta * spd); }   // v86: the line is alive before the snap
     // v10: speed trails — fast movers leave streaks
     if (this.speedFx) {
       this.speedFx.clear();
@@ -5099,6 +5105,10 @@ class Ot extends mt.Scene {
         const tm2 = this.markers[P.awaitCatch2];
         if (tm2 && Math.hypot(tm2.root.x - bpp.x, tm2.root.y - bpp.y) < 52) { tm2.forceState = "catch"; P.awaitCatch2 = null; }
       }
+      // v86: the target runs with his head turned to the ball (side profile toward it)
+      if (P.awaitCatch != null && bh > 1 && !loose) { const lm = this.markers[P.awaitCatch];
+        if (lm && !lm.forceState) { if (!lm._lookAt) { try { (window.__V86 = window.__V86 || {}).lookbacks = ((window.__V86 || {}).lookbacks || 0) + 1; } catch (e) {} } lm._lookAt = { x: ballX }; } }
+      else this.markers.forEach(mm => { if (mm._lookAt) mm._lookAt = null; });
       if (P.awaitCatch != null && bh > 1) {
         const tm = this.markers[P.awaitCatch];
         if (tm && Math.hypot(tm.root.x - bpp.x, tm.root.y - bpp.y) < 52) { tm.forceState = "catch"; P.awaitCatch = null; P.catchArmed = this.actorIdxSafe(tm); }
@@ -5150,8 +5160,149 @@ class Ot extends mt.Scene {
       if (P.payload.penalty) rt = "FLAG ON THE PLAY · " + (Number(P.payload.yards ?? 0) < 0 ? "OFFENSE" : "DEFENSE");
       else if (P.fdConverted && !P.payload.scored) rt += " · FIRST DOWN";
       this.ribbon(rt, 900);
-      this.time.delayedCall(P.payload.scored ? 430 : 260, () => { this.resetCamera(); this.complete(); });
+      const postMs = this.postPlayMsV86(P);
+      if (postMs > 0) this.startPostV86(P, postMs);
+      else this.time.delayedCall(P.payload.scored ? 430 : 260, () => { this.resetCamera(); this.complete(); });
     }
+  }
+  /* ===== v86 BETWEEN THE WHISTLES — seven animations, no new art =====
+   * Every one of these is built from frames the sheets already carry (idle, stance,
+   * run, block, tackle, wrap, dive, down, get-up, catch, throw) plus tweens and the
+   * graphics layer the renderer already draws dust with. None of them changes a
+   * play's outcome or timing in the sim; they change what the frames between the
+   * whistles look like.
+   *   1. POST-PLAY (startPostV86/updatePostV86) — the script used to end on the
+   *      tackle frame and the next play's glide started from there, so both lines
+   *      stood frozen at the old line of scrimmage while the play ended 25 yards
+   *      away. Now the whistle opens a short phase: the pile unpiles (tackler first,
+   *      with a push-off; the carrier a beat later), the ball is left at the spot
+   *      for the crew, and everyone jogs toward the ball on his own side of it.
+   *   2. PRE-SNAP (presnapV86) — the QB looks left and right at the line, squares up
+   *      and claps; receivers look in for the signal and turn back upfield; the
+   *      defensive front sways in its stance. The offensive line holds dead still —
+   *      that is what a false start is.
+   *   3. THE QB (qbTickV86) — a dropback is drawn as a backpedal facing the line, not
+   *      a run toward his own goal; the moment he settles he hitches; a scramble
+   *      leans into the run (m._lean); a scramble that ends in a tackle past the
+   *      line is a SLIDE (dive frame, low hop, the tackler stays up).
+   *   4. TACKLE STYLES (in case "tackle") — from the geometry the sim already
+   *      resolved: a tackler BEHIND the carrier drags him down (the carrier keeps
+   *      running, leaning, before he folds); a square hit with knock-back knocks him
+   *      backward before he goes down; a low or side tackle at speed is a fall
+   *      forward for the extra yard.
+   *   5. THE BALL IN THE AIR — the target runs with his head turned to the ball
+   *      (side profile toward it, m._lookAt); a tipped ball pulls every nearby body
+   *      into a reach (the tip drill).
+   *   6. FIELD WEAR + SHADOWS (addWearV86/drawWearV86) — tackles, piles, cuts and
+   *      every snap between the hashes wear the turf, stored in field space and
+   *      re-projected every snap so the marks stay where the game put them; player
+   *      shadows stretch and drift a little further each quarter.
+   * Dials: postPlayMs, unpileMs, postJogSpeed, postGatherOff/Def, cadenceLookMs,
+   * wrLookMs, stanceSway, hitchSpd, tuckLean, slideP, knockKb, fallFwdSpd, dragMs,
+   * wearMax, shadowStretchQ. */
+  postPlayMsV86(P) {
+    const pay = P.payload || {};
+    if (REDUCED_MOTION) return 0;
+    if (/^(fg|punt|kickoff|xp)$/i.test(String(pay.event || ""))) return 0;   // the kicking game has its own shape
+    if (pay.scored || pay.penalty) return 0;                                  // the celebration and the flag own those moments
+    return TU("postPlayMs", 850);
+  }
+  startPostV86(P, ms) {
+    const S = P.script, dir = S.meta.dir || VDIR || 1, YDF = PLAY_W / 100, MIDY = (F_TOP + F_BOT) / 2;
+    const spot = { x: P._refBX != null ? P._refBX : (P.losX != null ? P.losX : PLAY_L + PLAY_W / 2), y: P._refBY != null ? P._refBY : MIDY };
+    P.post = { t: 0, ms, spot, dir };
+    try { P.lookIdx = null; if (this.lookG) this.lookG.clear(); if (this.previewG) this.previewG.clear(); } catch (e) {}   // the read cone dies with the play
+    this.markers.forEach((m, i) => {
+      const off = i < 11;
+      const grounded = /^(tackleSeq|down|dive|pancakeSeq)$/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 500);
+      const carrier = i === P.carrierId;
+      m._post = { grounded, rose: false,
+        up: grounded ? TU("unpileMs", 340) + (carrier ? TU("unpileCarrierMs", 200) : 0) + Math.random() * 120 : 0,
+        tx: spot.x - dir * (off ? TU("postGatherOff", 6) : -TU("postGatherDef", 7)) * YDF + (Math.random() - 0.5) * 3 * YDF,
+        ty: spot.y + (m.sy - spot.y) * TU("postSpreadK", 0.7) + (Math.random() - 0.5) * TU("postJitterY", 26) };
+      if (!grounded && m.forceState && m.forceState !== "getupSeq") m.forceState = null;   // grabs, blocks and stances let go at the whistle
+      m._lean = 0; m._lookAt = null; m._dropback = false;
+      if (m.body) { m.body.x = 0; m.body.y = 0; }
+      try { this.unpair(i); } catch (e) {}
+    });
+    // the ball is dead: it stays at the spot for the crew, nobody jogs off with it
+    P.ballHolderId = null; P.ballMode = "ground"; P.__looseBall = false;
+    try { if (this.ballSpr) { const bp = PJ(spot.x, spot.y); this.ballSpr.setPosition(bp.x, bp.y - 2 * bp.s).setScale(0.40 * bp.s, 0.36 * bp.s).setDepth(9).setRotation(0.2);
+      if (this.ballShad) this.ballShad.setPosition(bp.x, bp.y + 3 * bp.s).setScale(bp.s).setAlpha(0.32).setVisible(true); } } catch (e) {}
+    try { (window.__V86 = window.__V86 || {}).posts = ((window.__V86 || {}).posts || 0) + 1; } catch (e) {}
+  }
+  updatePostV86(P, delta) {
+    const spd = Math.max(0.5, window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7);
+    const dt = delta * spd; P.post.t += dt;
+    const k = P.post.t;
+    this.markers.forEach((m, i) => {
+      const q = m._post; if (!q || !m.root) return;
+      if (q.grounded && !q.rose) {
+        if (k < q.up) { this.placeMarker(m, m.sx, m.sy, delta); return; }
+        q.rose = true; m._launchUntil = 0; m.forceState = "getupSeq"; m.seqT = m.tms; if (m.body) m.body.setAlpha(1);
+        // the man on top pushes off the pile as he rises
+        if (i !== P.carrierId && m.body) this.tweens.add({ targets: m.body, x: (m.flip ? -1 : 1) * TU("pushOffPx", 4), yoyo: true, duration: 150 });
+      }
+      if (/^(getupSeq|tackleSeq|down|dive|pancakeSeq)$/.test(String(m.forceState || ""))) { this.placeMarker(m, m.sx, m.sy, delta); return; }
+      const dx = q.tx - m.sx, dy = q.ty - m.sy, d = Math.hypot(dx, dy);
+      if (d < 3) { this.placeMarker(m, m.sx, m.sy, delta); return; }
+      const stp = Math.min(d, TU("postJogSpeed", 150) * dt / 1000);
+      this.placeMarker(m, m.sx + dx / d * stp, m.sy + dy / d * stp, dt);
+    });
+    this.resolveOverlaps();
+    try { this.updateRefs(dt, false); this.updateSideline(dt); } catch (e) {}
+    if (k >= P.post.ms) { P.post = null; this.markers.forEach(m => { m._post = null; }); this.resetCamera(); this.complete(); }
+  }
+  presnapV86(P, T, dt) {
+    if (P._snapAt == null) { const ev = (P.script.events || []).find(e => e && e.type === "snap"); P._snapAt = ev ? ev.t : 640; }
+    const left = P._snapAt - T; if (left < 0) return;
+    const qb = this.markers[8];
+    // the cadence: he looks down the line one way, then squares up and claps for it
+    if (qb && !qb.forceState && qb.sSm < 8) {
+      const look = TU("cadenceLookMs", 520), sq = TU("cadenceSetMs", 210);
+      if (left < look && left > sq) { if (!qb._presnapFace) { qb._presnapFace = true; qb.dirKey = "sd"; qb.flip = (Math.floor(P._snapAt / 97) % 2) === 0; } }
+      else if (qb._presnapFace && left <= sq) { qb._presnapFace = false; qb.dirKey = qb.homeDir || "up"; qb.flip = false;
+        if (qb.body) this.tweens.add({ targets: qb.body, scaleX: 1.14, scaleY: 0.92, yoyo: true, duration: 110 });
+        try { (window.__V86 = window.__V86 || {}).cadences = ((window.__V86 || {}).cadences || 0) + 1; } catch (e) {} }
+    }
+    // receivers look in for the signal, then turn back upfield
+    const qp = qb ? PJ(qb.sx, qb.sy) : null;
+    this.markers.forEach((m, i) => {
+      if (i >= 11 || !m.posLabel || !/^(WR|TE)$/.test(m.posLabel) || m.forceState || m.sSm > 8) return;
+      const w0 = TU("wrLookMs", 640), w1 = TU("wrLookEndMs", 330);
+      if (left < w0 && left > w1) { if (!m._presnapFace) { m._presnapFace = true; m.dirKey = "sd"; m.flip = qp ? qp.x > PJ(m.sx, m.sy).x : false; } }
+      else if (m._presnapFace && left <= w1) { m._presnapFace = false; m.dirKey = m.homeDir || "up"; m.flip = false; }
+    });
+    // the defensive front sways in its stance; the offensive line holds dead still (that is a false start)
+    this.markers.forEach((m, i) => { if (i < 11 || !m.isLine || !m.body) return;
+      m.body.y = Math.sin(m.tms / TU("stanceSwayMs", 170) + m.num) * TU("stanceSway", 0.7); });
+  }
+  qbTickV86(P) {
+    const qb = this.markers[8]; if (!qb || !qb.root) return;
+    const dir = (P.script.meta && P.script.meta.dir) || VDIR || 1;
+    const hasBall = P.snapped && P.ballHolderId === 8 && !P._thrown;
+    const dropping = hasBall && P.carrierId !== 8 && !P.scrambling && (qb._spdPx || 0) > 30 && ((qb.sx - (qb.prevSx == null ? qb.sx : qb.prevSx)) * dir) < -0.15;
+    qb._dropback = dropping;
+    if (dropping) qb._dropped = true;
+    else if (qb._dropped && !qb._hitched && hasBall && (qb._spdPx || 0) < TU("hitchSpd", 26)) { qb._hitched = true;
+      if (qb.body) this.tweens.add({ targets: qb.body, scaleY: 0.9, y: 2, yoyo: true, duration: TU("hitchMs", 95) });
+      try { (window.__V86 = window.__V86 || {}).hitches = ((window.__V86 || {}).hitches || 0) + 1; } catch (e) {} }
+    // the tuck: a scrambling QB leans into his run
+    qb._lean = (P.carrierId === 8 && P.scrambling && !qb.forceState && (qb._spdPx || 0) > 40) ? (qb.flip ? 1 : -1) * TU("tuckLean", 0.16) * (qb.dirKey === "sd" ? 1 : 0.4) : 0;
+  }
+  addWearV86(x, y, r, a) {
+    const W = this.wearV86 || (this.wearV86 = []);
+    for (const w of W) if (Math.abs(w.x - x) < 9 && Math.abs(w.y - y) < 7) { w.n = Math.min(8, w.n + 1); w.r = Math.max(w.r, r); return; }
+    W.push({ x, y, r, a, n: 1 });
+    if (W.length > TU("wearMax", 160)) W.shift();
+  }
+  drawWearV86(et) {
+    if (!this.wearG) this.wearG = this.add.graphics().setDepth(0.9);
+    const q = et && et.quarter != null ? Number(et.quarter) : null;
+    if (q != null) { if (this._wearQ != null && q < this._wearQ) this.wearV86 = []; this._wearQ = q; }   // a new game starts on fresh turf
+    const g = this.wearG; g.clear();
+    for (const w of (this.wearV86 || [])) { const p = PJ(w.x, w.y);
+      g.fillStyle(0x5e4b2c, Math.min(0.42, w.a * w.n)).fillEllipse(p.x, p.y + 6 * p.s, w.r * 2.2 * p.s, w.r * 1.1 * p.s); }
   }
 
   actorIdx(id) { return id ? (id[0] === "o" ? +id.slice(3) : 11 + +id.slice(3)) : -1; }
@@ -5218,7 +5369,7 @@ class Ot extends mt.Scene {
         break;
       }
       case "handoff": P.carrierId = 9; P.ballHolderId = 9; P.ballMode = "held"; break;
-      case "windup": { P.ballHolderId = 8; P.ballMode = "held"; const qb = this.markers[8]; if (qb) { qb.forceState = "throwSeq"; qb.seqT = qb.tms; } break; }
+      case "windup": { P.ballHolderId = 8; P.ballMode = "held"; P._thrown = true; const qb = this.markers[8]; if (qb) { qb.forceState = "throwSeq"; qb.seqT = qb.tms; qb._dropback = false; qb._lean = 0; } break; }
       case "contest": { P.awaitCatch2 = this.actorIdx(e.def); P.contestDef = P.awaitCatch2; break; }
       case "handfight": {
         const om=this.markers[this.actorIdx(e.off)], dm=this.markers[this.actorIdx(e.def)];
@@ -5238,7 +5389,9 @@ class Ot extends mt.Scene {
       case "snap": { P.snapped = true; if (this.previewG) this.previewG.clear();
         P.ballHolderId = 8; P.ballMode = "held";
         if (this.previewTxt) { this.previewTxt.forEach(t => t && t.destroy && t.destroy()); this.previewTxt = []; }
-        this.markers.forEach((m) => { if (m.forceState === "stance") m.forceState = null; }); break; }
+        this.markers.forEach((m) => { if (m.forceState === "stance") m.forceState = null; if (m.body) m.body.y = 0; if (m._presnapFace) { m._presnapFace = false; m.dirKey = m.homeDir || m.dirKey; m.flip = false; } });   // v86
+        try { this.addWearV86(P.losX != null ? P.losX : e.x, (F_TOP + F_BOT) / 2, 12, 0.03); } catch (er) {}   // v86: the trenches wear the turf between the hashes
+        break; }
       case "pick": {
         this.clearLand();
         P.carrierId = this.actorIdx(e.by);
@@ -5270,6 +5423,7 @@ class Ot extends mt.Scene {
           cm2.cutUntil = cm2.tms + (300 - flu * 130);            // higher rating recovers quicker
           if(!isSpin){cm2.forceState="jukeSeq";cm2.seqT=cm2.tms;}
           this.skidFx(e.x, e.y); this.puffFx(e.x, e.y, 2);
+          try { this.addWearV86(e.x, e.y, 4, 0.05); } catch (er) {}   // v86: a planted foot tears the turf
           // a spin whips the body around; a juke throws a sharp lateral lean-and-recover.
           if (cm2.body) {
             if (isSpin) {
@@ -5398,6 +5552,34 @@ class Ot extends mt.Scene {
         this.finishYd(e);
         const m = this.markers[P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier)];
         const tk = this.markers[this.actorIdx(e.tackler)];
+        try { this.addWearV86(e.x, e.y, big ? 9 : 6, 0.08); } catch (er) {}   // v86: the turf remembers the pile
+        /* v86 TACKLE STYLES — read off the geometry the sim already resolved. Where the
+         * tackler is relative to the carrier's heading says what kind of tackle it was:
+         * from behind is a drag-down, square with knock-back is a knock-back, low or from
+         * the side at speed is a fall forward. A scrambling QB caught past the line slides. */
+        let tstyle = null, slide = false;
+        if (m && tk && !e.hitStick) {
+          const kb = Number(e.kb || 0), speed = m.sSm || 0, dirP = P.script.meta.dir || 1;
+          if (P.carrierId === 8 && P.scrambling && !e.sack && kb < 4 && Math.random() < TU("slideP", 0.75)) slide = true;
+          else {
+            const hd = m.hd != null ? m.hd : Math.atan2(0, dirP), ang = Math.atan2(tk.sy - m.sy, tk.sx - m.sx);
+            let rel = Math.abs(ang - hd); if (rel > Math.PI) rel = 2 * Math.PI - rel;   // 0 = the tackler is ahead of him, PI = behind
+            if (rel > Math.PI * 0.62 && !e.gang && speed > TU("dragSpd", 30)) tstyle = "drag";
+            else if (rel < Math.PI * 0.4 && (kb >= TU("knockKb", 5) || big)) tstyle = "knock";
+            else if (speed > TU("fallFwdSpd", 95) && (e.style === "low" || rel > Math.PI * 0.35)) tstyle = "forward";
+          }
+          try { const V = (window.__V86 = window.__V86 || {}); const key = slide ? "slides" : tstyle ? tstyle + "s" : "plain"; V[key] = (V[key] || 0) + 1; } catch (er) {}
+        }
+        P.scrambling = false;
+        if (slide && tk) {
+          // he gives himself up: a low forward slide, and the man over him pulls up
+          m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + TU("slideMs", 260); m._launchH = 3; m._lean = 0;
+          this.time.delayedCall(TU("slideMs", 260), () => { if (m.active !== false && m.forceState === "dive") m.forceState = "down"; });
+          this.time.delayedCall(TU("slideMs", 260) + 420, () => { if (m.forceState === "down") m.forceState = null; });
+          tk.forceState = "grab"; this.time.delayedCall(260, () => { if (tk.forceState === "grab") tk.forceState = null; });
+          this.popText(e.x, e.y - 24, "SLIDES", "#8fe7ff", 12);
+          break;
+        }
         if (tk) {
           // fast closers launch a flying tackle; otherwise it's a jersey-grab drag-down,
           // then the tackler folds to the turf and STAYS down — the pile holds until the
@@ -5422,8 +5604,25 @@ class Ot extends mt.Scene {
           }
         }
         if (m) {
-          // the carrier visibly folds to the ground after the whistle and stays down
-          m.forceState = "tackleSeq"; m.seqT = m.tms;
+          if (tstyle === "drag") {
+            // caught from behind: he keeps his feet and his lean for a beat, then folds
+            const dragMs = TU("dragMs", 240) + Number(e.kb || 0) * 20;
+            m.forceState = null; m._lean = (m.flip ? 1 : -1) * TU("dragLean", 0.26);
+            this.time.delayedCall(dragMs, () => { if (m.active !== false) { m._lean = 0; m.forceState = "tackleSeq"; m.seqT = m.tms; } });
+          } else if (tstyle === "knock") {
+            // met square: knocked backward off the spot before he goes down
+            const a0 = PJ(m.sx, m.sy), a1 = PJ(m.sx - (P.script.meta.dir || 1) * TU("knockPx", 8), m.sy);
+            m.forceState = null;
+            if (m.body) this.tweens.add({ targets: m.body, x: a1.x - a0.x, angle: (a1.x - a0.x) > 0 ? 18 : -18, duration: TU("knockMs", 150), ease: "Quad.easeOut" });
+            this.time.delayedCall(TU("knockMs", 150), () => { if (m.active !== false) { if (m.body) { m.body.x = 0; m.body.angle = 0; } m.forceState = "tackleSeq"; m.seqT = m.tms; } });
+          } else if (tstyle === "forward") {
+            // hit low or from the side at speed: he falls forward for the extra yard
+            m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + TU("fallFwdMs", 260); m._launchH = 5; m._lean = 0;
+            this.time.delayedCall(TU("fallFwdMs", 260), () => { if (m.active !== false && m.forceState === "dive") m.forceState = "down"; });
+          } else {
+            // the carrier visibly folds to the ground after the whistle and stays down
+            m.forceState = "tackleSeq"; m.seqT = m.tms;
+          }
         }
         // v25 HIT STICK (defense levels the carrier): the baked dive→down flight + a
         // heavy freeze-frame. Height geometry adds flavor: high wrap = they fold
@@ -5635,7 +5834,7 @@ class Ot extends mt.Scene {
         if (e.good) REDUCED_MOTION || this.cameras.main.shake(140, 0.004); break;
       case "puntCatch": { P.carrierId = this.actorIdx(e.by); P.ballHolderId = P.carrierId; P.ballMode = "held"; this.flash(e.x, e.y, 0xffffff); break; }
       case "faircatch": this.popText(e.x, e.y - 20, "FAIR CATCH", "#93a0b1", 13); break;
-      case "scramble": { P.carrierId = 8; P.ballHolderId = 8; P.ballMode = "held"; this.popText(e.x, e.y - 22, "SCRAMBLING!", "#8fe7ff", 13); break; }
+      case "scramble": { P.carrierId = 8; P.ballHolderId = 8; P.ballMode = "held"; P.scrambling = true; this.popText(e.x, e.y - 22, "SCRAMBLING!", "#8fe7ff", 13); break; }
       case "toetap": this.popText(e.x, e.y - 18, "TOE TAP!", "#57e07a", 13); break;
       case "wrap": {
         this.popText(e.x, e.y - 18, e.gang ? "GANG WRAP — DRAGGED DOWN!" : "WRAPPED UP", e.gang ? "#ffb08a" : "#93a0b1", e.gang ? 13 : 11);
@@ -5653,7 +5852,11 @@ class Ot extends mt.Scene {
       // so the player sees the scramble/sack coming a beat early.
       case "pressureAlert": case "freeRusher": { const m = this.markers[this.actorIdx(e.who)]; if (m) this.alertMark(m, true); break; }
       case "tip": { P.ballMode = "tip"; P.ballHolderId = null; P._ballNoseAngle = this.ballSpr?.rotation || P._ballNoseAngle;
-        this.flash(e.x, e.y, 0xffffff); this.popText(e.x, e.y - 20, "TIPPED!", "#f7e2a8", 13); break; }
+        this.flash(e.x, e.y, 0xffffff); this.popText(e.x, e.y - 20, "TIPPED!", "#f7e2a8", 13);
+        // v86 tip drill: every body near a tipped ball reaches for it
+        this.markers.forEach((mm) => { if (mm.forceState || Math.hypot(mm.sx - e.x, mm.sy - e.y) > TU("tipReachPx", 40)) return;
+          mm.forceState = "catch"; mm._lookAt = null; this.time.delayedCall(TU("tipReachMs", 220), () => { if (mm.forceState === "catch") mm.forceState = null; }); });
+        break; }
       case "pull": break;
       case "stunt": break;
       case "shell": break;
@@ -6090,6 +6293,10 @@ class Ot extends mt.Scene {
       this.faceMarker(m, p1.x - p0.x, p1.y - p0.y);       // facing in SCREEN space (NS aware)
     }
     if (lineLocked && m.homeDir) { m.dirKey = m.homeDir; m.flip = false; }
+    // v86: a QB dropping back backpedals facing the line; a target with the ball in the
+    // air runs with his head turned to it — the side profile toward the ball
+    if (m._dropback && !m.forceState) { m.dirKey = m.homeDir || "up"; m.flip = false; }
+    else if (m._lookAt && !m.forceState && spdPx > 34) { m.dirKey = "sd"; m.flip = m._lookAt.x > m.root.x; }
     // v83: a man with hands on someone faces THAT man, whatever the line's home facing
     let engaged = null;
     if (m._pair != null) { const pm = this.markers[m._pair];
@@ -6181,7 +6388,7 @@ class Ot extends mt.Scene {
     }
     m.body.setFlipX(m.flip && (m.dirKey === "sd" || m.dirKey === "dr" || m.dirKey === "ur" || st === "down" || st === "dive" || st === "grab" || st === "stance" || st.indexOf("tackle") === 0));
     // flat, clean sprites — only the diving tackle gets a slight tilt
-    m.body.setRotation(st === "dive" ? (m.flip ? 0.3 : -0.3) : 0);
+    m.body.setRotation(st === "dive" ? (m.flip ? 0.3 : -0.3) : (m._lean || 0));   // v86: a lean survives the frame
     // v41: side profiles NEVER show a number (chest/back art isn't visible from the
     // side, any state), while linemen keep their numbers even in the pre-snap stance.
     const ribSideProfile = m.dirKey === "sd";
@@ -6210,6 +6417,9 @@ class Ot extends mt.Scene {
     if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms)); p.y -= Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11) * p.s; }
     else if (m._launchUntil) m._launchUntil = 0;
     m.root.setPosition(p.x, p.y); m.root.setScale(p.s);
+    // v86: the shadows stretch and drift a little further each quarter
+    { const q = (this.play && this.play.payload && this.play.payload.quarter) || 1;
+      if (m.shadow && m._shq !== q) { m._shq = q; m.shadow.setScale(1 + (q - 1) * TU("shadowStretchQ", 0.16), 1); m.shadow.x = (q - 1) * TU("shadowDriftQ", 2.2) * (VDIR > 0 ? 1 : -1); } }
     // v41: stable per-marker epsilon breaks depth ties so engaged sprites at equal
     // sy don't z-flicker through each other frame to frame.
     // v83: inside a pair the OFFENSIVE man draws in front — the sim glues his man a few
