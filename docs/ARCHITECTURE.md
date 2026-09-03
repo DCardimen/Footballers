@@ -359,6 +359,19 @@ holds it facing the middle until `b`, then `huddleBreakV87` and the existing jog
 `m._jog`. `drawGoalpostsV87` is painted after `drawField` in both `animatePlay` and
 `renderStatic`.
 
+## The call-up (v88) — promotion odds
+
+Anchor `v88 THE CALL-UP FOLLOWS THE RANKING` (career block, next to `Ar`).
+`rankCurveV88(rank, of, level)` is the whole model: `top = (rank-1)/of` against the
+level's advancing share `ADV_V88[level]`, through `50 + 49.5·tanh((adv-top)/(adv·advSoft))`.
+`rankChanceV88(e)` feeds it `sn(e, ae(e))` (the same rank the hub shows);
+`declareChanceV88(e)` is `max(min(97, base + declareBonus), rankChance)` where `base`
+is the season's own `seasonStats.chance` when it belongs to this level and
+position, else `qt(ae(e), level)`. `__natAdvFloor` is kept as an alias so older
+callers still work, and `qt`'s internal floor is the same curve (it used to pass a
+season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
+declare), the season screen's button and the hub card all call `declareChanceV88`.
+
 ## Screens and their shapes (v73–v75)
 
 Three of the screens below are assembled by a long chain of patch layers, each of
