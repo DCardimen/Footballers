@@ -323,6 +323,42 @@ space; `addWearV86` merges nearby marks) and is redrawn by `drawWearV86` from
 backwards. Per-play marker flags are reset in the glide loop of `animatePlay`.
 Counters for the check live on `window.__V86`.
 
+## Credit by alignment (v87) — who is on the target
+
+Anchor `v87 WHO IS ON HIM` (FieldSim `sim()` pass setup) and `v87 THE QB SEES THE
+LANE` (the throw block). The engine's pass resolver `b()` still picks a target `g`
+(the you-receiver gets a targeting share) and a defender `N`, but `N` is only the
+box score's expectation: `pass()` no longer moves him into a coverage slot and the
+sim assigns `coverA` as the CB/S/LB aligned closest to the target at the snap. `N`
+itself never picks the you-player (`others=T.def.filter(z=>!z.you)`), so the formula
+fallback cannot credit you either. A pass break-up is `X.swat` (the sim's swat by
+`X.cover`), the legacy run fumble names nobody, and pressured passes now go through
+the sim (`ctx.pressured` reaches `underPressure`). In the choreography and the
+bridge, `pickFrom` returns the FIRST slot of your position (your roster slot), the
+legacy target is your slot only when `payload.involved`, and `userDefId` (the
+fallback's "you make the stop") also requires `payload.involved`.
+
+The QB: at the throw decision, `laneAhead` is true when no unengaged defender sits
+within `scrLaneYd` ahead and `scrLaneHalf` across; with the primary not open
+(`sep < scrSep`) he tucks it with probability `scrOppBase` + athleticism − a spy
+penalty, emitting `scramble{opportunity:true, lane:true}`; `pass()` books it as
+`X.scramble` and the engine's new branch mirrors the formula scramble with the
+tackler named by the sim. The check-down goes to the back only if he has released
+and is ahead of the passer; any target behind the passer is re-read to the best
+graded man ahead (`_gradesV87`) or thrown away. The `throw` event carries `behind`
+for the check.
+
+The safety: before the downs bookkeeping, a run/pass/scramble/sack whose
+`pre.pos + de <= 0` scores two for the defense, spots the ball at the 1 and flips
+possession as a free kick to the other side's ~40 (`flip`), with `safety:true` on
+the play and "SAFETY" in the desc (the ribbon reads it).
+
+The huddle: `planHuddleV87` runs inside `animatePlay`'s glide branch and stores
+`P.hud={a,b,cx,cy}`; the gliding branch of `update` jogs each marker to `m._hud`,
+holds it facing the middle until `b`, then `huddleBreakV87` and the existing jog to
+`m._jog`. `drawGoalpostsV87` is painted after `drawField` in both `animatePlay` and
+`renderStatic`.
+
 ## Screens and their shapes (v73–v75)
 
 Three of the screens below are assembled by a long chain of patch layers, each of

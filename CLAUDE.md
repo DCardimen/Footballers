@@ -28,6 +28,9 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
 - `v85 THE WHEEL SPINS IN THE BACKGROUND` / `v85 THE DECISION, WITH NO WHEEL
   ATTACHED` / `v85 THE BODY ON THE SHEET` — the silent week (quick play, sim the
   rest), live-game booking, effective attributes, the season projection
+- `v87 WHO IS ON HIM` / `v87 THE QB SEES THE LANE` / `v87 SAFETY` / `v87 THE HUDDLE,
+  THE POSTS, THE SAFETY` — coverage by alignment (no coin-flip credit), opportunity
+  scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v86 BETWEEN THE WHISTLES` — the renderer's post-play phase (unpile, gather),
   pre-snap life, QB dropback/hitch/tuck/slide, tackle styles, look-back, field wear
 - `v78 SIDELINE` / `v78 SIDELINE ART` — the team area outside both touchlines:
@@ -59,6 +62,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | injuries | `injurycheck.mjs` |
 | OVR scale / the silent sim path / the attribute sheet (v85) | `v85check.mjs`, `bodycheck.mjs`, `wheelcheck.mjs` |
 | the broadcast renderer between plays / tackle looks (v86) | `v86check.mjs`, `readshot.mjs` |
+| pass coverage / credit, QB scramble & targets, the safety, the huddle (v87) | `v87check.mjs`, `creditcheck.mjs`, `simcheck.mjs` |
 | team emblems / palettes / identity | `emblemcheck.mjs` |
 | training / skill art, the skill atlas | `skillartcheck.mjs`, `wheelcheck.mjs` |
 | the crowd, the sideline, the team area | `crowdcheck.mjs`, `sidelinecheck.mjs` |

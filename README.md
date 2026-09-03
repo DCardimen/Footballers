@@ -55,6 +55,29 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v87 — credit by alignment, the huddle, the posts, the safety, and a quarterback who
+  sees the lane.** Playing WR or LB you were being credited for other people's
+  plays, and the fix was in three places. The engine handed the sim a "cover" pick
+  that was YOUR defender 45% of the time whatever your position, and the sim put
+  that man on the target — so a linebacker "covered" go routes and the tackle after
+  the catch was truthfully yours. Pass break-ups were a second 60% roll, the run
+  fumble a 45% roll, and pressured passes skipped the sim entirely. Now the man on
+  the target is the coverage defender aligned closest to him at the snap, the
+  engine's pick never names you, a break-up on your sheet is a swat the sim named
+  you for, the legacy fumble names nobody, and pressured passes go through the sim.
+  On screen, the legacy choreography featured a RANDOM body of your position and
+  made you the tackler on every defensive snap: the featured body is now your slot
+  and the fallback only animates you making the play when the book says you did.
+  Then four additions: both sides HUDDLE on the way to the line (the offense seven
+  yards back around the QB, the defense five yards on its side; hold, break, jog —
+  skipped for kicks and the hurry-up), GOALPOSTS stand at both end lines every snap,
+  a SAFETY is scored when a play ends behind the goal line (two points, a free kick
+  to the other side), and the QB SCRAMBLES ON OPPORTUNITY — nothing open and no
+  unblocked defender in the lane ahead of him is a run (a spy makes him think
+  twice), booked like a scramble with the tackler named by the sim — and never
+  throws to a target behind him: a back still in protection is not the check-down,
+  he finds a man ahead or throws it away. `scripts/v87check.mjs` measures all of it.
+
 - **v86 — between the whistles: seven animations, no new art.** Live frames showed
   the play was mostly right and the moments around it were wrong: both lines
   frozen at the old line of scrimmage while the run ended 25 yards away, a tackle
