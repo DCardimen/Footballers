@@ -104,10 +104,25 @@ def chans(im):
 def neutral(im, sat_max, lum_min, lum_max):
     sat, lum = chans(im)
     return (sat < sat_max) & (lum > lum_min) & (lum < lum_max)
-def cloth(im, skin_sat=0.36, skin_lum=150):
-    # fabric: anything that is not skin (warm and darker than the lit pads)
-    sat, lum = chans(im)
-    return ~((sat > skin_sat) & (lum < skin_lum))
+def cloth(im, skin_chroma=55, skin_lum=150, bright=None, bright_below=None):
+    # fabric: anything that is not skin. Skin is strongly chromatic (max-min of RGB) at any
+    # brightness; grey fabric stays low-chroma even in warm shadow, where a ratio-based
+    # saturation would blow up. `bright` keys out the lit background, but only below the
+    # row `bright_below` (the pads above it are lit too, and must stay).
+    a = np.asarray(im.convert('RGB')).astype(float)
+    chroma = a.max(2) - a.min(2); lum = a.mean(2)
+    keep = ~((chroma > skin_chroma) & (lum < skin_lum))
+    if bright is not None:
+        rows = np.arange(a.shape[0])[:, None] >= (bright_below or 0) / 100 * a.shape[0]
+        keep &= ~((lum > bright) & rows)
+    return keep
+
+def fill_holes(mask_bool):
+    # any pocket the garment encloses is garment: a shadowed fold is not a window
+    m = Image.fromarray((mask_bool * 255).astype('uint8'), 'L')
+    outside = m.copy(); ImageDraw.floodfill(outside, (0, 0), 128)
+    o = np.asarray(outside)
+    return mask_bool | (o == 0)
 
 def finish(mask_bool, size, blur, out):
     m = Image.fromarray((mask_bool * 255).astype('uint8'), 'L')
@@ -119,25 +134,31 @@ def finish(mask_bool, size, blur, out):
 
 # ---------------- hero ----------------
 hero = Image.open('art/menu/hero_tunnel_wall.png').convert('RGB'); W, H = hero.size
-HELMET = [[(45,27),(46,22.5),(49,20),(52,20),(55,22.5),(56,28),(55,34),(52,36),(48,36),(45,33)]]
-JERSEY = [[(38,39.5),(42.5,37),(47,36),(53,36),(57.5,37),(62,39.5),(62.8,44),(61.8,49),(59.8,51),(58.2,58),(57,72),(55.2,74),(44.5,74),(42.2,72),(41,58),(40,51),(38.2,49),(37.2,44)]]
-PANTS  = [[(42.5,73.5),(57.5,73.5),(59.5,85),(58.5,100),(41.5,100),(40.5,85)]]
-body = cloth(hero, 0.5, 120)
-primary   = poly_mask((W,H), JERSEY) & body
-secondary = (poly_mask((W,H), HELMET) & neutral(hero, 0.5, 14, 175)) | (poly_mask((W,H), PANTS) & body)   # lum cap keeps the lit stadium out of the helmet
-S = (W // 4, H // 4)
-finish(primary, S, 0.8, 'public/menu/hero_mask_p.webp'); finish(secondary, S, 0.8, 'public/menu/hero_mask_s.webp')
+HELMET = [[(45,27),(46,22.5),(49,20),(52,20),(54.8,22.5),(55.6,28),(54.8,33.5),(52,36),(48,36),(45,33)]]
+JERSEY = [[(36.3,41),(37.3,39.5),(39.5,37.6),(43,36.4),(46,35.8),(50,35.6),(54,35.8),(57,36.4),(60.5,37.6),(62.2,39.8),(62.6,42.4),(63.2,45),(62.8,48.3),(61.8,50.6),(60.6,51.2),(60.2,54),(59.5,58),(58.9,63),(58.5,68),(58.4,72),(58.1,74.3),(42.4,74.3),(42,72),(41.4,68),(41.2,63),(41.3,58),(40.5,54),(40,51.2),(37.8,51),(36.4,49),(36,45)]]
+PANTS  = [[(42.4,73.8),(58.3,73.8),(59.2,78),(59.1,84),(59.2,90),(59.0,100),(42,100),(41,90),(40.8,84),(41.2,78)]]
+PADS   = [[(36.2,41),(37.3,39.3),(39.5,37.6),(43.5,36.5),(44.5,40),(42.5,48),(40.5,51),(37.8,51),(36.4,49),(36,45)],
+          [(56.5,36.5),(60.5,37.6),(62.2,39.8),(62.6,42.4),(63.2,45),(62.8,48.3),(61.8,50.6),(60,51.2),(58,48),(56,40)]]
+BODY   = [[(45.5,26),(46.3,21),(49,19.3),(52,19.3),(54.8,21.5),(55.6,27),(55,33.5),(57,36.4),(60.5,37.6),(62.6,42.4),(63.2,45),(63,49),(65.2,56),(66.2,62),(66.5,68),(66.2,74),(65.6,80),(65.2,86),(65.6,92),(63.8,96),(61,95),(60.2,90),(60.2,100),(40,100),(39.6,90),(38.6,95),(36.2,96),(34.4,92),(34.8,86),(34.2,80),(33.5,74),(33.3,68),(33.7,62),(34.9,56),(36.4,49),(36.2,41),(39.5,37.6),(43,36.4),(45.2,33.5),(45,27)]]
+player = poly_mask((W,H), BODY)
+body = cloth(hero, 55, 150, bright=135, bright_below=52) & player
+primary   = fill_holes((poly_mask((W,H), JERSEY) & body) | (poly_mask((W,H), PADS) & player))
+secondary = (poly_mask((W,H), HELMET) & neutral(hero, 0.5, 14, 175) & player) | fill_holes(poly_mask((W,H), PANTS) & body)   # lum cap keeps the lit stadium out of the helmet
+S = (W // 2, H // 2)
+finish(primary, S, 1.0, 'public/menu/hero_mask_p.webp'); finish(secondary, S, 0.8, 'public/menu/hero_mask_s.webp')
 
 # ---------------- continue card ----------------
 cont = Image.open('art/menu/card_continue.png').convert('RGB'); W, H = cont.size
-HELMET = [[(69,30),(70,24.5),(73.5,20),(77.5,18.5),(81.5,21),(83,27),(82.5,33.5),(78.5,37),(72,36.5),(69.5,33)]]
-JERSEY = [[(63.5,43),(66.5,39.5),(72,37.5),(80,37.5),(86.5,39.5),(90.5,43),(90.5,51.5),(87.8,54),(86.8,62),(85.8,75),(83,77),(70.5,77),(67.8,75),(66.8,62),(65.8,54),(63.5,51.5)]]
-PANTS  = [[(67.5,77),(85.5,77),(87.5,88),(87,100),(66.5,100),(65.5,88)]]
-body = cloth(cont, 0.45, 120)
-primary   = poly_mask((W,H), JERSEY) & body
-secondary = (poly_mask((W,H), HELMET) & neutral(cont, 0.3, 30, 255)) | (poly_mask((W,H), PANTS) & body)
-S = (W // 4, H // 4)
-finish(primary, S, 0.8, 'cont_mask_p.tmp.webp'); finish(secondary, S, 0.8, 'cont_mask_s.tmp.webp')
+HELMET = [[(72.5,31),(72.5,25),(74.5,21),(77.5,19.2),(80.5,19.6),(82.6,22.5),(83.4,27),(82.8,32.5),(80.5,35.5),(76,36.2),(73.5,34.5)]]
+JERSEY = [[(63.2,44),(64.2,41.5),(66.5,39.6),(70,38.2),(74,37.6),(78,37.4),(82,37.6),(86,38.6),(89,40.5),(91,43),(91.6,46.5),(91,49.5),(89.2,51),(88.6,54),(87.6,62),(86.2,70),(85,76.8),(68.4,76.8),(68.2,70),(67.5,62),(67,54),(65.6,51),(63.8,49),(63,46.5)]]
+PANTS  = [[(68.5,77),(84.6,77),(85.4,82),(85.6,88),(85.6,100),(67.4,100),(67.6,88),(68.2,82)]]
+BODY   = [[(72.5,31),(72.5,25),(74.5,21),(77.5,19.2),(80.5,19.6),(82.6,22.5),(83.4,27),(82.8,32.5),(86,38.6),(89,40.5),(91.2,46.5),(91.6,52),(93,58),(93.6,64),(93.4,70),(92.6,76),(92,82),(91.8,86),(93.2,90),(92.4,96),(89.4,96),(88.2,90),(87,86),(86,100),(67,100),(66,86),(64.8,90),(63.6,96),(60.4,96),(59.8,90),(61.2,86),(61,80),(60.4,74),(60.2,68),(60.6,62),(61.5,56),(63,49),(63.2,44),(64.2,41.5),(66.5,39.6),(70,38.2),(74,37.6),(73.5,34.5)]]
+player = poly_mask((W,H), BODY)
+body = cloth(cont, 55, 150, bright=228, bright_below=54) & player
+primary   = fill_holes(poly_mask((W,H), JERSEY) & body)
+secondary = (poly_mask((W,H), HELMET) & neutral(cont, 0.3, 30, 218) & player) | fill_holes(poly_mask((W,H), PANTS) & body)   # lum cap keeps the floodlight out of the shell
+S = (W // 2, H // 2)
+finish(primary, S, 1.0, 'cont_mask_p.tmp.webp'); finish(secondary, S, 0.8, 'cont_mask_s.tmp.webp')
 import os; os.replace('cont_mask_p.tmp.webp','public/menu/card_continue_mask_p.webp'); os.replace('cont_mask_s.tmp.webp','public/menu/card_continue_mask_s.webp')
 
 # ---------------- portrait ----------------

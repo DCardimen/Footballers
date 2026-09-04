@@ -39,8 +39,8 @@ html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
   -webkit-mask-position:var(--mx) var(--my);mask-position:var(--mx) var(--my);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
 .rib9-hero-lift{position:absolute;inset:0;pointer-events:none;background:#d9c8a2;mix-blend-mode:overlay;opacity:.62;--mx:50%;--my:50%;--mw:40%;--mh:40%;
   -webkit-mask-image:radial-gradient(ellipse var(--mw) var(--mh) at var(--mx) var(--my),#000 0 55%,transparent 100%);mask-image:radial-gradient(ellipse var(--mw) var(--mh) at var(--mx) var(--my),#000 0 55%,transparent 100%)}
-.rib9-tint-hue{mix-blend-mode:color;opacity:calc(var(--ts)*.95)}
-.rib9-tint-shade{mix-blend-mode:multiply;opacity:calc(var(--ts)*.55)}
+.rib9-tint-hue{mix-blend-mode:color;opacity:calc(var(--ts)*.92)}
+.rib9-tint-shade{mix-blend-mode:multiply;opacity:calc(var(--ts)*.38)}
 .rib9-hero-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,7,9,.72) 0,rgba(6,7,9,.34) 34%,rgba(6,7,9,0) 56%),linear-gradient(180deg,rgba(6,7,9,.18),rgba(6,7,9,0) 26%,rgba(6,7,9,.42) 100%)}
 .rib9-hero-copy{position:absolute;left:2.5%;top:13%;width:44%;max-width:580px;transform-origin:0 50%;transform:perspective(90cqw) rotateY(28deg) rotateZ(-6deg)}
 .rib9-hero-copy h1{margin:0;line-height:0;font-size:0}

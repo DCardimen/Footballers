@@ -426,7 +426,9 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   the jersey / helmet / pants split is a kit rule in `renderMenu`, not a colour choice),
   and every tint is clipped by a **silhouette mask** cut from the picture in
   `scripts/build-menu-art.py` (polygon per garment in percent of the original art, keyed
-  inside for skin and lit background, eroded before feathering). To move a garment, draw
+  inside for skin and lit background, eroded before feathering, and clipped to a traced
+  full-body `BODY` polygon; the pads are polygon-only because a tan pad in shadow keys like
+  an arm). To move a garment, draw
   a 5% grid over the picture and edit the polygon; judge the result with
   `scripts/kitshot.mjs`, which paints the kit crimson and gold — the default slate palette
   hides leaks. The mask URL is inline on the element on purpose: a `url()` in a custom

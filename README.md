@@ -55,6 +55,19 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v89.5 — the kit, cut properly.** The silhouette masks are rebuilt on the real
+  outline: every garment polygon is placed on a 2% grid over the picture, the shoulder
+  pads are polygons with no colour key at all (a tan pad in warm shadow keys exactly
+  like an arm, and no arm lies inside a pad), the torso keeps a skin key that uses
+  chroma and luminance together so shadowed fabric is never mistaken for skin, and
+  any pocket a garment encloses is filled outright. Every garment is then clipped to a
+  traced full-body silhouette, so colour cannot leave the player even where a polygon
+  is a hair off. Masks are cut at half resolution with a tighter close, so their edge
+  is a line rather than a stair, and the tint strength sits between the two settings
+  tried before. The lit strip between arm and torso is keyed out by brightness below
+  the pad line. Judged in crimson and gold with `scripts/kitshot.mjs`, and in the
+  overlay diagnostics that paint each mask over the art with the body outline drawn.
+
 - **v89.4 — the kit stays on the player.** The team tint is confined to the uniform
   by silhouette masks cut from each photograph's own pixels (`hero_mask_p/_s`,
   `card_continue_mask_p/_s`, `portrait_helmet_mask_s` in `public/menu/`), built by
