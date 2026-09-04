@@ -55,6 +55,15 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v89.6 — nothing bleeds.** The hero helmet's far edge sits inside the shell and its
+  mask is eroded a step further than the cloth, since a feathered edge over the bright
+  tunnel mouth read as a halo in the team colour. `scripts/build-menu-art.py` now
+  asserts, on every build, that every finished mask is fully transparent outside the
+  traced body (it reports the worst alpha it found; the build fails above 8 of 255), so
+  colour cannot leave the player without the build saying so. Shading reviewed at full
+  size in both palettes: the fabric's folds, the shadow across the back and the printed
+  number all survive the tint.
+
 - **v89.5 — the kit, cut properly.** The silhouette masks are rebuilt on the real
   outline: every garment polygon is placed on a 2% grid over the picture, the shoulder
   pads are polygons with no colour key at all (a tan pad in warm shadow keys exactly
