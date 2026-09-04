@@ -34,6 +34,10 @@ const snapshot = () => page.evaluate(() => {
     tints: menu.querySelectorAll('.rib9-tint').length,
     tintPx: [...menu.querySelectorAll('.rib9-tint')].every(t => /px$/.test(t.style.getPropertyValue('--mx'))),
     helmetLogo: !!menu.querySelector('.rib9-helmet-logo'),
+    wordmark: !!menu.querySelector('.rib9-hero-copy h1 img'),
+    swash: !!menu.querySelector('.rib9-swash'),
+    legacyIcons: menu.querySelectorAll('.rib9-lt i img').length,
+    heroSlogan: /DISCIPLINE/.test(menu.innerText),
     dots: menu.querySelectorAll('.rib9-dot').length,
     playedDots: menu.querySelectorAll('.rib9-dot.won,.rib9-dot.lost,.rib9-dot.sat').length,
     name: menu.querySelector('.rib9-name')?.textContent.trim(),
@@ -58,6 +62,11 @@ try {
   ok(fresh.ready && fresh.assets && fresh.assets.ready && !fresh.assets.fallback && fresh.assets.failed.length === 0, 'the asset runtime opened the gate with every picture decoded', `loaded=${fresh.assets?.loaded.length} failed=${fresh.assets?.failed.join(',') || 'none'}`)
   ok(fresh.images >= 9 && fresh.broken.length === 0, 'every <img> in the menu rendered', `${fresh.images} images, broken: ${fresh.broken.join(',') || 'none'}`)
   ok(fresh.tiles.length === 6 && fresh.nav.length === 6, 'six tiles and six nav links', `${fresh.tiles.join(' ')} | ${fresh.nav.join(' ')}`)
+  // the drawn wordmark, the swash and the six legacy icons are art, not CSS: if any of them
+  // falls back to type or an inline path the menu stops matching the reference
+  ok(fresh.wordmark && fresh.swash && fresh.legacyIcons === 6 && !fresh.heroSlogan,
+    'the hero wears the drawn wordmark and swash, the legacy panel wears its six icons, and the wall slogan comes from the photograph',
+    `wordmark=${fresh.wordmark} swash=${fresh.swash} icons=${fresh.legacyIcons} sloganInText=${fresh.heroSlogan}`)
   ok(!fresh.hasCareer && /START NEW CAREER/.test(fresh.text) && fresh.tiles[0] === 'new', 'without a save the card offers START NEW CAREER and the CAREER tile starts one')
 
   // ---- 2. a career: the feed drives the card

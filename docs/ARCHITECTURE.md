@@ -420,14 +420,18 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   class rules win); `rib-menu.css` only hides `#app` while the overlay is open. Art:
   originals in `art/menu/`, shipped WebP in `public/menu/`. **Team tints are placed in
   picture units** (`data-tint="cx,cy,rx,ry"` fractions of the image) and `layoutArt()`
-  maps them onto the rendered `object-fit:cover` crop in pixels on mount and resize, so
+  maps them onto the rendered `object-fit:cover` crop in pixels on mount and resize,
+  reading `object-position` back from the stylesheet so the two can never disagree, so
   the jersey stays tinted whatever the box's aspect; the same math positions the jersey
   name/number on the hero (`data-at`). Do not go back to percentage masks — the crop
   moves under them.
-  **Menu art is cut, not authored, in this repo**: `public/menu/*.webp` are derived from
-  the originals in `art/menu/` by edge-energy cropping (the badges become tight round
-  coins, the helmet portrait fills its frame), so re-deriving them is a processing step,
-  not a redraw. The signature face (Caveat) is declared by `rib-menu-v89.css` itself,
+  **Menu art is cut, not authored, in this repo**: `public/menu/*.webp` are all derived
+  from the originals in `art/menu/` by `scripts/build-menu-art.mjs` — badges cropped to
+  their coin by edge energy, icons to their own alpha, the swash's matting fringe eroded
+  and its red speckle pulled back to gold, the photographs downscaled. Run that script
+  after dropping new art in `art/menu/`; never hand-edit `public/menu/`. The hero
+  photograph is `hero_tunnel_wall.png` (the wall slogan is painted into the picture, so
+  the menu must not also draw it), and `hero_tunnel.png` is the earlier plain version. The signature face (Caveat) is declared by `rib-menu-v89.css` itself,
   not by the game's `@import` of `public/fonts/fonts.css`, so the menu can carry a face
   the rest of the game does not use. Trait quality is a **signed** field: `good: 1` is a
   strength, `0` is mixed and `-1` is a flaw, so a truthiness test puts flaws on gold

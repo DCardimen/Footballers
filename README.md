@@ -55,6 +55,19 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v89.2 — the art lands.** The four pieces v89.1 could not fix in code are in:
+  the drawn wordmark (chrome RUNNING over gold IT BACK) replaces the CSS type in
+  the hero, the tagline sits on a real pair of gold swashes, the tunnel photograph
+  now carries DISCIPLINE BUILDS FREEDOM painted on its wall in perspective (so the
+  menu no longer floats that text over the scene), and the legacy panel wears six
+  drawn icons instead of hand-cut SVG paths. `scripts/build-menu-art.mjs` is the
+  pipeline: it cuts every shipped `public/menu/*.webp` from the originals in
+  `art/menu/`, cropping badges to their coin, icons to their own alpha, eroding the
+  matting fringe off the swash, and downscaling the photographs. Re-run it after
+  dropping new art in. The crop maths now reads `object-position` from the
+  stylesheet rather than a duplicated data attribute, so a tint can no longer drift
+  from the picture it tints.
+
 - **v89.1 — the menu against the reference, everything that was not art.** A pass
   comparing the built menu with the mockup, fixing the code half of the gap. The
   jersey name and number now sit on the player's back in jersey white with an

@@ -158,6 +158,22 @@
     return out;
   }
 
+  // the legacy panel: one tile per lifetime number, each with its own icon
+  const LEGACY_TILES = [
+    ['gold', 'star', 'prestige', 'PRESTIGE', (S) => S.prestige || 0],
+    ['blue', 'helmet', 'careers', 'CAREERS', (S) => S.careers || 0],
+    ['green', 'crown', 'nflReached', 'NFL REACHED', (S) => S.nflReached || 0],
+    ['purple', 'gem', 'interstellar', 'INTERSTELLAR', (S) => S.interstellar || 0],
+    ['gold2', 'laurel', 'hallPoints', 'HALL POINTS', (S) => S.hallBest || 0],
+    ['red', 'target', 'iconicMoments', 'ICONIC MOMENTS', (S) => S.challenges || 0],
+  ];
+  const legacyPanel = (S) => `<section class="rib9-card rib9-legacy">
+            <div class="rib9-kicker">YOUR LEGACY</div>
+            <div class="rib9-legacy-grid">
+              ${LEGACY_TILES.map(([cls, icon, field, label, read]) => `<div class="rib9-lt ${cls}"><i><img src="${ART}legacy_${icon}.webp" alt="" loading="lazy"></i><b data-rib-field="${field}">${esc(read(S))}</b><small>${label}</small></div>`).join('')}
+            </div>
+          </section>`;
+
   function seasonDots(season) {
     const n = Math.max(season.games || 0, season.weeks.length, 1);
     const dots = [];
@@ -230,12 +246,12 @@
         </header>
 
         <section class="rib9-hero" aria-label="Running It Back">
-          <img class="rib9-hero-img" src="${ART}hero_tunnel.webp" alt="" data-nat="1600,720" data-op="0.5,0.5">
-          ${tint(colors, 0.49, 0.56, 0.17, 0.3)}${tint(colors, 0.49, 0.23, 0.06, 0.13)}
+          <img class="rib9-hero-img" src="${ART}hero_tunnel.webp" alt="" data-nat="1600,914">
+          ${tint(colors, 0.495, 0.55, 0.14, 0.19)}${tint(colors, 0.505, 0.27, 0.055, 0.085)}
           <div class="rib9-hero-shade"></div>
-          <div class="rib9-hero-copy"><h1>RUNNING<br><em>IT BACK</em></h1><p>SAME GAME.<br>DIFFERENT YOU.</p></div>
-          ${has ? `<div class="rib9-hero-jersey" aria-hidden="true" data-at="0.485,0.5"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>` : ''}
-          <div class="rib9-hero-slogan">DISCIPLINE<br>BUILDS<br>FREEDOM</div>
+          <div class="rib9-hero-copy"><h1><img src="${ART}logo_wordmark.webp" alt="Running It Back"></h1>
+            <p>SAME GAME.<br>DIFFERENT YOU.</p><img class="rib9-swash" src="${ART}swash_underline.webp" alt=""></div>
+          ${has ? `<div class="rib9-hero-jersey" aria-hidden="true" data-at="0.5,0.52"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>` : ''}
         </section>
 
         ${has ? `
@@ -262,7 +278,7 @@
 
         <div class="rib9-grid">
           <section class="rib9-card rib9-continue" data-rib-action="continue" role="button" tabindex="0">
-            <img src="${ART}card_continue.webp" alt="" data-nat="1000,640" data-op="1,0.5">
+            <img src="${ART}card_continue.webp" alt="" data-nat="1000,640">
             ${tint(colors, 0.77, 0.6, 0.15, 0.28)}${tint(colors, 0.76, 0.28, 0.07, 0.12)}
             <div class="rib9-continue-copy"><h2>CONTINUE<br>CAREER <span>${svg('chev')}</span></h2><div class="rib9-yw">Year ${year} <i></i> Week ${week}</div><div class="rib9-vs">${season.nextOpp ? `vs ${esc(season.nextOpp)} (${record(season)})` : season.weeks.length ? `Season complete (${record(season)})` : `${esc(String(pl.levelName))} · Season ${pl.seasonsAtLevel + 1}`}</div></div>
           </section>
@@ -271,17 +287,7 @@
             <div class="rib9-progress" data-rib-action="view:${careerView}" role="button" tabindex="0"><div class="rib9-dots">${seasonDots(season)}</div><span class="rib9-games">${esc(season.played)} / ${esc(season.games)} GAMES</span></div>
             ${latestGame(data)}
           </section>
-          <section class="rib9-card rib9-legacy">
-            <div class="rib9-kicker">YOUR LEGACY</div>
-            <div class="rib9-legacy-grid">
-              <div class="rib9-lt gold"><i>${svg('star')}</i><b data-rib-field="prestige">${esc(S.prestige || 0)}</b><small>PRESTIGE</small></div>
-              <div class="rib9-lt blue"><i>${svg('helmet')}</i><b data-rib-field="careers">${esc(S.careers || 0)}</b><small>CAREERS</small></div>
-              <div class="rib9-lt green"><i>${svg('crown')}</i><b data-rib-field="nflReached">${esc(S.nflReached || 0)}</b><small>NFL REACHED</small></div>
-              <div class="rib9-lt purple"><i>${svg('gem')}</i><b data-rib-field="interstellar">${esc(S.interstellar || 0)}</b><small>INTERSTELLAR</small></div>
-              <div class="rib9-lt gold2"><i>${svg('laurel')}</i><b data-rib-field="hallPoints">${esc(S.hallBest || 0)}</b><small>HALL POINTS</small></div>
-              <div class="rib9-lt red"><i>${svg('target')}</i><b data-rib-field="iconicMoments">${esc(S.challenges || 0)}</b><small>ICONIC MOMENTS</small></div>
-            </div>
-          </section>
+          ${legacyPanel(S)}
           <section class="rib9-card rib9-milestones" data-rib-action="goals" role="button" tabindex="0">
             <img class="rib9-trophy" src="${ART}card_trophy.webp" alt="">
             <div class="rib9-ms-copy"><div class="rib9-kicker">CAREER MILESTONES</div>${milestones(data)}</div>
@@ -299,17 +305,7 @@
           <div class="rib9-quote"><p>${esc(quote)}</p><span class="rib9-sig">R. I. B.</span></div>
         </section>
         <div class="rib9-grid">
-          <section class="rib9-card rib9-legacy">
-            <div class="rib9-kicker">YOUR LEGACY</div>
-            <div class="rib9-legacy-grid">
-              <div class="rib9-lt gold"><i>${svg('star')}</i><b data-rib-field="prestige">${esc(S.prestige || 0)}</b><small>PRESTIGE</small></div>
-              <div class="rib9-lt blue"><i>${svg('helmet')}</i><b data-rib-field="careers">${esc(S.careers || 0)}</b><small>CAREERS</small></div>
-              <div class="rib9-lt green"><i>${svg('crown')}</i><b data-rib-field="nflReached">${esc(S.nflReached || 0)}</b><small>NFL REACHED</small></div>
-              <div class="rib9-lt purple"><i>${svg('gem')}</i><b data-rib-field="interstellar">${esc(S.interstellar || 0)}</b><small>INTERSTELLAR</small></div>
-              <div class="rib9-lt gold2"><i>${svg('laurel')}</i><b data-rib-field="hallPoints">${esc(S.hallBest || 0)}</b><small>HALL POINTS</small></div>
-              <div class="rib9-lt red"><i>${svg('target')}</i><b data-rib-field="iconicMoments">${esc(S.challenges || 0)}</b><small>ICONIC MOMENTS</small></div>
-            </div>
-          </section>
+          ${legacyPanel(S)}
           <section class="rib9-card rib9-milestones" data-rib-action="new" role="button" tabindex="0">
             <img class="rib9-trophy" src="${ART}card_trophy.webp" alt="">
             <div class="rib9-ms-copy"><div class="rib9-kicker">CAREER MILESTONES</div>${milestones(data)}</div>
@@ -335,9 +331,11 @@
   }
 
   // ---- the art: tints and the jersey overlay follow the picture's crop ----------
+  const pctOf = (value) => { const v = String(value || '').trim(); return v.endsWith('%') ? parseFloat(v) / 100 : 0.5; };
   const coverBox = (img, holder) => {   // where an object-fit:cover picture actually sits inside its box
     const [nw, nh] = String(img.dataset.nat || '').split(',').map(Number);
-    const [opx, opy] = String(img.dataset.op || '0.5,0.5').split(',').map(Number);
+    const op = getComputedStyle(img).objectPosition.split(/\s+/);   // the sheet owns the crop; read it, never restate it
+    const opx = pctOf(op[0]), opy = pctOf(op.length > 1 ? op[1] : op[0]);
     const cw = holder.clientWidth, ch = holder.clientHeight;
     if (!nw || !nh || !cw || !ch) return null;
     const k = Math.max(cw / nw, ch / nh), iw = nw * k, ih = nh * k;
