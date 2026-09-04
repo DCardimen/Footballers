@@ -55,6 +55,52 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v89.3 — the wordmark on the wall, a kit in team colours.** The drawn wordmark
+  now lies on the left tunnel wall: its far edge recedes toward the mouth and the
+  block climbs, mirroring the paint on the right wall, with the swash under it and
+  the tagline below, the whole block pulled left and away from the player. The name
+  and number on the back are printed on the fabric rather than laid over it: a
+  hard-light blend with a gradient fill lets the folds and the shadow of the jersey
+  show through the lettering. The team tint is a kit now, not a wash — every tint is
+  two layers, a hue layer (`mix-blend-mode: color`) that colours the white and grey
+  fabric while keeping its lighting and a multiply layer that deepens it — and it is
+  applied as a uniform: the jersey wears the primary, the helmet and pants the
+  secondary, on the hero, the portrait and the continue card alike.
+
+- **v89.2 — the art lands.** The four pieces v89.1 could not fix in code are in:
+  the drawn wordmark (chrome RUNNING over gold IT BACK) replaces the CSS type in
+  the hero, the tagline sits on a real pair of gold swashes, the tunnel photograph
+  now carries DISCIPLINE BUILDS FREEDOM painted on its wall in perspective (so the
+  menu no longer floats that text over the scene), and the legacy panel wears six
+  drawn icons instead of hand-cut SVG paths. `scripts/build-menu-art.mjs` is the
+  pipeline: it cuts every shipped `public/menu/*.webp` from the originals in
+  `art/menu/`, cropping badges to their coin, icons to their own alpha, eroding the
+  matting fringe off the swash, and downscaling the photographs. Re-run it after
+  dropping new art in. The crop maths now reads `object-position` from the
+  stylesheet rather than a duplicated data attribute, so a tint can no longer drift
+  from the picture it tints.
+
+- **v89.1 — the menu against the reference, everything that was not art.** A pass
+  comparing the built menu with the mockup, fixing the code half of the gap. The
+  jersey name and number now sit on the player's back in jersey white with an
+  outline and a slight perspective, instead of floating in the team's accent colour.
+  The prestige chip moved off the tunnel floor into the top bar, where the reference
+  keeps its chrome. The helmet portrait and the trait medallions are re-cut from the
+  same source art: the helmet now fills its frame and each badge is a tight round
+  coin rather than a small disc adrift in its own glow. A flaw no longer wears a gold
+  badge (`good: -1` is truthy, so Glass Bones was being presented as a strength); the
+  card falls back to position perks. The OVR ring keeps a visible track and a minimum
+  arc, so a young player is a dial rather than an empty hole. The quote varies per
+  player instead of once per origin, and the signature is a real hand (Caveat, served
+  from the menu's own sheet so the game's typography is untouched). Milestones now
+  lead with this season's concrete goals and carry the date each one was met, from a
+  new `objectiveStampsV89` record. The season card fills its row, a sat-out week says
+  DID NOT PLAY instead of showing a dash and three zeroes, a loss is a colour rather
+  than a red cross, the legacy tiles stretch to fill and their labels fit on one line,
+  the trophy plate sits on the trophy's base, and the footer is a signature line
+  again. Still outstanding, because they need art: the logo lockup, the painted wall
+  slogan, the tagline swash and the six legacy icons.
+
 - **v89 — the main menu, from the Bible.** The main menu is rebuilt to the reference
   mockup (`art/menu/bible.jpg`) with the art the mockup was made from: a top bar with
   the brand and the nav (HOME · CAREER · GOALS · HALL · LEADERBOARDS · SETTINGS), the

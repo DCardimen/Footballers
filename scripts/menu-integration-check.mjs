@@ -34,6 +34,10 @@ const snapshot = () => page.evaluate(() => {
     tints: menu.querySelectorAll('.rib9-tint').length,
     tintPx: [...menu.querySelectorAll('.rib9-tint')].every(t => /px$/.test(t.style.getPropertyValue('--mx'))),
     helmetLogo: !!menu.querySelector('.rib9-helmet-logo'),
+    wordmark: !!menu.querySelector('.rib9-hero-copy h1 img'),
+    swash: !!menu.querySelector('.rib9-swash'),
+    legacyIcons: menu.querySelectorAll('.rib9-lt i img').length,
+    heroSlogan: /DISCIPLINE/.test(menu.innerText),
     dots: menu.querySelectorAll('.rib9-dot').length,
     playedDots: menu.querySelectorAll('.rib9-dot.won,.rib9-dot.lost,.rib9-dot.sat').length,
     name: menu.querySelector('.rib9-name')?.textContent.trim(),
@@ -58,6 +62,11 @@ try {
   ok(fresh.ready && fresh.assets && fresh.assets.ready && !fresh.assets.fallback && fresh.assets.failed.length === 0, 'the asset runtime opened the gate with every picture decoded', `loaded=${fresh.assets?.loaded.length} failed=${fresh.assets?.failed.join(',') || 'none'}`)
   ok(fresh.images >= 9 && fresh.broken.length === 0, 'every <img> in the menu rendered', `${fresh.images} images, broken: ${fresh.broken.join(',') || 'none'}`)
   ok(fresh.tiles.length === 6 && fresh.nav.length === 6, 'six tiles and six nav links', `${fresh.tiles.join(' ')} | ${fresh.nav.join(' ')}`)
+  // the drawn wordmark, the swash and the six legacy icons are art, not CSS: if any of them
+  // falls back to type or an inline path the menu stops matching the reference
+  ok(fresh.wordmark && fresh.swash && fresh.legacyIcons === 6 && !fresh.heroSlogan,
+    'the hero wears the drawn wordmark and swash, the legacy panel wears its six icons, and the wall slogan comes from the photograph',
+    `wordmark=${fresh.wordmark} swash=${fresh.swash} icons=${fresh.legacyIcons} sloganInText=${fresh.heroSlogan}`)
   ok(!fresh.hasCareer && /START NEW CAREER/.test(fresh.text) && fresh.tiles[0] === 'new', 'without a save the card offers START NEW CAREER and the CAREER tile starts one')
 
   // ---- 2. a career: the feed drives the card
@@ -81,13 +90,18 @@ try {
   ok(career.hasCareer && career.name === played.name.toUpperCase() && career.ovr === played.ovr, 'the player card shows the career (name, OVR) from the v89 feed', `${career.name} ${career.ovr} vs ${played.name} ${played.ovr}`)
   ok(career.dots === played.games && career.playedDots === played.played, 'season dots = the schedule, played dots = the weeks played', `${career.playedDots}/${career.dots} vs ${played.played}/${played.games}`)
   ok(career.tints >= 5 && career.tintPx && career.helmetLogo, 'team color tints are laid over the hero, helmet and continue card in picture pixels, with the emblem on the helmet', `tints=${career.tints} px=${career.tintPx} logo=${career.helmetLogo}`)
-  ok(career.feed && career.feed.season.last && new RegExp(String(career.feed.season.last.us) + ' - ' + career.feed.season.last.them).test(career.text), 'the latest game line carries the last played score', `${career.feed?.season.last?.us}-${career.feed?.season.last?.them}`)
+  // a week the player sat carries no score, so the row must say so instead
+  const last = career.feed && career.feed.season.last
+  const lastShown = !last ? false : last.sat ? /DID NOT PLAY/.test(career.text) : new RegExp(String(last.us) + ' - ' + String(last.them)).test(career.text)
+  ok(lastShown, 'the latest game row carries the last score, or says the player sat out', last ? (last.sat ? 'DNP week' : `${last.us}-${last.them}`) : 'no last game')
   ok(career.tiles[0].startsWith('view:') && career.tiles[1] === 'view:upgrade' && parseFloat(career.ring) > 0, 'CAREER goes to the season, TRAINING to the upgrade sheet, the OVR ring is drawn', `${career.tiles[0]} ring=${career.ring}`)
 
   // ---- 3. routing: every tile and nav link lands on its view and the menu comes back the same
   const routes = [['.rib9-tile[data-rib-action^="view:"]', /season|hub/], ['.rib9-tile[data-rib-action="view:upgrade"]', /upgrade/], ['.rib9-tile[data-rib-action="goals"]', /challenges/], ['.rib9-tile[data-rib-action="hall"]', /hof/],
     ['.rib9-tile[data-rib-action="locker"]', /locker/], ['.rib9-tile[data-rib-action="settings"]', /settings/], ['.rib9-navlink[data-rib-action="view:leaderboard"]', /leaderboard/], ['.rib9-latest[data-rib-action]', /stats/], ['.rib9-continue', /hub|season|live|sim/], ['.rib9-prestige', /shop/]]
   const routed = []
+  const sig = (snap) => [snap.name, snap.ovr, snap.hasCareer, snap.dots, snap.tiles.join(','), snap.nav.join(','), snap.images, snap.tints].join('|')
+  const beforeSig = sig(career)
   for (const [sel, want] of routes) {
     const before = career.text
     await page.locator(sel).first().scrollIntoViewIfNeeded()
@@ -98,7 +112,11 @@ try {
     await page.evaluate(() => window.go('menu'))
     await waitMenu(); await page.waitForTimeout(500)
     const back = await snapshot()
-    routed.push({ sel, gone, view, want: String(want), same: back.text === before })
+    // the milestone board is live: an objective can legitimately flip to done while we are away,
+    // so identity is the stable signature of the menu, not every word in it
+    const A = before.split(' '), B = back.text.split(' '), diff = []
+    for (let i = 0; i < Math.max(A.length, B.length); i++) if (A[i] !== B[i]) diff.push(`[${i}] ${A[i]} -> ${B[i]}`)
+    routed.push({ sel, gone, view, want: String(want), same: sig(back) === beforeSig, textDiff: diff.slice(0, 8) })
   }
   const bad = routed.filter(r => !(r.gone && r.want && new RegExp(r.want.slice(1, -1)).test(r.view || '') && r.same))
   ok(bad.length === 0, 'every tile / nav link / card routes to its view and the same menu returns', bad.length ? JSON.stringify(bad) : routed.map(r => r.view).join(' '))
