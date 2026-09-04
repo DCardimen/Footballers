@@ -55,6 +55,42 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v89.6 — nothing bleeds.** The hero helmet's far edge sits inside the shell and its
+  mask is eroded a step further than the cloth, since a feathered edge over the bright
+  tunnel mouth read as a halo in the team colour. `scripts/build-menu-art.py` now
+  asserts, on every build, that every finished mask is fully transparent outside the
+  traced body (it reports the worst alpha it found; the build fails above 8 of 255), so
+  colour cannot leave the player without the build saying so. Shading reviewed at full
+  size in both palettes: the fabric's folds, the shadow across the back and the printed
+  number all survive the tint.
+
+- **v89.5 — the kit, cut properly.** The silhouette masks are rebuilt on the real
+  outline: every garment polygon is placed on a 2% grid over the picture, the shoulder
+  pads are polygons with no colour key at all (a tan pad in warm shadow keys exactly
+  like an arm, and no arm lies inside a pad), the torso keeps a skin key that uses
+  chroma and luminance together so shadowed fabric is never mistaken for skin, and
+  any pocket a garment encloses is filled outright. Every garment is then clipped to a
+  traced full-body silhouette, so colour cannot leave the player even where a polygon
+  is a hair off. Masks are cut at half resolution with a tighter close, so their edge
+  is a line rather than a stair, and the tint strength sits between the two settings
+  tried before. The lit strip between arm and torso is keyed out by brightness below
+  the pad line. Judged in crimson and gold with `scripts/kitshot.mjs`, and in the
+  overlay diagnostics that paint each mask over the art with the body outline drawn.
+
+- **v89.4 — the kit stays on the player.** The team tint is confined to the uniform
+  by silhouette masks cut from each photograph's own pixels (`hero_mask_p/_s`,
+  `card_continue_mask_p/_s`, `portrait_helmet_mask_s` in `public/menu/`), built by
+  `scripts/build-menu-art.mjs`: a hand-placed polygon per garment, keyed inside so
+  skin and the lit background between arm and torso stay out, eroded inward so a
+  feathered edge never glows over a bright background. The jersey and its shoulder
+  pads wear the primary, the helmet and pants the secondary, on the hero, the portrait
+  and the continue card. The mask URL is set inline on the element, because a `url()`
+  inside a custom property resolves against the stylesheet in Chrome and the document
+  in Firefox. The painted wall slogan is lifted with a masked overlay so it reads on a
+  phone, and the emblem sits on the upper shell of the portrait helmet.
+  `scripts/kitshot.mjs` renders the kit in crimson and gold, which is how the leaks
+  the default slate palette had hidden were found.
+
 - **v89.3 — the wordmark on the wall, a kit in team colours.** The drawn wordmark
   now lies on the left tunnel wall: its far edge recedes toward the mouth and the
   block climbs, mirroring the paint on the right wall, with the swash under it and

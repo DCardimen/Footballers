@@ -424,6 +424,16 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   reading `object-position` back from the stylesheet so the two can never disagree, so
   (each tint is a hue layer plus a multiply layer; `which` picks primary or secondary, so
   the jersey / helmet / pants split is a kit rule in `renderMenu`, not a colour choice),
+  and every tint is clipped by a **silhouette mask** cut from the picture in
+  `scripts/build-menu-art.py` (polygon per garment in percent of the original art, keyed
+  inside for skin and lit background, eroded before feathering, and clipped to a traced
+  full-body `BODY` polygon; the pads are polygon-only because a tan pad in shadow keys like
+  an arm). The build asserts that no finished mask carries alpha outside the traced
+  body, so a placement error fails the build instead of reaching the page. To move a garment, draw
+  a 5% grid over the picture and edit the polygon; judge the result with
+  `scripts/kitshot.mjs`, which paints the kit crimson and gold — the default slate palette
+  hides leaks. The mask URL is inline on the element on purpose: a `url()` in a custom
+  property resolves against the stylesheet in Chrome and the document in Firefox,
   the jersey stays tinted whatever the box's aspect; the same math positions the jersey
   name/number on the hero (`data-at`). Do not go back to percentage masks — the crop
   moves under them.

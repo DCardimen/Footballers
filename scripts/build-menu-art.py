@@ -82,6 +82,108 @@ for name, w, q in [('card_continue', 1000, 82), ('card_trophy', 900, 82)]:
     im = Image.open(f'{SRC}/{name}.png').convert('RGB')
     save(im.resize((w, round(w * im.height / im.width)), Image.LANCZOS), f'{name}.webp', q)
 
+
+# ---- silhouette masks: the team tint is confined to the kit ----------------
+# Each photograph gets two alpha masks cut from its own pixels: _p (the jersey, worn in
+# the primary colour) and _s (helmet and pants, the secondary). A hand-placed polygon
+# says roughly where each garment is; inside it the pixels are keyed so skin, and the
+# lit background between arm and torso, stay out. Percent coordinates refer to the
+# original art. To re-place a garment, draw a 5% grid over the picture and edit here.
+
+def poly_mask(size, polys_pct):
+    w, h = size
+    m = Image.new('L', size, 0); d = ImageDraw.Draw(m)
+    for poly in polys_pct:
+        d.polygon([(x / 100 * w, y / 100 * h) for x, y in poly], fill=255)
+    return np.asarray(m) > 0
+
+def chans(im):
+    a = np.asarray(im.convert('RGB')).astype(float)
+    mx, mn = a.max(2), a.min(2)
+    return np.where(mx > 0, (mx - mn) / np.maximum(mx, 1), 0), a.mean(2)
+def neutral(im, sat_max, lum_min, lum_max):
+    sat, lum = chans(im)
+    return (sat < sat_max) & (lum > lum_min) & (lum < lum_max)
+def cloth(im, skin_chroma=55, skin_lum=150, bright=None, bright_below=None):
+    # fabric: anything that is not skin. Skin is strongly chromatic (max-min of RGB) at any
+    # brightness; grey fabric stays low-chroma even in warm shadow, where a ratio-based
+    # saturation would blow up. `bright` keys out the lit background, but only below the
+    # row `bright_below` (the pads above it are lit too, and must stay).
+    a = np.asarray(im.convert('RGB')).astype(float)
+    chroma = a.max(2) - a.min(2); lum = a.mean(2)
+    keep = ~((chroma > skin_chroma) & (lum < skin_lum))
+    if bright is not None:
+        rows = np.arange(a.shape[0])[:, None] >= (bright_below or 0) / 100 * a.shape[0]
+        keep &= ~((lum > bright) & rows)
+    return keep
+
+def assert_no_bleed(paths, player, label):
+    # the guarantee the kit rests on: outside the traced body, every mask is fully transparent.
+    # The body polygon is dilated by a few pixels so the check is about the background, not
+    # about a vertex placed on the outline itself.
+    body = Image.fromarray((player * 255).astype('uint8'), 'L').filter(ImageFilter.MaxFilter(7))
+    outside = np.asarray(body) == 0
+    for path in paths:
+        a = np.asarray(Image.open(path).convert('RGBA').getchannel('A').resize(body.size, Image.BILINEAR))
+        worst = int(a[outside].max()) if outside.any() else 0
+        report.append((os.path.basename(path), f'bleed max {worst}/255', 0))
+        assert worst <= 8, f'{label}: {path} bleeds outside the player (alpha {worst})'
+
+def fill_holes(mask_bool):
+    # any pocket the garment encloses is garment: a shadowed fold is not a window
+    m = Image.fromarray((mask_bool * 255).astype('uint8'), 'L')
+    outside = m.copy(); ImageDraw.floodfill(outside, (0, 0), 128)
+    o = np.asarray(outside)
+    return mask_bool | (o == 0)
+
+def finish(mask_bool, size, blur, out, erode=3):
+    m = Image.fromarray((mask_bool * 255).astype('uint8'), 'L')
+    m = m.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.MinFilter(3))   # close pinholes
+    m = m.resize(size, Image.LANCZOS).filter(ImageFilter.MinFilter(erode)).filter(ImageFilter.GaussianBlur(blur))
+    rgba = Image.new('RGBA', size, (0, 0, 0, 0)); rgba.putalpha(m)
+    rgba.save(out, 'WEBP', quality=80, method=6)
+    return m
+
+# ---------------- hero ----------------
+hero = Image.open('art/menu/hero_tunnel_wall.png').convert('RGB'); W, H = hero.size
+HELMET = [[(45.2,27),(46.2,22.6),(49,20.2),(52,20.2),(54.5,22.6),(55.1,28),(54.4,33.3),(52,35.8),(48,35.8),(45.4,33)]]
+JERSEY = [[(36.3,41),(37.3,39.5),(39.5,37.6),(43,36.4),(46,35.8),(50,35.6),(54,35.8),(57,36.4),(60.5,37.6),(62.2,39.8),(62.6,42.4),(63.2,45),(62.8,48.3),(61.8,50.6),(60.6,51.2),(60.2,54),(59.5,58),(58.9,63),(58.5,68),(58.4,72),(58.1,74.3),(42.4,74.3),(42,72),(41.4,68),(41.2,63),(41.3,58),(40.5,54),(40,51.2),(37.8,51),(36.4,49),(36,45)]]
+PANTS  = [[(42.4,73.8),(58.3,73.8),(59.2,78),(59.1,84),(59.2,90),(59.0,100),(42,100),(41,90),(40.8,84),(41.2,78)]]
+PADS   = [[(36.2,41),(37.3,39.3),(39.5,37.6),(43.5,36.5),(44.5,40),(42.5,48),(40.5,51),(37.8,51),(36.4,49),(36,45)],
+          [(56.5,36.5),(60.5,37.6),(62.2,39.8),(62.6,42.4),(63.2,45),(62.8,48.3),(61.8,50.6),(60,51.2),(58,48),(56,40)]]
+BODY   = [[(45.5,26),(46.3,21),(49,19.3),(52,19.3),(54.6,21.5),(55.2,27),(54.8,33.5),(57,36.4),(60.5,37.6),(62.6,42.4),(63.2,45),(63,49),(65.2,56),(66.2,62),(66.5,68),(66.2,74),(65.6,80),(65.2,86),(65.6,92),(63.8,96),(61,95),(60.2,90),(60.2,100),(40,100),(39.6,90),(38.6,95),(36.2,96),(34.4,92),(34.8,86),(34.2,80),(33.5,74),(33.3,68),(33.7,62),(34.9,56),(36.4,49),(36.2,41),(39.5,37.6),(43,36.4),(45.2,33.5),(45,27)]]
+player = poly_mask((W,H), BODY)
+body = cloth(hero, 55, 150, bright=135, bright_below=52) & player
+primary   = fill_holes((poly_mask((W,H), JERSEY) & body) | (poly_mask((W,H), PADS) & player))
+secondary = (poly_mask((W,H), HELMET) & neutral(hero, 0.5, 14, 175) & player) | fill_holes(poly_mask((W,H), PANTS) & body)   # lum cap keeps the lit stadium out of the helmet
+S = (W // 2, H // 2)
+finish(primary, S, 1.0, 'public/menu/hero_mask_p.webp'); finish(secondary, S, 0.8, 'public/menu/hero_mask_s.webp', erode=5)
+assert_no_bleed(['public/menu/hero_mask_p.webp', 'public/menu/hero_mask_s.webp'], player, 'hero')
+
+# ---------------- continue card ----------------
+cont = Image.open('art/menu/card_continue.png').convert('RGB'); W, H = cont.size
+HELMET = [[(72.5,31),(72.5,25),(74.5,21),(77.5,19.2),(80.5,19.6),(82.6,22.5),(83.4,27),(82.8,32.5),(80.5,35.5),(76,36.2),(73.5,34.5)]]
+JERSEY = [[(63.2,44),(64.2,41.5),(66.5,39.6),(70,38.2),(74,37.6),(78,37.4),(82,37.6),(86,38.6),(89,40.5),(91,43),(91.6,46.5),(91,49.5),(89.2,51),(88.6,54),(87.6,62),(86.2,70),(85,76.8),(68.4,76.8),(68.2,70),(67.5,62),(67,54),(65.6,51),(63.8,49),(63,46.5)]]
+PANTS  = [[(68.5,77),(84.6,77),(85.4,82),(85.6,88),(85.6,100),(67.4,100),(67.6,88),(68.2,82)]]
+BODY   = [[(72.5,31),(72.5,25),(74.5,21),(77.5,19.2),(80.5,19.6),(82.6,22.5),(83.4,27),(82.8,32.5),(86,38.6),(89,40.5),(91.2,46.5),(91.6,52),(93,58),(93.6,64),(93.4,70),(92.6,76),(92,82),(91.8,86),(93.2,90),(92.4,96),(89.4,96),(88.2,90),(87,86),(86,100),(67,100),(66,86),(64.8,90),(63.6,96),(60.4,96),(59.8,90),(61.2,86),(61,80),(60.4,74),(60.2,68),(60.6,62),(61.5,56),(63,49),(63.2,44),(64.2,41.5),(66.5,39.6),(70,38.2),(74,37.6),(73.5,34.5)]]
+player = poly_mask((W,H), BODY)
+body = cloth(cont, 55, 150, bright=228, bright_below=54) & player
+primary   = fill_holes(poly_mask((W,H), JERSEY) & body)
+secondary = (poly_mask((W,H), HELMET) & neutral(cont, 0.3, 30, 218) & player) | fill_holes(poly_mask((W,H), PANTS) & body)   # lum cap keeps the floodlight out of the shell
+S = (W // 2, H // 2)
+finish(primary, S, 1.0, 'cont_mask_p.tmp.webp'); finish(secondary, S, 0.8, 'cont_mask_s.tmp.webp')
+assert_no_bleed(['cont_mask_p.tmp.webp', 'cont_mask_s.tmp.webp'], player, 'continue')
+import os; os.replace('cont_mask_p.tmp.webp','public/menu/card_continue_mask_p.webp'); os.replace('cont_mask_s.tmp.webp','public/menu/card_continue_mask_s.webp')
+
+# ---------------- portrait ----------------
+por = Image.open('public/menu/portrait_helmet.webp').convert('RGB'); W, H = por.size
+shell = neutral(por, 0.35, 48, 255)
+finish(shell, (W // 2, H // 2), 1.0, 'public/menu/portrait_helmet_mask_s.webp')
+
+
+for f in ['hero_mask_p','hero_mask_s','card_continue_mask_p','card_continue_mask_s','portrait_helmet_mask_s']:
+    report.append((f + '.webp', 'mask', os.path.getsize(f'{OUT}/{f}.webp')))
+
 total = sum(s for _, _, s in report)
 for n, size, s in report: print(f'{n:26s} {str(size):12s} {s // 1024:4d} KB')
 print(f'{len(report)} files, {total // 1024} KB total')

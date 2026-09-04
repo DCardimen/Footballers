@@ -6,7 +6,7 @@
    * (html.rib-assets-ready). The gate never holds the menu hostage: a slow or
    * failed image still opens the menu after the fallback timer. */
   const ART = './public/menu/';
-  const FIRST = ['hero_tunnel', 'logo_wordmark', 'portrait_helmet', 'card_continue', 'card_trophy'];
+  const FIRST = ['hero_tunnel', 'hero_mask_p', 'hero_mask_s', 'logo_wordmark', 'portrait_helmet', 'portrait_helmet_mask_s', 'card_continue', 'card_continue_mask_p', 'card_continue_mask_s', 'card_trophy'];
   const REST = ['swash_underline', 'icon_career', 'icon_training', 'icon_goals', 'icon_hall', 'icon_locker', 'icon_settings',
     'legacy_star', 'legacy_helmet', 'legacy_crown', 'legacy_gem', 'legacy_laurel', 'legacy_target',
     'badge_crown', 'badge_shoe', 'badge_lightning', 'badge_shield', 'badge_brain', 'badge_eye', 'badge_fist', 'badge_clock', 'badge_target'];

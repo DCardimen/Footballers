@@ -139,10 +139,13 @@
   };
   // a tint is placed in IMAGE units (center x/y, radius x/y as fractions of the picture);
   // layoutArt() maps them onto the rendered, object-fit:cover crop in pixels
-  const tint = (colors, which, cx, cy, rx, ry, strength = 1) => {
+  const tint = (colors, which, mask, strength = 1) => {
     const c = colors && (colors[which] || colors[0]);
     if (!c) return '';
-    const at = `data-tint="${cx},${cy},${rx},${ry}" style="--tp:${esc(c)};--ts:${strength}"`;
+    // the mask URL goes on the element itself: a url() inside a custom property resolves against
+    // the stylesheet in Chrome and the document in Firefox, so neither relative form is safe there
+    const url = `url(${ART}${mask}.webp)`;
+    const at = `data-mask="${mask}" style="--tp:${esc(c)};--ts:${strength};-webkit-mask-image:${url};mask-image:${url}"`;
     return `<div class="rib9-tint rib9-tint-hue" ${at}></div><div class="rib9-tint rib9-tint-shade" ${at}></div>`;
   };
   const surname = (name) => (String(name || '').trim().split(/\s+/).pop() || '').toUpperCase();
@@ -251,7 +254,8 @@
 
         <section class="rib9-hero" aria-label="Running It Back">
           <img class="rib9-hero-img" src="${ART}hero_tunnel.webp" alt="" data-nat="1600,914">
-          ${tint(colors, 0, 0.495, 0.53, 0.165, 0.23)}${tint(colors, 1, 0.505, 0.27, 0.055, 0.085)}${tint(colors, 1, 0.5, 0.88, 0.1, 0.12, .7)}
+          ${tint(colors, 0, 'hero_mask_p')}${tint(colors, 1, 'hero_mask_s')}
+          <div class="rib9-hero-lift" data-region="0.865,0.42,0.15,0.4"></div>
           <div class="rib9-hero-shade"></div>
           <div class="rib9-hero-copy"><h1><img src="${ART}logo_wordmark.webp" alt="Running It Back"></h1>
             <img class="rib9-swash" src="${ART}swash_underline.webp" alt=""><p>SAME GAME.<br>DIFFERENT YOU.</p></div>
@@ -262,7 +266,7 @@
         <section class="rib9-card rib9-player">
           <div class="rib9-portrait" data-rib-action="locker" role="button" tabindex="0">
             <img src="${ART}portrait_helmet.webp" alt="" data-nat="640,640" data-op="0.5,0.5">
-            ${tint(colors, 1, 0.5, 0.5, 0.72, 0.72)}
+            ${tint(colors, 1, 'portrait_helmet_mask_s')}
             ${team.logoCss ? `<span class="rib9-helmet-logo emblem-v44" style="${esc(team.logoCss)}"></span>` : ''}
             <span class="rib9-edit">✎ EDIT PLAYER</span>
           </div>
@@ -283,7 +287,7 @@
         <div class="rib9-grid">
           <section class="rib9-card rib9-continue" data-rib-action="continue" role="button" tabindex="0">
             <img src="${ART}card_continue.webp" alt="" data-nat="1000,640">
-            ${tint(colors, 0, 0.77, 0.58, 0.17, 0.3)}${tint(colors, 1, 0.76, 0.28, 0.07, 0.12)}${tint(colors, 1, 0.77, 0.92, 0.1, 0.12, .7)}
+            ${tint(colors, 0, 'card_continue_mask_p')}${tint(colors, 1, 'card_continue_mask_s')}
             <div class="rib9-continue-copy"><h2>CONTINUE<br>CAREER <span>${svg('chev')}</span></h2><div class="rib9-yw">Year ${year} <i></i> Week ${week}</div><div class="rib9-vs">${season.nextOpp ? `vs ${esc(season.nextOpp)} (${record(season)})` : season.weeks.length ? `Season complete (${record(season)})` : `${esc(String(pl.levelName))} · Season ${pl.seasonsAtLevel + 1}`}</div></div>
           </section>
           <section class="rib9-card rib9-season">
@@ -350,8 +354,12 @@
       const holder = img.parentElement, box = coverBox(img, holder);
       if (!box) continue;
       holder.style.setProperty('--ih', box.h.toFixed(1) + 'px');
-      for (const t of holder.querySelectorAll(':scope > .rib9-tint')) {
-        const [cx, cy, rx, ry] = String(t.dataset.tint).split(',').map(Number);
+      for (const t of holder.querySelectorAll(':scope > [data-mask]')) {
+        t.style.setProperty('--mx', box.x.toFixed(1) + 'px'); t.style.setProperty('--my', box.y.toFixed(1) + 'px');
+        t.style.setProperty('--mw', box.w.toFixed(1) + 'px'); t.style.setProperty('--mh', box.h.toFixed(1) + 'px');
+      }
+      for (const t of holder.querySelectorAll(':scope > [data-region]')) {
+        const [cx, cy, rx, ry] = String(t.dataset.region).split(',').map(Number);
         t.style.setProperty('--mx', (box.x + cx * box.w).toFixed(1) + 'px'); t.style.setProperty('--my', (box.y + cy * box.h).toFixed(1) + 'px');
         t.style.setProperty('--mw', (rx * box.w).toFixed(1) + 'px'); t.style.setProperty('--mh', (ry * box.h).toFixed(1) + 'px');
       }
