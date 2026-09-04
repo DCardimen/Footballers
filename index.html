@@ -129,7 +129,7 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 .live-scoreboard .sb-side:before{display:none!important}
 }
 </style>
-<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v85"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v85"><link rel="stylesheet" href="./public/rib-menu.css?v=v85"><link rel="stylesheet" href="./public/rib-menu-mobile.css?v=v85"><link rel="stylesheet" href="./public/rib-menu-final.css?v=v85"><link rel="stylesheet" href="./public/rib-menu-assets.css?v=v85"><link rel="stylesheet" href="./public/rib-menu-v74.css?v=v85"><link rel="stylesheet" href="./public/rib-menu-v84.css?v=v85"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
+<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v89"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v89"><link rel="stylesheet" href="./public/rib-menu.css?v=v89"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v89"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
 <body>
 <div id="splash">
 <div class="splash-inner">
@@ -8970,6 +8970,22 @@ function sheetCtxV85(t){
   return Vr._m={t,key,at:Date.now(),ef:effAttrsV85(t),pj:projectSeasonGainsV85(t)};
 }
 window.__V85={effAttrs:effAttrsV85,project:projectSeasonGainsV85,bodyBadge:bodyBadgeV85};
+/* ===== v89 THE MENU'S OWN FEED =====
+ * The main menu used to scrape its numbers off the hidden legacy screen's text
+ * (`valueByLabel("HALL OF FAME POINTS")` found nothing and showed 0). One function
+ * hands it everything the new menu draws: the player, the season so far, the
+ * objectives with their live checks, the team's custom identity and colors, and
+ * the legacy totals — from the state, in one call. Returns null with no state. */
+window.__RIB_MENU_DATA_V89=function(){try{const e=o&&o.player;const hof=(o&&o.hof)||[];const S={prestige:o&&o.prestige||0,pp:o&&o.pp||0,careers:o&&o.careers||0,nflReached:o&&o.nflReached||0,interstellar:hof.filter(h=>h&&(h.level||0)>=8).length,hallBest:hof.length?hof[0].goat||0:0,enshrined:o&&o.careersCompleted||0,challenges:Object.keys(o&&o.challenges||{}).length,challengesOf:typeof zt!="undefined"?zt.length:0,era:o&&o.era||0,eraName:o&&o.era?nn():"",bestLevel:o&&A[o.bestLevel||0]?A[o.bestLevel||0].name:"",titles:o&&o.titlesWon||0,rings:o&&o.rings||0,recordOvr:o&&o.recordOvr||0,highScore:o&&o.highScore||0};
+if(!e||!e.pos)return{hasCareer:!1,state:S};
+const lv=A[e.level]||A[0],wk=(e.weekResults||[]).filter(w=>w&&!w.playoff),played=wk.filter(w=>w.played),last=played.length?played[played.length-1]:null,nxt=wk.find(w=>!w.played)||null;
+const orig=(typeof Je=="function"&&Je(e))||null,traits=(e.traits||[]).map(k=>dt[k]?{id:k,name:dt[k].name,icon:dt[k].icon,good:dt[k].good,desc:dt[k].desc}:null).filter(Boolean);
+const done=e.completedObjectivesV11||{},mine=e.legacyObjectivesV11||[],objs=(typeof Ua!="undefined"?Ua:[]).map(u=>{let ok=!!done[u.id];if(!ok){try{ok=!!u.check(e)}catch(_){}}return{id:u.id,icon:u.icon,title:u.title,desc:u.description,reward:u.reward,done:ok,mine:mine.includes(u.id)}});
+let rank=null;try{rank=sn(e,ae(e))}catch(_){}let chance=null;try{chance=declareChanceV88(e)}catch(_){}
+const tc=window.__GRIDIRON_TEAM_CUSTOM__||{};
+return{hasCareer:!0,state:S,player:{name:e.name,pos:e.pos,level:e.level,levelName:lv.name,levelKey:lv.key,age:e.age,stars:e.stars||0,ovr:ae(e),height:e.body?zs(e.body.height):"",weight:e.body?e.body.weight+" lb":"",archetype:orig?{id:orig.id,name:orig.name,icon:orig.icon,strength:orig.strength,weakness:orig.weakness}:null,path:o.path?{id:o.path,name:(mt[o.path]&&mt[o.path].name)||o.path}:null,traits,seasonsAtLevel:e.seasonsAtLevel||0,totalSeasons:e.totalSeasons||0,depthRole:e.depthRole||"",rank:rank?{rank:rank.rank,of:rank.of,pct:rank.pct}:null,chance,goals:ur(e),objectives:objs,points:e.points||0},
+season:{games:lv.games,played:played.length,weeks:wk.map(w=>({played:!!w.played,won:!!w.won,us:w.us,them:w.them,opp:w.opp,sat:!!w.satOut,perf:w.perf})),inProgress:!!(e.weekResults&&nxt),last:last?{won:!!last.won,us:last.us,them:last.them,opp:last.opp,stat:last.statLine||null,sat:!!last.satOut,week:wk.indexOf(last)+1}:null,nextOpp:nxt?nxt.opp:null,nextWeek:nxt?wk.indexOf(nxt)+1:null},
+team:{school:tc.schoolName||"",name:tc.teamName||"",colors:tc.col||null,logo:tc.logo!=null?tc.logo:null,logoCss:window.TEAM_LOGOS_V44&&tc.logo!=null?window.TEAM_LOGOS_V44.cssFull(tc.logo):""}}}catch(err){return null}};
 function Vr(e,t){const a=t.attrs[e],s=t.lastGains[e]||0,n=t.pos&&Ee[t.pos].w[e],i=f(a/we()*100,0,100),r=Le[e].metric,l=r?`<span class="attr-metric" title="${r.label}">${r.label}: <b>${r.fmt(a)}</b></span>`:"";
   // v85: the body's cut (or lift) for the next game, and the season's expected gain
   const X=sheetCtxV85(t),ev=X.ef.eff[e]!=null?X.ef.eff[e]:a,d=ev-a,ie=f(ev/we()*100,0,100),pj=X.pj[e]||0,pn=Math.round(pj),pStart=Math.max(i,ie),pw=pn>0?Math.min(100-pStart,Math.max(TU("projMinPct",2.4),pj/we()*100)):0;
@@ -14841,5 +14857,5 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   try { window.__HUB_V75 = { views: VIEWS, tabs: TAB, sweep } } catch (e) {}
 })();
 </script>
-<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-asset-runtime.js?v=v85"></script><script src="./public/rib-menu-boot.js?v=v85"></script><script src="./public/rib-menu.js?v=v85"></script><script src="./public/rib-menu-navigation.js?v=v85"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
+<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v89"></script><script src="./public/rib-menu-boot.js?v=v89"></script><script src="./public/rib-menu.js?v=v89"></script><script src="./public/rib-menu-navigation.js?v=v89"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
 </html>

@@ -30,8 +30,26 @@
 
   let routing = false;
 
+  // v89: "view:<name>" routes straight through the game's router (window.go),
+  // "home" is the page we are on. Everything else still clicks the legacy control.
+  function routeView(view) {
+    if (typeof window.go !== 'function') { console.warn('[RIB menu] window.go unavailable for view', view); return false; }
+    const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    routing = true;
+    setTimeout(() => {
+      routing = false;
+      closeOverlay();
+      try { window.go(view); } catch (e) { console.warn('[RIB menu] go(' + view + ') failed', e); }
+      setTimeout(() => window.__RIB_MENU_BRIDGE?.sync?.(), 0);
+      setTimeout(() => window.__RIB_MENU_BRIDGE?.sync?.(), 120);
+    }, reduced ? 0 : 150);
+    return true;
+  }
+
   function activate(action) {
     if (routing) return false;
+    if (action === 'home') { document.getElementById('rib-main-menu-v2')?.scrollTo({ top: 0, behavior: 'smooth' }); return true; }
+    if (/^view:/.test(action || '')) return routeView(action.slice(5));
     // The primary CTA doubles as START NEW CAREER: if no continue target
     // exists (no career yet, or the game relabeled it), fall through to new.
     const original = findOriginal(action) || (action === 'continue' ? findOriginal('new') : null);

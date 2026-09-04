@@ -10,13 +10,11 @@ const version = String(process.env.RIB_BUILD_VERSION || process.env.GITHUB_SHA |
 const menuCss = [
   'rib-menu-reset.css',
   'rib-menu.css',
-  'rib-menu-mobile.css',
-  'rib-menu-final.css',
-  'rib-menu-assets.css',
+  'rib-menu-v89.css',
 ]
 
 const menuJs = [
-  'rib-menu-asset-runtime.js',
+  'rib-menu-v89-runtime.js',
   'rib-menu-boot.js',
   'rib-menu.js',
   'rib-menu-navigation.js',

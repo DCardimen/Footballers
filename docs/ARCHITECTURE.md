@@ -403,17 +403,27 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   durability point by asking the real chance function with the stat one higher.
   `bodyCostV73` is recorded in the weekly resolver either side of the multiplier,
   which is the only place the charge is knowable.
-- `v74 MENU POLISH` (`public/rib-menu-v74.css`) and **v84 MENU OVERHAUL**
-  (`public/rib-menu-v84.css`, the visual system: glass panels, one hairline gold, the
-  hero fading into the page, a transparent HUD — the sheet that loads LAST in
-  `scripts/bake-menu-into-index.mjs`, so it overrides everything above it; add new
-  menu rules there, not to the earlier sheets) — the menu is the one part of the app that is
-  NOT inline: it ships as `public/rib-menu*.{css,js}` linked from `index.html`. The
-  shell is its own scroll container (the app puts `overflow:hidden` on `<html>`),
-  and hero and content flex in opposite directions so neither a short nor a tall
-  window leaves a dead band. Several menu elements are **sprite crops with boxes
-  tuned to their cells** (`.rib-hero-mark`, `.rib-hero-player`, `.rib-nav-icon`,
-  `.rib-legacy-stat i`) — resizing those boxes in percentages destroys the crop.
+- **v89 MAIN MENU** — the menu is the one part of the app that is NOT inline: it
+  ships as `public/rib-menu*.{css,js}` linked from `index.html` by
+  `scripts/bake-menu-into-index.mjs` (`RIB_MENU_VERSION=v89`; the file lists at the top
+  of that script and of `scripts/assemble-pages.mjs` are the manifest). Four files:
+  `rib-menu-v89-runtime.js` warms the four big pictures and lifts the
+  `html.rib-assets-ready` opacity gate (2.5 s fallback), `rib-menu-boot.js` bridges the
+  legacy controls, `rib-menu.js` renders the Bible layout (`.rib9-*` classes) from
+  `window.__RIB_MENU_DATA_V89()` — the feed in `index.html` right after `window.__V85`
+  that reads state, player, season, objectives and team identity (`__GRIDIRON_TEAM_CUSTOM__`)
+  — and `rib-menu-navigation.js` routes clicks: `data-rib-action="view:<name>"` goes
+  through `window.go(name)`, `home` scrolls to the top, and the legacy names
+  (continue, new, prestige, goals, hall, locker, settings) still click the hidden legacy
+  control by text. `rib-menu-v89.css` is the whole visual system (dark charcoal, gold
+  hairlines, Oswald + Barlow Condensed; the reset uses `:where(#rib-main-menu-v2)` so
+  class rules win); `rib-menu.css` only hides `#app` while the overlay is open. Art:
+  originals in `art/menu/`, shipped WebP in `public/menu/`. **Team tints are placed in
+  picture units** (`data-tint="cx,cy,rx,ry"` fractions of the image) and `layoutArt()`
+  maps them onto the rendered `object-fit:cover` crop in pixels on mount and resize, so
+  the jersey stays tinted whatever the box's aspect; the same math positions the jersey
+  name/number on the hero (`data-at`). Do not go back to percentage masks — the crop
+  moves under them.
 
 ## Verification workflow
 

@@ -10,15 +10,11 @@ const version = String(process.env.RIB_MENU_VERSION || 'direct-v3')
 const cssFiles = [
   'rib-menu-reset.css',
   'rib-menu.css',
-  'rib-menu-mobile.css',
-  'rib-menu-final.css',
-  'rib-menu-assets.css',
-  'rib-menu-v74.css',
-  'rib-menu-v84.css',
+  'rib-menu-v89.css',
 ]
 
 const jsFiles = [
-  'rib-menu-asset-runtime.js',
+  'rib-menu-v89-runtime.js',
   'rib-menu-boot.js',
   'rib-menu.js',
   'rib-menu-navigation.js',
