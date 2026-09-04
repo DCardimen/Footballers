@@ -20,10 +20,14 @@ const menuJs = [
   'rib-menu-navigation.js',
 ]
 
-const generatedAssets = [
-  'a_clean_high_resolution_game_ui_asset_sheet_on_a_1_batch_1.png',
-  'a_clean_ui_graphic_assets_sprite_sheet_mockup_im_2_batch_2.png',
-  'a_clean_graphic_artwork_ui_icon_sheet_on_a_trans_3_batch_3.png',
+// v89: the menu's pictures ship as public/menu/*.webp. The three source sprite
+// sheets the old blob-URL runtime decoded are no longer loaded by anything, so
+// they stay out of the deploy (they live in art/ui/ for reference).
+const menuArt = [
+  'menu/hero_tunnel.webp',
+  'menu/portrait_helmet.webp',
+  'menu/card_continue.webp',
+  'menu/card_trophy.webp',
 ]
 
 function requireFile(filePath) {
@@ -50,7 +54,6 @@ const publicDir = path.resolve(root, 'public')
 if (!fs.existsSync(publicDir)) throw new Error('Required public directory is missing')
 fs.cpSync(publicDir, path.resolve(outputDir, 'public'), { recursive: true })
 
-for (const asset of generatedAssets) copyFile(asset)
 fs.writeFileSync(path.resolve(outputDir, '.nojekyll'), '')
 
 const indexPath = path.resolve(outputDir, 'index.html')
@@ -68,11 +71,11 @@ for (const file of menuJs) {
   requireFile(path.resolve(outputDir, 'public', file))
   if (!html.includes(`./public/${file}?v=`)) throw new Error(`Missing direct script reference: ${file}`)
 }
-for (const asset of generatedAssets) requireFile(path.resolve(outputDir, asset))
+for (const asset of menuArt) requireFile(path.resolve(outputDir, 'public', asset))
 
 fs.writeFileSync(
   path.resolve(outputDir, 'rib-build.json'),
-  `${JSON.stringify({ version, generatedAt: new Date().toISOString(), directIndexMenu: true, menuCss, menuJs, generatedAssets }, null, 2)}\n`,
+  `${JSON.stringify({ version, generatedAt: new Date().toISOString(), directIndexMenu: true, menuCss, menuJs, menuArt }, null, 2)}\n`,
 )
 
 console.log(`Assembled direct-index GitHub Pages site in ${path.relative(root, outputDir)} (${version})`)
