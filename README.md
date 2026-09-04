@@ -55,6 +55,20 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v89.4 — the kit stays on the player.** The team tint is confined to the uniform
+  by silhouette masks cut from each photograph's own pixels (`hero_mask_p/_s`,
+  `card_continue_mask_p/_s`, `portrait_helmet_mask_s` in `public/menu/`), built by
+  `scripts/build-menu-art.mjs`: a hand-placed polygon per garment, keyed inside so
+  skin and the lit background between arm and torso stay out, eroded inward so a
+  feathered edge never glows over a bright background. The jersey and its shoulder
+  pads wear the primary, the helmet and pants the secondary, on the hero, the portrait
+  and the continue card. The mask URL is set inline on the element, because a `url()`
+  inside a custom property resolves against the stylesheet in Chrome and the document
+  in Firefox. The painted wall slogan is lifted with a masked overlay so it reads on a
+  phone, and the emblem sits on the upper shell of the portrait helmet.
+  `scripts/kitshot.mjs` renders the kit in crimson and gold, which is how the leaks
+  the default slate palette had hidden were found.
+
 - **v89.3 — the wordmark on the wall, a kit in team colours.** The drawn wordmark
   now lies on the left tunnel wall: its far edge recedes toward the mouth and the
   block climbs, mirroring the paint on the right wall, with the swash under it and

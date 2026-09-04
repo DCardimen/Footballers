@@ -75,6 +75,7 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 | `crop.mjs` | High-DPI cropped screenshots of a screen region. |
 | `menushot.mjs` | v89 menu QA: screenshots the LIVE main menu (top and bottom) at a set of sizes; `CAREER=1` starts a career and plays three silent weeks first — `SIZES=390x844,900x1100 OUT=/tmp/menu CAREER=1 node scripts/menushot.mjs`. |
 | `menu-preview-shot.mjs` | Screenshot + layout metrics of the standalone `menu-preview.html` (`?menuPreview=1` sample data); fails on page errors, a closed asset gate, or a tile count other than six. |
+| `kitshot.mjs` | Renders the menu kit in a saturated palette (crimson jersey, gold helmet and pants) so the team tint and its silhouette masks are judged on more than the default slate — `OUT=/tmp/kit.png node scripts/kitshot.mjs`. |
 | `build-menu-art.mjs` | Cuts every shipped `public/menu/*.webp` from the originals in `art/menu/`: badges cropped to their coin, icons to their alpha, the swash de-fringed, photographs downscaled. Run it after adding art; never hand-edit `public/menu/`. |
 | `bake-menu-into-index.mjs` | Rewrites the `RIB_DIRECT_MENU_*` marker blocks in `index.html` to reference the versioned menu CSS/JS in `public/`. |
 | `assemble-pages.mjs` | Builds the exact GitHub Pages site into `_site/` (root index + `public/` + generated menu sheets) and verifies the baked menu references. |
