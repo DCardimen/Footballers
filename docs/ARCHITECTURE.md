@@ -403,6 +403,15 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   durability point by asking the real chance function with the stat one higher.
   `bodyCostV73` is recorded in the weekly resolver either side of the multiplier,
   which is the only place the charge is knowable.
+- `v90 THE ROLLS HAPPEN IN THE BACKGROUND` (next to `silentWeekV85`) — `autoStoryV90(e,w)`
+  drains `storyDecisionQueueV11` on the sim-the-rest path by picking a choice with
+  `pickStoryChoiceV90` (sorted by `baseChance`; `TU("autoStoryStyle",0)` safest → boldest)
+  and resolving it through `zn`, the same resolver the story card's button calls, so the
+  arc's stage, history and `decisionCount` advance identically. The v85 `wt` wrapper
+  calls it before each week instead of breaking on a queued stage. Rolls are recorded on
+  the week as `autoRollsV90` and exposed as `window.__V90.last`. The post-game decision
+  system (`decisionQueue`, `resolveDecision102`) is dead code: nothing queues it and no
+  resolver exists, and `Re()` clears it on load — do not build on it.
 - **v89 MAIN MENU** — the menu is the one part of the app that is NOT inline: it
   ships as `public/rib-menu*.{css,js}` linked from `index.html` by
   `scripts/bake-menu-into-index.mjs` (`RIB_MENU_VERSION=v89`; the file lists at the top
@@ -422,8 +431,11 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   picture units** (`data-tint="cx,cy,rx,ry"` fractions of the image) and `layoutArt()`
   maps them onto the rendered `object-fit:cover` crop in pixels on mount and resize,
   reading `object-position` back from the stylesheet so the two can never disagree, so
-  (each tint is a hue layer plus a multiply layer; `which` picks primary or secondary, so
-  the jersey / helmet / pants split is a kit rule in `renderMenu`, not a colour choice),
+  (a tint is a masked duplicate `<img>` of the photograph recoloured by `recolorFilter(hex)`
+  — grayscale → sepia → hue-rotate to the team hue → saturate/brightness from the colour —
+  so no blend mode is involved; `?blendTint` renders the older colour+multiply layers for
+  comparison; `which` picks primary or secondary, so the jersey / helmet / pants split is a
+  kit rule in `renderMenu`, not a colour choice),
   and every tint is clipped by a **silhouette mask** cut from the picture in
   `scripts/build-menu-art.py` (polygon per garment in percent of the original art, keyed
   inside for skin and lit background, eroded before feathering, and clipped to a traced
@@ -444,8 +456,10 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   after dropping new art in `art/menu/`; never hand-edit `public/menu/`. The hero
   photograph is `hero_tunnel_wall.png` (the wall slogan is painted into the picture, so
   the menu must not also draw it), and `hero_tunnel.png` is the earlier plain version. The signature face (Caveat) is declared by `rib-menu-v89.css` itself,
-  not by the game's `@import` of `public/fonts/fonts.css`, so the menu can carry a face
-  the rest of the game does not use. Trait quality is a **signed** field: `good: 1` is a
+  not by the game's `@import` of `public/fonts/fonts.css`, so the menu can carry faces
+  the rest of the game does not use (Caveat for the signature, Graduate for the jersey
+  numbers). The emblem on the portrait helmet is lit by a child layer whose mask is the
+  emblem's own sprite crop, built by restating the `background-*` rules as `mask-*`. Trait quality is a **signed** field: `good: 1` is a
   strength, `0` is mixed and `-1` is a flaw, so a truthiness test puts flaws on gold
   badges — filter with `> 0`. Milestone completion dates come from `objectiveStampsV89`
   on the player, written both by the objective-completion loop and by the feed the first
