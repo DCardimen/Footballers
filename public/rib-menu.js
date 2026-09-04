@@ -139,8 +139,12 @@
   };
   // a tint is placed in IMAGE units (center x/y, radius x/y as fractions of the picture);
   // layoutArt() maps them onto the rendered, object-fit:cover crop in pixels
-  const tint = (colors, cx, cy, rx, ry) => colors && colors[0]
-    ? `<div class="rib9-tint" data-tint="${cx},${cy},${rx},${ry}" style="--tp:${esc(colors[0])}"></div>` : '';
+  const tint = (colors, which, cx, cy, rx, ry, strength = 1) => {
+    const c = colors && (colors[which] || colors[0]);
+    if (!c) return '';
+    const at = `data-tint="${cx},${cy},${rx},${ry}" style="--tp:${esc(c)};--ts:${strength}"`;
+    return `<div class="rib9-tint rib9-tint-hue" ${at}></div><div class="rib9-tint rib9-tint-shade" ${at}></div>`;
+  };
   const surname = (name) => (String(name || '').trim().split(/\s+/).pop() || '').toUpperCase();
   const initial = (name) => (String(name || '').trim()[0] || 'R').toUpperCase();
   const record = (season) => { const w = season.weeks.filter(x => x.played); const won = w.filter(x => x.won).length; return `${won}-${w.length - won}`; };
@@ -247,10 +251,10 @@
 
         <section class="rib9-hero" aria-label="Running It Back">
           <img class="rib9-hero-img" src="${ART}hero_tunnel.webp" alt="" data-nat="1600,914">
-          ${tint(colors, 0.495, 0.55, 0.14, 0.19)}${tint(colors, 0.505, 0.27, 0.055, 0.085)}
+          ${tint(colors, 0, 0.495, 0.53, 0.165, 0.23)}${tint(colors, 1, 0.505, 0.27, 0.055, 0.085)}${tint(colors, 1, 0.5, 0.88, 0.1, 0.12, .7)}
           <div class="rib9-hero-shade"></div>
           <div class="rib9-hero-copy"><h1><img src="${ART}logo_wordmark.webp" alt="Running It Back"></h1>
-            <p>SAME GAME.<br>DIFFERENT YOU.</p><img class="rib9-swash" src="${ART}swash_underline.webp" alt=""></div>
+            <img class="rib9-swash" src="${ART}swash_underline.webp" alt=""><p>SAME GAME.<br>DIFFERENT YOU.</p></div>
           ${has ? `<div class="rib9-hero-jersey" aria-hidden="true" data-at="0.5,0.52"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>` : ''}
         </section>
 
@@ -258,7 +262,7 @@
         <section class="rib9-card rib9-player">
           <div class="rib9-portrait" data-rib-action="locker" role="button" tabindex="0">
             <img src="${ART}portrait_helmet.webp" alt="" data-nat="640,640" data-op="0.5,0.5">
-            ${tint(colors, 0.5, 0.5, 0.72, 0.72)}
+            ${tint(colors, 1, 0.5, 0.5, 0.72, 0.72)}
             ${team.logoCss ? `<span class="rib9-helmet-logo emblem-v44" style="${esc(team.logoCss)}"></span>` : ''}
             <span class="rib9-edit">✎ EDIT PLAYER</span>
           </div>
@@ -279,7 +283,7 @@
         <div class="rib9-grid">
           <section class="rib9-card rib9-continue" data-rib-action="continue" role="button" tabindex="0">
             <img src="${ART}card_continue.webp" alt="" data-nat="1000,640">
-            ${tint(colors, 0.77, 0.6, 0.15, 0.28)}${tint(colors, 0.76, 0.28, 0.07, 0.12)}
+            ${tint(colors, 0, 0.77, 0.58, 0.17, 0.3)}${tint(colors, 1, 0.76, 0.28, 0.07, 0.12)}${tint(colors, 1, 0.77, 0.92, 0.1, 0.12, .7)}
             <div class="rib9-continue-copy"><h2>CONTINUE<br>CAREER <span>${svg('chev')}</span></h2><div class="rib9-yw">Year ${year} <i></i> Week ${week}</div><div class="rib9-vs">${season.nextOpp ? `vs ${esc(season.nextOpp)} (${record(season)})` : season.weeks.length ? `Season complete (${record(season)})` : `${esc(String(pl.levelName))} · Season ${pl.seasonsAtLevel + 1}`}</div></div>
           </section>
           <section class="rib9-card rib9-season">

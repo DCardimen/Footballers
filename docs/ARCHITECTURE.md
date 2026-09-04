@@ -422,6 +422,8 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   picture units** (`data-tint="cx,cy,rx,ry"` fractions of the image) and `layoutArt()`
   maps them onto the rendered `object-fit:cover` crop in pixels on mount and resize,
   reading `object-position` back from the stylesheet so the two can never disagree, so
+  (each tint is a hue layer plus a multiply layer; `which` picks primary or secondary, so
+  the jersey / helmet / pants split is a kit rule in `renderMenu`, not a colour choice),
   the jersey stays tinted whatever the box's aspect; the same math positions the jersey
   name/number on the hero (`data-at`). Do not go back to percentage masks — the crop
   moves under them.

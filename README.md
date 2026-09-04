@@ -55,6 +55,18 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v89.3 — the wordmark on the wall, a kit in team colours.** The drawn wordmark
+  now lies on the left tunnel wall: its far edge recedes toward the mouth and the
+  block climbs, mirroring the paint on the right wall, with the swash under it and
+  the tagline below, the whole block pulled left and away from the player. The name
+  and number on the back are printed on the fabric rather than laid over it: a
+  hard-light blend with a gradient fill lets the folds and the shadow of the jersey
+  show through the lettering. The team tint is a kit now, not a wash — every tint is
+  two layers, a hue layer (`mix-blend-mode: color`) that colours the white and grey
+  fabric while keeping its lighting and a multiply layer that deepens it — and it is
+  applied as a uniform: the jersey wears the primary, the helmet and pants the
+  secondary, on the hero, the portrait and the continue card alike.
+
 - **v89.2 — the art lands.** The four pieces v89.1 could not fix in code are in:
   the drawn wordmark (chrome RUNNING over gold IT BACK) replaces the CSS type in
   the hero, the tagline sits on a real pair of gold swashes, the tunnel photograph
