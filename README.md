@@ -72,7 +72,9 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   component sheets in `art/ui/` for reference), the shipped copies are downscaled WebP in
   `public/menu/` (249 KB in total). The old sheets and blob-URL asset runtime are gone.
   `scripts/menu-integration-check.mjs` and `menushot.mjs` are rewritten for the new
-  structure.
+  structure. The Pages deploy verifies the v89 files (it asserted the deleted
+  `rib-menu-assets.css` and failed, so nothing published); the three old source
+  sprite sheets nothing loads any more moved to `art/ui/` and left the deploy.
 
 - **v88 — the call-up follows the ranking.** A national #1 by double the stats could
   post a stellar year and still be left out of the league, because the declare roll
