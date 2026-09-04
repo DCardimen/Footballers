@@ -444,8 +444,10 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   after dropping new art in `art/menu/`; never hand-edit `public/menu/`. The hero
   photograph is `hero_tunnel_wall.png` (the wall slogan is painted into the picture, so
   the menu must not also draw it), and `hero_tunnel.png` is the earlier plain version. The signature face (Caveat) is declared by `rib-menu-v89.css` itself,
-  not by the game's `@import` of `public/fonts/fonts.css`, so the menu can carry a face
-  the rest of the game does not use. Trait quality is a **signed** field: `good: 1` is a
+  not by the game's `@import` of `public/fonts/fonts.css`, so the menu can carry faces
+  the rest of the game does not use (Caveat for the signature, Graduate for the jersey
+  numbers). The emblem on the portrait helmet is lit by a child layer whose mask is the
+  emblem's own sprite crop, built by restating the `background-*` rules as `mask-*`. Trait quality is a **signed** field: `good: 1` is a
   strength, `0` is mixed and `-1` is a flaw, so a truthiness test puts flaws on gold
   badges — filter with `> 0`. Milestone completion dates come from `objectiveStampsV89`
   on the player, written both by the objective-completion loop and by the feed the first

@@ -148,6 +148,8 @@
     const at = `data-mask="${mask}" style="--tp:${esc(c)};--ts:${strength};-webkit-mask-image:${url};mask-image:${url}"`;
     return `<div class="rib9-tint rib9-tint-hue" ${at}></div><div class="rib9-tint rib9-tint-shade" ${at}></div>`;
   };
+  // the emblem's sprite crop, restated as a mask so a shading layer can sit on the emblem alone
+  const maskOf = (logoCss) => ['-webkit-mask-', 'mask-'].map(pre => String(logoCss).replace(/background-(image|repeat|size|position)/g, pre + '$1')).join(';');
   const surname = (name) => (String(name || '').trim().split(/\s+/).pop() || '').toUpperCase();
   const initial = (name) => (String(name || '').trim()[0] || 'R').toUpperCase();
   const record = (season) => { const w = season.weeks.filter(x => x.played); const won = w.filter(x => x.won).length; return `${won}-${w.length - won}`; };
@@ -239,6 +241,14 @@
     const pk = has ? perks(data) : [];
     const stars = has ? Math.max(0, Math.min(5, pl.stars || 0)) : 0;
     const tile = (action, icon, label, sub, cls = '') => `<button class="rib9-tile ${cls}" type="button" data-rib-action="${action}"><img src="${ART}${icon}.webp" alt="" loading="lazy"><b>${label}</b><small>${sub}</small></button>`;
+    const tilesNav = `<nav class="rib9-tiles" aria-label="Sections">
+          ${tile(has ? 'view:' + careerView : 'new', 'icon_career', 'CAREER', has ? 'PLAY NEXT GAME' : 'START A CAREER', 'rib9-tile-hot')}
+          ${tile(has ? 'view:upgrade' : 'new', 'icon_training', 'TRAINING', 'UPGRADE SKILLS')}
+          ${tile('goals', 'icon_goals', 'GOALS', 'SET & TRACK')}
+          ${tile('hall', 'icon_hall', 'HALL OF FAME', 'LEGACY STATS')}
+          ${tile('locker', 'icon_locker', 'LOCKER', 'GEAR & APPEARANCE')}
+          ${tile('settings', 'icon_settings', 'SETTINGS', 'GAME OPTIONS')}
+        </nav>`;
     const navLink = (action, label, active) => `<button class="rib9-navlink ${active ? 'on' : ''}" type="button" data-rib-action="${action}">${label}</button>`;
 
     return `
@@ -258,7 +268,7 @@
           <div class="rib9-hero-lift" data-region="0.865,0.42,0.15,0.4"></div>
           <div class="rib9-hero-shade"></div>
           <div class="rib9-hero-copy"><h1><img src="${ART}logo_wordmark.webp" alt="Running It Back"></h1>
-            <img class="rib9-swash" src="${ART}swash_underline.webp" alt=""><p>SAME GAME.<br>DIFFERENT YOU.</p></div>
+            <img class="rib9-swash" src="${ART}swash_underline.webp" alt=""></div>
           ${has ? `<div class="rib9-hero-jersey" aria-hidden="true" data-at="0.5,0.52"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>` : ''}
         </section>
 
@@ -267,7 +277,7 @@
           <div class="rib9-portrait" data-rib-action="locker" role="button" tabindex="0">
             <img src="${ART}portrait_helmet.webp" alt="" data-nat="640,640" data-op="0.5,0.5">
             ${tint(colors, 1, 'portrait_helmet_mask_s')}
-            ${team.logoCss ? `<span class="rib9-helmet-logo emblem-v44" style="${esc(team.logoCss)}"></span>` : ''}
+            ${team.logoCss ? `<span class="rib9-helmet-logo emblem-v44" style="${esc(team.logoCss)}"><i class="rib9-helmet-shade" style="${esc(maskOf(team.logoCss))}"></i></span>` : ''}
             <span class="rib9-edit">✎ EDIT PLAYER</span>
           </div>
           <div class="rib9-identity">
@@ -277,17 +287,14 @@
             <button class="rib9-level" type="button" data-rib-action="view:hub">${esc(String(pl.levelName).toUpperCase())} <span>›</span></button>
           </div>
           <div class="rib9-ring" style="--rib-ovr:0"><div class="rib9-ring-val" data-rib-field="overall">${esc(pl.ovr)}</div><div class="rib9-ring-lab">OVR</div></div>
-          <div class="rib9-arch">
-            <div class="rib9-kicker">ARCHETYPE</div><div class="rib9-arch-name">${esc(arch)}</div>
-            ${pk.map(p => `<div class="rib9-perk"><img src="${ART}badge_${p.badge}.webp" alt=""><span>${esc(p.label)}</span></div>`).join('')}
-          </div>
-          <div class="rib9-quote"><p>${esc(quote)}</p><span class="rib9-sig">${esc(initial(pl.name))}. ${esc(String(pl.name).split(/\s+/).pop() || '')}</span></div>
         </section>
+        ${tilesNav}
 
         <div class="rib9-grid">
           <section class="rib9-card rib9-continue" data-rib-action="continue" role="button" tabindex="0">
             <img src="${ART}card_continue.webp" alt="" data-nat="1000,640">
             ${tint(colors, 0, 'card_continue_mask_p')}${tint(colors, 1, 'card_continue_mask_s')}
+            <div class="rib9-hero-jersey rib9-card-jersey" aria-hidden="true" data-at="0.775,0.56"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>
             <div class="rib9-continue-copy"><h2>CONTINUE<br>CAREER <span>${svg('chev')}</span></h2><div class="rib9-yw">Year ${year} <i></i> Week ${week}</div><div class="rib9-vs">${season.nextOpp ? `vs ${esc(season.nextOpp)} (${record(season)})` : season.weeks.length ? `Season complete (${record(season)})` : `${esc(String(pl.levelName))} · Season ${pl.seasonsAtLevel + 1}`}</div></div>
           </section>
           <section class="rib9-card rib9-season">
@@ -301,7 +308,14 @@
             <div class="rib9-ms-copy"><div class="rib9-kicker">CAREER MILESTONES</div>${milestones(data)}</div>
             <div class="rib9-ms-plate">A HIGHER<br>STANDARD</div>
           </section>
-        </div>` : `
+        </div>
+        <section class="rib9-card rib9-archcard">
+          <div class="rib9-arch">
+            <div class="rib9-kicker">ARCHETYPE</div><div class="rib9-arch-name">${esc(arch)}</div>
+            <div class="rib9-perks">${pk.map(p => `<div class="rib9-perk"><img src="${ART}badge_${p.badge}.webp" alt=""><span>${esc(p.label)}</span></div>`).join('')}</div>
+          </div>
+          <div class="rib9-quote"><p>${esc(quote)}</p><span class="rib9-sig">${esc(initial(pl.name))}. ${esc(String(pl.name).split(/\s+/).pop() || '')}</span></div>
+        </section>` : `
         <section class="rib9-card rib9-player rib9-player-empty">
           <div class="rib9-portrait"><img src="${ART}portrait_helmet.webp" alt=""></div>
           <div class="rib9-identity">
@@ -310,8 +324,8 @@
             <div class="rib9-stars"><u>★</u><u>★</u><u>★</u><u>★</u><u>★</u></div>
             <button class="rib9-level rib9-cta" type="button" data-rib-action="new">START NEW CAREER <span>›</span></button>
           </div>
-          <div class="rib9-quote"><p>${esc(quote)}</p><span class="rib9-sig">R. I. B.</span></div>
         </section>
+        ${tilesNav}
         <div class="rib9-grid">
           ${legacyPanel(S)}
           <section class="rib9-card rib9-milestones" data-rib-action="new" role="button" tabindex="0">
@@ -320,15 +334,6 @@
             <div class="rib9-ms-plate">A HIGHER<br>STANDARD</div>
           </section>
         </div>`}
-
-        <nav class="rib9-tiles" aria-label="Sections">
-          ${tile(has ? 'view:' + careerView : 'new', 'icon_career', 'CAREER', has ? 'PLAY NEXT GAME' : 'START A CAREER', 'rib9-tile-hot')}
-          ${tile(has ? 'view:upgrade' : 'new', 'icon_training', 'TRAINING', 'UPGRADE SKILLS')}
-          ${tile('goals', 'icon_goals', 'GOALS', 'SET & TRACK')}
-          ${tile('hall', 'icon_hall', 'HALL OF FAME', 'LEGACY STATS')}
-          ${tile('locker', 'icon_locker', 'LOCKER', 'GEAR & APPEARANCE')}
-          ${tile('settings', 'icon_settings', 'SETTINGS', 'GAME OPTIONS')}
-        </nav>
 
         <footer class="rib9-footer">
           <div class="rib9-brand rib9-brand-sm"><span class="rib9-mark">RIB</span><b>RUNNING IT BACK</b><i></i><small>CAREER MODE</small></div>

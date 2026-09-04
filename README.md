@@ -55,6 +55,17 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v89.7 — the first screen is the six choices.** The archetype and the quote leave the
+  player card for one compact strip at the foot of the page, and the six tiles move up
+  to sit directly under the card, so on load a phone shows the hero, the helmet card and
+  all six choices without scrolling. The jersey numbers wear a varsity block face
+  (Graduate, served from the menu's own sheet), the continue card's player carries the
+  same name and number as the hero, and its shoulder pads are polygon-only in the
+  mask like the hero's. The helmet emblem sits higher on the shell, tilted with it, and
+  carries a shading layer masked by its own sprite so it is lit the way the shell is.
+  The wordmark is darkened to sit in the tunnel's light, the swash moves a touch right,
+  and the tagline is gone.
+
 - **v89.6 — nothing bleeds.** The hero helmet's far edge sits inside the shell and its
   mask is eroded a step further than the cloth, since a feathered edge over the bright
   tunnel mouth read as a halo in the team colour. `scripts/build-menu-art.py` now
