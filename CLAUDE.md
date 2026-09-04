@@ -33,6 +33,8 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v90 THE ROLLS HAPPEN IN THE BACKGROUND` — story stages answered and rolled on the
+  silent path; `autoStoryV90`, `TU("autoStoryStyle")`
 - `v89 THE MENU'S OWN FEED` — `window.__RIB_MENU_DATA_V89()`, everything the main
   menu shows; the menu itself is `public/rib-menu*.{css,js}` + `public/menu/*.webp`
   (see `docs/ARCHITECTURE.md`, v89 MAIN MENU)
@@ -69,6 +71,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the broadcast renderer between plays / tackle looks (v86) | `v86check.mjs`, `readshot.mjs` |
 | pass coverage / credit, QB scramble & targets, the safety, the huddle (v87) | `v87check.mjs`, `creditcheck.mjs`, `simcheck.mjs` |
 | promotion odds / the declare (v88) | `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs` |
+| the silent path's story rolls / the upgrade sheet's numbers / the menu ring (v90) | `v90check.mjs`, `v85check.mjs` |
 | the main menu / its feed / menu art (v89) | `menu-integration-check.mjs`, `menushot.mjs` (`CAREER=1`), `menu-preview-shot.mjs` |
 | team emblems / palettes / identity | `emblemcheck.mjs` |
 | training / skill art, the skill atlas | `skillartcheck.mjs`, `wheelcheck.mjs` |

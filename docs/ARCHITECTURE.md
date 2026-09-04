@@ -403,6 +403,15 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   durability point by asking the real chance function with the stat one higher.
   `bodyCostV73` is recorded in the weekly resolver either side of the multiplier,
   which is the only place the charge is knowable.
+- `v90 THE ROLLS HAPPEN IN THE BACKGROUND` (next to `silentWeekV85`) — `autoStoryV90(e,w)`
+  drains `storyDecisionQueueV11` on the sim-the-rest path by picking a choice with
+  `pickStoryChoiceV90` (sorted by `baseChance`; `TU("autoStoryStyle",0)` safest → boldest)
+  and resolving it through `zn`, the same resolver the story card's button calls, so the
+  arc's stage, history and `decisionCount` advance identically. The v85 `wt` wrapper
+  calls it before each week instead of breaking on a queued stage. Rolls are recorded on
+  the week as `autoRollsV90` and exposed as `window.__V90.last`. The post-game decision
+  system (`decisionQueue`, `resolveDecision102`) is dead code: nothing queues it and no
+  resolver exists, and `Re()` clears it on load — do not build on it.
 - **v89 MAIN MENU** — the menu is the one part of the app that is NOT inline: it
   ships as `public/rib-menu*.{css,js}` linked from `index.html` by
   `scripts/bake-menu-into-index.mjs` (`RIB_MENU_VERSION=v89`; the file lists at the top
@@ -422,8 +431,11 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   picture units** (`data-tint="cx,cy,rx,ry"` fractions of the image) and `layoutArt()`
   maps them onto the rendered `object-fit:cover` crop in pixels on mount and resize,
   reading `object-position` back from the stylesheet so the two can never disagree, so
-  (each tint is a hue layer plus a multiply layer; `which` picks primary or secondary, so
-  the jersey / helmet / pants split is a kit rule in `renderMenu`, not a colour choice),
+  (a tint is a masked duplicate `<img>` of the photograph recoloured by `recolorFilter(hex)`
+  — grayscale → sepia → hue-rotate to the team hue → saturate/brightness from the colour —
+  so no blend mode is involved; `?blendTint` renders the older colour+multiply layers for
+  comparison; `which` picks primary or secondary, so the jersey / helmet / pants split is a
+  kit rule in `renderMenu`, not a colour choice),
   and every tint is clipped by a **silhouette mask** cut from the picture in
   `scripts/build-menu-art.py` (polygon per garment in percent of the original art, keyed
   inside for skin and lit background, eroded before feathering, and clipped to a traced

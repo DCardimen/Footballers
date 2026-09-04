@@ -139,15 +139,37 @@
   };
   // a tint is placed in IMAGE units (center x/y, radius x/y as fractions of the picture);
   // layoutArt() maps them onto the rendered, object-fit:cover crop in pixels
-  const tint = (colors, which, mask, strength = 1) => {
+  // a hex colour as hue / saturation / lightness, for the recolour filter
+  const hsl = (hex) => {
+    const m = String(hex || '').replace('#', ''); if (!/^[0-9a-f]{6}$/i.test(m)) return null;
+    const r = parseInt(m.slice(0, 2), 16) / 255, g = parseInt(m.slice(2, 4), 16) / 255, b = parseInt(m.slice(4, 6), 16) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    let h = 0, sat = 0;
+    if (d) { sat = d / (1 - Math.abs(2 * l - 1)); h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360; }
+    return { h, s: sat, l };
+  };
+  // the recolour: grey the picture, sepia it (a known warm hue of ~38°), swing that hue to the
+  // team's, then set saturation and brightness from the team colour. Folds and texture survive
+  // because they are the picture's own luminance.
+  const recolorFilter = (hex) => {
+    const c = hsl(hex); if (!c) return '';
+    // sepia leaves the fabric at ~38° with mild saturation; the team's saturation and lightness
+    // then set how far to push it. Shadows stay dark because contrast is applied after.
+    const sat = Math.max(0.2, Math.min(5.5, c.s * 3.8));
+    const bright = Math.max(0.4, Math.min(1.4, 0.66 + c.l * 0.78));
+    return `grayscale(1) sepia(1) hue-rotate(${(c.h - 38).toFixed(0)}deg) saturate(${sat.toFixed(2)}) brightness(${bright.toFixed(2)}) contrast(1.12)`;
+  };
+  const tint = (colors, which, mask, strength = 1, src = '') => {
     const c = colors && (colors[which] || colors[0]);
     if (!c) return '';
     // the mask URL goes on the element itself: a url() inside a custom property resolves against
     // the stylesheet in Chrome and the document in Firefox, so neither relative form is safe there
     const url = `url(${ART}${mask}.webp)`;
+    if (src) return `<img class="rib9-tint rib9-recolor" src="${ART}${src}.webp" alt="" data-mask="${mask}" style="--ts:${strength};-webkit-mask-image:${url};mask-image:${url};filter:${recolorFilter(c)}">`;
     const at = `data-mask="${mask}" style="--tp:${esc(c)};--ts:${strength};-webkit-mask-image:${url};mask-image:${url}"`;
     return `<div class="rib9-tint rib9-tint-hue" ${at}></div><div class="rib9-tint rib9-tint-shade" ${at}></div>`;
   };
+  const RECOLOR = !new URLSearchParams(location.search).has('blendTint');   // ?blendTint renders the old blend-mode layers, for comparison
   // the emblem's sprite crop, restated as a mask so a shading layer can sit on the emblem alone
   const maskOf = (logoCss) => ['-webkit-mask-', 'mask-'].map(pre => String(logoCss).replace(/background-(image|repeat|size|position)/g, pre + '$1')).join(';');
   const surname = (name) => (String(name || '').trim().split(/\s+/).pop() || '').toUpperCase();
@@ -264,7 +286,7 @@
 
         <section class="rib9-hero" aria-label="Running It Back">
           <img class="rib9-hero-img" src="${ART}hero_tunnel.webp" alt="" data-nat="1600,914">
-          ${tint(colors, 0, 'hero_mask_p')}${tint(colors, 1, 'hero_mask_s')}
+          ${tint(colors, 0, 'hero_mask_p', 1, RECOLOR && 'hero_tunnel')}${tint(colors, 1, 'hero_mask_s', 1, RECOLOR && 'hero_tunnel')}
           <div class="rib9-hero-lift" data-region="0.865,0.42,0.15,0.4"></div>
           <div class="rib9-hero-shade"></div>
           <div class="rib9-hero-copy"><h1><img src="${ART}logo_wordmark.webp" alt="Running It Back"></h1>
@@ -276,7 +298,7 @@
         <section class="rib9-card rib9-player">
           <div class="rib9-portrait" data-rib-action="locker" role="button" tabindex="0">
             <img src="${ART}portrait_helmet.webp" alt="" data-nat="640,640" data-op="0.5,0.5">
-            ${tint(colors, 1, 'portrait_helmet_mask_s')}
+            ${tint(colors, 1, 'portrait_helmet_mask_s', 1, RECOLOR && 'portrait_helmet')}
             ${team.logoCss ? `<span class="rib9-helmet-logo emblem-v44" style="${esc(team.logoCss)}"><i class="rib9-helmet-shade" style="${esc(maskOf(team.logoCss))}"></i></span>` : ''}
             <span class="rib9-edit">✎ EDIT PLAYER</span>
           </div>
@@ -293,8 +315,8 @@
         <div class="rib9-grid">
           <section class="rib9-card rib9-continue" data-rib-action="continue" role="button" tabindex="0">
             <img src="${ART}card_continue.webp" alt="" data-nat="1000,640">
-            ${tint(colors, 0, 'card_continue_mask_p')}${tint(colors, 1, 'card_continue_mask_s')}
-            <div class="rib9-hero-jersey rib9-card-jersey" aria-hidden="true" data-at="0.775,0.56"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>
+            ${tint(colors, 0, 'card_continue_mask_p', 1, RECOLOR && 'card_continue')}${tint(colors, 1, 'card_continue_mask_s', 1, RECOLOR && 'card_continue')}
+            <div class="rib9-hero-jersey rib9-card-jersey" aria-hidden="true" data-at="0.775,0.535"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>
             <div class="rib9-continue-copy"><h2>CONTINUE<br>CAREER <span>${svg('chev')}</span></h2><div class="rib9-yw">Year ${year} <i></i> Week ${week}</div><div class="rib9-vs">${season.nextOpp ? `vs ${esc(season.nextOpp)} (${record(season)})` : season.weeks.length ? `Season complete (${record(season)})` : `${esc(String(pl.levelName))} · Season ${pl.seasonsAtLevel + 1}`}</div></div>
           </section>
           <section class="rib9-card rib9-season">
@@ -362,6 +384,7 @@
       for (const t of holder.querySelectorAll(':scope > [data-mask]')) {
         t.style.setProperty('--mx', box.x.toFixed(1) + 'px'); t.style.setProperty('--my', box.y.toFixed(1) + 'px');
         t.style.setProperty('--mw', box.w.toFixed(1) + 'px'); t.style.setProperty('--mh', box.h.toFixed(1) + 'px');
+        if (t.tagName === 'IMG') { t.style.left = box.x.toFixed(1) + 'px'; t.style.top = box.y.toFixed(1) + 'px'; t.style.width = box.w.toFixed(1) + 'px'; t.style.height = box.h.toFixed(1) + 'px'; }
       }
       for (const t of holder.querySelectorAll(':scope > [data-region]')) {
         const [cx, cy, rx, ry] = String(t.dataset.region).split(',').map(Number);
@@ -389,9 +412,9 @@
     const ring = menu.querySelector('.rib9-ring');
     if (ring) {
       const overall = Math.max(0, Number(data.player && data.player.ovr) || 0);
-      ring.style.setProperty('--rib-ovr-color', overall >= 85 ? '#ffe9a0' : overall >= 50 ? '#7ddc6e' : '#e8734a');
+      ring.style.setProperty('--rib-ovr-color', overall >= 150 ? '#ffe9a0' : overall >= 60 ? '#7ddc6e' : '#e8734a');
       // a young player is still a visible arc: an empty ring reads as a broken ring
-      const applyArc = () => ring.style.setProperty('--rib-ovr', String(Math.max(0.055, Math.min(1, overall / 100))));
+      const applyArc = () => ring.style.setProperty('--rib-ovr', String(Math.max(0.055, Math.min(1, overall / 250))));   // a full circle is 250: ratings run past 99
       if (animateIn && !prefersReduced()) whenAssetsReady(() => requestAnimationFrame(() => requestAnimationFrame(applyArc)));
       else applyArc();
     }
@@ -476,7 +499,7 @@
     window.addEventListener('popstate', syncMenu);
     setInterval(syncMenu, 900);
   };
-  window.__RIB_MENU_V89 = { readMenuData, renderMenu, mountMenu, unmountMenu, jerseyFor, layoutArt };
+  window.__RIB_MENU_V89 = { readMenuData, renderMenu, mountMenu, unmountMenu, jerseyFor, layoutArt, recolorFilter, hsl };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 })();

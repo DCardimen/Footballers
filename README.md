@@ -55,6 +55,25 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v90 — the rolls happen in the background.** At the NFL a story arc queues a stage
+  every few games, and each stage wanted a choice and a dice roll before sim-the-rest
+  would continue, so a season could not be skipped. On the silent path the choice is now
+  made by a rule (`TU("autoStoryStyle",0)`: 0 takes the safest option, 1 the boldest) and
+  the roll is the game's own roll, so the arc advances exactly as if the card had been
+  clicked. Every roll is written on the week (`autoRollsV90`) and counted in the toast
+  (`3 story rolls: 2 up, 1 down`), so nothing is hidden, only unattended; quick play,
+  where the player is present, still shows the card. The upgrade sheet shows whole
+  numbers and spending a point lands on a whole number (growth leaves attributes
+  fractional; 41.37 showed as 41.37000001 and became 42.37). The menu's OVR ring fills
+  `ovr/250` of the circle, since ratings run past 99. The continue card's jersey wears
+  the name on the upper back and a larger, sharper block number.
+  **The kit colour is a recolour, not a blend.** The team tint is now a masked duplicate of
+  the photograph with a CSS filter chain derived from the team colour (grey it, sepia it,
+  swing the hue, then set saturation and brightness from the colour), so the shell's
+  curvature and the fabric's folds come from the picture itself and nothing depends on
+  compositor blend-mode support, which is where a phone can silently draw no colour at
+  all. The blend-layer path stays behind `?blendTint` for comparison.
+
 - **v89.7 — the first screen is the six choices.** The archetype and the quote leave the
   player card for one compact strip at the foot of the page, and the six tiles move up
   to sit directly under the card, so on load a phone shows the hero, the helmet card and

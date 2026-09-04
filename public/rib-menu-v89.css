@@ -40,6 +40,7 @@ html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
   -webkit-mask-position:var(--mx) var(--my);mask-position:var(--mx) var(--my);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
 .rib9-hero-lift{position:absolute;inset:0;pointer-events:none;background:#d9c8a2;mix-blend-mode:overlay;opacity:.62;--mx:50%;--my:50%;--mw:40%;--mh:40%;
   -webkit-mask-image:radial-gradient(ellipse var(--mw) var(--mh) at var(--mx) var(--my),#000 0 55%,transparent 100%);mask-image:radial-gradient(ellipse var(--mw) var(--mh) at var(--mx) var(--my),#000 0 55%,transparent 100%)}
+.rib9-recolor{position:absolute;inset:auto;object-fit:fill;opacity:calc(var(--ts)*1);-webkit-mask-position:0 0;mask-position:0 0;-webkit-mask-size:100% 100%;mask-size:100% 100%}
 .rib9-tint-hue{mix-blend-mode:color;opacity:calc(var(--ts)*.92)}
 .rib9-tint-shade{mix-blend-mode:multiply;opacity:calc(var(--ts)*.38)}
 .rib9-hero-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,7,9,.72) 0,rgba(6,7,9,.34) 34%,rgba(6,7,9,0) 56%),linear-gradient(180deg,rgba(6,7,9,.18),rgba(6,7,9,0) 26%,rgba(6,7,9,.42) 100%)}
@@ -54,9 +55,11 @@ html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
   filter:drop-shadow(0 1px 0 rgba(0,0,0,.45)) drop-shadow(0 2px 3px rgba(0,0,0,.35))}
 .rib9-hero-jersey b{display:block;font-size:calc(var(--ih,250px)*.036);letter-spacing:2px;line-height:1;margin-bottom:.25em}
 .rib9-hero-jersey span{display:block;font-size:calc(var(--ih,250px)*.15);line-height:.86;letter-spacing:0}
-.rib9-card-jersey{width:calc(var(--ih,240px)*.24);transform:translate(-50%,-50%) perspective(300px) rotateX(7deg) scaleX(.94)}
-.rib9-card-jersey b{font-size:calc(var(--ih,240px)*.03)}
-.rib9-card-jersey span{font-size:calc(var(--ih,240px)*.12)}
+.rib9-card-jersey{width:calc(var(--ih,240px)*.3);transform:translate(-50%,-50%) perspective(300px) rotateX(6deg) scaleX(.95);opacity:1;filter:none}
+.rib9-card-jersey b{font-size:calc(var(--ih,240px)*.038);letter-spacing:3px;margin-bottom:.3em}
+.rib9-card-jersey span{font-size:calc(var(--ih,240px)*.19);line-height:.84}
+.rib9-card-jersey b,.rib9-card-jersey span{background:linear-gradient(180deg,#fdfcf8 0,#ece9e0 55%,#cfcbc0 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 .7px rgba(0,0,0,.95)) drop-shadow(0 1.5px 0 rgba(0,0,0,.6)) drop-shadow(0 3px 5px rgba(0,0,0,.45))}
 .rib9-prestige{grid-area:prest;justify-self:end;display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;border:1px solid var(--line2);
   background:rgba(255,255,255,.03);color:#fff;font-family:Oswald,sans-serif;white-space:nowrap}
 .rib9-prestige:hover{border-color:var(--line)}
