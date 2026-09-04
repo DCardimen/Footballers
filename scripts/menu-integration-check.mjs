@@ -1,142 +1,119 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
+/* ===== v89 MAIN MENU integration check =====
+ * The menu overlay must: mount over the legacy menu screen with every picture loaded and
+ * the team tint laid over the art; show a career's real numbers (the v89 feed, not a
+ * scrape); route every tile and nav link to the right game view and come back to the
+ * same menu; and stay reachable top to bottom on a phone. Run with the dev server up:
+ *   node scripts/menu-integration-check.mjs            (fresh page + a new career)
+ *   MENU_INTEGRATION_URL=http://127.0.0.1:5173/index.html node scripts/menu-integration-check.mjs */
 const integrationUrl = process.env.MENU_INTEGRATION_URL || 'http://127.0.0.1:5173/index.html'
-const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM || '/opt/pw-browsers/chromium' })
-const context = await browser.newContext({ viewport: { width: 358, height: 768 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined) })
+const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
 const page = await context.newPage()
-const errors = []
-const failedRequests = []
+const errors = [], failedRequests = []
 page.on('pageerror', error => errors.push(error.message))
 page.on('requestfailed', request => failedRequests.push(`${request.url()} :: ${request.failure()?.errorText || 'failed'}`))
-await page.addInitScript(() => {
-  setInterval(() => {
-    try { if (window.o) window.o.tutorialSeen = true } catch {}
-    document.querySelector('.onboard')?.remove()
-  }, 60)
+await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
+
+let pass = 0, fail = 0
+const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
+const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
+const clickText = async (t) => { const r = await page.evaluate(({ t, visSrc }) => { const vis = eval(visSrc); const els = [...document.querySelectorAll('button,[onclick],a,[role=button]')].filter(vis); const el = els.find(e => ((e.innerText || e.textContent || '').replace(/\s+/g, ' ').includes(t))); if (el) { el.scrollIntoView({ block: 'center' }); el.click(); return true } return false }, { t, visSrc: vis }); await page.waitForTimeout(600); return r }
+const waitMenu = () => page.waitForSelector('#rib-main-menu-v2 .rib9-shell', { state: 'visible', timeout: 12000 })
+const snapshot = () => page.evaluate(() => {
+  const menu = document.querySelector('#rib-main-menu-v2')
+  const imgs = [...menu.querySelectorAll('img')]
+  return {
+    ready: document.documentElement.classList.contains('rib-assets-ready'),
+    assets: window.__RIB_MENU_ASSETS,
+    images: imgs.length, broken: imgs.filter(i => !i.complete || !i.naturalWidth).map(i => i.src.split('/').pop()),
+    tiles: [...menu.querySelectorAll('.rib9-tile')].map(t => t.dataset.ribAction),
+    nav: [...menu.querySelectorAll('.rib9-navlink')].map(t => t.dataset.ribAction),
+    tints: menu.querySelectorAll('.rib9-tint').length,
+    tintPx: [...menu.querySelectorAll('.rib9-tint')].every(t => /px$/.test(t.style.getPropertyValue('--mx'))),
+    helmetLogo: !!menu.querySelector('.rib9-helmet-logo'),
+    dots: menu.querySelectorAll('.rib9-dot').length,
+    playedDots: menu.querySelectorAll('.rib9-dot.won,.rib9-dot.lost,.rib9-dot.sat').length,
+    name: menu.querySelector('.rib9-name')?.textContent.trim(),
+    ovr: Number(menu.querySelector('.rib9-ring-val')?.textContent),
+    ring: menu.querySelector('.rib9-ring')?.style.getPropertyValue('--rib-ovr'),
+    hasCareer: !menu.classList.contains('rib-no-career'),
+    text: menu.innerText.replace(/\s+/g, ' ').trim(),
+    scroll: menu.scrollHeight, client: menu.clientHeight,
+    footerBottom: Math.round(menu.querySelector('.rib9-footer').getBoundingClientRect().bottom),
+    feed: window.__RIB_MENU_DATA_V89 && window.__RIB_MENU_DATA_V89(),
+  }
 })
-
-const menuSnapshot = () => page.evaluate(() => ({
-  text: document.querySelector('#rib-main-menu-v2')?.innerText?.replace(/\s+/g, ' ').trim(),
-  heroAsset: getComputedStyle(document.querySelector('.rib-menu-hero')).backgroundImage,
-  panelAsset: getComputedStyle(document.querySelector('.rib-career-card')).backgroundImage,
-  iconAsset: getComputedStyle(document.querySelector('.rib-goals-button .rib-nav-icon')).backgroundImage,
-  menuHeight: Math.round(document.querySelector('#rib-main-menu-v2')?.getBoundingClientRect().height || 0),
-  assetsReady: document.documentElement.classList.contains('rib-assets-ready'),
-  assetsFailed: document.documentElement.classList.contains('rib-assets-failed'),
-}))
-
-const routeAndReturn = async (selector) => {
-  await page.locator(selector).click()
-  await page.waitForFunction(() => !document.querySelector('#rib-main-menu-v2'), null, { timeout: 10000 })
-  const routed = await page.evaluate(() => ({
-    visibleScreen: [...document.querySelectorAll('#app .screen')].find(el => !el.classList.contains('hidden'))?.textContent?.replace(/\s+/g, ' ').trim().slice(0, 220),
-  }))
-  await page.evaluate(() => {
-    const logo = document.querySelector('#app .logo')
-    if (!logo?.onclick) throw new Error('Main-menu logo handler is unavailable')
-    logo.onclick.call(logo, new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))
-  })
-  await page.waitForSelector('#rib-main-menu-v2', { state: 'visible', timeout: 12000 })
-  await page.waitForTimeout(400)
-  return { routed, menu: await menuSnapshot() }
-}
 
 try {
   await page.goto(integrationUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
   await page.waitForSelector('#rib-main-menu-v2', { state: 'attached', timeout: 20000 })
   await page.waitForFunction(() => document.documentElement.classList.contains('rib-assets-ready'), null, { timeout: 30000 })
-  await page.waitForSelector('#rib-main-menu-v2', { state: 'visible', timeout: 10000 })
-  await page.waitForTimeout(500)
+  await waitMenu(); await page.waitForTimeout(800)
 
-  const before = await menuSnapshot()
-  const assetsApplied = before.assetsReady && !before.assetsFailed && [before.heroAsset, before.panelAsset, before.iconAsset].every((value) => value.includes('blob:'))
-  const firstReturn = await routeAndReturn('.rib-goals-button')
-  const secondReturn = await routeAndReturn('.rib-hall-button')
+  // ---- 1. a fresh page: the no-career menu, every picture in
+  const fresh = await snapshot()
+  ok(fresh.ready && fresh.assets && fresh.assets.ready && !fresh.assets.fallback && fresh.assets.failed.length === 0, 'the asset runtime opened the gate with every picture decoded', `loaded=${fresh.assets?.loaded.length} failed=${fresh.assets?.failed.join(',') || 'none'}`)
+  ok(fresh.images >= 9 && fresh.broken.length === 0, 'every <img> in the menu rendered', `${fresh.images} images, broken: ${fresh.broken.join(',') || 'none'}`)
+  ok(fresh.tiles.length === 6 && fresh.nav.length === 6, 'six tiles and six nav links', `${fresh.tiles.join(' ')} | ${fresh.nav.join(' ')}`)
+  ok(!fresh.hasCareer && /START NEW CAREER/.test(fresh.text) && fresh.tiles[0] === 'new', 'without a save the card offers START NEW CAREER and the CAREER tile starts one')
 
-  const result = {
-    integrationUrl,
-    before,
-    firstReturn,
-    secondReturn,
-    assetsApplied,
-    menuRestored: !!firstReturn.menu.text && !!secondReturn.menu.text,
-    sameMainMenu: before.text === firstReturn.menu.text && before.text === secondReturn.menu.text,
-    errors,
-    failedRequests,
+  // ---- 2. a career: the feed drives the card
+  await clickText('START NEW CAREER')
+  for (let i = 0; i < 8; i++) {
+    const done = await page.evaluate(({ visSrc }) => { const vis = eval(visSrc); const els = [...document.querySelectorAll('button,[onclick],a')].filter(vis); const txt = e => (e.innerText || e.textContent || '').replace(/\s+/g, ' ').trim()
+      for (const want of ['START YOUR LEGACY', 'Lock In Personality']) { const b = els.find(e => txt(e).includes(want)); if (b) { b.click(); return false } }
+      const card = els.find(e => e.classList.contains('pos-card') || /^[A-Z]{1,2} /.test(txt(e))); if (card) { card.click(); return false } return true }, { visSrc: vis })
+    await page.waitForTimeout(450); if (done) break
   }
-  // ---- v74 MENU POLISH: the structural claims, at three window heights ----
-  // The menu used to lay out to 1045px inside a 900px window while both <html> and
-  // the menu root carried overflow:hidden, so the bottom row of buttons could not be
-  // reached at all; and where it DID fit it left a dead black band (92px at 390x844).
-  // So: every control reachable, nothing clipped, no dead band, at short and tall.
-  const fit = []
-  for (const [w, h] of [[358, 768], [390, 844], [520, 900], [430, 1180]]) {
-    await page.setViewportSize({ width: w, height: h })
-    await page.waitForTimeout(360)
-    fit.push(await page.evaluate(({ w, h }) => {
-      const shell = document.querySelector('.rib-menu-shell')
-      const last = document.querySelector('.rib-bottom-grid')
-      const lastBottom = Math.round(last.getBoundingClientRect().bottom)
-      const scrollable = shell.scrollHeight > shell.clientHeight + 1
-      // reachable = visible without scrolling, OR the shell can actually scroll to it
-      const reachable = lastBottom <= h + 1 || scrollable
-      // dead band = shell space below the last control that nothing occupies
-      const dead = Math.max(0, h - lastBottom)
-      const hero = Math.round(document.querySelector('.rib-menu-hero').getBoundingClientRect().height)
-      return { size: w + 'x' + h, lastBottom, reachable, scrollable, dead, hero }
-    }, { w, h }))
+  await clickText('PLAY 8-GAME SEASON'); await clickText('Balanced Program')
+  const played = await page.evaluate(async () => {
+    document.getElementById('growthV42')?.remove()
+    const pl = window.S.player; const c = pl.conditionV11 || {}; c.fatigue = 10; c.injury = null
+    for (let i = 0; i < 3; i++) { const wk = pl.weekResults.find(x => !x.played); if (wk) { window.__silentWeekV85(pl, wk); await new Promise(r => setTimeout(r, 200)) } }
+    window.go('menu')
+    return { name: pl.name, pos: pl.pos, ovr: Math.round(window.__RIB_MENU_DATA_V89().player.ovr), games: pl.weekResults.filter(w => !w.playoff).length, played: pl.weekResults.filter(w => w.played).length }
+  })
+  await waitMenu(); await page.waitForTimeout(1600)
+  const career = await snapshot()
+  ok(career.hasCareer && career.name === played.name.toUpperCase() && career.ovr === played.ovr, 'the player card shows the career (name, OVR) from the v89 feed', `${career.name} ${career.ovr} vs ${played.name} ${played.ovr}`)
+  ok(career.dots === played.games && career.playedDots === played.played, 'season dots = the schedule, played dots = the weeks played', `${career.playedDots}/${career.dots} vs ${played.played}/${played.games}`)
+  ok(career.tints >= 5 && career.tintPx && career.helmetLogo, 'team color tints are laid over the hero, helmet and continue card in picture pixels, with the emblem on the helmet', `tints=${career.tints} px=${career.tintPx} logo=${career.helmetLogo}`)
+  ok(career.feed && career.feed.season.last && new RegExp(String(career.feed.season.last.us) + ' - ' + career.feed.season.last.them).test(career.text), 'the latest game line carries the last played score', `${career.feed?.season.last?.us}-${career.feed?.season.last?.them}`)
+  ok(career.tiles[0].startsWith('view:') && career.tiles[1] === 'view:upgrade' && parseFloat(career.ring) > 0, 'CAREER goes to the season, TRAINING to the upgrade sheet, the OVR ring is drawn', `${career.tiles[0]} ring=${career.ring}`)
+
+  // ---- 3. routing: every tile and nav link lands on its view and the menu comes back the same
+  const routes = [['.rib9-tile[data-rib-action^="view:"]', /season|hub/], ['.rib9-tile[data-rib-action="view:upgrade"]', /upgrade/], ['.rib9-tile[data-rib-action="goals"]', /challenges/], ['.rib9-tile[data-rib-action="hall"]', /hof/],
+    ['.rib9-tile[data-rib-action="locker"]', /locker/], ['.rib9-tile[data-rib-action="settings"]', /settings/], ['.rib9-navlink[data-rib-action="view:leaderboard"]', /leaderboard/], ['.rib9-latest[data-rib-action]', /stats/], ['.rib9-continue', /hub|season|live|sim/], ['.rib9-prestige', /shop/]]
+  const routed = []
+  for (const [sel, want] of routes) {
+    const before = career.text
+    await page.locator(sel).first().scrollIntoViewIfNeeded()
+    await page.locator(sel).first().click()
+    const gone = await page.waitForFunction(() => !document.querySelector('#rib-main-menu-v2'), null, { timeout: 8000 }).then(() => true).catch(() => false)
+    await page.waitForTimeout(350)
+    const view = await page.evaluate(() => window.S && window.S.view)
+    await page.evaluate(() => window.go('menu'))
+    await waitMenu(); await page.waitForTimeout(500)
+    const back = await snapshot()
+    routed.push({ sel, gone, view, want: String(want), same: back.text === before })
   }
-  await page.setViewportSize({ width: 358, height: 768 })
-  await page.waitForTimeout(300)
-  const chrome = await page.evaluate(() => ({
-    hudChips: document.querySelectorAll('.rib-hud-chip').length,
-    hudLabels: [...document.querySelectorAll('.rib-hud-chip small')].map(e => e.textContent.trim()),
-    oldPills: [...document.querySelectorAll('.rib-hud-pill, .rib-hud-coin, .rib-hud-value')]
-      .filter(e => getComputedStyle(e).display !== 'none').length,
-    legacyIcons: [...document.querySelectorAll('.rib-legacy-stat')].filter(t => {
-      const i = t.querySelector('i'); if (!i) return false
-      const cs = getComputedStyle(i)
-      return cs.backgroundImage !== 'none' || !!i.querySelector('svg:not([style*="display: none"])')
-    }).length,
-    legacyTiles: document.querySelectorAll('.rib-legacy-stat').length,
-    cog: !!document.querySelector('.rib-hud-cog[data-rib-action="settings"]'),
-  }))
-  result.v74 = { fit, chrome }
-  const bad = []
-  for (const f of fit) {
-    if (!f.reachable) bad.push(`${f.size}: the bottom row is off-screen and the shell will not scroll`)
-    if (f.dead > 60) bad.push(`${f.size}: ${f.dead}px of dead band under the last control`)
-  }
-  if (chrome.hudChips !== 2) bad.push(`the HUD should carry two labelled chips, found ${chrome.hudChips}`)
-  if (chrome.oldPills) bad.push(`${chrome.oldPills} of the unlabelled pills the chips replace are still visible`)
-  if (!chrome.cog) bad.push('the HUD settings control is missing')
-  if (chrome.legacyIcons !== chrome.legacyTiles) bad.push(`${chrome.legacyTiles - chrome.legacyIcons} legacy tiles have no icon`)
-  result.v74.failures = bad
-  console.log(JSON.stringify(result, null, 2))
-  if (bad.length) console.error('v74 FAILURES:\n  ' + bad.join('\n  '))
-  if (!assetsApplied || !result.menuRestored || !result.sameMainMenu || errors.length || failedRequests.length || bad.length) process.exitCode = 1
+  const bad = routed.filter(r => !(r.gone && r.want && new RegExp(r.want.slice(1, -1)).test(r.view || '') && r.same))
+  ok(bad.length === 0, 'every tile / nav link / card routes to its view and the same menu returns', bad.length ? JSON.stringify(bad) : routed.map(r => r.view).join(' '))
+
+  // ---- 4. reachability: the footer is reachable at a phone height, nothing overflows sideways
+  const reach = await page.evaluate(() => { const menu = document.querySelector('#rib-main-menu-v2'); menu.scrollTop = 1e6; const fb = Math.round(menu.querySelector('.rib9-footer').getBoundingClientRect().bottom); return { fb, h: innerHeight, sw: document.documentElement.scrollWidth, w: innerWidth, menuSw: menu.scrollWidth } })
+  ok(reach.fb <= reach.h && reach.menuSw <= reach.w && reach.sw <= reach.w, 'scrolled to the bottom the footer is on screen and nothing scrolls sideways', JSON.stringify(reach))
+
+  fs.writeFileSync('menu-integration-diagnostics.json', JSON.stringify({ integrationUrl, fresh: { ...fresh, feed: undefined, text: fresh.text.slice(0, 300) }, career: { ...career, feed: undefined, text: career.text.slice(0, 300) }, routed, errors, failedRequests }, null, 2))
 } catch (error) {
-  const diagnostics = await page.evaluate(() => ({
-    url: location.href,
-    title: document.title,
-    readyState: document.readyState,
-    bodyText: document.body?.innerText?.slice(0, 1200),
-    bodyClasses: document.body?.className,
-    appText: document.querySelector('#app')?.innerText?.slice(0, 1200),
-    visibleScreens: [...document.querySelectorAll('#app .screen')].filter(el => !el.classList.contains('hidden')).map(el => ({ className: el.className, text: el.innerText.slice(0, 500) })),
-    menuExists: !!document.querySelector('#rib-main-menu-v2'),
-    hasHero: !!document.querySelector('#app .hero'),
-    assets: window.__RIB_MENU_ASSETS,
-    goType: typeof window.go,
-    goSource: typeof window.go === 'function' ? String(window.go).slice(0, 1600) : '',
-    controls: [...document.querySelectorAll('#app button, #app a, #app [role="button"]')].map(el => ({ text: (el.textContent || '').replace(/\s+/g, ' ').trim(), cls: el.className, hidden: el.hidden, bridge: el.dataset.ribBridge })).slice(0, 100),
-    logo: (() => { const el = document.querySelector('#app .logo'); return el ? { text: el.textContent, onclick: el.getAttribute('onclick'), handler: String(el.onclick || '').slice(0, 500) } : null })(),
-  })).catch(() => ({}))
-  fs.writeFileSync('menu-integration-diagnostics.json', JSON.stringify({ error: String(error), integrationUrl, diagnostics, errors, failedRequests }, null, 2))
   await page.screenshot({ path: 'menu-integration-failure.png', fullPage: true }).catch(() => {})
-  console.error(JSON.stringify({ error: String(error), integrationUrl, diagnostics, errors, failedRequests }, null, 2))
-  process.exitCode = 1
+  console.error(error); fail++
 }
-
 await browser.close()
+ok(errors.length === 0 && failedRequests.length === 0, 'no page errors, no failed requests', errors.concat(failedRequests).join(' | ') || 'clean')
+console.log(JSON.stringify({ pass, fail }))
+console.log('page errors:', errors.length ? errors : 'none')
+if (fail) process.exit(1)

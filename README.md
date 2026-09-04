@@ -55,6 +55,25 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v89 — the main menu, from the Bible.** The main menu is rebuilt to the reference
+  mockup (`art/menu/bible.jpg`) with the art the mockup was made from: a top bar with
+  the brand and the nav (HOME · CAREER · GOALS · HALL · LEADERBOARDS · SETTINGS), the
+  tunnel hero with the title, the player card (helmet portrait with the team emblem,
+  name / position / number / height / weight, stars, the OVR ring, archetype with three
+  gold trait badges, a per-origin quote signed by the player), Continue Career (year,
+  week, next opponent, record), Season Progress (a dot per game, wins / losses / sat-out,
+  the latest game with a position-aware stat line), Your Legacy (prestige, careers, NFL
+  reached, interstellar, hall points, iconic moments), Career Milestones (the objectives:
+  three done, the rest pending with their legacy-point reward), six tiles and a footer.
+  Every number comes from the game's own feed, `window.__RIB_MENU_DATA_V89`, not a text
+  scrape; team colors tint the jersey and the helmet in the art through a multiply mask
+  placed in picture pixels, and the jersey number is stable per name. Phones stack in
+  reading order; tablets and wider go two-column. Originals live in `art/menu/` (the ten
+  component sheets in `art/ui/` for reference), the shipped copies are downscaled WebP in
+  `public/menu/` (249 KB in total). The old sheets and blob-URL asset runtime are gone.
+  `scripts/menu-integration-check.mjs` and `menushot.mjs` are rewritten for the new
+  structure.
+
 - **v88 — the call-up follows the ranking.** A national #1 by double the stats could
   post a stellar year and still be left out of the league, because the declare roll
   used a synthetic season rating (`qt` without the season) and the national-rank

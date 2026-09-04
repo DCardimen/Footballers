@@ -41,9 +41,9 @@ jobs:
           test -f _site/.nojekyll
           test -f _site/rib-build.json
           grep -q 'RIB_DIRECT_MENU_HEAD_BEGIN' _site/index.html
-          grep -q './public/rib-menu-assets.css?v=' _site/index.html
+          grep -q './public/rib-menu-v89.css?v=' _site/index.html
           grep -q './public/rib-menu-navigation.js?v=' _site/index.html
-          test -f _site/public/rib-menu-assets.css
+          test -f _site/public/rib-menu-v89.css
           test -f _site/public/rib-menu-navigation.js
 
       - run: npx playwright install --with-deps chromium
