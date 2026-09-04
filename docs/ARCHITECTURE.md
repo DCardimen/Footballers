@@ -424,6 +424,17 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   the jersey stays tinted whatever the box's aspect; the same math positions the jersey
   name/number on the hero (`data-at`). Do not go back to percentage masks — the crop
   moves under them.
+  **Menu art is cut, not authored, in this repo**: `public/menu/*.webp` are derived from
+  the originals in `art/menu/` by edge-energy cropping (the badges become tight round
+  coins, the helmet portrait fills its frame), so re-deriving them is a processing step,
+  not a redraw. The signature face (Caveat) is declared by `rib-menu-v89.css` itself,
+  not by the game's `@import` of `public/fonts/fonts.css`, so the menu can carry a face
+  the rest of the game does not use. Trait quality is a **signed** field: `good: 1` is a
+  strength, `0` is mixed and `-1` is a flaw, so a truthiness test puts flaws on gold
+  badges — filter with `> 0`. Milestone completion dates come from `objectiveStampsV89`
+  on the player, written both by the objective-completion loop and by the feed the first
+  time it observes an objective satisfied; saves from before v89.1 have no stamp and
+  read DONE.
 
 ## Verification workflow
 

@@ -55,6 +55,27 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v89.1 — the menu against the reference, everything that was not art.** A pass
+  comparing the built menu with the mockup, fixing the code half of the gap. The
+  jersey name and number now sit on the player's back in jersey white with an
+  outline and a slight perspective, instead of floating in the team's accent colour.
+  The prestige chip moved off the tunnel floor into the top bar, where the reference
+  keeps its chrome. The helmet portrait and the trait medallions are re-cut from the
+  same source art: the helmet now fills its frame and each badge is a tight round
+  coin rather than a small disc adrift in its own glow. A flaw no longer wears a gold
+  badge (`good: -1` is truthy, so Glass Bones was being presented as a strength); the
+  card falls back to position perks. The OVR ring keeps a visible track and a minimum
+  arc, so a young player is a dial rather than an empty hole. The quote varies per
+  player instead of once per origin, and the signature is a real hand (Caveat, served
+  from the menu's own sheet so the game's typography is untouched). Milestones now
+  lead with this season's concrete goals and carry the date each one was met, from a
+  new `objectiveStampsV89` record. The season card fills its row, a sat-out week says
+  DID NOT PLAY instead of showing a dash and three zeroes, a loss is a colour rather
+  than a red cross, the legacy tiles stretch to fill and their labels fit on one line,
+  the trophy plate sits on the trophy's base, and the footer is a signature line
+  again. Still outstanding, because they need art: the logo lockup, the painted wall
+  slogan, the tagline swash and the six legacy icons.
+
 - **v89 — the main menu, from the Bible.** The main menu is rebuilt to the reference
   mockup (`art/menu/bible.jpg`) with the art the mockup was made from: a top bar with
   the brand and the nav (HOME · CAREER · GOALS · HALL · LEADERBOARDS · SETTINGS), the

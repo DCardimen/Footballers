@@ -49,10 +49,10 @@
 
   // ---- the feed ------------------------------------------------------------
   const JERSEY = { QB: [1, 19], RB: [20, 49], WR: [10, 19], TE: [80, 89], OL: [50, 79], DL: [90, 99], LB: [40, 59], CB: [20, 39], S: [20, 39] };
+  const hashOf = (text) => { let h = 7; for (const ch of String(text || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
   const jerseyFor = (name, pos) => {   // stable per name: the game rolls a fresh number per game, the menu should not
-    const r = JERSEY[pos] || [1, 99]; let h = 7;
-    for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-    return r[0] + (h % (r[1] - r[0] + 1));
+    const r = JERSEY[pos] || [1, 99];
+    return r[0] + (hashOf(name) % (r[1] - r[0] + 1));
   };
   const BADGE_FOR = [   // trait → the gold badge that says it
     [/leader|captain|rally|team/i, 'crown'], [/speed|burst|quick|fast|twitch|explos/i, 'shoe'], [/clutch|x-factor|ice|big.?game|showman/i, 'lightning'],
@@ -64,8 +64,17 @@
     OL: ['ANCHOR', 'FOOTWORK', 'POWER'], DL: ['GET-OFF', 'POWER', 'MOTOR'], LB: ['READS', 'RANGE', 'TACKLING'], CB: ['SPEED', 'HIPS', 'BALL SKILLS'], S: ['RANGE', 'READS', 'HITTING'] };
   const POS_ARCH = { QB: 'FIELD GENERAL', RB: 'WORKHORSE', WR: 'PLAYMAKER', TE: 'MISMATCH', OL: 'ROAD GRADER', DL: 'TRENCH KING', LB: 'ENFORCER', CB: 'LOCKDOWN', S: 'CENTERFIELDER' };
   const QUOTES = {
-    prodigy: 'BORN FOR THE BRIGHT LIGHTS.', 'walk-on': 'EVERY SNAP IS EARNED.', 'injury-prone': 'THE BODY IS THE JOB.', 'blue-collar': 'OUTWORK THE ROOM.',
-    hometown: 'PLAY FOR THE NAME ON THE FRONT.', legacy: 'THE NAME CAME WITH EXPECTATIONS.', default: 'POTENTIAL TURNS INTO LEGACY.',
+    prodigy: ['POTENTIAL TURNS INTO LEGACY.', 'BORN FOR THE BRIGHT LIGHTS.', 'THE HYPE WAS NEVER THE HARD PART.'],
+    'walk-on': ['EVERY SNAP IS EARNED.', 'NOBODY HANDED ME THE JERSEY.', 'THEY COUNTED ME OUT. GOOD.'],
+    'injury-prone': ['THE BODY IS THE JOB.', 'HEALTHY IS A SKILL.', 'STILL STANDING. STILL COMING.'],
+    'blue-collar': ['OUTWORK THE ROOM.', 'FIRST ONE IN. LAST ONE OUT.', 'NO SHORTCUTS. NONE.'],
+    hometown: ['PLAY FOR THE NAME ON THE FRONT.', 'THE WHOLE TOWN IS WATCHING.', 'THIS ONE IS FOR HOME.'],
+    legacy: ['THE NAME OPENED THE DOOR. I KICKED IT IN.', 'MY OWN CHAPTER. MY OWN INK.', 'EXPECTATION IS JUST EARLY RESPECT.'],
+    default: ['POTENTIAL TURNS INTO LEGACY.', 'THE WORK SHOWS UP ON SATURDAY.', 'PRESSURE IS A PRIVILEGE.', 'EARN IT AGAIN TOMORROW.'],
+  };
+  const quoteFor = (player) => {
+    const pool = (QUOTES[(player.archetype && player.archetype.id) || 'default'] || QUOTES.default).concat(QUOTES.default);
+    return pool[hashOf(String(player.name) + (player.pos || '')) % pool.length];
   };
   const STAT_TILES = {
     QB: [['pass', 'PASS YDS'], ['td', 'TD'], ['int', 'INT']], RB: [['rush', 'RUSH YDS'], ['td', 'TD'], ['carries', 'CAR']],
@@ -116,12 +125,13 @@
   const svg = (name) => {
     const P = {
       star: '<path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/>',
-      helmet: '<path d="M5 16v-4a7 7 0 0 1 14 0v3h-5v4H9v-3Z"/><path d="M14 15h6v3h-4"/>',
+      helmet: '<path d="M4 14a8 8 0 0 1 16 0v1h-7v4H8a4 4 0 0 1-4-4Z"/><path d="M13 15h7v1.5a2.5 2.5 0 0 1-2.5 2.5H13Z"/><path d="M8 19h5"/>',
       crown: '<path d="M3 18h18l-2-10-4 4-3-6-3 6-4-4Z"/><path d="M4 21h16"/>',
       gem: '<path d="M6 3h12l4 6-10 12L2 9Z"/><path d="M2 9h20M9 3l3 18M15 3l-3 18"/>',
-      laurel: '<path d="M9 19c-3-2-5-5-5-9M15 19c3-2 5-5 5-9M7 6 4 4M6 10 2 9M8 15l-3 1M17 6l3-2M18 10l4-1M16 15l3 1"/><path d="M9 19h6"/>',
+      laurel: '<path d="M11 20c-3.6-1.4-6-5-6.2-9.4M13 20c3.6-1.4 6-5 6.2-9.4"/><path d="M6.6 7.4c-1.1-.6-1.8-1.6-2-2.8 1.2-.1 2.3.4 3 1.3M5.6 11.6c-1.2-.3-2.2-1.1-2.7-2.2 1.1-.4 2.3-.2 3.2.5M7 15.6c-1.2.1-2.4-.4-3.2-1.3 1-.7 2.2-1 3.3-.6M17.4 7.4c1.1-.6 1.8-1.6 2-2.8-1.2-.1-2.3.4-3 1.3M18.4 11.6c1.2-.3 2.2-1.1 2.7-2.2-1.1-.4-2.3-.2-3.2.5M17 15.6c1.2.1 2.4-.4 3.2-1.3-1-.7-2.2-1-3.3-.6"/><path d="M9.6 20h4.8"/>',
       target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="m12 12 7-7M16 5h3v3"/>',
       check: '<path d="m5 12 4.5 4.5L19 7"/>',
+      dash: '<path d="M6 12h12"/>',
       chev: '<path d="m9 5 7 7-7 7"/>',
       x: '<path d="M6 6l12 12M18 6 6 18"/>',
     };
@@ -137,7 +147,7 @@
 
   function perks(data) {
     const pl = data.player, base = POS_PERKS[pl.pos] || POS_PERKS.QB;
-    const tr = (pl.traits || []).slice(0, 3);
+    const tr = (pl.traits || []).filter((t) => Number(t.good) > 0).slice(0, 3);   // good:-1 is a flaw, good:0 is mixed; neither wears gold
     const out = [];
     for (let i = 0; i < 3; i++) {
       const t = tr[i];
@@ -155,7 +165,7 @@
     for (let i = 0; i < n; i++) {
       const w = season.weeks[i];
       let cls = 'up', inner = '';
-      if (w && w.played) { cls = w.sat ? 'sat' : w.won ? 'won' : 'lost'; inner = w.sat ? '' : svg(w.won ? 'check' : 'x'); }
+      if (w && w.played) { cls = w.sat ? 'sat' : w.won ? 'won' : 'lost'; inner = w.won ? svg('check') : w.sat ? svg('dash') : ''; }
       else if (i === (firstOpen < 0 ? season.weeks.length : firstOpen) && season.inProgress) cls = 'now';
       dots.push(`<i class="rib9-dot ${cls}" title="Game ${i + 1}${w && w.played ? ' · ' + (w.won ? 'W' : 'L') + ' ' + w.us + '-' + w.them + ' vs ' + esc(w.opp || '') : ''}">${inner}</i>`);
     }
@@ -163,24 +173,34 @@
   }
 
   function milestones(data) {
-    const objs = (data.player && data.player.objectives) || [];
+    const pl = data.player || {};
+    const objs = pl.objectives || [];
     const ordered = [...objs.filter(o => o.mine), ...objs.filter(o => !o.mine)];
     const done = ordered.filter(o => o.done).slice(0, 3);
-    const todo = ordered.filter(o => !o.done).slice(0, 6 - done.length);
+    // the pending half leads with this season's goals: they name a football task, not a career abstraction
+    const seasonGoals = (pl.goals || []).filter(g => !g.done).map(g => ({ title: g.text, done: false, reward: 0, season: true }));
+    const todo = [...seasonGoals, ...ordered.filter(o => !o.done)].slice(0, 6 - done.length);
     const list = [...done, ...todo].slice(0, 6);
     if (!list.length) return '<div class="rib9-empty">Start a career to open the milestone board.</div>';
-    return list.map(o => `<div class="rib9-ms ${o.done ? 'done' : ''}"><i>${o.done ? svg('check') : ''}</i><span>${esc(o.title)}</span><small>${o.done ? 'DONE' : '+' + esc(o.reward || 0) + ' LT'}</small></div>`).join('');
+    return list.map(o => {
+      const right = o.done ? esc(o.at || 'DONE') : o.season ? 'SEASON' : o.reward ? '+' + esc(o.reward) + ' LT' : '';
+      return `<div class="rib9-ms ${o.done ? 'done' : ''}"><i>${o.done ? svg('check') : ''}</i><span>${esc(o.title)}</span><small>${right}</small></div>`;
+    }).join('');
   }
 
   function latestGame(data) {
     const s = data.season, pl = data.player;
     if (!s.last) return `<div class="rib9-latest rib9-latest-empty"><div class="rib9-kicker">LATEST GAME</div><div class="rib9-empty">No game played yet — Week ${esc(s.nextWeek || 1)} is up.</div></div>`;
     const L = s.last, st = L.stat || {};
-    const tiles = (STAT_TILES[pl.pos] || STAT_TILES.QB).map(([k, lab]) => `<div class="rib9-stat"><b>${esc(st[k] == null ? 0 : st[k])}</b><small>${esc(lab)}</small></div>`).join('');
+    const scored = Number.isFinite(Number(L.us)) && Number.isFinite(Number(L.them)) && !(L.us === '' || L.them === '');
+    const score = scored ? `${esc(L.us)} - ${esc(L.them)}` : '—';
+    const right = L.sat
+      ? '<div class="rib9-dnp">DID NOT PLAY</div>'
+      : `<div class="rib9-stats">${(STAT_TILES[pl.pos] || STAT_TILES.QB).map(([k, lab]) => `<div class="rib9-stat"><b>${esc(st[k] == null ? 0 : st[k])}</b><small>${esc(lab)}</small></div>`).join('')}</div>`;
     return `<div class="rib9-latest" data-rib-action="view:stats" role="button" tabindex="0"><div class="rib9-kicker">LATEST GAME</div>
       <div class="rib9-latest-row"><span class="rib9-wl ${L.sat ? 'dnp' : L.won ? 'w' : 'l'}">${L.sat ? 'DNP' : L.won ? 'W' : 'L'}</span>
-        <div class="rib9-score"><b>${esc(L.us)} - ${esc(L.them)}</b><small>vs ${esc(L.opp || 'opponent')}</small></div>
-        <div class="rib9-stats">${tiles}</div><span class="rib9-chev">${svg('chev')}</span></div></div>`;
+        <div class="rib9-score"><b>${score}</b><small>vs ${esc(L.opp || 'opponent')}</small></div>
+        ${right}<span class="rib9-chev">${svg('chev')}</span></div></div>`;
   }
 
   function renderMenu(data) {
@@ -192,7 +212,7 @@
     const year = has ? (pl.totalSeasons || 0) + 1 : 1;
     const week = has ? (season.nextWeek || season.played + 1) : 1;
     const arch = has ? ((pl.archetype && pl.archetype.name) || POS_ARCH[pl.pos] || 'PROSPECT').toUpperCase() : 'PROSPECT';
-    const quote = has ? (QUOTES[(pl.archetype && pl.archetype.id) || 'default'] || QUOTES.default) : 'EVERY LEGEND HAS A FIRST SNAP.';
+    const quote = has ? quoteFor(pl) : 'EVERY LEGEND HAS A FIRST SNAP.';
     const pk = has ? perks(data) : [];
     const stars = has ? Math.max(0, Math.min(5, pl.stars || 0)) : 0;
     const tile = (action, icon, label, sub, cls = '') => `<button class="rib9-tile ${cls}" type="button" data-rib-action="${action}"><img src="${ART}${icon}.webp" alt="" loading="lazy"><b>${label}</b><small>${sub}</small></button>`;
@@ -205,6 +225,7 @@
           <nav class="rib9-nav" aria-label="Main">
             ${navLink('home', 'HOME', true)}${navLink(has ? 'continue' : 'new', 'CAREER')}${navLink('goals', 'GOALS')}${navLink('hall', 'HALL')}${navLink('view:leaderboard', 'LEADERBOARDS')}${navLink('settings', 'SETTINGS')}
           </nav>
+          <button class="rib9-prestige" type="button" data-rib-action="prestige" title="Prestige tree">${svg('star')}<b data-rib-field="prestige">${esc(S.prestige || 0)}</b><small>PRESTIGE</small><i></i><b data-rib-field="pp">${esc(S.pp || 0)}</b><small>PP</small></button>
           <div class="rib9-motto">BUILD A PLAYER.<br>EARN EVERY REP.<br>CHASE THE LEAGUE.</div>
         </header>
 
@@ -213,9 +234,8 @@
           ${tint(colors, 0.49, 0.56, 0.17, 0.3)}${tint(colors, 0.49, 0.23, 0.06, 0.13)}
           <div class="rib9-hero-shade"></div>
           <div class="rib9-hero-copy"><h1>RUNNING<br><em>IT BACK</em></h1><p>SAME GAME.<br>DIFFERENT YOU.</p></div>
-          ${has ? `<div class="rib9-hero-jersey" aria-hidden="true" data-at="0.49,0.43"${colors && colors[1] ? ` style="--ts:${esc(colors[1])}"` : ''}><b>${esc(surname(pl.name))}</b><span>${num}</span></div>` : ''}
+          ${has ? `<div class="rib9-hero-jersey" aria-hidden="true" data-at="0.485,0.5"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>` : ''}
           <div class="rib9-hero-slogan">DISCIPLINE<br>BUILDS<br>FREEDOM</div>
-          <button class="rib9-prestige" type="button" data-rib-action="prestige">${svg('star')}<b data-rib-field="prestige">${esc(S.prestige || 0)}</b><small>PRESTIGE</small><i></i><b data-rib-field="pp">${esc(S.pp || 0)}</b><small>PP</small></button>
         </section>
 
         ${has ? `
@@ -237,14 +257,14 @@
             <div class="rib9-kicker">ARCHETYPE</div><div class="rib9-arch-name">${esc(arch)}</div>
             ${pk.map(p => `<div class="rib9-perk"><img src="${ART}badge_${p.badge}.webp" alt=""><span>${esc(p.label)}</span></div>`).join('')}
           </div>
-          <div class="rib9-quote"><p>“${esc(quote)}”</p><span class="rib9-sig">${esc(initial(pl.name))}. ${esc(String(pl.name).split(/\s+/).pop() || '')}</span></div>
+          <div class="rib9-quote"><p>${esc(quote)}</p><span class="rib9-sig">${esc(initial(pl.name))}. ${esc(String(pl.name).split(/\s+/).pop() || '')}</span></div>
         </section>
 
         <div class="rib9-grid">
           <section class="rib9-card rib9-continue" data-rib-action="continue" role="button" tabindex="0">
             <img src="${ART}card_continue.webp" alt="" data-nat="1000,640" data-op="1,0.5">
             ${tint(colors, 0.77, 0.6, 0.15, 0.28)}${tint(colors, 0.76, 0.28, 0.07, 0.12)}
-            <div class="rib9-continue-copy"><h2>CONTINUE<br>CAREER <span>›</span></h2><div class="rib9-yw">Year ${year} <i></i> Week ${week}</div><div class="rib9-vs">${season.nextOpp ? `vs ${esc(season.nextOpp)} (${record(season)})` : season.weeks.length ? `Season complete (${record(season)})` : `${esc(String(pl.levelName))} · Season ${pl.seasonsAtLevel + 1}`}</div></div>
+            <div class="rib9-continue-copy"><h2>CONTINUE<br>CAREER <span>${svg('chev')}</span></h2><div class="rib9-yw">Year ${year} <i></i> Week ${week}</div><div class="rib9-vs">${season.nextOpp ? `vs ${esc(season.nextOpp)} (${record(season)})` : season.weeks.length ? `Season complete (${record(season)})` : `${esc(String(pl.levelName))} · Season ${pl.seasonsAtLevel + 1}`}</div></div>
           </section>
           <section class="rib9-card rib9-season">
             <div class="rib9-kicker">SEASON PROGRESS</div>
@@ -258,7 +278,7 @@
               <div class="rib9-lt blue"><i>${svg('helmet')}</i><b data-rib-field="careers">${esc(S.careers || 0)}</b><small>CAREERS</small></div>
               <div class="rib9-lt green"><i>${svg('crown')}</i><b data-rib-field="nflReached">${esc(S.nflReached || 0)}</b><small>NFL REACHED</small></div>
               <div class="rib9-lt purple"><i>${svg('gem')}</i><b data-rib-field="interstellar">${esc(S.interstellar || 0)}</b><small>INTERSTELLAR</small></div>
-              <div class="rib9-lt gold2"><i>${svg('laurel')}</i><b data-rib-field="hallPoints">${esc(S.hallBest || 0)}</b><small>HALL OF FAME POINTS</small></div>
+              <div class="rib9-lt gold2"><i>${svg('laurel')}</i><b data-rib-field="hallPoints">${esc(S.hallBest || 0)}</b><small>HALL POINTS</small></div>
               <div class="rib9-lt red"><i>${svg('target')}</i><b data-rib-field="iconicMoments">${esc(S.challenges || 0)}</b><small>ICONIC MOMENTS</small></div>
             </div>
           </section>
@@ -276,7 +296,7 @@
             <div class="rib9-stars"><u>★</u><u>★</u><u>★</u><u>★</u><u>★</u></div>
             <button class="rib9-level rib9-cta" type="button" data-rib-action="new">START NEW CAREER <span>›</span></button>
           </div>
-          <div class="rib9-quote"><p>“${esc(quote)}”</p><span class="rib9-sig">R. I. B.</span></div>
+          <div class="rib9-quote"><p>${esc(quote)}</p><span class="rib9-sig">R. I. B.</span></div>
         </section>
         <div class="rib9-grid">
           <section class="rib9-card rib9-legacy">
@@ -286,7 +306,7 @@
               <div class="rib9-lt blue"><i>${svg('helmet')}</i><b data-rib-field="careers">${esc(S.careers || 0)}</b><small>CAREERS</small></div>
               <div class="rib9-lt green"><i>${svg('crown')}</i><b data-rib-field="nflReached">${esc(S.nflReached || 0)}</b><small>NFL REACHED</small></div>
               <div class="rib9-lt purple"><i>${svg('gem')}</i><b data-rib-field="interstellar">${esc(S.interstellar || 0)}</b><small>INTERSTELLAR</small></div>
-              <div class="rib9-lt gold2"><i>${svg('laurel')}</i><b data-rib-field="hallPoints">${esc(S.hallBest || 0)}</b><small>HALL OF FAME POINTS</small></div>
+              <div class="rib9-lt gold2"><i>${svg('laurel')}</i><b data-rib-field="hallPoints">${esc(S.hallBest || 0)}</b><small>HALL POINTS</small></div>
               <div class="rib9-lt red"><i>${svg('target')}</i><b data-rib-field="iconicMoments">${esc(S.challenges || 0)}</b><small>ICONIC MOMENTS</small></div>
             </div>
           </section>
@@ -355,7 +375,8 @@
     if (ring) {
       const overall = Math.max(0, Number(data.player && data.player.ovr) || 0);
       ring.style.setProperty('--rib-ovr-color', overall >= 85 ? '#ffe9a0' : overall >= 50 ? '#7ddc6e' : '#e8734a');
-      const applyArc = () => ring.style.setProperty('--rib-ovr', String(Math.min(1, overall / 100)));
+      // a young player is still a visible arc: an empty ring reads as a broken ring
+      const applyArc = () => ring.style.setProperty('--rib-ovr', String(Math.max(0.055, Math.min(1, overall / 100))));
       if (animateIn && !prefersReduced()) whenAssetsReady(() => requestAnimationFrame(() => requestAnimationFrame(applyArc)));
       else applyArc();
     }
