@@ -403,6 +403,23 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   durability point by asking the real chance function with the stat one higher.
   `bodyCostV73` is recorded in the weekly resolver either side of the multiplier,
   which is the only place the charge is knowable.
+- `v91 THE FIELD SHEETS` (next to the v22 overlay) — `RIB_META_V91` is GENERATED into
+  `index.html` between `RIB_META_V91_BEGIN/END` markers by `scripts/build-field-art.py`
+  (`build-field-art.mjs` runs it); never hand-edit it. `ribCellV91(name)` sits in front of
+  `ribCellV22` and `ribCell` inside `ribRegisterTeam`'s `put`, so any cell the atlas
+  carries under an existing name (run_dn3, cut_sd, catch_up1) upgrades that state for
+  every team through the same `ribRecolor`, and new names register new states per facing
+  (plant, fall, divex, getup0..7, celebrate0..3, hurt0..1, walk0..1, catchhold). The
+  get-up rides the existing `getupSeq` (eight frames when the sheet is in), the v21.2
+  crouch-then-stand recovery becomes `getupSeq` when the sheet is in, `celebrateSeq` loops
+  for `celebrateMs` from `celebrate()`. The ball: `ribBallV91` builds a sprite of
+  `spr_ball_spin0` at the two call sites that used to call `__RIB20_createFootball`, and
+  `ballFrameV91(kind,k)` swaps frames and returns each spin frame's drawn tilt
+  (`RIB_META_V91._ballAngles`, measured from the alpha's principal axis at build time) so
+  flight rotation is heading minus tilt. The build script keys the new art for the
+  recolour (`kit_ready`: navy and gold shadows below `ribRecolor`'s L=38 floor are lifted
+  to it, so a shadow comes out as a darker primary instead of surviving as navy). The sheet
+  is fetched from `./public/rib_field_v91.png` (relative, so GitHub Pages' subpath works).
 - `v90 THE ROLLS HAPPEN IN THE BACKGROUND` (next to `silentWeekV85`) — `autoStoryV90(e,w)`
   drains `storyDecisionQueueV11` on the sim-the-rest path by picking a choice with
   `pickStoryChoiceV90` (sorted by `baseChance`; `TU("autoStoryStyle",0)` safest → boldest)

@@ -55,6 +55,25 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v91 — the field sheets.** Eight hand-drawn sheets in the game's own chibi style
+  (`art/field/`) are cut by `scripts/build-field-art.mjs` into one 48px-cell atlas,
+  `public/rib_field_v91.png`, whose cells are named in the renderer's vocabulary so the
+  existing per-team recolour registers them by the names it already asks for. What
+  changed on the field: an **eight-frame run cycle at five facings** (the sheet's eight;
+  the renderer mirrors the rest) with a drawn plant, cut, dive and fall per facing; an
+  **eight-frame directional get-up** that replaces the crouch-then-stand recovery after
+  every tackle; a **four-frame celebration** the scorer plays for two and a half seconds
+  after a touchdown; hurt and walk frames per facing; catch frames per facing from the
+  catch sheet; and a **football drawn from the sheet**, a spiral whose laces turn through
+  twelve frames while the sprite rotates by heading minus each frame's drawn tilt, and an
+  end-over-end tumble on kicks and loose balls, replacing the procedural container. The
+  sheet loads on its own clock like the crowd and the sideline, so until it lands the v22
+  overlay and the baked atlas stand exactly as before. `scripts/v91check.mjs` drives a
+  live game and asserts the atlas decoded and registered for every team, the recolour
+  reached the new art, and the renderer actually used the new states. Not wired yet:
+  the two-body tackle sequences (the renderer draws each man separately, so they need a
+  composite pass), the sixteen helmet angles and the layered kit sheet.
+
 - **v90 — the rolls happen in the background.** At the NFL a story arc queues a stage
   every few games, and each stage wanted a choice and a dice roll before sim-the-rest
   would continue, so a season could not be skipped. On the silent path the choice is now

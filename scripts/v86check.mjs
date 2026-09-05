@@ -43,7 +43,7 @@ while (Date.now() - t0 < MS) {
     const qb = ms[8]
     return { post: !!(P && P.post), postT: P && P.post ? P.post.t : 0, postMs: P && P.post ? P.post.ms : 0, spot: P && P.post ? P.post.spot : null, avg: P && P.post ? dist(P.post.spot) : 0, far: P && P.post ? far(P.post.spot) : 0,
       t: P && P.t, snapped: !!(P && P.snapped), event: P && P.payload && P.payload.event, token: P && P.__ballTokenV1514,
-      drop: !!(qb && qb._dropback), lean: !!(qb && qb._lean), look: ms.some(m => m._lookAt), sway: ms.slice(11).some(m => m.isLine && m.body && Math.abs(m.body.y) > 0.2),
+      drop: !!(qb && (qb._dropback || qb._dropped)), /* the latched flag too: v87's QB sets up in under half a second */ lean: !!(qb && qb._lean), look: ms.some(m => m._lookAt), sway: ms.slice(11).some(m => m.isLine && m.body && Math.abs(m.body.y) > 0.2),
       wear: (sc.wearV86 || []).length, V: window.__V86 || {} } })
   if (st) {
     if (st.post) {
@@ -55,7 +55,7 @@ while (Date.now() - t0 < MS) {
     if (st.drop) dropFrames++; if (st.lean) leanFrames++; if (st.look) lookFrames++; if (st.sway) swayFrames++
     var last = st
   }
-  await page.waitForTimeout(120)
+  await page.waitForTimeout(70)   // the stance sway and the look-back live in windows a few frames long; 120ms sampling missed them under load
 }
 const V = (last && last.V) || {}
 console.log('counters:', JSON.stringify(V), 'wear:', last && last.wear, 'gathers avg/far:', JSON.stringify(gathers.map(g => [Math.round(g.first), Math.round(g.last), Math.round(g.farFirst), Math.round(g.farLast)])))
