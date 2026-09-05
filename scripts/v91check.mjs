@@ -64,6 +64,29 @@ console.log('recolour:', JSON.stringify(rec))
 ok(rec.near >= rec.n * 0.08 && rec.navy >= rec.n * 0.02, 'the recolour reached the new art: the jersey wears the primary and the pants the secondary', `primary=${rec.near}/${rec.n} secondary=${rec.navy}`)
 ok(rec.usedV91 >= 40, 'the run frames came from the v91 cells, not the older atlases', `v91 run cells cut=${rec.usedV91}`)
 
+// ---- 2b. the defence too: its jersey carries the defence primary, whatever palette the opponent drew
+const defRec = await page.evaluate(() => {
+  const sc = window.__gridironScene, T = sc.textures, cols = window.__V91.teamCols ? window.__V91.teamCols() : null
+  const hex = cols && cols.def && cols.def[0]; if (!hex || !T.exists('spr_def_dn_idle')) return null
+  const P = [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)]
+  const src = T.get('spr_def_dn_idle').getSourceImage(); const cv = document.createElement('canvas'); cv.width = 48; cv.height = 48
+  const c = cv.getContext('2d'); c.drawImage(src, 0, 0); const d = c.getImageData(0, 0, 48, 48).data
+  const hueOf = (r, g, b) => { const mx = Math.max(r,g,b), mn = Math.min(r,g,b); if (mx === mn) return 0; if (mx === r) return (60*((g-b)/(mx-mn))+360)%360; if (mx === g) return 60*((b-r)/(mx-mn))+120; return 60*((r-g)/(mx-mn))+240 }
+  const ph = hueOf(...P), neutralP = (Math.max(...P) - Math.min(...P)) < 40
+  // the jersey rows of the standing idle (the helmet sits above 12, the pants start at 27); only the pixels the
+  // recolour is meant to touch count — outlines (dark) and skin/whites (neutral) are neither team colour
+  let n = 0, near = 0, navy = 0
+  for (let y = 13; y < 27; y++) for (let x = 12; x < 36; x++) { const i = (y * 48 + x) * 4; if (d[i+3] < 40) continue
+    const r = d[i], g = d[i+1], b = d[i+2], mx = Math.max(r,g,b), mn = Math.min(r,g,b), hue = hueOf(r, g, b)
+    if ((mx + mn) / 2 < 38 || (!neutralP && (mx - mn) / Math.max(1, mx) < 0.15)) continue; n++
+    if (hue >= 190 && hue <= 265 && (mx-mn)/Math.max(1,mx) > 0.15 && (mx+mn)/2 >= 38) navy++
+    const dh = Math.min(Math.abs(hue - ph), 360 - Math.abs(hue - ph)); const neutralPx = (mx - mn) < 40
+    if ((neutralP && neutralPx) || (!neutralP && dh < 28)) near++ }
+  return { primary: hex, n, near, navy, primaryIsNavy: !neutralP && ph >= 190 && ph <= 265 }
+})
+console.log('defence recolour:', JSON.stringify(defRec))
+ok(defRec && defRec.n > 40 && defRec.near >= defRec.n * 0.5 && (defRec.primaryIsNavy || defRec.navy < defRec.n * 0.15), 'the defence jersey wears the defence primary (torso pixels match its hue family)', defRec && `primary=${defRec.primary} near=${defRec.near}/${defRec.n} navy=${defRec.navy}`)
+
 // ---- 3. watch the field: the renderer uses the new states
 const MS = +(process.env.V91_MS || 70000), SHOTS = !!process.env.V91_SHOTS
 const snap = async (path) => { const src = await page.evaluate(() => new Promise(res => { try { window.__gridironScene.game.renderer.snapshot(img => res(img.src || null)) } catch (e) { res(null) } })); if (src) { const fs = await import('node:fs'); fs.writeFileSync(path, Buffer.from(src.split(',')[1], 'base64')) } }
@@ -84,7 +107,9 @@ ok((V.getupFrames || 0) > 20 && seen.getup > 0, 'downed players rise through the
 ok((V.ballFrames || 0) > 12 && (seen.ballSpin + seen.ballTumble) > 0, 'the ball cycles its spiral / tumble frames in flight', `ballFrames=${V.ballFrames} spin=${seen.ballSpin} tumble=${seen.ballTumble}`)
 // ---- 4. a forced score: the carrier plays the drawn celebration, then stands
 const cel = await page.evaluate(async () => { const sc = window.__gridironScene; const P = sc.play; if (!P) return null
-  const id = P.carrierId != null ? P.carrierId : 8; P.carrierId = id; const m = sc.markers[id]
+  // a man on his feet, as a scorer is: the pile's own get-up must not be what we measure
+  const up = sc.markers.findIndex((m, i) => i < 11 && m && !/getup|down|tackle|pancake|dive/.test(m.tex || '') && m.forceState == null)
+  const id = up >= 0 ? up : (P.carrierId != null ? P.carrierId : 8); P.carrierId = id; const m = sc.markers[id]
   sc.celebrate(m ? m.sx : 200, m ? m.sy : 200)
   const seen = []; for (let i = 0; i < 14; i++) { await new Promise(r => setTimeout(r, 120)); seen.push(m && m.tex) }
   return { forced: m && m.forceState, seen: seen.filter(t => /celebrate\d/.test(t || '')).length, sample: seen.slice(0, 4) } })

@@ -4718,6 +4718,7 @@ function ribSyncOpp(scene) {
   // when it lands (teams for the player cells, the ball frames on their own), and until then
   // the v22 overlay and the baked atlas stand exactly as before.
   const fld = new Image();
+  const noV91 = /[?&]noV91\b/.test(location.search);   // ?noV91: the field without the sheet, for a side-by-side
   fld.onload = () => {
     RIB.v91img = fld; RIB.v91cache = {};
     try {
@@ -4727,11 +4728,11 @@ function ribSyncOpp(scene) {
         try { ribRegisterBallV91(sc); } catch (e) {}
       });
     } catch (e) {}
-    window.__V91 = Object.assign(window.__V91 || {}, { loaded: true, cells: Object.keys(RIB_META_V91).length, cacheKeys: () => Object.keys(RIB.v91cache || {}) });
+    window.__V91 = Object.assign(window.__V91 || {}, { loaded: true, cells: Object.keys(RIB_META_V91).length, cacheKeys: () => Object.keys(RIB.v91cache || {}), teamCols: () => RIB.teamCols });
     console.log("[RIB] v91 field art active");
   };
   fld.onerror = () => console.warn("[v91] field sheet failed to load — v22 and the baked atlas stand");
-  fld.src = window.__RIB_FIELD_V91 || "./public/rib_field_v91.png";
+  if (!noV91) fld.src = window.__RIB_FIELD_V91 || "./public/rib_field_v91.png";
 })();
 function ribField(scene) {
   if (!RIB.fieldImg || !scene || !scene.add || scene.fieldSpr) return;
@@ -5415,7 +5416,7 @@ class Ot extends mt.Scene {
       const q = m._post; if (!q || !m.root) return;
       if (q.grounded && !q.rose) {
         if (k < q.up) { this.placeMarker(m, m.sx, m.sy, delta); return; }
-        q.rose = true; m._launchUntil = 0; m.forceState = "getupSeq"; m.seqT = m.tms; if (m.body) m.body.setAlpha(1);
+        q.rose = true; m._launchUntil = 0; if (m.forceState !== "celebrateSeq") { m.forceState = "getupSeq"; m.seqT = m.tms; } if (m.body) m.body.setAlpha(1);   // v91: a celebration outranks the get-up
         // the man on top pushes off the pile as he rises
         if (i !== P.carrierId && m.body) this.tweens.add({ targets: m.body, x: (m.flip ? -1 : 1) * TU("pushOffPx", 4), yoyo: true, duration: 150 });
       }

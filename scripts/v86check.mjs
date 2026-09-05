@@ -33,7 +33,7 @@ const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undef
 const snap = async (path) => { const src = await page.evaluate(() => new Promise(res => { try { window.__gridironScene.game.renderer.snapshot(img => res(img.src || null)) } catch (e) { res(null) } })); if (src) fs.writeFileSync(path, Buffer.from(src.split(',')[1], 'base64')) }
 
 // watch the field for a while: sample state every 120ms, measure the post-play gather
-const MS = +(process.env.V86_MS || 90000), SHOTS = !!process.env.V86_SHOTS
+const MS = +(process.env.V86_MS || 150000), SHOTS = !!process.env.V86_SHOTS
 const t0 = Date.now(); const gathers = []; let cur = null, shotPost = 0, shotPre = 0, dropFrames = 0, leanFrames = 0, lookFrames = 0, swayFrames = 0
 while (Date.now() - t0 < MS) {
   const st = await page.evaluate(() => { const sc = window.__gridironScene; if (!sc) return null

@@ -25,8 +25,25 @@ def components(mask):
                     lab[yy, xx] = n; stack.append((yy, xx))
     return lab, n
 
+def normalize_palette(im):
+    """Pull the sheet's kit onto the base atlas's palette so ribRecolor treats it identically.
+    The drawn pants are an orange gold (hue 25-35) that falls under the recolour's gold band
+    (33-62), so they never took a team colour and the defence came out tan. Skin is darker and
+    redder (hue < 24, L < 40) and is left alone."""
+    a = np.asarray(im).astype(float); r, g, b, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+    mx = np.maximum(np.maximum(r, g), b); mn = np.minimum(np.minimum(r, g), b); L = (mx + mn) / 2
+    sat = np.where(mx > 0, (mx - mn) / np.maximum(mx, 1), 0); d = np.maximum(mx - mn, 1e-6)
+    hue = np.where(mx == r, (60 * ((g - b) / d) + 360) % 360, np.where(mx == g, 60 * ((b - r) / d) + 120, 60 * ((r - g) / d) + 240))
+    gold = (al > 0) & (hue >= 24) & (hue < 46) & (sat > 0.3) & (L >= 40)
+    # rebuild the gold pixels at hue 46 with their own saturation and lightness
+    C = (1 - np.abs(2 * L / 255 - 1)) * (mx - mn) / np.maximum(mx, 1) * 255 * 0 + (mx - mn)   # chroma = max-min
+    X = C * (1 - np.abs(((46 / 60) % 2) - 1)); mval = mn
+    nr, ng, nb = C + mval, X + mval, mval                       # hue 46 sits in the 0-60 sector: (C, X, 0)
+    out = a.copy(); out[..., 0] = np.where(gold, nr, r); out[..., 1] = np.where(gold, ng, g); out[..., 2] = np.where(gold, nb, b)
+    return Image.fromarray(np.clip(out, 0, 255).astype('uint8'), 'RGBA')
+
 def slice_sheet(name, min_px=60, row_tol=None, merge_small=0):
-    im = Image.open(f'{SRC}/{name}.png').convert('RGBA'); a = np.asarray(im.getchannel('A')); m = a > 24
+    im = normalize_palette(Image.open(f'{SRC}/{name}.png').convert('RGBA')); a = np.asarray(im.getchannel('A')); m = a > 24
     md = np.asarray(Image.fromarray((m * 255).astype('uint8')).filter(ImageFilter.MaxFilter(3))) > 0
     lab, n = components(md); boxes = []
     for i in range(1, n + 1):
@@ -98,7 +115,8 @@ def cell_of(im, box, scale, baseline=46, center=None):
     tw, th = max(1, round(w * scale)), max(1, round(h * scale))
     if tw > CELL - 2 or th > CELL - 2:   # a wide or tall pose still fits the cell
         k = min((CELL - 2) / tw, (CELL - 2) / th); tw, th = max(1, round(tw * k)), max(1, round(th * k))
-    spr = crop.resize((tw, th), Image.LANCZOS)
+    spr = crop.resize((tw, th), Image.BOX).filter(ImageFilter.UnsharpMask(radius=1.0, percent=140, threshold=1))
+    al = spr.getchannel('A').point(lambda v: 255 if v > 118 else 0); spr.putalpha(al)   # pixel-art edges: no soft fringe
     cv = Image.new('RGBA', (CELL, CELL), (0, 0, 0, 0))
     x = (CELL - tw) // 2; y = (CELL // 2 - th // 2) if center else (baseline - th)
     cv.alpha_composite(spr, (x, max(0, y))); return cv
@@ -111,18 +129,17 @@ def sheet_scale(rows, target_h, pick=lambda b: True):
 im, rows = slice_sheet('run8')
 assert len(rows) == 8 and all(len(r) == 12 for r in rows), [len(r) for r in rows]
 DIR = {0: 'dn', 7: 'dr', 6: 'sd', 5: 'ur', 4: 'up'}   # the five right-facing rows; the renderer mirrors the rest
-sc = sheet_scale(rows, 42, lambda b: True)
+sc = sheet_scale(rows, 44, lambda b: True)
 for ri, dd in DIR.items():
     r = rows[ri]
     for i in range(8): CELLS[f'run_{dd}{i}'] = cell_of(im, r[i], sc)
     CELLS[f'plant_{dd}'] = cell_of(im, r[8], sc); CELLS[f'cut_{dd}'] = cell_of(im, r[9], sc)
     CELLS[f'dive_{dd}'] = cell_of(im, r[10], sc); CELLS[f'fall_{dd}'] = cell_of(im, r[11], sc)
-    CELLS[f'idle_{dd}'] = cell_of(im, r[8], sc)
 
 # ---- reactions: 4 facings x (pump, stomp, arms up, arms wide, knee, crouch, walk, walk) ----
 im, rows = slice_sheet('reactions')
 assert len(rows) == 4 and all(len(r) == 8 for r in rows), [len(r) for r in rows]
-sc = sheet_scale(rows, 42, lambda b: (b[3]-b[1]) > (b[2]-b[0]) * 0.9)
+sc = sheet_scale(rows, 44, lambda b: (b[3]-b[1]) > (b[2]-b[0]) * 0.9)
 for ri, dd in enumerate(['dn', 'dr', 'ur', 'up']):
     r = rows[ri]
     for i in range(4): CELLS[f'celebrate_{dd}{i}'] = cell_of(im, r[i], sc)
@@ -132,9 +149,11 @@ for ri, dd in enumerate(['dn', 'dr', 'ur', 'up']):
 # ---- getup: 4 facings, the flat frame sits in its own row band ---------------------------
 im, rows = slice_sheet('getup', row_tol=140)
 assert len(rows) == 4 and all(len(r) == 8 for r in rows), [len(r) for r in rows]
-sc = sheet_scale(rows, 42, lambda b: (b[3]-b[1]) > 150)
+sc = sheet_scale(rows, 44, lambda b: (b[3]-b[1]) > 150)
 for ri, dd in enumerate(['dn', 'dr', 'ur', 'up']):
     for i in range(8): CELLS[f'getup_{dd}{i}'] = cell_of(im, rows[ri][i], sc)
+    CELLS[f'idle_{dd}'] = cell_of(im, rows[ri][4], sc)      # the upright frame: a man standing, weight even
+CELLS['idle_sd'] = CELLS['idle_dr']
 
 # ---- football: a spiral at 12 angles and an end-over-end tumble at 12 ---------------------
 im, rows = slice_sheet('football', min_px=400)
@@ -153,7 +172,7 @@ for i in range(12): CELLS[f'ball_tumble{i}'] = cell_of(im, rows[1][i], sc, cente
 # ---- catch_throw: the three uncontested rows, four frames per facing ---------------------
 im, rows = slice_sheet('catch_throw', merge_small=2600, row_tol=120)
 rows = [r for r in rows if len(r) >= 12][:3]
-sc = sheet_scale(rows, 42, lambda b: (b[3]-b[1]) > 100)
+sc = sheet_scale(rows, 44, lambda b: (b[3]-b[1]) > 100)
 def groups(r):   # a row is four groups of four frames, separated by a wider gap
     gs, cur = [], [r[0]]
     for a, b in zip(r, r[1:]):
