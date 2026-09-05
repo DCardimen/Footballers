@@ -70,7 +70,15 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   sheet loads on its own clock like the crowd and the sideline, so until it lands the v22
   overlay and the baked atlas stand exactly as before. `scripts/v91check.mjs` drives a
   live game and asserts the atlas decoded and registered for every team, the recolour
-  reached the new art, and the renderer actually used the new states. Not wired yet:
+  reached the new art, and the renderer actually used the new states. **v91.1** after
+  the first look ("worse, especially the QB"): the idle is the get-up sheet's standing
+  frame, an upright man with his arms at his sides, not the run sheet's plant (a crouch
+  with a dust cloud that read as a scramble under every quarterback); the cells are cut
+  with a box filter, sharpened and their alpha hardened so the edges are pixel edges
+  like the old atlas rather than a soft fringe, at the old atlas's figure height; the
+  sheets' orange pants are keyed into the recolour's gold band so the defence wears its
+  secondary instead of tan; the celebration outranks the unpile; and `?noV91` on the URL
+  runs the field without the sheet for a side-by-side. Not wired yet:
   the two-body tackle sequences (the renderer draws each man separately, so they need a
   composite pass), the sixteen helmet angles and the layered kit sheet.
 

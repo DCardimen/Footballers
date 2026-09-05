@@ -418,8 +418,16 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   (`RIB_META_V91._ballAngles`, measured from the alpha's principal axis at build time) so
   flight rotation is heading minus tilt. The build script keys the new art for the
   recolour (`kit_ready`: navy and gold shadows below `ribRecolor`'s L=38 floor are lifted
-  to it, so a shadow comes out as a darker primary instead of surviving as navy). The sheet
-  is fetched from `./public/rib_field_v91.png` (relative, so GitHub Pages' subpath works).
+  to it, so a shadow comes out as a darker primary instead of surviving as navy;
+  `normalize_palette`: the sheets' orange pants, hue 24–46, are rebuilt at hue 46 so the
+  gold band catches them). Cells are cut with a BOX resize, an unsharp mask and a hard
+  alpha threshold (v91.1) — the renderer scales sprites with nearest-neighbour, so a soft
+  fringe reads as blur; the figure is normalised to 44px like the baked atlas. **The idle
+  is the get-up sheet's standing frame** (`idle_<dd>`, `idle_sd` = `idle_dr`), never the
+  run sheet's plant. `?noV91` on the URL skips the sheet (A/B). In the draw-time state
+  machine the unpile only forces `getupSeq` when the man is not already in `celebrateSeq`.
+  The sheet is fetched from `./public/rib_field_v91.png` (relative, so GitHub Pages'
+  subpath works).
 - `v90 THE ROLLS HAPPEN IN THE BACKGROUND` (next to `silentWeekV85`) — `autoStoryV90(e,w)`
   drains `storyDecisionQueueV11` on the sim-the-rest path by picking a choice with
   `pickStoryChoiceV90` (sorted by `baseChance`; `TU("autoStoryStyle",0)` safest → boldest)
