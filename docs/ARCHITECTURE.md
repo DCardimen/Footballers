@@ -497,6 +497,47 @@ pop-text. The audio cues are short WebAudio stingers on the game's own `settings
 `scripts/badgecheck.mjs` decodes every file, drives the queue (cut-in, token, repeat,
 promotion, both lanes, clear) and watches a live run.
 
+## v97 — the loader first, names, whole numbers, prestige, the wall, the fold, the end zones
+
+- **THE LOADER GOES FIRST** (`GridironPhaser.animate` + `__LIVELOAD_V94.whenClear`): while the
+  live game's loader is up, the first `animate` call parks its arguments on the loader's
+  `waiters` and returns; `finish()` releases them, so the play starts the moment the chase has
+  run its exit. Header plays (drive markers, no animation) still tick underneath the overlay.
+- **THE PALETTE'S NAME** (`palNameV97`, in the team creator next to `getCustom`): every
+  palette tile carries "Primary & Secondary", each colour named by hue and depth (Navy / Royal
+  / Sky, Maroon / Crimson / Rose, Forest / Green / Mint, Silver / White ...); also the tile's
+  title.
+- **WHOLE NUMBERS ON THE SHEET**: the only decimals in the skill menus were the four combine
+  clocks (40-yd dash, 20-yd shuttle, 3-cone, 10-yd split, e.g. "4.32s"). They are speeds now
+  — Top speed, Shuttle speed, 3-cone speed, 10-yd burst, all whole mph from the same curves
+  (distance / time × 2.045) — so the sheet reads 19 mph, not 4.32s.
+- **PRESTIGE IS RARE, AND QUIETER**: both career-end awards add `Qs(...) ×
+  TU("prestigeGainMult", 0.2)` (one decimal kept on `o.prestige`; the chip rounds to a
+  tenth), and `ht(prestige)` — the one curve every prestige-scaled bonus reads (starting
+  attributes, potential, the ratings floor in `kt`/`Wr`) — returns `× TU("prestigeEffectMult",
+  0.2)`; `drPrestigePct` fell from 5% to 1% a star. PP and the legacy tree are untouched.
+- **THE 250 WALL** (`drCost`, `qo`): 250 was the ABSOLUTE limit (`qo`, read by `we()`); it is a
+  soft one now — `qo` lifts to 999 and from `TU("drWallAt", 250)` every point costs
+  `TU("drWallMult", 5)` times the band price (a 24-point band reads 120). The sheet's
+  diminishing-returns note says so. `window.__drCostV97` / `window.__htV97` are the check hooks.
+- **THE CONTINUE CARD'S TINT** (`scripts/build-menu-art.py`): the helmet and pants boxes on
+  the continue card hugged the lit right two-thirds of the shell and stopped at the inseam;
+  they now take the whole shell (neutral cap 236) and both outer thighs (the cloth filter
+  keeps the gloves and skin out), and the silhouette was widened to match. Only
+  `card_continue_mask_s.webp` changed.
+- **THE FOLD** (`fold` / `foldAll` / `FOLD`, in the v75 sectioner): a hub tab measured taller
+  than the viewport while showing becomes an accordion — every block after the first folds
+  behind a header cut from its own heading (`headingOf`); a tap opens one and folds the
+  others, remembered per view and section across re-renders. A tab that fits stays a stack.
+- **THE SHEET IN THREE** (`UP_GROUPS_V97` / `toggleUpGroupV97`, next to `un`): the upgrade
+  sheet's rows sit in three folding cards — PHYSICAL, BALL SKILLS, MENTAL (anything unlisted
+  lands in OTHER) — the one with the most KEY stats open first; `alloc` still updates rows in
+  place.
+- **THE TWO END ZONES** (`ribSyncEndZonesV93` / `ribPaintEndZonesV93`): `RIB._ezV93.ends`
+  holds a colour pair and a label per end — far: the user's palette and TOUCHDOWN
+  (`TU("ezFarLabel")`), near: the opponent's palette (`RIB.defPal`) and name, rotated to face
+  their bench. `scripts/v93check.mjs` asserts the pair at home and on the road.
+
 ## v96 — his own kit, a name of his own, the stat box, the read radius
 
 - **HIS OWN KIT** (`ribSyncYouKitV96`, next to `ribSyncOpp`): the you-player used to wear a
