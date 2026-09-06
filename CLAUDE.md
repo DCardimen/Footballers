@@ -33,6 +33,12 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v95 THE CALLOUT WALL` — the drawn badges over the live field as a tiered presentation
+  system: `BADGE_BOOK_V95` (one data row per badge), `BADGE_PROMO_V95` (the morphs),
+  `BADGE_V95.show()`, `badgesPresnapV95` / `badgesWhistleV95`; art in `art/badges/`, cut by
+  `scripts/build-badge-art.mjs` into `public/badges/`
+- `v94 THE CHASE` — the loading screen: a canvas chase from the v91 sheet in its own
+  `<script>` right after the boot shims; `window.__splashDoneV94()` is the door `go()` uses
 - `v93 THE HOME END ZONES` — the end zones painted in the home team's colours and name on
   the flat art; `ribSyncEndZonesV93`, `window.__homeGameV93`, `homeWeekV93`
 - `v92 THE LIGHTS AND THE BIG SCREEN` — floodlight towers and the replay screen above the
@@ -78,6 +84,8 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the broadcast renderer between plays / tackle looks (v86) | `v86check.mjs`, `readshot.mjs` |
 | pass coverage / credit, QB scramble & targets, the safety, the huddle (v87) | `v87check.mjs`, `creditcheck.mjs`, `simcheck.mjs` |
 | promotion odds / the declare (v88) | `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs` |
+| the callout badges / the moments the field shouts (v95) | `badgecheck.mjs`, `v86check.mjs` |
+| the loading screen / the splash's door (v94) | `splashcheck.mjs`, `shot.mjs`, `walk.mjs` |
 | the end-zone paint / home and away fixtures (v93) | `v93check.mjs`, `v86check.mjs` |
 | the stadium behind the bowl / the big screen / the posts / number formatting (v92) | `v92check.mjs`, `v86check.mjs` |
 | the field sheets / the v91 atlas / player and ball frames (v91) | `v91check.mjs`, `v86check.mjs`, `renderpathcheck.mjs` |
