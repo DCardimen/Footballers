@@ -497,6 +497,48 @@ pop-text. The audio cues are short WebAudio stingers on the game's own `settings
 `scripts/badgecheck.mjs` decodes every file, drives the queue (cut-in, token, repeat,
 promotion, both lanes, clear) and watches a live run.
 
+## v99 — the shadows fall, from one light post
+
+- **THE KEY LIGHT** (`keyLightV99`): one mast is the light everything casts from —
+  `TU("keyLightIdx", 2)`, chosen because mast 2 is one of the two that do not sway — read at
+  its FIXED base (`tw._bx/_by`, not the drawn, swaying `x`) plus `lightHeadFrac` for the lamp
+  head. Without the stadium art it falls back to a point above the far end
+  (`keyLightFallbackX/Up`), so the cast is identical with the sheet blocked. Cached in
+  `this._klV99`, cleared once per `update` tick and once per `drawField`, so a frame reads the
+  light once however many things cast.
+- **THE CAST** (`shadowVecV99`, `castShadowV99`): `shadowVecV99(gx, gy)` returns the unit
+  vector from the light to that ground point, a `reach` (0 at the far end line, 1 at the near
+  edge of the world) and a `slope` — `TU("shadowSlope", .7) * (0.45 + reach * 1.35)`, times the
+  v86 per-quarter stretch (`shadowStretchQ`), which now lives here so exactly one system writes
+  these properties. A shadow's length is the object's own height times that slope, which is
+  what makes tall things throw long and low things barely mark the grass.
+  `castShadowV99(sh, gx, gy, h, {lift, base, y0, a})` writes an ellipse that is parented to a
+  sprite's container: rotation to the cast direction, the ellipse pushed out to sit between the
+  feet and the tip, `scaleX = (base + len) / base`, alpha faded by `reach` (`shadowFade`). The
+  container's perspective scale cancels, so nothing has to be undone for depth.
+- **WHO CASTS**: players (`placeMarker`, height `shadowManH`, `shadowDownK` while he is on the
+  ground), officials (`placeRef`, and the flag heave's hop counts as lift), the ball
+  (`ballShadK` × the drawn air height — the shadow runs out from under it), the goalposts
+  (below) and every sideline sprite (`sideShadow`, length from the sprite's own
+  `displayHeight` × `sideShadowK`).
+- **LIFT** (`lift` in `castShadowV99`): a launched tackler's parabola used to carry his shadow
+  up with him because the shadow is a child of the lifted container. `placeMarker` now keeps the
+  lift (`liftV99`) and hands it over, so the shadow is pushed back down to the grass, shrunk and
+  faded (`shadowAirMin`, `shadowAirFade`) — the leap reads as a leap.
+- **THE GOALPOSTS** (`drawGoalpostsV87` + `postShadG` at `TU("postShadDepth", 3.44)`, under the
+  players and under the posts): the whole H is projected point by point away from the light —
+  the mast, the crossbar and both uprights, each as a tapering quad (`postShadK`, `postShadA`),
+  plus a socket ellipse at the foot. `window.__V99.posts()` reports each end keyed `near`/`far`
+  by its own `reach` (which end is near flips with `VDIR`, so field x is the wrong key).
+- **THE LAMPS HOLD** (`updateStadiumV92`): the v92 frame walk and the v98 glow/beam/pool
+  breathing are off by default — one frame per face (the brightest the sheet has, `HOLDF`) and
+  one steady output, so the stadium light and everything it casts stay still.
+  `TU("lightCycleV99", 1)` puts the old walk back. `v92check` and `v98check` assert the hold.
+- **THE CARD'S PROMISE IS BINDING** (`week.coachPreview98`): `showPostGame` books the coach-trust
+  swing it displays, and `He()` applies that number when it is there instead of recomputing from
+  a rating the sim re-derives after Continue — the two used to disagree by a point.
+- **Read by the checks**: `window.__V99` — `key()`, `cast(x, y)`, `man(i)`, `ball()`, `posts()`.
+
 ## v98 — under the lights, the scorebug in the kits, the stands react, the handover cut
 
 - **THE MASTS STAY PUT** (`buildStadiumV92`): the four towers used to stand on the bowl's

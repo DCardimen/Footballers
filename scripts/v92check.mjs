@@ -76,13 +76,13 @@ ok(up >= 120 && ph >= 40, 'the goalposts stand at real proportions (crossbar on 
 const posts = await page.evaluate(() => { const sc = window.__gridironScene; return { g: !!(sc.goalG && sc.goalG.visible), cmds: sc.goalG && sc.goalG.commandBuffer ? sc.goalG.commandBuffer.length : 0 } })
 ok(posts.g && posts.cmds >= 20, 'the posts are drawn at both ends', JSON.stringify(posts))
 
-// watch: the lamps breathe and the screen only films while it can be seen
+// watch: v99 — the lamps HOLD their frame (they used to walk it), and the screen only films while it can be seen
 const MS = +(process.env.V92_MS || 30000), t0 = Date.now(); const seen = { frames: 0, changed: 0, camOn: 0, camOnScreen: 0, samples: 0 }; let lastF = null
 while (Date.now() - t0 < MS) { await page.waitForTimeout(150)
   const s = await page.evaluate(() => { const V = window.__V92; const t = V.towerBoxes()[0]; const S = V.screen(); const c = window.__gridironScene.cameras.main; return { f: t && t.frame, cam: S.cam.visible, top: c.worldView.y } })
   seen.samples++; if (s.f !== lastF) seen.changed++; lastF = s.f; if (s.cam) { seen.camOn++; if (s.top < 200) seen.camOnScreen++ } }
 console.log('watch:', JSON.stringify(seen))
-ok(seen.changed >= 6, 'the lamps walk their frames over the watch', `frame changes=${seen.changed}/${seen.samples}`)
+ok(seen.changed <= 1, 'v99: the lamps hold one frame over the watch — no cycling', `frame changes=${seen.changed - 1}/${seen.samples}`)
 ok(seen.camOn === seen.camOnScreen, 'the feed camera only renders while the far end is in the frame', `on=${seen.camOn} inFrame=${seen.camOnScreen}`)
 if (SHOTS) await snap('scripts/_v92_field.png')
 await page.close()
