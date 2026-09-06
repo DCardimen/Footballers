@@ -55,6 +55,22 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v98 — under the lights, and the stands react.** The floodlight masts **stay put**: they
+  stand on a fixed row above the far end line instead of the bowl's remeasured foot (the
+  perspective re-anchors at every snap, and the masts used to hop with it), and **two of the
+  four sway** slowly in the wind. Every lamp head carries a **glow, a beam onto the field and
+  a pool on the turf**, all breathing on the mast's own phase; the turf itself is **lit** — a
+  warm wash from the far end, a pool under each mast and a falloff into the near corners —
+  and the sky above the stadium is **darker**. The live **scorebug wears the two kits'
+  palettes** (ours left, theirs right, the score lifted from the primary, the secondary as a
+  stripe) instead of green and red; the colour legend and the COACH TRUST / FAN HYPE bars are
+  **gone** from the live screen. The **post-game card says what the coach made of it**
+  (`COACH TRUST +2 · 50 → 52 · EARNED IT`), the exact swing that then lands. The **stands throw
+  emoji** at the play — flames and raised hands for the home crowd's moments, groans and
+  facepalms when it goes against them, more of them for the bigger plays. The **camera cuts to
+  the new carrier** on a handoff, a catch, a pick or a fielded punt: a short re-frame that
+  pans and zooms faster than the cruising follow and leads him the way the play is going.
+  The **depth slider steps by 1%** (71, 72 … 90). `node scripts/v98check.mjs`.
 - **v97 — the loader goes first, the palette's name, whole numbers, rare prestige, the 250
   wall, the fold, both end zones.** A live game now **loads, then runs**: the first play
   waits at the loader's door until the chase has run its exit. Every uniform palette in the

@@ -33,6 +33,12 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v98 UNDER THE LIGHTS` / `v98 THE SCOREBUG WEARS THE KITS` / `v98 THE STANDS REACT` /
+  `v98 THE HANDOVER CUT` — the masts on a fixed row (`lightFootUp`, two sway), the lamp rigs
+  (`lightRigV98`: glow, beam, pool), the lit turf (`lightFieldV98` in `warpField`), the darker
+  sky, the scorebug in the two palettes (`ribPaintScorebugV98`, `--sbUs*`/`--sbThem*`), the
+  emoji off the stands (`crowdEmojiV98`), the camera's re-frame on a new carrier (`P._camCut`),
+  the coach-trust swing on the post-game card (`__coachSwingV98`, `week.coachDelta98`)
 - `v97 THE LOADER GOES FIRST` / `v97 THE FOLD` / `v97 THE 250 WALL` — the live sim waits at the
   loader's door (`__LIVELOAD_V94.whenClear`), a hub tab longer than the phone folds
   (`fold`/`FOLD` in the v75 sectioner), the upgrade sheet in three groups (`UP_GROUPS_V97`),
@@ -96,6 +102,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | pass coverage / credit, QB scramble & targets, the safety, the huddle (v87) | `v87check.mjs`, `creditcheck.mjs`, `simcheck.mjs` |
 | promotion odds / the declare (v88) | `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs` |
 | the callout badges / the moments the field shouts (v95) | `badgecheck.mjs`, `v86check.mjs` |
+| the lights / the lit turf / the scorebug colours / crowd emoji / the handover cut / the coach row (v98) | `v98check.mjs`, `v92check.mjs`, `crowdcheck.mjs`, `postgamecheck.mjs` |
 | the loading screen / the splash's door (v94) | `splashcheck.mjs`, `shot.mjs`, `walk.mjs` |
 | the end-zone paint / home and away fixtures (v93) | `v93check.mjs`, `v86check.mjs` |
 | the stadium behind the bowl / the big screen / the posts / number formatting (v92) | `v92check.mjs`, `v86check.mjs` |

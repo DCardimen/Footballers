@@ -497,6 +497,68 @@ pop-text. The audio cues are short WebAudio stingers on the game's own `settings
 `scripts/badgecheck.mjs` decodes every file, drives the queue (cut-in, token, repeat,
 promotion, both lanes, clear) and watches a live run.
 
+## v98 — under the lights, the scorebug in the kits, the stands react, the handover cut
+
+- **THE MASTS STAY PUT** (`buildStadiumV92`): the four towers used to stand on the bowl's
+  remeasured bottom edge, which wanders by twenty-odd pixels between plays because the
+  perspective re-anchors at every snap (`ANCHOR_U` in `drawField`). Their feet now sit on a
+  fixed row, `NSTOP - TU("lightFootUp", 40)`, at a fixed scale (`TU("lightKS", 1.07)`) — inside
+  the bowl's band at every anchoring the game produces, so the stand still hides them — and
+  only follow the bowl up (`Math.min`) if it ever rises above that row. `tw._bx/_by` hold the
+  base; `tw._sway` (`[0, 1, 0, 0.7]`) says which masts move. `updateStadiumV92` drifts a
+  swaying mast by `TU("lightSwayPx", 2.4)` and leans it `TU("lightSwayDeg", 0.9)` from the
+  foot on a slow two-sine curve (`TU("lightSwayMs", 3400)`).
+- **THE LAMPS** (`lightTexV98`, `lightRigV98`, in `updateStadiumV92`): three canvas textures
+  drawn once per scene — a radial glow, a cone beam (narrow at the head, wide and faint
+  where it lands, soft at both edges) and an elliptical pool. Each mast gets one of each in
+  `ST.lights[i]`, all ADD-blended and warm-tinted: the glow at the lamp head
+  (`TU("lightHeadFrac", 0.76)` of the cell up, leaning `TU("lightHeadX", 0.08)` toward the
+  field) at `depT + 0.01`; the beam from the head rotated at the patch of field the mast
+  faces (`TU("beamAimX", 0.1)`, `TU("beamAimDown", 300)`), reaching `TU("beamReach", 0.8)`
+  of the way, at `crowdDepth + 0.006` so it crosses in front of the stand and under the
+  players; the pool at `depth 0.62`, between the grass (0.6) and the paint (0.8). Alpha
+  breathes per mast on its own phase (`TU("lightGlowA", .62)`, `TU("lightBeamA", .2)`,
+  `TU("fieldPoolLiveA", .11)`); the feed camera ignores the glows and beams.
+- **THE FIELD IS LIT** (`lightFieldV98`, called at the end of `warpField`): baked on the warped
+  canvas below `NSTOP`, so it rides the perspective for free — a `lighter` wash from the far
+  end (`TU("fieldWashA", .15)` over `TU("fieldWashReach", .48)` of the field), a radial pool
+  under each mast (`TU("fieldPoolA", .12)`, `TU("fieldPoolR", 430)`), then a `source-over`
+  vignette toward the edges and the near corners (`TU("fieldVignA", .34)`). `TU("fieldLightV98",
+  0)` switches it off. The sky gradient above the far end line is `#010204 → #080b10`.
+- **THE SCOREBUG WEARS THE KITS** (`ribOppPalV98`, `ribPaintScorebugV98`, after `ribSyncOpp`):
+  the v44 emblem/palette walk moved into `ribOppPalV98(opp)`; `ribPaintScorebugV98` sets
+  `--sbUs1/2/Sc` and `--sbThem1/2/Sc` on the root (the score colour is the primary mixed
+  toward white until its luminance clears `TU("sbScoreLum", .62)`). Both scoreboard CSS
+  blocks (the base rules and the broadcast restyle with `!important`) read the variables
+  through `color-mix`, with the old green/red as fallbacks. The live markup calls
+  `window.__ribPaintScorebugV98(oppName)` as it renders, so the bug is dressed before the
+  scene boots; `ribSyncOpp` repaints on every fixture. `window.__SCOREBUG_V98` is the record.
+- **GONE FROM THE LIVE SCREEN**: the `.field-legend` row and the `.live-pulse` COACH TRUST /
+  FAN HYPE boxes (the CSS stays, the markup and the render-hook insertion are removed).
+- **THE COACH'S READ ON THE CARD** (`window.__coachSwingV98(perf, won)`, `He()`,
+  `showPostGame`): `He()` records the swing it applies in `week.coachDelta98`; the card
+  previews the same formula (`won ? 3 + max(0, n) : -3 + n`, `n = clamp(round((perf-58)/8),
+  -6, 7)`, clamped to 0–100 against the current trust) in `#pgCoachV98` under the rank strip,
+  or quotes the recorded swing when the week is already counted. `v98check` asserts the
+  quoted swing is the one that lands.
+- **THE STANDS REACT** (`crowdEmojiV98`, from `crowdReact` at `TU("crowdEmojiMin", .3)`): a
+  handful of emoji text objects rise off the sections nearest the play — on camera first, or
+  the nearest sections held `TU("crowdEmojiHoldMs", 500)` and living half again as long when
+  the lock is tight on a runner, so the pull-back at the whistle finds them still rising.
+  Good moments draw from 🔥🙌👏🎉💪😱🏈🤯, bad ones from 😩🤦😤😬🙈💔😡; `TU("crowdEmojiN", 3)` /
+  `TU("crowdEmojiBig", 6)` per moment, away reactions at `TU("crowdEmojiAwayK", .6)`, capped at
+  `TU("crowdEmojiMax", 12)` live, one burst per `TU("crowdEmojiGapMs", 650)`. `updateCrowd`
+  pops, wobbles, lifts and fades them; `clearCrowd` destroys them. `window.__EMOJI_V98`
+  counts. Render-only, like the bubbles.
+- **THE HANDOVER CUT** (the follow camera in `update`): when `P.carrierId` changes to a new
+  actor mid-play (handoff, catch, pick, punt fielded — not the snap itself), `P._camCut` opens
+  for `TU("camCutMs", 520)`; while it eases out (`cut = 1 - q²`) the pan blends toward
+  `TU("camCutPan", .2)`, the zoom lerp toward `TU("camCutZoomLerp", .22)`, the lead cap grows
+  1.3× and the lead gains `TU("camCutLead", 70)` px (scaled by the carrier's perspective)
+  in the play's direction. `resetCamera` clears it between plays; `window.__CAMCUT_V98`
+  counts the cuts.
+- **THE DEPTH SLIDER** steps by 0.01 (1%), still 0–0.9.
+
 ## v97 — the loader first, names, whole numbers, prestige, the wall, the fold, the end zones
 
 - **THE LOADER GOES FIRST** (`GridironPhaser.animate` + `__LIVELOAD_V94.whenClear`): while the
