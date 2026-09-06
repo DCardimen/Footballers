@@ -55,6 +55,15 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v93 — the home end zones.** The field says whose ground it is. Every week is a
+  fixture now: week 1 at home, alternating (playoffs alternate by round), and the
+  schedule reads `vs` or `@`. Both end zones are painted in the **home team's colours
+  with the home team's name** — yours at home, the opponent's (the same palette their
+  jerseys wear) on the road, the near one upside down as on the art — replacing the
+  shipped navy TOUCHDOWN / END ZONE bands. The paint goes on the flat field art next to
+  the midfield crest, so the perspective warp carries it like the turf.
+  `scripts/v93check.mjs` asserts the schedule, the paint at home and away on the flat
+  art and on the broadcast field, and the lettering.
 - **v92 — the lights, the big screen, real posts, whole numbers.** The dark band v57
   painted above the far end line now holds a stadium: **four floodlight towers** from the
   uploaded lights sheet (`art/field/lights.png`, cut by `scripts/build-stadium-art.mjs` into
