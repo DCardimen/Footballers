@@ -55,6 +55,17 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v96 — his own kit, a name of his own, the stat box, the read radius.** The you-player
+  wears **his team's kit** now instead of a gold-and-navy one of his own — the plumbob is
+  what marks him. The position screen lets you **name him**: the rolled name is a starting
+  point in an editable field with a 🎲 to roll another. The live **stat box** carries the
+  not-crucial stats under the three big tiles (CAR / AVG / LONG / FUM, TGT / REC, TFL / QB
+  HIT / FF...), refreshed every play. **Field vision is a radius**: from 75 every point reads
+  a yard further down the line (75 → 1, 76 → 2, 77 → 3...), the back's lane read projects
+  the defenders that much further ahead, and the sheet quotes it. The chase loading screen
+  is **smaller**, defenders **come in from the angles** on every sprint and recovery (dive,
+  miss, get up, jog out), and at the goal line he **runs straight through the shot** instead
+  of celebrating; the live game's loader opens its door at the first quiet beat.
 - **v95 — the callout wall.** The big moments are drawn badges now, not a line of
   Oswald over the turf: TOUCHDOWN, TURNOVER, FIELD GOAL, GAME CHANGER, FIRST DOWN, 4TH
   DOWN, GOAL LINE, MISSED, INTERCEPTED, FUMBLE, FLAG, BIG PLAY, BREAKAWAY, SACK and BIG
