@@ -87,7 +87,8 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   ("LOOKS BACK...", "SPIN MOVE!", "HE'S GONE"), and the ball **tucked behind the far arm** —
   a sliver of leather, not a spinning prop. The run cycle is locked to the ground covered
   rather than a timer, so a faster man's legs turn faster, no foot slides, and the body
-  lifts and leans with the stride. The same engine is the **live game's loader**:
+  lifts and leans with the stride; an exclamation pip pops over his head whenever the
+  defender is on his heels. The same engine is the **live game's loader**:
   when a live game opens, the chase runs over the field with the matchup ("STORM vs
   RANGERS · TAKING THE FIELD") until the broadcast scene is up, then plays its touchdown
   and fades. Reduced motion draws one posed frame; a sheet that never lands keeps the old
