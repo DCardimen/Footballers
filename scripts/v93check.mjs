@@ -40,12 +40,13 @@ const near = (s, hex, k = 0.82, tol = 34) => { const P = hx(hex).map(v => v * k)
 // ---- 2. at home: the user's colours and name
 const home = await page.evaluate(() => { const V = window.__V93; const sc = window.__gridironScene; const nm = sc.teamNames()
   const usIdx = (window.__GRIDIRON_TEAM_CUSTOM__ && window.__GRIDIRON_TEAM_CUSTOM__.palette) || 0; const pal = window.TEAM_PALETTES[usIdx]
-  return { flag: window.__homeGameV93, V: V && { home: V.home, key: V.key, name: V.name, cols: V.cols, painted: V.painted }, far: V.sample('far'), nearBand: V.sample('near'), pal, us: nm.us, them: nm.them } })
+  return { flag: window.__homeGameV93, V: V && { home: V.home, key: V.key, name: V.name, cols: V.cols, ends: V.ends, painted: V.painted }, far: V.sample('far'), nearBand: V.sample('near'), pal, us: nm.us, them: nm.them } })
 console.log('home:', JSON.stringify(home))
 ok(home.flag === true && home.V && home.V.home === true && home.V.painted, 'week 1 is played at home and the field was repainted', home.V && home.V.key)
 ok(home.V && home.V.name === home.us && home.V.cols[0] === home.pal[0], 'the paint is the user\'s palette with the user\'s name', `${home.V && home.V.name} ${home.V && home.V.cols.join('/')}`)
+ok(home.V && home.V.ends && home.V.ends.far.label === 'TOUCHDOWN' && home.V.ends.far.cols[0] === home.pal[0] && home.V.ends.near.label === home.them, 'v97: TOUCHDOWN in the user\'s colours at the far end, the opponent\'s name at the near', home.V && home.V.ends && `${home.V.ends.far.label}/${home.V.ends.near.label}`)
 ok(home.far && near(home.far, home.pal[0]), 'the far end zone on the flat art averages the home primary', JSON.stringify(home.far) + ' vs ' + home.pal[0])
-ok(home.far && home.far.sec > 200 && home.nearBand && home.nearBand.sec > 200, 'both end zones carry lettering in the secondary colour', `sec far=${home.far && home.far.sec} near=${home.nearBand && home.nearBand.sec}`)
+ok(home.far && home.far.sec > 200, 'the far end zone carries lettering in the secondary colour', `sec far=${home.far && home.far.sec} near=${home.nearBand && home.nearBand.sec}`)
 
 // the warped field on screen: park on the far end and sample the end zone block
 const shot = async (name) => { const src = await page.evaluate(() => new Promise(res => { try { window.__gridironScene.game.renderer.snapshot(img => res(img.src || null)) } catch (e) { res(null) } })); return src }
@@ -73,8 +74,8 @@ const away = await page.evaluate(async () => { const V = window.__V93; const cha
 console.log('away:', JSON.stringify(away))
 ok(away.changed && away.home === false && away.name === away.them, 'an away fixture repaints for the opponent, with the opponent\'s name', `${away.name} home=${away.home}`)
 ok(away.jersey && away.cols[0] === away.jersey[0] && away.cols[1] === away.jersey[1], 'the away paint is the palette the opponent\'s jerseys wear', `${away.cols && away.cols.join('/')} vs ${away.jersey && away.jersey.join('/')}`)
-ok(away.far && near(away.far, away.cols[0]) && dTo(away.far, away.cols[0], 0.82) < dTo(away.far, home.pal[0], 0.82), 'the far end zone now averages the opponent primary, closer to it than to the home primary', JSON.stringify(away.far) + ' vs ' + away.cols[0])
-ok(away.far && away.far.sec > 150 && away.nearBand && away.nearBand.sec > 150, 'the opponent\'s name is lettered in both end zones', `sec far=${away.far.sec} near=${away.nearBand.sec}`)
+ok(away.nearBand && near(away.nearBand, away.cols[0], 0.82, 60), 'v97: the near end zone averages the opponent primary on the road', JSON.stringify(away.nearBand) + ' vs ' + away.cols[0])
+ok(away.far && away.far.sec > 150 && away.nearBand && away.nearBand.sec > 100, 'TOUCHDOWN at the far end and the opponent\'s name at the near are both lettered', `sec far=${away.far.sec} near=${away.nearBand.sec}`)
 if (SHOTS) { const s = await shot(); if (s) fs.writeFileSync('scripts/_v93_away.png', Buffer.from(s.split(',')[1], 'base64')) }
 await page.evaluate(() => { window.__V93.set(true); window.__gridironScene.scene.resume() })
 await page.waitForTimeout(3000)

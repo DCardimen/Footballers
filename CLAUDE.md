@@ -33,6 +33,11 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v97 THE LOADER GOES FIRST` / `v97 THE FOLD` / `v97 THE 250 WALL` — the live sim waits at the
+  loader's door (`__LIVELOAD_V94.whenClear`), a hub tab longer than the phone folds
+  (`fold`/`FOLD` in the v75 sectioner), the upgrade sheet in three groups (`UP_GROUPS_V97`),
+  `palNameV97`, prestige at `TU("prestigeGainMult")` / `TU("prestigeEffectMult")`, the wall at
+  `TU("drWallAt")`, both end zones in `RIB._ezV93.ends`
 - `v96 HIS OWN KIT` / `v96 A NAME OF HIS OWN` / `v96 THE READ RADIUS` — the you-player in
   his team's palette (`ribSyncYouKitV96`, `m.kitSide`), the editable name on the position
   screen (`setPlayerNameV96`), the live box's minor line (`flMinorV96`), and field vision as

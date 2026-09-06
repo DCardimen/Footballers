@@ -55,6 +55,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v97 — the loader goes first, the palette's name, whole numbers, rare prestige, the 250
+  wall, the fold, both end zones.** A live game now **loads, then runs**: the first play
+  waits at the loader's door until the chase has run its exit. Every uniform palette in the
+  team creator carries its **name** by the convention *Primary & Secondary* (Navy & Gold,
+  Crimson & Silver). The skill menus show **whole numbers only**: the four combine clocks
+  became speeds (Top speed, Shuttle speed, 3-cone speed, 10-yd burst, all in mph). **Prestige
+  is rare and quiet**: a career-end pays a fifth of a star, and every bonus that scales on
+  prestige (starting attributes, the potential ceiling, the ratings floor, the soft-cap share)
+  reads a fifth of what it did. Every attribute meets **the 250 wall**: 250 was the absolute limit; it is a soft one now —
+  the limit lifts to 999 and from 250 a point costs five times the band price. The **continue card's tint** now fills the whole helmet shell and
+  both legs. A hub tab longer than the phone **folds** into an accordion (one tap opens a
+  panel and folds the rest) and the upgrade sheet is **three folding groups** (Physical, Ball
+  skills, Mental) instead of a seventeen-row wall. On the live field the far end zone says
+  **TOUCHDOWN** in the user's colours and the near one wears **the opponent's name in the
+  opponent's colours**, lettered to face their bench.
 - **v96 — his own kit, a name of his own, the stat box, the read radius.** The you-player
   wears **his team's kit** now instead of a gold-and-navy one of his own — the plumbob is
   what marks him. The position screen lets you **name him**: the rolled name is a starting
