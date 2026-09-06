@@ -391,7 +391,15 @@ body lifts twice a cycle on the stride phase, leans in with speed, and lands on 
 device pixels so the sprite never shimmers between frames. When the defender is upright
 inside `T.closeAt` turf px behind him (`S.close`), an exclamation pip pops in over his head
 (`alertMark`, ease-out-back, jittering and hopping while the man is on him) and fades when
-he pulls clear (`S.alert`). Around them: stands with a crowd on two
+he pulls clear (`S.alert`). The sprites draw at `scale` 1.9. **The cast** (`castIn` /
+`stepCast`, `S.cast`, up to `castMax`): on every sprint and recovery another defender comes
+in on an angle — from the stands side or the near touchline, alternating — on a pursuit line
+to the runner (`run_ur` / `run_dr` while he closes, `run_sd` once level), dives when he gets
+there, misses, gets up and jogs out of the shot. **The exit is a run-through**: at the
+crossing (`S.crossed`) the chalk flashes, confetti bursts and the caption says TOUCHDOWN, but
+the runner keeps running at 1.45× while the camera holds at the goal line, so he runs out of
+the shot instead of celebrating. `opts.fullCycle === false` lets a door open after `minMs`
+at the first quiet beat without a whole cycle — the live game's loader uses it. Around them: stands with a crowd on two
 parallax layers (rolled once, `crowd()`), yard numbers every ten, a camera that keeps the
 runner at 38% of the strip, bobs with the stride (`camY`) and shakes on the dive
 (`shake`), speed lines and a stretched shadow at full tilt, afterimages (`ghosts`) through
@@ -488,6 +496,29 @@ IT'S GOOD! / NO GOOD) is gone; the small stuff (JUKE!, SWIM MOVE!, TOE TAP!) kee
 pop-text. The audio cues are short WebAudio stingers on the game's own `settings.sound`.
 `scripts/badgecheck.mjs` decodes every file, drives the queue (cut-in, token, repeat,
 promotion, both lanes, clear) and watches a live run.
+
+## v96 — his own kit, a name of his own, the stat box, the read radius
+
+- **HIS OWN KIT** (`ribSyncYouKitV96`, next to `ribSyncOpp`): the you-player used to wear a
+  gold-and-navy "you" kit no matter whose team he was on. `highlight(d, isMe)` now records
+  `d.kitSide` ("off" is the user's palette, "def" the opponent's — the renderer keys kits by
+  side) and re-registers the "you" textures as a copy of that side's palette (cached on
+  `RIB.youKitV96`, so it recolours only when the side or the palette changes). The label is
+  white like everyone else's; `teamColor` and the fallback tint follow `kitSide`. The plumbob
+  is what says which one he is.
+- **A NAME OF HIS OWN** (`window.setPlayerNameV96` / `rerollNameV96`, next to `Lr`): the
+  position screen's name is an input prefilled with the rolled name (24 chars, whitespace
+  folded, empty ignored) with a 🎲 to roll another; every keystroke saves.
+- **THE STAT BOX SHOWS THE REST** (`flMinorV96`, next to `fl`): under the three big tiles the
+  live box carries a minor line of every stat the full box (`cl`) knows that the tiles
+  don't (CAR / AVG / LONG / FUM for a back, TGT / REC / LONG for a receiver, TFL / QB HIT / FF
+  for the front...), refreshed on every play beside the tiles.
+- **THE READ RADIUS** (`visionRadiusV96`, the banner before FieldSim): field vision as a
+  radius, a yard a point from 75 — 74 and under reads as before, 75 reads one yard further,
+  76 two, 77 three, capped by `TU("visionRadiusMax")`. It stretches the lookahead the back
+  projects every defender along in the lane read (`ahead` in v82 THE BACK HAS EYES, at
+  `TU("lookaheadPerYdV96")` per yard). The upgrade sheet's Vision line quotes it ("Read
+  radius: 3 yd") in place of the old made-up yards-after-contact figure.
 
 ## Screens and their shapes (v73–v75)
 

@@ -33,6 +33,10 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v96 HIS OWN KIT` / `v96 A NAME OF HIS OWN` / `v96 THE READ RADIUS` — the you-player in
+  his team's palette (`ribSyncYouKitV96`, `m.kitSide`), the editable name on the position
+  screen (`setPlayerNameV96`), the live box's minor line (`flMinorV96`), and field vision as
+  a yard-a-point radius from 75 (`visionRadiusV96`, `TU("visionRadiusFrom")`)
 - `v95 THE CALLOUT WALL` — the drawn badges over the live field as a tiered presentation
   system: `BADGE_BOOK_V95` (one data row per badge), `BADGE_PROMO_V95` (the morphs),
   `BADGE_V95.show()`, `badgesPresnapV95` / `badgesWhistleV95`; art in `art/badges/`, cut by

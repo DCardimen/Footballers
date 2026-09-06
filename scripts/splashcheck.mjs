@@ -69,15 +69,19 @@ const canvasStats = () => {
   // the door: the app was ready ~1s in; the splash must still be up until the minimum, then leave
   let gone = false, goneAt = 0
   let tdShot = false
-  for (let i = 0; i < 120; i++) { const r = await page.evaluate(() => { const S = window.__SPLASH_V94.state; if (S && S.confetti && S.confetti.length) window.__confettiSeenV94 = (window.__confettiSeenV94 || 0) + 1; return { gone: !document.getElementById('splash'), crossed: !!(S && S.crossed) } }); gone = r.gone
+  for (let i = 0; i < 120; i++) { const r = await page.evaluate(() => { const S = window.__SPLASH_V94.state; if (S && S.confetti && S.confetti.length) window.__confettiSeenV94 = (window.__confettiSeenV94 || 0) + 1
+      if (S && S.crossed) { const past = S.run.x - S.exitX; window.__pastGoalV94 = Math.round(Math.max(window.__pastGoalV94 || 0, past)); if (past > 60 && S.run.st === 'run') window.__ranThroughV94 = true }
+      return { gone: !document.getElementById('splash'), crossed: !!(S && S.crossed) } }); gone = r.gone
     if (r.crossed && !tdShot) { tdShot = true; await page.screenshot({ path: '_splash_td.png' }) }
     if (gone) { goneAt = Date.now() - t0; break }; await page.waitForTimeout(100) }
-  const final = await page.evaluate(() => ({ beats: window.__SPLASH_V94.beats.slice(), done: window.__SPLASH_V94.done, crossed: !!(window.__SPLASH_V94.state && window.__SPLASH_V94.state.crossed), confetti: window.__confettiSeenV94, menu: !!document.querySelector('#screen') && document.querySelector('#screen').innerHTML.length > 200 }))
+  const final = await page.evaluate(() => ({ beats: window.__SPLASH_V94.beats.slice(), done: window.__SPLASH_V94.done, crossed: !!(window.__SPLASH_V94.state && window.__SPLASH_V94.state.crossed), confetti: window.__confettiSeenV94, castSeen: window.__SPLASH_V94.state ? window.__SPLASH_V94.state.castSeen : 0, ranThrough: window.__ranThroughV94, pastGoal: window.__pastGoalV94, menu: !!document.querySelector('#screen') && document.querySelector('#screen').innerHTML.length > 200 }))
   ok(gone, 'the splash leaves', goneAt + 'ms after boot')
   ok(final.beats.includes('exit'), 'the exit beat played', final.beats.slice(-4).join(' '))
   const ex = final.beats.indexOf('exit'), before = final.beats.slice(0, ex)
   ok(before.includes('recover') && (before.includes('juke') || before.includes('spin')), 'one full cycle (a move and the recovery) played before the exit', before.join(' '))
   ok(final.crossed && final.confetti !== undefined, 'the runner crossed and the touchdown played out', 'confetti seen: ' + final.confetti)
+  ok(final.castSeen >= 1, 'defenders came in from the angles', final.castSeen + ' entered')
+  ok(final.ranThrough, 'he ran through the shot after crossing, no celebration', 'x past the goal line: ' + final.pastGoal)
   ok(goneAt >= 2600, 'the splash held its minimum', goneAt + 'ms')
   ok(goneAt < 14000, 'the splash did not overstay', goneAt + 'ms')
   ok(final.menu, 'the app is rendered behind it')
