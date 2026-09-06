@@ -55,6 +55,26 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v92 — the lights, the big screen, real posts, whole numbers.** The dark band v57
+  painted above the far end line now holds a stadium: **four floodlight towers** from the
+  uploaded lights sheet (`art/field/lights.png`, cut by `scripts/build-stadium-art.mjs` into
+  `public/rib_lights_v92.png`) stand behind the far bowl with their masts hidden by the
+  crowd and their lamp heads in the sky, turned in toward the field and breathing through
+  the sheet's six frames; and a **big screen** hangs centred above the far stand carrying a
+  second Phaser camera, the broadcast feed following the ball, which **freezes on the whistle
+  into a replay still** (a snapshot of the feed's own pixels, with a slow push-in) and goes
+  live again at the snap. Both are placed from the bowl sections the crowd builder just
+  built, so they ride the same perspective, and the feed camera switches itself off whenever
+  the screen is out of the main camera's frame. The **goalposts** stand at real proportions
+  (crossbar on a post, uprights five times taller than before; the field-goal highlight lights
+  the same posts). And **every number the player reads is whole**: the stat formatter, the
+  box-score averages, the training board's "+0.8 to +1", injury risk, percentiles, the body
+  sheet, the roster averages, money, ranks and the prestige multipliers (now "+55%", not
+  "×1.55") all round, and the prestige-shop copy says "half a percent" instead of "+0.5%".
+  The four sprint times on the attribute sheet keep their hundredths, because a whole-second
+  forty is not a number. `scripts/v92check.mjs` asserts the stadium's geometry, the feed
+  camera, the replay still, the posts, and walks every career screen failing on any decimal.
+  `?noV92` runs the sky as it was.
 - **v91 — the field sheets.** Eight hand-drawn sheets in the game's own chibi style
   (`art/field/`) are cut by `scripts/build-field-art.mjs` into one 48px-cell atlas,
   `public/rib_field_v91.png`, whose cells are named in the renderer's vocabulary so the
