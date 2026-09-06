@@ -76,13 +76,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 - **v94 — the chase.** The loading screen is a play. A ball carrier in the you-kit sprints
   across a strip of turf with a defender on his heels, drawn on a plain canvas from the v91
   field sheet while the Phaser bundle is still parsing: he looks back over his shoulder, the
-  defender bursts, he plants and cuts a lane over, the defender dives, eats turf and gets up
-  through the drawn get-up while he pulls away, the defender catches back up, and it goes
-  again — the beat order and the juke's direction roll each load. When the app is ready
-  and the minimum show has run, the exit plays: the end zone paints in ahead, the last dive
-  misses, he crosses and celebrates as the splash fades. Reduced motion draws one posed
-  frame; a sheet that never lands keeps the old football and the old timing.
-  `scripts/splashcheck.mjs` boots three ways.
+  defender bursts, he plants and cuts a lane over (the defender dives, eats turf and gets up
+  through the drawn get-up) or **spins** through four facings (the defender grabs air and
+  staggers), the defender catches back up, and it goes again — the beats roll each load, and
+  the door never opens before one **full cycle** has played. The **exit is the touchdown**:
+  the end zone paints in, the last dive misses, he crosses, the chalk flashes, confetti, the
+  celebration, the fade. Around them: stands with a parallax crowd, yard numbers, a camera
+  that bobs with the stride and shakes on the dive, speed lines at full tilt, afterimages
+  through the cut and the spin, grass tufts off the plant, chalk captions calling the beat
+  ("LOOKS BACK...", "SPIN MOVE!", "HE'S GONE"), and the ball **tucked behind the far arm** —
+  a sliver of leather, not a spinning prop. The same engine is the **live game's loader**:
+  when a live game opens, the chase runs over the field with the matchup ("STORM vs
+  RANGERS · TAKING THE FIELD") until the broadcast scene is up, then plays its touchdown
+  and fades. Reduced motion draws one posed frame; a sheet that never lands keeps the old
+  football and the old timing. `scripts/splashcheck.mjs` boots three ways and drives into a
+  live game.
 - **v93 — the home end zones.** The field says whose ground it is. Every week is a
   fixture now: week 1 at home, alternating (playoffs alternate by round), and the
   schedule reads `vs` or `@`. Both end zones are painted in the **home team's colours

@@ -19,7 +19,7 @@ column is the stable way in.
 | ~Lines | Anchor (grep for this) | What lives here |
 |---|---|---|
 | 147–197 | `// error surfacing` | Boot shims: splash error surfacing, localStorage shim for sandboxed iframes. |
-| — | `v94 THE CHASE` | The loading screen, its own `<script>` right after the boot shims so it animates while the Phaser bundle is still parsing. A 2D canvas chase drawn from the v91 field sheet (fetched as `public/rib_field_v91.png` + `rib_field_v91.json`, recoloured with `ribRecolor`'s bands). `window.__splashDoneV94()` is the door the career app's `go()` knocks on; `window.__SPLASH_V94` is the dev hook. See **The chase (v94)** below. |
+| — | `v94 THE CHASE` | The loading screen, its own `<script>` right after the boot shims so it animates while the Phaser bundle is still parsing. A 2D canvas chase drawn from the v91 field sheet (fetched as `public/rib_field_v91.png` + `rib_field_v91.json`, recoloured with `ribRecolor`'s bands). `window.__CHASE_V94.make()` runs it on any canvas; `window.__splashDoneV94()` is the door the career app's `go()` knocks on, `window.__SPLASH_V94` / `window.__LIVELOAD_V94` the dev hooks. See **The chase (v94)** below. |
 | 199 | `RIB_TUNE: every gameplay dial` | `TU(key, default)` — every gameplay dial reads through this; retune live via `window.RIB_TUNE[key] = …`. |
 | 202–1356 | `GRIDIRON play choreography engine` | `buildPlayScript(payload, cfg)` — the **legacy choreographer**: pure keyframe builder (no Phaser/DOM) used as the render fallback when no FieldSim log matches (~10–13% of plays). Has its own tackle-motion/gang-pulldown code — cosmetic only, never stats. |
 | 1357–2127 | `GRIDIRON FieldSim — agent-based play resolution` | **FieldSim** — the engine that resolves plays AND records the render log. See breakdown below. **v55 ROUTE TREE** (`ROUTE_TREE` / `mkRoute` / `R_DEEP`,`R_MED`,`R_SHORT`): 45 shapes × 3 releases × 3 depth tiers = 405 combinations; each shape declares a `tail` (go / across / out / settle) so a finished route keeps working instead of parking. Every pool name must exist in `ROUTE_TREE` — `cross` once did not and fell through to a straight line. Debug capture via `window.__ROUTE_DEBUG`; guarded by `scripts/routecheck.mjs`. **v56 REACTION** (`routeReactDelayV56`, the `rxq`/`iq` split, `RX_POS_V56`, and the perception-action hold in `mv`): `reactMs` is consumed at last — a defender whose intent swings past `TU("reactGate")` keeps steering on the old heading for `reactMs` scaled by the swing, with a refractory window. **Defence only** — offensive players are executing a called plan, not reacting. Only the steering vector is held; holding the remembered intent too makes every tick re-trigger and the defence stops covering entirely. Guarded by `scripts/reactioncheck.mjs`, which asserts the scoreboard alongside the timings. |
@@ -373,28 +373,54 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
-## The chase (v94) — the loading screen
+## The chase (v94) — the loading screen, and the live game's loader
 
-`#splash` holds a `.splash-stage` with `<canvas id="splashChase">` and the old football
-behind it. The v94 block (`window.__SPLASH_V94`) fetches the v91 cell map and atlas on its
-own clock; when both land it adds `chase` to the splash (CSS swaps the canvas in for the
-football) and runs a beat loop at the display's frame rate: `sprint` (the defender
-closes, capped at 18px behind), `look` (the runner draws `run_dr` flipped — down-left
-reads as over the shoulder — and the defender bursts), `juke` (`plant_sd` → `cut_sd`, a
-lane change of `laneGap`; the defender `dive_sd` → `fall_sd` → the eight `getup_dr`
-frames), `recover` (he catches back up), then `sprint` again. The camera keeps the runner
-at 38% of the strip; the turf is bands every five yards with chalk every ten.
+One engine, two doors. `window.__CHASE_V94` (its own `<script>` right after the boot shims,
+so it runs while the Phaser bundle is still parsing) loads the v91 cell map and atlas once
+(`load()`, a cached promise) and `make(canvas, opts)` runs a chase on any canvas: a beat
+loop at the display's frame rate — `sprint` (the defender closes, capped at 18px behind),
+`look` (the runner draws `run_dr` flipped, down-left reads as over the shoulder; the
+defender bursts), then `juke` (`plant_sd` → `cut_sd`, a lane change of `laneGap`; the
+defender `dive_sd` → `fall_sd` → the eight `getup_dr` frames) or `spin` (the runner's body
+turns through `run_sd` flipped → `run_dn` → `run_sd` → `run_up` → `run_sd` flipped over
+320ms while the defender `plant_sd` grabs air and staggers through `hurt_dr0/1`),
+`recover` (he catches back up) and `sprint` again, `loops` counting each full cycle. The
+beats roll (80% a look first; juke or spin 60/40). Around them: stands with a crowd on two
+parallax layers (rolled once, `crowd()`), yard numbers every ten, a camera that keeps the
+runner at 38% of the strip, bobs with the stride (`camY`) and shakes on the dive
+(`shake`), speed lines and a stretched shadow at full tilt, afterimages (`ghosts`) through
+the cut and the spin, grass tufts off the plant and the fall, and a chalk caption calling
+the beat (`CAPS`). The ball is `ball_spin0` drawn small BEFORE the body, tucked behind the
+far arm, so only a sliver shows past the elbow — not a spinning prop.
 
-**The door.** The career app's `go()` used to add `gone` at 1100ms. It now calls
-`window.__splashDoneV94()` when it exists: the loop waits for `minMs` (2600) and the end of
-a juke, then `setBeat("exit")` — the end zone paints in ahead (navy, "THE LEAGUE" in
-gold), the defender's last dive misses, the runner crosses to `celebrate_dr` — and after
-`exitMs` the old `gone` fade runs and the node is removed. A sheet that never lands
-(`dead`), reduced motion (one posed frame, no loop) and a `go()` before `ready` all fall
-back to the old 1100ms timing. `#splash` sits at z-index 10050 because the v89 menu's
-overlay layer is 9999 and the splash now outlives the first paint of the menu. Both
-kits are the ones the field uses: the you-kit gold/navy and the DEFENSE red/grey.
-`scripts/splashcheck.mjs` boots three ways (normal, reduced motion, sheet aborted).
+**The exit** (`setBeat("exit")`) is the touchdown: the end zone paints in `crossAt` ms
+ahead (navy, "THE LEAGUE" in gold), the defender's last dive misses, the runner crosses
+(`S.crossed`), the chalk flashes white, confetti bursts, the caption says TOUCHDOWN and
+the `celebrate_dr` frames cycle until `exitMs`, then `opts.onDone`. `ctrl.arm()` is the
+door: the exit waits for the arm, `minMs`, **one full cycle** (`loops >= 1`) and a beat that
+is not a move (sprint or recover), so the door never opens mid-juke and never before the
+whole choreography has played once.
+
+**Door one, the splash** (`window.__SPLASH_V94`). `#splash` holds a `.splash-stage` with
+`<canvas id="splashChase">` and the old football behind it; when the sheet lands the
+splash gains `chase` (CSS swaps the canvas in) and a chase starts with `minMs` 2600. The
+career app's `go()` used to add `gone` at 1100ms; it now calls `window.__splashDoneV94()`,
+which arms the chase (or, before the sheet lands, arms it the moment it does, with the old
+1100ms fallback if it never does). `onDone` runs the old `gone` fade and removes the node.
+Reduced motion draws one posed frame and leaves on arm. `#splash` sits at z-index 10050
+because the v89 menu's overlay layer is 9999 and the splash now outlives the first paint
+of the menu.
+
+**Door two, the live game** (`window.__LIVELOAD_V94`). A MutationObserver on `#screen`
+waits for a `.field-wrap` to arrive (the live view rendering) and mounts
+`.rib-liveload-v94` over it — the same gradient as the splash, a chase canvas, the
+matchup read off the scorebug ("STORM vs RANGERS"), "TAKING THE FIELD" and a bar — with
+`minMs` 1700. It polls for `window.__gridironScene` with markers (the Phaser bridge
+mounts on the first draw, registers the sheets, seats the crowd), flips the caption to
+KICKOFF and arms the chase; the exit beat plays and the overlay fades. A wrap is tagged
+so it shows once per live view; the field being torn down, or 9 seconds with no scene,
+ends it. Reduced motion skips it. `scripts/splashcheck.mjs` boots three ways and then
+drives into a live game for the loader.
 
 ## The callout wall (v95) — the badges over the field
 

@@ -37,8 +37,10 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   system: `BADGE_BOOK_V95` (one data row per badge), `BADGE_PROMO_V95` (the morphs),
   `BADGE_V95.show()`, `badgesPresnapV95` / `badgesWhistleV95`; art in `art/badges/`, cut by
   `scripts/build-badge-art.mjs` into `public/badges/`
-- `v94 THE CHASE` — the loading screen: a canvas chase from the v91 sheet in its own
-  `<script>` right after the boot shims; `window.__splashDoneV94()` is the door `go()` uses
+- `v94 THE CHASE` — the loading screen and the live game's loader: one canvas chase engine
+  (`window.__CHASE_V94.make()`) from the v91 sheet in its own `<script>` right after the
+  boot shims; `window.__splashDoneV94()` is the door `go()` uses, `window.__LIVELOAD_V94`
+  mounts the same chase over `.field-wrap` while the broadcast boots
 - `v93 THE HOME END ZONES` — the end zones painted in the home team's colours and name on
   the flat art; `ribSyncEndZonesV93`, `window.__homeGameV93`, `homeWeekV93`
 - `v92 THE LIGHTS AND THE BIG SCREEN` — floodlight towers and the replay screen above the
