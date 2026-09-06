@@ -55,6 +55,34 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v95 — the callout wall.** The big moments are drawn badges now, not a line of
+  Oswald over the turf: TOUCHDOWN, TURNOVER, FIELD GOAL, GAME CHANGER, FIRST DOWN, 4TH
+  DOWN, GOAL LINE, MISSED, INTERCEPTED, FUMBLE, FLAG, BIG PLAY, BREAKAWAY, SACK and BIG
+  HIT (`art/badges/`, cut by `scripts/build-badge-art.py` into `public/badges/`). It is a
+  presentation system, data-driven from `BADGE_BOOK_V95`: **tier 1** takes the screen
+  over (an impact freeze, a camera punch, the field dims, rays turn behind the badge as it
+  slams in, confetti or sparks leave its edges, the crowd flash, slow motion underneath, a
+  fast zoom out); **tier 2** is a directional stinger with its own motion — a streak, a
+  wobble with the ball spinning loose, a flag that whips on first, a slam from below, speed
+  lines, a crush from above, a one-frame flash with a shockwave — entering from the side
+  the play happened on and sitting clear of the carrier; **tier 3** is a scorebug panel with
+  its context ("18-yard reception", "2 yards to go", "Ball on the 2", "47-yard attempt").
+  A badge with a field position first flashes small over the player and flies to its
+  mark. Related badges **promote** instead of stacking: INTERCEPTED flips into TURNOVER,
+  then into TOUCHDOWN captioned PICK SIX; BIG PLAY +38 into TOUCHDOWN. One queue: a bigger
+  moment cuts in, a smaller one waits or is dropped, a moment fires once. Short synthesised
+  stingers on the sound setting. `scripts/badgecheck.mjs` covers the files, the queue and a
+  live run.
+- **v94 — the chase.** The loading screen is a play. A ball carrier in the you-kit sprints
+  across a strip of turf with a defender on his heels, drawn on a plain canvas from the v91
+  field sheet while the Phaser bundle is still parsing: he looks back over his shoulder, the
+  defender bursts, he plants and cuts a lane over, the defender dives, eats turf and gets up
+  through the drawn get-up while he pulls away, the defender catches back up, and it goes
+  again — the beat order and the juke's direction roll each load. When the app is ready
+  and the minimum show has run, the exit plays: the end zone paints in ahead, the last dive
+  misses, he crosses and celebrates as the splash fades. Reduced motion draws one posed
+  frame; a sheet that never lands keeps the old football and the old timing.
+  `scripts/splashcheck.mjs` boots three ways.
 - **v93 — the home end zones.** The field says whose ground it is. Every week is a
   fixture now: week 1 at home, alternating (playoffs alternate by round), and the
   schedule reads `vs` or `@`. Both end zones are painted in the **home team's colours
