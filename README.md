@@ -55,6 +55,22 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v99 — the shadows fall, from one light post.** Everything on the grass now casts a real
+  shadow, and all of it from **one key light** — deliberately a mast that does not sway, read
+  from its fixed base, so a shadow never wobbles or hunts between sources. Direction is the
+  vector from that light to the object's feet, so shadows **swing around a man as he crosses
+  the field** and rake the same way for everything on it. Length is the object's **own
+  height** times a slope that opens with distance from the light: the **goalposts** lay a
+  whole H across the end zone at the near end and barely mark the grass at the far one,
+  a coach on the sideline throws a streak, a pylon almost nothing. A man **in the air** — a
+  launched tackler, an official's flag hop — leaves his shadow **on the ground**, shrinking
+  and softening under him, and a **ball in flight** runs out from under its own shadow, which
+  is the one cue that says how high a throw really got. A man **on the ground** has no height
+  left to cast. The **lamps hold** now: one frame per mast and one steady output instead of
+  cycling, so the stadium light (and everything it casts) stays still. `shadowsV99=0` switches
+  the whole cast off. Also: the coach-trust swing the post-game card quotes is now **binding** —
+  the week is finalised against the number the player was shown, not a rating re-derived after
+  Continue. `node scripts/v99check.mjs`.
 - **v98 — under the lights, and the stands react.** The floodlight masts **stay put**: they
   stand on a fixed row above the far end line instead of the bowl's remeasured foot (the
   perspective re-anchors at every snap, and the masts used to hop with it), and **two of the

@@ -70,7 +70,7 @@ ok(L0.every(l => l.glow.y < S0.t[0].y - 100 && l.glow.a > 0.3), 'the glows sit u
 ok(L0.every(l => l.beam.len > 200 && l.beam.a > 0.1 && l.beam.depth > 3.45), 'the beams reach down from the heads over the bowl toward the field', JSON.stringify(L0.map(l => [l.beam.len, l.beam.rot, l.beam.a])))
 ok(L0.every(l => l.pool.y > 340 && l.pool.depth > 0.6 && l.pool.depth < 0.8 && l.pool.a > 0.05), 'the pools lie on the turf between the grass and the paint', JSON.stringify(L0.map(l => [l.pool.x, l.pool.y, l.pool.depth])))
 const glowA = samples.map(s => s.L[1] && s.L[1].glow.a)
-ok(new Set(glowA).size > 3 && Math.max(...glowA) - Math.min(...glowA) > 0.05 && Math.max(...glowA) - Math.min(...glowA) < 0.3, 'the light breathes: the glow alpha moves, but never flashes', `range=${Math.min(...glowA)}..${Math.max(...glowA)}`)
+ok(new Set(glowA).size === 1 && glowA[0] > 0.3, 'v99: the light holds steady — one output, no breathing', `range=${Math.min(...glowA)}..${Math.max(...glowA)}`)
 ok(samples[samples.length - 1].emoji && samples[samples.length - 1].emoji.spawned > 0, "the stands threw emoji at the play", JSON.stringify(samples[samples.length - 1].emoji))
 ok(samples[samples.length - 1].cuts > 0, 'the camera cut to a new carrier at least once', `cuts=${samples[samples.length - 1].cuts}`)
 

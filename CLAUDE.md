@@ -33,6 +33,11 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v99 THE SHADOWS FALL` — one key light post (`keyLightV99`, a mast that does not sway, read
+  at its fixed base) and everything on the grass casts from it: `shadowVecV99` / `castShadowV99`
+  (players, officials, the ball, the sideline), the goalposts' whole H on `postShadG`, a lifted
+  man's shadow left on the ground, and the lamps holding one frame instead of cycling
+  (`lightCycleV99`); `window.__V99` is what the checks read
 - `v98 UNDER THE LIGHTS` / `v98 THE SCOREBUG WEARS THE KITS` / `v98 THE STANDS REACT` /
   `v98 THE HANDOVER CUT` — the masts on a fixed row (`lightFootUp`, two sway), the lamp rigs
   (`lightRigV98`: glow, beam, pool), the lit turf (`lightFieldV98` in `warpField`), the darker
@@ -102,6 +107,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | pass coverage / credit, QB scramble & targets, the safety, the huddle (v87) | `v87check.mjs`, `creditcheck.mjs`, `simcheck.mjs` |
 | promotion odds / the declare (v88) | `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs` |
 | the callout badges / the moments the field shouts (v95) | `badgecheck.mjs`, `v86check.mjs` |
+| shadows / the key light / the goalpost frame / the lamps holding (v99) | `v99check.mjs`, `v92check.mjs`, `v86check.mjs`, `sidelinecheck.mjs` |
 | the lights / the lit turf / the scorebug colours / crowd emoji / the handover cut / the coach row (v98) | `v98check.mjs`, `v92check.mjs`, `crowdcheck.mjs`, `postgamecheck.mjs` |
 | the loading screen / the splash's door (v94) | `splashcheck.mjs`, `shot.mjs`, `walk.mjs` |
 | the end-zone paint / home and away fixtures (v93) | `v93check.mjs`, `v86check.mjs` |
