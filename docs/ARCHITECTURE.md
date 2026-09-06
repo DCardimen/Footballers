@@ -385,7 +385,13 @@ defender `dive_sd` → `fall_sd` → the eight `getup_dr` frames) or `spin` (the
 turns through `run_sd` flipped → `run_dn` → `run_sd` → `run_up` → `run_sd` flipped over
 320ms while the defender `plant_sd` grabs air and staggers through `hurt_dr0/1`),
 `recover` (he catches back up) and `sprint` again, `loops` counting each full cycle. The
-beats roll (80% a look first; juke or spin 60/40). Around them: stands with a crowd on two
+beats roll (80% a look first; juke or spin 60/40). The run cycle is locked to the ground covered — one frame per `T.stride` turf px of
+movement, not a timer — so a faster man's legs turn faster and nobody's feet slide; the
+body lifts twice a cycle on the stride phase, leans in with speed, and lands on whole
+device pixels so the sprite never shimmers between frames. When the defender is upright
+inside `T.closeAt` turf px behind him (`S.close`), an exclamation pip pops in over his head
+(`alertMark`, ease-out-back, jittering and hopping while the man is on him) and fades when
+he pulls clear (`S.alert`). Around them: stands with a crowd on two
 parallax layers (rolled once, `crowd()`), yard numbers every ten, a camera that keeps the
 runner at 38% of the strip, bobs with the stride (`camY`) and shakes on the dive
 (`shake`), speed lines and a stretched shadow at full tilt, afterimages (`ghosts`) through
