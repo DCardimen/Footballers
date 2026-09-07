@@ -55,6 +55,53 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v103 — the grab, and everything it made possible.** A tackle used to be instantaneous: the
+  wrap landed and the play was dead on that pixel, with the drive and the knock-back playing out
+  afterwards as decoration on a spot already booked. Now a landed wrap opens a **GRIP** and the two
+  men **travel together** — his legs still going, the tackler hanging on and being dragged — until
+  the momentum is gone and they land. Where they land is the spot. It is a yard or so of real
+  ground (never ten), and the fall-forward fudge it replaces was removed so the yard is not paid
+  twice. Everything else grew out of that. Men **PILE ON**: anyone who gets hands on joins the heap
+  and rides along, shortening the grip — though whether the stop is *booked* as assisted is still
+  rolled on the old odds, so the solo/gang split holds. The ball gets **PUNCHED OUT** at the pile,
+  and unlike the blind pre-roll it replaces, the sim NAMES who stripped it and who fell on it —
+  and keeps its render log, so a fumble finally animates. A carrier inside a couple of yards of the
+  marker **STRAINS** for it, which is where third-and-one is decided. Once in a while he **RIPS
+  CLEAN OUT** of the wrap and the play is live again. A grab from dead behind can catch the
+  **HORSE COLLAR**. **After the whistle the contact does not stop**: for most of a second the pile
+  churns, the men holding on keep holding on, and anyone still closing arrives and shoves in before
+  everybody lets go and gathers. **The line works**: offensive linemen block on every carry rather
+  than only on called runs, and pick the man threatening the *ball* rather than the nearest body,
+  sustaining the block instead of touching and releasing; defenders rip off their blocks and chase
+  once the ball is past them. The picture keeps up — the drag is drawn with the pair locked and the
+  turf coming up under them, camera shake and spray are scaled by the collision the sim actually
+  measured, and the new moments get their callouts, their crowd and their slow motion.
+  Two long-standing bugs fell out on the way: a blitzer whose blocker was pancaked deref'd null and
+  killed the play, and **every time the engine reshaped a sim's yardage the matching render log was
+  orphaned** — that play fell back to the legacy choreographer and none of the agent sim reached
+  the screen. Retagging the log instead lifted the share of plays rendered from the real sim from
+  57% to 80% on passes. `node scripts/v103check.mjs`.
+- **v102 — the lights mirrored and breathing, the moment slowed, the menu alive.** Four masts stood
+  behind the far bowl and nothing lit the near half. **Six mirrored masts** stand now — the far four's
+  lateral positions carried through the crowd's own projection to the near corners (taller, because
+  the near end is nearer; behind the camera most of the time, which is right — what you see of them
+  is their light: pools on the near half, beams, and a fill shadow from the camera side for a man
+  down there), and one behind each touchline stand at midfield, anchored to the drawn stand section
+  so the stand hides the foot and the head clears it at the frame's edge. All ten are real lights in
+  the field the men are shaded by. And every lamp **breathes**: a few percent of slow, per-mast,
+  multi-octave shimmer plus a rare **sputter** (one bulb dipping for a tenth of a second, a different
+  sheet frame while it dips) — never the old six-frame strobe; the key light's position never moves,
+  so shadows keep their direction and only their weight rides the breath. `lightLiveV102` at 0 puts
+  the v99 stillness back. **The moment slows down**: the play is scripted before it runs, so the
+  renderer reads the catch point, the juke, the stiff-arm, the hurdle, the truck, the big hit, the
+  pancake, the pick and the score *ahead of time* and eases the clock DOWN into them (to 0.35–0.5×),
+  holds through the beat, and eases back — a letterbox drops in with the clock, a gold ring pulls
+  onto the men in the moment, a zoom punch lands on the beat. v37's reactive half-second is still
+  there underneath. **The menu is alive**: five floodlights flicker on their own clocks on the hero's
+  far rim, camera flashes pop across the stands and a shimmer runs the tiers, the player (and the
+  helmet portrait) breathes, a sun with slow-turning rays burns at the tunnel mouth, dust lifts
+  through the light on the wind and the swash flutters, and a sheen sweeps the wordmark through the
+  wordmark's own mask. Reduced motion switches all of it off. `node scripts/v102check.mjs`.
 - **v101 — one asset root, the playbook, the lead, the second shadow.** Seven things, one pass.
   **The blank players are fixed**: the sheets had drifted into two URL conventions — `/rib_x.png`
   (the server root) and `./public/rib_x.png` (the folder the deploy ships) — and neither is right

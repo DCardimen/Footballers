@@ -95,7 +95,9 @@ while (Date.now() - t0 < MS) { await page.waitForTimeout(150)
   const s = await page.evaluate(() => { const V = window.__V92; const t = V.towerBoxes()[0]; const S = V.screen(); const c = window.__gridironScene.cameras.main; return { f: t && t.frame, cam: S.cam.visible, top: c.worldView.y } })
   seen.samples++; if (s.f !== lastF) seen.changed++; lastF = s.f; if (s.cam) { seen.camOn++; if (s.top < 200) seen.camOnScreen++ } }
 console.log('watch:', JSON.stringify(seen))
-ok(seen.changed <= 1, 'v99: the lamps hold one frame over the watch — no cycling', `frame changes=${seen.changed - 1}/${seen.samples}`)
+// v102: a mast may SPUTTER a few times over a 30s watch (a tenth-of-a-second bulb dip that shows
+// another frame while it dips) — a handful of changes, never the old continuous six-frame walk
+ok(seen.changed - 1 <= Math.max(6, Math.round(seen.samples * 0.06)), 'the lamps hold their frame over the watch, bar a sputter — no cycling', `frame changes=${seen.changed - 1}/${seen.samples}`)
 ok(seen.camOn === seen.camOnScreen, 'the feed camera only renders while the far end is in the frame', `on=${seen.camOn} inFrame=${seen.camOnScreen}`)
 if (SHOTS) await snap('scripts/_v92_field.png')
 await page.close()

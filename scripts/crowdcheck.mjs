@@ -568,7 +568,10 @@ ok(tiers.byLevel[0] === 'sparse' && tiers.byLevel[4] === 'mid' && tiers.byLevel[
 // ---- FALLBACK: a sheet that never decodes must leave the pre-v57 look (plain
 // edge-extended grass in the margin) and must NOT break the live field.
 const fb = await (async () => {
-  const p2 = await browser.newPage({ viewport: { width: 520, height: 900 } })
+  // its own context: a second page in the SAME context shares the first page's localStorage, so it
+  // booted into that page's saved career (CONTINUE, not START NEW) and the click list below missed
+  const ctx2 = await browser.newContext({ viewport: { width: 520, height: 900 } })
+  const p2 = await ctx2.newPage()
   const e2 = []
   p2.on('pageerror', e => e2.push('PAGEERROR: ' + e.message))
   p2.on('console', m => { if (m.type() === 'error') e2.push('CONSOLE: ' + m.text()) })
@@ -605,15 +608,23 @@ const fb = await (async () => {
     }
     if (!(await probe2())) await p2.waitForTimeout(500)
   }
+  // the first play holds at the loader's door (v97) and the door opens once the field and the
+  // prebuilt play are both ready (v101/v102) — so the men are not on the grass the instant the
+  // scene exists. Wait for the door the way the main path does before counting them.
+  for (let i = 0; i < 40; i++) { if (await p2.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length))) break; await p2.waitForTimeout(300) }
   const r = await p2.evaluate(() => {
     const sc = window.__gridironScene
     if (!sc) return { scene: false }
     // the whole reaction surface must be safe to call with no stands at all
     sc.buildCrowd(); sc.crowdCheer(1, 360); sc.crowdReact({ type: 'td', x: 360 }, sc.play || { payload: {} }); sc.updateCrowd(16)
-    return { scene: true, crowd: !!sc.crowd, built: sc.crowd ? sc.crowd.built : 0, markers: (sc.markers || []).length, refs: (sc.refs || []).length }
+    const L = window.__LIVELOAD_V94
+    return { scene: true, crowd: !!sc.crowd, built: sc.crowd ? sc.crowd.built : 0, markers: (sc.markers || []).length, refs: (sc.refs || []).length,
+      dbg: { view: window.o && window.o.view, play: !!sc.play, loader: L && L.current ? { done: L.current.done, field: L.current.field, ready: L.current.ready, age: Date.now() - L.current.t0 } : 'none', warm: !!(L && L.warm), pre: window.__PREWARM_V101 || null, field: !!document.querySelector('#field'),
+        btns: [...document.querySelectorAll('button')].filter(b => b.offsetParent).map(b => (b.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 24)).slice(0, 8) } }
   })
+  console.log('fallback state:', JSON.stringify(r.dbg || null))
   await p2.waitForTimeout(600)
-  await p2.close()
+  await p2.close(); await ctx2.close()
   return { ...r, errs: e2 }
 })()
 ok(fb.scene, 'the live field still boots with the crowd sheet blocked')
