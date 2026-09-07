@@ -374,6 +374,55 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v102 — the mirrored lights, the slowed moment, the living menu
+
+**The lights are mirrored** (`buildMirrorMastsV102`, called at the end of the far loop in
+`buildStadiumV92`). The far four stay in `ST.towers` exactly as v92/v98/v99 built them (fixed row,
+two sway, the key light at index 2) — every existing check and `keyLightV99` read them unchanged.
+The mirror lives in `ST.mirror` / `ST.mirrorLights`: the near four take the far masts' lateral
+fractions, invert `crowdProject`'s lateral scale to get their crowd-space `vv`, and project them
+at `u = -crowdEndGap` (the near end line's apron), scaled by the near end's `k` relative to the
+far end's (capped at `mirrorScaleCap`); the two side masts are anchored to the sideline stand
+SECTION nearest midfield (`sec.bx/bw/by/bh`) so the billboard hides the foot and the head is
+sized to clear its top. `lightRigV98` gained a store argument and per-mast aim/pool overrides
+(`tw._aimX/_aimY/_poolX/_poolY/_poolK`) so a near mast lights the near half. `lightRigsV101`
+returns all ten (flag `near`), so the men's shading and the fill shadow read every mast.
+The crowd deliberately builds no near bowl (billboards would paint over the field), and the near
+masts inherit that: they are behind the camera; their pools, beams and fill are what shows.
+
+**The light breathes** (`lightLiveV102(tw)` per mast, `lightLiveAllV102()` for the whole ground,
+cached per tick on `ST.t`): a few percent of slow multi-octave shimmer on the mast's own phase,
+plus a sputter every 14–40 s per mast — a 80–170 ms dip of 18–35 %, sometimes twice, showing a
+different sheet frame while it dips. Every rig's glow/beam/pool alpha, `shadowMulV100` and
+`lightAtV101` multiply by it; `keyLightV99` does not, so shadow DIRECTION never moves. The v98/v99
+"holds steady" assertions became "breathes inside a band" (range < 45 % of mean; ≤ 2 frames per
+mast; v92's 30 s watch allows a handful of frame changes). `lightLiveV102` at 0 restores v99.
+
+**The moment slows down** (`slomoV102(P, delta)` in `update`, `slomoDrawV102`). The rate line
+multiplies `basePlayRate` by `min(cineScale, antic)`. The system walks `P.script.events` ahead
+of `T` for the next event in `slomoBookV102` (catch, highpoint, contest, pick, swat, fumble, td,
+a `cut` whose `kind` is a move, stiffarm, hurdle, brokenTackle, stagger, tackleHit, pancake,
+toetap, firstdown — each with its own floor), merges anything inside `slomoMergeMs` into one
+window (capped at `slomoMaxMs`), then eases the clock down over `slomoLeadMs` BEFORE `start`,
+holds the floor through `end`, eases up over `slomoTailMs`, and arms a `slomoCoolMs` cooldown.
+The letterbox is a DOM overlay (`.rib-slomo-v102` in `.field-wrap`, `--k` = depth) — a
+scroll-factor-0 graphic would still take the follow camera's zoom — with the moment named on the
+bar; a gold ring (`slomoRing`, depth 3.9) pulls onto the men named by the window's events; a zoom
+punch lands at `start`. `window.__SLOMO_V102` counts windows, kinds, `minRate`, `bars`.
+Render-only; reduced motion or `slomoV102` = 0 returns 1 and clears the overlay.
+
+**The menu is alive** (`public/rib-menu.js`: `heroFxMarkup`, `startHeroFx`, `stopHeroFx`;
+`public/rib-menu-v89.css`: the `rib9*` keyframes). The hero gains a `.rib9-hero-fx` layer: five
+`.rib9-lamp` glows at `HERO_LAMPS` (each with its own flicker duration/delay and an 11 s sputter),
+`.rib9-sun` + `.rib9-sun-rays` (a conic-gradient ray wheel, masked, 46 s rotation), and a canvas
+loop — 46 dust motes drifting on a gusting wind, camera flashes popping across the stands band,
+a shimmer sweeping the tiers. `.rib9-hero-img` and the portrait breathe (a 4.4 s scale), the
+swash flutters, the jersey and brand gold sweep, and `.rib9-sheen` is a screen-blended gradient
+masked by the wordmark itself — the mask URL is built document-absolute (`artUrl`) because a
+`url()` handed through a custom property resolves against the STYLESHEET. `startHeroFx` runs
+from `applyDynamic`; `stopHeroFx` from `unmountMenu`; the loop idles while `document.hidden` and
+never starts under reduced motion. `window.__RIB_MENU_FX_V102` is the hook.
+
 ## v101 — the asset root, the playbook, the lead, the second cast
 
 **One asset root.** `window.__RIB_ASSET(name)` (boot shims) is the only way a sheet is asked

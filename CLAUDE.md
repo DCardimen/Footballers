@@ -33,6 +33,13 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v102 THE LIGHTS ARE MIRRORED, AND THEY BREATHE` / `v102 THE MOMENT SLOWS DOWN` / `v102 THE MENU
+  IS ALIVE` — `buildMirrorMastsV102` (six masts in `ST.mirror` / `ST.mirrorLights`, the far four in
+  `ST.towers` untouched), `lightLiveV102` / `lightLiveAllV102` (the shimmer and the sputter; every
+  rig, `shadowMulV100` and `lightAtV101` ride it; `window.__V92.mirror()/live()`); `slomoV102` /
+  `slomoDrawV102` (windows read ahead from `P.script.events`, the `.rib-slomo-v102` letterbox,
+  `window.__SLOMO_V102`); the hero FX in `public/rib-menu.js` (`startHeroFx`/`stopHeroFx`,
+  `window.__RIB_MENU_FX_V102`) with the keyframes in `public/rib-menu-v89.css`
 - `v101 ONE ASSET ROOT` / `v101 THE PLAYBOOK` / `v101 THE LEAD` / `v101 THE LIGHT MOVES ON HIM` /
   `v101 THE SIM LOADS BEHIND THE DOOR` / `v101 THE STANDS HAVE A VOCABULARY` /
   `v101 WHOLE NUMBERS ON THE SHEET` — `window.__RIB_ASSET(p)` is the one URL every sheet asks
@@ -121,6 +128,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | pass coverage / credit, QB scramble & targets, the safety, the huddle (v87) | `v87check.mjs`, `creditcheck.mjs`, `simcheck.mjs` |
 | promotion odds / the declare (v88) | `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs` |
 | the callout badges / the moments the field shouts (v95) | `badgecheck.mjs`, `v86check.mjs` |
+| the mirrored masts / the breathing light / the slow-motion moment / the living menu (v102) | `v102check.mjs`, then `v98check.mjs`, `v99check.mjs`, `v92check.mjs`, `v86check.mjs`, `menu-integration-check.mjs` |
 | asset paths / the playbook / the throw / dynamic shading / the loader's prebuild / crowd emoji / whole numbers (v101) | `v101check.mjs`, then `simcheck.mjs`, `readcheck.mjs`, `routecheck.mjs`, `v99check.mjs` |
 | the lighting dial / how bright the stadium burns (v100) | `v100check.mjs`, `v99check.mjs`, `v98check.mjs` |
 | shadows / the key light / the goalpost frame / the lamps holding (v99) | `v99check.mjs`, `v92check.mjs`, `v86check.mjs`, `sidelinecheck.mjs` |

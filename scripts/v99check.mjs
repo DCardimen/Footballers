@@ -46,10 +46,13 @@ ok(new Set(S.map(s => s.key && s.key.x + ',' + s.key.y)).size === 1, 'the key li
 ok(S[0].towers[K.i] && !S[0].towers[K.i][2], 'the key light is one of the masts that does not sway', `mast ${K.i} sway=${S[0].towers[K.i] && S[0].towers[K.i][2]}`)
 
 // ---- the lamps hold instead of cycling
+// v102: a mast holds its frame except for a sputter — one bulb dipping for a tenth of a second,
+// which shows a different frame while it dips — so a mast may show two frames across the
+// watch, never the old six-frame walk
 const frameSets = S[0].towers.map((_, i) => new Set(S.map(s => s.towers[i] && s.towers[i][1])))
-ok(frameSets.every(f => f.size === 1), 'every mast holds one lamp frame — no cycling', frameSets.map(f => [...f].join('/')).join(' '))
-const glowSets = S[0].glow.map((_, i) => new Set(S.map(s => s.glow[i])))
-ok(glowSets.every(g => g.size === 1), 'the light output holds steady — no breathing', glowSets.map(g => [...g][0]).join(' '))
+ok(frameSets.every(f => f.size <= 2), 'every mast holds its lamp frame, bar a sputter — no cycling', frameSets.map(f => [...f].join('/')).join(' '))
+const glowSets = S[0].glow.map((_, i) => S.map(s => s.glow[i]))
+ok(glowSets.every(g => { const m = g.reduce((a, b) => a + b, 0) / g.length; return Math.max(...g) - Math.min(...g) < m * 0.45 }), 'the light output breathes inside a tight band — no strobe', glowSets.map(g => Math.min(...g) + '..' + Math.max(...g)).join(' '))
 
 // ---- the men: direction away from the light, and it swings as they cross the field
 const frame = S.find(s => s.men.length >= 20) || S[0]

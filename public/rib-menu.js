@@ -16,6 +16,9 @@
   const BODY_CLASS = 'rib-menu-open';
   const previewMode = new URLSearchParams(location.search).has('menuPreview');
   const ART = './public/menu/';
+  // a url() handed to the stylesheet through a custom property resolves against the SHEET, not the
+  // document — so the mask asks for it by its document-absolute address
+  const artUrl = (file) => { try { return new URL(ART + file, document.baseURI).href; } catch (e) { return ART + file; } };
   let lastFingerprint = '';
   let mounted = false;
   let syncing = false;
@@ -288,8 +291,9 @@
           <img class="rib9-hero-img" src="${ART}hero_tunnel.webp" alt="" data-nat="1600,914">
           ${tint(colors, 0, 'hero_mask_p', 1, RECOLOR && 'hero_tunnel')}${tint(colors, 1, 'hero_mask_s', 1, RECOLOR && 'hero_tunnel')}
           <div class="rib9-hero-lift" data-region="0.865,0.42,0.15,0.4"></div>
+          ${heroFxMarkup()}
           <div class="rib9-hero-shade"></div>
-          <div class="rib9-hero-copy"><h1><img src="${ART}logo_wordmark.webp" alt="Running It Back"></h1>
+          <div class="rib9-hero-copy"><h1><img src="${ART}logo_wordmark.webp" alt="Running It Back"><i class="rib9-sheen" style="--wm:url('${artUrl('logo_wordmark.webp')}')"></i></h1>
             <img class="rib9-swash" src="${ART}swash_underline.webp" alt=""></div>
           ${has ? `<div class="rib9-hero-jersey" aria-hidden="true" data-at="0.5,0.52"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>` : ''}
         </section>
@@ -409,6 +413,7 @@
   // ---- dynamic touches: the ring, the count-up --------------------------------
   function applyDynamic(menu, data, animateIn) {
     watchArt(menu);
+    startHeroFx(menu);   // v102: the hero comes alive
     const ring = menu.querySelector('.rib9-ring');
     if (ring) {
       const overall = Math.max(0, Number(data.player && data.player.ovr) || 0);
@@ -437,6 +442,74 @@
       requestAnimationFrame(step);
     }));
   }
+
+  /* ===== v102 THE MENU IS ALIVE =====
+   * The hero was a photograph. It still is, but the stadium in it now behaves like one:
+   *   - the FLOODLIGHTS along the far rim flicker on their own clocks (five lamps, each a
+   *     multi-duration CSS flicker so no two ever pulse together);
+   *   - the CROWD moves — camera flashes pop across the stands and a slow shimmer runs over
+   *     the tiers, drawn on a canvas over the picture (`heroFx`);
+   *   - the PLAYER breathes: the picture eases in and out by a fraction of a percent on a
+   *     four-second cycle, and the helmet portrait with it;
+   *   - a SUN at the tunnel mouth — a warm core with slow-turning rays — and the WIND: dust
+   *     lifting through the tunnel light, the swash fluttering under the wordmark;
+   *   - the LETTERS SHINE: a sheen sweeps the wordmark through the wordmark's own alpha (a CSS
+   *     mask of the same picture), and the gold in the brand and the jersey catches it too.
+   * All of it respects prefers-reduced-motion: the CSS rule already kills every animation,
+   * and the canvas loop simply never starts. The canvas is one 2D context, a few dozen motes
+   * and at most a couple of flashes a second — nothing the phone will feel. */
+  const HERO_LAMPS = [[0.335, 0.115], [0.415, 0.098], [0.5, 0.092], [0.585, 0.098], [0.665, 0.115]];   // where the lamp banks sit on the far rim
+  function heroFxMarkup() {
+    const lamps = HERO_LAMPS.map(([x, y], i) => `<i class="rib9-lamp" style="--x:${(x * 100).toFixed(1)}%;--y:${(y * 100).toFixed(1)}%;--d:${(2.3 + i * 0.7).toFixed(2)}s;--e:${(0.4 + i * 0.37).toFixed(2)}s"></i>`).join('');
+    return `<div class="rib9-hero-fx" aria-hidden="true"><i class="rib9-sun"></i><i class="rib9-sun-rays"></i>${lamps}<canvas class="rib9-hero-cv"></canvas></div>`;
+  }
+  let heroFx = null;
+  function startHeroFx(menu) {
+    stopHeroFx();
+    if (prefersReduced()) return;
+    const cv = menu.querySelector('.rib9-hero-cv'); if (!cv) return;
+    const ctx = cv.getContext('2d'); if (!ctx) return;
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const st = { cv, ctx, w: 0, h: 0, motes: [], flashes: [], last: performance.now(), next: 0, raf: 0, on: true, frames: 0 };
+    const size = () => { const r = cv.getBoundingClientRect(); const dpr = Math.min(2, window.devicePixelRatio || 1); st.w = Math.max(1, Math.round(r.width)); st.h = Math.max(1, Math.round(r.height)); cv.width = Math.round(st.w * dpr); cv.height = Math.round(st.h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+    size();
+    for (let i = 0; i < 46; i++) st.motes.push({ x: Math.random(), y: Math.random(), r: rnd(0.6, 1.9), vx: rnd(0.012, 0.03), vy: rnd(-0.008, 0.004), a: rnd(0.12, 0.45), ph: rnd(0, 6.28) });
+    const tick = (now) => {
+      if (!st.on) return;
+      if (!cv.isConnected) { stopHeroFx(); return; }
+      const dt = Math.min(0.05, (now - st.last) / 1000); st.last = now; st.frames++;
+      if (document.hidden) { st.raf = requestAnimationFrame(tick); return; }
+      const w = st.w, h = st.h; ctx.clearRect(0, 0, w, h);
+      // the wind: dust drifting up and across through the tunnel's light, brightest near the mouth
+      const gust = 1 + 0.6 * Math.sin(now / 2600) * Math.sin(now / 900);
+      for (const m of st.motes) {
+        m.x += m.vx * gust * dt; m.y += (m.vy + 0.006 * Math.sin(now / 700 + m.ph)) * dt;
+        if (m.x > 1.02) { m.x = -0.02; m.y = Math.random(); } if (m.y < -0.02) m.y = 1.02; if (m.y > 1.02) m.y = -0.02;
+        const near = 1 - Math.min(1, Math.hypot(m.x - 0.5, m.y - 0.32) / 0.5);
+        ctx.globalAlpha = m.a * (0.35 + 0.65 * near) * (0.7 + 0.3 * Math.sin(now / 400 + m.ph));
+        ctx.fillStyle = '#ffe8b8'; ctx.beginPath(); ctx.arc(m.x * w, m.y * h, m.r, 0, 6.283); ctx.fill();
+      }
+      // the crowd: camera flashes popping across the stands — the bright band behind the mouth
+      if (now > st.next) { st.next = now + rnd(260, 900); const side = Math.random() < 0.5 ? -1 : 1;
+        st.flashes.push({ x: 0.5 + side * rnd(0.08, 0.34), y: rnd(0.17, 0.42), t: now, ms: rnd(140, 260), r: rnd(1.6, 3.4) }); }
+      for (let i = st.flashes.length - 1; i >= 0; i--) { const f = st.flashes[i]; const q = (now - f.t) / f.ms; if (q >= 1) { st.flashes.splice(i, 1); continue; }
+        const a = q < 0.25 ? q / 0.25 : 1 - (q - 0.25) / 0.75;
+        ctx.globalAlpha = 0.9 * a; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(f.x * w, f.y * h, f.r, 0, 6.283); ctx.fill();
+        ctx.globalAlpha = 0.28 * a; ctx.beginPath(); ctx.arc(f.x * w, f.y * h, f.r * 3.2, 0, 6.283); ctx.fill(); }
+      // and the tiers themselves shimmer: a faint band that drifts, so the crowd reads as moving
+      ctx.globalAlpha = 0.045; const sh = ctx.createLinearGradient(0, 0, w, 0);
+      const ph = (now / 5200) % 1;
+      sh.addColorStop(Math.max(0, ph - 0.12), 'rgba(255,255,255,0)'); sh.addColorStop(ph, 'rgba(255,255,255,1)'); sh.addColorStop(Math.min(1, ph + 0.12), 'rgba(255,255,255,0)');
+      ctx.fillStyle = sh; ctx.fillRect(w * 0.18, h * 0.15, w * 0.64, h * 0.3);
+      ctx.globalAlpha = 1;
+      st.raf = requestAnimationFrame(tick);
+    };
+    st.raf = requestAnimationFrame(tick);
+    st.ro = window.ResizeObserver ? new ResizeObserver(size) : null; if (st.ro) st.ro.observe(cv.parentElement);
+    heroFx = st;
+    window.__RIB_MENU_FX_V102 = { get frames() { return st.frames; }, get motes() { return st.motes.length; }, get flashes() { return st.flashes.length; }, get on() { return st.on; } };
+  }
+  function stopHeroFx() { if (!heroFx) return; heroFx.on = false; cancelAnimationFrame(heroFx.raf); if (heroFx.ro) heroFx.ro.disconnect(); heroFx = null; }
 
   function bindMenu(menu) {
     // routing itself lives in rib-menu-navigation.js (capture phase); this is the press feedback
@@ -476,6 +549,7 @@
   }
 
   function unmountMenu() {
+    stopHeroFx();
     document.body.classList.remove(BODY_CLASS);
     document.getElementById(MENU_ID)?.remove();
     lastFingerprint = '';

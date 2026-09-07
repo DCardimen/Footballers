@@ -55,6 +55,27 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v102 — the lights mirrored and breathing, the moment slowed, the menu alive.** Four masts stood
+  behind the far bowl and nothing lit the near half. **Six mirrored masts** stand now — the far four's
+  lateral positions carried through the crowd's own projection to the near corners (taller, because
+  the near end is nearer; behind the camera most of the time, which is right — what you see of them
+  is their light: pools on the near half, beams, and a fill shadow from the camera side for a man
+  down there), and one behind each touchline stand at midfield, anchored to the drawn stand section
+  so the stand hides the foot and the head clears it at the frame's edge. All ten are real lights in
+  the field the men are shaded by. And every lamp **breathes**: a few percent of slow, per-mast,
+  multi-octave shimmer plus a rare **sputter** (one bulb dipping for a tenth of a second, a different
+  sheet frame while it dips) — never the old six-frame strobe; the key light's position never moves,
+  so shadows keep their direction and only their weight rides the breath. `lightLiveV102` at 0 puts
+  the v99 stillness back. **The moment slows down**: the play is scripted before it runs, so the
+  renderer reads the catch point, the juke, the stiff-arm, the hurdle, the truck, the big hit, the
+  pancake, the pick and the score *ahead of time* and eases the clock DOWN into them (to 0.35–0.5×),
+  holds through the beat, and eases back — a letterbox drops in with the clock, a gold ring pulls
+  onto the men in the moment, a zoom punch lands on the beat. v37's reactive half-second is still
+  there underneath. **The menu is alive**: five floodlights flicker on their own clocks on the hero's
+  far rim, camera flashes pop across the stands and a shimmer runs the tiers, the player (and the
+  helmet portrait) breathes, a sun with slow-turning rays burns at the tunnel mouth, dust lifts
+  through the light on the wind and the swash flutters, and a sheen sweeps the wordmark through the
+  wordmark's own mask. Reduced motion switches all of it off. `node scripts/v102check.mjs`.
 - **v101 — one asset root, the playbook, the lead, the second shadow.** Seven things, one pass.
   **The blank players are fixed**: the sheets had drifted into two URL conventions — `/rib_x.png`
   (the server root) and `./public/rib_x.png` (the folder the deploy ships) — and neither is right
