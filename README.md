@@ -55,6 +55,42 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v101 — one asset root, the playbook, the lead, the second shadow.** Seven things, one pass.
+  **The blank players are fixed**: the sheets had drifted into two URL conventions — `/rib_x.png`
+  (the server root) and `./public/rib_x.png` (the folder the deploy ships) — and neither is right
+  everywhere, so on a `vite build` the drawn player sheet, the stadium lights, the badges and the
+  whole menu bundle 404'd into an index.html fallback and every man on the field fell back to a
+  blank. One resolver (`window.__RIB_ASSET`) now answers for all of them, against the document, so
+  the same string works from a root, from a Pages sub-path, from `dist/` and from the Capacitor
+  shell — and `vite build` mirrors `public/` so the two layouts finally agree.
+  **The playbook is forty-two calls** instead of nine families: Counter Trey, Wham, Pin & Pull,
+  Mesh, Y-Cross, Dagger, Yankee, Sluggo, the screens, the sneak. Each names its own **point of
+  attack** (runs) or the **routes it is built out of** (passes), both fed straight into the
+  FieldSim, and each is weighted by the situation — the goal line pulls Iso and the Sneak forward,
+  third-and-long pulls the draw and the screens, a two-minute deficit pulls Four Verticals. The
+  commentary says what was called. Every play still belongs to one of the nine original families,
+  so nothing downstream had to learn a new vocabulary.
+  **The throw is a guess about the future.** The ball used to be aimed at the receiver's last
+  waypoint — a dot decided before he got near it. Now the quarterback walks him forward along his
+  own route for as long as the ball will hang, re-times the flight to that further spot and walks
+  him again; a lob needs a bigger lead than a bullet to the same window and that falls out of the
+  solve. How much of that lead he actually gets on the ball is a separate skill, so a raw passer
+  under pressure throws it **behind** him. The miss around the spot is the **cone**, and the cone
+  is what the broadcast draws: it opens with pressure, panic, depth and a poor arm, and closes to
+  a tight **green** wedge when the pocket holds and the receiver has won. Panic is its own live
+  reading — it builds while someone is bearing down, jumps on a hit, bleeds off when the pocket
+  cleans up, and composure sets both its slope and its ceiling.
+  **Shading and shadows move.** A second, softer cast from a different mast fans away from the key
+  light's, the key shadow **smears** along its own axis at a sprint, and the men are lit by the
+  **lamp pools** rather than by a fixed grey depth ramp, so running through a pool warms a man and
+  the gap between lamps cools him. v99's one-key-light geometry is untouched.
+  **The loader stops being dead time**: the field mounts and the first play's whole script is
+  choreographed *while* the chase is running, the loader is told when that finishes, and the door
+  only opens once both are ready — so the fade-out crosses into live football instead of a blank
+  field that then has to think. **The stands got a vocabulary**: every moment has its own emoji
+  (💥 for a sack, 😡 for a flag, 🎉 for the score) and the shout bubbles carry one too, with fifteen
+  more moments the crowd used to sit through in silence. And **the skills sheet prints whole
+  points** — no row reads 13.4 → 12.8 any more. `node scripts/v101check.mjs`.
 - **v100 — the lighting dial.** Settings › FIELD VIEW carries a **Lighting intensity** slider,
   0–200% in 5% steps. It is not a brightness filter over the finished picture — it is the
   strength of the light itself, so it moves everything the light is responsible for and nothing

@@ -33,6 +33,16 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v101 ONE ASSET ROOT` / `v101 THE PLAYBOOK` / `v101 THE LEAD` / `v101 THE LIGHT MOVES ON HIM` /
+  `v101 THE SIM LOADS BEHIND THE DOOR` / `v101 THE STANDS HAVE A VOCABULARY` /
+  `v101 WHOLE NUMBERS ON THE SHEET` — `window.__RIB_ASSET(p)` is the one URL every sheet asks
+  through (document-relative, under `public/`; `vite.config.js` mirrors the folder into `dist/`);
+  `PLAYBOOK_V101` / `pickPlayV101` are the 42 named calls, feeding `opts.gap` (runs) and
+  `opts.routes` (passes) into FieldSim; `leadPointV101` / `walkRouteV101` / `leadSkillV101` /
+  `coneYdV101` / `protV101` / `windowV101` are the throw (`window.__V101.last` is the last one);
+  `fillLightV101` / `castFillV101` / `lightAtV101` / `shadeTintV101` are the second cast and the
+  light on the man; `prebuildV101` / `bridge.prewarm` / `__LIVELOAD_V94.simReady` build the play
+  behind the loader; `emoBookV101` is the crowd's per-moment emoji; `W1` rounds the skills sheet
 - `v100 THE LIGHTING DIAL` — Settings › FIELD VIEW's **Lighting intensity** (`fxLight` →
   `window.__FIELD_FX.light`): `lightMulV100` (the lamps and the masts' tint), `bakedMulV100`
   (the turf's wash and pools, softened above 100%, with the vignette moving the other way) and
@@ -111,6 +121,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | pass coverage / credit, QB scramble & targets, the safety, the huddle (v87) | `v87check.mjs`, `creditcheck.mjs`, `simcheck.mjs` |
 | promotion odds / the declare (v88) | `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs` |
 | the callout badges / the moments the field shouts (v95) | `badgecheck.mjs`, `v86check.mjs` |
+| asset paths / the playbook / the throw / dynamic shading / the loader's prebuild / crowd emoji / whole numbers (v101) | `v101check.mjs`, then `simcheck.mjs`, `readcheck.mjs`, `routecheck.mjs`, `v99check.mjs` |
 | the lighting dial / how bright the stadium burns (v100) | `v100check.mjs`, `v99check.mjs`, `v98check.mjs` |
 | shadows / the key light / the goalpost frame / the lamps holding (v99) | `v99check.mjs`, `v92check.mjs`, `v86check.mjs`, `sidelinecheck.mjs` |
 | the lights / the lit turf / the scorebug colours / crowd emoji / the handover cut / the coach row (v98) | `v98check.mjs`, `v92check.mjs`, `crowdcheck.mjs`, `postgamecheck.mjs` |

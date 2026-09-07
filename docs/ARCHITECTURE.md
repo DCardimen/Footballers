@@ -20,6 +20,7 @@ column is the stable way in.
 |---|---|---|
 | 147–197 | `// error surfacing` | Boot shims: splash error surfacing, localStorage shim for sandboxed iframes. |
 | — | `v94 THE CHASE` | The loading screen, its own `<script>` right after the boot shims so it animates while the Phaser bundle is still parsing. A 2D canvas chase drawn from the v91 field sheet (fetched as `public/rib_field_v91.png` + `rib_field_v91.json`, recoloured with `ribRecolor`'s bands). `window.__CHASE_V94.make()` runs it on any canvas; `window.__splashDoneV94()` is the door the career app's `go()` knocks on, `window.__SPLASH_V94` / `window.__LIVELOAD_V94` the dev hooks. See **The chase (v94)** below. |
+| — | `v101 ONE ASSET ROOT` | The boot shims' last block: `window.__RIB_ASSET(p)` resolves every runtime sheet against the DOCUMENT, under `public/` — so the same string works served from a root, from a Pages sub-path, from `dist/` and from the Capacitor shell. Data URLs and absolute URLs pass straight through, and the per-sheet `window.__RIB_*` overrides still win. `vite.config.js` mirrors `public/` into `dist/public/` so `vite build` and `scripts/assemble-pages.mjs` produce the same layout. **Every new sheet goes through this, never a bare `/x.png` or `./public/x.png`.** |
 | 199 | `RIB_TUNE: every gameplay dial` | `TU(key, default)` — every gameplay dial reads through this; retune live via `window.RIB_TUNE[key] = …`. |
 | 202–1356 | `GRIDIRON play choreography engine` | `buildPlayScript(payload, cfg)` — the **legacy choreographer**: pure keyframe builder (no Phaser/DOM) used as the render fallback when no FieldSim log matches (~10–13% of plays). Has its own tackle-motion/gang-pulldown code — cosmetic only, never stats. |
 | 1357–2127 | `GRIDIRON FieldSim — agent-based play resolution` | **FieldSim** — the engine that resolves plays AND records the render log. See breakdown below. **v55 ROUTE TREE** (`ROUTE_TREE` / `mkRoute` / `R_DEEP`,`R_MED`,`R_SHORT`): 45 shapes × 3 releases × 3 depth tiers = 405 combinations; each shape declares a `tail` (go / across / out / settle) so a finished route keeps working instead of parking. Every pool name must exist in `ROUTE_TREE` — `cross` once did not and fell through to a straight line. Debug capture via `window.__ROUTE_DEBUG`; guarded by `scripts/routecheck.mjs`. **v56 REACTION** (`routeReactDelayV56`, the `rxq`/`iq` split, `RX_POS_V56`, and the perception-action hold in `mv`): `reactMs` is consumed at last — a defender whose intent swings past `TU("reactGate")` keeps steering on the old heading for `reactMs` scaled by the swing, with a refractory window. **Defence only** — offensive players are executing a called plan, not reacting. Only the steering vector is held; holding the remembered intent too makes every tick re-trigger and the defence stops covering entirely. Guarded by `scripts/reactioncheck.mjs`, which asserts the scoreboard alongside the timings. |
@@ -372,6 +373,76 @@ position, else `qt(ae(e), level)`. `__natAdvFloor` is kept as an alias so older
 callers still work, and `qt`'s internal floor is the same curve (it used to pass a
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
+
+## v101 — the asset root, the playbook, the lead, the second cast
+
+**One asset root.** `window.__RIB_ASSET(name)` (boot shims) is the only way a sheet is asked
+for. Before it, half the sheets asked for `/rib_x.png` and half for `./public/rib_x.png`; the
+first 404s under a Pages sub-path, the second 404s out of `vite build`, and both fail the same
+silent way — `Image.onerror` shrugs and the drawn players never register, leaving a field of
+blanks. Every `.png`/`.json`/`.webp` the game fetches at runtime now goes through it.
+
+**The playbook** (`PLAYBOOK_V101`, `pickPlayV101`, just above `Yr`). Forty-two named calls —
+eighteen runs, twenty-four passes. A play declares the FAMILY it belongs to (`base`, one of the
+original nine concepts, so every downstream consumer keeps its vocabulary), what the sim should
+do with it (`gap` for a run — its point of attack, read by `holeGapKey`; `routes` for a pass —
+shape names from the v55 tree, read where receivers are assigned), a commentary `tag`, and a
+`fit(ctx)` weight over `{down, toGo, pos, quarter, margin, hurry}`. The old if/else chain still
+runs and its answer becomes a `playbookBiasK` thumb on the scale rather than a verdict. The
+called routes go to the primary and **one** complementary receiver; everyone else keeps rolling
+the whole 405-combination tree, which is what stops a bigger playbook from shrinking the route
+board. `TU("playbookV101", 0)` puts the nine families back.
+
+**The lead** (`v101 THE LEAD`, in FieldSim's pass setup). Three separable numbers:
+- *the guess* — `leadPointV101` walks the receiver forward along **his own route**
+  (`walkRouteV101`, waypoint by waypoint, then off the last leg's heading) for as long as the
+  ball will hang, re-times the flight to that further spot and walks him again; two passes
+  converge on the intercept point. A lob hangs longer so it needs a bigger lead, which falls out
+  of the solve rather than being a case;
+- *the execution* — `leadSkillV101` is how much of that lead he actually puts on the ball
+  (throwing + awareness, minus panic and throwing on the move, plus noise). Under 1 and the ball
+  is behind him;
+- *the cone* — `coneYdV101`, the miss in yards: arm, depth, `(1 - protection)`, panic, throwing
+  on the move, minus separation. `windowV101` grades it green/yellow/red from separation AND
+  protection AND the cone, so green means "open and throwable", not just "open".
+`protV101` reads the pocket as one number (free rushers, how close the nearest is, slides,
+climbs, rollouts) and `qb._panicV101` accumulates during the drop — rising while someone is
+bearing down, jumping on a hit, bleeding off when it cleans up, with composure (discipline,
+grit, awareness) setting both its slope and its ceiling. The style ladder (lob / touch / bullet)
+reads depth, the cover man's **leverage** (under the route → throw over it; over the top →
+throw under it on a line), pressure and panic. All of it is emitted on `throw` and, live, on
+`look` — which is where the drawn v20 vision cone gets its width, so the wedge on screen IS the
+accuracy cone. `window.__V101.last` is the last throw; `throwprobe`-style wrapping of
+`__FieldSim.pass` is how `v101check` measures it.
+
+**The light moves on him** (`v101 THE LIGHT MOVES ON HIM`, next to v99/v100). v99's key light is
+untouched — same single, non-wobbling cast, same geometry. Added around it: `castFillV101`, a
+second and much fainter shadow from the nearest mast that is NOT the key (so the cast fans as a
+man crosses the field, and it is the first thing to go as the v100 dial comes down); a **speed
+smear** that stretches the key shadow along its own axis and thins it at a sprint; and
+`lightAtV101` / `shadeTintV101`, which light the players off the actual **lamp pools** (ambient
+floor plus quadratic falloff per mast, lengthwise distance squashed because the masts stand
+behind the far end) instead of v29's fixed grey depth ramp. `TU("shadeV101", 0)` restores v29,
+`TU("fillShadowV101", 0)` drops the second cast.
+
+**The sim loads behind the door** (`v101 THE SIM LOADS BEHIND THE DOOR`). v97 held the first play
+at the loader's door and then started it — load, then run. Now the wait does the work:
+`GridironPhaser.animate` calls `__LIVELOAD_V94.ensure()` (a synchronous mount, so the hold never
+loses the race with the DOM insert the career app makes in the same breath), then
+`bridge().prewarm(payload)` — which mounts Phaser and runs `scene.prebuildV101`, caching the
+play's whole `buildPlayScript` against its own payload. `simReady()` tells the loader; the door
+opens only once the field is standing AND that build is done (ceiling 4.2s), and `animatePlay`
+finds the script already made. `window.__PREWARM_V101` counts `built / hits / misses`.
+
+**The stands have a vocabulary** (`emoBookV101`). One emoji list per moment — 💥 for a sack, 😡
+for a flag, 🥞 for a pancake, 🎉 for the score — falling back to v98's two pools for anything
+unnamed. Fifteen more event types reach `crowdReact` (sack, safety, swat, flag, juke, spin,
+truck, scramble, blitz…), a big moment jumps the anti-chatter gap (`crowdEmojiBigGapK`), and the
+shout bubbles carry a matching face.
+
+**Whole numbers on the sheet** (`W1`). Every player-facing number on the skills surfaces is
+rounded where it is DRAWN, so the model keeps its precision and no row ever reads `13.4 → 12.8`.
+A sub-point per-game swing on the personality chips is stated in words instead of as `-0.1`.
 
 ## The chase (v94) — the loading screen, and the live game's loader
 
