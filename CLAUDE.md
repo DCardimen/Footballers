@@ -43,8 +43,8 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   `grab`/`pileOn`/`gripBreak`/`secondEffort` cases, `m._dragging`, `P.gripPair`, and the late
   contact in `startPostV86`/`updatePostV86` (`m._late`, `P.post.late`); `window.__V103` is the hook
 - `v102 THE LIGHTS ARE MIRRORED, AND THEY BREATHE` / `v102 THE MOMENT SLOWS DOWN` / `v102 THE MENU
-  IS ALIVE` — `buildMirrorMastsV102` (six masts in `ST.mirror` / `ST.mirrorLights`, the far four in
-  `ST.towers` untouched), `lightLiveV102` / `lightLiveAllV102` (the shimmer and the sputter; every
+  IS ALIVE` — `buildMirrorMastsV102` (four masts in `ST.mirror` / `ST.mirrorLights`, at the near
+  corners, the far four in `ST.towers` untouched; nothing is planted on the playing surface), `lightLiveV102` / `lightLiveAllV102` (the shimmer and the sputter; every
   rig, `shadowMulV100` and `lightAtV101` ride it; `window.__V92.mirror()/live()`); `slomoV102` /
   `slomoDrawV102` (windows read ahead from `P.script.events`, the `.rib-slomo-v102` letterbox,
   `window.__SLOMO_V102`); the hero FX in `public/rib-menu.js` (`startHeroFx`/`stopHeroFx`,

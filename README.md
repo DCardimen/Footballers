@@ -80,15 +80,20 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   killed the play, and **every time the engine reshaped a sim's yardage the matching render log was
   orphaned** — that play fell back to the legacy choreographer and none of the agent sim reached
   the screen. Retagging the log instead lifted the share of plays rendered from the real sim from
-  57% to 80% on passes. `node scripts/v103check.mjs`.
+  57% to 80% on passes. **The touchline floodlights came down**: v102 anchored a mast to the
+  sideline stand section nearest midfield, but those stands are drawn as diagonal billboards whose
+  bounding box necessarily overhangs the playing surface, so the pole stood *on the grass* and bled
+  over the sideline at any ordinary play zoom. The near and far masts already light the whole field;
+  a guard in `buildMirrorMastsV102` now drops any mirrored mast whose foot would land within
+  `TU("mastClearPx")` of the playing surface, so a future one cannot repeat it.
+  `node scripts/v103check.mjs`.
 - **v102 — the lights mirrored and breathing, the moment slowed, the menu alive.** Four masts stood
-  behind the far bowl and nothing lit the near half. **Six mirrored masts** stand now — the far four's
+  behind the far bowl and nothing lit the near half. **Four mirrored masts** stand now — the far four's
   lateral positions carried through the crowd's own projection to the near corners (taller, because
   the near end is nearer; behind the camera most of the time, which is right — what you see of them
   is their light: pools on the near half, beams, and a fill shadow from the camera side for a man
-  down there), and one behind each touchline stand at midfield, anchored to the drawn stand section
-  so the stand hides the foot and the head clears it at the frame's edge. All ten are real lights in
-  the field the men are shaded by. And every lamp **breathes**: a few percent of slow, per-mast,
+  down there). (A pair behind the touchline stands shipped with v102 and was removed again — see
+  v103 below.) All eight are real lights in the field the men are shaded by. And every lamp **breathes**: a few percent of slow, per-mast,
   multi-octave shimmer plus a rare **sputter** (one bulb dipping for a tenth of a second, a different
   sheet frame while it dips) — never the old six-frame strobe; the key light's position never moves,
   so shadows keep their direction and only their weight rides the breath. `lightLiveV102` at 0 puts
