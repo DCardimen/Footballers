@@ -374,6 +374,61 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v103 — the grab, the pile, the strip, and the line that works
+
+**The grab** (`v103 THE GRAB` in `contact()`, `v103 THE GRIP TICK` at the top of the carry block).
+`contact()` step 5 no longer emits the tackle and returns `"tackle"`. Unless the collision was a
+hit stick or a wrap into a waiting crowd (`handsOn >= gripMaxHands`) it opens `c._grip` and returns
+`"grip"`; the chaser loops break on that and hand the carrier to the grip tick, which runs before
+anything else in the carry block and `rec(); continue`s so no other defender touches him.
+
+The grip tick, once per tick: **travels** the pair (his gear is capped by `gripVelCap` — a man with
+another man on his back does not coast to a stop over ten yards — and the tackler's position is
+*written from the carrier's*, which is what makes the two sprites read as one thing sliding);
+**piles on** anyone who gets inside `gripJoinPx`, shortening the grip; **strips** the ball
+(`out.fumble`, see below); flags a **horse collar** on a grab from dead behind (`flagCand.hc`,
+rolled by the engine at `hcFlagP` like the face mask); lets him **strain** for the sticks when he is
+inside `secondEffortYd` of the marker or the goal line (which is why the run ctx now carries
+`down`/`toGo`/`fieldPos`); lets him **break** out of the wrap; and finally **lands**, emitting the
+tackle with `dragged`, `dragYd`, `dragMs`, `strain`. `endTackle` skips its blind fall-forward fudge
+when `c._wasGripped`, because the drag just played that out for real.
+
+Two things are deliberate here. Whether the stop is **booked** as assisted is rolled ONCE when the
+first man joins, on the same `gangOpen`/`gangBox` + `handsOn * gangHandsK` odds the instantaneous
+path uses — the pile is physical, but brushing it is not being in on the tackle, and without the
+roll the solo/gang split collapses to fifty-fifty. And `youIn` requires the stop to be genuinely
+assisted AND you to be one of the men with hands on; `creditcheck` fails the build if that drifts.
+`gripV103` at 0 restores the instantaneous tackle exactly.
+
+**The strip.** A run fumble used to be pre-rolled in the engine *outside* FieldSim — nobody named,
+nothing animated, the comment even says "no coin-flip credit". The grip tick strips the ball at the
+pile and returns `out.fumble = {by, forcedBy, defRec, yards}`, which `run()`/`pass()` carry out as
+`X.fumble` and the engine books through the ordinary `flip` path, keeping the render log so the
+fumble is *seen*. The pre-roll survives at `fumblePreK` for what the sim cannot see (the mesh-point
+muff). Forcing a fumble credits `P.ff`, never `P.tackle` — there is no tackle event to trace.
+
+**The line** (`v103 THE LINE BLOCKS FOR HIM`, `v103 THE TRENCH BREAKS UP`). v81's "find a job" only
+ran on called RUNS and picked the body nearest the LINEMAN, so on a catch-and-run the whole front
+stood and watched. It now runs on any carry the offence has and scores candidates by distance to
+the BALL (`climbBallW`) ahead of distance to the blocker, gets between the man and the carrier, and
+re-emits `block` with `sustain` on a heartbeat so the broadcast can hold the engagement. On the
+other side, once the carrier is `trenchBreakPx` past the line there is nothing left to block: the
+shed odds jump by `trenchBreakK` and the release emits `disengage {chase:true}`.
+
+**After the whistle** (`v103 THE WHISTLE IS NOT THE END OF THE CONTACT`). v86 released every grab,
+block and stance on the same frame. For `lateContactMs` the men at the spot keep their grip and
+churn on their own phase (`m._late`), the two or three nearest men who were still closing cross the
+last yards and shove in (`P.post.late`, a puff, a jolt and a knock of the camera), and only then
+does the v86 gather run — `postPlayMs` was lengthened to leave room for both halves.
+
+**`retagSimLog(y)`.** `takeLog` matches a queued play log to the play being rendered by its EXACT
+yardage, so every time the engine reshaped a sim's yards afterwards (`dampV76`'s margin brake is
+the common one) the log it had just pushed could never match again: the play fell back to the
+legacy choreographer, none of the agent sim reached the screen, and the orphan sat in the queue
+getting in the way of later matches. The log is still the right log; only the number moved, so it
+is retagged. **Any future post-sim yardage reshape must call this** — it took plays rendered from
+the real sim from 57% to 80% on passes.
+
 ## v102 — the mirrored lights, the slowed moment, the living menu
 
 **The lights are mirrored** (`buildMirrorMastsV102`, called at the end of the far loop in

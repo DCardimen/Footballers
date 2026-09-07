@@ -2381,7 +2381,7 @@ window.__visionRadiusV96 = visionRadiusV96;
     // deep ball = DPI candidate; a wrap from directly behind = face-mask candidate).
     // The game layer rolls whether a flag is actually thrown — so every penalty that
     // IS called traces to something that genuinely happened on the field.
-    const flagCand = { hold: null, dpi: null, fm: null };
+    const flagCand = { hold: null, dpi: null, fm: null, hc: null };   // v103: hc — the horse collar, hauled down from behind
     // returns: "cooldown" | "whiff" | "stiffarm" | "broken" | "stagger" (stays up) | "tackle" (play ends)
     const contact = (d, c) => {
       if (t < d.cool) return "cooldown";
@@ -2580,6 +2580,33 @@ window.__visionRadiusV96 = visionRadiusV96;
       // of the supporting wrappers — standing near the pile is not participation
       const youIn = (gang && supIds.some(id=>{const s=A_all[id];return !!(s&&s.player&&s.player.you);}))||undefined;
       if (behind && d.player) flagCand.fm = d.player;    // v30: a wrap from dead behind can catch the mask
+      /* ===== v103 THE GRAB — a wrap is not a whistle =====
+       * The tackle used to be instantaneous: the wrap landed and the play was dead on that
+       * pixel. The drive and the knockback then played out afterwards as pure decoration, on
+       * a spot that had already been booked — which is why a back never fell forward for the
+       * yard he had actually earned. That is not how a man is brought down. He is GRABBED,
+       * and then the two of them TRAVEL: his legs still going, the tackler hanging on and
+       * being dragged, until the momentum is gone and they land together. Where they land is
+       * the spot. So the wrap opens a grip here and the carry loop runs it (THE GRIP TICK);
+       * the tackle is emitted at the end of it, with the ground they really covered.
+       * A violent stop (the hit stick) and a wrap into a waiting crowd still end it where they
+       * land — nobody carries three men — so the instantaneous path below is still the common one. */
+      const canGripV103 = TU("gripV103", 1) && !bigStick && !c._grip && !done
+        && handsOn < TU("gripMaxHands", 3) && cSpd > TU("gripMinSpd", 34);
+      if (canGripV103) {
+        // how long he stays up: the collision he just lost, plus his own refusal to go down
+        const gripMs = cl(TU("gripBaseMs", 130) - collEdge * TU("gripEdgeMs", 130)
+          + Math.max(0, c.grit - 50) * TU("gripGritMs", 1.5) + Math.max(0, cMom - dMom) * TU("gripMomMs", .45),
+          TU("gripMinMs", 90), TU("gripMaxMs", 340));
+        c._grip = { by: d.id, t0: t, ms: gripMs, x0: c.lx, y0: c.y, style, gang, kb, drive, collEdge,
+          handsOn, sup: supIds.slice(), nSupport, pileEdge, dMom, cMom, behind, lev, stayUp, bothFall,
+          bigStick, side: (d.y >= c.y ? -1 : 1), joined: [], strip: false, strain: false, hc: false,
+          openField, gangRolled: false };
+        d._gripOn = c.id;
+        emit("grab", { who: d.id, carrier: c.id, x: c.lx, y: c.y, behind, style, gang,
+          ms: Math.round(gripMs), handsOn });
+        return "grip";
+      }
       emit("tackle",{tackler:d.id, carrier:c.id, x:c.lx, y:c.y, gang, bigHit: bigStick||kb>11, bothFall, stayUp, kb:Math.round(kb), drive:Math.round(drive), sup:supIds, youIn, style, hitStick: bigStick, handsOn});
       return "tackle";
     };
@@ -3234,7 +3261,11 @@ window.__visionRadiusV96 = visionRadiusV96;
             else { blitzer.freeRun = true; emit("freeRusher",{who:blitzer.id, wrongCall: !protection.read}); }
           }
         }
-        if (blitzer && blitzer.picked) mv(blitzer, blitzer.engaging.lx+7, blitzer.engaging.y, 0.2);
+        // v103: `engaging` is cleared when the man blocking him is pancaked or stunned while
+        // `picked` stays true, so a blitzer whose blocker went down deref'd null here and killed
+        // the whole play. He is picked up by nobody now — he comes free, which is what happened.
+        if (blitzer && blitzer.picked && blitzer.engaging) mv(blitzer, blitzer.engaging.lx+7, blitzer.engaging.y, 0.2);
+        else if (blitzer && blitzer.picked && !blitzer.engaging) blitzer.picked = false;
         // v82: the spy comes when the pocket moves — a rollout, a climb, or the QB
         // flushed by pressure — and is a free rusher from then on
         if (spy && !spy._attack && (qb._roll || qb._climbing || hurried) && t > 500) { spy._attack = true; emit("spyAttack", { who: spy.id, x: spy.lx, y: spy.y }); }
@@ -3546,6 +3577,149 @@ window.__visionRadiusV96 = visionRadiusV96;
       }
       else if (phase === "carry") {
         const c = carrier;
+        const endTackle = (dfd) => {
+          // grit: falls forward. v103: unless he was GRIPPED — the drag just played that out
+          // for real, and paying the old blind fudge on top of it counts the yard twice.
+          if (!c._wasGripped) c.lx += Math.max(0, (c.grit-50)) * 0.018 * (c.side==="off"?1:-1);
+          done = true;
+          const yds = c.side==="off" ? Math.round(c.lx/YD) : 0;
+          if (isKick) { out = { kind, yards: 0, ret: Math.round(((c._catchLx||0) - c.lx) / YD), spotLx: c.lx }; return; }   // v82: the return is booked as return yards
+          if (!out) out = { kind, yards: yds }; else out.yards = 0;           // pick return: passer line stays 0
+        };
+        /* ===== v103 THE GRIP TICK — they travel together, and where they LAND is the spot =====
+         * `contact()` no longer ends the play when a wrap lands: it opens a grip and hands the
+         * carry loop two men attached to each other. Everything that actually happens between
+         * the grab and the ground happens here, once a tick:
+         *   - they TRAVEL. His legs are still going and the tackler is dead weight on his back
+         *     hip, so the pair slides forward at a pace set by his strength against the man
+         *     holding him. The tackler's position is written from the carrier's, which is what
+         *     makes the two sprites move as one thing on screen.
+         *   - men PILE ON. Anyone who gets hands on joins the heap, rides along, and takes time
+         *     off the clock — the third man is why nobody drags a defence ten yards.
+         *   - the ball gets PUNCHED AT. A fumble forced here is a fumble the sim can NAME: who
+         *     stripped it, who recovered it, and where — the engine's blind pre-roll never could.
+         *   - he STRAINS for the sticks. Inside a couple of yards of the marker or the goal line
+         *     his leg drive finds another gear, which is where third-and-one is decided.
+         *   - he BREAKS it. Rarely, a powerful back rips out of the wrap and the play is live again.
+         *   - and he LANDS, with the tackle emitted at the ground they actually covered. */
+        if (c._grip) {
+          const G = c._grip, dfd = A_all[G.by], dsg = c.side === "off" ? 1 : -1, age = t - G.t0;
+          if (!dfd || (dfd.stunned && t < dfd.stunned) || (dfd.trucked && t < dfd.trucked + 900)) { c._grip = null; }
+          else {
+            // ---- men pile on: hands on, riding along, and the clock runs out faster
+            if (TU("pileOnV103", 1) && G.joined.length < TU("gripJoinMax", 3)) {
+              for (const a of S.all) {
+                if (a.side === c.side || a === dfd || a.lb === "OL" || G.joined.indexOf(a.id) >= 0) continue;
+                if (t <= (a.beaten || 0) || (a.trucked && t < a.trucked + 900) || (a.stunned && t < a.stunned)) continue;
+                if (Math.hypot(a.lx - c.lx, a.y - c.y) > TU("gripJoinPx", 15)) continue;
+                G.joined.push(a.id); G.ms = Math.max(TU("gripMinMs", 90), G.ms - TU("gripJoinCutMs", 150));
+                /* getting hands on the heap is not the same as being IN ON THE TACKLE. The pile
+                 * is physical — it shortens the grip and it rides along — but whether the stop is
+                 * BOOKED as assisted is rolled once, on the same odds the instantaneous path has
+                 * always used. Without this every man who brushed the pile turned a solo tackle
+                 * into a gang tackle and the solo/gang split collapsed to fifty-fifty. */
+                if (!G.gang && !G.gangRolled) { G.gangRolled = true;
+                  G.gang = Math.random() < Math.min(0.9, (G.openField ? TU("gangOpen", .10) : TU("gangBox", .36)) + G.handsOn * TU("gangHandsK", .24)); }   // handsOn AT THE WRAP, exactly as the instantaneous path counts it
+                emit("pileOn", { who: a.id, carrier: c.id, x: c.lx, y: c.y, n: G.joined.length + 1 });
+                if (G.joined.length >= TU("gripJoinMax", 3)) break;
+              }
+            }
+            // ---- the strip: the ball is up in traffic and somebody punches at it
+            if (!G.strip && TU("stripV103", 1) && age > TU("stripFromMs", 60) && !isKick) {
+              // the man with his arms round him is as likely to punch at it as the second man in
+              const puncher = G.joined.length ? A_all[G.joined[G.joined.length - 1]] : dfd;
+              if (puncher) {
+                const exposure = (G.behind ? TU("stripBehindK", 1) : 0) + G.joined.length * TU("stripHandsK", 1.1);
+                const skill = ((puncher.str * .45 + puncher.tkl * .55) - (c.bc * .72 + c.str * .28)) * TU("stripSkillK", .00055);
+                const pPerTick = cl((TU("stripBase", .024) + exposure * TU("stripExposeK", .006) + skill), 0, TU("stripCap", .05)) * (TICK / 100);
+                if (Math.random() < pPerTick) {
+                  G.strip = true;
+                  const nearOff = S.all.filter(a => a.side === c.side && a !== c && Math.hypot(a.lx - c.lx, a.y - c.y) < 40).length;
+                  const nearDef = 1 + G.joined.length + S.all.filter(a => a.side !== c.side && a !== dfd && G.joined.indexOf(a.id) < 0 && Math.hypot(a.lx - c.lx, a.y - c.y) < 40).length;
+                  const defRec = Math.random() < cl(TU("stripDefRecP", .46) + (nearDef - nearOff) * TU("stripRecEdgeK", .035), .28, .74);
+                  emit("fumble", { x: c.lx, y: c.y, by: c.id, forcedBy: puncher.id, defRec, strip: true });
+                  endTackle(dfd);
+                  if (out) out.fumble = { by: c.player || null, forcedBy: puncher.player || null, defRec,
+                    yards: c.side === "off" ? Math.round(c.lx / YD) : 0, x: c.lx, y: c.y };
+                  c._grip = null; dfd._gripOn = null;
+                  rec(); continue;
+                }
+              }
+            }
+            // ---- the horse collar: a grab from dead behind, hauling him down by the shoulders
+            if (G.behind && !G.hc && TU("horseCollarV103", 1) && age > TU("hcFromMs", 70) && dfd.player
+                && Math.random() < TU("hcP", .035)) {
+              G.hc = true; flagCand.hc = dfd.player;
+              emit("horseCollar", { who: dfd.id, carrier: c.id, x: c.lx, y: c.y });
+            }
+            // ---- second effort: inside a couple of yards of the marker he strains for it
+            let strain = 0;
+            if (TU("secondEffortV103", 1) && c.side === "off") {
+              const marks = [];
+              if (opts && Number.isFinite(opts.toGo)) marks.push(opts.toGo * YD);
+              if (opts && Number.isFinite(opts.fieldPos)) marks.push((100 - opts.fieldPos) * YD);
+              for (const mk of marks) {
+                const gap = (mk - c.lx) * dsg;
+                if (gap > 0 && gap < TU("secondEffortYd", 2) * YD) {
+                  strain = Math.max(strain, cl(TU("secondEffortK", .22) + Math.max(0, c.grit - 50) * .0055
+                    + Math.max(0, c.str - dfd.str) * .0035, 0, TU("secondEffortMax", .6)));
+                  if (!G.strain) { G.strain = true; emit("secondEffort", { carrier: c.id, x: c.lx, y: c.y, need: +(gap / YD).toFixed(1) }); }
+                }
+              }
+            }
+            // ---- he rips out of it and the play is live again
+            if (!G.strip && TU("gripBreakV103", 1) && age > TU("breakFromMs", 80) && !G.joined.length) {
+              const edge = (c.str * .5 + c.grit * .3 + c.bc * .2) - (dfd.tkl * .62 + dfd.str * .38);
+              const pPerTick = cl(TU("breakBase", .028) + edge * TU("breakEdgeK", .0012), 0, TU("breakCap", .12))
+                * Math.pow(TU("evadeRepeatK", .6), Math.max(0, (c._evades || 0) - 1)) * (TICK / 100);
+              if (Math.random() < pPerTick) {
+                c._grip = null; dfd._gripOn = null;
+                dfd.beaten = t + TU("breakBeatenMs", 720); dfd.cool = t + 600;
+                c.burstUntil = t + 420; kickSprint(c); c._evades = (c._evades || 0) + 1;
+                emit("gripBreak", { who: dfd.id, carrier: c.id, x: c.lx, y: c.y });
+                rec(); continue;
+              }
+            }
+            // ---- they travel together
+            const pull = cl(TU("gripPace", .13) + (c.str - dfd.str) * TU("gripStrPace", .0022)
+              + Math.max(0, c.grit - 50) * TU("gripGritPace", .0014) + strain
+              - G.joined.length * TU("gripPilePace", .085), .05, .82);
+            // a man with another man on his back does not coast to a stop over ten yards: the
+            // grip caps his gear outright, so the drag is the yard or two he can churn out and
+            // never the tail of a full-speed deceleration
+            c.vel = Math.min(c.vel || 0, cl(TU("gripVelCap", .24) + strain * .5, .08, .9));
+            mv(c, c.lx + dsg * 46, c.y, pull);
+            dfd.lx = c.lx - dsg * TU("gripHoldPx", 8); dfd.y = clampY(c.y + G.side * TU("gripHoldY", 4));
+            dfd._dx = c._dx; dfd._dy = c._dy; dfd.vel = c.vel;
+            G.joined.forEach((id, i) => { const a = A_all[id]; if (!a) return;
+              a.lx = c.lx - dsg * (11 + i * 3); a.y = clampY(c.y + (i % 2 ? 1 : -1) * (7 + i * 3));
+              a._dx = c._dx; a._dy = c._dy; a.vel = c.vel; });
+            // ---- the landing: the tackle is booked on the ground they actually covered
+            if (age >= G.ms) {
+              const dragYd = (c.lx - G.x0) * dsg / YD;
+              /* stat-credit truth: an assist is only real when the stop was actually ASSISTED and
+               * YOU were one of the men with hands on. `joined` is hands-on by construction (he
+               * reached the pile and latched); `sup` is merely "nearby when the wrap landed", so
+               * it only counts when the collision was resolved as a gang stop — which is exactly
+               * the gate the instantaneous path has always used. Standing near a pile is not
+               * participation, and creditcheck fails the build if this drifts. */
+              const _assisted = !!G.gang;
+              const youIn = (_assisted && S.all.some(a => a.player && a.player.you && a.side !== c.side && a !== dfd
+                && (G.joined.indexOf(a.id) >= 0 || (G.gang && G.sup.indexOf(a.id) >= 0)))) || undefined;
+              emit("tackle", { tackler: dfd.id, carrier: c.id, x: c.lx, y: c.y,
+                gang: !!G.gang, bigHit: G.bigStick || G.kb > 11, bothFall: G.bothFall,
+                stayUp: G.stayUp && !G.joined.length, kb: Math.round(G.kb), drive: Math.round(G.drive),
+                sup: G.sup.concat(G.joined), youIn, style: G.style, hitStick: G.bigStick,
+                handsOn: G.handsOn + G.joined.length,
+                dragged: true, dragMs: Math.round(age), dragYd: +dragYd.toFixed(2), strain: !!G.strain, horseCollar: !!G.hc });
+              c._grip = null; dfd._gripOn = null; c._wasGripped = true;
+              endTackle(dfd);
+              if (out) { out.dragYd = +dragYd.toFixed(2); out.strain = !!G.strain; out.dragMs = Math.round(age); }
+              rec(); continue;
+            }
+            rec(); continue;
+          }
+        }
         const carryStartX=c.lx;
         const boundaryAtStart=c.y<=SIDELINE_TOP+TU("planeEpsilon",.05)?SIDELINE_TOP:
           c.y>=SIDELINE_BOT-TU("planeEpsilon",.05)?SIDELINE_BOT:null;
@@ -3554,9 +3728,19 @@ window.__visionRadiusV96 = visionRadiusV96;
           if(!r.engaging){r.shed=true;return;}
           // easier to disengage once the ball is past the trench, but still a contest
           const past = c.side==="off" && c.lx > 20;
-          const pFactor = (kind==="run"?0.55:1) * (past?3:1);
+          /* v103 THE TRENCH BREAKS UP — a lineman does not hold his block while the ball runs
+           * away from him. Once the carrier is CLEARLY past the line of scrimmage there is
+           * nothing left to block and nothing left to rush: the defender rips off on his own
+           * clock and chases the ball, and the man who was blocking him lets go and goes
+           * looking for somebody to hit downfield. Before v103 the pair stayed welded together
+           * for the whole play, which is why the trench looked frozen while football happened
+           * ten yards away. `disengage` is emitted for both halves so the broadcast shows the
+           * release rather than two men who simply stop existing. */
+          const gone = c.side==="off" && c.lx > TU("trenchBreakPx", 34);
+          const pFactor = (kind==="run"?0.55:1) * (past?3:1) * (gone?TU("trenchBreakK",6):1);
           if (!r.shed) { const pr = cl(((r.str*0.55 + r.quick*0.45) - r.engaging.blk) * 0.00042 + 0.0035, 0.0008, 0.028) * pFactor * (r.doubled?0.32:1);
             if (Math.random() < pr) { r.shed = true; r.releaseT = t; emit("shed",{who:r.id});
+              if (gone) emit("disengage", { who: r.id, by: r.engaging ? r.engaging.id : null, chase: true, x: r.lx, y: r.y });
               if (t < TU("holdFlagMs",900) && r.engaging && r.engaging.player) flagCand.hold = r.engaging.player; } }
         }});
         // v81: the blocks PLAY OUT — a won block drives the pair off the spot and
@@ -3670,25 +3854,42 @@ window.__visionRadiusV96 = visionRadiusV96;
         if(boundaryAtStart!=null&&!c._sidelineCross)c._sidelineCross={x:carryStartX,y:boundaryAtStart};
         // defense pursues with lead angles; contacts roll tackle contests
         // climbing linemen wall off linebackers (shed contests apply)
-        if (kind === "run") blockers.forEach(o => {
-          // v81 FIND A JOB: a lineman with nobody on him — uncovered at the snap,
-          // released once the ball went past, or standing over a pancake — climbs
-          // to the nearest live defender in the play instead of standing around.
+        /* v103 THE LINE BLOCKS FOR HIM — v81's "find a job" only ran on a called RUN and only
+         * ever looked for the body nearest the LINEMAN, so on a catch-and-run five offensive
+         * linemen stood at the line watching, and on a run they blocked whoever happened to be
+         * closest rather than the man about to make the tackle. Now the whole front works on
+         * any carry the offence has, and the job is chosen by who THREATENS THE CARRIER —
+         * distance to the ball, weighted ahead of distance to the blocker — which is what a
+         * lineman climbing to the second level is actually looking at. Sustained blocks report
+         * `block` on a heartbeat so the broadcast can hold the engagement instead of flickering. */
+        if (c.side === "off") blockers.forEach(o => {
+          if (o === c) return;
           if ((!o.climb || o.climb.shed2 || (o.climb.stunned && t < o.climb.stunned)) && !(o.engagedBy && !o.engagedBy.shed)) {
-            let tgt = null, td = TU("climbReachPx", 70);
+            let tgt = null, best = TU("climbScoreMax", 150);
             for (const a of S.def) { if (a.lb === "DL" && !a.shed) continue;
               if ((a.stunned && t < a.stunned) || a.shed2 || a._climbedBy) continue;
-              if (c.side === "off" && a.lx < c.lx - 10) continue;                       // behind the ball: not a job
-              const d2 = Math.hypot(a.lx - o.lx, a.y - o.y); if (d2 < td) { td = d2; tgt = a; } }
+              if (a.lx < c.lx - TU("climbBehindPx", 12)) continue;                       // behind the ball: not a job
+              const toBall = Math.hypot(a.lx - c.lx, a.y - c.y), toMe = Math.hypot(a.lx - o.lx, a.y - o.y);
+              if (toMe > TU("climbReachPx", 92)) continue;
+              const score = toBall * TU("climbBallW", 1.6) + toMe * TU("climbSelfW", .55);
+              if (score < best) { best = score; tgt = a; } }
             if (tgt) { o.climb = tgt; tgt._climbedBy = o.id; }
-            else if (c.side === "off") mv(o, c.lx + 12, o.y + (c.y - o.y) * .4, .5);       // escort the runner
+            else mv(o, c.lx + 14, o.y + (c.y - o.y) * .5, .55);                           // no job: get out in front of him
           }
           if (o.climb && !o.climb.shed2 && !(o.climb.stunned && t < o.climb.stunned)) {
-            mv(o, o.climb.lx-8, o.climb.y, 0.7);
+            // get between the man and the ball, not merely next to him
+            const bx = o.climb.lx - Math.sign(o.climb.lx - c.lx || 1) * 7, by = o.climb.y + Math.sign(o.climb.y - c.y || 1) * 2;
+            mv(o, bx, by, TU("climbPace", .72));
             if (Math.hypot(o.lx-o.climb.lx, o.y-o.climb.y) < 16) {
               const pshed = cl(((o.climb.str*0.6+o.climb.agi*0.4) - o.blk) * 0.0005 + 0.006, 0.001, 0.05);
-              if (Math.random() < pshed) { o.climb.shed2 = true; o.climb.engagedBy = null; o.climb._climbedBy = null; }
-              else { if (!o.climb.held) emit("block", { by: o.id, on: o.climb.id, x: o.lx, y: o.y }); o.climb.held = t + 60; }
+              if (Math.random() < pshed) { o.climb.shed2 = true; o.climb.engagedBy = null; o.climb._climbedBy = null; emit("disengage", { who: o.climb.id, by: o.id, x: o.lx, y: o.y }); }
+              else {
+                if (!o.climb.held) emit("block", { by: o.id, on: o.climb.id, x: o.lx, y: o.y });
+                else if (t > (o._blkSay || 0)) { o._blkSay = t + TU("blockSayMs", 260); emit("block", { by: o.id, on: o.climb.id, x: o.lx, y: o.y, sustain: true }); }
+                o.climb.held = t + 60;
+                // he is driving him off the ball: the pair walks away from the carrier's lane
+                mv(o.climb, o.climb.lx + (o.climb.lx - c.lx > 0 ? 6 : -6), o.climb.y + (o.climb.y - c.y > 0 ? 5 : -5), .3);
+              }
             }
           }
         });
@@ -3704,13 +3905,6 @@ window.__visionRadiusV96 = visionRadiusV96;
         // because the support rule holds everyone else a stride off the carrier.
         if (committerId && (function(){const cm=A_all[committerId]; return !cm || t<(cm.beaten||0) || (cm.trucked&&t<cm.trucked+900)
           || Math.hypot(cm.lx-c.lx, cm.y-c.y) > TU("commitDropGap", 30) || t > (committerAt||0) + TU("commitMaxMs", 650);})()) committerId = null;
-        const endTackle = (dfd) => {
-          c.lx += Math.max(0, (c.grit-50)) * 0.018 * (c.side==="off"?1:-1);   // grit: falls forward
-          done = true;
-          const yds = c.side==="off" ? Math.round(c.lx/YD) : 0;
-          if (isKick) { out = { kind, yards: 0, ret: Math.round(((c._catchLx||0) - c.lx) / YD), spotLx: c.lx }; return; }   // v82: the return is booked as return yards
-          if (!out) out = { kind, yards: yds }; else out.yards = 0;           // pick return: passer line stays 0
-        };
         // the single nearest pursuer is the one who kicks a sprint to run him down
         let nearestChaser=null, nearestGap=1e9, lastMan=null;
         for (const a of chasers) { if (t<(a.beaten||0)||(a.trucked&&t<a.trucked+900)||(a.stunned&&t<a.stunned)||(a.lb==="DL"&&!a.shed)) continue;
@@ -3737,7 +3931,7 @@ window.__visionRadiusV96 = visionRadiusV96;
             if (t < (dfd.held||0)) { mv(dfd, c.lx, c.y, 0.16);
               // a blocked man can still fall off the block onto a runner who comes THROUGH him
               if (Math.hypot(dfd.lx-c.lx, dfd.y-c.y) < TU("heldReachPx", 17) && (!committerId || committerId===dfd.id)) {
-                committerId = dfd.id; const r = contact(dfd, c); if (r === "tackle") { endTackle(dfd); break; } }
+                committerId = dfd.id; const r = contact(dfd, c); if (r === "grip") break; if (r === "tackle") { endTackle(dfd); break; } }   // v103: a grip hands the carrier to the grip tick
               continue; }
             // v81: until he has FOUND the ball he plays his assignment, not the carrier.
             // A linebacker holds his gap with a read step (a bitten one on a draw is
@@ -3893,6 +4087,7 @@ window.__visionRadiusV96 = visionRadiusV96;
           // the grab/collision itself resolves once he's actually on the carrier
           if (gapNow < TU("tackleGrabDist", 16) && committerId===dfd.id) {
             const r = contact(dfd, c);
+            if (r === "grip") break;                     // v103: he has hold of him — the grip tick takes it from here
             if (r === "tackle") { endTackle(dfd); break; }
             // whiff / stiffarm / broken / stagger / cooldown: carrier stays up, play continues
           }
@@ -4183,7 +4378,7 @@ window.__visionRadiusV96 = visionRadiusV96;
         // v87: a scramble the sim chose is booked as one; a swat is the only pass break-up
         if (r.log && r.log.events && r.log.events.some(e=>e.type==="scramble"&&e.opportunity)) { X.scramble = true; X.complete = false; X.yards = Math.round(r.yards || 0); X.breakaway = X.yards >= 15; }
         X.swat = !!r.swat;
-        X.tackler = r.tackler||null; X.assist = r.assist||null; X.flags = r.flags||null;
+        X.tackler = r.tackler||null; X.assist = r.assist||null; X.flags = r.flags||null; X.fumble = r.fumble||null; X.dragYd = r.dragYd||0; X.strain = !!r.strain;   // v103: stripped after the catch, and carried for the extra
         X.throwStyle=r.throwStyle; X.throwWindow=r.throwWindow; X.arrivalEdgeMs=r.arrivalEdgeMs; X.locationQuality=r.locationQuality;
         // v82: the quarterback took the sack inside the sim — the sacker is the free man
         // who got there, and the log renders as the sack the box score books
@@ -4196,8 +4391,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       try {
         // v81: the concept picks the hole (and a draw sells the pass first)
         // v101: and the CALLED PLAY, when there is one, picks the exact gap
-        const r = sim("run", k.off, T.def, att, { off: { 9: K } }, Object.assign({ concept: concept || "inside" }, ctx));
-        const X = { carrier: K, yards: r.yards, breakaway: r.yards >= 15, tackler: r.tackler||null, assist: r.assist||null, flags: r.flags||null };
+        const r = sim("run", k.off, T.def, att, { off: { 9: K } }, Object.assign({ concept: concept || "inside" }, ctx));   // v103: ctx carries the gap, the down and the distance (the strain reads the sticks)
+        const X = { carrier: K, yards: r.yards, breakaway: r.yards >= 15, tackler: r.tackler||null, assist: r.assist||null, flags: r.flags||null, fumble: r.fumble||null, dragYd: r.dragYd||0, strain: !!r.strain };   // v103: a strip the sim NAMED, and the ground he was dragged for
         pushLog({ off: !!w, kind: "run", yards: X.yards }, r.log);
         return X;
       } catch (e) { console.warn("[FieldSim.run]", e); return null; }
@@ -6267,7 +6462,9 @@ class Ot extends mt.Scene {
     if (REDUCED_MOTION) return 0;
     if (/^(fg|punt|kickoff|xp)$/i.test(String(pay.event || ""))) return 0;   // the kicking game has its own shape
     if (pay.scored || pay.penalty) return 0;                                  // the celebration and the flag own those moments
-    return TU("postPlayMs", 850);
+    // v103: the post-play phase has to be long enough to hold a second of live contact AND
+    // still show everyone letting go and gathering afterwards
+    return TU("postPlayMs", 1450);
   }
   startPostV86(P, ms) {
     const S = P.script, dir = S.meta.dir || VDIR || 1, YDF = PLAY_W / 100, MIDY = (F_TOP + F_BOT) / 2;
@@ -6282,11 +6479,41 @@ class Ot extends mt.Scene {
         up: grounded ? TU("unpileMs", 340) + (carrier ? TU("unpileCarrierMs", 200) : 0) + Math.random() * 120 : 0,
         tx: spot.x - dir * (off ? TU("postGatherOff", 6) : -TU("postGatherDef", 7)) * YDF + (Math.random() - 0.5) * 3 * YDF,
         ty: spot.y + (m.sy - spot.y) * TU("postSpreadK", 0.7) + (Math.random() - 0.5) * TU("postJitterY", 26) };
+      /* v103 THE WHISTLE IS NOT THE END OF THE CONTACT — v86 let go of everything on the
+       * whistle: every grab, every block released on the same frame and twenty-two men
+       * turned and jogged to their spots as one, which is the single most artificial beat
+       * in the broadcast. Football does not stop on the whistle. For `lateContactMs` the
+       * pile keeps churning, the men with hands on keep them on, and anybody who was still
+       * closing ARRIVES — a shove into the heap, a shove back, and only then does everyone
+       * peel off and gather. `late` marks the men who are still in it. */
+      // the heap is the men AT the spot — a man holding a grip twenty yards away is not in it
+      const dSpot = Math.hypot(m.sx - spot.x, m.sy - spot.y);
+      const inPile = dSpot < TU("pileRadiusPx", 26);
+      const holding = dSpot < TU("pileHoldPx", 52) && /^(grab|tackleSeq|down|dive)$/.test(String(m.forceState || ""));
+      m._late = null;
+      if (TU("lateContactV103", 1) && !REDUCED_MOTION && (inPile || holding)) {
+        m._late = { kind: grounded ? "pile" : "hold", ph: Math.random() * 6.28, amp: 1.2 + Math.random() * 1.6 };
+        if (!grounded && holding) { m._lean = 0; m._lookAt = null; m._dropback = false; return; }   // he keeps his grip
+      }
       if (!grounded && m.forceState && m.forceState !== "getupSeq") m.forceState = null;   // grabs, blocks and stances let go at the whistle
       m._lean = 0; m._lookAt = null; m._dropback = false;
       if (m.body) { m.body.x = 0; m.body.y = 0; }
       try { this.unpair(i); } catch (e) {}
     });
+    // the late arrivals: the two or three nearest men who were NOT in the pile still crash in
+    P.post.late = [];
+    if (TU("lateContactV103", 1) && !REDUCED_MOTION) {
+      const cand = this.markers.map((m, i) => ({ m, i, d: Math.hypot(m.sx - spot.x, m.sy - spot.y) }))
+        .filter((q) => q.m && q.m._post && !q.m._post.grounded && !q.m._late
+          && q.d > TU("pileRadiusPx", 26) && q.d < TU("lateReachPx", 150))
+        .sort((a, b) => a.d - b.d).slice(0, Math.max(0, Math.round(TU("lateArrivals", 3))));
+      for (const q of cand) {
+        P.post.late.push({ i: q.i, at: TU("lateFromMs", 120) + Math.random() * TU("lateSpreadMs", 380), hit: false,
+          tx: spot.x + (q.m.sx - spot.x) * .22, ty: spot.y + (q.m.sy - spot.y) * .22 });
+        q.m._post.late = true;
+      }
+      try { const V = window.__V103 = window.__V103 || {}; V.late = (V.late || 0) + P.post.late.length; } catch (e) {}
+    }
     // the ball is dead: it stays at the spot for the crew, nobody jogs off with it
     P.ballHolderId = null; P.ballMode = "ground"; P.__looseBall = false;
     try { if (this.ballSpr) { const bp = PJ(spot.x, spot.y); this.ballSpr.setPosition(bp.x, bp.y - 2 * bp.s).setScale(0.40 * bp.s, 0.36 * bp.s).setDepth(9).setRotation(0.2);
@@ -6297,8 +6524,43 @@ class Ot extends mt.Scene {
     const spd = Math.max(0.5, window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7);
     const dt = delta * spd; P.post.t += dt;
     const k = P.post.t;
+    /* v103: the first second is still contact. The pile churns on its own phase, the men
+     * holding a grip keep holding it, and the late arrivals cross the last few yards and
+     * shove into the heap — a puff, a jolt of the pile, a knock of the camera — before
+     * everybody lets go and the v86 gather takes over. */
+    const lateMs = TU("lateContactMs", 850);
+    if (P.post.late && k < lateMs) {
+      for (const L of P.post.late) {
+        const m = this.markers[L.i]; if (!m || !m.root) continue;
+        if (k < L.at) continue;
+        const dx = L.tx - m.sx, dy = L.ty - m.sy, d = Math.hypot(dx, dy);
+        if (d > 4) { const stp = Math.min(d, TU("lateChargeSpeed", 210) * dt / 1000);
+          this.placeMarker(m, m.sx + dx / d * stp, m.sy + dy / d * stp, dt); }
+        else if (!L.hit) {
+          L.hit = true; m.forceState = "grab";
+          this.puffFx(m.sx, m.sy, 3, 0xc8d6cb, 0.45);
+          this.hitStop = Math.max(this.hitStop, TU("lateHitStop", 22));
+          REDUCED_MOTION || this.cameras.main.shake(120, 0.005);
+          try { const V = window.__V103 = window.__V103 || {}; V.lateHits = (V.lateHits || 0) + 1; } catch (e) {}
+          this.time.delayedCall(TU("lateHoldMs", 320), () => { if (m.forceState === "grab") m.forceState = null; });
+        }
+      }
+    }
+    if (k < lateMs) {
+      // the heap is still moving: everyone in it jostles on his own phase
+      for (const m of this.markers) { const q = m && m._late; if (!q || !m.body) continue;
+        const f = 1 - k / lateMs;
+        m.body.x = Math.sin(k / TU("pileChurnMs", 90) + q.ph) * q.amp * f;
+        m.body.y = Math.cos(k / (TU("pileChurnMs", 90) * 1.4) + q.ph) * q.amp * .5 * f; }
+    } else if (P.post._lateDone !== true) {
+      P.post._lateDone = true;
+      for (const m of this.markers) { if (m && m._late) { m._late = null; if (m.body) { m.body.x = 0; m.body.y = 0; }
+        if (m.forceState === "grab") m.forceState = null; } }
+    }
     this.markers.forEach((m, i) => {
       const q = m._post; if (!q || !m.root) return;
+      if (m._late && k < lateMs) return;               // still in the scrap: he is not going anywhere yet
+      if (q.late && k < lateMs) return;                // still arriving
       if (q.grounded && !q.rose) {
         if (k < q.up) { this.placeMarker(m, m.sx, m.sy, delta); return; }
         q.rose = true; m._launchUntil = 0; if (m.forceState !== "celebrateSeq") { m.forceState = "getupSeq"; m.seqT = m.tms; } if (m.body) m.body.setAlpha(1);   // v91: a celebration outranks the get-up
@@ -6405,7 +6667,8 @@ class Ot extends mt.Scene {
     const BOOK = this.slomoBookV102 || (this.slomoBookV102 = {
       catch: .45, highpoint: .4, contest: .5, pick: .35, swat: .5, fumble: .4, td: .45,
       cut: .4, stiffarm: .4, hurdle: .36, brokenTackle: .42, stagger: .5,
-      tackleHit: .45, pancake: .42, toetap: .4 });
+      tackleHit: .45, pancake: .42, toetap: .4,
+      gripBreak: .34, secondEffort: .42, pileOn: .55 });   // v103: the moments the grip creates
     // a `cut` is only a moment when it is a MOVE — the sim names the kind (juke, spin, a
     // stutter); an ordinary route cut or a lane change is not
     const isMove = (e) => e.type !== "cut" || /juke|spin|stutter|hesi|hurdle|truck/i.test(String(e.kind || ""));
@@ -6648,6 +6911,62 @@ class Ot extends mt.Scene {
         if (m) { m.body.setAlpha(0.55); this.time.delayedCall(600, () => m.body && m.body.setAlpha(1)); }
         break;
       }
+      /* ===== v103 THE GRAB, DRAWN — the two of them travel as one thing =====
+       * The sim now holds the carrier in a grip and writes the tackler's position from his,
+       * so the recorded frames already carry the pair moving together. This is the LOOK of it:
+       * the tackler locks on with the grab pose, the carrier leans hard into the drag and keeps
+       * his legs going, a scuff of turf comes up under them for as long as it lasts, and the
+       * pile that gathers rides along behind. It ends on the ordinary `tackle` event, which
+       * folds them both — the difference is that by then they have covered real ground. */
+      case "grab": {
+        const tk = this.markers[this.actorIdx(e.who)], cm = this.markers[this.actorIdx(e.carrier)];
+        if (tk) { tk.forceState = "grab"; tk._whiffed = false; tk._launchUntil = 0; tk._grabT = tk.tms; }
+        if (cm) {
+          cm._dragging = true;                                   // read by placeMarker for the lean and the scuff
+          cm._lean = (cm.flip ? 1 : -1) * TU("dragGripLean", 0.2);
+          cm.forceState = null;                                  // his legs are still going: keep the run cycle
+        }
+        P.gripPair = { tk: this.actorIdx(e.who), cm: this.actorIdx(e.carrier), t: 0 };
+        this.puffFx(e.x, e.y, 2, 0xcfe0d2, 0.42);
+        this.hitStop = Math.max(this.hitStop, TU("grabHitStop", 26));
+        try { const V = window.__V103 = window.__V103 || {}; V.grabs = (V.grabs || 0) + 1; } catch (er) {}
+        break;
+      }
+      case "pileOn": {
+        // another man gets hands on and rides along — he latches, he does not tackle
+        const a = this.markers[this.actorIdx(e.who)];
+        if (a) { a.forceState = "grab"; a._launchUntil = 0; }
+        this.puffFx(e.x, e.y, 2, 0xc8d6cb, 0.34);
+        this.hitStop = Math.max(this.hitStop, TU("pileHitStop", 18));
+        try { const V = window.__V103 = window.__V103 || {}; V.pileOn = (V.pileOn || 0) + 1; } catch (er) {}
+        break;
+      }
+      case "gripBreak": {
+        // he ripped out of the wrap and the play is live again
+        const tk = this.markers[this.actorIdx(e.who)], cm = this.markers[this.actorIdx(e.carrier)];
+        if (tk) { tk.forceState = "stagger"; this.time.delayedCall(320, () => { if (tk.forceState === "stagger") tk.forceState = null; }); }
+        if (cm) { cm._dragging = false; cm._lean = 0; cm.forceState = null; }
+        P.gripPair = null;
+        this.popText(e.x, e.y - 30, "OUT OF THE TACKLE!", "#57e07a", 13);
+        BADGE_V95.show("bigplay", { sub: "REFUSED TO GO DOWN", x: e.x, y: e.y, scene: this });
+        this.puffFx(e.x, e.y, 4, 0xffe9ad, 0.5); vib(24);
+        this.slowMoment(P, TU("breakSlow", 0.45), 700);
+        try { this.crowdReact({ type: "brokenTackle", x: e.x }, P); } catch (er) {}
+        try { const V = window.__V103 = window.__V103 || {}; V.breaks = (V.breaks || 0) + 1; } catch (er) {}
+        break;
+      }
+      case "secondEffort": {
+        // a yard from the marker, still on his feet, still driving
+        this.popText(e.x, e.y - 34, "SECOND EFFORT", "#f0bb45", 12);
+        this.puffFx(e.x, e.y + 4, 3, 0x8a7a55, 0.45);
+        try { this.crowdReact({ type: "firstdown", x: e.x }, P); } catch (er) {}
+        try { const V = window.__V103 = window.__V103 || {}; V.strains = (V.strains || 0) + 1; } catch (er) {}
+        break;
+      }
+      case "horseCollar": {
+        this.popText(e.x, e.y - 30, "BY THE COLLAR", "#e0484f", 12);
+        break;
+      }
       case "tackleLunge": {
         // v17 TACKLE LAUNCH — the closer commits from ~50% further out and LEAPS into
         // the carrier: a dive pose + an airborne hop (placeMarker lifts the whole sprite
@@ -6725,6 +7044,18 @@ class Ot extends mt.Scene {
           try { const V = (window.__V86 = window.__V86 || {}); const key = slide ? "slides" : tstyle ? tstyle + "s" : "plain"; V[key] = (V[key] || 0) + 1; } catch (er) {}
         }
         P.scrambling = false;
+        // v103: the grip is over — clear the drag look, and say what the drag was worth
+        try { const cmD = this.markers[P.carrierId]; if (cmD) { cmD._dragging = false; } } catch (er) {}
+        P.gripPair = null;
+        if (e.dragged) {
+          const dy = Number(e.dragYd || 0);
+          try { const V = window.__V103 = window.__V103 || {}; V.drags = (V.drags || 0) + 1; V.dragYd = (V.dragYd || 0) + dy; } catch (er) {}
+          if (dy >= TU("dragCallYd", 2)) {
+            this.popText(e.x, e.y - 46, "CARRIED HIM " + dy.toFixed(1) + " YD", "#f0bb45", 12);
+            BADGE_V95.show("bigplay", { sub: "CARRIED HIM", x: e.x, y: e.y, scene: this });
+          } else if (e.strain) this.popText(e.x, e.y - 46, "DROVE FOR IT", "#f0bb45", 12);
+        }
+        if (e.horseCollar) this.popText(e.x, e.y - 58, "HORSE COLLAR?", "#e0484f", 12);
         if (slide && tk) {
           // he gives himself up: a low forward slide, and the man over him pulls up
           m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + TU("slideMs", 260); m._launchH = 3; m._lean = 0;
@@ -6785,9 +7116,14 @@ class Ot extends mt.Scene {
           m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + 300; m._launchH = 14;
           this.time.delayedCall(280, () => { if (m.active !== false) { m.forceState = "down"; } });
           BADGE_V95.show("bighit", { sub: "HIT STICK", x: e.x, y: e.y, scene: this });   // v95
-          this.hitStop = Math.max(this.hitStop, TU("hitStopBig", 120));
-          this.puffFx(e.x, e.y, 6); vib(48);
-          REDUCED_MOTION || this.cameras.main.shake(240, 0.014);
+          /* v103 IMPACT WEIGHT — every big hit used to shake the camera by exactly the same
+           * amount for exactly the same time. The sim already measured the collision (the
+           * knock-back it produced and how many men were in it), so the picture uses it: a
+           * routine wrap barely moves the frame, a genuine collision throws it. */
+          const wgt = Math.min(1, (Math.abs(Number(e.kb || 0)) / 14 + (Number(e.handsOn || 0)) * .12));
+          this.hitStop = Math.max(this.hitStop, TU("hitStopBig", 120) * (.7 + wgt * .7));
+          this.puffFx(e.x, e.y, 4 + Math.round(wgt * 5)); vib(Math.round(32 + wgt * 30));
+          REDUCED_MOTION || this.cameras.main.shake(Math.round(160 + wgt * 140), 0.008 + wgt * 0.011);
         } else if (e.style === "low") this.popText(e.x, e.y - 30, "SHOESTRING!", "#8fe7ff", 12);
         if (e.sack) BADGE_V95.show("sack", { sub: badgeYdsV95(pay.yards), x: e.x, y: e.y, scene: this, token: "sack:" + P.__ballTokenV1514 });   // v95
         else if (e.oob) this.popText(e.x, e.y - 26, "PUSHED OUT OF BOUNDS", "#8fe7ff", 13);
@@ -7650,6 +7986,9 @@ class Ot extends mt.Scene {
     // turf spray at speed, skid streaks on hard cuts
     if (cutSkid && st !== "down") { this.skidFx(sx, sy); this.puffFx(sx, sy + 3, 2, 0x8a7a55, 0.34); }   // v21.2: jukes/plants kick turf
     if (st.indexOf("run") === 0 && spdPx > TU("runDustSpd", 100) && m.tms - (m.lastDust || 0) > 140) { m.lastDust = m.tms; this.puffFx(sx, sy + 6, spdPx > 190 ? 2 : 1, 0x7c6a48, 0.32); }
+    // v103: a man being dragged is churning, not gliding — the turf comes up under him the
+    // whole time he is in the grip, at a fraction of the running speed that normally throws it
+    if (m._dragging && m.tms - (m.lastDust || 0) > TU("dragDustMs", 110)) { m.lastDust = m.tms; this.puffFx(sx, sy + 5, 2, 0x8a7a55, 0.4); }
     const p = PJ(sx, sy);
     // v83 2.5D: paired sprites are pushed apart on screen so the man behind still reads —
     // a stable side per marker (the lower slot goes left), scaled with the projection
@@ -8200,6 +8539,11 @@ class Ot extends mt.Scene {
       incomplete:["\uD83D\uDE29", "\uD83E\uDD26", "\uD83E\uDEE0"],                                        // 😩 🤦 🫠
       playfake:  ["\uD83E\uDD2B", "\uD83D\uDC40"],                                                          // 🤫 👀
       holeOpen:  ["\uD83D\uDEAA", "\uD83D\uDC49"],                                                          // 🚪 👉
+      gripBreak: ["\uD83D\uDCAA", "\uD83D\uDE32", "\uD83D\uDD25"],                                          // 💪 😲 🔥
+      secondEffort: ["\uD83D\uDE24", "\uD83D\uDCAA", "\uD83D\uDC4F"],                                       // 😤 💪 👏
+      pileOn:    ["\uD83D\uDE2C", "\uD83E\uDDF1", "\uD83D\uDCA5"],                                          // 😬 🧱 💥
+      grab:      ["\uD83E\uDD1C", "\uD83D\uDE2C"],                                                            // 🤜 😬
+      horseCollar: ["\uD83D\uDE21", "\uD83E\uDD2C"],                                                          // 😡 🤬
     };
     const own = B[type];
     if (own && own.length) return own;
@@ -8275,6 +8619,8 @@ class Ot extends mt.Scene {
       snap: [0.1, 1],
       // v101: the moments the stands were sitting through in silence
       sack: [0.62, 0], safety: [0.95, 0], swat: [0.44, 0], throwaway: [0.2, 0], flag: [0.6, 0],
+      // v103: the wrap, the heap, the man who would not go down
+      grab: [0.24, 0], pileOn: [0.34, 0], gripBreak: [0.6, 1], secondEffort: [0.52, 1], horseCollar: [0.5, 0],
       juke: [0.44, 1], spin: [0.44, 1], truck: [0.5, 1], scramble: [0.4, 1], doubleMove: [0.38, 1],
       boxOut: [0.34, 1], playfake: [0.24, 1], blitz: [0.3, 0], holeOpen: [0.3, 1], pilePush: [0.24, 1],
     };
@@ -11568,7 +11914,7 @@ function standV76(){
     lateP=over>a2?(over-a2)/(b2-a2)*mx:0;
   return Math.random()<f(gapP+lateP,0,mx);
 }
-function B(w,concept,play){const{O:k,D:T}=ie(w),K=(()=>{const yu=k.off.find(z=>z.you),rbs=k.off.filter(z=>z.pos==="RB"),qb=Y(k.off,["QB"]);if(rbs.length){if(qb&&Math.random()<.055)return qb;const sr=rbs.slice().sort((A,B2)=>(B2.ovr||0)-(A.ovr||0)),lead=yu&&yu.pos==="RB"?yu:sr[0],backup=sr.find(pl=>pl!==lead)||lead,leadShare=f(.72-touches(lead)*.012,.46,.72);return Math.random()<leadShare?lead:backup}return qb||Y(k.off,["RB","RB","QB"])})(),g=T.def.filter(ge=>["DL","LB","S"].includes(ge.pos)),N=_starFrontRating(T.def,g),H=k.off.filter(ge=>ge.pos==="OL"),oe=H.length?H.reduce((ge,$e)=>ge+_($e,"blocking"),0)/H.length:45;addTouch(K);const __r2=window.__FieldSim&&window.__FieldSim.run(w,k,T,K,_,concept,play&&play.gap?{gap:play.gap,play:play.id}:{});   /* v101: the call names the gap */let base;if(__r2)base=__r2;else{const be=(_(K,"strength")*.5+_(K,"burst")*.5)*.5+oe*.5-N*.85;let ke=Math.round(2.8+be*.045+D(-2.5,3));be<-7&&Math.random()<.38&&(ke=le(-2,1)),Math.random()<f((_(K,"speed")-N)/360+.015,.008,.11)&&(ke+=le(7,13+Math.round(_(K,"speed")/8))),ke=f(ke,-5,60),base={carrier:K,yards:ke,breakaway:ke>=15}}
+function B(w,concept,play){const{O:k,D:T}=ie(w),K=(()=>{const yu=k.off.find(z=>z.you),rbs=k.off.filter(z=>z.pos==="RB"),qb=Y(k.off,["QB"]);if(rbs.length){if(qb&&Math.random()<.055)return qb;const sr=rbs.slice().sort((A,B2)=>(B2.ovr||0)-(A.ovr||0)),lead=yu&&yu.pos==="RB"?yu:sr[0],backup=sr.find(pl=>pl!==lead)||lead,leadShare=f(.72-touches(lead)*.012,.46,.72);return Math.random()<leadShare?lead:backup}return qb||Y(k.off,["RB","RB","QB"])})(),g=T.def.filter(ge=>["DL","LB","S"].includes(ge.pos)),N=_starFrontRating(T.def,g),H=k.off.filter(ge=>ge.pos==="OL"),oe=H.length?H.reduce((ge,$e)=>ge+_($e,"blocking"),0)/H.length:45;addTouch(K);const __r2=window.__FieldSim&&window.__FieldSim.run(w,k,T,K,_,concept,Object.assign(play&&play.gap?{gap:play.gap,play:play.id}:{},{fieldPos:typeof pos!=="undefined"?pos:50,down:typeof down!=="undefined"?down:1,toGo:typeof toGo!=="undefined"?toGo:10}));   /* v101: the call names the gap. v103: and the sticks, so a back can strain for them */let base;if(__r2)base=__r2;else{const be=(_(K,"strength")*.5+_(K,"burst")*.5)*.5+oe*.5-N*.85;let ke=Math.round(2.8+be*.045+D(-2.5,3));be<-7&&Math.random()<.38&&(ke=le(-2,1)),Math.random()<f((_(K,"speed")-N)/360+.015,.008,.11)&&(ke+=le(7,13+Math.round(_(K,"speed")/8))),ke=f(ke,-5,60),base={carrier:K,yards:ke,breakaway:ke>=15}}
 // v16.1 run-curve calibration: the agent sim compresses gains into 0-5 yds
 // (its 7-defender pursuit converges before a back can break clean). Real backs
 // gash the second level and break the occasional long one, so promote a
@@ -11584,11 +11930,11 @@ if(base&&base.yards>=0&&base.yards<=2){
   else if(Math.random()<sustainP){dropSimLog();base={carrier:K,yards:le(4,8),breakaway:!1}}
 }
 if(base&&base.yards>0){const y2=Math.round(dampV76(base.yards));
-  if(y2!==base.yards){base={...base,yards:y2,breakaway:y2>=15}}}
+  if(y2!==base.yards){retagSimLog(y2);base={...base,yards:y2,breakaway:y2>=15}}}   /* v103: the picture follows the number */
 return base}
 function b(w,concept,ctx={}){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=(()=>{const g0=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]);const yu=k.off.find(z=>z.you);if(yu&&yu!==g0){const tp=yu.pos==="WR"?.32:yu.pos==="TE"?.2:yu.pos==="RB"?.1:0,ok=concept==="shot"?["WR","TE"].includes(yu.pos):["WR","TE","RB"].includes(yu.pos);if(tp&&ok&&Math.random()<tp)return yu}return g0})(),N=(()=>{/* v87: no coin flip puts YOU on the target — the sim covers by alignment, and the formula fallback never picks you */const safety=_starOutlier(T.def,"S");if(safety&&safety.player&&!safety.player.you&&Math.random()<.2*safety.blend)return safety.player;const others=T.def.filter(z=>!z.you);return Y(others.length?others:T.def,["CB","S","LB"])})();const need=(typeof down!=="undefined"&&down>=3)?Math.max(1,toGo):0;const __r=window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept,{pressured:!!ctx.pressured,moving:!!ctx.moving,pa:!!ctx.pa,fieldPos:typeof pos!=="undefined"?pos:50,down:typeof down!=="undefined"?down:1,toGo:typeof toGo!=="undefined"?toGo:10,routes:ctx.play&&ctx.play.routes||null,play:ctx.play&&ctx.play.id||null});   /* v101: the call names the routes */
 if(__r){if(__r.complete&&__r.yards>0){const y2=Math.max(1,Math.round(dampV76(__r.yards)));
-  if(y2!==__r.yards){const air2=Math.min(__r.air||0,y2);return{...__r,yards:y2,breakaway:y2>=20,air:air2,yac:Math.max(0,y2-air2)}}}
+  if(y2!==__r.yards){retagSimLog(y2);const air2=Math.min(__r.air||0,y2);return{...__r,yards:y2,breakaway:y2>=20,air:air2,yac:Math.max(0,y2-air2)}}}   /* v103: the picture follows the number */
   return __r}const depth0=concept==="shot"?24:concept==="fade"?18:concept==="dropback"?11:concept==="quick"?5:concept==="screen"?1:8,depth=need&&concept!=="screen"?Math.max(depth0,Math.min(need+1,18)):depth0,H=_(g,"speed")*.5+_(g,"agility")*.5-_(N,"coverage")*.85+_(K,"awareness")*.25,poise=f((_(K,"awareness")-35)/100,0,.55),pressureAcc=ctx.pressured?(ctx.moving?.78:.86)+poise*(ctx.moving?.16:.1):1,oe=f((.57-depth*.008+H/150)*weatherFx.pass*pressureAcc,.07,.91);if(!(Math.random()<oe)){const ge=f(.012+depth*.0022+(_(N,"coverage")-_(K,"awareness"))*.0015+(ctx.pressured?.012:0)+(ctx.moving?.012:0),0,.18);return{qb:K,rec:g,cover:N,complete:!1,intercepted:Math.random()<ge,yards:0,pressured:!!ctx.pressured,moving:!!ctx.moving}}let ke=Math.round(depth+(_(g,"catching")+_(K,"awareness"))/2*.045+D(-2,4)),explosiveP=f((_(g,"speed")-_(N,"coverage"))/240+(concept==="shot"?.13:concept==="screen"?.07:.035)-(ctx.pressured?.035:0),.01,.3);Math.random()<explosiveP&&(ke+=le(concept==="shot"?12:8,18+Math.round(_(g,"speed")/7))),ke=f(ke,1,80);need&&ke<need&&Math.random()<f((_(K,"awareness")-40)/120,.05,.45)&&(ke=need+le(0,3));ke=Math.max(1,Math.round(dampV76(ke)));const air=f(Math.round(concept==="screen"?D(-1,2):ke*(concept==="shot"?.75:.45+Math.random()*.3)),0,ke);return{qb:K,rec:g,cover:N,complete:!0,intercepted:!1,yards:ke,breakaway:ke>=20,air,yac:Math.max(0,ke-air),pressured:!!ctx.pressured,moving:!!ctx.moving}}
 // keep the FieldSim render queue aligned when we alter a play's bookkept yards:
 // the log we're discarding is the one this play just pushed — the TAIL, not the
@@ -11596,6 +11942,16 @@ if(__r){if(__r.complete&&__r.yards>0){const y2=Math.max(1,Math.round(dampV76(__r
 // up with its render, so the agent-sim animation + its tackle/sprint/line events
 // actually reach the broadcast view instead of falling back to the old script.
 function dropSimLog(){try{const g=window.__FieldSim&&window.__FieldSim._Q;g&&g.length&&g.pop()}catch(w){}}
+/* ===== v103 KEEP THE PICTURE — retag, don't orphan =====
+ * `takeLog` matches a queued play log to the play being rendered by its EXACT yardage. So
+ * every time the engine reshaped a sim's yards afterwards — dampV76's margin brake is the
+ * common one — the log it had just pushed could never match anything again: the play fell
+ * back to the legacy choreographer and the whole agent sim (the block wins, the drag, the
+ * pile) never reached the screen, while the orphan sat in the queue getting in the way of
+ * later matches. The log is still the RIGHT log for this play; only the number moved. So
+ * retag it instead of abandoning it. The log for the play just resolved is the TAIL, which
+ * is the same entry dropSimLog pops. */
+function retagSimLog(y){try{const g=window.__FieldSim&&window.__FieldSim._Q;if(g&&g.length&&g[g.length-1]&&g[g.length-1].sig)g[g.length-1].sig.yards=y}catch(w){}}
 function xe(){return`(${h}–${p})`}
 function st(){const w=c.us.off.filter(k=>["RB","WR","TE"].includes(k.pos)&&!k.you);return w.length?`${W(w).name}`:"your team"}
 function Tt(){const w=c.opp.off.filter(k=>["RB","WR","TE","QB"].includes(k.pos));return w.length?`${W(w).name}`:"the opponent"}
@@ -11927,7 +12283,12 @@ const cTag=(paV81?"Play action — ":"")+(playV101?playV101.tag:({screen:"Screen
     }
   }else{
     // ---- called run ----
-    const runCarrier=Y(Ok.off,["RB","RB","QB"]),hitPower=avgAttr(Dk.def.filter(pl=>["DL","LB","S"].includes(pl.pos)),"tackling"),fumbleP=f((.012+(hitPower-_(runCarrier,"awareness"))*.00035)*weatherFx.fumble,.004,.035)*toV76();
+    /* v103: this blind pre-roll used to be the ONLY way a run was fumbled — resolved outside
+     * FieldSim, so nobody was named, nothing animated, and the play simply reported a turnover.
+     * The sim strips the ball at the pile now (v103 THE GRIP TICK) and says who punched it out
+     * and who fell on it, so the pre-roll keeps only the share the sim cannot see — the
+     * mesh-point muff, the ball on the ground before contact. */
+    const runCarrier=Y(Ok.off,["RB","RB","QB"]),hitPower=avgAttr(Dk.def.filter(pl=>["DL","LB","S"].includes(pl.pos)),"tackling"),fumbleP=f((.012+(hitPower-_(runCarrier,"awareness"))*.00035)*weatherFx.fumble,.004,.035)*toV76()*TU("fumblePreK",.35);
     if(Math.random()<fumbleP){
       // fumble — resolved without FieldSim so the render queue stays aligned
       de=le(-1,4);const spotOff=f(pos+de,2,98),nearOff=Ok.off.filter(pl=>["OL","RB","QB"].includes(pl.pos)).length,nearDef=Dk.def.filter(pl=>["DL","LB","S"].includes(pl.pos)).length,defRecP=f(.48+(nearDef-nearOff)*.025+(hitPower-50)*.002,.3,.7),defRec=Math.random()<defRecP;endB=spotOff;
@@ -11936,6 +12297,35 @@ const cTag=(paV81?"Play action — ":"")+(playV101?playV101.tag:({screen:"Screen
       else{ne="run";pos=spotOff;usDrive?(v.rush+=de,v.yds+=de):(j.rush+=de,j.yds+=de);ue=`💥 FUMBLE — ${nm(runCarrier)} loses it, but the offense recovers in the pile.`}
     }else{
       const X=B(usDrive,concept,playV101);de=X.yards;ne="run";
+      /* v103 WHAT THE TAPE SAYS — the sim knows whether he was dragged down or drove through
+       * it, so the play description says so instead of reporting a bare number of yards. */
+      const _drag = X.dragYd || 0, _strainRun = !!X.strain;
+      /* v103 THE STRIP THE SIM NAMED — the ball came out at the pile, and unlike the pre-roll
+       * above this one knows exactly who punched it out, who was carrying it and who fell on
+       * it. It also keeps its render log, so the fumble ANIMATES instead of being a line of
+       * text about a play nobody saw. */
+      if(X.fumble){
+        const F=X.fumble,fby=F.forcedBy,spotOff=f(pos+de,2,98);endB=spotOff;
+        const meF=!usDrive&&pe(fby),meLost=usDrive&&pe(F.by);
+        // stat-credit truth: punching the ball out is a FORCED FUMBLE, not a tackle — the play
+        // has no tackle event to trace it to, and crediting one here fails creditcheck
+        meF&&(P.ff++,me=!0); meLost&&(P.fum++,me=!0);
+        if(F.defRec){
+          // `de` stays the ground he had made before it came out: the sim's render log is
+          // matched to the play by its yards, and zeroing it here threw the animation away
+          ne="turnover";flip={spot:f(100-spotOff,1,99),why:"recovers the fumble"};usDrive?v.turn++:j.turn++;
+          ue=meF?`💥 FORCED FUMBLE — YOU rip it out of ${nm(F.by)} and your defense recovers!`
+             :meLost?`💥 FUMBLE — ${nm(fby)} punches it out of YOUR hands and the defense recovers.`
+             :`💥 FUMBLE — ${nm(fby)} rips it away from ${nm(F.by)} and the defense recovers!`;
+        }else{
+          pos=spotOff;usDrive?(v.rush+=de,v.yds+=de):(j.rush+=de,j.yds+=de);
+          ue=meF?`💥 YOU punch it out of ${nm(F.by)} — but the offense falls on it.`
+             :`💥 FUMBLE — ${nm(fby)} jars it loose from ${nm(F.by)}, and the offense recovers in the pile.`;
+        }
+        // no early exit: the shared tail below books the play, spends the clock and — when the
+        // defence fell on it — hands the ball over through `flip`, exactly as every other
+        // turnover in the game does
+      }
       // v30 FLAG ON THE PLAY — holding: the sim recorded a blocker beaten instantly
       // (he grabbed cloth); some of those draw the flag and the run comes back.
       if(X.flags&&X.flags.hold&&Math.random()<(window.TU?window.TU("holdFlagP",.5):.5)){
@@ -11957,6 +12347,9 @@ const cTag=(paV81?"Play action — ":"")+(playV101?playV101.tag:({screen:"Screen
       }else{
         me=usDrive&&pe(X.carrier);me&&t==="RB"&&P.carries++;
         ue=usDrive?(me?J2("run",de,X.breakaway):`${nm(X.carrier)} ${X.breakaway?"breaks free for "+de+"!":de<=1?"is stuffed at the line.":"picks up "+de+"."}`):`${nm(X.carrier)} runs for ${de}.`;
+        // v103: the sim knows HOW he was brought down — say it
+        if(_strainRun&&de>0)ue+=` He drove for the extra.`;
+        else if(_drag>=TU("dragSayYd",1.6))ue+=` He carried the tackler ${_drag.toFixed(1)} more.`;
         usDrive&&Ye(me,!1,de,!1);
         // v30: a wrap from dead behind can catch the mask — 15 tacked onto the run
         if(X.flags&&X.flags.fm&&Math.random()<(window.TU?window.TU("fmFlagP",.08):.08)){
@@ -11964,6 +12357,15 @@ const cTag=(paV81?"Play action — ":"")+(playV101?playV101.tag:({screen:"Screen
           pos=f(pos+_fma,1,99);endB=pos;
           usDrive?(j.pen++,j.penYds+=_fma):(v.pen++,v.penYds+=_fma);
           ue+=` 🚩 FACE MASK on the tackle${!usDrive&&pe(_fmw)?" — flag on YOU":` (#${_fmw.num||""} ${nm(_fmw)})`} — ${_fma} tacked on.`;
+        }
+        /* v103 THE HORSE COLLAR — the sim flags a grab from dead behind that hauled him down by
+         * the shoulders. Same shape as the face mask above: a live candidate the game rolls,
+         * fifteen yards and an automatic first down. */
+        if(X.flags&&X.flags.hc&&Math.random()<TU("hcFlagP",.5)){
+          const _hcw=X.flags.hc,_hca=Math.min(15,99-pos);
+          pos=f(pos+_hca,1,99);endB=pos;down=1;marker=Math.min(100,pos+10);toGo=marker-pos;
+          usDrive?(j.pen++,j.penYds+=_hca):(v.pen++,v.penYds+=_hca);
+          ue+=` 🚩 HORSE COLLAR on the tackle${!usDrive&&pe(_hcw)?" — flag on YOU":` (#${_hcw.num||""} ${nm(_hcw)})`} — ${_hca} yards, automatic first down.`;
         }
         if(!usDrive&&ce){
           // stat-credit truth: YOU get the tackle only when the sim names you the

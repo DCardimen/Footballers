@@ -33,6 +33,15 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v103 THE GRAB` / `v103 THE GRIP TICK` / `v103 THE WHISTLE IS NOT THE END OF THE CONTACT` /
+  `v103 THE LINE BLOCKS FOR HIM` / `v103 THE TRENCH BREAKS UP` / `v103 KEEP THE PICTURE` — a landed
+  wrap opens `c._grip` and returns `"grip"` instead of `"tackle"`; the grip tick at the top of the
+  carry block travels the pair, piles men on, strips the ball (`out.fumble`, which the engine books
+  as a NAMED turnover), strains for the sticks, breaks, and finally emits the tackle with
+  `dragged/dragYd/strain`. `retagSimLog(y)` re-tags a queued log when `dampV76` reshapes the yards
+  (do this for ANY post-sim yardage reshape, or the play loses its animation). Renderer: the
+  `grab`/`pileOn`/`gripBreak`/`secondEffort` cases, `m._dragging`, `P.gripPair`, and the late
+  contact in `startPostV86`/`updatePostV86` (`m._late`, `P.post.late`); `window.__V103` is the hook
 - `v102 THE LIGHTS ARE MIRRORED, AND THEY BREATHE` / `v102 THE MOMENT SLOWS DOWN` / `v102 THE MENU
   IS ALIVE` — `buildMirrorMastsV102` (six masts in `ST.mirror` / `ST.mirrorLights`, the far four in
   `ST.towers` untouched), `lightLiveV102` / `lightLiveAllV102` (the shimmer and the sputter; every
@@ -128,6 +137,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | pass coverage / credit, QB scramble & targets, the safety, the huddle (v87) | `v87check.mjs`, `creditcheck.mjs`, `simcheck.mjs` |
 | promotion odds / the declare (v88) | `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs` |
 | the callout badges / the moments the field shouts (v95) | `badgecheck.mjs`, `v86check.mjs` |
+| the grab / the pile / the strip / blocking / post-whistle contact (v103) | `v103check.mjs`, then `readcheck.mjs`, `tacklecheck.mjs`, `creditcheck.mjs`, `simcheck.mjs`, `renderpathcheck.mjs`, `v86check.mjs` |
 | the mirrored masts / the breathing light / the slow-motion moment / the living menu (v102) | `v102check.mjs`, then `v98check.mjs`, `v99check.mjs`, `v92check.mjs`, `v86check.mjs`, `menu-integration-check.mjs` |
 | asset paths / the playbook / the throw / dynamic shading / the loader's prebuild / crowd emoji / whole numbers (v101) | `v101check.mjs`, then `simcheck.mjs`, `readcheck.mjs`, `routecheck.mjs`, `v99check.mjs` |
 | the lighting dial / how bright the stadium burns (v100) | `v100check.mjs`, `v99check.mjs`, `v98check.mjs` |

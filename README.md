@@ -55,6 +55,32 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v103 — the grab, and everything it made possible.** A tackle used to be instantaneous: the
+  wrap landed and the play was dead on that pixel, with the drive and the knock-back playing out
+  afterwards as decoration on a spot already booked. Now a landed wrap opens a **GRIP** and the two
+  men **travel together** — his legs still going, the tackler hanging on and being dragged — until
+  the momentum is gone and they land. Where they land is the spot. It is a yard or so of real
+  ground (never ten), and the fall-forward fudge it replaces was removed so the yard is not paid
+  twice. Everything else grew out of that. Men **PILE ON**: anyone who gets hands on joins the heap
+  and rides along, shortening the grip — though whether the stop is *booked* as assisted is still
+  rolled on the old odds, so the solo/gang split holds. The ball gets **PUNCHED OUT** at the pile,
+  and unlike the blind pre-roll it replaces, the sim NAMES who stripped it and who fell on it —
+  and keeps its render log, so a fumble finally animates. A carrier inside a couple of yards of the
+  marker **STRAINS** for it, which is where third-and-one is decided. Once in a while he **RIPS
+  CLEAN OUT** of the wrap and the play is live again. A grab from dead behind can catch the
+  **HORSE COLLAR**. **After the whistle the contact does not stop**: for most of a second the pile
+  churns, the men holding on keep holding on, and anyone still closing arrives and shoves in before
+  everybody lets go and gathers. **The line works**: offensive linemen block on every carry rather
+  than only on called runs, and pick the man threatening the *ball* rather than the nearest body,
+  sustaining the block instead of touching and releasing; defenders rip off their blocks and chase
+  once the ball is past them. The picture keeps up — the drag is drawn with the pair locked and the
+  turf coming up under them, camera shake and spray are scaled by the collision the sim actually
+  measured, and the new moments get their callouts, their crowd and their slow motion.
+  Two long-standing bugs fell out on the way: a blitzer whose blocker was pancaked deref'd null and
+  killed the play, and **every time the engine reshaped a sim's yardage the matching render log was
+  orphaned** — that play fell back to the legacy choreographer and none of the agent sim reached
+  the screen. Retagging the log instead lifted the share of plays rendered from the real sim from
+  57% to 80% on passes. `node scripts/v103check.mjs`.
 - **v102 — the lights mirrored and breathing, the moment slowed, the menu alive.** Four masts stood
   behind the far bowl and nothing lit the near half. **Six mirrored masts** stand now — the far four's
   lateral positions carried through the crowd's own projection to the near corners (taller, because
