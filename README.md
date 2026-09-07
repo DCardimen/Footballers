@@ -55,6 +55,15 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v100 — the lighting dial.** Settings › FIELD VIEW carries a **Lighting intensity** slider,
+  0–200% in 5% steps. It is not a brightness filter over the finished picture — it is the
+  strength of the light itself, so it moves everything the light is responsible for and nothing
+  else: the wash and pools baked on the turf, the glow, beams and pools off the masts, the masts'
+  own brightness, and how deep every shadow falls. Two details keep the ends of its travel
+  honest — the falloff into the corners **deepens** as the lights come down (a dark stadium is
+  not evenly dark), and shadows keep a floor of ambient weight at 0 so nobody floats off the
+  grass with the floodlights out. The turf takes the whole dial on the way down and only part of
+  it on the way up, so 200% reads as floodlit rather than as white paper. `node scripts/v100check.mjs`.
 - **v99 — the shadows fall, from one light post.** Everything on the grass now casts a real
   shadow, and all of it from **one key light** — deliberately a mast that does not sway, read
   from its fixed base, so a shadow never wobbles or hunts between sources. Direction is the

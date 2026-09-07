@@ -497,6 +497,27 @@ pop-text. The audio cues are short WebAudio stingers on the game's own `settings
 `scripts/badgecheck.mjs` decodes every file, drives the queue (cut-in, token, repeat,
 promotion, both lanes, clear) and watches a live run.
 
+## v100 — the lighting dial
+
+- **THE SETTING** (`Fi()`'s FIELD VIEW rows, `__pushFieldFx`, `fieldFxReset`): `fxLight`, 0–2 in
+  0.05 steps, default 1, rendered by the shared `.fx-row` markup and read back through
+  `window.__fxFmt` as a whole percent. It rides `window.__FIELD_FX.light` like every other field
+  dial, so moving it runs the ordinary `applyFieldFx` → `refreshPersp` → `drawField` path, which
+  re-bakes the turf; the lamps and shadows pick it up on the next frame with no rebuild at all.
+- **WHAT IT MULTIPLIES** (`lightMulV100`, `bakedMulV100`, `shadowMulV100` on the scene):
+  - the masts' `glow` / `beam` / `pool` alphas in `updateStadiumV92`, hidden outright below 1%;
+  - the tower sprites' own tint (`0.28 + 0.72 × dial`, capped at white) — the sheet paints its
+    bulbs lit, so without this the masts still glowed over a dead field at 0;
+  - the baked wash and pools in `lightFieldV98`, through `bakedMulV100`: linear down to 0, but
+    only `TU("lightBakedTopK", .6)` of the excess above 1, because the wash is broad enough that a
+    linear top end clips the far end zone to white;
+  - the vignette, INVERSELY (`× clamp(2 - dial, .35, 1.5)`) — the corners go deeper as the lights
+    come down;
+  - every shadow's alpha (`castShadowV99`, the goalpost frame, `sideShadow`) through
+    `shadowMulV100` = `clamp(0.35 + 0.65 × dial, 0.2, 1.6)`, whose floor is what keeps a man
+    grounded with the floodlights out.
+- `window.__V99.dial()` reports `{light, shadow, setting}` for the check.
+
 ## v99 — the shadows fall, from one light post
 
 - **THE KEY LIGHT** (`keyLightV99`): one mast is the light everything casts from —

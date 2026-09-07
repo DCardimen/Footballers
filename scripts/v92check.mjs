@@ -49,8 +49,16 @@ ok(st.towers.length && st.towers.every(t => (t.x < 360) === (t.face === 1)), 'th
 const R = st.screen && st.screen.rect
 ok(R && R.y + R.h < B.top && Math.abs(R.x + R.w / 2 - 360) < 2 && R.w > 200, 'the big screen hangs centred above the far stand', R && `bottom=${Math.round(R.y + R.h)} bowlTop=${B.top} w=${Math.round(R.w)}`)
 
-// park the camera on the far end with the scene paused (update stops, rendering goes on)
-const park = await page.evaluate(async () => { const sc = window.__gridironScene, c = sc.cameras.main
+// Park the camera on the far end with the scene paused (update stops, rendering goes on).
+// Pausing the SCENE is not enough to hold the picture still: the career app starts the next
+// snap from its own timer, and that call re-centres the camera and puts the feed back to LIVE
+// from outside the scene's update loop. A snap landing inside this window invalidated the
+// measurement (the viewport had moved; the mode had flipped) rather than falsifying it, so
+// count the snaps and take the reading again on a quiet window.
+let park = null
+for (let tries = 0; tries < 4; tries++) {
+  park = await page.evaluate(async () => { const sc = window.__gridironScene, c = sc.cameras.main
+  let snaps = 0; const oa = sc.animatePlay; sc.animatePlay = function () { snaps++; return oa.apply(this, arguments) }
   sc.scene.pause(); c.centerOn(360, 369); await new Promise(r => setTimeout(r, 250)); sc.updateStadiumV92(16); await new Promise(r => setTimeout(r, 250)); sc.updateStadiumV92(16); await new Promise(r => setTimeout(r, 120))
   const S1 = window.__V92.screen(); const wv = c.worldView, z = c.zoom, R = S1.rect
   const raw = { x: (R.x - wv.x) * z, y: (R.y - wv.y) * z, w: R.w * z, h: R.h * z }   // clipped to the canvas, as the viewport must be
@@ -59,7 +67,12 @@ const park = await page.evaluate(async () => { const sc = window.__gridironScene
   const S2 = window.__V92.screen(); const stillTex = sc.textures.exists('jumbo_still_v92'); const still = sc.stadium.still; const stillVis = !!(still && still.visible)
   sc.stadiumLiveV92(); sc.updateStadiumV92(16); await new Promise(r => setTimeout(r, 150))
   const S3 = window.__V92.screen(); const stillVis3 = !!(still && still.visible)
-  return { wvY: wv.y, live: S1, want, whistle, replay: S2, stillTex, stillVis, back: S3, stillVis3 } })
+  sc.animatePlay = oa
+  return { wvY: wv.y, live: S1, want, whistle, replay: S2, stillTex, stillVis, back: S3, stillVis3, snaps } })
+  console.log('park attempt', tries + 1, 'snaps during the window:', park.snaps)
+  if (!park.snaps) break
+  await page.evaluate(() => { window.__gridironScene.scene.resume() }); await page.waitForTimeout(1500)
+}
 console.log('park:', JSON.stringify({ wvY: park.wvY, cam: park.live.cam, want: park.want, whistle: park.whistle, replay: park.replay.mode, shots: park.replay.shots }))
 const C1 = park.live.cam
 ok(C1 && C1.visible && C1.w >= 8 && C1.x >= 0 && C1.y >= 0 && C1.x + C1.w <= 720 && C1.y + C1.h <= 576, 'with the far end in view the feed camera is on, inside the canvas', JSON.stringify(C1))
