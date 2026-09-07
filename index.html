@@ -242,6 +242,28 @@ window.addEventListener('unhandledrejection', function(e){
     catch(e){ return null; }
   };
 })();
+/* ===== v101 ONE ASSET ROOT — every sheet answers to the same URL =====
+ * The sheets had drifted into two conventions: the older ones asked for "/rib_x.png"
+ * (the server root) and the newer ones for "./public/rib_x.png" (the folder the deploy
+ * actually ships). Only one of those can be right at a time, and neither is right
+ * everywhere — a project Pages site lives under a sub-path, so the server root is a
+ * different origin folder entirely, and `vite build` flattens public/ into dist/, so the
+ * folder disappears. Both mistakes fail the same silent way: the Image() 404s, onerror
+ * shrugs, and the drawn players never register — a field of blanks.
+ * One resolver now answers for all of them, against the DOCUMENT, so the same string
+ * works served from a root, from a sub-path, from dist/ and from the Capacitor shell.
+ * Overridable per-asset by the __RIB_* globals exactly as before. */
+(function () {
+  var base = null;
+  window.__RIB_ASSET_ROOT = window.__RIB_ASSET_ROOT || 'public/';
+  window.__RIB_ASSET = function (p) {
+    p = String(p || '');
+    if (/^(data:|blob:|https?:|\/\/)/.test(p)) return p;         // already absolute: hand it back
+    if (base == null) { try { base = document.baseURI || location.href; } catch (e) { base = location.href; } }
+    try { return new URL(window.__RIB_ASSET_ROOT + p.replace(/^\.?\//, ''), base).href; }
+    catch (e) { return './' + window.__RIB_ASSET_ROOT + p; }
+  };
+})();
 
 </script>
 <script>
@@ -277,10 +299,10 @@ window.addEventListener('unhandledrejection', function(e){
   // ---- the sheet: fetch the map, load the atlas, once, on their own clock
   function load() {
     if (loadP) return loadP;
-    var mapP = fetch('./public/rib_field_v91.json').then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    var mapP = fetch(window.__RIB_ASSET('rib_field_v91.json')).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
     var img = new Image(); img.decoding = 'async';
     var imgP = new Promise(function (res) { img.onload = function () { res(img); }; img.onerror = function () { res(null); }; });
-    img.src = './public/rib_field_v91.png';
+    img.src = window.__RIB_ASSET('rib_field_v91.png');
     return loadP = Promise.all([mapP, imgP]).then(function (r) {
       if (!r[0] || !r[1] || !r[0].run_sd0) return false;
       META = r[0]; IMG = r[1]; return true;
@@ -578,8 +600,28 @@ window.addEventListener('unhandledrejection', function(e){
   // mounts on the first draw, the sheets register, the crowd and the stands take their seats);
   // the chase runs over .field-wrap until the scene is up and the minimum show has run.
   (function () {
-    var cur = null, lastGame = null, waiters = [];
+    var cur = null, lastGame = null, waiters = [], warm = false;
+    /* v101: the chase is not a curtain the game hides behind — it is the time the game uses.
+     * The career app tells the loader when the first play's script has finished building
+     * behind it (`simReady`), and the door only opens once BOTH the field is standing and
+     * that build is done, so the fade-out crosses into a play that is already choreographed
+     * instead of a blank field that then has to think. `warmMs` is the ceiling: a build that
+     * never reports back must not hold the game hostage. */
     var api = window.__LIVELOAD_V94 = { get current() { return cur; }, shows: 0, mount: mount,
+      get warm() { return warm; },
+      simReady: function () { warm = true; },
+      /* v101: the MutationObserver below delivers a tick AFTER the field is inserted, and the
+       * career app asks for the first play in the same breath as inserting it — so the loader
+       * could lose that race and the game would start under a curtain that had not gone up
+       * yet. `ensure` mounts synchronously for whoever asks first; the observer then finds the
+       * wrap already claimed and does nothing. */
+      ensure: function () {
+        if (cur) return cur;
+        var screen = document.getElementById('screen'); if (!screen) return null;
+        var wrap = screen.querySelector('.field-wrap'); if (!wrap || wrap.__liveloadV94) return null;
+        wrap.__liveloadV94 = true;
+        return window.__CHASE_V94.rm ? null : mount(wrap);
+      },
       whenClear: function (cb) { if (!cur || cur.done) { cb(); return; } waiters.push(cb); } };   // v97: the sim waits at the door
     function release() { var w = waiters; waiters = []; w.forEach(function (cb) { try { cb(); } catch (e) {} }); }
     function mount(wrap) {
@@ -591,7 +633,8 @@ window.addEventListener('unhandledrejection', function(e){
       try { us = wrap.querySelector('.sb-side.us .team').textContent.trim(); them = wrap.querySelector('.sb-side.them .team').textContent.trim(); } catch (e) {}
       el.innerHTML = '<canvas class="rib-liveload-cv-v94"></canvas><div class="rib-liveload-cap-v94"><b>' + (us && them ? us + ' <i>vs</i> ' + them : 'GAME DAY') + '</b><span>TAKING THE FIELD</span></div><div class="rib-liveload-bar-v94"><i></i></div>';
       wrap.appendChild(el); api.shows++;
-      var item = cur = { el: el, wrap: wrap, t0: Date.now(), chase: null, done: false, ready: false };
+      warm = false;
+      var item = cur = { el: el, wrap: wrap, t0: Date.now(), chase: null, done: false, ready: false, field: false };
       function finish() {
         if (item.done) return; item.done = true; if (item.chase) item.chase.stop(); if (cur === item) cur = null;
         release();
@@ -609,7 +652,11 @@ window.addEventListener('unhandledrejection', function(e){
       var poll = setInterval(function () {
         if (item.done || !el.parentNode) { clearInterval(poll); finish(); return; }
         var sc = window.__gridironScene, up = !!(sc && sc.sys && sc.sys.isActive && sc.sys.isActive() && sc.markers && sc.markers.length);
-        if (up && !item.ready) { item.ready = true; el.querySelector('.rib-liveload-cap-v94 span').textContent = 'KICKOFF'; if (item.chase) item.chase.arm(); }
+        if (up && !item.field) { item.field = true; el.querySelector('.rib-liveload-cap-v94 span').textContent = 'WARMING UP'; }
+        // v101: field standing AND first play built — or the ceiling, so a silent build never stalls the game
+        if (item.field && !item.ready && (warm || Date.now() - item.t0 > 4200)) {
+          item.ready = true; el.querySelector('.rib-liveload-cap-v94 span').textContent = 'KICKOFF'; if (item.chase) item.chase.arm();
+        }
         if (Date.now() - item.t0 > 9000) { clearInterval(poll); finish(); }   // the broadcast never came: the game is playable without it
       }, 100);
       return item;
@@ -2616,7 +2663,10 @@ window.__visionRadiusV96 = visionRadiusV96;
     const holeSide = S.off[9].y >= MIDY ? 1 : 0;                               // the back's side
     // power is the short-yardage / goal-line call: a tight inside gap behind a lead
     // block, not the off-tackle bounce (which the play-caller never asks for there)
-    const holeGapKey = runConcept === "sweep" ? (Math.random() < .7 ? "D" : "C") : runConcept === "power" ? (Math.random() < .6 ? "B" : "A")
+    // v101: a called run names its own point of attack — Counter hits C, Iso hits A, Jet gets
+    // outside the tackle — instead of every run in a family rolling the same two gaps
+    const holeGapKey = (opts && GAP_Y[opts.gap]) ? opts.gap
+      : runConcept === "sweep" ? (Math.random() < .7 ? "D" : "C") : runConcept === "power" ? (Math.random() < .6 ? "B" : "A")
       : runConcept === "draw" ? "A" : (Math.random() < .55 ? "A" : "B");
     const holeY = kind === "run" ? GAP_Y[holeGapKey][Math.random() < .8 ? holeSide : 1 - holeSide] : MIDY;
     const rollBlockV81 = (o, r) => {
@@ -2639,6 +2689,86 @@ window.__visionRadiusV96 = visionRadiusV96;
     // phase state
     let phase = "snap", throwAt = 0, sep = -0.5, hurried = false, target = null, coverA = null, routeDepth = 0;
     let throwStyle = "touch", throwWindow = "yellow", arrivalEdgeMs = 0, locationQuality = 1;
+    let throwConeYd = 1.1, throwProt = 1, throwLeadPx = 0;   // v101: the live accuracy cone, the pocket, the lead
+    /* ===== v101 THE LEAD — a throw is a guess about the future =====
+     * The ball used to be aimed at the LAST WAYPOINT of the route: a fixed dot on the grass,
+     * already decided before the receiver got anywhere near it. Nobody throws that way. A
+     * quarterback watches a man running and throws to where that man is GOING TO BE when the
+     * ball arrives — and the two halves of that are separate skills, so they are separate
+     * numbers here:
+     *   the GUESS — `leadPointV101` walks the receiver forward along his own route for as long
+     *     as the ball will be in the air, then re-times the flight to that new, further spot
+     *     and walks him again. Two passes and it converges on the interception point. A lob
+     *     hangs longer, so it needs a bigger lead than a bullet to the same window; that falls
+     *     out of the solve rather than being a special case.
+     *   the EXECUTION — `leadSkillV101` is how much of that lead the passer actually puts on
+     *     the ball. An accurate, calm quarterback lays it out in front; a raw one, or one with
+     *     a man in his face, throws to where the receiver WAS, which is what a ball behind a
+     *     man on a crossing route actually is.
+     * The miss around that point is the CONE, and the cone is the readable part: it opens with
+     * pressure, panic, depth and a poor arm, and it closes — and goes green — when the pocket
+     * is clean and the receiver has won. Same number the broadcast draws over the field. */
+    const STYLE_K_V101 = { bullet: .84, touch: 1, lob: 1.3 };
+    const flightMsV101 = (qb, px, py, style) =>
+      cl(Math.hypot(px - qb.lx, py - qb.y) * (4.45 - (qb.thr - 50) * 0.006) * (STYLE_K_V101[style] || 1), 390, 1700);
+    // where he will be in `ms`, walking his own route — not a straight line off his current heading
+    const walkRouteV101 = (a, ms) => {
+      let left = Math.max(0, (a.spd || 140) * Math.max(.55, a.vel || .9) * ms / 1000);
+      let x = a.lx, y = a.y;
+      const R = a.route;
+      if (R && R.length) {
+        let i = Math.min(a._rwp == null ? 1 : a._rwp, R.length - 1);
+        while (left > 0 && i < R.length) {
+          const w = R[i], d = Math.hypot(w.lx - x, w.y - y);
+          if (d < 1e-6) { i++; continue; }
+          if (d >= left) { x += (w.lx - x) / d * left; y += (w.y - y) / d * left; left = 0; break; }
+          x = w.lx; y = w.y; left -= d; i++;
+        }
+        if (left > 0) {   // the route is run out — he drifts on the way it last pointed him, but
+          // only a stride or two. Letting the walk run to the full flight time here throws the
+          // catch point clean past the called route: air yards climbed 40% and YPA became a
+          // fantasy. A ball is thrown to a route's END, not to wherever a man could get to.
+          const n = R.length, p0 = R[Math.max(0, n - 2)], p1 = R[n - 1];
+          const dx = p1.lx - p0.lx, dy = p1.y - p0.y, dn = Math.hypot(dx, dy) || 1;
+          const drift = Math.min(left, TU("leadTailYd", 1.2) * YD);
+          x += dx / dn * drift; y += dy / dn * drift;
+        }
+      } else if (a._dx != null) { x += a._dx * left; y += a._dy * left; }
+      return { lx: x, y: clampY(y) };
+    };
+    const leadPointV101 = (qb, a, style) => {
+      let p = { lx: a.lx, y: a.y }, ms = flightMsV101(qb, a.lx, a.y, style);
+      for (let i = 0; i < 3; i++) { ms = flightMsV101(qb, p.lx, p.y, style); p = walkRouteV101(a, ms); }
+      return { p, ms };
+    };
+    // how much of that lead he can actually put on it
+    const leadSkillV101 = (qb, panic, moving) =>
+      cl(TU("leadBase", .46) + (qb.thr - 40) * TU("leadThrK", .0062) + (qb.aware - 40) * TU("leadAwareK", .0040)
+        - panic * TU("leadPanicK", .30) - (moving ? TU("leadMoveK", .09) : 0)
+        + (Math.random() - .5) * TU("leadNoise", .16), TU("leadMin", .28), TU("leadMax", 1.08));
+    // the pocket, as one number: 1 is a chair, 0 is a collapse
+    const protV101 = (qb, hur) => cl(1
+      - Math.min(.34, (qb._freeNV101 || 0) * TU("protFreeK", .14))
+      - cl((TU("protRangePx", 100) - (qb._nearFreeV101 == null ? 999 : qb._nearFreeV101)) / TU("protRangePx", 100), 0, 1) * TU("protCloseK", .32)
+      - (hur ? TU("protHurryK", .22) : 0) - (qb._slid ? TU("protSlideK", .07) : 0)
+      - (qb._climbing ? TU("protClimbK", .06) : 0) - (qb._roll ? TU("protRollK", .05) : 0), 0, 1);
+    // the cone, in yards of miss: wide when it is coming apart, tight when it is not
+    const coneYdV101 = (qb, depth, prot, panic, moving, sepNow) => {
+      const acc = qb.thr * .58 + qb.aware * .42;
+      return cl(TU("coneBase", 1.0)
+        + (62 - acc) * TU("coneSkillK", .026)
+        + Math.max(0, depth) * TU("coneDepthK", .024)
+        + (1 - prot) * TU("conePressK", 1.15)
+        + panic * TU("conePanicK", .95)
+        + (moving ? TU("coneMoveK", .55) : 0)
+        - cl(sepNow, 0, 3) * TU("coneOpenK", .20), TU("coneMin", .3), TU("coneMax", 4.2));
+    };
+    // green is not "he is open" — it is "he is open AND you can put it there"
+    const windowV101 = (sepNow, cone, prot) => {
+      const grade = sepNow + (prot - TU("winProtMid", .55)) * TU("winProtK", 1.7)
+        - (cone - TU("winConeMid", 1.3)) * TU("winConeK", .95);
+      return grade > TU("winGreen", .40) ? "green" : grade > TU("winRed", -1.25) ? "yellow" : "red";
+    };
     let handfightShown = false, highpointShown = false;
     const passConcept = opts && opts.concept;
     let coverHelp=null, bracketed=false, lbDrops=[];
@@ -2816,10 +2946,24 @@ window.__visionRadiusV96 = visionRadiusV96;
       };
       const _recv = S.off.filter(a=>["WR","TE"].includes(a.lb));
       const _pick = arr => arr[Math.floor(Math.random()*arr.length)];
-      _recv.forEach(a=>{
+      /* v101: a CALLED play names the routes it is built out of. `opts.routes` is a list of
+       * shape names from the same tree — Mesh asks for drag/shallow/cross, Four Verticals for
+       * go/seam, Smash for hitch/corner — so two plays sharing a concept family no longer draw
+       * the same picture. Anything the playbook did not name still rolls from the concept's
+       * pool exactly as before, and any name it does not recognise falls through mkRoute's own
+       * default, so a typo degrades to a go route rather than to nothing. */
+      const _called = (opts && Array.isArray(opts.routes) && opts.routes.length)
+        ? opts.routes.filter(n => ROUTE_TREE[n]) : null;
+      // one complementary receiver runs the called play's second route — the concept needs a
+      // partner to BE a concept — and everyone else keeps rolling the whole tree, which is
+      // what stops a playbook of forty-two calls from shrinking the route board to forty-two
+      // pictures. The primary always runs what was called.
+      const _mate = _called && _called.length > 1 ? _recv.filter(a=>a!==target)[Math.floor(Math.random()*Math.max(1,_recv.length-1))] : null;
+      _recv.forEach((a, _ri)=>{
         const rn = a===target
-          ? (_cc==="screen"?"screen": _cc==="shot"?_pick(R_DEEP): _cc==="quick"?_pick(R_SHORT): _cc==="fade"?_pick(["fade","corner","deep_corner"]):_pick(R_MED))
-          : _pick(ROUTE_NAMES);
+          ? (_called ? _called[0]
+            : _cc==="screen"?"screen": _cc==="shot"?_pick(R_DEEP): _cc==="quick"?_pick(R_SHORT): _cc==="fade"?_pick(["fade","corner","deep_corner"]):_pick(R_MED))
+          : (a === _mate ? _called[1 + (_ri % (_called.length - 1))] : _pick(ROUTE_NAMES));
         // release and depth tier are rolled per receiver, so the same shape is not
         // the same picture twice — this is what multiplies 45 routes into 405
         const rel = _pick(R_REL), tier = _pick(R_TIER);
@@ -3105,6 +3249,26 @@ window.__visionRadiusV96 = visionRadiusV96;
         else mv(qb, (playAction ? TU("paDropLx", -46) : -34) + climb, qb.y + slideY, playAction ? 0.95 : 0.8);
         const nearest = free.map(r=>Math.hypot(r.lx-qb.lx, r.y-qb.y)).sort((a,b)=>a-b)[0];
         if (nearest !== undefined && nearest < 26 && !hurried) { hurried = true; emit("qbHit",{x:qb.lx,y:qb.y}); }
+        /* ===== v101 THE POCKET IS A NUMBER, AND SO IS PANIC =====
+         * The throw used to know one thing about protection: the boolean `hurried`. A pocket
+         * that is quietly closing and a pocket that is perfect were the same throw. Two live
+         * readings now run the whole drop:
+         *   protV101 — how CLEAN it is: free rushers, how close the nearest one is, whether
+         *     the quarterback has had to slide, climb or run for it. 1 is a chair, 0 is a
+         *     collapse. It is read at the moment of release, so a late blitz costs him.
+         *   panicV101 — what that does to a MAN, which is not the same thing. It builds while
+         *     someone is bearing down, it keeps building the longer he holds it, it jumps when
+         *     he takes a hit, and it bleeds back off when the pocket cleans up. Composure
+         *     (discipline, grit, awareness) sets both how fast it rises and how high it goes,
+         *     so a veteran with a rusher in his face is calmer than a rookie with a clean one. */
+        qb._nearFreeV101 = nearest === undefined ? 999 : nearest; qb._freeNV101 = free.length;
+        { const compo = cl((qb.disc * .42 + qb.grit * .34 + qb.aware * .24 - 30) / 60, 0, 1);
+          const heat = (free.length ? cl(1 - qb._nearFreeV101 / TU("panicRangePx", 130), 0, 1) : 0)
+            + (hurried ? TU("panicHitK", .45) : 0)
+            + (t > throwAt + 200 ? TU("panicHoldK", .3) : 0);
+          const rise = TU("panicRise", .0016) * (1.35 - compo * .7), fall = TU("panicFall", .0011) * (0.65 + compo * .9);
+          const cap = cl(TU("panicCap", 1) - compo * TU("panicComposureK", .42), .18, 1);
+          qb._panicV101 = cl((qb._panicV101 || 0) + (heat > 0 ? heat * rise * TICK : -fall * TICK), 0, cap); }
         // separation battle every tick. Bracket help compresses the throwing
         // window; low-awareness help arrives late and may not affect the play.
         const helpFactor=bracketed&&coverHelp&&t>260+(100-coverHelp.aware)*4 ? (coverHelp.cov*.34+coverHelp.aware*.18) : 0;
@@ -3148,9 +3312,15 @@ window.__visionRadiusV96 = visionRadiusV96;
           const _ri = Math.max(0, Math.min(readProg.length - 1, Math.floor((t - readStart) / _seg)));
           const _r = readProg[_ri];
           curFocus = _r.id;
-          const _liveWindow = sep > -0.25 ? "green" : sep > -1.75 ? "yellow" : "red";
+          // v101: the cone the broadcast draws IS the accuracy cone the throw will use — read
+          // live, so it visibly opens as the pocket goes and closes back down when it holds
+          const _lp = protV101(qb, hurried), _lpan = qb._panicV101 || 0;
+          const _lsep = _r.sep == null ? sep : _r.sep;
+          const _lcone = coneYdV101(qb, routeDepth, _lp, _lpan, !!qb._roll || !!qb._slid, _lsep);
+          const _liveWindow = windowV101(_lsep, _lcone, _lp);
           const _lookWindow = _r.window == null ? _liveWindow : _r.window;
-          emit("look", { to: _r.id, window:_lookWindow, sep:_r.sep==null?sep:_r.sep, open:_lookWindow==="green" });
+          emit("look", { to: _r.id, window:_lookWindow, sep:_lsep, open:_lookWindow==="green",
+            cone:+_lcone.toFixed(2), prot:+_lp.toFixed(2), panic:+_lpan.toFixed(2) });
         }
         if (t >= throwAt - 400 && !target._broke) { target._broke = true;
           sep += (target.agi - coverA.cov) * 0.04;
@@ -3204,16 +3374,40 @@ window.__visionRadiusV96 = visionRadiusV96;
             else { emit("throwaway",{x:qb.lx,y:qb.y,behind:true}); emit("incomplete",{x:Math.max(2*YD, qb.lx+6*YD), y: F_TOP+40});
               done = true; out = { kind:"pass", complete:false, intercepted:false, yards:0, behindFix:true }; rec(); continue; }
           }
-          // release: ball flies to the TARGET's route break (so it meets him there)
+          /* ===== v101: the release — pick the ball, pick the spot, then miss it by the cone ===== */
+          const _panic = qb._panicV101 || 0;
+          throwProt = protV101(qb, underPressure);
+          // STYLE first, because it changes the flight time and therefore the lead. A defender
+          // sitting UNDER the route has to be thrown over; one carrying it over the top has to
+          // be thrown under, on a line. Depth and a closing pocket break the ties.
+          const _under = coverA && coverA.lx < target.lx - TU("leverageYd", 1.6) * YD;   // he is beneath the route
+          const _over  = coverA && coverA.lx > target.lx + TU("leverageYd", 1.6) * YD;   // he has the top
+          throwStyle =
+              (routeDepth > TU("lobDepthYd", 14) && sep > -1 && throwProt > TU("lobProt", .38)) ? "lob"
+            : (_under && routeDepth > 7 && sep > -1.2 && !underPressure) ? "lob"
+            : (passConcept === "shot" && sep > -1.5 && !underPressure) ? "lob"
+            : (underPressure || _panic > TU("bulletPanic", .5)) ? "bullet"
+            : (_over && sep < TU("bulletOverSep", .8)) ? "bullet"
+            : (routeDepth < TU("bulletDepthYd", 9) && sep < TU("bulletOpenSep", .4)) ? "bullet"
+            : "touch";
+          // the GUESS: walk him along his route for as long as this ball will hang
+          const _lead = leadPointV101(qb, target, throwStyle);
           const _re = target.route && target.route.length ? target.route[target.route.length-1] : null;
-          const idealX = _re ? _re.lx : routeDepth*YD, idealY = _re ? _re.y : clampY(target.y + (Math.random()<0.5?-1:1)*30);
-          throwWindow = sep > -0.25 ? "green" : sep > -1.75 ? "yellow" : "red";
-          throwStyle = (passConcept==="shot"&&throwWindow!=="red") || (routeDepth>15&&sep>.1) ? "lob"
-            : (routeDepth<9 || throwWindow==="red" || underPressure) ? "bullet" : "touch";
-          // Placement is a football location, not an abstract accuracy roll. Pressure,
-          // throwing on the move, depth, and a raw QB widen the miss ellipse.
-          const acc=(S.off[8].thr*.58+S.off[8].aware*.42), errYd=cl(1.05+(62-acc)*.025+routeDepth*.025
-            +(underPressure?.85:0)+(movingThrow?.8:0),.35,3.8);
+          const _fallX = _re ? _re.lx : routeDepth*YD, _fallY = _re ? _re.y : clampY(target.y + (Math.random()<0.5?-1:1)*30);
+          // the EXECUTION: how much of that lead he actually gets on it. Short of 1 and the ball
+          // is behind him; the spot he is throwing AT is still a real point on the grass either way.
+          const _lk = leadSkillV101(qb, _panic, movingThrow);
+          // and the aim point never gets further downfield than the route the concept called for
+          // (plus a stride) — routeDepth is the arm and the concept, and it stays the ceiling
+          const _capX = Math.max(routeDepth, 2) * YD + TU("leadOverYd", 1.5) * YD;
+          const _leadOn = !!TU("leadV101", 1);   // 0 puts the ball back on the route's last waypoint
+          const idealX = _leadOn ? Math.min(_capX, target.lx + ((_lead.p.lx - target.lx) * _lk) + (_re ? (_fallX - target.lx) * TU("leadRouteBias", .12) : 0)) : _fallX;
+          const idealY = _leadOn ? clampY(target.y + ((_lead.p.y - target.y) * _lk) + (_re ? (_fallY - target.y) * TU("leadRouteBias", .12) : 0)) : _fallY;
+          throwLeadPx = Math.hypot(idealX - target.lx, idealY - target.y);
+          // the CONE: the miss around that spot, and the colour the broadcast draws it in
+          throwConeYd = coneYdV101(qb, routeDepth, throwProt, _panic, movingThrow, sep);
+          throwWindow = windowV101(sep, throwConeYd, throwProt);
+          const errYd = throwConeYd;
           const errAng=Math.random()*Math.PI*2, errMag=(Math.random()+Math.random())*.5*errYd*YD;
           const cx=cl(idealX+Math.cos(errAng)*errMag,-3*YD,Math.max(idealX+4*YD,routeDepth*YD+4*YD));
           const cyy=clampY(idealY+Math.sin(errAng)*errMag*1.35);
@@ -3221,18 +3415,31 @@ window.__visionRadiusV96 = visionRadiusV96;
           const _speed=a=>Math.max(110,a.spd||140), _eta=(a,knows)=>Math.hypot(cx-a.lx,cyy-a.y)/_speed(a)*1000+(knows?55:cl(300-a.aware*2,95,250));
           const wrEta=_eta(target,true), cbEta=_eta(coverA,false);
           arrivalEdgeMs=wrEta-cbEta; // positive means the defender owns the spot first
-          emit("throw",{x:qb.lx,y:qb.y,tx:cx,ty:cyy,to:target.id,style:throwStyle,window:throwWindow,locationQuality,behind:target.lx<qb.lx});
+          emit("throw",{x:qb.lx,y:qb.y,tx:cx,ty:cyy,to:target.id,style:throwStyle,window:throwWindow,locationQuality,behind:target.lx<qb.lx,
+            cone:+throwConeYd.toFixed(2), prot:+throwProt.toFixed(2), panic:+_panic.toFixed(2),
+            lead:Math.round(throwLeadPx), leadYd:+(throwLeadPx/YD).toFixed(2), leadK:+_lk.toFixed(2), hang:Math.round(_lead.ms)});
+          try { const W = root.__V101 = root.__V101 || { throws: 0, style: {}, win: {}, cone: 0, lead: 0, prot: 0, panic: 0, behindLead: 0 };
+            W.throws++; W.style[throwStyle] = (W.style[throwStyle] || 0) + 1; W.win[throwWindow] = (W.win[throwWindow] || 0) + 1;
+            W.cone += throwConeYd; W.lead += throwLeadPx / YD; W.prot += throwProt; W.panic += _panic; if (_lk < .6) W.behindLead++;
+            W.last = { style: throwStyle, window: throwWindow, cone: +throwConeYd.toFixed(2), leadYd: +(throwLeadPx / YD).toFixed(2),
+              hang: Math.round(_lead.ms), prot: +throwProt.toFixed(2), panic: +_panic.toFixed(2),
+              depth: Math.round(routeDepth), sep: +sep.toFixed(2) }; } catch (e) {}
           emit("contest",{def:coverA.id,off:target.id,x:cx,y:cyy,arrivalEdgeMs:Math.round(arrivalEdgeMs)});
-          const styleK=throwStyle==="bullet"?.84:throwStyle==="lob"?1.30:1;
+          const styleK=STYLE_K_V101[throwStyle]||1;   // v101: the same constant the lead solved with
           const styleArc=throwStyle==="bullet"?18+routeDepth*.55:throwStyle==="lob"?52+routeDepth*1.65:31+routeDepth*1.05;
           // Downfield throws need real hang time. Ratings still shape placement
           // and outcome; arm strength only trims a small amount off travel time.
           ballFlight = { t0:t, style:throwStyle, dur: cl(Math.hypot(cx-qb.lx,cyy-qb.y)*(4.45-(S.off[8].thr-50)*0.006)*styleK, 390, 1700),
             x0:qb.lx, y0:qb.y, x1:cx, y1:cyy, arc: styleArc, done: ()=>{
               // soft correction only — they tracked the ball through its flight
-              const capTo=(a,tx,ty)=>{ const safeY=clampY(ty),d=Math.hypot(tx-a.lx,safeY-a.y);
-                if(d>0.1){const f=Math.min(1,9/d);a.lx+=(tx-a.lx)*f;a.y=clampY(a.y+(safeY-a.y)*f);} };
-              capTo(target,cx,cyy); capTo(coverA,cx-sep*2.4,cyy+3);
+              const capTo=(a,tx,ty,maxPx)=>{ const safeY=clampY(ty),d=Math.hypot(tx-a.lx,safeY-a.y);
+                if(d>0.1){const f=Math.min(1,(maxPx==null?9:maxPx)/d);a.lx+=(tx-a.lx)*f;a.y=clampY(a.y+(safeY-a.y)*f);} };
+              // v101: a defender BREAKS ON THE THROW. The further in front of the receiver the ball
+              // was laid out, the more of that flight he spends driving on the catch point instead
+              // of trailing the man — without it, leading the receiver hands away yards after the
+              // catch that nobody on the field was given a chance to take.
+              capTo(target,cx,cyy);
+              capTo(coverA,cx-sep*2.4,cyy+3, 9 + cl(throwLeadPx,0,TU("leadBreakCapPx",90))*TU("leadBreakK",.9));
               const qbA = S.off[8];
               /* ===== v82 BALL SKILLS — the catch point is a contest, not a timer =====
                * BOX OUT: a receiver between the defender and the ball uses his body.
@@ -3269,12 +3476,18 @@ window.__visionRadiusV96 = visionRadiusV96;
                 // the acceleration target for a short run-through window. Poorly
                 // located/dive catches get almost none; this is not a velocity snap.
                 target._catchRunThroughUntil=t+TU("catchRunThroughMs",550);
-                target._catchStrideBoost=cl((locationQuality-.35)*TU("catchStrideLocationK",.32),.02,TU("catchStrideMax",.16));
+                target._catchStrideBoost=cl((locationQuality-.35)*TU("catchStrideLocationK",.32),.02,TU("catchStrideMax",.11));
                 // A defender who arrived with the receiver usually finishes the
                 // catch immediately; late/trailing coverage concedes real YAC.
                 // This makes location/arrival matter while retaining broken-play upside.
                 const catchGap=Math.hypot(coverA.lx-target.lx,coverA.y-target.y);
-                const catchStopP=cl(.10+arrivalEdgeMs/1400+(coverA.tkl-target.agi*.55-target.str*.25)*.004-Math.max(0,sep)*.07,.04,.38);
+                /* v101: a ball thrown INTO SPACE is also a ball the coverage is running to. The
+                 * lead gets the receiver to it cleaner and in stride, which is the whole point —
+                 * but the man who was beaten to the spot still arrives, so the further in front of
+                 * him it was thrown, the more ground the defender has covered getting there. Without
+                 * this the lead alone put yards-after-catch up by half. */
+                const leadClose=cl(throwLeadPx/YD,0,TU("leadCloseCapYd",12))*TU("leadCloseK",.012);
+                const catchStopP=cl(TU("catchStopBase",.10)+leadClose+arrivalEdgeMs/1400+(coverA.tkl-target.agi*.55-target.str*.25)*.004-Math.max(0,sep)*.07,.04,.42);
                 if(catchGap<24&&Math.random()<catchStopP){
                   emit("tackle",{tackler:coverA.id,carrier:target.id,x:cx,y:cyy,stayUp:true,catchTackle:true});
                   out={kind:"pass",complete:true,intercepted:false,yards:Math.max(1,Math.round(cx/YD))}; done=true;
@@ -3969,9 +4182,11 @@ window.__visionRadiusV96 = visionRadiusV96;
         return X;
       } catch (e) { console.warn("[FieldSim.pass]", e); return null; }
     },
-    run(w, k, T, K, att, concept) {
+    run(w, k, T, K, att, concept, ctx = {}) {
       try {
-        const r = sim("run", k.off, T.def, att, { off: { 9: K } }, { concept: concept || "inside" });   // v81: the concept picks the hole (and a draw sells the pass first)
+        // v81: the concept picks the hole (and a draw sells the pass first)
+        // v101: and the CALLED PLAY, when there is one, picks the exact gap
+        const r = sim("run", k.off, T.def, att, { off: { 9: K } }, Object.assign({ concept: concept || "inside" }, ctx));
         const X = { carrier: K, yards: r.yards, breakaway: r.yards >= 15, tackler: r.tackler||null, assist: r.assist||null, flags: r.flags||null };
         pushLog({ off: !!w, kind: "run", yards: X.yards }, r.log);
         return X;
@@ -5249,7 +5464,7 @@ function ribSyncYouKitV96(scene, side) {
     console.log("[RIB] v22 sprite overlay active");
   };
   v22.onerror = () => { /* no overlay available — baked atlas stands */ };
-  v22.src = window.__RIB_ATLAS_V22 || "/rib_atlas_v22.png";
+  v22.src = window.__RIB_ATLAS_V22 || window.__RIB_ASSET("rib_atlas_v22.png");
   // v49: the officials' own sheet, decoded alongside. It arrives on its own clock,
   // so re-register every live scene when it lands — the zebra recolor holds the
   // spr_ref_* keys until then and simply gets overwritten.
@@ -5260,7 +5475,7 @@ function ribSyncYouKitV96(scene, side) {
     console.log("[RIB] v49 referee art active");
   };
   refs.onerror = () => console.warn("[v49] referee sheet failed to load — zebra recolor stands in");
-  refs.src = window.__RIB_REFS_V49 || "/rib_refs_v49.png";
+  refs.src = window.__RIB_REFS_V49 || window.__RIB_ASSET("rib_refs_v49.png");
   // v57: the crowd sheet, on its own clock like the officials'. Until it decodes
   // there are simply no stands — the margin outside the sidelines keeps the
   // edge-extended grass warpField already puts there, which is what shipped
@@ -5272,7 +5487,7 @@ function ribSyncYouKitV96(scene, side) {
     console.log("[RIB] v57 crowd art active");
   };
   crowd.onerror = () => console.warn("[v57] crowd sheet failed to load — stands stay empty");
-  crowd.src = window.__RIB_CROWD_V57 || "/rib_crowd_v57.png";
+  crowd.src = window.__RIB_CROWD_V57 || window.__RIB_ASSET("rib_crowd_v57.png");
   // v78: the sideline sheet, same contract as the two above. Until it decodes the
   // team area is the bare apron v57 left, and the game plays exactly as before.
   const side = new Image();
@@ -5282,7 +5497,7 @@ function ribSyncYouKitV96(scene, side) {
     console.log("[RIB] v78 sideline art active");
   };
   side.onerror = () => console.warn("[v78] sideline sheet failed to load — the team area stays empty");
-  side.src = window.__RIB_SIDE_V78 || "/rib_side_v78.png";
+  side.src = window.__RIB_SIDE_V78 || window.__RIB_ASSET("rib_side_v78.png");
   // v91: the field sheets. Same contract: on its own clock, re-register every live scene
   // when it lands (teams for the player cells, the ball frames on their own), and until then
   // the v22 overlay and the baked atlas stand exactly as before.
@@ -5301,7 +5516,7 @@ function ribSyncYouKitV96(scene, side) {
     console.log("[RIB] v91 field art active");
   };
   fld.onerror = () => console.warn("[v91] field sheet failed to load — v22 and the baked atlas stand");
-  if (!noV91) fld.src = window.__RIB_FIELD_V91 || "./public/rib_field_v91.png";
+  if (!noV91) fld.src = window.__RIB_FIELD_V91 || window.__RIB_ASSET("rib_field_v91.png");
   // v92: the stadium sheet (floodlight towers). Same contract; the big screen needs no art.
   const lit = new Image();
   const noV92 = /[?&]noV92\b/.test(location.search);   // ?noV92: the sky as v57 left it
@@ -5312,7 +5527,7 @@ function ribSyncYouKitV96(scene, side) {
     console.log("[RIB] v92 stadium art active");
   };
   lit.onerror = () => console.warn("[v92] lights sheet failed to load — the sky behind the bowl stays empty");
-  if (!noV92) lit.src = window.__RIB_LIGHTS_V92 || "./public/rib_lights_v92.png";
+  if (!noV92) lit.src = window.__RIB_LIGHTS_V92 || window.__RIB_ASSET("rib_lights_v92.png");
 })();
 function ribField(scene) {
   if (!RIB.fieldImg || !scene || !scene.add || scene.fieldSpr) return;
@@ -5456,11 +5671,31 @@ class Ot extends mt.Scene {
       this.endFlagFocus();                                 // v71: a focus never outlives its play
       const f = this.focusPt || { x: FW / 2, y: WORLD_H / 2 }; c.centerOn(f.x, f.y - 80); } catch (e) {}
   }
+  /* ===== v101 THE SIM LOADS BEHIND THE DOOR =====
+   * `buildPlayScript` is the whole play — every actor's frames for every tick — and it was
+   * only ever built at the instant the play was asked to run. On the first snap of a game
+   * that instant is the moment the loading chase finishes, so the player watched a loader,
+   * then watched the game think. It is the same work either way, so do it while the chase
+   * is still running: the career app calls `prewarm` the moment the door goes up, the script
+   * is cached against its own payload, and `animatePlay` finds it already made. */
+  prebuildV101(et) {
+    if (!et) return null;
+    const c = this._preV101;
+    if (c && c.payload === et) return c.script;
+    let script = null;
+    try { script = buildPlayScript(et, { dims: { PLAY_L, PLAY_R, F_TOP, F_BOT }, rand: Math.random }); } catch (e) { script = null; }
+    this._preV101 = script ? { payload: et, script } : null;
+    try { const W = window.__PREWARM_V101 = window.__PREWARM_V101 || { built: 0, hits: 0, misses: 0 }; if (script) W.built++; } catch (e) {}
+    return script;
+  }
   animatePlay(et, rt) {
     this.softStop();
     this.completion = rt;
     try {
-      const script = buildPlayScript(et, { dims: { PLAY_L, PLAY_R, F_TOP, F_BOT }, rand: Math.random });
+      const _pre = this._preV101 && this._preV101.payload === et ? this._preV101.script : null;   // v101: built behind the loader
+      this._preV101 = null;
+      try { const W = window.__PREWARM_V101 = window.__PREWARM_V101 || { built: 0, hits: 0, misses: 0 }; _pre ? W.hits++ : W.misses++; } catch (e) {}
+      const script = _pre || buildPlayScript(et, { dims: { PLAY_L, PLAY_R, F_TOP, F_BOT }, rand: Math.random });
       const it = et.offense !== "them";
       VDIR = it ? 1 : -1;
       ribSyncOpp(this);
@@ -5547,7 +5782,7 @@ class Ot extends mt.Scene {
     // v57: the crowd lives between plays too, so it ticks BEFORE the no-play return
     this.updateCrowd(delta);
     this.updateStadiumV92(delta);   // v92: the lamps and the big screen live between plays too
-    this._klV99 = null;             // v99: one read of the key light per tick, shared by every shadow
+    this._klV99 = null; this._lgV101 = null;   // v99/v101: one read of the masts per tick, shared by every shadow
     if (!P) return;
     if (P.done) { if (P.post) this.updatePostV86(P, delta); return; }   // v86: the whistle is not the end of the picture
     if (this.hitStop > 0) { this.hitStop -= delta; return; }   // freeze-frame on big moments
@@ -5860,7 +6095,12 @@ class Ot extends mt.Scene {
           const x1 = qm.root.x, y1 = qm.root.y, x2 = rm.root.x, y2 = rm.root.y;
           const dx = x2 - x1, y = y2 - y1, len = Math.hypot(dx, y) || 1;
           const px = -y / len, py = dx / len;                    // perpendicular
-          const w = Math.min(34, 8 + len * 0.16);                // cone half-width at target
+          /* v101: the cone the QB is drawn looking through is the sim's ACCURACY cone, in the
+           * sim's own yards — it fans open as the pocket goes or panic rises, and closes to a
+           * tight green wedge when protection holds and the receiver has won. `lookCone` is the
+           * same number the throw will miss by, so what you see is what he is about to do. */
+          const coneYd = P.lookCone == null ? TU("coneNominalYd", 1.15) : P.lookCone;
+          const w = Math.min(TU("conePxMax", 58), (6 + len * 0.10) * (0.55 + coneYd * TU("conePxK", 0.62)));
           const col = P.lookWindow==="green" ? 0x57e07a : P.lookWindow==="yellow" ? 0xf0bb45 : 0xe0484f;
           this.lookG.fillStyle(col, 0.13).fillTriangle(x1, y1, x2 + px * w, y2 + py * w, x2 - px * w, y2 - py * w);
           this.lookG.lineStyle(1.5, col, 0.45).lineBetween(x1, y1, x2, y2);
@@ -6019,7 +6259,7 @@ class Ot extends mt.Scene {
     const S = P.script, dir = S.meta.dir || VDIR || 1, YDF = PLAY_W / 100, MIDY = (F_TOP + F_BOT) / 2;
     const spot = { x: P._refBX != null ? P._refBX : (P.losX != null ? P.losX : PLAY_L + PLAY_W / 2), y: P._refBY != null ? P._refBY : MIDY };
     P.post = { t: 0, ms, spot, dir };
-    try { P.lookIdx = null; if (this.lookG) this.lookG.clear(); if (this.previewG) this.previewG.clear(); } catch (e) {}   // the read cone dies with the play
+    try { P.lookIdx = null; P.lookCone = null; P.lookProt = null; if (this.lookG) this.lookG.clear(); if (this.previewG) this.previewG.clear(); } catch (e) {}   // the read cone dies with the play
     this.markers.forEach((m, i) => {
       const off = i < 11;
       const grounded = /^(tackleSeq|down|dive|pancakeSeq)$/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 500);
@@ -6685,7 +6925,11 @@ class Ot extends mt.Scene {
       case "blitzLook": { const m = this.markers[this.actorIdx(e.who)]; if (m) this.flash(m.sx, m.sy, 0xff6b52); break; }
       case "look": {
         // v33: the cone is a three-state throwing-window grade from the sim.
-        P.lookIdx = this.actorIdx(e.to); P.lookWindow=e.window||(e.open?"green":"red"); P.lookOpen=e.window?e.window==="green":!!e.open; break;
+        P.lookIdx = this.actorIdx(e.to); P.lookWindow=e.window||(e.open?"green":"red"); P.lookOpen=e.window?e.window==="green":!!e.open;
+        P.lookCone = e.cone == null ? null : e.cone; P.lookProt = e.prot == null ? null : e.prot;   // v101: the live cone
+        try { const V = window.__V101 = window.__V101 || {}; V.look = { cone: e.cone, prot: e.prot, panic: e.panic, window: P.lookWindow };
+          (V.lookCones || (V.lookCones = [])).push(e.cone); if (V.lookCones.length > 400) V.lookCones.shift(); } catch (_e) {}
+        break;
       }
       case "read": {
         // the QB comes off his first read — swing the cone to the new man
@@ -7079,12 +7323,13 @@ class Ot extends mt.Scene {
   }
   marker(sx, sy, team, num, faceDx, faceDy) {
     const shadow = this.add.ellipse(0, 24, 26, 9, 0x000000, 0.32);
+    const fill = this.add.ellipse(0, 24, 26, 9, 0x000000, 0.14);   // v101: the second lamp's softer cast
     const initialKey = this.textures.exists("spr_" + team + "_dn_idle") ? "spr_" + team + "_dn_idle" : "rib_player_fallback";
     const body = this.add.image(0, 0, initialKey);
     if (initialKey === "rib_player_fallback") body.setTint(team === "def" ? 0xe86560 : team === "you" ? 0xf0bb45 : 0x5fce74);
     const label = this.add.text(0, -3, String(num), { fontFamily: "Oswald, sans-serif", fontSize: "10px", fontStyle: "bold", color: team === "you" ? "#1b1406" : "#ffffff" }).setOrigin(0.5);
-    const root = this.add.container(0, 0, [shadow, body, label]).setDepth(4);
-    const m = { root, body, label, shadow, team, num, sx, sy, dirKey: "dn", flip: false, ft: 0, hd: null, cutUntil: 0, tms: 0 };
+    const root = this.add.container(0, 0, [fill, shadow, body, label]).setDepth(4);
+    const m = { root, body, label, shadow, fill, team, num, sx, sy, dirKey: "dn", flip: false, ft: 0, hd: null, cutUntil: 0, tms: 0 };
     if (faceDx != null) this.faceMarker(m, faceDx, faceDy || 0);
     this.placeMarker(m, sx, sy, 16);
     return m;
@@ -7253,7 +7498,19 @@ class Ot extends mt.Scene {
     if (!this.textures.exists(tex)) tex = "rib_player_fallback";
     if (m.tex !== tex) { m.tex = tex; m.body.setTexture(tex); }
     if (tex === "rib_player_fallback") m.body.setTint(m.team === "def" ? 0xe86560 : m.team === "you" ? 0xf0bb45 : 0x5fce74);
-    else {
+    else if (TU("shadeV101", 1) && this.stadium && this.stadium.on) {
+      // v101: the men are lit by the MASTS, not by a fixed grey ramp. `shadeTintV101` reads
+      // the light actually landing where he is standing — the pools, the ambient floor, the
+      // v100 dial — so running through a pool warms him and the gap between lamps cools him.
+      // The ball's own broadcast spotlight rides on top of that rather than instead of it.
+      let spotK = 1;
+      if (this.ballSpr && this.ballSpr.active !== false) {
+        const dd = Math.hypot(m.root.x - this.ballSpr.x, m.root.y - this.ballSpr.y);
+        const spot = Math.max(0, 1 - dd / TU("lightSpotR", 200));
+        spotK = TU("lightAmb", 0.9) + (1 - TU("lightAmb", 0.9)) * spot;
+      }
+      m.body.setTint(this.shadeTintV101(m.root.x, m.root.y, spotK));
+    } else {
       // v29 DYNAMIC LIGHTING: a broadcast key light on the players — ambient falls off
       // with depth into the far field, and a soft spotlight rides the ball so the men
       // around the action read a touch brighter than the fringes. Brightness quantizes
@@ -7304,7 +7561,13 @@ class Ot extends mt.Scene {
     // stays on the grass under a man in the air. A man ON the ground has almost no height
     // left to cast, so his shadow collapses to the patch he is lying in.
     if (m.shadow) { const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
-      this.castShadowV99(m.shadow, p.x, p.y + liftV99 * p.s, TU("shadowManH", 21) * (down ? TU("shadowDownK", 0.45) : 1), { lift: liftV99 }); }
+      const h = TU("shadowManH", 21) * (down ? TU("shadowDownK", 0.45) : 1);
+      this.castShadowV99(m.shadow, p.x, p.y + liftV99 * p.s, h, { lift: liftV99 });
+      // v101: at a sprint the cast smears along its own axis and thins — motion, not a taller man
+      const smear = Math.max(0, Math.min(1, (spdPx - TU("smearFromV101", 120)) / TU("smearSpanV101", 130))) * TU("smearKV101", 0.34);
+      if (smear > 0) { m.shadow.setScale(m.shadow.scaleX * (1 + smear), m.shadow.scaleY * (1 - smear * 0.35));
+        m.shadow.setAlpha(m.shadow.alpha * (1 - smear * 0.3)); }
+      if (m.fill) this.castFillV101(m.fill, p.x, p.y + liftV99 * p.s, h, { lift: liftV99 }); }
     // v41: stable per-marker epsilon breaks depth ties so engaged sprites at equal
     // sy don't z-flicker through each other frame to frame.
     // v83: inside a pair the OFFENSIVE man draws in front — the sim glues his man a few
@@ -7792,7 +8055,53 @@ class Ot extends mt.Scene {
    *
    * Render-only, like the rest of the crowd: no sim actor, no stat, no event. The
    * Math.random() here picks which fan shouts and what they shout, nothing else. */
-  crowdBubble(good, atX) {
+  /* ===== v101 THE STANDS HAVE A VOCABULARY =====
+   * v98 gave the terraces two emoji pools — one for everything good, one for everything
+   * bad — so a strip sack, a dropped pass and a flag all sent up the same eight faces.
+   * A crowd does not react generically; it reacts to the THING. Every moment the stands
+   * can see now names its own handful, and the shout bubbles carry one too, so the line
+   * and the faces beside it are talking about the same play. Falls back to the v98 pools
+   * for anything unnamed, so a new event type is never silent. */
+  emoBookV101(type, good) {
+    const B = {
+      td:        ["\uD83C\uDF89", "\uD83D\uDD25", "\uD83D\uDE4C", "\uD83C\uDFC8", "\uD83E\uDD73"],   // 🎉 🔥 🙌 🏈 🥳
+      score:     ["\uD83C\uDF89", "\uD83D\uDD25", "\uD83D\uDE4C", "\uD83E\uDD73"],
+      fgResult:  ["\uD83C\uDFAF", "\uD83D\uDE4C", "\uD83E\uDD1E"],                                       // 🎯 🙌 🤞
+      pick:      ["\uD83E\uDD2F", "\uD83D\uDE31", "\uD83E\uDDE4", "\uD83D\uDC40"],                      // 🤯 😱 🧤 👀
+      fumble:    ["\uD83D\uDE31", "\uD83E\uDEE3", "\uD83D\uDC40"],                                        // 😱 🫣 👀
+      recover:   ["\uD83D\uDCAA", "\uD83D\uDE24", "\uD83E\uDD1D"],                                        // 💪 😤 🤝
+      sack:      ["\uD83D\uDCA5", "\uD83D\uDE24", "\uD83E\uDDF1", "\uD83D\uDD28"],                      // 💥 😤 🧱 🔨
+      safety:    ["\uD83D\uDE31", "\uD83D\uDCA5", "\uD83E\uDD2F"],
+      swat:      ["\uD83D\uDEAB", "\uD83E\uDDE4", "\uD83D\uDC4B"],                                        // 🚫 🧤 👋
+      flag:      ["\uD83D\uDE21", "\uD83E\uDD2C", "\uD83D\uDC41\uFE0F", "\uD83E\uDD26"],               // 😡 🤬 👁️ 🤦
+      firstdown: ["\uD83D\uDC49", "\uD83D\uDC4F", "\uD83D\uDCC8"],                                        // 👉 👏 📈
+      brokenTackle:["\uD83D\uDCAA", "\uD83D\uDE2E", "\uD83D\uDD25"],                                      // 💪 😮 🔥
+      truck:     ["\uD83D\uDE9B", "\uD83D\uDCAA", "\uD83D\uDE2E"],                                        // 🚛 💪 😮
+      stiffarm:  ["\uD83E\uDD1A", "\uD83D\uDE2E", "\uD83D\uDD25"],                                        // 🤚 😮 🔥
+      hurdle:    ["\uD83E\uDD38", "\uD83D\uDE33", "\uD83E\uDD8C"],                                        // 🤸 😳 🦌
+      juke:      ["\uD83D\uDC83", "\uD83D\uDE02", "\uD83E\uDDCA"],                                        // 💃 😂 🧊
+      spin:      ["\uD83C\uDF00", "\uD83D\uDE02", "\uD83D\uDE33"],                                        // 🌀 😂 😳
+      pancake:   ["\uD83E\uDD5E", "\uD83D\uDCAA", "\uD83D\uDE06"],                                        // 🥞 💪 😆
+      highpoint: ["\uD83E\uDD79", "\uD83E\uDD32", "\uD83D\uDE2E"],                                        // 🥹 🤲 😮
+      toetap:    ["\uD83E\uDDB6", "\uD83D\uDC40", "\uD83D\uDC4F"],                                        // 🦶 👀 👏
+      catch:     ["\uD83E\uDDE4", "\uD83D\uDC4F", "\uD83D\uDC4C"],                                        // 🧤 👏 👌
+      sprint:    ["\uD83D\uDCA8", "\uD83C\uDFC3", "\uD83D\uDE2E"],                                        // 💨 🏃 😮
+      scramble:  ["\uD83C\uDFC3", "\uD83D\uDE05", "\uD83D\uDC40"],                                        // 🏃 😅 👀
+      doubleMove:["\uD83E\uDDCA", "\uD83D\uDE02", "\uD83D\uDC40"],
+      blitz:     ["\uD83D\uDE08", "\uD83D\uDCA5", "\uD83D\uDC40"],                                        // 😈 💥 👀
+      qbHit:     ["\uD83D\uDCA5", "\uD83D\uDE2C", "\uD83D\uDE24"],
+      tackleHit: ["\uD83D\uDCA5", "\uD83D\uDE2C", "\uD83D\uDD14"],                                        // 💥 😬 🔔
+      incomplete:["\uD83D\uDE29", "\uD83E\uDD26", "\uD83E\uDEE0"],                                        // 😩 🤦 🫠
+      playfake:  ["\uD83E\uDD2B", "\uD83D\uDC40"],                                                          // 🤫 👀
+      holeOpen:  ["\uD83D\uDEAA", "\uD83D\uDC49"],                                                          // 🚪 👉
+    };
+    const own = B[type];
+    if (own && own.length) return own;
+    return good
+      ? ["\uD83D\uDD25", "\uD83D\uDE4C", "\uD83D\uDC4F", "\uD83C\uDF89", "\uD83D\uDCAA", "\uD83D\uDE31", "\uD83C\uDFC8", "\uD83E\uDD2F"]
+      : ["\uD83D\uDE29", "\uD83E\uDD26", "\uD83D\uDE24", "\uD83D\uDE2C", "\uD83D\uDE48", "\uD83D\uDC94", "\uD83D\uDE21"];
+  }
+  crowdBubble(good, atX, type) {
     const C = this.crowd; if (!C || !C.built || !this.add) return;
     if (C.t - (C.voiceAt == null ? -1e9 : C.voiceAt) < TU("crowdVoiceGapMs", 1100)) return;
     C.voiceAt = C.t;
@@ -7823,11 +8132,14 @@ class Ot extends mt.Scene {
     C.voices = C.voices || [];
     for (let i = 0; i < howMany; i++) {
       const s = near[(Math.random() * Math.min(near.length, 4)) | 0].s;
-      const txt = pool[(Math.random() * pool.length) | 0];
+      // v101: the line and the face beside it are reacting to the same play
+      const emo = TU("crowdVoiceEmojiV101", 1) ? this.emoBookV101(type, good) : null;
+      const txt = pool[(Math.random() * pool.length) | 0]
+        + (emo && emo.length ? " " + emo[(Math.random() * emo.length) | 0] : "");
       const fs = Math.round(Math.max(TU("crowdVoiceMinPx", 9), Math.min(TU("crowdVoiceMaxPx", 14), 15 * s.k)));
       try {
         const g = this.add.graphics(), tx = this.add.text(0, 0, txt, {
-          fontFamily: "Oswald, system-ui, sans-serif", fontSize: fs + "px",
+          fontFamily: 'Oswald, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif', fontSize: fs + "px",
           color: good ? "#dff6e4" : "#ffdad6", fontStyle: "700",
         }).setOrigin(.5, .5);
         const w = Math.ceil(tx.width) + fs * .9, h = Math.ceil(tx.height) + fs * .42, r = Math.min(h / 2, fs * .6);
@@ -7855,6 +8167,10 @@ class Ot extends mt.Scene {
       highpoint: [0.5, 1], toetap: [0.5, 1], catch: [0.34, 1], sprint: [0.22, 1],
       tackle: [0.26, 0], tackleHit: [0.36, 0], qbHit: [0.42, 0], incomplete: [0.22, 0], contest: [0.24, 0],
       snap: [0.1, 1],
+      // v101: the moments the stands were sitting through in silence
+      sack: [0.62, 0], safety: [0.95, 0], swat: [0.44, 0], throwaway: [0.2, 0], flag: [0.6, 0],
+      juke: [0.44, 1], spin: [0.44, 1], truck: [0.5, 1], scramble: [0.4, 1], doubleMove: [0.38, 1],
+      boxOut: [0.34, 1], playfake: [0.24, 1], blitz: [0.3, 0], holeOpen: [0.3, 1], pilePush: [0.24, 1],
     };
     const t = T[e.type]; if (!t) return;
     let ours = true;
@@ -7865,8 +8181,8 @@ class Ot extends mt.Scene {
     // A shout needs a moment worth shouting about, judged on the event's own weight
     // rather than on `amt` — the away version of a big play is a groan, and a groan
     // is exactly what the stands should be doing there.
-    if (t[0] >= TU("crowdVoiceMin", 0.34)) this.crowdBubble(ours, atX);
-    if (t[0] >= TU("crowdEmojiMin", 0.3)) this.crowdEmojiV98(ours, atX, t[0], e.type);
+    if (t[0] >= TU("crowdVoiceMin", 0.34)) this.crowdBubble(ours, atX, e.type);
+    if (t[0] >= TU("crowdEmojiMin", 0.24)) this.crowdEmojiV98(ours, atX, t[0], e.type);
   }
   /* ===== v98 THE STANDS REACT — emoji off the terraces =====
    * The bubbles are one fan with a line; this is the rest of the section. A moment worth
@@ -7877,12 +8193,12 @@ class Ot extends mt.Scene {
    * like everything in the crowd: Math.random() picks the fan, the emoji and the wobble. */
   crowdEmojiV98(good, atX, weight, type) {
     const C = this.crowd; if (!C || !C.built || !this.add || !TU("crowdEmojiV98", 1)) return;
-    if (C.t - (C.emojiAt == null ? -1e9 : C.emojiAt) < TU("crowdEmojiGapMs", 650)) return;
+    const BIG = /^(td|score|pick|fumble|recover|fgResult|safety|sack)$/.test(type || "");
+    // v101: the gap keeps the terraces from chattering, but a moment this big jumps it
+    if (C.t - (C.emojiAt == null ? -1e9 : C.emojiAt) < TU("crowdEmojiGapMs", 650) * (BIG ? TU("crowdEmojiBigGapK", 0.25) : 1)) return;
     C.emojiAt = C.t;
-    const BIG = /^(td|score|pick|fumble|recover|fgResult)$/.test(type || "");
-    const GOOD = ["\uD83D\uDD25", "\uD83D\uDE4C", "\uD83D\uDC4F", "\uD83C\uDF89", "\uD83D\uDCAA", "\uD83D\uDE31", "\uD83C\uDFC8", "\uD83E\uDD2F"];   // 🔥 🙌 👏 🎉 💪 😱 🏈 🤯
-    const BAD = ["\uD83D\uDE29", "\uD83E\uDD26", "\uD83D\uDE24", "\uD83D\uDE2C", "\uD83D\uDE48", "\uD83D\uDC94", "\uD83D\uDE21"];                   // 😩 🤦 😤 😬 🙈 💔 😡
-    const pool = good ? GOOD : BAD;
+    // v101: the faces belong to the moment, not to a blanket good/bad
+    const pool = this.emoBookV101(type, good);
     const x0 = atX == null ? PLAY_L + PLAY_W / 2 : atX;
     let view = null;
     try { const w = this.cameras.main.worldView; view = { x0: w.x + 30, y0: w.y + w.height * .06, x1: w.right - 30, y1: w.bottom - 20 }; } catch (er) {}
@@ -8165,6 +8481,101 @@ class Ot extends mt.Scene {
     sh.setScale(((base + len) / base) * air, air);
     sh.setAlpha((o.a == null ? TU("shadowA", 0.32) : o.a) * (1 - V.reach * TU("shadowFade", 0.22)) * air * this.shadowMulV100());
     return V;
+  }
+  /* ===== v101 THE LIGHT MOVES ON HIM =====
+   * v99 gave the field one key light and one shadow apiece, and that shadow was the same
+   * shadow all night: same darkness, same crispness, whether the man was standing on the
+   * halfway line or running through the pool under a mast. A real stadium is lit by four
+   * lamps at once, which is why a player out there carries a hard shadow and a second,
+   * fainter one crossing it, why he brightens as he runs into a pool and cools between
+   * them, and why a shadow smears when its owner is moving.
+   * So three things move now, all of them off the SAME masts v99 and v92 already put in
+   * the sky, none of them touching the key light's own geometry (that stays exactly the
+   * single, non-wobbling cast v99 built):
+   *   - `fillVecV101` / `castFillV101` — a SECOND, softer shadow from the next-nearest
+   *     mast, shorter and much fainter than the key's, so the cast fans as a man crosses;
+   *   - `lightAtV101` — the light landing on a point, as the sum of the four pools with
+   *     distance falloff over an ambient floor, which is what makes running into a pool
+   *     visibly brighter than standing between two;
+   *   - a SPEED SMEAR on the key shadow: at a sprint it stretches along its own axis and
+   *     thins, which reads as motion rather than as a longer man.
+   * All of it rides the v100 dial: turn the lights down and the fill goes first, the pools
+   * flatten toward ambient, and the smear has nothing left to stretch. */
+  lightRigsV101() {
+    if (this._lgV101 !== undefined && this._lgV101 !== null) return this._lgV101;
+    const ST = this.stadium, out = [];
+    if (ST && ST.on && ST.towers) {
+      for (let i = 0; i < ST.towers.length; i++) {
+        const tw = ST.towers[i];
+        if (!tw || !tw.scene || !tw.visible || tw._bx == null) continue;
+        out.push({ i, x: tw._bx, y: tw._by - tw.displayHeight * TU("lightHeadFrac", 0.76), py: tw._by });
+      }
+    }
+    return (this._lgV101 = out);
+  }
+  // the fill: the nearest mast that is NOT the key. One per frame, like the key light.
+  fillLightV101(gx, gy) {
+    const rigs = this.lightRigsV101(); if (!rigs.length) return null;
+    const key = this._klV99 || (this._klV99 = this.keyLightV99());
+    let best = null, bd = Infinity;
+    for (const r of rigs) {
+      if (r.i === key.i) continue;
+      const d = Math.hypot(r.x - gx, Math.max(30, r.py - gy));
+      if (d < bd) { bd = d; best = r; }
+    }
+    return best;
+  }
+  fillVecV101(gx, gy) {
+    const L = this.fillLightV101(gx, gy); if (!L) return null;
+    const vx = gx - L.x, vy = Math.max(30, gy - L.y), d = Math.hypot(vx, vy) || 1;
+    const reach = Math.max(0, Math.min(1, (gy - NSTOP) / Math.max(1, WORLD_H - NSTOP)));
+    return { ux: vx / d, uy: vy / d, slope: TU("fillSlopeV101", 0.44) * (0.45 + reach * 1.25), reach };
+  }
+  castFillV101(sh, gx, gy, h, o) {
+    if (!sh || !sh.scene) return null;
+    if (!TU("shadowsV99", 1) || !TU("fillShadowV101", 1)) { sh.setVisible(false); return null; }
+    o = o || {};
+    const V = this.fillVecV101(gx, gy);
+    if (!V) { sh.setVisible(false); return null; }
+    sh.setVisible(true);
+    const lift = Math.max(0, o.lift || 0), len = h * V.slope, base = o.base || 26, y0 = o.y0 == null ? 24 : o.y0;
+    const air = lift > 0 ? Math.max(TU("shadowAirMin", 0.45), 1 - lift / TU("shadowAirFade", 30)) : 1;
+    sh.setRotation(Math.atan2(V.uy, V.ux));
+    sh.setPosition(V.ux * len * 0.5, y0 + lift + V.uy * len * 0.5);
+    sh.setScale(((base + len) / base) * air, air);
+    // the fill is what the OTHER lamps could not cancel: faint to begin with, and the first
+    // thing to go as the dial comes down, because a dim stadium has only one light worth the name
+    sh.setAlpha(TU("fillShadowA", 0.14) * (1 - V.reach * TU("shadowFade", 0.22)) * air
+      * Math.max(0, Math.min(1.4, this.lightMulV100())));
+    return V;
+  }
+  /* the light landing on a spot: an ambient floor plus every lamp's pool, falling off with
+   * distance. Returns 0..~1.5 — 1 is "ordinary lit turf", above that is standing in a pool. */
+  lightAtV101(gx, gy) {
+    const amb = TU("lightAmbV101", 0.72), dial = this.lightMulV100();
+    const rigs = this.lightRigsV101();
+    if (!rigs.length) return amb + (1 - amb) * Math.min(1, dial);
+    // the masts stand behind the FAR end, so their reach down the field is what makes the far
+    // half read brighter than the near one — squash the lengthwise distance hard or the pools
+    // die a few yards off the mast and the whole field flattens to ambient
+    const R = TU("lightPoolRV101", 900);
+    let sum = 0;
+    for (const r of rigs) {
+      const d = Math.hypot(gx - r.x, (gy - r.py) * TU("lightPoolSquashV101", 0.32));
+      sum += Math.max(0, 1 - d / R) * Math.max(0, 1 - d / R);   // quadratic falloff — a pool, not a wash
+    }
+    return amb * (0.45 + 0.55 * Math.min(1, dial)) + sum * TU("lightPoolKV101", 0.16) * dial;
+  }
+  /* the tint that light makes on a sprite: warm where the lamps reach, cool and dim between
+   * them, times whatever the broadcast spotlight is doing. Quantized to 8-value steps so the
+   * canvas tint path is never handed a unique colour twice in a row. */
+  shadeTintV101(gx, gy, spotK) {
+    const L = this.lightAtV101(gx, gy) * (spotK == null ? 1 : spotK);
+    const k = Math.max(TU("shadeFloorV101", 0.58), Math.min(TU("shadeCeilV101", 1.16), L));
+    const warm = Math.max(0, Math.min(1, (k - 0.86) / 0.32));       // how much of the lamp is on him
+    const r = k * (1 + 0.075 * warm), g = k * (1 + 0.03 * warm), b = k * (1 - 0.075 * warm);
+    const q = (v) => Math.max(0, Math.min(255, Math.round(v * 255 / 8) * 8));
+    return (q(r) << 16) | (q(g) << 8) | q(b);
   }
   hideStadiumV92() {
     const ST = this.stadium; if (!ST) return; ST.on = false;
@@ -9238,7 +9649,7 @@ class Ot extends mt.Scene {
     // and the WHOLE scene (art + sprites + lines) recedes with one consistent curve.
     { const lxw = fx(losYd), losU = VDIR > 0 ? lxw : FW - lxw; ANCHOR_U = losU - PERSP_AB; }
     buildPersp();
-    this._klV99 = null;         // v99: the masts moved with the projection — re-read the key light
+    this._klV99 = null; this._lgV101 = null;   // v99: the masts moved with the projection — re-read the key light (v101: and the rig)
     this.warpField();
     this.buildCrowd();          // v57: the stands ride the same rebuilt perspective
     this.buildSideline();       // v78: and the team area is rebuilt on it too
@@ -9338,7 +9749,7 @@ const BADGE_PROMO_V95 = {
 const BADGE_V95 = (() => {
   const lanes = { stage: { cur: null, q: [], timer: null }, hud: { cur: null, q: [], timer: null } };
   const log = [], seen = {}; let host = null, preloaded = false, dimEl = null;
-  const base = () => window.__RIB_BADGES_V95_URL || "./public/badges/";
+  const base = () => window.__RIB_BADGES_V95_URL || window.__RIB_ASSET("badges/");
   const url = (k) => base() + k + ".webp";
   const RM = () => REDUCED_MOTION;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -9616,6 +10027,9 @@ class Dt {
   game; scene; canvas; pending = [];
   drawStatic(et) { const rt = document.querySelector("#field"); return rt ? (this.withScene(rt, (it) => it.renderStatic(et)), !0) : !1; }
   animate(et, rt) { const it = document.querySelector("#field"); return it ? (this.withScene(it, (ht) => ht.animatePlay(et, rt)), !0) : !1; }
+  // v101: mount the game and build the play while the loading chase is still on screen
+  prewarm(et, done) { const it = document.querySelector("#field"); if (!it) { try { done && done(); } catch (e) {} return !1; }
+    this.withScene(it, (ht) => { try { ht.prebuildV101(et); } catch (e) {} try { done && done(); } catch (e) {} }); return !0; }
   cancel() { this.scene?.cancel(); }
   destroy() { this.scene = void 0; this.canvas = void 0; this.pending = []; this.game?.destroy(!1); this.game = void 0; }
   withScene(et, rt) { (this.canvas !== et || !this.game) && this.mount(et); this.scene ? rt(this.scene) : this.pending.push(rt); }
@@ -9717,8 +10131,15 @@ window.GridironPhaser={
     }
     // v97: the loader goes first. While the live game's loader is up, the first play holds at
     // the door and starts the moment the chase has run its exit — load, then run, in that order.
+    // v101: and the wait is no longer dead time. The field mounts and the play's whole script
+    // is built while the chase runs; the loader is told the moment that finishes, so the door
+    // opens onto a play already choreographed and the cross-fade lands on live football.
     var L=window.__LIVELOAD_V94;
-    if(L&&L.current&&!L.current.done&&!o.__heldV97){ var self=this, args=arguments; L.whenClear(function(){ try{ self.animate.apply(self,args); }catch(e){ try{o();}catch(_){} } }); return document.querySelector('#field')?true:false; }
+    try{ L&&L.ensure&&L.ensure(); }catch(e){}   // v101: claim the door before testing it
+    if(L&&L.current&&!L.current.done&&!o.__heldV97){ var self=this, args=arguments;
+      var told=function(){ try{ L.simReady&&L.simReady(); }catch(e){} };
+      try{ bridge().then(function(s){ try{ s.prewarm(t, told); }catch(e){ told(); } }).catch(told); }catch(e){ told(); }
+      L.whenClear(function(){ try{ self.animate.apply(self,args); }catch(e){ try{o();}catch(_){} } }); return document.querySelector('#field')?true:false; }
     window.__playAnimating=true;
     try{ window.__captureBanners&&window.__captureBanners(); }catch(e){}
     var fin=function(){
@@ -10506,10 +10927,18 @@ const tc=window.__GRIDIRON_TEAM_CUSTOM__||{};
 return{hasCareer:!0,state:S,player:{name:e.name,pos:e.pos,level:e.level,levelName:lv.name,levelKey:lv.key,age:e.age,stars:e.stars||0,ovr:ae(e),height:e.body?zs(e.body.height):"",weight:e.body?e.body.weight+" lb":"",archetype:orig?{id:orig.id,name:orig.name,icon:orig.icon,strength:orig.strength,weakness:orig.weakness}:null,path:o.path?{id:o.path,name:(mt[o.path]&&mt[o.path].name)||o.path}:null,traits,seasonsAtLevel:e.seasonsAtLevel||0,totalSeasons:e.totalSeasons||0,depthRole:e.depthRole||"",rank:rank?{rank:rank.rank,of:rank.of,pct:rank.pct}:null,chance,goals:ur(e),objectives:objs,points:e.points||0},
 season:{games:lv.games,played:played.length,weeks:wk.map(w=>({played:!!w.played,won:!!w.won,us:w.us,them:w.them,opp:w.opp,sat:!!w.satOut,perf:w.perf})),inProgress:!!(e.weekResults&&nxt),last:last?{won:!!last.won,us:last.us,them:last.them,opp:last.opp,stat:last.statLine||null,sat:!!last.satOut,week:wk.indexOf(last)+1}:null,nextOpp:nxt?nxt.opp:null,nextWeek:nxt?wk.indexOf(nxt)+1:null},
 team:{school:tc.schoolName||"",name:tc.teamName||"",colors:tc.col||null,logo:tc.logo!=null?tc.logo:null,logoCss:window.TEAM_LOGOS_V44&&tc.logo!=null?window.TEAM_LOGOS_V44.cssFull(tc.logo):""}}}catch(err){return null}};
-function Vr(e,t){const a=t.attrs[e],s=t.lastGains[e]||0,n=t.pos&&Ee[t.pos].w[e],i=f(a/we()*100,0,100),r=Le[e].metric,l=r?`<span class="attr-metric" title="${r.label}">${r.label}: <b>${r.fmt(a)}</b></span>`:"";
+/* ===== v101 WHOLE NUMBERS ON THE SHEET =====
+ * Attributes are bought, banked and displayed in whole points, but the sheet was printing
+ * whatever the model happened to hold — a banked gain, a conditioned effective value, a
+ * flat per-game swing — so a row could read "13.4 -> 12.8". Every player-facing number on
+ * the skills surfaces goes through W1 now: one rounding, applied where it is DRAWN, so the
+ * maths underneath keeps its precision and the reader never sees a fraction of a point. */
+function W1(v){const n=Number(v);return Number.isFinite(n)?Math.round(n):0}
+window.__W1_V101=W1;
+function Vr(e,t){const a=W1(t.attrs[e]),s=W1(t.lastGains[e]||0),n=t.pos&&Ee[t.pos].w[e],i=f(a/we()*100,0,100),r=Le[e].metric,l=r?`<span class="attr-metric" title="${r.label}">${r.label}: <b>${r.fmt(a)}</b></span>`:"";
   // v85: the body's cut (or lift) for the next game, and the season's expected gain
-  const X=sheetCtxV85(t),ev=X.ef.eff[e]!=null?X.ef.eff[e]:a,d=ev-a,ie=f(ev/we()*100,0,100),pj=X.pj[e]||0,pn=Math.round(pj),pStart=Math.max(i,ie),pw=pn>0?Math.min(100-pStart,Math.max(TU("projMinPct",2.4),pj/we()*100)):0;
-  const effTag=d?`<span class="eff ${d<0?"dn":"up"}" title="What you take onto the field next game: your body ${d<0?"takes "+(-d)+" off":"adds "+d+" to"} this attribute${X.ef.buffs[e]?" (includes this game's wheel swing "+(X.ef.buffs[e]>0?"+":"")+X.ef.buffs[e]+")":""}">→ ${ev}</span>`:"";
+  const X=sheetCtxV85(t),ev=W1(X.ef.eff[e]!=null?X.ef.eff[e]:a),d=ev-a,ie=f(ev/we()*100,0,100),pj=X.pj[e]||0,pn=Math.round(pj),pStart=Math.max(i,ie),pw=pn>0?Math.min(100-pStart,Math.max(TU("projMinPct",2.4),pj/we()*100)):0;
+  const effTag=d?`<span class="eff ${d<0?"dn":"up"}" title="What you take onto the field next game: your body ${d<0?"takes "+(-d)+" off":"adds "+d+" to"} this attribute${X.ef.buffs[e]?" (includes this game's wheel swing "+(X.ef.buffs[e]>0?"+":"")+W1(X.ef.buffs[e])+")":""}">→ ${ev}</span>`:"";
   const projTag=pn>0?`<span class="projn" title="Expected gain by season's end on your current plan (${(pt[t.training||"balanced"]||{}).name||"training"}) — the hollow bar is where this number is headed">▹+${pn}</span>`:pn<0?`<span class="projn neg" title="Expected change by season's end on your current plan — this program costs the attribute">▹${pn}</span>`:"";
   return`<div class="attr ${s?"up":""}${d<0?" worn":d>0?" fresh":""}">
     <div class="top"><span class="an">${Le[e].icon} ${Le[e].name}${n?" •":""}${t.statCeilV17&&t.statCeilV17[e]>1?` <span style="color:#f0bb45;font:700 9px Oswald,sans-serif;margin-left:3px;letter-spacing:.5px" title="Personality raised this stat's MAX LEVEL by ${Math.round((t.statCeilV17[e]-1)*100)}%">▲${Math.round((t.statCeilV17[e]-1)*100)}% CAP</span>`:""}</span>
@@ -10583,7 +11012,135 @@ function Fr(e){const t=o.player,a=Za.find(n=>n.id===t.pendingEvent),s=a.choices[
  * is a 100-0 scoreline. So the roster is left exactly as it was, and the whole curve
  * is carried by the four play-level levers below, which act on the game rather than
  * on the team sheet. ===== */
-const C=f(.42+t*.35+_prF*1.05,.3,1.65),V=f((_oppMul-.72)*2,.36,1.16),P=y(C),v=y(V),j=c?P.off:P.def,U=j.findIndex(Y=>Y.pos===e);U>=0&&(j[U]={name:o.player&&o.player.name||"You",num:xn(e),pos:e,isOff:c,you:!0,ovr:r,attrs:qr(),stat:a});(function(){const seen=new Set();[...P.off,...P.def,...v.off,...v.def].forEach(pl=>{if(!pl||pl.you){pl&&pl.name&&seen.add(pl.name);return}let nm2=pl.name,guard=0;while(seen.has(nm2)&&guard++<40)nm2=Hr();pl.name=nm2;seen.add(nm2)})})();const ce=Y=>Math.round([...Y.off,...Y.def].reduce((_,ie)=>_+ie.ovr,0)/22);return P.ovr=ce(P),v.ovr=ce(v),P.offOvr=Math.round(P.off.reduce((Y,_)=>Y+_.ovr,0)/11),P.defOvr=Math.round(P.def.reduce((Y,_)=>Y+_.ovr,0)/11),v.offOvr=Math.round(v.off.reduce((Y,_)=>Y+_.ovr,0)/11),v.defOvr=Math.round(v.def.reduce((Y,_)=>Y+_.ovr,0)/11),{us:P,opp:v,usQ:C,oppQ:V}}function qi(e,t,a){const s={pass:0,rush:0,rec:0,td:t.td||0,tackle:t.tackle||0,sack:t.sack||0,int:t.int||0,pd:t.pd||0,pick6:t.pick6||0,comp:0,att:0,rec_c:0,tgt:0,carries:0,longest:0,fum:0,ff:0,tfl:0,qbhit:0,pancake:0,sackAllowed:0},n=(i,r)=>Math.max(0,Math.round(i/Math.max(1,r)));switch(e){case"QB":s.pass=t.pass||0,s.rush=t.rush||0,s.att=Math.max(n(s.pass,8),8),s.comp=Math.min(s.att,Math.max(n(s.pass,12),Math.round(s.att*.6))),s.longest=s.pass>0?f(Math.round(s.pass*.28),8,80):0,s.int=Math.max(0,a.int||0);break;case"RB":s.rush=t.rush||0,s.rec=t.rec||0,s.carries=t.carries>0?t.carries:Math.max(n(s.rush,5),s.rush>0?6:0),s.rec_c=t.rec_c>0?t.rec_c:(s.rec>0?Math.max(1,n(s.rec,9)):0),s.longest=s.rush>0?f(Math.round(s.rush*.35),4,75):0,s.fum=a.fum||0;break;case"WR":case"TE":s.rec=t.rec||0,s.rush=t.rush||0,s.rec_c=t.rec_c>0?t.rec_c:(s.rec>0?Math.max(1,n(s.rec,13)):0),s.tgt=s.rec_c+(s.rec_c>0?le(1,3):le(0,2)),s.longest=s.rec>0?f(Math.round(s.rec*.4),6,80):0;break;case"OL":s.pancake=a.pancake||0,s.sackAllowed=a.sackAllowed||0;break;case"DL":s.sack=t.sack||0,s.tackle=t.tackle||0,s.tfl=Math.max(a.tfl||0,s.sack),s.qbhit=a.qbhit||0,s.ff=a.ff||0;break;case"LB":s.tackle=t.tackle||0,s.sack=t.sack||0,s.tfl=a.tfl||0,s.int=t.int||0,s.ff=a.ff||0;break;case"CB":case"S":s.tackle=t.tackle||0,s.int=t.int||0,s.pd=t.pd||0,s.tfl=a.tfl||0,s.tgt=a.tgt||0;break}return s}function Yr(e,t){
+const C=f(.42+t*.35+_prF*1.05,.3,1.65),V=f((_oppMul-.72)*2,.36,1.16),P=y(C),v=y(V),j=c?P.off:P.def,U=j.findIndex(Y=>Y.pos===e);U>=0&&(j[U]={name:o.player&&o.player.name||"You",num:xn(e),pos:e,isOff:c,you:!0,ovr:r,attrs:qr(),stat:a});(function(){const seen=new Set();[...P.off,...P.def,...v.off,...v.def].forEach(pl=>{if(!pl||pl.you){pl&&pl.name&&seen.add(pl.name);return}let nm2=pl.name,guard=0;while(seen.has(nm2)&&guard++<40)nm2=Hr();pl.name=nm2;seen.add(nm2)})})();const ce=Y=>Math.round([...Y.off,...Y.def].reduce((_,ie)=>_+ie.ovr,0)/22);return P.ovr=ce(P),v.ovr=ce(v),P.offOvr=Math.round(P.off.reduce((Y,_)=>Y+_.ovr,0)/11),P.defOvr=Math.round(P.def.reduce((Y,_)=>Y+_.ovr,0)/11),v.offOvr=Math.round(v.off.reduce((Y,_)=>Y+_.ovr,0)/11),v.defOvr=Math.round(v.def.reduce((Y,_)=>Y+_.ovr,0)/11),{us:P,opp:v,usQ:C,oppQ:V}}function qi(e,t,a){const s={pass:0,rush:0,rec:0,td:t.td||0,tackle:t.tackle||0,sack:t.sack||0,int:t.int||0,pd:t.pd||0,pick6:t.pick6||0,comp:0,att:0,rec_c:0,tgt:0,carries:0,longest:0,fum:0,ff:0,tfl:0,qbhit:0,pancake:0,sackAllowed:0},n=(i,r)=>Math.max(0,Math.round(i/Math.max(1,r)));switch(e){case"QB":s.pass=t.pass||0,s.rush=t.rush||0,s.att=Math.max(n(s.pass,8),8),s.comp=Math.min(s.att,Math.max(n(s.pass,12),Math.round(s.att*.6))),s.longest=s.pass>0?f(Math.round(s.pass*.28),8,80):0,s.int=Math.max(0,a.int||0);break;case"RB":s.rush=t.rush||0,s.rec=t.rec||0,s.carries=t.carries>0?t.carries:Math.max(n(s.rush,5),s.rush>0?6:0),s.rec_c=t.rec_c>0?t.rec_c:(s.rec>0?Math.max(1,n(s.rec,9)):0),s.longest=s.rush>0?f(Math.round(s.rush*.35),4,75):0,s.fum=a.fum||0;break;case"WR":case"TE":s.rec=t.rec||0,s.rush=t.rush||0,s.rec_c=t.rec_c>0?t.rec_c:(s.rec>0?Math.max(1,n(s.rec,13)):0),s.tgt=s.rec_c+(s.rec_c>0?le(1,3):le(0,2)),s.longest=s.rec>0?f(Math.round(s.rec*.4),6,80):0;break;case"OL":s.pancake=a.pancake||0,s.sackAllowed=a.sackAllowed||0;break;case"DL":s.sack=t.sack||0,s.tackle=t.tackle||0,s.tfl=Math.max(a.tfl||0,s.sack),s.qbhit=a.qbhit||0,s.ff=a.ff||0;break;case"LB":s.tackle=t.tackle||0,s.sack=t.sack||0,s.tfl=a.tfl||0,s.int=t.int||0,s.ff=a.ff||0;break;case"CB":case"S":s.tackle=t.tackle||0,s.int=t.int||0,s.pd=t.pd||0,s.tfl=a.tfl||0,s.tgt=a.tgt||0;break}return s}/* ===== v101 THE PLAYBOOK — forty-two calls instead of nine =====
+ * The offence had NINE plays: four runs (inside, power, sweep, draw) and five passes
+ * (quick, dropback, shot, fade, screen). Those are not plays, they are FAMILIES — every
+ * inside run hit the same two gaps and every dropback drew its routes out of the same
+ * medium pool, so a whole season of football was nine pictures on a loop.
+ *
+ * A play here is a real call. It names:
+ *   - the family it belongs to (`base`), which is one of the original nine, so every
+ *     downstream consumer — the pressure model, the render fallback, the tail curve, the
+ *     scramble rules — keeps working on the same vocabulary it always had;
+ *   - what the sim should actually DO with it: a run names its POINT OF ATTACK (the gap
+ *     the back is aiming at) and a pass names the ROUTES it is built out of, both fed
+ *     straight into the FieldSim as `opts.gap` / `opts.routes`;
+ *   - when it gets called (`fit`), as a weight over the situation rather than a chain of
+ *     if/elses — short yardage pulls Iso and Sneak to the front, third-and-long pulls
+ *     Dagger and the screens, a two-minute deficit pulls Four Verticals;
+ *   - and what the broadcast calls it, so the commentary says "Counter Trey" and
+ *     "Y-Cross" instead of "Power —" for the eleventh time.
+ * `fit` returns 0 to mean "never here". A situation nobody fits falls back to the family
+ * the old chain would have produced, so the caller can never come up empty. */
+const PLAYBOOK_V101 = [
+  /* ---- runs: the point of attack is the play ---------------------------------- */
+  {id:"iz",   name:"Inside Zone",   fam:"run", base:"inside", gap:"B", tag:"Inside zone — ",
+   fit:c=>1.4+(c.toGo<=6?.5:0)},
+  {id:"splz", name:"Split Zone",    fam:"run", base:"inside", gap:"A", tag:"Split zone — ",
+   fit:c=>1.0},
+  {id:"duo",  name:"Duo",           fam:"run", base:"power",  gap:"B", tag:"Duo — ",
+   fit:c=>0.9+(c.toGo<=4?.6:0)},
+  {id:"iso",  name:"Iso",           fam:"run", base:"power",  gap:"A", tag:"Iso — ",
+   fit:c=>0.5+(c.toGo<=2?1.8:0)+(c.pos>=95?1.6:0)},
+  {id:"powo", name:"Power O",       fam:"run", base:"power",  gap:"B", tag:"Power O — ",
+   fit:c=>0.8+(c.toGo<=3?1.1:0)},
+  {id:"ctr",  name:"Counter Trey",  fam:"run", base:"power",  gap:"C", tag:"Counter — ",
+   fit:c=>0.9+(c.down<=2?.4:0)},
+  {id:"trap", name:"Trap",          fam:"run", base:"inside", gap:"A", tag:"Trap — ",
+   fit:c=>0.7},
+  {id:"wham", name:"Wham",          fam:"run", base:"inside", gap:"B", tag:"Wham — ",
+   fit:c=>0.5},
+  {id:"dive", name:"QB Sneak",      fam:"run", base:"power",  gap:"A", tag:"Sneak — ",
+   fit:c=>c.toGo<=1?3.2:0},
+  {id:"stre", name:"Outside Zone",  fam:"run", base:"sweep",  gap:"C", tag:"Outside zone — ",
+   fit:c=>1.1},
+  {id:"toss", name:"Toss Crack",    fam:"run", base:"sweep",  gap:"D", tag:"Toss — ",
+   fit:c=>0.8+(c.toGo>=7?.3:0)},
+  {id:"jet",  name:"Jet Sweep",     fam:"run", base:"sweep",  gap:"D", tag:"Jet sweep — ",
+   fit:c=>0.7+(c.down<=2?.3:0)},
+  {id:"pnp",  name:"Pin & Pull",    fam:"run", base:"sweep",  gap:"C", tag:"Pin and pull — ",
+   fit:c=>0.7},
+  {id:"rev",  name:"Reverse",       fam:"run", base:"sweep",  gap:"D", tag:"Reverse — ",
+   fit:c=>0.25+(c.down<=2&&c.toGo>=6?.3:0)},
+  {id:"zread",name:"Zone Read Keep",fam:"run", base:"sweep",  gap:"C", tag:"Zone read — ",
+   fit:c=>0.6},
+  {id:"qbpow",name:"QB Power",      fam:"run", base:"power",  gap:"B", tag:"QB power — ",
+   fit:c=>c.pos>=92||c.toGo<=2?0.8:0.2},
+  {id:"draw", name:"Draw",          fam:"run", base:"draw",   gap:"A", tag:"Draw — ",
+   fit:c=>0.3+(c.down>=3&&c.toGo>=7?2.4:0)},
+  {id:"ldraw",name:"Lead Draw",     fam:"run", base:"draw",   gap:"B", tag:"Lead draw — ",
+   fit:c=>0.25+(c.down>=3&&c.toGo>=7?1.4:0)+(c.hurry?.4:0)},
+
+  /* ---- passes: the routes are the play ---------------------------------------- */
+  {id:"slf",  name:"Slant-Flat",    fam:"pass", base:"quick",    routes:["slant","flat","hitch"],        tag:"Slant-flat — ",
+   fit:c=>1.2+(c.toGo<=5?.8:0)+(c.hurry?.5:0)},
+  {id:"stik", name:"Stick",         fam:"pass", base:"quick",    routes:["stick","flat","hitch"],        tag:"Stick — ",
+   fit:c=>1.0+(c.toGo<=6?.7:0)},
+  {id:"snag", name:"Snag",          fam:"pass", base:"quick",    routes:["snag","flat","corner"],        tag:"Snag — ",
+   fit:c=>0.9+(c.pos>=85?.6:0)},
+  {id:"mesh", name:"Mesh",          fam:"pass", base:"quick",    routes:["drag","shallow","corner"],     tag:"Mesh — ",
+   fit:c=>0.9+(c.toGo<=8?.4:0)},
+  {id:"htch", name:"Hitch-Seam",    fam:"pass", base:"quick",    routes:["hitch","seam","curl"],         tag:"Hitch-seam — ",
+   fit:c=>0.8+(c.hurry?.6:0)},
+  {id:"drv",  name:"Drive",         fam:"pass", base:"dropback", routes:["dig","drag","post"],           tag:"Drive — ",
+   fit:c=>1.1},
+  {id:"dag",  name:"Dagger",        fam:"pass", base:"dropback", routes:["dagger","seam","curl"],        tag:"Dagger — ",
+   fit:c=>0.8+(c.toGo>=7?1.0:0)},
+  {id:"lvl",  name:"Levels",        fam:"pass", base:"dropback", routes:["dig","shallow","go"],          tag:"Levels — ",
+   fit:c=>1.0},
+  {id:"ycrs", name:"Y-Cross",       fam:"pass", base:"dropback", routes:["over","post","flat"],          tag:"Y-cross — ",
+   fit:c=>1.0},
+  {id:"flood",name:"Sail",          fam:"pass", base:"dropback", routes:["sail","flat","go"],            tag:"Sail — ",
+   fit:c=>0.9+(c.toGo>=6?.5:0)},
+  {id:"curl", name:"Curl-Flat",     fam:"pass", base:"dropback", routes:["curl","flat","comeback"],      tag:"Curl-flat — ",
+   fit:c=>1.0+(c.toGo>=5&&c.toGo<=10?.5:0)},
+  {id:"smsh", name:"Smash",         fam:"pass", base:"dropback", routes:["corner","hitch","go"],         tag:"Smash — ",
+   fit:c=>0.9+(c.pos>=80?.7:0)},
+  {id:"cmbk", name:"Comeback",      fam:"pass", base:"dropback", routes:["comeback","out","seam"],       tag:"Comeback — ",
+   fit:c=>0.7+(c.toGo>=8?.6:0)},
+  {id:"4vrt", name:"Four Verticals",fam:"pass", base:"shot",     routes:["go","seam","go","seam"],       tag:"Four verticals — ",
+   fit:c=>0.5+(c.toGo>=10?.8:0)+(c.margin<=-9&&c.quarter>=4?1.8:0)},
+  {id:"pwhl", name:"Post-Wheel",    fam:"pass", base:"shot",     routes:["post","wheel","flat"],         tag:"Post-wheel — ",
+   fit:c=>0.5+(c.down<=2?.4:0)},
+  {id:"slug", name:"Sluggo",        fam:"pass", base:"shot",     routes:["sluggo","drag","post"],        tag:"Sluggo — ",
+   fit:c=>0.4+(c.down<=2&&c.toGo<=4?.9:0)},
+  {id:"yank", name:"Yankee",        fam:"pass", base:"shot",     routes:["deep_cross","deep_post","checkdown"], tag:"Yankee — ",
+   fit:c=>0.4+(c.margin<=-9?.7:0)},
+  {id:"bub",  name:"Bubble Screen", fam:"pass", base:"screen",   routes:["bubble","go","go"],            tag:"Bubble — ",
+   fit:c=>0.6+(c.down>=3&&c.toGo>=8?1.1:0)},
+  {id:"tun",  name:"Tunnel Screen", fam:"pass", base:"screen",   routes:["tunnel","go","go"],            tag:"Tunnel screen — ",
+   fit:c=>0.5+(c.down>=3&&c.toGo>=8?.9:0)},
+  {id:"rbsc", name:"Back Screen",   fam:"pass", base:"screen",   routes:["screen","go","go"],            tag:"Screen — ",
+   fit:c=>0.5+(c.down>=3&&c.toGo>=8?1.0:0)},
+  {id:"fade", name:"Back-Shoulder", fam:"pass", base:"fade",     routes:["fade","slant","flat"],         tag:"Back-shoulder — ",
+   fit:c=>c.pos>=90?2.4:0.15},
+  {id:"cfade",name:"Corner Fade",   fam:"pass", base:"fade",     routes:["corner","fade","spot"],        tag:"Corner fade — ",
+   fit:c=>c.pos>=90?1.9:0.1},
+  {id:"pabt", name:"Play-Action Boot", fam:"pass", base:"dropback", routes:["cross","flat","post"],      tag:"Play-action boot — ", pa:1,
+   fit:c=>c.down<=2?1.0:0.2},
+  {id:"pasht",name:"Play-Action Shot", fam:"pass", base:"shot",     routes:["post","go","drag"],         tag:"Play-action shot — ", pa:1,
+   fit:c=>c.down<=2&&c.toGo>=4?0.8:0.15},
+];
+window.__PLAYBOOK_V101 = PLAYBOOK_V101;
+/* The call: weight every play that fits, pick one. `bias` is the family the old chain
+ * would have chosen — it stays a thumb on the scale rather than a verdict, so the
+ * situational logic that has always been here still shapes the mix. */
+function pickPlayV101(fam, bias, c){
+  if(!TU("playbookV101",1)) return null;
+  const pool=PLAYBOOK_V101.filter(p=>p.fam===fam);
+  let tot=0; const ws=[];
+  for(const p of pool){
+    let w=0; try{ w=Math.max(0,Number(p.fit(c))||0) }catch(e){ w=0 }
+    if(w>0&&bias&&p.base===bias) w*=TU("playbookBiasK",2.2);
+    ws.push(w); tot+=w;
+  }
+  if(tot<=0) return null;
+  let r=Math.random()*tot;
+  for(let i=0;i<pool.length;i++){ r-=ws[i]; if(r<=0) return pool[i]; }
+  return pool[pool.length-1];
+}
+window.__pickPlayV101=pickPlayV101;
+function Yr(e,t){
 /* ===== v16 EMERGENT GAME ENGINE ==========================================
  * The game is no longer scripted outcome-first. Every drive is resolved
  * play-by-play (FieldSim agents when available), on a real game clock,
@@ -10785,7 +11342,7 @@ function standV76(){
     lateP=over>a2?(over-a2)/(b2-a2)*mx:0;
   return Math.random()<f(gapP+lateP,0,mx);
 }
-function B(w,concept){const{O:k,D:T}=ie(w),K=(()=>{const yu=k.off.find(z=>z.you),rbs=k.off.filter(z=>z.pos==="RB"),qb=Y(k.off,["QB"]);if(rbs.length){if(qb&&Math.random()<.055)return qb;const sr=rbs.slice().sort((A,B2)=>(B2.ovr||0)-(A.ovr||0)),lead=yu&&yu.pos==="RB"?yu:sr[0],backup=sr.find(pl=>pl!==lead)||lead,leadShare=f(.72-touches(lead)*.012,.46,.72);return Math.random()<leadShare?lead:backup}return qb||Y(k.off,["RB","RB","QB"])})(),g=T.def.filter(ge=>["DL","LB","S"].includes(ge.pos)),N=_starFrontRating(T.def,g),H=k.off.filter(ge=>ge.pos==="OL"),oe=H.length?H.reduce((ge,$e)=>ge+_($e,"blocking"),0)/H.length:45;addTouch(K);const __r2=window.__FieldSim&&window.__FieldSim.run(w,k,T,K,_,concept);let base;if(__r2)base=__r2;else{const be=(_(K,"strength")*.5+_(K,"burst")*.5)*.5+oe*.5-N*.85;let ke=Math.round(2.8+be*.045+D(-2.5,3));be<-7&&Math.random()<.38&&(ke=le(-2,1)),Math.random()<f((_(K,"speed")-N)/360+.015,.008,.11)&&(ke+=le(7,13+Math.round(_(K,"speed")/8))),ke=f(ke,-5,60),base={carrier:K,yards:ke,breakaway:ke>=15}}
+function B(w,concept,play){const{O:k,D:T}=ie(w),K=(()=>{const yu=k.off.find(z=>z.you),rbs=k.off.filter(z=>z.pos==="RB"),qb=Y(k.off,["QB"]);if(rbs.length){if(qb&&Math.random()<.055)return qb;const sr=rbs.slice().sort((A,B2)=>(B2.ovr||0)-(A.ovr||0)),lead=yu&&yu.pos==="RB"?yu:sr[0],backup=sr.find(pl=>pl!==lead)||lead,leadShare=f(.72-touches(lead)*.012,.46,.72);return Math.random()<leadShare?lead:backup}return qb||Y(k.off,["RB","RB","QB"])})(),g=T.def.filter(ge=>["DL","LB","S"].includes(ge.pos)),N=_starFrontRating(T.def,g),H=k.off.filter(ge=>ge.pos==="OL"),oe=H.length?H.reduce((ge,$e)=>ge+_($e,"blocking"),0)/H.length:45;addTouch(K);const __r2=window.__FieldSim&&window.__FieldSim.run(w,k,T,K,_,concept,play&&play.gap?{gap:play.gap,play:play.id}:{});   /* v101: the call names the gap */let base;if(__r2)base=__r2;else{const be=(_(K,"strength")*.5+_(K,"burst")*.5)*.5+oe*.5-N*.85;let ke=Math.round(2.8+be*.045+D(-2.5,3));be<-7&&Math.random()<.38&&(ke=le(-2,1)),Math.random()<f((_(K,"speed")-N)/360+.015,.008,.11)&&(ke+=le(7,13+Math.round(_(K,"speed")/8))),ke=f(ke,-5,60),base={carrier:K,yards:ke,breakaway:ke>=15}}
 // v16.1 run-curve calibration: the agent sim compresses gains into 0-5 yds
 // (its 7-defender pursuit converges before a back can break clean). Real backs
 // gash the second level and break the occasional long one, so promote a
@@ -10803,7 +11360,7 @@ if(base&&base.yards>=0&&base.yards<=2){
 if(base&&base.yards>0){const y2=Math.round(dampV76(base.yards));
   if(y2!==base.yards){base={...base,yards:y2,breakaway:y2>=15}}}
 return base}
-function b(w,concept,ctx={}){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=(()=>{const g0=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]);const yu=k.off.find(z=>z.you);if(yu&&yu!==g0){const tp=yu.pos==="WR"?.32:yu.pos==="TE"?.2:yu.pos==="RB"?.1:0,ok=concept==="shot"?["WR","TE"].includes(yu.pos):["WR","TE","RB"].includes(yu.pos);if(tp&&ok&&Math.random()<tp)return yu}return g0})(),N=(()=>{/* v87: no coin flip puts YOU on the target — the sim covers by alignment, and the formula fallback never picks you */const safety=_starOutlier(T.def,"S");if(safety&&safety.player&&!safety.player.you&&Math.random()<.2*safety.blend)return safety.player;const others=T.def.filter(z=>!z.you);return Y(others.length?others:T.def,["CB","S","LB"])})();const need=(typeof down!=="undefined"&&down>=3)?Math.max(1,toGo):0;const __r=window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept,{pressured:!!ctx.pressured,moving:!!ctx.moving,pa:!!ctx.pa,fieldPos:typeof pos!=="undefined"?pos:50,down:typeof down!=="undefined"?down:1,toGo:typeof toGo!=="undefined"?toGo:10});
+function b(w,concept,ctx={}){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=(()=>{const g0=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]);const yu=k.off.find(z=>z.you);if(yu&&yu!==g0){const tp=yu.pos==="WR"?.32:yu.pos==="TE"?.2:yu.pos==="RB"?.1:0,ok=concept==="shot"?["WR","TE"].includes(yu.pos):["WR","TE","RB"].includes(yu.pos);if(tp&&ok&&Math.random()<tp)return yu}return g0})(),N=(()=>{/* v87: no coin flip puts YOU on the target — the sim covers by alignment, and the formula fallback never picks you */const safety=_starOutlier(T.def,"S");if(safety&&safety.player&&!safety.player.you&&Math.random()<.2*safety.blend)return safety.player;const others=T.def.filter(z=>!z.you);return Y(others.length?others:T.def,["CB","S","LB"])})();const need=(typeof down!=="undefined"&&down>=3)?Math.max(1,toGo):0;const __r=window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept,{pressured:!!ctx.pressured,moving:!!ctx.moving,pa:!!ctx.pa,fieldPos:typeof pos!=="undefined"?pos:50,down:typeof down!=="undefined"?down:1,toGo:typeof toGo!=="undefined"?toGo:10,routes:ctx.play&&ctx.play.routes||null,play:ctx.play&&ctx.play.id||null});   /* v101: the call names the routes */
 if(__r){if(__r.complete&&__r.yards>0){const y2=Math.max(1,Math.round(dampV76(__r.yards)));
   if(y2!==__r.yards){const air2=Math.min(__r.air||0,y2);return{...__r,yards:y2,breakaway:y2>=20,air:air2,yac:Math.max(0,y2-air2)}}}
   return __r}const depth0=concept==="shot"?24:concept==="fade"?18:concept==="dropback"?11:concept==="quick"?5:concept==="screen"?1:8,depth=need&&concept!=="screen"?Math.max(depth0,Math.min(need+1,18)):depth0,H=_(g,"speed")*.5+_(g,"agility")*.5-_(N,"coverage")*.85+_(K,"awareness")*.25,poise=f((_(K,"awareness")-35)/100,0,.55),pressureAcc=ctx.pressured?(ctx.moving?.78:.86)+poise*(ctx.moving?.16:.1):1,oe=f((.57-depth*.008+H/150)*weatherFx.pass*pressureAcc,.07,.91);if(!(Math.random()<oe)){const ge=f(.012+depth*.0022+(_(N,"coverage")-_(K,"awareness"))*.0015+(ctx.pressured?.012:0)+(ctx.moving?.012:0),0,.18);return{qb:K,rec:g,cover:N,complete:!1,intercepted:Math.random()<ge,yards:0,pressured:!!ctx.pressured,moving:!!ctx.moving}}let ke=Math.round(depth+(_(g,"catching")+_(K,"awareness"))/2*.045+D(-2,4)),explosiveP=f((_(g,"speed")-_(N,"coverage"))/240+(concept==="shot"?.13:concept==="screen"?.07:.035)-(ctx.pressured?.035:0),.01,.3);Math.random()<explosiveP&&(ke+=le(concept==="shot"?12:8,18+Math.round(_(g,"speed")/7))),ke=f(ke,1,80);need&&ke<need&&Math.random()<f((_(K,"awareness")-40)/120,.05,.45)&&(ke=need+le(0,3));ke=Math.max(1,Math.round(dampV76(ke)));const air=f(Math.round(concept==="screen"?D(-1,2):ke*(concept==="shot"?.75:.45+Math.random()*.3)),0,ke);return{qb:K,rec:g,cover:N,complete:!0,intercepted:!1,yards:ke,breakaway:ke>=20,air,yac:Math.max(0,ke-air),pressured:!!ctx.pressured,moving:!!ctx.moving}}
@@ -11019,8 +11576,12 @@ while(!gameOver&&plays<MAXP){
     else if(down>=3&&toGo>=7&&Math.random()<.4)concept="draw";
     else concept=Math.random()<.3?"sweep":"inside";
   }
-  const paV81=isPassCall&&(concept==="dropback"||concept==="shot")&&down<=2&&Math.random()<TU("paRate",.24);/* v81: play action sells the run first */
-const cTag=(paV81?"Play action — ":"")+({screen:"Screen — ",shot:"Deep shot — ",fade:"Fade — ",quick:"Quick game — ",dropback:"",draw:"Draw — ",power:"Power — ",sweep:"Sweep — ",inside:""}[concept]||"");
+  // v101: the chain above still names the FAMILY; the playbook names the actual call inside
+  // it, and the call is what the sim and the commentary get.
+  const playV101=pickPlayV101(isPassCall?"pass":"run",concept,{down,toGo,pos,quarter,margin,hurry:!!hurry});
+  if(playV101)concept=playV101.base;
+  const paV81=isPassCall&&(concept==="dropback"||concept==="shot")&&down<=2&&(playV101&&playV101.pa?Math.random()<TU("paCalledRate",.72):Math.random()<TU("paRate",.24));/* v81: play action sells the run first */
+const cTag=(paV81?"Play action — ":"")+(playV101?playV101.tag:({screen:"Screen — ",shot:"Deep shot — ",fade:"Fade — ",quick:"Quick game — ",dropback:"",draw:"Draw — ",power:"Power — ",sweep:"Sweep — ",inside:""}[concept]||""));
   let de=0,ne="run",ue="",me=!1,Pt=!1,_e=!1,endB=pos,flip=null,oob=!1,isPassFam=!1,pickSix=null;
   if(isPassCall){
     isPassFam=!0;
@@ -11059,7 +11620,7 @@ const cTag=(paV81?"Play action — ":"")+({screen:"Screen — ",shot:"Deep shot 
       ue=_e?(usDrive?(me?"🏈 TOUCHDOWN — YOU take off on the SCRAMBLE and score! ":`🏈 TOUCHDOWN — ${nm(qb2)} SCRAMBLES in for the score! `):`${nm(qb2)} SCRAMBLES in — touchdown for the opponent. `):(usDrive?(me?`💨 You escape the pocket — SCRAMBLE for ${de}!`:`${nm(qb2)} escapes and SCRAMBLES for ${de}.`):`${nm(qb2)} SCRAMBLES for ${de}.`)
     }else{
       const pressured=r2<sackP+scrP+pressureP,moving=pressured&&Math.random()<f(.35+(_(qb2,"speed")-50)*.006,.2,.72);
-      let X=b(usDrive,concept,{pressured,moving,pa:paV81});
+      let X=b(usDrive,concept,{pressured,moving,pa:paV81,play:playV101});
       if(pressured){const throwawayP=f(.08+(_(qb2,"awareness")-40)*.004,.04,.3),batP=f(.025+(dlR-50)*.001,.015,.07),pr=Math.random();if(pr<batP)X={...X,complete:!1,intercepted:!1,batted:!0};else if(pr<batP+throwawayP)X={...X,complete:!1,intercepted:!1,throwaway:!0}}
       // v32: coverage and pocket contact can create the less-visible penalties
       // missing from v30. Each requires a matching play event; none are blind rolls.
@@ -11148,7 +11709,7 @@ const cTag=(paV81?"Play action — ":"")+({screen:"Screen — ",shot:"Deep shot 
       if(defRec){ne="turnover";flip={spot:f(100-spotOff,1,99),why:"recovers the fumble"};usDrive?v.turn++:j.turn++;ue=me?"💥 FORCED FUMBLE — you punch it out and the defense recovers!":`💥 FUMBLE — ${nm(runCarrier)} loses it and the defense wins the scramble!`}
       else{ne="run";pos=spotOff;usDrive?(v.rush+=de,v.yds+=de):(j.rush+=de,j.yds+=de);ue=`💥 FUMBLE — ${nm(runCarrier)} loses it, but the offense recovers in the pile.`}
     }else{
-      const X=B(usDrive,concept);de=X.yards;ne="run";
+      const X=B(usDrive,concept,playV101);de=X.yards;ne="run";
       // v30 FLAG ON THE PLAY — holding: the sim recorded a blocker beaten instantly
       // (he grabbed cloth); some of those draw the flag and the run comes back.
       if(X.flags&&X.flags.hold&&Math.random()<(window.TU?window.TU("holdFlagP",.5):.5)){
@@ -11828,7 +12389,7 @@ window.__drCostV97=(e,k)=>drCost(e,k);function drCost(e,k){const v=e.attrs[k]||0
  * round-robin tiebreak — it never buys a 3-pt band while a 1-pt stat is open,
  * which is exactly "stop pushing a stat once it's inefficient vs alternatives". */
 function drAutoAlloc(pool){const e=o.player;let n=0,g=0;for(;e.points>0&&g++<5e3;){const open=pool.filter(i=>(e.attrs[i]||0)<we()&&drCost(e,i)<=e.points);if(!open.length)break;const mc=Math.min.apply(null,open.map(i=>drCost(e,i)));let pick=null;for(let j=0;j<pool.length;j++){const i=pool[(n+j)%pool.length];if(open.indexOf(i)>=0&&drCost(e,i)===mc){pick=i;n=(n+j+1)%pool.length;break}}if(!pick)break;e.attrs[pick]++,e.points-=mc,Qe[pick]=(Qe[pick]||0)+1,(Q2[pick]=Q2[pick]||[]).push(mc)}un()}
-function jl(){const e=o.player,a=Ee[e.pos].w;drAutoAlloc(Object.keys(a).sort((i,r)=>a[r]-a[i]).slice(0,Math.min(6,Object.keys(a).length)))}function Il(){drAutoAlloc(ee.slice())}let Qe={},Q2={};function Nl(e,t){const a=o.player;if(t>0){const c=drCost(a,e);if(a.attrs[e]>=we()){F("Absolute limit reached");return}if(a.points<c){F(c>1?"Needs "+c+" pts — diminishing returns past "+drSoftCap(a,e):"No points left");return}a.attrs[e]=Math.round(a.attrs[e])+1,a.points-=c,Qe[e]=(Qe[e]||0)+1,(Q2[e]=Q2[e]||[]).push(c)}else{if((Qe[e]||0)<=0)return;a.attrs[e]=Math.round(a.attrs[e])-1,a.points+=Q2[e]&&Q2[e].length?Q2[e].pop():1,Qe[e]--}x("uv-"+e).textContent=Math.round(a.attrs[e]);const n=x("mtr-"+e),i=Le[e].metric;n&&i&&(n.textContent=i.fmt(a.attrs[e])),x("ptsLeft").textContent=a.points,x("liveOvr").textContent="OVR "+ae(a),so()}function so(){const e=o.player;ee.forEach(a=>{const s=x("plus-"+a),n=x("minus-"+a),v=x("uv-"+a),c=drCost(e,a),sc=drSoftCap(e,a),over=(e.attrs[a]||0)>=sc;s&&(s.disabled=e.points<c||(e.attrs[a]||0)>=we(),s.innerHTML=c>1?'+<i class="stepcost'+(c>=4?" deep":"")+'">'+c+"</i>":"+",s.title=over?"Past soft cap "+sc+" — each +1 costs "+c+" pts here":"1 pt per +1 until soft cap "+sc),v&&(v.style.color=over?c>=4?"#ff8a80":"var(--gold)":"",v.title="Soft cap: "+sc),n&&(n.disabled=(Qe[a]||0)<=0);const cp=x("cap-"+a);cp&&(cp.innerHTML=(e.attrs[a]||0)>=we()?'<b style="color:#ff8a80">MAXED</b> at the absolute limit '+we():over?'Past soft cap '+sc+' — <b style="color:'+(c>=4?"#ff8a80":c===3?"#ff9a5a":"var(--gold)")+'">'+c+' pts per +1</b>':'Soft cap '+sc+' — <b style="color:#7fe0a0">1 pt per +1</b> for '+(sc-(e.attrs[a]||0))+' more')})}function Fl(){Qe={},Q2={},I(),F("Player upgraded!"),te("hub")}
+function jl(){const e=o.player,a=Ee[e.pos].w;drAutoAlloc(Object.keys(a).sort((i,r)=>a[r]-a[i]).slice(0,Math.min(6,Object.keys(a).length)))}function Il(){drAutoAlloc(ee.slice())}let Qe={},Q2={};function Nl(e,t){const a=o.player;if(t>0){const c=drCost(a,e);if(a.attrs[e]>=we()){F("Absolute limit reached");return}if(a.points<c){F(c>1?"Needs "+c+" pts — diminishing returns past "+drSoftCap(a,e):"No points left");return}a.attrs[e]=Math.round(a.attrs[e])+1,a.points-=c,Qe[e]=(Qe[e]||0)+1,(Q2[e]=Q2[e]||[]).push(c)}else{if((Qe[e]||0)<=0)return;a.attrs[e]=Math.round(a.attrs[e])-1,a.points+=Q2[e]&&Q2[e].length?Q2[e].pop():1,Qe[e]--}x("uv-"+e).textContent=Math.round(a.attrs[e]);const n=x("mtr-"+e),i=Le[e].metric;n&&i&&(n.textContent=i.fmt(a.attrs[e])),x("ptsLeft").textContent=a.points,x("liveOvr").textContent="OVR "+ae(a),so()}function so(){const e=o.player;ee.forEach(a=>{const s=x("plus-"+a),n=x("minus-"+a),v=x("uv-"+a),c=drCost(e,a),sc=drSoftCap(e,a),over=(e.attrs[a]||0)>=sc;s&&(s.disabled=e.points<c||(e.attrs[a]||0)>=we(),s.innerHTML=c>1?'+<i class="stepcost'+(c>=4?" deep":"")+'">'+c+"</i>":"+",s.title=over?"Past soft cap "+sc+" — each +1 costs "+c+" pts here":"1 pt per +1 until soft cap "+sc),v&&(v.style.color=over?c>=4?"#ff8a80":"var(--gold)":"",v.title="Soft cap: "+sc),n&&(n.disabled=(Qe[a]||0)<=0);const cp=x("cap-"+a);cp&&(cp.innerHTML=(e.attrs[a]||0)>=we()?'<b style="color:#ff8a80">MAXED</b> at the absolute limit '+we():over?'Past soft cap '+sc+' — <b style="color:'+(c>=4?"#ff8a80":c===3?"#ff9a5a":"var(--gold)")+'">'+c+' pts per +1</b>':'Soft cap '+sc+' — <b style="color:#7fe0a0">1 pt per +1</b> for '+W1(sc-(e.attrs[a]||0))+' more')})}function Fl(){Qe={},Q2={},I(),F("Player upgraded!"),te("hub")}
 /* ===== v67 SOFT-CAP LEGIBILITY — the price of a point, stated where the choice is
  * made. v21 gave every stat a soft cap and a rising price above it (2, then 3, then
  * 4 skill points per +1, forever) but only the UPGRADE screen ever said so, and only
@@ -11843,7 +12404,7 @@ function jl(){const e=o.player,a=Ee[e.pos].w;drAutoAlloc(Object.keys(a).sort((i,
  * upgrade rows instead of a tooltip. No pricing changes here — this is exactly the
  * drCost/drSoftCap v21 already charges, shown before it is paid. ===== */
 function capV67(e,k){const v=e.attrs[k]||0,cap=drSoftCap(e,k),abs=we();
-  return{v,cap,abs,cost:drCost(e,k),atMax:v>=abs,over:v>=cap,room:Math.max(0,cap-v)}}
+  return{v:W1(v),cap,abs,cost:drCost(e,k),atMax:v>=abs,over:v>=cap,room:W1(Math.max(0,cap-v))}}   /* v101: whole points on the badge */
 // MAX is the absolute wall (v21 kept exactly one); everything else is a price, and
 // the price is the thing worth reading.
 function capBadgeV67(e,k){const c=capV67(e,k);
@@ -13791,8 +14352,11 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     if(fx.injMult<0.99) out.push({up:true, t:'▲ '+Math.round((1-fx.injMult)*100)+'% fewer injuries'});
     if(fx.varMult>1.01) out.push({up:false,t:'▼ boom/bust: ±'+Math.round((fx.varMult-1)*100)+'% swingier games'});
     if(fx.varMult<0.99) out.push({up:true, t:'▲ steadier games (−'+Math.round((1-fx.varMult)*100)+'% swings)'});
-    if(fx.perfFlat>0)   out.push({up:true, t:'▲ +'+fx.perfFlat+' to all stats every game'});
-    if(fx.perfFlat<0)   out.push({up:false,t:'▼ '+fx.perfFlat+' to all stats every game'});
+    /* v101: a swing under a full point is stated in words — the sheet never prints a fraction */
+    if(fx.perfFlat>=1)  out.push({up:true, t:'▲ +'+Math.round(fx.perfFlat)+' to all stats every game'});
+    else if(fx.perfFlat>0) out.push({up:true, t:'▲ a nudge to all stats every game'});
+    if(fx.perfFlat<=-1) out.push({up:false,t:'▼ '+Math.round(fx.perfFlat)+' to all stats every game'});
+    else if(fx.perfFlat<0) out.push({up:false,t:'▼ a shade off all stats every game'});
     if(fx.gasBurn>1.01) out.push({up:false,t:'▼ +'+Math.round((fx.gasBurn-1)*100)+'% stamina burn'});
     if(fx.gasBurn<0.99) out.push({up:true, t:'▲ '+Math.round((1-fx.gasBurn)*100)+'% slower stamina burn'});
     if(fx.sprintIQ>0)   out.push({up:true, t:'▲ smart stamina timing'});
@@ -14818,7 +15382,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     const im = new Image();
     im.onload = () => { SART.ready = true; SART.img = im; try { skillCssVar(); } catch (e) {} };
     im.onerror = () => { SART.failed = true; console.warn("[v64] skill art failed to load — the themes fall back to their emoji") };
-    im.src = window.__RIB_SKILL_V64 || "/rib_skill_v64.png";
+    im.src = window.__RIB_SKILL_V64 || window.__RIB_ASSET("rib_skill_v64.png");
   })();
   const SKILL_COLS = 4, SKILL_ROWS = 3;
   let SKILL_OFF = false;
@@ -14861,7 +15425,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   // ...and the same cell addressed from CSS, so a DOM row can show it without a
   // canvas per option. One background image on the root, positioned per theme.
   function skillCssVar() {
-    const src = window.__RIB_SKILL_V64 || "/rib_skill_v64.png";
+    const src = window.__RIB_SKILL_V64 || window.__RIB_ASSET("rib_skill_v64.png");
     document.documentElement.style.setProperty("--skillArt", 'url("' + src + '")');
   }
   function skillCell(key) {
@@ -14912,7 +15476,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     const im = new Image();
     im.onload = () => { PART.ready = true; PART.img = im; try { planCssVar(); } catch (e) {} };
     im.onerror = () => { PART.failed = true; console.warn("[v66] plan art failed to load — the plans fall back to their emoji") };
-    im.src = window.__RIB_PLAN_V66 || "/rib_plan_v66.png";
+    im.src = window.__RIB_PLAN_V66 || window.__RIB_ASSET("rib_plan_v66.png");
   })();
   const PLAN_COLS = 4, PLAN_ROWS = 3;
   let PLAN_ART_OFF = false;
@@ -14941,7 +15505,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     return true;
   }
   function planCssVar() {
-    const src = window.__RIB_PLAN_V66 || "/rib_plan_v66.png";
+    const src = window.__RIB_PLAN_V66 || window.__RIB_ASSET("rib_plan_v66.png");
     document.documentElement.style.setProperty("--planArt", 'url("' + src + '")');
   }
   function planCell(key) {
@@ -14969,7 +15533,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   (function(){const im=new Image();
     im.onload=()=>{WART.img=im;WART.ready=true};
     im.onerror=()=>console.warn("[v50] wheel art failed to load — procedural wheel stands in");
-    im.src=window.__RIB_WHEEL_V50||"/rib_wheel_v50.png"})();
+    im.src=window.__RIB_WHEEL_V50||window.__RIB_ASSET("rib_wheel_v50.png")})();
   // Blit a named rect at a size, centred — or anchored on its recorded PIVOT,
   // which for the pointer frames is the mounting bracket. Anchoring the flapper
   // by its centre makes it jump sideways as it deflects; by its bracket it turns.
