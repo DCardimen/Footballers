@@ -8925,32 +8925,27 @@ class Ot extends mt.Scene {
         aimX: FW / 2 + (f < 0.5 ? 1 : -1) * FW * TU("beamAimX", 0.1), aimY: NSTOP + NSH - TU("beamAimDown", 300),
         poolX: FW / 2 + (p.x - FW / 2) * TU("mirrorPoolPull", 0.3), poolY: NSTOP + NSH - TU("fieldPoolDown", 150), poolK: TU("mirrorNearPoolK", 1.5) });
     });
-    // the two side masts: BEHIND each touchline stand at midfield. Anchored to the drawn stand
-    // section itself (its box is the billboard that will hide the foot), not to a projected
-    // point — a projected point put the pole on the apron in front of the benches.
-    const C = this.crowd, secs = C && C.built ? C.secs.slice(0, C.built) : [];
-    [-1, 1].forEach((sg, j) => {
-      const wall = secs.filter((q) => q.sgn === sg && q.bh > 0 && q.bw > 0);
-      if (!wall.length) return;
-      const uMid = FW * TU("sideMastU", 0.5);
-      const sec = wall.slice().sort((a, b) => Math.abs(a.ux - uMid) - Math.abs(b.ux - uMid))[0];
-      const x = sec.bx + sec.bw * (sg < 0 ? TU("sideMastInStrip", 0.42) : 1 - TU("sideMastInStrip", 0.42));
-      const foot = sec.by + sec.bh - TU("sideMastUp", 6) * sec.k;   // just inside the strip's base, so the stand hides the foot
-      specs.push({ id: "side" + j, x, y: foot, k: sec.k, face: sg < 0 ? RIB_META_V92.faces.right : RIB_META_V92.faces.left,
-        dir: sg < 0 ? 1 : -1, sway: j ? 0.5 : 0, phase: 7.3 + j * 2.2, secTop: sec.by,
-        aimX: FW / 2 + sg * FW * 0.05, aimY: NSTOP + NSH * 0.5, poolX: FW / 2 + (x - FW / 2) * 0.45, poolY: NSTOP + NSH * 0.5, poolK: TU("sideMastPoolK", 1.2) });
-    });
+    /* v103: the touchline masts are GONE. There is nowhere along a sideline to stand one.
+     * The stands there are drawn as diagonal billboards, and the crowd builder documents that
+     * such a band's bounding box NECESSARILY overhangs the playing surface — so anchoring a
+     * mast anywhere inside that box put a pole on the grass, bleeding over the sideline and
+     * the field itself at any ordinary play zoom. Projecting the foot further out instead put
+     * it on the apron in front of the benches. Both are worse than not having them: the near
+     * and far masts already light the whole field, and a floodlight you can see standing on
+     * the twenty is a bigger cost than a slightly flatter midfield. The guard below keeps any
+     * future mirrored mast honest. */
     const cap = TU("mirrorScaleCap", 3.2);
+    // never plant a mast where it would draw over the playing surface
+    const onField = (sp2) => sp2.x > -TU("mastClearPx", 40) && sp2.x < FW + TU("mastClearPx", 40)
+      && sp2.y > NSTOP - TU("mastClearPx", 40) && sp2.y < NSTOP + NSH + TU("mastClearPx", 40);
+    for (let i = specs.length - 1; i >= 0; i--) if (onField(specs[i])) specs.splice(i, 1);
     specs.forEach((sp2, i) => {
       let tw = ST.mirror[i];
       if (!tw || !tw.scene) { tw = ST.mirror[i] = this.add.image(0, 0, "rib_lights_v92", 0).setOrigin(0.5, 1); }
       tw._phase = sp2.phase; tw._face = sp2.face; tw.setFrame(sp2.face * RIB_META_V92.frames);
       tw._bx = sp2.x; tw._by = sp2.y; tw._sway = sp2.sway; tw._mirror = sp2.id; tw._k = sp2.k;
       tw._aimX = sp2.aimX; tw._aimY = sp2.aimY; tw._poolX = sp2.poolX; tw._poolY = sp2.poolY; tw._poolK = sp2.poolK;
-      let scale = (H / RIB_META_V92.cell[1]) * Math.min(cap, Math.max(0.6, sp2.k / kFar));
-      if (sp2.secTop != null) {   // a side mast: tall enough that the lamp head clears the top of the stand it is behind
-        const need = ((sp2.y - sp2.secTop) + TU("sideMastClear", 90) * sp2.k) / RIB_META_V92.cell[1];
-        scale = Math.min(cap * (H / RIB_META_V92.cell[1]), Math.max(scale, need)); }
+      const scale = (H / RIB_META_V92.cell[1]) * Math.min(cap, Math.max(0.6, sp2.k / kFar));
       tw.setPosition(sp2.x, sp2.y).setScale(scale).setDepth(depT).setVisible(true);
       { const lm = this.lightMulV100(), g = Math.max(0, Math.min(255, Math.round(255 * Math.min(1, 0.28 + 0.72 * lm)))); tw.setTint((g << 16) | (g << 8) | g); }
       this.lightRigV98(i, tw, sp2.dir, depT, ST.mirrorLights);

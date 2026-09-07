@@ -1,10 +1,11 @@
 // Dev check: v102 — the mirrored masts and the breathing light, the anticipated slow motion, and
 // the menu that is alive. Asserts:
 //   * LIGHTS — the far four are exactly as v92/v98/v99 left them (the key light still fixed);
-//     six mirrored masts stand as well (four at the near corners, one behind each touchline
-//     stand), each with a glow, a beam and a pool, the near pools on the NEAR half of the turf,
-//     their heads turned in; every mast is a real light in the field the men are shaded by
-//     (`lightRigsV101` counts ten). The output BREATHES: a few percent of shimmer, per mast on its
+//     four mirrored masts stand as well, at the near corners, each with a glow, a beam and a
+//     pool, the near pools on the NEAR half of the turf, their heads turned in; every mast is a
+//     real light in the field the men are shaded by (`lightRigsV101` counts eight); and NO mast
+//     stands on the playing surface (v103 removed the touchline pair, which did).
+//     The output BREATHES: a few percent of shimmer, per mast on its
 //     own phase, sputters counted, never a strobe; shadows and shading ride the same breath; and
 //     `lightLiveV102` at 0 puts the stillness back.
 //   * SLOW MOTION — windows open on scripted moments (catch point, moves, collisions), the clock
@@ -86,15 +87,20 @@ const L = await page.evaluate(() => { const V = window.__V92, sc = window.__grid
     fieldNear: sc.lightRigsV101().filter(r => r.near).length, NSTOP: 340, NSH: 1340 } })
 ok(L.far.length === 4 && L.far.every(t => t.y === 300), 'the far four stand exactly where v98 fixed them', JSON.stringify(L.far.map(t => [t.x, t.y])))
 ok(L.key && L.key.on && L.key.i === 2, 'the key light is still the fixed far mast', JSON.stringify(L.key))
-ok(L.mirror.length === 6, 'six mirrored masts stand as well — four at the near corners, one behind each touchline stand', L.mirror.map(m => m.id).join(' '))
-const near = L.mirror.filter(m => /^near/.test(m.id)), side = L.mirror.filter(m => /^side/.test(m.id))
+ok(L.mirror.length === 4, 'four mirrored masts stand as well, at the near corners', L.mirror.map(m => m.id).join(' '))
+const near = L.mirror.filter(m => /^near/.test(m.id))
+// v103: nothing may be planted on the grass. The touchline pair used to be, and it bled over
+// the sideline and the field at any ordinary play zoom.
+const onField = (m) => m.x > -40 && m.x < 760 && m.y > 300 && m.y < 1720
+ok(L.far.concat(L.mirror).every(m => !onField(m)), 'no mast stands on the playing surface',
+  L.far.concat(L.mirror).filter(onField).map(m => (m.id || 'far') + '@' + m.x + ',' + m.y).join(' ') || 'all clear')
 ok(near.length === 4 && near.every(m => m.y > L.NSTOP + L.NSH), 'the near four plant their feet beyond the near end line', near.map(m => m.y).join(','))
 ok(near.every(m => m.h > L.far[0].y - L.far[0].top), 'and stand taller than the far ones — the near end is nearer', `near h=${near.map(m => m.h).join(',')} far h=${L.far[0].y - L.far[0].top}`)
 ok(L.mirror.every(m => (m.x < 360) === (m.face === 1)), 'every mirrored head is turned in toward the field', JSON.stringify(L.mirror.map(m => [m.x, m.face])))
 ok(L.mirror.every(m => m.depth < 3.45), 'every mirrored mast draws behind the crowd', [...new Set(L.mirror.map(m => m.depth))].join(','))
-ok(L.rigs.length === 6 && L.rigs.every(r => r.glow.a > 0.3 && r.beam.a > 0.05 && r.pool.a > 0.03), 'every mirrored mast carries a lit glow, a beam and a pool', `rigs=${L.rigs.length}`)
+ok(L.rigs.length === 4 && L.rigs.every(r => r.glow.a > 0.3 && r.beam.a > 0.05 && r.pool.a > 0.03), 'every mirrored mast carries a lit glow, a beam and a pool', `rigs=${L.rigs.length}`)
 ok(L.rigs.slice(0, 4).every(r => r.pool.y > L.NSTOP + L.NSH * 0.55), 'the near pools land on the NEAR half of the turf', L.rigs.slice(0, 4).map(r => r.pool.y).join(','))
-ok(L.field === 10 && L.fieldNear === 4, 'all ten masts are lights in the field the men are shaded by', `${L.field} rigs, ${L.fieldNear} of them near`)
+ok(L.field === 8 && L.fieldNear === 4, 'all eight masts are lights in the field the men are shaded by', `${L.field} rigs, ${L.fieldNear} of them near`)
 
 // ================= 4. the light breathes =================
 const B = []

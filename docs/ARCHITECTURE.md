@@ -437,11 +437,19 @@ two sway, the key light at index 2) — every existing check and `keyLightV99` r
 The mirror lives in `ST.mirror` / `ST.mirrorLights`: the near four take the far masts' lateral
 fractions, invert `crowdProject`'s lateral scale to get their crowd-space `vv`, and project them
 at `u = -crowdEndGap` (the near end line's apron), scaled by the near end's `k` relative to the
-far end's (capped at `mirrorScaleCap`); the two side masts are anchored to the sideline stand
-SECTION nearest midfield (`sec.bx/bw/by/bh`) so the billboard hides the foot and the head is
-sized to clear its top. `lightRigV98` gained a store argument and per-mast aim/pool overrides
-(`tw._aimX/_aimY/_poolX/_poolY/_poolK`) so a near mast lights the near half. `lightRigsV101`
-returns all ten (flag `near`), so the men's shading and the fill shadow read every mast.
+far end's (capped at `mirrorScaleCap`). `lightRigV98` gained a store argument and per-mast
+aim/pool overrides (`tw._aimX/_aimY/_poolX/_poolY/_poolK`) so a near mast lights the near half.
+`lightRigsV101` returns all eight (flag `near`), so the men's shading and the fill shadow read
+every mast.
+
+v102 also stood a mast behind each touchline stand at midfield, anchored to the drawn stand
+SECTION. **v103 removed them.** Those stands are diagonal billboards, and the crowd builder
+documents that such a band's bounding box necessarily overhangs the playing surface — so
+anchoring inside it put a pole on the grass, bleeding over the sideline at any ordinary play
+zoom; projecting the foot further out instead put it on the apron in front of the benches. The
+near and far masts already light the whole field. A guard at the top of the spec loop now drops
+any mirrored mast whose foot lands within `TU("mastClearPx", 40)` of the playing surface, and
+`v102check.mjs` asserts no mast (far or mirrored) stands on it.
 The crowd deliberately builds no near bowl (billboards would paint over the field), and the near
 masts inherit that: they are behind the camera; their pools, beams and fill are what shows.
 
