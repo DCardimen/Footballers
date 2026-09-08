@@ -8810,8 +8810,11 @@ class Ot extends mt.Scene {
         towerBoxes: () => ST.towers.filter((t) => t && t.scene).map((t) => ({ x: Math.round(t.x), y: Math.round(t.y), top: Math.round(t.y - t.displayHeight), w: Math.round(t.displayWidth), depth: t.depth, frame: t.frame.name, face: t._face, bx: t._bx, by: t._by, sway: t._sway, tint: t.tintTopLeft })),
         key: () => { const K = this.keyLightV99(); return { x: Math.round(K.x), y: Math.round(K.y), i: K.i, on: K.on }; },
         // v102: the mirrored masts, their rigs, and the live breath
-        mirror: () => (ST.mirror || []).filter((t) => t && t.scene && t.visible).map((t) => ({ id: t._mirror, x: Math.round(t.x), y: Math.round(t.y), top: Math.round(t.y - t.displayHeight), h: Math.round(t.displayHeight), face: t._face, sway: t._sway, k: +(t._k || 0).toFixed(3), depth: t.depth })),
-        mirrorLights: () => (ST.mirrorLights || []).filter((L) => L && L.glow && L.glow.scene && L.glow.visible).map((L) => ({ glow: { x: Math.round(L.glow.x), y: Math.round(L.glow.y), a: +L.glow.alpha.toFixed(3) }, pool: { x: Math.round(L.pool.x), y: Math.round(L.pool.y), a: +L.pool.alpha.toFixed(3), w: Math.round(L.pool.displayWidth) }, beam: { len: Math.round(L.beam.displayHeight), a: +L.beam.alpha.toFixed(3) } })),
+        mirror: () => (ST.mirror || []).filter((t) => t && t.scene && (t.visible || t._litOnly)).map((t) => ({ id: t._mirror, x: Math.round(t.x), y: Math.round(t.y), top: Math.round(t.y - t.displayHeight), h: Math.round(t.displayHeight), face: t._face, sway: t._sway, k: +(t._k || 0).toFixed(3), depth: t.depth, drawn: !!t.visible })),
+        // v103: the painted turf as the guard reads it, and every mast sprite tested against it
+        turf: () => this.turfRowsV103().map((r) => ({ y: Math.round(r.y), x0: Math.round(r.x0), x1: Math.round(r.x1) })),
+        onTurf: () => ST.towers.concat(ST.mirror || []).filter((t) => t && t.scene).map((t) => ({ id: t._mirror || "far", drawn: !!t.visible, bleeds: this.onTurfV103(t.getBounds()) })),
+        mirrorLights: () => (ST.mirrorLights || []).filter((L) => L && L.glow && L.glow.scene).map((L) => ({ glow: { x: Math.round(L.glow.x), y: Math.round(L.glow.y), a: +L.glow.alpha.toFixed(3), drawn: !!L.glow.visible }, pool: { x: Math.round(L.pool.x), y: Math.round(L.pool.y), a: +L.pool.alpha.toFixed(3), w: Math.round(L.pool.displayWidth) }, beam: { len: Math.round(L.beam.displayHeight), a: +L.beam.alpha.toFixed(3) } })),
         live: () => ({ all: +this.lightLiveAllV102().toFixed(4), per: ST.towers.concat(ST.mirror || []).filter((t) => t && t.scene).map((t) => +this.lightLiveV102(t).toFixed(4)), sputters: (window.__V102 || {}).sputters || 0, sputtering: ST.towers.concat(ST.mirror || []).filter((t) => t && t._sput).length }),
         lights: () => (ST.lights || []).filter((L) => L && L.glow && L.glow.scene).map((L) => ({ glow: { x: Math.round(L.glow.x), y: Math.round(L.glow.y), a: +L.glow.alpha.toFixed(3), depth: L.glow.depth, blend: L.glow.blendMode },
           beam: L.beam && L.beam.scene ? { x: Math.round(L.beam.x), y: Math.round(L.beam.y), rot: +L.beam.rotation.toFixed(3), len: Math.round(L.beam.displayHeight), a: +L.beam.alpha.toFixed(3), depth: L.beam.depth } : null,
@@ -8853,7 +8856,7 @@ class Ot extends mt.Scene {
     }
     return true;
   }
-  lightRigV98(i, tw, dir, depT, store) {
+  lightRigV98(i, tw, dir, depT, store, litOnly) {
     const ST = this.stadium; if (!ST || !TU("lightsV98", 1) || !this.lightTexV98()) return;
     const ADD = (mt.BlendModes && mt.BlendModes.ADD) != null ? mt.BlendModes.ADD : 1;
     const rigs = store || ST.lights;   // v102: the mirrored masts keep their rigs in their own store
@@ -8869,7 +8872,9 @@ class Ot extends mt.Scene {
     // the head: the lamp bank sits in the top quarter of the cell, leaning toward the field
     L.hx = tw._bx + dir * dw * TU("lightHeadX", 0.08); L.hy = tw._by - dh * TU("lightHeadFrac", 0.76);
     const gw = Math.min(TU("mirrorGlowMax", 400), dh * TU("lightGlowW", 0.95));   // v102: a near mast is three times the size; its bloom is not
-    L.glow.setPosition(L.hx, L.hy).setDisplaySize(gw, gw).setDepth(depT + 0.01).setVisible(true);
+    // v103: a lit-only mast is not drawn, so neither is the bloom around its lamp bank —
+    // a glow with no lamp under it is the same lie. The beam and the pool ARE the light, and stay.
+    L.glow.setPosition(L.hx, L.hy).setDisplaySize(gw, gw).setDepth(depT + 0.01).setVisible(!litOnly);
     // the beam: from the head to the patch of field this mast faces (v102: a mirrored mast
     // names its own patch — the near half, or the touchline it stands behind)
     const ax = tw._aimX != null ? tw._aimX : FW / 2 + dir * FW * TU("beamAimX", 0.1), ay = tw._aimY != null ? tw._aimY : NSTOP + TU("beamAimDown", 300);
@@ -8886,7 +8891,13 @@ class Ot extends mt.Scene {
    * was lit from one end: every pool was on the far half, every fill shadow came from up
    * there, and the near half of the field fell away into the dark. A ground has masts at
    * BOTH ends and along the sides. The far four are untouched (the checks, the key light
-   * and the v98 sway all read them as they always did); this adds their mirror:
+   * and the v98 sway all read them as they always did); this adds their mirror.
+   *
+   * v103: `mirrorMastsV102` now DEFAULTS TO 0 — the lights are on the north side of the
+   * ground only, which is how it was asked for. The near half is lit by the far bank and the
+   * turf's own baked wash again, as it was in v98. Everything below still works and is one
+   * number away, and the guard it goes through (`onTurfV103`) is what keeps it honest if it
+   * comes back on; what follows describes the bank as it is built when it does:
    *   - the NEAR four, at the near corners — the far masts' lateral positions carried
    *     through the crowd's own projection to the near end line, so they stand exactly
    *     where the far ones would if the camera turned round, scaled by the near end's
@@ -8908,8 +8919,9 @@ class Ot extends mt.Scene {
    * light that casts them. `lightLiveV102` at 0 puts the v99 stillness back. */
   buildMirrorMastsV102(depT, KS0, H, hasArt) {
     const ST = this.stadium; if (!ST) return;
+    this._turfV103 = null;   // v103: re-read the painted quad — the perspective sliders move it
     ST.mirror = ST.mirror || []; ST.mirrorLights = ST.mirrorLights || [];
-    if (!TU("mirrorMastsV102", 1) || !hasArt || !this.crowdProject) { for (const t of ST.mirror) { try { t.setVisible(false); } catch (e) {} }
+    if (!TU("mirrorMastsV102", 0) || !hasArt || !this.crowdProject) { for (const t of ST.mirror) { try { t._litOnly = false; t.setVisible(false); } catch (e) {} }
       for (const L of ST.mirrorLights) { try { L.glow.setVisible(false); L.beam.setVisible(false); L.pool.setVisible(false); } catch (e) {} } return; }
     const FX = window.__FIELD_FX || {}, sp = FX.spread == null ? 1 : FX.spread;
     const latK = 1.30 * TU("latCal", 1.16) * sp * PERSP_OA;   // crowdProject's lateral scale, per unit of k
@@ -8932,13 +8944,8 @@ class Ot extends mt.Scene {
      * the field itself at any ordinary play zoom. Projecting the foot further out instead put
      * it on the apron in front of the benches. Both are worse than not having them: the near
      * and far masts already light the whole field, and a floodlight you can see standing on
-     * the twenty is a bigger cost than a slightly flatter midfield. The guard below keeps any
-     * future mirrored mast honest. */
+     * the twenty is a bigger cost than a slightly flatter midfield. */
     const cap = TU("mirrorScaleCap", 3.2);
-    // never plant a mast where it would draw over the playing surface
-    const onField = (sp2) => sp2.x > -TU("mastClearPx", 40) && sp2.x < FW + TU("mastClearPx", 40)
-      && sp2.y > NSTOP - TU("mastClearPx", 40) && sp2.y < NSTOP + NSH + TU("mastClearPx", 40);
-    for (let i = specs.length - 1; i >= 0; i--) if (onField(specs[i])) specs.splice(i, 1);
     specs.forEach((sp2, i) => {
       let tw = ST.mirror[i];
       if (!tw || !tw.scene) { tw = ST.mirror[i] = this.add.image(0, 0, "rib_lights_v92", 0).setOrigin(0.5, 1); }
@@ -8947,11 +8954,49 @@ class Ot extends mt.Scene {
       tw._aimX = sp2.aimX; tw._aimY = sp2.aimY; tw._poolX = sp2.poolX; tw._poolY = sp2.poolY; tw._poolK = sp2.poolK;
       const scale = (H / RIB_META_V92.cell[1]) * Math.min(cap, Math.max(0.6, sp2.k / kFar));
       tw.setPosition(sp2.x, sp2.y).setScale(scale).setDepth(depT).setVisible(true);
+      /* v103 NOTHING STANDS ON THE GRASS: a near mast is BEHIND the camera, so whatever
+       * part of its art reaches the frame is a far-end mast drawn from the wrong side —
+       * and at the near end that lands squarely on the turf. Keep it as a LIGHT (the rig,
+       * the shading field, the breath) and stop drawing the fixture. */
+      tw._litOnly = this.onTurfV103(tw.getBounds());
+      if (tw._litOnly) tw.setVisible(false);
       { const lm = this.lightMulV100(), g = Math.max(0, Math.min(255, Math.round(255 * Math.min(1, 0.28 + 0.72 * lm)))); tw.setTint((g << 16) | (g << 8) | g); }
-      this.lightRigV98(i, tw, sp2.dir, depT, ST.mirrorLights);
+      this.lightRigV98(i, tw, sp2.dir, depT, ST.mirrorLights, tw._litOnly);
     });
     for (let i = specs.length; i < ST.mirror.length; i++) { try { ST.mirror[i].setVisible(false); } catch (e) {} }
     try { ST.cam && ST.cam.ignore(ST.mirror.filter((t) => t && t.scene)); } catch (e) {}
+  }
+  /* ===== v103 NOTHING STANDS ON THE GRASS =====
+   * The playing surface is not a rectangle. PJ fans it out toward the camera — some 400
+   * scene px across at the far end line, 1200 at the near one — so the world-rect guard this
+   * version first shipped ("is the foot inside 0..FW / NSTOP..NSTOP+NSH?") cleared masts
+   * whose art sat on the near-end grass with room to spare, which is what a player saw
+   * standing over the right touchline. Test against the real quad instead: sample the two
+   * painted touchlines through PJ at a row per fraction of the field, and ask whether a
+   * sprite's box crosses the band between any two rows. Anything that does is not drawn.
+   * The rows are cheap (a couple of dozen PJ calls) and are taken at build time, so they
+   * follow the perspective sliders without needing to be invalidated. */
+  turfRowsV103() {
+    const rows = [], N = Math.max(4, Math.round(TU("turfProbeRows", 24)));
+    for (let i = 0; i <= N; i++) {
+      const u = (i / N) * FW, a = PJ(u, F_TOP), b = PJ(u, F_BOT);
+      rows.push({ y: a.y, x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x) });
+    }
+    return rows.sort((p, q) => p.y - q.y);   // VDIR flips which end is which; depth order does not
+  }
+  /* Does this box put anything on the painted grass? mastClearPx is a small tolerance around
+   * the quad, deliberately small: a scene pixel at the far end line is worth several yards of
+   * depth, so a generous margin there would condemn the far masts, which stand honestly behind
+   * the end line with their feet a few px clear of the paint. */
+  onTurfV103(box) {
+    const rows = this._turfV103 || (this._turfV103 = this.turfRowsV103()), c = TU("mastClearPx", 8);
+    const L = box.x, R = box.right != null ? box.right : box.x + box.width, T = box.y, B = box.bottom != null ? box.bottom : box.y + box.height;
+    for (let i = 1; i < rows.length; i++) {
+      const a = rows[i - 1], b = rows[i];
+      if (b.y < T - c || a.y > B + c) continue;                     // this band of turf is clear of the art
+      if (R >= Math.min(a.x0, b.x0) - c && L <= Math.max(a.x1, b.x1) + c) return true;
+    }
+    return false;
   }
   // the live breath of one mast: a few percent of slow shimmer, and the rare sputter
   lightLiveV102(tw) {
@@ -8976,7 +9021,7 @@ class Ot extends mt.Scene {
     if (ST._liveT === ST.t && ST._live != null) return ST._live;
     let sum = 0, n = 0;
     for (const t of (ST.towers || [])) if (t && t.scene && t.visible) { sum += this.lightLiveV102(t); n++; }
-    for (const t of (ST.mirror || [])) if (t && t.scene && t.visible) { sum += this.lightLiveV102(t); n++; }
+    for (const t of (ST.mirror || [])) if (t && t.scene && (t.visible || t._litOnly)) { sum += this.lightLiveV102(t); n++; }
     ST._liveT = ST.t; ST._live = n ? sum / n : 1;
     return ST._live;
   }
@@ -9069,7 +9114,7 @@ class Ot extends mt.Scene {
       const all = ST.towers.concat(ST.mirror || []);   // v102: the mirrored masts are lights too
       for (let i = 0; i < all.length; i++) {
         const tw = all[i];
-        if (!tw || !tw.scene || !tw.visible || tw._bx == null) continue;
+        if (!tw || !tw.scene || !(tw.visible || tw._litOnly) || tw._bx == null) continue;   // v103: lit but not drawn still lights
         out.push({ i, x: tw._bx, y: tw._by - tw.displayHeight * TU("lightHeadFrac", 0.76), py: tw._by, near: /^near/.test(tw._mirror || "") });
       }
     }
