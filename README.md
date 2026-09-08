@@ -80,12 +80,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   killed the play, and **every time the engine reshaped a sim's yardage the matching render log was
   orphaned** — that play fell back to the legacy choreographer and none of the agent sim reached
   the screen. Retagging the log instead lifted the share of plays rendered from the real sim from
-  57% to 80% on passes. **The touchline floodlights came down**: v102 anchored a mast to the
-  sideline stand section nearest midfield, but those stands are drawn as diagonal billboards whose
-  bounding box necessarily overhangs the playing surface, so the pole stood *on the grass* and bled
-  over the sideline at any ordinary play zoom. The near and far masts already light the whole field;
-  a guard in `buildMirrorMastsV102` now drops any mirrored mast whose foot would land within
-  `TU("mastClearPx")` of the playing surface, so a future one cannot repeat it.
+  57% to 80% on passes. **The lights are on the north side of the ground, and nowhere else.**
+  v102 had mirrored the far bank to the near corners and stood one behind each touchline stand;
+  both were drawn on the grass. The touchline pair was hopeless — those stands are diagonal
+  billboards whose bounding box necessarily overhangs the playing surface, so anchoring inside it
+  put a pole on the twenty — and the near pair, three times far-mast size and standing behind the
+  camera, had its lamp banks drawn across the near-end turf. The whole mirrored bank is off at its
+  dial's default now; the far four and the turf's own baked wash light the field, as in v98.
+  The guard that keeps it that way is worth its own note, because the first attempt got it wrong:
+  it tested a world rectangle, and the playing surface is not one. `PJ` **fans** it out toward the
+  camera — some 400 scene px across at the far end line, **1200** at the near one — so art standing on
+  the near-end grass sits outside `0..FW` × `NSTOP..NSTOP+NSH` and sailed through. `turfRowsV103`
+  samples the real quad through `PJ` and `onTurfV103` walks a sprite's box against it, band by
+  band, with a deliberately small tolerance (a pixel at the far end line is worth several yards of
+  depth). Anything that would bleed is kept as a **light and not drawn** — its bloom dark with it,
+  its beam and pool still falling on the grass, still shading the men and still breathing.
   `node scripts/v103check.mjs`.
 - **v102 — the lights mirrored and breathing, the moment slowed, the menu alive.** Four masts stood
   behind the far bowl and nothing lit the near half. **Four mirrored masts** stand now — the far four's

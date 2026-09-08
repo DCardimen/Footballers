@@ -447,9 +447,35 @@ SECTION. **v103 removed them.** Those stands are diagonal billboards, and the cr
 documents that such a band's bounding box necessarily overhangs the playing surface — so
 anchoring inside it put a pole on the grass, bleeding over the sideline at any ordinary play
 zoom; projecting the foot further out instead put it on the apron in front of the benches. The
-near and far masts already light the whole field. A guard at the top of the spec loop now drops
-any mirrored mast whose foot lands within `TU("mastClearPx", 40)` of the playing surface, and
-`v102check.mjs` asserts no mast (far or mirrored) stands on it.
+near and far masts already light the whole field.
+
+**Nothing stands on the grass** (`turfRowsV103` / `onTurfV103`), and in the end nothing stands at
+the near end at all. The first guard tested a world rectangle — is the foot inside `0..FW` ×
+`NSTOP..NSTOP+NSH`? — and that is the wrong shape. `PJ` fans the playing surface out toward the
+camera: some 400 scene px across at the far end line, **1200** at the near one, reaching down to
+y ≈ 2254. So the two inner NEAR masts, whose feet sit at y = 2497 and whose art is three times
+far-mast size, passed the rectangle with room to spare while their lamp banks were drawn squarely
+on the near-end turf — the bleed a player reported on the right touchline.
+
+`turfRowsV103` samples the real quad instead (`TU("turfProbeRows", 24)` rows, each the screen span
+of the two painted touchlines at that depth, sorted by y because `VDIR` flips which end is which);
+`onTurfV103(box)` walks the bands between consecutive rows and asks whether the box crosses any of
+them, with a deliberately small `TU("mastClearPx", 8)` tolerance — a scene pixel at the far end
+line is worth several yards of depth, so a generous margin there would condemn the far masts,
+which stand honestly behind the end line. The rows are re-read at the top of
+`buildMirrorMastsV102`, so they follow the perspective sliders.
+
+A mast that bleeds is kept as a LIGHT and not drawn: `tw._litOnly` hides the mast and (through
+`lightRigV98`'s `litOnly` argument) the bloom around its lamp bank — a glow with no lamp under it
+is the same lie — while the beam and the pool stay, because those *are* the light.
+`lightRigsV101` and `lightLiveAllV102` both accept `tw.visible || tw._litOnly`, so a lit-only mast
+still shades the men and still breathes.
+
+**`mirrorMastsV102` then went to 0.** Asked for lights on the north side of the ground only, the
+whole mirrored bank is off at its dial's default: `ST.mirror` is empty, `lightRigsV101` counts the
+far four, and the near half is lit by them and by the turf's own baked wash, as in v98. The bank
+below the dial is unchanged and one number away, and the guard is what keeps it honest if it comes
+back. `window.__V92.turf()` and `window.__V92.onTurf()` are what `v102check.mjs` reads.
 The crowd deliberately builds no near bowl (billboards would paint over the field), and the near
 masts inherit that: they are behind the camera; their pools, beams and fill are what shows.
 
