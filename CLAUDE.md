@@ -33,6 +33,12 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v104 THE NUMBER ON THE JERSEY` — the kit bands read off each drawn cell at register time
+  (`numBandV104`, cached per SOURCE cell in `RIB.numBandSrc`, per texture key in `RIB.numBandTex`):
+  the waistband, the collar, and the row the jersey itself runs out on. `numPlaceV104` hangs the
+  number from that waist at a constant height in cell rows, clamped inside the band, scaled by the
+  body's own build; `numFontV104` measures the raster's INK (not its line box) so it lands exactly.
+  `window.__V104` is the hook (`.bands`, `.last`, `.cell(srcName)` for the source art)
 - `v103 THE GRAB` / `v103 THE GRIP TICK` / `v103 THE WHISTLE IS NOT THE END OF THE CONTACT` /
   `v103 THE LINE BLOCKS FOR HIM` / `v103 THE TRENCH BREAKS UP` / `v103 KEEP THE PICTURE` — a landed
   wrap opens `c._grip` and returns `"grip"` instead of `"tackle"`; the grip tick at the top of the
@@ -139,6 +145,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | pass coverage / credit, QB scramble & targets, the safety, the huddle (v87) | `v87check.mjs`, `creditcheck.mjs`, `simcheck.mjs` |
 | promotion odds / the declare (v88) | `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs` |
 | the callout badges / the moments the field shouts (v95) | `badgecheck.mjs`, `v86check.mjs` |
+| jersey numbers on the live field (v104) | `v104check.mjs`, then `v86check.mjs`, `v91check.mjs`, `renderpathcheck.mjs` |
 | the grab / the pile / the strip / blocking / post-whistle contact (v103) | `v103check.mjs`, then `readcheck.mjs`, `tacklecheck.mjs`, `creditcheck.mjs`, `simcheck.mjs`, `renderpathcheck.mjs`, `v86check.mjs` |
 | the mirrored masts / the breathing light / the slow-motion moment / the living menu (v102) | `v102check.mjs`, then `v98check.mjs`, `v99check.mjs`, `v92check.mjs`, `v86check.mjs`, `menu-integration-check.mjs` |
 | asset paths / the playbook / the throw / dynamic shading / the loader's prebuild / crowd emoji / whole numbers (v101) | `v101check.mjs`, then `simcheck.mjs`, `readcheck.mjs`, `routecheck.mjs`, `v99check.mjs` |

@@ -4646,7 +4646,7 @@ const RIB_META = {"run_dn0": [0, 0], "run_dn1": [1, 0], "run_dn2": [2, 0], "run_
 const TEAM_PALETTES = window.TEAM_PALETTES = [["#2f9e4f","#e8c86a"],["#c8414b","#c3c9d2"],["#1f4fd0","#ffffff"],["#e07020","#ffffff"],["#12855e","#f2d24e"],["#7a2ea0","#e0d6ee"],["#c8102e","#ffb612"],["#003594","#ffb612"],["#0b6623","#ffffff"],["#5a1414","#c9a44a"],["#101820","#a5acaf"],["#4b92db","#ffffff"],["#aa0000","#b3995d"],["#0c2340","#c8102e"],["#ff7900","#101820"],["#5f259f","#ffc72c"],["#0085ca","#101820"],["#d50a0a","#8c8c8c"],["#125740","#ffffff"],["#7c1415","#ffd100"],["#003f2d","#c0c0c0"],["#241773","#9e7c0c"],["#fb4f14","#101820"],["#311d00","#ff8200"],["#006778","#d7a22a"],["#a71930","#ffffff"],["#002244","#69be28"],["#97233f","#ffb612"],["#0b2265","#a71930"],["#004c54","#a5acaf"],["#ffb612","#101820"],["#008e97","#f58220"],["#4f2683","#ffc62f"],["#002c5f","#a2aaad"],["#d3bc8d","#101820"],["#0080c6","#ffc20e"],["#773141","#c5b358"],["#136d6f","#e8e0c2"],["#2c5e4f","#e57200"],["#3d3d6b","#e6e6fa"],
 /* v44 emblem-matched palettes (40-52): added so every emblem has a kit that reads as its own colors */
 ["#3d4a57","#59e0f0"],["#6b4423","#d9b380"],["#bcd8e8","#26547c"],["#7d8791","#e8e4d8"],["#15151c","#d50a0a"],["#69be28","#0b3d0b"],["#15181e","#d4a017"],["#f5f5f5","#26262e"],["#c0c5cc","#d4a017"],["#101820","#2ec4b6"],["#4a5d3a","#8fae6b"],["#2a7fd4","#bfe6ff"],["#bf5700","#f2e3c6"]];
-const RIB = { img: null, ready: false, loaded: false, pendingScene: null, teams: {}, defName: null, cellCache: {}, v22img: null, v22cache: {}, refImg: null, refCache: {}, sideImg: null, sideCache: {}, crowdImg: null, crowdCache: {}, crowdAisle: {}, crowdTrim: {}, teamCols: {}, teamDeco: {}, regScenes: [] };
+const RIB = { img: null, ready: false, loaded: false, pendingScene: null, teams: {}, defName: null, cellCache: {}, v22img: null, v22cache: {}, refImg: null, refCache: {}, sideImg: null, sideCache: {}, crowdImg: null, crowdCache: {}, crowdAisle: {}, crowdTrim: {}, teamCols: {}, teamDeco: {}, regScenes: [], numBandSrc: {}, numBandTex: {}, numFont: null, numLast: null, numPlaced: 0 };
 function ribHash(str) { let h = 0; for (let i = 0; i < (str || "").length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h; }
 /* ===== v44 TEAM EMBLEMS: 90 real logos, name -> emblem matching, emblem -> palette matching ===== */
 /* The packed sheet (public/rib_logos_v44.png, built by scripts/spritekit/pack_logos.mjs) is a
@@ -5495,6 +5495,135 @@ function ribRegisterSide(scene) {
   try { window.__SIDE_ART_V78 = { cells: Object.keys(RIB_META_SIDE).length, registered: n }; } catch (e) {}
   return n > 0;
 }
+/* ===== v104 THE NUMBER ON THE JERSEY =====
+ * The jersey number used to be a flat text object: a hard-coded font size ("10px" chest,
+ * "9px" back, "8px" stance) at a hard-coded local offset (-3 / +1.5 / +0.5), re-set every
+ * frame. Three things fell out of that. The offsets were guesses against ONE pose, so the
+ * back number — meant to ride the shoulder blades — actually landed on the waistband and
+ * bled into the pants on every up-facing frame, idle and block alike. The size was fixed
+ * in screen px while the BODY is scaled twice (the v27 perspective on the container, and
+ * the per-position body trait, 0.96..1.15 tall and 0.90..1.23 wide), so the same number
+ * read small on a tackle and oversized on a corner, and the near-camera rows upsampled a
+ * 10px raster by a fifth. And `setFontSize` re-rasterized ~100 text canvases a frame.
+ *
+ * So the ART says where the number goes. Every player cell is scanned once, at register
+ * time, for the same kit bands ribRecolor keys on, and three landmarks come out: the
+ * WAISTBAND where the trousers take over, the COLLAR where the helmet gives way to the
+ * pads, and the row the jersey itself runs out on (which is not always the trousers — a
+ * lineman in a three-point stance has his legs tucked behind him, so his shirt ends at his
+ * elbows and the pants never show at all). That is a band per texture: one per pose, per
+ * facing. The number is then hung from the WAIST — the stable landmark, where the collar
+ * wanders a couple of rows through a run cycle — at a height held constant in cell rows so
+ * it never pulses, clamped so the glyphs can reach neither the pants nor the helmet.
+ * Everything is in CELL rows, multiplied by the body's own build, so the number is painted
+ * on the jersey rather than floating at a fixed screen size over it. The label is
+ * rasterized once at a larger font and scaled DOWN, which is the sharp direction.
+ * `window.__V104` is what the checks read. */
+const NUM_CELL_V104 = 48;
+function numBandV104(srcName, cell) {
+  // one scan per SOURCE cell — the hue bands are the drawn kit, not the team's, so every
+  // team registered off the same cell shares the answer
+  if (RIB.numBandSrc[srcName] !== undefined) return RIB.numBandSrc[srcName];
+  let band = null;
+  try {
+    const N = NUM_CELL_V104, d = cell.getContext("2d").getImageData(0, 0, N, N).data;
+    const P = new Array(N).fill(0), S = new Array(N).fill(0), W = new Array(N).fill(0);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = (y * N + x) * 4;
+      if (d[i + 3] < 40) continue;
+      W[y]++;
+      const r = d[i], g = d[i + 1], b = d[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = (mx + mn) / 2;
+      if (L < 38) continue;                                    // outlines are not kit
+      const sat = mx ? (mx - mn) / mx : 0;
+      let hue = 0;
+      if (mx !== mn) {
+        if (mx === r) hue = (60 * ((g - b) / (mx - mn)) + 360) % 360;
+        else if (mx === g) hue = 60 * ((b - r) / (mx - mn)) + 120;
+        else hue = 60 * ((r - g) / (mx - mn)) + 240;
+      }
+      if (hue >= 190 && hue <= 265 && sat > 0.15) P[y]++;              // jersey (navy -> primary)
+      else if (hue >= 33 && hue <= 62 && sat > 0.3 && L > 60) S[y]++;  // pants  (gold -> secondary)
+    }
+    let head = 0; while (head < N && !W[head]) head++;
+    if (head < N - 8) {
+      // the waistband: the first row the pants colour owns outright (a gold sleeve trim or a
+      // stripe always has jersey around it, so the P<=2 gate is what keeps this off the chest)
+      // and holds for four rows running.
+      let waist = -1;
+      for (let y = head + 12; y < N - 4; y++) {
+        if (!(S[y] >= 6 && P[y] <= 2)) continue;
+        if (S[y + 1] >= 5 && S[y + 1] > P[y + 1] && S[y + 2] >= 5 && S[y + 2] > P[y + 2] && S[y + 3] >= 4 && S[y + 3] > P[y + 3]) { waist = y; break; }
+      }
+      if (waist < 0) waist = Math.min(N - 4, head + 26);
+      // the collar, read two ways off the silhouette, because neither alone covers every pose.
+      // A rear helmet is one unbroken block of jersey colour, so hue finds nothing here; width
+      // does. PINCH is the narrowest row just under the head — right on most poses, but fooled
+      // by a celebration with both arms flung out, where the widest rows ARE the shoulders.
+      // BREAK is the last row still no wider than the helmet itself — right on those, but it
+      // runs away down the body in a throwing pose whose torso is barely wider than the head.
+      // The HIGHER of the two is the answer: the collar is never below both.
+      let pinch = head + 10, pw = 1e9;
+      for (let y = head + 8; y <= Math.min(head + 16, waist - 5); y++) if (W[y] < pw) { pw = W[y]; pinch = y; }
+      let hw = 0; for (let y = head; y <= Math.min(head + 6, N - 1); y++) hw = Math.max(hw, W[y]);
+      let brk = head + 10;
+      for (let y = head + 4; y <= waist - 5; y++) if (W[y] <= hw + TU("numNeckSlack", 2)) brk = y;
+      const top = Math.min(pinch, brk) + 1;
+      // ...and the shirt can run out ABOVE the trousers: a lineman in a three-point stance has
+      // his legs tucked behind him, so the pants colour never shows until his shins, while the
+      // jersey stops at his elbows. The number belongs on the last row still wearing jersey.
+      let jEnd = top;
+      for (let y = top; y <= waist; y++) if (P[y] >= TU("numJerseyMin", 3)) jEnd = y;
+      waist = Math.min(waist, jEnd + 1);
+      if (waist - top >= 4) {
+        const ws = []; for (let y = Math.min(top + 2, waist - 1); y <= Math.max(waist - 2, top + 1); y++) ws.push(W[y]);
+        ws.sort((a, b) => a - b);
+        band = { top, waist, w: ws[ws.length >> 1] || 22 };   // the chest's own width, medianed past a swung arm
+      }
+    }
+  } catch (e) {}
+  RIB.numBandSrc[srcName] = band; return band;
+}
+const NUM_BAND_FALLBACK_V104 = { top: 12, waist: 27, w: 22 };
+function numStyleV104(team) {
+  return { fontFamily: "Oswald, sans-serif", fontSize: TU("numFontPx", 20) + "px", fontStyle: "bold",
+    color: team === "you" ? "#1b1406" : "#ffffff" };
+}
+function numFontV104(scene) {
+  // the INK, not the line box: a text object centres its line box, and the digits sit below
+  // that centre by however much descender room the face carries. Measure the raster once and
+  // the number lands where the art says it should, whatever font actually resolved.
+  if (RIB.numFont) return RIB.numFont;
+  const px = TU("numFontPx", 20);
+  let met = { cap: px * 0.72, mid: px * 0.09, w: px * 1.1 }, t = null, read = false;
+  try {
+    t = scene.add.text(-9999, -9999, "88", numStyleV104("off")).setOrigin(0.5);
+    const sw = TU("numStroke", 2.2); if (sw > 0) t.setStroke("#0a0e14", sw);
+    const cv = t.canvas, cx = cv.getContext("2d"), res = t.height ? cv.height / t.height : 1;
+    const d = cx.getImageData(0, 0, cv.width, cv.height).data;
+    let y0 = -1, y1 = -1, x0 = -1, x1 = -1;
+    for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++)
+      if (d[(y * cv.width + x) * 4 + 3] > 30) { if (y0 < 0) y0 = y; y1 = y; if (x0 < 0 || x < x0) x0 = x; if (x > x1) x1 = x; }
+    if (y1 > y0) { met = { cap: (y1 - y0 + 1) / res, mid: ((y0 + y1 + 1) / 2) / res - t.height / 2, w: (x1 - x0 + 1) / res }; read = true; }
+  } catch (e) {}
+  if (t) { try { t.destroy(); } catch (e) {} }
+  if (read) RIB.numFont = met;        // a scene torn down mid-measure gets the estimate, not a cached one
+  return met;
+}
+try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { RIB.numFont = null; }); } catch (e) {}
+// the dev hook. `cell` hands a check the SOURCE art any texture was cut from, so it can re-derive
+// a band rather than trust the one the renderer cached; everything else is read live off RIB, so
+// placing a hundred numbers a frame allocates nothing.
+window.__V104 = Object.assign(window.__V104 || {}, {
+  cell: (n) => ribCellV91(n) || ribCellV22(n) || ribCell(n),
+  get bands() { return RIB.numBandTex; },
+  get font() { return RIB.numFont; },
+  get placed() { return RIB.numPlaced || 0; },
+  get last() { const m = RIB.numLast; if (!m) return null;
+    const half = (m._numCapV104 || 0) / 2;
+    return { num: m.num, tex: m.tex, rear: m._numRearV104, band: m._numBandV104, row: m._numRowV104,
+      cap: m._numCapV104, inkTop: m._numRowV104 - half, inkBot: m._numRowV104 + half, scale: m._numScaleV104,
+      onScreenH: m._numCapV104 * (m.body.scaleY || 1) * (m.root ? m.root.scale : 1) }; }
+});
 function ribRegisterTeam(scene, team, p1, p2, deco) {
   // Re-register for every live scene. A global ready flag is not proof that this scene
   // owns the required texture keys, and stale cache state caused all-or-nothing players.
@@ -5513,6 +5642,7 @@ function ribRegisterTeam(scene, team, p1, p2, deco) {
   if (team === "ref" && RIB.refImg) { ribRegisterRefs(scene); return; }
   const put = (key, srcName) => {
     const cell0 = ribCellV91(srcName) || ribCellV22(srcName) || ribCell(srcName); if (!cell0) return;   // v91 > v22 > baked, by name
+    RIB.numBandTex[key] = numBandV104(srcName, cell0);   // v104: where this pose wears its number
     let cv = ribRecolor(cell0, p1, p2);
     if (deco) { try { cv = deco(cv) || cv; } catch (e) {} }
     try { scene.textures.remove(key); } catch (e) {}
@@ -7769,7 +7899,10 @@ class Ot extends mt.Scene {
     const initialKey = this.textures.exists("spr_" + team + "_dn_idle") ? "spr_" + team + "_dn_idle" : "rib_player_fallback";
     const body = this.add.image(0, 0, initialKey);
     if (initialKey === "rib_player_fallback") body.setTint(team === "def" ? 0xe86560 : team === "you" ? 0xf0bb45 : 0x5fce74);
-    const label = this.add.text(0, -3, String(num), { fontFamily: "Oswald, sans-serif", fontSize: "10px", fontStyle: "bold", color: team === "you" ? "#1b1406" : "#ffffff" }).setOrigin(0.5);
+    // v104: rasterized ONCE at the larger base size and scaled down per frame (the sharp
+    // direction) — the old path re-set the font size on every marker on every frame.
+    const label = this.add.text(0, -3, String(num), numStyleV104(team)).setOrigin(0.5);
+    { const sw = TU("numStroke", 2.2); if (sw > 0) label.setStroke("#0a0e14", sw); }
     const root = this.add.container(0, 0, [fill, shadow, body, label]).setDepth(4);
     const m = { root, body, label, shadow, fill, team, num, sx, sy, dirKey: "dn", flip: false, ft: 0, hd: null, cutUntil: 0, tms: 0 };
     if (faceDx != null) this.faceMarker(m, faceDx, faceDy || 0);
@@ -7841,6 +7974,37 @@ class Ot extends mt.Scene {
     // what the frame actually drew, for scripts/bobcheck.mjs — the rotation is the
     // silhouette, and the silhouette is not readable back out of a command buffer
     g._bobW = W; g._bobSeam = seam;
+  }
+  /* v104: put the number where the jersey is. The band came off the ART at register time
+   * (numBandV104), so a crouched stance, a block frame and a full sprint each carry their own
+   * waistline; the number is hung from that waist at a height held CONSTANT in cell rows, so
+   * it never breathes through a run cycle, then clamped inside the band at both ends. Cell
+   * rows are multiplied by the body's own height trait — the number is on the shirt, not
+   * floating at a fixed screen size in front of it. */
+  numPlaceV104(m, rear) {
+    const L = m.label; if (!L) return;
+    const b = RIB.numBandTex[m.tex] || NUM_BAND_FALLBACK_V104;
+    const met = numFontV104(this);
+    const H = m.body.scaleY || 1, Wb = Math.abs(m.body.scaleX || 1);
+    // the numeral is a CONSTANT height in cell rows — it must not breathe through a run cycle.
+    // A jersey too short for it gives up its breathing room at the waist FIRST, and only a pose
+    // with almost no shirt left to write on (doubled over, tucked around a caught ball) shrinks
+    // the numeral itself, rather than letting it spill out onto the pants.
+    const room = b.waist - b.top - 0.5;
+    const cap = Math.min(TU("numCellH", 6), room), half = cap / 2;
+    const gap = Math.max(0, Math.min(TU("numWaistGap", 1), room - cap));
+    // the back number rides the shoulder blades, the chest number sits a touch lower
+    let row = b.waist - (rear ? TU("numRearRise", 8) : TU("numFrontRise", 6));
+    const hi = b.top + half + 0.5, lo = b.waist - half - gap;
+    row = Math.max(hi, Math.min(Math.max(hi, lo), row));                   // never the helmet, never the pants
+    let sc = cap * H / Math.max(1, met.cap);
+    // and never wider than the chest it is painted on (a two-digit number in a fallback face)
+    const maxW = b.w * Wb * TU("numWidthK", 0.62);
+    if (L.width * sc > maxW) sc = maxW / Math.max(1, L.width);
+    L.setScale(sc);
+    L.setY((row + 0.5 - NUM_CELL_V104 / 2) * H - met.mid * sc);
+    m._numRowV104 = row; m._numScaleV104 = sc; m._numCapV104 = cap; m._numRearV104 = !!rear; m._numBandV104 = b;
+    RIB.numLast = m; RIB.numPlaced = (RIB.numPlaced || 0) + 1;   // the hook below reads these; no per-frame garbage
   }
   placeMarker(m, sx, sy, dtms) {
     const dx = sx - m.sx, dy = sy - m.sy;
@@ -7977,10 +8141,7 @@ class Ot extends mt.Scene {
     const ribStance = st === "stance" || st === "stance2";
     const numberAllowed = st !== "down" && st !== "dive" && (!ribStance || m.isLine) && st.indexOf("tackle") !== 0 && !detailedAction && !ribSideProfile;
     m.label.setVisible(numberAllowed);
-    // Back-facing jersey numbers sit lower on the shoulder blades; front numbers
-    // retain their original chest position. Crouched stances tuck the number in.
-    m.label.setY(ribStance ? 0.5 : ribRearFacing ? 1.5 : -3);
-    m.label.setFontSize(ribStance ? "8px" : ribRearFacing ? "9px" : "10px");
+    if (numberAllowed) this.numPlaceV104(m, ribRearFacing);
     m._ribRearFacing=ribRearFacing;
     if (window.__RIB20_updateAppearance) window.__RIB20_updateAppearance(this, m, st, spdPx);
     // turf spray at speed, skid streaks on hard cuts
