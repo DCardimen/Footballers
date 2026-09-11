@@ -374,6 +374,69 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v104 — the number on the jersey
+
+Three separate problems lived in four lines of `placeMarker`: the label was created at a fixed
+`"10px"`, `setFontSize`'d to `"8px"` / `"9px"` / `"10px"` and `setY`'d to `+0.5` / `+1.5` / `-3`
+on every marker on every frame.
+
+**It bled into the pants.** `-3` and `+1.5` are offsets from the sprite's own centre, which on a
+48px cell is row 24 — the bottom of the shirt on a front-facing idle, and *inside the trousers* on
+an up-facing one. Every rear pose, idle and block alike, wore its number half on the waistband.
+
+**It was the wrong size, inconsistently.** The label sat inside the marker container, so it was
+multiplied by the v27 perspective (0.71 near the far end line, 1.22 at the near one) — correct, the
+man shrinks too — but NOT by `m.body`'s own scale, which the v20 build traits set per position
+(`POS_SIZE`: a nose tackle is 1.19 × 1.12, a corner 0.93 × 0.99). So the same numerals read
+painted-on on a lineman and oversized on a small defensive back, and near the camera a 10px raster
+was being upsampled by a fifth.
+
+**And it cost a frame.** `Text.setFontSize` re-renders the text canvas, so ~100 of them were
+re-rasterized every tick to set a value that had not changed.
+
+**The bands** (`v104 THE NUMBER ON THE JERSEY`, `numBandV104`). `ribRegisterTeam`'s `put()` scans
+each SOURCE cell once — before the recolour, so one answer serves every team — for the same two
+hue bands `ribRecolor` keys on, plus the silhouette width per row. Three landmarks come out:
+
+- **The waistband**: the first row the secondary (pants) colour owns outright — `S >= 6 && P <= 2`,
+  holding for four rows. The `P <= 2` gate is what keeps it off the chest: a gold sleeve trim or a
+  jersey stripe always has jersey around it.
+- **The collar**, read two ways because neither alone covers every pose. PINCH is the narrowest row
+  just under the head — right on most poses, fooled by a celebration with both arms flung out,
+  where the widest rows *are* the shoulders. BREAK is the last row still no wider than the helmet
+  itself — right on those, but it runs away down the body in a throwing pose whose torso is barely
+  wider than the head. The higher of the two is the answer.
+- **Where the shirt runs out**, which is not always the trousers: a lineman in a three-point stance
+  has his legs tucked behind him, so the pants colour never shows until his shins while the jersey
+  stops at his elbows. The band's floor is the last row still carrying jersey.
+
+Cached in `RIB.numBandSrc` (by source cell) and `RIB.numBandTex` (by texture key). Poses that never
+show a number — on the ground, a dive, a detailed catch/juke — may come back `null`;
+`NUM_BAND_FALLBACK_V104` covers a texture that arrives without one.
+
+**The placement** (`numPlaceV104`, called from `placeMarker` only when the number is visible). The
+numeral is hung from the WAIST — the stable landmark, ±1 row across a whole run cycle, where the
+collar wanders two — at `numFrontRise` (6) rows for the chest and `numRearRise` (8) for the back,
+which is what puts the rear number on the shoulder blades instead of the belt. Its height is
+`numCellH` (6) **cell rows, constant**, so it cannot breathe frame to frame; a shirt too short for
+it gives up its `numWaistGap` breathing room first, and only a doubled-over pose shrinks the
+numeral. Everything is multiplied by `m.body.scaleY`, so the number is painted on the shirt rather
+than floating at a fixed screen size in front of it, and clamped at both ends so the ink can reach
+neither the pants nor the helmet. `numWidthK` keeps a two-digit number inside the chest it is
+written on.
+
+**The raster** (`numStyleV104`, `numFontV104`). The label is built once at `numFontPx` (20) and
+`setScale`d DOWN per frame, which is the sharp direction and removes the per-frame re-rasterize.
+`numFontV104` measures the text object's own canvas for the digits' INK box — a text object centres
+its *line* box, and the digits sit below that centre by whatever descender room the face carries —
+so the number lands where the art says regardless of which font actually resolved; `document.fonts.
+ready` invalidates the measurement. `numStroke` (2.2 at the base size) is the thin dark outline that
+keeps a white numeral readable over a pale kit.
+
+`window.__V104` carries `.bands` (the whole per-texture map), `.font`, `.last` and `.cell(srcName)`,
+which hands a check the source art so `v104check.mjs` can re-derive a band rather than trust the
+cached one.
+
 ## v103 — the grab, the pile, the strip, and the line that works
 
 **The grab** (`v103 THE GRAB` in `contact()`, `v103 THE GRIP TICK` at the top of the carry block).
@@ -1022,14 +1085,25 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   comparison; `which` picks primary or secondary, so the jersey / helmet / pants split is a
   kit rule in `renderMenu`, not a colour choice),
   and every tint is clipped by a **silhouette mask** cut from the picture in
-  `scripts/build-menu-art.py` (polygon per garment in percent of the original art, keyed
-  inside for skin and lit background, eroded before feathering, and clipped to a traced
-  full-body `BODY` polygon; the pads are polygon-only because a tan pad in shadow keys like
-  an arm). The build asserts that no finished mask carries alpha outside the traced
-  body, so a placement error fails the build instead of reaching the page. To move a garment, draw
-  a 5% grid over the picture and edit the polygon; judge the result with
-  `scripts/kitshot.mjs`, which paints the kit crimson and gold — the default slate palette
-  hides leaks. The mask URL is inline on the element on purpose: a `url()` in a custom
+  `scripts/build-menu-art.py` (a polygon per garment in percent of the original art, **traced on
+  the real outline at 1%** since v104 — the old boxes ran the card's pants three percent wide of
+  the hips, which put the secondary colour on the crowd. The card keys skin out inside the polygon
+  by chroma alone (`skinless`; a highlight on the fabric is fabric, so there is no luminance cap
+  any more — that cap was what dropped the sleeve hems and the shell's lit rim); the hero is
+  polygon-only, because its warm tunnel light makes lit fabric as chromatic as skin. `fill_holes`
+  floods in a one-pixel margin so a gap that runs off the frame, like the one between two legs,
+  is open air and not a hole. Masks are feathered, not eroded, and clipped to the traced full-body
+  `BODY` polygon unioned with the garments themselves). The build asserts that no finished mask
+  carries alpha outside the traced body, so a placement error fails the build instead of reaching
+  the page. To move a garment, draw a 1% grid over the picture (a zoomed crop with `PIL`, as the
+  v104 pass did) and edit the polygon; `scripts/menu-mask-check.mjs` holds each garment on probe
+  points off that grid, both on the shipped alpha and on the live render with the tints hidden
+  and shown, so a retrace that misses a hem or spills onto the crowd fails a check rather than
+  the eye. `scripts/kitshot.mjs` paints the kit crimson and gold for a look — the default slate
+  palette hides leaks. On the hero, the picture, its two tints, the lift and the name/number sit
+  in `.rib9-hero-art`, and THAT layer carries the v102 breath: the tints used to sit still under
+  a picture scaling by two percent, so the recoloured kit drifted off its own outline every
+  four seconds. The mask URL is inline on the element on purpose: a `url()` in a custom
   property resolves against the stylesheet in Chrome and the document in Firefox,
   the jersey stays tinted whatever the box's aspect; the same math positions the jersey
   name/number on the hero (`data-at`). Do not go back to percentage masks — the crop

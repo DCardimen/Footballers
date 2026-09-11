@@ -55,6 +55,39 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v104 — the number on the jersey.** The number a player wears was a flat text object at a
+  hard-coded size and a hard-coded offset, guessed once against one pose and re-set on every
+  marker on every frame. It showed. The **back number bled into the pants** — hung below the
+  sprite's own centre, it landed on the waistband, so every up-facing man, idle or blocking,
+  wore his number half on his trousers. And it was **sized in screen pixels while the body is
+  scaled twice** (the perspective curve, then the per-position build — a nose tackle is a fifth
+  wider and a sixth taller than a corner), so the same numerals read painted-on down one end of
+  the field and oversized on a small defensive back at the other. Now **the art says where the
+  number goes**: every player cell is scanned once, when its texture is cut, for the two kit
+  bands the recolour already keys on — the **waistband** where the trousers take over, the
+  **collar** where the helmet gives way to the pads, and the row where the jersey simply runs
+  out (a lineman in a three-point stance has his legs tucked behind him, so his shirt ends at
+  his elbows and the pants never show at all). Every pose, every facing, gets its own band. The
+  number is then hung from that waist at a height held **constant in cell rows** — it cannot
+  breathe through a run cycle — clamped so the ink can never reach either the pants or the
+  collar, and multiplied by the body's own build so it is painted on the shirt rather than
+  floating at a fixed size in front of it. The back number moved up onto the **shoulder blades**
+  where it belongs. It is rasterized once at a larger size and scaled *down*, which is the sharp
+  direction and also stops ~100 text canvases being re-rendered every tick, and it carries a thin
+  dark outline so a white numeral still reads over a pale kit.
+  **The kit on the main menu, too.** The team colours on the hero and the continue card go on
+  through masks cut from the photographs, and those masks were cut wrong: the continue card's
+  pants ran three percent wide of the hips on both sides, so the secondary colour landed on the
+  crowd beside him; and the highlight key-outs meant to keep the floodlights off the shell were
+  taking the sleeve hems and the helmet's lit rim with them, so those stayed grey. On the hero the
+  tunnel light is warm enough that lit fabric keys like skin, so the whole lit right side —
+  sleeve, hip, rim — was being cut. Every garment is now **traced on the real outline at 1%**, the
+  hero carries polygons alone, the gap between the legs is open air rather than a filled hole, and
+  the hero's picture, kit and name **breathe as one layer** (the tints used to sit still under a
+  picture that scales by two percent every four seconds). `scripts/menu-mask-check.mjs` proves it
+  on probe points off the pictures — mask alpha, then the live render at two sizes with and
+  without the tint layers.
+
 - **v103 — the grab, and everything it made possible.** A tackle used to be instantaneous: the
   wrap landed and the play was dead on that pixel, with the drive and the knock-back playing out
   afterwards as decoration on a spot already booked. Now a landed wrap opens a **GRIP** and the two

@@ -45,7 +45,7 @@ html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
 .rib9-tint-shade{mix-blend-mode:multiply;opacity:calc(var(--ts)*.38)}
 .rib9-hero-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,7,9,.72) 0,rgba(6,7,9,.34) 34%,rgba(6,7,9,0) 56%),linear-gradient(180deg,rgba(6,7,9,.18),rgba(6,7,9,0) 26%,rgba(6,7,9,.42) 100%)}
 /* — v102: the hero is alive — */
-.rib9-hero-img{animation:rib9breathe 4.4s ease-in-out infinite;transform-origin:50% 62%;will-change:transform}
+.rib9-hero-art{position:absolute;inset:0;animation:rib9breathe 4.4s ease-in-out infinite;transform-origin:50% 62%;will-change:transform}   /* v104: the whole art layer breathes, kit and name with it */
 @keyframes rib9breathe{0%,100%{transform:scale(1.012) translateY(0)}50%{transform:scale(1.024) translateY(-.25cqh)}}
 .rib9-hero-fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .rib9-hero-cv{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:screen}
