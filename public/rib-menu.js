@@ -288,14 +288,16 @@
         </header>
 
         <section class="rib9-hero" aria-label="Running It Back">
+          <div class="rib9-hero-art"><!-- v104: the picture, its kit and the name breathe as ONE layer — the tints used to sit still under a picture scaling by 2% -->
           <img class="rib9-hero-img" src="${ART}hero_tunnel.webp" alt="" data-nat="1600,914">
           ${tint(colors, 0, 'hero_mask_p', 1, RECOLOR && 'hero_tunnel')}${tint(colors, 1, 'hero_mask_s', 1, RECOLOR && 'hero_tunnel')}
           <div class="rib9-hero-lift" data-region="0.865,0.42,0.15,0.4"></div>
+          ${has ? `<div class="rib9-hero-jersey" aria-hidden="true" data-at="0.5,0.52"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>` : ''}
+          </div>
           ${heroFxMarkup()}
           <div class="rib9-hero-shade"></div>
           <div class="rib9-hero-copy"><h1><img src="${ART}logo_wordmark.webp" alt="Running It Back"><i class="rib9-sheen" style="--wm:url('${artUrl('logo_wordmark.webp')}')"></i></h1>
             <img class="rib9-swash" src="${ART}swash_underline.webp" alt=""></div>
-          ${has ? `<div class="rib9-hero-jersey" aria-hidden="true" data-at="0.5,0.52"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>` : ''}
         </section>
 
         ${has ? `

@@ -75,6 +75,18 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   where it belongs. It is rasterized once at a larger size and scaled *down*, which is the sharp
   direction and also stops ~100 text canvases being re-rendered every tick, and it carries a thin
   dark outline so a white numeral still reads over a pale kit.
+  **The kit on the main menu, too.** The team colours on the hero and the continue card go on
+  through masks cut from the photographs, and those masks were cut wrong: the continue card's
+  pants ran three percent wide of the hips on both sides, so the secondary colour landed on the
+  crowd beside him; and the highlight key-outs meant to keep the floodlights off the shell were
+  taking the sleeve hems and the helmet's lit rim with them, so those stayed grey. On the hero the
+  tunnel light is warm enough that lit fabric keys like skin, so the whole lit right side —
+  sleeve, hip, rim — was being cut. Every garment is now **traced on the real outline at 1%**, the
+  hero carries polygons alone, the gap between the legs is open air rather than a filled hole, and
+  the hero's picture, kit and name **breathe as one layer** (the tints used to sit still under a
+  picture that scales by two percent every four seconds). `scripts/menu-mask-check.mjs` proves it
+  on probe points off the pictures — mask alpha, then the live render at two sizes with and
+  without the tint layers.
 
 - **v103 — the grab, and everything it made possible.** A tackle used to be instantaneous: the
   wrap landed and the play was dead on that pixel, with the drive and the knock-back playing out

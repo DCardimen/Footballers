@@ -47,7 +47,8 @@ async function step(t) {
 // ================= 1. the menu is alive =================
 const menu = await page.evaluate(() => {
   const F = window.__RIB_MENU_FX_V102
-  const sel = ['.rib9-hero-img', '.rib9-lamp', '.rib9-sheen', '.rib9-swash', '.rib9-sun', '.rib9-sun-rays', '.rib9-portrait img', '.rib9-brand b']
+  // v104: the breath moved from the picture to the art layer (picture + kit + name)
+  const sel = ['.rib9-hero-art', '.rib9-lamp', '.rib9-sheen', '.rib9-swash', '.rib9-sun', '.rib9-sun-rays', '.rib9-portrait img', '.rib9-brand b']
   const anim = sel.map(q => { const el = document.querySelector(q); return [q, el ? getComputedStyle(el).animationName : null] })
   const sheen = document.querySelector('.rib9-sheen'), wm = sheen ? sheen.style.getPropertyValue('--wm') : ''
   const mask = sheen ? (getComputedStyle(sheen).maskImage || getComputedStyle(sheen).webkitMaskImage || '') : ''

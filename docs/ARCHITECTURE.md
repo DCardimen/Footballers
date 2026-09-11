@@ -1085,14 +1085,25 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   comparison; `which` picks primary or secondary, so the jersey / helmet / pants split is a
   kit rule in `renderMenu`, not a colour choice),
   and every tint is clipped by a **silhouette mask** cut from the picture in
-  `scripts/build-menu-art.py` (polygon per garment in percent of the original art, keyed
-  inside for skin and lit background, eroded before feathering, and clipped to a traced
-  full-body `BODY` polygon; the pads are polygon-only because a tan pad in shadow keys like
-  an arm). The build asserts that no finished mask carries alpha outside the traced
-  body, so a placement error fails the build instead of reaching the page. To move a garment, draw
-  a 5% grid over the picture and edit the polygon; judge the result with
-  `scripts/kitshot.mjs`, which paints the kit crimson and gold — the default slate palette
-  hides leaks. The mask URL is inline on the element on purpose: a `url()` in a custom
+  `scripts/build-menu-art.py` (a polygon per garment in percent of the original art, **traced on
+  the real outline at 1%** since v104 — the old boxes ran the card's pants three percent wide of
+  the hips, which put the secondary colour on the crowd. The card keys skin out inside the polygon
+  by chroma alone (`skinless`; a highlight on the fabric is fabric, so there is no luminance cap
+  any more — that cap was what dropped the sleeve hems and the shell's lit rim); the hero is
+  polygon-only, because its warm tunnel light makes lit fabric as chromatic as skin. `fill_holes`
+  floods in a one-pixel margin so a gap that runs off the frame, like the one between two legs,
+  is open air and not a hole. Masks are feathered, not eroded, and clipped to the traced full-body
+  `BODY` polygon unioned with the garments themselves). The build asserts that no finished mask
+  carries alpha outside the traced body, so a placement error fails the build instead of reaching
+  the page. To move a garment, draw a 1% grid over the picture (a zoomed crop with `PIL`, as the
+  v104 pass did) and edit the polygon; `scripts/menu-mask-check.mjs` holds each garment on probe
+  points off that grid, both on the shipped alpha and on the live render with the tints hidden
+  and shown, so a retrace that misses a hem or spills onto the crowd fails a check rather than
+  the eye. `scripts/kitshot.mjs` paints the kit crimson and gold for a look — the default slate
+  palette hides leaks. On the hero, the picture, its two tints, the lift and the name/number sit
+  in `.rib9-hero-art`, and THAT layer carries the v102 breath: the tints used to sit still under
+  a picture scaling by two percent, so the recoloured kit drifted off its own outline every
+  four seconds. The mask URL is inline on the element on purpose: a `url()` in a custom
   property resolves against the stylesheet in Chrome and the document in Firefox,
   the jersey stays tinted whatever the box's aspect; the same math positions the jersey
   name/number on the hero (`data-at`). Do not go back to percentage masks — the crop
