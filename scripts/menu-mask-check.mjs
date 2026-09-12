@@ -36,7 +36,7 @@ const page0 = await browser.newPage()
 await page0.goto(URL, { waitUntil: 'domcontentloaded' })
 await page0.waitForSelector('#rib-main-menu-v2 [data-mask]', { timeout: 15000 }).catch(() => {})
 const maskProbe = await page0.evaluate(async (PROBES) => {
-  const load = s => new Promise((r, j) => { const i = new Image(); i.onload = () => r(i); i.onerror = j; i.src = '/menu/' + s + '.webp' })
+  const load = s => new Promise((r, j) => { const i = new Image(); i.onload = () => r(i); i.onerror = j; i.src = new URL('./public/menu/' + s + '.webp', location.href).href })   // document-relative: the site may live under a path prefix (github.io)
   const out = {}
   for (const [pic, spec] of Object.entries(PROBES)) {
     const ms = { p: await load(spec.p), s: await load(spec.s) }
@@ -66,9 +66,21 @@ const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputed
 const hsl = (r, g, b) => { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn
   let h = 0, s = 0; if (d) { s = d / (1 - Math.abs(2 * l - 1)); h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360 } return { h, s, l } }
 const hueGap = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d }
-for (const [w, h] of (process.env.SIZES || '430x932,900x1100').split(',').map(x => x.split('x').map(Number))) {
+const RUNS = (process.env.SIZES || '430x932,900x1100').split(',').map(x => x.split('x').map(Number)).map(([w, h]) => [w, h, false])
+RUNS.push([430, 932, true])   // the stale run: see below
+for (const [w, h, stale] of RUNS) {
   const context = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, isMobile: w < 700, hasTouch: true })
   const page = await context.newPage()
+  const tag = stale ? `${w}x${h} STALE-SHEET` : `${w}x${h}`
+  if (stale) {
+    // github.io caches index.html for minutes while a script URL that rolled over is refetched, so a
+    // phone can run the NEW menu script against the OLD stylesheet. The old sheet has no rule for
+    // the hero's art layer (`.rib9-hero-art`) and breathes the picture itself. Serve exactly that:
+    // the current sheet with that rule stripped and the old animation put back.
+    await page.route(/rib-menu-v89\.css/, async route => { const res = await route.fetch(); let css = await res.text()
+      css = css.replace(/\.rib9-hero-art\{[^}]*\}[^\n]*/g, '') + '\n.rib9-hero-img{animation:rib9breathe 4.4s ease-in-out infinite;transform-origin:50% 62%;will-change:transform}'
+      await route.fulfill({ response: res, body: css, headers: { ...res.headers(), 'content-type': 'text/css' } }) })
+  }
   const errors = []; page.on('pageerror', e => errors.push(e.message))
   await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
   await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 30000 })
@@ -94,7 +106,7 @@ for (const [w, h] of (process.env.SIZES || '430x932,900x1100').split(',').map(x 
   await page.addStyleTag({ content: '#rib-main-menu-v2 *, #rib-main-menu-v2 *::before, #rib-main-menu-v2 *::after { animation: none !important; transition: none !important; } .rib9-hero-fx { display: none !important }' })
   await page.waitForTimeout(900)
   const colors = await page.evaluate(() => { try { return window.__RIB_MENU_DATA_V89().team.colors } catch (e) { return null } })
-  if (w === 430) {
+  if (w === 430 && !stale) {
   // the delivery: the art URLs carry the baked build stamp, so a browser that cached the OLD masks
   // under the same file names fetches the new ones the moment the build moves (v104)
   const delivery = await page.evaluate(() => ({ build: (document.querySelector('meta[name="rib-menu-build"]') || {}).content || '',
@@ -117,8 +129,16 @@ for (const [w, h] of (process.env.SIZES || '430x932,900x1100').split(',').map(x 
     const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height; const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0)
     const k = img.width / innerWidth
     return pts.map(([x, y]) => { const d = cx.getImageData(Math.round(x * k), Math.round(y * k), 1, 1).data; return [d[0], d[1], d[2]] }) }, { shot, pts })
+  if (stale) {
+    const geo = await page.evaluate(() => { const hero = document.querySelector('.rib9-hero').getBoundingClientRect(), art = document.querySelector('.rib9-hero-art'), sheet = [...document.styleSheets].some(ss => { try { return [...ss.cssRules].some(r => r.selectorText === '.rib9-hero-art') } catch (e) { return false } })
+      return { heroH: Math.round(hero.height), heroW: Math.round(hero.width), ruleInSheet: sheet, artPos: art && getComputedStyle(art).position,
+        tints: [...document.querySelectorAll('.rib9-hero img[data-mask]')].map(t => { const r = t.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top - hero.top), vis: getComputedStyle(t).visibility } }) } })
+    const coverH = Math.round(geo.heroW * 914 / 1600), coverTop = Math.round((geo.heroH - geo.heroW * 914 / 1600) * 0.4)
+    ok(!geo.ruleInSheet && geo.artPos === 'absolute' && geo.heroH > 120, `${tag}: the served sheet really lacks the art-layer rule, and the layer is still boxed by its inline style — the hero keeps its height`, JSON.stringify({ rule: geo.ruleInSheet, artPos: geo.artPos, heroH: geo.heroH }))
+    ok(geo.tints.length === 2 && geo.tints.every(t => Math.abs(t.w - geo.heroW) <= 2 && Math.abs(t.h - coverH) <= 3 && Math.abs(t.top - coverTop) <= 3 && t.vis === 'visible'), `${tag}: the recoloured copies are the picture's own cover box, not a 1600px picture loose on the page`, JSON.stringify(geo.tints) + ` want ${geo.heroW}x${coverH}@${coverTop}`)
+  }
   for (const [pic, spec] of Object.entries(PROBES)) {
-    const box = boxes[pic]; if (!box || !box.w) { ok(false, `${w}x${h} ${pic}: the picture is on screen with its tints laid out`, JSON.stringify(box)); continue }
+    const box = boxes[pic]; if (!box || !box.w) { ok(false, `${tag} ${pic}: the picture is on screen with its tints laid out`, JSON.stringify(box)); continue }
     // bring this holder into view for both shots
     await page.evaluate(sel => document.querySelector(sel).scrollIntoView({ block: 'center' }), pic === 'hero_tunnel' ? '.rib9-hero' : '.rib9-continue'); await page.waitForTimeout(500)
     const box2 = await page.evaluate(sel => { const holder = document.querySelector(sel), t = holder.querySelector('[data-mask]'), hb = holder.getBoundingClientRect(); const v = k => parseFloat(t.style.getPropertyValue(k)) || 0
@@ -146,13 +166,13 @@ for (const [w, h] of (process.env.SIZES || '430x932,900x1100').split(',').map(x 
         // a hue is only a claim where there is colour to carry it: the team's, and the pixel's — a
         // specular highlight comes out of the sepia stage faintly warm whatever the team wears
         if (tc && tc.s > 0.25 && tc.l > 0.14 && tc.l < 0.9 && got.s > 0.12 && got.l > 0.08 && got.l < 0.72 && hueGap(tc.h, got.h) > 28) wrongHue.push(`${n}:${got.h.toFixed(0)}°≠${tc.h.toFixed(0)}° (l ${got.l.toFixed(2)} s ${got.s.toFixed(2)})`) } })
-    ok(sampled.on >= 8 && sampled.off >= 5, `${w}x${h} ${pic}: enough probe points fall inside the rendered crop`, `${sampled.on} on / ${sampled.off} off (of ${names.length}) · colours ${JSON.stringify(colors)}`)
-    ok(unchanged.length === 0, `${w}x${h} ${pic}: the tint REACHES every garment point — rims, hems, both hips`, unchanged.join(' ') || `${sampled.on} points recoloured`)
-    ok(changedOff.length === 0, `${w}x${h} ${pic}: and touches nothing beside the kit — the crowd, the lamps, the skin, the gloves`, changedOff.join(' ') || `${sampled.off} points untouched`)
-    ok(wrongHue.length === 0, `${w}x${h} ${pic}: the jersey wears the primary and the helmet/pants the secondary`, wrongHue.join(' ') || 'hues match')
+    ok(sampled.on >= 8 && sampled.off >= 5, `${tag} ${pic}: enough probe points fall inside the rendered crop`, `${sampled.on} on / ${sampled.off} off (of ${names.length}) · colours ${JSON.stringify(colors)}`)
+    ok(unchanged.length === 0, `${tag} ${pic}: the tint REACHES every garment point — rims, hems, both hips`, unchanged.join(' ') || `${sampled.on} points recoloured`)
+    ok(changedOff.length === 0, `${tag} ${pic}: and touches nothing beside the kit — the crowd, the lamps, the skin, the gloves`, changedOff.join(' ') || `${sampled.off} points untouched`)
+    ok(wrongHue.length === 0, `${tag} ${pic}: the jersey wears the primary and the helmet/pants the secondary`, wrongHue.join(' ') || 'hues match')
   }
-  if (process.env.OUT) { await page.evaluate(() => document.querySelector('.rib9-continue').scrollIntoView({ block: 'center' })); await page.waitForTimeout(300); await page.screenshot({ path: `${process.env.OUT}_${w}x${h}.png` }) }
-  ok(errors.length === 0, `${w}x${h}: no page errors`, errors.slice(0, 3).join(' | ') || 'none')
+  if (process.env.OUT && !stale) { await page.evaluate(() => document.querySelector('.rib9-continue').scrollIntoView({ block: 'center' })); await page.waitForTimeout(300); await page.screenshot({ path: `${process.env.OUT}_${w}x${h}.png` }) }
+  ok(errors.length === 0, `${tag}: no page errors`, errors.slice(0, 3).join(' | ') || 'none')
   await context.close()
 }
 console.log(JSON.stringify({ pass, fail }))

@@ -294,7 +294,7 @@
         </header>
 
         <section class="rib9-hero" aria-label="Running It Back">
-          <div class="rib9-hero-art"><!-- v104: the picture, its kit and the name breathe as ONE layer — the tints used to sit still under a picture scaling by 2% -->
+          <div class="rib9-hero-art" style="position:absolute;inset:0"><!-- v104: the picture, its kit and the name breathe as ONE layer — the tints used to sit still under a picture scaling by 2%. v105: the box is set INLINE, so a stylesheet a cache held back (the old sheet has no rule for this layer) cannot collapse it and spill the kit -->
           <img class="rib9-hero-img" src="${ART}hero_tunnel.webp${ARTV}" alt="" data-nat="1600,914">
           ${tint(colors, 0, 'hero_mask_p', 1, RECOLOR && 'hero_tunnel')}${tint(colors, 1, 'hero_mask_s', 1, RECOLOR && 'hero_tunnel')}
           <div class="rib9-hero-lift" data-region="0.865,0.42,0.15,0.4"></div>
@@ -390,8 +390,16 @@
   };
   function layoutArt(menu) {
     for (const img of menu.querySelectorAll('img[data-nat]')) {
-      const holder = img.parentElement, box = coverBox(img, holder);
-      if (!box) continue;
+      // the holder owns the tints; the SIZER is the framed section — the same element unless the
+      // picture sits in the hero's art layer. v105: the size is never read off that layer itself,
+      // so a stylesheet that does not know the layer (a cache holding the old sheet under a new
+      // script) cannot hand the crop maths a zero-height box.
+      const holder = img.parentElement, sizer = holder.classList.contains('rib9-hero-art') && holder.parentElement ? holder.parentElement : holder;
+      const box = coverBox(img, sizer);
+      // with no box there is no crop to follow: the recoloured copies hide rather than fall out at
+      // their natural size over the page
+      if (!box) { for (const t of holder.querySelectorAll(':scope > img[data-mask]')) t.style.visibility = 'hidden'; continue; }
+      for (const t of holder.querySelectorAll(':scope > img[data-mask]')) t.style.visibility = '';
       holder.style.setProperty('--ih', box.h.toFixed(1) + 'px');
       for (const t of holder.querySelectorAll(':scope > [data-mask]')) {
         t.style.setProperty('--mx', box.x.toFixed(1) + 'px'); t.style.setProperty('--my', box.y.toFixed(1) + 'px');

@@ -75,8 +75,15 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   the frame. And the main menu's kit masks were fixed but could not be SEEN: `index.html`
   pinned the menu files at `?v=v90` and the pictures carried no version at all, so any browser
   that had opened the menu once kept the old masks; the baked build stamp now rides every art
-  URL (`?v=`), and `index.html` is re-baked at `v104-kit`. (Pages deploys from `main`, so a
-  branch cannot show on the live link until it merges.)
+  URL (`?v=`), and `index.html` is re-baked. (Pages deploys from `main`, so a branch cannot
+  show on the live link until it merges.) And because github.io caches `index.html` for minutes
+  while a script URL that has rolled over is refetched, a phone can run the NEW menu script
+  against the OLD stylesheet for a while — which, with the hero's art layer unknown to the old
+  sheet, collapsed the hero and left the recoloured picture loose on the page at 1600px. The
+  layer is now boxed by an inline style, `layoutArt` sizes off the framed section rather than
+  the layer, and a picture with no crop to follow hides its copies instead; `menu-mask-check`
+  runs a third context that serves the current sheet with that rule stripped and proves the
+  kit still sits on the picture.
 
 - **v104 — the number on the jersey.** The number a player wears was a flat text object at a
   hard-coded size and a hard-coded offset, guessed once against one pose and re-set on every
