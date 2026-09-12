@@ -374,6 +374,35 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v107.1 — the sheen flashes twice, the flashes stay on the crowd
+
+**The sheen.** `.rib9-sheen` sweeps a highlight band across the wordmark through a mask of the
+wordmark's own alpha, `background-size: 260%`, position animated 120% → −120%. Two things made a
+second, slow flash: `background-repeat` was the default, so a second copy of the band sat 260%
+behind the first and crossed the letters at the end of the travel (−81% → −120%), and that end is
+where the cubic-bezier decelerates — the copy crawled (284 ms for the real flash, then a 60 s
+crawl, measured). The band is `no-repeat` now and `rib9sheen` is a lead hold, sweep A (the
+original curve and travel), a `steps(1,end)` beat that jumps the band back while it is off the
+element, sweep B identical, and a hold; the timing function sits on the sweep keyframes so the
+holds are holds. `.rib9-brand b` gets the same rhythm; because its gradient IS the letters'
+colour (`background-clip: text`), flat gold is laid under the gradient so the word never vanishes
+between passes. `scripts/sheencheck.mjs` drives the CSSAnimation's `currentTime` and measures
+both crossings: 284 ms and 284 ms on the wordmark, 581 and 581 on the brand.
+
+**The flashes.** `startHeroFx` drew camera flashes, the shimmer band, the lamps and the sun at
+fractions of the CANVAS BOX, while the photograph under them is `object-fit: cover` and cropped
+differently at every aspect — and the x-range (16–42% and 58–84% of the box) reached the tunnel
+walls at every width. `v107.1 THE FLASHES ARE ONLY OVER THE CROWD` puts every one of them in
+PICTURE percent: `CROWD_V107_1` is two polygons, the tiers either side of the man inside the
+tunnel mouth, traced off row-wise luminance (wall ≤ 41 and neutral, tier 110–200 and warm) with
+the inner edges taken from the v106 kit masks plus a margin; `HERO_LAMPS` sits on the real lamp
+row; the sun at the mouth. `heroPicBoxV107_1()` is `coverBox` on the hero picture (times the
+breath's midpoint, since the canvas does not ride `rib9breathe`), read on resize and applied every
+frame, so a flash mid-pop moves with a resize and a spawn that would fall outside the current
+box is skipped. `window.__RIB_MENU_FX_V102` exposes `flashLog` (last 200 spawns, picture and box
+coordinates), `crowd`, `box`, `lamps`, `sun`; `scripts/heroflashcheck.mjs` reads the picture
+pixel under every spawn at three widths and proves it is crowd. Menu stamp → `v107.1-menu`.
+
 ## v107 — the arm, the drop, the stance
 
 Anchor `v107 THE ARM, THE DROP, THE STANCE` (in `ribRegisterTeam`, where the throw registers),

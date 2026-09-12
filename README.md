@@ -55,6 +55,22 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v107.1 — the sheen flashes twice, the flashes stay on the crowd.** Two menu fixes. The
+  wordmark's sheen (`.rib9-sheen`) tiled its highlight band, so after the flash the user liked
+  a second copy crawled across the letters in the easing's slow tail (measured: a 284 ms flash,
+  then a 60 s crawl); the band is `no-repeat` now and `rib9sheen` is two identical sweeps a cycle,
+  each the original curve over the original travel, a beat between, a hold after — 284 ms and
+  284 ms. The header brand's gold (`rib9brand`) gets the same rhythm, with flat gold under the
+  gradient so the letters never vanish between passes. The hero's camera flashes, shimmer, lamps
+  and sun were placed in the BOX's coordinates while the photograph is cover-cropped under them,
+  so at a phone width the flashes popped on the tunnel walls; `v107.1 THE FLASHES ARE ONLY OVER
+  THE CROWD` (`public/rib-menu.js`) places them in PICTURE percent — two traced crowd polygons
+  either side of the man, `CROWD_V107_1`, inside the tunnel mouth and off the v106 kit masks —
+  and maps through the cover box every frame (`heroPicBoxV107_1`). `scripts/sheencheck.mjs`
+  measures both flashes off the computed background position; `scripts/heroflashcheck.mjs`
+  reads every spawn back and proves the picture pixel under it is bright warm crowd at three
+  widths. Menu stamp → `v107.1-menu`.
+
 - **v107 — the arm, the drop, the stance.** Six new sheets landed in `art/field/`, and
   `scripts/build-field-art.py` now cuts 27 more cells out of four of them (211 → 238): a
   six-frame throw in three facings — `throw_up0..5` (throw_back), `throw_dn0..5` (throw_front)
