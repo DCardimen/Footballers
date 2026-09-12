@@ -6,6 +6,8 @@
    * (html.rib-assets-ready). The gate never holds the menu hostage: a slow or
    * failed image still opens the menu after the fallback timer. */
   const ART = './public/menu/';
+  const BUILD = (() => { try { return (document.querySelector('meta[name="rib-menu-build"]') || {}).content || ''; } catch (e) { return ''; } })();
+  const ARTV = BUILD ? '?v=' + encodeURIComponent(BUILD) : '';   // v104: the art moves with the build, so a stale mask can never outlive it
   const FIRST = ['hero_tunnel', 'hero_mask_p', 'hero_mask_s', 'logo_wordmark', 'portrait_helmet', 'portrait_helmet_mask_s', 'card_continue', 'card_continue_mask_p', 'card_continue_mask_s', 'card_trophy'];
   const REST = ['swash_underline', 'icon_career', 'icon_training', 'icon_goals', 'icon_hall', 'icon_locker', 'icon_settings',
     'legacy_star', 'legacy_helmet', 'legacy_crown', 'legacy_gem', 'legacy_laurel', 'legacy_target',
@@ -18,7 +20,7 @@
     img.decoding = 'async';
     img.onload = () => { state.loaded.push(name); resolve(true); };
     img.onerror = () => { state.failed.push(name); resolve(false); };
-    img.src = `${ART}${name}.webp`;
+    img.src = `${ART}${name}.webp${ARTV}`;
   });
   const open = (viaFallback) => {
     if (state.ready) return;

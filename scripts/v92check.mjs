@@ -47,7 +47,8 @@ ok(st.towers.length && st.towers.every(t => t.depth < st.crowdDepth && t.y >= B.
 ok(st.towers.length && st.towers.every(t => t.top < B.top - 30), 'every lamp head rises into the sky above the bowl', `heads=${st.towers.map(t => t.top).join(',')} bowlTop=${B.top}`)
 ok(st.towers.length && st.towers.every(t => (t.x < 360) === (t.face === 1)), 'the heads are turned in toward the field', JSON.stringify(st.towers.map(t => [t.x, t.face])))
 const R = st.screen && st.screen.rect
-ok(R && R.y + R.h < B.top && Math.abs(R.x + R.w / 2 - 360) < 2 && R.w > 200, 'the big screen hangs centred above the far stand', R && `bottom=${Math.round(R.y + R.h)} bowlTop=${B.top} w=${Math.round(R.w)}`)
+// v105: the default perspective is 78% now, so the far end — and the screen with it — draws smaller than it did at 45%
+ok(R && R.y + R.h < B.top && Math.abs(R.x + R.w / 2 - 360) < 2 && R.w > 130, 'the big screen hangs centred above the far stand', R && `bottom=${Math.round(R.y + R.h)} bowlTop=${B.top} w=${Math.round(R.w)}`)
 
 // Park the camera on the far end with the scene paused (update stops, rendering goes on).
 // Pausing the SCENE is not enough to hold the picture still: the career app starts the next
@@ -92,8 +93,10 @@ ok(posts.g && posts.cmds >= 20, 'the posts are drawn at both ends', JSON.stringi
 // watch: v99 — the lamps HOLD their frame (they used to walk it), and the screen only films while it can be seen
 const MS = +(process.env.V92_MS || 30000), t0 = Date.now(); const seen = { frames: 0, changed: 0, camOn: 0, camOnScreen: 0, samples: 0 }; let lastF = null
 while (Date.now() - t0 < MS) { await page.waitForTimeout(150)
-  const s = await page.evaluate(() => { const V = window.__V92; const t = V.towerBoxes()[0]; const S = V.screen(); const c = window.__gridironScene.cameras.main; return { f: t && t.frame, cam: S.cam.visible, top: c.worldView.y } })
-  seen.samples++; if (s.f !== lastF) seen.changed++; lastF = s.f; if (s.cam) { seen.camOn++; if (s.top < 200) seen.camOnScreen++ } }
+  // in frame = the screen's own panel overlaps the main camera's view, which is exactly what the renderer gates on (v105: no fixed row — the default perspective moved)
+  const s = await page.evaluate(() => { const V = window.__V92; const t = V.towerBoxes()[0]; const S = V.screen(); const c = window.__gridironScene.cameras.main, wv = c.worldView, R = S.rect
+    return { f: t && t.frame, cam: S.cam.visible, inFrame: !!(R && R.y + R.h > wv.y && R.y < wv.y + wv.height) } })
+  seen.samples++; if (s.f !== lastF) seen.changed++; lastF = s.f; if (s.cam) { seen.camOn++; if (s.inFrame) seen.camOnScreen++ } }
 console.log('watch:', JSON.stringify(seen))
 // v102: a mast may SPUTTER a few times over a 30s watch (a tenth-of-a-second bulb dip that shows
 // another frame while it dips) — a handful of changes, never the old continuous six-frame walk

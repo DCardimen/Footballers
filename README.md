@@ -55,6 +55,29 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v105 — the ball has a handler.** The football used to appear in the quarterback's hand the
+  instant the snap fired: before it the sprite sat on the sim's ground spot at the line, drawn
+  OVER the center's waist, and `snap` simply switched the holder — so on the broadcast the QB
+  started with it, and every exchange after that was the same one-frame teleport. Now the ball
+  is always in somebody's hands or in the air between two pairs of them. While the offense jogs
+  to the line it is **on the grass at the spot**, under everybody; when the center sets it is
+  **under center**, at his feet; the snap is a **hand** — a zap from the center's spot to
+  wherever the QB's hand is that frame, re-aimed every frame so a QB already dropping back still
+  receives it; a handoff is a hand from the QB's hand to the back's, and a long one is a
+  **toss**, on a higher arc, tumbling end over end. The **trail** is the motion itself: a
+  tapered ribbon of the ball's last quarter second, drawn only while it genuinely travels — a
+  gust for an ordinary ball, wound into a **double helix** in flight (the spiral), and
+  **burning** — flame core, ember sparks — when the man who threw or carries it is HOT. Heat is
+  bookkept per offense per actor at the end of every play: big gains and scores heat a man up,
+  empty plays cool everyone down, `heatHot` is the line, and a man who crosses it says **ON
+  FIRE!** when he next lines up with the ball. All render-only: no sim frame, stat or event is
+  touched. **The default field perspective is now 78%** (was 45%), so most of the field is in
+  the frame. And the main menu's kit masks were fixed but could not be SEEN: `index.html`
+  pinned the menu files at `?v=v90` and the pictures carried no version at all, so any browser
+  that had opened the menu once kept the old masks; the baked build stamp now rides every art
+  URL (`?v=`), and `index.html` is re-baked at `v104-kit`. (Pages deploys from `main`, so a
+  branch cannot show on the live link until it merges.)
+
 - **v104 — the number on the jersey.** The number a player wears was a flat text object at a
   hard-coded size and a hard-coded offset, guessed once against one pose and re-set on every
   marker on every frame. It showed. The **back number bled into the pants** — hung below the

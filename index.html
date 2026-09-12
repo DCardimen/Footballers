@@ -179,7 +179,7 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 @keyframes badgeSnapV95{0%{transform:translateX(-120%) rotate(-6deg);opacity:1}60%{transform:translateX(0) rotate(-6deg);opacity:1}to{transform:translateX(0) rotate(-6deg);opacity:0}}
 @media (prefers-reduced-motion:reduce){.rib-badge-rays-v95{animation:none}}
 </style>
-<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v90"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v90"><link rel="stylesheet" href="./public/rib-menu.css?v=v90"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v90"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
+<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v104-kit"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v104-kit"><link rel="stylesheet" href="./public/rib-menu.css?v=v104-kit"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v104-kit"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
 <body>
 <div id="splash">
 <div class="splash-inner">
@@ -4575,7 +4575,7 @@ function fieldRadius() { const r = (window.__FIELD_FX || {}).radius; return r ==
 function buildPersp() {
   if (ANCHOR_U == null) { PERSP = null; return; }
   const FX = window.__FIELD_FX || {};
-  const dp = Math.max(0, Math.min(0.9, FX.depth == null ? 0.45 : +FX.depth));
+  const dp = Math.max(0, Math.min(0.9, FX.depth == null ? 0.78 : +FX.depth));   // v105: 78% by default — most of the field in the frame
   const R = Math.max(60, fieldRadius());
   const AU = ANCHOR_U, kMax = PERSP_BACKMAX;
   const q = dp / ((1 - dp) * R);         // pinhole rate: s(AU + R) = 1 − dp, same dial meaning as v27
@@ -6310,6 +6310,12 @@ class Ot extends mt.Scene {
         this.ballShad = this.add.ellipse(seed.x, seed.y + 3, 10, 4, 0x000000, 0.32).setDepth(3.5);
       } catch (e) { this.ballShad = void 0; }
     }
+    if (this.ballSpr && gliding) {
+      // v105: while the offense jogs to the line the ball is on the grass where the crew spotted it —
+      // under every player in depth, at ground size — and the center picks it up when he sets
+      try { const bp = PJ(Number(BA.x), Number(BA.y)); this.ballSpr.setPosition(bp.x, bp.y).setScale(0.40 * bp.s, 0.36 * bp.s).setDepth(TU("ballGroundDepth", 3.9)).setRotation(-this.ballFrameV91("spin", 0));
+        if (this.ballShad) this.ballShad.setPosition(bp.x, bp.y + 3 * bp.s).setVisible(true); } catch (e) {}
+    }
     if (this.ballSpr && !gliding) {
       const bgx = Number(BA.x) + (Number(BB.x) - Number(BA.x)) * safeFrac,
         bgy = Number(BA.y) + (Number(BB.y) - Number(BA.y)) * safeFrac;
@@ -6325,7 +6331,10 @@ class Ot extends mt.Scene {
       const mode = P.ballMode || (bh > 2 ? "flight" : "ground");
       const flight = bh > 2 || mode === "flight" || mode === "tip" || mode === "kick";
       const loose = !!P.__looseBall || mode === "loose" || mode === "bounce";
-      const holder = !flight && !loose && P.ballHolderId != null ? this.markers[P.ballHolderId] : null;
+      // v105: before the snap the ball is under CENTER, not on a spot on the grass
+      const kickPlay = /^(fg|punt|kickoff|xp)$/i.test(String(P.payload && P.payload.event || ""));
+      const centerV105 = (!P.snapped && !flight && !loose && P.ballHolderId == null && !kickPlay && this.markers[5] && this.markers[5].root) ? this.markers[5] : null;
+      const holder = !flight && !loose && P.ballHolderId != null ? this.markers[P.ballHolderId] : centerV105;
       let ballX = bpp.x, ballY = bpp.y - airY, ballDepth = flight ? 20 : loose ? 30 : 9;
       let baseSX = (flight ? 0.58 : loose ? 0.52 : 0.40) * airSw * bpp.s;
       let baseSY = (flight ? 0.52 : loose ? 0.45 : 0.36) * airSw * bpp.s;
@@ -6349,10 +6358,11 @@ class Ot extends mt.Scene {
           ox = handX * (8.5 + cock * 2.2) + facingX * follow * 5.5;
           oy = -3.5 - cock * 7.2 + follow * 5.2;
         }
+        if (holder === centerV105) { ox = 0; oy = TU("ballUnderCenterY", 13); }   // v105: at his feet, on the line — in front of his shins, where the camera can see it
         ballX = holder.root.x + ox * sc; ballY = holder.root.y + oy * sc;
         // A back-facing carry sits just behind the torso plane; front/side carries sit
         // just above it. The lateral hand offset keeps either case out of the body core.
-        ballDepth = holder.root.depth + (rear ? -0.06 : 0.08);
+        ballDepth = holder.root.depth + (holder === centerV105 ? 0.05 : rear ? -0.06 : 0.08);
         baseSX = 0.40 * sc; baseSY = 0.36 * sc;
       }
       // The first frames leave the actual throwing hand, rather than snapping from the
@@ -6363,6 +6373,9 @@ class Ot extends mt.Scene {
         ballX = P.ballReleasePos.x + (ballX - P.ballReleasePos.x) * rq;
         ballY = P.ballReleasePos.y + (ballY - P.ballReleasePos.y) * rq;
       }
+      // v105: a ball mid-hand is between the spot it left and the hand it is chasing
+      const handV105 = holder ? this.handPosV105(P, ballX, ballY, bpp.s) : (P._hand = null);
+      if (handV105) { ballX = handV105.x; ballY = handV105.y; ballDepth = Math.max(ballDepth, holder.root.depth + 0.1); }
       this.ballSpr.setPosition(ballX, ballY).setScale(baseSX, baseSY).setDepth(ballDepth);
       if (flight && mode !== "kick") {
         if (P._pbx != null && Math.hypot(ballX - P._pbx, ballY - P._pby) > 0.18) {
@@ -6380,12 +6393,25 @@ class Ot extends mt.Scene {
         const rate = mode === "kick" ? 0.017 : 0.021;
         const bf = this.ballFrameV91("tumble", Math.floor((P.t - (P.ballReleaseAt || 0)) * TU("ballTumbleRate", 0.014)));
         this.ballSpr.rotation = RIB.v91img ? (VDIR > 0 ? 0 : Math.PI) : (P._ballTumbleBase || 0) + (P.t - (P.ballReleaseAt || 0)) * rate * VDIR;
+      } else if (handV105 && handV105.toss) {
+        // v105: a toss goes end over end
+        const bf = this.ballFrameV91("tumble", Math.floor((P.t - (P._hand ? P._hand.t0 : 0)) * TU("tossTumbleRate", 0.02)));
+        this.ballSpr.rotation = RIB.v91img ? 0 : (P.t - (P._hand ? P._hand.t0 : 0)) * 0.02;
       } else if (holder) {
         const rear = holder.dirKey === "up" || holder.dirKey === "ur";
         const bf = this.ballFrameV91("spin", 0);
         this.ballSpr.rotation = (rear ? 0.34 : holder.dirKey === "dn" || holder.dirKey === "dr" ? -0.34 : (holder.flip ? 0.14 : -0.14)) - bf;
         P._ballNoseAngle = null;
       } else this.ballSpr.rotation = -this.ballFrameV91("spin", 0);
+      // v105: the trail — drawn only while the ball travels; fire when its man is hot
+      try {
+        const dtV105 = Math.max(1, delta * (typeof spd === "number" ? spd : 1));   // the play clock's own step this frame
+        const spdV105 = P._pbx != null ? Math.hypot(ballX - P._pbx, ballY - P._pby) / dtV105 * 1000 : 0;
+        const owner = flight ? (P._thrower != null ? P._thrower : 8) : holder && holder !== centerV105 ? P.ballHolderId : null;
+        const hot = owner != null && this.hotV105(P, owner);
+        const why = handV105 ? (handV105.kind === "snap" ? "snap" : "hand") : flight && mode !== "kick" ? "flight" : mode === "kick" ? "kick" : loose ? "loose" : (hot && holder && spdV105 > TU("trailCarrySpd", 90)) ? "carry" : null;
+        this.trailV105(P, ballX, ballY, bpp.s, ballDepth, dtV105, why, hot);
+      } catch (er) {}
       if (!Number.isFinite(this.ballSpr.x) || !Number.isFinite(this.ballSpr.y)) {
         this.ballSpr.setPosition(bpp.x, bpp.y);
       }
@@ -6915,7 +6941,7 @@ class Ot extends mt.Scene {
         vib(30);
         break;
       }
-      case "handoff": P.carrierId = 9; P.ballHolderId = 9; P.ballMode = "held"; break;
+      case "handoff": P.carrierId = 9; P.ballHolderId = 9; P.ballMode = "held"; this.handV105(P, "handoff"); break;   // v105: the exchange is drawn — a hand, or a toss
       case "windup": { P.ballHolderId = 8; P.ballMode = "held"; P._thrown = true; const qb = this.markers[8]; if (qb) { qb.forceState = "throwSeq"; qb.seqT = qb.tms; qb._dropback = false; qb._lean = 0; } break; }
       case "contest": { P.awaitCatch2 = this.actorIdx(e.def); P.contestDef = P.awaitCatch2; break; }
       case "handfight": {
@@ -6935,6 +6961,13 @@ class Ot extends mt.Scene {
       }
       case "snap": { P.snapped = true; if (this.previewG) this.previewG.clear();
         P.ballHolderId = 8; P.ballMode = "held";
+        // v105: the ball leaves the center's hands and zaps back to the QB's — a real snap. Kicks
+        // keep the sim's own long-snap flight (the ball frames carry it); a kickoff has no snap.
+        if (!e.kickoff && !/^(fg|punt|kickoff|xp)$/i.test(String(P.payload && P.payload.event || ""))) this.handV105(P, "snap");
+        // and a man who is hot says so, once, when he takes the field with it
+        try { const Sd = this._heatSaidV105 || (this._heatSaidV105 = {}); for (const idx of [8, 9, 0, 1, 2, 10]) { const k = this.heatKeyV105(P, idx), m = this.markers[idx];
+          if (m && this.hotV105(P, idx) && !Sd[k]) { Sd[k] = 1; this.popText(m.sx, m.sy - 26, "ON FIRE!", "#ff9a3c", 13); this.puffFx(m.sx, m.sy + 2, 2, 0xff8a3a, 0.5); }
+          else if (m && !this.hotV105(P, idx)) delete Sd[k]; } } catch (er) {}
         if (this.previewTxt) { this.previewTxt.forEach(t => t && t.destroy && t.destroy()); this.previewTxt = []; }
         this.markers.forEach((m) => { if (m.forceState === "stance") m.forceState = null; if (m.body) m.body.y = 0; if (m._presnapFace) { m._presnapFace = false; m.dirKey = m.homeDir || m.dirKey; m.flip = false; } });   // v86
         try { this.addWearV86(P.losX != null ? P.losX : e.x, (F_TOP + F_BOT) / 2, 12, 0.03); } catch (er) {}   // v86: the trenches wear the turf between the hashes
@@ -7512,6 +7545,7 @@ class Ot extends mt.Scene {
       case "throw": {
         P.lookIdx = null; if (this.lookG) this.lookG.clear();
         P.ballReleasePos = this.ballSpr ? { x: this.ballSpr.x, y: this.ballSpr.y } : null;
+        P._thrower = P.ballHolderId; P._hand = null;   // v105: whose arm this is, for the flame; a hand still open is over
         P.ballReleaseAt = P.t; P.ballHolderId = null; P._ballNoseAngle = null; P._ballTumbleBase = this.ballSpr?.rotation || 0;
         const kicking = /^(fg|punt|kickoff|xp)$/i.test(String(pay.event || ""));
         P.ballMode = kicking ? "kick" : "flight";
@@ -7772,6 +7806,121 @@ class Ot extends mt.Scene {
   }
   // v91: put the ball on frame k of a sheet row and return the tilt that frame was drawn at
   // (so the caller can rotate by heading minus tilt); 0 and the baked ball when the sheet is out
+  /* ===== v105 THE BALL HAS A HANDLER =====
+   * The football used to appear in the quarterback's hand the instant the snap event fired:
+   * before it the sprite sat on the sim's ground spot at the line, and `case "snap"` simply set
+   * `ballHolderId = 8`, so on the broadcast the QB "started with it". Every exchange was the same
+   * teleport — the handoff switched the holder to the back in one frame, the toss did not exist.
+   *
+   * Now the ball is always in SOMEBODY'S hands or in the air between two pairs of them. Before the
+   * snap it is mounted under the CENTER (actor 5), low, at the line. The snap is a HAND — a short
+   * zap from the center's spot to wherever the QB's throwing hand is that frame (it is re-aimed
+   * every frame, so a QB already dropping back still receives it). A handoff is a hand from the
+   * QB's hand to the back's; when the back is far enough away it is a TOSS, on a higher arc, with
+   * the ball tumbling end over end. The throw keeps v36's release blend and gains the same trail.
+   *
+   * THE TRAIL is the motion itself: a tapered ribbon of the ball's last quarter second, drawn only
+   * while the ball is genuinely travelling — a hand, a flight, a kick, a loose ball — pale like a
+   * gust for an ordinary ball, wound into a double helix in flight (the SPIRAL), and burning —
+   * flame core, ember sparks — when the man who threw or carries it is HOT. Heat is bookkept per
+   * offense per actor at the end of every play (`heatV105`): big gains and scores heat a man up,
+   * empty plays cool everyone down, and `heatHot` is the line. All of it is render-only: no sim
+   * frame, no stat, no event is touched. `window.__V105` is what v105check reads. */
+  handV105(P, kind) {
+    // open a hand: the ball leaves the spot it is drawn at NOW and chases the holder's hand
+    if (!this.ballSpr || !P) return;
+    const x0 = this.ballSpr.x, y0 = this.ballSpr.y;
+    let ms = TU("handoffMs", 170), arc = TU("handoffArc", 3), toss = false;
+    if (kind === "snap") { ms = TU("snapZapMs", 150); arc = TU("snapArc", 2); }
+    else if (kind === "handoff") {
+      const qb = this.markers[8], rb = this.markers[P.ballHolderId];
+      const d = qb && rb && qb.root && rb.root ? Math.hypot(rb.root.x - qb.root.x, rb.root.y - qb.root.y) / Math.max(0.5, qb.root.scale || 1) : 0;
+      // a toss is a CALL — the playbook's sweep family (toss, jet, outside zone, pin and pull, the
+      // reverse). Everything else is a hand: the sim does not stage a mesh (the QB drifts while the
+      // back is already on his path, so the two are a few yards apart at the exchange), so the hand
+      // is a quick, low flick that closes whatever gap there is, timed by the distance.
+      const called = /toss|sweep|pitch|reverse|pin and pull|outside zone/i.test(String(P.payload && P.payload.desc || ""));
+      this._lastHandD = d;
+      if (called) { toss = true; ms = TU("tossMs", 320) + d * TU("tossMsPerPx", 2.2); arc = TU("tossArc", 15); }
+      else { ms = TU("handoffMs", 170) + d * TU("handoffMsPerPx", 0.6); arc = TU("handoffArc", 3); }
+    }
+    P._hand = { kind, x0, y0, t0: P.t, ms, arc, toss, d: kind === "handoff" ? +(this._lastHandD || 0).toFixed(1) : 0 };
+    P._trailV105 = [];
+    try { const V = window.__V105 = window.__V105 || {}; V.hands = (V.hands || 0) + 1; V[kind] = (V[kind] || 0) + 1; if (toss) V.tosses = (V.tosses || 0) + 1; V.lastHand = { kind, ms: Math.round(ms), toss, t: P.t, desc: String(P.payload && P.payload.desc || "").slice(0, 40),
+      qb: this.markers[8] && [Math.round(this.markers[8].sx), Math.round(this.markers[8].sy)], to: this.markers[P.ballHolderId] && [Math.round(this.markers[P.ballHolderId].sx), Math.round(this.markers[P.ballHolderId].sy)] }; } catch (e) {}
+  }
+  handPosV105(P, x, y, s) {
+    // where the ball is THIS frame: on its way from the hand it left to the hand it is chasing
+    const H = P._hand; if (!H) return null;
+    const k = (P.t - H.t0) / Math.max(1, H.ms);
+    if (k >= 1) { P._hand = null; return null; }
+    // a snap zaps (out fast, settles); a hand and a toss travel evenly and lift on an arc
+    const e = H.kind === "snap" ? 1 - Math.pow(1 - k, 2.2) : k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    return { x: H.x0 + (x - H.x0) * e, y: H.y0 + (y - H.y0) * e - Math.sin(k * Math.PI) * H.arc * s, k, kind: H.kind, toss: H.toss };
+  }
+  trailV105(P, x, y, s, depth, dtms, why, hot) {
+    // the ribbon: the ball's last quarter second, tapered to the tail; a helix when it spirals;
+    // fire when the man it belongs to is hot. Cleared every frame it is not travelling.
+    const g = this.ballTrailG && this.ballTrailG.scene ? this.ballTrailG : (this.ballTrailG = this.add.graphics());
+    g.clear(); g.setDepth(depth - 0.01);
+    const h = P._trailV105 || (P._trailV105 = []);
+    if (!why) { h.length = 0; if (P._embersV105) P._embersV105.length = 0; return; }
+    h.push({ x, y, t: P.t });
+    const life = TU("trailMs", hot ? 300 : 230);
+    while (h.length && P.t - h[0].t > life) h.shift();
+    if (h.length > 28) h.splice(0, h.length - 28);
+    const V = window.__V105 = window.__V105 || {};
+    if (h.length < 3) return;
+    V.trailFrames = (V.trailFrames || 0) + 1; if (hot) V.flameFrames = (V.flameFrames || 0) + 1;
+    const spiral = why === "flight" && TU("spiralV105", 1);
+    const W = (hot ? TU("trailWHot", 5.2) : TU("trailW", 3.4)) * Math.max(0.5, s);
+    // the strands: one for a gust, two wound around the path for a spiral, and for fire an outer
+    // red glow under an orange body under a near-white core
+    const strands = hot ? [[0xff3d1a, 1.0, 0.42], [0xff9a2e, 0.62, 0.7], [0xfff1a8, 0.28, 0.95]] : why === "snap" ? [[0xfff4c4, 1.0, 0.7]] : [[0xdff2ff, 1.0, 0.62]];
+    const n = h.length;
+    for (const [col, wk, ak] of strands) for (let side = spiral ? -1 : 0; side <= (spiral ? 1 : 0); side += 2) {
+      for (let i = 1; i < n; i++) {
+        const a = h[i - 1], b = h[i], q = i / (n - 1);          // q: 0 at the tail, 1 at the ball
+        let ax = a.x, ay = a.y, bx = b.x, by = b.y;
+        if (spiral) {
+          // a helix: each point pushed off the path, across its own direction of travel, by a
+          // sine of its age — the two strands in antiphase read as the seam turning
+          const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+          const r = TU("spiralR", 3.2) * Math.max(0.5, s) * (0.35 + 0.65 * q);
+          const oa = Math.sin(a.t * TU("spiralRate", 0.05)) * r * side, ob = Math.sin(b.t * TU("spiralRate", 0.05)) * r * side;
+          ax += nx * oa; ay += ny * oa; bx += nx * ob; by += ny * ob;
+        }
+        g.lineStyle(Math.max(0.4, W * wk * q), col, ak * q * (hot ? (0.85 + 0.15 * Math.sin(P.t / 23 + i)) : 1));
+        g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.strokePath();
+      }
+    }
+    if (hot) {
+      // embers: thrown off the ball, drifting up and dying — the part of a fire that moves
+      const E = P._embersV105 || (P._embersV105 = []);
+      P._emberAccV105 = (P._emberAccV105 || 0) + dtms;
+      while (P._emberAccV105 > TU("emberEveryMs", 34)) { P._emberAccV105 -= TU("emberEveryMs", 34);
+        E.push({ x: x + (Math.random() - 0.5) * 4 * s, y: y + (Math.random() - 0.5) * 4 * s, vx: (Math.random() - 0.5) * 26, vy: -20 - Math.random() * 30, t: 0, life: 260 + Math.random() * 220, r: (1 + Math.random() * 1.6) * s }); }
+      for (let i = E.length - 1; i >= 0; i--) { const em = E[i]; em.t += dtms; if (em.t > em.life) { E.splice(i, 1); continue; }
+        em.x += em.vx * dtms / 1000; em.y += em.vy * dtms / 1000; em.vy += 24 * dtms / 1000;
+        const k = 1 - em.t / em.life; g.fillStyle(k > 0.5 ? 0xffd27a : 0xff5a1f, 0.9 * k); g.fillCircle(em.x, em.y, em.r * (0.4 + 0.6 * k)); }
+    }
+  }
+  heatKeyV105(P, idx) { const pay = P && P.payload || {}; return (pay.offense === "them" ? "them" : "us") + ":" + idx; }
+  hotV105(P, idx) { const H = this._heatV105; if (!H || idx == null || idx < 0) return false; return (H[this.heatKeyV105(P, idx)] || 0) >= TU("heatHot", 3); }
+  heatV105(P) {
+    // the book, at the end of every play: production heats a man, an empty play cools everyone
+    if (!P || !P.payload) return;
+    const pay = P.payload, ev = String(pay.event || ""), H = this._heatV105 || (this._heatV105 = {});
+    if (!/^(pass|run|incomplete|sack|turnover)$/.test(ev)) return;
+    const yd = Number(pay.yards || 0), big = yd >= TU("heatBigYd", 15) || !!pay.scored;
+    const side = pay.offense === "them" ? "them" : "us";
+    const bump = (idx, amt) => { const k = side + ":" + idx; H[k] = Math.max(0, Math.min(TU("heatCap", 6), (H[k] || 0) + amt)); };
+    const fin = P.carrierId;
+    if (ev === "pass") bump(8, big ? 2 : 1); else if (ev !== "run") bump(8, -1);          // the arm
+    if (fin != null && fin !== 8 && (ev === "pass" || ev === "run")) bump(fin, big ? 2 : yd >= 5 ? 1 : 0);   // the hands
+    for (const k in H) if (k.startsWith(side + ":") && k !== side + ":8" && k !== side + ":" + fin) H[k] = Math.max(0, H[k] - TU("heatCool", 0.5));
+    try { const V = window.__V105 = window.__V105 || {}; V.heat = Object.assign({}, H); V.plays = (V.plays || 0) + 1; } catch (e) {}
+  }
   ballFrameV91(kind, k) {
     const cur = this.ballSpr && this.ballSpr.texture ? this.ballSpr.texture.key : null;
     if (!RIB.v91img || !this.ballSpr || !cur) { if (cur && cur !== "spr_ball" && this.textures.exists("spr_ball")) this.ballSpr.setTexture("spr_ball"); return 0; }
@@ -7836,7 +7985,8 @@ class Ot extends mt.Scene {
     this.completion = void 0; this.killAllFx(); this.clearActors();
     if (this.trail) this.trail.clear();
   }
-  complete() { const et = this.completion; this.completion = void 0; this.play = null; et?.(); }
+  complete() { try { this.heatV105(this.play); } catch (e) {} if (this.ballTrailG) this.ballTrailG.clear();   // v105
+    const et = this.completion; this.completion = void 0; this.play = null; et?.(); }
   clearActors() {
     this.clearRefs();
     for (const et of this.markers) {
@@ -7849,6 +7999,7 @@ class Ot extends mt.Scene {
     this.markers = [];
     if (this.ballSpr) { try { this.ballSpr.destroy(); } catch (e) {} this.ballSpr = void 0; }
     if (this.ballShad) { try { this.ballShad.destroy(); } catch (e) {} this.ballShad = void 0; }
+    if (this.ballTrailG) { try { this.ballTrailG.destroy(); } catch (e) {} this.ballTrailG = void 0; }   // v105
   }
   // v23 SCRAMBLE WARNING: a red ❗ that floats over a defender's head the moment he
   // breaks through the line and bears down on the QB — telegraphing that a
@@ -11408,7 +11559,7 @@ const POS_POOL=e=>Math.max(1,Math.round(NAT_POOL(e)/9));function br(e,t,a){const
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:4px">📐 FIELD VIEW</div>
       <div class="small" style="margin-bottom:10px">Adjust the 2.5D perspective — one dial shrinks the far field, numbers AND players together (always consistent) — plus size, spacing, and zoom.</div>
       ${[
-        ["fxDepth","Field perspective (depth)","How hard everything recedes — 0 is flat top-down; higher = the far (north) field, numbers and players all shrink harder, always in step",0,0.9,0.01,0.45],
+        ["fxDepth","Field perspective (depth)","How hard everything recedes — 0 is flat top-down; higher = the far (north) field, numbers and players all shrink harder, always in step",0,0.9,0.01,0.78],
         ["fxSize","Player size","Overall size of every player",0.5,1.9,0.05,1.32],
         ["fxSpread","Player spread","Sideline-to-sideline spacing",0.7,1.4,0.05,1],
         ["fxZoom","Field zoom","How large the field is drawn",0.85,1.5,0.02,1.16],
@@ -13385,7 +13536,7 @@ function Dl(){const e=o.player,t=A[e.level],a=ae(e),s=sn(e,a),n=M("scout")>0,i=e
     ${e.age>=40?`<div class="threshold-note" style="color:var(--blood);margin-top:8px">⏳ ${Math.max(0,Qt-e.age)} season${Qt-e.age===1?"":"s"} remain before mandatory retirement.</div>`:""}</div>`}const cc=et;et=function(e,t,a){const s=mn(e.age),n=cc(e,(t||0)+s.perf,a);return n.injured&&Math.random()<s.recovery*TU("ageCancelK",.32)?(n.injured=!1,n.ageRecovery=!0):!n.injured&&s.inj>1&&Math.random()<Math.min(.22,(s.inj-1)*.105)&&(n.injured=!0,n.ageInjury=!0),n.ageStage=s.name,n.agePerf=s.perf,n.ageInjuryMult=s.inj,n};function dc(e,t){const a=mn(e.age);e.level>=7&&t.attrsAfter&&ee.forEach(n=>{t.attrsAfter[n]!=null&&(e.attrs[n]=t.attrsAfter[n])});const s={};if(e.level>=7&&a.decline>0&&(["speed","strength","quickness","acceleration","agility","jumping","stamina","tackling","blocking"].forEach(i=>{if(e.attrs[i]==null)return;let r=0;const l=Math.min(.92,a.decline*.32);if(Math.random()<l&&(r=1),a.decline>=1.5&&Math.random()<.28&&r++,r){const d=e.attrs[i];e.attrs[i]=Math.max(10,e.attrs[i]-r),s[i]={from:d,to:e.attrs[i],delta:-r}}}),e.age<=36&&Math.random()<.42)){const i=Math.random()<.5?"awareness":"vision",r=e.attrs[i];e.attrs[i]=Math.min(we(),e.attrs[i]+1),s[i]={from:r,to:e.attrs[i],delta:1}}t.ageChanges=s,t.ageProfile=a,t.youngRecoveries=(t.sampleGames||[]).filter(n=>n.ageRecovery).length,t.ageInjuries=(t.sampleGames||[]).filter(n=>n.ageInjury).length,e.age>=Qt&&(e.retirementPending=!0,t.mandatoryRetirement=!0)}const uc=tt;tt=function(e){const t=uc(e);return dc(e,t),t};const fc=Aa;Aa=function(){fc();const e=o.player,t=x("screen");if(!(!e||!t)){if(o.view==="hub"&&!t.querySelector(".age-card")){const a=t.querySelector(".depth-card")||t.querySelector(".card");a&&a.insertAdjacentHTML("afterend",An(e))}if(o.view==="result"&&!t.querySelector(".age-card")){const a=t.querySelector(".depth-card")||t.querySelector(".season-grade")||t.firstElementChild;a&&a.insertAdjacentHTML("afterend",An(e));const s=e.lastResult||o.lastResult;s&&s.youngRecoveries>0&&t.insertAdjacentHTML("afterbegin",`<div class="card tight" style="border-color:var(--good)"><div class="small">🩹 Youth recovery prevented <b style="color:var(--good)">${s.youngRecoveries}</b> game injur${s.youngRecoveries===1?"y":"ies"} this season.</div></div>`),e.retirementPending&&(t.insertAdjacentHTML("afterbegin",`<div class="banner nfl"><div class="big-emoji">🏛️</div><div class="bt">Mandatory Retirement — Age ${e.age}</div><div class="bs">No player may begin another season after age ${Qt}. Your final season is complete.</div></div>`),x("dock").innerHTML=`<button class="btn" onclick="endCareer()">Retire at Age ${e.age} · View Legacy</button>`)}}};const hc=na;na=function(){if(o.player&&o.player.age>=Qt){o.player.retirementPending=!0,o.view="result",q();return}return hc()};function mc(){if(o=dr()||Zs(),o.tree||(o.tree={}),o.shop){const t={genetics:"genetics",talent:"talent",iron:"iron",coachable:"coachable",headstart:"headstart"};for(const a in o.shop)t[a]&&o.shop[a]>0&&(o.tree[t[a]]=Math.max(o.tree[t[a]]||0,o.shop[a]));delete o.shop}if(o.player&&!o.player.body&&(o.player.body=Pi({height:0,weight:0,muscle:0})),o.challenges||(o.challenges={}),o.titlesWon==null&&(o.titlesWon=0),o.recordOvr==null&&(o.recordOvr=0),o.careersCompleted==null&&(o.careersCompleted=0),o.objectivesCompleted==null&&(o.objectivesCompleted=0),o.rings==null&&(o.rings=0),o.chaos||(o.chaos={}),o.mastery||(o.mastery={}),o.chaosUnlocked==null&&(o.chaosUnlocked=!1),o.chaosCap==null&&(o.chaosCap=Math.max(Ie(),o.chaosUnlocked?6:0)),o.era==null&&(o.era=0),o.hof||(o.hof=[]),o.hofWings==null&&(o.hofWings=0),o.posMastery||(o.posMastery={}),o.inventory||(o.inventory=[]),o.equipped||(o.equipped={}),o.player&&!o.player.nemesis&&_i(o.player),o.player){const t=o.player;t.traits||(t.traits=Ai()),t.teamIdentity||(t.teamIdentity=Xs()),t.titles==null&&(t.titles=0),t.declareBonus==null&&(t.declareBonus=0),t.seasonSeed||(t.seasonSeed=le(1,2e9)),oa(t)}(o.view==="sim"||o.view==="live"||o.view==="training"||o.view==="event")&&(o.view="hub"),q(),setTimeout(hr,1850);const e=document.getElementById("splash");e&&(window.__splashDoneV94?window.__splashDoneV94():(setTimeout(()=>e.classList.add("gone"),1100),setTimeout(()=>{e.parentNode&&e.parentNode.removeChild(e)},1700)))}window.go=te;/* v20 fix: dock Back buttons reference a global `S` (the state) that was never exported — every `go(S.player...)` onclick threw a ReferenceError, so Back appeared dead on menu-reachable screens. Expose the live state as a getter. */try{Object.defineProperty(window,"S",{configurable:!0,get:()=>o})}catch(_e){window.S=o}
 /* v20 personality side-effects (two-sided sliders): varMult widens/narrows game-to-game swings around 50, injMult scales injury rolls both ways. v23: perfFlat is NO LONGER a rating bump here — it is a REAL flat stat boost applied inside the sim's attribute accessor (_raw), so it shows up as actual production (and flows into the box-score grade) instead of an abstract "+performance" number. */
 const _pfxEt=et;et=function(e,t,a){const fx=e&&e.personaFxV20;if(!fx)return _pfxEt(e,t,a);const r=_pfxEt(e,(t||0),a);if(fx.varMult&&fx.varMult!==1)r.perf=f(Math.round(50+(r.perf-50)*fx.varMult),1,100);if((fx.injMult||1)>1&&!r.injured)r.injured=Math.random()<(fx.injMult-1)*.06;else if((fx.injMult||1)<1&&r.injured&&Math.random()<1-fx.injMult)r.injured=!1;return r};
-window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;window.startSeason=Br;window.alloc=Nl;window.doneUpgrade=Fl;window.autoAllocKey=jl;window.autoAllocSpread=Il;window.endCareer=fn;window.prestigeReset=Hl;window.buy=Yl;window.shopBack=ys;window.continueNFL=Gl;window.chooseTraining=Ir;window.chooseEvent=Fr;window.setBranch=Wl;window.watchLive=il;window.quickSimSeason=El;window.startSeasonGames=La;window.playWeek=lt;window.simRemainingWeeks=wt;window.finishSeasonGames=fs;window.finishWeekGame=Ea;window.setSpeed=ml;window.skipLive=pl;window.setRosterTab=rl;window.respecTree=ql;window.choosePath=oo;window.exportSave=Rr;window.importSave=Pr;window.hardReset=Cr;window.toggleSetting=ar;window.applyFieldFx=function(){var el=document.querySelector("#field");if(el){el.style.transform="";}try{var sc=window.__gridironScene;sc&&sc.refreshPersp&&sc.refreshPersp();}catch(e){}};function __pushFieldFx(){var s=(typeof o!=="undefined"&&o&&o.settings)||{};window.__FIELD_FX={tilt:0,depth:s.fxDepth==null?0.45:s.fxDepth,size:s.fxSize==null?1.32:s.fxSize,spread:s.fxSpread==null?1:s.fxSpread,radius:s.fxRadius==null?300:s.fxRadius,zoom:s.fxZoom==null?1.16:s.fxZoom,light:s.fxLight==null?1:s.fxLight};window.applyFieldFx();}window.__fxFmt=function(k,v){v=+v;return k==="fxTilt"?(Math.round(v)+"°"):(k==="fxRadius"||k==="fxPersp")?(Math.round(v)+"px"):(Math.round(v*100)+"%");};window.fieldFxSet=function(k,v,save){o.settings||(o.settings={});o.settings[k]=parseFloat(v);__pushFieldFx();var el=document.getElementById(k+"_val");el&&(el.textContent=window.__fxFmt(k,o.settings[k]));if(save)try{I()}catch(e){}};window.fieldFxReset=function(){o.settings||(o.settings={});["fxTilt","fxPersp","fxDepth","fxSize","fxSpread","fxRadius","fxZoom","fxLight"].forEach(function(k){delete o.settings[k]});try{I()}catch(e){}__pushFieldFx();o.view==="settings"&&Fi();};__pushFieldFx();window.declareAdvance=Vl;window.declareFromHub=Ar;window.chooseTier=Gi;window.setStatsTab=Sr;window.setLeadPos=Mr;window.setLeadSort=xr;window.setChaos=ir;window.chaosMaxAll=or;window.buyMastery=nr;window.screenDynasty=Ra;window.bigMoment=ye;window.equipGear=zr;window.scrapGear=Qr;window.screenHof=Bi;window.screenLocker=ts;mc();function la(e){return e?(Array.isArray(e.decisionQueue)||(e.decisionQueue=[]),Array.isArray(e.careerArcs)||(e.careerArcs=[]),e.worldState||(e.worldState={coachEra:0,teamChemistry:50,programMomentum:50,mediaHeat:20}),e.tempEffects||(e.tempEffects={}),e.schoolRep==null&&(e.schoolRep=0),e.decisionCount==null&&(e.decisionCount=0),e):null}function co(e){la(e),Object.keys(e.tempEffects).forEach(t=>{const a=e.tempEffects[t];a&&typeof a=="object"&&a.games!=null&&(a.games--,a.games<=0&&delete e.tempEffects[t])})}function Vn(e,t){let a=0;return Object.values(e&&e.tempEffects||{}).forEach(s=>{s&&s.fx&&s.fx[t]&&(a+=s.fx[t])}),a}const pc=[{id:"film",title:"The Film Room Is Waiting",copy:"Coaches found several correctable mistakes. How do you spend the night?",choices:[{n:"Stay Late With Coaches",d:"Build trust and awareness, but fatigue may follow.",risk:"Reliable · mild fatigue risk",good:.78,win:{trust:5,mental:1,arc:"Film-room regular"},lose:{trust:1,injuryRisk:.08,nextPerf:-4}},{n:"Study Alone",d:"Smaller trust gain, stronger personal development.",risk:"Safe · steady growth",good:.9,win:{mental:1,rep:1},lose:{nextPerf:-2}},{n:"Clear Your Head",d:"Prioritize recovery and confidence instead.",risk:"High variance",good:.58,win:{recovery:1,nextPerf:7,hype:2},lose:{trust:-4,media:5}}]},{id:"practice",title:"A Starting Spot Is Within Reach",copy:"The staff opens a competitive practice after your latest performance.",choices:[{n:"Challenge the Player Ahead of You",d:"A direct depth-chart battle with major upside.",risk:"Risky · role-changing",good:.52,win:{trust:8,depth:10,hype:4,arc:"Won a depth-chart duel"},lose:{trust:-5,injuryRisk:.16,nextPerf:-5}},{n:"Master Your Current Role",d:"Bank trust through consistency.",risk:"Safe · lower ceiling",good:.86,win:{trust:4,depth:3,nextPerf:2},lose:{trust:-1}},{n:"Ask for Special Teams Snaps",d:"Earn extra opportunities with added injury exposure.",risk:"Moderate · more playing time",good:.68,win:{trust:6,snap:.1,rep:2},lose:{injuryRisk:.13,trust:-2}}]},{id:"media",title:"The Cameras Find You",copy:"A reporter asks about your role and the team after the game.",choices:[{n:"Praise the Team",d:"Low-risk leadership answer.",risk:"Safe · chemistry boost",good:.9,win:{trust:3,chem:7,hype:2},lose:{hype:-1}},{n:"Say You Deserve More Snaps",d:"Apply public pressure to the coaching staff.",risk:"Volatile · large snap upside",good:.46,win:{snap:.15,hype:9,arc:"Publicly demanded a larger role"},lose:{trust:-9,media:12,arc:"Clashed with the staff"}},{n:"Guarantee a Win",d:"Create a high-pressure storyline for next week.",risk:"Boom or bust",good:.5,win:{nextPerf:10,hype:8,pp:2},lose:{nextPerf:-7,hype:-7,media:10}}]},{id:"recovery",title:"Your Body Needs Attention",copy:"The medical staff offers three very different plans.",choices:[{n:"Full Recovery Protocol",d:"Protect health but sacrifice some preparation.",risk:"Safe · performance cost",good:.94,win:{recovery:2,injuryRisk:-.18,nextPerf:-2},lose:{nextPerf:-4}},{n:"Play Through It",d:"Keep momentum but increase injury risk.",risk:"Dangerous · performance upside",good:.57,win:{nextPerf:9,hype:4},lose:{injuryRisk:.28,physical:-1}},{n:"Experimental Treatment",d:"Could accelerate recovery or create a setback.",risk:"Very high variance",good:.43,win:{recovery:3,physical:1,nextPerf:5},lose:{injuryRisk:.35,nextPerf:-9}}]},{id:"team",title:"The Locker Room Is Splitting",copy:"Two groups of teammates are at odds. Your response may define your leadership reputation.",choices:[{n:"Mediate the Conflict",d:"Use leadership to repair chemistry.",risk:"Moderate · leadership roll",good:.66,win:{chem:14,trust:5,rep:3,arc:"Locker-room leader"},lose:{chem:-6,trust:-2}},{n:"Back the Veterans",d:"Gain veteran support but risk alienating younger players.",risk:"Political tradeoff",good:.65,win:{trust:4,nextPerf:5,chem:3},lose:{chem:-9,hype:-3}},{n:"Stay Out of It",d:"Avoid immediate risk while the conflict grows.",risk:"Safe now · future cost",good:.82,win:{recovery:1},lose:{chem:-10,media:5}}]},{id:"opportunity",title:"A Bigger Program Calls",copy:"A stronger team offers exposure and facilities, but your depth-chart standing would reset.",choices:[{n:"Take the Opportunity",d:"Higher program momentum; lose immediate role security.",risk:"Long-term upside",good:.62,win:{momentum:15,rep:5,depth:-8,arc:"Bet on a bigger program"},lose:{depth:-15,trust:-5}},{n:"Stay Loyal",d:"Strengthen coach trust and local reputation.",risk:"Reliable",good:.9,win:{trust:7,rep:4,chem:5,arc:"Chose loyalty"},lose:{momentum:-3}},{n:"Use the Offer as Leverage",d:"Try to secure promises without leaving.",risk:"High social risk",good:.45,win:{trust:4,snap:.12,hype:6},lose:{trust:-10,depth:-5,media:8}}]}];function vc(e,t){la(e);const a=pc.filter(n=>!(e.level<4&&n.id==="opportunity")),s=a[Math.floor(Math.random()*a.length)];return{uid:Date.now()+"-"+Math.random(),id:s.id,title:s.title,copy:s.copy,choices:s.choices,week:t&&t.week||e.currentWeek,opp:t&&t.opp||"",perf:Number(t&&t.perf)||50}}function yc(e,t){la(e),e.decisionQueue.push(vc(e,t)),I()}function gc(){const e=o.player;la(e);const t=e.decisionQueue[0];return t?`<div class="decision-overlay"><div class="decision-panel"><div class="decision-kicker">POST-GAME DECISION · ${t.opp?S(t.opp):"CAREER CROSSROADS"}</div><div class="decision-title">${S(t.title)}</div><div class="decision-copy">${S(t.copy)} Your previous game rating was <b>${Math.round(t.perf)}</b>.</div>${t.choices.map((a,s)=>`<button class="decision-choice" onclick="resolveDecision102(${s})"><b>${S(a.n)}</b><small>${S(a.d)}</small><span class="decision-risk">${S(a.risk)} · ${Math.round(f(a.good,0,1)*100)}% base success</span></button>`).join("")}</div></div>`:""}function bc(e){la(e);const t=e.worldState,a=e.careerArcs.slice(0,4);return`<div class="card world-card"><div class="eyebrow">LIVING FOOTBALL WORLD</div><div class="h2" style="margin:2px 0 7px">Your Career Has Consequences</div><div class="depth-grid"><div class="depth-cell"><div class="n">${Math.round(t.teamChemistry)}</div><div class="l">Chemistry</div></div><div class="depth-cell"><div class="n">${Math.round(t.programMomentum)}</div><div class="l">Program</div></div><div class="depth-cell"><div class="n">${Math.round(t.mediaHeat)}</div><div class="l">Media Heat</div></div></div>${a.length?`<div style="margin-top:8px">${a.map(s=>`<span class="arc-chip ${s.tone||""}">${S(s.text)}</span>`).join("")}</div>`:'<div class="small" style="margin-top:8px">Major decisions will create permanent story arcs here.</div>'}</div>`}const uo=He;He=function(e,t){const a=!!(e&&e._pulse95);uo(e,t),e&&!a&&co(t)};const kc=q;q=function(){kc();const e=o.player,t=x("screen");!e||!t||(la(e),o.view==="hub"&&!t.querySelector(".world-card")&&(t.querySelector(".depth-card")||t.firstElementChild).insertAdjacentHTML("afterend",bc(e)),e.decisionQueue.length&&!document.querySelector(".decision-overlay")&&document.body.insertAdjacentHTML("beforeend",gc()))};wt=function(){F("Major decisions must be made after every game. Play games individually.")};const wc=et;et=function(e,t,a){const r=wc(e,(t||0),a),l=Vn(e,"injuryRisk");return l>0&&!r.injured&&Math.random()<l&&(r.injured=!0),l<0&&r.injured&&Math.random()<Math.min(.8,Math.abs(l)*2)&&(r.injured=!1),r};const yt=[{id:"disciplined",icon:"📋",name:"Disciplined Execution",desc:"Reduce volatility, protect the ball, and build composure.",perf:2,varMult:.55,inj:-.05,snap:0,trust:1,comp:3,mom:1,tags:["LOW VARIANCE","SAFE"]},{id:"feature",icon:"🎯",name:"Demand the Spotlight",desc:"Ask the staff to feature you. More snaps and upside, but mistakes are magnified.",perf:5,varMult:1.28,inj:.05,snap:.1,trust:0,comp:-1,mom:2,tags:["MORE SNAPS","VOLATILE"]},{id:"explosive",icon:"⚡",name:"Chase the Highlight",desc:"Hunt explosive plays. Huge ceiling, higher injury and turnover risk.",perf:7,varMult:1.72,inj:.12,snap:.04,trust:-1,comp:-2,mom:4,tags:["BOOM/BUST","INJURY RISK"]},{id:"team",icon:"🛡️",name:"Do the Dirty Work",desc:"Block, cover, and execute assignments. Lower box-score ceiling, strong trust gains.",perf:-1,varMult:.8,inj:.01,snap:.06,trust:3,comp:2,mom:1,tags:["COACH TRUST","ROLE GROWTH"]},
+window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;window.startSeason=Br;window.alloc=Nl;window.doneUpgrade=Fl;window.autoAllocKey=jl;window.autoAllocSpread=Il;window.endCareer=fn;window.prestigeReset=Hl;window.buy=Yl;window.shopBack=ys;window.continueNFL=Gl;window.chooseTraining=Ir;window.chooseEvent=Fr;window.setBranch=Wl;window.watchLive=il;window.quickSimSeason=El;window.startSeasonGames=La;window.playWeek=lt;window.simRemainingWeeks=wt;window.finishSeasonGames=fs;window.finishWeekGame=Ea;window.setSpeed=ml;window.skipLive=pl;window.setRosterTab=rl;window.respecTree=ql;window.choosePath=oo;window.exportSave=Rr;window.importSave=Pr;window.hardReset=Cr;window.toggleSetting=ar;window.applyFieldFx=function(){var el=document.querySelector("#field");if(el){el.style.transform="";}try{var sc=window.__gridironScene;sc&&sc.refreshPersp&&sc.refreshPersp();}catch(e){}};function __pushFieldFx(){var s=(typeof o!=="undefined"&&o&&o.settings)||{};window.__FIELD_FX={tilt:0,depth:s.fxDepth==null?0.78:s.fxDepth,size:s.fxSize==null?1.32:s.fxSize,spread:s.fxSpread==null?1:s.fxSpread,radius:s.fxRadius==null?300:s.fxRadius,zoom:s.fxZoom==null?1.16:s.fxZoom,light:s.fxLight==null?1:s.fxLight};window.applyFieldFx();}window.__fxFmt=function(k,v){v=+v;return k==="fxTilt"?(Math.round(v)+"°"):(k==="fxRadius"||k==="fxPersp")?(Math.round(v)+"px"):(Math.round(v*100)+"%");};window.fieldFxSet=function(k,v,save){o.settings||(o.settings={});o.settings[k]=parseFloat(v);__pushFieldFx();var el=document.getElementById(k+"_val");el&&(el.textContent=window.__fxFmt(k,o.settings[k]));if(save)try{I()}catch(e){}};window.fieldFxReset=function(){o.settings||(o.settings={});["fxTilt","fxPersp","fxDepth","fxSize","fxSpread","fxRadius","fxZoom","fxLight"].forEach(function(k){delete o.settings[k]});try{I()}catch(e){}__pushFieldFx();o.view==="settings"&&Fi();};__pushFieldFx();window.declareAdvance=Vl;window.declareFromHub=Ar;window.chooseTier=Gi;window.setStatsTab=Sr;window.setLeadPos=Mr;window.setLeadSort=xr;window.setChaos=ir;window.chaosMaxAll=or;window.buyMastery=nr;window.screenDynasty=Ra;window.bigMoment=ye;window.equipGear=zr;window.scrapGear=Qr;window.screenHof=Bi;window.screenLocker=ts;mc();function la(e){return e?(Array.isArray(e.decisionQueue)||(e.decisionQueue=[]),Array.isArray(e.careerArcs)||(e.careerArcs=[]),e.worldState||(e.worldState={coachEra:0,teamChemistry:50,programMomentum:50,mediaHeat:20}),e.tempEffects||(e.tempEffects={}),e.schoolRep==null&&(e.schoolRep=0),e.decisionCount==null&&(e.decisionCount=0),e):null}function co(e){la(e),Object.keys(e.tempEffects).forEach(t=>{const a=e.tempEffects[t];a&&typeof a=="object"&&a.games!=null&&(a.games--,a.games<=0&&delete e.tempEffects[t])})}function Vn(e,t){let a=0;return Object.values(e&&e.tempEffects||{}).forEach(s=>{s&&s.fx&&s.fx[t]&&(a+=s.fx[t])}),a}const pc=[{id:"film",title:"The Film Room Is Waiting",copy:"Coaches found several correctable mistakes. How do you spend the night?",choices:[{n:"Stay Late With Coaches",d:"Build trust and awareness, but fatigue may follow.",risk:"Reliable · mild fatigue risk",good:.78,win:{trust:5,mental:1,arc:"Film-room regular"},lose:{trust:1,injuryRisk:.08,nextPerf:-4}},{n:"Study Alone",d:"Smaller trust gain, stronger personal development.",risk:"Safe · steady growth",good:.9,win:{mental:1,rep:1},lose:{nextPerf:-2}},{n:"Clear Your Head",d:"Prioritize recovery and confidence instead.",risk:"High variance",good:.58,win:{recovery:1,nextPerf:7,hype:2},lose:{trust:-4,media:5}}]},{id:"practice",title:"A Starting Spot Is Within Reach",copy:"The staff opens a competitive practice after your latest performance.",choices:[{n:"Challenge the Player Ahead of You",d:"A direct depth-chart battle with major upside.",risk:"Risky · role-changing",good:.52,win:{trust:8,depth:10,hype:4,arc:"Won a depth-chart duel"},lose:{trust:-5,injuryRisk:.16,nextPerf:-5}},{n:"Master Your Current Role",d:"Bank trust through consistency.",risk:"Safe · lower ceiling",good:.86,win:{trust:4,depth:3,nextPerf:2},lose:{trust:-1}},{n:"Ask for Special Teams Snaps",d:"Earn extra opportunities with added injury exposure.",risk:"Moderate · more playing time",good:.68,win:{trust:6,snap:.1,rep:2},lose:{injuryRisk:.13,trust:-2}}]},{id:"media",title:"The Cameras Find You",copy:"A reporter asks about your role and the team after the game.",choices:[{n:"Praise the Team",d:"Low-risk leadership answer.",risk:"Safe · chemistry boost",good:.9,win:{trust:3,chem:7,hype:2},lose:{hype:-1}},{n:"Say You Deserve More Snaps",d:"Apply public pressure to the coaching staff.",risk:"Volatile · large snap upside",good:.46,win:{snap:.15,hype:9,arc:"Publicly demanded a larger role"},lose:{trust:-9,media:12,arc:"Clashed with the staff"}},{n:"Guarantee a Win",d:"Create a high-pressure storyline for next week.",risk:"Boom or bust",good:.5,win:{nextPerf:10,hype:8,pp:2},lose:{nextPerf:-7,hype:-7,media:10}}]},{id:"recovery",title:"Your Body Needs Attention",copy:"The medical staff offers three very different plans.",choices:[{n:"Full Recovery Protocol",d:"Protect health but sacrifice some preparation.",risk:"Safe · performance cost",good:.94,win:{recovery:2,injuryRisk:-.18,nextPerf:-2},lose:{nextPerf:-4}},{n:"Play Through It",d:"Keep momentum but increase injury risk.",risk:"Dangerous · performance upside",good:.57,win:{nextPerf:9,hype:4},lose:{injuryRisk:.28,physical:-1}},{n:"Experimental Treatment",d:"Could accelerate recovery or create a setback.",risk:"Very high variance",good:.43,win:{recovery:3,physical:1,nextPerf:5},lose:{injuryRisk:.35,nextPerf:-9}}]},{id:"team",title:"The Locker Room Is Splitting",copy:"Two groups of teammates are at odds. Your response may define your leadership reputation.",choices:[{n:"Mediate the Conflict",d:"Use leadership to repair chemistry.",risk:"Moderate · leadership roll",good:.66,win:{chem:14,trust:5,rep:3,arc:"Locker-room leader"},lose:{chem:-6,trust:-2}},{n:"Back the Veterans",d:"Gain veteran support but risk alienating younger players.",risk:"Political tradeoff",good:.65,win:{trust:4,nextPerf:5,chem:3},lose:{chem:-9,hype:-3}},{n:"Stay Out of It",d:"Avoid immediate risk while the conflict grows.",risk:"Safe now · future cost",good:.82,win:{recovery:1},lose:{chem:-10,media:5}}]},{id:"opportunity",title:"A Bigger Program Calls",copy:"A stronger team offers exposure and facilities, but your depth-chart standing would reset.",choices:[{n:"Take the Opportunity",d:"Higher program momentum; lose immediate role security.",risk:"Long-term upside",good:.62,win:{momentum:15,rep:5,depth:-8,arc:"Bet on a bigger program"},lose:{depth:-15,trust:-5}},{n:"Stay Loyal",d:"Strengthen coach trust and local reputation.",risk:"Reliable",good:.9,win:{trust:7,rep:4,chem:5,arc:"Chose loyalty"},lose:{momentum:-3}},{n:"Use the Offer as Leverage",d:"Try to secure promises without leaving.",risk:"High social risk",good:.45,win:{trust:4,snap:.12,hype:6},lose:{trust:-10,depth:-5,media:8}}]}];function vc(e,t){la(e);const a=pc.filter(n=>!(e.level<4&&n.id==="opportunity")),s=a[Math.floor(Math.random()*a.length)];return{uid:Date.now()+"-"+Math.random(),id:s.id,title:s.title,copy:s.copy,choices:s.choices,week:t&&t.week||e.currentWeek,opp:t&&t.opp||"",perf:Number(t&&t.perf)||50}}function yc(e,t){la(e),e.decisionQueue.push(vc(e,t)),I()}function gc(){const e=o.player;la(e);const t=e.decisionQueue[0];return t?`<div class="decision-overlay"><div class="decision-panel"><div class="decision-kicker">POST-GAME DECISION · ${t.opp?S(t.opp):"CAREER CROSSROADS"}</div><div class="decision-title">${S(t.title)}</div><div class="decision-copy">${S(t.copy)} Your previous game rating was <b>${Math.round(t.perf)}</b>.</div>${t.choices.map((a,s)=>`<button class="decision-choice" onclick="resolveDecision102(${s})"><b>${S(a.n)}</b><small>${S(a.d)}</small><span class="decision-risk">${S(a.risk)} · ${Math.round(f(a.good,0,1)*100)}% base success</span></button>`).join("")}</div></div>`:""}function bc(e){la(e);const t=e.worldState,a=e.careerArcs.slice(0,4);return`<div class="card world-card"><div class="eyebrow">LIVING FOOTBALL WORLD</div><div class="h2" style="margin:2px 0 7px">Your Career Has Consequences</div><div class="depth-grid"><div class="depth-cell"><div class="n">${Math.round(t.teamChemistry)}</div><div class="l">Chemistry</div></div><div class="depth-cell"><div class="n">${Math.round(t.programMomentum)}</div><div class="l">Program</div></div><div class="depth-cell"><div class="n">${Math.round(t.mediaHeat)}</div><div class="l">Media Heat</div></div></div>${a.length?`<div style="margin-top:8px">${a.map(s=>`<span class="arc-chip ${s.tone||""}">${S(s.text)}</span>`).join("")}</div>`:'<div class="small" style="margin-top:8px">Major decisions will create permanent story arcs here.</div>'}</div>`}const uo=He;He=function(e,t){const a=!!(e&&e._pulse95);uo(e,t),e&&!a&&co(t)};const kc=q;q=function(){kc();const e=o.player,t=x("screen");!e||!t||(la(e),o.view==="hub"&&!t.querySelector(".world-card")&&(t.querySelector(".depth-card")||t.firstElementChild).insertAdjacentHTML("afterend",bc(e)),e.decisionQueue.length&&!document.querySelector(".decision-overlay")&&document.body.insertAdjacentHTML("beforeend",gc()))};wt=function(){F("Major decisions must be made after every game. Play games individually.")};const wc=et;et=function(e,t,a){const r=wc(e,(t||0),a),l=Vn(e,"injuryRisk");return l>0&&!r.injured&&Math.random()<l&&(r.injured=!0),l<0&&r.injured&&Math.random()<Math.min(.8,Math.abs(l)*2)&&(r.injured=!1),r};const yt=[{id:"disciplined",icon:"📋",name:"Disciplined Execution",desc:"Reduce volatility, protect the ball, and build composure.",perf:2,varMult:.55,inj:-.05,snap:0,trust:1,comp:3,mom:1,tags:["LOW VARIANCE","SAFE"]},{id:"feature",icon:"🎯",name:"Demand the Spotlight",desc:"Ask the staff to feature you. More snaps and upside, but mistakes are magnified.",perf:5,varMult:1.28,inj:.05,snap:.1,trust:0,comp:-1,mom:2,tags:["MORE SNAPS","VOLATILE"]},{id:"explosive",icon:"⚡",name:"Chase the Highlight",desc:"Hunt explosive plays. Huge ceiling, higher injury and turnover risk.",perf:7,varMult:1.72,inj:.12,snap:.04,trust:-1,comp:-2,mom:4,tags:["BOOM/BUST","INJURY RISK"]},{id:"team",icon:"🛡️",name:"Do the Dirty Work",desc:"Block, cover, and execute assignments. Lower box-score ceiling, strong trust gains.",perf:-1,varMult:.8,inj:.01,snap:.06,trust:3,comp:2,mom:1,tags:["COACH TRUST","ROLE GROWTH"]},
 /* v18: five more prep paths — real buffs AND real costs, so the weekly scouting/prep choice matters */
 {id:"filmgrind",icon:"🎬",name:"Film Marathon",desc:"Bury yourself in tape. You will see the play before it happens — but the extra hours wear on the body.",perf:4,varMult:.7,inj:.02,snap:.02,trust:2,comp:2,mom:0,tags:["PREPARED","FATIGUE"]},
 {id:"recover",icon:"🛌",name:"Rest & Recover",desc:"A light week: treatment, sleep, and legs for Sunday. Heals fatigue and cuts injury risk, at the cost of sharpness.",perf:-2,varMult:.75,inj:-.12,snap:-.02,trust:0,comp:1,mom:-1,rest:1,tags:["HEALS BODY","−INJURY RISK"]},
@@ -17874,5 +18025,5 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   try { window.__HUB_V75 = { views: VIEWS, tabs: TAB, sweep } } catch (e) {}
 })();
 </script>
-<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v90"></script><script src="./public/rib-menu-boot.js?v=v90"></script><script src="./public/rib-menu.js?v=v90"></script><script src="./public/rib-menu-navigation.js?v=v90"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
+<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v104-kit"></script><script src="./public/rib-menu-boot.js?v=v104-kit"></script><script src="./public/rib-menu.js?v=v104-kit"></script><script src="./public/rib-menu-navigation.js?v=v104-kit"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
 </html>
