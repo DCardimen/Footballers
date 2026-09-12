@@ -16,6 +16,12 @@
   const BODY_CLASS = 'rib-menu-open';
   const previewMode = new URLSearchParams(location.search).has('menuPreview');
   const ART = './public/menu/';
+  // v104: the pictures and their masks keep their names from build to build, so a browser that
+  // has seen the menu once keeps the OLD kit masks forever unless the URL moves. The baked build
+  // stamp (`<meta name="rib-menu-build">`, set by scripts/bake-menu-into-index.mjs) rides every
+  // art URL as a query, the same way it already rides the script and stylesheet links.
+  const BUILD = (() => { try { return (document.querySelector('meta[name="rib-menu-build"]') || {}).content || ''; } catch (e) { return ''; } })();
+  const ARTV = BUILD ? '?v=' + encodeURIComponent(BUILD) : '';
   // a url() handed to the stylesheet through a custom property resolves against the SHEET, not the
   // document — so the mask asks for it by its document-absolute address
   const artUrl = (file) => { try { return new URL(ART + file, document.baseURI).href; } catch (e) { return ART + file; } };
@@ -167,8 +173,8 @@
     if (!c) return '';
     // the mask URL goes on the element itself: a url() inside a custom property resolves against
     // the stylesheet in Chrome and the document in Firefox, so neither relative form is safe there
-    const url = `url(${ART}${mask}.webp)`;
-    if (src) return `<img class="rib9-tint rib9-recolor" src="${ART}${src}.webp" alt="" data-mask="${mask}" style="--ts:${strength};-webkit-mask-image:${url};mask-image:${url};filter:${recolorFilter(c)}">`;
+    const url = `url(${ART}${mask}.webp${ARTV})`;
+    if (src) return `<img class="rib9-tint rib9-recolor" src="${ART}${src}.webp${ARTV}" alt="" data-mask="${mask}" style="--ts:${strength};-webkit-mask-image:${url};mask-image:${url};filter:${recolorFilter(c)}">`;
     const at = `data-mask="${mask}" style="--tp:${esc(c)};--ts:${strength};-webkit-mask-image:${url};mask-image:${url}"`;
     return `<div class="rib9-tint rib9-tint-hue" ${at}></div><div class="rib9-tint rib9-tint-shade" ${at}></div>`;
   };
@@ -204,7 +210,7 @@
   const legacyPanel = (S) => `<section class="rib9-card rib9-legacy">
             <div class="rib9-kicker">YOUR LEGACY</div>
             <div class="rib9-legacy-grid">
-              ${LEGACY_TILES.map(([cls, icon, field, label, read]) => `<div class="rib9-lt ${cls}"><i><img src="${ART}legacy_${icon}.webp" alt="" loading="lazy"></i><b data-rib-field="${field}">${esc(read(S))}</b><small>${label}</small></div>`).join('')}
+              ${LEGACY_TILES.map(([cls, icon, field, label, read]) => `<div class="rib9-lt ${cls}"><i><img src="${ART}legacy_${icon}.webp${ARTV}" alt="" loading="lazy"></i><b data-rib-field="${field}">${esc(read(S))}</b><small>${label}</small></div>`).join('')}
             </div>
           </section>`;
 
@@ -265,7 +271,7 @@
     const quote = has ? quoteFor(pl) : 'EVERY LEGEND HAS A FIRST SNAP.';
     const pk = has ? perks(data) : [];
     const stars = has ? Math.max(0, Math.min(5, pl.stars || 0)) : 0;
-    const tile = (action, icon, label, sub, cls = '') => `<button class="rib9-tile ${cls}" type="button" data-rib-action="${action}"><img src="${ART}${icon}.webp" alt="" loading="lazy"><b>${label}</b><small>${sub}</small></button>`;
+    const tile = (action, icon, label, sub, cls = '') => `<button class="rib9-tile ${cls}" type="button" data-rib-action="${action}"><img src="${ART}${icon}.webp${ARTV}" alt="" loading="lazy"><b>${label}</b><small>${sub}</small></button>`;
     const tilesNav = `<nav class="rib9-tiles" aria-label="Sections">
           ${tile(has ? 'view:' + careerView : 'new', 'icon_career', 'CAREER', has ? 'PLAY NEXT GAME' : 'START A CAREER', 'rib9-tile-hot')}
           ${tile(has ? 'view:upgrade' : 'new', 'icon_training', 'TRAINING', 'UPGRADE SKILLS')}
@@ -289,21 +295,21 @@
 
         <section class="rib9-hero" aria-label="Running It Back">
           <div class="rib9-hero-art"><!-- v104: the picture, its kit and the name breathe as ONE layer — the tints used to sit still under a picture scaling by 2% -->
-          <img class="rib9-hero-img" src="${ART}hero_tunnel.webp" alt="" data-nat="1600,914">
+          <img class="rib9-hero-img" src="${ART}hero_tunnel.webp${ARTV}" alt="" data-nat="1600,914">
           ${tint(colors, 0, 'hero_mask_p', 1, RECOLOR && 'hero_tunnel')}${tint(colors, 1, 'hero_mask_s', 1, RECOLOR && 'hero_tunnel')}
           <div class="rib9-hero-lift" data-region="0.865,0.42,0.15,0.4"></div>
           ${has ? `<div class="rib9-hero-jersey" aria-hidden="true" data-at="0.5,0.52"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>` : ''}
           </div>
           ${heroFxMarkup()}
           <div class="rib9-hero-shade"></div>
-          <div class="rib9-hero-copy"><h1><img src="${ART}logo_wordmark.webp" alt="Running It Back"><i class="rib9-sheen" style="--wm:url('${artUrl('logo_wordmark.webp')}')"></i></h1>
-            <img class="rib9-swash" src="${ART}swash_underline.webp" alt=""></div>
+          <div class="rib9-hero-copy"><h1><img src="${ART}logo_wordmark.webp${ARTV}" alt="Running It Back"><i class="rib9-sheen" style="--wm:url('${artUrl('logo_wordmark.webp' + ARTV)}')"></i></h1>
+            <img class="rib9-swash" src="${ART}swash_underline.webp${ARTV}" alt=""></div>
         </section>
 
         ${has ? `
         <section class="rib9-card rib9-player">
           <div class="rib9-portrait" data-rib-action="locker" role="button" tabindex="0">
-            <img src="${ART}portrait_helmet.webp" alt="" data-nat="640,640" data-op="0.5,0.5">
+            <img src="${ART}portrait_helmet.webp${ARTV}" alt="" data-nat="640,640" data-op="0.5,0.5">
             ${tint(colors, 1, 'portrait_helmet_mask_s', 1, RECOLOR && 'portrait_helmet')}
             ${team.logoCss ? `<span class="rib9-helmet-logo emblem-v44" style="${esc(team.logoCss)}"><i class="rib9-helmet-shade" style="${esc(maskOf(team.logoCss))}"></i></span>` : ''}
             <span class="rib9-edit">✎ EDIT PLAYER</span>
@@ -320,7 +326,7 @@
 
         <div class="rib9-grid">
           <section class="rib9-card rib9-continue" data-rib-action="continue" role="button" tabindex="0">
-            <img src="${ART}card_continue.webp" alt="" data-nat="1000,640">
+            <img src="${ART}card_continue.webp${ARTV}" alt="" data-nat="1000,640">
             ${tint(colors, 0, 'card_continue_mask_p', 1, RECOLOR && 'card_continue')}${tint(colors, 1, 'card_continue_mask_s', 1, RECOLOR && 'card_continue')}
             <div class="rib9-hero-jersey rib9-card-jersey" aria-hidden="true" data-at="0.775,0.535"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>
             <div class="rib9-continue-copy"><h2>CONTINUE<br>CAREER <span>${svg('chev')}</span></h2><div class="rib9-yw">Year ${year} <i></i> Week ${week}</div><div class="rib9-vs">${season.nextOpp ? `vs ${esc(season.nextOpp)} (${record(season)})` : season.weeks.length ? `Season complete (${record(season)})` : `${esc(String(pl.levelName))} · Season ${pl.seasonsAtLevel + 1}`}</div></div>
@@ -332,7 +338,7 @@
           </section>
           ${legacyPanel(S)}
           <section class="rib9-card rib9-milestones" data-rib-action="goals" role="button" tabindex="0">
-            <img class="rib9-trophy" src="${ART}card_trophy.webp" alt="">
+            <img class="rib9-trophy" src="${ART}card_trophy.webp${ARTV}" alt="">
             <div class="rib9-ms-copy"><div class="rib9-kicker">CAREER MILESTONES</div>${milestones(data)}</div>
             <div class="rib9-ms-plate">A HIGHER<br>STANDARD</div>
           </section>
@@ -340,12 +346,12 @@
         <section class="rib9-card rib9-archcard">
           <div class="rib9-arch">
             <div class="rib9-kicker">ARCHETYPE</div><div class="rib9-arch-name">${esc(arch)}</div>
-            <div class="rib9-perks">${pk.map(p => `<div class="rib9-perk"><img src="${ART}badge_${p.badge}.webp" alt=""><span>${esc(p.label)}</span></div>`).join('')}</div>
+            <div class="rib9-perks">${pk.map(p => `<div class="rib9-perk"><img src="${ART}badge_${p.badge}.webp${ARTV}" alt=""><span>${esc(p.label)}</span></div>`).join('')}</div>
           </div>
           <div class="rib9-quote"><p>${esc(quote)}</p><span class="rib9-sig">${esc(initial(pl.name))}. ${esc(String(pl.name).split(/\s+/).pop() || '')}</span></div>
         </section>` : `
         <section class="rib9-card rib9-player rib9-player-empty">
-          <div class="rib9-portrait"><img src="${ART}portrait_helmet.webp" alt=""></div>
+          <div class="rib9-portrait"><img src="${ART}portrait_helmet.webp${ARTV}" alt=""></div>
           <div class="rib9-identity">
             <div class="rib9-name" data-rib-field="playerName">BUILD YOUR PLAYER</div>
             <div class="rib9-meta"><span>PICK A POSITION</span><i></i><span>AGE 8</span><i></i><span>PEE WEE</span></div>
@@ -357,7 +363,7 @@
         <div class="rib9-grid">
           ${legacyPanel(S)}
           <section class="rib9-card rib9-milestones" data-rib-action="new" role="button" tabindex="0">
-            <img class="rib9-trophy" src="${ART}card_trophy.webp" alt="">
+            <img class="rib9-trophy" src="${ART}card_trophy.webp${ARTV}" alt="">
             <div class="rib9-ms-copy"><div class="rib9-kicker">CAREER MILESTONES</div>${milestones(data)}</div>
             <div class="rib9-ms-plate">A HIGHER<br>STANDARD</div>
           </section>

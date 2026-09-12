@@ -33,6 +33,12 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v105 THE BALL HAS A HANDLER` — `handV105` / `handPosV105` (the snap, the handoff, the toss:
+  a ball chasing the hand it is owed, re-aimed every frame), `trailV105` (the ribbon, the spiral
+  in flight, the flame + embers for a hot man), `heatV105` / `hotV105` (the per-offense heat book
+  written in `complete()`; `heatHot` is the line), the glide-phase ball on the grass at
+  `ballGroundDepth`, the pre-snap ball under CENTER (actor 5, `ballUnderCenterY`);
+  `window.__V105` is the hook. Field perspective defaults to 0.78 (`fxDepth`)
 - `v104 THE NUMBER ON THE JERSEY` — the kit bands read off each drawn cell at register time
   (`numBandV104`, cached per SOURCE cell in `RIB.numBandSrc`, per texture key in `RIB.numBandTex`):
   the waistband, the collar, and the row the jersey itself runs out on. `numPlaceV104` hangs the
@@ -148,6 +154,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | pass coverage / credit, QB scramble & targets, the safety, the huddle (v87) | `v87check.mjs`, `creditcheck.mjs`, `simcheck.mjs` |
 | promotion odds / the declare (v88) | `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs` |
 | the callout badges / the moments the field shouts (v95) | `badgecheck.mjs`, `v86check.mjs` |
+| the ball between the hands / the trail, the spiral, the flame / the heat book / the perspective default (v105) | `v105check.mjs`, then `v86check.mjs`, `v91check.mjs`, `sidelinecheck.mjs`, `v92check.mjs`, `v99check.mjs`, `crowdcheck.mjs` |
 | jersey numbers on the live field (v104) | `v104check.mjs`, then `v86check.mjs`, `v91check.mjs`, `renderpathcheck.mjs` |
 | the grab / the pile / the strip / blocking / post-whistle contact (v103) | `v103check.mjs`, then `readcheck.mjs`, `tacklecheck.mjs`, `creditcheck.mjs`, `simcheck.mjs`, `renderpathcheck.mjs`, `v86check.mjs` |
 | the mirrored masts / the breathing light / the slow-motion moment / the living menu (v102) | `v102check.mjs`, then `v98check.mjs`, `v99check.mjs`, `v92check.mjs`, `v86check.mjs`, `menu-integration-check.mjs` |

@@ -374,6 +374,55 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v105 — the ball has a handler
+
+**What was wrong.** Before the snap the ball sprite sat on the sim's ground spot at the line at
+depth 9 — *above* the trench markers (4 + sy·0.02 ≈ 8.4 there) — so it drew across the center's
+waist with the QB standing right behind him: he looked like he already had it. `case "snap"` then
+set `ballHolderId = 8` and the ball was in his hand the same frame. `case "handoff"` did the same
+to the back. No exchange had any motion.
+
+**The hand** (`v105 THE BALL HAS A HANDLER`, `handV105` / `handPosV105`). An exchange opens a hand:
+`P._hand = { x0, y0, t0, ms, arc, kind, toss }`, where (x0, y0) is where the ball is drawn the frame
+the event fires. Every frame after, the ball block computes the holder-mounted resting position as
+before, and `handPosV105` returns the point between the hand's origin and THAT position — so the
+target is re-aimed every frame and a QB dropping back still receives the snap in his hand. A snap
+eases out (fast away, settling); a handoff and a toss travel evenly with a sine lift of `arc`. A
+toss is a CALL — the playbook's sweep family (toss, jet, outside zone, pin and pull, reverse), read
+off `payload.desc` — longer (`tossMs` + `tossMsPerPx`·d), higher (`tossArc`), with the sprite on
+the v91 tumble frames; every other exchange is a quick low flick timed by the gap (`handoffMs` +
+`handoffMsPerPx`·d), because the sim stages no mesh: the QB drifts while the back is already on
+his path, so the two are a few yards apart when the sim switches the carrier. A throw closes any
+open hand (`P._hand = null`) and records `P._thrower` for the flame. Kicks keep the sim's own
+long-snap flight (`snapCatch`); a kickoff has no snap.
+
+**Under center.** During the huddle glide (`P.t < P.delay`) the ball is placed on the grass at the
+spot, ground size, at `ballGroundDepth` (3.9 — above the shadows at 3.5, below every marker).
+Once the offense is set, `centerV105` (actor 5, when no holder, not snapped, not a kick) becomes
+the holder with `ox = 0, oy = ballUnderCenterY`, depth a hair behind him.
+
+**The trail** (`trailV105`). One `Graphics` (`this.ballTrailG`, destroyed with the actors), cleared
+every frame, redrawn from `P._trailV105` — the ball's screen positions over the last `trailMs`.
+Drawn only when `why` is set: a hand (`snap`/`hand`), a flight, a kick, a loose ball, or a HOT
+carrier above `trailCarrySpd`. Tapered to the tail; one pale strand for a gust (cream for the
+snap); in flight two strands pushed off the path across its own direction by a sine of each
+point's age, in antiphase — the double helix that reads as the seam turning (`spiralR`,
+`spiralRate`); for a hot ball three strands (red glow, orange, near-white core) with a flicker,
+plus embers spawned every `emberEveryMs` that drift up and die.
+
+**The heat book** (`heatV105`, called from `complete()`; `hotV105` reads it). Keyed
+`us:<idx>` / `them:<idx>` on the scene (it lives for the game). A completion heats the arm (+1,
++2 big); an incompletion, sack or turnover cools it (−1); the man who finished with the ball is
+heated by the play's size; everyone else on that offense cools by `heatCool`. `heatHot` (3) is the
+line, `heatCap` the ceiling. At the snap a man over the line who has not yet said so pops
+**ON FIRE!** (`_heatSaidV105`, cleared when he cools).
+
+**The perspective default** moved from 0.45 to 0.78 in the three places it lived (`buildPersp`,
+the Settings row, `__pushFieldFx`); a saved `fxDepth` still wins.
+
+`window.__V105`: `hands`, `snap`, `handoff`, `tosses`, `lastHand`, `trailFrames`, `flameFrames`,
+`plays`, `heat`.
+
 ## v104 — the number on the jersey
 
 Three separate problems lived in four lines of `placeMarker`: the label was created at a fixed

@@ -34,6 +34,7 @@ const PROBES = {
 // ================= 1. the shipped masks =================
 const page0 = await browser.newPage()
 await page0.goto(URL, { waitUntil: 'domcontentloaded' })
+await page0.waitForSelector('#rib-main-menu-v2 [data-mask]', { timeout: 15000 }).catch(() => {})
 const maskProbe = await page0.evaluate(async (PROBES) => {
   const load = s => new Promise((r, j) => { const i = new Image(); i.onload = () => r(i); i.onerror = j; i.src = '/menu/' + s + '.webp' })
   const out = {}
@@ -93,6 +94,15 @@ for (const [w, h] of (process.env.SIZES || '430x932,900x1100').split(',').map(x 
   await page.addStyleTag({ content: '#rib-main-menu-v2 *, #rib-main-menu-v2 *::before, #rib-main-menu-v2 *::after { animation: none !important; transition: none !important; } .rib9-hero-fx { display: none !important }' })
   await page.waitForTimeout(900)
   const colors = await page.evaluate(() => { try { return window.__RIB_MENU_DATA_V89().team.colors } catch (e) { return null } })
+  if (w === 430) {
+  // the delivery: the art URLs carry the baked build stamp, so a browser that cached the OLD masks
+  // under the same file names fetches the new ones the moment the build moves (v104)
+  const delivery = await page.evaluate(() => ({ build: (document.querySelector('meta[name="rib-menu-build"]') || {}).content || '',
+    scripts: [...document.querySelectorAll('script[src*="rib-menu"]')].map(s => s.getAttribute('src')),
+    masks: [...document.querySelectorAll('#rib-main-menu-v2 [data-mask]')].map(t => (t.getAttribute('style') || '').match(/mask-image:\s*url\(([^)]+)\)/) ? RegExp.$1 : '').filter(Boolean) }))
+  ok(delivery.build && delivery.build !== 'v90' && delivery.scripts.every(u => u.includes('?v=' + delivery.build)), 'index.html links the menu files at the current build stamp', `${delivery.build}: ${delivery.scripts.length} scripts`)
+  ok(delivery.masks.length >= 2 && delivery.masks.every(u => u.includes('?v=' + delivery.build)), 'and every mask picture carries that stamp too — no stale kit survives a build', `${delivery.masks.length} mask urls, e.g. ${delivery.masks[0]}`)
+  }
   // where each picture sits on screen: the tint element's own --mx/--my/--mw/--mh (layoutArt's answer)
   const boxes = await page.evaluate(() => { const out = {}
     for (const [pic, sel] of [['hero_tunnel', '.rib9-hero'], ['card_continue', '.rib9-continue']]) {
