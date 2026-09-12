@@ -56,7 +56,7 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 ## Recent changes
 
 - **v107 — the arm, the drop, the stance.** Six new sheets landed in `art/field/`, and
-  `scripts/build-field-art.py` now cuts 28 more cells out of four of them (211 → 239): a
+  `scripts/build-field-art.py` now cuts 27 more cells out of four of them (211 → 238): a
   six-frame throw in three facings — `throw_up0..5` (throw_back), `throw_dn0..5` (throw_front)
   and `throw_ur0..5` (throw_quarter_a, cut mirrored like every other sd/dr/ur cell, since the
   renderer flips those for a man working right) — plus `backpedal_up0..5`, and `ready_up`,
