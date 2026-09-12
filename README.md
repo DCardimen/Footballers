@@ -55,6 +55,23 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v106 — the kit is cut from the picture.** The team colours on the main menu's three
+  photographs (the tunnel hero, the continue card, the helmet portrait) were laid over hand-placed
+  polygons, and a polygon at 1% is not an outline: the jersey ran past both sleeves onto the
+  tunnel, the pants onto the crowd beside the hips, the helmet into the floodlights, while the
+  cuffs, the shoulder band, the waist, the lower legs and the whole lit flank of the portrait
+  shell stayed grey. Each picture now has its own segmenter — `scripts/menu-kit-hero.py`,
+  `menu-kit-card.py`, `menu-kit-portrait.py`, run by `build-menu-art.py` — that MEASURES the
+  garment's edge off the photograph (a prior curve per boundary, snapped to the outermost strong
+  luminance or neutral-chroma step, median-filtered, closed into one outline per garment; the
+  portrait's shell is a radial rim trace and its facemask a top-hat lattice) and asserts, on its
+  own run, that no alpha lands beyond a few pixels of the traced kit. Jersey and pants share one
+  waist curve so they meet with no grey seam; the neck between shell and collar, the visor glass,
+  the gloves and every gap of background are out. The menu build stamp moved to `v106-kit` so a
+  phone that cached the old masks fetches these. `scripts/menu-mask-check.mjs` probes were moved
+  onto the real garment edges (nine of them sat on the old polygons' overshoot, i.e. on
+  background); `scripts/menu-kit-shot.mjs` screenshots the three pictures in vivid forced colours.
+
 - **v105.2 — the kit follows the team.** The kits are registered by palette — `"off"` is the
   user's team's colours, `"def"` the opponent's — but every marker was dressed by its SIDE, so on
   any play where the user's team was defending, the opponent's offense wore the user's colours

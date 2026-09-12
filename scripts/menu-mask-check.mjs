@@ -22,12 +22,12 @@ const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undef
 // probe points, in PERCENT of the source picture. `on` = must be kit, `off` = must never be.
 const PROBES = {
   card_continue: { nat: [1000, 640], p: 'card_continue_mask_p', s: 'card_continue_mask_s',
-    on: { p: { chest: [77, 55], leftSleeve: [65, 46], rightSleeve: [89.8, 46], leftHem: [64.3, 49], rightHem: [90.6, 49.5], leftShoulder: [70, 42], rightShoulder: [86, 42], torsoLeft: [69.6, 70], torsoRight: [86.2, 70] },
-          s: { helmet: [77, 24], helmetRimRight: [85, 27], helmetLowerRim: [84.4, 33], helmetRear: [77, 36], helmetCage: [71, 30], seat: [77, 84], hipLeft: [68.4, 84], hipRight: [87.4, 84], belt: [77, 76.5], legLeft: [70, 97], legRight: [85, 97] } },
-    off: { crowdLeftOfHip: [65, 82], crowdRightOfHip: [90.2, 82], betweenLegs: [77.3, 98], leftOfSleeve: [58, 48], rightOfSleeve: [94, 46], lampsByHelmet: [88, 21], leftArm: [65, 62], rightArm: [89.6, 62], neck: [77, 38.4], leftGlove: [63.5, 94], rightGlove: [91.4, 94], sky: [77, 12] } },
+    on: { p: { chest: [77, 55], leftSleeve: [65, 46], rightSleeve: [89.8, 46], leftHem: [64.3, 49], rightHem: [90.6, 49.5], leftShoulder: [70, 42], rightShoulder: [86, 42], torsoLeft: [69.6, 70], torsoRight: [84.5, 70] },
+          s: { helmet: [77, 24], helmetRimRight: [82.2, 27], helmetLowerRim: [81.4, 33], helmetRear: [78, 33.6], helmetCage: [71, 30], seat: [77, 84], hipLeft: [68.4, 84], hipRight: [85.0, 84], belt: [77, 79], legLeft: [70, 97], legRight: [85, 97] } },
+    off: { crowdLeftOfHip: [65, 82], crowdRightOfHip: [90.2, 82], betweenLegs: [77.3, 98], leftOfSleeve: [58, 48], rightOfSleeve: [94, 46], lampsByHelmet: [88, 21], leftArm: [65, 62], rightArm: [89.6, 62], neck: [77, 36.5], leftGlove: [63.5, 94], rightGlove: [91.4, 94], sky: [77, 12] } },
   hero_tunnel: { nat: [1600, 914], p: 'hero_mask_p', s: 'hero_mask_s',
-    on: { p: { chest: [50, 45], leftSleeve: [36.6, 44], rightSleeve: [63.2, 44], leftHem: [37.4, 49.5], rightHem: [62.2, 49] },
-          s: { helmet: [50, 25], helmetRimRight: [54.8, 28], helmetRimLeft: [45.8, 28], seat: [50, 85], hipLeft: [41.6, 84], hipRight: [58.4, 84] } },
+    on: { p: { chest: [50, 45], leftSleeve: [36.6, 44], rightSleeve: [61.8, 44], leftHem: [37.4, 49.5], rightHem: [62.2, 49] },
+          s: { helmet: [50, 25], helmetRimRight: [54.4, 29], helmetRimLeft: [45.8, 28], seat: [50, 85], hipLeft: [41.6, 84], hipRight: [56.9, 84] } },
     off: { leftOfSleeve: [33.4, 44], rightOfSleeve: [66.6, 44], leftArm: [35, 82], rightArm: [65, 82], aboveHelmet: [50, 15], wall: [27, 60], slogan: [86, 30] } },
 }
 
