@@ -5762,9 +5762,9 @@ function ribPaintScorebugV98(opp) {
 window.__ribPaintScorebugV98 = ribPaintScorebugV98;
 /* ===== v96 HIS OWN KIT — the you-player wears his team's colours =====
  * "you" used to be its own gold-and-navy kit, so the user's man never matched the ten
- * around him. Now the "you" textures are a copy of whichever side he lines up on ("off" is
- * the user's palette, "def" the opponent's — the renderer keys kits by side), re-registered
- * only when that side or its palette changes. The plumbob still says which one he is. */
+ * around him. Now the "you" textures are a copy of his team's kit ("off" is the user's
+ * palette, "def" the opponent's; since v105.2 a marker's kit follows possession, not its
+ * side), re-registered only when that palette changes. The plumbob still says which one he is. */
 function ribSyncYouKitV96(scene, side) {
   try {
     const c = RIB.teamCols[side]; if (!c) return;
@@ -6048,7 +6048,7 @@ class Ot extends mt.Scene {
         let maxD = 0;
         script.actors.forEach((a, i) => {
           const m = this.markers[i], f0 = a.frames[0];
-          this.setTeam(m, a.side === "off" ? "off" : "def");
+          this.setTeam(m, a.side === "off" ? "off" : "def", this.kitForV105_2(a.side, et));   // v105.2: side AND kit
           m.body.clearTint(); m.body.setScale(1); m.body.setAlpha(1); m.body.setRotation(0); m.label.setAlpha(1); m.label.setVisible(true);
           m.isLine = (a.label === "OL" || a.label === "DE" || a.label === "DT" || a.label === "DL");
           m.homeDir = i < 11 ? "up" : "dn";
@@ -6066,7 +6066,7 @@ class Ot extends mt.Scene {
         this.clearActors();
         this.markers = script.actors.map((a, i) => {
           const f0 = a.frames[0];
-          const m = this.marker(f0.x, f0.y, a.side === "off" ? "off" : "def", i < 11 ? OFF_NUMS[i] : DEF_NUMS[i - 11], 0, a.side === "off" ? -1 : 1);
+          const m = this.marker(f0.x, f0.y, a.side === "off" ? "off" : "def", i < 11 ? OFF_NUMS[i] : DEF_NUMS[i - 11], 0, a.side === "off" ? -1 : 1, this.kitForV105_2(a.side, et));   // v105.2
           m.isLine = (a.label === "OL" || a.label === "DE" || a.label === "DT" || a.label === "DL");
           m.homeDir = i < 11 ? "up" : "dn";
           if (m.isLine) { m.forceState = "stance"; this.placeMarker(m, m.sx, m.sy, 16); }
@@ -7947,8 +7947,9 @@ class Ot extends mt.Scene {
   highlight(d, isMe) {
     if (!d) return;
     if (isMe) {
-      d.kitSide = d.team === "def" ? "def" : "off";   // v96: he wears his own team's kit — the plumbob says which one he is
+      d.kitSide = d.kit && d.kit !== "you" ? d.kit : (d.kitSide || "off");   // v96/v105.2: his own team's palette, whichever side of the ball he plays — the plumbob says which one he is
       ribSyncYouKitV96(this, d.kitSide);
+      try { const V = window.__V105_2 = window.__V105_2 || {}; V.you = { side: d.team, kitSide: d.kitSide }; } catch (e) {}
       this.setTeam(d, "you");
       /* ===== v70 PLUMBOB — the you-marker is a crystal over the head, not an aura =====
        * v18 stacked four gold effects on the GROUND under your player: a pulsing glow
@@ -8044,18 +8045,19 @@ class Ot extends mt.Scene {
     });
     this.resolveOverlaps();
   }
-  marker(sx, sy, team, num, faceDx, faceDy) {
+  marker(sx, sy, team, num, faceDx, faceDy, kit) {
+    kit = kit || team;   // v105.2: the palette he wears; the side is `team`
     const shadow = this.add.ellipse(0, 24, 26, 9, 0x000000, 0.32);
     const fill = this.add.ellipse(0, 24, 26, 9, 0x000000, 0.14);   // v101: the second lamp's softer cast
-    const initialKey = this.textures.exists("spr_" + team + "_dn_idle") ? "spr_" + team + "_dn_idle" : "rib_player_fallback";
+    const initialKey = this.textures.exists("spr_" + kit + "_dn_idle") ? "spr_" + kit + "_dn_idle" : "rib_player_fallback";
     const body = this.add.image(0, 0, initialKey);
-    if (initialKey === "rib_player_fallback") body.setTint(team === "def" ? 0xe86560 : team === "you" ? 0xf0bb45 : 0x5fce74);
+    if (initialKey === "rib_player_fallback") body.setTint(kit === "def" ? 0xe86560 : kit === "you" ? 0xf0bb45 : 0x5fce74);
     // v104: rasterized ONCE at the larger base size and scaled down per frame (the sharp
     // direction) — the old path re-set the font size on every marker on every frame.
     const label = this.add.text(0, -3, String(num), numStyleV104(team)).setOrigin(0.5);
     { const sw = TU("numStroke", 2.2); if (sw > 0) label.setStroke("#0a0e14", sw); }
     const root = this.add.container(0, 0, [fill, shadow, body, label]).setDepth(4);
-    const m = { root, body, label, shadow, fill, team, num, sx, sy, dirKey: "dn", flip: false, ft: 0, hd: null, cutUntil: 0, tms: 0 };
+    const m = { root, body, label, shadow, fill, team, kit, num, sx, sy, dirKey: "dn", flip: false, ft: 0, hd: null, cutUntil: 0, tms: 0 };
     if (faceDx != null) this.faceMarker(m, faceDx, faceDy || 0);
     this.placeMarker(m, sx, sy, 16);
     return m;
@@ -8090,13 +8092,26 @@ class Ot extends mt.Scene {
     else if (dy > 0) { m.dirKey = "dr"; m.flip = dx > 0; }      // down diagonals
     else { m.dirKey = "ur"; m.flip = dx > 0; }                  // up diagonals
   }
-  setTeam(m, team) {
-    m.team = team;
+  /* ===== v105.2 THE KIT FOLLOWS THE TEAM =====
+   * The kits are registered by PALETTE — "off" is the user's team's colours, "def" the
+   * opponent's — but every marker was dressed by its SIDE (`a.side === "off" ? "off" : "def"`),
+   * so on any play where the user's team was defending, the offense on the field (the
+   * opponent) wore the user's colours and the user's defense wore the opponent's; v96 then
+   * dressed the you-player to match the wrong side. A marker now carries two things: `m.team`,
+   * the side, which the depth and gameplay rules keep reading, and `m.kit`, the palette it
+   * wears, chosen from possession (`kitForV105_2`). `window.__V105_2` is what the check reads. */
+  kitForV105_2(side, et) {
+    // the user's team wears "off" (its own palette) whichever side of the ball it is on
+    const usOff = !et || et.offense !== "them";
+    return (side === "off") === usOff ? "off" : "def";
+  }
+  setTeam(m, team, kit) {
+    m.team = team; m.kit = kit || (team === "you" ? "you" : m.kit || team);
     m.label.setColor("#ffffff");   // v96: the same number as the rest of his team
-    const k = "spr_" + team + "_" + m.dirKey + "_idle";
+    const k = "spr_" + m.kit + "_" + m.dirKey + "_idle";
     const use = this.textures.exists(k) ? k : "rib_player_fallback";
     m.body.setTexture(use); m.tex = use;
-    if (use === "rib_player_fallback") m.body.setTint(team === "def" || (team === "you" && m.kitSide === "def") ? 0xe86560 : 0x5fce74); else m.body.clearTint();
+    if (use === "rib_player_fallback") m.body.setTint(m.kit === "def" || (m.kit === "you" && m.kitSide === "def") ? 0xe86560 : 0x5fce74); else m.body.clearTint();
   }
   /* v70 — one octahedron, orthographic, drawn straight into a Graphics. The
    * silhouette WIDTH is the rotation (a diamond seen edge-on is narrow, face-on is
@@ -8245,16 +8260,17 @@ class Ot extends mt.Scene {
       else m._groundT = 0;
     } else if (m._groundT) m._groundT = 0;
     if (st === "stance" && (m.num % 2)) st = "stance2";
-    let tex = st === "down" ? "spr_" + m.team + "_down"
-      : st.indexOf("tackle") === 0 ? "spr_" + m.team + "_" + st          // non-directional fall-to-ground frames
-      : st.indexOf("pancake") === 0 ? "spr_" + m.team + "_" + st
-      : st.indexOf("getup") === 0 ? (this.textures.exists("spr_" + m.team + "_" + m.dirKey + "_" + st) ? "spr_" + m.team + "_" + m.dirKey + "_" + st : "spr_" + m.team + "_" + st)
-      : "spr_" + m.team + "_" + m.dirKey + "_" + st;
-    if (!this.textures.exists(tex)) tex = "spr_" + m.team + "_sd_" + st;
-    if (!this.textures.exists(tex)) tex = "spr_" + m.team + "_" + m.dirKey + "_idle";
+    const kit = m.kit || m.team;   // v105.2: the palette he wears, not the side he plays
+    let tex = st === "down" ? "spr_" + kit + "_down"
+      : st.indexOf("tackle") === 0 ? "spr_" + kit + "_" + st          // non-directional fall-to-ground frames
+      : st.indexOf("pancake") === 0 ? "spr_" + kit + "_" + st
+      : st.indexOf("getup") === 0 ? (this.textures.exists("spr_" + kit + "_" + m.dirKey + "_" + st) ? "spr_" + kit + "_" + m.dirKey + "_" + st : "spr_" + kit + "_" + st)
+      : "spr_" + kit + "_" + m.dirKey + "_" + st;
+    if (!this.textures.exists(tex)) tex = "spr_" + kit + "_sd_" + st;
+    if (!this.textures.exists(tex)) tex = "spr_" + kit + "_" + m.dirKey + "_idle";
     if (!this.textures.exists(tex)) tex = "rib_player_fallback";
     if (m.tex !== tex) { m.tex = tex; m.body.setTexture(tex); }
-    if (tex === "rib_player_fallback") m.body.setTint(m.team === "def" ? 0xe86560 : m.team === "you" ? 0xf0bb45 : 0x5fce74);
+    if (tex === "rib_player_fallback") m.body.setTint(kit === "def" ? 0xe86560 : kit === "you" ? 0xf0bb45 : 0x5fce74);
     else if (TU("shadeV101", 1) && this.stadium && this.stadium.on) {
       // v101: the men are lit by the MASTS, not by a fixed grey ramp. `shadeTintV101` reads
       // the light actually landing where he is standing — the pools, the ambient floor, the
@@ -14928,7 +14944,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       stripe:unit(seed,32)>.58
     };
   }
-  function teamColor(m){var hx=function(v){try{var h=parseInt(String(v).replace("#",""),16);return isNaN(h)?null:h;}catch(_){return null;}};if(m.team==="def"||(m.team==="you"&&m.kitSide==="def")){return (window.__oppJerseyV25!=null?window.__oppJerseyV25:0xd54d51);}if(window.__usJerseyV25!=null)return window.__usJerseyV25;var tc=window.__GRIDIRON_TEAM_CUSTOM__,c=tc&&tc.col&&hx(tc.col[0]);return c!=null?c:0x3fae5c;}
+  function teamColor(m){var hx=function(v){try{var h=parseInt(String(v).replace("#",""),16);return isNaN(h)?null:h;}catch(_){return null;}};if((m.kit||m.team)==="def"||(m.team==="you"&&m.kitSide==="def")){return (window.__oppJerseyV25!=null?window.__oppJerseyV25:0xd54d51);}if(window.__usJerseyV25!=null)return window.__usJerseyV25;var tc=window.__GRIDIRON_TEAM_CUSTOM__,c=tc&&tc.col&&hx(tc.col[0]);return c!=null?c:0x3fae5c;}
   function addLocal(scene,type,args){const obj=scene.add[type](...args);obj.setScrollFactor&&obj.setScrollFactor(1);return obj;}
   window.__RIB20_applyAppearance=function(scene,m,pos,index){
     if(!scene||!m||!m.root||!m.body)return;

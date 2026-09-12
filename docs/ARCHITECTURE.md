@@ -374,6 +374,26 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v105.2 — the kit follows the team
+
+`ribRegisterTeam` registers kits by **palette**: `"off"` from the user's team palette (in
+`ribActivate`), `"def"` from the opponent's (`ribSyncOpp`), `"you"` as a copy of one of those
+(`ribSyncYouKitV96`). The renderer dressed each marker by **side** — `setTeam(m, a.side === "off"
+? "off" : "def")` — which is only right when the user's team has the ball. On the opponent's
+possessions the sides swap relative to the palettes: their offense wore the user's colours, the
+user's defense wore theirs, and `highlight()` then keyed the you-player's kit off `d.team` —
+`"def"` — so a user playing defense wore the opponent's palette too.
+
+A marker now has two fields. `m.team` is the **side** (`off` / `def` / `you`); the engaged-pair
+depth lift (`m.team !== "def"`), the fallback labels and every gameplay rule keep reading it.
+`m.kit` is the **palette** it wears; `kitForV105_2(side, et)` returns `"off"` for the user's team
+and `"def"` for the opponent from `et.offense !== "them"`, `setTeam(m, team, kit)` and
+`marker(..., kit)` carry it, and `placeMarker` builds every texture key from `m.kit || m.team`.
+`highlight()` sets `d.kitSide` from the kit the man arrived in, so `ribSyncYouKitV96` copies
+his own team's palette whichever side of the ball he plays. The sideline's `sidePlayer(team, …)`
+already meant palette by `team` (a backup wears the kit of the sideline he stands on) and is
+untouched. `window.__V105_2.you` reports the you-player's side and kit for the check.
+
 ## v105 — the ball has a handler
 
 **What was wrong.** Before the snap the ball sprite sat on the sim's ground spot at the line at

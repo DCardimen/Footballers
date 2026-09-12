@@ -133,7 +133,8 @@ ok(fonts.size === 1, 'the label is rasterized ONCE — the font size is never re
 // painted on the shirt: the number keeps its share of the body wherever he is on the field
 ok(maxR / Math.max(1e-6, minR) < 1.35, 'the number holds its share of the body across the whole field',
   `ratio ${minR.toFixed(4)}..${maxR.toFixed(4)} (${(maxR / minR).toFixed(2)}x)`)
-ok(minH > 3.2 && maxH < 9, 'and it stays inside a sane on-screen size band', `${minH.toFixed(2)}..${maxH.toFixed(2)} px`)
+// v105 moved the default perspective to 78%, so the near rows draw bigger and the number with them: the band is the body's, not a fixed pixel count
+ok(minH > 3.2 && maxH < 16, 'and it stays inside a sane on-screen size band', `${minH.toFixed(2)}..${maxH.toFixed(2)} px`)
 // one texture = one row: a run cycle must not make the number breathe
 const pulsing = Object.entries(rowsByTex).filter(([, s]) => s.size > 1)
 ok(pulsing.length === 0, 'one pose, one anchor — the number does not wander frame to frame',
