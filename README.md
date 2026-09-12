@@ -55,6 +55,45 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v107 — the arm, the drop, the stance.** Six new sheets landed in `art/field/`, and
+  `scripts/build-field-art.py` now cuts 28 more cells out of four of them (211 → 239): a
+  six-frame throw in three facings — `throw_up0..5` (throw_back), `throw_dn0..5` (throw_front)
+  and `throw_ur0..5` (throw_quarter_a, cut mirrored like every other sd/dr/ur cell, since the
+  renderer flips those for a man working right) — plus `backpedal_up0..5`, and `ready_up`,
+  `stance3_up` and `carry_up` from the stances sheet (the sheet's centre-over-the-ball pose is
+  left out: its arms read wrong at 44px). The packer keeps the 211 cells that already shipped
+  byte-identical: they are quantized on their own, as before, and the new cells are mapped onto
+  that palette and appended — the whole-atlas quantize had drifted the old kit's colours off the
+  recolour's hue bands, and navy showed through on every team. Every throw cycle reads
+  0 set, 1 grip, 2 stride, 3 the ball cocked at the ear, 4 THE RELEASE (the arm through, the
+  hand empty), 5 the follow. The ball each sheet draws in flight is a loose blob beside the man
+  and the renderer carries its own (v105), so it is DROPPED at the slice (`min_px=4000`) instead
+  of being merged the way `catch_throw` merges a held one; a ball still in a hand is part of the
+  pose and stays. `art/field/throw_quarter_b.png` (the figures lean at a different angle every
+  frame and the release frames fuse the loose ball to the arm) and `art/field/snap_catch_mini.png`
+  (half-size figures, and the facing changes inside one group) are deliberately not cut — no cell
+  in the atlas comes from either.
+
+  The renderer now wears all of it. `ribRegisterTeam` registers `spr_<kit>_<dd>_throw0..5` from
+  the drawn cycle for `up`, `dn` and `ur`; the two facings nobody drew borrow the nearest real
+  one — `sd` the quarter (the arm already comes across the body) and `dr` the front (the only
+  cycle facing the camera) — and without the atlas (`?noV91`) the baked, facing-less frames stand
+  in exactly as before. `throwSeq` stopped forcing `m.flip = false` when the facing has a drawn
+  cycle, so a throw to his left mirrors, and the v105 hand the ball rides in follows both the
+  facing and that flip. The arm is armed by a LOOKAHEAD (`windupV107`/`startThrowV107`, called
+  beside `qbTickV86`): the choreographer's `windup` fires 300 ms before the ball and FieldSim —
+  the path that renders about nine plays in ten — never emitted one at all, so the sequence is
+  now back-dated off the script's own `throw` event and frame 4 is drawn the tick the flight
+  starts (residual 0 ms; `TU("throwFrameMs", 85)`, `TU("throwReleaseFrame", 4)`). Frames 0-3 of a
+  drawn cycle already hold a football, so the renderer's own ball is scaled away across them and
+  comes back on the release. A dropback is drawn as `backpedal0..5` paced by the ground he covers
+  (`TU("backpedalFrameMs", 110)`) instead of the run cycle played facing the line, and v86's
+  one-frame backward test is held a beat (`TU("dropHoldMs", 200)`) so the pose stops flickering. Pre-snap the offensive line, the center included, is in
+  `stance3_up` (the ball sits under the center from v105), the skill men wait in
+  `ready_up`, and a man standing still with the ball has it tucked in `carry_up` — all rear-view
+  art, so the defense keeps the old two-point stance and idle. `window.__V107` is the hook and
+  `scripts/v107check.mjs` is the proof.
+
 - **v106.1 — the page knows when it is stale.** GitHub Pages lets a browser keep `index.html`
   for ten minutes after a deploy, and every menu file and every kit mask is stamped by THAT page,
   so a phone that opened the site inside those minutes showed the old menu in the old kit and

@@ -374,6 +374,67 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v107 — the arm, the drop, the stance
+
+Anchor `v107 THE ARM, THE DROP, THE STANCE` (in `ribRegisterTeam`, where the throw registers),
+`v107 THE ARM` (`windupV107` / `startThrowV107`, next to `qbTickV86`) and the v107 comments in
+`placeMarker` and in the ball block's hand offset.
+
+**The throw wears its facing.** The v91 sheet carries `throw_up0..5`, `throw_dn0..5` and
+`throw_ur0..5`; `ribRegisterTeam` builds `spr_<kit>_<dd>_throw0..5` from the cycle that matches
+the facing, and the two facings nobody drew borrow the nearest real one — `sd` takes the quarter
+(`throw_ur`: the arm already comes across the body, and the atlas's sd and ur cells are both
+drawn looking left, so `faceMarker`'s flip works on either) and `dr` takes the front
+(`throw_dn`: the only cycle facing the camera). `RIB.throwV107` records which facings are drawn
+and which are borrowed; when the atlas is absent (`?noV91`) every facing falls back to the baked,
+facing-less `throw0..5` exactly as before, and `throwSeq` keeps forcing `m.flip = false` for them,
+because one drawing cannot be mirrored into a second facing. With a drawn cycle the flip is left
+alone, so a quarterback throwing to his left mirrors.
+
+**The hand follows the art.** On a drawn cycle the throwing arm is the artist's, not the anatomy's:
+the v105 held-ball offset takes `handX` from the CELL (`throw_up` right, `throw_dn` and `throw_ur`
+left) and crosses it when a quarter facing is mirrored for a man working right, instead of from
+`handed`. The windup arm also rides the FRAMES now
+(`(tms - seqT) / (throwFrameMs × throwReleaseFrame)`) instead of a 430 ms clock of its own: cocked
+at the ear on frame 3, through the ball on frame 4. And because frames 0–3 of every drawn cycle
+already carry a football in the hand, the renderer's own ball is **scaled to zero** across them —
+two footballs otherwise — and comes back on the release frame, which is the frame the flight
+starts. (Scale, not `setVisible`: the v1513 ball guard forces visible and alpha back every update.)
+`carry_up` is the same situation standing still — it is cut with the ball in the screen-right hand,
+so ours is pinned there whatever hand the man throws with, and the two read as one.
+
+**The release is armed by a lookahead.** The legacy choreographer emits `windup` 300 ms before
+the ball — one frame short of the 340 the six frames need — and FieldSim, the path that renders
+~9 plays in 10, emits none at all, so on the ordinary play the quarterback never wound up. Both
+paths now go through `windupV107(P)`, called beside `qbTickV86`: it scans `P.script.events` once
+per play for the non-kick `throw`s, and `throwFrameMs × throwReleaseFrame` before one it calls
+`startThrowV107`, which turns the thrower onto the target (facing AND flip), sets
+`forceState = "throwSeq"` and BACK-DATES `seqT` so frame 4 is drawn the same tick the flight
+starts. The `windup` event case now only does the ball bookkeeping and starts the sequence if the
+lookahead somehow did not. Measured residual between the drawn release and the flight: 0 ms.
+
+**The dropback is a backpedal.** `qbTickV86` already sets `m._dropback`; `placeMarker` now draws
+`backpedal0..5` for a dropping man facing `up` when the kit has the cells, paced by the ground he
+covers the way the run frames are (`TU("backpedalFrameMs", 110)`, `TU("backpedalSpd", 58)`), and
+falls back to the run frames without the atlas. Rear-view art, so it is the offense only. The flag
+itself needed a hold: v86 tests ONE frame's backward delta, which flickers as the interpolation
+crosses it (and vanishes entirely at a slow playback rate, where the per-frame step is smaller than
+the threshold), so the pose flickered with it — `TU("dropHoldMs", 200)` keeps the drop alive a beat
+past the last backward step and the backpedal reads as one continuous movement.
+
+**The stances.** The sheet is drawn from behind, which means it dresses the OFFENSE (`m.homeDir`
+is `up` for actors 0–10) and nothing on the defense — a defender faces the camera, and faking his
+backpedal or idle with rear-view art would be a lie. Pre-snap the offensive line shows `stance3_up` — the center too (the sheet's
+centre-over-the-ball pose is not cut: its arms read wrong; `centerV105` puts the ball under him)
+and the skill men `ready_up` in place of `idle_up`; a man standing still with the ball shows
+`carry_up`. Each is gated on the texture existing, so `?noV91` keeps `stance`/`stance2`/`idle`.
+The defensive line keeps `stance`/`stance2` either way.
+
+`window.__V107` carries `map` (the facing → cell table), `v91`, `throws` (the last 24, each
+`{facing, flip, src, frames, releaseFrame, flightStartMs, residualMs}`) and the
+`backpedalFrames` / `readyFrames` / `stance3Frames` / `carryFrames` counters.
+`scripts/v107check.mjs` is the proof.
+
 ## v106.1 — the page knows when it is stale
 
 The site is static on GitHub Pages, which sends `cache-control: max-age=600`: a browser that opens
@@ -1185,7 +1246,17 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   run sheet's plant. `?noV91` on the URL skips the sheet (A/B). In the draw-time state
   machine the unpile only forces `getupSeq` when the man is not already in `celebrateSeq`.
   The sheet is fetched from `./public/rib_field_v91.png` (relative, so GitHub Pages'
-  subpath works).
+  subpath works). Six later sheets add 27 cells (238 in all) that no renderer state reads yet:
+  `throw_<dd>0..5` for `up` (throw_back), `dn` (throw_front) and `ur` (throw_quarter_a),
+  `backpedal_up0..5`, `ready_up`, `stance3_up` and `carry_up` (stances; its centre-over-the-ball
+  pose is left out, the arms read wrong). The throw
+  frames run set / grip / stride / cocked at the ear / RELEASE (the hand empty) / follow, so the
+  ball leaves on frame 4 in every facing; the loose ball the sheets draw in flight is dropped at
+  the slice because the renderer carries its own (v105). `throw_ur*` and `carry_up` are cut
+  MIRRORED: the atlas draws sd/dr/ur looking left and `faceMarker` flips them for a man moving
+  right (`m.flip = dx > 0`), and the bridge hangs the ball off a rear-facing right-hander's
+  screen-right hand. `throw_quarter_b.png` and `snap_catch_mini.png` are in `art/field/` but
+  deliberately uncut (off-model lean, half-scale figures, facings that change inside a group).
 - `v90 THE ROLLS HAPPEN IN THE BACKGROUND` (next to `silentWeekV85`) — `autoStoryV90(e,w)`
   drains `storyDecisionQueueV11` on the sim-the-rest path by picking a choice with
   `pickStoryChoiceV90` (sorted by `baseChance`; `TU("autoStoryStyle",0)` safest → boldest)

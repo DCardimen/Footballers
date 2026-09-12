@@ -33,6 +33,18 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v107 THE ARM, THE DROP, THE STANCE` — the v91 sheet's own throw per facing
+  (`RIB.throwV107`: `up`/`dn`/`ur` drawn, `sd` borrows the quarter, `dr` the front; `?noV91`
+  keeps the baked facing-less frames and their forced `flip=false`), the release armed by a
+  LOOKAHEAD into the script's `throw` (`windupV107` / `startThrowV107` beside `qbTickV86`,
+  `seqT` back-dated so frame 4 is drawn the tick the flight starts — FieldSim emits no
+  `windup` at all), the v105 hand taken from the CELL (and the renderer's own ball scaled away
+  across frames 0-3, which already draw one), the dropback drawn as `backpedal0..5`
+  (`TU("backpedalFrameMs", 110)`, held past the last backward step by `TU("dropHoldMs", 200)`
+  because v86's one-frame test flickers), and the offense's own pre-snap:
+  `stance3_up` on the whole line (the drawn centre pose is not used), `ready_up` on the skill men,
+  `carry_up` on a man standing with the ball. Rear-view art — the defense gets none of it.
+  `window.__V107` is the hook
 - `v106.1 THE PAGE KNOWS WHEN IT IS STALE` — `freshV106` in `public/rib-menu.js`: at the menu's
   first mount the page compares its own `<meta name="rib-build">` (written by
   `scripts/assemble-pages.mjs`) with `rib-build.json` fetched past the cache, and reloads once when
@@ -184,6 +196,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the field sheets / the v91 atlas / player and ball frames (v91) | `v91check.mjs`, `v86check.mjs`, `renderpathcheck.mjs` |
 | the silent path's story rolls / the upgrade sheet's numbers / the menu ring (v90) | `v90check.mjs`, `v85check.mjs` |
 | the main menu / its feed / menu art (v89) | `menu-integration-check.mjs`, `menushot.mjs` (`CAREER=1`), `menu-preview-shot.mjs` |
+| the throw's facing / the release's timing / the dropback / the pre-snap stances (v107) | `v107check.mjs`, then `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `renderpathcheck.mjs`, `kitsidecheck.mjs` (LB) |
 | the deploy reaching a browser / the build meta / the one-time reload (v106.1) | `freshcheck.mjs` (no dev server), then `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the team kit on the menu pictures / the hero, continue-card and portrait masks (v106) | `python3 scripts/build-menu-art.py` (or the one `menu-kit-*.py`), then `menu-mask-check.mjs`, `menu-kit-shot.mjs` (look at the shots), `menu-integration-check.mjs`, `v102check.mjs`, `menushot.mjs` (`CAREER=1`) |
 | team emblems / palettes / identity | `emblemcheck.mjs` |

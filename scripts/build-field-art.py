@@ -108,9 +108,13 @@ def kit_ready(crop):
     out = a.copy(); out[..., :3] = np.clip(rgb * k[..., None], 0, 255)
     return Image.fromarray(out.astype('uint8'), 'RGBA')
 
-def cell_of(im, box, scale, baseline=46, center=None):
-    """One 48x48 cell: the sprite scaled by the sheet's factor, feet on the baseline, centred."""
+def cell_of(im, box, scale, baseline=46, center=None, mirror=False):
+    """One 48x48 cell: the sprite scaled by the sheet's factor, feet on the baseline, centred.
+    mirror flips the sprite first: the atlas draws its sd/dr/ur facings looking LEFT and the
+    renderer mirrors them for a man moving right (m.flip = dx > 0), so art drawn the other way
+    round has to be turned before it is cut."""
     crop = im.crop(tuple(box)); w, h = crop.size
+    if mirror: crop = crop.transpose(Image.FLIP_LEFT_RIGHT)
     if not center: crop = kit_ready(crop)   # players, not the ball
     tw, th = max(1, round(w * scale)), max(1, round(h * scale))
     if tw > CELL - 2 or th > CELL - 2:   # a wide or tall pose still fits the cell
@@ -188,12 +192,110 @@ for ri, dd in enumerate(['dn', 'dr', 'up']):
     for fi in range(min(3, len(g))): CELLS[f'catch_{dd}{fi}'] = cell_of(im, g[fi], sc)
     if len(g) > 3: CELLS[f'catchhold_{dd}'] = cell_of(im, g[3], sc)
 
+OLD_NAMES = sorted(CELLS)   # v107: everything above is packed and quantized exactly as before (see pack)
+
+# ---- the throw: six frames a facing, one row a sheet ------------------------------------
+# All four throw sheets draw the SAME motion: 0 set, 1 grip, 2 stride, 3 the ball cocked at the
+# ear (the last frame holding it), 4 THE RELEASE (the arm through, the hand empty), 5 the follow.
+# The thrown ball is drawn as a loose blob beside the man — the renderer carries its own football
+# to the hand (v105), so a second one would show twice. It is its own alpha component, so min_px
+# drops it rather than merging it in the way catch_throw's merge_small does. Each facing takes ONE
+# row and that row's own median height, so every cycle lands on the same 44px figure and none of
+# them breathes. Rows are picked for a planted, right-handed, on-model throw: rows that open on a
+# turned facemask-on tuck (throw_back 2-3), that cock the ball in one hand and follow through with
+# the other (throw_front 1), or that lean through the frame (all of throw_quarter_b) are left out.
+
+# throw_back — the quarterback seen from behind: the renderer's `up`. Its row ends on the release
+# extension with no separate follow-through drawn, so that last frame is held for the sixth cell.
+im, rows = slice_sheet('throw_back', min_px=4000)
+assert len(rows) == 4 and all(len(r) == 6 for r in rows), [len(r) for r in rows]
+sc = sheet_scale(rows[:1], 44)
+for i, fi in enumerate([0, 1, 2, 4, 5, 5]): CELLS[f'throw_up{i}'] = cell_of(im, rows[0][fi], sc)
+
+# throw_front — the same throw facing the camera: `dn`. Five frames drawn, so the top of the cock
+# is held one frame (the beat a quarterback actually pauses on) to land the release on frame 4.
+im, rows = slice_sheet('throw_front', min_px=4000)
+assert len(rows) == 5 and all(len(r) == 5 for r in rows), [len(r) for r in rows]
+sc = sheet_scale(rows[3:4], 44)
+for i, fi in enumerate([0, 1, 2, 2, 3, 4]): CELLS[f'throw_dn{i}'] = cell_of(im, rows[3][fi], sc)
+
+# throw_quarter_a — the rear three-quarter: the shoulders open to the throwing side. Its seven-frame
+# rows carry the whole motion including the arm coming down, so frames 0-5 land the release on 4
+# with nothing repeated. Cut MIRRORED: `ur` is a left-looking cell that the renderer flips for a man
+# working right, like every other sd/dr/ur cell in this atlas.
+im, rows = slice_sheet('throw_quarter_a', min_px=4000)
+assert [len(r) for r in rows] == [6, 6, 6, 6, 7, 7], [len(r) for r in rows]
+sc = sheet_scale([rows[4][:6]], 44)
+for i in range(6): CELLS[f'throw_ur{i}'] = cell_of(im, rows[4][i], sc, mirror=True)
+
+# ---- stances: the pre-snap and ready poses, every one drawn from behind (`up`) -------------
+# One scale for the planted poses, so a crouch comes out shorter than a stand instead of being
+# stretched to match it. The backpedal row is drawn about 9% bigger than the rest of the sheet and
+# would trip the cell's fallback shrink frame by frame (a cycle that breathes), so it takes its own.
+im, rows = slice_sheet('stances', min_px=4000)
+assert [len(r) for r in rows] == [5, 4, 6, 6, 4], [len(r) for r in rows]
+sc = sheet_scale([rows[0], rows[1], rows[2], rows[4]], 44)
+CELLS['ready_up'] = cell_of(im, rows[2][0], sc)      # the defensive back's ready idle, arms loose
+# rows[1][1] is the centre over the ball — not cut: the arms read wrong at 44px (the ball is under him from v105 anyway)
+CELLS['stance3_up'] = cell_of(im, rows[1][0], sc)    # the lineman's stance, bent, hands down
+CELLS['carry_up'] = cell_of(im, rows[4][1], sc, mirror=True)   # the ball tucked at the hip:
+# mirrored, because the drawn ball sits in the man's LEFT hand and the renderer hangs its own
+# football off a rear-facing right-hander's screen-right hand (the handX rule in the bridge)
+scb = sheet_scale(rows[3:4], 44)
+for i in range(6): CELLS[f'backpedal_up{i}'] = cell_of(im, rows[3][i], scb)
+# The row 2 idles differ only in the helmet's shading, not in the body — no sway to loop — so the
+# ready pose is one cell, not a cycle. art/field/throw_quarter_b.png and snap_catch_mini.png are
+# deliberately not cut: see the note in README's Recent changes.
+
 # ---- pack -------------------------------------------------------------------------------
-names = sorted(CELLS); rowsN = (len(names) + COLS - 1) // COLS
-atlas = Image.new('RGBA', (COLS * CELL, rowsN * CELL), (0, 0, 0, 0)); meta = {}
-for i, nm in enumerate(names):
-    c, r = i % COLS, i // COLS; atlas.alpha_composite(CELLS[nm], (c * CELL, r * CELL)); meta[nm] = [c, r]
-atlas.quantize(256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save('public/rib_field_v91.png', optimize=True)
+# v107: the atlas is quantized to 256 colours, and ribRecolor keys on HUE BANDS — so when the new
+# cells joined the octree the old cells' colours drifted a hair and a share of every kit's navy
+# and gold fell out of the bands (v91check's recolour probe dropped from 85 to 14 gold pixels on
+# one run frame). The old cells are therefore packed FIRST, in their old order, and quantized on
+# their own — byte-identical to the atlas that shipped before — and the new cells are mapped onto
+# THAT palette and appended below, so no existing frame moves by a single value.
+new_names = sorted(n for n in CELLS if n not in set(OLD_NAMES)); names = OLD_NAMES + new_names
+rowsOld = (len(OLD_NAMES) + COLS - 1) // COLS; rowsN = rowsOld + (len(new_names) + COLS - 1) // COLS
+old = Image.new('RGBA', (COLS * CELL, rowsOld * CELL), (0, 0, 0, 0)); meta = {}
+for i, nm in enumerate(OLD_NAMES):
+    c, r = i % COLS, i // COLS; old.alpha_composite(CELLS[nm], (c * CELL, r * CELL)); meta[nm] = [c, r]
+oldQ = old.quantize(256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE)
+new = Image.new('RGBA', (COLS * CELL, (rowsN - rowsOld) * CELL), (0, 0, 0, 0))
+for i, nm in enumerate(new_names):
+    c, r = i % COLS, i // COLS; new.alpha_composite(CELLS[nm], (c * CELL, r * CELL)); meta[nm] = [c, rowsOld + r]
+# PIL will only map RGB onto a palette, so the new cells' colours are matched on RGB and their
+# alpha is carried across untouched; the result is written as plain RGBA (the pixels, not the
+# palette, are what the renderer and the checks read).
+atlas = Image.new('RGBA', (COLS * CELL, rowsN * CELL), (0, 0, 0, 0)); atlas.alpha_composite(oldQ.convert('RGBA'), (0, 0))
+if new_names:
+    # matched against the palette's OPAQUE entries only, so no new pixel lands on the transparent
+    # colour (which would put it outside the palette file below)
+    palO = oldQ.getpalette('RGBA'); opaque = [palO[i*4:i*4+3] for i in range(len(palO) // 4) if palO[i*4+3] > 0]
+    palImg = Image.new('P', (1, 1)); palImg.putpalette([v for c in opaque for v in c] + list(opaque[-1]) * (256 - len(opaque)))   # padded with a real colour, never black
+    newQ = new.convert('RGB').quantize(palette=palImg, dither=Image.Dither.NONE).convert('RGB')
+    newQ = Image.merge('RGBA', (*newQ.split(), new.getchannel('A')))
+    atlas.alpha_composite(newQ, (0, rowsOld * CELL))
+# every cell's alpha is hard (cell_of thresholds it), and every colour is one of oldQ's 256, so the
+# file goes out as a palette PNG with one transparent index — a third of the RGBA size. The index
+# is looked up EXACTLY (PIL's own palette matching is approximate and moved kit pixels off their
+# hue bands); a colour the palette does not hold falls back to the RGBA file.
+rgba = np.asarray(atlas); alpha = rgba[..., 3]; pal = oldQ.getpalette('RGBA'); npal = len(pal) // 4
+pkey = np.array([(pal[i*4] << 16) | (pal[i*4+1] << 8) | pal[i*4+2] for i in range(npal)]); palpha = np.array([pal[i*4+3] for i in range(npal)])
+tI = next((i for i in range(npal) if palpha[i] == 0), None)
+lut = {}
+for i in range(npal):
+    if palpha[i] > 0 and int(pkey[i]) not in lut: lut[int(pkey[i])] = i
+key = (rgba[..., 0].astype(np.int64) << 16) | (rgba[..., 1].astype(np.int64) << 8) | rgba[..., 2].astype(np.int64)
+op = alpha > 0; missing = [k for k in np.unique(key[op]) if int(k) not in lut]
+if tI is None or missing:
+    print(f'NOTE: {len(missing)} colours outside the palette — writing RGBA'); atlas.save('public/rib_field_v91.png', optimize=True)
+else:
+    idx = np.full(alpha.shape, tI, dtype=np.uint8); ks = np.array(sorted(lut)); vs = np.array([lut[int(k)] for k in ks])
+    idx[op] = vs[np.searchsorted(ks, key[op])]
+    out = Image.fromarray(idx, 'P'); out.putpalette([v for i in range(npal) for v in pal[i*4:i*4+3]])
+    out.save('public/rib_field_v91.png', optimize=True, transparency=tI)
+    back = np.asarray(Image.open('public/rib_field_v91.png').convert('RGBA'))
+    assert np.array_equal(back[..., :3][op], rgba[..., :3][op]) and np.array_equal(back[..., 3] > 0, op), 'the palette file does not round-trip the atlas'
 meta['_ballAngles'] = BALL_ANGLES
 json.dump(meta, open('public/rib_field_v91.json', 'w'), separators=(',', ':'))
 # the renderer reads the map inline
