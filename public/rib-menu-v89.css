@@ -64,14 +64,20 @@ html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
 .rib9-hero-copy h1{position:relative}
 .rib9-sheen{position:absolute;inset:0;pointer-events:none;-webkit-mask-image:var(--wm);mask-image:var(--wm);-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
   background:linear-gradient(108deg,rgba(255,255,255,0) 0,rgba(255,255,255,0) 38%,rgba(255,246,214,.85) 47%,rgba(255,255,255,.95) 50%,rgba(255,246,214,.85) 53%,rgba(255,255,255,0) 62%,rgba(255,255,255,0) 100%);
-  background-size:260% 100%;background-position:120% 0;animation:rib9sheen 5.6s cubic-bezier(.6,0,.3,1) infinite;mix-blend-mode:screen}
-@keyframes rib9sheen{0%,58%{background-position:120% 0}100%{background-position:-120% 0}}
+  background-size:260% 100%;background-position:120% 0;background-repeat:no-repeat;animation:rib9sheen 5.6s linear infinite;mix-blend-mode:screen}
+/* two flashes, one shape: each sweep carries the band the WHOLE way across (120% -> -120%) in the
+   same 2.35s on the same curve, so the second reads like the first. no-repeat keeps the tiled copy
+   that used to crawl in behind it off the letters; both ends park the band clear of the element, so
+   the steps(1,end) jump back between the sweeps is invisible and the holds are holds. */
+@keyframes rib9sheen{0%,6%{background-position:120% 0;animation-timing-function:cubic-bezier(.6,0,.3,1)}48%{background-position:-120% 0;animation-timing-function:steps(1,end)}54%{background-position:120% 0;animation-timing-function:cubic-bezier(.6,0,.3,1)}96%,100%{background-position:-120% 0}}
 .rib9-swash{transform-origin:0 50%;animation:rib9flutter 3.1s ease-in-out infinite}
 @keyframes rib9flutter{0%,100%{transform:skewX(0) translateX(0)}30%{transform:skewX(-2.2deg) translateX(.35%)}65%{transform:skewX(1.4deg) translateX(-.2%)}}
 .rib9-hero-jersey b,.rib9-hero-jersey span{background-size:220% 100%;animation:rib9jersey 7s ease-in-out infinite}
 @keyframes rib9jersey{0%,100%{background-position:0 0}50%{background-position:100% 0}}
-.rib9-brand b{background:linear-gradient(100deg,var(--g2) 0,var(--g2) 40%,#fff3c4 50%,var(--g2) 60%,var(--g2) 100%);background-size:240% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:rib9brand 6s ease-in-out infinite}
-@keyframes rib9brand{0%,70%{background-position:110% 0}100%{background-position:-110% 0}}
+.rib9-brand b{background:var(--g2) linear-gradient(100deg,var(--g2) 0,var(--g2) 40%,#fff3c4 50%,var(--g2) 60%,var(--g2) 100%);background-size:240% 100%;background-repeat:no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent;animation:rib9brand 6s linear infinite}
+/* same rhythm on the header gold. The gradient IS the letters' colour here (clipped to the text),
+   so no-repeat needs the flat gold under it — otherwise the word vanishes wherever the band is not. */
+@keyframes rib9brand{0%,6%{background-position:110% 0;animation-timing-function:ease-in-out}48%{background-position:-110% 0;animation-timing-function:steps(1,end)}54%{background-position:110% 0;animation-timing-function:ease-in-out}96%,100%{background-position:-110% 0}}
 .rib9-portrait img{animation:rib9breathe2 4.4s ease-in-out infinite;transform-origin:50% 70%}
 @keyframes rib9breathe2{0%,100%{transform:scale(1)}50%{transform:scale(1.022)}}
 .rib9-hero-copy{position:absolute;left:2.5%;top:13%;width:44%;max-width:580px;transform-origin:0 50%;transform:perspective(90cqw) rotateY(28deg) rotateZ(-6deg)}
