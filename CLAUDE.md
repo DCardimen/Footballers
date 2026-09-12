@@ -33,6 +33,12 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v106 THE KIT IS CUT FROM THE PICTURE` — the main menu's team colours ride pixel-measured masks:
+  `scripts/menu-kit-hero.py` / `menu-kit-card.py` / `menu-kit-portrait.py` (one per photograph,
+  run by `build-menu-art.py`) trace each garment's edge off the source art and write
+  `public/menu/*_mask_{p,s}.webp`; `_p` is the jersey (primary), `_s` helmet + pants (secondary).
+  Never hand-place a polygon again — edit the prior curves in the script, rerun, look at the
+  overlay it writes. `menu-mask-check.mjs` holds the probes; `menu-kit-shot.mjs` shows the kit
 - `v105.2 THE KIT FOLLOWS THE TEAM` — `m.team` is the SIDE (off/def/you; depth and gameplay
   rules read it), `m.kit` is the PALETTE the marker wears ("off" = the user's team, "def" = the
   opponent, chosen from possession by `kitForV105_2(side, et)`); `setTeam(m, team, kit)`,
@@ -49,9 +55,8 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   number from that waist at a constant height in cell rows, clamped inside the band, scaled by the
   body's own build; `numFontV104` measures the raster's INK (not its line box) so it lands exactly.
   `window.__V104` is the hook (`.bands`, `.last`, `.cell(srcName)` for the source art)
-  The same pass retraced the menu kit: `scripts/build-menu-art.py` (`HELMET`/`JERSEY`/`PANTS`
-  polygons at 1%, `skinless`, `fill_holes` open at the frame edge) and `.rib9-hero-art`, the
-  layer that breathes with picture, tints and name together
+  The same pass moved the hero's picture, tints and name into `.rib9-hero-art`, the layer that
+  breathes together (the menu kit's masks themselves are v106 now)
 - `v103 THE GRAB` / `v103 THE GRIP TICK` / `v103 THE WHISTLE IS NOT THE END OF THE CONTACT` /
   `v103 THE LINE BLOCKS FOR HIM` / `v103 THE TRENCH BREAKS UP` / `v103 KEEP THE PICTURE` — a landed
   wrap opens `c._grip` and returns `"grip"` instead of `"tackle"`; the grip tick at the top of the
@@ -173,7 +178,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the field sheets / the v91 atlas / player and ball frames (v91) | `v91check.mjs`, `v86check.mjs`, `renderpathcheck.mjs` |
 | the silent path's story rolls / the upgrade sheet's numbers / the menu ring (v90) | `v90check.mjs`, `v85check.mjs` |
 | the main menu / its feed / menu art (v89) | `menu-integration-check.mjs`, `menushot.mjs` (`CAREER=1`), `menu-preview-shot.mjs` |
-| the team kit on the menu pictures / the hero and continue-card masks (v104) | `menu-mask-check.mjs`, then `menu-integration-check.mjs`, `v102check.mjs`, `menushot.mjs` (`CAREER=1`) |
+| the team kit on the menu pictures / the hero, continue-card and portrait masks (v106) | `python3 scripts/build-menu-art.py` (or the one `menu-kit-*.py`), then `menu-mask-check.mjs`, `menu-kit-shot.mjs` (look at the shots), `menu-integration-check.mjs`, `v102check.mjs`, `menushot.mjs` (`CAREER=1`) |
 | team emblems / palettes / identity | `emblemcheck.mjs` |
 | training / skill art, the skill atlas | `skillartcheck.mjs`, `wheelcheck.mjs` |
 | the crowd, the sideline, the team area | `crowdcheck.mjs`, `sidelinecheck.mjs` |

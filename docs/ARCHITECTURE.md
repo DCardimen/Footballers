@@ -374,6 +374,50 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v106 — the kit is cut from the picture
+
+The main menu's team colours are recoloured copies of three photographs clipped by alpha masks
+(see v89 MAIN MENU below). Until v106 the masks were hand-placed polygons at 1% of the picture,
+and every pass that moved a vertex fixed one edge and broke another: the jersey past the sleeves,
+the pants on the crowd, the helmet in the lights, grey cuffs and a grey waist, and the whole lit
+flank of the portrait shell left gold. **A polygon is not an outline. The picture is.**
+
+Each photograph now has its own segmenter in `scripts/`, run in order by `build-menu-art.py`
+and runnable alone; each writes its masks straight into `public/menu/` and prints its own
+coverage and bleed report:
+
+- **`menu-kit-hero.py`** (`art/menu/hero_tunnel_wall.png`). Every garment is bounded by four
+  curves. A prior in percent says roughly where each runs; `trace()` walks it in 0.2% steps and
+  casts a ray across the boundary, taking the OUTERMOST strong luminance step within a small
+  radius — outermost, so the lit rim on the fabric's own edge counts as fabric — then a median
+  filter kills outliers. Where the edge is undetectable (a hem crossing a scan line flat; the
+  black-on-black arm/torso seam) the radius is 0 and the prior is used directly. Each row of each
+  garment is a single interval, so `garment = span(xL..xR) ∩ y≥top(x) ∩ y≤bottom(x)`; jersey and
+  pants share ONE waist curve so they meet with no seam. GrabCut was tried and rejected: it took
+  the bright wedge of tunnel floor between torso and arm.
+- **`menu-kit-card.py`** (`art/menu/card_continue.png`). The kit is neutral grey under hard
+  side light while arms, crowd, sky and grass carry colour, so RELATIVE chroma
+  `(max−min)/luma` separates garment from everything else where luminance cannot. Each boundary
+  is snapped row-by-row to the strongest neutral/chromatic step near its prior with a cost for
+  leaving it, median-filtered, and laid head-to-tail into two closed outlines (helmet, body);
+  the leg gap is subtracted and jersey/pants split along the measured hem crease. The neck between
+  the shell's rear pad and the collar is bare skin and is out; so is the sliver of sky between
+  the facemask strap and the shoulder.
+- **`menu-kit-portrait.py`** (`art/menu/portrait_helmet.png`, through the same crop the build
+  uses). No colour key can work here — the lit flank reads as dim as the glow behind it — so the
+  shell's silhouette is a radial rim trace (the outermost bright sample over a 222° arc, median
+  filtered) closed by a traced cut along the visor's edge and the bottom lip; the facemask is a
+  white top-hat lattice (keeps the tubes, drops the glass and its reflections) closed across and
+  along each bar. The visor glass stays untinted on purpose.
+
+Output is the same in all three: a full-resolution boolean, BOX-resized to half (exact coverage,
+no ringing), a ~0.9px blur, RGBA WEBP with RGB zero. Each script asserts alpha is zero beyond a
+few source pixels of its traced kit, and names any `menu-mask-check.mjs` probe that sits off the
+garment it measured (nine did, all on the old polygons' overshoot; they were moved). The menu
+build stamp moved to `v106-kit` so cached masks are refetched. To adjust an edge: change the
+prior curve in the script, rerun it, and look at the overlay and edge crops it writes
+(`MENU_KIT_DEBUG=<dir>`), then `menu-kit-shot.mjs` on the live menu.
+
 ## v105.2 — the kit follows the team
 
 `ribRegisterTeam` registers kits by **palette**: `"off"` from the user's team palette (in
@@ -1153,23 +1197,16 @@ reshapes those screens has to sit **on top** of that chain rather than inside it
   so no blend mode is involved; `?blendTint` renders the older colour+multiply layers for
   comparison; `which` picks primary or secondary, so the jersey / helmet / pants split is a
   kit rule in `renderMenu`, not a colour choice),
-  and every tint is clipped by a **silhouette mask** cut from the picture in
-  `scripts/build-menu-art.py` (a polygon per garment in percent of the original art, **traced on
-  the real outline at 1%** since v104 — the old boxes ran the card's pants three percent wide of
-  the hips, which put the secondary colour on the crowd. The card keys skin out inside the polygon
-  by chroma alone (`skinless`; a highlight on the fabric is fabric, so there is no luminance cap
-  any more — that cap was what dropped the sleeve hems and the shell's lit rim); the hero is
-  polygon-only, because its warm tunnel light makes lit fabric as chromatic as skin. `fill_holes`
-  floods in a one-pixel margin so a gap that runs off the frame, like the one between two legs,
-  is open air and not a hole. Masks are feathered, not eroded, and clipped to the traced full-body
-  `BODY` polygon unioned with the garments themselves). The build asserts that no finished mask
-  carries alpha outside the traced body, so a placement error fails the build instead of reaching
-  the page. To move a garment, draw a 1% grid over the picture (a zoomed crop with `PIL`, as the
-  v104 pass did) and edit the polygon; `scripts/menu-mask-check.mjs` holds each garment on probe
-  points off that grid, both on the shipped alpha and on the live render with the tints hidden
-  and shown, so a retrace that misses a hem or spills onto the crowd fails a check rather than
-  the eye. `scripts/kitshot.mjs` paints the kit crimson and gold for a look — the default slate
-  palette hides leaks. On the hero, the picture, its two tints, the lift and the name/number sit
+  and every tint is clipped by a **silhouette mask** cut from the picture. Since v106 the masks
+  are MEASURED, not placed: `scripts/menu-kit-hero.py`, `menu-kit-card.py` and
+  `menu-kit-portrait.py` (run by `build-menu-art.py`, each standalone too) trace every garment's
+  edge off the source art — see "v106 — the kit is cut from the picture" above for the method —
+  and assert on their own run that no alpha lands beyond a few pixels of the traced kit, so a
+  mis-sited curve fails the build instead of reaching the page. `scripts/menu-mask-check.mjs`
+  holds each garment on probe points in percent of the picture, both on the shipped alpha and on
+  the live render with the tints hidden and shown; `scripts/menu-kit-shot.mjs` screenshots the
+  three pictures in vivid forced colours — the default slate palette hides leaks, so look at
+  those. On the hero, the picture, its two tints, the lift and the name/number sit
   in `.rib9-hero-art`, and THAT layer carries the v102 breath: the tints used to sit still under
   a picture scaling by two percent, so the recoloured kit drifted off its own outline every
   four seconds. The mask URL is inline on the element on purpose: a `url()` in a custom
