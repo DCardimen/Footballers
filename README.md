@@ -55,6 +55,16 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v105.2 — the kit follows the team.** The kits are registered by palette — `"off"` is the
+  user's team's colours, `"def"` the opponent's — but every marker was dressed by its SIDE, so on
+  any play where the user's team was defending, the opponent's offense wore the user's colours
+  and the user's defense the opponent's; v96 then dressed the you-player to match the wrong
+  side, which is how a linebacker in a red-and-blue programme ended up watching the other team
+  wear red and blue. A marker now carries its side (`m.team`, which the depth and gameplay rules
+  keep reading) and its kit (`m.kit`, the palette it wears) separately, and the kit is chosen
+  from possession (`kitForV105_2`). `scripts/kitsidecheck.mjs` watches a linebacker's game
+  across both possessions and proves each eleven wears its own colours and the you-player his.
+
 - **v105 — the ball has a handler.** The football used to appear in the quarterback's hand the
   instant the snap fired: before it the sprite sat on the sim's ground spot at the line, drawn
   OVER the center's waist, and `snap` simply switched the holder — so on the broadcast the QB

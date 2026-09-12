@@ -33,6 +33,10 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v105.2 THE KIT FOLLOWS THE TEAM` — `m.team` is the SIDE (off/def/you; depth and gameplay
+  rules read it), `m.kit` is the PALETTE the marker wears ("off" = the user's team, "def" = the
+  opponent, chosen from possession by `kitForV105_2(side, et)`); `setTeam(m, team, kit)`,
+  `marker(..., kit)`. `kitsidecheck.mjs` (READ_POS=LB) is the proof
 - `v105 THE BALL HAS A HANDLER` — `handV105` / `handPosV105` (the snap, the handoff, the toss:
   a ball chasing the hand it is owed, re-aimed every frame), `trailV105` (the ribbon, the spiral
   in flight, the flame + embers for a hot man), `heatV105` / `hotV105` (the per-offense heat book
@@ -154,6 +158,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | pass coverage / credit, QB scramble & targets, the safety, the huddle (v87) | `v87check.mjs`, `creditcheck.mjs`, `simcheck.mjs` |
 | promotion odds / the declare (v88) | `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs` |
 | the callout badges / the moments the field shouts (v95) | `badgecheck.mjs`, `v86check.mjs` |
+| which eleven wears which kit / the you-player's colours on defense (v105.2) | `kitsidecheck.mjs` (LB), then `v104check.mjs`, `v105check.mjs`, `v86check.mjs`, `sidelinecheck.mjs` |
 | the ball between the hands / the trail, the spiral, the flame / the heat book / the perspective default (v105) | `v105check.mjs`, then `v86check.mjs`, `v91check.mjs`, `sidelinecheck.mjs`, `v92check.mjs`, `v99check.mjs`, `crowdcheck.mjs` |
 | jersey numbers on the live field (v104) | `v104check.mjs`, then `v86check.mjs`, `v91check.mjs`, `renderpathcheck.mjs` |
 | the grab / the pile / the strip / blocking / post-whistle contact (v103) | `v103check.mjs`, then `readcheck.mjs`, `tacklecheck.mjs`, `creditcheck.mjs`, `simcheck.mjs`, `renderpathcheck.mjs`, `v86check.mjs` |
