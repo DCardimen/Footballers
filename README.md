@@ -55,6 +55,18 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v106.1 — the page knows when it is stale.** GitHub Pages lets a browser keep `index.html`
+  for ten minutes after a deploy, and every menu file and every kit mask is stamped by THAT page,
+  so a phone that opened the site inside those minutes showed the old menu in the old kit and
+  only a hard refresh got it out — which is how a merged, deployed kit fix read as "no change".
+  `scripts/assemble-pages.mjs` now writes the build's version into the page
+  (`<meta name="rib-build">`) as well as into `rib-build.json` beside it, and on the menu's first
+  mount `freshV106` (`public/rib-menu.js`) reads that json past every cache; if the site has moved
+  on it pulls the fresh page into the cache and reloads ONCE, remembering the build it reloaded for
+  so it can never loop. Only at the menu, never mid-game; a page without the meta (vite dev, a
+  `file:` build) never asks; `?stayStale` holds the reload. `scripts/freshcheck.mjs` serves the
+  assembled site from a throwaway server with Pages' caching and proves all four cases.
+
 - **v106 — the kit is cut from the picture.** The team colours on the main menu's three
   photographs (the tunnel hero, the continue card, the helmet portrait) were laid over hand-placed
   polygons, and a polygon at 1% is not an outline: the jersey ran past both sleeves onto the

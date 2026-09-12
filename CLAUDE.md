@@ -33,6 +33,12 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v106.1 THE PAGE KNOWS WHEN IT IS STALE` — `freshV106` in `public/rib-menu.js`: at the menu's
+  first mount the page compares its own `<meta name="rib-build">` (written by
+  `scripts/assemble-pages.mjs`) with `rib-build.json` fetched past the cache, and reloads once when
+  the site has moved on (`window.__RIB_FRESH_V106` is the verdict; `?stayStale` holds it).
+  `freshcheck.mjs` is the proof. Bump `RIB_MENU_VERSION` (`bake-menu-into-index.mjs`) whenever a
+  menu file changes, or the old file stays cached under its old stamp
 - `v106 THE KIT IS CUT FROM THE PICTURE` — the main menu's team colours ride pixel-measured masks:
   `scripts/menu-kit-hero.py` / `menu-kit-card.py` / `menu-kit-portrait.py` (one per photograph,
   run by `build-menu-art.py`) trace each garment's edge off the source art and write
@@ -178,6 +184,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the field sheets / the v91 atlas / player and ball frames (v91) | `v91check.mjs`, `v86check.mjs`, `renderpathcheck.mjs` |
 | the silent path's story rolls / the upgrade sheet's numbers / the menu ring (v90) | `v90check.mjs`, `v85check.mjs` |
 | the main menu / its feed / menu art (v89) | `menu-integration-check.mjs`, `menushot.mjs` (`CAREER=1`), `menu-preview-shot.mjs` |
+| the deploy reaching a browser / the build meta / the one-time reload (v106.1) | `freshcheck.mjs` (no dev server), then `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the team kit on the menu pictures / the hero, continue-card and portrait masks (v106) | `python3 scripts/build-menu-art.py` (or the one `menu-kit-*.py`), then `menu-mask-check.mjs`, `menu-kit-shot.mjs` (look at the shots), `menu-integration-check.mjs`, `v102check.mjs`, `menushot.mjs` (`CAREER=1`) |
 | team emblems / palettes / identity | `emblemcheck.mjs` |
 | training / skill art, the skill atlas | `skillartcheck.mjs`, `wheelcheck.mjs` |

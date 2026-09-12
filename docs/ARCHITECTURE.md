@@ -374,6 +374,28 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v106.1 — the page knows when it is stale
+
+The site is static on GitHub Pages, which sends `cache-control: max-age=600`: a browser that opens
+`index.html` keeps it for ten minutes without asking. Every menu file and every kit mask is fetched
+at a `?v=<stamp>` baked into that page (`scripts/bake-menu-into-index.mjs`), so a stale page means
+a stale menu wearing a stale kit — and a change that merged and deployed reads as "nothing
+changed" to anyone who looks inside those ten minutes, or who reopens a tab the browser restored.
+
+`scripts/assemble-pages.mjs` writes the build's version (the commit sha on Pages) into the copied
+page as `<meta name="rib-build">` and into `rib-build.json` beside it. `freshV106` in
+`public/rib-menu.js` runs once, on the menu's first mount: it fetches `rib-build.json` with
+`cache: 'no-store'` (past the browser cache; the Pages CDN is purged on deploy) and compares. Same
+version: `fresh`, nothing happens. Newer: it records the served version in `sessionStorage`,
+fetches `location.href` with `cache: 'reload'` so the fresh page lands in the cache the reload
+reads, and calls `location.reload()`. If the reloaded page still carries the old version (a CDN
+lagging the json) the record says it already reloaded for this build and it stops: `gave-up`,
+never a loop. A page without the meta (`npm run dev`, a `file:` build) is `skipped`; the
+Capacitor bundle ships page and json together, so they always agree. `?stayStale` leaves the
+verdict on `window.__RIB_FRESH_V106` without reloading. `scripts/freshcheck.mjs` proves all of it
+against a throwaway static server. The rule that remains: every change to a menu file needs a
+new `RIB_MENU_VERSION`, or the browser keeps the old file under the old stamp.
+
 ## v106 — the kit is cut from the picture
 
 The main menu's team colours are recoloured copies of three photographs clipped by alpha masks

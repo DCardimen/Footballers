@@ -25,6 +25,36 @@
   // a url() handed to the stylesheet through a custom property resolves against the SHEET, not the
   // document — so the mask asks for it by its document-absolute address
   const artUrl = (file) => { try { return new URL(ART + file, document.baseURI).href; } catch (e) { return ART + file; } };
+  /* ===== v106.1 THE PAGE KNOWS WHEN IT IS STALE ===== */
+  // GitHub Pages tells a browser to keep index.html for ten minutes, and every menu file and every
+  // kit mask is stamped by THAT page — so for ten minutes after a deploy a phone that just opens
+  // the site shows the old menu wearing the old kit, and only a hard refresh gets it out. The
+  // deploy writes the build's version into the page (<meta name="rib-build">, put there by
+  // scripts/assemble-pages.mjs) and into rib-build.json beside it. On the menu's first mount the
+  // page reads that json past every cache and, if the site has moved on, pulls the fresh page
+  // into the cache and reloads ONCE — sessionStorage keeps the version it reloaded for, so a site
+  // that keeps serving the old page cannot loop. Only at the menu, never mid-game; a page without
+  // the meta (vite dev, a file: build) never asks, and ?stayStale holds the reload for a look.
+  const FRESH = window.__RIB_FRESH_V106 = { mine: '', served: '', state: 'idle' };
+  const freshV106 = () => {
+    if (FRESH.state !== 'idle') return;
+    const meta = document.querySelector('meta[name="rib-build"]'); FRESH.mine = (meta && meta.content) || '';
+    if (!FRESH.mine || !/^https?:$/.test(location.protocol) || typeof fetch !== 'function') { FRESH.state = 'skipped'; return; }
+    FRESH.state = 'asked';
+    let url = './rib-build.json'; try { url = new URL(url, document.baseURI).href; } catch (e) {}
+    fetch(url, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then(async (j) => {
+      FRESH.served = (j && String(j.version || '')) || '';
+      if (!FRESH.served || FRESH.served === FRESH.mine) { FRESH.state = 'fresh'; return; }
+      let done = ''; try { done = sessionStorage.getItem('rib-fresh-v106') || ''; } catch (e) {}
+      if (done === FRESH.served) { FRESH.state = 'gave-up'; return; }   // reloaded for this build already: the page is what it is
+      try { sessionStorage.setItem('rib-fresh-v106', FRESH.served); } catch (e) {}
+      FRESH.state = 'reloading';
+      try { await fetch(location.href, { cache: 'reload' }); } catch (e) {}   // the fresh page into the cache the reload reads
+      if (new URLSearchParams(location.search).has('stayStale')) { FRESH.state = 'held'; return; }
+      location.reload();
+    }).catch(() => { FRESH.state = 'error'; });
+  };
+
   let lastFingerprint = '';
   let mounted = false;
   let syncing = false;
@@ -551,6 +581,7 @@
       menu.classList.add('rib-anim-in');
       applyDynamic(menu, data, true);
       mounted = true;
+      freshV106();   // v106.1: at the menu, ask the site whether this page is still its page
     } else {
       // a data change re-renders in place, without replaying the entrance
       const scrollTop = menu.scrollTop;
@@ -589,7 +620,7 @@
     window.addEventListener('popstate', syncMenu);
     setInterval(syncMenu, 900);
   };
-  window.__RIB_MENU_V89 = { readMenuData, renderMenu, mountMenu, unmountMenu, jerseyFor, layoutArt, recolorFilter, hsl };
+  window.__RIB_MENU_V89 = { readMenuData, renderMenu, mountMenu, unmountMenu, jerseyFor, layoutArt, recolorFilter, hsl, freshV106 };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 })();
