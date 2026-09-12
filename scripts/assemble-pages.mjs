@@ -57,7 +57,16 @@ fs.cpSync(publicDir, path.resolve(outputDir, 'public'), { recursive: true })
 fs.writeFileSync(path.resolve(outputDir, '.nojekyll'), '')
 
 const indexPath = path.resolve(outputDir, 'index.html')
-const html = fs.readFileSync(indexPath, 'utf8')
+let html = fs.readFileSync(indexPath, 'utf8')
+
+// v106.1: the page carries the build it was published with, so it can ask rib-build.json whether
+// the site has moved on (public/rib-menu.js, freshV106) — the browser keeps index.html for ten
+// minutes after a deploy, and every menu file and kit mask is stamped by that page
+html = html.replace(/\s*<meta\b[^>]*name=["']rib-build["'][^>]*>/gi, '')
+if (!html.includes('<meta name="rib-menu-build"')) throw new Error('Root index.html has no rib-menu-build meta to sit the build meta beside')
+html = html.replace('<meta name="rib-menu-build"', `<meta name="rib-build" content="${version}"><meta name="rib-menu-build"`)
+fs.writeFileSync(indexPath, html)
+if (!html.includes(`<meta name="rib-build" content="${version}">`)) throw new Error('The build meta did not land in index.html')
 
 if (!html.includes('RIB_DIRECT_MENU_HEAD_BEGIN') || !html.includes('RIB_DIRECT_MENU_BODY_BEGIN')) {
   throw new Error('Root index.html does not contain the directly baked redesigned menu')

@@ -45,23 +45,28 @@ ok(Object.values(reg.per).every(p => p.run && p.cut && p.getup && p.celebrate &&
 ok(reg.ball, 'the ball has twelve spiral frames and twelve tumble frames')
 
 // ---- 2. the recolour took the new art: a run frame's jersey carries the team primary
+// v107: the you-player has worn his TEAM's palette since v96, so the probe reads that palette off
+// the scene (a gold-only test passed or failed with whatever colours the career rolled) and counts
+// the run frame's jersey pixels near the primary's hue — the same rule the defence probe below uses
 const rec = await page.evaluate(() => {
-  const sc = window.__gridironScene, T = sc.textures
+  const sc = window.__gridironScene, T = sc.textures, cols = window.__V91.teamCols ? window.__V91.teamCols() : null
+  const hex = (cols && cols.you && cols.you[0]) || '#f0bb45'; if (!T.exists('spr_you_dn_run0')) return null
+  const P = [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)]
   const src = T.get('spr_you_dn_run0').getSourceImage(); const cv = document.createElement('canvas'); cv.width = 48; cv.height = 48
   const c = cv.getContext('2d'); c.drawImage(src, 0, 0); const d = c.getImageData(0, 0, 48, 48).data
-  const hx = '#f0bb45', P = [parseInt(hx.slice(1,3),16), parseInt(hx.slice(3,5),16), parseInt(hx.slice(5,7),16)]   // the "you" primary registered by ribActivate
+  const hueOf = (r, g, b) => { const mx = Math.max(r,g,b), mn = Math.min(r,g,b); if (mx === mn) return 0; if (mx === r) return (60*((g-b)/(mx-mn))+360)%360; if (mx === g) return 60*((b-r)/(mx-mn))+120; return 60*((r-g)/(mx-mn))+240 }
+  const ph = hueOf(...P), neutralP = (Math.max(...P) - Math.min(...P)) < 40
   let n = 0, near = 0, navy = 0
-  for (let i = 0; i < d.length; i += 4) { if (d[i+3] < 40) continue; n++
-    const r = d[i], g = d[i+1], b = d[i+2]; const mx = Math.max(r,g,b), mn = Math.min(r,g,b)
-    let hue = 0; if (mx !== mn) { if (mx === r) hue = (60*((g-b)/(mx-mn))+360)%360; else if (mx === g) hue = 60*((b-r)/(mx-mn))+120; else hue = 60*((r-g)/(mx-mn))+240 }
-    if (hue >= 190 && hue <= 265 && (mx-mn)/Math.max(1,mx) > 0.15 && (mx+mn)/2 >= 38) navy++
-    // gold-ish primary present: hue 35..55 and bright
-    if (hue >= 30 && hue <= 60 && mx > 150) near++ }
-  return { n, near, navy, usedV91: ((window.__V91 && window.__V91.cacheKeys) ? window.__V91.cacheKeys() : []).filter(k => /^run_/.test(k)).length }
+  for (let y = 13; y < 27; y++) for (let x = 12; x < 36; x++) { const i = (y * 48 + x) * 4; if (d[i+3] < 40) continue
+    const r = d[i], g = d[i+1], b = d[i+2], mx = Math.max(r,g,b), mn = Math.min(r,g,b), hue = hueOf(r, g, b)
+    if ((mx + mn) / 2 < 38 || (!neutralP && (mx - mn) / Math.max(1, mx) < 0.15)) continue; n++
+    if (hue >= 190 && hue <= 265 && (mx-mn)/Math.max(1,mx) > 0.15) navy++
+    const dh = Math.min(Math.abs(hue - ph), 360 - Math.abs(hue - ph)); const neutralPx = (mx - mn) < 40
+    if ((neutralP && neutralPx) || (!neutralP && dh < 28)) near++ }
+  return { primary: hex, n, near, navy, primaryIsNavy: ph >= 190 && ph <= 265, usedV91: ((window.__V91 && window.__V91.cacheKeys) ? window.__V91.cacheKeys() : []).filter(k => /^run_/.test(k)).length }
 })
 console.log('recolour:', JSON.stringify(rec))
-// the "you" kit is gold over navy, so navy pixels are the pants doing their job; the jersey is the primary
-ok(rec.near >= rec.n * 0.08 && rec.navy >= rec.n * 0.02, 'the recolour reached the new art: the jersey wears the primary and the pants the secondary', `primary=${rec.near}/${rec.n} secondary=${rec.navy}`)
+ok(rec && rec.n > 40 && rec.near >= rec.n * 0.5 && (rec.primaryIsNavy || rec.navy < rec.n * 0.15), 'the recolour reached the new art: the run frame\'s jersey wears the you-player\'s team primary', rec && `primary=${rec.primary} near=${rec.near}/${rec.n} navy=${rec.navy}`)
 ok(rec.usedV91 >= 40, 'the run frames came from the v91 cells, not the older atlases', `v91 run cells cut=${rec.usedV91}`)
 
 // ---- 2b. the defence too: its jersey carries the defence primary, whatever palette the opponent drew
@@ -82,7 +87,7 @@ const defRec = await page.evaluate(() => {
     if (hue >= 190 && hue <= 265 && (mx-mn)/Math.max(1,mx) > 0.15 && (mx+mn)/2 >= 38) navy++
     const dh = Math.min(Math.abs(hue - ph), 360 - Math.abs(hue - ph)); const neutralPx = (mx - mn) < 40
     if ((neutralP && neutralPx) || (!neutralP && dh < 28)) near++ }
-  return { primary: hex, n, near, navy, primaryIsNavy: !neutralP && ph >= 190 && ph <= 265 }
+  return { primary: hex, n, near, navy, primaryIsNavy: ph >= 190 && ph <= 265 }
 })
 console.log('defence recolour:', JSON.stringify(defRec))
 ok(defRec && defRec.n > 40 && defRec.near >= defRec.n * 0.5 && (defRec.primaryIsNavy || defRec.navy < defRec.n * 0.15), 'the defence jersey wears the defence primary (torso pixels match its hue family)', defRec && `primary=${defRec.primary} near=${defRec.near}/${defRec.n} navy=${defRec.navy}`)
