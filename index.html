@@ -3594,7 +3594,7 @@ window.__visionRadiusV96 = visionRadiusV96;
                   // (the receiver runs to every ball in this sim, so the miss that MEANS something is the
                   // passer's — the catch point against the spot he was aiming at, `idealX/idealY`)
                   const _mdx = cx - idealX, _mdy = cyy - idealY, _tol = TU("missPx", 10), _catchable = locationQuality > TU("dropLocQ", .7);
-                  const _reason = (_catchable && !contested && sep > 0) ? "drop"
+                  const _reason = (_catchable && !contested && sep > TU("dropSepMin", -1.5)) ? "drop"
                     : _catchable ? "contested"
                     : _mdx > _tol ? "overthrow" : _mdx < -_tol ? "short" : Math.abs(_mdy) > _tol ? "behind" : "contested";
                   emit("incomplete", _reasonV109(_reason, _reason === "drop" ? { by: target.id } : _reason === "contested" ? { by: coverA.id, on: target.id } : { on: target.id })); done = true;

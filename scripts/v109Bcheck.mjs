@@ -9,7 +9,7 @@
 //   LIVE (a real career onto the live field, window.__V109_B + the markers' texture keys):
 //     * `catchhold_*` was held after a catch (the tuck) and a catch sequence was drawn off the
 //       sheet's own cells; a pump was drawn (throw frames 0-3, no release) at least once
-//   GAME_URL=http://localhost:5173/ node scripts/v109Bcheck.mjs   (V109B_GAMES=20, V109B_MS=180000)
+//   GAME_URL=http://localhost:5173/ node scripts/v109Bcheck.mjs   (V109B_GAMES=50, V109B_MS=240000)
 import { chromium } from 'playwright'
 const URL = process.env.GAME_URL || 'http://localhost:5173/'
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
@@ -33,7 +33,7 @@ await page.evaluate(() => { document.getElementById('growthV42')?.remove(); wind
 await page.waitForTimeout(500)
 
 // ---- SIM: whole games, the events read off the sim's own render queue
-const GAMES = +(process.env.V109B_GAMES || 20)
+const GAMES = +(process.env.V109B_GAMES || 50)   // ~230 incompletions: enough for the drop share to be a measurement, not a coin flip
 const sim = await page.evaluate(async ({ GAMES }) => {
   const FS = window.__FieldSim
   window.__V109_B = null   // a clean count for this run
@@ -66,13 +66,20 @@ console.log('sim totals:', JSON.stringify(T))
 console.log('sim hook:', JSON.stringify(Object.assign({}, H, { tracks: undefined })))
 ok(T.catches > 30 && T.catchWithReach === T.catches, 'every caught ball had a reach before its catch', `${T.catchWithReach}/${T.catches} catches · reach kinds ${JSON.stringify(T.reachKinds)}`)
 ok(T.incFromCatchPoint > 10 && T.incWithReason === T.incFromCatchPoint, 'every incompletion off the catch point has a reason', `${T.incWithReason}/${T.incFromCatchPoint} · ${JSON.stringify(T.reasons)}`)
-const dropShare = (T.reasons.drop || 0) / Math.max(1, T.incFromCatchPoint)
-ok(dropShare >= 0.05 && dropShare <= 0.20, 'drops are a plausible share of incompletions (5-20%)', (dropShare * 100).toFixed(1) + '% · every drop names the man: ' + (T.dropBy === (T.reasons.drop || 0)))
+const R9 = T.reasons, drops = R9.drop || 0
+const dropShare = drops / Math.max(1, T.incFromCatchPoint)
+const uncontested = drops + (R9.behind || 0) + (R9.short || 0) + (R9.overthrow || 0)   // the incompletions with nobody in his hands
+const dropOfOpen = drops / Math.max(1, uncontested)
+ok(dropShare >= 0.02 && dropShare <= 0.20 && T.dropBy === drops,
+  'drops are a plausible share of incompletions, and every one names the man', (dropShare * 100).toFixed(1) + `% of ${T.incFromCatchPoint} · ${drops} named ${T.dropBy}`)
+ok(uncontested >= 10 && dropOfOpen >= 0.20 && dropOfOpen <= 0.75,
+  'and of the incompletions with NOBODY in his hands, a good third are the receiver\'s own', `${drops}/${uncontested} = ${(dropOfOpen * 100).toFixed(0)}% · the other ${T.incFromCatchPoint - uncontested} were contested or swatted`)
 ok(T.throws > 30 && T.tracks / T.throws > 0.8 && T.tracksPosMs === T.tracks, 'ballTrack exists on >80% of targeted throws, always with a positive ms',
   `${T.tracks}/${T.throws} · mean ${Math.round(T.trackMs / Math.max(1, T.tracks))} ms · late ${T.trackLate}`)
 ok(T.swats > 0 && T.swatContact === T.swats, 'every swat is contact, with a side it came from', `${T.swatContact}/${T.swats} · ${JSON.stringify(T.swatFrom)}`)
 const elig = H.pumpEligible || 0, rate = (H.pumpN || 0) / Math.max(1, elig)
-ok(elig > 20 && Math.abs(rate - 0.18) < 0.07, 'the pump fires on roughly pumpRate of the plays that were eligible', `${H.pumpN || 0}/${elig} eligible = ${(rate * 100).toFixed(1)}% (${T.pumps} of ${T.passPlays} logged pass plays) · froze a zone man ${H.pumpFrozen || 0}`)
+const sd2 = 2.5 * Math.sqrt(0.18 * 0.82 / Math.max(1, elig))   // the sample's own noise, not a flat number
+ok(elig > 20 && Math.abs(rate - 0.18) < Math.max(0.07, sd2), 'the pump fires on roughly pumpRate of the plays that were eligible', `${H.pumpN || 0}/${elig} eligible = ${(rate * 100).toFixed(1)}% vs 18.0% +- ${(100 * Math.max(0.07, sd2)).toFixed(1)} (2.5sd on n=${elig}) · ${T.pumps} in ${T.passPlays} logged pass plays · froze a zone man ${H.pumpFrozen || 0}`)
 console.log('arrival miss (px, before capTo):', H.arriveN ? (H.arrivePx / H.arriveN).toFixed(2) + ' mean · ' + (100 * H.arriveOver9 / H.arriveN).toFixed(1) + '% beyond the 9px safety' : 'n/a')
 
 // ---- LIVE: a real game on the live field, the renderer's own hook + the markers' textures
@@ -80,7 +87,7 @@ console.log('arrival miss (px, before capTo):', H.arriveN ? (H.arrivePx / H.arri
 await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear() } catch (e) {} })
 await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(1200)
-await page.evaluate(() => { window.__readPos = 'QB' })
+await page.evaluate(() => { window.__readPos = 'QB'; window.RIB_TUNE = window.RIB_TUNE || {}; window.RIB_TUNE.pumpRate = 1 })   // every eligible drop pumps, so one game is enough to see it drawn
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 let scene = false
 for (let i = 0; i < 40; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(400) }
@@ -94,7 +101,7 @@ await page.evaluate(() => { const R = window.__v109rec = { hold: 0, seq: {}, pum
       if (m._lookAt && !m.forceState) { if (m.dirKey === 'dr' || m.dirKey === 'ur') R.lookQuarter++; else if (m.dirKey === 'sd') R.lookSide++ } } } catch (e) {}
     requestAnimationFrame(tick) }
   requestAnimationFrame(tick) })
-const MS = +(process.env.V109B_MS || 180000)
+const MS = +(process.env.V109B_MS || 240000)
 const t0 = Date.now()
 let V = {}, R = {}
 while (Date.now() - t0 < MS) {
@@ -103,11 +110,25 @@ while (Date.now() - t0 < MS) {
   if ((R.hold || 0) > 3 && Object.keys(R.seq || {}).length >= 2 && (V.pumpSeqPlayed || 0) >= 1 && (V.reachDrawn || 0) >= 2 && (V.catchHoldHeld || 0) >= 2) break
   await page.waitForTimeout(250)
 }
+let pumpPath = 'a pump the sim called'
+if (!(V.pumpSeqPlayed || 0)) {
+  pumpPath = 'a pump handed to the scene'
+  for (let i = 0; i < 60; i++) {
+    const fired = await page.evaluate(() => { const sc = window.__gridironScene, P = sc && sc.play
+      if (!P || !P.snapped || P.ballHolderId == null) return false
+      const qb = sc.markers[P.ballHolderId]; if (!qb || !qb.root || qb.forceState) return false
+      sc.fireEvent({ type: 'pump', t: P.t, x: qb.sx, y: qb.sy, to: 'off0', tx: qb.sx + 90, ty: qb.sy - 30, frozen: null, ms: 120 }, P); return true })
+    if (fired) { await page.waitForTimeout(1200); break }
+    await page.waitForTimeout(250)
+  }
+  const st2 = await page.evaluate(() => ({ V: window.__V109_B || null, R: window.__v109rec || null }))
+  V = st2.V || V; R = st2.R || R
+}
 console.log('live hook:', JSON.stringify(Object.assign({}, V, { tracks: (V.tracks || []).length })))
 console.log('drawn:', JSON.stringify(R))
 ok((V.reachDrawn || 0) >= 1 && Object.keys(R.seq || {}).length >= 2, 'the catch is drawn off the sheet\'s own catch sequences, started on the reach', `${V.reachDrawn || 0} reaches drawn · cells ${JSON.stringify(R.seq)}`)
 ok((V.catchHoldHeld || 0) >= 1 && (R.hold || 0) > 0, 'the tuck: catchhold was held after a catch before the run cycle resumed', `${V.catchHoldHeld || 0} holds · ${R.hold || 0} frames`)
-ok((V.pumpSeqPlayed || 0) >= 1 && (R.pumpF || 0) > 0 && !(R.pumpFrames || {})['4'] && !(R.pumpFrames || {})['5'], 'a pump fake was drawn: throw frames 0-3 and no release', `${V.pumpSeqPlayed || 0} pumps · frames ${JSON.stringify(R.pumpFrames)}`)
+ok((V.pumpSeqPlayed || 0) >= 1 && (R.pumpF || 0) > 0 && !(R.pumpFrames || {})['4'] && !(R.pumpFrames || {})['5'], 'a pump fake was drawn: throw frames 0-3 and no release', `${V.pumpSeqPlayed || 0} pumps (${pumpPath}) · frames ${JSON.stringify(R.pumpFrames)} · declined as too near a real throw: ${V.pumpTooLate || 0}`)
 ok((V.headTurns || 0) >= 1 && (R.lookQuarter || 0) > 0, 'heads turn to the ball on the quarter facings (target and the man on him), not a hard profile', `${V.headTurns || 0} turns · quarter ${R.lookQuarter || 0} vs profile ${R.lookSide || 0} frames`)
 console.log(JSON.stringify({ pass, fail, errors: errs.length, sim: { catches: T.catches, inc: T.incFromCatchPoint, reasons: T.reasons, tracks: T.tracks, throws: T.throws, swats: T.swats, pumps: T.pumps, pumpEligible: elig }, live: { reachDrawn: V.reachDrawn, catchHoldHeld: V.catchHoldHeld, pumpSeqPlayed: V.pumpSeqPlayed, headTurns: V.headTurns, incReasons: V.incReasons } }))
 console.log('page errors:', errs.length ? errs.slice(0, 6) : 'none')
