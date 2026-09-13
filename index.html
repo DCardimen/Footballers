@@ -3370,7 +3370,7 @@ window.__visionRadiusV96 = visionRadiusV96;
            * and no new number on the target's separation). Rolled ONCE per play, the first time
            * the read is covered with the pocket holding; the broadcast plays the arm to the cock
            * and aborts before the release. */
-          if (!qb._pumpRolledV109 && _lsep < 0 && _lp > TU("pumpProt", .6) && t < throwAt - TU("pumpBeforeThrowMs", 420)) {
+          if (!qb._pumpRolledV109 && _lsep < 0 && _lp > TU("pumpProt", .6) && t < throwAt - TU("pumpBeforeThrowMs", 900)) {
             qb._pumpRolledV109 = true;
             try { const B = root.__V109_B = root.__V109_B || {}; B.pumpEligible = (B.pumpEligible || 0) + 1; } catch (e) {}
             if (Math.random() < TU("pumpRate", .18)) {
@@ -7055,7 +7055,7 @@ class Ot extends mt.Scene {
        * and the tick frame 4 would start he is back on his ready/carry pose with the ball still in
        * his hand. No record on __V107.throws, no flight, nothing for the release audit to count. */
       const tok = m._pumpV109 = (m._pumpV109 || 0) + 1; m._thrRecV107 = null;
-      m._pumpAbortV109 = m.seqT + fm * rf;   // on HIS clock (placeMarker aborts it there); the timer below is only a safety net
+      m._pumpAbortV109 = m.seqT + fm * rf; m._pumpSeqTV109 = m.seqT;   // on HIS clock (placeMarker aborts it there); the timer below is only a safety net
       this.time.delayedCall(fm * rf * 3, () => {
         if (m._pumpV109 !== tok) return; m._pumpV109 = 0;
         if (m.forceState === "throwSeq") { m.forceState = null; m._thrDirV108 = null; } });
@@ -7288,6 +7288,11 @@ class Ot extends mt.Scene {
         try { const B = window.__V109_B = window.__V109_B || {}; B.pumpEvents = (B.pumpEvents || 0) + 1; if (!qb || !qb.root || qb.forceState) (B.pumpBail = B.pumpBail || {})[String(qb && qb.forceState)] = ((B.pumpBail || {})[String(qb && qb.forceState)] || 0) + 1; } catch (er) {}
         if (!qb || !qb.root || qb.forceState) break;
         const fm = TU("throwFrameMs", 85), rf = TU("throwReleaseFrame", 4), T9 = Math.max(0, P.t - (P.delay || 0));
+        // the arm belongs to the REAL throw first: v107 arms it fm*rf before the release and refuses
+        // to start while anything else holds forceState, so a fake that would still be running then
+        // is not drawn at all (the sim's own gate keeps them apart too — this is the belt)
+        const nxThr = ((P.script && P.script.events) || []).find(ev => ev && ev.type === "throw" && ev.style !== "kick" && !ev.fg && ev.t >= T9);
+        if (nxThr && nxThr.t - T9 < fm * rf * 2 + TU("pumpClearMs", 60)) { try { const B = window.__V109_B; B.pumpTooLate = (B.pumpTooLate || 0) + 1; } catch (er) {} break; }
         this.startThrowV107(P, qb, { tx: e.tx != null ? e.tx : e.x + 60, ty: e.ty != null ? e.ty : e.y, t: T9 + fm * rf }, T9, true);
         const zm = e.frozen ? this.markers[this.actorIdx(e.frozen)] : null; if (zm && !zm.forceState) zm.cutUntil = zm.tms + (e.ms || 120);
         this.popText(e.x, e.y - 24, "PUMP", "#f7e2a8", 11);
@@ -8689,7 +8694,7 @@ class Ot extends mt.Scene {
       // Uploaded pose sheets provide true frame-by-frame action silhouettes.
       // These are brief overlays only; actor movement and play outcomes remain
       // driven by the simulation frames underneath.
-      if (m._pumpV109 && st.indexOf("throw") === 0 && m.tms >= (m._pumpAbortV109 || 0)) {   // v109: the pump aborts before the release frame
+      if (m._pumpV109 && m.seqT === m._pumpSeqTV109 && st.indexOf("throw") === 0 && m.tms >= (m._pumpAbortV109 || 0)) {   // v109: the pump aborts before the release frame — pinned to the fake's OWN sequence, never a real throw's
         m.forceState = null; m._thrDirV108 = null; m._pumpV109 = 0; st = m.sSm > 8 ? "run0" : "idle"; }
       if (st === "catchhold") {                        // v109: the tuck — held to _tuckV109 after the catch, then the run cycle
         if (!m._tuckV109 || m.tms >= m._tuckV109) { m.forceState = null; m._tuckV109 = 0; st = m.sSm > 8 ? "run0" : "idle"; }
