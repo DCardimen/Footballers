@@ -374,6 +374,261 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v109 — the game looks real
+
+A suite of feel-only changes across the pass, contact, movement and game-flow layers. The rule the
+whole pass is built on: **the scoreboard does not move.** Every change is timing, geometry, an event
+the renderer can draw, or a field on a row. Where a number that feeds an outcome had to change, its
+MEAN was held (the flight model) or its distribution was left untouched and only its direction
+shaped (the throw's miss). `scripts/scoreneutralcheck.mjs` is the gate: it prints one JSON row of
+every outcome number, and the suite is measured before and after on 300 games.
+
+**The noise floor matters.** Across 300-game runs of the SAME build, points move by up to a point in
+either direction. Judge points on the mean of two runs; hold `snaps`, `compPct`, `ypc`, `ypa`,
+`turn` and `sacks` tight.
+
+### A — the ball has a speed
+
+Anchors `v109 THE BALL HAS A SPEED` (beside `STYLE_K_V101`), `v109 THE ARC FOLLOWS THE HANG`,
+`v109 THE BALL COMES DOWN STEEPER THAN IT WENT UP` (inside `rec()`), `v109 THE THROW EVENT TELLS THE
+TRUTH ABOUT THE BALL`, `v109 A HURRIED MISS HAS A DIRECTION`, `v109 A BAD BALL CAN LEAVE THE FIELD`,
+`v109 A THROWAWAY IS THROWN`, `v109 THE BALL HAS A SPEED (the picture)`.
+
+`flightMsV101` was `distance × a constant`, clamped at 390 ms — so a 3-yard swing, a 5-yard slant
+and an 8-yard hitch all hung for exactly the same time, and the floor did most of the work. It is
+now `TU("throwReleaseMs", 200) + distance / ballVelV109(arm, style)`: the time the ball spends
+leaving the hand, plus its flight at a real velocity (`ballVelBullet` .425, `ballVelTouch` .327,
+`ballVelLob` .228 px per sim-ms, `ballVelArmK` scaling by the arm — 59 / 45 / 32 mph once the 2.5×
+sim clock is taken back out). Fitted so every style's MEAN over the real distribution of throw
+distances lands on the old ladder's within half a percent; `flightMsLegacyV109` keeps the old line
+for the audit. Short balls hang a shade longer, deep balls arrive sooner.
+
+The apex follows from the hang instead of from a per-style line in route depth (`apexPxV109`,
+`arcGravK`, capped per style so a rope stays a rope), and `rec()` draws the height as two quarter-
+sines meeting at `TU("arcApexFrac", .55)` — the ball climbs longer than it falls, and comes down
+the steeper leg. The landing point, `dur` and every callback are unchanged.
+
+The `throw` event now carries what the ball actually does: `dur` (the real flight, not the lead
+solve's `hang`), `vel`, `velMph`, `apex`, `wobble` (0..1 off panic, an off-platform throw and a
+broken pocket), `platform` (`set`/`roll`/`slide`/`hurried`) and `errDir`. The renderer drives the
+spin rate off `vel` and the wobble amplitude off `wobble`, so a rope's laces blur and a hurried
+ball visibly wobbles where a clean one is a tight spiral; `__RIB20_syncFootballFx` reads the same
+number instead of its own bullet/lob/touch ladder.
+
+The miss around the aim point was isotropic — a ball thrown off the back foot was as likely to sail
+long as to die short. `errMag` is **untouched** (the same draw, so the cone, `locationQuality`,
+`catchP`, `intP` and `swatP` see an identical distribution of how far the ball lands from the spot);
+only `errAng` moved, biased back along the throw and against the receiver's heading with a
+probability set by panic, movement and pressure. Measured: 2% biased on a calm set throw, 52% under
+real panic.
+
+Both throwaway paths emitted `throwaway` + `incomplete` on the same tick with no flight at all — the
+ball teleported to one fixed spot at the top of the picture and the arm never moved (the v107 wind-up
+only reads `throw` events). `throwAwayV109` builds a real bullet flight past the NEAR sideline,
+emits `throw{away:true}` first, and books the `incomplete` (`oob:true, away:true`) from the flight's
+own `done()`, trimmed to land before `HARD`. Separately the BALL's landing spot is no longer clamped
+inside the paint: an errant ball goes where the miss put it and the incompletion carries `oob`.
+Players stay clamped, and every outcome number is still read at the in-bounds spot (`cyIn`).
+
+Hook `window.__V109_A` (`.flightMs(distPx, thr, style)`, `.last`, `.byStyle`). Check `v109Acheck.mjs`.
+
+### C1 — the hit has a point
+
+Anchors `v109 THE HIT HAS A POINT` (before `contact()`; `commitSeqV109`, `hitGeoV109`, `bobbleV109`,
+`wrapInV109`), `v109 THE PILE HAS A SHAPE` and `v109 THE HEARTBEAT` (in the grip tick),
+`v109 THE FUMBLE COMES LOOSE` (`recoverV109`), and the renderer's `v109 THE GANG CONVERGES` /
+`THE PILE HAS A HEARTBEAT` / `THE FUMBLE COMES LOOSE` / `BALL SECURITY IS VISIBLE` cases plus
+`v109 THE HIT HAS A POINT (renderer)`.
+
+Every contact event used to report the carrier's centre and nothing else, and `tackleLunge` carried
+no id — so the renderer paired a lunge to its outcome by proximity and mis-paired whenever two men
+arrived in the same tick. `hitGeoV109` stamps `cid` (a monotonic commit sequence), `ix, iy` (the
+midpoint of the two bodies), `nx, ny` (the unit normal), `impact` (|cMom − dMom|) and `side` on the
+lunge and on every event that resolves it — `tackleWhiff`, `hurdle` (+`clearance`), `stiffarm`
+(+`armEdge`), `brokenTackle`, `bounce`, `stagger`, `tackleHit`, `grab`, `tackle`. `hitFx` draws at
+the impact point, squashed along the normal and sized by `impactFxK`; the shake, the scuff and the
+turf wear ride the same numbers.
+
+`supIds` were collected for stat credit and never moved, so a "gang tackle" could render as one man
+wrapping while two others stood five yards away. `wrapInV109` nudges each supporter toward the
+carrier along HIS OWN approach ray and emits `wrapIn {who, carrier, x, y, bearing, cid}`; the
+renderer folds them into the heap in arrival order. Credit (`supIds`, `gang`, `youIn`) and the spot
+are untouched.
+
+The grip pile was a rigid comb — every pile the same shape, a man who arrived from the left placed
+on the right if he happened to be joiner 1. Joiners now keep the bearing they arrived on and lerp in
+along it (`pileFanRad`, `pileRadiusPx`, `pileSettleMs`); `pileOn` carries `angle`, `mom`, `n`; and
+the grip beats `drag {carrier, by, x, y, pull, n, strain, vel, cid}` every `TU("dragSayMs", 99)` so
+the picture can churn and visibly slow as men join.
+
+A strip ended the play on the tick it was rolled: the ball never came loose on screen and nobody
+dove for it. The `defRec` roll, the spot and the `out.fumble` fields are byte-identical, but the
+play now runs 8–15 ticks of loose ball — `looseBall {x, y, vx, vy, by, cid}`, the ball wandering
+inside `looseWanderPx`, the pre-decided side's nearest man converging, then `recover {by, x, y, ms,
+defRec, side, strip, cid}`. `TU("looseV109", 0)` restores the same-tick ending. And a hard hit can
+now bobble the ball — `ballLoose {..., secured: true}`, scaled by low `ballControl`, with **no**
+possession change and no new strip roll.
+
+Hook `window.__V109_C1`. Check `v109C1check.mjs`.
+
+### C2 — the feet plant
+
+Anchors `v109 THE FEET PLANT — the turn is EMITTED` (in `mv()`), `— the gather, the plant, the
+carrot that scales`, `— down men go down`, `— the support FANS`, `— the jog RESUMES`, `— the coast`,
+and on the renderer side `— the renderer looks ahead for the cut` (`plantV109`, beside
+`windupV107`), `— he leans into it, the facing turns through the crossover` (`faceAngV109`,
+`leanV109`, `cadenceV109`, `sideV109`, `stumbleV109`, after `faceMarker`) and `— the sim's plant,
+turn, down and effort`.
+
+The back re-read his lane every `laneHoldMs` and `mv()` steered into a 60-px jump at full gear the
+same tick, so a hard cut reached the field as a slide between two keyframes. A lane that moves more
+than `plantLaneDeltaPx` is now a plant: a two-tick gather at `plantGatherMult`, an exit burst that
+pays the ground back, and a `plant {who, x, y, fromY, toY, deg, hard, vel}`. `mv()` also finally
+emits its own `turn {who, deg, dir, vel}` (gated so an A-B-A flip-flop or a stationary man never
+fires one), and `carryAimAhead` scales with gear so only the curvature into the lane moves. The
+renderer looks `plantLookFrames` ahead in the actor's own path for a heading swing and draws the
+never-used `plant_<dd>` cell into `cut_<dd>` with the cadence stalled.
+
+`m._lean` was drawn every frame and set only for the QB tuck and drags; `leanV109` now gives every
+running man one from his smoothed heading rate (`leanK`, `leanMax`, `leanDecay`), never overriding a
+foreign lean. The drawn facing is rate-limited (`faceStepRad`) so a 180° reversal passes through the
+side profile instead of flipping in one frame.
+
+Trucked and pancaked men used to `continue` — frozen on a pixel, then back to full pursuit.
+`downSlideV109` slides them along their overshoot for `downSlideMs` and emits `down {who, x, y,
+until, cause}`; the coast rotates their heading onto the push and brakes them by position mass
+(`brakeMassOL` .78 through `brakeMassDB` 1.15). Support men held on one of exactly two spots and
+stacked; each now holds on its own approach ray. `effort{kind:"jog"}` latched forever, so a man cut
+back into made the tackle in the jog animation — it clears now with `effort{kind:"resume"}`. And a
+`stagger`, a `bounce` or a run through contact puts the man on the never-used `hurt_<dd>` cells for
+a `stumbleMs` broken stride, leaning away from the hit.
+
+Hook `window.__V109_C2`. Check `v109C2check.mjs`.
+
+### D — the game has a clock
+
+Anchors `v109 THE GAME HAS A CLOCK` (the engine helpers `rowMetaV109`, `hdrV109`, `flushWarnV109`,
+`simOobV109`, `runDirV109`, `tkTxtV109`, hook `window.__V109_D`), `v109 THE EXTRA POINT IS A PLAY`
+(`pushTryV109`), `v109 THE CLOCK TELLS THE TRUTH`, `v109 THE STICKS COME OUT` (both the engine's
+`measureV109`/`fdV109` and the claim region's first-down emit), `v109 THE FLAG HAS THREE BEATS`,
+and `v109 THE SCOREBUG COUNTS THE TIMEOUTS` (`ribPaintTimeoutsV109`).
+
+The try was a string suffix — `tryAfter()` mutated the score and the scoreboard jumped 0→7 on the
+touchdown row with no kick ever shown. It now makes the *identical* rolls in the identical order and
+returns the verdict; the touchdown row books 6 and `pushTryV109` books the 1 or 2 on its own
+`{event:"xp"|"twopt", scored, try:{kind,good,pts,dist}}` row, rendered from the FG family's sim log.
+Two neutrality guards: the sim writes stamina and wear back onto the 22 men it uses, so the tanks
+are snapshotted and restored around a kick the base game never simulated, and a sim "block" that
+would contradict the verdict drops its log instead of being drawn.
+
+`stops` was computed and thrown away and `oob` was a blind roll unrelated to where the carrier
+finished. Every snap row now carries `clockStopped`, `secs` and `runoff`; out-of-bounds is read from
+the sim log first (`simOobV109`) with the blind roll reduced to `p' = (p_target − p_sim)/(1 − p_sim)`
+so the AGGREGATE rate is unchanged. New header-like rows: a two-minute `warning` (decorative — it
+consumes no seconds and does not alter the runoff), `period` at each quarter turn, a pregame `toss`,
+and `timeout` — which used to be text welded onto the previous row's `desc` after it was booked.
+`toLeft` rides every row and the scorebug shows three pips a side.
+
+Penalty rows carry a structured `foul {name, on, side, player, yards, spot, result}` (the result
+derived from the existing math only — no new decline logic), and the flag choreography runs in four
+beats: the culprit moves, the flag flies, the crew announces, the formation re-spots. A spot inside
+`measureYd` of the sticks sets `measure` and brings the chains out before the FIRST DOWN badge. Punt
+and kickoff rows carry their result, gross, return and net; run and pass descriptions finally name
+the direction and the tackler ("rushes off tackle right for 4, tackled by X"), with `tackler`,
+`assist`, `dir` and `tacklerSim` on the row — a formula-promoted run with no sim truth names a
+plausible defender, flagged `tacklerSim:false`, and never the you-player and never a stat. The
+`P.ff`/`P.fum` NaN (incremented from undefined since v30) is fixed.
+
+Hook `window.__V109_D`. Check `v109Dcheck.mjs`.
+
+### B — the receiver finds the ball
+
+Anchors `v109 THE RECEIVER FINDS THE BALL` (the fly branch's find, `ballTrack`, the reach; the route
+block's `steerV109`; the `catchseq` registration in `ribRegisterTeam`), `v109 THE HANDS GO UP`,
+`v109 AN INCOMPLETION HAS A REASON`, `v109 A PASS BREAK-UP IS CONTACT`, `v109 THE PUMP FAKE`.
+
+The target was driven at the landing spot from the instant of release — and driven *twice* a tick,
+once by the fly branch and once by the route block, so he covered double ground and stood under the
+ball long before it came down. He now runs his ROUTE until `_ballFoundAt`, a real find time off his
+awareness plus a penalty when the ball is over his shoulder, and emits `ballTrack {who, x, y, late,
+ms, shoulder}`. `capTo` is untouched, so the catch point and every roll are identical; once he has
+found it the pre-v109 steering resumes exactly as before, because standing the route block down for
+the whole flight moved where he was against his man at the catch and cost two yards an attempt.
+
+The hands used to close ~300 ms *after* the ball was in the body. The fly branch now emits
+`reach {by, x, y, kind, at, contested}` at `TU("reachLeadMs", 180)` out, and this is where the
+sheet's 46 `catchseq` cells — cut long ago, registered by nobody — finally get used: `catchseq_<dn|
+dr|up><0..3>_<0..3>` is registered per kit and the reach's `kind` picks the variant. `catch` only
+CONFIRMS possession, and the tuck holds `catchhold_*` before the run cycle resumes.
+
+An incompletion now says what it was, classified strictly AFTER the existing rolls and changing
+none of them: `drop` (well placed, nobody in his hands, the man open), `swat`, `contested`, or
+`overthrow`/`short`/`behind` from the sign of the miss — plus `away` for agent A's thrown
+throwaway. The renderer pops the reason and draws a drop as a real bobble off the hands. A break-up
+carries `contact:true` and the side the arm came from, the defender's arm goes through the hands,
+and `boxOut` and `comeback` — emitted and discarded since v82 — got real cases at last.
+
+And the quarterback pumps: a covered read from a clean pocket rolls `TU("pumpRate", .18)`, freezes
+the nearest ZONE defender briefly through v56's existing steering hold, and the renderer plays the
+throw's frames 0-3 and aborts before the release. The fake is exactly as long as v107's wind-up
+lead, so `TU("pumpBeforeThrowMs", 900)` keeps the two apart and the abort is pinned to the fake's
+own `seqT` — without that a fake still holding `forceState` ate the next real release.
+
+Hook `window.__V109_B`. Check `v109Bcheck.mjs`.
+
+### E — the broadcast
+
+Anchors `v109 THE BROADCAST CAMERA`, `v109 THE LEADING THIRD`, `v109 THE BROADCAST (agent E)`
+(`v109E()`, `caseV109`, `camSpringV109`, `camPostV109`), `v109 SHADOWS STAY UNDER THE BODIES`,
+`v109 TEAMMATES HELP EACH OTHER UP`, `v109 CELEBRATION VARIETY, AND A BENCH THAT SURGES`,
+`v109 THE BENCH SURGES`, `v109 THE HUDDLE BREAKS LIKE A HUDDLE`, `v109 THE CREW SPOTS THE BALL, AND
+THE STICKS MOVE`, `v109 THE QUARTERBACK'S EYES`, `v109 THE FRONT'S CHESS`, `v109 WALK`.
+Renderer-only: no sim event added or removed, so the scoreboard cannot move.
+
+The follow was an exponential lerp behind a dead-band — it stalled on small corrections and
+micro-stepped on large ones — and v28's carrier lock scaled zoom by `1/perspK(carrier)` so the
+runner never changed size, the opposite of a broadcast. Pan and zoom now ride one critically damped
+spring with a capped acceleration, the carrier is framed in the leading third along his heading,
+the perspective lock is softened so a man coming down the near sideline grows, and the whistle
+pulls the frame WIDE onto the spot for the whole post phase. The v98 handover cut and the v71 flag
+focus stiffen the spring rather than swapping constants.
+
+One expected improvement turned out to be wrong and is documented rather than faked: pile bodies do
+NOT float off their shadows, because `m.shadow` and `m.fill` are children of the container
+`resolveOverlaps` nudges. What the nudge did leave stale was the cast itself and — genuinely broken
+— the ring, plumbob and name tag, which are not children and were repositioned by a formula that
+dropped the plumbob's float and both objects' scale. All of that is now re-derived at the nudged
+position.
+
+The rest of the between-whistles life: the nearest standing teammate walks over on the drawn walk
+cycle and holds a hand out while a downed man runs his get-up (inside the existing post-play
+budget, never lengthening it); two or three teammates join the scorer on staggered starts from
+random frames while the opposition walks off and the v78 bench surges toward the touchline; the
+huddle breaks by position — line, then backs, receivers, quarterback last — each man walking the
+first stride out of the ring; an official runs to the dead-ball spot, plants, points and the ball
+is set down as he does; a first down walks the chain crew's down marker and both rods to the new
+line; and a row flagged `measure` brings both wing officials in with a chain drawn between them.
+
+The quarterback's eyes turn to each read and come back square before the arm arms, and eight sim
+events the renderer had always ignored — `pickup`, `blitz`, `linebackerDrop`, `penetrate`,
+`doubleTeam`, `pocketSlide`, `spring`, `cutback` — finally reach the picture.
+
+Hook `window.__V109_E`. Check `v109Echeck.mjs`.
+
+### What the six parts cost each other
+
+Three seams only the merged build could show, all fixed here rather than in a worktree:
+
+- A's throwaway became a real thrown ball, and it was the one incompletion B's classifier never
+  saw. It now carries `reason: "away"`.
+- B's tuck was timed from the catch event, but B's own reach starts the catch sequence ~180 ms
+  earlier, so the window was spent by the time the hands closed and the tuck drew zero frames. It
+  now starts at the frame the sequence ends.
+- E's eye turn was gated to finish 400 ms + the wind-up's 340 ms before the throw — wider than the
+  whole drop on a timing route, so every read was skipped; E's celebration joined only men within
+  260 px, so a long touchdown left the scorer alone; and E's measurement moved the wings only when
+  they were not already signalling, which with D's `measure` flag live was every time.
+
 ## v108 — the exchange, and which way he throws
 
 Anchor `v108 THE EXCHANGE, AND WHICH WAY HE THROWS` (the module-level tables, just above
