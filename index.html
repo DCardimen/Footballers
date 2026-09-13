@@ -3506,7 +3506,7 @@ window.__visionRadiusV96 = visionRadiusV96;
                * `capTo` itself is unchanged: the catch point and every roll below are the same. */
               const _tx0 = target.lx, _ty0 = target.y, _missPx = Math.hypot(cx - _tx0, cyy - _ty0);
               try { const B = root.__V109_B = root.__V109_B || {}; B.arriveN = (B.arriveN || 0) + 1; B.arrivePx = (B.arrivePx || 0) + _missPx;
-                B.arriveOver9 = (B.arriveOver9 || 0) + (_missPx > 9 ? 1 : 0); } catch (e) {}
+                B.arriveOver9 = (B.arriveOver9 || 0) + (_missPx > 9 ? 1 : 0); B.arriveDx = (B.arriveDx || 0) + (_tx0 - cx); B.arriveVel = (B.arriveVel || 0) + (target.vel || 0); } catch (e) {}
               capTo(target,cx,cyy);
               capTo(coverA,cx-sep*2.4,cyy+3, 9 + cl(throwLeadPx,0,TU("leadBreakCapPx",90))*TU("leadBreakK",.9));
               const qbA = S.off[8];
@@ -4260,10 +4260,14 @@ window.__visionRadiusV96 = visionRadiusV96;
             if(a._rwp==null)a._rwp=1;
             const _last=a._rwp>=a.route.length-1;
             const wp=a.route[Math.min(a._rwp, a.route.length-1)];
-            // v109 THE RECEIVER FINDS THE BALL: once the target has found the ball in the air the fly
-            // branch steers him at the landing spot, and this block stands down for him — one `mv`
-            // a tick, never the two that used to hand him double ground under every throw
-            const steerV109 = !(a === target && phase === "fly" && a._ballTracked && TU("ballFindV109", 1));
+            // v109 THE RECEIVER FINDS THE BALL: until the target has found the ball in the air this
+            // block is the ONLY thing steering him (his route, one `mv` a tick — the fly branch waits);
+            // once he has found it the pre-v109 steering resumes as it was, this block included,
+            // because the arrival it produces (where he stands against the man on him when the ball
+            // comes down, and how fast) is what the catch point's stop/YAC economy was tuned on —
+            // standing this block down after the find took two yards off every attempt.
+            // `ballFindSingleMv` = 1 is the one-mv version, kept as a dial for the record.
+            const steerV109 = !(a === target && phase === "fly" && a._ballTracked && TU("ballFindV109", 1) && TU("ballFindSingleMv", 0));
             // v55: once the route is FINISHED keep working. Previously the receiver
             // parked on his last waypoint and stood dead still for the rest of the
             // play — a frozen path in the sim log, and most of what "players do not
