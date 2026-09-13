@@ -3362,6 +3362,27 @@ window.__visionRadiusV96 = visionRadiusV96;
           const _lookWindow = _r.window == null ? _liveWindow : _r.window;
           emit("look", { to: _r.id, window:_lookWindow, sep:_lsep, open:_lookWindow==="green",
             cone:+_lcone.toFixed(2), prot:+_lp.toFixed(2), panic:+_lpan.toFixed(2) });
+          /* ===== v109 THE PUMP FAKE =====
+           * Nothing in the sim ever pumped the ball. A quarterback looking at a covered read from a
+           * clean pocket now sells it once a play: the ball goes up and comes back down, and the
+           * nearest ZONE defender — never the man on the target, never the help — freezes on the
+           * read he already had for a beat (the v56 steering hold, `_rxUntil`, so no new mechanism
+           * and no new number on the target's separation). Rolled ONCE per play, the first time
+           * the read is covered with the pocket holding; the broadcast plays the arm to the cock
+           * and aborts before the release. */
+          if (!qb._pumpRolledV109 && _lsep < 0 && _lp > TU("pumpProt", .6) && t < throwAt - TU("pumpBeforeThrowMs", 300)) {
+            qb._pumpRolledV109 = true;
+            try { const B = root.__V109_B = root.__V109_B || {}; B.pumpEligible = (B.pumpEligible || 0) + 1; } catch (e) {}
+            if (Math.random() < TU("pumpRate", .18)) {
+              const zone = S.def.filter(d => d !== coverA && d !== coverHelp && (d.lb === "S" || d.lb === "LB") && rushers.indexOf(d) < 0 && !d.blitzing && !d.engaging && !d._spy && d._wantDx != null)
+                .sort((p, q) => Math.hypot(p.lx - _r.lx, p.y - _r.y) - Math.hypot(q.lx - _r.lx, q.y - _r.y))[0] || null;
+              const freeze = TU("pumpFreezeMs", 120);
+              if (zone && freeze > 0) { zone._rxUntil = Math.max(zone._rxUntil || 0, t + freeze); zone._rxCool = Math.max(zone._rxCool || 0, t + freeze + TU("reactRefractory", 320));
+                zone._rxDx = zone._dx == null ? zone._wantDx : zone._dx; zone._rxDy = zone._dy == null ? zone._wantDy : zone._dy; zone._pumpedV109 = t; }
+              emit("pump", { x: qb.lx, y: qb.y, to: _r.id, tx: _r.lx, ty: _r.y, frozen: zone ? zone.id : null, ms: freeze, sep: +_lsep.toFixed(2), prot: +_lp.toFixed(2) });
+              try { const B = root.__V109_B; B.pumpN = (B.pumpN || 0) + 1; B.pumpFrozen = (B.pumpFrozen || 0) + (zone ? 1 : 0); } catch (e) {}
+            }
+          }
         }
         if (t >= throwAt - 400 && !target._broke) { target._broke = true;
           sep += (target.agi - coverA.cov) * 0.04;
@@ -3479,6 +3500,13 @@ window.__visionRadiusV96 = visionRadiusV96;
               // was laid out, the more of that flight he spends driving on the catch point instead
               // of trailing the man — without it, leading the receiver hands away yards after the
               // catch that nobody on the field was given a chance to take.
+              /* ===== v109 AN INCOMPLETION HAS A REASON =====
+               * Where the receiver actually was when the ball came down, BEFORE the safety
+               * snap — the miss is measured against the man, not the spot he was pulled to.
+               * `capTo` itself is unchanged: the catch point and every roll below are the same. */
+              const _tx0 = target.lx, _ty0 = target.y, _missPx = Math.hypot(cx - _tx0, cyy - _ty0);
+              try { const B = root.__V109_B = root.__V109_B || {}; B.arriveN = (B.arriveN || 0) + 1; B.arrivePx = (B.arrivePx || 0) + _missPx;
+                B.arriveOver9 = (B.arriveOver9 || 0) + (_missPx > 9 ? 1 : 0); } catch (e) {}
               capTo(target,cx,cyy);
               capTo(coverA,cx-sep*2.4,cyy+3, 9 + cl(throwLeadPx,0,TU("leadBreakCapPx",90))*TU("leadBreakK",.9));
               const qbA = S.off[8];
@@ -3506,9 +3534,19 @@ window.__visionRadiusV96 = visionRadiusV96;
               const catchP = cl(TU("catchBaseV39",root.__fullGameBalanceV39?.76:.54) + sep*0.05 + (qbA.aware-50)*0.003 + (qbA.thr-50)*0.003
                 + (target.cat-50)*0.0035 + jumpEdge + secure + arrivalCatch + placementCatch + boxK + comebackK
                 - helperContest - (underPressure?0.12:0) - (movingThrow?.055:0), 0.08, 0.93);
+              // v109: the reason an incompletion carries, and the count the check reads
+              const _reasonV109 = (reason, extra) => { try { const B = root.__V109_B = root.__V109_B || {}; (B.incReasons = B.incReasons || {})[reason] = (B.incReasons[reason] || 0) + 1; } catch (e) {}
+                return Object.assign({ x: cx, y: cyy, reason, sep: +sep.toFixed(2), locQ: +locationQuality.toFixed(2), contested: !!contested,
+                  miss: { dx: Math.round(cx - idealX), dy: Math.round(cyy - idealY) }, at: { dx: Math.round(cx - _tx0), dy: Math.round(cyy - _ty0) } }, extra || {}); };
               if (contested && Math.random() < swatP) {
                 // v82: the corner plays the hands — ball knocked away, nobody has it
-                emit("swat", { by: coverA.id, on: target.id, x: cx, y: cyy }); emit("incomplete", { x: cx, y: cyy }); done = true;
+                // v109 A PASS BREAK-UP IS CONTACT: the arm comes from somewhere. A defender the
+                // receiver had boxed out, or one trailing him, reaches through from BEHIND; one
+                // deeper than the man undercuts it from the FRONT; side by side it comes OVER the top.
+                const _from = (boxOut || coverA.lx < target.lx - TU("swatSidePx", 3)) ? "behind" : coverA.lx > target.lx + TU("swatSidePx", 3) ? "front" : "over";
+                emit("swat", { by: coverA.id, on: target.id, x: cx, y: cyy, contact: true, from: _from, boxOut: !!boxOut, edgeMs: Math.round(arrivalEdgeMs) });
+                emit("incomplete", _reasonV109("swat", { by: coverA.id, on: target.id, from: _from })); done = true;
+                try { const B = root.__V109_B; B.swatN = (B.swatN || 0) + 1; (B.swatFrom = B.swatFrom || {})[_from] = (B.swatFrom[_from] || 0) + 1; } catch (e) {}
                 out = { kind: "pass", complete: false, intercepted: false, yards: 0, swat: true };
               } else if (Math.random() < catchP) {
                 emit("catch",{by:target.id,x:cx,y:cyy,catchType:locationQuality<.62&&routeDepth>7?"dive":routeDepth>12?"high":"secure"});
@@ -3547,7 +3585,19 @@ window.__visionRadiusV96 = visionRadiusV96;
                   emit("pick",{by:coverA.id,x:cx,y:cyy});
                   carrier = coverA; phase = "carry";           // live return!
                   out = { kind:"pass", complete:false, intercepted:true, yards:0 };
-                } else { emit("incomplete",{x:cx,y:cyy}); done = true;
+                } else {
+                  // v109 AN INCOMPLETION HAS A REASON — classified AFTER the rolls, changing none of them.
+                  // A catchable ball (well placed, nobody in his hands, the man open) that hit the turf
+                  // is a DROP, and it is his. Otherwise the miss says what it was: long past him, an
+                  // overthrow; dead in front of him, short; off his hip, behind him; and a ball put on
+                  // him with the defender in the window was simply broken up.
+                  // (the receiver runs to every ball in this sim, so the miss that MEANS something is the
+                  // passer's — the catch point against the spot he was aiming at, `idealX/idealY`)
+                  const _mdx = cx - idealX, _mdy = cyy - idealY, _tol = TU("missPx", 10), _catchable = locationQuality > TU("dropLocQ", .7);
+                  const _reason = (_catchable && !contested && sep > 0) ? "drop"
+                    : _catchable ? "contested"
+                    : _mdx > _tol ? "overthrow" : _mdx < -_tol ? "short" : Math.abs(_mdy) > _tol ? "behind" : "contested";
+                  emit("incomplete", _reasonV109(_reason, _reason === "drop" ? { by: target.id } : _reason === "contested" ? { by: coverA.id, on: target.id } : { on: target.id })); done = true;
                   // v30: the defender was IN the receiver at the catch point on a real
                   // route and the ball hit the turf — that contact is a DPI candidate
                   if (sep < TU("dpiSep",-0.8) && routeDepth > 6 && coverA.player) flagCand.dpi = coverA.player;
@@ -3566,12 +3616,50 @@ window.__visionRadiusV96 = visionRadiusV96;
           // When both players arrive before the ball, keep the rep alive: they
           // fight for leverage instead of becoming two statues under the pass.
           const jostle=battling?Math.sin(t/72)*4.5:0;
-          mv(target, ballFlight.x1-3, ballFlight.y1+jostle, 1.08);
+          /* ===== v109 THE RECEIVER FINDS THE BALL =====
+           * The target used to be driven at the landing spot from the instant of release — and
+           * driven TWICE a tick, once here and once by the route block below, so he covered
+           * double ground the moment the ball was in the air and was parked under it long before
+           * it came down. Nobody runs a route that way: a man with his back to the quarterback
+           * keeps running his route until he finds the ball over his shoulder, and only then
+           * does he adjust to where it is coming down. So he finds it on his own clock —
+           * awareness makes it quicker, a ball coming over the shoulder makes it later — and
+           * until that moment the route block steers him alone (one `mv` a tick, either way).
+           * The catch point itself is untouched: `capTo` in `done()` is still the final safety,
+           * so every roll below sees the same numbers it always did. */
+          if (target._ballFoundAt == null) {
+            const hx = target._dx == null ? 1 : target._dx, hy = target._dy == null ? 0 : target._dy;      // his heading (downfield if he has not moved)
+            const bx = ballFlight.x0 - target.lx, by = ballFlight.y0 - target.y, bn = Math.hypot(bx, by) || 1;
+            const shoulder = cl((1 - (hx * bx + hy * by) / bn) / 2, 0, 1);   // 0: running at the passer, 1: back square to him
+            const findMs = TU("ballFindBaseMs", 110) + cl(70 - target.aware, -30, 40) * TU("ballFindAwareK", 2.0) + shoulder * TU("ballFindShoulderMs", 150);
+            const latest = Math.max(40, ballFlight.dur - TU("reachLeadMs", 180) - 60);   // he always finds it before his hands have to go up
+            target._ballFindMs = Math.round(cl(findMs, 40, latest)); target._ballShoulder = +shoulder.toFixed(2);
+            target._ballFoundAt = ballFlight.t0 + target._ballFindMs;
+            // where he would be at arrival if he simply kept running — a ball landing short of
+            // that is one he has to turn back for, over the back shoulder
+            target._projLxV109 = target.lx + hx * Math.max(110, target.spd || 140) * (target.vel || .8) * ballFlight.dur / 1000;
+          }
+          const found = !TU("ballFindV109", 1) || t >= target._ballFoundAt;
+          if (found && !target._ballTracked) { target._ballTracked = true;
+            emit("ballTrack", { who: target.id, x: ballFlight.x1, y: ballFlight.y1, late: target._ballFindMs > TU("ballFindLateMs", 230), ms: target._ballFindMs, shoulder: target._ballShoulder });
+            try { const B = root.__V109_B = root.__V109_B || {}; B.trackN = (B.trackN || 0) + 1; B.trackMs = (B.trackMs || 0) + target._ballFindMs;
+              (B.tracks = B.tracks || []).push({ ms: target._ballFindMs, shoulder: target._ballShoulder, aware: target.aware }); if (B.tracks.length > 60) B.tracks.shift(); } catch (e) {} }
+          if (found) mv(target, ballFlight.x1-3, ballFlight.y1+jostle, 1.08);
           mv(coverA, ballFlight.x1-sep*2.4+2, ballFlight.y1+3-jostle, 1.02);
           if(battling&&!handfightShown){ handfightShown=true;
             emit("handfight",{off:target.id,def:coverA.id,x:ballFlight.x1,y:ballFlight.y1}); }
           if(remain<=260&&!highpointShown){ highpointShown=true;
             emit("highpoint",{off:target.id,def:coverA.id,x:ballFlight.x1,y:ballFlight.y1,deep:routeDepth>13}); }
+          /* v109 THE HANDS GO UP: the reach is its own moment, ahead of the ball. The broadcast
+           * starts the catch on it and lets `catch` merely confirm the ball; if nothing confirms,
+           * the hands come down empty. `kind` picks the drawn sequence and agrees with the
+           * catchType the catch will carry (a dive is a dive on both). */
+          if (remain <= TU("reachLeadMs", 180) && !target._reachV109) { target._reachV109 = true;
+            const kind = (locationQuality < .62 && routeDepth > 7) ? "dive"
+              : (ballFlight.x1 < (target._projLxV109 == null ? target.lx : target._projLxV109) - TU("backShoulderPx", 12) && routeDepth > 5) ? "back-shoulder"
+              : routeDepth > 12 ? "high" : "stride";
+            emit("reach", { by: target.id, x: ballFlight.x1, y: ballFlight.y1, kind, at: Math.round(t + remain), contested: battling });
+            try { const B = root.__V109_B = root.__V109_B || {}; B.reachN = (B.reachN || 0) + 1; (B.reachKinds = B.reachKinds || {})[kind] = (B.reachKinds[kind] || 0) + 1; } catch (e) {} }
           if(bracketed&&coverHelp)mv(coverHelp,ballFlight.x1+5,ballFlight.y1+(coverHelp.y<MIDY?-9:9),.94+coverHelp.aware*.0015);
         }
       }
@@ -4172,6 +4260,10 @@ window.__visionRadiusV96 = visionRadiusV96;
             if(a._rwp==null)a._rwp=1;
             const _last=a._rwp>=a.route.length-1;
             const wp=a.route[Math.min(a._rwp, a.route.length-1)];
+            // v109 THE RECEIVER FINDS THE BALL: once the target has found the ball in the air the fly
+            // branch steers him at the landing spot, and this block stands down for him — one `mv`
+            // a tick, never the two that used to hand him double ground under every throw
+            const steerV109 = !(a === target && phase === "fly" && a._ballTracked && TU("ballFindV109", 1));
             // v55: once the route is FINISHED keep working. Previously the receiver
             // parked on his last waypoint and stood dead still for the rest of the
             // play — a frozen path in the sim log, and most of what "players do not
@@ -4179,7 +4271,7 @@ window.__visionRadiusV96 = visionRadiusV96;
             if(_last && Math.hypot(a.lx-wp.lx,a.y-wp.y)<11){
               const tail=a.route.tail||"go", pv=a.route[Math.max(0,a.route.length-2)];
               const dx=wp.lx-pv.lx, dy=wp.y-pv.y, n=Math.hypot(dx,dy)||1;
-              if(tail==="settle") mv(a, a.lx-14, a.y+(MIDY-a.y)*.04, .55);       // work back toward the ball
+              if(tail==="settle") { if (steerV109) mv(a, a.lx-14, a.y+(MIDY-a.y)*.04, .55); }       // work back toward the ball
               else {
                 // Always aim at a point that is actually ON the field and always
                 // carries some downfield: a tail that pushed sideways into the
@@ -4189,9 +4281,9 @@ window.__visionRadiusV96 = visionRadiusV96;
                 const fwd = tail==="go" ? 90 : tail==="across" ? 26 : 22;
                 let ty = clampY(a.y + (dy/n)*lat);
                 if (Math.abs(ty - a.y) < 6) ty = a.y + (MIDY - a.y) * .10;        // boundary ate it: work back inside
-                mv(a, a.lx + fwd, ty, .88);
+                if (steerV109) mv(a, a.lx + fwd, ty, .88);
               }
-            } else mv(a, wp.lx, wp.y, (a===target?1.0:0.93) * jammed);
+            } else if (steerV109) mv(a, wp.lx, wp.y, (a===target?1.0:0.93) * jammed);
             if(window.__ROUTE_DEBUG&&a._routeName){const D=window.__ROUTE_DEBUG;
               (D.path[a.id]||(D.path[a.id]=[])).push([Math.round(a.lx),Math.round(a.y)])}
             if(a._rwp<a.route.length-1 && Math.hypot(a.lx-wp.lx,a.y-wp.y)<9){
