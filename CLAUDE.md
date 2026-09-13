@@ -33,6 +33,23 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v108 THE EXCHANGE, AND WHICH WAY HE THROWS` — the rear throw is drawn twice, so a quarterback
+  facing `up` picks the ARM instead of turning: `throwR_up*` for a target to his screen-right (the
+  straight ball too), `throwL_up*` across the body to his left, inside `TU("throwDirConeDeg", 70)`
+  off straight ahead (wider or behind him still goes through v107's turn; `dir` rides
+  `__V107.throws`). The exchange is drawn too — `exchangeV108` / `startExchangeV108` beside
+  `windupV107` back-date `handoff_up0..4` (`TU("handoffFrameMs", 70)`, frame 2 ON the event) and
+  `toss_up0..4` (`TU("tossFrameMs", 80)`, frame 3; the sweep-family regex `TOSS_CALL_V108` decides
+  before the event) onto `forceState = "handSeq"`; both are right-handed, so a back off his LEFT
+  keeps the pre-v108 picture (`TU("exchangeSideMinPx", -3)`). `BALL_DRAWN_V108` is the MEASURED
+  per-cycle list of frames whose cell draws a football (v107's flat 0-3 was only true of the front
+  and quarter cycles) and `HAND_V108` mounts ours on the cell's own hand on the frames it does
+  not — never two, never none: `window.__V108.ballDoubled`/`.ballMissing` stay 0. `v108check.mjs`
+- `v107.1 THE FLASHES ARE ONLY OVER THE CROWD` — the hero's camera flashes, shimmer, lamps and sun
+  live in PICTURE percent (`CROWD_V107_1`, `HERO_LAMPS`) and map through the cover box each frame
+  (`heroPicBoxV107_1`); `window.__RIB_MENU_FX_V102.flashLog/.crowd/.box` is what the check reads.
+  The wordmark sheen is two identical sweeps a cycle (`rib9sheen`, `no-repeat`; `rib9brand` too)
+  in `public/rib-menu-v89.css`. `heroflashcheck.mjs` and `sheencheck.mjs` are the proofs
 - `v107 THE ARM, THE DROP, THE STANCE` — the v91 sheet's own throw per facing
   (`RIB.throwV107`: `up`/`dn`/`ur` drawn, `sd` borrows the quarter, `dr` the front; `?noV91`
   keeps the baked facing-less frames and their forced `flip=false`), the release armed by a
@@ -196,6 +213,8 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the field sheets / the v91 atlas / player and ball frames (v91) | `v91check.mjs`, `v86check.mjs`, `renderpathcheck.mjs` |
 | the silent path's story rolls / the upgrade sheet's numbers / the menu ring (v90) | `v90check.mjs`, `v85check.mjs` |
 | the main menu / its feed / menu art (v89) | `menu-integration-check.mjs`, `menushot.mjs` (`CAREER=1`), `menu-preview-shot.mjs` |
+| which way the throw goes / the drawn handoff and pitch / which frames draw the ball (v108) | `v108check.mjs`, then `v107check.mjs`, `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `kitsidecheck.mjs` (LB), `v104check.mjs` |
+| the wordmark sheen / the camera flashes, lamps and sun on the hero (v107.1) | `sheencheck.mjs`, `heroflashcheck.mjs`, then `v102check.mjs`, `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the throw's facing / the release's timing / the dropback / the pre-snap stances (v107) | `v107check.mjs`, then `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `renderpathcheck.mjs`, `kitsidecheck.mjs` (LB) |
 | the deploy reaching a browser / the build meta / the one-time reload (v106.1) | `freshcheck.mjs` (no dev server), then `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the team kit on the menu pictures / the hero, continue-card and portrait masks (v106) | `python3 scripts/build-menu-art.py` (or the one `menu-kit-*.py`), then `menu-mask-check.mjs`, `menu-kit-shot.mjs` (look at the shots), `menu-integration-check.mjs`, `v102check.mjs`, `menushot.mjs` (`CAREER=1`) |

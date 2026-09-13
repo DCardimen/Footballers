@@ -42,8 +42,17 @@ def normalize_palette(im):
     out = a.copy(); out[..., 0] = np.where(gold, nr, r); out[..., 1] = np.where(gold, ng, g); out[..., 2] = np.where(gold, nb, b)
     return Image.fromarray(np.clip(out, 0, 255).astype('uint8'), 'RGBA')
 
-def slice_sheet(name, min_px=60, row_tol=None, merge_small=0):
+def slice_sheet(name, min_px=60, row_tol=None, merge_small=0, drop_px=0):
     im = normalize_palette(Image.open(f'{SRC}/{name}.png').convert('RGBA')); a = np.asarray(im.getchannel('A')); m = a > 24
+    # v108: a ball drawn LOOSE beside the man lands inside his crop rectangle, where min_px cannot
+    # reach it (min_px only decides which blobs become frames). Erase any blob under drop_px from
+    # the sheet itself before the figures are found. Measured on the RAW alpha, where a loose ball
+    # is 430-1740 px and the smallest figure on these sheets is 2954 — a ball still in a hand is
+    # part of the man's own blob and is never touched.
+    if drop_px:
+        lab0, n0 = components(m); sz = np.bincount(lab0.ravel(), minlength=n0 + 1)
+        kill = np.isin(lab0, np.nonzero(sz[1:] < drop_px)[0] + 1)
+        arr = np.asarray(im).copy(); arr[..., 3][kill] = 0; im = Image.fromarray(arr, 'RGBA'); m = m & ~kill
     md = np.asarray(Image.fromarray((m * 255).astype('uint8')).filter(ImageFilter.MaxFilter(3))) > 0
     lab, n = components(md); boxes = []
     for i in range(1, n + 1):
@@ -128,6 +137,16 @@ def cell_of(im, box, scale, baseline=46, center=None, mirror=False):
 def sheet_scale(rows, target_h, pick=lambda b: True):
     hs = [b[3]-b[1] for r in rows for b in r if pick(b)]
     return target_h / float(np.median(hs))
+
+def row_scale(boxes, target=44.0):
+    """v108: the one scale a cut CYCLE takes, and the height its figure actually reaches.
+    The median figure goes to `target`, unless a pose in the cycle would then be too tall or too
+    wide for the cell — cell_of shrinks such a frame on its own, and a cycle that shrinks on one
+    frame breathes. A throw reaches wide (the arm and the ball at the ear) and tall (the arm
+    through), so the whole cycle backs off together instead."""
+    hs = [b[3] - b[1] for b in boxes]; med = float(np.median(hs))
+    sc = min(target / med, (CELL - 2) / max(hs), (CELL - 2) / max(b[2] - b[0] for b in boxes))
+    return sc, sc * med
 
 # ---- run8: 8 facings x (8 run + plant + cut + dive + fall) -------------------------------
 im, rows = slice_sheet('run8')
@@ -246,6 +265,69 @@ for i in range(6): CELLS[f'backpedal_up{i}'] = cell_of(im, rows[3][i], scb)
 # The row 2 idles differ only in the helmet's shading, not in the body — no sway to loop — so the
 # ready pose is one cell, not a cycle. art/field/throw_quarter_b.png and snap_catch_mini.png are
 # deliberately not cut: see the note in README's Recent changes.
+
+# ---- throw_dir_a / throw_dir_b: the throw carries a DIRECTION ---------------------------
+# Both sheets are 4 rows x 8 frames and every row on both is drawn from BEHIND — the helmet shows
+# no facemask and the shoulders stay square, the way run8's `up` row does, never run8's `ur`, so
+# nothing on either sheet feeds a three-quarter facing. What they DO carry is the side the ball
+# leaves on: the torso rotates to the throwing side on the release, so the arm finishes to the
+# man's RIGHT (throw_dir_a row 0) or comes across the body and finishes to his LEFT (row 1, a
+# drawn cross-body throw — not row 0 mirrored). `up` is never flipped by the renderer
+# (faceMarker sets m.flip = false for up and dn), so both directions have to be cut.
+# The rows run: 0 set, 1 the hand up, 2 THE BALL AT THE EAR (the last frame holding it, and the
+# widest pose in the row), 3 the arm out with the hand already empty, 4 THE RELEASE (the arm
+# through, the ball drawn loose beside it), 5-7 recovery. Frame 3 is left out of both cycles — it
+# points the wrong way for the left one and doubles the follow for the right — and a frame is held
+# instead, so the release lands on cell 4 like every other cycle in the atlas.
+# The loose ball is dropped at the slice (drop_px), not merged: the renderer carries its own (v105).
+# Not cut: throw_dir_a row 2 (the release frame's ball is fused to the glove — one blob with the
+# man, so it cannot be stripped), throw_dir_a row 3 (no ball in any windup frame: the man throws
+# nothing, and his lean changes frame to frame), throw_dir_b rows 0-2 (the same right-handed throw
+# as throw_dir_a row 0, drawn smaller and with a mushier read — the arm never extends, frames 3-5
+# are one hand-up pose), and throw_dir_b row 3 (a throw ON THE RUN: the feet never plant, and
+# there is no state for it).
+im, rows = slice_sheet('throw_dir_a', min_px=4000, drop_px=4000)
+assert len(rows) == 4 and all(len(r) == 8 for r in rows), [len(r) for r in rows]
+gR = [rows[0][i] for i in (0, 1, 2, 2, 4, 5)]    # ... 5: the follow, the arm coming down
+gL = [rows[1][i] for i in (0, 0, 1, 1, 4, 7)]    # the left cycle holds the set and the ear instead:
+# its own frame 2 (the arm extended all the way back) twists the torso until v104 can only find
+# FOUR rows of jersey on it and the number shrinks to 3.5 of its 6 rows — every other frame cut
+# here reads 5.5 or 6. And 7, the row's own stand, closes it: its frame 5 brings the arm back to
+# the RIGHT, which contradicts a ball that has just left to the left
+fig = min(row_scale(gR)[1], row_scale(gL)[1])    # ONE figure height for both, so a quarterback
+# does not change size when he throws the other way
+for i, b in enumerate(gR): CELLS[f'throwR_up{i}'] = cell_of(im, b, row_scale(gR, fig)[0])
+for i, b in enumerate(gL): CELLS[f'throwL_up{i}'] = cell_of(im, b, row_scale(gL, fig)[0])
+
+# ---- exchange_quarter: the handoff and the toss, both from behind -----------------------
+# 6 rows of two 5-frame groups plus 2 rows of two 4-frame groups. Despite the name every figure
+# on the sheet is a rear view as well (checked against run8's up and ur rows), so these are `up`
+# cells too. Two groups carry a whole exchange and the rest are throws or empty-handed strides:
+#   row 0 group A (frames 0-4): under centre with the ball on the grass, then the turn, the ball
+#     in the hand, and THE BALL AT ARM'S LENGTH — the handoff's exchange point. Frames 0-1 are not
+#     cut: the ball they draw is on the ground between his feet (v105's centerV105 puts it there).
+#   row 0 group B (frames 5-9): the same man, same scale, with the ball already gone — its frames
+#     8 and 7 finish the handoff (the arm still extended but EMPTY, then the hand coming back).
+#   row 6 group A (frames 0-3): the underhand pitch — the ball in both hands at the belly, the
+#     wind at the hip, the swing, and the release with the ball loose off the fingers (dropped).
+#     Frame 4 (group B's first) squares him up again for the follow.
+# Not cut: rows 1-5 (throws, and the ball vanishes between the cock and the release), row 6 group B
+# past its first frame and row 7 (a squatter, wider build than the rest of the atlas; row 7's own
+# ball-to-the-LEFT handoff is the only left-handed exchange drawn anywhere and it is that build).
+imq, rowsq = slice_sheet('exchange_quarter', min_px=1500, drop_px=2000)
+assert [len(r) for r in rowsq] == [10, 10, 10, 10, 10, 10, 8, 8], [len(r) for r in rowsq]
+hand = [rowsq[0][i] for i in (2, 3, 4, 8, 7)]    # reach, the ball in the hand, at arm's length, empty, recover
+toss = [rowsq[6][i] for i in (0, 1, 2, 3, 4)]    # the ball at the belly, the wind, the swing, THE RELEASE, the follow
+figx = min(row_scale(hand)[1], row_scale(toss)[1])
+for i, b in enumerate(hand): CELLS[f'handoff_up{i}'] = cell_of(imq, b, row_scale(hand, figx)[0])
+for i, b in enumerate(toss): CELLS[f'toss_up{i}'] = cell_of(imq, b, row_scale(toss, figx)[0])
+# art/field/exchange_mini.png is deliberately not cut, for snap_catch_mini's reason and three more:
+# its figures are 69-98px against 146-179 on every other sheet (the whole atlas is drawn at one
+# size but this one), the column of thrown balls running down the sheet links one row's box to the
+# next, several rows split into 7 frames because two figures touch, and the frames inside a cycle
+# repeat instead of moving (row 0 frames 0-2 are the same drawing). Its last two rows — the only
+# run-with-the-ball-tucked on any of the new sheets — are a different build again (a big head on
+# short legs), so no `scramble_*` cell comes out of this one either.
 
 # ---- pack -------------------------------------------------------------------------------
 # v107: the atlas is quantized to 256 colours, and ribRecolor keys on HUE BANDS — so when the new

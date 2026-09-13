@@ -504,11 +504,65 @@
    * All of it respects prefers-reduced-motion: the CSS rule already kills every animation,
    * and the canvas loop simply never starts. The canvas is one 2D context, a few dozen motes
    * and at most a couple of flashes a second — nothing the phone will feel. */
-  const HERO_LAMPS = [[0.335, 0.115], [0.415, 0.098], [0.5, 0.092], [0.585, 0.098], [0.665, 0.115]];   // where the lamp banks sit on the far rim
+  const HERO_LAMPS = [[27.6, 20.3], [33.5, 22.2], [39.0, 24.5], [60.5, 24.0], [66.5, 22.6]];   // the lamp banks on the far rim, in PICTURE percent (v107.1)
+  const HERO_SUN = [50.0, 24.5];   // the warm core at the tunnel mouth, in PICTURE percent
   function heroFxMarkup() {
-    const lamps = HERO_LAMPS.map(([x, y], i) => `<i class="rib9-lamp" style="--x:${(x * 100).toFixed(1)}%;--y:${(y * 100).toFixed(1)}%;--d:${(2.3 + i * 0.7).toFixed(2)}s;--e:${(0.4 + i * 0.37).toFixed(2)}s"></i>`).join('');
+    // the percents here are the first paint only: size() re-hangs every lamp on the picture in px
+    const lamps = HERO_LAMPS.map(([x, y], i) => `<i class="rib9-lamp" style="--x:${x.toFixed(1)}%;--y:${y.toFixed(1)}%;--d:${(2.3 + i * 0.7).toFixed(2)}s;--e:${(0.4 + i * 0.37).toFixed(2)}s"></i>`).join('');
     return `<div class="rib9-hero-fx" aria-hidden="true"><i class="rib9-sun"></i><i class="rib9-sun-rays"></i>${lamps}<canvas class="rib9-hero-cv"></canvas></div>`;
   }
+
+  /* ===== v107.1 THE FLASHES ARE ONLY OVER THE CROWD =====
+   * Everything the FX layer drew was placed in fractions of the CANVAS BOX — flashes at
+   * 0.5 ± rnd(.08, .34) across and rnd(.17, .42) down, a shimmer band from 18% to 82%. The
+   * photograph under it is `object-fit: cover` at `50% 40%`, so the box crops it differently at
+   * every aspect ratio and those fractions wander: at a phone width the same numbers land 16% and
+   * 84% into the picture, which is the TUNNEL WALL either side of the mouth. Flashes popped on
+   * bare concrete. Every mark is now placed in PICTURE percent and mapped through the same cover
+   * box `layoutArt()` uses, re-read whenever the layer resizes.
+   *
+   * CROWD_V107_1 is the region they are allowed to land in: the stands seen through the tunnel
+   * mouth, as two tiers either side of the man, traced off `art/menu/hero_tunnel_wall.png`.
+   * The outer edge stops inside the tunnel's lit corner (the wall reads dark grey, the tier warm
+   * amber — the corner is where that flips, measured row by row); the inner edge is the v106 kit
+   * masks' own helmet and jersey outline (`hero_mask_s` / `hero_mask_p`) plus about a percent, so
+   * nothing lands on him; the top clears the lamp banks, whose glare burns down to y=27; and the
+   * bottom stops at y=50, above the blown-out mouth where the tiers give way to the floor.
+   * Sampled over the picture the region is lum >= 82 and r-b >= 36 everywhere, with both kit
+   * masks fully transparent — `scripts/heroflashcheck.mjs` is the proof. */
+  const CROWD_V107_1 = [
+    [[29.6, 28.5], [30.0, 31.0], [30.4, 34.0], [30.6, 35.5], [30.7, 36.5], [30.8, 37.0], [31.0, 38.0], [31.2, 39.0], [31.3, 40.0], [31.5, 41.0], [31.6, 42.0], [31.9, 44.0], [32.2, 46.0], [32.5, 48.0], [32.8, 50.0],
+     [35.2, 50.0], [34.7, 48.0], [34.8, 46.0], [35.1, 44.0], [35.4, 42.0], [35.8, 41.0], [36.0, 40.0], [36.6, 39.0], [37.5, 38.0], [38.3, 37.5], [38.8, 37.0], [39.7, 36.5], [43.6, 35.5], [43.6, 28.5]],
+    [[56.2, 28.5], [56.2, 35.5], [56.2, 36.5], [58.8, 37.0], [59.9, 37.5], [60.6, 38.0], [61.4, 39.0], [62.4, 40.0], [62.8, 41.0], [63.0, 42.0], [63.5, 44.0], [63.7, 46.0], [63.7, 48.0], [63.6, 50.0],
+     [65.7, 50.0], [65.9, 48.0], [66.1, 46.0], [66.3, 44.0], [66.5, 42.0], [66.6, 41.0], [66.7, 40.0], [66.8, 39.0], [66.9, 38.0], [67.0, 37.0], [67.1, 36.5], [67.3, 34.0], [67.6, 31.0], [67.9, 28.5]],
+  ];
+  const HERO_BREATHE_V107_1 = 1.018;   // .rib9-hero-art rides rib9breathe (1.012..1.024 about 50% 62%); the canvas does not, so aim at the middle of it
+  const inPolyV107_1 = (poly, x, y) => { let hit = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) hit = !hit; } return hit; };
+  const inCrowdV107_1 = (x, y) => CROWD_V107_1.some((p) => inPolyV107_1(p, x, y));
+  const bboxV107_1 = (poly) => poly.reduce((b, [x, y]) => ({ x0: Math.min(b.x0, x), y0: Math.min(b.y0, y), x1: Math.max(b.x1, x), y1: Math.max(b.y1, y) }), { x0: 100, y0: 100, x1: 0, y1: 0 });
+  const CROWD_BB_V107_1 = CROWD_V107_1.map(bboxV107_1);
+  const CROWD_HULL_V107_1 = bboxV107_1([].concat(...CROWD_V107_1));   // the shimmer's own clip
+  // a tier is picked by its area, then rejection-sampled inside it; a region this convex hits in a
+  // try or two, and the handful of misses simply drop the flash rather than nudging it to an edge
+  const CROWD_AREA_V107_1 = CROWD_V107_1.map((p) => { let a = 0; for (let i = 0, j = p.length - 1; i < p.length; j = i++) a += p[j][0] * p[i][1] - p[i][0] * p[j][1]; return Math.abs(a) / 2; });
+  function pickCrowdV107_1() {
+    let roll = Math.random() * CROWD_AREA_V107_1.reduce((a, b) => a + b, 0), i = 0;
+    while (i < CROWD_AREA_V107_1.length - 1 && roll > CROWD_AREA_V107_1[i]) { roll -= CROWD_AREA_V107_1[i]; i++; }
+    const bb = CROWD_BB_V107_1[i], poly = CROWD_V107_1[i];
+    for (let n = 0; n < 24; n++) { const x = bb.x0 + Math.random() * (bb.x1 - bb.x0), y = bb.y0 + Math.random() * (bb.y1 - bb.y0); if (inPolyV107_1(poly, x, y)) return [x, y]; }
+    return null;
+  }
+  // where the hero photograph actually sits inside the FX layer's box, in box pixels — the same
+  // crop maths layoutArt() runs on the tints, so a flash and the recoloured kit agree on the picture
+  function heroPicBoxV107_1(menu) {
+    const img = menu.querySelector('.rib9-hero-img'); if (!img) return null;
+    const holder = img.parentElement; if (!holder) return null;
+    const sizer = holder.classList.contains('rib9-hero-art') && holder.parentElement ? holder.parentElement : holder;
+    const box = coverBox(img, sizer); if (!box) return null;
+    const ox = sizer.clientWidth * 0.5, oy = sizer.clientHeight * 0.62, k = HERO_BREATHE_V107_1;
+    return { x: ox + (box.x - ox) * k, y: oy + (box.y - oy) * k, w: box.w * k, h: box.h * k };
+  }
+
   let heroFx = null;
   function startHeroFx(menu) {
     stopHeroFx();
@@ -516,8 +570,16 @@
     const cv = menu.querySelector('.rib9-hero-cv'); if (!cv) return;
     const ctx = cv.getContext('2d'); if (!ctx) return;
     const rnd = (a, b) => a + Math.random() * (b - a);
-    const st = { cv, ctx, w: 0, h: 0, motes: [], flashes: [], last: performance.now(), next: 0, raf: 0, on: true, frames: 0 };
-    const size = () => { const r = cv.getBoundingClientRect(); const dpr = Math.min(2, window.devicePixelRatio || 1); st.w = Math.max(1, Math.round(r.width)); st.h = Math.max(1, Math.round(r.height)); cv.width = Math.round(st.w * dpr); cv.height = Math.round(st.h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+    const st = { cv, ctx, w: 0, h: 0, box: null, motes: [], flashes: [], flashLog: [], skipped: 0, last: performance.now(), next: 0, raf: 0, on: true, frames: 0 };
+    const toBox = (px, py) => st.box ? { x: st.box.x + px / 100 * st.box.w, y: st.box.y + py / 100 * st.box.h } : null;
+    const hang = () => {   // v107.1: the lamps and the sun ride the picture too, or they drift with the crop
+      if (!st.box) return;
+      const lamps = menu.querySelectorAll('.rib9-lamp');
+      HERO_LAMPS.forEach(([px, py], i) => { const el = lamps[i], p = el && toBox(px, py); if (!p) return; el.style.setProperty('--x', p.x.toFixed(1) + 'px'); el.style.setProperty('--y', p.y.toFixed(1) + 'px'); });
+      const sun = toBox(HERO_SUN[0], HERO_SUN[1]);
+      if (sun) for (const sel of ['.rib9-sun', '.rib9-sun-rays']) { const el = menu.querySelector(sel); if (el) { el.style.left = sun.x.toFixed(1) + 'px'; el.style.top = sun.y.toFixed(1) + 'px'; } }
+    };
+    const size = () => { const r = cv.getBoundingClientRect(); const dpr = Math.min(2, window.devicePixelRatio || 1); st.w = Math.max(1, Math.round(r.width)); st.h = Math.max(1, Math.round(r.height)); cv.width = Math.round(st.w * dpr); cv.height = Math.round(st.h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); st.box = heroPicBoxV107_1(menu); hang(); };
     size();
     for (let i = 0; i < 46; i++) st.motes.push({ x: Math.random(), y: Math.random(), r: rnd(0.6, 1.9), vx: rnd(0.012, 0.03), vy: rnd(-0.008, 0.004), a: rnd(0.12, 0.45), ph: rnd(0, 6.28) });
     const tick = (now) => {
@@ -525,6 +587,8 @@
       if (!cv.isConnected) { stopHeroFx(); return; }
       const dt = Math.min(0.05, (now - st.last) / 1000); st.last = now; st.frames++;
       if (document.hidden) { st.raf = requestAnimationFrame(tick); return; }
+      // the picture may only get its box once the sheet and the natural size have both landed
+      if (!st.box && st.frames % 20 === 1) { st.box = heroPicBoxV107_1(menu); hang(); }
       const w = st.w, h = st.h; ctx.clearRect(0, 0, w, h);
       // the wind: dust drifting up and across through the tunnel's light, brightest near the mouth
       const gust = 1 + 0.6 * Math.sin(now / 2600) * Math.sin(now / 900);
@@ -535,25 +599,46 @@
         ctx.globalAlpha = m.a * (0.35 + 0.65 * near) * (0.7 + 0.3 * Math.sin(now / 400 + m.ph));
         ctx.fillStyle = '#ffe8b8'; ctx.beginPath(); ctx.arc(m.x * w, m.y * h, m.r, 0, 6.283); ctx.fill();
       }
-      // the crowd: camera flashes popping across the stands — the bright band behind the mouth
-      if (now > st.next) { st.next = now + rnd(260, 900); const side = Math.random() < 0.5 ? -1 : 1;
-        st.flashes.push({ x: 0.5 + side * rnd(0.08, 0.34), y: rnd(0.17, 0.42), t: now, ms: rnd(140, 260), r: rnd(1.6, 3.4) }); }
+      // the crowd: camera flashes popping across the STANDS — v107.1 spawns them in the picture,
+      // inside CROWD_V107_1, and drops any that the current crop has pushed off the canvas
+      if (now > st.next) { st.next = now + rnd(260, 900);
+        const spot = st.box && pickCrowdV107_1(), at = spot && toBox(spot[0], spot[1]);
+        if (at && at.x >= 0 && at.x <= w && at.y >= 0 && at.y <= h) {
+          st.flashes.push({ px: spot[0], py: spot[1], t: now, ms: rnd(140, 260), r: rnd(1.6, 3.4) });
+          st.flashLog.push({ px: +spot[0].toFixed(2), py: +spot[1].toFixed(2), x: +at.x.toFixed(1), y: +at.y.toFixed(1), r: +st.flashes[st.flashes.length - 1].r.toFixed(2), t: Math.round(now) });
+          if (st.flashLog.length > 200) st.flashLog.shift();
+        } else st.skipped++; }
       for (let i = st.flashes.length - 1; i >= 0; i--) { const f = st.flashes[i]; const q = (now - f.t) / f.ms; if (q >= 1) { st.flashes.splice(i, 1); continue; }
+        const p = toBox(f.px, f.py); if (!p) continue;   // re-aimed every frame, so a resize mid-pop moves it with the picture
         const a = q < 0.25 ? q / 0.25 : 1 - (q - 0.25) / 0.75;
-        ctx.globalAlpha = 0.9 * a; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(f.x * w, f.y * h, f.r, 0, 6.283); ctx.fill();
-        ctx.globalAlpha = 0.28 * a; ctx.beginPath(); ctx.arc(f.x * w, f.y * h, f.r * 3.2, 0, 6.283); ctx.fill(); }
-      // and the tiers themselves shimmer: a faint band that drifts, so the crowd reads as moving
-      ctx.globalAlpha = 0.045; const sh = ctx.createLinearGradient(0, 0, w, 0);
-      const ph = (now / 5200) % 1;
-      sh.addColorStop(Math.max(0, ph - 0.12), 'rgba(255,255,255,0)'); sh.addColorStop(ph, 'rgba(255,255,255,1)'); sh.addColorStop(Math.min(1, ph + 0.12), 'rgba(255,255,255,0)');
-      ctx.fillStyle = sh; ctx.fillRect(w * 0.18, h * 0.15, w * 0.64, h * 0.3);
+        ctx.globalAlpha = 0.9 * a; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(p.x, p.y, f.r, 0, 6.283); ctx.fill();
+        ctx.globalAlpha = 0.28 * a; ctx.beginPath(); ctx.arc(p.x, p.y, f.r * 3.2, 0, 6.283); ctx.fill(); }
+      // and the tiers themselves shimmer: a faint band that drifts, clipped to the crowd's own box
+      const s0 = toBox(CROWD_HULL_V107_1.x0, CROWD_HULL_V107_1.y0), s1 = toBox(CROWD_HULL_V107_1.x1, CROWD_HULL_V107_1.y1);
+      if (s0 && s1) {
+        const bx = Math.max(0, s0.x), by = Math.max(0, s0.y), bw = Math.min(w, s1.x) - bx, bh = Math.min(h, s1.y) - by;
+        if (bw > 0 && bh > 0) {
+          ctx.globalAlpha = 0.045; const sh = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+          const ph = (now / 5200) % 1;
+          sh.addColorStop(Math.max(0, ph - 0.12), 'rgba(255,255,255,0)'); sh.addColorStop(ph, 'rgba(255,255,255,1)'); sh.addColorStop(Math.min(1, ph + 0.12), 'rgba(255,255,255,0)');
+          ctx.fillStyle = sh; ctx.fillRect(bx, by, bw, bh);
+        }
+      }
       ctx.globalAlpha = 1;
       st.raf = requestAnimationFrame(tick);
     };
     st.raf = requestAnimationFrame(tick);
     st.ro = window.ResizeObserver ? new ResizeObserver(size) : null; if (st.ro) st.ro.observe(cv.parentElement);
     heroFx = st;
-    window.__RIB_MENU_FX_V102 = { get frames() { return st.frames; }, get motes() { return st.motes.length; }, get flashes() { return st.flashes.length; }, get on() { return st.on; } };
+    window.__RIB_MENU_FX_V102 = { get frames() { return st.frames; }, get motes() { return st.motes.length; }, get flashes() { return st.flashes.length; }, get on() { return st.on; },
+      // v107.1: what the check reads — every spawn in picture percent AND box pixels, the crop it
+      // was mapped through, the region it had to land in, and where the lamps and the sun hang
+      get flashLog() { return st.flashLog.slice(); }, get skipped() { return st.skipped; },
+      get box() { return st.box ? { x: st.box.x, y: st.box.y, w: st.box.w, h: st.box.h } : null; },
+      get canvas() { return { w: st.w, h: st.h }; },
+      crowd: CROWD_V107_1, crowdBox: CROWD_HULL_V107_1, lamps: HERO_LAMPS, sun: HERO_SUN,
+      inCrowd: (px, py) => inCrowdV107_1(px, py),
+      pic: (bx, by) => st.box ? [(bx - st.box.x) / st.box.w * 100, (by - st.box.y) / st.box.h * 100] : null };
   }
   function stopHeroFx() { if (!heroFx) return; heroFx.on = false; cancelAnimationFrame(heroFx.raf); if (heroFx.ro) heroFx.ro.disconnect(); heroFx = null; }
 

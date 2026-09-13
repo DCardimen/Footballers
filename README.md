@@ -55,6 +55,61 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v108 — the exchange, and which way he throws.** `scripts/build-field-art.py` cuts 22 more
+  cells out of two of the new sheets (238 → 261), all rear views like the rest of them:
+  `throwR_up0..5` and `throwL_up0..5` from `throw_dir_a` — the same six-frame throw drawn twice,
+  the ball leaving to the man's screen-RIGHT in one and coming across his body to his LEFT in the
+  other (a drawn cross-body throw, not row 0 mirrored: `faceMarker` never flips an `up` man, so
+  both sides had to be cut) — and `handoff_up0..4` / `toss_up0..4` from `exchange_quarter`: the
+  reach, the ball in the hand, THE BALL AT ARM'S LENGTH, the hand already empty, the hand coming
+  back; and the pitch's belly, hip, swing, RELEASE and follow. Deliberately not cut, for the
+  reasons in the build script's comments: `exchange_mini.png` (69-98px figures against 146-179 on
+  every other sheet, frames that repeat instead of moving, and rows whose boxes link through the
+  column of thrown balls), `throw_dir_b.png` (the same right-handed throw drawn smaller and
+  mushier, the arm never extending; its row 3 is a throw ON THE RUN, which has no state),
+  `throw_dir_a` rows 2-3 (the release frame's ball is fused to the glove; and a windup with no
+  ball in any frame), and `exchange_quarter` rows 1-5 and 7 (throws whose ball vanishes between
+  the cock and the release; a squatter build). No take-the-handoff frame for the back and no
+  scramble cycle come out of any of them.
+
+  The renderer wears them (`v108 THE EXCHANGE, AND WHICH WAY HE THROWS`). **Which way he throws:**
+  in `startThrowV107` a quarterback facing `up` whose target is in front of him — inside
+  `TU("throwDirConeDeg", 70)` off straight ahead — now keeps that facing and picks the ARM,
+  `throwR` for a target to his screen-right (the dead-straight ball too: he is a right-hander),
+  `throwL` for one to his left, instead of being turned onto the quarter cycle to throw at a man
+  he is looking straight at. Outside the cone, or behind him, the old turn still happens. The
+  release is still frame 4 on the tick the flight starts (residual 0 ms). **The exchange:** the
+  same kind of lookahead as the arm (`exchangeV108` / `startExchangeV108`, beside `windupV107`)
+  starts the reach two frames before the sim's own `handoff` event — three for a pitch — so the
+  frame that lets the ball go is drawn ON the event: `handoff_up` frame 2 at
+  `TU("handoffFrameMs", 70)`, `toss_up` frame 3 at `TU("tossFrameMs", 80)`, the call read off the
+  play description by the same regex v105's hand uses. Both drawn exchanges are right-handed, so
+  a back coming off the quarterback's LEFT keeps the pre-v108 picture (run frames, ball only) —
+  `TU("exchangeSideMinPx", -3)`. **One football:** `BALL_DRAWN_V108` replaces v107's flat "hide
+  ours on frames 0-3" with a per-cycle list MEASURED off the atlas (the rear throw only really
+  shows the ball cocked at the ear on frame 3; the front and quarter cycles carry it 0-3;
+  `throwR`/`throwL` 2-3; the handoff 1-2; the pitch 0), and on a frame the cell does not draw one
+  the renderer's ball rides the cell's own hand at the offset in `HAND_V108`, measured off the
+  same pixels. `window.__V108` counts `ballDoubled` and `ballMissing` — both stay 0 — and carries
+  the throws with their `dir`, the handoffs and the tosses with the frame each event landed on.
+  `scripts/v108check.mjs` is the proof; v104's number bands read cleanly off all 22 new cells.
+
+- **v107.1 — the sheen flashes twice, the flashes stay on the crowd.** Two menu fixes. The
+  wordmark's sheen (`.rib9-sheen`) tiled its highlight band, so after the flash the user liked
+  a second copy crawled across the letters in the easing's slow tail (measured: a 284 ms flash,
+  then a 60 s crawl); the band is `no-repeat` now and `rib9sheen` is two identical sweeps a cycle,
+  each the original curve over the original travel, a beat between, a hold after — 284 ms and
+  284 ms. The header brand's gold (`rib9brand`) gets the same rhythm, with flat gold under the
+  gradient so the letters never vanish between passes. The hero's camera flashes, shimmer, lamps
+  and sun were placed in the BOX's coordinates while the photograph is cover-cropped under them,
+  so at a phone width the flashes popped on the tunnel walls; `v107.1 THE FLASHES ARE ONLY OVER
+  THE CROWD` (`public/rib-menu.js`) places them in PICTURE percent — two traced crowd polygons
+  either side of the man, `CROWD_V107_1`, inside the tunnel mouth and off the v106 kit masks —
+  and maps through the cover box every frame (`heroPicBoxV107_1`). `scripts/sheencheck.mjs`
+  measures both flashes off the computed background position; `scripts/heroflashcheck.mjs`
+  reads every spawn back and proves the picture pixel under it is bright warm crowd at three
+  widths. Menu stamp → `v107.1-menu`.
+
 - **v107 — the arm, the drop, the stance.** Six new sheets landed in `art/field/`, and
   `scripts/build-field-art.py` now cuts 27 more cells out of four of them (211 → 238): a
   six-frame throw in three facings — `throw_up0..5` (throw_back), `throw_dn0..5` (throw_front)
