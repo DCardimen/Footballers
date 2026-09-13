@@ -3593,7 +3593,9 @@ window.__visionRadiusV96 = visionRadiusV96;
             V109A.throws++; V109A.away++;
             handfightShown = true; highpointShown = true;            // nobody is going up for this one
             ballFlight = { t0: t, style: "bullet", dur, x0: qb9.lx, y0: qb9.y, x1: ax, y1: ay, arc: apex, apexF: TU("arcApexFrac", .55), away: true,
-              done: () => { emit("incomplete", Object.assign({ x: ax, y: ay, oob: true, away: true }, extra || {})); V109A.oob++; done = true; } };
+              done: () => { emit("incomplete", Object.assign({ x: ax, y: ay, oob: true, away: true, reason: "away" }, extra || {}));   // v109 B: a thrown-away ball is an incompletion WITH a reason
+                try { const B = root.__V109_B = root.__V109_B || {}; (B.incReasons = B.incReasons || {}).away = (B.incReasons.away || 0) + 1; } catch (e) {}
+                V109A.oob++; done = true; } };
             return true;
           };
           if (sep < -1.6 && underPressure && Math.random() < 0.28 + (S.off[8].aware-50)*0.005) {
@@ -9441,7 +9443,8 @@ class Ot extends mt.Scene {
           else st = "celebrate" + (af % 4);
         } else if (af >= actionSeq[1]) {
           if (st === "pancakeSeq") { m.forceState = "down"; st = "down"; }
-          else if (/^(catchseqSeq|catchSeq|diveCatchSeq)$/.test(st) && m._tuckV109 && m.tms < m._tuckV109) { m.forceState = "catchhold"; st = "catchhold"; }   // v109: the tuck
+          else if (/^(catchseqSeq|catchSeq|diveCatchSeq)$/.test(st) && m._tuckV109 && m.tms < m._tuckV109 + TU("catchTuckGraceMs", 260)) {
+            m.forceState = "catchhold"; st = "catchhold"; m._tuckV109 = m.tms + TU("catchTuckMs", 160); }   // v109: the tuck, held from the frame the hands CLOSE (the reach starts the sequence early, so a window timed off the catch was already spent here)
           else { if (st === "getupSeq") m._groundT = 0; m.forceState = null; st = m.sSm > 8 ? "run0" : "idle"; }
         } else st = actionSeq[0] + af;
         if (st.indexOf("getup") === 0 || st.indexOf("celebrate") === 0) { const V = (window.__V91 = window.__V91 || {}); V[st.indexOf("getup") === 0 ? "getupFrames" : "celebrateFrames"] = (V[st.indexOf("getup") === 0 ? "getupFrames" : "celebrateFrames"] || 0) + 1; }
