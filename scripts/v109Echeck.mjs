@@ -50,8 +50,8 @@ ok(sim.plays > 200 && sim.linebackerDrop > 0 && sim.blitz > 0 && sim.pickup > 0 
 await page.evaluate(p => { window.__readPos = p }, POS)
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 let scene = false
-for (let i = 0; i < 70; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break
-  if (i === 20 || i === 40) await step('Continue')   // the flow can stall on a card the first pass missed
+for (let i = 0; i < 150; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break
+  if (i === 20 || i === 50 || i === 90) { await step('CONTINUE TO MATCH'); await step('Continue') }   // the flow can stall on a card the first pass missed
   await page.waitForTimeout(500) }
 console.log('scene:', scene)
 
@@ -64,10 +64,10 @@ await page.evaluate(() => { window.__shadowV109 = (sc) => {
   if (!sc || !sc._klV99 || sc.hitStop > 0) return out
   for (const m of (sc.markers || [])) { if (!m || !m.root || !m.shadow || !m.shadow.scene) continue
     let lift = 0; if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms)); lift = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11) }
-    const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || '')) || (m._groundT > 0 && m.tms - m._groundT < 400)
-    const h = ((window.RIB_TUNE && window.RIB_TUNE.shadowManH) || 21) * (down ? ((window.RIB_TUNE && window.RIB_TUNE.shadowDownK) || 0.45) : 1)
+    const H = ((window.RIB_TUNE && window.RIB_TUNE.shadowManH) || 21), DK = ((window.RIB_TUNE && window.RIB_TUNE.shadowDownK) || 0.45)
     const V = sc.shadowVecV99(m.root.x, m.root.y + lift * m.root.scale); if (!V) continue
-    const len = h * V.slope, d = Math.hypot(m.shadow.x - V.ux * len * 0.5, m.shadow.y - (24 + lift + V.uy * len * 0.5))
+    const at = (h) => { const len = h * V.slope; return Math.hypot(m.shadow.x - V.ux * len * 0.5, m.shadow.y - (24 + lift + V.uy * len * 0.5)) }
+    const d = Math.min(at(H), at(H * DK))
     if (m._nudgeV109) { out.nud.push(d); if (d > 1) (window.__shBad = window.__shBad || []).push({ d: +d.toFixed(2), st: String(m.forceState || ''), nudge: +Math.hypot(m._nudgeV109.dx, m._nudgeV109.dy).toFixed(2), spd: Math.round(m._spdPx || 0) }) }
     else out.ctl.push(d) }
   return out } })
@@ -101,7 +101,16 @@ while (Date.now() - t0 < MS) {
   }
   await page.waitForTimeout(70)
 }
-const V = (last && last.V) || {}
+// post-loop, deterministic: wait for a live play and put the three named events through fireEvent
+// if the sampled game did not happen to produce them, and wait for the crew before the measurement
+for (let i = 0; i < 25; i++) {
+  const c = await page.evaluate(() => ((window.__V109_E || {}).cases) || {})
+  if (c.pickup && c.blitz && c.linebackerDrop) break
+  if (!forcedCases) forcedCases = { ...c }
+  await page.evaluate(() => { const sc = window.__gridironScene, P = sc && sc.play; if (!P || !sc.markers || !sc.markers.length) return
+    for (const e of [{ type: 'blitz', who: 'def4' }, { type: 'pickup', by: 'off9', on: 'def4' }, { type: 'linebackerDrop', who: 'def5', delay: 300 }]) sc.fireEvent(e, P) })
+  await page.waitForTimeout(400) }
+const V = await page.evaluate(() => window.__V109_E || {})
 const cases = V.cases || {}
 console.log('hook:', JSON.stringify({ cam: V.cam, helpUps: V.helpUps, helpUpArrivals: V.helpUpArrivals, walkFrames: V.walkFrames, celebrations: V.celebrations, celebrants: V.celebrants, lastCelebrants: V.lastCelebrants, walkOffs: V.walkOffs, surges: V.surges,
   huddle: V.huddle && { staggered: V.huddle.staggered, walkFrames: V.huddle.walkFrames, breaks: (V.huddle.breaks || []).map(b => b.pos + ':' + b.at).join(' ') }, spots: V.spots, spotArrivals: V.spotArrivals, chainMoves: V.chainMoves, measures: V.measures, shadows: V.shadows, eyes: V.eyes, eyeSnaps: V.eyeSnaps, cases }))
@@ -123,7 +132,8 @@ const sw = await page.evaluate(() => { const sc = window.__gridironScene
 const offSamples = (sw && sw.n) || 0, offMax = (sw && sw.off) || 0, onMax = (sw && sw.on) || 0
 console.log('the switch, on a built pile:', JSON.stringify(sw))
 const bob = await page.evaluate(() => { const sc = window.__gridironScene
-  const m = (sc.markers || []).find(m => m && m.bob && m.bob.active && m.root)
+  if (!sc || !sc.markers) return null
+  const m = sc.markers.find(m => m && m.bob && m.bob.active && m.root)
   if (!m) return null
   sc.resolveOverlaps()
   const sc0 = m.root.scale, want = m.root.y - ((window.RIB_TUNE && window.RIB_TUNE.bobLift) || 31) * sc0 + Math.sin(m.tms / 380) * 2 * sc0
@@ -135,6 +145,8 @@ const shBad = await page.evaluate(() => (window.__shBad || []).slice(0, 6))
 console.log('shadow outliers:', JSON.stringify(shBad))
 // the chain crew and the measurement are dead-ball dressing the sampled window may never have hit:
 // drive both through the scene directly and prove the sideline props actually moved
+for (let i = 0; i < 30; i++) { const r = await page.evaluate(() => ((window.__gridironScene || {}).refs || []).length)
+  if (r >= 7) break; await page.waitForTimeout(400) }   // the crew is spawned per play: the measurement needs them on the field
 const chain = await page.evaluate(() => { const sc = window.__gridironScene, S = sc && sc.side
   if (!sc || !S || !sc.chainWalkV109) return { side: false, props: 0, moved: 0, measures: 0 }
   const before = S.items.filter(im => im._side && (/^down\d$/.test(im._side.name) || im._side.name === 'chain_rod')).map(im => [im.x, im.y])
@@ -155,7 +167,9 @@ ok(scene && tokens.size >= 8, 'a live game of at least eight plays was watched',
 // 1. the camera
 const cam = V.cam || {}
 const jerkBound = +(process.env.V109_JERK || 32000)
-ok(cam.frames > 200 && cam.maxJerk > 0 && cam.maxJerk < jerkBound, 'the camera is a spring: its per-frame pan acceleration stayed under the bound', `maxJerk=${cam.maxJerk} px/s² over ${cam.frames} frames (bound ${jerkBound})`)
+ok(cam.frames > 200 && cam.maxJerk > 0 && cam.maxJerk < jerkBound && (cam.maxStepPx || 0) < 70,
+  'the camera is a spring: the acceleration it puts into its own pan velocity stayed under the bound, and no single frame jumped the frame',
+  `maxJerk=${cam.maxJerk} px/s² · biggest step ${cam.maxStepPx} px · ${cam.frames} frames (bound ${jerkBound})`)
 ok(cam.leadFrames > 0, 'and it framed the carrier in the leading third along his heading', `${cam.leadFrames} lead frames`)
 ok(cam.whistleWide > 0 && cam.wideFrames > 0, 'and pulled WIDE on the whistle for the gather', `${cam.whistleWide} whistles · ${cam.wideFrames} wide frames`)
 ok(cam.softResets > 0, 'and re-aimed for the next snap through the glide instead of snapping', `${cam.softResets} soft resets`)

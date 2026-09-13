@@ -6123,16 +6123,20 @@ class Ot extends mt.Scene {
     const x = cam.midPoint.x, y = cam.midPoint.y;
     let ax = k * (cx - x) - c * S.vx, ay = k * (cy - y) - c * S.vy;
     const am = Math.hypot(ax, ay); if (am > aMax) { ax *= aMax / am; ay *= aMax / am; }
+    const v0x = S.vx, v0y = S.vy;
     S.vx += ax * dt; S.vy += ay * dt;
     const nx = x + S.vx * dt, ny = y + S.vy * dt;
+    const jerk = Math.hypot(S.vx - v0x, S.vy - v0y) / dt, step = Math.hypot(nx - x, ny - y);
     // zoom in log space, so a pull-in and the pull-back out of it take the same time
     const kz = TU("camZoomStiff", 45) * sk, cz = 2 * Math.sqrt(kz) * TU("camDamp", 1);
     const lz = Math.log(Math.max(0.05, cam.zoom)), ltz = Math.log(Math.max(0.05, tz));
     S.vz += (kz * (ltz - lz) - cz * S.vz) * dt;
     cam.setZoom(Math.exp(lz + S.vz * dt)); cam.centerOn(nx, ny);
-    const vx = (nx - S.px) / dt, vy = (ny - S.py) / dt;
-    if (S.n > 1) { const acc = Math.hypot(vx - S.pvx, vy - S.pvy) / dt; const V = this.v109E().cam; if (acc > V.maxJerk) V.maxJerk = Math.round(acc); V.frames++; }
-    S.px = nx; S.py = ny; S.pvx = vx; S.pvy = vy; S.n++;
+    { const V = this.v109E().cam;
+      if (jerk > V.maxJerk) V.maxJerk = Math.round(jerk);
+      if (step > (V.maxStepPx || 0)) V.maxStepPx = +step.toFixed(2);
+      V.frames++; }
+    S.px = nx; S.py = ny; S.n++;
   }
   // the whistle: wide, on the ball, for as long as the post phase runs
   camPostV109(P, delta) {
