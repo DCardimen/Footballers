@@ -6076,11 +6076,65 @@ class Ot extends mt.Scene {
   }
   resetCamera() {
     try { const c = this.cameras.main;
-      c.setZoom((((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16)) * TU("perspZoomK", 0.78));
+      const z0 = (((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16)) * TU("perspZoomK", 0.78);
       this._pcam = null; this._cvx = 0; this._cvy = 0;     // v27: clear the predictive lead between plays
       if (this.play) { this.play._camCut = null; this.play._camCarV98 = null; }   // v98: a cut never outlives its play
       this.endFlagFocus();                                 // v71: a focus never outlives its play
-      const f = this.focusPt || { x: FW / 2, y: WORLD_H / 2 }; c.centerOn(f.x, f.y - 80); } catch (e) {}
+      const f = this.focusPt || { x: FW / 2, y: WORLD_H / 2 };
+      /* ===== v109 THE BROADCAST CAMERA — the re-frame is a move, not a cut =====
+       * The whistle pulls the camera wide (startPostV86 / camPostV109); the next snap used to SNAP
+       * it back onto the new line of scrimmage the instant the post phase ended. Inside `camSoftMs`
+       * of a whistle the reset only re-aims — the glide branch of `update` then carries the frame
+       * onto the new line through the spring as the huddle forms — and the hard snap is kept for
+       * every other caller (the static view, a torn-down scene). The soft window arms a real-time
+       * fallback, so a reset that is NOT followed by a play still lands where it always did. */
+      const soft = this._camSoftV109 && performance.now() < this._camSoftV109 && this.markers && this.markers.length && !REDUCED_MOTION;
+      if (soft) { const V = this.v109E(); V.cam.softResets = (V.cam.softResets || 0) + 1;
+        const tk = this._camSoftTokV109 = (this._camSoftTokV109 || 0) + 1;
+        setTimeout(() => { try { if (this._camSoftTokV109 === tk && !this.play && this.cameras && this.cameras.main) { this._camSoftV109 = 0; this.resetCamera(); } } catch (e) {} }, TU("camSoftMs", 900) + 30);
+        return; }
+      this._camSoftV109 = 0; this._camSpr = null;
+      c.setZoom(z0); c.centerOn(f.x, f.y - 80); } catch (e) {}
+  }
+  /* ===== v109 THE BROADCAST (agent E) — the hook every v109 E check reads ===== */
+  v109E() {
+    const V = window.__V109_E = window.__V109_E || { cam: { maxJerk: 0, cuts: 0, whistleWide: 0, softResets: 0, frames: 0, leadFrames: 0, wideFrames: 0 }, cases: {},
+      helpUps: 0, helpUpArrivals: 0, walkFrames: 0, celebrations: 0, celebrants: 0, lastCelebrants: 0, walkOffs: 0, surges: 0,
+      huddle: { breaks: [], staggered: 0, walkFrames: 0 }, spots: 0, spotArrivals: 0, chainMoves: 0, measures: 0,
+      shadows: { nudged: 0, recast: 0 }, eyes: 0, eyeSnaps: 0 };
+    return V;
+  }
+  caseV109(t) { const C = this.v109E().cases; C[t] = (C[t] || 0) + 1; }
+  /* The camera is a critically damped spring on pan and (log) zoom — one state, one integrator,
+   * every framing decision above it only moves the TARGET. A lerp behind a dead-band stalled on
+   * small corrections and micro-stepped on large ones; a spring has no dead-band, no step, and
+   * its acceleration is capped (`camAccelMax`, px/s²), which is the number the hook reports as
+   * `maxJerk` — the worst per-frame change of pan velocity a viewer would have felt. */
+  camSpringV109(cam, cx, cy, tz, delta, stiffK) {
+    const dt = Math.min(0.05, Math.max(0.004, (delta || 16) / 1000)), sk = stiffK || 1;
+    const S = this._camSpr || (this._camSpr = { vx: 0, vy: 0, vz: 0, px: cam.midPoint.x, py: cam.midPoint.y, pvx: 0, pvy: 0, n: 0 });
+    const k = TU("camStiff", 40) * sk, c = 2 * Math.sqrt(k) * TU("camDamp", 1), aMax = TU("camAccelMax", 9000) * Math.sqrt(sk);
+    const x = cam.midPoint.x, y = cam.midPoint.y;
+    let ax = k * (cx - x) - c * S.vx, ay = k * (cy - y) - c * S.vy;
+    const am = Math.hypot(ax, ay); if (am > aMax) { ax *= aMax / am; ay *= aMax / am; }
+    S.vx += ax * dt; S.vy += ay * dt;
+    const nx = x + S.vx * dt, ny = y + S.vy * dt;
+    // zoom in log space, so a pull-in and the pull-back out of it take the same time
+    const kz = TU("camZoomStiff", 45) * sk, cz = 2 * Math.sqrt(kz) * TU("camDamp", 1);
+    const lz = Math.log(Math.max(0.05, cam.zoom)), ltz = Math.log(Math.max(0.05, tz));
+    S.vz += (kz * (ltz - lz) - cz * S.vz) * dt;
+    cam.setZoom(Math.exp(lz + S.vz * dt)); cam.centerOn(nx, ny);
+    const vx = (cam.midPoint.x - S.px) / dt, vy = (cam.midPoint.y - S.py) / dt;
+    if (S.n > 1) { const acc = Math.hypot(vx - S.pvx, vy - S.pvy) / dt; const V = this.v109E().cam; if (acc > V.maxJerk) V.maxJerk = Math.round(acc); V.frames++; }
+    S.px = cam.midPoint.x; S.py = cam.midPoint.y; S.pvx = vx; S.pvy = vy; S.n++;
+  }
+  // the whistle: wide, on the ball, for as long as the post phase runs
+  camPostV109(P, delta) {
+    if (REDUCED_MOTION || !P.post || !P.post.camWide) return;
+    try { const cam = this.cameras.main, W = P.post.camWide, sp = PJ(P.post.spot.x, P.post.spot.y);
+      const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom);
+      const cx = hw >= FW / 2 ? FW / 2 : mt.Math.Clamp(sp.x, hw, FW - hw), cy = mt.Math.Clamp(sp.y - TU("camWhistleRise", 30), hh, WORLD_H - hh);
+      this.camSpringV109(cam, cx, cy, W.z, delta, TU("camWhistleStiffK", 0.7)); this.v109E().cam.wideFrames++; } catch (e) {}
   }
   /* ===== v101 THE SIM LOADS BEHIND THE DOOR =====
    * `buildPlayScript` is the whole play — every actor's frames for every tick — and it was
@@ -6246,9 +6300,17 @@ class Ot extends mt.Scene {
         // locked plays ignore the zoomBig wide-angle: the carrier reads the SAME size on
         // every play, and the compensating zoom already widens/narrows the view for him
         const baseZ = (gliding0 ? 1.0 : (P.big ? TU("zoomBig",1.04) : TU("zoomPlay",1.34))) * _zf;
+        /* ===== v109 THE BROADCAST CAMERA =====
+         * v28 locked the zoom to 1/perspK(carrier) so the runner never changed size — the opposite
+         * of a broadcast, where a man coming down the near sideline fills the frame. `camPerspLockK`
+         * softens the lock (1 is v28's constant size, 0 no compensation at all). The pan and the
+         * zoom then ride one critically damped spring (camSpringV109) instead of a lerp behind a
+         * dead-band, and the carrier is framed in the LEADING THIRD along his heading (camLeadFrac)
+         * rather than dead centre. The v98 handover cut and the v71 flag focus still steer the
+         * target; they stiffen the spring instead of swapping lerp constants. */
+        const lockK = TU("camPerspLockK", 0.5);
         const targetZoom = FC ? FC.zoom
-          : (kc ? mt.Math.Clamp(TU("zoomPlay",1.34) * _zf / kc, TU("zoomLockMin", 0.6), TU("zoomLockMax", 2.4)) : baseZ) + this.zoomPunch;
-        cam.setZoom(cam.zoom + (targetZoom - cam.zoom) * (FC ? TU("flagCamLerp", 0.14) : kc ? TU("zoomLockLerp", 0.12) + (TU("camCutZoomLerp", 0.22) - TU("zoomLockLerp", 0.12)) * cut : TU("zoomLerp", 0.06)));
+          : (kc ? mt.Math.Clamp(TU("zoomPlay",1.34) * _zf / Math.pow(kc, lockK), TU("zoomLockMin", 0.6), TU("zoomLockMax", 2.4)) : baseZ) + this.zoomPunch;
         try { window.__CAMCUT_V98 = Object.assign(window.__CAMCUT_V98 || { cuts: 0 }, { active: !!cut, k: +cut.toFixed(3), carrier: P.carrierId }); if (P._camCut && P._camCut.t <= delta) window.__CAMCUT_V98.cuts++; } catch (e) {}
         if (this._pcam) { const dtc = Math.max(16, delta);
           const nvx = (fx - this._pcam.x) / dtc * 1000, nvy = (fy - this._pcam.y) / dtc * 1000;
@@ -6261,14 +6323,20 @@ class Ot extends mt.Scene {
         if (cut && !FC && carM) {   // v98: lead the new carrier the way the play is going, not the way the ball just came
           const dir = (S.meta && S.meta.dir) || VDIR || 1, kk = kc || 1;
           lx += lx * 0.35 * cut; ly -= dir * TU("camCutLead", 70) * kk * cut; }
-        const lm = Math.hypot(lx, ly), mL = TU("camLeadMax", 130) * (cut ? 1.3 : 1);
+        // v109 THE LEADING THIRD: a runner sits a fraction of the frame behind its centre, along the
+        // way he is going, so the field he is running INTO is what the viewer sees
+        const vsp = Math.hypot(this._cvx || 0, this._cvy || 0), leadMin = TU("camLeadMinSpd", 40);
+        if (!FC && carM && vsp > leadMin) {
+          const lf = TU("camLeadFrac", 0.18) * Math.min(1, (vsp - leadMin) / 120);
+          lx += (this._cvx / vsp) * lf * (FW / cam.zoom); ly += (this._cvy / vsp) * lf * (FVH / cam.zoom);
+          this.v109E().cam.leadFrames++; }
+        const lm = Math.hypot(lx, ly), mL = TU("camLeadMax", 130) * (cut ? 1.3 : 1) + (carM && !FC ? TU("camLeadFracMax", 120) : 0);
         if (lm > mL) { lx *= mL / lm; ly *= mL / lm; }
         const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom);
         const cx = hw >= FW / 2 ? FW / 2 : mt.Math.Clamp(fx + lx, hw, FW - hw);
         const cy = mt.Math.Clamp(fy + ly - 40, hh, WORLD_H - hh);
-        const panK = FC ? TU("flagCamPan", 0.16) : 0.09 + (TU("camCutPan", 0.2) - 0.09) * cut;
-        if (Math.abs(cx - cam.midPoint.x) > 2.5 || Math.abs(cy - cam.midPoint.y) > 2.5)
-          cam.centerOn(cam.midPoint.x + (cx - cam.midPoint.x) * panK, cam.midPoint.y + (cy - cam.midPoint.y) * panK);
+        this.camSpringV109(cam, cx, cy, targetZoom, delta, FC ? TU("flagCamStiffK", 2.2) : 1 + cut * TU("camCutStiffK", 1.6));
+        if (P._camCut && P._camCut.t <= delta) this.v109E().cam.cuts++;
       }
     } catch (e) {}
     // interpolate actors (skip during the glide-in so formations flow between plays)
@@ -6279,28 +6347,39 @@ class Ot extends mt.Scene {
       // v87: by way of the huddle — jog in, stand in the ring facing the middle, break, then to the line
       const H = P.hud;
       if (H && !H.broke && P.t >= H.b) { H.broke = true; this.huddleBreakV87(); }
+      const js9 = TU("jogSpeed", 340), ws9 = TU("walkSpeed", 100), now9 = performance.now(), V9 = this.v109E();
       this.markers.forEach((m) => {
         if (!m._jog) return;
         let gx = m._jog.x, gy = m._jog.y;
-        if (H && m._hud && P.t < H.b) {
+        /* ===== v109 THE HUDDLE BREAKS LIKE A HUDDLE ===== every man holds the ring until HIS
+         * break (`_hudBreakAt`, staggered by position in huddleBreakV87), walks the first
+         * `huddleWalkMs` out of it and only then trots — where the budget allows it: a man who
+         * could not still make the line at a jog afterwards goes straight to the jog. */
+        if (H && m._hud && (P.t < H.b || (m._hudBreakAt != null && P.t < m._hudBreakAt))) {
           if (P.t >= H.a) {   // the hold: stand in the ring and face the middle
             if (!m._hudFaced) { m._hudFaced = true; const a0 = PJ(m.sx, m.sy), a1 = PJ(H.cx[m._hud.side], H.cy); this.faceMarker(m, a1.x - a0.x, a1.y - a0.y); if (m.isLine) m.forceState = "idle"; }
             this.placeMarker(m, m.sx, m.sy, delta); return; }
           gx = m._hud.x; gy = m._hud.y;
           const hdx = gx - m.sx, hdy = gy - m.sy, hd = Math.hypot(hdx, hdy);
           if (hd < 2) { this.placeMarker(m, m.sx, m.sy, delta); return; }
-          const hs = Math.min(hd, TU("jogSpeed",340) * (delta * spd) / 1000);
+          const hs = Math.min(hd, js9 * (delta * spd) / 1000);
           this.placeMarker(m, m.sx + hdx / hd * hs, m.sy + hdy / hd * hs, delta * spd * 2); return;
         }
+        if (m._hudBreakAt != null) { m._hudBreakAt = null; if (m.forceState === "idle") m.forceState = null; m._hudFaced = false; }   // v109: his own break
+        if (m._celRateV109 && m.forceState === "celebrateSeq") m.seqT -= delta * (m._celRateV109 - 1); else m._celRateV109 = 0;   // v109: each celebrant on his own cadence
         const jdx = m._jog.x - m.sx, jdy = m._jog.y - m.sy, jd = Math.hypot(jdx, jdy);
         if (jd < 2) {
-          if (!m._jogDone) { m._jogDone = true;
+          if (!m._jogDone) { m._jogDone = true; m._walk = false;
             if (m.homeDir) { m.dirKey = m.homeDir; m.flip = false; }
             if (m.isLine) m.forceState = "stance"; }
           this.placeMarker(m, m.sx, m.sy, delta);
           return;
         }
-        const stp = Math.min(jd, TU("jogSpeed",340) * (delta * spd) / 1000);
+        // v109: the walk out of the break / the walk-off after a score — only while he can still make the line at a jog
+        const canWalk = jd < Math.max(0, (P.delay || 0) - P.t) * js9 / 1000 * 0.85;
+        const walking = canWalk && ((m._hudWalkUntil != null && P.t < m._hudWalkUntil) || (m._walkOffV109 && now9 < m._walkOffV109));
+        m._walk = !!walking; if (walking && H) V9.huddle.walkFrames++;
+        const stp = Math.min(jd, (walking ? ws9 : js9) * (delta * spd) / 1000);
         this.placeMarker(m, m.sx + jdx / jd * stp, m.sy + jdy / jd * stp, delta * spd * 2);
       });
       this.resolveOverlaps();
@@ -6675,17 +6754,52 @@ class Ot extends mt.Scene {
           maxA = Math.max(maxA, Math.hypot(qb._hud.x - qb.sx, qb._hud.y - qb.sy)); maxB = Math.max(maxB, Math.hypot(qb._jog.x - qb._hud.x, qb._jog.y - qb._hud.y)); } }
       });
       const js = TU("jogSpeed", 340);
-      const a = Math.min(1100, Math.max(260, maxA / js * 1000 + 120)), hold = TU("huddleHoldMs", 420), b2 = Math.min(1200, Math.max(320, maxB / js * 1000 + 160));
+      // v109: the break is staggered by position and walked for its first `huddleWalkMs`, so the leg to the line is budgeted for both
+      const wm = TU("huddleWalkMs", 300), stag = TU("huddleBreakStaggerMs", 90) * 3.5, walkPx = TU("walkSpeed", 100) * wm / 1000;
+      const a = Math.min(1100, Math.max(260, maxA / js * 1000 + 120)), hold = TU("huddleHoldMs", 420), b2 = Math.min(1500, Math.max(320, Math.max(0, maxB - walkPx) / js * 1000 + wm + stag + 160));
       this._jogDelay = Math.min(TU("huddleMaxMs", 2700), a + hold + b2);
       try { (window.__V87 = window.__V87 || {}).huddles = ((window.__V87 || {}).huddles || 0) + 1; } catch (e) {}
       return { a, b: a + hold, cx, cy: MIDY, broke: false };
     } catch (e) { return null; }
   }
   huddleBreakV87() {
-    this.markers.forEach((m, i) => { if (!m._hud) return; if (m.forceState === "idle") m.forceState = null; m._hudFaced = false;
-      if (m.body) this.tweens.add({ targets: m.body, y: -3, yoyo: true, duration: 130, delay: (i % 4) * 25 });
-      if (i === 8 && m.body) this.tweens.add({ targets: m.body, scaleX: 1.14, scaleY: 0.92, yoyo: true, duration: 110 }); });
+    /* ===== v109 THE HUDDLE BREAKS LIKE A HUDDLE =====
+     * v87 broke all eleven on one frame with one identical hop. Now the break is staggered by
+     * position — the line first, the backs and tight ends next, the receivers after them, the
+     * quarterback last — each man's hop has its own height and length, and the glide branch
+     * holds each man in the ring until his own `_hudBreakAt` and walks him out of it
+     * (`_hudWalkUntil`) before the trot. The stagger is `huddleBreakStaggerMs` per tier. */
+    const H = this.play && this.play.hud, st = TU("huddleBreakStaggerMs", 90), V = this.v109E().huddle, rec = [];
+    const base = H ? H.b : (this.play ? this.play.t : 0), wm = TU("huddleWalkMs", 300);
+    const tier = (m, i) => i === 8 ? 3 : m.isLine ? 0 : /^(WR|CB|S)$/.test(String(m.posLabel || "")) ? 2 : 1;
+    this.markers.forEach((m, i) => { if (!m._hud) return;
+      const tr = tier(m, i), at = tr * st + Math.random() * st * 0.5;
+      m._hudBreakAt = base + at; m._hudWalkUntil = base + at + wm;
+      rec.push({ i, pos: m.posLabel || (i < 11 ? "O" : "D"), tier: tr, at: Math.round(at) });
+      const hop = TU("huddleHopPx", 3) * (0.6 + Math.random() * 0.8), dur = 110 + Math.random() * 60;
+      if (m.body) this.tweens.add({ targets: m.body, y: -hop, yoyo: true, duration: dur, delay: at });
+      if (i === 8 && m.body) this.tweens.add({ targets: m.body, scaleX: 1.14, scaleY: 0.92, yoyo: true, duration: 110, delay: at }); });   // the clap, when HE breaks
+    V.breaks = rec; V.staggered++;
   }
+  /* ===== v109 THE QUARTERBACK'S EYES =====
+   * `look` and `read` name the man the quarterback is on; the HUD drew a cone and his body stayed
+   * on the rear idle. Now each read gives him a brief quarter facing toward the target (`ur`, or
+   * `dr` for a man behind him) for `qbEyeMs`, never inside `qbEyeGuardMs` + the wind-up lead of
+   * the scripted throw (scanned ahead the way windupV107 does), so the v107 arm still fires
+   * from `up`. */
+  qbEyeV109(P, to) {
+    if (!TU("qbEyeV109", 1) || REDUCED_MOTION || !to) return;
+    const qb = this.markers[8], ti = this.actorIdx(to), tm = ti >= 0 ? this.markers[ti] : null;
+    if (!qb || !tm || !qb.root || qb.forceState || qb._dropback || (qb.homeDir || "up") !== "up" || P.ballHolderId !== 8 || P._thrown || (qb._spdPx || 0) > 34) return;
+    const T = Math.max(0, P.t - (P.delay || 0)), nx = this.nextThrowV109(P, T);
+    const guard = TU("qbEyeGuardMs", 400) + TU("throwFrameMs", 85) * TU("throwReleaseFrame", 4);
+    if (nx && nx.t - T < guard + 60) return;                 // too close to the throw: the arm needs him square
+    const a = PJ(qb.sx, qb.sy), b = PJ(tm.sx, tm.sy), dx = b.x - a.x, dy = b.y - a.y;
+    qb.dirKey = dy > 6 ? "dr" : "ur"; qb.flip = dx > 0;
+    qb._eyeV109 = { until: Math.min(P.t + TU("qbEyeMs", 320), nx ? nx.t + (P.delay || 0) - guard : 1e9), to: ti };
+    this.v109E().eyes++;
+  }
+  nextThrowV109(P, T) { for (const e of ((P.script && P.script.events) || [])) if (e && e.type === "throw" && e.style !== "kick" && !e.fg && e.t > T) return e; return null; }
   drawGoalpostsV87() {
     if (!this.goalG) this.goalG = this.add.graphics().setDepth(3.95);
     if (!this.postShadG) this.postShadG = this.add.graphics().setDepth(TU("postShadDepth", 3.44));   // v99: on the grass, under everyone
@@ -6766,7 +6880,7 @@ class Ot extends mt.Scene {
         if (!grounded && holding) { m._lean = 0; m._lookAt = null; m._dropback = false; return; }   // he keeps his grip
       }
       if (!grounded && m.forceState && m.forceState !== "getupSeq") m.forceState = null;   // grabs, blocks and stances let go at the whistle
-      m._lean = 0; m._lookAt = null; m._dropback = false;
+      m._lean = 0; m._lookAt = null; m._dropback = false; m._walk = false; m._eyeV109 = null;   // v109: the walk and the eyes end with the play too
       if (m.body) { m.body.x = 0; m.body.y = 0; }
       try { this.unpair(i); } catch (e) {}
     });
@@ -6783,6 +6897,37 @@ class Ot extends mt.Scene {
         q.m._post.late = true;
       }
       try { const V = window.__V103 = window.__V103 || {}; V.late = (V.late || 0) + P.post.late.length; } catch (e) {}
+    }
+    /* ===== v109 TEAMMATES HELP EACH OTHER UP =====
+     * v86 stood every downed man up on his own timer, alone. Now, with `helpUpP`, the nearest
+     * standing teammate (his own side, not in the pile, not a late arrival, within
+     * `helpUpMaxPx`) walks over on the walk cycle, stops beside him facing him with a hand out,
+     * and only when the man is up do both of them gather. All inside the existing post budget. */
+    P.post.helps = [];
+    if (TU("helpUpV109", 1) && !REDUCED_MOTION) {
+      const taken = new Set();
+      this.markers.forEach((g, gi) => {
+        const q = g._post; if (!q || !q.grounded || Math.random() >= TU("helpUpP", 0.6)) return;
+        let best = -1, bd = TU("helpUpMaxPx", 90);
+        this.markers.forEach((h, hi) => { const hq = h._post; if (hi === gi || !hq || hq.grounded || hq.late || hq.help || h._late || taken.has(hi) || (hi < 11) !== (gi < 11)) return;
+          const d = Math.hypot(h.sx - g.sx, h.sy - g.sy); if (d < bd) { bd = d; best = hi; } });
+        if (best < 0) return;
+        taken.add(best);
+        const h = this.markers[best], side = Math.sign(h.sx - g.sx) || (gi < 11 ? -dir : dir);
+        h._post.help = { to: gi, tx: g.sx + side * TU("helpUpStandPx", 11), ty: g.sy + (h.sy > g.sy ? 4 : -4), at: TU("helpUpDelayMs", 120) + Math.random() * 160, there: false, done: false };
+        q.helped = best;
+        P.post.helps.push({ helper: best, downed: gi });
+      });
+      this.v109E().helpUps += P.post.helps.length;
+    }
+    /* ===== v109 THE CREW SPOTS THE BALL, AND THE STICKS MOVE (the post-play half) ===== */
+    if (!REDUCED_MOTION) {
+      const pay9 = P.payload || {};
+      // the camera pulls WIDE on the whistle (camPostV109 rides the spring toward it every post frame)
+      const z0 = (((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16)) * TU("perspZoomK", 0.78);
+      P.post.camWide = { z: z0 * TU("camWhistleZoom", 0.88) }; this.v109E().cam.whistleWide++;
+      if (P.fdConverted) this.chainWalkV109(spot.x, dir);        // a new set of downs: the chain crew walks to the new line
+      if (pay9.measure) this.measureV109(spot, dir);            // another system may flag a measurement on the row — read defensively
     }
     // the ball is dead: it stays at the spot for the crew, nobody jogs off with it
     P.ballHolderId = null; P.ballMode = "ground"; P.__looseBall = false;
@@ -6827,10 +6972,25 @@ class Ot extends mt.Scene {
       for (const m of this.markers) { if (m && m._late) { m._late = null; if (m.body) { m.body.x = 0; m.body.y = 0; }
         if (m.forceState === "grab") m.forceState = null; } }
     }
+    const V9 = this.v109E();
     this.markers.forEach((m, i) => {
       const q = m._post; if (!q || !m.root) return;
       if (m._late && k < lateMs) return;               // still in the scrap: he is not going anywhere yet
       if (q.late && k < lateMs) return;                // still arriving
+      if (q.help && !q.help.done) {                    // v109: the helper walks over and stands by him until he is up
+        const Hh = q.help, g = this.markers[Hh.to], gq = g && g._post;
+        if (!gq || (gq.rose && String(g.forceState || "") !== "getupSeq")) { Hh.done = true; m._walk = false; if (m.forceState === "idle") m.forceState = null; }
+        else if (k < Hh.at) { this.placeMarker(m, m.sx, m.sy, delta); return; }
+        else {
+          const dx = Hh.tx - m.sx, dy = Hh.ty - m.sy, d = Math.hypot(dx, dy);
+          if (d > 3 && !Hh.there) { m._walk = true; const stp = Math.min(d, TU("walkSpeed", 100) * dt / 1000); this.placeMarker(m, m.sx + dx / d * stp, m.sy + dy / d * stp, dt); V9.walkFrames++; }
+          else { if (!Hh.there) { Hh.there = true; m._walk = false; const a = PJ(m.sx, m.sy), b = PJ(g.sx, g.sy); this.faceMarker(m, b.x - a.x, b.y - a.y); m.forceState = "idle";
+              if (m.body) this.tweens.add({ targets: m.body, x: (b.x > a.x ? 1 : -1) * TU("helpUpReachPx", 3), y: 1, yoyo: true, duration: 260, repeat: 1 });   // the hand goes out
+              V9.helpUpArrivals++; }
+            this.placeMarker(m, m.sx, m.sy, delta); }
+          return;
+        }
+      }
       if (q.grounded && !q.rose) {
         if (k < q.up) { this.placeMarker(m, m.sx, m.sy, delta); return; }
         q.rose = true; m._launchUntil = 0; if (m.forceState !== "celebrateSeq") { m.forceState = "getupSeq"; m.seqT = m.tms; } if (m.body) m.body.setAlpha(1);   // v91: a celebration outranks the get-up
@@ -6845,7 +7005,49 @@ class Ot extends mt.Scene {
     });
     this.resolveOverlaps();
     try { this.updateRefs(dt, false); this.updateSideline(dt); } catch (e) {}
-    if (k >= P.post.ms) { P.post = null; this.markers.forEach(m => { m._post = null; }); this.resetCamera(); this.complete(); }
+    this.camPostV109(P, delta);   // v109: wide on the ball while they gather
+    if (k >= P.post.ms) { P.post = null; this.markers.forEach(m => { m._post = null; m._walk = false; if (m.forceState === "idle") m.forceState = null; });
+      this._camSoftV109 = performance.now() + TU("camSoftMs", 900);   // v109: the next reset re-aims instead of snapping — the glide carries the frame to the new line
+      this.resetCamera(); this.complete(); }
+  }
+  /* ===== v109 THE CREW SPOTS THE BALL, AND THE STICKS MOVE =====
+   * The crew whistled and pointed but nobody went to the ball, and the chain crew on the v78
+   * sideline stood where the last snap put it. Now setSpot sends the nearest FREE official
+   * (the whistler is already busy) to the spot at a run (`refSpotSpd`); he arrives beside the
+   * ball, points the offense's way (`pointSeq`, `refSpotHoldMs`) as the ball settles, then goes
+   * back to his role. On a first down the down marker and both rods walk to the new line
+   * (`chainWalkMs`); a row flagged `measure` brings both wing officials in to the spot with the
+   * chain drawn between them for `measureHoldMs`. `__V109_E.spots` counts the spots. */
+  refSpotV109(x, y) {
+    const P = this.play; if (!P || P._refSpotV109 || !TU("refSpotV109", 1) || REDUCED_MOTION) return;
+    if (P.payload && P.payload.scored) return;             // a score is signalled, not spotted
+    P._refSpotV109 = true;
+    const r = this.refNearest(x, y, true); if (!r) return;
+    const dir = (P.script && P.script.meta && P.script.meta.dir) || VDIR || 1;
+    r._spotTgt = { x: x - dir * 6, y: y + (r.sy > y ? 14 : -14), kind: "spot", dir, hold: TU("refSpotHoldMs", 700), there: false };
+    this.v109E().spots++;
+  }
+  measureV109(spot, dir) {
+    if (!this.refs || !this.refs.length) return;
+    for (const r of this.refs) if (r.role === "H" || r.role === "L") { r.forceState = null;
+      r._spotTgt = { x: spot.x - dir * 4, y: spot.y + (r.role === "H" ? -16 : 16), kind: "measure", dir, hold: TU("measureHoldMs", 900), there: false }; }
+    this.v109E().measures++;
+  }
+  chainWalkV109(spotX, dir) {
+    const S = this.side; if (!S || !S.items) return 0;
+    const YDF = PLAY_W / 100, adj = (x) => (VDIR > 0 ? x : FW - x), togo = spotX + dir * 10 * YDF;
+    let n = 0, rod = 0;
+    for (const im of S.items) { const sd = im && im._side; if (!sd || im.active === false) continue;
+      let ux = null;
+      if (/^down\d$/.test(sd.name)) ux = spotX; else if (sd.name === "chain_rod") ux = rod++ === 0 ? spotX - 3 : togo; else continue;
+      const p = this.crowdProject(adj(ux), sd.vv), ms = TU("chainWalkMs", 900), dl = TU("chainWalkDelayMs", 350);
+      // the item's contact shadow is its own object (sideShadow): the one at its depth goes with it
+      let sh = null, bd = 1e9; for (const f of (S.fx || [])) { const dd = Math.abs(f.depth - (im.depth - .0006)); if (dd < 1e-6 && dd < bd) { bd = dd; sh = f; } }
+      this.tweens.add({ targets: im, x: p.x, y: p.y, duration: ms, delay: dl, ease: "Sine.easeInOut" });
+      if (sh) this.tweens.add({ targets: sh, x: sh.x + (p.x - im.x), y: sh.y + (p.y - im.y), duration: ms, delay: dl, ease: "Sine.easeInOut" });
+      n++; }
+    if (n) this.v109E().chainMoves++;
+    return n;
   }
   presnapV86(P, T, dt) {
     if (P._snapAt == null) { const ev = (P.script.events || []).find(e => e && e.type === "snap"); P._snapAt = ev ? ev.t : 640; }
@@ -6888,6 +7090,12 @@ class Ot extends mt.Scene {
       try { (window.__V86 = window.__V86 || {}).hitches = ((window.__V86 || {}).hitches || 0) + 1; } catch (e) {} }
     // the tuck: a scrambling QB leans into his run
     qb._lean = (P.carrierId === 8 && P.scrambling && !qb.forceState && (qb._spdPx || 0) > 40) ? (qb.flip ? 1 : -1) * TU("tuckLean", 0.16) * (qb.dirKey === "sd" ? 1 : 0.4) : 0;
+    // v109 THE QUARTERBACK'S EYES: the quarter-turn to a read (qbEyeV109) comes back square to the
+    // line on its own clock, and the moment he moves, is forced, or the ball is out — always before
+    // the v107 wind-up, which runs right after this tick and needs him on `up`
+    if (qb._eyeV109) { const E = qb._eyeV109;
+      if (P.t >= E.until || qb.forceState || qb._dropback || P._thrown || P.carrierId === 8 || (qb._spdPx || 0) > 34) {
+        qb._eyeV109 = null; if (!qb.forceState && qb.dirKey !== "up") { qb.dirKey = "up"; qb.flip = false; } this.v109E().eyeSnaps++; } }
   }
   /* v107 THE ARM — the release is frame 4, so the sequence has to START four frames before the
    * flight does. The legacy choreographer emits `windup` 300 ms out (one frame short of the 340
@@ -7629,6 +7837,37 @@ class Ot extends mt.Scene {
       case "stuntPassOff": this.puffFx(e.x, e.y, 1, 0xd8e6da, 0.35); break;
       case "spyAttack": { const m = this.markers[this.actorIdx(e.who)]; if (m && m.team === "you") this.popText(e.x, e.y - 22, "SPY — GO!", "#8fe7ff", 12); break; }
       case "spy": case "protection": case "disguise": case "effort": case "comeback": case "boxOut": case "press": break;
+      /* ===== v109 THE FRONT'S CHESS — the events the renderer ignored =====
+       * pickup pairs the back (or the sliding lineman) on the blitzer in the block state; blitz
+       * flashes the blitzer and leans him in; linebackerDrop holds the LB on the quarterback while he
+       * retreats (his own backpedal if his kit has it for his facing, else the walk); penetrate,
+       * doubleTeam, pocketSlide, spring and cutback each get a pairing / facing / flash — no text. */
+      case "pickup": { const bi = this.actorIdx(e.by), oi = this.actorIdx(e.on), bm = this.markers[bi];
+        this.pairUp(bi, oi);
+        if (bm) { bm.forceState = "block"; this.time.delayedCall(TU("pickupBlockMs", 520), () => { if (bm.forceState === "block") bm.forceState = null; }); this.puffFx(bm.sx, bm.sy, 1, 0xd8e6da, 0.35); }
+        this.caseV109("pickup"); break; }
+      case "blitz": { const m = this.markers[this.actorIdx(e.who)];
+        if (m) { this.flash(m.sx, m.sy, 0xff6b52); m._lean = (m.flip ? 1 : -1) * TU("blitzLean", 0.12); this.time.delayedCall(TU("blitzLeanMs", 320), () => { if (m._lean) m._lean = 0; }); }
+        this.caseV109("blitz"); break; }
+      case "linebackerDrop": { const m = this.markers[this.actorIdx(e.who)];
+        if (m && !m.forceState) { m._dropback = true; m._walk = !this.textures.exists("spr_" + (m.kit || m.team) + "_" + (m.homeDir || "dn") + "_backpedal0");
+          this.time.delayedCall(TU("lbDropMs", 900), () => { if (m._dropback) { m._dropback = false; m._walk = false; } }); }
+        this.caseV109("linebackerDrop"); break; }
+      case "penetrate": { const i9 = this.actorIdx(e.who), m = this.markers[i9]; this.unpair(i9);
+        if (m) { this.flash(m.sx, m.sy, 0xffb08a); m.cutUntil = m.tms + 160; } this.caseV109("penetrate"); break; }
+      case "doubleTeam": { const oi = this.actorIdx(e.on), dm = this.markers[oi];
+        if (dm) { let best = -1, bd = TU("doubleTeamPx", 30);
+          this.markers.forEach((m, i) => { if (i < 11 && m.isLine && m.root && m._pair == null) { const d = Math.hypot(m.sx - dm.sx, m.sy - dm.sy); if (d < bd) { bd = d; best = i; } } });
+          if (best >= 0 && dm._pair == null) this.pairUp(best, oi);
+          this.flash(dm.sx, dm.sy, 0xd8e6da); }
+        this.caseV109("doubleTeam"); break; }
+      case "pocketSlide": { const qb = this.markers[8]; if (qb && qb.body && !qb.forceState) this.tweens.add({ targets: qb.body, x: (VDIR > 0 ? -1 : 1) * TU("pocketSlidePx", 3), yoyo: true, duration: 170 });
+        this.caseV109("pocketSlide"); break; }
+      case "spring": { this.flash(e.x, e.y, 0xffe9ad); this.zoomPunch = Math.max(this.zoomPunch || 0, TU("springPunch", 0.05));
+        const cm9 = P.carrierId != null ? this.markers[P.carrierId] : null; if (cm9) this.puffFx(cm9.sx, cm9.sy + 4, 2, 0x8a7a55, 0.4); this.caseV109("spring"); break; }
+      case "cutback": { const cm9 = P.carrierId != null ? this.markers[P.carrierId] : null;
+        if (cm9 && !cm9.forceState) { cm9.cutUntil = cm9.tms + TU("cutbackCutMs", 200); this.skidFx(cm9.sx, cm9.sy); this.puffFx(cm9.sx, cm9.sy + 3, 2, 0x8a7a55, 0.36); }
+        this.caseV109("cutback"); break; }
       case "chip": { this.pairUp(this.actorIdx(e.who), this.actorIdx(e.on)); this.time.delayedCall(560, () => this.unpair(this.actorIdx(e.who))); break; }
       case "rotate": { const m = this.markers[this.actorIdx(e.who)]; if (m) this.popText(e.x, e.y - 24, "ROTATES DOWN", "#8ec3ee", 11); break; }
       case "fooled": this.popText(e.x, e.y - 24, "DISGUISED!", "#ff9a9a", 12); break;
@@ -7745,12 +7984,14 @@ class Ot extends mt.Scene {
         P.lookCone = e.cone == null ? null : e.cone; P.lookProt = e.prot == null ? null : e.prot;   // v101: the live cone
         try { const V = window.__V101 = window.__V101 || {}; V.look = { cone: e.cone, prot: e.prot, panic: e.panic, window: P.lookWindow };
           (V.lookCones || (V.lookCones = [])).push(e.cone); if (V.lookCones.length > 400) V.lookCones.shift(); } catch (_e) {}
+        this.qbEyeV109(P, e.to);   // v109: his eyes go where the cone goes
         break;
       }
       case "read": {
         // the QB comes off his first read — swing the cone to the new man
         if (e.to && e.to !== "off9") { P.lookIdx = this.actorIdx(e.to); P.lookOpen = false; }
         else if (e.to === "off9") { P.lookIdx = 9; P.lookOpen = true; }
+        this.qbEyeV109(P, e.to);   // v109: and come off the first read with his eyes, not just the cone
         break;
       }
       case "throw": {
@@ -7806,6 +8047,7 @@ class Ot extends mt.Scene {
     // incomplete, out of bounds, score) already comes through here, so the crew's
     // whistle hangs off the one hook instead of five separate event cases.
     try { this.refWhistle(x, y); } catch (e) {}
+    try { this.refSpotV109(x, y); } catch (e) {}   // v109: and the nearest free official goes to the ball
   }
   endzoneFlash() {
     const dir = this.play && (this.play.script.meta.scoreDir || this.play.script.meta.dir) || 1;
@@ -8158,6 +8400,28 @@ class Ot extends mt.Scene {
     try { this.refSignalTD(x, y); } catch (e) {}          // v45: nearest official signals the score, both arms up
     try { const P = this.play, cm = P && P.carrierId != null ? this.markers[P.carrierId] : null;   // v91: the scorer plays the drawn celebration
       if (cm && RIB.v91img && this.textures.exists("spr_" + cm.team + "_dn_celebrate0")) { cm.forceState = "celebrateSeq"; cm.seqT = cm.tms; } } catch (e) {}
+    /* ===== v109 CELEBRATION VARIETY, AND A BENCH THAT SURGES =====
+     * v91 celebrated the scorer alone while the other ten jogged to their gather spots. Now the
+     * nearest two or three teammates turn to him (a different drawn cycle per facing) and join
+     * on a staggered start (`celebrateStaggerMs`) from a random frame, each on his own cadence
+     * (`_celRateV109`, ±20% of celebrateFrameMs, advanced by the glide branch); the other
+     * eleven walk off on the walk cycle (`walkOffMs`); sideReact's td pushes a real bench surge. */
+    try { const P = this.play, ci = P && P.carrierId != null ? P.carrierId : -1, cm = ci >= 0 ? this.markers[ci] : null;
+      if (cm && cm.root && RIB.v91img && !REDUCED_MOTION && TU("celebrateJoinV109", 1)) {
+        const V = this.v109E(), fm = TU("celebrateFrameMs", 170), off9 = ci < 11;
+        const near = this.markers.map((m, i) => ({ m, i, d: Math.hypot(m.sx - cm.sx, m.sy - cm.sy) }))
+          .filter(q => q.i !== ci && (q.i < 11) === off9 && q.m.root && q.d < TU("celebrateJoinPx", 130) && !/^(tackleSeq|down|pancakeSeq|getupSeq)$/.test(String(q.m.forceState || "")))
+          .sort((a, b) => a.d - b.d).slice(0, 2 + (Math.random() < 0.5 ? 1 : 0));
+        near.forEach((q, k) => { const m = q.m, rate = 0.8 + Math.random() * 0.4;
+          this.time.delayedCall(60 + k * TU("celebrateStaggerMs", 110) + Math.random() * 60, () => { if (!m.root || m._post) return;
+            const a = PJ(m.sx, m.sy), b = PJ(cm.sx, cm.sy); this.faceMarker(m, b.x - a.x, b.y - a.y);
+            m.forceState = "celebrateSeq"; m.seqT = m.tms - Math.floor(Math.random() * 4) * fm; m._celRateV109 = rate; m._lean = 0; m._dropback = false; m._walk = false;
+            V.celebrants++; }); });
+        cm._celRateV109 = 1; V.celebrations++; V.lastCelebrants = 1 + near.length;
+        this.markers.forEach((m, i) => { if ((i < 11) !== off9 && m.root) { m._walkOffV109 = performance.now() + TU("walkOffMs", 900); V.walkOffs++; } });
+        const S9 = this.side; if (S9) { S9.surge = { t: 0, ms: TU("sideSurgeMs", 1600), team: cm.kit || (off9 ? "off" : "def") }; V.surges++; }
+      }
+    } catch (e) {}
     { const P = this.play, pay = P && P.payload || {};   // v95: the badge is the TOUCHDOWN text, anchored on the crossing
       BADGE_V95.show("touchdown", { sub: pay.event === "run" || pay.event === "pass" ? badgeYdsV95(pay.yards).replace("+", "") : "", x, y, scene: this, token: "td:" + (P ? P.__ballTokenV1514 : Date.now()) }); }
     const cp = PJ(x, y); x = cp.x; y = cp.y;
@@ -8475,6 +8739,7 @@ class Ot extends mt.Scene {
     }
     else if (m.tms < m.cutUntil) st = "cut";
     else if (m.sSm < 8) st = "idle";
+    else if (m._walk && this.textures.exists("spr_" + (m.kit || m.team) + "_" + m.dirKey + "_walk0")) { m.wt = (m.wt || 0) + (dtms || 16); st = "walk" + (Math.floor(m.wt / TU("walkFrameMs", 170)) % 2); this.v109E().walkFrames++; }   // v109 WALK: a man told to walk (m._walk — the huddle break, the helper, the walk-off, the LB drop) uses the drawn walk cycle
     else { m.ft += (dtms || 16) * Math.min(2.4, m.sSm / 58); st = "run" + (Math.floor(m.ft / 96) % (window.__RIB_FRAMES || 4)); }
     // v107: a dropback is a BACKPEDAL, not the run cycle played facing the line. Paced by the
     // ground he covers, the same way the run frames are, so a hurried seven-step churns.
@@ -8625,6 +8890,7 @@ class Ot extends mt.Scene {
   resolveOverlaps() {
     // render-side separation: sprites never stack, no matter how tight the sim pile is
     const ms = this.markers;
+    const px0 = ms.map(m => m.root ? m.root.x : 0), py0 = ms.map(m => m.root ? m.root.y : 0);   // v109: where placeMarker stood him
     for (let pass = 0; pass < 3; pass++)
       for (let i = 0; i < ms.length; i++) for (let j = i + 1; j < ms.length; j++) {
         const a = ms[i], b = ms[j];
@@ -8641,11 +8907,33 @@ class Ot extends mt.Scene {
           b.root.x += ux * push; b.root.y += uy * push;
         }
       }
-    ms.forEach((m) => {
+    /* ===== v109 SHADOWS STAY UNDER THE BODIES =====
+     * The nudge moved the container and left everything placeMarker had computed for the
+     * un-nudged man: the shadow and the fill were cast from the point he no longer stands on, the
+     * sprint smear with them, his depth still said the old row, and the plumbob lost its float
+     * and the ring its scale on every frame. Every nudged man is now re-cast from the point he
+     * was pushed to (`m._nudgeV109` says how far), a man pushed toward the camera draws in front,
+     * and the ring / bob / tag get exactly what placeMarker gives them. */
+    const V9 = this.v109E().shadows;
+    ms.forEach((m, i) => {
       if (!m.root) return;
-      if (m.ring && m.ring.active) m.ring.setPosition(m.root.x, m.root.y + 16 * m.root.scale);
-      if (m.bob && m.bob.active) m.bob.setPosition(m.root.x, m.root.y - TU("bobLift", 31) * m.root.scale);
-      if (m.tag && m.tag.active) m.tag.setPosition(m.root.x, m.root.y + 27 * m.root.scale);
+      const ndx = m.root.x - px0[i], ndy = m.root.y - py0[i], nd = Math.hypot(ndx, ndy);
+      m._nudgeV109 = nd > 0.01 ? { dx: ndx, dy: ndy } : null;
+      if (nd > 0.01) { V9.nudged++;
+        let lift = 0; if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms)); lift = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11); }
+        if (m.shadow && TU("shadowsV99", 1)) {
+          const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
+          const h = TU("shadowManH", 21) * (down ? TU("shadowDownK", 0.45) : 1), gy = m.root.y + lift * m.root.scale;
+          this.castShadowV99(m.shadow, m.root.x, gy, h, { lift });
+          const smear = Math.max(0, Math.min(1, ((m._spdPx || 0) - TU("smearFromV101", 120)) / TU("smearSpanV101", 130))) * TU("smearKV101", 0.34);
+          if (smear > 0) { m.shadow.setScale(m.shadow.scaleX * (1 + smear), m.shadow.scaleY * (1 - smear * 0.35)); m.shadow.setAlpha(m.shadow.alpha * (1 - smear * 0.3)); }
+          if (m.fill) this.castFillV101(m.fill, m.root.x, gy, h, { lift });
+          V9.recast++; }
+        m.root.setDepth(m.root.depth + ndy * TU("nudgeDepthK", 0.004));
+      }
+      if (m.ring && m.ring.active) m.ring.setPosition(m.root.x, m.root.y + 16 * m.root.scale).setScale(m.root.scale);
+      if (m.bob && m.bob.active) m.bob.setPosition(m.root.x, m.root.y - TU("bobLift", 31) * m.root.scale + Math.sin(m.tms / 380) * 2 * m.root.scale);
+      if (m.tag && m.tag.active) m.tag.setPosition(m.root.x, m.root.y + 27 * m.root.scale).setScale(m.root.scale);
     });
   }
   /* ===== v57 CROWD STANDS — a real crowd outside both sidelines =====
@@ -10283,6 +10571,9 @@ class Ot extends mt.Scene {
       brokenTackle: .45, hurdle: .45, stiffarm: .4, pancake: .35, tackleHit: .35, catch: .3 };
     const t = T[e.type]; if (!t) return;
     S.excite = Math.max(S.excite || 0, t);
+    // v109: a score is a SURGE, not a taller sway — the scorer's bench steps to the touchline and back
+    if ((e.type === "td" || e.type === "score") && !S.surge) { const P = this.play, ci = P && P.carrierId != null ? P.carrierId : -1, cm = ci >= 0 ? this.markers[ci] : null;
+      S.surge = { t: 0, ms: TU("sideSurgeMs", 1600), team: (cm && cm.kit) || (ci >= 0 && ci < 11 ? "off" : "def") }; this.v109E().surges++; }
   }
   // the dynamic half of the lighting: fold the ball spotlight (the exact v29
   // player formula) onto each sprite's static base. Throttled — the spot only
@@ -10326,8 +10617,14 @@ class Ot extends mt.Scene {
         im._scat = Math.max(im._scat || 0, 1);
       }
     }
+    // v109 THE BENCH SURGES: the edge lane of the scoring team's bank steps toward the touchline
+    // and back over sideSurgeMs (bank -1 is the "def" kit's side of the stadium, +1 the "off" kit's)
+    let surgeK = 0, surgeBank = 0;
+    if (S.surge) { S.surge.t += dt * 1000; const q = S.surge.t / S.surge.ms; if (q >= 1) S.surge = null; else { surgeK = Math.sin(q * Math.PI); surgeBank = S.surge.team === "def" ? -1 : 1; } }
     for (const im of S.live) {
       let x = im._x0;
+      if (surgeK && im._side && im._side.lane === "edge" && ((im._side.vv < MIDY) ? -1 : 1) === surgeBank) {
+        x += Math.sign(FW / 2 - im._x0) * surgeK * TU("sideSurgePx", 16) * im._k; }
       if (im._scat) {
         im._scat = Math.max(0, im._scat - dt / .9);
         const ease = Math.sin(Math.min(1, 1 - im._scat) * Math.PI);
@@ -10488,7 +10785,31 @@ class Ot extends mt.Scene {
     const crewSpd = Math.max(TU("refMinSpd", 26), Math.min(TU("refMaxSpd", 260), (P._refKSpd || 0) * TU("refSpeedFrac", 0.85)));
     const step = (gliding ? TU("refHomeSpd", 80) : crewSpd) * dt;
     const clX = (v) => Math.max(46, Math.min(FW - 46, v)), clY = (v) => Math.max(F_TOP + 6, Math.min(F_BOT - 6, v));
+    // v109: the measurement chain between the two wings, drawn only while both are in
+    if (this.measG) this.measG.clear();
+    const inMeas = this.refs.filter(r => r._spotTgt && r._spotTgt.kind === "measure" && r._spotTgt.there);
+    if (inMeas.length === 2) { if (!this.measG) this.measG = this.add.graphics().setDepth(3.92);
+      const a = PJ(inMeas[0].sx, inMeas[0].sy), b = PJ(inMeas[1].sx, inMeas[1].sy);
+      this.measG.lineStyle(2 * a.s, 0xf0bb45, 0.85).lineBetween(a.x, a.y + 14 * a.s, b.x, b.y + 14 * b.s); }
     for (const r of this.refs) {
+      /* ===== v109 THE CREW SPOTS THE BALL ===== an official sent to the spot (refSpotV109 /
+       * measureV109) runs there ahead of his role, plants beside the ball, points the offense's
+       * way as it is set down, holds, and only then goes back to trailing the play. */
+      if (r._spotTgt && !r.forceState) {
+        const T9 = r._spotTgt;
+        if (!T9.there) {
+          const ddx = T9.x - r.sx, ddy = T9.y - r.sy, d = Math.hypot(ddx, ddy);
+          if (d > 2.5) { const s = Math.min(d, TU("refSpotSpd", 230) * dt); this.placeRef(r, r.sx + ddx / d * s, r.sy + ddy / d * s, dtms); continue; }
+          T9.there = true; T9.t0 = r.tms; this.v109E().spotArrivals++;
+          const a = PJ(r.sx, r.sy), b = PJ(T9.x + T9.dir * 2, T9.y - (r.sy > T9.y ? 14 : -14));
+          if (T9.kind === "spot") { r.forceState = "pointSeq"; r.seqT = r.tms; r.sSm = 0; r.seqFlip = PJ(r.sx + T9.dir * 40, r.sy).x > a.x;
+            r.seqLen = Math.max(2, Math.round(T9.hold / TU("refPointFrameMs", 190)));
+            try { if (this.ballSpr) this.tweens.add({ targets: this.ballSpr, y: this.ballSpr.y - 2, yoyo: true, duration: 110 }); } catch (e) {}   // the ball is set down as he points
+          } else this.faceMarker(r, b.x - a.x, b.y - a.y);
+        }
+        if (T9.there && r.tms - T9.t0 >= T9.hold + (T9.kind === "spot" ? 140 : 0)) { r._spotTgt = null; }
+        else if (T9.there) { this.placeRef(r, r.sx, r.sy, dtms); continue; }
+      }
       // v49: an official signalling PLANTS. Sliding downfield with both arms up (or
       // mid-heave) reads as a bug, so a forced sequence freezes him where he stands.
       if (r.forceState) { this.placeRef(r, r.sx, r.sy, dtms); continue; }
