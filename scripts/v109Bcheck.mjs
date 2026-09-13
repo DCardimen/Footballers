@@ -76,9 +76,12 @@ ok(elig > 20 && Math.abs(rate - 0.18) < 0.07, 'the pump fires on roughly pumpRat
 console.log('arrival miss (px, before capTo):', H.arriveN ? (H.arrivePx / H.arriveN).toFixed(2) + ' mean · ' + (100 * H.arriveOver9 / H.arriveN).toFixed(1) + '% beyond the 9px safety' : 'n/a')
 
 // ---- LIVE: a real game on the live field, the renderer's own hook + the markers' textures
-await page.evaluate(() => { try { window.go('season') } catch (e) {} })
-await page.waitForTimeout(600)
-for (const t of ['PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
+// a fresh page and a fresh career: the headless games above have moved the season on
+await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear() } catch (e) {} })
+await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 })
+await page.waitForTimeout(1200)
+await page.evaluate(() => { window.__readPos = 'QB' })
+for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 let scene = false
 for (let i = 0; i < 40; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(400) }
 console.log('scene:', scene)

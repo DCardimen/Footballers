@@ -3370,7 +3370,7 @@ window.__visionRadiusV96 = visionRadiusV96;
            * and no new number on the target's separation). Rolled ONCE per play, the first time
            * the read is covered with the pocket holding; the broadcast plays the arm to the cock
            * and aborts before the release. */
-          if (!qb._pumpRolledV109 && _lsep < 0 && _lp > TU("pumpProt", .6) && t < throwAt - TU("pumpBeforeThrowMs", 300)) {
+          if (!qb._pumpRolledV109 && _lsep < 0 && _lp > TU("pumpProt", .6) && t < throwAt - TU("pumpBeforeThrowMs", 420)) {
             qb._pumpRolledV109 = true;
             try { const B = root.__V109_B = root.__V109_B || {}; B.pumpEligible = (B.pumpEligible || 0) + 1; } catch (e) {}
             if (Math.random() < TU("pumpRate", .18)) {
@@ -5866,6 +5866,19 @@ function ribRegisterTeam(scene, team, p1, p2, deco) {
   // v108: the throw's two sides and the two exchanges — rear-view art again, so the offense only
   for (let ti = 0; ti < 6; ti++) { put("spr_" + team + "_up_throwR" + ti, "throwR_up" + ti); put("spr_" + team + "_up_throwL" + ti, "throwL_up" + ti); }
   for (let hi = 0; hi < 5; hi++) { put("spr_" + team + "_up_handoff" + hi, "handoff_up" + hi); put("spr_" + team + "_up_toss" + hi, "toss_up" + hi); }
+  /* ===== v109 THE RECEIVER FINDS THE BALL =====
+   * The sheet carries four drawn catch sequences per facing — 46 cells (up/dn/dr, four frames
+   * each, two dr variants three) — that were cut but never registered, so the broadcast kept
+   * playing the three baked catch frames over them. Registered under every facing now, sd
+   * borrowing dr and ur up as catchhold does; a variant short a frame holds its last one.
+   * Which variant plays is the KIND of the reach (RIB.catchseqV109), read off the cells: 0 is in
+   * stride, 2 the two-hand high point, up1/dn3/dr2 the turn back over the shoulder, and up3/dn1
+   * the bobble that ends on the ground — the drop. */
+  const csV109 = { up: "up", ur: "up", dn: "dn", dr: "dr", sd: "dr" }; let csN = 0;
+  ["up", "dn", "sd", "dr", "ur"].forEach((dd) => { for (let v = 0; v < 4; v++) { let last = null;
+    for (let f = 0; f < 4; f++) { const nm = "catchseq_" + csV109[dd] + v + "_" + f; if (ribCellV91(nm)) { last = nm; csN++; } if (last) put("spr_" + team + "_" + dd + "_catchseq" + v + "_" + f, last); } } });
+  RIB.catchseqV109 = { stride: { up: 0, dn: 0, dr: 0 }, high: { up: 2, dn: 2, dr: 0 }, "back-shoulder": { up: 1, dn: 3, dr: 2 }, drop: { up: 3, dn: 1, dr: 3 } };
+  try { const B = (window.__V109_B = window.__V109_B || {}); B.catchseqRegistered = csN; B.catchseqMap = RIB.catchseqV109; } catch (e) {}
   // bust every live marker's texture cache so re-registered keys rebind immediately
   try { if (scene.markers) scene.markers.forEach((m) => { m.tex = null; }); } catch (e) {}
 }
@@ -6638,13 +6651,22 @@ class Ot extends mt.Scene {
         const tm2 = this.markers[P.awaitCatch2];
         if (tm2 && Math.hypot(tm2.root.x - bpp.x, tm2.root.y - bpp.y) < 52) { tm2.forceState = "catch"; P.awaitCatch2 = null; }
       }
-      // v86: the target runs with his head turned to the ball (side profile toward it)
-      if (P.awaitCatch != null && bh > 1 && !loose) { const lm = this.markers[P.awaitCatch];
-        if (lm && !lm.forceState) { if (!lm._lookAt) { try { (window.__V86 = window.__V86 || {}).lookbacks = ((window.__V86 || {}).lookbacks || 0) + 1; } catch (e) {} } lm._lookAt = { x: ballX }; } }
-      else this.markers.forEach(mm => { if (mm._lookAt) mm._lookAt = null; });
+      /* v109 THE RECEIVER FINDS THE BALL — heads turn. The target's turns the moment the sim says
+       * he found it (`ballTrack` -> m._trackV109; a script with no such event turns him at once, as
+       * v86 did), and the man covering him (P.contestDef) has been watching the passer all along,
+       * so his turns from the throw. `_lookAt` carries the ball's screen point and placeMarker
+       * holds the QUARTER facing toward it instead of v86's hard profile. */
+      if (P._trackScriptV109 !== P.script) { P._trackScriptV109 = P.script; P._hasTrackV109 = ((P.script && P.script.events) || []).some(ev => ev && ev.type === "ballTrack"); }
+      if (bh > 1 && !loose && (P.awaitCatch != null || P.contestDef != null)) {
+        const lm = P.awaitCatch != null ? this.markers[P.awaitCatch] : null, dm = P.contestDef != null ? this.markers[P.contestDef] : null;
+        [lm && (lm._trackV109 || !P._hasTrackV109) ? lm : null, dm !== lm ? dm : null].forEach((mm, i) => { if (!mm || mm.forceState) return;
+          if (!mm._lookAt) { try { if (!i) (window.__V86 = window.__V86 || {}).lookbacks = ((window.__V86 || {}).lookbacks || 0) + 1; const B = window.__V109_B = window.__V109_B || {}; B.headTurns = (B.headTurns || 0) + 1; if (i) B.defHeadTurns = (B.defHeadTurns || 0) + 1; } catch (e) {} }
+          mm._lookAt = { x: ballX, y: ballY }; });
+      } else this.markers.forEach(mm => { if (mm._lookAt) mm._lookAt = null; if (!flight) mm._trackV109 = false; });
       if (P.awaitCatch != null && bh > 1) {
         const tm = this.markers[P.awaitCatch];
-        if (tm && Math.hypot(tm.root.x - bpp.x, tm.root.y - bpp.y) < 52) { tm.forceState = "catch"; P.awaitCatch = null; P.catchArmed = this.actorIdxSafe(tm); }
+        // v109: a reach already has his hands up on the drawn sequence — the 52px catch pose stands down
+        if (tm && Math.hypot(tm.root.x - bpp.x, tm.root.y - bpp.y) < 52) { if (!tm._reachV109) tm.forceState = "catch"; P.awaitCatch = null; P.catchArmed = this.actorIdxSafe(tm); }
       }
     }
     // carrier trail
@@ -7003,7 +7025,7 @@ class Ot extends mt.Scene {
     if (!m || !m.root || m.forceState === "throwSeq" || m.forceState === "celebrateSeq") return;   // a celebration outranks the wind-up, as it does the get-up
     this.startThrowV107(P, m, nx, T);
   }
-  startThrowV107(P, m, e, T) {
+  startThrowV107(P, m, e, T, pump) {
     const fm = TU("throwFrameMs", 85), rf = TU("throwReleaseFrame", 4);
     // he turns on the target first: the facing picks the drawn cycle and the flip decides which
     // side of his body the arm — and the ball riding in it — comes through on
@@ -7021,8 +7043,21 @@ class Ot extends mt.Scene {
       else this.faceMarker(m, dx, dy);
     }
     m._thrDirV108 = dir;
-    m.forceState = "throwSeq"; m._dropback = false; m._lean = 0; P._thrown = true; m._exV108 = null;
-    m.seqT = m.tms - (e ? Math.max(0, T - (e.t - fm * rf)) : 0);   // back-dated: frame rf lands on the flight
+    m.forceState = "throwSeq"; m._dropback = false; m._lean = 0; if (!pump) P._thrown = true; m._exV108 = null;
+    m.seqT = m.tms - (e && e.t != null ? Math.max(0, T - (e.t - fm * rf)) : 0);   // back-dated: frame rf lands on the flight
+    if (pump) {
+      /* ===== v109 THE PUMP FAKE ===== the same arm, aborted before the release: frames 0-3 play
+       * exactly as a throw does (the cell's own ball on the frames that draw it, ours on the rest),
+       * and the tick frame 4 would start he is back on his ready/carry pose with the ball still in
+       * his hand. No record on __V107.throws, no flight, nothing for the release audit to count. */
+      const tok = m._pumpV109 = (m._pumpV109 || 0) + 1; m._thrRecV107 = null;
+      m._pumpAbortV109 = m.seqT + fm * rf;   // on HIS clock (placeMarker aborts it there); the timer below is only a safety net
+      this.time.delayedCall(fm * rf * 3, () => {
+        if (m._pumpV109 !== tok) return; m._pumpV109 = 0;
+        if (m.forceState === "throwSeq") { m.forceState = null; m._thrDirV108 = null; } });
+      try { const B = window.__V109_B = window.__V109_B || {}; B.pumpSeqPlayed = (B.pumpSeqPlayed || 0) + 1; } catch (er) {}
+      return;
+    }
     const V7 = (window.__V107 = window.__V107 || { throws: [] }); v108Hook();   // v108 reads the same array back
     const rec = { facing: m.dirKey, flip: !!m.flip, dir, targetDx: tdx,
       src: dir ? THROW_DIR_V108[dir] : ((RIB.throwV107 && RIB.throwV107[m.dirKey]) || null),
@@ -7219,6 +7254,57 @@ class Ot extends mt.Scene {
     try { this.sideReact(e); } catch (er) {}   // v79: so does the bench
 
     switch (e.type) {
+      /* ===== v109 THE RECEIVER FINDS THE BALL ===== */
+      case "ballTrack": { const m = this.markers[this.actorIdx(e.who)]; if (m) m._trackV109 = true;   // his head may turn now
+        try { const B = window.__V109_B = window.__V109_B || {}; B.trackDrawn = (B.trackDrawn || 0) + 1; (B.tracks = B.tracks || []).push({ ms: e.ms, late: !!e.late, shoulder: e.shoulder }); if (B.tracks.length > 60) B.tracks.shift(); } catch (er) {}
+        break; }
+      case "reach": {
+        // THE HANDS GO UP before the ball gets there: he faces it and the drawn sequence for this KIND
+        // of catch starts now; `catch` will only confirm the ball, and if nothing does they come down empty
+        const m = this.markers[this.actorIdx(e.by)]; if (!m) break;
+        const fs = m.forceState; if (fs && fs !== "catch" && fs !== "grab" && !/^(catchSeq|diveCatchSeq|catchseqSeq)$/.test(fs)) break;   // a man on the ground does not reach
+        const a = PJ(m.sx, m.sy), b = PJ(e.x, e.y); if (Math.hypot(b.x - a.x, b.y - a.y) > 2) this.faceMarker(m, b.x - a.x, b.y - a.y);
+        const kit = m.kit || m.team, face3 = m.dirKey === "dn" ? "dn" : (m.dirKey === "dr" || m.dirKey === "sd") ? "dr" : "up", CS = RIB.catchseqV109 || {};
+        m._reachV109 = { kind: e.kind, at: e.at, t: m.tms }; m._preCatch = false; m._handfight = false; m._lookAt = null; m._tuckV109 = 0;
+        if (e.kind === "dive") { m.forceState = "diveCatchSeq"; m.seqT = m.tms; m._launchT0 = m.tms; m._launchUntil = m.tms + 285; m._launchH = 5; }
+        else if (this.textures.exists("spr_" + kit + "_" + face3 + "_catchseq0_0")) { m._csVarV109 = (CS[e.kind] || CS.stride || {})[face3] || 0; m.forceState = "catchseqSeq"; m.seqT = m.tms;
+          if (e.kind === "high") { m._launchT0 = m.tms; m._launchUntil = m.tms + TU("catchHopMs", 300); m._launchH = TU("catchHopH", 12); } }
+        else { m.forceState = "catchSeq"; m.seqT = m.tms; }
+        // nothing confirming the ball means the sequence simply runs out with no tuck — the hands
+        // come down empty on his own clock; this timer only drops the flag, well after (the play
+        // clock runs slower than the wall's: basePlayRate, the slow-motion moment)
+        const tok = m._reachV109, T9 = Math.max(0, P.t - (P.delay || 0));
+        this.time.delayedCall((Math.max(120, (e.at || T9) - T9) + TU("reachEmptyMs", 260)) * 4, () => { if (m._reachV109 === tok) m._reachV109 = null; });
+        try { const B = window.__V109_B = window.__V109_B || {}; B.reachDrawn = (B.reachDrawn || 0) + 1; (B.reachKindsDrawn = B.reachKindsDrawn || {})[e.kind] = (B.reachKindsDrawn[e.kind] || 0) + 1; } catch (er) {}
+        break;
+      }
+      case "pump": {
+        // THE PUMP FAKE: the arm to the cock and back, the ball never leaving the hand; the zone man who bit plants
+        const qb = this.markers[P.ballHolderId != null ? P.ballHolderId : 8];
+        try { const B = window.__V109_B = window.__V109_B || {}; B.pumpEvents = (B.pumpEvents || 0) + 1; if (!qb || !qb.root || qb.forceState) (B.pumpBail = B.pumpBail || {})[String(qb && qb.forceState)] = ((B.pumpBail || {})[String(qb && qb.forceState)] || 0) + 1; } catch (er) {}
+        if (!qb || !qb.root || qb.forceState) break;
+        const fm = TU("throwFrameMs", 85), rf = TU("throwReleaseFrame", 4), T9 = Math.max(0, P.t - (P.delay || 0));
+        this.startThrowV107(P, qb, { tx: e.tx != null ? e.tx : e.x + 60, ty: e.ty != null ? e.ty : e.y, t: T9 + fm * rf }, T9, true);
+        const zm = e.frozen ? this.markers[this.actorIdx(e.frozen)] : null; if (zm && !zm.forceState) zm.cutUntil = zm.tms + (e.ms || 120);
+        this.popText(e.x, e.y - 24, "PUMP", "#f7e2a8", 11);
+        break; }
+      case "comeback": {
+        // the ball is short of him: he plants and works back to it (the pop only when he read it)
+        const m = this.markers[this.actorIdx(e.who)]; if (!m) break;
+        if (!m.forceState) { m.cutUntil = m.tms + TU("comebackPlantMs", 150); const b = PJ(e.x, e.y); m._lookAt = { x: b.x, y: b.y }; }
+        if (e.smart) this.popText(e.x, e.y - 22, "WORKS BACK", "#bfe3ae", 11);
+        try { const B = window.__V109_B = window.__V109_B || {}; B.comebacks = (B.comebacks || 0) + 1; } catch (er) {}
+        break; }
+      case "boxOut": {
+        // he puts his body between the man and the ball: squared up on the defender, hands on him, the defender off the spot
+        const m = this.markers[this.actorIdx(e.who)], d = this.markers[this.actorIdx(e.on)]; if (!m) break;
+        if (d) { const a = PJ(m.sx, m.sy), b = PJ(d.sx, d.sy);
+          if (!m.forceState) { if (Math.hypot(b.x - a.x, b.y - a.y) > 2) this.faceMarker(m, b.x - a.x, b.y - a.y); m.forceState = "grab"; m._boxV109 = true;
+            this.time.delayedCall(TU("boxOutMs", 220), () => { if (m._boxV109) { m._boxV109 = false; if (m.forceState === "grab") m.forceState = null; } }); }
+          if (!d.forceState) { d.cutUntil = d.tms + 200; this.puffFx(d.sx, d.sy, 1, 0xdce7f3, 0.3); } }
+        this.popText(e.x, e.y - 22, "BOXES HIM OUT", "#bfe3ae", 11);
+        try { const B = window.__V109_B = window.__V109_B || {}; B.boxOuts = (B.boxOuts || 0) + 1; } catch (er) {}
+        break; }
       case "catch": {
         this.clearLand();
         P.carrierId = this.actorIdx(e.by);
@@ -7232,8 +7318,18 @@ class Ot extends mt.Scene {
         const cm = this.markers[P.carrierId];
         // v21.2 HIGH-POINT CATCH: the receiver LEAPS for the ball (arms-up catch cell
         // + a launch-parabola hop) instead of a flat static grab, then settles.
-        if (cm) { const diving=e.catchType==="dive"; cm._preCatch=false; cm.forceState = diving?"diveCatchSeq":"catchSeq"; cm.seqT=cm.tms;
-          cm._launchT0 = cm.tms; cm._launchUntil = cm.tms + (diving?285:TU("catchHopMs", 300)); cm._launchH = diving?5:(e.catchType==="high"?TU("catchHopH", 12):7); }
+        if (cm) { const diving=e.catchType==="dive";
+          /* v109 THE HANDS WENT UP ALREADY: a reach has the drawn sequence running, so the catch only
+           * CONFIRMS the ball (no restart, no second hop); then THE TUCK — catchhold for catchTuckMs
+           * once the sequence lands, before the run cycle resumes. A catch nothing reached for (a
+           * legacy script) starts the sequence here as it always did. */
+          const running = cm._reachV109 && /^(catchseqSeq|catchSeq|diveCatchSeq)$/.test(String(cm.forceState));
+          if (!running) { cm._preCatch=false; cm.forceState = diving?"diveCatchSeq":"catchSeq"; cm.seqT=cm.tms;
+            cm._launchT0 = cm.tms; cm._launchUntil = cm.tms + (diving?285:TU("catchHopMs", 300)); cm._launchH = diving?5:(e.catchType==="high"?TU("catchHopH", 12):7); }
+          cm._reachV109 = null;
+          const seqMs = cm.forceState === "catchseqSeq" ? 4 * TU("catchSeqFrameMs", 75) : cm.forceState === "diveCatchSeq" ? 3 * 95 : 3 * 90;
+          cm._tuckV109 = (cm.seqT || cm.tms) + seqMs + TU("catchTuckMs", 160);
+          try { const B = window.__V109_B = window.__V109_B || {}; B.catchHoldHeld = (B.catchHoldHeld || 0) + 1; if (running) B.catchConfirmed = (B.catchConfirmed || 0) + 1; } catch (er) {} }
         P.awaitCatch = null;
         this.flash(e.x, e.y, 0xf0bb45);
         this.puffFx(e.x, e.y, 2, 0xffe9ad, 0.55);
@@ -7249,7 +7345,7 @@ class Ot extends mt.Scene {
       case "contest": { P.awaitCatch2 = this.actorIdx(e.def); P.contestDef = P.awaitCatch2; break; }
       case "handfight": {
         const om=this.markers[this.actorIdx(e.off)], dm=this.markers[this.actorIdx(e.def)];
-        [om,dm].forEach(m=>{ if(m){ m.forceState="grab"; m._handfight=true;
+        [om,dm].forEach(m=>{ if(m && !m._reachV109){ m.forceState="grab"; m._handfight=true;   // v109: a man already reaching keeps his hands up
           this.time.delayedCall(170,()=>{ if(m._handfight){m._handfight=false;if(m.forceState==="grab")m.forceState=null;} }); }});
         this.puffFx(e.x,e.y,2,0xdce7f3,0.3);
         break;
@@ -7620,10 +7716,32 @@ class Ot extends mt.Scene {
         this.clearLand(); P.awaitCatch2 = null; P.contestDef = null;
         P.ballHolderId = null; P.ballMode = "bounce"; P.ballReleaseAt = P.t; P._ballTumbleBase = this.ballSpr?.rotation || 0;
         P.ballBounceDir = ((P.ballSpr?.x || 0) < PJ(e.x, e.y).x ? 1 : -1);
-        this.popText(e.x, e.y - 24, "INCOMPLETE", "#ff9fa5", 15);
-        const ti = P.script.meta.targetId ? this.actorIdx(P.script.meta.targetId) : -1;
-        const m = this.markers[ti];
-        if (m) { const ip = PJ(e.x, e.y + 8); this.tweens.add({ targets: m.root, x: ip.x, y: ip.y, duration: 200 }); m.sx = e.x; m.sy = e.y + 8; }
+        /* ===== v109 AN INCOMPLETION HAS A REASON ===== the pop says what happened, and a DROP is a
+         * bobble: the drop variant of the drawn sequence from frame 1 (the ball already off the
+         * hands), a hop, the rings at the hands. A reach nothing confirmed comes down empty. A ball
+         * landing out of bounds (e.oob) is not chased off the field — he pulls up at the paint — and
+         * a throwaway (e.away) gets no receiver at all. The legacy script keeps its target teleport. */
+        const rs = e.reason || (e.away ? "away" : null);
+        const lab = rs === "drop" ? ["DROPPED!", "#ff6b6b", 16] : (rs === "swat" || rs === "contested") ? ["BROKEN UP", "#f7e2a8", 14]
+          : rs === "overthrow" ? ["OVERTHROWN", "#ff9fa5", 14] : rs === "short" ? ["SHORT", "#ff9fa5", 14] : rs === "behind" ? ["BEHIND HIM", "#ff9fa5", 14]
+          : rs === "away" ? ["THROWN AWAY", "#93a0b1", 13] : ["INCOMPLETE", "#ff9fa5", 15];
+        this.popText(e.x, e.y - 24, lab[0], lab[1], lab[2]);
+        const ti = (rs === "drop" && e.by) ? this.actorIdx(e.by) : e.on ? this.actorIdx(e.on) : P.awaitCatch != null ? P.awaitCatch : (P.script.meta.targetId ? this.actorIdx(P.script.meta.targetId) : -1);
+        const m = ti >= 0 ? this.markers[ti] : null;
+        if (m && e.away) { m._reachV109 = null; if (/^(catchseqSeq|catchSeq|diveCatchSeq)$/.test(String(m.forceState))) m.forceState = null; }
+        else if (m) {
+          const ey = Math.max(F_TOP + 6, Math.min(F_BOT - 6, e.y + 8)), ex = e.oob ? m.sx : e.x;
+          if (!e.oob || Math.abs(m.sy - ey) > 2) { const ip = PJ(ex, ey); this.tweens.add({ targets: m.root, x: ip.x, y: ip.y, duration: 200 }); m.sx = ex; m.sy = ey; }
+          if (rs === "drop") {
+            const kit = m.kit || m.team, face3 = m.dirKey === "dn" ? "dn" : (m.dirKey === "dr" || m.dirKey === "sd") ? "dr" : "up", CS = RIB.catchseqV109 || {};
+            if (this.textures.exists("spr_" + kit + "_" + face3 + "_catchseq0_0")) { m._csVarV109 = (CS.drop || {})[face3] || 0; m.forceState = "catchseqSeq"; m.seqT = m.tms - TU("catchSeqFrameMs", 75); }
+            m._tuckV109 = 0; m._launchT0 = m.tms; m._launchUntil = m.tms + 200; m._launchH = 6;
+            this.hitFx(e.x, e.y - 6, false); this.puffFx(e.x, e.y - 4, 2, 0xffe9ad, 0.5); this.hitStop = Math.max(this.hitStop, 40);
+            P.ballBounceDir = m.flip ? 1 : -1;
+          } else if (m._reachV109 && /^(catchseqSeq|catchSeq|diveCatchSeq)$/.test(String(m.forceState))) { m.forceState = null; m.cutUntil = m.tms + 160; }
+          m._reachV109 = null;
+        }
+        try { const B = window.__V109_B = window.__V109_B || {}; (B.incDrawn = B.incDrawn || {})[rs || "none"] = (B.incDrawn[rs || "none"] || 0) + 1; } catch (er) {}
         break;
       }
       case "shed": {
@@ -7720,7 +7838,7 @@ class Ot extends mt.Scene {
         this.popText(e.x, e.y - 22, "STUNT — HE'S FREE!", "#ffb08a", 13); break; }
       case "stuntPassOff": this.puffFx(e.x, e.y, 1, 0xd8e6da, 0.35); break;
       case "spyAttack": { const m = this.markers[this.actorIdx(e.who)]; if (m && m.team === "you") this.popText(e.x, e.y - 22, "SPY — GO!", "#8fe7ff", 12); break; }
-      case "spy": case "protection": case "disguise": case "effort": case "comeback": case "boxOut": case "press": break;
+      case "spy": case "protection": case "disguise": case "effort": case "press": break;
       case "chip": { this.pairUp(this.actorIdx(e.who), this.actorIdx(e.on)); this.time.delayedCall(560, () => this.unpair(this.actorIdx(e.who))); break; }
       case "rotate": { const m = this.markers[this.actorIdx(e.who)]; if (m) this.popText(e.x, e.y - 24, "ROTATES DOWN", "#8ec3ee", 11); break; }
       case "fooled": this.popText(e.x, e.y - 24, "DISGUISED!", "#ff9a9a", 12); break;
@@ -7728,8 +7846,22 @@ class Ot extends mt.Scene {
         this.puffFx(e.x, e.y, 1); this.popText(e.x, e.y - 20, "JAMMED", "#93a0b1", 11); break; }
       case "rollout": this.popText(e.x, e.y - 22, "ROLLOUT", "#8ec3ee", 12); break;
       case "stepUp": this.popText(e.x, e.y - 22, "STEPS UP", "#bfe3ae", 11); break;
-      case "swat": { const m = this.markers[this.actorIdx(e.by)]; if (m) { m.forceState = null; m.cutUntil = m.tms + 200; }
-        this.flash(e.x, e.y, 0xffffff); this.popText(e.x, e.y - 22, "SWATTED AWAY!", "#f7e2a8", 14); break; }
+      case "swat": {
+        /* ===== v109 A PASS BREAK-UP IS CONTACT ===== the arm goes THROUGH the hands: both men face the
+         * ball, the defender takes the grab pose ON the catch point for swatHoldMs (pulled onto it the
+         * way the receiver is on an incompletion, from the side `from` says the arm came from), and
+         * the receiver's catch sequence is cut short — the hands close on nothing. */
+        const dm = this.markers[this.actorIdx(e.by)], om = this.markers[this.actorIdx(e.on)], b = PJ(e.x, e.y);
+        if (dm) { const a = PJ(dm.sx, dm.sy); if (Math.hypot(b.x - a.x, b.y - a.y) > 2) this.faceMarker(dm, b.x - a.x, b.y - a.y);
+          dm._preCatch = false; dm._handfight = false; dm._lookAt = null; dm.forceState = "grab"; dm._swatV109 = true; dm._launchUntil = 0;
+          const dp = PJ(e.x + (e.from === "front" ? 5 : e.from === "behind" ? -6 : 0), e.y + 4); this.tweens.add({ targets: dm.root, x: dp.x, y: dp.y, duration: 120 });
+          this.time.delayedCall(TU("swatHoldMs", 250), () => { if (!dm._swatV109) return; dm._swatV109 = false; if (dm.forceState === "grab") { dm.forceState = null; dm.cutUntil = dm.tms + 200; } }); }
+        if (om) { const a = PJ(om.sx, om.sy); if (Math.hypot(b.x - a.x, b.y - a.y) > 2) this.faceMarker(om, b.x - a.x, b.y - a.y);
+          if (/^(catchseqSeq|catchSeq|diveCatchSeq|catch)$/.test(String(om.forceState))) { om.forceState = null; om.cutUntil = om.tms + 220; } om._reachV109 = null; om._tuckV109 = 0; }
+        this.flash(e.x, e.y, 0xffffff); this.puffFx(e.x, e.y - 4, 2, 0xdce7f3, 0.45); this.hitStop = Math.max(this.hitStop, 45);
+        this.popText(e.x, e.y - 22, e.from === "front" ? "UNDERCUTS IT!" : e.from === "behind" ? "SWATS IT FROM BEHIND!" : "SWATTED AWAY!", "#f7e2a8", 14);
+        try { const B = window.__V109_B = window.__V109_B || {}; B.swatDrawn = (B.swatDrawn || 0) + 1; (B.swatFromDrawn = B.swatFromDrawn || {})[e.from || "none"] = (B.swatFromDrawn[e.from || "none"] || 0) + 1; } catch (er) {}
+        break; }
       case "bounce": { const tk = this.markers[this.actorIdx(e.who)]; if (tk) { tk.forceState = null; tk.cutUntil = tk.tms + 320; }
         this.puffFx(e.x, e.y, 2); this.popText(e.x, e.y - 22, "BOUNCES OFF!", "#8fe7ff", 13); break; }
       case "pilePush": this.puffFx(e.x, e.y, 1, 0xd8e6da, 0.4); break;
@@ -8503,7 +8635,13 @@ class Ot extends mt.Scene {
     // v86: a QB dropping back backpedals facing the line; a target with the ball in the
     // air runs with his head turned to it — the side profile toward the ball
     if (m._dropback && !m.forceState) { m.dirKey = m.homeDir || "up"; m.flip = false; }
-    else if (m._lookAt && !m.forceState && spdPx > 34) { m.dirKey = "sd"; m.flip = m._lookAt.x > m.root.x; }
+    else if (m._lookAt && !m.forceState && spdPx > 34) {
+      // v109: the head turns on the QUARTER facing toward the ball — the up quarter for a ball
+      // upfield of him, the down quarter for one coming from below; the profile only when it is level
+      const bx = m._lookAt.x - m.root.x, by = m._lookAt.y == null ? 0 : m._lookAt.y - m.root.y;
+      if (m._lookAt.y == null || Math.abs(bx) > TU("lookProfileK", 2.414) * Math.abs(by)) { m.dirKey = "sd"; m.flip = bx > 0; }
+      else { m.dirKey = by < 0 ? "ur" : "dr"; m.flip = bx > 0; }
+    }
     // v83: a man with hands on someone faces THAT man, whatever the line's home facing
     let engaged = null;
     if (m._pair != null) { const pm = this.markers[m._pair];
@@ -8547,8 +8685,15 @@ class Ot extends mt.Scene {
       // Uploaded pose sheets provide true frame-by-frame action silhouettes.
       // These are brief overlays only; actor movement and play outcomes remain
       // driven by the simulation frames underneath.
+      if (m._pumpV109 && st.indexOf("throw") === 0 && m.tms >= (m._pumpAbortV109 || 0)) {   // v109: the pump aborts before the release frame
+        m.forceState = null; m._thrDirV108 = null; m._pumpV109 = 0; st = m.sSm > 8 ? "run0" : "idle"; }
+      if (st === "catchhold") {                        // v109: the tuck — held to _tuckV109 after the catch, then the run cycle
+        if (!m._tuckV109 || m.tms >= m._tuckV109) { m.forceState = null; m._tuckV109 = 0; st = m.sSm > 8 ? "run0" : "idle"; }
+        else { const B = window.__V109_B = window.__V109_B || {}; B.catchHoldFrames = (B.catchHoldFrames || 0) + 1; }
+      }
       const actionSeq = {
         catchSeq:["catch",3,90], diveCatchSeq:["divecatch",3,95],
+        catchseqSeq:["catchseq" + (m._csVarV109 || 0) + "_", 4, TU("catchSeqFrameMs", 75)],   // v109: the sheet's own catch, variant by the KIND of the reach
         jukeSeq:["juke",4,65], stiffSeq:["stiff",4,70], hurdleSeq:["hurdle",3,105],
         pancakeSeq:["pancake",3,90], getupSeq: RIB.v91img ? ["getup",8,TU("getupFrameMs",85)] : ["getup",4,105],
         celebrateSeq:["celebrate",4,TU("celebrateFrameMs",170)]   // v91: loops for celebrateMs, then stands
@@ -8560,6 +8705,7 @@ class Ot extends mt.Scene {
           else st = "celebrate" + (af % 4);
         } else if (af >= actionSeq[1]) {
           if (st === "pancakeSeq") { m.forceState = "down"; st = "down"; }
+          else if (/^(catchseqSeq|catchSeq|diveCatchSeq)$/.test(st) && m._tuckV109 && m.tms < m._tuckV109) { m.forceState = "catchhold"; st = "catchhold"; }   // v109: the tuck
           else { if (st === "getupSeq") m._groundT = 0; m.forceState = null; st = m.sSm > 8 ? "run0" : "idle"; }
         } else st = actionSeq[0] + af;
         if (st.indexOf("getup") === 0 || st.indexOf("celebrate") === 0) { const V = (window.__V91 = window.__V91 || {}); V[st.indexOf("getup") === 0 ? "getupFrames" : "celebrateFrames"] = (V[st.indexOf("getup") === 0 ? "getupFrames" : "celebrateFrames"] || 0) + 1; }
