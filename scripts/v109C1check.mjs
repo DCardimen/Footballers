@@ -150,24 +150,63 @@ for (let i = 0; i < 6 && !live; i++) {
   if (!live) await page.waitForTimeout(2500)
 }
 ok(live, 'the broadcast came up')
-let sawWrapHold = false, sawChurn = false
-for (let i = 0; i < 420; i++) {
+// 2a. the real broadcast: watch until a drawn contact hit and a drag heartbeat have come through
+// the real event stream (nearly every tackled play), with a generous cap
+let sawChurn = false, polls = 0, Vw = null
+const POLLS = Number(process.env.V109_POLLS || 1400)
+for (; polls < POLLS; polls++) {
   await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /^CONTINUE$/i.test((x.innerText || '').trim()) && x.offsetParent); if (b) b.click() })
-  const st = await page.evaluate(() => { const sc = window.__gridironScene, P = sc && sc.play
-    return { wrapHold: sc ? sc.markers.filter(m => m && m._wrapInV109 && m.forceState === 'grab').length : 0,
-      churn: !!(P && P.__dragV109 && P.t - P.__dragV109.t < 200 && sc.markers.some(m => m && m.body && Math.abs(m.body.y) > 0.2)) } })
-  if (st.wrapHold > 0) sawWrapHold = true
+  const st = await page.evaluate(() => { const sc = window.__gridironScene, P = sc && sc.play, V = window.__V109_C1 || null
+    return { V, churn: !!(P && P.__dragV109 && P.t - P.__dragV109.t < 200 && sc.markers.some(m => m && m.body && Math.abs(m.body.y) > 0.2)) } })
   if (st.churn) sawChurn = true
+  Vw = st.V
+  if (Vw && Vw.hitsGeo > 0 && Vw.drags > 0 && sawChurn) break
   await page.waitForTimeout(70)
 }
-const V = await page.evaluate(() => window.__V109_C1 || null)
-console.log('live:', JSON.stringify(V))
-ok(V && V.hits > 0, 'the renderer drew hits (window.__V109_C1.hits)', V && `${V.hits} hits, last ${JSON.stringify(V.last)}`)
-ok(V && V.hitsGeo > 0 && V.lastGeo && Number.isFinite(V.lastGeo.ix) && Number.isFinite(V.lastGeo.impact), 'and the contact ones were placed from the sim\'s ix/iy/impact', V && `${V.hitsGeo} placed, last ${JSON.stringify(V.lastGeo)}`)
-ok(V && V.drags > 0, 'the heartbeat reached the renderer', V && `${V.drags} drags`)
+console.log('live (watched):', JSON.stringify(Vw), 'polls', polls)
+ok(Vw && Vw.hitsGeo > 0 && Vw.lastGeo && Number.isFinite(Vw.lastGeo.ix) && Number.isFinite(Vw.lastGeo.impact), 'the real broadcast drew contact hits placed from the sim\'s ix/iy/impact', Vw && `${Vw.hitsGeo} placed, last ${JSON.stringify(Vw.lastGeo)}`)
+ok(Vw && Vw.drags > 0, 'and the heartbeat reached the renderer from real plays', Vw && `${Vw.drags} drags`)
 ok(sawChurn, 'and the pair visibly churned on it (body bob)')
-ok(V && (V.wrapIns > 0 || V.pileOns > 0), 'supporters and joiners closed into the heap', V && `${V.wrapIns} wrap-ins, ${V.pileOns} pile-ons`)
-ok(sawWrapHold, 'a wrapped-in man was seen holding his grab on the carrier')
+console.log('   (informational, rare in a short window) real wrap-ins', Vw && Vw.wrapIns, 'pile-ons', Vw && Vw.pileOns)
+// 2b. deterministic: drive the real `fireEvent` cases on the live scene with a scripted gang
+// tackle, a strip and a bobble — an instantaneous gang tackle is a ~2% play, so a short
+// broadcast window cannot be relied on to contain one
+const D = await page.evaluate(() => {
+  const sc = window.__gridironScene, P = sc && sc.play; if (!sc || !P || !sc.markers || sc.markers.length < 22) return { err: 'no live play' }
+  const V0 = JSON.parse(JSON.stringify(window.__V109_C1 || {}))
+  const cmI = P.carrierId >= 0 && P.carrierId < 11 ? P.carrierId : 9, cm = sc.markers[cmI], carrier = 'off' + cmI
+  const tk = sc.markers[13], s1 = sc.markers[14], s2 = sc.markers[15], rc = sc.markers[16]
+  const x = cm.sx, y = cm.sy, t = P.t
+  const geo = { cid: 9001, ix: (x + tk.sx) / 2, iy: (y + tk.sy) / 2, nx: .6, ny: .8, impact: 48, side: 1 }
+  const fire = e => sc.fireEvent(Object.assign({ t }, e), P)
+  fire({ type: 'grab', who: 'def2', carrier, x, y, behind: false, style: 'even', gang: false, ms: 200, handsOn: 0, ...geo })
+  fire({ type: 'drag', carrier, by: 'def2', x, y, pull: .2, n: 1, strain: false, vel: .2, cid: 9001 })
+  fire({ type: 'pileOn', who: 'def3', carrier, x, y, n: 2, angle: Math.atan2(y - s1.sy, x - s1.sx), mom: 70, cid: 9001 })
+  fire({ type: 'drag', carrier, by: 'def2', x, y, pull: .12, n: 2, strain: true, vel: .1, cid: 9001 })
+  fire({ type: 'wrapIn', who: 'def4', carrier, x: s2.sx, y: s2.sy, bearing: Math.atan2(y - s2.sy, x - s2.sx), cid: 9001 })
+  const mid = { wrapHold: !!(s2._wrapInV109 && s2.forceState === 'grab'), wrapFaces: s2._pair === cmI, pileHold: !!(s1._wrapInV109 && s1.forceState === 'grab'), pileLean: Math.abs(s1._lean || 0) > 0,
+    tkGrab: tk.forceState === 'grab', carrierDragging: !!cm._dragging, bodyChurn: [tk, cm].some(m => m.body && Math.abs(m.body.y) > 0.05) || !!(P.__dragV109 && P.__dragV109.n === 2) }
+  fire({ type: 'tackle', tackler: 'def2', carrier, x, y, gang: true, bigHit: false, bothFall: false, stayUp: false, kb: 3, drive: 1, sup: ['def3', 'def4'], youIn: undefined, style: 'even', hitStick: false, handsOn: 2, dragged: true, dragMs: 200, dragYd: .5, strain: true, ...geo })
+  const afterTackle = { supsStillGrab: [s1, s2].every(m => m.forceState === 'grab'), lastGeoCid: window.__V109_C1.lastGeo && window.__V109_C1.lastGeo.cid }
+  fire({ type: 'fumble', x, y, by: carrier, forcedBy: 'def3', defRec: true, strip: true, cid: 9001 })
+  fire({ type: 'looseBall', x, y, vx: 1, vy: -.5, by: carrier, cid: 9001 })
+  const looseOpen = !!(P.__looseV109 && P.__looseV109.cid === 9001 && P.ballMode === 'loose')
+  fire({ type: 'recover', by: 'def5', x: x + 3, y: y - 2, ms: 330, defRec: true, side: 'def', strip: true, cid: 9001 })
+  const recovered = P.__looseV109 == null && rc.forceState === 'dive' && P.ballMode === 'held'
+  fire({ type: 'ballLoose', who: carrier, x, y, ms: 260, secured: true, cid: 9002, impact: 60, side: 1 })
+  const V1 = JSON.parse(JSON.stringify(window.__V109_C1))
+  const d = k => (V1[k] || 0) - (V0[k] || 0)
+  return { delta: { wrapIns: d('wrapIns'), pileOns: d('pileOns'), drags: d('drags'), hitsGeo: d('hitsGeo'), loose: d('loose'), recovers: d('recovers'), bobbles: d('bobbles'), hits: d('hits') }, mid, afterTackle, looseOpen, recovered, lastDrag: V1.lastDrag }
+})
+console.log('live (driven):', JSON.stringify(D))
+ok(!D.err, 'a live play was available to drive', D.err)
+ok(D.delta && D.delta.wrapIns === 1 && D.mid.wrapHold && D.mid.wrapFaces, 'case "wrapIn": the supporter closes into the heap in his grab, paired to the carrier, and the hook counts it', JSON.stringify(D.mid))
+ok(D.delta && D.delta.pileOns === 1 && D.mid.pileHold && D.mid.pileLean, 'case "pileOn": the joiner is posed from his arrival angle, leaning in, and holds his grab')
+ok(D.delta && D.delta.drags === 2 && D.mid.tkGrab && D.mid.carrierDragging && D.mid.bodyChurn, 'case "drag": two heartbeats churned the pair and deepened the drag', D.lastDrag && JSON.stringify(D.lastDrag))
+ok(D.delta && D.delta.hitsGeo >= 2 && D.afterTackle.lastGeoCid === 9001 && D.afterTackle.supsStillGrab, 'case "tackle": the hit was drawn at the sim\'s point with its cid, and every wrapped-in man is still in the heap to fold', JSON.stringify(D.afterTackle))
+ok(D.delta && D.delta.loose === 1 && D.looseOpen, 'case "looseBall": the loose window opened on the ball block with the play\'s cid')
+ok(D.delta && D.delta.recovers === 1 && D.recovered, 'case "recover": the window closed and the recovering man dived onto it')
+ok(D.delta && D.delta.bobbles === 1, 'case "ballLoose": the bobble was drawn and counted')
 
 console.log(JSON.stringify({ pass, fail, errors: errs.length, badRequests: bad.length }))
 console.log('page errors:', errs.length ? errs.slice(0, 6) : 'none')
