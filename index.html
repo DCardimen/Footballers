@@ -6117,7 +6117,7 @@ class Ot extends mt.Scene {
     // else (resetCamera between plays, a shake, a freeze-frame that skipped the integrator) is not
     // a jerk the spring produced, so it re-seeds the sample instead of counting one
     const nowMs = performance.now();
-    if (Math.abs(cam.midPoint.x - S.px) > 0.5 || Math.abs(cam.midPoint.y - S.py) > 0.5 || (S.t0 && nowMs - S.t0 > dt * 1000 * 2.2 + 10)) { S.n = 0; const KB = this.v109E().cam; KB.breaks = (KB.breaks || 0) + 1; }
+    if (Math.abs(cam.midPoint.x - S.px) > TU("camBreakPx", 24) || Math.abs(cam.midPoint.y - S.py) > TU("camBreakPx", 24) || (S.t0 && nowMs - S.t0 > dt * 1000 * 2.2 + 10)) { S.n = 0; const KB = this.v109E().cam; KB.breaks = (KB.breaks || 0) + 1; }
     S.t0 = nowMs;
     const k = TU("camStiff", 40) * sk, c = 2 * Math.sqrt(k) * TU("camDamp", 1), aMax = TU("camAccelMax", 9000) * Math.sqrt(sk);
     const x = cam.midPoint.x, y = cam.midPoint.y;
@@ -6130,9 +6130,9 @@ class Ot extends mt.Scene {
     const lz = Math.log(Math.max(0.05, cam.zoom)), ltz = Math.log(Math.max(0.05, tz));
     S.vz += (kz * (ltz - lz) - cz * S.vz) * dt;
     cam.setZoom(Math.exp(lz + S.vz * dt)); cam.centerOn(nx, ny);
-    const vx = (cam.midPoint.x - S.px) / dt, vy = (cam.midPoint.y - S.py) / dt;
+    const vx = (nx - S.px) / dt, vy = (ny - S.py) / dt;
     if (S.n > 1) { const acc = Math.hypot(vx - S.pvx, vy - S.pvy) / dt; const V = this.v109E().cam; if (acc > V.maxJerk) V.maxJerk = Math.round(acc); V.frames++; }
-    S.px = cam.midPoint.x; S.py = cam.midPoint.y; S.pvx = vx; S.pvy = vy; S.n++;
+    S.px = nx; S.py = ny; S.pvx = vx; S.pvy = vy; S.n++;
   }
   // the whistle: wide, on the ball, for as long as the post phase runs
   camPostV109(P, delta) {
@@ -8937,7 +8937,7 @@ class Ot extends mt.Scene {
       if (!m.root) return;
       const ndx = m.root.x - px0[i], ndy = m.root.y - py0[i], nd = Math.hypot(ndx, ndy);
       m._nudgeV109 = nd > 0.01 ? { dx: ndx, dy: ndy } : null;
-      if (nd > 0.01) { V9.nudged++;
+      if (nd > 0.01 && TU("shadowFollowV109", 1)) { V9.nudged++;
         let lift = 0; if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms)); lift = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11); }
         if (m.shadow && TU("shadowsV99", 1)) {
           const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);

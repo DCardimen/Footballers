@@ -55,27 +55,35 @@ for (let i = 0; i < 70; i++) { scene = await page.evaluate(() => !!(window.__gri
   await page.waitForTimeout(500) }
 console.log('scene:', scene)
 
+// how far every man's shadow sits from a cast taken at the feet he is standing on RIGHT NOW,
+// split into the men resolveOverlaps pushed this frame and the men it did not (the control).
+// A freeze-frame is skipped: update returns before placeMarker and resolveOverlaps run, so there
+// is no nudge to measure and the mast's own shimmer has moved on since the cast.
+await page.evaluate(() => { window.__shadowV109 = (sc) => {
+  const out = { nud: [], ctl: [] }
+  if (!sc || !sc._klV99 || sc.hitStop > 0) return out
+  for (const m of (sc.markers || [])) { if (!m || !m.root || !m.shadow || !m.shadow.scene) continue
+    let lift = 0; if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms)); lift = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11) }
+    const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || '')) || (m._groundT > 0 && m.tms - m._groundT < 400)
+    const h = ((window.RIB_TUNE && window.RIB_TUNE.shadowManH) || 21) * (down ? ((window.RIB_TUNE && window.RIB_TUNE.shadowDownK) || 0.45) : 1)
+    const V = sc.shadowVecV99(m.root.x, m.root.y + lift * m.root.scale); if (!V) continue
+    const len = h * V.slope, d = Math.hypot(m.shadow.x - V.ux * len * 0.5, m.shadow.y - (24 + lift + V.uy * len * 0.5))
+    if (m._nudgeV109) { out.nud.push(d); if (d > 1) (window.__shBad = window.__shBad || []).push({ d: +d.toFixed(2), st: String(m.forceState || ''), nudge: +Math.hypot(m._nudgeV109.dx, m._nudgeV109.dy).toFixed(2), spd: Math.round(m._spdPx || 0) }) }
+    else out.ctl.push(d) }
+  return out } })
 const MS = +(process.env.V109_MS || 150000), t0 = Date.now()
 const tokens = new Set(); let shadowSamples = 0, shadowBad = 0, shadowMaxOff = 0, nudgedSeen = 0, fdSeen = 0, forcedTD = null, forcedCases = null, walkTexFrames = 0, refAtSpot = 0, last = null
+let ctlSamples = 0, ctlMax = 0
 while (Date.now() - t0 < MS) {
   const st = await page.evaluate(() => { const sc = window.__gridironScene; if (!sc) return null
     const P = sc.play, ms = sc.markers || [], V = window.__V109_E || null
-    // shadows: for every nudged man, where would a cast from his nudged feet put the shadow?
-    const sh = []
-    for (const m of (sc._klV99 ? ms : [])) { if (!m || !m.root || !m._nudgeV109 || !m.shadow || !m.shadow.scene) continue
-      let lift = 0; if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms)); lift = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11) }
-      const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || '')) || (m._groundT > 0 && m.tms - m._groundT < 400)
-      const h = (window.RIB_TUNE && window.RIB_TUNE.shadowManH || 21) * (down ? 0.45 : 1)
-      const Vv = sc.shadowVecV99(m.root.x, m.root.y + lift * m.root.scale); if (!Vv) continue
-      const len = h * Vv.slope, ex = Vv.ux * len * 0.5, ey = 24 + lift + Vv.uy * len * 0.5
-      const d = Math.hypot(m.shadow.x - ex, m.shadow.y - ey)
-      sh.push(d)
-      if (d > 1) (window.__shBad = window.__shBad || []).push({ d: +d.toFixed(2), st: String(m.forceState || ''), post: !!m._post, nudge: +Math.hypot(m._nudgeV109.dx, m._nudgeV109.dy).toFixed(2), spd: Math.round(m._spdPx || 0), gt: m._groundT ? Math.round(m.tms - m._groundT) : -1, scene: !!m.shadow.scene }) }
+    const S = window.__shadowV109(sc)
     const walkTex = ms.filter(m => m && m.tex && /_walk[01]$/.test(m.tex)).length
     const refSpot = (sc.refs || []).filter(r => r._spotTgt && r._spotTgt.there).length
-    return { V, sh, walkTex, refSpot, token: P && P.__ballTokenV1514, fd: !!(P && P.fdConverted), live: !!(P && !P.done && P.snapped && P.carrierId != null && P.t > (P.delay || 0) + 300), gap: !P, ev: P && P.payload && P.payload.event, t: P && P.t } })
+    return { V, sh: S.nud, ctl: S.ctl, walkTex, refSpot, token: P && P.__ballTokenV1514, fd: !!(P && P.fdConverted), live: !!(P && !P.done && P.snapped && P.carrierId != null && P.t > (P.delay || 0) + 300), gap: !P, ev: P && P.payload && P.payload.event, t: P && P.t } })
   if (st) { last = st; if (st.token) tokens.add(st.token); if (st.fd) fdSeen++
     for (const d of st.sh) { shadowSamples++; if (d > 1) shadowBad++; if (d > shadowMaxOff) shadowMaxOff = d }
+    for (const d of (st.ctl || [])) { ctlSamples++; if (d > ctlMax) ctlMax = d }
     nudgedSeen += st.sh.length; walkTexFrames += st.walkTex; refAtSpot += st.refSpot
     // force the touchdown once the ordinary plays have been sampled: a scoring row through the scene's
     // own animatePlay in the gap between plays; if the app's next snap tears it down first, the
@@ -98,6 +106,31 @@ const cases = V.cases || {}
 console.log('hook:', JSON.stringify({ cam: V.cam, helpUps: V.helpUps, helpUpArrivals: V.helpUpArrivals, walkFrames: V.walkFrames, celebrations: V.celebrations, celebrants: V.celebrants, lastCelebrants: V.lastCelebrants, walkOffs: V.walkOffs, surges: V.surges,
   huddle: V.huddle && { staggered: V.huddle.staggered, walkFrames: V.huddle.walkFrames, breaks: (V.huddle.breaks || []).map(b => b.pos + ':' + b.at).join(' ') }, spots: V.spots, spotArrivals: V.spotArrivals, chainMoves: V.chainMoves, measures: V.measures, shadows: V.shadows, eyes: V.eyes, eyeSnaps: V.eyeSnaps, cases }))
 console.log('sampled:', JSON.stringify({ plays: tokens.size, shadowSamples, shadowBad, shadowMaxOff: +shadowMaxOff.toFixed(3), nudgedSeen, walkTexFrames, refAtSpot, fdFrames: fdSeen, forcedTD, forcedCases }))
+// the switch, on a pile built on purpose rather than one waited for: stack six men on one point,
+// let resolveOverlaps push them apart, and measure the shadows with the follow off and then on
+const sw = await page.evaluate(() => { const sc = window.__gridironScene
+  if (!sc || !(sc.markers || []).length) return null
+  sc.hitStop = 0; sc.shadowVecV99(360, 220)                       // the light cache the sampler reads
+  const ms = sc.markers.slice(0, 6), bx = ms[0].sx, by = ms[0].sy
+  const stack = () => ms.forEach((m, i) => sc.placeMarker(m, bx + i * 0.6, by + i * 0.4, 16))
+  window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { shadowFollowV109: 0 })
+  stack(); sc.resolveOverlaps()
+  const off = window.__shadowV109(sc).nud
+  delete window.RIB_TUNE.shadowFollowV109
+  stack(); sc.resolveOverlaps()
+  const on = window.__shadowV109(sc).nud
+  return { n: off.length, off: +Math.max(0, ...off).toFixed(2), on: +Math.max(0, ...on).toFixed(2) } })
+const offSamples = (sw && sw.n) || 0, offMax = (sw && sw.off) || 0, onMax = (sw && sw.on) || 0
+console.log('the switch, on a built pile:', JSON.stringify(sw))
+const bob = await page.evaluate(() => { const sc = window.__gridironScene
+  const m = (sc.markers || []).find(m => m && m.bob && m.bob.active && m.root)
+  if (!m) return null
+  sc.resolveOverlaps()
+  const sc0 = m.root.scale, want = m.root.y - ((window.RIB_TUNE && window.RIB_TUNE.bobLift) || 31) * sc0 + Math.sin(m.tms / 380) * 2 * sc0
+  const flat = m.root.y - ((window.RIB_TUNE && window.RIB_TUNE.bobLift) || 31) * sc0
+  const ring = m.ring && m.ring.active ? +Math.abs(m.ring.scaleX - sc0).toFixed(3) : null
+  return { err: +Math.abs(m.bob.y - want).toFixed(3), float: +Math.abs(want - flat).toFixed(3), ringScaleErr: ring } })
+console.log('plumbob after the nudge:', JSON.stringify(bob))
 const shBad = await page.evaluate(() => (window.__shBad || []).slice(0, 6))
 console.log('shadow outliers:', JSON.stringify(shBad))
 // the chain crew and the measurement are dead-ball dressing the sampled window may never have hit:
@@ -113,7 +146,8 @@ const chainAfter = await page.evaluate(() => { const sc = window.__gridironScene
   if (!sc || !S) return { pos: [], meas: 0, drawn: false }
   return { pos: S.items.filter(im => im._side && (/^down\d$/.test(im._side.name) || im._side.name === 'chain_rod')).map(im => [Math.round(im.x), Math.round(im.y)]),
     meas: (sc.refs || []).filter(r => r._spotTgt && r._spotTgt.kind === 'measure').length, drawn: !!(sc.measG && sc.measG.commandBuffer && sc.measG.commandBuffer.length) } })
-console.log('chain/measure:', JSON.stringify(chain), JSON.stringify(chainAfter))
+const V2 = await page.evaluate(() => window.__V109_E || {})
+console.log('chain/measure:', JSON.stringify(chain), JSON.stringify(chainAfter), 'chainMoves now', V2.chainMoves)
 const throws = await page.evaluate(() => ((window.__V107 || {}).throws || []).map(r => ({ facing: r.facing, dir: r.dir, res: r.residualMs }))).catch(() => [])
 console.log('v107 throws:', JSON.stringify(throws.slice(-8)))
 
@@ -128,7 +162,15 @@ ok(cam.softResets > 0, 'and re-aimed for the next snap through the glide instead
 ok(cam.cuts > 0, 'the v98 handover cut still fires', `${cam.cuts} cuts`)
 // 2. shadows
 ok(nudgedSeen > 0 && (V.shadows || {}).recast > 0, 'bodies were nudged apart in piles and their shadows re-cast from the nudged feet', JSON.stringify(V.shadows))
-ok(shadowSamples > 0 && shadowBad === 0, 'every nudged man\'s shadow sits within 1 px of a cast from where he now stands', `${shadowSamples} samples · max ${shadowMaxOff.toFixed(3)} px off`)
+ok(shadowSamples > 200 && shadowMaxOff <= Math.max(1, ctlMax + 0.02), 'a nudged man\'s shadow sits as tightly under him as a man who was never nudged (≤1 px, or the frame\'s own floor)',
+  `nudged ${shadowSamples} samples max ${shadowMaxOff.toFixed(2)} px · control ${ctlSamples} samples max ${ctlMax.toFixed(2)} px`)
+// the shadow and the fill are CHILDREN of the nudged container, so they travel with the body: what
+// the nudge left stale is the cast itself — its direction and length were solved for the feet he
+// stood on before the push. shadowFollowV109=0 leaves that residual in; the recast takes it out.
+ok(offSamples >= 4 && offMax > onMax && onMax <= 0.02, 'and shadowFollowV109=0 leaves the stale cast in — the recast re-solves it at the feet he was pushed to',
+  `${offSamples} men pushed apart: ${offMax} px of residual mis-cast with the follow off, ${onMax} px with it on`)
+ok(!bob || (bob.err <= 0.01 && bob.float > 0), 'the plumbob keeps its float and the ring its scale through the nudge (neither is a child of the pushed container)',
+  bob ? `bob off by ${bob.err} px with a ${bob.float} px float in play · ring scale err ${bob.ringScaleErr}` : 'no you-marker on screen to measure')
 // 3. help-ups
 ok((V.helpUps || 0) > 0, 'a downed man got a teammate walking over to help him up', `${V.helpUps} help-ups · ${V.helpUpArrivals} arrivals`)
 ok((V.walkFrames || 0) > 0 && walkTexFrames > 0, 'and the walk was drawn on the walk cycle (m._walk → walk0/1)', `${V.walkFrames} walk frames · ${walkTexFrames} sampled with a walk texture`)
@@ -143,8 +185,8 @@ ok((V.huddle || {}).staggered > 0 && br.length >= 20 && lineMax >= 0 && qbAt < 1
 ok((V.huddle || {}).walkFrames > 0, 'and the men walked out of the break before the trot', `${(V.huddle || {}).walkFrames} walk frames`)
 // 6. the crew
 ok((V.spots || 0) > 0 && (V.spotArrivals || 0) > 0 && refAtSpot > 0, 'an official went to the ball on the dead-ball spot and planted there', `${V.spots} spots · ${V.spotArrivals} arrivals · ${refAtSpot} sampled frames at the spot`)
-ok(chain.side && chain.moved >= 3 && (V.chainMoves || 0) > 0, 'the chain crew walks to a new line (the down marker and both rods)', `${chain.moved} props moved of ${chain.props} · ${V.chainMoves} walks`)
-ok(chain.measures > 0 && chainAfter && chainAfter.meas >= 1, 'a measurement brings officials in with the chain between them', `${chain.measures} measurements · ${chainAfter && chainAfter.meas} officials in · chain drawn: ${chainAfter && chainAfter.drawn}`)
+ok(chain.side && chain.moved >= 3 && (V2.chainMoves || 0) > 0, 'the chain crew walks to a new line (the down marker and both rods)', `${chain.moved} props moved of ${chain.props} · ${V2.chainMoves} walks`)
+ok((V2.measures || 0) > 0 && chainAfter && chainAfter.meas >= 1, 'a measurement brings officials in with the chain between them', `${V2.measures} measurements · ${chainAfter && chainAfter.meas} officials in`)
 // 7. the eyes and the front
 ok((V.eyes || 0) > 0 && (V.eyeSnaps || 0) > 0, 'the quarterback turned his eyes to a read and brought them back before the throw', `${V.eyes} looks · ${V.eyeSnaps} snaps back · skipped ${JSON.stringify(V.eyeSkips || {})}`)
 ok(throws.length > 0 && throws.filter(t => t.facing === 'up').length >= throws.length * 0.5, 'and the v107 arm still fired from the rear facing', `${throws.filter(t => t.facing === 'up').length}/${throws.length} throws from up`)
