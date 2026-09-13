@@ -374,6 +374,65 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v108 — the exchange, and which way he throws
+
+Anchor `v108 THE EXCHANGE, AND WHICH WAY HE THROWS` (the module-level tables, just above
+`ribRegisterTeam`), the v108 lines inside `startThrowV107`, `exchangeV108` / `startExchangeV108`
+(beside `windupV107`), the `handSeq` case in `placeMarker`, and the v108 comments in the ball
+block. 22 new cells: `throwR_up0..5`, `throwL_up0..5`, `handoff_up0..4`, `toss_up0..4` — all `up`,
+all rear views, registered per kit as `spr_<kit>_up_throwR<i>` / `_throwL<i>` / `_handoff<i>` /
+`_toss<i>`.
+
+**Which way he throws.** v107 turned the thrower onto the target with `faceMarker`, and because
+`faceMarker` never flips an `up` man (one rear drawing, and a mirror of it puts the ball in the
+wrong hand), a quarterback throwing at a receiver straight in front of him came out on the QUARTER
+cycle, arm across his body, facing away from the man he was looking at. The sheet now carries the
+rear throw twice — the ball leaving right, and the same throw drawn across the body to the left —
+so `startThrowV107` picks the ARM instead of the facing whenever the target is inside
+`TU("throwDirConeDeg", 70)` off straight ahead (`dy < 0` and `atan2(|dx|, -dy) ≤ cone`): `dir` is
+`"R"` for a target to his screen-right — the dead-straight ball included, he is a right-hander —
+and `"L"` to his left, `m.dirKey` stays `up`, `m.flip` stays false. Anything wider, or behind him,
+goes through the v107 turn exactly as before and records `dir: null`. `m._thrDirV108` rides the
+sequence, `placeMarker`'s `throwSeq` branch draws `throw<dir><frame>`, and the release is still
+frame `TU("throwReleaseFrame", 4)` on the tick the flight starts (residual 0 ms) — the back-dating
+is untouched. Each `__V107.throws` record now carries `dir` and `targetDx`.
+
+**The exchange.** v105 made the handoff and the pitch a ball travelling between two hands, but the
+quarterback's body ran its ordinary frames through it. `exchangeV108(P)`, called beside
+`windupV107`, scans the script once per play for `handoff` events and starts the drawn cycle
+`frameMs × releaseFrame` early, back-dating `seqT` the same way the arm does, so the frame that
+lets go is drawn ON the event: `handoff_up` frame 2 (the ball at arm's length) at
+`TU("handoffFrameMs", 70)`, or `toss_up` frame 3 (the release) at `TU("tossFrameMs", 80)` when the
+play description is in the sweep family — `TOSS_CALL_V108`, the one regex `handV105` reads too, so
+the wind-up starts before the event knows. `m.forceState = "handSeq"` with `m._exV108`
+(`{st, cyc, n, rel, fm}`); `placeMarker` clamps the frame and hands the man back to his run/idle
+states when the cycle runs out, so he carries out the fake. `handV105("handoff")` starts the same
+cycle when the lookahead found nothing (frame 0 at the event) and books the frame the hand actually
+opened on. Both drawn exchanges are RIGHT-handed, and the sheet's one left-handed exchange is a
+different build, so a back coming off the quarterback's left is skipped
+(`TU("exchangeSideMinPx", -3)`, measured against the back's position at the event from the script's
+own frames): that play keeps the pre-v108 picture, run frames with the ball drawn by v105.
+
+**One football, never two.** v107 hid the renderer's ball across frames 0-3 of any drawn throw
+cycle, which is only true of the front and quarter cycles — the rear throw is drawn from behind
+and the ball is hidden by the body until it is cocked at the ear. `BALL_DRAWN_V108` is the measured
+table (`throw_up: [3]`, `throw_dn`/`throw_ur`: `[0,1,2,3]`, `throwR_up`/`throwL_up`: `[2,3]`,
+`handoff_up`: `[1,2]`, `toss_up`: `[0]`); `cycleV108(m)` is the one place the cycle and its frame
+are worked out, read by the ball block and the hook alike. On a frame the cell draws the ball ours
+is scaled to zero (scale, not `setVisible` — the v1513 guard forces visible and alpha back every
+update); on a frame it does not, ours is shown and mounted at `HAND_V108[cyc][frame]`, the ball's
+position in that cell in CELL pixels off its centre, measured off the atlas. The offsets apply on
+hidden frames too, so an exchange's flight starts from the hand the drawing put it in. The audit
+runs off the sprite itself right after `setScale`: `window.__V108.ballDoubled` (the cell drew one
+and ours is visible) and `.ballMissing` (neither, while the man still holds it) must both stay 0.
+
+`window.__V108`: `throws` (the same records `__V107.throws` holds, with `dir`/`targetDx`),
+`handoffs` / `tosses` (`{t, eventT, frameAtEvent, toss, sideDx}`), `handoffFrames` / `tossFrames`,
+`ballFrames` / `ballDoubled` / `ballMissing` / `last`, and `skippedLeft` (exchanges left undrawn
+because the back came off his left). `scripts/v108check.mjs` is the proof — it drives the live
+game at its fastest speed setting and, if one game does not throw both ways, takes the next week
+live and keeps watching.
+
 ## v107.1 — the sheen flashes twice, the flashes stay on the crowd
 
 **The sheen.** `.rib9-sheen` sweeps a highlight band across the wordmark through a mask of the
