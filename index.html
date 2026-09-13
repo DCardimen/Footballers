@@ -2107,8 +2107,17 @@ window.__visionRadiusV96 = visionRadiusV96;
         // longitudinal speed to drag. Arrival time and outcome callbacks are unchanged.
         const drag=ballFlight.style==="bullet"?.04:ballFlight.style==="lob"?.13:.08;
         const q=f*(1+drag-drag*f);
+        /* ===== v109 THE BALL COMES DOWN STEEPER THAN IT WENT UP =====
+         * The height used to be one symmetric sine: apex at the exact middle of the flight,
+         * the same shape rising and falling. A thrown ball bleeds speed to drag on the way, so
+         * it spends more of its flight climbing than falling — the apex sits past halfway and
+         * the descent is the steeper leg, which is what a receiver is settling under. Two
+         * quarter-sines meeting at the apex: still 0 at both ends, still smooth at the top,
+         * and the landing point, `dur` and every callback are untouched. */
+        const af=Math.max(.2,Math.min(.8,ballFlight.apexF!=null?ballFlight.apexF:TU("arcApexFrac",.55)));
+        const hf=f<af?Math.sin(Math.PI/2*f/af):Math.sin(Math.PI/2*(1-f)/(1-af));
         ball={ lx: ballFlight.x0+(ballFlight.x1-ballFlight.x0)*q, y: ballFlight.y0+(ballFlight.y1-ballFlight.y0)*q,
-               h: Math.sin(f*Math.PI)*ballFlight.arc };
+               h: hf*ballFlight.arc };
         if(f>=1){ const cb=ballFlight.done; ballFlight=null; cb&&cb(); } }
       else if (carrier) ball = { lx: carrier.lx, y: carrier.y+4, h:0 };
       ballFrames.push({t, x:Math.round(ball.lx*10)/10, y:Math.round(ball.y*10)/10, h:Math.round(ball.h)}); };
@@ -2746,8 +2755,40 @@ window.__visionRadiusV96 = visionRadiusV96;
      * pressure, panic, depth and a poor arm, and it closes — and goes green — when the pocket
      * is clean and the receiver has won. Same number the broadcast draws over the field. */
     const STYLE_K_V101 = { bullet: .84, touch: 1, lob: 1.3 };
-    const flightMsV101 = (qb, px, py, style) =>
+    /* ===== v109 THE BALL HAS A SPEED =====
+     * The flight used to be a flat milliseconds-per-pixel ladder with a 390ms floor under it,
+     * and the floor did most of the work: a 3-yard swing, a 5-yard slant and an 8-yard hitch
+     * all hung for exactly 390ms, and a deep ball was just more of the same line. A thrown
+     * football has a RELEASE and a VELOCITY. The release is the time the ball spends leaving
+     * the hand and coming up to speed — the same on every throw, and the reason a short ball is
+     * never instant. The velocity is the style (a rope, a touch ball, a rainbow) scaled by the
+     * arm. Flight time is `release + distance / velocity`. Calibrated so the MEAN over the real
+     * throw-distance mix is what the old ladder produced (so nothing downstream — coverage
+     * arrival, the catch roll, the pick roll — sees a different clock on average), which means
+     * the short ball hangs a shade longer than the old floor and the deep ball gets there a
+     * shade sooner. The old ladder stays as `flightMsLegacyV109` so the audit can compare. */
+    const flightMsLegacyV109 = (qb, px, py, style) =>
       cl(Math.hypot(px - qb.lx, py - qb.y) * (4.45 - (qb.thr - 50) * 0.006) * (STYLE_K_V101[style] || 1), 390, 1700);
+    // the ball's speed in px per sim-ms: the style, scaled by the arm (same relative swing the
+    // old ladder gave the arm — a 90 arm is ~6% quicker than a 50)
+    const ballVelV109 = (thr, style) =>
+      (style === "bullet" ? TU("ballVelBullet", .425) : style === "lob" ? TU("ballVelLob", .228) : TU("ballVelTouch", .327))
+      * (1 + (((thr == null ? 50 : thr) - 50) * TU("ballVelArmK", .0014)));
+    // fitted over 1,450 real throws (mean 131px, arm 80): a 200ms release and these speeds put
+    // every style's mean flight exactly on the legacy ladder's — 59 / 45 / 32 mph in real time
+    const flightDistMsV109 = (distPx, thr, style) =>
+      cl(TU("throwReleaseMs", 200) + distPx / ballVelV109(thr, style), TU("flightMinMs", 390), TU("flightMaxMs", 1700));
+    const flightMsV101 = (qb, px, py, style) => flightDistMsV109(Math.hypot(px - qb.lx, py - qb.y), qb.thr, style);
+    // the apex of the flight follows its hang (apex ∝ dur², as a ball under gravity does; the
+    // constant is a broadcast camera's exaggeration of the real parabola), with a style cap so
+    // a bullet stays on a line however far it goes
+    const apexPxV109 = (dur, style) => cl(TU("arcGravK", 1.0e-4) * dur * dur
+        * (style === "bullet" ? TU("arcBulletK", .7) : style === "lob" ? TU("arcLobK", 1.15) : 1),
+      TU("arcMinPx", 8), style === "bullet" ? TU("arcCapBullet", 40) : style === "lob" ? TU("arcCapLob", 120) : TU("arcCapTouch", 90));
+    // the audit hook the check reads: the two formulas side by side, and every throw's row
+    const V109A = (() => { const H = root.__V109_A = root.__V109_A || {}; H.flightMs = (d, thr, style) => flightDistMsV109(d, thr, style);
+      H.flightMsLegacy = (d, thr, style) => flightMsLegacyV109({ lx: 0, y: 0, thr }, d, 0, style);
+      H.rows = H.rows || []; H.throws = H.throws || 0; H.away = H.away || 0; H.oob = H.oob || 0; return H; })();
     // where he will be in `ms`, walking his own route — not a straight line off his current heading
     const walkRouteV101 = (a, ms) => {
       let left = Math.max(0, (a.spd || 140) * Math.max(.55, a.vel || .9) * ms / 1000);
@@ -3396,10 +3437,40 @@ window.__visionRadiusV96 = visionRadiusV96;
               done = true; out = { kind: "pass", complete: false, intercepted: false, yards: Math.round(qb.lx / YD), sack: true, sacker: th.player || null };
               rec(); continue; }
           }
+          /* ===== v109 A THROWAWAY IS THROWN =====
+           * Both throwaway paths used to emit `throwaway` and `incomplete` on the SAME tick with
+           * no flight at all: the ball teleported to one fixed spot at the top of the picture
+           * whichever sideline the passer was near, and the arm never moved, because the v107
+           * wind-up only reads `throw` events. Now it is a real ball — a bullet aimed past the
+           * NEAR sideline, `throw{away:true}` first so the arm winds up on it, then the same
+           * `incomplete` (now `oob:true, away:true`) from the flight's own `done()`. The play
+           * ends when the ball lands, not when the decision is made; `out.yards` stays 0. The
+           * flight is trimmed to land before HARD so the ending is always booked. */
+          const throwAwayV109 = (ax, extra) => {
+            const qb9 = S.off[8];
+            const ay = qb9.y < MIDY ? SIDELINE_TOP - TU("throwawayOutPx", 20) : SIDELINE_BOT + TU("throwawayOutPx", 20);
+            const room = HARD - t;                                   // the last rec() runs at t === HARD
+            if (room < TICK) return false;                            // no ticks left to fly it: the old same-tick ending
+            const dPx = Math.hypot(ax - qb9.lx, ay - qb9.y), vel = ballVelV109(qb9.thr, "bullet");
+            const dur = Math.max(TICK, Math.min(flightDistMsV109(dPx, qb9.thr, "bullet"), room));
+            const apex = apexPxV109(dur, "bullet");
+            const wob = cl((qb9._panicV101 || 0) * TU("wobblePanicK", .9) + TU("wobbleHurryK", .15) + (1 - protV101(qb9, true)) * TU("wobbleProtK", .6), 0, 1);
+            emit("throw", Object.assign({ x: qb9.lx, y: qb9.y, tx: ax, ty: ay, style: "bullet", away: true, oob: true,
+              dur: Math.round(dur), vel: +vel.toFixed(3), velMph: Math.round(vel / YD * 1000 / TU("simClockReal", 2.5) * 3600 / 1760),
+              apex: Math.round(apex), wobble: +wob.toFixed(2), platform: qb9._roll ? "roll" : qb9._slid ? "slide" : "hurried",
+              prot: +protV101(qb9, true).toFixed(2), panic: +(qb9._panicV101 || 0).toFixed(2) }, extra || {}));
+            V109A.throws++; V109A.away++;
+            handfightShown = true; highpointShown = true;            // nobody is going up for this one
+            ballFlight = { t0: t, style: "bullet", dur, x0: qb9.lx, y0: qb9.y, x1: ax, y1: ay, arc: apex, apexF: TU("arcApexFrac", .55), away: true,
+              done: () => { emit("incomplete", Object.assign({ x: ax, y: ay, oob: true, away: true }, extra || {})); V109A.oob++; done = true; } };
+            return true;
+          };
           if (sep < -1.6 && underPressure && Math.random() < 0.28 + (S.off[8].aware-50)*0.005) {
             emit("throwaway",{x:S.off[8].lx,y:S.off[8].y});
+            out = { kind:"pass", complete:false, intercepted:false, yards:0 };
+            if (throwAwayV109(routeDepth*YD)) { phase = "fly"; rec(); continue; }
             emit("incomplete",{x:routeDepth*YD, y: F_TOP+40});
-            done = true; out = { kind:"pass", complete:false, intercepted:false, yards:0 };
+            done = true;
             rec(); continue;
           } else if (sep < -2.2 && !hurried && Math.random() < 0.3) {
             // v87: the check-down is a receiver AHEAD of the quarterback, never a back still in protection behind him
@@ -3412,8 +3483,11 @@ window.__visionRadiusV96 = visionRadiusV96;
             // v87: a target behind the passer is not a throw
             const alt = (_gradesV87||[]).filter(r=>r.a.lx > qb.lx + YD).sort((p2,q2)=>q2.score-p2.score)[0];
             if (alt) { emit("read",{to:alt.a.id}); target = alt.a; coverA = alt.d || coverA; sep = alt.sep; }
-            else { emit("throwaway",{x:qb.lx,y:qb.y,behind:true}); emit("incomplete",{x:Math.max(2*YD, qb.lx+6*YD), y: F_TOP+40});
-              done = true; out = { kind:"pass", complete:false, intercepted:false, yards:0, behindFix:true }; rec(); continue; }
+            else { emit("throwaway",{x:qb.lx,y:qb.y,behind:true});
+              out = { kind:"pass", complete:false, intercepted:false, yards:0, behindFix:true };
+              if (throwAwayV109(Math.max(2*YD, qb.lx+6*YD), { behind: true })) { phase = "fly"; rec(); continue; }   // v109: a real ball, past the near sideline
+              emit("incomplete",{x:Math.max(2*YD, qb.lx+6*YD), y: F_TOP+40});
+              done = true; rec(); continue; }
           }
           /* ===== v101: the release — pick the ball, pick the spot, then miss it by the cone ===== */
           const _panic = qb._panicV101 || 0;
@@ -3449,29 +3523,77 @@ window.__visionRadiusV96 = visionRadiusV96;
           throwConeYd = coneYdV101(qb, routeDepth, throwProt, _panic, movingThrow, sep);
           throwWindow = windowV101(sep, throwConeYd, throwProt);
           const errYd = throwConeYd;
-          const errAng=Math.random()*Math.PI*2, errMag=(Math.random()+Math.random())*.5*errYd*YD;
+          /* ===== v109 A HURRIED MISS HAS A DIRECTION =====
+           * The miss around the aim point was isotropic: a ball thrown off the back foot with a
+           * man in the passer's face was as likely to sail long as to die short. It is not. A
+           * hurried or off-platform throw comes out SHORT and BEHIND — the arm never finishes,
+           * the hips never come through — so the angle of the miss is pulled toward the vector
+           * back to the passer and against the receiver's heading, by panic and by movement.
+           * The MAGNITUDE of the miss is untouched: `errMag` is the same draw, so the cone,
+           * `locationQuality`, the catch and pick rolls all see the same distribution of how
+           * far the ball lands from the spot. A clean, set throw is still isotropic. */
+          const _thAng = Math.atan2(idealY - qb.y, idealX - qb.lx);                   // the throw vector
+          const _hdx = target._dx != null ? target._dx : Math.cos(_thAng), _hdy = target._dy != null ? target._dy : Math.sin(_thAng);
+          const _bK = TU("errBiasBehindK", .8);                                      // how much "behind him" weighs against "short"
+          const _biasAng = Math.atan2(-Math.sin(_thAng) - _hdy * _bK, -Math.cos(_thAng) - _hdx * _bK);
+          const _biasP = cl(_panic * TU("errBiasPanicK", .7) + (movingThrow ? TU("errBiasMoveK", .35) : 0) + (underPressure ? TU("errBiasHurryK", .12) : 0), 0, TU("errBiasMax", .8));
+          const _biased = Math.random() < _biasP;
+          const errAng=_biased ? _biasAng + (Math.random() + Math.random() - 1) * TU("errBiasSpreadRad", 1.9) : Math.random()*Math.PI*2;
+          const errMag=(Math.random()+Math.random())*.5*errYd*YD;
+          let _errDir = errAng - _thAng; while (_errDir > Math.PI) _errDir -= Math.PI * 2; while (_errDir < -Math.PI) _errDir += Math.PI * 2;
+          const platform = qb._roll ? "roll" : (qb._slid && underPressure) ? "slide" : underPressure ? "hurried" : "set";
           const cx=cl(idealX+Math.cos(errAng)*errMag,-3*YD,Math.max(idealX+4*YD,routeDepth*YD+4*YD));
-          const cyy=clampY(idealY+Math.sin(errAng)*errMag*1.35);
-          locationQuality=cl(1-Math.hypot(cx-idealX,cyy-idealY)/(YD*4.6),0,1);
-          const _speed=a=>Math.max(110,a.spd||140), _eta=(a,knows)=>Math.hypot(cx-a.lx,cyy-a.y)/_speed(a)*1000+(knows?55:cl(300-a.aware*2,95,250));
+          /* ===== v109 A BAD BALL CAN LEAVE THE FIELD =====
+           * The landing spot used to be clamped to the sideline, so an errant ball could never
+           * go out of bounds — it died ON the line, which no sideline throw does. The BALL now
+           * lands where the miss puts it, past the paint if that is where it went; the men stay
+           * clamped (that is their own movement), and every OUTCOME number — location quality,
+           * who reaches the spot first, the contest — is still read at the in-bounds spot the
+           * receiver actually plays it from, so nothing about the roll moves. */
+          const cyy=idealY+Math.sin(errAng)*errMag*1.35;
+          const cyIn=clampY(cyy), _oobV109 = cyy < SIDELINE_TOP || cyy > SIDELINE_BOT;
+          locationQuality=cl(1-Math.hypot(cx-idealX,cyIn-idealY)/(YD*4.6),0,1);
+          const _speed=a=>Math.max(110,a.spd||140), _eta=(a,knows)=>Math.hypot(cx-a.lx,cyIn-a.y)/_speed(a)*1000+(knows?55:cl(300-a.aware*2,95,250));
           const wrEta=_eta(target,true), cbEta=_eta(coverA,false);
           arrivalEdgeMs=wrEta-cbEta; // positive means the defender owns the spot first
+          /* ===== v109 THE THROW EVENT TELLS THE TRUTH ABOUT THE BALL =====
+           * `hang` was the lead-solve's guess; the real flight was recomputed after the cone
+           * error and never told anyone. The event now carries `dur` (the flight the ball
+           * actually makes), `vel` (px per sim-ms) and `velMph` (the caption's number, with the
+           * 2.5x sim clock factored back out), `apex` (px), `wobble` (0..1: a hurried, moving,
+           * unprotected ball is not a tight spiral), `platform` and `errDir` (radians off the
+           * throw vector: 0 is long, ±π is short). The renderer spins and wobbles off these. */
+          const _distV109 = Math.hypot(cx-qb.lx,cyy-qb.y);
+          const _durV109 = flightDistMsV109(_distV109, S.off[8].thr, throwStyle);
+          const _velV109 = ballVelV109(S.off[8].thr, throwStyle);
+          const _velMphV109 = _velV109 / YD * 1000 / TU("simClockReal", 2.5) * 3600 / 1760;
+          const _apexV109 = apexPxV109(_durV109, throwStyle);
+          const _wobbleV109 = cl(_panic * TU("wobblePanicK", .9) + (movingThrow ? TU("wobbleMoveK", .25) : 0) + (1 - throwProt) * TU("wobbleProtK", .6) + (underPressure ? TU("wobbleHurryK", .15) : 0), 0, 1);
           emit("throw",{x:qb.lx,y:qb.y,tx:cx,ty:cyy,to:target.id,style:throwStyle,window:throwWindow,locationQuality,behind:target.lx<qb.lx,
             cone:+throwConeYd.toFixed(2), prot:+throwProt.toFixed(2), panic:+_panic.toFixed(2),
-            lead:Math.round(throwLeadPx), leadYd:+(throwLeadPx/YD).toFixed(2), leadK:+_lk.toFixed(2), hang:Math.round(_lead.ms)});
+            lead:Math.round(throwLeadPx), leadYd:+(throwLeadPx/YD).toFixed(2), leadK:+_lk.toFixed(2), hang:Math.round(_lead.ms),
+            dur:Math.round(_durV109), vel:+_velV109.toFixed(3), velMph:Math.round(_velMphV109), apex:Math.round(_apexV109),
+            wobble:+_wobbleV109.toFixed(2), platform, errDir:+_errDir.toFixed(2), errBiased:_biased, oob:_oobV109||undefined});
+          try { V109A.throws++; if (_oobV109) V109A.oob++;
+            V109A.rows.push({ d: Math.round(_distV109), thr: S.off[8].thr, style: throwStyle, dur: Math.round(_durV109),
+              legacy: Math.round(flightMsLegacyV109(qb, cx, cyy, throwStyle)), apex: Math.round(_apexV109), wobble: +_wobbleV109.toFixed(2),
+              platform, errDir: +_errDir.toFixed(2), biased: _biased, panic: +_panic.toFixed(2), oob: _oobV109 });
+            if (V109A.rows.length > 4000) V109A.rows.shift(); } catch (e) {}
           try { const W = root.__V101 = root.__V101 || { throws: 0, style: {}, win: {}, cone: 0, lead: 0, prot: 0, panic: 0, behindLead: 0 };
             W.throws++; W.style[throwStyle] = (W.style[throwStyle] || 0) + 1; W.win[throwWindow] = (W.win[throwWindow] || 0) + 1;
             W.cone += throwConeYd; W.lead += throwLeadPx / YD; W.prot += throwProt; W.panic += _panic; if (_lk < .6) W.behindLead++;
             W.last = { style: throwStyle, window: throwWindow, cone: +throwConeYd.toFixed(2), leadYd: +(throwLeadPx / YD).toFixed(2),
               hang: Math.round(_lead.ms), prot: +throwProt.toFixed(2), panic: +_panic.toFixed(2),
               depth: Math.round(routeDepth), sep: +sep.toFixed(2) }; } catch (e) {}
-          emit("contest",{def:coverA.id,off:target.id,x:cx,y:cyy,arrivalEdgeMs:Math.round(arrivalEdgeMs)});
-          const styleK=STYLE_K_V101[throwStyle]||1;   // v101: the same constant the lead solved with
-          const styleArc=throwStyle==="bullet"?18+routeDepth*.55:throwStyle==="lob"?52+routeDepth*1.65:31+routeDepth*1.05;
-          // Downfield throws need real hang time. Ratings still shape placement
-          // and outcome; arm strength only trims a small amount off travel time.
-          ballFlight = { t0:t, style:throwStyle, dur: cl(Math.hypot(cx-qb.lx,cyy-qb.y)*(4.45-(S.off[8].thr-50)*0.006)*styleK, 390, 1700),
-            x0:qb.lx, y0:qb.y, x1:cx, y1:cyy, arc: styleArc, done: ()=>{
+          emit("contest",{def:coverA.id,off:target.id,x:cx,y:cyIn,arrivalEdgeMs:Math.round(arrivalEdgeMs)});
+          /* ===== v109 THE ARC FOLLOWS THE HANG =====
+           * The apex used to be a per-style line in route depth, unrelated to how long the ball
+           * was actually up — a 5-yard bullet peaked three and a half yards high. It is now
+           * `apexPxV109(dur, style)`: apex ∝ dur² under one gravity constant, capped per style
+           * so a rope stays a rope. `dur` is the same release-plus-velocity flight the throw
+           * event just reported, and `apexF` puts the top past halfway (see `rec()`). */
+          ballFlight = { t0:t, style:throwStyle, dur: _durV109,
+            x0:qb.lx, y0:qb.y, x1:cx, y1:cyy, arc: _apexV109, apexF: TU("arcApexFrac", .55), done: ()=>{
               // soft correction only — they tracked the ball through its flight
               const capTo=(a,tx,ty,maxPx)=>{ const safeY=clampY(ty),d=Math.hypot(tx-a.lx,safeY-a.y);
                 if(d>0.1){const f=Math.min(1,(maxPx==null?9:maxPx)/d);a.lx+=(tx-a.lx)*f;a.y=clampY(a.y+(safeY-a.y)*f);} };
@@ -3479,8 +3601,8 @@ window.__visionRadiusV96 = visionRadiusV96;
               // was laid out, the more of that flight he spends driving on the catch point instead
               // of trailing the man — without it, leading the receiver hands away yards after the
               // catch that nobody on the field was given a chance to take.
-              capTo(target,cx,cyy);
-              capTo(coverA,cx-sep*2.4,cyy+3, 9 + cl(throwLeadPx,0,TU("leadBreakCapPx",90))*TU("leadBreakK",.9));
+              capTo(target,cx,cyIn);
+              capTo(coverA,cx-sep*2.4,cyIn+3, 9 + cl(throwLeadPx,0,TU("leadBreakCapPx",90))*TU("leadBreakK",.9));
               const qbA = S.off[8];
               /* ===== v82 BALL SKILLS — the catch point is a contest, not a timer =====
                * BOX OUT: a receiver between the defender and the ball uses his body.
@@ -3491,7 +3613,7 @@ window.__visionRadiusV96 = visionRadiusV96;
               const boxOut = target.lx > coverA.lx - 2 && arrivalEdgeMs > -80;
               const boxK = boxOut ? cl((target.str * .5 + ((target.ht||73) - 73) * 1.2 - coverA.str * .4) * .002 + .03, 0, .09) : 0;
               const comebackK = shortBall ? cl((target.aware - 50) * .002 + .02, -.02, .06) - (sep < .4 ? TU("underthrowRisk", .05) : 0) : 0;
-              const contested = sep < TU("contestSep", .2) && Math.hypot(coverA.lx - cx, coverA.y - cyy) < 22;
+              const contested = sep < TU("contestSep", .2) && Math.hypot(coverA.lx - cx, coverA.y - cyIn) < 22;
               const swatP = contested ? cl((coverA.cov - 50) * .004 + (coverA.jump - 50) * .002 + TU("swatBase", .04), 0, .3) * (coverA.cov >= target.cat ? 1 : .6) : 0;
               if (shortBall) emit("comeback", { who: target.id, x: cx, y: cyy, smart: comebackK > 0 });
               if (boxOut && boxK > .04) emit("boxOut", { who: target.id, on: coverA.id, x: cx, y: cyy });
@@ -3508,10 +3630,10 @@ window.__visionRadiusV96 = visionRadiusV96;
                 - helperContest - (underPressure?0.12:0) - (movingThrow?.055:0), 0.08, 0.93);
               if (contested && Math.random() < swatP) {
                 // v82: the corner plays the hands — ball knocked away, nobody has it
-                emit("swat", { by: coverA.id, on: target.id, x: cx, y: cyy }); emit("incomplete", { x: cx, y: cyy }); done = true;
+                emit("swat", { by: coverA.id, on: target.id, x: cx, y: cyIn }); emit("incomplete", { x: cx, y: cyy, oob: _oobV109 || undefined }); done = true;   // v109: the ball lands where it lands
                 out = { kind: "pass", complete: false, intercepted: false, yards: 0, swat: true };
               } else if (Math.random() < catchP) {
-                emit("catch",{by:target.id,x:cx,y:cyy,catchType:locationQuality<.62&&routeDepth>7?"dive":routeDepth>12?"high":"secure"});
+                emit("catch",{by:target.id,x:cx,y:cyIn,catchType:locationQuality<.62&&routeDepth>7?"dive":routeDepth>12?"high":"secure"});   // v109: caught at the in-bounds spot he plays it from
                 carrier = target;
                 // Placement that lets the receiver catch in stride carries into
                 // the acceleration target for a short run-through window. Poorly
@@ -3547,7 +3669,7 @@ window.__visionRadiusV96 = visionRadiusV96;
                   emit("pick",{by:coverA.id,x:cx,y:cyy});
                   carrier = coverA; phase = "carry";           // live return!
                   out = { kind:"pass", complete:false, intercepted:true, yards:0 };
-                } else { emit("incomplete",{x:cx,y:cyy}); done = true;
+                } else { emit("incomplete",{x:cx,y:cyy,oob:_oobV109||undefined}); done = true;   // v109: past the paint when the miss took it there
                   // v30: the defender was IN the receiver at the catch point on a real
                   // route and the ball hit the turf — that contact is a DPI candidate
                   if (sep < TU("dpiSep",-0.8) && routeDepth > 6 && coverA.player) flagCand.dpi = coverA.player;
@@ -6498,11 +6620,22 @@ class Ot extends mt.Scene {
           let da = target - P._ballNoseAngle; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
           P._ballNoseAngle += da * 0.42;
         }
-        const wobble = mode === "tip" ? Math.sin(P.t * 0.036) * 0.22 : Math.sin(P.t * 0.014) * 0.015;
+        /* ===== v109 THE BALL HAS A SPEED (the picture) =====
+         * The spin was a clock — the same frame rate for a rope and a rainbow — and the wobble
+         * was an invisible 0.015 rad on every ordinary ball. The spin rate now rides the throw's
+         * `vel` (a bullet's laces blur, a lob's turn over lazily) and the wobble amplitude rides
+         * its `wobble`: a clean set throw is a tight spiral, a hurried one visibly wobbles. */
+        const velK = P.ballVelV109 != null ? P.ballVelV109 / TU("ballVelRef", .36) : 1;
+        const wobAmp = mode === "tip" ? 0 : TU("wobbleBaseRad", .012) + (P.ballWobbleV109 || 0) * TU("wobbleGainRad", .16);
+        const wobble = mode === "tip" ? Math.sin(P.t * 0.036) * 0.22 : Math.sin(P.t * TU("wobbleHz", 0.022)) * wobAmp;
         // v91: the spiral — the laces turn through the twelve frames while the sprite is
         // rotated by the heading less the tilt each frame was drawn at
-        const bf = this.ballFrameV91("spin", Math.floor((P.t - (P.ballReleaseAt || 0)) * TU("ballSpinRate", 0.02)));
+        const spinRate = TU("ballSpinRate", 0.02) * Math.pow(Math.max(.2, velK), TU("ballSpinVelPow", 1));
+        const bf = this.ballFrameV91("spin", Math.floor((P.t - (P.ballReleaseAt || 0)) * spinRate));
         this.ballSpr.rotation = (P._ballNoseAngle || 0) + wobble - bf;
+        try { const H = window.__V109_A = window.__V109_A || {}; H.last = { vel: P.ballVelV109 ?? null, wobble: P.ballWobbleV109 ?? null, dur: P.ballDurV109 ?? null,
+          apex: P.ballApexV109 ?? null, spinRate: +spinRate.toFixed(4), wobAmp: +wobAmp.toFixed(3), style: P.ballStyle || null };
+          H.byStyle = H.byStyle || {}; if (P.ballStyle && P.ballVelV109 != null) H.byStyle[P.ballStyle] = H.last; } catch (e) {}   // only balls the sim priced
       } else if (mode === "kick" || loose) {
         const rate = mode === "kick" ? 0.017 : 0.021;
         const bf = this.ballFrameV91("tumble", Math.floor((P.t - (P.ballReleaseAt || 0)) * TU("ballTumbleRate", 0.014)));
@@ -7764,6 +7897,9 @@ class Ot extends mt.Scene {
         const kicking = /^(fg|punt|kickoff|xp)$/i.test(String(pay.event || ""));
         P.ballMode = kicking ? "kick" : "flight";
         P.ballStyle = e.style || (kicking ? "kick" : Math.abs(Number(pay.yards || 0)) >= 18 ? "lob" : Math.abs(Number(pay.yards || 0)) <= 7 ? "bullet" : "touch");
+        // v109: the ball's own numbers, for the spin, the wobble and the laces (null when the sim did not say)
+        P.ballVelV109 = Number.isFinite(e.vel) ? e.vel : null; P.ballWobbleV109 = Number.isFinite(e.wobble) ? e.wobble : null;
+        P.ballDurV109 = Number.isFinite(e.dur) ? e.dur : null; P.ballApexV109 = Number.isFinite(e.apex) ? e.apex : null;
         this.clearAlerts();   // v23: ball's out — the scramble warning is moot
         const ti = e.to ? this.actorIdx(e.to) : (P.script.meta.targetId ? this.actorIdx(P.script.meta.targetId) : -1);
         if (ti >= 0) P.awaitCatch = ti;
@@ -15328,7 +15464,8 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     const mode=P.ballMode||"ground",spiral=mode==="flight"||mode==="tip";
     if(ball.__lace&&ball.__seam&&ball.__shell){
       if(spiral){
-        const rate=P.ballStyle==="bullet"?.072:P.ballStyle==="lob"?.038:.052;
+        /* v109: the laces turn at the ball's own speed when the throw reported one, the style ladder when it did not */
+        const rate=P.ballVelV109!=null?.052*P.ballVelV109/(window.TU?window.TU("ballVelRef",.36):.36):P.ballStyle==="bullet"?.072:P.ballStyle==="lob"?.038:.052;
         const phase=Math.max(0,P.t-(P.ballReleaseAt||0))*rate, face=Math.cos(phase), edge=Math.abs(face);
         ball.__shell.setScale(1,.88+edge*.12);
         ball.__lace.setY(Math.sin(phase)*1.7).setScale(1,.24+edge*.76).setAlpha(.18+Math.max(0,face)*.82);
