@@ -10,3 +10,6 @@ _site
 _badge_*.png
 _splash_*.png
 menu-integration-diagnostics.json
+
+# agent worktrees (Claude Code isolation)
+.claude/worktrees/
