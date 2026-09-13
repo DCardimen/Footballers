@@ -2175,6 +2175,16 @@ window.__visionRadiusV96 = visionRadiusV96;
       if(a._dx!=null){
         const dot = dx*a._dx + dy*a._dy;
         turn=1-Math.max(-1,Math.min(1,dot));
+        /* ===== v109 THE FEET PLANT — the turn is EMITTED =====
+         * `turn` has been computed here since the sim was written and handed to evolveSpeed to
+         * bleed speed, but the renderer never heard about it: a hard change of direction reached
+         * the field as a slide between two keyframes. It goes out now, as `turn`, once per
+         * turnEmitGapMs per agent and only when he is actually moving (a stationary man
+         * re-aiming is not a turn). `dir` is the sign of the swing across his old line. Nothing
+         * here changes the steering. */
+        if(turn>TU("turnEmitMin",.25)&&(a.vel||0)>.5&&t>=(a._turnEmitAt||0)){ a._turnEmitAt=t+TU("turnEmitGapMs",200);
+          emit("turn",{who:a.id,x:Math.round(a.lx),y:Math.round(a.y),deg:Math.round(Math.acos(Math.max(-1,1-turn))*180/Math.PI),
+            dir:(a._dx*dy-a._dy*dx)>=0?1:-1,vel:Math.round((a.vel||0)*100)/100}); }
         dx=dx*(1-carry)+a._dx*carry; dy=dy*(1-carry)+a._dy*carry; const n=Math.hypot(dx,dy)||1; dx/=n; dy/=n;
       }
       a._turnDemand=a._wantDx==null?0:1-Math.max(-1,Math.min(1,wantDx*a._wantDx+wantDy*a._wantDy));
@@ -3847,7 +3857,30 @@ window.__visionRadiusV96 = visionRadiusV96;
         const jets = (sprinting(c) ? SPRINT_BOOST : (t < (c.burstUntil||0) ? 0.10 : 0)) + catchStride;
         // v81: on a designed run the back has a running start to the hole — no jog to the line
         const toHole = kind === "run" && c.lx < -8 ? TU("backfieldPace", 1.0) : 0.9;
-        mv(c, c.lx + dirSign*TU("carryAimAhead", 56), laneY, cl((hole?1.12:toHole) + jets + (c.burst-50)*0.004, 0.72, 1.5));
+        /* ===== v109 THE FEET PLANT — the gather, the plant, the carrot that scales =====
+         * The back re-read his lane every laneHoldMs and `mv` steered into the new one at full
+         * gear the same tick, so a 60px jump between gaps looked like a slide. Now a lane that
+         * moves by more than plantLaneDeltaPx is a PLANT: he gathers for plantGatherTicks at
+         * plantGatherMult of his gear, the event goes out (`plant`, with where he was aiming and
+         * where he is aiming now, the angle of the change and whether it was a hard one), and
+         * the exit burst that follows (plantExitBurstMs of the ordinary +0.10 jet) gives the
+         * ground back, so the mean yard is where it was. The carrot he steers on scales with
+         * his gear: a man still gathering speed can turn tighter, so his aim point is closer
+         * and the curve into the lane is sharper — at top gear the carrot is the old 56px, so
+         * the forward component of every full-speed carry is unchanged. */
+        let gear9 = cl((hole?1.12:toHole) + jets + (c.burst-50)*0.004, 0.72, 1.5);
+        if (c._laneAimV109 != null && c.lx > TU("plantMinLx", -30) && Math.abs(laneY - c._laneAimV109) > TU("plantLaneDeltaPx", 24) && t >= (c._plantCoolV109||0)) {
+          const ddx = dirSign*TU("carryAimAhead", 56), ddy = laneY - c.y, dn = Math.hypot(ddx, ddy) || 1;
+          const dot = (c._dx == null ? dirSign : c._dx)*ddx/dn + (c._dy||0)*ddy/dn, deg = Math.round(Math.acos(cl(dot, -1, 1))*180/Math.PI);
+          c._gatherUntil = t + TU("plantGatherTicks", 2)*TICK; c._plantCoolV109 = t + TU("plantGapMs", 300);
+          c.burstUntil = Math.max(c.burstUntil||0, c._gatherUntil + TU("plantExitBurstMs", 100));   // the exit burst pays the gather back
+          emit("plant", { who: c.id, x: Math.round(c.lx), y: Math.round(c.y), fromY: Math.round(c._laneAimV109), toY: Math.round(laneY),
+            deg, hard: deg > TU("plantHardDeg", 40), vel: Math.round((c.vel||0)*100)/100 });
+        }
+        c._laneAimV109 = laneY;
+        if (c._gatherUntil && t < c._gatherUntil) gear9 *= TU("plantGatherMult", .8);
+        const carrot9 = TU("carryAimAhead", 56) * cl(TU("carrotBase", .55) + TU("carrotVelK", .75)*(c.vel||0), TU("carrotMin", .55), 1);
+        mv(c, c.lx + dirSign*carrot9, laneY, gear9);
         // A catch/return secured on the boundary is dead at that possession
         // point. It has no incoming carry segment this tick, so preserve the
         // exact spot explicitly instead of letting the runner turn back infield.
@@ -3910,6 +3943,27 @@ window.__visionRadiusV96 = visionRadiusV96;
         for (const a of chasers) { if (t<(a.beaten||0)||(a.trucked&&t<a.trucked+900)||(a.stunned&&t<a.stunned)||(a.lb==="DL"&&!a.shed)) continue;
           const g2=Math.hypot(a.lx-c.lx,a.y-c.y); if(g2<nearestGap){nearestGap=g2;nearestChaser=a;}
           if(!lastMan||a.lx*dirSign>lastMan.lx*dirSign) lastMan=a; }   // v30: the deepest live defender is the LAST MAN (v82: in the carrier's direction)
+        /* ===== v109 THE FEET PLANT — down men go down =====
+         * A trucked or pancaked man used to `continue` on the pixel he was flattened on for
+         * 900 / 1800ms and then resume at full pursuit — a freeze, then a teleport back into
+         * the play. He now slides a decaying downSlidePx along his overshoot vector (a trucked
+         * man on along the carrier's line, a pancaked one back the way he came) over the first
+         * downSlideMs, and the sim says so ONCE: `down {who, x, y, until, cause, dx, dy}` so the
+         * renderer can drop him with the fall frames, face him along the slide and have him
+         * off the turf at the same clock the sim does. He is still no one's tackler and still
+         * out of every read while he is down, so no outcome moves. */
+        const downSlideV109 = (d, cause, cc) => {
+          const t0 = cause === "truck" ? d.trucked : (d._stunAtV109 == null || d._stunAtV109 > t ? (d._stunAtV109 = t) : d._stunAtV109);
+          const until = cause === "truck" ? d.trucked + 900 : d.stunned;
+          if (d._downAnnV109 !== t0) { d._downAnnV109 = t0;
+            const vx = cause === "truck" ? (cc._dx||0) : -(d._dx||0), vy = cause === "truck" ? (cc._dy||0) : -(d._dy||0), vn = Math.hypot(vx, vy) || 1;
+            d._downDxV109 = vx/vn; d._downDyV109 = vy/vn;
+            emit("down", { who: d.id, x: Math.round(d.lx), y: Math.round(d.y), until: Math.round(until), cause,
+              dx: Math.round(d._downDxV109*100)/100, dy: Math.round(d._downDyV109*100)/100 }); }
+          const ms = TU("downSlideMs", 200), age = t - t0;
+          if (age < ms) { const k = (1 - age/ms) * TU("downSlidePx", 5) * 2 * TICK / ms;   // a slide that decays to nothing; its integral is downSlidePx
+            d.lx += d._downDxV109 * k; d.y = clampY(d.y + d._downDyV109 * k); }
+        };
         for (const dfd of chasers) {
           if (t < (dfd.beaten||0)) {
             // v29 OVERSHOOT: a beaten man doesn't freeze — his momentum carries him past
@@ -3918,8 +3972,8 @@ window.__visionRadiusV96 = visionRadiusV96;
               mv(dfd, dfd.lx + dfd._osdx*34, clampY(dfd.y + dfd._osdy*34), TU("overshootPace",1.0));
             continue;
           }
-          if (dfd.trucked && t < dfd.trucked + 900) continue;                 // flattened: he's on the ground
-          if (dfd.stunned && t < dfd.stunned) continue;                       // pancaked: on the ground
+          if (dfd.trucked && t < dfd.trucked + 900) { downSlideV109(dfd, "truck", c); continue; }     // flattened: he's on the ground (v109: sliding, then still)
+          if (dfd.stunned && t < dfd.stunned) { downSlideV109(dfd, "pancake", c); continue; }         // pancaked: on the ground
           for (const wblk of walls) {
             if (dfd === wblk.engagedBy) continue;
             if (Math.hypot(dfd.lx-wblk.lx, dfd.y-wblk.y) < 15) { dfd.y += (dfd.y > wblk.y ? 1 : -1) * 2.2; dfd.y = clampY(dfd.y); }
@@ -4032,7 +4086,12 @@ window.__visionRadiusV96 = visionRadiusV96;
           if (otherCommitted && gap < TU("supportHold",26) && gap > cmGap - 4) {
             // v29: support settles into a leverage spot a full stride off the tackle —
             // he's there to clean up a break, not to pile on. Solo stops stay solo.
-            mv(dfd, c.lx - (c._dx||0)*14, c.y + (dfd.y>c.y?8:-8), 0.3);
+            /* v109 THE FEET PLANT — the support FANS. Every support man aimed at one of two spots
+             * (fourteen back, eight either side) and they stacked on it. Each now holds on his OWN
+             * approach ray to the ball, at supportRayPx plus a stride per man, so three men in
+             * support are three men around the tackle, not one heap behind it. */
+            const ang9 = Math.atan2(dfd.y - c.y, dfd.lx - c.lx), r9 = TU("supportRayPx", 14) + (Math.max(0, chasers.indexOf(dfd)) % 3) * TU("supportRayStep", 6);
+            mv(dfd, c.lx + Math.cos(ang9)*r9, clampY(c.y + Math.sin(ang9)*r9), 0.3);
             continue;
           }
           let beatenPace = gap > 62 && c.spd > dfd.spd + 6 ? 0.9 : 1;
@@ -4050,6 +4109,11 @@ window.__visionRadiusV96 = visionRadiusV96;
           const farSide = Math.abs(dfd.y - c.y) > TU("farSideY", 150) && gap > 90 && dfd !== nearestChaser;
           if ((behindPlay || farSide) && !isLastMan) { beatenPace = Math.min(beatenPace, TU("jogPace", .55));
             if (!dfd._jogAnn) { dfd._jogAnn = 1; emit("effort", { who: dfd.id, kind: behindPlay ? "givesUp" : "jog", x: dfd.lx, y: dfd.y }); } }
+          // v109 THE FEET PLANT — the jog RESUMES. `_jogAnn` latched forever, so a man the play cut
+          // back into made the tackle in the jog animation. Once he is back in it (inside
+          // resumeGap, or the nearest man, or the last one) the latch clears and `effort
+          // {kind:"resume"}` goes out. The pace itself never read the latch; nothing moves.
+          else if (dfd._jogAnn && (gap < TU("resumeGap", 70) || dfd === nearestChaser || isLastMan)) { dfd._jogAnn = 0; emit("effort", { who: dfd.id, kind: "resume", x: dfd.lx, y: dfd.y }); }
           if (dfd.gas !== undefined && dfd.gas < TU("tiredGas", 35)) beatenPace *= TU("tiredPace", .92);
           // nearest pursuer kicks a sprint only to run DOWN a breakaway on a real
           // ANGLE (or when genuinely fast enough) — never a pure trailing footrace.
@@ -4241,6 +4305,15 @@ window.__visionRadiusV96 = visionRadiusV96;
     // moving and decelerates naturally for ~1 second after the play is blown dead.
     (function(){
       const downMan = carrier;
+      /* ===== v109 THE FEET PLANT — the coast =====
+       * Everyone braked at one global whistleBrakeScale, so a lineman stopped as fast as a
+       * corner; the tackled man slid along his knock-back or drive vector with `_dx/_dy` still
+       * pointing the way he had been running, so a man driven backward was drawn running
+       * forward. A per-position brake mass (brakeMassOL / DL / DB / Mid) scales the brake, and
+       * the down man's heading rotates onto the push over the first downTurnTicks. All of it is
+       * after the whistle: the spot is already booked. */
+      const BRAKE9 = { OL: ["brakeMassOL", .78], DL: ["brakeMassDL", .85], CB: ["brakeMassDB", 1.15], S: ["brakeMassDB", 1.15], WR: ["brakeMassDB", 1.15] };
+      const brakeMassV109 = a => { const b = BRAKE9[a.lb]; return b ? TU(b[0], b[1]) : TU("brakeMassMid", 1); };
       for (let ct = 0; ct < 30; ct++) {
         t += TICK;
         const ease = Math.max(0, 1 - ct/22);
@@ -4254,9 +4327,12 @@ window.__visionRadiusV96 = visionRadiusV96;
               a.lx += (a._drivedx||0)*s; a.y = clampY(a.y + (a._drivedy||0)*s); }
             if (a._kb > 0.5 && ct < 9) { const s = a._kb*Math.max(0,1-ct/8)*0.28;
               a.lx += (a._kbdx||0)*s; a.y = clampY(a.y + (a._kbdy||0)*s); }
+            if (ct < TU("downTurnTicks", 4) && (a._kb > 0.5 || a._drive > 0.3)) {   // v109: his heading turns onto the push
+              const px = a._kb > 0.5 ? (a._kbdx||0) : (a._drivedx||0), py = a._kb > 0.5 ? (a._kbdy||0) : (a._drivedy||0), k = (ct+1)/TU("downTurnTicks", 4);
+              const nx = (a._dx||0)*(1-k) + px*k, ny = (a._dy||0)*(1-k) + py*k, nn = Math.hypot(nx, ny) || 1; a._dx = nx/nn; a._dy = ny/nn; }
             return;                                        // then the tackled man stays down
           }
-          evolveSpeed(a,0,TICK,t,0,TU("whistleBrakeScale",.46));
+          evolveSpeed(a,0,TICK,t,0,TU("whistleBrakeScale",.46) * brakeMassV109(a));   // v109: the heavy men coast longer
           const v = Math.max(0,(a.vel||0)) * (a.spd||120) * ease * (TICK/1000) * 0.8;
           if (v > 0.15) { a.lx += (a._dx||0)*v; a.y = clampY(a.y + (a._dy||0)*v); }
           // v82 THE PILE: a second man arriving after the whistle adds his push — the
