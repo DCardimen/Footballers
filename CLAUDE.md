@@ -33,6 +33,26 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v109 THE BALL HAS A SPEED` / `v109 THE HIT HAS A POINT` / `v109 THE FEET PLANT` /
+  `v109 THE GAME HAS A CLOCK` — the realism suite. The throw is a RELEASE plus a VELOCITY
+  (`flightMsV101` rewritten, `ballVelV109`, `apexPxV109`, the arc derived from the hang and peaking
+  at `TU("arcApexFrac")`), the `throw` event carries `dur/vel/velMph/apex/wobble/platform/errDir`
+  and the picture spins and wobbles off them, a hurried miss is biased behind-and-short (the
+  MAGNITUDE distribution is untouched — that is what keeps `catchP`/`intP`/`swatP` still),
+  and a throwaway is a real thrown ball that can land out of bounds. Contact carries its own
+  geometry (`hitGeoV109`: `cid`, `ix/iy`, `nx/ny`, `impact`, `side` on every lunge and every event
+  that resolves it), the gang CONVERGES (`wrapInV109`), the pile keeps each joiner's approach
+  bearing and beats a `drag` while it travels, a strip runs a real loose-ball scramble to the
+  SAME pre-rolled recovery (`recoverV109`, `looseV109` off restores the old same-tick ending), and
+  a hard hit can bobble the ball with no possession change. The feet gather and PLANT before a cut
+  (`plantV109` looks ahead in the script), men lean into a turn and cross over instead of flipping
+  180° in a frame (`leanV109`/`faceAngV109`), a trucked man slides and gets up on a clock rather
+  than freezing on a pixel, support fans on its own approach rays, a jog RESUMES, and a hit leaves
+  a stumble. The game keeps a real clock: the extra point is its OWN row (`pushTryV109`, same rolls),
+  `clockStopped`/`secs`/`runoff`/`toLeft`/`period` ride every row, out-of-bounds is read from the
+  sim log first, the two-minute warning / period / coin-toss / timeout are rows, the flag is thrown,
+  announced and re-spotted, a spot inside a yard brings the chains, and punts, kicks and tacklers
+  finally have their numbers. **Score-neutral by construction** — `scoreneutralcheck.mjs` is the gate
 - `v108 THE EXCHANGE, AND WHICH WAY HE THROWS` — the rear throw is drawn twice, so a quarterback
   facing `up` picks the ARM instead of turning: `throwR_up*` for a target to his screen-right (the
   straight ball too), `throwL_up*` across the body to his left, inside `TU("throwDirConeDeg", 70)`
@@ -216,6 +236,11 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | which way the throw goes / the drawn handoff and pitch / which frames draw the ball (v108) | `v108check.mjs`, then `v107check.mjs`, `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `kitsidecheck.mjs` (LB), `v104check.mjs` |
 | the wordmark sheen / the camera flashes, lamps and sun on the hero (v107.1) | `sheencheck.mjs`, `heroflashcheck.mjs`, then `v102check.mjs`, `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the throw's facing / the release's timing / the dropback / the pre-snap stances (v107) | `v107check.mjs`, then `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `renderpathcheck.mjs`, `kitsidecheck.mjs` (LB) |
+| anything in the live sim's FEEL (contact, possession, ball speed, catching, tackling, the clock) | `scoreneutralcheck.mjs` FIRST (keep the before row), then the v109 checks below |
+| the throw's flight, arc, wobble or a throwaway (v109 A) | `v109Acheck.mjs`, then `v101check.mjs`, `v107check.mjs`, `v105check.mjs`, `simcheck.mjs` |
+| impact geometry, the gang, the pile, the loose fumble, the bobble (v109 C1) | `v109C1check.mjs`, then `v103check.mjs`, `tacklecheck.mjs`, `creditcheck.mjs`, `renderpathcheck.mjs` |
+| the plant, the lean, down men, pursuit pace, the stumble (v109 C2) | `v109C2check.mjs`, then `readcheck.mjs`, `jukecheck.mjs`, `tacklecheck.mjs`, `v86check.mjs` |
+| the clock, the try, timeouts, the flag, the chains, play descriptions (v109 D) | `v109Dcheck.mjs`, then `simcheck.mjs`, `postgamecheck.mjs`, `badgecheck.mjs`, `refcheck.mjs`, `walk.mjs` |
 | the deploy reaching a browser / the build meta / the one-time reload (v106.1) | `freshcheck.mjs` (no dev server), then `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the team kit on the menu pictures / the hero, continue-card and portrait masks (v106) | `python3 scripts/build-menu-art.py` (or the one `menu-kit-*.py`), then `menu-mask-check.mjs`, `menu-kit-shot.mjs` (look at the shots), `menu-integration-check.mjs`, `v102check.mjs`, `menushot.mjs` (`CAREER=1`) |
 | team emblems / palettes / identity | `emblemcheck.mjs` |
