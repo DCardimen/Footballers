@@ -2211,6 +2211,23 @@ window.__visionRadiusV96 = visionRadiusV96;
       if(a._dx!=null){
         const dot = dx*a._dx + dy*a._dy;
         turn=1-Math.max(-1,Math.min(1,dot));
+        /* ===== v109 THE FEET PLANT — the turn is EMITTED =====
+         * `turn` has been computed here since the sim was written and handed to evolveSpeed to
+         * bleed speed, but the renderer never heard about it: a hard change of direction reached
+         * the field as a slide between two keyframes. It goes out now, as `turn`, once per
+         * turnEmitGapMs per agent and only when he is actually moving (a stationary man
+         * re-aiming is not a turn, and neither is a man jittering across a spot he has reached:
+         * the target must be turnEmitMinPx off, and the new line must not be the one he was on
+         * two ticks ago — an A-B-A flip-flop is held still, a real reversal, which leaves that
+         * line, goes out — and a man another rule pins to his spot every tick, whom `mv` keeps
+         * re-aiming, has to have MOVED turnEmitMovePx over the last four ticks). `dir` is the
+         * sign of the swing across his old line. Nothing here changes the steering. */
+        const back9=a._pdx1==null?-1:dx*a._pdx1+dy*a._pdy1; a._pdx1=a._dx; a._pdy1=a._dy;   // the heading two ticks back, for the flip-flop test
+        if(a._posT9!==t){ a._posT9=t; const h=a._posH9||(a._posH9=[]); h.push(a.lx,a.y); if(h.length>8) h.splice(0,2); }
+        const moved9=a._posH9&&a._posH9.length>=8?Math.hypot(a.lx-a._posH9[0],a.y-a._posH9[1]):0;
+        if(turn>TU("turnEmitMin",.25)&&(a.vel||0)>.5&&d>TU("turnEmitMinPx",6)&&back9<TU("turnEmitBackDot",.5)&&moved9>=TU("turnEmitMovePx",4)&&t>=(a._turnEmitAt||0)){ a._turnEmitAt=t+TU("turnEmitGapMs",200);
+          emit("turn",{who:a.id,x:Math.round(a.lx),y:Math.round(a.y),deg:Math.round(Math.acos(Math.max(-1,1-turn))*180/Math.PI),
+            dir:(a._dx*dy-a._dy*dx)>=0?1:-1,vel:Math.round((a.vel||0)*100)/100}); }
         dx=dx*(1-carry)+a._dx*carry; dy=dy*(1-carry)+a._dy*carry; const n=Math.hypot(dx,dy)||1; dx/=n; dy/=n;
       }
       a._turnDemand=a._wantDx==null?0:1-Math.max(-1,Math.min(1,wantDx*a._wantDx+wantDy*a._wantDy));
@@ -4018,7 +4035,30 @@ window.__visionRadiusV96 = visionRadiusV96;
         const jets = (sprinting(c) ? SPRINT_BOOST : (t < (c.burstUntil||0) ? 0.10 : 0)) + catchStride;
         // v81: on a designed run the back has a running start to the hole — no jog to the line
         const toHole = kind === "run" && c.lx < -8 ? TU("backfieldPace", 1.0) : 0.9;
-        mv(c, c.lx + dirSign*TU("carryAimAhead", 56), laneY, cl((hole?1.12:toHole) + jets + (c.burst-50)*0.004, 0.72, 1.5));
+        /* ===== v109 THE FEET PLANT — the gather, the plant, the carrot that scales =====
+         * The back re-read his lane every laneHoldMs and `mv` steered into the new one at full
+         * gear the same tick, so a 60px jump between gaps looked like a slide. Now a lane that
+         * moves by more than plantLaneDeltaPx is a PLANT: he gathers for plantGatherTicks at
+         * plantGatherMult of his gear, the event goes out (`plant`, with where he was aiming and
+         * where he is aiming now, the angle of the change and whether it was a hard one), and
+         * the exit burst that follows (plantExitBurstMs of the ordinary +0.10 jet) gives the
+         * ground back, so the mean yard is where it was. The carrot he steers on scales with
+         * his gear: a man still gathering speed can turn tighter, so his aim point is closer
+         * and the curve into the lane is sharper — at top gear the carrot is the old 56px, so
+         * the forward component of every full-speed carry is unchanged. */
+        let gear9 = cl((hole?1.12:toHole) + jets + (c.burst-50)*0.004, 0.72, 1.5);
+        if (c._laneAimV109 != null && c.lx > TU("plantMinLx", -30) && Math.abs(laneY - c._laneAimV109) > TU("plantLaneDeltaPx", 24) && t >= (c._plantCoolV109||0)) {
+          const ddx = dirSign*TU("carryAimAhead", 56), ddy = laneY - c.y, dn = Math.hypot(ddx, ddy) || 1;
+          const dot = (c._dx == null ? dirSign : c._dx)*ddx/dn + (c._dy||0)*ddy/dn, deg = Math.round(Math.acos(cl(dot, -1, 1))*180/Math.PI);
+          c._gatherUntil = t + TU("plantGatherTicks", 2)*TICK; c._plantCoolV109 = t + TU("plantGapMs", 300);
+          c.burstUntil = Math.max(c.burstUntil||0, c._gatherUntil + TU("plantExitBurstMs", 100));   // the exit burst pays the gather back
+          emit("plant", { who: c.id, x: Math.round(c.lx), y: Math.round(c.y), fromY: Math.round(c._laneAimV109), toY: Math.round(laneY),
+            deg, hard: deg > TU("plantHardDeg", 40), vel: Math.round((c.vel||0)*100)/100 });
+        }
+        c._laneAimV109 = laneY;
+        if (c._gatherUntil && t < c._gatherUntil) gear9 *= TU("plantGatherMult", .8);
+        const carrot9 = TU("carryAimAhead", 56) * cl(TU("carrotBase", .55) + TU("carrotVelK", .75)*(c.vel||0), TU("carrotMin", .55), 1);
+        mv(c, c.lx + dirSign*carrot9, laneY, gear9);
         // A catch/return secured on the boundary is dead at that possession
         // point. It has no incoming carry segment this tick, so preserve the
         // exact spot explicitly instead of letting the runner turn back infield.
@@ -4081,6 +4121,27 @@ window.__visionRadiusV96 = visionRadiusV96;
         for (const a of chasers) { if (t<(a.beaten||0)||(a.trucked&&t<a.trucked+900)||(a.stunned&&t<a.stunned)||(a.lb==="DL"&&!a.shed)) continue;
           const g2=Math.hypot(a.lx-c.lx,a.y-c.y); if(g2<nearestGap){nearestGap=g2;nearestChaser=a;}
           if(!lastMan||a.lx*dirSign>lastMan.lx*dirSign) lastMan=a; }   // v30: the deepest live defender is the LAST MAN (v82: in the carrier's direction)
+        /* ===== v109 THE FEET PLANT — down men go down =====
+         * A trucked or pancaked man used to `continue` on the pixel he was flattened on for
+         * 900 / 1800ms and then resume at full pursuit — a freeze, then a teleport back into
+         * the play. He now slides a decaying downSlidePx along his overshoot vector (a trucked
+         * man on along the carrier's line, a pancaked one back the way he came) over the first
+         * downSlideMs, and the sim says so ONCE: `down {who, x, y, until, cause, dx, dy}` so the
+         * renderer can drop him with the fall frames, face him along the slide and have him
+         * off the turf at the same clock the sim does. He is still no one's tackler and still
+         * out of every read while he is down, so no outcome moves. */
+        const downSlideV109 = (d, cause, cc) => {
+          const t0 = cause === "truck" ? d.trucked : (d._stunAtV109 == null || d._stunAtV109 > t ? (d._stunAtV109 = t) : d._stunAtV109);
+          const until = cause === "truck" ? d.trucked + 900 : d.stunned;
+          if (d._downAnnV109 !== t0) { d._downAnnV109 = t0;
+            const vx = cause === "truck" ? (cc._dx||0) : -(d._dx||0), vy = cause === "truck" ? (cc._dy||0) : -(d._dy||0), vn = Math.hypot(vx, vy) || 1;
+            d._downDxV109 = vx/vn; d._downDyV109 = vy/vn;
+            emit("down", { who: d.id, x: Math.round(d.lx), y: Math.round(d.y), until: Math.round(until), cause,
+              dx: Math.round(d._downDxV109*100)/100, dy: Math.round(d._downDyV109*100)/100 }); }
+          const ms = TU("downSlideMs", 200), age = t - t0;
+          if (age < ms) { const k = (1 - age/ms) * TU("downSlidePx", 5) * 2 * TICK / ms;   // a slide that decays to nothing; its integral is downSlidePx
+            d.lx += d._downDxV109 * k; d.y = clampY(d.y + d._downDyV109 * k); }
+        };
         for (const dfd of chasers) {
           if (t < (dfd.beaten||0)) {
             // v29 OVERSHOOT: a beaten man doesn't freeze — his momentum carries him past
@@ -4089,8 +4150,8 @@ window.__visionRadiusV96 = visionRadiusV96;
               mv(dfd, dfd.lx + dfd._osdx*34, clampY(dfd.y + dfd._osdy*34), TU("overshootPace",1.0));
             continue;
           }
-          if (dfd.trucked && t < dfd.trucked + 900) continue;                 // flattened: he's on the ground
-          if (dfd.stunned && t < dfd.stunned) continue;                       // pancaked: on the ground
+          if (dfd.trucked && t < dfd.trucked + 900) { downSlideV109(dfd, "truck", c); continue; }     // flattened: he's on the ground (v109: sliding, then still)
+          if (dfd.stunned && t < dfd.stunned) { downSlideV109(dfd, "pancake", c); continue; }         // pancaked: on the ground
           for (const wblk of walls) {
             if (dfd === wblk.engagedBy) continue;
             if (Math.hypot(dfd.lx-wblk.lx, dfd.y-wblk.y) < 15) { dfd.y += (dfd.y > wblk.y ? 1 : -1) * 2.2; dfd.y = clampY(dfd.y); }
@@ -4203,7 +4264,12 @@ window.__visionRadiusV96 = visionRadiusV96;
           if (otherCommitted && gap < TU("supportHold",26) && gap > cmGap - 4) {
             // v29: support settles into a leverage spot a full stride off the tackle —
             // he's there to clean up a break, not to pile on. Solo stops stay solo.
-            mv(dfd, c.lx - (c._dx||0)*14, c.y + (dfd.y>c.y?8:-8), 0.3);
+            /* v109 THE FEET PLANT — the support FANS. Every support man aimed at one of two spots
+             * (fourteen back, eight either side) and they stacked on it. Each now holds on his OWN
+             * approach ray to the ball, at supportRayPx plus a stride per man, so three men in
+             * support are three men around the tackle, not one heap behind it. */
+            const ang9 = Math.atan2(dfd.y - c.y, dfd.lx - c.lx), r9 = TU("supportRayPx", 14) + (Math.max(0, chasers.indexOf(dfd)) % 3) * TU("supportRayStep", 6);
+            mv(dfd, c.lx + Math.cos(ang9)*r9, clampY(c.y + Math.sin(ang9)*r9), 0.3);
             continue;
           }
           let beatenPace = gap > 62 && c.spd > dfd.spd + 6 ? 0.9 : 1;
@@ -4221,6 +4287,11 @@ window.__visionRadiusV96 = visionRadiusV96;
           const farSide = Math.abs(dfd.y - c.y) > TU("farSideY", 150) && gap > 90 && dfd !== nearestChaser;
           if ((behindPlay || farSide) && !isLastMan) { beatenPace = Math.min(beatenPace, TU("jogPace", .55));
             if (!dfd._jogAnn) { dfd._jogAnn = 1; emit("effort", { who: dfd.id, kind: behindPlay ? "givesUp" : "jog", x: dfd.lx, y: dfd.y }); } }
+          // v109 THE FEET PLANT — the jog RESUMES. `_jogAnn` latched forever, so a man the play cut
+          // back into made the tackle in the jog animation. Once he is back in it (inside
+          // resumeGap, or the nearest man, or the last one) the latch clears and `effort
+          // {kind:"resume"}` goes out. The pace itself never read the latch; nothing moves.
+          else if (dfd._jogAnn && (gap < TU("resumeGap", 70) || dfd === nearestChaser || isLastMan)) { dfd._jogAnn = 0; emit("effort", { who: dfd.id, kind: "resume", x: dfd.lx, y: dfd.y }); }
           if (dfd.gas !== undefined && dfd.gas < TU("tiredGas", 35)) beatenPace *= TU("tiredPace", .92);
           // nearest pursuer kicks a sprint only to run DOWN a breakaway on a real
           // ANGLE (or when genuinely fast enough) — never a pure trailing footrace.
@@ -4412,6 +4483,15 @@ window.__visionRadiusV96 = visionRadiusV96;
     // moving and decelerates naturally for ~1 second after the play is blown dead.
     (function(){
       const downMan = carrier;
+      /* ===== v109 THE FEET PLANT — the coast =====
+       * Everyone braked at one global whistleBrakeScale, so a lineman stopped as fast as a
+       * corner; the tackled man slid along his knock-back or drive vector with `_dx/_dy` still
+       * pointing the way he had been running, so a man driven backward was drawn running
+       * forward. A per-position brake mass (brakeMassOL / DL / DB / Mid) scales the brake, and
+       * the down man's heading rotates onto the push over the first downTurnTicks. All of it is
+       * after the whistle: the spot is already booked. */
+      const BRAKE9 = { OL: ["brakeMassOL", .78], DL: ["brakeMassDL", .85], CB: ["brakeMassDB", 1.15], S: ["brakeMassDB", 1.15], WR: ["brakeMassDB", 1.15] };
+      const brakeMassV109 = a => { const b = BRAKE9[a.lb]; return b ? TU(b[0], b[1]) : TU("brakeMassMid", 1); };
       for (let ct = 0; ct < 30; ct++) {
         t += TICK;
         const ease = Math.max(0, 1 - ct/22);
@@ -4425,9 +4505,12 @@ window.__visionRadiusV96 = visionRadiusV96;
               a.lx += (a._drivedx||0)*s; a.y = clampY(a.y + (a._drivedy||0)*s); }
             if (a._kb > 0.5 && ct < 9) { const s = a._kb*Math.max(0,1-ct/8)*0.28;
               a.lx += (a._kbdx||0)*s; a.y = clampY(a.y + (a._kbdy||0)*s); }
+            if (ct < TU("downTurnTicks", 4) && (a._kb > 0.5 || a._drive > 0.3)) {   // v109: his heading turns onto the push
+              const px = a._kb > 0.5 ? (a._kbdx||0) : (a._drivedx||0), py = a._kb > 0.5 ? (a._kbdy||0) : (a._drivedy||0), k = (ct+1)/TU("downTurnTicks", 4);
+              const nx = (a._dx||0)*(1-k) + px*k, ny = (a._dy||0)*(1-k) + py*k, nn = Math.hypot(nx, ny) || 1; a._dx = nx/nn; a._dy = ny/nn; }
             return;                                        // then the tackled man stays down
           }
-          evolveSpeed(a,0,TICK,t,0,TU("whistleBrakeScale",.46));
+          evolveSpeed(a,0,TICK,t,0,TU("whistleBrakeScale",.46) * brakeMassV109(a));   // v109: the heavy men coast longer
           const v = Math.max(0,(a.vel||0)) * (a.spd||120) * ease * (TICK/1000) * 0.8;
           if (v > 0.15) { a.lx += (a._dx||0)*v; a.y = clampY(a.y + (a._dy||0)*v); }
           // v82 THE PILE: a second man arriving after the whistle adds his push — the
@@ -6505,6 +6588,7 @@ class Ot extends mt.Scene {
       this.resolveOverlaps();
       this.qbTickV86(P);   // v86: dropback, hitch, tuck
       this.windupV107(P);   // v107: the arm starts four frames before the ball leaves
+      this.plantV109(P);   // v109: and the feet plant before the cut
       this.exchangeV108(P);   // v108: and the reach two frames before the ball changes hands
       // v10: live yardage ticker rides the carrier, counting up as he earns it
       if (P.carrierId != null && this.markers[P.carrierId] && !P.ydDone && P.losX != null) {
@@ -7097,6 +7181,38 @@ class Ot extends mt.Scene {
    * the six frames need) and FieldSim — the path that renders ~9 plays in 10 — emits none at
    * all, so the QB never wound up on it. Both now go through one lookahead into the script's
    * own `throw`, back-dated so frame 4 is drawn the tick the ball leaves. */
+  /* ===== v109 THE FEET PLANT — the renderer looks ahead for the cut =====
+   * The script is built before playback, so the field can see a cut coming the way v107 sees a
+   * throw. Two to three keyframes ahead of every running man, the heading of his own recorded
+   * path is compared with the heading he is on now; a swing past plantLookRad schedules the
+   * registered-and-never-used `plant_<dd>` frame for plantMs with the run cadence stalled, and
+   * the ordinary cut skid then takes over the moment the heading actually changes — so the
+   * picture is plant, cut, drive instead of a slide between two frames. The sim's own `plant`
+   * and `turn` events feed the same gate. `window.__V109_C2` is what the check reads. */
+  hookV109() {
+    return window.__V109_C2 || (window.__V109_C2 = { plants: 0, plantBy: {}, plantFrames: 0, lastPlant: null, turns: 0, downs: 0, downFalls: 0, jogs: 0, resumes: 0, jogFrames: 0,
+      leans: { max: 0, n: 0 }, stumbles: 0, stumbleFrames: 0, face: { max: 0, flips: 0, steps: 0, n: 0 }, arms: { L: 0, R: 0 }, hurdleH: [] });
+  }
+  plantV109(P) {
+    if (!P || !P.script || !TU("plantV109", 1) || P.t < (P.delay || 0)) return;
+    const S = P.script, T = Math.max(0, P.t - (P.delay || 0)), i0 = Math.floor(T / 33), look = Math.max(2, TU("plantLookFrames", 3)), thr = TU("plantLookRad", .9), minPx = TU("plantLookMinPx", 1.6);
+    if (!S.actors || i0 < 1) return;
+    S.actors.forEach((a, k) => {
+      const m = this.markers[k], f = a && a.frames;
+      if (!m || !m.root || m.forceState || m.isLine || !f || i0 + look >= f.length || m.tms < (m._plantCoolV109 || 0)) return;
+      const A = f[i0 - 1], B = f[i0], C = f[i0 + look - 1], D = f[i0 + look];
+      const p0 = PJ(A.x, A.y), p1 = PJ(B.x, B.y), p2 = PJ(C.x, C.y), p3 = PJ(D.x, D.y);
+      const v0x = p1.x - p0.x, v0y = p1.y - p0.y, v1x = p3.x - p2.x, v1y = p3.y - p2.y;
+      if (Math.hypot(v0x, v0y) < minPx || Math.hypot(v1x, v1y) < minPx) return;   // both legs of the path must be a moving man
+      let d = Math.abs(Math.atan2(v1y, v1x) - Math.atan2(v0y, v0x)); if (d > Math.PI) d = 2 * Math.PI - d;
+      if (d >= thr) this.plantMarkerV109(m, "look", d);
+    });
+  }
+  plantMarkerV109(m, src, rad) {
+    const ms = TU("plantMs", 120), H = this.hookV109();
+    m._plantUntilV109 = m.tms + ms; m._plantCoolV109 = m.tms + ms + TU("plantCoolMs", 260); m._plantSrcV109 = src;
+    H.plants++; H.plantBy[src] = (H.plantBy[src] || 0) + 1; H.lastPlant = { src, rad: rad == null ? null : Math.round(rad * 100) / 100, t: Math.round(m.tms), who: m.num };
+  }
   windupV107(P) {
     if (!P || !P.script || !TU("windupV107", 1)) return;
     const S = P.script, T = Math.max(0, P.t - (P.delay || 0));
@@ -7405,6 +7521,32 @@ class Ot extends mt.Scene {
         this.slowMoment(P);
         REDUCED_MOTION || this.cameras.main.shake(140, 0.005); break;
       }
+      /* ===== v109 THE FEET PLANT — the sim's plant, turn, down and effort ===== */
+      case "plant": { const m = this.markers[this.actorIdx(e.who)];
+        if (m && !m.forceState && !(m._plantUntilV109 > m.tms)) this.plantMarkerV109(m, "sim", e.deg != null ? e.deg * Math.PI / 180 : null); break; }
+      case "turn": { const m = this.markers[this.actorIdx(e.who)]; this.hookV109().turns++;
+        if (m && !m.forceState && !m.isLine && (e.deg || 0) >= TU("turnPlantDeg", 60) && !(m._plantUntilV109 > m.tms)) this.plantMarkerV109(m, "turn", (e.deg || 0) * Math.PI / 180); break; }
+      case "down": {
+        // he goes DOWN: the fall frame facing along his slide, the turf until the sim's own clock, and
+        // the existing get-up takes him off it. A man the truck or the pancake already dropped keeps
+        // that fall; only the clock is set
+        const m = this.markers[this.actorIdx(e.who)], H = this.hookV109(); H.downs++;
+        if (m && m.root) {
+          const fallMs = TU("fallMs", 160), untilMs = Math.max(fallMs + 120, (e.until || 0) - (e.t || 0));
+          m._downUntilV109 = m.tms + untilMs; m._downCauseV109 = e.cause;
+          if (!m.forceState || m.forceState === "grab") { H.downFalls++; this.unpair(this.actorIdx(e.who));
+            if (e.dx != null) { const a = PJ(m.sx, m.sy), b = PJ(m.sx + e.dx * 10, m.sy + (e.dy || 0) * 10); this.faceMarker(m, b.x - a.x, b.y - a.y); }
+            m.forceState = "fall"; m._lean = 0; m._leanSrc = null; m._leanV109 = 0;
+            this.time.delayedCall(fallMs, () => { if (m.forceState === "fall") m.forceState = null; }); }   // then cadenceV109 holds "down" to the clock
+          this.time.delayedCall(untilMs, () => { if (m.forceState === "down") m.forceState = null; });
+        }
+        break; }
+      case "effort": {
+        // a real case at last: the jog is a slowed cycle, the man who gave up walks, and `resume`
+        // puts the full cadence back the moment the play comes back to him
+        const m = this.markers[this.actorIdx(e.who)], H = this.hookV109();
+        if (m) { m._effortV109 = e.kind === "resume" ? null : e.kind; if (e.kind === "resume") H.resumes++; else H.jogs++; }
+        break; }
       case "cut": {
         const isSpin = e.kind === "spin";
         this.popText(e.x, e.y - 22, isSpin ? "SPIN!" : "JUKE!", "#8fe7ff", 14);
@@ -7435,6 +7577,11 @@ class Ot extends mt.Scene {
         const carrier = this.markers[P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier)];
         if(carrier){carrier.forceState="stiffSeq";carrier.seqT=carrier.tms;}
         const tk = this.markers[this.actorIdx(e.who)];
+        // v109: the ARM is the side he came from (`e.side`, or where the two of them stand): the
+        // carrier leans into the shove, the tackler is thrown down facing away from it
+        const sa9 = this.sideV109(e, carrier, tk); this.hookV109().arms[sa9 > 0 ? "R" : "L"]++;
+        if (carrier) { carrier._lean = sa9 * TU("stiffLean", .14); carrier._leanSrc = "stiff"; this.time.delayedCall(300, () => { if (carrier._leanSrc === "stiff") { carrier._leanSrc = null; carrier._lean = 0; } }); }
+        if (tk && tk.dirKey !== "up" && tk.dirKey !== "dn") tk.flip = sa9 > 0;
         if (tk) { tk.forceState = "grab";
           this.time.delayedCall(160, () => { if (tk.active !== false) tk.forceState = "down"; });
           this.time.delayedCall(760, () => { if (tk.forceState === "down") tk.forceState = null; }); }
@@ -7449,7 +7596,9 @@ class Ot extends mt.Scene {
         const tk = this.markers[this.actorIdx(e.who)];
         if (tk) { tk.forceState = "grab"; this.time.delayedCall(300, () => { if (tk.forceState === "grab") tk.forceState = null; }); }
         const cm3 = this.markers[P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier)];
-        if (cm3) this.tweens.add({ targets: cm3.body, scaleX: 0.78, angle: (Math.random()<0.5?-8:8), yoyo: true, duration: 110 });
+        // v109: the stumble — a broken stride on the hurt frames at half cadence, leaning AWAY from
+        // the arm that grazed him, then the run comes back
+        if (cm3) { this.stumbleV109(cm3, this.sideV109(e, cm3, tk), TU("stumbleMs", 250)); this.tweens.add({ targets: cm3.body, scaleX: 0.78, yoyo: true, duration: 110 }); }
         this.popText(e.x, e.y - 20, "SHAKES IT OFF!", "#bfe3ae", 12);
         this.puffFx(e.x, e.y, 1);
         break;
@@ -7569,8 +7718,12 @@ class Ot extends mt.Scene {
       case "hurdle": {
         // v18: the carrier LEAPS clean over a low tackle attempt — big airborne arc
         const hm = this.markers[this.actorIdx(e.carrier)];
-        if (hm) { hm.forceState="hurdleSeq"; hm.seqT=hm.tms; hm._launchT0 = hm.tms; hm._launchUntil = hm.tms + 460; hm._launchH = 24; }
+        // v109: how HIGH he goes is the sim's clearance (the spring he had over the wrap); the man
+        // under him dives on toward the side he came from
+        const cl9 = typeof e.clearance === "number" ? Math.max(0, Math.min(1, (e.clearance + 12) / 40)) : 0.6, h9 = Math.round(TU("hurdleHMin", 16) + (TU("hurdleHMax", 30) - TU("hurdleHMin", 16)) * cl9);
+        if (hm) { hm.forceState="hurdleSeq"; hm.seqT=hm.tms; hm._launchT0 = hm.tms; hm._launchUntil = hm.tms + 460; hm._launchH = h9; const HH = this.hookV109().hurdleH; HH.push(h9); if (HH.length > 24) HH.shift(); }
         const htk = this.markers[this.actorIdx(e.who)];
+        if (htk && htk.dirKey !== "up" && htk.dirKey !== "dn") htk.flip = this.sideV109(e, hm, htk) < 0;
         if (htk) { htk.forceState = "dive"; this.time.delayedCall(220, () => { if (htk.active !== false) htk.forceState = "down"; });
           this.time.delayedCall(820, () => { if (htk.forceState === "down") htk.forceState = null; }); }
         this.popText(e.x, e.y - 26, "HURDLED!", "#8fe7ff", 14);
@@ -7834,6 +7987,8 @@ class Ot extends mt.Scene {
       case "contact": {
         const m = this.markers[P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier)];
         if (m) this.tweens.add({ targets: m.body, scaleX: 0.8, yoyo: true, duration: 90 });
+        // v109: contact he runs through still breaks the stride — a short stumble away from it
+        if (m && !m.forceState && !m._stumbleV109) this.stumbleV109(m, this.sideV109(e, m, this.markers[this.actorIdx(e.by)]), TU("contactStumbleMs", 160));
         break;
       }
       case "pancake": {
@@ -7919,7 +8074,7 @@ class Ot extends mt.Scene {
         this.popText(e.x, e.y - 22, "STUNT — HE'S FREE!", "#ffb08a", 13); break; }
       case "stuntPassOff": this.puffFx(e.x, e.y, 1, 0xd8e6da, 0.35); break;
       case "spyAttack": { const m = this.markers[this.actorIdx(e.who)]; if (m && m.team === "you") this.popText(e.x, e.y - 22, "SPY — GO!", "#8fe7ff", 12); break; }
-      case "spy": case "protection": case "disguise": case "effort": case "comeback": case "boxOut": case "press": break;
+      case "spy": case "protection": case "disguise": case "comeback": case "boxOut": case "press": break;
       case "chip": { this.pairUp(this.actorIdx(e.who), this.actorIdx(e.on)); this.time.delayedCall(560, () => this.unpair(this.actorIdx(e.who))); break; }
       case "rotate": { const m = this.markers[this.actorIdx(e.who)]; if (m) this.popText(e.x, e.y - 24, "ROTATES DOWN", "#8ec3ee", 11); break; }
       case "fooled": this.popText(e.x, e.y - 24, "DISGUISED!", "#ff9a9a", 12); break;
@@ -7930,6 +8085,10 @@ class Ot extends mt.Scene {
       case "swat": { const m = this.markers[this.actorIdx(e.by)]; if (m) { m.forceState = null; m.cutUntil = m.tms + 200; }
         this.flash(e.x, e.y, 0xffffff); this.popText(e.x, e.y - 22, "SWATTED AWAY!", "#f7e2a8", 14); break; }
       case "bounce": { const tk = this.markers[this.actorIdx(e.who)]; if (tk) { tk.forceState = null; tk.cutUntil = tk.tms + 320; }
+        // v109: the man who bounced off staggers away from the body he bounced off; the carrier is jarred
+        const cb9 = this.markers[this.actorIdx(e.carrier)];
+        if (tk) this.stumbleV109(tk, this.sideV109(e.side == null ? e : {}, tk, cb9), TU("stumbleMs", 250) + 80);
+        if (cb9 && !cb9.forceState && !cb9._stumbleV109 && !e.glancing) this.stumbleV109(cb9, this.sideV109(e, cb9, tk), TU("contactStumbleMs", 160));
         this.puffFx(e.x, e.y, 2); this.popText(e.x, e.y - 22, "BOUNCES OFF!", "#8fe7ff", 13); break; }
       case "pilePush": this.puffFx(e.x, e.y, 1, 0xd8e6da, 0.4); break;
       case "snapCatch": { P.carrierId = this.actorIdx(e.by); P.ballHolderId = P.carrierId; P.ballMode = "held"; break; }
@@ -8671,6 +8830,81 @@ class Ot extends mt.Scene {
     else if (dy > 0) { m.dirKey = "dr"; m.flip = dx > 0; }      // down diagonals
     else { m.dirKey = "ur"; m.flip = dx > 0; }                  // up diagonals
   }
+  /* ===== v109 THE FEET PLANT — he leans into it, the facing turns through the crossover =====
+   * `m._lean` was drawn every frame (`body.setRotation`) and set only for the QB's tuck and the
+   * drag. `leanV109` gives every running man one: the signed rate of his motion heading,
+   * smoothed, leans him INTO the turn (the horizontal component of the centripetal direction,
+   * so a man running up the screen who bends right tips right) up to leanMax and decays back
+   * upright at leanDecay. It never overrides a lean someone else set — a tuck, a drag, a
+   * stumble (`m._leanSrc`) — and hands the rotation back to zero when it is done. The drawn
+   * facing is rate-limited here too: `faceMarker` quantises to eight buckets with no memory,
+   * so a 180° reversal flipped in one frame; a running man's facing now steps at most
+   * faceStepRad a frame, so the reversal passes through the side profile — the crossover. */
+  faceAngV109(m) {
+    const k = m.dirKey;
+    return k === "sd" ? (m.flip ? 0 : Math.PI) : k === "up" ? -Math.PI / 2 : k === "dn" ? Math.PI / 2
+      : k === "ur" ? (m.flip ? -Math.PI / 4 : -3 * Math.PI / 4) : (m.flip ? Math.PI / 4 : 3 * Math.PI / 4);
+  }
+  leanV109(m, dtms, spdPx, lineLocked, engaged, hd) {
+    const dt = Math.max(1, dtms || 16) / 1000, H = this.hookV109();
+    const wrap = d => { while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+    const running = !m.forceState && !lineLocked && !engaged && !m._dropback && !m._lookAt && spdPx > 34;
+    if (running && m._faceAngV109 != null && TU("faceStepV109", 1)) {
+      const step = wrap(this.faceAngV109(m) - m._faceAngV109), cap = TU("faceStepRad", 1.6);
+      if (Math.abs(step) > cap) {   // too far for one frame: draw the bucket part-way round and finish next frame
+        const sgn = Math.abs(Math.abs(step) - Math.PI) < 1e-6 ? ((m._hdRateV109 || 0) >= 0 ? 1 : -1) : Math.sign(step);
+        const mid = m._faceAngV109 + sgn * cap; this.faceMarker(m, Math.cos(mid), Math.sin(mid)); H.face.steps++; }
+      const drawn = Math.abs(wrap(this.faceAngV109(m) - m._faceAngV109));
+      H.face.n++; H.face.max = Math.max(H.face.max, Math.round(drawn * 1000) / 1000); if (drawn > 2.6) H.face.flips++;
+      m._faceStepMaxV109 = Math.max(m._faceStepMaxV109 || 0, drawn);   // per marker, for the check
+    }
+    m._faceAngV109 = this.faceAngV109(m);
+    // the heading rate, off the motion heading placeMarker just measured
+    const sm = TU("leanSmooth", .7);
+    if (m._hdPrevV109 != null && hd != null && spdPx > 30) m._hdRateV109 = (m._hdRateV109 || 0) * sm + (wrap(hd - m._hdPrevV109) / dt) * (1 - sm);
+    else m._hdRateV109 = (m._hdRateV109 || 0) * sm;
+    if (spdPx > 4) m._hdPrevV109 = hd;
+    const foreign = m._leanSrc != null ? m._leanSrc !== "turn" : ((m._lean || 0) !== 0 && (m._lean || 0) !== (m._leanV109 || 0));
+    if (foreign) { m._leanV109 = 0; return; }           // a tuck, a drag or a stumble owns the lean
+    const lim = TU("leanMax", .28);
+    const target = m.forceState || spdPx < 30 || hd == null ? 0 : Math.max(-lim, Math.min(lim, -Math.sin(hd) * (m._hdRateV109 || 0) * TU("leanK", .05)));
+    let L = (m._leanV109 || 0) + (target - (m._leanV109 || 0)) * Math.min(1, dt * TU("leanDecay", 9));
+    if (target === 0 && Math.abs(L) < 0.004) L = 0;
+    m._lean = L; m._leanV109 = L; m._leanSrc = L === 0 ? null : "turn";
+    if (L !== 0) { H.leans.n++; H.leans.max = Math.max(H.leans.max, Math.round(Math.abs(L) * 1000) / 1000); }
+  }
+  /* the run cadence's special cases: the plant (the feet stop, the cycle stalls), the stumble (the
+   * hurt frames at half cadence), the jog and the man who gave up (a slowed cycle, the walk) */
+  cadenceV109(m, dtms) {
+    const dt = dtms || 16, H = this.hookV109();
+    if (m._plantUntilV109 > m.tms) { H.plantFrames++; return "plant"; }
+    if (m._downUntilV109 > m.tms && m.sSm < TU("downHoldSpd", 14)) return "down";   // the sim's clock keeps him on the turf
+    const SB = m._stumbleV109;
+    if (SB) {
+      if (m.tms >= SB.until) { m._stumbleV109 = null; if (m._leanSrc === "stumble") { m._leanSrc = null; m._lean = 0; m._leanV109 = 0; } }
+      else if (m.sSm >= 8) { m.ft += dt * Math.min(2.4, m.sSm / 58) * TU("stumbleCadence", .5); H.stumbleFrames++;
+        return "hurt" + (Math.floor((m.tms - SB.t0) / Math.max(40, TU("stumbleMs", 250) / 2)) % 2); }
+    }
+    const E = m._effortV109;
+    if (E && m.sSm >= 8 && m.tms >= m.cutUntil) { H.jogFrames++;
+      if (E === "givesUp") { m.ft += dt; return "walk" + (Math.floor(m.ft / TU("walkFrameMs", 190)) % 2); }
+      m.ft += dt * Math.min(2.4, m.sSm / 58) * TU("jogCadence", .65); return "run" + (Math.floor(m.ft / 96) % (window.__RIB_FRAMES || 4)); }
+    return null;
+  }
+  /* which side the contact came from, in SCREEN x: the sim's `side` (C1: +1 when the defender is
+   * on the carrier's low-y side) mapped through the projection, or the two markers themselves */
+  sideV109(e, m, other) {
+    let sgn = null;
+    if (m && m.root && (e.side === 1 || e.side === -1)) { const a = PJ(m.sx, m.sy), b = PJ(m.sx, m.sy - e.side * 10); sgn = Math.sign(b.x - a.x) || null; }
+    if (sgn == null && m && m.root && other && other.root) sgn = Math.sign(PJ(other.sx, other.sy).x - PJ(m.sx, m.sy).x) || null;
+    return sgn || (Math.random() < .5 ? -1 : 1);
+  }
+  stumbleV109(m, sideSgn, ms) {
+    if (!m || !m.root) return;
+    const H = this.hookV109(); H.stumbles++;
+    m._stumbleV109 = { t0: m.tms, until: m.tms + (ms || TU("stumbleMs", 250)), side: sideSgn };
+    m._lean = -sideSgn * TU("stumbleLean", .22); m._leanSrc = "stumble"; m._leanV109 = 0;   // knocked AWAY from the contact
+  }
   /* ===== v105.2 THE KIT FOLLOWS THE TEAM =====
    * The kits are registered by PALETTE — "off" is the user's team's colours, "def" the
    * opponent's — but every marker was dressed by its SIDE (`a.side === "off" ? "off" : "def"`),
@@ -8779,6 +9013,7 @@ class Ot extends mt.Scene {
     if (m.hd != null && spdPx > 30 && !lineLocked) { let d = Math.abs(hd - m.hd); if (d > Math.PI) d = 2 * Math.PI - d;
       if (d > 0.9) { if (m.tms >= m.cutUntil) cutSkid = true; m.cutUntil = m.tms + 160; } }
     if (spdPx > 4) m.hd = hd;
+    this.leanV109(m, dtms, spdPx, lineLocked, engaged, m.hd);   // v109: the lean, and the facing's rate
     let st;
     if (m.forceState) {
       st = m.forceState;
@@ -8828,6 +9063,7 @@ class Ot extends mt.Scene {
         if (st.indexOf("getup") === 0 || st.indexOf("celebrate") === 0) { const V = (window.__V91 = window.__V91 || {}); V[st.indexOf("getup") === 0 ? "getupFrames" : "celebrateFrames"] = (V[st.indexOf("getup") === 0 ? "getupFrames" : "celebrateFrames"] || 0) + 1; }
       }
     }
+    else if ((st = this.cadenceV109(m, dtms)) != null) {}   // v109: the plant, the stumble, the jog
     else if (m.tms < m.cutUntil) st = "cut";
     else if (m.sSm < 8) st = "idle";
     else { m.ft += (dtms || 16) * Math.min(2.4, m.sSm / 58); st = "run" + (Math.floor(m.ft / 96) % (window.__RIB_FRAMES || 4)); }
