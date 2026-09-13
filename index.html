@@ -2180,9 +2180,16 @@ window.__visionRadiusV96 = visionRadiusV96;
          * bleed speed, but the renderer never heard about it: a hard change of direction reached
          * the field as a slide between two keyframes. It goes out now, as `turn`, once per
          * turnEmitGapMs per agent and only when he is actually moving (a stationary man
-         * re-aiming is not a turn). `dir` is the sign of the swing across his old line. Nothing
-         * here changes the steering. */
-        if(turn>TU("turnEmitMin",.25)&&(a.vel||0)>.5&&t>=(a._turnEmitAt||0)){ a._turnEmitAt=t+TU("turnEmitGapMs",200);
+         * re-aiming is not a turn, and neither is a man jittering across a spot he has reached:
+         * the target must be turnEmitMinPx off, and the new line must not be the one he was on
+         * two ticks ago — an A-B-A flip-flop is held still, a real reversal, which leaves that
+         * line, goes out — and a man another rule pins to his spot every tick, whom `mv` keeps
+         * re-aiming, has to have MOVED turnEmitMovePx over the last four ticks). `dir` is the
+         * sign of the swing across his old line. Nothing here changes the steering. */
+        const back9=a._pdx1==null?-1:dx*a._pdx1+dy*a._pdy1; a._pdx1=a._dx; a._pdy1=a._dy;   // the heading two ticks back, for the flip-flop test
+        if(a._posT9!==t){ a._posT9=t; const h=a._posH9||(a._posH9=[]); h.push(a.lx,a.y); if(h.length>8) h.splice(0,2); }
+        const moved9=a._posH9&&a._posH9.length>=8?Math.hypot(a.lx-a._posH9[0],a.y-a._posH9[1]):0;
+        if(turn>TU("turnEmitMin",.25)&&(a.vel||0)>.5&&d>TU("turnEmitMinPx",6)&&back9<TU("turnEmitBackDot",.5)&&moved9>=TU("turnEmitMovePx",4)&&t>=(a._turnEmitAt||0)){ a._turnEmitAt=t+TU("turnEmitGapMs",200);
           emit("turn",{who:a.id,x:Math.round(a.lx),y:Math.round(a.y),deg:Math.round(Math.acos(Math.max(-1,1-turn))*180/Math.PI),
             dir:(a._dx*dy-a._dy*dx)>=0?1:-1,vel:Math.round((a.vel||0)*100)/100}); }
         dx=dx*(1-carry)+a._dx*carry; dy=dy*(1-carry)+a._dy*carry; const n=Math.hypot(dx,dy)||1; dx/=n; dy/=n;
@@ -8494,6 +8501,7 @@ class Ot extends mt.Scene {
         const mid = m._faceAngV109 + sgn * cap; this.faceMarker(m, Math.cos(mid), Math.sin(mid)); H.face.steps++; }
       const drawn = Math.abs(wrap(this.faceAngV109(m) - m._faceAngV109));
       H.face.n++; H.face.max = Math.max(H.face.max, Math.round(drawn * 1000) / 1000); if (drawn > 2.6) H.face.flips++;
+      m._faceStepMaxV109 = Math.max(m._faceStepMaxV109 || 0, drawn);   // per marker, for the check
     }
     m._faceAngV109 = this.faceAngV109(m);
     // the heading rate, off the motion heading placeMarker just measured
