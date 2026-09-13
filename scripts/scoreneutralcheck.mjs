@@ -3,6 +3,9 @@
 // (points, plays, yards, completion %, ypc, sacks, turnovers, punts, FGs). Run before and after a
 // change and diff: `GAMES=300 node scripts/scoreneutralcheck.mjs > before.json`.
 // Env: GAMES (default 200), POS (default cycles QB/RB/WR/DL/CB), OUT (write JSON to file), GAME_URL.
+// v109: `snaps` counts the rows that are plays from scrimmage or kicks — the header-like rows (toss, period, warning,
+// timeout) and the try rows (xp, twopt) that v109 added inflate `plays`/`scrim` by design; compare `snaps` to the
+// pre-v109 `scrim` (80.4 ±2 on the 300-game baseline).
 import { chromium } from 'playwright'
 import { writeFileSync } from 'fs'
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
@@ -11,7 +14,9 @@ const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto(process.env.GAME_URL || 'http://localhost:5173/', { waitUntil: 'commit', timeout: 30000 })
+const URL = process.env.GAME_URL || 'http://localhost:5173/'
+await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
+await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(2500)   // v109: warm past vite's one-time reload after an edit, like the other checks
 await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 })
 await page.waitForTimeout(500)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
@@ -28,7 +33,7 @@ for (const s of ["START NEW CAREER","ARCH","QB Quarterback","Lock In Personality
 const N = Math.max(1, Number(process.env.GAMES || 200))
 const POS = process.env.POS || ''
 const res = await page.evaluate(({N, POS}) => {
-  const a = { games:0, us:0, them:0, total:0, margin:0, plays:0, scrim:0, drives:0, yds:0, oppYds:0, pass:0, rush:0, first:0,
+  const a = { games:0, us:0, them:0, total:0, margin:0, plays:0, scrim:0, snaps:0, drives:0, yds:0, oppYds:0, pass:0, rush:0, first:0,
     sacks:0, turn:0, punts:0, fgAtt:0, fgGood:0, tds:0, runs:0, runYds:0, passes:0, passYds:0, inc:0, scr:0, pen:0, ot:0, safeties:0,
     runDist:{neg:0,z2:0,m3to6:0,m7to14:0,x15:0}, passDist:{z5:0,m6to14:0,m15to29:0,x30:0}, errors:[] }
   const poss=["QB","RB","WR","DL","CB"]
@@ -37,6 +42,7 @@ const res = await page.evaluate(({N, POS}) => {
       const r = window.__simGameV2(45 + (g%9)*5, POS || poss[g%5])
       a.games++; a.us+=r.usScore; a.them+=r.themScore; a.total+=r.usScore+r.themScore; a.margin+=Math.abs(r.usScore-r.themScore)
       const pl=r.plays; a.plays+=pl.length; a.drives+=pl.filter(x=>x.header).length; a.scrim+=pl.length-pl.filter(x=>x.header).length
+      a.snaps+=pl.filter(x=>!x.header&&!/^(xp|twopt|timeout|warning|period|toss)$/.test(x.event)).length   // v109: the snaps — header-like rows and the try are not plays from scrimmage
       a.yds+=r.team.yds; a.oppYds+=r.oppTeam.yds; a.pass+=r.team.pass; a.rush+=r.team.rush; a.first+=r.team.first; a.sacks+=r.team.sacks; a.turn+=r.team.turn
       let lastQ=0
       for (const p of pl) { lastQ=Math.max(lastQ,p.quarter||0)
@@ -57,7 +63,7 @@ const res = await page.evaluate(({N, POS}) => {
   return a
 }, {N, POS})
 const g=res.games||1, f=(v,d=2)=>+(v/g).toFixed(d)
-const out = { games:g, us:f(res.us), them:f(res.them), total:f(res.total), absMargin:f(res.margin), plays:f(res.plays,1), scrim:f(res.scrim,1), drives:f(res.drives,1),
+const out = { games:g, us:f(res.us), them:f(res.them), total:f(res.total), absMargin:f(res.margin), plays:f(res.plays,1), scrim:f(res.scrim,1), snaps:f(res.snaps,1), drives:f(res.drives,1),
   yds:f(res.yds,1), oppYds:f(res.oppYds,1), passYds:f(res.pass,1), rushYds:f(res.rush,1), first:f(res.first), sacks:f(res.sacks), turn:f(res.turn), punts:f(res.punts),
   fgAtt:f(res.fgAtt), fgPct:+(100*res.fgGood/Math.max(1,res.fgAtt)).toFixed(1), tds:f(res.tds), runs:f(res.runs,1), ypc:+(res.runYds/Math.max(1,res.runs)).toFixed(2),
   passes:f(res.passes,1), inc:f(res.inc,1), compPct:+(100*res.passes/Math.max(1,res.passes+res.inc)).toFixed(1), ypa:+(res.passYds/Math.max(1,res.passes+res.inc)).toFixed(2),
