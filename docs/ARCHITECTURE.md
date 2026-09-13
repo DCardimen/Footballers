@@ -541,6 +541,94 @@ plausible defender, flagged `tacklerSim:false`, and never the you-player and nev
 
 Hook `window.__V109_D`. Check `v109Dcheck.mjs`.
 
+### B — the receiver finds the ball
+
+Anchors `v109 THE RECEIVER FINDS THE BALL` (the fly branch's find, `ballTrack`, the reach; the route
+block's `steerV109`; the `catchseq` registration in `ribRegisterTeam`), `v109 THE HANDS GO UP`,
+`v109 AN INCOMPLETION HAS A REASON`, `v109 A PASS BREAK-UP IS CONTACT`, `v109 THE PUMP FAKE`.
+
+The target was driven at the landing spot from the instant of release — and driven *twice* a tick,
+once by the fly branch and once by the route block, so he covered double ground and stood under the
+ball long before it came down. He now runs his ROUTE until `_ballFoundAt`, a real find time off his
+awareness plus a penalty when the ball is over his shoulder, and emits `ballTrack {who, x, y, late,
+ms, shoulder}`. `capTo` is untouched, so the catch point and every roll are identical; once he has
+found it the pre-v109 steering resumes exactly as before, because standing the route block down for
+the whole flight moved where he was against his man at the catch and cost two yards an attempt.
+
+The hands used to close ~300 ms *after* the ball was in the body. The fly branch now emits
+`reach {by, x, y, kind, at, contested}` at `TU("reachLeadMs", 180)` out, and this is where the
+sheet's 46 `catchseq` cells — cut long ago, registered by nobody — finally get used: `catchseq_<dn|
+dr|up><0..3>_<0..3>` is registered per kit and the reach's `kind` picks the variant. `catch` only
+CONFIRMS possession, and the tuck holds `catchhold_*` before the run cycle resumes.
+
+An incompletion now says what it was, classified strictly AFTER the existing rolls and changing
+none of them: `drop` (well placed, nobody in his hands, the man open), `swat`, `contested`, or
+`overthrow`/`short`/`behind` from the sign of the miss — plus `away` for agent A's thrown
+throwaway. The renderer pops the reason and draws a drop as a real bobble off the hands. A break-up
+carries `contact:true` and the side the arm came from, the defender's arm goes through the hands,
+and `boxOut` and `comeback` — emitted and discarded since v82 — got real cases at last.
+
+And the quarterback pumps: a covered read from a clean pocket rolls `TU("pumpRate", .18)`, freezes
+the nearest ZONE defender briefly through v56's existing steering hold, and the renderer plays the
+throw's frames 0-3 and aborts before the release. The fake is exactly as long as v107's wind-up
+lead, so `TU("pumpBeforeThrowMs", 900)` keeps the two apart and the abort is pinned to the fake's
+own `seqT` — without that a fake still holding `forceState` ate the next real release.
+
+Hook `window.__V109_B`. Check `v109Bcheck.mjs`.
+
+### E — the broadcast
+
+Anchors `v109 THE BROADCAST CAMERA`, `v109 THE LEADING THIRD`, `v109 THE BROADCAST (agent E)`
+(`v109E()`, `caseV109`, `camSpringV109`, `camPostV109`), `v109 SHADOWS STAY UNDER THE BODIES`,
+`v109 TEAMMATES HELP EACH OTHER UP`, `v109 CELEBRATION VARIETY, AND A BENCH THAT SURGES`,
+`v109 THE BENCH SURGES`, `v109 THE HUDDLE BREAKS LIKE A HUDDLE`, `v109 THE CREW SPOTS THE BALL, AND
+THE STICKS MOVE`, `v109 THE QUARTERBACK'S EYES`, `v109 THE FRONT'S CHESS`, `v109 WALK`.
+Renderer-only: no sim event added or removed, so the scoreboard cannot move.
+
+The follow was an exponential lerp behind a dead-band — it stalled on small corrections and
+micro-stepped on large ones — and v28's carrier lock scaled zoom by `1/perspK(carrier)` so the
+runner never changed size, the opposite of a broadcast. Pan and zoom now ride one critically damped
+spring with a capped acceleration, the carrier is framed in the leading third along his heading,
+the perspective lock is softened so a man coming down the near sideline grows, and the whistle
+pulls the frame WIDE onto the spot for the whole post phase. The v98 handover cut and the v71 flag
+focus stiffen the spring rather than swapping constants.
+
+One expected improvement turned out to be wrong and is documented rather than faked: pile bodies do
+NOT float off their shadows, because `m.shadow` and `m.fill` are children of the container
+`resolveOverlaps` nudges. What the nudge did leave stale was the cast itself and — genuinely broken
+— the ring, plumbob and name tag, which are not children and were repositioned by a formula that
+dropped the plumbob's float and both objects' scale. All of that is now re-derived at the nudged
+position.
+
+The rest of the between-whistles life: the nearest standing teammate walks over on the drawn walk
+cycle and holds a hand out while a downed man runs his get-up (inside the existing post-play
+budget, never lengthening it); two or three teammates join the scorer on staggered starts from
+random frames while the opposition walks off and the v78 bench surges toward the touchline; the
+huddle breaks by position — line, then backs, receivers, quarterback last — each man walking the
+first stride out of the ring; an official runs to the dead-ball spot, plants, points and the ball
+is set down as he does; a first down walks the chain crew's down marker and both rods to the new
+line; and a row flagged `measure` brings both wing officials in with a chain drawn between them.
+
+The quarterback's eyes turn to each read and come back square before the arm arms, and eight sim
+events the renderer had always ignored — `pickup`, `blitz`, `linebackerDrop`, `penetrate`,
+`doubleTeam`, `pocketSlide`, `spring`, `cutback` — finally reach the picture.
+
+Hook `window.__V109_E`. Check `v109Echeck.mjs`.
+
+### What the six parts cost each other
+
+Three seams only the merged build could show, all fixed here rather than in a worktree:
+
+- A's throwaway became a real thrown ball, and it was the one incompletion B's classifier never
+  saw. It now carries `reason: "away"`.
+- B's tuck was timed from the catch event, but B's own reach starts the catch sequence ~180 ms
+  earlier, so the window was spent by the time the hands closed and the tuck drew zero frames. It
+  now starts at the frame the sequence ends.
+- E's eye turn was gated to finish 400 ms + the wind-up's 340 ms before the throw — wider than the
+  whole drop on a timing route, so every read was skipped; E's celebration joined only men within
+  260 px, so a long touchdown left the scorer alone; and E's measurement moved the wings only when
+  they were not already signalling, which with D's `measure` flag live was every time.
+
 ## v108 — the exchange, and which way he throws
 
 Anchor `v108 THE EXCHANGE, AND WHICH WAY HE THROWS` (the module-level tables, just above

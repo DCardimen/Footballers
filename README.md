@@ -55,6 +55,69 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v109 — the game looks real.** Twenty-nine changes across the pass, contact, movement, game-flow
+  and broadcast layers, built to one rule: **the scoreboard does not move.** Everything here is
+  timing, geometry, an event the renderer can finally draw, or a field on a play row; where a number
+  that feeds an outcome had to change, its mean was held or its distribution was left alone and only
+  its direction shaped. `scripts/scoreneutralcheck.mjs` is the new gate — one JSON row of every
+  outcome number, measured over 300 games before and after.
+
+  **The ball has a speed.** A throw was `distance × a constant` with a 390 ms floor under it, so a
+  3-yard swing, a 5-yard slant and an 8-yard hitch all hung for exactly the same time. It is now a
+  RELEASE plus a VELOCITY — 59 / 45 / 32 mph by style once the 2.5× sim clock is taken back out —
+  fitted so every style's mean over the real distribution of throw distances lands on the old
+  ladder's within half a percent. The apex follows from the hang instead of from route depth, and
+  the ball climbs longer than it falls. The `throw` event carries what the ball actually does
+  (`dur`, `vel`, `velMph`, `apex`, `wobble`, `platform`), so a rope's laces blur and a hurried ball
+  visibly wobbles where a clean one is a tight spiral. A hurried or off-platform miss is biased
+  behind and short — the same *magnitude* distribution, which is what keeps every catch and
+  interception roll still. And a throwaway is a real thrown ball now, past the near sideline, with
+  the arm winding up on it; an errant ball can land out of bounds at last.
+
+  **The receiver finds the ball.** He was driven at the landing spot from the instant of release,
+  twice a tick, so he stood under it long before it came down. He runs his route until he finds the
+  ball on his own clock — later over his shoulder — and his head turns, and so does the head of the
+  man covering him. The hands go up *before* the ball arrives, on a `reach`, and the sheet's 46
+  `catchseq` cells (cut long ago, registered by nobody) finally draw the catch; `catch` only
+  confirms it, and there is a tuck before he runs. An incompletion now says what it was — dropped,
+  swatted, contested, overthrown, short, behind, thrown away — classified after the rolls, changing
+  none of them. A break-up is contact, with the arm coming from a side. And the quarterback pumps.
+
+  **The hit has a point.** Every contact event reported the carrier's centre and nothing else, and
+  a lunge carried no id, so the renderer paired a lunge to its outcome by proximity and mis-paired
+  whenever two men arrived in one tick. Every hit now carries its impact point, its normal, its
+  weight and a commit id, and the effects are drawn there, oriented and sized by the collision. The
+  gang converges instead of freezing five yards apart; the pile keeps each joiner's approach
+  bearing and beats a heartbeat while it drags; a strip runs a real loose ball with men diving on
+  it, recovered by the same pre-rolled side; and a hard hit can bobble the ball with no possession
+  change.
+
+  **The feet plant.** A hard cut used to reach the field as a slide between two keyframes. The back
+  gathers and plants, the never-used `plant_` cells get drawn, men lean into a turn and cross over
+  instead of flipping 180° in a frame, a trucked man slides and gets up on a clock rather than
+  freezing on a pixel, support fans on its own approach rays, a jogging man announces when he is
+  running again, and a hit leaves a stumble on the never-used `hurt_` cells.
+
+  **The game has a clock.** The extra point was a string suffix — the scoreboard jumped 0→7 with no
+  kick ever shown; it is its own play now, off the identical rolls. Every snap row says whether the
+  clock stopped and why, out-of-bounds is read from the sim log instead of a blind roll, and the
+  two-minute warning, the period, the coin toss and the timeout are rows (with three pips a side on
+  the scorebug) rather than text welded onto the previous play. The flag is thrown, announced and
+  re-spotted in beats; a spot inside a yard of the sticks brings the chains out; punts, kickoffs and
+  field goals carry their numbers; and a run finally names its direction and its tackler.
+
+  **The broadcast.** The camera is a critically damped spring that frames the carrier in the leading
+  third and pulls wide on the whistle, and the runner is allowed to grow as he comes toward the near
+  sideline. Teammates walk over to help a man up, two or three join the scorer (and the bench
+  surges), the huddle breaks by position with the quarterback last, an official runs to the spot and
+  points as the ball is set down, the chain crew walks a new line, and eight sim events the renderer
+  had always ignored — the blitz pickup, the linebacker's drop, the twist, the pocket slide — reach
+  the picture at last.
+
+  Guarded by `v109Acheck`, `v109Bcheck`, `v109C1check`, `v109C2check`, `v109Dcheck`, `v109Echeck`
+  and `scoreneutralcheck`; `docs/ARCHITECTURE.md` has the per-part map, the tunables and the three
+  seams the six parts cost each other.
+
 - **v108 — the exchange, and which way he throws.** `scripts/build-field-art.py` cuts 22 more
   cells out of two of the new sheets (238 → 261), all rear views like the rest of them:
   `throwR_up0..5` and `throwL_up0..5` from `throw_dir_a` — the same six-frame throw drawn twice,

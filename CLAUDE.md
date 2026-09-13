@@ -240,6 +240,8 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the throw's flight, arc, wobble or a throwaway (v109 A) | `v109Acheck.mjs`, then `v101check.mjs`, `v107check.mjs`, `v105check.mjs`, `simcheck.mjs` |
 | impact geometry, the gang, the pile, the loose fumble, the bobble (v109 C1) | `v109C1check.mjs`, then `v103check.mjs`, `tacklecheck.mjs`, `creditcheck.mjs`, `renderpathcheck.mjs` |
 | the plant, the lean, down men, pursuit pace, the stumble (v109 C2) | `v109C2check.mjs`, then `readcheck.mjs`, `jukecheck.mjs`, `tacklecheck.mjs`, `v86check.mjs` |
+| the receiver's track, the reach and tuck, incompletion reasons, break-ups, the pump (v109 B) | `v109Bcheck.mjs`, then `v87check.mjs`, `v107check.mjs`, `v91check.mjs`, `routecheck.mjs` |
+| the camera, the crew, the huddle, celebrations, the QB's eyes (v109 E) | `v109Echeck.mjs`, then `v86check.mjs`, `v98check.mjs`, `refcheck.mjs`, `sidelinecheck.mjs` |
 | the clock, the try, timeouts, the flag, the chains, play descriptions (v109 D) | `v109Dcheck.mjs`, then `simcheck.mjs`, `postgamecheck.mjs`, `badgecheck.mjs`, `refcheck.mjs`, `walk.mjs` |
 | the deploy reaching a browser / the build meta / the one-time reload (v106.1) | `freshcheck.mjs` (no dev server), then `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the team kit on the menu pictures / the hero, continue-card and portrait masks (v106) | `python3 scripts/build-menu-art.py` (or the one `menu-kit-*.py`), then `menu-mask-check.mjs`, `menu-kit-shot.mjs` (look at the shots), `menu-integration-check.mjs`, `v102check.mjs`, `menushot.mjs` (`CAREER=1`) |
