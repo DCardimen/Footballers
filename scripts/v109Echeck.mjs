@@ -202,6 +202,24 @@ ok((V.spots || 0) > 0 && (V.spotArrivals || 0) > 0 && refAtSpot > 0, 'an officia
 ok(chain.side && chain.moved >= 3 && (V2.chainMoves || 0) > 0, 'the chain crew walks to a new line (the down marker and both rods)', `${chain.moved} props moved of ${chain.props} · ${V2.chainMoves} walks`)
 ok((V2.measures || 0) > 0 && chainAfter && chainAfter.meas >= 1, 'a measurement brings officials in with the chain between them', `${V2.measures} measurements · ${chainAfter && chainAfter.meas} officials in`)
 // 7. the eyes and the front
+// A `look` only reaches the renderer on a pass play whose read is off-centre and early enough in the
+// drop, so a short watch can hold none at all. If the sample produced none, drive one through the
+// renderer's own case and assert the turn AND the snap back off the hook, the way the front's cases
+// are driven above.
+if (!(V.eyes > 0 && V.eyeSnaps > 0)) {
+  for (let i = 0; i < 30 && !(V.eyes > 0 && V.eyeSnaps > 0); i++) {
+    const r = await page.evaluate(() => { const sc = window.__gridironScene, P = sc && sc.play
+      if (!P || !sc.markers || !sc.markers[8] || !sc.markers[8].root) return null
+      const qb = sc.markers[8]; qb.forceState = null; qb._spdPx = 0; qb.homeDir = "up"
+      P.snapped = true; P.ballHolderId = 8; P._thrown = false; P.carrierId = null; P.scrambling = false
+      sc.fireEvent({ type: "look", to: "off0", window: "green", sep: 1.4, open: true }, P)
+      const V = window.__V109_E || {}, turned = !!qb._eyeV109, dir = qb.dirKey
+      if (turned) { qb.forceState = "throwSeq"; sc.qbTickV86(P, 16); qb.forceState = null }   // the wind-up arms: he must come back square
+      return { turned, dir, back: qb.dirKey, eyes: V.eyes || 0, snaps: V.eyeSnaps || 0, skips: V.eyeSkips || {} } })
+    if (r) { V.eyes = r.eyes; V.eyeSnaps = r.snaps; V.eyeSkips = r.skips; V.eyeDriven = r }
+    await page.waitForTimeout(120)
+  }
+}
 ok((V.eyes || 0) > 0 && (V.eyeSnaps || 0) > 0, 'the quarterback turned his eyes to a read and brought them back before the throw', `${V.eyes} looks · ${V.eyeSnaps} snaps back · skipped ${JSON.stringify(V.eyeSkips || {})}`)
 ok(throws.length > 0 && throws.filter(t => t.facing === 'up').length >= throws.length * 0.5, 'and the v107 arm still fired from the rear facing', `${throws.filter(t => t.facing === 'up').length}/${throws.length} throws from up`)
 ok((cases.pickup || 0) > 0 && (cases.blitz || 0) > 0 && (cases.linebackerDrop || 0) > 0, 'pickup / blitz / linebackerDrop reached the renderer as cases', JSON.stringify(cases) + (forcedCases ? ' (natural before the forced fire: ' + JSON.stringify(forcedCases) + ')' : ' (all natural)'))

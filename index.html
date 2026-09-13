@@ -7352,7 +7352,7 @@ class Ot extends mt.Scene {
     const T = Math.max(0, P.t - (P.delay || 0)), nx = this.nextThrowV109(P, T);
     // the turn must be OVER before the v107 wind-up needs him square: the guard is the brief's
     // 400 ms plus the wind-up's own lead, and a window too short to read is not worth turning for
-    const guard = TU("qbEyeGuardMs", 400) + TU("throwFrameMs", 85) * TU("throwReleaseFrame", 4);
+    const guard = TU("qbEyeGuardMs", 120) + TU("throwFrameMs", 85) * TU("throwReleaseFrame", 4);   // v109: the wind-up lead plus a small margin — a wider guard than the drop itself skipped every read (the snap-back in qbTickV86 is what actually guarantees he is square)
     const endT = nx ? nx.t + (P.delay || 0) - guard : 1e9;
     if (endT - P.t < TU("qbEyeMinMs", 110)) return no("guard");
     const a = PJ(qb.sx, qb.sy), b = PJ(tm.sx, tm.sy), dx = b.x - a.x, dy = b.y - a.y;
@@ -9316,9 +9316,14 @@ class Ot extends mt.Scene {
     try { const P = this.play, ci = P && P.carrierId != null ? P.carrierId : -1, cm = ci >= 0 ? this.markers[ci] : null;
       if (cm && cm.root && RIB.v91img && !REDUCED_MOTION && TU("celebrateJoinV109", 1)) {
         const V = this.v109E(), fm = TU("celebrateFrameMs", 170), off9 = ci < 11;
-        const near = this.markers.map((m, i) => ({ m, i, d: Math.hypot(m.sx - cm.sx, m.sy - cm.sy) }))
-          .filter(q => q.i !== ci && (q.i < 11) === off9 && q.m.root && q.d < TU("celebrateJoinPx", 260) && !/^(tackleSeq|down|pancakeSeq|getupSeq)$/.test(String(q.m.forceState || "")))
-          .sort((a, b) => a.d - b.d).slice(0, 2 + (Math.random() < 0.5 ? 1 : 0));
+        const pool9 = this.markers.map((m, i) => ({ m, i, d: Math.hypot(m.sx - cm.sx, m.sy - cm.sy) }))
+          .filter(q => q.i !== ci && (q.i < 11) === off9 && q.m.root && !/^(tackleSeq|down|pancakeSeq|getupSeq)$/.test(String(q.m.forceState || "")))
+          .sort((a, b) => a.d - b.d);
+        // the nearest men run in; on a long score nobody is inside the radius, and a scorer
+        // celebrating alone in the end zone is the one thing that never happens — the closest
+        // two celebrate where they are, turned toward him
+        let near = pool9.filter(q => q.d < TU("celebrateJoinPx", 260)).slice(0, 2 + (Math.random() < 0.5 ? 1 : 0));
+        if (!near.length) near = pool9.slice(0, TU("celebrateFarJoin", 2));
         near.forEach((q, k) => { const m = q.m, rate = 0.8 + Math.random() * 0.4;
           this.time.delayedCall(60 + k * TU("celebrateStaggerMs", 110) + Math.random() * 60, () => { if (!m.root || m._post) return;
             const a = PJ(m.sx, m.sy), b = PJ(cm.sx, cm.sy); this.faceMarker(m, b.x - a.x, b.y - a.y);
@@ -11794,8 +11799,9 @@ class Ot extends mt.Scene {
       /* ===== v109 THE CREW SPOTS THE BALL ===== an official sent to the spot (refSpotV109 /
        * measureV109) runs there ahead of his role, plants beside the ball, points the offense's
        * way as it is set down, holds, and only then goes back to trailing the play. */
-      if (r._spotTgt && !r.forceState) {
+      if (r._spotTgt && (!r.forceState || r._spotTgt.kind === "measure")) {   // v109: a measurement outranks a signal — the wings come in even if the crew was already calling something
         const T9 = r._spotTgt;
+        if (r.forceState) { r.forceState = null; r.seqLen = 0; }
         if (!T9.there) {
           const ddx = T9.x - r.sx, ddy = T9.y - r.sy, d = Math.hypot(ddx, ddy);
           if (d > 2.5) { const s = Math.min(d, TU("refSpotSpd", 230) * dt); this.placeRef(r, r.sx + ddx / d * s, r.sy + ddy / d * s, dtms); continue; }
