@@ -2135,6 +2135,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       emit("sprint",{who:a.id, dur, x:a.lx, y:a.y}); };
     const sprinting = a => !!(a && a.sprintUntil && t < a.sprintUntil);
     let t = 0, done = false, result = null, carrier = null, ballFlight = null;
+    let ballPlayerV110 = null;   // v110: the roster player who actually played the ball, when it was not the coverage man
+    const V110 = root.__V110 = root.__V110 || { laps: 0, takeovers: 0, ballMen: 0, holds: 0 };   // v110: what the new paths actually did
     let ball = { lx: S.off[8].lx, y: S.off[8].y, h: 0 };
     const emit = (type, extra) => events.push(Object.assign({ t, type }, extra));
     const rec = () => { S.all.forEach(a=>a.frames.push({t, x:Math.round(a.lx*10)/10, y:Math.round(a.y*10)/10}));
@@ -2792,7 +2794,23 @@ window.__visionRadiusV96 = visionRadiusV96;
         if (Math.random() < biteP) { a._bite = true; a._readMs += TU("biteExtraMs", 240); }
       }
     });
-    const seesBall = a => a._seenAt != null && t >= a._seenAt;
+    /* ===== v110 THE MAN WHO IS THERE — the ball at your feet is not a diagnosis =====
+     * v81 gives every defender a read clock and, until it lands, he plays his ASSIGNMENT: the
+     * linebacker takes his read step at lbReadLx, the safety stays over the top, the corner stays
+     * on his man. The clock had no proximity term, so a carrier could run within a yard of a
+     * linebacker who was still reading and go straight past him — the single thing that reads on
+     * screen as a defender who is in position and does nothing. Nobody stands a yard off the
+     * football and fails to notice it: inside `seeBallPx` the read lands NOW. */
+    const seesBall = a => {
+      if (a._seenAt != null && t >= a._seenAt) return true;
+      if (!TU("seeBallV110", 1) || !carrier || !a || a.side === carrier.side) return false;
+      if (Math.hypot(a.lx - carrier.lx, a.y - carrier.y) >= TU("seeBallPx", 20)) return false;
+      a._seenAt = t;
+      if (!a._sawNearV110) { a._sawNearV110 = 1;
+        try { (root.__V110 = root.__V110 || { laps: 0, takeovers: 0, ballMen: 0, holds: 0 }).nearReads = ((root.__V110.nearReads) || 0) + 1; } catch (e) {}
+        emit("keyRead", { who: a.id, x: a.lx, y: a.y, ms: 0, bite: !!a._bite, near: true }); }
+      return true;
+    };
     // announce the lookers to the renderer once the ball is live (at the snap),
     // and mark each man's diagnosis the tick it lands
     const keyTick = () => {
@@ -3753,8 +3771,27 @@ window.__visionRadiusV96 = visionRadiusV96;
               const boxOut = target.lx > coverA.lx - 2 && arrivalEdgeMs > -80;
               const boxK = boxOut ? cl((target.str * .5 + ((target.ht||73) - 73) * 1.2 - coverA.str * .4) * .002 + .03, 0, .09) : 0;
               const comebackK = shortBall ? cl((target.aware - 50) * .002 + .02, -.02, .06) - (sep < .4 ? TU("underthrowRisk", .05) : 0) : 0;
-              const contested = sep < TU("contestSep", .2) && Math.hypot(coverA.lx - cx, coverA.y - cyIn) < 22;
-              const swatP = contested ? cl((coverA.cov - 50) * .004 + (coverA.jump - 50) * .002 + TU("swatBase", .04), 0, .3) * (coverA.cov >= target.cat ? 1 : .6) : 0;
+              /* ===== v110 THE MAN WHO IS THERE — the ball belongs to whoever is standing on it =====
+               * Only the assigned coverage man could break a pass up or pick it off, so a safety
+               * sitting ON the catch point had no way to touch the ball: measured over ~300
+               * arrivals, a defender other than the coverage man was the nearest man to the ball
+               * 11% of the time and could do nothing about it. The contest now belongs to whoever
+               * is actually closest, and it is HIS ratings that decide it. This swaps the identity
+               * of the man making the play rather than adding a roll, so the rates hold. */
+              const covGapV110 = Math.hypot(coverA.lx - cx, coverA.y - cyIn);
+              let ballMan = coverA, ballManGap = covGapV110;
+              if (TU("ballManV110", 1)) {
+                for (const d of S.def) {
+                  if (d === coverA || (d.stunned && t < d.stunned) || (d.engagedBy && !d.shed)) continue;
+                  const g = Math.hypot(d.lx - cx, d.y - cyIn);
+                  if (g < ballManGap - TU("ballManTakePx", 4) && g < TU("ballManReachPx", 24)) { ballMan = d; ballManGap = g; }
+                }
+                if (ballMan !== coverA) V110.ballMen++;
+                if (ballMan !== coverA) emit("ballMan", { by: ballMan.id, on: target.id, off: coverA.id,
+                  x: cx, y: cyIn, gap: Math.round(ballManGap), covGap: Math.round(covGapV110) });
+              }
+              const contested = sep < TU("contestSep", .2) && ballManGap < 22;
+              const swatP = contested ? cl((ballMan.cov - 50) * .004 + (ballMan.jump - 50) * .002 + TU("swatBase", .04), 0, .3) * (ballMan.cov >= target.cat ? 1 : .6) : 0;
               if (shortBall) emit("comeback", { who: target.id, x: cx, y: cyy, smart: comebackK > 0 });
               if (boxOut && boxK > .04) emit("boxOut", { who: target.id, on: coverA.id, x: cx, y: cyy });
               // jumping decides the high-point on deep shots; ballControl secures contested grabs
@@ -3778,9 +3815,10 @@ window.__visionRadiusV96 = visionRadiusV96;
                 // v109 A PASS BREAK-UP IS CONTACT: the arm comes from somewhere. A defender the
                 // receiver had boxed out, or one trailing him, reaches through from BEHIND; one
                 // deeper than the man undercuts it from the FRONT; side by side it comes OVER the top.
-                const _from = (boxOut || coverA.lx < target.lx - TU("swatSidePx", 3)) ? "behind" : coverA.lx > target.lx + TU("swatSidePx", 3) ? "front" : "over";
-                emit("swat", { by: coverA.id, on: target.id, x: cx, y: cyIn, contact: true, from: _from, boxOut: !!boxOut, edgeMs: Math.round(arrivalEdgeMs) });
-                emit("incomplete", _reasonV109("swat", { by: coverA.id, on: target.id, from: _from })); done = true;
+                const _from = (boxOut || ballMan.lx < target.lx - TU("swatSidePx", 3)) ? "behind" : ballMan.lx > target.lx + TU("swatSidePx", 3) ? "front" : "over";
+                emit("swat", { by: ballMan.id, on: target.id, x: cx, y: cyIn, contact: true, from: _from, boxOut: !!boxOut, edgeMs: Math.round(arrivalEdgeMs) });
+                emit("incomplete", _reasonV109("swat", { by: ballMan.id, on: target.id, from: _from })); done = true;
+                ballPlayerV110 = ballMan.player || ballPlayerV110;   // v110: the break-up is credited to the man who made it
                 try { const B = root.__V109_B; B.swatN = (B.swatN || 0) + 1; (B.swatFrom = B.swatFrom || {})[_from] = (B.swatFrom[_from] || 0) + 1; } catch (e) {}
                 out = { kind: "pass", complete: false, intercepted: false, yards: 0, swat: true };
               } else if (Math.random() < catchP) {
@@ -3810,15 +3848,16 @@ window.__visionRadiusV96 = visionRadiusV96;
                 const absSpot=(Number(opts?.fieldPos)||50)+cx/YD, sideline=Math.abs(cyy-MIDY)>165;
                 const fieldRisk=(absSpot>=90?.012:0)+(absSpot<=12?.006:0)+(routeDepth>12&&!sideline?.008:0)-(sideline?.012:0);
                 const earlyRisk=cl((arrivalEdgeMs-70)/1700,0,.05), badLocation=(1-locationQuality)*.02;
-                const intP = cl((coverA.cov - target.spdA*0.5 - target.agi*0.5) * 0.004
-                  + (routeDepth>13 ? (coverA.jump-target.jump)*0.002 : 0)
+                const intP = cl((ballMan.cov - target.spdA*0.5 - target.agi*0.5) * 0.004
+                  + (routeDepth>13 ? (ballMan.jump-target.jump)*0.002 : 0)
                   + (bracketed&&coverHelp?(coverHelp.cov-45)*.0012:0)
                   - (S.off[8].aware-50)*0.0007 + (sep < -2 ? 0.028 : 0.012)
                   + earlyRisk + badLocation + fieldRisk + (underPressure?.008:0), 0.004, 0.18)
                   * (window.__toMultV76 || 1);      // v76: takeaway swing, damped by mismatch
                 if (Math.random() < intP) {
-                  emit("pick",{by:coverA.id,x:cx,y:cyy});
-                  carrier = coverA; phase = "carry";           // live return!
+                  emit("pick",{by:ballMan.id,x:cx,y:cyy});
+                  carrier = ballMan; phase = "carry";           // v110: the man who picked it is the man who returns it
+                  ballPlayerV110 = ballMan.player || ballPlayerV110;
                   out = { kind:"pass", complete:false, intercepted:true, yards:0 };
                 } else {
                   // v109 AN INCOMPLETION HAS A REASON — classified AFTER the rolls, changing none of them.
@@ -3832,7 +3871,7 @@ window.__visionRadiusV96 = visionRadiusV96;
                   const _reason = (_catchable && !contested && sep > TU("dropSepMin", -1.5)) ? "drop"
                     : _catchable ? "contested"
                     : _mdx > _tol ? "overthrow" : _mdx < -_tol ? "short" : Math.abs(_mdy) > _tol ? "behind" : "contested";
-                  emit("incomplete", _reasonV109(_reason, _reason === "drop" ? { by: target.id } : _reason === "contested" ? { by: coverA.id, on: target.id } : { on: target.id })); done = true;
+                  emit("incomplete", _reasonV109(_reason, _reason === "drop" ? { by: target.id } : _reason === "contested" ? { by: ballMan.id, on: target.id } : { on: target.id })); done = true;
                   // v30: the defender was IN the receiver at the catch point on a real
                   // route and the ball hit the turf — that contact is a DPI candidate
                   if (sep < TU("dpiSep",-0.8) && routeDepth > 6 && coverA.player) flagCand.dpi = coverA.player;
@@ -4375,7 +4414,10 @@ window.__visionRadiusV96 = visionRadiusV96;
             // v81: a blocker with his hands on him — walled off until he sheds
             if (t < (dfd.held||0)) { mv(dfd, c.lx, c.y, 0.16);
               // a blocked man can still fall off the block onto a runner who comes THROUGH him
-              if (Math.hypot(dfd.lx-c.lx, dfd.y-c.y) < TU("heldReachPx", 17) && (!committerId || committerId===dfd.id)) {
+              const _heldGapV110 = Math.hypot(dfd.lx-c.lx, dfd.y-c.y);
+              const _heldCmGapV110 = (committerId && committerId !== dfd.id && A_all[committerId])
+                ? Math.hypot(A_all[committerId].lx-c.lx, A_all[committerId].y-c.y) : 1e9;   // v110: a held man who is CLOSER than the committer still gets his hands on him
+              if (_heldGapV110 < TU("heldReachPx", 17) && (!committerId || committerId===dfd.id || _heldGapV110 < _heldCmGapV110 - TU("commitTakePx", 3))) {
                 committerId = dfd.id; const r = contact(dfd, c); if (r === "grip") break; if (r === "tackle") { endTackle(dfd); break; } }   // v103: a grip hands the carrier to the grip tick
               continue; }
             // v81: until he has FOUND the ball he plays his assignment, not the carrier.
@@ -4474,15 +4516,31 @@ window.__visionRadiusV96 = visionRadiusV96;
           // CLOSER to the ball — a man trailing the play does not own the tackle
           const cmGap = otherCommitted ? (function(){const cm=A_all[committerId]; return cm ? Math.hypot(cm.lx-c.lx, cm.y-c.y) : 1e9;})() : 1e9;
           if (root.__V81_TRACE && gap < 40) root.__V81_TRACE.push({ t, id: dfd.id, gap: Math.round(gap), committer: committerId, aim: [Math.round(dfd._aimX||0), Math.round(dfd._aimY||0)], vel: +(dfd.vel||0).toFixed(2), cool: dfd.cool > t });
-          if (otherCommitted && gap < TU("supportHold",26) && gap > cmGap - 4) {
+          /* ===== v110 THE MAN WHO IS THERE — support never holds the closest man =====
+           * The hold read `gap > cmGap - 4`, so a defender up to four pixels CLOSER to the ball
+           * than the committed man still settled into a support spot and watched. Measured over
+           * 660 stops, the man who made the tackle was not the nearest defender 37% of the time.
+           * He holds now only if he is genuinely farther off than the committer, and a man who is
+           * already on top of the ball is never held at all. */
+          if (otherCommitted && gap < TU("supportHold",26) && gap > cmGap + TU("supportHoldEdgePx", 0)
+              && gap > TU("supportNeverHoldPx", 12)) {
             // v29: support settles into a leverage spot a full stride off the tackle —
             // he's there to clean up a break, not to pile on. Solo stops stay solo.
             /* v109 THE FEET PLANT — the support FANS. Every support man aimed at one of two spots
              * (fourteen back, eight either side) and they stacked on it. Each now holds on his OWN
              * approach ray to the ball, at supportRayPx plus a stride per man, so three men in
              * support are three men around the tackle, not one heap behind it. */
-            const ang9 = Math.atan2(dfd.y - c.y, dfd.lx - c.lx), r9 = TU("supportRayPx", 14) + (Math.max(0, chasers.indexOf(dfd)) % 3) * TU("supportRayStep", 6);
-            mv(dfd, c.lx + Math.cos(ang9)*r9, clampY(c.y + Math.sin(ang9)*r9), 0.3);
+            const ang9 = Math.atan2(dfd.y - c.y, dfd.lx - c.lx);
+            /* v110: support CLOSES, it does not park. The ring was a fixed standoff, so a man two
+             * yards off the ball stood on his spot and watched the tackle happen in front of him —
+             * the thing that reads as a defender in position doing nothing. The longer the committer
+             * has had hold, the tighter the ring draws, and he is moving the whole time; the floor
+             * keeps him just outside contact range so this stays a picture, not a second tackler. */
+            const tight9 = cl((t - (committerAt || t)) / TU("supportCloseMs", 400), 0, 1);
+            const r9 = Math.max(TU("supportFloorPx", 12),
+              (TU("supportRayPx", 14) + (Math.max(0, chasers.indexOf(dfd)) % 3) * TU("supportRayStep", 6))
+              * (1 - tight9 * TU("supportCloseK", .45)));
+            mv(dfd, c.lx + Math.cos(ang9)*r9, clampY(c.y + Math.sin(ang9)*r9), TU("supportPace", .3) + tight9 * TU("supportClosePace", .35));
             continue;
           }
           let beatenPace = gap > 62 && c.spd > dfd.spd + 6 ? 0.9 : 1;
@@ -4534,13 +4592,30 @@ window.__visionRadiusV96 = visionRadiusV96;
           // committer LEAPS: the dive carries him the last stretch so contact resolves
           // from a real launch into the grab, not a step-in wrap.
           const launchAt = TU("tackleLaunchDist", 30);
-          if (gapNow < launchAt && (!committerId || committerId===dfd.id || gapNow < cmGap - 4) && (dfd.vel||0) >= TU("commitMinVel", .35)) {
+          /* v110: the commit is handed over to whoever is actually CLOSEST, measured now (after the
+           * step), not to whoever claimed it first. `commitMinVel` still keeps a trailing lineman
+           * from claiming the tackle from range — but it no longer stops a man who is standing in
+           * the hole the carrier is running into, because a stationary man in the gap is the most
+           * in-position defender on the field. */
+          const cmGapNow = (function(){ const cm = otherCommitted ? A_all[committerId] : null;
+            return cm ? Math.hypot(cm.lx-c.lx, cm.y-c.y) : 1e9; })();
+          const takeoverV110 = otherCommitted && gapNow < cmGapNow - TU("commitTakePx", 3);
+          if (takeoverV110 && committerId !== dfd.id) V110.takeovers++;
+          if (gapNow < launchAt && (!committerId || committerId===dfd.id || takeoverV110)
+              && ((dfd.vel||0) >= TU("commitMinVel", .35) || takeoverV110 || gapNow < TU("contactAnyPx", 11))) {
             if (committerId !== dfd.id) committerAt = t;
             committerId = dfd.id;
             if (!dfd._leaped) { dfd._leaped = t; dfd._leapUntil = t + 400; }
           }
           // the grab/collision itself resolves once he's actually on the carrier
-          if (gapNow < TU("tackleGrabDist", 16) && committerId===dfd.id) {
+          /* v110: and a defender the carrier runs INTO makes the play whether or not he owns the
+           * commit. Only the committer could resolve contact, so a man a yard and a half off the
+           * ball — inside `contactAnyPx` — did nothing at all: 25% of defenders who got within a
+           * yard and a half of the ball never appeared in a single contact event. */
+          const inHisLapV110 = gapNow < TU("contactAnyPx", 11);
+          if (inHisLapV110 && committerId !== dfd.id) V110.laps++;
+          if ((gapNow < TU("tackleGrabDist", 16) && committerId===dfd.id) || inHisLapV110) {
+            if (committerId !== dfd.id) { committerId = dfd.id; committerAt = t; }
             const r = contact(dfd, c);
             if (r === "grip") break;                     // v103: he has hold of him — the grip tick takes it from here
             if (r === "tackle") { endTackle(dfd); break; }
@@ -4698,7 +4773,7 @@ window.__visionRadiusV96 = visionRadiusV96;
     }
     out = out || { kind, yards: 0 };
     out.yards = cl(out.yards, -6, 80);
-    if(kind==="pass"&&target){ out.targetPlayer=target.player||picks.target||null; out.coverPlayer=coverA&&coverA.player||picks.cover||null;
+    if(kind==="pass"&&target){ out.targetPlayer=target.player||picks.target||null; out.coverPlayer=ballPlayerV110||coverA&&coverA.player||picks.cover||null;   // v110: credit follows the man who made the play
       out.throwStyle=throwStyle; out.throwWindow=throwWindow; out.arrivalEdgeMs=Math.round(arrivalEdgeMs); out.locationQuality=locationQuality; }
     // v18 post-whistle coast: bodies don't freeze at the whistle — everyone keeps
     // moving and decelerates naturally for ~1 second after the play is blown dead.

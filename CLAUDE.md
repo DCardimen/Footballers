@@ -33,6 +33,15 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   scrambles, no backward throws, the safety, the huddle glide, goalposts
 - `v88 THE CALL-UP FOLLOWS THE RANKING` — promotion odds from national rank
   against the level's advancing share; `declareChanceV88` is the one number
+- `v110 THE MAN WHO IS THERE` — position on the field decides who makes the play. A read lands the
+  moment the ball is inside `TU("seeBallPx", 20)` (a man does not stand a yard from the football
+  still diagnosing it), support holds only if it is genuinely FARTHER off than the committer, the
+  commit is handed to whoever is closest measured after the step (`commitTakePx`; a stationary man
+  in the gap can now own it, and a BLOCKED man who is closer can fall off onto the carrier), a
+  defender the carrier runs into resolves contact with no commit at all (`contactAnyPx`), and at
+  the catch point the nearest defender — not just the assigned cover man — plays the ball, returns
+  the interception and takes the credit (`ballManTakePx`/`ballManReachPx`, `out.coverPlayer`).
+  Support CLOSES instead of parking. `window.__V110` is the hook, `v110check.mjs` the gate
 - `v109 THE BALL HAS A SPEED` / `v109 THE HIT HAS A POINT` / `v109 THE FEET PLANT` /
   `v109 THE GAME HAS A CLOCK` — the realism suite. The throw is a RELEASE plus a VELOCITY
   (`flightMsV101` rewritten, `ballVelV109`, `apexPxV109`, the arc derived from the hang and peaking
@@ -236,6 +245,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | which way the throw goes / the drawn handoff and pitch / which frames draw the ball (v108) | `v108check.mjs`, then `v107check.mjs`, `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `kitsidecheck.mjs` (LB), `v104check.mjs` |
 | the wordmark sheen / the camera flashes, lamps and sun on the hero (v107.1) | `sheencheck.mjs`, `heroflashcheck.mjs`, then `v102check.mjs`, `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the throw's facing / the release's timing / the dropback / the pre-snap stances (v107) | `v107check.mjs`, then `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `renderpathcheck.mjs`, `kitsidecheck.mjs` (LB) |
+| whether being in position decides the play — stops, break-ups, interceptions (v110) | `v110check.mjs`, then `creditcheck.mjs`, `tacklecheck.mjs`, `readcheck.mjs`, `v103check.mjs`, `scoreneutralcheck.mjs` |
 | anything in the live sim's FEEL (contact, possession, ball speed, catching, tackling, the clock) | `scoreneutralcheck.mjs` FIRST (keep the before row), then the v109 checks below |
 | the throw's flight, arc, wobble or a throwaway (v109 A) | `v109Acheck.mjs`, then `v101check.mjs`, `v107check.mjs`, `v105check.mjs`, `simcheck.mjs` |
 | impact geometry, the gang, the pile, the loose fumble, the bobble (v109 C1) | `v109C1check.mjs`, then `v103check.mjs`, `tacklecheck.mjs`, `creditcheck.mjs`, `renderpathcheck.mjs` |

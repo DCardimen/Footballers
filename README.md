@@ -55,6 +55,26 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v110 — the man who is there.** A defender who looks like he is in position to make a play, and
+  does not, is the one thing that reads as broken however good the rest looks. Measured over ~700
+  plays, at the moment of the stop the nearest defender was the tackler 89% of the time — but 13%
+  of men inside three yards of the ball had no part in the play at all, and at the catch point a
+  defender other than the assigned coverage man was the nearest man to the ball 11% of the time
+  with no way to touch it. Five rules now say the same thing: **where a man is standing beats what
+  he was assigned and what his clock says.** A read lands the instant the ball is within a yard or
+  so of him, because nobody stands that close to a football still diagnosing the play. Support
+  holds only if it is genuinely farther off than the man committed to the tackle, never when it is
+  closer. The commit is handed to whoever is actually closest, measured after the step rather than
+  awarded to whoever claimed it first — so a linebacker standing in the hole can own it, and a
+  blocked man who is nearer than the committer can still fall off onto the carrier. A defender the
+  carrier runs straight into makes contact whether or not he owns the commit. And at the catch
+  point the ball belongs to whoever is standing on it: the nearest defender contests it with his
+  own ratings, returns the interception and takes the credit, where before only the assigned
+  coverage man could touch the ball. Support also closes on the tackle now instead of parking a
+  ring around it. After: 90.5% of stops made by the nearest man, 1.4% idle inside two yards, 4.9%
+  inside three. The scoreboard barely moved — yards per carry 4.98 to 4.92, points 23.9 to 24.2
+  over 300 games. `v110check.mjs` is the gate.
+
 - **v109 — the game looks real.** Twenty-nine changes across the pass, contact, movement, game-flow
   and broadcast layers, built to one rule: **the scoreboard does not move.** Everything here is
   timing, geometry, an event the renderer can finally draw, or a field on a play row; where a number
