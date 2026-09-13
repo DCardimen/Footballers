@@ -6112,7 +6112,13 @@ class Ot extends mt.Scene {
    * `maxJerk` — the worst per-frame change of pan velocity a viewer would have felt. */
   camSpringV109(cam, cx, cy, tz, delta, stiffK) {
     const dt = Math.min(0.05, Math.max(0.004, (delta || 16) / 1000)), sk = stiffK || 1;
-    const S = this._camSpr || (this._camSpr = { vx: 0, vy: 0, vz: 0, px: cam.midPoint.x, py: cam.midPoint.y, pvx: 0, pvy: 0, n: 0 });
+    const S = this._camSpr || (this._camSpr = { vx: 0, vy: 0, vz: 0, px: cam.midPoint.x, py: cam.midPoint.y, pvx: 0, pvy: 0, n: 0, t0: 0 });
+    // the measurement is of the SPRING's own continuity: a frame the camera was moved by something
+    // else (resetCamera between plays, a shake, a freeze-frame that skipped the integrator) is not
+    // a jerk the spring produced, so it re-seeds the sample instead of counting one
+    const nowMs = performance.now();
+    if (Math.abs(cam.midPoint.x - S.px) > 0.5 || Math.abs(cam.midPoint.y - S.py) > 0.5 || (S.t0 && nowMs - S.t0 > dt * 1000 * 2.2 + 10)) { S.n = 0; const KB = this.v109E().cam; KB.breaks = (KB.breaks || 0) + 1; }
+    S.t0 = nowMs;
     const k = TU("camStiff", 40) * sk, c = 2 * Math.sqrt(k) * TU("camDamp", 1), aMax = TU("camAccelMax", 9000) * Math.sqrt(sk);
     const x = cam.midPoint.x, y = cam.midPoint.y;
     let ax = k * (cx - x) - c * S.vx, ay = k * (cy - y) - c * S.vy;
@@ -6737,6 +6743,7 @@ class Ot extends mt.Scene {
   planHuddleV87(et, script, losAbs) {
     try {
       if (!TU("huddle", 1) || REDUCED_MOTION || et.noHuddle || /^(fg|punt|kickoff|xp)$/i.test(String(et.event || ""))) return null;
+      this.markers.forEach((m) => { m._hudBreakAt = null; m._hudWalkUntil = null; m._walkOffV109 = 0; m._celRateV109 = 0; });   // v109: no flag from the last snap survives into this one
       const dir = script.meta.dir || VDIR || 1, YDF = PLAY_W / 100, MIDY = (F_TOP + F_BOT) / 2;
       const losX = PLAY_L + (losAbs / 100) * PLAY_W;
       const cx = { off: losX - dir * TU("huddleOffYd", 7) * YDF, def: losX + dir * TU("huddleDefYd", 5) * YDF };
@@ -6790,14 +6797,24 @@ class Ot extends mt.Scene {
   qbEyeV109(P, to) {
     if (!TU("qbEyeV109", 1) || REDUCED_MOTION || !to) return;
     const qb = this.markers[8], ti = this.actorIdx(to), tm = ti >= 0 ? this.markers[ti] : null;
-    if (!qb || !tm || !qb.root || qb.forceState || qb._dropback || (qb.homeDir || "up") !== "up" || P.ballHolderId !== 8 || P._thrown || (qb._spdPx || 0) > 34) return;
+    const K = this.v109E(), sk = K.eyeSkips || (K.eyeSkips = {});
+    const no = (why) => { sk[why] = (sk[why] || 0) + 1; };
+    if (!qb || !tm || !qb.root) return no("noman");
+    if (qb.forceState) return no("forced");                             // throwing, handing off, on the ground
+    if ((qb.homeDir || "up") !== "up") return no("facing");
+    if (P.ballHolderId !== 8 || P._thrown) return no("noball");
+    if ((qb._spdPx || 0) > TU("qbEyeSpdMax", 60)) return no("running");  // he is scrambling, not reading
     const T = Math.max(0, P.t - (P.delay || 0)), nx = this.nextThrowV109(P, T);
+    // the turn must be OVER before the v107 wind-up needs him square: the guard is the brief's
+    // 400 ms plus the wind-up's own lead, and a window too short to read is not worth turning for
     const guard = TU("qbEyeGuardMs", 400) + TU("throwFrameMs", 85) * TU("throwReleaseFrame", 4);
-    if (nx && nx.t - T < guard + 60) return;                 // too close to the throw: the arm needs him square
+    const endT = nx ? nx.t + (P.delay || 0) - guard : 1e9;
+    if (endT - P.t < TU("qbEyeMinMs", 110)) return no("guard");
     const a = PJ(qb.sx, qb.sy), b = PJ(tm.sx, tm.sy), dx = b.x - a.x, dy = b.y - a.y;
-    qb.dirKey = dy > 6 ? "dr" : "ur"; qb.flip = dx > 0;
-    qb._eyeV109 = { until: Math.min(P.t + TU("qbEyeMs", 320), nx ? nx.t + (P.delay || 0) - guard : 1e9), to: ti };
-    this.v109E().eyes++;
+    if (Math.abs(dx) < TU("qbEyeMinDx", 8)) return no("straight");       // dead ahead: there is nothing to turn onto
+    qb.dirKey = dy > 6 ? "dr" : "ur"; qb.flip = dx > 0; qb._dropback = false;   // the quarter cycle outranks the backpedal for as long as it holds
+    qb._eyeV109 = { until: Math.min(P.t + TU("qbEyeMs", 300), endT), to: ti };
+    K.eyes++;
   }
   nextThrowV109(P, T) { for (const e of ((P.script && P.script.events) || [])) if (e && e.type === "throw" && e.style !== "kick" && !e.fg && e.t > T) return e; return null; }
   drawGoalpostsV87() {
@@ -7078,7 +7095,7 @@ class Ot extends mt.Scene {
     const dir = (P.script.meta && P.script.meta.dir) || VDIR || 1;
     const hasBall = P.snapped && P.ballHolderId === 8 && !P._thrown;
     const dropping = hasBall && P.carrierId !== 8 && !P.scrambling && (qb._spdPx || 0) > 30 && ((qb.sx - (qb.prevSx == null ? qb.sx : qb.prevSx)) * dir) < -0.15;
-    qb._dropback = dropping;
+    qb._dropback = dropping && !qb._eyeV109;   // v109: while his eyes are on a read the quarter facing holds, not the backpedal
     // v107: the test is one frame's delta, which flickers as the interpolation crosses it — and
     // the pose flickered with it. Hold the drop a beat past the last backward step so the
     // backpedal reads as one continuous movement rather than a stutter through the run cycle.
@@ -8410,7 +8427,7 @@ class Ot extends mt.Scene {
       if (cm && cm.root && RIB.v91img && !REDUCED_MOTION && TU("celebrateJoinV109", 1)) {
         const V = this.v109E(), fm = TU("celebrateFrameMs", 170), off9 = ci < 11;
         const near = this.markers.map((m, i) => ({ m, i, d: Math.hypot(m.sx - cm.sx, m.sy - cm.sy) }))
-          .filter(q => q.i !== ci && (q.i < 11) === off9 && q.m.root && q.d < TU("celebrateJoinPx", 130) && !/^(tackleSeq|down|pancakeSeq|getupSeq)$/.test(String(q.m.forceState || "")))
+          .filter(q => q.i !== ci && (q.i < 11) === off9 && q.m.root && q.d < TU("celebrateJoinPx", 260) && !/^(tackleSeq|down|pancakeSeq|getupSeq)$/.test(String(q.m.forceState || "")))
           .sort((a, b) => a.d - b.d).slice(0, 2 + (Math.random() < 0.5 ? 1 : 0));
         near.forEach((q, k) => { const m = q.m, rate = 0.8 + Math.random() * 0.4;
           this.time.delayedCall(60 + k * TU("celebrateStaggerMs", 110) + Math.random() * 60, () => { if (!m.root || m._post) return;
@@ -8418,6 +8435,7 @@ class Ot extends mt.Scene {
             m.forceState = "celebrateSeq"; m.seqT = m.tms - Math.floor(Math.random() * 4) * fm; m._celRateV109 = rate; m._lean = 0; m._dropback = false; m._walk = false;
             V.celebrants++; }); });
         cm._celRateV109 = 1; V.celebrations++; V.lastCelebrants = 1 + near.length;
+        V.lastJoin = { n: near.length, d: near.map(q => Math.round(q.d)), all: this.markers.map((m, i) => (i < 11) === off9 && i !== ci ? Math.round(Math.hypot(m.sx - cm.sx, m.sy - cm.sy)) : null).filter(d => d != null).sort((x, y) => x - y).slice(0, 4) };
         this.markers.forEach((m, i) => { if ((i < 11) !== off9 && m.root) { m._walkOffV109 = performance.now() + TU("walkOffMs", 900); V.walkOffs++; } });
         const S9 = this.side; if (S9) { S9.surge = { t: 0, ms: TU("sideSurgeMs", 1600), team: cm.kit || (off9 ? "off" : "def") }; V.surges++; }
       }
@@ -8929,7 +8947,6 @@ class Ot extends mt.Scene {
           if (smear > 0) { m.shadow.setScale(m.shadow.scaleX * (1 + smear), m.shadow.scaleY * (1 - smear * 0.35)); m.shadow.setAlpha(m.shadow.alpha * (1 - smear * 0.3)); }
           if (m.fill) this.castFillV101(m.fill, m.root.x, gy, h, { lift });
           V9.recast++; }
-        m.root.setDepth(m.root.depth + ndy * TU("nudgeDepthK", 0.004));
       }
       if (m.ring && m.ring.active) m.ring.setPosition(m.root.x, m.root.y + 16 * m.root.scale).setScale(m.root.scale);
       if (m.bob && m.bob.active) m.bob.setPosition(m.root.x, m.root.y - TU("bobLift", 31) * m.root.scale + Math.sin(m.tms / 380) * 2 * m.root.scale);
@@ -10966,6 +10983,7 @@ class Ot extends mt.Scene {
   clearRefs() {
     if (this.refs) for (const r of this.refs) { try { r.root.destroy(true); } catch (e) {} }
     this.refs = [];
+    try { if (this.measG) this.measG.clear(); } catch (e) {}   // v109: the measurement chain dies with the crew
   }
   puffFx(sx, sy, n, col, alpha) {
     const p = PJ(sx, sy);
