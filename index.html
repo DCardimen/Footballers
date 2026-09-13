@@ -2382,6 +2382,50 @@ window.__visionRadiusV96 = visionRadiusV96;
     // The game layer rolls whether a flag is actually thrown — so every penalty that
     // IS called traces to something that genuinely happened on the field.
     const flagCand = { hold: null, dpi: null, fm: null, hc: null };   // v103: hc — the horse collar, hauled down from behind
+    /* ===== v109 THE HIT HAS A POINT =====
+     * Every contact event used to send the carrier's centre (or the defender's) and nothing
+     * else: no point of impact, no direction, no weight, and no way to tell which commit it
+     * resolved — `tackleLunge` fired on every commit and the renderer paired it with whatever
+     * outcome landed nearest, which mis-paired the moment two men arrived in the same tick.
+     * Now every commit draws a number (`cid`, the sequence below) and every event that resolves
+     * it echoes the number, together with the geometry of the collision: `ix,iy` the midpoint
+     * of the two bodies, `nx,ny` the unit normal from the defender through the carrier,
+     * `impact` the momentum mismatch |cMom − dMom|, and `side` which side of the carrier the
+     * defender came from (+1 below him on screen, −1 above — the grip's own convention).
+     * Cosmetic: nothing here feeds an outcome. */
+    let commitSeqV109 = 0;
+    const hitGeoV109 = (d, c, dMom, cMom) => {
+      let nx = c.lx - d.lx, ny = c.y - d.y; const nl = Math.hypot(nx, ny);
+      if (nl < 0.25) { nx = c._dx || (c.side === "off" ? 1 : -1); ny = c._dy || 0; } else { nx /= nl; ny /= nl; }
+      return { cid: ++commitSeqV109, ix: Math.round((c.lx + d.lx) * 5) / 10, iy: Math.round((c.y + d.y) * 5) / 10,
+        nx: +nx.toFixed(3), ny: +ny.toFixed(3), impact: Math.round(Math.abs(cMom - dMom)), side: d.y >= c.y ? -1 : 1 };
+    };
+    /* v109 BALL SECURITY IS VISIBLE — a hard hit he stays up through can still jar the ball. This
+     * is a bobble he SECURES: no possession change, no strip roll, the turnover rate cannot move.
+     * `c.bc` (ball control) was read nowhere outside the grip strip; a low number now shows as a
+     * man who juggles it on contact, a high one as a man who never looks like losing it. */
+    const bobbleV109 = (c, hit) => {
+      if (hit.impact < TU("bobbleImpact", 40)) return;
+      const bcK = cl((TU("bobbleBcPivot", 75) - (c.bc || 50)) / TU("bobbleBcDiv", 25), TU("bobbleBcMin", .3), TU("bobbleBcMax", 1.8));
+      if (Math.random() < TU("bobbleP", .12) * bcK)
+        emit("ballLoose", { who: c.id, x: c.lx, y: c.y, ms: TU("bobbleMs", 260), secured: true, cid: hit.cid, impact: hit.impact, side: hit.side });
+    };
+    /* v109 THE GANG CONVERGES — the instantaneous tackle collected `supIds` for credit and never
+     * moved them, so a "gang tackle" could render as one man wrapping while two others stood five
+     * yards off and coasted. Each supporter is now nudged a few px toward the carrier along HIS
+     * OWN approach ray, slowed to a walk, and announced with a `wrapIn` the renderer closes on.
+     * Credit and spot are untouched: `supIds`, `gang`, `youIn` and `c.lx` are not read here. */
+    const wrapInV109 = (c, ids, cid) => {
+      if (!TU("wrapInV109", 1)) return;
+      for (const sid of ids) { const s = A_all[sid]; if (!s || s === c) continue;
+        let ux = s._dx || 0, uy = s._dy || 0, tx = c.lx - s.lx, ty = c.y - s.y; const td = Math.hypot(tx, ty) || 1;
+        if (td > TU("wrapInReachPx", 24)) continue;                                     // too far to be part of the heap
+        if (ux * tx + uy * ty <= 0.05 * td) { ux = tx / td; uy = ty / td; }          // not closing on him: walk straight in
+        const nl = Math.hypot(ux, uy) || 1; ux /= nl; uy /= nl;
+        const step = Math.min(TU("wrapInPx", 4), Math.max(0, td - TU("wrapInStopPx", 7)));
+        s.lx += ux * step; s.y = clampY(s.y + uy * step); s.vel = Math.min(s.vel || 0, TU("wrapInVel", .2)); s._dx = ux; s._dy = uy;
+        emit("wrapIn", { who: s.id, carrier: c.id, x: s.lx, y: s.y, bearing: +Math.atan2(uy, ux).toFixed(3), cid }); }
+    };
     // returns: "cooldown" | "whiff" | "stiffarm" | "broken" | "stagger" (stays up) | "tackle" (play ends)
     const contact = (d, c) => {
       if (t < d.cool) return "cooldown";
@@ -2391,6 +2435,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       const dW = WT[d.lb]||.7, cW = WT[c.lb]||.7;
       const dSpd = Math.max(0.12,(d.vel||0))*d.spd, cSpd = Math.max(0.12,(c.vel||0))*c.spd;
       const dMom = dW*dSpd, cMom = cW*cSpd;                       // mass × velocity
+      const hit = hitGeoV109(d, c, dMom, cMom);                   // v109: the point, the normal, the weight, the id
       const dStr = d.str*0.55 + d.tkl*0.45, cStr = c.str*0.6 + (c.burst||c.spdA||50)*0.4;
       const elus = c.agi*0.55 + c.quick*0.45;                    // juke/elusiveness
       // v24 height leverage: gap = tackler − carrier height (in). A TALLER tackler
@@ -2417,7 +2462,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       // evasion after the first cuts the next one's odds; a back does not shake
       // the whole defence one at a time, and the swarm is arriving by then.
       const soloK = (handsOn <= 0 && kind === "run" ? TU("soloEvadeK", 1.0) : 1) * Math.pow(TU("evadeRepeatK", .6), Math.max(0, (c._evades||0) - 1));
-      emit("tackleLunge",{who:d.id, carrier:c.id, x:c.lx, y:c.y, behind, dMom:Math.round(dMom), cMom:Math.round(cMom)});
+      emit("tackleLunge",{who:d.id, carrier:c.id, x:c.lx, y:c.y, behind, dMom:Math.round(dMom), cMom:Math.round(cMom), ...hit});   // v109: `cid` is echoed by the event that resolves this commit
       // v30 fatigue: collisions cost real gas on BOTH sides — a back who absorbs six
       // hits finishes the game on heavier legs than one who ran untouched.
       if (d.gas !== undefined) d.gas = Math.max(0, d.gas - TU("gasHitCostD", 4));
@@ -2431,7 +2476,7 @@ window.__visionRadiusV96 = visionRadiusV96;
         // v29 OVERSHOOT: the juked man's momentum carries him PAST the cut point — he
         // keeps flying along his old line while beaten instead of freezing in place.
         d._osUntil = t + TU("overshootMs",420); d._osdx = d._dx||((c.lx-d.lx)>=0?1:-1); d._osdy = d._dy||0;
-        c._evades = (c._evades||0) + 1; emit("tackleWhiff",{who:d.id, carrier:c.id, x:d.lx, y:d.y});
+        c._evades = (c._evades||0) + 1; emit("tackleWhiff",{who:d.id, carrier:c.id, x:d.lx, y:d.y, ...hit});
         // v24: which move beat him is rating-driven — spin favors raw agility (whipping
         // the hips around), a jump-cut juke favors quickness. `elus` rides the event so
         // the renderer can make an elite back's move crisp and a scrub's sloppy.
@@ -2460,7 +2505,9 @@ window.__visionRadiusV96 = visionRadiusV96;
       if (Math.random() < hurdleP) {
         d.beaten = t + 560; d.cool = t + 480; c.burstUntil = t + 380; kickSprint(c);
         c.vel = Math.max(0,(c.vel||0)*0.98);
-        c._evades = (c._evades||0) + 1; emit("hurdle",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
+        // v109: `clearance` — how much spring he had over the wrap (the rating gap that rolled it)
+        c._evades = (c._evades||0) + 1; emit("hurdle",{who:d.id, carrier:c.id, x:c.lx, y:c.y, ...hit,
+          clearance: Math.round(cl((c.jump*0.6 + c.agi*0.4) - d.tkl + Math.max(0,-lev)*0.8, -40, 40))});
         if (committerId===d.id) committerId = null;
         return "hurdle";
       }
@@ -2471,7 +2518,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       const stiffP = (behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005, 0, 0.5)) * (1 - swarmChoke) * soloK;
       if (Math.random() < stiffP) {
         d.beaten = t + 520; d.stagger = t; c.vel = Math.max(0,(c.vel||0)*0.95); c.burstUntil = t + 300; kickSprint(c);
-        c._evades = (c._evades||0) + 1; emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
+        c._evades = (c._evades||0) + 1; emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y, ...hit, armEdge: Math.round(armEdge)});   // v109: which arm, and how far he shoved him
         if (committerId===d.id) committerId = null;
         return "stiffarm";
       }
@@ -2499,7 +2546,10 @@ window.__visionRadiusV96 = visionRadiusV96;
         // v25 HIT STICK (offense): a violent truck flattens the defender — flagged so the
         // renderer flings him with the baked dive/down frames and pops "HIT STICK".
         const hitStick = (powerEdge > 24 || bothWin) && tkb > 9;
-        c._evades = (c._evades||0) + 1; if (brokenShown++ < 4) emit("brokenTackle",{who:d.id, carrier:c.id, x:d.lx, y:d.y, kb:Math.round(tkb), hitStick});
+        // v109: every truck is emitted now so the commit it resolves is always answered; past the
+        // fourth in one play it is `quiet` and the renderer keeps only the man going down
+        c._evades = (c._evades||0) + 1; emit("brokenTackle",{who:d.id, carrier:c.id, x:d.lx, y:d.y, kb:Math.round(tkb), hitStick, quiet: brokenShown++ >= 4, ...hit});
+        bobbleV109(c, hit);
         if (committerId===d.id) committerId = null;
         return "broken";
       }
@@ -2517,7 +2567,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       if (Math.random() < bounceP) {
         d.beaten = t + 520; d.cool = t + 480; d._osUntil = t + TU("overshootMs",420); d._osdx = d._dx||0; d._osdy = d._dy||0;
         c.vel = Math.max(0,(c.vel||0)*0.78); c._staggered = t;
-        c._evades = (c._evades||0) + 1; emit("bounce",{who:d.id, carrier:c.id, x:c.lx, y:c.y, glancing});
+        c._evades = (c._evades||0) + 1; emit("bounce",{who:d.id, carrier:c.id, x:c.lx, y:c.y, glancing, ...hit});
+        bobbleV109(c, hit);
         if (committerId===d.id) committerId = null;
         return "bounce";
       }
@@ -2525,7 +2576,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       if (Math.random() < staggerP) {
         d.stagger = t; d.cool = t + 300;
         c.vel = Math.max(0,(c.vel||0)*0.75); c._staggered = t;  // knocked off-stride, loses a step
-        emit("stagger",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
+        emit("stagger",{who:d.id, carrier:c.id, x:c.lx, y:c.y, ...hit});
+        bobbleV109(c, hit);
         return "stagger";
       }
       // 5) WRAP lands — the tackler GRABS the carrier. Who goes down, and which way,
@@ -2535,7 +2587,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       // the pile forward for extra yards before going down. Nobody freezes on contact —
       // the drive forward / fly-back both play out through the post-whistle coast.
       // Assisted if a second defender is in on it (~30% gang overall).
-      emit("tackleHit",{who:d.id, carrier:c.id, x:c.lx, y:c.y});
+      emit("tackleHit",{who:d.id, carrier:c.id, x:c.lx, y:c.y, ...hit});
       let nSupport = 0; const supIds = [];
       for (const a of S.all) { if (a.side===d.side && a!==d && a.lb!=="OL"
         && t>(a.beaten||0) && !(a.trucked&&t<a.trucked+900)
@@ -2601,13 +2653,18 @@ window.__visionRadiusV96 = visionRadiusV96;
         c._grip = { by: d.id, t0: t, ms: gripMs, x0: c.lx, y0: c.y, style, gang, kb, drive, collEdge,
           handsOn, sup: supIds.slice(), nSupport, pileEdge, dMom, cMom, behind, lev, stayUp, bothFall,
           bigStick, side: (d.y >= c.y ? -1 : 1), joined: [], strip: false, strain: false, hc: false,
-          openField, gangRolled: false };
+          openField, gangRolled: false,
+          // v109: the hit that opened it (echoed by every heartbeat and the landing), where the
+          // gripper was relative to him when he latched (he settles onto the hip from there), and
+          // each joiner's approach ray (`joinGeo`), so the pile keeps the shape it arrived in
+          hit, lastSay: null, grabDx: d.lx - c.lx, grabDy: d.y - c.y, joinGeo: {} };
         d._gripOn = c.id;
         emit("grab", { who: d.id, carrier: c.id, x: c.lx, y: c.y, behind, style, gang,
-          ms: Math.round(gripMs), handsOn });
+          ms: Math.round(gripMs), handsOn, ...hit });
         return "grip";
       }
-      emit("tackle",{tackler:d.id, carrier:c.id, x:c.lx, y:c.y, gang, bigHit: bigStick||kb>11, bothFall, stayUp, kb:Math.round(kb), drive:Math.round(drive), sup:supIds, youIn, style, hitStick: bigStick, handsOn});
+      wrapInV109(c, supIds, hit.cid);   // v109: the gang closes in before the whistle, not five yards from it
+      emit("tackle",{tackler:d.id, carrier:c.id, x:c.lx, y:c.y, gang, bigHit: bigStick||kb>11, bothFall, stayUp, kb:Math.round(kb), drive:Math.round(drive), sup:supIds, youIn, style, hitStick: bigStick, handsOn, ...hit});
       return "tackle";
     };
 
@@ -3602,6 +3659,45 @@ window.__visionRadiusV96 = visionRadiusV96;
          *     his leg drive finds another gear, which is where third-and-one is decided.
          *   - he BREAKS it. Rarely, a powerful back rips out of the wrap and the play is live again.
          *   - and he LANDS, with the tackle emitted at the ground they actually covered. */
+        /* ===== v109 THE FUMBLE COMES LOOSE =====
+         * The strip used to end the play on the SAME tick it was rolled: `defRec` decided, `endTackle`
+         * run, whistle — the ball never came loose on screen and nobody dived. The truth is still
+         * pre-rolled exactly as before (same `defRec` roll, same spot `c.lx, c.y`, same `out.fumble`
+         * fields, same turnover rate), but between the roll and the booking there is now a short
+         * SCRAMBLE: a loose-ball point skids a few px from where it came out, the side that has
+         * already won it sends its nearest man onto it, everybody else brakes as they would at a
+         * whistle, and then `recover` fires and the play ends through `recoverV109` with the very
+         * same bookkeeping the old same-tick path did. The carrier does not move — the spot is his.
+         * The sub-phase is clamped to the ticks left before HARD, so the clock safety still holds. */
+        const recoverV109 = (L) => {
+          emit("recover", { by: L.by, x: Math.round(L.x * 10) / 10, y: Math.round(L.y * 10) / 10, ms: t - L.t0,
+            defRec: L.defRec, side: L.side, strip: true, cid: L.cid });
+          endTackle(L.dfd);
+          if (out) out.fumble = { by: c.player || null, forcedBy: L.puncher.player || null, defRec: L.defRec,
+            yards: c.side === "off" ? Math.round(c.lx / YD) : 0, x: c.lx, y: c.y };
+          c._looseV109 = null;
+        };
+        if (c._looseV109) {
+          const L = c._looseV109; L.k++;
+          // the ball skids, loses its pace, and dies inside `looseWanderPx` of where it came out
+          const dampK = TU("looseDampK", .8), jit = TU("looseJitterPx", .5);
+          L.vx = L.vx * dampK + (Math.random() - .5) * jit; L.vy = L.vy * dampK + (Math.random() - .5) * jit;
+          L.x += L.vx; L.y = clampY(L.y + L.vy);
+          const wx = L.x - L.x0, wy = L.y - L.y0, wd = Math.hypot(wx, wy), wmax = TU("looseWanderPx", 6);
+          if (wd > wmax) { L.x = L.x0 + wx / wd * wmax; L.y = clampY(L.y0 + wy / wd * wmax); }
+          // the side that has already won it sends its nearest man; the rest brake as at a whistle
+          const rman = A_all[L.by];
+          for (const a of S.all) { if (a === c) continue;
+            if (a === rman) { mv(a, L.x, L.y, TU("looseChaseMult", 1.0)); continue; }
+            evolveSpeed(a, 0, TICK, t, 0, TU("whistleBrakeScale", .46));
+            const v = Math.max(0, a.vel || 0) * (a.spd || 120) * (TICK / 1000) * .8;
+            if (v > .15) { a.lx += (a._dx || 0) * v; a.y = clampY(a.y + (a._dy || 0) * v); } }
+          const landed = L.k >= L.ticks;
+          if (landed) recoverV109(L);
+          rec();   // the recorded ball is the loose one, not the carrier's hand
+          ballFrames[ballFrames.length - 1] = { t, x: Math.round(L.x * 10) / 10, y: Math.round(L.y * 10) / 10, h: 0 };   // on the grass: the renderer draws the bounce (h > 2 would read as a flight)
+          continue;
+        }
         if (c._grip) {
           const G = c._grip, dfd = A_all[G.by], dsg = c.side === "off" ? 1 : -1, age = t - G.t0;
           if (!dfd || (dfd.stunned && t < dfd.stunned) || (dfd.trucked && t < dfd.trucked + 900)) { c._grip = null; }
@@ -3613,6 +3709,17 @@ window.__visionRadiusV96 = visionRadiusV96;
                 if (t <= (a.beaten || 0) || (a.trucked && t < a.trucked + 900) || (a.stunned && t < a.stunned)) continue;
                 if (Math.hypot(a.lx - c.lx, a.y - c.y) > TU("gripJoinPx", 15)) continue;
                 G.joined.push(a.id); G.ms = Math.max(TU("gripMinMs", 90), G.ms - TU("gripJoinCutMs", 150));
+                /* v109 THE PILE HAS A SHAPE — the pile used to be a rigid comb (every heap the same
+                 * shape, a man who arrived from the left ending up on the right because he was joiner
+                 * i=1). A joiner now keeps the bearing he ARRIVED on: his rest ray is the reverse of
+                 * his approach (or the line from the carrier to him when he was standing still), fanned
+                 * a little per joiner so two men off the same side do not share a pixel. The travel
+                 * code lerps him in along that ray from the distance he latched at. Cosmetic. */
+                let jux = -(a._dx || 0), juy = -(a._dy || 0); const jtx = a.lx - c.lx, jty = a.y - c.y, jtd = Math.hypot(jtx, jty) || 1, jl = Math.hypot(jux, juy);
+                if (jl < .2 || jux * jtx + juy * jty <= 0.05 * jtd) { jux = jtx / jtd; juy = jty / jtd; } else { jux /= jl; juy /= jl; }
+                const appr = Math.atan2(-juy, -jux), jI = G.joined.length - 1, rot = (jI % 2 ? 1 : -1) * jI * TU("pileFanRad", .3), jcs = Math.cos(rot), jsn = Math.sin(rot);
+                G.joinGeo[a.id] = { ux: jux * jcs - juy * jsn, uy: jux * jsn + juy * jcs, r0: jtd, t0: t };
+                const aMom = (WT[a.lb] || .7) * Math.max(.12, a.vel || 0) * a.spd;
                 /* getting hands on the heap is not the same as being IN ON THE TACKLE. The pile
                  * is physical — it shortens the grip and it rides along — but whether the stop is
                  * BOOKED as assisted is rolled once, on the same odds the instantaneous path has
@@ -3620,7 +3727,8 @@ window.__visionRadiusV96 = visionRadiusV96;
                  * into a gang tackle and the solo/gang split collapsed to fifty-fifty. */
                 if (!G.gang && !G.gangRolled) { G.gangRolled = true;
                   G.gang = Math.random() < Math.min(0.9, (G.openField ? TU("gangOpen", .10) : TU("gangBox", .36)) + G.handsOn * TU("gangHandsK", .24)); }   // handsOn AT THE WRAP, exactly as the instantaneous path counts it
-                emit("pileOn", { who: a.id, carrier: c.id, x: c.lx, y: c.y, n: G.joined.length + 1 });
+                emit("pileOn", { who: a.id, carrier: c.id, x: c.lx, y: c.y, n: G.joined.length + 1,
+                  angle: +appr.toFixed(3), mom: Math.round(aMom), cid: G.hit.cid });   // v109: the bearing he arrived on, and how hard
                 if (G.joined.length >= TU("gripJoinMax", 3)) break;
               }
             }
@@ -3636,13 +3744,25 @@ window.__visionRadiusV96 = visionRadiusV96;
                   G.strip = true;
                   const nearOff = S.all.filter(a => a.side === c.side && a !== c && Math.hypot(a.lx - c.lx, a.y - c.y) < 40).length;
                   const nearDef = 1 + G.joined.length + S.all.filter(a => a.side !== c.side && a !== dfd && G.joined.indexOf(a.id) < 0 && Math.hypot(a.lx - c.lx, a.y - c.y) < 40).length;
-                  const defRec = Math.random() < cl(TU("stripDefRecP", .46) + (nearDef - nearOff) * TU("stripRecEdgeK", .035), .28, .74);
-                  emit("fumble", { x: c.lx, y: c.y, by: c.id, forcedBy: puncher.id, defRec, strip: true });
-                  endTackle(dfd);
-                  if (out) out.fumble = { by: c.player || null, forcedBy: puncher.player || null, defRec,
-                    yards: c.side === "off" ? Math.round(c.lx / YD) : 0, x: c.lx, y: c.y };
+                  const defRec = Math.random() < cl(TU("stripDefRecP", .46) + (nearDef - nearOff) * TU("stripRecEdgeK", .035), .28, .74);   // the PRE-ROLLED truth; the scramble only shows it
+                  emit("fumble", { x: c.lx, y: c.y, by: c.id, forcedBy: puncher.id, defRec, strip: true, cid: G.hit.cid });
+                  // v109 THE FUMBLE COMES LOOSE: the ball pops out with a direction and the play goes
+                  // into the scramble (see the block above the grip); the booking is identical to the
+                  // old same-tick path, just `looseTicks` later. Ticks are clamped to the room before HARD.
+                  const lAng = Math.random() * Math.PI * 2, lSp = TU("looseSpeedPx", 1.4);
+                  const L = { t0: t, k: 0, x: c.lx, y: c.y, x0: c.lx, y0: c.y, vx: Math.cos(lAng) * lSp, vy: Math.sin(lAng) * lSp,
+                    defRec, dfd, puncher, cid: G.hit.cid, side: defRec ? (c.side === "off" ? "def" : "off") : c.side, by: null };
+                  let best = null, bd = 1e9;
+                  for (const a of S.all) { if (a.side !== L.side || a === c) continue; const dd = Math.hypot(a.lx - c.lx, a.y - c.y); if (dd < bd) { bd = dd; best = a; } }
+                  L.by = best ? best.id : null;
+                  const lMin = TU("looseTicksMin", 8), room = Math.floor((HARD - t) / TICK) - 1;
+                  L.ticks = Math.min(room, Math.round(lMin + Math.random() * Math.max(0, TU("looseTicksMax", 15) - lMin)));
+                  emit("looseBall", { x: c.lx, y: c.y, vx: +L.vx.toFixed(2), vy: +L.vy.toFixed(2), by: c.id, cid: L.cid });
                   c._grip = null; dfd._gripOn = null;
-                  rec(); continue;
+                  if (L.ticks <= 0 || L.by == null || !TU("looseV109", 1)) { recoverV109(L); rec(); continue; }   // no room on the clock: the old same-tick ending
+                  c._looseV109 = L;
+                  rec(); ballFrames[ballFrames.length - 1] = { t, x: Math.round(L.x * 10) / 10, y: Math.round(L.y * 10) / 10, h: 0 };
+                  continue;
                 }
               }
             }
@@ -3689,11 +3809,23 @@ window.__visionRadiusV96 = visionRadiusV96;
             // never the tail of a full-speed deceleration
             c.vel = Math.min(c.vel || 0, cl(TU("gripVelCap", .24) + strain * .5, .08, .9));
             mv(c, c.lx + dsg * 46, c.y, pull);
-            dfd.lx = c.lx - dsg * TU("gripHoldPx", 8); dfd.y = clampY(c.y + G.side * TU("gripHoldY", 4));
+            // v109: the gripper settles onto the back hip FROM where he latched rather than snapping
+            // there; each joiner rides in along the ray he arrived on (THE PILE HAS A SHAPE)
+            const setK = cl(age / TU("gripSettleMs", 120), 0, 1), hx = -dsg * TU("gripHoldPx", 8), hy = G.side * TU("gripHoldY", 4);
+            dfd.lx = c.lx + G.grabDx + (hx - G.grabDx) * setK; dfd.y = clampY(c.y + G.grabDy + (hy - G.grabDy) * setK);
             dfd._dx = c._dx; dfd._dy = c._dy; dfd.vel = c.vel;
             G.joined.forEach((id, i) => { const a = A_all[id]; if (!a) return;
-              a.lx = c.lx - dsg * (11 + i * 3); a.y = clampY(c.y + (i % 2 ? 1 : -1) * (7 + i * 3));
+              const J = G.joinGeo[id];
+              if (J) { const rT = TU("pileRadiusPx", 9) + i * TU("pileRadiusStepPx", 2), jk = cl((t - J.t0) / TU("pileSettleMs", 130), 0, 1), jr = J.r0 + (rT - J.r0) * jk;
+                a.lx = c.lx + J.ux * jr; a.y = clampY(c.y + J.uy * jr); }
+              else { a.lx = c.lx - dsg * (11 + i * 3); a.y = clampY(c.y + (i % 2 ? 1 : -1) * (7 + i * 3)); }
               a._dx = c._dx; a._dy = c._dy; a.vel = c.vel; });
+            // v109 THE HEARTBEAT — the grip used to emit only `grab` and the final `tackle`, so the
+            // renderer could not react to a joiner slowing the drag or a strain while the pair
+            // travelled 90-340ms. A `drag` now says so every `dragSayMs` (the first tick always).
+            if (G.lastSay == null || t - G.lastSay >= TU("dragSayMs", 99)) { G.lastSay = t;
+              emit("drag", { carrier: c.id, by: dfd.id, x: c.lx, y: c.y, pull: +pull.toFixed(2), n: G.joined.length + 1,
+                strain: !!G.strain, vel: +(c.vel || 0).toFixed(2), cid: G.hit.cid }); }
             // ---- the landing: the tackle is booked on the ground they actually covered
             if (age >= G.ms) {
               const dragYd = (c.lx - G.x0) * dsg / YD;
@@ -3706,12 +3838,15 @@ window.__visionRadiusV96 = visionRadiusV96;
               const _assisted = !!G.gang;
               const youIn = (_assisted && S.all.some(a => a.player && a.player.you && a.side !== c.side && a !== dfd
                 && (G.joined.indexOf(a.id) >= 0 || (G.gang && G.sup.indexOf(a.id) >= 0)))) || undefined;
+              // v109: the men who were merely near the wrap close into the landing too (credit untouched)
+              wrapInV109(c, G.sup.filter(id => G.joined.indexOf(id) < 0 && id !== dfd.id), G.hit.cid);
               emit("tackle", { tackler: dfd.id, carrier: c.id, x: c.lx, y: c.y,
                 gang: !!G.gang, bigHit: G.bigStick || G.kb > 11, bothFall: G.bothFall,
                 stayUp: G.stayUp && !G.joined.length, kb: Math.round(G.kb), drive: Math.round(G.drive),
                 sup: G.sup.concat(G.joined), youIn, style: G.style, hitStick: G.bigStick,
                 handsOn: G.handsOn + G.joined.length,
-                dragged: true, dragMs: Math.round(age), dragYd: +dragYd.toFixed(2), strain: !!G.strain, horseCollar: !!G.hc });
+                dragged: true, dragMs: Math.round(age), dragYd: +dragYd.toFixed(2), strain: !!G.strain, horseCollar: !!G.hc,
+                ...G.hit, ix: Math.round((c.lx + dfd.lx) * 5) / 10, iy: Math.round((c.y + dfd.y) * 5) / 10 });   // v109: the hit's id and normal, the landing's point
               c._grip = null; dfd._gripOn = null; c._wasGripped = true;
               endTackle(dfd);
               if (out) { out.dragYd = +dragYd.toFixed(2); out.strain = !!G.strain; out.dragMs = Math.round(age); }
@@ -6423,6 +6558,19 @@ class Ot extends mt.Scene {
         ballX += (P.ballBounceDir || 1) * Math.min(18, age * 0.024) * bpp.s;
         ballY -= Math.abs(Math.sin(age / 92)) * 13 * decay * bpp.s;
       }
+      /* ===== v109 THE FUMBLE COMES LOOSE (the ball) =====
+       * The sim's ball frames carry the skid now (the loose point wanders through the scramble);
+       * this is the bounce on top of it: an oval tumbling end over end with a jittered hop, phased
+       * from the play's token so a replay bounces the same way, dying as the ball settles. Open
+       * from `fumble`/`looseBall` until `recover`; the `loose` mode alone used to ride the straight path. */
+      else if (loose && P.__looseV109) {
+        const Lb = P.__looseV109, age = Math.max(0, P.t - Lb.t0), decay = Math.max(0, 1 - age / TU("looseBounceMs", 520));
+        const ph = age / TU("looseHopMs", 78) + Lb.seed, hop = Math.abs(Math.sin(ph)), sq = Math.abs(Math.cos(ph * .5 + Lb.seed));
+        ballY -= hop * TU("looseHopPx", 9) * decay * bpp.s;
+        ballX += Math.sin(age * .031 + Lb.seed) * TU("looseJitterFx", 1.6) * decay * bpp.s;
+        baseSX *= 1 + .32 * sq; baseSY *= 1 - .22 * sq;
+        P._looseDrawV109 = (P._looseDrawV109 || 0) + 1;
+      }
       if (holder && holder.root) {
         const sc = holder.root.scale || bpp.s || 1, rightHand = holder._rib20Traits?.handed !== "left";
         const sideView = holder.dirKey === "sd", rear = holder.dirKey === "up" || holder.dirKey === "ur";
@@ -7301,7 +7449,9 @@ class Ot extends mt.Scene {
           cm.forceState = null;                                  // his legs are still going: keep the run cycle
         }
         P.gripPair = { tk: this.actorIdx(e.who), cm: this.actorIdx(e.carrier), t: 0 };
-        this.puffFx(e.x, e.y, 2, 0xcfe0d2, 0.42);
+        // v109: the wrap lands AT the point of contact, the scuff squashed along the hit's normal
+        this.puffFx(Number.isFinite(e.ix) ? e.ix : e.x, Number.isFinite(e.iy) ? e.iy : e.y, 2, 0xcfe0d2, 0.42);
+        this.hitFx(e.x, e.y, false, false, e);
         this.hitStop = Math.max(this.hitStop, TU("grabHitStop", 26));
         try { const V = window.__V103 = window.__V103 || {}; V.grabs = (V.grabs || 0) + 1; } catch (er) {}
         break;
@@ -7309,9 +7459,16 @@ class Ot extends mt.Scene {
       case "pileOn": {
         // another man gets hands on and rides along — he latches, he does not tackle
         const a = this.markers[this.actorIdx(e.who)];
-        if (a) { a.forceState = "grab"; a._launchUntil = 0; }
-        this.puffFx(e.x, e.y, 2, 0xc8d6cb, 0.34);
+        if (a) { a.forceState = "grab"; a._launchUntil = 0;
+          // v109 THE PILE HAS A SHAPE: posed from the bearing he arrived on — facing along it into
+          // the heap, leaning in — and kept facing the carrier through the hold like a wrapped-in man
+          if (Number.isFinite(e.angle)) { const p0 = PJ(e.x, e.y), p1 = PJ(e.x + Math.cos(e.angle) * 10, e.y + Math.sin(e.angle) * 10);
+            this.faceMarker(a, p1.x - p0.x, p1.y - p0.y); a._lean = (p1.x >= p0.x ? 1 : -1) * TU("pileLean", .14); }
+          const cmI = this.actorIdx(e.carrier); if (cmI >= 0 && this.markers[cmI]) { a._pair = cmI; a._pairT = a.tms; }
+          a._wrapInV109 = P.t; }
+        this.puffFx(e.x, e.y, 2 + Math.min(2, Math.round(Number(e.mom || 0) / 60)), 0xc8d6cb, 0.34);   // v109: a heavier man kicks up more
         this.hitStop = Math.max(this.hitStop, TU("pileHitStop", 18));
+        this.hookV109C1().pileOns++;
         try { const V = window.__V103 = window.__V103 || {}; V.pileOn = (V.pileOn || 0) + 1; } catch (er) {}
         break;
       }
@@ -7366,9 +7523,79 @@ class Ot extends mt.Scene {
         this.puffFx(e.x, e.y, 2);
         break;
       }
+      /* ===== v109 THE GANG CONVERGES (renderer) =====
+       * A supporter the sim nudged into the heap closes on screen too: the grab pose facing the
+       * carrier, and a one-way pair so placeMarker keeps him turned to the man through the hold.
+       * The `tackle` case then folds every wrapped-in man a beat after the tackler, so the pile
+       * forms ON the whistle instead of freezing apart with one man wrapping. */
+      case "wrapIn": {
+        const sm = this.markers[this.actorIdx(e.who)], cmI = this.actorIdx(e.carrier), cm = this.markers[cmI];
+        if (sm && cm && sm !== cm) {
+          sm.forceState = "grab"; sm._launchUntil = 0; sm._whiffed = false; sm._wrapInV109 = P.t;
+          const p0 = PJ(sm.sx, sm.sy), p1 = PJ(cm.sx, cm.sy); this.faceMarker(sm, p1.x - p0.x, p1.y - p0.y);
+          sm._lean = (p1.x >= p0.x ? 1 : -1) * TU("wrapInLean", .12);
+          sm._pair = cmI; sm._pairT = sm.tms;                    // one-way: the carrier keeps his own pairing
+          this.puffFx(e.x, e.y, 1, 0xcfe0d2, 0.35);
+        }
+        this.hookV109C1().wrapIns++;
+        break;
+      }
+      /* ===== v109 THE PILE HAS A HEARTBEAT (renderer) =====
+       * `drag` arrives every ~99ms while the grip travels. Both men churn — feet driving, a short
+       * bob on the body — at a cadence set by the pull and slowed as the pile grows, and the
+       * carrier's lean deepens with every man on his back. */
+      case "drag": {
+        const tk = this.markers[this.actorIdx(e.by)], cm = this.markers[this.actorIdx(e.carrier)];
+        const n = Math.max(1, Number(e.n || 1)), pull = Math.max(.05, Number(e.pull || .1));
+        const cad = Math.round(TU("dragChurnMs", 130) * (1 + (n - 1) * TU("dragPileSlowK", .35)) * Math.min(1.6, Math.max(.6, .3 / pull)));
+        const amp = TU("dragChurnPx", 1.5) * Math.min(1.4, .5 + pull * 2);
+        const bodies = [tk, cm].filter(mm => mm && mm.body).map(mm => mm.body);
+        if (bodies.length && !REDUCED_MOTION) this.tweens.add({ targets: bodies, y: -amp, duration: Math.max(40, cad / 2), yoyo: true, ease: "Sine.easeInOut",
+          onComplete: () => bodies.forEach(b => { if (b.active !== false) b.y = 0; }) });
+        if (cm) { cm._dragging = true; cm._lean = (cm.flip ? 1 : -1) * (TU("dragGripLean", 0.2) + (n - 1) * TU("dragPileLeanK", .06)); }
+        if (e.strain) this.puffFx(e.x, e.y + 4, 1, 0x8a7a55, 0.4);
+        const V = this.hookV109C1(); V.drags++; V.lastDrag = { n, pull, cad, strain: !!e.strain, cid: e.cid };
+        P.__dragV109 = { t: P.t, n, pull, cad };
+        break;
+      }
+      /* ===== v109 THE FUMBLE COMES LOOSE (renderer) =====
+       * `looseBall` opens the loose window the ball block draws (the oval, the jittered bounce —
+       * deterministic per play from the ball token); `recover` closes it with the man diving on. */
+      case "looseBall": {
+        const tok = String(P.__ballTokenV1514 || e.t || 0), seed = tok.split("").reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 9973, 7);
+        P.__looseV109 = { t0: P.t, x: e.x, y: e.y, vx: Number(e.vx || 0), vy: Number(e.vy || 0), seed, cid: e.cid };
+        this.puffFx(e.x, e.y, 2, 0xffe9ad, 0.5);
+        this.popText(e.x, e.y - 30, "BALL IS LOOSE!", "#ff9fa5", 14);
+        this.hookV109C1().loose++;
+        break;
+      }
+      /* ===== v109 BALL SECURITY IS VISIBLE (renderer) =====
+       * A bobble he secures: the carrier clutches (the catch-hold cell when the kit has one, the
+       * catch pose otherwise) while the ball hops off the hand and comes back. The nudge is applied
+       * on `postupdate`, after the ball block has mounted the ball this frame, so nothing is fought. */
+      case "ballLoose": {
+        const m = this.markers[this.actorIdx(e.who)], ms = Math.max(120, Number(e.ms || 260));
+        if (m && !m.forceState) {
+          const kit = m.kit || m.team, clutch = this.textures.exists("spr_" + kit + "_" + m.dirKey + "_catchhold") ? "catchhold" : "catch";
+          m.forceState = clutch; this.time.delayedCall(ms, () => { if (m.active !== false && m.forceState === clutch) m.forceState = null; });
+        }
+        if (this.ballSpr && !REDUCED_MOTION) {
+          const t0 = P.t, side = Number(e.side || 1) || 1, hop = TU("bobbleHopPx", 7), out = TU("bobbleOutPx", 5);
+          const fn = () => { const spr = this.ballSpr; if (!spr || spr.active === false || this.play !== P) { this.events.off("postupdate", fn); return; }
+            const f = (P.t - t0) / ms; if (f >= 1) { this.events.off("postupdate", fn); return; }
+            const s = Math.sin(Math.PI * Math.max(0, f)), sc = spr.scaleX ? Math.abs(spr.scaleX) / .4 : 1;
+            spr.y -= hop * s * sc; spr.x += side * out * Math.sin(Math.PI * 2 * Math.max(0, f)) * sc; spr.rotation += s * .9; };
+          this.events.on("postupdate", fn);
+        }
+        this.popText(e.x, e.y - 28, "BOBBLED — SECURED", "#f7e2a8", 12);
+        this.hookV109C1().bobbles++;
+        break;
+      }
       case "tackleHit": {
         // the lunge landed — wrap him up. v29: the grab HOLDS while the carrier fights
         // (the tackle event that follows re-arms it into the fall) instead of a blink.
+        // v109: the scuff is at the point of contact
+        this.puffFx(Number.isFinite(e.ix) ? e.ix : e.x, Number.isFinite(e.iy) ? e.iy : e.y, 1, 0xdfe8ef, 0.36);
         const tk = this.markers[this.actorIdx(e.who)];
         if (tk) { tk._whiffed = false; tk.forceState = "grab"; this.time.delayedCall(TU("wrapGrabMs",700), () => { if (tk.forceState === "grab") tk.forceState = null; }); }
         this.slowMoment(P);
@@ -7381,25 +7608,29 @@ class Ot extends mt.Scene {
           this.time.delayedCall(200, () => { if (tk.active !== false) tk.forceState = "down"; });
           this.time.delayedCall(780, () => { if (tk.forceState === "down") { tk.forceState = null; tk._whiffed = false; } }); }
         this.popText(e.x, e.y - 22, "MISSED TACKLE!", "#8fe7ff", 12);
-        this.puffFx(e.x, e.y, 2);
+        this.puffFx(Number.isFinite(e.ix) ? e.ix : e.x, Number.isFinite(e.iy) ? e.iy : e.y, 2);   // v109: where he reached and missed
         break;
       }
       case "tackle": {
         this.slowMoment(P);
         const big = e.bigHit || (pay.yards ?? 0) <= 0;
         const bump = Number(e.kb || 0);
-        REDUCED_MOTION || this.cameras.main.shake(big ? 190 : 110, big ? (bump >= 10 ? 0.011 : 0.008) : 0.004);
+        // v109 THE HIT HAS A POINT: the rings, the scuff, the wear and the shake all ride the
+        // sim's impact point and its weight — a routine wrap barely moves the frame
+        const ixV109 = Number.isFinite(e.ix) ? e.ix : e.x, iyV109 = Number.isFinite(e.iy) ? e.iy : e.y;
+        const impK = Math.min(1, Math.max(0, Number(e.impact || 0)) / TU("impactShakeRef", 90));
+        REDUCED_MOTION || this.cameras.main.shake(big ? 190 : 110, (big ? (bump >= 10 ? 0.011 : 0.008) : 0.004) * (0.7 + impK * 0.6));
         if (big) this.hitStop = Math.max(this.hitStop, TU("hitStopBig", bump >= 10 ? 110 : 80));
         if (bump >= 10) this.popText(e.x, e.y - 56, "LEVELED!", "#ff9fa5", 15);
         const mine = P.script.meta.featured && P.script.meta.featured.isMe && e.tackler === P.script.meta.featured.actorId;
         if (mine) { this.flash(e.x, e.y, 0xf0bb45); this.popText(e.x, e.y - 44, "YOUR TACKLE!", "#f0bb45", 13); }
-        this.hitFx(e.x, e.y, big, !!e.bigHit); vib(big ? 40 : 18);
-        this.puffFx(e.x, e.y, big ? 4 : 2);
+        this.hitFx(e.x, e.y, big, !!e.bigHit, e); vib(big ? 40 : 18);
+        this.puffFx(ixV109, iyV109, big ? 4 : 2);
         this.setSpot(e.x, e.y);
         this.finishYd(e);
         const m = this.markers[P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier)];
         const tk = this.markers[this.actorIdx(e.tackler)];
-        try { this.addWearV86(e.x, e.y, big ? 9 : 6, 0.08); } catch (er) {}   // v86: the turf remembers the pile
+        try { this.addWearV86(ixV109, iyV109, (big ? 9 : 6) * (0.8 + impK * 0.5), 0.08); } catch (er) {}   // v86: the turf remembers the pile (v109: where the bodies met)
         /* v86 TACKLE STYLES — read off the geometry the sim already resolved. Where the
          * tackler is relative to the carrier's heading says what kind of tackle it was:
          * from behind is a drag-down, square with knock-back is a knock-back, low or from
@@ -7454,12 +7685,17 @@ class Ot extends mt.Scene {
           else this.time.delayedCall(holdMs, () => { if (tk.active !== false && tk.forceState != null) { tk.forceState = "tackleSeq"; tk.seqT = tk.tms; } });
           // a genuinely assisted stop shows it: the nearest support wrapper latches on
           // with his own grab a beat later, then joins the pile on the ground
-          if (e.gang === true && Array.isArray(e.sup) && e.sup.length) {
-            const sm = this.markers[this.actorIdx(e.sup[0])];
-            if (sm && sm !== tk) {
-              this.time.delayedCall(TU("supGrabMs",120), () => { if (sm.active !== false) sm.forceState = "grab"; });
-              this.time.delayedCall(holdMs + 180, () => { if (sm.active !== false && sm.forceState === "grab") { sm.forceState = "tackleSeq"; sm.seqT = sm.tms; } });
-            }
+          // v109 THE GANG CONVERGES: every man who closed in (`wrapIn` / `pileOn`) is already in
+          // the heap in his grab — they fold a beat after the tackler, in order, and the one-man
+          // latch below is kept only for a supporter the sim never walked in
+          const supsV109 = (Array.isArray(e.sup) ? e.sup : []).map(id => this.markers[this.actorIdx(id)]).filter(sm => sm && sm !== tk && sm !== m);
+          const wrappedV109 = supsV109.filter(sm => sm._wrapInV109);
+          if (wrappedV109.length) wrappedV109.forEach((sm, i) => { sm.forceState = "grab";
+            this.time.delayedCall(holdMs + 180 + i * TU("wrapFoldStepMs", 60), () => { if (sm.active !== false && sm.forceState === "grab") { sm.forceState = "tackleSeq"; sm.seqT = sm.tms; sm._lean = 0; } }); });
+          else if (e.gang === true && supsV109.length) {
+            const sm = supsV109[0];
+            this.time.delayedCall(TU("supGrabMs",120), () => { if (sm.active !== false) sm.forceState = "grab"; });
+            this.time.delayedCall(holdMs + 180, () => { if (sm.active !== false && sm.forceState === "grab") { sm.forceState = "tackleSeq"; sm.seqT = sm.tms; } });
           }
         }
         if (m) {
@@ -7657,7 +7893,11 @@ class Ot extends mt.Scene {
       }
       case "brokenTackle": {
         const m = this.markers[this.actorIdx(e.who)];
+        // v109: past the fourth truck in a play the event is `quiet` — he still goes down, no flair
+        if (e.quiet) { if (m) { m.forceState = "down"; this.time.delayedCall(720, () => { if (m.forceState === "down") m.forceState = null; }); }
+          this.hookV109C1().quietTrucks++; break; }
         this.slowMoment(P);
+        this.hitFx(e.x, e.y, Number(e.kb || 0) >= 8, false, e);   // v109: the rings at the point he was run through, along the carrier's line
         // v25 HIT STICK (offense trucks the defender): fling the beaten man with the
         // baked dive→down frames along the carrier's motion, big shake + freeze-frame.
         if (e.hitStick && m) {
@@ -7683,12 +7923,19 @@ class Ot extends mt.Scene {
         P.carrierId = null;
         P.ballHolderId = null; P.ballMode = "loose"; P.ballReleaseAt = P.t; P._ballTumbleBase = this.ballSpr?.rotation || 0;
         P.__looseBall = true;
+        // v109: the loose window opens here (the `looseBall` that follows a strip adds the direction)
+        { const tok = String(P.__ballTokenV1514 || e.t || 0); P.__looseV109 = { t0: P.t, x: e.x, y: e.y, vx: 0, vy: 0, seed: tok.split("").reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 9973, 7), cid: e.cid }; }
         if (window.__RIB20_onFumble) window.__RIB20_onFumble(this, P, e);
         break;
       }
       case "recover": {
         const m = this.markers[this.actorIdx(e.by)];
         if (m) this.flash(m.sx, m.sy, 0xff6b52);
+        // v109 THE FUMBLE COMES LOOSE: the man who wins the scramble dives onto it and covers it
+        if (m && e.strip) { m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + TU("recoverDiveMs", 240); m._launchH = 6; m._lean = 0;
+          this.time.delayedCall(TU("recoverDiveMs", 240), () => { if (m.active !== false && m.forceState === "dive") m.forceState = "down"; });
+          this.puffFx(e.x, e.y + 3, 3, 0x8a7a55, 0.45); }
+        P.__looseV109 = null; this.hookV109C1().recovers++;
         if (e.side === "def") { P.turnoverV95 = "FUMBLE"; BADGE_V95.show("turnover", { sub: "DEFENSE RECOVERS", x: e.x, y: e.y, scene: this, token: "to:" + P.__ballTokenV1514 }); }   // v95
         else this.popText(e.x, e.y - 24, "RECOVERED — OFFENSE!", "#f7e2a8", 15);
         P.__looseBall = false;
@@ -7987,13 +8234,32 @@ class Ot extends mt.Scene {
     const r = this.trackFx(this.add.circle(x, y, 9 * fp.s).setStrokeStyle(3, c, 1).setDepth(20));
     this.tweens.add({ targets: r, scale: 2.6, alpha: 0, duration: 260, onComplete: () => this.dropFx(r) });
   }
-  hitFx(x, y, big, stick) {
+  /* ===== v109 THE HIT HAS A POINT (renderer) =====
+   * `hitFx` takes the event (or any {ix,iy,nx,ny,impact,cid}) as a fifth argument: the rings are
+   * drawn AT the impact point instead of the carrier's centre, squashed along the collision normal,
+   * sized by the momentum mismatch (`impactFxK`), and the harder the hit the more debris flies
+   * off along that normal. `window.__V109_C1` is the hook: `.hits` counts every drawn hit,
+   * `.last` is the last one's geometry, and the new events each keep a counter. */
+  hookV109C1() { return (window.__V109_C1 = window.__V109_C1 || { hits: 0, last: null, wrapIns: 0, drags: 0, pileOns: 0, loose: 0, recovers: 0, bobbles: 0, quietTrucks: 0, lastDrag: null }); }
+  hitFx(x, y, big, stick, geo) {
+    const g = geo && Number.isFinite(geo.ix) && Number.isFinite(geo.iy) ? geo : null;
+    if (g) { x = g.ix; y = g.iy; }
     const sx = x, sy = y;
     const hp = PJ(x, y); x = hp.x; y = hp.y;
+    const imp = g ? Math.max(0, Number(g.impact) || 0) : 0, k = g ? Math.min(2.2, Math.max(0.7, 0.7 + imp * TU("impactFxK", .012))) : 1;
+    let ang = 0; if (g) { const p1 = PJ(g.ix + (Number(g.nx) || 0) * 10, g.iy + (Number(g.ny) || 0) * 10); ang = Math.atan2(p1.y - y, p1.x - x); }
     for (let i = 0; i < (big ? 3 : 2); i++) {
-      const r = this.trackFx(this.add.circle(x, y, (6 + i * 4) * hp.s).setStrokeStyle(3 - i * 0.7, big ? 0xff6b52 : 0xffffff, 0.9).setDepth(20));
+      const r = this.trackFx((g ? this.add.ellipse(x, y, (12 + i * 8) * hp.s * k, (8 + i * 5) * hp.s * k).setRotation(ang) : this.add.circle(x, y, (6 + i * 4) * hp.s))
+        .setStrokeStyle(3 - i * 0.7, big ? 0xff6b52 : 0xffffff, 0.9).setDepth(20));
       this.tweens.add({ targets: r, scale: 2.4 + i, alpha: 0, duration: 230 + i * 90, onComplete: () => this.dropFx(r) });
     }
+    if (g && !REDUCED_MOTION) { const n = Math.min(6, 1 + Math.round(imp / 30));
+      for (let i = 0; i < n; i++) { const a2 = ang + (Math.random() - .5) * 1.1, dist = (10 + Math.random() * 14) * k * hp.s;
+        const d = this.trackFx(this.add.rectangle(x, y, 3 * hp.s, 1.6 * hp.s, i % 2 ? 0xfff2c8 : 0xffb28a, .9).setRotation(a2).setDepth(20));
+        this.tweens.add({ targets: d, x: x + Math.cos(a2) * dist, y: y + Math.sin(a2) * dist - 4 * hp.s, alpha: 0, duration: 220 + Math.random() * 120, ease: "Quad.easeOut", onComplete: () => this.dropFx(d) }); } }
+    const V = this.hookV109C1(); V.hits++;
+    V.last = g ? { ix: g.ix, iy: g.iy, nx: Number(g.nx) || 0, ny: Number(g.ny) || 0, impact: imp, cid: g.cid, big: !!big, k } : { x: sx, y: sy, big: !!big, k: 1 };
+    if (g) { V.hitsGeo = (V.hitsGeo || 0) + 1; V.lastGeo = V.last; }   // the ones placed from the sim's point (other cases still call hitFx bare)
     if (stick) BADGE_V95.show("bighit", { x: sx, y: sy, scene: this });   // v95: the badge is the sim's hit stick, not every stop for no gain
   }
   popText(x, y, txt, color, size) {
