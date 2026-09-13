@@ -127,6 +127,22 @@ if (!(V.pumpSeqPlayed || 0)) {
 console.log('live hook:', JSON.stringify(Object.assign({}, V, { tracks: (V.tracks || []).length })))
 console.log('drawn:', JSON.stringify(R))
 ok((V.reachDrawn || 0) >= 1 && Object.keys(R.seq || {}).length >= 2, 'the catch is drawn off the sheet\'s own catch sequences, started on the reach', `${V.reachDrawn || 0} reaches drawn · cells ${JSON.stringify(R.seq)}`)
+// The tuck is only drawn on a catch whose sequence gets to FINISH: a receiver hit as the ball
+// arrives goes straight to the tackle sequence, so a short watch of two contested catches holds
+// none. If the sample produced no held frame, drive a reach + catch through the renderer's own
+// cases and count the frames off the recorder, the way the pump is driven above.
+if (!((V.catchHoldHeld || 0) >= 1 && (R.hold || 0) > 0)) {
+  for (let i = 0; i < 30 && !((V.catchHoldHeld || 0) >= 1 && (R.hold || 0) > 0); i++) {
+    await page.evaluate(() => { const sc = window.__gridironScene, P = sc && sc.play
+      if (!P || !sc.markers || !sc.markers[0] || !sc.markers[0].root) return
+      const m = sc.markers[0]; m.forceState = null; m._post = null
+      sc.fireEvent({ type: 'reach', by: 'off0', x: m.sx, y: m.sy, kind: 'stride', at: P.t + 180 }, P)
+      sc.fireEvent({ type: 'catch', by: 'off0', x: m.sx, y: m.sy, catchType: 'secure' }, P) })
+    await page.waitForTimeout(700)
+    const st3 = await page.evaluate(() => ({ V: window.__V109_B || null, R: window.__v109rec || null }))
+    if (st3.V) V = Object.assign({}, V, st3.V); if (st3.R) R = st3.R
+  }
+}
 ok((V.catchHoldHeld || 0) >= 1 && (R.hold || 0) > 0, 'the tuck: catchhold was held after a catch before the run cycle resumed', `${V.catchHoldHeld || 0} holds · ${R.hold || 0} frames`)
 ok((V.pumpSeqPlayed || 0) >= 1 && (R.pumpF || 0) > 0 && !(R.pumpFrames || {})['4'] && !(R.pumpFrames || {})['5'], 'a pump fake was drawn: throw frames 0-3 and no release', `${V.pumpSeqPlayed || 0} pumps (${pumpPath}) · frames ${JSON.stringify(R.pumpFrames)} · declined as too near a real throw: ${V.pumpTooLate || 0}`)
 ok((V.headTurns || 0) >= 1 && (R.lookQuarter || 0) > 0, 'heads turn to the ball on the quarter facings (target and the man on him), not a hard profile', `${V.headTurns || 0} turns · quarter ${R.lookQuarter || 0} vs profile ${R.lookSide || 0} frames`)
