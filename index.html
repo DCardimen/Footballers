@@ -2522,16 +2522,18 @@ window.__visionRadiusV96 = visionRadiusV96;
       const flyW = WT[o.fly] || .7, hitW = WT[o.by] || .7;
       // mass: the lighter the man who is hit against the man who hit him, the further he goes
       const massK = cl(hitW / Math.max(.3, flyW), TU("launchMassMin", .6), TU("launchMassMax", 1.8));
-      const pow = (Math.max(0, o.impact) * TU("launchImpactK", 1)
+      const pow = Math.round((Math.max(0, o.impact) * TU("launchImpactK", 1)
         + Math.max(0, o.strEdge) * TU("launchStrK", .9)
         + Math.max(0, o.kb) * TU("launchKbK", 2.4)
         + (o.stick ? TU("launchStickPow", 26) : 0)
         + Math.max(0, o.lev) * TU("launchLevK", 1.6)                   // the hitter got under his pads
-        - (o.behind ? TU("launchBehindPow", 40) : 0)) * massK;         // from behind he is hauled down, not launched
+        - (o.behind ? TU("launchBehindPow", 40) : 0)) * massK);        // from behind he is hauled down, not launched
       const gate = TU("launchGate", 168);
       if (!(pow > gate)) return null;
+      // the published `flyPow` IS the number the speed is read off, so the arc is reproducible
+      // from the event alone — the check re-derives every flyVz from it and must land on the nose
       const vz = cl(TU("launchVzBase", .1) + (pow - gate) * TU("launchVzK", .0011), TU("launchVzMin", .1), TU("launchVzMax", .17));
-      return { vz: +vz.toFixed(4), pow: Math.round(pow) };
+      return { vz: +vz.toFixed(4), pow };
     };
     try { (root.__V112_F_SIM = root.__V112_F_SIM || {}).launch = launchV112; } catch (e) {}   // v112: v112Fcheck sweeps the collision's inputs through the real function
     // returns: "cooldown" | "whiff" | "stiffarm" | "broken" | "stagger" (stays up) | "tackle" (play ends)
