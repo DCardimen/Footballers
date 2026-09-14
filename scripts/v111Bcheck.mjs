@@ -4,6 +4,10 @@
 //     anything is touched, and nothing written to the week until it is (no pick = today's game).
 //   * THE PICK IS THE STATE — tapping a step writes week.usageV111 and the priced cost on screen
 //     moves with it: limited is cheaper than every snap, every snap is dearer than normal.
+//   * THE LADDER IS TWO LADDERS — below `normal` it buys SNAPS (he is really off the field);
+//     at `normal` he is already on for every snap his unit takes, so above it there are no more
+//     snaps to sell and what it buys instead is the BALL. Both halves are monotone, and the
+//     screen's own copy has to say which of the two rows is moving.
 //   * THE NUMBERS ARE THE MODEL'S — every figure drawn in WHAT IT BUYS / WHAT IT COSTS is read
 //     back out of window.__V111.forecast (or, when agent A's model is absent from this tree, the
 //     screen's own neutral stub) and compared to the pixels.
@@ -68,6 +72,8 @@ const readUI = () => page.evaluate(() => {
   const pl = (st && st.player) || (window.__V111_UI && window.__V111_UI.player()) || null
   return {
     steps, buy: rows('.v111-col.buy'), cost: rows('.v111-col.cost'),
+    buyNote: T(document.querySelector('.v111-col.buy .v111-note')),
+    head: T(document.querySelector('#v111Wrap .gs-head small')),
     chips: [...document.querySelectorAll('.v111-parts .v111-chip')].map(T),
     desc: T(document.getElementById('v111Desc')), plan: T(document.getElementById('v111Plan')),
     impact: T(document.querySelector('.gs-impact')), fillPct: fill ? fill.style.width : null,
@@ -105,9 +111,34 @@ await tapStep('limited')
 const L = await readUI()
 ok(L.usageV111 === 'limited', 'and again for another step', 'week.usageV111=' + L.usageV111)
 const snapsA = num(A.buy, 'snap'), snapsH = num(H.buy, 'snap'), snapsL = num(L.buy, 'snap')
+const touchA = num(A.buy, 'touch'), touchH = num(H.buy, 'touch'), touchL = num(L.buy, 'touch')
 const wearA = num(A.cost, 'wear'), wearH = num(H.cost, 'wear'), wearL = num(L.cost, 'wear')
 const injA = num(A.cost, 'injury'), injH = num(H.cost, 'injury'), injL = num(L.cost, 'injury')
-ok(snapsL < snapsA && snapsA < snapsH, 'more involvement buys more snaps', `limited ${snapsL}% < normal ${snapsA}% < every ${snapsH}%`)
+// THE LADDER IS TWO LADDERS, and the screen has to be honest about which one it is on.
+// BELOW normal the dial buys SNAPS — he is genuinely off the field and the share falls. It cannot
+// keep buying them above normal, because at normal he is already on for every snap his unit takes
+// and there is nothing left to sell. What the top half buys is the BALL: the touch multiplier.
+// So: snaps rise up to normal and then plateau at 100%, touch share rises all the way, and the
+// whole ladder is monotone non-decreasing in both.
+ok(snapsL < snapsA, 'below NORMAL the dial buys SNAPS — he really comes off the field', `limited ${snapsL}% < normal ${snapsA}%`)
+ok(snapsA >= 99.5 && snapsH >= 99.5 && snapsH <= snapsA + 0.5,
+  'at NORMAL he is already on for every snap, so the top of the ladder cannot sell him more',
+  `normal ${snapsA}% · every ${snapsH}%`)
+ok(touchA < touchH, 'above NORMAL the dial buys the BALL instead — the touch share is what rises', `normal ×${touchA} < every ×${touchH}`)
+ok(touchL < touchA, 'and the bottom of the ladder gives the ball back too', `limited ×${touchL} < normal ×${touchA}`)
+const steps = await page.evaluate(async () => {
+  const out = []
+  for (const k of window.__V111_UI.KEYS) { window.__v111PickUsageV111(k); const u = window.__V111_UI.usage(); out.push({ k, share: u.share, touch: u.touchMul }) }
+  return out
+})
+ok(steps.every((s, i) => !i || (s.share >= steps[i - 1].share - 1e-9 && s.touch >= steps[i - 1].touch - 1e-9)),
+  'every step up the ladder is more football than the one below it, never less',
+  steps.map(s => `${s.k} ${Math.round(s.share * 100)}%/×${s.touch}`).join(' → '))
+// and the SCREEN has to say that, not imply a snap count that is never coming
+ok(!/more snaps means more/i.test(A.head || '') && /ball/i.test(A.head || ''),
+  'the panel heading promises the ball above NORMAL, not more snaps', A.head)
+ok(/sideline/i.test(L.buyNote || '') && /ball that moves/i.test(H.buyNote || ''),
+  'WHAT IT BUYS names which of the two rows is actually moving', `limited: "${L.buyNote}" | every: "${H.buyNote}"`)
 ok(wearL < wearA && wearA < wearH, 'and costs more wear', `${wearL} < ${wearA} < ${wearH}`)
 ok(injL < injA && injA < injH, 'and a higher injury chance for this game', `${injL}% < ${injA}% < ${injH}%`)
 ok(num(L.cost, 'games out') <= num(A.cost, 'games out') && num(A.cost, 'games out') <= num(H.cost, 'games out'), 'and more expected games missed', `${num(L.cost, 'games out')} <= ${num(A.cost, 'games out')} <= ${num(H.cost, 'games out')}`)

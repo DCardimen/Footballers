@@ -11,7 +11,11 @@
 //   6. charge() moves fatigue, moves the injury chance, and writes a lingering cut that decays
 //      over its `games` countdown.
 //   7. A rest snap credits him nothing: on the snaps he sits, the sim never names him.
-//   8. A focus pick raises exactly one stat by 1.2x in effAttrsV85 AND in what the sim reads.
+//   8. A focus pick raises exactly one stat by 1.2x in effAttrsV85 AND in what the sim reads —
+//      and all 27 picks across the nine positions land on the engine's own attribute accessor.
+//   9. THE SEASON ARC, through REAL weeks resolved by resolveSequentialWeekV11: held at
+//      "everysnap" the load climbs, the injury chance climbs with it, a lingering cut arrives
+//      and his effective rating falls; dialled back to "limited" the load is paid off again.
 //
 // Env: GAME_URL (default http://localhost:5191/index.html), BASE_URL (the pre-v111 build, for
 // the identity test — skipped when unset), GAMES (per involvement key, default 90), AB (games
@@ -287,6 +291,47 @@ const res = await page.evaluate(({ N, POS }) => {
     R.resolve = { wear: wr.wearV111 ? { load: wr.wearV111.load, fat: wr.wearV111.fatigueAfter } : null,
       snaps: wr.snapsV111, ledgerLoad: V.wear(pl).load }
   }
+
+  // ---- 9. THE SEASON ARC: the dial, left alone for weeks, through the real weekly path ---
+  // Not charge() in a loop — actual weeks, resolved by the game's own resolveSequentialWeekV11,
+  // so the load that accrues is billed from what the engine says he ACTUALLY did. Held at
+  // "everysnap" the body has to walk toward the injury roll and a lingering cut; dialled back to
+  // "limited" it has to pay load off again.
+  pl._wearV111 = null
+  pl._tempStatBuffsV25 = null
+  pl.conditionV11.fatigue = 20
+  const arcWeek = () => pl.weekResults.find(w => w && !w.played)
+  const arcRow = (key) => {
+    const w = arcWeek()
+    if (!w) return null
+    w.usageV111 = key
+    try { AU.resolveSequentialWeekV11(pl, w, 'balanced') } catch (e) { R.arcErr = String(e).slice(0, 160); return null }
+    const eff = window.__V85.effAttrs(pl)
+    const L = V.wear(pl).lingering.filter(b => b && (b.games | 0) > 0)
+    return { key, load: round(V.wear(pl).load, 1), billed: w.wearV111 ? round(w.wearV111.load, 1) : null,
+      fat: Math.round(pl.conditionV11.fatigue || 0), satOut: !!w.satOut, injured: !!w.injured,
+      inj: round(window.__injChanceV54(pl, { wk: w }) * 100, 1),
+      cuts: L.map(b => b.stat + ' ' + b.amt + '/' + b.games).join(','),
+      cutPts: L.reduce((t, b) => t + Math.abs(b.amt || 0), 0),
+      // how far BELOW the condition-only number the sheet actually draws him — that gap is the
+      // lingering cut arriving on the attribute page, and nothing else
+      sheetGap: L.reduce((t, b) => t + Math.max(0, Math.round((pl.attrs[b.stat] || 0) * eff.mult) - (eff.eff[b.stat] || 0)), 0),
+      effSum: window.__GRIDIRON_AUDIT__.ATTRS.reduce((t, k) => t + (eff.eff[k] || 0), 0) }
+  }
+  const heavyArc = [], lightArc = []
+  for (let i = 0; i < 5 && arcWeek(); i++) { const r = arcRow('everysnap'); if (r) heavyArc.push(r) }
+  const peak = heavyArc.length ? heavyArc[heavyArc.length - 1] : null
+  for (let i = 0; i < 4 && arcWeek(); i++) { const r = arcRow('limited'); if (r) lightArc.push(r) }
+  const floorRow = lightArc.length ? lightArc[lightArc.length - 1] : null
+  R.arc = { heavy: heavyArc, light: lightArc }
+  R.arcVerdict = peak && floorRow ? {
+    loadClimbs: peak.load > heavyArc[0].load && peak.load > 35,
+    injuryClimbs: peak.inj > heavyArc[0].inj * 1.15,
+    cutArrives: peak.cutPts > 0 && !heavyArc[0].cuts,
+    ratingDrops: peak.sheetGap > 0 && peak.effSum < heavyArc[0].effSum,
+    dialBackPays: floorRow.load < peak.load - 10,
+    injuryEases: floorRow.inj < peak.inj,
+  } : { ran: false }
   return R
 
   function ok2 () {}
@@ -338,9 +383,20 @@ ok(res.biteVerdict.all, 'a focus does not reach the engine\'s attribute accessor
 ok(res.resolve && res.resolve.wear && res.resolve.wear.load !== undefined, 'the weekly resolver did not bill the body', res.resolve)
 if (res.resolveErr) fails.push('the weekly resolver threw — ' + res.resolveErr)
 
+const AR = res.arcVerdict || {}
+ok(AR.ran !== false, 'the season arc did not run at all', res.arc)
+if (res.arcErr) fails.push('a real week threw during the season arc — ' + res.arcErr)
+ok(AR.loadClimbs, 'weeks at "everysnap" do not drive the load up', res.arc && res.arc.heavy)
+ok(AR.injuryClimbs, 'weeks at "everysnap" do not raise the injury chance', res.arc && res.arc.heavy)
+ok(AR.cutArrives, 'weeks at "everysnap" never produce a lingering stat cut', res.arc && res.arc.heavy)
+ok(AR.ratingDrops, 'the lingering cut never reaches his effective rating', res.arc && res.arc.heavy)
+ok(AR.dialBackPays, 'dialling back to "limited" does not pay the load off', res.arc && res.arc.light)
+ok(AR.injuryEases, 'dialling back does not bring the injury chance down', res.arc && res.arc.light)
+
 console.log(JSON.stringify({ identity, api: res.api, dial: res.dial, dialVerdict: res.dialVerdict, restCredit: res.restCredit,
   forecast: res.forecast, forecastVerdict: res.forecastVerdict, charge: res.charge, chargeVerdict: res.chargeVerdict,
   recovery: res.recovery, focus: res.focus, focusVerdict: res.focusVerdict, bite: res.bite, biteVerdict: res.biteVerdict, resolve: res.resolve,
+  arc: res.arc, arcVerdict: res.arcVerdict,
   fails: fails.length, pageErrors: pageErrors.length }, null, 1))
 if (fails.length) console.log('FAILURES:\n' + fails.join('\n'))
 if (pageErrors.length) console.log('PAGE ERRORS:\n' + pageErrors.slice(0, 6).join('\n'))
