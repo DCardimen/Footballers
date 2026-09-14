@@ -309,6 +309,8 @@
           ${tile('hall', 'icon_hall', 'HALL OF FAME', 'LEGACY STATS')}
           ${tile('locker', 'icon_locker', 'LOCKER', 'GEAR & APPEARANCE')}
           ${tile('settings', 'icon_settings', 'SETTINGS', 'GAME OPTIONS')}
+          ${/* v111: the guide is the one tile with no screen behind it — rib-menu-howto.js opens it over this menu */''}
+          ${tile('howto', 'badge_brain', 'HOW TO PLAY', 'ATTRIBUTES · POSITIONS · THE LADDER', 'rib9-tile-guide')}
         </nav>`;
     const navLink = (action, label, active) => `<button class="rib9-navlink ${active ? 'on' : ''}" type="button" data-rib-action="${action}">${label}</button>`;
 
@@ -317,7 +319,7 @@
         <header class="rib9-topbar">
           <div class="rib9-brand"><span class="rib9-mark">RIB</span><div><b>RUNNING IT BACK</b><small>CAREER MODE</small></div></div>
           <nav class="rib9-nav" aria-label="Main">
-            ${navLink('home', 'HOME', true)}${navLink(has ? 'continue' : 'new', 'CAREER')}${navLink('goals', 'GOALS')}${navLink('hall', 'HALL')}${navLink('view:leaderboard', 'LEADERBOARDS')}${navLink('settings', 'SETTINGS')}
+            ${navLink('home', 'HOME', true)}${navLink(has ? 'continue' : 'new', 'CAREER')}${navLink('goals', 'GOALS')}${navLink('hall', 'HALL')}${navLink('view:leaderboard', 'LEADERBOARDS')}${navLink('howto', 'HOW TO PLAY')}${navLink('settings', 'SETTINGS')}
           </nav>
           <button class="rib9-prestige" type="button" data-rib-action="prestige" title="Prestige tree">${svg('star')}<b data-rib-field="prestige">${esc(S.prestige || 0)}</b><small>PRESTIGE</small><i></i><b data-rib-field="pp">${esc(S.pp || 0)}</b><small>PP</small></button>
           <div class="rib9-motto">BUILD A PLAYER.<br>EARN EVERY REP.<br>CHASE THE LEAGUE.</div>
@@ -682,6 +684,9 @@
 
   function unmountMenu() {
     stopHeroFx();
+    // v111: the how-to-play view is a body-level overlay (so the re-render below cannot wipe it);
+    // it is a view OF the menu, so it leaves when the menu does
+    try { window.dispatchEvent(new Event('rib-menu-unmounted')); } catch (e) { /* older engines */ }
     document.body.classList.remove(BODY_CLASS);
     document.getElementById(MENU_ID)?.remove();
     lastFingerprint = '';

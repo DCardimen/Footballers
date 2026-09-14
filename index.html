@@ -181,7 +181,7 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 @keyframes badgeSnapV95{0%{transform:translateX(-120%) rotate(-6deg);opacity:1}60%{transform:translateX(0) rotate(-6deg);opacity:1}to{transform:translateX(0) rotate(-6deg);opacity:0}}
 @media (prefers-reduced-motion:reduce){.rib-badge-rays-v95{animation:none}}
 </style>
-<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v107.1-menu"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v107.1-menu"><link rel="stylesheet" href="./public/rib-menu.css?v=v107.1-menu"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v107.1-menu"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
+<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v111-howto"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v111-howto"><link rel="stylesheet" href="./public/rib-menu.css?v=v111-howto"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v111-howto"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
 <body>
 <div id="splash">
 <div class="splash-inner">
@@ -2103,8 +2103,15 @@ window.__visionRadiusV96 = visionRadiusV96;
     ["CB","S","LB","DL"].forEach(p=>pools.def[p]=byPos(tDef,p).slice());
     // the user's roster player ALWAYS takes the field at his position slot, so the
     // gold marker and the stat credit track a real on-screen actor every play
-    const youPending = { off: kOff.find(p=>p&&p.you)||null, def: tDef.find(p=>p&&p.you)||null };
-    const take = (side,pos,prefer)=>{ if(prefer){ if(youPending[side]===prefer) youPending[side]=null; return prefer; }
+    // ===== v111: unless this snap is one of his REST snaps. The engine normally swaps a backup
+    // into his roster slot before the call, so he is not in `kOff` at all; `picks.restV111` is
+    // the belt to that braces for any caller that hands us the real sheet and still wants him
+    // off the field. Absent (every default) this is exactly the old line.
+    const restV111 = !!(picks && picks.restV111);
+    if (restV111) { ["QB","RB","WR","TE","OL"].forEach(p=>pools.off[p]=pools.off[p].filter(q=>!(q&&q.you)));
+                    ["CB","S","LB","DL"].forEach(p=>pools.def[p]=pools.def[p].filter(q=>!(q&&q.you))); }
+    const youPending = { off: restV111?null:(kOff.find(p=>p&&p.you)||null), def: restV111?null:(tDef.find(p=>p&&p.you)||null) };
+    const take = (side,pos,prefer)=>{ if(prefer&&!(restV111&&prefer.you)){ if(youPending[side]===prefer) youPending[side]=null; return prefer; }
       const yp=youPending[side];
       if(yp && yp.pos===pos){ youPending[side]=null; return yp; }
       const pool=pools[side][pos]; return pool&&pool.length? pool[Math.floor(Math.random()*pool.length)] : null; };
@@ -2135,6 +2142,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       emit("sprint",{who:a.id, dur, x:a.lx, y:a.y}); };
     const sprinting = a => !!(a && a.sprintUntil && t < a.sprintUntil);
     let t = 0, done = false, result = null, carrier = null, ballFlight = null;
+    let ballPlayerV110 = null;   // v110: the roster player who actually played the ball, when it was not the coverage man
+    const V110 = root.__V110 = root.__V110 || { laps: 0, takeovers: 0, ballMen: 0, holds: 0 };   // v110: what the new paths actually did
     let ball = { lx: S.off[8].lx, y: S.off[8].y, h: 0 };
     const emit = (type, extra) => events.push(Object.assign({ t, type }, extra));
     const rec = () => { S.all.forEach(a=>a.frames.push({t, x:Math.round(a.lx*10)/10, y:Math.round(a.y*10)/10}));
@@ -2792,7 +2801,23 @@ window.__visionRadiusV96 = visionRadiusV96;
         if (Math.random() < biteP) { a._bite = true; a._readMs += TU("biteExtraMs", 240); }
       }
     });
-    const seesBall = a => a._seenAt != null && t >= a._seenAt;
+    /* ===== v110 THE MAN WHO IS THERE — the ball at your feet is not a diagnosis =====
+     * v81 gives every defender a read clock and, until it lands, he plays his ASSIGNMENT: the
+     * linebacker takes his read step at lbReadLx, the safety stays over the top, the corner stays
+     * on his man. The clock had no proximity term, so a carrier could run within a yard of a
+     * linebacker who was still reading and go straight past him — the single thing that reads on
+     * screen as a defender who is in position and does nothing. Nobody stands a yard off the
+     * football and fails to notice it: inside `seeBallPx` the read lands NOW. */
+    const seesBall = a => {
+      if (a._seenAt != null && t >= a._seenAt) return true;
+      if (!TU("seeBallV110", 1) || !carrier || !a || a.side === carrier.side) return false;
+      if (Math.hypot(a.lx - carrier.lx, a.y - carrier.y) >= TU("seeBallPx", 20)) return false;
+      a._seenAt = t;
+      if (!a._sawNearV110) { a._sawNearV110 = 1;
+        try { (root.__V110 = root.__V110 || { laps: 0, takeovers: 0, ballMen: 0, holds: 0 }).nearReads = ((root.__V110.nearReads) || 0) + 1; } catch (e) {}
+        emit("keyRead", { who: a.id, x: a.lx, y: a.y, ms: 0, bite: !!a._bite, near: true }); }
+      return true;
+    };
     // announce the lookers to the renderer once the ball is live (at the snap),
     // and mark each man's diagnosis the tick it lands
     const keyTick = () => {
@@ -3753,8 +3778,27 @@ window.__visionRadiusV96 = visionRadiusV96;
               const boxOut = target.lx > coverA.lx - 2 && arrivalEdgeMs > -80;
               const boxK = boxOut ? cl((target.str * .5 + ((target.ht||73) - 73) * 1.2 - coverA.str * .4) * .002 + .03, 0, .09) : 0;
               const comebackK = shortBall ? cl((target.aware - 50) * .002 + .02, -.02, .06) - (sep < .4 ? TU("underthrowRisk", .05) : 0) : 0;
-              const contested = sep < TU("contestSep", .2) && Math.hypot(coverA.lx - cx, coverA.y - cyIn) < 22;
-              const swatP = contested ? cl((coverA.cov - 50) * .004 + (coverA.jump - 50) * .002 + TU("swatBase", .04), 0, .3) * (coverA.cov >= target.cat ? 1 : .6) : 0;
+              /* ===== v110 THE MAN WHO IS THERE — the ball belongs to whoever is standing on it =====
+               * Only the assigned coverage man could break a pass up or pick it off, so a safety
+               * sitting ON the catch point had no way to touch the ball: measured over ~300
+               * arrivals, a defender other than the coverage man was the nearest man to the ball
+               * 11% of the time and could do nothing about it. The contest now belongs to whoever
+               * is actually closest, and it is HIS ratings that decide it. This swaps the identity
+               * of the man making the play rather than adding a roll, so the rates hold. */
+              const covGapV110 = Math.hypot(coverA.lx - cx, coverA.y - cyIn);
+              let ballMan = coverA, ballManGap = covGapV110;
+              if (TU("ballManV110", 1)) {
+                for (const d of S.def) {
+                  if (d === coverA || (d.stunned && t < d.stunned) || (d.engagedBy && !d.shed)) continue;
+                  const g = Math.hypot(d.lx - cx, d.y - cyIn);
+                  if (g < ballManGap - TU("ballManTakePx", 4) && g < TU("ballManReachPx", 24)) { ballMan = d; ballManGap = g; }
+                }
+                if (ballMan !== coverA) V110.ballMen++;
+                if (ballMan !== coverA) emit("ballMan", { by: ballMan.id, on: target.id, off: coverA.id,
+                  x: cx, y: cyIn, gap: Math.round(ballManGap), covGap: Math.round(covGapV110) });
+              }
+              const contested = sep < TU("contestSep", .2) && ballManGap < 22;
+              const swatP = contested ? cl((ballMan.cov - 50) * .004 + (ballMan.jump - 50) * .002 + TU("swatBase", .04), 0, .3) * (ballMan.cov >= target.cat ? 1 : .6) : 0;
               if (shortBall) emit("comeback", { who: target.id, x: cx, y: cyy, smart: comebackK > 0 });
               if (boxOut && boxK > .04) emit("boxOut", { who: target.id, on: coverA.id, x: cx, y: cyy });
               // jumping decides the high-point on deep shots; ballControl secures contested grabs
@@ -3778,9 +3822,10 @@ window.__visionRadiusV96 = visionRadiusV96;
                 // v109 A PASS BREAK-UP IS CONTACT: the arm comes from somewhere. A defender the
                 // receiver had boxed out, or one trailing him, reaches through from BEHIND; one
                 // deeper than the man undercuts it from the FRONT; side by side it comes OVER the top.
-                const _from = (boxOut || coverA.lx < target.lx - TU("swatSidePx", 3)) ? "behind" : coverA.lx > target.lx + TU("swatSidePx", 3) ? "front" : "over";
-                emit("swat", { by: coverA.id, on: target.id, x: cx, y: cyIn, contact: true, from: _from, boxOut: !!boxOut, edgeMs: Math.round(arrivalEdgeMs) });
-                emit("incomplete", _reasonV109("swat", { by: coverA.id, on: target.id, from: _from })); done = true;
+                const _from = (boxOut || ballMan.lx < target.lx - TU("swatSidePx", 3)) ? "behind" : ballMan.lx > target.lx + TU("swatSidePx", 3) ? "front" : "over";
+                emit("swat", { by: ballMan.id, on: target.id, x: cx, y: cyIn, contact: true, from: _from, boxOut: !!boxOut, edgeMs: Math.round(arrivalEdgeMs) });
+                emit("incomplete", _reasonV109("swat", { by: ballMan.id, on: target.id, from: _from })); done = true;
+                ballPlayerV110 = ballMan.player || ballPlayerV110;   // v110: the break-up is credited to the man who made it
                 try { const B = root.__V109_B; B.swatN = (B.swatN || 0) + 1; (B.swatFrom = B.swatFrom || {})[_from] = (B.swatFrom[_from] || 0) + 1; } catch (e) {}
                 out = { kind: "pass", complete: false, intercepted: false, yards: 0, swat: true };
               } else if (Math.random() < catchP) {
@@ -3810,15 +3855,16 @@ window.__visionRadiusV96 = visionRadiusV96;
                 const absSpot=(Number(opts?.fieldPos)||50)+cx/YD, sideline=Math.abs(cyy-MIDY)>165;
                 const fieldRisk=(absSpot>=90?.012:0)+(absSpot<=12?.006:0)+(routeDepth>12&&!sideline?.008:0)-(sideline?.012:0);
                 const earlyRisk=cl((arrivalEdgeMs-70)/1700,0,.05), badLocation=(1-locationQuality)*.02;
-                const intP = cl((coverA.cov - target.spdA*0.5 - target.agi*0.5) * 0.004
-                  + (routeDepth>13 ? (coverA.jump-target.jump)*0.002 : 0)
+                const intP = cl((ballMan.cov - target.spdA*0.5 - target.agi*0.5) * 0.004
+                  + (routeDepth>13 ? (ballMan.jump-target.jump)*0.002 : 0)
                   + (bracketed&&coverHelp?(coverHelp.cov-45)*.0012:0)
                   - (S.off[8].aware-50)*0.0007 + (sep < -2 ? 0.028 : 0.012)
                   + earlyRisk + badLocation + fieldRisk + (underPressure?.008:0), 0.004, 0.18)
                   * (window.__toMultV76 || 1);      // v76: takeaway swing, damped by mismatch
                 if (Math.random() < intP) {
-                  emit("pick",{by:coverA.id,x:cx,y:cyy});
-                  carrier = coverA; phase = "carry";           // live return!
+                  emit("pick",{by:ballMan.id,x:cx,y:cyy});
+                  carrier = ballMan; phase = "carry";           // v110: the man who picked it is the man who returns it
+                  ballPlayerV110 = ballMan.player || ballPlayerV110;
                   out = { kind:"pass", complete:false, intercepted:true, yards:0 };
                 } else {
                   // v109 AN INCOMPLETION HAS A REASON — classified AFTER the rolls, changing none of them.
@@ -3832,7 +3878,7 @@ window.__visionRadiusV96 = visionRadiusV96;
                   const _reason = (_catchable && !contested && sep > TU("dropSepMin", -1.5)) ? "drop"
                     : _catchable ? "contested"
                     : _mdx > _tol ? "overthrow" : _mdx < -_tol ? "short" : Math.abs(_mdy) > _tol ? "behind" : "contested";
-                  emit("incomplete", _reasonV109(_reason, _reason === "drop" ? { by: target.id } : _reason === "contested" ? { by: coverA.id, on: target.id } : { on: target.id })); done = true;
+                  emit("incomplete", _reasonV109(_reason, _reason === "drop" ? { by: target.id } : _reason === "contested" ? { by: ballMan.id, on: target.id } : { on: target.id })); done = true;
                   // v30: the defender was IN the receiver at the catch point on a real
                   // route and the ball hit the turf — that contact is a DPI candidate
                   if (sep < TU("dpiSep",-0.8) && routeDepth > 6 && coverA.player) flagCand.dpi = coverA.player;
@@ -4375,7 +4421,10 @@ window.__visionRadiusV96 = visionRadiusV96;
             // v81: a blocker with his hands on him — walled off until he sheds
             if (t < (dfd.held||0)) { mv(dfd, c.lx, c.y, 0.16);
               // a blocked man can still fall off the block onto a runner who comes THROUGH him
-              if (Math.hypot(dfd.lx-c.lx, dfd.y-c.y) < TU("heldReachPx", 17) && (!committerId || committerId===dfd.id)) {
+              const _heldGapV110 = Math.hypot(dfd.lx-c.lx, dfd.y-c.y);
+              const _heldCmGapV110 = (committerId && committerId !== dfd.id && A_all[committerId])
+                ? Math.hypot(A_all[committerId].lx-c.lx, A_all[committerId].y-c.y) : 1e9;   // v110: a held man who is CLOSER than the committer still gets his hands on him
+              if (_heldGapV110 < TU("heldReachPx", 17) && (!committerId || committerId===dfd.id || _heldGapV110 < _heldCmGapV110 - TU("commitTakePx", 3))) {
                 committerId = dfd.id; const r = contact(dfd, c); if (r === "grip") break; if (r === "tackle") { endTackle(dfd); break; } }   // v103: a grip hands the carrier to the grip tick
               continue; }
             // v81: until he has FOUND the ball he plays his assignment, not the carrier.
@@ -4474,15 +4523,31 @@ window.__visionRadiusV96 = visionRadiusV96;
           // CLOSER to the ball — a man trailing the play does not own the tackle
           const cmGap = otherCommitted ? (function(){const cm=A_all[committerId]; return cm ? Math.hypot(cm.lx-c.lx, cm.y-c.y) : 1e9;})() : 1e9;
           if (root.__V81_TRACE && gap < 40) root.__V81_TRACE.push({ t, id: dfd.id, gap: Math.round(gap), committer: committerId, aim: [Math.round(dfd._aimX||0), Math.round(dfd._aimY||0)], vel: +(dfd.vel||0).toFixed(2), cool: dfd.cool > t });
-          if (otherCommitted && gap < TU("supportHold",26) && gap > cmGap - 4) {
+          /* ===== v110 THE MAN WHO IS THERE — support never holds the closest man =====
+           * The hold read `gap > cmGap - 4`, so a defender up to four pixels CLOSER to the ball
+           * than the committed man still settled into a support spot and watched. Measured over
+           * 660 stops, the man who made the tackle was not the nearest defender 37% of the time.
+           * He holds now only if he is genuinely farther off than the committer, and a man who is
+           * already on top of the ball is never held at all. */
+          if (otherCommitted && gap < TU("supportHold",26) && gap > cmGap + TU("supportHoldEdgePx", 0)
+              && gap > TU("supportNeverHoldPx", 12)) {
             // v29: support settles into a leverage spot a full stride off the tackle —
             // he's there to clean up a break, not to pile on. Solo stops stay solo.
             /* v109 THE FEET PLANT — the support FANS. Every support man aimed at one of two spots
              * (fourteen back, eight either side) and they stacked on it. Each now holds on his OWN
              * approach ray to the ball, at supportRayPx plus a stride per man, so three men in
              * support are three men around the tackle, not one heap behind it. */
-            const ang9 = Math.atan2(dfd.y - c.y, dfd.lx - c.lx), r9 = TU("supportRayPx", 14) + (Math.max(0, chasers.indexOf(dfd)) % 3) * TU("supportRayStep", 6);
-            mv(dfd, c.lx + Math.cos(ang9)*r9, clampY(c.y + Math.sin(ang9)*r9), 0.3);
+            const ang9 = Math.atan2(dfd.y - c.y, dfd.lx - c.lx);
+            /* v110: support CLOSES, it does not park. The ring was a fixed standoff, so a man two
+             * yards off the ball stood on his spot and watched the tackle happen in front of him —
+             * the thing that reads as a defender in position doing nothing. The longer the committer
+             * has had hold, the tighter the ring draws, and he is moving the whole time; the floor
+             * keeps him just outside contact range so this stays a picture, not a second tackler. */
+            const tight9 = cl((t - (committerAt || t)) / TU("supportCloseMs", 400), 0, 1);
+            const r9 = Math.max(TU("supportFloorPx", 12),
+              (TU("supportRayPx", 14) + (Math.max(0, chasers.indexOf(dfd)) % 3) * TU("supportRayStep", 6))
+              * (1 - tight9 * TU("supportCloseK", .45)));
+            mv(dfd, c.lx + Math.cos(ang9)*r9, clampY(c.y + Math.sin(ang9)*r9), TU("supportPace", .3) + tight9 * TU("supportClosePace", .35));
             continue;
           }
           let beatenPace = gap > 62 && c.spd > dfd.spd + 6 ? 0.9 : 1;
@@ -4534,13 +4599,30 @@ window.__visionRadiusV96 = visionRadiusV96;
           // committer LEAPS: the dive carries him the last stretch so contact resolves
           // from a real launch into the grab, not a step-in wrap.
           const launchAt = TU("tackleLaunchDist", 30);
-          if (gapNow < launchAt && (!committerId || committerId===dfd.id || gapNow < cmGap - 4) && (dfd.vel||0) >= TU("commitMinVel", .35)) {
+          /* v110: the commit is handed over to whoever is actually CLOSEST, measured now (after the
+           * step), not to whoever claimed it first. `commitMinVel` still keeps a trailing lineman
+           * from claiming the tackle from range — but it no longer stops a man who is standing in
+           * the hole the carrier is running into, because a stationary man in the gap is the most
+           * in-position defender on the field. */
+          const cmGapNow = (function(){ const cm = otherCommitted ? A_all[committerId] : null;
+            return cm ? Math.hypot(cm.lx-c.lx, cm.y-c.y) : 1e9; })();
+          const takeoverV110 = otherCommitted && gapNow < cmGapNow - TU("commitTakePx", 3);
+          if (takeoverV110 && committerId !== dfd.id) V110.takeovers++;
+          if (gapNow < launchAt && (!committerId || committerId===dfd.id || takeoverV110)
+              && ((dfd.vel||0) >= TU("commitMinVel", .35) || takeoverV110 || gapNow < TU("contactAnyPx", 11))) {
             if (committerId !== dfd.id) committerAt = t;
             committerId = dfd.id;
             if (!dfd._leaped) { dfd._leaped = t; dfd._leapUntil = t + 400; }
           }
           // the grab/collision itself resolves once he's actually on the carrier
-          if (gapNow < TU("tackleGrabDist", 16) && committerId===dfd.id) {
+          /* v110: and a defender the carrier runs INTO makes the play whether or not he owns the
+           * commit. Only the committer could resolve contact, so a man a yard and a half off the
+           * ball — inside `contactAnyPx` — did nothing at all: 25% of defenders who got within a
+           * yard and a half of the ball never appeared in a single contact event. */
+          const inHisLapV110 = gapNow < TU("contactAnyPx", 11);
+          if (inHisLapV110 && committerId !== dfd.id) V110.laps++;
+          if ((gapNow < TU("tackleGrabDist", 16) && committerId===dfd.id) || inHisLapV110) {
+            if (committerId !== dfd.id) { committerId = dfd.id; committerAt = t; }
             const r = contact(dfd, c);
             if (r === "grip") break;                     // v103: he has hold of him — the grip tick takes it from here
             if (r === "tackle") { endTackle(dfd); break; }
@@ -4698,7 +4780,7 @@ window.__visionRadiusV96 = visionRadiusV96;
     }
     out = out || { kind, yards: 0 };
     out.yards = cl(out.yards, -6, 80);
-    if(kind==="pass"&&target){ out.targetPlayer=target.player||picks.target||null; out.coverPlayer=coverA&&coverA.player||picks.cover||null;
+    if(kind==="pass"&&target){ out.targetPlayer=target.player||picks.target||null; out.coverPlayer=ballPlayerV110||coverA&&coverA.player||picks.cover||null;   // v110: credit follows the man who made the play
       out.throwStyle=throwStyle; out.throwWindow=throwWindow; out.arrivalEdgeMs=Math.round(arrivalEdgeMs); out.locationQuality=locationQuality; }
     // v18 post-whistle coast: bodies don't freeze at the whistle — everyone keeps
     // moving and decelerates naturally for ~1 second after the play is blown dead.
@@ -12897,8 +12979,13 @@ function injChanceV54(e,opts){
   const resist=(e.attrs&&e.attrs.injuryResist)||10;
   const resistMult=f(1.35-resist*.009,.45,1.4);
   const c=e.conditionV11||null;
-  const fatMult=1+((c&&c.fatigue)||0)/100*TU("injFatigueK",.9);
-  let m=TU("injBase",.17)*gapMult*resistMult*fatMult;
+  const fatMult=1+(opts.fatigue!=null?Number(opts.fatigue):((c&&c.fatigue)||0))/100*TU("injFatigueK",.9);
+  /* v111: accumulated wear is a term in THIS roll, not a second coin flip beside it. `load` is
+   * the signed ledger v111 keeps (0 for a body that has never gone past a normal week), so at
+   * every default this multiplier is exactly 1 and nothing below it moves. */
+  const loadV111=opts.load!=null?Number(opts.load):((e._wearV111&&e._wearV111.load)||0);
+  const loadMult=f(1+loadV111/100*TU("wearInjK",1),TU("wearInjMin",.8),TU("wearInjMax",2.4));
+  let m=TU("injBase",.17)*gapMult*resistMult*fatMult*loadMult;
   if(Oe(e,"ironFrame"))m*=.7;
   if(Oe(e,"glassBones"))m*=1.35;
   m*=Math.max(.15,1-G("injDown")-Ze("injDown"))*(ft("injMult")||1);
@@ -12972,6 +13059,505 @@ function bodyLedgerV73(e){
     net:swing,verdict:sit?"UNAVAILABLE":swing>=.8?"NET POSITIVE":swing<=-.8?"NET NEGATIVE":"NEUTRAL"};
 }
 window.__BODY_V73={ledger:e=>bodyLedgerV73(e)};
+/* ===== v111 YOUR GAME, YOUR BODY — the involvement dial, the wear ledger, the focus =====
+ * Three things the career never let the player decide, all of them priced off machinery that
+ * was already here.
+ *
+ * (1) INVOLVEMENT. `usageV111` turns the pregame dial into two numbers the engine can act on:
+ *     `share` — the fraction of his unit's snaps he is ON THE FIELD for, and `touchMul` — how
+ *     much of the ball comes his way on the snaps he plays. A rest snap is a real rest snap:
+ *     the engine swaps a BACKUP into his roster slot for that play, so FieldSim fields the
+ *     backup, the commentary names the backup and `pe()` credits the backup. Nothing is
+ *     suppressed after the fact, which is what keeps stat-credit truth intact.
+ *
+ * (2) WEAR. `forecastV111` prices the NEXT game before it is played and `chargeV111` bills the
+ *     body from what he ACTUALLY did. The price rides on how much he did (snaps x touches, with
+ *     the heavy end of the dial superlinear), his durability (the same `injuryResist` curve
+ *     `injChanceV54` uses, plus ironFrame/glassBones), the opponent (the same rating gap
+ *     `injChanceV54` already computes) and the stakes (a championship costs more than week
+ *     three). The bill is charged in the three places the game already reads: `conditionV11
+ *     .fatigue`, a `load` term inside `injChanceV54` itself, and a lingering stat cut carried in
+ *     `_tempStatBuffsV25`-shaped entries with a `games` countdown, so `effAttrsV85` and every
+ *     sheet show it with no new plumbing.
+ *
+ *     The number is a DELTA, not a ratchet: a game costs `wearBase x work` and the week gives
+ *     `wearRecover` back, both of them through the SAME multiplier, so at "normal" the two
+ *     cancel to exactly nothing no matter who he is playing, how brittle he is or what the
+ *     fixture is worth. The ledger does not move. That is the whole reason the defaults reproduce today
+ *     exactly, and it puts the tradeoff where the player can see it — in the DIAL, not in the
+ *     schedule. Go heavy and it accumulates; go limited and it unwinds.
+ *
+ * (3) THE FOCUS. `focusForV111` is exactly three position-appropriate picks, each a 1.2x
+ *     MULTIPLIER on one attribute for that game only. `_tempStatBuffsV25` entries were flat adds;
+ *     a `mul` field is honoured now by `effAttrsV85` AND by the engine's own attribute accessor
+ *     (`_raw`), applied AFTER `condMultV54` and clamped so it can never compound into nonsense.
+ *
+ * State: `week.usageV111` and `week.focusV111` are written by the pregame screen; `player
+ * ._wearV111 = {load, lingering}` is owned here. `window.__V111` is the hook. ===== */
+const KEYS_V111=["limited","reduced","normal","heavy","everysnap"];
+/* Above "normal" the SHARE cannot rise — he already plays every snap of his unit today — so the
+ * top half of the dial buys TOUCHES and pays for them with the body. That is the honest reading.
+ * Every number here is a live dial: TU("useShareLimited"/"useShareReduced"/"useShareNormal"/
+ * "useShareHeavy"/"useShareEvery") and TU("useTouchLimited"/"useTouchReduced"/"useTouchNormal"/
+ * "useTouchHeavy"/"useTouchEvery") — named in the rows below so DEV can find them. */
+const USE_V111={
+  limited  :{label:"LIMITED",    icon:"🪑",share:["useShareLimited",.55],touch:["useTouchLimited",.70],desc:"Rotational. You watch a lot of football from the sideline and your body thanks you for it."},
+  reduced  :{label:"REDUCED",    icon:"🔃",share:["useShareReduced",.75],touch:["useTouchReduced",.85],desc:"A managed load — off the field on the long drives, fresh when the game turns."},
+  normal   :{label:"NORMAL",     icon:"🏈",share:["useShareNormal",1],   touch:["useTouchNormal",1],   desc:"The starter's week. Every snap your unit takes, your ordinary share of the ball."},
+  heavy    :{label:"HEAVY",      icon:"🔥",share:["useShareHeavy",1],    touch:["useTouchHeavy",1.25], desc:"Featured. You never leave the field and the ball comes looking for you."},
+  everysnap:{label:"EVERY SNAP", icon:"⚡",share:["useShareEvery",1],    touch:["useTouchEvery",1.5],  desc:"They ride you until the wheels come off — the biggest numbers, and the biggest bill."}
+};
+const useKeyV111=k=>KEYS_V111.indexOf(k)>=0?k:"normal";
+const curWeekV111=pl=>((pl&&pl.weekResults)||[]).find(w=>w&&!w.played)||null;
+const shareOfV111=k=>f(TU(USE_V111[k].share[0],USE_V111[k].share[1]),.2,1);
+const touchOfV111=k=>f(TU(USE_V111[k].touch[0],USE_V111[k].touch[1]),.3,2.2);
+function usageV111(pl,wk){pl=pl||(typeof o<"u"&&o?o.player:null);wk=wk===undefined?curWeekV111(pl):wk;
+  const k=useKeyV111(wk&&wk.usageV111),r=USE_V111[k];
+  return{key:k,label:r.label,icon:r.icon,desc:r.desc,share:shareOfV111(k),touchMul:touchOfV111(k)}}
+/* how much football he played, as one number: snaps are close to linear, touches are not — a
+ * back handed the ball twenty-five times pays more than proportionally for the last five. */
+const workV111=(share,touchMul)=>Math.pow(f(share,.05,1),TU("wearSnapPow",.9))*Math.pow(f(touchMul,.2,2.5),TU("wearTouchPow",1.6));
+/* the same durability curve injChanceV54 runs on, and the same two traits */
+function durMulV111(pl){let m=f(1.35-(((pl&&pl.attrs&&pl.attrs.injuryResist)||10))*.009,.45,1.4);
+  if(Oe(pl,"ironFrame"))m*=TU("wearIron",.78);if(Oe(pl,"glassBones"))m*=TU("wearGlass",1.3);return m}
+/* the same rating gap injChanceV54 computes — outclass them and the hits stop landing */
+function oppMulV111(pl,wk){const base=45+((pl&&pl.level)||0)*5.5,
+  oppR=wk&&wk.opponentV11&&wk.opponentV11.rating!=null?Number(wk.opponentV11.rating):base;
+  return f(1-(Pa(pl)-oppR)/TU("wearGapScale",70),TU("wearGapMin",.5),TU("wearGapMax",1.7))}
+/* a semifinal costs more than week three. The schedule marks the big ones three ways at once and
+ * this reads all three, because a week that says it is a semifinal has to be priced as one no
+ * matter which of its markers a caller happened to set: `playoff`/`roundIdx` against ea(level)'s
+ * round list first (what cn() writes and what the bracket carries), then the `importance` the
+ * opponent row carries and the ROUND NAME itself — the same vocabulary the scorebug and the body
+ * card already read off. A save with no marker at all falls back to where the fixture sits in the
+ * season, and treats the run-in as the fixtures that decide it. */
+const ROUND_RE_V111={final:/final(?!ist)|championship|title|super\s*bowl/i,semi:/semi|conference\s*(final|championship)/i};
+function stakesV111(pl,wk){
+  if(!wk)return{mul:1,label:"Regular week"};
+  const riv=wk.opponentV11&&wk.opponentV11.rivalry?TU("wearStakesRival",1.1):1,
+    imp=String((wk.opponentV11&&wk.opponentV11.importance)||""),rnd=String(wk.round||"");
+  if(wk.playoff){const rounds=(typeof ea==="function"&&ea(pl.level))||[],last=Math.max(0,rounds.length-1),i=wk.roundIdx!=null?wk.roundIdx:last;
+    if(i>=last)return{mul:TU("wearStakesFinal",1.7)*riv,label:wk.round||"Championship"};
+    if(i===last-1)return{mul:TU("wearStakesSemi",1.42)*riv,label:wk.round||"Semifinal"};
+    return{mul:TU("wearStakesPlayoff",1.22)*riv,label:wk.round||"Playoff"}}
+  /* no `playoff` flag, but the week still says what it is — honour it rather than pricing a
+   * championship as week three because one field was not set */
+  if(ROUND_RE_V111.semi.test(rnd))return{mul:TU("wearStakesSemi",1.42)*riv,label:rnd||"Semifinal"};   // before the final test: "Semifinal" ENDS in "final"
+  if(imp==="championship"||ROUND_RE_V111.final.test(rnd))return{mul:TU("wearStakesFinal",1.7)*riv,label:rnd||"Championship"};
+  if(imp==="playoff"||/playoff|quarter|wild\s*card|round\s*of/i.test(rnd))return{mul:TU("wearStakesPlayoff",1.22)*riv,label:rnd||"Playoff"};
+  const reg=((pl&&pl.weekResults)||[]).filter(w=>w&&!w.playoff),n=reg.length||1,i=reg.indexOf(wk),
+    at=i<0?0:(i+1)/n,from=f(TU("wearStakesLateFrom",.6),0,.95),
+    mul=(1+TU("wearStakesLate",.22)*f((at-from)/(1-from),0,1))*riv;
+  return{mul,label:at>=.88?"Season on the line":at>=from?"Run-in":"Regular week"}}
+const loadOfV111=pl=>f((pl&&pl._wearV111&&pl._wearV111.load)||0,TU("wearLoadMin",-40),TU("wearLoadMax",180));
+/* a body already carrying wear breaks down faster than a fresh one */
+const wornMulV111=pl=>1+Math.max(0,loadOfV111(pl))/100*TU("wearCompound",.3)
+  +Math.max(0,(((pl&&pl.conditionV11&&pl.conditionV11.fatigue)||0)-TU("freshFatigue",25)))/100*TU("wearFatCompound",.25);
+/* One game's bill, SIGNED, and this is the shape that matters. What the game takes out of him is
+ * `wearBase x work`; what the week gives back is `wearRecover`, priced in the SAME units because a
+ * hard fixture is a hard week whether he plays forty snaps of it or twelve. BOTH terms are then
+ * scaled by the same multiplier, which is what makes "normal" cost exactly nothing for every body,
+ * every opponent and every fixture — the property the whole feature rests on, and the reason the
+ * involvement DIAL and not the schedule is what moves this ledger.
+ *
+ * The multiplier is not quite the same on the two sides of that crossover. Damage rides the whole
+ * stack; recovery rides a capped one (`wearRecoverCapMul`), so a brutal fixture never becomes the
+ * best rest week on the schedule — nobody heals a season's wear by sitting out one afternoon in
+ * the semifinal. Both branches hand back zero at `work == 1`, so the cap can never reopen the
+ * hole it was closing: the old form scaled only the damage by M and left recovery flat, which
+ * meant an ORDINARY starter (dur x opp is already past 2 for most of a career) was quietly
+ * billed for a week he played exactly as he always had. */
+function costV111(pl,wk,work){const dur=durMulV111(pl),opp=oppMulV111(pl,wk),st=stakesV111(pl,wk),worn=wornMulV111(pl),
+  M=dur*opp*st.mul*worn,dmg0=TU("wearBase",12)*work,rec0=TU("wearRecover",12),
+  Mx=dmg0>=rec0?M:Math.min(M,TU("wearRecoverCapMul",2)),dmg=dmg0*Mx,rec=rec0*Mx;
+  return{gross:dmg,rec,dur,opp,st,worn,work,mul:M,mulUsed:Mx,load:dmg-rec}}
+/* Accumulated load past the threshold is carried onto the field as a real cut. It is priced as a
+ * PERCENTAGE and only then turned into points, because three points off a pee-wee's speed of
+ * twelve is a quarter of the kid and off a professional's eighty-five it is nothing. What the
+ * lingering entry carries is the points — a plain signed `amt` with a `games` countdown, which is
+ * the shape `_tempStatBuffsV25` already understood. */
+const cutPctV111=L=>-f(Math.round((L-TU("wearCutFrom",45))/TU("wearCutScale",7)),0,TU("wearCutMaxPct",12));
+const cutPtsV111=(pl,pct,ks)=>ks.reduce((t,k)=>t-Math.max(1,Math.round(((pl.attrs&&pl.attrs[k])||50)*(-pct)/100)),0);
+/* which numbers go first: the two his position leans on hardest — never durability or grit,
+ * which is what he would be spending points on to stop this happening again */
+function cutStatsV111(pl){const w=(pl&&pl.pos&&Ee[pl.pos]&&Ee[pl.pos].w)||{},
+  ks=Object.keys(w).filter(k=>Le[k]&&k!=="injuryResist"&&k!=="grit"&&k!=="discipline").sort((a,b)=>w[b]-w[a]);
+  return ks.length?ks.slice(0,TU("wearCutStats",2)):["speed"]}
+function forecastV111(pl,wk,key){
+  pl=pl||(typeof o<"u"&&o?o.player:null);if(!pl||!pl.attrs)return null;
+  wk=wk===undefined?curWeekV111(pl):wk;
+  const k=useKeyV111(key||(wk&&wk.usageV111)),work=workV111(shareOfV111(k),touchOfV111(k)),C=costV111(pl,wk,work),
+    fat=(cv18(pl).fatigue)||0,fatigueAfter=f(fat+C.load*TU("wearFatK",.5),0,100),
+    loadAfter=f(loadOfV111(pl)+C.load,TU("wearLoadMin",-40),TU("wearLoadMax",180)),
+    risk=mustSitV18(pl)?0:injChanceV54(pl,{wk,load:loadAfter,fatigue:fatigueAfter}),
+    cutPct=cutPctV111(loadAfter),cutStats=cutPct<0?cutStatsV111(pl):[],statCut=cutPtsV111(pl,cutPct,cutStats);
+  return{key:k,load:Math.round(C.load*10)/10,loadNow:Math.round(loadOfV111(pl)),loadAfter:Math.round(loadAfter),
+    fatigueAfter:Math.round(fatigueAfter),fatigueNow:Math.round(fat),
+    injPct:Math.round(risk*1000)/10,gamesMissed:Math.round(risk*TU("injExpMissed",.92)*100)/100,
+    statCut,statCutPct:cutPct,cutStats,
+    stakes:C.st.mul,stakesLabel:C.st.label,oppMul:C.opp,durMul:C.dur,wornMul:C.worn,work,
+    parts:[{label:"Workload · "+USE_V111[k].label,mul:work},{label:"Durability",mul:C.dur},
+      {label:"Opponent",mul:C.opp},{label:C.st.label,mul:C.st.mul},{label:"Body already carrying",mul:C.worn}]}}
+/* the bill, from what he ACTUALLY did. `played` is the engine's own count — {snaps, teamSnaps,
+ * touchMul, touches} — and the dial is only the fallback when the engine did not report. */
+function chargeV111(pl,wk,played){
+  pl=pl||(typeof o<"u"&&o?o.player:null);if(!pl||!pl.attrs)return{load:0,fatigueAfter:0,lingering:[]};
+  wk=wk===undefined?curWeekV111(pl):wk;played=played||{};
+  const u=usageV111(pl,wk),
+    share=played.teamSnaps>0?f(played.snaps/played.teamSnaps,.05,1):u.share,
+    touch=played.touchMul!=null?f(played.touchMul,.3,2.5):u.touchMul,
+    C=costV111(pl,wk,workV111(share,touch)),
+    W=pl._wearV111||(pl._wearV111={load:0,lingering:[]});
+  W.load=f((W.load||0)+C.load,TU("wearLoadMin",-40),TU("wearLoadMax",180));
+  const c=cv18(pl);c.fatigue=f((c.fatigue||0)+C.load*TU("wearFatK",.5),0,100);
+  const pct=cutPctV111(W.load),ks=pct<0?cutStatsV111(pl):[],cut=cutPtsV111(pl,pct,ks);
+  W.lingering=(W.lingering||[]).filter(b=>b&&(b.games|0)>0&&b.v111!=="wear");
+  /* the percentage is turned into POINTS against the attribute he owns right now, and never
+   * rounds away to nothing — a cut the sheet cannot show is not a cut. The entry is then an
+   * ordinary flat `_tempStatBuffsV25` row with a `games` countdown on it. */
+  ks.forEach(sk=>W.lingering.push({stat:sk,amt:-Math.max(1,Math.round(((pl.attrs&&pl.attrs[sk])||50)*(-pct)/100)),
+    games:TU("wearCutGames",2),v111:"wear"}));
+  W.last={load:Math.round(C.load*10)/10,share:Math.round(share*100)/100,touchMul:Math.round(touch*100)/100,
+    snaps:played.snaps||0,teamSnaps:played.teamSnaps||0,touches:played.touches||0,cut,cutPct:pct,fatigue:Math.round(c.fatigue)};
+  return{load:W.last.load,loadAfter:Math.round(W.load),fatigueAfter:Math.round(c.fatigue),statCut:cut,statCutPct:pct,lingering:W.lingering.slice()}}
+/* A game is spent: today's one-game buffs are dropped exactly as they always were, and only an
+ * entry carrying a `games` countdown survives it. A watched week runs this TWICE — ca() pre-books
+ * the game and then lt() plays it — so the week itself carries the stamp; clearing a list twice
+ * was idempotent, counting a clock down twice is not. */
+function decayWearV111(pl,wk){if(!pl)return;
+  wk=wk===undefined?curWeekV111(pl):wk;
+  if(wk){if(wk._wearSpentV111)return;wk._wearSpentV111=!0}
+  const kept=(pl._tempStatBuffsV25||[]).filter(b=>b&&(b.games|0)>1).map(b=>Object.assign({},b,{games:(b.games|0)-1}));
+  pl._tempStatBuffsV25=kept.length?kept:null;
+  const W=pl._wearV111;if(W&&W.lingering)W.lingering=W.lingering.map(b=>Object.assign({},b,{games:(b.games|0)-1})).filter(b=>(b.games|0)>0)}
+/* ===== v111 THE FOCUS — three ways to spend a Saturday =====
+ * Three position-appropriate picks, one stat each, 1.2x for that game only. Rows are
+ * [key, name, icon, stat, description, alsoEngineKeys?].
+ *
+ * `stat` is the career attribute — it is what the sheet draws and what the player thinks he is
+ * buying. A sixth entry names any EXTRA key FieldSim builds an agent from that the same pick
+ * ought to move: a back's burst really is `burst` to the agents, and a corner living in a
+ * receiver's hip pocket is `coverage` as much as awareness. Those keys are not career attributes,
+ * so they never appear on the sheet and never double the visible gain — they only make the pick
+ * mean on the grass what it says on the card. */
+const FOCUS_V111={
+  QB:[["arm","Air It Out","🚀","throwing","Let the arm eat — every throw goes up with more on it."],
+      ["poise","Ice In The Veins","🧊","awareness","Stand in, read it out, take what the defence gives."],
+      ["release","Quick Release","⚡","quickness","Get it out before the rush can get home."]],
+  RB:[["truck","Run Them Over","🚛","strength","Lower the shoulder. Somebody is going to get hurt and it will not be you."],
+      ["shifty","Make Them Miss","🌀","agility","Live in the cutback. Feet first, contact last."],
+      ["burst","Hit It And Go","💨","acceleration","One cut, full speed, gone before the second level closes.",["burst"]]],
+  WR:[["hands","Sure Hands","🧤","catching","Everything inside the frame gets caught, contested or not."],
+      ["separate","Get Open","🌀","agility","Win at the top of the route and the ball is already there."],
+      ["deep","Take The Top Off","💨","speed","Run past them. Make the safety earn his afternoon."]],
+  TE:[["hands","Sure Hands","🧤","catching","Be the answer on third down and catch everything in the middle."],
+      ["inline","Dig Them Out","🧱","blocking","Live in the trench and finish every block on the ground."],
+      ["power","Move The Pile","🚛","strength","Catch it short and drag the linebacker for the sticks."]],
+  OL:[["anchor","Set The Anchor","🧱","strength","Nobody comes through you today. The pocket holds."],
+      ["technique","Perfect Technique","📐","blocking","Hands inside, feet alive, no beaten reps."],
+      ["cerebral","Call The Front","🧠","awareness","See the stunt before it comes and pass it off clean."]],
+  DL:[["bull","Bull Rush","🚛","strength","Walk the tackle back into his own quarterback."],
+      ["first","First Step","⚡","quickness","Beat the snap. Be past him before he is out of his stance."],
+      ["finish","Finish The Play","🔨","tackling","Get there and put him on the ground — no arm tackles."]],
+  LB:[["thump","Bring The Wood","🔨","tackling","Fill the gap and hit the runner, not the hole."],
+      ["read","Read And React","🧠","awareness","Diagnose it on the first step and arrive before the play does."],
+      ["sideline","Sideline To Sideline","💨","speed","Chase everything. Nothing gets outside you today."]],
+  CB:[["lock","Lock Him Down","🔒","awareness","Live in his hip pocket and take the route away.",["coverage"]],
+      ["ball","Play The Ball","🧤","catching","Turn and find it. Every throw your way is your ball."],
+      ["close","Close The Window","💨","speed","Drive on the throw and be there when it arrives."]],
+  S :[["hits","Set The Tone","🔨","tackling","Make the crossers hear footsteps for four quarters."],
+      ["range","Cover The Field","💨","speed","Play centre field. Nothing gets behind you.",["coverage"]],
+      ["ball","High Point It","🙌","jumping","Go up and take it away at the top of the jump."]],
+  K :[["leg","Swing Big","🦵","strength","Extra range. Trot out for anything inside sixty."],
+      ["nerve","Ice Water","🧊","discipline","The crowd does not exist. Same swing every time."],
+      ["place","Pure Strike","📐","awareness","Down the middle, every time, wind or no wind."]],
+  ATH:[["power","Play Strong","🚛","strength","Win every collision you are in."],
+       ["quick","Play Fast","💨","speed","Outrun the problem."],
+       ["smart","Play Smart","🧠","awareness","Be in the right place before anyone else is."]]
+};
+/* The keys FieldSim's `makeAgents` asks the engine's accessor for, by name. A focus is only
+ * worth anything if its stat is one of THESE — the roster itself carries a shorter list
+ * (speed/accel/agility/strength/catching/tackling/awareness/hands/power/coverage/blocking/burst),
+ * and the accessor answers a flat 45 for anything it is missing. That fallback is still a number
+ * the you-player's multiplier scales, so the buff lands on the agent either way: today it lifts
+ * him off the league's flat 45 on that key, and once the roster carries the key it lifts his real
+ * value instead. What it must never do is name a stat nobody asks for. */
+const SIM_KEYS_V111=["speed","acceleration","burst","quickness","agility","awareness","strength",
+  "blocking","tackling","coverage","catching","jumping","throwing","vision","stamina","grit",
+  "discipline","ballControl"];
+function focusForV111(pos){const L=FOCUS_V111[pos]||FOCUS_V111.ATH,mul=f(TU("focusMul",1.2),1,TU("focusMulCeil",1.35));
+  return L.map(r=>({key:r[0],name:r[1],icon:r[2],stat:r[3],statName:(Le[r[3]]&&Le[r[3]].name)||r[3],mul,desc:r[4],also:r[5]||[]}))}
+function buffForV111(wk){const pl=(typeof o<"u"&&o)?o.player:null;
+  wk=wk===undefined?curWeekV111(pl):wk;if(!wk||!wk.focusV111)return null;
+  const hit=focusForV111((pl&&pl.pos)||"ATH").find(x=>x.key===wk.focusV111);
+  return hit?{key:hit.key,stat:hit.stat,mul:hit.mul,name:hit.name,icon:hit.icon,also:hit.also}:null}
+/* the v111 entries ALONE — a lingering cut and this game's focus — in _tempStatBuffsV25's own
+ * shape. Kept separate from the roster's list so nothing the game already does is disturbed. */
+function ownBuffsV111(pl){const out=[];if(!pl)return out;
+  const W=pl._wearV111;W&&W.lingering&&W.lingering.forEach(b=>{if(b&&b.stat&&(b.games|0)>0)out.push(b)});
+  const fb=buffForV111(undefined);
+  if(fb&&fb.stat&&pl===((typeof o<"u"&&o)?o.player:null)){out.push({stat:fb.stat,mul:fb.mul,v111:"focus"});
+    (fb.also||[]).forEach(k=>out.push({stat:k,mul:fb.mul,v111:"focusAlso"}))}
+  return out}
+/* everything the attribute sheet and the engine should see this game */
+function wearBuffsV111(pl){return(((pl&&pl._tempStatBuffsV25)||[]).slice()).concat(ownBuffsV111(pl))}
+window.__V111={KEYS:KEYS_V111,usage:(pl,wk)=>usageV111(pl,wk),forecast:(pl,wk,k)=>forecastV111(pl,wk,k),
+  charge:(pl,wk,played)=>chargeV111(pl,wk,played),focusFor:pos=>focusForV111(pos),buffFor:wk=>buffForV111(wk),
+  buffs:pl=>wearBuffsV111(pl||((typeof o<"u"&&o)?o.player:null)),
+  ownBuffs:pl=>ownBuffsV111(pl||((typeof o<"u"&&o)?o.player:null)),
+  decay:(pl,wk)=>decayWearV111(pl||((typeof o<"u"&&o)?o.player:null),wk),
+  wear:pl=>(pl||((typeof o<"u"&&o)?o.player:null)||{})._wearV111||{load:0,lingering:[]},
+  work:workV111,cost:(pl,wk,work)=>costV111(pl,wk,work),stakes:(pl,wk)=>stakesV111(pl,wk),
+  SIM_KEYS:SIM_KEYS_V111,USE:USE_V111,FOCUS:FOCUS_V111};
+/* ===== v111 THE SEASON IS ON HIM — wear and tear in the body card =====
+ * The v73 ledger answers one question and answers it well: what is this body
+ * worth in the NEXT game. It says nothing about the season, because until the
+ * involvement dial existed there was no season-long decision to say anything
+ * about — every week charged the body the same amount and the player had no
+ * hand on the tap. Now he does, and the ledger's silence is the whole problem:
+ * he can spend his legs a week at a time with no statement of the bill, and the
+ * only place the bill arrives is a semifinal he watches in a tracksuit.
+ *
+ * So this section prices the tap. It reads the load his body is already carrying
+ * and shows WHERE it came from (the heavy weeks stand up out of the season as
+ * bars you can point at), it prices the next game at the involvement he has
+ * actually chosen — the wear it adds, the injury chance, the games it is
+ * expected to cost, the rating he carries into the game after it — and it
+ * itemises the three things that set that price: his own durability, the
+ * opponent, and what the fixture is worth. Then it says the tradeoff out loud in
+ * one line, because that line is the feature and the table is only the evidence.
+ *
+ * Everything here is a READ. Nothing in this block moves a number the sim uses.
+ * The model is window.__V111 (agent A); every call into it is guarded and falls
+ * back to a local estimate built from injChanceV54 / condMultV54 / the schedule,
+ * so the card is honest on a save that has never met the model at all. ===== */
+const WEAR_KEYS_V111=["limited","reduced","normal","heavy","everysnap"];
+const WEAR_LBL_V111={limited:"LIMITED",reduced:"REDUCED",normal:"NORMAL",heavy:"HEAVY",everysnap:"EVERY SNAP"};
+const WEAR_SHARE_V111={limited:.5,reduced:.75,normal:1,heavy:1.22,everysnap:1.45};
+const WEAR_STAKE_V111={routine:1,evaluation:1.12,rivalry:1.18,playoff:1.32,championship:1.55};
+function wearApiV111(){try{const a=window.__V111;return a&&typeof a.forecast=="function"?a:null}catch(_){return null}}
+function wearNextV111(e){try{return(e&&e.weekResults||[]).find(w=>w&&!w.played)||null}catch(_){return null}}
+// the model owns the vocabulary once it exists; this list is only the standalone copy
+function wearKeysV111(){const a=wearApiV111();return a&&Array.isArray(a.KEYS)&&a.KEYS.length?a.KEYS:WEAR_KEYS_V111}
+function wearLblV111(k){return WEAR_LBL_V111[k]||String(k||"").replace(/[_-]/g," ").toUpperCase()}
+function wearKeyV111(e,wk){const k=wk&&wk.usageV111;return wearKeysV111().indexOf(k)>=0?k:"normal"}
+function wearOppRefV111(e){return 45+((e&&e.level)||0)*5.5}
+// the local estimate — the same shape __V111.forecast returns, built out of numbers
+// that already exist on this screen, so a worktree with no model still reads true
+function wearStubV111(e,wk,key){
+  const share=WEAR_SHARE_V111[key]!=null?WEAR_SHARE_V111[key]:1;
+  const c=(typeof cv18=="function"&&cv18(e))||{},fat=c.fatigue||0;
+  const resist=(e&&e.attrs&&e.attrs.injuryResist)||10;
+  const durMul=f(TU("wearDurHiV111",1.5)-resist*TU("wearDurKV111",.009),TU("wearDurLoV111",.55),TU("wearDurHiV111",1.5));
+  const op=(wk&&wk.opponentV11)||null,ref=wearOppRefV111(e);
+  const phys=op&&op.physicality!=null?(Number(op.physicality)-50)/100*TU("wearPhysKV111",.3):0;
+  const oppMul=f(1+(((op&&op.rating)||ref)-ref)/TU("wearOppScaleV111",70)+phys,.65,1.8);
+  const imp=(op&&op.importance)||(wk&&wk.playoff?"playoff":"routine");
+  const stakes=WEAR_STAKE_V111[imp]||1;
+  const worn=1+f(((e&&e._wearV111&&e._wearV111.load)||0)/TU("wearScaleV111",120),0,1.4)*TU("wearWornKV111",.35);
+  // the multipliers compound, so the product is compressed rather than clipped — a
+  // brutal week stays the most expensive week without becoming the whole season, and
+  // a neutral one (every driver at 1) still comes out at exactly the base
+  const mul=f(Math.pow(share*durMul*oppMul*stakes*worn,TU("wearMulGammaV111",.72)),TU("wearMulMinV111",.3),TU("wearMulMaxV111",3.4));
+  const load=Math.max(0,TU("wearBaseLoadV111",9)*mul);
+  let risk=0;try{risk=(typeof mustSitV18=="function"&&mustSitV18(e))?0:injChanceV54(e,{wk})}catch(_){risk=.12}
+  const injPct=f(risk*share*(1+(stakes-1)*TU("wearStakeInjKV111",.5)),0,TU("wearInjCapV111",.7))*100;
+  const fatigueAfter=f(fat+load*TU("wearFatigueKV111",.62)-TU("wearRestV111",6),0,100);
+  const mAfter=fatigueAfter>=TU("wornFatigue",70)?TU("condWorn",.9):fatigueAfter<=TU("freshFatigue",25)?TU("condFresh",1.05):1;
+  let base=58;try{base=bodyLedgerV73(e).base}catch(_){}
+  return{load,fatigueAfter,injPct,gamesMissed:injPct/100*TU("injExpMissed",.92),statCut:base*(mAfter-1),
+    parts:[{label:"Durability",mul:durMul},{label:"Opponent",mul:oppMul},{label:"Stakes",mul:stakes},{label:"Already worn",mul:worn}],
+    stakes,oppMul,durMul,stub:!0};
+}
+function wearForecastV111(e,wk,key){
+  const api=wearApiV111();
+  if(api){try{const r=api.forecast(e,wk,key);if(r&&isFinite(Number(r.load)))return r}catch(_){}}
+  return wearStubV111(e,wk,key);
+}
+// what a week ALREADY cost. Agent A stamps the charge on the week; a week that
+// predates the model (or a save that never met it) is estimated the same way the
+// forecast is, and says so, rather than leaving a hole in the season.
+function wearWeekLoadV111(e,w){
+  if(!w||!w.played||w.satOut)return null;
+  let v=w.wearV111!=null?w.wearV111:(w.wearLoadV111!=null?w.wearLoadV111:w.loadV111);
+  if(v&&typeof v=="object")v=v.load;
+  if(v!=null&&isFinite(Number(v)))return{load:Math.max(0,Number(v)),est:!1};
+  try{return{load:wearStubV111(e,w,wearKeyV111(e,w)).load,est:!0}}catch(_){return{load:0,est:!0}}
+}
+function wearHistV111(e){
+  const out=[];try{(e&&e.weekResults||[]).forEach((w,i)=>{const L=wearWeekLoadV111(e,w);if(!L)return;
+    out.push({week:w.week||i+1,opp:w.opp||"",key:wearKeyV111(e,w),load:L.load,est:L.est,
+      playoff:!!w.playoff,importance:(w.opponentV11&&w.opponentV11.importance)||"routine"})})}catch(_){}
+  return out;
+}
+// the band names the MILEAGE, never the freshness — the v73 ledger three inches
+// above is already talking about fatigue, and a body can be rested today and still
+// be carrying a season it will not survive
+function wearBandV111(pct){
+  return pct<TU("wearBandFreshV111",20)?{n:"LIGHT",c:"#57e07a",d:"barely been touched"}
+    :pct<TU("wearBandManagedV111",45)?{n:"MANAGED",c:"#7fe0a0",d:"carrying it fine"}
+    :pct<TU("wearBandLoadedV111",70)?{n:"LOADED",c:"var(--gold)",d:"the season is on him"}
+    :pct<TU("wearBandWornV111",88)?{n:"HIGH MILEAGE",c:"#ffb74d",d:"running on what is left"}
+    :{n:"BREAKING DOWN",c:"#ff8a80",d:"one hit from the sideline"};
+}
+function wearLingerV111(e){
+  const out=[],seen={};
+  const add=b=>{if(!b||!b.stat)return;const g=Math.round(Number(b.games!=null?b.games:b.weeks));if(!(g>0))return;
+    const amt=b.max?-10:Math.round(Number(b.amt)||0),k=b.stat+"|"+g+"|"+amt;if(seen[k])return;seen[k]=1;
+    let nm=b.stat;try{nm=(window.__statLabelV25&&window.__statLabelV25(b.stat))||b.stat}catch(_){}
+    out.push({stat:b.stat,name:String(nm),amt,games:g})};
+  try{(e&&e._tempStatBuffsV25||[]).forEach(add)}catch(_){}
+  try{((e&&e._wearV111&&e._wearV111.lingering)||[]).forEach(add)}catch(_){}
+  return out.sort((a,b)=>a.amt-b.amt);
+}
+// the three drivers, always present and always in the same order, whether the model
+// named them in parts[] or the estimate had to work them out
+function wearDriversV111(e,wk,fc){
+  const P=Array.isArray(fc.parts)?fc.parts:[];
+  const pick=re=>P.find(p=>p&&re.test(String(p.label||"")));
+  const op=(wk&&wk.opponentV11)||null;
+  const resist=Math.round((e&&e.attrs&&e.attrs.injuryResist)||0);
+  const d=pick(/dur|resist|tough|frame/i),o2=pick(/opp|matchup|defen|front/i),s=pick(/stake|round|fixture|import|occasion/i);
+  const stakeName=(wk&&wk.round)||(op&&op.importance==="championship"?"Championship":op&&op.importance==="playoff"?"Playoff":op&&op.importance==="rivalry"?"Rivalry game":op&&op.importance==="evaluation"?"Evaluation game":"Regular week");
+  const extra=P.filter(p=>p&&p!==d&&p!==o2&&p!==s&&isFinite(Number(p.mul)));
+  return[{k:"DURABILITY",mul:d?Number(d.mul):(fc.durMul!=null?Number(fc.durMul):1),note:"resist "+resist},
+    {k:"OPPONENT",mul:o2?Number(o2.mul):(fc.oppMul!=null?Number(fc.oppMul):1),note:((wk&&wk.opp)||"TBD")+(op&&op.rating!=null?" · "+Math.round(op.rating):"")},
+    {k:"STAKES",mul:s?Number(s.mul):(fc.stakes!=null?Number(fc.stakes):1),note:stakeName}]
+    .concat(extra.map(p=>({k:String(p.label||"OTHER").toUpperCase(),mul:Number(p.mul),note:""})));
+}
+// the fixture the season is actually pointed at, and what reaching it costs at this
+// rate — 1-(1-p)^n over the games in between, which is the number the player is
+// really deciding about when he turns the dial up in week three
+function wearTargetV111(e,wk,fc){
+  const left=(e&&e.weekResults||[]).filter(w=>w&&!w.played);
+  if(!left.length)return null;
+  let t=left.slice().reverse().find(w=>w&&((w.opponentV11&&w.opponentV11.importance==="championship")||/championship|final/i.test(String(w.round||""))))||left[left.length-1];
+  // if the big one IS the next game there is nothing to save legs for on the way to
+  // it — point the line at the end of the season instead
+  if(left.indexOf(t)===0&&left.length>1)t=left[left.length-1];
+  const idx=left.indexOf(t),n=Math.max(0,idx);
+  const p=f(Number(fc.injPct)||0,0,100)/100;
+  return{name:String(t.round||(t.opponentV11&&t.opponentV11.importance==="championship"?"the championship":"")||("week "+(t.week||left.length))),
+    games:n,miss:n>0?(1-Math.pow(1-p,n))*100:0,last:t};
+}
+function wearReadV111(e){
+  const wk=wearNextV111(e),key=wearKeyV111(e,wk);
+  const api=wearApiV111();
+  let usage=null;try{if(api&&typeof api.usage=="function")usage=api.usage(e,wk)}catch(_){}
+  const hist=wearHistV111(e);
+  let season=hist.reduce((t,h)=>t+h.load,0);
+  const known=(e&&e._wearV111&&isFinite(Number(e._wearV111.load)))?Number(e._wearV111.load):null;
+  const load=known!=null?known:season;
+  // the model knows the TOTAL; where the per-week charges had to be estimated, the
+  // bars are rescaled to it, so the shape is the season's and the sum is the truth
+  if(known!=null&&season>0&&known>0&&hist.every(h=>h.est)){const k=known/season;hist.forEach(h=>h.load*=k);season=known}
+  const scale=TU("wearScaleV111",120),pct=f(load/scale*100,0,100);
+  const KS=wearKeysV111(),fc=wearForecastV111(e,wk,key),lo=wearForecastV111(e,wk,KS[0]);
+  return{wk,key,keys:KS,lightest:KS[0],label:(usage&&usage.label)||wearLblV111(key),usage,api:!!api,
+    hist,season,load,scale,pct,band:wearBandV111(pct),fc,lo,
+    drivers:wearDriversV111(e,wk,fc),linger:wearLingerV111(e),target:wearTargetV111(e,wk,fc),
+    loTarget:wearTargetV111(e,wk,lo),stub:!!fc.stub};
+}
+function wearCssV111(){
+  if(document.getElementById("wearv111css"))return;
+  document.head.insertAdjacentHTML("beforeend",`<style id="wearv111css">
+  .wearv111{margin-top:11px;padding-top:9px;border-top:1px solid rgba(255,255,255,.12)}
+  .wearv111-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+  .wearv111-band{font:800 17px Oswald,sans-serif;letter-spacing:.6px;line-height:1.1;margin-top:1px}
+  .wearv111-band s{text-decoration:none;display:block;font:400 10.5px system-ui;color:var(--chalk-dim);letter-spacing:0}
+  .wearv111-num{font:800 26px Oswald,sans-serif;line-height:1;text-align:right;white-space:nowrap}
+  .wearv111-num small{display:block;font:700 8.5px Oswald,sans-serif;letter-spacing:1.6px;color:var(--chalk-dim);margin-top:2px}
+  .wearv111-bar{height:6px;border-radius:4px;background:rgba(0,0,0,.34);overflow:hidden;margin:7px 0 0}
+  .wearv111-bar i{display:block;height:100%;border-radius:4px}
+  .wearv111-spark{display:flex;align-items:flex-end;gap:2px;height:21px;margin:5px 0 3px}
+  .wearv111-spark u{flex:1 1 0;min-width:3px;text-decoration:none;border-radius:2px 2px 0 0;background:#5c6b80;opacity:.85}
+  .wearv111-spark u.hot{background:#ff8a80;opacity:1}.wearv111-spark u.cool{background:#57e07a;opacity:.8}
+  .wearv111-spark u.est{opacity:.42}
+  .wearv111-sub{font:400 10.5px system-ui;color:var(--chalk-dim);line-height:1.35}
+  .wearv111-next{margin-top:9px;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:7px 8px;background:rgba(0,0,0,.16)}
+  .wearv111-kick{font:700 9px Oswald,sans-serif;letter-spacing:1.5px;color:var(--chalk-dim);margin-bottom:5px}
+  .wearv111-kick b{color:var(--gold);letter-spacing:1.5px}
+  .wearv111-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(62px,1fr));gap:5px}
+  .wearv111-grid>div{text-align:center;background:rgba(255,255,255,.045);border-radius:7px;padding:4px 2px}
+  .wearv111-grid b{display:block;font:800 15px Oswald,sans-serif;line-height:1}
+  .wearv111-grid small{display:block;font:700 7.5px Oswald,sans-serif;letter-spacing:.9px;color:var(--chalk-dim);margin-top:2px}
+  .wearv111-drv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:5px}
+  .wearv111-drv span{display:block;background:rgba(255,255,255,.04);border-radius:7px;padding:3px 5px;min-width:0}
+  .wearv111-xtra{font:400 9.5px system-ui;color:var(--chalk-dim);margin-top:4px}
+  .wearv111-drv i{display:block;font-style:normal;font:700 8px Oswald,sans-serif;letter-spacing:1.1px;color:var(--chalk-dim)}
+  .wearv111-drv b{font:800 13px Oswald,sans-serif}
+  .wearv111-drv s{text-decoration:none;display:block;font:400 9.5px system-ui;color:var(--chalk-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wearv111-ling{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+  .wearv111-ling em{font-style:normal;display:inline-flex;align-items:baseline;gap:4px;border:1px solid #ff8a8055;background:#ff8a8014;border-radius:9px;padding:2px 7px;font:700 10px Oswald,sans-serif;letter-spacing:.7px;color:#ff8a80}
+  .wearv111-ling em s{text-decoration:none;font:400 9.5px system-ui;color:var(--chalk-dim)}
+  .wearv111-call{margin-top:7px;border-left:3px solid var(--gold);background:rgba(255,255,255,.045);border-radius:0 8px 8px 0;padding:5px 7px;font:400 11px system-ui;line-height:1.4;color:#dbe4f0}
+  .wearv111-call b{color:var(--gold)}.wearv111-call b.bad{color:#ff8a80}.wearv111-call b.good{color:#7fe0a0}
+  @media(max-width:380px){.wearv111-num{font-size:22px}.wearv111-band{font-size:15px}}
+  </style>`);
+}
+function wearSectionV111(e){
+  try{
+    if(!e||!e.attrs)return"";
+    wearCssV111();
+    const R=wearReadV111(e),B=R.band,n1=v=>Math.round(v),sgn=v=>(v>=0?"+":"−")+Math.abs(Math.round(v));
+    // the season as bars: every played week at what it cost, the heavy ones standing up
+    const mx=Math.max(1,...R.hist.map(h=>h.load)),mn=R.hist.length?Math.min(...R.hist.map(h=>h.load)):0;
+    // the bars are drawn against a floor UNDER the quietest week, not against zero —
+    // a run of similar weeks with one heavy one in it has to LOOK like that — and they
+    // are COLOURED by the dial he turned, not by their own size, because "which weeks
+    // did I go heavy" is the question the chart is here to answer
+    const flr=mn*TU("wearSparkFloorV111",.55);
+    const spark=R.hist.slice(-TU("wearSparkWeeksV111",16)).map(h=>{
+      const cls=h.key==="heavy"||h.key==="everysnap"?"hot":h.key==="normal"?"":"cool";
+      return`<u class="${cls}${h.est?" est":""}" title="Wk ${h.week} · ${S(h.opp||"")} · ${wearLblV111(h.key)} · ${n1(h.load)} wear${h.est?" (est.)":""}" style="height:${f((h.load-flr)/Math.max(.001,mx-flr)*100,14,100)}%"></u>`}).join("");
+    const heavy=R.hist.filter(h=>h.key==="heavy"||h.key==="everysnap"),hvLoad=heavy.reduce((t,h)=>t+h.load,0);
+    const story=!R.hist.length
+      ?`No games on the body yet — this season starts him fresh.`
+      :heavy.length
+        ?`${R.hist.length} game${R.hist.length===1?"":"s"} on him. The <b style="color:#ff8a80">${heavy.length} heavy week${heavy.length===1?"":"s"}</b> in red put on ${n1(hvLoad)} of it — ${Math.round(hvLoad/Math.max(1,R.season)*100)}% of the season's load.`
+        :`${R.hist.length} game${R.hist.length===1?"":"s"} on him, none of them heavy. The tall bars are the hard fixtures, not your dial.`;
+    // the next game, priced at the involvement he has actually picked
+    const fc=R.fc,out=(typeof mustSitV18=="function"&&mustSitV18(e));
+    const next=!R.wk?"":`<div class="wearv111-next">
+      <div class="wearv111-kick">NEXT GAME · <b>${S(R.label)}</b> · ${S(R.wk.opp||"TBD")}${R.wk.round?" · "+S(R.wk.round):""}</div>
+      <div class="wearv111-grid">
+        <div><b style="color:${(fc.load||0)<-.05?"#7fe0a0":R.hist.length&&fc.load>=mx*TU("wearHotFracV111",.95)?"#ff8a80":"var(--chalk)"}">${sgn(fc.load||0)}</b><small>WEAR</small></div>
+        <div><b style="color:${fc.injPct>=24?"#ff8a80":fc.injPct<=12?"#7fe0a0":"var(--gold)"}">${n1(fc.injPct)}%</b><small>INJURY</small></div>
+        <div><b>${(Number(fc.gamesMissed)||0).toFixed(1)}</b><small>GAMES LOST</small></div>
+        <div><b style="color:${fc.statCut<=-.8?"#ff8a80":fc.statCut>=.8?"#7fe0a0":"var(--chalk)"}">${sgn(fc.statCut||0)}</b><small>RATING AFTER</small></div>
+      </div>
+      <div class="wearv111-drv">${R.drivers.slice(0,3).map(d=>`<span><i>${S(d.k)}</i><b style="color:${d.mul>=1.25?"#ff8a80":d.mul>=1.08?"var(--gold)":d.mul<=.92?"#7fe0a0":"var(--chalk)"}">×${(Number(d.mul)||1).toFixed(2)}</b><s>${S(d.note||"")}</s></span>`).join("")}</div>
+      ${(()=>{const x=R.drivers.slice(3).filter(d=>Math.abs((Number(d.mul)||1)-1)>=.01);   // a driver doing nothing is not a driver
+        return x.length?`<div class="wearv111-xtra">${x.map(d=>S(d.k.toLowerCase())+" ×"+(Number(d.mul)||1).toFixed(2)).join(" · ")}</div>`:""})()}</div>`;
+    const ling=R.linger.length?`<div class="wearv111-ling">${R.linger.map(l=>`<em>${S(String(l.name).toUpperCase())} ${l.amt>=0?"+":"−"}${Math.abs(l.amt)} <s>${l.games} game${l.games===1?"":"s"} left</s></em>`).join("")}</div>`:"";
+    // the line the whole feature exists to put on screen
+    const T=R.target,LT=R.loTarget;
+    const call=out
+      ?`⚖️ You are not playing this week. The load comes off while it passes — that is the only upside of sitting.`
+      :T&&T.games>0
+        ?`⚖️ At <b>${S(R.label)}</b> every week you reach <b>${S(T.name)}</b> with a <b class="${T.miss>=30?"bad":""}">${n1(T.miss)}%</b> chance of missing it${LT&&LT.miss<T.miss-1?` — dialling back to <b class="good">${S(wearLblV111(R.lightest))}</b> makes it <b class="good">${n1(LT.miss)}%</b>`:""}. ${fc.statCut<=-.8?`And you carry <b class="bad">${sgn(fc.statCut)}</b> rating into the game after this one.`:`Your legs hold for now.`}`
+        :`⚖️ This is the last one. Spend everything — there is no game after it to save legs for.`;
+    return`<div class="wearv111">
+      <div class="wearv111-head"><div><div class="impact-kicker">WEAR &amp; TEAR · THE SEASON ON HIM</div>
+        <div class="wearv111-band" style="color:${B.c}">${B.n}<s>${S(B.d)} · ${n1(R.season)} this season${R.stub?" · estimated":""}</s></div></div>
+        <div class="wearv111-num" style="color:${B.c}">${n1(R.load)}<small>LOAD / ${n1(R.scale)}</small></div></div>
+      <div class="wearv111-bar"><i style="width:${Math.max(2,R.pct)}%;background:${B.c}"></i></div>
+      ${R.hist.length?`<div class="wearv111-spark">${spark}</div>`:""}
+      <div class="wearv111-sub">${story}</div>
+      ${next}${ling}
+      <div class="wearv111-call">${call}</div></div>`;
+  // the section is a READ: it never takes the body card down with it. But a silent
+  // empty string is how a broken section hides, so the failure is recorded where a
+  // check can see it rather than only in the console.
+  }catch(err){try{console.warn("v111 wear section",err);window.__V111_BODY&&(window.__V111_BODY.lastError=String(err&&err.message||err))}catch(_){}return""}
+}
+window.__V111_BODY={
+  read:e=>wearReadV111(e||(typeof o=="object"&&o&&o.player)),
+  section:e=>wearSectionV111(e||(typeof o=="object"&&o&&o.player)),
+  hist:e=>wearHistV111(e||(typeof o=="object"&&o&&o.player)),
+  forecast:(e,k)=>{const p=e||(typeof o=="object"&&o&&o.player),w=wearNextV111(p);return wearForecastV111(p,w,k||wearKeyV111(p,w))},
+  band:wearBandV111,keys:wearKeysV111,hasModel:()=>!!wearApiV111(),lastError:null
+};
 function et(e,t=0,a){a=a||{};const s=Pa(e),n=A[e.level],i=n.need-6+Ks()+ft("peerShift"),r=1+M("clutch")*.02,l=1+(e.attrs.grit-10)*.003*r,d=1+(e.attrs.stamina-10)*.0015;let c=Oe(e,"streaky")?23:15;c*=Math.max(.5,1-G("varDown"))*(ft("varMult")||1);let u=(s-i)*2.4+D(-c,c)*l+50+t/n.games*2+(o&&o._fateBoost||0);a.playoff&&(u+=G("playoffPerf")+ft("playoffPerf"),Oe(e,"xfactor")&&(u+=12)),Oe(e,"butterFingers")&&Math.random()<.12&&(u-=18),Math.random()<(Oe(e,"streaky")?.06:.04)&&u>40&&(u*=1.5),u*=d;const p=f(xi(u),1,100);const y=Math.random()<injChanceV54(e,a);try{window.__INJ_DEBUG&&y&&(window.__INJ_DEBUG.hit=(window.__INJ_DEBUG.hit||0)+1)}catch(_){}return{perf:Math.round(p),ovr:s,injured:y}}const Ne={QB:{primary:"passYds",label:"Passing",stats:[{key:"passYds",name:"Pass Yds",per:[140,165,190,210,235,265,290,270]},{key:"passTD",name:"Pass TD",per:[1.2,1.4,1.6,1.9,2.1,2.4,2.6,2.6]},{key:"int",name:"INT",per:[1.6,1.4,1.2,1.1,1,.9,.8,.8],lowerBetter:!0}]},RB:{primary:"rushYds",label:"Rushing",stats:[{key:"rushYds",name:"Rush Yds",per:[55,70,80,90,100,115,130,105]},{key:"rushTD",name:"Rush TD",per:[.7,.9,1,1.1,1.2,1.3,1.4,1.2]},{key:"ypc",name:"Yds/Carry",per:[4,4.3,4.5,4.7,4.9,5.1,5.3,4.8],rate:!0}]},WR:{primary:"recYds",label:"Receiving",stats:[{key:"rec",name:"Catches",per:[3,3.5,4,4.5,5,5.5,6,5]},{key:"recYds",name:"Rec Yds",per:[45,55,65,72,80,90,100,85]},{key:"recTD",name:"Rec TD",per:[.5,.6,.7,.8,.9,1,1.1,.9]}]},TE:{primary:"recYds",label:"Receiving",stats:[{key:"rec",name:"Catches",per:[2,2.5,3,3.5,4,4.5,5,4]},{key:"recYds",name:"Rec Yds",per:[28,34,40,46,52,60,68,55]},{key:"recTD",name:"Rec TD",per:[.3,.4,.5,.6,.7,.8,.9,.7]}]},OL:{primary:"grade",label:"Blocking",stats:[{key:"grade",name:"Blk Grade",per:[62,64,66,68,70,73,76,75],rate:!0},{key:"pancakes",name:"Pancakes",per:[2,3,3.5,4,4.5,5,5.5,5]},{key:"sacksAllowed",name:"Sacks All.",per:[2.5,2.2,2,1.8,1.5,1.2,1,1],lowerBetter:!0}]},DL:{primary:"sacks",label:"Pass Rush",stats:[{key:"tackles",name:"Tackles",per:[2.5,3,3.5,4,4.5,5,5.5,4.5]},{key:"sacks",name:"Sacks",per:[.4,.5,.6,.7,.8,.9,1,.8]},{key:"tfl",name:"TFL",per:[.8,1,1.1,1.3,1.5,1.7,1.9,1.5]}]},LB:{primary:"tackles",label:"Defense",stats:[{key:"tackles",name:"Tackles",per:[5,6,7,8,9,10,11,9]},{key:"sacks",name:"Sacks",per:[.3,.4,.4,.5,.6,.7,.8,.6]},{key:"tfl",name:"TFL",per:[.9,1.1,1.3,1.5,1.7,1.9,2.1,1.7]}]},CB:{primary:"pd",label:"Coverage",stats:[{key:"tackles",name:"Tackles",per:[2.5,3,3.5,4,4.5,5,5.5,4.5]},{key:"pd",name:"Pass Def",per:[1,1.2,1.4,1.6,1.8,2,2.2,1.8]},{key:"int",name:"INT",per:[.2,.25,.3,.35,.4,.5,.6,.45]}]},S:{primary:"tackles",label:"Defense",stats:[{key:"tackles",name:"Tackles",per:[4,5,5.5,6,6.5,7,7.5,6.5]},{key:"pd",name:"Pass Def",per:[.7,.9,1,1.2,1.4,1.6,1.8,1.4]},{key:"int",name:"INT",per:[.2,.25,.3,.35,.4,.45,.5,.4]}]}};Object.values(Ne).forEach(e=>e.stats.forEach(t=>{const a=t.per[7];t.per[8]=t.lowerBetter?+(a*.85).toFixed(2):t.rate?+(a*1.2).toFixed(1):+(a*1.45).toFixed(1)}));function mr(e,t){const a=A[t].need-6+Ks();return f(xi((e-a)*2.4+50+G("perfFlat")),1,100)}function is(e,t,a){const s=A[a].games,n=Ne[e],i=Ti(t),r=t/100,l=1+G("statProd")+Jr(e),d={};return n.stats.forEach(c=>{const u=c.per[a],h=_o(c);c.rate?d[c.key]=+(u*(.72+.42*Math.pow(t/90,1.4))*h).toFixed(1):c.lowerBetter?d[c.key]=Math.max(1,Math.round(u*s*Math.max(.2,1.35-Math.pow(r,1.2)*.95)*h)):d[c.key]=Math.round(u*s*Math.min(i,3.4)*l*h)}),d}function Ha(e,t){return is(e,60,t)}function pr(e,t,a){const s=is(e,t,a),n=Ha(e,a),i=Ne[e].primary,r=n[i]||1;return(s[i]||0)/r}const vr=[0,.28,.48,.75,1.02,1.62,1.92,1.84,2.7];function qt(e,t,a,s,n){n=n||1;const i=Math.min(t+1,A.length-1);if(t<=2&&Ie()===0)return f(96+(e-A[i].need)*.3,82,99.5);const r=(vr[i]||0)+(t<=2,0),l=A[i].need+Ie()*.45;if(a!=null&&s!=null){const c=pr(a,s,t)/(1+(n-1)*.35),u=Math.pow(Math.max(.05,c),.5),h=(e-l)/8,p=f(.5+h,0,1.5),m=i===A.length-1,y=f((e-l)/30,0,1),C=m?r*(1-y*.28):r*(1-y*.45),P=(u*.38+p*.64-C*.52-.72)/.14;let _adv=f(1/(1+Math.exp(-P))*100+Se("advBonus",0)+G("advFlat")+ft("advFlat"),.3,99.5);
 // v17: national standing drives promotion — you cannot be #1 of 180k kids in the
 // country and get left behind. Elite rank sets a floor the base odds can't undercut.
@@ -13343,8 +13929,12 @@ function pregamePlayerStatsV25(pl){
   const buffs={}; (pl._tempStatBuffsV25||[]).forEach(b=>{buffs[b.stat]=b;});
   const EF=effAttrsV85(pl);   // v85: the body's swing on top of the wheel's
   const posW=(pl.pos&&Ee[pl.pos]&&Ee[pl.pos].w)||{};
-  let list=ee.filter(k=>Le[k]&&(posW[k]||buffs[k]||EF.delta[k]));
+  // v111: the game focus, if one is picked this week — the sheet names the stat it sharpens
+  let FOC=null; try{const wk=(pl.weekResults||[]).find(w=>w&&!w.played);
+    if(wk&&window.__V111_UI&&window.__V111_UI.focusRow) FOC=window.__V111_UI.focusRow(pl,wk)||null;}catch(_){FOC=null}
+  let list=ee.filter(k=>Le[k]&&(posW[k]||buffs[k]||EF.delta[k]||(FOC&&FOC.stat===k)));
   if(list.length<6) list=ee.filter(k=>Le[k]).slice(0,10);
+  if(FOC&&Le[FOC.stat]&&list.indexOf(FOC.stat)<0) list=[FOC.stat].concat(list);
   const row=(k)=>{const base=pl.attrs[k]||0,b=buffs[k],eff=EF.eff[k]!=null?EF.eff[k]:(b?base+(b.max?10:b.amt):base),amt=eff-base;
     const bp=f(base/cap*100,0,100),ep=f(eff/cap*100,0,100),up=amt>0,dn=amt<0;
     return `<div style="display:flex;align-items:center;gap:8px;margin:3px 0">`
@@ -13355,10 +13945,12 @@ function pregamePlayerStatsV25(pl){
         +(dn?`<i style="position:absolute;left:${ep}%;top:0;bottom:0;width:${Math.max(0,bp-ep)}%;background:#e0645a"></i>`:``)
       +`</div>`
       +`<span style="flex:0 0 auto;min-width:52px;text-align:right;font:700 11px Oswald,sans-serif;color:${up?'#57e07a':dn?'#e0645a':'var(--chalk)'}">${Math.round(eff)}${up?' (+'+amt+')':dn?' ('+amt+')':''}</span>`
+      +(FOC&&FOC.stat===k?`<span style="flex:0 0 auto;font:800 9px Oswald,sans-serif;color:#0b1119;background:#8fe0a0;border-radius:9px;padding:2px 5px">×${(Math.round((Number(FOC.mul)||1.2)*100)/100).toFixed(1)}</span>`:``)
     +`</div>`;};
-  return `<div style="margin:12px 14px 4px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.03)">`
+  return `<div id="preStatsV25" style="margin:12px 14px 4px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.03)">`
     +`<div style="font:700 11px Oswald,sans-serif;letter-spacing:1px;color:var(--chalk);margin-bottom:7px">📋 YOUR STATS <span style="color:var(--chalk-dim);font-weight:400">· what you take onto the field, body and wheel included</span></div>`
     +bodyBadgeV85(pl)
+    +(FOC?`<div id="preFocusV111" style="display:flex;align-items:center;gap:6px;margin:0 0 7px;font:600 11px Barlow Condensed,sans-serif;color:#8fe0a0"><span>🎯 GAME FOCUS · ${FOC.name||FOC.key}</span><b style="font:700 11px Oswald,sans-serif">×${(Math.round((Number(FOC.mul)||1.2)*100)/100).toFixed(1)} ${(Le[FOC.stat]&&Le[FOC.stat].name)||FOC.stat}</b><span style="color:var(--chalk-dim);font-weight:400">this game only</span></div>`:``)
     +list.map(row).join("")
   +`</div>`;
 }
@@ -13374,11 +13966,18 @@ window.pregamePlayerStatsV25=pregamePlayerStatsV25;
  * current training program, the games played and the games left, drawn as a
  * hollow green extension the real gain fills in at season's end. */
 function effAttrsV85(e){
-  const out={mult:1,buffs:{},eff:{},delta:{}};
+  const out={mult:1,buffs:{},muls:{},eff:{},delta:{}};
   if(!e||!e.attrs)return out;
   const mult=out.mult=condMultV54(e);
-  (e._tempStatBuffsV25||[]).forEach(b=>{if(b&&b.stat)out.buffs[b.stat]=(out.buffs[b.stat]||0)+(b.max?10:(Number(b.amt)||0))});
-  ee.forEach(k=>{const a=e.attrs[k]||0,v=Math.max(1,Math.round(a*mult)+(out.buffs[k]||0));out.eff[k]=v;out.delta[k]=v-a});
+  /* v111: the sheet reads the wheel's flat swing AND v111's own entries — a lingering wear cut
+   * counting its games down, and this game's focus pick, which is a MULTIPLIER rather than an
+   * add. The multiplier lands after condMultV54 and is clamped, so no two buffs can compound
+   * into a number the player never earned. With no focus and no wear this is the old list. */
+  (typeof wearBuffsV111==="function"?wearBuffsV111(e):(e._tempStatBuffsV25||[])).forEach(b=>{if(!b||!b.stat)return;
+    if(b.mul!=null)out.muls[b.stat]=(out.muls[b.stat]||1)*(Number(b.mul)||1);
+    else out.buffs[b.stat]=(out.buffs[b.stat]||0)+(b.max?10:(Number(b.amt)||0))});
+  ee.forEach(k=>{const a=e.attrs[k]||0,mu=out.muls[k]?f(out.muls[k],TU("focusMulFloor",.6),TU("focusMulCeil",1.35)):1,
+    v=Math.max(1,Math.round((Math.round(a*mult)+(out.buffs[k]||0))*mu));out.eff[k]=v;out.delta[k]=v-a});
   return out;
 }
 function bodyBadgeV85(e){
@@ -13692,7 +14291,12 @@ const P={pass:0,rush:0,rec:0,td:0,tackle:0,sack:0,int:0,pd:0,pick6:0,carries:0,r
 v={yds:0,pass:0,rush:0,first:0,pen:0,penYds:0,turn:0,sacks:0,third_c:0,third_a:0,air:0,yac:0},
 j={yds:0,pass:0,rush:0,first:0,turn:0,air:0,yac:0,third_c:0,third_a:0,pen:0,penYds:0,sacks:0},
 U=["QB","RB","WR","TE"].includes(t),ce=["DL","LB","CB","S"].includes(t),
-_raw=(w,k)=>{let _v=(w&&w.attrs&&w.attrs[k])||45;if(w&&w.you){if(window.__condMultV54)_v*=window.__condMultV54(o.player);var _tb=window.__youTempBuffsV25;if(_tb)for(var _bi=0;_bi<_tb.length;_bi++){if(_tb[_bi].stat===k)_v+=_tb[_bi].max?10:_tb[_bi].amt;}_v+=(G("perfFlat")||0)+((window.__youPersonaFxV20&&window.__youPersonaFxV20.perfFlat)||0)}return _v},
+// v111: when the career path runs a game it hands the buff list down through the global; a bare
+// __simGameV2 call gets none, so v111's OWN entries (a lingering wear cut, this game's focus) are
+// picked up here instead. `ownBuffs` never returns the roster's list, so nothing already working
+// changes shape — at every default both sides of this are empty.
+_tb111=(window.__youTempBuffsV25!=null?window.__youTempBuffsV25:(function(){try{return window.__V111?window.__V111.ownBuffs(o.player):null}catch(_){return null}})()),
+_raw=(w,k)=>{let _v=(w&&w.attrs&&w.attrs[k])||45;if(w&&w.you){if(window.__condMultV54)_v*=window.__condMultV54(o.player);var _tb=_tb111,_mu=1;if(_tb)for(var _bi=0;_bi<_tb.length;_bi++){if(_tb[_bi].stat===k){if(_tb[_bi].mul!=null)_mu*=Number(_tb[_bi].mul)||1;else _v+=_tb[_bi].max?10:_tb[_bi].amt}}if(_mu!==1)_v*=f(_mu,TU("focusMulFloor",.6),TU("focusMulCeil",1.35));/* v111: the focus is a multiplier, and it lands AFTER the body's swing */_v+=(G("perfFlat")||0)+((window.__youPersonaFxV20&&window.__youPersonaFxV20.perfFlat)||0)}return _v},
 // league-normalized attribute accessor: every league plays real football —
 // outcomes ride on RELATIVE strength, not absolute ratings (a high-school
 // game shouldn't end 6-3 because everyone is 22 OVR)
@@ -13718,6 +14322,27 @@ const avgAttr=(arr,key)=>arr.reduce((s,pl)=>s+_(pl,key),0)/Math.max(1,arr.length
 teamProfile=tm=>{const qb=Y(tm.off,["QB"]),rb=Y(tm.off,["RB"]),ol=tm.off.filter(pl=>pl.pos==="OL"),rec=tm.off.filter(pl=>["WR","TE"].includes(pl.pos)),sec=tm.def.filter(pl=>["CB","S"].includes(pl.pos)),front=tm.def.filter(pl=>["DL","LB"].includes(pl.pos));return{qbIq:_(qb,"awareness"),qbSpeed:_(qb,"speed"),rbSkill:(_(rb,"speed")+_(rb,"burst")+_(rb,"strength"))/3,ballSecurity:(_(rb,"awareness")+_(rb,"strength"))/2,line:avgAttr(ol,"blocking"),receivers:(avgAttr(rec,"catching")+avgAttr(rec,"speed"))/2,front:(avgAttr(front,"strength")+avgAttr(front,"tackling"))/2,coverage:(avgAttr(sec,"coverage")+avgAttr(sec,"speed"))/2,discipline:avgAttr([...tm.off,...tm.def],"awareness")}},
 profiles={us:teamProfile(c.us),them:teamProfile(c.opp)},weatherRoll=Math.random(),weather=weatherRoll<.10?"rain":weatherRoll<.15?"wind":weatherRoll<.18?"snow":"clear",__wxSide=(typeof window<"u"?(window.__WX_V79=weather):weather),weatherFx={pass:weather==="rain"?.94:weather==="wind"?.91:weather==="snow"?.9:1,kick:weather==="wind"?.88:weather==="snow"?.9:weather==="rain"?.95:1,fumble:weather==="rain"?1.35:weather==="snow"?1.22:1};
 const usage=new Map(),touches=pl=>usage.get(pl)||0,addTouch=pl=>usage.set(pl,touches(pl)+1);
+/* ===== v111 THE DIAL REACHES THE SNAP =====
+ * `share` is the share of HIS unit's snaps he is on the field for. A rest snap is not a
+ * suppressed stat line — the roster array carries a nameless-but-real BACKUP in his slot for
+ * that play, so FieldSim fields the backup, `B`/`b` cannot find `z.you` to hand him the ball,
+ * the commentary names the backup and `pe()` credits the backup. `touchMul` scales the lead
+ * back's share and the target rate on the snaps he DOES play.
+ *
+ * At "normal" the share is 1 and the multiplier is 1: no roll is made, no substitution happens
+ * and every expression below is the one that was here before. */
+const _u111=(()=>{try{return(window.__V111&&o&&o.player)?window.__V111.usage(o.player):null}catch(_){return null}})(),
+  _share111=_u111?_u111.share:1,_touch111=_u111?_u111.touchMul:1,
+  _slot111=(()=>{if(_share111>=.999)return null;let i=c.us.off.findIndex(w=>w&&w.you);if(i>=0)return{arr:c.us.off,i,off:!0};
+    i=c.us.def.findIndex(w=>w&&w.you);return i>=0?{arr:c.us.def,i,off:!1}:null})(),
+  _you111=_slot111?_slot111.arr[_slot111.i]:null,
+  // the man who takes his snaps: a real depth piece, a shade off him, so the TEAM's afternoon is
+  // barely moved by resting its star — which is the point. What changes is whose name is on it.
+  _sub111=_you111?(()=>{const q=f(TU("subQualityV111",.92),.5,1),at={};
+    for(const k in(_you111.attrs||{}))at[k]=f(Math.round((_you111.attrs[k]||45)*q),5,99);
+    return{name:Hr(),num:_you111.num,pos:_you111.pos,isOff:_you111.isOff,ovr:Math.round((_you111.ovr||45)*q),attrs:at,stat:{}}})():null;
+let _on111=!0,_snapOn111=0,_snapTm111=0;
+_sub111&&_starUnit.set(_sub111,_slot111.arr);
 // ---- play resolvers (FieldSim agents when available, formula fallback) ----
 /* ===== v76 MARGIN CURVE (2/5) — a talent edge buys a better offence, not a
  * different sport. Diagnosed rather than guessed: at a -5.8 scoreboard gap a team
@@ -13872,7 +14497,9 @@ function standV76(){
     lateP=over>a2?(over-a2)/(b2-a2)*mx:0;
   return Math.random()<f(gapP+lateP,0,mx);
 }
-function B(w,concept,play){const{O:k,D:T}=ie(w),K=(()=>{const yu=k.off.find(z=>z.you),rbs=k.off.filter(z=>z.pos==="RB"),qb=Y(k.off,["QB"]);if(rbs.length){if(qb&&Math.random()<.055)return qb;const sr=rbs.slice().sort((A,B2)=>(B2.ovr||0)-(A.ovr||0)),lead=yu&&yu.pos==="RB"?yu:sr[0],backup=sr.find(pl=>pl!==lead)||lead,leadShare=f(.72-touches(lead)*.012,.46,.72);return Math.random()<leadShare?lead:backup}return qb||Y(k.off,["RB","RB","QB"])})(),g=T.def.filter(ge=>["DL","LB","S"].includes(ge.pos)),N=_starFrontRating(T.def,g),H=k.off.filter(ge=>ge.pos==="OL"),oe=H.length?H.reduce((ge,$e)=>ge+_($e,"blocking"),0)/H.length:45;addTouch(K);const __r2=window.__FieldSim&&window.__FieldSim.run(w,k,T,K,_,concept,Object.assign(play&&play.gap?{gap:play.gap,play:play.id}:{},{fieldPos:typeof pos!=="undefined"?pos:50,down:typeof down!=="undefined"?down:1,toGo:typeof toGo!=="undefined"?toGo:10}));   /* v101: the call names the gap. v103: and the sticks, so a back can strain for them */let base;if(__r2)base=__r2;else{const be=(_(K,"strength")*.5+_(K,"burst")*.5)*.5+oe*.5-N*.85;let ke=Math.round(2.8+be*.045+D(-2.5,3));be<-7&&Math.random()<.38&&(ke=le(-2,1)),Math.random()<f((_(K,"speed")-N)/360+.015,.008,.11)&&(ke+=le(7,13+Math.round(_(K,"speed")/8))),ke=f(ke,-5,60),base={carrier:K,yards:ke,breakaway:ke>=15}}
+function B(w,concept,play){const{O:k,D:T}=ie(w),K=(()=>{const yu=k.off.find(z=>z.you),rbs=k.off.filter(z=>z.pos==="RB"),qb=Y(k.off,["QB"]);if(rbs.length){if(qb&&Math.random()<.055)return qb;const sr=rbs.slice().sort((A,B2)=>(B2.ovr||0)-(A.ovr||0)),lead=yu&&yu.pos==="RB"?yu:sr[0],backup=sr.find(pl=>pl!==lead)||lead;let leadShare=f(.72-touches(lead)*.012,.46,.72);
+    if(_touch111!==1&&lead&&lead.you)leadShare=f(leadShare*_touch111,.30,TU("leadShareMaxV111",.97));/* v111: the dial buys carries — only ever HIS carries */
+    return Math.random()<leadShare?lead:backup}return qb||Y(k.off,["RB","RB","QB"])})(),g=T.def.filter(ge=>["DL","LB","S"].includes(ge.pos)),N=_starFrontRating(T.def,g),H=k.off.filter(ge=>ge.pos==="OL"),oe=H.length?H.reduce((ge,$e)=>ge+_($e,"blocking"),0)/H.length:45;addTouch(K);const __r2=window.__FieldSim&&window.__FieldSim.run(w,k,T,K,_,concept,Object.assign(play&&play.gap?{gap:play.gap,play:play.id}:{},{fieldPos:typeof pos!=="undefined"?pos:50,down:typeof down!=="undefined"?down:1,toGo:typeof toGo!=="undefined"?toGo:10}));   /* v101: the call names the gap. v103: and the sticks, so a back can strain for them */let base;if(__r2)base=__r2;else{const be=(_(K,"strength")*.5+_(K,"burst")*.5)*.5+oe*.5-N*.85;let ke=Math.round(2.8+be*.045+D(-2.5,3));be<-7&&Math.random()<.38&&(ke=le(-2,1)),Math.random()<f((_(K,"speed")-N)/360+.015,.008,.11)&&(ke+=le(7,13+Math.round(_(K,"speed")/8))),ke=f(ke,-5,60),base={carrier:K,yards:ke,breakaway:ke>=15}}
 // v16.1 run-curve calibration: the agent sim compresses gains into 0-5 yds
 // (its 7-defender pursuit converges before a back can break clean). Real backs
 // gash the second level and break the occasional long one, so promote a
@@ -13890,7 +14517,7 @@ if(base&&base.yards>=0&&base.yards<=2){
 if(base&&base.yards>0){const y2=Math.round(dampV76(base.yards));
   if(y2!==base.yards){retagSimLog(y2);base={...base,yards:y2,breakaway:y2>=15}}}   /* v103: the picture follows the number */
 return base}
-function b(w,concept,ctx={}){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=(()=>{const g0=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]);const yu=k.off.find(z=>z.you);if(yu&&yu!==g0){const tp=yu.pos==="WR"?.32:yu.pos==="TE"?.2:yu.pos==="RB"?.1:0,ok=concept==="shot"?["WR","TE"].includes(yu.pos):["WR","TE","RB"].includes(yu.pos);if(tp&&ok&&Math.random()<tp)return yu}return g0})(),N=(()=>{/* v87: no coin flip puts YOU on the target — the sim covers by alignment, and the formula fallback never picks you */const safety=_starOutlier(T.def,"S");if(safety&&safety.player&&!safety.player.you&&Math.random()<.2*safety.blend)return safety.player;const others=T.def.filter(z=>!z.you);return Y(others.length?others:T.def,["CB","S","LB"])})();const need=(typeof down!=="undefined"&&down>=3)?Math.max(1,toGo):0;const __r=window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept,{pressured:!!ctx.pressured,moving:!!ctx.moving,pa:!!ctx.pa,fieldPos:typeof pos!=="undefined"?pos:50,down:typeof down!=="undefined"?down:1,toGo:typeof toGo!=="undefined"?toGo:10,routes:ctx.play&&ctx.play.routes||null,play:ctx.play&&ctx.play.id||null});   /* v101: the call names the routes */
+function b(w,concept,ctx={}){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=(()=>{const g0=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]);const yu=k.off.find(z=>z.you);if(yu&&yu!==g0){const tp=f((yu.pos==="WR"?.32:yu.pos==="TE"?.2:yu.pos==="RB"?.1:0)*_touch111,0,.62)/* v111: the dial buys targets */,ok=concept==="shot"?["WR","TE"].includes(yu.pos):["WR","TE","RB"].includes(yu.pos);if(tp&&ok&&Math.random()<tp)return yu}return g0})(),N=(()=>{/* v87: no coin flip puts YOU on the target — the sim covers by alignment, and the formula fallback never picks you */const safety=_starOutlier(T.def,"S");if(safety&&safety.player&&!safety.player.you&&Math.random()<.2*safety.blend)return safety.player;const others=T.def.filter(z=>!z.you);return Y(others.length?others:T.def,["CB","S","LB"])})();const need=(typeof down!=="undefined"&&down>=3)?Math.max(1,toGo):0;const __r=window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept,{pressured:!!ctx.pressured,moving:!!ctx.moving,pa:!!ctx.pa,fieldPos:typeof pos!=="undefined"?pos:50,down:typeof down!=="undefined"?down:1,toGo:typeof toGo!=="undefined"?toGo:10,routes:ctx.play&&ctx.play.routes||null,play:ctx.play&&ctx.play.id||null});   /* v101: the call names the routes */
 if(__r){if(__r.complete&&__r.yards>0){const y2=Math.max(1,Math.round(dampV76(__r.yards)));
   if(y2!==__r.yards){retagSimLog(y2);const air2=Math.min(__r.air||0,y2);return{...__r,yards:y2,breakaway:y2>=20,air:air2,yac:Math.max(0,y2-air2)}}}   /* v103: the picture follows the number */
   return __r}const depth0=concept==="shot"?24:concept==="fade"?18:concept==="dropback"?11:concept==="quick"?5:concept==="screen"?1:8,depth=need&&concept!=="screen"?Math.max(depth0,Math.min(need+1,18)):depth0,H=_(g,"speed")*.5+_(g,"agility")*.5-_(N,"coverage")*.85+_(K,"awareness")*.25,poise=f((_(K,"awareness")-35)/100,0,.55),pressureAcc=ctx.pressured?(ctx.moving?.78:.86)+poise*(ctx.moving?.16:.1):1,oe=f((.57-depth*.008+H/150)*weatherFx.pass*pressureAcc,.07,.91);if(!(Math.random()<oe)){const ge=f(.012+depth*.0022+(_(N,"coverage")-_(K,"awareness"))*.0015+(ctx.pressured?.012:0)+(ctx.moving?.012:0),0,.18);return{qb:K,rec:g,cover:N,complete:!1,intercepted:Math.random()<ge,yards:0,pressured:!!ctx.pressured,moving:!!ctx.moving}}let ke=Math.round(depth+(_(g,"catching")+_(K,"awareness"))/2*.045+D(-2,4)),explosiveP=f((_(g,"speed")-_(N,"coverage"))/240+(concept==="shot"?.13:concept==="screen"?.07:.035)-(ctx.pressured?.035:0),.01,.3);Math.random()<explosiveP&&(ke+=le(concept==="shot"?12:8,18+Math.round(_(g,"speed")/7))),ke=f(ke,1,80);need&&ke<need&&Math.random()<f((_(K,"awareness")-40)/120,.05,.45)&&(ke=need+le(0,3));ke=Math.max(1,Math.round(dampV76(ke)));const air=f(Math.round(concept==="screen"?D(-1,2):ke*(concept==="shot"?.75:.45+Math.random()*.3)),0,ke);return{qb:K,rec:g,cover:N,complete:!0,intercepted:!1,yards:ke,breakaway:ke>=20,air,yac:Math.max(0,ke-air),pressured:!!ctx.pressured,moving:!!ctx.moving}}
@@ -14126,6 +14753,10 @@ while(!gameOver&&plays<MAXP){
     mkPlay({T0,pre,o:{event:"penalty",penalty:!0,yards:dyd,endBall:pos,involved:meFlag,desc:`🚩 ${foul.n}${meFlag?" on YOU":`, ${onOff?"offense":"defense"} (#${who.num||""} ${nm(who)})`} — ${Math.abs(dyd)} yards, ${note}.`,foul:{name:foul.n,on:committed?"us":"them",side:onOff?"offense":"defense",player:{num:who.num||"",name:nm(who)},yards:Math.abs(dyd),spot:pos,result:onOff?"replay":note==="automatic first down"?"automaticFirst":note==="first down"?"firstDown":"replay",preSnap:!0},clockStopped:"penalty",secs:4}});
     spend(4);clock<=0&&quarterRoll();continue}}
   // ---- play call ------------------------------------------------------------
+  // v111: is he out there for this one? His unit only, and only when the dial asks for a rest.
+  if(_slot111){const mine111=usDrive?_slot111.off:!_slot111.off;
+    if(mine111){_snapTm111++;_on111=Math.random()<_share111;_on111&&_snapOn111++}
+    _slot111.arr[_slot111.i]=(mine111&&!_on111)?_sub111:_you111}
   let passP;
   if(down===1)passP=.48;else if(down===2)passP=toGo>=8?.62:toGo<=3?.4:.52;else passP=toGo>=8?.86:toGo>=4?.68:.36;
   passP+=(-.1+kf*.1); // youth football is run-heavy; sophistication rises by level
@@ -14463,8 +15094,21 @@ l.sacks=v.sacks;
 const Mt2=v.third_a>0?`${Math.min(v.third_c,v.third_a)}/${v.third_a}`:"0/0",
 xt={yds:v.yds,pass:v.pass,rush:v.rush,first:v.first,third:Mt2,top:fmtC(topSec.us),pen:v.pen,penYds:v.penYds,turn:v.turn,sacks:v.sacks,air:v.air,yac:v.yac},
 ua={yds:j.yds,pass:j.pass,rush:j.rush,first:j.first,third:j.third_a>0?`${Math.min(j.third_c,j.third_a)}/${j.third_a}`:"0/0",top:fmtC(topSec.them),pen:j.pen,penYds:j.penYds,turn:j.turn,sacks:j.sacks,air:j.air,yac:j.yac},
-fa=qi(t,P,r);
-return{plays:u,usScore:h,themScore:p,stat:fa,team:xt,oppTeam:ua,roster:c}}
+fa=qi(t,P,r),
+/* v111: what the focus was actually worth to the AGENTS. The multiplier lands inside `_raw`,
+ * which is the accessor FieldSim asks for every key it builds an agent from — so this row puts
+ * his number against a team-mate's on the same key, and against the roster value it started
+ * from. `v111Acheck` reads it: a focus that does nothing on the field shows up here. */
+_fx111=(()=>{try{const fbs=(_tb111||[]).filter(b=>b&&b.mul!=null);if(!fbs.length)return null;
+  const me=c.us.off.find(w=>w&&w.you)||c.us.def.find(w=>w&&w.you);if(!me)return null;
+  const unit=c.us.off.indexOf(me)>=0?c.us.off:c.us.def,peer=unit.find(w=>w&&!w.you)||null;
+  return fbs.map(fb=>({stat:fb.stat,kind:fb.v111||"buff",mul:fb.mul,rosterHas:!!(me.attrs&&me.attrs[fb.stat]!=null),
+    base:(me.attrs&&me.attrs[fb.stat])||45,raw:_raw(me,fb.stat),peerRaw:peer?_raw(peer,fb.stat):null,
+    att:_(me,fb.stat),peerAtt:peer?_(peer,fb.stat):null}))}catch(_e){return null}})();
+return{plays:u,usScore:h,themScore:p,stat:fa,team:xt,oppTeam:ua,roster:c,focusV111:_fx111,
+  /* v111: what he ACTUALLY did, which is what the body is billed from */
+  snapsV111:{on:_slot111?_snapOn111:null,team:_slot111?_snapTm111:null,share:_share111,touchMul:_touch111,
+    key:_u111?_u111.key:"normal",touches:(fa.carries||0)+(fa.rec_c||0)+(fa.att||0)}}}
 window.__simGameV2=Yr;
 /* v22.2: pregame preview built from the SAME roster builder the game uses (Wr),
  * so the displayed team OVRs + top-5 MATCH the team you actually play. The old
@@ -14507,7 +15151,10 @@ function __aiSeasonGame(e,opts){opts=opts||{};let seed=__seasonSeed(e);
   if(opts.oppBoost)seed-=opts.oppBoost*30;   // tougher slate lowers effective quality
   seed=f(seed,5,100);
   const _gsB=(e._gameScriptV23&&e._gameScriptV23.gsPass!=null)?e._gameScriptV23.gsPass:null;e._gameScriptV23=null;
-  let g=null;try{window.__youStatBoostPctV20=_sb;window.__youTempBuffsV25=e._tempStatBuffsV25||null;window.__gameScriptBiasV23=_gsB;g=window.__simGameV2(seed,e.pos)}catch(_){g=null}finally{window.__youStatBoostPctV20=0;window.__youTempBuffsV25=null;e._tempStatBuffsV25=null;window.__gameScriptBiasV23=null}
+  /* v111: the list the sim plays with is the wheel's swing PLUS v111's own — a lingering wear cut
+   * still counting down, and this game's focus multiplier. Spending the game is a decay now, not a
+   * wipe: an entry with no `games` countdown is dropped exactly as it always was. */
+  let g=null;try{window.__youStatBoostPctV20=_sb;window.__youTempBuffsV25=wearBuffsV111(e);window.__gameScriptBiasV23=_gsB;g=window.__simGameV2(seed,e.pos)}catch(_){g=null}finally{window.__youStatBoostPctV20=0;window.__youTempBuffsV25=null;decayWearV111(e);window.__gameScriptBiasV23=null}
   const etRoll=et(e,opts.perfSeed||0,opts),injRoll=etRoll.injured;
   const grader=(typeof gradeGame==="function"?gradeGame:window.__gradeGame);
   if(!g||!g.stat||typeof grader!=="function"){const sc=ia(e,etRoll.perf,opts);return{perf:etRoll.perf,ovr:Pa(e),injured:injRoll,us:sc.us,them:sc.them,won:sc.won,statLine:null}}
@@ -14525,7 +15172,7 @@ function __aiSeasonGame(e,opts){opts=opts||{};let seed=__seasonSeed(e);
   // grade that came from a bad body has to be able to SAY so afterwards, and the
   // only place that is knowable is here, either side of the multiplier.
   const _preBody=perf; perf=f(Math.round(perf*condMultV54(e)),1,100);
-  return{perf,bodyCostV73:perf-_preBody,ovr:Pa(e),injured:injRoll,us,them,won:us>them,statLine:g.stat,gameGrade:grade.grade,snaps}}
+  return{perf,bodyCostV73:perf-_preBody,ovr:Pa(e),injured:injRoll,us,them,won:us>them,statLine:g.stat,gameGrade:grade.grade,snaps,snapsV111:g.snapsV111||null}}
 /* v20 PREGAME ODDS — a real win probability computed from the SAME inputs the
  * engine will play the game with: your effective perf seed (OVR vs level need,
  * prestige, season boosts), the opponent's rating relative to level average
@@ -14692,7 +15339,7 @@ function sitOutWeekV18(e,s){
     if(inj.weeksRemaining<=0){e.recentlyRecoveredV18=inj.name;c.injury=null;try{toast("✅ Healed: "+inj.name+" — cleared to play")}catch(x){}}}
   c.fatigue=Math.max(0,(c.fatigue||0)-22);
 }
-function homeWeekV93(w,i){return w&&w.home!=null?!!w.home:(i||0)%2===0}window.homeWeekV93=homeWeekV93;function lt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){te("season");return}t.currentWeek=a;const s=t.weekResults[a];if(e){window.__oppMulV22=__oppMulForV22(s.opp);let _sb=0;if(t._nextGameBoost){_sb=Math.round(t._nextGameBoost);t._nextGameBoost=0}window.__youStatBoostPctV20=_sb;window.__youTempBuffsV25=t._tempStatBuffsV25||null;window.__gameScriptBiasV23=(t._gameScriptV23&&t._gameScriptV23.gsPass!=null)?t._gameScriptV23.gsPass:null;t._gameScriptV23=null;try{o._liveGame=Yr(s.perf,t.pos)}finally{window.__youStatBoostPctV20=0;window.__youTempBuffsV25=null;t._tempStatBuffsV25=null;window.__oppMulV22=null;window.__gameScriptBiasV23=null}o._oppName=s.opp;window.__homeGameV93=homeWeekV93(s,a);o.view="live";q()}else{s.played=!0;te("season")}}function wt(){const e=o.player;e.weekResults.filter(t=>!t.playoff).forEach(t=>{if(t.played)return;if(mustSitV18(e)){sitOutWeekV18(e,t)}else{const c=cv18(e);t.played=!0;materializeInjuryV18(e,t);c.fatigue=Math.min(100,(c.fatigue||0)+5)}}),I(),te("season")}function Ea(){const e=o.player;if(e.weekResults&&e.currentWeek!=null){const w=e.weekResults[e.currentWeek];w.played=!0;const g=o._liveGame;g&&g.usScore!=null&&g.plays&&bookLiveGameV85(e,w,g)}o._oppName=null,te("season")}function fs(){const e=o.player;if(dn(e),e.weekResults&&e.weekResults.some(a=>!a.played)){te("season");return}
+function homeWeekV93(w,i){return w&&w.home!=null?!!w.home:(i||0)%2===0}window.homeWeekV93=homeWeekV93;function lt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){te("season");return}t.currentWeek=a;const s=t.weekResults[a];if(e){window.__oppMulV22=__oppMulForV22(s.opp);let _sb=0;if(t._nextGameBoost){_sb=Math.round(t._nextGameBoost);t._nextGameBoost=0}window.__youStatBoostPctV20=_sb;window.__youTempBuffsV25=wearBuffsV111(t);window.__gameScriptBiasV23=(t._gameScriptV23&&t._gameScriptV23.gsPass!=null)?t._gameScriptV23.gsPass:null;t._gameScriptV23=null;try{o._liveGame=Yr(s.perf,t.pos)}finally{window.__youStatBoostPctV20=0;window.__youTempBuffsV25=null;decayWearV111(t);window.__oppMulV22=null;window.__gameScriptBiasV23=null}o._oppName=s.opp;window.__homeGameV93=homeWeekV93(s,a);o.view="live";q()}else{s.played=!0;te("season")}}function wt(){const e=o.player;e.weekResults.filter(t=>!t.playoff).forEach(t=>{if(t.played)return;if(mustSitV18(e)){sitOutWeekV18(e,t)}else{const c=cv18(e);t.played=!0;materializeInjuryV18(e,t);c.fatigue=Math.min(100,(c.fatigue||0)+5)}}),I(),te("season")}function Ea(){const e=o.player;if(e.weekResults&&e.currentWeek!=null){const w=e.weekResults[e.currentWeek];w.played=!0;const g=o._liveGame;g&&g.usScore!=null&&g.plays&&bookLiveGameV85(e,w,g)}o._oppName=null,te("season")}function fs(){const e=o.player;if(dn(e),e.weekResults&&e.weekResults.some(a=>!a.played)){te("season");return}
   // v18: the offseason heals — season-enders clear, lingering knocks fade, fatigue resets
   {const c=cv18(e);if(c.injury&&(c.injury.seasonEnding||Math.random()<.7))c.injury=null;c.fatigue=Math.max(0,Math.min(30,(c.fatigue||0)-40))}const t=tt(e);e.seasonStats=t,logSeasonV77(e,t),e.weekResults=null,e.currentWeek=null,es(),o.view="result",I(),q()}function nl(){La()}let Z=null;function il(){o.view="live",q()}function Dt(e){const t=[["Cubs","Ducks","Tigers","Coyotes","Jr. Rangers"],["Wolves","Hawks","Grizzlies","Stallions","Pumas"],["Vipers","Renegades","Surge","Ospreys","Wildcats"],["Gladiators","Spartans","Knights","Cougars","Cobras"],["Bulldogs","Mustangs","Warriors","Firebirds","Gators"],["State","Tech","A&M","U","Central"],["Combine Field","Draft Prospects","All-Stars"],["Storm","Kings","Empire","Blitz","Reign"],["Void Titans","Nebula Reapers","Solar Wraiths","Meteor Legion","Andromeda Sovereigns","Lunar Command","Europa Frost"]],a=["Dallas","Miami","Denver","Austin","Tampa","Reno","Akron","Boise"],s=t[Math.min(e,t.length-1)];return e===5?W(a)+" "+W(s):W(s).toUpperCase()}function ol(){const e=o.player,t=o._liveGame;A[e.level];const a=o._oppName||(o._oppName=Dt(e.level)),s=e.name.split(" ")[1].slice(0,8).toUpperCase(),n=a.split(" ").pop().slice(0,8).toUpperCase(),i=["DL","LB","CB","S"].includes(e.pos);const _pl=(e.weekResults||[]).filter(w=>w.played),_uw=_pl.filter(w=>w.won).length,usRec=_pl.length?_uw+"-"+(_pl.length-_uw):t.roster.us.ovr+" OVR",_os=Array.from(a||"").reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,7),_ow=_pl.length?_os%(_pl.length+1):0,oppRec=_pl.length?_ow+"-"+(_pl.length-_ow):t.roster.opp.ovr+" OVR";const TL44=window.TEAM_LOGOS_V44,_tc44=window.__GRIDIRON_TEAM_CUSTOM__||{},usLogo44=_tc44.logo!=null?_tc44.logo:(TL44?TL44.forName(_tc44.teamName||s):0),oppLogo44=TL44?TL44.forName(a):0,homeGame44=((e.currentWeek||0)%2)===0;try{window.__setFieldLogoV44&&window.__setFieldLogoV44(homeGame44?usLogo44:oppLogo44)}catch(_e){}x("screen").innerHTML=`
     <div class="field-wrap">${(()=>{try{window.__ribPaintScorebugV98&&window.__ribPaintScorebugV98(n)}catch(_e){}return ""})()}
@@ -15210,7 +15857,12 @@ window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;w
 {id:"recover",icon:"🛌",name:"Rest & Recover",desc:"A light week: treatment, sleep, and legs for Sunday. Heals fatigue and cuts injury risk, at the cost of sharpness.",perf:-2,varMult:.75,inj:-.12,snap:-.02,trust:0,comp:1,mom:-1,rest:1,tags:["HEALS BODY","−INJURY RISK"]},
 {id:"shadow",icon:"🕵️",name:"Shadow Study",desc:"Scout one matchup obsessively and hunt him all game. Big edge if it hits, exposed if the plan changes.",perf:6,varMult:1.4,inj:.03,snap:.03,trust:0,comp:-1,mom:2,tags:["SCOUTED EDGE","VOLATILE"]},
 {id:"redzone",icon:"🎯",name:"Red Zone Package",desc:"Drill the money downs. Fewer touches, but the ones you get are near the paint.",perf:3,varMult:1.1,inj:.02,snap:-.03,trust:1,comp:1,mom:2,tags:["SCORING","FEWER SNAPS"]},
-{id:"enforcer",icon:"💪",name:"Set the Tone",desc:"Play violent and physical from the first snap. Intimidation buffs the whole team — your body pays the tax.",perf:4,varMult:1.2,inj:.1,snap:.04,trust:1,comp:-2,mom:5,tags:["TEAM BUFF","INJURY RISK"]}];function at(e){return e?(e.momentum103==null&&(e.momentum103=50),e.composure103==null&&(e.composure103=50),e.roleBattle103==null&&(e.roleBattle103=0),e.breakthroughs103==null&&(e.breakthroughs103=0),Array.isArray(e.weeklyHistory103)||(e.weeklyHistory103=[]),e.weeklyPlan103===void 0&&(e.weeklyPlan103=null),e):null}function fo(e){const t=(e.depthRole||e.depthChart||"Bench").toString().toLowerCase();return t.includes("bench")?"Second String":t.includes("second")?"Rotation":t.includes("rotation")?"Starter":t.includes("starter")&&!t.includes("first")?"First String":"Team Star"}function Wt(e){return yt.find(t=>t.id===e)||yt[0]}function pn(e){at(e);const t=e.weeklyPlan103?Wt(e.weeklyPlan103):null;return`<div class="card weekly-loop-card"><div class="eyebrow">WEEKLY COMPETITIVE LOOP</div><div class="h2" style="margin:2px 0 3px">Earn the Next Role</div><div class="small">Outperform your opportunities, build trust, and fill the battle meter to challenge for <b style="color:var(--gold)">${fo(e)}</b>.</div><div class="loop-grid"><div class="loop-cell"><div class="n" style="color:${e.momentum103>=60?"var(--good)":e.momentum103<40?"#e08a8a":"var(--chalk)"}">${Math.round(e.momentum103)}</div><div class="l">Momentum</div></div><div class="loop-cell"><div class="n" style="color:${e.composure103>=60?"#8ec3ee":e.composure103<40?"#e08a8a":"var(--chalk)"}">${Math.round(e.composure103)}</div><div class="l">Composure</div></div><div class="loop-cell"><div class="n" style="color:var(--gold)">${e.breakthroughs103||0}</div><div class="l">Breakthroughs</div></div></div><div class="role-track"><i style="width:${f(e.roleBattle103,0,100)}%"></i></div><div class="small" style="margin-top:5px">Depth-chart battle: <b>${Math.round(e.roleBattle103)}%</b>${t?`<br><span class="plan-chip">${t.icon} ${t.name}</span>`:""}</div></div>`}function gs(e){const t=o.player;at(t);const a=t.weekResults?t.weekResults.findIndex(n=>!n.played):-1,s=a>=0?t.weekResults[a]:null;return`<div class="gameplan-overlay"><div class="gameplan-panel"><div class="decision-kicker">WEEKLY GAME PLAN · ${s?S(s.opp):"NEXT OPPONENT"}</div><div class="decision-title">How will you earn your snaps?</div><div class="decision-copy">Your role is not guaranteed. Choose an approach that changes performance variance, playing time, trust, injury risk, and role-battle progress.</div>${yt.map((n,i)=>`<button class="gameplan-choice" onclick="chooseGamePlan103('${n.id}',${e?"true":"false"})"><b>${n.icon} ${n.name}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(r=>`<span>${r}</span>`).join("")}</div></button>`).join("")}<button class="btn ghost" style="margin-top:12px" onclick="closeGamePlan103()">Back</button></div></div>`}function $t(e){const t=o.player;if(at(t),t.decisionQueue&&t.decisionQueue.length){F("Resolve the post-game decision first.");return}document.querySelector(".gameplan-overlay")||document.body.insertAdjacentHTML("beforeend",gs(!!e))}function Ya(){const e=document.querySelector(".gameplan-overlay");e&&e.remove()}function $c(e,t){const a=o.player;at(a),a.weeklyPlan103=e;const s=a.weekResults.findIndex(r=>!r.played);if(s<0){Ya();return}const n=a.weekResults[s],i=Wt(e);if(!n._plan103){const l=n.perf-60,d=D(-10,10)*i.varMult,c=(a.composure103-50)*.075,u=(a.momentum103-50)*.055;n.perf=Math.round(f(60+l*i.varMult+i.perf+d+c+u,15,130)),i.snap&&(a.snapShare=f((a.snapShare||.1)+i.snap,.06,.98)),a.coachTrust=f((a.coachTrust||50)+i.trust,0,100);const h=ve();h.coach=f((h.coach||50)+i.trust,0,100),a.composure103=f(a.composure103+i.comp,0,100),a.momentum103=f(a.momentum103+i.mom,0,100),i.inj>0&&!n.injured&&Math.random()<i.inj&&(n.injured=!0),i.inj<0&&n.injured&&Math.random()<Math.abs(i.inj)*2&&(n.injured=!1);const p=ia(a,n.perf,{oppBoost:n.playoff?.08:0});n.us=p.us,n.them=p.them,n.won=p.won,n._plan103=e}Ya(),I(),lt(!!t)}function vn(e,t){if(!e||e._loop103)return;e._loop103=!0,at(t);const a=Wt(e._plan103||t.weeklyPlan103||"disciplined"),s=f(t.snapShare||.12,.06,.98),n=Math.max(.28,s);let r=(e.perf-55)/Math.max(.55,n*1.45)*.16+(e.won?2:-1)+(e.perf>=85?4:0)+(e.perf<45?-4:0);a.id==="team"&&(r+=3),a.id==="feature"&&e.perf>=75&&(r+=4),e.injured&&(r-=4),t.roleBattle103=f(t.roleBattle103+r,0,125),t.momentum103=f(50+(t.momentum103-50)*.92+(e.won?5:-5)+(e.perf-60)*.11,0,100),t.composure103=f(50+(t.composure103-50)*.95+(Math.abs(e.perf-60)<13?2:0)+(e.perf>=80?1:0)-(e.perf<42?3:0),0,100);let l=!1;t.roleBattle103>=100&&(t.roleBattle103-=100,t.breakthroughs103++,t.coachTrust=f((t.coachTrust||50)+10,0,100),t.points=(t.points||0)+1,t.snapShare=f((t.snapShare||.1)+.12,.06,.98),l=!0,We("🚀","Depth-chart breakthrough","You forced the staff to expand your role after producing with limited opportunities.")),t.weeklyHistory103.unshift({perf:e.perf,won:e.won,plan:a.name,battle:Math.round(r),breakthrough:l}),t.weeklyHistory103=t.weeklyHistory103.slice(0,8),t.weeklyPlan103=null,l&&setTimeout(()=>ye("ROLE EARNED","More snaps. More responsibility. No guarantees.","good"),180)}const Sc=He;He=function(e,t){const a=!!(e&&e._loop103);Sc(e,t),e&&!a&&vn(e,t)};const Mc=q;q=function(){Mc();const e=o.player,t=x("screen");!e||!t||(at(e),(o.view==="hub"||o.view==="season")&&!t.querySelector(".weekly-loop-card")&&(t.querySelector(".world-card")||t.querySelector(".objective-card")||t.firstElementChild).insertAdjacentHTML("afterend",pn(e)),o.view==="season"&&(t.querySelectorAll('[onclick="playWeek(true)"]').forEach(a=>a.setAttribute("onclick","prepareWeek103(true)")),t.querySelectorAll('[onclick="playWeek(false)"]').forEach(a=>a.setAttribute("onclick","prepareWeek103(false)"))))};const xc=lt;lt=function(e){const t=o.player;at(t);const a=t.weekResults?t.weekResults.findIndex(n=>!n.played):-1,s=a>=0?t.weekResults[a]:null;if(s&&!s._plan103){$t(!!e);return}xc(e)};window.prepareWeek103=$t;window.chooseGamePlan103=$c;window.closeGamePlan103=Ya;function _a(e,t){return e<35?"#ff6b72":e>68?t==="comp"?"#8ec3ee":"#78e993":"#f0bb45"}function Tc(e){return e.depthRole||e.depthChart||"Bench"}pn=function(e){at(e);const t=e.weeklyPlan103?Wt(e.weeklyPlan103):null,a=Tc(e),s=fo(e),n=f(e.roleBattle103,0,100),i=Math.round(e.momentum103),r=Math.round(e.composure103);return`<div class="card weekly-loop-card impact-loop"><div class="impact-head"><div><div class="impact-kicker">WEEKLY COMPETITIVE LOOP</div><div class="h2" style="margin:2px 0 0">Fight for Every Snap</div></div><div class="impact-target">NEXT: ${S(s)}</div></div><div class="role-arena"><div class="role-labels"><span class="role-current">${S(a)}</span><span class="role-next">${S(s)}</span></div><div class="role-race"><i style="width:${n}%"></i></div><div class="role-percent">${Math.round(n)}<small>% ROLE BATTLE</small></div></div><div class="dual-gauges"><div class="impact-gauge"><div class="gauge-head"><span>MOMENTUM</span><b style="color:${_a(i,"mom")}">${i}</b></div><div class="gauge-scale"><i class="gauge-needle" style="left:${i}%"></i></div><div class="gauge-caption"><span>SLUMP</span><span>LOCKED IN</span></div></div><div class="impact-gauge"><div class="gauge-head"><span>COMPOSURE</span><b style="color:${_a(r,"comp")}">${r}</b></div><div class="gauge-scale"><i class="gauge-needle" style="left:${r}%"></i></div><div class="gauge-caption"><span>RATTLED</span><span>ICE COLD</span></div></div></div><div class="breakthrough-counter"><span class="small">Career role breakthroughs</span><b>🚀 ${e.breakthroughs103||0}</b></div>${t?`<div class="plan-selected"><div class="ic">${t.icon}</div><div><b>${t.name}</b><small>Active approach for the next game</small></div></div>`:""}</div>`};function yn(e){return e.id==="disciplined"?[45,92,20]:e.id==="feature"?[82,52,58]:e.id==="explosive"?[100,22,92]:[38,78,42]}function gn(e){return e==="disciplined"?"#8ec3ee":e==="feature"?"#f0bb45":e==="explosive"?"#ff6870":"#78e993"}gs=function(e){const t=o.player;at(t);const a=t.weekResults?t.weekResults.findIndex(n=>!n.played):-1,s=a>=0?t.weekResults[a]:null;return`<div class="gameplan-overlay"><div class="gameplan-panel impact-plan"><div class="plan-hero"><div class="decision-kicker">WEEKLY TACTICAL MEETING</div><div class="decision-title">Choose Your Identity</div><div class="decision-copy" style="margin:7px auto 0;max-width:390px">This choice changes your snaps, volatility, trust, injury exposure, and path up the depth chart.</div><div class="opponent-chip">VS ${s?S(s.opp):"NEXT OPPONENT"}</div></div><div class="plan-deck">${yt.map(n=>{const i=yn(n);return`<button class="impact-plan-choice" style="--planColor:${gn(n.id)}" onclick="chooseGamePlan103('${n.id}',${e?"true":"false"})"><div class="plan-icon">${n.icon}</div><div><b>${n.name}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(l=>`<span>${l}</span>`).join("")}</div></div><div class="plan-bars"><div class="mini-rating"><label><span>UPSIDE</span><span>${i[0]}</span></label><div class="mbar"><i style="width:${i[0]}%"></i></div></div><div class="mini-rating"><label><span>CONTROL</span><span>${i[1]}</span></label><div class="mbar"><i style="width:${i[1]}%"></i></div></div><div class="mini-rating"><label><span>RISK</span><span>${i[2]}</span></label><div class="mbar"><i style="width:${i[2]}%"></i></div></div></div></button>`}).join("")}<button class="btn ghost" style="margin:11px 0 4px" onclick="closeGamePlan103()">Back</button></div></div></div>`};function ho(e){const t=document.querySelector(".breakthrough-takeover");t&&t.remove(),document.body.insertAdjacentHTML("beforeend",'<div class="breakthrough-takeover" onclick="this.remove()"><div class="bt-content"><div class="bt-icon">🏈</div><div class="bt-kicker">DEPTH CHART UPDATE</div><div class="bt-title">ROLE EARNED</div><div class="bt-sub">The coaching staff expanded your role. The next opportunity is bigger—and less forgiving.</div><div class="bt-reward"><span>+12% SNAPS</span><span>+10 TRUST</span><span>+1 POINT</span></div><div class="small" style="margin-top:14px">Tap anywhere to continue</div></div></div>'),setTimeout(()=>{const a=document.querySelector(".breakthrough-takeover");a&&a.remove()},5200)}const Rc=vn;vn=function(e,t){const a=t?Number(t.breakthroughs103||0):0;Rc(e,t),t&&Number(t.breakthroughs103||0)>a&&setTimeout(()=>ho(),220)};function Pc(e){return at(e),`<div class="live-loop-strip"><div class="live-loop-stat"><b style="color:${_a(e.momentum103,"mom")}">${Math.round(e.momentum103)}</b><small>Momentum</small></div><div class="live-loop-stat"><b style="color:${_a(e.composure103,"comp")}">${Math.round(e.composure103)}</b><small>Composure</small></div><div class="live-loop-stat"><b>${Math.round(e.roleBattle103)}%</b><small>Role Battle</small><div class="live-role-mini"><i style="width:${f(e.roleBattle103,0,100)}%"></i></div></div></div>`}const Cc=q;q=function(){Cc();const e=o.player,t=x("screen");if(!(!e||!t)&&o.view==="live"&&!t.querySelector(".live-loop-strip")){const a=t.querySelector(".live-down")||t.querySelector(".field-wrap");a&&a.insertAdjacentHTML("afterend",Pc(e))}};window.breakthroughTakeover104=ho;window.__getGridironState=()=>o;window.__getGridironLiveSpeed=()=>Z&&Z.speed?Z.speed:1;window.__GRIDIRON_LEGACY_VERSION__="10.4-impact-ui";function Re(e){if($a(o),e){const t=A[e.level]?A[e.level].need:16,a=e.pos?ae(e):Math.round(ee.reduce((s,n)=>s+(e.attrs[n]||0),0)/Math.max(1,ee.length));ii(o,e,ee,t,a),e.decisionQueue&&e.decisionQueue.length&&(e.decisionQueue=[])}}Re(o&&o.player);const Lc=G;G=function(e){return ai(e,Lc(e))};const Ec=Se;Se=function(e,t){return si(e,Ec(e,t))};yt.some(e=>e.id==="recovery")||yt.push({id:"recovery",icon:"🧊",name:"Recovery & Treatment",desc:"Reduce workload, accelerate healing, and protect the rest of the season.",perf:-3,varMult:.7,inj:-.12,snap:-.05,trust:0,comp:2,mom:-1,tags:["HEAL","LOW WORKLOAD"]});const Ac=kt;kt=function(){const e=Ac();return e.originOptionsV11=Es(o,e).map(t=>t.id),e.originV11=null,e._originAppliedV11=!1,Re(e),e};function Vc(e){const t=o.player;if(!t||t.originV11)return;const a=As(t,e,ee);a&&(t._originAppliedV11=!0,Re(t),I(),q(),ye(a.name,a.strength+" · "+a.weakness,"gold"))}const Oc=rs;rs=function(e){if(!o.player.originV11){F("Choose this career’s origin first.");return}o.player.positionsPlayedV11=o.player.positionsPlayedV11||[],o.player.positionsPlayedV11.includes(e)||o.player.positionsPlayedV11.push(e),Oc(e),Re(o.player)};function Ms(e){if(e.originV11){const a=It.find(s=>s.id===e.originV11);return a?`<div class="card origin-card-v11 selected"><div class="eyebrow">RUN IDENTITY</div><div class="origin-selected-v11"><span>${a.icon}</span><div><b>${S(a.name)}</b><small>${S(a.description)}</small></div></div></div>`:""}return`<div class="card origin-card-v11"><div class="eyebrow">CHOOSE THIS CAREER'S IDENTITY</div><div class="h2" style="margin:3px 0 4px">Every Run Has a Story</div><div class="small">Origins add a real strength, a real weakness, and three legacy objectives.</div><div class="origin-grid-v11">${(e.originOptionsV11||[]).map(a=>It.find(s=>s.id===a)).filter(Boolean).map(a=>`<button class="origin-choice-v11" onclick="chooseOriginV11('${a.id}')"><span class="origin-icon-v11">${a.icon}</span><b>${S(a.name)}</b><small>${S(a.description)}</small><em>▲ ${S(a.strength)}</em><em class="bad">▼ ${S(a.weakness)}</em></button>`).join("")}</div></div>`}function Bc(e){ma.some(t=>t.id===e)&&(o.specializationV11=e,I(),q(),F("Legacy focus changed."))}function jc(){const e=ma.find(t=>t.id===o.specializationV11)||ma[0];return`<div class="card specialization-card-v11"><div class="eyebrow">PRESTIGE SPECIALIZATION · NO RAW OVR</div><div class="h2" style="margin:3px 0 5px">${e.icon} ${e.name}</div><div class="small">${e.description} Switch freely; this changes strategy rather than making every run automatically stronger.</div><div class="specialization-grid-v11">${ma.map(t=>`<button class="spec-btn-v11 ${t.id===o.specializationV11?"on":""}" onclick="chooseSpecializationV11('${t.id}')"><span>${t.icon}</span><b>${t.name}</b><small>${t.description}</small></button>`).join("")}</div></div>`}const bn=ra;ra=function(e){if(e&&e._v11SeasonActive&&e.roleRivalV11){const t=f(e.snapShare==null?.12:e.snapShare,.04,.98),a=t>=.82?"FIRST STRING":t>=.66?"STARTER":t>=.38?"ROTATION":t>=.16?"SECOND STRING":"BENCH";return e.depthRole=a,e.snapShare=t,{role:a,share:t,score:(t-.5)*40,peer:A[e.level].need}}return bn(e)};ls=function(e){e._seasonPerfBoost=0,e._nextGameBoost=0;const t=A[e.level],a=[];for(let s=0;s<t.games;s++){const n=Dt(e.level),i=rt(n,e.level,s+1,e.seasonSeed);a.push({week:s+1,opp:n,home:s%2===0,played:!1,generatedV11:!1,opponentV11:i,perf:null,us:null,them:null,won:null,injured:!1})}return a};cn=function(e,t){const a=ea(e.level),s=t===a.length-1,n=s&&e.nemesis?e.nemesis.name+"'s "+Dt(e.level):Dt(e.level),i=rt(n,e.level,(e.weekResults||[]).length+1,e.seasonSeed,t);return i.importance=s?"championship":"playoff",{week:(e.weekResults||[]).length+1,opp:n,home:t%2===0,played:!1,generatedV11:!1,opponentV11:i,playoff:!0,round:a[t],roundIdx:t,perf:null,us:null,them:null,won:null,injured:!1}};La=function(){const e=o.player;Re(e),e.seasonSeed=le(1,2e9),e.playoffState=null,e._v11SeasonActive=!0,ni(e),ds(e),us(e),e._v11SeasonActive=!1;const t=e.depthStarts||0;bn(e),e.depthStarts=t,e._v11SeasonActive=!0,e.roleRivalV11=null,Gt(e,A[e.level].need,fe(e.seasonSeed,e.level,e.pos,"season-rival")),e.weekResults=ls(e),e.currentWeek=0,o.view="season",I(),q()};function Ic(e,t){let a=0;for(const s of e.planHistoryV11||[])if(s===t)a++;else break;return a}function ca(e,t,a){if(t.generatedV11)return t;Re(e);const s=Wt(a),n=t.opponentV11||rt(t.opp,e.level,t.week||1,e.seasonSeed,t.playoff?t.roundIdx:void 0);t.opponentV11=n,n.scouted||bt(n,e,o.specializationV11);const i=Ic(e,a),r=Wn(n,a,i,o.specializationV11),l=Vs(e),d=e.level>=7?ta(e):{weeklyCost:0,recovery:0,perf:0,injuryRisk:0,recurrence:0,fulfillment:0,media:0,fatigue:0},c=et(e,(s.perf||0)+(r.perf||0)+(l.perf||0)+(d.perf||0),{playoff:!!t.playoff}),__omSet=(window.__oppMulV22=__oppMulForV22(t.opp||(n&&n.name))),_g17=__aiSeasonGame(e,{perfSeed:(s.perf||0)+(r.perf||0)+(l.perf||0)+(d.perf||0),playoff:!!t.playoff,oppRating:n.rating,oppBoost:(n.rating-(45+e.level*5.5))/180+(t.playoff?.08:0)}),__omClr=(window.__oppMulV22=null),h=D(-6,6)*(s.varMult||1),p=((e.composure103||50)-50)*.06,m=((e.momentum103||50)-50)*.045;t.perf=Math.round(f(_g17.perf+h+p+m,1,100)),t.statLine=_g17.statLine,_g17.statLine&&_g17.statLine.pick6&&(e.pick6Career=(e.pick6Career||0)+_g17.statLine.pick6),t.snapShare=Math.round(f((e.snapShare||.12)*l.snapMultiplier,.04,.98)*100)/100,t.snaps=Math.max(3,Math.round((e.level>=5?68:52)*t.snapShare*D(.88,1.12)));let y=l.injuryRisk+(s.inj||0)+(r.injuryRisk||0)+(d.injuryRisk||0);a==="recovery"&&(y-=.08),y=Fs(y+(c.injured?.055:0),e),t.injuryRiskV12=y,t.lifeEffectsV12=d,(function(){try{if(window.__INJ_DEBUG){window.__INJ_DEBUG.resolve=(window.__INJ_DEBUG.resolve||0)+1;if(_g17.injured)window.__INJ_DEBUG.resolveHit=(window.__INJ_DEBUG.resolveHit||0)+1}}catch(_){}})(),t.injured=_g17.injured&&Math.random()<injPlanMultV54({injury:y});/* v54: materialise it HERE. This was only ever called from the sim-season path, so a week played normally flagged the injury and then dropped it — nothing ever got a severity or a weeksRemaining, so mustSitV18 could never become true and no game was ever missed. */try{materializeInjuryV18(e,t)}catch(_){}return t.us=_g17.us,t.them=_g17.them,t.won=_g17.won,t.generatedV11=!0,t._plan103=a,t.planV11=a,t.matchupV11=r,t.healthAtKickoffV11={...e.conditionV11},e.weeklyPlan103=a,e.planHistoryV11=e.planHistoryV11||[],e.planHistoryV11.unshift(a),e.planHistoryV11=e.planHistoryV11.slice(0,6),s.snap&&(e.snapShare=f((e.snapShare||.1)+s.snap,.04,.98)),e.coachTrust=f((e.coachTrust||50)+(s.trust||0)+(r.trust||0),0,100),e.composure103=f((e.composure103||50)+(s.comp||0),0,100),e.momentum103=f((e.momentum103||50)+(s.mom||0),0,100),t}function mo(e,t){const a=e.opponentV11;if(!a)return"";const s=a.scouted||bt(a,t,o.specializationV11),n=Wt(s.recommendedPlan);return`<div class="scout-card-v11"><div class="scout-head-v11"><div><span>${a.rivalry?"🔥 RIVALRY":"🔭 SCOUTING REPORT"}</span><b>${S(a.name)}</b></div><div class="scout-confidence-v11">${s.confidence}%<small>CONFIDENCE</small></div></div><div class="scout-tags-v11"><span>${S(s.matchupLabel)}</span><span>${S(a.importance.toUpperCase())}</span><span>${a.rating} OPP RATING</span></div><div class="scout-facts-v11">${s.reveals.map(i=>`<div>• ${S(i)}</div>`).join("")}${s.hiddenCount?`<div class="hidden-fact-v11">• ${s.hiddenCount} detail${s.hiddenCount>1?"s":""} unresolved</div>`:""}</div><div class="scout-rec-v11">Suggested counter: <b>${n.icon} ${S(n.name)}</b>${s.confidence<50?" <small>Low-confidence report</small>":""}</div></div>`}function bs(e){const t=o.player;Re(t);const a=t.weekResults?t.weekResults.findIndex(n=>!n.played):-1,s=a>=0?t.weekResults[a]:null;return s?(s.opponentV11||(s.opponentV11=rt(s.opp,t.level,s.week||a+1,t.seasonSeed,s.playoff?s.roundIdx:void 0)),bt(s.opponentV11,t,o.specializationV11),`<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week||a+1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Your choice now generates the game. Future games remain unresolved until their week.</div></div>${mo(s,t)}<div class="plan-deck">${yt.map(n=>{const i=yn(n),r=gn(n.id),l=s.opponentV11.scouted?.recommendedPlan===n.id;return`<button class="impact-plan-choice ${l?"recommended-v11":""}" style="--planColor:${r}" onclick="chooseGamePlanV11('${n.id}',${e?"true":"false"})"><div class="plan-icon">${n.icon}</div><div><b>${n.name}${l?" · SCOUT PICK":""}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(d=>`<span>${d}</span>`).join("")}</div></div><div class="plan-bars"><div class="mini-rating"><label><span>UPSIDE</span><span>${i[0]}</span></label><div class="mbar"><i style="width:${i[0]}%"></i></div></div><div class="mini-rating"><label><span>CONTROL</span><span>${i[1]}</span></label><div class="mbar"><i style="width:${i[1]}%"></i></div></div><div class="mini-rating"><label><span>RISK</span><span>${i[2]}</span></label><div class="mbar"><i style="width:${i[2]}%"></i></div></div></div></button>`}).join("")}<button class="btn ghost" onclick="closeGamePlan103()">Back</button></div></div></div>`):""}gs=bs;function Nc(e,t){const a=o.player,s=a.weekResults.findIndex(i=>!i.played);if(s<0)return;const n=a.weekResults[s];ca(a,n,e),Ya(),I(),Yt(!!t)}$t=function(e){const t=o.player;if(!t||!t.weekResults)return;const a=t.weekResults.find(n=>!n.played);if(!a)return;if(a.generatedV11){Yt(!!e);return}if(!e&&TU("quickSilent",1)){silentWeekV85(t,a)||Yt(!1);return}const s=document.querySelector(".gameplan-overlay");s&&s.remove(),document.body.insertAdjacentHTML("beforeend",bs(!!e))};const po=lt;function Fc(e,t,a){return`<div class="decision-overlay moment-overlay-v11"><div class="decision-panel moment-panel-v11"><div class="decision-kicker">${S((t.opponentV11?.importance||"IMPORTANT").toUpperCase())} MOMENT · ${S(t.opp)}</div><div class="moment-score-v11"><span>${t.us}</span><small>–</small><span>${t.them}</span></div><div class="decision-title">${S(a.title)}</div><div class="decision-copy">${S(a.copy)} Your attributes, composure, condition, scouting, and choice all affect the roll.</div>${a.choices.map(s=>`<button class="decision-choice moment-choice-v11" onclick="resolveMomentV11('${s.id}')"><b>${S(s.label)}</b><small>${S(s.description)}</small><span class="decision-risk">${S(s.risk)} risk · displayed chance is intentionally approximate</span></button>`).join("")}</div></div>`}function vo(){const e=o.player,t=e&&e.weekResults&&e.currentWeek!=null?e.weekResults[e.currentWeek]:null;if(1)return!1;if(!t||(t.momentsV11=t.momentsV11||_n(e,t),t.momentIndexV11=t.momentIndexV11||0,t.momentIndexV11>=t.momentsV11.length))return!1;const a=document.querySelector(".moment-overlay-v11");return a&&a.remove(),document.body.insertAdjacentHTML("beforeend",Fc(e,t,t.momentsV11[t.momentIndexV11])),!0}function Dc(e){const t=o.player,a=t.weekResults[t.currentWeek],s=a.momentsV11[a.momentIndexV11],n=Un(t,a,s,e,o.specializationV11);t.highLeverageStatsV11=t.highLeverageStatsV11||{attempts:0,successes:0},t.highLeverageStatsV11.attempts++,n.success&&t.highLeverageStatsV11.successes++,a.momentIndexV11++;const i=document.querySelector(".moment-overlay-v11");if(i&&i.remove(),ye(n.success?"CLUTCH EXECUTION":"MOMENT MISSED",`${n.success?"+":""}${n.perfDelta} game rating · ${Math.round(n.chance*100)}% resolved chance`,n.success?"good":"bad"),I(),!vo()){const r=!!a.pendingLiveV11;a.momentsCompleteV11=!0,delete a.pendingLiveV11,po(r)}}function Yt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){te("season");return}const s=t.weekResults[a];if(mustSitV18(t)){t.currentWeek=a;sitOutWeekV18(t,s);I();te("season");return}if(t.currentWeek=a,t.level>=7&&t.nflStateV11?.offers?.length){go();return}if(!s.generatedV11){$t(e);return}s.pendingLiveV11=!!e,!(!s.momentsCompleteV11&&vo())&&(delete s.pendingLiveV11,po(!!e))}lt=function(e){const t=o.player,a=t&&t.weekResults?t.weekResults.find(s=>!s.played):null;if(!a){te("season");return}if(mustSitV18(t)){t.currentWeek=t.weekResults.indexOf(a);sitOutWeekV18(t,a);I();te("season");return}if(!a.generatedV11){$t(!!e);return}Yt(!!e)};function Gc(e){return e>=.82?"FIRST STRING":e>=.66?"STARTER":e>=.38?"ROTATION":e>=.16?"SECOND STRING":"BENCH"}function On(e,t){!e||!e.length||e.forEach((a,s)=>setTimeout(()=>ye(`${a.icon||"🏅"} ${t}`,`${a.title||a.name} · +${a.tokens||a.reward||0} Legacy Token${(a.tokens||a.reward||0)===1?"":"s"}`,"gold"),260+s*500))}He=function(e,t){if(!e||e._v11Processed)return;e._v11Processed=!0,Re(t),uo(e,t),co(t);const a=Yn(t,e,A[t.level].need,o.specializationV11);e.rivalResultV11=a,t.depthRole=Gc(t.snapShare||.1),(t.snapShare||0)>=.65&&(t.depthStarts=(t.depthStarts||0)+1),t.roleBattle103=Math.round(f((t.snapShare||.1)*100,0,100));const s=Hn(t,e,e.planV11||"disciplined",o.specializationV11);e.conditionResultV11={fatigue:Math.round(s.condition.fatigue),injury:s.condition.injury?.name||null},t.recentlyRecoveredV11&&e.perf>=80&&(t.comebackGamesV11=(t.comebackGamesV11||0)+1,t.recentlyRecoveredV11=0),t.level>=7&&(e.nflEvaluationV11=Qn(t,e,ae(t)),e.nflEvaluationV11&&e.nflEvaluationV11.previous!==e.nflEvaluationV11.status&&We("📋","NFL role evaluation",`${e.nflEvaluationV11.previous} → ${e.nflEvaluationV11.status}; security ${e.nflEvaluationV11.security}.`)),Kn(t,e);const n=Bs(t,o),i=js(t,o);On(n,"MILESTONE"),On(i,"LEGACY OBJECTIVE"),a.defeated&&We("⚔️",`You passed ${a.rival.name}`,`The snap split shifted decisively after a ${e.perf}–${a.rivalPerf} weekly comparison.`),t.weeklyPlan103=null,I()};const Hc=tt;tt=function(e){const t=Hc(e);if(Re(e),e._v11SeasonActive=!1,(t.sampleGames||[]).length>=10&&t.injuries===0&&(e.healthySeasonsV11=(e.healthySeasonsV11||0)+1),e.level>=7){const a=Jn(e,t,ae(e));t.nflCareerV11=a,e.nflCutPending=!1,t.nflCut=!1}return Bs(e,o),js(e,o),t};function yo(e){return e?e>=1e6?"$"+Math.round(e/1e6)+"M":"$"+Math.round(e/1e3)+"K":"$0"}function va(e){const t=wa(e,ae(e));if(!t)return"";const a=String(t.status).replaceAll("-"," ").toUpperCase(),s=t.security<25?"var(--blood)":t.security<50?"var(--gold)":"var(--good)";return`<div class="card nfl-survival-v11"><div class="impact-head"><div><div class="impact-kicker">NFL ROSTER SURVIVAL</div><div class="h2" style="margin:2px 0 0">${S(a)}</div></div><div class="nfl-security-v11" style="color:${s}">${Math.round(t.security)}<small>SECURITY</small></div></div><div class="nfl-security-track-v11"><i style="width:${f(t.security,0,100)}%"></i></div><div class="nfl-grid-v11"><div><b>${Math.round(t.expectation)}</b><small>Expected Grade</small></div><div><b>${Math.round(t.schemeFit)}</b><small>Scheme Fit</small></div><div><b>${t.contract?.yearsRemaining||0}</b><small>Years Left</small></div><div><b>${yo(t.contract?.salary||0)}</b><small>Salary</small></div></div>${t.offers?.length?`<button class="btn" style="margin-top:10px" onclick="showNflOffersV11()">Review ${t.offers.length} Roster Offer${t.offers.length>1?"s":""}</button>`:'<div class="small" style="margin-top:9px">Poor games reduce snaps and security immediately. Strong play earns active status, starts, and extensions.</div>'}</div>`}function qc(e){const t=e.nflStateV11,a=t?.offers||[];return`<div class="decision-overlay nfl-offers-overlay-v11"><div class="decision-panel"><div class="decision-kicker">FREE AGENCY · CAREER SURVIVAL</div><div class="decision-title">The League Gives You ${a.length} Path${a.length===1?"":"s"}</div><div class="decision-copy">Role, scheme fit, security, salary, and guarantees differ. Signing continues the current career.</div>${a.map(s=>`<button class="decision-choice nfl-offer-v11" onclick="acceptNflOfferV11('${s.id}')"><b>${S(s.team)} · ${S(s.role.replaceAll("-"," ").toUpperCase())}</b><small>${S(s.scheme)} · ${s.years} year${s.years>1?"s":""} · ${yo(s.salary)} · ${Math.round(s.guaranteed*100)}% guaranteed</small><span class="decision-risk">Security ${s.security} · Scheme fit ${s.schemeFit}</span></button>`).join("")}${a.length?'<button class="btn danger" onclick="declineNflOffersV11()">Decline All · Retire</button>':'<button class="btn danger" onclick="endCareer()">No Offers · Retire</button>'}</div></div>`}function go(){const e=o.player;if(!e?.nflStateV11?.offers?.length){F("No active offers.");return}const t=document.querySelector(".nfl-offers-overlay-v11");t&&t.remove(),document.body.insertAdjacentHTML("beforeend",qc(e))}function Wc(e){const t=o.player,a=Xn(t,e);if(!a)return;const s=document.querySelector(".nfl-offers-overlay-v11");s&&s.remove(),We("✍️",`Signed with the ${a.team}`,`${a.role.replaceAll("-"," ")} role · ${a.scheme} · security ${a.security}.`),I(),q(),ye("ROSTER LIFELINE",`${a.team} · ${a.role.replaceAll("-"," ")}`,"good")}function Yc(){const e=document.querySelector(".nfl-offers-overlay-v11");e&&e.remove(),fn()}function Bn(e){
+{id:"enforcer",icon:"💪",name:"Set the Tone",desc:"Play violent and physical from the first snap. Intimidation buffs the whole team — your body pays the tax.",perf:4,varMult:1.2,inj:.1,snap:.04,trust:1,comp:-2,mom:5,tags:["TEAM BUFF","INJURY RISK"]}];function at(e){return e?(e.momentum103==null&&(e.momentum103=50),e.composure103==null&&(e.composure103=50),e.roleBattle103==null&&(e.roleBattle103=0),e.breakthroughs103==null&&(e.breakthroughs103=0),Array.isArray(e.weeklyHistory103)||(e.weeklyHistory103=[]),e.weeklyPlan103===void 0&&(e.weeklyPlan103=null),e):null}function fo(e){const t=(e.depthRole||e.depthChart||"Bench").toString().toLowerCase();return t.includes("bench")?"Second String":t.includes("second")?"Rotation":t.includes("rotation")?"Starter":t.includes("starter")&&!t.includes("first")?"First String":"Team Star"}function Wt(e){return yt.find(t=>t.id===e)||yt[0]}function pn(e){at(e);const t=e.weeklyPlan103?Wt(e.weeklyPlan103):null;return`<div class="card weekly-loop-card"><div class="eyebrow">WEEKLY COMPETITIVE LOOP</div><div class="h2" style="margin:2px 0 3px">Earn the Next Role</div><div class="small">Outperform your opportunities, build trust, and fill the battle meter to challenge for <b style="color:var(--gold)">${fo(e)}</b>.</div><div class="loop-grid"><div class="loop-cell"><div class="n" style="color:${e.momentum103>=60?"var(--good)":e.momentum103<40?"#e08a8a":"var(--chalk)"}">${Math.round(e.momentum103)}</div><div class="l">Momentum</div></div><div class="loop-cell"><div class="n" style="color:${e.composure103>=60?"#8ec3ee":e.composure103<40?"#e08a8a":"var(--chalk)"}">${Math.round(e.composure103)}</div><div class="l">Composure</div></div><div class="loop-cell"><div class="n" style="color:var(--gold)">${e.breakthroughs103||0}</div><div class="l">Breakthroughs</div></div></div><div class="role-track"><i style="width:${f(e.roleBattle103,0,100)}%"></i></div><div class="small" style="margin-top:5px">Depth-chart battle: <b>${Math.round(e.roleBattle103)}%</b>${t?`<br><span class="plan-chip">${t.icon} ${t.name}</span>`:""}</div></div>`}function gs(e){const t=o.player;at(t);const a=t.weekResults?t.weekResults.findIndex(n=>!n.played):-1,s=a>=0?t.weekResults[a]:null;return`<div class="gameplan-overlay"><div class="gameplan-panel"><div class="decision-kicker">WEEKLY GAME PLAN · ${s?S(s.opp):"NEXT OPPONENT"}</div><div class="decision-title">How will you earn your snaps?</div><div class="decision-copy">Your role is not guaranteed. Choose an approach that changes performance variance, playing time, trust, injury risk, and role-battle progress.</div>${yt.map((n,i)=>`<button class="gameplan-choice" onclick="chooseGamePlan103('${n.id}',${e?"true":"false"})"><b>${n.icon} ${n.name}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(r=>`<span>${r}</span>`).join("")}</div></button>`).join("")}<button class="btn ghost" style="margin-top:12px" onclick="closeGamePlan103()">Back</button></div></div>`}function $t(e){const t=o.player;if(at(t),t.decisionQueue&&t.decisionQueue.length){F("Resolve the post-game decision first.");return}document.querySelector(".gameplan-overlay")||document.body.insertAdjacentHTML("beforeend",gs(!!e))}function Ya(){const e=document.querySelector(".gameplan-overlay");e&&e.remove()}function $c(e,t){const a=o.player;at(a),a.weeklyPlan103=e;const s=a.weekResults.findIndex(r=>!r.played);if(s<0){Ya();return}const n=a.weekResults[s],i=Wt(e);if(!n._plan103){const l=n.perf-60,d=D(-10,10)*i.varMult,c=(a.composure103-50)*.075,u=(a.momentum103-50)*.055;n.perf=Math.round(f(60+l*i.varMult+i.perf+d+c+u,15,130)),i.snap&&(a.snapShare=f((a.snapShare||.1)+i.snap,.06,.98)),a.coachTrust=f((a.coachTrust||50)+i.trust,0,100);const h=ve();h.coach=f((h.coach||50)+i.trust,0,100),a.composure103=f(a.composure103+i.comp,0,100),a.momentum103=f(a.momentum103+i.mom,0,100),i.inj>0&&!n.injured&&Math.random()<i.inj&&(n.injured=!0),i.inj<0&&n.injured&&Math.random()<Math.abs(i.inj)*2&&(n.injured=!1);const p=ia(a,n.perf,{oppBoost:n.playoff?.08:0});n.us=p.us,n.them=p.them,n.won=p.won,n._plan103=e}Ya(),I(),lt(!!t)}function vn(e,t){if(!e||e._loop103)return;e._loop103=!0,at(t);const a=Wt(e._plan103||t.weeklyPlan103||"disciplined"),s=f(t.snapShare||.12,.06,.98),n=Math.max(.28,s);let r=(e.perf-55)/Math.max(.55,n*1.45)*.16+(e.won?2:-1)+(e.perf>=85?4:0)+(e.perf<45?-4:0);a.id==="team"&&(r+=3),a.id==="feature"&&e.perf>=75&&(r+=4),e.injured&&(r-=4),t.roleBattle103=f(t.roleBattle103+r,0,125),t.momentum103=f(50+(t.momentum103-50)*.92+(e.won?5:-5)+(e.perf-60)*.11,0,100),t.composure103=f(50+(t.composure103-50)*.95+(Math.abs(e.perf-60)<13?2:0)+(e.perf>=80?1:0)-(e.perf<42?3:0),0,100);let l=!1;t.roleBattle103>=100&&(t.roleBattle103-=100,t.breakthroughs103++,t.coachTrust=f((t.coachTrust||50)+10,0,100),t.points=(t.points||0)+1,t.snapShare=f((t.snapShare||.1)+.12,.06,.98),l=!0,We("🚀","Depth-chart breakthrough","You forced the staff to expand your role after producing with limited opportunities.")),t.weeklyHistory103.unshift({perf:e.perf,won:e.won,plan:a.name,battle:Math.round(r),breakthrough:l}),t.weeklyHistory103=t.weeklyHistory103.slice(0,8),t.weeklyPlan103=null,l&&setTimeout(()=>ye("ROLE EARNED","More snaps. More responsibility. No guarantees.","good"),180)}const Sc=He;He=function(e,t){const a=!!(e&&e._loop103);Sc(e,t),e&&!a&&vn(e,t)};const Mc=q;q=function(){Mc();const e=o.player,t=x("screen");!e||!t||(at(e),(o.view==="hub"||o.view==="season")&&!t.querySelector(".weekly-loop-card")&&(t.querySelector(".world-card")||t.querySelector(".objective-card")||t.firstElementChild).insertAdjacentHTML("afterend",pn(e)),o.view==="season"&&(t.querySelectorAll('[onclick="playWeek(true)"]').forEach(a=>a.setAttribute("onclick","prepareWeek103(true)")),t.querySelectorAll('[onclick="playWeek(false)"]').forEach(a=>a.setAttribute("onclick","prepareWeek103(false)"))))};const xc=lt;lt=function(e){const t=o.player;at(t);const a=t.weekResults?t.weekResults.findIndex(n=>!n.played):-1,s=a>=0?t.weekResults[a]:null;if(s&&!s._plan103){$t(!!e);return}xc(e)};window.prepareWeek103=$t;window.chooseGamePlan103=$c;window.closeGamePlan103=Ya;function _a(e,t){return e<35?"#ff6b72":e>68?t==="comp"?"#8ec3ee":"#78e993":"#f0bb45"}function Tc(e){return e.depthRole||e.depthChart||"Bench"}pn=function(e){at(e);const t=e.weeklyPlan103?Wt(e.weeklyPlan103):null,a=Tc(e),s=fo(e),n=f(e.roleBattle103,0,100),i=Math.round(e.momentum103),r=Math.round(e.composure103);return`<div class="card weekly-loop-card impact-loop"><div class="impact-head"><div><div class="impact-kicker">WEEKLY COMPETITIVE LOOP</div><div class="h2" style="margin:2px 0 0">Fight for Every Snap</div></div><div class="impact-target">NEXT: ${S(s)}</div></div><div class="role-arena"><div class="role-labels"><span class="role-current">${S(a)}</span><span class="role-next">${S(s)}</span></div><div class="role-race"><i style="width:${n}%"></i></div><div class="role-percent">${Math.round(n)}<small>% ROLE BATTLE</small></div></div><div class="dual-gauges"><div class="impact-gauge"><div class="gauge-head"><span>MOMENTUM</span><b style="color:${_a(i,"mom")}">${i}</b></div><div class="gauge-scale"><i class="gauge-needle" style="left:${i}%"></i></div><div class="gauge-caption"><span>SLUMP</span><span>LOCKED IN</span></div></div><div class="impact-gauge"><div class="gauge-head"><span>COMPOSURE</span><b style="color:${_a(r,"comp")}">${r}</b></div><div class="gauge-scale"><i class="gauge-needle" style="left:${r}%"></i></div><div class="gauge-caption"><span>RATTLED</span><span>ICE COLD</span></div></div></div><div class="breakthrough-counter"><span class="small">Career role breakthroughs</span><b>🚀 ${e.breakthroughs103||0}</b></div>${t?`<div class="plan-selected"><div class="ic">${t.icon}</div><div><b>${t.name}</b><small>Active approach for the next game</small></div></div>`:""}</div>`};function yn(e){return e.id==="disciplined"?[45,92,20]:e.id==="feature"?[82,52,58]:e.id==="explosive"?[100,22,92]:[38,78,42]}function gn(e){return e==="disciplined"?"#8ec3ee":e==="feature"?"#f0bb45":e==="explosive"?"#ff6870":"#78e993"}gs=function(e){const t=o.player;at(t);const a=t.weekResults?t.weekResults.findIndex(n=>!n.played):-1,s=a>=0?t.weekResults[a]:null;return`<div class="gameplan-overlay"><div class="gameplan-panel impact-plan"><div class="plan-hero"><div class="decision-kicker">WEEKLY TACTICAL MEETING</div><div class="decision-title">Choose Your Identity</div><div class="decision-copy" style="margin:7px auto 0;max-width:390px">This choice changes your snaps, volatility, trust, injury exposure, and path up the depth chart.</div><div class="opponent-chip">VS ${s?S(s.opp):"NEXT OPPONENT"}</div></div><div class="plan-deck">${yt.map(n=>{const i=yn(n);return`<button class="impact-plan-choice" style="--planColor:${gn(n.id)}" onclick="chooseGamePlan103('${n.id}',${e?"true":"false"})"><div class="plan-icon">${n.icon}</div><div><b>${n.name}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(l=>`<span>${l}</span>`).join("")}</div></div><div class="plan-bars"><div class="mini-rating"><label><span>UPSIDE</span><span>${i[0]}</span></label><div class="mbar"><i style="width:${i[0]}%"></i></div></div><div class="mini-rating"><label><span>CONTROL</span><span>${i[1]}</span></label><div class="mbar"><i style="width:${i[1]}%"></i></div></div><div class="mini-rating"><label><span>RISK</span><span>${i[2]}</span></label><div class="mbar"><i style="width:${i[2]}%"></i></div></div></div></button>`}).join("")}<button class="btn ghost" style="margin:11px 0 4px" onclick="closeGamePlan103()">Back</button></div></div></div>`};function ho(e){const t=document.querySelector(".breakthrough-takeover");t&&t.remove(),document.body.insertAdjacentHTML("beforeend",'<div class="breakthrough-takeover" onclick="this.remove()"><div class="bt-content"><div class="bt-icon">🏈</div><div class="bt-kicker">DEPTH CHART UPDATE</div><div class="bt-title">ROLE EARNED</div><div class="bt-sub">The coaching staff expanded your role. The next opportunity is bigger—and less forgiving.</div><div class="bt-reward"><span>+12% SNAPS</span><span>+10 TRUST</span><span>+1 POINT</span></div><div class="small" style="margin-top:14px">Tap anywhere to continue</div></div></div>'),setTimeout(()=>{const a=document.querySelector(".breakthrough-takeover");a&&a.remove()},5200)}const Rc=vn;vn=function(e,t){const a=t?Number(t.breakthroughs103||0):0;Rc(e,t),t&&Number(t.breakthroughs103||0)>a&&setTimeout(()=>ho(),220)};function Pc(e){return at(e),`<div class="live-loop-strip"><div class="live-loop-stat"><b style="color:${_a(e.momentum103,"mom")}">${Math.round(e.momentum103)}</b><small>Momentum</small></div><div class="live-loop-stat"><b style="color:${_a(e.composure103,"comp")}">${Math.round(e.composure103)}</b><small>Composure</small></div><div class="live-loop-stat"><b>${Math.round(e.roleBattle103)}%</b><small>Role Battle</small><div class="live-role-mini"><i style="width:${f(e.roleBattle103,0,100)}%"></i></div></div></div>`}const Cc=q;q=function(){Cc();const e=o.player,t=x("screen");if(!(!e||!t)&&o.view==="live"&&!t.querySelector(".live-loop-strip")){const a=t.querySelector(".live-down")||t.querySelector(".field-wrap");a&&a.insertAdjacentHTML("afterend",Pc(e))}};window.breakthroughTakeover104=ho;window.__getGridironState=()=>o;window.__getGridironLiveSpeed=()=>Z&&Z.speed?Z.speed:1;window.__GRIDIRON_LEGACY_VERSION__="10.4-impact-ui";function Re(e){if($a(o),e){const t=A[e.level]?A[e.level].need:16,a=e.pos?ae(e):Math.round(ee.reduce((s,n)=>s+(e.attrs[n]||0),0)/Math.max(1,ee.length));ii(o,e,ee,t,a),e.decisionQueue&&e.decisionQueue.length&&(e.decisionQueue=[])}}Re(o&&o.player);const Lc=G;G=function(e){return ai(e,Lc(e))};const Ec=Se;Se=function(e,t){return si(e,Ec(e,t))};yt.some(e=>e.id==="recovery")||yt.push({id:"recovery",icon:"🧊",name:"Recovery & Treatment",desc:"Reduce workload, accelerate healing, and protect the rest of the season.",perf:-3,varMult:.7,inj:-.12,snap:-.05,trust:0,comp:2,mom:-1,tags:["HEAL","LOW WORKLOAD"]});const Ac=kt;kt=function(){const e=Ac();return e.originOptionsV11=Es(o,e).map(t=>t.id),e.originV11=null,e._originAppliedV11=!1,Re(e),e};function Vc(e){const t=o.player;if(!t||t.originV11)return;const a=As(t,e,ee);a&&(t._originAppliedV11=!0,Re(t),I(),q(),ye(a.name,a.strength+" · "+a.weakness,"gold"))}const Oc=rs;rs=function(e){if(!o.player.originV11){F("Choose this career’s origin first.");return}o.player.positionsPlayedV11=o.player.positionsPlayedV11||[],o.player.positionsPlayedV11.includes(e)||o.player.positionsPlayedV11.push(e),Oc(e),Re(o.player)};function Ms(e){if(e.originV11){const a=It.find(s=>s.id===e.originV11);return a?`<div class="card origin-card-v11 selected"><div class="eyebrow">RUN IDENTITY</div><div class="origin-selected-v11"><span>${a.icon}</span><div><b>${S(a.name)}</b><small>${S(a.description)}</small></div></div></div>`:""}return`<div class="card origin-card-v11"><div class="eyebrow">CHOOSE THIS CAREER'S IDENTITY</div><div class="h2" style="margin:3px 0 4px">Every Run Has a Story</div><div class="small">Origins add a real strength, a real weakness, and three legacy objectives.</div><div class="origin-grid-v11">${(e.originOptionsV11||[]).map(a=>It.find(s=>s.id===a)).filter(Boolean).map(a=>`<button class="origin-choice-v11" onclick="chooseOriginV11('${a.id}')"><span class="origin-icon-v11">${a.icon}</span><b>${S(a.name)}</b><small>${S(a.description)}</small><em>▲ ${S(a.strength)}</em><em class="bad">▼ ${S(a.weakness)}</em></button>`).join("")}</div></div>`}function Bc(e){ma.some(t=>t.id===e)&&(o.specializationV11=e,I(),q(),F("Legacy focus changed."))}function jc(){const e=ma.find(t=>t.id===o.specializationV11)||ma[0];return`<div class="card specialization-card-v11"><div class="eyebrow">PRESTIGE SPECIALIZATION · NO RAW OVR</div><div class="h2" style="margin:3px 0 5px">${e.icon} ${e.name}</div><div class="small">${e.description} Switch freely; this changes strategy rather than making every run automatically stronger.</div><div class="specialization-grid-v11">${ma.map(t=>`<button class="spec-btn-v11 ${t.id===o.specializationV11?"on":""}" onclick="chooseSpecializationV11('${t.id}')"><span>${t.icon}</span><b>${t.name}</b><small>${t.description}</small></button>`).join("")}</div></div>`}const bn=ra;ra=function(e){if(e&&e._v11SeasonActive&&e.roleRivalV11){const t=f(e.snapShare==null?.12:e.snapShare,.04,.98),a=t>=.82?"FIRST STRING":t>=.66?"STARTER":t>=.38?"ROTATION":t>=.16?"SECOND STRING":"BENCH";return e.depthRole=a,e.snapShare=t,{role:a,share:t,score:(t-.5)*40,peer:A[e.level].need}}return bn(e)};ls=function(e){e._seasonPerfBoost=0,e._nextGameBoost=0;const t=A[e.level],a=[];for(let s=0;s<t.games;s++){const n=Dt(e.level),i=rt(n,e.level,s+1,e.seasonSeed);a.push({week:s+1,opp:n,home:s%2===0,played:!1,generatedV11:!1,opponentV11:i,perf:null,us:null,them:null,won:null,injured:!1})}return a};cn=function(e,t){const a=ea(e.level),s=t===a.length-1,n=s&&e.nemesis?e.nemesis.name+"'s "+Dt(e.level):Dt(e.level),i=rt(n,e.level,(e.weekResults||[]).length+1,e.seasonSeed,t);return i.importance=s?"championship":"playoff",{week:(e.weekResults||[]).length+1,opp:n,home:t%2===0,played:!1,generatedV11:!1,opponentV11:i,playoff:!0,round:a[t],roundIdx:t,perf:null,us:null,them:null,won:null,injured:!1}};La=function(){const e=o.player;Re(e),e.seasonSeed=le(1,2e9),e.playoffState=null,e._v11SeasonActive=!0,ni(e),ds(e),us(e),e._v11SeasonActive=!1;const t=e.depthStarts||0;bn(e),e.depthStarts=t,e._v11SeasonActive=!0,e.roleRivalV11=null,Gt(e,A[e.level].need,fe(e.seasonSeed,e.level,e.pos,"season-rival")),e.weekResults=ls(e),e.currentWeek=0,o.view="season",I(),q()};function Ic(e,t){let a=0;for(const s of e.planHistoryV11||[])if(s===t)a++;else break;return a}function ca(e,t,a){if(t.generatedV11)return t;Re(e);const s=Wt(a),n=t.opponentV11||rt(t.opp,e.level,t.week||1,e.seasonSeed,t.playoff?t.roundIdx:void 0);t.opponentV11=n,n.scouted||bt(n,e,o.specializationV11);const i=Ic(e,a),r=Wn(n,a,i,o.specializationV11),l=Vs(e),d=e.level>=7?ta(e):{weeklyCost:0,recovery:0,perf:0,injuryRisk:0,recurrence:0,fulfillment:0,media:0,fatigue:0},c=et(e,(s.perf||0)+(r.perf||0)+(l.perf||0)+(d.perf||0),{playoff:!!t.playoff}),__omSet=(window.__oppMulV22=__oppMulForV22(t.opp||(n&&n.name))),_g17=__aiSeasonGame(e,{perfSeed:(s.perf||0)+(r.perf||0)+(l.perf||0)+(d.perf||0),playoff:!!t.playoff,oppRating:n.rating,oppBoost:(n.rating-(45+e.level*5.5))/180+(t.playoff?.08:0),load:loadOfV111(e)/* v111: what he is already carrying is a term in this game's injury roll */}),__omClr=(window.__oppMulV22=null),h=D(-6,6)*(s.varMult||1),p=((e.composure103||50)-50)*.06,m=((e.momentum103||50)-50)*.045;t.perf=Math.round(f(_g17.perf+h+p+m,1,100)),t.statLine=_g17.statLine,_g17.statLine&&_g17.statLine.pick6&&(e.pick6Career=(e.pick6Career||0)+_g17.statLine.pick6),t.snapShare=Math.round(f((e.snapShare||.12)*l.snapMultiplier,.04,.98)*100)/100,t.snaps=Math.max(3,Math.round((e.level>=5?68:52)*t.snapShare*D(.88,1.12)));let y=l.injuryRisk+(s.inj||0)+(r.injuryRisk||0)+(d.injuryRisk||0);a==="recovery"&&(y-=.08),y=Fs(y+(c.injured?.055:0),e),t.injuryRiskV12=y,t.lifeEffectsV12=d,(function(){try{if(window.__INJ_DEBUG){window.__INJ_DEBUG.resolve=(window.__INJ_DEBUG.resolve||0)+1;if(_g17.injured)window.__INJ_DEBUG.resolveHit=(window.__INJ_DEBUG.resolveHit||0)+1}}catch(_){}})(),t.injured=_g17.injured&&Math.random()<injPlanMultV54({injury:y});/* v54: materialise it HERE. This was only ever called from the sim-season path, so a week played normally flagged the injury and then dropped it — nothing ever got a severity or a weeksRemaining, so mustSitV18 could never become true and no game was ever missed. */try{materializeInjuryV18(e,t)}catch(_){}
+/* v111: the body is billed from what he ACTUALLY did — the engine's own snap and touch counts,
+ * priced by his durability, the opponent and the stakes of the fixture. The week keeps the row
+ * so the body section can say what this game cost. */
+try{t.snapsV111=_g17.snapsV111||null;t.wearV111=chargeV111(e,t,_g17.snapsV111||{})}catch(_){}
+return t.us=_g17.us,t.them=_g17.them,t.won=_g17.won,t.generatedV11=!0,t._plan103=a,t.planV11=a,t.matchupV11=r,t.healthAtKickoffV11={...e.conditionV11},e.weeklyPlan103=a,e.planHistoryV11=e.planHistoryV11||[],e.planHistoryV11.unshift(a),e.planHistoryV11=e.planHistoryV11.slice(0,6),s.snap&&(e.snapShare=f((e.snapShare||.1)+s.snap,.04,.98)),e.coachTrust=f((e.coachTrust||50)+(s.trust||0)+(r.trust||0),0,100),e.composure103=f((e.composure103||50)+(s.comp||0),0,100),e.momentum103=f((e.momentum103||50)+(s.mom||0),0,100),t}function mo(e,t){const a=e.opponentV11;if(!a)return"";const s=a.scouted||bt(a,t,o.specializationV11),n=Wt(s.recommendedPlan);return`<div class="scout-card-v11"><div class="scout-head-v11"><div><span>${a.rivalry?"🔥 RIVALRY":"🔭 SCOUTING REPORT"}</span><b>${S(a.name)}</b></div><div class="scout-confidence-v11">${s.confidence}%<small>CONFIDENCE</small></div></div><div class="scout-tags-v11"><span>${S(s.matchupLabel)}</span><span>${S(a.importance.toUpperCase())}</span><span>${a.rating} OPP RATING</span></div><div class="scout-facts-v11">${s.reveals.map(i=>`<div>• ${S(i)}</div>`).join("")}${s.hiddenCount?`<div class="hidden-fact-v11">• ${s.hiddenCount} detail${s.hiddenCount>1?"s":""} unresolved</div>`:""}</div><div class="scout-rec-v11">Suggested counter: <b>${n.icon} ${S(n.name)}</b>${s.confidence<50?" <small>Low-confidence report</small>":""}</div></div>`}function bs(e){const t=o.player;Re(t);const a=t.weekResults?t.weekResults.findIndex(n=>!n.played):-1,s=a>=0?t.weekResults[a]:null;return s?(s.opponentV11||(s.opponentV11=rt(s.opp,t.level,s.week||a+1,t.seasonSeed,s.playoff?s.roundIdx:void 0)),bt(s.opponentV11,t,o.specializationV11),`<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week||a+1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Your choice now generates the game. Future games remain unresolved until their week.</div></div>${mo(s,t)}<div class="plan-deck">${yt.map(n=>{const i=yn(n),r=gn(n.id),l=s.opponentV11.scouted?.recommendedPlan===n.id;return`<button class="impact-plan-choice ${l?"recommended-v11":""}" style="--planColor:${r}" onclick="chooseGamePlanV11('${n.id}',${e?"true":"false"})"><div class="plan-icon">${n.icon}</div><div><b>${n.name}${l?" · SCOUT PICK":""}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(d=>`<span>${d}</span>`).join("")}</div></div><div class="plan-bars"><div class="mini-rating"><label><span>UPSIDE</span><span>${i[0]}</span></label><div class="mbar"><i style="width:${i[0]}%"></i></div></div><div class="mini-rating"><label><span>CONTROL</span><span>${i[1]}</span></label><div class="mbar"><i style="width:${i[1]}%"></i></div></div><div class="mini-rating"><label><span>RISK</span><span>${i[2]}</span></label><div class="mbar"><i style="width:${i[2]}%"></i></div></div></div></button>`}).join("")}<button class="btn ghost" onclick="closeGamePlan103()">Back</button></div></div></div>`):""}gs=bs;function Nc(e,t){const a=o.player,s=a.weekResults.findIndex(i=>!i.played);if(s<0)return;const n=a.weekResults[s];ca(a,n,e),Ya(),I(),Yt(!!t)}$t=function(e){const t=o.player;if(!t||!t.weekResults)return;const a=t.weekResults.find(n=>!n.played);if(!a)return;if(a.generatedV11){Yt(!!e);return}if(!e&&TU("quickSilent",1)){silentWeekV85(t,a)||Yt(!1);return}const s=document.querySelector(".gameplan-overlay");s&&s.remove(),document.body.insertAdjacentHTML("beforeend",bs(!!e))};const po=lt;function Fc(e,t,a){return`<div class="decision-overlay moment-overlay-v11"><div class="decision-panel moment-panel-v11"><div class="decision-kicker">${S((t.opponentV11?.importance||"IMPORTANT").toUpperCase())} MOMENT · ${S(t.opp)}</div><div class="moment-score-v11"><span>${t.us}</span><small>–</small><span>${t.them}</span></div><div class="decision-title">${S(a.title)}</div><div class="decision-copy">${S(a.copy)} Your attributes, composure, condition, scouting, and choice all affect the roll.</div>${a.choices.map(s=>`<button class="decision-choice moment-choice-v11" onclick="resolveMomentV11('${s.id}')"><b>${S(s.label)}</b><small>${S(s.description)}</small><span class="decision-risk">${S(s.risk)} risk · displayed chance is intentionally approximate</span></button>`).join("")}</div></div>`}function vo(){const e=o.player,t=e&&e.weekResults&&e.currentWeek!=null?e.weekResults[e.currentWeek]:null;if(1)return!1;if(!t||(t.momentsV11=t.momentsV11||_n(e,t),t.momentIndexV11=t.momentIndexV11||0,t.momentIndexV11>=t.momentsV11.length))return!1;const a=document.querySelector(".moment-overlay-v11");return a&&a.remove(),document.body.insertAdjacentHTML("beforeend",Fc(e,t,t.momentsV11[t.momentIndexV11])),!0}function Dc(e){const t=o.player,a=t.weekResults[t.currentWeek],s=a.momentsV11[a.momentIndexV11],n=Un(t,a,s,e,o.specializationV11);t.highLeverageStatsV11=t.highLeverageStatsV11||{attempts:0,successes:0},t.highLeverageStatsV11.attempts++,n.success&&t.highLeverageStatsV11.successes++,a.momentIndexV11++;const i=document.querySelector(".moment-overlay-v11");if(i&&i.remove(),ye(n.success?"CLUTCH EXECUTION":"MOMENT MISSED",`${n.success?"+":""}${n.perfDelta} game rating · ${Math.round(n.chance*100)}% resolved chance`,n.success?"good":"bad"),I(),!vo()){const r=!!a.pendingLiveV11;a.momentsCompleteV11=!0,delete a.pendingLiveV11,po(r)}}function Yt(e){const t=o.player,a=t.weekResults.findIndex(n=>!n.played);if(a<0){te("season");return}const s=t.weekResults[a];if(mustSitV18(t)){t.currentWeek=a;sitOutWeekV18(t,s);I();te("season");return}if(t.currentWeek=a,t.level>=7&&t.nflStateV11?.offers?.length){go();return}if(!s.generatedV11){$t(e);return}s.pendingLiveV11=!!e,!(!s.momentsCompleteV11&&vo())&&(delete s.pendingLiveV11,po(!!e))}lt=function(e){const t=o.player,a=t&&t.weekResults?t.weekResults.find(s=>!s.played):null;if(!a){te("season");return}if(mustSitV18(t)){t.currentWeek=t.weekResults.indexOf(a);sitOutWeekV18(t,a);I();te("season");return}if(!a.generatedV11){$t(!!e);return}Yt(!!e)};function Gc(e){return e>=.82?"FIRST STRING":e>=.66?"STARTER":e>=.38?"ROTATION":e>=.16?"SECOND STRING":"BENCH"}function On(e,t){!e||!e.length||e.forEach((a,s)=>setTimeout(()=>ye(`${a.icon||"🏅"} ${t}`,`${a.title||a.name} · +${a.tokens||a.reward||0} Legacy Token${(a.tokens||a.reward||0)===1?"":"s"}`,"gold"),260+s*500))}He=function(e,t){if(!e||e._v11Processed)return;e._v11Processed=!0,Re(t),uo(e,t),co(t);const a=Yn(t,e,A[t.level].need,o.specializationV11);e.rivalResultV11=a,t.depthRole=Gc(t.snapShare||.1),(t.snapShare||0)>=.65&&(t.depthStarts=(t.depthStarts||0)+1),t.roleBattle103=Math.round(f((t.snapShare||.1)*100,0,100));const s=Hn(t,e,e.planV11||"disciplined",o.specializationV11);e.conditionResultV11={fatigue:Math.round(s.condition.fatigue),injury:s.condition.injury?.name||null},t.recentlyRecoveredV11&&e.perf>=80&&(t.comebackGamesV11=(t.comebackGamesV11||0)+1,t.recentlyRecoveredV11=0),t.level>=7&&(e.nflEvaluationV11=Qn(t,e,ae(t)),e.nflEvaluationV11&&e.nflEvaluationV11.previous!==e.nflEvaluationV11.status&&We("📋","NFL role evaluation",`${e.nflEvaluationV11.previous} → ${e.nflEvaluationV11.status}; security ${e.nflEvaluationV11.security}.`)),Kn(t,e);const n=Bs(t,o),i=js(t,o);On(n,"MILESTONE"),On(i,"LEGACY OBJECTIVE"),a.defeated&&We("⚔️",`You passed ${a.rival.name}`,`The snap split shifted decisively after a ${e.perf}–${a.rivalPerf} weekly comparison.`),t.weeklyPlan103=null,I()};const Hc=tt;tt=function(e){const t=Hc(e);if(Re(e),e._v11SeasonActive=!1,(t.sampleGames||[]).length>=10&&t.injuries===0&&(e.healthySeasonsV11=(e.healthySeasonsV11||0)+1),e.level>=7){const a=Jn(e,t,ae(e));t.nflCareerV11=a,e.nflCutPending=!1,t.nflCut=!1}return Bs(e,o),js(e,o),t};function yo(e){return e?e>=1e6?"$"+Math.round(e/1e6)+"M":"$"+Math.round(e/1e3)+"K":"$0"}function va(e){const t=wa(e,ae(e));if(!t)return"";const a=String(t.status).replaceAll("-"," ").toUpperCase(),s=t.security<25?"var(--blood)":t.security<50?"var(--gold)":"var(--good)";return`<div class="card nfl-survival-v11"><div class="impact-head"><div><div class="impact-kicker">NFL ROSTER SURVIVAL</div><div class="h2" style="margin:2px 0 0">${S(a)}</div></div><div class="nfl-security-v11" style="color:${s}">${Math.round(t.security)}<small>SECURITY</small></div></div><div class="nfl-security-track-v11"><i style="width:${f(t.security,0,100)}%"></i></div><div class="nfl-grid-v11"><div><b>${Math.round(t.expectation)}</b><small>Expected Grade</small></div><div><b>${Math.round(t.schemeFit)}</b><small>Scheme Fit</small></div><div><b>${t.contract?.yearsRemaining||0}</b><small>Years Left</small></div><div><b>${yo(t.contract?.salary||0)}</b><small>Salary</small></div></div>${t.offers?.length?`<button class="btn" style="margin-top:10px" onclick="showNflOffersV11()">Review ${t.offers.length} Roster Offer${t.offers.length>1?"s":""}</button>`:'<div class="small" style="margin-top:9px">Poor games reduce snaps and security immediately. Strong play earns active status, starts, and extensions.</div>'}</div>`}function qc(e){const t=e.nflStateV11,a=t?.offers||[];return`<div class="decision-overlay nfl-offers-overlay-v11"><div class="decision-panel"><div class="decision-kicker">FREE AGENCY · CAREER SURVIVAL</div><div class="decision-title">The League Gives You ${a.length} Path${a.length===1?"":"s"}</div><div class="decision-copy">Role, scheme fit, security, salary, and guarantees differ. Signing continues the current career.</div>${a.map(s=>`<button class="decision-choice nfl-offer-v11" onclick="acceptNflOfferV11('${s.id}')"><b>${S(s.team)} · ${S(s.role.replaceAll("-"," ").toUpperCase())}</b><small>${S(s.scheme)} · ${s.years} year${s.years>1?"s":""} · ${yo(s.salary)} · ${Math.round(s.guaranteed*100)}% guaranteed</small><span class="decision-risk">Security ${s.security} · Scheme fit ${s.schemeFit}</span></button>`).join("")}${a.length?'<button class="btn danger" onclick="declineNflOffersV11()">Decline All · Retire</button>':'<button class="btn danger" onclick="endCareer()">No Offers · Retire</button>'}</div></div>`}function go(){const e=o.player;if(!e?.nflStateV11?.offers?.length){F("No active offers.");return}const t=document.querySelector(".nfl-offers-overlay-v11");t&&t.remove(),document.body.insertAdjacentHTML("beforeend",qc(e))}function Wc(e){const t=o.player,a=Xn(t,e);if(!a)return;const s=document.querySelector(".nfl-offers-overlay-v11");s&&s.remove(),We("✍️",`Signed with the ${a.team}`,`${a.role.replaceAll("-"," ")} role · ${a.scheme} · security ${a.security}.`),I(),q(),ye("ROSTER LIFELINE",`${a.team} · ${a.role.replaceAll("-"," ")}`,"good")}function Yc(){const e=document.querySelector(".nfl-offers-overlay-v11");e&&e.remove(),fn()}function Bn(e){
   // v73: lead with the one number the card exists to give — what this body is worth
   // in the NEXT game — then show the inputs underneath rather than instead.
   const t=gt(e),L=bodyLedgerV73(e);
@@ -15248,6 +15900,7 @@ window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;w
       :`This body ${L.net>=.8?"adds":L.net<=-.8?"takes off":"is worth about"} <b style="color:${col}">${sign}${Math.round(Math.abs(L.net))}</b> rating against your recent average of ${Math.round(L.base)}. Over the ${L.left} game${L.left===1?"":"s"} left you can expect to miss <b>${Math.round(L.missRest)}</b> to injury at this risk.`}</div>
     ${lastLine}
     <div class="bodyv73-rows">${rows}</div>
+    ${wearSectionV111(e)}
     <div class="condition-bars-v11"><label><span>Fatigue</span><b>${Math.round(t.fatigue)}</b></label><div><i style="width:${t.fatigue}%"></i></div><label><span>Recovery capacity</span><b>${Math.round(t.recovery)}</b></label><div><i style="width:${t.recovery}%"></i></div><label><span>Mental load</span><b>${Math.round(t.mentalLoad)}</b></label><div><i style="width:${t.mentalLoad}%"></i></div></div>
     <div class="small">Fatigue is the dial you control: a heavy plan buys snaps and trust, a recovery week buys the number above back. Durability is the dial you BUY — every 10 points of injuryResist take about ${Math.round((L.risk-L.riskUp)*1000)}% off this week's risk.</div></div>`}function bo(e){const t=Gt(e,A[e.level].need,fe(e.seasonSeed,e.level,e.pos,"ui-rival")),a=Math.round((e.snapShare||.1)*100),s=Math.round((t.snapShare||.5)*100);return`<div class="card rival-card-v11"><div class="impact-head"><div><div class="impact-kicker">NAMED ROLE BATTLE · ${S(t.personality.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">You vs. ${S(t.name)}</div></div><div class="rival-health-v11">${Math.round(t.health)}<small>RIVAL HEALTH</small></div></div><div class="rival-versus-v11"><div><span>YOU</span><b>${a}%</b><small>${S(e.depthRole||"BENCH")} · trust ${Math.round(e.coachTrust||50)}</small></div><em>VS</em><div><span>${S(t.position)}</span><b>${s}%</b><small>${t.ovr} OVR · trust ${Math.round(t.coachTrust)}</small></div></div><div class="snap-split-v11"><i style="width:${a}%"></i></div><div class="rival-trait-v11">${S(t.trait)} · relationship ${Math.round(t.relationship)}</div>${t.history?.length?`<div class="small">Last comparison: ${t.history[0].playerPerf} vs ${t.history[0].rivalPerf} · ${t.history[0].swing>=0?"+":""}${t.history[0].swing}% snap swing</div>`:""}</div>`}function kn(e){const t=It.find(i=>i.id===e.originV11),a=e.legacyObjectivesV11||[],s=a.map(i=>Ua.find(r=>r.id===i)).filter(Boolean),n=e.completedObjectivesV11||{};return t?`<div class="card identity-card-v11"><div class="impact-head"><div><div class="impact-kicker">RUN IDENTITY</div><div class="h2" style="margin:2px 0 0">${t.icon} ${S(t.name)}</div></div><div class="legacy-token-v11">${o.legacyTokensV11||0}<small>LEGACY TOKENS</small></div></div><div class="small">${S(t.description)}</div><div class="legacy-objectives-v11">${s.map(i=>`<div class="${n[i.id]?"done":""}"><span>${n[i.id]?"✓":i.icon}</span><b>${S(i.title)}</b><small>${S(i.description)}</small><em>+${i.reward}</em></div>`).join("")}</div></div>`:""}function jn(e){const t=e.activeStoryArcV11,a=(e.storyArcHistoryV11||[]).slice(0,3);if(!t&&!a.length)return"";const s=t?Nt.find(n=>n.id===t.templateId):null;return`<div class="card arc-card-v11"><div class="eyebrow">MULTI-WEEK CAREER ARCS</div>${s?`<div class="active-arc-v11"><span>${s.icon}</span><div><b>${S(s.title)}</b><small>Stage ${t.stage+1}/${s.stages.length} · choices carry into future weeks</small></div></div>`:'<div class="small">No active storyline. Your performance and world state determine what begins next.</div>'}${a.length?`<div class="arc-history-v11">${a.map(n=>`<span class="${n.status}">${n.icon} ${S(n.title)}</span>`).join("")}</div>`:""}</div>`}function _c(e){const t=Is(e),a=Object.keys(e.completedObjectivesV11||{}).length,s=(e.legacyObjectivesV11||[]).length;return`<div class="card legacy-summary-v11"><div class="legacy-grade-v11">${t.grade}</div><div><div class="eyebrow">PARTIAL VICTORY · CAREER LEGACY</div><div class="h2" style="margin:2px 0">${S(t.ending)}</div><div class="small">Legacy score ${t.score} · ${a}/${s} origin objectives · highest level ${A[e.level]?.name||"Unknown"}. A career can matter without reaching the NFL.</div></div></div>`}function ko(e){const t=e.storyDecisionQueueV11?.[0];return t?`<div class="decision-overlay story-overlay-v11"><div class="decision-panel"><div class="decision-kicker">${t.icon} ${S(t.arcTitle)} · MULTI-WEEK ARC</div><div class="decision-title">${S(t.title)}</div><div class="decision-copy">${S(t.copy)} This decision persists beyond one game.</div>${t.choices.map(a=>`<button class="decision-choice" onclick="resolveStoryChoiceV11('${a.id}')"><b>${S(a.label)}</b><small>${S(a.description)}</small><span class="decision-risk">${S(a.risk)} · ${Math.round(a.baseChance*100)}% base chance</span></button>`).join("")}</div></div>`:""}function Uc(e){const t=o.player,a=zn(t,o,e,o.specializationV11);if(!a)return;const s=document.querySelector(".story-overlay-v11");s&&s.remove(),I(),q(),ye(a.success?"STORYLINE BREAKTHROUGH":"STORYLINE SETBACK",a.choice.label,a.success?"good":"bad")}function Ce(e,t){e&&t&&e.insertAdjacentHTML("afterend",t)}function Kc(e){const t=e.weekResults?.find(i=>!i.played);if(!t)return"";t.opponentV11||(t.opponentV11=rt(t.opp,e.level,t.week||1,e.seasonSeed,t.playoff?t.roundIdx:void 0));const a=t.opponentV11.scouted||bt(t.opponentV11,e,o.specializationV11),s=String(t.opponentV11.importance||"routine").toUpperCase();return`<div class="card opponent-card-v11" style="border-color:${["playoff","championship"].includes(t.opponentV11.importance)?"var(--gold)":t.opponentV11.importance==="evaluation"?"var(--blood)":"var(--cyan)"}"><div class="impact-head"><div><div class="impact-kicker">NEXT OPPONENT · ${s}</div><div class="h2" style="margin:2px 0 0">${S(t.opp)}</div></div><div class="scout-confidence-v11">${a.confidence}<small>SCOUT CONF.</small></div></div><div class="matchup-badge-v11">${S(a.matchupLabel)} matchup · ${a.hiddenCount} detail${a.hiddenCount===1?"":"s"} hidden</div><div class="scout-facts-v11">${a.reveals.map(i=>`<span>${S(i)}</span>`).join("")}</div><div class="scout-plan-v11">Recommended counter: <b>${S(Wt(a.recommendedPlan).name)}</b></div><div class="small">The recommendation can be wrong when scouting confidence is low. Repeating a plan lets opponents adapt.</div></div>`}function In(e){const t=Is(e),a=Object.keys(e.completedObjectivesV11||{}).length,s=(e.legacyObjectivesV11||[]).length;return`<div class="card legacy-progress-v11"><div class="legacy-grade-v11 small-grade">${t.grade}</div><div><div class="eyebrow">CAREER LEGACY IN PROGRESS</div><div class="h2" style="margin:2px 0">${S(t.ending)}</div><div class="small">Score ${t.score} · ${a}/${s} identity goals complete · partial victories earn permanent Legacy Tokens without requiring an NFL career.</div></div></div>`}function zc(e){if(e.originV11!=="position-convert")return"";const t=(e.positionChangesV11||[]).includes(e.level);return`<button class="btn ${t?"ghost":"secondary"}" style="margin-top:10px" ${t?"disabled":""} onclick="showPositionChangeV11()">🔄 ${t?"Position Changed This Level":"Explore a Position Change"}</button>`}const Qc=kn;kn=function(e){const t=Qc(e);return t&&t.replace(/<\/div>\s*$/,`${zc(e)}</div>`)};function Jc(e){return`<div class="decision-overlay position-overlay-v11"><div class="decision-panel"><div class="decision-kicker">POSITION CONVERSION · ONE PER LEVEL</div><div class="decision-title">Trade Mastery for Versatility</div><div class="decision-copy">Changing positions resets your named role battle, cuts coach trust, and lowers immediate snaps. It can unlock a better long-term fit and completes part of your origin legacy.</div>${ns(e.attrs,e.body).filter(a=>a.pos!==e.pos).slice(0,6).map(a=>`<button class="decision-choice" onclick="changePositionV11('${a.pos}')"><b>${a.pos} · ${S(Ee[a.pos].name)} · ${a.ovr} projected OVR</b><small>${S(Ta[a.pos].note)}</small><span class="decision-risk">New rival · −8 trust · reduced snaps</span></button>`).join("")}<button class="btn ghost" onclick="document.querySelector('.position-overlay-v11')?.remove()">Cancel</button></div></div>`}function Xc(){const e=o.player;if(!(!e||e.originV11!=="position-convert")){if((e.positionChangesV11||[]).includes(e.level)){F("You already changed positions at this level.");return}document.querySelector(".position-overlay-v11")?.remove(),document.body.insertAdjacentHTML("beforeend",Jc(e))}}function Zc(e){const t=o.player;if(!t||!Ee[e]||t.originV11!=="position-convert"||(t.positionChangesV11=t.positionChangesV11||[],t.positionChangesV11.includes(t.level)))return;const a=t.pos;t.positionChangesV11.push(t.level),t.positionsPlayedV11=t.positionsPlayedV11||[],a&&!t.positionsPlayedV11.includes(a)&&t.positionsPlayedV11.push(a),t.positionsPlayedV11.includes(e)||t.positionsPlayedV11.push(e),t.pos=e,t.roleRivalV11=null,t.snapShare=f(Math.min(t.snapShare||.12,.18),.04,.98),t.coachTrust=f((t.coachTrust||50)-8,0,100),t.roleBattle103=0,as(t),Gt(t,A[t.level].need,fe(t.seasonSeed,t.level,e,"position-change")),document.querySelector(".position-overlay-v11")?.remove(),We("🔄",`${t.name} converts from ${a} to ${e}`,"A new depth-chart battle begins with less trust but a different ceiling."),I(),q(),ye("POSITION CHANGED",`${a} → ${e} · prove the fit`,"gold")}pn=function(e){return bo(e).replace("card rival-card-v11","card weekly-loop-card rival-card-v11")};const ed=$t;$t=function(e){const t=o.player;if(t&&!t.originV11){q(),F("Choose this career’s origin first.");return}ed(!!e)};const td=Yt;Yt=function(e){const t=o.player;if(t&&!t.originV11){q(),F("Choose this career’s origin first.");return}td(!!e)};wt=function(){const e=o.player;if(!e?.weekResults)return;const t=e.weekResults.filter(a=>!a.playoff&&!a.played);let n=0,rolls=[];for(const a of t){rolls.push(...autoStoryV90(e,a));/* v90: a queued story stage is answered and rolled here, not on screen */if(!silentWeekV85(e,a))break;/* v85: the wheel rolls, the fate roll lands, ca() books the engine game */n++;He(a,e)}rolls.push(...autoStoryV90(e,null));window.__V90.last=rolls;I(),te("season"),n&&F(`⏭ Simmed ${n} week${n===1?"":"s"}${rolls.length?` · ${rolls.length} story roll${rolls.length===1?"":"s"}: ${rolls.filter(r=>r.success).length} up, ${rolls.filter(r=>!r.success).length} down`:""} — every plan rolled, every game played by the engine`)};const ad=tt;tt=function(e){Re(e);const t=e.potentialCeil,a=e.potential,s=ei(e);e.potentialCeil!=null&&(e.potentialCeil*=s),e.potential!=null&&(e.potential*=s);const n=ad(e);return t!=null&&(e.potentialCeil=t),a!=null&&(e.potential=a),n.originGrowthV11=s,n};const sd=ca;ca=function(e,t,a){const s=sd(e,t,a);if(!t.originPerfAppliedV11){const n=ti(e,t);if(t.perf=Math.round(f((t.perf||50)+n,1,100)),n){const i=ia(e,t.perf,{oppBoost:t.playoff?.08:0});t.us=i.us,t.them=i.them,t.won=i.won}t.originPerfAppliedV11=!0}return s};function nd(){$a(o);const e=o.legacyUnlocksV11||{};return`<div class="card legacy-rewards-v11"><div class="impact-head"><div><div class="impact-kicker">PARTIAL-VICTORY REWARDS</div><div class="h2" style="margin:2px 0 0">Legacy Workshop</div></div><div class="legacy-token-v11">${o.legacyTokensV11||0}<small>TOKENS</small></div></div><div class="small">Milestones and identity objectives fund information, content, and strategic options—not large universal attribute boosts.</div><div class="legacy-shop-v11">${Cs.map(t=>`<div class="legacy-shop-row-v11 ${e[t.id]?"owned":""}"><span>${t.icon}</span><div><b>${S(t.name)}</b><small>${S(t.description)}</small></div><button ${e[t.id]||(o.legacyTokensV11||0)<t.cost?"disabled":""} onclick="buyLegacyUnlockV11('${t.id}')">${e[t.id]?"OWNED":t.cost+" ◇"}</button></div>`).join("")}</div></div>`}function id(e){const t=Zn(o,e);if(t===!1){F("Not enough Legacy Tokens.");return}if(!t){F("Already unlocked.");return}o.player&&Re(o.player),I(),q(),ye("LEGACY UNLOCKED",t.name,"gold")}function od(e,t){if(!o.legacyUnlocksV11?.["story-insight"])return`${S(t.risk)} · outcome information limited`;const a=e.worldState?.teamChemistry||50,s=e.coachTrust||50,n=e.attrs?.awareness||10,i=f(t.baseChance+(a-50)/600+(s-50)/750+(n-20)/900+(o.specializationV11==="architect"?.08:0),.12,.94),r=Math.round(f(i-.05,.05,.98)*100),l=Math.round(f(i+.05,.05,.98)*100);return`${S(t.risk)} · estimated ${r}–${l}%`}ko=function(e){const t=e.storyDecisionQueueV11?.[0];return t?`<div class="decision-overlay story-overlay-v11"><div class="decision-panel"><div class="decision-kicker">${t.icon} ${S(t.arcTitle)} · MULTI-WEEK ARC</div><div class="decision-title">${S(t.title)}</div><div class="decision-copy">${S(t.copy)} This decision persists beyond one game.</div>${t.choices.map(a=>`<button class="decision-choice" onclick="resolveStoryChoiceV11('${a.id}')"><b>${S(a.label)}</b><small>${S(a.description)}</small><span class="decision-risk">${od(e,a)}</span></button>`).join("")}</div></div>`:""};bo=function(e){const t=Gt(e,A[e.level].need,fe(e.seasonSeed,e.level,e.pos,"ui-rival")),a=Math.round((e.snapShare||.1)*100),s=Math.round((t.snapShare||.5)*100),n=!!o.legacyUnlocksV11?.["rival-dossier"];return`<div class="card rival-card-v11"><div class="impact-head"><div><div class="impact-kicker">NAMED ROLE BATTLE · ${S(t.personality.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">You vs. ${S(t.name)}</div></div><div class="rival-health-v11">${Math.round(t.health)}<small>RIVAL HEALTH</small></div></div><div class="rival-versus-v11"><div><span>YOU</span><b>${a}%</b><small>${S(e.depthRole||"BENCH")} · trust ${Math.round(e.coachTrust||50)}</small></div><em>VS</em><div><span>${S(t.position)}</span><b>${s}%</b><small>${t.ovr} OVR · trust ${Math.round(t.coachTrust)}</small></div></div><div class="snap-split-v11"><i style="width:${a}%"></i></div><div class="rival-trait-v11">${n?`${S(t.trait)} · ${t.potential} potential`:"Trait and potential hidden · unlock Rival Dossier"} · relationship ${Math.round(t.relationship)}</div>${t.history?.length?`<div class="small">Last comparison: ${t.history[0].playerPerf} vs ${t.history[0].rivalPerf} · ${t.history[0].swing>=0?"+":""}${t.history[0].swing}% snap swing</div>`:""}</div>`};function rd(){const e=o.player,t=x("screen");if(!e||!t)return;if(Re(e),o.view==="choosePos"){if(!t.querySelector(".origin-card-v11")){const n=t.querySelector(".card");Ce(n,Ms(e))}t.querySelectorAll(".pos-card").forEach(n=>n.classList.toggle("origin-locked-v11",!e.originV11))}if(o.view==="hub"){const n=t.querySelector(".player-hero");!e.originV11&&!t.querySelector(".origin-card-v11")&&Ce(n,Ms(e)),e.originV11&&!t.querySelector(".identity-card-v11")&&Ce(n,kn(e));const i=t.querySelector(".weekly-loop-card")||n;t.querySelector(".condition-card-v11")||Ce(i,Bn(e));const r=t.querySelector(".condition-card-v11")||i;t.querySelector(".arc-card-v11")||Ce(r,jn(e)),e.level>=7&&!t.querySelector(".nfl-survival-v11")&&Ce(t.querySelector(".arc-card-v11")||r,va(e)),t.querySelector(".legacy-progress-v11")||t.insertAdjacentHTML("beforeend",In(e))}if(o.view==="season"){const n=t.querySelector(".h1");!e.originV11&&!t.querySelector(".origin-card-v11")&&Ce(n,Ms(e));const i=t.querySelector(".origin-card-v11")||n;t.querySelector(".opponent-card-v11")||Ce(i,Kc(e));const r=t.querySelector(".opponent-card-v11")||n;t.querySelector(".condition-card-v11")||Ce(r,Bn(e)),t.querySelector(".arc-card-v11")||Ce(t.querySelector(".condition-card-v11")||r,jn(e)),e.level>=7&&!t.querySelector(".nfl-survival-v11")&&Ce(t.querySelector(".arc-card-v11")||r,va(e));const l=e.weekResults||[];t.querySelectorAll(".sched-row").forEach((d,c)=>{const u=l[c];!u?.opponentV11||d.querySelector(".importance-chip-v11")||d.querySelector(".sched-opp")?.insertAdjacentHTML("beforeend",` <small class="importance-chip-v11 ${u.opponentV11.importance}">${String(u.opponentV11.importance).toUpperCase()}</small>`);
       // v73: a week the body took a bite out of says so ON the week, so a run of poor
@@ -16427,6 +17080,190 @@ function gsImpactHTML(scn,adopt){
     <div class="gs-impact-note">${took>=70?'He’s all-in on your read.':took>=40?'He’ll lean your way when the down lets him.':'He hears you out but keeps mostly his own script.'} <span style="color:var(--chalk-dim)">Raise adoption in Prestige → Field General.</span></div>`;
 }
 let gsStateV23=null;
+/* ===== v111 THE PREGAME DECISION — how much of this game is yours =====
+ * This screen used to ask the player which way to throw. He never picked the
+ * playbook — the coordinator does, and he always did — so the coordinator now
+ * adopts the scouted plan on his own and it reads back as one line (nothing about
+ * the play-mix model changes: gsScenariosV23 → gsFinalPass → _gameScriptV23 →
+ * __gameScriptBiasV23 is exactly the road it always took, and the impact bar still
+ * says how much of it he bought). What the player decides in its place is the one
+ * thing that was ever his: HOW MUCH OF THE GAME HE TAKES. Five steps from limited
+ * to every snap, each pricing what it buys — his share of the team's snaps, his
+ * share of the touches — against what it costs: the wear it adds, the chance he
+ * gets hurt in THIS game, and the games that is expected to cost. Every number is
+ * read live from window.__V111.forecast(player, week, key), and the multipliers it
+ * itemises are shown as chips, so a semifinal against a good team visibly costs
+ * more than a week-three game against nobody. Under it, the focus: three
+ * position-shaped picks, one stat at ×1.2 for this game only, exactly one live at
+ * a time. Neither control blocks anything — no pick at all means "normal" and no
+ * focus, which is the game precisely as it was. The model is agent A's; every call
+ * into it is guarded and falls back to the neutral stub below. ===== */
+const V111_KEYS=["limited","reduced","normal","heavy","everysnap"];
+const V111_STEP={
+  limited:{s:"LIMITED",n:"Limited",d:"Spot snaps only. You watch most of this one and the body keeps nearly everything."},
+  reduced:{s:"REDUCED",n:"Reduced",d:"A lighter rotation — you come off on the long drives and stay fresh for next week."},
+  normal:{s:"NORMAL",n:"Normal",d:"The starter's week — every snap your unit takes, your ordinary share of the ball."},
+  heavy:{s:"HEAVY",n:"Heavy",d:"The same snaps, more football. The coordinator starts looking for you, and the body notices."},
+  everysnap:{s:"EVERY",n:"Every Snap",d:"They ride you until the wheels come off. The biggest numbers on the sheet — and the bill for them."}};
+const V111_FOCUS_BOOK={
+  QB:[["cannon","🎯","throwing","Let It Rip","Drive the ball — velocity and the shot down the field."],
+      ["escape","🌀","agility","Escape Artist","Slide the pocket and make the first man miss."],
+      ["general","🧠","awareness","Field General","See it early — the read comes a beat sooner."]],
+  RB:[["truck","🐗","strength","Run Angry","Trucking and big hits — punish the first man there."],
+      ["shifty","🌀","agility","Make Him Miss","Shiftiness — the cut inside the hole."],
+      ["burst","🚀","acceleration","Hit The Gas","Quickness through the crease before it shuts."]],
+  WR:[["hands","🧤","catching","Catch Everything","Hands and ball tracking through contact."],
+      ["cuts","🌀","agility","Sharp Cuts","Shiftiness at the break — get off the press clean."],
+      ["top","💨","speed","Take The Top Off","Pure speed — run past the last man."]],
+  TE:[["seal","🧱","blocking","Seal The Edge","Blocking — be the reason the run gets out."],
+      ["hands","🧤","catching","Safety Valve","Hands in traffic when the pocket breaks."],
+      ["power","💪","strength","Move People","Power at the point of contact."]],
+  OL:[["anchor","🧱","blocking","Anchor The Pocket","Blocking — nobody comes through you today."],
+      ["drive","💪","strength","Drive Block","Power at the point of contact — move the pile."],
+      ["calls","🧠","awareness","Make The Calls","See the stunt before it comes."]],
+  DL:[["bull","💪","strength","Bull Rush","Power at the point of contact — walk him backwards."],
+      ["jump","⚡","quickness","Jump The Snap","First-step explosion off the ball."],
+      ["wrap","🛡️","tackling","Wrap Him Up","Trucking hits and a tackle that sticks."]],
+  LB:[["thump","🛡️","tackling","Thump","Big hits — bring him down where he stands."],
+      ["read","🧠","awareness","Read And React","Diagnose it before the back gets there."],
+      ["run","💨","speed","Run The Alley","Speed sideline to sideline."]],
+  CB:[["stick","💨","speed","Stay On His Hip","Speed — run with anybody on the field."],
+      ["mirror","🌀","agility","Mirror Him","Shiftiness at the break point."],
+      ["ball","🧤","catching","Play The Ball","Hands at the catch point — take it away."]],
+  S:[["hammer","🛡️","tackling","The Hammer","Big hits over the middle."],
+     ["deep","🧠","awareness","Center Field","See the quarterback's eyes and beat the throw."],
+     ["range","💨","speed","Sideline Range","Speed to the far hash."]],
+  K:[["ice","🎖️","discipline","Ice In The Veins","No mental errors, no wasted swing."],
+     ["leg","💪","strength","More Leg","Power through the ball."],
+     ["clutch","🔥","grit","Kick It Late","The one that matters comes late."]],
+  ATH:[["fast","💨","speed","Pure Speed","Straight-line burst above everything else."],
+       ["power","💪","strength","Pure Power","Power at the point of contact."],
+       ["shifty","🌀","agility","Pure Shiftiness","Cuts, jukes, change of direction."]]};
+function v111PosKeyV111(pos){const p=String(pos||"ATH").toUpperCase();
+  if(V111_FOCUS_BOOK[p])return p;
+  if(/^(LT|LG|C|RG|RT|OT|OG|OL)$/.test(p))return "OL";
+  if(/^(DT|DE|EDGE|NT)$/.test(p))return "DL";
+  if(/^(FS|SS|SAF)$/.test(p))return "S";
+  if(/^(MLB|OLB|ILB)$/.test(p))return "LB";
+  if(/^(P|K|PK)$/.test(p))return "K";
+  if(/^(FB|HB)$/.test(p))return "RB";
+  return "ATH";}
+// The neutral stub. It stands in ONLY while agent A's window.__V111 is absent, and
+// it is shaped to the same contract so the screen reads the same either way.
+const V111_STUB={
+  KEYS:V111_KEYS.slice(),
+  usage(pl,wk){const k=v111KeyV111(wk),base=Math.max(.06,Math.min(.98,(pl&&pl.snapShare!=null?pl.snapShare:.6)));
+    const m={limited:TU("v111bShareLimited",.45),reduced:TU("v111bShareReduced",.74),normal:1,heavy:TU("v111bShareHeavy",1.24),everysnap:TU("v111bShareEvery",1.6)}[k]||1;
+    const t={limited:TU("v111bTouchLimited",.7),reduced:TU("v111bTouchReduced",.87),normal:1,heavy:TU("v111bTouchHeavy",1.18),everysnap:TU("v111bTouchEvery",1.34)}[k]||1;
+    return {key:k,share:Math.max(.05,Math.min(1,base*m)),touchMul:t,label:V111_STEP[k].n,desc:V111_STEP[k].d};},
+  forecast(pl,wk,key){const k=V111_KEYS.indexOf(key)>=0?key:"normal";
+    const lm={limited:TU("v111bLoadLimited",.48),reduced:TU("v111bLoadReduced",.74),normal:1,heavy:TU("v111bLoadHeavy",1.36),everysnap:TU("v111bLoadEvery",1.74)}[k];
+    const dur=(pl&&pl.attrs&&pl.attrs.injuryResist)||50,durMul=Math.max(.7,Math.min(1.5,TU("v111bDurAt0",1.35)-dur/TU("v111bDurSpan",140)));
+    const lvl=(pl&&pl.level)||0,anchor=45+lvl*5.5,oppR=(wk&&wk.opponentV11&&wk.opponentV11.rating)||anchor;
+    const oppMul=Math.max(.8,Math.min(1.45,1+(oppR-anchor)/TU("v111bOppSpan",60)));
+    const rnd=String((wk&&wk.round)||"").toLowerCase(),imp=String((wk&&wk.opponentV11&&wk.opponentV11.importance)||"").toLowerCase();
+    const stakes=(imp==="championship"||/final(?!$)|championship|title/.test(rnd))?TU("v111bStakesFinal",1.4)
+      :(wk&&wk.playoff)?TU("v111bStakesPlayoff",1.22)
+      :(wk&&wk.opponentV11&&wk.opponentV11.rivalry)?TU("v111bStakesRival",1.1):1;
+    const fat=(pl&&pl.conditionV11&&pl.conditionV11.fatigue)||0,wearMul=1+fat/TU("v111bWearSpan",220);
+    const load=TU("v111bLoadBase",11)*lm*durMul*oppMul*stakes;
+    const injPct=Math.max(.5,Math.min(72,TU("v111bRiskBase",8)*lm*durMul*oppMul*stakes*wearMul));
+    return {load:load,fatigueAfter:Math.max(0,Math.min(100,fat+load)),injPct:injPct,
+      gamesMissed:injPct/100*TU("injExpMissed",.92),
+      statCut:-(load*TU("v111bCutPerLoad",.11)),
+      parts:[{label:"Durability "+Math.round(dur),mul:durMul},{label:"Opponent "+Math.round(oppR),mul:oppMul},
+        {label:stakes>1.3?"Title game":stakes>1.15?"Playoff":stakes>1?"Rivalry":"Regular season",mul:stakes},
+        {label:"Already worn "+Math.round(fat),mul:wearMul}],
+      stakes:stakes,oppMul:oppMul,durMul:durMul};},
+  charge(){return {load:0,fatigueAfter:0,lingering:[]}},
+  focusFor(pos){return (V111_FOCUS_BOOK[v111PosKeyV111(pos)]||V111_FOCUS_BOOK.ATH)
+    .map(r=>({key:r[0],icon:r[1],stat:r[2],name:r[3],desc:r[4],mul:TU("v111FocusMul",1.2)}));},
+  buffFor(wk){const f=v111FocusRowV111(null,wk);return f?{stat:f.stat,mul:f.mul}:null;}};
+function v111ModelV111(){const M=window.__V111;return (M&&typeof M==="object")?M:null;}
+function v111KeyV111(wk){const k=wk&&wk.usageV111;return V111_KEYS.indexOf(k)>=0?k:"normal";}
+function v111UsageV111(pl,wk){const M=v111ModelV111();
+  if(M&&typeof M.usage==="function"){try{const u=M.usage(pl,wk);if(u&&typeof u==="object")return u}catch(e){}}
+  return V111_STUB.usage(pl,wk);}
+function v111ForecastV111(pl,wk,key){const M=v111ModelV111();
+  if(M&&typeof M.forecast==="function"){try{const f=M.forecast(pl,wk,key);if(f&&typeof f==="object")return f}catch(e){}}
+  return V111_STUB.forecast(pl,wk,key);}
+function v111FocusListV111(pos){const M=v111ModelV111();
+  if(M&&typeof M.focusFor==="function"){try{const l=M.focusFor(pos);if(Array.isArray(l)&&l.length===3)return l}catch(e){}}
+  return V111_STUB.focusFor(pos);}
+function v111FocusRowV111(pl,wk){const k=wk&&wk.focusV111;if(!k)return null;
+  const pos=(pl&&pl.pos)||(gsStateV23&&gsStateV23.pl&&gsStateV23.pl.pos)||"ATH";
+  return v111FocusListV111(pos).find(f=>f&&f.key===k)||null;}
+const v111Pct=v=>Math.round((Number(v)||0)*100)+"%";
+const v111Sig=v=>{const n=Number(v)||0;return (n>0?"+":"")+(Math.abs(n)>=10?Math.round(n):Math.round(n*10)/10)};
+function v111LedgerHTML(pl,wk,key){
+  const u=v111UsageV111(pl,wk),f=v111ForecastV111(pl,wk,key);
+  const cut=Number(f.statCut)||0,miss=Number(f.gamesMissed)||0;
+  // The ladder does NOT buy snaps all the way up — at NORMAL he is already on the field for every
+  // snap his unit takes, and there is nothing above that to sell him. What the top half buys is
+  // the BALL, and it is paid for in body. Say so, so the reading of the two rows is never a guess.
+  const share=Number(u.share)||0,tm=Number(u.touchMul)||1;
+  const note=share>=.999
+    ?(tm>1?`Every snap is already yours — from here it is the ball that moves, not the snap count.`
+          :`Every snap your unit takes, and your ordinary share of the ball.`)
+    :`You watch ${Math.round((1-share)*100)}% of your unit's snaps from the sideline.`;
+  const buy=`<div class="v111-row"><span>Team snaps</span><b style="color:#8fe0a0">${v111Pct(u.share)}</b></div>`
+    +`<div class="v111-row"><span>Touch share</span><b style="color:#8fe0a0">×${(Math.round(tm*100)/100).toFixed(2)}</b></div>`
+    +`<div class="v111-row"><span>Role</span><b>${esc(u.label||V111_STEP[key].n)}</b></div>`
+    +`<div class="v111-note">${note}</div>`;
+  // below NORMAL the bill is NEGATIVE — the week pays load back — so the wear row is signed and
+  // wears the colour of its sign rather than always reading like damage
+  const wear=Number(f.load)||0;
+  const cost=`<div class="v111-row"><span>Wear</span><b style="color:${wear>.05?"#e8938b":wear<-.05?"#8fe0a0":"var(--chalk)"}">${v111Sig(wear)}</b></div>`
+    +`<div class="v111-row"><span>Injury</span><b style="color:${f.injPct>=24?"#e8938b":f.injPct<=12?"#8fe0a0":"var(--gold)"}">${Math.round(Number(f.injPct)||0)}%</b></div>`
+    +`<div class="v111-row"><span>Games out</span><b>${(Math.round(miss*10)/10).toFixed(1)}</b></div>`
+    +(Math.abs(cut)>=.05?`<div class="v111-row"><span>Next game</span><b style="color:${cut<0?"#e8938b":"#8fe0a0"}">${v111Sig(cut)}</b></div>`:``);
+  return `<div class="v111-col buy"><h4>WHAT IT BUYS</h4>${buy}</div><div class="v111-col cost"><h4>WHAT IT COSTS</h4>${cost}</div>`;
+}
+function v111PartsHTML(pl,wk,key){
+  const f=v111ForecastV111(pl,wk,key),parts=Array.isArray(f.parts)?f.parts:[];
+  if(!parts.length) return '';
+  return parts.filter(p=>p&&p.label!=null).map(p=>{const m=Number(p.mul);
+    const txt=Number.isFinite(m)?"×"+(Math.round(m*100)/100).toFixed(2):"";
+    return `<span class="v111-chip${Number.isFinite(m)&&m<1?' easy':''}">${esc(p.label)}${txt?` <b>${txt}</b>`:''}</span>`}).join('')
+    +`<span class="v111-chip easy">fatigue after <b>${Math.round(Number(f.fatigueAfter)||0)}</b></span>`;
+}
+function v111StepsHTML(key){
+  const i=Math.max(0,V111_KEYS.indexOf(key));
+  return V111_KEYS.map((k,j)=>`<button class="v111-step${j===i?' on':j<i?' lit':''}" data-key="${k}" id="v111Step_${k}" onclick="__v111PickUsageV111('${k}')" title="${esc(V111_STEP[k].d)}"><i></i><b>${V111_STEP[k].s}</b></button>`).join('');
+}
+function v111FocusHTML(pl,wk){
+  const sel=wk&&wk.focusV111||null;
+  return v111FocusListV111(pl&&pl.pos).map(f=>`<button class="gs-card-v23 v111-focus${f.key===sel?' gs-sel':''}" data-key="${esc(f.key)}" id="v111Focus_${esc(f.key)}" onclick="__v111PickFocusV111('${esc(f.key)}')">
+    <div class="gs-card-top"><span class="gs-ico">${f.icon||'🎯'}</span><b>${esc(f.name||f.key)}</b><span class="v111-mul">×${(Math.round((Number(f.mul)||1.2)*100)/100).toFixed(1)} ${esc(((window.__statLabelV25&&window.__statLabelV25(f.stat))||f.stat||'').toUpperCase())}</span></div>
+    <div class="gs-why">${esc(f.desc||'')}</div></button>`).join('');
+}
+function v111PlanHTML(){
+  const S=gsStateV23;if(!S||!S.auto)return '';
+  return `<b>Coordinator's plan:</b> ${esc(S.auto.name)} · ${Math.round(S.auto.pass*100)}% pass${S.auto.edge?' · scouted edge':''}`;
+}
+function v111RenderV111(){
+  const S=gsStateV23;if(!S)return;
+  const key=v111KeyV111(S.wk);
+  const st=document.getElementById('v111Steps'); if(st) st.innerHTML=v111StepsHTML(key);
+  const de=document.getElementById('v111Desc'); if(de) de.textContent=V111_STEP[key].d;
+  const lg=document.getElementById('v111Ledger'); if(lg) lg.innerHTML=v111LedgerHTML(S.pl,S.wk,key);
+  const pa=document.getElementById('v111Parts'); if(pa) pa.innerHTML=v111PartsHTML(S.pl,S.wk,key);
+  document.querySelectorAll('.v111-focus').forEach(c=>c.classList.toggle('gs-sel',c.getAttribute('data-key')===(S.wk&&S.wk.focusV111)));
+}
+window.__v111PickUsageV111=function(key){
+  const S=gsStateV23;if(!S||V111_KEYS.indexOf(key)<0)return;
+  if(S.wk) S.wk.usageV111=key; else S.stray.usageV111=key;
+  v111RenderV111();
+};
+window.__v111PickFocusV111=function(key){
+  const S=gsStateV23;if(!S)return;
+  const list=v111FocusListV111(S.pl&&S.pl.pos),row=list.find(f=>f&&f.key===key);if(!row)return;
+  const w=S.wk||S.stray;
+  w.focusV111=(w.focusV111===key)?null:key;   // exactly one, and picking it again clears it
+  v111RenderV111();
+  try{const el=document.getElementById('preStatsV25');
+    if(el&&window.pregamePlayerStatsV25&&S.pl) el.outerHTML=window.pregamePlayerStatsV25(S.pl);}catch(e){}
+};
 function gsSectionV23(oursR,theirsR,pl,wk){
   if(!document.getElementById('gsStyleV23')) document.head.insertAdjacentHTML('beforeend',`<style id="gsStyleV23">
     .gs-wrap-v23{margin:12px 14px 4px;padding:10px 12px;border:1px solid rgba(120,180,255,.32);border-radius:10px;background:rgba(120,170,255,.06)}
@@ -16448,23 +17285,80 @@ function gsSectionV23(oursR,theirsR,pl,wk){
     .gs-field-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#5a8fd6,#8fb7ff);opacity:.55;transition:width .35s cubic-bezier(.2,.9,.3,1)}
     .gs-field-lab{font:700 9px Oswald;letter-spacing:1px;color:#8fb7ff;text-align:center;margin-top:3px}
     .gs-impact-note{font:400 10px system-ui;color:#cdd8e8;margin-top:5px;line-height:1.3}
+    /* v111: the involvement ladder and the focus picker */
+    .v111-wrap{border-color:rgba(240,187,69,.34);background:rgba(240,187,69,.05)}
+    .v111-wrap .gs-head{color:var(--gold)}
+    .v111-steps{display:flex;gap:4px;margin-bottom:7px}
+    .v111-step{flex:1 1 0;min-width:0;cursor:pointer;background:rgba(20,30,48,.7);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 2px 5px;text-align:center;transition:border-color .12s,background .12s}
+    .v111-step:hover{border-color:rgba(240,187,69,.55)}
+    .v111-step i{display:block;height:4px;border-radius:3px;background:rgba(255,255,255,.14);margin:0 4px 5px}
+    .v111-step b{display:block;font:800 8.5px Oswald,sans-serif;letter-spacing:.5px;color:var(--chalk-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .v111-step.lit i{background:rgba(240,187,69,.45)}
+    .v111-step.on{border-color:var(--gold);background:rgba(240,187,69,.16);box-shadow:0 0 0 1px var(--gold) inset}
+    .v111-step.on i{background:var(--gold)}
+    .v111-step.on b{color:var(--gold)}
+    .v111-desc{font:400 11px system-ui;color:var(--chalk-dim);line-height:1.3;margin-bottom:8px}
+    .v111-ledger{display:flex;gap:7px;flex-wrap:wrap}
+    .v111-col{flex:1 1 132px;min-width:0;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 8px;background:rgba(20,30,48,.55)}
+    .v111-col h4{margin:0 0 4px;font:800 8.5px Oswald,sans-serif;letter-spacing:1px}
+    .v111-col.buy h4{color:#8fe0a0}
+    .v111-col.cost h4{color:#e8938b}
+    .v111-row{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font:600 11px Barlow Condensed,sans-serif;color:var(--chalk-dim);line-height:1.5}
+    .v111-row b{font:700 12px Oswald,sans-serif;color:var(--chalk);white-space:nowrap}
+    .v111-note{font:400 9.5px system-ui;color:var(--chalk-dim);line-height:1.3;margin-top:4px;border-top:1px solid rgba(255,255,255,.08);padding-top:4px}
+    .v111-parts{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+    .v111-chip{font:600 10px Barlow Condensed,sans-serif;color:var(--chalk-dim);border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:2px 7px;background:rgba(20,30,48,.6);white-space:nowrap}
+    .v111-chip b{color:#e8938b;font:700 10px Oswald,sans-serif}
+    .v111-chip.easy b{color:#8fe0a0}
+    .v111-plan{margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.09);font:400 11px system-ui;color:var(--chalk-dim);line-height:1.35}
+    .v111-plan b{color:#8fb7ff}
+    .v111-focus-wrap{border-color:rgba(107,191,89,.3);background:rgba(107,191,89,.05)}
+    .v111-focus-wrap .gs-head{color:#8fe0a0}
+    .v111-mul{margin-left:auto;font:800 9px Oswald;letter-spacing:.5px;color:#0b1119;background:#8fe0a0;border-radius:10px;padding:2px 6px;white-space:nowrap}
+    .gs-card-v23.v111-focus .gs-card-top b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .gs-card-v23.v111-focus:hover{border-color:rgba(143,224,160,.55)}
+    .gs-card-v23.v111-focus.gs-sel{border-color:#8fe0a0;background:rgba(107,191,89,.16);box-shadow:0 0 0 1px #8fe0a0 inset}
   </style>`);
   const scn=gsScenariosV23(oursR,theirsR), adopt=gsAdoptV23(pl,wk);
-  gsStateV23={scn,adopt,pl};
-  if(pl) pl._gameScriptV23=null;   // start each pregame with no suggestion until picked
-  const cards=scn.map((s,i)=>`<button class="gs-card-v23" id="gsCard${i}" onclick="__gsPickV23(${i})">
-    <div class="gs-card-top"><span class="gs-ico">${s.icon}</span><b>${esc(s.name)}</b>${s.edge?'<span class="gs-edge">SCOUTED EDGE</span>':''}</div>
-    <div class="gs-mix">${Math.round(s.pass*100)}% pass · ${Math.round((1-s.pass)*100)}% run</div>
-    <div class="gs-why">${esc(s.why)}</div></button>`).join('');
-  return `<div class="gs-wrap-v23"><div class="gs-head">🧠 SUGGEST A GAME PLAN<small>Scout their weak unit and pitch a play-mix — the coach adopts it based on your standing.</small></div>
-    <div class="gs-cards">${cards}</div><div class="gs-impact" id="gsImpactV23">${gsImpactHTML(null,adopt)}</div></div>`;
+  // v111: the coordinator no longer waits to be pitched at — he adopts the plan the
+  // scouting report favours (the scouted edge, else balanced) the moment the screen
+  // opens, so passP, the impact bar and everything downstream see exactly what they
+  // always saw. The player's own decision is the ladder underneath.
+  const auto=scn.find(s=>s.edge)||scn.find(s=>s.key==='bal')||scn[0];
+  gsStateV23={scn,adopt,pl,wk,auto,stray:{}};
+  if(pl) pl._gameScriptV23={gsPass:gsFinalPass(auto.pass,adopt),name:auto.name,adopt:adopt};
+  const key=v111KeyV111(wk);
+  return `<div class="gs-wrap-v23 v111-wrap" id="v111Wrap"><div class="gs-head">🏈 YOUR INVOLVEMENT<small>How much of this game do you carry? Below NORMAL you come off the field and the body keeps what it saves. Above it you were never coming off anyway — what rises is your share of the ball, and what it costs you.</small></div>
+    <div class="v111-steps" id="v111Steps">${v111StepsHTML(key)}</div>
+    <div class="v111-desc" id="v111Desc">${esc(V111_STEP[key].d)}</div>
+    <div class="v111-ledger" id="v111Ledger">${v111LedgerHTML(pl,wk,key)}</div>
+    <div class="v111-parts" id="v111Parts">${v111PartsHTML(pl,wk,key)}</div>
+    <div class="v111-plan" id="v111Plan">${v111PlanHTML()}</div>
+    <div class="gs-impact" id="gsImpactV23">${gsImpactHTML(auto,adopt)}</div></div>
+    <div class="gs-wrap-v23 v111-focus-wrap" id="v111FocusWrap"><div class="gs-head">🎯 GAME FOCUS<small>Sharpen one thing for this game only — ×${(Math.round(TU("v111FocusMul",1.2)*100)/100).toFixed(1)} on the stat you pick. One at a time; tap it again to drop it.</small></div>
+    <div class="gs-cards" id="v111FocusCards">${v111FocusHTML(pl,wk)}</div></div>`;
 }
+// v111: the cards are the coordinator's business now, but the pitch entry point is
+// kept so anything that still calls it behaves exactly as it did.
 window.__gsPickV23=function(idx){
   const S=gsStateV23; if(!S) return; const scn=S.scn[idx]; if(!scn) return;
-  document.querySelectorAll('.gs-card-v23').forEach((c,i)=>c.classList.toggle('gs-sel',i===idx));
+  document.querySelectorAll('.gs-card-v23:not(.v111-focus)').forEach((c,i)=>c.classList.toggle('gs-sel',i===idx));
   const imp=document.getElementById('gsImpactV23'); if(imp) imp.innerHTML=gsImpactHTML(scn,S.adopt);
   if(S.pl) S.pl._gameScriptV23={gsPass:gsFinalPass(scn.pass,S.adopt),name:scn.name,adopt:S.adopt};
 };
+window.__V111_UI={KEYS:V111_KEYS.slice(),STEP:V111_STEP,
+  model:v111ModelV111,stub:V111_STUB,
+  week:()=>gsStateV23&&(gsStateV23.wk||gsStateV23.stray)||null,
+  key:()=>v111KeyV111(gsStateV23&&gsStateV23.wk),
+  focus:()=>{const S=gsStateV23,w=S&&(S.wk||S.stray);return (w&&w.focusV111)||null},
+  focusFor:v111FocusListV111,focusRow:v111FocusRowV111,
+  usage:(pl,wk)=>v111UsageV111(pl||(gsStateV23&&gsStateV23.pl),wk||(gsStateV23&&gsStateV23.wk)),
+  forecast:(k,pl,wk)=>v111ForecastV111(pl||(gsStateV23&&gsStateV23.pl),wk||(gsStateV23&&gsStateV23.wk),k||v111KeyV111(gsStateV23&&gsStateV23.wk)),
+  plan:()=>gsStateV23&&gsStateV23.auto||null,
+  player:()=>gsStateV23&&gsStateV23.pl||null,
+  script:()=>{const S=gsStateV23;return S&&S.pl&&S.pl._gameScriptV23||null},
+  pickUsage:k=>window.__v111PickUsageV111(k),pickFocus:k=>window.__v111PickFocusV111(k),
+  render:v111RenderV111};
 // v20: full-roster average on the shared scale (falls back to the level anchor)
 function rosterAvg(roster,fb){const a=(Array.isArray(roster)?roster:[]).map(normalize).filter(p=>p.ovr>0);return a.length?a.reduce((s,p)=>s+p.ovr,0)/a.length:fb}
 // v20: unit-by-unit comparison → 2-3 plain-language lines about how this game
@@ -19694,5 +20588,5 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   try { window.__HUB_V75 = { views: VIEWS, tabs: TAB, sweep } } catch (e) {}
 })();
 </script>
-<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v107.1-menu"></script><script src="./public/rib-menu-boot.js?v=v107.1-menu"></script><script src="./public/rib-menu.js?v=v107.1-menu"></script><script src="./public/rib-menu-navigation.js?v=v107.1-menu"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
+<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v111-howto"></script><script src="./public/rib-menu-boot.js?v=v111-howto"></script><script src="./public/rib-menu.js?v=v111-howto"></script><script src="./public/rib-menu-howto.js?v=v111-howto"></script><script src="./public/rib-menu-navigation.js?v=v111-howto"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
 </html>

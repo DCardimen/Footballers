@@ -374,6 +374,58 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v110 — the man who is there
+
+Anchors `v110 THE MAN WHO IS THERE` (four of them: the `seesBall` proximity read, the support-hold
+rule, the commit handover in the pursuit block, and the catch-point contest). Hook `window.__V110`
+(`.takeovers`, `.laps`, `.nearReads`, `.ballMen`). Gate `scripts/v110check.mjs`.
+
+The complaint this answers: a defender looks like he is in position to make a play and does not.
+Measured before the change, over ~700 simmed plays:
+
+| measurement | before | after |
+|---|---|---|
+| the nearest defender at the stop was the tackler | 89.1% | 90.5% |
+| a man idle inside 2 yards of the stop | 2.1% | 1.4% |
+| a man idle inside 3 yards of the stop | 13.4% | 4.9% |
+| a defender other than the cover man nearest the arriving ball | 11.4%, and he could do nothing | he plays it |
+
+Five rules, all of which say the same thing — **where a man is standing beats what he was assigned
+or what his clock says**:
+
+- **The ball at your feet is not a diagnosis.** v81 gives every defender a read clock and until it
+  lands he plays his ASSIGNMENT: the linebacker takes his read step at `lbReadLx`, the safety stays
+  over the top. The clock had no proximity term, so a carrier could run within a yard of a
+  linebacker who was still reading and go straight past him. Inside `TU("seeBallPx", 20)` the read
+  lands NOW and the renderer gets its `keyRead` with `near: true`.
+- **Support never holds the closest man.** The hold read `gap > cmGap - 4`, so a defender up to
+  four pixels *closer* to the ball than the committed man still settled into a support spot and
+  watched. He holds now only if he is genuinely farther off, and never inside
+  `TU("supportNeverHoldPx", 12)`.
+- **The commit follows whoever is closest**, measured after the step, not whoever claimed it first
+  (`TU("commitTakePx", 3)`). `commitMinVel` still stops a trailing lineman claiming a tackle from
+  range, but it no longer stops a man standing in the hole the carrier is running into — a
+  stationary man in the gap is the most in-position defender on the field. The same rule frees a
+  BLOCKED man who is closer than the committer to fall off onto the carrier.
+- **A defender the carrier runs into makes the play**, commit or no commit
+  (`TU("contactAnyPx", 11)`). Only the committer could resolve contact before, so a man a yard and
+  a half off the ball did nothing at all.
+- **At the catch point the ball belongs to whoever is standing on it.** Only the assigned coverage
+  man could break a pass up or intercept it, so a safety sitting ON the catch point had no way to
+  touch the ball. The contest now goes to the nearest defender when he is meaningfully closer
+  (`TU("ballManTakePx", 4)`, `TU("ballManReachPx", 24)`) and it is HIS ratings that decide it; he
+  is the man who returns the interception, and `out.coverPlayer` names him so the box score credits
+  the man who made the play rather than the man who was assigned. This swaps the identity of the
+  contester rather than adding a roll, which is why the rates hold.
+
+Support also **closes** rather than parks: the ring drawn by v109 C2 now tightens the longer the
+committer has had hold (`supportCloseMs`, `supportCloseK`, `supportClosePace`), floored at
+`supportFloorPx` just outside contact range so the convergence stays a picture and not a second
+tackler.
+
+**What it cost the scoreboard:** nothing meaningful. Yards per carry 4.98 → 4.92, points 23.91 →
+24.16, completion 74.0%, turnovers 0.28 → 0.30 over 300 games.
+
 ## v109 — the game looks real
 
 A suite of feel-only changes across the pass, contact, movement and game-flow layers. The rule the

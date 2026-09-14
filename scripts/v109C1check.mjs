@@ -96,7 +96,7 @@ const S = await page.evaluate(() => {
     const q = FS._Q || []; for (let i = before; i < q.length; i++) scan(q[i], r, name)
     return r } }
   wrap('run'); wrap('pass')
-  for (let i = 0; i < 10; i++) window.__simGameV2(60 + i, 'RB')
+  for (let i = 0; i < Number(window.__V109C1_GAMES || 18); i++) window.__simGameV2(60 + i, 'RB')   // v110: the closest man now finishes more stops alone, so the gang sample needs more games
   return A
 })
 console.log('sim:', JSON.stringify({ plays: S.plays, lunges: S.lunges, contact: S.contact, byType: S.byType, instTackles: S.instTackles, wrapIns: S.wrapIns, grabs: S.grabs, drags: S.drags, pileOns: S.pileOns, pileN: S.pileN, fumbles: S.fumbles, bobbles: S.bobbles, quietTrucks: S.quietTrucks }))
