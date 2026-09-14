@@ -11807,14 +11807,21 @@ function decayWearV111(pl,wk){if(!pl)return;
   const W=pl._wearV111;if(W&&W.lingering)W.lingering=W.lingering.map(b=>Object.assign({},b,{games:(b.games|0)-1})).filter(b=>(b.games|0)>0)}
 /* ===== v111 THE FOCUS — three ways to spend a Saturday =====
  * Three position-appropriate picks, one stat each, 1.2x for that game only. Rows are
- * [key, name, icon, stat, description]. */
+ * [key, name, icon, stat, description, alsoEngineKeys?].
+ *
+ * `stat` is the career attribute — it is what the sheet draws and what the player thinks he is
+ * buying. A sixth entry names any EXTRA key FieldSim builds an agent from that the same pick
+ * ought to move: a back's burst really is `burst` to the agents, and a corner living in a
+ * receiver's hip pocket is `coverage` as much as awareness. Those keys are not career attributes,
+ * so they never appear on the sheet and never double the visible gain — they only make the pick
+ * mean on the grass what it says on the card. */
 const FOCUS_V111={
   QB:[["arm","Air It Out","🚀","throwing","Let the arm eat — every throw goes up with more on it."],
       ["poise","Ice In The Veins","🧊","awareness","Stand in, read it out, take what the defence gives."],
       ["release","Quick Release","⚡","quickness","Get it out before the rush can get home."]],
   RB:[["truck","Run Them Over","🚛","strength","Lower the shoulder. Somebody is going to get hurt and it will not be you."],
       ["shifty","Make Them Miss","🌀","agility","Live in the cutback. Feet first, contact last."],
-      ["burst","Hit It And Go","💨","acceleration","One cut, full speed, gone before the second level closes."]],
+      ["burst","Hit It And Go","💨","acceleration","One cut, full speed, gone before the second level closes.",["burst"]]],
   WR:[["hands","Sure Hands","🧤","catching","Everything inside the frame gets caught, contested or not."],
       ["separate","Get Open","🌀","agility","Win at the top of the route and the ball is already there."],
       ["deep","Take The Top Off","💨","speed","Run past them. Make the safety earn his afternoon."]],
@@ -11830,11 +11837,11 @@ const FOCUS_V111={
   LB:[["thump","Bring The Wood","🔨","tackling","Fill the gap and hit the runner, not the hole."],
       ["read","Read And React","🧠","awareness","Diagnose it on the first step and arrive before the play does."],
       ["sideline","Sideline To Sideline","💨","speed","Chase everything. Nothing gets outside you today."]],
-  CB:[["lock","Lock Him Down","🔒","awareness","Live in his hip pocket and take the route away."],
+  CB:[["lock","Lock Him Down","🔒","awareness","Live in his hip pocket and take the route away.",["coverage"]],
       ["ball","Play The Ball","🧤","catching","Turn and find it. Every throw your way is your ball."],
       ["close","Close The Window","💨","speed","Drive on the throw and be there when it arrives."]],
   S :[["hits","Set The Tone","🔨","tackling","Make the crossers hear footsteps for four quarters."],
-      ["range","Cover The Field","💨","speed","Play centre field. Nothing gets behind you."],
+      ["range","Cover The Field","💨","speed","Play centre field. Nothing gets behind you.",["coverage"]],
       ["ball","High Point It","🙌","jumping","Go up and take it away at the top of the jump."]],
   K :[["leg","Swing Big","🦵","strength","Extra range. Trot out for anything inside sixty."],
       ["nerve","Ice Water","🧊","discipline","The crowd does not exist. Same swing every time."],
@@ -11854,16 +11861,18 @@ const SIM_KEYS_V111=["speed","acceleration","burst","quickness","agility","aware
   "blocking","tackling","coverage","catching","jumping","throwing","vision","stamina","grit",
   "discipline","ballControl"];
 function focusForV111(pos){const L=FOCUS_V111[pos]||FOCUS_V111.ATH,mul=f(TU("focusMul",1.2),1,TU("focusMulCeil",1.35));
-  return L.map(r=>({key:r[0],name:r[1],icon:r[2],stat:r[3],statName:(Le[r[3]]&&Le[r[3]].name)||r[3],mul,desc:r[4]}))}
+  return L.map(r=>({key:r[0],name:r[1],icon:r[2],stat:r[3],statName:(Le[r[3]]&&Le[r[3]].name)||r[3],mul,desc:r[4],also:r[5]||[]}))}
 function buffForV111(wk){const pl=(typeof o<"u"&&o)?o.player:null;
   wk=wk===undefined?curWeekV111(pl):wk;if(!wk||!wk.focusV111)return null;
   const hit=focusForV111((pl&&pl.pos)||"ATH").find(x=>x.key===wk.focusV111);
-  return hit?{key:hit.key,stat:hit.stat,mul:hit.mul,name:hit.name,icon:hit.icon}:null}
+  return hit?{key:hit.key,stat:hit.stat,mul:hit.mul,name:hit.name,icon:hit.icon,also:hit.also}:null}
 /* the v111 entries ALONE — a lingering cut and this game's focus — in _tempStatBuffsV25's own
  * shape. Kept separate from the roster's list so nothing the game already does is disturbed. */
 function ownBuffsV111(pl){const out=[];if(!pl)return out;
   const W=pl._wearV111;W&&W.lingering&&W.lingering.forEach(b=>{if(b&&b.stat&&(b.games|0)>0)out.push(b)});
-  const fb=buffForV111(undefined);if(fb&&fb.stat&&pl===((typeof o<"u"&&o)?o.player:null))out.push({stat:fb.stat,mul:fb.mul,v111:"focus"});
+  const fb=buffForV111(undefined);
+  if(fb&&fb.stat&&pl===((typeof o<"u"&&o)?o.player:null)){out.push({stat:fb.stat,mul:fb.mul,v111:"focus"});
+    (fb.also||[]).forEach(k=>out.push({stat:k,mul:fb.mul,v111:"focusAlso"}))}
   return out}
 /* everything the attribute sheet and the engine should see this game */
 function wearBuffsV111(pl){return(((pl&&pl._tempStatBuffsV25)||[]).slice()).concat(ownBuffsV111(pl))}
@@ -13348,12 +13357,12 @@ fa=qi(t,P,r),
  * which is the accessor FieldSim asks for every key it builds an agent from — so this row puts
  * his number against a team-mate's on the same key, and against the roster value it started
  * from. `v111Acheck` reads it: a focus that does nothing on the field shows up here. */
-_fx111=(()=>{try{const fb=(_tb111||[]).find(b=>b&&b.mul!=null);if(!fb)return null;
+_fx111=(()=>{try{const fbs=(_tb111||[]).filter(b=>b&&b.mul!=null);if(!fbs.length)return null;
   const me=c.us.off.find(w=>w&&w.you)||c.us.def.find(w=>w&&w.you);if(!me)return null;
   const unit=c.us.off.indexOf(me)>=0?c.us.off:c.us.def,peer=unit.find(w=>w&&!w.you)||null;
-  return{stat:fb.stat,mul:fb.mul,rosterHas:!!(me.attrs&&me.attrs[fb.stat]!=null),
+  return fbs.map(fb=>({stat:fb.stat,kind:fb.v111||"buff",mul:fb.mul,rosterHas:!!(me.attrs&&me.attrs[fb.stat]!=null),
     base:(me.attrs&&me.attrs[fb.stat])||45,raw:_raw(me,fb.stat),peerRaw:peer?_raw(peer,fb.stat):null,
-    att:_(me,fb.stat),peerAtt:peer?_(peer,fb.stat):null}}catch(_e){return null}})();
+    att:_(me,fb.stat),peerAtt:peer?_(peer,fb.stat):null}))}catch(_e){return null}})();
 return{plays:u,usScore:h,themScore:p,stat:fa,team:xt,oppTeam:ua,roster:c,focusV111:_fx111,
   /* v111: what he ACTUALLY did, which is what the body is billed from */
   snapsV111:{on:_slot111?_snapOn111:null,team:_slot111?_snapTm111:null,share:_share111,touchMul:_touch111,

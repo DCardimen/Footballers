@@ -119,7 +119,8 @@ const res = await page.evaluate(({ N, POS }) => {
     // every focus must name a key FieldSim actually builds an agent from — a buff on a stat
     // nobody asks for would show on the sheet and do nothing on the grass
     focusDeadStats: ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S', 'K', 'ATH']
-      .reduce((bad, p) => bad.concat(V.focusFor(p).filter(x => V.SIM_KEYS.indexOf(x.stat) < 0).map(x => p + ':' + x.stat)), []),
+      .reduce((bad, p) => bad.concat(V.focusFor(p).filter(x => V.SIM_KEYS.indexOf(x.stat) < 0).map(x => p + ':' + x.stat)
+        .concat((V.focusFor(p).flatMap(x => (x.also || []).map(k => [p, x.key, k]))).filter(([, , k]) => V.SIM_KEYS.indexOf(k) < 0).map(([p2, kk, k]) => p2 + ':' + kk + '→' + k))), []),
     buffNull: V.buffFor(undefined) === null,
     normalIsNoop: u.key === 'normal' && u.share === 1 && u.touchMul === 1
   }
@@ -265,17 +266,17 @@ const res = await page.evaluate(({ N, POS }) => {
     pl.pos = p
     for (const pk of V.focusFor(p)) {
       w.focusV111 = pk.key
-      let row = null
-      for (let tries = 0; tries < 4 && !row; tries++) row = window.__simGameV2(60, p).focusV111
+      let rows = null
+      for (let tries = 0; tries < 4 && !rows; tries++) rows = window.__simGameV2(60, p).focusV111
       w.focusV111 = null
-      bite.push(row ? { pos: p, key: pk.key, stat: row.stat, rosterHas: row.rosterHas, base: row.base,
-        raw: round(row.raw, 1), peerRaw: round(row.peerRaw, 1), att: row.att, peerAtt: row.peerAtt,
-        lands: row.raw > row.base * 1.1 } : { pos: p, key: pk.key, stat: pk.stat, lands: false, row: null })
+      bite.push(rows ? { pos: p, key: pk.key, keys: rows.map(r => r.stat + (r.kind === 'focusAlso' ? '*' : '')),
+        on: rows.map(r => ({ stat: r.stat, rosterHas: r.rosterHas, base: r.base, raw: round(r.raw, 1), att: r.att, peerAtt: r.peerAtt })),
+        lands: rows.every(r => r.raw > r.base * 1.1) } : { pos: p, key: pk.key, stat: pk.stat, lands: false, rows: null })
     }
   }
   pl.pos = savedPos
   R.bite = bite
-  R.biteVerdict = { all: bite.every(b => b.lands), dead: bite.filter(b => !b.lands).map(b => b.pos + ':' + b.stat) }
+  R.biteVerdict = { all: bite.every(b => b.lands), dead: bite.filter(b => !b.lands).map(b => b.pos + ':' + b.key + ' ' + (b.keys || [b.stat]).join('+')) }
 
   // ---- the weekly resolver bills the body -----------------------------------------------
   pl._wearV111 = null
