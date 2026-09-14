@@ -13955,6 +13955,9 @@ function pregamePlayerStatsV25(pl){
   +`</div>`;
 }
 window.pregamePlayerStatsV25=pregamePlayerStatsV25;
+/* v112 D: the pregame wizard's last page states the body's swing in one line beside the sheet */
+window.__v112BodySwingD=function(pl){try{const E=effAttrsV85(pl),L=bodyLedgerV73(pl),c=cv18(pl);
+  return{mult:E.mult,pct:Math.round((E.mult-1)*100),fatigue:Math.round(c.fatigue||0),sit:!!L.sit,inj:!!L.inj}}catch(_){return null}};
 /* ===== v85 THE BODY ON THE SHEET, AND THE SEASON AHEAD =====
  * Two things the attribute sheet never said. (1) What the body is doing to the
  * numbers: condMultV54 is the swing the game actually applies (worn or hurt −10%,
@@ -17327,16 +17330,26 @@ function gsSectionV23(oursR,theirsR,pl,wk){
   const auto=scn.find(s=>s.edge)||scn.find(s=>s.key==='bal')||scn[0];
   gsStateV23={scn,adopt,pl,wk,auto,stray:{}};
   if(pl) pl._gameScriptV23={gsPass:gsFinalPass(auto.pass,adopt),name:auto.name,adopt:adopt};
-  const key=v111KeyV111(wk);
+  return gsUsageBlockV23()+gsFocusBlockV23()+gsPlanBlockV23();
+}
+/* v112 D: the same three blocks, each addressable on its own so the wizard can put ONE decision
+ * on one page. Every id, class and number inside them is untouched — gsSectionV23 still hands
+ * back all three in the old order for any caller that wants the single long column. */
+function gsUsageBlockV23(){const S=gsStateV23;if(!S)return'';const pl=S.pl,wk=S.wk,key=v111KeyV111(wk);
   return `<div class="gs-wrap-v23 v111-wrap" id="v111Wrap"><div class="gs-head">🏈 YOUR INVOLVEMENT<small>How much of this game do you carry? Below NORMAL you come off the field and the body keeps what it saves. Above it you were never coming off anyway — what rises is your share of the ball, and what it costs you.</small></div>
     <div class="v111-steps" id="v111Steps">${v111StepsHTML(key)}</div>
     <div class="v111-desc" id="v111Desc">${esc(V111_STEP[key].d)}</div>
     <div class="v111-ledger" id="v111Ledger">${v111LedgerHTML(pl,wk,key)}</div>
-    <div class="v111-parts" id="v111Parts">${v111PartsHTML(pl,wk,key)}</div>
+    <div class="v111-parts" id="v111Parts">${v111PartsHTML(pl,wk,key)}</div></div>`;
+}
+function gsFocusBlockV23(){const S=gsStateV23;if(!S)return'';
+  return `<div class="gs-wrap-v23 v111-focus-wrap" id="v111FocusWrap"><div class="gs-head">🎯 GAME FOCUS<small>Sharpen one thing for this game only — ×${(Math.round(TU("v111FocusMul",1.2)*100)/100).toFixed(1)} on the stat you pick. One at a time; tap it again to drop it.</small></div>
+    <div class="gs-cards" id="v111FocusCards">${v111FocusHTML(S.pl,S.wk)}</div></div>`;
+}
+function gsPlanBlockV23(){const S=gsStateV23;if(!S)return'';
+  return `<div class="gs-wrap-v23 v111-plan-wrap" id="v111PlanWrap"><div class="gs-head">📋 THE COORDINATOR'S PLAN<small>He has already read the scouting report and picked his mix. Nothing here needs you — the bar says how much of the scouted edge he actually runs with.</small></div>
     <div class="v111-plan" id="v111Plan">${v111PlanHTML()}</div>
-    <div class="gs-impact" id="gsImpactV23">${gsImpactHTML(auto,adopt)}</div></div>
-    <div class="gs-wrap-v23 v111-focus-wrap" id="v111FocusWrap"><div class="gs-head">🎯 GAME FOCUS<small>Sharpen one thing for this game only — ×${(Math.round(TU("v111FocusMul",1.2)*100)/100).toFixed(1)} on the stat you pick. One at a time; tap it again to drop it.</small></div>
-    <div class="gs-cards" id="v111FocusCards">${v111FocusHTML(pl,wk)}</div></div>`;
+    <div class="gs-impact" id="gsImpactV23">${gsImpactHTML(S.auto,S.adopt)}</div></div>`;
 }
 // v111: the cards are the coordinator's business now, but the pitch entry point is
 // kept so anything that still calls it behaves exactly as it did.
@@ -17359,6 +17372,164 @@ window.__V111_UI={KEYS:V111_KEYS.slice(),STEP:V111_STEP,
   script:()=>{const S=gsStateV23;return S&&S.pl&&S.pl._gameScriptV23||null},
   pickUsage:k=>window.__v111PickUsageV111(k),pickFocus:k=>window.__v111PickFocusV111(k),
   render:v111RenderV111};
+/* ===== v112 THE PREGAME, ONE DECISION AT A TIME =====
+ * The pregame screen said everything it had to say at once: the scouting report, the stat
+ * sheet, the involvement ladder with its two cost panels and its driver chips, the
+ * coordinator's line, the impact bar and three focus cards, stacked into one column three
+ * phone-screens long. Every one of those is worth reading and none of them was read, because
+ * the thumb was already on its way to the button at the bottom.
+ *
+ * So the same screen is now a four-page wizard, one decision to a page, and nothing else on
+ * that page competing for the answer:
+ *   1. YOUR INVOLVEMENT - the five-step ladder, what it buys against what it costs, and the
+ *      chips that price this particular week.
+ *   2. YOUR FOCUS - the three position cards at x1.2. One tap, or none.
+ *   3. THE SCOUT AND THE PLAN - the opponent read and the mix the coordinator has settled on.
+ *      Informational: it asks nothing and NEXT is always live.
+ *   4. THE IMPACT - the involvement, the focus, the body's swing, the wear this week bills and
+ *      any lingering cut, all stated in one panel, and under it the stat sheet showing the
+ *      EFFECTIVE numbers he actually carries onto the field. Then the button into the game.
+ *
+ * Nothing about the model moved. The blocks on pages 1-3 are gsUsageBlockV23 /
+ * gsFocusBlockV23 / gsPlanBlockV23 - the very markup the long column used, with every id and
+ * handler intact - so week.usageV111, week.focusV111, _gameScriptV23 and __gameScriptBiasV23
+ * are written exactly as before, and every number on page 4 is read back through
+ * window.__V111.forecast(...) the same guarded way the ladder reads it.
+ *
+ * The player is never trapped: the defaults (normal, no focus) are the game precisely as it
+ * was, BACK walks the pages in reverse and off the screen entirely from page 1, and
+ * CONTINUE TO MATCH is on every page - the skip strip on 1-3, the primary button on 4 - so a
+ * man on his tenth season is one tap from the field. ===== */
+const V112_PAGES_D=[
+  {id:"v112Page1",kick:"YOUR INVOLVEMENT",title:"How much of this game is yours?",sub:"Five steps, from spot snaps to every snap. Pick one."},
+  {id:"v112Page2",kick:"YOUR FOCUS",title:"Sharpen one thing",sub:"One stat at ×1.2, this game only. Pick one, or none."},
+  {id:"v112Page3",kick:"THE SCOUT & THE PLAN",title:"Who you are playing",sub:"The read on them, and the mix your coordinator has settled on. Nothing here needs an answer."},
+  {id:"v112Page4",kick:"THE IMPACT",title:"What you take onto the field",sub:"Your involvement, your focus, the body and the bill — all of it, applied."}];
+let v112PageD=0;
+function v112DotsD(i){return V112_PAGES_D.map((p,j)=>`<i class="${j===i?"on":j<i?"lit":""}" data-i="${j}" onclick="__v112GoD(${j})" title="${esc(p.kick)}"></i>`).join("")}
+function v112ShowPageD(i){
+  const n=V112_PAGES_D.length; i=Math.max(0,Math.min(n-1,i|0)); v112PageD=i; const P=V112_PAGES_D[i],last=i===n-1;
+  V112_PAGES_D.forEach((p,j)=>{const el=document.getElementById(p.id); if(el) el.hidden=(j!==i)});
+  const set=(id,txt)=>{const el=document.getElementById(id); if(el) el.textContent=txt};
+  set("v112Kick",`STEP ${i+1} OF ${n} · ${P.kick}`); set("v112Title",P.title); set("v112Sub",P.sub);
+  const d=document.getElementById("v112Dots"); if(d) d.innerHTML=v112DotsD(i);
+  const nx=document.getElementById("v112Next"); if(nx){nx.innerHTML=last?"CONTINUE TO MATCH":"NEXT ›";nx.className=last?"btn v112-go":"btn"}
+  const bk=document.getElementById("v112Back"); if(bk) bk.innerHTML=i?"‹ BACK":"‹ LEAVE";
+  const sk=document.getElementById("v112Skip"); if(sk) sk.hidden=last;
+  if(last) v112RenderFinalD(); else {try{v111RenderV111()}catch(e){}}
+  const sc=document.getElementById("pregameV1513"); if(sc) sc.scrollTop=0;
+}
+window.__v112GoD=function(i){v112ShowPageD(i)};
+window.__v112NextD=function(){if(v112PageD>=V112_PAGES_D.length-1){window.continuePregameV1513&&window.continuePregameV1513();return}v112ShowPageD(v112PageD+1)};
+window.__v112BackD=function(){if(v112PageD<=0){window.closePregameV1513&&window.closePregameV1513();return}v112ShowPageD(v112PageD-1)};
+window.__v112SkipD=function(){window.continuePregameV1513&&window.continuePregameV1513()};
+/* The final page, stated in one panel: everything the week has done to the man before a snap is
+ * played. Read live, through the same guarded accessors the ladder uses, every time the page is
+ * entered - so a choice changed on page 1 or 2 is already in these numbers when he gets here. */
+function v112ImpactHTMLD(){
+  const S=gsStateV23; if(!S) return "";
+  const pl=S.pl,wk=S.wk,key=v111KeyV111(wk);
+  const u=v111UsageV111(pl,wk),fc=v111ForecastV111(pl,wk,key),foc=v111FocusRowV111(pl,wk);
+  const lab=k=>(window.__statLabelV25&&window.__statLabelV25(k))||k;
+  const body=(window.__v112BodySwingD&&window.__v112BodySwingD(pl))||null;
+  let ling=[]; try{const W=(window.__V111&&window.__V111.wear)?window.__V111.wear(pl):(pl&&pl._wearV111);
+    ling=(((W&&W.lingering)||[]).filter(b=>b&&b.stat&&(b.games|0)>0))}catch(e){ling=[]}
+  const cut=Number(fc.statCut)||0,wear=Number(fc.load)||0,inj=Math.round(Number(fc.injPct)||0),miss=Number(fc.gamesMissed)||0;
+  const row=(k,v,c)=>`<div class="v112-imp-row"><span>${k}</span><b${c?` style="color:${c}"`:""}>${v}</b></div>`;
+  const swing=body?body.pct:null;
+  return `<div class="v112-imp" id="v112ImpD"><h4>📈 THE IMPACT ON NEXT GAME</h4>`
+    +row("Involvement",`${esc(u.label||V111_STEP[key].n)} · ${v111Pct(u.share)} snaps · ×${(Math.round((Number(u.touchMul)||1)*100)/100).toFixed(2)} ball`)
+    +row("Game focus",foc?`${esc(foc.name||foc.key)} · ×${(Math.round((Number(foc.mul)||1.2)*100)/100).toFixed(1)} ${esc(lab(foc.stat))}`:"None — nothing sharpened",foc?"#8fe0a0":"var(--chalk-dim)")
+    +(swing!=null?row("Body",`${swing>0?"+"+swing:swing||0}% to every attribute`,swing>0?"#8fe0a0":swing<0?"#e8938b":"var(--chalk)"):"")
+    +(ling.length?row("Lingering",ling.map(b=>`${esc(lab(b.stat))} ${b.mul!=null?"×"+(Math.round(Number(b.mul)*100)/100).toFixed(2):v111Sig(b.amt)} (${b.games|0}g)`).join(", "),"#e8938b"):"")
+    +row("Wear this game",v111Sig(wear),wear>.05?"#e8938b":wear<-.05?"#8fe0a0":"var(--chalk)")
+    +row("Injury chance",inj+"%",inj>=24?"#e8938b":inj<=12?"#8fe0a0":"var(--gold)")
+    +row("Games it costs",(Math.round(miss*10)/10).toFixed(1))
+    +(Math.abs(cut)>=.05?row("Carried into next week",v111Sig(cut),cut<0?"#e8938b":"#8fe0a0"):"")
+    +`<div class="v112-imp-note">The sheet below is what you actually carry onto the field — the focus multiplier, the body's swing and any lingering cut are already in those numbers.</div></div>`;
+}
+function v112RenderFinalD(){
+  const S=gsStateV23; if(!S) return;
+  const im=document.getElementById("v112Impact"); if(im) im.innerHTML=v112ImpactHTMLD();
+  try{const el=document.getElementById("preStatsV25");
+    if(el&&window.pregamePlayerStatsV25&&S.pl) el.outerHTML=window.pregamePlayerStatsV25(S.pl)}catch(e){}
+}
+function v112StyleD(){ if(document.getElementById("v112StyleDEl")) return;
+  document.head.insertAdjacentHTML("beforeend",`<style id="v112StyleDEl">
+  .v112-page[hidden]{display:none!important}
+  .v112-top{text-align:center;padding:6px 2px 4px}
+  .v112-kick{font:700 10px Oswald,sans-serif;letter-spacing:2.4px;color:var(--gold)}
+  .v112-title{font:700 25px Oswald,sans-serif;line-height:1.08;margin-top:6px}
+  .v112-sub{font:400 12.5px system-ui;color:var(--chalk-dim);margin-top:7px;line-height:1.4}
+  .v112-fix{font:600 11px Barlow Condensed,sans-serif;letter-spacing:.7px;color:var(--chalk-dim);margin-top:9px}
+  .v112-fix b{color:var(--chalk)}
+  .v112-dots{display:flex;justify-content:center;gap:7px;margin:12px 0 2px}
+  .v112-dots i{width:38px;max-width:20vw;height:6px;border-radius:3px;background:rgba(255,255,255,.14);cursor:pointer;transition:background .15s}
+  .v112-dots i.lit{background:rgba(240,187,69,.5)}
+  .v112-dots i.on{background:var(--gold)}
+  .v112-page>.gs-wrap-v23{margin-left:0;margin-right:0}
+  .v112-fold{margin-top:10px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03);overflow:hidden}
+  .v112-fold>summary{list-style:none;cursor:pointer;padding:13px 12px;font:700 11px Oswald,sans-serif;letter-spacing:1.3px;color:var(--chalk-dim)}
+  .v112-fold>summary::-webkit-details-marker{display:none}
+  .v112-fold>summary:after{content:"▾";float:right;color:var(--gold)}
+  .v112-fold[open]>summary{border-bottom:1px solid var(--line);color:var(--chalk)}
+  .v112-fold[open]>summary:after{content:"▴"}
+  .v112-fold .pregame-lists-v1513{padding:10px}
+  .v112-flush>div{margin-left:0!important;margin-right:0!important}
+  .v112-page .v111-steps{gap:5px}
+  .v112-page .v111-step{padding:13px 3px 11px;border-radius:10px}
+  .v112-page .v111-step i{height:5px;margin:0 5px 7px}
+  .v112-page .v111-step b{font-size:9.5px}
+  .v112-page .v111-desc{font-size:12.5px;line-height:1.4;margin-bottom:10px}
+  .v112-page .v111-row{font-size:12px}
+  .v112-page .v111-col{padding:8px 10px}
+  /* the upgrade shop's .buy button (border:none, gold shadow, nowrap) leaks onto WHAT IT BUYS,
+     which carries the same class name. It is a panel, not a button — say so louder than .buy does. */
+  .v112-page .v111-col.buy{white-space:normal;box-shadow:none;cursor:default;font:inherit;letter-spacing:normal;color:inherit}
+  .v112-page .gs-cards{gap:10px}
+  .v112-page .gs-card-v23.v111-focus{padding:14px 12px;border-radius:12px}
+  .v112-page .gs-card-v23.v111-focus .gs-card-top{font-size:14.5px}
+  .v112-page .gs-card-v23.v111-focus .gs-why{font-size:12px;margin-top:5px}
+  .v112-imp{margin:0 0 12px;padding:11px 12px;border:1px solid rgba(240,187,69,.34);border-radius:10px;background:rgba(240,187,69,.05)}
+  .v112-imp h4{margin:0 0 7px;font:700 11px Oswald,sans-serif;letter-spacing:1.4px;color:var(--gold)}
+  .v112-imp-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font:600 12px Barlow Condensed,sans-serif;color:var(--chalk-dim);line-height:1.6;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+  .v112-imp-row:last-of-type{border-bottom:0}
+  .v112-imp-row b{font:700 13px Oswald,sans-serif;color:var(--chalk);text-align:right;min-width:0}
+  .v112-imp-note{font:400 10.5px system-ui;color:var(--chalk-dim);line-height:1.35;margin-top:8px;border-top:1px solid rgba(255,255,255,.08);padding-top:7px}
+  .v112-nav{display:flex;gap:9px;margin-top:16px}
+  .v112-nav .btn{margin:0;flex:1 1 0;min-width:0;min-height:52px;font-size:15px}
+  .v112-nav .btn.secondary{flex:0 0 36%;max-width:none}
+  .v112-nav .btn.v112-go{box-shadow:0 0 0 1px rgba(240,187,69,.5) inset}
+  .v112-skip{display:block;width:100%;margin-top:9px;min-height:44px;padding:6px 8px;background:transparent;border:1px dashed rgba(255,255,255,.2);border-radius:10px;color:var(--chalk-dim);font:700 11px Oswald,sans-serif;letter-spacing:1.6px;cursor:pointer}
+  .v112-skip small{display:block;font:400 10px system-ui;letter-spacing:0;margin-top:3px;opacity:.75}
+  .v112-skip:hover{border-color:var(--gold);color:var(--gold)}
+  .v112-skip[hidden]{display:none!important}
+  @media(min-width:560px){.v112-title{font-size:30px}.v112-page .v111-step b{font-size:11px}}
+  </style>`);
+}
+function v112ShellD(a){
+  v112StyleD(); const n=V112_PAGES_D.length;
+  return `<div class="pregame-v1513 v112-wiz-d" id="pregameV1513"><div class="pregame-panel-v1513">
+    <div class="v112-top"><div class="v112-kick" id="v112Kick">STEP 1 OF ${n}</div>
+      <div class="v112-title" id="v112Title">—</div><div class="v112-sub" id="v112Sub">—</div>
+      <div class="v112-fix">${esc(a.fix)} · <b>${esc(a.ourName)}</b> vs <b>${esc(a.theirName)}</b></div>
+      <div class="v112-dots" id="v112Dots">${v112DotsD(0)}</div></div>
+    <div class="v112-page" id="v112Page1">${gsUsageBlockV23()}</div>
+    <div class="v112-page" id="v112Page2" hidden>${gsFocusBlockV23()}</div>
+    <div class="v112-page" id="v112Page3" hidden>${a.scout}${gsPlanBlockV23()}</div>
+    <div class="v112-page" id="v112Page4" hidden><div id="v112Impact"></div><div class="v112-flush">${a.temp}${a.stats}</div></div>
+    <div class="v112-nav"><button class="btn secondary" id="v112Back" onclick="__v112BackD()">‹ LEAVE</button><button class="btn" id="v112Next" onclick="__v112NextD()">NEXT ›</button></div>
+    <button class="v112-skip" id="v112Skip" onclick="__v112SkipD()">CONTINUE TO MATCH<small>skip the rest — your picks stand</small></button>
+  </div></div>`;
+}
+window.__V112_D={PAGES:V112_PAGES_D,page:()=>v112PageD,go:i=>v112ShowPageD(i),
+  next:()=>window.__v112NextD(),back:()=>window.__v112BackD(),skip:()=>window.__v112SkipD(),
+  impact:v112ImpactHTMLD,render:v112RenderFinalD,
+  state:()=>{const S=gsStateV23;if(!S)return null;const pl=S.pl,wk=S.wk,key=v111KeyV111(wk);
+    return {page:v112PageD,key,usage:v111UsageV111(pl,wk),forecast:v111ForecastV111(pl,wk,key),
+      focus:v111FocusRowV111(pl,wk),body:(window.__v112BodySwingD&&window.__v112BodySwingD(pl))||null,
+      weekUsage:(S.wk||S.stray).usageV111,weekFocus:(S.wk||S.stray).focusV111,
+      gsPass:pl&&pl._gameScriptV23?pl._gameScriptV23.gsPass:null}}};
 // v20: full-roster average on the shared scale (falls back to the level anchor)
 function rosterAvg(roster,fb){const a=(Array.isArray(roster)?roster:[]).map(normalize).filter(p=>p.ovr>0);return a.length?a.reduce((s,p)=>s+p.ovr,0)/a.length:fb}
 // v20: unit-by-unit comparison → 2-3 plain-language lines about how this game
@@ -17403,7 +17574,15 @@ function showPregame(ctx,args){
   const lab=winClamped>=70?'Heavy Favorite':winClamped>=57?'Favored':winClamped>45?'Toss-Up':winClamped>=30?'Underdog':'Heavy Underdog';
   const notes=matchupNotes(oursR,theirsR,player);
   pending={ctx,args};document.getElementById('pregameV1513')?.remove();
-  document.body.insertAdjacentHTML('beforeend',`<div class="pregame-v1513" id="pregameV1513"><div class="pregame-panel-v1513"><div class="pregame-head-v1513"><div class="pregame-kicker-v1513">PREGAME · PLAYERS TO WATCH</div><div class="pregame-title-v1513">Top Talent Matchup</div><div class="pregame-sub-v1513">${week?.playoff?esc(week.round||'Playoff'):'Week '+(week?.week||'—')} · your next opponent — top five from each roster</div></div><div class="pregame-match-v1513"><div class="pregame-team-v1513">${pregameEmblemV44(true,ourName)}<b>${esc(ourName)}</b><small>${Math.round(ourOvr)} TEAM OVR</small></div><div class="pregame-vs-v1513">VS</div><div class="pregame-team-v1513 away">${pregameEmblemV44(false,theirName)}<b>${esc(theirName)}</b><small>${Math.round(theirOvr)} TEAM OVR</small></div></div><div class="pregame-odds-v20"><div class="odds-head-v20"><div class="odds-big-v20" style="color:${winClamped>=57?'#7fe0a0':winClamped>45?'var(--gold)':'#ff9a9a'}">${winClamped}%<small>WIN CHANCE</small></div><div class="odds-lab-v20"><b>${esc(lab)}</b><small>${Math.round(ourOvr)} vs ${Math.round(theirOvr)} team OVR${week?.playoff?' · playoff':''}</small></div></div><div class="odds-bar-v20"><i style="width:${winClamped}%"></i></div><div class="odds-notes-v20">${notes.map(n=>`<div class="${n.good?'g':'b'}">${n.good?'▲':'▼'} ${esc(n.txt)}</div>`).join('')}</div></div><div class="pregame-lists-v1513"><div class="pregame-card-v1513"><h3>${esc(ourName)} · TOP 5</h3>${rows(ours)}</div><div class="pregame-card-v1513"><h3>${esc(theirName)} · TOP 5</h3>${rows(theirs)}</div></div>${tempStatsPanel(player,week)}${pregamePlayerStatsV25(player)}${gsSectionV23(oursR,theirsR,player,week)}<div class="pregame-actions-v1513"><button class="btn secondary" onclick="closePregameV1513()">Back</button><button class="btn" onclick="continuePregameV1513()">Continue to Match</button></div></div></div>`);
+  // v112 D: gsSectionV23 is still the thing that prepares gsStateV23, the coordinator's adopted
+  // plan (_gameScriptV23) and the shared stylesheet — the wizard just places its three blocks on
+  // three different pages instead of stacking them in one column.
+  gsSectionV23(oursR,theirsR,player,week);
+  const scoutHTML=`<div class="pregame-match-v1513"><div class="pregame-team-v1513">${pregameEmblemV44(true,ourName)}<b>${esc(ourName)}</b><small>${Math.round(ourOvr)} TEAM OVR</small></div><div class="pregame-vs-v1513">VS</div><div class="pregame-team-v1513 away">${pregameEmblemV44(false,theirName)}<b>${esc(theirName)}</b><small>${Math.round(theirOvr)} TEAM OVR</small></div></div><div class="pregame-odds-v20"><div class="odds-head-v20"><div class="odds-big-v20" style="color:${winClamped>=57?'#7fe0a0':winClamped>45?'var(--gold)':'#ff9a9a'}">${winClamped}%<small>WIN CHANCE</small></div><div class="odds-lab-v20"><b>${esc(lab)}</b><small>${Math.round(ourOvr)} vs ${Math.round(theirOvr)} team OVR${week?.playoff?' · playoff':''}</small></div></div><div class="odds-bar-v20"><i style="width:${winClamped}%"></i></div><div class="odds-notes-v20">${notes.map(n=>`<div class="${n.good?'g':'b'}">${n.good?'▲':'▼'} ${esc(n.txt)}</div>`).join('')}</div></div><details class="v112-fold"><summary>PLAYERS TO WATCH · top five from each roster</summary><div class="pregame-lists-v1513"><div class="pregame-card-v1513"><h3>${esc(ourName)} · TOP 5</h3>${rows(ours)}</div><div class="pregame-card-v1513"><h3>${esc(theirName)} · TOP 5</h3>${rows(theirs)}</div></div></details>`;
+  const fix=(week?.playoff?(week.round||'Playoff'):'WEEK '+(week?.week||'—'));
+  document.body.insertAdjacentHTML('beforeend',v112ShellD({fix,ourName,theirName,scout:scoutHTML,
+    temp:tempStatsPanel(player,week),stats:pregamePlayerStatsV25(player)}));
+  v112ShowPageD(0);
 }
 function installPregame(){
   const fn=window.chooseGamePlanV11;
