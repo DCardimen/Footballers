@@ -259,7 +259,7 @@ const modeRun = await page.evaluate(async () => {
   window.camModeSet112(0)
   const med = (xs) => { const s = xs.slice().sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : 0 }
   return acc.map(a => ({ i: a.i, mode: a.mode, frames: a.frames, carry: a.z.length, moved: a.moved, nr: a.rounds.length,
-    z: +med(a.rounds).toFixed(4), pooled: +(a.z.reduce((x, y) => x + y, 0) / Math.max(1, a.z.length)).toFixed(4) }))
+    z: +med(a.z).toFixed(4), mean: +(a.z.reduce((x, y) => x + y, 0) / Math.max(1, a.z.length)).toFixed(4) }))
 })
 if (SHOTS) for (const [i, nm] of [[0, 'mode_broadcast'], [1, 'mode_tight'], [2, 'mode_wide'], [3, 'mode_fixed']]) {
   await page.evaluate(m => window.camModeSet112(m), i)
@@ -269,14 +269,15 @@ if (SHOTS) for (const [i, nm] of [[0, 'mode_broadcast'], [1, 'mode_tight'], [2, 
 await page.evaluate(() => window.camModeSet112(0))
 console.log('modes:', JSON.stringify(modeRun))
 const [B, TG, W, FX] = modeRun
-// The comparison is the MEDIAN of each behaviour's per-round mean, not one pooled mean. Each round
-// samples whatever play the game happens to be running, and a single round that drew a long run in
-// open space moves a pooled mean by more than the behaviours differ from each other — which made
-// this assertion fail about one run in three on a build it was right about. The median of nine
-// rounds asks the question the assertion means to ask: on a TYPICAL carry, does Tight sit closer.
-ok(modeRun.every(r => r.frames > 40) && [B, TG, W].every(r => r.carry >= 15 && r.nr >= 4) && TG.z > B.z * 1.04 && W.z < B.z * 0.96 && TG.z > W.z * 1.25,
+// The comparison is the MEDIAN carry-frame zoom, not the mean. A round-robin over nine rounds still
+// samples whatever play the game happens to be running, and one round that drew a long run in open
+// space moves a MEAN by more than the behaviours differ from each other — which made this assertion
+// fail about one run in three on a build it was right about. The median asks what the assertion
+// means to ask: on a TYPICAL carry frame, does Tight sit closer than Broadcast. (A median over
+// rounds rather than frames starves — most 70-frame rounds hold only a handful of carry frames.)
+ok(modeRun.every(r => r.frames > 40) && [B, TG, W].every(r => r.carry >= 25) && TG.z > B.z * 1.04 && W.z < B.z * 0.96 && TG.z > W.z * 1.25,
   'Tight frames closer than Broadcast and Wide wider than both, measured on the live field with a man carrying the ball',
-  `broadcast ${B.z} · tight ${TG.z} · wide ${W.z} (median of ${B.nr}/${TG.nr}/${W.nr} rounds; pooled ${B.pooled}/${TG.pooled}/${W.pooled} over ${B.carry}/${TG.carry}/${W.carry} carry frames)`)
+  `broadcast ${B.z} · tight ${TG.z} · wide ${W.z} (median over ${B.carry}/${TG.carry}/${W.carry} carry frames; mean ${B.mean}/${TG.mean}/${W.mean})`)
 ok(FX.frames > 40 && FX.moved === 0 && B.moved > 10,
   'and Fixed does not move the camera at all, while Broadcast moves it almost every frame',
   `fixed moved on ${FX.moved}/${FX.frames} in-play frames · broadcast ${B.moved}/${B.frames}`)
