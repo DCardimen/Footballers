@@ -6771,7 +6771,8 @@ class Ot extends mt.Scene {
     const hid = P.ballHolderId != null ? P.ballHolderId : P.carrierId;
     const man = (!glide && !air && !loose && hid != null) ? this.markers[hid] : null;
     if (man && man.root) return { m: man, id: hid, x: man.root.x, y: man.root.y, kind: "carry" };
-    const bx = this.ballSpr ? this.ballSpr.x : FW / 2, by = this.ballSpr ? this.ballSpr.y : WORLD_H / 2;
+    const fp = this.focusPt || { x: FW / 2, y: WORLD_H / 2 };
+    const bx = this.ballSpr ? this.ballSpr.x : fp.x, by = this.ballSpr ? this.ballSpr.y : fp.y;
     if (!air) {
       /* On a kick the ball is with the deep man a tenth of a second after the snap, and he stands
        * fourteen yards behind the ball: framed on the spot, the camera spent the whole long snap

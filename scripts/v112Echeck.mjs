@@ -135,10 +135,11 @@ await page.evaluate(() => {
     let bx = sc.ballSpr ? sc.ballSpr.x : null, by = sc.ballSpr ? sc.ballSpr.y : null, src = 'ball'
     if (mm && mm.root) { bx = mm.root.x; by = mm.root.y; src = 'man' }
     if (bx == null) return null
+    if (P.done && !P.post) return null                      // the gap between the gather and the next snap
     const phase = P.done ? 'post' : glide ? 'glide' : loose ? 'loose'
       : mode === 'kick' ? 'kick' : (mode === 'flight' || mode === 'tip') ? 'flight'
         : hid == null ? 'ground' : hid >= 11 ? 'return' : 'carry'
-    return { phase, src, bx, by, cx: cam.midPoint.x, cy: cam.midPoint.y, z: cam.zoom,
+    return { phase, src, bx, by, hid, snapped: !!P.snapped, cx: cam.midPoint.x, cy: cam.midPoint.y, z: cam.zoom,
       fx: Math.abs(cam.midPoint.x - bx) / (720 / (2 * cam.zoom)), fy: Math.abs(cam.midPoint.y - by) / (576 / (2 * cam.zoom)),
       ev: String((P.payload && P.payload.event) || ''), def: hid != null && hid >= 11 }
   }
@@ -170,14 +171,15 @@ while (Date.now() - t0 < MS) {
   if (st.tok) plays.add(st.tok)
   if (SHOTS) {
     if (st.hit && st.ev === 'tackle' && st.age < 400 && shotWant.get('tackle')) { shotWant.set('tackle', 0); await grab('tackle') }
-    else if (st.ph === 'return' && st.age < 2500 && (st.ev === 'pick' || st.ev === 'recover') && shotWant.get('ret')) { shotWant.set('ret', 0); await grab('interception_return') }
-    else if (st.ph === 'carry' && st.ev === 'catch' && st.age < 600 && shotWant.get('catch')) { shotWant.set('catch', 0); await grab('completed_pass') }
+    else if (st.ph === 'return' && shotWant.get('ret')) { shotWant.set('ret', 0); await grab('turnover_return') }
+    else if (st.ph === 'carry' && st.ev === 'catch' && st.age > 450 && st.age < 1400 && shotWant.get('catch')) { shotWant.set('catch', 0); await grab('completed_pass') }
     else if (st.ph === 'flight' && shotWant.get('flight')) { shotWant.set('flight', 0); await grab('pass_in_flight') }
     else if (st.ph === 'kick' && shotWant.get('kick')) { shotWant.set('kick', 0); await grab('kick_in_the_air') }
     else if (st.inSpace && shotWant.get('carry')) { shotWant.set('carry', 0); await grab('run_in_space') }
   }
 }
 const rows = await page.evaluate(() => window.__v112.rows)
+if (SHOTS) fs.writeFileSync(`${SHOTS}/rows.json`, JSON.stringify(rows))
 const V = await page.evaluate(() => window.__V112_E || {})
 const V109 = await page.evaluate(() => (window.__V109_E || {}).cam || {})
 
@@ -240,10 +242,10 @@ const modeRun = await page.evaluate(async () => {
       if (!P || P.done) { px = null; continue }                 // only measure INSIDE a live play
       if (t !== tok) { tok = t; px = null }                     // a new play re-frames on its own line
       a.z.push(c.zoom); a.frames++
+      a.mode = (window.__V112_E || {}).mode                   // read ON an in-play frame, not in the gap
       if (px != null) { if (Math.hypot(c.midPoint.x - px, c.midPoint.y - py) > 0.5) a.moved++ }
       px = c.midPoint.x; py = c.midPoint.y
     }
-    a.mode = (window.__V112_E || {}).mode
   }
   for (let round = 0; round < 3; round++) for (const a of acc) await sample(a)
   window.camModeSet112(0)
