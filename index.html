@@ -10376,7 +10376,8 @@ class Ot extends mt.Scene {
       g.strokePoints(cap, false);
       const m = P[P.length >> 1];
       dbg.band.push({ kind: B.wall.kind, n: P.length, k: +m.k.toFixed(3), h: +(HH * m.k * FR).toFixed(1),
-        mid: [Math.round(m.sx), Math.round(m.sy)], midTop: [Math.round(top(m).x), Math.round(top(m).y)] });
+        mid: [Math.round(m.sx), Math.round(m.sy)], midTop: [Math.round(top(m).x), Math.round(top(m).y)],
+        foot: foot.map((p) => [+p.x.toFixed(2), +p.y.toFixed(2)]) });
     }
     // ---- the way out
     const B = built.find((b) => b.wall && b.wall.kind === "bowl");
@@ -10406,7 +10407,7 @@ class Ot extends mt.Scene {
         g.lineStyle(Math.max(1, TU("tunnelFramePx", 2) * (seg[M >> 1].k / 0.43)), TU("baseBandLipCol", 0x6f9be6), 0.95);
         g.strokePoints(arch, false);
         dbg.ent = { i0, i1, n: seg.length, k: +seg[M >> 1].k.toFixed(3),
-          h: +(mid.y - base.y).toFixed(1), w: +Math.hypot(mouth[M].x - mouth[0].x, mouth[M].y - mouth[0].y).toFixed(1),
+          h: +(base.y - mid.y).toFixed(1), w: +Math.hypot(mouth[M].x - mouth[0].x, mouth[M].y - mouth[0].y).toFixed(1),
           mouth: mouth.map((p) => [Math.round(p.x), Math.round(p.y)]), arch: arch.map((p) => [Math.round(p.x), Math.round(p.y)]) };
       }
     }
