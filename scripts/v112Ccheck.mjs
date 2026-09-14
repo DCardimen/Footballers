@@ -129,6 +129,20 @@ ok(grow.rows[grow.rows.length - 1].h === grow.proj.height && grow.rows[grow.rows
 
 /* ---------- 4. no penalty on a first-ever character ---------- */
 ok((await page.evaluate(() => window.__V112_C.mul())) === 1, 'a first career carries no penalty')
+/* the neutrality argument, made exactly rather than statistically: with no penalty the reroll
+ * factor is the number 1, so condMultV54 returns one of its three original constants unchanged —
+ * and condMultV54 is the ONLY thing v112 (C) touches that the live engine can reach. */
+const neutral = await page.evaluate(() => {
+  const p = window.S.player, c = p.conditionV11 || (p.conditionV11 = { fatigue: 20 }), keep = { ...c }
+  const out = {}
+  c.injury = null; c.fatigue = 50; out.mid = window.__condMultV54(p)
+  c.fatigue = 90; out.worn = window.__condMultV54(p)
+  c.fatigue = 5; out.fresh = window.__condMultV54(p)
+  Object.assign(c, keep)
+  return { ...out, factor: window.__V112_C.mul() }
+})
+ok(neutral.factor === 1 && neutral.mid === 1 && neutral.worn === 0.9 && neutral.fresh === 1.05,
+  'with no penalty condMultV54 is bit-identical to its pre-v112 constants (1 / 0.90 / 1.05)', neutral)
 ok((await page.evaluate(() => window.__V112_C.eff().mult)) === (await page.evaluate(() => window.__condMultV54(window.S.player))),
   'the sheet and the sim read the SAME multiplier')
 
@@ -158,6 +172,23 @@ const chip = await page.evaluate(() => {
   return { present: !!el, txt: el ? (el.innerText || el.textContent || '').trim() : '' } })
 ok(chip.present && /5%/.test(chip.txt), 'the penalty is drawn on the screen', chip.txt)
 
+/* ---------- 5b. the LIVE SIM really reads it: count the calls during a real game ----------
+ * _raw() multiplies the you-player's every attribute by window.__condMultV54(o.player) before
+ * the engine plays with it. Wrap that export in a counter and play a game: if the count moves,
+ * the penalty is inside the simulation, not merely printed on the sheet. */
+const simReads = await page.evaluate(() => {
+  const real = window.__condMultV54
+  let n = 0, seen = new Set()
+  window.__condMultV54 = function (e) { const v = real.apply(this, arguments); n++; seen.add(v); return v }
+  let plays = 0
+  try { const r = window.__simGameV2(60, 'QB'); plays = r.plays.length } catch (_) {}
+  window.__condMultV54 = real
+  return { n, plays, values: [...seen], armedValue: real(window.S.player) }
+})
+ok(simReads.n > 0, 'the live sim asks for the multiplier while it plays', `${simReads.n} reads over ${simReads.plays} rows`)
+ok(simReads.values.length === 1 && Math.abs(simReads.values[0] - simReads.armedValue) < 1e-9,
+  'and the value it gets is the penalised one', simReads.values)
+
 /* ---------- 6. it survives a reload ---------- */
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1800)
 await page.waitForFunction(() => !!window.__V112_C, null, { timeout: 30000 })
@@ -180,19 +211,28 @@ const clears = await page.evaluate(() => {
 ok(clears.same === 0.95 && clears.back === 0.95, 'still charged while he is on the same level', clears)
 ok(clears.up === 1, 'one promotion and it is paid off', clears)
 
-/* ---------- 9. a career that ENDED naturally is not a reroll ---------- */
-const settled = await page.evaluate(() => {
-  window.S.rerollV112 = null
-  window.S.player._settled = true                       // what the cut screen and the retirement screen set
-  const wasAbandoned = window.__V112_C.abandoned()
-  window.S.player = null                                // what prestigeReset/Hl leaves behind
-  const noPlayer = window.__V112_C.abandoned()
-  return { wasAbandoned, noPlayer }
+/* ---------- 9. a career that ENDED naturally is not a reroll ----------
+ * Both endings funnel through the same screen: running out of seasons / being cut renders the
+ * career-result screen (`gameover`), and a FAILED DECLARE lands on `declineResult` and then hands
+ * off to that same screen (declarecheck.mjs walks that route). The screen is what sets
+ * player._settled as it pays the prestige out, so driving the real screen — not setting a flag by
+ * hand — is what proves the two endings are told apart. */
+await page.evaluate(() => { window.S.rerollV112 = null })
+const ended = await page.evaluate(() => {
+  window.endCareer()                                    // the real career-result screen
+  const txt = (document.getElementById('screen') || {}).innerText || ''
+  return { view: window.S.view, settled: !!window.S.player._settled, abandoned: window.__V112_C.abandoned(),
+    epitaph: /End of the Road|Career Log/i.test(txt) }
 })
-ok(settled.wasAbandoned === false, 'a settled (finished) career is NOT an abandonment')
-ok(settled.noPlayer === false, 'and neither is having no player at all')
+ok(ended.view === 'gameover' && ended.epitaph, 'the real career-result screen renders', ended.view)
+ok(ended.settled === true, 'ending a career settles it (the screen sets _settled as it pays out)')
+ok(ended.abandoned === false, 'a settled (finished) career is NOT an abandonment')
+const afterReset = await page.evaluate(() => { window.prestigeReset(); return { player: window.S.player, abandoned: window.__V112_C.abandoned() } })
+ok(afterReset.player === null && afterReset.abandoned === false, 'and neither is the empty slot prestigeReset leaves behind')
+dialogs.length = 0
 const fresh = await page.evaluate(() => { window.startCareer(); const p = window.S.player; return { ledger: window.__V112_C.ledger(), mul: window.__V112_C.mul(), traits: p.traits.length, offer: (p.traitOfferV112 || []).length } })
-ok(fresh.mul === 1 && !fresh.ledger, 'the career after a natural ending carries no penalty', fresh)
+ok(dialogs.length === 0, 'starting the next career after a natural ending asks for nothing', dialogs)
+ok(fresh.mul === 1 && !fresh.ledger, 'and it carries no penalty', fresh)
 ok(fresh.traits === 1 && fresh.offer === 2, 'and it is still one guaranteed trait plus two cards', fresh)
 
 ok(errs.length === 0, 'no page errors', errs.slice(0, 3))

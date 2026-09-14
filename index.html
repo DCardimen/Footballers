@@ -13841,9 +13841,9 @@ const POS_POOL=e=>Math.max(1,Math.round(NAT_POOL(e)/9));function br(e,t,a){const
 window.setPlayerNameV96=function(v){if(!o.player)return;const t=String(v||"").replace(/\s+/g," ").trim().slice(0,24);t&&(o.player.name=t,I())};window.rerollNameV96=function(){if(!o.player)return;o.player.name=W(Xo)+" "+W(Zo),I();const e=document.getElementById("playerNameV96");e&&(e.value=o.player.name)};
 function Lr(){const e=o.player,t=ns(e.attrs,e.body),a=t[0].ovr,s=ee.slice().sort((i,r)=>e.attrs[r]-e.attrs[i]).slice(0,3),n=bodyOfV112(e)||e.body,pj=e.body;x("screen").innerHTML=`
     <div class="eyebrow">Age ${e.age} · ${A[e.level].name}</div>
-    ${rerollNoteV112(e)}
     <div class="h1 name-edit-v96"><input id="playerNameV96" value="${String(e.name).replace(/&/g,"&amp;").replace(/"/g,"&quot;")}" maxlength="24" autocomplete="off" spellcheck="false" aria-label="Player name" oninput="setPlayerNameV96(this.value)"><button type="button" class="name-dice-v96" onclick="rerollNameV96()" title="Roll another name">🎲</button></div>
     <div class="small name-hint-v96">Tap the name to make it yours</div>
+    ${rerollNoteV112(e)}
     <div class="card tight" style="border-color:#4a90c9">
       <div class="l" style="font-size:11px;color:#7ab6e0;letter-spacing:2px;margin-bottom:6px">🧍 PHYSICAL PROFILE · TODAY, AGE ${e.age} — ${Ri(n)}</div>
       <div class="statline">
