@@ -2533,6 +2533,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       const vz = cl(TU("launchVzBase", .1) + (pow - gate) * TU("launchVzK", .0011), TU("launchVzMin", .1), TU("launchVzMax", .17));
       return { vz: +vz.toFixed(4), pow: Math.round(pow) };
     };
+    try { (root.__V112_F_SIM = root.__V112_F_SIM || {}).launch = launchV112; } catch (e) {}   // v112: v112Fcheck sweeps the collision's inputs through the real function
     // returns: "cooldown" | "whiff" | "stiffarm" | "broken" | "stagger" (stays up) | "tackle" (play ends)
     const contact = (d, c) => {
       if (t < d.cool) return "cooldown";
@@ -8636,7 +8637,10 @@ class Ot extends mt.Scene {
             m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + 300; m._launchH = 14;
             this.time.delayedCall(280, () => { if (m.active !== false) { m.forceState = "down"; } });
           }
-          BADGE_V95.show("bighit", { sub: "HIT STICK", x: e.x, y: e.y, scene: this });   // v95
+          // v112: on a launch the callout waits for the LANDING — the takeover's freeze and the
+          // full-field badge otherwise sit on top of the very arc they are celebrating
+          if (willFly112) this.time.delayedCall(TU("launchBadgeDelayMs", 420), () => BADGE_V95.show("bighit", { sub: "OFF HIS FEET", x: e.x, y: e.y, scene: this }));
+          else BADGE_V95.show("bighit", { sub: "HIT STICK", x: e.x, y: e.y, scene: this });   // v95
           /* v103 IMPACT WEIGHT — every big hit used to shake the camera by exactly the same
            * amount for exactly the same time. The sim already measured the collision (the
            * knock-back it produced and how many men were in it), so the picture uses it: a
@@ -8891,7 +8895,7 @@ class Ot extends mt.Scene {
           this.hookV112F().flying++;
           if (m.body) m.body.setAlpha(0.85);
           this.time.delayedCall(TU("launchDownMs", 900), () => { if (m.body) { m.body.setAlpha(1); if (m.forceState === "down" && !m._flyV112) m.forceState = null; } });
-          BADGE_V95.show("bighit", { sub: e.hitStick ? "TRUCKED HIM" : "OFF HIS FEET", x: e.x, y: e.y, scene: this });
+          this.time.delayedCall(TU("launchBadgeDelayMs", 420), () => BADGE_V95.show("bighit", { sub: e.hitStick ? "TRUCKED HIM" : "OFF HIS FEET", x: e.x, y: e.y, scene: this }));   // v112: the callout lands with him
           this.hitStop = Math.max(this.hitStop, TU("hitStopBig", 120));
           this.puffFx(e.x, e.y, 6); vib(48);
           REDUCED_MOTION || this.cameras.main.shake(240, 0.014);
@@ -10060,7 +10064,7 @@ class Ot extends mt.Scene {
         m._flySpinV112 = FLY.spin * Math.max(0, 1 - j) * 0.6;
       }
       flyDX = (FLY.x0 - sx) * (1 - FLY.k); flyDY = (FLY.y0 - sy) * (1 - FLY.k);
-      FLY.lift = flyLift;
+      FLY.lift = flyLift; FLY.dx = flyDX; FLY.dy = flyDY; FLY.fx = sx + flyDX; FLY.fy = sy + flyDY;   // what he is actually drawn on, for the check
     } else if (m._flySpinV112) m._flySpinV112 = 0;
     const p = PJ(sx + flyDX, sy + flyDY);
     // v83 2.5D: paired sprites are pushed apart on screen so the man behind still reads —
@@ -17841,7 +17845,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     launchImpactK: 1, launchStrK: 0.9, launchKbK: 2.4, launchStickPow: 26, launchLevK: 1.6, launchBehindPow: 40,
     launchMassMin: 0.6, launchMassMax: 1.8, launchVzBase: 0.1, launchVzK: 0.0011, launchVzMin: 0.1, launchVzMax: 0.17,
     launchG: 0.001, launchSkid: 0.22, launchSkidMs: 150, launchSkidK: 0.5,
-    launchBounceK: 0.17, launchBounceFrac: 0.55, launchSpin: 0.38, launchDownMs: 900,
+    launchBounceK: 0.17, launchBounceFrac: 0.55, launchSpin: 0.38, launchDownMs: 900, launchBadgeDelayMs: 420,
     containWideY: 46, containLxMax: 22, containDepth: 10, containWide: 16,
     holdFlagMs: 900, dpiSep: -0.8, holdFlagP: 0.5, dpiFlagP: 0.2, fmFlagP: 0.08,
     safetyRoofLx: 55, safetyCushion: 44,
