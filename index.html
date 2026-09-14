@@ -11645,6 +11645,251 @@ function bodyLedgerV73(e){
     net:swing,verdict:sit?"UNAVAILABLE":swing>=.8?"NET POSITIVE":swing<=-.8?"NET NEGATIVE":"NEUTRAL"};
 }
 window.__BODY_V73={ledger:e=>bodyLedgerV73(e)};
+/* ===== v111 THE SEASON IS ON HIM — wear and tear in the body card =====
+ * The v73 ledger answers one question and answers it well: what is this body
+ * worth in the NEXT game. It says nothing about the season, because until the
+ * involvement dial existed there was no season-long decision to say anything
+ * about — every week charged the body the same amount and the player had no
+ * hand on the tap. Now he does, and the ledger's silence is the whole problem:
+ * he can spend his legs a week at a time with no statement of the bill, and the
+ * only place the bill arrives is a semifinal he watches in a tracksuit.
+ *
+ * So this section prices the tap. It reads the load his body is already carrying
+ * and shows WHERE it came from (the heavy weeks stand up out of the season as
+ * bars you can point at), it prices the next game at the involvement he has
+ * actually chosen — the wear it adds, the injury chance, the games it is
+ * expected to cost, the rating he carries into the game after it — and it
+ * itemises the three things that set that price: his own durability, the
+ * opponent, and what the fixture is worth. Then it says the tradeoff out loud in
+ * one line, because that line is the feature and the table is only the evidence.
+ *
+ * Everything here is a READ. Nothing in this block moves a number the sim uses.
+ * The model is window.__V111 (agent A); every call into it is guarded and falls
+ * back to a local estimate built from injChanceV54 / condMultV54 / the schedule,
+ * so the card is honest on a save that has never met the model at all. ===== */
+const WEAR_KEYS_V111=["limited","reduced","normal","heavy","everysnap"];
+const WEAR_LBL_V111={limited:"LIMITED",reduced:"REDUCED",normal:"NORMAL",heavy:"HEAVY",everysnap:"EVERY SNAP"};
+const WEAR_SHARE_V111={limited:.5,reduced:.75,normal:1,heavy:1.22,everysnap:1.45};
+const WEAR_STAKE_V111={routine:1,evaluation:1.12,rivalry:1.18,playoff:1.32,championship:1.55};
+function wearApiV111(){try{const a=window.__V111;return a&&typeof a.forecast=="function"?a:null}catch(_){return null}}
+function wearNextV111(e){try{return(e&&e.weekResults||[]).find(w=>w&&!w.played)||null}catch(_){return null}}
+function wearKeyV111(e,wk){const k=wk&&wk.usageV111;return WEAR_KEYS_V111.indexOf(k)>=0?k:"normal"}
+function wearOppRefV111(e){return 45+((e&&e.level)||0)*5.5}
+// the local estimate — the same shape __V111.forecast returns, built out of numbers
+// that already exist on this screen, so a worktree with no model still reads true
+function wearStubV111(e,wk,key){
+  const share=WEAR_SHARE_V111[key]!=null?WEAR_SHARE_V111[key]:1;
+  const c=(typeof cv18=="function"&&cv18(e))||{},fat=c.fatigue||0;
+  const resist=(e&&e.attrs&&e.attrs.injuryResist)||10;
+  const durMul=f(TU("wearDurHiV111",1.5)-resist*TU("wearDurKV111",.009),TU("wearDurLoV111",.55),TU("wearDurHiV111",1.5));
+  const op=(wk&&wk.opponentV11)||null,ref=wearOppRefV111(e);
+  const phys=op&&op.physicality!=null?(Number(op.physicality)-50)/100*TU("wearPhysKV111",.3):0;
+  const oppMul=f(1+(((op&&op.rating)||ref)-ref)/TU("wearOppScaleV111",70)+phys,.65,1.8);
+  const imp=(op&&op.importance)||(wk&&wk.playoff?"playoff":"routine");
+  const stakes=WEAR_STAKE_V111[imp]||1;
+  const worn=1+f(((e&&e._wearV111&&e._wearV111.load)||0)/TU("wearScaleV111",120),0,1.4)*TU("wearWornKV111",.35);
+  // the multipliers compound, so the product is compressed rather than clipped — a
+  // brutal week stays the most expensive week without becoming the whole season, and
+  // a neutral one (every driver at 1) still comes out at exactly the base
+  const mul=f(Math.pow(share*durMul*oppMul*stakes*worn,TU("wearMulGammaV111",.72)),TU("wearMulMinV111",.3),TU("wearMulMaxV111",3.4));
+  const load=Math.max(0,TU("wearBaseLoadV111",9)*mul);
+  let risk=0;try{risk=(typeof mustSitV18=="function"&&mustSitV18(e))?0:injChanceV54(e,{wk})}catch(_){risk=.12}
+  const injPct=f(risk*share*(1+(stakes-1)*TU("wearStakeInjKV111",.5)),0,TU("wearInjCapV111",.7))*100;
+  const fatigueAfter=f(fat+load*TU("wearFatigueKV111",.62)-TU("wearRestV111",6),0,100);
+  const mAfter=fatigueAfter>=TU("wornFatigue",70)?TU("condWorn",.9):fatigueAfter<=TU("freshFatigue",25)?TU("condFresh",1.05):1;
+  let base=58;try{base=bodyLedgerV73(e).base}catch(_){}
+  return{load,fatigueAfter,injPct,gamesMissed:injPct/100*TU("injExpMissed",.92),statCut:base*(mAfter-1),
+    parts:[{label:"Durability",mul:durMul},{label:"Opponent",mul:oppMul},{label:"Stakes",mul:stakes},{label:"Already worn",mul:worn}],
+    stakes,oppMul,durMul,stub:!0};
+}
+function wearForecastV111(e,wk,key){
+  const api=wearApiV111();
+  if(api){try{const r=api.forecast(e,wk,key);if(r&&isFinite(Number(r.load)))return r}catch(_){}}
+  return wearStubV111(e,wk,key);
+}
+// what a week ALREADY cost. Agent A stamps the charge on the week; a week that
+// predates the model (or a save that never met it) is estimated the same way the
+// forecast is, and says so, rather than leaving a hole in the season.
+function wearWeekLoadV111(e,w){
+  if(!w||!w.played||w.satOut)return null;
+  let v=w.wearV111!=null?w.wearV111:(w.wearLoadV111!=null?w.wearLoadV111:w.loadV111);
+  if(v&&typeof v=="object")v=v.load;
+  if(v!=null&&isFinite(Number(v)))return{load:Math.max(0,Number(v)),est:!1};
+  try{return{load:wearStubV111(e,w,wearKeyV111(e,w)).load,est:!0}}catch(_){return{load:0,est:!0}}
+}
+function wearHistV111(e){
+  const out=[];try{(e&&e.weekResults||[]).forEach((w,i)=>{const L=wearWeekLoadV111(e,w);if(!L)return;
+    out.push({week:w.week||i+1,opp:w.opp||"",key:wearKeyV111(e,w),load:L.load,est:L.est,
+      playoff:!!w.playoff,importance:(w.opponentV11&&w.opponentV11.importance)||"routine"})})}catch(_){}
+  return out;
+}
+// the band names the MILEAGE, never the freshness — the v73 ledger three inches
+// above is already talking about fatigue, and a body can be rested today and still
+// be carrying a season it will not survive
+function wearBandV111(pct){
+  return pct<TU("wearBandFreshV111",20)?{n:"LIGHT",c:"#57e07a",d:"barely been touched"}
+    :pct<TU("wearBandManagedV111",45)?{n:"MANAGED",c:"#7fe0a0",d:"carrying it fine"}
+    :pct<TU("wearBandLoadedV111",70)?{n:"LOADED",c:"var(--gold)",d:"the season is on him"}
+    :pct<TU("wearBandWornV111",88)?{n:"HIGH MILEAGE",c:"#ffb74d",d:"running on what is left"}
+    :{n:"BREAKING DOWN",c:"#ff8a80",d:"one hit from the sideline"};
+}
+function wearLingerV111(e){
+  const out=[],seen={};
+  const add=b=>{if(!b||!b.stat)return;const g=Math.round(Number(b.games!=null?b.games:b.weeks));if(!(g>0))return;
+    const amt=b.max?-10:Math.round(Number(b.amt)||0),k=b.stat+"|"+g+"|"+amt;if(seen[k])return;seen[k]=1;
+    let nm=b.stat;try{nm=(window.__statLabelV25&&window.__statLabelV25(b.stat))||b.stat}catch(_){}
+    out.push({stat:b.stat,name:String(nm),amt,games:g})};
+  try{(e&&e._tempStatBuffsV25||[]).forEach(add)}catch(_){}
+  try{((e&&e._wearV111&&e._wearV111.lingering)||[]).forEach(add)}catch(_){}
+  return out.sort((a,b)=>a.amt-b.amt);
+}
+// the three drivers, always present and always in the same order, whether the model
+// named them in parts[] or the estimate had to work them out
+function wearDriversV111(e,wk,fc){
+  const P=Array.isArray(fc.parts)?fc.parts:[];
+  const pick=re=>P.find(p=>p&&re.test(String(p.label||"")));
+  const op=(wk&&wk.opponentV11)||null;
+  const resist=Math.round((e&&e.attrs&&e.attrs.injuryResist)||0);
+  const d=pick(/dur|resist|tough|frame/i),o2=pick(/opp|matchup|defen|front/i),s=pick(/stake|round|fixture|import|occasion/i);
+  const stakeName=(wk&&wk.round)||(op&&op.importance==="championship"?"Championship":op&&op.importance==="playoff"?"Playoff":op&&op.importance==="rivalry"?"Rivalry game":op&&op.importance==="evaluation"?"Evaluation game":"Regular week");
+  const extra=P.filter(p=>p&&p!==d&&p!==o2&&p!==s&&isFinite(Number(p.mul)));
+  return[{k:"DURABILITY",mul:d?Number(d.mul):(fc.durMul!=null?Number(fc.durMul):1),note:"resist "+resist},
+    {k:"OPPONENT",mul:o2?Number(o2.mul):(fc.oppMul!=null?Number(fc.oppMul):1),note:((wk&&wk.opp)||"TBD")+(op&&op.rating!=null?" · "+Math.round(op.rating):"")},
+    {k:"STAKES",mul:s?Number(s.mul):(fc.stakes!=null?Number(fc.stakes):1),note:stakeName}]
+    .concat(extra.map(p=>({k:String(p.label||"OTHER").toUpperCase(),mul:Number(p.mul),note:""})));
+}
+// the fixture the season is actually pointed at, and what reaching it costs at this
+// rate — 1-(1-p)^n over the games in between, which is the number the player is
+// really deciding about when he turns the dial up in week three
+function wearTargetV111(e,wk,fc){
+  const left=(e&&e.weekResults||[]).filter(w=>w&&!w.played);
+  if(!left.length)return null;
+  let t=left.slice().reverse().find(w=>w&&((w.opponentV11&&w.opponentV11.importance==="championship")||/championship|final/i.test(String(w.round||""))))||left[left.length-1];
+  // if the big one IS the next game there is nothing to save legs for on the way to
+  // it — point the line at the end of the season instead
+  if(left.indexOf(t)===0&&left.length>1)t=left[left.length-1];
+  const idx=left.indexOf(t),n=Math.max(0,idx);
+  const p=f(Number(fc.injPct)||0,0,100)/100;
+  return{name:String(t.round||(t.opponentV11&&t.opponentV11.importance==="championship"?"the championship":"")||("week "+(t.week||left.length))),
+    games:n,miss:n>0?(1-Math.pow(1-p,n))*100:0,last:t};
+}
+function wearReadV111(e){
+  const wk=wearNextV111(e),key=wearKeyV111(e,wk);
+  const api=wearApiV111();
+  let usage=null;try{if(api&&typeof api.usage=="function")usage=api.usage(e,wk)}catch(_){}
+  const hist=wearHistV111(e);
+  let season=hist.reduce((t,h)=>t+h.load,0);
+  const known=(e&&e._wearV111&&isFinite(Number(e._wearV111.load)))?Number(e._wearV111.load):null;
+  const load=known!=null?known:season;
+  // the model knows the TOTAL; where the per-week charges had to be estimated, the
+  // bars are rescaled to it, so the shape is the season's and the sum is the truth
+  if(known!=null&&season>0&&known>0&&hist.every(h=>h.est)){const k=known/season;hist.forEach(h=>h.load*=k);season=known}
+  const scale=TU("wearScaleV111",120),pct=f(load/scale*100,0,100);
+  const fc=wearForecastV111(e,wk,key),lo=wearForecastV111(e,wk,WEAR_KEYS_V111[0]);
+  return{wk,key,label:(usage&&usage.label)||WEAR_LBL_V111[key]||key,usage,api:!!api,
+    hist,season,load,scale,pct,band:wearBandV111(pct),fc,lo,
+    drivers:wearDriversV111(e,wk,fc),linger:wearLingerV111(e),target:wearTargetV111(e,wk,fc),
+    loTarget:wearTargetV111(e,wk,lo),stub:!!fc.stub};
+}
+function wearCssV111(){
+  if(document.getElementById("wearv111css"))return;
+  document.head.insertAdjacentHTML("beforeend",`<style id="wearv111css">
+  .wearv111{margin-top:11px;padding-top:9px;border-top:1px solid rgba(255,255,255,.12)}
+  .wearv111-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+  .wearv111-band{font:800 17px Oswald,sans-serif;letter-spacing:.6px;line-height:1.1;margin-top:1px}
+  .wearv111-band s{text-decoration:none;display:block;font:400 10.5px system-ui;color:var(--chalk-dim);letter-spacing:0}
+  .wearv111-num{font:800 26px Oswald,sans-serif;line-height:1;text-align:right;white-space:nowrap}
+  .wearv111-num small{display:block;font:700 8.5px Oswald,sans-serif;letter-spacing:1.6px;color:var(--chalk-dim);margin-top:2px}
+  .wearv111-bar{height:6px;border-radius:4px;background:rgba(0,0,0,.34);overflow:hidden;margin:7px 0 0}
+  .wearv111-bar i{display:block;height:100%;border-radius:4px}
+  .wearv111-spark{display:flex;align-items:flex-end;gap:2px;height:21px;margin:5px 0 3px}
+  .wearv111-spark u{flex:1 1 0;min-width:3px;text-decoration:none;border-radius:2px 2px 0 0;background:#5c6b80;opacity:.85}
+  .wearv111-spark u.hot{background:#ff8a80;opacity:1}.wearv111-spark u.cool{background:#57e07a;opacity:.8}
+  .wearv111-spark u.est{opacity:.42}
+  .wearv111-sub{font:400 10.5px system-ui;color:var(--chalk-dim);line-height:1.35}
+  .wearv111-next{margin-top:9px;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:7px 8px;background:rgba(0,0,0,.16)}
+  .wearv111-kick{font:700 9px Oswald,sans-serif;letter-spacing:1.5px;color:var(--chalk-dim);margin-bottom:5px}
+  .wearv111-kick b{color:var(--gold);letter-spacing:1.5px}
+  .wearv111-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(62px,1fr));gap:5px}
+  .wearv111-grid>div{text-align:center;background:rgba(255,255,255,.045);border-radius:7px;padding:4px 2px}
+  .wearv111-grid b{display:block;font:800 15px Oswald,sans-serif;line-height:1}
+  .wearv111-grid small{display:block;font:700 7.5px Oswald,sans-serif;letter-spacing:.9px;color:var(--chalk-dim);margin-top:2px}
+  .wearv111-drv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:5px}
+  .wearv111-drv span{display:block;background:rgba(255,255,255,.04);border-radius:7px;padding:3px 5px;min-width:0}
+  .wearv111-xtra{font:400 9.5px system-ui;color:var(--chalk-dim);margin-top:4px}
+  .wearv111-drv i{display:block;font-style:normal;font:700 8px Oswald,sans-serif;letter-spacing:1.1px;color:var(--chalk-dim)}
+  .wearv111-drv b{font:800 13px Oswald,sans-serif}
+  .wearv111-drv s{text-decoration:none;display:block;font:400 9.5px system-ui;color:var(--chalk-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wearv111-ling{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+  .wearv111-ling em{font-style:normal;display:inline-flex;align-items:baseline;gap:4px;border:1px solid #ff8a8055;background:#ff8a8014;border-radius:9px;padding:2px 7px;font:700 10px Oswald,sans-serif;letter-spacing:.7px;color:#ff8a80}
+  .wearv111-ling em s{text-decoration:none;font:400 9.5px system-ui;color:var(--chalk-dim)}
+  .wearv111-call{margin-top:7px;border-left:3px solid var(--gold);background:rgba(255,255,255,.045);border-radius:0 8px 8px 0;padding:5px 7px;font:400 11px system-ui;line-height:1.4;color:#dbe4f0}
+  .wearv111-call b{color:var(--gold)}.wearv111-call b.bad{color:#ff8a80}.wearv111-call b.good{color:#7fe0a0}
+  @media(max-width:380px){.wearv111-num{font-size:22px}.wearv111-band{font-size:15px}}
+  </style>`);
+}
+function wearSectionV111(e){
+  try{
+    if(!e||!e.attrs)return"";
+    wearCssV111();
+    const R=wearReadV111(e),B=R.band,n1=v=>Math.round(v),sgn=v=>(v>=0?"+":"−")+Math.abs(Math.round(v));
+    // the season as bars: every played week at what it cost, the heavy ones standing up
+    const mx=Math.max(1,...R.hist.map(h=>h.load)),mn=R.hist.length?Math.min(...R.hist.map(h=>h.load)):0;
+    // the bars are drawn against a floor UNDER the quietest week, not against zero —
+    // a run of similar weeks with one heavy one in it has to LOOK like that — and they
+    // are COLOURED by the dial he turned, not by their own size, because "which weeks
+    // did I go heavy" is the question the chart is here to answer
+    const flr=mn*TU("wearSparkFloorV111",.55);
+    const spark=R.hist.slice(-TU("wearSparkWeeksV111",16)).map(h=>{
+      const cls=h.key==="heavy"||h.key==="everysnap"?"hot":h.key==="normal"?"":"cool";
+      return`<u class="${cls}${h.est?" est":""}" title="Wk ${h.week} · ${S(h.opp||"")} · ${WEAR_LBL_V111[h.key]||h.key} · ${n1(h.load)} wear${h.est?" (est.)":""}" style="height:${f((h.load-flr)/Math.max(.001,mx-flr)*100,14,100)}%"></u>`}).join("");
+    const heavy=R.hist.filter(h=>h.key==="heavy"||h.key==="everysnap"),hvLoad=heavy.reduce((t,h)=>t+h.load,0);
+    const story=!R.hist.length
+      ?`No games on the body yet — this season starts him fresh.`
+      :heavy.length
+        ?`${R.hist.length} game${R.hist.length===1?"":"s"} on him. The <b style="color:#ff8a80">${heavy.length} heavy week${heavy.length===1?"":"s"}</b> in red put on ${n1(hvLoad)} of it — ${Math.round(hvLoad/Math.max(1,R.season)*100)}% of the season's load.`
+        :`${R.hist.length} game${R.hist.length===1?"":"s"} on him, none of them heavy. The tall bars are the hard fixtures, not your dial.`;
+    // the next game, priced at the involvement he has actually picked
+    const fc=R.fc,out=(typeof mustSitV18=="function"&&mustSitV18(e));
+    const next=!R.wk?"":`<div class="wearv111-next">
+      <div class="wearv111-kick">NEXT GAME · <b>${S(R.label)}</b> · ${S(R.wk.opp||"TBD")}${R.wk.round?" · "+S(R.wk.round):""}</div>
+      <div class="wearv111-grid">
+        <div><b style="color:${R.hist.length&&fc.load>=mx*TU("wearHotFracV111",.95)?"#ff8a80":"var(--chalk)"}">+${n1(fc.load)}</b><small>WEAR</small></div>
+        <div><b style="color:${fc.injPct>=24?"#ff8a80":fc.injPct<=12?"#7fe0a0":"var(--gold)"}">${n1(fc.injPct)}%</b><small>INJURY</small></div>
+        <div><b>${(Number(fc.gamesMissed)||0).toFixed(1)}</b><small>GAMES LOST</small></div>
+        <div><b style="color:${fc.statCut<=-.8?"#ff8a80":fc.statCut>=.8?"#7fe0a0":"var(--chalk)"}">${sgn(fc.statCut||0)}</b><small>RATING AFTER</small></div>
+      </div>
+      <div class="wearv111-drv">${R.drivers.slice(0,3).map(d=>`<span><i>${S(d.k)}</i><b style="color:${d.mul>=1.25?"#ff8a80":d.mul>=1.08?"var(--gold)":d.mul<=.92?"#7fe0a0":"var(--chalk)"}">×${(Number(d.mul)||1).toFixed(2)}</b><s>${S(d.note||"")}</s></span>`).join("")}</div>
+      ${R.drivers.length>3?`<div class="wearv111-xtra">${R.drivers.slice(3).map(d=>S(d.k.toLowerCase())+" ×"+(Number(d.mul)||1).toFixed(2)).join(" · ")}</div>`:""}</div>`;
+    const ling=R.linger.length?`<div class="wearv111-ling">${R.linger.map(l=>`<em>${S(String(l.name).toUpperCase())} ${l.amt>=0?"+":"−"}${Math.abs(l.amt)} <s>${l.games} game${l.games===1?"":"s"} left</s></em>`).join("")}</div>`:"";
+    // the line the whole feature exists to put on screen
+    const T=R.target,LT=R.loTarget;
+    const call=out
+      ?`⚖️ You are not playing this week. The load comes off while it passes — that is the only upside of sitting.`
+      :T&&T.games>0
+        ?`⚖️ At <b>${S(R.label)}</b> every week you reach <b>${S(T.name)}</b> with a <b class="${T.miss>=30?"bad":""}">${n1(T.miss)}%</b> chance of missing it${LT&&LT.miss<T.miss-1?` — dialling back to <b class="good">${WEAR_LBL_V111[WEAR_KEYS_V111[0]]}</b> makes it <b class="good">${n1(LT.miss)}%</b>`:""}. ${fc.statCut<=-.8?`And you carry <b class="bad">${sgn(fc.statCut)}</b> rating into the game after this one.`:`Your legs hold for now.`}`
+        :`⚖️ This is the last one. Spend everything — there is no game after it to save legs for.`;
+    return`<div class="wearv111">
+      <div class="wearv111-head"><div><div class="impact-kicker">WEAR &amp; TEAR · THE SEASON ON HIM</div>
+        <div class="wearv111-band" style="color:${B.c}">${B.n}<s>${S(B.d)} · ${n1(R.season)} this season${R.stub?" · estimated":""}</s></div></div>
+        <div class="wearv111-num" style="color:${B.c}">${n1(R.load)}<small>LOAD / ${n1(R.scale)}</small></div></div>
+      <div class="wearv111-bar"><i style="width:${Math.max(2,R.pct)}%;background:${B.c}"></i></div>
+      ${R.hist.length?`<div class="wearv111-spark">${spark}</div>`:""}
+      <div class="wearv111-sub">${story}</div>
+      ${next}${ling}
+      <div class="wearv111-call">${call}</div></div>`;
+  // the section is a READ: it never takes the body card down with it. But a silent
+  // empty string is how a broken section hides, so the failure is recorded where a
+  // check can see it rather than only in the console.
+  }catch(err){try{console.warn("v111 wear section",err);window.__V111_BODY&&(window.__V111_BODY.lastError=String(err&&err.message||err))}catch(_){}return""}
+}
+window.__V111_BODY={
+  read:e=>wearReadV111(e||(typeof o=="object"&&o&&o.player)),
+  section:e=>wearSectionV111(e||(typeof o=="object"&&o&&o.player)),
+  hist:e=>wearHistV111(e||(typeof o=="object"&&o&&o.player)),
+  forecast:(e,k)=>{const p=e||(typeof o=="object"&&o&&o.player),w=wearNextV111(p);return wearForecastV111(p,w,k||wearKeyV111(p,w))},
+  band:wearBandV111,keys:WEAR_KEYS_V111,hasModel:()=>!!wearApiV111(),lastError:null
+};
 function et(e,t=0,a){a=a||{};const s=Pa(e),n=A[e.level],i=n.need-6+Ks()+ft("peerShift"),r=1+M("clutch")*.02,l=1+(e.attrs.grit-10)*.003*r,d=1+(e.attrs.stamina-10)*.0015;let c=Oe(e,"streaky")?23:15;c*=Math.max(.5,1-G("varDown"))*(ft("varMult")||1);let u=(s-i)*2.4+D(-c,c)*l+50+t/n.games*2+(o&&o._fateBoost||0);a.playoff&&(u+=G("playoffPerf")+ft("playoffPerf"),Oe(e,"xfactor")&&(u+=12)),Oe(e,"butterFingers")&&Math.random()<.12&&(u-=18),Math.random()<(Oe(e,"streaky")?.06:.04)&&u>40&&(u*=1.5),u*=d;const p=f(xi(u),1,100);const y=Math.random()<injChanceV54(e,a);try{window.__INJ_DEBUG&&y&&(window.__INJ_DEBUG.hit=(window.__INJ_DEBUG.hit||0)+1)}catch(_){}return{perf:Math.round(p),ovr:s,injured:y}}const Ne={QB:{primary:"passYds",label:"Passing",stats:[{key:"passYds",name:"Pass Yds",per:[140,165,190,210,235,265,290,270]},{key:"passTD",name:"Pass TD",per:[1.2,1.4,1.6,1.9,2.1,2.4,2.6,2.6]},{key:"int",name:"INT",per:[1.6,1.4,1.2,1.1,1,.9,.8,.8],lowerBetter:!0}]},RB:{primary:"rushYds",label:"Rushing",stats:[{key:"rushYds",name:"Rush Yds",per:[55,70,80,90,100,115,130,105]},{key:"rushTD",name:"Rush TD",per:[.7,.9,1,1.1,1.2,1.3,1.4,1.2]},{key:"ypc",name:"Yds/Carry",per:[4,4.3,4.5,4.7,4.9,5.1,5.3,4.8],rate:!0}]},WR:{primary:"recYds",label:"Receiving",stats:[{key:"rec",name:"Catches",per:[3,3.5,4,4.5,5,5.5,6,5]},{key:"recYds",name:"Rec Yds",per:[45,55,65,72,80,90,100,85]},{key:"recTD",name:"Rec TD",per:[.5,.6,.7,.8,.9,1,1.1,.9]}]},TE:{primary:"recYds",label:"Receiving",stats:[{key:"rec",name:"Catches",per:[2,2.5,3,3.5,4,4.5,5,4]},{key:"recYds",name:"Rec Yds",per:[28,34,40,46,52,60,68,55]},{key:"recTD",name:"Rec TD",per:[.3,.4,.5,.6,.7,.8,.9,.7]}]},OL:{primary:"grade",label:"Blocking",stats:[{key:"grade",name:"Blk Grade",per:[62,64,66,68,70,73,76,75],rate:!0},{key:"pancakes",name:"Pancakes",per:[2,3,3.5,4,4.5,5,5.5,5]},{key:"sacksAllowed",name:"Sacks All.",per:[2.5,2.2,2,1.8,1.5,1.2,1,1],lowerBetter:!0}]},DL:{primary:"sacks",label:"Pass Rush",stats:[{key:"tackles",name:"Tackles",per:[2.5,3,3.5,4,4.5,5,5.5,4.5]},{key:"sacks",name:"Sacks",per:[.4,.5,.6,.7,.8,.9,1,.8]},{key:"tfl",name:"TFL",per:[.8,1,1.1,1.3,1.5,1.7,1.9,1.5]}]},LB:{primary:"tackles",label:"Defense",stats:[{key:"tackles",name:"Tackles",per:[5,6,7,8,9,10,11,9]},{key:"sacks",name:"Sacks",per:[.3,.4,.4,.5,.6,.7,.8,.6]},{key:"tfl",name:"TFL",per:[.9,1.1,1.3,1.5,1.7,1.9,2.1,1.7]}]},CB:{primary:"pd",label:"Coverage",stats:[{key:"tackles",name:"Tackles",per:[2.5,3,3.5,4,4.5,5,5.5,4.5]},{key:"pd",name:"Pass Def",per:[1,1.2,1.4,1.6,1.8,2,2.2,1.8]},{key:"int",name:"INT",per:[.2,.25,.3,.35,.4,.5,.6,.45]}]},S:{primary:"tackles",label:"Defense",stats:[{key:"tackles",name:"Tackles",per:[4,5,5.5,6,6.5,7,7.5,6.5]},{key:"pd",name:"Pass Def",per:[.7,.9,1,1.2,1.4,1.6,1.8,1.4]},{key:"int",name:"INT",per:[.2,.25,.3,.35,.4,.45,.5,.4]}]}};Object.values(Ne).forEach(e=>e.stats.forEach(t=>{const a=t.per[7];t.per[8]=t.lowerBetter?+(a*.85).toFixed(2):t.rate?+(a*1.2).toFixed(1):+(a*1.45).toFixed(1)}));function mr(e,t){const a=A[t].need-6+Ks();return f(xi((e-a)*2.4+50+G("perfFlat")),1,100)}function is(e,t,a){const s=A[a].games,n=Ne[e],i=Ti(t),r=t/100,l=1+G("statProd")+Jr(e),d={};return n.stats.forEach(c=>{const u=c.per[a],h=_o(c);c.rate?d[c.key]=+(u*(.72+.42*Math.pow(t/90,1.4))*h).toFixed(1):c.lowerBetter?d[c.key]=Math.max(1,Math.round(u*s*Math.max(.2,1.35-Math.pow(r,1.2)*.95)*h)):d[c.key]=Math.round(u*s*Math.min(i,3.4)*l*h)}),d}function Ha(e,t){return is(e,60,t)}function pr(e,t,a){const s=is(e,t,a),n=Ha(e,a),i=Ne[e].primary,r=n[i]||1;return(s[i]||0)/r}const vr=[0,.28,.48,.75,1.02,1.62,1.92,1.84,2.7];function qt(e,t,a,s,n){n=n||1;const i=Math.min(t+1,A.length-1);if(t<=2&&Ie()===0)return f(96+(e-A[i].need)*.3,82,99.5);const r=(vr[i]||0)+(t<=2,0),l=A[i].need+Ie()*.45;if(a!=null&&s!=null){const c=pr(a,s,t)/(1+(n-1)*.35),u=Math.pow(Math.max(.05,c),.5),h=(e-l)/8,p=f(.5+h,0,1.5),m=i===A.length-1,y=f((e-l)/30,0,1),C=m?r*(1-y*.28):r*(1-y*.45),P=(u*.38+p*.64-C*.52-.72)/.14;let _adv=f(1/(1+Math.exp(-P))*100+Se("advBonus",0)+G("advFlat")+ft("advFlat"),.3,99.5);
 // v17: national standing drives promotion — you cannot be #1 of 180k kids in the
 // country and get left behind. Elite rank sets a floor the base odds can't undercut.
@@ -13859,6 +14104,7 @@ window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;w
       :`This body ${L.net>=.8?"adds":L.net<=-.8?"takes off":"is worth about"} <b style="color:${col}">${sign}${Math.round(Math.abs(L.net))}</b> rating against your recent average of ${Math.round(L.base)}. Over the ${L.left} game${L.left===1?"":"s"} left you can expect to miss <b>${Math.round(L.missRest)}</b> to injury at this risk.`}</div>
     ${lastLine}
     <div class="bodyv73-rows">${rows}</div>
+    ${wearSectionV111(e)}
     <div class="condition-bars-v11"><label><span>Fatigue</span><b>${Math.round(t.fatigue)}</b></label><div><i style="width:${t.fatigue}%"></i></div><label><span>Recovery capacity</span><b>${Math.round(t.recovery)}</b></label><div><i style="width:${t.recovery}%"></i></div><label><span>Mental load</span><b>${Math.round(t.mentalLoad)}</b></label><div><i style="width:${t.mentalLoad}%"></i></div></div>
     <div class="small">Fatigue is the dial you control: a heavy plan buys snaps and trust, a recovery week buys the number above back. Durability is the dial you BUY — every 10 points of injuryResist take about ${Math.round((L.risk-L.riskUp)*1000)}% off this week's risk.</div></div>`}function bo(e){const t=Gt(e,A[e.level].need,fe(e.seasonSeed,e.level,e.pos,"ui-rival")),a=Math.round((e.snapShare||.1)*100),s=Math.round((t.snapShare||.5)*100);return`<div class="card rival-card-v11"><div class="impact-head"><div><div class="impact-kicker">NAMED ROLE BATTLE · ${S(t.personality.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">You vs. ${S(t.name)}</div></div><div class="rival-health-v11">${Math.round(t.health)}<small>RIVAL HEALTH</small></div></div><div class="rival-versus-v11"><div><span>YOU</span><b>${a}%</b><small>${S(e.depthRole||"BENCH")} · trust ${Math.round(e.coachTrust||50)}</small></div><em>VS</em><div><span>${S(t.position)}</span><b>${s}%</b><small>${t.ovr} OVR · trust ${Math.round(t.coachTrust)}</small></div></div><div class="snap-split-v11"><i style="width:${a}%"></i></div><div class="rival-trait-v11">${S(t.trait)} · relationship ${Math.round(t.relationship)}</div>${t.history?.length?`<div class="small">Last comparison: ${t.history[0].playerPerf} vs ${t.history[0].rivalPerf} · ${t.history[0].swing>=0?"+":""}${t.history[0].swing}% snap swing</div>`:""}</div>`}function kn(e){const t=It.find(i=>i.id===e.originV11),a=e.legacyObjectivesV11||[],s=a.map(i=>Ua.find(r=>r.id===i)).filter(Boolean),n=e.completedObjectivesV11||{};return t?`<div class="card identity-card-v11"><div class="impact-head"><div><div class="impact-kicker">RUN IDENTITY</div><div class="h2" style="margin:2px 0 0">${t.icon} ${S(t.name)}</div></div><div class="legacy-token-v11">${o.legacyTokensV11||0}<small>LEGACY TOKENS</small></div></div><div class="small">${S(t.description)}</div><div class="legacy-objectives-v11">${s.map(i=>`<div class="${n[i.id]?"done":""}"><span>${n[i.id]?"✓":i.icon}</span><b>${S(i.title)}</b><small>${S(i.description)}</small><em>+${i.reward}</em></div>`).join("")}</div></div>`:""}function jn(e){const t=e.activeStoryArcV11,a=(e.storyArcHistoryV11||[]).slice(0,3);if(!t&&!a.length)return"";const s=t?Nt.find(n=>n.id===t.templateId):null;return`<div class="card arc-card-v11"><div class="eyebrow">MULTI-WEEK CAREER ARCS</div>${s?`<div class="active-arc-v11"><span>${s.icon}</span><div><b>${S(s.title)}</b><small>Stage ${t.stage+1}/${s.stages.length} · choices carry into future weeks</small></div></div>`:'<div class="small">No active storyline. Your performance and world state determine what begins next.</div>'}${a.length?`<div class="arc-history-v11">${a.map(n=>`<span class="${n.status}">${n.icon} ${S(n.title)}</span>`).join("")}</div>`:""}</div>`}function _c(e){const t=Is(e),a=Object.keys(e.completedObjectivesV11||{}).length,s=(e.legacyObjectivesV11||[]).length;return`<div class="card legacy-summary-v11"><div class="legacy-grade-v11">${t.grade}</div><div><div class="eyebrow">PARTIAL VICTORY · CAREER LEGACY</div><div class="h2" style="margin:2px 0">${S(t.ending)}</div><div class="small">Legacy score ${t.score} · ${a}/${s} origin objectives · highest level ${A[e.level]?.name||"Unknown"}. A career can matter without reaching the NFL.</div></div></div>`}function ko(e){const t=e.storyDecisionQueueV11?.[0];return t?`<div class="decision-overlay story-overlay-v11"><div class="decision-panel"><div class="decision-kicker">${t.icon} ${S(t.arcTitle)} · MULTI-WEEK ARC</div><div class="decision-title">${S(t.title)}</div><div class="decision-copy">${S(t.copy)} This decision persists beyond one game.</div>${t.choices.map(a=>`<button class="decision-choice" onclick="resolveStoryChoiceV11('${a.id}')"><b>${S(a.label)}</b><small>${S(a.description)}</small><span class="decision-risk">${S(a.risk)} · ${Math.round(a.baseChance*100)}% base chance</span></button>`).join("")}</div></div>`:""}function Uc(e){const t=o.player,a=zn(t,o,e,o.specializationV11);if(!a)return;const s=document.querySelector(".story-overlay-v11");s&&s.remove(),I(),q(),ye(a.success?"STORYLINE BREAKTHROUGH":"STORYLINE SETBACK",a.choice.label,a.success?"good":"bad")}function Ce(e,t){e&&t&&e.insertAdjacentHTML("afterend",t)}function Kc(e){const t=e.weekResults?.find(i=>!i.played);if(!t)return"";t.opponentV11||(t.opponentV11=rt(t.opp,e.level,t.week||1,e.seasonSeed,t.playoff?t.roundIdx:void 0));const a=t.opponentV11.scouted||bt(t.opponentV11,e,o.specializationV11),s=String(t.opponentV11.importance||"routine").toUpperCase();return`<div class="card opponent-card-v11" style="border-color:${["playoff","championship"].includes(t.opponentV11.importance)?"var(--gold)":t.opponentV11.importance==="evaluation"?"var(--blood)":"var(--cyan)"}"><div class="impact-head"><div><div class="impact-kicker">NEXT OPPONENT · ${s}</div><div class="h2" style="margin:2px 0 0">${S(t.opp)}</div></div><div class="scout-confidence-v11">${a.confidence}<small>SCOUT CONF.</small></div></div><div class="matchup-badge-v11">${S(a.matchupLabel)} matchup · ${a.hiddenCount} detail${a.hiddenCount===1?"":"s"} hidden</div><div class="scout-facts-v11">${a.reveals.map(i=>`<span>${S(i)}</span>`).join("")}</div><div class="scout-plan-v11">Recommended counter: <b>${S(Wt(a.recommendedPlan).name)}</b></div><div class="small">The recommendation can be wrong when scouting confidence is low. Repeating a plan lets opponents adapt.</div></div>`}function In(e){const t=Is(e),a=Object.keys(e.completedObjectivesV11||{}).length,s=(e.legacyObjectivesV11||[]).length;return`<div class="card legacy-progress-v11"><div class="legacy-grade-v11 small-grade">${t.grade}</div><div><div class="eyebrow">CAREER LEGACY IN PROGRESS</div><div class="h2" style="margin:2px 0">${S(t.ending)}</div><div class="small">Score ${t.score} · ${a}/${s} identity goals complete · partial victories earn permanent Legacy Tokens without requiring an NFL career.</div></div></div>`}function zc(e){if(e.originV11!=="position-convert")return"";const t=(e.positionChangesV11||[]).includes(e.level);return`<button class="btn ${t?"ghost":"secondary"}" style="margin-top:10px" ${t?"disabled":""} onclick="showPositionChangeV11()">🔄 ${t?"Position Changed This Level":"Explore a Position Change"}</button>`}const Qc=kn;kn=function(e){const t=Qc(e);return t&&t.replace(/<\/div>\s*$/,`${zc(e)}</div>`)};function Jc(e){return`<div class="decision-overlay position-overlay-v11"><div class="decision-panel"><div class="decision-kicker">POSITION CONVERSION · ONE PER LEVEL</div><div class="decision-title">Trade Mastery for Versatility</div><div class="decision-copy">Changing positions resets your named role battle, cuts coach trust, and lowers immediate snaps. It can unlock a better long-term fit and completes part of your origin legacy.</div>${ns(e.attrs,e.body).filter(a=>a.pos!==e.pos).slice(0,6).map(a=>`<button class="decision-choice" onclick="changePositionV11('${a.pos}')"><b>${a.pos} · ${S(Ee[a.pos].name)} · ${a.ovr} projected OVR</b><small>${S(Ta[a.pos].note)}</small><span class="decision-risk">New rival · −8 trust · reduced snaps</span></button>`).join("")}<button class="btn ghost" onclick="document.querySelector('.position-overlay-v11')?.remove()">Cancel</button></div></div>`}function Xc(){const e=o.player;if(!(!e||e.originV11!=="position-convert")){if((e.positionChangesV11||[]).includes(e.level)){F("You already changed positions at this level.");return}document.querySelector(".position-overlay-v11")?.remove(),document.body.insertAdjacentHTML("beforeend",Jc(e))}}function Zc(e){const t=o.player;if(!t||!Ee[e]||t.originV11!=="position-convert"||(t.positionChangesV11=t.positionChangesV11||[],t.positionChangesV11.includes(t.level)))return;const a=t.pos;t.positionChangesV11.push(t.level),t.positionsPlayedV11=t.positionsPlayedV11||[],a&&!t.positionsPlayedV11.includes(a)&&t.positionsPlayedV11.push(a),t.positionsPlayedV11.includes(e)||t.positionsPlayedV11.push(e),t.pos=e,t.roleRivalV11=null,t.snapShare=f(Math.min(t.snapShare||.12,.18),.04,.98),t.coachTrust=f((t.coachTrust||50)-8,0,100),t.roleBattle103=0,as(t),Gt(t,A[t.level].need,fe(t.seasonSeed,t.level,e,"position-change")),document.querySelector(".position-overlay-v11")?.remove(),We("🔄",`${t.name} converts from ${a} to ${e}`,"A new depth-chart battle begins with less trust but a different ceiling."),I(),q(),ye("POSITION CHANGED",`${a} → ${e} · prove the fit`,"gold")}pn=function(e){return bo(e).replace("card rival-card-v11","card weekly-loop-card rival-card-v11")};const ed=$t;$t=function(e){const t=o.player;if(t&&!t.originV11){q(),F("Choose this career’s origin first.");return}ed(!!e)};const td=Yt;Yt=function(e){const t=o.player;if(t&&!t.originV11){q(),F("Choose this career’s origin first.");return}td(!!e)};wt=function(){const e=o.player;if(!e?.weekResults)return;const t=e.weekResults.filter(a=>!a.playoff&&!a.played);let n=0,rolls=[];for(const a of t){rolls.push(...autoStoryV90(e,a));/* v90: a queued story stage is answered and rolled here, not on screen */if(!silentWeekV85(e,a))break;/* v85: the wheel rolls, the fate roll lands, ca() books the engine game */n++;He(a,e)}rolls.push(...autoStoryV90(e,null));window.__V90.last=rolls;I(),te("season"),n&&F(`⏭ Simmed ${n} week${n===1?"":"s"}${rolls.length?` · ${rolls.length} story roll${rolls.length===1?"":"s"}: ${rolls.filter(r=>r.success).length} up, ${rolls.filter(r=>!r.success).length} down`:""} — every plan rolled, every game played by the engine`)};const ad=tt;tt=function(e){Re(e);const t=e.potentialCeil,a=e.potential,s=ei(e);e.potentialCeil!=null&&(e.potentialCeil*=s),e.potential!=null&&(e.potential*=s);const n=ad(e);return t!=null&&(e.potentialCeil=t),a!=null&&(e.potential=a),n.originGrowthV11=s,n};const sd=ca;ca=function(e,t,a){const s=sd(e,t,a);if(!t.originPerfAppliedV11){const n=ti(e,t);if(t.perf=Math.round(f((t.perf||50)+n,1,100)),n){const i=ia(e,t.perf,{oppBoost:t.playoff?.08:0});t.us=i.us,t.them=i.them,t.won=i.won}t.originPerfAppliedV11=!0}return s};function nd(){$a(o);const e=o.legacyUnlocksV11||{};return`<div class="card legacy-rewards-v11"><div class="impact-head"><div><div class="impact-kicker">PARTIAL-VICTORY REWARDS</div><div class="h2" style="margin:2px 0 0">Legacy Workshop</div></div><div class="legacy-token-v11">${o.legacyTokensV11||0}<small>TOKENS</small></div></div><div class="small">Milestones and identity objectives fund information, content, and strategic options—not large universal attribute boosts.</div><div class="legacy-shop-v11">${Cs.map(t=>`<div class="legacy-shop-row-v11 ${e[t.id]?"owned":""}"><span>${t.icon}</span><div><b>${S(t.name)}</b><small>${S(t.description)}</small></div><button ${e[t.id]||(o.legacyTokensV11||0)<t.cost?"disabled":""} onclick="buyLegacyUnlockV11('${t.id}')">${e[t.id]?"OWNED":t.cost+" ◇"}</button></div>`).join("")}</div></div>`}function id(e){const t=Zn(o,e);if(t===!1){F("Not enough Legacy Tokens.");return}if(!t){F("Already unlocked.");return}o.player&&Re(o.player),I(),q(),ye("LEGACY UNLOCKED",t.name,"gold")}function od(e,t){if(!o.legacyUnlocksV11?.["story-insight"])return`${S(t.risk)} · outcome information limited`;const a=e.worldState?.teamChemistry||50,s=e.coachTrust||50,n=e.attrs?.awareness||10,i=f(t.baseChance+(a-50)/600+(s-50)/750+(n-20)/900+(o.specializationV11==="architect"?.08:0),.12,.94),r=Math.round(f(i-.05,.05,.98)*100),l=Math.round(f(i+.05,.05,.98)*100);return`${S(t.risk)} · estimated ${r}–${l}%`}ko=function(e){const t=e.storyDecisionQueueV11?.[0];return t?`<div class="decision-overlay story-overlay-v11"><div class="decision-panel"><div class="decision-kicker">${t.icon} ${S(t.arcTitle)} · MULTI-WEEK ARC</div><div class="decision-title">${S(t.title)}</div><div class="decision-copy">${S(t.copy)} This decision persists beyond one game.</div>${t.choices.map(a=>`<button class="decision-choice" onclick="resolveStoryChoiceV11('${a.id}')"><b>${S(a.label)}</b><small>${S(a.description)}</small><span class="decision-risk">${od(e,a)}</span></button>`).join("")}</div></div>`:""};bo=function(e){const t=Gt(e,A[e.level].need,fe(e.seasonSeed,e.level,e.pos,"ui-rival")),a=Math.round((e.snapShare||.1)*100),s=Math.round((t.snapShare||.5)*100),n=!!o.legacyUnlocksV11?.["rival-dossier"];return`<div class="card rival-card-v11"><div class="impact-head"><div><div class="impact-kicker">NAMED ROLE BATTLE · ${S(t.personality.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">You vs. ${S(t.name)}</div></div><div class="rival-health-v11">${Math.round(t.health)}<small>RIVAL HEALTH</small></div></div><div class="rival-versus-v11"><div><span>YOU</span><b>${a}%</b><small>${S(e.depthRole||"BENCH")} · trust ${Math.round(e.coachTrust||50)}</small></div><em>VS</em><div><span>${S(t.position)}</span><b>${s}%</b><small>${t.ovr} OVR · trust ${Math.round(t.coachTrust)}</small></div></div><div class="snap-split-v11"><i style="width:${a}%"></i></div><div class="rival-trait-v11">${n?`${S(t.trait)} · ${t.potential} potential`:"Trait and potential hidden · unlock Rival Dossier"} · relationship ${Math.round(t.relationship)}</div>${t.history?.length?`<div class="small">Last comparison: ${t.history[0].playerPerf} vs ${t.history[0].rivalPerf} · ${t.history[0].swing>=0?"+":""}${t.history[0].swing}% snap swing</div>`:""}</div>`};function rd(){const e=o.player,t=x("screen");if(!e||!t)return;if(Re(e),o.view==="choosePos"){if(!t.querySelector(".origin-card-v11")){const n=t.querySelector(".card");Ce(n,Ms(e))}t.querySelectorAll(".pos-card").forEach(n=>n.classList.toggle("origin-locked-v11",!e.originV11))}if(o.view==="hub"){const n=t.querySelector(".player-hero");!e.originV11&&!t.querySelector(".origin-card-v11")&&Ce(n,Ms(e)),e.originV11&&!t.querySelector(".identity-card-v11")&&Ce(n,kn(e));const i=t.querySelector(".weekly-loop-card")||n;t.querySelector(".condition-card-v11")||Ce(i,Bn(e));const r=t.querySelector(".condition-card-v11")||i;t.querySelector(".arc-card-v11")||Ce(r,jn(e)),e.level>=7&&!t.querySelector(".nfl-survival-v11")&&Ce(t.querySelector(".arc-card-v11")||r,va(e)),t.querySelector(".legacy-progress-v11")||t.insertAdjacentHTML("beforeend",In(e))}if(o.view==="season"){const n=t.querySelector(".h1");!e.originV11&&!t.querySelector(".origin-card-v11")&&Ce(n,Ms(e));const i=t.querySelector(".origin-card-v11")||n;t.querySelector(".opponent-card-v11")||Ce(i,Kc(e));const r=t.querySelector(".opponent-card-v11")||n;t.querySelector(".condition-card-v11")||Ce(r,Bn(e)),t.querySelector(".arc-card-v11")||Ce(t.querySelector(".condition-card-v11")||r,jn(e)),e.level>=7&&!t.querySelector(".nfl-survival-v11")&&Ce(t.querySelector(".arc-card-v11")||r,va(e));const l=e.weekResults||[];t.querySelectorAll(".sched-row").forEach((d,c)=>{const u=l[c];!u?.opponentV11||d.querySelector(".importance-chip-v11")||d.querySelector(".sched-opp")?.insertAdjacentHTML("beforeend",` <small class="importance-chip-v11 ${u.opponentV11.importance}">${String(u.opponentV11.importance).toUpperCase()}</small>`);
       // v73: a week the body took a bite out of says so ON the week, so a run of poor
