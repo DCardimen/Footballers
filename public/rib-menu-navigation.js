@@ -49,6 +49,12 @@
   function activate(action) {
     if (routing) return false;
     if (action === 'home') { document.getElementById('rib-main-menu-v2')?.scrollTo({ top: 0, behavior: 'smooth' }); return true; }
+    // v111: HOW TO PLAY has no counterpart in the game app to click — it is a view of the menu
+    // itself, opened in place over it. Handle it before findOriginal is ever consulted.
+    if (action === 'howto') {
+      if (!window.__RIB_HOWTO) { console.warn('[RIB menu] the how-to-play view is not loaded'); return false; }
+      return window.__RIB_HOWTO.open();
+    }
     if (/^view:/.test(action || '')) return routeView(action.slice(5));
     // The primary CTA doubles as START NEW CAREER: if no continue target
     // exists (no career yet, or the game relabeled it), fall through to new.
