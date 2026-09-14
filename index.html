@@ -13418,8 +13418,12 @@ function pregamePlayerStatsV25(pl){
   const buffs={}; (pl._tempStatBuffsV25||[]).forEach(b=>{buffs[b.stat]=b;});
   const EF=effAttrsV85(pl);   // v85: the body's swing on top of the wheel's
   const posW=(pl.pos&&Ee[pl.pos]&&Ee[pl.pos].w)||{};
-  let list=ee.filter(k=>Le[k]&&(posW[k]||buffs[k]||EF.delta[k]));
+  // v111: the game focus, if one is picked this week — the sheet names the stat it sharpens
+  let FOC=null; try{const wk=(pl.weekResults||[]).find(w=>w&&!w.played);
+    if(wk&&window.__V111_UI&&window.__V111_UI.focusRow) FOC=window.__V111_UI.focusRow(pl,wk)||null;}catch(_){FOC=null}
+  let list=ee.filter(k=>Le[k]&&(posW[k]||buffs[k]||EF.delta[k]||(FOC&&FOC.stat===k)));
   if(list.length<6) list=ee.filter(k=>Le[k]).slice(0,10);
+  if(FOC&&Le[FOC.stat]&&list.indexOf(FOC.stat)<0) list=[FOC.stat].concat(list);
   const row=(k)=>{const base=pl.attrs[k]||0,b=buffs[k],eff=EF.eff[k]!=null?EF.eff[k]:(b?base+(b.max?10:b.amt):base),amt=eff-base;
     const bp=f(base/cap*100,0,100),ep=f(eff/cap*100,0,100),up=amt>0,dn=amt<0;
     return `<div style="display:flex;align-items:center;gap:8px;margin:3px 0">`
@@ -13430,10 +13434,12 @@ function pregamePlayerStatsV25(pl){
         +(dn?`<i style="position:absolute;left:${ep}%;top:0;bottom:0;width:${Math.max(0,bp-ep)}%;background:#e0645a"></i>`:``)
       +`</div>`
       +`<span style="flex:0 0 auto;min-width:52px;text-align:right;font:700 11px Oswald,sans-serif;color:${up?'#57e07a':dn?'#e0645a':'var(--chalk)'}">${Math.round(eff)}${up?' (+'+amt+')':dn?' ('+amt+')':''}</span>`
+      +(FOC&&FOC.stat===k?`<span style="flex:0 0 auto;font:800 9px Oswald,sans-serif;color:#0b1119;background:#8fe0a0;border-radius:9px;padding:2px 5px">×${(Math.round((Number(FOC.mul)||1.2)*100)/100).toFixed(1)}</span>`:``)
     +`</div>`;};
-  return `<div style="margin:12px 14px 4px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.03)">`
+  return `<div id="preStatsV25" style="margin:12px 14px 4px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.03)">`
     +`<div style="font:700 11px Oswald,sans-serif;letter-spacing:1px;color:var(--chalk);margin-bottom:7px">📋 YOUR STATS <span style="color:var(--chalk-dim);font-weight:400">· what you take onto the field, body and wheel included</span></div>`
     +bodyBadgeV85(pl)
+    +(FOC?`<div id="preFocusV111" style="display:flex;align-items:center;gap:6px;margin:0 0 7px;font:600 11px Barlow Condensed,sans-serif;color:#8fe0a0"><span>🎯 GAME FOCUS · ${FOC.name||FOC.key}</span><b style="font:700 11px Oswald,sans-serif">×${(Math.round((Number(FOC.mul)||1.2)*100)/100).toFixed(1)} ${(Le[FOC.stat]&&Le[FOC.stat].name)||FOC.stat}</b><span style="color:var(--chalk-dim);font-weight:400">this game only</span></div>`:``)
     +list.map(row).join("")
   +`</div>`;
 }
@@ -16502,6 +16508,178 @@ function gsImpactHTML(scn,adopt){
     <div class="gs-impact-note">${took>=70?'He’s all-in on your read.':took>=40?'He’ll lean your way when the down lets him.':'He hears you out but keeps mostly his own script.'} <span style="color:var(--chalk-dim)">Raise adoption in Prestige → Field General.</span></div>`;
 }
 let gsStateV23=null;
+/* ===== v111 THE PREGAME DECISION — how much of this game is yours =====
+ * This screen used to ask the player which way to throw. He never picked the
+ * playbook — the coordinator does, and he always did — so the coordinator now
+ * adopts the scouted plan on his own and it reads back as one line (nothing about
+ * the play-mix model changes: gsScenariosV23 → gsFinalPass → _gameScriptV23 →
+ * __gameScriptBiasV23 is exactly the road it always took, and the impact bar still
+ * says how much of it he bought). What the player decides in its place is the one
+ * thing that was ever his: HOW MUCH OF THE GAME HE TAKES. Five steps from limited
+ * to every snap, each pricing what it buys — his share of the team's snaps, his
+ * share of the touches — against what it costs: the wear it adds, the chance he
+ * gets hurt in THIS game, and the games that is expected to cost. Every number is
+ * read live from window.__V111.forecast(player, week, key), and the multipliers it
+ * itemises are shown as chips, so a semifinal against a good team visibly costs
+ * more than a week-three game against nobody. Under it, the focus: three
+ * position-shaped picks, one stat at ×1.2 for this game only, exactly one live at
+ * a time. Neither control blocks anything — no pick at all means "normal" and no
+ * focus, which is the game precisely as it was. The model is agent A's; every call
+ * into it is guarded and falls back to the neutral stub below. ===== */
+const V111_KEYS=["limited","reduced","normal","heavy","everysnap"];
+const V111_STEP={
+  limited:{s:"LIMITED",n:"Limited",d:"Spot snaps only. You watch most of this one and the body keeps nearly everything."},
+  reduced:{s:"REDUCED",n:"Reduced",d:"A lighter rotation — you come off on the long drives and stay fresh for next week."},
+  normal:{s:"NORMAL",n:"Normal",d:"Your usual role. Nothing asked for, nothing spared."},
+  heavy:{s:"HEAVY",n:"Heavy",d:"You stay out there for the tough downs. More work through you, more wear on you."},
+  everysnap:{s:"EVERY",n:"Every Snap",d:"You never leave the field. Everything goes through you — and everything lands on you."}};
+const V111_FOCUS_BOOK={
+  QB:[["cannon","🎯","throwing","Let It Rip","Drive the ball — velocity and the shot down the field."],
+      ["escape","🌀","agility","Escape Artist","Slide the pocket and make the first man miss."],
+      ["general","🧠","awareness","Field General","See it early — the read comes a beat sooner."]],
+  RB:[["truck","🐗","strength","Run Angry","Trucking and big hits — punish the first man there."],
+      ["shifty","🌀","agility","Make Him Miss","Shiftiness — the cut inside the hole."],
+      ["burst","🚀","acceleration","Hit The Gas","Quickness through the crease before it shuts."]],
+  WR:[["hands","🧤","catching","Catch Everything","Hands and ball tracking through contact."],
+      ["cuts","🌀","agility","Sharp Cuts","Shiftiness at the break — get off the press clean."],
+      ["top","💨","speed","Take The Top Off","Pure speed — run past the last man."]],
+  TE:[["seal","🧱","blocking","Seal The Edge","Blocking — be the reason the run gets out."],
+      ["hands","🧤","catching","Safety Valve","Hands in traffic when the pocket breaks."],
+      ["power","💪","strength","Move People","Power at the point of contact."]],
+  OL:[["anchor","🧱","blocking","Anchor The Pocket","Blocking — nobody comes through you today."],
+      ["drive","💪","strength","Drive Block","Power at the point of contact — move the pile."],
+      ["calls","🧠","awareness","Make The Calls","See the stunt before it comes."]],
+  DL:[["bull","💪","strength","Bull Rush","Power at the point of contact — walk him backwards."],
+      ["jump","⚡","quickness","Jump The Snap","First-step explosion off the ball."],
+      ["wrap","🛡️","tackling","Wrap Him Up","Trucking hits and a tackle that sticks."]],
+  LB:[["thump","🛡️","tackling","Thump","Big hits — bring him down where he stands."],
+      ["read","🧠","awareness","Read And React","Diagnose it before the back gets there."],
+      ["run","💨","speed","Run The Alley","Speed sideline to sideline."]],
+  CB:[["stick","💨","speed","Stay On His Hip","Speed — run with anybody on the field."],
+      ["mirror","🌀","agility","Mirror Him","Shiftiness at the break point."],
+      ["ball","🧤","catching","Play The Ball","Hands at the catch point — take it away."]],
+  S:[["hammer","🛡️","tackling","The Hammer","Big hits over the middle."],
+     ["deep","🧠","awareness","Center Field","See the quarterback's eyes and beat the throw."],
+     ["range","💨","speed","Sideline Range","Speed to the far hash."]],
+  K:[["ice","🎖️","discipline","Ice In The Veins","No mental errors, no wasted swing."],
+     ["leg","💪","strength","More Leg","Power through the ball."],
+     ["clutch","🔥","grit","Kick It Late","The one that matters comes late."]],
+  ATH:[["fast","💨","speed","Pure Speed","Straight-line burst above everything else."],
+       ["power","💪","strength","Pure Power","Power at the point of contact."],
+       ["shifty","🌀","agility","Pure Shiftiness","Cuts, jukes, change of direction."]]};
+function v111PosKeyV111(pos){const p=String(pos||"ATH").toUpperCase();
+  if(V111_FOCUS_BOOK[p])return p;
+  if(/^(LT|LG|C|RG|RT|OT|OG|OL)$/.test(p))return "OL";
+  if(/^(DT|DE|EDGE|NT)$/.test(p))return "DL";
+  if(/^(FS|SS|SAF)$/.test(p))return "S";
+  if(/^(MLB|OLB|ILB)$/.test(p))return "LB";
+  if(/^(P|K|PK)$/.test(p))return "K";
+  if(/^(FB|HB)$/.test(p))return "RB";
+  return "ATH";}
+// The neutral stub. It stands in ONLY while agent A's window.__V111 is absent, and
+// it is shaped to the same contract so the screen reads the same either way.
+const V111_STUB={
+  KEYS:V111_KEYS.slice(),
+  usage(pl,wk){const k=v111KeyV111(wk),base=Math.max(.06,Math.min(.98,(pl&&pl.snapShare!=null?pl.snapShare:.6)));
+    const m={limited:TU("v111bShareLimited",.45),reduced:TU("v111bShareReduced",.74),normal:1,heavy:TU("v111bShareHeavy",1.24),everysnap:TU("v111bShareEvery",1.6)}[k]||1;
+    const t={limited:TU("v111bTouchLimited",.7),reduced:TU("v111bTouchReduced",.87),normal:1,heavy:TU("v111bTouchHeavy",1.18),everysnap:TU("v111bTouchEvery",1.34)}[k]||1;
+    return {key:k,share:Math.max(.05,Math.min(1,base*m)),touchMul:t,label:V111_STEP[k].n,desc:V111_STEP[k].d};},
+  forecast(pl,wk,key){const k=V111_KEYS.indexOf(key)>=0?key:"normal";
+    const lm={limited:TU("v111bLoadLimited",.48),reduced:TU("v111bLoadReduced",.74),normal:1,heavy:TU("v111bLoadHeavy",1.36),everysnap:TU("v111bLoadEvery",1.74)}[k];
+    const dur=(pl&&pl.attrs&&pl.attrs.injuryResist)||50,durMul=Math.max(.7,Math.min(1.5,TU("v111bDurAt0",1.35)-dur/TU("v111bDurSpan",140)));
+    const lvl=(pl&&pl.level)||0,anchor=45+lvl*5.5,oppR=(wk&&wk.opponentV11&&wk.opponentV11.rating)||anchor;
+    const oppMul=Math.max(.8,Math.min(1.45,1+(oppR-anchor)/TU("v111bOppSpan",60)));
+    const rnd=String((wk&&wk.round)||"").toLowerCase(),imp=String((wk&&wk.opponentV11&&wk.opponentV11.importance)||"").toLowerCase();
+    const stakes=(imp==="championship"||/final(?!$)|championship|title/.test(rnd))?TU("v111bStakesFinal",1.4)
+      :(wk&&wk.playoff)?TU("v111bStakesPlayoff",1.22)
+      :(wk&&wk.opponentV11&&wk.opponentV11.rivalry)?TU("v111bStakesRival",1.1):1;
+    const fat=(pl&&pl.conditionV11&&pl.conditionV11.fatigue)||0,wearMul=1+fat/TU("v111bWearSpan",220);
+    const load=TU("v111bLoadBase",11)*lm*durMul*oppMul*stakes;
+    const injPct=Math.max(.5,Math.min(72,TU("v111bRiskBase",8)*lm*durMul*oppMul*stakes*wearMul));
+    return {load:load,fatigueAfter:Math.max(0,Math.min(100,fat+load)),injPct:injPct,
+      gamesMissed:injPct/100*TU("injExpMissed",.92),
+      statCut:-(load*TU("v111bCutPerLoad",.11)),
+      parts:[{label:"Durability "+Math.round(dur),mul:durMul},{label:"Opponent "+Math.round(oppR),mul:oppMul},
+        {label:stakes>1.3?"Title game":stakes>1.15?"Playoff":stakes>1?"Rivalry":"Regular season",mul:stakes},
+        {label:"Already worn "+Math.round(fat),mul:wearMul}],
+      stakes:stakes,oppMul:oppMul,durMul:durMul};},
+  charge(){return {load:0,fatigueAfter:0,lingering:[]}},
+  focusFor(pos){return (V111_FOCUS_BOOK[v111PosKeyV111(pos)]||V111_FOCUS_BOOK.ATH)
+    .map(r=>({key:r[0],icon:r[1],stat:r[2],name:r[3],desc:r[4],mul:TU("v111FocusMul",1.2)}));},
+  buffFor(wk){const f=v111FocusRowV111(null,wk);return f?{stat:f.stat,mul:f.mul}:null;}};
+function v111ModelV111(){const M=window.__V111;return (M&&typeof M==="object")?M:null;}
+function v111KeyV111(wk){const k=wk&&wk.usageV111;return V111_KEYS.indexOf(k)>=0?k:"normal";}
+function v111UsageV111(pl,wk){const M=v111ModelV111();
+  if(M&&typeof M.usage==="function"){try{const u=M.usage(pl,wk);if(u&&typeof u==="object")return u}catch(e){}}
+  return V111_STUB.usage(pl,wk);}
+function v111ForecastV111(pl,wk,key){const M=v111ModelV111();
+  if(M&&typeof M.forecast==="function"){try{const f=M.forecast(pl,wk,key);if(f&&typeof f==="object")return f}catch(e){}}
+  return V111_STUB.forecast(pl,wk,key);}
+function v111FocusListV111(pos){const M=v111ModelV111();
+  if(M&&typeof M.focusFor==="function"){try{const l=M.focusFor(pos);if(Array.isArray(l)&&l.length===3)return l}catch(e){}}
+  return V111_STUB.focusFor(pos);}
+function v111FocusRowV111(pl,wk){const k=wk&&wk.focusV111;if(!k)return null;
+  const pos=(pl&&pl.pos)||(gsStateV23&&gsStateV23.pl&&gsStateV23.pl.pos)||"ATH";
+  return v111FocusListV111(pos).find(f=>f&&f.key===k)||null;}
+const v111Pct=v=>Math.round((Number(v)||0)*100)+"%";
+const v111Sig=v=>{const n=Number(v)||0;return (n>0?"+":"")+(Math.abs(n)>=10?Math.round(n):Math.round(n*10)/10)};
+function v111LedgerHTML(pl,wk,key){
+  const u=v111UsageV111(pl,wk),f=v111ForecastV111(pl,wk,key);
+  const cut=Number(f.statCut)||0,miss=Number(f.gamesMissed)||0;
+  const buy=`<div class="v111-row"><span>Team snaps</span><b style="color:#8fe0a0">${v111Pct(u.share)}</b></div>`
+    +`<div class="v111-row"><span>Touch share</span><b style="color:#8fe0a0">×${(Math.round((Number(u.touchMul)||1)*100)/100).toFixed(2)}</b></div>`
+    +`<div class="v111-row"><span>Role</span><b>${esc(u.label||V111_STEP[key].n)}</b></div>`;
+  const cost=`<div class="v111-row"><span>Wear</span><b style="color:#e8938b">+${Math.round(Number(f.load)||0)}</b></div>`
+    +`<div class="v111-row"><span>Injury</span><b style="color:${f.injPct>=24?"#e8938b":f.injPct<=12?"#8fe0a0":"var(--gold)"}">${Math.round(Number(f.injPct)||0)}%</b></div>`
+    +`<div class="v111-row"><span>Games out</span><b>${(Math.round(miss*10)/10).toFixed(1)}</b></div>`
+    +(Math.abs(cut)>=.05?`<div class="v111-row"><span>Next game</span><b style="color:${cut<0?"#e8938b":"#8fe0a0"}">${v111Sig(cut)}</b></div>`:``);
+  return `<div class="v111-col buy"><h4>WHAT IT BUYS</h4>${buy}</div><div class="v111-col cost"><h4>WHAT IT COSTS</h4>${cost}</div>`;
+}
+function v111PartsHTML(pl,wk,key){
+  const f=v111ForecastV111(pl,wk,key),parts=Array.isArray(f.parts)?f.parts:[];
+  if(!parts.length) return '';
+  return parts.filter(p=>p&&p.label!=null).map(p=>{const m=Number(p.mul);
+    const txt=Number.isFinite(m)?"×"+(Math.round(m*100)/100).toFixed(2):"";
+    return `<span class="v111-chip${Number.isFinite(m)&&m<1?' easy':''}">${esc(p.label)}${txt?` <b>${txt}</b>`:''}</span>`}).join('')
+    +`<span class="v111-chip easy">fatigue after <b>${Math.round(Number(f.fatigueAfter)||0)}</b></span>`;
+}
+function v111StepsHTML(key){
+  const i=Math.max(0,V111_KEYS.indexOf(key));
+  return V111_KEYS.map((k,j)=>`<button class="v111-step${j===i?' on':j<i?' lit':''}" data-key="${k}" id="v111Step_${k}" onclick="__v111PickUsageV111('${k}')" title="${esc(V111_STEP[k].d)}"><i></i><b>${V111_STEP[k].s}</b></button>`).join('');
+}
+function v111FocusHTML(pl,wk){
+  const sel=wk&&wk.focusV111||null;
+  return v111FocusListV111(pl&&pl.pos).map(f=>`<button class="gs-card-v23 v111-focus${f.key===sel?' gs-sel':''}" data-key="${esc(f.key)}" id="v111Focus_${esc(f.key)}" onclick="__v111PickFocusV111('${esc(f.key)}')">
+    <div class="gs-card-top"><span class="gs-ico">${f.icon||'🎯'}</span><b>${esc(f.name||f.key)}</b><span class="v111-mul">×${(Math.round((Number(f.mul)||1.2)*100)/100).toFixed(1)} ${esc(((window.__statLabelV25&&window.__statLabelV25(f.stat))||f.stat||'').toUpperCase())}</span></div>
+    <div class="gs-why">${esc(f.desc||'')}</div></button>`).join('');
+}
+function v111PlanHTML(){
+  const S=gsStateV23;if(!S||!S.auto)return '';
+  return `<b>Coordinator's plan:</b> ${esc(S.auto.name)} · ${Math.round(S.auto.pass*100)}% pass${S.auto.edge?' · scouted edge':''}`;
+}
+function v111RenderV111(){
+  const S=gsStateV23;if(!S)return;
+  const key=v111KeyV111(S.wk);
+  const st=document.getElementById('v111Steps'); if(st) st.innerHTML=v111StepsHTML(key);
+  const de=document.getElementById('v111Desc'); if(de) de.textContent=V111_STEP[key].d;
+  const lg=document.getElementById('v111Ledger'); if(lg) lg.innerHTML=v111LedgerHTML(S.pl,S.wk,key);
+  const pa=document.getElementById('v111Parts'); if(pa) pa.innerHTML=v111PartsHTML(S.pl,S.wk,key);
+  document.querySelectorAll('.v111-focus').forEach(c=>c.classList.toggle('gs-sel',c.getAttribute('data-key')===(S.wk&&S.wk.focusV111)));
+}
+window.__v111PickUsageV111=function(key){
+  const S=gsStateV23;if(!S||V111_KEYS.indexOf(key)<0)return;
+  if(S.wk) S.wk.usageV111=key; else S.stray.usageV111=key;
+  v111RenderV111();
+};
+window.__v111PickFocusV111=function(key){
+  const S=gsStateV23;if(!S)return;
+  const list=v111FocusListV111(S.pl&&S.pl.pos),row=list.find(f=>f&&f.key===key);if(!row)return;
+  const w=S.wk||S.stray;
+  w.focusV111=(w.focusV111===key)?null:key;   // exactly one, and picking it again clears it
+  v111RenderV111();
+  try{const el=document.getElementById('preStatsV25');
+    if(el&&window.pregamePlayerStatsV25&&S.pl) el.outerHTML=window.pregamePlayerStatsV25(S.pl);}catch(e){}
+};
 function gsSectionV23(oursR,theirsR,pl,wk){
   if(!document.getElementById('gsStyleV23')) document.head.insertAdjacentHTML('beforeend',`<style id="gsStyleV23">
     .gs-wrap-v23{margin:12px 14px 4px;padding:10px 12px;border:1px solid rgba(120,180,255,.32);border-radius:10px;background:rgba(120,170,255,.06)}
@@ -16523,23 +16701,79 @@ function gsSectionV23(oursR,theirsR,pl,wk){
     .gs-field-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#5a8fd6,#8fb7ff);opacity:.55;transition:width .35s cubic-bezier(.2,.9,.3,1)}
     .gs-field-lab{font:700 9px Oswald;letter-spacing:1px;color:#8fb7ff;text-align:center;margin-top:3px}
     .gs-impact-note{font:400 10px system-ui;color:#cdd8e8;margin-top:5px;line-height:1.3}
+    /* v111: the involvement ladder and the focus picker */
+    .v111-wrap{border-color:rgba(240,187,69,.34);background:rgba(240,187,69,.05)}
+    .v111-wrap .gs-head{color:var(--gold)}
+    .v111-steps{display:flex;gap:4px;margin-bottom:7px}
+    .v111-step{flex:1 1 0;min-width:0;cursor:pointer;background:rgba(20,30,48,.7);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 2px 5px;text-align:center;transition:border-color .12s,background .12s}
+    .v111-step:hover{border-color:rgba(240,187,69,.55)}
+    .v111-step i{display:block;height:4px;border-radius:3px;background:rgba(255,255,255,.14);margin:0 4px 5px}
+    .v111-step b{display:block;font:800 8.5px Oswald,sans-serif;letter-spacing:.5px;color:var(--chalk-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .v111-step.lit i{background:rgba(240,187,69,.45)}
+    .v111-step.on{border-color:var(--gold);background:rgba(240,187,69,.16);box-shadow:0 0 0 1px var(--gold) inset}
+    .v111-step.on i{background:var(--gold)}
+    .v111-step.on b{color:var(--gold)}
+    .v111-desc{font:400 11px system-ui;color:var(--chalk-dim);line-height:1.3;margin-bottom:8px}
+    .v111-ledger{display:flex;gap:7px;flex-wrap:wrap}
+    .v111-col{flex:1 1 132px;min-width:0;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 8px;background:rgba(20,30,48,.55)}
+    .v111-col h4{margin:0 0 4px;font:800 8.5px Oswald,sans-serif;letter-spacing:1px}
+    .v111-col.buy h4{color:#8fe0a0}
+    .v111-col.cost h4{color:#e8938b}
+    .v111-row{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font:600 11px Barlow Condensed,sans-serif;color:var(--chalk-dim);line-height:1.5}
+    .v111-row b{font:700 12px Oswald,sans-serif;color:var(--chalk);white-space:nowrap}
+    .v111-parts{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+    .v111-chip{font:600 10px Barlow Condensed,sans-serif;color:var(--chalk-dim);border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:2px 7px;background:rgba(20,30,48,.6);white-space:nowrap}
+    .v111-chip b{color:#e8938b;font:700 10px Oswald,sans-serif}
+    .v111-chip.easy b{color:#8fe0a0}
+    .v111-plan{margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.09);font:400 11px system-ui;color:var(--chalk-dim);line-height:1.35}
+    .v111-plan b{color:#8fb7ff}
+    .v111-focus-wrap{border-color:rgba(107,191,89,.3);background:rgba(107,191,89,.05)}
+    .v111-focus-wrap .gs-head{color:#8fe0a0}
+    .v111-mul{margin-left:auto;font:800 9px Oswald;letter-spacing:.5px;color:#0b1119;background:#8fe0a0;border-radius:10px;padding:2px 6px;white-space:nowrap}
+    .gs-card-v23.v111-focus .gs-card-top b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .gs-card-v23.v111-focus:hover{border-color:rgba(143,224,160,.55)}
+    .gs-card-v23.v111-focus.gs-sel{border-color:#8fe0a0;background:rgba(107,191,89,.16);box-shadow:0 0 0 1px #8fe0a0 inset}
   </style>`);
   const scn=gsScenariosV23(oursR,theirsR), adopt=gsAdoptV23(pl,wk);
-  gsStateV23={scn,adopt,pl};
-  if(pl) pl._gameScriptV23=null;   // start each pregame with no suggestion until picked
-  const cards=scn.map((s,i)=>`<button class="gs-card-v23" id="gsCard${i}" onclick="__gsPickV23(${i})">
-    <div class="gs-card-top"><span class="gs-ico">${s.icon}</span><b>${esc(s.name)}</b>${s.edge?'<span class="gs-edge">SCOUTED EDGE</span>':''}</div>
-    <div class="gs-mix">${Math.round(s.pass*100)}% pass · ${Math.round((1-s.pass)*100)}% run</div>
-    <div class="gs-why">${esc(s.why)}</div></button>`).join('');
-  return `<div class="gs-wrap-v23"><div class="gs-head">🧠 SUGGEST A GAME PLAN<small>Scout their weak unit and pitch a play-mix — the coach adopts it based on your standing.</small></div>
-    <div class="gs-cards">${cards}</div><div class="gs-impact" id="gsImpactV23">${gsImpactHTML(null,adopt)}</div></div>`;
+  // v111: the coordinator no longer waits to be pitched at — he adopts the plan the
+  // scouting report favours (the scouted edge, else balanced) the moment the screen
+  // opens, so passP, the impact bar and everything downstream see exactly what they
+  // always saw. The player's own decision is the ladder underneath.
+  const auto=scn.find(s=>s.edge)||scn.find(s=>s.key==='bal')||scn[0];
+  gsStateV23={scn,adopt,pl,wk,auto,stray:{}};
+  if(pl) pl._gameScriptV23={gsPass:gsFinalPass(auto.pass,adopt),name:auto.name,adopt:adopt};
+  const key=v111KeyV111(wk);
+  return `<div class="gs-wrap-v23 v111-wrap" id="v111Wrap"><div class="gs-head">🏈 YOUR INVOLVEMENT<small>How much of this game do you carry? More snaps means more touches and more stats — and more damage.</small></div>
+    <div class="v111-steps" id="v111Steps">${v111StepsHTML(key)}</div>
+    <div class="v111-desc" id="v111Desc">${esc(V111_STEP[key].d)}</div>
+    <div class="v111-ledger" id="v111Ledger">${v111LedgerHTML(pl,wk,key)}</div>
+    <div class="v111-parts" id="v111Parts">${v111PartsHTML(pl,wk,key)}</div>
+    <div class="v111-plan" id="v111Plan">${v111PlanHTML()}</div>
+    <div class="gs-impact" id="gsImpactV23">${gsImpactHTML(auto,adopt)}</div></div>
+    <div class="gs-wrap-v23 v111-focus-wrap" id="v111FocusWrap"><div class="gs-head">🎯 GAME FOCUS<small>Sharpen one thing for this game only — ×${(Math.round(TU("v111FocusMul",1.2)*100)/100).toFixed(1)} on the stat you pick. One at a time; tap it again to drop it.</small></div>
+    <div class="gs-cards" id="v111FocusCards">${v111FocusHTML(pl,wk)}</div></div>`;
 }
+// v111: the cards are the coordinator's business now, but the pitch entry point is
+// kept so anything that still calls it behaves exactly as it did.
 window.__gsPickV23=function(idx){
   const S=gsStateV23; if(!S) return; const scn=S.scn[idx]; if(!scn) return;
-  document.querySelectorAll('.gs-card-v23').forEach((c,i)=>c.classList.toggle('gs-sel',i===idx));
+  document.querySelectorAll('.gs-card-v23:not(.v111-focus)').forEach((c,i)=>c.classList.toggle('gs-sel',i===idx));
   const imp=document.getElementById('gsImpactV23'); if(imp) imp.innerHTML=gsImpactHTML(scn,S.adopt);
   if(S.pl) S.pl._gameScriptV23={gsPass:gsFinalPass(scn.pass,S.adopt),name:scn.name,adopt:S.adopt};
 };
+window.__V111_UI={KEYS:V111_KEYS.slice(),STEP:V111_STEP,
+  model:v111ModelV111,stub:V111_STUB,
+  week:()=>gsStateV23&&(gsStateV23.wk||gsStateV23.stray)||null,
+  key:()=>v111KeyV111(gsStateV23&&gsStateV23.wk),
+  focus:()=>{const S=gsStateV23,w=S&&(S.wk||S.stray);return (w&&w.focusV111)||null},
+  focusFor:v111FocusListV111,focusRow:v111FocusRowV111,
+  usage:(pl,wk)=>v111UsageV111(pl||(gsStateV23&&gsStateV23.pl),wk||(gsStateV23&&gsStateV23.wk)),
+  forecast:(k,pl,wk)=>v111ForecastV111(pl||(gsStateV23&&gsStateV23.pl),wk||(gsStateV23&&gsStateV23.wk),k||v111KeyV111(gsStateV23&&gsStateV23.wk)),
+  plan:()=>gsStateV23&&gsStateV23.auto||null,
+  player:()=>gsStateV23&&gsStateV23.pl||null,
+  script:()=>{const S=gsStateV23;return S&&S.pl&&S.pl._gameScriptV23||null},
+  pickUsage:k=>window.__v111PickUsageV111(k),pickFocus:k=>window.__v111PickFocusV111(k),
+  render:v111RenderV111};
 // v20: full-roster average on the shared scale (falls back to the level anchor)
 function rosterAvg(roster,fb){const a=(Array.isArray(roster)?roster:[]).map(normalize).filter(p=>p.ovr>0);return a.length?a.reduce((s,p)=>s+p.ovr,0)/a.length:fb}
 // v20: unit-by-unit comparison → 2-3 plain-language lines about how this game
