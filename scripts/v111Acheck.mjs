@@ -1,0 +1,320 @@
+// v111 A dev check — THE MODEL AND THE ENGINE.
+//
+// Proves the half of "your game, your body" that lives in the model and the engine:
+//   1. window.__V111 exposes all six contract members with the right shapes.
+//   2. At "normal" with no focus the engine is IDENTICAL to the build before v111 — same
+//      seeded games, same number of Math.random() calls (run with BASE_URL=<old build>).
+//   3. At "limited" his snaps and his stat line fall materially while the TEAM's points and
+//      plays do not — his teammates absorb the work.
+//   4. At "everysnap" his stat line rises and the forecast's load rises with it.
+//   5. forecast() responds to durability, opponent rating and stakes in the right direction.
+//   6. charge() moves fatigue, moves the injury chance, and writes a lingering cut that decays
+//      over its `games` countdown.
+//   7. A rest snap credits him nothing: on the snaps he sits, the sim never names him.
+//   8. A focus pick raises exactly one stat by 1.2x in effAttrsV85 AND in what the sim reads.
+//
+// Env: GAME_URL (default http://localhost:5191/index.html), BASE_URL (the pre-v111 build, for
+// the identity test — skipped when unset), GAMES (per involvement key, default 90), AB (games
+// for the identity test, default 30), POS (default RB).
+import { chromium } from 'playwright'
+
+const URL = process.env.GAME_URL || 'http://localhost:5191/index.html'
+const BASE = process.env.BASE_URL || ''
+const N = Number(process.env.GAMES || 90)
+const AB = Number(process.env.AB || 30)
+const POS = process.env.POS || 'RB'
+const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const pageErrors = []
+const fails = []
+const ok = (cond, label, extra) => { if (!cond) fails.push(label + (extra !== undefined ? ' — ' + JSON.stringify(extra) : '')) }
+
+// ---------------------------------------------------------------- shared page plumbing
+async function open (url, seeded) {
+  const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
+  page.on('pageerror', e => pageErrors.push(url + ' PAGEERROR: ' + e.message))
+  page.on('console', m => { if (m.type() === 'error') pageErrors.push(url + ' CONSOLE: ' + m.text()) })
+  await page.addInitScript(({ seeded }) => {
+    if (seeded) { // a deterministic clock for the identity test — two builds cannot be compared without one
+      let s = 1
+      window.__rc = 0
+      window.__seed = v => { s = (v >>> 0) || 1; window.__rc = 0 }
+      Math.random = function () { window.__rc++; s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296 }
+    }
+    setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60)
+  }, { seeded })
+  await page.goto(url, { waitUntil: 'commit', timeout: 30000 })
+  await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 })
+  await page.waitForTimeout(400)
+  return page
+}
+const VIS = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
+async function click (page, t) {
+  await page.evaluate(({ t, visSrc }) => {
+    const vis = eval(visSrc)
+    const els = [...document.querySelectorAll('button,[onclick],a')].filter(vis)
+    let el
+    if (t === 'ARCH') el = els.find(e => /^(⭐|🦾|🏘️|🚪|🩹|🔄|💎|🔥|🧊|👑)/.test((e.innerText || '').trim()))
+    else el = els.find(e => ((e.innerText || e.textContent || '').replace(/\s+/g, ' ').includes(t)))
+    if (el) el.click()
+  }, { t, visSrc: VIS })
+  await page.waitForTimeout(350)
+}
+async function career (page, pos) {
+  for (const s of ['START NEW CAREER', 'ARCH', pos + ' ', 'Lock In Personality', 'PLAY 8-GAME SEASON', 'Balanced Program']) await click(page, s)
+}
+
+// ================================================================ 1/2. the API, and identity
+// Career creation is not reproducible under a seeded clock (the menus consume randomness on
+// their own timers), so the identity run plays seeded games with no career loaded at all —
+// which is exactly the state every other engine check sims in.
+const fingerprint = async (url) => {
+  const page = await open(url, true)
+  const rows = await page.evaluate(({ AB, POS }) => {
+    const out = []
+    for (let g = 0; g < AB; g++) {
+      window.__seed(1000 + g * 7)
+      const x = window.__simGameV2(45 + (g % 9) * 5, POS)
+      out.push([window.__rc, x.usScore, x.themScore, x.plays.length, x.team.yds, x.oppTeam.yds, x.team.pass,
+        x.team.rush, x.team.sacks, x.team.turn, x.stat.rush, x.stat.rec, x.stat.td, x.stat.carries, x.stat.tackle].join('|'))
+    }
+    return out
+  }, { AB, POS })
+  await page.close()
+  return rows
+}
+const mine = await fingerprint(URL)
+let identity = { ran: false }
+if (BASE) {
+  const base = await fingerprint(BASE)
+  let diff = 0, first = null
+  for (let i = 0; i < mine.length; i++) if (mine[i] !== base[i]) { diff++; if (!first) first = { i, mine: mine[i], base: base[i] } }
+  identity = { ran: true, games: mine.length, identical: diff === 0, differing: diff, first }
+  ok(diff === 0, 'DEFAULTS ARE NOT BYTE-IDENTICAL to the pre-v111 build', first)
+}
+
+// ================================================================ the rest, on one career
+const page = await open(URL, false)
+await career(page, POS)
+const res = await page.evaluate(({ N, POS }) => {
+  const R = {}
+  const ST = window.__GRIDIRON_AUDIT__.getState(), pl = ST.player, V = window.__V111
+  const AU = window.__GRIDIRON_AUDIT__
+  pl.pos = POS
+  const wk = () => pl.weekResults.find(w => w && !w.played)
+  const round = (v, d = 2) => +Number(v).toFixed(d)
+
+  // ---- 1. the API surface --------------------------------------------------------------
+  const u = V.usage(pl), fc = V.forecast(pl, undefined, 'normal'), fl = V.focusFor(POS)
+  R.api = {
+    members: ['KEYS', 'usage', 'forecast', 'charge', 'focusFor', 'buffFor'].filter(k => V[k] === undefined),
+    keys: V.KEYS, keysOk: Array.isArray(V.KEYS) && V.KEYS.join(',') === 'limited,reduced,normal,heavy,everysnap',
+    usageShape: ['key', 'share', 'touchMul', 'label', 'desc'].filter(k => u[k] === undefined),
+    forecastShape: ['load', 'fatigueAfter', 'injPct', 'gamesMissed', 'statCut', 'parts', 'stakes', 'oppMul', 'durMul'].filter(k => fc[k] === undefined),
+    partsOk: Array.isArray(fc.parts) && fc.parts.length > 0 && fc.parts.every(p => p.label && typeof p.mul === 'number'),
+    focusN: fl.length,
+    focusShape: fl.every(x => x.key && x.name && x.icon && x.stat && x.mul === 1.2 && x.desc),
+    focusEveryPos: ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S', 'K'].filter(p => {
+      const l = V.focusFor(p); return !(l.length === 3 && l.every(x => x.stat && window.__GRIDIRON_AUDIT__.ATTRS.indexOf(x.stat) >= 0))
+    }),
+    buffNull: V.buffFor(undefined) === null,
+    normalIsNoop: u.key === 'normal' && u.share === 1 && u.touchMul === 1
+  }
+
+  // ---- 3/4. the dial reaches the snap ---------------------------------------------------
+  const you = k => {
+    wk().usageV111 = k
+    const a = { us: 0, them: 0, plays: 0, yds: 0, prod: 0, touch: 0, on: 0, team: 0, snapRows: 0 }
+    for (let g = 0; g < N; g++) {
+      const r = window.__simGameV2(55, POS)
+      a.us += r.usScore; a.them += r.themScore; a.plays += r.plays.length; a.yds += r.team.yds
+      const s = r.stat
+      a.prod += (s.rush || 0) + (s.rec || 0) + (s.pass || 0) + (s.tackle || 0) * 10 + (s.pd || 0) * 10 + (s.sack || 0) * 10
+      a.touch += (s.carries || 0) + (s.rec_c || 0) + (s.tackle || 0) + (s.pd || 0)
+      if (r.snapsV111 && r.snapsV111.on != null) { a.on += r.snapsV111.on; a.team += r.snapsV111.team; a.snapRows++ }
+    }
+    return { key: k, us: round(a.us / N), them: round(a.them / N), plays: round(a.plays / N, 1), yds: round(a.yds / N, 1),
+      prod: round(a.prod / N, 1), touch: round(a.touch / N), snapPct: a.team ? round(100 * a.on / a.team, 1) : 100 }
+  }
+  R.dial = V.KEYS.map(you)
+  wk().usageV111 = 'normal'
+  const lim = R.dial[0], nor = R.dial[2], hev = R.dial[3], evr = R.dial[4]
+  R.dialVerdict = {
+    snapsFell: lim.snapPct < 62 && lim.snapPct > 46,                       // he really is off the field
+    statsFell: lim.prod < nor.prod * 0.72 && lim.touch < nor.touch * 0.72, // and it shows on the sheet
+    statsRose: evr.prod > nor.prod * 1.12 && evr.touch > nor.touch * 1.12,
+    ladder: lim.touch < nor.touch && nor.touch < hev.touch && hev.touch <= evr.touch,
+    teamHeld: (Math.max(...R.dial.map(r => r.us)) - Math.min(...R.dial.map(r => r.us))) <= 4.5
+      && (Math.max(...R.dial.map(r => r.plays)) - Math.min(...R.dial.map(r => r.plays))) <= 10,
+    teamSpread: { us: round(Math.max(...R.dial.map(r => r.us)) - Math.min(...R.dial.map(r => r.us)), 1),
+      plays: round(Math.max(...R.dial.map(r => r.plays)) - Math.min(...R.dial.map(r => r.plays)), 1) }
+  }
+
+  // ---- 7. a rest snap credits him nothing -----------------------------------------------
+  // The engine swaps a backup into his roster slot for the snaps he sits, so the credited
+  // actors on those plays can never be him. Measured as: he is involved in no more plays than
+  // the snaps he was actually on the field for.
+  wk().usageV111 = 'limited'
+  let creditViolations = 0, involvedTot = 0, onTot = 0
+  for (let g = 0; g < 40; g++) {
+    const r = window.__simGameV2(55, POS)
+    const inv = r.plays.filter(p => p && p.involved && !p.header).length
+    involvedTot += inv; onTot += (r.snapsV111 && r.snapsV111.on) || 0
+    if (inv > ((r.snapsV111 && r.snapsV111.on) || 0)) creditViolations++
+  }
+  R.restCredit = { games: 40, involved: involvedTot, onField: onTot, violations: creditViolations }
+  ok2(creditViolations === 0)
+  wk().usageV111 = 'normal'
+
+  // ---- 5. the forecast reads the body, the opponent and the fixture ---------------------
+  // At "normal" the bill is zero by construction (a normal week costs exactly what a week of
+  // rest returns), so the directional tests are run where the dial is actually spending.
+  const w = wk()
+  const savedOpp = w.opponentV11, savedPo = w.playoff, savedRi = w.roundIdx, savedResist = pl.attrs.injuryResist
+  const L = k => V.forecast(pl, w, k).load
+  w.opponentV11 = { rating: 45 + pl.level * 5.5, name: 'Par' }
+  const parEvery = L('everysnap'), parNormal = L('normal')
+  pl.attrs.injuryResist = Math.min(99, savedResist + 30); const toughEvery = L('everysnap')
+  pl.attrs.injuryResist = Math.max(1, savedResist - 5); const brittleEvery = L('everysnap')
+  pl.attrs.injuryResist = savedResist
+  w.opponentV11 = { rating: 45 + pl.level * 5.5 + 30, name: 'Monster' }; const hardEvery = L('everysnap')
+  w.opponentV11 = { rating: Math.max(5, 45 + pl.level * 5.5 - 30), name: 'Cupcake' }; const softEvery = L('everysnap')
+  w.opponentV11 = { rating: 45 + pl.level * 5.5, name: 'Par' }
+  const savedLvl = pl.level
+  pl.level = 7                                   // a bracket with a wild card, a semifinal and a final
+  w.opponentV11 = { rating: 45 + pl.level * 5.5, name: 'Par' }
+  const rounds = window.__GRIDIRON_AUDIT__.playoffRoundNames(pl.level)
+  const parLvl7 = L('everysnap')
+  w.playoff = true; w.roundIdx = rounds.length - 1; const finalEvery = L('everysnap'); const finalStakes = V.forecast(pl, w, 'everysnap').stakes
+  w.roundIdx = rounds.length - 2; const semiEvery = L('everysnap'); const semiStakes = V.forecast(pl, w, 'everysnap').stakes
+  w.playoff = savedPo; w.roundIdx = savedRi; pl.level = savedLvl; w.opponentV11 = savedOpp
+  R.forecast = { parNormal: round(parNormal, 1), parEvery: round(parEvery, 1), toughEvery: round(toughEvery, 1), brittleEvery: round(brittleEvery, 1),
+    softEvery: round(softEvery, 1), hardEvery: round(hardEvery, 1), parLvl7: round(parLvl7, 1), semiEvery: round(semiEvery, 1), finalEvery: round(finalEvery, 1),
+    rounds: rounds.length,
+    semiStakes: round(semiStakes), finalStakes: round(finalStakes), regularStakes: round(V.forecast(pl, w, 'everysnap').stakes) }
+  R.forecastVerdict = {
+    normalIsFree: Math.abs(parNormal) < 0.5,
+    durability: toughEvery < parEvery && brittleEvery > parEvery,
+    opponent: hardEvery > parEvery && softEvery < parEvery,
+    stakes: finalEvery > semiEvery && semiEvery > parLvl7 && finalStakes > semiStakes && semiStakes > 1,
+    dialRises: L('everysnap') > L('heavy') && L('heavy') > L('normal') && L('normal') > L('reduced') && L('reduced') > L('limited')
+  }
+
+  // ---- 6. the charge bites: fatigue, the injury roll, and a cut that decays --------------
+  pl._wearV111 = null
+  pl.conditionV11.fatigue = 20
+  const inj0 = window.__injChanceV54(pl, { wk: w })
+  const fat0 = pl.conditionV11.fatigue
+  const bills = []
+  for (let i = 0; i < 6; i++) bills.push(V.charge(pl, w, { snaps: 44, teamSnaps: 44, touchMul: 1.5, touches: 30 }))
+  const inj1 = window.__injChanceV54(pl, { wk: w })
+  const linger0 = JSON.parse(JSON.stringify(V.wear(pl).lingering))
+  const cutStat = linger0[0] && linger0[0].stat
+  const effCut = window.__V85.effAttrs(pl)
+  V.decay(pl); const linger1 = JSON.parse(JSON.stringify(V.wear(pl).lingering))
+  V.decay(pl); const linger2 = JSON.parse(JSON.stringify(V.wear(pl).lingering))
+  R.charge = { bills: bills.map(b => ({ load: b.load, after: b.loadAfter, fat: b.fatigueAfter, cut: b.statCut, pct: b.statCutPct })),
+    fat0, fat1: pl.conditionV11.fatigue, inj0: round(inj0 * 100, 1), inj1: round(inj1 * 100, 1),
+    linger0, lingerGames1: linger1.map(b => b.games), linger2: linger2.length,
+    cutStat, cutBase: cutStat && pl.attrs[cutStat], cutEff: cutStat && effCut.eff[cutStat] }
+  R.chargeVerdict = {
+    loadAccrues: bills[0].load > 0 && bills[5].loadAfter > bills[0].loadAfter,
+    fatigueMoved: pl.conditionV11.fatigue > fat0 + 20,
+    injuryMoved: inj1 > inj0 * 1.15,
+    cutWritten: linger0.length > 0 && linger0.every(b => b.games > 0 && (b.mul < 1 || b.amt < 0)),
+    cutReachesSheet: !!cutStat && effCut.eff[cutStat] < pl.attrs[cutStat],
+    cutDecays: linger1.length === linger0.length && linger1.every(b => b.games === linger0[0].games - 1) && linger2.length === 0
+  }
+
+  // ---- a light week pays it back --------------------------------------------------------
+  const heavyLoad = V.wear(pl).load
+  for (let i = 0; i < 4; i++) V.charge(pl, w, { snaps: 20, teamSnaps: 44, touchMul: 0.7, touches: 6 })
+  R.recovery = { from: round(heavyLoad), to: round(V.wear(pl).load), paidBack: V.wear(pl).load < heavyLoad }
+
+  // ---- 8. the focus is a 1.2x that reaches the sheet AND the sim -------------------------
+  pl._wearV111 = null
+  pl.conditionV11.fatigue = 20
+  const pick = V.focusFor(POS)[0]
+  const before = window.__V85.effAttrs(pl)
+  w.focusV111 = pick.key
+  const after = window.__V85.effAttrs(pl)
+  const active = V.buffFor(w)
+  const simSees = V.buffs(pl).filter(b => b && b.v111 === 'focus')
+  const moved = window.__GRIDIRON_AUDIT__.ATTRS.filter(k => after.eff[k] !== before.eff[k])
+  w.focusV111 = null
+  R.focus = { pick: pick.key, stat: pick.stat, mul: pick.mul, moved, base: pl.attrs[pick.stat],
+    before: before.eff[pick.stat], after: after.eff[pick.stat], active, simSees,
+    expected: Math.max(1, Math.round(Math.round(pl.attrs[pick.stat] * before.mult) * 1.2)) }
+  R.focusVerdict = {
+    exactlyOne: moved.length === 1 && moved[0] === pick.stat,
+    isTwentyPct: after.eff[pick.stat] === R.focus.expected && after.eff[pick.stat] > before.eff[pick.stat],
+    reachesSim: simSees.length === 1 && simSees[0].stat === pick.stat && simSees[0].mul === 1.2,
+    buffForActive: active && active.stat === pick.stat && active.mul === 1.2
+  }
+
+  // ---- the weekly resolver bills the body -----------------------------------------------
+  pl._wearV111 = null
+  const wr = wk()
+  if (wr) {
+    wr.usageV111 = 'everysnap'
+    try { AU.resolveSequentialWeekV11(pl, wr, 'balanced') } catch (e) { R.resolveErr = String(e).slice(0, 200) }
+    R.resolve = { wear: wr.wearV111 ? { load: wr.wearV111.load, fat: wr.wearV111.fatigueAfter } : null,
+      snaps: wr.snapsV111, ledgerLoad: V.wear(pl).load }
+  }
+  return R
+
+  function ok2 () {}
+}, { N, POS })
+
+// ------------------------------------------------------------------------ verdicts
+const A = res.api
+ok(A.members.length === 0, 'window.__V111 is missing contract members', A.members)
+ok(A.keysOk, 'KEYS is wrong', A.keys)
+ok(A.usageShape.length === 0, 'usage() is missing fields', A.usageShape)
+ok(A.forecastShape.length === 0, 'forecast() is missing fields', A.forecastShape)
+ok(A.partsOk, 'forecast().parts is not a list of {label,mul}')
+ok(A.focusN === 3 && A.focusShape, 'focusFor() must return exactly 3 {key,name,icon,stat,mul:1.2,desc}', { n: A.focusN })
+ok(A.focusEveryPos.length === 0, 'focusFor() does not cover every position with real attributes', A.focusEveryPos)
+ok(A.buffNull, 'buffFor() must be null with no focus picked')
+ok(A.normalIsNoop, 'usage() at "normal" must be share 1 / touchMul 1', A)
+
+const D = res.dialVerdict
+ok(D.snapsFell, 'at "limited" his share of snaps did not fall to the dial', res.dial)
+ok(D.statsFell, 'at "limited" his stat line did not fall materially', res.dial)
+ok(D.statsRose, 'at "everysnap" his stat line did not rise', res.dial)
+ok(D.ladder, 'the dial is not monotone in touches', res.dial.map(r => r.touch))
+ok(D.teamHeld, 'the TEAM\'s points or plays moved with the dial', res.dial)
+ok(res.restCredit.violations === 0, 'a rest snap credited him', res.restCredit)
+
+const F = res.forecastVerdict
+ok(F.normalIsFree, '"normal" must cost the body nothing by construction', res.forecast)
+ok(F.durability, 'forecast does not respond to durability', res.forecast)
+ok(F.opponent, 'forecast does not respond to the opponent', res.forecast)
+ok(F.stakes, 'forecast does not respond to the stakes of the fixture', res.forecast)
+ok(F.dialRises, 'forecast load is not monotone in the dial', res.forecast)
+
+const C = res.chargeVerdict
+ok(C.loadAccrues, 'charge() does not accrue load', res.charge)
+ok(C.fatigueMoved, 'charge() does not move conditionV11.fatigue', res.charge)
+ok(C.injuryMoved, 'charge() does not move injChanceV54', res.charge)
+ok(C.cutWritten, 'charge() did not write a lingering cut', res.charge)
+ok(C.cutReachesSheet, 'the lingering cut does not reach effAttrsV85', res.charge)
+ok(C.cutDecays, 'the lingering cut does not decay over its games countdown', res.charge)
+ok(res.recovery.paidBack, 'a light week does not pay load back', res.recovery)
+
+const X = res.focusVerdict
+ok(X.exactlyOne, 'the focus moved more than one stat', res.focus)
+ok(X.isTwentyPct, 'the focus is not a 1.2x on the sheet', res.focus)
+ok(X.reachesSim, 'the focus does not reach what the sim reads', res.focus)
+ok(X.buffForActive, 'buffFor() does not report the active pick', res.focus)
+ok(res.resolve && res.resolve.wear && res.resolve.wear.load !== undefined, 'the weekly resolver did not bill the body', res.resolve)
+if (res.resolveErr) fails.push('the weekly resolver threw — ' + res.resolveErr)
+
+console.log(JSON.stringify({ identity, api: res.api, dial: res.dial, dialVerdict: res.dialVerdict, restCredit: res.restCredit,
+  forecast: res.forecast, forecastVerdict: res.forecastVerdict, charge: res.charge, chargeVerdict: res.chargeVerdict,
+  recovery: res.recovery, focus: res.focus, focusVerdict: res.focusVerdict, resolve: res.resolve,
+  fails: fails.length, pageErrors: pageErrors.length }, null, 1))
+if (fails.length) console.log('FAILURES:\n' + fails.join('\n'))
+if (pageErrors.length) console.log('PAGE ERRORS:\n' + pageErrors.slice(0, 6).join('\n'))
+console.log(fails.length || pageErrors.length ? 'v111A: FAIL' : 'v111A: PASS')
+await browser.close()
+process.exit(fails.length || pageErrors.length ? 1 : 0)
