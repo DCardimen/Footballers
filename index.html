@@ -8641,7 +8641,7 @@ class Ot extends mt.Scene {
           }
           // v112: on a launch the callout waits for the LANDING — the takeover's freeze and the
           // full-field badge otherwise sit on top of the very arc they are celebrating
-          if (willFly112) this.time.delayedCall(TU("launchBadgeDelayMs", 420), () => BADGE_V95.show("bighit", { sub: "OFF HIS FEET", x: e.x, y: e.y, scene: this }));
+          if (willFly112) this.time.delayedCall(this.flyBadgeMsV112(e.flyVz), () => BADGE_V95.show("bighit", { sub: "OFF HIS FEET", x: e.x, y: e.y, scene: this }));
           else BADGE_V95.show("bighit", { sub: "HIT STICK", x: e.x, y: e.y, scene: this });   // v95
           /* v103 IMPACT WEIGHT — every big hit used to shake the camera by exactly the same
            * amount for exactly the same time. The sim already measured the collision (the
@@ -8897,7 +8897,7 @@ class Ot extends mt.Scene {
           this.hookV112F().flying++;
           if (m.body) m.body.setAlpha(0.85);
           this.time.delayedCall(TU("launchDownMs", 900), () => { if (m.body) { m.body.setAlpha(1); if (m.forceState === "down" && !m._flyV112) m.forceState = null; } });
-          this.time.delayedCall(TU("launchBadgeDelayMs", 420), () => BADGE_V95.show("bighit", { sub: e.hitStick ? "TRUCKED HIM" : "OFF HIS FEET", x: e.x, y: e.y, scene: this }));   // v112: the callout lands with him
+          this.time.delayedCall(this.flyBadgeMsV112(e.flyVz), () => BADGE_V95.show("bighit", { sub: e.hitStick ? "TRUCKED HIM" : "OFF HIS FEET", x: e.x, y: e.y, scene: this }));   // v112: the callout lands with him
           this.hitStop = Math.max(this.hitStop, TU("hitStopBig", 120));
           this.puffFx(e.x, e.y, 6); vib(48);
           REDUCED_MOTION || this.cameras.main.shake(240, 0.014);
@@ -9827,6 +9827,12 @@ class Ot extends mt.Scene {
    * that was booked before it started. He lands in `down`, which is where the v86 gather and the
    * get-up path already pick a man up off the turf. */
   hookV112F() { return window.__V112_F = window.__V112_F || { launches: 0, lands: 0, ends: 0, airborne: 0, maxLift: 0, flying: 0, samples: [] }; }
+  // the flight's hang time in REAL milliseconds — the play clock runs at the live speed dial times
+  // basePlayRate, so a fixed wait would put the callout mid-air at ½× and long after him at 4×
+  flyBadgeMsV112(vz) {
+    const rate = Math.max(.15, (window.__getGridironLiveSpeed ? window.__getGridironLiveSpeed() : 1) * TU("basePlayRate", .7));
+    return Math.round(Math.min(TU("launchBadgeMaxMs", 1500), (2 * Number(vz || .12) / Math.max(1e-5, TU("launchG", .001))) / rate));
+  }
   flyStartV112(m, vz, spin) {
     if (!m || !TU("flyV112", 1) || !(Number(vz) > 0)) return false;
     const g = Math.max(1e-5, TU("launchG", .001)), v = Number(vz);
@@ -10056,10 +10062,12 @@ class Ot extends mt.Scene {
         flyLift = Math.max(0, FLY.vz * age - 0.5 * FLY.g * age * age);
         FLY.k = (age / FLY.dur) * (1 - FLY.skid);
         m._flySpinV112 = FLY.spin * Math.min(1, age / Math.max(1, FLY.dur * 0.6));
+        if (m.forceState !== "dive") m.forceState = "dive";            // the flight OWNS the pose — a stray timer from the play he was in does not get to stand him up in mid-air
         V12.airborne++; V12.maxLift = Math.max(V12.maxLift, +flyLift.toFixed(2));
       } else {                                                          // down: the bounce, then the skid runs the rest of the ground out
         if (!FLY.landed) { FLY.landed = true; V12.lands++; m.forceState = "down"; m._groundT = m.tms;
           this.puffFx(sx, sy + 2, 3, 0x8a7a55, 0.5); }
+        if (m.forceState !== "down") m.forceState = "down";             // and he stays on the turf for the whole skid
         const j = (age - FLY.dur) / Math.max(1, FLY.skidMs);
         FLY.k = (1 - FLY.skid) + FLY.skid * (1 - (1 - j) * (1 - j));   // the slide decelerates into the booked spot
         if (j < FLY.bFrac) flyLift = Math.sin((j / FLY.bFrac) * Math.PI) * FLY.bh;
@@ -17847,7 +17855,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     launchImpactK: 1, launchStrK: 0.9, launchKbK: 2.4, launchStickPow: 26, launchLevK: 1.6, launchBehindPow: 40,
     launchMassMin: 0.6, launchMassMax: 1.8, launchVzBase: 0.1, launchVzK: 0.0011, launchVzMin: 0.1, launchVzMax: 0.17,
     launchG: 0.001, launchSkid: 0.22, launchSkidMs: 150, launchSkidK: 0.5,
-    launchBounceK: 0.17, launchBounceFrac: 0.55, launchSpin: 0.38, launchDownMs: 900, launchBadgeDelayMs: 420,
+    launchBounceK: 0.17, launchBounceFrac: 0.55, launchSpin: 0.38, launchDownMs: 900, launchBadgeMaxMs: 1500,
     containWideY: 46, containLxMax: 22, containDepth: 10, containWide: 16,
     holdFlagMs: 900, dpiSep: -0.8, holdFlagP: 0.5, dpiFlagP: 0.2, fmFlagP: 0.08,
     safetyRoofLx: 55, safetyCushion: 44,
