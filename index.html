@@ -11863,7 +11863,8 @@ function wearSectionV111(e){
         <div><b style="color:${fc.statCut<=-.8?"#ff8a80":fc.statCut>=.8?"#7fe0a0":"var(--chalk)"}">${sgn(fc.statCut||0)}</b><small>RATING AFTER</small></div>
       </div>
       <div class="wearv111-drv">${R.drivers.slice(0,3).map(d=>`<span><i>${S(d.k)}</i><b style="color:${d.mul>=1.25?"#ff8a80":d.mul>=1.08?"var(--gold)":d.mul<=.92?"#7fe0a0":"var(--chalk)"}">×${(Number(d.mul)||1).toFixed(2)}</b><s>${S(d.note||"")}</s></span>`).join("")}</div>
-      ${R.drivers.length>3?`<div class="wearv111-xtra">${R.drivers.slice(3).map(d=>S(d.k.toLowerCase())+" ×"+(Number(d.mul)||1).toFixed(2)).join(" · ")}</div>`:""}</div>`;
+      ${(()=>{const x=R.drivers.slice(3).filter(d=>Math.abs((Number(d.mul)||1)-1)>=.01);   // a driver doing nothing is not a driver
+        return x.length?`<div class="wearv111-xtra">${x.map(d=>S(d.k.toLowerCase())+" ×"+(Number(d.mul)||1).toFixed(2)).join(" · ")}</div>`:""})()}</div>`;
     const ling=R.linger.length?`<div class="wearv111-ling">${R.linger.map(l=>`<em>${S(String(l.name).toUpperCase())} ${l.amt>=0?"+":"−"}${Math.abs(l.amt)} <s>${l.games} game${l.games===1?"":"s"} left</s></em>`).join("")}</div>`:"";
     // the line the whole feature exists to put on screen
     const T=R.target,LT=R.loTarget;
