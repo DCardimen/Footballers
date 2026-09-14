@@ -13080,9 +13080,10 @@ window.__BODY_V73={ledger:e=>bodyLedgerV73(e)};
  *     `_tempStatBuffsV25`-shaped entries with a `games` countdown, so `effAttrsV85` and every
  *     sheet show it with no new plumbing.
  *
- *     The number is a DELTA, not a ratchet: a game costs `wearBase x work x every multiplier`
- *     and the week gives `wearRecover` back in the same units, so at "normal" the two cancel
- *     and the ledger does not move. That is the whole reason the defaults reproduce today
+ *     The number is a DELTA, not a ratchet: a game costs `wearBase x work` and the week gives
+ *     `wearRecover` back, both of them through the SAME multiplier, so at "normal" the two
+ *     cancel to exactly nothing no matter who he is playing, how brittle he is or what the
+ *     fixture is worth. The ledger does not move. That is the whole reason the defaults reproduce today
  *     exactly, and it puts the tradeoff where the player can see it — in the DIAL, not in the
  *     schedule. Go heavy and it accumulates; go limited and it unwinds.
  *
@@ -13123,16 +13124,27 @@ function durMulV111(pl){let m=f(1.35-(((pl&&pl.attrs&&pl.attrs.injuryResist)||10
 function oppMulV111(pl,wk){const base=45+((pl&&pl.level)||0)*5.5,
   oppR=wk&&wk.opponentV11&&wk.opponentV11.rating!=null?Number(wk.opponentV11.rating):base;
   return f(1-(Pa(pl)-oppR)/TU("wearGapScale",70),TU("wearGapMin",.5),TU("wearGapMax",1.7))}
-/* a semifinal costs more than week three. The schedule marks the big ones with `playoff`/
- * `roundIdx` against ea(level)'s round list; a save with no marker falls back to where the
- * fixture sits in the season, and treats the run-in as the fixtures that decide it. */
+/* a semifinal costs more than week three. The schedule marks the big ones three ways at once and
+ * this reads all three, because a week that says it is a semifinal has to be priced as one no
+ * matter which of its markers a caller happened to set: `playoff`/`roundIdx` against ea(level)'s
+ * round list first (what cn() writes and what the bracket carries), then the `importance` the
+ * opponent row carries and the ROUND NAME itself — the same vocabulary the scorebug and the body
+ * card already read off. A save with no marker at all falls back to where the fixture sits in the
+ * season, and treats the run-in as the fixtures that decide it. */
+const ROUND_RE_V111={final:/final(?!ist)|championship|title|super\s*bowl/i,semi:/semi|conference\s*(final|championship)/i};
 function stakesV111(pl,wk){
   if(!wk)return{mul:1,label:"Regular week"};
-  const riv=wk.opponentV11&&wk.opponentV11.rivalry?TU("wearStakesRival",1.1):1;
+  const riv=wk.opponentV11&&wk.opponentV11.rivalry?TU("wearStakesRival",1.1):1,
+    imp=String((wk.opponentV11&&wk.opponentV11.importance)||""),rnd=String(wk.round||"");
   if(wk.playoff){const rounds=(typeof ea==="function"&&ea(pl.level))||[],last=Math.max(0,rounds.length-1),i=wk.roundIdx!=null?wk.roundIdx:last;
     if(i>=last)return{mul:TU("wearStakesFinal",1.7)*riv,label:wk.round||"Championship"};
     if(i===last-1)return{mul:TU("wearStakesSemi",1.42)*riv,label:wk.round||"Semifinal"};
     return{mul:TU("wearStakesPlayoff",1.22)*riv,label:wk.round||"Playoff"}}
+  /* no `playoff` flag, but the week still says what it is — honour it rather than pricing a
+   * championship as week three because one field was not set */
+  if(ROUND_RE_V111.semi.test(rnd))return{mul:TU("wearStakesSemi",1.42)*riv,label:rnd||"Semifinal"};   // before the final test: "Semifinal" ENDS in "final"
+  if(imp==="championship"||ROUND_RE_V111.final.test(rnd))return{mul:TU("wearStakesFinal",1.7)*riv,label:rnd||"Championship"};
+  if(imp==="playoff"||/playoff|quarter|wild\s*card|round\s*of/i.test(rnd))return{mul:TU("wearStakesPlayoff",1.22)*riv,label:rnd||"Playoff"};
   const reg=((pl&&pl.weekResults)||[]).filter(w=>w&&!w.playoff),n=reg.length||1,i=reg.indexOf(wk),
     at=i<0?0:(i+1)/n,from=f(TU("wearStakesLateFrom",.6),0,.95),
     mul=(1+TU("wearStakesLate",.22)*f((at-from)/(1-from),0,1))*riv;
@@ -13142,15 +13154,23 @@ const loadOfV111=pl=>f((pl&&pl._wearV111&&pl._wearV111.load)||0,TU("wearLoadMin"
 const wornMulV111=pl=>1+Math.max(0,loadOfV111(pl))/100*TU("wearCompound",.3)
   +Math.max(0,(((pl&&pl.conditionV11&&pl.conditionV11.fatigue)||0)-TU("freshFatigue",25)))/100*TU("wearFatCompound",.25);
 /* One game's bill, SIGNED, and this is the shape that matters. What the game takes out of him is
- * `wearBase x work x every multiplier`; what the week gives back is `wearRecover` priced in the
- * SAME units, because a hard fixture is a hard week whether he plays forty snaps of it or twelve.
- * At "normal" the two cancel exactly, which is why the involvement dial — not the schedule — is
- * what moves this ledger, and why leaving it alone leaves the career exactly as it was. Recovery
- * is capped where damage is not: the genuinely brutal fixture still nicks a man who plays it
- * straight, and nobody heals a season's wear by sitting out one afternoon. */
+ * `wearBase x work`; what the week gives back is `wearRecover`, priced in the SAME units because a
+ * hard fixture is a hard week whether he plays forty snaps of it or twelve. BOTH terms are then
+ * scaled by the same multiplier, which is what makes "normal" cost exactly nothing for every body,
+ * every opponent and every fixture — the property the whole feature rests on, and the reason the
+ * involvement DIAL and not the schedule is what moves this ledger.
+ *
+ * The multiplier is not quite the same on the two sides of that crossover. Damage rides the whole
+ * stack; recovery rides a capped one (`wearRecoverCapMul`), so a brutal fixture never becomes the
+ * best rest week on the schedule — nobody heals a season's wear by sitting out one afternoon in
+ * the semifinal. Both branches hand back zero at `work == 1`, so the cap can never reopen the
+ * hole it was closing: the old form scaled only the damage by M and left recovery flat, which
+ * meant an ORDINARY starter (dur x opp is already past 2 for most of a career) was quietly
+ * billed for a week he played exactly as he always had. */
 function costV111(pl,wk,work){const dur=durMulV111(pl),opp=oppMulV111(pl,wk),st=stakesV111(pl,wk),worn=wornMulV111(pl),
-  M=dur*opp*st.mul*worn,dmg=TU("wearBase",12)*work*M,rec=TU("wearRecover",12)*Math.min(M,TU("wearRecoverCapMul",2));
-  return{gross:dmg,rec,dur,opp,st,worn,work,mul:M,load:dmg-rec}}
+  M=dur*opp*st.mul*worn,dmg0=TU("wearBase",12)*work,rec0=TU("wearRecover",12),
+  Mx=dmg0>=rec0?M:Math.min(M,TU("wearRecoverCapMul",2)),dmg=dmg0*Mx,rec=rec0*Mx;
+  return{gross:dmg,rec,dur,opp,st,worn,work,mul:M,mulUsed:Mx,load:dmg-rec}}
 /* Accumulated load past the threshold is carried onto the field as a real cut. It is priced as a
  * PERCENTAGE and only then turned into points, because three points off a pee-wee's speed of
  * twelve is a quarter of the kid and off a professional's eighty-five it is nothing. What the
@@ -13501,7 +13521,7 @@ function wearSectionV111(e){
     const next=!R.wk?"":`<div class="wearv111-next">
       <div class="wearv111-kick">NEXT GAME · <b>${S(R.label)}</b> · ${S(R.wk.opp||"TBD")}${R.wk.round?" · "+S(R.wk.round):""}</div>
       <div class="wearv111-grid">
-        <div><b style="color:${R.hist.length&&fc.load>=mx*TU("wearHotFracV111",.95)?"#ff8a80":"var(--chalk)"}">+${n1(fc.load)}</b><small>WEAR</small></div>
+        <div><b style="color:${(fc.load||0)<-.05?"#7fe0a0":R.hist.length&&fc.load>=mx*TU("wearHotFracV111",.95)?"#ff8a80":"var(--chalk)"}">${sgn(fc.load||0)}</b><small>WEAR</small></div>
         <div><b style="color:${fc.injPct>=24?"#ff8a80":fc.injPct<=12?"#7fe0a0":"var(--gold)"}">${n1(fc.injPct)}%</b><small>INJURY</small></div>
         <div><b>${(Number(fc.gamesMissed)||0).toFixed(1)}</b><small>GAMES LOST</small></div>
         <div><b style="color:${fc.statCut<=-.8?"#ff8a80":fc.statCut>=.8?"#7fe0a0":"var(--chalk)"}">${sgn(fc.statCut||0)}</b><small>RATING AFTER</small></div>
@@ -17082,9 +17102,9 @@ const V111_KEYS=["limited","reduced","normal","heavy","everysnap"];
 const V111_STEP={
   limited:{s:"LIMITED",n:"Limited",d:"Spot snaps only. You watch most of this one and the body keeps nearly everything."},
   reduced:{s:"REDUCED",n:"Reduced",d:"A lighter rotation — you come off on the long drives and stay fresh for next week."},
-  normal:{s:"NORMAL",n:"Normal",d:"Your usual role. Nothing asked for, nothing spared."},
-  heavy:{s:"HEAVY",n:"Heavy",d:"You stay out there for the tough downs. More work through you, more wear on you."},
-  everysnap:{s:"EVERY",n:"Every Snap",d:"You never leave the field. Everything goes through you — and everything lands on you."}};
+  normal:{s:"NORMAL",n:"Normal",d:"The starter's week — every snap your unit takes, your ordinary share of the ball."},
+  heavy:{s:"HEAVY",n:"Heavy",d:"The same snaps, more football. The coordinator starts looking for you, and the body notices."},
+  everysnap:{s:"EVERY",n:"Every Snap",d:"They ride you until the wheels come off. The biggest numbers on the sheet — and the bill for them."}};
 const V111_FOCUS_BOOK={
   QB:[["cannon","🎯","throwing","Let It Rip","Drive the ball — velocity and the shot down the field."],
       ["escape","🌀","agility","Escape Artist","Slide the pocket and make the first man miss."],
@@ -17178,10 +17198,22 @@ const v111Sig=v=>{const n=Number(v)||0;return (n>0?"+":"")+(Math.abs(n)>=10?Math
 function v111LedgerHTML(pl,wk,key){
   const u=v111UsageV111(pl,wk),f=v111ForecastV111(pl,wk,key);
   const cut=Number(f.statCut)||0,miss=Number(f.gamesMissed)||0;
+  // The ladder does NOT buy snaps all the way up — at NORMAL he is already on the field for every
+  // snap his unit takes, and there is nothing above that to sell him. What the top half buys is
+  // the BALL, and it is paid for in body. Say so, so the reading of the two rows is never a guess.
+  const share=Number(u.share)||0,tm=Number(u.touchMul)||1;
+  const note=share>=.999
+    ?(tm>1?`Every snap is already yours — from here it is the ball that moves, not the snap count.`
+          :`Every snap your unit takes, and your ordinary share of the ball.`)
+    :`You watch ${Math.round((1-share)*100)}% of your unit's snaps from the sideline.`;
   const buy=`<div class="v111-row"><span>Team snaps</span><b style="color:#8fe0a0">${v111Pct(u.share)}</b></div>`
-    +`<div class="v111-row"><span>Touch share</span><b style="color:#8fe0a0">×${(Math.round((Number(u.touchMul)||1)*100)/100).toFixed(2)}</b></div>`
-    +`<div class="v111-row"><span>Role</span><b>${esc(u.label||V111_STEP[key].n)}</b></div>`;
-  const cost=`<div class="v111-row"><span>Wear</span><b style="color:#e8938b">+${Math.round(Number(f.load)||0)}</b></div>`
+    +`<div class="v111-row"><span>Touch share</span><b style="color:#8fe0a0">×${(Math.round(tm*100)/100).toFixed(2)}</b></div>`
+    +`<div class="v111-row"><span>Role</span><b>${esc(u.label||V111_STEP[key].n)}</b></div>`
+    +`<div class="v111-note">${note}</div>`;
+  // below NORMAL the bill is NEGATIVE — the week pays load back — so the wear row is signed and
+  // wears the colour of its sign rather than always reading like damage
+  const wear=Number(f.load)||0;
+  const cost=`<div class="v111-row"><span>Wear</span><b style="color:${wear>.05?"#e8938b":wear<-.05?"#8fe0a0":"var(--chalk)"}">${v111Sig(wear)}</b></div>`
     +`<div class="v111-row"><span>Injury</span><b style="color:${f.injPct>=24?"#e8938b":f.injPct<=12?"#8fe0a0":"var(--gold)"}">${Math.round(Number(f.injPct)||0)}%</b></div>`
     +`<div class="v111-row"><span>Games out</span><b>${(Math.round(miss*10)/10).toFixed(1)}</b></div>`
     +(Math.abs(cut)>=.05?`<div class="v111-row"><span>Next game</span><b style="color:${cut<0?"#e8938b":"#8fe0a0"}">${v111Sig(cut)}</b></div>`:``);
@@ -17273,6 +17305,7 @@ function gsSectionV23(oursR,theirsR,pl,wk){
     .v111-col.cost h4{color:#e8938b}
     .v111-row{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font:600 11px Barlow Condensed,sans-serif;color:var(--chalk-dim);line-height:1.5}
     .v111-row b{font:700 12px Oswald,sans-serif;color:var(--chalk);white-space:nowrap}
+    .v111-note{font:400 9.5px system-ui;color:var(--chalk-dim);line-height:1.3;margin-top:4px;border-top:1px solid rgba(255,255,255,.08);padding-top:4px}
     .v111-parts{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
     .v111-chip{font:600 10px Barlow Condensed,sans-serif;color:var(--chalk-dim);border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:2px 7px;background:rgba(20,30,48,.6);white-space:nowrap}
     .v111-chip b{color:#e8938b;font:700 10px Oswald,sans-serif}
@@ -17295,7 +17328,7 @@ function gsSectionV23(oursR,theirsR,pl,wk){
   gsStateV23={scn,adopt,pl,wk,auto,stray:{}};
   if(pl) pl._gameScriptV23={gsPass:gsFinalPass(auto.pass,adopt),name:auto.name,adopt:adopt};
   const key=v111KeyV111(wk);
-  return `<div class="gs-wrap-v23 v111-wrap" id="v111Wrap"><div class="gs-head">🏈 YOUR INVOLVEMENT<small>How much of this game do you carry? More snaps means more touches and more stats — and more damage.</small></div>
+  return `<div class="gs-wrap-v23 v111-wrap" id="v111Wrap"><div class="gs-head">🏈 YOUR INVOLVEMENT<small>How much of this game do you carry? Below NORMAL you come off the field and the body keeps what it saves. Above it you were never coming off anyway — what rises is your share of the ball, and what it costs you.</small></div>
     <div class="v111-steps" id="v111Steps">${v111StepsHTML(key)}</div>
     <div class="v111-desc" id="v111Desc">${esc(V111_STEP[key].d)}</div>
     <div class="v111-ledger" id="v111Ledger">${v111LedgerHTML(pl,wk,key)}</div>

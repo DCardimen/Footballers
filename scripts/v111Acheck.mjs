@@ -11,7 +11,11 @@
 //   6. charge() moves fatigue, moves the injury chance, and writes a lingering cut that decays
 //      over its `games` countdown.
 //   7. A rest snap credits him nothing: on the snaps he sits, the sim never names him.
-//   8. A focus pick raises exactly one stat by 1.2x in effAttrsV85 AND in what the sim reads.
+//   8. A focus pick raises exactly one stat by 1.2x in effAttrsV85 AND in what the sim reads —
+//      and all 27 picks across the nine positions land on the engine's own attribute accessor.
+//   9. THE SEASON ARC, through REAL weeks resolved by resolveSequentialWeekV11: held at
+//      "everysnap" the load climbs, the injury chance climbs with it, a lingering cut arrives
+//      and his effective rating falls; dialled back to "limited" the load is paid off again.
 //
 // Env: GAME_URL (default http://localhost:5191/index.html), BASE_URL (the pre-v111 build, for
 // the identity test — skipped when unset), GAMES (per involvement key, default 90), AB (games
@@ -205,6 +209,12 @@ const res = await page.evaluate(({ N, POS }) => {
   }
 
   // ---- 6. the charge bites: fatigue, the injury roll, and a cut that decays --------------
+  // injChanceV54 clamps at .55, and a pee-wee back with a rookie's injuryResist facing his own
+  // level's opponents is often sitting on that ceiling before anything is charged — on him the
+  // wear term cannot be seen moving the roll at all. The charge is therefore billed against a
+  // body with headroom, which is the only configuration the claim is falsifiable on.
+  const savedResist6 = pl.attrs.injuryResist
+  pl.attrs.injuryResist = Math.max(savedResist6, 85)
   pl._wearV111 = null
   pl.conditionV11.fatigue = 20
   const inj0 = window.__injChanceV54(pl, { wk: w })
@@ -235,6 +245,7 @@ const res = await page.evaluate(({ N, POS }) => {
   const heavyLoad = V.wear(pl).load
   for (let i = 0; i < 4; i++) V.charge(pl, w, { snaps: 20, teamSnaps: 44, touchMul: 0.7, touches: 6 })
   R.recovery = { from: round(heavyLoad), to: round(V.wear(pl).load), paidBack: V.wear(pl).load < heavyLoad }
+  pl.attrs.injuryResist = savedResist6
 
   // ---- 8. the focus is a 1.2x that reaches the sheet AND the sim -------------------------
   pl._wearV111 = null
@@ -286,7 +297,64 @@ const res = await page.evaluate(({ N, POS }) => {
     try { AU.resolveSequentialWeekV11(pl, wr, 'balanced') } catch (e) { R.resolveErr = String(e).slice(0, 200) }
     R.resolve = { wear: wr.wearV111 ? { load: wr.wearV111.load, fat: wr.wearV111.fatigueAfter } : null,
       snaps: wr.snapsV111, ledgerLoad: V.wear(pl).load }
+    wr.played = true; wr.won = true   // the week is over — ca() pre-books, the caller closes it
   }
+
+  // ---- 9. THE SEASON ARC: the dial, left alone for weeks, through the real weekly path ---
+  // Not charge() in a loop — actual weeks, resolved by the game's own resolveSequentialWeekV11,
+  // so the load that accrues is billed from what the engine says he ACTUALLY did. Held at
+  // "everysnap" the body has to walk toward the injury roll and a lingering cut; dialled back to
+  // "limited" it has to pay load off again.
+  pl._wearV111 = null
+  pl._tempStatBuffsV25 = null
+  // A body with HEADROOM, for the same reason section 6 needs one: injChanceV54 clamps at .55,
+  // and a pee-wee back with a rookie's frame is pinned on that ceiling before a snap is played,
+  // so neither the climb nor the recovery can be observed on him at all. A durable frame on
+  // fresh legs keeps the whole arc inside the model's range.
+  pl.attrs.injuryResist = Math.max(pl.attrs.injuryResist, 95)
+  pl.conditionV11.fatigue = 5
+  // REAL fixtures to spend, built by the game's own scheduler — and a fresh season rolled the
+  // moment one runs out, so the arc is as long as the claim needs rather than as long as an
+  // eight-game slate happens to be.
+  const newSeason = () => { try { pl.playoffState = null; pl.weekResults = AU.buildSeasonSchedule(pl); pl.currentWeek = 0 } catch (e) { R.arcErr = 'schedule: ' + String(e).slice(0, 120) } }
+  newSeason()
+  // ca() pre-books a week and is idempotent on it (`if(t.generatedV11) return t`); closing the
+  // week is the caller's job, exactly as lt() does it on the real path. An already-booked week is
+  // skipped rather than re-billed.
+  const freeWeek = () => pl.weekResults.find(w => w && !w.played && !w.generatedV11)
+  const arcWeek = () => freeWeek() || (newSeason(), freeWeek())
+  const arcRow = (key) => {
+    const w = arcWeek()
+    if (!w) return null
+    w.usageV111 = key
+    try { AU.resolveSequentialWeekV11(pl, w, 'balanced') } catch (e) { R.arcErr = String(e).slice(0, 160); return null }
+    w.played = true; w.won = !!(w.us > w.them)
+    const eff = window.__V85.effAttrs(pl)
+    const L = V.wear(pl).lingering.filter(b => b && (b.games | 0) > 0)
+    return { key, load: round(V.wear(pl).load, 1), billed: w.wearV111 ? round(w.wearV111.load, 1) : null,
+      fat: Math.round(pl.conditionV11.fatigue || 0), satOut: !!w.satOut, injured: !!w.injured,
+      inj: round(window.__injChanceV54(pl, { wk: w }) * 100, 1),
+      cuts: L.map(b => b.stat + ' ' + b.amt + '/' + b.games).join(','),
+      cutPts: L.reduce((t, b) => t + Math.abs(b.amt || 0), 0),
+      // how far BELOW the condition-only number the sheet actually draws him — that gap is the
+      // lingering cut arriving on the attribute page, and nothing else
+      sheetGap: L.reduce((t, b) => t + Math.max(0, Math.round((pl.attrs[b.stat] || 0) * eff.mult) - (eff.eff[b.stat] || 0)), 0),
+      effSum: window.__GRIDIRON_AUDIT__.ATTRS.reduce((t, k) => t + (eff.eff[k] || 0), 0) }
+  }
+  const heavyArc = [], lightArc = []
+  for (let i = 0; i < 8 && arcWeek(); i++) { const r = arcRow('everysnap'); if (r) heavyArc.push(r) }
+  const peak = heavyArc.length ? heavyArc[heavyArc.length - 1] : null
+  for (let i = 0; i < 4 && arcWeek(); i++) { const r = arcRow('limited'); if (r) lightArc.push(r) }
+  const floorRow = lightArc.length ? lightArc[lightArc.length - 1] : null
+  R.arc = { heavy: heavyArc, light: lightArc }
+  R.arcVerdict = peak && floorRow ? {
+    loadClimbs: peak.load > heavyArc[0].load && peak.load > 35 && heavyArc.every((r, i) => !i || r.load > heavyArc[i - 1].load),
+    injuryClimbs: peak.inj > heavyArc[0].inj * 1.15,
+    cutArrives: peak.cutPts > 0 && !heavyArc[0].cuts,
+    ratingDrops: peak.sheetGap > 0 && peak.effSum < heavyArc[0].effSum,
+    dialBackPays: floorRow.load < peak.load - 10,
+    injuryEases: floorRow.inj < peak.inj,
+  } : { ran: false }
   return R
 
   function ok2 () {}
@@ -338,9 +406,20 @@ ok(res.biteVerdict.all, 'a focus does not reach the engine\'s attribute accessor
 ok(res.resolve && res.resolve.wear && res.resolve.wear.load !== undefined, 'the weekly resolver did not bill the body', res.resolve)
 if (res.resolveErr) fails.push('the weekly resolver threw — ' + res.resolveErr)
 
+const AR = res.arcVerdict || {}
+ok(AR.ran !== false, 'the season arc did not run at all', res.arc)
+if (res.arcErr) fails.push('a real week threw during the season arc — ' + res.arcErr)
+ok(AR.loadClimbs, 'weeks at "everysnap" do not drive the load up', res.arc && res.arc.heavy)
+ok(AR.injuryClimbs, 'weeks at "everysnap" do not raise the injury chance', res.arc && res.arc.heavy)
+ok(AR.cutArrives, 'weeks at "everysnap" never produce a lingering stat cut', res.arc && res.arc.heavy)
+ok(AR.ratingDrops, 'the lingering cut never reaches his effective rating', res.arc && res.arc.heavy)
+ok(AR.dialBackPays, 'dialling back to "limited" does not pay the load off', res.arc && res.arc.light)
+ok(AR.injuryEases, 'dialling back does not bring the injury chance down', res.arc && res.arc.light)
+
 console.log(JSON.stringify({ identity, api: res.api, dial: res.dial, dialVerdict: res.dialVerdict, restCredit: res.restCredit,
   forecast: res.forecast, forecastVerdict: res.forecastVerdict, charge: res.charge, chargeVerdict: res.chargeVerdict,
   recovery: res.recovery, focus: res.focus, focusVerdict: res.focusVerdict, bite: res.bite, biteVerdict: res.biteVerdict, resolve: res.resolve,
+  arc: res.arc, arcVerdict: res.arcVerdict,
   fails: fails.length, pageErrors: pageErrors.length }, null, 1))
 if (fails.length) console.log('FAILURES:\n' + fails.join('\n'))
 if (pageErrors.length) console.log('PAGE ERRORS:\n' + pageErrors.slice(0, 6).join('\n'))
