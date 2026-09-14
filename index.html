@@ -11693,7 +11693,10 @@ window.__BODY_V73={ledger:e=>bodyLedgerV73(e)};
  * ._wearV111 = {load, lingering}` is owned here. `window.__V111` is the hook. ===== */
 const KEYS_V111=["limited","reduced","normal","heavy","everysnap"];
 /* Above "normal" the SHARE cannot rise — he already plays every snap of his unit today — so the
- * top half of the dial buys TOUCHES and pays for them with the body. That is the honest reading. */
+ * top half of the dial buys TOUCHES and pays for them with the body. That is the honest reading.
+ * Every number here is a live dial: TU("useShareLimited"/"useShareReduced"/"useShareNormal"/
+ * "useShareHeavy"/"useShareEvery") and TU("useTouchLimited"/"useTouchReduced"/"useTouchNormal"/
+ * "useTouchHeavy"/"useTouchEvery") — named in the rows below so DEV can find them. */
 const USE_V111={
   limited  :{label:"LIMITED",    icon:"🪑",share:["useShareLimited",.55],touch:["useTouchLimited",.70],desc:"Rotational. You watch a lot of football from the sideline and your body thanks you for it."},
   reduced  :{label:"REDUCED",    icon:"🔃",share:["useShareReduced",.75],touch:["useTouchReduced",.85],desc:"A managed load — off the field on the long drives, fresh when the game turns."},
