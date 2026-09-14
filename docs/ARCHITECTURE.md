@@ -444,6 +444,71 @@ the live booking does `delta*condMultV54(e)`). It now returns its old value × `
 ENDS is never charged: both endings set `player._settled`, and `abandonedV112()` is "a player exists
 **and** is not settled".
 
+### B — the stadium
+
+Anchors `v112 THE LIGHTS SIT LOWER, SMALLER, AND FACE THE OTHER WAY` (in `buildStadiumV92`),
+`v112 THE FOOT OF THE BOWL, AND THE WAY OUT` (`bowlTrimV112`, at the end of `buildCrowd`),
+`v112 THE SKY HAS STARS` (`starsV112`, from `warpField`'s sky fill), `v112 THE CAMERA STOPS
+CLOSING IN BEHIND THE BACKFIELD` (`buildPersp`) and `v112 THE NEAR EDGE IS AN EDGE, NOT A SMEAR`
+(`warpField`'s row loop). Hook `window.__V112_B()`. Gate `scripts/v112Bcheck.mjs`.
+
+**The lights.** Three dials on the same four masts, each separable: `lightScaleV112` (.5) is how
+much of the v98 mast is drawn, `lightDropV112` (44) walks the whole rig down the screen so the
+fixtures tuck into the top of the bowl instead of filling the sky, and `lightFlipV112` (1) takes
+the other drawn face off the sheet so a mast's lamp bank hangs on the opposite side of its pole.
+The drop is added **after** v98's `min()`, not inside it, so the foot row stays exactly as stable
+between snaps as before — v99's key light reads that row, and a key light that hops is a shadow
+that swims. Everything the lamps do follows by construction, because `lightRigV98` derives head,
+bloom and beam from `displayHeight` / `_bx` / `_by`: height 257→128, width 205→103, foot 300→344,
+faces `1100`→`0011`, bloom ×0.50, beams re-aimed 535/480→387/338. The **pool** is deliberately not
+halved — the pool is the light on the grass, not the fixture — and rides `lightPoolKV112` if it
+ever should be. All four pools still fall on the v103 turf quad; the key light moved 105→246 at the
+same x and still sits at its own mast's 0.76 head; no mast art reaches the grass.
+
+**The foot of the bowl, and the way out.** `bowlTrimV112` draws a blue base band as a ribbon
+through every wall's own foot polyline — `baseBandColV112` #1a4694 at `baseBandFracV112` (.068) of
+the stand's height *at each sample* — so it sweeps the bowl's corners instead of sitting as a
+rectangle: one constant 16.6 / 16.6 / 16.7 in stand-heights all the way round, bowing 24.9px off
+its own chord over 349px. The entrance is an arched vomitory in the **far** bowl, 34% along and
+left of centre: the far wall is the only one whose base is on camera at every anchoring the game
+produces (the sideline bases run off the bottom of the frame), and dead centre is behind the
+goalpost upright. It is built from the bowl's own `crowdProject` samples so it rides the
+projection; the terrace height rolls off at both jambs so the stand closes over it, and the base
+band breaks across it.
+
+**The near edge, diagnosed rather than patched.** The art *is* sampled correctly — v72's goal-line
+mapping is right, nothing samples past the usable rows, and Chrome already interpolates the
+fractional source row. The cause is `PERSP_BACKMAX = 1.2`: behind the anchor `s` is pinned there,
+so the near band is laid out at 1.44× the anchor row's density and 1.2× its width, drawing 360×700
+art at ~11 canvas px per art row — that is the streak. `nearCapV112` (1.0) says the plain thing
+instead: past the backfield the camera stops closing in, and the ground behind it is drawn at the
+anchor's own scale. **Nothing downfield of the anchor moves** — `VB`, the row budget, is still
+measured against v28's own backdrop so it cannot change branch, and past the clamp point both
+integrals lose exactly the same amount, so `total - C(u)` is unchanged. Below the near end line the
+loop now walks down the apron the art paints and then falls into the dark, instead of copying one
+scanline down the canvas. Measured, canvas px per art row: depth 0 `3.23 → 3.23` (the cap never
+engages), 0.4 `5.65 → 3.92`, **0.78 (shipped) `11.08 → 7.70`**, 0.9 `11.07 → 10.08`; the painted
+end line 37px → 25px. **Honest limit: −31%, not elimination.** The residue is the field art being
+upsampled ~7× near the camera, set by `VB`, which cannot be cut without changing the apparent
+camera tilt for every sprite. `nearCapV112` at `PERSP_BACKMAX` puts v28 back exactly.
+
+**The stars.** `starsV112` bakes them into the warp canvas at depth 0.6, so the bowl (3.45), the
+masts (3.2) and the screen (3.30) occlude them, off one fixed seed — the warp re-bakes per snap,
+and a re-rolled sky is television static. They are packed into the strip just above the bowl's
+skyline, the only sky the camera actually shows. There is no day/night setting in the game (v98
+made it a night game), so the v100 lighting dial governs them: 190 stars at 100%, 0 at 200%.
+
+**Four repo assertions were pinned to numbers this change legitimately moves.** They were
+re-instrumented, not relaxed, each with a comment saying what it used to read: `v92check`
+hard-coded v98's un-flipped face convention (it now reads `lightFlipV112`, and still requires the
+two masts on a side to agree with each other and differ from the other side); `v98check` used
+"100px above the foot" as a stand-in for "at the lamp head" (it now measures the head off the
+mast's own height — and the revised assertion scores 29/0 on the untouched base build, exactly as
+the original does); `v98check` and `v100check` read the near corner at `cv.height - 60`, which is
+now the dark band below the ground (they now read `lastTurfY - 60`); and `v102check` asserted the
+literal `y === 300` (it now asserts the invariant — one row, shared by all four, equal to v98's row
+less `lightDropV112`).
+
 ### D — the pregame, one decision at a time
 
 Anchor `v112 THE PREGAME, ONE DECISION AT A TIME`. Hook `window.__V112_D`. Gate
