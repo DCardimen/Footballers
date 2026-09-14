@@ -219,8 +219,13 @@ const res = await page.evaluate(({ N, POS }) => {
   pl.conditionV11.fatigue = 20
   const inj0 = window.__injChanceV54(pl, { wk: w })
   const fat0 = pl.conditionV11.fatigue
+  // Eight games, not six. The cut opens at `wearCutFrom` (45) and six heavy games land on ~47 —
+  // inside the swing a single trait puts on wear (ironFrame x0.78, glassBones x1.3), so whether
+  // this claim could be tested at all came down to the career's trait roll: it passed or failed
+  // about one run in two, on both this build and its base. Eight games clear the threshold with
+  // room on either side of that swing, which is what makes "charge() writes a cut" falsifiable.
   const bills = []
-  for (let i = 0; i < 6; i++) bills.push(V.charge(pl, w, { snaps: 44, teamSnaps: 44, touchMul: 1.5, touches: 30 }))
+  for (let i = 0; i < 8; i++) bills.push(V.charge(pl, w, { snaps: 44, teamSnaps: 44, touchMul: 1.5, touches: 30 }))
   const inj1 = window.__injChanceV54(pl, { wk: w })
   const linger0 = JSON.parse(JSON.stringify(V.wear(pl).lingering))
   const cutStat = linger0[0] && linger0[0].stat
