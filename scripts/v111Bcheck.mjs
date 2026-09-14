@@ -160,6 +160,27 @@ await tapFocus(V.focus[2].key)
 ok((await readUI()).focusV111 === null, 'tapping the live one drops it back to no focus')
 await tapFocus(V.focus[1].key)
 
+// 5b. the screen takes agent A's model when it is there — a synthetic window.__V111 with
+// unmistakable numbers has to reach the pixels, and the stub has to step out of the way
+const swap = await page.evaluate(() => {
+  const had = window.__V111
+  window.__V111 = {
+    KEYS: ['limited', 'reduced', 'normal', 'heavy', 'everysnap'],
+    usage: () => ({ key: 'heavy', share: .77, touchMul: 1.44, label: 'Bell Cow', desc: 'model' }),
+    forecast: () => ({ load: 41, fatigueAfter: 64, injPct: 29, gamesMissed: .7, statCut: -5.5, parts: [{ label: 'Model part', mul: 1.23 }], stakes: 1.5, oppMul: 1.2, durMul: 1.1 }),
+    focusFor: () => [{ key: 'm1', icon: '🧪', stat: 'speed', name: 'Model One', mul: 1.2, desc: 'a' }, { key: 'm2', icon: '🧪', stat: 'strength', name: 'Model Two', mul: 1.2, desc: 'b' }, { key: 'm3', icon: '🧪', stat: 'grit', name: 'Model Three', mul: 1.2, desc: 'c' }]
+  }
+  window.__v111PickUsageV111('heavy')
+  const T = el => el ? (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() : ''
+  const out = { buy: T(document.querySelector('.v111-col.buy')), cost: T(document.querySelector('.v111-col.cost')), chips: T(document.getElementById('v111Parts')) }
+  if (had === undefined) delete window.__V111; else window.__V111 = had
+  window.__v111PickUsageV111('heavy')
+  return out
+})
+ok(/77%/.test(swap.buy) && /1\.44/.test(swap.buy) && /Bell Cow/.test(swap.buy), "A's usage() reaches WHAT IT BUYS", swap.buy)
+ok(/\+41/.test(swap.cost) && /29%/.test(swap.cost) && /0\.7/.test(swap.cost) && /-5\.5/.test(swap.cost), "A's forecast() reaches WHAT IT COSTS", swap.cost)
+ok(/Model part ×1\.23/.test(swap.chips) && /fatigue after 64/.test(swap.chips), "and its parts are the chips", swap.chips)
+
 // 6. nothing was lost
 const P = await readUI()
 ok(typeof P.gsPass === 'number' && P.gsPass > 0 && P.gsPass < 1, 'the coordinator still adopted a plan', `${P.gsName} · gsPass=${Math.round(P.gsPass * 100)}%`)
