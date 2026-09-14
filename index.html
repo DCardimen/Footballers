@@ -17443,7 +17443,7 @@ function v112ImpactHTMLD(){
     +(swing!=null?row("Body",`${swing>0?"+"+swing:swing||0}% to every attribute`,swing>0?"#8fe0a0":swing<0?"#e8938b":"var(--chalk)"):"")
     +(ling.length?row("Lingering",ling.map(b=>`${esc(lab(b.stat))} ${b.mul!=null?"×"+(Math.round(Number(b.mul)*100)/100).toFixed(2):v111Sig(b.amt)} (${b.games|0}g)`).join(", "),"#e8938b"):"")
     +row("Wear this game",v111Sig(wear),wear>.05?"#e8938b":wear<-.05?"#8fe0a0":"var(--chalk)")
-    +row("Injury chance",inj+"%",inj>=24?"#e8938b":inj<=12?"#8fe0a0":"var(--gold)")
+    +row("Injury at this load",inj+"%",inj>=24?"#e8938b":inj<=12?"#8fe0a0":"var(--gold)")
     +row("Games it costs",(Math.round(miss*10)/10).toFixed(1))
     +(Math.abs(cut)>=.05?row("Carried into next week",v111Sig(cut),cut<0?"#e8938b":"#8fe0a0"):"")
     +`<div class="v112-imp-note">The sheet below is what you actually carry onto the field — the focus multiplier, the body's swing and any lingering cut are already in those numbers.</div></div>`;

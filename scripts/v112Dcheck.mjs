@@ -171,11 +171,11 @@ for (const k of ['limited', 'normal', 'everysnap']) {
   await page.waitForTimeout(260)
   const F = await readWiz()
   const m = F.S.forecast, us = F.S.usage
-  const row = { k, wear: impNum(F.imp, 'Wear this game'), inj: impNum(F.imp, 'Injury chance'), miss: impNum(F.imp, 'Games it costs'), snaps: impSnaps(F.imp), mLoad: m.load, mInj: m.injPct, mMiss: m.gamesMissed, mShare: us.share }
+  const row = { k, wear: impNum(F.imp, 'Wear this game'), inj: impNum(F.imp, 'Injury at this load'), miss: impNum(F.imp, 'Games it costs'), snaps: impSnaps(F.imp), mLoad: m.load, mInj: m.injPct, mMiss: m.gamesMissed, mShare: us.share }
   seen.push(row)
   ok(F.S.key === k, `the last page is priced for the step he actually chose (${k})`, 'key=' + F.S.key)
   ok(Math.abs(row.wear - sig(m.load)) < .06, '  WEAR equals forecast.load', `${row.wear} vs ${sig(m.load)}`)
-  ok(Math.abs(row.inj - Math.round(m.injPct)) < 1, '  INJURY CHANCE equals forecast.injPct', `${row.inj}% vs ${Math.round(m.injPct)}%`)
+  ok(Math.abs(row.inj - Math.round(m.injPct)) < 1, '  INJURY AT THIS LOAD equals forecast.injPct', `${row.inj}% vs ${Math.round(m.injPct)}%`)
   ok(Math.abs(row.miss - Math.round(m.gamesMissed * 10) / 10) < .06, '  GAMES IT COSTS equals forecast.gamesMissed', `${row.miss} vs ${(Math.round(m.gamesMissed * 10) / 10).toFixed(1)}`)
   ok(Math.abs(row.snaps - Math.round(us.share * 100)) < 1, '  INVOLVEMENT names usage.share', `${row.snaps}% vs ${Math.round(us.share * 100)}%`)
 }
