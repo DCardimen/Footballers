@@ -17,6 +17,7 @@ const menuJs = [
   'rib-menu-v89-runtime.js',
   'rib-menu-boot.js',
   'rib-menu.js',
+  'rib-menu-howto.js',
   'rib-menu-navigation.js',
 ]
 
