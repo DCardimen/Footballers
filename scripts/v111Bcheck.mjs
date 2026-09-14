@@ -17,7 +17,13 @@
 //     actually uses) at x1.2; tapping one writes week.focusV111, tapping another REPLACES it.
 //   * NOTHING WAS LOST — the coordinator still adopts a plan (player._gameScriptV23 carries a
 //     gsPass) and the impact bar still draws its fill.
-//   * IT IS A PHONE — the whole screen at a 400px viewport with no horizontal scroll.
+//   * IT IS A PHONE — every page of the screen at a 400px viewport with no horizontal scroll.
+//
+//   v112 D: the pregame screen is a four-page wizard now (involvement / focus / scout+plan /
+//   impact), so this check walks to the page a control lives on before it works it, and asserts
+//   the control is genuinely VISIBLE there. That is deliberately stronger than the version that
+//   read one long column: `innerText` falls back to `textContent` on a node that is not rendered,
+//   so scraping alone would have gone on passing even if a control had been hidden by accident.
 //   node scripts/v111Bcheck.mjs        (GAME_URL, POS=RB, SHOT=path.png)
 import { chromium } from 'playwright'
 
@@ -61,11 +67,12 @@ for (let i = 0; i < 80; i++) {
 ok(await page.evaluate(() => !!document.getElementById('pregameV1513')), 'the pregame screen opened')
 
 // ---- what the screen says, scraped back out of the DOM
-const readUI = () => page.evaluate(() => {
+const readUI = () => page.evaluate(visSrc => {
+  const vis = eval(visSrc)
   const T = el => el ? (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() : null
-  const steps = [...document.querySelectorAll('.v111-step')].map(b => ({ key: b.getAttribute('data-key'), label: T(b), on: b.classList.contains('on'), top: Math.round(b.getBoundingClientRect().top) }))
+  const steps = [...document.querySelectorAll('.v111-step')].map(b => ({ key: b.getAttribute('data-key'), label: T(b), on: b.classList.contains('on'), top: Math.round(b.getBoundingClientRect().top), vis: vis(b) }))
   const rows = sel => [...document.querySelectorAll(sel + ' .v111-row')].map(r => ({ k: T(r.querySelector('span')), v: T(r.querySelector('b')) }))
-  const focus = [...document.querySelectorAll('.v111-focus')].map(c => ({ key: c.getAttribute('data-key'), name: T(c.querySelector('.gs-card-top b')), mul: T(c.querySelector('.v111-mul')), on: c.classList.contains('gs-sel') }))
+  const focus = [...document.querySelectorAll('.v111-focus')].map(c => ({ key: c.getAttribute('data-key'), name: T(c.querySelector('.gs-card-top b')), mul: T(c.querySelector('.v111-mul')), on: c.classList.contains('gs-sel'), vis: vis(c) }))
   const fill = document.querySelector('.gs-field-fill')
   const wk = window.__V111_UI ? window.__V111_UI.week() : null
   const st = window.__getGridironState ? window.__getGridironState() : window.o
@@ -84,17 +91,21 @@ const readUI = () => page.evaluate(() => {
     pos: pl && pl.pos, modelIsA: !!(window.__V111 && typeof window.__V111.forecast === 'function'),
     fc: window.__V111_UI ? window.__V111_UI.forecast() : null,
     us: window.__V111_UI ? window.__V111_UI.usage() : null,
+    planVis: vis(document.getElementById('v111PlanWrap') || document.getElementById('v111Plan') || document.createElement('i')),
+    sheetVis: vis(document.getElementById('preFocusV111') || document.createElement('i')),
     scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth
   }
-})
-const tapStep = async k => { await page.evaluate(k => window.__v111PickUsageV111(k), k); await page.waitForTimeout(200) }
-const tapFocus = async k => { await page.evaluate(k => { document.getElementById('v111Focus_' + k).click() }, k); await page.waitForTimeout(200) }
+}, vis)
+// v112 D: walk the wizard to the page a control lives on. LADDER=1, FOCUS=2, PLAN=3, SHEET=4.
+const goPage = async i => { await page.evaluate(i => { window.__V112_D && window.__V112_D.go(i) }, i); await page.waitForTimeout(220) }
+const tapStep = async k => { await goPage(0); await page.evaluate(k => document.getElementById('v111Step_' + k).click(), k); await page.waitForTimeout(200) }
+const tapFocus = async k => { await goPage(1); await page.evaluate(k => { document.getElementById('v111Focus_' + k).click() }, k); await page.waitForTimeout(200) }
 
 const A = await readUI()
 console.log('     model =', A.modelIsA ? "agent A's window.__V111" : "the screen's own neutral stub")
 
 // 1. the ladder
-ok(A.steps.length === 5, 'five involvement steps', A.steps.map(s => s.key).join('/'))
+ok(A.steps.length === 5 && A.steps.every(s => s.vis), 'five involvement steps, on screen the moment it opens', A.steps.map(s => s.key).join('/'))
 ok(A.steps.every(s => s.top === A.steps[0].top), 'they sit on ONE row, not five paragraphs', 'tops=' + [...new Set(A.steps.map(s => s.top))].join(','))
 ok(A.steps.filter(s => s.on).length === 1 && A.steps[2].on && A.steps[2].key === 'normal', 'the middle step is selected by default', A.steps.find(s => s.on)?.key)
 ok(A.usageV111 === undefined || A.usageV111 === 'normal', 'no pick writes nothing (the default is today\'s game)', 'week.usageV111=' + A.usageV111)
@@ -105,7 +116,7 @@ const num = (rows, k) => { const r = rows.find(x => new RegExp(k, 'i').test(x.k)
 await tapStep('everysnap')
 const H = await readUI()
 ok(H.usageV111 === 'everysnap', 'tapping a step writes week.usageV111', 'week.usageV111=' + H.usageV111)
-ok(H.steps.find(s => s.key === 'everysnap').on && H.steps.filter(s => s.on).length === 1, 'and exactly that step lights up')
+ok(H.steps.find(s => s.key === 'everysnap').on && H.steps.filter(s => s.on).length === 1 && H.steps.every(s => s.vis), 'and exactly that step lights up, where he can see it')
 ok(H.desc !== A.desc, 'the step explains itself', JSON.stringify(H.desc).slice(0, 66))
 await tapStep('limited')
 const L = await readUI()
@@ -183,25 +194,30 @@ ok(stakeCmp.semi > stakeCmp.plain && stakeCmp.semiInj > stakeCmp.plainInj, 'a se
 // 5. the focus
 const POS_STATS = { QB: ['throwing', 'agility', 'awareness'], RB: ['strength', 'agility', 'acceleration'], WR: ['catching', 'agility', 'speed'], TE: ['blocking', 'catching', 'strength'], OL: ['blocking', 'strength', 'awareness'], DL: ['strength', 'quickness', 'tackling'], LB: ['tackling', 'awareness', 'speed'], CB: ['speed', 'agility', 'catching'], S: ['tackling', 'awareness', 'speed'] }
 const modelFocus = await page.evaluate(p => window.__V111_UI.focusFor(p), V.pos)
-ok(V.focus.length === 3, 'exactly three focus cards', V.focus.map(f => f.name).join(' | '))
-ok(V.focus.every(f => /×1\.2/.test(f.mul || '')), 'each shows the stat and the multiplier', V.focus.map(f => f.mul).join(' | '))
+await goPage(1)                                   // v112 D: the focus is page 2's decision
+const VF = await readUI()
+ok(VF.focus.length === 3 && VF.focus.every(f => f.vis), 'exactly three focus cards, all of them on screen', VF.focus.map(f => f.name).join(' | '))
+ok(VF.focus.every(f => /×1\.2/.test(f.mul || '')), 'each shows the stat and the multiplier', VF.focus.map(f => f.mul).join(' | '))
 const want = POS_STATS[V.pos] || []
 ok(!want.length || modelFocus.every(f => want.indexOf(f.stat) >= 0), `they are ${V.pos}-appropriate`, modelFocus.map(f => f.stat).join('/') + ' vs ' + want.join('/'))
-await tapFocus(V.focus[0].key)
+await tapFocus(VF.focus[0].key)
 const F1 = await readUI()
-ok(F1.focusV111 === V.focus[0].key, 'picking one writes week.focusV111', 'week.focusV111=' + F1.focusV111)
+ok(F1.focusV111 === VF.focus[0].key, 'picking one writes week.focusV111', 'week.focusV111=' + F1.focusV111)
 ok(F1.focus.filter(f => f.on).length === 1 && F1.focus[0].on, 'and it is the only one lit')
-ok(!!F1.sheetFocus && /×1\.2/.test(F1.sheetFocus), 'the stat sheet names it', F1.sheetFocus)
-await tapFocus(V.focus[2].key)
+await goPage(3)                                   // v112 D: the stat sheet is the last page
+const FS = await readUI()
+ok(!!FS.sheetFocus && /×1\.2/.test(FS.sheetFocus) && FS.sheetVis, 'the stat sheet names it, visibly', FS.sheetFocus)
+await tapFocus(VF.focus[2].key)
 const F2 = await readUI()
-ok(F2.focusV111 === V.focus[2].key, 'picking another REPLACES it', 'week.focusV111=' + F2.focusV111)
+ok(F2.focusV111 === VF.focus[2].key, 'picking another REPLACES it', 'week.focusV111=' + F2.focusV111)
 ok(F2.focus.filter(f => f.on).length === 1, 'still exactly one active', F2.focus.filter(f => f.on).map(f => f.key).join(','))
-await tapFocus(V.focus[2].key)
+await tapFocus(VF.focus[2].key)
 ok((await readUI()).focusV111 === null, 'tapping the live one drops it back to no focus')
-await tapFocus(V.focus[1].key)
+await tapFocus(VF.focus[1].key)
 
 // 5b. the screen takes agent A's model when it is there — a synthetic window.__V111 with
 // unmistakable numbers has to reach the pixels, and the stub has to step out of the way
+await goPage(0)                                   // v112 D: WHAT IT BUYS / WHAT IT COSTS is page 1
 const swap = await page.evaluate(() => {
   const had = window.__V111
   window.__V111 = {
@@ -222,24 +238,36 @@ ok(/\+41/.test(swap.cost) && /29%/.test(swap.cost) && /0\.7/.test(swap.cost) && 
 ok(/Model part ×1\.23/.test(swap.chips) && /fatigue after 64/.test(swap.chips), "and its parts are the chips", swap.chips)
 
 // 6. nothing was lost
+await goPage(2)                                   // v112 D: the coordinator is page 3
 const P = await readUI()
 ok(typeof P.gsPass === 'number' && P.gsPass > 0 && P.gsPass < 1, 'the coordinator still adopted a plan', `${P.gsName} · gsPass=${Math.round(P.gsPass * 100)}%`)
-ok(/coordinator's plan/i.test(P.plan || '') && /% pass/.test(P.plan || ''), 'and it reads back as one compact line', P.plan)
+ok(/coordinator's plan/i.test(P.plan || '') && /% pass/.test(P.plan || '') && P.planVis, 'and it reads back as one compact line, on screen', P.plan)
 ok(!!P.fillPct && parseFloat(P.fillPct) > 0, 'the impact bar still renders its fill', 'width=' + P.fillPct)
 ok(/GAME SCRIPT/.test(P.impact || ''), 'with the game-script read under it', (P.impact || '').slice(0, 64))
 
-// 7. it is a phone
-ok(P.scrollW <= P.clientW + 1, 'no horizontal scroll at a 400px viewport', `scrollW=${P.scrollW} clientW=${P.clientW}`)
-const wide = await page.evaluate(() => [...document.querySelectorAll('#v111Wrap *, #v111FocusWrap *')].filter(el => el.getBoundingClientRect().right > document.documentElement.clientWidth + 1).map(el => el.className).slice(0, 4))
-ok(!wide.length, 'and nothing in the two new blocks hangs off the right edge', wide.join(' | ') || 'clean')
+// 7. it is a phone — every page of it, not just whichever one happens to be up
+const pages = []
+for (let i = 0; i < 4; i++) {
+  await goPage(i)
+  pages.push(await page.evaluate(() => {
+    const host = document.getElementById('pregameV1513')
+    const wide = [...host.querySelectorAll('*')].filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.right > document.documentElement.clientWidth + 1 }).map(el => (el.className || el.tagName).toString().slice(0, 30))
+    return { scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, wide: wide.slice(0, 4) }
+  }))
+}
+ok(pages.every(p => p.scrollW <= p.clientW + 1), 'no horizontal scroll at a 400px viewport, on any page', pages.map(p => p.scrollW + '/' + p.clientW).join(' '))
+ok(pages.every(p => !p.wide.length), 'and nothing on any page hangs off the right edge', pages.flatMap(p => p.wide).join(' | ') || 'clean')
 
+await goPage(0)
 await page.evaluate(() => { const el = document.getElementById('v111Wrap'); el && el.scrollIntoView({ block: 'center' }) })
 await page.waitForTimeout(300)
 await page.screenshot({ path: SHOT })
 console.log('\nshot', SHOT)
 
-// 8. the flow still opens
-await page.evaluate(() => window.continuePregameV1513 && window.continuePregameV1513())
+// 8. the flow still opens — pressed as a thumb would, not called as a function
+await page.evaluate(visSrc => { const vis = eval(visSrc)
+  const el = [...document.querySelectorAll('button,[onclick],a')].filter(vis).find(e => /CONTINUE TO MATCH/i.test((e.innerText || e.textContent || '')))
+  el && el.click() }, vis)
 await page.waitForTimeout(1500)
 ok(await page.evaluate(() => !document.getElementById('pregameV1513')), 'CONTINUE TO MATCH still leaves the screen')
 console.log(`${pass} ok, ${fail} failed | page errors: ${errs.length ? '\n' + errs.slice(0, 6).join('\n') : 'NONE'}`)
