@@ -162,7 +162,16 @@ ok(/durab/i.test(V.chips.join(' ')) && /opponent/i.test(V.chips.join(' ')), 'dur
 ok(Number.isFinite(fc.stakes) && fc.stakes >= 1, 'the fixture carries stakes', 'stakes=' + fc.stakes + ' opp=' + (Math.round((fc.oppMul || 0) * 100) / 100) + ' dur=' + (Math.round((fc.durMul || 0) * 100) / 100))
 // the semifinal must price above the week-three game: ask the model with a playoff week
 const stakeCmp = await page.evaluate(() => {
-  const U = window.__V111_UI, pl = window.o && window.o.player, wk = U.week()
+  const U = window.__V111_UI, wk = U.week()
+  // Bill a body with HEADROOM. injChanceV54 clamps at 55%, and a fresh low-level player is
+  // pinned on that ceiling before a snap is played, which makes "the stakes raise the injury
+  // chance" unfalsifiable — the number cannot go up from the cap. Durability and a clean body
+  // put him under it so the comparison can actually fail if the model stops pricing stakes.
+  const real = window.o && window.o.player
+  const pl = Object.assign({}, real, {
+    attrs: Object.assign({}, real && real.attrs, { injuryResist: 90 }),
+    conditionV11: Object.assign({}, (real && real.conditionV11) || {}, { fatigue: 5, injury: null }),
+    _wearV111: { load: 0, lingering: [] } })
   const plain = { ...wk, playoff: false, round: null, week: 3, opponentV11: { ...(wk.opponentV11 || {}), importance: 'regular' } }
   const semi = { ...wk, playoff: true, round: 'Semifinal', opponentV11: { ...(wk.opponentV11 || {}), importance: 'championship', rating: ((wk.opponentV11 || {}).rating || 60) + 12 } }
   const a = U.forecast('heavy', pl, plain), b = U.forecast('heavy', pl, semi)
