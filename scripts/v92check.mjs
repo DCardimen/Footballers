@@ -38,14 +38,21 @@ const SHOTS = !!process.env.V92_SHOTS
 
 const st = await page.evaluate(() => { const sc = window.__gridironScene, V = window.__V92 || {}, T = sc.textures
   const frames = T.exists('rib_lights_v92') ? T.get('rib_lights_v92').frameTotal : 0
-  return { loaded: !!V.loaded, on: !!V.on, frames, towers: V.towerBoxes ? V.towerBoxes() : [], bowl: V.bowl, screen: V.screen ? V.screen() : null, crowdDepth: window.TU('crowdDepth', 3.45) } })
+  return { loaded: !!V.loaded, on: !!V.on, frames, towers: V.towerBoxes ? V.towerBoxes() : [], bowl: V.bowl, screen: V.screen ? V.screen() : null,
+    crowdDepth: window.TU('crowdDepth', 3.45), flip: !!window.TU('lightFlipV112', 1) } })
 console.log('stadium:', JSON.stringify({ loaded: st.loaded, on: st.on, frames: st.frames, bowl: st.bowl, towers: st.towers.length, rect: st.screen && st.screen.rect }))
 ok(st.loaded && st.frames >= 12, 'the lights sheet decoded as a twelve-frame sprite sheet', `frames=${st.frames}`)
 ok(st.on && st.towers.length === 4, 'four floodlight towers stand at the far bowl', `towers=${st.towers.length}`)
 const B = st.bowl || { top: 0, bot: 0 }
 ok(st.towers.length && st.towers.every(t => t.depth < st.crowdDepth && t.y >= B.top && t.y <= B.bot + 8), 'every mast is planted inside the bowl band and drawn behind the crowd', JSON.stringify(st.towers.map(t => [t.y, t.depth])))
 ok(st.towers.length && st.towers.every(t => t.top < B.top - 30), 'every lamp head rises into the sky above the bowl', `heads=${st.towers.map(t => t.top).join(',')} bowlTop=${B.top}`)
-ok(st.towers.length && st.towers.every(t => (t.x < 360) === (t.face === 1)), 'the heads are turned in toward the field', JSON.stringify(st.towers.map(t => [t.x, t.face])))
+// v112: the fixture is mirrored on `lightFlipV112` — a mast's lamp bank hangs on the other side of
+// its own pole — so which drawn face belongs to which side of the field is the dial's to say. What
+// must always hold is that the two masts on a side agree with each other and disagree with the
+// other side, and that they agree with the dial. (Was: hard-coded to v98's un-flipped convention.)
+ok(st.towers.length && st.towers.every(t => (t.x < 360) === (t.face === (st.flip ? 0 : 1))),
+  st.flip ? 'the heads are mirrored — lightFlipV112 is on' : 'the heads are turned in toward the field',
+  JSON.stringify(st.towers.map(t => [t.x, t.face])))
 const R = st.screen && st.screen.rect
 // v105: the default perspective is 78% now, so the far end — and the screen with it — draws smaller than it did at 45%
 ok(R && R.y + R.h < B.top && Math.abs(R.x + R.w / 2 - 360) < 2 && R.w > 130, 'the big screen hangs centred above the far stand', R && `bottom=${Math.round(R.y + R.h)} bowlTop=${B.top} w=${Math.round(R.w)}`)
