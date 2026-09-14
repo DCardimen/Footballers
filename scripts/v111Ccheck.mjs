@@ -204,6 +204,35 @@ console.log('decision:', JSON.stringify(call))
 ok(/%/.test(call.txt) && call.txt.length > 40 && call.txt.length < 330, 'the decision is ONE readable line, not a table', `${call.txt.length} chars`)
 ok(/chance of missing/i.test(call.txt) || /last one/i.test(call.txt) || /not playing/i.test(call.txt), 'the line states the tradeoff in words', call.txt)
 
+// ---- 4b. when agent A's model lands, the card reads IT and not the local estimate
+const model = await page.evaluate(() => {
+  const before = window.__V111_BODY.read()
+  window.__V111 = {
+    KEYS: ['limited', 'reduced', 'normal', 'heavy', 'everysnap'],
+    usage: () => ({ key: 'heavy', share: 0.92, touchMul: 1.3, label: 'HEAVY ROTATION', desc: '' }),
+    forecast: () => ({
+      load: 17.5, fatigueAfter: 61, injPct: 19.4, gamesMissed: 0.42, statCut: -4.1,
+      parts: [{ label: 'Body durability', mul: 1.11 }, { label: 'Opponent front', mul: 1.44 }, { label: 'Occasion', mul: 1.6 }],
+      stakes: 1.6, oppMul: 1.44, durMul: 1.11,
+    }),
+  }
+  window.go('hub')
+  const sec = document.querySelector('.condition-card-v11 .wearv111')
+  const cells = [...sec.querySelectorAll('.wearv111-grid > div')].map(d => d.querySelector('b').textContent.trim())
+  const drv = [...sec.querySelectorAll('.wearv111-drv span')].map(s => s.querySelector('i').textContent.trim() + ' ' + s.querySelector('b').textContent.trim())
+  const after = window.__V111_BODY.read()
+  delete window.__V111
+  window.go('hub')
+  return { before: { load: before.fc.load, stub: before.stub }, cells, drv,
+    kick: sec.querySelector('.wearv111-kick').textContent.replace(/\s+/g, ' ').trim(),
+    after: { load: after.fc.load, stub: after.stub, api: after.api, label: after.label } }
+})
+console.log('model:', JSON.stringify(model))
+ok(model.before.stub && !model.after.stub && model.after.api, 'the model takes over from the local estimate when it exists', `stub ${model.before.stub} -> ${model.after.stub}`)
+ok(model.cells.join('|') === '+18|19%|0.4|−4', "the drawn numbers are the MODEL's forecast", model.cells.join(' '))
+ok(/HEAVY ROTATION/.test(model.kick), "the model's own involvement label is used", model.kick)
+ok(model.drv.join(' ') === 'DURABILITY ×1.11 OPPONENT ×1.44 STAKES ×1.60', "the model's parts[] resolve onto the three drivers however it labels them", model.drv.join(' '))
+
 // ---- 5. a fresh save with no wear history at all
 const five = await page.evaluate(() => {
   const pl = window.S.player

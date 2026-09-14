@@ -11673,7 +11673,10 @@ const WEAR_SHARE_V111={limited:.5,reduced:.75,normal:1,heavy:1.22,everysnap:1.45
 const WEAR_STAKE_V111={routine:1,evaluation:1.12,rivalry:1.18,playoff:1.32,championship:1.55};
 function wearApiV111(){try{const a=window.__V111;return a&&typeof a.forecast=="function"?a:null}catch(_){return null}}
 function wearNextV111(e){try{return(e&&e.weekResults||[]).find(w=>w&&!w.played)||null}catch(_){return null}}
-function wearKeyV111(e,wk){const k=wk&&wk.usageV111;return WEAR_KEYS_V111.indexOf(k)>=0?k:"normal"}
+// the model owns the vocabulary once it exists; this list is only the standalone copy
+function wearKeysV111(){const a=wearApiV111();return a&&Array.isArray(a.KEYS)&&a.KEYS.length?a.KEYS:WEAR_KEYS_V111}
+function wearLblV111(k){return WEAR_LBL_V111[k]||String(k||"").replace(/[_-]/g," ").toUpperCase()}
+function wearKeyV111(e,wk){const k=wk&&wk.usageV111;return wearKeysV111().indexOf(k)>=0?k:"normal"}
 function wearOppRefV111(e){return 45+((e&&e.level)||0)*5.5}
 // the local estimate — the same shape __V111.forecast returns, built out of numbers
 // that already exist on this screen, so a worktree with no model still reads true
@@ -11785,8 +11788,8 @@ function wearReadV111(e){
   // bars are rescaled to it, so the shape is the season's and the sum is the truth
   if(known!=null&&season>0&&known>0&&hist.every(h=>h.est)){const k=known/season;hist.forEach(h=>h.load*=k);season=known}
   const scale=TU("wearScaleV111",120),pct=f(load/scale*100,0,100);
-  const fc=wearForecastV111(e,wk,key),lo=wearForecastV111(e,wk,WEAR_KEYS_V111[0]);
-  return{wk,key,label:(usage&&usage.label)||WEAR_LBL_V111[key]||key,usage,api:!!api,
+  const KS=wearKeysV111(),fc=wearForecastV111(e,wk,key),lo=wearForecastV111(e,wk,KS[0]);
+  return{wk,key,keys:KS,lightest:KS[0],label:(usage&&usage.label)||wearLblV111(key),usage,api:!!api,
     hist,season,load,scale,pct,band:wearBandV111(pct),fc,lo,
     drivers:wearDriversV111(e,wk,fc),linger:wearLingerV111(e),target:wearTargetV111(e,wk,fc),
     loTarget:wearTargetV111(e,wk,lo),stub:!!fc.stub};
@@ -11842,7 +11845,7 @@ function wearSectionV111(e){
     const flr=mn*TU("wearSparkFloorV111",.55);
     const spark=R.hist.slice(-TU("wearSparkWeeksV111",16)).map(h=>{
       const cls=h.key==="heavy"||h.key==="everysnap"?"hot":h.key==="normal"?"":"cool";
-      return`<u class="${cls}${h.est?" est":""}" title="Wk ${h.week} · ${S(h.opp||"")} · ${WEAR_LBL_V111[h.key]||h.key} · ${n1(h.load)} wear${h.est?" (est.)":""}" style="height:${f((h.load-flr)/Math.max(.001,mx-flr)*100,14,100)}%"></u>`}).join("");
+      return`<u class="${cls}${h.est?" est":""}" title="Wk ${h.week} · ${S(h.opp||"")} · ${wearLblV111(h.key)} · ${n1(h.load)} wear${h.est?" (est.)":""}" style="height:${f((h.load-flr)/Math.max(.001,mx-flr)*100,14,100)}%"></u>`}).join("");
     const heavy=R.hist.filter(h=>h.key==="heavy"||h.key==="everysnap"),hvLoad=heavy.reduce((t,h)=>t+h.load,0);
     const story=!R.hist.length
       ?`No games on the body yet — this season starts him fresh.`
@@ -11867,7 +11870,7 @@ function wearSectionV111(e){
     const call=out
       ?`⚖️ You are not playing this week. The load comes off while it passes — that is the only upside of sitting.`
       :T&&T.games>0
-        ?`⚖️ At <b>${S(R.label)}</b> every week you reach <b>${S(T.name)}</b> with a <b class="${T.miss>=30?"bad":""}">${n1(T.miss)}%</b> chance of missing it${LT&&LT.miss<T.miss-1?` — dialling back to <b class="good">${WEAR_LBL_V111[WEAR_KEYS_V111[0]]}</b> makes it <b class="good">${n1(LT.miss)}%</b>`:""}. ${fc.statCut<=-.8?`And you carry <b class="bad">${sgn(fc.statCut)}</b> rating into the game after this one.`:`Your legs hold for now.`}`
+        ?`⚖️ At <b>${S(R.label)}</b> every week you reach <b>${S(T.name)}</b> with a <b class="${T.miss>=30?"bad":""}">${n1(T.miss)}%</b> chance of missing it${LT&&LT.miss<T.miss-1?` — dialling back to <b class="good">${S(wearLblV111(R.lightest))}</b> makes it <b class="good">${n1(LT.miss)}%</b>`:""}. ${fc.statCut<=-.8?`And you carry <b class="bad">${sgn(fc.statCut)}</b> rating into the game after this one.`:`Your legs hold for now.`}`
         :`⚖️ This is the last one. Spend everything — there is no game after it to save legs for.`;
     return`<div class="wearv111">
       <div class="wearv111-head"><div><div class="impact-kicker">WEAR &amp; TEAR · THE SEASON ON HIM</div>
@@ -11888,7 +11891,7 @@ window.__V111_BODY={
   section:e=>wearSectionV111(e||(typeof o=="object"&&o&&o.player)),
   hist:e=>wearHistV111(e||(typeof o=="object"&&o&&o.player)),
   forecast:(e,k)=>{const p=e||(typeof o=="object"&&o&&o.player),w=wearNextV111(p);return wearForecastV111(p,w,k||wearKeyV111(p,w))},
-  band:wearBandV111,keys:WEAR_KEYS_V111,hasModel:()=>!!wearApiV111(),lastError:null
+  band:wearBandV111,keys:wearKeysV111,hasModel:()=>!!wearApiV111(),lastError:null
 };
 function et(e,t=0,a){a=a||{};const s=Pa(e),n=A[e.level],i=n.need-6+Ks()+ft("peerShift"),r=1+M("clutch")*.02,l=1+(e.attrs.grit-10)*.003*r,d=1+(e.attrs.stamina-10)*.0015;let c=Oe(e,"streaky")?23:15;c*=Math.max(.5,1-G("varDown"))*(ft("varMult")||1);let u=(s-i)*2.4+D(-c,c)*l+50+t/n.games*2+(o&&o._fateBoost||0);a.playoff&&(u+=G("playoffPerf")+ft("playoffPerf"),Oe(e,"xfactor")&&(u+=12)),Oe(e,"butterFingers")&&Math.random()<.12&&(u-=18),Math.random()<(Oe(e,"streaky")?.06:.04)&&u>40&&(u*=1.5),u*=d;const p=f(xi(u),1,100);const y=Math.random()<injChanceV54(e,a);try{window.__INJ_DEBUG&&y&&(window.__INJ_DEBUG.hit=(window.__INJ_DEBUG.hit||0)+1)}catch(_){}return{perf:Math.round(p),ovr:s,injured:y}}const Ne={QB:{primary:"passYds",label:"Passing",stats:[{key:"passYds",name:"Pass Yds",per:[140,165,190,210,235,265,290,270]},{key:"passTD",name:"Pass TD",per:[1.2,1.4,1.6,1.9,2.1,2.4,2.6,2.6]},{key:"int",name:"INT",per:[1.6,1.4,1.2,1.1,1,.9,.8,.8],lowerBetter:!0}]},RB:{primary:"rushYds",label:"Rushing",stats:[{key:"rushYds",name:"Rush Yds",per:[55,70,80,90,100,115,130,105]},{key:"rushTD",name:"Rush TD",per:[.7,.9,1,1.1,1.2,1.3,1.4,1.2]},{key:"ypc",name:"Yds/Carry",per:[4,4.3,4.5,4.7,4.9,5.1,5.3,4.8],rate:!0}]},WR:{primary:"recYds",label:"Receiving",stats:[{key:"rec",name:"Catches",per:[3,3.5,4,4.5,5,5.5,6,5]},{key:"recYds",name:"Rec Yds",per:[45,55,65,72,80,90,100,85]},{key:"recTD",name:"Rec TD",per:[.5,.6,.7,.8,.9,1,1.1,.9]}]},TE:{primary:"recYds",label:"Receiving",stats:[{key:"rec",name:"Catches",per:[2,2.5,3,3.5,4,4.5,5,4]},{key:"recYds",name:"Rec Yds",per:[28,34,40,46,52,60,68,55]},{key:"recTD",name:"Rec TD",per:[.3,.4,.5,.6,.7,.8,.9,.7]}]},OL:{primary:"grade",label:"Blocking",stats:[{key:"grade",name:"Blk Grade",per:[62,64,66,68,70,73,76,75],rate:!0},{key:"pancakes",name:"Pancakes",per:[2,3,3.5,4,4.5,5,5.5,5]},{key:"sacksAllowed",name:"Sacks All.",per:[2.5,2.2,2,1.8,1.5,1.2,1,1],lowerBetter:!0}]},DL:{primary:"sacks",label:"Pass Rush",stats:[{key:"tackles",name:"Tackles",per:[2.5,3,3.5,4,4.5,5,5.5,4.5]},{key:"sacks",name:"Sacks",per:[.4,.5,.6,.7,.8,.9,1,.8]},{key:"tfl",name:"TFL",per:[.8,1,1.1,1.3,1.5,1.7,1.9,1.5]}]},LB:{primary:"tackles",label:"Defense",stats:[{key:"tackles",name:"Tackles",per:[5,6,7,8,9,10,11,9]},{key:"sacks",name:"Sacks",per:[.3,.4,.4,.5,.6,.7,.8,.6]},{key:"tfl",name:"TFL",per:[.9,1.1,1.3,1.5,1.7,1.9,2.1,1.7]}]},CB:{primary:"pd",label:"Coverage",stats:[{key:"tackles",name:"Tackles",per:[2.5,3,3.5,4,4.5,5,5.5,4.5]},{key:"pd",name:"Pass Def",per:[1,1.2,1.4,1.6,1.8,2,2.2,1.8]},{key:"int",name:"INT",per:[.2,.25,.3,.35,.4,.5,.6,.45]}]},S:{primary:"tackles",label:"Defense",stats:[{key:"tackles",name:"Tackles",per:[4,5,5.5,6,6.5,7,7.5,6.5]},{key:"pd",name:"Pass Def",per:[.7,.9,1,1.2,1.4,1.6,1.8,1.4]},{key:"int",name:"INT",per:[.2,.25,.3,.35,.4,.45,.5,.4]}]}};Object.values(Ne).forEach(e=>e.stats.forEach(t=>{const a=t.per[7];t.per[8]=t.lowerBetter?+(a*.85).toFixed(2):t.rate?+(a*1.2).toFixed(1):+(a*1.45).toFixed(1)}));function mr(e,t){const a=A[t].need-6+Ks();return f(xi((e-a)*2.4+50+G("perfFlat")),1,100)}function is(e,t,a){const s=A[a].games,n=Ne[e],i=Ti(t),r=t/100,l=1+G("statProd")+Jr(e),d={};return n.stats.forEach(c=>{const u=c.per[a],h=_o(c);c.rate?d[c.key]=+(u*(.72+.42*Math.pow(t/90,1.4))*h).toFixed(1):c.lowerBetter?d[c.key]=Math.max(1,Math.round(u*s*Math.max(.2,1.35-Math.pow(r,1.2)*.95)*h)):d[c.key]=Math.round(u*s*Math.min(i,3.4)*l*h)}),d}function Ha(e,t){return is(e,60,t)}function pr(e,t,a){const s=is(e,t,a),n=Ha(e,a),i=Ne[e].primary,r=n[i]||1;return(s[i]||0)/r}const vr=[0,.28,.48,.75,1.02,1.62,1.92,1.84,2.7];function qt(e,t,a,s,n){n=n||1;const i=Math.min(t+1,A.length-1);if(t<=2&&Ie()===0)return f(96+(e-A[i].need)*.3,82,99.5);const r=(vr[i]||0)+(t<=2,0),l=A[i].need+Ie()*.45;if(a!=null&&s!=null){const c=pr(a,s,t)/(1+(n-1)*.35),u=Math.pow(Math.max(.05,c),.5),h=(e-l)/8,p=f(.5+h,0,1.5),m=i===A.length-1,y=f((e-l)/30,0,1),C=m?r*(1-y*.28):r*(1-y*.45),P=(u*.38+p*.64-C*.52-.72)/.14;let _adv=f(1/(1+Math.exp(-P))*100+Se("advBonus",0)+G("advFlat")+ft("advFlat"),.3,99.5);
 // v17: national standing drives promotion — you cannot be #1 of 180k kids in the
