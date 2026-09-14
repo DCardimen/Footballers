@@ -374,6 +374,130 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v112 — the start, the decision, the weight of a hit
+
+Six independent passes, written on separate worktrees against one rule: **nothing here is allowed
+to move the scoreboard.**
+
+### A — the chase is always ready
+
+Anchor `v112 A THE CHASE IS ALWAYS READY` (the first `<script>` in the head). Hook
+`window.__V112_A`. Gate `scripts/v112Acheck.mjs`.
+
+The loading screen is drawn from the v91 field sheet, and nothing asked for that sheet until v94's
+own `<script>` ran — which is after ~100KB of document and every stylesheet in the head, because an
+inline script waits on the styles above it. Cold on a throttled link, the request left at 1.23s and
+the first animated frame landed at 3.09s: a loading screen that spends the load loading.
+
+The sheet is now requested in the first breath of the head, before the CSS. The bytes leave at
+~40ms, and **v94's `load()` ADOPTS the two promises in `window.__RIB_WARM_V112`** rather than
+starting its own, so the page still makes exactly two requests for the sheet in a whole session.
+The cells are cut and recoloured once into module scope, so every later loading scene — the live
+game's loader above all — starts on the frame it is mounted. 3.09s → 2.15s cold; 63ms for a second
+scene. `?noWarmV112` puts the old cold path back for a comparison.
+
+What this cannot buy is the main thread: the inline bundle below compiles in one long task and no
+rAF loop outruns it (the stall shows on `__V112_A.mounts[n].maxGapMs`). Which is why the loader's
+own bar moved to `transform` — it used to animate `margin-left`, laid out on the main thread, so
+the one moving thing on the page froze with everything else. Same sweep, on the compositor: 80
+distinct composited pictures through a deliberate 1.2s jam, where `margin-left` gave 4.
+
+### C — who you start as
+
+Anchors `v112 THE FRAME HE HAS, AND THE FRAME HE IS GOING TO GET`, `v112 TWO CARDS FROM A POOL OF
+TEN`, `v112 THE PRICE OF WALKING AWAY`. Hook `window.__V112_C`. Gate `scripts/v112Ccheck.mjs`.
+
+**The body.** `player.body` keeps its name and every gameplay read it already had — it is the
+**projected adult frame**. `bodyNowV112(body, age)` derives what he is today from one growth curve:
+`HT_FRAC_V112` / `WT_FRAC_V112`, muscle at `wf ** TU("growMusclePow", .55)`, between
+`TU("growYoungAge", 8)` and `TU("growAdultAge", 22)`. It is **derived at read time — never rolled,
+never stored, no save migration** — so it walks up to the projection as the career ages and *is*
+the projection from 22 on. A 6'2"/230 projection reads 4'5" · 67 lb at 8, 5'1"/101 at 12,
+5'10"/158 at 15, 6'1"/199 at 17. Every print site is age-true: the position screen, the hub, the
+menu continue card and `__RIB_MENU_DATA_V89` (which gained `heightProj` / `weightProj` /
+`grownV112`).
+
+**Fit still reads the projection, deliberately.** `pa()` feeds `en()` → OVR → national rank →
+promotion odds → the declare → the silent score model. On a real rolled 8-year-old, `pa(proj,QB)`
+is +6 against `pa(now,QB)` −20, and OVR 17 against 1 — reading the boy's frame would collapse every
+young player's rating and move the scoreboard hard. It is also the existing semantics stated
+honestly: `body` never changed with age before, so it was always a career-long constant. Scouting
+an eight-year-old *is* scouting his projection, and the screen now says so.
+
+**The trait.** The first trait is still `Ai()`'s guaranteed-good roll. The second is a decision:
+`TU("traitOfferN", 2)` cards drawn from `TRAIT_POOL_V112` on the position screen, tagged UPSIDE or
+DOUBLE-EDGED; tap one and the other is gone. Locking a position without picking runs
+`traitAutoV112`, so the flow can never wedge and `walk.mjs` / `scoreneutralcheck.mjs` still walk
+straight through. `glassBones` and `butterFingers` stay fully defined and are still read by the
+injury, wear and performance models, but they have **no spawn point at creation** any more — a card
+that is nothing but a downside is not a choice.
+
+**The reroll.** Abandoning an unfinished career costs `TU("rerollPenaltyPct", 5)` on every attribute
+until the next man is promoted one level. The mechanism is `condMultV54`, not
+`_tempStatBuffsV25` — those are per-game, per-stat and cleared between games, while `condMultV54` is
+the one multiplier both halves already agree on (`_raw` multiplies every you-player attribute by it
+in the live sim, `effAttrsV85` returns it as `.mult`, the silent week does `perf*condMultV54(e)`,
+the live booking does `delta*condMultV54(e)`). It now returns its old value × `rerollMulV112(e)`.
+`Di()` gates on `rerollGateV112()` so the warning comes **before** the new man exists; the ledger
+`o.rerollV112` survives a prestige reset the way `o.milestones` does (`Hl()` only nulls
+`o.player`); a second reroll re-arms at the new man's level rather than stacking. A career that
+ENDS is never charged: both endings set `player._settled`, and `abandonedV112()` is "a player exists
+**and** is not settled".
+
+### D — the pregame, one decision at a time
+
+Anchor `v112 THE PREGAME, ONE DECISION AT A TIME`. Hook `window.__V112_D`. Gate
+`scripts/v112Dcheck.mjs`.
+
+The pregame screen said everything at once — scouting report, stat sheet, the v111 involvement
+ladder with its two cost panels and driver chips, the coordinator's line, the impact bar and three
+focus cards — in one column three phone-screens long. Every one of those is worth reading and none
+of them was read, because the thumb was already on its way to the button at the bottom.
+
+It is now four pages, one decision each: **YOUR INVOLVEMENT** (the five-step ladder and what this
+week prices), **YOUR FOCUS** (three position cards at ×1.2, one tap or none), **THE SCOUT & THE
+PLAN** (informational — it asks nothing and NEXT is always live), **THE IMPACT** (involvement,
+focus, the body's swing, the wear this week bills and any lingering cut, then the stat sheet showing
+the EFFECTIVE numbers he carries onto the field).
+
+**Nothing about the model moved.** Pages 1-3 are `gsUsageBlockV23` / `gsFocusBlockV23` /
+`gsPlanBlockV23` — the very markup the long column used, every id and handler intact — so
+`week.usageV111`, `week.focusV111`, `_gameScriptV23` and `__gameScriptBiasV23` are written exactly
+as before, and every number on page 4 is read back through `window.__V111.forecast(...)` the same
+guarded way the ladder reads it. The player is never trapped: the defaults (normal, no focus) are
+the game precisely as it was, BACK walks the pages in reverse and off the screen from page 1, and
+CONTINUE TO MATCH is on every page.
+
+### F — the hit has weight
+
+Anchors `v112 THE HIT HAS WEIGHT` (the sim block after `wrapInV109`, the renderer block, and the
+call sites). Hooks `window.__V112_F` and `window.__V112_F_SIM.launch`. Gate
+`scripts/v112Fcheck.mjs`.
+
+`launchV112` is pure arithmetic over numbers `contact()` already computed — `hit.impact`, the
+strength differential, the knock-back it booked, `lev`, `behind`, `handsOn`, and both men's mass out
+of `WT`. It answers **one number**: `vz`, the vertical speed he left the ground with. No
+`Math.random()`, no state written, no spot moved; it rides the existing events as `flyWho` /
+`flyVz` / `flyPow`. Gates: `launchMinKb` (a hit that does not move him cannot launch him),
+`launchMaxHands` (nobody is launched out of a crowd), a `behind` penalty, and `launchGate`. **The
+v103 grip never launches** — a man who was carried and set down did not leave his feet.
+
+In the renderer, `flyStartV112` replaces the old fixed `_launchUntil` / `_launchH` hump for violent
+hits. Hang is `2·vz/g` and peak is `vz²/2g`, so the height and the duration are the same measurement
+seen twice and cannot fight each other. The ground is not invented: the drawn body simply **lags the
+script's own position** by the ground it has not covered yet, so he flies back along the line the
+sim already knocked him down, lands short, bounces, and skids the last `launchSkid` into the booked
+spot — the lag is zero the frame the skid ends. He lands in `down`, where v86's gather and the
+get-up path already pick a man up, and the flight re-asserts its own pose each frame so a stray
+timer cannot stand him up in mid-air. He is cleared at `q.rose`, at the end of the post phase, in
+`animatePlay`'s glide reset, and by `updatePostV86`, which lands a still-flying man before anything
+else moves him — nobody is ever carried into the next snap airborne. The v95 BIG HIT badge waits out
+the flight's own hang (`flyBadgeMsV112`) instead of covering the arc it is celebrating.
+
+2.4% of resolved contacts launch — about 3.4 a game, the violent tail. Neutrality is proved rather
+than argued: with `Math.random` pinned to a seeded generator, eight games with the launch off and on
+are **byte-identical** — same score, same event and same yard on every play.
+
 ## v110 — the man who is there
 
 Anchors `v110 THE MAN WHO IS THERE` (four of them: the `seesBall` proximity read, the support-hold
