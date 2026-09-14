@@ -55,6 +55,59 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v112 — the start, the decision, the weight of a hit.** Six passes written in parallel against
+  one rule: **the scoreboard does not move.** (1) *The chase is always ready.* The loading screen is
+  drawn from the v91 field sheet, and nothing asked for that sheet until v94's own script ran —
+  after a hundred kilobytes of document and every stylesheet — so cold on a throttled link the
+  request left at 1.23s and the first animated frame landed at 3.09s. The sheet is now asked for in
+  the first breath of the head and v94 adopts that request instead of making its own: 3.09s → 2.15s
+  cold, 63ms for a second scene. The loader's bar moved onto the compositor, so the one moving thing
+  on the page no longer freezes with the boot — 80 distinct composited pictures through a 1.2s jam
+  where the old `margin-left` sweep gave 4. (2) *Who you start as.* An eight-year-old is no longer
+  6'2" and 230lb: `player.body` is now explicitly the frame he PROJECTS to, and today's frame is
+  derived from it by age at read time — 4'5" and 67lb at eight, walking up to the projection by
+  twenty-two — shown on every screen with the projection in gold beneath it. Scouting still grades
+  the projection, because that is what OVR, national rank and the declare have always read, and the
+  screen says so. The second trait is now a choice of two cards drawn from a pool of ten, tagged
+  upside or double-edged. And abandoning a career you do not like costs something: a named warning
+  before the new man is created, then −5% on every attribute — in games and on the sheet — until he
+  is promoted one level. (3) *The pregame, one decision at a time.* The screen that stacked the
+  scouting report, the stat sheet, the involvement ladder, the coordinator's plan and three focus
+  cards into one column three phone-screens long is now four pages with one decision on each, ending
+  on a panel that states everything the week has done to him and the effective numbers he carries
+  onto the field. Nothing about the model moved — the pages are the same blocks with every id and
+  handler intact — and CONTINUE TO MATCH is on every page, so a man on his tenth season is one tap
+  from the field. (4) *The stadium.* The floodlight masts are half the size, sit lower and are
+  mirrored, so they read as fixtures above the bowl instead of two banks filling the top corners;
+  a blue base band runs through every stand's own foot polyline, sweeping the corners rather than
+  sitting as a rectangle, and an arched tunnel is cut into the far terrace; a fixed-seed star field
+  sits behind the skyline, dimming as the lighting dial rises. The smeared bottom of the picture was
+  diagnosed rather than patched — the art is sampled correctly; the near band was being laid out at
+  1.44× the anchor row's density and drawing 360×700 art at eleven canvas pixels per art row — so
+  past the backfield the camera now stops closing in: 11.08 → 7.70 px per art row, the painted end
+  line 37px → 25px, and nothing downfield of the anchor moves. Honest limit: −31%, not elimination.
+  (5) *The camera finds the ball.* The frame followed the carrier, and the carrier is still the
+  carrier after he throws — so for the whole flight of a pass and the whole hang of a punt the camera
+  sat on the man who had just let go of the ball. It now reads possession every frame: the holder
+  while a man holds it, the football itself the moment it is away, easing toward where the flight
+  comes down so it arrives with the ball. It tightens on a runner by how far the nearest tackler
+  actually is, steps out at the hit and opens at the whistle, and never opens wider than the picture
+  the FIELD VIEW dials already set. Four behaviours in Settings — Broadcast, Tight, Wide, Fixed —
+  plus a zoom-strength slider. Measured: the ball sat 374px off centre at the 90th percentile of a
+  carry before, and 97px on average now; on a punt the camera used to be 700–800px off the returner
+  for a second after the catch. (6) *The hit has weight.* The violent tail of contact — 2.4% of
+  resolved contacts, about three a game — now launches a man as a real projectile: the sim answers
+  one number off figures the collision already computed, the renderer derives the hang and the peak
+  from that same number so they cannot disagree, and the drawn body lags the script's own position
+  rather than inventing ground, so he flies back along the line the sim already knocked him down,
+  lands short, bounces and skids into the booked spot. Nobody is ever drawn in the air when the next
+  play starts. **Score-neutrality is proved, not argued:** with the random source pinned, eight games
+  with the launch off and on are byte-identical — same score, same event and same yard on every play
+  — and over 300 games the merged build reads 25.4 points, 4.96 yards a carry and 74.8% completions
+  against the pre-v109 baseline's 24.7, 5.15 and 75.3%, inside the probe's own noise band. Gates:
+  `v112Acheck.mjs`, `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`,
+  `v112Fcheck.mjs`.
+
 - **v110 — the man who is there.** A defender who looks like he is in position to make a play, and
   does not, is the one thing that reads as broken however good the rest looks. Measured over ~700
   plays, at the moment of the stop the nearest defender was the tackler 89% of the time — but 13%

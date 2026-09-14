@@ -533,6 +533,54 @@ guarded way the ladder reads it. The player is never trapped: the defaults (norm
 the game precisely as it was, BACK walks the pages in reverse and off the screen from page 1, and
 CONTINUE TO MATCH is on every page.
 
+### E — the camera finds the ball
+
+Anchors `v112 THE CAMERA FINDS THE BALL`, `v112 THE FRAME TIGHTENS ON HIM`, `v112 THE BALL STAYS IN
+THE PICTURE` and `v112 THE CAMERA HAS OPTIONS` (the mode table beside `FW`, the scene methods, and
+"(the panel)" in the career block). Hook `window.__V112_E`; `window.__CAM_MODES_V112` is the one
+place a behaviour is described, and the Settings panel reads it. Gate `scripts/v112Echeck.mjs`.
+
+The frame followed `P.carrierId`, and `carrierId` survives the throw — so for the whole flight of a
+pass and the whole hang of a punt the camera sat on the man who had just let the ball go.
+`camFocusV112` reads possession fresh every frame: the **holder** while a man holds it (so a fumble
+recovery, which the sim never names a carrier for, is followed too), the **ball itself** the moment
+it is in the air or on the grass, and on a flight the frame eases toward where that flight comes
+down (`camLandV112`, read once off the script's own ball frames) so it *arrives* with the ball. The
+v98 handover cut keys off the focus man now, so it fires on a recovery as well, and a kick's
+pre-snap frame starts on the deep man — the punter stands fourteen yards behind the spot, and the
+old frame spent the whole long snap chasing him.
+
+`camTightV112` reads how far the nearest man who could tackle him actually is
+(`camSpaceNearPx` / `camSpaceFarPx`), modulated by his speed (`camTightSpdFloor`); in traffic it
+returns exactly 1, and it only moves the spring's **target** — there is no second lerp fighting
+v109's spring. The v109 lead keeps its direction but is bounded to `camKeepFracX` / `camKeepFracY`
+of the half frame, and `camEdgeFrac` opens the zoom for a man the camera's own bounds cannot pan to
+(the near sideline *projects past* the painted field) instead of scrolling off the art.
+`camZoomFitV112` floors every zoom at the renderer's own pre-snap frame, so nothing v112 does opens
+wider than a picture the game already drew. At the tackle, `camHitV112` arms a smaller step out
+(`camHitOutK` 0.90) and `camPostV109` holds it in front of the whistle's wide for `camHitPostMs`, so
+the hit reads as its own beat and *then* the frame opens for the gather.
+
+`CAM_MODES_V112` is **Broadcast / Tight / Wide / Fixed** in Settings › FIELD VIEW, each with its own
+zoom, pull-in bite, lead and spring stiffness, plus a **Camera zoom strength** slider (`fxCamZoom`).
+Both ride `window.__FIELD_FX`, which the camera re-reads every frame, so a pick is live before the
+panel closes; Fixed shares the OS reduced-motion path (`camOffV112`).
+
+A bug underneath it: `__pushFieldFx()` ran *before* `mc()` rebinds `o` to the loaded save, so
+`fxDepth`, `fxLight` and `fxZoom` all came back at their defaults after a reload. It is pushed again
+once the save is in — every FIELD VIEW dial persists now.
+
+Measured with the same instrument on v111: carry p90 **374px** off frame and max **713px**, and on a
+punt the camera sat **700–800px** off the returner for a second after the catch. Now carry mean
+**97px** / max 283px, kick mean 60px, and the ball is off frame on 0.78% of 7277 sampled frames.
+
+One assertion in `v112Echeck` was re-instrumented after the merge: the four behaviours were compared
+on one pooled mean of each mode's carry-frame zoom, and a single round that happened to draw a long
+run in open space moves that mean by more than the behaviours differ from each other — it failed
+about one run in three on a build it was right about. It now takes the **median of each behaviour's
+per-round mean over nine rounds**, which is the question the assertion means to ask: on a typical
+carry, does Tight sit closer. The thresholds are unchanged.
+
 ### F — the hit has weight
 
 Anchors `v112 THE HIT HAS WEIGHT` (the sim block after `wrapInV109`, the renderer block, and the

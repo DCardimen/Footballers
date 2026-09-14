@@ -60,8 +60,14 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   bowl, `starsV112` bakes a fixed-seed star field behind the skyline at depth 0.6 (the v100 dial
   governs it), and `nearCapV112` caps `PERSP_BACKMAX` at the anchor's own scale so the near edge
   stops smearing — 11.08 → 7.70 canvas px per art row, with nothing downfield of the anchor moving.
-  Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`, `__V112_D`, `__V112_F` / `__V112_F_SIM`.
-  `v112Acheck.mjs`, `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Fcheck.mjs`
+  And the camera finds the BALL rather than the carrier — `camFocusV112` reads possession every
+  frame (the holder while a man holds it, the football the moment it is away, easing toward
+  `camLandV112` so it arrives with the flight), `camTightV112` tightens by how far the nearest
+  tackler actually is, `camZoomFitV112` never opens wider than the pre-snap frame the FIELD VIEW
+  dials already set, and `CAM_MODES_V112` (Broadcast / Tight / Wide / Fixed, plus `fxCamZoom`) is
+  the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
+  `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
+  `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
 - `v110 THE MAN WHO IS THERE` — position on the field decides who makes the play. A read lands the
   moment the ball is inside `TU("seeBallPx", 20)` (a man does not stand a yard from the football
   still diagnosing it), support holds only if it is genuinely FARTHER off than the committer, the
@@ -278,6 +284,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the body he has vs the body he projects to / the trait choice / the reroll penalty (v112 C) | `v112Ccheck.mjs`, then `bodycheck.mjs`, `v85check.mjs`, `menu-integration-check.mjs`, `simcheck.mjs`, `creditcheck.mjs`, `walk.mjs` |
 | the pregame wizard's pages, its defaults and the way into the game (v112 D) | `v112Dcheck.mjs`, then `v111Bcheck.mjs`, `walk.mjs`, `splashcheck.mjs` |
 | the masts / the bowl's base band and entrance / the stars / the near edge's distortion (v112 B) | `v112Bcheck.mjs`, then `v98check.mjs`, `v99check.mjs`, `v100check.mjs`, `v102check.mjs`, `v92check.mjs`, `v86check.mjs`, `crowdcheck.mjs`, `sidelinecheck.mjs` |
+| the camera — what it follows, how tight, and the Settings behaviours (v112 E) | `v112Echeck.mjs`, then `v109Echeck.mjs`, `v86check.mjs`, `v98check.mjs`, `v105check.mjs`, `renderpathcheck.mjs`, `sidelinecheck.mjs` |
 | a big hit taking a man off his feet — the launch, the arc, the landing (v112 F) | `v112Fcheck.mjs`, then `v103check.mjs`, `v109C1check.mjs`, `tacklecheck.mjs`, `readcheck.mjs`, `renderpathcheck.mjs`, `scoreneutralcheck.mjs` |
 | whether being in position decides the play — stops, break-ups, interceptions (v110) | `v110check.mjs`, then `creditcheck.mjs`, `tacklecheck.mjs`, `readcheck.mjs`, `v103check.mjs`, `scoreneutralcheck.mjs` |
 | anything in the live sim's FEEL (contact, possession, ball speed, catching, tackling, the clock) | `scoreneutralcheck.mjs` FIRST (keep the before row), then the v109 checks below |

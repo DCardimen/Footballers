@@ -232,11 +232,11 @@ ok((V109.maxJerk || 0) > 0 && (V109.maxJerk || 0) < 32000 && (V109.maxStepPx || 
 // averages out of the comparison instead of favouring whichever mode drew the long run.
 const modeRun = await page.evaluate(async () => {
   const sc = window.__gridironScene
-  const acc = [0, 1, 2, 3].map(i => ({ i, z: [], moved: 0, frames: 0, mode: '' }))
+  const acc = [0, 1, 2, 3].map(i => ({ i, z: [], rounds: [], moved: 0, frames: 0, mode: '' }))
   const sample = async (a) => {
     window.camModeSet112(a.i)
     await new Promise(r => setTimeout(r, 900))
-    let px = null, py = null, tok = null
+    let px = null, py = null, tok = null, rz = []
     for (let k = 0; k < 70; k++) {
       await new Promise(r => requestAnimationFrame(r))
       const c = sc.cameras.main, P = sc.play
@@ -248,15 +248,18 @@ const modeRun = await page.evaluate(async () => {
       // the ZOOM is compared only where the modes actually differ: a man carrying the ball. Before
       // the snap every behaviour sits on the same floored wide frame, so mixing those frames in
       // would only measure which mode drew the longer huddle.
-      if (P.t > (P.delay || 0) && P.ballHolderId != null && P.ballMode === 'held') a.z.push(c.zoom)
+      if (P.t > (P.delay || 0) && P.ballHolderId != null && P.ballMode === 'held') { a.z.push(c.zoom); rz.push(c.zoom) }
       if (px != null) { if (Math.hypot(c.midPoint.x - px, c.midPoint.y - py) > 0.5) a.moved++ }
       px = c.midPoint.x; py = c.midPoint.y
     }
+    // one number per ROUND, so a round that happened to draw a long open run cannot carry the mean
+    if (rz.length >= 3) a.rounds.push(rz.reduce((x, y) => x + y, 0) / rz.length)
   }
-  for (let round = 0; round < 5; round++) for (const a of acc) await sample(a)
+  for (let round = 0; round < 9; round++) for (const a of acc) await sample(a)
   window.camModeSet112(0)
-  return acc.map(a => ({ i: a.i, mode: a.mode, frames: a.frames, carry: a.z.length, moved: a.moved,
-    z: +(a.z.reduce((x, y) => x + y, 0) / Math.max(1, a.z.length)).toFixed(4) }))
+  const med = (xs) => { const s = xs.slice().sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : 0 }
+  return acc.map(a => ({ i: a.i, mode: a.mode, frames: a.frames, carry: a.z.length, moved: a.moved, nr: a.rounds.length,
+    z: +med(a.rounds).toFixed(4), pooled: +(a.z.reduce((x, y) => x + y, 0) / Math.max(1, a.z.length)).toFixed(4) }))
 })
 if (SHOTS) for (const [i, nm] of [[0, 'mode_broadcast'], [1, 'mode_tight'], [2, 'mode_wide'], [3, 'mode_fixed']]) {
   await page.evaluate(m => window.camModeSet112(m), i)
@@ -266,9 +269,14 @@ if (SHOTS) for (const [i, nm] of [[0, 'mode_broadcast'], [1, 'mode_tight'], [2, 
 await page.evaluate(() => window.camModeSet112(0))
 console.log('modes:', JSON.stringify(modeRun))
 const [B, TG, W, FX] = modeRun
-ok(modeRun.every(r => r.frames > 40) && [B, TG, W].every(r => r.carry >= 15) && TG.z > B.z * 1.04 && W.z < B.z * 0.96 && TG.z > W.z * 1.25,
+// The comparison is the MEDIAN of each behaviour's per-round mean, not one pooled mean. Each round
+// samples whatever play the game happens to be running, and a single round that drew a long run in
+// open space moves a pooled mean by more than the behaviours differ from each other — which made
+// this assertion fail about one run in three on a build it was right about. The median of nine
+// rounds asks the question the assertion means to ask: on a TYPICAL carry, does Tight sit closer.
+ok(modeRun.every(r => r.frames > 40) && [B, TG, W].every(r => r.carry >= 15 && r.nr >= 4) && TG.z > B.z * 1.04 && W.z < B.z * 0.96 && TG.z > W.z * 1.25,
   'Tight frames closer than Broadcast and Wide wider than both, measured on the live field with a man carrying the ball',
-  `broadcast ${B.z} · tight ${TG.z} · wide ${W.z} (mean zoom over ${B.carry}/${TG.carry}/${W.carry} carry frames)`)
+  `broadcast ${B.z} · tight ${TG.z} · wide ${W.z} (median of ${B.nr}/${TG.nr}/${W.nr} rounds; pooled ${B.pooled}/${TG.pooled}/${W.pooled} over ${B.carry}/${TG.carry}/${W.carry} carry frames)`)
 ok(FX.frames > 40 && FX.moved === 0 && B.moved > 10,
   'and Fixed does not move the camera at all, while Broadcast moves it almost every frame',
   `fixed moved on ${FX.moved}/${FX.frames} in-play frames · broadcast ${B.moved}/${B.frames}`)

@@ -8228,6 +8228,15 @@ class Ot extends mt.Scene {
     P.ydDone = true;
     const yt = P.ydTxt;
     yt.setText("+" + P.ydShown + " YD");
+    /* ===== v112 THE YARDAGE AND THE CALLOUT DO NOT SHARE A PIXEL =====
+     * The ticker is drawn on the CANVAS at the carrier; a v95 stage badge is a DOM card placed over
+     * the same point in the same instant — the badge lanes keep badges off each other, but neither
+     * one can see the other, so a big hit that ends a play printed "+28 YD" straight through "OFF
+     * HIS FEET". Whichever of the two arrives second is the one that must move: the ticker is the
+     * number, it is read in a glance, and the badge is the sentence. So when a stage badge is up as
+     * the ticker pops, the ticker starts `badgeYdLiftPx` higher — the same pop, over the pile
+     * instead of through the card. Nothing moves when no badge is showing. ===== */
+    try { if (BADGE_V95.current) yt.y -= TU("badgeYdLiftPx", 34); } catch (e) {}
     this.tweens.add({ targets: yt, scale: TU("finishPop",2.0), duration: 200, ease: "Back.easeOut", onComplete: () => {
       this.tweens.add({ targets: yt, y: yt.y - 28, alpha: 0, duration: 560, delay: 300, onComplete: () => this.dropFx(yt) });
     } });
