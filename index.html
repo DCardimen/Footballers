@@ -15306,6 +15306,8 @@ window.__V111_UI={KEYS:V111_KEYS.slice(),STEP:V111_STEP,
   usage:(pl,wk)=>v111UsageV111(pl||(gsStateV23&&gsStateV23.pl),wk||(gsStateV23&&gsStateV23.wk)),
   forecast:(k,pl,wk)=>v111ForecastV111(pl||(gsStateV23&&gsStateV23.pl),wk||(gsStateV23&&gsStateV23.wk),k||v111KeyV111(gsStateV23&&gsStateV23.wk)),
   plan:()=>gsStateV23&&gsStateV23.auto||null,
+  player:()=>gsStateV23&&gsStateV23.pl||null,
+  script:()=>{const S=gsStateV23;return S&&S.pl&&S.pl._gameScriptV23||null},
   pickUsage:k=>window.__v111PickUsageV111(k),pickFocus:k=>window.__v111PickFocusV111(k),
   render:v111RenderV111};
 // v20: full-roster average on the shared scale (falls back to the level anchor)
