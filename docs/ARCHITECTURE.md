@@ -374,6 +374,243 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v112 — the start, the decision, the weight of a hit
+
+Six independent passes, written on separate worktrees against one rule: **nothing here is allowed
+to move the scoreboard.**
+
+### A — the chase is always ready
+
+Anchor `v112 A THE CHASE IS ALWAYS READY` (the first `<script>` in the head). Hook
+`window.__V112_A`. Gate `scripts/v112Acheck.mjs`.
+
+The loading screen is drawn from the v91 field sheet, and nothing asked for that sheet until v94's
+own `<script>` ran — which is after ~100KB of document and every stylesheet in the head, because an
+inline script waits on the styles above it. Cold on a throttled link, the request left at 1.23s and
+the first animated frame landed at 3.09s: a loading screen that spends the load loading.
+
+The sheet is now requested in the first breath of the head, before the CSS. The bytes leave at
+~40ms, and **v94's `load()` ADOPTS the two promises in `window.__RIB_WARM_V112`** rather than
+starting its own, so the page still makes exactly two requests for the sheet in a whole session.
+The cells are cut and recoloured once into module scope, so every later loading scene — the live
+game's loader above all — starts on the frame it is mounted. 3.09s → 2.15s cold; 63ms for a second
+scene. `?noWarmV112` puts the old cold path back for a comparison.
+
+What this cannot buy is the main thread: the inline bundle below compiles in one long task and no
+rAF loop outruns it (the stall shows on `__V112_A.mounts[n].maxGapMs`). Which is why the loader's
+own bar moved to `transform` — it used to animate `margin-left`, laid out on the main thread, so
+the one moving thing on the page froze with everything else. Same sweep, on the compositor: 80
+distinct composited pictures through a deliberate 1.2s jam, where `margin-left` gave 4.
+
+### C — who you start as
+
+Anchors `v112 THE FRAME HE HAS, AND THE FRAME HE IS GOING TO GET`, `v112 TWO CARDS FROM A POOL OF
+TEN`, `v112 THE PRICE OF WALKING AWAY`. Hook `window.__V112_C`. Gate `scripts/v112Ccheck.mjs`.
+
+**The body.** `player.body` keeps its name and every gameplay read it already had — it is the
+**projected adult frame**. `bodyNowV112(body, age)` derives what he is today from one growth curve:
+`HT_FRAC_V112` / `WT_FRAC_V112`, muscle at `wf ** TU("growMusclePow", .55)`, between
+`TU("growYoungAge", 8)` and `TU("growAdultAge", 22)`. It is **derived at read time — never rolled,
+never stored, no save migration** — so it walks up to the projection as the career ages and *is*
+the projection from 22 on. A 6'2"/230 projection reads 4'5" · 67 lb at 8, 5'1"/101 at 12,
+5'10"/158 at 15, 6'1"/199 at 17. Every print site is age-true: the position screen, the hub, the
+menu continue card and `__RIB_MENU_DATA_V89` (which gained `heightProj` / `weightProj` /
+`grownV112`).
+
+**Fit still reads the projection, deliberately.** `pa()` feeds `en()` → OVR → national rank →
+promotion odds → the declare → the silent score model. On a real rolled 8-year-old, `pa(proj,QB)`
+is +6 against `pa(now,QB)` −20, and OVR 17 against 1 — reading the boy's frame would collapse every
+young player's rating and move the scoreboard hard. It is also the existing semantics stated
+honestly: `body` never changed with age before, so it was always a career-long constant. Scouting
+an eight-year-old *is* scouting his projection, and the screen now says so.
+
+**The trait.** The first trait is still `Ai()`'s guaranteed-good roll. The second is a decision:
+`TU("traitOfferN", 2)` cards drawn from `TRAIT_POOL_V112` on the position screen, tagged UPSIDE or
+DOUBLE-EDGED; tap one and the other is gone. Locking a position without picking runs
+`traitAutoV112`, so the flow can never wedge and `walk.mjs` / `scoreneutralcheck.mjs` still walk
+straight through. `glassBones` and `butterFingers` stay fully defined and are still read by the
+injury, wear and performance models, but they have **no spawn point at creation** any more — a card
+that is nothing but a downside is not a choice.
+
+**The reroll.** Abandoning an unfinished career costs `TU("rerollPenaltyPct", 5)` on every attribute
+until the next man is promoted one level. The mechanism is `condMultV54`, not
+`_tempStatBuffsV25` — those are per-game, per-stat and cleared between games, while `condMultV54` is
+the one multiplier both halves already agree on (`_raw` multiplies every you-player attribute by it
+in the live sim, `effAttrsV85` returns it as `.mult`, the silent week does `perf*condMultV54(e)`,
+the live booking does `delta*condMultV54(e)`). It now returns its old value × `rerollMulV112(e)`.
+`Di()` gates on `rerollGateV112()` so the warning comes **before** the new man exists; the ledger
+`o.rerollV112` survives a prestige reset the way `o.milestones` does (`Hl()` only nulls
+`o.player`); a second reroll re-arms at the new man's level rather than stacking. A career that
+ENDS is never charged: both endings set `player._settled`, and `abandonedV112()` is "a player exists
+**and** is not settled".
+
+### B — the stadium
+
+Anchors `v112 THE LIGHTS SIT LOWER, SMALLER, AND FACE THE OTHER WAY` (in `buildStadiumV92`),
+`v112 THE FOOT OF THE BOWL, AND THE WAY OUT` (`bowlTrimV112`, at the end of `buildCrowd`),
+`v112 THE SKY HAS STARS` (`starsV112`, from `warpField`'s sky fill), `v112 THE CAMERA STOPS
+CLOSING IN BEHIND THE BACKFIELD` (`buildPersp`) and `v112 THE NEAR EDGE IS AN EDGE, NOT A SMEAR`
+(`warpField`'s row loop). Hook `window.__V112_B()`. Gate `scripts/v112Bcheck.mjs`.
+
+**The lights.** Three dials on the same four masts, each separable: `lightScaleV112` (.5) is how
+much of the v98 mast is drawn, `lightDropV112` (44) walks the whole rig down the screen so the
+fixtures tuck into the top of the bowl instead of filling the sky, and `lightFlipV112` (1) takes
+the other drawn face off the sheet so a mast's lamp bank hangs on the opposite side of its pole.
+The drop is added **after** v98's `min()`, not inside it, so the foot row stays exactly as stable
+between snaps as before — v99's key light reads that row, and a key light that hops is a shadow
+that swims. Everything the lamps do follows by construction, because `lightRigV98` derives head,
+bloom and beam from `displayHeight` / `_bx` / `_by`: height 257→128, width 205→103, foot 300→344,
+faces `1100`→`0011`, bloom ×0.50, beams re-aimed 535/480→387/338. The **pool** is deliberately not
+halved — the pool is the light on the grass, not the fixture — and rides `lightPoolKV112` if it
+ever should be. All four pools still fall on the v103 turf quad; the key light moved 105→246 at the
+same x and still sits at its own mast's 0.76 head; no mast art reaches the grass.
+
+**The foot of the bowl, and the way out.** `bowlTrimV112` draws a blue base band as a ribbon
+through every wall's own foot polyline — `baseBandColV112` #1a4694 at `baseBandFracV112` (.068) of
+the stand's height *at each sample* — so it sweeps the bowl's corners instead of sitting as a
+rectangle: one constant 16.6 / 16.6 / 16.7 in stand-heights all the way round, bowing 24.9px off
+its own chord over 349px. The entrance is an arched vomitory in the **far** bowl, 34% along and
+left of centre: the far wall is the only one whose base is on camera at every anchoring the game
+produces (the sideline bases run off the bottom of the frame), and dead centre is behind the
+goalpost upright. It is built from the bowl's own `crowdProject` samples so it rides the
+projection; the terrace height rolls off at both jambs so the stand closes over it, and the base
+band breaks across it.
+
+**The near edge, diagnosed rather than patched.** The art *is* sampled correctly — v72's goal-line
+mapping is right, nothing samples past the usable rows, and Chrome already interpolates the
+fractional source row. The cause is `PERSP_BACKMAX = 1.2`: behind the anchor `s` is pinned there,
+so the near band is laid out at 1.44× the anchor row's density and 1.2× its width, drawing 360×700
+art at ~11 canvas px per art row — that is the streak. `nearCapV112` (1.0) says the plain thing
+instead: past the backfield the camera stops closing in, and the ground behind it is drawn at the
+anchor's own scale. **Nothing downfield of the anchor moves** — `VB`, the row budget, is still
+measured against v28's own backdrop so it cannot change branch, and past the clamp point both
+integrals lose exactly the same amount, so `total - C(u)` is unchanged. Below the near end line the
+loop now walks down the apron the art paints and then falls into the dark, instead of copying one
+scanline down the canvas. Measured, canvas px per art row: depth 0 `3.23 → 3.23` (the cap never
+engages), 0.4 `5.65 → 3.92`, **0.78 (shipped) `11.08 → 7.70`**, 0.9 `11.07 → 10.08`; the painted
+end line 37px → 25px. **Honest limit: −31%, not elimination.** The residue is the field art being
+upsampled ~7× near the camera, set by `VB`, which cannot be cut without changing the apparent
+camera tilt for every sprite. `nearCapV112` at `PERSP_BACKMAX` puts v28 back exactly.
+
+**The stars.** `starsV112` bakes them into the warp canvas at depth 0.6, so the bowl (3.45), the
+masts (3.2) and the screen (3.30) occlude them, off one fixed seed — the warp re-bakes per snap,
+and a re-rolled sky is television static. They are packed into the strip just above the bowl's
+skyline, the only sky the camera actually shows. There is no day/night setting in the game (v98
+made it a night game), so the v100 lighting dial governs them: 190 stars at 100%, 0 at 200%.
+
+**Four repo assertions were pinned to numbers this change legitimately moves.** They were
+re-instrumented, not relaxed, each with a comment saying what it used to read: `v92check`
+hard-coded v98's un-flipped face convention (it now reads `lightFlipV112`, and still requires the
+two masts on a side to agree with each other and differ from the other side); `v98check` used
+"100px above the foot" as a stand-in for "at the lamp head" (it now measures the head off the
+mast's own height — and the revised assertion scores 29/0 on the untouched base build, exactly as
+the original does); `v98check` and `v100check` read the near corner at `cv.height - 60`, which is
+now the dark band below the ground (they now read `lastTurfY - 60`); and `v102check` asserted the
+literal `y === 300` (it now asserts the invariant — one row, shared by all four, equal to v98's row
+less `lightDropV112`).
+
+### D — the pregame, one decision at a time
+
+Anchor `v112 THE PREGAME, ONE DECISION AT A TIME`. Hook `window.__V112_D`. Gate
+`scripts/v112Dcheck.mjs`.
+
+The pregame screen said everything at once — scouting report, stat sheet, the v111 involvement
+ladder with its two cost panels and driver chips, the coordinator's line, the impact bar and three
+focus cards — in one column three phone-screens long. Every one of those is worth reading and none
+of them was read, because the thumb was already on its way to the button at the bottom.
+
+It is now four pages, one decision each: **YOUR INVOLVEMENT** (the five-step ladder and what this
+week prices), **YOUR FOCUS** (three position cards at ×1.2, one tap or none), **THE SCOUT & THE
+PLAN** (informational — it asks nothing and NEXT is always live), **THE IMPACT** (involvement,
+focus, the body's swing, the wear this week bills and any lingering cut, then the stat sheet showing
+the EFFECTIVE numbers he carries onto the field).
+
+**Nothing about the model moved.** Pages 1-3 are `gsUsageBlockV23` / `gsFocusBlockV23` /
+`gsPlanBlockV23` — the very markup the long column used, every id and handler intact — so
+`week.usageV111`, `week.focusV111`, `_gameScriptV23` and `__gameScriptBiasV23` are written exactly
+as before, and every number on page 4 is read back through `window.__V111.forecast(...)` the same
+guarded way the ladder reads it. The player is never trapped: the defaults (normal, no focus) are
+the game precisely as it was, BACK walks the pages in reverse and off the screen from page 1, and
+CONTINUE TO MATCH is on every page.
+
+### E — the camera finds the ball
+
+Anchors `v112 THE CAMERA FINDS THE BALL`, `v112 THE FRAME TIGHTENS ON HIM`, `v112 THE BALL STAYS IN
+THE PICTURE` and `v112 THE CAMERA HAS OPTIONS` (the mode table beside `FW`, the scene methods, and
+"(the panel)" in the career block). Hook `window.__V112_E`; `window.__CAM_MODES_V112` is the one
+place a behaviour is described, and the Settings panel reads it. Gate `scripts/v112Echeck.mjs`.
+
+The frame followed `P.carrierId`, and `carrierId` survives the throw — so for the whole flight of a
+pass and the whole hang of a punt the camera sat on the man who had just let the ball go.
+`camFocusV112` reads possession fresh every frame: the **holder** while a man holds it (so a fumble
+recovery, which the sim never names a carrier for, is followed too), the **ball itself** the moment
+it is in the air or on the grass, and on a flight the frame eases toward where that flight comes
+down (`camLandV112`, read once off the script's own ball frames) so it *arrives* with the ball. The
+v98 handover cut keys off the focus man now, so it fires on a recovery as well, and a kick's
+pre-snap frame starts on the deep man — the punter stands fourteen yards behind the spot, and the
+old frame spent the whole long snap chasing him.
+
+`camTightV112` reads how far the nearest man who could tackle him actually is
+(`camSpaceNearPx` / `camSpaceFarPx`), modulated by his speed (`camTightSpdFloor`); in traffic it
+returns exactly 1, and it only moves the spring's **target** — there is no second lerp fighting
+v109's spring. The v109 lead keeps its direction but is bounded to `camKeepFracX` / `camKeepFracY`
+of the half frame, and `camEdgeFrac` opens the zoom for a man the camera's own bounds cannot pan to
+(the near sideline *projects past* the painted field) instead of scrolling off the art.
+`camZoomFitV112` floors every zoom at the renderer's own pre-snap frame, so nothing v112 does opens
+wider than a picture the game already drew. At the tackle, `camHitV112` arms a smaller step out
+(`camHitOutK` 0.90) and `camPostV109` holds it in front of the whistle's wide for `camHitPostMs`, so
+the hit reads as its own beat and *then* the frame opens for the gather.
+
+`CAM_MODES_V112` is **Broadcast / Tight / Wide / Fixed** in Settings › FIELD VIEW, each with its own
+zoom, pull-in bite, lead and spring stiffness, plus a **Camera zoom strength** slider (`fxCamZoom`).
+Both ride `window.__FIELD_FX`, which the camera re-reads every frame, so a pick is live before the
+panel closes; Fixed shares the OS reduced-motion path (`camOffV112`).
+
+A bug underneath it: `__pushFieldFx()` ran *before* `mc()` rebinds `o` to the loaded save, so
+`fxDepth`, `fxLight` and `fxZoom` all came back at their defaults after a reload. It is pushed again
+once the save is in — every FIELD VIEW dial persists now.
+
+Measured with the same instrument on v111: carry p90 **374px** off frame and max **713px**, and on a
+punt the camera sat **700–800px** off the returner for a second after the catch. Now carry mean
+**97px** / max 283px, kick mean 60px, and the ball is off frame on 0.78% of 7277 sampled frames.
+
+One assertion in `v112Echeck` was re-instrumented after the merge: the four behaviours were compared
+on one pooled mean of each mode's carry-frame zoom, and a single round that happened to draw a long
+run in open space moves that mean by more than the behaviours differ from each other — it failed
+about one run in three on a build it was right about. It now takes the **median of each behaviour's
+per-round mean over nine rounds**, which is the question the assertion means to ask: on a typical
+carry, does Tight sit closer. The thresholds are unchanged.
+
+### F — the hit has weight
+
+Anchors `v112 THE HIT HAS WEIGHT` (the sim block after `wrapInV109`, the renderer block, and the
+call sites). Hooks `window.__V112_F` and `window.__V112_F_SIM.launch`. Gate
+`scripts/v112Fcheck.mjs`.
+
+`launchV112` is pure arithmetic over numbers `contact()` already computed — `hit.impact`, the
+strength differential, the knock-back it booked, `lev`, `behind`, `handsOn`, and both men's mass out
+of `WT`. It answers **one number**: `vz`, the vertical speed he left the ground with. No
+`Math.random()`, no state written, no spot moved; it rides the existing events as `flyWho` /
+`flyVz` / `flyPow`. Gates: `launchMinKb` (a hit that does not move him cannot launch him),
+`launchMaxHands` (nobody is launched out of a crowd), a `behind` penalty, and `launchGate`. **The
+v103 grip never launches** — a man who was carried and set down did not leave his feet.
+
+In the renderer, `flyStartV112` replaces the old fixed `_launchUntil` / `_launchH` hump for violent
+hits. Hang is `2·vz/g` and peak is `vz²/2g`, so the height and the duration are the same measurement
+seen twice and cannot fight each other. The ground is not invented: the drawn body simply **lags the
+script's own position** by the ground it has not covered yet, so he flies back along the line the
+sim already knocked him down, lands short, bounces, and skids the last `launchSkid` into the booked
+spot — the lag is zero the frame the skid ends. He lands in `down`, where v86's gather and the
+get-up path already pick a man up, and the flight re-asserts its own pose each frame so a stray
+timer cannot stand him up in mid-air. He is cleared at `q.rose`, at the end of the post phase, in
+`animatePlay`'s glide reset, and by `updatePostV86`, which lands a still-flying man before anything
+else moves him — nobody is ever carried into the next snap airborne. The v95 BIG HIT badge waits out
+the flight's own hang (`flyBadgeMsV112`) instead of covering the arc it is celebrating.
+
+2.4% of resolved contacts launch — about 3.4 a game, the violent tail. Neutrality is proved rather
+than argued: with `Math.random` pinned to a seeded generator, eight games with the launch off and on
+are **byte-identical** — same score, same event and same yard on every play.
+
 ## v110 — the man who is there
 
 Anchors `v110 THE MAN WHO IS THERE` (four of them: the `seesBall` proximity read, the support-hold
