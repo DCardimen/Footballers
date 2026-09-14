@@ -66,7 +66,12 @@ ok(swayers.filter(w => w.sway > 0).every(w => w.xs.size > 1 && Math.max(...w.xs)
 ok(swayers.filter(w => !w.sway).every(w => w.xs.size === 1), 'the still masts do not move at all')
 const L0 = S0.L
 ok(L0.length === 4 && L0.every(l => l.glow && l.beam && l.pool), 'every mast carries a glow, a beam and a pool', `rigs=${L0.length}`)
-ok(L0.every(l => l.glow.y < S0.t[0].y - 100 && l.glow.a > 0.3), 'the glows sit up at the lamp heads and are lit', JSON.stringify(L0.map(l => [l.glow.y, l.glow.a])))
+// v112: the masts are drawn at half size now, so "100px above the foot" is no longer a stand-in
+// for "up at the lamp head" — measure the head off the mast's OWN height instead, which is what
+// lightRigV98 does. (Was: a fixed 100px, which only held at the v98 mast size.)
+ok(L0.every((l, i) => { const tw = S0.t[i], h = tw.y - tw.top, want = tw.y - h * 0.76
+  return Math.abs(l.glow.y - want) <= Math.max(3, h * 0.06) && l.glow.a > 0.3 }),
+  'the glows sit up at the lamp heads and are lit', JSON.stringify(L0.map((l, i) => [l.glow.y, +(S0.t[i].y - (S0.t[i].y - S0.t[i].top) * 0.76).toFixed(0), l.glow.a])))
 ok(L0.every(l => l.beam.len > 200 && l.beam.a > 0.1 && l.beam.depth > 3.45), 'the beams reach down from the heads over the bowl toward the field', JSON.stringify(L0.map(l => [l.beam.len, l.beam.rot, l.beam.a])))
 ok(L0.every(l => l.pool.y > 340 && l.pool.depth > 0.6 && l.pool.depth < 0.8 && l.pool.a > 0.05), 'the pools lie on the turf between the grass and the paint', JSON.stringify(L0.map(l => [l.pool.x, l.pool.y, l.pool.depth])))
 const glowA = samples.map(s => s.L[1] && s.L[1].glow.a), gMean = glowA.reduce((a, b) => a + b, 0) / glowA.length
@@ -81,11 +86,17 @@ const px = await page.evaluate(() => {
   const sc = window.__gridironScene, cv = sc._warpCv, c = cv.getContext('2d')
   const rd = (x, y) => { const d = c.getImageData(x, y, 1, 1).data; return (d[0] + d[1] + d[2]) / 3 }
   const rowAvg = (y, x0, x1) => { let s = 0, n = 0; for (let x = x0; x < x1; x += 8) { s += rd(x, y); n++ } return s / n }
-  const on = { sky: rd(600, 4), far: rowAvg(440, 420, 780), nearCorner: rowAvg(cv.height - 60, 60, 220), mid: rowAvg(1200, 420, 780) }
+  // v112: the turf no longer runs to the bottom of the canvas — below the near end line's apron
+  // the picture falls into the dark beyond the ground — so read the near corner off the last row
+  // of TURF, not off the last row of canvas. (Was: cv.height - 60, which is now that dark band.)
+  const B = window.__V112_B ? window.__V112_B() : null
+  const lastTurf = B && B.edge && B.edge.lastTurfY ? B.edge.lastTurfY : cv.height
+  const nearRow = Math.max(400, Math.min(cv.height - 60, lastTurf - 60))
+  const on = { sky: rd(600, 4), far: rowAvg(440, 420, 780), nearCorner: rowAvg(nearRow, 60, 220), mid: rowAvg(1200, 420, 780) }
   window.RIB_TUNE.fieldLightV98 = 0; sc.warpField()
-  const off = { sky: rd(600, 4), far: rowAvg(440, 420, 780), nearCorner: rowAvg(cv.height - 60, 60, 220), mid: rowAvg(1200, 420, 780) }
+  const off = { sky: rd(600, 4), far: rowAvg(440, 420, 780), nearCorner: rowAvg(nearRow, 60, 220), mid: rowAvg(1200, 420, 780) }
   delete window.RIB_TUNE.fieldLightV98; sc.warpField()
-  return { on, off, h: cv.height } })
+  return { on, off, h: cv.height, nearRow } })
 console.log('pixels:', JSON.stringify(px))
 ok(px.on.sky < 6, 'the sky above the far end line is near black', `sky=${px.on.sky.toFixed(1)}`)
 ok(px.on.far > px.off.far + 4, 'the far end of the turf is lit warmer under the lamps', `far on=${px.on.far.toFixed(1)} off=${px.off.far.toFixed(1)}`)

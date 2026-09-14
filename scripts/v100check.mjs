@@ -63,10 +63,16 @@ const read = async (v) => page.evaluate(async (v) => {
   sc.updateStadiumV92(16)
   const cv = sc._warpCv, c = cv.getContext('2d')
   const rowAvg = (y, x0, x1) => { let s = 0, n = 0; for (let x = x0; x < x1; x += 8) { const d = c.getImageData(x, y, 1, 1).data; s += (d[0] + d[1] + d[2]) / 3; n++ } return +(s / n).toFixed(1) }
+  // v112: the turf stops at the near end line's apron now — below that the picture falls into the
+  // dark beyond the ground — so read the corner off the last row of TURF, not of canvas.
+  // (Was: cv.height - 60, which is that dark band and moves with nothing.)
+  const B = window.__V112_B ? window.__V112_B() : null
+  const lastTurf = B && B.edge && B.edge.lastTurfY ? B.edge.lastTurfY : cv.height
+  const nearRow = Math.max(400, Math.min(cv.height - 60, lastTurf - 60))
   const m = sc.markers.find(m => m && m.shadow); const sh = m.shadow
   sc.castShadowV99(sh, m.root.x, m.root.y, 21, {})
   return { dial: W.dial(), lights: V.lights().map(l => ({ g: l.glow.a, b: l.beam.a, p: l.pool.a })), mast: V.towerBoxes()[0].tint,
-    far: rowAvg(440, 420, 780), corner: rowAvg(cv.height - 60, 60, 220), shadow: +sh.alpha.toFixed(3) }
+    far: rowAvg(440, 420, 780), corner: rowAvg(nearRow, 60, 220), nearRow, shadow: +sh.alpha.toFixed(3) }
 }, v)
 const off = await read(0), one = await read(1), full = await read(2)
 console.log('0%:  ', JSON.stringify(off)); console.log('100%:', JSON.stringify(one)); console.log('200%:', JSON.stringify(full))

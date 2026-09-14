@@ -92,8 +92,16 @@ const L = await page.evaluate(() => { const V = window.__V92, sc = window.__grid
              behindTheFarEnd: sc.onTurfV103({ x: 300, y: 40, right: 420, bottom: 240 }),
              wideRightAtTheNearEnd: sc.onTurfV103({ x: 1120, y: 1500, right: 1700, bottom: 2200 }),
              theNearEndGrass: sc.onTurfV103({ x: 700, y: 1500, right: 1300, bottom: 2200 }) },
-    NSTOP: 340, NSH: 1340 } })
-ok(L.far.length === 4 && L.far.every(t => t.y === 300), 'the far four stand exactly where v98 fixed them', JSON.stringify(L.far.map(t => [t.x, t.y])))
+    NSTOP: 340, NSH: 1340,
+    footUp: window.TU('lightFootUp', 40), drop: window.TU('lightDropV112', 44) } })
+// v112: the far four still stand on ONE fixed row — that is what v98 was protecting and what v99's
+// key light reads — but the row is v98's less `lightDropV112`, because the rig was asked to sit
+// lower. Assert the invariant (one row, the same for all four, derived from the dials) rather than
+// the literal 300 the row happened to be at. (Was: y === 300.)
+{ const wantRow = L.NSTOP - L.footUp + L.drop
+  ok(L.far.length === 4 && new Set(L.far.map(t => t.y)).size === 1 && L.far[0].y === wantRow,
+    'the far four stand on the one fixed row v98 plants them on, lowered by lightDropV112',
+    JSON.stringify(L.far.map(t => [t.x, t.y])) + ' want ' + wantRow) }
 ok(L.key && L.key.on && L.key.i === 2, 'the key light is still the fixed far mast', JSON.stringify(L.key))
 /* v103: the lights are on the NORTH side of the ground and nowhere else. v102's mirrored bank
  * (four at the near corners, two behind the touchline stands) is off at its dial's default —
