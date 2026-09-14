@@ -18,17 +18,20 @@
 /* ===== v112 A THE CHASE IS ALWAYS READY — the warm, in the first breath of the head =====
  * The loading screen is drawn from the v91 field sheet, and until now nothing asked for that
  * sheet until v94's own <script> ran: a hundred kilobytes of document and every stylesheet in
- * the head first (an inline script waits on the styles above it), and then the Image's onload
- * had to find a main thread that the megabytes of inline bundle below had already taken. Cold
- * and unthrottled that put the first animated frame 1.9s after navigation — a loading screen
+ * the head first (an inline script waits on the styles above it). Cold on a throttled link that
+ * put the request on the wire at 1.23s and the first animated frame at 3.09s — a loading screen
  * that spends the load loading.
- * So the sheet is asked for HERE, before the CSS, before the parser has even seen the splash:
- * the bytes leave at ~25ms and the picture is decoded ~90ms in, while the main thread is still
- * idle. v94's load() ADOPTS these two promises instead of starting its own (the page still makes
- * exactly two requests for the sheet, in the whole session), the decoded frames are recoloured
- * once into module scope, and every later loading scene — the live game's loader most of all —
- * starts on the frame it is mounted. window.__V112_A is the stopwatch; ?noWarmV112 puts the old
- * cold path back for a comparison. */
+ * So the sheet is asked for HERE, before the CSS, before the parser has even seen the splash: the
+ * bytes leave at ~40ms (1.5Mbps: 0.18s), and on any link worth the name the whole picture has
+ * landed before v94's script runs at all. v94's load() ADOPTS these two promises instead of
+ * starting its own — the page still makes exactly two requests for the sheet in the whole session
+ * — the cells are cut and recoloured once into module scope, and every later loading scene (the
+ * live game's loader most of all) starts on the frame it is mounted: 3.09s -> 2.15s cold on that
+ * same throttled link, and 63ms for a second scene. window.__V112_A is the stopwatch;
+ * ?noWarmV112 puts the old cold path back for a comparison.
+ * What this CANNOT buy is the main thread: the megabytes of inline bundle below compile in one
+ * task, and no rAF loop outruns that (the stall is on __V112_A.mounts[n].maxGapMs). Which is why
+ * the loader's own bar was moved onto the compositor — see @keyframes splashLoad. */
 (function () {
   var A = window.__V112_A = { warmMs: null, mapMs: null, imgMs: null, sheetMs: null, engineMs: null,
     cellsMs: null, cells: 0, firstFrameMs: null, mounts: [], sheetReqs: 0, adopted: false, warm: false };
