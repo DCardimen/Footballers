@@ -7040,7 +7040,7 @@ class Ot extends mt.Scene {
         const FC = this.flagCamTarget(delta);
         const fx = FC ? FC.x : FOC.x, fy = FC ? FC.y : FOC.y;
         { const V = this.v112E(); V.frames++; V.mode = MD.id; V.zoomStr = zStr;
-          const kd = FC ? "flag" : FOC.kind; V.focus[kd] = (V.focus[kd] || 0) + 1;
+          const kd = (this._camFlagV112 = !!FC) ? "flag" : FOC.kind; V.focus[kd] = (V.focus[kd] || 0) + 1;
           const d = Math.hypot(cam.midPoint.x - fx, cam.midPoint.y - fy);
           const R = V.dist[kd] = V.dist[kd] || { n: 0, sum: 0, max: 0 }; R.n++; R.sum += d; if (d > R.max) R.max = Math.round(d); }
         // locked plays ignore the zoomBig wide-angle: the carrier reads the SAME size on

@@ -136,6 +136,7 @@ await page.evaluate(() => {
     if (mm && mm.root) { bx = mm.root.x; by = mm.root.y; src = 'man' }
     if (bx == null) return null
     if (P.done && !P.post) return null                      // the gap between the gather and the next snap
+    if (sc._camFlagV112) return null                         // v71: on a flag the camera is deliberately on the OFFICIAL
     const phase = P.done ? 'post' : glide ? 'glide' : loose ? 'loose'
       : mode === 'kick' ? 'kick' : (mode === 'flight' || mode === 'tip') ? 'flight'
         : hid == null ? 'ground' : hid >= 11 ? 'return' : 'carry'
@@ -156,7 +157,7 @@ async function grab(name) {
   const d = await page.evaluate(() => { const c = document.querySelector('#field'); try { return c && c.toDataURL('image/png') } catch (e) { return null } })
   if (d && SHOTS) fs.writeFileSync(`${SHOTS}/v112_${name}.png`, Buffer.from(d.split(',')[1], 'base64'))
 }
-let plays = new Set()
+let plays = new Set(), runOf = { ph: '', n: 0 }
 while (Date.now() - t0 < MS) {
   await page.waitForTimeout(120)
   const st = await page.evaluate(() => {
@@ -169,9 +170,10 @@ while (Date.now() - t0 < MS) {
   })
   if (!st) continue
   if (st.tok) plays.add(st.tok)
+  runOf = st.ph === runOf.ph ? { ph: st.ph, n: runOf.n + 1 } : { ph: st.ph, n: 1 }
   if (SHOTS) {
     if (st.hit && st.ev === 'tackle' && st.age < 400 && shotWant.get('tackle')) { shotWant.set('tackle', 0); await grab('tackle') }
-    else if (st.ph === 'return' && shotWant.get('ret')) { shotWant.set('ret', 0); await grab('turnover_return') }
+    else if (st.ph === 'return' && runOf.n >= 5 && shotWant.get('ret')) { shotWant.set('ret', 0); await grab('turnover_return') }
     else if (st.ph === 'carry' && st.ev === 'catch' && st.age > 450 && st.age < 1400 && shotWant.get('catch')) { shotWant.set('catch', 0); await grab('completed_pass') }
     else if (st.ph === 'flight' && shotWant.get('flight')) { shotWant.set('flight', 0); await grab('pass_in_flight') }
     else if (st.ph === 'kick' && shotWant.get('kick')) { shotWant.set('kick', 0); await grab('kick_in_the_air') }
@@ -235,21 +237,25 @@ const modeRun = await page.evaluate(async () => {
     window.camModeSet112(a.i)
     await new Promise(r => setTimeout(r, 900))
     let px = null, py = null, tok = null
-    for (let k = 0; k < 60; k++) {
+    for (let k = 0; k < 70; k++) {
       await new Promise(r => requestAnimationFrame(r))
       const c = sc.cameras.main, P = sc.play
       const t = P ? P.__ballTokenV1514 : null
       if (!P || P.done) { px = null; continue }                 // only measure INSIDE a live play
       if (t !== tok) { tok = t; px = null }                     // a new play re-frames on its own line
-      a.z.push(c.zoom); a.frames++
-      a.mode = (window.__V112_E || {}).mode                   // read ON an in-play frame, not in the gap
+      a.frames++
+      a.mode = (window.__V112_E || {}).mode                     // read ON an in-play frame, not in the gap
+      // the ZOOM is compared only where the modes actually differ: a man carrying the ball. Before
+      // the snap every behaviour sits on the same floored wide frame, so mixing those frames in
+      // would only measure which mode drew the longer huddle.
+      if (P.t > (P.delay || 0) && P.ballHolderId != null && P.ballMode === 'held') a.z.push(c.zoom)
       if (px != null) { if (Math.hypot(c.midPoint.x - px, c.midPoint.y - py) > 0.5) a.moved++ }
       px = c.midPoint.x; py = c.midPoint.y
     }
   }
-  for (let round = 0; round < 3; round++) for (const a of acc) await sample(a)
+  for (let round = 0; round < 5; round++) for (const a of acc) await sample(a)
   window.camModeSet112(0)
-  return acc.map(a => ({ i: a.i, mode: a.mode, frames: a.frames, moved: a.moved,
+  return acc.map(a => ({ i: a.i, mode: a.mode, frames: a.frames, carry: a.z.length, moved: a.moved,
     z: +(a.z.reduce((x, y) => x + y, 0) / Math.max(1, a.z.length)).toFixed(4) }))
 })
 if (SHOTS) for (const [i, nm] of [[0, 'mode_broadcast'], [1, 'mode_tight'], [2, 'mode_wide'], [3, 'mode_fixed']]) {
@@ -260,9 +266,9 @@ if (SHOTS) for (const [i, nm] of [[0, 'mode_broadcast'], [1, 'mode_tight'], [2, 
 await page.evaluate(() => window.camModeSet112(0))
 console.log('modes:', JSON.stringify(modeRun))
 const [B, TG, W, FX] = modeRun
-ok(modeRun.every(r => r.frames > 40) && TG.z > B.z * 1.04 && W.z < B.z * 0.96 && TG.z > W.z * 1.25,
-  'Tight frames closer than Broadcast and Wide wider than both, measured on the live field',
-  `broadcast ${B.z} · tight ${TG.z} · wide ${W.z} (mean zoom over ${B.frames}/${TG.frames}/${W.frames} in-play frames)`)
+ok(modeRun.every(r => r.frames > 40) && [B, TG, W].every(r => r.carry >= 15) && TG.z > B.z * 1.04 && W.z < B.z * 0.96 && TG.z > W.z * 1.25,
+  'Tight frames closer than Broadcast and Wide wider than both, measured on the live field with a man carrying the ball',
+  `broadcast ${B.z} · tight ${TG.z} · wide ${W.z} (mean zoom over ${B.carry}/${TG.carry}/${W.carry} carry frames)`)
 ok(FX.frames > 40 && FX.moved === 0 && B.moved > 10,
   'and Fixed does not move the camera at all, while Broadcast moves it almost every frame',
   `fixed moved on ${FX.moved}/${FX.frames} in-play frames · broadcast ${B.moved}/${B.frames}`)
@@ -313,6 +319,9 @@ const foc = V.focus || {}
 ok((foc.carry || 0) > 200 && ((foc.flight || 0) + (foc.kick || 0) + (foc.loose || 0)) > 20,
   'the renderer framed a MAN while a man had it and the BALL while it was away — both, on a real game',
   JSON.stringify(foc))
+ok((V109.cuts || 0) > 0 && (foc.flag === undefined || foc.flag > 0),
+  'and the v98 handover cut and the v71 flag focus still take the camera off the ball when they should',
+  `${V109.cuts} cuts · ${foc.flag || 0} flag frames`)
 
 console.log('page errors:', errs.length, errs.slice(0, 6))
 ok(errs.length === 0, 'no page errors', errs.length + '')
