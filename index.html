@@ -10904,7 +10904,8 @@ class Ot extends mt.Scene {
           bowl: { top: Math.round(ST.top), bot: Math.round(ST.bot), k: +ST.k.toFixed(3) },
           trim: (this.crowd && this.crowd.trim112) || null,
           stars: this._starsV112 || null,
-          nstop: NSTOP, worldH: WORLD_H, backMax: TU("nearCapV112", PERSP_BACKMAX), depth: (window.__FIELD_FX || {}).depth,
+          nstop: NSTOP, worldH: WORLD_H, backMax: PERSP && PERSP.kMax != null ? +PERSP.kMax.toFixed(3) : null,
+          wasBackMax: PERSP_BACKMAX, depth: (window.__FIELD_FX || {}).depth, edge: this._nearEdgeV112 || null,
           field: near }; }; } catch (e) {}
       try { window.__V99 = { key: () => this.keyLightV99(), posts: () => this._postShadDbgV99 || null,
         cast: (x, y) => { const V = this.shadowVecV99(x, y); return { ux: +V.ux.toFixed(3), uy: +V.uy.toFixed(3), slope: +V.slope.toFixed(3), reach: +V.reach.toFixed(3) }; },
@@ -12307,14 +12308,27 @@ class Ot extends mt.Scene {
       ctx.fillStyle = sky; ctx.fillRect(0, 0, CW, NSTOP + 1);
       this.starsV112(ctx, CW, NSTOP);   // v112: and the sky has stars in it
       const SWa = fimg.width, SHa = fimg.height;         // 360x700 art
+      /* ===== v112 THE NEAR EDGE IS AN EDGE, NOT A SMEAR =====
+       * Below the near end line the loop used to pin `u = 0` and copy that ONE art scanline
+       * down the rest of the canvas — a few rows of it at the shipped anchoring, hundreds at
+       * others, and either way it came out as the vertical green streaking along the bottom of
+       * the frame. Two things replace it. v72 already documented that the art paints an APRON
+       * past its own end line, so keep WALKING DOWN it (behind the anchor s is clamped, so the
+       * row integral is linear there and the continuation is one division); and when the art's
+       * apron genuinely runs out, close the picture the way the far end is closed — the
+       * ground's own edge falling into the dark beyond the ground — rather than stretching a
+       * scanline into infinity. `nearEdgeV112` at 0 puts the old smear back. */
+      const SLOPE = Math.abs(P.s(0)) || 1, EXT = TU("nearEdgeV112", 1);
+      let edgeI = -1;
       for (let i = 0; i < CH; i++) {
         const target = (i - NSTOP) / P.VB;               // = total − C(u) at this row
         let u;
         if (target <= 0) continue;                        // above the far end line: backdrop, not turf
-        else if (target >= P.total) u = 0;
+        else if (target >= P.total) u = EXT ? (P.total - target) / (SLOPE * SLOPE) : 0;
         else { let lo = 0, hi = FW; const want = P.total - target;
           for (let it = 0; it < 18; it++) { const mid = (lo + hi) / 2; if (P.C(mid) < want) lo = mid; else hi = mid; }
           u = (lo + hi) / 2; }
+        if (EXT && this.fieldArtY(u) > SHa - 4) { edgeI = i; break; }   // v112: no apron left to draw
         const sY = Math.max(3, Math.min(SHa - 4, this.fieldArtY(u)));   // v72: by goal line, not by height
         const w = AW * (P.s(u) / P.sN), x0 = (CW - w) / 2;
         if (x0 > 0) {                                     // edge-extend the grass margins
@@ -12347,6 +12361,18 @@ class Ot extends mt.Scene {
           band(APR2 * .62, APR2 * .95, "rgba(0,0,0," + TU("sideKitShadeA", .10) + ")");
         }
       }
+      if (edgeI >= 0 && edgeI < CH) {
+        // v112: the ground ends here. Its own last apron rows carry the colour a short way
+        // down and fall into the dark — one soft edge instead of several hundred rows of one
+        // stretched scanline.
+        const fade = Math.max(8, TU("nearEdgeFadePx", 110)), n = Math.min(CH - edgeI, fade);
+        ctx.drawImage(fimg, 0, SHa - 3, SWa, 2, 0, edgeI, CW, n);
+        const ge = ctx.createLinearGradient(0, edgeI, 0, edgeI + n);
+        ge.addColorStop(0, "rgba(6,10,14,0)"); ge.addColorStop(1, "rgba(5,8,12,1)");
+        ctx.fillStyle = ge; ctx.fillRect(0, edgeI, CW, n);
+        if (edgeI + n < CH) { ctx.fillStyle = "#05080c"; ctx.fillRect(0, edgeI + n, CW, CH - edgeI - n); }
+      }
+      this._nearEdgeV112 = { edgeI, lastTurfY: Math.round(NSTOP + P.VB * P.total), kMax: +(P.kMax || 0).toFixed(3) };
       this.lightFieldV98(ctx, CW, CH);   // v98: the lamps' wash, their pools and the edge falloff, baked on the turf
       if (this.textures.exists("rib_field_warp")) this.textures.get("rib_field_warp").refresh();
       else this.textures.addCanvas("rib_field_warp", this._warpCv);
