@@ -2591,6 +2591,45 @@ window.__visionRadiusV96 = visionRadiusV96;
         s.lx += ux * step; s.y = clampY(s.y + uy * step); s.vel = Math.min(s.vel || 0, TU("wrapInVel", .2)); s._dx = ux; s._dy = uy;
         emit("wrapIn", { who: s.id, carrier: c.id, x: s.lx, y: s.y, bearing: +Math.atan2(uy, ux).toFixed(3), cid }); }
     };
+    /* ===== v112 THE HIT HAS WEIGHT =====
+     * A violent collision ended with a man sliding to a stop on the turf: the sim booked the
+     * knock-back, the renderer lifted him a fixed few pixels along a fixed hump for a fixed number
+     * of milliseconds, and every big hit looked exactly like every other big hit. A man who is
+     * genuinely run through, or genuinely stuck, does not get LIFTED — he leaves his feet. He goes
+     * up, he travels back along the line of the hit, and he comes down under gravity.
+     * This is the sim's half, and it is arithmetic only. It reads numbers `contact()` has already
+     * computed — the momentum mismatch the hit carries (`impact`), the strength differential, the
+     * knock-back it booked, the leverage, whether it came from behind, and both men's mass out of
+     * `WT` — and answers ONE number: `vz`, the vertical speed he left the ground with. The hang is
+     * 2·vz/g and the peak is vz²/2g, so height and duration are the same measurement seen twice
+     * and can never fight each other; the GROUND he covers is not invented at all — it is the
+     * knock-back the sim already booked (`tkb` on a truck, `kb` plus the whistle coast on a
+     * tackle), which the renderer spreads over the hang instead of applying in one tick.
+     * Nothing here moves a body, sets a spot, or draws a roll. Only the violent tail flies:
+     * `launchGate` is set so a few percent of resolved contacts clear it, and a hit that does not
+     * MOVE him (`launchMinKb`) never launches him. A man carried in a v103 grip never launches
+     * either — he did not leave his feet, he was carried and then set down. */
+    const launchV112 = (o) => {
+      if (!TU("launchV112", 1)) return null;
+      if (!(o.kb >= TU("launchMinKb", 5))) return null;                // a hit that does not move him cannot launch him
+      if ((o.hands || 0) > TU("launchMaxHands", 1)) return null;        // nobody gets launched out of a crowd — a pile swallows him
+      const flyW = WT[o.fly] || .7, hitW = WT[o.by] || .7;
+      // mass: the lighter the man who is hit against the man who hit him, the further he goes
+      const massK = cl(hitW / Math.max(.3, flyW), TU("launchMassMin", .6), TU("launchMassMax", 1.8));
+      const pow = Math.round((Math.max(0, o.impact) * TU("launchImpactK", 1)
+        + Math.max(0, o.strEdge) * TU("launchStrK", .9)
+        + Math.max(0, o.kb) * TU("launchKbK", 2.4)
+        + (o.stick ? TU("launchStickPow", 26) : 0)
+        + Math.max(0, o.lev) * TU("launchLevK", 1.6)                   // the hitter got under his pads
+        - (o.behind ? TU("launchBehindPow", 40) : 0)) * massK);        // from behind he is hauled down, not launched
+      const gate = TU("launchGate", 168);
+      if (!(pow > gate)) return null;
+      // the published `flyPow` IS the number the speed is read off, so the arc is reproducible
+      // from the event alone — the check re-derives every flyVz from it and must land on the nose
+      const vz = cl(TU("launchVzBase", .1) + (pow - gate) * TU("launchVzK", .0011), TU("launchVzMin", .1), TU("launchVzMax", .17));
+      return { vz: +vz.toFixed(4), pow };
+    };
+    try { (root.__V112_F_SIM = root.__V112_F_SIM || {}).launch = launchV112; } catch (e) {}   // v112: v112Fcheck sweeps the collision's inputs through the real function
     // returns: "cooldown" | "whiff" | "stiffarm" | "broken" | "stagger" (stays up) | "tackle" (play ends)
     const contact = (d, c) => {
       if (t < d.cool) return "cooldown";
@@ -2711,9 +2750,13 @@ window.__visionRadiusV96 = visionRadiusV96;
         // v25 HIT STICK (offense): a violent truck flattens the defender — flagged so the
         // renderer flings him with the baked dive/down frames and pops "HIT STICK".
         const hitStick = (powerEdge > 24 || bothWin) && tkb > 9;
+        // v112: a man run THROUGH by a back with this much on him leaves his feet — the flight is
+        // the truck's own knock-back, seen as an arc instead of a slide
+        const fly112 = launchV112({ fly: d.lb, by: c.lb, impact: hit.impact, strEdge: cStr - dStr, kb: tkb, stick: hitStick, lev, behind, hands: handsOn });
         // v109: every truck is emitted now so the commit it resolves is always answered; past the
         // fourth in one play it is `quiet` and the renderer keeps only the man going down
-        c._evades = (c._evades||0) + 1; emit("brokenTackle",{who:d.id, carrier:c.id, x:d.lx, y:d.y, kb:Math.round(tkb), hitStick, quiet: brokenShown++ >= 4, ...hit});
+        c._evades = (c._evades||0) + 1; emit("brokenTackle",{who:d.id, carrier:c.id, x:d.lx, y:d.y, kb:Math.round(tkb), hitStick, quiet: brokenShown++ >= 4, ...hit,
+          ...(fly112 ? { flyWho: d.id, flyVz: fly112.vz, flyPow: fly112.pow } : null)});
         bobbleV109(c, hit);
         if (committerId===d.id) committerId = null;
         return "broken";
@@ -2829,7 +2872,11 @@ window.__visionRadiusV96 = visionRadiusV96;
         return "grip";
       }
       wrapInV109(c, supIds, hit.cid);   // v109: the gang closes in before the whistle, not five yards from it
-      emit("tackle",{tackler:d.id, carrier:c.id, x:c.lx, y:c.y, gang, bigHit: bigStick||kb>11, bothFall, stayUp, kb:Math.round(kb), drive:Math.round(drive), sup:supIds, youIn, style, hitStick: bigStick, handsOn, ...hit});
+      // v112: and a carrier STUCK this hard leaves his feet — the flight rides the same kb the
+      // whistle coast is about to carry him back along, so the spot is untouched
+      const flyT112 = launchV112({ fly: c.lb, by: d.lb, impact: hit.impact, strEdge: dStr - cStr, kb, stick: bigStick, lev: -lev, behind, hands: handsOn + nSupport });
+      emit("tackle",{tackler:d.id, carrier:c.id, x:c.lx, y:c.y, gang, bigHit: bigStick||kb>11, bothFall, stayUp, kb:Math.round(kb), drive:Math.round(drive), sup:supIds, youIn, style, hitStick: bigStick, handsOn, ...hit,
+        ...(flyT112 ? { flyWho: c.id, flyVz: flyT112.vz, flyPow: flyT112.pow } : null)});
       return "tackle";
     };
 
@@ -6879,6 +6926,7 @@ class Ot extends mt.Scene {
           m._dropback = false; m._dropped = false; m._hitched = false; m._lean = 0; m._lookAt = null; m._post = null; m._presnapFace = false;   // v86
           m._dropT107 = 0; m._thrRecV107 = null;   // v107
           m._thrDirV108 = null; m._exV108 = null;   // v108
+          m._flyV112 = null; m._flySpinV112 = 0; m._launchUntil = 0; m._launchH = 0;   // v112: no man is ever drawn in the air when the next play starts
           m._hud = null; m._hudFaced = false;   // v87
           m.body.setPosition(0, 0);
           m._jog = { x: f0.x, y: f0.y }; m._jogDone = false;
@@ -7712,7 +7760,9 @@ class Ot extends mt.Scene {
     }
     const V9 = this.v109E();
     this.markers.forEach((m, i) => {
-      const q = m._post; if (!q || !m.root) return;
+      const q = m._post; if (!m.root) return;
+      if (m._flyV112) { this.placeMarker(m, m.sx, m.sy, delta); return; }   // v112: a man still in the air comes down before anything else moves him
+      if (!q) return;
       if (m._late && k < lateMs) return;               // still in the scrap: he is not going anywhere yet
       if (q.late && k < lateMs) return;                // still arriving
       if (q.help && !q.help.done) {                    // v109: the helper walks over and stands by him until he is up
@@ -7731,7 +7781,7 @@ class Ot extends mt.Scene {
       }
       if (q.grounded && !q.rose) {
         if (k < q.up) { this.placeMarker(m, m.sx, m.sy, delta); return; }
-        q.rose = true; m._launchUntil = 0; if (m.forceState !== "celebrateSeq") { m.forceState = "getupSeq"; m.seqT = m.tms; } if (m.body) m.body.setAlpha(1);   // v91: a celebration outranks the get-up
+        q.rose = true; m._launchUntil = 0; m._flyV112 = null; m._flySpinV112 = 0; if (m.forceState !== "celebrateSeq") { m.forceState = "getupSeq"; m.seqT = m.tms; } if (m.body) m.body.setAlpha(1);   // v91: a celebration outranks the get-up
         // the man on top pushes off the pile as he rises
         if (i !== P.carrierId && m.body) this.tweens.add({ targets: m.body, x: (m.flip ? -1 : 1) * TU("pushOffPx", 4), yoyo: true, duration: 150 });
       }
@@ -7744,7 +7794,7 @@ class Ot extends mt.Scene {
     this.resolveOverlaps();
     try { this.updateRefs(dt, false); this.updateSideline(dt); } catch (e) {}
     this.camPostV109(P, delta);   // v109: wide on the ball while they gather
-    if (k >= P.post.ms) { P.post = null; this.markers.forEach(m => { m._post = null; m._walk = false; if (m.forceState === "idle") m.forceState = null; });
+    if (k >= P.post.ms) { P.post = null; this.markers.forEach(m => { m._post = null; m._walk = false; m._flyV112 = null; m._flySpinV112 = 0; if (m.forceState === "idle") m.forceState = null; });   // v112: nobody carries a flight into the next snap
       this._camSoftV109 = performance.now() + TU("camSoftMs", 900);   // v109: the next reset re-aims instead of snapping — the glide carries the frame to the new line
       this.resetCamera(); this.complete(); }
   }
@@ -8576,6 +8626,10 @@ class Ot extends mt.Scene {
         this.finishYd(e);
         const m = this.markers[P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier)];
         const tk = this.markers[this.actorIdx(e.tackler)];
+        // v112 THE HIT HAS WEIGHT: the sim measured this collision and said the carrier left his
+        // feet. When it did, the ballistic arc owns his pose, his lift and his landing — every
+        // fixed-height fold below (the style, the hit stick) stands aside for it.
+        const willFly112 = !!(m && TU("flyV112", 1) && e.flyWho && e.flyWho === e.carrier && Number(e.flyVz) > 0);
         try { this.addWearV86(ixV109, iyV109, (big ? 9 : 6) * (0.8 + impK * 0.5), 0.08); } catch (er) {}   // v86: the turf remembers the pile (v109: where the bodies met)
         /* v86 TACKLE STYLES — read off the geometry the sim already resolved. Where the
          * tackler is relative to the carrier's heading says what kind of tackle it was:
@@ -8645,7 +8699,13 @@ class Ot extends mt.Scene {
           }
         }
         if (m) {
-          if (tstyle === "drag") {
+          if (willFly112) {
+            // he does not fold, he is thrown: the arc, the landing and the skid (placeMarker)
+            if (m.body) { this.tweens.killTweensOf(m.body); m.body.x = 0; m.body.y = 0; m.body.angle = 0; }
+            this.flyStartV112(m, e.flyVz, this.sideV109(e, m, tk));
+            this.popText(e.x, e.y - 68, "OFF HIS FEET", "#ff9fa5", 13);
+            this.hookV112F().flying++;
+          } else if (tstyle === "drag") {
             // caught from behind: he keeps his feet and his lean for a beat, then folds
             const dragMs = TU("dragMs", 240) + Number(e.kb || 0) * 20;
             m.forceState = null; m._lean = (m.flip ? 1 : -1) * TU("dragLean", 0.26);
@@ -8669,9 +8729,14 @@ class Ot extends mt.Scene {
         // heavy freeze-frame. Height geometry adds flavor: high wrap = they fold
         // together, low hit = a shoestring trip.
         if (e.hitStick && m) {
-          m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + 300; m._launchH = 14;
-          this.time.delayedCall(280, () => { if (m.active !== false) { m.forceState = "down"; } });
-          BADGE_V95.show("bighit", { sub: "HIT STICK", x: e.x, y: e.y, scene: this });   // v95
+          if (!willFly112) {   // v112: a launched man is already in the air on his own arc
+            m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + 300; m._launchH = 14;
+            this.time.delayedCall(280, () => { if (m.active !== false) { m.forceState = "down"; } });
+          }
+          // v112: on a launch the callout waits for the LANDING — the takeover's freeze and the
+          // full-field badge otherwise sit on top of the very arc they are celebrating
+          if (willFly112) this.time.delayedCall(this.flyBadgeMsV112(e.flyVz), () => BADGE_V95.show("bighit", { sub: "OFF HIS FEET", x: e.x, y: e.y, scene: this }));
+          else BADGE_V95.show("bighit", { sub: "HIT STICK", x: e.x, y: e.y, scene: this });   // v95
           /* v103 IMPACT WEIGHT — every big hit used to shake the camera by exactly the same
            * amount for exactly the same time. The sim already measured the collision (the
            * knock-back it produced and how many men were in it), so the picture uses it: a
@@ -8917,6 +8982,21 @@ class Ot extends mt.Scene {
           this.hookV109C1().quietTrucks++; break; }
         this.slowMoment(P);
         this.hitFx(e.x, e.y, Number(e.kb || 0) >= 8, false, e);   // v109: the rings at the point he was run through, along the carrier's line
+        /* v112 THE HIT HAS WEIGHT: run through this hard and the beaten man leaves his feet. The
+         * arc flies him back along the truck's own knock-back — the ground the sim already moved
+         * him — and lands him in `down`, so the badge, the shake and the freeze still fire below. */
+        const fly112 = !!(m && TU("flyV112", 1) && e.flyWho && e.flyWho === e.who && Number(e.flyVz) > 0);
+        if (fly112) {
+          this.flyStartV112(m, e.flyVz, this.sideV109(e, m, this.markers[this.actorIdx(e.carrier)]));
+          this.hookV112F().flying++;
+          if (m.body) m.body.setAlpha(0.85);
+          this.time.delayedCall(TU("launchDownMs", 900), () => { if (m.body) { m.body.setAlpha(1); if (m.forceState === "down" && !m._flyV112) m.forceState = null; } });
+          this.time.delayedCall(this.flyBadgeMsV112(e.flyVz), () => BADGE_V95.show("bighit", { sub: e.hitStick ? "TRUCKED HIM" : "OFF HIS FEET", x: e.x, y: e.y, scene: this }));   // v112: the callout lands with him
+          this.hitStop = Math.max(this.hitStop, TU("hitStopBig", 120));
+          this.puffFx(e.x, e.y, 6); vib(48);
+          REDUCED_MOTION || this.cameras.main.shake(240, 0.014);
+          break;
+        }
         // v25 HIT STICK (offense trucks the defender): fling the beaten man with the
         // baked dive→down frames along the carrier's motion, big shake + freeze-frame.
         if (e.hitStick && m) {
@@ -9824,6 +9904,43 @@ class Ot extends mt.Scene {
     m._numRowV104 = row; m._numScaleV104 = sc; m._numCapV104 = cap; m._numRearV104 = !!rear; m._numBandV104 = b;
     RIB.numLast = m; RIB.numPlaced = (RIB.numPlaced || 0) + 1;   // the hook below reads these; no per-frame garbage
   }
+  /* ===== v112 THE HIT HAS WEIGHT (renderer) =====
+   * `_launchUntil` / `_launchH` is a LIFT, not a flight: a fixed height, on a fixed sin() hump,
+   * for a fixed number of milliseconds — three numbers with nothing to do with one another, so a
+   * man levelled by a free safety rose exactly as far, and for exactly as long, as a man who
+   * hopped for a catch. A man who has been levelled is not lifted. He is THROWN.
+   * So a launch here is a real projectile. The sim hands over ONE number, `flyVz` (the vertical
+   * speed he left the ground with); `launchG` is the gravity; and the hang (2·vz/g), the peak
+   * (vz²/2g) and the whole shape of the arc fall out of those two — there is no height dial to
+   * fight the duration. The GROUND is not invented here either: the drawn body simply LAGS the
+   * script's own position by the ground he has not covered yet, so he flies back along the line
+   * the sim already knocked him down, lands SHORT of the booked spot, and skids the last
+   * `launchSkid` of it along the turf with a bounce scaled by what energy is left. The lag is
+   * zero the frame the skid ends, so the spot, the yardage and every man's resting place are
+   * exactly what they would be with `launchV112` off — the arc is presentation over a result
+   * that was booked before it started. He lands in `down`, which is where the v86 gather and the
+   * get-up path already pick a man up off the turf. */
+  hookV112F() { return window.__V112_F = window.__V112_F || { launches: 0, lands: 0, ends: 0, airborne: 0, maxLift: 0, flying: 0, samples: [] }; }
+  // the flight's hang time in REAL milliseconds — the play clock runs at the live speed dial times
+  // basePlayRate, so a fixed wait would put the callout mid-air at ½× and long after him at 4×
+  flyBadgeMsV112(vz) {
+    const rate = Math.max(.15, (window.__getGridironLiveSpeed ? window.__getGridironLiveSpeed() : 1) * TU("basePlayRate", .7));
+    return Math.round(Math.min(TU("launchBadgeMaxMs", 1500), (2 * Number(vz || .12) / Math.max(1e-5, TU("launchG", .001))) / rate));
+  }
+  flyStartV112(m, vz, spin) {
+    if (!m || !TU("flyV112", 1) || !(Number(vz) > 0)) return false;
+    const g = Math.max(1e-5, TU("launchG", .001)), v = Number(vz);
+    const dur = 2 * v / g, peak = v * v / (2 * g);                       // the hang and the height are the same measurement
+    m._flyV112 = { t0: m.tms, dur, g, vz: v, peak, x0: m.sx, y0: m.sy, k: 0, lift: 0, landed: false,
+      skid: TU("launchSkid", .22), skidMs: Math.round(TU("launchSkidMs", 150) + dur * TU("launchSkidK", .5)),
+      bh: peak * TU("launchBounceK", .17), bFrac: TU("launchBounceFrac", .55), spin: (spin || 1) * TU("launchSpin", .38) };
+    m._launchUntil = 0; m._lean = 0; m._leanSrc = null; m._leanV109 = 0; m._stumbleV109 = null;
+    m.forceState = "dive"; m._groundT = 0;
+    const V = this.hookV112F(); V.launches++;
+    V.samples.push({ vz: +v.toFixed(4), dur: Math.round(dur), peak: +peak.toFixed(2) });
+    if (V.samples.length > 40) V.samples.shift();
+    return true;
+  }
   placeMarker(m, sx, sy, dtms) {
     const dx = sx - m.sx, dy = sy - m.sy;
     m.prevSx=m.sx; m.prevSy=m.sy;
@@ -10008,7 +10125,8 @@ class Ot extends mt.Scene {
     }
     m.body.setFlipX(m.flip && (m.dirKey === "sd" || m.dirKey === "dr" || m.dirKey === "ur" || st === "down" || st === "dive" || st === "grab" || st === "stance" || st.indexOf("tackle") === 0));
     // flat, clean sprites — only the diving tackle gets a slight tilt
-    m.body.setRotation(st === "dive" ? (m.flip ? 0.3 : -0.3) : (m._lean || 0));   // v86: a lean survives the frame
+    // v112: and a man in the air off a hit keeps turning through the flight, then settles as he skids
+    m.body.setRotation((st === "dive" ? (m.flip ? 0.3 : -0.3) : (m._lean || 0)) + (m._flySpinV112 || 0));   // v86: a lean survives the frame
     // v41: side profiles NEVER show a number (chest/back art isn't visible from the
     // side, any state), while linemen keep their numbers even in the pre-snap stance.
     const ribSideProfile = m.dirKey === "sd";
@@ -10026,7 +10144,33 @@ class Ot extends mt.Scene {
     // v103: a man being dragged is churning, not gliding — the turf comes up under him the
     // whole time he is in the grip, at a fraction of the running speed that normally throws it
     if (m._dragging && m.tms - (m.lastDust || 0) > TU("dragDustMs", 110)) { m.lastDust = m.tms; this.puffFx(sx, sy + 5, 2, 0x8a7a55, 0.4); }
-    const p = PJ(sx, sy);
+    /* v112 THE HIT HAS WEIGHT: the flight, the landing, the skid. The arc is integrated from the
+     * launch speed the sim measured; the ground is the script's own knock-back, held back so it is
+     * covered over the hang instead of in one tick, and paid off in full by the end of the skid. */
+    let flyDX = 0, flyDY = 0, flyLift = 0;
+    const FLY = m._flyV112;
+    if (FLY) {
+      const age = m.tms - FLY.t0, V12 = this.hookV112F();
+      if (age >= FLY.dur + FLY.skidMs) { m._flyV112 = null; m._flySpinV112 = 0; FLY.k = 1; V12.ends++; }
+      else if (age < FLY.dur) {                                        // in the air: v·t − ½g·t²
+        flyLift = Math.max(0, FLY.vz * age - 0.5 * FLY.g * age * age);
+        FLY.k = (age / FLY.dur) * (1 - FLY.skid);
+        m._flySpinV112 = FLY.spin * Math.min(1, age / Math.max(1, FLY.dur * 0.6));
+        if (m.forceState !== "dive") m.forceState = "dive";            // the flight OWNS the pose — a stray timer from the play he was in does not get to stand him up in mid-air
+        V12.airborne++; V12.maxLift = Math.max(V12.maxLift, +flyLift.toFixed(2));
+      } else {                                                          // down: the bounce, then the skid runs the rest of the ground out
+        if (!FLY.landed) { FLY.landed = true; V12.lands++; m.forceState = "down"; m._groundT = m.tms;
+          this.puffFx(sx, sy + 2, 3, 0x8a7a55, 0.5); }
+        if (m.forceState !== "down") m.forceState = "down";             // and he stays on the turf for the whole skid
+        const j = (age - FLY.dur) / Math.max(1, FLY.skidMs);
+        FLY.k = (1 - FLY.skid) + FLY.skid * (1 - (1 - j) * (1 - j));   // the slide decelerates into the booked spot
+        if (j < FLY.bFrac) flyLift = Math.sin((j / FLY.bFrac) * Math.PI) * FLY.bh;
+        m._flySpinV112 = FLY.spin * Math.max(0, 1 - j) * 0.6;
+      }
+      flyDX = (FLY.x0 - sx) * (1 - FLY.k); flyDY = (FLY.y0 - sy) * (1 - FLY.k);
+      FLY.lift = flyLift; FLY.dx = flyDX; FLY.dy = flyDY; FLY.fx = sx + flyDX; FLY.fy = sy + flyDY;   // what he is actually drawn on, for the check
+    } else if (m._flySpinV112) m._flySpinV112 = 0;
+    const p = PJ(sx + flyDX, sy + flyDY);
     // v83 2.5D: paired sprites are pushed apart on screen so the man behind still reads —
     // a stable side per marker (the lower slot goes left), scaled with the projection
     if (engaged) { const side = this.markers.indexOf(m) < m._pair ? -1 : 1; m._nudgeX = side * TU("engageSpread", 6) * p.s; }
@@ -10038,6 +10182,7 @@ class Ot extends mt.Scene {
     if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms));
       liftV99 = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11); p.y -= liftV99 * p.s; }
     else if (m._launchUntil) m._launchUntil = 0;
+    if (flyLift > 0) { liftV99 = Math.max(liftV99, flyLift); p.y -= flyLift * p.s; }   // v112: the thrown man is above the grass the shadow stays on
     m.root.setPosition(p.x, p.y); m.root.setScale(p.s);
     // v99: cast from the one light post — it swings around him as he crosses the field and
     // stays on the grass under a man in the air. A man ON the ground has almost no height
@@ -18043,6 +18188,12 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     wrapGrabMs: 700, lineExtend: 34, lightDepth: 0.12, lightSpotR: 200, lightAmb: 0.9,
     tackleCreditPx: 20, gasHitCostD: 4, gasHitCostC: 6, wearK: 0.05, wearMax: 24,
     bigStickEdge: 1.6, rideDownEdge: 0.5, stayUpEdge: 0.42,
+    // v112 THE HIT HAS WEIGHT — who leaves his feet, and the one number that decides the arc
+    launchV112: 1, flyV112: 1, launchGate: 168, launchMinKb: 5, launchMaxHands: 1,
+    launchImpactK: 1, launchStrK: 0.9, launchKbK: 2.4, launchStickPow: 26, launchLevK: 1.6, launchBehindPow: 40,
+    launchMassMin: 0.6, launchMassMax: 1.8, launchVzBase: 0.1, launchVzK: 0.0011, launchVzMin: 0.1, launchVzMax: 0.17,
+    launchG: 0.001, launchSkid: 0.22, launchSkidMs: 150, launchSkidK: 0.5,
+    launchBounceK: 0.17, launchBounceFrac: 0.55, launchSpin: 0.38, launchDownMs: 900, launchBadgeMaxMs: 1500,
     containWideY: 46, containLxMax: 22, containDepth: 10, containWide: 16,
     holdFlagMs: 900, dpiSep: -0.8, holdFlagP: 0.5, dpiFlagP: 0.2, fmFlagP: 0.08,
     safetyRoofLx: 55, safetyCushion: 44,
