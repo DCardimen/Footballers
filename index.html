@@ -5235,6 +5235,17 @@ function pickFeaturedIndex(payload, offLabels, defLabels, rand) {
 }
 
 const FW = 720, FH = 440, FVH = 576, LEG = 46, CH = FVH;
+/* ===== v112 THE CAMERA HAS OPTIONS — the four behaviours Settings offers =====
+ * `z` scales every zoom target, `tight` how hard the open-field pull-in bites, `lead` how far the
+ * frame runs ahead of the man, `stiff` how eagerly the v109 spring chases. The Settings panel reads
+ * this same list off `window.__CAM_MODES_V112`, so a mode is described in exactly one place. */
+const CAM_MODES_V112 = [
+  { id: "broadcast", n: "Broadcast", d: "Follows the ball, tightens when a runner breaks into space, opens up at the whistle.", z: 1, tight: 1, lead: 1, stiff: 1 },
+  { id: "tight", n: "Tight", d: "Stays close on the ball the whole play. You see the man; you see less of the field.", z: 1.22, tight: 1.45, lead: 0.75, stiff: 1.35 },
+  { id: "wide", n: "Wide", d: "Keeps the whole route tree and the pursuit in frame. Barely zooms at all.", z: 0.8, tight: 0.3, lead: 1.25, stiff: 0.85 },
+  { id: "fixed", n: "Fixed", d: "The camera never moves — one frame on the line of scrimmage, every play.", z: 1, tight: 0, lead: 0, stiff: 1 },
+];
+try { window.__CAM_MODES_V112 = CAM_MODES_V112; } catch (e) {}
 const REDUCED_MOTION = (() => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } })();
 function vib(ms) { try { if (!REDUCED_MOTION && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 const EZ = 66, PLAY_L = EZ, PLAY_R = FW - EZ, PLAY_W = PLAY_R - PLAY_L;
@@ -6825,7 +6836,8 @@ class Ot extends mt.Scene {
     try { const c = this.cameras.main;
       const z0 = (((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16)) * TU("perspZoomK", 0.78);
       this._pcam = null; this._cvx = 0; this._cvy = 0;     // v27: clear the predictive lead between plays
-      if (this.play) { this.play._camCut = null; this.play._camCarV98 = null; }   // v98: a cut never outlives its play
+      this._camHitV112 = null;                             // v112: a hit's step out never outlives its play
+      if (this.play) { this.play._camCut = null; this.play._camCarV98 = null; this.play._camLandV112 = null; }   // v98: a cut never outlives its play
       this.endFlagFocus();                                 // v71: a focus never outlives its play
       const f = this.focusPt || { x: FW / 2, y: WORLD_H / 2 };
       /* ===== v109 THE BROADCAST CAMERA — the re-frame is a move, not a cut =====
@@ -6835,7 +6847,7 @@ class Ot extends mt.Scene {
        * onto the new line through the spring as the huddle forms — and the hard snap is kept for
        * every other caller (the static view, a torn-down scene). The soft window arms a real-time
        * fallback, so a reset that is NOT followed by a play still lands where it always did. */
-      const soft = this._camSoftV109 && performance.now() < this._camSoftV109 && this.markers && this.markers.length && !REDUCED_MOTION;
+      const soft = this._camSoftV109 && performance.now() < this._camSoftV109 && this.markers && this.markers.length && !this.camOffV112();
       if (soft) { const V = this.v109E(); V.cam.softResets = (V.cam.softResets || 0) + 1;
         const tk = this._camSoftTokV109 = (this._camSoftTokV109 || 0) + 1;
         setTimeout(() => { try { if (this._camSoftTokV109 === tk && !this.play && this.cameras && this.cameras.main) { this._camSoftV109 = 0; this.resetCamera(); } } catch (e) {} }, TU("camSoftMs", 900) + 30);
@@ -6887,11 +6899,139 @@ class Ot extends mt.Scene {
   }
   // the whistle: wide, on the ball, for as long as the post phase runs
   camPostV109(P, delta) {
-    if (REDUCED_MOTION || !P.post || !P.post.camWide) return;
+    if (this.camOffV112() || !P.post || !P.post.camWide) return;
     try { const cam = this.cameras.main, W = P.post.camWide, sp = PJ(P.post.spot.x, P.post.spot.y);
       const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom);
       const cx = hw >= FW / 2 ? FW / 2 : mt.Math.Clamp(sp.x, hw, FW - hw), cy = mt.Math.Clamp(sp.y - TU("camWhistleRise", 30), hh, WORLD_H - hh);
-      this.camSpringV109(cam, cx, cy, W.z, delta, TU("camWhistleStiffK", 0.7)); this.v109E().cam.wideFrames++; } catch (e) {}
+      // v112: the WIDE for the gather belongs to the mode too, and the hit's own smaller step out
+      // holds in front of it — the tackle reads as its own beat before the frame opens up
+      let tz = W.z * this.camModeV112().z;
+      P.post._camT = (P.post._camT || 0) + delta;
+      const H = this._camHitV112, zs = H ? H.z0 * H.k : 0;
+      if (H && P.post._camT < TU("camHitPostMs", 320) && zs > tz) { tz = zs; this.v112E().hitHold++; }
+      tz = this.camZoomFitV112(tz);
+      this.camSpringV109(cam, cx, cy, tz, delta, TU("camWhistleStiffK", 0.7) * this.camModeV112().stiff); this.v109E().cam.wideFrames++; } catch (e) {}
+  }
+  /* ===== v112 THE CAMERA FINDS THE BALL =====
+   * v109 framed the CARRIER, and the carrier is the right man only while he is actually holding it.
+   * `P.carrierId` survives the throw, so for the whole flight of a pass — and the whole hang of a
+   * punt — the frame sat on the man who had just let the ball go while the ball, and the man it was
+   * going to, ran off the edge of it: a punt drew four seconds of empty grass, and a catch was made
+   * at the frame's corner and only then cut to. Possession is read FRESH every frame now. The man
+   * with it while a man has it (the HOLDER, so a fumble recovery the sim never named a carrier for
+   * is followed too), the BALL itself the moment it is in the air or on the grass, and on a flight
+   * the frame eases toward where that flight is going to come down, so it ARRIVES with the ball
+   * instead of chasing it. `camFocusV112` is the one answer and everything above it reads `kind`. */
+  camFocusV112(P, glide) {
+    const mode = P.ballMode || "ground";
+    const loose = !!P.__looseBall || mode === "loose" || mode === "bounce";
+    const air = mode === "flight" || mode === "kick" || mode === "tip";
+    const hid = P.ballHolderId != null ? P.ballHolderId : P.carrierId;
+    const man = (!glide && !air && !loose && hid != null) ? this.markers[hid] : null;
+    if (man && man.root) return { m: man, id: hid, x: man.root.x, y: man.root.y, kind: "carry" };
+    const fp = this.focusPt || { x: FW / 2, y: WORLD_H / 2 };
+    const bx = this.ballSpr ? this.ballSpr.x : fp.x, by = this.ballSpr ? this.ballSpr.y : fp.y;
+    if (!air) {
+      /* On a kick the ball is with the deep man a tenth of a second after the snap, and he stands
+       * fourteen yards behind the ball: framed on the spot, the camera spent the whole long snap
+       * travelling. It starts on him instead — which is where a broadcast frames a punt anyway. */
+      if (!P.snapped && /^(fg|punt|kickoff|xp)$/i.test(String(P.payload && P.payload.event || ""))) {
+        const k = this.markers[8];
+        if (k && k.root) return { m: null, id: null, x: k.root.x, y: k.root.y, kind: glide ? "glide" : "ground" };
+      }
+      return { m: null, id: null, x: bx, y: by, kind: loose ? "loose" : glide ? "glide" : "ground" };
+    }
+    let fx = bx, fy = by;
+    const L = this.camLandV112(P);
+    if (L) { const q = Math.min(1, Math.max(0, (P.t - (P.ballReleaseAt || P.t)) / L.ms)), b = TU("camAirBias", 0.55) * q;
+      fx += (L.x - bx) * b; fy += (L.y - by) * b; }
+    return { m: null, id: null, x: fx, y: fy, kind: mode === "kick" ? "kick" : "flight" };
+  }
+  // where this flight comes down, in screen space, read once off the script's own ball frames
+  camLandV112(P) {
+    const rel = P.ballReleaseAt || 0;
+    if (P._camLandV112 && P._camLandV112.rel === rel) return P._camLandV112.pt;
+    let pt = null;
+    try { const bf = P.script.ball, i0 = Math.max(0, Math.floor((P.t - (P.delay || 0)) / 33));
+      let up = false;
+      for (let k = i0; k < bf.length; k++) {
+        if (bf[k].h > 2) up = true;
+        else if (up && bf[k].h <= 1.4) { const p = PJ(bf[k].x, bf[k].y); pt = { x: p.x, y: p.y, ms: Math.max(140, (k - i0) * 33) }; break; }
+      }
+      if (!pt && bf.length) { const b = bf[bf.length - 1], p = PJ(b.x, b.y); pt = { x: p.x, y: p.y, ms: Math.max(140, (bf.length - i0) * 33) }; }
+    } catch (e) { pt = null; }
+    P._camLandV112 = { rel, pt };
+    return pt;
+  }
+  /* ===== v112 THE FRAME TIGHTENS ON HIM =====
+   * A back who breaks into space is the one thing worth filling the screen with, so the pull-in is
+   * read off the field itself — how far the nearest man who could tackle him actually is, times how
+   * fast he is going. In traffic it is exactly 1, so nothing happens in the pocket or at the pile,
+   * and it only ever moves the spring's TARGET: a lean-in, never a second lerp fighting the first. */
+  camTightV112(P, m, zStr, MD) {
+    const V = this.v112E();
+    if (!m || !MD.tight) { V.tight.idle++; return 1; }
+    const hid = P.ballHolderId != null ? P.ballHolderId : P.carrierId, off = hid < 11;
+    const i0 = off ? 11 : 0, i1 = off ? this.markers.length : 11;
+    let best = 1e9;
+    for (let i = i0; i < i1; i++) { const d = this.markers[i];
+      if (!d || d === m || d.active === false) continue;
+      const dd = Math.hypot(d.sx - m.sx, d.sy - m.sy); if (dd < best) best = dd; }
+    const near = TU("camSpaceNearPx", 22), far = TU("camSpaceFarPx", 72);
+    const space = Math.min(1, Math.max(0, (best - near) / Math.max(1, far - near)));
+    const sMin = TU("camSpaceSpdMin", 28), sFull = TU("camSpaceSpdFull", 110);
+    const sp = Math.min(1, Math.max(0, ((m.sSm || 0) - sMin) / Math.max(1, sFull - sMin)));
+    // the SPACE decides; the speed only modulates it. A man standing still in the open is not
+    // worth filling the screen with, but a man with the field in front of him is, at any pace.
+    const f = TU("camTightSpdFloor", 0.35), k = space * (f + (1 - f) * sp);
+    const mul = 1 + TU("camTightMax", 0.34) * k * zStr * MD.tight;
+    V.tight.n++; V.tight.sum += mul; if (mul > V.tight.max) V.tight.max = +mul.toFixed(3);
+    const bin = space > 0.6 ? V.tight.open : space <= 0 ? V.tight.traffic : null;
+    if (bin) { bin.push(+mul.toFixed(3)); if (bin.length > 600) bin.shift(); }
+    V.tight.spaceSum += space; V.tight.spdSum += sp;
+    return mul;
+  }
+  // the tackle is its own, smaller step out — armed on the hit, held through the whistle's beat
+  camHitV112(P, e) {
+    if (this.camOffV112() || !this.cameras || !this.cameras.main) return;
+    const z = this.cameras.main.zoom;
+    this._camHitV112 = { w0: performance.now(), ms: Math.max(120, TU("camHitOutMs", 760)), k: Math.min(1, Math.max(0.6, TU("camHitOutK", 0.9))), z0: z };
+    const V = this.v112E(); V.hits.push({ z0: +z.toFixed(3), zMin: +z.toFixed(3), big: !!(e && e.bigHit) });
+    if (V.hits.length > 80) V.hits.shift();
+  }
+  camHitZoomV112(cam) {
+    const H = this._camHitV112; if (!H || H.done) return 1;
+    const q = (performance.now() - H.w0) / H.ms;
+    if (q >= 1) { H.done = true; return 1; }
+    const V = this.v112E(), r = V.hits[V.hits.length - 1];
+    if (r && cam && cam.zoom < r.zMin) r.zMin = +cam.zoom.toFixed(3);
+    // out on the hit and HELD while the whistle catches up, then back to 1 if the play runs on
+    return H.k + (1 - H.k) * Math.pow(Math.max(0, (q - TU("camHitHoldFrac", 0.45)) / (1 - TU("camHitHoldFrac", 0.45))), 2);
+  }
+  /* ===== v112 THE CAMERA HAS OPTIONS =====
+   * Four behaviours, not a slider: BROADCAST is everything above, TIGHT stays close on the ball at
+   * all times, WIDE keeps the field in frame and barely pulls in, FIXED never moves at all (the
+   * frame the next snap is set on, held) for anyone who dislikes the motion — which is also where
+   * the OS reduced-motion preference has always landed. `camZoom` scales how hard any of them
+   * tightens. Both ride `window.__FIELD_FX`, which the camera re-reads every frame, so a change in
+   * Settings is on the live field before the panel closes. */
+  camModeV112() {
+    const F = window.__FIELD_FX || {}, L = CAM_MODES_V112;
+    return L[Math.max(0, Math.min(L.length - 1, Math.round(Number(F.cam) || 0)))];
+  }
+  camOffV112() { return REDUCED_MOTION || this.camModeV112().id === "fixed"; }
+  camZoomStrV112() { const F = window.__FIELD_FX || {}; const v = F.camZoom == null ? 1 : Number(F.camZoom); return Math.max(0, Math.min(2, Number.isFinite(v) ? v : 1)); }
+  /* Nothing v112 does may open the frame wider than the picture the FIELD VIEW dials already set:
+   * the floor and the ceiling are read off the reset zoom itself, so the Field-zoom slider keeps its
+   * whole range at both ends of the depth slider and the wide mode, the whistle and the step out all
+   * stop at the edge of the painted field instead of past it. */
+  camZoomFitV112(z) {
+    const base = (((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16)) * TU("perspZoomK", 0.78);
+    return Math.min(base * TU("camZoomCeilK", 3), Math.max(base * TU("camZoomFloorK", 0.862), z));
+  }
+  v112E() {
+    return window.__V112_E = window.__V112_E || { mode: "", zoomStr: 1, frames: 0, focus: {}, dist: {},
+      tight: { n: 0, sum: 0, max: 1, open: [], traffic: [], idle: 0, spaceSum: 0, spdSum: 0 }, hits: [], hitHold: 0, fixedFrames: 0, edgeOpens: 0 };
   }
   /* ===== v101 THE SIM LOADS BEHIND THE DOOR =====
    * `buildPlayScript` is the whole play — every actor's frames for every tick — and it was
@@ -7028,7 +7168,8 @@ class Ot extends mt.Scene {
     // Madden-style follow camera: track the ball with look-ahead, wider on big plays
     try {
       const cam = this.cameras.main;
-      if (!REDUCED_MOTION) {
+      if (this.camOffV112()) { const VF = this.v112E(); VF.fixedFrames++; VF.mode = this.camModeV112().id; }
+      else {
         if (this.zoomPunch > 0) this.zoomPunch = Math.max(0, this.zoomPunch - delta * 0.0016);
         const gliding0 = P.t < (P.delay || 0);
         // v27: perspZoomK compensates for the overscanned warp art (near field draws
@@ -7038,23 +7179,29 @@ class Ot extends mt.Scene {
         // zoom rides 1/perspK(carrier), so his on-screen size stays CONSTANT while the
         // field around him rescales dynamically as he moves through the perspective.
         const _zf = (((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16) / 1.16) * TU("perspZoomK", 0.78);
-        const carM = (!gliding0 && P.carrierId != null) ? this.markers[P.carrierId] : null;
+        // v112: the focus is POSSESSION, read fresh — the man only while a man has it, else the ball
+        const FOC = this.camFocusV112(P, gliding0), MD = this.camModeV112(), zStr = this.camZoomStrV112();
+        const carM = FOC.kind === "carry" ? FOC.m : null;
         const kc = carM && carM.root ? Math.max(0.2, perspK(carM.sx)) : null;
         // v98 THE HANDOVER CUT: the moment the ball changes hands mid-play (the handoff, the
         // catch, the pick, the punt fielded) the camera commits to the new man — a short
         // re-frame that pans and zooms faster than the cruising follow and leads him down
         // the field, so it arrives on the runner instead of trailing the throw or the
         // exchange. Eases back to the ordinary lock over camCutMs.
-        if (!gliding0 && P.carrierId != null && P.carrierId !== P._camCarV98) {
+        // v112: off the FOCUS man, so the cut also lands on a fumble the sim never named a carrier for
+        if (!gliding0 && FOC.id != null && FOC.id !== P._camCarV98) {
           if (P._camCarV98 != null || P.t > (P.delay || 0) + 250) P._camCut = { t: 0, ms: Math.max(120, TU("camCutMs", 520)), from: P._camCarV98 };
-          P._camCarV98 = P.carrierId; }
+          P._camCarV98 = FOC.id; }
         let cut = 0;
         if (P._camCut) { P._camCut.t += delta; const q = P._camCut.t / P._camCut.ms; if (q >= 1) P._camCut = null; else cut = 1 - q * q; }
         // v71: while a flag focus is alive the camera follows the OFFICIAL, not the
         // ball. A penalty is the one moment in a play where the ball is not the story.
         const FC = this.flagCamTarget(delta);
-        const fx = FC ? FC.x : (kc ? carM.root.x : (this.ballSpr ? this.ballSpr.x : FW / 2)),
-          fy = FC ? FC.y : (kc ? carM.root.y : (this.ballSpr ? this.ballSpr.y : WORLD_H / 2));
+        const fx = FC ? FC.x : FOC.x, fy = FC ? FC.y : FOC.y;
+        { const V = this.v112E(); V.frames++; V.mode = MD.id; V.zoomStr = zStr;
+          const kd = (this._camFlagV112 = !!FC) ? "flag" : FOC.kind; V.focus[kd] = (V.focus[kd] || 0) + 1;
+          const d = Math.hypot(cam.midPoint.x - fx, cam.midPoint.y - fy);
+          const R = V.dist[kd] = V.dist[kd] || { n: 0, sum: 0, max: 0 }; R.n++; R.sum += d; if (d > R.max) R.max = Math.round(d); }
         // locked plays ignore the zoomBig wide-angle: the carrier reads the SAME size on
         // every play, and the compensating zoom already widens/narrows the view for him
         const baseZ = (gliding0 ? 1.0 : (P.big ? TU("zoomBig",1.04) : TU("zoomPlay",1.34))) * _zf;
@@ -7067,8 +7214,12 @@ class Ot extends mt.Scene {
          * rather than dead centre. The v98 handover cut and the v71 flag focus still steer the
          * target; they stiffen the spring instead of swapping lerp constants. */
         const lockK = TU("camPerspLockK", 0.5);
-        const targetZoom = FC ? FC.zoom
-          : (kc ? mt.Math.Clamp(TU("zoomPlay",1.34) * _zf / Math.pow(kc, lockK), TU("zoomLockMin", 0.6), TU("zoomLockMax", 2.4)) : baseZ) + this.zoomPunch;
+        /* v112: the mode scales every target, the open-field pull-in rides on top of it, and the
+         * tackle's own step out multiplies the lot — one target, still one spring under it. */
+        const hitZ = this.camHitZoomV112(cam);
+        const targetZoom = this.camZoomFitV112(FC ? FC.zoom
+          : ((kc ? mt.Math.Clamp(TU("zoomPlay",1.34) * _zf / Math.pow(kc, lockK), TU("zoomLockMin", 0.6), TU("zoomLockMax", 2.4)) : baseZ)
+            * MD.z * this.camTightV112(P, carM, zStr, MD) + this.zoomPunch) * hitZ);
         try { window.__CAMCUT_V98 = Object.assign(window.__CAMCUT_V98 || { cuts: 0 }, { active: !!cut, k: +cut.toFixed(3), carrier: P.carrierId }); if (P._camCut && P._camCut.t <= delta) window.__CAMCUT_V98.cuts++; } catch (e) {}
         if (this._pcam) { const dtc = Math.max(16, delta);
           const nvx = (fx - this._pcam.x) / dtc * 1000, nvy = (fy - this._pcam.y) / dtc * 1000;
@@ -7088,12 +7239,30 @@ class Ot extends mt.Scene {
           const lf = TU("camLeadFrac", 0.18) * Math.min(1, (vsp - leadMin) / 120);
           lx += (this._cvx / vsp) * lf * (FW / cam.zoom); ly += (this._cvy / vsp) * lf * (FVH / cam.zoom);
           this.v109E().cam.leadFrames++; }
+        if (!FC && MD.lead !== 1) { lx *= MD.lead; ly *= MD.lead; }   // v112: a wide frame runs further ahead, a tight one less
         const lm = Math.hypot(lx, ly), mL = TU("camLeadMax", 130) * (cut ? 1.3 : 1) + (carM && !FC ? TU("camLeadFracMax", 120) : 0);
         if (lm > mL) { lx *= mL / lm; ly *= mL / lm; }
+        /* ===== v112 THE BALL STAYS IN THE PICTURE =====
+         * The v109 lead is the right instinct and it keeps its direction — but unbounded it could
+         * run the full `camLeadMax` plus the leading third, and a carrier 290 px off a 288 px half
+         * frame is a carrier at the edge of it. The target is pulled back onto the focus so the man
+         * with the ball never leaves the middle of the frame, whatever the lead asked for. */
         const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom);
-        const cx = hw >= FW / 2 ? FW / 2 : mt.Math.Clamp(fx + lx, hw, FW - hw);
-        const cy = mt.Math.Clamp(fy + ly - 40, hh, WORLD_H - hh);
-        this.camSpringV109(cam, cx, cy, targetZoom, delta, FC ? TU("flagCamStiffK", 2.2) : 1 + cut * TU("camCutStiffK", 1.6));
+        const kx = hw * TU("camKeepFracX", 0.4), ky = hh * TU("camKeepFracY", 0.4);
+        const cx = hw >= FW / 2 ? FW / 2 : mt.Math.Clamp(mt.Math.Clamp(fx + lx, fx - kx, fx + kx), hw, FW - hw);
+        const cy = mt.Math.Clamp(mt.Math.Clamp(fy + ly - 40, fy - ky, fy + ky), hh, WORLD_H - hh);
+        /* v112: the near sideline PROJECTS past the painted field, and the camera's bounds are the
+         * painted field — so a man out on the numbers is a man the pan can never reach. It opens
+         * UP for him instead of scrolling off the art: the zoom is capped at whatever brings the
+         * focus back inside `camEdgeFrac` of the frame from where the pan was actually allowed to
+         * stop. In ordinary play the keep-clamp already holds the focus well inside that, so the
+         * cap is above the target and does nothing at all. */
+        const dxE = Math.abs(fx - cx), dyE = Math.abs(fy - cy), edge = TU("camEdgeFrac", 0.8);
+        let zTgt = targetZoom;
+        if (dxE > 1) zTgt = Math.min(zTgt, FW * edge / (2 * dxE));
+        if (dyE > 1) zTgt = Math.min(zTgt, FVH * edge / (2 * dyE));
+        if (zTgt < targetZoom) this.v112E().edgeOpens++;
+        this.camSpringV109(cam, cx, cy, this.camZoomFitV112(zTgt), delta, FC ? TU("flagCamStiffK", 2.2) : (1 + cut * TU("camCutStiffK", 1.6)) * MD.stiff);
         if (P._camCut && P._camCut.t <= delta) this.v109E().cam.cuts++;
       }
     } catch (e) {}
@@ -8626,6 +8795,7 @@ class Ot extends mt.Scene {
       }
       case "tackle": {
         this.slowMoment(P);
+        this.camHitV112(P, e);   // v112: the hit is its own, smaller step out, before the whistle opens up
         const big = e.bigHit || (pay.yards ?? 0) <= 0;
         const bump = Number(e.kb || 0);
         // v109 THE HIT HAS A POINT: the rings, the scuff, the wear and the shake all ride the
@@ -14254,11 +14424,17 @@ const POS_POOL=e=>Math.max(1,Math.round(NAT_POOL(e)/9));function br(e,t,a){const
     <div class="card">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:4px">📐 FIELD VIEW</div>
       <div class="small" style="margin-bottom:10px">Adjust the 2.5D perspective — one dial shrinks the far field, numbers AND players together (always consistent) — plus size, spacing, and zoom.</div>
+      ${(function(){var L=window.__CAM_MODES_V112||[{id:"broadcast",n:"Broadcast",d:""}];var c=Math.max(0,Math.min(L.length-1,Math.round((o.settings&&o.settings.fxCam)||0)));return `<div class="fx-row">
+        <div class="fx-head"><span class="fx-label">Camera</span><span class="fx-val" id="fxCam_val">${L[c].n}</span></div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:2px 0 4px">${L.map(function(m,i){return `<button class="btn camopt112 ${i===c?"secondary":"ghost"}" style="padding:8px 4px;font-size:12px" onclick="camModeSet112(${i})">${m.n}</button>`}).join("")}</div>
+        <div class="fx-desc" id="fxCam_desc">${L[c].d}</div>
+      </div>`})()}
       ${[
         ["fxDepth","Field perspective (depth)","How hard everything recedes — 0 is flat top-down; higher = the far (north) field, numbers and players all shrink harder, always in step",0,0.9,0.01,0.78],
         ["fxSize","Player size","Overall size of every player",0.5,1.9,0.05,1.32],
         ["fxSpread","Player spread","Sideline-to-sideline spacing",0.7,1.4,0.05,1],
         ["fxZoom","Field zoom","How large the field is drawn",0.85,1.5,0.02,1.16],
+        ["fxCamZoom","Camera zoom strength","How hard the camera pulls in on a runner who breaks into open space. 0 holds one width for the whole play",0,1.6,0.05,1],
         ["fxLight","Lighting intensity","How hard the floodlights burn — the wash across the turf, the glow and beams off the masts, and how deep everything's shadow falls. 0 puts the lights out (flat, grey, deep corners); 200% floods the place",0,2,0.05,1],
       ].map(function(r){var k=r[0],lab=r[1],desc=r[2],mn=r[3],mx=r[4],st=r[5],df=r[6];var val=(o.settings&&o.settings[k]!=null)?o.settings[k]:df;return `<div class="fx-row">
         <div class="fx-head"><span class="fx-label">${lab}</span><span class="fx-val" id="${k}_val">${window.__fxFmt(k,val)}</span></div>
@@ -16372,7 +16548,8 @@ function Dl(){const e=o.player,t=A[e.level],a=ae(e),s=sn(e,a),n=M("scout")>0,i=e
 /* v20 personality side-effects (two-sided sliders): varMult widens/narrows game-to-game swings around 50, injMult scales injury rolls both ways. v23: perfFlat is NO LONGER a rating bump here — it is a REAL flat stat boost applied inside the sim's attribute accessor (_raw), so it shows up as actual production (and flows into the box-score grade) instead of an abstract "+performance" number. */
 const _pfxEt=et;et=function(e,t,a){const fx=e&&e.personaFxV20;if(!fx)return _pfxEt(e,t,a);const r=_pfxEt(e,(t||0),a);if(fx.varMult&&fx.varMult!==1)r.perf=f(Math.round(50+(r.perf-50)*fx.varMult),1,100);if((fx.injMult||1)>1&&!r.injured)r.injured=Math.random()<(fx.injMult-1)*.06;else if((fx.injMult||1)<1&&r.injured&&Math.random()<1-fx.injMult)r.injured=!1;return r};
 window.__V112_C={htFrac:HT_FRAC_V112,wtFrac:WT_FRAC_V112,bodyNow:bodyNowV112,bodyOf:bodyOfV112,frac:fracV112,pool:TRAIT_POOL_V112,offer:traitOfferV112,auto:traitAutoV112,traits:dt,fit:pa,rank:ns,ovr:en,abandoned:abandonedV112,active:()=>rerollActiveV112(o&&o.player),mul:e=>rerollMulV112(e||(o&&o.player)),why:()=>rerollWhyV112(o&&o.player),arm:armRerollV112,ledger:()=>(o&&o.rerollV112)||null,cond:e=>condMultV54(e||(o&&o.player)),eff:e=>effAttrsV85(e||(o&&o.player))};
-window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;window.startSeason=Br;window.alloc=Nl;window.doneUpgrade=Fl;window.autoAllocKey=jl;window.autoAllocSpread=Il;window.endCareer=fn;window.prestigeReset=Hl;window.buy=Yl;window.shopBack=ys;window.continueNFL=Gl;window.chooseTraining=Ir;window.chooseEvent=Fr;window.setBranch=Wl;window.watchLive=il;window.quickSimSeason=El;window.startSeasonGames=La;window.playWeek=lt;window.simRemainingWeeks=wt;window.finishSeasonGames=fs;window.finishWeekGame=Ea;window.setSpeed=ml;window.skipLive=pl;window.setRosterTab=rl;window.respecTree=ql;window.choosePath=oo;window.exportSave=Rr;window.importSave=Pr;window.hardReset=Cr;window.toggleSetting=ar;window.applyFieldFx=function(){var el=document.querySelector("#field");if(el){el.style.transform="";}try{var sc=window.__gridironScene;sc&&sc.refreshPersp&&sc.refreshPersp();}catch(e){}};function __pushFieldFx(){var s=(typeof o!=="undefined"&&o&&o.settings)||{};window.__FIELD_FX={tilt:0,depth:s.fxDepth==null?0.78:s.fxDepth,size:s.fxSize==null?1.32:s.fxSize,spread:s.fxSpread==null?1:s.fxSpread,radius:s.fxRadius==null?300:s.fxRadius,zoom:s.fxZoom==null?1.16:s.fxZoom,light:s.fxLight==null?1:s.fxLight};window.applyFieldFx();}window.__fxFmt=function(k,v){v=+v;return k==="fxTilt"?(Math.round(v)+"°"):(k==="fxRadius"||k==="fxPersp")?(Math.round(v)+"px"):(Math.round(v*100)+"%");};window.fieldFxSet=function(k,v,save){o.settings||(o.settings={});o.settings[k]=parseFloat(v);__pushFieldFx();var el=document.getElementById(k+"_val");el&&(el.textContent=window.__fxFmt(k,o.settings[k]));if(save)try{I()}catch(e){}};window.fieldFxReset=function(){o.settings||(o.settings={});["fxTilt","fxPersp","fxDepth","fxSize","fxSpread","fxRadius","fxZoom","fxLight"].forEach(function(k){delete o.settings[k]});try{I()}catch(e){}__pushFieldFx();o.view==="settings"&&Fi();};__pushFieldFx();window.declareAdvance=Vl;window.declareFromHub=Ar;window.chooseTier=Gi;window.setStatsTab=Sr;window.setLeadPos=Mr;window.setLeadSort=xr;window.setChaos=ir;window.chaosMaxAll=or;window.buyMastery=nr;window.screenDynasty=Ra;window.bigMoment=ye;window.equipGear=zr;window.scrapGear=Qr;window.screenHof=Bi;window.screenLocker=ts;mc();function la(e){return e?(Array.isArray(e.decisionQueue)||(e.decisionQueue=[]),Array.isArray(e.careerArcs)||(e.careerArcs=[]),e.worldState||(e.worldState={coachEra:0,teamChemistry:50,programMomentum:50,mediaHeat:20}),e.tempEffects||(e.tempEffects={}),e.schoolRep==null&&(e.schoolRep=0),e.decisionCount==null&&(e.decisionCount=0),e):null}function co(e){la(e),Object.keys(e.tempEffects).forEach(t=>{const a=e.tempEffects[t];a&&typeof a=="object"&&a.games!=null&&(a.games--,a.games<=0&&delete e.tempEffects[t])})}function Vn(e,t){let a=0;return Object.values(e&&e.tempEffects||{}).forEach(s=>{s&&s.fx&&s.fx[t]&&(a+=s.fx[t])}),a}const pc=[{id:"film",title:"The Film Room Is Waiting",copy:"Coaches found several correctable mistakes. How do you spend the night?",choices:[{n:"Stay Late With Coaches",d:"Build trust and awareness, but fatigue may follow.",risk:"Reliable · mild fatigue risk",good:.78,win:{trust:5,mental:1,arc:"Film-room regular"},lose:{trust:1,injuryRisk:.08,nextPerf:-4}},{n:"Study Alone",d:"Smaller trust gain, stronger personal development.",risk:"Safe · steady growth",good:.9,win:{mental:1,rep:1},lose:{nextPerf:-2}},{n:"Clear Your Head",d:"Prioritize recovery and confidence instead.",risk:"High variance",good:.58,win:{recovery:1,nextPerf:7,hype:2},lose:{trust:-4,media:5}}]},{id:"practice",title:"A Starting Spot Is Within Reach",copy:"The staff opens a competitive practice after your latest performance.",choices:[{n:"Challenge the Player Ahead of You",d:"A direct depth-chart battle with major upside.",risk:"Risky · role-changing",good:.52,win:{trust:8,depth:10,hype:4,arc:"Won a depth-chart duel"},lose:{trust:-5,injuryRisk:.16,nextPerf:-5}},{n:"Master Your Current Role",d:"Bank trust through consistency.",risk:"Safe · lower ceiling",good:.86,win:{trust:4,depth:3,nextPerf:2},lose:{trust:-1}},{n:"Ask for Special Teams Snaps",d:"Earn extra opportunities with added injury exposure.",risk:"Moderate · more playing time",good:.68,win:{trust:6,snap:.1,rep:2},lose:{injuryRisk:.13,trust:-2}}]},{id:"media",title:"The Cameras Find You",copy:"A reporter asks about your role and the team after the game.",choices:[{n:"Praise the Team",d:"Low-risk leadership answer.",risk:"Safe · chemistry boost",good:.9,win:{trust:3,chem:7,hype:2},lose:{hype:-1}},{n:"Say You Deserve More Snaps",d:"Apply public pressure to the coaching staff.",risk:"Volatile · large snap upside",good:.46,win:{snap:.15,hype:9,arc:"Publicly demanded a larger role"},lose:{trust:-9,media:12,arc:"Clashed with the staff"}},{n:"Guarantee a Win",d:"Create a high-pressure storyline for next week.",risk:"Boom or bust",good:.5,win:{nextPerf:10,hype:8,pp:2},lose:{nextPerf:-7,hype:-7,media:10}}]},{id:"recovery",title:"Your Body Needs Attention",copy:"The medical staff offers three very different plans.",choices:[{n:"Full Recovery Protocol",d:"Protect health but sacrifice some preparation.",risk:"Safe · performance cost",good:.94,win:{recovery:2,injuryRisk:-.18,nextPerf:-2},lose:{nextPerf:-4}},{n:"Play Through It",d:"Keep momentum but increase injury risk.",risk:"Dangerous · performance upside",good:.57,win:{nextPerf:9,hype:4},lose:{injuryRisk:.28,physical:-1}},{n:"Experimental Treatment",d:"Could accelerate recovery or create a setback.",risk:"Very high variance",good:.43,win:{recovery:3,physical:1,nextPerf:5},lose:{injuryRisk:.35,nextPerf:-9}}]},{id:"team",title:"The Locker Room Is Splitting",copy:"Two groups of teammates are at odds. Your response may define your leadership reputation.",choices:[{n:"Mediate the Conflict",d:"Use leadership to repair chemistry.",risk:"Moderate · leadership roll",good:.66,win:{chem:14,trust:5,rep:3,arc:"Locker-room leader"},lose:{chem:-6,trust:-2}},{n:"Back the Veterans",d:"Gain veteran support but risk alienating younger players.",risk:"Political tradeoff",good:.65,win:{trust:4,nextPerf:5,chem:3},lose:{chem:-9,hype:-3}},{n:"Stay Out of It",d:"Avoid immediate risk while the conflict grows.",risk:"Safe now · future cost",good:.82,win:{recovery:1},lose:{chem:-10,media:5}}]},{id:"opportunity",title:"A Bigger Program Calls",copy:"A stronger team offers exposure and facilities, but your depth-chart standing would reset.",choices:[{n:"Take the Opportunity",d:"Higher program momentum; lose immediate role security.",risk:"Long-term upside",good:.62,win:{momentum:15,rep:5,depth:-8,arc:"Bet on a bigger program"},lose:{depth:-15,trust:-5}},{n:"Stay Loyal",d:"Strengthen coach trust and local reputation.",risk:"Reliable",good:.9,win:{trust:7,rep:4,chem:5,arc:"Chose loyalty"},lose:{momentum:-3}},{n:"Use the Offer as Leverage",d:"Try to secure promises without leaving.",risk:"High social risk",good:.45,win:{trust:4,snap:.12,hype:6},lose:{trust:-10,depth:-5,media:8}}]}];function vc(e,t){la(e);const a=pc.filter(n=>!(e.level<4&&n.id==="opportunity")),s=a[Math.floor(Math.random()*a.length)];return{uid:Date.now()+"-"+Math.random(),id:s.id,title:s.title,copy:s.copy,choices:s.choices,week:t&&t.week||e.currentWeek,opp:t&&t.opp||"",perf:Number(t&&t.perf)||50}}function yc(e,t){la(e),e.decisionQueue.push(vc(e,t)),I()}function gc(){const e=o.player;la(e);const t=e.decisionQueue[0];return t?`<div class="decision-overlay"><div class="decision-panel"><div class="decision-kicker">POST-GAME DECISION · ${t.opp?S(t.opp):"CAREER CROSSROADS"}</div><div class="decision-title">${S(t.title)}</div><div class="decision-copy">${S(t.copy)} Your previous game rating was <b>${Math.round(t.perf)}</b>.</div>${t.choices.map((a,s)=>`<button class="decision-choice" onclick="resolveDecision102(${s})"><b>${S(a.n)}</b><small>${S(a.d)}</small><span class="decision-risk">${S(a.risk)} · ${Math.round(f(a.good,0,1)*100)}% base success</span></button>`).join("")}</div></div>`:""}function bc(e){la(e);const t=e.worldState,a=e.careerArcs.slice(0,4);return`<div class="card world-card"><div class="eyebrow">LIVING FOOTBALL WORLD</div><div class="h2" style="margin:2px 0 7px">Your Career Has Consequences</div><div class="depth-grid"><div class="depth-cell"><div class="n">${Math.round(t.teamChemistry)}</div><div class="l">Chemistry</div></div><div class="depth-cell"><div class="n">${Math.round(t.programMomentum)}</div><div class="l">Program</div></div><div class="depth-cell"><div class="n">${Math.round(t.mediaHeat)}</div><div class="l">Media Heat</div></div></div>${a.length?`<div style="margin-top:8px">${a.map(s=>`<span class="arc-chip ${s.tone||""}">${S(s.text)}</span>`).join("")}</div>`:'<div class="small" style="margin-top:8px">Major decisions will create permanent story arcs here.</div>'}</div>`}const uo=He;He=function(e,t){const a=!!(e&&e._pulse95);uo(e,t),e&&!a&&co(t)};const kc=q;q=function(){kc();const e=o.player,t=x("screen");!e||!t||(la(e),o.view==="hub"&&!t.querySelector(".world-card")&&(t.querySelector(".depth-card")||t.firstElementChild).insertAdjacentHTML("afterend",bc(e)),e.decisionQueue.length&&!document.querySelector(".decision-overlay")&&document.body.insertAdjacentHTML("beforeend",gc()))};wt=function(){F("Major decisions must be made after every game. Play games individually.")};const wc=et;et=function(e,t,a){const r=wc(e,(t||0),a),l=Vn(e,"injuryRisk");return l>0&&!r.injured&&Math.random()<l&&(r.injured=!0),l<0&&r.injured&&Math.random()<Math.min(.8,Math.abs(l)*2)&&(r.injured=!1),r};const yt=[{id:"disciplined",icon:"📋",name:"Disciplined Execution",desc:"Reduce volatility, protect the ball, and build composure.",perf:2,varMult:.55,inj:-.05,snap:0,trust:1,comp:3,mom:1,tags:["LOW VARIANCE","SAFE"]},{id:"feature",icon:"🎯",name:"Demand the Spotlight",desc:"Ask the staff to feature you. More snaps and upside, but mistakes are magnified.",perf:5,varMult:1.28,inj:.05,snap:.1,trust:0,comp:-1,mom:2,tags:["MORE SNAPS","VOLATILE"]},{id:"explosive",icon:"⚡",name:"Chase the Highlight",desc:"Hunt explosive plays. Huge ceiling, higher injury and turnover risk.",perf:7,varMult:1.72,inj:.12,snap:.04,trust:-1,comp:-2,mom:4,tags:["BOOM/BUST","INJURY RISK"]},{id:"team",icon:"🛡️",name:"Do the Dirty Work",desc:"Block, cover, and execute assignments. Lower box-score ceiling, strong trust gains.",perf:-1,varMult:.8,inj:.01,snap:.06,trust:3,comp:2,mom:1,tags:["COACH TRUST","ROLE GROWTH"]},
+window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;window.startSeason=Br;window.alloc=Nl;window.doneUpgrade=Fl;window.autoAllocKey=jl;window.autoAllocSpread=Il;window.endCareer=fn;window.prestigeReset=Hl;window.buy=Yl;window.shopBack=ys;window.continueNFL=Gl;window.chooseTraining=Ir;window.chooseEvent=Fr;window.setBranch=Wl;window.watchLive=il;window.quickSimSeason=El;window.startSeasonGames=La;window.playWeek=lt;window.simRemainingWeeks=wt;window.finishSeasonGames=fs;window.finishWeekGame=Ea;window.setSpeed=ml;window.skipLive=pl;window.setRosterTab=rl;window.respecTree=ql;window.choosePath=oo;window.exportSave=Rr;window.importSave=Pr;window.hardReset=Cr;window.toggleSetting=ar;window.applyFieldFx=function(){var el=document.querySelector("#field");if(el){el.style.transform="";}try{var sc=window.__gridironScene;sc&&sc.refreshPersp&&sc.refreshPersp();}catch(e){}};function __pushFieldFx(){var s=(typeof o!=="undefined"&&o&&o.settings)||{};window.__FIELD_FX={tilt:0,depth:s.fxDepth==null?0.78:s.fxDepth,size:s.fxSize==null?1.32:s.fxSize,spread:s.fxSpread==null?1:s.fxSpread,radius:s.fxRadius==null?300:s.fxRadius,zoom:s.fxZoom==null?1.16:s.fxZoom,light:s.fxLight==null?1:s.fxLight,cam:s.fxCam==null?0:s.fxCam,camZoom:s.fxCamZoom==null?1:s.fxCamZoom};window.applyFieldFx();}window.__fxFmt=function(k,v){v=+v;return k==="fxTilt"?(Math.round(v)+"°"):(k==="fxRadius"||k==="fxPersp")?(Math.round(v)+"px"):(Math.round(v*100)+"%");};window.fieldFxSet=function(k,v,save){o.settings||(o.settings={});o.settings[k]=parseFloat(v);__pushFieldFx();var el=document.getElementById(k+"_val");el&&(el.textContent=window.__fxFmt(k,o.settings[k]));if(save)try{I()}catch(e){}};/* ===== v112 THE CAMERA HAS OPTIONS (the panel) — the picked behaviour is live before the panel closes ===== */
+window.camModeSet112=function(i){o.settings||(o.settings={});var L=window.__CAM_MODES_V112||[];o.settings.fxCam=Math.max(0,Math.min(L.length?L.length-1:3,i|0));__pushFieldFx();try{I()}catch(e){}var v=document.getElementById("fxCam_val"),d=document.getElementById("fxCam_desc");v&&(v.textContent=(L[o.settings.fxCam]||{}).n||"");d&&(d.textContent=(L[o.settings.fxCam]||{}).d||"");[].forEach.call(document.querySelectorAll(".camopt112"),function(b,j){b.className="btn camopt112 "+(j===o.settings.fxCam?"secondary":"ghost")});};window.fieldFxReset=function(){o.settings||(o.settings={});["fxTilt","fxPersp","fxDepth","fxSize","fxSpread","fxRadius","fxZoom","fxLight","fxCam","fxCamZoom"].forEach(function(k){delete o.settings[k]});try{I()}catch(e){}__pushFieldFx();o.view==="settings"&&Fi();};__pushFieldFx();window.declareAdvance=Vl;window.declareFromHub=Ar;window.chooseTier=Gi;window.setStatsTab=Sr;window.setLeadPos=Mr;window.setLeadSort=xr;window.setChaos=ir;window.chaosMaxAll=or;window.buyMastery=nr;window.screenDynasty=Ra;window.bigMoment=ye;window.equipGear=zr;window.scrapGear=Qr;window.screenHof=Bi;window.screenLocker=ts;mc();__pushFieldFx();function la(e){return e?(Array.isArray(e.decisionQueue)||(e.decisionQueue=[]),Array.isArray(e.careerArcs)||(e.careerArcs=[]),e.worldState||(e.worldState={coachEra:0,teamChemistry:50,programMomentum:50,mediaHeat:20}),e.tempEffects||(e.tempEffects={}),e.schoolRep==null&&(e.schoolRep=0),e.decisionCount==null&&(e.decisionCount=0),e):null}function co(e){la(e),Object.keys(e.tempEffects).forEach(t=>{const a=e.tempEffects[t];a&&typeof a=="object"&&a.games!=null&&(a.games--,a.games<=0&&delete e.tempEffects[t])})}function Vn(e,t){let a=0;return Object.values(e&&e.tempEffects||{}).forEach(s=>{s&&s.fx&&s.fx[t]&&(a+=s.fx[t])}),a}const pc=[{id:"film",title:"The Film Room Is Waiting",copy:"Coaches found several correctable mistakes. How do you spend the night?",choices:[{n:"Stay Late With Coaches",d:"Build trust and awareness, but fatigue may follow.",risk:"Reliable · mild fatigue risk",good:.78,win:{trust:5,mental:1,arc:"Film-room regular"},lose:{trust:1,injuryRisk:.08,nextPerf:-4}},{n:"Study Alone",d:"Smaller trust gain, stronger personal development.",risk:"Safe · steady growth",good:.9,win:{mental:1,rep:1},lose:{nextPerf:-2}},{n:"Clear Your Head",d:"Prioritize recovery and confidence instead.",risk:"High variance",good:.58,win:{recovery:1,nextPerf:7,hype:2},lose:{trust:-4,media:5}}]},{id:"practice",title:"A Starting Spot Is Within Reach",copy:"The staff opens a competitive practice after your latest performance.",choices:[{n:"Challenge the Player Ahead of You",d:"A direct depth-chart battle with major upside.",risk:"Risky · role-changing",good:.52,win:{trust:8,depth:10,hype:4,arc:"Won a depth-chart duel"},lose:{trust:-5,injuryRisk:.16,nextPerf:-5}},{n:"Master Your Current Role",d:"Bank trust through consistency.",risk:"Safe · lower ceiling",good:.86,win:{trust:4,depth:3,nextPerf:2},lose:{trust:-1}},{n:"Ask for Special Teams Snaps",d:"Earn extra opportunities with added injury exposure.",risk:"Moderate · more playing time",good:.68,win:{trust:6,snap:.1,rep:2},lose:{injuryRisk:.13,trust:-2}}]},{id:"media",title:"The Cameras Find You",copy:"A reporter asks about your role and the team after the game.",choices:[{n:"Praise the Team",d:"Low-risk leadership answer.",risk:"Safe · chemistry boost",good:.9,win:{trust:3,chem:7,hype:2},lose:{hype:-1}},{n:"Say You Deserve More Snaps",d:"Apply public pressure to the coaching staff.",risk:"Volatile · large snap upside",good:.46,win:{snap:.15,hype:9,arc:"Publicly demanded a larger role"},lose:{trust:-9,media:12,arc:"Clashed with the staff"}},{n:"Guarantee a Win",d:"Create a high-pressure storyline for next week.",risk:"Boom or bust",good:.5,win:{nextPerf:10,hype:8,pp:2},lose:{nextPerf:-7,hype:-7,media:10}}]},{id:"recovery",title:"Your Body Needs Attention",copy:"The medical staff offers three very different plans.",choices:[{n:"Full Recovery Protocol",d:"Protect health but sacrifice some preparation.",risk:"Safe · performance cost",good:.94,win:{recovery:2,injuryRisk:-.18,nextPerf:-2},lose:{nextPerf:-4}},{n:"Play Through It",d:"Keep momentum but increase injury risk.",risk:"Dangerous · performance upside",good:.57,win:{nextPerf:9,hype:4},lose:{injuryRisk:.28,physical:-1}},{n:"Experimental Treatment",d:"Could accelerate recovery or create a setback.",risk:"Very high variance",good:.43,win:{recovery:3,physical:1,nextPerf:5},lose:{injuryRisk:.35,nextPerf:-9}}]},{id:"team",title:"The Locker Room Is Splitting",copy:"Two groups of teammates are at odds. Your response may define your leadership reputation.",choices:[{n:"Mediate the Conflict",d:"Use leadership to repair chemistry.",risk:"Moderate · leadership roll",good:.66,win:{chem:14,trust:5,rep:3,arc:"Locker-room leader"},lose:{chem:-6,trust:-2}},{n:"Back the Veterans",d:"Gain veteran support but risk alienating younger players.",risk:"Political tradeoff",good:.65,win:{trust:4,nextPerf:5,chem:3},lose:{chem:-9,hype:-3}},{n:"Stay Out of It",d:"Avoid immediate risk while the conflict grows.",risk:"Safe now · future cost",good:.82,win:{recovery:1},lose:{chem:-10,media:5}}]},{id:"opportunity",title:"A Bigger Program Calls",copy:"A stronger team offers exposure and facilities, but your depth-chart standing would reset.",choices:[{n:"Take the Opportunity",d:"Higher program momentum; lose immediate role security.",risk:"Long-term upside",good:.62,win:{momentum:15,rep:5,depth:-8,arc:"Bet on a bigger program"},lose:{depth:-15,trust:-5}},{n:"Stay Loyal",d:"Strengthen coach trust and local reputation.",risk:"Reliable",good:.9,win:{trust:7,rep:4,chem:5,arc:"Chose loyalty"},lose:{momentum:-3}},{n:"Use the Offer as Leverage",d:"Try to secure promises without leaving.",risk:"High social risk",good:.45,win:{trust:4,snap:.12,hype:6},lose:{trust:-10,depth:-5,media:8}}]}];function vc(e,t){la(e);const a=pc.filter(n=>!(e.level<4&&n.id==="opportunity")),s=a[Math.floor(Math.random()*a.length)];return{uid:Date.now()+"-"+Math.random(),id:s.id,title:s.title,copy:s.copy,choices:s.choices,week:t&&t.week||e.currentWeek,opp:t&&t.opp||"",perf:Number(t&&t.perf)||50}}function yc(e,t){la(e),e.decisionQueue.push(vc(e,t)),I()}function gc(){const e=o.player;la(e);const t=e.decisionQueue[0];return t?`<div class="decision-overlay"><div class="decision-panel"><div class="decision-kicker">POST-GAME DECISION · ${t.opp?S(t.opp):"CAREER CROSSROADS"}</div><div class="decision-title">${S(t.title)}</div><div class="decision-copy">${S(t.copy)} Your previous game rating was <b>${Math.round(t.perf)}</b>.</div>${t.choices.map((a,s)=>`<button class="decision-choice" onclick="resolveDecision102(${s})"><b>${S(a.n)}</b><small>${S(a.d)}</small><span class="decision-risk">${S(a.risk)} · ${Math.round(f(a.good,0,1)*100)}% base success</span></button>`).join("")}</div></div>`:""}function bc(e){la(e);const t=e.worldState,a=e.careerArcs.slice(0,4);return`<div class="card world-card"><div class="eyebrow">LIVING FOOTBALL WORLD</div><div class="h2" style="margin:2px 0 7px">Your Career Has Consequences</div><div class="depth-grid"><div class="depth-cell"><div class="n">${Math.round(t.teamChemistry)}</div><div class="l">Chemistry</div></div><div class="depth-cell"><div class="n">${Math.round(t.programMomentum)}</div><div class="l">Program</div></div><div class="depth-cell"><div class="n">${Math.round(t.mediaHeat)}</div><div class="l">Media Heat</div></div></div>${a.length?`<div style="margin-top:8px">${a.map(s=>`<span class="arc-chip ${s.tone||""}">${S(s.text)}</span>`).join("")}</div>`:'<div class="small" style="margin-top:8px">Major decisions will create permanent story arcs here.</div>'}</div>`}const uo=He;He=function(e,t){const a=!!(e&&e._pulse95);uo(e,t),e&&!a&&co(t)};const kc=q;q=function(){kc();const e=o.player,t=x("screen");!e||!t||(la(e),o.view==="hub"&&!t.querySelector(".world-card")&&(t.querySelector(".depth-card")||t.firstElementChild).insertAdjacentHTML("afterend",bc(e)),e.decisionQueue.length&&!document.querySelector(".decision-overlay")&&document.body.insertAdjacentHTML("beforeend",gc()))};wt=function(){F("Major decisions must be made after every game. Play games individually.")};const wc=et;et=function(e,t,a){const r=wc(e,(t||0),a),l=Vn(e,"injuryRisk");return l>0&&!r.injured&&Math.random()<l&&(r.injured=!0),l<0&&r.injured&&Math.random()<Math.min(.8,Math.abs(l)*2)&&(r.injured=!1),r};const yt=[{id:"disciplined",icon:"📋",name:"Disciplined Execution",desc:"Reduce volatility, protect the ball, and build composure.",perf:2,varMult:.55,inj:-.05,snap:0,trust:1,comp:3,mom:1,tags:["LOW VARIANCE","SAFE"]},{id:"feature",icon:"🎯",name:"Demand the Spotlight",desc:"Ask the staff to feature you. More snaps and upside, but mistakes are magnified.",perf:5,varMult:1.28,inj:.05,snap:.1,trust:0,comp:-1,mom:2,tags:["MORE SNAPS","VOLATILE"]},{id:"explosive",icon:"⚡",name:"Chase the Highlight",desc:"Hunt explosive plays. Huge ceiling, higher injury and turnover risk.",perf:7,varMult:1.72,inj:.12,snap:.04,trust:-1,comp:-2,mom:4,tags:["BOOM/BUST","INJURY RISK"]},{id:"team",icon:"🛡️",name:"Do the Dirty Work",desc:"Block, cover, and execute assignments. Lower box-score ceiling, strong trust gains.",perf:-1,varMult:.8,inj:.01,snap:.06,trust:3,comp:2,mom:1,tags:["COACH TRUST","ROLE GROWTH"]},
 /* v18: five more prep paths — real buffs AND real costs, so the weekly scouting/prep choice matters */
 {id:"filmgrind",icon:"🎬",name:"Film Marathon",desc:"Bury yourself in tape. You will see the play before it happens — but the extra hours wear on the body.",perf:4,varMult:.7,inj:.02,snap:.02,trust:2,comp:2,mom:0,tags:["PREPARED","FATIGUE"]},
 {id:"recover",icon:"🛌",name:"Rest & Recover",desc:"A light week: treatment, sleep, and legs for Sunday. Heals fatigue and cuts injury risk, at the cost of sharpness.",perf:-2,varMult:.75,inj:-.12,snap:-.02,trust:0,comp:1,mom:-1,rest:1,tags:["HEALS BODY","−INJURY RISK"]},
