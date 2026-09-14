@@ -4577,25 +4577,42 @@ function buildPersp() {
   const FX = window.__FIELD_FX || {};
   const dp = Math.max(0, Math.min(0.9, FX.depth == null ? 0.78 : +FX.depth));   // v105: 78% by default — most of the field in the frame
   const R = Math.max(60, fieldRadius());
-  const AU = ANCHOR_U, kMax = PERSP_BACKMAX;
+  /* ===== v112 THE CAMERA STOPS CLOSING IN BEHIND THE BACKFIELD =====
+   * 1/q is only ~85 world px at the shipped depth, so the pinhole's own centre sits a few yards
+   * behind the anchor: s runs away there and PERSP_BACKMAX is what stops it. That cap is not a
+   * camera any more, it is a floor, and 1.2 was never chosen against the ART. At 1.2 the near
+   * band is laid out at 1.44x the row density and 1.2x the width of the anchor row, which draws
+   * a 360x700 painting of a field at ELEVEN times its own resolution — the stretched, mushed
+   * near edge, with the touchlines running dead parallel through it because a clamped s does
+   * not converge. Capping at 1.0 says the plain thing instead: past the backfield the camera
+   * stops closing in, and the ground behind it is drawn at the anchor's own scale. It takes a
+   * third out of the vertical blow-up and a sixth out of the horizontal one, at the only place
+   * it can honestly be taken from — these rows ARE the projection every sprite, stand and
+   * shadow is placed by, so turf and men move together or not at all.
+   * Nothing downfield of the anchor moves. VB, the row budget, is still measured against v28's
+   * own backdrop (mkC at PERSP_BACKMAX) so it cannot change branch; and past the clamp point
+   * both integrals lose exactly the same amount, so `total - C(u)` — the whole of a row's
+   * position — is unchanged. `nearCapV112` at PERSP_BACKMAX puts v28 back exactly. */
+  const AU = ANCHOR_U, kMax = Math.max(1, Math.min(PERSP_BACKMAX, TU("nearCapV112", 1)));
   const q = dp / ((1 - dp) * R);         // pinhole rate: s(AU + R) = 1 − dp, same dial meaning as v27
-  const s = (u) => Math.min(kMax, 1 / Math.max(1 / kMax, 1 + q * (u - AU)));
-  const C = (u) => {                     // ∫0..u s² dt (piecewise, closed-form)
+  const mkS = (km) => (u) => Math.min(km, 1 / Math.max(1 / km, 1 + q * (u - AU)));
+  const mkC = (km) => (u) => {           // ∫0..u s² dt (piecewise, closed-form)
     if (q <= 0) return u;
-    const uc = AU - (1 - 1 / kMax) / q;  // where the behind-anchor clamp engages
+    const uc = AU - (1 - 1 / km) / q;    // where the behind-anchor clamp engages
     let c = 0;
     const cl = Math.max(0, Math.min(u, uc));
-    if (cl > 0) c += kMax * kMax * cl;
+    if (cl > 0) c += km * km * cl;
     const lo = Math.max(0, uc);
     if (u > lo) { const G = (t) => -1 / (q * (1 + q * (t - AU))); c += G(u) - G(lo); }
     return c;
   };
+  const s = mkS(kMax), C = mkC(kMax);
   const sN = s(AU + PERSP_AB);           // normalizer: the LOS row keeps the pre-v27 baseline size
   const total = C(FW);
   // ideal row density keeps the LOS yard spacing of the flat view; cap it so the whole
   // projected field always fits inside the WORLD_H warp canvas
-  const VB = Math.min(2 * PERSP_OA / (sN * sN), (WORLD_H - NSTOP - 10) / Math.max(1, total));
-  PERSP = { s, C, total, sN, VB };
+  const VB = Math.min(2 * PERSP_OA / (sN * sN), (WORLD_H - NSTOP - 10) / Math.max(1, mkC(PERSP_BACKMAX)(FW)));
+  PERSP = { s, C, total, sN, VB, kMax };
 }
 function perspK(x) {
   // carrier-lock helper: the pure perspective ratio at sim-x (1 at the LOS row)
@@ -8930,6 +8947,7 @@ class Ot extends mt.Scene {
     }
     for (let i = n; i < C.secs.length; i++) { const s = C.secs[i]; try { s.spr.idle.setVisible(false); s.spr.cheer.setVisible(false); } catch (e) {} }
     C.built = n;
+    this.bowlTrimV112(built, HH);   // v112: the blue band round the foot of the bowl, and the way out of it
     try { ribRegisterLightsV92(this); this.buildStadiumV92(); } catch (e) {}   // v92: the sky behind the bowl
     try {
       window.__CROWD_V57 = { tier, sections: n, sec: SEC, tiles, decks, height: +HH.toFixed(1), gap: GAP, endGap: EZG,
@@ -8938,6 +8956,87 @@ class Ot extends mt.Scene {
         heat: () => (this.crowd ? this.crowd.secs.slice(0, this.crowd.built).map((s) => +s.heat.toFixed(3)) : []),
         boxes: () => (this.crowd ? this.crowd.secs.slice(0, this.crowd.built).map((s) => [Math.round(s.bx), Math.round(s.by), Math.round(s.bw), Math.round(s.bh)]) : []) };
     } catch (e) {}
+    return true;
+  }
+  /* ===== v112 THE FOOT OF THE BOWL, AND THE WAY OUT =====
+   * Two things a stand has that v57's terrace of people did not: a wall at the bottom of it,
+   * and a hole somewhere in that wall for the teams to come out of.
+   *
+   * Both are drawn off the SAME sample points the crowd sections are cut from — `pts[j].sx/sy`
+   * is the ground the stand stands on at that depth, `k` is the perspective there and `rk` is
+   * the rake v57 leans the terrace back by — so they ride the bowl's own projection rather
+   * than being a rectangle in screen space. The band's height is a fraction of the stand's
+   * drawn height at each point, which means it foreshortens with the stand instead of
+   * pinching at the far corner; round the bowl's sweep the ribbon simply follows the curve.
+   *
+   * THE WAY OUT sits in the FAR bowl, left of centre. The bowl is the only wall whose base is
+   * on camera at every anchoring the game produces (the sidelines run out of the bottom of the
+   * frame), and dead centre is behind the goalpost upright with the big screen's two legs
+   * coming down into it — so an opening there reads as a gap in the structure rather than as a
+   * tunnel. A third of the way along, it stands in clear terrace on the side the team area is
+   * on, which is where a team actually comes out. It is cut as an arch: the mouth's height is
+   * rolled off at both ends so the terrace closes over it, the base band breaks across it (a
+   * vomitory interrupts the wall, it does not sit on it), and it carries a lit lintel, so it
+   * reads as a mouth with something behind it and not as a bite out of the crowd. ===== */
+  bowlTrimV112(built, HH) {
+    const C = this.crowd; if (!C || !this.add) return false;
+    let g = C.trimG;
+    if (!g || !g.scene) g = C.trimG = this.add.graphics();
+    g.clear();
+    // just above both crowd poses (dep, dep+0.005): this is the wall in FRONT of the terrace
+    g.setDepth(TU("crowdDepth", 3.45) + 0.012).setVisible(true);
+    if (!TU("bowlTrimV112", 1)) { C.trim112 = null; return false; }
+    const RK = TU("crowdRake", 0.24), COL = TU("baseBandColV112", 0x1a4694);
+    const FR = Math.max(0.01, TU("baseBandFracV112", 0.068));          // of the stand's own height
+    const dbg = { band: [], ent: null, col: COL, frac: FR };
+    const top = (p) => { const h = HH * p.k * FR; return { x: p.sx + (p.rk == null ? 0 : p.rk) * RK * h, y: p.sy - h, h }; };
+    for (const B of built) {
+      const P = B.pts; if (!P || P.length < 2) continue;
+      const foot = [], cap = [];
+      for (const p of P) { foot.push({ x: p.sx, y: p.sy }); cap.push(top(p)); }
+      g.fillStyle(COL, TU("baseBandAV112", 0.92));
+      g.fillPoints(foot.concat(cap.slice().reverse()), true);
+      // a paler lip along the top of the band — a painted wall has an edge, and it is what
+      // stops the terrace above it from looking like it is standing in the grass
+      g.lineStyle(Math.max(1, TU("baseBandLipPx", 1.6) * (P[P.length >> 1].k / 0.43)), TU("baseBandLipCol", 0x6f9be6), TU("baseBandLipA", 0.85));
+      g.strokePoints(cap, false);
+      const m = P[P.length >> 1];
+      dbg.band.push({ kind: B.wall.kind, n: P.length, k: +m.k.toFixed(3), h: +(HH * m.k * FR).toFixed(1),
+        mid: [Math.round(m.sx), Math.round(m.sy)], midTop: [Math.round(top(m).x), Math.round(top(m).y)] });
+    }
+    // ---- the way out
+    const B = built.find((b) => b.wall && b.wall.kind === "bowl");
+    if (B && TU("entranceV112", 1) && B.pts.length > 8) {
+      const P = B.pts, N = P.length - 1;
+      const at = Math.max(0.08, Math.min(0.92, TU("tunnelAtV112", 0.34))), wd = Math.max(0.03, TU("tunnelWideV112", 0.1));
+      const i0 = Math.max(0, Math.round((at - wd / 2) * N)), i1 = Math.min(N, Math.round((at + wd / 2) * N));
+      const seg = P.slice(i0, i1 + 1);
+      if (seg.length >= 3) {
+        const HF = Math.max(0.05, TU("tunnelHighV112", 0.3)), M = seg.length - 1;
+        // the arch: full height across the middle, rolled off at both jambs so the terrace
+        // closes over the opening instead of the wall simply stopping
+        const hAt = (j) => HH * seg[j].k * HF * Math.pow(Math.sin(Math.PI * (j / M)), 0.34);
+        const mouth = [], arch = [];
+        for (let j = 0; j <= M; j++) { const p = seg[j], h = hAt(j);
+          mouth.push({ x: p.sx, y: p.sy }); arch.push({ x: p.sx + (p.rk == null ? 0 : p.rk) * RK * h, y: p.sy - h }); }
+        const poly = mouth.concat(arch.slice().reverse());
+        g.fillStyle(TU("tunnelDarkV112", 0x06080c), 1); g.fillPoints(poly, true);
+        // something behind it: the tunnel's own lights, a warm line run along the underside of
+        // the lintel across the middle of the mouth, faint enough never to compete with the field
+        const mid = arch[M >> 1], base = mouth[M >> 1];
+        const j0 = Math.max(1, Math.round(M * 0.2)), j1 = Math.min(M - 1, Math.round(M * 0.8));
+        const lint = arch.slice(j0, j1 + 1).map((p) => ({ x: p.x, y: p.y + (base.y - mid.y) * TU("tunnelLintelDrop", 0.16) }));
+        if (lint.length > 1) { g.lineStyle(Math.max(1, TU("tunnelLintelPx", 1.4) * (seg[M >> 1].k / 0.43)), TU("tunnelGlowV112", 0xffd79a), TU("tunnelGlowA", 0.5));
+          g.strokePoints(lint, false); }
+        // the frame, in the trim the wall it interrupts is painted in
+        g.lineStyle(Math.max(1, TU("tunnelFramePx", 2) * (seg[M >> 1].k / 0.43)), TU("baseBandLipCol", 0x6f9be6), 0.95);
+        g.strokePoints(arch, false);
+        dbg.ent = { i0, i1, n: seg.length, k: +seg[M >> 1].k.toFixed(3),
+          h: +(mid.y - base.y).toFixed(1), w: +Math.hypot(mouth[M].x - mouth[0].x, mouth[M].y - mouth[0].y).toFixed(1),
+          mouth: mouth.map((p) => [Math.round(p.x), Math.round(p.y)]), arch: arch.map((p) => [Math.round(p.x), Math.round(p.y)]) };
+      }
+    }
+    C.trim112 = dbg;
     return true;
   }
   crowdSection(idx, sgn, rakeSgn, pts, strips, stripW, CELL_H, HH) {
@@ -9347,21 +9446,39 @@ class Ot extends mt.Scene {
       // above the far end line (inside the bowl's band at every anchoring the game
       // produces, so the stand still hides them), at a fixed scale; only when the bowl
       // rises above that row do they follow it up, so a foot never shows on the grass.
-      const KS0 = TU("lightKS", 1.07), H = TU("lightH", 240) * KS0, xs = [0.02, 0.2, 0.8, 0.98].map((f) => FW * f);
-      const footY = Math.min(NSTOP - TU("lightFootUp", 40), bot - TU("lightSink", 4) * KS);
+      /* ===== v112 THE LIGHTS SIT LOWER, SMALLER, AND FACE THE OTHER WAY =====
+       * Three dials on the same four masts, each one its own number so any of them can be
+       * put back on its own. `lightScaleV112` is how much of the v98 mast is drawn (0.5 =
+       * half); `lightDropV112` walks the whole rig DOWN the screen from the row v98 planted
+       * it on, so the fixtures tuck into the top of the bowl instead of filling the sky; and
+       * `lightFlipV112` takes the OTHER drawn face off the sheet, so a mast's lamp bank hangs
+       * on the opposite side of its own pole. The drop is added AFTER v98's min(), not inside
+       * it, so the foot row is exactly as stable between snaps as it was — v99's key light
+       * reads that row, and a key light that hops is a shadow that swims.
+       * Everything the lamps do follows by construction: `lightRigV98` derives the head, the
+       * bloom and the beam from `displayHeight`/`_bx`/`_by`, so halving the mast halves the
+       * glow and shortens the beam without a second dial. The POOL is deliberately not
+       * halved — the pool is the light on the grass, not the fixture — and rides
+       * `lightPoolKV112` if it ever should be. ===== */
+      const LSC = Math.max(0.15, TU("lightScaleV112", 0.5));                            // v112: half the drawn mast
+      const KS0 = TU("lightKS", 1.07), H = TU("lightH", 240) * KS0 * LSC, xs = [0.02, 0.2, 0.8, 0.98].map((f) => FW * f);
+      const footY = Math.min(NSTOP - TU("lightFootUp", 40), bot - TU("lightSink", 4) * KS) + TU("lightDropV112", 44);
+      const flip = !!TU("lightFlipV112", 1);                                            // v112: the mirrored fixture
       const hasArt = !!(RIB.lightsImg && this.textures.exists("rib_lights_v92"));
       ST.lights = ST.lights || [];
       xs.forEach((x, i) => {
         let tw = ST.towers[i];
         if (hasArt && (!tw || !tw.scene)) { tw = ST.towers[i] = this.add.image(0, 0, "rib_lights_v92", 0).setOrigin(0.5, 1); tw._phase = i * 1.7; }
         if (!tw || !tw.scene) return;
-        const face = x < FW / 2 ? RIB_META_V92.faces.right : RIB_META_V92.faces.left;   // heads turned in toward the field
+        const inward = x < FW / 2, side = flip ? !inward : inward;                       // v112: which way the fixture hangs
+        const face = side ? RIB_META_V92.faces.right : RIB_META_V92.faces.left;   // heads turned in toward the field
         tw._face = face; tw.setFrame(face * RIB_META_V92.frames);
         tw._bx = x; tw._by = footY; tw._sway = [0, 1, 0, 0.7][i] || 0;                 // v98: two of the four masts move in the wind
         tw.setPosition(x, footY).setScale(H / RIB_META_V92.cell[1]).setDepth(depT).setVisible(true);
         { const lm = this.lightMulV100(), g = Math.max(0, Math.min(255, Math.round(255 * Math.min(1, 0.28 + 0.72 * lm))));   // v100: dark masts when the lights are down
           tw.setTint((g << 16) | (g << 8) | g); }
-        this.lightRigV98(i, tw, x < FW / 2 ? 1 : -1, depT);
+        tw._poolK = TU("lightPoolKV112", 1);        // v112: the pool is the light, not the fixture — it does not halve
+        this.lightRigV98(i, tw, side ? 1 : -1, depT);
       });
       this.buildMirrorMastsV102(depT, KS0, H, hasArt);   // v102: the same masts at the near end and along the touchlines
       // ---- the screen: a bezel above the bowl's top edge on two legs, the feed inside it
@@ -9390,6 +9507,31 @@ class Ot extends mt.Scene {
         (ST.lights || []).flatMap((L) => L ? [L.glow, L.beam].filter((o) => o && o.scene) : []))); } catch (e) {}
       if (ST.still && ST.still.scene) ST.still.setPosition(ST.rect.x + ST.rect.w / 2, ST.rect.y + ST.rect.h / 2).setDisplaySize(ST.rect.w, ST.rect.h).setDepth(depS + 0.01);
       this.stadiumModeV92(ST.mode === "replay" && ST.still && ST.still.scene ? "replay" : "live");
+      /* v112: one hook for the stadium pass — the masts' size/row/face, the lamps, the bowl's
+       * band and its entrance, the stars in the sky, and the near rows of the warped turf. */
+      try { window.__V112_B = () => {
+        const T = (ST.towers || []).filter((t) => t && t.scene);
+        const M = window.__FIELDMAP_V72 || null;
+        const near = (() => { if (!M) return null; const rows = [];
+          for (const u of [0, 20, 60, 120, 240, 400, 600, 700]) { const p = M.pj(u, (F_TOP + F_BOT) / 2); rows.push({ u, y: +p.y.toFixed(1), art: +M.artY(u).toFixed(2), k: +p.s.toFixed(4) }); }
+          const px = (a, b) => { const A = M.pj(a, 220), B2 = M.pj(b, 220); return +(Math.abs(B2.y - A.y) / Math.max(1e-6, Math.abs(M.artY(b) - M.artY(a)))).toFixed(3) };
+          return { rows, pxPerArtRow: { near: px(2, 30), mid: px(330, 390), far: px(690, 716) } }; })();
+        return {
+          masts: T.map((t, i) => ({ i, x: Math.round(t.x), bx: Math.round(t._bx), by: Math.round(t._by), h: Math.round(t.displayHeight), w: Math.round(t.displayWidth),
+            top: Math.round(t._by - t.displayHeight), face: t._face, flipped: t._face !== (t._bx < FW / 2 ? RIB_META_V92.faces.right : RIB_META_V92.faces.left),
+            drawn: !!t.visible, bleeds: this.onTurfV103(t.getBounds()) })),
+          dials: { scale: TU("lightScaleV112", 0.5), drop: TU("lightDropV112", 44), flip: TU("lightFlipV112", 1), baseRow: Math.round(Math.min(NSTOP - TU("lightFootUp", 40), ST.bot - TU("lightSink", 4) * (ST.k / 0.43))) },
+          key: (() => { const K = this.keyLightV99(); return { x: Math.round(K.x), y: Math.round(K.y), i: K.i, on: K.on }; })(),
+          rigs: (ST.lights || []).filter((L) => L && L.glow && L.glow.scene).map((L) => ({
+            glow: { x: Math.round(L.glow.x), y: Math.round(L.glow.y), w: Math.round(L.glow.displayWidth), on: !!L.glow.visible },
+            beam: { len: Math.round(L.beam.displayHeight), rot: +L.beam.rotation.toFixed(3) },
+            pool: { x: Math.round(L.pool.x), y: Math.round(L.pool.y), w: Math.round(L.pool.displayWidth), h: Math.round(L.pool.displayHeight) } })),
+          turf: this.turfRowsV103().map((r) => ({ y: Math.round(r.y), x0: Math.round(r.x0), x1: Math.round(r.x1) })),
+          bowl: { top: Math.round(ST.top), bot: Math.round(ST.bot), k: +ST.k.toFixed(3) },
+          trim: (this.crowd && this.crowd.trim112) || null,
+          stars: this._starsV112 || null,
+          nstop: NSTOP, worldH: WORLD_H, backMax: TU("nearCapV112", PERSP_BACKMAX), depth: (window.__FIELD_FX || {}).depth,
+          field: near }; }; } catch (e) {}
       try { window.__V99 = { key: () => this.keyLightV99(), posts: () => this._postShadDbgV99 || null,
         cast: (x, y) => { const V = this.shadowVecV99(x, y); return { ux: +V.ux.toFixed(3), uy: +V.uy.toFixed(3), slope: +V.slope.toFixed(3), reach: +V.reach.toFixed(3) }; },
         man: (i) => { const m = this.markers[i]; if (!m || !m.shadow) return null; const sh = m.shadow;
@@ -9878,6 +10020,7 @@ class Ot extends mt.Scene {
     const C = this.crowd; if (!C) return;
     if (C.voices) { for (const v of C.voices) { try { v.box.destroy() } catch (e) {} } C.voices.length = 0; }
     if (C.emojis) { for (const v of C.emojis) { try { v.tx.destroy() } catch (e) {} } C.emojis.length = 0; }
+    if (C.trimG) { try { C.trimG.destroy() } catch (e) {} C.trimG = null; }   // v112: the bowl's band and its entrance
     for (const s of C.secs) for (const pose of ["idle", "cheer"]) {
       try { s.spr[pose].destroy(); } catch (e) {}
       try { this.textures.remove("crowd_" + C.secs.indexOf(s) + "_" + pose); } catch (e) {}
@@ -10753,6 +10896,7 @@ class Ot extends mt.Scene {
       const sky = ctx.createLinearGradient(0, 0, 0, NSTOP);
       sky.addColorStop(0, "#010204"); sky.addColorStop(1, "#080b10");   // v98: darker still, so the lamps have something to glow against
       ctx.fillStyle = sky; ctx.fillRect(0, 0, CW, NSTOP + 1);
+      this.starsV112(ctx, CW, NSTOP);   // v112: and the sky has stars in it
       const SWa = fimg.width, SHa = fimg.height;         // 360x700 art
       for (let i = 0; i < CH; i++) {
         const target = (i - NSTOP) / P.VB;               // = total − C(u) at this row
@@ -10799,6 +10943,49 @@ class Ot extends mt.Scene {
       else this.textures.addCanvas("rib_field_warp", this._warpCv);
       if (this.fieldSpr) this.fieldSpr.setTexture("rib_field_warp").setPosition(FW / 2, CH / 2).setScale(1).setVisible(true);
     } catch (e) { console.warn("[v27 warpField]", e); }
+  }
+  /* ===== v112 THE SKY HAS STARS =====
+   * v98 painted the band above the far end line as a near-black gradient "so the lamps have
+   * something to glow against" and left it at that, which is a sky with nothing in it. This
+   * puts a sky there. Three things keep it from turning into noise:
+   *   - it is BAKED INTO THE WARP CANVAS, at depth 0.6, so the bowl (3.45), the masts (3.2)
+   *     and the big screen (3.30) all draw over it. A star is never on a spectator's face;
+   *   - the field is re-warped at every snap, so the pattern is rolled from ONE FIXED SEED.
+   *     A re-rolled sky would flicker like television static between plays;
+   *   - there is no day setting in this game — v98 made it a night game and the only dial
+   *     above it is v100's lighting intensity — so the stadium's own rig is what washes them
+   *     out: crank the lights and the sky goes flat, take them down and the field is under a
+   *     full one. They also fade as they come down to the stand's skyline, which is where
+   *     the bowl's own glow is.
+   * Still, not twinkling: the bake is per snap, not per frame, so nothing here costs a frame. */
+  starsV112(ctx, CW, HT) {
+    if (!TU("starsV112", 1)) return;
+    const N = Math.round(TU("starCountV112", 190));
+    if (N <= 0 || HT < 20) return;
+    const wash = Math.max(0, Math.min(1, (TU("starWashAt", 1.8) - this.lightMulV100()) / Math.max(0.05, TU("starWashSpan", 1.25))));
+    if (wash <= 0.02) { this._starsV112 = { n: 0, wash: +wash.toFixed(3) }; return; }
+    // the band they live in. The camera sits low: at an ordinary anchoring only the strip of
+    // sky just above the bowl's skyline is on screen, so that strip is where the sky has to
+    // be — a field of stars packed into the top of the canvas would be a sky nobody ever sees.
+    const top = HT * TU("starTopFrac", 0.12), bot = HT * TU("starFloorFrac", 0.84);
+    let sd = 0x1120b112 >>> 0;                       // the one fixed seed
+    const rnd = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296);
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    let n = 0, maxA = 0;
+    for (let i = 0; i < N; i++) {
+      const x = rnd() * CW, f = rnd(), y = top + f * (bot - top);
+      const r = TU("starRMin", 0.5) + rnd() * TU("starRSpan", 1.0);
+      const a = TU("starAlphaV112", 0.8) * wash * (0.55 + 0.45 * (1 - f)) * (0.4 + 0.6 * rnd());
+      const c = rnd() < 0.17 ? "186,206,255" : rnd() < 0.2 ? "255,234,202" : "228,236,250";
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r * 3);
+      g.addColorStop(0, "rgba(" + c + "," + a.toFixed(3) + ")");
+      g.addColorStop(0.34, "rgba(" + c + "," + (a * 0.4).toFixed(3) + ")");
+      g.addColorStop(1, "rgba(" + c + ",0)");
+      ctx.fillStyle = g; ctx.fillRect(x - r * 3, y - r * 3, r * 6, r * 6);
+      n++; maxA = Math.max(maxA, a);
+    }
+    ctx.restore();
+    this._starsV112 = { n, wash: +wash.toFixed(3), band: [Math.round(top), Math.round(bot)], maxA: +maxA.toFixed(3) };
   }
   /* ===== v98 UNDER THE LIGHTS — the field lighting =====
    * The turf used to be the art, flat from end line to end line. The stadium has four
