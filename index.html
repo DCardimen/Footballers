@@ -11678,10 +11678,11 @@ window.__BODY_V73={ledger:e=>bodyLedgerV73(e)};
  *     `_tempStatBuffsV25`-shaped entries with a `games` countdown, so `effAttrsV85` and every
  *     sheet show it with no new plumbing.
  *
- *     The number is a DELTA, not a ratchet: a game costs `wearBase x every multiplier` and every
- *     week pays `wearRecover` back. At "normal" against an average opponent in an ordinary week
- *     those cancel, which is the whole reason the defaults reproduce today exactly. Go heavy and
- *     it accumulates; go limited and it unwinds.
+ *     The number is a DELTA, not a ratchet: a game costs `wearBase x work x every multiplier`
+ *     and the week gives `wearRecover` back in the same units, so at "normal" the two cancel
+ *     and the ledger does not move. That is the whole reason the defaults reproduce today
+ *     exactly, and it puts the tradeoff where the player can see it — in the DIAL, not in the
+ *     schedule. Go heavy and it accumulates; go limited and it unwinds.
  *
  * (3) THE FOCUS. `focusForV111` is exactly three position-appropriate picks, each a 1.2x
  *     MULTIPLIER on one attribute for that game only. `_tempStatBuffsV25` entries were flat adds;
@@ -11745,11 +11746,11 @@ const wornMulV111=pl=>1+Math.max(0,loadOfV111(pl))/100*TU("wearCompound",.3)
 function costV111(pl,wk,work){const dur=durMulV111(pl),opp=oppMulV111(pl,wk),st=stakesV111(pl,wk),worn=wornMulV111(pl),
   M=dur*opp*st.mul*worn,dmg=TU("wearBase",12)*work*M,rec=TU("wearRecover",12)*Math.min(M,TU("wearRecoverCapMul",2));
   return{gross:dmg,rec,dur,opp,st,worn,work,mul:M,load:dmg-rec}}
-/* Accumulated load past the threshold is carried onto the field as a real cut. It is a PERCENT,
- * not a flat number of points: three points off a pee-wee's speed of twelve is a quarter of the
- * kid, and off a professional's eighty-five it is nothing. The lingering entries therefore ride
- * the `mul` field v111 taught the buff list, and carry the equivalent points alongside for any
- * sheet that would rather print them. */
+/* Accumulated load past the threshold is carried onto the field as a real cut. It is priced as a
+ * PERCENTAGE and only then turned into points, because three points off a pee-wee's speed of
+ * twelve is a quarter of the kid and off a professional's eighty-five it is nothing. What the
+ * lingering entry carries is the points — a plain signed `amt` with a `games` countdown, which is
+ * the shape `_tempStatBuffsV25` already understood. */
 const cutPctV111=L=>-f(Math.round((L-TU("wearCutFrom",45))/TU("wearCutScale",7)),0,TU("wearCutMaxPct",12));
 const cutPtsV111=(pl,pct,ks)=>ks.reduce((t,k)=>t-Math.max(1,Math.round(((pl.attrs&&pl.attrs[k])||50)*(-pct)/100)),0);
 /* which numbers go first: the two his position leans on hardest — never durability or grit,
@@ -11794,9 +11795,13 @@ function chargeV111(pl,wk,played){
   W.last={load:Math.round(C.load*10)/10,share:Math.round(share*100)/100,touchMul:Math.round(touch*100)/100,
     snaps:played.snaps||0,teamSnaps:played.teamSnaps||0,touches:played.touches||0,cut,cutPct:pct,fatigue:Math.round(c.fatigue)};
   return{load:W.last.load,loadAfter:Math.round(W.load),fatigueAfter:Math.round(c.fatigue),statCut:cut,statCutPct:pct,lingering:W.lingering.slice()}}
-/* a game is spent: today's one-game buffs are dropped exactly as they always were, and only an
- * entry carrying a `games` countdown survives it */
-function decayWearV111(pl){if(!pl)return;
+/* A game is spent: today's one-game buffs are dropped exactly as they always were, and only an
+ * entry carrying a `games` countdown survives it. A watched week runs this TWICE — ca() pre-books
+ * the game and then lt() plays it — so the week itself carries the stamp; clearing a list twice
+ * was idempotent, counting a clock down twice is not. */
+function decayWearV111(pl,wk){if(!pl)return;
+  wk=wk===undefined?curWeekV111(pl):wk;
+  if(wk){if(wk._wearSpentV111)return;wk._wearSpentV111=!0}
   const kept=(pl._tempStatBuffsV25||[]).filter(b=>b&&(b.games|0)>1).map(b=>Object.assign({},b,{games:(b.games|0)-1}));
   pl._tempStatBuffsV25=kept.length?kept:null;
   const W=pl._wearV111;if(W&&W.lingering)W.lingering=W.lingering.map(b=>Object.assign({},b,{games:(b.games|0)-1})).filter(b=>(b.games|0)>0)}
@@ -11838,6 +11843,16 @@ const FOCUS_V111={
        ["quick","Play Fast","💨","speed","Outrun the problem."],
        ["smart","Play Smart","🧠","awareness","Be in the right place before anyone else is."]]
 };
+/* The keys FieldSim's `makeAgents` asks the engine's accessor for, by name. A focus is only
+ * worth anything if its stat is one of THESE — the roster itself carries a shorter list
+ * (speed/accel/agility/strength/catching/tackling/awareness/hands/power/coverage/blocking/burst),
+ * and the accessor answers a flat 45 for anything it is missing. That fallback is still a number
+ * the you-player's multiplier scales, so the buff lands on the agent either way: today it lifts
+ * him off the league's flat 45 on that key, and once the roster carries the key it lifts his real
+ * value instead. What it must never do is name a stat nobody asks for. */
+const SIM_KEYS_V111=["speed","acceleration","burst","quickness","agility","awareness","strength",
+  "blocking","tackling","coverage","catching","jumping","throwing","vision","stamina","grit",
+  "discipline","ballControl"];
 function focusForV111(pos){const L=FOCUS_V111[pos]||FOCUS_V111.ATH,mul=f(TU("focusMul",1.2),1,TU("focusMulCeil",1.35));
   return L.map(r=>({key:r[0],name:r[1],icon:r[2],stat:r[3],statName:(Le[r[3]]&&Le[r[3]].name)||r[3],mul,desc:r[4]}))}
 function buffForV111(wk){const pl=(typeof o<"u"&&o)?o.player:null;
@@ -11856,9 +11871,10 @@ window.__V111={KEYS:KEYS_V111,usage:(pl,wk)=>usageV111(pl,wk),forecast:(pl,wk,k)
   charge:(pl,wk,played)=>chargeV111(pl,wk,played),focusFor:pos=>focusForV111(pos),buffFor:wk=>buffForV111(wk),
   buffs:pl=>wearBuffsV111(pl||((typeof o<"u"&&o)?o.player:null)),
   ownBuffs:pl=>ownBuffsV111(pl||((typeof o<"u"&&o)?o.player:null)),
-  decay:pl=>decayWearV111(pl||((typeof o<"u"&&o)?o.player:null)),
+  decay:(pl,wk)=>decayWearV111(pl||((typeof o<"u"&&o)?o.player:null),wk),
   wear:pl=>(pl||((typeof o<"u"&&o)?o.player:null)||{})._wearV111||{load:0,lingering:[]},
-  work:workV111,cost:(pl,wk,work)=>costV111(pl,wk,work),stakes:(pl,wk)=>stakesV111(pl,wk),USE:USE_V111,FOCUS:FOCUS_V111};
+  work:workV111,cost:(pl,wk,work)=>costV111(pl,wk,work),stakes:(pl,wk)=>stakesV111(pl,wk),
+  SIM_KEYS:SIM_KEYS_V111,USE:USE_V111,FOCUS:FOCUS_V111};
 function et(e,t=0,a){a=a||{};const s=Pa(e),n=A[e.level],i=n.need-6+Ks()+ft("peerShift"),r=1+M("clutch")*.02,l=1+(e.attrs.grit-10)*.003*r,d=1+(e.attrs.stamina-10)*.0015;let c=Oe(e,"streaky")?23:15;c*=Math.max(.5,1-G("varDown"))*(ft("varMult")||1);let u=(s-i)*2.4+D(-c,c)*l+50+t/n.games*2+(o&&o._fateBoost||0);a.playoff&&(u+=G("playoffPerf")+ft("playoffPerf"),Oe(e,"xfactor")&&(u+=12)),Oe(e,"butterFingers")&&Math.random()<.12&&(u-=18),Math.random()<(Oe(e,"streaky")?.06:.04)&&u>40&&(u*=1.5),u*=d;const p=f(xi(u),1,100);const y=Math.random()<injChanceV54(e,a);try{window.__INJ_DEBUG&&y&&(window.__INJ_DEBUG.hit=(window.__INJ_DEBUG.hit||0)+1)}catch(_){}return{perf:Math.round(p),ovr:s,injured:y}}const Ne={QB:{primary:"passYds",label:"Passing",stats:[{key:"passYds",name:"Pass Yds",per:[140,165,190,210,235,265,290,270]},{key:"passTD",name:"Pass TD",per:[1.2,1.4,1.6,1.9,2.1,2.4,2.6,2.6]},{key:"int",name:"INT",per:[1.6,1.4,1.2,1.1,1,.9,.8,.8],lowerBetter:!0}]},RB:{primary:"rushYds",label:"Rushing",stats:[{key:"rushYds",name:"Rush Yds",per:[55,70,80,90,100,115,130,105]},{key:"rushTD",name:"Rush TD",per:[.7,.9,1,1.1,1.2,1.3,1.4,1.2]},{key:"ypc",name:"Yds/Carry",per:[4,4.3,4.5,4.7,4.9,5.1,5.3,4.8],rate:!0}]},WR:{primary:"recYds",label:"Receiving",stats:[{key:"rec",name:"Catches",per:[3,3.5,4,4.5,5,5.5,6,5]},{key:"recYds",name:"Rec Yds",per:[45,55,65,72,80,90,100,85]},{key:"recTD",name:"Rec TD",per:[.5,.6,.7,.8,.9,1,1.1,.9]}]},TE:{primary:"recYds",label:"Receiving",stats:[{key:"rec",name:"Catches",per:[2,2.5,3,3.5,4,4.5,5,4]},{key:"recYds",name:"Rec Yds",per:[28,34,40,46,52,60,68,55]},{key:"recTD",name:"Rec TD",per:[.3,.4,.5,.6,.7,.8,.9,.7]}]},OL:{primary:"grade",label:"Blocking",stats:[{key:"grade",name:"Blk Grade",per:[62,64,66,68,70,73,76,75],rate:!0},{key:"pancakes",name:"Pancakes",per:[2,3,3.5,4,4.5,5,5.5,5]},{key:"sacksAllowed",name:"Sacks All.",per:[2.5,2.2,2,1.8,1.5,1.2,1,1],lowerBetter:!0}]},DL:{primary:"sacks",label:"Pass Rush",stats:[{key:"tackles",name:"Tackles",per:[2.5,3,3.5,4,4.5,5,5.5,4.5]},{key:"sacks",name:"Sacks",per:[.4,.5,.6,.7,.8,.9,1,.8]},{key:"tfl",name:"TFL",per:[.8,1,1.1,1.3,1.5,1.7,1.9,1.5]}]},LB:{primary:"tackles",label:"Defense",stats:[{key:"tackles",name:"Tackles",per:[5,6,7,8,9,10,11,9]},{key:"sacks",name:"Sacks",per:[.3,.4,.4,.5,.6,.7,.8,.6]},{key:"tfl",name:"TFL",per:[.9,1.1,1.3,1.5,1.7,1.9,2.1,1.7]}]},CB:{primary:"pd",label:"Coverage",stats:[{key:"tackles",name:"Tackles",per:[2.5,3,3.5,4,4.5,5,5.5,4.5]},{key:"pd",name:"Pass Def",per:[1,1.2,1.4,1.6,1.8,2,2.2,1.8]},{key:"int",name:"INT",per:[.2,.25,.3,.35,.4,.5,.6,.45]}]},S:{primary:"tackles",label:"Defense",stats:[{key:"tackles",name:"Tackles",per:[4,5,5.5,6,6.5,7,7.5,6.5]},{key:"pd",name:"Pass Def",per:[.7,.9,1,1.2,1.4,1.6,1.8,1.4]},{key:"int",name:"INT",per:[.2,.25,.3,.35,.4,.45,.5,.4]}]}};Object.values(Ne).forEach(e=>e.stats.forEach(t=>{const a=t.per[7];t.per[8]=t.lowerBetter?+(a*.85).toFixed(2):t.rate?+(a*1.2).toFixed(1):+(a*1.45).toFixed(1)}));function mr(e,t){const a=A[t].need-6+Ks();return f(xi((e-a)*2.4+50+G("perfFlat")),1,100)}function is(e,t,a){const s=A[a].games,n=Ne[e],i=Ti(t),r=t/100,l=1+G("statProd")+Jr(e),d={};return n.stats.forEach(c=>{const u=c.per[a],h=_o(c);c.rate?d[c.key]=+(u*(.72+.42*Math.pow(t/90,1.4))*h).toFixed(1):c.lowerBetter?d[c.key]=Math.max(1,Math.round(u*s*Math.max(.2,1.35-Math.pow(r,1.2)*.95)*h)):d[c.key]=Math.round(u*s*Math.min(i,3.4)*l*h)}),d}function Ha(e,t){return is(e,60,t)}function pr(e,t,a){const s=is(e,t,a),n=Ha(e,a),i=Ne[e].primary,r=n[i]||1;return(s[i]||0)/r}const vr=[0,.28,.48,.75,1.02,1.62,1.92,1.84,2.7];function qt(e,t,a,s,n){n=n||1;const i=Math.min(t+1,A.length-1);if(t<=2&&Ie()===0)return f(96+(e-A[i].need)*.3,82,99.5);const r=(vr[i]||0)+(t<=2,0),l=A[i].need+Ie()*.45;if(a!=null&&s!=null){const c=pr(a,s,t)/(1+(n-1)*.35),u=Math.pow(Math.max(.05,c),.5),h=(e-l)/8,p=f(.5+h,0,1.5),m=i===A.length-1,y=f((e-l)/30,0,1),C=m?r*(1-y*.28):r*(1-y*.45),P=(u*.38+p*.64-C*.52-.72)/.14;let _adv=f(1/(1+Math.exp(-P))*100+Se("advBonus",0)+G("advFlat")+ft("advFlat"),.3,99.5);
 // v17: national standing drives promotion — you cannot be #1 of 180k kids in the
 // country and get left behind. Elite rank sets a floor the base odds can't undercut.
@@ -13327,8 +13343,18 @@ l.sacks=v.sacks;
 const Mt2=v.third_a>0?`${Math.min(v.third_c,v.third_a)}/${v.third_a}`:"0/0",
 xt={yds:v.yds,pass:v.pass,rush:v.rush,first:v.first,third:Mt2,top:fmtC(topSec.us),pen:v.pen,penYds:v.penYds,turn:v.turn,sacks:v.sacks,air:v.air,yac:v.yac},
 ua={yds:j.yds,pass:j.pass,rush:j.rush,first:j.first,third:j.third_a>0?`${Math.min(j.third_c,j.third_a)}/${j.third_a}`:"0/0",top:fmtC(topSec.them),pen:j.pen,penYds:j.penYds,turn:j.turn,sacks:j.sacks,air:j.air,yac:j.yac},
-fa=qi(t,P,r);
-return{plays:u,usScore:h,themScore:p,stat:fa,team:xt,oppTeam:ua,roster:c,
+fa=qi(t,P,r),
+/* v111: what the focus was actually worth to the AGENTS. The multiplier lands inside `_raw`,
+ * which is the accessor FieldSim asks for every key it builds an agent from — so this row puts
+ * his number against a team-mate's on the same key, and against the roster value it started
+ * from. `v111Acheck` reads it: a focus that does nothing on the field shows up here. */
+_fx111=(()=>{try{const fb=(_tb111||[]).find(b=>b&&b.mul!=null);if(!fb)return null;
+  const me=c.us.off.find(w=>w&&w.you)||c.us.def.find(w=>w&&w.you);if(!me)return null;
+  const unit=c.us.off.indexOf(me)>=0?c.us.off:c.us.def,peer=unit.find(w=>w&&!w.you)||null;
+  return{stat:fb.stat,mul:fb.mul,rosterHas:!!(me.attrs&&me.attrs[fb.stat]!=null),
+    base:(me.attrs&&me.attrs[fb.stat])||45,raw:_raw(me,fb.stat),peerRaw:peer?_raw(peer,fb.stat):null,
+    att:_(me,fb.stat),peerAtt:peer?_(peer,fb.stat):null}}catch(_e){return null}})();
+return{plays:u,usScore:h,themScore:p,stat:fa,team:xt,oppTeam:ua,roster:c,focusV111:_fx111,
   /* v111: what he ACTUALLY did, which is what the body is billed from */
   snapsV111:{on:_slot111?_snapOn111:null,team:_slot111?_snapTm111:null,share:_share111,touchMul:_touch111,
     key:_u111?_u111.key:"normal",touches:(fa.carries||0)+(fa.rec_c||0)+(fa.att||0)}}}

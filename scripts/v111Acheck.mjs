@@ -116,6 +116,10 @@ const res = await page.evaluate(({ N, POS }) => {
     focusEveryPos: ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S', 'K'].filter(p => {
       const l = V.focusFor(p); return !(l.length === 3 && l.every(x => x.stat && window.__GRIDIRON_AUDIT__.ATTRS.indexOf(x.stat) >= 0))
     }),
+    // every focus must name a key FieldSim actually builds an agent from — a buff on a stat
+    // nobody asks for would show on the sheet and do nothing on the grass
+    focusDeadStats: ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S', 'K', 'ATH']
+      .reduce((bad, p) => bad.concat(V.focusFor(p).filter(x => V.SIM_KEYS.indexOf(x.stat) < 0).map(x => p + ':' + x.stat)), []),
     buffNull: V.buffFor(undefined) === null,
     normalIsNoop: u.key === 'normal' && u.share === 1 && u.touchMul === 1
   }
@@ -210,8 +214,9 @@ const res = await page.evaluate(({ N, POS }) => {
   const linger0 = JSON.parse(JSON.stringify(V.wear(pl).lingering))
   const cutStat = linger0[0] && linger0[0].stat
   const effCut = window.__V85.effAttrs(pl)
-  V.decay(pl); const linger1 = JSON.parse(JSON.stringify(V.wear(pl).lingering))
-  V.decay(pl); const linger2 = JSON.parse(JSON.stringify(V.wear(pl).lingering))
+  // decay(pl, null) skips the once-a-week stamp the real path uses, so two games can be spent here
+  V.decay(pl, null); const linger1 = JSON.parse(JSON.stringify(V.wear(pl).lingering))
+  V.decay(pl, null); const linger2 = JSON.parse(JSON.stringify(V.wear(pl).lingering))
   R.charge = { bills: bills.map(b => ({ load: b.load, after: b.loadAfter, fat: b.fatigueAfter, cut: b.statCut, pct: b.statCutPct })),
     fat0, fat1: pl.conditionV11.fatigue, inj0: round(inj0 * 100, 1), inj1: round(inj1 * 100, 1),
     linger0, lingerGames1: linger1.map(b => b.games), linger2: linger2.length,
@@ -251,6 +256,27 @@ const res = await page.evaluate(({ N, POS }) => {
     buffForActive: active && active.stat === pick.stat && active.mul === 1.2
   }
 
+  // ---- every focus, at every position, reaches the engine's own accessor -----------------
+  // The multiplier lands inside `_raw`, the accessor FieldSim asks for each agent field by name.
+  // One game per pick, reading back what that accessor returned for him.
+  const bite = []
+  const savedPos = pl.pos
+  for (const p of ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S']) {
+    pl.pos = p
+    for (const pk of V.focusFor(p)) {
+      w.focusV111 = pk.key
+      let row = null
+      for (let tries = 0; tries < 4 && !row; tries++) row = window.__simGameV2(60, p).focusV111
+      w.focusV111 = null
+      bite.push(row ? { pos: p, key: pk.key, stat: row.stat, rosterHas: row.rosterHas, base: row.base,
+        raw: round(row.raw, 1), peerRaw: round(row.peerRaw, 1), att: row.att, peerAtt: row.peerAtt,
+        lands: row.raw > row.base * 1.1 } : { pos: p, key: pk.key, stat: pk.stat, lands: false, row: null })
+    }
+  }
+  pl.pos = savedPos
+  R.bite = bite
+  R.biteVerdict = { all: bite.every(b => b.lands), dead: bite.filter(b => !b.lands).map(b => b.pos + ':' + b.stat) }
+
   // ---- the weekly resolver bills the body -----------------------------------------------
   pl._wearV111 = null
   const wr = wk()
@@ -274,6 +300,7 @@ ok(A.forecastShape.length === 0, 'forecast() is missing fields', A.forecastShape
 ok(A.partsOk, 'forecast().parts is not a list of {label,mul}')
 ok(A.focusN === 3 && A.focusShape, 'focusFor() must return exactly 3 {key,name,icon,stat,mul:1.2,desc}', { n: A.focusN })
 ok(A.focusEveryPos.length === 0, 'focusFor() does not cover every position with real attributes', A.focusEveryPos)
+ok(A.focusDeadStats.length === 0, 'a focus names a stat FieldSim never asks for — it would do nothing on the field', A.focusDeadStats)
 ok(A.buffNull, 'buffFor() must be null with no focus picked')
 ok(A.normalIsNoop, 'usage() at "normal" must be share 1 / touchMul 1', A)
 
@@ -306,12 +333,13 @@ ok(X.exactlyOne, 'the focus moved more than one stat', res.focus)
 ok(X.isTwentyPct, 'the focus is not a 1.2x on the sheet', res.focus)
 ok(X.reachesSim, 'the focus does not reach what the sim reads', res.focus)
 ok(X.buffForActive, 'buffFor() does not report the active pick', res.focus)
+ok(res.biteVerdict.all, 'a focus does not reach the engine\'s attribute accessor', res.biteVerdict.dead)
 ok(res.resolve && res.resolve.wear && res.resolve.wear.load !== undefined, 'the weekly resolver did not bill the body', res.resolve)
 if (res.resolveErr) fails.push('the weekly resolver threw — ' + res.resolveErr)
 
 console.log(JSON.stringify({ identity, api: res.api, dial: res.dial, dialVerdict: res.dialVerdict, restCredit: res.restCredit,
   forecast: res.forecast, forecastVerdict: res.forecastVerdict, charge: res.charge, chargeVerdict: res.chargeVerdict,
-  recovery: res.recovery, focus: res.focus, focusVerdict: res.focusVerdict, resolve: res.resolve,
+  recovery: res.recovery, focus: res.focus, focusVerdict: res.focusVerdict, bite: res.bite, biteVerdict: res.biteVerdict, resolve: res.resolve,
   fails: fails.length, pageErrors: pageErrors.length }, null, 1))
 if (fails.length) console.log('FAILURES:\n' + fails.join('\n'))
 if (pageErrors.length) console.log('PAGE ERRORS:\n' + pageErrors.slice(0, 6).join('\n'))
