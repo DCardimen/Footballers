@@ -101,7 +101,7 @@ ok(sweep.bare.prodRank == null, 'with nothing produced yet, the rating carries t
 ok(sweep.bare.posRank >= 1 && sweep.bare.rank <= sweep.bare.of, 'the ratings-only fallback still ranks sanely')
 
 // ---- 4. the screen the player actually reads --------------------------------
-await click('Balanced Program')
+await click('Balanced Program'); await click('CONFIRM TRAINING')
 for (let w = 0; w < 3; w++) { await click('QUICK PLAY WEEK'); await clearWheel(); await page.waitForTimeout(300) }
 await click('LEADERS')
 await page.waitForTimeout(900)

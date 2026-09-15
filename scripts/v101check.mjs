@@ -160,7 +160,7 @@ ok(sheet.dec.length === 0, 'no fraction of a point is printed on the player shee
 
 // ================= 5. the crowd has a vocabulary =================
 // (pure lookup — no live field needed, and it is the part that regressed silently before)
-await step('PLAY 8-GAME SEASON'); await step('Balanced Program'); await step('PLAY WEEK 1 LIVE'); await step('PLAN')
+await step('PLAY 8-GAME SEASON'); await step('Balanced Program'); await step('CONFIRM TRAINING'); await step('PLAY WEEK 1 LIVE'); await step('PLAN')
 // the pregame can land on one of a couple of buttons depending on the week — keep knocking
 // until the broadcast is actually up rather than measuring an empty scene
 let live = false

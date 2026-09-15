@@ -8,7 +8,7 @@ await page.addInitScript(() => { setInterval(() => { try { const s=window.__getG
 await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1000)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 async function click(t){await page.evaluate(({t,visSrc})=>{const vis=eval(visSrc);const els=[...document.querySelectorAll('button,[onclick],a')].filter(vis);let el;if(t==='ARCH')el=els.find(e=>/^(⭐|🦾|🏘️|🚪|🩹|🔄|💎|🔥|🧊|👑)/.test((e.innerText||'').trim()));else el=els.find(e=>((e.innerText||e.textContent||'').replace(/\s+/g,' ').includes(t)));if(el)el.click()},{t,visSrc:vis});await page.waitForTimeout(450)}
-for (const s of ["START NEW CAREER","ARCH","QB Quarterback","PLAY 8-GAME SEASON","Balanced Program"]) await click(s)
+for (const s of ["START NEW CAREER","ARCH","QB Quarterback","PLAY 8-GAME SEASON","Balanced Program","CONFIRM TRAINING"]) await click(s)
 const r = await page.evaluate(() => {
   const bps = window.buildPlayScript
   const dims = { PLAY_L:6, PLAY_R:714, F_TOP:14, F_BOT:426 }

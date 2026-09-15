@@ -417,7 +417,7 @@ await page.screenshot({ path: 'scripts/_wheel_landed.png' })
 // starts afterwards.
 await page.evaluate(() => { const g = document.getElementById('gv42go'); if (g) g.click(); document.getElementById('growthV42')?.remove() })
 await page.waitForTimeout(500)
-await click('Balanced Program')
+await click('Balanced Program'); await click('CONFIRM TRAINING')
 await click('PLAY WEEK 1 LIVE')
 await click('CONTINUE TO MATCH')
 

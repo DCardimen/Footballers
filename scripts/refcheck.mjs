@@ -33,7 +33,7 @@ async function click(t) {
   await page.waitForTimeout(850)
 }
 for (const s of ['START NEW CAREER', 'ARCH', 'QB Quarterback', 'Lock In Personality', 'PLAY 8-GAME SEASON',
-  'Balanced Program', 'PLAY WEEK 1 LIVE', 'CONTINUE TO MATCH', 'Continue']) await click(s)
+  'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'CONTINUE TO MATCH', 'Continue']) await click(s)
 
 // wait for the Phaser scene + referee crew
 let report = null
@@ -287,7 +287,7 @@ const fb = await (async () => {
   await p2.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 20000 })
   await p2.waitForTimeout(1200)
   for (const t of ['START NEW CAREER', 'ARCH', 'QB Quarterback', 'Lock In Personality', 'PLAY 8-GAME SEASON',
-    'Balanced Program', 'PLAY WEEK 1 LIVE', 'CONTINUE TO MATCH']) {
+    'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'CONTINUE TO MATCH']) {
     await p2.evaluate(({ t, visSrc }) => {
       const vis = eval(visSrc); const els = [...document.querySelectorAll('button,[onclick],a')].filter(vis)
       let el

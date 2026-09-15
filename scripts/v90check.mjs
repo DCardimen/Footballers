@@ -17,7 +17,7 @@ for (let i = 0; i < 8; i++) {
     const card = els.find(e => e.classList.contains('pos-card') || /^[A-Z]{1,2} /.test(txt(e))); if (card) { card.click(); return false } return true }, { visSrc: vis })
   await page.waitForTimeout(450); if (done) break
 }
-await click('PLAY 8-GAME SEASON'); await click('Balanced Program')
+await click('PLAY 8-GAME SEASON'); await click('Balanced Program'); await click('CONFIRM TRAINING')
 await page.evaluate(() => { document.getElementById('growthV42')?.remove(); window.go('season') }); await page.waitForTimeout(500)
 
 // ---- 1. a queued story stage no longer stops sim-the-rest: it is answered and rolled in the background

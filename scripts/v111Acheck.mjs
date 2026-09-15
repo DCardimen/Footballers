@@ -64,7 +64,7 @@ async function click (page, t) {
   await page.waitForTimeout(350)
 }
 async function career (page, pos) {
-  for (const s of ['START NEW CAREER', 'ARCH', pos + ' ', 'Lock In Personality', 'PLAY 8-GAME SEASON', 'Balanced Program']) await click(page, s)
+  for (const s of ['START NEW CAREER', 'ARCH', pos + ' ', 'Lock In Personality', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING']) await click(page, s)
 }
 
 // ================================================================ 1/2. the API, and identity

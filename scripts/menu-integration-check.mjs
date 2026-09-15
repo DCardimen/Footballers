@@ -78,7 +78,7 @@ try {
       const card = els.find(e => e.classList.contains('pos-card') || /^[A-Z]{1,2} /.test(txt(e))); if (card) { card.click(); return false } return true }, { visSrc: vis })
     await page.waitForTimeout(450); if (done) break
   }
-  await clickText('PLAY 8-GAME SEASON'); await clickText('Balanced Program')
+  await clickText('PLAY 8-GAME SEASON'); await clickText('Balanced Program'); await clickText('CONFIRM TRAINING')
   const played = await page.evaluate(async () => {
     document.getElementById('growthV42')?.remove()
     const pl = window.S.player; const c = pl.conditionV11 || {}; c.fatigue = 10; c.injury = null

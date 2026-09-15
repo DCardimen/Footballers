@@ -23,7 +23,7 @@ async function click(t) {
   await page.waitForTimeout(500)
   return ok
 }
-for (const s of ["START NEW CAREER","ARCH","QB Quarterback","PLAY 8-GAME SEASON","Balanced Program"]) await click(s)
+for (const s of ["START NEW CAREER","ARCH","QB Quarterback","PLAY 8-GAME SEASON","Balanced Program","CONFIRM TRAINING"]) await click(s)
 const gameCount = Math.max(1, Number(process.env.GAMES || 60))
 const res = await page.evaluate((gameCount) => {
   const out = { games: [], errors: [] }

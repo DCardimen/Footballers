@@ -16,6 +16,6 @@ async function click(t) {
   }, {t, visSrc:vis})
   await page.waitForTimeout(850)
 }
-for (const s of ["START NEW CAREER","ARCH","QB Quarterback","PLAY 8-GAME SEASON","Balanced Program","PLAY WEEK 1 LIVE","PLAN"]) await click(s)
+for (const s of ["START NEW CAREER","ARCH","QB Quarterback","PLAY 8-GAME SEASON","Balanced Program","CONFIRM TRAINING","PLAY WEEK 1 LIVE","PLAN"]) await click(s)
 for (let i=0;i<12;i++){ await page.waitForTimeout(500); const c=await page.$('canvas'); if(c){ await c.screenshot({ path:`scripts/_field_${i}.png` }) } }
 await browser.close()

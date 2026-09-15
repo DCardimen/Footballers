@@ -8,7 +8,7 @@ await page.goto(process.env.GAME_URL || 'http://localhost:5173/', { waitUntil: '
 await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 }); await page.waitForTimeout(500)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 async function click(t){ try { await page.evaluate(({t,visSrc})=>{const vis=eval(visSrc);const els=[...document.querySelectorAll('button,[onclick],a')].filter(vis);let el;if(t==='ARCH')el=els.find(e=>/^(⭐|🦾|🏘️|🚪|🩹|🔄|💎|🔥|🧊|👑)/.test((e.innerText||'').trim()));else el=els.find(e=>((e.innerText||e.textContent||'').replace(/\s+/g,' ').includes(t)));if(el)el.click()},{t,visSrc:vis}) } catch (e) { await page.waitForLoadState('networkidle').catch(()=>{}); await page.waitForTimeout(800) } await page.waitForTimeout(500) }
-for (const s of ["START NEW CAREER","ARCH","RB Running","PLAY 8-GAME SEASON","Balanced Program"]) await click(s)
+for (const s of ["START NEW CAREER","ARCH","RB Running","PLAY 8-GAME SEASON","Balanced Program","CONFIRM TRAINING"]) await click(s)
 const TUNE = JSON.parse(process.env.TUNE || '{}'); await page.evaluate(t => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, t) }, TUNE)
 const res = await page.evaluate((G) => {
   const FS = window.__FieldSim, rec = []; const orig = FS.run.bind(FS)

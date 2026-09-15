@@ -75,7 +75,7 @@ for (let i = 0; i < 8; i++) {
 await at('hub')
 await click('PLAY 8-GAME SEASON')
 await at('training')
-await click('Balanced Program')
+await click('Balanced Program'); await click('CONFIRM TRAINING')
 await page.evaluate(() => document.getElementById('growthV42')?.remove())
 await page.waitForTimeout(400)
 await at('season')

@@ -28,7 +28,7 @@ async function step(t) { let r = null; try { r = await page.evaluate(({ t, visSr
   if (el) { el.scrollIntoView({ block: 'center' }); el.click(); return txt(el).slice(0, 30) } return null }, { t, visSrc: vis }) } catch (e) { r = 'ERR' }
   console.log('>>', t, '->', r); await page.waitForTimeout(t === 'PLAN' ? 4000 : 800) }
 await page.evaluate(() => { window.__readPos = 'QB' })
-for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program']) await step(t)
+for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING']) await step(t)
 await page.evaluate(() => { document.getElementById('growthV42')?.remove(); window.go('season') })
 await page.waitForTimeout(500)
 
@@ -88,7 +88,7 @@ await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear() }
 await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(1200)
 await page.evaluate(() => { window.__readPos = 'QB'; window.RIB_TUNE = window.RIB_TUNE || {}; window.RIB_TUNE.pumpRate = 1 })   // every eligible drop pumps, so one game is enough to see it drawn
-for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
+for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 let scene = false
 for (let i = 0; i < 40; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(400) }
 console.log('scene:', scene)

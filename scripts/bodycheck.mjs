@@ -56,7 +56,7 @@ for (let i = 0; i < 8; i++) {
   if (done) break
 }
 await click('PLAY 8-GAME SEASON')
-await click('Balanced Program')
+await click('Balanced Program'); await click('CONFIRM TRAINING')
 await page.evaluate(() => { document.getElementById('growthV42')?.remove(); window.go('season') })
 await page.waitForTimeout(700)
 

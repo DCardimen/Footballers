@@ -57,7 +57,7 @@ for (let i = 0; i < 8; i++) {
   if (done) break
 }
 await click('PLAY 8-GAME SEASON')
-await click('Balanced Program')
+await click('Balanced Program'); await click('CONFIRM TRAINING')
 await page.evaluate(() => { document.getElementById('growthV42')?.remove(); window.go('season') })
 await page.waitForTimeout(700)
 
@@ -149,15 +149,26 @@ ok(proj.hollow > 0 && proj.labels.length > 0 && proj.labels.every(l => /^▹[+-]
 ok(proj.legend, 'the legend names what the marks mean')
 
 // ---- 4b. the offseason training board speaks in points, not priority percents
+// v113: the board is twelve tiles that PREVIEW, so a program's meta line and its focus
+// chips live in the sheet under the grid, one program at a time — the numbers are the
+// same projection, read after previewing each tile in turn.
 const board = await page.evaluate(() => {
   window.go('training')
   const cards = [...document.querySelectorAll('.train-card')]
-  const metas = cards.map(c => (c.querySelector('.train-meta')?.textContent || '').replace(/\s+/g, ' ').trim())
-  const chips = [...document.querySelectorAll('.train-card .train-chip b.v85g')].map(b => b.textContent.trim())
-  const speedCard = cards.find(c => /Speed Academy/.test(c.textContent)), filmCard = cards.find(c => /Film Study/.test(c.textContent))
-  const chipVal = (card, name) => { const ch = [...card.querySelectorAll('.train-chip')].find(x => x.textContent.includes(name)); return ch ? parseFloat((ch.querySelector('b.v85g') || {}).textContent) : null }
+  const keys = cards.map(c => (c.getAttribute('onclick') || '').replace(/\D*'(\w+)'.*/, '$1'))
+  const chipVal = name => { const ch = [...document.querySelectorAll('.tp-panel-v113 .train-chip')].find(x => x.textContent.includes(name)); return ch ? parseFloat((ch.querySelector('b.v85g') || {}).textContent) : null }
+  const metas = [], chips = []
+  let speedOnSpeed = null, filmOnAware = null
+  for (const k of keys) {
+    window.previewTraining(k)
+    const panel = document.querySelector('.tp-panel-v113')
+    metas.push((panel?.querySelector('.train-meta')?.textContent || '').replace(/\s+/g, ' ').trim())
+    chips.push(...[...document.querySelectorAll('.tp-panel-v113 .train-chip b.v85g')].map(b => b.textContent.trim()))
+    if (k === 'speed') speedOnSpeed = chipVal('Speed')
+    if (k === 'film') filmOnAware = chipVal('Awareness')
+  }
   const out = { n: cards.length, pct: metas.filter(m => /%/.test(m)).length, flat: metas.filter(m => /(FOCUS STATS|EVERY STAT) \+[\d.]+/.test(m)).length, chips: chips.slice(0, 5),
-    speedOnSpeed: speedCard && chipVal(speedCard, 'Speed'), filmOnAware: filmCard && chipVal(filmCard, 'Awareness'), sample: metas[1] }
+    speedOnSpeed, filmOnAware, sample: metas[1] }
   window.go('season')
   return out
 })

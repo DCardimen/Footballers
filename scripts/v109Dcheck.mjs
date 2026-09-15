@@ -157,7 +157,7 @@ ok(S.nan === 0, 'no NaN in any row\'s stat line', `${S.nan}`)
 ok(S.kneelQ2 > 0, 'the kneel reaches the end of the first half', `${S.kneelQ2} in ${S.games} games`)
 
 // ================= 2. the live field: the scorebug, the clock, the sticks =================
-for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE', 'PLAN']) await step(t)
+for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN']) await step(t)
 let live = false
 for (let i = 0; i < 6 && !live; i++) {
   for (const t of ['CONTINUE TO MATCH', 'Continue to Match', 'PLAY', 'CONTINUE']) {

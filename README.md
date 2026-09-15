@@ -55,6 +55,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v113 — the training board is a grid, and the choice is two taps.** The offseason
+  "Choose Your Training" board listed twelve programs as full-width cards, so picking a
+  season's work meant scrolling two thousand pixels holding four numbers in your head — and
+  the tap that finally showed you what a program *does* was the same tap that committed the
+  season to it. The twelve scenes are one screen now, four across and three down, and the tap
+  is split: a tile **previews**, redrawing the sheet under the grid with one bar per attribute
+  — where the stat stands today and the season this program would add on top of it, the stats
+  it actually pushes marked in light blue and pulsing on a slow 2.6s cycle (held still under
+  `prefers-reduced-motion`), the stats it charges marked in red. The dock's **CONFIRM
+  TRAINING** is the commit, and it still runs through the unchanged `chooseTraining`, so the
+  event roll and the season behind it are exactly what they were. The bars are drawn against
+  each stat's **soft cap** rather than the absolute wall: at 12 of an eventual 250 every bar
+  read as a sliver, and the cap is the number that actually governs the season — a stat
+  already past it stretches the scale to fit and keeps a tick where the cap sits.
+
 - **v112 — the start, the decision, the weight of a hit.** Six passes written in parallel against
   one rule: **the scoreboard does not move.** (1) *The chase is always ready.* The loading screen is
   drawn from the v91 field sheet, and nothing asked for that sheet until v94's own script ran —

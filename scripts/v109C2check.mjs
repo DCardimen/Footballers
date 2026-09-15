@@ -109,7 +109,7 @@ ok(E.jog + E.givesUp > 20, 'men still jog and give up on lost plays', `${E.jog} 
 ok(E.resume >= 2 && E.resumeAfterJog === E.resume, 'and the jog RESUMES — effort {kind:"resume"} for a man who had jogged and is back in it', `${E.resumeAfterJog}/${E.resume}`)
 
 // ================= 2. the live field: the plant, the lean, the stumble, the crossover =================
-for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE', 'PLAN']) await step(t)
+for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN']) await step(t)
 let live = false
 for (let i = 0; i < 6 && !live; i++) {
   for (const t of ['CONTINUE TO MATCH', 'Continue to Match', 'PLAY', 'CONTINUE']) {

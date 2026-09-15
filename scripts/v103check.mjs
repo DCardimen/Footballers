@@ -137,7 +137,7 @@ const off = await page.evaluate(() => {
 ok(off.tackles > 20 && off.grabs === 0, 'gripV103 at 0 puts the instantaneous tackle back', `${off.grabs} grabs over ${off.tackles} tackles`)
 
 // ================= 2. the live field: the drag, and the whistle that is not the end =================
-for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE', 'PLAN']) await step(t)
+for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN']) await step(t)
 let live = false
 for (let i = 0; i < 6 && !live; i++) {
   for (const t of ['CONTINUE TO MATCH', 'Continue to Match', 'PLAY', 'CONTINUE']) {

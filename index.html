@@ -17388,8 +17388,149 @@ Object.assign(window,{chooseOriginV11:Vc,chooseSpecializationV11:Bc,chooseGamePl
   } catch(e){console.warn('[v15.3 patch]',e)}
 })();
 
+
+/* ===== v113 THE BOARD IS A GRID, AND THE CHOICE IS TWO TAPS =====
+ * The offseason board listed twelve programs as full-width cards, each one carrying its
+ * scene, its focus chips, its per-stat projection and its cost verdict: choosing a season's
+ * work meant scrolling two thousand pixels and holding four numbers in your head, and the
+ * tap that finally showed you what a program DOES was the same tap that committed the
+ * season to it. There was no way to look without choosing.
+ *
+ * The board is the twelve scenes on one screen now — four across, three down — and the tap
+ * is split in two:
+ *   - a tile PREVIEWS. The sheet under the grid redraws with every attribute's bar at the
+ *     value it holds today and the season this program would add on top of it: the stats the
+ *     program actually pushes are marked in light blue and pulse slowly (2.6s, held still
+ *     under prefers-reduced-motion), the ones it charges are marked in red. Nothing is
+ *     written to the player — projectSeasonGainsV85 is asked for the program, not told it.
+ *   - the dock's CONFIRM TRAINING commits, through the unchanged chooseTraining (Ir), so the
+ *     event roll and the season behind it are exactly what they were.
+ * The suggested program is previewed on arrival, so the sheet is never empty and the shape of
+ * the screen explains itself before the first tap.
+ *
+ * Kept on purpose, because the dev checks read them: the tiles are still `.train-card`
+ * elements whose onclick names the program key in the first quoted token — capcheck and
+ * skillartcheck both pull it out with a regex that stops at the first digit, which is why the
+ * handlers are `previewTraining`/`confirmTraining` and not `...V113` — they still carry the
+ * v64 scene art, and the panel still carries the v67 cap badges on `.train-chip`s and the
+ * one-line program verdict on `.train-meta`. ===== */
+const TP_SEG_MIN_V113 = 2.4;              // a sub-point season still has to be visible on the bar
+let tpSelV113 = null;                     // the PREVIEWED program — never the player's, until confirmed
+function tpRiskV113(n){return n.injury>=1.4?["HIGH RISK","var(--blood)"]:n.injury>=1.1?["SOME RISK","var(--gold)"]:n.injury<.9?["SAFE","var(--good)"]:["STEADY","var(--good)"]}
+// the projected season, as the board has always phrased it: a range across a group of stats
+function tpRangeV113(pj,ks){const vs=ks.map(k=>pj[k]||0);if(!vs.length)return"";const lo=Math.round(Math.min(...vs)),hi=Math.round(Math.max(...vs));return lo===hi?"+"+hi:"+"+lo+" to +"+hi}
+// one attribute: where it stands, and the light-blue length this program would add to it
+function tpRowV113(e,k,g,pri){
+  // the bar is drawn against the SOFT CAP, not the absolute wall: at 12 of an eventual 250
+  // every stat read as a sliver, and the number that actually governs this season is the cap
+  // the next point starts costing more at. A stat already past it stretches the scale to fit
+  // and keeps a tick where the cap sits, so "over the cap" stays visible instead of pinned.
+  const cur=W1(e.attrs[k]||0),abs=we(),cap=f(drSoftCap(e,k),1,abs);
+  const scale=Math.min(abs,Math.max(cap,cur+Math.max(0,g))),pct=f(cur/scale*100,0,100),gn=Math.round(g);
+  const up=g>0?Math.min(100-pct,Math.max(TP_SEG_MIN_V113,g/scale*100)):0;
+  const dn=g<0?Math.min(pct,Math.max(TP_SEG_MIN_V113,-g/scale*100)):0;
+  const capPct=scale>cap+.5?f(cap/scale*100,0,100):0;
+  return `<div class="tp-row-v113${pri?" pri":""}${g<0?" neg":""}">
+      <div class="tp-rt-v113"><span class="tp-rn-v113">${Le[k].icon} ${Le[k].name}</span><span class="tp-rv-v113">${cur}${gn!==0?`<em>→ ${W1(cur+g)}</em>`:""}<span class="tp-capn-v113">/ ${W1(cap)} cap</span></span></div>
+      <div class="track ${tr(cur)} tp-bar-v113"><i style="width:${pct}%"></i>${up?`<b class="tp-up-v113${pri?" flash":""}" style="left:${pct}%;width:${up}%"></b>`:""}${dn?`<b class="tp-dn-v113" style="left:${pct-dn}%;width:${dn}%"></b>`:""}${capPct?`<b class="tp-capt-v113" style="left:${capPct}%"></b>`:""}</div>
+    </div>`;
+}
+// the sheet under the grid: what a season of ONE program does to all seventeen stats
+function tpPanelV113(e,key,sug){
+  const n=pt[key],pj=projectSeasonGainsV85(e,key,!0),foc=n.focus&&n.focus.length?n.focus:null;
+  const pri=k=>foc?foc.indexOf(k)>=0:!0,[risk,rc]=tpRiskV113(n),cp=capPlanV67(e,foc);
+  const others=ee.filter(k=>!(foc&&foc.indexOf(k)>=0)&&!(n.cost&&n.cost[k]));
+  const head=foc?`FOCUS STATS ${tpRangeV113(pj,foc)} · OTHERS ${tpRangeV113(pj,others)} THIS SEASON`:`EVERY STAT ${tpRangeV113(pj,ee)} THIS SEASON`;
+  const gv=k=>{const v=Math.round(pj[k]||0);return v>=0?"+"+v:String(v)};
+  const chips=foc?foc.map(k=>`<span class="train-chip">${Le[k].icon} ${Le[k].name} <b class="v85g" style="color:var(--good);margin:0 6px 0 3px">${gv(k)}</b>${capBadgeV67(e,k)}</span>`).join("")
+    :`<span class="train-chip">⚖️ All stats evenly</span>`+Object.keys(Ee[e.pos].w).sort((a,b)=>Ee[e.pos].w[b]-Ee[e.pos].w[a]).slice(0,4).map(k=>`<span class="train-chip">${Le[k].icon} ${Le[k].name}${capBadgeV67(e,k)}</span>`).join("");
+  const costs=n.cost?Object.entries(n.cost).map(([k,m])=>`<span class="train-chip neg">▼ ${Le[k].name} ${m}</span>`).join(""):"";
+  // priority stats first — they are the answer to "what would this improve" — then the rest
+  // of the sheet in its usual order, so the eye can compare two programs row for row
+  const rest=ee.filter(k=>!pri(k)),lead=ee.filter(pri);
+  const rows=g=>g.map(k=>tpRowV113(e,k,pj[k]||0,pri(k))).join("");
+  return `<div class="tp-panel-v113">
+      <div class="train-head">
+        ${window.RIB_SKILL_ICO?window.RIB_SKILL_ICO("tp_"+key,n.icon,54):`<span style="font-size:24px">${n.icon}</span>`}
+        <div style="flex:1;min-width:0">
+          <div class="pn">${n.name} ${key===sug?'<span class="fit-tag fit-natural">SUGGESTED</span>':""}</div>
+          <div class="train-meta"><span style="color:var(--good)">${head}</span> · <span style="color:${rc}">${risk}</span>${n.bonusPoints?` · <span style="color:var(--gold)">+${n.bonusPoints} pts</span>`:""}${cp?` · <span style="color:${cp.col}">${cp.label}</span>`:""}</div>
+        </div>
+      </div>
+      <div class="pd" style="margin-top:7px">${n.desc}</div>
+      <div class="train-chips">${chips}${costs}</div>
+      <div class="tp-legend-v113"><span><b class="tp-key-v113 flash"></b> LIGHT BLUE · WHAT THIS PROGRAM IMPROVES THIS SEASON</span>${costs?'<span><b class="tp-key-v113 dn"></b> WHAT IT COSTS</span>':""}</div>
+      <div class="tp-rows-v113">
+        <div class="tp-grouphead-v113">${foc?"PRIORITY GROWTH":"EVERY STAT — NOTHING IS PRIORITISED"}</div>
+        ${rows(lead)}
+        ${rest.length?`<div class="tp-grouphead-v113 dim">EVERYTHING ELSE</div>${rows(rest)}`:""}
+      </div>
+    </div>`;
+}
+jr=function(){
+  const e=o.player,t=A[e.level],sug=Hi(e),key=tpSelV113&&pt[tpSelV113]?tpSelV113:sug;
+  tpSelV113=key;
+  x("screen").innerHTML=`
+    <div class="eyebrow">${t.name} · Offseason</div>
+    <div class="h1">Choose Your Training</div>
+    <div class="sub">This is where careers are built. Tap a program to see the season it would give you — the bars below are your stats today, and the light blue is what it adds. Nothing is locked until you confirm.<br><span style="color:var(--chalk-dim)">Each stat shows what your next <b>+1</b> costs in skill points: <b style="color:#7fe0a0">1 pt</b> below its soft cap, then <b style="color:#f0bb45">2</b>, <b style="color:#ff9a5a">3</b>, <b style="color:#ff8a80">4+</b> above it. Priority growth into a capped stat is growth you cannot afford to keep.</span></div>
+    <div class="tp-grid-v113">
+      ${Object.entries(pt).map(([s,n])=>{const[risk,rc]=tpRiskV113(n);return`<div class="pos-card train-card tp-tile-v113${s===key?" sel":""}${s===sug?" best":""}" onclick="previewTraining('${s}')">
+          ${window.RIB_SKILL_ICO?window.RIB_SKILL_ICO("tp_"+s,n.icon,46):`<span style="font-size:24px">${n.icon}</span>`}
+          <div class="tp-tname-v113">${n.name}</div>
+          <div class="tp-trisk-v113" style="color:${rc}">${risk}</div>
+        </div>`}).join("")}
+    </div>
+    ${tpPanelV113(e,key,sug)}
+  `;
+  x("dock").innerHTML=`<button class="btn" onclick="confirmTraining()">CONFIRM TRAINING · ${pt[key].name}</button>`;
+};
+// the preview costs the player nothing; only the dock's button reaches chooseTraining
+window.previewTraining=function(k){if(!pt[k])return;tpSelV113=k;q();const el=document.querySelector(".tp-panel-v113");el&&el.scrollIntoView({behavior:"smooth",block:"nearest"})};
+window.confirmTraining=function(){const k=tpSelV113&&pt[tpSelV113]?tpSelV113:Hi(o.player);tpSelV113=null;Ir(k)};
+// a fresh trip to the board starts on the suggestion again, not on last season's preview
+const tpStartV113=Br;Br=function(){tpSelV113=null;return tpStartV113.apply(this,arguments)};window.startSeason=Br;
+window.__V113={get sel(){return tpSelV113},set sel(v){tpSelV113=v},preview:k=>window.previewTraining(k),panel:tpPanelV113,row:tpRowV113};
 })();
 </script>
+<style id="tp-v113">
+/* ===== v113 THE TRAINING BOARD — twelve scenes four across, and the sheet under them ===== */
+.tp-grid-v113{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:14px}
+.pos-card.tp-tile-v113{flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;text-align:center;padding:9px 4px;margin:0;min-width:0}
+.pos-card.tp-tile-v113 .gv64-ico{margin:0 auto}
+.pos-card.tp-tile-v113.sel{border-color:#7ec8ff;box-shadow:0 0 0 1px #7ec8ff59 inset,0 0 12px #7ec8ff2e}
+.tp-tname-v113{font-family:'Barlow Condensed',sans-serif;font-size:11.5px;line-height:1.08;letter-spacing:.2px;color:var(--chalk);overflow-wrap:anywhere}
+.tp-trisk-v113{font-family:Oswald,sans-serif;font-size:8px;letter-spacing:1px}
+.tp-panel-v113{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:12px;background:linear-gradient(180deg,#1e293ab3,#0f1520cc)}
+.tp-legend-v113{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px;font-family:Oswald,sans-serif;font-size:9px;letter-spacing:1.4px;color:var(--chalk-dim)}
+.tp-legend-v113>span{display:inline-flex;align-items:center;gap:6px}
+.tp-key-v113{display:inline-block;width:16px;height:7px;border-radius:4px;background:#7ec8ff}
+.tp-key-v113.dn{background:#e0645a}
+.tp-rows-v113{margin-top:6px}
+.tp-grouphead-v113{font-family:Oswald,sans-serif;font-size:9px;letter-spacing:1.6px;color:#7ec8ff;margin:10px 0 6px}
+.tp-grouphead-v113.dim{color:var(--chalk-dim)}
+.tp-row-v113{margin-bottom:7px}
+.tp-rt-v113{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:3px}
+.tp-rn-v113{font-family:'Barlow Condensed',sans-serif;font-size:12.5px;color:var(--chalk-dim)}
+.tp-row-v113.pri .tp-rn-v113{color:#bfe4ff}
+.tp-rv-v113{font-family:Oswald,sans-serif;font-size:12px;color:var(--chalk)}
+.tp-rv-v113 em{font-style:normal;color:#7ec8ff;margin-left:4px}
+.tp-row-v113.neg .tp-rv-v113 em{color:#e0645a}
+/* the .track groove is written as `.attr .track` — only the FILL colours (.g-lo>i and
+   friends) are global — so the sheet's bar carries its own groove and its own inner rule */
+.tp-bar-v113{position:relative;height:8px;background:#00000073;border-radius:5px;overflow:hidden}
+.tp-bar-v113>i{display:block;height:100%;border-radius:5px;transition:width .4s}
+.tp-capn-v113{font-size:9.5px;letter-spacing:.6px;color:var(--chalk-dim);margin-left:5px}
+.tp-capt-v113{position:absolute;top:0;bottom:0;width:2px;background:#ffffff7a}
+.tp-up-v113{position:absolute;top:0;bottom:0;background:#7ec8ff54;border-radius:0 5px 5px 0}
+.tp-dn-v113{position:absolute;top:0;bottom:0;background:#e0645a;opacity:.9}
+/* the slow pulse is the whole point of the light blue: it marks the length of bar this
+   program would add, on the stats it actually pushes */
+@keyframes tpPulseV113{0%,100%{background:#7ec8ff4d;box-shadow:none}50%{background:#7ec8ff;box-shadow:inset 0 0 6px #ffffffa6}}
+.tp-up-v113.flash,.tp-key-v113.flash{animation:tpPulseV113 2.6s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.tp-up-v113.flash,.tp-key-v113.flash{animation:none;background:#7ec8ff}}
+@media (max-width:359px){.tp-tname-v113{font-size:10.5px}.tp-grid-v113{gap:5px}}
+</style>
 <style>
 .team-creator-btn-v153{border:1px solid var(--line);background:#111a26;color:#fff;border-radius:10px;width:34px;height:34px;font-size:17px;cursor:pointer}.team-modal-v153{position:fixed;inset:0;z-index:500;background:#03070dcc;backdrop-filter:blur(12px);overflow:auto;padding:20px}.team-panel-v153{position:relative;max-width:500px;margin:auto;background:linear-gradient(160deg,#1b283a,#0a1018);border:1px solid var(--gold);border-radius:20px;padding:20px}.team-close-v153{position:absolute;right:12px;top:10px;border:0;background:transparent;color:#fff;font-size:28px}.team-form-v153{display:grid;grid-template-columns:1fr 1fr;gap:10px}.team-form-v153 label{font:12px Oswald;color:var(--chalk-dim)}.team-form-v153 input{width:100%;margin-top:4px;padding:11px;border-radius:9px;border:1px solid var(--line);background:#050a10;color:#fff;font:16px Oswald}.palette-grid-v153{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}.palette-v153{position:relative;height:38px;border:1px solid var(--line);border-radius:8px;background:#000;overflow:hidden;padding:0}.palette-v153 i{display:inline-block;width:50%;height:100%}.palette-v153 small{position:absolute;inset:auto 2px 1px auto;color:#fff;text-shadow:1px 1px #000;font:9px Oswald}.palette-v153.on,.logo-pick-v153.on{outline:2px solid var(--gold)}.logo-grid-v153{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;max-height:260px;overflow:auto;padding:3px}.logo-pick-v153{border:1px solid var(--line);border-radius:8px;background:#050a10;padding:3px}.team-logo-v153{display:inline-grid;place-items:center;background:var(--p);border:3px solid var(--s);color:var(--s);font:900 18px Oswald;box-shadow:inset 0 0 0 2px #0004}.team-logo-v153.circle{border-radius:50%}.team-logo-v153.diamond{transform:rotate(45deg)}.team-logo-v153.diamond b{transform:rotate(-45deg)}.team-logo-v153.shield{clip-path:polygon(8% 0,92% 0,100% 70%,50% 100%,0 70%)}.team-logo-v153.bolt{clip-path:polygon(52% 0,100% 0,65% 42%,92% 42%,28% 100%,44% 55%,12% 55%)}.team-logo-v153.wing{border-radius:70% 10%}.team-logo-v153.star{clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 94%,50% 72%,21% 94%,32% 57%,2% 35%,39% 35%)}.team-logo-v153.crown{clip-path:polygon(0 25%,25% 55%,50% 0,75% 55%,100% 25%,88% 100%,12% 100%)}.team-logo-v153.paw{border-radius:45% 45% 55% 55%}.team-logo-v153.horn{border-radius:100% 0}.team-logo-v153.flame{clip-path:polygon(50% 0,80% 35%,68% 28%,92% 70%,50% 100%,8% 70%,30% 30%,34% 52%)}
 .team-logo-v44{display:block;width:100%;aspect-ratio:1;filter:drop-shadow(0 1px 2px #0008)}.logo-pick-v153{line-height:0}.palette-v153.match{box-shadow:0 0 0 2px #7fe0a0 inset,0 0 10px #7fe0a066}.palette-v153.match:after{content:"✓";position:absolute;left:3px;top:0;color:#7fe0a0;font:700 12px Oswald;text-shadow:1px 1px #000,-1px 0 #000;z-index:2}.pal-hint-v44{color:var(--chalk-dim);font:400 10px Oswald;letter-spacing:.4px;margin-left:6px}

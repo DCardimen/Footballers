@@ -19,7 +19,7 @@ for (const [w, h] of (process.env.SIZES || '430x932,900x1100').split(',').map(x 
       const card = els.find(e => e.classList.contains('pos-card') || /^[A-Z]{1,2} /.test(txt(e))); if (card) { card.click(); return false } return true }, { visSrc: vis })
     await page.waitForTimeout(450); if (done) break
   }
-  await click('PLAY 8-GAME SEASON'); await click('Balanced Program')
+  await click('PLAY 8-GAME SEASON'); await click('Balanced Program'); await click('CONFIRM TRAINING')
   const colors = (process.env.COLORS || '#e01818,#18c8e0').split(',')
   await page.evaluate((colors) => { document.getElementById('growthV42')?.remove()
     const feed = window.__RIB_MENU_DATA_V89; window.__RIB_MENU_DATA_V89 = () => { const d = feed(); d.team.colors = colors; return d }

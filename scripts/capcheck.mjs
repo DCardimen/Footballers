@@ -66,18 +66,26 @@ await page.evaluate(() => window.startSeason())
 await page.waitForTimeout(700)
 await page.evaluate(() => { const e = document.getElementById('growthV42'); if (e) e.remove() })
 
+// v113: the board is twelve tiles in a grid now, and a tile PREVIEWS rather than
+// commits — the focus chips, their badges and the program's verdict live in the sheet
+// under the grid, one program at a time. So the check previews all twelve in turn and
+// reads the panel each time, which is the same pricing on the same screen.
 const board = await page.evaluate(() => {
   const S = window.__CAPV67, pl = window.S.player
   const cards = [...document.querySelectorAll('.train-card')]
-  const rows = cards.map(c => ({
-    key: (c.getAttribute('onclick') || '').replace(/\D*'(\w+)'.*/, '$1'),
-    badges: [...c.querySelectorAll('.capv67')].map(b => b.textContent.trim()),
-    meta: (c.querySelector('.train-meta') || {}).innerText || '',
-  }))
-  // every badge must agree with what drCost would actually charge
-  const drift = []
-  for (const c of cards) {
-    for (const chip of c.querySelectorAll('.train-chip')) {
+  const keys = cards.map(c => (c.getAttribute('onclick') || '').replace(/\D*'(\w+)'.*/, '$1'))
+  const rows = [], drift = []
+  for (const key of keys) {
+    window.previewTraining(key)
+    const panel = document.querySelector('.tp-panel-v113')
+    rows.push({
+      key,
+      badges: panel ? [...panel.querySelectorAll('.capv67')].map(b => b.textContent.trim()) : [],
+      meta: (panel && panel.querySelector('.train-meta') || {}).innerText || '',
+    })
+    if (!panel) continue
+    // every badge must agree with what drCost would actually charge
+    for (const chip of panel.querySelectorAll('.train-chip')) {
       const b = chip.querySelector('.capv67'); if (!b) continue
       const name = chip.textContent.replace(b.textContent, '').trim()
       const k = S.keyOfLabel(name); if (!k) continue
