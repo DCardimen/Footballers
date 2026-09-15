@@ -27,7 +27,7 @@ async function step(page, t) { const r = await page.evaluate(({ t, visSrc }) => 
 // ================= Part 1: the field =================
 const page = await newPage()
 await page.evaluate(p => { window.__readPos = p }, process.env.READ_POS || 'RB')
-for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(page, t)
+for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(page, t)
 let scene = false
 for (let i = 0; i < 40; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(500) }
 console.log('scene:', scene)
@@ -118,7 +118,7 @@ p2.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 await p2.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
 await p2.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 25000 }); await p2.waitForTimeout(1200)
 await p2.evaluate(p => { window.__readPos = p }, process.env.READ_POS || 'RB')
-for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program']) await step(p2, t)
+for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING']) await step(p2, t)
 await p2.evaluate(async () => { document.getElementById('growthV42')?.remove(); window.go('season'); window.simRemainingWeeks(); await new Promise(r => setTimeout(r, 1500)) })
 const VIEWS = ['hub', 'season', 'result', 'training', 'upgrade', 'stats', 'leaderboard', 'life', 'shop', 'settings', 'highscore', 'hall', 'hof', 'roster', 'team', 'rank', 'body', 'money', 'prestige', 'locker', 'goals', 'declare', 'career', 'sim', 'event', 'daily']
 const found = {}, shown = []

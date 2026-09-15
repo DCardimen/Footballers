@@ -20,7 +20,7 @@ async function click(t) {
     if(el)el.click() }, {t, visSrc:vis})
   await page.waitForTimeout(450)
 }
-for (const s of ["START NEW CAREER","ARCH","LB Linebacker","PLAY 8-GAME SEASON","Balanced Program"]) await click(s)
+for (const s of ["START NEW CAREER","ARCH","LB Linebacker","PLAY 8-GAME SEASON","Balanced Program","CONFIRM TRAINING"]) await click(s)
 const res = await page.evaluate(() => {
   const FS = window.__FieldSim
   const rec = []

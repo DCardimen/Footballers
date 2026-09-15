@@ -19,7 +19,7 @@ async function click(t) {
   }, t)
   await page.waitForTimeout(500)
 }
-for (const s of ["START NEW CAREER","ARCH","WR Wide Receiver","PLAY 8-GAME SEASON","Balanced Program"]) await click(s)
+for (const s of ["START NEW CAREER","ARCH","WR Wide Receiver","PLAY 8-GAME SEASON","Balanced Program","CONFIRM TRAINING"]) await click(s)
 const res = await page.evaluate(() => {
   const out = { pos: {}, problems: [] }
   for (const pos of ["WR","RB","CB","LB","QB"]) {

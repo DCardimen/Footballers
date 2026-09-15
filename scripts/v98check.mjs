@@ -28,7 +28,7 @@ const snap = async (page, path) => { const src = await page.evaluate(() => new P
 // ================= Part 1: the live field =================
 const page = await newPage()
 await page.evaluate(p => { window.__readPos = p }, process.env.READ_POS || 'RB')
-for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(page, t)
+for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(page, t)
 await page.waitForFunction(() => window.__V92 && window.__V92.loaded && window.__V92.on, null, { timeout: 25000 }).catch(() => {})
 await page.waitForTimeout(600)
 const coachBefore = await page.evaluate(() => { const st = window.__getGridironState ? window.__getGridironState() : window.o; return Math.round((st.experience95 || {}).coach || 50) })

@@ -53,7 +53,7 @@ ok(reset.fx === 1 && reset.saved == null, 'Reset to defaults puts the lights bac
 
 // ================= Part 2: the dial on the live field =================
 await page.evaluate(() => { try { window.go('hub') } catch (e) {} }); await page.waitForTimeout(900)
-for (const t of ['PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
+for (const t of ['PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 await page.waitForFunction(() => window.__V99 && window.__V92 && window.__V92.on, null, { timeout: 25000 }).catch(() => {})
 await page.waitForTimeout(700)
 const read = async (v) => page.evaluate(async (v) => {

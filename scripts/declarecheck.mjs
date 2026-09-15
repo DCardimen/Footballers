@@ -57,7 +57,7 @@ const dockText = () => page.evaluate(() => (document.getElementById('dock') || {
 for (const s of ['START NEW CAREER', 'ARCH', 'RB Running Back', 'Lock In Personality']) await click(s)
 await click('PLAY 8-GAME SEASON', 900) || await click('Season', 900)
 await clearWheel()
-await click('Balanced Program', 900)
+await click('Balanced Program', 900); await click('CONFIRM TRAINING', 900)
 
 // Burn whole seasons with the quick sim until the declare is on offer. Each
 // season leaves the result screen, where the declare button lives.
@@ -86,7 +86,7 @@ for (let s = 0; s < 6; s++) {
     await page.waitForTimeout(200)
   }
   await clearWheel()
-  await click('Balanced Program', 700)
+  await click('Balanced Program', 700); await click('CONFIRM TRAINING', 700)
 }
 ok(seasonsPlayed > 0, 'the walk reached a declare', `${seasonsPlayed} season(s) played`)
 

@@ -94,7 +94,7 @@ for (const [w, h, stale] of RUNS) {
       const card = els.find(e => e.classList.contains('pos-card') || /^[A-Z]{1,2} /.test(txt(e))); if (card) { card.click(); return false } return true }, { visSrc: vis })
     await page.waitForTimeout(450); if (done) break
   }
-  await click('PLAY 8-GAME SEASON'); await click('Balanced Program')
+  await click('PLAY 8-GAME SEASON'); await click('Balanced Program'); await click('CONFIRM TRAINING')
   // vivid colours, whatever team the career rolled: a navy-on-grey team would change a grey
   // shirt by four levels and prove nothing. The feed is wrapped, so the real menu path renders it.
   await page.evaluate(() => { document.getElementById('growthV42')?.remove()

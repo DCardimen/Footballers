@@ -68,7 +68,7 @@ ok(/^url\(['"]?https?:\/\//.test(menu.wm) && menu.maskSet, 'the sheen is masked 
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS']) await step(t)
 const stopped = await page.evaluate(() => !document.getElementById('rib-main-menu-v2') && !(window.__RIB_MENU_FX_V102 && window.__RIB_MENU_FX_V102.on))
 ok(stopped, 'leaving the menu stops the hero loop')
-await step('PLAY 8-GAME SEASON'); await step('Balanced Program'); await step('PLAY WEEK 1 LIVE'); await step('PLAN')
+await step('PLAY 8-GAME SEASON'); await step('Balanced Program'); await step('CONFIRM TRAINING'); await step('PLAY WEEK 1 LIVE'); await step('PLAN')
 let live = false
 for (let i = 0; i < 6 && !live; i++) {
   for (const t of ['CONTINUE TO MATCH', 'Continue to Match', 'PLAY', 'CONTINUE']) {

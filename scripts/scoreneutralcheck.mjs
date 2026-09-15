@@ -29,7 +29,7 @@ async function click(t) {
     if(el) el.click() }, {t, visSrc:vis})
   await page.waitForTimeout(400)
 }
-for (const s of ["START NEW CAREER","ARCH","QB Quarterback","Lock In Personality","PLAY 8-GAME SEASON","Balanced Program"]) await click(s)
+for (const s of ["START NEW CAREER","ARCH","QB Quarterback","Lock In Personality","PLAY 8-GAME SEASON","Balanced Program","CONFIRM TRAINING"]) await click(s)
 const N = Math.max(1, Number(process.env.GAMES || 200))
 const POS = process.env.POS || ''
 const res = await page.evaluate(({N, POS}) => {

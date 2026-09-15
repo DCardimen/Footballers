@@ -97,7 +97,7 @@ for (let i = 0; i < 8; i++) {
   await page.waitForTimeout(500)
   if (done) break
 }
-for (const s of ['PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE']) await click(s)
+for (const s of ['PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE']) await click(s)
 for (let i = 0; i < 40; i++) {
   const done = await page.evaluate(() => {
     const g = document.getElementById('gv42go')

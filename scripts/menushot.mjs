@@ -22,7 +22,7 @@ for (const [w, h] of (process.env.SIZES || '390x844,430x932,900x1100').split(','
         const card = els.find(e => e.classList.contains('pos-card') || /^[A-Z]{1,2} /.test(txt(e))); if (card) { card.click(); return false } return true }, { visSrc: vis })
       await page.waitForTimeout(450); if (done) break
     }
-    await click('PLAY 8-GAME SEASON'); await click('Balanced Program')
+    await click('PLAY 8-GAME SEASON'); await click('Balanced Program'); await click('CONFIRM TRAINING')
     await page.evaluate(async () => { document.getElementById('growthV42')?.remove(); const pl = window.S.player; const c = pl.conditionV11 || {}; c.fatigue = 10; c.injury = null
       for (let i = 0; i < 3; i++) { const wk = pl.weekResults.find(x => !x.played); if (wk) { window.__silentWeekV85(pl, wk); await new Promise(r => setTimeout(r, 200)) } }
       window.go('menu') })

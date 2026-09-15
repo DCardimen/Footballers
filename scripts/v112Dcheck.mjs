@@ -50,7 +50,7 @@ async function toPregame() {
   await page.waitForTimeout(2500)
   for (const s of ['START NEW CAREER', 'ARCH', POS_LABEL, 'Lock In Personality', 'PLAY 8-GAME SEASON']) await click(s)
   for (let i = 0; i < 60; i++) { const d = await page.evaluate(() => { const g = document.getElementById('gv42go'); if (g && g.style.display !== 'none') { g.click(); return false } return !document.getElementById('growthV42') }); if (d) break; await page.waitForTimeout(300) }
-  await click('Balanced Program')
+  await click('Balanced Program'); await click('CONFIRM TRAINING')
   await page.evaluate(() => { const el = [...document.querySelectorAll('button')].find(e => /PLAY WEEK 1 LIVE/.test(e.innerText || '')); el && el.click() })
   for (let i = 0; i < 80; i++) {
     if (await page.evaluate(() => !!document.getElementById('pregameV1513'))) break

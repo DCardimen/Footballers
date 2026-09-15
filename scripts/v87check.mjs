@@ -25,7 +25,7 @@ async function step(t) { let r = null; try { r = await page.evaluate(({ t, visSr
   if (el) { el.scrollIntoView({ block: 'center' }); el.click(); return txt(el).slice(0, 30) } return null }, { t, visSrc: vis }) } catch (e) { r = 'ERR' }
   console.log('>>', t, '->', r); await page.waitForTimeout(t === 'PLAN' ? 4000 : 800) }
 await page.evaluate(() => { window.__readPos = 'CB' })
-for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program']) await step(t)
+for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING']) await step(t)
 await page.evaluate(() => { document.getElementById('growthV42')?.remove(); window.go('season') })
 await page.waitForTimeout(500)
 

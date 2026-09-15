@@ -180,7 +180,7 @@ ok(N.selfSame, 'the seeded game is reproducible at all (the comparison means som
 ok(N.same === N.games, 'THE SPOT IS SET BEFORE THE ARC PLAYS OUT — every seeded play books the identical yard with the launch off and on', `${N.same}/${N.games} games byte-identical`)
 
 // ================= 4. the renderer: the flight, the landing, the skid =================
-for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE', 'PLAN']) await step(t)
+for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN']) await step(t)
 let live = false
 for (let i = 0; i < 6 && !live; i++) {
   for (const t of ['CONTINUE TO MATCH', 'Continue to Match', 'PLAY', 'CONTINUE']) {

@@ -68,6 +68,16 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v113 THE BOARD IS A GRID, AND THE CHOICE IS TWO TAPS` — the offseason "Choose Your Training"
+  board is the twelve programs as icons, four across and three down, and a tile PREVIEWS rather
+  than commits: `tpPanelV113` redraws the sheet under the grid for that program — one bar per
+  attribute, drawn against its **soft cap** (`drSoftCap`, not `we()`, so a young player's bars are
+  not slivers; a stat past its cap stretches the scale and keeps a tick where the cap sits) with
+  the season it would add as a light-blue segment that pulses on a 2.6s cycle on the stats the
+  program actually pushes. The dock's `confirmTraining()` is the commit, and it is still `Ir`.
+  The tiles stay `.train-card` with the key in the first quoted token of their onclick (the
+  checks' regex stops at a digit — hence `previewTraining`, not `previewTrainingV113`).
+  `window.__V113` is the hook; `capcheck.mjs`, `skillartcheck.mjs`, `v85check.mjs`
 - `v110 THE MAN WHO IS THERE` — position on the field decides who makes the play. A read lands the
   moment the ball is inside `TU("seeBallPx", 20)` (a man does not stand a yard from the football
   still diagnosing it), support holds only if it is genuinely FARTHER off than the committer, the
@@ -298,6 +308,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the team kit on the menu pictures / the hero, continue-card and portrait masks (v106) | `python3 scripts/build-menu-art.py` (or the one `menu-kit-*.py`), then `menu-mask-check.mjs`, `menu-kit-shot.mjs` (look at the shots), `menu-integration-check.mjs`, `v102check.mjs`, `menushot.mjs` (`CAREER=1`) |
 | team emblems / palettes / identity | `emblemcheck.mjs` |
 | training / skill art, the skill atlas | `skillartcheck.mjs`, `wheelcheck.mjs` |
+| the offseason training board — the grid, the preview sheet, the confirm (v113) | `skillartcheck.mjs`, `capcheck.mjs`, `v85check.mjs`, then `walk.mjs`, `scrollcheck.mjs`, `shot.mjs` |
 | the crowd, the sideline, the team area | `crowdcheck.mjs`, `sidelinecheck.mjs` |
 | the declare / career-end screens | `declarecheck.mjs` |
 | UI / screens | `shot.mjs` (screenshot), `walk.mjs` (click-through) |

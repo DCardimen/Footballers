@@ -34,7 +34,7 @@ await page.waitForTimeout(1200)
 // ---- the career walk into a live game (the same one readshot uses)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 await page.evaluate(p => { window.__readPos = p }, process.env.POS || 'RB')
-for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) {
+for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) {
   try {
     await page.evaluate(({ t, visSrc }) => {
       const vis = eval(visSrc); const els = [...document.querySelectorAll('button,[onclick],a')].filter(vis)

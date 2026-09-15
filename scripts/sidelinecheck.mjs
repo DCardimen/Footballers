@@ -44,7 +44,7 @@ async function drive(block) {
     return hit
   }
   for (const s of ['START NEW CAREER', 'ARCH', 'QB Quarterback', 'Lock In Personality', 'PLAY 8-GAME SEASON',
-    'Balanced Program', 'PLAY WEEK 1 LIVE']) await click(s)
+    'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE']) await click(s)
   for (let i = 0; i < 45; i++) {
     const stage = await page.evaluate(() => {
       if (document.getElementById('growthV42')) { const g = document.getElementById('gv42go'); if (g && g.style.display !== 'none') { g.click(); return 'wheel' } return 'spin' }

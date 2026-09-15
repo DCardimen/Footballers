@@ -138,7 +138,7 @@ const off = await page.evaluate(() => {
 ok(off.fum > 0 && off.shapeOk === off.fum && off.sameTick === off.fum, 'looseV109 at 0 puts the same-tick ending back with the identical out.fumble shape', JSON.stringify(off))
 
 // ================= 2. the live field: the hits are drawn at their point =================
-for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE', 'PLAN']) await step(t)
+for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN']) await step(t)
 let live = false
 for (let i = 0; i < 6 && !live; i++) {
   for (const t of ['CONTINUE TO MATCH', 'Continue to Match', 'PLAY', 'CONTINUE']) {

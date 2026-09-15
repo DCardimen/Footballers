@@ -374,6 +374,48 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v113 — the training board is a grid, and the choice is two taps
+
+Anchor `v113 THE BOARD IS A GRID, AND THE CHOICE IS TWO TAPS` (the last block inside the
+career app's IIFE, after the v15.3 patch layer). It replaces `jr`, the offseason
+"Choose Your Training" screen, and nothing else: the twelve programs in `pt`, their
+projections through `projectSeasonGainsV85`, the v67 cap badges and `Ir`
+(`window.chooseTraining`, the commit) are all untouched.
+
+- **The grid.** `.tp-grid-v113` is `repeat(4, 1fr)` — twelve programs, four across and
+  three down, each tile the v64 scene at 46px, the program's name and its risk word.
+  The tiles are still `.train-card` elements and their `onclick` still names the
+  program key in the first quoted token, because `capcheck.mjs` and
+  `skillartcheck.mjs` pull it out with `/\D*'(\w+)'.*/` — a regex that stops at the
+  first digit, which is why the handlers are `previewTraining` / `confirmTraining`
+  and not `...V113`.
+- **The preview.** A tile calls `previewTraining(key)`: it sets `tpSelV113` and
+  re-renders, so the sheet below (`tpPanelV113`) redraws for that program. Nothing is
+  written to the player — `projectSeasonGainsV85(e, key, true)` is asked about a
+  program, not told about one. The panel keeps everything the old card carried (the
+  scene, the `.train-meta` verdict line, the focus `.train-chip`s with their v67
+  badges, the cost chips) and adds the sheet: one `tpRowV113` per attribute, priority
+  stats first.
+- **The bar.** A row is drawn against that stat's **soft cap** (`drSoftCap`), not the
+  absolute wall — at 12 of an eventual 250 every bar read as a sliver, and the number
+  that governs this season is the cap the next point starts costing more at. A stat
+  already past its cap stretches the scale to `cur + gain` and keeps a `.tp-capt-v113`
+  tick where the cap sits. The light-blue `.tp-up-v113` segment is the season this
+  program would add; on the stats the program actually pushes it carries `.flash` and
+  pulses on a 2.6s cycle (held still under `prefers-reduced-motion`). A cost is the
+  red `.tp-dn-v113` segment. `.track`'s groove is written as `.attr .track`, so the
+  sheet's bar carries its own groove/`>i` rules and borrows only the global `.g-lo>i`
+  fill colours.
+- **The commit.** The dock's one button calls `confirmTraining()`, which is
+  `Ir(tpSelV113)` — the event roll and the season behind it are exactly what they
+  were. `Br` (`window.startSeason`) clears `tpSelV113` so a fresh trip to the board
+  starts on `Hi(e)`'s suggestion again, which is also why the sheet is never empty.
+
+Dev checks: the click-throughs that used to stop at `click('Balanced Program')` now
+click `CONFIRM TRAINING` after it (65 scripts), and `capcheck.mjs` / `v85check.mjs`
+preview all twelve tiles in turn instead of reading twelve cards at once.
+`window.__V113` exposes `sel`, `preview`, `panel` and `row`.
+
 ## v112 — the start, the decision, the weight of a hit
 
 Six independent passes, written on separate worktrees against one rule: **nothing here is allowed

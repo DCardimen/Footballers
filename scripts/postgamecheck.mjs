@@ -35,7 +35,7 @@ const clearWheel = async () => { for (let i = 0; i < 50; i++) { const d = await 
 
 for (const s of ['START NEW CAREER', 'ARCH', 'QB Quarterback', 'Lock In Personality', 'PLAY 8-GAME SEASON']) await click(s)
 await clearWheel()
-await click('Balanced Program')
+await click('Balanced Program'); await click('CONFIRM TRAINING')
 
 // The quick sim bypasses this card entirely, so every week here is played LIVE
 // and skipped to the whistle.

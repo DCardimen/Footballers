@@ -9,7 +9,7 @@ await page.goto(process.env.GAME_URL || 'http://localhost:5173/', { waitUntil: '
 await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 }); await page.waitForTimeout(500)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 async function click(t){await page.evaluate(({t,visSrc})=>{const vis=eval(visSrc);const els=[...document.querySelectorAll('button,[onclick],a')].filter(vis);let el;if(t==='ARCH')el=els.find(e=>/^(⭐|🦾|🏘️|🚪|🩹|🔄|💎|🔥|🧊|👑)/.test((e.innerText||'').trim()));else el=els.find(e=>((e.innerText||e.textContent||'').replace(/\s+/g,' ').includes(t)));if(el)el.click()},{t,visSrc:vis});await page.waitForTimeout(450)}
-for (const s of ["START NEW CAREER","ARCH","QB Quarterback","Lock In Personality","PLAY 8-GAME SEASON","Balanced Program"]) await click(s)
+for (const s of ["START NEW CAREER","ARCH","QB Quarterback","Lock In Personality","PLAY 8-GAME SEASON","Balanced Program","CONFIRM TRAINING"]) await click(s)
 const r = await page.evaluate(() => {
   const N = 60
   const agg = { games:N, rushYds:0, carries:0, passYds:0, sacks:0, scrambles:0, punts:0, fgs:0, fgGood:0,

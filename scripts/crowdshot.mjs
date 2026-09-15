@@ -29,7 +29,7 @@ async function click(t) {
   await page.waitForTimeout(850)
 }
 for (const s of ['START NEW CAREER', 'ARCH', 'QB Quarterback', 'Lock In Personality', 'PLAY 8-GAME SEASON',
-  'Balanced Program', 'PLAY WEEK 1 LIVE', 'CONTINUE TO MATCH']) await click(s)
+  'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'CONTINUE TO MATCH']) await click(s)
 
 for (let i = 0; i < 40; i++) {
   const r = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.crowd && window.__gridironScene.crowd.built))

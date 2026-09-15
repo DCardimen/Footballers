@@ -161,7 +161,7 @@ async function click(t) {
   console.log(`>> ${t} -> ${ok ? 'ok' : 'MISS'}`)
   await page.waitForTimeout(900)
 }
-for (const s of ['START NEW CAREER', 'ARCH', 'QB Quarterback', 'Lock In Personality', 'PLAY 8-GAME SEASON', 'Balanced Program', 'PLAY WEEK 1 LIVE']) await click(s)
+for (const s of ['START NEW CAREER', 'ARCH', 'QB Quarterback', 'Lock In Personality', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE']) await click(s)
 await page.waitForTimeout(600)
 
 async function dismissModals() {

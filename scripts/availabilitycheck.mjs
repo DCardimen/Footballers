@@ -27,7 +27,7 @@ const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputed
 async function click(t){ await page.evaluate(({t,visSrc})=>{const vis=eval(visSrc);const els=[...document.querySelectorAll('button,[onclick],a')].filter(vis);let el;if(t==='ARCH')el=els.find(e=>/^(⭐|🦾|🏘️|🚪|🩹|🔄|💎|🔥|🧊|👑)/.test((e.innerText||'').trim()));else el=els.find(e=>((e.innerText||e.textContent||'').replace(/\s+/g,' ').includes(t)));if(el){el.scrollIntoView({block:'center'});el.click()}},{t,visSrc:vis}); await page.waitForTimeout(450) }
 const clearWheel = async () => { for (let i=0;i<40;i++){ const d = await page.evaluate(()=>{const g=document.getElementById('gv42go'); if(g&&g.style.display!=='none'){g.click();return true} if(window.continuePregameV1513&&document.getElementById('pregameV1513')){window.continuePregameV1513();return false} return !document.getElementById('growthV42')}); if(d) break; await page.waitForTimeout(250) } }
 for (const s of ['START NEW CAREER','ARCH','QB Quarterback','Lock In Personality','PLAY 8-GAME SEASON']) await click(s)
-await clearWheel(); await click('Balanced Program')
+await clearWheel(); await click('Balanced Program'); await click('CONFIRM TRAINING')
 
 // ---- 1. the model: chance keys on WHO YOU PLAY -----------------------------
 const m = await page.evaluate(() => {

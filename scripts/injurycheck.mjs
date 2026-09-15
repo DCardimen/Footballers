@@ -15,7 +15,7 @@ async function click(t) {
     if(el){el.scrollIntoView({block:'center'});el.click()}
   }, t); await page.waitForTimeout(600)
 }
-for (const s of ["START NEW CAREER","ARCH","RB Running Back","PLAY 8-GAME SEASON","Balanced Program","Lock In Personality"]) await click(s)
+for (const s of ["START NEW CAREER","ARCH","RB Running Back","PLAY 8-GAME SEASON","Balanced Program","CONFIRM TRAINING","Lock In Personality"]) await click(s)
 await page.waitForTimeout(700)
 console.log(await page.evaluate(() => {
   const p=window.__getGridironState().player
