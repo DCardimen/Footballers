@@ -1,7 +1,14 @@
 // Dev check: v94 THE CHASE — the loading screen.
+//
+// v114 put the title film on the boot splash, and the chase is now what stands in when the film
+// cannot play. So the three boot cases below pass ?noFilmV114 to keep testing the chase on its
+// own terms — that fallback is exactly the thing that must never rot, because it is what a
+// browser with no codec, no autoplay or a 404'd film falls back to. v114check.mjs owns the film.
+// Door two, the live game's loader, never had a film and is unchanged.
+//
 // Boots the game three ways and asserts the door opens every time:
 //   1. the normal boot: the sheet lands, the chase draws (the canvas has turf and kit
-//      pixels, the runner moves, the beats roll through look/juke/recover), the splash holds
+//      pixels, the runner moves, the beats roll through look/juke-or-spin/recover), the splash holds
 //      for its minimum, plays the exit beat and is gone with the menu behind it; three
 //      screenshots along the way (_splash_0.png, _splash_1.png, _splash_2.png, _splash_td.png);
 //   2. reduced motion: one posed frame, the old timing;
@@ -24,9 +31,10 @@ async function boot(opts) {
   if (opts.noSheet) await page.route(/rib_field_v91\.(png|json)/, r => r.abort())
   await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
   // a warm-up load absorbs the one full-reload vite sends the first client after index.html changed
-  await page.goto(URL, { waitUntil: 'load', timeout: 60000 }); await page.waitForTimeout(1500); errs.length = 0
+  const url = URL + (URL.includes('?') ? '&' : '?') + 'noFilmV114'   // v114: these cases are about the chase
+  await page.goto(url, { waitUntil: 'load', timeout: 60000 }); await page.waitForTimeout(1500); errs.length = 0
   const t0 = Date.now()
-  await page.goto(URL, { waitUntil: 'commit', timeout: 30000 })
+  await page.goto(url, { waitUntil: 'commit', timeout: 30000 })
   return { page, ctx, errs, t0 }
 }
 const canvasStats = () => {
@@ -65,7 +73,10 @@ const canvasStats = () => {
   await page.screenshot({ path: '_splash_2.png' })
   const st = await page.evaluate(() => ({ beats: window.__SPLASH_V94.beats.slice(), frames: window.__SPLASH_V94.frames, exiting: window.__SPLASH_V94.exiting, done: window.__SPLASH_V94.done, up: !!document.getElementById('splash') }))
   ok(st.frames > frames0 + 30, 'the loop keeps drawing', (st.frames - frames0) + ' frames in 1.6s')
-  ok(st.beats.includes('juke') || st.beats.includes('look'), 'the beats roll (look / juke)', st.beats.join(' '))
+  // the move itself rolls — v94's own banner says "a JUKE ... or a SPIN" — so an assertion that
+  // only accepted juke/look failed roughly half the time on a spin. Any move counts; what is being
+  // proved is that the beats ROLL, not which one came up.
+  ok(['juke', 'look', 'spin'].some(b => st.beats.includes(b)), 'the beats roll (look / juke / spin)', st.beats.join(' '))
   // the door: the app was ready ~1s in; the splash must still be up until the minimum, then leave
   let gone = false, goneAt = 0
   let tdShot = false

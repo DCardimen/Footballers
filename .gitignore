@@ -13,3 +13,5 @@ menu-integration-diagnostics.json
 
 # agent worktrees (Claude Code isolation)
 .claude/worktrees/
+
+_v114_*.png
