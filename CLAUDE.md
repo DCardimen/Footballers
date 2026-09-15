@@ -68,6 +68,21 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v116 THE FILM LOOPS` — the loading film never stops, at either door. `LOOP_FROM_V116` (6.5s) is
+  the SEAM: the streak has finished landing on the wordmark by then, and everything after it is the
+  wordmark breathing under cloud, so the last frame runs straight back into 6.5s (measured 3.4/255
+  mean difference — invisible). `loop` stays FALSE on the element, because a native loop rewinds to
+  the black at zero AND swallows the `ended` event that triggers the rewind; `loopBack(v)` does it
+  by hand and is shared with door two through `__V114.loopBack` (door two plays that very element).
+  The intro is a one-time thing, so the door now waits for `V.landed` — the playhead passing the
+  seam — instead of an end that never comes (`FILM_WAIT_INTRO`), which makes the splash SHORTER
+  than v114's (~6.5s, not the whole film) and hands anything longer to the loop. The bar's playhead
+  share counts down to the seam for the same reason, and `LIVE_FILM_FROM` is now the seam itself, so
+  door two opens on the finished wordmark. Asset: `public/rib_film_v116.{mp4,webm,jpg}`, cut by
+  `scripts/build-splash-film.mjs` from `art/splash/rib_loop_master_v116.mp4` (20MB of 1080p HEVC →
+  ~1.4MB of 960x540 H.264 — the master is undecodable in most browsers AND `moov`-last, so the
+  re-cut is not optional). `window.__V114` carries `loopFrom` / `landed` / `loops` / `loopBack()`;
+  `v114check.mjs` is the gate — it defers the app's own knock by 20s so the loop can be watched
 - `v115 THE FILM AT BOTH DOORS` — the live game's loader over `.field-wrap` plays the sting too, as a
   BACKDROP under the matchup (`.rib-liveload-film-v115`, `object-fit:contain` — `cover` cropped the
   wordmark off the sides, and the ground already wears the film's black so the letterbox is
@@ -76,9 +91,9 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   ordered: the caption drops (.26s), the film keeps its face and swells to 1.09 (.66s), the layer
   goes LAST after a .12s beat, and the film is parked only when that finishes — parking it up front
   detached the `<video>` and left an empty black layer to fade. Three differences from door one, all deliberate: it does NOT wait for the film (the
-  door opens on the scene standing and the first play built — holding it for 7.7s would front-load
-  every game), it starts at `LIVE_FILM_FROM` past the black lead-in, and it uses the element door
-  one already loaded. That last one is the whole trick: door two mounts while Phaser is compiling,
+  door opens on the scene standing and the first play built — holding it for 14.5s would front-load
+  every game), it starts at `LIVE_FILM_FROM` (v116: the seam, the landed wordmark), and it uses the
+  element door one already loaded. That last one is the whole trick: door two mounts while Phaser is compiling,
   and a media element's load does not START until the main thread lets it (measured: `play()` then
   `loadstart` **2.7s** later, on a door open for four). So `__V114.park()` keeps the buffered element
   when the splash leaves and `take()`/`give()` lend it out — one decoded film per session, no second
@@ -88,21 +103,21 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   own black (measured rgb(4,8,11) at its edges) and ran the film full-bleed with no radius or shadow,
   because a rounded card on a blue-grey ground put a visible seam around it. `v115check.mjs` is the
   gate; `splashcheck.mjs` case 4 now boots `?noFilmV114` so it keeps testing the chase there
-- `v114 THE SPLASH IS A FILM` — the boot splash plays the title sting (`public/rib_splash_v114.mp4`,
+- `v114 THE SPLASH IS A FILM` — the boot splash plays the title sting (`public/rib_film_v116.mp4`,
   the VP9 `.webm` sibling for a browser with no H.264, the `.jpg` last frame for reduced motion; all
-  three cut by `scripts/build-splash-film.mjs` from `art/splash/rib_splash_master.mp4`, **`+faststart`
+  three cut by `scripts/build-splash-film.mjs` from `art/splash/rib_loop_master_v116.mp4`, **`+faststart`
   or it is not a loading screen**). The source is chosen by a picker inline BESIDE the `<video>`, not
   by a `<source>` in the markup or a `<link rel=preload>` in the head: both of those start a fetch
   the page cannot take back, and on a fast link the ~900KB completes before any script could abort
   it — so the paths that refuse the film (reduced motion, `?noFilmV114`) would pay for a file they
   never show. Deciding beside the element costs a few ms against the preload scanner and buys a
-  guarantee; `stopLoad()` is the belt to that braces. The film does not loop: it STOPS on its last frame,
-  and the splash leaves when the app is ready AND the film has ended (`FILM_WAIT_END`, capped by
+  guarantee; `stopLoad()` is the belt to that braces. The splash leaves when the app is ready AND
+  the film's intro has landed (v116's `FILM_WAIT_INTRO`, capped by
   `FILM_CAP_MS`; `FILM_START_MS` is the audition — no frame by then and the v94 chase takes the stage
   back, which is also the `?noFilmV114` path). The loader bar is two layers: v112 A's compositor
   sweep (`.splash-loader i`, untouched) over a determinate fill (`.splash-loader b`, a composited
-  transform) weighted buffered/sheet/door/playhead. Door two — the live game's loader — is still
-  the chase. `window.__V114` is the hook; `v114check.mjs` is the gate and `splashcheck.mjs` now
+  transform) weighted buffered/sheet/door/playhead (the playhead counting down to v116's seam).
+  Door two — the live game's loader — is still the chase. `window.__V114` is the hook; `v114check.mjs` is the gate and `splashcheck.mjs` now
   boots `?noFilmV114` so it keeps testing the fallback
 - `v113 THE BOARD IS A GRID, AND THE CHOICE IS TWO TAPS` — the offseason "Choose Your Training"
   board is the twelve programs as icons, four across and three down, and a tile PREVIEWS rather
@@ -317,6 +332,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the lighting dial / how bright the stadium burns (v100) | `v100check.mjs`, `v99check.mjs`, `v98check.mjs` |
 | shadows / the key light / the goalpost frame / the lamps holding (v99) | `v99check.mjs`, `v92check.mjs`, `v86check.mjs`, `sidelinecheck.mjs` |
 | the lights / the lit turf / the scorebug colours / crowd emoji / the handover cut / the coach row (v98) | `v98check.mjs`, `v92check.mjs`, `crowdcheck.mjs`, `postgamecheck.mjs` |
+| the loading film's loop — the seam, the rewind, what the door waits for (v116) | `v114check.mjs`, then `v115check.mjs`, `splashcheck.mjs`, `v112Acheck.mjs` |
 | the live game's loader playing the film — the parked element, the offset, the door (v115) | `v115check.mjs`, then `v114check.mjs`, `splashcheck.mjs`, `v86check.mjs` |
 | the boot splash's film — the asset, the door, the bar (v114) | `v114check.mjs`, then `splashcheck.mjs`, `shot.mjs` |
 | the loading screen / the splash's door (v94) | `splashcheck.mjs`, `shot.mjs`, `walk.mjs` |

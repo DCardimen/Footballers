@@ -16,7 +16,7 @@
 <title>RUNNING IT BACK — Life of a Player v15.20</title>
 <!-- v114: the splash film is deliberately NOT preloaded from here. A <link rel=preload as=video>
      did start the fetch a few ms sooner, but it is a fetch no script can take back, and the two
-     paths that refuse the film — prefers-reduced-motion and ?noFilmV114 — then paid ~900KB for a
+     paths that refuse the film — prefers-reduced-motion and ?noFilmV114 — then paid ~1.4MB for a
      file they never show (a media= query on the link is not honoured early enough to lean on).
      #splash is the first element in the body, so the preload scanner reaches the <source>s inside
      #splashFilm on its own and almost nothing is lost. v114check counts the bytes on both paths. -->
@@ -301,7 +301,7 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 /* v114: the film's source, chosen and set in the same breath as the element is parsed.
  * It is NOT a <source> in the markup and NOT a <link rel=preload> in the head, because both of
  * those start a fetch the page cannot take back — and the two paths that refuse the film,
- * prefers-reduced-motion and ?noFilmV114, would then pay ~900KB for a file they never show (on a
+ * prefers-reduced-motion and ?noFilmV114, would then pay ~1.4MB for a file they never show (on a
  * fast link the transfer completes before any script could abort it). Deciding here instead costs
  * a few milliseconds against the preload scanner and buys a guarantee. H.264 first: it is what the
  * phones this game is played on decode. The VP9/WebM sibling is for a browser that cannot — which
@@ -315,7 +315,7 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
     if (rm || off) { v.preload = 'none'; return; }                       // not shown, so not fetched
     var mp4 = ''; try { mp4 = v.canPlayType('video/mp4; codecs="avc1.4d401f"'); } catch (e) {}
     var root = window.__RIB_ASSET_ROOT || './public/';
-    v.src = root + (mp4 ? 'rib_splash_v114.mp4' : 'rib_splash_v114.webm');
+    v.src = root + (mp4 ? 'rib_film_v116.mp4' : 'rib_film_v116.webm');
   } catch (e) {}
 })();
 </script>
@@ -405,15 +405,15 @@ window.addEventListener('unhandledrejection', function(e){
 </script>
 <script>
 /* ===== v114 THE SPLASH IS A FILM — the title sting plays while the game loads =====
- * The boot splash drew the v94 chase. It now plays the title sting instead: a 7.7s film that
- * comes out of black, throws a light streak across the frame and lands on the wordmark, where
- * it STOPS — no loop, no restart, the last frame held for as long as the load still needs.
+ * The boot splash drew the v94 chase. It now plays the title sting instead: a 14.5s film that
+ * comes out of black, throws a light streak across the frame and lands on the wordmark — and
+ * from there it LOOPS, for as long as the load still needs (see v116, below).
  *
  * Three things had to be true for a film to be a loading screen rather than another thing to
  * wait for:
  *   - IT ARRIVES FIRST. The master's `moov` atom sat after `mdat`, so nothing could be shown
  *     until the last byte landed; scripts/build-splash-film.mjs re-cuts it with +faststart and
- *     drops 7.7MB to ~900KB. The head asks for it in its first breath, beside v112 A's sheet
+ *     drops 20MB of HEVC to ~1.4MB of H.264. The head asks for it in its first breath, beside v112 A's sheet
  *     warm, and the <video preload="auto"> in the body picks up the same preload entry.
  *   - IT KEEPS PLAYING WHEN THE MAIN THREAD DOES NOT. That is the whole reason to prefer a film
  *     here: video decode is not on the main thread, so the megabytes of inline bundle compiling
@@ -423,27 +423,41 @@ window.addEventListener('unhandledrejection', function(e){
  *     chase mounts exactly as before — which is also what happens under prefers-reduced-motion,
  *     where the film shows its last frame as a still and never plays.
  *
- * THE DOOR. The splash leaves when the app is ready AND the film has ended, capped at
- * FILM_CAP_MS. That is "stop at the end of the movie": a title sting cut mid-swoosh looks
- * broken, and the held wordmark is a better place to fade from than the middle of a streak.
- * Set FILM_WAIT_END false to drop the curtain the moment the app is ready instead.
+ * ===== v116 THE FILM LOOPS =====
+ * The film does not stop any more. It runs its whole length once — out of black, the streak,
+ * the wordmark landing at LOOP_FROM_V116 — and then every time it reaches the end it goes back
+ * to LOOP_FROM_V116 and plays the tail again, for as long as the loading lasts. That seam is
+ * the one place in the film where it can: everything after 6.5s is the wordmark breathing
+ * under drifting cloud, and the last frame and the frame at 6.5s differ by 3.4/255 averaged
+ * over the picture, so the jump is not visible. `loop` stays FALSE on the element, because a
+ * native loop would go back to zero (the black) and because `ended` is the event that tells us
+ * to seek. Both doors share one looper: door two borrows this same element.
+ *
+ * THE DOOR. The splash leaves when the app is ready AND the wordmark has LANDED — the playhead
+ * past LOOP_FROM_V116 — capped at FILM_CAP_MS. A title sting cut mid-swoosh looks broken, so
+ * the curtain waits for the intro to finish assembling; after that the loop covers whatever the
+ * load still has left, and the door opens on a frame that is nearly identical every time round.
+ * Set FILM_WAIT_INTRO false to drop the curtain the moment the app is ready instead.
  *
  * THE BAR. Two layers over one groove. `i` is v112 A's compositor sweep, untouched, still the
  * one thing that moves while the bundle compiles. `b` is a real fill, and it is real: the
- * film's own buffered fraction, the v91 sheet landing, the app knocking, the film ending —
- * 45/15/30/10, monotonic, reaching 1 exactly when both conditions for leaving are met. It is a
+ * film's own buffered fraction, the v91 sheet landing, the app knocking, the intro reaching the
+ * seam — monotonic, reaching 1 exactly when both conditions for leaving are met. (The playhead
+ * is only honest as a remainder up to the seam: past it the film is looping and no longer
+ * counting down to anything, so that is where its share stops.) It is a
  * transform with a long ease, so the glide to each new target runs on the compositor too and a
  * jam mid-transition does not freeze it either.
  * window.__V114 is the hook; `?noFilmV114` forces the chase back. `v114check.mjs` is the gate. */
 (function () {
   var FILM_START_MS = 3000;      // the film's audition: a frame on screen by now, or the chase takes over
   var FILM_CAP_MS = 14000;       // the outside edge of the whole splash, film or no film
-  var FILM_WAIT_END = true;      // false => leave the moment the app is ready, mid-film if need be
+  var LOOP_FROM_V116 = 6.5;      // the seam: the streak has landed on the wordmark, and the tail loops from here
+  var FILM_WAIT_INTRO = true;    // false => leave the moment the app is ready, mid-streak if need be
   /* What the bar means: how close the splash is to LEAVING, which is the app being ready and
-   * the film being over. So the bytes are only part of it — once they are in, the thing still
-   * being waited on is the film itself, and its playhead is the honest remainder. A bar that
-   * sat at 90% through seven seconds of sting would be telling the truth about bytes and
-   * lying about the wait. */
+   * the intro having landed. So the bytes are only part of it — once they are in, the thing
+   * still being waited on is the film itself, and its playhead up to the seam is the honest
+   * remainder. A bar that sat at 90% through six seconds of sting would be telling the truth
+   * about bytes and lying about the wait. */
   var W = { film: .20, sheet: .10, door: .30, play: .40 };   // what each signal is worth on the bar
 
   var T = function () { try { return Math.round(performance.now()); } catch (e) { return 0; } };
@@ -458,7 +472,9 @@ window.addEventListener('unhandledrejection', function(e){
     on: false, failed: false, settled: false, ended: false, played: false, rm: RM, off: OFF,
     startMs: T(), firstFrameMs: null, endedMs: null, doorMs: null, buffered: 0, progress: 0,
     get t() { return vid.currentTime || 0; }, get dur() { return vid.duration || 0; },
-    src: null, waitEnd: FILM_WAIT_END
+    src: null, waitIntro: FILM_WAIT_INTRO,
+    // v116: the loop. `landed` is the intro reaching the seam, `loops` counts the times round.
+    loopFrom: LOOP_FROM_V116, landed: false, landedMs: null, loops: 0, lastLoopMs: null
   };
 
   // ---- the bar: four signals, never backwards, 1 exactly when the curtain may drop
@@ -492,21 +508,45 @@ window.addEventListener('unhandledrejection', function(e){
   }
   V.verdict = function (cb) { if (V.settled) { try { cb(V.on); } catch (e) {} return; } waiters.push(cb); };
 
-  // ---- the door: the app is ready; the curtain drops when the film has ended too
-  var doorFired = false, onEnded = null;
+  // ---- the door: the app is ready; the curtain drops once the intro has landed too
+  var doorFired = false, onLanded = null;
   V.appReady = function (finish) {
     V.doorMs = T(); sig.door = 1; bump();
     var go = function () { if (doorFired) return; doorFired = true; try { finish(); } catch (e) {} };
-    if (V.ended || !V.waitEnd) return go();
-    onEnded = go;
+    if (V.landed || !V.waitIntro) return go();
+    onLanded = go;
     setTimeout(go, Math.max(400, FILM_CAP_MS - (T() - V.startMs)));   // the film does not get to stall the boot
   };
 
+  // the streak has finished landing on the wordmark: from here every frame is a fine one to cut on
+  function landed() {
+    if (V.landed) return;
+    V.landed = true; V.landedMs = T(); sig.play = 1; bump();
+    if (onLanded) onLanded();
+  }
+
+  /* ===== v116: back to the seam =====
+   * The end of the film is not a stop, it is a seek. `loop` on the element would rewind to the
+   * black at zero and would swallow the `ended` event this hangs off, so the rewind is done by
+   * hand — to LOOP_FROM_V116, or to the top if the film is too short to have a tail (a swapped
+   * asset must not strand the playhead past its own duration). Shared with door two, which
+   * plays this very element. */
+  function loopBack(v) {
+    try {
+      v = v || vid; if (!v) return;
+      var d = v.duration, to = (d && isFinite(d) && d > LOOP_FROM_V116 + .5) ? LOOP_FROM_V116 : 0;
+      if (Math.abs((v.currentTime || 0) - to) > .05) v.currentTime = to;
+      var q = v.play(); if (q && q.catch) q.catch(function () {});
+    } catch (e) {}
+  }
+  V.loopBack = loopBack;
+
   function ended() {
-    if (V.ended) return;
-    V.ended = true; V.endedMs = T(); sig.play = 1; sig.film = 1; bump();
-    try { vid.pause(); } catch (e) {}                 // it holds its last frame; it does not loop
-    if (onEnded) onEnded();
+    landed();                                         // a film shorter than the seam still opens the door
+    V.loops++; V.lastLoopMs = T();
+    if (!V.ended) { V.ended = true; V.endedMs = T(); }
+    sig.film = 1; bump();
+    loopBack(vid);                                    // round again, from the wordmark
   }
 
   /* The picker already declined to give these paths a source, so there is nothing in flight to
@@ -521,9 +561,10 @@ window.addEventListener('unhandledrejection', function(e){
   // ---- prefers-reduced-motion: the film, stopped. The last frame as a still, nothing moving.
   if (RM && !OFF) {
     stopLoad();
-    vid.poster = window.__RIB_ASSET ? window.__RIB_ASSET('rib_splash_v114.jpg') : './public/rib_splash_v114.jpg';
+    vid.poster = window.__RIB_ASSET ? window.__RIB_ASSET('rib_film_v116.jpg') : './public/rib_film_v116.jpg';
     splash.classList.add('film');
     sig.film = 1; V.ended = true; V.endedMs = T(); sig.play = 1; bump();
+    V.landed = true; V.landedMs = T();                // nothing is playing, so there is nothing to wait for
     settle(true);
     return;
   }
@@ -543,7 +584,9 @@ window.addEventListener('unhandledrejection', function(e){
   vid.addEventListener('playing', claim);
   vid.addEventListener('timeupdate', function () {
     if (vid.currentTime > 0) claim();
-    var d = vid.duration; if (d && isFinite(d)) { sig.play = Math.min(1, vid.currentTime / d); bump(); }
+    // v116: the playhead counts down to the SEAM, not to the end — past it the film is looping
+    var d = vid.duration, seam = (d && isFinite(d) && d > LOOP_FROM_V116 + .5) ? LOOP_FROM_V116 : d;
+    if (seam) { sig.play = Math.min(1, vid.currentTime / seam); bump(); if (vid.currentTime >= seam) landed(); }
     readBuffered();
   });
 
@@ -1035,20 +1078,22 @@ window.addEventListener('unhandledrejection', function(e){
        *
        * Two things are deliberately NOT the same as door one.
        *   - IT DOES NOT WAIT FOR THE FILM. This door opens on the scene standing and the first
-       *     play being built — usually inside two seconds. Holding it for the whole 7.7s sting
-       *     would put six seconds in front of every single game, which is the opposite of what a
-       *     loader is for. The film plays under the loader for as long as the loader lives, and
-       *     stops (no loop) if it gets to the end first.
-       *   - IT STARTS PAST THE LEAD-IN. The sting opens on a second of near-black before the
-       *     streak: fine as a boot splash, useless on a door that may only be open for 1.5s. It
-       *     starts at LIVE_FILM_FROM instead, so there is a picture on the first frame shown.
+       *     play being built — usually inside two seconds. Holding it for the whole 14.5s sting
+       *     would put twelve seconds in front of every single game, which is the opposite of what
+       *     a loader is for. The film runs under the loader for as long as the loader lives, and
+       *     the loader leaves on top of it, wherever round it happens to be.
+       *   - IT STARTS AT THE SEAM, NOT THE TOP. The sting opens on a second of near-black and
+       *     spends six more assembling the wordmark: fine as a boot splash, useless on a door
+       *     that may only be open for 1.5s. v116 already has a place in the film where the
+       *     picture is finished and stays that way — LOOP_FROM_V116 — so this door starts THERE
+       *     and rides the same loop. Every frame it can show is the wordmark under cloud.
        *
        * If door one never played the film — no codec, autoplay refused, reduced motion,
        * ?noFilmV114 — then `__V114.on` is false and this door runs the v94 chase exactly as it
        * always has. Same for a film that cannot get a frame up here. */
-      var LIVE_FILM_FROM = 1.15;                       // seconds: past the black, into the streak
-      var LIVE_FILM_START_MS = 1200;                   // its audition, shorter than door one's: this door may only live for 1.5s
       var F = window.__V114;
+      var LIVE_FILM_FROM = (F && F.loopFrom) || 1.15;  // seconds: v116's seam — the wordmark, landed
+      var LIVE_FILM_START_MS = 1200;                   // its audition, shorter than door one's: this door may only live for 1.5s
       // the element door one loaded, parked since the splash left — already buffered, so this is a
       // seek and a play, not a load, and it survives the main thread being busy with Phaser
       var fv = (F && F.take) ? F.take('rib-liveload-film-v115') : null;
@@ -1076,7 +1121,10 @@ window.addEventListener('unhandledrejection', function(e){
         fv.addEventListener('playing', claimed);
         ['canplay', 'seeked', 'loadeddata'].forEach(function (ev) { fv.addEventListener(ev, function () { if (fv.readyState >= 2) claimed(); }); });
         fv.addEventListener('timeupdate', function () { if (fv.currentTime > 0) claimed(); });
-        fv.addEventListener('ended', function () { try { fv.pause(); } catch (e) {} });   // it holds its last frame; it does not loop
+        // v116: the end of the film is a seek back to the seam, not a stop. The parked element
+        // carries door one's own `ended` listener, which is the looper; this is the belt to that
+        // brace, and loopBack is a no-op when the playhead is already sitting on the seam.
+        fv.addEventListener('ended', function () { if (F && F.loopBack) F.loopBack(fv); else { try { fv.pause(); } catch (e) {} } });
         fv.loop = false; fv.muted = true; fv.defaultMuted = true; fv.playsInline = true;
         // the parked element is already buffered, so it claims the stage on THIS tick and the
         // chase never mounts at all. Claim first, then seek: a seek drops readyState for a beat,

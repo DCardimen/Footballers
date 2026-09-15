@@ -374,6 +374,54 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v116 — the film loops
+
+Anchor `v116 THE FILM LOOPS` (inside the `v114 THE SPLASH IS A FILM` block — it is the same
+controller, so there is no second place for the film's rules to live). The loading film no longer
+stops. Both doors run it, and neither of them ever shows a still.
+
+**The seam.** `LOOP_FROM_V116 = 6.5` seconds. The sting comes out of black, throws the streak
+across the frame and finishes assembling the wordmark at about 6.5s; from there to the end at
+14.5s it is the wordmark breathing under drifting cloud. So the last frame can run straight back
+into 6.5s: measured on the shipped mp4, the last frame and the frame at 6.5s differ by **3.4/255**
+averaged over the picture, which is under the noise the cloud is already moving by. Everything
+else in the film — the black, the streak, the landing — is a one-time intro that plays once per
+page load and is never seen again.
+
+**Why not `loop` on the element.** Two reasons, both fatal on their own: a native loop rewinds to
+zero, which is the second of near-black the film opens on, and it *swallows* the `ended` event.
+`ended` is the thing that tells the controller to rewind, so the element stays `loop = false` and
+`loopBack(v)` does it by hand — seek to `LOOP_FROM_V116`, `play()`. It falls back to 0 for a film
+too short to have a tail, so swapping a shorter asset in cannot strand the playhead past its own
+duration.
+
+**One looper, two doors.** `loopBack` is exposed as `__V114.loopBack(v)` because door two plays
+*this very element* (v115 parks and lends it). Door two's own `ended` listener is the belt to that
+brace, and calling it twice is a no-op: `loopBack` does not re-seek a playhead already sitting on
+the seam.
+
+**What the door waits for now.** It was "the app is ready **and** the film has ended". With no end
+to wait for, it is "the app is ready **and** the intro has LANDED" — `V.landed`, set the first
+time the playhead passes the seam (`FILM_WAIT_INTRO = false` drops it the moment the app is ready
+instead). The reason is unchanged: a sting cut mid-swoosh reads as broken. The effect is that the
+splash is *shorter* than it was — the curtain can drop at ~6.5s instead of waiting out the whole
+film — and any load that runs longer than that is covered by the loop rather than by a frozen
+frame. `FILM_CAP_MS` (14s) is still the outside edge.
+
+**The bar** keeps its `.20 / .10 / .30 / .40` weights, but the playhead's share now counts down to
+the **seam**, not to the end: past the seam the film is looping and is no longer counting down to
+anything, so a bar that kept reading the playhead would run backwards every time round.
+
+**Door two starts at the seam.** `LIVE_FILM_FROM` is `__V114.loopFrom` rather than v115's old
+1.15s. The live loader may only be open for a second and a half, and the seam is by definition the
+point where the picture is finished and stays that way — so every frame that door can show is the
+landed wordmark, and it rides the same loop if the door stays open past 14.5s.
+
+`window.__V114` gains `loopFrom`, `landed`, `landedMs`, `loops`, `lastLoopMs` and `loopBack()`;
+`waitEnd` is now `waitIntro`. `scripts/v114check.mjs` gates it — including a boot that defers the
+app's own knock on the door by 20s, so the film can be watched running its whole length and going
+round again.
+
 ## v115 — the film at both doors
 
 Anchor `v115 THE FILM AT BOTH DOORS` (inside door two's `mount`, in the v94 block). The live
@@ -428,8 +476,8 @@ dropped-frame look this replaces. The removal timeout (720ms) covers `.12 + .5`,
 
 | | door one (boot) | door two (live) |
 |---|---|---|
-| waits for the film to end | yes (`FILM_WAIT_END`) | **no** — the door opens on the scene standing and the first play built; holding it for 7.7s would front-load every game |
-| starts at | 0 (the black, the streak, the landing) | `LIVE_FILM_FROM` (1.15s) — past the lead-in, so a door open for 1.5s still shows a picture |
+| waits for the film | yes — for the intro to LAND (`FILM_WAIT_INTRO`, v116) | **no** — the door opens on the scene standing and the first play built; holding it for 14.5s would front-load every game |
+| starts at | 0 (the black, the streak, the landing) | `LIVE_FILM_FROM` = v116's seam (6.5s) — the finished wordmark, so a door open for 1.5s shows a picture |
 | element | its own, loaded from the picker's `src` | the parked one |
 
 `LIVE_FILM_START_MS` (1.2s) is door two's audition: no frame by then and the v94 chase mounts as
@@ -452,18 +500,20 @@ the live game's loader over `.field-wrap` — is untouched and still runs the ch
 belongs at app boot, not between plays.
 
 **The asset.** `scripts/build-splash-film.mjs` cuts three files from
-`art/splash/rib_splash_master.mp4`:
+`art/splash/rib_loop_master_v116.mp4` (a 1920x1080 HEVC master, 20 MB for 14.5s):
 
 | file | what it is for |
 |---|---|
-| `public/rib_splash_v114.mp4` | H.264, 960x540, CRF 26, no audio, **`+faststart`** — the shipping path |
-| `public/rib_splash_v114.webm` | VP9, same frame — a browser with no H.264 (which includes Playwright's Chromium, and is the only reason `v114check` can watch a frame arrive) |
-| `public/rib_splash_v114.jpg` | the last frame, as the `prefers-reduced-motion` still |
+| `public/rib_film_v116.mp4` | H.264, 960x540, CRF 26, no audio, **`+faststart`** — the shipping path |
+| `public/rib_film_v116.webm` | VP9, same frame — a browser with no H.264 (which includes Playwright's Chromium, and is the only reason `v114check` can watch a frame arrive) |
+| `public/rib_film_v116.jpg` | the last frame, as the `prefers-reduced-motion` still |
 
-`+faststart` is the load-bearing flag, not a nicety: the master's `moov` atom sat *after* `mdat`,
-so a browser could not show one frame until the whole 7.7 MB had landed — a loading screen that
-spends the load loading. Moving `moov` to the front (and 7.7 MB -> ~900 KB) is what makes the file
-a loading screen at all, and `v114check` asserts it off the bytes.
+Two things about the master make the re-cut non-optional. It is **HEVC**, which most of the
+browsers this game runs in cannot decode at all. And its `moov` atom sits *after* `mdat`, so a
+browser could not show one frame until the whole 20 MB had landed — a loading screen that spends
+the load loading. `+faststart` moves `moov` to the front; H.264 at 960x540 CRF 26 takes 20 MB to
+~1.4 MB. Both are what make the file a loading screen at all, and `v114check` asserts the
+faststart off the bytes.
 
 **Getting it there first, without paying for it twice.** The source is set by a small picker
 inline immediately after the `<video>`, while the parser is still on the splash markup — it reads
@@ -484,10 +534,10 @@ bundle below compile in one task, and the v94 chase — a rAF loop — stalls de
 (it is what `__V112_A.mounts[n].maxGapMs` measures). The film does not drop a frame of it.
 
 **The door.** `V.appReady(finish)` is called from `__splashDoneV94`. The curtain drops when the
-app is ready **and** the film has ended, capped by `FILM_CAP_MS` (14s). That is "stop at the end
-of the movie": a sting cut mid-swoosh reads as broken, and the held wordmark is a better place to
-fade from. `FILM_WAIT_END = false` drops it the moment the app is ready instead — one constant.
-The cost is honest: a cold boot is now paced by the 7.7s film rather than the chase's 2.6s floor.
+app is ready **and** the film's intro has landed on the wordmark, capped by `FILM_CAP_MS` (14s) —
+see **v116** above, which replaced "and the film has ended" when the film stopped having an end.
+`FILM_WAIT_INTRO = false` drops it the moment the app is ready instead — one constant. The cost
+is honest: a cold boot is paced by the film's 6.5s intro rather than the chase's 2.6s floor.
 
 **Never stranding the boot.** `V.verdict(cb)` is answered exactly once — the film claimed the
 stage (a first frame on screen) or gave it up. Door one does not mount the chase until that
@@ -500,11 +550,13 @@ determinate fill weighted `buffered .20 / v91 sheet .10 / app door .30 / playhea
 reaching 1 exactly when both conditions for leaving are met. It is a `transform` with a 1.3s ease,
 so the glide to each new target runs on the compositor too and a jam mid-transition does not
 freeze it either. The playhead is in there deliberately: once the bytes are in, the thing still
-being waited on *is* the film, and a bar that sat at 90% through seven seconds of sting would be
-telling the truth about bytes and lying about the wait.
+being waited on *is* the film, and a bar that sat at 90% through six seconds of sting would be
+telling the truth about bytes and lying about the wait. (v116 stops that share at the seam — past
+it there is nothing left to count down to.)
 
 `window.__V114` exposes `on`, `failed`, `settled`, `ended`, `played`, `codec`, `progress`,
-`firstFrameMs`, `endedMs`, `verdict()` and `appReady()`.
+`firstFrameMs`, `endedMs`, `verdict()`, `appReady()` and v116's `loopFrom`, `landed`, `loops`,
+`loopBack()`.
 
 ## v113 — the training board is a grid, and the choice is two taps
 

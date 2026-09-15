@@ -55,14 +55,31 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v116 — the film loops.** The loading film no longer stops on its last frame; it runs its whole
+  length once and then plays the tail again, and again, for as long as the loading lasts. The seam
+  is 6.5 seconds: the streak has finished landing on the wordmark by then, and everything after it
+  is the wordmark breathing under drifting cloud — so the last frame can run straight back into
+  6.5s without anything jumping (measured, the two frames differ by 3.4/255 averaged over the
+  picture). The element's own `loop` stays off, because a native loop would rewind to the second of
+  near-black the film opens on *and* would swallow the `ended` event the rewind hangs off; the seek
+  is done by hand, and both doors share the one looper, since the live game's loader plays the very
+  same element. What the boot door waits for changed with it: it used to wait for the film to end,
+  which no longer happens, so it waits for the intro to LAND instead. That makes the splash shorter
+  than it was — the curtain can drop at about 6.5s rather than sitting through the whole sting —
+  and any load that runs longer is covered by the loop rather than by a frozen frame. The live
+  loader starts at the seam for the same reason: a door that may only be open for a second and a
+  half now opens on the finished wordmark. New film, too — a 14.5s 1080p HEVC master, re-cut to
+  ~1.4MB of 960x540 H.264 (plus the VP9 sibling and the reduced-motion still), because HEVC is
+  undecodable in most of the browsers this game runs in and the master's `moov` atom sat last.
+
 - **v115 — the film at both doors.** The live game's loader plays the sting too, as a backdrop under
   the matchup rather than a card beside it — the whole frame, not a crop, with the caption in the
   band below it and no loading bar over the picture, handed off to the game by the wordmark swelling
   and clearing last. Three things are deliberately not the same
   as the boot splash: it does not wait for the film (the door opens on the scene standing and the
-  first play built — holding it for the full 7.7s would put six seconds in front of every game), it
-  starts past the black lead-in so a door that may only be open for a second and a half shows a
-  picture on its first frame, and it reuses the element the splash already loaded. That last one is
+  first play built — holding it for the full 14.5s would put twelve seconds in front of every
+  game), it starts past the black lead-in (v116: at the seam) so a door that may only be open for a
+  second and a half shows a picture on its first frame, and it reuses the element the splash already loaded. That last one is
   the whole trick. Door two mounts at the worst moment on the main thread — Phaser booting — and a
   media element's load does not *start* until the main thread lets it: measured, `play()` at 23218ms
   and `loadstart` 2.7 seconds later, on a door open for four. So the buffered element is parked when

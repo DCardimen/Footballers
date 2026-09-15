@@ -3,11 +3,13 @@
 // Door two is not door one, and the differences are the whole point:
 //   1. it plays the FILM over .field-wrap, not the v94 chase, and out of the cache — door one
 //      asked for that exact URL at boot, so this mount adds no request;
-//   2. it starts PAST the lead-in, so a door that may only be open for a second and a half shows
-//      a picture on its first frame rather than a second of near-black;
+//   2. it starts AT v116's SEAM — the point the film loops back to, where the wordmark has
+//      finished landing — so a door that may only be open for a second and a half shows a
+//      finished picture on its first frame rather than a second of near-black;
 //   3. it does NOT wait for the film. The door opens on the scene standing and the first play
-//      being built; holding it for the whole 7.7s sting would put six seconds in front of every
-//      game. The film simply plays for as long as the loader lives, and does not loop;
+//      being built; holding it for the whole 14.5s sting would put twelve seconds in front of
+//      every game. The film runs for as long as the loader lives, looping at the seam like
+//      door one's, and the loader leaves on top of it wherever round it is;
 //   4. the matchup and the bar are still on top of it, and still say what they said;
 //   5. ?noFilmV114 — and any browser where door one could not play the film — gets the v94 chase,
 //      unchanged. That is splashcheck's case 4, which now boots with the flag.
@@ -29,12 +31,12 @@ async function intoGame(q = '') {
   page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
   await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
   await page.goto(URL + q, { waitUntil: 'networkidle', timeout: 60000 })
-  // the boot splash now runs a 7.7s film and sits at z-index 10050 over everything: clicking
+  // the boot splash now runs a 14.5s film and sits at z-index 10050 over everything: clicking
   // before it leaves just hits the curtain, so wait it out rather than walking into it
   for (let i = 0; i < 200; i++) { if (await page.evaluate(() => !document.getElementById('splash'))) break; await page.waitForTimeout(100) }
   await page.waitForTimeout(800)
   // only count film requests made AFTER boot — door one's fetch is not door two's problem
-  page.on('request', r => { if (/rib_splash_v114\.(mp4|webm)/.test(r.url())) filmReqs.push(r.url().split('/').pop()) })
+  page.on('request', r => { if (/rib_film_v116\.(mp4|webm)/.test(r.url())) filmReqs.push(r.url().split('/').pop()) })
   async function step(t) {
     let r = null
     try {
@@ -100,10 +102,14 @@ async function reachLoader(q) {
   ok(!!seen && seen.inWrap, 'the loader still mounts over the field', seen && JSON.stringify({ film: seen.film, chase: seen.chase }))
   ok(!!seen && seen.film && seen.shown !== '0', 'and it is the FILM, not the chase', seen && `film=${seen.film} chase=${seen.chase} opacity=${seen.shown}`)
   ok(!!seen && seen.cvShown === 'none', 'the chase canvas is put away', seen && `canvas display=${seen.cvShown}`)
-  ok(!!seen && /rib_splash_v114\.(mp4|webm)(#.*)?$/.test(seen.src || ''), 'playing the same file door one played', seen && seen.src)
+  ok(!!seen && /rib_film_v116\.(mp4|webm)(#.*)?$/.test(seen.src || ''), 'playing the same file door one played', seen && seen.src)
   ok(filmReqs.length === 0, 'straight out of the cache — no new request for it', filmReqs.join(' ') || 'none')
-  ok(!!seen && seen.t > 0.8, 'it starts past the black lead-in, so the first frame shown is a picture', seen && seen.t.toFixed(2) + 's')
-  ok(!!seen && seen.loop === false, 'it does not loop', seen && `loop=${seen.loop}`)
+  const seam = await page.evaluate(() => (window.__V114 && window.__V114.loopFrom) || 0)
+  ok(seam > 0, 'v116 names a seam, and door two reads it from there', seam + 's')
+  ok(!!seen && seen.t >= seam - 0.15, 'it starts AT the seam, so the first frame shown is the finished wordmark',
+    seen && `${seen.t.toFixed(2)}s (seam ${seam}s)`)
+  ok(!!seen && seen.loop === false, 'the element is not natively looping — v116 does the rewind by hand, to the seam',
+    seen && `loop=${seen.loop}`)
   ok(!!seen && /vs/i.test(seen.cap || ''), 'the matchup is still named over it', seen && seen.cap)
   ok(!!seen && seen.fit === 'contain', 'the whole frame is shown — not cropped into the wordmark', seen && `object-fit: ${seen.fit}`)
   ok(!!seen && seen.bar === 'none', 'and the loading bar is gone from over it', seen && `bar display: ${seen.bar}`)
@@ -156,7 +162,7 @@ async function reachLoader(q) {
   const openMs = Date.now() - t1
   ok(gone, 'the door still opens on the scene, not on the film', openMs + 'ms')
   ok(sceneUp, 'the broadcast came up under it')
-  ok(gone && openMs < 7700, 'and it did NOT wait out the 7.7s sting', openMs + 'ms')
+  ok(gone && openMs < 7700, 'and it did NOT wait out the 14.5s sting', openMs + 'ms')
   ok(sawGone, 'the loader played that exit rather than being cut', sawGone ? 'saw .gone before it was removed' : 'never observed .gone')
   ok(exitHadFilm, 'and the film was still ON SCREEN through it, not yanked before the animation',
     exitHadFilm ? 'video still mounted and visible while leaving' : 'the layer faded empty')
