@@ -15,7 +15,8 @@
 //   3. the sheet never lands (the request is aborted): the football stands in and the
 //      splash still leaves on the old timing;
 //   4. the live game: the same chase mounts over .field-wrap as the broadcast boots, names the
-//      matchup, and leaves once the scene is up (_splash_live.png).
+//      matchup, and leaves once the scene is up (_splash_live.png) — on the ?noFilmV114 path,
+//      since v115 gave that door the film too.
 //   node scripts/splashcheck.mjs
 import { chromium } from 'playwright'
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
@@ -127,7 +128,9 @@ const canvasStats = () => {
   const ctx = await browser.newContext({ viewport: { width: 520, height: 900 } }); const page = await ctx.newPage(); const errs = []
   page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
   await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-  await page.goto(URL, { waitUntil: 'networkidle', timeout: 60000 }); await page.waitForTimeout(1500)
+  // v115 put the film on door two as well, so this case — which is about the CHASE over
+  // .field-wrap — boots with the flag like the three above it. v115check.mjs owns the film here.
+  await page.goto(URL + (URL.includes('?') ? '&' : '?') + 'noFilmV114', { waitUntil: 'networkidle', timeout: 60000 }); await page.waitForTimeout(1500)
   const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
   async function step(t) { let r = null; try { r = await page.evaluate(({ t, visSrc }) => { const vis = eval(visSrc); const els = [...document.querySelectorAll('button,[onclick],a')].filter(vis); const txt = e => (e.innerText || e.textContent || '').replace(/\s+/g, ' ').trim()
     let el = t === 'POS' ? (els.find(e => /^RB\b/.test(txt(e))) || els.find(e => e.classList.contains('pos-card'))) : t === 'PLAN' ? els.find(e => /gs-card/i.test(e.className)) : els.find(e => txt(e).includes(t))

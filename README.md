@@ -55,6 +55,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v115 — the film at both doors.** The live game's loader plays the sting too, as a backdrop under
+  the matchup and the bar rather than a card beside them. Three things are deliberately not the same
+  as the boot splash: it does not wait for the film (the door opens on the scene standing and the
+  first play built — holding it for the full 7.7s would put six seconds in front of every game), it
+  starts past the black lead-in so a door that may only be open for a second and a half shows a
+  picture on its first frame, and it reuses the element the splash already loaded. That last one is
+  the whole trick. Door two mounts at the worst moment on the main thread — Phaser booting — and a
+  media element's load does not *start* until the main thread lets it: measured, `play()` at 23218ms
+  and `loadstart` 2.7 seconds later, on a door open for four. So the buffered element is parked when
+  the splash leaves and lent to the loader, then parked again: one decoded film for the whole
+  session, no second request. The same pass fixed the splash's own framing — the film ran as a
+  rounded, shadowed card on a blue-grey ground while its own frames are near-black, so the card edge
+  read as a seam and everything around it as dead space. The ground now wears the film's measured
+  black (rgb(4,8,11) at its edges) and the film runs full-bleed with no radius and no shadow.
+
 - **v114 — the splash is a film.** The boot splash plays the title sting instead of drawing the
   v94 chase: out of black, a light streak across the frame, and it lands on the wordmark, where it
   **stops** — no loop, the last frame held for as long as the load still needs. Three things had to
