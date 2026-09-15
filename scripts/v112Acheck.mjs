@@ -24,7 +24,13 @@
 import { chromium } from 'playwright'
 import { createHash } from 'node:crypto'
 
+// v114 put the title film on the boot splash, so the SPLASH assertions below — the ones that
+// watch the chase paint its first frame and keep drawing — boot ?noFilmV114. What v112 A warms
+// is the v91 sheet, and the sheet still feeds the chase on that fallback and, more to the point,
+// door two: the live game's loader, which is the loading scene a player actually sees over and
+// over, and which v114 does not touch. The warm itself is measured on the unmodified page.
 const URL = process.env.GAME_URL || 'http://localhost:5173/index.html'
+const CHASE_URL = URL + (URL.includes('?') ? '&' : '?') + 'noFilmV114'
 const EXE = process.env.CHROME_PATH || '/opt/pw-browsers/chromium'
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
@@ -67,7 +73,7 @@ const A = page => page.evaluate(() => JSON.parse(JSON.stringify(window.__V112_A 
 let liveNote = ''
 {
   const { browser, page, errs, reqs } = await fresh({ wide: true })
-  await page.goto(URL, { waitUntil: 'commit', timeout: 60000 })
+  await page.goto(CHASE_URL, { waitUntil: 'commit', timeout: 60000 })
   for (let i = 0; i < 200; i++) { if (await page.evaluate(() => window.__V112_A && window.__V112_A.firstFrameMs != null)) break; await page.waitForTimeout(25) }
   const a = await A(page)
   const net = await page.evaluate(() => performance.getEntriesByType('resource').filter(r => /rib_field_v91\.png/.test(r.name)).map(r => ({ s: Math.round(r.startTime), e: Math.round(r.responseEnd) }))[0])
@@ -194,7 +200,7 @@ let liveNote = ''
 // ---- 7: the old cold path still works
 {
   const { browser, page, errs, reqs } = await fresh()
-  await page.goto(URL + '?noWarmV112', { waitUntil: 'commit', timeout: 60000 })
+  await page.goto(URL + '?noWarmV112&noFilmV114', { waitUntil: 'commit', timeout: 60000 })
   for (let i = 0; i < 200; i++) { if (await page.evaluate(() => window.__V112_A && window.__V112_A.firstFrameMs != null)) break; await page.waitForTimeout(25) }
   const a = await A(page)
   ok(a && a.warm === false && a.adopted === false, '?noWarmV112: v94 falls back to its own fetch', a && ('adopted=' + a.adopted))
@@ -212,7 +218,7 @@ let liveNote = ''
 {
   const { browser, page, errs } = await fresh()
   await page.route(/rib_field_v91\.(png|json)/, r => r.abort())
-  await page.goto(URL, { waitUntil: 'commit', timeout: 60000 })
+  await page.goto(CHASE_URL, { waitUntil: 'commit', timeout: 60000 })
   await page.waitForTimeout(900)
   const fb = await page.evaluate(() => { const s = document.getElementById('splash'); return s ? { chase: s.classList.contains('chase'), ball: getComputedStyle(document.querySelector('.splash-ball')).display } : null })
   ok(fb && !fb.chase && fb.ball !== 'none', 'no sheet: the football stands in', JSON.stringify(fb))
@@ -231,7 +237,7 @@ let liveNote = ''
 // pictures arrive at all.
 {
   const { browser, page, errs } = await fresh()
-  await page.goto(URL, { waitUntil: 'commit', timeout: 60000 })
+  await page.goto(CHASE_URL, { waitUntil: 'commit', timeout: 60000 })
   for (let i = 0; i < 300; i++) { if (await page.evaluate(() => window.__V112_A && window.__V112_A.firstFrameMs != null)) break; await page.waitForTimeout(20) }
   await page.waitForTimeout(2000)   // let the boot compile go, so the only jam is the one we make
   const cdp = await page.context().newCDPSession(page)

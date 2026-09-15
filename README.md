@@ -55,6 +55,26 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v114 — the splash is a film.** The boot splash plays the title sting instead of drawing the
+  v94 chase: out of black, a light streak across the frame, and it lands on the wordmark, where it
+  **stops** — no loop, the last frame held for as long as the load still needs. Three things had to
+  be true before a film could be a loading screen rather than one more thing to wait for. It has to
+  *arrive* first: the master's `moov` atom sat behind `mdat`, so nothing could be drawn until the
+  last byte landed — `scripts/build-splash-film.mjs` re-cuts it with `+faststart` and takes 7.7 MB
+  down to ~900 KB, and a picker inline beside the `<video>` sets its one source while the parser is
+  still on the splash markup — not a `<source>` or a head preload, because those start a fetch the
+  page cannot take back, and the paths that refuse the film would pay ~900 KB for it anyway. It has
+  to *keep playing when the main thread does not* — which is the real argument for a film here,
+  since video decode is off the main thread and the megabytes of inline bundle compiling below
+  never drop a frame of it, where a rAF chase stalls on exactly that. And it can never *strand the
+  boot*: no frame within three seconds — a 404, a missing codec, a browser that refuses to autoplay
+  — and the stage goes back to the v94 chase. `prefers-reduced-motion` gets the film's last frame as
+  a still, and never downloads a byte of the film itself. The loading
+  bar underneath is two layers over one groove: v112 A's compositor sweep, untouched, still the one
+  thing that moves while the bundle compiles, and a real determinate fill behind it — the film's
+  buffered fraction, the v91 sheet landing, the app knocking, the film's own playhead, monotonic
+  and full exactly when the curtain may drop.
+
 - **v113 — the training board is a grid, and the choice is two taps.** The offseason
   "Choose Your Training" board listed twelve programs as full-width cards, so picking a
   season's work meant scrolling two thousand pixels holding four numbers in your head — and

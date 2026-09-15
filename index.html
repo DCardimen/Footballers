@@ -14,6 +14,12 @@
 <meta content="Running It Back" name="apple-mobile-web-app-title"/>
 <meta content="Running It Back" name="application-name"/>
 <title>RUNNING IT BACK — Life of a Player v15.20</title>
+<!-- v114: the splash film is deliberately NOT preloaded from here. A <link rel=preload as=video>
+     did start the fetch a few ms sooner, but it is a fetch no script can take back, and the two
+     paths that refuse the film — prefers-reduced-motion and ?noFilmV114 — then paid ~900KB for a
+     file they never show (a media= query on the link is not honoured early enough to lean on).
+     #splash is the first element in the body, so the preload scanner reaches the <source>s inside
+     #splashFilm on its own and almost nothing is lost. v114check counts the bytes on both paths. -->
 <script>
 /* ===== v112 A THE CHASE IS ALWAYS READY — the warm, in the first breath of the head =====
  * The loading screen is drawn from the v91 field sheet, and until now nothing asked for that
@@ -170,6 +176,27 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 .live-scoreboard .sb-side .team{max-width:62px}
 .live-scoreboard .sb-side:before{display:none!important}
 }
+/* ===== v114 THE SPLASH IS A FILM — the stage, the film on it, and a bar that means something =====
+ * The film is 16:9, so on the film path the stage takes that shape instead of the chase's fixed
+ * 200px strip. It sits UNDER the canvas in the stacking order only because the two never show at
+ * once: `#splash.film` is the film's state, `#splash.chase` the fallback's. */
+#splash .splash-stage .splash-film-v114{position:absolute;inset:0;width:100%;height:100%;display:none;object-fit:cover;border-radius:14px;background:#05080d;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+#splash.film .splash-stage{width:min(94vw,560px);height:auto;aspect-ratio:16/9}
+#splash.film .splash-film-v114{display:block}
+#splash.film #splashChase,#splash.film .splash-ball{display:none}
+/* the film ENDS on the wordmark, so the typeset one under it would be the same words twice */
+#splash.film .splash-title span{display:none}
+#splash.film .splash-title{margin-top:18px}
+/* The bar. The sweeping `i` is v112 A's compositor animation and it stays exactly as it was —
+ * it is the one thing that keeps moving while the main thread is jammed compiling the bundle.
+ * `b` is the new determinate fill: a transform with a long ease, so the GLIDE to each new target
+ * also runs on the compositor and a jam mid-transition does not freeze it either. Two layers,
+ * one honest reading: where we are, and that we are still alive. */
+.splash-loader{position:relative}
+.splash-loader b{position:absolute;left:0;top:0;bottom:0;width:100%;border-radius:3px;background:linear-gradient(90deg,#6bbf59,#f0bb45);transform:scaleX(0);transform-origin:0 50%;transition:transform 1.3s cubic-bezier(.25,.85,.3,1);display:none;will-change:transform}
+#splash.film .splash-loader b{display:block}
+#splash.film .splash-loader i{opacity:.32}
+@media (prefers-reduced-motion:reduce){.splash-loader b{transition:none}}
 /* ===== v94 THE CHASE — the loading screen stage ===== */
 .splash-stage{position:relative;width:min(92vw,420px);height:200px;margin:0 auto}#splashChase{position:absolute;inset:0;width:100%;height:100%;display:none;border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.45)}#splash .splash-stage .splash-ball{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}#splash.chase #splashChase{display:block}#splash.chase .splash-ball{display:none}
 .palette-grid-v153 .palette-v153{height:56px!important;display:flex;flex-wrap:wrap;align-content:flex-start}.palette-grid-v153 .palette-v153 i{height:34px}.palette-v153 .pal-name-v97{display:block;width:100%;height:20px;line-height:20px;font:600 8.5px/20px Oswald,sans-serif;letter-spacing:.4px;color:#c9d3df;background:#0b1119;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;box-sizing:border-box;font-style:normal}.palette-grid-v153 .palette-v153 small{inset:auto 2px 23px auto}
@@ -225,11 +252,33 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 <body>
 <div id="splash">
 <div class="splash-inner">
-<div class="splash-stage"><canvas id="splashChase" aria-hidden="true"></canvas><div class="splash-ball">🏈</div></div>
+<div class="splash-stage"><video id="splashFilm" class="splash-film-v114" muted playsinline preload="auto" disablepictureinpicture aria-hidden="true"></video><canvas id="splashChase" aria-hidden="true"></canvas><div class="splash-ball">🏈</div></div>
 <div class="splash-title"><span>RUNNING IT BACK</span><b>FROM PEE WEE TO THE LEAGUE</b></div>
-<div class="splash-loader"><i></i></div>
+<div class="splash-loader"><b></b><i></i></div>
 </div>
 </div>
+<script>
+/* v114: the film's source, chosen and set in the same breath as the element is parsed.
+ * It is NOT a <source> in the markup and NOT a <link rel=preload> in the head, because both of
+ * those start a fetch the page cannot take back — and the two paths that refuse the film,
+ * prefers-reduced-motion and ?noFilmV114, would then pay ~900KB for a file they never show (on a
+ * fast link the transfer completes before any script could abort it). Deciding here instead costs
+ * a few milliseconds against the preload scanner and buys a guarantee. H.264 first: it is what the
+ * phones this game is played on decode. The VP9/WebM sibling is for a browser that cannot — which
+ * includes Chromium built without proprietary codecs, and so is also the only reason v114check can
+ * watch a frame arrive. Exactly one of the two is ever fetched. */
+(function () {
+  try {
+    var v = document.getElementById('splashFilm'); if (!v) return;
+    var rm = false; try { rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+    var off = false; try { off = /[?&]noFilmV114\b/.test(location.search); } catch (e) {}
+    if (rm || off) { v.preload = 'none'; return; }                       // not shown, so not fetched
+    var mp4 = ''; try { mp4 = v.canPlayType('video/mp4; codecs="avc1.4d401f"'); } catch (e) {}
+    var root = window.__RIB_ASSET_ROOT || './public/';
+    v.src = root + (mp4 ? 'rib_splash_v114.mp4' : 'rib_splash_v114.webm');
+  } catch (e) {}
+})();
+</script>
 <div id="app">
 <div class="topbar">
 <div class="hamb" onclick="go('menu')"><i></i><i></i><i></i></div>
@@ -315,6 +364,159 @@ window.addEventListener('unhandledrejection', function(e){
 
 </script>
 <script>
+/* ===== v114 THE SPLASH IS A FILM — the title sting plays while the game loads =====
+ * The boot splash drew the v94 chase. It now plays the title sting instead: a 7.7s film that
+ * comes out of black, throws a light streak across the frame and lands on the wordmark, where
+ * it STOPS — no loop, no restart, the last frame held for as long as the load still needs.
+ *
+ * Three things had to be true for a film to be a loading screen rather than another thing to
+ * wait for:
+ *   - IT ARRIVES FIRST. The master's `moov` atom sat after `mdat`, so nothing could be shown
+ *     until the last byte landed; scripts/build-splash-film.mjs re-cuts it with +faststart and
+ *     drops 7.7MB to ~900KB. The head asks for it in its first breath, beside v112 A's sheet
+ *     warm, and the <video preload="auto"> in the body picks up the same preload entry.
+ *   - IT KEEPS PLAYING WHEN THE MAIN THREAD DOES NOT. That is the whole reason to prefer a film
+ *     here: video decode is not on the main thread, so the megabytes of inline bundle compiling
+ *     below do not drop a single frame of it. The v94 chase, a rAF loop, stalls on exactly that.
+ *   - IT NEVER HOLDS THE GAME HOSTAGE. If the film cannot get a frame up inside FILM_START_MS
+ *     (a 404, a codec, a browser that will not autoplay) it gives the stage back and the v94
+ *     chase mounts exactly as before — which is also what happens under prefers-reduced-motion,
+ *     where the film shows its last frame as a still and never plays.
+ *
+ * THE DOOR. The splash leaves when the app is ready AND the film has ended, capped at
+ * FILM_CAP_MS. That is "stop at the end of the movie": a title sting cut mid-swoosh looks
+ * broken, and the held wordmark is a better place to fade from than the middle of a streak.
+ * Set FILM_WAIT_END false to drop the curtain the moment the app is ready instead.
+ *
+ * THE BAR. Two layers over one groove. `i` is v112 A's compositor sweep, untouched, still the
+ * one thing that moves while the bundle compiles. `b` is a real fill, and it is real: the
+ * film's own buffered fraction, the v91 sheet landing, the app knocking, the film ending —
+ * 45/15/30/10, monotonic, reaching 1 exactly when both conditions for leaving are met. It is a
+ * transform with a long ease, so the glide to each new target runs on the compositor too and a
+ * jam mid-transition does not freeze it either.
+ * window.__V114 is the hook; `?noFilmV114` forces the chase back. `v114check.mjs` is the gate. */
+(function () {
+  var FILM_START_MS = 3000;      // the film's audition: a frame on screen by now, or the chase takes over
+  var FILM_CAP_MS = 14000;       // the outside edge of the whole splash, film or no film
+  var FILM_WAIT_END = true;      // false => leave the moment the app is ready, mid-film if need be
+  /* What the bar means: how close the splash is to LEAVING, which is the app being ready and
+   * the film being over. So the bytes are only part of it — once they are in, the thing still
+   * being waited on is the film itself, and its playhead is the honest remainder. A bar that
+   * sat at 90% through seven seconds of sting would be telling the truth about bytes and
+   * lying about the wait. */
+  var W = { film: .20, sheet: .10, door: .30, play: .40 };   // what each signal is worth on the bar
+
+  var T = function () { try { return Math.round(performance.now()); } catch (e) { return 0; } };
+  var RM = false; try { RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+  var OFF = false; try { OFF = /[?&]noFilmV114\b/.test(location.search); } catch (e) {}
+
+  var splash = document.getElementById('splash'), vid = document.getElementById('splashFilm');
+  var fill = splash && splash.querySelector('.splash-loader b');
+  if (!splash || !vid) return;                       // an older document: v94 keeps the stage
+
+  var V = window.__V114 = {
+    on: false, failed: false, settled: false, ended: false, played: false, rm: RM, off: OFF,
+    startMs: T(), firstFrameMs: null, endedMs: null, doorMs: null, buffered: 0, progress: 0,
+    get t() { return vid.currentTime || 0; }, get dur() { return vid.duration || 0; },
+    src: null, waitEnd: FILM_WAIT_END
+  };
+
+  // ---- the bar: four signals, never backwards, 1 exactly when the curtain may drop
+  var sig = { film: 0, sheet: 0, door: 0, play: 0 };
+  function bump() {
+    var p = sig.film * W.film + sig.sheet * W.sheet + sig.door * W.door + sig.play * W.play;
+    if (p <= V.progress) return;
+    V.progress = p;
+    if (fill) fill.style.transform = 'scaleX(' + p.toFixed(4) + ')';
+  }
+  try {
+    var w = window.__RIB_WARM_V112;
+    if (w && w.imgP && w.mapP) Promise.all([w.imgP, w.mapP]).then(function () { sig.sheet = 1; bump(); });
+    else sig.sheet = 1;
+  } catch (e) { sig.sheet = 1; }
+  function readBuffered() {
+    try {
+      var d = vid.duration; if (!d || !isFinite(d) || !vid.buffered.length) return;
+      V.buffered = Math.min(1, vid.buffered.end(vid.buffered.length - 1) / d);
+      sig.film = V.buffered; bump();
+    } catch (e) {}
+  }
+
+  // ---- the verdict: the film claims the stage, or hands it back. Answered exactly once.
+  var waiters = [];
+  function settle(claimed) {
+    if (V.settled) return;
+    V.settled = true; V.on = !!claimed; V.failed = !claimed;
+    var ws = waiters; waiters = [];
+    ws.forEach(function (cb) { try { cb(V.on); } catch (e) {} });
+  }
+  V.verdict = function (cb) { if (V.settled) { try { cb(V.on); } catch (e) {} return; } waiters.push(cb); };
+
+  // ---- the door: the app is ready; the curtain drops when the film has ended too
+  var doorFired = false, onEnded = null;
+  V.appReady = function (finish) {
+    V.doorMs = T(); sig.door = 1; bump();
+    var go = function () { if (doorFired) return; doorFired = true; try { finish(); } catch (e) {} };
+    if (V.ended || !V.waitEnd) return go();
+    onEnded = go;
+    setTimeout(go, Math.max(400, FILM_CAP_MS - (T() - V.startMs)));   // the film does not get to stall the boot
+  };
+
+  function ended() {
+    if (V.ended) return;
+    V.ended = true; V.endedMs = T(); sig.play = 1; sig.film = 1; bump();
+    try { vid.pause(); } catch (e) {}                 // it holds its last frame; it does not loop
+    if (onEnded) onEnded();
+  }
+
+  /* The picker already declined to give these paths a source, so there is nothing in flight to
+   * abort — this is the belt to that braces, for a cached page whose picker ran under a different
+   * setting, or any future path that reaches here with a src set. */
+  function stopLoad() {
+    try { vid.pause(); } catch (e) {}
+    try { while (vid.firstChild) vid.removeChild(vid.firstChild); } catch (e) {}
+    try { vid.removeAttribute('src'); vid.preload = 'none'; vid.load(); } catch (e) {}
+  }
+
+  // ---- prefers-reduced-motion: the film, stopped. The last frame as a still, nothing moving.
+  if (RM && !OFF) {
+    stopLoad();
+    vid.poster = window.__RIB_ASSET ? window.__RIB_ASSET('rib_splash_v114.jpg') : './public/rib_splash_v114.jpg';
+    splash.classList.add('film');
+    sig.film = 1; V.ended = true; V.endedMs = T(); sig.play = 1; bump();
+    settle(true);
+    return;
+  }
+  if (OFF) { stopLoad(); settle(false); return; }
+
+  vid.addEventListener('loadedmetadata', readBuffered);
+  vid.addEventListener('progress', readBuffered);
+  vid.addEventListener('ended', ended);
+  vid.addEventListener('error', function () { settle(false); });
+  // the first frame actually on screen is the only thing that counts as claiming the stage
+  var claim = function () {
+    if (V.settled && !V.on) return;
+    if (V.played) return;
+    V.played = true; V.firstFrameMs = T(); V.codec = /\.webm/.test(vid.currentSrc || '') ? 'vp9' : 'h264';
+    splash.classList.add('film'); settle(true); readBuffered();
+  };
+  vid.addEventListener('playing', claim);
+  vid.addEventListener('timeupdate', function () {
+    if (vid.currentTime > 0) claim();
+    var d = vid.duration; if (d && isFinite(d)) { sig.play = Math.min(1, vid.currentTime / d); bump(); }
+    readBuffered();
+  });
+
+  /* The source was chosen and set by the picker beside the element, while the parser was still
+   * on the splash markup — see the comment there for why it is not a <source> or a preload. */
+  if (!vid.getAttribute('src')) { settle(false); return; }              // the picker stood it down
+  V.src = vid.getAttribute('src');
+  vid.loop = false; vid.muted = true; vid.defaultMuted = true; vid.playsInline = true;
+  var p = null; try { p = vid.play(); } catch (e) { settle(false); }
+  if (p && p.catch) p.catch(function () { settle(false); });     // autoplay refused: the chase, then
+
+  setTimeout(function () { if (!V.settled) settle(false); }, FILM_START_MS);
+})();
 /* ===== v94 THE CHASE — the loading screen is a play, not a spinner =====
  * A ball carrier in the you-kit sprints across a strip of turf with a defender on his heels,
  * drawn on a plain 2D canvas from the v91 field sheet (public/rib_field_v91.png, its cell
@@ -679,19 +881,36 @@ window.addEventListener('unhandledrejection', function(e){
       setTimeout(function () { if (splash.parentNode) splash.parentNode.removeChild(splash); }, 600);
     }
     var rec = mountRec112('splash');
-    load().then(function (ok) {
-      if (!ok || done) { dead = true; return; }
+    /* v114: the film gets first refusal on the stage. The chase waits for its verdict — a frame
+     * up, or given up — so the two can never be on screen together; with no v114 at all (an older
+     * document) `filmOut` starts true and everything below is the pre-v114 path, unchanged. */
+    var sheetOk = null, filmOut = !window.__V114;
+    function mountChase() {
+      if (done || chase || !filmOut || !sheetOk) return;
       ready = true; splash.classList.add('chase');
       chase = make(cv, { minMs: 2600, onDone: finish, rec: rec }).start();
       if (api.__armWhenReady) chase.arm();
+    }
+    load().then(function (ok) {
+      sheetOk = !!ok;
+      if (!ok || done) { dead = true; return; }
+      mountChase();
     });
-    window.__splashDoneV94 = function () {
+    if (window.__V114) window.__V114.verdict(function (claimed) { if (!claimed) { filmOut = true; mountChase(); } });
+    function chaseDoor() {
       if (dead || !ready) {   // the sheet is not here (yet): the old timing, exactly — or the door the moment it lands
         if (dead) { setTimeout(finish, 1100); return true; }
         api.__armWhenReady = true; setTimeout(function () { if (!ready) finish(); }, 1100); return true;
       }
       chase.arm();
       setTimeout(function () { if (!done) finish(); }, 12000);   // the watchdog if the loop ever stalls
+      return true;
+    }
+    window.__splashDoneV94 = function () {
+      var F = window.__V114;
+      if (!F) return chaseDoor();
+      // v114: the film may not have decided yet on a fast boot — ask it, then knock on the door it names
+      F.verdict(function (claimed) { if (claimed) F.appReady(finish); else chaseDoor(); });
       return true;
     };
     window.addEventListener('resize', function () { if (chase && !done) chase.size(); });

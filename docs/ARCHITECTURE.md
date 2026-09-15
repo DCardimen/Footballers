@@ -374,6 +374,68 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v114 — the splash is a film
+
+Anchor `v114 THE SPLASH IS A FILM` (in the body's first `<script>`, immediately before the v94
+chase engine, so door one can consult it). It replaces what the BOOT splash draws. Door two —
+the live game's loader over `.field-wrap` — is untouched and still runs the chase: a title sting
+belongs at app boot, not between plays.
+
+**The asset.** `scripts/build-splash-film.mjs` cuts three files from
+`art/splash/rib_splash_master.mp4`:
+
+| file | what it is for |
+|---|---|
+| `public/rib_splash_v114.mp4` | H.264, 960x540, CRF 26, no audio, **`+faststart`** — the shipping path |
+| `public/rib_splash_v114.webm` | VP9, same frame — a browser with no H.264 (which includes Playwright's Chromium, and is the only reason `v114check` can watch a frame arrive) |
+| `public/rib_splash_v114.jpg` | the last frame, as the `prefers-reduced-motion` still |
+
+`+faststart` is the load-bearing flag, not a nicety: the master's `moov` atom sat *after* `mdat`,
+so a browser could not show one frame until the whole 7.7 MB had landed — a loading screen that
+spends the load loading. Moving `moov` to the front (and 7.7 MB -> ~900 KB) is what makes the file
+a loading screen at all, and `v114check` asserts it off the bytes.
+
+**Getting it there first, without paying for it twice.** The source is set by a small picker
+inline immediately after the `<video>`, while the parser is still on the splash markup — it reads
+`prefers-reduced-motion` and `?noFilmV114`, and on the paths that will not show the film it simply
+never assigns a `src`. The two obvious alternatives were both tried and both rejected for the same
+reason: a `<link rel="preload" as="video">` in the head and `<source>` children in the markup each
+start a fetch the page cannot take back, and on a fast link the ~900 KB *completes* before any
+script could abort it — so a reduced-motion user downloaded a film they were never shown.
+(`media="(prefers-reduced-motion: no-preference)"` on the link is not honoured early enough to
+lean on; `v114check` caught it doing so intermittently.) Deciding beside the element costs a few
+milliseconds against the preload scanner — measured at 2.4-3.9s to first frame in the dev
+container, against 4.5s for a `src` assigned from the main module — and buys a guarantee.
+`stopLoad()` remains as the belt to those braces. The picker is also where H.264 vs VP9 is chosen,
+via `canPlayType`, so exactly one of the two files is ever fetched.
+
+**Why a film and not the chase.** Video decode is not on the main thread. The megabytes of inline
+bundle below compile in one task, and the v94 chase — a rAF loop — stalls dead on exactly that
+(it is what `__V112_A.mounts[n].maxGapMs` measures). The film does not drop a frame of it.
+
+**The door.** `V.appReady(finish)` is called from `__splashDoneV94`. The curtain drops when the
+app is ready **and** the film has ended, capped by `FILM_CAP_MS` (14s). That is "stop at the end
+of the movie": a sting cut mid-swoosh reads as broken, and the held wordmark is a better place to
+fade from. `FILM_WAIT_END = false` drops it the moment the app is ready instead — one constant.
+The cost is honest: a cold boot is now paced by the 7.7s film rather than the chase's 2.6s floor.
+
+**Never stranding the boot.** `V.verdict(cb)` is answered exactly once — the film claimed the
+stage (a first frame on screen) or gave it up. Door one does not mount the chase until that
+verdict, so the two can never run together, and a film that cannot get a frame up inside
+`FILM_START_MS` (3s) hands back to the chase exactly as it was. `?noFilmV114` forces that path.
+
+**The bar.** Two layers over one groove. `.splash-loader i` is v112 A's compositor sweep,
+unchanged — still the one thing that moves while the bundle compiles. `.splash-loader b` is a
+determinate fill weighted `buffered .20 / v91 sheet .10 / app door .30 / playhead .40`, monotonic,
+reaching 1 exactly when both conditions for leaving are met. It is a `transform` with a 1.3s ease,
+so the glide to each new target runs on the compositor too and a jam mid-transition does not
+freeze it either. The playhead is in there deliberately: once the bytes are in, the thing still
+being waited on *is* the film, and a bar that sat at 90% through seven seconds of sting would be
+telling the truth about bytes and lying about the wait.
+
+`window.__V114` exposes `on`, `failed`, `settled`, `ended`, `played`, `codec`, `progress`,
+`firstFrameMs`, `endedMs`, `verdict()` and `appReady()`.
+
 ## v113 — the training board is a grid, and the choice is two taps
 
 Anchor `v113 THE BOARD IS A GRID, AND THE CHOICE IS TWO TAPS` (the last block inside the

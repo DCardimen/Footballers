@@ -68,6 +68,22 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v114 THE SPLASH IS A FILM` — the boot splash plays the title sting (`public/rib_splash_v114.mp4`,
+  the VP9 `.webm` sibling for a browser with no H.264, the `.jpg` last frame for reduced motion; all
+  three cut by `scripts/build-splash-film.mjs` from `art/splash/rib_splash_master.mp4`, **`+faststart`
+  or it is not a loading screen**). The source is chosen by a picker inline BESIDE the `<video>`, not
+  by a `<source>` in the markup or a `<link rel=preload>` in the head: both of those start a fetch
+  the page cannot take back, and on a fast link the ~900KB completes before any script could abort
+  it — so the paths that refuse the film (reduced motion, `?noFilmV114`) would pay for a file they
+  never show. Deciding beside the element costs a few ms against the preload scanner and buys a
+  guarantee; `stopLoad()` is the belt to that braces. The film does not loop: it STOPS on its last frame,
+  and the splash leaves when the app is ready AND the film has ended (`FILM_WAIT_END`, capped by
+  `FILM_CAP_MS`; `FILM_START_MS` is the audition — no frame by then and the v94 chase takes the stage
+  back, which is also the `?noFilmV114` path). The loader bar is two layers: v112 A's compositor
+  sweep (`.splash-loader i`, untouched) over a determinate fill (`.splash-loader b`, a composited
+  transform) weighted buffered/sheet/door/playhead. Door two — the live game's loader — is still
+  the chase. `window.__V114` is the hook; `v114check.mjs` is the gate and `splashcheck.mjs` now
+  boots `?noFilmV114` so it keeps testing the fallback
 - `v113 THE BOARD IS A GRID, AND THE CHOICE IS TWO TAPS` — the offseason "Choose Your Training"
   board is the twelve programs as icons, four across and three down, and a tile PREVIEWS rather
   than commits: `tpPanelV113` redraws the sheet under the grid for that program — one bar per
@@ -281,6 +297,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the lighting dial / how bright the stadium burns (v100) | `v100check.mjs`, `v99check.mjs`, `v98check.mjs` |
 | shadows / the key light / the goalpost frame / the lamps holding (v99) | `v99check.mjs`, `v92check.mjs`, `v86check.mjs`, `sidelinecheck.mjs` |
 | the lights / the lit turf / the scorebug colours / crowd emoji / the handover cut / the coach row (v98) | `v98check.mjs`, `v92check.mjs`, `crowdcheck.mjs`, `postgamecheck.mjs` |
+| the boot splash's film — the asset, the door, the bar (v114) | `v114check.mjs`, then `splashcheck.mjs`, `shot.mjs` |
 | the loading screen / the splash's door (v94) | `splashcheck.mjs`, `shot.mjs`, `walk.mjs` |
 | the end-zone paint / home and away fixtures (v93) | `v93check.mjs`, `v86check.mjs` |
 | the stadium behind the bowl / the big screen / the posts / number formatting (v92) | `v92check.mjs`, `v86check.mjs` |
