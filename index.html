@@ -225,14 +225,33 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
  * caption readable over the bright middle of the sting. */
 /* it is hidden with OPACITY, never display:none: a display:none <video> is not a reliable thing to
    ask to play, and the loader cannot show it until it knows the film is actually running */
-.rib-liveload-film-v115{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .28s ease;z-index:0}
+.rib-liveload-film-v115{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .28s ease,transform .62s cubic-bezier(.32,.05,.2,1);z-index:0;will-change:transform,opacity}
 .rib-liveload-v94.film{background:radial-gradient(130% 90% at 50% 40%,#080d13,#04070b 72%)}
 .rib-liveload-v94.film .rib-liveload-film-v115{opacity:1}
 /* the chase canvas is display:none by default and block only under .chase, but it was still
    computing to block here and taking 300x150 of the flex column under the caption — state it */
 .rib-liveload-v94.film .rib-liveload-cv-v94{display:none}
+/* The hand-off. A plain opacity fade left the loader sitting on the field for four hundred
+   milliseconds looking like a dropped frame. The film PUSHES THROUGH instead, in that order:
+   the caption drops away first (.26s), the film keeps its own opacity and swells (.66s), and the
+   LAYER goes last, after a .12s beat — so the wordmark is still solid while the grass comes up
+   behind it and it is the last thing off the screen, rather than the caption ghosting over an
+   already-visible field. The removal timeout matches .12 + .5, or the layer is torn out
+   mid-animation. */
+.rib-liveload-v94.film{transition:opacity .5s cubic-bezier(.4,0,.2,1) .12s,visibility .62s}
+.rib-liveload-v94.film.gone .rib-liveload-film-v115{transition:transform .66s cubic-bezier(.32,.05,.2,1);transform:scale(1.09);opacity:1}
+.rib-liveload-v94.film .rib-liveload-cap-v94{transition:opacity .26s ease,transform .44s cubic-bezier(.3,0,.2,1)}
+.rib-liveload-v94.film.gone .rib-liveload-cap-v94{opacity:0;transform:translateY(12px) scale(.96)}
+@media (prefers-reduced-motion:reduce){
+  .rib-liveload-v94.film.gone .rib-liveload-film-v115{transform:none}
+  .rib-liveload-v94.film.gone .rib-liveload-cap-v94{transform:none}
+}
 .rib-liveload-v94.film:after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(4,7,11,.15) 0%,rgba(4,7,11,0) 38%,rgba(4,7,11,.62) 100%)}
-.rib-liveload-v94.film .rib-liveload-cap-v94,.rib-liveload-v94.film .rib-liveload-bar-v94{position:relative;z-index:2}
+/* with the film letterboxed rather than cropped, a flex-centred caption lands exactly on the
+   wordmark — so under .film it moves into the matched-black band below the picture, which is
+   also where the scrim is darkest and where dropping away on the exit reads best */
+.rib-liveload-v94.film .rib-liveload-cap-v94{position:absolute;left:0;right:0;bottom:max(14px,7%);z-index:2}
+.rib-liveload-v94.film .rib-liveload-bar-v94{display:none}
 .rib-liveload-v94.film .rib-liveload-cap-v94 b{text-shadow:0 2px 10px rgba(0,0,0,.8)}
 .rib-liveload-cap-v94{text-align:center;font-family:Oswald,sans-serif}
 .rib-liveload-cap-v94 b{display:block;font-weight:700;font-size:20px;letter-spacing:3px;color:#f2efe4}
@@ -998,10 +1017,16 @@ window.addEventListener('unhandledrejection', function(e){
       var item = cur = { el: el, wrap: wrap, t0: Date.now(), chase: null, done: false, ready: false, field: false, film: false };
       function finish() {
         if (item.done) return; item.done = true; if (item.chase) item.chase.stop(); if (cur === item) cur = null;
-        try { if (item.filmEl && window.__V114 && window.__V114.give) window.__V114.give(item.filmEl); } catch (e) {}   // v115: parked again, warm, for the next game
         release();
         var bar = el.querySelector('.rib-liveload-bar-v94 i'); if (bar) { bar.style.animation = 'none'; bar.style.transform = 'none'; bar.style.marginLeft = '0'; bar.style.width = '100%'; }
-        el.classList.add('gone'); setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 450);
+        el.classList.add('gone');
+        setTimeout(function () {
+          // the film is parked at the END of the exit, not the start: giving it back up front
+          // detached the <video> instantly and left an empty black layer to fade, which is the
+          // dropped-frame look the push-through exists to replace
+          try { if (item.filmEl && window.__V114 && window.__V114.give) window.__V114.give(item.filmEl); } catch (e) {}
+          if (el.parentNode) el.parentNode.removeChild(el);
+        }, item.film ? 720 : 450);
       }
       var rec = mountRec112('live');
       /* ===== v115 THE FILM AT BOTH DOORS =====

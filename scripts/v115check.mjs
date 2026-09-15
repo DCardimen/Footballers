@@ -66,7 +66,9 @@ const loader = () => { const el = document.querySelector('.rib-liveload-v94'); i
   const v = el.querySelector('.rib-liveload-film-v115'), cv = el.querySelector('canvas')
   return { film: el.classList.contains('film'), chase: el.classList.contains('chase'), inWrap: !!el.closest('.field-wrap'),
     cap: (el.querySelector('.rib-liveload-cap-v94 b') || {}).textContent, sub: (el.querySelector('.rib-liveload-cap-v94 span') || {}).textContent,
-    bar: !!el.querySelector('.rib-liveload-bar-v94 i'),
+    bar: el.querySelector('.rib-liveload-bar-v94') ? getComputedStyle(el.querySelector('.rib-liveload-bar-v94')).display : 'absent',
+    fit: v ? getComputedStyle(v).objectFit : null,
+    box: (() => { const r = el.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) })(),
     t: v ? v.currentTime : -1, dur: v ? v.duration : -1, paused: v ? v.paused : null, loop: v ? v.loop : null,
     src: v ? (v.currentSrc || '').split('/').pop() : null, shown: v ? getComputedStyle(v).opacity : null,
     cvShown: cv ? getComputedStyle(cv).display : null, shows: window.__LIVELOAD_V94.shows } }
@@ -103,19 +105,61 @@ async function reachLoader(q) {
   ok(!!seen && seen.t > 0.8, 'it starts past the black lead-in, so the first frame shown is a picture', seen && seen.t.toFixed(2) + 's')
   ok(!!seen && seen.loop === false, 'it does not loop', seen && `loop=${seen.loop}`)
   ok(!!seen && /vs/i.test(seen.cap || ''), 'the matchup is still named over it', seen && seen.cap)
-  ok(!!seen && seen.bar, 'and the bar is still there')
+  ok(!!seen && seen.fit === 'contain', 'the whole frame is shown — not cropped into the wordmark', seen && `object-fit: ${seen.fit}`)
+  ok(!!seen && seen.bar === 'none', 'and the loading bar is gone from over it', seen && `bar display: ${seen.bar}`)
+  // letterboxed, the picture is vertically centred — so the caption has to be clear of it, or it
+  // sits straight on the wordmark
+  const clear = await page.evaluate(() => { const el = document.querySelector('.rib-liveload-v94')
+    const v = el.querySelector('.rib-liveload-film-v115'), c = el.querySelector('.rib-liveload-cap-v94')
+    if (!v || !c) return null
+    const b = el.getBoundingClientRect(), cr = c.getBoundingClientRect()
+    // where the letterboxed picture actually sits inside the box
+    const ar = (v.videoWidth || 16) / (v.videoHeight || 9)
+    const pw = Math.min(b.width, b.height * ar), ph = pw / ar
+    const top = b.top + (b.height - ph) / 2, bot = top + ph
+    return { capTop: Math.round(cr.top), capBot: Math.round(cr.bottom), picTop: Math.round(top), picBot: Math.round(bot), boxBot: Math.round(b.bottom) } })
+  ok(!!clear && clear.capTop >= clear.picBot - 2, 'the matchup sits clear of the picture, not on the wordmark',
+    clear && `caption ${clear.capTop}-${clear.capBot}, picture ${clear.picTop}-${clear.picBot}`)
+
+  // the hand-off, read off the CSS contract rather than raced against a 640ms window: a probe
+  // wearing the same classes the loader wears on its way out must be pushing through, not dimming
+  const out = await page.evaluate(() => {
+    const d = document.createElement('div'); d.className = 'rib-liveload-v94 film gone'
+    d.innerHTML = '<video class="rib-liveload-film-v115"></video><div class="rib-liveload-cap-v94"><b>X</b><span>Y</span></div>'
+    const host = document.querySelector('.field-wrap') || document.body; host.appendChild(d)
+    const v = d.querySelector('video'), c = d.querySelector('.rib-liveload-cap-v94')
+    const r = { film: getComputedStyle(v).transform, filmOp: getComputedStyle(v).opacity,
+      cap: getComputedStyle(c).transform, capOp: getComputedStyle(c).opacity,
+      layer: getComputedStyle(d).transitionDuration, layerDelay: getComputedStyle(d).transitionDelay }
+    d.remove(); return r
+  })
+  const scale = (t) => { const m = (t || '').match(/matrix\(([-\d.]+)/); return m ? +m[1] : 1 }
+  ok(scale(out.film) > 1.02 && out.filmOp === '1', 'on the way out the film pushes THROUGH — it swells and keeps its face',
+    `scale ${scale(out.film).toFixed(3)}, opacity ${out.filmOp}`)
+  ok(out.capOp === '0' && /matrix/.test(out.cap), 'the caption drops away ahead of it', out.cap)
+  ok(/0\.12s|120ms/.test(out.layer || '') === false && parseFloat(out.layerDelay) >= 0.1,
+    'and the layer itself goes LAST, so the wordmark is the last thing off the screen',
+    `layer fades over ${out.layer} after ${out.layerDelay}`)
   try { await page.locator('.rib-liveload-v94').screenshot({ path: '_v115_live.png' }) } catch (e) { await page.screenshot({ path: '_v115_live.png' }) }
 
   await dismiss()
-  const t1 = Date.now(); let gone = false, sceneUp = false
-  for (let i = 0; i < 140; i++) {
-    const r = await page.evaluate(() => ({ gone: !document.querySelector('.rib-liveload-v94'), scene: !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length) }))
-    sceneUp = sceneUp || r.scene; if (r.gone) { gone = true; break }; await page.waitForTimeout(100)
+  const t1 = Date.now(); let gone = false, sceneUp = false, sawGone = false, shots = 0, exitHadFilm = false
+  for (let i = 0; i < 260; i++) {
+    const r = await page.evaluate(() => { const el = document.querySelector('.rib-liveload-v94')
+      return { gone: !el, leaving: !!(el && el.classList.contains('gone')), scene: !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length) } })
+    sceneUp = sceneUp || r.scene; sawGone = sawGone || r.leaving
+    if (r.leaving && process.env.V115_SHOTS && shots < 2) { await page.screenshot({ path: '_v115_exit_' + shots + '.png' }); shots++ }
+    if (r.leaving && !exitHadFilm) exitHadFilm = await page.evaluate(() => { const e = document.querySelector('.rib-liveload-v94'); const v = e && e.querySelector('.rib-liveload-film-v115')
+      return !!(v && v.isConnected && getComputedStyle(v).opacity !== '0') })
+    if (r.gone) { gone = true; if (process.env.V115_SHOTS) await page.screenshot({ path: '_v115_exit_done.png' }); break }; await page.waitForTimeout(50)
   }
   const openMs = Date.now() - t1
   ok(gone, 'the door still opens on the scene, not on the film', openMs + 'ms')
   ok(sceneUp, 'the broadcast came up under it')
   ok(gone && openMs < 7700, 'and it did NOT wait out the 7.7s sting', openMs + 'ms')
+  ok(sawGone, 'the loader played that exit rather than being cut', sawGone ? 'saw .gone before it was removed' : 'never observed .gone')
+  ok(exitHadFilm, 'and the film was still ON SCREEN through it, not yanked before the animation',
+    exitHadFilm ? 'video still mounted and visible while leaving' : 'the layer faded empty')
   const after = await page.evaluate(() => ({ el: !!document.querySelector('.rib-liveload-v94'), vids: document.querySelectorAll('.rib-liveload-film-v115').length }))
   ok(!after.el && after.vids === 0, 'the loader and its video are gone, no decoder left running', JSON.stringify(after))
   const again = await page.evaluate(() => window.__LIVELOAD_V94.shows)

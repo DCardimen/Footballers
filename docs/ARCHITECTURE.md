@@ -378,9 +378,15 @@ declare), the season screen's button and the hub card all call `declareChanceV88
 
 Anchor `v115 THE FILM AT BOTH DOORS` (inside door two's `mount`, in the v94 block). The live
 game's loader over `.field-wrap` plays the same title sting the boot splash does — as a
-**backdrop** filling the loader box under the matchup and the bar (`.rib-liveload-film-v115`,
-`object-fit: cover`, a scrim so the caption survives the bright middle of the sting), not as a
-card beside them.
+**backdrop** filling the loader box (`.rib-liveload-film-v115`), not as a card beside the text.
+
+`object-fit` is **contain**, not cover: cover filled the box but cropped a 16:9 sting into a
+portrait `.field-wrap`, cutting the wordmark off at both ends. The loader's ground already wears
+the film's own black, so the letterbox it leaves has no visible edge. Two consequences follow
+from that and are handled here: the caption cannot be flex-centred any more (it would land exactly
+on the logo) so under `.film` it is absolutely positioned in the band below the picture, where the
+scrim is darkest; and the loading bar is `display: none` over the film — the sting is the picture,
+and the caption already says where the boot is up to (TAKING THE FIELD / WARMING UP / KICKOFF).
 
 **Why it could not just call `play()`.** Door two mounts at the single worst moment on the main
 thread: the Phaser scene booting, the sheets registering, the crowd taking its seats. A media
@@ -404,6 +410,19 @@ door one already loaded is kept rather than destroyed:
 **Claim before the seek.** `claimed()` runs synchronously when the taken element already has
 `readyState >= 2`, *then* the playhead is moved. A seek drops readyState for a beat, and asking
 after it handed the door to the v94 chase for no reason.
+
+**The hand-off.** A plain opacity fade left the loader sitting on the field for 400ms looking like
+a dropped frame. The exit is ordered instead, and the order is the whole effect:
+
+1. the caption drops away and goes first (`.26s`, `translateY(12px) scale(.96)`);
+2. the film keeps its opacity and **swells** to `scale(1.09)` over `.66s`;
+3. the layer itself fades last, after a `.12s` beat — so the wordmark is still solid while the
+   grass comes up behind it, and it is the last thing off the screen.
+
+The film is parked (`give()`) only when that finishes, not when `finish()` is called: parking it up
+front detached the `<video>` instantly and left an empty black layer to fade, which is exactly the
+dropped-frame look this replaces. The removal timeout (720ms) covers `.12 + .5`, and
+`prefers-reduced-motion` drops the transforms.
 
 **Three deliberate differences from door one:**
 

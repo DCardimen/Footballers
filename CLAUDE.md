@@ -69,8 +69,13 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
 - `v115 THE FILM AT BOTH DOORS` — the live game's loader over `.field-wrap` plays the sting too, as a
-  BACKDROP under the matchup and the bar (`.rib-liveload-film-v115`, `object-fit:cover`, a scrim for
-  the caption). Three differences from door one, all deliberate: it does NOT wait for the film (the
+  BACKDROP under the matchup (`.rib-liveload-film-v115`, `object-fit:contain` — `cover` cropped the
+  wordmark off the sides, and the ground already wears the film's black so the letterbox is
+  invisible; the caption moves to the band BELOW the picture, where centring it would land it on
+  the logo, and the loading bar is `display:none` here — the sting is the picture). The hand-off is
+  ordered: the caption drops (.26s), the film keeps its face and swells to 1.09 (.66s), the layer
+  goes LAST after a .12s beat, and the film is parked only when that finishes — parking it up front
+  detached the `<video>` and left an empty black layer to fade. Three differences from door one, all deliberate: it does NOT wait for the film (the
   door opens on the scene standing and the first play built — holding it for 7.7s would front-load
   every game), it starts at `LIVE_FILM_FROM` past the black lead-in, and it uses the element door
   one already loaded. That last one is the whole trick: door two mounts while Phaser is compiling,

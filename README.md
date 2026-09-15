@@ -56,7 +56,9 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 ## Recent changes
 
 - **v115 — the film at both doors.** The live game's loader plays the sting too, as a backdrop under
-  the matchup and the bar rather than a card beside them. Three things are deliberately not the same
+  the matchup rather than a card beside it — the whole frame, not a crop, with the caption in the
+  band below it and no loading bar over the picture, handed off to the game by the wordmark swelling
+  and clearing last. Three things are deliberately not the same
   as the boot splash: it does not wait for the film (the door opens on the scene standing and the
   first play built — holding it for the full 7.7s would put six seconds in front of every game), it
   starts past the black lead-in so a door that may only be open for a second and a half shows a
