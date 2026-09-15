@@ -180,9 +180,15 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
  * The film is 16:9, so on the film path the stage takes that shape instead of the chase's fixed
  * 200px strip. It sits UNDER the canvas in the stacking order only because the two never show at
  * once: `#splash.film` is the film's state, `#splash.chase` the fallback's. */
-#splash .splash-stage .splash-film-v114{position:absolute;inset:0;width:100%;height:100%;display:none;object-fit:cover;border-radius:14px;background:#05080d;box-shadow:0 18px 50px rgba(0,0,0,.45)}
-#splash.film .splash-stage{width:min(94vw,560px);height:auto;aspect-ratio:16/9}
-#splash.film .splash-film-v114{display:block}
+#splash .splash-stage .splash-film-v114{position:absolute;inset:0;width:100%;height:100%;display:none;object-fit:cover;background:transparent}
+/* v115: the film ran as a rounded, shadowed CARD on the splash's blue-grey ground, and the film's
+   own frames are near-black — so the card's edge was a visible seam and everything around it read
+   as dead space. Measured off the shipped file, the film's border pixels sit around rgb(4,8,11)
+   (corners 1,1,1 to 9,20,27), so the splash wears that same black under `.film` and the film runs
+   the full width with no radius and no shadow. Nothing marks where the picture stops. */
+#splash.film{background:radial-gradient(130% 90% at 50% 40%,#080d13,#04070b 72%)}
+#splash.film .splash-stage{width:100vw;max-width:100vw;height:auto;aspect-ratio:16/9;margin:0}
+#splash.film .splash-film-v114{display:block;border-radius:0;box-shadow:none}
 #splash.film #splashChase,#splash.film .splash-ball{display:none}
 /* the film ENDS on the wordmark, so the typeset one under it would be the same words twice */
 #splash.film .splash-title span{display:none}
@@ -213,6 +219,21 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 .rib-slomo-v102 b{position:absolute;right:12px;bottom:calc(var(--k)*7.5% + 6px);font:700 10px Oswald,sans-serif;letter-spacing:2.5px;color:#f0bb45;opacity:calc(var(--k)*.9);text-shadow:0 1px 3px #000}
 .rib-liveload-cv-v94{width:min(92%,420px);height:170px;display:none;border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.45)}
 .rib-liveload-v94.chase .rib-liveload-cv-v94{display:block}
+/* ===== v115 THE FILM AT BOTH DOORS — the live loader's own copy =====
+ * Here the film is the BACKDROP, not a card: it fills the loader box edge to edge under the
+ * matchup and the bar, so there is no seam and no dead space. The scrim is what keeps the
+ * caption readable over the bright middle of the sting. */
+/* it is hidden with OPACITY, never display:none: a display:none <video> is not a reliable thing to
+   ask to play, and the loader cannot show it until it knows the film is actually running */
+.rib-liveload-film-v115{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .28s ease;z-index:0}
+.rib-liveload-v94.film{background:radial-gradient(130% 90% at 50% 40%,#080d13,#04070b 72%)}
+.rib-liveload-v94.film .rib-liveload-film-v115{opacity:1}
+/* the chase canvas is display:none by default and block only under .chase, but it was still
+   computing to block here and taking 300x150 of the flex column under the caption — state it */
+.rib-liveload-v94.film .rib-liveload-cv-v94{display:none}
+.rib-liveload-v94.film:after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(4,7,11,.15) 0%,rgba(4,7,11,0) 38%,rgba(4,7,11,.62) 100%)}
+.rib-liveload-v94.film .rib-liveload-cap-v94,.rib-liveload-v94.film .rib-liveload-bar-v94{position:relative;z-index:2}
+.rib-liveload-v94.film .rib-liveload-cap-v94 b{text-shadow:0 2px 10px rgba(0,0,0,.8)}
 .rib-liveload-cap-v94{text-align:center;font-family:Oswald,sans-serif}
 .rib-liveload-cap-v94 b{display:block;font-weight:700;font-size:20px;letter-spacing:3px;color:#f2efe4}
 .rib-liveload-cap-v94 b i{font-style:normal;font-size:12px;letter-spacing:2px;color:#93a0b1;margin:0 8px}
@@ -511,6 +532,23 @@ window.addEventListener('unhandledrejection', function(e){
    * on the splash markup — see the comment there for why it is not a <source> or a preload. */
   if (!vid.getAttribute('src')) { settle(false); return; }              // the picker stood it down
   V.src = vid.getAttribute('src');
+  /* ===== v115: the film is PARKED, not destroyed =====
+   * Door two mounts at the single worst moment on the main thread — the Phaser scene booting —
+   * and a media element's load does not START until the main thread lets it: measured, `play()`
+   * at 23218ms and `loadstart` 2.7 SECONDS later, on a door that is only open for four. So the
+   * element door one already loaded is kept: parked detached, paused, fully buffered, and handed
+   * to door two when it mounts. One decoded film for the whole session. */
+  V.park = function () {
+    try {
+      if (!V.on || !vid) return null;
+      vid.pause();
+      if (vid.parentNode) vid.parentNode.removeChild(vid);
+      vid.className = ''; vid.removeAttribute('id');
+      V.parked = vid; return vid;
+    } catch (e) { return null; }
+  };
+  V.take = function (cls) { var v = V.parked; if (!v) return null; V.parked = null; v.className = cls || ''; return v; };
+  V.give = function (v) { try { if (!v) return; v.pause(); if (v.parentNode) v.parentNode.removeChild(v); v.className = ''; V.parked = v; } catch (e) {} };
   vid.loop = false; vid.muted = true; vid.defaultMuted = true; vid.playsInline = true;
   var p = null; try { p = vid.play(); } catch (e) { settle(false); }
   if (p && p.catch) p.catch(function () { settle(false); });     // autoplay refused: the chase, then
@@ -878,7 +916,10 @@ window.addEventListener('unhandledrejection', function(e){
       if (done) return; done = true; if (chase) chase.stop();
       var bar = splash.querySelector('.splash-loader i'); if (bar) { bar.style.animation = 'none'; bar.style.transform = 'none'; bar.style.marginLeft = '0'; bar.style.width = '100%'; }
       splash.classList.add('gone');
-      setTimeout(function () { if (splash.parentNode) splash.parentNode.removeChild(splash); }, 600);
+      setTimeout(function () {
+        try { if (window.__V114 && window.__V114.park) window.__V114.park(); } catch (e) {}   // v115: keep the loaded film for door two
+        if (splash.parentNode) splash.parentNode.removeChild(splash);
+      }, 600);
     }
     var rec = mountRec112('splash');
     /* v114: the film gets first refusal on the stage. The chase waits for its verdict — a frame
@@ -954,21 +995,73 @@ window.addEventListener('unhandledrejection', function(e){
       el.innerHTML = '<canvas class="rib-liveload-cv-v94"></canvas><div class="rib-liveload-cap-v94"><b>' + (us && them ? us + ' <i>vs</i> ' + them : 'GAME DAY') + '</b><span>TAKING THE FIELD</span></div><div class="rib-liveload-bar-v94"><i></i></div>';
       wrap.appendChild(el); api.shows++;
       warm = false;
-      var item = cur = { el: el, wrap: wrap, t0: Date.now(), chase: null, done: false, ready: false, field: false };
+      var item = cur = { el: el, wrap: wrap, t0: Date.now(), chase: null, done: false, ready: false, field: false, film: false };
       function finish() {
         if (item.done) return; item.done = true; if (item.chase) item.chase.stop(); if (cur === item) cur = null;
+        try { if (item.filmEl && window.__V114 && window.__V114.give) window.__V114.give(item.filmEl); } catch (e) {}   // v115: parked again, warm, for the next game
         release();
         var bar = el.querySelector('.rib-liveload-bar-v94 i'); if (bar) { bar.style.animation = 'none'; bar.style.transform = 'none'; bar.style.marginLeft = '0'; bar.style.width = '100%'; }
         el.classList.add('gone'); setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 450);
       }
       var rec = mountRec112('live');
-      load().then(function (ok) {
-        if (item.done) return;
-        if (!ok) { setTimeout(finish, 900); return; }
-        el.classList.add('chase');
+      /* ===== v115 THE FILM AT BOTH DOORS =====
+       * The same title sting the boot splash plays, over the field while the broadcast boots —
+       * straight out of the cache, since door one asked for that exact URL minutes ago.
+       *
+       * Two things are deliberately NOT the same as door one.
+       *   - IT DOES NOT WAIT FOR THE FILM. This door opens on the scene standing and the first
+       *     play being built — usually inside two seconds. Holding it for the whole 7.7s sting
+       *     would put six seconds in front of every single game, which is the opposite of what a
+       *     loader is for. The film plays under the loader for as long as the loader lives, and
+       *     stops (no loop) if it gets to the end first.
+       *   - IT STARTS PAST THE LEAD-IN. The sting opens on a second of near-black before the
+       *     streak: fine as a boot splash, useless on a door that may only be open for 1.5s. It
+       *     starts at LIVE_FILM_FROM instead, so there is a picture on the first frame shown.
+       *
+       * If door one never played the film — no codec, autoplay refused, reduced motion,
+       * ?noFilmV114 — then `__V114.on` is false and this door runs the v94 chase exactly as it
+       * always has. Same for a film that cannot get a frame up here. */
+      var LIVE_FILM_FROM = 1.15;                       // seconds: past the black, into the streak
+      var LIVE_FILM_START_MS = 1200;                   // its audition, shorter than door one's: this door may only live for 1.5s
+      var F = window.__V114;
+      // the element door one loaded, parked since the splash left — already buffered, so this is a
+      // seek and a play, not a load, and it survives the main thread being busy with Phaser
+      var fv = (F && F.take) ? F.take('rib-liveload-film-v115') : null;
+      if (fv) { fv.setAttribute('aria-hidden', 'true'); el.insertBefore(fv, el.firstChild); }
+      var filmOn = false, chaseUp = false, sheetOk = null;
+      function mountChase() {
+        if (item.done || item.chase || filmOn || !sheetOk) return;
+        chaseUp = true; el.classList.add('chase');
         item.chase = make(el.querySelector('canvas'), { minMs: 1500, fullCycle: false, onDone: finish, rec: rec }).start();   // over a game the door opens at the first quiet beat, not after a whole cycle
         if (item.ready) item.chase.arm();
+      }
+      load().then(function (ok) {
+        if (item.done) return;
+        sheetOk = !!ok;
+        if (!ok) { if (!filmOn) setTimeout(function () { if (!filmOn) finish(); }, 900); return; }
+        mountChase();
       });
+      if (fv) {
+        var claimed = function () {
+          if (filmOn || item.done) return;
+          filmOn = true; item.film = true; el.classList.add('film');
+          if (chaseUp) { el.classList.remove('chase'); if (item.chase) { item.chase.stop(); item.chase = null; } }
+        };
+        item.filmEl = fv;
+        fv.addEventListener('playing', claimed);
+        ['canplay', 'seeked', 'loadeddata'].forEach(function (ev) { fv.addEventListener(ev, function () { if (fv.readyState >= 2) claimed(); }); });
+        fv.addEventListener('timeupdate', function () { if (fv.currentTime > 0) claimed(); });
+        fv.addEventListener('ended', function () { try { fv.pause(); } catch (e) {} });   // it holds its last frame; it does not loop
+        fv.loop = false; fv.muted = true; fv.defaultMuted = true; fv.playsInline = true;
+        // the parked element is already buffered, so it claims the stage on THIS tick and the
+        // chase never mounts at all. Claim first, then seek: a seek drops readyState for a beat,
+        // and asking after it would hand the door to the chase for no reason.
+        if (fv.readyState >= 2) claimed();
+        try { if (fv.duration > LIVE_FILM_FROM + 1) fv.currentTime = LIVE_FILM_FROM; } catch (e) {}
+        var pp = null; try { pp = fv.play(); } catch (e) {}
+        if (pp && pp.catch) pp.catch(function () {});
+        setTimeout(function () { if (!filmOn && !item.done) mountChase(); }, LIVE_FILM_START_MS);
+      }
       // the scene is the ready signal; the field being torn down is the exit signal
       var poll = setInterval(function () {
         if (item.done || !el.parentNode) { clearInterval(poll); finish(); return; }

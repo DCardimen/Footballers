@@ -68,6 +68,21 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v115 THE FILM AT BOTH DOORS` — the live game's loader over `.field-wrap` plays the sting too, as a
+  BACKDROP under the matchup and the bar (`.rib-liveload-film-v115`, `object-fit:cover`, a scrim for
+  the caption). Three differences from door one, all deliberate: it does NOT wait for the film (the
+  door opens on the scene standing and the first play built — holding it for 7.7s would front-load
+  every game), it starts at `LIVE_FILM_FROM` past the black lead-in, and it uses the element door
+  one already loaded. That last one is the whole trick: door two mounts while Phaser is compiling,
+  and a media element's load does not START until the main thread lets it (measured: `play()` then
+  `loadstart` **2.7s** later, on a door open for four). So `__V114.park()` keeps the buffered element
+  when the splash leaves and `take()`/`give()` lend it out — one decoded film per session, no second
+  request. `claimed()` fires BEFORE the seek (a seek drops readyState and would hand the door to the
+  chase for nothing). No film at door one — reduced motion, `?noFilmV114`, no codec — means no film
+  here either, and the v94 chase runs unchanged. Same pass matched the splash's ground to the film's
+  own black (measured rgb(4,8,11) at its edges) and ran the film full-bleed with no radius or shadow,
+  because a rounded card on a blue-grey ground put a visible seam around it. `v115check.mjs` is the
+  gate; `splashcheck.mjs` case 4 now boots `?noFilmV114` so it keeps testing the chase there
 - `v114 THE SPLASH IS A FILM` — the boot splash plays the title sting (`public/rib_splash_v114.mp4`,
   the VP9 `.webm` sibling for a browser with no H.264, the `.jpg` last frame for reduced motion; all
   three cut by `scripts/build-splash-film.mjs` from `art/splash/rib_splash_master.mp4`, **`+faststart`
@@ -297,6 +312,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the lighting dial / how bright the stadium burns (v100) | `v100check.mjs`, `v99check.mjs`, `v98check.mjs` |
 | shadows / the key light / the goalpost frame / the lamps holding (v99) | `v99check.mjs`, `v92check.mjs`, `v86check.mjs`, `sidelinecheck.mjs` |
 | the lights / the lit turf / the scorebug colours / crowd emoji / the handover cut / the coach row (v98) | `v98check.mjs`, `v92check.mjs`, `crowdcheck.mjs`, `postgamecheck.mjs` |
+| the live game's loader playing the film — the parked element, the offset, the door (v115) | `v115check.mjs`, then `v114check.mjs`, `splashcheck.mjs`, `v86check.mjs` |
 | the boot splash's film — the asset, the door, the bar (v114) | `v114check.mjs`, then `splashcheck.mjs`, `shot.mjs` |
 | the loading screen / the splash's door (v94) | `splashcheck.mjs`, `shot.mjs`, `walk.mjs` |
 | the end-zone paint / home and away fixtures (v93) | `v93check.mjs`, `v86check.mjs` |

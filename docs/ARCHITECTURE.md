@@ -374,6 +374,57 @@ callers still work, and `qt`'s internal floor is the same curve (it used to pass
 season rating into `sn` as an OVR). `Ar` (hub declare), `Vl` (season-screen
 declare), the season screen's button and the hub card all call `declareChanceV88`.
 
+## v115 — the film at both doors
+
+Anchor `v115 THE FILM AT BOTH DOORS` (inside door two's `mount`, in the v94 block). The live
+game's loader over `.field-wrap` plays the same title sting the boot splash does — as a
+**backdrop** filling the loader box under the matchup and the bar (`.rib-liveload-film-v115`,
+`object-fit: cover`, a scrim so the caption survives the bright middle of the sting), not as a
+card beside them.
+
+**Why it could not just call `play()`.** Door two mounts at the single worst moment on the main
+thread: the Phaser scene booting, the sheets registering, the crowd taking its seats. A media
+element's load does not *start* until the main thread lets it. Measured on a fresh element here:
+
+```
+play@23218      rs=0 ns=2 t=0.00
+waiting@23218   rs=0 ns=2 t=0.00
+loadstart@25884 rs=0 ns=2 t=0.00      <- 2.7s after play(), on a door open for ~4s
+```
+
+The film that is supposed to survive the jam could not get *started* through it. So the element
+door one already loaded is kept rather than destroyed:
+
+- `__V114.park()` — called from door one's `finish()` before the splash is removed — pauses the
+  `<video>`, detaches it and holds it on `__V114.parked`. Fully buffered, decoder warm.
+- `__V114.take(cls)` hands it to door two, which inserts it as the loader's first child.
+- `__V114.give(v)` parks it again when the loader closes, so the next game gets the same warm
+  element. One decoded film for the whole session, and no second request for it.
+
+**Claim before the seek.** `claimed()` runs synchronously when the taken element already has
+`readyState >= 2`, *then* the playhead is moved. A seek drops readyState for a beat, and asking
+after it handed the door to the v94 chase for no reason.
+
+**Three deliberate differences from door one:**
+
+| | door one (boot) | door two (live) |
+|---|---|---|
+| waits for the film to end | yes (`FILM_WAIT_END`) | **no** — the door opens on the scene standing and the first play built; holding it for 7.7s would front-load every game |
+| starts at | 0 (the black, the streak, the landing) | `LIVE_FILM_FROM` (1.15s) — past the lead-in, so a door open for 1.5s still shows a picture |
+| element | its own, loaded from the picker's `src` | the parked one |
+
+`LIVE_FILM_START_MS` (1.2s) is door two's audition: no frame by then and the v94 chase mounts as
+it always did. And if door one never played the film at all — reduced motion, `?noFilmV114`, no
+codec — `__V114.on` is false, nothing is parked, and door two is exactly the pre-v115 chase.
+
+**The splash's own framing**, fixed in the same pass: the film ran as a rounded, shadowed card on
+`#splash`'s blue-grey ground (`#182338`→`#0d141d`) while the film's own border pixels sit around
+rgb(4,8,11) — so the card edge was a visible seam and everything around it read as dead space.
+Under `.film` the splash now wears that same black, and the film runs the full viewport width with
+no radius and no shadow. The space left above and below is inherent: a 16:9 film on a 19.5:9 phone
+is width-limited, and filling it would crop the wordmark — but it is now the same black as the
+picture, so there is no edge to see.
+
 ## v114 — the splash is a film
 
 Anchor `v114 THE SPLASH IS A FILM` (in the body's first `<script>`, immediately before the v94
