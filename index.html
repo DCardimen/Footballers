@@ -2590,12 +2590,58 @@ window.__visionRadiusV96 = visionRadiusV96;
     if (restV111) { ["QB","RB","WR","TE","OL"].forEach(p=>pools.off[p]=pools.off[p].filter(q=>!(q&&q.you)));
                     ["CB","S","LB","DL"].forEach(p=>pools.def[p]=pools.def[p].filter(q=>!(q&&q.you))); }
     const youPending = { off: restV111?null:(kOff.find(p=>p&&p.you)||null), def: restV111?null:(tDef.find(p=>p&&p.you)||null) };
-    const take = (side,pos,prefer)=>{ if(prefer&&!(restV111&&prefer.you)){ if(youPending[side]===prefer) youPending[side]=null; return prefer; }
+    /* ===== v117 AND HE ROTATES THROUGH THEM =====
+     * He used to be dropped into the FIRST slot in the formation list that matched his
+     * position, every single snap. The slots are not interchangeable: the three linebacker
+     * spots sit at DEF_Y 172 / 222 / 276, and the weak-side backer at 172 — index 4, the one
+     * he always got — makes under a third of the stops the man over the ball makes (103 vs
+     * 341, measured over 40 games). A team-mate never notices, because he is drawn out of the
+     * pool at random and sees all three across a season. Pinning the you-player to the quiet
+     * one and letting the duplicate ghosts cover the loud ones is what made his line look
+     * right for the wrong reason. He is rolled into one of HIS position's slots per snap now,
+     * the same draw everyone else gets, and takes a later one if a named pick claimed it. */
+    const slotsForV117=(L,pos)=>L.reduce((a,lb,i)=>(lb===pos&&a.push(i),a),[]);
+    const youSlot={off:-1,def:-1};
+    ["off","def"].forEach(sd=>{ const yp=youPending[sd]; if(!yp) return;
+      const sl=slotsForV117(sd==="off"?OFF_L:DEF_L, yp.pos);
+      if(sl.length) youSlot[sd]=sl[Math.floor(Math.random()*sl.length)]; });
+    /* ===== v117 ONE MAN, ONE SLOT =====
+     * `take` picked out of a position pool and never removed what it had already handed out,
+     * so one roster player could be fielded at two slots on the same snap. The you-player was
+     * the man it doubled most: he is placed first, out of the very pool the later slots at his
+     * position then draw from, so he was on the field as two or three linebackers at once on
+     * 56% of his defensive snaps (measured, 30 games). Every stop those extra copies made was
+     * booked to him — the credit traced to a named actor, as the house rule demands, but the
+     * actor was a ghost standing in a team-mate's slot, so the stat was a team-mate's.
+     * A man now leaves his pool the moment he is placed. The defense fills EXACTLY
+     * (4 DL / 3 LB / 2 CB / 2 S against those same eleven slots), so it never runs dry; the
+     * offense is one receiver short of its three-WR look, and that last slot takes the best
+     * body who has not lined up yet rather than a second copy of one who has. */
+    const placed = new Set();
+    const drop = (side,p)=>{ if(!p) return; placed.add(p); const pool=pools[side][p.pos]; if(!pool) return;
+      const i=pool.indexOf(p); if(i>=0) pool.splice(i,1); };
+    // the named picks — the carrier, the target, the quarterback — hold their slots before the
+    // first body is drawn. A pick used to be handed out on top of the pool, so an earlier slot
+    // could draw the very man a later slot was reserving: a quarterback keeper put him at the
+    // RB alignment AND under centre, one player, two markers, one stat line.
+    ["off","def"].forEach(sd=>{ const pk=picks[sd]; if(!pk) return;
+      Object.keys(pk).forEach(k=>{ const q=pk[k]; if(q&&typeof q==="object") drop(sd,q); }); });
+    // and so does the you-player, for the same reason: his slot is rolled ahead of the map, so
+    // an EARLIER slot at his position must not be able to draw him out of the pool first.
+    ["off","def"].forEach(sd=>{ if(youPending[sd]) drop(sd,youPending[sd]); });
+    const take = (side,pos,i,prefer)=>{ if(prefer&&!(restV111&&prefer.you)){ if(youPending[side]===prefer) youPending[side]=null; drop(side,prefer); return prefer; }
       const yp=youPending[side];
-      if(yp && yp.pos===pos){ youPending[side]=null; return yp; }
-      const pool=pools[side][pos]; return pool&&pool.length? pool[Math.floor(Math.random()*pool.length)] : null; };
-    const off = OFF_L.map((lb,i)=>A(take("off",lb, picks.off&&picks.off[i]), "off", i, lb));
-    const def = DEF_L.map((lb,i)=>A(take("def",lb, picks.def&&picks.def[i]), "def", i, lb));
+      if(yp && yp.pos===pos && i>=youSlot[side]){ youPending[side]=null; drop(side,yp); return yp; }
+      const pool=pools[side][pos];
+      if(pool&&pool.length) return pool.splice(Math.floor(Math.random()*pool.length),1)[0];
+      // dry: the roster does not cover this formation at their own positions (three WR slots,
+      // two receivers on the sheet). Line up a man who has not taken the field yet rather than
+      // clone one who has — and never the you-player, who plays his own spot or none.
+      const spare=(side==="off"?kOff:tDef).filter(q=>q&&!q.you&&!placed.has(q));
+      if(!spare.length) return null;
+      const pick=spare[Math.floor(Math.random()*spare.length)]; drop(side,pick); return pick; };
+    const off = OFF_L.map((lb,i)=>A(take("off",lb, i, picks.off&&picks.off[i]), "off", i, lb));
+    const def = DEF_L.map((lb,i)=>A(take("def",lb, i, picks.def&&picks.def[i]), "def", i, lb));
     return { off, def, all: off.concat(def) };
   }
 
@@ -15987,7 +16033,7 @@ const cTag=(paV81?"Play action — ":"")+(playV101?playV101.tag:({screen:"Screen
         const air=le(4,18),ret=le(0,12),spotOff=f(pos+air-ret,2,98);
         endB=spotOff;flip={spot:f(100-spotOff,1,99),why:"after the interception"};
         usDrive?v.turn++:j.turn++;
-        me=!usDrive&&(X.cover?pe(X.cover):["CB","S","LB"].includes(t)&&Math.random()<.5);
+        me=!usDrive&&pe(X.cover);   /* v117: the pick belongs to the man the play NAMES. The old fallback handed it to you on a coin flip whenever the play named nobody — a team-mate's interception, and his pick six, booked to you by Math.random(); `X.cover` is the sim's ball man (v110) or the formula's cover man, and neither is ever missing */
         // v17 PICK SIX — the return can go the distance. Field position drives the
         // base odds; your own picks add your speed/coverage. House it → defense scores 6.
         const _retDist=usDrive?spotOff:100-spotOff;
@@ -16086,6 +16132,7 @@ const cTag=(paV81?"Play action — ":"")+(playV101?playV101.tag:({screen:"Screen
           const _fmw=X.flags.fm,_fma=Math.min(15,99-pos);
           pos=f(pos+_fma,1,99);endB=pos;
           usDrive?(j.pen++,j.penYds+=_fma):(v.pen++,v.penYds+=_fma);
+          !usDrive&&pe(_fmw)&&(me=!0);   /* v117: a flag on YOU is a play you are in — the row says so, the way the holding and DPI rows already do. No stat rides on it */
           ue+=` 🚩 FACE MASK on the tackle${!usDrive&&pe(_fmw)?" — flag on YOU":` (#${_fmw.num||""} ${nm(_fmw)})`} — ${_fma} tacked on.`;
           foulV109={name:"Face Mask",on:usDrive?"them":"us",side:"defense",player:{num:_fmw.num||"",name:nm(_fmw)},yards:_fma,spot:pos,result:"tackedOn",liveBall:!0};   /* v109 */
         }
@@ -16096,6 +16143,7 @@ const cTag=(paV81?"Play action — ":"")+(playV101?playV101.tag:({screen:"Screen
           const _hcw=X.flags.hc,_hca=Math.min(15,99-pos);
           pos=f(pos+_hca,1,99);endB=pos;down=1;marker=Math.min(100,pos+10);toGo=marker-pos;
           usDrive?(j.pen++,j.penYds+=_hca):(v.pen++,v.penYds+=_hca);
+          !usDrive&&pe(_hcw)&&(me=!0);   /* v117: same — the flag names him, so the row is his */
           ue+=` 🚩 HORSE COLLAR on the tackle${!usDrive&&pe(_hcw)?" — flag on YOU":` (#${_hcw.num||""} ${nm(_hcw)})`} — ${_hca} yards, automatic first down.`;
           foulV109={name:"Horse Collar",on:usDrive?"them":"us",side:"defense",player:{num:_hcw.num||"",name:nm(_hcw)},yards:_hca,spot:pos,result:"automaticFirst",liveBall:!0};   /* v109 */
         }
