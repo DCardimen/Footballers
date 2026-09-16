@@ -18,6 +18,7 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 |---|---|
 | `creditcheck.mjs` | **Tackle-credit truth.** Sims 60 games as an LB, wraps `__FieldSim.run/pass` to record who the sim actually named tackler/assist, and asserts the credited tackle stat never exceeds sim-truth + sacks. Exits non-zero on violation. |
 | `statcreditcheck.mjs` | Box score may only credit plays the user's roster actor actually made or was in the pile for (all stats, several positions). |
+| `v117check.mjs` | **One man, one slot.** Sims 30 games and reads each snap's actor list: no roster player may hold two markers at once (the you-player is the probe — he is the man the old pool draw doubled, on 56% of his defensive snaps), both sides still field eleven at the labels the formation asks for, and the you-player must see more than one alignment inside his position group instead of being nailed to the first matching slot. Prints his slot histogram and his share of the named tackles on his own snaps. `POS` / `GAMES` override the sample. Exits non-zero on violation. |
 | `tacklecheck.mjs` | Solo/gang tackle split (~70/30 target) and whiff / truck / stiff-arm / stagger / big-hit rates across ~3,000 run plays. |
 | `jukecheck.mjs` | Stat gaps drive evasion: one-on-one juke probability across superstar/scrub matchups. |
 | `simcheck.mjs` | Batch-runs the emergent game engine (`window.__simGameV2`) — score, pace, and yardage distributions. |

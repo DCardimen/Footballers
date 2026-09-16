@@ -192,6 +192,17 @@ Inside it:
   you-player (`pe(X.tackler) || pe(X.assist)`, `pe(skr)` for sacks). No random
   side rolls that hand the player a teammate's stat. Guarded by
   `scripts/creditcheck.mjs` and `scripts/statcreditcheck.mjs`.
+- **…and naming him is not enough (v117).** Tracing the stat to a named actor only
+  works if that actor is a man who is really out there, once. The agent builder
+  (`v117 ONE MAN, ONE SLOT`, in FieldSim's `makeAgents`) used to draw roster players
+  out of a per-position pool without removing them, so the you-player — placed first,
+  then left in the pool the later slots at his position draw from — was fielded as two
+  or three defenders on the same snap. Every check above passed, because the sim did
+  name the man who made the stop; he was simply standing in a team-mate's slot. The
+  draw removes what it hands out now, named picks reserve their slots before any body
+  is drawn, and his slot is rolled among his position's slots rather than always being
+  the first that matches. `scripts/v117check.mjs` is the gate: **if you touch how the
+  eleven are filled, no roster player may hold two markers on one snap.**
 - Sacks/scrambles are resolved **outside** FieldSim (trench-rating rolls), which
   is why the sacker `skr` is picked at this layer and credit follows `pe(skr)`.
 

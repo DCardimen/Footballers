@@ -68,6 +68,17 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v117 ONE MAN, ONE SLOT` / `v117 AND HE ROTATES THROUGH THEM` — the eleven markers are filled by
+  drawing roster players out of a per-position pool, and the draw now REMOVES what it hands out, so
+  nobody is fielded twice on a snap (`placed`, `drop()`). The named picks — the carrier, the target,
+  the quarterback — reserve their slots before the first body is drawn, and so does the you-player,
+  whose slot (`youSlot`) is ROLLED among his position's slots each snap instead of always being the
+  first index that matches. Both halves are the same bug: the you-player was on the field as two or
+  three linebackers at once on 56% of his defensive snaps, and every stop those ghosts made was
+  booked to him off a team-mate's alignment, while his own marker stood in the quietest slot of the
+  three. Credit paths tightened with it: an interception is `pe(X.cover)` and nothing else (the
+  `Math.random()<.5` fallback is gone), and a face mask / horse collar flagged on YOU marks the row
+  `involved`. Score-neutral (24.43 → 24.38 combined points over 600 games a side). `v117check.mjs`
 - `v116 THE FILM LOOPS` — the loading film never stops, at either door. `LOOP_FROM_V116` (6.5s) is
   the SEAM: the streak has finished landing on the wordmark by then, and everything after it is the
   wordmark breathing under cloud, so the last frame runs straight back into 6.5s (measured 3.4/255
@@ -315,6 +326,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | tackling / contact physics | `tacklecheck.mjs`, `jukecheck.mjs` |
 | defender reads / blocking / pursuit (v81) | `readcheck.mjs` (pure Node), then `movementcheck.mjs`, `simcheck.mjs` |
 | stat credit / box score | `creditcheck.mjs`, `statcreditcheck.mjs` |
+| who is actually on the field — the eleven markers, duplicate players, which slot he lines up in (v117) | `v117check.mjs`, then `creditcheck.mjs`, `statcreditcheck.mjs`, `v110check.mjs`, `scoreneutralcheck.mjs`, `simcheck.mjs` |
 | game engine / play-calling / yardage | `simcheck.mjs` |
 | anything sim-side that should be visible | `renderpathcheck.mjs` |
 | injuries | `injurycheck.mjs` |

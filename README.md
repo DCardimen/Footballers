@@ -55,6 +55,35 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v117 — one man, one slot.** The you-player was being credited with tackles his team-mates
+  made, and the reason was not the stat layer: it was the formation. Every snap, the eleven
+  markers are filled by drawing roster players out of a pool by position, and the draw never
+  removed what it had already handed out — so one player could be handed two slots at once. The
+  you-player was the man it doubled, every time, because he is placed first and then left in the
+  very pool the later slots at his position draw from. Measured over thirty games as a
+  linebacker: on 56% of his defensive snaps he was on the field as **two or three linebackers at
+  the same time**. Each of those copies was a real agent that pursued, wrapped and made stops,
+  and the sim honestly named whichever one got there — so the credit passed every truth check in
+  the repo while being, in plain terms, somebody else's tackle made from somebody else's
+  alignment. A man now leaves his pool the moment he is placed, and the named picks (the
+  carrier, the target, the quarterback) reserve their slots before the first body is drawn, so a
+  quarterback keeper can no longer put one man at the RB alignment *and* under centre.
+  Fixing that alone would have quietly halved his production, because it exposed the second half
+  of the same bug: he was nailed to the FIRST slot in the list that matched his position, and the
+  slots are not equal work. The three linebacker spots sit at different depths, and the weak-side
+  one he always got makes under a third of the stops the man over the ball makes (103 against
+  341, over forty games). A team-mate never notices — he is drawn at random and sees all three
+  across a season — so the duplicate ghosts had been covering the busy spots while his own marker
+  stood in the quiet one. He now rolls into one of his position's slots per snap, the same draw
+  everyone else gets. Net effect on his line: 5.6 credited tackles a game against 6.8 of
+  sim-truth becomes 4.7 against 6.4 — fewer stops, all of them his, taken from every alignment he
+  actually plays. Two smaller credit fixes rode along: an interception was handed to you on a
+  straight `Math.random() < .5` whenever the play named no cover man (a team-mate's pick, and his
+  pick six, booked to you by a coin flip), and a face mask or horse collar flagged on YOU now
+  marks the play as one you were in, the way the holding and pass-interference rows already did.
+  Scoring is untouched — 24.43 combined points a game before, 24.38 after, over 600 games either
+  side. `v117check.mjs` is the new gate.
+
 - **v116 — the film loops.** The loading film no longer stops on its last frame; it runs its whole
   length once and then plays the tail again, and again, for as long as the loading lasts. The seam
   is 6.5 seconds: the streak has finished landing on the wordmark by then, and everything after it
