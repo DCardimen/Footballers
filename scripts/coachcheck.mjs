@@ -1,22 +1,26 @@
-// Dev check: v119 — THE COACH'S TOUR. Drives a real browser at a phone width and proves:
-//   * the dev-check boot (welcome cards removed without a click) never meets the tour;
-//   * the switch is on the menu, reads ON on a fresh install, and opens the tour when tapped;
-//   * the tour dims the page but leaves the menu behind it, the coach TALKS (his picture flips
-//     between the closed and open mouth while a line types, in a variable pattern, and a muddle of
-//     pitched blips plays letter by letter; VOICE mutes it), twelve chapters, five to ten minutes;
-//   * NEXT and the keyboard move the lines, a chapter's spotlight lands on the element it names,
-//     nothing scrolls sideways at 400px;
-//   * SKIP / Escape close it and switch it OFF, the switch is remembered across a reload, and
-//     switching it back ON replays it;
-//   * on a REAL first visit the game's welcome cards show above the menu (v119 lifted them from
-//     under it), and clicked through they hand to the coach; `?coachTour` starts it on the first
-//     menu mount;
-//   * every league string on the menu and in the guide says DFL, never the real one.
-//   node scripts/coachcheck.mjs      (GAME_URL, SHOTS=/tmp/coach writes screenshots)
+// Dev check: v119 — THE COACH. Drives a real browser at a phone width and proves:
+//   * the dev-check boot (welcome cards removed without a click) never meets him;
+//   * the switch is on the menu, reads ON on a fresh install, and tapping it opens the MENU stop over
+//     the dimmed menu; the coach TALKS (his picture flips between the closed and open mouth while a
+//     line types, in a variable pattern, and a muddle of pitched blips plays letter by letter; VOICE
+//     mutes it), the open-mouth drawing is the closed one with only the head changed (no jitter);
+//   * NEXT and the keyboard move the lines, a spotlight lands on the element the line names, nothing
+//     scrolls sideways at 400px; GOT IT closes a stop and leaves the switch ON; SKIP / Escape switch
+//     it OFF, the switch is remembered across a reload, and switching it back ON starts over;
+//   * THE WALK: he pops in once on each screen of a first week — the personality roll, the position
+//     pick, the hub, the wheel (over the training board, off PLAY SEASON), the training board, the
+//     season screen, the weekly-plan wheel (off PLAY WEEK), the pregame, the broadcast, the post-game
+//     card and the season screen after the game — in that order, never twice, and the last stop
+//     switches him off;
+//   * on a REAL first visit the game's welcome cards show above the menu (v119 lifted them from under
+//     it), and clicked through they hand to the coach; `?coachTour` starts him on the first menu mount;
+//   * every league string on the menu, in the guide and in his lines says DFL, never the real one.
+//   node scripts/coachcheck.mjs      (GAME_URL, SHOTS=/tmp/coach writes screenshots, READ_POS=RB)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 const url = process.env.GAME_URL || 'http://127.0.0.1:5173/index.html'
 const shots = process.env.SHOTS || ''
+const POS = process.env.READ_POS || 'RB'
 const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined) })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
@@ -30,26 +34,41 @@ const newPage = async (opts = {}) => {
 }
 const shot = async (page, name) => { if (shots) await page.screenshot({ path: `${shots}_${name}.png` }) }
 const menuUp = async (page) => { await page.waitForSelector('#rib-main-menu-v2 .rib9-tiles', { timeout: 30000 }); await page.waitForTimeout(600) }
-const H = (page) => page.evaluate(() => { const C = window.__RIB_COACH; return C ? { open: C.isOpen, enabled: C.enabled, chapter: C.chapter, line: C.line, typing: C.typing, flips: C.flips, spot: C.spot, auto: C.auto, openedBy: C.openedBy || null, closedBy: C.closedBy || null, chapters: C.chapters.length, lines: C.chapters.reduce((n, c) => n + c.lines, 0), estimateMin: C.estimateMs() / 60000, last: C.last || null } : null })
+const H = (page) => page.evaluate(() => { const C = window.__RIB_COACH; return C ? { open: C.isOpen, enabled: C.enabled, stop: C.stop, line: C.line, typing: C.typing, flips: C.flips, spot: C.spot, auto: C.auto, openedBy: C.openedBy || null, openedStop: C.openedStop || null, closedBy: C.closedBy || null, opens: C.opens || 0, stops: C.stops.length, lines: C.stops.reduce((n, c) => n + c.lines, 0), estimateMin: C.estimateMs() / 60000, seen: C.seen, current: C.currentStop(), last: C.last || null } : null })
+// wait for a stop to open on its screen, then read it
+const waitStop = async (page, id, ms = 12000) => { await page.waitForFunction((id) => { const C = window.__RIB_COACH; return C && C.isOpen && C.stop === id && !!document.querySelector('#rib-coach-v119.rib-coach-ready') }, id, { timeout: ms }).catch(() => null); await page.waitForTimeout(250); return H(page) }
+// the player reads it and taps through: every NEXT, then GOT IT / DONE
+const dismiss = async (page) => { await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.isOpen && n++ < 12) C.next() }); await page.waitForTimeout(300); return H(page) }
+// a visible button by its text (the first-week flow), like the other checks
+const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
+const step = async (page, t, wait = 900) => {
+  const r = await page.evaluate(({ t, visSrc, POS }) => { const vis = eval(visSrc); const els = [...document.querySelectorAll('button,[onclick],a')].filter(vis).filter((e) => !e.closest('#rib-coach-v119')); const txt = (e) => (e.innerText || e.textContent || '').replace(/\s+/g, ' ').trim()
+    const el = t === 'POS' ? (els.find((e) => new RegExp('^' + POS + '\\b').test(txt(e))) || els.find((e) => e.classList.contains('pos-card'))) : els.find((e) => txt(e).includes(t))
+    if (el) { el.scrollIntoView({ block: 'center' }); el.click(); return txt(el).slice(0, 40) } return null }, { t, visSrc: vis, POS }).catch((e) => 'ERR ' + e.message)
+  await page.waitForTimeout(wait); return r
+}
 
-// ================= 1. the dev-check boot, the switch, the tour =================
+// ================= 1. the dev-check boot, the switch, the menu stop, the mouth, the voice =================
 {
   const { page, context } = await newPage()
   await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 })
   await menuUp(page)
   await page.waitForTimeout(1500)
   let h = await H(page)
-  ok(!!h, 'the coach module is loaded on the menu', h && `${h.chapters} chapters · ${h.lines} lines`)
-  ok(h && !h.open, 'the dev-check boot (welcome cards removed without a click) never starts the tour on its own')
+  ok(!!h, 'the coach module is loaded on the menu', h && `${h.stops} stops · ${h.lines} lines`)
+  ok(h && !h.open, 'the dev-check boot (welcome cards removed without a click) never starts him on its own')
   const tile = await page.evaluate(() => { const t = document.querySelector('#rib-main-menu-v2 [data-rib-action="coach"]'); return t ? { on: t.getAttribute('aria-checked'), role: t.getAttribute('role'), label: (t.querySelector('b') || {}).textContent, face: (t.querySelector('small') || {}).textContent, img: !!t.querySelector('img') } : null })
   ok(tile && tile.role === 'switch' && tile.on === 'true' && /COACH'S TOUR/.test(tile.label) && /^ON\b/.test(tile.face) && tile.img, "the COACH'S TOUR switch is on the menu and reads ON on a fresh install", JSON.stringify(tile))
-  ok(h && h.chapters === 12 && h.estimateMin >= 5 && h.estimateMin <= 10, 'twelve chapters, and the scripted pace lands between five and ten minutes', h && `${h.estimateMin.toFixed(1)} min · ${h.lines} lines`)
+  ok(h && h.stops === 12 && h.lines >= 30 && h.lines <= 48 && h.estimateMin >= 2 && h.estimateMin <= 6, 'twelve stops, a few lines each — two to six minutes of talk spread over a week, not a lecture', h && `${h.estimateMin.toFixed(1)} min · ${h.lines} lines`)
+  // his lines are short and lean on the guide's own facts (numbers), not the whole guide
+  const lineFacts = await page.evaluate(() => fetch([...document.scripts].map((x) => x.src).find((u) => /rib-menu-coach/.test(u))).then((r) => r.text()).then((src) => { const m = src.match(/t: "([^"]+)"/g) || []; return { n: m.length, longest: Math.max(...m.map((x) => x.length)), withNumber: m.filter((x) => /\d/.test(x)).length } }))
+  ok(lineFacts.n >= 30 && lineFacts.longest <= 260 && lineFacts.withNumber >= 8, "his lines are short and lean on the guide's specifics (numbers), not the whole guide", JSON.stringify(lineFacts))
   await shot(page, 'menu')
   await page.click('#rib-main-menu-v2 [data-rib-action="coach"]')
   await page.waitForSelector('#rib-coach-v119.rib-coach-ready', { timeout: 8000 })
   await page.waitForTimeout(300)
   h = await H(page)
-  ok(h && h.open && h.chapter === 'kickoff' && h.line === 0 && h.openedBy === 'tile', 'tapping the switch opens the tour at the kickoff', JSON.stringify({ chapter: h && h.chapter, by: h && h.openedBy }))
+  ok(h && h.open && h.stop === 'menu' && h.line === 0 && h.openedBy === 'tile', 'tapping the switch opens the MENU stop', JSON.stringify({ stop: h && h.stop, by: h && h.openedBy }))
   const layer = await page.evaluate(() => {
     const root = document.getElementById('rib-coach-v119'), menu = document.getElementById('rib-main-menu-v2')
     const dim = root && root.querySelector('.rib-coach-dim'), man = root && root.querySelector('[data-c-man]'), bub = root && root.querySelector('[data-c-bubble]')
@@ -58,7 +77,7 @@ const H = (page) => page.evaluate(() => { const C = window.__RIB_COACH; return C
     const mr = man ? man.getBoundingClientRect() : null, br = bub ? bub.getBoundingClientRect() : null
     return { menuStill: !!menu && menu.isConnected, dim: !!bg && /rgba\(/.test(bg), above: z > mz, man: mr && { w: Math.round(mr.width), h: Math.round(mr.height), bottom: Math.round(mr.bottom) }, bubble: br && { w: Math.round(br.width), top: Math.round(br.top), bottom: Math.round(br.bottom) }, overlap: mr && br ? br.bottom <= mr.top + Math.round(mr.height * 0.35) : null, vw: innerWidth, vh: innerHeight }
   })
-  ok(layer.menuStill && layer.dim && layer.above, 'the tour dims the page and stands above the menu, which is still there behind it', JSON.stringify({ dim: layer.dim, above: layer.above }))
+  ok(layer.menuStill && layer.dim && layer.above, 'he dims the page and stands above the menu, which is still there behind him', JSON.stringify({ dim: layer.dim, above: layer.above }))
   ok(layer.man && layer.man.h >= 200 && layer.man.h <= 360 && layer.man.bottom <= layer.vh + 2, 'the coach stands at the bottom of a phone screen at a readable size', JSON.stringify(layer.man))
   ok(layer.bubble && layer.bubble.w >= 300 && layer.bubble.w <= 400 && layer.overlap, 'his bubble sits over his shoulder, not on his face', JSON.stringify(layer.bubble))
   // the mouth: sample the picture while the first line types
@@ -68,6 +87,21 @@ const H = (page) => page.evaluate(() => { const C = window.__RIB_COACH; return C
   ok(srcs.size >= 2 && [...srcs].some((s) => /_a\.webp/.test(s)) && [...srcs].some((s) => /_b\.webp/.test(s)) && h.flips >= 2, 'the coach talks — his mouth flips between the closed and open drawing while the line types', `${srcs.size} pictures · ${h.flips} flips`)
   const typed = await page.evaluate(() => (document.querySelector('#rib-coach-v119 [data-c-text]') || {}).textContent || '')
   ok(typed.length > 10 && /Coach/.test(typed), 'the line types out on the bubble', JSON.stringify(typed.slice(0, 50)))
+  // the two drawings of a pose are the same picture below the head: nothing but the face moves
+  const still = await page.evaluate(async () => {
+    const pose = document.getElementById('rib-coach-v119').dataset.pose
+    const load = (s) => new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = s })
+    const a = await load('./public/coach/' + pose + '_a.webp'), b = await load('./public/coach/' + pose + '_b.webp'); if (!a || !b) return null
+    const same = a.width === b.width && a.height === b.height; if (!same) return { pose, same }
+    const cv = document.createElement('canvas'); cv.width = a.width; cv.height = a.height; const cx = cv.getContext('2d', { willReadFrequently: true })
+    cx.drawImage(a, 0, 0); const A = cx.getImageData(0, 0, a.width, a.height).data; cx.clearRect(0, 0, a.width, a.height); cx.drawImage(b, 0, 0); const B = cx.getImageData(0, 0, a.width, a.height).data
+    // the silhouette below the head is IDENTICAL; the colour may carry a few pixels of lossy-webp noise (two
+    // encodes of one drawing), nowhere near a moved line
+    let diffBody = 0, diffHead = 0, alphaBody = 0; const headRows = Math.round(a.height * 0.4)
+    for (let y = 0; y < a.height; y++) for (let x = 0; x < a.width; x++) { const i = (y * a.width + x) * 4; const d = Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) + Math.abs(A[i + 3] - B[i + 3]); if (d > 40) { if (y < headRows) diffHead++; else diffBody++ } if (y >= headRows && Math.abs(A[i + 3] - B[i + 3]) > 40) alphaBody++ }
+    return { pose, same, w: a.width, h: a.height, diffHead, diffBody, alphaBody, bodyNoisePct: +(100 * diffBody / (a.width * (a.height - headRows))).toFixed(3) }
+  })
+  ok(still && still.same && still.alphaBody === 0 && still.bodyNoisePct < 0.2 && still.diffHead > 50, 'the open-mouth drawing is the closed one with only the head changed — the body does not jitter', JSON.stringify(still))
   // the mouth is not a metronome, and the voice muddles along with the letters
   const mouth = await page.evaluate(() => { const L = window.__RIB_COACH.voice.mouthLog; return { n: L.length, distinct: new Set(L).size, min: Math.min(...L), max: Math.max(...L) } })
   ok(mouth.n >= 8 && mouth.distinct >= 6 && mouth.max - mouth.min >= 60, 'the mouth moves in a variable pattern — no two beats the same, a real spread', JSON.stringify(mouth))
@@ -77,56 +111,150 @@ const H = (page) => page.evaluate(() => { const C = window.__RIB_COACH; return C
   const v2 = await page.evaluate(() => ({ on: window.__RIB_COACH.voice.enabled, blips: window.__RIB_COACH.voice.blips, stored: localStorage.getItem(window.__RIB_COACH.voice.key) }))
   ok(!v2.on && v2.blips === b0 && v2.stored === 'off', 'VOICE mutes him and remembers', JSON.stringify(v2))
   await page.click('#rib-coach-v119 [data-c-voice]')
-  await shot(page, 'kickoff')
+  await shot(page, 'menu-stop')
   await page.click('#rib-coach-v119 [data-c-next]')
-  await page.waitForTimeout(200)
+  await page.waitForTimeout(700)
   h = await H(page)
-  ok(h.chapter === 'kickoff' && h.line === 1, 'NEXT moves to the next line', `line ${h.line}`)
-  // walk to a spotlight line: START HERE opens on the CAREER tile
-  await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.chapter !== 'start' && n++ < 20) C.next() })
+  const spotTile = await page.evaluate(() => { const spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), dim = document.querySelector('#rib-coach-v119 .rib-coach-dim'), target = document.querySelector('#rib-main-menu-v2 [data-rib-action="coach"]')
+    const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, tr = target ? target.getBoundingClientRect() : null
+    return { shown: !!sr, dimHidden: !!dim && dim.hidden, inside: !!(sr && tr && sr.left <= tr.left + 1 && sr.top <= tr.top + 1 && sr.right >= tr.right - 1 && sr.bottom >= tr.bottom - 1), onScreen: !!(sr && sr.top >= 0 && sr.bottom <= innerHeight) } })
+  ok(h.stop === 'menu' && h.line === 1 && h.spot === 'coach' && spotTile.shown && spotTile.dimHidden && spotTile.inside && spotTile.onScreen, "NEXT moves to the next line, and its spotlight cuts the dim over the COACH'S TOUR tile", JSON.stringify({ line: h.line, ...spotTile }))
+  // the last line of the stop: the CAREER tile lit, and the button reads GOT IT
+  await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.line < 3 && n++ < 10) C.next() })
   await page.waitForTimeout(700)
   const spot = await page.evaluate(() => {
     const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), dim = document.querySelector('#rib-coach-v119 .rib-coach-dim')
-    const target = document.querySelector('#rib-main-menu-v2 .rib9-tiles .rib9-tile:nth-child(1)')
+    const target = document.querySelector('#rib-main-menu-v2 .rib9-tiles .rib9-tile:nth-child(1)'), nextBtn = document.querySelector('#rib-coach-v119 [data-c-next]')
     const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, tr = target ? target.getBoundingClientRect() : null
     const inside = sr && tr && sr.left <= tr.left + 1 && sr.top <= tr.top + 1 && sr.right >= tr.right - 1 && sr.bottom >= tr.bottom - 1
     const onScreen = sr && sr.top >= 0 && sr.bottom <= innerHeight
-    return { chapter: C.chapter, spot: C.spot, shown: !!sr, dimHidden: !!dim && dim.hidden, inside: !!inside, onScreen: !!onScreen, sr: sr && [Math.round(sr.left), Math.round(sr.top), Math.round(sr.width), Math.round(sr.height)], tr: tr && [Math.round(tr.left), Math.round(tr.top), Math.round(tr.width), Math.round(tr.height)] }
+    return { stop: C.stop, line: C.line, spot: C.spot, shown: !!sr, dimHidden: !!dim && dim.hidden, inside: !!inside, onScreen: !!onScreen, next: nextBtn && nextBtn.textContent, sr: sr && [Math.round(sr.left), Math.round(sr.top), Math.round(sr.width), Math.round(sr.height)], tr: tr && [Math.round(tr.left), Math.round(tr.top), Math.round(tr.width), Math.round(tr.height)] }
   })
-  ok(spot.chapter === 'start' && spot.shown && spot.dimHidden && spot.inside && spot.onScreen, "the START HERE chapter cuts its spotlight over the CAREER tile, scrolled into view", JSON.stringify(spot))
+  ok(spot.stop === 'menu' && spot.line === 3 && spot.shown && spot.dimHidden && spot.inside && spot.onScreen && /GOT IT/.test(spot.next || ''), "the menu stop's last line lights the CAREER tile, scrolled into view, and the button reads GOT IT", JSON.stringify(spot))
   await shot(page, 'spotlight')
   const wide = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth))
-  ok(wide <= 400, 'nothing scrolls sideways at 400px with the tour open', wide + 'px')
-  // keyboard
-  await page.keyboard.press('ArrowRight'); await page.waitForTimeout(150)
-  const before = await H(page)
-  await page.keyboard.press('ArrowRight'); await page.waitForTimeout(150)
-  const after = await H(page)
-  ok(after.line !== before.line || after.chapter !== before.chapter || !after.typing, 'the right arrow finishes the line or moves on', `${before.chapter}:${before.line} -> ${after.chapter}:${after.line}`)
+  ok(wide <= 400, 'nothing scrolls sideways at 400px with the coach open', wide + 'px')
+  // keyboard: the left arrow goes back a line, the right finishes the line or moves on
+  await page.keyboard.press('ArrowLeft'); await page.waitForTimeout(150)
+  const backed = await H(page)
+  await page.keyboard.press('ArrowRight'); await page.waitForTimeout(150); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(150)
+  const fwd = await H(page)
+  ok(backed.line === 2 && fwd.line === 3, 'the arrows walk the lines', `${backed.line} -> ${fwd.line}`)
+  // GOT IT closes the stop, marks it seen, and leaves the switch ON for the next screen
+  await page.click('#rib-coach-v119 [data-c-next]'); await page.waitForTimeout(400)
+  h = await H(page)
+  const tileOn = await page.evaluate(() => (document.querySelector('#rib-main-menu-v2 [data-rib-action="coach"]') || {}).getAttribute?.('aria-checked'))
+  ok(!h.open && h.closedBy === 'gotit' && h.enabled && tileOn === 'true' && h.seen.includes('menu') && h.current === null, 'GOT IT sends him off, the stop is remembered as seen, and the switch stays ON for the next screen', JSON.stringify({ closedBy: h.closedBy, enabled: h.enabled, seen: h.seen, current: h.current }))
+  // an ON switch tapped while he is idle: OFF; tapped again: ON, the walk starts over
+  await page.click('#rib-main-menu-v2 [data-rib-action="coach"]'); await page.waitForTimeout(300)
+  const off = await H(page)
+  await page.click('#rib-main-menu-v2 [data-rib-action="coach"]')
+  await page.waitForSelector('#rib-coach-v119.rib-coach-ready', { timeout: 8000 }).catch(() => null)
+  const on = await H(page)
+  ok(!off.open && !off.enabled && on.open && on.enabled && on.stop === 'menu' && on.seen.length === 0, 'the switch: ON and idle → OFF; OFF → ON, and the walk starts over from the menu', JSON.stringify({ off: off.enabled, on: on.enabled, stop: on.stop, seen: on.seen }))
   await page.keyboard.press('Escape'); await page.waitForTimeout(300)
   h = await H(page)
   const tile2 = await page.evaluate(() => (document.querySelector('#rib-main-menu-v2 [data-rib-action="coach"]') || {}).getAttribute?.('aria-checked'))
   const stored = await page.evaluate((k) => localStorage.getItem(k), await page.evaluate(() => window.__RIB_COACH.key))
-  ok(!h.open && h.closedBy === 'skip' && !h.enabled && tile2 === 'false' && stored === 'off', 'Escape skips the tour and switches it OFF, and the switch remembers', JSON.stringify({ tile: tile2, stored }))
+  ok(!h.open && h.closedBy === 'skip' && !h.enabled && tile2 === 'false' && stored === 'off', 'Escape skips him and switches it OFF, and the switch remembers', JSON.stringify({ tile: tile2, stored }))
   await page.reload({ waitUntil: 'networkidle' }); await menuUp(page)
   const tile3 = await page.evaluate(() => (document.querySelector('#rib-main-menu-v2 [data-rib-action="coach"]') || {}).getAttribute?.('aria-checked'))
   ok(tile3 === 'false', 'after a reload the switch still reads OFF')
   await page.click('#rib-main-menu-v2 [data-rib-action="coach"]')
   await page.waitForSelector('#rib-coach-v119.rib-coach-ready', { timeout: 8000 })
   h = await H(page)
-  ok(h.open && h.enabled && h.chapter === 'kickoff', 'switching it back ON replays the tour from the kickoff')
+  ok(h.open && h.enabled && h.stop === 'menu', 'switching it back ON replays from the menu stop')
   await page.evaluate(() => window.__RIB_COACH.skip()); await page.waitForTimeout(200)
   h = await H(page)
-  ok(!h.open && !h.enabled, 'SKIP closes it and switches it OFF again')
-  // ?coachTour starts it on the first mount
+  ok(!h.open && !h.enabled, 'SKIP closes him and switches it OFF again')
+  // ?coachTour starts him on the first mount
   await page.goto(url + '?coachTour', { waitUntil: 'networkidle', timeout: 30000 }); await menuUp(page)
   await page.waitForSelector('#rib-coach-v119', { timeout: 8000 }).catch(() => null)
   h = await H(page)
-  ok(h && h.open && h.openedBy === 'query' && h.enabled, '?coachTour switches it ON and starts the tour on the first menu mount', h && JSON.stringify({ open: h.open, by: h.openedBy, enabled: h.enabled }))
+  ok(h && h.open && h.openedBy === 'query' && h.enabled, '?coachTour switches it ON and starts him on the first menu mount', h && JSON.stringify({ open: h.open, by: h.openedBy, enabled: h.enabled }))
   await context.close()
 }
 
-// ================= 2. a real first visit: the welcome cards, then the coach =================
+// ================= 2. the walk: one stop per screen of a first week, in order, never twice =================
+{
+  const { page, context } = await newPage()
+  await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 })
+  await menuUp(page)
+  await page.waitForFunction(() => { const sp = document.getElementById('splash'); return !sp || sp.classList.contains('gone') }, null, { timeout: 30000 }).catch(() => null)
+  await page.waitForTimeout(800)
+  await page.click('#rib-main-menu-v2 [data-rib-action="coach"]')
+  let h = await waitStop(page, 'menu')
+  ok(h && h.open && h.stop === 'menu', 'the walk begins on the menu', h && `${h.stop} by ${h.openedBy}`)
+  const order = [h && h.stop]
+  const expect = async (id, what, extra) => {
+    const s = await waitStop(page, id, (extra && extra.ms) || 12000)
+    order.push(s && s.stop)
+    ok(s && s.open && s.stop === id && s.openedBy === 'page', `${what}: he pops in with the ${id.toUpperCase()} stop`, JSON.stringify({ stop: s && s.stop, by: s && s.openedBy, current: s && s.current, view: await page.evaluate(() => { try { return window.__GRIDIRON_AUDIT__.getState().view } catch (e) { return null } }) }))
+    if (extra && extra.spot) { await page.waitForTimeout(500); const sp = await page.evaluate(() => { const spot = document.querySelector('#rib-coach-v119 [data-c-spot]'); const r = spot && !spot.hidden ? spot.getBoundingClientRect() : null; return { key: window.__RIB_COACH.spot, shown: !!r, onScreen: !!(r && r.bottom > 40 && r.top < innerHeight - 40 && r.width > 20) } }); ok(sp.key === extra.spot && sp.shown && sp.onScreen, `  …and lights ${extra.spot} on that screen`, JSON.stringify(sp)) }
+    if (shots) await shot(page, 'stop-' + id)
+    return s
+  }
+  await dismiss(page)
+  await step(page, 'START NEW CAREER'); await expect('persona', 'the personality roll'); await dismiss(page)
+  await step(page, 'Lock In Personality'); await expect('position', 'the position pick'); await dismiss(page)
+  await step(page, 'POS'); await expect('hub', 'the hub'); await dismiss(page)
+  await step(page, 'PLAY 8-GAME SEASON')
+  const wheel = await expect('wheel', 'the season-commitment wheel, over the training board')
+  // the wheel spins itself and rolls the fit; CONTINUE arrives with the roll — the last line's cut-out waits for it
+  await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' && g.getBoundingClientRect().height > 0 }, null, { timeout: 30000 }).catch(() => null)
+  await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.isOpen && C.line < 3 && n++ < 6) C.next() }); await page.waitForTimeout(700)
+  const contSpot = await page.evaluate(() => { const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), g = document.getElementById('gv42go'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, gr = g ? g.getBoundingClientRect() : null
+    return { line: C.line, key: C.spot, shown: !!sr, over: !!(sr && gr && sr.left <= gr.left + 1 && sr.right >= gr.right - 1 && sr.top <= gr.top + 1 && sr.bottom >= gr.bottom - 1) } })
+  ok(wheel && wheel.stop === 'wheel' && contSpot.key === 'cont' && contSpot.shown && contSpot.over, "the wheel stop's last line lights CONTINUE once the roll is in", JSON.stringify(contSpot))
+  await dismiss(page)
+  await page.click('#gv42go'); await page.waitForTimeout(600)
+  await expect('training', 'the training board (the wheel gone)'); await dismiss(page)
+  await step(page, 'CONFIRM TRAINING'); await expect('season', 'the season screen', { spot: 'body' }); await dismiss(page)
+  await step(page, 'PLAY WEEK 1 LIVE')
+  const plan = await expect('plan', 'the weekly-plan wheel, off PLAY WEEK')
+  await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' && g.getBoundingClientRect().height > 0 }, null, { timeout: 30000 }).catch(() => null)
+  await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.isOpen && C.line < 2 && n++ < 6) C.next() }); await page.waitForTimeout(700)
+  const planSpot = await page.evaluate(() => { const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), g = document.getElementById('gv42go'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, gr = g ? g.getBoundingClientRect() : null
+    return { line: C.line, key: C.spot, shown: !!sr, over: !!(sr && gr && sr.left <= gr.left + 1 && sr.right >= gr.right - 1 && sr.top <= gr.top + 1 && sr.bottom >= gr.bottom - 1) } })
+  ok(plan && plan.stop === 'plan' && planSpot.key === 'cont' && planSpot.shown && planSpot.over, "the plan stop's last line lights CONTINUE once the plan is rolled", JSON.stringify(planSpot))
+  await dismiss(page)
+  await page.click('#gv42go'); await page.waitForTimeout(600)
+  await page.waitForSelector('#pregameV1513', { timeout: 15000 }).catch(() => null)
+  await expect('pregame', 'the pregame wizard'); await dismiss(page)
+  for (let p = 0; p < 4; p++) { const n = await step(page, 'NEXT', 700); if (!n) break }
+  await step(page, 'CONTINUE TO MATCH', 1500)
+  await expect('live', 'the broadcast', { ms: 60000 }); await dismiss(page)
+  // run the game out at the fastest speed, clicking through any sheet over the field (never the post-game card)
+  await page.evaluate(() => { const b = [...document.querySelectorAll('.speed-btn[data-spd]')].sort((x, y) => parseFloat(y.dataset.spd) - parseFloat(x.dataset.spd))[0]; if (b) b.click() })
+  const tGame = Date.now(); let reopened = 0
+  while (Date.now() - tGame < 300000) {
+    const s = await page.evaluate(() => { if (document.getElementById('pgOverlayV13')) return 'pg'; if (window.__RIB_COACH.isOpen) return 'coach'
+      const b = [...document.querySelectorAll('button')].find((x) => /^\s*CONTINUE\s*$/i.test(x.innerText || '') && x.getBoundingClientRect().height > 0 && !x.closest('#rib-coach-v119') && !x.closest('#pgOverlayV13')); if (b) { b.click(); return 'sheet' } return null })
+    if (s === 'pg') break
+    if (s === 'coach') reopened++
+    await page.waitForTimeout(600)
+  }
+  ok(reopened === 0, 'he does not come back during the game once the live stop is read', `${reopened} reopenings`)
+  await expect('result', 'the post-game card', { ms: 15000 }); await dismiss(page)
+  await page.evaluate(() => { const el = document.getElementById('pgOverlayV13'); const b = el && [...el.querySelectorAll('button')].find((x) => /CONTINUE|NEXT|CLOSE/i.test(x.innerText || '')); if (b) b.click() })
+  const rec = await expect('recovery', 'the season screen after the game', { ms: 15000, spot: 'body' })
+  await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.isOpen && C.line < 2 && n++ < 6) C.next() }); await page.waitForTimeout(400)
+  const doneBtn = await page.evaluate(() => (document.querySelector('#rib-coach-v119 [data-c-next]') || {}).textContent || '')
+  ok(rec && rec.stop === 'recovery' && /DONE/.test(doneBtn), "the last stop's button reads DONE", JSON.stringify(doneBtn))
+  await shot(page, 'recovery')
+  h = await dismiss(page)
+  const storedEnd = await page.evaluate((k) => localStorage.getItem(k), await page.evaluate(() => window.__RIB_COACH.key))
+  ok(!h.open && h.closedBy === 'done' && !h.enabled && storedEnd === 'off', 'DONE ends the walk and switches him OFF, remembered', JSON.stringify({ closedBy: h.closedBy, enabled: h.enabled, stored: storedEnd }))
+  const want = ['menu', 'persona', 'position', 'hub', 'wheel', 'training', 'season', 'plan', 'pregame', 'live', 'result', 'recovery']
+  ok(JSON.stringify(order) === JSON.stringify(want) && h.opens === want.length && h.seen.length === want.length, 'twelve stops, one per screen, in the order a first week meets them, none twice', JSON.stringify({ order, opens: h.opens }))
+  // and off, the season screen stays quiet
+  await page.waitForTimeout(2500)
+  const quiet = await H(page)
+  ok(!quiet.open, 'switched off, he stays off')
+  await context.close()
+}
+
+// ================= 3. a real first visit: the welcome cards, then the coach =================
 {
   const { page, context } = await newPage({ realFirstVisit: true })
   await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 })
@@ -136,32 +264,32 @@ const H = (page) => page.evaluate(() => { const C = window.__RIB_COACH; return C
   ok(!!cards && stack && stack.cards > stack.menu, "the game's own welcome cards show on a first visit, ABOVE the menu overlay (they were buried under it)", JSON.stringify(stack))
   await page.waitForFunction(() => { const sp = document.getElementById('splash'); return !sp || sp.classList.contains('gone') }, null, { timeout: 30000 }).catch(() => null)
   const early = await H(page)
-  ok(early && !early.open, 'the tour waits while the cards are up')
+  ok(early && !early.open, 'he waits while the cards are up')
   let clicks = 0
   for (let i = 0; i < 3 && cards; i++) { const b = await page.$('.onboard #onNext'); if (!b) break; await b.click({ timeout: 8000 }); clicks++; await page.waitForTimeout(350) }
   await page.waitForSelector('#rib-coach-v119.rib-coach-ready', { timeout: 10000 }).catch(() => null)
   const h = await H(page)
-  ok(clicks === 3 && h && h.open && h.openedBy === 'welcome', 'clicked through, the cards hand straight to the coach', JSON.stringify({ clicks, open: h && h.open, by: h && h.openedBy }))
+  ok(clicks === 3 && h && h.open && h.openedBy === 'welcome' && h.stop === 'menu', 'clicked through, the cards hand straight to the coach on the menu', JSON.stringify({ clicks, open: h && h.open, by: h && h.openedBy }))
   await shot(page, 'firstvisit')
-  // cut short (the page reloaded mid-tour), it comes back — until it is finished or skipped
+  // cut short (the page reloaded mid-stop), the switch is still ON and the menu stop plays again
   await page.reload({ waitUntil: 'networkidle' }); await menuUp(page)
   await page.waitForSelector('#rib-coach-v119.rib-coach-ready', { timeout: 30000 }).catch(() => null)
   const again = await H(page)
-  ok(again && again.open && again.openedBy === 'switch', 'a tour cut short by a reload plays again at the next visit', JSON.stringify({ open: again && again.open, by: again && again.openedBy }))
+  ok(again && again.open && again.openedBy === 'page' && again.stop === 'menu', 'a stop cut short by a reload plays again at the next visit', JSON.stringify({ open: again && again.open, by: again && again.openedBy, stop: again && again.stop }))
   await page.evaluate(() => window.__RIB_COACH.skip())
-  await page.reload({ waitUntil: 'networkidle' }); await menuUp(page); await page.waitForTimeout(9000)
+  await page.reload({ waitUntil: 'networkidle' }); await menuUp(page); await page.waitForTimeout(6000)
   const done = await H(page)
-  ok(done && !done.open && !done.enabled, 'once skipped, a later visit does not start it on its own', JSON.stringify({ open: done && done.open, enabled: done && done.enabled }))
+  ok(done && !done.open && !done.enabled, 'once skipped, a later visit does not start him on its own', JSON.stringify({ open: done && done.open, enabled: done && done.enabled }))
   await context.close()
 }
 
-// ================= 3. the league is the DFL, everywhere the player reads =================
+// ================= 4. the league is the DFL, everywhere the player reads =================
 {
   const { page, context } = await newPage()
   await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 }); await menuUp(page)
   await page.click('#rib-main-menu-v2 [data-rib-action="howto"]'); await page.waitForSelector('#rib-howto-v111', { timeout: 8000 })
   await page.evaluate(() => window.__RIB_HOWTO.sections.forEach((id) => window.__RIB_HOWTO.toggle(id, true)))
-  const txt = await page.evaluate(() => (document.getElementById('rib-howto-v111').textContent + ' ' + document.getElementById('rib-main-menu-v2').textContent + ' ' + JSON.stringify(window.__RIB_COACH.chapters)))
+  const txt = await page.evaluate(() => (document.getElementById('rib-howto-v111').textContent + ' ' + document.getElementById('rib-main-menu-v2').textContent + ' ' + JSON.stringify(window.__RIB_COACH.stops)))
   const coachText = await page.evaluate(() => { const s = [...document.scripts].map((x) => x.src).find((u) => /rib-menu-coach/.test(u)); return fetch(s).then((r) => r.text()) })
   const bad = (txt + coachText).match(/\bNFL\b|Pro Bowl/g) || []
   ok(bad.length === 0 && /\bDFL\b/.test(txt), 'the guide, the menu and the coach say DFL — the real league name is gone', bad.length ? bad.slice(0, 4).join(',') : 'DFL present, NFL absent')

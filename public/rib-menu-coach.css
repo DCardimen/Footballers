@@ -1,4 +1,4 @@
-/* ===== v119 THE COACH'S TOUR — the talking head over the dimmed menu =====
+/* ===== v119 THE COACH — the talking head over a dimmed screen, any screen of the first week =====
    A body-level overlay above the menu (9999) and the guide (10000). The dim is a separate layer
    so a spotlight can replace it: the spot is a rounded box with a viewport-sized shadow, which is
    the whole cut-out. The coach stands bottom-left; his bubble sits over his shoulder on a phone
@@ -9,7 +9,7 @@
 :where(.rib-coach) button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .rib-coach :focus-visible{outline:2px solid var(--g2);outline-offset:2px}
 body.rib-coach-open{overflow:hidden}
-body.rib-coach-open #rib-main-menu-v2{filter:saturate(.8)}
+body.rib-coach-open #rib-main-menu-v2,body.rib-coach-open #app{filter:saturate(.8)}
 .rib-coach-dim{position:absolute;inset:0;background:rgba(5,6,9,.74)}
 .rib-coach-dim[hidden]{display:none}
 .rib-coach-spot{position:absolute;border-radius:14px;box-shadow:0 0 0 200vmax rgba(5,6,9,.74),0 0 0 2px var(--g2) inset,0 0 26px rgba(255,214,107,.45);pointer-events:none;

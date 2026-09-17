@@ -1155,26 +1155,54 @@ Three seams only the merged build could show, all fixed here rather than in a wo
   260 px, so a long touchdown left the scorer alone; and E's measurement moved the wings only when
   they were not already signalling, which with D's `measure` flag live was every time.
 
-## v119 — the coach's tour, and the DFL
+## v119 — the coach, and the DFL
 
-Anchor `v119 THE COACH'S TOUR` (`public/rib-menu-coach.js`; the styles in `rib-menu-coach.css`;
+Anchor `v119 THE COACH` (`public/rib-menu-coach.js`; the styles in `rib-menu-coach.css`;
 the switch tile in `rib-menu.js`'s `renderMenu`; the `coach` action in `rib-menu-navigation.js`;
 both files in `bake-menu-into-index.mjs`'s lists). The art: `scripts/build-coach-art.py` cuts the
 three uploaded sheets (five rows by two columns each — the left column mouth closed, the right
 mouth open, one pose a row; a FIXED grid, because rows touch on one sheet and an alpha-band split
 merges them; the largest blob per cell, because a fixed cell can carry a sliver of the neighbour)
 into `public/coach/<pose>_{a,b}.webp` at 360px tall, plus `tile.webp`, the head off the welcome
-pose, for the menu. The fifteen poses: whoa, thinkcap, armscrossed, clipboard, relaxed, firedup,
-listen, shrug, flex, stop, welcome, tip, point, thumbsup, open.
+pose, for the menu. **`_b` is `_a` with the head pasted over**: the sheets' two drawings of a pose
+were drawn twice and the body shifted a few pixels between them, so the cutter takes the closed
+drawing, finds the head box (the navy of the cap touching the top of the blob, widened, down to
+40% of the height), pastes only that box from the open cell, and crops both to the SAME box —
+below the head the two files are one picture (the silhouette is identical; the colour carries a
+few pixels of lossy-webp noise, which `coachcheck.mjs` bounds). The fifteen poses: whoa, thinkcap,
+armscrossed, clipboard, relaxed, firedup, listen, shrug, flex, stop, welcome, tip, point, thumbsup,
+open.
 
-**The script.** `CHAPTERS` is twelve `{id, title, sub, lines}`; a line is `{p, t, s?}` — pose,
-text, an optional spotlight key into `S`. The chapters are the guide's nine sections in the guide's
-order (start, attrs, rating, position, points, body, week, ladder, first) between a kickoff, a
-walk round the menu's doors, and the final whistle; the text is the guide's facts in a coach's
-voice, and it must stay that way — nothing the guide does not say. `estimateMs()` is the scripted
+**The stops.** `STOPS` is twelve `{id, title, sub, when(ctx), lines, delay?, last?}`, in the order a
+first week meets them; a line is `{p, t, s?}` — pose, text, an optional spotlight key into `S`.
+`ctx()` reads the page: the audit state's `view` (`window.__GRIDIRON_AUDIT__.getState()` — the
+state is never `window.o`), the menu overlay, `#personaV13`, `#growthV42` (the wheel), `#pregameV1513`,
+`#pgOverlayV13`, the live scene's markers, and the seen set. The stops and what they key on:
+`menu` (the overlay up, no personality sheet), `persona` (`#personaV13`), `position` (view
+`choosePos`), `hub` (view `hub`), `wheel` (`#growthV42` shown — the season-commitment wheel comes
+up OVER the training board off PLAY SEASON, spins itself, rolls the fit, and its CONTINUE
+`#gv42go` is only in the page once the roll is in), `training` (view `training`, no wheel),
+`season` (view `season`, no wheel / pregame / post card), `plan` (the weekly-plan wheel — the same
+`#growthV42` off PLAY WEEK, before the wizard, told apart by its title reading PREGAME), `pregame`
+(`#pregameV1513`, no wheel), `live`
+(markers on the scene and view `live`, `delay` 2600 so the loader has left), `result`
+(`#pgOverlayV13`), `recovery` (the season screen again, once `result` is seen; `last`). The text is
+the guide's specifics for THAT screen in a coach's voice — two or three numbers a stop, never the
+section — and it must stay that way: nothing the guide does not say. `estimateMs()` is the scripted
 length at the pace constants (`TYPE_MS` 18 a character, `PUNCT_MS` after a stop, `HOLD_MS` +
-`HOLD_PER_CHAR` × length to read it, `CHAPTER_MS` at a turn): 9.1 minutes, and `coachcheck.mjs`
-holds it between 5 and 10.
+`HOLD_PER_CHAR` × length to read it): about three minutes over the whole week, and `coachcheck.mjs`
+holds it between 2 and 6.
+
+**Finding the stop.** `currentStop()` is the first stop whose `when(ctx)` holds AND that is not in
+the seen set (`rib.coachSeen.v119`, a JSON array) — the season screen fits `season` before the game
+and `recovery` after it, and skipping the seen one is what lets the second fire. `scan()` runs on a
+MutationObserver over body (class and style changes included) and a 500 ms tick: while the welcome
+cards are up it waits; while a stop is open, or the splash is still up, it does nothing; with the
+store at `'on'` it arms the current stop and opens it `delay || 650` ms later, re-checking that the
+screen has not moved on in between. `next()` on a stop's last line marks it seen and closes
+(`'gotit'`), or, on the `last` stop, `finish('done')`. The `menu` stop closes on
+`rib-menu-unmounted`; every other stop is the player's to read and tap through, because it is modal
+over the screen he is about to use.
 
 **The talking head.** `type()` writes the line a character at a time and `blip()`s each letter;
 `flap()` swaps the `<img>` between `<pose>_a` and `<pose>_b` in the shape of speech while
@@ -1189,35 +1217,42 @@ depend on the letter (vowels lower and narrower), `semi` = +4 for a vowel, the l
 (`code % 7 − 3`), a sentence contour (`sin(k·π)·2 − 2k`, lifting +3 late in a question) and a
 little jitter; vowels run 75–115 ms and slide down, consonants 45–70 ms and slide up, and
 s/f/h/t/k/p/x add a 30 ms high-passed noise burst. VOICE (`setVoice`, `rib.coachVoice.v119`) mutes;
-reduced motion keeps him quiet. `show()` sets the crumb, the bar, the chapter, the pose and the spotlight, then types.
-`tap()` (the bubble, the coach, Space, Enter, →) finishes a typing line or moves on; `next()` /
-`back()` walk lines then chapters; AUTO (`setAuto`) is the hold-then-next; SKIP and Escape call
+reduced motion keeps him quiet. `show()` sets the crumb (`n / 12 · TITLE`), the bar, the stop, the
+pose and the spotlight, then types (the crumb counts `n / 12`); the NEXT button reads `GOT IT ›` on a stop's last line and
+`DONE ✓` on the last stop's. `tap()` (the bubble, the coach, Space, Enter, →) finishes a typing line
+or moves on; `next()` / `back()` walk the lines; AUTO (`setAuto`) is the hold-then-next, and the
+last line of a stop never auto-advances (the player has a screen to use); SKIP and Escape call
 `finish('skip')`. Focus is trapped inside the dialog; `aria-live` on the text.
 
-**The dim and the spotlight.** `.rib-coach-dim` is the plain dim; `spotOn(key)` hides it and shows
-`.rib-coach-spot`, a rounded box whose `box-shadow: 0 0 0 200vmax` IS the dim with a hole in it,
-placed over `#rib-main-menu-v2 <selector>` after `scrollIntoView`, re-measured every animation
-frame (the menu re-renders its innerHTML, so the element is re-queried, never held). A target that
-is missing or has no box falls back to the plain dim. `body.rib-coach-open` desaturates the menu
-a little so the coach reads as the foreground.
+**The dim and the spotlight.** `.rib-coach-dim` is the plain dim; `spotOn(key)` shows
+`.rib-coach-spot`, a rounded box whose `box-shadow: 0 0 0 200vmax` IS the dim with a hole in it.
+`S` maps a key to a selector, or to `text:<pattern>` matched against the visible buttons (`Lock In
+Personality`, `Play \d+-Game Season`, `CONFIRM TRAINING`, `Play Week \d+ Live`, `^NEXT`), so the
+same key finds the button on any week. The target is scrolled — by the nearest scrollable ancestor
+or the window — into the band between the header and the bubble's top (the middle of a phone screen
+is under the bubble), and re-measured every animation frame (screens re-render their innerHTML, so
+the element is re-queried, never held). A target that is not there YET keeps the plain dim and the
+frame loop keeps looking — the wheel's CONTINUE arrives seconds after the stop opens, and the cut-out
+lands on it when it does. `body.rib-coach-open` desaturates the page a little so the coach reads
+as the foreground.
 
-**The switch.** `enabled()` is `localStorage['rib.coachTour.v119'] !== 'off'` — a fresh install is
-ON. `toggle()` (the tile): open → skip; on → off; off → on and `open()`. `finish()` sets OFF and
-closes, so the tour never plays twice by accident; the tile's face is flipped in place by
-`refreshTile()` and read again by every `renderMenu`. `open()` refuses without the menu mounted
-and closes on `rib-menu-unmounted`, like the guide.
+**The switch.** `state()` is `localStorage['rib.coachTour.v119']`: nothing stored (a fresh install —
+the tile reads ON, and the walk follows the welcome cards), `'on'` (switched on by hand or by the
+cards — the stops follow the screens), `'off'`. `toggle()` (the tile): open → `finish('skip')`;
+`'on'` and idle → off; otherwise clear the seen set, store `'on'`, and open the current stop
+(`'tile'`). `finish()` stores `'off'` and closes, so the week never plays twice by accident; the
+tile's face is flipped in place by `refreshTile()` and read again by every `renderMenu`.
 
 **The first visit.** The game's own three welcome cards (`hr()`, `.onboard`, `#onNext`) had been
 appended at z-index 190 under the v89 menu overlay at 9999 since the menu arrived: nobody ever saw
 them, and the dev checks' `window.o.tutorialSeen = true` has always been a no-op (the state is
 never on `window.o`; only their `.onboard` removal does anything). v119 lifts `.onboard` to 10000,
-so a new player reads the cards. `watch()` (a MutationObserver on body, class changes included, so
-it sees `#splash` take `gone`) counts clicks on `#onNext` in the capture phase and, once the cards
-are gone after three of them with the switch ON, stores `'on'` and opens the tour 500 ms later
-(`openedBy: 'welcome'`); the checks, removing the cards unclicked, never reach that. Then, whenever
-the menu is mounted, the tour is closed and the film has left: `?coachTour` stores on and opens
-(`'query'`), and a store of `'on'` (switched on by hand or by the cards, and cut short) opens again
-(`'switch'`) — until `finish()` stores `'off'`.
+so a new player reads the cards. `scan()` counts clicks on `#onNext` in the capture phase and, once
+the cards are gone after three of them with the switch not OFF, clears the seen set, stores `'on'`
+and opens the menu stop 500 ms later (`openedBy: 'welcome'`); the checks, removing the cards
+unclicked, never reach that. `?coachTour` does the same at the first mount (`'query'`); a store of
+`'on'` cut short by a reload opens the current unseen stop again (`'page'`) — until `finish()` stores
+`'off'`.
 
 **The DFL.** Every `\bNFL\b` in the game's copy (index.html outside the data URLs, the menu, the
 guide, the check messages) is `DFL`, and `Pro Bowler` is `All-Star`. Identifiers stayed
