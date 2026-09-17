@@ -68,6 +68,17 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v126 THE OPPONENT HAS A FACE, AND HE WEARS ON YOU` (beside `oppMulV111`) — `oppReadV126(opp, pl)`
+  is the scouting profile the next-opponent card shows (tier, rating gap, offence/defence,
+  physicality, and tempo/hitting/pressure in words); the RECOMMENDED COUNTER is gone, because the
+  pregame wizard makes that call. `oppWearSayV126(pl, wk)` is the condition card's sentence — it
+  names the side, their rating and physicality, your durability, each one's multiplier and the
+  fatigue and injury they come to. `oppMulV111` now reads `physicality` (generated since v11, never
+  used). The pregame sheet's bars (`pregamePlayerStatsV25`) fill to `drSoftCap`, not `we()`, with
+  the over-cap run in gold and a tick at the cap. And the v75 sectioner has a `season` config —
+  📅 SCHEDULE / 🎯 OPPONENT / 🩹 BODY / ⚔️ ROLE, with `nofold: ["sched"]` so the fixtures never end up
+  behind a closed accordion. The coach's `body` spotlight points at the BODY TAB.
+  `v112Dcheck.mjs`, `v111Bcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs`, `namecheck.mjs`
 - `v125 THE TOP OF THE COUNTRY IS ABSURD` (beside `NAT_POOL` / `br` / `kr`) — the elite line is
   per-LEVEL now, not a flat `/.85` at every level. `ELITE_NFL_V125[level]` is the national leader's
   production as a multiple of the DFL baseline (`per[7]`) — 5× at Pee Wee, 2.6× at Varsity —
@@ -469,6 +480,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | team emblems / palettes / identity | `emblemcheck.mjs` |
 | training / skill art, the skill atlas | `skillartcheck.mjs`, `wheelcheck.mjs` |
 | the training programs — what a program trades away, the fate roll and its odds, or what the coach recommends (v124) | `traincheck.mjs`, then `capcheck.mjs`, `v85check.mjs`, `skillartcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs` |
+| the next-opponent card, the wear-and-tear copy, the pregame bars or the season screen's tabs (v126) | `v112Dcheck.mjs`, `v111Bcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs`, then `namecheck.mjs`, `walk.mjs`, `shot.mjs` |
 | the offseason training board — the grid, the preview sheet, the confirm (v113) | `skillartcheck.mjs`, `capcheck.mjs`, `v85check.mjs`, then `walk.mjs`, `scrollcheck.mjs`, `shot.mjs` |
 | the crowd, the sideline, the team area | `crowdcheck.mjs`, `sidelinecheck.mjs` |
 | the declare / career-end screens | `declarecheck.mjs` |

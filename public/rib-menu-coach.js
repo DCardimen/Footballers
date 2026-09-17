@@ -50,7 +50,12 @@
   const S = {
     career: '#rib-main-menu-v2 .rib9-tiles .rib9-tile:nth-child(1)', coach: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="coach"]', howto: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="howto"]', prestige: 'text:^TRAINING\\b',   // the tile's action is view:upgrade with a career and new without one: find it by its face
     lockIn: 'text:Lock In Personality', posCards: '.pos-card', playSeason: 'text:Play \\d+-Game Season', confirm: 'text:CONFIRM TRAINING', playWeek: 'text:Play Week \\d+ Live',
-    cont: '#gv42go', next: 'text:^NEXT', speed: '.speed-btn', body: '#screen .condition-card-v11', hubTabs: '#screen .tabs, #screen [class*="tab"]',
+    cont: '#gv42go', next: 'text:^NEXT', speed: '.speed-btn',
+    /* v126: the season screen is four tabs now, so the body ledger is one tap away rather than on
+     * screen. Point at the TAB (it comes first in the DOM, so a comma selector finds it) and fall
+     * back to the card itself on any screen that still renders it in the open. */
+    body: '#screen .hubv75-tab[data-sec="body"], #screen .condition-card-v11',
+    hubTabs: '#screen .tabs, #screen [class*="tab"]',
     name: 'parent:#screen .name-hint-v96', team: 'find:🏟',   // the name he can rename, the team line on the hub card
   };
 
@@ -131,7 +136,7 @@
       { p: 'point', t: "Pick one and confirm. Nothing's locked till you do.", s: 'confirm', tap: true },
     ] },
     { id: 'season', title: 'THE SEASON', sub: 'THE SCHEDULE AND YOUR BODY', when: (c) => c.view === 'season' && !c.wheel && !c.pregame && !c.post, lines: [
-      { p: 'open', t: "The season. Your schedule is down there. Up here is YOUR BODY.", s: 'body' },
+      { p: 'open', t: "The season. Schedule, opponent, your body, your role — one tap each up here.", s: 'body', tap: true },
       { p: 'listen', t: "Stats show up here. See how they hit your season below. Tired guy plays bad. Fresh guy plays good." },
       { p: 'stop', t: "If he's feeling fatigued, play fewer snaps and let him recover. Fatigue changes how he plays. Got it?" },
       { p: 'point', t: "Injury risk is right there too. Read it before you throw him in. Now play Week 1 live.", s: 'playWeek', tap: true },

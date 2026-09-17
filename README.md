@@ -55,6 +55,28 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v126 — the opponent has a face, he wears on you, and the season screen is four tabs.** Four
+  things about the two screens you come back to every week. **The opponent card** was a name, a
+  confidence dial, a fog count and a RECOMMENDED COUNTER — a game plan the player has not chosen
+  himself since the pregame wizard took the call, so the one concrete line on the card was the one
+  thing it could not act on, while everything worth knowing about the side you are about to play was
+  generated and thrown away. `oppReadV126` reads it back: the tier and the rating gap in points,
+  offence and defence as separate numbers, physicality, and tempo / hitting / pressure in words
+  rather than raw 0–100 dials. **Wear and tear** now names its causes: the ledger has always priced
+  the opponent (`oppMulV111`) and your body (`durMulV111`) and never said either, so the number had
+  no cause — `oppWearSayV126` names the side, their rating against yours, how hard they hit, your
+  durability, the multiplier each contributes, and the fatigue and injury they add up to for the
+  next game. And `oppMulV111` reads the opponent's **physicality** for the first time (it has been
+  generated since v11 and never used), so a side that hits at 90 really does leave you in a
+  different state than a finesse side of the same rating. **The pregame bars** were drawn against
+  `we()`, the absolute wall — 250 at prestige — so a Pee Wee's 12 was a 5% sliver and every stat on
+  the sheet looked identical and hopeless. They fill to the stat's **soft cap** now, with anything
+  past it in **gold** on a stretched scale and a tick left where the cap sits. **The season screen**
+  gets the v75 hub treatment: 1,878px of role battle, scouting report, body ledger, press strip and
+  schedule on an 844px phone becomes four icon tabs — 📅 SCHEDULE · 🎯 OPPONENT · 🩹 BODY · ⚔️ ROLE
+  — one screen each, schedule first. Also: opponents and the standings board draw from the v123
+  pools now instead of nine hard-coded lists of five that held Ducks, Dallas, Miami and Denver.
+
 - **v125 — the top of the country is absurd.** One line decided every national rank in the game:
   `br()` mapped production onto its quality factor with `(a/(n*s)-.45)/.85`, so the #1 player in
   America was whoever produced **1.85× his level's baseline — at every level**, Pee Wee to DFL. A
