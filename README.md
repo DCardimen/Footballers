@@ -55,6 +55,22 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v125 — the top of the country is absurd.** One line decided every national rank in the game:
+  `br()` mapped production onto its quality factor with `(a/(n*s)-.45)/.85`, so the #1 player in
+  America was whoever produced **1.85× his level's baseline — at every level**, Pee Wee to DFL. A
+  perf-75 season put you top five in the country; a perf-85 season finished #1 of 1.8 million kids.
+  The board never looked wrong because it generated its own top 25 off the same `.85`. It was just
+  far too easy. The elite line is per-level now, written in the unit the whole game already shares —
+  a multiple of the DFL per-game baseline, `per[7]`. The national leader at **Pee Wee puts up five
+  times what a DFL starter does**: 425 receiving yards a game, 525 rushing. The multiple slides down
+  through the grades (4.2×, 3.4×, 3.0×, **2.6× at Varsity**) to something merely great in college and
+  the pros. `eliteRV125` turns that into the multiple of *this* level's own baseline that `br()`
+  should call 1.65, and `Ni()` draws its top 25 off the same number, so the board shows the stats the
+  rank now demands. Nothing else moves: the median is still the median, rate stats and
+  lower-is-better stats keep the old line (a yards-per-carry is not five times anything), and the
+  floor is the old 1.85, so no level ever gets *easier*. The season that used to finish #1 in Pee Wee
+  now finishes **#85,189**. `window.__V125`; `scripts/v125check.mjs` is the gate.
+
 - **v124 — the program cuts both ways, and the coach names a stat.** Two things about training.
   **The trade**: twelve programs were twelve flavours of the same promise — pick one, get its
   stats — and the only price was a stray `-1 Stamina` on two of them, so "HIGH RISK" meant nothing

@@ -68,6 +68,13 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v125 THE TOP OF THE COUNTRY IS ABSURD` (beside `NAT_POOL` / `br` / `kr`) — the elite line is
+  per-LEVEL now, not a flat `/.85` at every level. `ELITE_NFL_V125[level]` is the national leader's
+  production as a multiple of the DFL baseline (`per[7]`) — 5× at Pee Wee, 2.6× at Varsity —
+  `eliteRV125(level, statDef)` turns that into the multiple of THIS level's own baseline, and
+  `eliteSlopeV125` is what `br()` divides by. `Ni()` (the generated top 25) draws off the same
+  number. Rate and lower-is-better stats keep 1.85, and 1.85 is the floor, so no level gets easier.
+  `window.__V125`; `v125check.mjs`, then `rankcheck.mjs`, `v88check.mjs`, `declarecheck.mjs`
 - `v124 THE PROGRAM CUTS BOTH WAYS` / `v124 THE COACH NAMES A STAT` (both beside the `pt` program
   table) — the harder programs TRADE a named attribute for the one they build (it rides the same
   `cost` field the season roll and `tpPanelV113` already read), and the four volatile ones are a
@@ -414,6 +421,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | OVR scale / the silent sim path / the attribute sheet (v85) | `v85check.mjs`, `bodycheck.mjs`, `wheelcheck.mjs` |
 | the broadcast renderer between plays / tackle looks (v86) | `v86check.mjs`, `readshot.mjs` |
 | pass coverage / credit, QB scramble & targets, the safety, the huddle (v87) | `v87check.mjs`, `creditcheck.mjs`, `simcheck.mjs` |
+| what it takes to rank nationally / the leaders board's own numbers (v125) | `v125check.mjs`, then `rankcheck.mjs`, `v88check.mjs`, `declarecheck.mjs`, `v85check.mjs` |
 | promotion odds / the declare (v88) | `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs` |
 | the callout badges / the moments the field shouts (v95) | `badgecheck.mjs`, `v86check.mjs` |
 | which eleven wears which kit / the you-player's colours on defense (v105.2) | `kitsidecheck.mjs` (LB), then `v104check.mjs`, `v105check.mjs`, `v86check.mjs`, `sidelinecheck.mjs` |
