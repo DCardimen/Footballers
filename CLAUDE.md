@@ -68,6 +68,16 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v129 THE BALL IN STRIDE` (beside `leadSkillV101`) — `strideOddsV129(qb, target, sep)` is how often
+  the passer COMMITS to the spot: `STRIDE_LVL_V129[level]` is the base (0 at Pee Wee, a staple in the
+  DFL), moved by awareness, arm, receiver speed and separation. Decided BEFORE `leadPointV101` (the
+  route walk gets a longer tail, `leadTailStrideYd`, because he is led past his last waypoint on
+  purpose), and never under pressure, off-platform or panicking. When it lands: `_lk` goes to ~1.0,
+  the cone is multiplied by `strideConeK`, the downfield cap opens to `strideOverYd`, and the
+  receiver tracks at `strideTrackMul` without breaking stride. The catch/pick/swat rolls are
+  untouched — only where the ball is. `TU("strideV129",0)` switches it off; the `throw` event carries
+  `stride`/`strideOdds`. `window.__V129`; `stridecheck.mjs`, then `scoreneutralcheck.mjs`,
+  `v109Bcheck.mjs`, `v101check.mjs`, `routecheck.mjs`, `simcheck.mjs`
 - `v128 RIVALRY WEEK MEANS SOMETHING` (beside `Da`, over the `Za` story stages) — `rivalSayV128`
   builds each option's effect list FROM its own `eff` (so card and model cannot drift),
   `rivalVarV128` turns `eff.varMult` into a band and a sentence, and `rivalLockV128` /
@@ -486,6 +496,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | a big hit taking a man off his feet — the launch, the arc, the landing (v112 F) | `v112Fcheck.mjs`, then `v103check.mjs`, `v109C1check.mjs`, `tacklecheck.mjs`, `readcheck.mjs`, `renderpathcheck.mjs`, `scoreneutralcheck.mjs` |
 | whether being in position decides the play — stops, break-ups, interceptions (v110) | `v110check.mjs`, then `creditcheck.mjs`, `tacklecheck.mjs`, `readcheck.mjs`, `v103check.mjs`, `scoreneutralcheck.mjs` |
 | anything in the live sim's FEEL (contact, possession, ball speed, catching, tackling, the clock) | `scoreneutralcheck.mjs` FIRST (keep the before row), then the v109 checks below |
+| whether the quarterback throws a man open — the lead, the cone, who gets one and how often (v129) | `stridecheck.mjs`, then `scoreneutralcheck.mjs`, `v109Bcheck.mjs`, `v101check.mjs`, `routecheck.mjs`, `simcheck.mjs` |
 | the throw's flight, arc, wobble or a throwaway (v109 A) | `v109Acheck.mjs`, then `v101check.mjs`, `v107check.mjs`, `v105check.mjs`, `simcheck.mjs` |
 | impact geometry, the gang, the pile, the loose fumble, the bobble (v109 C1) | `v109C1check.mjs`, then `v103check.mjs`, `tacklecheck.mjs`, `creditcheck.mjs`, `renderpathcheck.mjs` |
 | the plant, the lean, down men, pursuit pace, the stumble (v109 C2) | `v109C2check.mjs`, then `readcheck.mjs`, `jukecheck.mjs`, `tacklecheck.mjs`, `v86check.mjs` |

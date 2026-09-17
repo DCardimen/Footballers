@@ -55,6 +55,29 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v129 — the ball in stride.** `leadSkillV101` is the fraction of the computed lead the passer
+  actually gets on the ball, and it sits around .46–.7 for almost everybody. That is the right
+  *average* — most throws in football are a step behind — but it meant the game had no **best**
+  case: a ninety-awareness arm throwing to a burner who had beaten his man still put the ball where
+  the man *was*, and the receiver came back for it. There was no ball thrown in stride anywhere in
+  the league. There is one now, and it is a decision the passer makes rather than a dice roll on
+  top of one. `strideOddsV129` is how often *this* quarterback, throwing to *this* receiver, commits
+  to the spot: the base rate is the **level** — Pee Wee is zero (a nine-year-old quarterback does
+  not throw a man open), middle school starts to see it, high school a few a game, college far more,
+  the DFL a staple — and it moves with the four things that decide it on a field: whether he can
+  read it before it happens (awareness), whether he can put it there (arm), whether the man can run
+  to it (speed), and whether that man has actually won (separation). A hurried, moving or panicking
+  passer never throws one; committing to a spot is the opposite of getting rid of it. When it lands,
+  three things change and nothing else does: the lead goes to **full**, so the ball arrives where he
+  is going rather than where he was (measured 1.00 vs 0.66, and 3.7yd of lead vs 1.9yd); the cone
+  **tightens** (0.88yd vs 1.54yd), because a throw you decided on before the break is a throw you
+  are not steering; and the receiver runs **through** it — his route walk gets a longer tail, since
+  he is being led past his last waypoint on purpose, and he does not break stride to track it. The
+  catch, pick and swat rolls are the same rolls; what improves is *where the ball is*, which is
+  exactly what "in stride" means — 70% caught against 60%, with YAC following on its own because
+  YAC is emergent. Score-neutral: the difference against the previous build is smaller than the
+  run-to-run variance of the same build. `window.__V129`; `scripts/stridecheck.mjs` is the gate.
+
 - **v128 — rivalry week means something.** Rivalry Week offered five choices and told you nothing
   about any of them. "+Big performance, real injury risk" is not a number; "Safe, solid game" is not
   a number; and "Needs strong Grit or it backfires" named **84 Grit at Middle School** — a line

@@ -3561,7 +3561,9 @@ window.__visionRadiusV96 = visionRadiusV96;
           // fantasy. A ball is thrown to a route's END, not to wherever a man could get to.
           const n = R.length, p0 = R[Math.max(0, n - 2)], p1 = R[n - 1];
           const dx = p1.lx - p0.lx, dy = p1.y - p0.y, dn = Math.hypot(dx, dy) || 1;
-          const drift = Math.min(left, TU("leadTailYd", 1.2) * YD);
+          // v129: a ball thrown in stride is thrown PAST the last waypoint on purpose — the man
+          // is meant to run through it — so that route gets a longer tail than a ball thrown to a spot
+          const drift = Math.min(left, (a._strideV129 ? TU("leadTailStrideYd", 3.4) : TU("leadTailYd", 1.2)) * YD);
           x += dx / dn * drift; y += dy / dn * drift;
         }
       } else if (a._dx != null) { x += a._dx * left; y += a._dy * left; }
@@ -3571,6 +3573,47 @@ window.__visionRadiusV96 = visionRadiusV96;
       let p = { lx: a.lx, y: a.y }, ms = flightMsV101(qb, a.lx, a.y, style);
       for (let i = 0; i < 3; i++) { ms = flightMsV101(qb, p.lx, p.y, style); p = walkRouteV101(a, ms); }
       return { p, ms };
+    };
+    /* ===== v129 THE BALL IN STRIDE =====
+     * leadSkillV101 is the fraction of the computed lead the passer actually gets on the ball, and
+     * it sits around .46-.7 for almost everybody. That is the right average — most throws in
+     * football are a step behind — but it meant the game had no BEST case: a ninety-awareness arm
+     * throwing to a burner who had beaten his man still put the ball where the man WAS, and the
+     * receiver came back for it. There was no ball in stride anywhere in the league.
+     *
+     * There is one now, and it is a decision the passer makes rather than a dice roll on top of
+     * one. `strideOddsV129` is how often this quarterback, throwing to THIS receiver, commits to
+     * the spot: the base rate is the LEVEL (a nine-year-old quarterback does not throw a man open
+     * — Pee Wee is zero, high school a couple a game, college far more, the DFL most of the time
+     * he is clean), and it is moved by the three things that decide it on a field: whether he can
+     * read it before it happens (awareness), whether he can put it there (arm), whether the man
+     * can run to it (speed), and whether that man has actually won (separation). A hurried,
+     * moving or panicking passer never throws one — committing to a spot is the opposite of
+     * getting rid of it.
+     *
+     * When it lands, three things change and nothing else does. The lead goes to FULL, so the ball
+     * arrives where he is going rather than where he was. The cone TIGHTENS, because a throw you
+     * have decided on before the break is a throw you are not steering. And the receiver runs
+     * THROUGH it — his route walk is allowed a longer tail (`leadTailStrideYd`, since he is being
+     * led past his last waypoint on purpose) and he does not break stride to track it. The catch,
+     * the pick and the swat rolls are the same rolls; what improves is where the ball is, which is
+     * exactly what "in stride" means. YAC is emergent, so it follows on its own.
+     * `window.__V129` is the hook; `stridecheck.mjs` is the gate. */
+    const STRIDE_LVL_V129 = [0, .015, .07, .13, .24, .42, .50, .72, .78];   // Pee Wee → Interstellar
+    const lvlV129 = () => { try { return cl(Number(root.__getGridironState && root.__getGridironState().player.level) || 0, 0, 8); } catch (e) { return 4; } };
+    const V129 = (() => { const H = root.__V129 = root.__V129 || {}; H.lvlTable = STRIDE_LVL_V129;
+      H.throws = H.throws || 0; H.stride = H.stride || 0; H.rows = H.rows || []; return H; })();
+    const strideOddsV129 = (qb, a, sep) => {
+      const L = STRIDE_LVL_V129[lvlV129()] || 0;
+      if (L <= 0) return 0;
+      const eye  = cl(((qb.aware == null ? 50 : qb.aware) - 50) / 45, -1, 1.1),        // can he see it before it happens
+            arm  = cl(((qb.thr   == null ? 50 : qb.thr)   - 50) / 45, -1, 1.1),        // can he put it there
+            legs = cl(((a.spdA   == null ? 50 : a.spdA)   - 50) / 40, -1, 1.2),        // can the man run to it
+            // has he actually won. Tight coverage is a real damper, not a veto: a passer who can
+            // see it still throws one into a yard of space, he just does it far less often
+            open = cl(TU("strideOpenMid", .55) + sep * TU("strideOpenK", .42), TU("strideOpenMin", .22), 1.35);
+      return cl(L * (1 + eye * TU("strideEyeK", .62) + arm * TU("strideArmK", .38) + legs * TU("strideLegK", .34)) * open,
+        0, TU("strideMax", .92));
     };
     // how much of that lead he can actually put on it
     const leadSkillV101 = (qb, panic, moving) =>
@@ -4281,22 +4324,36 @@ window.__visionRadiusV96 = visionRadiusV96;
             : (_over && sep < TU("bulletOverSep", .8)) ? "bullet"
             : (routeDepth < TU("bulletDepthYd", 9) && sep < TU("bulletOpenSep", .4)) ? "bullet"
             : "touch";
+          /* v129: the decision comes BEFORE the guess, because a ball thrown in stride is walked
+           * further down the route than one thrown to a spot. A passer who is hurried, moving or
+           * panicking never throws one — committing to a spot is the opposite of getting rid of it. */
+          const _strideOdds = strideOddsV129(qb, target, sep);
+          const _stride = !!TU("strideV129", 1) && !underPressure && !movingThrow
+            && _panic < TU("stridePanic", .45)
+            && routeDepth >= TU("strideMinYd", 4)
+            && Math.random() < _strideOdds;
+          target._strideV129 = _stride;
+          try { V129.throws++; if (_stride) V129.stride++;
+            V129.rows.push({ lvl: lvlV129(), odds: +_strideOdds.toFixed(3), stride: _stride, sep: +sep.toFixed(2),
+              aware: qb.aware, thr: qb.thr, spdA: target.spdA, depth: +routeDepth.toFixed(1) });
+            if (V129.rows.length > 400) V129.rows.shift(); } catch (e) {}
           // the GUESS: walk him along his route for as long as this ball will hang
           const _lead = leadPointV101(qb, target, throwStyle);
           const _re = target.route && target.route.length ? target.route[target.route.length-1] : null;
           const _fallX = _re ? _re.lx : routeDepth*YD, _fallY = _re ? _re.y : clampY(target.y + (Math.random()<0.5?-1:1)*30);
           // the EXECUTION: how much of that lead he actually gets on it. Short of 1 and the ball
           // is behind him; the spot he is throwing AT is still a real point on the grass either way.
-          const _lk = leadSkillV101(qb, _panic, movingThrow);
+          const _lk = _stride ? cl(TU("strideLead", 1.0) + (Math.random() - .5) * TU("strideLeadNoise", .1), .9, 1.12)
+            : leadSkillV101(qb, _panic, movingThrow);
           // and the aim point never gets further downfield than the route the concept called for
           // (plus a stride) — routeDepth is the arm and the concept, and it stays the ceiling
-          const _capX = Math.max(routeDepth, 2) * YD + TU("leadOverYd", 1.5) * YD;
+          const _capX = Math.max(routeDepth, 2) * YD + (_stride ? TU("strideOverYd", 3.2) : TU("leadOverYd", 1.5)) * YD;
           const _leadOn = !!TU("leadV101", 1);   // 0 puts the ball back on the route's last waypoint
           const idealX = _leadOn ? Math.min(_capX, target.lx + ((_lead.p.lx - target.lx) * _lk) + (_re ? (_fallX - target.lx) * TU("leadRouteBias", .12) : 0)) : _fallX;
           const idealY = _leadOn ? clampY(target.y + ((_lead.p.y - target.y) * _lk) + (_re ? (_fallY - target.y) * TU("leadRouteBias", .12) : 0)) : _fallY;
           throwLeadPx = Math.hypot(idealX - target.lx, idealY - target.y);
           // the CONE: the miss around that spot, and the colour the broadcast draws it in
-          throwConeYd = coneYdV101(qb, routeDepth, throwProt, _panic, movingThrow, sep);
+          throwConeYd = coneYdV101(qb, routeDepth, throwProt, _panic, movingThrow, sep) * (_stride ? TU("strideConeK", .74) : 1);
           throwWindow = windowV101(sep, throwConeYd, throwProt);
           const errYd = throwConeYd;
           /* ===== v109 A HURRIED MISS HAS A DIRECTION =====
@@ -4349,7 +4406,8 @@ window.__visionRadiusV96 = visionRadiusV96;
             cone:+throwConeYd.toFixed(2), prot:+throwProt.toFixed(2), panic:+_panic.toFixed(2),
             lead:Math.round(throwLeadPx), leadYd:+(throwLeadPx/YD).toFixed(2), leadK:+_lk.toFixed(2), hang:Math.round(_lead.ms),
             dur:Math.round(_durV109), vel:+_velV109.toFixed(3), velMph:Math.round(_velMphV109), apex:Math.round(_apexV109),
-            wobble:+_wobbleV109.toFixed(2), platform, errDir:+_errDir.toFixed(2), errBiased:_biased, oob:_oobV109||undefined});
+            wobble:+_wobbleV109.toFixed(2), platform, errDir:+_errDir.toFixed(2), errBiased:_biased, oob:_oobV109||undefined,
+            stride:_stride||undefined, strideOdds:+_strideOdds.toFixed(2)});   /* v129 */
           try { V109A.throws++; if (_oobV109) V109A.oob++;
             V109A.rows.push({ d: Math.round(_distV109), thr: S.off[8].thr, style: throwStyle, dur: Math.round(_durV109),
               legacy: Math.round(flightMsLegacyV109(qb, cx, cyy, throwStyle)), apex: Math.round(_apexV109), wobble: +_wobbleV109.toFixed(2),
@@ -4543,7 +4601,9 @@ window.__visionRadiusV96 = visionRadiusV96;
             emit("ballTrack", { who: target.id, x: ballFlight.x1, y: ballFlight.y1, late: target._ballFindMs > TU("ballFindLateMs", 230), ms: target._ballFindMs, shoulder: target._ballShoulder });
             try { const B = root.__V109_B = root.__V109_B || {}; B.trackN = (B.trackN || 0) + 1; B.trackMs = (B.trackMs || 0) + target._ballFindMs;
               (B.tracks = B.tracks || []).push({ ms: target._ballFindMs, shoulder: target._ballShoulder, aware: target.aware }); if (B.tracks.length > 60) B.tracks.shift(); } catch (e) {} }
-          if (found) mv(target, ballFlight.x1-3, ballFlight.y1+jostle, 1.08);
+          // v129: a ball thrown in stride is already where he is going, so he runs onto it
+          // instead of adjusting back to it
+          if (found) mv(target, ballFlight.x1 - (target._strideV129 ? 0 : 3), ballFlight.y1 + jostle, target._strideV129 ? TU("strideTrackMul", 1.16) : 1.08);
           mv(coverA, ballFlight.x1-sep*2.4+2, ballFlight.y1+3-jostle, 1.02);
           if(battling&&!handfightShown){ handfightShown=true;
             emit("handfight",{off:target.id,def:coverA.id,x:ballFlight.x1,y:ballFlight.y1}); }
