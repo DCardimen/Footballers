@@ -62,7 +62,7 @@ try {
   ok(fresh.ready && fresh.assets && fresh.assets.ready && !fresh.assets.fallback && fresh.assets.failed.length === 0, 'the asset runtime opened the gate with every picture decoded', `loaded=${fresh.assets?.loaded.length} failed=${fresh.assets?.failed.join(',') || 'none'}`)
   ok(fresh.images >= 9 && fresh.broken.length === 0, 'every <img> in the menu rendered', `${fresh.images} images, broken: ${fresh.broken.join(',') || 'none'}`)
   // v111: the seventh tile and the seventh nav link are HOW TO PLAY, handled inside the menu
-  ok(fresh.tiles.length === 7 && fresh.nav.length === 7 && fresh.tiles.includes('howto') && fresh.nav.includes('howto'), 'seven tiles and seven nav links, the guide among them', `${fresh.tiles.join(' ')} | ${fresh.nav.join(' ')}`)
+  ok(fresh.tiles.length === 8 && fresh.nav.length === 7 && fresh.tiles.includes('howto') && fresh.tiles.includes('coach') && fresh.nav.includes('howto'), 'eight tiles (the guide and the coach\'s switch among them) and seven nav links', `${fresh.tiles.join(' ')} | ${fresh.nav.join(' ')}`)
   // the drawn wordmark, the swash and the six legacy icons are art, not CSS: if any of them
   // falls back to type or an inline path the menu stops matching the reference
   ok(fresh.wordmark && fresh.swash && fresh.legacyIcons === 6 && !fresh.heroSlogan,

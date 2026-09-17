@@ -11,6 +11,7 @@ const cssFiles = [
   'rib-menu-reset.css',
   'rib-menu.css',
   'rib-menu-v89.css',
+  'rib-menu-coach.css',
 ]
 
 const jsFiles = [
@@ -18,6 +19,7 @@ const jsFiles = [
   'rib-menu-boot.js',
   'rib-menu.js',
   'rib-menu-howto.js',
+  'rib-menu-coach.js',
   'rib-menu-navigation.js',
 ]
 

@@ -16,6 +16,7 @@
   const BODY_CLASS = 'rib-menu-open';
   const previewMode = new URLSearchParams(location.search).has('menuPreview');
   const ART = './public/menu/';
+  const COACH_ART = ART.replace(/menu\/$/, 'coach/');   // v119: the coach's cells live beside the menu art
   // v104: the pictures and their masks keep their names from build to build, so a browser that
   // has seen the menu once keeps the OLD kit masks forever unless the URL moves. The baked build
   // stamp (`<meta name="rib-menu-build">`, set by scripts/bake-menu-into-index.mjs) rides every
@@ -128,7 +129,7 @@
         archetype: { id: 'prodigy', name: 'Field General' }, traits: [{ id: 'bigGameHunter', name: 'Accuracy' }, { id: 'gymRat', name: 'Footwork' }, { id: 'bornLeader', name: 'Leadership' }],
         totalSeasons: 0, objectives: [
           { id: 'a', title: 'Win your first game', done: true, reward: 2 }, { id: 'b', title: 'Throw for 300+ yards', done: true, reward: 2 }, { id: 'c', title: '3+ TD passes', done: true, reward: 2 },
-          { id: 'd', title: 'Win your conference', done: false, reward: 3 }, { id: 'e', title: 'Reach the state championship', done: false, reward: 3 }, { id: 'f', title: 'Get drafted to the NFL', done: false, reward: 5 }] },
+          { id: 'd', title: 'Win your conference', done: false, reward: 3 }, { id: 'e', title: 'Reach the state championship', done: false, reward: 3 }, { id: 'f', title: 'Get drafted to the DFL', done: false, reward: 5 }] },
       season: { games: 12, played: 3, weeks: [{ played: true, won: true }, { played: true, won: true }, { played: true, won: true }], inProgress: true,
         last: { won: true, us: 28, them: 17, opp: 'Central High', stat: { pass: 312, td: 3, int: 0 } }, nextOpp: 'Westlake Wildcats', nextWeek: 4 },
       team: { school: 'Westfield State', name: 'Storm', colors: ['#1a2a44', '#e8c86a'], logo: null, logoCss: '' } };
@@ -144,7 +145,7 @@
     const ovr = numeric(card?.querySelector('.continue-ovr')?.textContent, 0);
     const pos = (cardText.match(/\b(QB|RB|WR|TE|OL|DL|LB|CB|S)\b/)?.[1] || 'QB');
     return { hasCareer, state: { prestige: numeric((screenText.match(/★\s*(\d+)/) || [])[1], 0), pp: 0, careers: 0, nflReached: 0, interstellar: 0, hallBest: 0, enshrined: 0, challenges: 0, challengesOf: 0 },
-      player: hasCareer ? { name, pos, level: 0, levelName: (cardText.match(/(Pee Wee|Youth League|Middle School|JV|Varsity|College|NFL Combine|The NFL|Interstellar League)/) || [])[1] || 'Career', stars: (cardText.match(/★/g) || []).length, ovr, height: '', weight: '', traits: [], objectives: [], totalSeasons: 0 } : null,
+      player: hasCareer ? { name, pos, level: 0, levelName: (cardText.match(/(Pee Wee|Youth League|Middle School|JV|Varsity|College|DFL Combine|The DFL|Interstellar League)/) || [])[1] || 'Career', stars: (cardText.match(/★/g) || []).length, ovr, height: '', weight: '', traits: [], objectives: [], totalSeasons: 0 } : null,
       season: { games: 0, played: 0, weeks: [], inProgress: false, last: null }, team: { school: '', name: '', colors: null, logo: null, logoCss: '' } };
   }
 
@@ -232,7 +233,7 @@
   const LEGACY_TILES = [
     ['gold', 'star', 'prestige', 'PRESTIGE', (S) => S.prestige || 0],
     ['blue', 'helmet', 'careers', 'CAREERS', (S) => S.careers || 0],
-    ['green', 'crown', 'nflReached', 'NFL REACHED', (S) => S.nflReached || 0],
+    ['green', 'crown', 'nflReached', 'DFL REACHED', (S) => S.nflReached || 0],
     ['purple', 'gem', 'interstellar', 'INTERSTELLAR', (S) => S.interstellar || 0],
     ['gold2', 'laurel', 'hallPoints', 'HALL POINTS', (S) => S.hallBest || 0],
     ['red', 'target', 'iconicMoments', 'ICONIC MOMENTS', (S) => S.challenges || 0],
@@ -302,6 +303,7 @@
     const pk = has ? perks(data) : [];
     const stars = has ? Math.max(0, Math.min(5, pl.stars || 0)) : 0;
     const tile = (action, icon, label, sub, cls = '') => `<button class="rib9-tile ${cls}" type="button" data-rib-action="${action}"><img src="${ART}${icon}.webp${ARTV}" alt="" loading="lazy"><b>${label}</b><small>${sub}</small></button>`;
+    const coachOn = !!(window.__RIB_COACH && window.__RIB_COACH.enabled);   // v119: read at every render, so a re-render keeps the switch honest
     const tilesNav = `<nav class="rib9-tiles" aria-label="Sections">
           ${tile(has ? 'view:' + careerView : 'new', 'icon_career', 'CAREER', has ? 'PLAY NEXT GAME' : 'START A CAREER', 'rib9-tile-hot')}
           ${tile(has ? 'view:upgrade' : 'new', 'icon_training', 'TRAINING', 'UPGRADE SKILLS')}
@@ -311,6 +313,8 @@
           ${tile('settings', 'icon_settings', 'SETTINGS', 'GAME OPTIONS')}
           ${/* v111: the guide is the one tile with no screen behind it — rib-menu-howto.js opens it over this menu */''}
           ${tile('howto', 'badge_brain', 'HOW TO PLAY', 'ATTRIBUTES · POSITIONS · THE LADDER', 'rib9-tile-guide')}
+          ${/* v119: the coach's tour — a TOGGLE, not a door. ON plays the tour after the welcome cards (or the moment it is switched on); the tour switches it OFF when it ends. rib-menu-coach.js owns the state. */''}
+          <button class="rib9-tile rib9-tile-coach ${coachOn ? 'on' : ''}" type="button" data-rib-action="coach" role="switch" aria-checked="${coachOn ? 'true' : 'false'}" aria-label="Coach's tour, ${coachOn ? 'on' : 'off'}"><img src="${COACH_ART}tile.webp${ARTV}" alt="" loading="lazy"><b>COACH'S TOUR</b><small><i class="rib9-sw"><i></i></i>${coachOn ? 'ON · THE FULL WALKTHROUGH' : 'OFF · TAP TO PLAY IT'}</small></button>
         </nav>`;
     const navLink = (action, label, active) => `<button class="rib9-navlink ${active ? 'on' : ''}" type="button" data-rib-action="${action}">${label}</button>`;
 

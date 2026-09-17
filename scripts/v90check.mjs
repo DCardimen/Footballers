@@ -39,7 +39,7 @@ ok(sim.after === 0 && sim.rolls.length >= 1 && sim.onWeeks >= 1, 'the stage was 
 ok(!sim.overlay && sim.view === 'season' && sim.decisionCount >= 1, 'no story card on screen afterwards, and the arc advanced through the game\'s own resolver', `overlay=${sim.overlay} view=${sim.view} decisions=${sim.decisionCount}`)
 ok(sim.rolls.every(r => typeof r.success === 'boolean' && r.choice), 'every background roll names its choice and its outcome', JSON.stringify(sim.rolls[0] || {}))
 
-// ---- 1b. an NFL life event (they queue every third week at the NFL) is answered by the same drain
+// ---- 1b. an DFL life event (they queue every third week at the DFL) is answered by the same drain
 const life = await page.evaluate(() => {
   const pl = window.S.player; const keep = pl.level
   const ev = window.__V90.queueLife(pl, 3)
@@ -51,7 +51,7 @@ const life = await page.evaluate(() => {
   return res
 })
 console.log('life:', JSON.stringify(life))
-ok(life.queued && life.choices >= 2 && life.drained === 1 && life.left === 0, 'a queued NFL life event is answered in the background through the game\'s own resolver', JSON.stringify(life))
+ok(life.queued && life.choices >= 2 && life.drained === 1 && life.left === 0, 'a queued DFL life event is answered in the background through the game\'s own resolver', JSON.stringify(life))
 ok(life.kind === 'life' && !!life.choice && (life.cashMoved || life.resolvedGrew) && !life.overlay, 'the answer is recorded, its effect applied, and no card is left on screen', `choice="${life.choice}"`)
 
 // ---- 2. the choice rule: safest by default, boldest at 1

@@ -55,6 +55,38 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v119 — the coach's tour, and the DFL.** Two things. **The league is the DFL** everywhere a
+  player reads it: every `NFL` string in the game text, the menu, the guide and the check messages
+  is `DFL` now (identifiers such as `nflReached`, `continueNFL()` and the `"nfl"` mastery key are
+  untouched — they are code, not copy), and the `Pro Bowler` tier is `All-Star`. The team nicknames
+  were already scrubbed in an earlier pass. **The coach's tour**: the three uploaded coach sheets
+  (five poses each, drawn mouth-closed and mouth-open) are cut by `scripts/build-coach-art.py`
+  into `public/coach/<pose>_{a,b}.webp` — fifteen poses, plus a head crop for the menu tile — and
+  `public/rib-menu-coach.js` (`v119 THE COACH'S TOUR`, with `rib-menu-coach.css`, both baked by
+  `bake-menu-into-index.mjs`) plays a twelve-chapter talking-head walkthrough over the dimmed main
+  menu: kickoff, the nine sections of HOW TO PLAY in order and in detail, every door on the menu,
+  the final whistle — about nine minutes at the default pace, every number the guide's own, in a
+  football coach's voice. A line TYPES while his picture flips between the closed and open mouth
+  in the shape of speech (a syllable open, a beat closed, a longer close at a word gap or a stop,
+  the odd double snap — never a metronome), and he has a VOICE: a muddle of pitched blips, one per
+  letter, synthesised on the spot with WebAudio, no sound file — a gruff low base, each letter its
+  own step, vowels warmer and longer, a breath of noise on the fricatives, a sentence that rises
+  and settles, a question that lifts; VOICE in the bubble mutes him (`rib.coachVoice.v119`), and
+  reduced-motion keeps him quiet. A chapter can cut a spotlight into the dim over the menu element it is talking about (the CAREER
+  tile, TRAINING, PRESTIGE, HOW TO PLAY…), scrolling it into view; tapping the bubble finishes a
+  line, NEXT / BACK / the arrow keys move, AUTO plays the lines on their own, SKIP or Escape leaves.
+  The door is a **switch on the menu** (`rib9-tile-coach`, `data-rib-action="coach"`, routed by
+  `rib-menu-navigation.js`): ON plays the tour the moment it is switched on and, on a first visit,
+  right after the game's own three welcome cards are clicked through. Those cards had been buried
+  under the v89 menu overlay since it arrived (z-index 190 against 9999 — nobody ever saw them, and
+  the checks' `window.o.tutorialSeen` trick was a no-op because the state is never on `window.o`);
+  v119 lifts them above the menu, so a new player reads the three cards and then meets the coach.
+  The tour switches itself OFF when it ends or is skipped (remembered in `rib.coachTour.v119`),
+  switching it ON replays it, and a tour cut short by a reload comes back at the next menu mount
+  until it is finished or skipped. The dev checks remove the cards without a click and never meet
+  it; `?coachTour` switches it on and starts it at the first mount. `window.__RIB_COACH` is the hook and
+  `scripts/coachcheck.mjs` the gate. Menu stamp → `v119-coach`.
+
 - **v118 — the quarterback's own sheets, and the mesh.** Four sheets drawn for the quarterback
   alone landed in `art/field/` (`qb_handoff_v118`, `qb_toss_v118`, `qb_throw_right_v118`,
   `qb_throw_cross_v118`) and `scripts/build-field-art.py` cuts them into the cells v108 already

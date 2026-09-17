@@ -65,8 +65,8 @@
     ['3', 'JV', 'Grades 9-10', '9', '2-3', '25%', '280,000'],
     ['4', 'Varsity', 'Grades 11-12', '10', '2-3', '12%', '110,000'],
     ['5', 'College', 'Fresh-Senior', '12', '2-4', '9%', '16,000'],
-    ['6', 'NFL Combine', 'Draft Year', '4', '1-3', '32%', '1,500'],
-    ['7', 'The NFL', 'The League', '17', '1+', '0.3%', '1,700'],
+    ['6', 'DFL Combine', 'Draft Year', '4', '1-3', '32%', '1,500'],
+    ['7', 'The DFL', 'The League', '17', '1+', '0.3%', '1,700'],
     ['8', 'Interstellar', 'Beyond Earth', '14', '1+', '—', '96'],
   ];
 
@@ -82,10 +82,10 @@
       seasons at a level are gone, the button to play another disappears and you declare — one roll,
       one shot. Miss it and the career ends there.</p>
       ${note('CAREERS ARE MEANT TO END.', 'This is not a game you win on the first run. A realistic first career walks up to Varsity, declares into College, and finishes there. Reaching College at all is a good first run — the game itself says a scholarship is rare.')}
-      <p>The NFL is not blocked by bad luck. It is blocked by your <b>potential ceiling</b>, and the
+      <p>The DFL is not blocked by bad luck. It is blocked by your <b>potential ceiling</b>, and the
       ceiling is raised by the prestige tree, which is bought with points earned by <b>finishing</b>
-      careers. A first NFL run is realistically a high-single-digit to low-double-digit number of
-      careers away. The Interstellar League — top 5 of 1,700, and gated behind winning an NFL
+      careers. A first DFL run is realistically a high-single-digit to low-double-digit number of
+      careers away. The Interstellar League — top 5 of 1,700, and gated behind winning an DFL
       championship — is a project beyond even that.</p>
       <h4>What actually carries over</h4>
       <p>The tree's <b>node levels</b>, far more than the prestige stars themselves. Run 2 is barely
@@ -136,7 +136,7 @@
       <p>So the first fifty points of a stat are worth far more rating than the fifth fifty. Past 99
       the scale keeps going — the top of this game is a long way above the top of a real one.</p>
       <h4>The tiers</h4>
-      ${tab(['OVR', 'THEY CALL YOU'], [['50', 'Prospect'], ['64', 'Draftable'], ['74', 'NFL Fringe'], ['80', 'NFL Starter'], ['85', 'Pro Bowler'], ['90', 'All-Pro'], ['95', 'Hall of Fame'], ['100', 'Transcendent'], ['140', 'Interstellar'], ['180', 'Galaxy-Class']])}
+      ${tab(['OVR', 'THEY CALL YOU'], [['50', 'Prospect'], ['64', 'Draftable'], ['74', 'DFL Fringe'], ['80', 'DFL Starter'], ['85', 'All-Star'], ['90', 'All-Pro'], ['95', 'Hall of Fame'], ['100', 'Transcendent'], ['140', 'Interstellar'], ['180', 'Galaxy-Class']])}
       ${note('BODY FIT IS THE BIGGEST FREE SWING IN THE GAME.', 'On top of the curve, how well your rolled body suits the position you chose is worth roughly −21 to +13 OVR. It costs nothing, it lasts forever, and it is one click on the position screen. Take the position your body fits.')}
       <h4>Height is real, and the screen never mentions it</h4>
       <p>Tackle leverage reads the actual height difference between the two men. A <b>shorter</b>
@@ -207,8 +207,8 @@
       ${tab(['SEVERITY', 'CHANCE'], [['A knock — no games missed', '45%'], ['One game', '33%'], ['Two games', '15%'], ['Three to five', '6.6%'], ['Season-ending', '0.4%']])}
       <p>Average cost: <b>0.9 games per injury</b>. Playing worn skews it worse — the average rises
       to 1.11. Across a real season that is roughly <b>one game missed per ten-game season</b> in
-      your prime, and about 2.4 games across a 17-game NFL season before the age and plan gates
-      (1.26 after them). A season-ender is about one season in ninety at NFL length.</p>
+      your prime, and about 2.4 games across a 17-game DFL season before the age and plan gates
+      (1.26 after them). A season-ender is about one season in ninety at DFL length.</p>
       ${note('THE 45% THAT COSTS NO GAMES IS NOT FREE.', 'Being hurt at all trips the worn condition: −10% on every attribute the engine reads AND −10% on the game grade that comes out of it, until it clears. You will play, and you will play worse.')}
       <h4>Fatigue</h4>
       <p>You start at <b>14</b>. Each week adds your plan (−10 for Recovery &amp; Treatment up to
@@ -279,9 +279,9 @@
         [`<b>${n}</b> ${name}<small>${ages}</small>`, games, seasons, share, field]), 'rib9-fq-ladder')}
       <p class="rib9-fq-cap">GM = regular-season games. SSNS = seasons you may spend there. UP = the
       share of the level that advances. FIELD = how many players are at that level with you.</p>
-      ${note('THE NFL IS NOT THE TOP.', 'The NFL is level 7. Level 8 is the Interstellar League — 96 players, and the call-up is gated behind winning an NFL championship, not merely ranking well.')}
+      ${note('THE DFL IS NOT THE TOP.', 'The DFL is level 7. Level 8 is the Interstellar League — 96 players, and the call-up is gated behind winning an DFL championship, not merely ranking well.')}
       <p>Playoffs: one round at levels 0–1, two at 2–5, <b>none at the Combine</b>, three at the
-      NFL, four at Interstellar. You qualify at a 60% win rate. The shortest possible road to the NFL
+      DFL, four at Interstellar. You qualify at a 60% win rate. The shortest possible road to the DFL
       is <b>15 seasons and 133 regular-season games</b>, ages 8 to 23.</p>
       ${note('YOU CANNOT FARM A LEVEL.', 'When your seasons at a level run out, the “play another season” button is simply gone and you must declare. Levels 0 to 2 give you no spare years at all.')}
       <h4>The call-up</h4>
@@ -291,7 +291,7 @@
         ['Varsity', '#13,200 of 110,000', '#13,200', '#19,800'],
         ['College', '#1,440 of 16,000', '#1,440', '#2,160'],
         ['Combine', '#480 of 1,500', '#480', '#720'],
-        ['NFL → Interstellar', '#5 of 1,700', '#5', '#10 is 4.9%'],
+        ['DFL → Interstellar', '#5 of 1,700', '#5', '#10 is 4.9%'],
       ], 'rib9-fq-callup')}
       <p>Sitting exactly on the advancing share is a coin flip. Top few hundred in the country and
       you are reading 95–98%. But the roll is <b>capped just short of certain</b> — no rank, not even
@@ -313,7 +313,7 @@
       ${list([
         '<b>Levels 0 through 4 are close to automatic.</b> The advancing shares are enormous (50%, 45%, 35%, 25%, 12% of huge fields), so anything short of a disaster leaves you far inside and your call-up reads around 98%. Expect to walk to Varsity.',
         '<b>College is where a first career usually ends.</b> It wants a rating a first-run player cannot reach. The <i>ceiling</i> is the wall, not the declare roll, and the two spare years generally cannot fix it.',
-        '<b>That is the design, not a failure.</b> Prestige pays 0.2 for a career ending at Varsity, 0.4 for College, about 0.8 for a first NFL run. A Path unlocks at 6 stars. You are farming the next man, and he starts taller.',
+        '<b>That is the design, not a failure.</b> Prestige pays 0.2 for a career ending at Varsity, 0.4 for College, about 0.8 for a first DFL run. A Path unlocks at 6 stars. You are farming the next man, and he starts taller.',
       ])}
       <h4>What the code actually rewards</h4>
       ${num([

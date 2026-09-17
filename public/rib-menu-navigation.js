@@ -55,6 +55,11 @@
       if (!window.__RIB_HOWTO) { console.warn('[RIB menu] the how-to-play view is not loaded'); return false; }
       return window.__RIB_HOWTO.open();
     }
+    // v119: the coach's tour tile is a switch — rib-menu-coach.js flips it and starts the tour
+    if (action === 'coach') {
+      if (!window.__RIB_COACH) { console.warn('[RIB menu] the coach is not loaded'); return false; }
+      return window.__RIB_COACH.toggle();
+    }
     if (/^view:/.test(action || '')) return routeView(action.slice(5));
     // The primary CTA doubles as START NEW CAREER: if no continue target
     // exists (no career yet, or the game relabeled it), fall through to new.

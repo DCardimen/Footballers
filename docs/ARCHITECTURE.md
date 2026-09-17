@@ -1155,6 +1155,80 @@ Three seams only the merged build could show, all fixed here rather than in a wo
   260 px, so a long touchdown left the scorer alone; and E's measurement moved the wings only when
   they were not already signalling, which with D's `measure` flag live was every time.
 
+## v119 — the coach's tour, and the DFL
+
+Anchor `v119 THE COACH'S TOUR` (`public/rib-menu-coach.js`; the styles in `rib-menu-coach.css`;
+the switch tile in `rib-menu.js`'s `renderMenu`; the `coach` action in `rib-menu-navigation.js`;
+both files in `bake-menu-into-index.mjs`'s lists). The art: `scripts/build-coach-art.py` cuts the
+three uploaded sheets (five rows by two columns each — the left column mouth closed, the right
+mouth open, one pose a row; a FIXED grid, because rows touch on one sheet and an alpha-band split
+merges them; the largest blob per cell, because a fixed cell can carry a sliver of the neighbour)
+into `public/coach/<pose>_{a,b}.webp` at 360px tall, plus `tile.webp`, the head off the welcome
+pose, for the menu. The fifteen poses: whoa, thinkcap, armscrossed, clipboard, relaxed, firedup,
+listen, shrug, flex, stop, welcome, tip, point, thumbsup, open.
+
+**The script.** `CHAPTERS` is twelve `{id, title, sub, lines}`; a line is `{p, t, s?}` — pose,
+text, an optional spotlight key into `S`. The chapters are the guide's nine sections in the guide's
+order (start, attrs, rating, position, points, body, week, ladder, first) between a kickoff, a
+walk round the menu's doors, and the final whistle; the text is the guide's facts in a coach's
+voice, and it must stay that way — nothing the guide does not say. `estimateMs()` is the scripted
+length at the pace constants (`TYPE_MS` 18 a character, `PUNCT_MS` after a stop, `HOLD_MS` +
+`HOLD_PER_CHAR` × length to read it, `CHAPTER_MS` at a turn): 9.1 minutes, and `coachcheck.mjs`
+holds it between 5 and 10.
+
+**The talking head.** `type()` writes the line a character at a time and `blip()`s each letter;
+`flap()` swaps the `<img>` between `<pose>_a` and `<pose>_b` in the shape of speech while
+`st.typing` — an open of 45–120 ms, a close of 55–140 ms, a further 90–240 ms shut when the letter
+just typed was a space or a stop (six times in ten), a close cut to half now and then (the double
+snap) — and `done()` leaves it closed; `voice.mouthLog` keeps the last eighty beats and the check
+proves their spread. **The voice** is WebAudio with no sound file: `voiceCtx()` makes one
+AudioContext on open (every open follows a gesture) and a master gain at 0.16; `blip(ch, pos, len)`
+plays one pitched blip per letter at most every `BLIP_GAP` (42 ms, a syllable rate) — a sawtooth
+at `118 Hz × 2^(semi/12)` with a square an octave under, through a bandpass whose centre and Q
+depend on the letter (vowels lower and narrower), `semi` = +4 for a vowel, the letter's own step
+(`code % 7 − 3`), a sentence contour (`sin(k·π)·2 − 2k`, lifting +3 late in a question) and a
+little jitter; vowels run 75–115 ms and slide down, consonants 45–70 ms and slide up, and
+s/f/h/t/k/p/x add a 30 ms high-passed noise burst. VOICE (`setVoice`, `rib.coachVoice.v119`) mutes;
+reduced motion keeps him quiet. `show()` sets the crumb, the bar, the chapter, the pose and the spotlight, then types.
+`tap()` (the bubble, the coach, Space, Enter, →) finishes a typing line or moves on; `next()` /
+`back()` walk lines then chapters; AUTO (`setAuto`) is the hold-then-next; SKIP and Escape call
+`finish('skip')`. Focus is trapped inside the dialog; `aria-live` on the text.
+
+**The dim and the spotlight.** `.rib-coach-dim` is the plain dim; `spotOn(key)` hides it and shows
+`.rib-coach-spot`, a rounded box whose `box-shadow: 0 0 0 200vmax` IS the dim with a hole in it,
+placed over `#rib-main-menu-v2 <selector>` after `scrollIntoView`, re-measured every animation
+frame (the menu re-renders its innerHTML, so the element is re-queried, never held). A target that
+is missing or has no box falls back to the plain dim. `body.rib-coach-open` desaturates the menu
+a little so the coach reads as the foreground.
+
+**The switch.** `enabled()` is `localStorage['rib.coachTour.v119'] !== 'off'` — a fresh install is
+ON. `toggle()` (the tile): open → skip; on → off; off → on and `open()`. `finish()` sets OFF and
+closes, so the tour never plays twice by accident; the tile's face is flipped in place by
+`refreshTile()` and read again by every `renderMenu`. `open()` refuses without the menu mounted
+and closes on `rib-menu-unmounted`, like the guide.
+
+**The first visit.** The game's own three welcome cards (`hr()`, `.onboard`, `#onNext`) had been
+appended at z-index 190 under the v89 menu overlay at 9999 since the menu arrived: nobody ever saw
+them, and the dev checks' `window.o.tutorialSeen = true` has always been a no-op (the state is
+never on `window.o`; only their `.onboard` removal does anything). v119 lifts `.onboard` to 10000,
+so a new player reads the cards. `watch()` (a MutationObserver on body, class changes included, so
+it sees `#splash` take `gone`) counts clicks on `#onNext` in the capture phase and, once the cards
+are gone after three of them with the switch ON, stores `'on'` and opens the tour 500 ms later
+(`openedBy: 'welcome'`); the checks, removing the cards unclicked, never reach that. Then, whenever
+the menu is mounted, the tour is closed and the film has left: `?coachTour` stores on and opens
+(`'query'`), and a store of `'on'` (switched on by hand or by the cards, and cut short) opens again
+(`'switch'`) — until `finish()` stores `'off'`.
+
+**The DFL.** Every `\bNFL\b` in the game's copy (index.html outside the data URLs, the menu, the
+guide, the check messages) is `DFL`, and `Pro Bowler` is `All-Star`. Identifiers stayed
+(`nflReached`, `continueNFL`, the `"nfl"` mastery key, `nflSeasons`): they are code. The level names
+are `DFL Combine` and `The DFL`, and the menu's level regex in `rib-menu.js` was moved with them.
+
+`window.__RIB_COACH`: `open(opts)`, `close`, `toggle`, `next`, `back`, `tap`, `skip`, `setAuto`,
+`setEnabled`, `enabled`, `isOpen`, `chapter`, `line`, `typing`, `flips`, `spot`, `auto`,
+`chapters`, `poses`, `estimateMs()`, `key`, and the counters `opens` / `closes` / `openedBy` /
+`closedBy` / `linesShown` / `last`. `scripts/coachcheck.mjs` is the gate.
+
 ## v118 — the quarterback's own sheets, and the mesh
 
 Anchors `v118 THE QUARTERBACK'S OWN SHEETS` (`scripts/build-field-art.py`) and `v118 THE MESH`
