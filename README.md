@@ -55,6 +55,25 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v131 — the price of starting over, in numbers.** When a career ends and you roll another one,
+  two screens decide the next man and neither of them gave you a number. The **origin draft** —
+  three cards, or four with the Expanded Origin Draft — described itself in prose ("Starts behind
+  physically, then develops faster after 16", "Better scouting clarity and stronger matchup
+  counters"), while every one of those is an exact edit to the sheet that `As` applies and not one
+  of the numbers was shown. `originSayV131` builds each card's list from its own `effects`, in the
+  same order they are applied, so a card cannot promise something the game does not do —
+  `−3 to Speed, Acceleration & Quickness · +6 Durability · +12 recovery`. Which is also how three
+  dead keys turned up: `pressure` (the Prodigy's "harsher evaluations"), `clutch` (the Small-Town
+  Prospect's whole identity) and `versatility` were in the data and read by **nothing**. Two are
+  real now — `pressNeedV131` raises the promotion bar the Prodigy is judged against, `clutchV131` is
+  a genuine +7 rating in playoff and rivalry games and nothing in a routine week — and the third
+  always was real, just delivered under another name (the position-change button is gated on that
+  origin). And the **reroll penalty**, the −5% on every attribute for abandoning a man unfinished,
+  sat on the position screen and the hub card and nowhere near the pregame — the screen you read
+  right before playing the season it is charging you for. It is on the pregame stat sheet now, and
+  named on the wizard's impact page with its exact percentage. `window.__V131`;
+  `scripts/origincheck.mjs` is the gate.
+
 - **v130 — Honors, not stars.** The game had two star ratings and they meant nothing like each
   other. One is the **recruit rating** — the 1–5 stars on a player, the thing scouts give him, the
   thing `drSoftCap` reads. The other was the **account's prestige**, drawn with the same ★ and

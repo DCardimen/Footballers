@@ -68,6 +68,14 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v131 THE PRICE OF STARTING OVER, IN NUMBERS` (beside `Je` / `As`) — `originSayV131(origin)` builds
+  each origin card's effect list from its own `effects`, in the order `As` applies them, so a card
+  cannot promise what the game does not do. `pressNeedV131` (the Prodigy's promotion bar) and
+  `clutchV131` (the Small-Town Prospect, in playoff and rivalry games) make two keys real that were
+  in the data and read by nothing; `versatility` was always delivered by the position-change gate.
+  `rerollNoteV112` is now on the pregame stat sheet (`pregamePlayerStatsV25`) and named on the v112 D
+  impact page. `window.__V131`; `origincheck.mjs`, then `v112Ccheck.mjs`, `v112Dcheck.mjs`,
+  `declarecheck.mjs`
 - `v130 HONORS, NOT STARS` (beside `Li` / `Xa`) — the account's rank is HONORS 🎖️, not a second
   star rating. `honorReqV130(req)` / `honorHasReqV130(req)` read the node key `honors` (still
   accepting the old `stars`), `honorsV130()` is what you have, `HONOR_ICON_V130` is the mark. The ★
@@ -495,6 +503,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the wordmark sheen / the camera flashes, lamps and sun on the hero (v107.1) | `sheencheck.mjs`, `heroflashcheck.mjs`, then `v102check.mjs`, `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the throw's facing / the release's timing / the dropback / the pre-snap stances (v107) | `v107check.mjs`, then `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `renderpathcheck.mjs`, `kitsidecheck.mjs` (LB) |
 | the loading animation's readiness / the warm in the head / the loader bar (v112 A) | `v112Acheck.mjs`, then `splashcheck.mjs`, `renderpathcheck.mjs`, `v86check.mjs` |
+| the origin draft's cards, an origin's effects, or where the reroll penalty is shown (v131) | `origincheck.mjs`, then `v112Ccheck.mjs`, `v112Dcheck.mjs`, `declarecheck.mjs`, `walk.mjs` |
 | the body he has vs the body he projects to / the trait choice / the reroll penalty (v112 C) | `v112Ccheck.mjs`, then `bodycheck.mjs`, `v85check.mjs`, `menu-integration-check.mjs`, `simcheck.mjs`, `creditcheck.mjs`, `walk.mjs` |
 | the pregame wizard's pages, its defaults and the way into the game (v112 D) | `v112Dcheck.mjs`, then `v111Bcheck.mjs`, `walk.mjs`, `splashcheck.mjs` |
 | the masts / the bowl's base band and entrance / the stars / the near edge's distortion (v112 B) | `v112Bcheck.mjs`, then `v98check.mjs`, `v99check.mjs`, `v100check.mjs`, `v102check.mjs`, `v92check.mjs`, `v86check.mjs`, `crowdcheck.mjs`, `sidelinecheck.mjs` |
