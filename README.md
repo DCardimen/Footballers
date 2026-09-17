@@ -55,6 +55,27 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v128 — rivalry week means something.** Rivalry Week offered five choices and told you nothing
+  about any of them. "+Big performance, real injury risk" is not a number; "Safe, solid game" is not
+  a number; and "Needs strong Grit or it backfires" named **84 Grit at Middle School** — a line
+  essentially nobody clears — so the option was a trap that silently took a −1.6× rating penalty
+  when you picked it. There was also no rivalry *game*: the stage was a season-wide modifier wearing
+  a fixture's name, and one of its five effects (`rank`) was read by nothing at all. Now:
+  **every option states its effects as numbers**, built from its own `eff` so the card can never
+  drift from the model — the rating it adds to every game, the injury multiplier, the attributes it
+  pays at season's end, the chance the staff sits you for it. **Variance is a real multiplier**
+  (`eff.varMult`), applied to every game's rating around 50 exactly the way the persona sliders do
+  it, and the card says what wide *means*: the good games get better **and** the bad ones get worse.
+  **Every option but the safe one is locked** behind an attribute at a reachable line (+9 a level,
+  not the old +22): the card says the number you need and the number you have, and `chooseEvent`
+  refuses it — a choice you cannot make beats a choice that punishes you for making it.
+  **And the fixture is real**: one mid-season week is THE rivalry, against a side ~27% stronger than
+  the rest of the slate and hitting 18% harder, and it is the only rivalry on the schedule.
+  Everything it pays lands **double** — the coach-trust swing, the injury roll, and a real bonus to
+  the season's attribute growth if you win it. One more fix fell out of it: the season choice's own
+  rating swing rode the *silent* path only, so the week you actually played never saw it and the
+  card promised a number the game did not pay. `window.__V128`; `scripts/rivalcheck.mjs` is the gate.
+
 - **v127 — door two can load its own film.** v115 made the live game's loader *borrow* the element
   the boot splash loaded — one decoded film a session, no second request. Taking it is the fast
   path, but it was the **only** path: with nothing parked (the splash left before the film played,

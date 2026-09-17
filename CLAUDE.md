@@ -68,6 +68,15 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v128 RIVALRY WEEK MEANS SOMETHING` (beside `Da`, over the `Za` story stages) — `rivalSayV128`
+  builds each option's effect list FROM its own `eff` (so card and model cannot drift),
+  `rivalVarV128` turns `eff.varMult` into a band and a sentence, and `rivalLockV128` /
+  `rivalReqV128` (+9 a level, not `Da`'s +22) make every option but the safe one a real LOCK —
+  `chooseEvent` refuses it. `rivalWeekV128(games)` is the fixture: the v11 `ls` lifts that
+  opponent (rating, both units, physicality), marks the row `rivalV128`, downgrades any other
+  rivalrous week, and rolls the bench chance once for the season; `ca()` doubles its injury, applies
+  the variance reshape, and — new — finally feeds the season choice's own `perf` into the week you
+  actually play. `window.__V128`; `rivalcheck.mjs`, then `simcheck.mjs`, `v85check.mjs`, `injurycheck.mjs`
 - `v127 DOOR TWO CAN LOAD ITS OWN FILM` (in the v94 live-loader mount, beside `LIVE_FILM_FROM`) —
   `F.take()` is the fast path, not the only one: with nothing parked, door two builds its own
   `<video>` on `__V114.src` (cached) rather than falling back to the chase forever. A self-built
@@ -490,6 +499,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | training / skill art, the skill atlas | `skillartcheck.mjs`, `wheelcheck.mjs` |
 | the training programs — what a program trades away, the fate roll and its odds, or what the coach recommends (v124) | `traincheck.mjs`, then `capcheck.mjs`, `v85check.mjs`, `skillartcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs` |
 | the next-opponent card, the wear-and-tear copy, the pregame bars or the season screen's tabs (v126) | `v112Dcheck.mjs`, `v111Bcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs`, then `namecheck.mjs`, `walk.mjs`, `shot.mjs` |
+| Rivalry Week — what an option does, what it takes, how wide it swings, or the rivalry fixture itself (v128) | `rivalcheck.mjs`, then `simcheck.mjs`, `v85check.mjs`, `injurycheck.mjs`, `walk.mjs` |
 | the offseason training board — the grid, the preview sheet, the confirm (v113) | `skillartcheck.mjs`, `capcheck.mjs`, `v85check.mjs`, then `walk.mjs`, `scrollcheck.mjs`, `shot.mjs` |
 | the crowd, the sideline, the team area | `crowdcheck.mjs`, `sidelinecheck.mjs` |
 | the declare / career-end screens | `declarecheck.mjs` |
