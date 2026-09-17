@@ -54,6 +54,38 @@
     name: 'parent:#screen .name-hint-v96', team: 'find:🏟',   // the name he can rename, the team line on the hub card
   };
 
+  /* ===== v122 THE SEASON DEBRIEF, IN HIS MOUTH =====
+   * The season report card is numbers with no verdict. `window.__DEBRIEF_V122` (index.html) works
+   * out what the season actually did — from the week rows it reads before the roll clears them —
+   * and hands over a head line, a focus for next season and a weighted list of notes. He says the
+   * head, the loudest four notes, then the focus. Nothing here is written in advance: every line
+   * is that season's own numbers, which is the only way a debrief is worth hearing.
+   *
+   * It is NOT part of the first-week walk. A report card comes round every season, so it fires on
+   * every one (once — `rib.debriefSeen.v122` holds the season number) whether the tour is on or
+   * off; SKIP on it silences it for good (`rib.debriefOff.v122`). */
+  const DEBRIEF_OFF = 'rib.debriefOff.v122';
+  const debrief = () => { try { return (window.__DEBRIEF_V122 && window.__DEBRIEF_V122.get()) || null; } catch (e) { return null; } };
+  const debriefOff = () => store.get(DEBRIEF_OFF) === 'off';
+  const debriefDue = () => { const d = debrief(); if (!d || debriefOff()) return null;
+    let seen = null; try { seen = window.__DEBRIEF_V122.lastSeen(); } catch (e) {}
+    return String(seen) === String(d.season) ? null : d; };
+  const NOTE_POSE = { fatigue: 'listen', injury: 'stop', expect: 'clipboard', luck: 'shrug', rank: 'tip', track: 'point', snaps: 'armscrossed' };
+  function debriefLinesV122() {
+    const d = debrief(); if (!d) return null;
+    const all = d.notes || [];
+    // the ladder is always said — where he ranks and whether he is on track is the question the
+    // report card exists to answer — and the loudest of the rest fill the other three
+    const track = all.filter((n) => n.k === 'track');
+    const rest = all.filter((n) => n.k !== 'track').slice(0, Math.max(0, 4 - track.length));
+    const say = track.concat(rest).sort((a, b) => b.weight - a.weight);
+    const L = [{ p: 'clipboard', t: 'Season\'s done. ' + d.head }];
+    say.forEach((n) => L.push({ p: NOTE_POSE[n.k] || 'open', t: n.head + '. ' + n.body }));
+    if (d.focus) L.push({ p: 'tip', t: 'Next season: ' + d.focus.program + '. ' + d.focus.why });
+    L.push({ p: 'firedup', t: 'That is your year. Spend your points, then go again.' });
+    return L;
+  }
+
   // ---- the stops: one per screen, in the order a first week meets them ---------------------------
   // { id, title, sub, when(ctx) → bool, lines: [{ p: pose, t: text, s?: spotlight key }], delay?, last? }
   // ctx: { view, menu, wheel, pregame, post, persona, live }
@@ -125,6 +157,7 @@
       { p: 'listen', t: "Good game? I trust you more and you get more snaps. Bad game? The opposite. Your rank follows your stats." },
       { p: 'point', t: "And every game costs the body something. Check YOUR BODY before next week." },
     ] },
+    { id: 'debrief', title: 'THE SEASON', sub: 'WHAT THE YEAR SAYS', when: (c) => c.view === 'result' && !!debriefDue(), build: debriefLinesV122, delay: 900, every: true },
     { id: 'recovery', title: 'RECOVERY', sub: 'THE BODY AFTER A GAME', when: (c) => c.view === 'season' && !c.wheel && !c.pregame && !c.post && c.seen.has('result'), lines: [
       { p: 'open', t: "Back on the season screen. Your guy took some hits. WEAR & TEAR is what the season is costing him. NEXT GAME is the injury risk.", s: 'body' },
       { p: 'stop', t: "Worn out means he plays worse AND grades worse. Feeling fatigued? Play fewer snaps. Let him recover. Fatigue changes how he plays." },
@@ -134,7 +167,7 @@
   ];
 
   // ---- state ----------------------------------------------------------------------------------
-  const st = { open: false, stop: null, li: 0, typing: false, auto: true, timer: 0, mouth: 0, raf: 0, spot: null, tap: false, flips: 0, text: '', pos: 0, preloaded: false };
+  const st = { open: false, stop: null, li: 0, lines: null, typing: false, auto: true, timer: 0, mouth: 0, raf: 0, spot: null, tap: false, flips: 0, text: '', pos: 0, preloaded: false };
   let armed = true, queryDone = false, onboardClicks = 0, sawOnboard = false, welcomed = false, pending = 0, pendingId = null, popSince = 0, popEl = null;
 
   const store = {
@@ -174,7 +207,7 @@
   }
   // the first UNSEEN stop whose screen this is: a screen he has already talked on (the season screen,
   // before and after the game) falls through to the next stop that fits it
-  function currentStop() { const c = ctx(); for (const S0 of STOPS) { if (c.seen.has(S0.id)) continue; try { if (S0.when(c)) return S0; } catch (e) { /* a page mid-render */ } } return null; }
+  function currentStop() { const c = ctx(); for (const S0 of STOPS) { if (!S0.every && c.seen.has(S0.id)) continue; try { if (S0.when(c)) return S0; } catch (e) { /* a page mid-render */ } } return null; }
 
   // ---- markup ---------------------------------------------------------------------------------------
   function markup() {
@@ -201,7 +234,8 @@
       </div>`;
   }
   const q = (sel) => { const r = document.getElementById(ID); return r ? r.querySelector(sel) : null; };
-  const line = () => st.stop.lines[st.li];
+  const lines = () => st.lines || st.stop.lines;      // v122: a `build()` stop makes its lines when it opens
+  const line = () => lines()[st.li];
   const stopIndex = (id) => STOPS.findIndex((S0) => S0.id === id);
 
   // ---- the pictures --------------------------------------------------------------------------------------
@@ -320,12 +354,16 @@
   // ---- playing a line ---------------------------------------------------------------------------------------
   function show() {
     const root = document.getElementById(ID); if (!root || !st.stop) return;
-    const S0 = st.stop, L = line(), i = stopIndex(S0.id), lastLine = st.li === S0.lines.length - 1;
-    q('[data-c-crumb]').textContent = (i + 1) + ' / ' + STOPS.length + ' · ' + S0.title;
+    const S0 = st.stop, LS = lines(), L = line(), i = stopIndex(S0.id), lastLine = st.li === LS.length - 1;
+    // v122: an `every` stop (the season debrief) is not a step of the walk — its crumb and bar are
+    // its own, and its SKIP silences that stop rather than the tour
+    const solo = !!S0.every, d122 = solo ? debrief() : null;
+    q('[data-c-crumb]').textContent = solo ? ((d122 ? 'SEASON ' + d122.season + ' · ' : '') + S0.title) : ((i + 1) + ' / ' + STOPS.length + ' · ' + S0.title);
     q('[data-c-ch]').textContent = S0.title; q('[data-c-sub]').textContent = S0.sub;
-    q('[data-c-bar]').style.width = Math.round(100 * (i + (st.li + 1) / S0.lines.length) / STOPS.length) + '%';
+    q('[data-c-bar]').style.width = Math.round(100 * (solo ? (st.li + 1) / LS.length : (i + (st.li + 1) / LS.length) / STOPS.length)) + '%';
+    const skip = q('[data-c-skip]'); if (skip) { skip.innerHTML = (solo ? 'SKIP' : 'SKIP TOUR') + ' <i>×</i>'; skip.setAttribute('aria-label', solo ? 'Skip the season debrief, and do not show it again' : 'Skip the tour'); }
     q('[data-c-back]').disabled = st.li === 0;
-    q('[data-c-next]').textContent = lastLine ? (S0.last ? 'DONE ✓' : 'GOT IT ›') : 'NEXT ›';
+    q('[data-c-next]').textContent = lastLine ? ((S0.last || solo) ? 'DONE ✓' : 'GOT IT ›') : 'NEXT ›';
     root.dataset.stop = S0.id; root.dataset.pose = L.p; st.tap = !!L.tap;
     mouth(false); spotOn(L.s || null);
     type(L.t);
@@ -348,18 +386,20 @@
     st.typing = false; clearTimeout(st.timer); mouth(false); clearTimeout(st.mouth);
     const p = q('[data-c-text]'); if (p) p.textContent = st.text;
     // the lines play on; the LAST line of a stop waits for the player (he has a screen to use)
-    if (st.auto && st.stop && st.li < st.stop.lines.length - 1) st.timer = setTimeout(next, HOLD_MS + HOLD_PER_CHAR * st.text.length);
+    if (st.auto && st.stop && st.li < lines().length - 1) st.timer = setTimeout(next, HOLD_MS + HOLD_PER_CHAR * st.text.length);
   }
   function tap() { if (st.typing) done(); else next(); }
   function next() {
     clearTimeout(st.timer); if (!st.stop) return;
-    if (st.li < st.stop.lines.length - 1) { st.li++; show(); return; }
-    const S0 = st.stop; markSeen(S0.id);
+    if (st.li < lines().length - 1) { st.li++; show(); return; }
+    const S0 = st.stop;
+    if (S0.id === 'debrief') { const d = debrief(); try { if (d) window.__DEBRIEF_V122.seen(d.season); } catch (e) {} close('gotit'); return; }
+    markSeen(S0.id);
     if (S0.last) { finish('done'); return; }
     close('gotit');
   }
   function back() { clearTimeout(st.timer); if (st.li > 0) { st.li--; show(); } }
-  function setAuto(v) { st.auto = !!v; const b = q('[data-c-auto]'); if (b) { b.classList.toggle('on', st.auto); b.setAttribute('aria-pressed', String(st.auto)); } if (st.auto && !st.typing && st.stop && st.li < st.stop.lines.length - 1) st.timer = setTimeout(next, HOLD_MS); if (!st.auto) clearTimeout(st.timer); }
+  function setAuto(v) { st.auto = !!v; const b = q('[data-c-auto]'); if (b) { b.classList.toggle('on', st.auto); b.setAttribute('aria-pressed', String(st.auto)); } if (st.auto && !st.typing && st.stop && st.li < lines().length - 1) st.timer = setTimeout(next, HOLD_MS); if (!st.auto) clearTimeout(st.timer); }
 
   // ---- open / close -------------------------------------------------------------------------------------------
   function open(stopId, opts) {
@@ -370,6 +410,7 @@
     root.innerHTML = markup();
     document.body.appendChild(root); document.body.classList.add('rib-coach-open');
     st.open = true; st.stop = S0; st.li = 0; st.flips = 0; st.auto = !(opts && opts.auto === false);
+    st.lines = null; if (S0.build) { try { st.lines = S0.build(); } catch (e) { st.lines = null; } if (!st.lines || !st.lines.length) { st.open = false; st.stop = null; root.remove(); document.body.classList.remove('rib-coach-open'); return false; } }
     try { const H = window.__RIB_COACH; H.opens = (H.opens || 0) + 1; H.openedBy = (opts && opts.by) || 'page'; H.openedStop = stopId; } catch (e) { /* the hook */ }
     bind(root); if (voiceOn() && !reduced()) voiceCtx();
     preload().then(() => { if (document.getElementById(ID) && st.stop === S0) { root.classList.add('rib-coach-ready'); show(); (q('[data-c-next]') || root).focus({ preventScroll: true }); } });
@@ -382,7 +423,11 @@
     try { const H = window.__RIB_COACH; H.closes = (H.closes || 0) + 1; H.closedBy = why || 'close'; } catch (e) { /* the hook */ }
     return true;
   }
-  function finish(why) { setEnabled(false); close(why || 'done'); }   // the walk is over, or skipped: the switch goes OFF and remembers
+  function finish(why) {
+    // v122: SKIP on the season debrief silences the DEBRIEF — the tour's own switch is not his to flip
+    if (st.stop && st.stop.id === 'debrief') { const d = debrief(); store.set(DEBRIEF_OFF, 'off'); try { if (d) window.__DEBRIEF_V122.seen(d.season); } catch (e) {} close(why || 'skip'); return; }
+    setEnabled(false); close(why || 'done');   // the walk is over, or skipped: the switch goes OFF and remembers
+  }
 
   function bind(root) {
     root.addEventListener('click', (ev) => {
@@ -428,7 +473,17 @@
     if (menu && armed && !queryDone && /[?&]coachTour\b/.test(location.search)) { queryDone = true; armed = false; resetSeen(); setEnabled(true); open('menu', { by: 'query' }); return; }
     if (menu && armed && sawOnboard && !welcomed && onboardClicks >= 3 && enabled()) {   // the cards clicked through (a fresh install is ON): the coach takes over
       welcomed = true; armed = false; resetSeen(); setEnabled(true); setTimeout(() => { if (!st.open && document.getElementById('rib-main-menu-v2')) open('menu', { by: 'welcome' }); }, 500); return; }
-    if (state() !== 'on') return;                                        // only a walk switched on by hand (or by the cards) follows the screens
+    if (state() !== 'on') {   // v122: the tour is off, but a season debrief is its own thing and still comes round
+      const d = debriefDue(); if (!d || st.open) return;
+      const S0 = STOPS.find((x) => x.id === 'debrief'); let fits = false; try { fits = S0.when(ctx()); } catch (e) {}
+      if (!fits) { pendingId = null; clearTimeout(pending); pending = 0; return; }
+      if (pendingId === 'debrief') return;
+      clearTimeout(pending); pendingId = 'debrief';
+      pending = setTimeout(() => { pending = 0; pendingId = null; if (st.open || !debriefDue()) return;
+        let ok2 = false; try { ok2 = S0.when(ctx()); } catch (e) {}
+        if (ok2) open('debrief', { by: 'season' }); }, S0.delay || 900);
+      return;
+    }
     const cur = currentStop(); if (!cur) { pendingId = null; clearTimeout(pending); pending = 0; return; }
     if (pendingId === cur.id) return;
     clearTimeout(pending); pendingId = cur.id;
@@ -444,7 +499,7 @@
 
   function estimateMs() {
     let ms = 0;
-    STOPS.forEach((S0) => S0.lines.forEach((L) => { const n = L.t.length, punct = (L.t.match(/[.!?]/g) || []).length, commas = (L.t.match(/[,;:]/g) || []).length;
+    STOPS.forEach((S0) => (S0.lines || []).forEach((L) => { const n = L.t.length, punct = (L.t.match(/[.!?]/g) || []).length, commas = (L.t.match(/[,;:]/g) || []).length;
       ms += 120 + n * TYPE_MS + punct * PUNCT_MS + commas * PUNCT_MS * 0.5 + HOLD_MS + HOLD_PER_CHAR * n; }));
     return ms;
   }
@@ -454,7 +509,8 @@
     get enabled() { return enabled(); }, get isOpen() { return !!document.getElementById(ID); },
     get stop() { return st.stop ? st.stop.id : null; }, get chapter() { return st.stop ? st.stop.id : null; }, get line() { return st.open ? st.li : -1; }, get typing() { return st.typing; },
     get flips() { return st.flips; }, get spot() { return st.spot; }, get auto() { return st.auto; }, get seen() { return [...seen()]; },
-    stops: STOPS.map((S0) => ({ id: S0.id, title: S0.title, lines: S0.lines.length })), poses: POSES.slice(), estimateMs, key: KEY, seenKey: SEEN_KEY,
+    stops: STOPS.map((S0) => ({ id: S0.id, title: S0.title, lines: (S0.lines || (S0.id === 'debrief' && debriefLinesV122()) || []).length })), poses: POSES.slice(), estimateMs, key: KEY, seenKey: SEEN_KEY,
+    debrief: { get: debrief, due: debriefDue, lines: debriefLinesV122, get off() { return debriefOff(); }, setOff: (v) => store.set(DEBRIEF_OFF, v ? 'off' : 'on'), key: DEBRIEF_OFF },
     voice: { setEnabled: setVoice, get enabled() { return voiceOn(); }, get blips() { return voice.blips; }, get state() { return voice.ctx ? voice.ctx.state : null; }, get mouthLog() { return voice.mouthLog.slice(); }, key: VOICE_KEY },
   };
 })();

@@ -68,6 +68,20 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v122 A` (the result-view injector) / `v122 THE SEASON DEBRIEF` (above `SEASON_LOG_MAX`) — the
+  depth card anchored on `.season-grade`, the grade LETTER inside the 112px `.grade-ring`, so it
+  rendered INSIDE the ring and smeared over the whole report screen; it anchors on the CARD now.
+  `capV122()` reads the week rows in front of the season roll (it clears them), `buildV122()` joins
+  them to `seasonStats` + `__RANK_V52.sn()` and returns `{head, focus, notes[] (weighted), rank,
+  chance, need, seasonsLeft}`; `window.__DEBRIEF_V122`. The coach says it: a `build()` stop makes
+  its lines when it opens, `every: true` exempts it from the seen-set, it fires on the report card
+  with the tour ON or OFF (once a season, `rib.debriefSeen.v122`), and its SKIP writes
+  `rib.debriefOff.v122` without touching the tour switch. `coachcheck.mjs` (it plays a season)
+- `v121 THE FOOTBALL IS THE LAST RESORT` (in the splash boot, beside `mountChase()`) — the 🏈 in
+  `.splash-stage` is `display:none` until `ballStandsIn()` adds `#splash.ball`, which needs the film
+  to have stood down AND the v91 sheet to have failed. It used to paint at first paint and hide when
+  the film or the chase claimed the stage, which flashed an old-looking loader for a second before
+  the sting. `splashcheck.mjs`, `v112Acheck.mjs`
 - `v120 THE COACH DECIDES YOUR SNAPS` (beside `USE_V111`) / `v120 FATIGUE IS A SLOPE` (beside
   `condMultV54`) — NORMAL on the pregame ladder is the share the coach trusts you with
   (`trustShareV120`: ~half at trust 28, all at 100), LIMITED/REDUCED multiply it, HEAVY/EVERY ASK for
@@ -405,6 +419,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the silent path's story rolls / the upgrade sheet's numbers / the menu ring (v90) | `v90check.mjs`, `v85check.mjs` |
 | the main menu / its feed / menu art (v89) | `menu-integration-check.mjs`, `menushot.mjs` (`CAREER=1`), `menu-preview-shot.mjs` |
 | the pregame ladder's snaps, the asking-above-your-share price, coach trust's say, the fatigue slope (v120) | `v111Acheck.mjs`, `v111Bcheck.mjs`, `v112Dcheck.mjs`, then `v85check.mjs`, `creditcheck.mjs`, `simcheck.mjs`, `scoreneutralcheck.mjs`, `faqcheck.mjs` |
+| the season report card's layout, the season debrief and what the coach says about your year (v122) | `coachcheck.mjs` (it plays a whole season to the report card), then `v85check.mjs`, `postgamecheck.mjs`, `declarecheck.mjs`, `walk.mjs` |
 | the coach — the switch, the stops and which screen each keys on, the talking head, the spotlights, the TAP HERE hand, the first-visit start; any DFL / league copy (v119) | `python3 scripts/build-coach-art.py` (if a sheet changed), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any menu file), then `coachcheck.mjs`, `faqcheck.mjs`, `menu-integration-check.mjs`, `walk.mjs` |
 | which way the throw goes / the drawn handoff and pitch / which frames draw the ball (v108) | `v108check.mjs`, then `v107check.mjs`, `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `kitsidecheck.mjs` (LB), `v104check.mjs` |
 | the QB sheets — the reach, the pitch, the throw both ways, the mesh step, hand vs pitch (v118) | `node scripts/build-field-art.mjs` (read the printed `HAND_V108` / `BALL_DRAWN_V108` back into index.html), then `v108check.mjs`, `v107check.mjs`, `v105check.mjs`, `v91check.mjs`, `v104check.mjs`, `renderpathcheck.mjs` |
