@@ -18,13 +18,13 @@
 //      and his effective rating falls; dialled back to "limited" the load is paid off again.
 //
 // Env: GAME_URL (default http://localhost:5191/index.html), BASE_URL (the pre-v111 build, for
-// the identity test — skipped when unset), GAMES (per involvement key, default 90), AB (games
+// the identity test — skipped when unset), GAMES (per involvement key, default 150), AB (games
 // for the identity test, default 30), POS (default RB).
 import { chromium } from 'playwright'
 
 const URL = process.env.GAME_URL || 'http://localhost:5191/index.html'
 const BASE = process.env.BASE_URL || ''
-const N = Number(process.env.GAMES || 90)
+const N = Number(process.env.GAMES || 150)   // v120: 90 left the team-spread verdict inside its own sampling noise
 const AB = Number(process.env.AB || 30)
 const POS = process.env.POS || 'RB'
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
@@ -126,7 +126,8 @@ const res = await page.evaluate(({ N, POS }) => {
       .reduce((bad, p) => bad.concat(V.focusFor(p).filter(x => V.SIM_KEYS.indexOf(x.stat) < 0).map(x => p + ':' + x.stat)
         .concat((V.focusFor(p).flatMap(x => (x.also || []).map(k => [p, x.key, k]))).filter(([, , k]) => V.SIM_KEYS.indexOf(k) < 0).map(([p2, kk, k]) => p2 + ':' + kk + '→' + k))), []),
     buffNull: V.buffFor(undefined) === null,
-    normalIsNoop: u.key === 'normal' && u.share === 1 && u.touchMul === 1
+    // v120: NORMAL is the share the coach trusts him with (trustShareV120), not every snap; the ball is untouched
+    normalIsNoop: u.key === 'normal' && u.touchMul === 1 && u.share > .2 && u.share <= 1 && Math.abs(u.share - window.__V120.trustShare(pl)) < 1e-9
   }
 
   // ---- 3/4. the dial reaches the snap ---------------------------------------------------
@@ -148,7 +149,7 @@ const res = await page.evaluate(({ N, POS }) => {
   wk().usageV111 = 'normal'
   const lim = R.dial[0], nor = R.dial[2], hev = R.dial[3], evr = R.dial[4]
   R.dialVerdict = {
-    snapsFell: lim.snapPct < 62 && lim.snapPct > 46,                       // he really is off the field
+    snapsFell: lim.snapPct > 15 && lim.snapPct < (R.dial.find(r => r.key === 'normal') || { snapPct: 100 }).snapPct - 8,   // he really is off the field (v120: NORMAL itself is the coach's share, so LIMITED is measured against it)
     statsFell: lim.prod < nor.prod * 0.72 && lim.touch < nor.touch * 0.72, // and it shows on the sheet
     statsRose: evr.prod > nor.prod * 1.12 && evr.touch > nor.touch * 1.12,
     ladder: lim.touch < nor.touch && nor.touch < hev.touch && hev.touch <= evr.touch,
@@ -376,7 +377,7 @@ ok(A.focusN === 3 && A.focusShape, 'focusFor() must return exactly 3 {key,name,i
 ok(A.focusEveryPos.length === 0, 'focusFor() does not cover every position with real attributes', A.focusEveryPos)
 ok(A.focusDeadStats.length === 0, 'a focus names a stat FieldSim never asks for — it would do nothing on the field', A.focusDeadStats)
 ok(A.buffNull, 'buffFor() must be null with no focus picked')
-ok(A.normalIsNoop, 'usage() at "normal" must be share 1 / touchMul 1', A)
+ok(A.normalIsNoop, 'usage() at "normal" must be the coach\'s trust share (v120) / touchMul 1', A)
 
 const D = res.dialVerdict
 ok(D.snapsFell, 'at "limited" his share of snaps did not fall to the dial', res.dial)

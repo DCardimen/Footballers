@@ -216,7 +216,7 @@
       With typical recovery and 40 snaps that lands around:</p>
       ${tab(['WEEKLY PLAN', 'FATIGUE / WEEK'], [['Recovery &amp; Treatment', '−11.6'], ['Disciplined Execution', 'about flat'], ['Chase the Highlight', '+14.4']])}
       ${list([
-        '<b>70 and above: worn.</b> −10% on everything, and worse injuries.',
+        '<b>Fatigue is a slope.</b> Nothing to 40, then a straight line down: −10% on everything at 70, −20% at 100 — and worse injuries all the way down.',
         '<b>25 and below: fresh.</b> +5% on everything.',
         'Three aggressive weeks in a row put a fresh body past the worn line.',
         'Sitting a game out sheds 22. The offseason caps you at 30, so you never start a season worse than that.',
@@ -255,6 +255,12 @@
       ${note('SNAPS CAP YOUR PERFORMANCE.', 'Below a 12% share your performance cannot exceed 76. Below 22% it caps at 84. Below 35% it caps at 92. You cannot grade out of a role you are not playing in — so climbing the chart early in a season is not a nicety, it is the ceiling on everything downstream, including your national rank.')}
       <p>Starting on the bench and playing your way up inside a season is the normal shape of a year.
       Expect it; do not panic at it.</p>
+      <h4>The coach decides your snaps</h4>
+      <p>NORMAL on the pregame screen is the share of your unit's snaps the coach trusts you with —
+      about <b>half</b> for a stranger, all of them once he trusts you. Ask for more (HEAVY, EVERY
+      SNAP) and he gives you a <b>part</b> of the extra, more the more he trusts you; the asking
+      itself multiplies your wear and your injury risk, and that multiplier fades to nothing at full
+      trust. More trust is more say, and only ever for <i>more</i> snaps.</p>
       <h4>The season grade</h4>
       <p>Your season is compared to a bar that is the <b>highest</b> of: a per-level floor, your
       rating against the level’s benchmark, a prestige term, and a memory of your own last season.

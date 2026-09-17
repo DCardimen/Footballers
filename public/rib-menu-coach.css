@@ -15,6 +15,15 @@ body.rib-coach-open #rib-main-menu-v2,body.rib-coach-open #app{filter:saturate(.
 .rib-coach-spot{position:absolute;border-radius:14px;box-shadow:0 0 0 200vmax rgba(5,6,9,.74),0 0 0 2px var(--g2) inset,0 0 26px rgba(255,214,107,.45);pointer-events:none;
   transition:left .28s ease,top .28s ease,width .28s ease,height .28s ease}
 .rib-coach-spot[hidden]{display:none}
+/* a thing he wants TAPPED: the cut-out pulses gold and a hand sits over it */
+.rib-coach-spot.tap{outline:3px solid var(--g2);outline-offset:4px;animation:ribCoachPulse 1.1s ease-in-out infinite}
+.rib-coach-tap{position:absolute;z-index:3;display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:linear-gradient(180deg,var(--g2),var(--g));color:#0b0c0f;
+  font-family:Oswald,sans-serif;font-size:11px;letter-spacing:2px;font-weight:700;white-space:nowrap;box-shadow:0 8px 20px rgba(0,0,0,.55),0 0 0 2px rgba(255,214,107,.35);pointer-events:none;animation:ribCoachTap .9s ease-in-out infinite}
+.rib-coach-tap[hidden]{display:none}
+.rib-coach-tap i{font-style:normal;font-size:17px;line-height:1}
+.rib-coach-tap.below i{display:inline-block;transform:rotate(180deg)}
+@keyframes ribCoachTap{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes ribCoachPulse{0%,100%{outline-color:var(--g2);outline-offset:4px}50%{outline-color:rgba(255,214,107,.35);outline-offset:8px}}
 .rib-coach-top{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:9px;padding:max(10px,env(safe-area-inset-top)) 12px 8px;
   background:linear-gradient(180deg,rgba(11,12,15,.92),rgba(11,12,15,0));z-index:2}
 .rib-coach-top .rib9-mark{flex:none;width:30px;height:32px;font-size:11px}
@@ -61,6 +70,7 @@ body.rib-coach-open #rib-main-menu-v2,body.rib-coach-open #app{filter:saturate(.
 }
 @media (prefers-reduced-motion:reduce){
   .rib-coach-man,.rib-coach-bubble,.rib-coach-spot,.rib-coach-bar b{transition:none}
+  .rib-coach-tap,.rib-coach-spot.tap{animation:none}
   .rib-coach-turn .rib-coach-bubble{animation:none}
   .rib-coach-text::after{animation:none}
 }

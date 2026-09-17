@@ -288,7 +288,7 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 @keyframes badgeSnapV95{0%{transform:translateX(-120%) rotate(-6deg);opacity:1}60%{transform:translateX(0) rotate(-6deg);opacity:1}to{transform:translateX(0) rotate(-6deg);opacity:0}}
 @media (prefers-reduced-motion:reduce){.rib-badge-rays-v95{animation:none}}
 </style>
-<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v119-coach-plain"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v119-coach-plain"><link rel="stylesheet" href="./public/rib-menu.css?v=v119-coach-plain"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v119-coach-plain"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=v119-coach-plain"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
+<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v120-snaps2"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v120-snaps2"><link rel="stylesheet" href="./public/rib-menu.css?v=v120-snaps2"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v120-snaps2"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=v120-snaps2"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
 <body>
 <div id="splash">
 <div class="splash-inner">
@@ -14134,6 +14134,10 @@ function injChanceV54(e,opts){
   if(Oe(e,"ironFrame"))m*=.7;
   if(Oe(e,"glassBones"))m*=1.35;
   m*=Math.max(.15,1-G("injDown")-Ze("injDown"))*(ft("injMult")||1);
+  /* v120: asking the coach for more snaps than he trusts you with is a term in THIS roll too — the
+   * forecast passes it; a game-day caller with just the week gets it read off the week's dial */
+  let askK=1;try{askK=opts.askMul!=null?Number(opts.askMul):(opts.wk&&opts.wk.usageV111&&window.__V120?window.__V120.askMul(e,opts.wk.usageV111):1)}catch(_){askK=1}
+  m*=f(askK||1,1,3);
   return f(m,.015,.55);
 }
 /* v54: a young body bounces back, but it must not ERASE the injury — the age band
@@ -14166,12 +14170,23 @@ function rerollWhyV112(e){const t=rerollActiveV112(e);return t?"You left "+(t.pr
 function rerollChipV112(e){const t=rerollActiveV112(e||(typeof o<"u"&&o&&o.player));return t?`<span class="meta rr-chip-v112" style="color:#e08a8a" title="${rerollWhyV112(e||o.player).replace(/"/g,"&quot;")}">\u26a0 \u2212${t.pct}% reroll${t.count>1?" \u00d7"+t.count:""}</span>`:""}
 function rerollNoteV112(e){const t=rerollActiveV112(e||(typeof o<"u"&&o&&o.player));return t?`<div class="threshold-note rr-note-v112" style="color:#e08a8a;border-color:rgba(224,138,138,.5);margin-bottom:8px">\u26a0 <b>REROLL PENALTY \u2212${t.pct}%</b> \u00b7 ${rerollWhyV112(e||o.player)}</div>`:""}
 function rerollGateV112(){if(!abandonedV112())return!0;const e=o.player;return confirm("\u26a0 REROLL PENALTY\n\n"+e.name+" hasn't finished his career. Abandon him now and your NEXT player starts with \u2212"+TU("rerollPenaltyPct",5)+"% to EVERY attribute \u2014 in games and on the sheet \u2014 until he is promoted one level.\n\nFinish this career instead and there is no penalty, and you keep his prestige.\n\nRoll a new character anyway?")}
+/* ===== v120 FATIGUE IS A SLOPE =====
+ * The body used to be a step: fresh (+5%) under 25, nothing to 69, then −10% at 70 and no worse at
+ * 100. It is a slope now: fresh under freshFatigue, nothing to fatSlopeFrom (40), then a straight
+ * line down to condWornMax (−20%) at 100 — which passes −10% at the old worn line of 70, so a body
+ * at 70 plays exactly as it did — and playing hurt is at least the old −10% wherever fatigue sits.
+ * One function, read by condMultV54 (the sim, the sheet, the silent week), the body ledger's row
+ * and the season projection, so they cannot disagree. */
+function fatigueMulV120(fat,inj){const x=Number(fat)||0,from=TU("fatSlopeFrom",40);let m=1;
+  if(x<=TU("freshFatigue",25))m=TU("condFresh",1.05);
+  else if(x>from)m=1-(x-from)/Math.max(1,100-from)*(1-TU("condWornMax",.80));
+  if(inj)m=Math.min(m,TU("condWorn",.90));
+  return m}
+window.__fatigueMulV120=fatigueMulV120;
 function condMultV54(e){
   const rr=rerollMulV112(e);                       /* v112: the reroll debt rides the one multiplier the sim and the sheet share */
   const c=e&&e.conditionV11; if(!c)return rr;
-  if(c.injury||(c.fatigue||0)>=TU("wornFatigue",70))return TU("condWorn",.90)*rr;
-  if((c.fatigue||0)<=TU("freshFatigue",25))return TU("condFresh",1.05)*rr;
-  return rr;
+  return fatigueMulV120(c.fatigue,c.injury)*rr;    /* v120: a slope, not a step */
 }
 window.__condMultV54=condMultV54;
 /* ===== v73 BODY LEDGER — what your body is worth in the NEXT game =====
@@ -14213,8 +14228,8 @@ function bodyLedgerV73(e){
   const rows=[];
   rows.push(fat<=TU("freshFatigue",25)
     ?{k:"FRESH LEGS",v:"+"+Math.round((mult-1)*100)+"% to every attribute",d:swing,good:true}
-    :inj||fat>=TU("wornFatigue",70)
-      ?{k:inj?"PLAYING HURT":"WORN DOWN",v:Math.round((mult-1)*100)+"% to every attribute",d:swing,good:false}
+    :inj||mult<.995
+      ?{k:inj?"PLAYING HURT":fat>=TU("wornFatigue",70)?"WORN DOWN":"WEARING DOWN",v:Math.round((mult-1)*100)+"% to every attribute",d:swing,good:false}
       :{k:"STEADY",v:"no swing either way",d:0,good:null});
   if(inj)rows.push({k:inj.seasonEnding?"SEASON-ENDING":inj.knock?"KNOCK":"INJURY",
     v:inj.name+" · severity "+inj.severity+(inj.weeksRemaining>0?" · "+inj.weeksRemaining+" wk":""),d:0,good:false});
@@ -14271,17 +14286,33 @@ const KEYS_V111=["limited","reduced","normal","heavy","everysnap"];
 const USE_V111={
   limited  :{label:"LIMITED",    icon:"🪑",share:["useShareLimited",.55],touch:["useTouchLimited",.70],desc:"Rotational. You watch a lot of football from the sideline and your body thanks you for it."},
   reduced  :{label:"REDUCED",    icon:"🔃",share:["useShareReduced",.75],touch:["useTouchReduced",.85],desc:"A managed load — off the field on the long drives, fresh when the game turns."},
-  normal   :{label:"NORMAL",     icon:"🏈",share:["useShareNormal",1],   touch:["useTouchNormal",1],   desc:"The starter's week. Every snap your unit takes, your ordinary share of the ball."},
-  heavy    :{label:"HEAVY",      icon:"🔥",share:["useShareHeavy",1],    touch:["useTouchHeavy",1.25], desc:"Featured. You never leave the field and the ball comes looking for you."},
-  everysnap:{label:"EVERY SNAP", icon:"⚡",share:["useShareEvery",1],    touch:["useTouchEvery",1.5],  desc:"They ride you until the wheels come off — the biggest numbers, and the biggest bill."}
+  normal   :{label:"NORMAL",     icon:"🏈",share:["useShareNormal",1],   touch:["useTouchNormal",1],   desc:"Your share. The snaps the coach trusts you with, and your ordinary share of the ball."},
+  heavy    :{label:"HEAVY",      icon:"🔥",share:["useShareHeavy",1],    touch:["useTouchHeavy",1.25], desc:"Featured. You ask for more than your share — he gives what he trusts you with, and the ball comes looking for you."},
+  everysnap:{label:"EVERY SNAP", icon:"⚡",share:["useShareEvery",1],    touch:["useTouchEvery",1.5],  desc:"You ask for everything and they ride you until the wheels come off — the biggest numbers, and the biggest bill."}
 };
 const useKeyV111=k=>KEYS_V111.indexOf(k)>=0?k:"normal";
 const curWeekV111=pl=>((pl&&pl.weekResults)||[]).find(w=>w&&!w.played)||null;
-const shareOfV111=k=>f(TU(USE_V111[k].share[0],USE_V111[k].share[1]),.2,1);
+/* ===== v120 THE COACH DECIDES YOUR SNAPS =====
+ * NORMAL used to be every snap the unit takes, from game one. It is now the share the COACH hands
+ * him, and a stranger gets about half of them: trustShareV120 runs from trustShareMin at trust 0
+ * to all of them at 100, so the first game is played on a part of the snaps and the share climbs
+ * as trust does. Below NORMAL the dial still sells snaps back. Above it he ASKS for more than his
+ * share: the coach gives a part of the extra, more the more he trusts him (askSayV120), and the
+ * asking itself is paid in body — askMulV120 multiplies the wear and the injury roll (the forecast,
+ * the bill and the game-day roll alike, through injChanceV54) and shrinks to nothing at full trust.
+ * More trust is more say, and only ever for MORE snaps; the bottom of the ladder never needs it. */
+const trustV120=pl=>f(((pl&&pl.coachTrust!=null)?Number(pl.coachTrust):50),0,100)/100;
+const trustShareV120=pl=>f(TU("trustShareMin",.30)+TU("trustShareSpan",.70)*trustV120(pl),.2,1);
+const askOverV120=k=>({heavy:TU("askOverHeavy",.25),everysnap:TU("askOverEvery",.5)})[k]||0;
+const askMulV120=(pl,k)=>{const over=askOverV120(useKeyV111(k));return over?1+over*TU("askDistrustK",1)*(1-trustV120(pl)):1};
+const askSayV120=(pl,k)=>{const over=askOverV120(useKeyV111(k));return over?1+over*(TU("askSayFloor",.35)+(1-TU("askSayFloor",.35))*trustV120(pl)):1};
+const shareOfV111=(k,pl)=>{pl=pl||(typeof o<"u"&&o?o.player:null);const t=trustShareV120(pl);
+  return f(askOverV120(k)?t*askSayV120(pl,k):f(TU(USE_V111[k].share[0],USE_V111[k].share[1]),.2,1)*t,.05,1)};
+window.__V120={trust:trustV120,trustShare:trustShareV120,askOver:askOverV120,askMul:askMulV120,askSay:askSayV120,share:shareOfV111};   /* the UI and injChanceV54 live outside this scope: they read the hook */
 const touchOfV111=k=>f(TU(USE_V111[k].touch[0],USE_V111[k].touch[1]),.3,2.2);
 function usageV111(pl,wk){pl=pl||(typeof o<"u"&&o?o.player:null);wk=wk===undefined?curWeekV111(pl):wk;
   const k=useKeyV111(wk&&wk.usageV111),r=USE_V111[k];
-  return{key:k,label:r.label,icon:r.icon,desc:r.desc,share:shareOfV111(k),touchMul:touchOfV111(k)}}
+  return{key:k,label:r.label,icon:r.icon,desc:r.desc,share:shareOfV111(k,pl),touchMul:touchOfV111(k),askMul:askMulV120(pl,k)}}
 /* how much football he played, as one number: snaps are close to linear, touches are not — a
  * back handed the ball twenty-five times pays more than proportionally for the last five. */
 const workV111=(share,touchMul)=>Math.pow(f(share,.05,1),TU("wearSnapPow",.9))*Math.pow(f(touchMul,.2,2.5),TU("wearTouchPow",1.6));
@@ -14354,18 +14385,22 @@ function cutStatsV111(pl){const w=(pl&&pl.pos&&Ee[pl.pos]&&Ee[pl.pos].w)||{},
 function forecastV111(pl,wk,key){
   pl=pl||(typeof o<"u"&&o?o.player:null);if(!pl||!pl.attrs)return null;
   wk=wk===undefined?curWeekV111(pl):wk;
-  const k=useKeyV111(key||(wk&&wk.usageV111)),work=workV111(shareOfV111(k),touchOfV111(k)),C=costV111(pl,wk,work),
+  /* v120: the work is measured against the share the coach GIVES him — NORMAL is his normal week and
+   * costs nothing by construction, whatever his trust; the rungs below pay back, the rungs above cost
+   * their extra snaps, their extra ball and the price of asking */
+  const k=useKeyV111(key||(wk&&wk.usageV111)),ask=askMulV120(pl,k),work=workV111(shareOfV111(k,pl)/trustShareV120(pl),touchOfV111(k))*ask,C=costV111(pl,wk,work),
     fat=(cv18(pl).fatigue)||0,fatigueAfter=f(fat+C.load*TU("wearFatK",.5),0,100),
     loadAfter=f(loadOfV111(pl)+C.load,TU("wearLoadMin",-40),TU("wearLoadMax",180)),
-    risk=mustSitV18(pl)?0:injChanceV54(pl,{wk,load:loadAfter,fatigue:fatigueAfter}),
+    risk=mustSitV18(pl)?0:injChanceV54(pl,{wk,load:loadAfter,fatigue:fatigueAfter,askMul:ask}),
     cutPct=cutPctV111(loadAfter),cutStats=cutPct<0?cutStatsV111(pl):[],statCut=cutPtsV111(pl,cutPct,cutStats);
   return{key:k,load:Math.round(C.load*10)/10,loadNow:Math.round(loadOfV111(pl)),loadAfter:Math.round(loadAfter),
     fatigueAfter:Math.round(fatigueAfter),fatigueNow:Math.round(fat),
     injPct:Math.round(risk*1000)/10,gamesMissed:Math.round(risk*TU("injExpMissed",.92)*100)/100,
     statCut,statCutPct:cutPct,cutStats,
-    stakes:C.st.mul,stakesLabel:C.st.label,oppMul:C.opp,durMul:C.dur,wornMul:C.worn,work,
+    stakes:C.st.mul,stakesLabel:C.st.label,oppMul:C.opp,durMul:C.dur,wornMul:C.worn,work,askMul:ask,
     parts:[{label:"Workload · "+USE_V111[k].label,mul:work},{label:"Durability",mul:C.dur},
-      {label:"Opponent",mul:C.opp},{label:C.st.label,mul:C.st.mul},{label:"Body already carrying",mul:C.worn}]}}
+      {label:"Opponent",mul:C.opp},{label:C.st.label,mul:C.st.mul},{label:"Body already carrying",mul:C.worn}]
+      .concat(ask>1.001?[{label:"Asking above your share",mul:ask}]:[])}}
 /* the bill, from what he ACTUALLY did. `played` is the engine's own count — {snaps, teamSnaps,
  * touchMul, touches} — and the dial is only the fallback when the engine did not report. */
 function chargeV111(pl,wk,played){
@@ -14374,7 +14409,7 @@ function chargeV111(pl,wk,played){
   const u=usageV111(pl,wk),
     share=played.teamSnaps>0?f(played.snaps/played.teamSnaps,.05,1):u.share,
     touch=played.touchMul!=null?f(played.touchMul,.3,2.5):u.touchMul,
-    C=costV111(pl,wk,workV111(share,touch)),
+    C=costV111(pl,wk,workV111(share/trustShareV120(pl),touch)*askMulV120(pl,u.key)),   /* v120: against the share the coach gives him, and the asking is billed whatever he actually played */
     W=pl._wearV111||(pl._wearV111={load:0,lingering:[]});
   W.load=f((W.load||0)+C.load,TU("wearLoadMin",-40),TU("wearLoadMax",180));
   const c=cv18(pl);c.fatigue=f((c.fatigue||0)+C.load*TU("wearFatK",.5),0,100);
@@ -14531,7 +14566,7 @@ function wearStubV111(e,wk,key){
   let risk=0;try{risk=(typeof mustSitV18=="function"&&mustSitV18(e))?0:injChanceV54(e,{wk})}catch(_){risk=.12}
   const injPct=f(risk*share*(1+(stakes-1)*TU("wearStakeInjKV111",.5)),0,TU("wearInjCapV111",.7))*100;
   const fatigueAfter=f(fat+load*TU("wearFatigueKV111",.62)-TU("wearRestV111",6),0,100);
-  const mAfter=fatigueAfter>=TU("wornFatigue",70)?TU("condWorn",.9):fatigueAfter<=TU("freshFatigue",25)?TU("condFresh",1.05):1;
+  const mAfter=fatigueMulV120(fatigueAfter,false);   /* v120: the same slope the sim plays on */
   let base=58;try{base=bodyLedgerV73(e).base}catch(_){}
   return{load,fatigueAfter,injPct,gamesMissed:injPct/100*TU("injExpMissed",.92),statCut:base*(mAfter-1),
     parts:[{label:"Durability",mul:durMul},{label:"Opponent",mul:oppMul},{label:"Stakes",mul:stakes},{label:"Already worn",mul:worn}],
@@ -15175,7 +15210,7 @@ function bodyBadgeV85(e){
     if(!e||!e.weekResults||!e.weekResults.some(w=>!w.played))return "";
     const L=bodyLedgerV73(e),c=cv18(e),fat=c.fatigue||0,pct=Math.round((L.mult-1)*100),sw=L.sit?"":pct>0?"+"+pct+"% to every attribute":pct<0?pct+"% to every attribute":"no swing";
     const col=L.sit||L.mult<1?"#ff8a80":L.mult>1?"#57e07a":"var(--chalk-dim)";
-    const head=L.sit?"🩹 OUT":L.inj?"🩹 PLAYING HURT":fat>=TU("wornFatigue",70)?"🥵 WORN DOWN":L.mult>1?"⚡ FRESH LEGS":"STEADY";
+    const head=L.sit?"🩹 OUT":L.inj?"🩹 PLAYING HURT":fat>=TU("wornFatigue",70)?"🥵 WORN DOWN":L.mult<.995?"🥵 WEARING DOWN":L.mult>1?"⚡ FRESH LEGS":"STEADY";
     return `<div class="bodyv85" title="Injury risk this game, the games it is expected to cost, and the swing your body puts on every attribute below">`
       +`<span style="color:${col}">${head}${sw?" · "+sw:""}</span>`
       +`<span><b style="color:${L.sit?"#ff8a80":L.risk>=.24?"#ff8a80":L.risk<=.12?"#57e07a":"var(--gold)"}">${L.sit?"—":Math.round(L.risk*100)+"%"}</b> injury risk</span>`
@@ -18540,6 +18575,7 @@ function v111LedgerHTML(pl,wk,key){
   const note=share>=.999
     ?(tm>1?`Every snap is already yours — from here it is the ball that moves, not the snap count.`
           :`Every snap your unit takes, and your ordinary share of the ball.`)
+    :(window.__V120&&window.__V120.askOver&&window.__V120.askOver(key))?`You asked above your share: the coach gives you ${Math.round(share*100)}% of the unit's snaps for now — from here it is the ball that moves, and the asking costs body.`
     :`You watch ${Math.round((1-share)*100)}% of your unit's snaps from the sideline.`;
   const buy=`<div class="v111-row"><span>Team snaps</span><b style="color:#8fe0a0">${v111Pct(u.share)}</b></div>`
     +`<div class="v111-row"><span>Touch share</span><b style="color:#8fe0a0">×${(Math.round(tm*100)/100).toFixed(2)}</b></div>`
@@ -18551,8 +18587,19 @@ function v111LedgerHTML(pl,wk,key){
   const cost=`<div class="v111-row"><span>Wear</span><b style="color:${wear>.05?"#e8938b":wear<-.05?"#8fe0a0":"var(--chalk)"}">${v111Sig(wear)}</b></div>`
     +`<div class="v111-row"><span>Injury</span><b style="color:${f.injPct>=24?"#e8938b":f.injPct<=12?"#8fe0a0":"var(--gold)"}">${Math.round(Number(f.injPct)||0)}%</b></div>`
     +`<div class="v111-row"><span>Games out</span><b>${(Math.round(miss*10)/10).toFixed(1)}</b></div>`
-    +(Math.abs(cut)>=.05?`<div class="v111-row"><span>Next game</span><b style="color:${cut<0?"#e8938b":"#8fe0a0"}">${v111Sig(cut)}</b></div>`:``);
+    +(Math.abs(cut)>=.05?`<div class="v111-row"><span>Next game</span><b style="color:${cut<0?"#e8938b":"#8fe0a0"}">${v111Sig(cut)}</b></div>`:``)
+    +fatigueRowsV120(f);
   return `<div class="v111-col buy"><h4>WHAT IT BUYS</h4>${buy}</div><div class="v111-col cost"><h4>WHAT IT COSTS</h4>${cost}</div>`;
+}
+/* v120: what the fatigue does to him — before this game and after it, and what that many points of
+ * fatigue take off (or add to) every attribute, read off the same slope the sim plays on */
+function fatigueRowsV120(f){
+  const now=Math.round(Number(f.fatigueNow)||0),after=Math.round(Number(f.fatigueAfter!=null?f.fatigueAfter:now)||0);
+  const M=window.__fatigueMulV120;if(typeof M!=="function")return ``;
+  const pct=x=>{const p=Math.round((M(x,false)-1)*100);return (p>0?"+":"")+p+"%"};
+  const col=(a,b)=>b>a?"#e8938b":b<a?"#8fe0a0":"var(--chalk)";
+  return `<div class="v111-row v120-fat"><span>Fatigue</span><b style="color:${col(now,after)}">${now} → ${after}</b></div>`
+    +`<div class="v111-row v120-fat"><span>Every stat</span><b style="color:${M(after,false)<.995?"#e8938b":M(after,false)>1.005?"#8fe0a0":"var(--chalk)"}">${pct(now)} → ${pct(after)}</b></div>`;
 }
 function v111PartsHTML(pl,wk,key){
   const f=v111ForecastV111(pl,wk,key),parts=Array.isArray(f.parts)?f.parts:[];
@@ -18668,7 +18715,7 @@ function gsSectionV23(oursR,theirsR,pl,wk){
  * on one page. Every id, class and number inside them is untouched — gsSectionV23 still hands
  * back all three in the old order for any caller that wants the single long column. */
 function gsUsageBlockV23(){const S=gsStateV23;if(!S)return'';const pl=S.pl,wk=S.wk,key=v111KeyV111(wk);
-  return `<div class="gs-wrap-v23 v111-wrap" id="v111Wrap"><div class="gs-head">🏈 YOUR INVOLVEMENT<small>How much of this game do you carry? Below NORMAL you come off the field and the body keeps what it saves. Above it you were never coming off anyway — what rises is your share of the ball, and what it costs you.</small></div>
+  return `<div class="gs-wrap-v23 v111-wrap" id="v111Wrap"><div class="gs-head">🏈 YOUR INVOLVEMENT<small>How much of this game do you carry? NORMAL is the share of snaps the coach trusts you with — it climbs as his trust does. Below it you come off the field and the body keeps what it saves. Above it you ask him for more: he gives what he trusts you with, the ball comes your way, and the asking costs body.</small></div>
     <div class="v111-steps" id="v111Steps">${v111StepsHTML(key)}</div>
     <div class="v111-desc" id="v111Desc">${esc(V111_STEP[key].d)}</div>
     <div class="v111-ledger" id="v111Ledger">${v111LedgerHTML(pl,wk,key)}</div>
@@ -22105,5 +22152,5 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   try { window.__HUB_V75 = { views: VIEWS, tabs: TAB, sweep } } catch (e) {}
 })();
 </script>
-<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v119-coach-plain"></script><script src="./public/rib-menu-boot.js?v=v119-coach-plain"></script><script src="./public/rib-menu.js?v=v119-coach-plain"></script><script src="./public/rib-menu-howto.js?v=v119-coach-plain"></script><script src="./public/rib-menu-coach.js?v=v119-coach-plain"></script><script src="./public/rib-menu-navigation.js?v=v119-coach-plain"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
+<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v120-snaps2"></script><script src="./public/rib-menu-boot.js?v=v120-snaps2"></script><script src="./public/rib-menu.js?v=v120-snaps2"></script><script src="./public/rib-menu-howto.js?v=v120-snaps2"></script><script src="./public/rib-menu-coach.js?v=v120-snaps2"></script><script src="./public/rib-menu-navigation.js?v=v120-snaps2"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
 </html>
