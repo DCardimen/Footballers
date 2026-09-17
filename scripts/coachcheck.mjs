@@ -14,11 +14,19 @@
 //     switches him off;
 //   * on a REAL first visit the game's welcome cards show above the menu (v119 lifted them from under
 //     it), and clicked through they hand to the coach; `?coachTour` starts him on the first menu mount;
+//   * THE SEASON DEBRIEF (v122): it is not part of the walk — it fires on the season report card even
+//     with the tour switched off, builds its lines from that season's own numbers, says the record,
+//     three or four notes (fatigue, luck, expectations, rank and the next level) and what to work on,
+//     is said once a season, and its SKIP silences the debrief without touching the tour switch;
 //   * every league string on the menu, in the guide and in his lines says DFL, never the real one.
 //   node scripts/coachcheck.mjs      (GAME_URL, SHOTS=/tmp/coach writes screenshots, READ_POS=RB)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 const url = process.env.GAME_URL || 'http://127.0.0.1:5173/index.html'
+// v106.1 reloads the page once when the baked build stamp has moved on. That is correct in a
+// browser and fatal in a check — a rebake between runs destroys the execution context mid-walk —
+// so every boot here pins `?stayStale`; freshcheck.mjs is what proves the reload itself.
+const U = (...q) => url + (url.includes('?') ? '&' : '?') + ['stayStale'].concat(q).join('&')
 const shots = process.env.SHOTS || ''
 const POS = process.env.READ_POS || 'RB'
 const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined) })
@@ -51,7 +59,7 @@ const step = async (page, t, wait = 900) => {
 // ================= 1. the dev-check boot, the switch, the menu stop, the mouth, the voice =================
 {
   const { page, context } = await newPage()
-  await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 })
+  await page.goto(U(), { waitUntil: 'networkidle', timeout: 30000 })
   await menuUp(page)
   await page.waitForTimeout(1500)
   let h = await H(page)
@@ -59,7 +67,7 @@ const step = async (page, t, wait = 900) => {
   ok(h && !h.open, 'the dev-check boot (welcome cards removed without a click) never starts him on its own')
   const tile = await page.evaluate(() => { const t = document.querySelector('#rib-main-menu-v2 [data-rib-action="coach"]'); return t ? { on: t.getAttribute('aria-checked'), role: t.getAttribute('role'), label: (t.querySelector('b') || {}).textContent, face: (t.querySelector('small') || {}).textContent, img: !!t.querySelector('img') } : null })
   ok(tile && tile.role === 'switch' && tile.on === 'true' && /COACH'S TOUR/.test(tile.label) && /^ON\b/.test(tile.face) && tile.img, "the COACH'S TOUR switch is on the menu and reads ON on a fresh install", JSON.stringify(tile))
-  ok(h && h.stops === 13 && h.lines >= 30 && h.lines <= 56 && h.estimateMin >= 1.5 && h.estimateMin <= 6, 'thirteen stops, a few lines each — a couple of minutes of talk spread over a week, not a lecture', h && `${h.estimateMin.toFixed(1)} min · ${h.lines} lines`)
+  ok(h && h.stops === 14 && h.lines >= 30 && h.lines <= 56 && h.estimateMin >= 1.5 && h.estimateMin <= 6, 'fourteen stops (thirteen written, plus the season debrief it builds) — a couple of minutes of talk over a week, not a lecture', h && `${h.estimateMin.toFixed(1)} min · ${h.lines} lines`)
   // his lines are short and plain: almost no numbers (the guide has those), no line over two sentences' worth, and the
   // things a rookie must hear — fatigue means fewer snaps, each position wants its own skills, prestige is what you keep
   const lineFacts = await page.evaluate(() => fetch([...document.scripts].map((x) => x.src).find((u) => /rib-menu-coach/.test(u))).then((r) => r.text()).then((src) => { const m = src.match(/t: "([^"]+)"/g) || []; const all = m.join(' ')
@@ -180,7 +188,7 @@ const step = async (page, t, wait = 900) => {
   h = await H(page)
   ok(!h.open && !h.enabled, 'SKIP closes him and switches it OFF again')
   // ?coachTour starts him on the first mount
-  await page.goto(url + '?coachTour', { waitUntil: 'networkidle', timeout: 30000 }); await menuUp(page)
+  await page.goto(U('coachTour'), { waitUntil: 'networkidle', timeout: 30000 }); await menuUp(page)
   await page.waitForSelector('#rib-coach-v119', { timeout: 8000 }).catch(() => null)
   h = await H(page)
   ok(h && h.open && h.openedBy === 'query' && h.enabled, '?coachTour switches it ON and starts him on the first menu mount', h && JSON.stringify({ open: h.open, by: h.openedBy, enabled: h.enabled }))
@@ -190,7 +198,7 @@ const step = async (page, t, wait = 900) => {
 // ================= 2. the walk: one stop per screen of a first week, in order, never twice =================
 {
   const { page, context } = await newPage()
-  await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 })
+  await page.goto(U(), { waitUntil: 'networkidle', timeout: 30000 })
   await menuUp(page)
   await page.waitForFunction(() => { const sp = document.getElementById('splash'); return !sp || sp.classList.contains('gone') }, null, { timeout: 30000 }).catch(() => null)
   await page.waitForTimeout(800)
@@ -214,7 +222,7 @@ const step = async (page, t, wait = 900) => {
   const wheel = await expect('wheel', 'the season-commitment wheel, over the training board')
   // the wheel spins itself and rolls the fit; CONTINUE arrives with the roll — the last line's cut-out waits for it
   await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' && g.getBoundingClientRect().height > 0 }, null, { timeout: 30000 }).catch(() => null)
-  await page.evaluate(() => { const C = window.__RIB_COACH, last = C.stops.find((x) => x.id === C.stop).lines - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(700)
+  await page.evaluate(() => { const C = window.__RIB_COACH, S = C.stops.find((x) => x.id === C.stop), last = (S ? S.lines : 1) - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(700)
   const contSpot = await page.evaluate(() => { const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), g = document.getElementById('gv42go'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, gr = g ? g.getBoundingClientRect() : null
     return { line: C.line, key: C.spot, shown: !!sr, over: !!(sr && gr && sr.left <= gr.left + 1 && sr.right >= gr.right - 1 && sr.top <= gr.top + 1 && sr.bottom >= gr.bottom - 1) } })
   ok(wheel && wheel.stop === 'wheel' && contSpot.key === 'cont' && contSpot.shown && contSpot.over, "the wheel stop's last line lights CONTINUE once the roll is in", JSON.stringify(contSpot))
@@ -225,7 +233,7 @@ const step = async (page, t, wait = 900) => {
   await step(page, 'PLAY WEEK 1 LIVE')
   const plan = await expect('plan', 'the weekly-plan wheel, off PLAY WEEK')
   await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' && g.getBoundingClientRect().height > 0 }, null, { timeout: 30000 }).catch(() => null)
-  await page.evaluate(() => { const C = window.__RIB_COACH, last = C.stops.find((x) => x.id === C.stop).lines - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(700)
+  await page.evaluate(() => { const C = window.__RIB_COACH, S = C.stops.find((x) => x.id === C.stop), last = (S ? S.lines : 1) - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(700)
   const planSpot = await page.evaluate(() => { const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), g = document.getElementById('gv42go'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, gr = g ? g.getBoundingClientRect() : null
     return { line: C.line, key: C.spot, shown: !!sr, over: !!(sr && gr && sr.left <= gr.left + 1 && sr.right >= gr.right - 1 && sr.top <= gr.top + 1 && sr.bottom >= gr.bottom - 1) } })
   ok(plan && plan.stop === 'plan' && planSpot.key === 'cont' && planSpot.shown && planSpot.over, "the plan stop's last line lights CONTINUE once the plan is rolled", JSON.stringify(planSpot))
@@ -250,7 +258,7 @@ const step = async (page, t, wait = 900) => {
   await expect('result', 'the post-game card', { ms: 60000 }); await dismiss(page)
   await page.evaluate(() => { const el = document.getElementById('pgOverlayV13'); const b = el && [...el.querySelectorAll('button')].find((x) => /CONTINUE|NEXT|CLOSE/i.test(x.innerText || '')); if (b) b.click() })
   const rec = await expect('recovery', 'the season screen after the game', { ms: 15000, spot: 'body' })
-  await page.evaluate(() => { const C = window.__RIB_COACH, last = C.stops.find((x) => x.id === C.stop).lines - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(400)
+  await page.evaluate(() => { const C = window.__RIB_COACH, S = C.stops.find((x) => x.id === C.stop), last = (S ? S.lines : 1) - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(400)
   const doneBtn = await page.evaluate(() => (document.querySelector('#rib-coach-v119 [data-c-next]') || {}).textContent || '')
   ok(rec && rec.stop === 'recovery' && /DONE/.test(doneBtn), "the last stop's button reads DONE", JSON.stringify(doneBtn))
   await shot(page, 'recovery')
@@ -274,7 +282,7 @@ const step = async (page, t, wait = 900) => {
 // ================= 3. a real first visit: the welcome cards, then the coach =================
 {
   const { page, context } = await newPage({ realFirstVisit: true })
-  await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 })
+  await page.goto(U(), { waitUntil: 'networkidle', timeout: 30000 })
   await menuUp(page)
   const cards = await page.waitForSelector('.onboard', { timeout: 15000 }).catch(() => null)
   const stack = await page.evaluate(() => { const c = document.querySelector('.onboard'), m = document.getElementById('rib-main-menu-v2'); return c && m ? { cards: +getComputedStyle(c).zIndex, menu: +getComputedStyle(m).zIndex } : null })
@@ -300,10 +308,84 @@ const step = async (page, t, wait = 900) => {
   await context.close()
 }
 
+// ================= 4. the season debrief: he reads the year back, tour or no tour =================
+{
+  const { page, context } = await newPage({ w: 420, h: 900 })
+  // the tour switched OFF on purpose: a season report card is its own occasion and still gets him
+  await page.addInitScript(() => { try { localStorage.setItem('rib.coachTour.v119', 'off') } catch {} })
+  await page.goto(U(), { waitUntil: 'networkidle', timeout: 30000 })
+  await menuUp(page)
+  await page.waitForFunction(() => { const sp = document.getElementById('splash'); return !sp || sp.classList.contains('gone') }, null, { timeout: 40000 }).catch(() => null)
+  for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON']) await step(page, t)
+  for (let i = 0; i < 60; i++) { const d = await page.evaluate(() => { const g = document.getElementById('gv42go'); if (g && g.style.display !== 'none') { g.click(); return false } return !document.getElementById('growthV42') }); if (d) break; await page.waitForTimeout(250) }
+  await step(page, 'CONFIRM TRAINING')
+  // the capture has to happen in front of the roll, so prove it sees the week rows first
+  await page.evaluate(() => { try { window.simRemainingWeeks && window.simRemainingWeeks() } catch (e) {} }); await page.waitForTimeout(1500)
+  const cap = await page.evaluate(() => { const D = window.__DEBRIEF_V122; return D ? D.cap() : null })
+  ok(cap && cap.games >= 4 && cap.fatKick.length === cap.games && cap.perf.length === cap.games && cap.rolls >= 1,
+    'the week rows are read BEFORE the roll clears them — ratings, fatigue at each kickoff, the plan rolls', cap && JSON.stringify({ games: cap.games, fatMean: cap.fatMean, rolls: cap.rolls, injured: cap.injured }))
+  // drive the season out through the game's own entry points rather than hunting for buttons: a
+  // story card or a decision sheet can sit in front of the dock for a beat and swallow the click
+  for (let i = 0; i < 30; i++) {
+    const v = await page.evaluate(() => { try { return window.__GRIDIRON_AUDIT__.getState().view } catch (e) { return null } })
+    if (v === 'result') break
+    await page.evaluate(() => { try { window.simRemainingWeeks && window.simRemainingWeeks() } catch (e) {} }); await page.waitForTimeout(500)
+    // simRemainingWeeks skips PLAYOFF weeks, so a team that qualified would stall here forever:
+    // resolve whatever is left through the engine's own week resolver, exactly as v111Acheck does
+    await page.evaluate(() => { const A = window.__GRIDIRON_AUDIT__, p = A.getState().player
+      for (const w of (p.weekResults || [])) { if (!w || w.played) continue
+        try { A.resolveSequentialWeekV11(p, w, 'balanced') } catch (e) {}
+        w.played = true; w.won = !!(w.us > w.them) } }); await page.waitForTimeout(300)
+    await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /^\s*(CONTINUE|OK|CLOSE|NEXT)\s*$/i.test((x.innerText || '').trim()) && x.getBoundingClientRect().height > 0 && !x.closest('#rib-coach-v119')); if (b) b.click() })
+    await page.waitForTimeout(400)
+    await page.evaluate(() => { try { window.finishSeasonGames && window.finishSeasonGames() } catch (e) {} }); await page.waitForTimeout(700)
+  }
+  const view = await page.evaluate(() => { try { return window.__GRIDIRON_AUDIT__.getState().view } catch (e) { return null } })
+  ok(view === 'result', 'a season was played to the report card', String(view))
+  // THE REPORT CARD IS ONE CARD: the depth chart used to be injected INSIDE the 112px grade ring
+  const lay = await page.evaluate(() => {
+    const sc = document.getElementById('screen'), dc = sc && sc.querySelector('.depth-card')
+    const ring = sc && sc.querySelector('.grade-ring'), grade = sc && sc.querySelector('.season-grade')
+    let overlaps = 0, prev = null, boxes = []
+    for (const el of sc.children) { const r = el.getBoundingClientRect(); if (prev != null && r.top < prev - 1) overlaps++; prev = r.bottom
+      boxes.push(String(el.className).slice(0, 22) + ' ' + Math.round(r.top) + '-' + Math.round(r.bottom)) }
+    return { depthTop: !!(dc && dc.parentElement === sc), depthInRing: !!(dc && ring && ring.contains(dc)),
+      ringKids: ring ? ring.children.length : -1, ringHasGradeOnly: !!(ring && grade && ring.children.length === 1),
+      overlaps, n: sc.children.length, boxes: boxes.slice(0, 6) }
+  })
+  ok(lay.depthTop && !lay.depthInRing && lay.ringHasGradeOnly, 'the report card is ONE card — the depth chart is its own sibling, and the grade ring holds nothing but the grade', JSON.stringify(lay))
+  ok(lay.overlaps === 0, 'nothing on the report screen overlaps the card above it', JSON.stringify({ overlaps: lay.overlaps, n: lay.n }))
+  await shot(page, 'season-result')
+  // and the coach reads the year back
+  const d = await waitStop(page, 'debrief', 15000)
+  ok(d && d.open && d.stop === 'debrief' && d.openedBy === 'season', 'the coach pops in on the report card with the season debrief, though the tour is OFF', JSON.stringify({ stop: d && d.stop, by: d && d.openedBy, enabled: d && d.enabled }))
+  const brief = await page.evaluate(() => { const C = window.__RIB_COACH, D = window.__DEBRIEF_V122
+    const L = C.debrief.lines() || [], all = L.map(x => x.t).join(' ')
+    const b = D.get() || {}
+    return { n: L.length, all, kinds: (b.notes || []).map(x => x.k), head: b.head, focus: b.focus && b.focus.program,
+      rank: !!b.rank, chance: b.chance, crumb: (document.querySelector('#rib-coach-v119 [data-c-crumb]') || {}).textContent,
+      skip: (document.querySelector('#rib-coach-v119 [data-c-skip]') || {}).textContent,
+      record: b.record, grade: b.grade, dyn: L.every(x => x.t && x.t.length > 8) } })
+  ok(brief.n >= 5 && brief.n <= 8 && brief.dyn, 'he says six or seven lines, all built from this season', JSON.stringify({ n: brief.n }))
+  ok(brief.head && brief.record && brief.all.includes(brief.record), 'he opens with the record and the grade', JSON.stringify(brief.head))
+  ok(brief.kinds.length >= 4 && ['fatigue', 'luck', 'expect', 'track'].filter(k => brief.kinds.includes(k)).length >= 3,
+    'the notes cover the ground asked for — fatigue, the rolls, expectations, the ladder', JSON.stringify(brief.kinds))
+  ok(/call-up[^.]*reads about \d+%/.test(brief.all) && /the bar is \d+/i.test(brief.all) && brief.kinds.includes('track'),
+    'he always says where you stand against the level bar and what the call-up reads', JSON.stringify((brief.all.match(/[^.]*call-up[^.]*\./) || [brief.all.slice(0, 140)])[0]))
+  ok(!!brief.focus && brief.all.includes(brief.focus), 'he names what to work on next season', JSON.stringify(brief.focus))
+  ok(/SEASON \d/.test(brief.crumb || '') && /^SKIP\s*×?$/.test((brief.skip || '').replace(/\s+/g, ' ').trim()), 'the debrief wears its own chrome — a season crumb, not a step of the walk', JSON.stringify({ crumb: brief.crumb, skip: brief.skip }))
+  await shot(page, 'debrief')
+  // read once a season, and the tour switch is untouched by it
+  const after = await dismiss(page)
+  const post = await page.evaluate(() => ({ seen: window.__DEBRIEF_V122.lastSeen(), due: !!window.__RIB_COACH.debrief.due(), tour: localStorage.getItem('rib.coachTour.v119'), off: window.__RIB_COACH.debrief.off }))
+  ok(!after.open && !post.due && post.tour === 'off' && !post.off, 'DONE marks the season read — it does not come round twice, and it never touched the tour switch', JSON.stringify(post))
+  await context.close()
+}
+
 // ================= 4. the league is the DFL, everywhere the player reads =================
 {
   const { page, context } = await newPage()
-  await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 }); await menuUp(page)
+  await page.goto(U(), { waitUntil: 'networkidle', timeout: 30000 }); await menuUp(page)
   await page.click('#rib-main-menu-v2 [data-rib-action="howto"]'); await page.waitForSelector('#rib-howto-v111', { timeout: 8000 })
   await page.evaluate(() => window.__RIB_HOWTO.sections.forEach((id) => window.__RIB_HOWTO.toggle(id, true)))
   const txt = await page.evaluate(() => (document.getElementById('rib-howto-v111').textContent + ' ' + document.getElementById('rib-main-menu-v2').textContent + ' ' + JSON.stringify(window.__RIB_COACH.stops)))

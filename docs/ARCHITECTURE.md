@@ -1155,6 +1155,42 @@ Three seams only the merged build could show, all fixed here rather than in a wo
   260 px, so a long touchdown left the scorer alone; and E's measurement moved the wings only when
   they were not already signalling, which with D's `measure` flag live was every time.
 
+## v122 — the report card is one card, and the coach reads your year back
+
+Anchors `v122 A` (in the result-view injector, beside the depth card) and `v122 THE SEASON DEBRIEF`
+(above `SEASON_LOG_MAX`).
+
+**The jumble.** The result view is assembled by a chain of injectors that each find an anchor in
+`#screen` and insert beside it. The depth-chart one took `t.querySelector(".season-grade")` — which
+is the grade LETTER, a child of the 112px circular `.grade-ring`, itself a child of the report
+`.card.center` — and called `insertAdjacentHTML("afterend")` on it. So the entire depth card was
+rendered *inside the ring*, where `display:grid;place-items:center` and a fixed 112px box sent it
+overflowing across the report card and everything below. It anchors on the card now
+(`sg.closest(".card")`, falling back to the first `.card` then the first child). The legacy and age
+injectors already anchored on cards and were never the problem.
+
+**The debrief.** `capV122(pl)` runs in front of the season roll, because the roll clears
+`weekResults`: it returns the per-week ratings, the fatigue at each kickoff and at the end, how many
+games started past `fatSlopeFrom` and past `wornFatigue`, the injuries and games sat out, the
+weekly-plan roll bands (green/red), the game-plan swings and the snap shares. `buildV122(pl, cap)`
+joins that to `seasonStats` (grade, record, avg, chance, snapShare, coachTrust), `__RANK_V52.sn()`
+for the national and positional rank, the level's `need` against the rating, `Bt()` for seasons
+left and `Hi()`/`Ee[pos].w` for what to train next. It returns `{head, focus, notes[], rank, chance,
+need, seasonsLeft, cap}` where each note carries a `weight` — how loudly it mattered — so a caller
+can take the loudest few. `fs` is wrapped to capture then build, and `window.__DEBRIEF_V122` exposes
+`get()`, `build()`, `cap()`, `seen(n)`, `lastSeen()`.
+
+**In his mouth.** `public/rib-menu-coach.js` gained `build()` stops: a stop with `build()` makes its
+lines when it opens (`st.lines`), and `lines()` replaces every `st.stop.lines` read. The `debrief`
+stop's `when` is `view === 'result' && debriefDue()`, and `debriefLinesV122()` is the head, the top
+four notes (each with a pose chosen by kind) and the focus. It carries `every: true`, which exempts
+it from the walk's seen-set, and `scan()` has a branch that opens it even when the tour switch is
+off — a report card is its own occasion. `show()` gives an `every` stop its own crumb
+(`SEASON n · THE SEASON`), a bar that tracks the lines rather than the walk, a `SKIP` label rather
+than `SKIP TOUR`, and `DONE` on the last line. `next()` on the last line marks the SEASON read
+(`rib.debriefSeen.v122`) instead of the stop seen, and `finish()` on the debrief writes
+`rib.debriefOff.v122` and leaves the tour switch alone.
+
 ## v121 — the football is the last resort, not the first frame
 
 Anchor `v121 THE FOOTBALL IS THE LAST RESORT` (in the splash boot, beside `mountChase()`).

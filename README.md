@@ -55,6 +55,30 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v122 — the report card is one card, and the coach reads your year back.** Two things, one
+  screen. **The jumble**: on the season result screen the depth-chart card was injected with
+  `insertAdjacentHTML("afterend")` against `.season-grade` — which is the grade LETTER, inside the
+  112px circular `.grade-ring` — so the whole card was rendered *inside the ring*, overflowing
+  across the report card and every card under it. It anchors on the report CARD now
+  (`.season-grade`'s `closest('.card')`), and the result screen has no overlapping boxes at all.
+  **The debrief** (`v122 THE SEASON DEBRIEF`): the report card was a grade, a record, a promotion
+  bar and fourteen attribute rows, and no verdict. `capV122()` reads the week rows BEFORE the roll
+  clears them — the rating, the fatigue at each kickoff, the weekly-plan roll's band, the game-plan
+  swing, the snaps and the injuries — `buildV122()` joins that to the season's own stats, and
+  `window.__DEBRIEF_V122` hands the coach a head line, a focus for next season and a weighted list
+  of notes: did fatigue linger (and what the slope cost), did you beat or miss the bar they set for
+  you, did the dice go against you, where do you rank nationally and at your position, are you on
+  track for the next level (the bar, your rating, the call-up percentage, the seasons left), did
+  you get on the field enough, and what the body cost you. He says the record, the loudest four
+  notes and the program to run next season — every line that season's own numbers, none of it
+  written in advance. It is **not** part of the first-week walk: a report card comes round every
+  season, so it fires on every one (once — `rib.debriefSeen.v122`) whether the tour is on or off,
+  wears its own crumb and bar rather than a step count, and its SKIP silences the debrief alone
+  (`rib.debriefOff.v122`) without touching the tour switch. A stop may now `build()` its lines when
+  it opens, which is what made a written-on-the-spot stop possible. `coachcheck.mjs` plays a whole
+  season to the report card and proves the layout and every claim above. Menu stamp →
+  `v122-debrief3`.
+
 - **v121 — the football is the last resort, not the first frame.** The 🏈 in the boot splash's stage
   (`.splash-ball`) was painted the moment the document parsed and hidden again when the film or the
   chase claimed the stage, so every boot flashed a static emoji on a bare card for the second before
