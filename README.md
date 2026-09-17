@@ -55,6 +55,46 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v118 — the quarterback's own sheets, and the mesh.** Four sheets drawn for the quarterback
+  alone landed in `art/field/` (`qb_handoff_v118`, `qb_toss_v118`, `qb_throw_right_v118`,
+  `qb_throw_cross_v118`) and `scripts/build-field-art.py` cuts them into the cells v108 already
+  wears: `handoff_up0..4` is now the turn, the ball carried out LOW with both hands, at arm's
+  length, ONE HAND AT FULL STRETCH (cell 3, on the sim's `handoff` event) and the empty hand;
+  `toss_up0..4` the turn, the wind at the hip, the ball out, THE RELEASE and the empty hand;
+  `throwR_up0..5` the set, the ball cocked at the RIGHT shoulder, at the ear (held a frame), the
+  release with the arm straight up and the follow to the throw; and `throwL_up0..5` the same
+  first four cells — he is a right-hander whichever way the ball goes — then the cross-body
+  release (the right arm over and across, the ball leaving to his left) and the follow with that
+  arm finishing on the left hip. Not cut, on purpose: the uploaded left-handed throw, the two
+  belly frames (they read as a man facing the camera), the right throw's open-hand frame 3, and
+  the old `throw_dir_a` / `exchange_quarter` cycles they replace (the old left throw rose on his
+  left arm; the old reach came up to shoulder height and read as a pass). Every sheet is scaled
+  by its HELMET to the atlas's (the cutter measures 0.34 of the standing height on all four), so
+  the exchange lands on the atlas's 44 px and the throws share one shrink; the cutter also finds
+  the ball (or the throwing hand) in every cut cell and prints `HAND_V108` / `BALL_DRAWN_V108`,
+  and the football keeps its own brown through the sheet's gold normalisation (`keep_ball`).
+  **The reach goes to the side the back is on**: `handoffL_up0..4` is the same reach mirrored
+  (two hands on the ball through it, so no hand is the wrong one) for a back off the
+  quarterback's LEFT, which v108 could only skip — `EX_V108.handoffL`, chosen by `sideDx` in
+  the lookahead and the fallback alike; the pitch is not mirrored, because a pitch is thrown and
+  he throws right-handed. **The mesh** (`v118 THE MESH`, `meshV118` / `meshOffsetV118` beside
+  the exchange): the sim stages none — at its `handoff` event the back stands in his alignment
+  five to seven yards to the side and neither man has moved since the snap, so the ball crossed
+  the gap on its own and every handoff read as a short pass whatever the arm did. The
+  quarterback's DRAWN position now steps toward where the back will be, as far as a jog allows
+  in the snap-to-event window (`meshMaxYdPerS` 6.5, `meshStepYd` 5, never inside `meshReachYd`
+  2.2), holds through the reach and eases back (`meshHoldMs`, `meshReturnMs`); his facing holds
+  `up` while he steps (`m._meshFaceV118`). Nothing in the sim moves. What the step cannot close
+  decides the picture: a back still out of arm's reach is PITCHED to (the toss cycle to his
+  right, the two-handed reach to his left, the toss flight either way — `P._meshV118.far`),
+  because a ball crossing five yards of grass is a pitch whatever the call sheet says; a back
+  the step reached gets the hand. FieldSim's 264 ms window makes most of its runs pitches; the
+  legacy choreographer's longer windows are hands. Same pass: a QB career no longer turns every
+  run of his own offense into a keeper in the choreographer (`qbRun` needs the row to name him).
+  `window.__V118` is the hook; `v108check.mjs` gates it (the mesh planned on every handoff play,
+  the quarterback drawn on it, nothing skipped for the side). The run cycle every player wears
+  is still the run8 sheet's — a wider build than these — and is untouched.
+
 - **v117 — one man, one slot.** The you-player was being credited with tackles his team-mates
   made, and the reason was not the stat layer: it was the formation. Every snap, the eleven
   markers are filled by drawing roster players out of a pool by position, and the draw never

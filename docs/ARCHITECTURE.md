@@ -1155,6 +1155,71 @@ Three seams only the merged build could show, all fixed here rather than in a wo
   260 px, so a long touchdown left the scorer alone; and E's measurement moved the wings only when
   they were not already signalling, which with D's `measure` flag live was every time.
 
+## v118 — the quarterback's own sheets, and the mesh
+
+Anchors `v118 THE QUARTERBACK'S OWN SHEETS` (`scripts/build-field-art.py`) and `v118 THE MESH`
+(`meshV118` / `meshOffsetV118`, beside `startExchangeV108`); the v118 lines in the v108 tables,
+`ribRegisterTeam`, `exchangeV108`, `handV105`, the placement loop and `placeMarker`; `qbRun` in
+`buildPlayScript`.
+
+**The sheets.** `art/field/qb_handoff_v118.png`, `qb_toss_v118.png`, `qb_throw_right_v118.png`
+(six rear-view frames each) and `qb_throw_cross_v118.png` (two frames and a loose ball). The cutter
+scales each by its helmet — `helmet_w` is the navy touching the top of the figure, the outline keeps
+it off the jersey and the gold stripe splits it, so it is every navy blob starting within 6% of the
+highest one; measured 0.34 of the standing height on all four sheets — to `HELM44`, the helmet a
+44 px man wears (taken off the handoff sheet's upright turn), and then the two throws share one
+shrink (`fit_k`) and the two exchanges another. `ball_or_hand` finds, per cut cell, the ball where
+`DRAWN` says the cell draws one (the largest brown blob plus what a glove split off it; the brown is
+read off the RAW sheet by `ball_mask`, before `normalize_palette` pulls the sheet's gold onto the
+atlas's hue — the ball's brown sits inside that band and would have come out gold and taken the
+PANTS' colour in the kit recolour, so `slice_sheet(keep_ball=True)` restores those pixels) or the
+throwing hand where it does not (the highest glove, the right one when level, the shoes excluded);
+`cell_offset` maps that through cell_of's own transform and the script prints `HAND_V108` /
+`BALL_DRAWN_V108` for index.html. The cycles: `handoff_up0..4` = the turn, the ball out low in
+both hands, at arm's length in both, ONE HAND AT FULL STRETCH (cell 3, `rel`), the empty hand;
+`handoffL_up0..4` the same cut mirrored; `toss_up0..4` = the turn, the wind at the hip, the ball out,
+THE RELEASE (the loose ball dropped at the slice), the empty hand; `throwR_up0..5` = the set (no
+ball drawn — the offset is the right hip, declared), cocked at the right shoulder, at the ear, the
+ear held, the release (the arm straight up, the loose ball dropped), the follow turned to the throw;
+`throwL_up0..5` = throwR's cells 0-3 and then the cross sheet's release and follow. Not cut: the
+belly frame on both exchange sheets (reads as a man facing the camera), the right throw's frame 3
+(an open hand before the ball has left), the uploaded left-handed throw
+(`art/file_000000007d18…png`) and the screenshot; `throw_dir_a` and `exchange_quarter` are still
+sliced for the record but no cell is named from them.
+
+**The reach goes to the side the back is on.** `EX_V108.handoffL` (`st: "handoffL"`, registered as
+`spr_<kit>_up_handoffL<i>`). `exchangeV108` now works out `sdx` BEFORE choosing the cycle: a back off
+his left takes the mirrored reach (two hands on the ball through it, so no hand is the wrong one);
+the pitch is never mirrored (a pitch is thrown, he throws right-handed), so a far or called toss to
+the left is the two-handed reach with the ball flown as a pitch. `handV105` picks the same way, and
+its hook record follows the DRAWN cycle (`E.st`), not the flight. `skippedLeft` stays 0.
+
+**The mesh.** The sim stages none: at its `handoff` event the back is standing in his alignment
+(measured 40 script px = 5-7 yd to the side, both men nearly stationary since the snap; FieldSim's
+snap at 165 ms and handoff at 429, the choreographer's at 660 → 1023/1485). `meshV118(P)` runs first
+in the tick and plans once per script: the two men's frames at the event, the gap, and a step along
+the QB→back line of `min(gap − meshReachYd, meshMaxYdPerS × window, meshStepYd)` yards
+(`PLAY_W / 100` px each), the window being snap + `meshDelayMs` to the event. `meshOffsetV118(P, T)`
+turns that into an offset — smoothstep in over the window, held `meshHoldMs`, smoothstep out over
+`meshReturnMs` — that the placement loop ADDS to actor 8's interpolated position before
+`placeMarker`; `m._meshFaceV118` is set while it is non-zero and `placeMarker` holds his facing on
+`up` for it (the same line the dropback uses). Nothing in the sim moves; no yard changes; a defender
+runs the frames he always ran. `P._meshV118.far` (the gap left after the step is more than the reach)
+is read by the lookahead and by `handV105` as a second reason for `toss` — the cycle AND the flight
+(`tossMs`, `tossArc`) — because a ball crossing five yards of grass is a pitch whatever the call
+sheet says. FieldSim's 264 ms window allows a 1.7 yd step, so most of its runs are pitched;
+the choreographer's 825 ms sweep window closes the whole gap and gets the hand.
+
+**The keeper.** `buildPlayScript`'s `qbRun` made EVERY run of the user's own offense a QB carry when
+the career position was QB ("Pierce rushes inside" drawn as the quarterback running, no handoff
+event at all); it now also needs the row to name him (`/\bYOU\b/`).
+
+`window.__V118`: `meshes`, `far`, `near`, `offsetFrames`, `last` / `steps` (`gapYd`, `stepYd`,
+`winMs`, `far`). `scripts/v108check.mjs` is the gate (the new assertions are marked v118), and
+`scripts/build-field-art.mjs` prints the tables to paste. The run cycle every player wears is still
+run8's wider build; the QB sheets are slimmer, and the seam shows where he leaves the exchange for
+the run frames.
+
 ## v108 — the exchange, and which way he throws
 
 Anchor `v108 THE EXCHANGE, AND WHICH WAY HE THROWS` (the module-level tables, just above
