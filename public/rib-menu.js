@@ -314,7 +314,7 @@
           ${/* v111: the guide is the one tile with no screen behind it — rib-menu-howto.js opens it over this menu */''}
           ${tile('howto', 'badge_brain', 'HOW TO PLAY', 'ATTRIBUTES · POSITIONS · THE LADDER', 'rib9-tile-guide')}
           ${/* v119: the coach's tour — a TOGGLE, not a door. ON plays the tour after the welcome cards (or the moment it is switched on); the tour switches it OFF when it ends. rib-menu-coach.js owns the state. */''}
-          <button class="rib9-tile rib9-tile-coach ${coachOn ? 'on' : ''}" type="button" data-rib-action="coach" role="switch" aria-checked="${coachOn ? 'true' : 'false'}" aria-label="Coach's tour, ${coachOn ? 'on' : 'off'}"><img src="${COACH_ART}tile.webp${ARTV}" alt="" loading="lazy"><b>COACH'S TOUR</b><small><i class="rib9-sw"><i></i></i>${coachOn ? 'ON · THE FULL WALKTHROUGH' : 'OFF · TAP TO PLAY IT'}</small></button>
+          <button class="rib9-tile rib9-tile-coach ${coachOn ? 'on' : ''}" type="button" data-rib-action="coach" role="switch" aria-checked="${coachOn ? 'true' : 'false'}" aria-label="Coach's tour, ${coachOn ? 'on' : 'off'}"><img src="${COACH_ART}tile.webp${ARTV}" alt="" loading="lazy"><b>COACH'S TOUR</b><small><i class="rib9-sw"><i></i></i>${coachOn ? 'ON · HE WALKS YOUR FIRST WEEK' : 'OFF · TAP TO BRING HIM BACK'}</small></button>
         </nav>`;
     const navLink = (action, label, active) => `<button class="rib9-navlink ${active ? 'on' : ''}" type="button" data-rib-action="${action}">${label}</button>`;
 

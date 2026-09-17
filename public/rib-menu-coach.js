@@ -1,215 +1,174 @@
 (() => {
   'use strict';
-  /* ===== v119 THE COACH'S TOUR — the guide, said out loud =====
-   * A talking-head walkthrough of the whole game, driven by a switch on the main menu. The coach
-   * is the three uploaded sheets cut into public/coach/ (build-coach-art.py): fifteen poses, each
-   * drawn mouth-closed (`_a`) and mouth-open (`_b`), and a line of dialogue TYPES while the mouth
-   * flips between the two — that is the whole talking trick. The tour dims the page behind him
-   * (the menu stays there, readable, so the thing he is talking about is on screen) and can cut a
-   * spotlight into that dim over a menu element: the CAREER tile, the prestige button, the guide.
+  /* ===== v119 THE COACH — he pops in on every screen of your first week =====
+   * A talking head who walks a new player through ONE FULL WEEK, one screen at a time: the main
+   * menu, the personality roll, the position pick, the hub, the season-commitment wheel, the
+   * training board, the season screen, the weekly-plan wheel, the four-step pregame, the broadcast,
+   * the post-game card, and the body after the game. Each STOP is a few lines said over the page it belongs to — the page dims, stays there
+   * behind him, and a spotlight can cut through the dim onto the button or card he is talking
+   * about — and then he leaves and the player gets on with it. He never repeats a stop; when the
+   * last one is said he switches himself off.
    *
-   * What it says is the HOW TO PLAY guide (rib-menu-howto.js), section by section, in a football
-   * coach's voice: every number is the guide's own; nothing here is invented, it is the same
-   * facts with a whistle round its neck. Twelve chapters — kickoff, the nine sections of the guide,
-   * the menu itself, the final whistle — eight to nine minutes at the default pace; tapping the bubble
-   * finishes a line early, NEXT skips the hold, SKIP leaves.
+   * The coach is the three uploaded sheets cut into public/coach/ (build-coach-art.py): fifteen
+   * poses, each drawn mouth-closed (`_a`) and mouth-open (`_b`), the open one being the closed
+   * drawing with only the head pasted over, so nothing but the face moves. A line TYPES while the
+   * mouth moves in the shape of speech — a syllable open, a beat closed, a longer close at a word
+   * gap or a stop, the odd double snap, never a metronome — and his VOICE is a muddle of pitched
+   * blips synthesised on the spot with WebAudio (no sound file), one per letter at a syllable
+   * rate, not cut to the mouth. VOICE in the bubble mutes him (`rib.coachVoice.v119`).
    *
-   * The switch (`rib9-tile-coach`, data-rib-action="coach") is the door. ON means: the tour plays
-   * the moment it is switched on, and — on a FIRST VISIT — right after the game's own three
-   * welcome cards (`.onboard`, `#onNext`) are clicked through. Those cards had been buried under
-   * the v89 menu overlay (z-index 190 against 9999) since the menu arrived, so nobody ever saw
-   * them; v119 lifts them above it, and the coach follows them. A fresh install starts ON. The
-   * tour switches itself OFF when it ends or is skipped, so nobody sits through it twice by
-   * accident; switching it ON again replays it, and a tour cut short (the page reloaded) comes
-   * back at the next menu mount until it is. The dev checks remove the cards without a click, so
-   * they never meet it; `?coachTour` in the URL switches it on and starts it at the first mount.
+   * What he says is the HOW TO PLAY guide's own facts — every number is the guide's — but only
+   * the two or three that matter on THAT screen, in a football coach's voice.
    *
-   * He has a VOICE: a muddle of pitched blips, one per letter as it types — the Animalese trick —
-   * synthesised on the spot with WebAudio (no sound file): a gruff low base, every letter its own
-   * step, vowels warmer and longer than consonants, a breath of noise on the fricatives, a sentence
-   * that rises and settles, a question that lifts at the end. The mouth is NOT cut to the voice:
-   * it moves in the shape of speech — a syllable open, a beat closed, a longer close at a word
-   * gap or a stop, the odd double snap — never on a metronome. VOICE in the bubble mutes him
-   * (`rib.coachVoice.v119`); reduced-motion keeps him quiet too.
+   * The switch on the main menu (`rib9-tile-coach`, data-rib-action="coach") is the door. ON means
+   * he walks you through your first week: the menu stop plays the moment it is switched on (and,
+   * on a first visit, right after the game's three welcome cards are clicked through — cards that
+   * had been buried under the v89 menu overlay since it arrived, and v119 lifts above it), and the
+   * other stops fire as their screens appear. Finishing the walk, or SKIP TOUR, switches it OFF and
+   * remembers (`rib.coachTour.v119`); switching it ON again starts the walk over. The dev checks
+   * remove the welcome cards without a click, so they never meet him; `?coachTour` switches him on.
    *
-   * It is a body-level overlay like the guide (the menu re-renders its innerHTML on every data
-   * change, so nothing lives inside #rib-main-menu-v2), and it leaves when the menu does. */
+   * Body-level overlay, like the guide: nothing lives inside #rib-main-menu-v2 or #screen, both of
+   * which re-render their innerHTML. `window.__RIB_COACH` is the hook; `coachcheck.mjs` the gate. */
 
   const ID = 'rib-coach-v119';
-  const KEY = 'rib.coachTour.v119', VOICE_KEY = 'rib.coachVoice.v119';
+  const KEY = 'rib.coachTour.v119', VOICE_KEY = 'rib.coachVoice.v119', SEEN_KEY = 'rib.coachSeen.v119';
   const ART = './public/coach/';
   const POSES = ['whoa', 'thinkcap', 'armscrossed', 'clipboard', 'relaxed', 'firedup', 'listen', 'shrug', 'flex', 'stop', 'welcome', 'tip', 'point', 'thumbsup', 'open'];
   // the pace: a character every TYPE_MS, punctuation breathes, then the line is HELD to be read
-  const TYPE_MS = 18, PUNCT_MS = 140, HOLD_MS = 700, HOLD_PER_CHAR = 11, CHAPTER_MS = 500;
+  const TYPE_MS = 18, PUNCT_MS = 140, HOLD_MS = 700, HOLD_PER_CHAR = 11;
   const BLIP_GAP = 0.042;   // seconds between blips: a syllable rate, not a letter rate
 
-  // ---- the spotlight targets: what is on the menu, by the router's own action names -----------
+  // ---- the screens: what is on the page, and how to know which page this is -------------------------
+  const getState = () => { try { return (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState && window.__GRIDIRON_AUDIT__.getState()) || null; } catch (e) { return null; } };
+  const shown = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); if (!(r.width > 0 && r.height > 0)) return false; const cs = getComputedStyle(el); return cs.display !== 'none' && cs.visibility !== 'hidden'; };
+  const byId = (id) => { const el = document.getElementById(id); return shown(el) ? el : null; };
+  const buttonByText = (re) => [...document.querySelectorAll('button, [onclick], a')].find((el) => shown(el) && re.test((el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim())) || null;
+  // a spotlight target is a selector, or `text:` and a pattern matched against the visible buttons
   const S = {
-    career: '.rib9-tiles .rib9-tile:nth-child(1)', training: '.rib9-tiles .rib9-tile:nth-child(2)',
-    goals: '.rib9-tiles [data-rib-action="goals"]', hall: '.rib9-tiles [data-rib-action="hall"]',
-    locker: '.rib9-tiles [data-rib-action="locker"]', settings: '.rib9-tiles [data-rib-action="settings"]',
-    howto: '.rib9-tiles [data-rib-action="howto"]', coach: '.rib9-tiles [data-rib-action="coach"]',
-    prestige: '[data-rib-action="prestige"]', leaderboard: '[data-rib-action="view:leaderboard"]',
-    hero: '.rib9-hero', player: '.rib9-player', latest: '.rib9-latest', motto: '.rib9-motto',
+    career: '#rib-main-menu-v2 .rib9-tiles .rib9-tile:nth-child(1)', coach: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="coach"]', howto: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="howto"]',
+    lockIn: 'text:Lock In Personality', posCards: '.pos-card', playSeason: 'text:Play \\d+-Game Season', confirm: 'text:CONFIRM TRAINING', playWeek: 'text:Play Week \\d+ Live',
+    cont: '#gv42go', next: 'text:^NEXT', speed: '.speed-btn', body: '#screen .condition-card-v11', hubTabs: '#screen .tabs, #screen [class*="tab"]',
   };
 
-  // ---- the script ----------------------------------------------------------------------------
-  // { p: pose, t: text, s: spotlight selector (optional) }. The voice is a football coach's; the
-  // facts are the guide's — same sections, same numbers, in order.
-  const CHAPTERS = [
-    { id: 'kickoff', title: 'KICKOFF', sub: 'WHO I AM AND WHY YOU ARE HERE', lines: [
-      { p: 'welcome', t: "Alright, rookie. Eyes up here. I'm Coach. This is the walkthrough. Eight minutes, give or take, and then you go earn it." },
-      { p: 'listen', t: "House rules. Tap my bubble and I finish my sentence quicker. NEXT moves us along. SKIP leaves, and I will remember that." },
-      { p: 'clipboard', t: "Everything I say is on the clipboard. It's the HOW TO PLAY guide on your menu, and every number I quote is the game's own.", s: 'howto' },
-      { p: 'point', t: "You. One player. Not a franchise, not a coach, not a fantasy team. One man on a roster, from Pee Wee to wherever the road runs out." },
-      { p: 'armscrossed', t: "The season plays itself around you. What you own is the man: his position, his points, the shape of his week, and when he declares." },
+  // ---- the stops: one per screen, in the order a first week meets them ---------------------------
+  // { id, title, sub, when(ctx) → bool, lines: [{ p: pose, t: text, s?: spotlight key }], delay?, last? }
+  // ctx: { view, menu, wheel, pregame, post, persona, live }
+  const STOPS = [
+    { id: 'menu', title: 'THE MENU', sub: 'KICKOFF', when: (c) => c.menu && !c.persona, lines: [
+      { p: 'welcome', t: "Alright, rookie. I'm Coach. I'll pop in on every screen of your first week, say my piece, and get out of your way." },
+      { p: 'listen', t: "Tap my bubble to hurry me up. SKIP TOUR sends me off for good; the COACH'S TOUR tile on this menu brings me back.", s: 'coach' },
+      { p: 'armscrossed', t: "The short version: one player, nine levels, and every level keeps only a share of the men in it. Careers are meant to end. Prestige is what carries over." },
+      { p: 'point', t: "Tap CAREER. Let's build a man.", s: 'career' },
     ] },
-    { id: 'start', title: 'START HERE', sub: 'WHAT THIS GAME ACTUALLY IS', lines: [
-      { p: 'tip', t: "There are nine levels, and every one of them keeps only a share of the players in it. The rest go home. That's football.", s: 'career' },
-      { p: 'listen', t: "When your seasons at a level are used up, the button to play another one is gone. You declare. One roll. One shot. Miss it and the career is over." },
-      { p: 'stop', t: "Careers are MEANT to end. Read that again. A realistic first career walks up to Varsity, declares into College, and finishes there." },
-      { p: 'shrug', t: "Reaching College at all is a good first run. The game itself tells you a scholarship is rare. It is not being polite." },
-      { p: 'thinkcap', t: "The DFL is not blocked by bad luck. It is blocked by your potential ceiling. And the ceiling is raised by the prestige tree.", s: 'prestige' },
-      { p: 'clipboard', t: "The tree is bought with points you earn by FINISHING careers. A first DFL run is realistically eight to twelve careers away. Pack a lunch." },
-      { p: 'flex', t: "What carries over is the tree's node levels, far more than the stars. Run two is barely different from run one. By run five you are a taller player." },
-      { p: 'armscrossed', t: "Team-quality nodes are deliberately weak. The whole maxed set is worth about 1.4 points of margin a game. Read the ladder as a staircase, not a wall." },
+    { id: 'persona', title: 'WHO YOU ARE', sub: 'THE PERSONALITY ROLL', when: (c) => c.persona, lines: [
+      { p: 'clipboard', t: "The dice rolled who this kid is. Every trait has two identities, and each side raises the max level of its own stats and carries its own drawback." },
+      { p: 'thinkcap', t: "Personality also loads the wheel you'll spin before every game, so what he'd actually do matters more than what sounds good." },
+      { p: 'thumbsup', t: "You get no adjustment points on a first run — they come with prestige. Lock it in.", s: 'lockIn' },
     ] },
-    { id: 'attrs', title: 'THE ATTRIBUTES', sub: 'ALL 17, AND WHAT THEY REALLY DO', lines: [
-      { p: 'clipboard', t: "Seventeen numbers you can buy. I'll tell you what each one does to a PLAY, not what it sounds like on the sheet.", s: 'training' },
-      { p: 'point', t: "Speed is top end: separation, and running a man down. Acceleration is how fast you get there. Agility is how little a turn costs you." },
-      { p: 'firedup', t: "Strength is every contact on the field. Tackling is whether the stop lands or you whiff. Blocking comes off every shed roll. That's the trench in one number." },
-      { p: 'tip', t: "Catching is the catch AND being chosen as the target in the first place. Throwing is velocity, range, accuracy. Vision is the carrier's lookahead." },
-      { p: 'listen', t: "Awareness. The most-read number in the whole simulation. Diagnosing a play, resisting fakes, pursuit angles, protection calls, accuracy, finding the ball." },
-      { p: 'open', t: "Quickness is the first step. Jumping is the high point. Stamina is the tank. Grit is falling forward and reloading after a hit. Discipline is not biting." },
-      { p: 'shrug', t: "Ball control keeps the ball when it's punched at. And durability? Durability is the injury model and NOTHING else. It never enters a play." },
-      { p: 'stop', t: "Now the five that surprise people. One: coverage cannot be bought. It is not a stat. The game makes it out of awareness plus speed, divided by two." },
-      { p: 'whoa', t: "Two: vision does nothing below 75. Zero. It still pads your rating, so you'll feel smart buying it. You are not. Cross 75 or leave it alone." },
-      { p: 'tip', t: "Three: jumping only matters on routes deeper than 13 yards, and only as the gap between you and the man covering you. Four: durability never touches a play." },
-      { p: 'thumbsup', t: "Five, and this one is good news: awareness pays you back. Plus one skill point per fifty awareness, every single season." },
-      { p: 'relaxed', t: "And stamina is a fourth-quarter stat. The late fade doesn't start until about 2.2 seconds into a play. It's for long plays and tired legs, not the first step." },
+    { id: 'position', title: 'YOUR POSITION', sub: 'THE BODY HE WAS DEALT', when: (c) => c.view === 'choosePos' && !c.persona, lines: [
+      { p: 'whoa', t: "The one that matters most. Body fit is worth about minus 21 to plus 13 OVR, it costs nothing, and it lasts the whole career." },
+      { p: 'tip', t: "The scouts grade the frame he is GOING to get — the projection up top — so the fit number under each position reads that, not today's kid.", s: 'posCards' },
+      { p: 'stop', t: "Take the position the number likes, not the one you like on Sundays. And if two traits are offered, pick one; lock a position and the game picks for you." },
     ] },
-    { id: 'rating', title: 'YOUR RATING', sub: 'HOW OVR IS BUILT, AND THE BODY YOU WERE DEALT', lines: [
-      { p: 'clipboard', t: "Your OVR. Your attributes get averaged with your position's weights, then that average is bent through a curve. Generous low, brutal high." },
-      { p: 'point', t: "A weighted mean of 99 is a 71 overall. 150 is an 87. Around 215 you touch 99, and past that the scale keeps going. The cap is 999. Yes, three digits." },
-      { p: 'tip', t: "So the first fifty points of a stat are worth far more rating than the fifth fifty. Remember that when you're shopping." },
-      { p: 'listen', t: "The tiers. 50 is a Prospect. 64 Draftable. 74 DFL Fringe. 80 a DFL Starter. 85 All-Star. 90 All-Pro. 95 Hall of Fame. 100, Transcendent." },
-      { p: 'flex', t: "140 is Interstellar. 180 is Galaxy-Class. I've never coached one. I'd like to." },
-      { p: 'whoa', t: "Now the biggest FREE swing in the game. Body fit. How well the body you rolled suits the position you picked is worth about minus 21 to plus 13 OVR." },
-      { p: 'firedup', t: "It costs nothing. It lasts forever. It is one click on the position screen. Take the position your body fits. I will not say it nicer than that." },
-      { p: 'thinkcap', t: "And height is real, even though the roster screen never mentions it. A shorter tackler gets under the pads and wraps clean." },
-      { p: 'shrug', t: "A taller one tackles high and gets ducked, hurdled and trucked. Same height feeds the box-out at the catch. Nobody tells you. I just did." },
+    { id: 'hub', title: 'HOME BASE', sub: 'THE HUB', when: (c) => c.view === 'hub', lines: [
+      { p: 'open', t: "Home base. NOW, BODY, SKILLS, TEAM and STORY are your week. Your rating, your ceiling and the depth chart live here." },
+      { p: 'listen', t: "Coach trust starts around 28 — you're a stranger to me too. It moves by performance minus 50, over 13, every game, and it sets your snaps." },
+      { p: 'point', t: "Snaps cap your grade: under a 12% share you cannot grade above 76. Climb the chart early. Now start the season.", s: 'playSeason' },
     ] },
-    { id: 'position', title: 'YOUR POSITION', sub: 'NINE JOBS, NINE SETS OF WEIGHTS', lines: [
-      { p: 'clipboard', t: "Nine positions, nine sets of weights, each summing to one. Anything not on your position's list contributes NOTHING to your rating.", s: 'career' },
-      { p: 'point', t: "Quarterback: throwing .24, awareness .18, vision .12. Throwing is the ball. Awareness is the rest of the job. Grit is composure when the pocket goes." },
-      { p: 'tip', t: "Running back: speed, agility, quickness, vision. Ball control keeps it when it's punched. And a back is the most compressed player in the game." },
-      { p: 'listen', t: "Receiver: catching .20 is twice the stat it looks, the catch AND the targeting. Speed is separation. Tight end splits catching and blocking, and that's fine." },
-      { p: 'firedup', t: "Offensive line: blocking .28, strength .24. Over half your rating is the whole trench. Defensive line: strength, tackling, quickness. Honest weights." },
-      { p: 'open', t: "Linebacker: tackling lands the stop, awareness sets the angle, discipline keeps you off the fake. Corner and safety: awareness and speed, TWICE each." },
-      { p: 'stop', t: "Weighted in the rating, and then they're the two halves of coverage. Corners looking for a coverage stat to buy: there isn't one. Buy awareness and speed." },
-      { p: 'thinkcap', t: "Now the star-compression rule. A man far better than his teammates keeps only a FRACTION of his edge in the roll, and it depends on the position." },
-      { p: 'whoa', t: "A running back keeps .18. A linebacker .27. Corner .28. Quarterback and offensive line .55. A defensive lineman keeps one point zero zero. Every point." },
-      { p: 'point', t: "So if you want one man to decide games on a roster that doesn't deserve him, play defensive line. That's not advice. That's arithmetic." },
+    { id: 'wheel', title: 'THE WHEEL', sub: 'YOUR HABITS, THEN FATE ROLLS', when: (c) => c.wheel && !c.planWheel, lines: [   // over the training board, off PLAY SEASON
+      { p: 'clipboard', t: "The wheel. Your habits for the season, and then fate rolls. Personality loads the odds — the FIT ROLL is whether the commitment suits the man you rolled." },
+      { p: 'tip', t: "Each habit lists the stats it pushes, how long it runs, and its risk: LIGHT, COMMITTED or OBSESSIVE. Obsessive pays more and breaks more." },
+      { p: 'listen', t: "Then the TRAINING ROLL. PAYS keeps the full gain and can mint a permanent bump. HALF gives you half. BACKFIRES flips the gain into a loss." },
+      { p: 'stop', t: "Trust, momentum and composure nudge it green. Fatigue drags it red — at 70, fatigue is nearly the whole downside. Never spin worn. It spins on its own; tap it to hurry it, then CONTINUE when the roll is in.", s: 'cont' },
     ] },
-    { id: 'points', title: 'SPENDING POINTS', sub: 'THE SOFT CAP SETS THE PRICE, NOT THE NUMBER', lines: [
-      { p: 'clipboard', t: "Points arrive at the season rollover. Base of 4 plus level times 3, scaled by how the season went, plus awareness over 50, plus perks and bonuses.", s: 'training' },
-      { p: 'listen', t: "Every attribute is priced against one line, the soft cap: your ceiling plus 12, times a share that starts at 60% at one star and reaches 85% at five." },
-      { p: 'tip', t: "Below the cap, plus one costs one point. At or above it, plus one costs two, then three at ten over, four at twenty over, and up it goes." },
-      { p: 'whoa', t: "Past 250 the whole bill is multiplied by five. Raising a 250 costs 105 points. I have seen people do it. I have seen people cry." },
-      { p: 'point', t: "Spread while it's cheap. Nothing about a 59 is special and nothing about a 61 is special, except one costs a point and the other costs two." },
-      { p: 'thumbsup', t: "Early on, a wide build buys far more rating per point than a spike. Spike later, when the cap has moved with your stars and your ceiling." },
+    { id: 'training', title: 'THE OFFSEASON', sub: 'CHOOSE YOUR TRAINING', when: (c) => c.view === 'training' && !c.wheel, lines: [
+      { p: 'clipboard', t: "The training board. Tap a program to PREVIEW the season it gives you — the light blue on the bars is what it adds. Nothing is locked until you confirm." },
+      { p: 'tip', t: "Follow the game's own suggestion: Conditioning if your durability is low for the level, otherwise the program on your weakest weighted stat." },
+      { p: 'shrug', t: "The price line under each stat is real — one point under the soft cap, then 2, 3, 4. The risk labels on the cards are not; nothing in the sim reads them. Confirm it.", s: 'confirm' },
     ] },
-    { id: 'body', title: 'YOUR BODY', sub: 'INJURY, FATIGUE, AND WHAT A KNOCK REALLY COSTS', lines: [
-      { p: 'armscrossed', t: "An injury roll happens every game. The base rises with your level, then it's multiplied by the class gap, durability, fatigue, traits, the tree and your gear." },
-      { p: 'tip', t: "Class is a health stat. Be 25 OVR better than the other guys and the risk drops to about 11 percent. Be 25 worse and it climbs to 27. Roughly every 6 OVR of edge is 10% off." },
-      { p: 'clipboard', t: "When one lands: 45% it's a knock with no games missed. 33% one game. 15% two. Season-ender, 0.4%. Average cost, 0.9 games per injury." },
-      { p: 'stop', t: "The 45% that costs no games is NOT free. Being hurt at all makes you worn: minus 10% on every attribute the engine reads, and minus 10% on the grade. You'll play worse." },
-      { p: 'listen', t: "Fatigue. You start the week at 14. Recovery and Treatment sheds about 11.6 a week. Chase the Highlight adds about 14.4. Three aggressive weeks put a fresh body past the line." },
-      { p: 'whoa', t: "70 and above, you're worn. 25 and below, fresh, plus 5% on everything. Sitting a game sheds 22. The offseason caps you at 30 so you never start a season worse." },
-      { p: 'shrug', t: "The honest word on durability: one point moves risk by about 0.19 percentage points. The screen rounds that to nothing. It isn't dead. It's slow. It never wins a play." },
-      { p: 'relaxed', t: "In-game stamina is a different thing entirely. Every player has a tank that drains on sprints and refills between plays. Fourth-quarter legs really are shorter." },
+    { id: 'season', title: 'THE SEASON', sub: 'THE SCHEDULE AND YOUR BODY', when: (c) => c.view === 'season' && !c.wheel && !c.pregame && !c.post, lines: [
+      { p: 'open', t: "The season screen. The schedule, the scouting read on the next opponent, and YOUR BODY: fatigue, injury risk and the wear the season puts on him.", s: 'body' },
+      { p: 'listen', t: "Fatigue is the dial you control. 70 and above you're worn — minus 10% on everything. 25 and under you're fresh, plus 5%. Sitting a game sheds 22." },
+      { p: 'firedup', t: "Play Week 1 live. I want to see it.", s: 'playWeek' },
     ] },
-    { id: 'week', title: 'THE WEEK', sub: 'THE PLAN, THE COACH, THE SNAPS, THE ROLLS', lines: [
-      { p: 'clipboard', t: "Before a game you get three reads built from the real opposing roster: throw at a weak secondary, run at a weak front, or stay balanced." },
-      { p: 'point', t: "How much of your lean the coordinator actually applies rises with coach trust, your form, and the Field General node. Trust the mechanism, not the bar." },
-      { p: 'listen', t: "The weekly plan is ROLLED, not chosen, weighted by your personality. Disciplined Execution is safe. Chase the Highlight is plus 7 and about 1.7 times the injury rate." },
-      { p: 'tip', t: "Do the Dirty Work is the trust play: plus 3. Recovery buys your fatigue back. The other four are about the same risk, whatever the cards imply." },
-      { p: 'armscrossed', t: "Coach trust starts around 28, not 50. You begin as a stranger. To me too. It moves by performance minus 50, over 13, every game, and it sets your snaps." },
-      { p: 'firedup', t: "First String plays 88% of snaps. Starter 70. Rotation 46. Second String 27. Bench, ten. And snaps CAP your performance." },
-      { p: 'stop', t: "Below a 12% share you can't grade above 76. Below 22, 84. Below 35, 92. You cannot grade out of a role you're not playing in. Climb the chart early." },
-      { p: 'shrug', t: "Starting on the bench and playing your way up inside a season is the normal shape of a year. Expect it. Don't panic at it." },
-      { p: 'thinkcap', t: "Your season grade is measured against the HIGHEST of four bars, and prestige raises it. Every success makes the next A harder. That's on purpose." },
-      { p: 'whoa', t: "Growth and story decisions are rolled on a personality wheel. Green keeps the gain, red flips it to a loss. Fatigue drags the odds down HARD. Never go into a decision week worn." },
-      { p: 'thumbsup', t: "Training: follow the game's own recommendation. Conditioning if your durability is low for the level, otherwise the program covering your weakest weighted stat." },
-      { p: 'relaxed', t: "Two things that don't matter: there is no weather system, it's a label on a luck roll. And home versus away is cosmetic. Paint in the end zone. Plan around neither." },
+    { id: 'plan', title: 'THE WEEKLY PLAN', sub: 'ROLLED, NOT CHOSEN', when: (c) => c.planWheel, lines: [   // off PLAY WEEK, before the wizard
+      { p: 'clipboard', t: "Game week. The staff hands you options and the wheel picks your weekly plan — rolled, weighted by your personality, not chosen." },
+      { p: 'tip', t: "Each plan trades performance for variance, snaps and trust. Disciplined Execution is plus 2 and steady. Chase the Highlight is plus 7 at 1.72 times the variance, and it costs a point of trust." },
+      { p: 'thumbsup', t: "Do the Dirty Work is the trust play: minus 1 on the day, plus 3 with me. Tap the wheel to hurry it, then CONTINUE.", s: 'cont' },
     ] },
-    { id: 'ladder', title: 'THE LADDER', sub: 'NINE LEVELS, ONE ROLL AT EACH DOOR', lines: [
-      { p: 'clipboard', t: "Pee Wee, Youth League, Middle School, JV, Varsity, College, the DFL Combine, the DFL, and Interstellar. Nine levels. Each one keeps a share." },
-      { p: 'point', t: "Pee Wee advances half. Varsity advances 12% of 110,000. College, 9% of 16,000. The DFL to Interstellar? Top 5 of 1,700, and only with a championship." },
-      { p: 'listen', t: "Playoffs: one round at the bottom, two in the middle, none at the Combine, three at the DFL, four at Interstellar. You qualify at a 60% win rate." },
-      { p: 'tip', t: "The shortest possible road to the DFL is 15 seasons and 133 regular-season games, ages 8 to 23. There is no shortcut. I checked." },
-      { p: 'stop', t: "You cannot farm a level. When the seasons run out, the play-another-season button is gone. Levels 0 to 2 give you no spare years at all." },
-      { p: 'armscrossed', t: "The call-up follows your national rank against the share that advances. Sitting exactly on the line is a coin flip. Top few hundred reads 95 to 98 percent." },
-      { p: 'whoa', t: "But it's capped just short of certain. No rank, not even first in the nation, guarantees the call. And a declare is ONE shot. Miss it and the career ends on the spot." },
-      { p: 'firedup', t: "What sets the rank? Production first, rating second. Snaps produce production. Which is why coach trust is a ranking stat. Everything in this game connects." },
+    { id: 'pregame', title: 'BEFORE KICKOFF', sub: 'FOUR STEPS', when: (c) => c.pregame && !c.wheel, lines: [
+      { p: 'clipboard', t: "Four steps before the game. Step one, YOUR INVOLVEMENT, LIMITED to EVERY: below NORMAL you come off the field and the body keeps what it saves; above it, more of the ball and more of the bill." },
+      { p: 'tip', t: "Step two, a GAME FOCUS: one stat at times 1.2, this game only. Step three, the scout and the coordinator's plan — the bar says how much of your lean he runs." },
+      { p: 'point', t: "That bar reads low on purpose. The script moves further your way than the number says. Trust the mechanism, not the bar." },
+      { p: 'thumbsup', t: "Step four is the impact sheet — what you actually carry onto the field. Then CONTINUE TO MATCH.", s: 'next' },
     ] },
-    { id: 'first', title: 'YOUR FIRST CAREER', sub: 'HOW TO SPEND IT WELL', lines: [
-      { p: 'clipboard', t: "Run one: attributes around 8 to 12, a ceiling of 30, one star, a soft cap near 25. Within 18 points of the ceiling, growth runs at 12% efficiency.", s: 'career' },
-      { p: 'thumbsup', t: "Levels 0 through 4 are close to automatic. The shares are enormous. Anything short of a disaster reads about 98% at the door. Expect to walk to Varsity." },
-      { p: 'shrug', t: "College is where a first career usually ends. It wants a rating a first-run player can't reach. The ceiling is the wall, not the roll." },
-      { p: 'tip', t: "That's the design, not a failure. Prestige pays for a career ending at Varsity, more for College, more still for a DFL run. You're farming the next man. He starts taller." },
-      { p: 'point', t: "What the code rewards. One: spend every point in your position's weighted stats, heaviest first. The auto-allocate BY POSITION button does exactly that." },
-      { p: 'stop', t: "The BALANCED button spreads across all 17, including stats your rating never reads. That is the trap. I've watched grown men fall in it." },
-      { p: 'listen', t: "Two: stay under the soft cap while points cost one. Three: take the position your body fits. Four: follow the recommended training program." },
-      { p: 'firedup', t: "Five: build coach trust early. Snap share caps performance, performance drives rank, rank is the declare. Six: declare on the LAST legal season unless the number's already high." },
-      { p: 'whoa', t: "How runs get wasted: spreading across all 17. Declaring early at middling odds. A position the body doesn't fit. A whole level under the snap cap. Buying team nodes and expecting a carry." },
+    { id: 'live', title: 'THE BROADCAST', sub: 'WATCH IT', when: (c) => c.live && !c.post, delay: 2600, lines: [
+      { p: 'open', t: "The broadcast. The season plays itself around you — watch the man in your colours with the ring under his feet." },
+      { p: 'listen', t: "Half, one, two and four times set the pace; SKIP jumps to the whistle. Your live box score is under the field, the full stats past it.", s: 'speed' },
+      { p: 'relaxed', t: "I'll see you at the final whistle." },
     ] },
-    { id: 'menu', title: 'THE MENU', sub: 'EVERY DOOR ON THIS SCREEN', lines: [
-      { p: 'tip', t: "Now the screen behind me. CAREER is where you start a man or play the next game. Everything you just heard happens through that door.", s: 'career' },
-      { p: 'clipboard', t: "TRAINING is the upgrade sheet: your points, the soft cap, the auto-allocate buttons. Position first. Balanced never.", s: 'training' },
-      { p: 'point', t: "GOALS is the milestone board: season targets, rewards, the things I'll be checking on. Yes, I check.", s: 'goals' },
-      { p: 'relaxed', t: "HALL OF FAME is your legacy: careers finished, DFL seasons reached, rings. It fills slowly. That's what makes it worth something.", s: 'hall' },
-      { p: 'open', t: "LOCKER is gear and appearance. Gear can lower injury risk, which you now know is a slow, honest stat. Looking good is a bonus.", s: 'locker' },
-      { p: 'listen', t: "SETTINGS: field view, lighting, the camera, live speed. If the broadcast looks wrong on your phone, that's the door.", s: 'settings' },
-      { p: 'flex', t: "PRESTIGE up top is the tree. Node levels carry over. That's the whole long game in one button.", s: 'prestige' },
-      { p: 'thumbsup', t: "And HOW TO PLAY is my clipboard in writing, all nine sections, every number. Go back to it any time. I don't get tired of being right.", s: 'howto' },
+    { id: 'result', title: 'THE CARD', sub: 'AFTER THE WHISTLE', when: (c) => c.post, lines: [
+      { p: 'clipboard', t: "The card. Your grade is measured against the HIGHEST of four bars, and prestige raises it — every success makes the next A harder to earn." },
+      { p: 'listen', t: "Coach trust moved by performance minus 50, over 13. Snaps follow trust, production follows snaps, and your national rank follows production." },
+      { p: 'point', t: "And the body took a game. Look at YOUR BODY before you pick next week's load." },
     ] },
-    { id: 'whistle', title: 'FINAL WHISTLE', sub: 'GO GET HIT', lines: [
-      { p: 'armscrossed', t: "That's the walkthrough. I'm switching this tour OFF now so you don't have to hear me twice. Flip the tile if you ever want it again.", s: 'coach' },
-      { p: 'welcome', t: "One player. Nine levels. Every one keeps only a share. Build the player. Earn every rep. Chase the league." },
-      { p: 'firedup', t: "Now go get hit." },
-    ] },
+    { id: 'recovery', title: 'RECOVERY', sub: 'THE BODY AFTER A GAME', when: (c) => c.view === 'season' && !c.wheel && !c.pregame && !c.post && c.seen.has('result'), lines: [
+      { p: 'open', t: "Back on the season screen with a game on the body. WEAR & TEAR counts the load; NEXT GAME prices the injury risk at each involvement.", s: 'body' },
+      { p: 'stop', t: "Worn is minus 10% on every attribute AND minus 10% on the grade, and a knock that costs no games still trips it. Recovery & Treatment sheds about 11.6 fatigue a week." },
+      { p: 'welcome', t: "That's your first week. I'm switching this tour off — the COACH'S TOUR tile on the menu brings me back. Now go get hit." },
+    ], last: true },
   ];
 
   // ---- state ----------------------------------------------------------------------------------
-  const st = { open: false, ch: 0, li: 0, typing: false, auto: true, timer: 0, mouth: 0, raf: 0, spot: null, flips: 0, started: 0, preloaded: false };
-  let armed = true, queryDone = false, onboardClicks = 0, sawOnboard = false, welcomed = false;
+  const st = { open: false, stop: null, li: 0, typing: false, auto: true, timer: 0, mouth: 0, raf: 0, spot: null, flips: 0, text: '', pos: 0, preloaded: false };
+  let armed = true, queryDone = false, onboardClicks = 0, sawOnboard = false, welcomed = false, pending = 0, pendingId = null;
 
-  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const store = { get() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }, set(v) { try { localStorage.setItem(KEY, v); } catch (e) { /* private mode */ } } };
-  // three states: nothing stored (a fresh install — ON on the tile; the tour follows the welcome
-  // cards), 'on' (switched on by hand — plays now, and again at the next menu mount if it was cut
-  // short), 'off' (finished, skipped, or switched off)
-  const state = () => store.get();
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } },
+  };
+  // three states for the switch: nothing stored (a fresh install — ON on the tile; the walk follows the
+  // welcome cards), 'on' (switched on by hand — the menu stop plays now), 'off' (finished, skipped, or off)
+  const state = () => store.get(KEY);
   const enabled = () => state() !== 'off';
+  const seen = () => { try { return new Set(JSON.parse(store.get(SEEN_KEY) || '[]')); } catch (e) { return new Set(); } };
+  const markSeen = (id) => { const s = seen(); s.add(id); store.set(SEEN_KEY, JSON.stringify([...s])); };
+  const resetSeen = () => store.set(SEEN_KEY, '[]');
   const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   function refreshTile() {
-    // the switch on the menu: flip its face in place (the next full re-render reads the same store)
     const tile = document.querySelector('#rib-main-menu-v2 [data-rib-action="coach"]'); if (!tile) return;
     const on = enabled();
     tile.classList.toggle('on', on); tile.setAttribute('aria-checked', on ? 'true' : 'false'); tile.setAttribute('aria-label', "Coach's tour, " + (on ? 'on' : 'off'));
-    const small = tile.querySelector('small'); if (small) small.innerHTML = '<i class="rib9-sw"><i></i></i>' + (on ? 'ON · THE FULL WALKTHROUGH' : 'OFF · TAP TO PLAY IT');
+    const small = tile.querySelector('small'); if (small) small.innerHTML = '<i class="rib9-sw"><i></i></i>' + (on ? 'ON · HE WALKS YOUR FIRST WEEK' : 'OFF · TAP TO BRING HIM BACK');
   }
+  function setEnabled(v) { store.set(KEY, v ? 'on' : 'off'); refreshTile(); }
 
-  function setEnabled(v) { store.set(v ? 'on' : 'off'); refreshTile(); }
+  // ---- reading the page ------------------------------------------------------------------------------
+  function ctx() {
+    const s = getState() || {};
+    return {
+      // two wheels share #growthV42: the season commitment comes up over the training board off PLAY
+      // SEASON (it spins itself, rolls the fit, and its CONTINUE #gv42go is only in the page once the
+      // roll is in), and the weekly plan comes up off PLAY WEEK, before the pregame wizard — its title
+      // reads PREGAME
+      view: String(s.view || ''), menu: !!document.getElementById('rib-main-menu-v2'), persona: !!byId('personaV13'), wheel: !!byId('growthV42'),
+      planWheel: !!byId('growthV42') && /^\s*PREGAME/.test((document.querySelector('#growthV42 > div > div') || {}).textContent || ''),
+      pregame: !!byId('pregameV1513'), post: !!byId('pgOverlayV13'), live: !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length) && String(s.view || '') === 'live',
+      seen: seen(),
+    };
+  }
+  // the first UNSEEN stop whose screen this is: a screen he has already talked on (the season screen,
+  // before and after the game) falls through to the next stop that fits it
+  function currentStop() { const c = ctx(); for (const S0 of STOPS) { if (c.seen.has(S0.id)) continue; try { if (S0.when(c)) return S0; } catch (e) { /* a page mid-render */ } } return null; }
 
-  // ---- markup ---------------------------------------------------------------------------------
+  // ---- markup ---------------------------------------------------------------------------------------
   function markup() {
     return `<div class="rib-coach-dim"></div>
       <div class="rib-coach-spot" data-c-spot hidden></div>
       <header class="rib-coach-top">
-        <span class="rib9-mark">RIB</span><div><b>COACH'S TOUR</b><small data-c-crumb></small></div>
+        <span class="rib9-mark">RIB</span><div><b>COACH</b><small data-c-crumb></small></div>
         <button type="button" class="rib-coach-skip" data-c-skip aria-label="Skip the tour">SKIP TOUR <i>×</i></button>
         <i class="rib-coach-bar"><b data-c-bar></b></i>
       </header>
@@ -227,13 +186,11 @@
         </div>
       </div>`;
   }
-
   const q = (sel) => { const r = document.getElementById(ID); return r ? r.querySelector(sel) : null; };
-  const line = () => CHAPTERS[st.ch].lines[st.li];
-  const total = () => CHAPTERS.reduce((n, c) => n + c.lines.length, 0);
-  const index = () => CHAPTERS.slice(0, st.ch).reduce((n, c) => n + c.lines.length, 0) + st.li;
+  const line = () => st.stop.lines[st.li];
+  const stopIndex = (id) => STOPS.findIndex((S0) => S0.id === id);
 
-  // ---- the pictures -------------------------------------------------------------------------------
+  // ---- the pictures --------------------------------------------------------------------------------------
   const cache = {};
   function src(pose, open) { return ART + pose + (open ? '_b' : '_a') + '.webp'; }
   function preload() {
@@ -242,7 +199,7 @@
       all.push(new Promise((res) => { im.onload = res; im.onerror = res; })); }));
     return Promise.race([Promise.all(all), new Promise((res) => setTimeout(res, 2500))]).then(() => { st.preloaded = true; });
   }
-  function mouth(open) { const im = q('[data-c-man]'); if (!im) return; const s = src(line().p, open); if (im.getAttribute('src') !== s) { im.setAttribute('src', s); if (open) st.flips++; } }
+  function mouth(open) { const im = q('[data-c-man]'); if (!im || !st.stop) return; const s = src(line().p, open); if (im.getAttribute('src') !== s) { im.setAttribute('src', s); if (open) st.flips++; } }
   function flap() {
     clearTimeout(st.mouth);
     if (!st.typing) { mouth(false); return; }
@@ -258,10 +215,10 @@
     st.mouth = setTimeout(flap, (reduced() ? 1.8 : 1) * wait);
   }
 
-  // ---- the voice: a muddle of pitched blips, one per letter as it types -------------------------------
+  // ---- the voice: a muddle of pitched blips, one per letter as it types -----------------------------------
   const voice = { ctx: null, master: null, last: 0, blips: 0, mouthLog: [] };
-  const voiceOn = () => { try { return localStorage.getItem(VOICE_KEY) !== 'off'; } catch (e) { return true; } };
-  function setVoice(v) { try { localStorage.setItem(VOICE_KEY, v ? 'on' : 'off'); } catch (e) { /* private mode */ } const b = q('[data-c-voice]'); if (b) { b.classList.toggle('on', !!v); b.setAttribute('aria-pressed', String(!!v)); } if (v) voiceCtx(); }
+  const voiceOn = () => store.get(VOICE_KEY) !== 'off';
+  function setVoice(v) { store.set(VOICE_KEY, v ? 'on' : 'off'); const b = q('[data-c-voice]'); if (b) { b.classList.toggle('on', !!v); b.setAttribute('aria-pressed', String(!!v)); } if (v) voiceCtx(); }
   function voiceCtx() {
     if (voice.ctx) { if (voice.ctx.state === 'suspended') { try { voice.ctx.resume(); } catch (e) { /* no gesture yet */ } } return voice.ctx; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
@@ -272,15 +229,15 @@
   function blip(ch, pos, len) {
     if (!voiceOn() || reduced()) return;
     const c = String(ch || '').toLowerCase(); if (!/[a-z]/.test(c)) return;
-    const ctx = voiceCtx(); if (!ctx) return;
-    const now = ctx.currentTime; if (now - voice.last < BLIP_GAP) return;
+    const ctx0 = voiceCtx(); if (!ctx0) return;
+    const now = ctx0.currentTime; if (now - voice.last < BLIP_GAP) return;
     voice.last = now; voice.blips++;
     const vowel = 'aeiou'.includes(c), code = c.charCodeAt(0) - 97, k = pos / Math.max(1, len);
     // a gruff coach: a low base, each letter its own step, the sentence rising then settling, a question lifting at the end
     const contour = Math.sin(k * Math.PI) * 2 - k * 2 + (/\?\s*$/.test(st.text || '') && k > 0.7 ? 3 : 0);
     const semi = (vowel ? 4 : 0) + (code % 7) - 3 + contour + (Math.random() - 0.5) * 1.5;
     const f0 = 118 * Math.pow(2, semi / 12), dur = vowel ? 0.075 + Math.random() * 0.04 : 0.045 + Math.random() * 0.025;
-    const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), flt = ctx.createBiquadFilter();
+    const o1 = ctx0.createOscillator(), o2 = ctx0.createOscillator(), g = ctx0.createGain(), flt = ctx0.createBiquadFilter();
     o1.type = 'sawtooth'; o2.type = 'square'; o1.frequency.value = f0; o2.frequency.value = f0 * 0.5;
     flt.type = 'bandpass'; flt.frequency.value = vowel ? 520 + code * 90 : 900 + code * 40; flt.Q.value = vowel ? 2.2 : 1.1;
     g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(vowel ? 1 : 0.6, now + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
@@ -288,30 +245,45 @@
     o1.connect(flt); o2.connect(flt); flt.connect(g); g.connect(voice.master);
     o1.start(now); o2.start(now); o1.stop(now + dur + 0.01); o2.stop(now + dur + 0.01);
     if ('sfhtkpx'.includes(c)) {   // a breath of noise on the fricatives and the plosives
-      const n = ctx.createBufferSource(), buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.03), ctx.sampleRate), d = buf.getChannelData(0);
+      const n = ctx0.createBufferSource(), buf = ctx0.createBuffer(1, Math.floor(ctx0.sampleRate * 0.03), ctx0.sampleRate), d = buf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
-      const ng = ctx.createGain(), nf = ctx.createBiquadFilter(); ng.gain.value = 0.25; nf.type = 'highpass'; nf.frequency.value = 2400;
+      const ng = ctx0.createGain(), nf = ctx0.createBiquadFilter(); ng.gain.value = 0.25; nf.type = 'highpass'; nf.frequency.value = 2400;
       n.buffer = buf; n.connect(nf); nf.connect(ng); ng.connect(voice.master); n.start(now);
     }
   }
 
-  // ---- the spotlight: a hole in the dim over a menu element, re-measured every frame ----------------
+  // ---- the spotlight: a hole in the dim over the thing he is talking about, re-measured every frame ------
+  function findSpot(key) {
+    const spec = S[key] || key; if (!spec) return null;
+    if (/^text:/.test(spec)) return buttonByText(new RegExp(spec.slice(5), 'i'));
+    const els = [...document.querySelectorAll(spec)].filter(shown); return els[0] || null;
+  }
+  function scroller(el) {
+    for (let p = el && el.parentElement; p; p = p.parentElement) { const cs = getComputedStyle(p); if (/(auto|scroll)/.test(cs.overflowY) && p.scrollHeight > p.clientHeight + 4) return p; }
+    return null;
+  }
   function spotOn(key) {
-    cancelAnimationFrame(st.raf); st.spot = key ? S[key] || key : null;
+    cancelAnimationFrame(st.raf); st.spot = key || null;
     const spot = q('[data-c-spot]'), dim = q('.rib-coach-dim'); if (!spot) return;
-    if (!st.spot) { spot.hidden = true; if (dim) dim.hidden = false; return; }
-    const el0 = document.querySelector('#rib-main-menu-v2 ' + st.spot);
-    if (!el0 || !(el0.getBoundingClientRect().width > 0)) { spot.hidden = true; if (dim) dim.hidden = false; st.spot = null; return; }
-    // scroll the menu so the target sits in the band the coach and his bubble leave free: below
-    // the tour's header, above the bubble (the middle of the screen is under the bubble on a phone)
-    const menu = document.getElementById('rib-main-menu-v2'), bub = q('[data-c-bubble]');
-    if (menu) { const r0 = el0.getBoundingClientRect(), top = 96, bottom = bub ? Math.max(top + 60, bub.getBoundingClientRect().top - 8) : innerHeight * 0.5;
-      const want = top + (bottom - top) / 2, delta = (r0.top + r0.height / 2) - want;
-      if (Math.abs(delta) > 4) { try { menu.scrollBy({ top: delta, behavior: reduced() ? 'auto' : 'smooth' }); } catch (e) { menu.scrollTop += delta; } } }
-    if (dim) dim.hidden = true; spot.hidden = false;
+    const off = () => { spot.hidden = true; if (dim) dim.hidden = false; };
+    if (!st.spot) { off(); return; }
+    // scroll whatever scrolls so the target sits in the band the coach and his bubble leave free:
+    // below the tour's header, above the bubble (the middle of a phone screen is under the bubble)
+    let scrolled = false;
+    const bring = (el0) => {
+      scrolled = true;
+      const bub = q('[data-c-bubble]'), r0 = el0.getBoundingClientRect(), top = 96, bottom = bub ? Math.max(top + 60, bub.getBoundingClientRect().top - 8) : innerHeight * 0.5;
+      const want = top + (bottom - top) / 2, delta = (r0.top + r0.height / 2) - want, sc = scroller(el0);
+      if (Math.abs(delta) > 4) { try { (sc || window).scrollBy({ top: delta, behavior: reduced() ? 'auto' : 'smooth' }); } catch (e) { if (sc) sc.scrollTop += delta; else window.scrollBy(0, delta); } }
+    };
+    // the element he means may not be there YET (the wheel's SPIN button shows once the wheel has drawn):
+    // the dim stays whole until it appears, and the cut-out follows it every frame after
     const tick = () => {
-      const el = document.querySelector('#rib-main-menu-v2 ' + st.spot); const root = document.getElementById(ID);
-      if (!el || !root) { spot.hidden = true; if (dim) dim.hidden = false; return; }
+      const el = findSpot(st.spot); const root = document.getElementById(ID);
+      if (!root) { off(); return; }
+      if (!el) { spot.hidden = true; if (dim) dim.hidden = false; st.raf = requestAnimationFrame(tick); return; }
+      if (!scrolled) bring(el);
+      if (dim) dim.hidden = true; spot.hidden = false;
       const r = el.getBoundingClientRect(), pad = 6;
       spot.style.left = (r.left - pad) + 'px'; spot.style.top = (r.top - pad) + 'px'; spot.style.width = (r.width + pad * 2) + 'px'; spot.style.height = (r.height + pad * 2) + 'px';
       st.raf = requestAnimationFrame(tick);
@@ -319,19 +291,19 @@
     tick();
   }
 
-  // ---- playing a line -------------------------------------------------------------------------------
+  // ---- playing a line ---------------------------------------------------------------------------------------
   function show() {
-    const root = document.getElementById(ID); if (!root) return;
-    const ch = CHAPTERS[st.ch], L = line();
-    q('[data-c-crumb]').textContent = (st.ch + 1) + ' / ' + CHAPTERS.length + ' · ' + ch.title;
-    q('[data-c-ch]').textContent = ch.title; q('[data-c-sub]').textContent = ch.sub;
-    q('[data-c-bar]').style.width = Math.round(100 * index() / Math.max(1, total() - 1)) + '%';
-    q('[data-c-back]').disabled = st.ch === 0 && st.li === 0;
-    q('[data-c-next]').textContent = (st.ch === CHAPTERS.length - 1 && st.li === ch.lines.length - 1) ? 'DONE ✓' : 'NEXT ›';
-    root.dataset.chapter = ch.id; root.dataset.pose = L.p;
+    const root = document.getElementById(ID); if (!root || !st.stop) return;
+    const S0 = st.stop, L = line(), i = stopIndex(S0.id), lastLine = st.li === S0.lines.length - 1;
+    q('[data-c-crumb]').textContent = (i + 1) + ' / ' + STOPS.length + ' · ' + S0.title;
+    q('[data-c-ch]').textContent = S0.title; q('[data-c-sub]').textContent = S0.sub;
+    q('[data-c-bar]').style.width = Math.round(100 * (i + (st.li + 1) / S0.lines.length) / STOPS.length) + '%';
+    q('[data-c-back]').disabled = st.li === 0;
+    q('[data-c-next]').textContent = lastLine ? (S0.last ? 'DONE ✓' : 'GOT IT ›') : 'NEXT ›';
+    root.dataset.stop = S0.id; root.dataset.pose = L.p;
     mouth(false); spotOn(L.s || null);
     type(L.t);
-    try { const H = window.__RIB_COACH; H.linesShown = (H.linesShown || 0) + 1; H.last = { ch: ch.id, li: st.li, pose: L.p, spot: L.s || null }; } catch (e) { /* the hook */ }
+    try { const H = window.__RIB_COACH; H.linesShown = (H.linesShown || 0) + 1; H.last = { stop: S0.id, li: st.li, pose: L.p, spot: L.s || null }; } catch (e) { /* the hook */ }
   }
   function type(text) {
     clearTimeout(st.timer); st.typing = true; st.text = text; st.pos = 0;
@@ -349,46 +321,42 @@
   function done() {
     st.typing = false; clearTimeout(st.timer); mouth(false); clearTimeout(st.mouth);
     const p = q('[data-c-text]'); if (p) p.textContent = st.text;
-    if (st.auto) st.timer = setTimeout(next, HOLD_MS + HOLD_PER_CHAR * st.text.length);
+    // the lines play on; the LAST line of a stop waits for the player (he has a screen to use)
+    if (st.auto && st.stop && st.li < st.stop.lines.length - 1) st.timer = setTimeout(next, HOLD_MS + HOLD_PER_CHAR * st.text.length);
   }
   function tap() { if (st.typing) done(); else next(); }
   function next() {
-    clearTimeout(st.timer);
-    const ch = CHAPTERS[st.ch];
-    if (st.li < ch.lines.length - 1) { st.li++; show(); return; }
-    if (st.ch < CHAPTERS.length - 1) { st.ch++; st.li = 0; const root = document.getElementById(ID); if (root) { root.classList.add('rib-coach-turn'); setTimeout(() => root.classList.remove('rib-coach-turn'), CHAPTER_MS); } show(); return; }
-    finish('done');
+    clearTimeout(st.timer); if (!st.stop) return;
+    if (st.li < st.stop.lines.length - 1) { st.li++; show(); return; }
+    const S0 = st.stop; markSeen(S0.id);
+    if (S0.last) { finish('done'); return; }
+    close('gotit');
   }
-  function back() {
-    clearTimeout(st.timer);
-    if (st.li > 0) st.li--; else if (st.ch > 0) { st.ch--; st.li = CHAPTERS[st.ch].lines.length - 1; }
-    show();
-  }
-  function setAuto(v) { st.auto = !!v; const b = q('[data-c-auto]'); if (b) { b.classList.toggle('on', st.auto); b.setAttribute('aria-pressed', String(st.auto)); } if (st.auto && !st.typing) st.timer = setTimeout(next, HOLD_MS); if (!st.auto) clearTimeout(st.timer); }
+  function back() { clearTimeout(st.timer); if (st.li > 0) { st.li--; show(); } }
+  function setAuto(v) { st.auto = !!v; const b = q('[data-c-auto]'); if (b) { b.classList.toggle('on', st.auto); b.setAttribute('aria-pressed', String(st.auto)); } if (st.auto && !st.typing && st.stop && st.li < st.stop.lines.length - 1) st.timer = setTimeout(next, HOLD_MS); if (!st.auto) clearTimeout(st.timer); }
 
-  // ---- open / close -----------------------------------------------------------------------------------
-  function open(opts) {
+  // ---- open / close -------------------------------------------------------------------------------------------
+  function open(stopId, opts) {
     if (document.getElementById(ID)) return true;
-    if (!document.getElementById('rib-main-menu-v2')) return false;   // the tour is a view of the menu
+    const S0 = STOPS.find((x) => x.id === stopId); if (!S0) return false;
     const root = document.createElement('div');
-    root.id = ID; root.className = 'rib-coach'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.setAttribute('aria-label', "Coach's tour"); root.tabIndex = -1;
+    root.id = ID; root.className = 'rib-coach'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.setAttribute('aria-label', 'The coach'); root.tabIndex = -1;
     root.innerHTML = markup();
     document.body.appendChild(root); document.body.classList.add('rib-coach-open');
-    st.open = true; st.ch = 0; st.li = 0; st.flips = 0; st.started = Date.now(); st.auto = !(opts && opts.auto === false);
-    try { const H = window.__RIB_COACH; H.opens = (H.opens || 0) + 1; H.openedBy = (opts && opts.by) || 'tile'; } catch (e) { /* the hook */ }
+    st.open = true; st.stop = S0; st.li = 0; st.flips = 0; st.auto = !(opts && opts.auto === false);
+    try { const H = window.__RIB_COACH; H.opens = (H.opens || 0) + 1; H.openedBy = (opts && opts.by) || 'page'; H.openedStop = stopId; } catch (e) { /* the hook */ }
     bind(root); if (voiceOn() && !reduced()) voiceCtx();
-    preload().then(() => { if (document.getElementById(ID)) { root.classList.add('rib-coach-ready'); show(); (q('[data-c-next]') || root).focus({ preventScroll: true }); } });
+    preload().then(() => { if (document.getElementById(ID) && st.stop === S0) { root.classList.add('rib-coach-ready'); show(); (q('[data-c-next]') || root).focus({ preventScroll: true }); } });
     return true;
   }
   function close(why) {
     const root = document.getElementById(ID); if (!root) return false;
-    clearTimeout(st.timer); clearTimeout(st.mouth); cancelAnimationFrame(st.raf); st.typing = false; st.open = false;
+    clearTimeout(st.timer); clearTimeout(st.mouth); cancelAnimationFrame(st.raf); st.typing = false; st.open = false; st.stop = null;
     root.remove(); document.body.classList.remove('rib-coach-open');
     try { const H = window.__RIB_COACH; H.closes = (H.closes || 0) + 1; H.closedBy = why || 'close'; } catch (e) { /* the hook */ }
-    const tile = document.querySelector('#rib-main-menu-v2 [data-rib-action="coach"]'); if (tile) { try { tile.focus({ preventScroll: true }); } catch (e) { /* a nicety */ } }
     return true;
   }
-  function finish(why) { setEnabled(false); close(why || 'done'); }   // the tour ends: the switch goes OFF, so it never plays twice by accident
+  function finish(why) { setEnabled(false); close(why || 'done'); }   // the walk is over, or skipped: the switch goes OFF and remembers
 
   function bind(root) {
     root.addEventListener('click', (ev) => {
@@ -412,43 +380,51 @@
     });
   }
 
-  // ---- the switch ---------------------------------------------------------------------------------------
+  // ---- the switch -------------------------------------------------------------------------------------------------
   function toggle() {
     if (st.open) { finish('skip'); return true; }
-    if (state() === 'on') { setEnabled(false); return true; }   // switched on by hand and idle: off
-    setEnabled(true); return open({ by: 'tile' });              // fresh or off: on, and play
+    if (state() === 'on') { setEnabled(false); return true; }          // switched on by hand and idle: off
+    resetSeen(); setEnabled(true);                                      // fresh or off: on, the walk starts over
+    const cur = currentStop(); return cur ? open(cur.id, { by: 'tile' }) : true;
   }
 
-  // ---- the first visit (the welcome cards), the query door, and a switch left on ------------------------------
+  // ---- watching the screens: the welcome cards, the query door, a switch left on, and every stop -----------------
   const splashGone = () => { const sp = document.getElementById('splash'); return !sp || sp.classList.contains('gone') || getComputedStyle(sp).display === 'none'; };
   document.addEventListener('click', (ev) => { if (ev.target.closest && ev.target.closest('.onboard #onNext')) onboardClicks++; }, true);
-  const watch = () => {
+  function scan() {
     if (document.querySelector('.onboard')) { sawOnboard = true; return; }   // the cards are up: wait for the player to read them
-    const menu = document.getElementById('rib-main-menu-v2');
-    if (!menu || st.open || !armed || !splashGone()) return;
-    if (!queryDone && /[?&]coachTour\b/.test(location.search)) { queryDone = true; armed = false; setEnabled(true); open({ by: 'query' }); return; }   // the checks' and the screenshots' door: forces ON
-    if (sawOnboard && !welcomed && onboardClicks >= 3 && enabled()) {   // the cards clicked through (a fresh install is ON): the coach takes over
-      welcomed = true; armed = false; setEnabled(true);   // stored 'on': cut short, it plays again next time, until it is finished or skipped
-      setTimeout(() => { if (!st.open && document.getElementById('rib-main-menu-v2')) open({ by: 'welcome' }); }, 500); return; }
-    if (state() === 'on') { armed = false; open({ by: 'switch' }); }   // switched on by hand (or by the cards) and cut short: it plays again here
-  };
-  new MutationObserver(watch).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-  window.addEventListener('rib-menu-unmounted', () => { armed = true; if (document.getElementById(ID)) close('menu'); });
+    if (st.open || !splashGone()) return;
+    const menu = !!document.getElementById('rib-main-menu-v2');
+    if (menu && armed && !queryDone && /[?&]coachTour\b/.test(location.search)) { queryDone = true; armed = false; resetSeen(); setEnabled(true); open('menu', { by: 'query' }); return; }
+    if (menu && armed && sawOnboard && !welcomed && onboardClicks >= 3 && enabled()) {   // the cards clicked through (a fresh install is ON): the coach takes over
+      welcomed = true; armed = false; resetSeen(); setEnabled(true); setTimeout(() => { if (!st.open && document.getElementById('rib-main-menu-v2')) open('menu', { by: 'welcome' }); }, 500); return; }
+    if (state() !== 'on') return;                                        // only a walk switched on by hand (or by the cards) follows the screens
+    const cur = currentStop(); if (!cur) { pendingId = null; clearTimeout(pending); pending = 0; return; }
+    if (pendingId === cur.id) return;
+    clearTimeout(pending); pendingId = cur.id;
+    pending = setTimeout(() => { pending = 0; pendingId = null;
+      if (st.open || !enabled() || seen().has(cur.id)) return;
+      const again = currentStop(); if (!again || again.id !== cur.id) return;   // the screen moved on before he got there
+      open(cur.id, { by: 'page' }); }, cur.delay || 650);
+  }
+  new MutationObserver(scan).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+  setInterval(scan, 500);
+  window.addEventListener('rib-menu-unmounted', () => { armed = true; if (st.open && st.stop && st.stop.id === 'menu') close('menu'); });
   window.addEventListener('resize', () => { if (st.spot) spotOn(st.spot); });
 
   function estimateMs() {
     let ms = 0;
-    CHAPTERS.forEach((c) => c.lines.forEach((L) => { const n = L.t.length, punct = (L.t.match(/[.!?]/g) || []).length, commas = (L.t.match(/[,;:]/g) || []).length;
+    STOPS.forEach((S0) => S0.lines.forEach((L) => { const n = L.t.length, punct = (L.t.match(/[.!?]/g) || []).length, commas = (L.t.match(/[,;:]/g) || []).length;
       ms += 120 + n * TYPE_MS + punct * PUNCT_MS + commas * PUNCT_MS * 0.5 + HOLD_MS + HOLD_PER_CHAR * n; }));
-    return ms + CHAPTERS.length * CHAPTER_MS;
+    return ms;
   }
 
   window.__RIB_COACH = {
-    open: (o) => open(o), close: (w) => close(w || 'close'), toggle, next, back, tap, skip: () => finish('skip'), setAuto, setEnabled,
+    open: (id, o) => open(id || 'menu', o), close: (w) => close(w || 'close'), toggle, next, back, tap, skip: () => finish('skip'), setAuto, setEnabled, setVoice, resetSeen, currentStop: () => { const c = currentStop(); return c ? c.id : null; },
     get enabled() { return enabled(); }, get isOpen() { return !!document.getElementById(ID); },
-    get chapter() { return st.open ? CHAPTERS[st.ch].id : null; }, get line() { return st.open ? st.li : -1; }, get typing() { return st.typing; },
-    get flips() { return st.flips; }, get spot() { return st.spot; }, get auto() { return st.auto; },
-    chapters: CHAPTERS.map((c) => ({ id: c.id, title: c.title, lines: c.lines.length })), poses: POSES.slice(), estimateMs, key: KEY,
+    get stop() { return st.stop ? st.stop.id : null; }, get chapter() { return st.stop ? st.stop.id : null; }, get line() { return st.open ? st.li : -1; }, get typing() { return st.typing; },
+    get flips() { return st.flips; }, get spot() { return st.spot; }, get auto() { return st.auto; }, get seen() { return [...seen()]; },
+    stops: STOPS.map((S0) => ({ id: S0.id, title: S0.title, lines: S0.lines.length })), poses: POSES.slice(), estimateMs, key: KEY, seenKey: SEEN_KEY,
     voice: { setEnabled: setVoice, get enabled() { return voiceOn(); }, get blips() { return voice.blips; }, get state() { return voice.ctx ? voice.ctx.state : null; }, get mouthLog() { return voice.mouthLog.slice(); }, key: VOICE_KEY },
   };
 })();

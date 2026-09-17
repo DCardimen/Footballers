@@ -3,9 +3,11 @@
 Each sheet is five rows by two columns of the same man: the LEFT column mouth closed, the RIGHT
 column mouth open, one pose per row. The pose grid is fixed (the sheets are 793x1983, five rows of
 ~397px, two columns of ~397px) because on one sheet three rows touch and an alpha-band split merges
-them. Every cell is cropped to its own alpha, scaled to one height, and written as
-public/coach/<pose>_{a,b}.webp — `a` the closed mouth, `b` the open one — so a line of dialogue
-can flip between the two while it types. `COACH_POSES` below names each row; the tutorial script
+them. The closed mouth is cropped to its alpha and scaled to one height; the open mouth is the SAME
+drawing with only the head pasted over from the open-mouth cell (the two drawings differ by a few
+pixels everywhere, and flipping between them twitched the whole man), cropped to the same box.
+Written as public/coach/<pose>_{a,b}.webp — `a` the closed mouth, `b` the open one — so a line of
+dialogue can flip between the two while it types and nothing but the face moves. `COACH_POSES` below names each row; the tutorial script
 (public/rib-menu-coach.js) refers to poses by these names.  python3 scripts/build-coach-art.py"""
 from PIL import Image
 import numpy as np, json, os
@@ -30,7 +32,20 @@ for path, names in SHEETS:
             # shoes or cap: keep the largest blob (the man) and clear the rest
             lab, n = components(a); sz = np.bincount(lab.ravel(), minlength=n + 1); sz[0] = 0
             keep = lab == int(sz.argmax()); arr = np.asarray(cell).copy(); arr[..., 3][~keep] = 0; cell = Image.fromarray(arr, 'RGBA'); a = keep
-            ys, xs = np.nonzero(a); crop = cell.crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
+            if suffix == 'a': base = cell; abox = (int(np.nonzero(a)[1].min()), int(np.nonzero(a)[0].min()), int(np.nonzero(a)[1].max()) + 1, int(np.nonzero(a)[0].max()) + 1)
+            else:
+                # THE JITTER: the two drawings of a pose differ by a few pixels everywhere (an arm, a
+                # foot, the clipboard), so flipping between them made the whole man twitch. The open
+                # mouth is the closed drawing with only the HEAD pasted over from the open one — the
+                # helmet's own box (the navy touching the top of the man, widened a little) down to
+                # the chin — so the body is one drawing and only the face moves.
+                ba = np.asarray(base).astype(int); navy = (ba[..., 3] > 10) & (ba[..., 2] > ba[..., 0] + 15) & (ba[..., 2] < 150) & (ba[..., 0] < 100)
+                H0 = abox[3] - abox[1]; hrows = navy[abox[1]:abox[1] + int(H0 * 0.32)]; ys2, xs2 = np.nonzero(hrows)
+                hx0, hx1 = int(xs2.min()) - int(H0 * 0.03), int(xs2.max()) + 1 + int(H0 * 0.03); hy1 = abox[1] + int(H0 * 0.40)
+                merged = np.asarray(base).copy(); ob = np.asarray(cell)
+                merged[abox[1]:hy1, max(0, hx0):hx1] = ob[abox[1]:hy1, max(0, hx0):hx1]
+                cell = Image.fromarray(merged, 'RGBA')
+            crop = cell.crop(abox)   # the SAME box for both mouths, so nothing shifts between them
             if name == 'welcome' and suffix == 'a':   # the menu tile: his head, square, off the welcome pose
                 hw = crop.width; head = crop.crop((hw // 2 - crop.height // 6, 0, hw // 2 + crop.height // 6, crop.height // 3))
                 head.resize((128, 128), Image.LANCZOS).save(f'{OUT}/tile.webp', quality=88, method=6)
