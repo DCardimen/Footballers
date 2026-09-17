@@ -55,6 +55,22 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v127 — door two can load its own film.** v115 made the live game's loader *borrow* the element
+  the boot splash loaded — one decoded film a session, no second request. Taking it is the fast
+  path, but it was the **only** path: with nothing parked (the splash left before the film played,
+  an earlier game still holding it, a reload putting a fresh document in front of a warm HTTP cache)
+  door two fell silently back to the v94 chase for the rest of the session — the "the video isn't
+  playing on the live loader" case. It builds its own `<video>` on the same URL now. That URL is in
+  the browser cache, so it is a decode rather than a download; it is given to `give()` on the way
+  out, so from the second game on there *is* a parked element again. Two details make it look like
+  the borrowed one rather than a cold start: a self-built element has `duration` of NaN for a beat,
+  so the seek to v116's seam is skipped — it seeks on `loadedmetadata` instead, and does **not**
+  claim the stage until the playhead is at the seam, because claiming earlier would put the film's
+  opening second of near-black on the loader, which is exactly what this door exists not to do. Its
+  audition is longer than a borrowed film's (2.6s vs 1.2s), and with the film off for a real reason
+  — reduced motion, `?noFilmV114`, no codec — nothing is built and the chase runs unchanged.
+  `__LIVELOAD_V94.lastFilmMs` / `.lastFilmOwn`; `scripts/v127check.mjs` is the gate.
+
 - **v126 — the opponent has a face, he wears on you, and the season screen is four tabs.** Four
   things about the two screens you come back to every week. **The opponent card** was a name, a
   confidence dial, a fog count and a RECOMMENDED COUNTER — a game plan the player has not chosen

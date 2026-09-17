@@ -68,6 +68,14 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v127 DOOR TWO CAN LOAD ITS OWN FILM` (in the v94 live-loader mount, beside `LIVE_FILM_FROM`) —
+  `F.take()` is the fast path, not the only one: with nothing parked, door two builds its own
+  `<video>` on `__V114.src` (cached) rather than falling back to the chase forever. A self-built
+  element seeks to the seam on `loadedmetadata` (its `duration` is NaN at mount) and does not claim
+  the stage until `atSeam()`, so the loader never shows the film's opening black; its audition is
+  `LIVE_FILM_OWN_MS` (2.6s) rather than `LIVE_FILM_START_MS`, and it is parked on the way out.
+  Nothing is built when `F.failed` / `F.off` / `F.rm`. `__LIVELOAD_V94.lastFilmMs` / `.lastFilmOwn`;
+  `v127check.mjs`, then `v115check.mjs`, `v114check.mjs`, `splashcheck.mjs`
 - `v126 THE OPPONENT HAS A FACE, AND HE WEARS ON YOU` (beside `oppMulV111`) — `oppReadV126(opp, pl)`
   is the scouting profile the next-opponent card shows (tier, rating gap, offence/defence,
   physicality, and tempo/hitting/pressure in words); the RECOMMENDED COUNTER is gone, because the
@@ -445,6 +453,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | shadows / the key light / the goalpost frame / the lamps holding (v99) | `v99check.mjs`, `v92check.mjs`, `v86check.mjs`, `sidelinecheck.mjs` |
 | the lights / the lit turf / the scorebug colours / crowd emoji / the handover cut / the coach row (v98) | `v98check.mjs`, `v92check.mjs`, `crowdcheck.mjs`, `postgamecheck.mjs` |
 | the loading film's loop — the seam, the rewind, what the door waits for (v116) | `v114check.mjs`, then `v115check.mjs`, `splashcheck.mjs`, `v112Acheck.mjs` |
+| whether the live game's loader gets the film up, with or without one parked (v127) | `v127check.mjs`, then `v115check.mjs`, `v114check.mjs`, `splashcheck.mjs` |
 | the live game's loader playing the film — the parked element, the offset, the door (v115) | `v115check.mjs`, then `v114check.mjs`, `splashcheck.mjs`, `v86check.mjs` |
 | the boot splash's film — the asset, the door, the bar (v114) | `v114check.mjs`, then `splashcheck.mjs`, `shot.mjs` |
 | the loading screen / the splash's door (v94) | `splashcheck.mjs`, `shot.mjs`, `walk.mjs` |

@@ -1040,6 +1040,7 @@ window.addEventListener('unhandledrejection', function(e){
      * instead of a blank field that then has to think. `warmMs` is the ceiling: a build that
      * never reports back must not hold the game hostage. */
     var api = window.__LIVELOAD_V94 = { get current() { return cur; }, shows: 0, mount: mount,
+      lastFilmMs: null, lastFilmOwn: null,   // v127: how long door two took to get the sting up, and whether it had to build it
       get warm() { return warm; },
       simReady: function () { warm = true; },
       /* v101: the MutationObserver below delivers a tick AFTER the field is inserted, and the
@@ -1066,7 +1067,7 @@ window.addEventListener('unhandledrejection', function(e){
       el.innerHTML = '<canvas class="rib-liveload-cv-v94"></canvas><div class="rib-liveload-cap-v94"><b>' + (us && them ? us + ' <i>vs</i> ' + them : 'GAME DAY') + '</b><span>TAKING THE FIELD</span></div><div class="rib-liveload-bar-v94"><i></i></div>';
       wrap.appendChild(el); api.shows++;
       warm = false;
-      var item = cur = { el: el, wrap: wrap, t0: Date.now(), chase: null, done: false, ready: false, field: false, film: false };
+      var item = cur = { el: el, wrap: wrap, t0: Date.now(), chase: null, done: false, ready: false, field: false, film: false, filmMs: null, filmOwn: false };
       function finish() {
         if (item.done) return; item.done = true; if (item.chase) item.chase.stop(); if (cur === item) cur = null;
         release();
@@ -1103,9 +1104,28 @@ window.addEventListener('unhandledrejection', function(e){
       var F = window.__V114;
       var LIVE_FILM_FROM = (F && F.loopFrom) || 1.15;  // seconds: v116's seam — the wordmark, landed
       var LIVE_FILM_START_MS = 1200;                   // its audition, shorter than door one's: this door may only live for 1.5s
+      var LIVE_FILM_OWN_MS = 2600;                     // v127: a film this door had to build itself gets longer — it is a decode, not a hand-off
       // the element door one loaded, parked since the splash left — already buffered, so this is a
       // seek and a play, not a load, and it survives the main thread being busy with Phaser
-      var fv = (F && F.take) ? F.take('rib-liveload-film-v115') : null;
+      /* ===== v127 DOOR TWO CAN LOAD ITS OWN FILM =====
+       * Taking the parked element is the FAST path, not the only one. If nothing is parked —
+       * the splash left before the film played, an earlier game is still holding it, a reload
+       * put a fresh document in front of a warm HTTP cache — door two used to fall silently
+       * back to the v94 chase for the rest of the session, which is exactly the "the video
+       * isn't playing on the live loader" case. It builds its own <video> on the same URL now.
+       * That URL is in the browser cache (door one asked for it minutes ago) so it is a decode,
+       * not a download; it starts at the same seam, rides the same looper, and is handed to
+       * `give()` on the way out, so from the second game on there IS a parked element again.
+       * Nothing is built when the film is off for a real reason — reduced motion, ?noFilmV114,
+       * no codec — because `F.failed`/`F.off`/`F.rm` say so and the chase is correct there. */
+      var fv = (F && F.take) ? F.take('rib-liveload-film-v115') : null, fvOwn = false;
+      if (!fv && F && F.src && !F.failed && !F.off && !F.rm) {
+        try {
+          fv = document.createElement('video');
+          fv.className = 'rib-liveload-film-v115';
+          fv.preload = 'auto'; fv.src = F.src; fvOwn = true;
+        } catch (e) { fv = null; }
+      }
       if (fv) { fv.setAttribute('aria-hidden', 'true'); el.insertBefore(fv, el.firstChild); }
       var filmOn = false, chaseUp = false, sheetOk = null;
       function mountChase() {
@@ -1123,13 +1143,26 @@ window.addEventListener('unhandledrejection', function(e){
       if (fv) {
         var claimed = function () {
           if (filmOn || item.done) return;
-          filmOn = true; item.film = true; el.classList.add('film');
+          filmOn = true; item.film = true; item.filmMs = Date.now() - item.t0; item.filmOwn = fvOwn; el.classList.add('film');
+          api.lastFilmMs = item.filmMs; api.lastFilmOwn = fvOwn;
           if (chaseUp) { el.classList.remove('chase'); if (item.chase) { item.chase.stop(); item.chase = null; } }
         };
         item.filmEl = fv;
-        fv.addEventListener('playing', claimed);
-        ['canplay', 'seeked', 'loadeddata'].forEach(function (ev) { fv.addEventListener(ev, function () { if (fv.readyState >= 2) claimed(); }); });
-        fv.addEventListener('timeupdate', function () { if (fv.currentTime > 0) claimed(); });
+        /* v127: a BORROWED element already carries its metadata, so the seek to the seam lands on
+         * this tick and it can claim the stage immediately. One this door BUILT has `duration` of
+         * NaN for a beat, so that seek is skipped — and claiming then would put the film's opening
+         * second of near-black on the loader, which is the thing this door exists not to do. So a
+         * self-built film seeks when its metadata arrives and does not claim the stage until the
+         * playhead is at the seam (or the audition runs out and whatever it has is better than the
+         * chase). `atSeam` is the one gate; a borrowed element passes it by construction. */
+        var seekDone = false;
+        function seekSeam() { if (seekDone) return; try { if (fv.duration > LIVE_FILM_FROM + 1) { fv.currentTime = LIVE_FILM_FROM; seekDone = true; } } catch (e) {} }
+        function atSeam() { return !fvOwn || seekDone || fv.currentTime >= LIVE_FILM_FROM - .25; }
+        function tryClaim() { if (fv.readyState >= 2 && atSeam()) claimed(); }
+        fv.addEventListener('loadedmetadata', seekSeam);
+        fv.addEventListener('playing', tryClaim);
+        ['canplay', 'seeked', 'loadeddata'].forEach(function (ev) { fv.addEventListener(ev, tryClaim); });
+        fv.addEventListener('timeupdate', function () { if (fv.currentTime > 0) tryClaim(); });
         // v116: the end of the film is a seek back to the seam, not a stop. The parked element
         // carries door one's own `ended` listener, which is the looper; this is the belt to that
         // brace, and loopBack is a no-op when the playhead is already sitting on the seam.
@@ -1138,11 +1171,13 @@ window.addEventListener('unhandledrejection', function(e){
         // the parked element is already buffered, so it claims the stage on THIS tick and the
         // chase never mounts at all. Claim first, then seek: a seek drops readyState for a beat,
         // and asking after it would hand the door to the chase for no reason.
-        if (fv.readyState >= 2) claimed();
-        try { if (fv.duration > LIVE_FILM_FROM + 1) fv.currentTime = LIVE_FILM_FROM; } catch (e) {}
+        seekSeam();
+        if (!fvOwn && fv.readyState >= 2) claimed();
         var pp = null; try { pp = fv.play(); } catch (e) {}
         if (pp && pp.catch) pp.catch(function () {});
-        setTimeout(function () { if (!filmOn && !item.done) mountChase(); }, LIVE_FILM_START_MS);
+        // a self-built film that never reached the seam still beats the chase once it has a frame
+        if (fvOwn) setTimeout(function () { if (!filmOn && !item.done && fv.readyState >= 2) { seekDone = true; claimed(); } }, Math.round(LIVE_FILM_OWN_MS * .75));
+        setTimeout(function () { if (!filmOn && !item.done) mountChase(); }, fvOwn ? LIVE_FILM_OWN_MS : LIVE_FILM_START_MS);
       }
       // the scene is the ready signal; the field being torn down is the exit signal
       var poll = setInterval(function () {
