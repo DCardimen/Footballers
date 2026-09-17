@@ -68,6 +68,12 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v123 THE LEAGUE HAS A MAP` (the `Ga` / `er` pools, beside `Xs()` / `Xe()`) — 120 invented towns
+  and 88 mascots, and EVERY mascot matches a `LOGO_RULES` pattern, so the crest is always the animal
+  in the name (it used to hash, which is how a Buffaloes side wore the eagle). `Xe(team)` is
+  level-shaped: youth = `Town Mascot`, college = `Town` + `COLLEGE_V123`, level 7+ = a club from
+  `DFL_V123` (fifty, built by `dflClubV123`, fixed per save). No generated name is a real NFL or
+  major college team. `window.__NAMES_V123`; `namecheck.mjs` (pure Node) is the gate
 - `v122 A` (the result-view injector) / `v122 THE SEASON DEBRIEF` (above `SEASON_LOG_MAX`) — the
   depth card anchored on `.season-grade`, the grade LETTER inside the 112px `.grade-ring`, so it
   rendered INSIDE the ring and smeared over the whole report screen; it anchors on the CARD now.
@@ -441,6 +447,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the clock, the try, timeouts, the flag, the chains, play descriptions (v109 D) | `v109Dcheck.mjs`, then `simcheck.mjs`, `postgamecheck.mjs`, `badgecheck.mjs`, `refcheck.mjs`, `walk.mjs` |
 | the deploy reaching a browser / the build meta / the one-time reload (v106.1) | `freshcheck.mjs` (no dev server), then `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the team kit on the menu pictures / the hero, continue-card and portrait masks (v106) | `python3 scripts/build-menu-art.py` (or the one `menu-kit-*.py`), then `menu-mask-check.mjs`, `menu-kit-shot.mjs` (look at the shots), `menu-integration-check.mjs`, `v102check.mjs`, `menushot.mjs` (`CAREER=1`) |
+| a school, college or DFL club's name, or which crest it wears (v123) | `namecheck.mjs`, then `emblemcheck.mjs`, `menu-integration-check.mjs`, `walk.mjs` |
 | team emblems / palettes / identity | `emblemcheck.mjs` |
 | training / skill art, the skill atlas | `skillartcheck.mjs`, `wheelcheck.mjs` |
 | the offseason training board — the grid, the preview sheet, the confirm (v113) | `skillartcheck.mjs`, `capcheck.mjs`, `v85check.mjs`, then `walk.mjs`, `scrollcheck.mjs`, `shot.mjs` |

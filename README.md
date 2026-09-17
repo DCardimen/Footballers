@@ -55,6 +55,19 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v123 — the league has a map, and the crest matches the name.** Two halves of one bug. The
+  world only knew fifteen towns and fifteen mascots, so the same handful of school names came round
+  every season of every career; and the mascot was drawn with no regard for the crest, so a
+  "Buffaloes" side could wear the eagle — `logoForName` hashes any name it has no `LOGO_RULES`
+  pattern for, and eleven of the fifteen old mascots had none. Now: **120 invented towns** and
+  **88 mascots**, and every one of those mascots is matched by a rule, so the emblem a side wears is
+  always the animal or figure in its name — proved mascot by mascot, against the packed sheet, by
+  `scripts/namecheck.mjs`. The name is level-shaped too: a youth side is `Town Mascot`, a college is
+  `Town State / Tech / A&M / Poly / …`, and the DFL is a fixed fifty-club league (`DFL_V123`,
+  `dflClubV123`) drawn once per save, so the pro league a career climbs into holds still while the
+  schools below it keep rolling. No generated name — youth, college or pro — is a real NFL or major
+  college team, and no town is an NFL host city; `namecheck.mjs` enforces all three.
+
 - **v122 — the report card is one card, and the coach reads your year back.** Two things, one
   screen. **The jumble**: on the season result screen the depth-chart card was injected with
   `insertAdjacentHTML("afterend")` against `.season-grade` — which is the grade LETTER, inside the
