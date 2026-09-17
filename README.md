@@ -62,20 +62,23 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   were already scrubbed in an earlier pass. **The coach**: the three uploaded coach sheets
   (five poses each, drawn mouth-closed and mouth-open) are cut by `scripts/build-coach-art.py`
   into `public/coach/<pose>_{a,b}.webp` — fifteen poses, plus a head crop for the menu tile — and
-  the open-mouth drawing is the CLOSED drawing with only the head box pasted over from the
-  open cell, so nothing below the face moves between the two (the sheets' own pairs were drawn
-  twice, and the body jittered). `public/rib-menu-coach.js` (`v119 THE COACH`, with
+  the open-mouth drawing is the CLOSED drawing with only the MOUTH set on it: the sheets' own
+  pairs were drawn twice (the body, the brow and the tilt of the head all differ), so the cutter
+  finds the open cell's mouth inside its face, erases the closed drawing's own mouth line under a
+  skin fill, lifts the open mouth as a feathered blob and hangs it from where that line was (the jaw drops, nothing climbs toward the nose) — nothing
+  but the mouth moves, in every pose, and the cutter refuses any pose where a stroke of the closed
+  mouth survives beside the open one (`art/coach/coach_pairs.png` is the proof sheet it writes). `public/rib-menu-coach.js` (`v119 THE COACH`, with
   `rib-menu-coach.css`, both baked by `bake-menu-into-index.mjs`) is a talking head who **pops in
   on every screen of a first week**, says three or four lines about THAT screen, and leaves:
-  twelve `STOPS` — the main menu, the personality roll, the position pick, the hub, the
-  season-commitment wheel (what the habits are, the FIT ROLL, PAYS / HALF / BACKFIRES, what loads
-  it), the training board, the season screen (the schedule and YOUR BODY), the weekly-plan wheel
-  (rolled, not chosen — what each plan trades), the four-step pregame,
-  the broadcast, the post-game card, and the season screen after the game (WEAR & TEAR, NEXT GAME,
-  Recovery) — about three minutes of talk in all, spread over the week, each stop the two or three
-  HOW TO PLAY specifics that matter there (body fit −21…+13, trust from ~28 by (perf−50)/13, the 12%
-  snap share and the 76 cap, worn at 70 and fresh at 25, sitting sheds 22, Recovery sheds ~11.6),
-  never the whole guide. `scan()` reads the page (the audit state's `view`, `#personaV13`,
+  thirteen `STOPS` — the main menu (and PRESTIGE: what a finished career leaves you, spent under
+  TRAINING), the personality roll, the position pick (every position wants a different mix of
+  skills, and the mix is yours to work out), the hub, the season-commitment wheel, the training
+  board, the season screen (YOUR BODY: a fatigued guy plays worse, so play fewer snaps and let him
+  recover), the weekly-plan wheel, the four-step pregame, the broadcast, the post-game card, the
+  season screen after the game, and the prestige tree whenever it is opened — a couple of minutes
+  of talk in all, spread over the week, PLAIN: a coach talking to a jock who may not follow a long
+  sentence, what the screen does and what to do about it, almost no numbers (the guide has the
+  numbers), never the whole guide. `scan()` reads the page (the audit state's `view`, `#personaV13`,
   `#growthV42`, `#pregameV1513`, the scene's markers, `#pgOverlayV13`) on a MutationObserver and a
   half-second tick, opens the first unseen stop that fits after a short delay, and remembers each
   one in `rib.coachSeen.v119` so no screen hears him twice; the last stop switches him off. A line
@@ -101,7 +104,7 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   the next mount. The dev checks remove the cards without a click and never meet him; `?coachTour`
   switches him on at the first mount. `window.__RIB_COACH` is the hook and `scripts/coachcheck.mjs`
   the gate — it plays the whole first week through to the post-game card and back. Menu stamp →
-  `v119-coach-walk`.
+  `v119-coach-plain`.
 
 - **v118 — the quarterback's own sheets, and the mesh.** Four sheets drawn for the quarterback
   alone landed in `art/field/` (`qb_handoff_v118`, `qb_toss_v118`, `qb_throw_right_v118`,

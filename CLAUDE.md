@@ -70,16 +70,19 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
 - `v119 THE COACH` (`public/rib-menu-coach.js` + `rib-menu-coach.css`, baked like the other
   menu files) — the talking head who pops in on every screen of a first week, over the dimmed page:
-  `STOPS` (twelve, in the order the week meets them — menu, persona, position, hub, wheel, training,
-  season, plan, pregame, live, result, recovery — each `when(ctx)` keyed on the page: the audit state's
-  `view`, `#personaV13`, `#growthV42`, `#pregameV1513`, the scene's markers, `#pgOverlayV13`; three
-  or four lines a stop, every number the guide's own, never the whole section), `currentStop()` (the
+  `STOPS` (thirteen, in the order the week meets them — menu, prestige (view `upgrade`, off the
+  TRAINING tile, any time), persona, position, hub, wheel, training, season, plan, pregame, live,
+  result, recovery — each `when(ctx)` keyed on the page: the audit state's `view`, `#personaV13`,
+  `#growthV42`, `#pregameV1513`, the scene's markers, `#pgOverlayV13`; three or four SHORT lines a
+  stop in plain jock-talk, almost no numbers — the guide has those — and always the fatigue, the
+  skill-mix and the prestige points), `currentStop()` (the
   first unseen stop that fits — `rib.coachSeen.v119`), `scan()` (MutationObserver + 500 ms tick;
   opens after `delay || 650` ms; waits while the welcome cards are up), `S` (the spotlight targets:
   a selector, or `text:` and a button pattern), the pace constants (`TYPE_MS` / `HOLD_MS` /
   `HOLD_PER_CHAR`; `estimateMs()` must stay inside 2–6 min for the week), `flap()` (the mouth:
   `<pose>_a` / `<pose>_b` off `public/coach/`, cut by `scripts/build-coach-art.py` — `_b` is `_a` with
-  only the head pasted over, so the body never jitters; in the shape of speech, never a metronome),
+  only the MOUTH set on it, the closed line erased and the open mouth hung from it, so nothing else moves and no pose has two mouths; look at
+  `art/coach/coach_pairs.png` after a cut; in the shape of speech, never a metronome),
   `blip()` (the voice: one WebAudio blip per letter at a syllable rate, no sound file; VOICE mutes,
   `rib.coachVoice.v119`), `spotOn()` (a box-shadow cut-out re-measured every frame; it WAITS for a
   target that is not there yet), `toggle()` (the menu switch `rib9-tile-coach`,
