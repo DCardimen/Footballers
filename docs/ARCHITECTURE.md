@@ -1155,6 +1155,21 @@ Three seams only the merged build could show, all fixed here rather than in a wo
   260 px, so a long touchdown left the scorer alone; and E's measurement moved the wings only when
   they were not already signalling, which with D's `measure` flag live was every time.
 
+## v121 — the football is the last resort, not the first frame
+
+Anchor `v121 THE FOOTBALL IS THE LAST RESORT` (in the splash boot, beside `mountChase()`).
+
+`.splash-ball` — the 🏈 in `.splash-stage` — used to have no `display` of its own, so it was painted
+at first paint and hidden again by `#splash.film` / `#splash.chase` once one of them claimed the
+stage. On a normal boot that is a static emoji on a bare card for the ~700 ms before the film's
+first frame, which reads as the old loading screen flashing under the new one. It is now
+`display:none` by default and shown by `#splash.ball:not(.film):not(.chase) .splash-stage
+.splash-ball` — a class nothing adds until `ballStandsIn()` says so, which needs BOTH `filmOut`
+(the film's `verdict` came back unclaimed, or there is no v114 at all) AND `sheetOk === false`
+(`load()` resolved false, so `mountChase()` can never fire). Reduced motion never reaches it: that
+path adds `.film` and shows the film's own last frame as a poster. The guard in the selector means
+a late claim by either one still wins, whatever order the classes land in.
+
 ## v120 — the coach decides your snaps, fatigue is a slope, and the coach points
 
 Anchors `v120 THE COACH DECIDES YOUR SNAPS` (beside `USE_V111`, in the v111 involvement block) and

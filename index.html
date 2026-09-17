@@ -204,7 +204,8 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 #splash.film .splash-loader i{opacity:.32}
 @media (prefers-reduced-motion:reduce){.splash-loader b{transition:none}}
 /* ===== v94 THE CHASE — the loading screen stage ===== */
-.splash-stage{position:relative;width:min(92vw,420px);height:200px;margin:0 auto}#splashChase{position:absolute;inset:0;width:100%;height:100%;display:none;border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.45)}#splash .splash-stage .splash-ball{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}#splash.chase #splashChase{display:block}#splash.chase .splash-ball{display:none}
+.splash-stage{position:relative;width:min(92vw,420px);height:200px;margin:0 auto}#splashChase{position:absolute;inset:0;width:100%;height:100%;display:none;border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.45)}#splash .splash-stage .splash-ball{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none}
+#splash.ball:not(.film):not(.chase) .splash-stage .splash-ball{display:block}#splash.chase #splashChase{display:block}#splash.chase .splash-ball{display:none}
 .palette-grid-v153 .palette-v153{height:56px!important;display:flex;flex-wrap:wrap;align-content:flex-start}.palette-grid-v153 .palette-v153 i{height:34px}.palette-v153 .pal-name-v97{display:block;width:100%;height:20px;line-height:20px;font:600 8.5px/20px Oswald,sans-serif;letter-spacing:.4px;color:#c9d3df;background:#0b1119;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;box-sizing:border-box;font-style:normal}.palette-grid-v153 .palette-v153 small{inset:auto 2px 23px auto}
 .up-group-v97{padding:0;overflow:hidden}.up-group-head-v97{width:100%;display:flex;align-items:center;gap:10px;padding:12px 14px;border:0;background:transparent;color:#dfe6ef;font:700 13px Oswald,sans-serif;letter-spacing:2.5px;text-align:left;cursor:pointer}.up-group-head-v97 small{margin-left:auto;font:600 10px Oswald,sans-serif;letter-spacing:1.5px;color:var(--chalk-dim)}.up-group-head-v97 i{font-style:normal;color:#f0bb45;transition:transform .18s}.up-group-v97.on .up-group-head-v97{background:linear-gradient(180deg,rgba(240,187,69,.16),rgba(240,187,69,.04));color:#ffd76f}.up-group-v97.on .up-group-head-v97 i{transform:rotate(180deg)}.up-group-body-v97{display:none;padding:0 10px 6px}.up-group-v97.on .up-group-body-v97{display:block}
 .name-edit-v96{display:flex;align-items:center;gap:8px}.name-edit-v96 input{flex:1;min-width:0;background:transparent;border:0;border-bottom:1px dashed #f0bb4566;border-radius:0;color:inherit;font:inherit;letter-spacing:inherit;padding:0 0 2px;outline:none}.name-edit-v96 input:focus{border-bottom-color:var(--gold)}.name-dice-v96{flex:none;background:#ffffff12;border:1px solid var(--line);border-radius:10px;color:#f0bb45;font-size:18px;width:40px;height:40px;cursor:pointer;line-height:1}.name-hint-v96{margin-top:-4px;margin-bottom:8px;color:#f0bb45;letter-spacing:1px;font-size:11px;text-transform:uppercase;font-family:Oswald}
@@ -988,6 +989,14 @@ window.addEventListener('unhandledrejection', function(e){
      * up, or given up — so the two can never be on screen together; with no v114 at all (an older
      * document) `filmOut` starts true and everything below is the pre-v114 path, unchanged. */
     var sheetOk = null, filmOut = !window.__V114;
+    /* ===== v121 THE FOOTBALL IS THE LAST RESORT =====
+     * The 🏈 in the splash stage used to be painted the moment the document parsed and hidden again
+     * when the film or the chase claimed the stage — so every boot showed a static emoji on a bare
+     * card for the second before the sting started, which read as an older loading screen flashing
+     * under the new one. It is hidden in CSS now and only asked for here, when BOTH have stood
+     * down: the film declined (reduced motion aside, which shows the film's own last frame) AND the
+     * v91 sheet never arrived, so there is no chase to draw. That is the case the football is for. */
+    function ballStandsIn() { if (filmOut && sheetOk === false && !done) splash.classList.add('ball'); }
     function mountChase() {
       if (done || chase || !filmOut || !sheetOk) return;
       ready = true; splash.classList.add('chase');
@@ -996,10 +1005,10 @@ window.addEventListener('unhandledrejection', function(e){
     }
     load().then(function (ok) {
       sheetOk = !!ok;
-      if (!ok || done) { dead = true; return; }
+      if (!ok || done) { dead = true; ballStandsIn(); return; }
       mountChase();
     });
-    if (window.__V114) window.__V114.verdict(function (claimed) { if (!claimed) { filmOut = true; mountChase(); } });
+    if (window.__V114) window.__V114.verdict(function (claimed) { if (!claimed) { filmOut = true; mountChase(); ballStandsIn(); } });
     function chaseDoor() {
       if (dead || !ready) {   // the sheet is not here (yet): the old timing, exactly — or the door the moment it lands
         if (dead) { setTimeout(finish, 1100); return true; }

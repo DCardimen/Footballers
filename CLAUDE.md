@@ -68,6 +68,11 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v121 THE FOOTBALL IS THE LAST RESORT` (in the splash boot, beside `mountChase()`) — the 🏈 in
+  `.splash-stage` is `display:none` until `ballStandsIn()` adds `#splash.ball`, which needs the film
+  to have stood down AND the v91 sheet to have failed. It used to paint at first paint and hide when
+  the film or the chase claimed the stage, which flashed an old-looking loader for a second before
+  the sting. `splashcheck.mjs`, `v112Acheck.mjs`
 - `v120 THE COACH DECIDES YOUR SNAPS` (beside `USE_V111`) / `v120 FATIGUE IS A SLOPE` (beside
   `condMultV54`) — NORMAL on the pregame ladder is the share the coach trusts you with
   (`trustShareV120`: ~half at trust 28, all at 100), LIMITED/REDUCED multiply it, HEAVY/EVERY ASK for

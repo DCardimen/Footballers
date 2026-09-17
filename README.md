@@ -55,6 +55,16 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v121 — the football is the last resort, not the first frame.** The 🏈 in the boot splash's stage
+  (`.splash-ball`) was painted the moment the document parsed and hidden again when the film or the
+  chase claimed the stage, so every boot flashed a static emoji on a bare card for the second before
+  the title sting started — it read as an older loading screen showing under the new one. It is
+  `display:none` in CSS now and asked for by one class (`#splash.ball`), added only when BOTH have
+  stood down: the film declined (reduced motion aside — that path shows the film's own last frame)
+  AND the v91 sheet never arrived, so there is no chase to draw. That is the one case the football
+  was ever for, and `splashcheck.mjs` / `v112Acheck.mjs` still prove it stands in there.
+  `ballStandsIn()` beside `mountChase()` is the whole change.
+
 - **v120 — the coach decides your snaps, fatigue is a slope, and the coach points.** Three things.
   **The coach decides your snaps** (`v120 THE COACH DECIDES YOUR SNAPS`, beside `USE_V111`): NORMAL
   on the pregame screen used to be every snap the unit takes from game one; it is now the share the
