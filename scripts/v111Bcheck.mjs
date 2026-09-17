@@ -126,15 +126,16 @@ const touchA = num(A.buy, 'touch'), touchH = num(H.buy, 'touch'), touchL = num(L
 const wearA = num(A.cost, 'wear'), wearH = num(H.cost, 'wear'), wearL = num(L.cost, 'wear')
 const injA = num(A.cost, 'injury'), injH = num(H.cost, 'injury'), injL = num(L.cost, 'injury')
 // THE LADDER IS TWO LADDERS, and the screen has to be honest about which one it is on.
-// BELOW normal the dial buys SNAPS — he is genuinely off the field and the share falls. It cannot
-// keep buying them above normal, because at normal he is already on for every snap his unit takes
-// and there is nothing left to sell. What the top half buys is the BALL: the touch multiplier.
-// So: snaps rise up to normal and then plateau at 100%, touch share rises all the way, and the
-// whole ladder is monotone non-decreasing in both.
+// BELOW normal the dial buys SNAPS — he is genuinely off the field and the share falls. NORMAL is
+// the share the COACH trusts him with (v120: about half for a stranger, everything at full trust).
+// Above it he ASKS for more: the coach gives a part of the extra, more with trust, never past 100%,
+// and the asking costs body. What the top half buys for certain is the BALL: the touch multiplier.
+// So: snaps rise up to normal and keep rising (by the coach's say) above it, touch share rises all
+// the way, and the whole ladder is monotone non-decreasing in both.
 ok(snapsL < snapsA, 'below NORMAL the dial buys SNAPS — he really comes off the field', `limited ${snapsL}% < normal ${snapsA}%`)
-ok(snapsA >= 99.5 && snapsH >= 99.5 && snapsH <= snapsA + 0.5,
-  'at NORMAL he is already on for every snap, so the top of the ladder cannot sell him more',
-  `normal ${snapsA}% · every ${snapsH}%`)
+ok(snapsA <= snapsH && snapsH <= 100 && snapsA <= 100,
+  'above NORMAL he asks for more and the coach gives a part of it — never past every snap (v120)',
+  `normal ${snapsA}% ≤ every ${snapsH}% ≤ 100%`)
 ok(touchA < touchH, 'above NORMAL the dial buys the BALL instead — the touch share is what rises', `normal ×${touchA} < every ×${touchH}`)
 ok(touchL < touchA, 'and the bottom of the ladder gives the ball back too', `limited ×${touchL} < normal ×${touchA}`)
 const steps = await page.evaluate(async () => {

@@ -59,12 +59,12 @@ const step = async (page, t, wait = 900) => {
   ok(h && !h.open, 'the dev-check boot (welcome cards removed without a click) never starts him on its own')
   const tile = await page.evaluate(() => { const t = document.querySelector('#rib-main-menu-v2 [data-rib-action="coach"]'); return t ? { on: t.getAttribute('aria-checked'), role: t.getAttribute('role'), label: (t.querySelector('b') || {}).textContent, face: (t.querySelector('small') || {}).textContent, img: !!t.querySelector('img') } : null })
   ok(tile && tile.role === 'switch' && tile.on === 'true' && /COACH'S TOUR/.test(tile.label) && /^ON\b/.test(tile.face) && tile.img, "the COACH'S TOUR switch is on the menu and reads ON on a fresh install", JSON.stringify(tile))
-  ok(h && h.stops === 13 && h.lines >= 30 && h.lines <= 52 && h.estimateMin >= 1.5 && h.estimateMin <= 6, 'thirteen stops, a few lines each — a couple of minutes of talk spread over a week, not a lecture', h && `${h.estimateMin.toFixed(1)} min · ${h.lines} lines`)
+  ok(h && h.stops === 13 && h.lines >= 30 && h.lines <= 56 && h.estimateMin >= 1.5 && h.estimateMin <= 6, 'thirteen stops, a few lines each — a couple of minutes of talk spread over a week, not a lecture', h && `${h.estimateMin.toFixed(1)} min · ${h.lines} lines`)
   // his lines are short and plain: almost no numbers (the guide has those), no line over two sentences' worth, and the
   // things a rookie must hear — fatigue means fewer snaps, each position wants its own skills, prestige is what you keep
   const lineFacts = await page.evaluate(() => fetch([...document.scripts].map((x) => x.src).find((u) => /rib-menu-coach/.test(u))).then((r) => r.text()).then((src) => { const m = src.match(/t: "([^"]+)"/g) || []; const all = m.join(' ')
-    return { n: m.length, longest: Math.max(...m.map((x) => x.length)), withNumber: m.filter((x) => /\d/.test(x)).length, fatigue: /fatigued.*fewer snaps|fewer snaps.*recover/i.test(all), skills: /position wants different skills/i.test(all) && /mix of skills/i.test(all), prestige: (all.match(/prestige/gi) || []).length } }))
-  ok(lineFacts.n >= 30 && lineFacts.longest <= 170 && lineFacts.withNumber <= 4 && lineFacts.fatigue && lineFacts.skills && lineFacts.prestige >= 3, 'his lines are short and plain — almost no math, and the fatigue, skill-mix and prestige points are said', JSON.stringify(lineFacts))
+    return { n: m.length, longest: Math.max(...m.map((x) => x.length)), withNumber: m.filter((x) => /\d/.test(x)).length, fatigue: /fatigued.*fewer snaps|fewer snaps.*recover/i.test(all), skills: /position wants different skills/i.test(all) && /mix of skills/i.test(all), prestige: (all.match(/prestige/gi) || []).length, howto: /HOW TO PLAY on the main menu/.test(all) && /AI plays/.test(all), team: /your team/.test(all) && /colours/.test(all), taps: (src.match(/tap: true/g) || []).length } }))
+  ok(lineFacts.n >= 30 && lineFacts.longest <= 170 && lineFacts.withNumber <= 4 && lineFacts.fatigue && lineFacts.skills && lineFacts.prestige >= 3 && lineFacts.howto && lineFacts.team && lineFacts.taps >= 8, 'his lines are short and plain — almost no math; the fatigue, skill-mix, prestige, team and HOW TO PLAY points are said, and eight lines point at a tap', JSON.stringify(lineFacts))
   await shot(page, 'menu')
   await page.click('#rib-main-menu-v2 [data-rib-action="coach"]')
   await page.waitForSelector('#rib-coach-v119.rib-coach-ready', { timeout: 8000 })
@@ -137,8 +137,11 @@ const step = async (page, t, wait = 900) => {
     const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, tr = target ? target.getBoundingClientRect() : null
     const inside = sr && tr && sr.left <= tr.left + 1 && sr.top <= tr.top + 1 && sr.right >= tr.right - 1 && sr.bottom >= tr.bottom - 1
     const onScreen = sr && sr.top >= 0 && sr.bottom <= innerHeight
-    return { stop: C.stop, line: C.line, spot: C.spot, shown: !!sr, dimHidden: !!dim && dim.hidden, inside: !!inside, onScreen: !!onScreen, next: nextBtn && nextBtn.textContent, sr: sr && [Math.round(sr.left), Math.round(sr.top), Math.round(sr.width), Math.round(sr.height)], tr: tr && [Math.round(tr.left), Math.round(tr.top), Math.round(tr.width), Math.round(tr.height)] }
+    const tap = document.querySelector('#rib-coach-v119 [data-c-tap]'), tapr = tap && !tap.hidden ? tap.getBoundingClientRect() : null
+    const tapNear = !!(tapr && tr && Math.abs((tapr.left + tapr.width / 2) - (tr.left + tr.width / 2)) < tr.width / 2 && (Math.abs(tapr.bottom - tr.top) < 40 || Math.abs(tapr.top - tr.bottom) < 40))
+    return { stop: C.stop, line: C.line, spot: C.spot, shown: !!sr, dimHidden: !!dim && dim.hidden, inside: !!inside, onScreen: !!onScreen, next: nextBtn && nextBtn.textContent, tapShown: !!tapr, tapNear, tapPulse: !!spot && spot.classList.contains('tap'), sr: sr && [Math.round(sr.left), Math.round(sr.top), Math.round(sr.width), Math.round(sr.height)], tr: tr && [Math.round(tr.left), Math.round(tr.top), Math.round(tr.width), Math.round(tr.height)] }
   })
+  ok(spot.tapShown && spot.tapNear && spot.tapPulse, 'a line that wants a tap puts the TAP HERE hand over the thing and pulses the cut-out gold', JSON.stringify({ tapShown: spot.tapShown, tapNear: spot.tapNear, pulse: spot.tapPulse }))
   ok(spot.stop === 'menu' && spot.line === 4 && spot.shown && spot.dimHidden && spot.inside && spot.onScreen && /GOT IT/.test(spot.next || ''), "the menu stop's last line lights the CAREER tile, scrolled into view, and the button reads GOT IT", JSON.stringify(spot))
   await shot(page, 'spotlight')
   const wide = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth))

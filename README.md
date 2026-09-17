@@ -55,6 +55,32 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v120 — the coach decides your snaps, fatigue is a slope, and the coach points.** Three things.
+  **The coach decides your snaps** (`v120 THE COACH DECIDES YOUR SNAPS`, beside `USE_V111`): NORMAL
+  on the pregame screen used to be every snap the unit takes from game one; it is now the share the
+  coach trusts you with — `trustShareV120` runs from about a third at trust 0 to all of them at 100,
+  so a stranger's first game is played on about half the snaps and the share climbs as trust does
+  (the sim's own substitution, `_share111`, and the post-game bill read the same number). Below
+  NORMAL the dial still sells snaps back. Above it you ASK for more: `askSayV120` gives you a part of
+  the extra, more the more he trusts you, never past every snap, and `askMulV120` multiplies the wear
+  and the injury roll for the asking — the forecast, the bill (`chargeV111`) and the game-day roll
+  alike, through `injChanceV54` — fading to nothing at full trust. More trust is more say, and only
+  ever for more snaps. The panel says so, the ledger names the multiplier as a part ("Asking above
+  your share"), WHAT IT COSTS shows the fatigue before and after the game and what that does to
+  every stat (`fatigueRowsV120`), and the guide has the rule. **Fatigue is a slope** (`v120 FATIGUE IS A SLOPE`,
+  `fatigueMulV120`): fresh under 25 is still +5%, nothing to 40, then a straight line down to −20%
+  on every attribute at 100 — which passes −10% at the old worn line of 70, so a body at 70 plays as
+  it did — and playing hurt is at least −10%. One function, read by `condMultV54` (the sim, the
+  sheet, the silent week), the body ledger's row (now WEARING DOWN before WORN DOWN) and the season
+  projection. **The coach points**: a line that wants a tap (`tap: true`) puts a bouncing gold TAP
+  HERE hand over the thing and pulses the cut-out gold, he waits for the game's own moment banners
+  and cinema flashes before opening a stop (they were firing under him), he names the team and its
+  colours on the hub and the name he can rename on the position screen (`find:` and `parent:`
+  spotlight specs), he says NORMAL is the snaps he trusts you with, and the last stop sends the
+  player to HOW TO PLAY for the AI, the strategies and the numbers. `window.__V120`,
+  `window.__fatigueMulV120`; `v111Acheck.mjs` / `v111Bcheck.mjs` updated to the new ladder;
+  `coachcheck.mjs` proves the hand. Menu stamp → `v120-snaps2`.
+
 - **v119 — the coach, and the DFL.** Two things. **The league is the DFL** everywhere a
   player reads it: every `NFL` string in the game text, the menu, the guide and the check messages
   is `DFL` now (identifiers such as `nflReached`, `continueNFL()` and the `"nfl"` mastery key are

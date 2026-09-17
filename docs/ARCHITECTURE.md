@@ -1155,6 +1155,47 @@ Three seams only the merged build could show, all fixed here rather than in a wo
   260 px, so a long touchdown left the scorer alone; and E's measurement moved the wings only when
   they were not already signalling, which with D's `measure` flag live was every time.
 
+## v120 — the coach decides your snaps, fatigue is a slope, and the coach points
+
+Anchors `v120 THE COACH DECIDES YOUR SNAPS` (beside `USE_V111`, in the v111 involvement block) and
+`v120 FATIGUE IS A SLOPE` (beside `condMultV54`).
+
+**The snaps.** `shareOfV111(k, pl)` is now `trustShareV120(pl)` × the rung: `trustV120` is
+`coachTrust / 100`, `trustShareV120` = `trustShareMin` (.30) + `trustShareSpan` (.70) × trust,
+clamped .2–1 — a stranger at trust 28 gets about half the unit's snaps at NORMAL, a man at 100 gets
+them all. LIMITED and REDUCED still multiply that by their rung (.55, .75). HEAVY and EVERY SNAP
+ASK for more: `askOverV120` (.25, .5) is how much more; `askSayV120` grants `1 + over × (askSayFloor
+.35 + .65 × trust)` of it, so at low trust the ask buys little and at full trust all of it, never
+past 1; `askMulV120` = `1 + over × askDistrustK (1.0) × (1 − trust)` is the price of asking, and it
+multiplies the WORK that `costV111` bills (in `forecastV111` and, whatever he actually played, in
+`chargeV111`) and the injury chance itself (`injChanceV54` reads `opts.askMul`, or the week's own
+dial when a game-day caller passes only `{wk}`), so the pregame forecast, the post-game bill and the
+roll agree. `usageV111()` carries `askMul`, `forecastV111()` adds an "Asking above your share" part
+when it is above 1, the ledger's note says what the coach gave and that the asking costs body, and
+the panel's heading says NORMAL is the share he trusts you with, and `fatigueRowsV120(f)` adds two
+rows to WHAT IT COSTS — `Fatigue now → after` and `Every stat +5% → −3%`, read off `fatigueMulV120`
+at both numbers. The sim's substitution
+(`_share111`, `_slot111`) and the post-game `snapShare` read the same share, so the hub's Snap Share
+and the grade caps follow trust the way the guide always said they did. `window.__V120` is the hook.
+
+**The slope.** `fatigueMulV120(fat, inj)`: `condFresh` (1.05) at or under `freshFatigue` (25);
+1 to `fatSlopeFrom` (40); then linear to `condWornMax` (.80) at 100 — −10% at 70, the old step's
+value, so nothing at the old line moved; playing hurt is `min(m, condWorn .90)`. `condMultV54`
+returns it times the reroll debt; the body ledger's row reads FRESH LEGS / WEARING DOWN (40–69) /
+WORN DOWN (70+) / PLAYING HURT off the same multiplier; the season projection's `mAfter` and the
+live box's head label read it too. `window.__fatigueMulV120`.
+
+**The coach points.** A line with `tap: true` sets `st.tap`: `spotOn()` adds `.tap` to the
+cut-out (a pulsing gold outline) and places `[data-c-tap]`, the bouncing TAP HERE hand, just above
+the target (below it, flipped, when the target is at the top of the screen), re-measured every
+frame with the cut-out. Two more spotlight specs: `parent:<selector>` (the block around a hint —
+the name on the position screen) and `find:<regex>` (the smallest visible element in `#screen` /
+`#app` whose text matches — the 🏟 team line on the hub card). `scan()` does not open a stop while
+`#momentBanner.go` or `#cinemaFlash.go` is on: the game's own pop-ups (a persona moment, a flash)
+were firing under the dim while he talked about something else. The lines name the team and its
+colours, the renameable name, NORMAL as the snaps he trusts you with, and end on HOW TO PLAY for the
+AI, the strategies and the numbers.
+
 ## v119 — the coach, and the DFL
 
 Anchor `v119 THE COACH` (`public/rib-menu-coach.js`; the styles in `rib-menu-coach.css`;

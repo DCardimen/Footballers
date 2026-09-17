@@ -68,6 +68,18 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v120 THE COACH DECIDES YOUR SNAPS` (beside `USE_V111`) / `v120 FATIGUE IS A SLOPE` (beside
+  `condMultV54`) — NORMAL on the pregame ladder is the share the coach trusts you with
+  (`trustShareV120`: ~half at trust 28, all at 100), LIMITED/REDUCED multiply it, HEAVY/EVERY ASK for
+  more (`askSayV120` grants a part, more with trust, never past 1; `askMulV120` multiplies the wear
+  and the injury roll for the asking, fading at full trust — `forecastV111`, `chargeV111` and
+  `injChanceV54` all read it). `fatigueMulV120` is the one fatigue multiplier: +5% fresh, nothing to
+  40, a straight line to −20% at 100 (−10% at 70), hurt ≥ −10%; `condMultV54`, the ledger row
+  (WEARING DOWN / WORN DOWN), the projection and the pregame's WHAT IT COSTS (`fatigueRowsV120`:
+  fatigue before → after, every stat before → after) read it. The coach: `tap: true` lines put the TAP HERE
+  hand (`[data-c-tap]`) over the target and pulse the cut-out; `find:` / `parent:` spotlight specs;
+  `scan()` waits for `#momentBanner.go` / `#cinemaFlash.go`. `window.__V120`, `__fatigueMulV120`;
+  `v111Acheck.mjs`, `v111Bcheck.mjs`, `v112Dcheck.mjs`, `coachcheck.mjs`
 - `v119 THE COACH` (`public/rib-menu-coach.js` + `rib-menu-coach.css`, baked like the other
   menu files) — the talking head who pops in on every screen of a first week, over the dimmed page:
   `STOPS` (thirteen, in the order the week meets them — menu, prestige (view `upgrade`, off the
@@ -392,7 +404,8 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the field sheets / the v91 atlas / player and ball frames (v91) | `v91check.mjs`, `v86check.mjs`, `renderpathcheck.mjs` |
 | the silent path's story rolls / the upgrade sheet's numbers / the menu ring (v90) | `v90check.mjs`, `v85check.mjs` |
 | the main menu / its feed / menu art (v89) | `menu-integration-check.mjs`, `menushot.mjs` (`CAREER=1`), `menu-preview-shot.mjs` |
-| the coach — the switch, the stops and which screen each keys on, the talking head, the spotlights, the first-visit start; any DFL / league copy (v119) | `python3 scripts/build-coach-art.py` (if a sheet changed), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any menu file), then `coachcheck.mjs`, `faqcheck.mjs`, `menu-integration-check.mjs`, `walk.mjs` |
+| the pregame ladder's snaps, the asking-above-your-share price, coach trust's say, the fatigue slope (v120) | `v111Acheck.mjs`, `v111Bcheck.mjs`, `v112Dcheck.mjs`, then `v85check.mjs`, `creditcheck.mjs`, `simcheck.mjs`, `scoreneutralcheck.mjs`, `faqcheck.mjs` |
+| the coach — the switch, the stops and which screen each keys on, the talking head, the spotlights, the TAP HERE hand, the first-visit start; any DFL / league copy (v119) | `python3 scripts/build-coach-art.py` (if a sheet changed), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any menu file), then `coachcheck.mjs`, `faqcheck.mjs`, `menu-integration-check.mjs`, `walk.mjs` |
 | which way the throw goes / the drawn handoff and pitch / which frames draw the ball (v108) | `v108check.mjs`, then `v107check.mjs`, `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `kitsidecheck.mjs` (LB), `v104check.mjs` |
 | the QB sheets — the reach, the pitch, the throw both ways, the mesh step, hand vs pitch (v118) | `node scripts/build-field-art.mjs` (read the printed `HAND_V108` / `BALL_DRAWN_V108` back into index.html), then `v108check.mjs`, `v107check.mjs`, `v105check.mjs`, `v91check.mjs`, `v104check.mjs`, `renderpathcheck.mjs` |
 | the wordmark sheen / the camera flashes, lamps and sun on the hero (v107.1) | `sheencheck.mjs`, `heroflashcheck.mjs`, then `v102check.mjs`, `menu-integration-check.mjs`, `menu-mask-check.mjs` |

@@ -51,6 +51,7 @@
     career: '#rib-main-menu-v2 .rib9-tiles .rib9-tile:nth-child(1)', coach: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="coach"]', howto: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="howto"]', prestige: 'text:^TRAINING\\b',   // the tile's action is view:upgrade with a career and new without one: find it by its face
     lockIn: 'text:Lock In Personality', posCards: '.pos-card', playSeason: 'text:Play \\d+-Game Season', confirm: 'text:CONFIRM TRAINING', playWeek: 'text:Play Week \\d+ Live',
     cont: '#gv42go', next: 'text:^NEXT', speed: '.speed-btn', body: '#screen .condition-card-v11', hubTabs: '#screen .tabs, #screen [class*="tab"]',
+    name: 'parent:#screen .name-hint-v96', team: 'find:🏟',   // the name he can rename, the team line on the hub card
   };
 
   // ---- the stops: one per screen, in the order a first week meets them ---------------------------
@@ -62,7 +63,7 @@
       { p: 'listen', t: "Tap my bubble if I talk too slow. SKIP TOUR shuts me up for good. This COACH'S TOUR tile brings me back.", s: 'coach' },
       { p: 'armscrossed', t: "Big picture: you play one guy. Play well, you move up a league. Play bad, the career's over. Then you make a new guy." },
       { p: 'tip', t: "The old guy leaves you PRESTIGE. Spend it under TRAINING and every guy after him starts better. Careers end. That's the point.", s: 'prestige' },
-      { p: 'point', t: "Tap CAREER. Let's make a football player.", s: 'career' },
+      { p: 'point', t: "Tap CAREER. Let's make a football player.", s: 'career', tap: true },
     ] },
     { id: 'prestige', title: 'PRESTIGE', sub: 'WHAT YOU KEEP', when: (c) => c.view === 'upgrade', lines: [   // off the menu's TRAINING tile, whenever he opens it
       { p: 'clipboard', t: "The prestige tree. This is what your finished careers pay for." },
@@ -72,44 +73,47 @@
     { id: 'persona', title: 'WHO YOU ARE', sub: 'THE PERSONALITY ROLL', when: (c) => c.persona, lines: [
       { p: 'clipboard', t: "This is who your guy is. The dice picked his personality." },
       { p: 'thinkcap', t: "Each trait cuts two ways. Something he's good at, something he's not. Don't overthink it. You can't change it yet anyway." },
-      { p: 'thumbsup', t: "It also loads the wheel you spin before games. Lock it in.", s: 'lockIn' },
+      { p: 'point', t: "It also loads the wheel you spin before games. Lock it in.", s: 'lockIn', tap: true },
     ] },
     { id: 'position', title: 'YOUR POSITION', sub: 'THE BODY HE WAS DEALT', when: (c) => c.view === 'choosePos' && !c.persona, lines: [
       { p: 'whoa', t: "The big one. Pick a position." },
+      { p: 'tip', t: "That's his name up top. Tap it if you want to call him something else.", s: 'name' },
       { p: 'tip', t: "Every position wants different skills. A back needs speed. A lineman needs strength. A quarterback needs an arm and a brain.", s: 'posCards' },
       { p: 'stop', t: "The number under each one says how well his body fits it. Pick a good fit. Fit is free and it lasts his whole career." },
       { p: 'shrug', t: "And figuring out the right mix of skills for your guy? That's on you. I don't do the thinking for you." },
     ] },
     { id: 'hub', title: 'HOME BASE', sub: 'THE HUB', when: (c) => c.view === 'hub', lines: [
       { p: 'open', t: "Home base. NOW is your week. BODY is how he feels. SKILLS is what he's got. TEAM is who he plays with. STORY is what's going on." },
+      { p: 'point', t: "That's your team right there — the name and the colours you wear. TEAM shows who you play with.", s: 'team' },
       { p: 'listen', t: "Your rating and the depth chart live here. Low on the chart means fewer snaps. Fewer snaps means fewer stats. Simple." },
-      { p: 'point', t: "I don't trust you yet. Play well and I will. Now start the season.", s: 'playSeason' },
+      { p: 'point', t: "I don't trust you yet, so you get about half the snaps. Play well and you get more. Now start the season.", s: 'playSeason', tap: true },
     ] },
     { id: 'wheel', title: 'THE WHEEL', sub: 'HOW HARD HE WORKS THIS YEAR', when: (c) => c.wheel && !c.planWheel, lines: [   // over the training board, off PLAY SEASON
       { p: 'clipboard', t: "The wheel. How hard is your guy working this year? The spin decides. His personality loads the odds." },
       { p: 'tip', t: "LIGHT is safe. OBSESSIVE pays big and breaks big. Green means it worked. Red means it blew up in your face." },
-      { p: 'stop', t: "Tired guys roll red. Never spin worn out. Tap the wheel to hurry it, then hit CONTINUE.", s: 'cont' },
+      { p: 'point', t: "Tired guys roll red. Never spin worn out. Tap the wheel to hurry it, then hit CONTINUE.", s: 'cont', tap: true },
     ] },
     { id: 'training', title: 'THE OFFSEASON', sub: 'CHOOSE YOUR TRAINING', when: (c) => c.view === 'training' && !c.wheel, lines: [
       { p: 'clipboard', t: "The training board. Tap a program to see what it does. The blue on a bar is what you'd gain." },
       { p: 'tip', t: "Train what your position needs. Weak stat? Train it. Tired guy? Conditioning." },
-      { p: 'thumbsup', t: "Pick one and confirm. Nothing's locked till you do.", s: 'confirm' },
+      { p: 'point', t: "Pick one and confirm. Nothing's locked till you do.", s: 'confirm', tap: true },
     ] },
     { id: 'season', title: 'THE SEASON', sub: 'THE SCHEDULE AND YOUR BODY', when: (c) => c.view === 'season' && !c.wheel && !c.pregame && !c.post, lines: [
       { p: 'open', t: "The season. Your schedule is down there. Up here is YOUR BODY.", s: 'body' },
       { p: 'listen', t: "Stats show up here. See how they hit your season below. Tired guy plays bad. Fresh guy plays good." },
       { p: 'stop', t: "If he's feeling fatigued, play fewer snaps and let him recover. Fatigue changes how he plays. Got it?" },
-      { p: 'firedup', t: "Injury risk is right there too. Read it before you throw him in. Now play Week 1 live.", s: 'playWeek' },
+      { p: 'point', t: "Injury risk is right there too. Read it before you throw him in. Now play Week 1 live.", s: 'playWeek', tap: true },
     ] },
     { id: 'plan', title: 'THE WEEKLY PLAN', sub: 'ROLLED, NOT CHOSEN', when: (c) => c.planWheel, lines: [   // off PLAY WEEK, before the wizard
       { p: 'clipboard', t: "Game week. The staff drew up plans. The wheel picks which one you run. His personality loads it." },
       { p: 'tip', t: "Some plans chase big plays. Some keep it steady. One does the dirty work and earns my trust." },
-      { p: 'thumbsup', t: "Tap the wheel to hurry it, then CONTINUE.", s: 'cont' },
+      { p: 'point', t: "Tap the wheel to hurry it, then CONTINUE.", s: 'cont', tap: true },
     ] },
     { id: 'pregame', title: 'BEFORE KICKOFF', sub: 'FOUR STEPS', when: (c) => c.pregame && !c.wheel, lines: [
-      { p: 'clipboard', t: "Four steps before kickoff. Step one: how much do you want to play? Fewer snaps, less wear. More snaps, more stats, more bruises." },
+      { p: 'clipboard', t: "Four steps before kickoff. Step one: how much do you want to play? NORMAL is the snaps I trust you with. Fewer snaps, less wear." },
+      { p: 'stop', t: "Ask for more than your share and it costs your body — until you earn it. More trust, more say." },
       { p: 'tip', t: "Step two: pick one thing to focus on. Step three: the game plan. Step four: what you're carrying onto the field." },
-      { p: 'point', t: "Read the last page, then CONTINUE TO MATCH.", s: 'next' },
+      { p: 'point', t: "Read the last page, then CONTINUE TO MATCH.", s: 'next', tap: true },
     ] },
     { id: 'live', title: 'THE BROADCAST', sub: 'WATCH IT', when: (c) => c.live && !c.post, delay: 2600, lines: [
       { p: 'open', t: "Game time. Your guy has a ring under his feet. Watch him." },
@@ -124,13 +128,14 @@
     { id: 'recovery', title: 'RECOVERY', sub: 'THE BODY AFTER A GAME', when: (c) => c.view === 'season' && !c.wheel && !c.pregame && !c.post && c.seen.has('result'), lines: [
       { p: 'open', t: "Back on the season screen. Your guy took some hits. WEAR & TEAR is what the season is costing him. NEXT GAME is the injury risk.", s: 'body' },
       { p: 'stop', t: "Worn out means he plays worse AND grades worse. Feeling fatigued? Play fewer snaps. Let him recover. Fatigue changes how he plays." },
+      { p: 'tip', t: "Want the deep stuff? HOW TO PLAY on the main menu breaks down how the AI plays, the strategies, all of it." },
       { p: 'welcome', t: "That's your first week. I'm switching this tour off. The tile on the menu brings me back. Now go get hit." },
     ], last: true },
   ];
 
   // ---- state ----------------------------------------------------------------------------------
-  const st = { open: false, stop: null, li: 0, typing: false, auto: true, timer: 0, mouth: 0, raf: 0, spot: null, flips: 0, text: '', pos: 0, preloaded: false };
-  let armed = true, queryDone = false, onboardClicks = 0, sawOnboard = false, welcomed = false, pending = 0, pendingId = null;
+  const st = { open: false, stop: null, li: 0, typing: false, auto: true, timer: 0, mouth: 0, raf: 0, spot: null, tap: false, flips: 0, text: '', pos: 0, preloaded: false };
+  let armed = true, queryDone = false, onboardClicks = 0, sawOnboard = false, welcomed = false, pending = 0, pendingId = null, popSince = 0, popEl = null;
 
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -175,6 +180,7 @@
   function markup() {
     return `<div class="rib-coach-dim"></div>
       <div class="rib-coach-spot" data-c-spot hidden></div>
+      <div class="rib-coach-tap" data-c-tap hidden><i>👇</i><b>TAP HERE</b></div>
       <header class="rib-coach-top">
         <span class="rib9-mark">RIB</span><div><b>COACH</b><small data-c-crumb></small></div>
         <button type="button" class="rib-coach-skip" data-c-skip aria-label="Skip the tour">SKIP TOUR <i>×</i></button>
@@ -264,6 +270,12 @@
   function findSpot(key) {
     const spec = S[key] || key; if (!spec) return null;
     if (/^text:/.test(spec)) return buttonByText(new RegExp(spec.slice(5), 'i'));
+    if (/^parent:/.test(spec)) { const el = [...document.querySelectorAll(spec.slice(7))].filter(shown)[0]; return el && el.parentElement && shown(el.parentElement) ? el.parentElement : el || null; }
+    if (/^find:/.test(spec)) {   // the smallest thing on the screen that says it
+      const re = new RegExp(spec.slice(5)); let best = null, area = Infinity;
+      for (const el of document.querySelectorAll('#screen *, #app *')) { if (el.children.length > 6 || !re.test(el.textContent || '') || (el.textContent || '').length > 140 || !shown(el)) continue; const r = el.getBoundingClientRect(), a = r.width * r.height; if (a > 0 && a < area) { area = a; best = el; } }
+      return best;
+    }
     const els = [...document.querySelectorAll(spec)].filter(shown); return els[0] || null;
   }
   function scroller(el) {
@@ -272,8 +284,9 @@
   }
   function spotOn(key) {
     cancelAnimationFrame(st.raf); st.spot = key || null;
-    const spot = q('[data-c-spot]'), dim = q('.rib-coach-dim'); if (!spot) return;
-    const off = () => { spot.hidden = true; if (dim) dim.hidden = false; };
+    const spot = q('[data-c-spot]'), dim = q('.rib-coach-dim'), tap = q('[data-c-tap]'); if (!spot) return;
+    const off = () => { spot.hidden = true; if (dim) dim.hidden = false; if (tap) tap.hidden = true; };
+    spot.classList.toggle('tap', !!st.tap);
     if (!st.spot) { off(); return; }
     // scroll whatever scrolls so the target sits in the band the coach and his bubble leave free:
     // below the tour's header, above the bubble (the middle of a phone screen is under the bubble)
@@ -289,11 +302,16 @@
     const tick = () => {
       const el = findSpot(st.spot); const root = document.getElementById(ID);
       if (!root) { off(); return; }
-      if (!el) { spot.hidden = true; if (dim) dim.hidden = false; st.raf = requestAnimationFrame(tick); return; }
+      if (!el) { spot.hidden = true; if (dim) dim.hidden = false; if (tap) tap.hidden = true; st.raf = requestAnimationFrame(tick); return; }
       if (!scrolled) bring(el);
       if (dim) dim.hidden = true; spot.hidden = false;
       const r = el.getBoundingClientRect(), pad = 6;
       spot.style.left = (r.left - pad) + 'px'; spot.style.top = (r.top - pad) + 'px'; spot.style.width = (r.width + pad * 2) + 'px'; spot.style.height = (r.height + pad * 2) + 'px';
+      if (tap) {   // the hand sits just above the thing to tap (below it when the thing is at the top of the screen)
+        tap.hidden = !st.tap;
+        if (st.tap) { const tw = tap.offsetWidth || 110, th = tap.offsetHeight || 30, above = r.top - pad - th - 6 >= 60; tap.classList.toggle('below', !above);
+          tap.style.left = Math.max(8, Math.min(innerWidth - tw - 8, r.left + r.width / 2 - tw / 2)) + 'px'; tap.style.top = (above ? r.top - pad - th - 6 : r.bottom + pad + 6) + 'px'; }
+      }
       st.raf = requestAnimationFrame(tick);
     };
     tick();
@@ -308,7 +326,7 @@
     q('[data-c-bar]').style.width = Math.round(100 * (i + (st.li + 1) / S0.lines.length) / STOPS.length) + '%';
     q('[data-c-back]').disabled = st.li === 0;
     q('[data-c-next]').textContent = lastLine ? (S0.last ? 'DONE ✓' : 'GOT IT ›') : 'NEXT ›';
-    root.dataset.stop = S0.id; root.dataset.pose = L.p;
+    root.dataset.stop = S0.id; root.dataset.pose = L.p; st.tap = !!L.tap;
     mouth(false); spotOn(L.s || null);
     type(L.t);
     try { const H = window.__RIB_COACH; H.linesShown = (H.linesShown || 0) + 1; H.last = { stop: S0.id, li: st.li, pose: L.p, spot: L.s || null }; } catch (e) { /* the hook */ }
@@ -402,6 +420,10 @@
   function scan() {
     if (document.querySelector('.onboard')) { sawOnboard = true; return; }   // the cards are up: wait for the player to read them
     if (st.open || !splashGone()) return;
+    // the game is saying something (a moment banner, a cinema flash): let it finish first. The class
+    // stays on after the 1.7s pop, so it is a window from the moment it appears, not the class itself
+    const pop = document.querySelector('#momentBanner.go, #cinemaFlash.go');
+    if (pop) { if (!popSince || popEl !== pop) { popSince = Date.now(); popEl = pop; } if (Date.now() - popSince < 2200) return; } else { popSince = 0; popEl = null; }
     const menu = !!document.getElementById('rib-main-menu-v2');
     if (menu && armed && !queryDone && /[?&]coachTour\b/.test(location.search)) { queryDone = true; armed = false; resetSeen(); setEnabled(true); open('menu', { by: 'query' }); return; }
     if (menu && armed && sawOnboard && !welcomed && onboardClicks >= 3 && enabled()) {   // the cards clicked through (a fresh install is ON): the coach takes over
