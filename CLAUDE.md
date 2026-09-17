@@ -68,6 +68,18 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v119 THE COACH'S TOUR` (`public/rib-menu-coach.js` + `rib-menu-coach.css`, baked like the other
+  menu files) — the talking-head walkthrough over the dimmed main menu: `CHAPTERS` (twelve; the nine
+  HOW TO PLAY sections in order, every number the guide's own), `S` (the spotlight selectors, by the
+  router's action names), the pace constants (`TYPE_MS` / `HOLD_MS` / `HOLD_PER_CHAR`; `estimateMs()`
+  must stay inside 5–10 min), `flap()` (the mouth: `<pose>_a` / `<pose>_b` off `public/coach/`, cut
+  by `scripts/build-coach-art.py`), `spotOn()` (a box-shadow cut-out re-measured every frame),
+  `toggle()` (the menu switch `rib9-tile-coach`, `data-rib-action="coach"`; ON plays, the end
+  switches OFF, `rib.coachTour.v119`), `watch()` (a first visit: the game's welcome cards — lifted above the menu overlay in v119, they
+  were buried at z-index 190 — clicked through three times hand to the coach; a switch left `on`
+  replays at the next mount; `?coachTour` forces it). The game's state is NOT `window.o`. The league is the
+  DFL in every string a player reads — never write NFL into game copy. `window.__RIB_COACH`;
+  `coachcheck.mjs`
 - `v118 THE QUARTERBACK'S OWN SHEETS` (in `build-field-art.py`) / `v118 THE MESH` (beside
   `startExchangeV108`) — the handoff, the pitch and the throw both ways are cut from
   `art/field/qb_*_v118.png`, scaled by the HELMET (`helmet_w`, `HELM44`), the ball found per cell
@@ -365,6 +377,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the field sheets / the v91 atlas / player and ball frames (v91) | `v91check.mjs`, `v86check.mjs`, `renderpathcheck.mjs` |
 | the silent path's story rolls / the upgrade sheet's numbers / the menu ring (v90) | `v90check.mjs`, `v85check.mjs` |
 | the main menu / its feed / menu art (v89) | `menu-integration-check.mjs`, `menushot.mjs` (`CAREER=1`), `menu-preview-shot.mjs` |
+| the coach's tour — the switch, the chapters, the talking head, the spotlights, the first-visit start; any DFL / league copy (v119) | `python3 scripts/build-coach-art.py` (if a sheet changed), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any menu file), then `coachcheck.mjs`, `faqcheck.mjs`, `menu-integration-check.mjs`, `walk.mjs` |
 | which way the throw goes / the drawn handoff and pitch / which frames draw the ball (v108) | `v108check.mjs`, then `v107check.mjs`, `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `kitsidecheck.mjs` (LB), `v104check.mjs` |
 | the QB sheets — the reach, the pitch, the throw both ways, the mesh step, hand vs pitch (v118) | `node scripts/build-field-art.mjs` (read the printed `HAND_V108` / `BALL_DRAWN_V108` back into index.html), then `v108check.mjs`, `v107check.mjs`, `v105check.mjs`, `v91check.mjs`, `v104check.mjs`, `renderpathcheck.mjs` |
 | the wordmark sheen / the camera flashes, lamps and sun on the hero (v107.1) | `sheencheck.mjs`, `heroflashcheck.mjs`, then `v102check.mjs`, `menu-integration-check.mjs`, `menu-mask-check.mjs` |

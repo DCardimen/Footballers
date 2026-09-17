@@ -125,7 +125,7 @@ const grow = await page.evaluate(() => {
 })
 ok(grow.rows.every((r, i) => i === 0 || (r.h >= grow.rows[i - 1].h && r.w >= grow.rows[i - 1].w)), 'the career-long frame only grows', grow.rows.map(r => r.a + ':' + r.h + '/' + r.w).join(' '))
 ok(grow.rows[grow.rows.length - 1].h === grow.proj.height && grow.rows[grow.rows.length - 1].w === grow.proj.weight,
-  'by the NFL he has arrived at his projection exactly', grow.rows[grow.rows.length - 1])
+  'by the DFL he has arrived at his projection exactly', grow.rows[grow.rows.length - 1])
 
 /* ---------- 4. no penalty on a first-ever character ---------- */
 ok((await page.evaluate(() => window.__V112_C.mul())) === 1, 'a first career carries no penalty')

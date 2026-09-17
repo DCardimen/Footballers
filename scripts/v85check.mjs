@@ -2,7 +2,7 @@
 // sheet, and the season ahead.
 //
 // Four claims, each asserted against the game rather than a copy of it:
-//   1. OVR is open-ended: a prestiged NFL roster and its team rating clear 99 on the
+//   1. OVR is open-ended: a prestiged DFL roster and its team rating clear 99 on the
 //      same builder (Wr) the engine plays with, and the scoreboard pair (teamPairV76)
 //      does too. The you-player's curve and the tier labels are unchanged.
 //   2. A quick-played week and "sim the rest" roll the v51 plan wheel silently
@@ -74,7 +74,7 @@ const ovr = await page.evaluate(() => {
   } finally { pl.level = keep.level; o.prestige = keep.prestige }
 })
 console.log('ovr:', JSON.stringify(ovr))
-ok(ovr.pairUs > 99, 'a prestiged NFL side clears 99 on the scoreboard pair', ovr.pairUs + ' vs ' + ovr.pairOpp)
+ok(ovr.pairUs > 99, 'a prestiged DFL side clears 99 on the scoreboard pair', ovr.pairUs + ' vs ' + ovr.pairOpp)
 ok(ovr.teamOvr > 99 && ovr.topPlayer > 99, 'the roster builder rates the team and its best player past 99', ovr.teamOvr + ' team · ' + ovr.topPlayer + ' best')
 ok(ovr.oppOvr <= 130, 'the opponent stays on its own scale (no runaway)', ovr.oppOvr)
 
