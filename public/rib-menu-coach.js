@@ -4,21 +4,23 @@
    * A talking head who walks a new player through ONE FULL WEEK, one screen at a time: the main
    * menu, the personality roll, the position pick, the hub, the season-commitment wheel, the
    * training board, the season screen, the weekly-plan wheel, the four-step pregame, the broadcast,
-   * the post-game card, and the body after the game. Each STOP is a few lines said over the page it belongs to — the page dims, stays there
+   * the post-game card, and the body after the game — plus the prestige tree whenever it is opened. Each STOP is a few lines said over the page it belongs to — the page dims, stays there
    * behind him, and a spotlight can cut through the dim onto the button or card he is talking
    * about — and then he leaves and the player gets on with it. He never repeats a stop; when the
    * last one is said he switches himself off.
    *
    * The coach is the three uploaded sheets cut into public/coach/ (build-coach-art.py): fifteen
    * poses, each drawn mouth-closed (`_a`) and mouth-open (`_b`), the open one being the closed
-   * drawing with only the head pasted over, so nothing but the face moves. A line TYPES while the
+   * drawing with only the MOUTH set on it, so nothing but the mouth moves. A line TYPES while the
    * mouth moves in the shape of speech — a syllable open, a beat closed, a longer close at a word
    * gap or a stop, the odd double snap, never a metronome — and his VOICE is a muddle of pitched
    * blips synthesised on the spot with WebAudio (no sound file), one per letter at a syllable
    * rate, not cut to the mouth. VOICE in the bubble mutes him (`rib.coachVoice.v119`).
    *
-   * What he says is the HOW TO PLAY guide's own facts — every number is the guide's — but only
-   * the two or three that matter on THAT screen, in a football coach's voice.
+   * What he says is the HOW TO PLAY guide's own facts, but PLAIN: a football coach talking to a
+   * jock who may not follow a long sentence — short lines, what the screen does, what to do about
+   * it, and almost no numbers (the guide has the numbers). Every position wants a different mix of
+   * skills and the mix is the player's to work out; prestige is what a finished career leaves behind.
    *
    * The switch on the main menu (`rib9-tile-coach`, data-rib-action="coach") is the door. ON means
    * he walks you through your first week: the menu stop plays the moment it is switched on (and,
@@ -46,7 +48,7 @@
   const buttonByText = (re) => [...document.querySelectorAll('button, [onclick], a')].find((el) => shown(el) && re.test((el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim())) || null;
   // a spotlight target is a selector, or `text:` and a pattern matched against the visible buttons
   const S = {
-    career: '#rib-main-menu-v2 .rib9-tiles .rib9-tile:nth-child(1)', coach: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="coach"]', howto: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="howto"]',
+    career: '#rib-main-menu-v2 .rib9-tiles .rib9-tile:nth-child(1)', coach: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="coach"]', howto: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="howto"]', prestige: 'text:^TRAINING\\b',   // the tile's action is view:upgrade with a career and new without one: find it by its face
     lockIn: 'text:Lock In Personality', posCards: '.pos-card', playSeason: 'text:Play \\d+-Game Season', confirm: 'text:CONFIRM TRAINING', playWeek: 'text:Play Week \\d+ Live',
     cont: '#gv42go', next: 'text:^NEXT', speed: '.speed-btn', body: '#screen .condition-card-v11', hubTabs: '#screen .tabs, #screen [class*="tab"]',
   };
@@ -56,67 +58,73 @@
   // ctx: { view, menu, wheel, pregame, post, persona, live }
   const STOPS = [
     { id: 'menu', title: 'THE MENU', sub: 'KICKOFF', when: (c) => c.menu && !c.persona, lines: [
-      { p: 'welcome', t: "Alright, rookie. I'm Coach. I'll pop in on every screen of your first week, say my piece, and get out of your way." },
-      { p: 'listen', t: "Tap my bubble to hurry me up. SKIP TOUR sends me off for good; the COACH'S TOUR tile on this menu brings me back.", s: 'coach' },
-      { p: 'armscrossed', t: "The short version: one player, nine levels, and every level keeps only a share of the men in it. Careers are meant to end. Prestige is what carries over." },
-      { p: 'point', t: "Tap CAREER. Let's build a man.", s: 'career' },
+      { p: 'welcome', t: "Listen up, rookie. I'm Coach. I'll pop in on each screen, tell you what it does, then get out of your way." },
+      { p: 'listen', t: "Tap my bubble if I talk too slow. SKIP TOUR shuts me up for good. This COACH'S TOUR tile brings me back.", s: 'coach' },
+      { p: 'armscrossed', t: "Big picture: you play one guy. Play well, you move up a league. Play bad, the career's over. Then you make a new guy." },
+      { p: 'tip', t: "The old guy leaves you PRESTIGE. Spend it under TRAINING and every guy after him starts better. Careers end. That's the point.", s: 'prestige' },
+      { p: 'point', t: "Tap CAREER. Let's make a football player.", s: 'career' },
+    ] },
+    { id: 'prestige', title: 'PRESTIGE', sub: 'WHAT YOU KEEP', when: (c) => c.view === 'upgrade', lines: [   // off the menu's TRAINING tile, whenever he opens it
+      { p: 'clipboard', t: "The prestige tree. This is what your finished careers pay for." },
+      { p: 'tip', t: "Every point you spend here makes the NEXT guy start better. Higher ceiling. Better body. Better start." },
+      { p: 'thumbsup', t: "You earn more prestige the further a career goes. So finish your careers. Don't quit on them." },
     ] },
     { id: 'persona', title: 'WHO YOU ARE', sub: 'THE PERSONALITY ROLL', when: (c) => c.persona, lines: [
-      { p: 'clipboard', t: "The dice rolled who this kid is. Every trait has two identities, and each side raises the max level of its own stats and carries its own drawback." },
-      { p: 'thinkcap', t: "Personality also loads the wheel you'll spin before every game, so what he'd actually do matters more than what sounds good." },
-      { p: 'thumbsup', t: "You get no adjustment points on a first run — they come with prestige. Lock it in.", s: 'lockIn' },
+      { p: 'clipboard', t: "This is who your guy is. The dice picked his personality." },
+      { p: 'thinkcap', t: "Each trait cuts two ways. Something he's good at, something he's not. Don't overthink it. You can't change it yet anyway." },
+      { p: 'thumbsup', t: "It also loads the wheel you spin before games. Lock it in.", s: 'lockIn' },
     ] },
     { id: 'position', title: 'YOUR POSITION', sub: 'THE BODY HE WAS DEALT', when: (c) => c.view === 'choosePos' && !c.persona, lines: [
-      { p: 'whoa', t: "The one that matters most. Body fit is worth about minus 21 to plus 13 OVR, it costs nothing, and it lasts the whole career." },
-      { p: 'tip', t: "The scouts grade the frame he is GOING to get — the projection up top — so the fit number under each position reads that, not today's kid.", s: 'posCards' },
-      { p: 'stop', t: "Take the position the number likes, not the one you like on Sundays. And if two traits are offered, pick one; lock a position and the game picks for you." },
+      { p: 'whoa', t: "The big one. Pick a position." },
+      { p: 'tip', t: "Every position wants different skills. A back needs speed. A lineman needs strength. A quarterback needs an arm and a brain.", s: 'posCards' },
+      { p: 'stop', t: "The number under each one says how well his body fits it. Pick a good fit. Fit is free and it lasts his whole career." },
+      { p: 'shrug', t: "And figuring out the right mix of skills for your guy? That's on you. I don't do the thinking for you." },
     ] },
     { id: 'hub', title: 'HOME BASE', sub: 'THE HUB', when: (c) => c.view === 'hub', lines: [
-      { p: 'open', t: "Home base. NOW, BODY, SKILLS, TEAM and STORY are your week. Your rating, your ceiling and the depth chart live here." },
-      { p: 'listen', t: "Coach trust starts around 28 — you're a stranger to me too. It moves by performance minus 50, over 13, every game, and it sets your snaps." },
-      { p: 'point', t: "Snaps cap your grade: under a 12% share you cannot grade above 76. Climb the chart early. Now start the season.", s: 'playSeason' },
+      { p: 'open', t: "Home base. NOW is your week. BODY is how he feels. SKILLS is what he's got. TEAM is who he plays with. STORY is what's going on." },
+      { p: 'listen', t: "Your rating and the depth chart live here. Low on the chart means fewer snaps. Fewer snaps means fewer stats. Simple." },
+      { p: 'point', t: "I don't trust you yet. Play well and I will. Now start the season.", s: 'playSeason' },
     ] },
-    { id: 'wheel', title: 'THE WHEEL', sub: 'YOUR HABITS, THEN FATE ROLLS', when: (c) => c.wheel && !c.planWheel, lines: [   // over the training board, off PLAY SEASON
-      { p: 'clipboard', t: "The wheel. Your habits for the season, and then fate rolls. Personality loads the odds — the FIT ROLL is whether the commitment suits the man you rolled." },
-      { p: 'tip', t: "Each habit lists the stats it pushes, how long it runs, and its risk: LIGHT, COMMITTED or OBSESSIVE. Obsessive pays more and breaks more." },
-      { p: 'listen', t: "Then the TRAINING ROLL. PAYS keeps the full gain and can mint a permanent bump. HALF gives you half. BACKFIRES flips the gain into a loss." },
-      { p: 'stop', t: "Trust, momentum and composure nudge it green. Fatigue drags it red — at 70, fatigue is nearly the whole downside. Never spin worn. It spins on its own; tap it to hurry it, then CONTINUE when the roll is in.", s: 'cont' },
+    { id: 'wheel', title: 'THE WHEEL', sub: 'HOW HARD HE WORKS THIS YEAR', when: (c) => c.wheel && !c.planWheel, lines: [   // over the training board, off PLAY SEASON
+      { p: 'clipboard', t: "The wheel. How hard is your guy working this year? The spin decides. His personality loads the odds." },
+      { p: 'tip', t: "LIGHT is safe. OBSESSIVE pays big and breaks big. Green means it worked. Red means it blew up in your face." },
+      { p: 'stop', t: "Tired guys roll red. Never spin worn out. Tap the wheel to hurry it, then hit CONTINUE.", s: 'cont' },
     ] },
     { id: 'training', title: 'THE OFFSEASON', sub: 'CHOOSE YOUR TRAINING', when: (c) => c.view === 'training' && !c.wheel, lines: [
-      { p: 'clipboard', t: "The training board. Tap a program to PREVIEW the season it gives you — the light blue on the bars is what it adds. Nothing is locked until you confirm." },
-      { p: 'tip', t: "Follow the game's own suggestion: Conditioning if your durability is low for the level, otherwise the program on your weakest weighted stat." },
-      { p: 'shrug', t: "The price line under each stat is real — one point under the soft cap, then 2, 3, 4. The risk labels on the cards are not; nothing in the sim reads them. Confirm it.", s: 'confirm' },
+      { p: 'clipboard', t: "The training board. Tap a program to see what it does. The blue on a bar is what you'd gain." },
+      { p: 'tip', t: "Train what your position needs. Weak stat? Train it. Tired guy? Conditioning." },
+      { p: 'thumbsup', t: "Pick one and confirm. Nothing's locked till you do.", s: 'confirm' },
     ] },
     { id: 'season', title: 'THE SEASON', sub: 'THE SCHEDULE AND YOUR BODY', when: (c) => c.view === 'season' && !c.wheel && !c.pregame && !c.post, lines: [
-      { p: 'open', t: "The season screen. The schedule, the scouting read on the next opponent, and YOUR BODY: fatigue, injury risk and the wear the season puts on him.", s: 'body' },
-      { p: 'listen', t: "Fatigue is the dial you control. 70 and above you're worn — minus 10% on everything. 25 and under you're fresh, plus 5%. Sitting a game sheds 22." },
-      { p: 'firedup', t: "Play Week 1 live. I want to see it.", s: 'playWeek' },
+      { p: 'open', t: "The season. Your schedule is down there. Up here is YOUR BODY.", s: 'body' },
+      { p: 'listen', t: "Stats show up here. See how they hit your season below. Tired guy plays bad. Fresh guy plays good." },
+      { p: 'stop', t: "If he's feeling fatigued, play fewer snaps and let him recover. Fatigue changes how he plays. Got it?" },
+      { p: 'firedup', t: "Injury risk is right there too. Read it before you throw him in. Now play Week 1 live.", s: 'playWeek' },
     ] },
     { id: 'plan', title: 'THE WEEKLY PLAN', sub: 'ROLLED, NOT CHOSEN', when: (c) => c.planWheel, lines: [   // off PLAY WEEK, before the wizard
-      { p: 'clipboard', t: "Game week. The staff hands you options and the wheel picks your weekly plan — rolled, weighted by your personality, not chosen." },
-      { p: 'tip', t: "Each plan trades performance for variance, snaps and trust. Disciplined Execution is plus 2 and steady. Chase the Highlight is plus 7 at 1.72 times the variance, and it costs a point of trust." },
-      { p: 'thumbsup', t: "Do the Dirty Work is the trust play: minus 1 on the day, plus 3 with me. Tap the wheel to hurry it, then CONTINUE.", s: 'cont' },
+      { p: 'clipboard', t: "Game week. The staff drew up plans. The wheel picks which one you run. His personality loads it." },
+      { p: 'tip', t: "Some plans chase big plays. Some keep it steady. One does the dirty work and earns my trust." },
+      { p: 'thumbsup', t: "Tap the wheel to hurry it, then CONTINUE.", s: 'cont' },
     ] },
     { id: 'pregame', title: 'BEFORE KICKOFF', sub: 'FOUR STEPS', when: (c) => c.pregame && !c.wheel, lines: [
-      { p: 'clipboard', t: "Four steps before the game. Step one, YOUR INVOLVEMENT, LIMITED to EVERY: below NORMAL you come off the field and the body keeps what it saves; above it, more of the ball and more of the bill." },
-      { p: 'tip', t: "Step two, a GAME FOCUS: one stat at times 1.2, this game only. Step three, the scout and the coordinator's plan — the bar says how much of your lean he runs." },
-      { p: 'point', t: "That bar reads low on purpose. The script moves further your way than the number says. Trust the mechanism, not the bar." },
-      { p: 'thumbsup', t: "Step four is the impact sheet — what you actually carry onto the field. Then CONTINUE TO MATCH.", s: 'next' },
+      { p: 'clipboard', t: "Four steps before kickoff. Step one: how much do you want to play? Fewer snaps, less wear. More snaps, more stats, more bruises." },
+      { p: 'tip', t: "Step two: pick one thing to focus on. Step three: the game plan. Step four: what you're carrying onto the field." },
+      { p: 'point', t: "Read the last page, then CONTINUE TO MATCH.", s: 'next' },
     ] },
     { id: 'live', title: 'THE BROADCAST', sub: 'WATCH IT', when: (c) => c.live && !c.post, delay: 2600, lines: [
-      { p: 'open', t: "The broadcast. The season plays itself around you — watch the man in your colours with the ring under his feet." },
-      { p: 'listen', t: "Half, one, two and four times set the pace; SKIP jumps to the whistle. Your live box score is under the field, the full stats past it.", s: 'speed' },
-      { p: 'relaxed', t: "I'll see you at the final whistle." },
+      { p: 'open', t: "Game time. Your guy has a ring under his feet. Watch him." },
+      { p: 'listen', t: "These buttons set the speed. SKIP jumps to the whistle. Your stats show under the field.", s: 'speed' },
+      { p: 'relaxed', t: "I'll see you after." },
     ] },
     { id: 'result', title: 'THE CARD', sub: 'AFTER THE WHISTLE', when: (c) => c.post, lines: [
-      { p: 'clipboard', t: "The card. Your grade is measured against the HIGHEST of four bars, and prestige raises it — every success makes the next A harder to earn." },
-      { p: 'listen', t: "Coach trust moved by performance minus 50, over 13. Snaps follow trust, production follows snaps, and your national rank follows production." },
-      { p: 'point', t: "And the body took a game. Look at YOUR BODY before you pick next week's load." },
+      { p: 'clipboard', t: "The card. Your grade, your stats, how the team did." },
+      { p: 'listen', t: "Good game? I trust you more and you get more snaps. Bad game? The opposite. Your rank follows your stats." },
+      { p: 'point', t: "And every game costs the body something. Check YOUR BODY before next week." },
     ] },
     { id: 'recovery', title: 'RECOVERY', sub: 'THE BODY AFTER A GAME', when: (c) => c.view === 'season' && !c.wheel && !c.pregame && !c.post && c.seen.has('result'), lines: [
-      { p: 'open', t: "Back on the season screen with a game on the body. WEAR & TEAR counts the load; NEXT GAME prices the injury risk at each involvement.", s: 'body' },
-      { p: 'stop', t: "Worn is minus 10% on every attribute AND minus 10% on the grade, and a knock that costs no games still trips it. Recovery & Treatment sheds about 11.6 fatigue a week." },
-      { p: 'welcome', t: "That's your first week. I'm switching this tour off — the COACH'S TOUR tile on the menu brings me back. Now go get hit." },
+      { p: 'open', t: "Back on the season screen. Your guy took some hits. WEAR & TEAR is what the season is costing him. NEXT GAME is the injury risk.", s: 'body' },
+      { p: 'stop', t: "Worn out means he plays worse AND grades worse. Feeling fatigued? Play fewer snaps. Let him recover. Fatigue changes how he plays." },
+      { p: 'welcome', t: "That's your first week. I'm switching this tour off. The tile on the menu brings me back. Now go get hit." },
     ], last: true },
   ];
 

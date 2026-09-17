@@ -1164,17 +1164,28 @@ three uploaded sheets (five rows by two columns each — the left column mouth c
 mouth open, one pose a row; a FIXED grid, because rows touch on one sheet and an alpha-band split
 merges them; the largest blob per cell, because a fixed cell can carry a sliver of the neighbour)
 into `public/coach/<pose>_{a,b}.webp` at 360px tall, plus `tile.webp`, the head off the welcome
-pose, for the menu. **`_b` is `_a` with the head pasted over**: the sheets' two drawings of a pose
-were drawn twice and the body shifted a few pixels between them, so the cutter takes the closed
-drawing, finds the head box (the navy of the cap touching the top of the blob, widened, down to
-40% of the height), pastes only that box from the open cell, and crops both to the SAME box —
-below the head the two files are one picture (the silhouette is identical; the colour carries a
-few pixels of lossy-webp noise, which `coachcheck.mjs` bounds). The fifteen poses: whoa, thinkcap,
-armscrossed, clipboard, relaxed, firedup, listen, shrug, flex, stop, welcome, tip, point, thumbsup,
-open.
+pose, for the menu. **`_b` is `_a` with only the mouth set on it**: the sheets' two drawings of a
+pose were drawn twice — the body, the brow, the eyes and the tilt of the head all differ — so
+flipping between them twitched the whole man, and pasting the whole head snapped between two
+faces. `face_box()` finds the face in each cell (the biggest skin blob under the cap's centre — a
+raised hand beside the head, or the cap's gold stripe, would otherwise pass for it), `dark_blobs()`
+lists the dark strokes inside the lower half of the face that touch none of its edges (so the
+outline, the mic and the brows drop out), `open_mouth()` takes the widest thin one on the closed
+cell as the closed mouth (with any stroke beside it — a frown is the lip line and the shadow under
+it) and the biggest one on the open cell as the open mouth (its interior with the lips). It ERASES
+the closed strokes first — a skin fill sampled from the ring around them, feathered — then fills
+and dilates the open blob by 3 px, feathers it over 3 px, and blends it onto the closed drawing
+HUNG from the closed mouth line — the open upper lip on the line, the jaw dropping below it, so the
+mouth never climbs toward the nose; and it refuses to write a pose in which any pixel of the closed
+strokes is still dark beside the open mouth (`SystemExit`: a coach with two mouths). So the open
+mouth is over the closed one in every pose, no line peeks out above it, and nothing else changes (`coachcheck.mjs` proves the differing pixels sit in one small box low in the
+head, with the silhouette identical). The cutter writes `art/coach/coach_pairs.png`, every pose
+closed beside open: look at it after a cut. The fifteen poses: whoa, thinkcap, armscrossed,
+clipboard, relaxed, firedup, listen, shrug, flex, stop, welcome, tip, point, thumbsup, open.
 
-**The stops.** `STOPS` is twelve `{id, title, sub, when(ctx), lines, delay?, last?}`, in the order a
-first week meets them; a line is `{p, t, s?}` — pose, text, an optional spotlight key into `S`.
+**The stops.** `STOPS` is thirteen `{id, title, sub, when(ctx), lines, delay?, last?}`, in the order a
+first week meets them (plus `prestige`, which is not part of the week: it fires whenever the tree
+is opened, view `upgrade`, off the menu's TRAINING tile); a line is `{p, t, s?}` — pose, text, an optional spotlight key into `S`.
 `ctx()` reads the page: the audit state's `view` (`window.__GRIDIRON_AUDIT__.getState()` — the
 state is never `window.o`), the menu overlay, `#personaV13`, `#growthV42` (the wheel), `#pregameV1513`,
 `#pgOverlayV13`, the live scene's markers, and the seen set. The stops and what they key on:
@@ -1187,11 +1198,16 @@ up OVER the training board off PLAY SEASON, spins itself, rolls the fit, and its
 (`#pregameV1513`, no wheel), `live`
 (markers on the scene and view `live`, `delay` 2600 so the loader has left), `result`
 (`#pgOverlayV13`), `recovery` (the season screen again, once `result` is seen; `last`). The text is
-the guide's specifics for THAT screen in a coach's voice — two or three numbers a stop, never the
-section — and it must stay that way: nothing the guide does not say. `estimateMs()` is the scripted
+PLAIN: a football coach talking to a jock who may not follow a long sentence — what the screen
+does, what to do about it, three or four short lines a stop, almost no numbers (the guide has the
+numbers; `coachcheck.mjs` allows four lines with a digit in the whole script and no line over 170
+characters) — and it says the things a rookie must hear: a fatigued guy plays worse, so play fewer
+snaps and let him recover; every position wants a different mix of skills and the mix is his to
+work out; prestige is what a finished career leaves behind, spent under TRAINING on the next guy.
+It must stay the guide's truth in fewer words: nothing the guide does not say. `estimateMs()` is the scripted
 length at the pace constants (`TYPE_MS` 18 a character, `PUNCT_MS` after a stop, `HOLD_MS` +
-`HOLD_PER_CHAR` × length to read it): about three minutes over the whole week, and `coachcheck.mjs`
-holds it between 2 and 6.
+`HOLD_PER_CHAR` × length to read it): a couple of minutes over the whole week, and `coachcheck.mjs`
+holds it between 1.5 and 6.
 
 **Finding the stop.** `currentStop()` is the first stop whose `when(ctx)` holds AND that is not in
 the seen set (`rib.coachSeen.v119`, a JSON array) — the season screen fits `season` before the game
@@ -1217,8 +1233,8 @@ depend on the letter (vowels lower and narrower), `semi` = +4 for a vowel, the l
 (`code % 7 − 3`), a sentence contour (`sin(k·π)·2 − 2k`, lifting +3 late in a question) and a
 little jitter; vowels run 75–115 ms and slide down, consonants 45–70 ms and slide up, and
 s/f/h/t/k/p/x add a 30 ms high-passed noise burst. VOICE (`setVoice`, `rib.coachVoice.v119`) mutes;
-reduced motion keeps him quiet. `show()` sets the crumb (`n / 12 · TITLE`), the bar, the stop, the
-pose and the spotlight, then types (the crumb counts `n / 12`); the NEXT button reads `GOT IT ›` on a stop's last line and
+reduced motion keeps him quiet. `show()` sets the crumb (`n / 13 · TITLE`), the bar, the stop, the
+pose and the spotlight, then types (the crumb counts `n / 13`); the NEXT button reads `GOT IT ›` on a stop's last line and
 `DONE ✓` on the last stop's. `tap()` (the bubble, the coach, Space, Enter, →) finishes a typing line
 or moves on; `next()` / `back()` walk the lines; AUTO (`setAuto`) is the hold-then-next, and the
 last line of a stop never auto-advances (the player has a screen to use); SKIP and Escape call

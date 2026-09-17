@@ -59,10 +59,12 @@ const step = async (page, t, wait = 900) => {
   ok(h && !h.open, 'the dev-check boot (welcome cards removed without a click) never starts him on its own')
   const tile = await page.evaluate(() => { const t = document.querySelector('#rib-main-menu-v2 [data-rib-action="coach"]'); return t ? { on: t.getAttribute('aria-checked'), role: t.getAttribute('role'), label: (t.querySelector('b') || {}).textContent, face: (t.querySelector('small') || {}).textContent, img: !!t.querySelector('img') } : null })
   ok(tile && tile.role === 'switch' && tile.on === 'true' && /COACH'S TOUR/.test(tile.label) && /^ON\b/.test(tile.face) && tile.img, "the COACH'S TOUR switch is on the menu and reads ON on a fresh install", JSON.stringify(tile))
-  ok(h && h.stops === 12 && h.lines >= 30 && h.lines <= 48 && h.estimateMin >= 2 && h.estimateMin <= 6, 'twelve stops, a few lines each — two to six minutes of talk spread over a week, not a lecture', h && `${h.estimateMin.toFixed(1)} min · ${h.lines} lines`)
-  // his lines are short and lean on the guide's own facts (numbers), not the whole guide
-  const lineFacts = await page.evaluate(() => fetch([...document.scripts].map((x) => x.src).find((u) => /rib-menu-coach/.test(u))).then((r) => r.text()).then((src) => { const m = src.match(/t: "([^"]+)"/g) || []; return { n: m.length, longest: Math.max(...m.map((x) => x.length)), withNumber: m.filter((x) => /\d/.test(x)).length } }))
-  ok(lineFacts.n >= 30 && lineFacts.longest <= 260 && lineFacts.withNumber >= 8, "his lines are short and lean on the guide's specifics (numbers), not the whole guide", JSON.stringify(lineFacts))
+  ok(h && h.stops === 13 && h.lines >= 30 && h.lines <= 52 && h.estimateMin >= 1.5 && h.estimateMin <= 6, 'thirteen stops, a few lines each — a couple of minutes of talk spread over a week, not a lecture', h && `${h.estimateMin.toFixed(1)} min · ${h.lines} lines`)
+  // his lines are short and plain: almost no numbers (the guide has those), no line over two sentences' worth, and the
+  // things a rookie must hear — fatigue means fewer snaps, each position wants its own skills, prestige is what you keep
+  const lineFacts = await page.evaluate(() => fetch([...document.scripts].map((x) => x.src).find((u) => /rib-menu-coach/.test(u))).then((r) => r.text()).then((src) => { const m = src.match(/t: "([^"]+)"/g) || []; const all = m.join(' ')
+    return { n: m.length, longest: Math.max(...m.map((x) => x.length)), withNumber: m.filter((x) => /\d/.test(x)).length, fatigue: /fatigued.*fewer snaps|fewer snaps.*recover/i.test(all), skills: /position wants different skills/i.test(all) && /mix of skills/i.test(all), prestige: (all.match(/prestige/gi) || []).length } }))
+  ok(lineFacts.n >= 30 && lineFacts.longest <= 170 && lineFacts.withNumber <= 4 && lineFacts.fatigue && lineFacts.skills && lineFacts.prestige >= 3, 'his lines are short and plain — almost no math, and the fatigue, skill-mix and prestige points are said', JSON.stringify(lineFacts))
   await shot(page, 'menu')
   await page.click('#rib-main-menu-v2 [data-rib-action="coach"]')
   await page.waitForSelector('#rib-coach-v119.rib-coach-ready', { timeout: 8000 })
@@ -97,11 +99,13 @@ const step = async (page, t, wait = 900) => {
     cx.drawImage(a, 0, 0); const A = cx.getImageData(0, 0, a.width, a.height).data; cx.clearRect(0, 0, a.width, a.height); cx.drawImage(b, 0, 0); const B = cx.getImageData(0, 0, a.width, a.height).data
     // the silhouette below the head is IDENTICAL; the colour may carry a few pixels of lossy-webp noise (two
     // encodes of one drawing), nowhere near a moved line
-    let diffBody = 0, diffHead = 0, alphaBody = 0; const headRows = Math.round(a.height * 0.4)
-    for (let y = 0; y < a.height; y++) for (let x = 0; x < a.width; x++) { const i = (y * a.width + x) * 4; const d = Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) + Math.abs(A[i + 3] - B[i + 3]); if (d > 40) { if (y < headRows) diffHead++; else diffBody++ } if (y >= headRows && Math.abs(A[i + 3] - B[i + 3]) > 40) alphaBody++ }
-    return { pose, same, w: a.width, h: a.height, diffHead, diffBody, alphaBody, bodyNoisePct: +(100 * diffBody / (a.width * (a.height - headRows))).toFixed(3) }
+    // the pixels that really differ (past lossy-webp noise) sit in ONE small box low in the head: the mouth. The eyes, the
+    // brow, the cap, the arms and the body are the same picture
+    let n = 0, minX = 1e9, maxX = -1, minY = 1e9, maxY = -1, alphaDiff = 0
+    for (let y = 0; y < a.height; y++) for (let x = 0; x < a.width; x++) { const i = (y * a.width + x) * 4; const d = Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]); if (d > 90 && A[i + 3] > 200 && B[i + 3] > 200) { n++; if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y } if (Math.abs(A[i + 3] - B[i + 3]) > 40) alphaDiff++ }
+    return { pose, same, w: a.width, h: a.height, n, box: [minX, minY, maxX - minX + 1, maxY - minY + 1], boxFrac: +(((maxX - minX + 1) * (maxY - minY + 1)) / (a.width * a.height)).toFixed(3), lowInHead: minY > a.height * 0.15 && maxY < a.height * 0.4, alphaDiff }
   })
-  ok(still && still.same && still.alphaBody === 0 && still.bodyNoisePct < 0.2 && still.diffHead > 50, 'the open-mouth drawing is the closed one with only the head changed — the body does not jitter', JSON.stringify(still))
+  ok(still && still.same && still.n > 100 && still.boxFrac < 0.06 && still.lowInHead && still.alphaDiff === 0, 'only the MOUTH differs between the two drawings — a small box low in the head; the eyes, the head and the body hold still', JSON.stringify(still))
   // the mouth is not a metronome, and the voice muddles along with the letters
   const mouth = await page.evaluate(() => { const L = window.__RIB_COACH.voice.mouthLog; return { n: L.length, distinct: new Set(L).size, min: Math.min(...L), max: Math.max(...L) } })
   ok(mouth.n >= 8 && mouth.distinct >= 6 && mouth.max - mouth.min >= 60, 'the mouth moves in a variable pattern — no two beats the same, a real spread', JSON.stringify(mouth))
@@ -119,8 +123,13 @@ const step = async (page, t, wait = 900) => {
     const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, tr = target ? target.getBoundingClientRect() : null
     return { shown: !!sr, dimHidden: !!dim && dim.hidden, inside: !!(sr && tr && sr.left <= tr.left + 1 && sr.top <= tr.top + 1 && sr.right >= tr.right - 1 && sr.bottom >= tr.bottom - 1), onScreen: !!(sr && sr.top >= 0 && sr.bottom <= innerHeight) } })
   ok(h.stop === 'menu' && h.line === 1 && h.spot === 'coach' && spotTile.shown && spotTile.dimHidden && spotTile.inside && spotTile.onScreen, "NEXT moves to the next line, and its spotlight cuts the dim over the COACH'S TOUR tile", JSON.stringify({ line: h.line, ...spotTile }))
-  // the last line of the stop: the CAREER tile lit, and the button reads GOT IT
+  // the PRESTIGE line lights the TRAINING tile; the last line of the stop lights the CAREER tile, and the button reads GOT IT
   await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.line < 3 && n++ < 10) C.next() })
+  await page.waitForTimeout(700)
+  const spotPres = await page.evaluate(() => { const spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), target = [...document.querySelectorAll('button,[onclick],a')].find((el) => el.getBoundingClientRect().height > 0 && /^TRAINING\b/.test((el.innerText || '').replace(/\s+/g, ' ').trim())); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, tr = target ? target.getBoundingClientRect() : null
+    return { line: window.__RIB_COACH.line, key: window.__RIB_COACH.spot, shown: !!sr, inside: !!(sr && tr && sr.left <= tr.left + 2 && sr.top <= tr.top + 2 && sr.right >= tr.right - 2 && sr.bottom >= tr.bottom - 2), onScreen: !!(sr && sr.top >= 0 && sr.bottom <= innerHeight), sr: sr && [Math.round(sr.left), Math.round(sr.top), Math.round(sr.width), Math.round(sr.height)], tr: tr && [Math.round(tr.left), Math.round(tr.top), Math.round(tr.width), Math.round(tr.height)] } })
+  ok(spotPres.key === 'prestige' && spotPres.shown && spotPres.inside && spotPres.onScreen, 'the PRESTIGE line lights the TRAINING tile — where the points are spent', JSON.stringify(spotPres))
+  await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.line < 4 && n++ < 10) C.next() })
   await page.waitForTimeout(700)
   const spot = await page.evaluate(() => {
     const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), dim = document.querySelector('#rib-coach-v119 .rib-coach-dim')
@@ -130,7 +139,7 @@ const step = async (page, t, wait = 900) => {
     const onScreen = sr && sr.top >= 0 && sr.bottom <= innerHeight
     return { stop: C.stop, line: C.line, spot: C.spot, shown: !!sr, dimHidden: !!dim && dim.hidden, inside: !!inside, onScreen: !!onScreen, next: nextBtn && nextBtn.textContent, sr: sr && [Math.round(sr.left), Math.round(sr.top), Math.round(sr.width), Math.round(sr.height)], tr: tr && [Math.round(tr.left), Math.round(tr.top), Math.round(tr.width), Math.round(tr.height)] }
   })
-  ok(spot.stop === 'menu' && spot.line === 3 && spot.shown && spot.dimHidden && spot.inside && spot.onScreen && /GOT IT/.test(spot.next || ''), "the menu stop's last line lights the CAREER tile, scrolled into view, and the button reads GOT IT", JSON.stringify(spot))
+  ok(spot.stop === 'menu' && spot.line === 4 && spot.shown && spot.dimHidden && spot.inside && spot.onScreen && /GOT IT/.test(spot.next || ''), "the menu stop's last line lights the CAREER tile, scrolled into view, and the button reads GOT IT", JSON.stringify(spot))
   await shot(page, 'spotlight')
   const wide = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth))
   ok(wide <= 400, 'nothing scrolls sideways at 400px with the coach open', wide + 'px')
@@ -139,7 +148,7 @@ const step = async (page, t, wait = 900) => {
   const backed = await H(page)
   await page.keyboard.press('ArrowRight'); await page.waitForTimeout(150); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(150)
   const fwd = await H(page)
-  ok(backed.line === 2 && fwd.line === 3, 'the arrows walk the lines', `${backed.line} -> ${fwd.line}`)
+  ok(backed.line === 3 && fwd.line === 4, 'the arrows walk the lines', `${backed.line} -> ${fwd.line}`)
   // GOT IT closes the stop, marks it seen, and leaves the switch ON for the next screen
   await page.click('#rib-coach-v119 [data-c-next]'); await page.waitForTimeout(400)
   h = await H(page)
@@ -202,7 +211,7 @@ const step = async (page, t, wait = 900) => {
   const wheel = await expect('wheel', 'the season-commitment wheel, over the training board')
   // the wheel spins itself and rolls the fit; CONTINUE arrives with the roll — the last line's cut-out waits for it
   await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' && g.getBoundingClientRect().height > 0 }, null, { timeout: 30000 }).catch(() => null)
-  await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.isOpen && C.line < 3 && n++ < 6) C.next() }); await page.waitForTimeout(700)
+  await page.evaluate(() => { const C = window.__RIB_COACH, last = C.stops.find((x) => x.id === C.stop).lines - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(700)
   const contSpot = await page.evaluate(() => { const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), g = document.getElementById('gv42go'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, gr = g ? g.getBoundingClientRect() : null
     return { line: C.line, key: C.spot, shown: !!sr, over: !!(sr && gr && sr.left <= gr.left + 1 && sr.right >= gr.right - 1 && sr.top <= gr.top + 1 && sr.bottom >= gr.bottom - 1) } })
   ok(wheel && wheel.stop === 'wheel' && contSpot.key === 'cont' && contSpot.shown && contSpot.over, "the wheel stop's last line lights CONTINUE once the roll is in", JSON.stringify(contSpot))
@@ -213,7 +222,7 @@ const step = async (page, t, wait = 900) => {
   await step(page, 'PLAY WEEK 1 LIVE')
   const plan = await expect('plan', 'the weekly-plan wheel, off PLAY WEEK')
   await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' && g.getBoundingClientRect().height > 0 }, null, { timeout: 30000 }).catch(() => null)
-  await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.isOpen && C.line < 2 && n++ < 6) C.next() }); await page.waitForTimeout(700)
+  await page.evaluate(() => { const C = window.__RIB_COACH, last = C.stops.find((x) => x.id === C.stop).lines - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(700)
   const planSpot = await page.evaluate(() => { const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), g = document.getElementById('gv42go'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, gr = g ? g.getBoundingClientRect() : null
     return { line: C.line, key: C.spot, shown: !!sr, over: !!(sr && gr && sr.left <= gr.left + 1 && sr.right >= gr.right - 1 && sr.top <= gr.top + 1 && sr.bottom >= gr.bottom - 1) } })
   ok(plan && plan.stop === 'plan' && planSpot.key === 'cont' && planSpot.shown && planSpot.over, "the plan stop's last line lights CONTINUE once the plan is rolled", JSON.stringify(planSpot))
@@ -228,17 +237,17 @@ const step = async (page, t, wait = 900) => {
   await page.evaluate(() => { const b = [...document.querySelectorAll('.speed-btn[data-spd]')].sort((x, y) => parseFloat(y.dataset.spd) - parseFloat(x.dataset.spd))[0]; if (b) b.click() })
   const tGame = Date.now(); let reopened = 0
   while (Date.now() - tGame < 300000) {
-    const s = await page.evaluate(() => { if (document.getElementById('pgOverlayV13')) return 'pg'; if (window.__RIB_COACH.isOpen) return 'coach'
+    const s = await page.evaluate(() => { const pg = document.getElementById('pgOverlayV13'); if (pg && pg.getBoundingClientRect().height > 0) return 'pg'; if (window.__RIB_COACH.isOpen) return 'coach'
       const b = [...document.querySelectorAll('button')].find((x) => /^\s*CONTINUE\s*$/i.test(x.innerText || '') && x.getBoundingClientRect().height > 0 && !x.closest('#rib-coach-v119') && !x.closest('#pgOverlayV13')); if (b) { b.click(); return 'sheet' } return null })
     if (s === 'pg') break
     if (s === 'coach') reopened++
     await page.waitForTimeout(600)
   }
   ok(reopened === 0, 'he does not come back during the game once the live stop is read', `${reopened} reopenings`)
-  await expect('result', 'the post-game card', { ms: 15000 }); await dismiss(page)
+  await expect('result', 'the post-game card', { ms: 60000 }); await dismiss(page)
   await page.evaluate(() => { const el = document.getElementById('pgOverlayV13'); const b = el && [...el.querySelectorAll('button')].find((x) => /CONTINUE|NEXT|CLOSE/i.test(x.innerText || '')); if (b) b.click() })
   const rec = await expect('recovery', 'the season screen after the game', { ms: 15000, spot: 'body' })
-  await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.isOpen && C.line < 2 && n++ < 6) C.next() }); await page.waitForTimeout(400)
+  await page.evaluate(() => { const C = window.__RIB_COACH, last = C.stops.find((x) => x.id === C.stop).lines - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(400)
   const doneBtn = await page.evaluate(() => (document.querySelector('#rib-coach-v119 [data-c-next]') || {}).textContent || '')
   ok(rec && rec.stop === 'recovery' && /DONE/.test(doneBtn), "the last stop's button reads DONE", JSON.stringify(doneBtn))
   await shot(page, 'recovery')
@@ -246,11 +255,16 @@ const step = async (page, t, wait = 900) => {
   const storedEnd = await page.evaluate((k) => localStorage.getItem(k), await page.evaluate(() => window.__RIB_COACH.key))
   ok(!h.open && h.closedBy === 'done' && !h.enabled && storedEnd === 'off', 'DONE ends the walk and switches him OFF, remembered', JSON.stringify({ closedBy: h.closedBy, enabled: h.enabled, stored: storedEnd }))
   const want = ['menu', 'persona', 'position', 'hub', 'wheel', 'training', 'season', 'plan', 'pregame', 'live', 'result', 'recovery']
-  ok(JSON.stringify(order) === JSON.stringify(want) && h.opens === want.length && h.seen.length === want.length, 'twelve stops, one per screen, in the order a first week meets them, none twice', JSON.stringify({ order, opens: h.opens }))
+  ok(JSON.stringify(order) === JSON.stringify(want) && h.opens === want.length && h.seen.length === want.length, 'twelve stops of the week, one per screen, in the order a first week meets them, none twice', JSON.stringify({ order, opens: h.opens }))
   // and off, the season screen stays quiet
   await page.waitForTimeout(2500)
   const quiet = await H(page)
   ok(!quiet.open, 'switched off, he stays off')
+  // the prestige tree (TRAINING on the menu, the upgrade sheet) gets its own stop whenever it is opened, with a career on
+  await page.evaluate(() => { window.__RIB_COACH.resetSeen(); window.__RIB_COACH.setEnabled(true); window.go('upgrade') })
+  const pres = await waitStop(page, 'prestige')
+  ok(pres && pres.open && pres.stop === 'prestige' && pres.openedBy === 'page', 'the prestige tree (TRAINING on the menu) gets its own stop — what you keep, what it buys, finish your careers', JSON.stringify({ stop: pres && pres.stop, view: await page.evaluate(() => { try { return window.__GRIDIRON_AUDIT__.getState().view } catch (e) { return null } }) }))
+  await shot(page, 'stop-prestige')
   await context.close()
 }
 
