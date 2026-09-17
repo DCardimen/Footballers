@@ -55,6 +55,20 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v130 — Honors, not stars.** The game had two star ratings and they meant nothing like each
+  other. One is the **recruit rating** — the 1–5 stars on a player, the thing scouts give him, the
+  thing `drSoftCap` reads. The other was the **account's prestige**, drawn with the same ★ and
+  quoted the same way: the header chip said `★3`, the prestige tree said `🔒 Needs ★8 prestige`, the
+  path screen said `Reach ★6 prestige`. Two currencies wearing one symbol is not a UI problem, it is
+  a rules problem — a player reading "Needs ★8" reasonably concludes he needs an eight-star recruit,
+  which does not exist. The account's rank has its own name and its own mark now: **HONORS 🎖️**.
+  Nothing about the model moves — `o.prestige` is still the number, `Li()` is still the threshold
+  curve, PP is still what you spend — but every place that drew a ★ for it draws a medal and says
+  Honors, a locked node reads `🔒 Needs 🎖️ 8 HONORS — you have 4`, the header chip carries a tooltip
+  saying which one it is *not*, and the ★ is left to mean the recruit rating and only that. The node
+  requirement key is `honors` too, with the old `stars` still read so a save or a patch layer
+  written against it keeps working. `window.__V130`; `scripts/honorcheck.mjs` is the gate.
+
 - **v129 — the ball in stride.** `leadSkillV101` is the fraction of the computed lead the passer
   actually gets on the ball, and it sits around .46–.7 for almost everybody. That is the right
   *average* — most throws in football are a step behind — but it meant the game had no **best**

@@ -68,6 +68,12 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v130 HONORS, NOT STARS` (beside `Li` / `Xa`) — the account's rank is HONORS 🎖️, not a second
+  star rating. `honorReqV130(req)` / `honorHasReqV130(req)` read the node key `honors` (still
+  accepting the old `stars`), `honorsV130()` is what you have, `HONOR_ICON_V130` is the mark. The ★
+  now means the 1–5 RECRUIT rating and only that (`player.stars`, `drSoftCap`). Bump
+  `RIB_MENU_VERSION` if you touch the menu's rank scraper, which reads the medal first and the star
+  second. `window.__V130`; `honorcheck.mjs`, then `menu-integration-check.mjs`, `walk.mjs`
 - `v129 THE BALL IN STRIDE` (beside `leadSkillV101`) — `strideOddsV129(qb, target, sep)` is how often
   the passer COMMITS to the spot: `STRIDE_LVL_V129[level]` is the base (0 at Pee Wee, a staple in the
   DFL), moved by awareness, arm, receiver speed and separation. Decided BEFORE `leadPointV101` (the
@@ -506,6 +512,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the deploy reaching a browser / the build meta / the one-time reload (v106.1) | `freshcheck.mjs` (no dev server), then `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the team kit on the menu pictures / the hero, continue-card and portrait masks (v106) | `python3 scripts/build-menu-art.py` (or the one `menu-kit-*.py`), then `menu-mask-check.mjs`, `menu-kit-shot.mjs` (look at the shots), `menu-integration-check.mjs`, `v102check.mjs`, `menushot.mjs` (`CAREER=1`) |
 | a school, college or DFL club's name, or which crest it wears (v123) | `namecheck.mjs`, then `emblemcheck.mjs`, `menu-integration-check.mjs`, `walk.mjs` |
+| the account's rank, the prestige-tree gates, or anything drawing a ★ (v130) | `honorcheck.mjs`, then `menu-integration-check.mjs`, `walk.mjs`, `shot.mjs` |
 | team emblems / palettes / identity | `emblemcheck.mjs` |
 | training / skill art, the skill atlas | `skillartcheck.mjs`, `wheelcheck.mjs` |
 | the training programs — what a program trades away, the fate roll and its odds, or what the coach recommends (v124) | `traincheck.mjs`, then `capcheck.mjs`, `v85check.mjs`, `skillartcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs` |
