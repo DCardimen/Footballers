@@ -4,9 +4,9 @@
 //     for every kit, cut from the atlas's own cells.
 //   * WHICH WAY HE THREW — a ball leaving to the QB's screen-right was drawn on throwR, one to
 //     his left on throwL, and the release still lands on frame 4 with the flight (residual 0).
-//   * THE EXCHANGE IS DRAWN — a handoff played handoff_up0..4 with frame 2 (the ball at arm's
-//     length) on the sim's own handoff event; a toss played toss_up0..4 with frame 3 (the
-//     release) on it.
+//   * THE EXCHANGE IS DRAWN — a handoff played handoff_up0..4 (handoffL_up0..4, the mirrored
+//     reach, when the back came off his left — v118) with frame 3 (one hand at full stretch) on
+//     the sim's own handoff event; a toss played toss_up0..4 with frame 3 (the release) on it.
 //   * ONE FOOTBALL — over every drawn frame of those cycles the renderer's ball was hidden
 //     exactly when the cell draws one and shown when it does not (ballDoubled/ballMissing 0).
 //   * THE NUMBER IS STILL ON THE JERSEY — v104's band off each new texture, and the placed box
@@ -48,11 +48,11 @@ const tex = await page.evaluate(() => {
     out.kits.push(kit)
     const keys = []
     for (let i = 0; i < 6; i++) { keys.push('up_throwR' + i); keys.push('up_throwL' + i) }
-    for (let i = 0; i < 5; i++) { keys.push('up_handoff' + i); keys.push('up_toss' + i) }
+    for (let i = 0; i < 5; i++) { keys.push('up_handoff' + i); keys.push('up_handoffL' + i); keys.push('up_toss' + i) }
     for (const k of keys) if (!sc.textures.exists('spr_' + kit + '_' + k)) out.missing.push(kit + ':' + k)
   }
   for (const k of ['up_throwR0', 'up_throwR2', 'up_throwR4', 'up_throwL0', 'up_throwL2', 'up_throwL4',
-    'up_handoff0', 'up_handoff2', 'up_handoff4', 'up_toss0', 'up_toss3', 'up_throw0', 'up_throw4', 'up_idle'])
+    'up_handoff0', 'up_handoff2', 'up_handoff4', 'up_handoffL2', 'up_toss0', 'up_toss3', 'up_throw0', 'up_throw4', 'up_idle', 'up_throwR1', 'up_throwL1', 'up_throwR5', 'up_throwL5'])
     out.sig[k] = url('spr_off_' + k)
   return out
 })
@@ -60,10 +60,13 @@ const same = (a, b) => !!(tex.sig[a] && tex.sig[b] && tex.sig[a] === tex.sig[b])
 const have = (a) => !!tex.sig[a]
 ok(tex.kits.length >= 2 && tex.missing.length === 0,
   'the four new cycles registered for every kit (throwR, throwL, handoff, toss)', 'kits ' + tex.kits.join(',') + ' · missing ' + (tex.missing.length ? tex.missing.slice(0, 6).join(',') : 'none'))
-ok(have('up_throwR0') && have('up_throwL0') && !same('up_throwR0', 'up_throwL0') && !same('up_throwR4', 'up_throwL4') && !same('up_throwR4', 'up_throw4'),
-  'the two directions are two different drawings — the left one is not the right one mirrored')
+ok(have('up_throwR0') && have('up_throwL0') && !same('up_throwR4', 'up_throwL4') && !same('up_throwR4', 'up_throw4'),
+  'the two directions are two different drawings where the ball leaves — the left release is not the right one mirrored')
 ok(have('up_handoff2') && have('up_toss3') && !same('up_handoff0', 'up_handoff2') && !same('up_handoff2', 'up_handoff4') && !same('up_toss0', 'up_toss3') && !same('up_handoff2', 'up_idle'),
   'the exchange cycles are their own frames — the reach, the arm\'s length and the empty hand differ')
+ok(have('up_handoffL2') && !same('up_handoffL2', 'up_handoff2'), 'v118: the reach to his left is registered and is not the right one')
+ok(have('up_throwR4') && have('up_throwL4') && same('up_throwR1', 'up_throwL1') && same('up_throwR2', 'up_throwL2') && !same('up_throwR5', 'up_throwL5'),
+  'v118: both throws cock the same right arm, and only the release and the follow differ')
 
 // ---- the v104 bands on the new textures ----
 const bands = await page.evaluate(() => {
@@ -78,7 +81,7 @@ const bands = await page.evaluate(() => {
   }
   const keys = []
   for (let i = 0; i < 6; i++) { keys.push('up_throwR' + i); keys.push('up_throwL' + i) }
-  for (let i = 0; i < 5; i++) { keys.push('up_handoff' + i); keys.push('up_toss' + i) }
+  for (let i = 0; i < 5; i++) { keys.push('up_handoff' + i); keys.push('up_handoffL' + i); keys.push('up_toss' + i) }
   for (const k of keys) { const b = B['spr_off_' + k]
     out.push(b ? { k, top: b.top, waist: b.waist, w: b.w, rear: place(b, true) } : { k, b: null }) }
   return out
@@ -94,7 +97,7 @@ await page.evaluate(({ tossMs }) => {
   const tick = () => { try { const sc = window.__gridironScene, P = sc && sc.play, ms = (sc && sc.markers) || [], qb = ms[8]
     if (P && qb && qb.tex) {
       let m2 = /_throw([RL])(\d)$/.exec(qb.tex); if (m2) R.thr[m2[1] + m2[2]] = (R.thr[m2[1] + m2[2]] || 0) + 1
-      m2 = /_(handoff|toss)(\d)$/.exec(qb.tex); if (m2) R.ex[m2[1] + m2[2]] = (R.ex[m2[1] + m2[2]] || 0) + 1
+      m2 = /_(handoffL|handoff|toss)(\d)$/.exec(qb.tex); if (m2) R.ex[m2[1] + m2[2]] = (R.ex[m2[1] + m2[2]] || 0) + 1
       // if the playbook has not called a sweep by now, force the family on ONE run play so the
       // pitch cycle is exercised — the same description the renderer's own regex reads
       if (P !== R.lastPlay) { R.lastPlay = P; R.plays++
@@ -155,6 +158,13 @@ console.log('handoffs:', JSON.stringify((V.handoffs || []).slice(-5)), 'tosses:'
 console.log('drawn on the QB:', JSON.stringify({ thr: R.thr, ex: R.ex, forcedToss: R.forced, plays: R.plays }))
 console.log('one ball:', JSON.stringify({ ballFrames: V.ballFrames, ballDoubled: V.ballDoubled, ballMissing: V.ballMissing, last: V.last }))
 console.log('dirs:', JSON.stringify(done.map(r => r.dir)), '· exchanges skipped (the back came off his left):', V.skippedLeft || 0, JSON.stringify(V.skips || []))
+const V118 = await page.evaluate(() => window.__V118 || null)
+console.log('v118 mesh:', JSON.stringify(V118 && { meshes: V118.meshes, far: V118.far, near: V118.near, offsetFrames: V118.offsetFrames, last: V118.last }))
+ok(!!V118 && V118.meshes >= 1 && (V118.offsetFrames || 0) > 0 && V118.steps.every(s => s.stepYd >= 0 && s.stepYd <= 5.01 && s.stepYd <= s.gapYd),
+  'v118: every handoff play planned a mesh step toward the back, inside the jog cap, and the quarterback was drawn on it',
+  V118 ? `${V118.meshes} plays · steps ${V118.steps.map(s => s.stepYd).join(',')} yd of gaps ${V118.steps.map(s => s.gapYd).join(',')}` : 'no hook')
+ok(!!V118 && (V.handoffs || []).length + (V.tosses || []).length >= 1 && (V.skippedLeft || 0) === 0,
+  'v118: no exchange was skipped for the side the back came off — the reach goes left too', `skipped ${V.skippedLeft || 0}`)
 ok(right.length >= 1 && (R.thr || {}).R4 > 0, 'a throw to his screen-RIGHT was drawn on the throwR cycle',
   `${right.length} right-hand throws · frames ` + JSON.stringify(R.thr))
 ok(left.length >= 1 && (R.thr || {}).L4 > 0, 'and one to his LEFT came across the body on throwL',
@@ -163,9 +173,9 @@ ok(sideOk.length === right.length + left.length && sideOk.length >= 2, 'every dr
   sideOk.length + '/' + (right.length + left.length))
 ok(relOk.length >= 1 && relOk.length >= right.length + left.length - 1, 'the release is still frame 4, on the tick the flight starts',
   'residuals ' + done.filter(r => r.dir).map(r => r.residualMs).join(',') + ' ms')
-const hOK = (V.handoffs || []).filter(h => h.frameAtEvent === 2)
+const hOK = (V.handoffs || []).filter(h => h.frameAtEvent === 3)
 const tOK = (V.tosses || []).filter(h => h.frameAtEvent === 3)
-ok(hOK.length >= 1 && (R.ex || {}).handoff2 > 0, 'a handoff played handoff_up0..4 with the ball at arm\'s length ON the event',
+ok(hOK.length >= 1 && ((R.ex || {}).handoff3 > 0 || (R.ex || {}).handoffL3 > 0), 'a handoff played handoff_up0..4 (or its mirror) with one hand at full stretch ON the event',
   `${hOK.length}/${(V.handoffs || []).length} handoffs · frames ` + JSON.stringify(R.ex))
 ok(tOK.length >= 1 && (R.ex || {}).toss3 > 0, 'and a toss played toss_up0..4 with the release ON the event',
   `${tOK.length}/${(V.tosses || []).length} tosses` + (R.forced ? ' (one sweep forced onto a run play)' : ''))

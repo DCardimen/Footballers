@@ -68,6 +68,18 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v118 THE QUARTERBACK'S OWN SHEETS` (in `build-field-art.py`) / `v118 THE MESH` (beside
+  `startExchangeV108`) — the handoff, the pitch and the throw both ways are cut from
+  `art/field/qb_*_v118.png`, scaled by the HELMET (`helmet_w`, `HELM44`), the ball found per cell
+  (`ball_or_hand` → `HAND_V108`, `BALL_DRAWN_V108`, printed at cut time), the football's brown kept
+  through the gold normalisation (`keep_ball`). The left throw is the right throw's first four
+  cells plus the cross-body release and follow — he throws right-handed whichever way the ball
+  goes. `handoffL_up*` is the reach mirrored for a back off his left (`EX_V108.handoffL`); the pitch
+  is never mirrored. `meshV118` plans, once per script, how far the quarterback's DRAWN position
+  steps toward the back before the `handoff` event (`meshMaxYdPerS`, `meshStepYd`, `meshReachYd`),
+  `meshOffsetV118` applies it in the placement loop, `m._meshFaceV118` holds his facing, and
+  `P._meshV118.far` turns an exchange the step could not close into a pitch (the toss cycle and the
+  toss flight). Nothing in the sim moves. `window.__V118`; `v108check.mjs`
 - `v117 ONE MAN, ONE SLOT` / `v117 AND HE ROTATES THROUGH THEM` — the eleven markers are filled by
   drawing roster players out of a per-position pool, and the draw now REMOVES what it hands out, so
   nobody is fielded twice on a snap (`placed`, `drop()`). The named picks — the carrier, the target,
@@ -354,6 +366,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the silent path's story rolls / the upgrade sheet's numbers / the menu ring (v90) | `v90check.mjs`, `v85check.mjs` |
 | the main menu / its feed / menu art (v89) | `menu-integration-check.mjs`, `menushot.mjs` (`CAREER=1`), `menu-preview-shot.mjs` |
 | which way the throw goes / the drawn handoff and pitch / which frames draw the ball (v108) | `v108check.mjs`, then `v107check.mjs`, `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `kitsidecheck.mjs` (LB), `v104check.mjs` |
+| the QB sheets — the reach, the pitch, the throw both ways, the mesh step, hand vs pitch (v118) | `node scripts/build-field-art.mjs` (read the printed `HAND_V108` / `BALL_DRAWN_V108` back into index.html), then `v108check.mjs`, `v107check.mjs`, `v105check.mjs`, `v91check.mjs`, `v104check.mjs`, `renderpathcheck.mjs` |
 | the wordmark sheen / the camera flashes, lamps and sun on the hero (v107.1) | `sheencheck.mjs`, `heroflashcheck.mjs`, then `v102check.mjs`, `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the throw's facing / the release's timing / the dropback / the pre-snap stances (v107) | `v107check.mjs`, then `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `renderpathcheck.mjs`, `kitsidecheck.mjs` (LB) |
 | the loading animation's readiness / the warm in the head / the loader bar (v112 A) | `v112Acheck.mjs`, then `splashcheck.mjs`, `renderpathcheck.mjs`, `v86check.mjs` |

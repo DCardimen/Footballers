@@ -109,7 +109,7 @@ ok(legacy.length > 0 && legacyBad.length / legacy.length > 0.9,
   `${legacyBad.length}/${legacy.length} rear poses`)
 
 // ================= 2. what the field actually draws, over live play =================
-let minH = 1e9, maxH = 0, minR = 1e9, maxR = 0, seenRear = 0, seenFront = 0, fonts = new Set(), seen = 0
+let minH = 1e9, maxH = 0, minR = 1e9, maxR = 0, seenRear = 0, seenFront = 0, fonts = new Set(), seen = 0, smallest = null
 const rowsByTex = {}
 for (let i = 0; i < 170; i++) {
   const st = await page.evaluate(() => { const sc = window.__gridironScene; if (!sc) return null
@@ -117,8 +117,9 @@ for (let i = 0; i < 170; i++) {
       tex: m.tex, row: m._numRowV104, rear: !!m._ribRearFacing, fs: m.label.style.fontSize,
       // the ink on screen, and the body it is painted on
       inkH: (window.TU('numCellH', 6)) * (m.body.scaleY || 1) * m.root.scale,
-      bodyH: m.body.displayHeight * m.root.scale })) })
+      bodyH: m.body.displayHeight * m.root.scale, sc: m.root.scale, sy: m.body.scaleY, x: Math.round(m.root.x), y: Math.round(m.root.y), st: m.forceState || null })) })
   for (const r of (st || [])) { seen++
+    if (r.inkH < minH) smallest = r
     fonts.add(r.fs)
     if (r.rear) seenRear++; else seenFront++
     minH = Math.min(minH, r.inkH); maxH = Math.max(maxH, r.inkH)
@@ -134,6 +135,7 @@ ok(fonts.size === 1, 'the label is rasterized ONCE — the font size is never re
 ok(maxR / Math.max(1e-6, minR) < 1.35, 'the number holds its share of the body across the whole field',
   `ratio ${minR.toFixed(4)}..${maxR.toFixed(4)} (${(maxR / minR).toFixed(2)}x)`)
 // v105 moved the default perspective to 78%, so the near rows draw bigger and the number with them: the band is the body's, not a fixed pixel count
+console.log('smallest placement:', JSON.stringify(smallest))
 ok(minH > 3.2 && maxH < 16, 'and it stays inside a sane on-screen size band', `${minH.toFixed(2)}..${maxH.toFixed(2)} px`)
 // one texture = one row: a run cycle must not make the number breathe
 const pulsing = Object.entries(rowsByTex).filter(([, s]) => s.size > 1)
