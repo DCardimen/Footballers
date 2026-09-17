@@ -73,7 +73,8 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   HOW TO PLAY sections in order, every number the guide's own), `S` (the spotlight selectors, by the
   router's action names), the pace constants (`TYPE_MS` / `HOLD_MS` / `HOLD_PER_CHAR`; `estimateMs()`
   must stay inside 5–10 min), `flap()` (the mouth: `<pose>_a` / `<pose>_b` off `public/coach/`, cut
-  by `scripts/build-coach-art.py`), `spotOn()` (a box-shadow cut-out re-measured every frame),
+  by `scripts/build-coach-art.py`, in the shape of speech, never a metronome), `blip()` (the voice:
+  one WebAudio blip per letter at a syllable rate, no sound file; VOICE mutes, `rib.coachVoice.v119`), `spotOn()` (a box-shadow cut-out re-measured every frame),
   `toggle()` (the menu switch `rib9-tile-coach`, `data-rib-action="coach"`; ON plays, the end
   switches OFF, `rib.coachTour.v119`), `watch()` (a first visit: the game's welcome cards — lifted above the menu overlay in v119, they
   were buried at z-index 190 — clicked through three times hand to the coach; a switch left `on`

@@ -24,16 +24,24 @@
    * back at the next menu mount until it is. The dev checks remove the cards without a click, so
    * they never meet it; `?coachTour` in the URL switches it on and starts it at the first mount.
    *
+   * He has a VOICE: a muddle of pitched blips, one per letter as it types — the Animalese trick —
+   * synthesised on the spot with WebAudio (no sound file): a gruff low base, every letter its own
+   * step, vowels warmer and longer than consonants, a breath of noise on the fricatives, a sentence
+   * that rises and settles, a question that lifts at the end. The mouth is NOT cut to the voice:
+   * it moves in the shape of speech — a syllable open, a beat closed, a longer close at a word
+   * gap or a stop, the odd double snap — never on a metronome. VOICE in the bubble mutes him
+   * (`rib.coachVoice.v119`); reduced-motion keeps him quiet too.
+   *
    * It is a body-level overlay like the guide (the menu re-renders its innerHTML on every data
    * change, so nothing lives inside #rib-main-menu-v2), and it leaves when the menu does. */
 
   const ID = 'rib-coach-v119';
-  const KEY = 'rib.coachTour.v119';
+  const KEY = 'rib.coachTour.v119', VOICE_KEY = 'rib.coachVoice.v119';
   const ART = './public/coach/';
   const POSES = ['whoa', 'thinkcap', 'armscrossed', 'clipboard', 'relaxed', 'firedup', 'listen', 'shrug', 'flex', 'stop', 'welcome', 'tip', 'point', 'thumbsup', 'open'];
   // the pace: a character every TYPE_MS, punctuation breathes, then the line is HELD to be read
   const TYPE_MS = 18, PUNCT_MS = 140, HOLD_MS = 700, HOLD_PER_CHAR = 11, CHAPTER_MS = 500;
-  const MOUTH_MIN = 75, MOUTH_MAX = 165;
+  const BLIP_GAP = 0.042;   // seconds between blips: a syllable rate, not a letter rate
 
   // ---- the spotlight targets: what is on the menu, by the router's own action names -----------
   const S = {
@@ -213,6 +221,7 @@
           <div class="rib-coach-foot">
             <button type="button" data-c-back aria-label="Previous line">‹ BACK</button>
             <button type="button" data-c-auto class="on" aria-pressed="true" title="Play the lines on their own">AUTO</button>
+            <button type="button" data-c-voice class="${voiceOn() ? 'on' : ''}" aria-pressed="${voiceOn() ? 'true' : 'false'}" title="The coach's voice">VOICE</button>
             <button type="button" data-c-next class="rib-coach-next">NEXT ›</button>
           </div>
         </div>
@@ -238,8 +247,52 @@
     clearTimeout(st.mouth);
     if (!st.typing) { mouth(false); return; }
     const im = q('[data-c-man]'); const open = !!im && /_b\.webp$/.test(im.getAttribute('src') || '');
+    // the shape of speech, not a metronome: an open lasts a syllable, a close a beat, a word gap or
+    // a stop holds the mouth shut a moment, and now and then it snaps twice
+    const ch = st.text ? st.text[Math.max(0, st.pos - 1)] : '';
+    let wait;
+    if (open) { wait = 45 + Math.random() * 75; if (/[\s.,!?;:]/.test(ch) && Math.random() < 0.6) wait += 90 + Math.random() * 150; }
+    else { wait = 55 + Math.random() * 85; if (Math.random() < 0.15) wait *= 0.45; }
     mouth(!open);
-    st.mouth = setTimeout(flap, (reduced() ? 1.8 : 1) * (MOUTH_MIN + Math.random() * (MOUTH_MAX - MOUTH_MIN)));
+    voice.mouthLog.push(Math.round(wait)); if (voice.mouthLog.length > 80) voice.mouthLog.shift();
+    st.mouth = setTimeout(flap, (reduced() ? 1.8 : 1) * wait);
+  }
+
+  // ---- the voice: a muddle of pitched blips, one per letter as it types -------------------------------
+  const voice = { ctx: null, master: null, last: 0, blips: 0, mouthLog: [] };
+  const voiceOn = () => { try { return localStorage.getItem(VOICE_KEY) !== 'off'; } catch (e) { return true; } };
+  function setVoice(v) { try { localStorage.setItem(VOICE_KEY, v ? 'on' : 'off'); } catch (e) { /* private mode */ } const b = q('[data-c-voice]'); if (b) { b.classList.toggle('on', !!v); b.setAttribute('aria-pressed', String(!!v)); } if (v) voiceCtx(); }
+  function voiceCtx() {
+    if (voice.ctx) { if (voice.ctx.state === 'suspended') { try { voice.ctx.resume(); } catch (e) { /* no gesture yet */ } } return voice.ctx; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+    try { voice.ctx = new AC(); } catch (e) { return null; }
+    voice.master = voice.ctx.createGain(); voice.master.gain.value = 0.16; voice.master.connect(voice.ctx.destination);
+    return voice.ctx;
+  }
+  function blip(ch, pos, len) {
+    if (!voiceOn() || reduced()) return;
+    const c = String(ch || '').toLowerCase(); if (!/[a-z]/.test(c)) return;
+    const ctx = voiceCtx(); if (!ctx) return;
+    const now = ctx.currentTime; if (now - voice.last < BLIP_GAP) return;
+    voice.last = now; voice.blips++;
+    const vowel = 'aeiou'.includes(c), code = c.charCodeAt(0) - 97, k = pos / Math.max(1, len);
+    // a gruff coach: a low base, each letter its own step, the sentence rising then settling, a question lifting at the end
+    const contour = Math.sin(k * Math.PI) * 2 - k * 2 + (/\?\s*$/.test(st.text || '') && k > 0.7 ? 3 : 0);
+    const semi = (vowel ? 4 : 0) + (code % 7) - 3 + contour + (Math.random() - 0.5) * 1.5;
+    const f0 = 118 * Math.pow(2, semi / 12), dur = vowel ? 0.075 + Math.random() * 0.04 : 0.045 + Math.random() * 0.025;
+    const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), flt = ctx.createBiquadFilter();
+    o1.type = 'sawtooth'; o2.type = 'square'; o1.frequency.value = f0; o2.frequency.value = f0 * 0.5;
+    flt.type = 'bandpass'; flt.frequency.value = vowel ? 520 + code * 90 : 900 + code * 40; flt.Q.value = vowel ? 2.2 : 1.1;
+    g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(vowel ? 1 : 0.6, now + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    o1.frequency.exponentialRampToValueAtTime(f0 * (vowel ? 0.93 : 1.06), now + dur);
+    o1.connect(flt); o2.connect(flt); flt.connect(g); g.connect(voice.master);
+    o1.start(now); o2.start(now); o1.stop(now + dur + 0.01); o2.stop(now + dur + 0.01);
+    if ('sfhtkpx'.includes(c)) {   // a breath of noise on the fricatives and the plosives
+      const n = ctx.createBufferSource(), buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.03), ctx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      const ng = ctx.createGain(), nf = ctx.createBiquadFilter(); ng.gain.value = 0.25; nf.type = 'highpass'; nf.frequency.value = 2400;
+      n.buffer = buf; n.connect(nf); nf.connect(ng); ng.connect(voice.master); n.start(now);
+    }
   }
 
   // ---- the spotlight: a hole in the dim over a menu element, re-measured every frame ----------------
@@ -286,7 +339,7 @@
     flap();
     const step = () => {
       if (!st.typing) return;
-      st.pos++; p.textContent = text.slice(0, st.pos);
+      st.pos++; p.textContent = text.slice(0, st.pos); blip(text[st.pos - 1], st.pos, text.length);
       if (st.pos >= text.length) { done(); return; }
       const c = text[st.pos - 1], pause = /[.!?]/.test(c) ? PUNCT_MS : /[,;:]/.test(c) ? PUNCT_MS * 0.5 : 0;
       st.timer = setTimeout(step, TYPE_MS + pause);
@@ -323,7 +376,7 @@
     document.body.appendChild(root); document.body.classList.add('rib-coach-open');
     st.open = true; st.ch = 0; st.li = 0; st.flips = 0; st.started = Date.now(); st.auto = !(opts && opts.auto === false);
     try { const H = window.__RIB_COACH; H.opens = (H.opens || 0) + 1; H.openedBy = (opts && opts.by) || 'tile'; } catch (e) { /* the hook */ }
-    bind(root);
+    bind(root); if (voiceOn() && !reduced()) voiceCtx();
     preload().then(() => { if (document.getElementById(ID)) { root.classList.add('rib-coach-ready'); show(); (q('[data-c-next]') || root).focus({ preventScroll: true }); } });
     return true;
   }
@@ -343,6 +396,7 @@
       if (ev.target.closest('[data-c-next]')) { ev.preventDefault(); next(); return; }
       if (ev.target.closest('[data-c-back]')) { ev.preventDefault(); back(); return; }
       if (ev.target.closest('[data-c-auto]')) { ev.preventDefault(); setAuto(!st.auto); return; }
+      if (ev.target.closest('[data-c-voice]')) { ev.preventDefault(); setVoice(!voiceOn()); return; }
       if (ev.target.closest('[data-c-bubble]') || ev.target.closest('[data-c-man]')) { ev.preventDefault(); tap(); return; }
     });
     root.addEventListener('keydown', (ev) => {
@@ -395,5 +449,6 @@
     get chapter() { return st.open ? CHAPTERS[st.ch].id : null; }, get line() { return st.open ? st.li : -1; }, get typing() { return st.typing; },
     get flips() { return st.flips; }, get spot() { return st.spot; }, get auto() { return st.auto; },
     chapters: CHAPTERS.map((c) => ({ id: c.id, title: c.title, lines: c.lines.length })), poses: POSES.slice(), estimateMs, key: KEY,
+    voice: { setEnabled: setVoice, get enabled() { return voiceOn(); }, get blips() { return voice.blips; }, get state() { return voice.ctx ? voice.ctx.state : null; }, get mouthLog() { return voice.mouthLog.slice(); }, key: VOICE_KEY },
   };
 })();

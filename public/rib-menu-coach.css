@@ -45,6 +45,10 @@ body.rib-coach-open #rib-main-menu-v2{filter:saturate(.8)}
 .rib-coach-foot [data-c-auto].on{color:var(--g2);border-color:var(--line)}
 .rib-coach-foot [data-c-auto].on::before{content:"▶ "}
 .rib-coach-foot [data-c-auto]:not(.on)::before{content:"❚❚ "}
+.rib-coach-foot [data-c-voice]{color:var(--mute)}
+.rib-coach-foot [data-c-voice].on{color:var(--g2);border-color:var(--line)}
+.rib-coach-foot [data-c-voice].on::before{content:"🔊 "}
+.rib-coach-foot [data-c-voice]:not(.on)::before{content:"🔇 "}
 .rib-coach-next{margin-left:auto;color:#0b0c0f!important;background:linear-gradient(180deg,var(--g2),var(--g))!important;border-color:var(--g)!important;font-weight:700}
 .rib-coach-turn .rib-coach-bubble{animation:ribCoachTurn .5s ease}
 @keyframes ribCoachBlink{50%{opacity:0}}

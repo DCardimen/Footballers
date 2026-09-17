@@ -66,8 +66,13 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   `bake-menu-into-index.mjs`) plays a twelve-chapter talking-head walkthrough over the dimmed main
   menu: kickoff, the nine sections of HOW TO PLAY in order and in detail, every door on the menu,
   the final whistle — about nine minutes at the default pace, every number the guide's own, in a
-  football coach's voice. A line TYPES while his picture flips between the closed and open mouth;
-  a chapter can cut a spotlight into the dim over the menu element it is talking about (the CAREER
+  football coach's voice. A line TYPES while his picture flips between the closed and open mouth
+  in the shape of speech (a syllable open, a beat closed, a longer close at a word gap or a stop,
+  the odd double snap — never a metronome), and he has a VOICE: a muddle of pitched blips, one per
+  letter, synthesised on the spot with WebAudio, no sound file — a gruff low base, each letter its
+  own step, vowels warmer and longer, a breath of noise on the fricatives, a sentence that rises
+  and settles, a question that lifts; VOICE in the bubble mutes him (`rib.coachVoice.v119`), and
+  reduced-motion keeps him quiet. A chapter can cut a spotlight into the dim over the menu element it is talking about (the CAREER
   tile, TRAINING, PRESTIGE, HOW TO PLAY…), scrolling it into view; tapping the bubble finishes a
   line, NEXT / BACK / the arrow keys move, AUTO plays the lines on their own, SKIP or Escape leaves.
   The door is a **switch on the menu** (`rib9-tile-coach`, `data-rib-action="coach"`, routed by

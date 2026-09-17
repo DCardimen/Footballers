@@ -1176,9 +1176,20 @@ length at the pace constants (`TYPE_MS` 18 a character, `PUNCT_MS` after a stop,
 `HOLD_PER_CHAR` × length to read it, `CHAPTER_MS` at a turn): 9.1 minutes, and `coachcheck.mjs`
 holds it between 5 and 10.
 
-**The talking head.** `type()` writes the line a character at a time; `flap()` swaps the `<img>`
-between `<pose>_a` and `<pose>_b` at a random 75–165 ms while `st.typing`, and `done()` leaves it
-closed. `show()` sets the crumb, the bar, the chapter, the pose and the spotlight, then types.
+**The talking head.** `type()` writes the line a character at a time and `blip()`s each letter;
+`flap()` swaps the `<img>` between `<pose>_a` and `<pose>_b` in the shape of speech while
+`st.typing` — an open of 45–120 ms, a close of 55–140 ms, a further 90–240 ms shut when the letter
+just typed was a space or a stop (six times in ten), a close cut to half now and then (the double
+snap) — and `done()` leaves it closed; `voice.mouthLog` keeps the last eighty beats and the check
+proves their spread. **The voice** is WebAudio with no sound file: `voiceCtx()` makes one
+AudioContext on open (every open follows a gesture) and a master gain at 0.16; `blip(ch, pos, len)`
+plays one pitched blip per letter at most every `BLIP_GAP` (42 ms, a syllable rate) — a sawtooth
+at `118 Hz × 2^(semi/12)` with a square an octave under, through a bandpass whose centre and Q
+depend on the letter (vowels lower and narrower), `semi` = +4 for a vowel, the letter's own step
+(`code % 7 − 3`), a sentence contour (`sin(k·π)·2 − 2k`, lifting +3 late in a question) and a
+little jitter; vowels run 75–115 ms and slide down, consonants 45–70 ms and slide up, and
+s/f/h/t/k/p/x add a 30 ms high-passed noise burst. VOICE (`setVoice`, `rib.coachVoice.v119`) mutes;
+reduced motion keeps him quiet. `show()` sets the crumb, the bar, the chapter, the pose and the spotlight, then types.
 `tap()` (the bubble, the coach, Space, Enter, →) finishes a typing line or moves on; `next()` /
 `back()` walk lines then chapters; AUTO (`setAuto`) is the hold-then-next; SKIP and Escape call
 `finish('skip')`. Focus is trapped inside the dialog; `aria-live` on the text.

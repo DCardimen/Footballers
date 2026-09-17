@@ -2,7 +2,8 @@
 //   * the dev-check boot (welcome cards removed without a click) never meets the tour;
 //   * the switch is on the menu, reads ON on a fresh install, and opens the tour when tapped;
 //   * the tour dims the page but leaves the menu behind it, the coach TALKS (his picture flips
-//     between the closed and open mouth while a line types), twelve chapters, five to ten minutes;
+//     between the closed and open mouth while a line types, in a variable pattern, and a muddle of
+//     pitched blips plays letter by letter; VOICE mutes it), twelve chapters, five to ten minutes;
 //   * NEXT and the keyboard move the lines, a chapter's spotlight lands on the element it names,
 //     nothing scrolls sideways at 400px;
 //   * SKIP / Escape close it and switch it OFF, the switch is remembered across a reload, and
@@ -67,6 +68,15 @@ const H = (page) => page.evaluate(() => { const C = window.__RIB_COACH; return C
   ok(srcs.size >= 2 && [...srcs].some((s) => /_a\.webp/.test(s)) && [...srcs].some((s) => /_b\.webp/.test(s)) && h.flips >= 2, 'the coach talks — his mouth flips between the closed and open drawing while the line types', `${srcs.size} pictures · ${h.flips} flips`)
   const typed = await page.evaluate(() => (document.querySelector('#rib-coach-v119 [data-c-text]') || {}).textContent || '')
   ok(typed.length > 10 && /Coach/.test(typed), 'the line types out on the bubble', JSON.stringify(typed.slice(0, 50)))
+  // the mouth is not a metronome, and the voice muddles along with the letters
+  const mouth = await page.evaluate(() => { const L = window.__RIB_COACH.voice.mouthLog; return { n: L.length, distinct: new Set(L).size, min: Math.min(...L), max: Math.max(...L) } })
+  ok(mouth.n >= 8 && mouth.distinct >= 6 && mouth.max - mouth.min >= 60, 'the mouth moves in a variable pattern — no two beats the same, a real spread', JSON.stringify(mouth))
+  const v1 = await page.evaluate(() => ({ on: window.__RIB_COACH.voice.enabled, blips: window.__RIB_COACH.voice.blips, state: window.__RIB_COACH.voice.state }))
+  ok(v1.on && v1.blips >= 8 && !!v1.state, 'the coach has a voice — a muddle of blips scheduled letter by letter through WebAudio', JSON.stringify(v1))
+  await page.click('#rib-coach-v119 [data-c-voice]'); const b0 = await page.evaluate(() => window.__RIB_COACH.voice.blips); await page.waitForTimeout(700)
+  const v2 = await page.evaluate(() => ({ on: window.__RIB_COACH.voice.enabled, blips: window.__RIB_COACH.voice.blips, stored: localStorage.getItem(window.__RIB_COACH.voice.key) }))
+  ok(!v2.on && v2.blips === b0 && v2.stored === 'off', 'VOICE mutes him and remembers', JSON.stringify(v2))
+  await page.click('#rib-coach-v119 [data-c-voice]')
   await shot(page, 'kickoff')
   await page.click('#rib-coach-v119 [data-c-next]')
   await page.waitForTimeout(200)
