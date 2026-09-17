@@ -55,6 +55,30 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v124 — the program cuts both ways, and the coach names a stat.** Two things about training.
+  **The trade**: twelve programs were twelve flavours of the same promise — pick one, get its
+  stats — and the only price was a stray `-1 Stamina` on two of them, so "HIGH RISK" meant nothing
+  you could point at afterwards. The harder programs *trade* now: explosion work costs top-end
+  speed, the weight room costs time in the film room, the track costs mass off the frame, the grind
+  costs your body and your discipline. That price rides the same `cost` field the season roll and
+  the v113 preview sheet already read, so the board draws it in red and the season charges it — it
+  just has weight now, and the sheet says it in a sentence as well as in chips.
+  **The roll**: the four volatile programs (Full-Contact Camp, The Grind, Track Club, Explosion &
+  Hops) are a real roll with stated odds. It **lands** and the trade is waived entirely and every
+  priority stat grows ×1.35–×1.9; it **misses** and the trade *doubles* and growth is cut to
+  ×0.45–×0.7. The odds are yours to move: Weighted Coin lifts them, Loaded Dice rolls twice and
+  keeps the better, House Money turns a miss into a partial payout, Scripted Destiny rewrites one
+  failure a season — the same four prestige nodes the game-plan roll already reads. The roll happens
+  once a season, is stamped on the player (`player.planFateV124`), and the preview sheet shows the
+  *expected* season so a volatile program's bars sit honestly between its two outcomes.
+  **The coach**: `recommendTraining` opened with `if (injuryResist < 30 + level*20) return
+  "conditioning"` — a line almost nobody clears (70 at level 2), so the coach said CONDITIONING
+  every season of every career whatever you played. Gone. `trainScoreV124` scores the whole sheet —
+  how much the position is graded on that stat, how much room it still has under its **soft cap** (a
+  capped stat is worth nothing: the next point costs 4), and how far it lags — and `trainWhyV124`
+  says the answer in one line: the stat, the reason, and where it stands against its cap.
+  `window.__V124`; `scripts/traincheck.mjs` is the gate.
+
 - **v123 — the league has a map, and the crest matches the name.** Two halves of one bug. The
   world only knew fifteen towns and fifteen mascots, so the same handful of school names came round
   every season of every career; and the mascot was drawn with no regard for the crest, so a

@@ -68,6 +68,16 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v124 THE PROGRAM CUTS BOTH WAYS` / `v124 THE COACH NAMES A STAT` (both beside the `pt` program
+  table) — the harder programs TRADE a named attribute for the one they build (it rides the same
+  `cost` field the season roll and `tpPanelV113` already read), and the four volatile ones are a
+  roll: `PLAN_FATE_V124` gives odds and two outcomes, `planFateSeasonV124` resolves it ONCE a season
+  onto `player.planFateV124` (a hit waives the trade and multiplies `Tt`; a miss doubles the trade
+  and cuts `Tt`), `planFateExpectV124` is what the PREVIEW shows so the bars sit between the two,
+  and the odds move with `fateOdds` / `fateReroll` / `fateHedge` / `fateDestiny` — the same four
+  prestige nodes the game-plan roll reads. `Hi()` (recommendTraining) no longer short-circuits to
+  conditioning: `trainScoreV124` scores the whole sheet by position weight, room under the SOFT cap
+  and lag, and `trainWhyV124` is the sentence. `window.__V124`; `traincheck.mjs`
 - `v123 THE LEAGUE HAS A MAP` (the `Ga` / `er` pools, beside `Xs()` / `Xe()`) — 120 invented towns
   and 88 mascots, and EVERY mascot matches a `LOGO_RULES` pattern, so the crest is always the animal
   in the name (it used to hash, which is how a Buffaloes side wore the eagle). `Xe(team)` is
@@ -450,6 +460,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | a school, college or DFL club's name, or which crest it wears (v123) | `namecheck.mjs`, then `emblemcheck.mjs`, `menu-integration-check.mjs`, `walk.mjs` |
 | team emblems / palettes / identity | `emblemcheck.mjs` |
 | training / skill art, the skill atlas | `skillartcheck.mjs`, `wheelcheck.mjs` |
+| the training programs — what a program trades away, the fate roll and its odds, or what the coach recommends (v124) | `traincheck.mjs`, then `capcheck.mjs`, `v85check.mjs`, `skillartcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs` |
 | the offseason training board — the grid, the preview sheet, the confirm (v113) | `skillartcheck.mjs`, `capcheck.mjs`, `v85check.mjs`, then `walk.mjs`, `scrollcheck.mjs`, `shot.mjs` |
 | the crowd, the sideline, the team area | `crowdcheck.mjs`, `sidelinecheck.mjs` |
 | the declare / career-end screens | `declarecheck.mjs` |
