@@ -650,7 +650,7 @@
     x.translate(px, py);
     if (rot) x.rotate(rot);
     // the edge of the coin, under its face
-    var thk = (THICK[kind] || 0) * size * (thickMul == null ? 1 : thickMul);
+    var thk = this.lite ? 0 : (THICK[kind] || 0) * size * (thickMul == null ? 1 : thickMul);
     if (thk > 0.55 && size > 8) {
       var rim = this.coinImg(den, kind, 0);
       if (rim) {
@@ -724,7 +724,10 @@
    * light climbs with it, so the top catches more than the buried foot. A fifth of the
    * taller ones carry a coin lying askew across the top. */
   Scene.prototype.drawStack = function (x, sl, den, px, py, size, shadeIx) {
-    var k = sl.cnt, step = size * 0.086;
+    return this.drawStackN(x, sl, den, px, py, size, shadeIx, sl.cnt);
+  };
+  Scene.prototype.drawStackN = function (x, sl, den, px, py, size, shadeIx, n) {
+    var k = Math.max(1, n | 0), step = size * 0.086;
     var wx = Math.cos(sl.lean) * size * 0.085, wy = Math.sin(sl.lean) * size * 0.030;
     var rot = (sl.rot - Math.PI) * 0.16;
     var j, sx, sy, ix;
@@ -735,8 +738,8 @@
       ix = Math.min(3, shadeIx + (j > k * 0.58 ? 1 : 0));    // the light climbs the column
       this.drawCoin(x, den, 'flat', sx, sy, size, rot + t * 0.10, null, ix, null, 0.55);
     }
-    if (sl.capped) {
-      this.drawCoin(x, den, 'hero', px + wx + (Math.random() - 0.5) * 0, py - (k - 0.30) * step,
+    if (sl.capped && k === sl.cnt) {          // the coin lying across the top goes first
+      this.drawCoin(x, den, 'hero', px + wx, py - (k - 0.30) * step,
         size * 0.95, sl.capRot, null, Math.min(3, shadeIx + 1), null);
     }
   };
@@ -744,6 +747,11 @@
   Scene.prototype.drawHoard = function (x) {
     var n = Math.round(this.nShown);
     if (n <= 0) return;
+    /* The live band is deliberately NOT tied to the quality flip. It sets where the deep
+     * layer ends, so changing it changes the bake key and re-draws 1700 sprites on the very
+     * frame the scene decided it was behind — a 160ms stall caused by the attempt to avoid
+     * one. Lite mode saves its frame by dropping the edge pass and capping bodies instead,
+     * neither of which moves this boundary. */
     var live = Math.min(n, Math.max(40, Math.round(this.slots.coins * 0.16)));
     var deepN = Math.max(0, n - live);
     this.bakeDeep(deepN);
@@ -1105,8 +1113,21 @@
     this.drawSparks(x);
     this.drawDoor(x, now);
     this.drawAir(x, now);
-    // an honest frame-time watch: three slow seconds and the scene sheds detail
+    /* ADAPTIVE QUALITY. The worst case is the biggest hoard on a high-density phone with a
+     * tilt running: ~270 live surface coins plus a couple of hundred loose bodies, each of
+     * which draws its face AND its edge. Measured, that is about a thousand drawImage calls
+     * a frame and it falls to the mid thirties. Rather than let it, the scene watches its
+     * own frame time and drops the edge pass and half the live band when it has to — the
+     * hoard loses a little of its metal, and keeps its frame rate. */
     this.frames++;
+    this.ft = this.ft == null ? dt : this.ft * 0.9 + dt * 0.1;
+    /* The flip must NOT force a re-bake: the deep layer is 1700 sprites and re-drawing it
+     * on the frame the scene decided it was struggling costs a 160ms stall, which is the
+     * one thing the decision was made to avoid. It keeps whatever it last baked — a static
+     * backdrop with or without its edge pass is not something the eye catches mid-tilt —
+     * and picks the new setting up on its next ordinary re-bake. */
+    if (this.ft > 21 && !this.lite) this.lite = true;
+    else if (this.ft < 14.5 && this.lite) this.lite = false;
     if (dt > 34) this.slow++; else if (this.slow > 0) this.slow -= 0.02;
   };
 })();
@@ -1889,17 +1910,27 @@
   var M = window.__RIB_VAULT_MODEL, S = window.__RIB_VAULT_SCENE, C = window.__RIB_VAULT_CTRL;
   var Scene = S.Scene, PILE = S.PILE, MOUND = M.MOUND, Vault = C.Vault;
 
-  var MAX_BODIES = 150;          // an intelligently bounded number of moving objects
+  var MAX_BODIES = 420;          /* an intelligently bounded number of moving objects. A
+   * settled shard costs a lookup and a draw, which is what a hoard slot costs anyway, so
+   * the ceiling is about draw calls rather than about physics — and it has to be well clear
+   * of the woken column count or the last towers to reach the wall cannot come apart and
+   * stand there intact while everything around them has collapsed. */
   var SLEEP_V = 0.00035;         // ground units per ms below which a coin is asleep
-  var GRAV = 0.0000105;          // ground units per ms squared
+  var GRAV = 0.0000320;          // ground units per ms squared — coins FALL, they do not drift
   var BOUNCE = 0.34, ROLL = 0.982;
   var MU = 0.42;                 // static friction: metal on metal, and it is most of this
   var SLOPE_K = 0.55;            // ...against the slope a resting hoard already sits on
   var TILT_G = 1.25;             // lateral gravity at full tilt, as a fraction of g
   var STILL_FRAMES = 9;          // consecutive quiet frames before a coin is allowed to sleep
   var TILT_ACCEL = 3.4;          // how hard it drives once the coin has broken loose
-  var MAX_V = 0.0022;            // ground units per ms — the heap is about one unit across
-  var MAX_VY = 0.0030;           // ...and nothing leaves the room upward
+  var MAX_V = 0.0030;            // ground units per ms — the heap is about one unit across
+  var MAX_VY = 0.0060;           // ...and nothing leaves the room upward
+  var SHED_RATE = 0.024;         // chance per ms that a driven column sheds its top coin
+  /* Shedding has to be FAST or the towers survive the trip: at a tenth of this rate a
+   * ten-coin column slid the width of the room still standing up and then stood there
+   * against the wall, which is the one thing a toppling stack must not do. At this rate a
+   * disturbed column is in pieces inside about a third of a second. */
+  var SCREEN_PAD = 26;           // px of viewport a coin is never allowed past
   /* The first pass set MU 0.42 against TILT_G 0.85. A coin's grip is 1 + (m-1)*0.85, so the
    * gold needed 32 degrees of tilt to move and the billion-point coin needed a drive of 0.92
    * against a maximum of 0.85 — it could not move AT ALL, at any angle. These numbers are
@@ -1942,9 +1973,16 @@
     M.reseed();
     this.slots = M.buildSlots(Scene.budget());
     this._bodies = {}; this._nBodies = 0; this.tidyTick = null;
-    this.limX = this.limZ = null;
+    this.limZ = null; this._shardN = 0;
     this.deepKey = ''; this.deepSlots = 0;
     this.setBalance(this.pp, false);
+  };
+
+  /* the widest a coin at this depth can be and still be inside the frame */
+  Scene.prototype.limAt = function (gz) {
+    var k = this.cam.k(PILE.z + gz);
+    var half = (this.cw * 0.5 - SCREEN_PAD) / (k * 0.62 * this.cam.span);
+    return Math.max(0.25, half);
   };
 
   Scene.prototype.bodies = function () { return this._bodies || (this._bodies = {}); };
@@ -1959,13 +1997,55 @@
     var m = massOf(M.denOf(sl, this.mix));
     b[i] = { i: i, gx: sl.x * PILE.dx, gy: sl.y * PILE.dy, gz: sl.z * PILE.dz,
       vx: 0, vy: 0, vz: 0, spin: sl.rot, vs: 0, sleep: false, held: false, t: 0,
-      m: m, bounce: BOUNCE / m, grip: 1 + (m - 1) * 0.85 };
+      cnt: sl.cnt, m: m, bounce: BOUNCE / m, grip: 1 + (m - 1) * 0.85,
+      // the hoard's own outer spill legitimately runs past the frame edge, so a coin that
+      // WAKES out there must not be teleported into view — it is simply not allowed to go
+      // any further out, and once it comes inside the frame it is held inside
+      lim0: Math.abs(sl.x * PILE.dx) };
     this._nBodies = (this._nBodies || 0) + 1;
     return b[i];
   };
   Scene.prototype.sleepAll = function () { this._bodies = {}; this._nBodies = 0; };
 
   /* the tilt the device is at, as a lateral/depth acceleration */
+  /* A COLUMN COMES APART.
+   *
+   * A stack was one rigid body: tip the phone and the whole tower slid across the floor
+   * like a bar of soap, which is not what a stack of coins does. A driven column now SHEDS
+   * from the top — one coin at a time becomes its own body, pushed off the way the heap is
+   * leaning, and it falls and rolls down the slope on its own. The column under it gets
+   * visibly shorter as it goes.
+   *
+   * A shard is not bound to a slot: it is keyed apart so the slot it came from keeps
+   * drawing the coins still in it, and it carries that slot's index only so it knows which
+   * face and which weight it is. RESTOCK deletes shards outright — they have no home to go
+   * back to, and the column they came off is restored by putting its count back. */
+  Scene.prototype.bodyCap = function () { return this.lite ? Math.round(MAX_BODIES * 0.55) : MAX_BODIES; };
+
+  Scene.prototype.shed = function (o) {
+    if (o.shard || o.cnt <= 1) return null;
+    var b = this.bodies();
+    if ((this._nBodies || 0) >= this.bodyCap()) return null;
+    var sl = this.slots.slot[o.i];
+    // the drawn column's step, converted out of screen pixels into ground height
+    var p = this.cam.project(o.gx, o.gy, PILE.z + o.gz, {});
+    var stepPx = p.s * sl.size * 0.086;
+    var lift = Math.max(1e-6, this.cam.k(PILE.z + o.gz) * 0.34 * this.ch);
+    var top = o.gy + (o.cnt - 1) * (stepPx / lift);
+    o.cnt--;
+    var key = 'sh' + (this._shardN = (this._shardN || 0) + 1);
+    var away = (o.gx >= 0 ? 1 : -1);
+    b[key] = { i: o.i, shard: true, cnt: 1,
+      gx: o.gx + away * 0.02, gy: top, gz: o.gz,
+      vx: away * (0.0004 + Math.random() * 0.0011) + o.vx * 0.85,
+      vy: 0.0003 + Math.random() * 0.0004, vz: (Math.random() - 0.5) * 0.0006,
+      spin: sl.rot + Math.random() * 3, vs: (Math.random() - 0.5) * 0.012,
+      sleep: false, held: false, still: 0,
+      m: o.m, bounce: o.bounce, grip: o.grip };
+    this._nBodies++;
+    return b[key];
+  };
+
   Scene.prototype.setTilt = function (gx, gz) {
     this.tiltX = gx; this.tiltZ = gz;
     if (Math.abs(gx) > 0.06 || Math.abs(gz) > 0.06) this.tiltWake();
@@ -1980,7 +2060,8 @@
     var n = M.slotsFor(this.slots, Math.round(this.nShown));
     if (n <= 0) return;
     var lo = Math.max(0, n - Math.max(24, Math.round(this.slots.slot.length * 0.20)));
-    var want = Math.min(MAX_BODIES, 90);
+    var want = Math.min(MAX_BODIES, 80);   // the rest of the budget is for what they shed
+    want = Math.min(want, Math.round(this.bodyCap() * 0.34));
     for (var i = n - 1; i >= lo && (this._nBodies || 0) < want; i--) {
       var bd = this.wake(i);
       if (bd && bd.sleep) bd.sleep = false;
@@ -2049,6 +2130,12 @@
       if (vh > MAX_V) { o.vx *= MAX_V / vh; o.vz *= MAX_V / vh; }
       if (o.vy > MAX_VY) o.vy = MAX_VY;            // a belt on the throw's braces
       if (o.vy < -MAX_VY * 2) o.vy = -MAX_VY * 2;
+      // a column that is being pushed loses its top coin, and that coin goes its own way
+      /* A column sheds when something is PUSHING it sideways — not merely because it is
+       * awake. Including the vertical velocity here meant the first frame of gravity after
+       * a wake (-GRAV*dt, already past the sleep threshold) shed a coin off every column in
+       * the hoard with the phone sitting perfectly level. */
+      if (o.cnt > 1 && (o.driven || vh > SLEEP_V * 2) && Math.random() < SHED_RATE * dt) this.shed(o);
       var gy0 = o.gy;
       o.gx += o.vx * dt; o.gy += o.vy * dt; o.gz += o.vz * dt;
       o.spin += o.vs * dt;
@@ -2066,7 +2153,9 @@
           this.landed(o, hit);                 // the thud, and the dust
         } else o.vy = 0;
         var roll = Math.pow(ROLL, o.grip);
-        o.vx *= roll; o.vz *= roll; o.vs *= 0.93;
+        o.vx *= roll; o.vz *= roll;
+        // it ROLLS: the spin is the ground speed, not a decaying leftover of the throw
+        o.vs = o.vs * 0.55 + (o.vx * 26) * 0.45;
         var sp = Math.abs(o.vx) + Math.abs(o.vz) + Math.abs(o.vy);
         /* A coin that has just broken loose has not reached the sleep threshold YET, so a
          * bare `sp < SLEEP_V` put it to sleep on its very first step and zeroed the velocity
@@ -2080,15 +2169,23 @@
         } else o.still = 0;
       }
       // the room has walls: a coin cannot leave the floor plate
-      /* The room has walls, and they have to be at least as wide as the hoard standing in
-       * it. A fixed 1.55 was narrower than the spilled coins on the heap's own foot reach,
-       * so the first time one of those woke it was teleported inward by up to half a unit —
-       * which is what a "coin jumping for no reason" was. */
-      var lim = this.limX, lz0 = this.limZ;
-      if (lim == null) {
-        lim = this.limX = Math.max(1.55, this.slots.ex * PILE.dx + 0.12);
-        lz0 = this.limZ = Math.max(0.55, this.slots.ez * PILE.dz + 0.06);
-      }
+      /* THE ROOM IS WHAT YOU CAN SEE.
+       *
+       * The wall was derived from the slot list's own outermost spill, which is a ground
+       * coordinate with no relation to the viewport: on a phone it put the wall at gx 1.99
+       * while the screen edge is about gx 0.8, so a tilt slid seventy-seven of ninety coins
+       * clean off the side and left them piled up out of frame. And gz was free to 0.55 when
+       * the hoard itself is only 0.12 deep, so coins wandered into the back of the room
+       * where the perspective draws them high and small — which is what "floating in the
+       * air" was. Nothing was ever actually airborne; it was standing on the floor behind
+       * the heap.
+       *
+       * The bound is now the PICTURE. `limAt` inverts the projection at this coin's own
+       * depth, so whatever the aspect ratio, a coin stops at the edge of the frame. */
+      var frame = this.limAt(o.gz), lz0 = this.limZ;
+      if (lz0 == null) lz0 = this.limZ = PILE.dz * 0.95;
+      if (o.lim0 && Math.abs(o.gx) <= frame) o.lim0 = 0;     // it came in; keep it in
+      var lim = Math.max(frame, o.lim0 || 0);
       if (o.gx < -lim) { o.gx = -lim; o.vx = Math.abs(o.vx) * BOUNCE * 0.5 }
       if (o.gx > lim) { o.gx = lim; o.vx = -Math.abs(o.vx) * BOUNCE * 0.5 }
       if (o.gz < -lz0) { o.gz = -lz0; o.vz = Math.abs(o.vz) * BOUNCE * 0.5 }
@@ -2116,7 +2213,12 @@
   Scene.prototype.tidy = function () {
     var b = this._bodies; if (!b) return 0;
     var n = 0, self = this;
-    for (var k in b) { b[k].homing = true; b[k].sleep = false; b[k].held = false; n++; }
+    for (var k in b) {
+      if (b[k].shard) { delete b[k]; this._nBodies = Math.max(0, this._nBodies - 1); n++; continue; }
+      b[k].homing = true; b[k].sleep = false; b[k].held = false;
+      b[k].cnt = this.slots.slot[b[k].i].cnt;      // the column gets its coins back
+      n++;
+    }
     var t0 = performance.now();
     this.tidyTick = function (now) {
       var bb = self._bodies; if (!bb) { self.tidyTick = null; return }
@@ -2140,7 +2242,8 @@
   Scene.prototype.drawRange = function (x, from, to, withShadow) {
     var b = this._bodies;
     if (!b) return baseRange.call(this, x, from, to, withShadow);
-    // the settled hoard first, minus anything that has been knocked loose...
+    // the settled hoard first, minus anything that has been knocked loose. Shards are keyed
+    // apart ('sh12'), so the slot they came off keeps drawing the coins still in it.
     this._skip = b;
     baseRange.call(this, x, from, to, withShadow);
     this._skip = null;
@@ -2162,9 +2265,10 @@
         x.drawImage(this.blob, g.x - size * 0.8, g.y - size * 0.26, size * 1.6, size * 0.55);
         x.globalAlpha = 1;
       }
-      if (sl.cnt > 1) this.drawStack(x, sl, den, p.x, p.y, size, shadeIx);
-      else this.drawCoin(x, den, sl.face, p.x, p.y, size * (o.held ? 1.16 : 1), o.spin,
-        null, shadeIx, sl.face === 'face' ? 0.06 + sl.tilt * 0.40 : null);
+      if (o.cnt > 1) this.drawStackN(x, sl, den, p.x, p.y, size, shadeIx, o.cnt);
+      else this.drawCoin(x, den, o.shard ? 'flat' : sl.face, p.x, p.y,
+        size * (o.held ? 1.16 : 1), o.spin, null, shadeIx,
+        (!o.shard && sl.face === 'face') ? 0.06 + sl.tilt * 0.40 : null);
     }
   };
 

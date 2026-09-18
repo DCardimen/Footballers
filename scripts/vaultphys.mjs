@@ -34,10 +34,11 @@ await page.evaluate(async () => {
   for (let i = 0; i < 12; i++) { V.tiltRaw(78, 1); await new Promise(r => setTimeout(r, 40)) }
 })
 await page.screenshot({ path: '_phys_level.png' })
-for (let i = 0; i < 26; i++) {
-  await page.evaluate(() => window.__RIB_VAULT_DEV.tiltRaw(78, -26))
-  await page.waitForTimeout(40)
-}
+for (let i = 0; i < 10; i++) { await page.evaluate(() => window.__RIB_VAULT_DEV.tiltRaw(78, -26)); await page.waitForTimeout(40) }
+await page.screenshot({ path: '_phys_tilt_a.png' })
+for (let i = 0; i < 20; i++) { await page.evaluate(() => window.__RIB_VAULT_DEV.tiltRaw(78, -26)); await page.waitForTimeout(40) }
+await page.screenshot({ path: '_phys_tilt_b.png' })
+for (let i = 0; i < 30; i++) { await page.evaluate(() => window.__RIB_VAULT_DEV.tiltRaw(78, -30)); await page.waitForTimeout(40) }
 await page.screenshot({ path: '_phys_tilt.png' })
 console.log('tilted:', JSON.stringify(await page.evaluate(() => window.__RIB_VAULT_DEV.state())))
 

@@ -169,7 +169,15 @@ a hundred worth a million each is the honest picture of that balance, and it is 
 reference hero shows. `breakdown()` is the exact decomposition and it is what the details
 drawer prints; `vaultcheck` asserts it conserves the balance to the point.
 
-**Bounded**: 620 / 980 / 1350 slots by device pixels and memory. Two layers — a baked deep
+**Adaptive**: the scene watches its own frame time. The worst case is the biggest hoard on a
+high-density phone with a tilt running — about 270 live surface coins plus a couple of
+hundred loose bodies, each drawing a face *and* an edge, which measures out near a thousand
+`drawImage` calls a frame and falls to the mid thirties. Past 21 ms it drops the edge pass
+and caps the bodies, and comes back under 14.5 ms. The flip deliberately does **not** move
+the live band or force a re-bake: doing either re-draws 1700 sprites on the very frame the
+scene decided it was behind, which is a 160 ms stall caused by trying to avoid one.
+
+**Bounded**: 1050 / 1700 / 2400 coins by device pixels and memory. Two layers — a baked deep
 canvas re-drawn only when the quantised count moves, and a live surface of ≤16% drawn every
 frame — so a 16× pour re-bakes a few times a second rather than sixty. Coins are pre-shaded
 into four brightness steps at load, so the hoard is a straight run of `drawImage` calls.
@@ -218,16 +226,36 @@ exactly the hoard again, which is what RESTOCK does.
   the clock and clamped (`THROW_V`, `THROW_VY`). A pointermove stream is 60–120 Hz and
   irregular, so a per-event displacement used as a velocity leaves a coin travelling at the
   sample rate times its real speed.
-- **RESTOCK.** Every disturbed coin flies home to its slot. Press it on an already tidy
-  hoard and it **re-pours** instead: a fresh seed, a visibly different heap of exactly the
-  same money. Neither touches a Prestige Point or changes the coin count, and
-  `vaultcheck.mjs` asserts both.
+- **A column comes apart.** A stack used to be one rigid body: tip the phone and the whole
+  tower slid across the floor like a bar of soap and stood there against the wall, intact.
+  A driven column now **sheds from the top** — one coin at a time becomes its own body,
+  pushed off the way the heap is leaning, and it falls and rolls down the slope while the
+  column under it gets visibly shorter. Shedding has to be fast (`SHED_RATE`) or the towers
+  survive the trip; a disturbed column is in pieces inside about a third of a second. A
+  shard is keyed apart from the slot it came from, so that slot keeps drawing the coins
+  still in it.
+- **The room is what you can see.** `limAt(gz)` inverts the projection at the coin's own
+  depth, so a coin stops at the edge of the *frame* whatever the aspect ratio. Deriving the
+  wall from the slot list's own outermost spill instead put it at gx 1.99 on a phone where
+  the screen edge is about 0.8 — a tilt slid 77 of 90 coins clean off the side. And `gz` is
+  held to the hoard's own depth, because a coin free to wander into the back of the room is
+  drawn high and small by the perspective, which is what "floating in the air" was: nothing
+  was ever airborne, it was standing on the floor behind the heap. The hoard's own spill
+  legitimately sits past the frame edge, so a coin that *wakes* out there is not teleported
+  in — it simply cannot go further out, and once it comes inside it is held inside.
+- **RESTOCK.** Every disturbed coin flies home to its slot and the columns get their shed
+  coins back; shards are deleted, since they have no home. Press it on an already tidy hoard
+  and it **re-pours** instead: a fresh seed, a visibly different heap of exactly the same
+  money. Neither touches a Prestige Point or changes the coin count, and `vaultcheck.mjs`
+  asserts both.
 
 Only coins in the live surface band can be disturbed — the deep layer is a baked canvas and
 moving one of its coins would cost a re-bake per frame. That is also the honest limit: you
 can push the money on top of the pile around, not the money underneath it. Bodies are capped
-at 150 and they **sleep** — but only after `STILL_FRAMES` consecutive quiet frames *and*
-only when nothing is driving them. A bare `speed < threshold` test sleeps a coin on the very
+at `MAX_BODIES` and they **sleep** — but only after `STILL_FRAMES` consecutive quiet frames
+*and* only when nothing is driving them. A column sheds only when something is pushing it
+*sideways*: including the vertical velocity in that test meant the first frame of gravity
+after a wake shed a coin off every column in the hoard with the phone sitting level. A bare `speed < threshold` test sleeps a coin on the very
 frame it breaks loose, before it has accelerated, and zeroes the velocity it was just given.
 
 `surfaceAt(gx, gz)` takes **world** ground units and converts into and out of the slot space
