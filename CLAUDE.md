@@ -68,6 +68,28 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v137 THE VAULT IS WHERE THE POINTS LIVE` (in the career-app block, beside `__GRIDIRON_AUDIT__`)
+  — the Prestige Vault: `o.pp` drawn as ONE mixed hoard of bronze (1) / silver (1K) / gold (1M) /
+  electric-blue (1B) coins in a cinematic room, tapped and held to fund an upgrade. It lives in
+  `public/rib-vault.js` + `rib-vault-audio.js` + `rib-vault-bridge.js` + `rib-vault.css` (baked in by
+  `bake-menu-into-index.mjs` like the menu, NOT inlined); index.html carries ~40 lines of glue.
+  `window.__prestigeNodesV137()` hands the vault the tree's own truth (`ot` / `At` / `M` / `Xa`) and
+  `window.buy` (`Yl`) stays THE ONE authoritative purchase — upgrades are ATOMIC, so `pending` is a
+  reservation held inside the screen and `commit()` calls `buy` once and then VERIFIES `o.pp` and the
+  node's level really moved. Cancel, reload and backgrounding drop the reservation and debit nothing;
+  banked PP (v136 C) never reaches the screen; the payout presentation reads the balance the game
+  already holds so replaying it mints nothing. The hoard is `buildSlots` — MAX seeded slots, slot i
+  born at fullness `(i+.5)/MAX` on the mound as it is AT THAT FULLNESS, so N coins are always slots
+  0..N-1 and nothing reshuffles; `fullnessOf` is the eight illustrative wealth states, `mixOf` is the
+  faces' share of VALUE with blue held to a 10% accent. Rotation is procedural (`scaleX=|cos t|`
+  through the EDGE sprite) because the supplied 12-frame spin rows are not a monotonic rotation.
+  Sprites: `scripts/build-vault-art.py` (+ `scripts/vaultcut.py`) → `public/vault/*.webp` +
+  `manifest.json`; `--proof` writes `art/vault-proof/` to LOOK at. The room art misspells PRESTIGE,
+  so `clean_banners()` paints its lettering out and the renderer draws all eight banner words itself.
+  Audio is synthesised — no sound file was supplied; `__RIB_VAULT_AUDIO.manifest()` names the
+  fourteen categories a recording would replace. Read `docs/PRESTIGE-VAULT.md`.
+  `window.__V137`, `__RIB_VAULT*`; `vaultcheck.mjs`, then `honorcheck.mjs`, `v134check.mjs`,
+  `coachcheck.mjs`, `menu-integration-check.mjs`, `v136check.mjs`, `freshcheck.mjs`
 - `v136 D THE LINEAGE` (beside `Di`) / `v136 C THE ESTATE IS SETTLED AT THE END` (beside `es`) /
   `v136 B THE COACH'S SUMMARY IS A BUTTON` (beside the `q` wrapper, before the v85 banner) /
   `v136 A THE RIVAL IS SPUN ON GAME WEEK` (beside `Fr`, and its page beside `v135FinalD`) — the prestige
@@ -563,6 +585,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 
 | You changed… | Run |
 |---|---|
+| the Prestige Vault — the hoard, the spend, the door, the payout, the sprites (v137) | `python3 scripts/build-vault-art.py --proof` (if a cell moved — then LOOK at `art/vault-proof/`), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-vault*` file), then `vaultcheck.mjs`, `honorcheck.mjs`, `v134check.mjs`, `coachcheck.mjs`, `menu-integration-check.mjs`, `v136check.mjs`, `freshcheck.mjs`; `vaultshot.mjs` / `WIDE=1 vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` to look |
 | tackling / contact physics | `tacklecheck.mjs`, `jukecheck.mjs` |
 | the lineage — the son, the surname, the family years, the father on every screen and in the coach's mouth (v136 D) | `v136check.mjs`, then `coachcheck.mjs`, `menu-integration-check.mjs`, `honorcheck.mjs`, `declarecheck.mjs`, `walk.mjs` |
 | when PP is paid — the bank, the settle, the career-end card (v136 C) | `v136check.mjs`, `v134check.mjs`, then `v85check.mjs`, `origincheck.mjs` |

@@ -1,0 +1,133 @@
+/* ===== v137 THE PRESTIGE VAULT — the sheet =====
+ * The scene is a canvas and the interface is DOM on top of it, so the numbers stay crisp,
+ * selectable and reachable by a screen reader while the room stays a picture. Everything
+ * here is scoped under #ribVault; nothing leaks into the game's own screens.
+ * The palette is the game's: --gold #f0bb45 on black, with the vault's own blue for the
+ * billion-coin accents. */
+
+#ribVault{position:fixed;inset:0;z-index:10002;display:none;background:#04070b;
+  font-family:Oswald,'Barlow Condensed',sans-serif;color:#eef2f7;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+  touch-action:none;overscroll-behavior:none;contain:strict}
+#ribVault.up{display:block}
+#ribVault canvas.rv-stage{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* ---- the interface sits in the safe area, and stays SECONDARY to the room ---- */
+.rv-ui{position:absolute;inset:0;display:flex;flex-direction:column;pointer-events:none;
+  padding:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right))
+          max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
+.rv-ui>*{pointer-events:none}
+.rv-ui button,.rv-ui .tap{pointer-events:auto}
+
+.rv-top{display:flex;align-items:center;gap:10px;min-height:44px}
+.rv-top .rv-title{flex:1;text-align:center;line-height:1.05}
+.rv-top .rv-title b{display:block;font-size:15px;letter-spacing:4px;font-weight:600;
+  color:#f5d896;text-shadow:0 0 14px rgba(240,187,69,.35)}
+.rv-top .rv-title small{display:block;font-size:9px;letter-spacing:2.4px;color:#8c98a8;
+  font-family:'Barlow Condensed',sans-serif}
+.rv-btn{min-width:44px;min-height:44px;padding:0 12px;border-radius:12px;cursor:pointer;
+  border:1px solid rgba(240,187,69,.30);background:rgba(8,12,18,.62);color:#f0bb45;
+  font-family:Oswald,sans-serif;font-size:12px;letter-spacing:1.6px;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.rv-btn:active{background:rgba(240,187,69,.16)}
+.rv-btn.off{color:#6b7684;border-color:rgba(255,255,255,.12)}
+
+/* ---- the balance: the one number that must always be exact ---- */
+.rv-bal{margin:10px auto 0;text-align:center;max-width:min(92vw,520px);
+  padding:9px 18px 11px;border-radius:16px;
+  border:1px solid rgba(240,187,69,.22);
+  background:linear-gradient(180deg,rgba(9,14,22,.80),rgba(4,7,11,.58));
+  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  box-shadow:0 10px 34px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05)}
+.rv-bal small{display:block;font-size:8.5px;letter-spacing:2.6px;color:#97a3b3;
+  font-family:'Barlow Condensed',sans-serif}
+.rv-bal b{display:block;font-size:clamp(30px,9vw,54px);line-height:1.02;font-weight:700;
+  letter-spacing:.5px;color:#fbe6b4;
+  text-shadow:0 0 26px rgba(240,187,69,.42),0 2px 0 rgba(0,0,0,.6);
+  font-variant-numeric:tabular-nums}
+.rv-bal b .u{font-size:.52em;letter-spacing:2px;color:#f0bb45;margin-left:6px}
+.rv-bal em{display:block;font-style:normal;font-size:9.5px;letter-spacing:1.4px;color:#7f8c9c;
+  font-family:'Barlow Condensed',sans-serif;margin-top:3px}
+.rv-bal em b{display:inline;font-size:inherit;color:#c9a34e;text-shadow:none}
+
+.rv-mid{flex:1;min-height:0}
+
+/* ---- the upgrade being funded: compact, under the core ---- */
+.rv-tgt{margin:0 auto 6px;max-width:min(92vw,430px);text-align:center;
+  padding:8px 14px 10px;border-radius:14px;
+  border:1px solid rgba(240,187,69,.20);background:rgba(6,10,16,.66);
+  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.rv-tgt .nm{font-size:13.5px;letter-spacing:2.2px;color:#f5d896}
+.rv-tgt .lv{font-size:9px;letter-spacing:1.8px;color:#8c98a8;font-family:'Barlow Condensed',sans-serif}
+.rv-track{height:7px;margin:7px 0 5px;border-radius:5px;overflow:hidden;
+  background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.07)}
+.rv-track i{display:block;height:100%;width:0;border-radius:5px;
+  background:linear-gradient(90deg,#8a5f16,#f0bb45 60%,#ffe9ae);
+  box-shadow:0 0 12px rgba(240,187,69,.6);transition:width .09s linear}
+.rv-tgt.done .rv-track i{background:linear-gradient(90deg,#2f8f4d,#6ee38b)}
+.rv-tgt .num{font-size:11.5px;letter-spacing:1.5px;color:#cdd6e1;font-variant-numeric:tabular-nums}
+.rv-tgt .num b{color:#f0bb45;font-weight:600}
+
+.rv-hint{text-align:center;font-size:10.5px;letter-spacing:2.6px;color:#8e9aa9;
+  font-family:'Barlow Condensed',sans-serif;margin:2px 0 8px;min-height:14px;
+  transition:opacity .25s}
+.rv-hint.hot{color:#f0bb45;text-shadow:0 0 12px rgba(240,187,69,.5)}
+
+.rv-act{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap}
+.rv-act .rv-btn{font-size:11px}
+.rv-act .go{background:linear-gradient(180deg,rgba(240,187,69,.22),rgba(240,187,69,.08));
+  border-color:rgba(240,187,69,.55);color:#ffe3a6}
+
+/* ---- the multiplier badge, while a hold is running ---- */
+.rv-mult{position:absolute;left:50%;transform:translate(-50%,0) scale(.7);opacity:0;
+  top:46%;font-size:30px;line-height:1;letter-spacing:1px;font-weight:700;color:#ffe3a6;
+  padding:5px 16px 7px;border-radius:14px;
+  border:1px solid rgba(240,187,69,.42);background:rgba(4,7,11,.62);
+  backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+  text-shadow:0 0 18px rgba(240,187,69,.8);transition:transform .18s,opacity .18s;
+  pointer-events:none;z-index:3}
+.rv-mult.on{opacity:1;transform:translate(-50%,0) scale(1)}
+
+/* ---- details drawer ---- */
+.rv-panel{position:absolute;left:0;right:0;bottom:0;max-height:70%;overflow:auto;
+  transform:translateY(102%);transition:transform .28s cubic-bezier(.2,.8,.25,1);
+  background:linear-gradient(180deg,rgba(7,11,17,.96),rgba(3,5,9,.99));
+  border-top:1px solid rgba(240,187,69,.28);border-radius:18px 18px 0 0;
+  padding:14px 16px calc(18px + env(safe-area-inset-bottom));pointer-events:auto;
+  box-shadow:0 -14px 40px rgba(0,0,0,.6)}
+#ribVault.panel .rv-panel{transform:translateY(0)}
+.rv-panel h4{margin:0 0 10px;font-size:12px;letter-spacing:3px;color:#f0bb45;font-weight:600}
+.rv-den{display:flex;align-items:center;gap:10px;padding:7px 2px;
+  border-bottom:1px solid rgba(255,255,255,.055)}
+.rv-den img{width:30px;height:30px;object-fit:contain;flex:none}
+.rv-den .d{flex:1;min-width:0}
+.rv-den .d b{display:block;font-size:12.5px;letter-spacing:1.6px;color:#dfe6ee}
+.rv-den .d small{font-size:9px;letter-spacing:1.4px;color:#8c98a8;
+  font-family:'Barlow Condensed',sans-serif}
+.rv-den .n{font-size:15px;color:#f0bb45;font-variant-numeric:tabular-nums}
+.rv-note{margin-top:10px;font-size:10px;line-height:1.55;color:#8c98a8;
+  font-family:'Barlow Condensed',sans-serif}
+
+/* ---- the confirmation, and the completion ---- */
+.rv-modal{position:absolute;inset:0;display:none;place-items:center;pointer-events:auto;
+  background:rgba(2,4,7,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+  padding:20px;z-index:4}
+#ribVault.modal .rv-modal{display:grid}
+.rv-card{width:min(92vw,400px);text-align:center;padding:22px 20px;border-radius:20px;
+  border:1px solid rgba(240,187,69,.42);
+  background:linear-gradient(180deg,rgba(14,20,30,.98),rgba(5,8,13,.98));
+  box-shadow:0 24px 70px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.07)}
+.rv-card .ttl{font-size:17px;letter-spacing:3px;color:#f5d896;margin-bottom:6px}
+.rv-card .bd{font-size:12.5px;line-height:1.6;color:#aeb9c6;
+  font-family:'Barlow Condensed',sans-serif;margin-bottom:16px}
+.rv-card .bd b{color:#f0bb45}
+.rv-card .row{display:flex;gap:9px;justify-content:center}
+.rv-card .row .rv-btn{flex:1;max-width:160px;height:46px}
+
+@media (prefers-reduced-motion:reduce){
+  .rv-track i,.rv-panel,.rv-mult{transition-duration:.01ms}
+}
+@media (min-width:900px){
+  .rv-bal b{font-size:52px}
+  .rv-ui{padding:16px 24px}
+}
