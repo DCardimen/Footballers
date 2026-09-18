@@ -78,6 +78,19 @@ async function toReportCard(q = '') {
   ok(fin.ruleNow > fin.ruleWas, 'the height rule\'s NOW mark sits above last year\'s', `${fin.ruleWas}px -> ${fin.ruleNow}px`)
   ok(fin.chips.some(c => /^\+\d+"$/.test(c)) || fin.chips.some(c => /^\+\d+ lb$/.test(c)), 'the deltas are stamped on the tiles', fin.chips.join(' · '))
   ok(fin.pillsOn === fin.pills && fin.go && fin.finished, 'every pill is in and the door button is up', `${fin.pillsOn}/${fin.pills} go=${fin.go}`)
+  // v133: the boy in the picture — the sheet's own idle man, proportioned by age, breathing
+  const boy = await page.evaluate(() => { const G = window.__GROW_V132, el = document.getElementById('growV132')
+    const man = el.querySelector('.gw-man canvas'), ghost = el.querySelector('.gw-ghost canvas')
+    const ink = (cv) => { if (!cv) return -1; const x = cv.getContext('2d'); const d = x.getImageData(0, 0, cv.width, cv.height).data; let n = 0; for (let i = 3; i < d.length; i += 4 * 3) if (d[i] > 20) n++; return n }
+    const top = (cv) => { const x = cv.getContext('2d'); const d = x.getImageData(0, 0, cv.width, cv.height).data; for (let y = 0; y < cv.height; y++) for (let xx = 0; xx < cv.width; xx += 2) { if (d[(y * cv.width + xx) * 4 + 3] > 20) return y / cv.height } return 1 }
+    const kid = G.stage(8), teen = G.stage(15), grown = G.stage(20)
+    return { fig: G.fig && G.fig.mode, manInk: ink(man), ghostInk: ink(ghost), anim: man ? getComputedStyle(man).animationName : null, manTop: man ? top(man) : null,
+      kid, teen, grown, kit: G.kit() } })
+  ok(boy.fig === 'sprite' && boy.manInk > 300 && boy.ghostInk > 300, 'the figure is the sheet\'s own idle man, drawn for this year and last', JSON.stringify({ fig: boy.fig, ink: boy.manInk, ghost: boy.ghostInk }))
+  ok(boy.kid.head > boy.teen.head && boy.teen.head > boy.grown.head && boy.grown.head === 1, 'a child wears a helmet too big for him, a teen less so, a grown man is drawn to scale', JSON.stringify({ kid: boy.kid.head, teen: boy.teen.head, grown: boy.grown.head }))
+  ok(boy.teen.width < boy.kid.width && boy.teen.width < boy.grown.width && boy.grown.width === 1, 'a teen is lankier than both a child and a grown man', JSON.stringify({ kid: boy.kid.width, teen: boy.teen.width, grown: boy.grown.width }))
+  ok(boy.anim === 'gwBreath', 'and he breathes', String(boy.anim))
+  ok(boy.manTop != null && boy.manTop < 0.08, 'the man fills his box top to bottom', String(boy.manTop))
   // the door
   await page.evaluate(() => document.querySelector('#growV132 [data-gw-go]').click()); await page.waitForTimeout(700)
   const after = await page.evaluate(() => ({ el: !!document.getElementById('growV132'), open: window.__GROW_V132.open, view: window.__GRIDIRON_AUDIT__.getState().view,

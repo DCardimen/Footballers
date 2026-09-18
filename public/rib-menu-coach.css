@@ -83,3 +83,15 @@ body.rib-coach-open #rib-main-menu-v2,body.rib-coach-open #app{filter:saturate(.
 .rib9-tile-coach.on .rib9-sw{background:rgba(230,178,58,.35)}
 .rib9-tile-coach.on .rib9-sw i{left:12px;background:var(--g2)}
 .rib9-tile-coach.on small{color:#e6c880}
+
+/* ===== v133 THE COACH HAS A MOOD, AND A MOUTH ON HIM ===== */
+.rib-coach-quip{position:absolute;right:10px;top:-15px;max-width:66%;padding:6px 10px;border-radius:9px;transform:rotate(2.5deg);transform-origin:100% 100%;
+  background:linear-gradient(180deg,#ffd76f,#d9a028);color:#1a1206;font:700 10.5px/1.15 Oswald,sans-serif;letter-spacing:1px;text-transform:uppercase;font-style:normal;
+  box-shadow:0 4px 12px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.35);z-index:3}
+.rib-coach-quip.go{animation:ribQuipIn .38s cubic-bezier(.2,1.5,.3,1)}
+@keyframes ribQuipIn{0%{transform:rotate(-6deg) scale(.4);opacity:0}60%{transform:rotate(4deg) scale(1.08);opacity:1}100%{transform:rotate(2.5deg) scale(1)}}
+.rib-coach[data-mood="brash"] .rib-coach-bubble{border-color:#ff8a80;box-shadow:0 12px 30px rgba(0,0,0,.5),0 0 0 1px rgba(255,138,128,.25)}
+.rib-coach[data-mood="brash"] .rib-coach-text{color:#fff1e8;text-shadow:0 0 12px rgba(255,138,128,.25)}
+.rib-coach[data-mood="brash"] .rib-coach-man{animation:ribCoachShake .5s ease}
+@keyframes ribCoachShake{0%,100%{transform:none}20%{transform:translateX(-3px) rotate(-1deg)}45%{transform:translateX(3px) rotate(1deg)}70%{transform:translateX(-2px)}}
+@media (prefers-reduced-motion:reduce){.rib-coach-quip.go,.rib-coach[data-mood="brash"] .rib-coach-man{animation:none}}

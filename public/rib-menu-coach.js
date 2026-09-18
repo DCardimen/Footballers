@@ -40,6 +40,33 @@
   // the pace: a character every TYPE_MS, punctuation breathes, then the line is HELD to be read
   const TYPE_MS = 18, PUNCT_MS = 140, HOLD_MS = 700, HOLD_PER_CHAR = 11;
   const BLIP_GAP = 0.042;   // seconds between blips: a syllable rate, not a letter rate
+  /* ===== v133 THE COACH HAS A MOOD, AND A MOUTH ON HIM =====
+   * The voice used to be one gruff muddle for every line. A line has a MOOD now: `brash` when he is
+   * barking (a `firedup` / `stop` / `whoa` pose, an exclamation mark, or the vocabulary in BRASH_RE),
+   * `calm` on the soft poses, `plain` otherwise — and the blip changes with it: brash is lower, louder,
+   * faster, driven through a waveshaper so it rasps, with a bark on the first letter of a word; calm is a
+   * rounder wave through a lowpass at a walking pace. Every line also gets a word accent (the first letter
+   * of a word steps up), a settling at the end of a sentence, and a breath before it starts.
+   * And he has QUIPS: forty-odd one-liners for nothing but the laugh, one thrown in on about a third of
+   * the lines as a tag on the bubble (`[data-c-quip]`, never two in a row, never on the debrief), barked in
+   * the brash voice. `window.__RIB_COACH.quips` / `.quip()` / `.quipsShown` / `.mood`. */
+  const BRASH_RE = /!|\b(hit|soft|quit|lazy|worn out|blew up|excuse|get up|move|hustle|weak|garbage|listen up|shut|go get|now go|don't|never|bad game|the opposite|tired guys|sprint|cut)\b/i;
+  const BRASH_POSE = ['firedup', 'stop', 'whoa'], CALM_POSE = ['relaxed', 'listen', 'tip', 'thumbsup', 'shrug'];
+  const moodOf = (L) => L && L.mood ? L.mood : L && BRASH_POSE.includes(L.p) ? 'brash' : L && BRASH_RE.test(L.t || '') ? 'brash' : L && CALM_POSE.includes(L.p) ? 'calm' : 'plain';
+  const QUIPS = [
+    'Hustle is free.', "My grandma hits harder. She's 91.", 'You call that a stance?', 'Water is for closers.', "I've seen better footwork at a wedding.",
+    "Nobody's tired. Tired is a rumor.", 'Run it again. Then again.', "The film doesn't lie. You might.", 'Pads on. Excuses off.', 'Great effort. Terrible result. Fix the result.',
+    'Speed is a decision.', "Somebody get this kid a mirror. He's the problem.", "I don't do participation trophies. I do sprints.", 'Winners drink water. Also losers. Drink water.',
+    "Your helmet's on. Good start.", 'Fast, strong, smart. Pick two. Then get the third.', "Losing builds character. I'd rather have wins.", "If you're not sweating, you're spectating.",
+    "Practice like it's the DFL title game. One day it might be.", 'The other team ate breakfast too.', 'Blocking is just hugging with intent.', 'Tackle the man, not the idea of the man.',
+    "Nobody ever pulled a hamstring stretching. Probably.", "That's not a juke. That's a stumble with confidence.", "Big game? Every game's big if you play small.",
+    "Cardio's not a punishment. It's a lifestyle. Also a punishment.", 'The playbook has pictures. Look at the pictures.', 'Catch it with your hands. Your chest is not a glove.',
+    'Talk less. Sprint more.', "You'll thank me later. Or you won't. Sprint anyway.", "I've cut guys for less.", "Coffee's for coaches. Water's for players.",
+    'You get one body. Stop lending it to the other team.', 'Grades matter. So does the forty. Do both.', "Eyes up. The ball's not in the grass.",
+    "Champions eat vegetables. That's science. I read it somewhere.", "Get low. Lower. That's a chair. Lower than a chair.", 'Every rep counts. Even the ugly ones. ESPECIALLY the ugly ones.',
+    "Fumble again and you're carrying that ball to class.", "I've got a whistle and no patience.", "Smile all you want. The scoreboard doesn't.", "Ice bath. Not a suggestion.",
+  ];
+  const QUIP_ODDS = 0.34;
 
   // ---- the screens: what is on the page, and how to know which page this is -------------------------
   const getState = () => { try { return (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState && window.__GRIDIRON_AUDIT__.getState()) || null; } catch (e) { return null; } };
@@ -172,7 +199,7 @@
   ];
 
   // ---- state ----------------------------------------------------------------------------------
-  const st = { open: false, stop: null, li: 0, lines: null, typing: false, auto: true, timer: 0, mouth: 0, raf: 0, spot: null, tap: false, flips: 0, text: '', pos: 0, preloaded: false };
+  const st = { open: false, stop: null, li: 0, lines: null, typing: false, auto: true, timer: 0, mouth: 0, raf: 0, spot: null, tap: false, flips: 0, text: '', pos: 0, preloaded: false, mood: 'plain', quip: null, lastQuip: false, quips: 0, quipTimer: 0 };
   let armed = true, queryDone = false, onboardClicks = 0, sawOnboard = false, welcomed = false, pending = 0, pendingId = null, popSince = 0, popEl = null;
 
   const store = {
@@ -229,6 +256,7 @@
         <div class="rib-coach-bubble" data-c-bubble role="group" aria-label="The coach">
           <div class="rib-coach-ch"><b data-c-ch></b><small data-c-sub></small></div>
           <p class="rib-coach-text" data-c-text aria-live="polite"></p>
+          <i class="rib-coach-quip" data-c-quip hidden aria-hidden="true"></i>
           <div class="rib-coach-foot">
             <button type="button" data-c-back aria-label="Previous line">‹ BACK</button>
             <button type="button" data-c-auto class="on" aria-pressed="true" title="Play the lines on their own">AUTO</button>
@@ -269,7 +297,7 @@
   }
 
   // ---- the voice: a muddle of pitched blips, one per letter as it types -----------------------------------
-  const voice = { ctx: null, master: null, last: 0, blips: 0, mouthLog: [] };
+  const voice = { ctx: null, master: null, last: 0, blips: 0, mouthLog: [], moods: {} };
   const voiceOn = () => store.get(VOICE_KEY) !== 'off';
   function setVoice(v) { store.set(VOICE_KEY, v ? 'on' : 'off'); const b = q('[data-c-voice]'); if (b) { b.classList.toggle('on', !!v); b.setAttribute('aria-pressed', String(!!v)); } if (v) voiceCtx(); }
   function voiceCtx() {
@@ -279,30 +307,65 @@
     voice.master = voice.ctx.createGain(); voice.master.gain.value = 0.16; voice.master.connect(voice.ctx.destination);
     return voice.ctx;
   }
-  function blip(ch, pos, len) {
+  let rasp = null;   // the waveshaper the brash voice is driven through, made once
+  function raspCurve() { if (rasp) return rasp; const n = 256, c = new Float32Array(n), k = 38; for (let i = 0; i < n; i++) { const x = i * 2 / n - 1; c[i] = (1 + k) * x / (1 + k * Math.abs(x)); } rasp = c; return c; }
+  // a breath before a line: a short, low, shaped puff of noise
+  function breath(mood) {
+    if (!voiceOn() || reduced()) return; const ctx0 = voiceCtx(); if (!ctx0) return;
+    const now = ctx0.currentTime, len = mood === 'brash' ? 0.07 : 0.11;
+    const n = ctx0.createBufferSource(), buf = ctx0.createBuffer(1, Math.floor(ctx0.sampleRate * len), ctx0.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) { const q = i / d.length; d[i] = (Math.random() * 2 - 1) * Math.sin(q * Math.PI); }
+    const g = ctx0.createGain(), fl = ctx0.createBiquadFilter(); g.gain.value = mood === 'brash' ? 0.22 : 0.12; fl.type = 'lowpass'; fl.frequency.value = mood === 'brash' ? 1400 : 900;
+    n.buffer = buf; n.connect(fl); fl.connect(g); g.connect(voice.master); n.start(now);
+  }
+  function blip(ch, pos, len, moodIn) {
     if (!voiceOn() || reduced()) return;
     const c = String(ch || '').toLowerCase(); if (!/[a-z]/.test(c)) return;
     const ctx0 = voiceCtx(); if (!ctx0) return;
-    const now = ctx0.currentTime; if (now - voice.last < BLIP_GAP) return;
-    voice.last = now; voice.blips++;
-    const vowel = 'aeiou'.includes(c), code = c.charCodeAt(0) - 97, k = pos / Math.max(1, len);
-    // a gruff coach: a low base, each letter its own step, the sentence rising then settling, a question lifting at the end
-    const contour = Math.sin(k * Math.PI) * 2 - k * 2 + (/\?\s*$/.test(st.text || '') && k > 0.7 ? 3 : 0);
-    const semi = (vowel ? 4 : 0) + (code % 7) - 3 + contour + (Math.random() - 0.5) * 1.5;
-    const f0 = 118 * Math.pow(2, semi / 12), dur = vowel ? 0.075 + Math.random() * 0.04 : 0.045 + Math.random() * 0.025;
+    const mood = moodIn || st.mood || 'plain', brash = mood === 'brash', calm = mood === 'calm';
+    const gap = brash ? BLIP_GAP * 0.72 : calm ? BLIP_GAP * 1.15 : BLIP_GAP;
+    const now = ctx0.currentTime; if (now - voice.last < gap) return;
+    voice.last = now; voice.blips++; voice.moods[mood] = (voice.moods[mood] || 0) + 1;
+    const text = moodIn ? '' : (st.text || ''), prev = text ? text[pos - 2] : ' ';
+    const vowel = 'aeiou'.includes(c), code = c.charCodeAt(0) - 97, k = pos / Math.max(1, len), wordStart = !prev || /\s/.test(prev);
+    // a gruff coach: a low base, each letter its own step, the sentence rising then settling, a question
+    // lifting at the end; v133: the first letter of a word steps up (a bark, when he is brash), the last
+    // stretch of a sentence drops, and the whole thing sits lower and rougher the angrier he is
+    const contour = Math.sin(k * Math.PI) * 2 - k * (brash ? 3.2 : 2) + (/\?\s*$/.test(text) && k > 0.7 ? 3 : 0) + (k > 0.86 ? -1.5 : 0);
+    const accent = wordStart ? (brash ? 4.5 : 1.5) : 0;
+    const semi = (vowel ? 4 : 0) + (code % 7) - 3 + contour + accent + (Math.random() - 0.5) * (brash ? 2.6 : 1.5);
+    const base = brash ? 94 : calm ? 112 : 118;
+    const f0 = base * Math.pow(2, semi / 12), dur = (vowel ? 0.075 + Math.random() * 0.04 : 0.045 + Math.random() * 0.025) * (brash ? 0.92 : calm ? 1.12 : 1);
     const o1 = ctx0.createOscillator(), o2 = ctx0.createOscillator(), g = ctx0.createGain(), flt = ctx0.createBiquadFilter();
-    o1.type = 'sawtooth'; o2.type = 'square'; o1.frequency.value = f0; o2.frequency.value = f0 * 0.5;
-    flt.type = 'bandpass'; flt.frequency.value = vowel ? 520 + code * 90 : 900 + code * 40; flt.Q.value = vowel ? 2.2 : 1.1;
-    g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(vowel ? 1 : 0.6, now + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-    o1.frequency.exponentialRampToValueAtTime(f0 * (vowel ? 0.93 : 1.06), now + dur);
-    o1.connect(flt); o2.connect(flt); flt.connect(g); g.connect(voice.master);
+    o1.type = calm ? 'triangle' : 'sawtooth'; o2.type = calm ? 'sine' : 'square'; o1.frequency.value = f0; o2.frequency.value = f0 * 0.5;
+    if (calm) { flt.type = 'lowpass'; flt.frequency.value = vowel ? 1500 + code * 40 : 1900; flt.Q.value = 0.8; }
+    else { flt.type = 'bandpass'; flt.frequency.value = (vowel ? 520 + code * 90 : 900 + code * 40) * (brash ? 0.86 : 1); flt.Q.value = brash ? (vowel ? 1.4 : 0.8) : (vowel ? 2.2 : 1.1); }
+    const peak = (vowel ? 1 : 0.6) * (brash ? (wordStart ? 2.1 : 1.7) : calm ? 0.8 : 1);
+    g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(peak, now + (brash ? 0.004 : 0.008)); g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    o1.frequency.exponentialRampToValueAtTime(f0 * (vowel ? (brash ? 0.86 : 0.93) : 1.06), now + dur);
+    o1.connect(flt); o2.connect(flt);
+    if (brash) { const ws = ctx0.createWaveShaper(); ws.curve = raspCurve(); ws.oversample = '2x'; flt.connect(ws); ws.connect(g); } else flt.connect(g);
+    g.connect(voice.master);
     o1.start(now); o2.start(now); o1.stop(now + dur + 0.01); o2.stop(now + dur + 0.01);
-    if ('sfhtkpx'.includes(c)) {   // a breath of noise on the fricatives and the plosives
-      const n = ctx0.createBufferSource(), buf = ctx0.createBuffer(1, Math.floor(ctx0.sampleRate * 0.03), ctx0.sampleRate), d = buf.getChannelData(0);
+    if ('sfhtkpx'.includes(c) || (brash && 'bdg'.includes(c))) {   // a breath of noise on the fricatives and the plosives — spit, when he is brash
+      const n = ctx0.createBufferSource(), buf = ctx0.createBuffer(1, Math.floor(ctx0.sampleRate * (brash ? 0.045 : 0.03)), ctx0.sampleRate), d = buf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
-      const ng = ctx0.createGain(), nf = ctx0.createBiquadFilter(); ng.gain.value = 0.25; nf.type = 'highpass'; nf.frequency.value = 2400;
+      const ng = ctx0.createGain(), nf = ctx0.createBiquadFilter(); ng.gain.value = brash ? 0.5 : 0.25; nf.type = 'highpass'; nf.frequency.value = brash ? 1800 : 2400;
       n.buffer = buf; n.connect(nf); nf.connect(ng); ng.connect(voice.master); n.start(now);
     }
+  }
+  // ---- v133: the quips — a tag on the bubble, barked, for the laugh
+  function quip(force) {
+    const el = q('[data-c-quip]'); if (!el) return null;
+    clearTimeout(st.quipTimer);
+    if (!force && (st.lastQuip || (st.stop && st.stop.every) || Math.random() >= QUIP_ODDS)) { st.lastQuip = false; el.hidden = true; el.textContent = ''; st.quip = null; return null; }
+    const t = typeof force === 'string' ? force : QUIPS[Math.floor(Math.random() * QUIPS.length)];
+    el.textContent = t; el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+    st.quip = t; st.lastQuip = true; st.quips++;
+    try { const H = window.__RIB_COACH; H.quipsShown = (H.quipsShown || 0) + 1; H.lastQuip = t; } catch (e) { /* the hook */ }
+    // barked: a handful of brash blips off the quip's own letters, spaced like a shout
+    if (voiceOn() && !reduced()) { const ctx0 = voiceCtx(); if (ctx0) { const letters = t.replace(/[^a-z]/gi, '').slice(0, 9); letters.split('').forEach((ch, i) => { const id = setTimeout(() => { voice.last = 0; blip(ch, i + 1, letters.length, 'brash'); }, 90 + i * 62); }); } }
+    return t;
   }
 
   // ---- the spotlight: a hole in the dim over the thing he is talking about, re-measured every frame ------
@@ -370,7 +433,9 @@
     q('[data-c-back]').disabled = st.li === 0;
     q('[data-c-next]').textContent = lastLine ? ((S0.last || solo) ? 'DONE ✓' : 'GOT IT ›') : 'NEXT ›';
     root.dataset.stop = S0.id; root.dataset.pose = L.p; st.tap = !!L.tap;
+    st.mood = moodOf(L); root.dataset.mood = st.mood;   // v133: how he says it
     mouth(false); spotOn(L.s || null);
+    breath(st.mood); quip();
     type(L.t);
     try { const H = window.__RIB_COACH; H.linesShown = (H.linesShown || 0) + 1; H.last = { stop: S0.id, li: st.li, pose: L.p, spot: L.s || null }; } catch (e) { /* the hook */ }
   }
@@ -517,6 +582,7 @@
     get flips() { return st.flips; }, get spot() { return st.spot; }, get auto() { return st.auto; }, get seen() { return [...seen()]; },
     stops: STOPS.map((S0) => ({ id: S0.id, title: S0.title, lines: (S0.lines || (S0.id === 'debrief' && debriefLinesV122()) || []).length })), poses: POSES.slice(), estimateMs, key: KEY, seenKey: SEEN_KEY,
     debrief: { get: debrief, due: debriefDue, lines: debriefLinesV122, get off() { return debriefOff(); }, setOff: (v) => store.set(DEBRIEF_OFF, v ? 'off' : 'on'), key: DEBRIEF_OFF },
-    voice: { setEnabled: setVoice, get enabled() { return voiceOn(); }, get blips() { return voice.blips; }, get state() { return voice.ctx ? voice.ctx.state : null; }, get mouthLog() { return voice.mouthLog.slice(); }, key: VOICE_KEY },
+    voice: { setEnabled: setVoice, get enabled() { return voiceOn(); }, get blips() { return voice.blips; }, get state() { return voice.ctx ? voice.ctx.state : null; }, get mouthLog() { return voice.mouthLog.slice(); }, key: VOICE_KEY, get moods() { return { ...voice.moods }; } },
+    get mood() { return st.mood; }, moodOf, quips: QUIPS.slice(), quip: (t) => quip(t || true), get quipsThisStop() { return st.quips; }, get lastQuipText() { return st.quip; },
   };
 })();
