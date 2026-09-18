@@ -67,7 +67,7 @@ const step = async (page, t, wait = 900) => {
   ok(h && !h.open, 'the dev-check boot (welcome cards removed without a click) never starts him on its own')
   const tile = await page.evaluate(() => { const t = document.querySelector('#rib-main-menu-v2 [data-rib-action="coach"]'); return t ? { on: t.getAttribute('aria-checked'), role: t.getAttribute('role'), label: (t.querySelector('b') || {}).textContent, face: (t.querySelector('small') || {}).textContent, img: !!t.querySelector('img') } : null })
   ok(tile && tile.role === 'switch' && tile.on === 'true' && /COACH'S TOUR/.test(tile.label) && /^ON\b/.test(tile.face) && tile.img, "the COACH'S TOUR switch is on the menu and reads ON on a fresh install", JSON.stringify(tile))
-  ok(h && h.stops === 14 && h.lines >= 30 && h.lines <= 56 && h.estimateMin >= 1.5 && h.estimateMin <= 6, 'fourteen stops (thirteen written, plus the season debrief it builds) — a couple of minutes of talk over a week, not a lecture', h && `${h.estimateMin.toFixed(1)} min · ${h.lines} lines`)
+  ok(h && h.stops === 16 && h.lines >= 30 && h.lines <= 64 && h.estimateMin >= 1.5 && h.estimateMin <= 6, 'sixteen stops (fifteen written — the prestige tree and the skill sheet each their own — plus the season debrief it builds) — a couple of minutes of talk over a week, not a lecture', h && `${h.estimateMin.toFixed(1)} min · ${h.lines} lines`)
   // his lines are short and plain: almost no numbers (the guide has those), no line over two sentences' worth, and the
   // things a rookie must hear — fatigue means fewer snaps, each position wants its own skills, prestige is what you keep
   const lineFacts = await page.evaluate(() => fetch([...document.scripts].map((x) => x.src).find((u) => /rib-menu-coach/.test(u))).then((r) => r.text()).then((src) => { const m = src.match(/t: "([^"]+)"/g) || []; const all = m.join(' ')
@@ -148,14 +148,14 @@ const step = async (page, t, wait = 900) => {
   // the PRESTIGE line lights the TRAINING tile; the last line of the stop lights the CAREER tile, and the button reads GOT IT
   await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.line < 3 && n++ < 10) C.next() })
   await page.waitForTimeout(700)
-  const spotPres = await page.evaluate(() => { const spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), target = [...document.querySelectorAll('button,[onclick],a')].find((el) => el.getBoundingClientRect().height > 0 && /^TRAINING\b/.test((el.innerText || '').replace(/\s+/g, ' ').trim())); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, tr = target ? target.getBoundingClientRect() : null
+  const spotPres = await page.evaluate(() => { const spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), target = document.querySelector('#rib-main-menu-v2 [data-rib-action="prestige"]'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, tr = target ? target.getBoundingClientRect() : null
     return { line: window.__RIB_COACH.line, key: window.__RIB_COACH.spot, shown: !!sr, inside: !!(sr && tr && sr.left <= tr.left + 2 && sr.top <= tr.top + 2 && sr.right >= tr.right - 2 && sr.bottom >= tr.bottom - 2), onScreen: !!(sr && sr.top >= 0 && sr.bottom <= innerHeight), sr: sr && [Math.round(sr.left), Math.round(sr.top), Math.round(sr.width), Math.round(sr.height)], tr: tr && [Math.round(tr.left), Math.round(tr.top), Math.round(tr.width), Math.round(tr.height)] } })
-  ok(spotPres.key === 'prestige' && spotPres.shown && spotPres.inside && spotPres.onScreen, 'the PRESTIGE line lights the TRAINING tile — where the points are spent', JSON.stringify(spotPres))
+  ok(spotPres.key === 'honors' && spotPres.shown && spotPres.inside && spotPres.onScreen, 'the PRESTIGE line lights the HONORS chip — where the tree lives (v134: not the TRAINING tile, which is the skill sheet)', JSON.stringify(spotPres))
   await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.line < 4 && n++ < 10) C.next() })
   await page.waitForTimeout(700)
   const spot = await page.evaluate(() => {
     const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), dim = document.querySelector('#rib-coach-v119 .rib-coach-dim')
-    const target = document.querySelector('#rib-main-menu-v2 .rib9-tiles .rib9-tile:nth-child(1)'), nextBtn = document.querySelector('#rib-coach-v119 [data-c-next]')
+    const target = document.querySelector('#rib-main-menu-v2 [data-rib-action="prestige"]'), nextBtn = document.querySelector('#rib-coach-v119 [data-c-next]')
     const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, tr = target ? target.getBoundingClientRect() : null
     const inside = sr && tr && sr.left <= tr.left + 1 && sr.top <= tr.top + 1 && sr.right >= tr.right - 1 && sr.bottom >= tr.bottom - 1
     const onScreen = sr && sr.top >= 0 && sr.bottom <= innerHeight
@@ -164,7 +164,7 @@ const step = async (page, t, wait = 900) => {
     return { stop: C.stop, line: C.line, spot: C.spot, shown: !!sr, dimHidden: !!dim && dim.hidden, inside: !!inside, onScreen: !!onScreen, next: nextBtn && nextBtn.textContent, tapShown: !!tapr, tapNear, tapPulse: !!spot && spot.classList.contains('tap'), sr: sr && [Math.round(sr.left), Math.round(sr.top), Math.round(sr.width), Math.round(sr.height)], tr: tr && [Math.round(tr.left), Math.round(tr.top), Math.round(tr.width), Math.round(tr.height)] }
   })
   ok(spot.tapShown && spot.tapNear && spot.tapPulse, 'a line that wants a tap puts the TAP HERE hand over the thing and pulses the cut-out gold', JSON.stringify({ tapShown: spot.tapShown, tapNear: spot.tapNear, pulse: spot.tapPulse }))
-  ok(spot.stop === 'menu' && spot.line === 4 && spot.shown && spot.dimHidden && spot.inside && spot.onScreen && /GOT IT/.test(spot.next || ''), "the menu stop's last line lights the CAREER tile, scrolled into view, and the button reads GOT IT", JSON.stringify(spot))
+  ok(spot.stop === 'menu' && spot.line === 4 && spot.shown && spot.dimHidden && spot.inside && spot.onScreen && /GOT IT/.test(spot.next || ''), "the menu stop's last line lights the HONORS chip — he sends you to the prestige tree first — and the button reads GOT IT", JSON.stringify(spot))
   await shot(page, 'spotlight')
   const wide = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth))
   ok(wide <= 400, 'nothing scrolls sideways at 400px with the coach open', wide + 'px')
@@ -229,6 +229,14 @@ const step = async (page, t, wait = 900) => {
     return s
   }
   await dismiss(page)
+  // v134: the tree first. The chip opens the shop, the PRESTIGE stop walks it, BACK returns to the menu, and CAREER is its own stop
+  await page.evaluate(() => { const c = document.querySelector('.prestige-chip'); c && c.click() }); await page.waitForTimeout(700)
+  await expect('prestige', 'the prestige tree, off the HONORS chip')
+  await page.evaluate(() => { const C = window.__RIB_COACH; C.next(); C.next() }); await page.waitForTimeout(500)
+  { const sp = await page.evaluate(() => { const spot = document.querySelector('#rib-coach-v119 [data-c-spot]'); const r = spot && !spot.hidden ? spot.getBoundingClientRect() : null; return { key: window.__RIB_COACH.spot, shown: !!r, onScreen: !!(r && r.bottom > 40 && r.top < innerHeight - 40 && r.width > 20) } }); ok(sp.key === 'branches' && sp.shown && sp.onScreen, '  …and its third line lights the branch strip', JSON.stringify(sp)) }
+  await dismiss(page)
+  await step(page, 'BACK', 900)   // the dock's ghost button; innerText is upper-cased by the CSS
+  await expect('career', 'back on the menu: the CAREER tap', { spot: 'career' }); await dismiss(page)
   await step(page, 'START NEW CAREER'); await expect('persona', 'the personality roll'); await dismiss(page)
   await step(page, 'Lock In Personality'); await expect('position', 'the position pick'); await dismiss(page)
   await step(page, 'POS'); await expect('hub', 'the hub'); await dismiss(page)
@@ -279,16 +287,24 @@ const step = async (page, t, wait = 900) => {
   h = await dismiss(page)
   const storedEnd = await page.evaluate((k) => localStorage.getItem(k), await page.evaluate(() => window.__RIB_COACH.key))
   ok(!h.open && h.closedBy === 'done' && !h.enabled && storedEnd === 'off', 'DONE ends the walk and switches him OFF, remembered', JSON.stringify({ closedBy: h.closedBy, enabled: h.enabled, stored: storedEnd }))
-  const want = ['menu', 'persona', 'position', 'hub', 'wheel', 'training', 'season', 'plan', 'pregame', 'live', 'result', 'recovery']
-  ok(JSON.stringify(order) === JSON.stringify(want) && h.opens === want.length && h.seen.length === want.length, 'twelve stops of the week, one per screen, in the order a first week meets them, none twice', JSON.stringify({ order, opens: h.opens }))
+  const want = ['menu', 'prestige', 'career', 'persona', 'position', 'hub', 'wheel', 'training', 'season', 'plan', 'pregame', 'live', 'result', 'recovery']
+  ok(JSON.stringify(order) === JSON.stringify(want) && h.opens === want.length && h.seen.length === want.length, 'fourteen stops of the week, one per screen, in the order a first week meets them — the tree before the player — none twice', JSON.stringify({ order, opens: h.opens }))
   // and off, the season screen stays quiet
   await page.waitForTimeout(2500)
   const quiet = await H(page)
   ok(!quiet.open, 'switched off, he stays off')
-  // the prestige tree (TRAINING on the menu, the upgrade sheet) gets its own stop whenever it is opened, with a career on
+  // v134: the skill-point sheet (TRAINING on the menu, view `upgrade`) gets its OWN stop -- about skills, never prestige --
+  // and the prestige tree (view `shop`) keeps the PRESTIGE stop. He used to say the prestige lines on the skill sheet.
   await page.evaluate(() => { window.__RIB_COACH.resetSeen(); window.__RIB_COACH.setEnabled(true); window.go('upgrade') })
+  const sk = await waitStop(page, 'skills')
+  const skText = await page.evaluate(() => { const C = window.__RIB_COACH; const S0 = C.stops.find((x) => x.id === 'skills'); return S0 ? S0.lines : 0 })
+  ok(sk && sk.open && sk.stop === 'skills' && sk.openedBy === 'page', 'the skill-point sheet (TRAINING on the menu) gets a SKILLS stop — points, KEY stats, the soft cap, DONE', JSON.stringify({ stop: sk && sk.stop, lines: skText, view: await page.evaluate(() => { try { return window.__GRIDIRON_AUDIT__.getState().view } catch (e) { return null } }) }))
+  const skillsSaysPrestige = await page.evaluate(() => /prestige/i.test(document.querySelector('#rib-coach-v119 [data-c-text]')?.textContent || ''))
+  ok(!skillsSaysPrestige, 'and on the skill sheet he never talks prestige')
+  await shot(page, 'stop-skills')
+  await page.evaluate(() => { window.__RIB_COACH.close('check'); window.go('shop') })
   const pres = await waitStop(page, 'prestige')
-  ok(pres && pres.open && pres.stop === 'prestige' && pres.openedBy === 'page', 'the prestige tree (TRAINING on the menu) gets its own stop — what you keep, what it buys, finish your careers', JSON.stringify({ stop: pres && pres.stop, view: await page.evaluate(() => { try { return window.__GRIDIRON_AUDIT__.getState().view } catch (e) { return null } }) }))
+  ok(pres && pres.open && pres.stop === 'prestige' && pres.openedBy === 'page', 'the prestige tree (the HONORS chip, view shop) gets the PRESTIGE stop — PP vs Honors, the branches, the Apex shelf', JSON.stringify({ stop: pres && pres.stop, view: await page.evaluate(() => { try { return window.__GRIDIRON_AUDIT__.getState().view } catch (e) { return null } }) }))
   await shot(page, 'stop-prestige')
   await context.close()
 }

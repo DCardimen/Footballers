@@ -78,6 +78,9 @@
     career: '#rib-main-menu-v2 .rib9-tiles .rib9-tile:nth-child(1)', coach: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="coach"]', howto: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="howto"]', prestige: 'text:^TRAINING\\b',   // the tile's action is view:upgrade with a career and new without one: find it by its face
     lockIn: 'text:Lock In Personality', posCards: '.pos-card', playSeason: 'text:Play \\d+-Game Season', confirm: 'text:CONFIRM TRAINING', playWeek: 'text:Play Week \\d+ Live',
     cont: '#gv42go', next: 'text:^NEXT', speed: '.speed-btn',
+    /* v134: the prestige tree is the shop, reached off the HONORS chip in the header (TRAINING on the
+     * menu opens the SKILL-POINT sheet, view `upgrade` -- a different screen, with its own stop now) */
+    honors: '#rib-main-menu-v2 [data-rib-action="prestige"], .prestige-chip', branches: '#screen .btn-row', back: 'text:^Back$', done: 'text:^DONE$',   // the menu overlay hides the game's topbar chip: on the menu the target is the menu's own PRESTIGE button
     /* v126: the season screen is four tabs now, so the body ledger is one tap away rather than on
      * screen. Point at the TAB (it comes first in the DOM, so a comma selector finds it) and fall
      * back to the card itself on any screen that still renders it in the open. */
@@ -114,8 +117,27 @@
     const L = [{ p: 'clipboard', t: 'Season\'s done. ' + d.head }];
     say.forEach((n) => L.push({ p: NOTE_POSE[n.k] || 'open', t: n.head + '. ' + n.body }));
     if (d.focus) L.push({ p: 'tip', t: 'Next season: ' + d.focus.program + '. ' + d.focus.why });
-    L.push({ p: 'firedup', t: 'That is your year. Spend your points, then go again.' });
+    L.push(closerV134(d));
     return L;
+  }
+  /* ===== v134 THE LAST LINE HAS A TONE =====
+   * The debrief always ended fired up -- "That is your year. Spend your points, then go again." -- which
+   * read as a man who was cross whatever you had done. He is not. The close is picked from the season
+   * the debrief itself just read (`d.grade`, the bar and where you landed against it, how much the
+   * sheet grew, whether you played the year hurt or worn, a ring): proud of the play, proud of the
+   * growth, proud of the heart, plain when it was plain, and DISAPPOINTED when you fell well short. */
+  function closerV134(d) {
+    const g = String(d.grade || '').toUpperCase(), gap = (Number(d.avg) || 0) - (Number(d.exp) || 0), hasBar = (Number(d.exp) || 0) > 0;
+    const grew = Number(d.gainSum) || 0, worn = Number(d.worn) || 0, hurt = Number(d.hurt) || 0, games = Number(d.games) || 0;
+    const shortBad = (hasBar && gap <= -10) || /^F/.test(g) || (/^D/.test(g) && hasBar && gap < 0);
+    const heart = games > 0 && (worn >= Math.ceil(games / 3) || hurt >= 2) && (!hasBar || gap >= -3) && !/^[DF]/.test(g);
+    if (shortBad) return { p: 'armscrossed', mood: 'calm', t: "I'll be straight with you. That was not good enough, and you know it. I'm disappointed. Fix it — I'll be watching." };
+    if (d.won && /^A/.test(g)) return { p: 'thumbsup', t: "A ring and an A. That's a season. I'm proud of you — go enjoy it, then come back hungry." };
+    if (heart) return { p: 'thumbsup', mood: 'calm', t: "You played that year hurt and worn and you never once hid. That's heart. I'm proud of the man, not just the player." };
+    if (/^A/.test(g) || (hasBar && gap >= 8)) return { p: 'thumbsup', t: "That's the guy I thought you were. Proud of how you played. Spend your points, and do it again." };
+    if (grew >= 14) return { p: 'thumbsup', mood: 'calm', t: "Look at that sheet. That's " + Math.round(grew) + " points of growth in one year. The work showed. I'm proud of the development." };
+    if (/^B/.test(g) || (hasBar && gap >= 0)) return { p: 'relaxed', mood: 'calm', t: "Solid year. Nothing to be ashamed of, nothing to frame either. Spend your points, then go again." };
+    return { p: 'clipboard', mood: 'calm', t: "That is your year. It's on the card, not on you — spend your points, then go again." };
   }
 
   // ---- the stops: one per screen, in the order a first week meets them ---------------------------
@@ -126,13 +148,27 @@
       { p: 'welcome', t: "Listen up, rookie. I'm Coach. I'll pop in on each screen, tell you what it does, then get out of your way." },
       { p: 'listen', t: "Tap my bubble if I talk too slow. SKIP TOUR shuts me up for good. This COACH'S TOUR tile brings me back.", s: 'coach' },
       { p: 'armscrossed', t: "Big picture: you play one guy. Play well, you move up a league. Play bad, the career's over. Then you make a new guy." },
-      { p: 'tip', t: "The old guy leaves you PRESTIGE. Spend it under TRAINING and every guy after him starts better. Careers end. That's the point.", s: 'prestige' },
-      { p: 'point', t: "Tap CAREER. Let's make a football player.", s: 'career', tap: true },
+      { p: 'tip', t: "The old guy leaves you PRESTIGE. Every guy after him starts better. Careers end. That's the point. That chip up top is where it lives.", s: 'honors' },
+      { p: 'point', t: "Tap it. I'll show you the tree before we build a player.", s: 'honors', tap: true },
     ] },
-    { id: 'prestige', title: 'PRESTIGE', sub: 'WHAT YOU KEEP', when: (c) => c.view === 'upgrade', lines: [   // off the menu's TRAINING tile, whenever he opens it
+    /* v134: the prestige tree is the SHOP, and it is one of the first things he shows -- the menu stop
+     * sends you up to the chip, this stop walks the tree, and CAREER is its own stop on the way back.
+     * It used to key on view `upgrade`, which is the SKILL-POINT sheet off the TRAINING tile, so he
+     * popped up on a screen about skills and talked about prestige. That screen has its own stop now. */
+    { id: 'prestige', title: 'PRESTIGE', sub: 'WHAT YOU KEEP', when: (c) => c.view === 'shop', lines: [
       { p: 'clipboard', t: "The prestige tree. This is what your finished careers pay for." },
-      { p: 'tip', t: "Every point you spend here makes the NEXT guy start better. Higher ceiling. Better body. Better start." },
-      { p: 'thumbsup', t: "You earn more prestige the further a career goes. So finish your careers. Don't quit on them." },
+      { p: 'tip', t: "Two numbers up top. PP is what you spend here. HONORS is your rank — it unlocks the deeper nodes. Both come from finishing careers." },
+      { p: 'point', t: "Branches across the top. Tap one, buy a node, and it's yours forever — every guy after this one starts with it.", s: 'branches' },
+      { p: 'thumbsup', t: "The APEX branch is the top shelf of the prestige tree. Those nodes change the rules. Earn your way up there." },
+      { p: 'point', t: "Hit BACK. Then we build your first player.", s: 'back', tap: true },
+    ] },
+    { id: 'career', title: 'THE MENU', sub: 'KICKOFF', when: (c) => c.menu && !c.persona && c.seen.has('prestige'), lines: [
+      { p: 'point', t: "Now tap CAREER. Let's make a football player.", s: 'career', tap: true },
+    ] },
+    { id: 'skills', title: 'YOUR SKILL POINTS', sub: 'THE SHEET', when: (c) => c.view === 'upgrade', lines: [   // the TRAINING tile with a career on, and after every season
+      { p: 'clipboard', t: "Your skill points. Every season pays you some. Spend them on stats." },
+      { p: 'tip', t: "KEY stats raise your rating fastest. Each one is cheap up to its soft cap and dear past it — the line under the stat says the price." },
+      { p: 'point', t: "AUTO does a fair job. Or pick them yourself, then hit DONE.", s: 'done', tap: true },
     ] },
     { id: 'persona', title: 'WHO YOU ARE', sub: 'THE PERSONALITY ROLL', when: (c) => c.persona, lines: [
       { p: 'clipboard', t: "This is who your guy is. The dice picked his personality." },

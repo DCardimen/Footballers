@@ -52,9 +52,9 @@ async function menuWithCareer(opts = {}) {
     const items = ul ? [...ul.querySelectorAll('li')].map(li => li.textContent.replace(/\s+/g, ' ').trim()) : []
     const cv = M.querySelector('.rib9-ambient-v132'); let ink = 0
     try { const x = cv.getContext('2d'); const d = x.getImageData(0, 0, cv.width, Math.min(cv.height, 1200)).data; for (let i = 3; i < d.length; i += 4 * 7) if (d[i] > 8) ink++ } catch (e) { ink = -1 }
-    const pieces = ['.rib9-sweep-v132', '.rib9-hero-grain-v132', '.rib9-hero-leak-v132', '.rib9-ring-spark-v132', '.rib9-ring-v132', '.rib9-dot.now', '.rib9-name', '.rib9-tile-hot img', '.rib9-level.rib9-cta', '.rib9-streak-v132', '.rib9-ms-plate', '.rib9-nextup-v132']
+    const pieces = ['.rib9-hero-grain-v132', '.rib9-hero-leak-v132', '.rib9-ring-spark-v132', '.rib9-ring-v132', '.rib9-dot.now', '.rib9-name', '.rib9-tile-hot img', '.rib9-level.rib9-cta', '.rib9-ms-plate', '.rib9-nextup-v132']
     const animOf = (sel, pseudo) => { const el = M.querySelector(sel); if (!el) return { sel, missing: true }; const s = getComputedStyle(el, pseudo || null); return { sel, name: s.animationName, dur: s.animationDuration } }
-    const pcs = [animOf('.rib9-sweep-v132', '::before'), animOf('.rib9-topbar', '::after'), animOf('.rib9-hero-grain-v132'), animOf('.rib9-hero-leak-v132'), animOf('.rib9-ring-spark-v132', '::before'), animOf('.rib9-ring-v132'), animOf('.rib9-dot.now', '::after'), animOf('.rib9-name'), animOf('.rib9-tile-hot img'), animOf('.rib9-streak-v132'), animOf('.rib9-ms-plate'), animOf('.rib9-ticker-v132 ul')]
+    const pcs = [animOf('.rib9-topbar', '::after'), animOf('.rib9-hero-grain-v132'), animOf('.rib9-hero-leak-v132'), animOf('.rib9-ring-spark-v132', '::before'), animOf('.rib9-ring-v132'), animOf('.rib9-dot.now', '::after'), animOf('.rib9-name'), animOf('.rib9-tile-hot img'), animOf('.rib9-ms-plate'), animOf('.rib9-ticker-v132 ul')]
     const ring = M.querySelector('.rib9-ring'), spark = M.querySelector('.rib9-ring-spark-v132')
     const arc = ring && parseFloat(getComputedStyle(ring).getPropertyValue('--rib-ovr')), sparkDeg = spark && parseFloat(spark.style.getPropertyValue('--spark'))
     const name = M.querySelector('.rib9-name'), ns = name && getComputedStyle(name)
@@ -76,7 +76,7 @@ async function menuWithCareer(opts = {}) {
   ok(r.items.some(t => /PEE WEE|YEAR 1/.test(t)) && r.items.some(t => /NEXT UP/.test(t)) && r.items.some(t => /LAST WEEK/.test(t)), 'and they are built from the feed — the level, NEXT UP, last week', r.items.join(' | ').slice(0, 200))
   ok(r.tickerMoving === 'rib9ticker' && parseFloat(r.tickerDur) >= 26, 'the ticker is moving, at a pace set by its length', `${r.tickerMoving} ${r.tickerDur}`)
   const dead = r.pieces.filter(p => p.missing || !p.name || p.name === 'none')
-  ok(dead.length === 0, 'every new piece exists and animates — sweep, wire, grain, leak, spark, ring, ping, name, float, streak, plate, ticker', dead.length ? JSON.stringify(dead) : `${r.pieces.length} pieces`)
+  ok(dead.length === 0, 'every piece exists and animates — wire, grain, leak, spark, ring, ping, name, float, plate, ticker (v134: the page sweep and the card streak are gone on purpose)', dead.length ? JSON.stringify(dead) : `${r.pieces.length} pieces`)
   ok(r.arc > 0 && Math.abs(r.sparkDeg - r.arc * 360) < 1, 'the OVR spark sits at the head of the arc', `arc ${r.arc} -> ${r.sparkDeg}deg`)
   ok(/text/.test(r.nameClip || '') && r.nameBg && !/rgba\(0, 0, 0, 0\)/.test(r.nameBg), 'the name is clipped to its metal with the flat chalk under the band (never transparent letters)', `${r.nameClip} on ${r.nameBg}`)
   ok(r.coachSwitchIn && r.coachOverflow === 'visible', 'the coach tile keeps its switch on screen', `switch in tile=${r.coachSwitchIn} overflow=${r.coachOverflow}`)

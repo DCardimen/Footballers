@@ -55,6 +55,31 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v134 — the goals are worth chasing, the busts have a box score, the Apex shelf, and the coach only
+  where he belongs.** Eleven asks. **THE GOALS**: `zt` rescaled top to bottom — a DFL title as the
+  game's MVP is `dflMvpTitle` (10,000 PP), the Interstellar title as its MVP is `galaxyMvpTitle`
+  (1,000,000 PP), 100 OVR is 1,500, the star call 2,500, and the board prints the numbers with commas
+  and a line of sub copy under each. **THE BUSTS**: every enshrined career keeps `hofSnapV134` — totals,
+  the season log, the top six attributes, awards, origin, traits, levels reached — and a HALL OF FAME row
+  taps open to `hofCardV134`. **THE APEX**: an eleventh prestige branch of high-cost, rule-changing
+  nodes (Evergreen slows the decline, Borrowed Time adds retirement years, Clean Slate waives the
+  reroll penalty, Throw Him Open lifts `strideOddsV129`, Grudge Match raises the rivalry stakes,
+  Trainer's Room downgrades one season-ender a career, Reputation lowers every honors gate, Compound
+  Interest multiplies last season's gains, Franchise Player starts coach trust at 42, Bloodline rides
+  the dynasty line, Oracle fixes the fate roll). The prestige tree no longer needs a click to render
+  (the v75 sectioner folded its NODES section; `nofold: ["nodes"]`). **THE MENU**: the diagonal
+  sweep and the continue card's streak are gone; the OVR ring fills to `softMaxOvrV134` (the OVR of a
+  man sitting on every soft cap) and a second gold arc runs past it; the season strip carries the
+  position's main stats summed off the played weeks (`seasonLine`); the helmet crest wears the
+  helmet's scratches. **THE GROWTH FIGURE**: `growDrawHiV134` draws the offseason body from
+  `public/grow/idle_dn_hi.png` (native resolution, cut by `scripts/build-grow-art.py`) in the team's
+  colours, with the 48px cell as the fallback. **THE COACH**: the prestige tree is its own stop off
+  the menu's PRESTIGE button (view `shop`) and one of the first things he shows; the skill-point
+  sheet (view `upgrade`) has a stop about skills that never says prestige; CAREER is its own stop on
+  the way back; and the debrief's last line is `closerV134` — disappointed when the year fell ten
+  under the bar or below the grade, proud of the play, the development or the heart when it earned it,
+  plain otherwise. `v134check.mjs`, `coachcheck.mjs`, `growcheck.mjs`, `menufxcheck.mjs`.
+
 - **v133 — the coach grades the board, the boy in the picture, and a coach with a mouth on him.** Three
   things. **THE COACH GRADES THE BOARD**: the offseason board suggested one program off the single
   furthest-behind stat and said nothing about the other eleven. Every program is graded now, from what a
