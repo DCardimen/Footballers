@@ -198,6 +198,128 @@ ok(tilt.n > 0, 'a tilt shakes the top of the heap loose', tilt)
 ok(tilt.drift < -0.01, 'and the money slides the way the phone is tipped', tilt)
 ok(tilt.n <= 150, 'with the number of moving coins held to a cap', tilt.n)
 
+/* The three faults the phone found, each with the assertion that would have caught it. */
+
+// (1) A THROWN COIN LEFT THE ROOM. `fling` was a per-EVENT displacement used as a per-
+// MILLISECOND velocity, so a coin left the hand at the pointer's sample rate times its real
+// speed — and nothing clamped the vertical, so it went straight up and out.
+const thrown = await page.evaluate(async () => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene()
+  s.sleepAll()
+  const h = s.hoardBox(), cx = (h.x0 + h.x1) / 2, cy = (h.y0 + h.y1) / 2
+  V.drag(cx, cy)
+  const b = Object.values(V.bodies())[0]
+  // a hard flick: eight samples, ~8ms apart, across a third of the screen
+  for (let i = 1; i <= 8; i++) { V.dragTo(cx + i * 22, cy - i * 16); await new Promise(r => setTimeout(r, 8)) }
+  V.drop()
+  const launch = { vx: b.vx, vy: b.vy, vz: b.vz }
+  let maxY = b.gy, escaped = false
+  for (let t = 0; t < 260; t++) {
+    s.stepBodies(16)
+    maxY = Math.max(maxY, b.gy)
+    // the room is sized to the hoard standing in it, so ask the scene where its walls are
+    const lx = s.limX == null ? 1.55 : s.limX, lz = s.limZ == null ? 0.55 : s.limZ
+    if (Math.abs(b.gx) > lx + 1e-6 || b.gy > 4 || Math.abs(b.gz) > lz + 1e-6) escaped = true
+  }
+  const rest = { gx: +b.gx.toFixed(3), gy: b.gy, gz: +b.gz.toFixed(3), sleep: b.sleep }
+  s.sleepAll()
+  return { launch, maxY: +maxY.toFixed(3), escaped, rest, wall: +(s.limX || 0).toFixed(2) }
+})
+ok(Math.abs(thrown.launch.vx) <= 0.0027 && Math.abs(thrown.launch.vy) <= 0.0017,
+  'a coin thrown as hard as a finger can flick it leaves the hand at a SANE speed', thrown.launch)
+ok(!thrown.escaped, 'and it never leaves the room', thrown)
+ok(thrown.maxY < 3, 'and it never flies off into space', thrown.maxY)
+ok(thrown.rest.sleep, 'it lands, and it settles', thrown.rest)
+
+// (2) TILT DID NOTHING ON A REAL PHONE. Neutral was hard-coded to a 48-degree hold, so
+// however you were holding it you had either a permanent lean or none at all. Drive the
+// REAL handler with the numbers a sensor sends.
+const sensor = await page.evaluate(async () => {
+  const V = window.__RIB_VAULT_DEV
+  if (!V.tiltArm()) return { armed: false }
+  // hold it upright and still for the calibration window, as a hand would
+  for (let i = 0; i < 12; i++) { V.tiltRaw(78 + Math.random() * 1.2, 1 + Math.random() * 0.8); await new Promise(r => setTimeout(r, 45)) }
+  const level = V.tiltRaw(78, 1)
+  const leftSmall = V.tiltRaw(78, -9)     // a small wrist roll
+  const leftHard = V.tiltRaw(78, -30)     // a real tilt
+  const fwd = V.tiltRaw(60, 1)            // tipped away from you
+  return { armed: true, level, leftSmall, leftHard, fwd }
+})
+ok(sensor.armed, 'the tilt handler arms')
+ok(sensor.level && Math.abs(sensor.level.gx) < 0.02 && Math.abs(sensor.level.gz) < 0.02,
+  'NEUTRAL is wherever the phone is actually being held, not a hard-coded angle', sensor.level)
+ok(sensor.leftSmall.gx < -0.2 && sensor.leftHard.gx < -0.9,
+  'a small wrist roll registers, and a real tilt saturates', [sensor.leftSmall.gx, sensor.leftHard.gx])
+ok(sensor.fwd.gz < -0.5, 'and tipping it away from you drives the other axis', sensor.fwd.gz)
+
+// (3) THE HEAVIEST COINS COULD NOT MOVE AT ALL. grip = 1+(m-1)*0.85 against MU 0.42 and a
+// drive capped at 0.85 meant the billion-point coin's threshold was above the maximum.
+const breakLoose = await page.evaluate(() => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene()
+  const out = {}
+  for (const [den, m] of [['bronze', 1], ['gold', 1.75], ['blue', 2.4]]) {
+    let found = null
+    for (let deg = 1; deg <= 45 && !found; deg++) {
+      s.sleepAll()
+      const b = s.wake(0); if (!b) break
+      b.m = m; b.bounce = 0.34 / m; b.grip = 1 + (m - 1) * 0.85
+      // on the FLAT floor outside the heap: on the slope this measures the slope, not the tilt
+      b.gx = 1.25; b.gz = 0; b.gy = s.surfaceAt(1.25, 0); b.vx = b.vy = b.vz = 0
+      b.sleep = false; b.still = 0
+      const x0 = b.gx
+      s.setTilt(-Math.min(1, deg / 24), 0)
+      for (let t = 0; t < 60; t++) s.stepBodies(16)
+      if (Math.abs(b.gx - x0) > 0.05) found = deg
+    }
+    out[den] = found
+  }
+  s.sleepAll(); s.setTilt(0, 0)
+  return out
+})
+ok(breakLoose.bronze && breakLoose.gold && breakLoose.blue,
+  'EVERY denomination breaks loose at a reachable angle — the billion-point coin included', breakLoose)
+ok(breakLoose.bronze < breakLoose.gold && breakLoose.gold < breakLoose.blue,
+  'and the heavier it is the more tilt it takes', breakLoose)
+ok(breakLoose.blue <= 22, 'with even the heaviest inside a wrist turn', breakLoose.blue)
+
+// (4) ...and it must not be SLOW. Once loose, a coin should cross the heap in about a second.
+const slide = await page.evaluate(() => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene()
+  s.sleepAll()
+  const b = s.wake(0)
+  b.m = 1; b.grip = 1; b.gx = 0.9; b.gz = 0; b.gy = s.surfaceAt(0.9, 0)
+  b.vx = b.vy = b.vz = 0; b.sleep = false; b.still = 0
+  s.setTilt(-1, 0)
+  const x0 = b.gx
+  for (let t = 0; t < 63; t++) s.stepBodies(16)     // one second
+  const moved = Math.abs(b.gx - x0)
+  s.sleepAll(); s.setTilt(0, 0)
+  return +moved.toFixed(3)
+})
+ok(slide > 0.5, 'a coin on a hard tilt actually TRAVELS — about a heap-width a second', slide)
+
+const repose = await page.evaluate(() => {
+  // with the phone level, a woken hoard must SIT there. Weighting the slope as heavily as
+  // the tilt made every disturbed coin creep off the heap and the pile quietly deflated.
+  const V = window.__RIB_VAULT_DEV, s = V.scene()
+  s.sleepAll(); s.setTilt(0, 0)
+  s._lastWake = 0                       // the wake is throttled to 220ms; this is a probe
+  s.tiltWake()
+  Object.values(V.bodies()).forEach(b => { b.sleep = false; b.still = 0 })
+  const before = Object.values(V.bodies()).map(b => ({ x: b.gx, y: b.gy }))
+  for (let t = 0; t < 120; t++) s.stepBodies(16)
+  const after = Object.values(V.bodies()).map(b => ({ x: b.gx, y: b.gy }))
+  let worst = 0
+  for (let i = 0; i < before.length; i++)
+    worst = Math.max(worst, Math.abs(after[i].x - before[i].x) + Math.abs(after[i].y - before[i].y))
+  const asleep = Object.values(V.bodies()).filter(b => b.sleep).length
+  s.sleepAll()
+  return { n: before.length, worst: +worst.toFixed(4), asleep }
+})
+ok(repose.n > 20, 'the probe really did shake the top of the heap loose', repose.n)
+ok(repose.worst < 0.05, 'and with the phone LEVEL a disturbed hoard sits at its angle of repose instead of creeping downhill', repose)
+ok(repose.asleep > repose.n * 0.7, 'and settles back to sleep, so a shaken hoard costs nothing once it is still', repose)
+
 const restock = await page.evaluate(async () => {
   const V = window.__RIB_VAULT_DEV, s = V.scene()
   const o = window.__GRIDIRON_AUDIT__.getState()

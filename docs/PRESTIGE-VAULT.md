@@ -194,15 +194,30 @@ exactly the hoard again, which is what RESTOCK does.
   pays immediately, because a laggy tap is worse than an extra coin — but past 13 px the
   hold is released and the gesture becomes a drag. The coin lags the hand by its own weight
   rather than sticking to it, and leaves it with the speed the hand had.
-- **Tilt.** `deviceorientation`, behind a button because iOS requires the permission from a
-  real gesture. Dead-zoned and clamped. The physics that matters is **static friction**:
-  the driving force is the tilt plus the slope the coin is sitting on, the resisting force is
-  `MU × grip`, and below the threshold nothing moves at all. Because grip rises with mass, a
-  hard tilt walks the bronze off the top while the billion-point coins sit where they are.
-  Without it the hoard poured itself across the room the moment the phone came off level.
+- **Tilt.** `deviceorientation` (plus `deviceorientationabsolute`, which is the only one some
+  Android builds fire), behind a button because iOS requires the permission from a real
+  gesture. **Neutral is wherever you are holding it**: the first ~420 ms of readings are
+  averaged into the zero. If nothing arrives within 1.5 s the button turns itself off and
+  says so rather than sitting there lit.
+
+  The physics that matters is **static friction**. Resist is `MU × grip`; drive is the tilt,
+  plus the coin's own slope *in proportion to how far the tilt has already sheared the
+  bond*. Level, the slope contributes nothing and the heap sits at its angle of repose —
+  weighting it unconditionally made every woken coin creep downhill and the pile quietly
+  slumped. Past the threshold it **accelerates** (`TILT_ACCEL`); scaling by
+  `(drive−hold)/drive` instead caps acceleration at one g however hard the phone is tipped,
+  which is what made a real tilt crawl.
+
+  Measured break-loose angles: **bronze 9°, gold 14°, the billion-point coin 18°** — the
+  order is the point, and every one of them is inside a wrist turn. `vaultcheck.mjs` asserts
+  all three, and that a level hoard does not creep.
 - **Weight.** Gravity is the same for every coin — that is physics — but nothing else is:
   `MASS` (bronze 1.00 → blue 2.40) sets bounce, grip, how much of a fling a coin carries,
   and how it sounds when it lands. A billion-point coin should feel like picking up a bar.
+- **The throw.** `fling` is a velocity in ground units **per millisecond**, measured against
+  the clock and clamped (`THROW_V`, `THROW_VY`). A pointermove stream is 60–120 Hz and
+  irregular, so a per-event displacement used as a velocity leaves a coin travelling at the
+  sample rate times its real speed.
 - **RESTOCK.** Every disturbed coin flies home to its slot. Press it on an already tidy
   hoard and it **re-pours** instead: a fresh seed, a visibly different heap of exactly the
   same money. Neither touches a Prestige Point or changes the coin count, and
@@ -211,8 +226,21 @@ exactly the hoard again, which is what RESTOCK does.
 Only coins in the live surface band can be disturbed — the deep layer is a baked canvas and
 moving one of its coins would cost a re-bake per frame. That is also the honest limit: you
 can push the money on top of the pile around, not the money underneath it. Bodies are capped
-at 150 and they **sleep**, so a hoard that has been shaken and left alone costs the same as
-one that has not.
+at 150 and they **sleep** — but only after `STILL_FRAMES` consecutive quiet frames *and*
+only when nothing is driving them. A bare `speed < threshold` test sleeps a coin on the very
+frame it breaks loose, before it has accelerated, and zeroes the velocity it was just given.
+
+`surfaceAt(gx, gz)` takes **world** ground units and converts into and out of the slot space
+the mound functions are defined in. A body stores `gx = slot.x × PILE.dx` and
+`gz = slot.z × PILE.dz`; evaluating the mound directly on those compares a radius scaled by
+1.20 in x and 0.150 in z against a radius in neither, and every coin is handed a surface
+height with nothing to do with the heap it is sitting on.
+
+A coin **buried** in the heap is resting on the coins around it, not on the surface above it,
+so the floor is never above where the coin already was — it can land on the surface, it can
+never be lifted onto it. And the physics room is sized from the hoard's own reach
+(`slots.ex/ez`) rather than a constant, or the spilled coins on the heap's foot start outside
+the walls and get teleported inward the first time they wake.
 
 ## Spending
 
@@ -306,6 +334,16 @@ wall, behind the hoard, where it costs nothing and stops occluding the pile it s
   only sunk in the hoard, where the foot is buried.
 - The pre-rendered 8-state pile images on the concept sheets are **not** used at runtime. The
   brief asks for a constructed pile; they served as a silhouette reference.
+
+## A note on `coachcheck.mjs`
+
+It is the longest check in the repo — it plays a whole first week, live game included, and
+drives the UI by clicking text. It is **stochastic and it flakes**: on this branch it came
+back 86/0, 79/7, 79/7, 86/0 across four runs, with the failures all being the same stall at
+the pregame's CONTINUE TO MATCH, and the same build passed cleanly on the runs either side.
+The vault is an overlay that is not even built until it is first opened, and nothing in the
+physics runs while it is closed, so a failure there is worth re-running before it is worth
+believing. If it stalls repeatedly at the *same* step, that is a different matter.
 
 ## Dev loop
 

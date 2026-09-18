@@ -56,7 +56,7 @@ Captured from the real game in headless Chromium at 412x915 (portrait, DPR 2) an
 
 ![Drag: a coin picked up off the heap, its shadow on the floor under it](13-coin-in-hand.jpg)
 
-### Tilt: the phone tipped left and the money slumps that way
+### Tilt: the phone tipped left ~26 degrees and the money slumps that way
 
 ![Tilt: the phone tipped left and the money slumps that way](14-tilted.jpg)
 
