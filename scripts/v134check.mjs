@@ -54,7 +54,7 @@ const mvp = await page.evaluate(() => {
   const rows = [...document.querySelectorAll('#screen .shop-item')]
   // reach the checks through es(): fake a season, see what pays
   const base = { playoffs: { champion: true }, awards: [{ name: 'League MVP' }], teamLosses: 0 }
-  const run = (level, st) => { S.challenges = {}; S.pp = 0; pl.level = level; try { window.__GRIDIRON_AUDIT__.getState().player.seasonStats = st } catch (e) {} ; let paid = 0; try { paid = window.__esV134 ? window.__esV134(st) : null } catch (e) { paid = null }; return { paid, ids: Object.keys(S.challenges) } }
+  const run = (level, st) => { S.challenges = {}; S.pp = 0; S.ppBankV136 = 0; pl.level = level; try { window.__GRIDIRON_AUDIT__.getState().player.seasonStats = st } catch (e) {} ; let paid = 0; try { paid = window.__esV134 ? window.__esV134(st) : null } catch (e) { paid = null }; return { paid, ids: Object.keys(S.challenges) } }
   return null
 })
 // es() is not exported either; the table's check functions are the contract, so test them off the screen's state through the audit
@@ -62,7 +62,7 @@ const checks = await page.evaluate(() => {
   const S = window.S, pl = S.player, keep = { level: pl.level, ch: S.challenges, pp: S.pp }
   const out = {}
   const stTitleMvp = { playoffs: { champion: true }, awards: [{ name: 'League MVP' }] }, stTitleOnly = { playoffs: { champion: true }, awards: [] }, stMvpOnly = { playoffs: { champion: false }, awards: [{ name: 'League MVP' }] }
-  const probe = (level, st) => { S.challenges = {}; S.pp = 0; pl.level = level; pl.seasonStats = st; try { window.__GRIDIRON_AUDIT__.completeChallengesV134(st) } catch (e) {} ; return { ids: Object.keys(S.challenges), pp: S.pp } }
+  const probe = (level, st) => { S.challenges = {}; S.pp = 0; S.ppBankV136 = 0; pl.level = level; pl.seasonStats = st; try { window.__GRIDIRON_AUDIT__.completeChallengesV134(st) } catch (e) {} ; return { ids: Object.keys(S.challenges), pp: S.pp + (S.ppBankV136 || 0), banked: S.ppBankV136 || 0 } }   // v136 C: mid-career the payout is BANKED
   out.dflBoth = probe(7, stTitleMvp); out.dflTitleOnly = probe(7, stTitleOnly); out.dflMvpOnly = probe(7, stMvpOnly); out.galBoth = probe(8, stTitleMvp); out.hsBoth = probe(4, stTitleMvp)
   pl.level = keep.level; S.challenges = keep.ch; S.pp = keep.pp; pl.seasonStats = null
   return out

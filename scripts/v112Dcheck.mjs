@@ -1,8 +1,11 @@
 // Dev check: v112 (D) — THE PREGAME, ONE DECISION AT A TIME. Drives a real career to the pregame
 // screen at PHONE width and works the wizard the way a thumb would:
-//   * ONE DECISION A PAGE — four pages, exactly one visible at a time, and the page carrying a
+//   * ONE DECISION A PAGE — five pages, exactly one visible at a time, and the page carrying a
 //     decision carries only that decision: the ladder is alone on page 1, the focus cards alone on
-//     page 2, the scout and the coordinator's plan on page 3, the stat sheet on page 4.
+//     page 2, the scout and the coordinator's plan on page 3, the stat sheet on page 4, and (v135)
+//     the plan wheel on page 5 — spun INLINE, held from the moment the deck appeared, never over
+//     the season screen before the wizard; NEXT waits while it is in the air, and once the roll is
+//     in the page names the plan, the band and every stat it moved, before → after.
 //   * NEXT AND BACK — NEXT walks forward, BACK walks back, the step counter and the dots follow,
 //     and BACK from page 1 leaves the pregame screen entirely (the old Back button's job).
 //   * A CHOICE SURVIVES THE ROUND TRIP — pick an involvement on 1 and a focus on 2, walk to the
@@ -87,6 +90,8 @@ const readWiz = () => page.evaluate(({ visSrc }) => {
     fillPct: (document.querySelector('.gs-field-fill') || {}).style?.width || null,
     imp: T(document.getElementById('v112ImpD')), sheet: T(document.getElementById('preStatsV25')),
     sheetFocus: T(document.getElementById('preFocusV111')),
+    active: window.__V136_PAGES ? window.__V136_PAGES.active() : null, sheetPage: (document.getElementById('preStatsV25') || {}).closest ? document.getElementById('preStatsV25').closest('.v112-page').id : null,   // v136: which page the sheet sits on
+    sheetVis: vis(document.getElementById('preStatsV25') || document.createElement('i')), summary: T(document.getElementById('v136SumD')),
     S, wideR: wideR.slice(0, 4),
     scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth
   }
@@ -100,13 +105,13 @@ const impSnaps = imp => { const m = /Involvement[^\n]*?(\d+)% snaps/.exec(imp ||
 
 // ---------------------------------------------------------------- 1. one decision a page
 const P1 = await readWiz()
-ok(P1.pages.length === 4, 'the screen is four pages', P1.pages.map(p => p.id).join('/'))
+ok(P1.pages.length === 7 && P1.active && P1.active.length === 6 && !P1.active.includes('v112Page6'), 'seven pages are built, six of them live on an ordinary week — the rivalry page only on a rivalry game (v136)', (P1.active || []).join('/'))
 ok(P1.pages.filter(p => p.shown).length === 1 && P1.pages[0].shown, 'exactly one of them is on screen, and it is the first', P1.pages.map(p => p.id + '=' + p.shown).join(' '))
-ok(/STEP 1 OF 4/.test(P1.kick) && /INVOLVEMENT/i.test(P1.kick), 'page 1 announces itself', P1.kick + ' — "' + P1.title + '"')
+ok(/STEP 1 OF 6/.test(P1.kick) && /INVOLVEMENT/i.test(P1.kick), 'page 1 announces itself', P1.kick + ' — "' + P1.title + '"')
 ok(P1.ladder.length === 5 && P1.ladder.every(s => s.vis), 'the five-step ladder is the decision on page 1', P1.ladder.map(s => s.k).join('/'))
 ok(P1.ladder.every(s => s.h >= 44), 'and its steps are thumb-sized', 'min height ' + Math.min(...P1.ladder.map(s => s.h)) + 'px')
 ok(!P1.focus.some(f => f.vis) && !P1.planVis, 'the focus cards and the coordinator are NOT competing with it', `focus visible=${P1.focus.filter(f => f.vis).length} plan=${P1.planVis}`)
-ok(P1.dots.length === 4 && P1.dots[0] === 'on', 'a page indicator says where he is', P1.dots.join('|'))
+ok(P1.dots.length === 6 && P1.dots[0] === 'on', 'a page indicator says where he is', P1.dots.join('|'))
 
 await tapNext()
 const P2 = await readWiz()
@@ -125,8 +130,42 @@ ok(/NEXT/i.test(P3.next), 'nothing on it is required — NEXT is live with no in
 await tapNext()
 const P4 = await readWiz()
 ok(P4.page === 3 && P4.pages[3].shown, 'page 4 is the impact', P4.kick)
-ok(!!P4.imp && !!P4.sheet, 'the effect on next game, and the sheet under it', (P4.imp || '').slice(0, 58))
-ok(/CONTINUE TO MATCH/i.test(P4.next || ''), 'and the button into the game is the primary one', P4.next)
+ok(!!P4.imp && P4.sheetPage === 'v112Page7' && !P4.sheetVis, 'the effect on next game — the sheet itself is the LAST page now (v136)', (P4.imp || '').slice(0, 58) + ' · sheet on ' + P4.sheetPage)
+ok(/SPIN THE WHEEL/i.test(P4.next || ''), 'and the button on it sends him to the wheel', P4.next)
+ok(await page.evaluate(() => !document.getElementById('growthV42')), 'no wheel has spun anywhere yet — nothing opened over the season screen (v135)')
+
+// ---------------------------------------------------------------- 1b. page 5: the wheel, inline, then the final stat (v135)
+const held = await page.evaluate(() => { const h = window.__V135.hold(); return h && { win: h.d.win.id, name: h.d.win.name, band: h.d.band, stats: h.d.stats, applied: h.applied } })
+ok(!!held && !held.applied, 'the plan was rolled and HELD when the deck appeared, and nothing is applied before the wheel', JSON.stringify(held))
+await tapNext()
+const P5 = await readWiz()
+const W5 = await page.evaluate(() => { const w = document.querySelector('#v112Page5 #growthV42'); const r = w ? w.getBoundingClientRect() : null; return { inPage: !!w, inline: w ? w.dataset.inline : null, fixed: w ? getComputedStyle(w).position : null, wheel: !!document.querySelector('#v112Page5 #gv50wheel'), w: r ? Math.round(r.width) : 0, title: w ? (w.querySelector('div > div') || {}).textContent : null, dis: document.getElementById('v112Next').disabled } })
+ok(P5.page === 4 && P5.pages[4].shown && /STEP 5 OF 6/.test(P5.kick) && /WHEEL/i.test(P5.kick), 'page 5 is the wheel', P5.kick)
+ok(W5.inPage && W5.inline === '1' && W5.fixed !== 'fixed' && W5.wheel && W5.w > 200, 'the wheel is mounted INTO the page — the same card, no fixed backdrop', JSON.stringify(W5))
+ok(/^\s*PREGAME/.test(W5.title || ''), 'and it is the plan wheel', (W5.title || '').slice(0, 40))
+ok(W5.dis && /SPINNING/i.test(P5.next || ''), 'NEXT waits while the wheel is in the air', P5.next)
+await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' }, null, { timeout: 30000 }).catch(() => null)
+const landed = await page.evaluate(() => { const L = window.__WHEEL_V50_LAST; return { landed: L ? L.themes[L.win] : null, roll: !!document.getElementById('gv62roll'), applied: window.__V135.hold().applied } })
+ok(landed.landed === held.win && landed.roll && !landed.applied, 'it lands on the held pick, the fit roll pops, and still nothing is applied', JSON.stringify(landed))
+await page.evaluate(() => document.getElementById('gv42go').click()); await page.waitForTimeout(400)
+const F5 = await page.evaluate(() => { const imp = document.getElementById('v135ImpD'); const h = window.__V135.hold(); return { roll: !!document.getElementById('gv62roll'), standing: !!document.querySelector('#v112Page5 [data-inline]'), retired: !document.getElementById('growthV42'), result: !!document.querySelector('#v112Page5 [data-was="gv42out"], #v112Page5 #gv42out'), imp: imp ? imp.innerText.replace(/\s+/g, ' ') : null, applied: h && h.applied, next: document.getElementById('v112Next').innerText, dis: document.getElementById('v112Next').disabled, dupIds: (() => { const ids = [...document.querySelectorAll('#pregameV1513 [id]')].map(e => e.id); return ids.filter((id, i) => ids.indexOf(id) !== i) })(), buffs: (window.__V111_UI.player()._tempStatBuffsV25 || []).length, sheet: !!document.querySelector('#v135Final [data-id="preStatsV25"]') } })
+ok(!F5.roll && F5.standing && F5.result && F5.retired, 'CONTINUE closes the roll pop-up and leaves the landed wheel and its result standing on the page (its id given up for the next wheel)', JSON.stringify({ roll: F5.roll, standing: F5.standing, result: F5.result, retired: F5.retired }))
+ok(F5.applied && F5.buffs > 0, 'the swing is applied once the roll is in', `applied=${F5.applied} buffs=${F5.buffs}`)
+ok(!!F5.imp && new RegExp(held.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(F5.imp) && /(IT CLICKS|IT'LL DO|IT BACKFIRES)/.test(F5.imp), 'WHAT THE WHEEL DID names the plan and the roll', (F5.imp || '').slice(0, 90))
+ok(held.band === 'neutral' ? /None/.test(F5.imp || '') : (held.stats || []).every(k => new RegExp(k.slice(0, 4), 'i').test(F5.imp || '')) && /\d+ → \d+/.test(F5.imp || ''), 'and every stat it moved, before → after', (F5.imp || '').slice(60, 200))
+ok(!F5.dupIds.length, 'and no id is duplicated on the screen', 'dup=' + F5.dupIds.join(','))
+ok(!F5.dis && /YOUR SHEET/i.test(F5.next), 'and NEXT now moves on to the sheet', F5.next)
+await tapBack(); await tapNext()
+const R5 = await page.evaluate(() => ({ standing: !!document.querySelector('#v112Page5 [data-inline]'), spins: window.__V135.spins, buffs: (window.__V111_UI.player()._tempStatBuffsV25 || []).length, next: document.getElementById('v112Next').innerText }))
+ok(R5.standing && R5.spins === 1 && R5.buffs === F5.buffs && /YOUR SHEET/i.test(R5.next), 'BACK and forward: the landed wheel is still standing, not respun, not re-applied', JSON.stringify(R5))
+// ---------------------------------------------------------------- 1c. the last page is the sheet (v136 A)
+await tapNext()
+const P6 = await readWiz()
+ok(P6.page === 5 && /STEP 6 OF 6/.test(P6.kick) && /SHEET/i.test(P6.kick), 'the last page is YOUR SHEET', P6.kick)
+ok(P6.sheetPage === 'v112Page7' && P6.sheetVis && !!P6.sheet, 'and the effective sheet is on it, visible', (P6.sheet || '').slice(0, 50))
+ok(!!P6.summary && /WEEK, SETTLED/.test(P6.summary) && new RegExp(held.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(P6.summary), 'headed by the week, settled — the plan the wheel landed on', (P6.summary || '').slice(0, 90))
+ok(/CONTINUE TO MATCH/i.test(P6.next || '') && P6.gos.length === 1 && P6.skipHidden, 'and the one way to the field is its primary button', P6.next)
+await page.evaluate(() => window.__V112_D.go(3)); await page.waitForTimeout(200)
 
 // ---------------------------------------------------------------- 2. back, and the choice survives
 await tapBack(); await tapBack()
@@ -144,7 +183,7 @@ await page.waitForTimeout(250)
 const U = await readWiz()
 ok(U.S.weekUsage === 'everysnap' && U.ladder.find(s => s.k === 'everysnap').on, 'an involvement picked on page 1 writes week.usageV111', 'week.usageV111=' + U.S.weekUsage)
 
-await tapNext(); await tapNext(); await tapNext()      // all the way to the end
+await tapNext(); await tapNext(); await tapNext()      // all the way to the impact page
 await tapBack(); await tapBack(); await tapBack()      // and all the way home
 const R = await readWiz()
 ok(R.page === 0, 'the round trip lands back on page 1', R.kick)
@@ -191,9 +230,15 @@ ok(!!FP.sheetFocus && /×1\.2/.test(FP.sheetFocus), 'and the stat sheet under it
 ok(/%/.test((FP.imp.match(/Body[^A-Za-z]*([-+]?\d+% to every attribute)/) || [])[1] || ''), 'the body\'s own swing is stated too', (FP.imp.match(/Body[^A-Za-z]*([-+]?\d+% to every attribute)/) || [])[1])
 
 // ---------------------------------------------------------------- 5. the way to the field, on every page
-for (let i = 0; i < 4; i++) {
+for (let i = 0; i < 6; i++) {
   await page.evaluate(i => window.__V112_D.go(i), i)
   await page.waitForTimeout(220)
+  if (i === 4) {   // v135: the wheel page has no way to the field until the wheel has landed
+    const mid = await readWiz()
+    ok(mid.gos.length === 0 && /SPINNING/i.test(mid.next || ''), 'page 5: NO way to the field while the wheel is in the air', mid.next)
+    await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' }, null, { timeout: 30000 }).catch(() => null)
+    await page.evaluate(() => document.getElementById('gv42go').click()); await page.waitForTimeout(350)
+  }
   const W = await readWiz()
   ok(W.gos.length === 1, `page ${i + 1}: exactly one visible CONTINUE TO MATCH`, W.gos.join(' | ') || 'NONE')
   ok(W.scrollW <= W.clientW + 1 && !W.wideR.length, `page ${i + 1}: no horizontal scroll at 400px`, `scrollW=${W.scrollW} clientW=${W.clientW}${W.wideR.length ? ' over:' + W.wideR.join(',') : ''}`)
@@ -203,7 +248,7 @@ for (let i = 0; i < 4; i++) {
   await page.screenshot({ path: `${SHOT}_p${i + 1}.png` })
   await page.setViewportSize({ width: 400, height: 900 })
 }
-console.log('     shots', `${SHOT}_p1..p4.png`)
+console.log('     shots', `${SHOT}_p1..p6.png`)
 
 // ---------------------------------------------------------------- 6. the defaults reach the game untouched
 ok(await toPregame(), 'a third open, and this time he touches nothing')

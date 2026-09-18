@@ -102,6 +102,9 @@
   const DEBRIEF_OFF = 'rib.debriefOff.v122';
   const debrief = () => { try { return (window.__DEBRIEF_V122 && window.__DEBRIEF_V122.get()) || null; } catch (e) { return null; } };
   const debriefOff = () => store.get(DEBRIEF_OFF) === 'off';
+  /* v136 D: the family, as the game states it — the generation, the surname, the father and how his career ended */
+  const family = () => { try { return (window.__LINEAGE_V136 && window.__LINEAGE_V136.family()) || null; } catch (e) { return null; } };
+  const fatherSay = (F) => { try { return (F && F.father && window.__LINEAGE_V136.fateSay(F.father)) || ''; } catch (e) { return ''; } };
   const debriefDue = () => { const d = debrief(); if (!d || debriefOff()) return null;
     let seen = null; try { seen = window.__DEBRIEF_V122.lastSeen(); } catch (e) {}
     return String(seen) === String(d.season) ? null : d; };
@@ -148,17 +151,17 @@
       { p: 'welcome', t: "Listen up, rookie. I'm Coach. I'll pop in on each screen, tell you what it does, then get out of your way." },
       { p: 'listen', t: "Tap my bubble if I talk too slow. SKIP TOUR shuts me up for good. This COACH'S TOUR tile brings me back.", s: 'coach' },
       { p: 'armscrossed', t: "Big picture: you play one guy. Play well, you move up a league. Play bad, the career's over. Then you make a new guy." },
-      { p: 'tip', t: "The old guy leaves you PRESTIGE. Every guy after him starts better. Careers end. That's the point. That chip up top is where it lives.", s: 'honors' },
-      { p: 'point', t: "Tap it. I'll show you the tree before we build a player.", s: 'honors', tap: true },
+      { p: 'tip', t: "Careers end. Then his KID picks it up. What the old man learned, the son keeps — that's PRESTIGE, and that chip up top is the family's.", s: 'honors' },
+      { p: 'point', t: "Tap it. I'll show you the inheritance before we build a player.", s: 'honors', tap: true },
     ] },
     /* v134: the prestige tree is the SHOP, and it is one of the first things he shows -- the menu stop
      * sends you up to the chip, this stop walks the tree, and CAREER is its own stop on the way back.
      * It used to key on view `upgrade`, which is the SKILL-POINT sheet off the TRAINING tile, so he
      * popped up on a screen about skills and talked about prestige. That screen has its own stop now. */
     { id: 'prestige', title: 'PRESTIGE', sub: 'WHAT YOU KEEP', when: (c) => c.view === 'shop', lines: [
-      { p: 'clipboard', t: "The prestige tree. This is what your finished careers pay for." },
+      { p: 'clipboard', t: "The inheritance — the prestige tree. Every finished career is a father's lesson to his son. This is where it's kept." },
       { p: 'tip', t: "Two numbers up top. PP is what you spend here. HONORS is your rank — it unlocks the deeper nodes. Both come from finishing careers." },
-      { p: 'point', t: "Branches across the top. Tap one, buy a node, and it's yours forever — every guy after this one starts with it.", s: 'branches' },
+      { p: 'point', t: "Branches across the top. Tap one, buy a node, and it's yours forever — every son after this one starts with it.", s: 'branches' },
       { p: 'thumbsup', t: "The APEX branch is the top shelf of the prestige tree. Those nodes change the rules. Earn your way up there." },
       { p: 'point', t: "Hit BACK. Then we build your first player.", s: 'back', tap: true },
     ] },
@@ -170,14 +173,17 @@
       { p: 'tip', t: "KEY stats raise your rating fastest. Each one is cheap up to its soft cap and dear past it — the line under the stat says the price." },
       { p: 'point', t: "AUTO does a fair job. Or pick them yourself, then hit DONE.", s: 'done', tap: true },
     ] },
-    { id: 'persona', title: 'WHO YOU ARE', sub: 'THE PERSONALITY ROLL', when: (c) => c.persona, lines: [
+    /* v136 D: a son hears about his father first — which league the old man made, how it ended, and whether the coach was proud of him */
+    { id: 'persona', title: 'WHO YOU ARE', sub: 'THE PERSONALITY ROLL', when: (c) => c.persona, pre: () => { const F = family(); if (!F || F.gen <= 1 || !F.father) return null; const f = F.father, proud = f.fate === 'won' || (f.level | 0) >= 5; const say = fatherSay(F);
+        return [proud ? { p: 'thumbsup', t: `You're a ${F.surname}. Your old man ${say}. I was proud of him. Now go top it.` } : { p: 'armscrossed', t: `You're a ${F.surname}. Your old man only ${say}. Learn from his mistakes — that's the whole point of you.` }]; }, lines: [
       { p: 'clipboard', t: "This is who your guy is. The dice picked his personality." },
       { p: 'thinkcap', t: "Each trait cuts two ways. Something he's good at, something he's not. Don't overthink it. You can't change it yet anyway." },
       { p: 'point', t: "It also loads the wheel you spin before games. Lock it in.", s: 'lockIn', tap: true },
     ] },
-    { id: 'position', title: 'YOUR POSITION', sub: 'THE BODY HE WAS DEALT', when: (c) => c.view === 'choosePos' && !c.persona, lines: [
+    { id: 'position', title: 'YOUR POSITION', sub: 'THE BODY HE WAS DEALT', when: (c) => c.view === 'choosePos' && !c.persona, pre: () => { const F = family(); if (!F || F.gen <= 1) return null;
+        return [{ p: 'shrug', t: `Different first name from the old man — his mother's call. Same last name, same chin. ${F.years} years the ${F.surname}s have put on a field. Add to it.` }]; }, lines: [
       { p: 'whoa', t: "The big one. Pick a position." },
-      { p: 'tip', t: "That's his name up top. Tap it if you want to call him something else.", s: 'name' },
+      { p: 'tip', t: "That's his name up top. Tap it if you want to call him something else.", s: 'name' },   // v136 D: `pre` on this stop adds the family joke ahead of it
       { p: 'tip', t: "Every position wants different skills. A back needs speed. A lineman needs strength. A quarterback needs an arm and a brain.", s: 'posCards' },
       { p: 'stop', t: "The number under each one says how well his body fits it. Pick a good fit. Fit is free and it lasts his whole career." },
       { p: 'shrug', t: "And figuring out the right mix of skills for your guy? That's on you. I don't do the thinking for you." },
@@ -188,7 +194,7 @@
       { p: 'listen', t: "Your rating and the depth chart live here. Low on the chart means fewer snaps. Fewer snaps means fewer stats. Simple." },
       { p: 'point', t: "I don't trust you yet, so you get about half the snaps. Play well and you get more. Now start the season.", s: 'playSeason', tap: true },
     ] },
-    { id: 'wheel', title: 'THE WHEEL', sub: 'HOW HARD HE WORKS THIS YEAR', when: (c) => c.wheel && !c.planWheel, lines: [   // over the training board, off PLAY SEASON
+    { id: 'wheel', title: 'THE WHEEL', sub: 'HOW HARD HE WORKS THIS YEAR', when: (c) => c.wheel && !c.planWheel && !c.pregame, lines: [   // over the training board, off PLAY SEASON (v135: never the wheel inside the pregame)
       { p: 'clipboard', t: "The wheel. How hard is your guy working this year? The spin decides. His personality loads the odds." },
       { p: 'tip', t: "LIGHT is safe. OBSESSIVE pays big and breaks big. Green means it worked. Red means it blew up in your face." },
       { p: 'point', t: "Tired guys roll red. Never spin worn out. Tap the wheel to hurry it, then hit CONTINUE.", s: 'cont', tap: true },
@@ -204,16 +210,18 @@
       { p: 'stop', t: "If he's feeling fatigued, play fewer snaps and let him recover. Fatigue changes how he plays. Got it?" },
       { p: 'point', t: "Injury risk is right there too. Read it before you throw him in. Now play Week 1 live.", s: 'playWeek', tap: true },
     ] },
-    { id: 'plan', title: 'THE WEEKLY PLAN', sub: 'ROLLED, NOT CHOSEN', when: (c) => c.planWheel, lines: [   // off PLAY WEEK, before the wizard
-      { p: 'clipboard', t: "Game week. The staff drew up plans. The wheel picks which one you run. His personality loads it." },
-      { p: 'tip', t: "Some plans chase big plays. Some keep it steady. One does the dirty work and earns my trust." },
-      { p: 'point', t: "Tap the wheel to hurry it, then CONTINUE.", s: 'cont', tap: true },
-    ] },
-    { id: 'pregame', title: 'BEFORE KICKOFF', sub: 'FOUR STEPS', when: (c) => c.pregame && !c.wheel, lines: [
-      { p: 'clipboard', t: "Four steps before kickoff. Step one: how much do you want to play? NORMAL is the snaps I trust you with. Fewer snaps, less wear." },
+    { id: 'pregame', title: 'BEFORE KICKOFF', sub: 'THE PAGES', when: (c) => c.pregame && !c.wheel, lines: [
+      { p: 'clipboard', t: "A few pages before kickoff. Page one: how much do you want to play? NORMAL is the snaps I trust you with. Fewer snaps, less wear." },
       { p: 'stop', t: "Ask for more than your share and it costs your body — until you earn it. More trust, more say." },
-      { p: 'tip', t: "Step two: pick one thing to focus on. Step three: the game plan. Step four: what you're carrying onto the field." },
-      { p: 'point', t: "Read the last page, then CONTINUE TO MATCH.", s: 'next', tap: true },
+      { p: 'tip', t: "Page two: pick one thing to focus on. Page three: the game plan. Page four: what it costs. Then the wheel — two of them on rivalry week." },
+      { p: 'point', t: "Work through the pages. The last one is your sheet — what you actually take onto the field.", s: 'next', tap: true },
+    ] },
+    /* v135: the plan wheel spins on the wizard's FIFTH page now, not over the season screen before
+     * it, so this stop comes after the pregame stop — keyed on the wheel whose title reads PREGAME */
+    { id: 'plan', title: 'THE WEEKLY PLAN', sub: 'ROLLED, NOT CHOSEN', when: (c) => c.planWheel, lines: [
+      { p: 'clipboard', t: "The wheel. The staff drew up the plans. It picks the one you run. His personality loads it." },
+      { p: 'tip', t: "Some plans chase big plays. Some keep it steady. One does the dirty work and earns my trust." },
+      { p: 'point', t: "Tap the wheel to hurry it, then CONTINUE. It shows you what it did to your numbers. Your sheet is the last page, then it's kickoff.", s: 'cont', tap: true },
     ] },
     { id: 'live', title: 'THE BROADCAST', sub: 'WATCH IT', when: (c) => c.live && !c.post, delay: 2600, lines: [
       { p: 'open', t: "Game time. Your guy has a ring under his feet. Watch him." },
@@ -517,11 +525,14 @@
     document.body.appendChild(root); document.body.classList.add('rib-coach-open');
     st.open = true; st.stop = S0; st.li = 0; st.flips = 0; st.auto = !(opts && opts.auto === false);
     st.lines = null; if (S0.build) { try { st.lines = S0.build(); } catch (e) { st.lines = null; } if (!st.lines || !st.lines.length) { st.open = false; st.stop = null; root.remove(); document.body.classList.remove('rib-coach-open'); return false; } }
+    if (!st.lines && S0.pre) { try { const P = S0.pre(); if (P && P.length) st.lines = P.concat(S0.lines || []); } catch (e) { st.lines = null; } }   // v136: a stop can put a line or two about the family in front of its own
     try { const H = window.__RIB_COACH; H.opens = (H.opens || 0) + 1; H.openedBy = (opts && opts.by) || 'page'; H.openedStop = stopId; } catch (e) { /* the hook */ }
     bind(root); if (voiceOn() && !reduced()) voiceCtx();
     preload().then(() => { if (document.getElementById(ID) && st.stop === S0) { root.classList.add('rib-coach-ready'); show(); (q('[data-c-next]') || root).focus({ preventScroll: true }); } });
     return true;
   }
+  /* v136 B: the season debrief on demand — the COACH'S SUMMARY button on the report card. Not a step of the tour, not gated by the switch. */
+  function summary() { const d = debrief(); if (!d) return false; if (st.open) close('close'); return open('debrief', { by: 'button' }); }
   function close(why) {
     const root = document.getElementById(ID); if (!root) return false;
     clearTimeout(st.timer); clearTimeout(st.mouth); cancelAnimationFrame(st.raf); st.typing = false; st.open = false; st.stop = null;
@@ -612,7 +623,7 @@
   }
 
   window.__RIB_COACH = {
-    open: (id, o) => open(id || 'menu', o), close: (w) => close(w || 'close'), toggle, next, back, tap, skip: () => finish('skip'), setAuto, setEnabled, setVoice, resetSeen, currentStop: () => { const c = currentStop(); return c ? c.id : null; },
+    open: (id, o) => open(id || 'menu', o), close: (w) => close(w || 'close'), toggle, next, back, tap, summary, skip: () => finish('skip'), setAuto, setEnabled, setVoice, resetSeen, currentStop: () => { const c = currentStop(); return c ? c.id : null; },
     get enabled() { return enabled(); }, get isOpen() { return !!document.getElementById(ID); },
     get stop() { return st.stop ? st.stop.id : null; }, get chapter() { return st.stop ? st.stop.id : null; }, get line() { return st.open ? st.li : -1; }, get typing() { return st.typing; },
     get flips() { return st.flips; }, get spot() { return st.spot; }, get auto() { return st.auto; }, get seen() { return [...seen()]; },

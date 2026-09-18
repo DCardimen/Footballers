@@ -419,7 +419,11 @@ await page.evaluate(() => { const g = document.getElementById('gv42go'); if (g) 
 await page.waitForTimeout(500)
 await click('Balanced Program'); await click('CONFIRM TRAINING')
 await click('PLAY WEEK 1 LIVE')
-await click('CONTINUE TO MATCH')
+// v135: the wheel no longer spins over the season screen — PLAY WEEK opens the pregame wizard and the
+// wheel is its FIFTH page, mounted into the page. Walk there.
+for (let i = 0; i < 40 && !(await page.evaluate(() => !!document.getElementById('pregameV1513'))); i++) await page.waitForTimeout(250)
+ok(await page.evaluate(() => !!document.getElementById('pregameV1513') && !document.getElementById('growthV42')), 'PLAY WEEK opens the pregame wizard with no wheel spun over the season screen (v135)')
+await page.evaluate(() => window.__V112_D.go(4))
 
 let pre = null
 for (let i = 0; i < 40; i++) {
@@ -518,25 +522,27 @@ if (pre) {
   // rather than continuing this one — so it is REPORTED below, not asserted. A
   // check that drives an entire career to the field fails on the career, not on the
   // wheel, and this assertion is about the wheel.
-  const landedPlan = await page.evaluate(() => {
-    const L = window.__WHEEL_V50_LAST
-    window.__CGP = []
-    const orig = window.chooseGamePlanV11
-    window.chooseGamePlanV11 = function () { window.__CGP.push([].slice.call(arguments)); return orig && orig.apply(this, arguments) }
-    return L ? L.themes[L.win] : null
-  })
+  const landedPlan = await page.evaluate(() => { const L = window.__WHEEL_V50_LAST; return L ? L.themes[L.win] : null })
+  const heldPlan = await page.evaluate(() => { const h = window.__V135.hold(); return h ? { win: h.d.win.id, applied: h.applied } : null })
+  ok(!!heldPlan && heldPlan.win === landedPlan && !heldPlan.applied, 'the wheel lands on the plan that was rolled and HELD when the deck appeared, still unapplied', JSON.stringify({ landedPlan, heldPlan }))
   await page.evaluate(() => document.getElementById('gv42go').click())
   await page.waitForTimeout(400)
   const res = await page.evaluate(() => ({
-    cgp: window.__CGP, ov: !!document.getElementById('growthV42'), roll: !!document.getElementById('gv62roll'),
+    ov: !!document.querySelector('#v112Page5 [data-inline]'), roll: !!document.getElementById('gv62roll'), applied: window.__V135.hold().applied,
+    next: document.getElementById('v112Next').innerText, dis: document.getElementById('v112Next').disabled,
   }))
   console.log('pregame resolve:', JSON.stringify(Object.assign({ landedPlan }, res)))
-  ok(res.cgp.length === 1, 'resolving the wheel commits the plan exactly once', JSON.stringify(res.cgp))
-  ok(res.cgp.length === 1 && res.cgp[0][0] === landedPlan,
-    'and commits the plan the wheel actually landed on',
-    `landed ${landedPlan}, committed ${res.cgp[0] && res.cgp[0][0]}`)
-  ok(!res.ov && !res.roll, 'and takes the wheel and its roll pop-up down with it',
-    { overlay: res.ov, roll: res.roll })
+  ok(!res.roll && res.ov && res.applied, 'CONTINUE takes the roll pop-up down, leaves the wheel standing on its page, and applies the swing once', JSON.stringify(res))
+  ok(!res.dis && /YOUR SHEET/i.test(res.next), 'and the wizard moves on to the sheet (v136: the sheet is the last page)', res.next)
+  await page.evaluate(() => document.getElementById('v112Next').click()); await page.waitForTimeout(300)
+  const sheetNext = await page.evaluate(() => document.getElementById('v112Next').innerText)
+  ok(/CONTINUE TO MATCH/i.test(sheetNext), 'the sheet page offers the field', sheetNext)
+  await page.evaluate(() => document.getElementById('v112Next').click())
+  await page.waitForTimeout(600)
+  const gone = await page.evaluate(() => ({ pre: !!document.getElementById('pregameV1513'), ov: !!document.getElementById('growthV42'), hold: !!window.__V135.hold(), view: window.__GRIDIRON_AUDIT__.getState().view, next: (document.getElementById('v112Next') || {}).innerText, dis: (document.getElementById('v112Next') || {}).disabled, page: window.__V112_D.page(), active: window.__V136_PAGES.active().length,
+    plan: (() => { try { const p = window.__GRIDIRON_AUDIT__.getState().player; const w = (p.weekResults || [])[p.currentWeek || 0]; return w && (w.planV11 || w._plan103) } catch (e) { return null } })() }))
+  ok(!gone.pre && !gone.ov && !gone.hold, 'CONTINUE TO MATCH takes the wizard and the wheel down and releases the hold', JSON.stringify(gone))
+  ok(gone.plan === landedPlan, 'and the week is booked with the plan the wheel actually landed on', `landed ${landedPlan}, booked ${gone.plan}`)
 
   // ...and then, best effort, watch it walk to the field
   let live = false

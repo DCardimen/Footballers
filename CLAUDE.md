@@ -68,6 +68,52 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v136 D THE LINEAGE` (beside `Di`) / `v136 C THE ESTATE IS SETTLED AT THE END` (beside `es`) /
+  `v136 B THE COACH'S SUMMARY IS A BUTTON` (beside the `q` wrapper, before the v85 banner) /
+  `v136 A THE RIVAL IS SPUN ON GAME WEEK` (beside `Fr`, and its page beside `v135FinalD`) — the prestige
+  system IS lineage. `o.lineageV136` = `{gen, surname, fathers[]}`; `lineageEndV136(e, level, fate)`
+  writes the father at both settles (`ms` cut / `no` won) and on a walk-away in `Di`;
+  `lineageBirthV136(son)` names the son `W(Xo)+" "+surname` and bumps `gen`; `familyV136()` (gen,
+  ordinal, surname, years = Σ fathers' seasons + the current man's, father, nodes) is read by
+  `lineageRowV136` (hub), `lineageCardV136` (position screen), `lineageHofV136` (Hall of Fame), the tree
+  header in `ps`, the career-end cards, the menu feed (`state.lineage`, the GEN chip and ticker line in
+  `rib-menu.js`) and the coach (`family()` / `fatherSay()`; a stop's `pre()` puts lines in front of its
+  own — persona and position use it). `window.__LINEAGE_V136`. PP: `bankPPV136(n, why)` banks while
+  `bankingV136()` (a live, unsettled player), else pays; `flushBankV136()` at the settles
+  (`e._ppBankV136` is what the card shows); `TU("ppBankV136",0)` restores pay-as-you-go;
+  `window.__V136_C`. The summary: `coachSummaryRowV136` injects the row after the grade card on `result`
+  through a `q` wrapper, `coachSummaryV136` → `__RIB_COACH.summary()` (opens the `debrief` stop, `by:
+  "button"`), the AUTO switch is `COACH_SUM_KEY_V136` = `rib.debriefOff.v122`; `window.__V136_B`. The
+  rivalry: `Nr` shows `rivalDeferCardV136` for `bigGame`, `rivalDeferV136` books `eventChoice =
+  {rivalV128, pendingV136}`, `rivalDeckV136` (locks off) / `rivalWeightsV136` (the plan wheel's appetite)
+  / `rivalDecideV136` / `rivalApplyV136` / `rivalResolveV136` (the first line of `ca()` on a rivalry
+  week); `TU("rivalSpinOnWeekV136",0)` puts the choice back on the event screen; `window.__V136_A`. The
+  wizard: `V112_PAGES_D` has seven entries, `v112ActiveD()` filters by `when` (page 6 only when
+  `rivalPageV136()`), `v112NextLabelD` names the next page, `v136MountRivalD` / `v136ParkRivalD` /
+  `v136RivalOutD` / `v136SummaryHTMLD`, `v135NextD("wait")` also hides the skip strip, and an inline
+  wheel's CONTINUE renames its ids (`growthV42Done<n>`, `data-was` on the parts) so the next wheel can
+  mount; `window.__V136_PAGES`. `v136check.mjs`, then `v112Dcheck.mjs`, `wheelcheck.mjs`,
+  `rivalcheck.mjs`, `coachcheck.mjs`, `v111Bcheck.mjs`, `v134check.mjs`, `v85check.mjs`,
+  `menu-integration-check.mjs`, `honorcheck.mjs`, `walk.mjs`
+- `v135 THE WHEEL SPINS ON THE FIFTH PAGE` (two banners: in the v51 pregame-wheel block, beside
+  `rollPlan`, and in the v112 D wizard block, beside `V112_PAGES_D`) — `rollPlan` no longer spins: it
+  reads the deck, rolls the decision through `holdPlanV135` (one roll a week, keyed on the player, the
+  played count and the plan ids, HELD in `heldV135`) and calls the wrapped `chooseGamePlanV11`, which
+  opens the wizard; `wheelCfgV135(pl,d)` is the wheel's presentation, `applyHeldV135` /
+  `commitHeldV135` apply the swing once (`continuePregame` commits — seen or skipped), and
+  `__PREGAME_V51.hold()/.cfg()/.apply()/.commit()/.wizardUp()` expose it. `spinWheel` takes
+  `cfg.host` (or `inlineHostV135`, set by `showWheelIn(host,...)` for the story wheel): the same
+  markup with the same `#growthV42` id inside the host, `data-inline="1"`, no fixed backdrop; the roll
+  pop-up's CONTINUE moves the result card onto the page and closes only the pop-up. The wizard:
+  `v112Page5`, `v135MountD` (a queued `_crossroadsV135` first, then the plan; NEXT reads THE WHEEL IS
+  SPINNING… and is disabled until the roll is in), `v135ParkD` (BACK mid-spin takes it down, it
+  respins to the same pick), `v135FinalD` (WHAT THE WHEEL DID: the plan, the band, before → after per
+  stat off `__V85.effAttrs`, the sheet under it with its ids stripped to `data-id`), page 4's NEXT
+  reads SPIN THE WHEEL ›. The v42 post-game watcher writes `pl._crossroadsV135` instead of showing;
+  `startSeason` clears it. The coach: `pregame` (FIVE STEPS) fires on page 1, `plan` on the page-5
+  wheel (`planWheel`), and `wheel` (the season commitment) never inside the pregame.
+  `window.__V135` (`spins`, `crossroads`, `done()`, `hold()`); `v112Dcheck.mjs`, `wheelcheck.mjs`,
+  `coachcheck.mjs`, then `v111Bcheck.mjs`, `v85check.mjs`, `walk.mjs`
 - `v134 THE GOALS ARE WORTH CHASING` (the `zt` table) / `v134 THE BUSTS HAVE A BOX SCORE` (beside `Ui` /
   `Bi`) / `v134 THE MAN IN THE PICTURE` (beside `growDrawV133`) / the APEX branch (last in `sa`) — `zt` is
   rescaled top to bottom: `dflMvpTitle` (a DFL title as the game's MVP, 10,000 PP) and `galaxyMvpTitle`
@@ -518,6 +564,11 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | You changed… | Run |
 |---|---|
 | tackling / contact physics | `tacklecheck.mjs`, `jukecheck.mjs` |
+| the lineage — the son, the surname, the family years, the father on every screen and in the coach's mouth (v136 D) | `v136check.mjs`, then `coachcheck.mjs`, `menu-integration-check.mjs`, `honorcheck.mjs`, `declarecheck.mjs`, `walk.mjs` |
+| when PP is paid — the bank, the settle, the career-end card (v136 C) | `v136check.mjs`, `v134check.mjs`, then `v85check.mjs`, `origincheck.mjs` |
+| the COACH'S SUMMARY button and its AUTO switch on the report card (v136 B) | `coachcheck.mjs` (it plays to the card), then `v112Dcheck.mjs` |
+| the pregame's pages — the sheet last, the rivalry spin, the deferred event screen, a wheel after a wheel (v136 A) | `v136check.mjs`, `v112Dcheck.mjs`, `wheelcheck.mjs`, `rivalcheck.mjs`, then `v111Bcheck.mjs`, `coachcheck.mjs`, `walk.mjs` |
+| the game-plan wheel — where it spins, the held roll, the fifth pregame page, the queued crossroads (v135) | `v112Dcheck.mjs`, `wheelcheck.mjs`, `coachcheck.mjs`, then `v111Bcheck.mjs`, `v85check.mjs`, `walk.mjs`, `scrollcheck.mjs` |
 | the goals' payouts, the Hall of Fame box scores, the Apex branch, the ring's soft max, the season strip's stats, the growth figure, the coach's stops and his last line (v134) | `v134check.mjs`, then `coachcheck.mjs`, `growcheck.mjs`, `menufxcheck.mjs`, `menu-integration-check.mjs`, `honorcheck.mjs`, `stridecheck.mjs`, `rivalcheck.mjs`, `v85check.mjs`, `declarecheck.mjs`, `walk.mjs` |
 | the growth figure's art — the native-resolution sheet, the recolour, the fallback cell (v134) | `python3 scripts/build-grow-art.py`, then `growcheck.mjs`; `growshot.mjs` to look |
 | the training board's grades — the tiers, the pick, the shaded bars (v133) | `gradecheck.mjs`, then `traincheck.mjs`, `capcheck.mjs`, `skillartcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs`; `BOARD=1 growshot.mjs` to look |
