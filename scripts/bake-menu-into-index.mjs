@@ -12,6 +12,7 @@ const cssFiles = [
   'rib-menu.css',
   'rib-menu-v89.css',
   'rib-menu-coach.css',
+  'rib-vault.css',
 ]
 
 const jsFiles = [
@@ -21,6 +22,9 @@ const jsFiles = [
   'rib-menu-howto.js',
   'rib-menu-coach.js',
   'rib-menu-navigation.js',
+  'rib-vault.js',
+  'rib-vault-audio.js',
+  'rib-vault-bridge.js',
 ]
 
 if (!fs.existsSync(indexPath)) throw new Error('index.html is missing')
@@ -34,8 +38,8 @@ let html = fs.readFileSync(indexPath, 'utf8')
 html = html
   .replace(/\s*<!-- RIB_DIRECT_MENU_HEAD_BEGIN -->[\s\S]*?<!-- RIB_DIRECT_MENU_HEAD_END -->\s*/g, '\n')
   .replace(/\s*<!-- RIB_DIRECT_MENU_BODY_BEGIN -->[\s\S]*?<!-- RIB_DIRECT_MENU_BODY_END -->\s*/g, '\n')
-  .replace(/\s*<link\b[^>]*href=["'][^"']*(?:public\/)?rib-menu[^"']*\.css(?:\?[^"']*)?["'][^>]*>\s*/gi, '\n')
-  .replace(/\s*<script\b[^>]*src=["'][^"']*(?:public\/)?rib-menu[^"']*\.js(?:\?[^"']*)?["'][^>]*><\/script>\s*/gi, '\n')
+  .replace(/\s*<link\b[^>]*href=["'][^"']*(?:public\/)?rib-(?:menu|vault)[^"']*\.css(?:\?[^"']*)?["'][^>]*>\s*/gi, '\n')
+  .replace(/\s*<script\b[^>]*src=["'][^"']*(?:public\/)?rib-(?:menu|vault)[^"']*\.js(?:\?[^"']*)?["'][^>]*><\/script>\s*/gi, '\n')
   .replace(/\s*<meta\b[^>]*name=["']rib-menu-build["'][^>]*>\s*/gi, '\n')
 
 const headClose = html.lastIndexOf('</head>')

@@ -55,6 +55,31 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v137 — the Prestige Vault: your points, where you can see them.** Prestige Points stopped being a
+  number on a chip and became a room. `o.pp` is drawn as ONE mixed hoard — bronze (1 PP), silver
+  (1,000), gold (1,000,000) and electric blue (1,000,000,000), all in the same pile — on the floor of a
+  black-and-gold vault with a circular door on the wall behind it. Tapping the money peels a coin off
+  the hoard and throws it at the upgrade you are funding; holding pours, and the pour accelerates
+  1x → 2x → 4x → 8x → 16x until the mound visibly collapses, the receiving core charges, and the
+  upgrade unlocks. Earning runs the other way: a finished career offers to show the payout falling in
+  and the pile growing. **The economy did not move.** Upgrades in this game are atomic — `Yl` debits
+  the price and adds one level in one call — so the vault holds a RESERVATION inside its own screen,
+  calls the game's own `buy` exactly once at the end, and then verifies that `o.pp` and the node's
+  level really moved before it claims a sale. Cancel, navigate away, background the app or reload
+  mid-pour and nothing was ever debited; skip and the same one purchase happens immediately. v136's
+  banked PP is shown as pending and is never spendable, and replaying the payout presentation creates
+  no PP. Prices, gates, rewards and the banking rules are untouched. The hoard is a seeded slot list
+  that never reshuffles — coin *i* is born at a fixed fullness on the mound as it is at that fullness,
+  so spending takes coins off the top and the outside and everything else stays exactly where it was;
+  eight illustrative states run from an empty floor to an overflowing room, capped at a bounded number
+  of sprites that falls on weaker devices. The screen is `public/rib-vault*.js/.css` (baked in like the
+  menu), 50 sprites cut out of the supplied concept sheets by `scripts/build-vault-art.py`, and about
+  forty lines of glue in `index.html`. Two honest notes: the supplied room art misspells PRESTIGE, so
+  its lettering is painted out and the renderer draws the words itself; and no audio file was supplied,
+  so every sound is synthesised in WebAudio and `__RIB_VAULT_AUDIO.manifest()` names what a real
+  recording would replace. `docs/PRESTIGE-VAULT.md` is the write-up, `docs/vault-shots/` the pictures,
+  `scripts/vaultcheck.mjs` the gate (52 assertions, 60 fps under a 16x pour).
+
 - **v136 — the lineage: the prestige system is a father's lesson to his son.** Four asks. **THE LINEAGE
   (D)**: a career ends and the next player is the SON — a new first name, the family's surname, the
   generation counted (`o.lineageV136`: gen, surname, one father record per finished or abandoned career

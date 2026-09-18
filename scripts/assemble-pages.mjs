@@ -11,6 +11,7 @@ const menuCss = [
   'rib-menu-reset.css',
   'rib-menu.css',
   'rib-menu-v89.css',
+  'rib-vault.css',
 ]
 
 const menuJs = [
@@ -19,6 +20,9 @@ const menuJs = [
   'rib-menu.js',
   'rib-menu-howto.js',
   'rib-menu-navigation.js',
+  'rib-vault.js',
+  'rib-vault-audio.js',
+  'rib-vault-bridge.js',
 ]
 
 // v89: the menu's pictures ship as public/menu/*.webp. The three source sprite
@@ -82,6 +86,17 @@ for (const file of menuJs) {
   if (!html.includes(`./public/${file}?v=`)) throw new Error(`Missing direct script reference: ${file}`)
 }
 for (const asset of menuArt) requireFile(path.resolve(outputDir, 'public', asset))
+
+// v137: the vault's sprites. Shipping its code without them is a black room, so the
+// manifest is read and every file it names is required to exist in the output.
+{
+  const manifestPath = path.resolve(outputDir, 'public', 'vault', 'manifest.json')
+  requireFile(manifestPath)
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+  const names = Object.keys(manifest.sprites || {})
+  if (names.length < 40) throw new Error(`The vault manifest lists only ${names.length} sprites`)
+  for (const name of names) requireFile(path.resolve(outputDir, 'public', manifest.sprites[name].file))
+}
 
 fs.writeFileSync(
   path.resolve(outputDir, 'rib-build.json'),
