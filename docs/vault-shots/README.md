@@ -1,73 +1,93 @@
 # Prestige Vault — screenshots
 
 Captured from the real game in headless Chromium at 412x915 (portrait, DPR 2) and
-1280x820 (desktop), by `scripts/vaultshot.mjs`, `scripts/vaultspend.mjs` and
-`scripts/vaultdoor.mjs`. Nothing here is a mockup.
+1280x820 (desktop), by `scripts/vaultshot.mjs`, `vaultspend.mjs`, `vaultdoor.mjs` and
+`vaultphys.mjs`. Nothing here is a mockup.
 
-### The vault shut: the leaf, the lock wheel, the bolts
+### Closed: the leaf fills the frame, the interface stays out of it
 
-![The vault shut: the leaf, the lock wheel, the bolts](01-closed-vault.jpg)
+![Closed: the leaf fills the frame, the interface stays out of it](01-closed-vault.jpg)
 
-### The leaf swinging out on its hinge, the room arriving
+### Unlocking — the wheel turns, the bolts start to draw in
 
-![The leaf swinging out on its hinge, the room arriving](02-door-opening.jpg)
+![Unlocking — the wheel turns, the bolts start to draw in](02-unlocking.jpg)
+
+### The leaf pivots on its right edge and sweeps out
+
+![The leaf pivots on its right edge and sweeps out](03-door-opening.jpg)
+
+### The room arrives behind it
+
+![The room arrives behind it](04-revealed.jpg)
 
 ### Empty vault — 0 PP
 
-![Empty vault — 0 PP](03-empty.jpg)
+![Empty vault — 0 PP](05-empty.jpg)
 
-### Almost empty — 7 PP, seven bronze coins on the floor
+### Almost empty — 7 PP, and exactly seven coins
 
-![Almost empty — 7 PP, seven bronze coins on the floor](04-almost-empty.jpg)
+![Almost empty — 7 PP, and exactly seven coins](06-almost-empty.jpg)
 
 ### Modest savings — 420 PP
 
-![Modest savings — 420 PP](05-modest.jpg)
+![Modest savings — 420 PP](07-modest.jpg)
 
-### Growing wealth — 7,500 PP
+### Growing wealth — 7,500 PP, stacks appearing
 
-![Growing wealth — 7,500 PP](06-growing.jpg)
+![Growing wealth — 7,500 PP, stacks appearing](08-growing.jpg)
 
 ### Large collection — 90,000 PP
 
-![Large collection — 90,000 PP](07-large.jpg)
+![Large collection — 90,000 PP](09-large.jpg)
 
-### Massive collection — 2,400,000 PP, gold and silver mixed
+### Massive collection — 2,400,000 PP, gold and silver stacked
 
-![Massive collection — 2,400,000 PP, gold and silver mixed](08-massive.jpg)
+![Massive collection — 2,400,000 PP, gold and silver stacked](10-massive.jpg)
 
 ### Nearly full — 40,000,000 PP
 
-![Nearly full — 40,000,000 PP](09-nearly-full.jpg)
+![Nearly full — 40,000,000 PP](11-nearly-full.jpg)
 
 ### Overflowing — 1.25B PP, all four faces, blue as a rare accent
 
-![Overflowing — 1.25B PP, all four faces, blue as a rare accent](10-overflowing-mixed.jpg)
+![Overflowing — 1.25B PP, all four faces, blue as a rare accent](12-overflowing-mixed.jpg)
+
+### Drag: a coin picked up off the heap, its shadow on the floor under it
+
+![Drag: a coin picked up off the heap, its shadow on the floor under it](13-coin-in-hand.jpg)
+
+### Tilt: the phone tipped left and the money slumps that way
+
+![Tilt: the phone tipped left and the money slumps that way](14-tilted.jpg)
+
+### RESTOCK: every disturbed coin back in its place
+
+![RESTOCK: every disturbed coin back in its place](15-restocked.jpg)
 
 ### Walked in from the tree with an upgrade selected
 
-![Walked in from the tree with an upgrade selected](11-upgrade-selected.jpg)
+![Walked in from the tree with an upgrade selected](16-upgrade-selected.jpg)
 
 ### The first tap: a coin detaches and leaves the pile
 
-![The first tap: a coin detaches and leaves the pile](12-first-tap.jpg)
+![The first tap: a coin detaches and leaves the pile](17-first-tap.jpg)
 
 ### Holding: the stream accelerating
 
-![Holding: the stream accelerating](13-accelerating.jpg)
+![Holding: the stream accelerating](18-accelerating.jpg)
 
-### 16x: the currency vortex, the core nearly charged
+### 16x: the currency vortex, the core charging
 
-![16x: the currency vortex, the core nearly charged](14-sixteen-times.jpg)
+![16x: the currency vortex, the core charging](19-sixteen-times.jpg)
 
 ### Upgrade unlocked, the price debited exactly once
 
-![Upgrade unlocked, the price debited exactly once](15-upgrade-complete.jpg)
+![Upgrade unlocked, the price debited exactly once](20-upgrade-complete.jpg)
 
 ### A career settles: the money falls into the vault
 
-![A career settles: the money falls into the vault](16-career-payout.jpg)
+![A career settles: the money falls into the vault](21-career-payout.jpg)
 
 ### Desktop / landscape
 
-![Desktop / landscape](17-desktop.jpg)
+![Desktop / landscape](22-desktop.jpg)

@@ -17,14 +17,22 @@ await page.evaluate(() => { document.querySelectorAll('.onboard').forEach(e => e
   try { localStorage.removeItem('rib.vaultDoor.v137'); localStorage.setItem('rib.coachTour.v119', '0') } catch (e) {} })
 await page.evaluate(() => { const o = window.__GRIDIRON_AUDIT__.getState(); o.pp = 240000; o.prestige = 40; o.view = 'shop'; window.render() })
 
-// --- the opening ---
+// --- the opening. A screenshot costs a few hundred ms, so the cue points are FROZEN
+// rather than sampled, or the sequence is over before the camera gets there. ---
 await page.evaluate(() => window.__RIB_VAULT_BRIDGE.open({}))
-for (const ms of [120, 500, 500, 500, 500, 500]) {
-  await page.waitForTimeout(ms)
-  const t = await page.evaluate(() => window.__RIB_VAULT_DEV.state().doorT)
+await page.waitForTimeout(400)
+for (const t of [0.05, 0.22, 0.38, 0.55, 0.70, 0.86, 1.0]) {
+  await page.evaluate((t) => {
+    const V = window.__RIB_VAULT_DEV
+    V.v.doorTick = null                       // hold the sequence where we want it
+    V.scene().doorT = t
+    V.v.root.classList.toggle('opening', t < 0.74)
+  }, t)
+  await page.waitForTimeout(220)
   await page.screenshot({ path: `_vault_door_${t.toFixed(2)}.png` })
-  console.log('doorT', t.toFixed(3))
+  console.log('doorT', t.toFixed(2))
 }
+await page.evaluate(() => { window.__RIB_VAULT_DEV.v.root.classList.remove('opening') })
 await page.evaluate(() => window.__RIB_VAULT.close('door'))
 await page.waitForTimeout(300)
 

@@ -125,6 +125,19 @@
     }
     return 0;
   }
+  /* How many coins to draw for a balance. Above the literal line it is the presentation
+   * curve against the device's coin budget; at or below it the vault draws your coins ONE
+   * FOR ONE, because at that size you can count them and a vault that shows thirteen when
+   * you own seven is lying about the only thing on the screen. The two meet within a tenth
+   * of each other at the join, so nothing jumps. */
+  var LITERAL_PP = 60;
+  function coinsFor(pp, budget) {
+    pp = Math.max(0, Math.round(pp));
+    if (pp <= 0) return 0;
+    if (pp <= LITERAL_PP) return pp;
+    return Math.max(LITERAL_PP, Math.round(fullnessOf(pp) * budget));
+  }
+
   function tierName(pp) {
     if (pp <= 0) return TIERS[0].name;
     var f = fullnessOf(pp), best = TIERS[1];      // any balance at all is past 'Empty vault'
@@ -145,20 +158,52 @@
   };
 
   /* ---------- the slots ---------- */
-  function buildSlots(max) {
-    var R = rng(0x5EED1337), s = new Array(max), i;
-    for (i = 0; i < max; i++) {
-      var u = (i + 0.5) / max;
+  /* THE HOARD IS MOSTLY STACKS.
+   *
+   * Loose discs alone read as a brown blob the moment there are more than a dozen of them —
+   * there is no vertical structure for the eye to catch, so a hundred coins and a thousand
+   * look the same. Money in a vault is STACKED. So most slots are columns: k coins of one
+   * denomination drawn from the `flat` sprite, each one a coin's thickness above the last,
+   * with a little wander so the column is not a machined cylinder, and now and then a coin
+   * lying askew across the top. The rest stay loose and tilted, which is what keeps the
+   * heap from looking stocked rather than poured.
+   *
+   * The budget is therefore counted in COINS, not slots: a stack of eight costs eight. That
+   * keeps the draw call count bounded whatever the mix of stacks and singles comes out at,
+   * and it keeps `n` meaning the one thing it should mean. `cum[i]` is the running total, so
+   * the slots to draw for n coins are still a prefix — slot i is born when the count passes
+   * cum[i], nothing reshuffles, and the eight wealth states still land where they did. */
+  var STACK_SHARE = 0.66;        // most of the hoard is stacked
+  var LOOSE_FIRST = 14;          // ...but the first coins in an almost-empty vault are not
+  var SEED = 0x5EED1337;         // fixed, so the vault is the same room every session
+  function reseed() { SEED = (SEED * 1664525 + 1013904223) >>> 0; return SEED; }
+
+  function buildSlots(coinBudget) {
+    var R = rng(SEED), s = [], cum = [], total = 0, i = 0;
+    while (total < coinBudget) {
+      var u = Math.min(0.9999, total / coinBudget);
       var th = R() * Math.PI * 2;
       // a coin lands on the mound's surface as it is at ITS birth, biased outward so the
       // footprint spreads as fast as the peak climbs
       var q = Math.pow(R(), 0.62);
-      var spill = R() < 0.085;                   // a poured heap throws coins off its foot;
+      var spill = R() < 0.075;                   // a poured heap throws coins off its foot;
       var rr = MOUND.R(u) * (spill ? 1.05 + R() * 0.55 : q) * MOUND.lobe(th);
       var h = spill ? 0.012 * R()                // without them the mound has a cut-out edge
         : MOUND.H(u) * MOUND.prof(q) * (0.80 + 0.20 * MOUND.lobe(th));
       var sink = 0.55 + 0.45 * R();              // some coins are half-buried, not perched
-      s[i] = {
+      // stacks are taller where the heap is deep and shorter out on the slope; the very
+      // first coins are always singles, because six coins standing in a column is not what
+      // an almost-empty vault looks like
+      var wantStack = total >= LOOSE_FIRST && !spill && R() < STACK_SHARE;
+      // A column needs something to stand on, so height is keyed on how LOW in the heap the
+      // slot sits, not on how near the middle: tall stacks at the base and the front, short
+      // ones out on the slope and at the crown. Keyed on the radius instead, the tallest
+      // columns land on the peak and the hoard grows a picket fence.
+      var room = 1 - Math.min(1, h / (MOUND.H(1) * 0.92));
+      var k = wantStack
+        ? Math.max(2, 2 + Math.round(Math.pow(R(), 1.35) * (1.6 + 7.4 * room * room)))
+        : 1;
+      s.push({
         x: Math.cos(th) * rr,
         z: Math.sin(th) * rr * 0.62,             // the hoard is an ellipse on the floor
         y: h * sink,
@@ -168,15 +213,27 @@
         size: 0.84 + 0.32 * R(),
         shade: 0.62 + 0.38 * R(),                // how much light this coin catches
         face: (function (a) { return a < 0.40 ? 'hero' : a < 0.76 ? 'flat' : a < 0.955 ? 'face' : 'edge'; })(R()),
-        stack: R() < 0.055,                      // a few are stack modules sunk in the hoard
+        cnt: k,                                  // 1 = a loose coin, >1 = a column of k
+        lean: R() * Math.PI * 2,                 // which way the column wanders as it climbs
+        capped: k > 2 && R() < 0.36,             // a coin lying askew across the top
+        capRot: (R() - 0.5) * 1.1,
         glint: R()
-      };
+      });
+      total += k; cum.push(total); i++;
+      if (i > 4000) break;                       // a belt for the braces
     }
     // painter's order, far to near, computed once
-    var order = new Array(max);
-    for (i = 0; i < max; i++) order[i] = i;
+    var order = new Array(s.length);
+    for (i = 0; i < s.length; i++) order[i] = i;
     order.sort(function (a, b) { return (s[b].z - s[a].z) || (s[a].y - s[b].y); });
-    return { slot: s, order: order, max: max };
+    return { slot: s, order: order, cum: cum, coins: total, max: s.length };
+  }
+
+  /* how many slots the first `n` coins fill — a binary search over the running total */
+  function slotsFor(sl, n) {
+    var lo = 0, hi = sl.cum.length;
+    while (lo < hi) { var m = (lo + hi) >> 1; if (sl.cum[m] <= n) lo = m + 1; else hi = m; }
+    return lo;
   }
 
   function denOf(slot, mix) {
@@ -217,9 +274,10 @@
 
   window.__RIB_VAULT_MODEL = {
     breakdown: breakdown, mixOf: mixOf, fullnessOf: fullnessOf, tierName: tierName,
-    shortPP: shortPP, commas: commas, buildSlots: buildSlots, denOf: denOf,
+    shortPP: shortPP, commas: commas, buildSlots: buildSlots, slotsFor: slotsFor, denOf: denOf,
+    coinsFor: coinsFor, LITERAL_PP: LITERAL_PP, reseed: reseed,
     TIERS: TIERS, DEN: DEN, DEN_VALUE: DEN_VALUE, DEN_LABEL: DEN_LABEL, DEN_TINT: DEN_TINT,
-    MOUND: MOUND, rng: rng, SPRITE_NAMES: SPRITE_NAMES
+    MOUND: MOUND, rng: rng, SPRITE_NAMES: SPRITE_NAMES, STACK_SHARE: STACK_SHARE
   };
 })();
 
@@ -264,7 +322,7 @@
   };
 
   /* the hoard's footprint in ground space */
-  var PILE = { z: 0.27, dz: 0.150, dx: 1.06, dy: 1.30 };
+  var PILE = { z: 0.27, dz: 0.150, dx: 1.20, dy: 0.98 };
 
   /* ---------- pre-shaded sprite variants ----------
    * A coin in a hoard is lit by how deep in the hoard it sits. Compositing a darkening
@@ -319,15 +377,17 @@
       if (n.indexOf('coin_') === 0) self.shade[n] = shadeBake(sprites.img[n]);
     });
   }
-  /* an intelligently bounded number of objects: the hoard never renders more than this,
-   * whatever the balance, and a weak device gets fewer. */
+  /* An intelligently bounded number of objects: the hoard never renders more COINS than
+   * this, whatever the balance, and a weak device gets fewer. Counted in coins rather than
+   * slots because most slots are stacks — a column of eight costs eight draws, and that is
+   * the number the frame actually pays for. */
   Scene.budget = function () {
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     var px = (window.innerWidth || 400) * (window.innerHeight || 700) * dpr * dpr;
     var mem = navigator.deviceMemory || 4;
-    if (px > 2.4e6 && mem >= 4) return 1350;
-    if (px > 1.0e6 && mem >= 3) return 980;
-    return 620;
+    if (px > 2.4e6 && mem >= 4) return 2400;
+    if (px > 1.0e6 && mem >= 3) return 1700;
+    return 1050;
   };
 
   Scene.prototype.resize = function () {
@@ -547,8 +607,7 @@
   Scene.prototype.setBalance = function (pp, animate) {
     this.pp = Math.max(0, Math.round(pp));
     this.mix = M.mixOf(this.pp);
-    this.n = Math.round(M.fullnessOf(this.pp) * this.slots.max);
-    this.n = Math.max(0, Math.min(this.slots.max, this.n));
+    this.n = Math.max(0, Math.min(this.slots.coins, M.coinsFor(this.pp, this.slots.coins)));
     if (!animate) this.nShown = this.n;
   };
 
@@ -561,7 +620,8 @@
   /* one coin, anywhere in the scene. `spin` is the rotation about the coin's own axis:
    * scaleX = |cos spin| is exactly what a spinning disc does, and the face flips to the
    * back through the crossing, where the edge sprite is blended in. */
-  Scene.prototype.drawCoin = function (x, den, kind, px, py, size, rot, spin, shadeIx, tilt) {
+  var THICK = { face: 0.085, back: 0.085, flat: 0.070, hero: 0.045, edge: 0 };
+  Scene.prototype.drawCoin = function (x, den, kind, px, py, size, rot, spin, shadeIx, tilt, thickMul) {
     var img, sx = 1, alt = null, altA = 0;
     if (spin != null) {
       var c = Math.cos(spin);
@@ -581,6 +641,18 @@
     x.save();
     x.translate(px, py);
     if (rot) x.rotate(rot);
+    // the edge of the coin, under its face
+    var thk = (THICK[kind] || 0) * size * (thickMul == null ? 1 : thickMul);
+    if (thk > 0.55 && size > 8) {
+      var rim = this.coinImg(den, kind, 0);
+      if (rim) {
+        var rh = (kind === 'edge') ? size : size * (rim.height / rim.width);
+        if (tilt != null) rh *= (0.34 + 0.66 * (1 - tilt));
+        x.globalAlpha = 0.95;
+        x.drawImage(rim, -size * sx / 2, -rh / 2 + thk, size * sx, rh);
+        x.globalAlpha = 1;
+      }
+    }
     if (altA > 0 && alt) {
       x.globalAlpha = 1 - altA;
       x.drawImage(img, -w * sx / 2, -hgt / 2, w * sx, hgt);
@@ -596,7 +668,7 @@
   /* the deep layer: everything below the live surface, baked. Re-baked only when the
    * quantised count moves, so a 16x stream re-bakes a few times a second, not 60. */
   Scene.prototype.bakeDeep = function (nDeep) {
-    var step = Math.max(6, Math.round(this.slots.max * 0.012));
+    var step = Math.max(10, Math.round(this.slots.coins * 0.012));
     var q = Math.round(nDeep / step) * step;
     var key = q + '|' + this.mixKey();
     if (key === this.deepKey) return;
@@ -605,8 +677,8 @@
     x.setTransform(1, 0, 0, 1, 0, 0);
     x.clearRect(0, 0, this.deep.width, this.deep.height);
     x.scale(this.dpr, this.dpr);
-    this.drawRange(x, 0, q, true);
-    this.deepN = q;
+    this.deepSlots = M.slotsFor(this.slots, q);
+    this.drawRange(x, 0, this.deepSlots, true);
   };
   Scene.prototype.mixKey = function () {
     return DEN.map(function (d) { return Math.round(this.mix[d] * 40); }, this).join(',');
@@ -614,10 +686,11 @@
 
   Scene.prototype.drawRange = function (x, from, to, withShadow) {
     var s = this.slots.slot, ord = this.slots.order, cam = this.cam, p = {};
-    var blob = this.blob, i, k, sl, den, size;
+    var blob = this.blob, i, k, sl, den, size, shadeIx;
     for (k = 0; k < ord.length; k++) {
       i = ord[k];
       if (i < from || i >= to) continue;
+      if (this._skip && this._skip[i]) continue;   // this one is loose; the physics draws it
       sl = s[i];
       cam.project(sl.x * PILE.dx, sl.y * PILE.dy, PILE.z + sl.z * PILE.dz, p);
       size = p.s * sl.size;
@@ -627,30 +700,47 @@
         x.globalAlpha = 1;
       }
       den = M.denOf(sl, this.mix);
-      var shadeIx = Math.min(3, Math.max(0, Math.round(sl.shade * 2.2 + (sl.y / 0.9) * 1.4)
+      shadeIx = Math.min(3, Math.max(0, Math.round(sl.shade * 2.2 + (sl.y / 0.9) * 1.4)
         - (den === 'blue' ? 1 : 0)));
-      if (sl.stack && size > 16) {
-        var st = this.coinImg(den, sl.y > 0.3 ? 'stack_s' : 'stack_m', shadeIx);
-        if (st) {
-          var sw = size * 0.92, sh = sw * (st.height / st.width);
-          x.drawImage(st, p.x - sw / 2, p.y - sh * 0.72, sw, sh);
-          continue;
-        }
-      }
+      if (sl.cnt > 1 && size > 7) { this.drawStack(x, sl, den, p.x, p.y, size, shadeIx); continue; }
       this.drawCoin(x, den, sl.face, p.x, p.y, size,
         (sl.rot - Math.PI) * (sl.face === 'edge' ? 0.10 : sl.face === 'face' ? 0.55 : 0.26),
         null, shadeIx, sl.face === 'face' ? 0.06 + sl.tilt * 0.40 : null);
     }
   };
 
+  /* A COLUMN. k coins of one denomination — you sort your money — each a coin's thickness
+   * above the last, off the `flat` sprite, which is the shallow ellipse a coin lying in a
+   * stack actually presents to this camera. Two things stop it reading as a machined
+   * cylinder: the column WANDERS as it climbs (a stack of coins is never plumb), and the
+   * light climbs with it, so the top catches more than the buried foot. A fifth of the
+   * taller ones carry a coin lying askew across the top. */
+  Scene.prototype.drawStack = function (x, sl, den, px, py, size, shadeIx) {
+    var k = sl.cnt, step = size * 0.086;
+    var wx = Math.cos(sl.lean) * size * 0.085, wy = Math.sin(sl.lean) * size * 0.030;
+    var rot = (sl.rot - Math.PI) * 0.16;
+    var j, sx, sy, ix;
+    for (j = 0; j < k; j++) {
+      var t = j / Math.max(1, k - 1);
+      sx = px + wx * t * t + (j & 1 ? size * 0.018 : -size * 0.015);
+      sy = py - j * step + wy * t * t;
+      ix = Math.min(3, shadeIx + (j > k * 0.58 ? 1 : 0));    // the light climbs the column
+      this.drawCoin(x, den, 'flat', sx, sy, size, rot + t * 0.10, null, ix, null, 0.55);
+    }
+    if (sl.capped) {
+      this.drawCoin(x, den, 'hero', px + wx + (Math.random() - 0.5) * 0, py - (k - 0.30) * step,
+        size * 0.95, sl.capRot, null, Math.min(3, shadeIx + 1), null);
+    }
+  };
+
   Scene.prototype.drawHoard = function (x) {
     var n = Math.round(this.nShown);
     if (n <= 0) return;
-    var live = Math.min(n, Math.max(24, Math.round(this.slots.max * 0.16)));
+    var live = Math.min(n, Math.max(40, Math.round(this.slots.coins * 0.16)));
     var deepN = Math.max(0, n - live);
     this.bakeDeep(deepN);
     // one big contact shadow tying the whole hoard to the floor
-    var f = n / this.slots.max;
+    var f = n / this.slots.coins;
     var p = this.cam.project(0, 0, PILE.z, {});
     var rw = this.cam.span * (0.20 + 0.52 * Math.pow(f, 0.45));
     x.globalAlpha = 0.9;
@@ -658,11 +748,11 @@
     x.globalAlpha = 0.72;
     x.drawImage(this.blob, p.x - rw * 0.72, p.y - rw * 0.16, rw * 1.44, rw * 0.50);
     x.globalAlpha = 1;
-    if (this.deepN > 0) {
+    if (this.deepSlots > 0) {
       x.save(); x.setTransform(1, 0, 0, 1, 0, 0);
       x.drawImage(this.deep, 0, 0); x.restore();
     }
-    this.drawRange(x, this.deepN, n, true);
+    this.drawRange(x, this.deepSlots, M.slotsFor(this.slots, n), true);
   };
 
   window.__RIB_VAULT_SCENE = { Scene: Scene, Cam: Cam, CAM: CAM, PILE: PILE };
@@ -724,55 +814,98 @@
    * `doorT` runs 0 (shut, filling the frame) to 1 (open, parked at the edge) and the whole
    * opening is one sprite under an affine transform plus one rotating wheel — the leaf's
    * geometry never changes between frames, which is the thing the brief rules out. */
+  /* THE OPENING, AS A CUE SHEET.
+   *
+   *   .00-.24  UNLOCK   the lock wheel turns a turn and a quarter and settles
+   *   .20-.46  BOLTS    eight bolts draw IN, toward the hub — that is what unlocking is
+   *   .46-.92  SWING    the leaf pivots about its right edge and sweeps out of the frame
+   *   .72-1.0  REVEAL   the room comes up behind it, and the camera settles out of a push
+   *
+   * The leaf, its wheel and its bolts are drawn inside ONE transform, so they are a single
+   * rigid body throughout: the wheel cannot drift off the hub and the bolts cannot detach
+   * from the door they are holding shut. The pivot is a horizontal squash anchored on the
+   * HINGE rather than on the centre — a door turning away from you projects exactly that
+   * way, and anchoring it at the centre is what makes a swing read as a slide. */
+  var DOOR_CUE = { wheel: [0.00, 0.24], bolt: [0.20, 0.46], swing: [0.46, 0.92] };
+  function cue(t, c) { return Math.max(0, Math.min(1, (t - c[0]) / (c[1] - c[0]))); }
+  function easeOut(k) { return 1 - Math.pow(1 - k, 2.6); }
+
   Scene.prototype.drawDoor = function (x, now) {
     var t = this.doorT;
     if (t >= 0.999) return;            // at rest the door is baked into the room, on the wall
-    // the cinematic: the leaf front-on, swinging out on its hinge as t rises
     var leaf = this.sp.get('door_front'), wheel = this.sp.get('door_wheel');
-    var rim = this.sp.get('door_rim');
-    var e = t < 0.55 ? 0 : Math.pow((t - 0.55) / 0.45, 1.7);       // the swing
-    // while the door is shut the room behind it is not visible. The wash lifts with the
-    // swing, so the reveal is the room arriving rather than the leaf sliding off a picture.
-    x.fillStyle = 'rgba(2,4,7,' + (0.94 * (1 - e)).toFixed(3) + ')';
-    x.fillRect(0, 0, this.cw, this.ch);
-    var cx = this.cw * (0.5 + e * 0.50), cy = this.ch * 0.46;
-    var h2 = Math.min(this.cw * 1.30, this.ch * 0.74) * (1 - e * 0.42);
+    var rim = this.sp.get('door_rim'), bolt = this.sp.get('door_bolt');
+    var w = this.cw, h = this.ch;
+    var kw = easeOut(cue(t, DOOR_CUE.wheel));
+    var kb = cue(t, DOOR_CUE.bolt);
+    var ks = easeOut(cue(t, DOOR_CUE.swing));
+
+    // While the door is shut the room behind it is not visible. The wash lifts with the
+    // swing, so the reveal is the room ARRIVING rather than the leaf sliding off a picture.
+    // holds near-opaque through most of the swing, then lets go quickly — a linear lift
+    // shows the hoard through the door while the door is still shut
+    x.fillStyle = 'rgba(2,4,7,' + (0.95 * Math.pow(1 - ks, 0.55)).toFixed(3) + ')';
+    x.fillRect(0, 0, w, h);
+
+    var cy = h * 0.46;
+    var H = Math.min(w * 1.26, h * 0.76);
+    var LW = leaf ? H * (leaf.width / leaf.height) : H;
+    var hingeX = w * 0.5 + LW * 0.5;                    // the right edge of the leaf
+
+    // the frame the leaf sits in: it never moves, and the tunnel behind it is what the
+    // swing uncovers
     if (rim) {
-      var rw = h2 * (rim.width / rim.height);
-      x.save(); x.globalAlpha = 0.92;
-      x.drawImage(rim, this.cw * 0.5 - rw / 2, cy - h2 / 2, rw, h2);
+      var rw = H * (rim.width / rim.height);
+      x.save();
+      // the frame fades with the last of the swing rather than vanishing on the frame the
+      // sequence ends — a pop there is the one thing a two-second shot cannot afford
+      x.globalAlpha = 0.94 * Math.min(1, (1 - t) / 0.16);
+      x.drawImage(rim, w * 0.5 - rw / 2, cy - H / 2, rw, H);
       x.restore();
     }
+
     if (leaf) {
-      var lw = h2 * (leaf.width / leaf.height);
-      var open = Math.max(0.06, Math.cos(e * 1.32));               // the leaf turning away
+      var open = Math.cos(ks * 1.42);                   // 1 shut, ~0.15 swung away
       x.save();
-      x.translate(cx, cy);
-      x.globalAlpha = Math.max(0, 1 - e * 0.15);
-      x.drawImage(leaf, -lw * open / 2, -h2 / 2, lw * open, h2);
-      if (wheel && open > 0.30) {
-        var ww = lw * open * 0.40, wh = ww * (wheel.height / wheel.width);
+      x.translate(hingeX, cy);
+      x.scale(Math.max(0.05, open), 1 - ks * 0.05);     // pivot ON THE HINGE
+      x.globalAlpha = Math.max(0, 1 - ks * 0.10);
+      x.drawImage(leaf, -LW, -H / 2, LW, H);
+
+      // the bolts, on the leaf's own radius, drawing IN as they release
+      if (bolt && kb < 1) {
+        var br = H * 0.415 * (1 - kb * 0.26), bw = H * 0.080;
+        for (var i = 0; i < 8; i++) {
+          var a = i / 8 * Math.PI * 2 + Math.PI / 16;
+          x.save();
+          x.translate(-LW * 0.5 + Math.cos(a) * br, Math.sin(a) * br);
+          x.rotate(a);
+          x.globalAlpha = 0.85 * (1 - kb * 0.65);
+          x.drawImage(bolt, -bw / 2, -bw * 0.24, bw, bw * 0.48);
+          x.restore();
+        }
+      }
+      // the lock wheel, on the hub, a turn and a quarter
+      if (wheel) {
+        var ww = LW * 0.40, wh = ww * (wheel.height / wheel.width);
         x.save();
-        x.translate(0, -h2 * 0.012);
-        x.rotate(Math.min(1, t / 0.55) * Math.PI * 3.2);           // the lock wheel spinning
-        x.globalAlpha = 0.95;
+        x.translate(-LW * 0.5, -H * 0.012);
+        x.rotate(kw * Math.PI * 2.5);
+        x.globalAlpha = 0.97;
         x.drawImage(wheel, -ww / 2, -wh / 2, ww, wh);
         x.restore();
       }
       x.restore();
-    }
-    // the bolts drawing back, four of them, on the leaf's own radius
-    var bolt = this.sp.get('door_bolt');
-    if (bolt && t < 0.62) {
-      var back = Math.max(0, Math.min(1, (t - 0.18) / 0.34));
-      var br = h2 * 0.40 * (1 + back * 0.22), bw = h2 * 0.085;
-      for (var i = 0; i < 8; i++) {
-        var a = i / 8 * Math.PI * 2;
-        x.save();
-        x.translate(this.cw * 0.5 + Math.cos(a) * br, cy + Math.sin(a) * br);
-        x.rotate(a);
-        x.globalAlpha = 0.8 * (1 - back * 0.5);
-        x.drawImage(bolt, -bw / 2, -bw * 0.24, bw, bw * 0.48);
+
+      // the seal cracking: a line of light down the leading edge as it lets go
+      if (ks > 0.02 && ks < 0.75) {
+        var gx = hingeX - LW * Math.max(0.05, open);
+        var gg = x.createLinearGradient(gx - H * 0.05, 0, gx + H * 0.05, 0);
+        gg.addColorStop(0, 'rgba(255,200,110,0)');
+        gg.addColorStop(0.5, 'rgba(255,214,140,' + (0.55 * (1 - ks)).toFixed(3) + ')');
+        gg.addColorStop(1, 'rgba(255,200,110,0)');
+        x.save(); x.globalCompositeOperation = 'lighter';
+        x.fillStyle = gg; x.fillRect(gx - H * 0.05, cy - H / 2, H * 0.10, H);
         x.restore();
       }
     }
@@ -909,22 +1042,23 @@
   /* where on the hoard's visible surface a coin actually is. A flying coin must LEAVE the
    * pile, so the tap picks a real slot near the touch and hands back its screen point. */
   Scene.prototype.pickSurface = function (px, py) {
-    var n = Math.round(this.nShown);
+    var n = M.slotsFor(this.slots, Math.round(this.nShown));
     if (n <= 0) {
       var c = this.cam.project(0, 0, PILE.z, {});
       return { x: c.x, y: c.y, i: -1, s: c.s };
     }
     var s = this.slots.slot, best = -1, bd = 1e9, p = {}, i, d;
-    var lo = Math.max(0, n - Math.max(40, Math.round(this.slots.max * 0.22)));
+    var lo = Math.max(0, n - Math.max(24, Math.round(this.slots.slot.length * 0.22)));
     for (i = lo; i < n; i++) {
       this.cam.project(s[i].x * PILE.dx, s[i].y * PILE.dy, PILE.z + s[i].z * PILE.dz, p);
-      d = (p.x - px) * (p.x - px) + (p.y - py) * (p.y - py);
-      if (d < bd) { bd = d; best = i; this.bx = p.x; this.by = p.y; this.bs = p.s; }
+      var top = p.y - (s[i].cnt > 1 ? (s[i].cnt - 1) * p.s * s[i].size * 0.105 : 0);
+      d = (p.x - px) * (p.x - px) + (top - py) * (top - py);
+      if (d < bd) { bd = d; best = i; this.bx = p.x; this.by = top; this.bs = p.s * s[i].size; }
     }
     return { x: this.bx, y: this.by, i: best, s: this.bs };
   };
   Scene.prototype.hoardBox = function () {
-    var f = Math.max(0.04, this.nShown / this.slots.max);
+    var f = Math.max(0.04, this.nShown / this.slots.coins);
     var near = this.cam.project(0, 0, PILE.z - PILE.dz, {});
     var top = this.cam.project(0, M.MOUND.H(f) * PILE.dy, PILE.z, {});
     var half = this.cam.span * (0.16 + 0.46 * Math.pow(f, 0.42));
@@ -937,13 +1071,24 @@
     this.resize();
     var x = this.ctx;
     x.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    if (this.room) { x.setTransform(1, 0, 0, 1, 0, 0); x.drawImage(this.room, 0, 0); x.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); }
+    if (this.room) {
+      x.setTransform(1, 0, 0, 1, 0, 0);
+      // a restrained push out of the opening: the room settles from 6% in as the door clears
+      var push = this.doorT < 0.999 ? 1 + 0.06 * (1 - Math.max(0, (this.doorT - 0.55) / 0.45)) : 1;
+      if (push > 1.0005) {
+        var pw = this.cv.width * push, ph = this.cv.height * push;
+        x.drawImage(this.room, (this.cv.width - pw) / 2, (this.cv.height - ph) / 2, pw, ph);
+      } else x.drawImage(this.room, 0, 0);
+      x.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    }
     else { x.fillStyle = '#04070b'; x.fillRect(0, 0, this.cw, this.ch); }
     // the hoard eases toward its true count so a spend collapses rather than snapping
     if (this.nShown !== this.n) {
       var d = this.n - this.nShown;
       this.nShown += Math.abs(d) < 0.6 ? d : d * Math.min(1, dt / 90);
     }
+    if (this.tidyTick) this.tidyTick(now);
+    this.stepBodies(dt);
     this.drawHoard(x);
     this.stepFlyers(dt, this.onArrive);
     this.stepSparks(dt);
@@ -1042,6 +1187,8 @@
         '</div>' +
         '<div class="rv-hint">TAP THE PILE TO INVEST &middot; HOLD TO POUR</div>' +
         '<div class="rv-act">' +
+          '<button class="rv-btn rv-tilt" type="button" aria-pressed="false">TILT</button>' +
+          '<button class="rv-btn rv-restock" type="button">&#8635; RESTOCK</button>' +
           '<button class="rv-btn rv-details" type="button">DETAILS</button>' +
           '<button class="rv-btn rv-skipbtn" type="button" hidden>SKIP ANIMATION</button>' +
           '<button class="rv-btn go rv-choose" type="button" hidden>CHOOSE AN UPGRADE</button>' +
@@ -1063,6 +1210,7 @@
     this.elTgt = $('.rv-tgt'); this.elHint = $('.rv-hint'); this.elMult = $('.rv-mult');
     this.elBar = $('.rv-track i'); this.elDens = $('.rv-dens'); this.elNote = $('.rv-note');
     this.elSkip = $('.rv-skipbtn'); this.elChoose = $('.rv-choose'); this.elSound = $('.rv-sound');
+    this.elTilt = $('.rv-tilt'); this.elRestock = $('.rv-restock');
     this.elModal = $('.rv-modal'); this.elCardT = $('.rv-card .ttl'); this.elCardB = $('.rv-card .bd');
 
     var self = this;
@@ -1070,6 +1218,8 @@
     $('.rv-details').onclick = function () { self.root.classList.toggle('panel'); self.fillPanel(); };
     $('.rv-closepanel').onclick = function () { self.root.classList.remove('panel'); };
     this.elSkip.onclick = function () { self.skip(); };
+    this.elTilt.onclick = function () { self.toggleTilt(); };
+    this.elRestock.onclick = function () { self.restock(); };
     this.elChoose.onclick = function () { self.close('choose'); };
     this.elSound.onclick = function () {
       var on = window.__RIB_VAULT_AUDIO && window.__RIB_VAULT_AUDIO.toggle();
@@ -1115,13 +1265,27 @@
     this.cv.addEventListener('pointermove', function (e) {
       if (id === null) return;
       var b = self.cv.getBoundingClientRect();
-      self.touch = { x: e.clientX - b.left, y: e.clientY - b.top };
+      var px = e.clientX - b.left, py = e.clientY - b.top;
+      var from = self.touch || { x: px, y: py };
+      self.touch = { x: px, y: py };
+      /* GESTURE DISAMBIGUATION. A press on the hoard is an INVEST hold. A press that then
+       * travels is a DRAG of the coin under the finger. The pour is not delayed waiting to
+       * find out — the first tap pays immediately, because a laggy tap is worse than an
+       * extra coin — but the moment the finger has moved far enough the hold is released
+       * and the gesture becomes a drag. Nothing is ever charged twice for it. */
+      if (!self.dragging) {
+        var d = Math.abs(px - self.pressAt.x) + Math.abs(py - self.pressAt.y);
+        if (d > 13) { self.release(); self.startDrag(px, py); }
+      }
+      if (self.dragging) self.moveDrag(px, py, px - from.x, py - from.y);
     });
     window.addEventListener('blur', function () { self.release(); });
   };
 
   Vault.prototype.press = function (x, y) {
     this.touch = { x: x, y: y };
+    this.pressAt = { x: x, y: y };
+    this.dragging = null;
     this.holding = true; this.holdFrom = performance.now(); this.stage = 0;
     this.haptic(8);
     if (!this.target) { this.bumpHint('PICK AN UPGRADE TO INVEST IN'); this.pop(x, y, true); return; }
@@ -1129,7 +1293,51 @@
     if (this.balance - this.pending <= 0) { this.bumpHint('NOT ENOUGH PRESTIGE POINTS'); return; }
     this.pour(this.tapChunk(), true);
   };
+  Vault.prototype.endDrag = function () {
+    if (!this.dragging) return;
+    var o = this.dragging; this.dragging = null;
+    o.held = false; o.sleep = false;
+    // it leaves the hand with the speed the hand had — a heavy coin carries less of it
+    var k = 0.55 / o.m;
+    o.vx = (this.flingX || 0) * k; o.vz = (this.flingZ || 0) * k; o.vy = (this.flingY || 0) * k;
+    o.vs = o.vx * 1.4;
+    this.haptic(5);
+  };
+
+  /* pick up the coin under the finger */
+  Vault.prototype.startDrag = function (px, py) {
+    var s = this.scene;
+    var pick = s.pickSurface(px, py);
+    if (pick.i < 0) return;
+    var o = s.wake(pick.i);
+    if (!o) return;
+    o.held = true; o.sleep = false; o.vx = o.vy = o.vz = 0;
+    this.dragging = o;
+    this.flingX = this.flingY = this.flingZ = 0;
+    this.haptic(9);
+    if (window.__RIB_VAULT_AUDIO) window.__RIB_VAULT_AUDIO.coin(M.denOf(s.slots.slot[pick.i], s.mix), 0);
+  };
+
+  /* the coin follows the hand, but it does not STICK to it: it lags by its own weight,
+   * which is most of what makes a drag feel like holding something */
+  Vault.prototype.moveDrag = function (px, py, dx, dy) {
+    var o = this.dragging, s = this.scene;
+    if (!o) return;
+    var cam = s.cam;
+    var k = cam.k(SC.PILE.z + o.gz);
+    var lag = 0.34 / Math.pow(o.m, 0.55);
+    var tgx = (px - s.cw * 0.5) / (k * 0.62 * cam.span);
+    var lift = (s.cam.project(o.gx, 0, SC.PILE.z + o.gz, {}).y - py) / (k * 0.34 * s.ch);
+    var ox = o.gx, oy = o.gy;
+    o.gx += (tgx - o.gx) * lag;
+    o.gy += (Math.max(s.surfaceAt(o.gx, o.gz) - 0.02, lift) - o.gy) * lag;
+    o.spin += dx * 0.004;
+    this.flingX = (o.gx - ox) * 0.55 + (this.flingX || 0) * 0.45;
+    this.flingY = (o.gy - oy) * 0.55 + (this.flingY || 0) * 0.45;
+  };
+
   Vault.prototype.release = function () {
+    this.endDrag();
     if (!this.holding) return;
     this.holding = false; this.stage = 0;
     this.elMult && this.elMult.classList.remove('on');
@@ -1388,6 +1596,72 @@
     if (this.remaining() <= 0 || this.spendable() <= 0) this.release();
   };
 
+  /* ---------- the phone itself ----------
+   * DeviceOrientation is a permissioned API on iOS and must be asked for from inside a real
+   * gesture, so it is a BUTTON, never something the vault arms on its own. beta is the
+   * front-to-back tilt and gamma the left-to-right one; both are clamped and dead-zoned,
+   * because a phone held in a hand is never still and a hoard that trembles is a bug. */
+  Vault.prototype.tiltOn = function () {
+    var self = this;
+    var arm = function () {
+      if (self._tiltH) return;
+      self._tiltH = function (e) {
+        if (!self.open_ || !self.scene) return;
+        var g = e.gamma, b = e.beta;
+        if (g == null || b == null) return;
+        var dead = function (v, d) { return Math.abs(v) < d ? 0 : (v - Math.sign(v) * d); };
+        var gx = Math.max(-1, Math.min(1, dead(g, 4) / 34));
+        var gz = Math.max(-1, Math.min(1, dead(b - 48, 6) / 40));
+        self.scene.setTilt(gx, gz);
+      };
+      window.addEventListener('deviceorientation', self._tiltH, true);
+      self.tilt = true;
+      self.root.classList.add('tilting');
+      self.bumpHint('TILT THE PHONE &mdash; THE MONEY MOVES');
+    };
+    var D = window.DeviceOrientationEvent;
+    if (!D) { this.bumpHint('THIS DEVICE HAS NO TILT SENSOR'); return false; }
+    if (typeof D.requestPermission === 'function') {
+      D.requestPermission().then(function (r) {
+        if (r === 'granted') arm(); else self.bumpHint('TILT NEEDS MOTION ACCESS');
+      }).catch(function () { self.bumpHint('TILT NEEDS MOTION ACCESS'); });
+    } else arm();
+    return true;
+  };
+  Vault.prototype.tiltOff = function () {
+    if (this._tiltH) window.removeEventListener('deviceorientation', this._tiltH, true);
+    this._tiltH = null; this.tilt = false;
+    this.root.classList.remove('tilting');
+    if (this.scene) this.scene.setTilt(0, 0);
+  };
+  Vault.prototype.toggleTilt = function () {
+    if (this.tilt) { this.tiltOff(); this.bumpHint('TILT OFF'); }
+    else this.tiltOn();
+    this.elTilt.classList.toggle('on', !!this.tilt);
+    this.elTilt.setAttribute('aria-pressed', this.tilt ? 'true' : 'false');
+  };
+
+  /* RESTOCK. Every coin that has been dragged, shaken or thrown flies back to the slot it
+   * was built in — the hoard's layout is deterministic, so "tidy" is just clearing the
+   * displacement map, and the flight home is the animation of it. Press it on an already
+   * tidy hoard and it RE-POURS instead: a fresh seed, a visibly different heap of exactly
+   * the same money. Neither one touches a single Prestige Point. */
+  Vault.prototype.restock = function () {
+    var s = this.scene; if (!s) return;
+    var n = s.bodyCount();
+    if (n > 0) {
+      s.tidy();
+      this.bumpHint('RESTOCKING &mdash; ' + n + ' COIN' + (n === 1 ? '' : 'S') + ' BACK IN PLACE');
+      if (window.__RIB_VAULT_AUDIO) window.__RIB_VAULT_AUDIO.payout();
+      this.haptic([6, 30, 6]);
+      return;
+    }
+    s.reseed();
+    this.bumpHint('THE VAULT IS RESTACKED');
+    if (window.__RIB_VAULT_AUDIO) window.__RIB_VAULT_AUDIO.stage(4);
+    this.haptic(10);
+  };
+
   /* ---------- open / close ---------- */
   Vault.prototype.open = function (opts) {
     opts = opts || {};
@@ -1413,7 +1687,9 @@
       self.scene.resize();
       self.scene.setBalance(self.balance, false);
       self.scene.flyers.length = 0; self.scene.sparks.length = 0;
+      self.scene.sleepAll(); self.scene.tidyTick = null; self.scene.setTilt(0, 0);
       self.scene.doorT = (self.doorSeen || opts.skipDoor || self.scene.reduced) ? 1 : 0;
+      self.root.classList.remove('opening');
       if (self.scene.doorT < 1) self.runDoor();
       if (window.__RIB_VAULT_AUDIO) {
         window.__RIB_VAULT_AUDIO.arm(opts.sound !== false);
@@ -1462,6 +1738,9 @@
     this.open_ = false;
     cancelAnimationFrame(this.raf); this.raf = 0;
     this.doorTick = null; this.depositTick = null;
+    this.tiltOff();
+    this.dragging = null;
+    if (this.scene) { this.scene.sleepAll(); this.scene.tidyTick = null; this.scene.setTilt(0, 0); }
     this.pending = 0;                       // a reservation never survives the screen
     this.spendAcc = 0;
     if (this.scene) { this.scene.flyers.length = 0; this.scene.sparks.length = 0; }
@@ -1489,15 +1768,274 @@
     state: function () {
       return { open: V.open_, balance: V.balance, pending: V.pending, committed: V.committed,
         target: V.target ? { key: V.target.key, cost: V.target.cost } : null,
-        n: V.scene ? Math.round(V.scene.nShown) : 0,
-        slots: V.scene ? V.scene.slots.max : 0,
+        n: V.scene ? Math.round(V.scene.nShown) : 0,          // COINS on screen
+        slots: V.scene ? M.slotsFor(V.scene.slots, Math.round(V.scene.nShown)) : 0,
+        budget: V.scene ? V.scene.slots.coins : 0,
+        stacks: V.scene ? V.scene.slots.slot.filter(function (q) { return q.cnt > 1 }).length : 0,
+        piles: V.scene ? V.scene.slots.slot.length : 0,
         flyers: V.scene ? V.scene.flyers.filter(function (f) { return f.live; }).length : 0,
         doorT: V.scene ? V.scene.doorT : 1,
         stage: V.stage, holding: V.holding,
+        bodies: V.scene ? V.scene.bodyCount() : 0,
+        dragging: !!V.dragging, tilt: !!V.tilt,
         missing: V.sprites ? V.sprites.failed.slice() : null };
     },
     pour: function (n) { return V.pour(n, true); },
     hold: function (on) { if (on) { V.touch = { x: V.scene.cw / 2, y: V.scene.ch * 0.74 }; V.press(V.scene.cw / 2, V.scene.ch * 0.74); } else V.release(); },
-    skip: function () { V.skip(); }
+    skip: function () { V.skip(); },
+    drag: function (x, y) { V.press(x, y); V.startDrag(x, y); return !!V.dragging },
+    dragTo: function (x, y) { V.moveDrag(x, y, 2, 2) },
+    drop: function () { V.endDrag() },
+    tilt: function (gx, gz) { V.scene.setTilt(gx, gz) },
+    restock: function () { V.restock() },
+    bodies: function () { return V.scene._bodies || {} }
   };
+})();
+
+/* ===== v137 B THE MONEY IS LOOSE — drag, tilt and the tidy-up =====
+ *
+ * The hoard's layout is a deterministic seeded slot list and that has to stay true: it is
+ * what makes a balance draw the same room twice and what makes spending take coins off the
+ * top without reshuffling the rest. So nothing here MOVES a slot. A disturbed coin gets a
+ * row in a sparse DISPLACEMENT map — its own position, velocity and sleep state — and the
+ * renderer draws it there instead. Clear the map and the hoard is exactly the hoard again,
+ * which is what RESTOCK does.
+ *
+ * Only coins in the live surface band can be disturbed: the deep layer is a baked canvas
+ * and moving one of its coins would cost a re-bake per frame. That is also the honest
+ * limit — you can push the money on top of the pile around, not the money underneath it.
+ *
+ * The bodies are capped (`MAX_BODIES`) and they SLEEP: a settled coin costs one lookup a
+ * frame, so a hoard that has been shaken and left alone is as cheap as one that has not.
+ *
+ * Gravity is the mound's own surface. `surfaceAt(gx, gz)` is the height the heap has at a
+ * point for the current fullness — the same MOUND functions the slots were built from — so
+ * a coin slides DOWN THE HEAP it came off and comes to rest on it, rather than falling
+ * through it to the floor.
+ */
+(function () {
+  'use strict';
+  var M = window.__RIB_VAULT_MODEL, S = window.__RIB_VAULT_SCENE, C = window.__RIB_VAULT_CTRL;
+  var Scene = S.Scene, PILE = S.PILE, MOUND = M.MOUND, Vault = C.Vault;
+
+  var MAX_BODIES = 150;          // an intelligently bounded number of moving objects
+  var SLEEP_V = 0.00035;         // ground units per ms below which a coin is asleep
+  var GRAV = 0.0000105;          // ground units per ms squared
+  var BOUNCE = 0.34, ROLL = 0.982;
+  var MU = 0.42;                 // static friction: metal on metal, and it is most of this
+  var TILT_G = 0.85;             // lateral gravity at full tilt, as a fraction of g
+  var MAX_V = 0.0017;            // ground units per ms — the heap is about one unit across
+
+  /* WEIGHT. Gravity is the same for all of them — that is physics — but everything else a
+   * heavier coin does is different: it bounces less, it scrubs off speed faster, it takes
+   * more to get moving, and it lands with more of a thud than a clatter. A billion-point
+   * coin should feel like picking up a bar. The numbers below are the only place that
+   * difference is described. */
+  var MASS = { bronze: 1.00, silver: 1.30, gold: 1.75, blue: 2.40 };
+  function massOf(den) { return MASS[den] || 1; }
+
+  /* the height of the heap at a point, for the fullness it is at now */
+  Scene.prototype.surfaceAt = function (gx, gz) {
+    var f = Math.max(0, Math.min(1, this.nShown / this.slots.coins));
+    if (f <= 0) return 0;
+    var r = Math.sqrt(gx * gx + (gz / 0.62) * (gz / 0.62));
+    var th = Math.atan2(gz / 0.62, gx);
+    var R = MOUND.R(f) * MOUND.lobe(th);
+    if (R <= 1e-6) return 0;
+    return MOUND.H(f) * MOUND.prof(r / R) * (0.80 + 0.20 * MOUND.lobe(th));
+  };
+
+  /* Pour the hoard again. The slot list is rebuilt from a NEW seed, so the heap is a
+   * visibly different arrangement of exactly the same money — the balance, the mix and the
+   * coin count are untouched, and `o.pp` is never even read. This is the one place the
+   * layout is allowed to change, because the player asked it to. */
+  Scene.prototype.reseed = function () {
+    M.reseed();
+    this.slots = M.buildSlots(Scene.budget());
+    this._bodies = {}; this._nBodies = 0; this.tidyTick = null;
+    this.deepKey = ''; this.deepSlots = 0;
+    this.setBalance(this.pp, false);
+  };
+
+  Scene.prototype.bodies = function () { return this._bodies || (this._bodies = {}); };
+  Scene.prototype.bodyCount = function () { this.bodies(); return this._nBodies || 0; };
+
+  /* wake slot i as a physical body, seeded at exactly where it is being drawn */
+  Scene.prototype.wake = function (i) {
+    var b = this.bodies();
+    if (b[i]) return b[i];
+    if ((this._nBodies || 0) >= MAX_BODIES) return null;
+    var sl = this.slots.slot[i];
+    var m = massOf(M.denOf(sl, this.mix));
+    b[i] = { i: i, gx: sl.x * PILE.dx, gy: sl.y * PILE.dy, gz: sl.z * PILE.dz,
+      vx: 0, vy: 0, vz: 0, spin: sl.rot, vs: 0, sleep: false, held: false, t: 0,
+      m: m, bounce: BOUNCE / m, grip: 1 + (m - 1) * 0.85 };
+    this._nBodies = (this._nBodies || 0) + 1;
+    return b[i];
+  };
+  Scene.prototype.sleepAll = function () { this._bodies = {}; this._nBodies = 0; };
+
+  /* the tilt the device is at, as a lateral/depth acceleration */
+  Scene.prototype.setTilt = function (gx, gz) {
+    this.tiltX = gx; this.tiltZ = gz;
+    if (Math.abs(gx) > 0.06 || Math.abs(gz) > 0.06) this.tiltWake();
+  };
+  /* a real tilt shakes the TOP of the heap loose — the coins that could actually slide */
+  Scene.prototype.tiltWake = function () {
+    // a deviceorientation stream is ~60Hz; waking the band on every one of them is a scan
+    // of the slot list sixty times a second for nothing
+    var now = performance.now();
+    if (now - (this._lastWake || 0) < 220) return;
+    this._lastWake = now;
+    var n = M.slotsFor(this.slots, Math.round(this.nShown));
+    if (n <= 0) return;
+    var lo = Math.max(0, n - Math.max(24, Math.round(this.slots.slot.length * 0.20)));
+    var want = Math.min(MAX_BODIES, 90);
+    for (var i = n - 1; i >= lo && (this._nBodies || 0) < want; i--) {
+      var bd = this.wake(i);
+      if (bd && bd.sleep) bd.sleep = false;
+    }
+  };
+
+  Scene.prototype.stepBodies = function (dt) {
+    var b = this._bodies; if (!b) return;
+    dt = Math.min(34, dt);
+    var tx = this.tiltX || 0, tz = this.tiltZ || 0, any = false;
+    for (var k in b) {
+      var o = b[k];
+      if (o.held) { any = true; continue; }
+      // a coin on its way home is under RESTOCK's hand, not gravity's — stepping it here
+      // too meant the two pulled against each other and it never arrived
+      if (o.homing) { any = true; continue; }
+      if (o.sleep) continue;
+      any = true;
+      // a tilt is a component of gravity, so it does NOT scale with mass — but the grip
+      // that resists it does, which is why the gold sits while the bronze skates
+      o.vy -= GRAV * dt;
+      var onGround = o.gy <= this.surfaceAt(o.gx, o.gz) + 0.004;
+      if (onGround) {
+        /* STATIC FRICTION, which is the whole of why a hoard does not pour itself across
+         * the floor the moment the phone is off level. The driving force is the tilt plus
+         * the slope the coin is sitting on; the resisting force is mu scaled by the coin's
+         * own grip, which rises with its weight. Below the threshold nothing moves at all —
+         * and because grip rises with mass, a hard tilt walks the bronze off the top while
+         * the billion-point coins sit exactly where they are. */
+        var e = 0.02;
+        var sx = (this.surfaceAt(o.gx + e, o.gz) - this.surfaceAt(o.gx - e, o.gz)) / (2 * e);
+        var sz = (this.surfaceAt(o.gx, o.gz + e) - this.surfaceAt(o.gx, o.gz - e)) / (2 * e);
+        var dx2 = tx * TILT_G - sx * 1.35;
+        var dz2 = tz * TILT_G * 0.62 - sz * 0.75;
+        var drive = Math.sqrt(dx2 * dx2 + dz2 * dz2);
+        var hold = MU * o.grip;
+        if (drive > hold) {
+          var g2 = (drive - hold) / drive;
+          o.vx += dx2 * g2 * GRAV * dt;
+          o.vz += dz2 * g2 * GRAV * dt;
+        } else {                                   // it stays put, and settles
+          o.vx -= o.vx * Math.min(1, 0.010 * dt);
+          o.vz -= o.vz * Math.min(1, 0.010 * dt);
+        }
+      } else {
+        o.vx += tx * GRAV * TILT_G * dt;           // in the air there is nothing to grip
+        o.vz += tz * GRAV * TILT_G * 0.62 * dt;
+      }
+      var vh = Math.sqrt(o.vx * o.vx + o.vz * o.vz);
+      if (vh > MAX_V) { o.vx *= MAX_V / vh; o.vz *= MAX_V / vh; }
+      o.gx += o.vx * dt; o.gy += o.vy * dt; o.gz += o.vz * dt;
+      o.spin += o.vs * dt;
+      var floor = this.surfaceAt(o.gx, o.gz);
+      if (o.gy <= floor) {
+        o.gy = floor;
+        if (o.vy < -SLEEP_V * 2) {
+          var hit = -o.vy;
+          o.vy = hit * o.bounce; o.vs = o.vx * 0.9;
+          this.landed(o, hit);                 // the thud, and the dust
+        } else o.vy = 0;
+        var roll = Math.pow(ROLL, o.grip);
+        o.vx *= roll; o.vz *= roll; o.vs *= 0.93;
+        var sp = Math.abs(o.vx) + Math.abs(o.vz) + Math.abs(o.vy);
+        if (sp < SLEEP_V) { o.sleep = true; o.vx = o.vy = o.vz = o.vs = 0; }
+      }
+      // the room has walls: a coin cannot leave the floor plate
+      var lim = 1.55;                             // the floor plate's own edge
+      if (o.gx < -lim) { o.gx = -lim; o.vx = Math.abs(o.vx) * BOUNCE * 0.5 }
+      if (o.gx > lim) { o.gx = lim; o.vx = -Math.abs(o.vx) * BOUNCE * 0.5 }
+      if (o.gz < -0.55) { o.gz = -0.55; o.vz = Math.abs(o.vz) * BOUNCE * 0.5 }
+      if (o.gz > 0.62) { o.gz = 0.62; o.vz = -Math.abs(o.vz) * BOUNCE * 0.5 }
+    }
+    this.bodiesAwake = any;
+  };
+
+  /* a coin arriving on the heap: the heavier it is and the harder it lands, the more it
+   * says about it */
+  Scene.prototype.landed = function (o, hit) {
+    if (hit < SLEEP_V * 6) return;
+    var now = performance.now();
+    if (now - (o.lastHit || 0) < 90) return;
+    o.lastHit = now;
+    var sl = this.slots.slot[o.i], den = M.denOf(sl, this.mix);
+    if (window.__RIB_VAULT_AUDIO) window.__RIB_VAULT_AUDIO.land(den, Math.min(1, hit / 0.006), o.m);
+    if (!this.reduced && hit > SLEEP_V * 14) {
+      var p = this.cam.project(o.gx, o.gy, PILE.z + o.gz, {});
+      this.burst(p.x, p.y, den);
+    }
+  };
+
+  /* every disturbed coin flies home to the slot it was built in */
+  Scene.prototype.tidy = function () {
+    var b = this._bodies; if (!b) return 0;
+    var n = 0, self = this;
+    for (var k in b) { b[k].homing = true; b[k].sleep = false; b[k].held = false; n++; }
+    var t0 = performance.now();
+    this.tidyTick = function (now) {
+      var bb = self._bodies; if (!bb) { self.tidyTick = null; return }
+      var left = 0;
+      for (var q in bb) {
+        var o = bb[q], sl = self.slots.slot[o.i];
+        var tx2 = sl.x * PILE.dx, ty = sl.y * PILE.dy, tz2 = sl.z * PILE.dz;
+        o.gx += (tx2 - o.gx) * 0.14; o.gy += (ty - o.gy) * 0.14; o.gz += (tz2 - o.gz) * 0.14;
+        o.spin += (sl.rot - o.spin) * 0.12;
+        o.vx = o.vy = o.vz = o.vs = 0;
+        if (Math.abs(tx2 - o.gx) + Math.abs(ty - o.gy) + Math.abs(tz2 - o.gz) > 0.004) left++;
+        else { delete bb[q]; self._nBodies = Math.max(0, (self._nBodies || 0) - 1); }
+      }
+      if (!left || now - t0 > 2600) { self._bodies = {}; self._nBodies = 0; self.tidyTick = null; }
+    };
+    return n;
+  };
+
+  /* ---------- the renderer's hook: a disturbed slot is drawn where it IS ---------- */
+  var baseRange = Scene.prototype.drawRange;
+  Scene.prototype.drawRange = function (x, from, to, withShadow) {
+    var b = this._bodies;
+    if (!b) return baseRange.call(this, x, from, to, withShadow);
+    // the settled hoard first, minus anything that has been knocked loose...
+    this._skip = b;
+    baseRange.call(this, x, from, to, withShadow);
+    this._skip = null;
+    // ...then the loose coins, in their own depth order
+    var keys = [], k;
+    for (k in b) { if (b[k].i >= from && b[k].i < to) keys.push(b[k]); }
+    keys.sort(function (p, q) { return q.gz - p.gz; });
+    var cam = this.cam, p = {}, i;
+    for (i = 0; i < keys.length; i++) {
+      var o = keys[i], sl = this.slots.slot[o.i];
+      cam.project(o.gx, o.gy, PILE.z + o.gz, p);
+      var size = p.s * sl.size;
+      var den = M.denOf(sl, this.mix);
+      var shadeIx = o.held ? 3 : Math.min(3, Math.max(1, Math.round(sl.shade * 2.4)));
+      if (withShadow) {
+        var lift = Math.max(0, o.gy - this.surfaceAt(o.gx, o.gz));
+        var g = cam.project(o.gx, this.surfaceAt(o.gx, o.gz), PILE.z + o.gz, {});
+        x.globalAlpha = 0.45 / (1 + lift * 5);
+        x.drawImage(this.blob, g.x - size * 0.8, g.y - size * 0.26, size * 1.6, size * 0.55);
+        x.globalAlpha = 1;
+      }
+      if (sl.cnt > 1) this.drawStack(x, sl, den, p.x, p.y, size, shadeIx);
+      else this.drawCoin(x, den, sl.face, p.x, p.y, size * (o.held ? 1.16 : 1), o.spin,
+        null, shadeIx, sl.face === 'face' ? 0.06 + sl.tilt * 0.40 : null);
+    }
+  };
+
+  window.__RIB_VAULT_PHYS = { MAX_BODIES: MAX_BODIES, GRAV: GRAV };
 })();

@@ -113,6 +113,18 @@
       noise(0.028, v.f * 2.2 * pitch, 1.4, lvl * 0.7);        // the scrape off the pile
       partials(v, pitch, lvl, v.d * (0.8 + Math.random() * 0.45));
     },
+    /* a coin landing on the heap. Weight is the whole point of this one: a heavier coin
+     * lands lower, louder and shorter — a thud rather than a clatter — so the difference
+     * between a bronze and a billion is audible before it is legible. */
+    land: function (den, force, mass) {
+      if (!slot(0.030)) return;
+      var v = VOICE[den] || VOICE.bronze;
+      mass = mass || 1;
+      var pitch = (0.98 - (mass - 1) * 0.20) * (0.94 + Math.random() * 0.12);
+      var lvl = (0.05 + 0.10 * Math.min(1, force)) * (0.85 + mass * 0.18);
+      noise(0.045 + 0.02 * mass, 180 / mass, 0.9, lvl * 1.15, 'lowpass');   // the thud
+      partials(v, pitch, lvl * 0.8, v.d * (0.55 + 0.25 / mass));            // the ring
+    },
     /* the continuous stream under 8x and 16x */
     streamOn: function (stage) {
       if (muted || !ctx()) return;
