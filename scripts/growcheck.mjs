@@ -86,7 +86,8 @@ async function toReportCard(q = '') {
     const kid = G.stage(8), teen = G.stage(15), grown = G.stage(20)
     return { fig: G.fig && G.fig.mode, manInk: ink(man), ghostInk: ink(ghost), anim: man ? getComputedStyle(man).animationName : null, manTop: man ? top(man) : null,
       kid, teen, grown, kit: G.kit() } })
-  ok(boy.fig === 'sprite' && boy.manInk > 300 && boy.ghostInk > 300, 'the figure is the sheet\'s own idle man, drawn for this year and last', JSON.stringify({ fig: boy.fig, ink: boy.manInk, ghost: boy.ghostInk }))
+  ok((boy.fig === 'hi' || boy.fig === 'sprite') && boy.manInk > 300 && boy.ghostInk > 300, 'the figure is the sheet\'s own idle man — at native resolution (v134) once the file is in — drawn for this year and last', JSON.stringify({ fig: boy.fig, ink: boy.manInk, ghost: boy.ghostInk }))
+  ok(boy.fig === 'hi', 'and it IS the native-resolution man, not the 48px cell blown up', boy.fig)
   ok(boy.kid.head > boy.teen.head && boy.teen.head > boy.grown.head && boy.grown.head === 1, 'a child wears a helmet too big for him, a teen less so, a grown man is drawn to scale', JSON.stringify({ kid: boy.kid.head, teen: boy.teen.head, grown: boy.grown.head }))
   ok(boy.teen.width < boy.kid.width && boy.teen.width < boy.grown.width && boy.grown.width === 1, 'a teen is lankier than both a child and a grown man', JSON.stringify({ kid: boy.kid.width, teen: boy.teen.width, grown: boy.grown.width }))
   ok(boy.anim === 'gwBreath', 'and he breathes', String(boy.anim))

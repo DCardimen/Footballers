@@ -112,10 +112,25 @@ html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
 .rib9-player{display:grid;grid-template-columns:118px 1fr auto;grid-template-areas:"por id ring";gap:0 12px;padding:0 12px 0 0;align-items:center}
 .rib9-portrait{grid-area:por;position:relative;width:118px;height:118px;overflow:hidden;border-right:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:var(--r) 0 var(--r) 0;background:#000}
 .rib9-portrait img{width:100%;height:100%;object-fit:cover}
-.rib9-helmet-logo{position:absolute;left:56%;top:11%;width:27%;height:27%;pointer-events:none;opacity:.9;
+/* v134: the crest is WORN IN. It used to be printed on at 90% with a clean highlight, a sticker on a
+   helmet that is scuffed, dented and lit hard from one side. Now: lower opacity and a duller filter so the
+   shell's own texture reads through it, and a scratch-and-scuff layer masked to the emblem's own shape --
+   fine diagonal scoring, a scuffed patch on the lit rim, and grain -- on top of the shade. */
+.rib9-helmet-logo{position:absolute;left:56%;top:11%;width:27%;height:27%;pointer-events:none;opacity:.78;
   transform:perspective(180px) rotateY(-26deg) rotateZ(-15deg);transform-origin:50% 50%;
-  filter:drop-shadow(0 1px 2px rgba(0,0,0,.75)) saturate(1.15) contrast(1.05);mix-blend-mode:hard-light}
-.rib9-helmet-shade{position:absolute;inset:0;display:block;background:linear-gradient(225deg,rgba(255,226,150,.62) 0%,rgba(255,255,255,0) 36%,rgba(0,0,0,0) 56%,rgba(0,0,0,.66) 100%)}
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.75)) saturate(.88) contrast(.94) brightness(.94);mix-blend-mode:hard-light}
+.rib9-helmet-shade{position:absolute;inset:0;display:block;background:linear-gradient(225deg,rgba(255,226,150,.5) 0%,rgba(255,255,255,0) 36%,rgba(0,0,0,0) 56%,rgba(0,0,0,.7) 100%)}
+.rib9-helmet-shade:after{content:"";position:absolute;inset:0;display:block;mix-blend-mode:multiply;opacity:.85;
+  background:
+    repeating-linear-gradient(118deg,rgba(0,0,0,0) 0 3px,rgba(0,0,0,.22) 3px 3.6px,rgba(0,0,0,0) 3.6px 8px),
+    repeating-linear-gradient(64deg,rgba(255,255,255,0) 0 5px,rgba(255,255,255,.16) 5px 5.5px,rgba(255,255,255,0) 5.5px 13px),
+    radial-gradient(ellipse 38% 30% at 68% 22%,rgba(0,0,0,.42) 0,rgba(0,0,0,0) 70%),
+    radial-gradient(ellipse 30% 22% at 22% 70%,rgba(0,0,0,.34) 0,rgba(0,0,0,0) 70%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/></filter><rect width='64' height='64' filter='url(%23n)'/></svg>")}
+/* v134: the season card's own stat strip, under the dots */
+.rib9-seasonline{display:flex;align-items:center;gap:10px;margin:8px 0 2px;padding:7px 10px;border-radius:10px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);cursor:pointer}
+.rib9-seasonline .rib9-kicker{margin:0;white-space:nowrap}
+.rib9-seasonline .rib9-stats{flex:1;justify-content:flex-end}
 .rib9-edit{position:absolute;left:0;right:0;bottom:0;padding:5px 8px;font-family:Oswald,sans-serif;font-size:9px;letter-spacing:1.8px;color:var(--g2);background:linear-gradient(180deg,transparent,rgba(0,0,0,.85))}
 .rib9-identity{grid-area:id;min-width:0;padding-top:10px}
 .rib9-name{font-family:Oswald,sans-serif;font-weight:700;font-size:clamp(20px,6vw,34px);letter-spacing:-.5px;line-height:.95;overflow-wrap:anywhere;text-shadow:0 2px 8px rgba(0,0,0,.5)}
@@ -132,6 +147,15 @@ html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
   background:radial-gradient(circle,#101216 63%,transparent 65%),conic-gradient(var(--rib-ovr-color) calc(var(--rib-ovr)*360deg),rgba(255,255,255,.17) 0);transition:--rib-ovr 1.1s ease;
   box-shadow:0 0 0 5px #101216 inset,0 0 0 1px rgba(255,255,255,.06),0 0 22px rgba(125,220,110,.14)}
 @property --rib-ovr{syntax:'<number>';inherits:false;initial-value:0}
+/* v134: past the soft max a second, gold arc goes round again on top of the full green ring */
+@property --rib-ovr2{syntax:'<number>';inherits:false;initial-value:0}
+.rib9-ring{--rib-ovr2:0}
+.rib9-ring:before{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;z-index:0;
+  background:radial-gradient(circle,transparent 63%,transparent 65%),conic-gradient(#ffd66b calc(var(--rib-ovr2)*360deg),transparent 0);
+  -webkit-mask:radial-gradient(circle,transparent 63%,#000 65.5%);mask:radial-gradient(circle,transparent 63%,#000 65.5%);transition:--rib-ovr2 1.1s ease .3s;opacity:0}
+.rib9-ring.over:before{opacity:1}
+.rib9-ring.over{box-shadow:0 0 0 5px #101216 inset,0 0 0 1px rgba(255,214,107,.25),0 0 26px rgba(255,214,107,.22)}
+.rib9-ring.over .rib9-ring-lab{color:#ffd66b}
 .rib9-ring:after{content:"";position:absolute;inset:11px;border-radius:50%;border:1px solid rgba(255,255,255,.08)}
 .rib9-ring-val{position:relative;font-family:Oswald,sans-serif;font-weight:700;font-size:38px;line-height:.9;color:#fff;text-shadow:0 2px 8px #000}
 .rib9-ring-lab{position:relative;font-family:Oswald,sans-serif;font-size:10px;letter-spacing:3px;color:#cfd3da;margin-top:4px}
@@ -423,12 +447,9 @@ body.rib-howto-open{overflow:hidden!important}
 /* the ambient layer: embers and dust drifting up the whole page, UNDER the cards (they are all z:1) */
 .rib9-shell>*:not(.rib9-ambient-v132):not(.rib9-sweep-v132){position:relative;z-index:1}
 .rib9-ambient-v132{position:absolute;inset:0;z-index:0;pointer-events:none;mix-blend-mode:screen;opacity:.85}
-/* the stadium sweep: one light beam crossing the whole page every eleven seconds */
-.rib9-sweep-v132{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
-.rib9-sweep-v132:before{content:"";position:absolute;top:-20%;bottom:-20%;left:-40%;width:26%;transform:skewX(-14deg);mix-blend-mode:screen;
-  background:linear-gradient(100deg,rgba(255,236,190,0) 0,rgba(255,236,190,.05) 40%,rgba(255,246,220,.12) 50%,rgba(255,236,190,.05) 60%,rgba(255,236,190,0) 100%);
-  animation:rib9sweep 11s cubic-bezier(.4,0,.2,1) 2.4s infinite}
-@keyframes rib9sweep{0%{left:-40%}24%{left:130%}100%{left:130%}}
+/* v134: the stadium sweep -- a skewed beam crossing the whole page every eleven seconds -- is gone. It read
+   as a diagonal line drawn across the menu and pulled the eye off every card; the embers, the wire and
+   the hero's own light stay. */
 /* the topbar's hairline is live: a bead of light runs the rule */
 .rib9-topbar{position:relative}
 .rib9-topbar:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;pointer-events:none;
@@ -497,8 +518,7 @@ body.rib-howto-open{overflow:hidden!important}
 .rib9-level.rib9-cta:after{content:"";position:absolute;top:-50%;bottom:-50%;left:-35%;width:25%;transform:skewX(-20deg);pointer-events:none;
   background:linear-gradient(100deg,rgba(255,255,255,0),rgba(255,255,255,.55),rgba(255,255,255,0));animation:rib9ctasheen 3.8s ease-in-out infinite}
 @keyframes rib9ctasheen{0%,55%{left:-35%}88%,100%{left:135%}}
-.rib9-streak-v132{position:absolute;inset:0;pointer-events:none;z-index:1;mix-blend-mode:screen;background:linear-gradient(70deg,rgba(255,255,255,0) 42%,rgba(255,240,200,.12) 50%,rgba(255,255,255,0) 58%);background-size:300% 100%;animation:rib9streak 9s ease-in-out infinite}
-@keyframes rib9streak{0%,62%{background-position:200% 0}100%{background-position:-100% 0}}
+/* v134: the continue card's passing headlight (a second diagonal streak) is gone with the sweep */
 .rib9-nextup-v132{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:3px 8px;border-radius:999px;border:1px solid rgba(255,90,95,.45);background:rgba(255,90,95,.12);font-family:Oswald,sans-serif;font-size:9px;letter-spacing:2px;color:#ffb3b5}
 .rib9-nextup-v132:before{content:"";width:6px;height:6px;border-radius:50%;background:#ff5a5f;animation:rib9live 1.2s ease-in-out infinite}
 /* the legacy tiles glint when they count up; the milestone plate swings a touch */

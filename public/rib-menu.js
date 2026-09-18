@@ -275,6 +275,16 @@
     }).join('');
   }
 
+  /* v134: the season so far, in the position's own three numbers -- summed off the week rows the feed
+   * carries (every played week's stat line), so the card that says "3 / 8 GAMES" also says what those
+   * three games produced. Rate stats are not summed; the tiles are the counting ones. */
+  function seasonLine(data) {
+    const s = data.season, pl = data.player; if (!s || !pl) return '';
+    const tiles = STAT_TILES[pl.pos] || STAT_TILES.QB, weeks = (s.weeks || []).filter(w => w && w.played && w.stat);
+    if (!weeks.length) return '';
+    const sum = {}; weeks.forEach(w => tiles.forEach(([k]) => { const v = Number(w.stat[k]); if (Number.isFinite(v)) sum[k] = (sum[k] || 0) + v; }));
+    return `<div class="rib9-seasonline" data-rib-action="view:stats" role="button" tabindex="0"><span class="rib9-kicker">SEASON · ${esc(pl.pos)}</span><div class="rib9-stats">${tiles.map(([k, lab]) => `<div class="rib9-stat"><b>${esc(Math.round(sum[k] || 0))}</b><small>${esc(lab)}</small></div>`).join('')}</div></div>`;
+  }
   function latestGame(data) {
     const s = data.season, pl = data.player;
     if (!s.last) return `<div class="rib9-latest rib9-latest-empty"><div class="rib9-kicker">LATEST GAME</div><div class="rib9-empty">No game played yet — Week ${esc(s.nextWeek || 1)} is up.</div></div>`;
@@ -439,7 +449,7 @@
 
     return `
       <div class="rib9-shell" role="main" aria-label="Running It Back main menu">
-        <canvas class="rib9-ambient-v132" aria-hidden="true"></canvas><div class="rib9-sweep-v132" aria-hidden="true"></div>
+        <canvas class="rib9-ambient-v132" aria-hidden="true"></canvas>
         <header class="rib9-topbar">
           <div class="rib9-brand"><span class="rib9-mark">RIB</span><div><b>RUNNING IT BACK</b><small>CAREER MODE</small></div></div>
           <nav class="rib9-nav" aria-label="Main">
@@ -487,12 +497,12 @@
             <img src="${ART}card_continue.webp${ARTV}" alt="" data-nat="1000,640">
             ${tint(colors, 0, 'card_continue_mask_p', 1, RECOLOR && 'card_continue')}${tint(colors, 1, 'card_continue_mask_s', 1, RECOLOR && 'card_continue')}
             <div class="rib9-hero-jersey rib9-card-jersey" aria-hidden="true" data-at="0.775,0.535"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>
-            <i class="rib9-streak-v132" aria-hidden="true"></i>
             <div class="rib9-continue-copy"><h2>CONTINUE<br>CAREER <span>${svg('chev')}</span></h2><div class="rib9-yw">Year ${year} <i></i> Week ${week}</div><div class="rib9-vs">${season.nextOpp ? `vs ${esc(season.nextOpp)} (${record(season)})` : season.weeks.length ? `Season complete (${record(season)})` : `${esc(String(pl.levelName))} · Season ${pl.seasonsAtLevel + 1}`}</div>${season.nextOpp ? '<span class="rib9-nextup-v132">NEXT UP</span>' : ''}</div>
           </section>
           <section class="rib9-card rib9-season">
             <div class="rib9-kicker">SEASON PROGRESS</div>
             <div class="rib9-progress" data-rib-action="view:${careerView}" role="button" tabindex="0"><div class="rib9-dots">${seasonDots(season)}</div><span class="rib9-games">${esc(season.played)} / ${esc(season.games)} GAMES</span></div>
+            ${seasonLine(data)}
             ${latestGame(data)}
           </section>
           ${legacyPanel(S)}
@@ -593,10 +603,20 @@
     const ring = menu.querySelector('.rib9-ring');
     if (ring) {
       const overall = Math.max(0, Number(data.player && data.player.ovr) || 0);
-      ring.style.setProperty('--rib-ovr-color', overall >= 150 ? '#ffe9a0' : overall >= 60 ? '#7ddc6e' : '#e8734a');
+      /* v134: the ring is drawn against the player's SOFT MAX -- the OVR he would carry with every
+       * attribute sitting on its soft cap (the feed's softMaxOvr) -- so it completes when he is soft-maxed,
+       * and a second, gold arc goes round again for everything past it. A young player's ring used to be
+       * a sliver of a 250-point circle he could not read; now it says how much of THIS year's ceiling he
+       * has used, and a full gold lap is a man who has outgrown his caps. */
+      const softMax = Math.max(1, Number(data.player && data.player.softMaxOvr) || 0) || 250;
+      const k1 = Math.min(1, overall / softMax), k2 = Math.max(0, Math.min(1, (overall - softMax) / softMax));
+      ring.style.setProperty('--rib-ovr-color', k2 > 0 ? '#7ddc6e' : overall / softMax >= .85 ? '#7ddc6e' : overall / softMax >= .5 ? '#e8c86a' : '#e8734a');
+      ring.classList.toggle('over', k2 > 0);
+      ring.title = k2 > 0 ? `OVR ${overall} — past his soft max of ${softMax} (gold lap: ${Math.round(k2 * 100)}% of the way round again)` : `OVR ${overall} of a soft max of ${softMax} — ${Math.round(k1 * 100)}% of this year's ceiling used`;
       // a young player is still a visible arc: an empty ring reads as a broken ring
-      const applyArc = () => { const k = Math.max(0.055, Math.min(1, overall / 250)); ring.style.setProperty('--rib-ovr', String(k));   // a full circle is 250: ratings run past 99
-        const spark = ring.querySelector('.rib9-ring-spark-v132'); if (spark) spark.style.setProperty('--spark', (k * 360).toFixed(1) + 'deg'); };   // v132: the spark rides the head of the arc
+      const applyArc = () => { const k = Math.max(0.055, k1); ring.style.setProperty('--rib-ovr', String(k)); ring.style.setProperty('--rib-ovr2', String(k2));
+        const head = k2 > 0 ? k2 : k;
+        const spark = ring.querySelector('.rib9-ring-spark-v132'); if (spark) spark.style.setProperty('--spark', (head * 360).toFixed(1) + 'deg'); };   // v132: the spark rides the head of the (outermost) arc
       if (animateIn && !prefersReduced()) whenAssetsReady(() => requestAnimationFrame(() => requestAnimationFrame(applyArc)));
       else applyArc();
     }

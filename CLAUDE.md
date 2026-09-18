@@ -68,6 +68,29 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v134 THE GOALS ARE WORTH CHASING` (the `zt` table) / `v134 THE BUSTS HAVE A BOX SCORE` (beside `Ui` /
+  `Bi`) / `v134 THE MAN IN THE PICTURE` (beside `growDrawV133`) / the APEX branch (last in `sa`) — `zt` is
+  rescaled top to bottom: `dflMvpTitle` (a DFL title as the game's MVP, 10,000 PP) and `galaxyMvpTitle`
+  (the Interstellar title as its MVP, 1,000,000 PP) are the two summits, the board prints every payout
+  with commas and a sub line. `hofSnapV134(e,t)` is what `Ui` keeps on every enshrined career (`box`:
+  totals, the season log, top six attributes, awards, origin, traits, levels reached) and `hofCardV134`
+  is the box score a HALL OF FAME row taps open (`hofOpenV134`; `window.__HOF_V134`). The Apex branch
+  is eleven high-cost nodes and every one is a real hook: `evergreen` (the decline), `longevity`
+  (`retireAgeV134` replaces the bare `Qt`), `cleanSlate` (`rerollActiveV112`), `throwOpen`
+  (`strideOddsV129` through `window.__treeLvlV134` — the sim never reads `o.tree`), `grudge`
+  (`RIVAL_MULT_V128`), `trainerRoom` (one season-ender a career downgraded in `materializeInjuryV18`;
+  `window.__forceSeasonEnderV134` to test), `reputation` (`honorReqV130`), `compound` (in `tt`),
+  `franchiseTag` (`fx.coachStart`), `inheritance` (with `dynasty` in `kt`), `oracle` (`rollPlanFateV124`
+  and the game-plan roll). The tree no longer needs a click to render: the v75 sectioner's shop config
+  carries `nofold: ["nodes"]`. `softMaxOvrV134(e)` is the OVR of a man sitting on every soft cap
+  (`player.softMaxOvr` in the menu feed; the ring fills to it and a gold arc runs past it), and the
+  feed's week rows carry `stat` so `seasonLine` in `rib-menu.js` can sum the position's main stats.
+  `growDrawHiV134` draws the offseason body from `public/grow/idle_dn_hi.png` (cut by
+  `scripts/build-grow-art.py`, recoloured like the atlas) and `growDrawV133` falls back to the cell.
+  The coach: the PRESTIGE stop keys on view `shop` (off the menu's PRESTIGE button, `S.honors`), the
+  SKILLS stop on view `upgrade` and never says prestige, CAREER is its own stop, and `closerV134`
+  builds the debrief's last line from `buildV122`'s `grade` / `avg` / `exp` / `gainSum` / `worn` /
+  `hurt`. `v134check.mjs`, then `coachcheck.mjs`, `growcheck.mjs`, `menufxcheck.mjs`
 - `v133 THE COACH GRADES THE BOARD` (in the v113 board block, before `jr=function`) / `v133 THE BOY IN
   THE PICTURE` (beside `GROW_V132`) / `v133 THE COACH HAS A MOOD, AND A MOUTH ON HIM`
   (`public/rib-menu-coach.js` + `.css`) — `keyStatsV133(e)` is the position's four heaviest weights plus a
@@ -495,6 +518,8 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | You changed… | Run |
 |---|---|
 | tackling / contact physics | `tacklecheck.mjs`, `jukecheck.mjs` |
+| the goals' payouts, the Hall of Fame box scores, the Apex branch, the ring's soft max, the season strip's stats, the growth figure, the coach's stops and his last line (v134) | `v134check.mjs`, then `coachcheck.mjs`, `growcheck.mjs`, `menufxcheck.mjs`, `menu-integration-check.mjs`, `honorcheck.mjs`, `stridecheck.mjs`, `rivalcheck.mjs`, `v85check.mjs`, `declarecheck.mjs`, `walk.mjs` |
+| the growth figure's art — the native-resolution sheet, the recolour, the fallback cell (v134) | `python3 scripts/build-grow-art.py`, then `growcheck.mjs`; `growshot.mjs` to look |
 | the training board's grades — the tiers, the pick, the shaded bars (v133) | `gradecheck.mjs`, then `traincheck.mjs`, `capcheck.mjs`, `skillartcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs`; `BOARD=1 growshot.mjs` to look |
 | the growth screen's figure — the sprite, the age proportions, the breath (v133) | `growcheck.mjs`, then `coachcheck.mjs`; `growshot.mjs` / `VET=42 growshot.mjs` to look |
 | the coach's voice — the mood, the brash bark, the quips (v133) | `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs`, then `coachcheck.mjs`, `menu-integration-check.mjs` |
