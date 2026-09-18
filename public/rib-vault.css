@@ -13,7 +13,10 @@
 #ribVault canvas.rv-stage{position:absolute;inset:0;width:100%;height:100%;display:block}
 
 /* ---- the interface sits in the safe area, and stays SECONDARY to the room ---- */
-.rv-ui{position:absolute;inset:0;display:flex;flex-direction:column;pointer-events:none;
+#ribVault.opening .rv-ui{opacity:0;transition:none}
+#ribVault.opening .rv-panel,#ribVault.opening .rv-mult{opacity:0}
+.rv-ui{opacity:1;transition:opacity .45s ease;
+  position:absolute;inset:0;display:flex;flex-direction:column;pointer-events:none;
   padding:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right))
           max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
 .rv-ui>*{pointer-events:none}
@@ -77,6 +80,8 @@
 .rv-act .rv-btn{font-size:11px}
 .rv-act .go{background:linear-gradient(180deg,rgba(240,187,69,.22),rgba(240,187,69,.08));
   border-color:rgba(240,187,69,.55);color:#ffe3a6}
+.rv-act .rv-tilt.on{background:rgba(61,164,255,.20);border-color:rgba(109,190,255,.7);color:#bfe1ff}
+#ribVault.tilting .rv-hint{color:#8fc8ff}
 
 /* ---- the multiplier badge, while a hold is running ---- */
 .rv-mult{position:absolute;left:50%;transform:translate(-50%,0) scale(.7);opacity:0;

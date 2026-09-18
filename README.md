@@ -68,7 +68,14 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   level really moved before it claims a sale. Cancel, navigate away, background the app or reload
   mid-pour and nothing was ever debited; skip and the same one purchase happens immediately. v136's
   banked PP is shown as pending and is never spendable, and replaying the payout presentation creates
-  no PP. Prices, gates, rewards and the banking rules are untouched. The hoard is a seeded slot list
+  no PP. Prices, gates, rewards and the banking rules are untouched. **The money is physical**:
+  most of the hoard is stacked in columns rather than scattered loose, every coin draws its own edge
+  so it reads as metal rather than a printed circle, and each denomination carries a weight that sets
+  how it bounces, how far a shove carries it and how it sounds when it lands. You can pick a coin up
+  and drag it off the heap; you can turn the phone on and tip the money around the floor, held in
+  place by real static friction so the gold stays put while the bronze walks; and RESTOCK puts every
+  disturbed coin back — or, on an already tidy hoard, pours the same money into a different heap.
+  None of it touches a Prestige Point. The hoard is a seeded slot list
   that never reshuffles — coin *i* is born at a fixed fullness on the mound as it is at that fullness,
   so spending takes coins off the top and the outside and everything else stays exactly where it was;
   eight illustrative states run from an empty floor to an overflowing room, capped at a bounded number

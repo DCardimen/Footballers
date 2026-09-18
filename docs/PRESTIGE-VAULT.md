@@ -112,7 +112,7 @@ derived from the actual balance rather than assuming the concept art's 1.25B.
 | `scripts/vaultcut.py` | The extraction library (border flood → opening → largest component → hole fill → feather). |
 | `scripts/build-vault-art.py` | Drives the cutter over every cell; writes `public/vault/` and the manifest. `--proof` writes `art/vault-proof/` to look at. |
 | `scripts/vaultcheck.mjs` | The gate: 52 assertions. |
-| `scripts/vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` | Cameras, not checks. |
+| `scripts/vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` / `vaultphys.mjs` | Cameras, not checks. |
 
 Into `index.html` went **~40 lines**, in one banner block (`v137 THE VAULT IS WHERE THE
 POINTS LIVE`) beside `__GRIDIRON_AUDIT__`, plus four one-token edits: the shop row's BUY
@@ -121,7 +121,31 @@ now calls `vaultBuy`, the shop's dock gained a **Visit the Vault** button, the t
 
 ## The hoard
 
-One central mound, never four towers, built from individual coin sprites.
+One central mound, never four towers, built from individual coin sprites — and **mostly
+stacked**. Loose discs alone read as a brown blob past about a dozen: there is no vertical
+structure for the eye to catch, so a hundred coins and a thousand look the same. Money in a
+vault is stacked. Two thirds of slots are therefore **columns** — k coins of one
+denomination (you sort your money) off the `flat` sprite, each a coin's thickness above the
+last, the column wandering as it climbs because a stack of coins is never plumb, and a third
+of the taller ones carrying a coin lying askew across the top. The rest stay loose and
+tilted, which is what keeps the heap looking poured rather than stocked.
+
+A column's height is keyed on how **low** in the heap it sits, not how near the middle:
+tall stacks at the base and the front, short ones out on the slope and at the crown. Keyed
+on the radius instead — which is what it did first — the tallest columns land on the peak
+and the hoard grows a picket fence.
+
+**Coins have an edge.** Every coin draws its own silhouette once, darkened, a fraction below
+its face: the cheapest honest way to give a disc a side, and the thing that makes the hoard
+read as metal rather than as printed circles (`THICK`, per sprite kind; a column uses a
+fraction of it because the step already does most of the work).
+
+The budget is counted in **coins, not slots** — a stack of eight costs eight — so the draw
+call count is bounded whatever mix of stacks and singles comes out, and `n` keeps meaning
+the one thing it should. `cum[i]` is the running total, so the slots for n coins are still a
+prefix and nothing reshuffles. Below **60 PP** the vault draws your coins one for one,
+because at that size you can count them and a vault showing thirteen when you own seven is
+lying about the only thing on the screen.
 
 `MAX` slots are generated **once** from a fixed seed (`buildSlots`). Slot *i* is born at
 fullness `u = (i+.5)/MAX` and placed on the surface of the mound **as it is at u** — radius
@@ -157,6 +181,38 @@ squeezed through the EDGE sprite procedurally. The supplied 12-frame spin rows w
 and are **not** a monotonic rotation — the cell widths run 56, 46, 38, 23, 17, 20, 55, 54,
 50, 52, 54, 64 px, so the sequence pops at the sixth frame and never narrows again. Four
 sprites per denomination instead of forty-eight, no seam, and the spin axis can vary per coin.
+
+## The money is loose — drag, tilt and RESTOCK
+
+The layout is deterministic and that has to stay true, so nothing here ever moves a slot. A
+disturbed coin gets a row in a sparse **displacement map** — its own position, velocity and
+sleep state — and the renderer draws it there instead. Clear the map and the hoard is
+exactly the hoard again, which is what RESTOCK does.
+
+- **Drag.** A press on the hoard is an invest hold; a press that then *travels* is a drag of
+  the coin under the finger. The pour is not delayed waiting to find out — the first tap
+  pays immediately, because a laggy tap is worse than an extra coin — but past 13 px the
+  hold is released and the gesture becomes a drag. The coin lags the hand by its own weight
+  rather than sticking to it, and leaves it with the speed the hand had.
+- **Tilt.** `deviceorientation`, behind a button because iOS requires the permission from a
+  real gesture. Dead-zoned and clamped. The physics that matters is **static friction**:
+  the driving force is the tilt plus the slope the coin is sitting on, the resisting force is
+  `MU × grip`, and below the threshold nothing moves at all. Because grip rises with mass, a
+  hard tilt walks the bronze off the top while the billion-point coins sit where they are.
+  Without it the hoard poured itself across the room the moment the phone came off level.
+- **Weight.** Gravity is the same for every coin — that is physics — but nothing else is:
+  `MASS` (bronze 1.00 → blue 2.40) sets bounce, grip, how much of a fling a coin carries,
+  and how it sounds when it lands. A billion-point coin should feel like picking up a bar.
+- **RESTOCK.** Every disturbed coin flies home to its slot. Press it on an already tidy
+  hoard and it **re-pours** instead: a fresh seed, a visibly different heap of exactly the
+  same money. Neither touches a Prestige Point or changes the coin count, and
+  `vaultcheck.mjs` asserts both.
+
+Only coins in the live surface band can be disturbed — the deep layer is a baked canvas and
+moving one of its coins would cost a re-bake per frame. That is also the honest limit: you
+can push the money on top of the pile around, not the money underneath it. Bodies are capped
+at 150 and they **sleep**, so a hoard that has been shaken and left alone costs the same as
+one that has not.
 
 ## Spending
 
@@ -211,9 +267,17 @@ would replace one for one: `vault_mechanism`, `door_move`, `coin_bronze`, `coin_
 
 ## The door
 
-One leaf sprite under an affine transform, plus one rotating wheel and eight translating
-bolts. The leaf's geometry never changes between frames, which is the thing the brief rules
-out. It plays once per install (`rib.vaultDoor.v137`), is skippable by tapping, and is
+A cue sheet: `.00-.24` the lock wheel turns a turn and a quarter; `.20-.46` eight bolts draw
+**in**, toward the hub, which is what unlocking is; `.46-.92` the leaf pivots and sweeps
+out; `.72-1.0` the room comes up behind it and the camera settles out of a 6% push.
+
+The leaf, its wheel and its bolts are drawn inside **one transform**, so they are a single
+rigid body throughout — the wheel cannot drift off the hub and the bolts cannot detach from
+the door they are holding shut. The pivot is a horizontal squash anchored on the **hinge**
+rather than the centre: a door turning away from you projects exactly that way, and
+anchoring it at the centre is what makes a swing read as a slide. The interface is faded out
+for the first three quarters, because an interface sitting over a shut door is the single
+thing that gives an opening away. It plays once per install (`rib.vaultDoor.v137`), is skippable by tapping, and is
 skipped outright under reduced motion. At rest the door is **baked into the room** on the far
 wall, behind the hoard, where it costs nothing and stops occluding the pile it stands behind.
 
@@ -253,7 +317,9 @@ node scripts/vaultshot.mjs                   # the eight wealth states
 WIDE=1 node scripts/vaultshot.mjs            # desktop
 KEY=oracle node scripts/vaultspend.mjs       # a real spend, photographed
 node scripts/vaultdoor.mjs                   # the opening and the payout
+node scripts/vaultphys.mjs                   # a coin in hand, a tilted phone, the restock
 ```
 
 Hooks: `window.__RIB_VAULT`, `__RIB_VAULT_BRIDGE`, `__RIB_VAULT_MODEL`, `__RIB_VAULT_SCENE`,
-`__RIB_VAULT_AUDIO`, `__RIB_VAULT_DEV`, and `window.__V137` on the game's side.
+`__RIB_VAULT_AUDIO`, `__RIB_VAULT_PHYS`, `__RIB_VAULT_DEV`, and `window.__V137` on the
+game's side.

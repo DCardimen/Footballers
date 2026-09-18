@@ -86,7 +86,24 @@ await openV()
 await page.waitForTimeout(900)
 const s0 = await st()
 ok(s0.open && s0.missing.length === 0, 'the vault opens with every sprite loaded', s0.missing)
-ok(s0.n > 0 && s0.n <= s0.slots, 'the hoard renders a BOUNDED number of coins', [s0.n, s0.slots])
+ok(s0.n > 0 && s0.n <= s0.budget, 'the hoard renders a BOUNDED number of coins', [s0.n, s0.budget])
+ok(s0.stacks / s0.piles > 0.5, 'and most of the hoard is STACKED, not a jumble of loose discs',
+  [s0.stacks, s0.piles, +(s0.stacks / s0.piles).toFixed(2)])
+const stackShape = await page.evaluate(() => {
+  const s = window.__RIB_VAULT_DEV.scene().slots
+  const k = s.slot.map(q => q.cnt)
+  const tall = k.filter(v => v > 1)
+  return { coins: s.coins, sum: k.reduce((a, b) => a + b, 0), slots: k.length,
+    loose: k.filter(v => v === 1).length, maxK: Math.max(...k),
+    avg: +(tall.reduce((a, b) => a + b, 0) / Math.max(1, tall.length)).toFixed(2),
+    firstFew: k.slice(0, 8), cumOk: s.cum[s.cum.length - 1] === s.coins }
+})
+ok(stackShape.sum === stackShape.coins && stackShape.cumOk,
+  'the running total accounts for every coin a stack stands for', stackShape)
+ok(stackShape.firstFew.every(v => v === 1),
+  'an almost-empty vault is loose coins on the floor, never a column of eight', stackShape.firstFew)
+ok(stackShape.maxK >= 6 && stackShape.avg >= 3,
+  'the columns have real height', [stackShape.maxK, stackShape.avg])
 
 // spatial continuity: the same balance must lay out identically, and a changed balance must
 // keep every coin it already had in the same place
@@ -102,6 +119,12 @@ const cont = await page.evaluate(() => {
 ok(cont.stable, 'the same balance draws the same hoard')
 ok(cont.kept, 'and a changed balance does not reorganise the coins it already had')
 ok(cont.grew, 'a bigger balance is a bigger hoard')
+const prefix = await page.evaluate(() => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene(), M = window.__RIB_VAULT_MODEL
+  const a = M.slotsFor(s.slots, 400), b = M.slotsFor(s.slots, 900)
+  return { a, b, mono: b >= a, exact: s.slots.cum[a - 1] <= 400 && (a >= s.slots.cum.length || s.slots.cum[a] > 400) }
+})
+ok(prefix.mono && prefix.exact, 'and the slots for n coins are still a prefix, so nothing reshuffles', prefix)
 
 // ---------- 2. a flying coin leaves the actual pile ----------
 const flight = await page.evaluate(() => {
@@ -111,6 +134,97 @@ const flight = await page.evaluate(() => {
   return { inBox: p.x >= h.x0 - 30 && p.x <= h.x1 + 30 && p.y >= h.y0 - 30 && p.y <= h.y1 + 40, i: p.i, n: Math.round(s.nShown) }
 })
 ok(flight.inBox && flight.i >= 0 && flight.i < flight.n, 'a tap detaches a REAL surface coin, not a spawn point', flight)
+await closeV()
+
+// ---------- 2b. THE MONEY IS LOOSE: drag, tilt, weight, restock ----------
+await setPP(900000)
+await openV()
+await page.waitForTimeout(900)
+const phys = await page.evaluate(async () => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene(), M = window.__RIB_VAULT_MODEL
+  const h = s.hoardBox(), cx = (h.x0 + h.x1) / 2, cy = (h.y0 + h.y1) / 2
+  const got = V.drag(cx, cy)
+  const b = Object.values(V.bodies())[0]
+  const at0 = b ? { x: b.gx, y: b.gy } : null
+  for (let i = 0; i < 12; i++) V.dragTo(cx + 70, cy - 90)
+  const at1 = b ? { x: b.gx, y: b.gy } : null
+  V.drop()
+  await new Promise(r => setTimeout(r, 900))
+  const at2 = b ? { x: b.gx, y: b.gy, sleep: b.sleep } : null
+  const surf = b ? s.surfaceAt(b.gx, b.gz) : 0
+  return { got, at0, at1, at2, surf: +surf.toFixed(4), held: b ? b.held : null,
+    moved: at0 && at1 ? Math.abs(at1.x - at0.x) > 0.02 : false,
+    onHeap: b ? b.gy >= surf - 0.02 : false, mass: b ? b.m : null }
+})
+ok(phys.got && phys.moved, 'a coin can be PICKED UP and dragged off the heap', phys)
+ok(!phys.held && phys.onHeap, 'and when it is let go it falls and comes to rest ON the heap, not through it', phys)
+ok(phys.at2 && phys.at2.sleep, 'and then it goes to sleep, so a settled hoard costs nothing', phys.at2)
+
+const weight = await page.evaluate(async () => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene(), M = window.__RIB_VAULT_MODEL
+  s.sleepAll()
+  const out = {}
+  for (const den of ['bronze', 'gold', 'blue']) {
+    // drop one of each from the same height with the same sideways push and see how far
+    // it gets before it stops — heavier coins scrub off speed faster
+    const i = s.slots.slot.findIndex((q, k) => k < M.slotsFor(s.slots, Math.round(s.nShown)))
+    s.sleepAll()
+    const b = s.wake(i); if (!b) continue
+    b.m = { bronze: 1, gold: 1.75, blue: 2.4 }[den]
+    b.bounce = 0.34 / b.m; b.grip = 1 + (b.m - 1) * 0.85
+    b.gx = 0; b.gz = 0; b.gy = 1.2; b.vx = 0.0022; b.vy = 0; b.vz = 0; b.sleep = false
+    for (let t = 0; t < 400; t++) s.stepBodies(16)
+    out[den] = +Math.abs(b.gx).toFixed(4)
+  }
+  s.sleepAll()
+  return out
+})
+ok(weight.bronze > weight.gold && weight.gold > weight.blue,
+  'WEIGHT is real: the same shove carries a bronze coin further than a gold one, and a gold further than a billion', weight)
+
+const tilt = await page.evaluate(async () => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene()
+  s.sleepAll(); s.setTilt(0, 0)
+  V.tilt(-0.9, 0)                        // tip the phone hard to one side
+  const before = Object.values(V.bodies()).map(b => b.gx)
+  for (let t = 0; t < 90; t++) s.stepBodies(16)
+  const after = Object.values(V.bodies()).map(b => b.gx)
+  const n = before.length
+  const drift = n ? (after.reduce((a, b) => a + b, 0) - before.reduce((a, b) => a + b, 0)) / n : 0
+  V.tilt(0, 0)
+  return { n, drift: +drift.toFixed(4) }
+})
+ok(tilt.n > 0, 'a tilt shakes the top of the heap loose', tilt)
+ok(tilt.drift < -0.01, 'and the money slides the way the phone is tipped', tilt)
+ok(tilt.n <= 150, 'with the number of moving coins held to a cap', tilt.n)
+
+const restock = await page.evaluate(async () => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene()
+  const o = window.__GRIDIRON_AUDIT__.getState()
+  const ppBefore = o.pp, nBefore = Math.round(s.nShown), disturbed = s.bodyCount()
+  V.restock()
+  await new Promise(r => setTimeout(r, 1400))
+  const tidy = s.bodyCount()
+  // a second press on a tidy hoard re-pours it
+  const layout0 = s.slots.slot.slice(0, 40).map(q => q.x)
+  V.restock()
+  await new Promise(r => setTimeout(r, 200))
+  const layout1 = s.slots.slot.slice(0, 40).map(q => q.x)
+  return { ppBefore, ppAfter: o.pp, nBefore, nAfter: Math.round(s.nShown), disturbed, tidy,
+    repoured: layout0.some((v, i) => v !== layout1[i]) }
+})
+ok(restock.tidy === 0, 'RESTOCK puts every disturbed coin back and empties the displacement map', restock)
+ok(restock.repoured, 'and pressing it on a tidy hoard pours the same money into a different heap', restock)
+ok(restock.ppAfter === restock.ppBefore && restock.nAfter === restock.nBefore,
+  'neither one touches a single Prestige Point, or the number of coins', restock)
+await closeV()
+
+// the physics must not survive the screen
+await openV()
+await page.waitForTimeout(600)
+const clean = await st()
+ok(clean.bodies === 0 && !clean.tilt && !clean.dragging,
+  'a fresh visit opens on a tidy hoard with the sensor off', clean)
 await closeV()
 
 // ---------- 3. THE TRANSACTION ----------
