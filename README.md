@@ -73,7 +73,9 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   so it reads as metal rather than a printed circle, and each denomination carries a weight that sets
   how it bounces, how far a shove carries it and how it sounds when it lands. You can pick a coin up
   and drag it off the heap; you can turn the phone on and tip the money around the floor, held in
-  place by real static friction so the gold stays put while the bronze walks; and RESTOCK puts every
+  place by real static friction so the bronze walks off the top at about 9 degrees, the gold at 14
+  and the billion-point coin at 18 — and a hoard held level sits at its angle of repose instead of
+  sliding; and RESTOCK puts every
   disturbed coin back — or, on an already tidy hoard, pours the same money into a different heap.
   None of it touches a Prestige Point. The hoard is a seeded slot list
   that never reshuffles — coin *i* is born at a fixed fullness on the mound as it is at that fullness,

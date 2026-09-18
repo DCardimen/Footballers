@@ -27,9 +27,18 @@ console.log('dragging:', JSON.stringify(await page.evaluate(() => window.__RIB_V
 await page.mouse.up(); await page.waitForTimeout(700)
 await page.screenshot({ path: '_phys_dropped.png' })
 
-// the phone tipped over
-await page.evaluate(() => { const V = window.__RIB_VAULT_DEV; V.scene().tiltWake(); V.tilt(-0.85, 0.15) })
-await page.waitForTimeout(1100); await page.screenshot({ path: '_phys_tilt.png' })
+// the phone tipped over — driven through the REAL sensor handler, as a hand would
+await page.evaluate(async () => {
+  const V = window.__RIB_VAULT_DEV
+  V.tiltArm()
+  for (let i = 0; i < 12; i++) { V.tiltRaw(78, 1); await new Promise(r => setTimeout(r, 40)) }
+})
+await page.screenshot({ path: '_phys_level.png' })
+for (let i = 0; i < 26; i++) {
+  await page.evaluate(() => window.__RIB_VAULT_DEV.tiltRaw(78, -26))
+  await page.waitForTimeout(40)
+}
+await page.screenshot({ path: '_phys_tilt.png' })
 console.log('tilted:', JSON.stringify(await page.evaluate(() => window.__RIB_VAULT_DEV.state())))
 
 // restock

@@ -219,14 +219,22 @@
         capRot: (R() - 0.5) * 1.1,
         glint: R()
       });
-      total += k; cum.push(total); i++;
+      if (total + k > coinBudget) k = coinBudget - total;   // land exactly on the budget,
+      s[s.length - 1].cnt = k;                              // so a re-pour draws the same
+      total += k; cum.push(total); i++;                     // number of coins it did before
       if (i > 4000) break;                       // a belt for the braces
+    }
+    // how far out the hoard actually reaches, so the physics room can be built around it
+    var ex = 0, ez = 0;
+    for (i = 0; i < s.length; i++) {
+      if (Math.abs(s[i].x) > ex) ex = Math.abs(s[i].x);
+      if (Math.abs(s[i].z) > ez) ez = Math.abs(s[i].z);
     }
     // painter's order, far to near, computed once
     var order = new Array(s.length);
     for (i = 0; i < s.length; i++) order[i] = i;
     order.sort(function (a, b) { return (s[b].z - s[a].z) || (s[a].y - s[b].y); });
-    return { slot: s, order: order, cum: cum, coins: total, max: s.length };
+    return { slot: s, order: order, cum: cum, coins: total, max: s.length, ex: ex, ez: ez };
   }
 
   /* how many slots the first `n` coins fill — a binary search over the running total */
@@ -1293,14 +1301,27 @@
     if (this.balance - this.pending <= 0) { this.bumpHint('NOT ENOUGH PRESTIGE POINTS'); return; }
     this.pour(this.tapChunk(), true);
   };
+  /* THE THROW. `fling` is a VELOCITY in ground units per millisecond, measured against the
+   * clock — not a per-event displacement. It was the latter, which is why a coin left the
+   * hand at roughly the pointer's sample rate times its real speed and was through the wall
+   * inside a frame. A pointermove stream is 60-120Hz and irregular, so the delta is divided
+   * by the time that actually elapsed, smoothed, and clamped; the vertical component is
+   * clamped hardest, because that is the one that throws a coin out of the room. */
+  var THROW_V = 0.0026;          // ground units per ms — about a room's width a second
+  var THROW_VY = 0.0016;
+
   Vault.prototype.endDrag = function () {
     if (!this.dragging) return;
     var o = this.dragging; this.dragging = null;
     o.held = false; o.sleep = false;
-    // it leaves the hand with the speed the hand had — a heavy coin carries less of it
-    var k = 0.55 / o.m;
-    o.vx = (this.flingX || 0) * k; o.vz = (this.flingZ || 0) * k; o.vy = (this.flingY || 0) * k;
+    var k = 0.62 / o.m;                        // a heavier coin carries less of the hand
+    var vx = (this.flingX || 0) * k, vy = (this.flingY || 0) * k, vz = (this.flingZ || 0) * k;
+    var vh = Math.sqrt(vx * vx + vz * vz);
+    if (vh > THROW_V) { vx *= THROW_V / vh; vz *= THROW_V / vh; }
+    o.vx = vx; o.vz = vz;
+    o.vy = Math.max(-THROW_VY, Math.min(THROW_VY, vy));
     o.vs = o.vx * 1.4;
+    this.flingX = this.flingY = this.flingZ = 0;
     this.haptic(5);
   };
 
@@ -1314,26 +1335,34 @@
     o.held = true; o.sleep = false; o.vx = o.vy = o.vz = 0;
     this.dragging = o;
     this.flingX = this.flingY = this.flingZ = 0;
+    this.dragT = performance.now();
     this.haptic(9);
     if (window.__RIB_VAULT_AUDIO) window.__RIB_VAULT_AUDIO.coin(M.denOf(s.slots.slot[pick.i], s.mix), 0);
   };
 
-  /* the coin follows the hand, but it does not STICK to it: it lags by its own weight,
-   * which is most of what makes a drag feel like holding something */
+  /* The coin follows the hand, but it does not STICK to it: it lags by its own weight,
+   * which is most of what makes a drag feel like holding something. The lag is a time
+   * constant rather than a per-event fraction, so a 120Hz pointer does not whip the coin
+   * along twice as fast as a 60Hz one. */
   Vault.prototype.moveDrag = function (px, py, dx, dy) {
     var o = this.dragging, s = this.scene;
     if (!o) return;
+    var now = performance.now();
+    var dt = Math.max(6, Math.min(80, now - (this.dragT || now - 16)));
+    this.dragT = now;
     var cam = s.cam;
     var k = cam.k(SC.PILE.z + o.gz);
-    var lag = 0.34 / Math.pow(o.m, 0.55);
+    var tau = 52 * Math.pow(o.m, 0.5);
+    var lag = 1 - Math.exp(-dt / tau);
     var tgx = (px - s.cw * 0.5) / (k * 0.62 * cam.span);
     var lift = (s.cam.project(o.gx, 0, SC.PILE.z + o.gz, {}).y - py) / (k * 0.34 * s.ch);
     var ox = o.gx, oy = o.gy;
     o.gx += (tgx - o.gx) * lag;
     o.gy += (Math.max(s.surfaceAt(o.gx, o.gz) - 0.02, lift) - o.gy) * lag;
     o.spin += dx * 0.004;
-    this.flingX = (o.gx - ox) * 0.55 + (this.flingX || 0) * 0.45;
-    this.flingY = (o.gy - oy) * 0.55 + (this.flingY || 0) * 0.45;
+    var ex = Math.exp(-dt / 70);               // EMA on the MEASURED velocity, not on a delta
+    this.flingX = ((o.gx - ox) / dt) * (1 - ex) + (this.flingX || 0) * ex;
+    this.flingY = ((o.gy - oy) / dt) * (1 - ex) + (this.flingY || 0) * ex;
   };
 
   Vault.prototype.release = function () {
@@ -1605,19 +1634,49 @@
     var self = this;
     var arm = function () {
       if (self._tiltH) return;
+      /* NEUTRAL IS WHEREVER YOU ARE HOLDING IT. The first pass assumed a 48-degree hold and
+       * measured beta against that constant, so anyone holding the phone upright had a
+       * permanent forward tilt and anyone holding it flatter had none at all. The first
+       * half-second of readings is averaged into the zero instead, so "level" is however
+       * the phone is being held when the button is pressed. */
+      var cal = { n: 0, b: 0, g: 0, done: false, t0: performance.now() };
+      self._tiltCal = cal;
+      self._tiltSeen = 0;
       self._tiltH = function (e) {
         if (!self.open_ || !self.scene) return;
         var g = e.gamma, b = e.beta;
         if (g == null || b == null) return;
-        var dead = function (v, d) { return Math.abs(v) < d ? 0 : (v - Math.sign(v) * d); };
-        var gx = Math.max(-1, Math.min(1, dead(g, 4) / 34));
-        var gz = Math.max(-1, Math.min(1, dead(b - 48, 6) / 40));
+        self._tiltSeen++;
+        if (!cal.done) {
+          cal.n++; cal.b += b; cal.g += g;
+          if (performance.now() - cal.t0 < 420 && cal.n < 40) return;
+          cal.done = true; cal.b /= cal.n; cal.g /= cal.n;
+          self.bumpHint('TILT THE PHONE &mdash; THE MONEY MOVES');
+        }
+        var dg = g - cal.g, db = b - cal.b;
+        if (db > 180) db -= 360; else if (db < -180) db += 360;
+        var dead = function (v, d) { return Math.abs(v) < d ? 0 : (v - (v < 0 ? -d : d)); };
+        var gx = Math.max(-1, Math.min(1, dead(dg, 2) / 24));
+        var gz = Math.max(-1, Math.min(1, dead(db, 3) / 30));
+        self.lastTilt = { gx: gx, gz: gz, beta: b, gamma: g };
         self.scene.setTilt(gx, gz);
       };
       window.addEventListener('deviceorientation', self._tiltH, true);
+      // some Android builds only fire the absolute event
+      window.addEventListener('deviceorientationabsolute', self._tiltH, true);
       self.tilt = true;
       self.root.classList.add('tilting');
-      self.bumpHint('TILT THE PHONE &mdash; THE MONEY MOVES');
+      self.bumpHint('HOLD IT LEVEL&hellip;');
+      // if nothing arrives the button has to say so rather than sitting there lit
+      clearTimeout(self._tiltWatch);
+      self._tiltWatch = setTimeout(function () {
+        if (self.tilt && !self._tiltSeen) {
+          self.tiltOff();
+          self.elTilt.classList.remove('on');
+          self.elTilt.setAttribute('aria-pressed', 'false');
+          self.bumpHint('NO TILT DATA FROM THIS DEVICE');
+        }
+      }, 1500);
     };
     var D = window.DeviceOrientationEvent;
     if (!D) { this.bumpHint('THIS DEVICE HAS NO TILT SENSOR'); return false; }
@@ -1628,9 +1687,14 @@
     } else arm();
     return true;
   };
+
   Vault.prototype.tiltOff = function () {
-    if (this._tiltH) window.removeEventListener('deviceorientation', this._tiltH, true);
-    this._tiltH = null; this.tilt = false;
+    clearTimeout(this._tiltWatch);
+    if (this._tiltH) {
+      window.removeEventListener('deviceorientation', this._tiltH, true);
+      window.removeEventListener('deviceorientationabsolute', this._tiltH, true);
+    }
+    this._tiltH = null; this.tilt = false; this._tiltCal = null;
     this.root.classList.remove('tilting');
     if (this.scene) this.scene.setTilt(0, 0);
   };
@@ -1787,6 +1851,13 @@
     dragTo: function (x, y) { V.moveDrag(x, y, 2, 2) },
     drop: function () { V.endDrag() },
     tilt: function (gx, gz) { V.scene.setTilt(gx, gz) },
+    tiltRaw: function (beta, gamma) {            // drive the real handler, as the sensor would
+      if (!V._tiltH) return null;
+      V._tiltH({ beta: beta, gamma: gamma });
+      return V.lastTilt || null;
+    },
+    tiltArm: function () { V.tiltOn(); return !!V._tiltH },
+    fling: function () { return { x: V.flingX || 0, y: V.flingY || 0 } },
     restock: function () { V.restock() },
     bodies: function () { return V.scene._bodies || {} }
   };
@@ -1823,8 +1894,17 @@
   var GRAV = 0.0000105;          // ground units per ms squared
   var BOUNCE = 0.34, ROLL = 0.982;
   var MU = 0.42;                 // static friction: metal on metal, and it is most of this
-  var TILT_G = 0.85;             // lateral gravity at full tilt, as a fraction of g
-  var MAX_V = 0.0017;            // ground units per ms — the heap is about one unit across
+  var SLOPE_K = 0.55;            // ...against the slope a resting hoard already sits on
+  var TILT_G = 1.25;             // lateral gravity at full tilt, as a fraction of g
+  var STILL_FRAMES = 9;          // consecutive quiet frames before a coin is allowed to sleep
+  var TILT_ACCEL = 3.4;          // how hard it drives once the coin has broken loose
+  var MAX_V = 0.0022;            // ground units per ms — the heap is about one unit across
+  var MAX_VY = 0.0030;           // ...and nothing leaves the room upward
+  /* The first pass set MU 0.42 against TILT_G 0.85. A coin's grip is 1 + (m-1)*0.85, so the
+   * gold needed 32 degrees of tilt to move and the billion-point coin needed a drive of 0.92
+   * against a maximum of 0.85 — it could not move AT ALL, at any angle. These numbers are
+   * chosen so every denomination breaks loose at a reachable angle and the order is still
+   * the point: bronze at about 7 degrees, gold at 11, the billion at 15. */
 
   /* WEIGHT. Gravity is the same for all of them — that is physics — but everything else a
    * heavier coin does is different: it bounces less, it scrubs off speed faster, it takes
@@ -1834,15 +1914,24 @@
   var MASS = { bronze: 1.00, silver: 1.30, gold: 1.75, blue: 2.40 };
   function massOf(den) { return MASS[den] || 1; }
 
-  /* the height of the heap at a point, for the fullness it is at now */
+  /* The height of the heap at a point, for the fullness it is at now.
+   *
+   * The arguments are in WORLD ground units — a body stores gx = slot.x * PILE.dx and
+   * gz = slot.z * PILE.dz — while the mound functions are defined in the slot space the
+   * hoard was built in. They have to be converted back, and the answer converted forward.
+   * Evaluating the mound directly on the world coordinates compares a radius scaled by 1.20
+   * in x and 0.150 in z against a radius in neither, so every coin was handed a surface
+   * height that had nothing to do with the heap it was sitting on: some floated, some were
+   * buried, and the slope the physics read off it pointed the wrong way. */
   Scene.prototype.surfaceAt = function (gx, gz) {
     var f = Math.max(0, Math.min(1, this.nShown / this.slots.coins));
     if (f <= 0) return 0;
-    var r = Math.sqrt(gx * gx + (gz / 0.62) * (gz / 0.62));
-    var th = Math.atan2(gz / 0.62, gx);
+    var sx = gx / PILE.dx, sz = gz / PILE.dz;    // back into slot space
+    var r = Math.sqrt(sx * sx + (sz / 0.62) * (sz / 0.62));
+    var th = Math.atan2(sz / 0.62, sx);
     var R = MOUND.R(f) * MOUND.lobe(th);
     if (R <= 1e-6) return 0;
-    return MOUND.H(f) * MOUND.prof(r / R) * (0.80 + 0.20 * MOUND.lobe(th));
+    return MOUND.H(f) * MOUND.prof(r / R) * (0.80 + 0.20 * MOUND.lobe(th)) * PILE.dy;
   };
 
   /* Pour the hoard again. The slot list is rebuilt from a NEW seed, so the heap is a
@@ -1853,6 +1942,7 @@
     M.reseed();
     this.slots = M.buildSlots(Scene.budget());
     this._bodies = {}; this._nBodies = 0; this.tidyTick = null;
+    this.limX = this.limZ = null;
     this.deepKey = ''; this.deepSlots = 0;
     this.setBalance(this.pp, false);
   };
@@ -1923,12 +2013,28 @@
         var e = 0.02;
         var sx = (this.surfaceAt(o.gx + e, o.gz) - this.surfaceAt(o.gx - e, o.gz)) / (2 * e);
         var sz = (this.surfaceAt(o.gx, o.gz + e) - this.surfaceAt(o.gx, o.gz - e)) / (2 * e);
-        var dx2 = tx * TILT_G - sx * 1.35;
-        var dz2 = tz * TILT_G * 0.62 - sz * 0.75;
-        var drive = Math.sqrt(dx2 * dx2 + dz2 * dz2);
+        /* The slope term is weighted BELOW the tilt term. A hoard at rest is sitting at its
+         * angle of repose and must not creep downhill on its own — with the slope weighted
+         * as heavily as the tilt, every woken coin slid off the heap the moment anything
+         * disturbed it, and the pile quietly deflated. */
+        /* A hoard at rest holds its own shape. Coins in a heap interlock, which is why a
+         * pile of them stands at an angle no single coin would hold on its own — so the
+         * slope contributes only in proportion to how far the TILT has already sheared the
+         * bond. Level, the slope contributes nothing and the heap sits. Tipped, its own
+         * slope carries it. Adding the slope unconditionally meant every coin that woke for
+         * any reason crept downhill and the pile quietly slumped. */
         var hold = MU * o.grip;
+        var tiltDrive = Math.sqrt((tx * TILT_G) * (tx * TILT_G) + (tz * TILT_G * 0.62) * (tz * TILT_G * 0.62));
+        var shear = Math.min(1, Math.max(0, tiltDrive - hold) / Math.max(hold, 1e-6));
+        var dx2 = tx * TILT_G - sx * SLOPE_K * shear;
+        var dz2 = tz * TILT_G * 0.62 - sz * SLOPE_K * 0.6 * shear;
+        var drive = Math.sqrt(dx2 * dx2 + dz2 * dz2);
+        o.driven = drive > hold;
         if (drive > hold) {
-          var g2 = (drive - hold) / drive;
+          // past the threshold it ACCELERATES. Scaling by (drive-hold)/drive instead caps
+          // the acceleration at one g however hard the phone is tipped, which is what made
+          // a real tilt crawl.
+          var g2 = (drive - hold) * TILT_ACCEL / drive;
           o.vx += dx2 * g2 * GRAV * dt;
           o.vz += dz2 * g2 * GRAV * dt;
         } else {                                   // it stays put, and settles
@@ -1941,9 +2047,17 @@
       }
       var vh = Math.sqrt(o.vx * o.vx + o.vz * o.vz);
       if (vh > MAX_V) { o.vx *= MAX_V / vh; o.vz *= MAX_V / vh; }
+      if (o.vy > MAX_VY) o.vy = MAX_VY;            // a belt on the throw's braces
+      if (o.vy < -MAX_VY * 2) o.vy = -MAX_VY * 2;
+      var gy0 = o.gy;
       o.gx += o.vx * dt; o.gy += o.vy * dt; o.gz += o.vz * dt;
       o.spin += o.vs * dt;
-      var floor = this.surfaceAt(o.gx, o.gz);
+      /* A coin BURIED in the heap is already resting — on the coins around it, not on the
+       * surface above it. Clamping it up to the surface popped every buried body out of the
+       * mound the first time it was woken, which is a hoard visibly swelling for no reason.
+       * The floor is never ABOVE where the coin already was: it can land on the surface,
+       * it can never be lifted onto it. */
+      var floor = Math.min(this.surfaceAt(o.gx, o.gz), gy0);
       if (o.gy <= floor) {
         o.gy = floor;
         if (o.vy < -SLEEP_V * 2) {
@@ -1954,14 +2068,31 @@
         var roll = Math.pow(ROLL, o.grip);
         o.vx *= roll; o.vz *= roll; o.vs *= 0.93;
         var sp = Math.abs(o.vx) + Math.abs(o.vz) + Math.abs(o.vy);
-        if (sp < SLEEP_V) { o.sleep = true; o.vx = o.vy = o.vz = o.vs = 0; }
+        /* A coin that has just broken loose has not reached the sleep threshold YET, so a
+         * bare `sp < SLEEP_V` put it to sleep on its very first step and zeroed the velocity
+         * it had just been given — which is the whole of why a real tilt looked like it did
+         * nothing. It sleeps only when it is quiet AND nothing is pushing it, and only after
+         * it has been quiet for several frames running. */
+        if (sp < SLEEP_V && !o.driven) {
+          if ((o.still = (o.still || 0) + 1) >= STILL_FRAMES) {
+            o.sleep = true; o.vx = o.vy = o.vz = o.vs = 0; o.still = 0;
+          }
+        } else o.still = 0;
       }
       // the room has walls: a coin cannot leave the floor plate
-      var lim = 1.55;                             // the floor plate's own edge
+      /* The room has walls, and they have to be at least as wide as the hoard standing in
+       * it. A fixed 1.55 was narrower than the spilled coins on the heap's own foot reach,
+       * so the first time one of those woke it was teleported inward by up to half a unit —
+       * which is what a "coin jumping for no reason" was. */
+      var lim = this.limX, lz0 = this.limZ;
+      if (lim == null) {
+        lim = this.limX = Math.max(1.55, this.slots.ex * PILE.dx + 0.12);
+        lz0 = this.limZ = Math.max(0.55, this.slots.ez * PILE.dz + 0.06);
+      }
       if (o.gx < -lim) { o.gx = -lim; o.vx = Math.abs(o.vx) * BOUNCE * 0.5 }
       if (o.gx > lim) { o.gx = lim; o.vx = -Math.abs(o.vx) * BOUNCE * 0.5 }
-      if (o.gz < -0.55) { o.gz = -0.55; o.vz = Math.abs(o.vz) * BOUNCE * 0.5 }
-      if (o.gz > 0.62) { o.gz = 0.62; o.vz = -Math.abs(o.vz) * BOUNCE * 0.5 }
+      if (o.gz < -lz0) { o.gz = -lz0; o.vz = Math.abs(o.vz) * BOUNCE * 0.5 }
+      if (o.gz > lz0) { o.gz = lz0; o.vz = -Math.abs(o.vz) * BOUNCE * 0.5 }
     }
     this.bodiesAwake = any;
   };
