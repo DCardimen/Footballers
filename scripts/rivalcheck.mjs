@@ -93,6 +93,7 @@ ok(locks.byLevel[3].filter(Boolean).every((v, i) => v < locks.old.filter(Boolean
 const screen = await page.evaluate(() => {
   const pl = window.S.player
   pl.level = 4; ['grit', 'awareness', 'discipline'].forEach(k => { pl.attrs[k] = 12 })   // nothing cleared
+  window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { rivalSpinOnWeekV136: 0 })   // v136: the approach is spun on game week by default; this section tests the choice screen itself
   pl.pendingEvent = 'bigGame'; window.S.view = 'event'; window.render()
   const cards = [...document.querySelectorAll('#screen .pos-card')]
   const before = JSON.stringify(pl.eventChoice || null)
@@ -168,6 +169,31 @@ const shown = await page.evaluate(() => {
 })
 console.log('schedule rows:', JSON.stringify(shown))
 ok(shown.rows > 0 && shown.marked === 1, 'and exactly one row on the schedule screen says RIVALRY', JSON.stringify(shown))
+
+// ---- 6. v136 A: the approach is spun on game week ----
+const defer = await page.evaluate(() => {
+  const pl = window.S.player, A = window.__V136_A
+  delete window.RIB_TUNE.rivalSpinOnWeekV136
+  pl.level = 4; ['grit', 'awareness', 'discipline'].forEach(k => { pl.attrs[k] = 12 })
+  pl.eventChoice = null; pl.pendingEvent = 'bigGame'; window.S.view = 'event'; window.render()
+  const card = document.querySelector('.rival-defer-v136'), choices = document.querySelectorAll('#screen .pos-card[onclick*="chooseEvent"]').length, spun = !!document.querySelector('.wheel-opt-v13')
+  const listed = card ? card.querySelectorAll('li').length : 0, locked = card ? [...card.querySelectorAll('li')].filter(l => /🔒/.test(l.textContent)).length : 0
+  const btn = [...document.querySelectorAll('#screen button')].find(b => /RIVALRY WEEK/.test(b.innerText)); btn && btn.click()
+  const ec = pl.eventChoice, pending = A.pending(pl), view = window.S.view
+  const one = A.deck(pl); ['grit', 'awareness', 'discipline'].forEach(k => { pl.attrs[k] = 90 }); const five = A.deck(pl)
+  const W = five.open.map(c => c.w), floor = window.TU('wheelWedgeFloor', .035)
+  const d = A.resolve(pl, 'auto')
+  return { card: !!card, choices, spun, listed, locked, pending, view, ecPerf: ec && ec.perf, oneOpen: one.open.length, fiveOpen: five.open.length, wSum: +W.reduce((a, b) => a + b, 0).toFixed(3), wMin: +Math.min(...W).toFixed(3), floor,
+    resolved: !!d, chosen: pl.eventChoice && pl.eventChoice.chosenV136, how: pl.eventChoice && pl.eventChoice.howV136, stillPending: A.pending(pl), perfNow: pl.eventChoice && pl.eventChoice.perf, logged: (pl.eventLog || []).some(e => /Rivalry Week/.test(e.title) && e.choice === (pl.eventChoice && pl.eventChoice.chosenV136)),
+    again: A.resolve(pl, 'auto') } })
+console.log('v136 defer:', JSON.stringify(defer))
+ok(defer.card && defer.choices === 0 && !defer.spun, 'v136: the event screen INTRODUCES the rivalry — one card, no choice buttons, no story wheel rolling over them', JSON.stringify({ card: defer.card, choices: defer.choices, spun: defer.spun }))
+ok(defer.listed === 5 && defer.locked === 4, '  it lists the five approaches and which are locked for this player', `${defer.listed} listed, ${defer.locked} locked`)
+ok(defer.pending && /^(sim|season)$/.test(defer.view) && defer.ecPerf === 0, '  GOT IT books the fixture with the approach PENDING and no swing yet', JSON.stringify({ pending: defer.pending, view: defer.view, perf: defer.ecPerf }))
+ok(defer.oneOpen === 1 && defer.fiveOpen === 5, '  the deck leaves locked approaches off the wheel: one open untrained, five with the attributes there', `${defer.oneOpen} → ${defer.fiveOpen}`)
+ok(Math.abs(defer.wSum - 1) < .01 && defer.wMin >= defer.floor - 1e-6, '  the wedges sum to one and none falls under the wedge floor', `sum=${defer.wSum} min=${defer.wMin} floor=${defer.floor}`)
+ok(defer.resolved && defer.chosen && defer.how === 'auto' && !defer.stillPending && typeof defer.perfNow === 'number' && defer.logged, '  resolve lands an approach into eventChoice — the object ca() reads — with its label logged', JSON.stringify({ chosen: defer.chosen, how: defer.how, perf: defer.perfNow }))
+ok(defer.again === null, '  and a resolved week is never re-rolled', String(defer.again))
 
 console.log('page errors:', errs.length ? errs.join('\n') : 'none')
 console.log(JSON.stringify({ pass, fail, pageErrors: errs.length }))

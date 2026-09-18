@@ -55,6 +55,32 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v136 — the lineage: the prestige system is a father's lesson to his son.** Four asks. **THE LINEAGE
+  (D)**: a career ends and the next player is the SON — a new first name, the family's surname, the
+  generation counted (`o.lineageV136`: gen, surname, one father record per finished or abandoned career
+  with the league he reached and how it ended, and the running count of years the family has spent on
+  the field). `familyV136()` is what every screen reads: the hub's hero row (2ND GENERATION · THE FOX
+  LINE · 14 FAMILY YEARS · son of …), a card on the position screen, the tree reframed as THE INHERITANCE
+  (what the family learned, handed down to every son), the career-end cards ("his son picks it up" /
+  "Hand It to His Son"), a family-line card in the Hall of Fame, the menu's GEN chip and ticker line, and
+  the coach: the persona stop opens on the old man (which league he made, proud or "learn from his
+  mistakes"), the position stop makes the name joke (different first name — his mother's call — same
+  last name, same chin) and counts the family's years, the menu and prestige stops say whose the
+  inheritance is. **THE ESTATE (C)**: PP is only recovered at the END of a career — every mid-career
+  credit (goals, titles, milestones, DFL seasons, nemesis, the locker, the daily) goes through
+  `bankPPV136` into `o.ppBankV136`, the two settles flush it with the career's own payout, the tree and
+  the goals board say what is banked, and the career-end card says how much of the total was. **THE
+  SUMMARY BUTTON (B)**: 🗣️ COACH'S SUMMARY sits under the grade on the report card and opens the season
+  debrief on demand, with an AUTO switch beside it (`rib.debriefOff.v122` — SKIP on the debrief still
+  flips it) that is completely separate from the tour. **THE PAGES (A)**: the effective sheet is the LAST
+  pregame page (YOUR SHEET, headed by THE WEEK, SETTLED), page 5 keeps the plan wheel and WHAT THE WHEEL
+  DID, and a rivalry game gets a RIVALRY WEEK page after it: the five approaches on the wheel, every
+  locked one left off, the winner written into `player.eventChoice` from that game on. The season-start
+  event screen only introduces the rivalry now (`rivalDeferV136`), and `ca()` resolves a pending
+  approach off screen on a rivalry week reached without the page. A landed inline wheel retires every
+  id it carries so the next wheel can mount. `v136check.mjs`; `v112Dcheck.mjs`, `wheelcheck.mjs`,
+  `rivalcheck.mjs`, `coachcheck.mjs`, `v111Bcheck.mjs`, `v134check.mjs` updated.
+
 - **v135 — the wheel spins on the fifth page, and never on its own.** The game-plan wheel used to
   open the moment PLAY WEEK was tapped: a sweep saw the staff's deck, tore it out and spun over the
   season screen before the pregame wizard, and the midseason crossroads fired on a timer after a

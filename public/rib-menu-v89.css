@@ -536,3 +536,6 @@ body.rib-howto-open{overflow:hidden!important}
 .rib9-navlink:first-child{margin-left:auto}
 .rib9-navlink:last-child{margin-right:auto}
 @media (min-width:760px){.rib9-nav{justify-content:flex-start}}   /* the auto margins above centre it when it fits; flex-start keeps HOME on screen when it does not */
+
+/* v136 D: the generation on the continue card */
+.rib9-meta .rib9-gen{color:#c9b8ff;font-weight:700}

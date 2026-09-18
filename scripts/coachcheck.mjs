@@ -148,6 +148,8 @@ const step = async (page, t, wait = 900) => {
   // the PRESTIGE line lights the TRAINING tile; the last line of the stop lights the CAREER tile, and the button reads GOT IT
   await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.line < 3 && n++ < 10) C.next() })
   await page.waitForTimeout(700)
+  // the cut-out eases onto its target; give it up to two seconds to arrive before reading it
+  await page.waitForFunction(() => { const spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), t = document.querySelector('#rib-main-menu-v2 [data-rib-action="prestige"]'); if (!spot || spot.hidden || !t) return false; const s = spot.getBoundingClientRect(), r = t.getBoundingClientRect(); return s.left <= r.left + 2 && s.top <= r.top + 2 && s.right >= r.right - 2 && s.bottom >= r.bottom - 2 }, null, { timeout: 2500 }).catch(() => null)
   const spotPres = await page.evaluate(() => { const spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), target = document.querySelector('#rib-main-menu-v2 [data-rib-action="prestige"]'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, tr = target ? target.getBoundingClientRect() : null
     return { line: window.__RIB_COACH.line, key: window.__RIB_COACH.spot, shown: !!sr, inside: !!(sr && tr && sr.left <= tr.left + 2 && sr.top <= tr.top + 2 && sr.right >= tr.right - 2 && sr.bottom >= tr.bottom - 2), onScreen: !!(sr && sr.top >= 0 && sr.bottom <= innerHeight), sr: sr && [Math.round(sr.left), Math.round(sr.top), Math.round(sr.width), Math.round(sr.height)], tr: tr && [Math.round(tr.left), Math.round(tr.top), Math.round(tr.width), Math.round(tr.height)] } })
   ok(spotPres.key === 'honors' && spotPres.shown && spotPres.inside && spotPres.onScreen, 'the PRESTIGE line lights the HONORS chip — where the tree lives (v134: not the TRAINING tile, which is the skill sheet)', JSON.stringify(spotPres))
@@ -420,6 +422,17 @@ const step = async (page, t, wait = 900) => {
   const after = await dismiss(page)
   const post = await page.evaluate(() => ({ seen: window.__DEBRIEF_V122.lastSeen(), due: !!window.__RIB_COACH.debrief.due(), tour: localStorage.getItem('rib.coachTour.v119'), off: window.__RIB_COACH.debrief.off }))
   ok(!after.open && !post.due && post.tour === 'off' && !post.off, 'DONE marks the season read — it does not come round twice, and it never touched the tour switch', JSON.stringify(post))
+  // v136 B: the COACH'S SUMMARY button on the report card, and its AUTO switch — separate from the tour
+  const sum = await page.evaluate(() => { const row = document.querySelector('.coach-sum-v136'), btn = document.querySelector('.coach-sum-btn-v136'); return { row: !!row, btn: !!btn && !btn.disabled, auto: window.__V136_B.auto(), tour: localStorage.getItem('rib.coachTour.v119') } })
+  ok(sum.row && sum.btn && sum.auto && sum.tour === 'off', "the report card carries a COACH'S SUMMARY button with AUTO on, while the tour is OFF (v136)", JSON.stringify(sum))
+  await page.click('.coach-sum-btn-v136'); await page.waitForTimeout(900)
+  const again = await H(page)
+  ok(again && again.open && again.stop === 'debrief' && again.openedBy === 'button', 'the button brings the debrief back on demand, after it was already read', JSON.stringify({ open: again && again.open, stop: again && again.stop, by: again && again.openedBy }))
+  await dismiss(page)
+  await page.evaluate(() => window.__V136_B.setAuto(false)); await page.waitForTimeout(200)
+  const off = await page.evaluate(() => ({ auto: window.__V136_B.auto(), off: window.__RIB_COACH.debrief.off, due: !!window.__RIB_COACH.debrief.due(), tour: localStorage.getItem('rib.coachTour.v119'), desc: (document.querySelector('.coach-sum-auto-v136 .toggle-desc') || {}).textContent, btn: !!document.querySelector('.coach-sum-btn-v136') }))
+  ok(!off.auto && off.off && !off.due && off.tour === 'off' && /button/.test(off.desc || '') && off.btn, 'AUTO off: he will not pop in by himself, the button stays, and the tour switch is untouched', JSON.stringify(off))
+  await page.evaluate(() => window.__V136_B.setAuto(true))
   await context.close()
 }
 

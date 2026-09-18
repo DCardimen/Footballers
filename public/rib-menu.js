@@ -331,6 +331,7 @@
       add(`SURVIVE EVERY CUT`);
     }
     add(`HONORS <b>${esc(S.prestige || 0)}</b> · PP <b>${esc(S.pp || 0)}</b>`);
+    if (S.lineage && S.lineage.gen) add(`THE ${esc(String(S.lineage.surname || '').toUpperCase())} LINE · <b>GEN ${esc(S.lineage.gen)}</b> · ${esc(S.lineage.years || 0)} FAMILY YEAR${Number(S.lineage.years) === 1 ? '' : 'S'}`);   // v136 D
     if (S.careers) add(`<b>${esc(S.careers)}</b> CAREER${S.careers === 1 ? '' : 'S'} PLAYED`);
     if (S.nflReached) add(`<b>${esc(S.nflReached)}</b> REACHED THE DFL`);
     if (S.highScore) add(`SCORE ATTACK BEST <b>${esc(Number(S.highScore).toLocaleString())}</b>`);
@@ -484,7 +485,7 @@
           </div>
           <div class="rib9-identity">
             <div class="rib9-name" data-rib-field="playerName">${esc(String(pl.name).toUpperCase())}</div>
-            <div class="rib9-meta"><span>${esc(pl.pos)}</span><i></i><span>#${num}</span>${pl.height ? `<i></i><span>${esc(pl.height)}</span>` : ''}${pl.weight ? `<i></i><span>${esc(pl.weight)}</span>` : ''}</div>
+            <div class="rib9-meta"><span>${esc(pl.pos)}</span><i></i><span>#${num}</span>${pl.height ? `<i></i><span>${esc(pl.height)}</span>` : ''}${pl.weight ? `<i></i><span>${esc(pl.weight)}</span>` : ''}${S.lineage && S.lineage.gen ? `<i></i><span class="rib9-gen" title="${esc(S.lineage.years)} family years on the field">GEN ${esc(S.lineage.gen)}</span>` : ''}</div>
             <div class="rib9-stars">${'<b>★</b>'.repeat(stars)}${'<u>★</u>'.repeat(5 - stars)}</div>
             <button class="rib9-level" type="button" data-rib-action="view:hub">${esc(String(pl.levelName).toUpperCase())} <span>›</span></button>
           </div>

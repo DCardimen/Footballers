@@ -205,7 +205,7 @@ await tapFocus(VF.focus[0].key)
 const F1 = await readUI()
 ok(F1.focusV111 === VF.focus[0].key, 'picking one writes week.focusV111', 'week.focusV111=' + F1.focusV111)
 ok(F1.focus.filter(f => f.on).length === 1 && F1.focus[0].on, 'and it is the only one lit')
-await goPage(3)                                   // v112 D: the stat sheet is the last page
+await goPage(await page.evaluate(() => window.__V136_PAGES.active().length - 1))   // v112 D / v136: the stat sheet is the LAST page
 const FS = await readUI()
 ok(!!FS.sheetFocus && /×1\.2/.test(FS.sheetFocus) && FS.sheetVis, 'the stat sheet names it, visibly', FS.sheetFocus)
 await tapFocus(VF.focus[2].key)
