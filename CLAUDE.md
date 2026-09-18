@@ -68,6 +68,25 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v135 THE WHEEL SPINS ON THE FIFTH PAGE` (two banners: in the v51 pregame-wheel block, beside
+  `rollPlan`, and in the v112 D wizard block, beside `V112_PAGES_D`) — `rollPlan` no longer spins: it
+  reads the deck, rolls the decision through `holdPlanV135` (one roll a week, keyed on the player, the
+  played count and the plan ids, HELD in `heldV135`) and calls the wrapped `chooseGamePlanV11`, which
+  opens the wizard; `wheelCfgV135(pl,d)` is the wheel's presentation, `applyHeldV135` /
+  `commitHeldV135` apply the swing once (`continuePregame` commits — seen or skipped), and
+  `__PREGAME_V51.hold()/.cfg()/.apply()/.commit()/.wizardUp()` expose it. `spinWheel` takes
+  `cfg.host` (or `inlineHostV135`, set by `showWheelIn(host,...)` for the story wheel): the same
+  markup with the same `#growthV42` id inside the host, `data-inline="1"`, no fixed backdrop; the roll
+  pop-up's CONTINUE moves the result card onto the page and closes only the pop-up. The wizard:
+  `v112Page5`, `v135MountD` (a queued `_crossroadsV135` first, then the plan; NEXT reads THE WHEEL IS
+  SPINNING… and is disabled until the roll is in), `v135ParkD` (BACK mid-spin takes it down, it
+  respins to the same pick), `v135FinalD` (WHAT THE WHEEL DID: the plan, the band, before → after per
+  stat off `__V85.effAttrs`, the sheet under it with its ids stripped to `data-id`), page 4's NEXT
+  reads SPIN THE WHEEL ›. The v42 post-game watcher writes `pl._crossroadsV135` instead of showing;
+  `startSeason` clears it. The coach: `pregame` (FIVE STEPS) fires on page 1, `plan` on the page-5
+  wheel (`planWheel`), and `wheel` (the season commitment) never inside the pregame.
+  `window.__V135` (`spins`, `crossroads`, `done()`, `hold()`); `v112Dcheck.mjs`, `wheelcheck.mjs`,
+  `coachcheck.mjs`, then `v111Bcheck.mjs`, `v85check.mjs`, `walk.mjs`
 - `v134 THE GOALS ARE WORTH CHASING` (the `zt` table) / `v134 THE BUSTS HAVE A BOX SCORE` (beside `Ui` /
   `Bi`) / `v134 THE MAN IN THE PICTURE` (beside `growDrawV133`) / the APEX branch (last in `sa`) — `zt` is
   rescaled top to bottom: `dflMvpTitle` (a DFL title as the game's MVP, 10,000 PP) and `galaxyMvpTitle`
@@ -518,6 +537,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | You changed… | Run |
 |---|---|
 | tackling / contact physics | `tacklecheck.mjs`, `jukecheck.mjs` |
+| the game-plan wheel — where it spins, the held roll, the fifth pregame page, the queued crossroads (v135) | `v112Dcheck.mjs`, `wheelcheck.mjs`, `coachcheck.mjs`, then `v111Bcheck.mjs`, `v85check.mjs`, `walk.mjs`, `scrollcheck.mjs` |
 | the goals' payouts, the Hall of Fame box scores, the Apex branch, the ring's soft max, the season strip's stats, the growth figure, the coach's stops and his last line (v134) | `v134check.mjs`, then `coachcheck.mjs`, `growcheck.mjs`, `menufxcheck.mjs`, `menu-integration-check.mjs`, `honorcheck.mjs`, `stridecheck.mjs`, `rivalcheck.mjs`, `v85check.mjs`, `declarecheck.mjs`, `walk.mjs` |
 | the growth figure's art — the native-resolution sheet, the recolour, the fallback cell (v134) | `python3 scripts/build-grow-art.py`, then `growcheck.mjs`; `growshot.mjs` to look |
 | the training board's grades — the tiers, the pick, the shaded bars (v133) | `gradecheck.mjs`, then `traincheck.mjs`, `capcheck.mjs`, `skillartcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs`; `BOARD=1 growshot.mjs` to look |

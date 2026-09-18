@@ -295,7 +295,7 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 @keyframes badgeSnapV95{0%{transform:translateX(-120%) rotate(-6deg);opacity:1}60%{transform:translateX(0) rotate(-6deg);opacity:1}to{transform:translateX(0) rotate(-6deg);opacity:0}}
 @media (prefers-reduced-motion:reduce){.rib-badge-rays-v95{animation:none}}
 </style>
-<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v134b"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v134b"><link rel="stylesheet" href="./public/rib-menu.css?v=v134b"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v134b"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=v134b"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
+<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v135a"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v135a"><link rel="stylesheet" href="./public/rib-menu.css?v=v135a"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v135a"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=v135a"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
 <body>
 <div id="splash">
 <div class="splash-inner">
@@ -19616,7 +19616,7 @@ function fallbackFive(ovr,seed){
 function rows(players){return players.map((p,i)=>`<div class="pregame-player-v1513"><span class="pregame-rank-v1513">${i+1}</span><span><b>${esc(p.name)}</b><small>${esc(p.pos)}</small></span><span class="pregame-ovr-v1513">${p.ovr}<small> OVR</small></span></div>`).join('')}
 let pending=null,originalChoose=null;
 function closePregame(){document.getElementById('pregameV1513')?.remove();pending=null}
-function continuePregame(){const q=pending;document.getElementById('pregameV1513')?.remove();pending=null;if(q&&typeof originalChoose==='function')return originalChoose.apply(q.ctx,q.args)}
+function continuePregame(){const q=pending;document.getElementById('pregameV1513')?.remove();pending=null;try{const V=window.__PREGAME_V51;V&&V.commit&&V.commit()}catch(e){}/* v135: the held plan roll lands here, seen or skipped */if(q&&typeof originalChoose==='function')return originalChoose.apply(q.ctx,q.args)}
 // v17: gather the player's active / temporary modifiers to surface pregame, so you
 // know exactly what buffs (and debuffs) you carry into the upcoming matchup.
 
@@ -20019,7 +20019,10 @@ const V112_PAGES_D=[
   {id:"v112Page1",kick:"YOUR INVOLVEMENT",title:"How much of this game is yours?",sub:"Five steps, from spot snaps to every snap. Pick one."},
   {id:"v112Page2",kick:"YOUR FOCUS",title:"Sharpen one thing",sub:"One stat at ×1.2, this game only. Pick one, or none."},
   {id:"v112Page3",kick:"THE SCOUT & THE PLAN",title:"Who you are playing",sub:"The read on them, and the mix your coordinator has settled on. Nothing here needs an answer."},
-  {id:"v112Page4",kick:"THE IMPACT",title:"What you take onto the field",sub:"Your involvement, your focus, the body and the bill — all of it, applied."}];
+  {id:"v112Page4",kick:"THE IMPACT",title:"What you take onto the field",sub:"Your involvement, your focus, the body and the bill — all of it, applied."},
+  /* v135: the wheel's own page. See `v135MountD` — the plan was rolled and held the moment the
+   * staff's deck appeared; this page only spins it, and then names the final stat. */
+  {id:"v112Page5",kick:"THE WHEEL",title:"How are you playing this one?",sub:"The staff drew up the plans. The wheel picks the one you run — your instincts load it — and the roll says whether it comes off."}];
 let v112PageD=0;
 function v112DotsD(i){return V112_PAGES_D.map((p,j)=>`<i class="${j===i?"on":j<i?"lit":""}" data-i="${j}" onclick="__v112GoD(${j})" title="${esc(p.kick)}"></i>`).join("")}
 function v112ShowPageD(i){
@@ -20028,10 +20031,10 @@ function v112ShowPageD(i){
   const set=(id,txt)=>{const el=document.getElementById(id); if(el) el.textContent=txt};
   set("v112Kick",`STEP ${i+1} OF ${n} · ${P.kick}`); set("v112Title",P.title); set("v112Sub",P.sub);
   const d=document.getElementById("v112Dots"); if(d) d.innerHTML=v112DotsD(i);
-  const nx=document.getElementById("v112Next"); if(nx){nx.innerHTML=last?"CONTINUE TO MATCH":"NEXT ›";nx.className=last?"btn v112-go":"btn"}
+  const nx=document.getElementById("v112Next"); if(nx){nx.disabled=false;nx.innerHTML=last?"CONTINUE TO MATCH":i===n-2?"SPIN THE WHEEL ›":"NEXT ›";nx.className=last?"btn v112-go":"btn"}
   const bk=document.getElementById("v112Back"); if(bk) bk.innerHTML=i?"‹ BACK":"‹ LEAVE";
   const sk=document.getElementById("v112Skip"); if(sk) sk.hidden=last;
-  if(last) v112RenderFinalD(); else {try{v111RenderV111()}catch(e){}}
+  if(last) v135MountD(); else {v135ParkD(); if(i===n-2) v112RenderFinalD(); else {try{v111RenderV111()}catch(e){}}}
   const sc=document.getElementById("pregameV1513"); if(sc) sc.scrollTop=0;
 }
 window.__v112GoD=function(i){v112ShowPageD(i)};
@@ -20122,6 +20125,12 @@ function v112StyleD(){ if(document.getElementById("v112StyleDEl")) return;
   .v112-skip small{display:block;font:400 10px system-ui;letter-spacing:0;margin-top:3px;opacity:.75}
   .v112-skip:hover{border-color:var(--gold);color:var(--gold)}
   .v112-skip[hidden]{display:none!important}
+  /* v135: the wheel on its page — the same card the overlay drew, sat in the flow, with the roll
+     pop-up still fixed over the viewport */
+  #v135Wheel #growthV42{margin:0 0 12px}
+  #v135Wheel #growthV42>div{max-width:none;padding:13px}
+  .v135-none{padding:14px;border:1px dashed rgba(255,255,255,.2);border-radius:10px;text-align:center;font:600 13px Barlow Condensed,sans-serif;color:var(--chalk-dim);margin-bottom:12px}
+  .v112-nav .btn:disabled{opacity:.55;pointer-events:none}
   @media(min-width:560px){.v112-title{font-size:30px}.v112-page .v111-step b{font-size:11px}}
   </style>`);
 }
@@ -20136,6 +20145,7 @@ function v112ShellD(a){
     <div class="v112-page" id="v112Page2" hidden>${gsFocusBlockV23()}</div>
     <div class="v112-page" id="v112Page3" hidden>${a.scout}${gsPlanBlockV23()}</div>
     <div class="v112-page" id="v112Page4" hidden><div id="v112Impact"></div><div class="v112-flush">${a.temp}${a.stats}</div></div>
+    <div class="v112-page" id="v112Page5" hidden><div id="v135Wheel"></div><div id="v135Final"></div></div>
     <div class="v112-nav"><button class="btn secondary" id="v112Back" onclick="__v112BackD()">‹ LEAVE</button><button class="btn" id="v112Next" onclick="__v112NextD()">NEXT ›</button></div>
     <button class="v112-skip" id="v112Skip" onclick="__v112SkipD()">CONTINUE TO MATCH<small>skip the rest — your picks stand</small></button>
   </div></div>`;
@@ -20148,6 +20158,68 @@ window.__V112_D={PAGES:V112_PAGES_D,page:()=>v112PageD,go:i=>v112ShowPageD(i),
       focus:v111FocusRowV111(pl,wk),body:(window.__v112BodySwingD&&window.__v112BodySwingD(pl))||null,
       weekUsage:(S.wk||S.stray).usageV111,weekFocus:(S.wk||S.stray).focusV111,
       gsPass:pl&&pl._gameScriptV23?pl._gameScriptV23.gsPass:null}}};
+/* ===== v135 THE WHEEL SPINS ON THE FIFTH PAGE (the page itself) =====
+ * The game-plan wheel used to spin over the season screen the moment PLAY WEEK was tapped, before
+ * this wizard opened — the one decision the player meets every week, with no page of its own. The
+ * v51 block now rolls and HOLDS the decision (`__PREGAME_V51.hold()`) and opens the wizard; this
+ * page spins it: a midseason crossroads first if one is queued on the player (`_crossroadsV135`),
+ * then the plan, both mounted INTO the page through `spinWheel`'s host mode. The NEXT button waits
+ * while a wheel is in the air, and once the roll is in the page names the final stat — the plan,
+ * the band, and every stat it moves as before → after on the effective sheet, with the sheet
+ * itself under it. BACK off this page mid-spin parks the wheel (it respins to the same pick — the
+ * roll is held, not re-rolled); a skip from an earlier page commits the held roll unseen. */
+let v135DoneD=false,v135BeforeD=null;
+function v135EffD(pl){try{const E=window.__V85&&window.__V85.effAttrs?window.__V85.effAttrs(pl):null;return E&&E.eff?E.eff:null}catch(e){return null}}
+function v135NextD(state){const nx=document.getElementById("v112Next"); if(!nx)return;
+  if(state==="wait"){nx.disabled=true;nx.innerHTML="THE WHEEL IS SPINNING…";nx.className="btn"}
+  else{nx.disabled=false;nx.innerHTML="CONTINUE TO MATCH";nx.className="btn v112-go"}}
+function v135ParkD(){   // leaving the wheel page with a wheel still in the air: take it down, it respins on return
+  const host=document.getElementById("v135Wheel"); if(!host||v135DoneD)return;
+  if(host.querySelector("#growthV42")){host.innerHTML="";const fin=document.getElementById("v135Final");if(fin)fin.innerHTML=""}}
+function v135MountD(){
+  const host=document.getElementById("v135Wheel"); if(!host)return;
+  const V=window.__PREGAME_V51,G=window.__GROWTH_V42,h=V&&V.hold?V.hold():null;
+  const S=gsStateV23,pl=(h&&h.pl)||(S&&S.pl)||null;
+  if(v135DoneD){v135FinalD();v135NextD("go");return}                       // spun on this visit already: still standing
+  if(!pl||!G||!G.spinWheel||(!h&&!(pl&&pl._crossroadsV135))){
+    host.innerHTML=`<div class="v135-none">No wheel this week — the plan is set.</div>`;
+    v135DoneD=true;v135FinalD();v135NextD("go");return}
+  if(document.getElementById("growthV42"))return;                          // another wheel is up somewhere
+  host.innerHTML="";const fin=document.getElementById("v135Final");if(fin)fin.innerHTML="";
+  v135BeforeD=v135EffD(pl); v135NextD("wait");
+  const finish=()=>{v135DoneD=true;v135FinalD();v135NextD("go");try{window.__V135.spins++}catch(e){}};
+  const plan=()=>{
+    if(!h){finish();return}
+    const ok=G.spinWheel(Object.assign(V.cfg(),{host,onDone:()=>{V.apply();finish()}}));
+    if(!ok){V.apply();finish()}};
+  const q=pl._crossroadsV135;
+  if(q&&q.ctx&&G.showWheelIn){                                             // the queued crossroads spins first, then the plan
+    const ok=G.showWheelIn(host,pl,q.ctx,q.title||"MIDSEASON CROSSROADS",()=>{delete pl._crossroadsV135;host.innerHTML="";setTimeout(plan,60)});
+    if(!ok){delete pl._crossroadsV135;plan()}
+    else try{window.__V135.crossroads++}catch(e){}
+  } else plan();
+}
+function v135FinalD(){
+  const fin=document.getElementById("v135Final"); if(!fin)return;
+  const V=window.__PREGAME_V51,h=V&&V.hold?V.hold():null,S=gsStateV23,pl=(h&&h.pl)||(S&&S.pl)||null;
+  if(!pl){fin.innerHTML="";return}
+  const lab=k=>(window.__statLabelV25&&window.__statLabelV25(k))||k,d=h&&h.d,eff=v135EffD(pl),before=v135BeforeD||{};
+  const row=(k,v,c)=>`<div class="v112-imp-row"><span>${k}</span><b${c?` style="color:${c}"`:""}>${v}</b></div>`;
+  const bandC=b=>b==="green"?"#8fe0a0":b==="red"?"#e8938b":"#cfd6a8";
+  let body="";
+  if(d){
+    body+=row("The plan",`${esc(d.win.name)}${d.win.scout?" · SCOUT PICK":""}`);
+    body+=row("The roll",d.band==="green"?"IT CLICKS":d.band==="neutral"?"IT'LL DO":"IT BACKFIRES",bandC(d.band));
+    if(d.stats&&d.stats.length&&d.band!=="neutral"){
+      d.stats.forEach(k=>{const a=before[k],b=eff&&eff[k];
+        body+=row(esc(lab(k)),`${a!=null&&b!=null?`${Math.round(a)} → ${Math.round(b)}`:""} <small style="font-weight:400;color:var(--chalk-dim)">rolled ${d.out.sign>0?"+":"−"}${d.out.amt}</small>`,d.out.sign>0?"#8fe0a0":"#e8938b")})}
+    else body+=row("Swing","None — no stat moves this game","var(--chalk-dim)");
+  } else body+=row("The plan","The scout's pick stands");
+  const sheet=(window.pregamePlayerStatsV25?window.pregamePlayerStatsV25(pl):"").replace(/ id="([A-Za-z0-9_-]+)"/g,' data-id="$1"');
+  fin.innerHTML=`<div class="v112-imp v135-imp" id="v135ImpD"><h4>🎡 WHAT THE WHEEL DID</h4>${body}<div class="v112-imp-note">This game only. The sheet below is what you carry onto the field now — the wheel's swing is already in it.</div></div><div class="v112-flush">${sheet}</div>`;
+}
+window.__V135={spins:0,crossroads:0,done:()=>v135DoneD,before:()=>v135BeforeD,mount:v135MountD,final:v135FinalD,
+  hold:()=>{const V=window.__PREGAME_V51;return V&&V.hold?V.hold():null}};
 // v20: full-roster average on the shared scale (falls back to the level anchor)
 function rosterAvg(roster,fb){const a=(Array.isArray(roster)?roster:[]).map(normalize).filter(p=>p.ovr>0);return a.length?a.reduce((s,p)=>s+p.ovr,0)/a.length:fb}
 // v20: unit-by-unit comparison → 2-3 plain-language lines about how this game
@@ -20191,7 +20263,7 @@ function showPregame(ctx,args){
   const winClamped=Math.max(5,Math.min(95,Math.round(50+gap*2.4)));
   const lab=winClamped>=70?'Heavy Favorite':winClamped>=57?'Favored':winClamped>45?'Toss-Up':winClamped>=30?'Underdog':'Heavy Underdog';
   const notes=matchupNotes(oursR,theirsR,player);
-  pending={ctx,args};document.getElementById('pregameV1513')?.remove();
+  pending={ctx,args};document.getElementById('pregameV1513')?.remove();v135DoneD=false;v135BeforeD=null;
   // v112 D: gsSectionV23 is still the thing that prepares gsStateV23, the coordinator's adopted
   // plan (_gameScriptV23) and the shared stylesheet — the wizard just places its three blocks on
   // three different pages instead of stacking them in one column.
@@ -21316,18 +21388,25 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       lines:d.stats.length&&d.band!=="neutral"?d.stats.map(k=>(d.out.sign>0?"+":"−")+d.out.amt+" "+(LBL[k]||k)).join(" · "):"no swing this game",
       odds:d.odds,cut:d.cut,offered:d.all.length};
   }
-  function rollPlan(panel){
-    if(!panel||panel._v51done)return false;
-    const g=G(); if(!g||!g.spinWheel)return false;
-    const plans=readPlans(panel); if(plans.length<2)return false;
-    const pl=getPl(); if(!pl)return false;
-    panel._v51done=true;
-    panel.remove();                       // the wheel replaces the deck, as v41 did
-    const d=decidePlan(pl,plans);
-    if(!d){panel._v51done=false;return false}
+  /* ===== v135 THE WHEEL SPINS ON THE FIFTH PAGE =====
+   * The plan wheel used to open the moment the staff's deck hit the page: the sweep below saw
+   * the `.gameplan-overlay`, tore it out and spun over whatever was up, BEFORE the pregame
+   * wizard, so the one decision surface the player meets every week arrived as an interruption
+   * with no page of its own. (And the midseason crossroads fired on a timer after a game, on any
+   * screen it found — see the v42 watcher, which now QUEUES it on the player.) The deck is still
+   * read and the decision still rolled here, with the same dice — `holdPlanV135` rolls it ONCE
+   * per week and holds it, so leaving the wizard and coming back cannot re-roll — but the wizard
+   * opens straight away and its FIFTH page spins the wheel inline (`wheelCfgV135` is the
+   * presentation both that page and the no-wizard fallback draw), then names the final stat.
+   * `commitHeldV135` applies the swing exactly once when the wizard sends him to the field; a
+   * skip from an earlier page commits the same held roll unseen. `TU("wheelOnPageV135",0)`
+   * restores the overlay before the wizard. */
+  let heldV135=null;
+  const keyV135=(pl,plans)=>(pl.name||"")+"|"+((pl.weekResults||[]).filter(w=>w&&w.played).length)+"|"+(pl.currentWeek|0)+"|"+plans.map(p=>p.id).join(",");
+  function wheelCfgV135(pl,d){
+    const g=G(),LBL=(g&&g.LBL)||{};
     const {all,opts,cut,idx,win,band,out,stats,jive,odds,nudge,why,JF,P}=d;
-    const LBL=g.LBL||{};
-    const okOpen=g.spinWheel({
+    return {
       title:"PREGAME · HOW ARE YOU PLAYING THIS ONE?",
       sub:cut?`The staff offered ${all.length}. Your instincts shortlisted ${opts.length}.`:"The staff hands you options. Your instincts pick.",
       opts:opts.map(o=>({key:o.id,icon:o.icon,name:o.name,col:o.col,plan:o.id,w:o.w,
@@ -21336,7 +21415,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
         line2col:o.scout?"#f0bb45":"#8fa2bb"})),
       pick:idx, turns:(pl.weekResults||[]).length,
       fit:{jive,odds,nudge,why,
-        rows:JF?JF.rows:drivers(P,win.bold).map(d=>({key:d.k,label:(g.TRAIT_LBL&&g.TRAIT_LBL[d.k])||d.k,val:P[d.k],
+        rows:JF?JF.rows:drivers(P,win.bold).map(d=>({key:d.k,label:(g&&g.TRAIT_LBL&&g.TRAIT_LBL[d.k])||d.k,val:P[d.k],
           pp:d.c*(jive>=0?4:2.8)})),
         rollTitle:"GAME PLAN ROLL · DOES IT COME OFF?",
         rollSub:"Positive, neutral or negative. The dice decide — your personality loads them."},
@@ -21344,17 +21423,36 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
         headline:`<span class="gv64-head" style="font-size:15px;margin:0">${(window.RIB_PLAN_ICO?window.RIB_PLAN_ICO(win.id,win.icon,30):win.icon+" ")}<span>${win.name} — ${band==="green"?"IT CLICKS":band==="neutral"?"IT'LL DO":"IT BACKFIRES"}</span></span>`,
         story:out.story,
         lines:stats.length?stats.map(k=>(out.sign>0?"+":"−")+out.amt+" "+(LBL[k]||k)).join(" · "):"no swing this game",
-        dur:"THIS GAME"},
-      onDone:()=>{
-        applyDecision(pl,d);
-        try{window.chooseGamePlanV11&&window.chooseGamePlanV11(win.id,win.rec)}catch(e){}
-      },
-    });
+        dur:"THIS GAME"}};
+  }
+  function holdPlanV135(pl,plans){
+    const key=keyV135(pl,plans);
+    if(heldV135&&heldV135.key===key)return heldV135;
+    const d=decidePlan(pl,plans); if(!d)return null;
+    heldV135={key,d,pl,plans,applied:false,rolledAt:Date.now()};
+    return heldV135;
+  }
+  function applyHeldV135(){const h=heldV135;if(h&&!h.applied){applyDecision(h.pl,h.d);h.applied=true}return h}
+  function commitHeldV135(){const h=applyHeldV135();heldV135=null;return h}
+  const wizardUpV135=()=>{const ch=window.chooseGamePlanV11;return !!(ch&&ch.__pregameV1514)&&!window.__silentSimV85&&!!(window.TU?window.TU("wheelOnPageV135",1):1)};
+  function rollPlan(panel){
+    if(!panel||panel._v51done)return false;
+    const g=G(); if(!g||!g.spinWheel)return false;
+    const plans=readPlans(panel); if(plans.length<2)return false;
+    const pl=getPl(); if(!pl)return false;
+    panel._v51done=true;
+    panel.remove();                       // the wheel replaces the deck, as v41 did
+    const h=holdPlanV135(pl,plans);
+    if(!h){panel._v51done=false;return false}
+    const d=h.d;
+    // v135: the wizard carries the wheel on its fifth page — hand it the held decision and open it
+    if(wizardUpV135()){try{window.chooseGamePlanV11(d.win.id,d.win.rec)}catch(e){} return true}
+    const okOpen=g.spinWheel(Object.assign(wheelCfgV135(pl,d),{onDone:()=>{
+        commitHeldV135();
+        try{window.chooseGamePlanV11&&window.chooseGamePlanV11(d.win.id,d.win.rec)}catch(e){}
+      }}));
     if(!okOpen){                          // wheel busy — never strand the player pre-snap
-      try{
-        applyDecision(pl,d);
-        window.chooseGamePlanV11&&window.chooseGamePlanV11(win.id,win.rec);
-      }catch(e){}
+      try{commitHeldV135();window.chooseGamePlanV11&&window.chooseGamePlanV11(d.win.id,d.win.rec)}catch(e){}
     }
     return true;
   }
@@ -21380,7 +21478,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   const sweep=()=>{try{document.querySelectorAll('.gameplan-overlay').forEach(autoPlan)}catch(e){}};
   try{new MutationObserver(sweep).observe(document.body,{childList:true,subtree:true})}catch(e){}
   setInterval(sweep,400);
-  window.__PREGAME_V51={readPlans,boldOf,appetite,rollPlan,decidePlan,silentPlan};
+  window.__PREGAME_V51={readPlans,boldOf,appetite,rollPlan,decidePlan,silentPlan,hold:()=>heldV135,cfg:()=>heldV135?wheelCfgV135(heldV135.pl,heldV135.d):null,apply:applyHeldV135,commit:commitHeldV135,wizardUp:wizardUpV135};
 })();
 </script>
 <style>
@@ -22100,10 +22198,18 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
    * wedges, spinning, the fit strip and the result card, and nothing about where
    * the options came from. `showWheel` below and the v51 pregame block both feed
    * it the same shape. */
+  /* v135: a wheel can be mounted INTO a page (the pregame's fifth page) instead of over it —
+   * `cfg.host` (or `inlineHostV135`, set by showWheelIn for the story wheel) puts the same
+   * markup, with the same id, inside that element with no fixed backdrop; the roll pop-up still
+   * covers the viewport, and its CONTINUE closes only the pop-up, leaving the landed wheel and
+   * the result card standing on the page. */
+  let inlineHostV135=null;
+  function showWheelIn(host,pl,ctx,title,onDone){inlineHostV135=host||null;try{showWheel(pl,ctx,title,onDone)}finally{inlineHostV135=null}return !!(host&&host.querySelector("#growthV42"))}
   function spinWheel(cfg){
     if(showing&&!document.getElementById("growthV42"))showing=false;   // self-heal a torn-out overlay
     if(showing||document.getElementById("growthV42"))return false;
     const opts=cfg.opts||[];if(opts.length<2)return false;
+    const host=cfg.host||inlineHostV135||null;
     showing=true;
     const idx=Math.max(0,Math.min(opts.length-1,cfg.pick|0));
     const tot=opts.reduce((s,o)=>s+o.w,0)||1;
@@ -22136,7 +22242,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
         <div style="font-size:13px;color:${R.band==="green"?"#6fe08a":R.band==="neutral"?"#cfd6a8":"#ff8a80"}">${R.lines||""}</div>
         ${R.dur?`<div style="font-size:10px;letter-spacing:2px;color:#f0bb45;margin-top:5px">${R.dur}</div>`:""}
       </div>`:"";
-    document.body.insertAdjacentHTML("beforeend",`<div id="growthV42" style="position:fixed;inset:0;z-index:960;background:rgba(3,7,13,.9);display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto"><div style="max-width:440px;width:100%;background:linear-gradient(180deg,#152238,#0a111c);border:1px solid rgba(240,187,69,.45);border-radius:16px;padding:15px;font-family:Oswald,sans-serif;color:#e8ecf2">
+    (host||document.body).insertAdjacentHTML("beforeend",`<div id="growthV42" data-inline="${host?1:0}" style="${host?"position:relative;display:flex;justify-content:center;padding:0":"position:fixed;inset:0;z-index:960;background:rgba(3,7,13,.9);display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto"}"><div style="max-width:440px;width:100%;background:linear-gradient(180deg,#152238,#0a111c);border:1px solid rgba(240,187,69,.45);border-radius:16px;padding:15px;font-family:Oswald,sans-serif;color:#e8ecf2">
       <div style="font-size:10px;letter-spacing:3px;color:#f0bb45">${cfg.title||""}</div>
       <div style="font-size:18px;font-weight:700;margin:3px 0 9px">${cfg.sub||""}</div>
       <div style="display:flex;justify-content:center"><canvas id="gv50wheel" width="268" height="268" style="width:min(268px,72vw);height:auto;touch-action:manipulation"></canvas></div>
@@ -22254,7 +22360,12 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       const h=document.getElementById("gv50hint");if(h)h.style.display="none";
       const b=document.getElementById("gv42go");if(!b)return;
       b.style.display="";DS.disarm();
-      b.onclick=()=>{const ov=document.getElementById("growthV42");if(ov)ov.remove();showing=false;cfg.onDone&&cfg.onDone(idx)};
+      b.onclick=()=>{
+        if(host){   // v135: inline — the wheel stays standing on its page; only the roll pop-up closes
+          const rp=document.getElementById("gv62roll"),oc=document.getElementById("gv42out"),ov=document.getElementById("growthV42");
+          if(rp){if(oc&&ov)(ov.firstElementChild||ov).appendChild(oc);rp.remove()}else b.style.display="none";
+          showing=false;cfg.onDone&&cfg.onDone(idx);return}
+        const ov=document.getElementById("growthV42");if(ov)ov.remove();showing=false;cfg.onDone&&cfg.onDone(idx)};
     }
     function land(){
       const el=nodes[idx],band=(R&&R.band)||"n";
@@ -22315,7 +22426,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
         pl.growthFxV42.forEach(fx=>{if(fx.seasonsLeft!=null)fx.seasonsLeft--});
         pl.growthFxV42=pl.growthFxV42.filter(fx=>fx.permanent||fx.gamesLeft>0||fx.seasonsLeft>0);
       }
-      if(pl._growthCommitK!==k){pl._growthCommitK=k;pl._growthSeasonK=k;
+      if(pl._growthCommitK!==k){pl._growthCommitK=k;pl._growthSeasonK=k;delete pl._crossroadsV135;
         setTimeout(()=>showWheel(pl,"season","SEASON COMMITMENT · HOW WILL YOU LIVE THIS YEAR?"),650)}
     }}catch(e){}
     return r;
@@ -22336,7 +22447,9 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       const freq=cl(dial("freq",1),0,3);                                  // 0=off 1=normal 2=busy 3=constant
       if(freq>0&&s&&s.view!=="live"){
         const rand=seededRand(pl,"inseason|"+played);
-        if(rand()<[0,.32,.5,.7][Math.round(freq)]) setTimeout(()=>showWheel(pl,"inseason|w"+played,"MIDSEASON CROSSROADS · WEEK "+(played+1)),1200);
+        // v135: never popped on its own any more — queued on the player, and the pregame's wheel
+        // page spins it before the plan (the same seeded ctx, so the same options and the same roll)
+        if(rand()<[0,.32,.5,.7][Math.round(freq)]) pl._crossroadsV135={ctx:"inseason|w"+played,title:"MIDSEASON CROSSROADS · WEEK "+(played+1)};
       }
     }
     if(played<lastPlayed)lastPlayed=played;                               // new career/season reset
@@ -22359,7 +22472,7 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     }
   }catch(e){}},900);
   // telemetry / harness
-  window.__GROWTH_V42={compose,rollOutcome,applyOutcome,genOptions,THEMES,TIERS,POOLS,LBL,persona,jiveOf,bandOdds,jiveTraits,jiveFrom,traitLedger,showWheel,spinWheel,wcol,wshade,NEUTRAL,TRAIT_LBL,
+  window.__GROWTH_V42={compose,rollOutcome,applyOutcome,genOptions,THEMES,TIERS,POOLS,LBL,persona,jiveOf,bandOdds,jiveTraits,jiveFrom,traitLedger,showWheel,showWheelIn,spinWheel,wcol,wshade,NEUTRAL,TRAIT_LBL,
     simulate(n){const out=[];for(let i=0;i<(n||100);i++){
       const pl={pos:["QB","RB","WR","LB","CB"][i%5],seasonSeed:1e6+i,seasonsPlayedTotal:i,personaV13:{aggression:i*3%11,iq:i*5%11,eq:i*7%11,longterm:i*2%11,workethic:i*4%11,loyalty:5,confidence:i*6%11,coachability:i*8%11},prestigeLifetime:i%3===0?0:i%3===1?8:18,coachTrust:20+i*7%70,momentum103:30+i*11%50,conditionV11:{fatigue:i*5%30}};
       const rand=seededRand(pl,"sim"+i);const opts=genOptions(pl,rand,5);if(!opts.length)continue;
@@ -23415,5 +23528,5 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   try { window.__HUB_V75 = { views: VIEWS, tabs: TAB, sweep } } catch (e) {}
 })();
 </script>
-<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v134b"></script><script src="./public/rib-menu-boot.js?v=v134b"></script><script src="./public/rib-menu.js?v=v134b"></script><script src="./public/rib-menu-howto.js?v=v134b"></script><script src="./public/rib-menu-coach.js?v=v134b"></script><script src="./public/rib-menu-navigation.js?v=v134b"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
+<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v135a"></script><script src="./public/rib-menu-boot.js?v=v135a"></script><script src="./public/rib-menu.js?v=v135a"></script><script src="./public/rib-menu-howto.js?v=v135a"></script><script src="./public/rib-menu-coach.js?v=v135a"></script><script src="./public/rib-menu-navigation.js?v=v135a"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
 </html>

@@ -124,7 +124,7 @@ console.log('body:', JSON.stringify(body))
 ok(body.mult < 1 && body.eff < body.base, 'a worn body lowers the effective value below the true one', `${body.big} ${body.base} → ${body.eff} (×${body.mult})`)
 ok(body.loss > 0 && body.dn > 0, 'the hub sheet draws the cut on the track and the effective number in red', `loss bars=${body.loss} red values=${body.dn}`)
 ok(/injury risk/.test(body.badgeTxt) && /games expected missed/.test(body.badgeTxt) && /WORN DOWN/.test(body.badgeTxt), 'the injury-risk badge is on the sheet: % this game, games expected, the body\'s state', body.badgeTxt)
-ok(body.badgeRisk && Math.abs(parseFloat(body.badgeRisk) - body.risk * 100) < 0.06, 'the badge quotes the real injChanceV54 through the ledger', `${body.badgeRisk}% vs ${(body.risk * 100).toFixed(2)}%`)
+ok(body.badgeRisk && Math.abs(parseFloat(body.badgeRisk) - body.risk * 100) < 0.51, 'the badge quotes the real injChanceV54 through the ledger (it prints a whole percent)', `${body.badgeRisk}% vs ${(body.risk * 100).toFixed(2)}%`)
 ok(body.preHasRisk && body.preHasCut, 'the pregame stat list carries the same badge and the same cut', `risk=${body.preHasRisk} cut=${body.preHasCut}`)
 ok(body.mult2 > 1 && body.gain > 0 && body.up > 0, 'fresh legs read as a lift, in green', `×${body.mult2} gain bars=${body.gain}`)
 

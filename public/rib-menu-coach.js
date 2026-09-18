@@ -188,7 +188,7 @@
       { p: 'listen', t: "Your rating and the depth chart live here. Low on the chart means fewer snaps. Fewer snaps means fewer stats. Simple." },
       { p: 'point', t: "I don't trust you yet, so you get about half the snaps. Play well and you get more. Now start the season.", s: 'playSeason', tap: true },
     ] },
-    { id: 'wheel', title: 'THE WHEEL', sub: 'HOW HARD HE WORKS THIS YEAR', when: (c) => c.wheel && !c.planWheel, lines: [   // over the training board, off PLAY SEASON
+    { id: 'wheel', title: 'THE WHEEL', sub: 'HOW HARD HE WORKS THIS YEAR', when: (c) => c.wheel && !c.planWheel && !c.pregame, lines: [   // over the training board, off PLAY SEASON (v135: never the wheel inside the pregame)
       { p: 'clipboard', t: "The wheel. How hard is your guy working this year? The spin decides. His personality loads the odds." },
       { p: 'tip', t: "LIGHT is safe. OBSESSIVE pays big and breaks big. Green means it worked. Red means it blew up in your face." },
       { p: 'point', t: "Tired guys roll red. Never spin worn out. Tap the wheel to hurry it, then hit CONTINUE.", s: 'cont', tap: true },
@@ -204,16 +204,18 @@
       { p: 'stop', t: "If he's feeling fatigued, play fewer snaps and let him recover. Fatigue changes how he plays. Got it?" },
       { p: 'point', t: "Injury risk is right there too. Read it before you throw him in. Now play Week 1 live.", s: 'playWeek', tap: true },
     ] },
-    { id: 'plan', title: 'THE WEEKLY PLAN', sub: 'ROLLED, NOT CHOSEN', when: (c) => c.planWheel, lines: [   // off PLAY WEEK, before the wizard
-      { p: 'clipboard', t: "Game week. The staff drew up plans. The wheel picks which one you run. His personality loads it." },
-      { p: 'tip', t: "Some plans chase big plays. Some keep it steady. One does the dirty work and earns my trust." },
-      { p: 'point', t: "Tap the wheel to hurry it, then CONTINUE.", s: 'cont', tap: true },
-    ] },
-    { id: 'pregame', title: 'BEFORE KICKOFF', sub: 'FOUR STEPS', when: (c) => c.pregame && !c.wheel, lines: [
-      { p: 'clipboard', t: "Four steps before kickoff. Step one: how much do you want to play? NORMAL is the snaps I trust you with. Fewer snaps, less wear." },
+    { id: 'pregame', title: 'BEFORE KICKOFF', sub: 'FIVE STEPS', when: (c) => c.pregame && !c.wheel, lines: [
+      { p: 'clipboard', t: "Five steps before kickoff. Step one: how much do you want to play? NORMAL is the snaps I trust you with. Fewer snaps, less wear." },
       { p: 'stop', t: "Ask for more than your share and it costs your body — until you earn it. More trust, more say." },
-      { p: 'tip', t: "Step two: pick one thing to focus on. Step three: the game plan. Step four: what you're carrying onto the field." },
-      { p: 'point', t: "Read the last page, then CONTINUE TO MATCH.", s: 'next', tap: true },
+      { p: 'tip', t: "Step two: pick one thing to focus on. Step three: the game plan. Step four: what you're carrying onto the field. Step five: the wheel." },
+      { p: 'point', t: "Work through the pages. The last one spins the wheel.", s: 'next', tap: true },
+    ] },
+    /* v135: the plan wheel spins on the wizard's FIFTH page now, not over the season screen before
+     * it, so this stop comes after the pregame stop — keyed on the wheel whose title reads PREGAME */
+    { id: 'plan', title: 'THE WEEKLY PLAN', sub: 'ROLLED, NOT CHOSEN', when: (c) => c.planWheel, lines: [
+      { p: 'clipboard', t: "The wheel. The staff drew up the plans. It picks the one you run. His personality loads it." },
+      { p: 'tip', t: "Some plans chase big plays. Some keep it steady. One does the dirty work and earns my trust." },
+      { p: 'point', t: "Tap the wheel to hurry it, then CONTINUE. It shows you what it did to your numbers. Then it's kickoff.", s: 'cont', tap: true },
     ] },
     { id: 'live', title: 'THE BROADCAST', sub: 'WATCH IT', when: (c) => c.live && !c.post, delay: 2600, lines: [
       { p: 'open', t: "Game time. Your guy has a ring under his feet. Watch him." },

@@ -55,6 +55,25 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v135 — the wheel spins on the fifth page, and never on its own.** The game-plan wheel used to
+  open the moment PLAY WEEK was tapped: a sweep saw the staff's deck, tore it out and spun over the
+  season screen before the pregame wizard, and the midseason crossroads fired on a timer after a
+  game, on whatever screen it found — so the wheel read as something that appeared at random. Now
+  the deck is read and the decision rolled the moment it appears (`holdPlanV135`, the SAME dice,
+  rolled once a week and HELD, so leaving the wizard and coming back cannot re-roll it), the wizard
+  opens straight away, and its **fifth page** spins the wheel INTO the page (`spinWheel`'s host mode:
+  the same card, no fixed backdrop; the fit-roll pop-up still covers the viewport and its CONTINUE
+  closes only the pop-up, leaving the landed wheel and its result standing). NEXT waits while the
+  wheel is in the air, and once the roll is in the page names the final stat — the plan, the band,
+  and every stat it moves as before → after on the effective sheet, with the sheet itself under it.
+  `commitHeldV135` applies the swing exactly once on CONTINUE TO MATCH, seen or skipped; BACK off
+  the page mid-spin parks the wheel and it respins to the same pick. A queued crossroads
+  (`player._crossroadsV135`, written by the post-game watcher instead of shown) spins on that page
+  first. The season-commitment wheel over the training board is untouched. The coach's stops follow:
+  BEFORE KICKOFF says five steps, and THE WEEKLY PLAN comes after it, over the wheel on page 5.
+  `TU("wheelOnPageV135",0)` restores the overlay before the wizard. `v112Dcheck.mjs`,
+  `wheelcheck.mjs`, `coachcheck.mjs`.
+
 - **v134 — the goals are worth chasing, the busts have a box score, the Apex shelf, and the coach only
   where he belongs.** Eleven asks. **THE GOALS**: `zt` rescaled top to bottom — a DFL title as the
   game's MVP is `dflMvpTitle` (10,000 PP), the Interstellar title as its MVP is `galaxyMvpTitle`

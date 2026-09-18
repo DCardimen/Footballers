@@ -9,7 +9,7 @@
 //     it OFF, the switch is remembered across a reload, and switching it back ON starts over;
 //   * THE WALK: he pops in once on each screen of a first week — the personality roll, the position
 //     pick, the hub, the wheel (over the training board, off PLAY SEASON), the training board, the
-//     season screen, the weekly-plan wheel (off PLAY WEEK), the pregame, the broadcast, the post-game
+//     season screen, the pregame, the weekly-plan wheel (v135: on the pregame's fifth page), the broadcast, the post-game
 //     card and the season screen after the game — in that order, never twice, and the last stop
 //     switches him off;
 //   * on a REAL first visit the game's welcome cards show above the menu (v119 lifted them from under
@@ -253,7 +253,14 @@ const step = async (page, t, wait = 900) => {
   await expect('training', 'the training board (the wheel gone)'); await dismiss(page)
   await step(page, 'CONFIRM TRAINING'); await expect('season', 'the season screen', { spot: 'body' }); await dismiss(page)
   await step(page, 'PLAY WEEK 1 LIVE')
-  const plan = await expect('plan', 'the weekly-plan wheel, off PLAY WEEK')
+  // v135: PLAY WEEK opens the wizard straight away — no wheel over the season screen first — and the
+  // plan wheel spins on the wizard's FIFTH page, so the pregame stop comes before the plan stop
+  await page.waitForSelector('#pregameV1513', { timeout: 15000 }).catch(() => null)
+  ok(await page.evaluate(() => !document.getElementById('growthV42')), 'PLAY WEEK opens the pregame with no wheel spun over the season screen (v135)')
+  await expect('pregame', 'the pregame wizard'); await dismiss(page)
+  for (let p = 0; p < 4; p++) { const n = await step(page, p === 3 ? 'SPIN THE WHEEL' : 'NEXT', 700); if (!n) break }
+  const plan = await expect('plan', 'the weekly-plan wheel, on the fifth page')
+  ok(await page.evaluate(() => !!document.querySelector('#v112Page5 #growthV42')), '  …and the wheel he talks over is the one inside the wizard')
   await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' && g.getBoundingClientRect().height > 0 }, null, { timeout: 30000 }).catch(() => null)
   await page.evaluate(() => { const C = window.__RIB_COACH, S = C.stops.find((x) => x.id === C.stop), last = (S ? S.lines : 1) - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(700)
   const planSpot = await page.evaluate(() => { const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), g = document.getElementById('gv42go'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, gr = g ? g.getBoundingClientRect() : null
@@ -261,9 +268,6 @@ const step = async (page, t, wait = 900) => {
   ok(plan && plan.stop === 'plan' && planSpot.key === 'cont' && planSpot.shown && planSpot.over, "the plan stop's last line lights CONTINUE once the plan is rolled", JSON.stringify(planSpot))
   await dismiss(page)
   await page.click('#gv42go'); await page.waitForTimeout(600)
-  await page.waitForSelector('#pregameV1513', { timeout: 15000 }).catch(() => null)
-  await expect('pregame', 'the pregame wizard'); await dismiss(page)
-  for (let p = 0; p < 4; p++) { const n = await step(page, 'NEXT', 700); if (!n) break }
   await step(page, 'CONTINUE TO MATCH', 1500)
   await expect('live', 'the broadcast', { ms: 60000 }); await dismiss(page)
   // run the game out at the fastest speed, clicking through any sheet over the field (never the post-game card)
@@ -287,7 +291,7 @@ const step = async (page, t, wait = 900) => {
   h = await dismiss(page)
   const storedEnd = await page.evaluate((k) => localStorage.getItem(k), await page.evaluate(() => window.__RIB_COACH.key))
   ok(!h.open && h.closedBy === 'done' && !h.enabled && storedEnd === 'off', 'DONE ends the walk and switches him OFF, remembered', JSON.stringify({ closedBy: h.closedBy, enabled: h.enabled, stored: storedEnd }))
-  const want = ['menu', 'prestige', 'career', 'persona', 'position', 'hub', 'wheel', 'training', 'season', 'plan', 'pregame', 'live', 'result', 'recovery']
+  const want = ['menu', 'prestige', 'career', 'persona', 'position', 'hub', 'wheel', 'training', 'season', 'pregame', 'plan', 'live', 'result', 'recovery']
   ok(JSON.stringify(order) === JSON.stringify(want) && h.opens === want.length && h.seen.length === want.length, 'fourteen stops of the week, one per screen, in the order a first week meets them — the tree before the player — none twice', JSON.stringify({ order, opens: h.opens }))
   // and off, the season screen stays quiet
   await page.waitForTimeout(2500)
