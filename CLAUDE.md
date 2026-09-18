@@ -68,6 +68,23 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v132 THE INTRO FILM IS THE LOADER, AND IT IS UP ON THE FIRST PAINT` (door two, in the v94 block) /
+  `v132 THE FILM IS ALWAYS WARM` (in the v114 block) / `v132 A YEAR OLDER` (beside `dc` / `An`) /
+  `v132 A THOUSAND HOURS` (`public/rib-menu.js` + the tail of `rib-menu-v89.css`) — the live game's
+  loader has NO chase any more: `.rib-liveload-v94.film` is its layout from the first paint, the STILL
+  `rib_film_v116.jpg` (`.rib-liveload-still-v132`, `.still` when landed) is under everything, the film
+  plays over it from the seam and `.playing` says so; `__V114.warm()` builds a standby element when
+  the splash leaves with nothing parked and `take()` hands out parked-then-standby; the door opens on
+  `item.ready` after `LIVE_MIN_MS` / `LIVE_SEEN_MS` / `LIVE_FILM_WAIT_MS` (it used to sit on the 9s
+  watchdog with the film up). `growShowV132(e)` is the offseason body screen over the report card
+  (`Al` is wrapped; `growMaybeV132` gates it on `player.growSeenV132 !== totalSeasons`,
+  `TU("growScreenV132",1)`, `?noGrowV132`); `growDataV132` reads `bodyNowV112` at age-1 and age,
+  `seasonStats.gains` / `ageChanges` / `ageProfile`; the coach's `scan()` waits while `#growV132` is
+  up and an open coach is closed when it opens. The menu: `tickerV132` (markup from the feed),
+  `startMenuFxV132` / `stopMenuFxV132` (embers, parallax, tilt, flashbang), the CSS block at the end
+  of the sheet. Hooks: `__LIVELOAD_V94.lastStillMs` / `.lastPicMs`, `__V114.standby`,
+  `window.__GROW_V132`, `window.__RIB_MENU_FX_V132`. `v115check.mjs`, `v127check.mjs`,
+  `growcheck.mjs`, `menufxcheck.mjs`; `growshot.mjs`
 - `v131 THE PRICE OF STARTING OVER, IN NUMBERS` (beside `Je` / `As`) — `originSayV131(origin)` builds
   each origin card's effect list from its own `effects`, in the order `As` applies them, so a card
   cannot promise what the game does not do. `pressNeedV131` (the Prodigy's promotion bar) and
@@ -464,6 +481,9 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | You changed… | Run |
 |---|---|
 | tackling / contact physics | `tacklecheck.mjs`, `jukecheck.mjs` |
+| the live game's loader — the still, the warm film, when the door opens (v132) | `v115check.mjs`, `v127check.mjs`, then `splashcheck.mjs`, `v112Acheck.mjs`, `v114check.mjs` |
+| the offseason body screen — the age, the frame, what the years took (v132) | `growcheck.mjs`, then `coachcheck.mjs`, `declarecheck.mjs`, `walk.mjs`; `growshot.mjs` to look |
+| the menu's effects — the ticker, the embers, the sweep, parallax, the tiles (v132) | `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs`, then `menufxcheck.mjs`, `menu-integration-check.mjs`, `heroflashcheck.mjs`, `sheencheck.mjs`, `menushot.mjs` (`CAREER=1`) |
 | defender reads / blocking / pursuit (v81) | `readcheck.mjs` (pure Node), then `movementcheck.mjs`, `simcheck.mjs` |
 | stat credit / box score | `creditcheck.mjs`, `statcreditcheck.mjs` |
 | who is actually on the field — the eleven markers, duplicate players, which slot he lines up in (v117) | `v117check.mjs`, then `creditcheck.mjs`, `statcreditcheck.mjs`, `v110check.mjs`, `scoreneutralcheck.mjs`, `simcheck.mjs` |

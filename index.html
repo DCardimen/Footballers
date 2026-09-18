@@ -228,7 +228,13 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
    ask to play, and the loader cannot show it until it knows the film is actually running */
 .rib-liveload-film-v115{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .28s ease,transform .62s cubic-bezier(.32,.05,.2,1);z-index:0;will-change:transform,opacity}
 .rib-liveload-v94.film{background:radial-gradient(130% 90% at 50% 40%,#080d13,#04070b 72%)}
-.rib-liveload-v94.film .rib-liveload-film-v115{opacity:1}
+/* v132: the loader is in its film LAYOUT from the first paint (.film), and the video only shows once it is
+   actually running (.playing) — under it, the still of the landed wordmark carries the picture until then */
+.rib-liveload-v94.playing .rib-liveload-film-v115{opacity:1}
+.rib-liveload-still-v132{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:0;opacity:0;transition:opacity .22s ease,transform .62s cubic-bezier(.32,.05,.2,1);will-change:transform,opacity}
+.rib-liveload-v94.still .rib-liveload-still-v132{opacity:1}
+.rib-liveload-v94.film.gone .rib-liveload-still-v132{transition:transform .66s cubic-bezier(.32,.05,.2,1);transform:scale(1.09)}
+@media (prefers-reduced-motion:reduce){.rib-liveload-v94.film.gone .rib-liveload-still-v132{transform:none}}
 /* the chase canvas is display:none by default and block only under .chase, but it was still
    computing to block here and taking 300x150 of the flex column under the caption — state it */
 .rib-liveload-v94.film .rib-liveload-cv-v94{display:none}
@@ -289,7 +295,7 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 @keyframes badgeSnapV95{0%{transform:translateX(-120%) rotate(-6deg);opacity:1}60%{transform:translateX(0) rotate(-6deg);opacity:1}to{transform:translateX(0) rotate(-6deg);opacity:0}}
 @media (prefers-reduced-motion:reduce){.rib-badge-rays-v95{animation:none}}
 </style>
-<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v130a"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v130a"><link rel="stylesheet" href="./public/rib-menu.css?v=v130a"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v130a"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=v130a"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
+<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v132a"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v132a"><link rel="stylesheet" href="./public/rib-menu.css?v=v132a"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v132a"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=v132a"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
 <body>
 <div id="splash">
 <div class="splash-inner">
@@ -610,7 +616,30 @@ window.addEventListener('unhandledrejection', function(e){
       V.parked = vid; return vid;
     } catch (e) { return null; }
   };
-  V.take = function (cls) { var v = V.parked; if (!v) return null; V.parked = null; v.className = cls || ''; return v; };
+  /* ===== v132 THE FILM IS ALWAYS WARM =====
+   * Door two must never have to LOAD. If the splash leaves with nothing parked — the film never got a
+   * frame up in its audition, the boot was a cached reload, the picker chose a source the browser then
+   * refused — a STANDBY is built here on the same URL, seeked to the seam the moment its metadata lands,
+   * and left paused and buffered until a live game asks. `take()` hands out the parked element first and
+   * the standby second; `give()` re-parks whichever comes back. One decoded film a session, still. */
+  V.standby = null; V.warmedMs = null;
+  V.warm = function () {
+    try {
+      if (V.parked || V.standby || V.rm || V.off || !V.src) return null;
+      var s = document.createElement('video');
+      s.preload = 'auto'; s.muted = true; s.defaultMuted = true; s.playsInline = true; s.loop = false;
+      s.setAttribute('playsinline', ''); s.setAttribute('muted', ''); s.setAttribute('aria-hidden', 'true');
+      s.addEventListener('loadedmetadata', function () { try { var d = s.duration; if (d && isFinite(d) && d > LOOP_FROM_V116 + .5) s.currentTime = LOOP_FROM_V116; } catch (e) {} });
+      s.addEventListener('ended', function () { loopBack(s); });
+      s.src = V.src; s.load();
+      V.standby = s; V.warmedMs = T(); return s;
+    } catch (e) { return null; }
+  };
+  V.take = function (cls) {
+    var v = V.parked || V.standby; if (!v) return null;
+    if (v === V.parked) V.parked = null; else V.standby = null;
+    v.className = cls || ''; return v;
+  };
   V.give = function (v) { try { if (!v) return; v.pause(); if (v.parentNode) v.parentNode.removeChild(v); v.className = ''; V.parked = v; } catch (e) {} };
   vid.loop = false; vid.muted = true; vid.defaultMuted = true; vid.playsInline = true;
   var p = null; try { p = vid.play(); } catch (e) { settle(false); }
@@ -981,6 +1010,7 @@ window.addEventListener('unhandledrejection', function(e){
       splash.classList.add('gone');
       setTimeout(function () {
         try { if (window.__V114 && window.__V114.park) window.__V114.park(); } catch (e) {}   // v115: keep the loaded film for door two
+        try { if (window.__V114 && window.__V114.warm && !window.__V114.parked) window.__V114.warm(); } catch (e) {}   // v132: and if there is nothing to keep, build the standby now, not at the door
         if (splash.parentNode) splash.parentNode.removeChild(splash);
       }, 600);
     }
@@ -1030,7 +1060,8 @@ window.addEventListener('unhandledrejection', function(e){
 
   // ---- door two: the live game's loader. The field is about to be built (the Phaser bundle
   // mounts on the first draw, the sheets register, the crowd and the stands take their seats);
-  // the chase runs over .field-wrap until the scene is up and the minimum show has run.
+  // v132: the sting — its still, then the film — runs over .field-wrap until the scene is up, the
+  // first play is built and the minimum show has run. The chase no longer mounts at this door.
   (function () {
     var cur = null, lastGame = null, waiters = [], warm = false;
     /* v101: the chase is not a curtain the game hides behind — it is the time the game uses.
@@ -1041,6 +1072,7 @@ window.addEventListener('unhandledrejection', function(e){
      * never reports back must not hold the game hostage. */
     var api = window.__LIVELOAD_V94 = { get current() { return cur; }, shows: 0, mount: mount,
       lastFilmMs: null, lastFilmOwn: null,   // v127: how long door two took to get the sting up, and whether it had to build it
+      lastStillMs: null, lastPicMs: null,    // v132: when the still landed, and when the loader first had ANY picture (still or film)
       get warm() { return warm; },
       simReady: function () { warm = true; },
       /* v101: the MutationObserver below delivers a tick AFTER the field is inserted, and the
@@ -1053,7 +1085,7 @@ window.addEventListener('unhandledrejection', function(e){
         var screen = document.getElementById('screen'); if (!screen) return null;
         var wrap = screen.querySelector('.field-wrap'); if (!wrap || wrap.__liveloadV94) return null;
         wrap.__liveloadV94 = true;
-        return window.__CHASE_V94.rm ? null : mount(wrap);
+        return mount(wrap);   // v132: mounts under reduced motion too — there it is the still, and nothing moves
       },
       whenClear: function (cb) { if (!cur || cur.done) { cb(); return; } waiters.push(cb); } };   // v97: the sim waits at the door
     function release() { var w = waiters; waiters = []; w.forEach(function (cb) { try { cb(); } catch (e) {} }); }
@@ -1061,13 +1093,48 @@ window.addEventListener('unhandledrejection', function(e){
       if (!wrap || wrap.querySelector('.rib-liveload-v94') || cur) return null;
       // once per game: a re-render of the live view mid-game must not bring the loader back
       try { var st = window.__getGridironState && window.__getGridironState(), g = st && st._liveGame; if (g) { if (g === lastGame) return null; lastGame = g; } } catch (e) {}
-      var el = document.createElement('div'); el.className = 'rib-liveload-v94';
+      /* ===== v132 THE INTRO FILM IS THE LOADER, AND IT IS UP ON THE FIRST PAINT =====
+       * This door used to be the v94 chase with the film auditioning over it: the chase mounted first,
+       * the film borrowed door one's element (or built its own, v127) and claimed the stage once it had
+       * a frame — and whenever it did not inside 1.2s (a main thread busy compiling Phaser, an emptied
+       * park, a slow decode) the chase stayed for the whole door. That is the old loading screen a player
+       * kept meeting in front of live games. The chase is gone from this door.
+       *
+       * The loader IS the sting now, in three layers that agree on one picture:
+       *   1. the STILL — `rib_film_v116.jpg`, the film's own last frame (the landed wordmark) — laid under
+       *      everything as an <img> whose src is set before the element is in the document. It is a
+       *      cached ~40KB jpg, so it is on the loader's first paint whatever the film is doing;
+       *   2. the FILM over it, from v116's seam, which is that same picture in motion. It is warm by
+       *      construction: `__V114.take()` hands out the element door one played (parked), else the
+       *      standby v132 built the moment the splash left (`__V114.warm()`), so this is a seek and a
+       *      play, never a load. The still-to-film hand-over is invisible — the seam frame and the last
+       *      frame differ by 3.4/255 (v116 measured it);
+       *   3. the CAPTION in the band below the picture, exactly as v115 placed it.
+       * With the film off for a real reason — reduced motion, ?noFilmV114 — the still stands alone; a
+       * film that never gets a frame up simply never claims, and the still stands. Nothing auditions,
+       * nothing falls back to a canvas.
+       *
+       * And the door opens on the scene standing and the first play built (v101), after LIVE_MIN_MS so
+       * the picture is seen rather than glimpsed. It used to sit on the 9s watchdog whenever the film was
+       * up, because only the chase's own beat ever called finish(). The watchdog stays as the ceiling. */
+      var STILL_V132 = window.__RIB_ASSET ? window.__RIB_ASSET('rib_film_v116.jpg') : './public/rib_film_v116.jpg';
+      var LIVE_MIN_MS = 1600;        // the shortest the door stays shut once mounted: the sting is seen, not glimpsed
+      var LIVE_SEEN_MS = 900;        // and once the film is up, it is on screen at least this long before the exit starts
+      var LIVE_FILM_WAIT_MS = 2600;  // how long a ready door will wait for a film that has not claimed yet (a cold decode) before the still carries the exit
+      var el = document.createElement('div'); el.className = 'rib-liveload-v94 film';
       var us = '', them = '';
       try { us = wrap.querySelector('.sb-side.us .team').textContent.trim(); them = wrap.querySelector('.sb-side.them .team').textContent.trim(); } catch (e) {}
-      el.innerHTML = '<canvas class="rib-liveload-cv-v94"></canvas><div class="rib-liveload-cap-v94"><b>' + (us && them ? us + ' <i>vs</i> ' + them : 'GAME DAY') + '</b><span>TAKING THE FIELD</span></div><div class="rib-liveload-bar-v94"><i></i></div>';
+      el.innerHTML = '<img class="rib-liveload-still-v132" alt="" aria-hidden="true"><div class="rib-liveload-cap-v94"><b>' + (us && them ? us + ' <i>vs</i> ' + them : 'GAME DAY') + '</b><span>TAKING THE FIELD</span></div><div class="rib-liveload-bar-v94"><i></i></div>';
+      var still = el.querySelector('.rib-liveload-still-v132');
+      var item = cur = { el: el, wrap: wrap, t0: Date.now(), chase: null, done: false, ready: false, field: false, film: false, filmMs: null, filmOwn: false, still: false, stillMs: null, picMs: null };
+      var rec = mountRec112('live');
+      // the first PICTURE on the loader — still or film, whichever lands first — is what the v112 A stopwatch records for this door
+      function pictured() { if (item.picMs != null) return; item.picMs = Date.now() - item.t0; api.lastPicMs = item.picMs; if (rec && rec.firstFrame == null) { rec.firstFrame = T112(); rec.ms = rec.firstFrame - rec.at; } }
+      still.addEventListener('load', function () { if (item.done) return; item.still = true; item.stillMs = Date.now() - item.t0; api.lastStillMs = item.stillMs; el.classList.add('still'); pictured(); });
+      still.addEventListener('error', function () { el.classList.add('nostill'); });
+      still.src = STILL_V132;
       wrap.appendChild(el); api.shows++;
       warm = false;
-      var item = cur = { el: el, wrap: wrap, t0: Date.now(), chase: null, done: false, ready: false, field: false, film: false, filmMs: null, filmOwn: false };
       function finish() {
         if (item.done) return; item.done = true; if (item.chase) item.chase.stop(); if (cur === item) cur = null;
         release();
@@ -1079,105 +1146,62 @@ window.addEventListener('unhandledrejection', function(e){
           // dropped-frame look the push-through exists to replace
           try { if (item.filmEl && window.__V114 && window.__V114.give) window.__V114.give(item.filmEl); } catch (e) {}
           if (el.parentNode) el.parentNode.removeChild(el);
-        }, item.film ? 720 : 450);
+        }, 720);
       }
-      var rec = mountRec112('live');
-      /* ===== v115 THE FILM AT BOTH DOORS =====
-       * The same title sting the boot splash plays, over the field while the broadcast boots —
-       * straight out of the cache, since door one asked for that exact URL minutes ago.
-       *
-       * Two things are deliberately NOT the same as door one.
-       *   - IT DOES NOT WAIT FOR THE FILM. This door opens on the scene standing and the first
-       *     play being built — usually inside two seconds. Holding it for the whole 14.5s sting
-       *     would put twelve seconds in front of every single game, which is the opposite of what
-       *     a loader is for. The film runs under the loader for as long as the loader lives, and
-       *     the loader leaves on top of it, wherever round it happens to be.
-       *   - IT STARTS AT THE SEAM, NOT THE TOP. The sting opens on a second of near-black and
-       *     spends six more assembling the wordmark: fine as a boot splash, useless on a door
-       *     that may only be open for 1.5s. v116 already has a place in the film where the
-       *     picture is finished and stays that way — LOOP_FROM_V116 — so this door starts THERE
-       *     and rides the same loop. Every frame it can show is the wordmark under cloud.
-       *
-       * If door one never played the film — no codec, autoplay refused, reduced motion,
-       * ?noFilmV114 — then `__V114.on` is false and this door runs the v94 chase exactly as it
-       * always has. Same for a film that cannot get a frame up here. */
+      /* ===== v115 THE FILM AT BOTH DOORS (v132: and only the film) =====
+       * Two things stay deliberately different from door one.
+       *   - IT DOES NOT WAIT FOR THE FILM. Holding the door for the whole 14.5s sting would put twelve
+       *     seconds in front of every single game. The film runs under the loader for as long as the
+       *     loader lives, and the loader leaves on top of it, wherever round it happens to be.
+       *   - IT STARTS AT THE SEAM, NOT THE TOP. The sting opens on a second of near-black and spends six
+       *     more assembling the wordmark; this door starts where the picture is finished
+       *     (LOOP_FROM_V116) and rides the same loop, so every frame it can show is the wordmark under cloud. */
       var F = window.__V114;
       var LIVE_FILM_FROM = (F && F.loopFrom) || 1.15;  // seconds: v116's seam — the wordmark, landed
-      var LIVE_FILM_START_MS = 1200;                   // its audition, shorter than door one's: this door may only live for 1.5s
-      var LIVE_FILM_OWN_MS = 2600;                     // v127: a film this door had to build itself gets longer — it is a decode, not a hand-off
-      // the element door one loaded, parked since the splash left — already buffered, so this is a
-      // seek and a play, not a load, and it survives the main thread being busy with Phaser
-      /* ===== v127 DOOR TWO CAN LOAD ITS OWN FILM =====
-       * Taking the parked element is the FAST path, not the only one. If nothing is parked —
-       * the splash left before the film played, an earlier game is still holding it, a reload
-       * put a fresh document in front of a warm HTTP cache — door two used to fall silently
-       * back to the v94 chase for the rest of the session, which is exactly the "the video
-       * isn't playing on the live loader" case. It builds its own <video> on the same URL now.
-       * That URL is in the browser cache (door one asked for it minutes ago) so it is a decode,
-       * not a download; it starts at the same seam, rides the same looper, and is handed to
-       * `give()` on the way out, so from the second game on there IS a parked element again.
-       * Nothing is built when the film is off for a real reason — reduced motion, ?noFilmV114,
-       * no codec — because `F.failed`/`F.off`/`F.rm` say so and the chase is correct there. */
-      var fv = (F && F.take) ? F.take('rib-liveload-film-v115') : null, fvOwn = false;
-      if (!fv && F && F.src && !F.failed && !F.off && !F.rm) {
-        try {
-          fv = document.createElement('video');
-          fv.className = 'rib-liveload-film-v115';
-          fv.preload = 'auto'; fv.src = F.src; fvOwn = true;
-        } catch (e) { fv = null; }
+      var fv = null, fvOwn = false;
+      if (F && !F.rm && !F.off) {
+        fv = F.take ? F.take('rib-liveload-film-v115') : null;   // the parked element, else v132's standby
+        /* v127: and if there is neither — an earlier game still holding it, a document that never had a
+         * splash — build one on the same URL. It is in the browser cache, so this is a decode, not a
+         * download; it is handed to give() on the way out, so from the next game on there IS one parked. */
+        if (!fv && F.src) {
+          try { fv = document.createElement('video'); fv.className = 'rib-liveload-film-v115'; fv.preload = 'auto'; fv.src = F.src; fvOwn = true; } catch (e) { fv = null; }
+        }
       }
-      if (fv) { fv.setAttribute('aria-hidden', 'true'); el.insertBefore(fv, el.firstChild); }
-      var filmOn = false, chaseUp = false, sheetOk = null;
-      function mountChase() {
-        if (item.done || item.chase || filmOn || !sheetOk) return;
-        chaseUp = true; el.classList.add('chase');
-        item.chase = make(el.querySelector('canvas'), { minMs: 1500, fullCycle: false, onDone: finish, rec: rec }).start();   // over a game the door opens at the first quiet beat, not after a whole cycle
-        if (item.ready) item.chase.arm();
-      }
-      load().then(function (ok) {
-        if (item.done) return;
-        sheetOk = !!ok;
-        if (!ok) { if (!filmOn) setTimeout(function () { if (!filmOn) finish(); }, 900); return; }
-        mountChase();
-      });
       if (fv) {
+        fv.setAttribute('aria-hidden', 'true'); el.insertBefore(fv, el.querySelector('.rib-liveload-cap-v94'));
+        var filmOn = false;
         var claimed = function () {
           if (filmOn || item.done) return;
-          filmOn = true; item.film = true; item.filmMs = Date.now() - item.t0; item.filmOwn = fvOwn; el.classList.add('film');
-          api.lastFilmMs = item.filmMs; api.lastFilmOwn = fvOwn;
-          if (chaseUp) { el.classList.remove('chase'); if (item.chase) { item.chase.stop(); item.chase = null; } }
+          filmOn = true; item.film = true; item.filmMs = Date.now() - item.t0; item.filmOwn = fvOwn; el.classList.add('playing');
+          api.lastFilmMs = item.filmMs; api.lastFilmOwn = fvOwn; pictured();
         };
         item.filmEl = fv;
-        /* v127: a BORROWED element already carries its metadata, so the seek to the seam lands on
-         * this tick and it can claim the stage immediately. One this door BUILT has `duration` of
-         * NaN for a beat, so that seek is skipped — and claiming then would put the film's opening
-         * second of near-black on the loader, which is the thing this door exists not to do. So a
-         * self-built film seeks when its metadata arrives and does not claim the stage until the
-         * playhead is at the seam (or the audition runs out and whatever it has is better than the
-         * chase). `atSeam` is the one gate; a borrowed element passes it by construction. */
-        var seekDone = false;
+        /* v127: an element that already carries its metadata (parked, or a standby that has loaded) seeks
+         * to the seam on this tick and can claim the stage as soon as it has a frame. One with no
+         * metadata yet has `duration` NaN for a beat, so that seek is skipped — and claiming then would put
+         * the film's opening second of near-black over the still, which is the thing this door exists not
+         * to do. So a fresh film seeks when its metadata arrives and does not claim until the playhead is
+         * at the seam. `atSeam` is the one gate. */
+        var fresh = !(fv.readyState >= 1), seekDone = false;
         function seekSeam() { if (seekDone) return; try { if (fv.duration > LIVE_FILM_FROM + 1) { fv.currentTime = LIVE_FILM_FROM; seekDone = true; } } catch (e) {} }
-        function atSeam() { return !fvOwn || seekDone || fv.currentTime >= LIVE_FILM_FROM - .25; }
+        function atSeam() { return !fresh || seekDone || fv.currentTime >= LIVE_FILM_FROM - .25; }
         function tryClaim() { if (fv.readyState >= 2 && atSeam()) claimed(); }
         fv.addEventListener('loadedmetadata', seekSeam);
         fv.addEventListener('playing', tryClaim);
         ['canplay', 'seeked', 'loadeddata'].forEach(function (ev) { fv.addEventListener(ev, tryClaim); });
         fv.addEventListener('timeupdate', function () { if (fv.currentTime > 0) tryClaim(); });
-        // v116: the end of the film is a seek back to the seam, not a stop. The parked element
-        // carries door one's own `ended` listener, which is the looper; this is the belt to that
-        // brace, and loopBack is a no-op when the playhead is already sitting on the seam.
+        // v116: the end of the film is a seek back to the seam, not a stop. A parked element carries door
+        // one's own `ended` listener, which is the looper; this is the belt to that brace, and loopBack
+        // is a no-op when the playhead is already sitting on the seam.
         fv.addEventListener('ended', function () { if (F && F.loopBack) F.loopBack(fv); else { try { fv.pause(); } catch (e) {} } });
         fv.loop = false; fv.muted = true; fv.defaultMuted = true; fv.playsInline = true;
-        // the parked element is already buffered, so it claims the stage on THIS tick and the
-        // chase never mounts at all. Claim first, then seek: a seek drops readyState for a beat,
-        // and asking after it would hand the door to the chase for no reason.
+        // a warm element claims the stage on THIS tick. Seek first, then claim: a seek drops readyState for
+        // a beat, and a warm element's picture at the seam is the still's picture anyway.
         seekSeam();
-        if (!fvOwn && fv.readyState >= 2) claimed();
+        if (!fresh && fv.readyState >= 2) claimed();
         var pp = null; try { pp = fv.play(); } catch (e) {}
         if (pp && pp.catch) pp.catch(function () {});
-        // a self-built film that never reached the seam still beats the chase once it has a frame
-        if (fvOwn) setTimeout(function () { if (!filmOn && !item.done && fv.readyState >= 2) { seekDone = true; claimed(); } }, Math.round(LIVE_FILM_OWN_MS * .75));
-        setTimeout(function () { if (!filmOn && !item.done) mountChase(); }, fvOwn ? LIVE_FILM_OWN_MS : LIVE_FILM_START_MS);
       }
       // the scene is the ready signal; the field being torn down is the exit signal
       var poll = setInterval(function () {
@@ -1190,8 +1214,12 @@ window.addEventListener('unhandledrejection', function(e){
         if (up && !item.field) { item.field = true; el.querySelector('.rib-liveload-cap-v94 span').textContent = 'WARMING UP'; }
         // v101: field standing AND first play built — or the ceiling, so a silent build never stalls the game
         if (item.field && !item.ready && (warm || Date.now() - item.t0 > 4200)) {
-          item.ready = true; el.querySelector('.rib-liveload-cap-v94 span').textContent = 'KICKOFF'; if (item.chase) item.chase.arm();
+          item.ready = true; el.querySelector('.rib-liveload-cap-v94 span').textContent = 'KICKOFF';
         }
+        // v132: ready, and the picture has had its minimum — the door opens. Nothing else opens it. A film
+        // still decoding gets LIVE_FILM_WAIT_MS to claim; a film that has claimed is seen for LIVE_SEEN_MS.
+        var age = Date.now() - item.t0, filmSettled = !item.filmEl || (item.film ? age - item.filmMs >= LIVE_SEEN_MS : age >= LIVE_FILM_WAIT_MS);
+        if (item.ready && age >= LIVE_MIN_MS && filmSettled) { clearInterval(poll); finish(); return; }
         if (Date.now() - item.t0 > 9000) { clearInterval(poll); finish(); }   // the broadcast never came: the game is playable without it
       }, 100);
       return item;
@@ -1201,7 +1229,7 @@ window.addEventListener('unhandledrejection', function(e){
       var screen = document.getElementById('screen'); if (!screen) return;
       new MutationObserver(function () {
         var wrap = screen.querySelector('.field-wrap'); if (!wrap || wrap.__liveloadV94) return;
-        wrap.__liveloadV94 = true; if (!window.__CHASE_V94.rm) mount(wrap);
+        wrap.__liveloadV94 = true; mount(wrap);   // v132: see ensure()
       }).observe(screen, { childList: true, subtree: true });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arm); else arm();
@@ -17732,7 +17760,232 @@ function Dl(){const e=o.player,t=A[e.level],a=ae(e),s=sn(e,a),n=M("scout")>0,i=e
     ${a&&a.v?`<div class="luck-pill ${a.good?"luck-good":"luck-bad"}">${a.good?"🍀":"⚠️"} ${a.n}: ${a.v>0?"+":""}${a.v} game swing</div>`:""}</div>`}const oc=Aa;Aa=function(){oc();const e=o.player,t=x("screen");if(!(!e||!t)){if(oa(e),o.view==="hub"&&!t.querySelector(".depth-card")){const a=t.querySelector(".card");a&&a.insertAdjacentHTML("afterend",En(e))}if(o.view==="result"&&!t.querySelector(".depth-card")){/* v122 A: .season-grade is the LETTER, inside the 112px .grade-ring — inserting afterend put the whole depth card inside the ring, where it overflowed across the report card and everything under it. Anchor on the CARD. */const sg=t.querySelector(".season-grade"),a=(sg&&sg.closest(".card"))||t.querySelector(".card")||t.firstElementChild;a&&a.insertAdjacentHTML("afterend",En(e)),e.nflCutPending&&(t.insertAdjacentHTML("afterbegin",'<div class="banner fail"><div class="big-emoji">📉</div><div class="bt">Released</div><div class="bs">The DFL moves fast. Your recent production and coach trust were not enough to keep a roster spot.</div></div>'),x("dock").innerHTML='<button class="btn danger" onclick="endCareer()">Accept Release · End Career</button>')}}};const rc=vs;vs=function(e){const __h=rc(e);return e==="fate"&&setTimeout(()=>{document.querySelectorAll(".shop-item").forEach((t,a)=>{const s=sa.fate.nodes[a];if(s&&s.trade&&!t.classList.contains("fate-node")){t.classList.add("fate-node");const n=t.querySelector(".si");n&&n.insertAdjacentHTML("beforeend",`<div class="tradeoff">⚠ ${s.trade}</div>`)}})},0),__h};const Qt=45;function mn(e){return e<=12?{key:"child",name:"YOUTH DEVELOPMENT",perf:-2,inj:.58,recovery:.82,growth:1.18,decline:0,desc:"Rapid recovery and learning, but limited physical consistency."}:e<=17?{key:"teen",name:"ADOLESCENT GROWTH",perf:1,inj:.72,recovery:.7,growth:1.14,decline:0,desc:"Fast development and strong recovery. Performance is still volatile."}:e<=21?{key:"young",name:"YOUNG PROSPECT",perf:3,inj:.84,recovery:.58,growth:1.08,decline:0,desc:"Athletic gains come quickly and injuries usually heal well."}:e<=27?{key:"prime",name:"ATHLETIC PRIME",perf:6,inj:1,recovery:.42,growth:1,decline:0,desc:"Peak explosiveness, durability and week-to-week production."}:e<=31?{key:"veteran",name:"VETERAN PRIME",perf:5,inj:1.14,recovery:.3,growth:.9,decline:.2,desc:"Experience sustains performance, but recovery starts slowing."}:e<=35?{key:"decline",name:"EARLY DECLINE",perf:2,inj:1.34,recovery:.2,growth:.72,decline:.55,desc:"Football IQ remains strong while physical tools begin fading."}:e<=39?{key:"late",name:"LATE CAREER",perf:-3,inj:1.62,recovery:.12,growth:.48,decline:1,desc:"Preparation can still win games, but injuries and decline accelerate."}:e<=44?{key:"legend",name:"LEGENDARY LONGEVITY",perf:-8,inj:2.05,recovery:.06,growth:.25,decline:1.65,desc:"Every season is historic—and every snap carries serious risk."}:{key:"retire",name:"MANDATORY RETIREMENT",perf:-14,inj:2.4,recovery:0,growth:0,decline:2.2,desc:"League rules require retirement after the age-45 season."}}function lc(e){return e.key==="prime"||e.key==="young"?"var(--good)":e.key==="veteran"||e.key==="teen"?"var(--gold)":e.key==="child"?"#8ec3ee":"var(--blood)"}function An(e){const t=mn(e.age),a=lc(t);return`<div class="card age-card"><div class="eyebrow">Age Curve · ${e.age}/${Qt}</div>
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><div class="h2" style="margin:0;color:${a}">${t.name}</div><div class="small">${t.desc}</div></div><div class="ovr-big" style="color:${a}">${e.age}</div></div>
     <div class="age-grid"><div><b>${t.perf>=0?"+":""}${t.perf}</b><small>Game Performance</small></div><div><b>${Math.round(t.inj*100)}%</b><small>Injury Risk</small></div><div><b>${Math.round(t.recovery*100)}%</b><small>Recovery Chance</small></div><div><b>${Math.round(t.growth*100)}%</b><small>Natural Growth</small></div></div>
-    ${e.age>=40?`<div class="threshold-note" style="color:var(--blood);margin-top:8px">⏳ ${Math.max(0,Qt-e.age)} season${Qt-e.age===1?"":"s"} remain before mandatory retirement.</div>`:""}</div>`}const cc=et;et=function(e,t,a){const s=mn(e.age),n=cc(e,(t||0)+s.perf,a);return n.injured&&Math.random()<s.recovery*TU("ageCancelK",.32)?(n.injured=!1,n.ageRecovery=!0):!n.injured&&s.inj>1&&Math.random()<Math.min(.22,(s.inj-1)*.105)&&(n.injured=!0,n.ageInjury=!0),n.ageStage=s.name,n.agePerf=s.perf,n.ageInjuryMult=s.inj,n};function dc(e,t){const a=mn(e.age);e.level>=7&&t.attrsAfter&&ee.forEach(n=>{t.attrsAfter[n]!=null&&(e.attrs[n]=t.attrsAfter[n])});const s={};if(e.level>=7&&a.decline>0&&(["speed","strength","quickness","acceleration","agility","jumping","stamina","tackling","blocking"].forEach(i=>{if(e.attrs[i]==null)return;let r=0;const l=Math.min(.92,a.decline*.32);if(Math.random()<l&&(r=1),a.decline>=1.5&&Math.random()<.28&&r++,r){const d=e.attrs[i];e.attrs[i]=Math.max(10,e.attrs[i]-r),s[i]={from:d,to:e.attrs[i],delta:-r}}}),e.age<=36&&Math.random()<.42)){const i=Math.random()<.5?"awareness":"vision",r=e.attrs[i];e.attrs[i]=Math.min(we(),e.attrs[i]+1),s[i]={from:r,to:e.attrs[i],delta:1}}t.ageChanges=s,t.ageProfile=a,t.youngRecoveries=(t.sampleGames||[]).filter(n=>n.ageRecovery).length,t.ageInjuries=(t.sampleGames||[]).filter(n=>n.ageInjury).length,e.age>=Qt&&(e.retirementPending=!0,t.mandatoryRetirement=!0)}const uc=tt;tt=function(e){const t=uc(e);return dc(e,t),t};const fc=Aa;Aa=function(){fc();const e=o.player,t=x("screen");if(!(!e||!t)){if(o.view==="hub"&&!t.querySelector(".age-card")){const a=t.querySelector(".depth-card")||t.querySelector(".card");a&&a.insertAdjacentHTML("afterend",An(e))}if(o.view==="result"&&!t.querySelector(".age-card")){const a=t.querySelector(".depth-card")||t.querySelector(".season-grade")||t.firstElementChild;a&&a.insertAdjacentHTML("afterend",An(e));const s=e.lastResult||o.lastResult;s&&s.youngRecoveries>0&&t.insertAdjacentHTML("afterbegin",`<div class="card tight" style="border-color:var(--good)"><div class="small">🩹 Youth recovery prevented <b style="color:var(--good)">${s.youngRecoveries}</b> game injur${s.youngRecoveries===1?"y":"ies"} this season.</div></div>`),e.retirementPending&&(t.insertAdjacentHTML("afterbegin",`<div class="banner nfl"><div class="big-emoji">🏛️</div><div class="bt">Mandatory Retirement — Age ${e.age}</div><div class="bs">No player may begin another season after age ${Qt}. Your final season is complete.</div></div>`),x("dock").innerHTML=`<button class="btn" onclick="endCareer()">Retire at Age ${e.age} · View Legacy</button>`)}}};const hc=na;na=function(){if(o.player&&o.player.age>=Qt){o.player.retirementPending=!0,o.view="result",q();return}return hc()};function mc(){if(o=dr()||Zs(),o.tree||(o.tree={}),o.shop){const t={genetics:"genetics",talent:"talent",iron:"iron",coachable:"coachable",headstart:"headstart"};for(const a in o.shop)t[a]&&o.shop[a]>0&&(o.tree[t[a]]=Math.max(o.tree[t[a]]||0,o.shop[a]));delete o.shop}if(o.player&&!o.player.body&&(o.player.body=Pi({height:0,weight:0,muscle:0})),o.challenges||(o.challenges={}),o.titlesWon==null&&(o.titlesWon=0),o.recordOvr==null&&(o.recordOvr=0),o.careersCompleted==null&&(o.careersCompleted=0),o.objectivesCompleted==null&&(o.objectivesCompleted=0),o.rings==null&&(o.rings=0),o.chaos||(o.chaos={}),o.mastery||(o.mastery={}),o.chaosUnlocked==null&&(o.chaosUnlocked=!1),o.chaosCap==null&&(o.chaosCap=Math.max(Ie(),o.chaosUnlocked?6:0)),o.era==null&&(o.era=0),o.hof||(o.hof=[]),o.hofWings==null&&(o.hofWings=0),o.posMastery||(o.posMastery={}),o.inventory||(o.inventory=[]),o.equipped||(o.equipped={}),o.player&&!o.player.nemesis&&_i(o.player),o.player){const t=o.player;t.traits||(t.traits=Ai()),t.teamIdentity||(t.teamIdentity=Xs()),t.titles==null&&(t.titles=0),t.declareBonus==null&&(t.declareBonus=0),t.seasonSeed||(t.seasonSeed=le(1,2e9)),oa(t)}(o.view==="sim"||o.view==="live"||o.view==="training"||o.view==="event")&&(o.view="hub"),q(),setTimeout(hr,1850);const e=document.getElementById("splash");e&&(window.__splashDoneV94?window.__splashDoneV94():(setTimeout(()=>e.classList.add("gone"),1100),setTimeout(()=>{e.parentNode&&e.parentNode.removeChild(e)},1700)))}window.go=te;/* v20 fix: dock Back buttons reference a global `S` (the state) that was never exported — every `go(S.player...)` onclick threw a ReferenceError, so Back appeared dead on menu-reachable screens. Expose the live state as a getter. */try{Object.defineProperty(window,"S",{configurable:!0,get:()=>o})}catch(_e){window.S=o}
+    ${e.age>=40?`<div class="threshold-note" style="color:var(--blood);margin-top:8px">⏳ ${Math.max(0,Qt-e.age)} season${Qt-e.age===1?"":"s"} remain before mandatory retirement.</div>`:""}</div>`}const cc=et;et=function(e,t,a){const s=mn(e.age),n=cc(e,(t||0)+s.perf,a);return n.injured&&Math.random()<s.recovery*TU("ageCancelK",.32)?(n.injured=!1,n.ageRecovery=!0):!n.injured&&s.inj>1&&Math.random()<Math.min(.22,(s.inj-1)*.105)&&(n.injured=!0,n.ageInjury=!0),n.ageStage=s.name,n.agePerf=s.perf,n.ageInjuryMult=s.inj,n};function dc(e,t){const a=mn(e.age);e.level>=7&&t.attrsAfter&&ee.forEach(n=>{t.attrsAfter[n]!=null&&(e.attrs[n]=t.attrsAfter[n])});const s={};if(e.level>=7&&a.decline>0&&(["speed","strength","quickness","acceleration","agility","jumping","stamina","tackling","blocking"].forEach(i=>{if(e.attrs[i]==null)return;let r=0;const l=Math.min(.92,a.decline*.32);if(Math.random()<l&&(r=1),a.decline>=1.5&&Math.random()<.28&&r++,r){const d=e.attrs[i];e.attrs[i]=Math.max(10,e.attrs[i]-r),s[i]={from:d,to:e.attrs[i],delta:-r}}}),e.age<=36&&Math.random()<.42)){const i=Math.random()<.5?"awareness":"vision",r=e.attrs[i];e.attrs[i]=Math.min(we(),e.attrs[i]+1),s[i]={from:r,to:e.attrs[i],delta:1}}t.ageChanges=s,t.ageProfile=a,t.youngRecoveries=(t.sampleGames||[]).filter(n=>n.ageRecovery).length,t.ageInjuries=(t.sampleGames||[]).filter(n=>n.ageInjury).length,e.age>=Qt&&(e.retirementPending=!0,t.mandatoryRetirement=!0)}const uc=tt;tt=function(e){const t=uc(e);return dc(e,t),t};
+/* ===== v132 A YEAR OLDER — the offseason body screen =====
+ * The season roll (`tt`) does three things to the man that the report card never showed him doing: he
+ * turns a year older (`e.age++`), his frame moves along the growth curve toward the projected adult body
+ * (`bodyNowV112`, v112 C — height and weight are DERIVED from age, never rolled), and past his prime the
+ * age model (`dc`) takes attributes off him. The report card led with the record. This screen leads with
+ * the body: it opens OVER the report card the first time it renders for a finished season, counts the age
+ * up, grows the figure from last year's frame to this year's against a height rule with both marks on it,
+ * counts height / weight / muscle up beside it, then lays out what the season built and — from the
+ * veteran years on — what the years took, in red. Every number on it is read back from the same
+ * functions the sheet uses (`bodyNowV112`, `zs`, `seasonStats.gains` / `ageChanges` / `ageProfile`), so it
+ * cannot show a growth the game did not do. Tapping anywhere fast-forwards; the button hands over to the
+ * report card, and the coach (v119/v122) waits at the door until it does. Once a season
+ * (`player.growSeenV132` = `totalSeasons`); `TU("growScreenV132",0)` or `?noGrowV132` switches it off;
+ * reduced motion shows the finished state. `window.__GROW_V132`; `growcheck.mjs`. */
+const GROW_CSS_V132=`
+#growV132{position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;padding:18px 14px calc(18px + env(safe-area-inset-bottom));box-sizing:border-box;overflow-y:auto;-webkit-overflow-scrolling:touch;color:#f2efe4;font-family:'Barlow Condensed','Oswald',sans-serif;background:radial-gradient(120% 80% at 50% 0%,#1a2740 0,#0b1119 55%,#05080c 100%);opacity:0;transition:opacity .38s ease}
+#growV132.on{opacity:1}#growV132.out{opacity:0;pointer-events:none}
+#growV132 .gw-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:screen}
+#growV132 .gw-glow{position:absolute;left:50%;top:38%;width:120vw;height:120vw;max-width:720px;max-height:720px;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(240,187,69,.22) 0,rgba(240,187,69,.06) 30%,rgba(240,187,69,0) 62%);animation:gwGlow 5s ease-in-out infinite}
+#growV132.decline .gw-glow{background:radial-gradient(circle,rgba(178,59,59,.24) 0,rgba(178,59,59,.06) 30%,rgba(0,0,0,0) 62%)}
+@keyframes gwGlow{0%,100%{opacity:.8;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}}
+#growV132 .gw-in{position:relative;width:100%;max-width:460px;margin:auto;text-align:center}
+#growV132 .gw-eyebrow{font:600 11px/1 Oswald,sans-serif;letter-spacing:4px;color:#f0bb45;text-transform:uppercase;opacity:0;transform:translateY(8px);transition:opacity .5s ease,transform .5s ease}
+#growV132 .gw-title{font:700 clamp(34px,10vw,52px)/.95 Oswald,sans-serif;letter-spacing:1px;margin-top:10px;text-transform:uppercase;background:linear-gradient(180deg,#fff6d8 0,#f0bb45 55%,#b98418 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 6px 18px rgba(240,187,69,.25));opacity:0;transform:translateY(12px) scale(.96);transition:opacity .55s ease .08s,transform .55s cubic-bezier(.2,.9,.3,1.2) .08s}
+#growV132.decline .gw-title{background-image:linear-gradient(180deg,#ffd9d9 0,#e08a8a 50%,#8c2b2b 100%);filter:drop-shadow(0 6px 18px rgba(178,59,59,.3))}
+#growV132.steady .gw-title{background-image:linear-gradient(180deg,#f7fbff 0,#bcd3ea 55%,#6f8aa8 100%);filter:drop-shadow(0 6px 18px rgba(120,160,220,.22))}
+#growV132 .gw-sub{font-size:14px;letter-spacing:1.5px;color:#93a0b1;margin-top:8px;text-transform:uppercase;opacity:0;transition:opacity .5s ease .2s}
+#growV132 .gw-age{display:flex;align-items:baseline;justify-content:center;gap:10px;margin:14px 0 2px;opacity:0;transition:opacity .4s ease}
+#growV132 .gw-age b{font:700 clamp(58px,17vw,84px)/1 Oswald,sans-serif;color:#fff;text-shadow:0 0 30px rgba(240,187,69,.35);display:inline-block;min-width:1.1em}
+#growV132 .gw-age b.pop{animation:gwPop .5s cubic-bezier(.2,1.2,.3,1)}
+#growV132 .gw-age small{font:600 12px/1 Oswald,sans-serif;letter-spacing:3px;color:#93a0b1}
+@keyframes gwPop{0%{transform:scale(1)}35%{transform:scale(1.18);text-shadow:0 0 40px rgba(240,187,69,.9)}100%{transform:scale(1)}}
+#growV132 .gw-stage{font:600 11px/1 Oswald,sans-serif;letter-spacing:3px;color:#f0bb45;text-transform:uppercase;opacity:0;transition:opacity .4s ease}
+#growV132.decline .gw-stage{color:#e08a8a}
+#growV132 .gw-body{display:grid;grid-template-columns:132px 1fr;gap:12px;align-items:stretch;margin-top:16px;opacity:0;transform:translateY(10px);transition:opacity .5s ease,transform .5s ease}
+#growV132 .gw-fig{position:relative;height:206px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.25));overflow:hidden}
+#growV132 .gw-rule{position:absolute;left:0;right:0;height:0;border-top:1px dashed rgba(255,255,255,.28);font:600 9px/1 Oswald,sans-serif;letter-spacing:1px;color:#93a0b1;text-align:left;padding-left:6px;transition:bottom 1.2s cubic-bezier(.2,.9,.3,1.1)}
+#growV132 .gw-rule span{position:absolute;left:5px;top:-11px;background:#0b1119;padding:0 3px;border-radius:3px}
+#growV132 .gw-rule.was span{left:auto;right:5px;top:2px;color:#6d7a8c}
+#growV132 .gw-rule.now{border-top:1px solid #f0bb45;color:#f0bb45;box-shadow:0 0 12px rgba(240,187,69,.35)}
+#growV132.decline .gw-rule.now{border-top-color:#e08a8a;color:#e08a8a;box-shadow:0 0 12px rgba(224,138,138,.3)}
+#growV132 .gw-man,#growV132 .gw-ghost{position:absolute;left:50%;bottom:10px;width:64px;height:160px;transform-origin:50% 100%;transform:translateX(-50%)}
+#growV132 .gw-ghost{opacity:.5}
+#growV132 .gw-ghost path,#growV132 .gw-ghost circle,#growV132 .gw-ghost rect{fill:none!important;stroke:#93a0b1;stroke-width:2;stroke-dasharray:4 3}
+#growV132 .gw-man{transition:transform 1.25s cubic-bezier(.2,.9,.25,1.15);filter:drop-shadow(0 8px 14px rgba(0,0,0,.6))}
+#growV132 .gw-man.flash{animation:gwFlash .6s ease}
+@keyframes gwFlash{0%{filter:drop-shadow(0 8px 14px rgba(0,0,0,.6)) brightness(1)}30%{filter:drop-shadow(0 0 22px rgba(240,187,69,.9)) brightness(1.9)}100%{filter:drop-shadow(0 8px 14px rgba(0,0,0,.6)) brightness(1)}}
+#growV132 .gw-tiles{display:grid;grid-template-rows:repeat(3,1fr);gap:8px}
+#growV132 .gw-tile{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:8px 12px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(0,0,0,.22));text-align:left;overflow:hidden}
+#growV132 .gw-tile small{font:600 10px/1 Oswald,sans-serif;letter-spacing:2.5px;color:#93a0b1}
+#growV132 .gw-tile b{font:700 26px/1.05 Oswald,sans-serif;color:#fff;margin-top:3px;font-variant-numeric:tabular-nums}
+#growV132 .gw-tile i{position:absolute;right:10px;top:50%;transform:translateY(-50%) scale(.6);font:700 13px/1 Oswald,sans-serif;font-style:normal;letter-spacing:1px;color:#0b1119;background:linear-gradient(180deg,#8ee07c,#4fa844);padding:5px 8px;border-radius:999px;opacity:0;transition:opacity .3s ease,transform .45s cubic-bezier(.2,1.4,.3,1)}
+#growV132 .gw-tile i.on{opacity:1;transform:translateY(-50%) scale(1)}
+#growV132 .gw-tile i.zero{background:#2a3444;color:#93a0b1}
+#growV132 .gw-tile i.neg{background:linear-gradient(180deg,#e08a8a,#a33a3a);color:#fff}
+#growV132 .gw-tile .gw-bar{position:absolute;left:0;bottom:0;height:3px;width:0;background:linear-gradient(90deg,#f0bb45,#ffe9a0);transition:width 1.2s cubic-bezier(.2,.9,.3,1)}
+#growV132 .gw-sect{margin-top:14px;opacity:0;transform:translateY(8px);transition:opacity .45s ease,transform .45s ease;text-align:left}
+#growV132 .gw-h{font:600 10px/1 Oswald,sans-serif;letter-spacing:3px;color:#f0bb45;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:8px}
+#growV132 .gw-h:after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(240,187,69,.5),transparent)}
+#growV132 .gw-h.red{color:#e08a8a}#growV132 .gw-h.red:after{background:linear-gradient(90deg,rgba(224,138,138,.5),transparent)}
+#growV132 .gw-h.blue{color:#9cbcff}#growV132 .gw-h.blue:after{background:linear-gradient(90deg,rgba(156,188,255,.5),transparent)}
+#growV132 .gw-pills{display:flex;flex-wrap:wrap;gap:6px}
+#growV132 .gw-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);font-size:12.5px;letter-spacing:.6px;color:#dfe6ef;opacity:0;transform:translateY(6px) scale(.9);transition:opacity .3s ease,transform .4s cubic-bezier(.2,1.2,.3,1)}
+#growV132 .gw-pill.on{opacity:1;transform:none}
+#growV132 .gw-pill b{font:700 13px/1 Oswald,sans-serif;color:#8ee07c}
+#growV132 .gw-pill.neg{border-color:rgba(224,138,138,.35);background:rgba(178,59,59,.12)}#growV132 .gw-pill.neg b{color:#ff9b93}
+#growV132 .gw-pill.lift b{color:#f0bb45}
+#growV132 .gw-note{font-size:13px;color:#93a0b1;margin-top:7px;line-height:1.35}
+#growV132 .gw-ovr{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px;font:700 15px/1 Oswald,sans-serif;letter-spacing:2px;color:#93a0b1;opacity:0;transition:opacity .4s ease}
+#growV132 .gw-ovr b{font-size:28px;color:#fff}#growV132 .gw-ovr b.up{color:#8ee07c}#growV132 .gw-ovr b.dn{color:#ff9b93}
+#growV132 .gw-ovr em{font-style:normal;color:#f0bb45}
+#growV132 .gw-go{display:block;width:100%;margin-top:16px;padding:14px;border:0;border-radius:12px;background:linear-gradient(180deg,#ffd76f,#d9a028 55%,#b47c14);color:#1a1206;font:700 15px/1 Oswald,sans-serif;letter-spacing:2.5px;cursor:pointer;opacity:0;transform:translateY(6px);transition:opacity .4s ease,transform .4s ease;box-shadow:0 10px 26px rgba(240,187,69,.22)}
+#growV132 .gw-go.on{opacity:1;transform:none}
+#growV132 .gw-go:active{transform:scale(.98)}
+#growV132.done .gw-eyebrow,#growV132.done .gw-title,#growV132.done .gw-sub,#growV132.done .gw-age,#growV132.done .gw-stage,#growV132.done .gw-body,#growV132.done .gw-sect,#growV132.done .gw-ovr{opacity:1;transform:none}
+#growV132 .gw-skip{position:absolute;right:10px;top:calc(10px + env(safe-area-inset-top));font:600 10px/1 Oswald,sans-serif;letter-spacing:2px;color:#93a0b1;background:transparent;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:7px 10px;cursor:pointer}
+@media (max-width:360px){#growV132 .gw-body{grid-template-columns:112px 1fr}#growV132 .gw-tile b{font-size:22px}}
+@media (prefers-reduced-motion:reduce){#growV132 *{animation:none!important;transition:none!important}}
+`;
+function growFigV132(cls){return `<svg class="${cls}" viewBox="0 0 64 160" aria-hidden="true"><path d="M20 158 L20 112 Q18 96 24 84 L40 84 Q46 96 44 112 L44 158 Z" fill="#1d2a3d"/><rect x="14" y="150" width="14" height="8" rx="3" fill="#0b1119"/><rect x="36" y="150" width="14" height="8" rx="3" fill="#0b1119"/><path d="M10 46 Q32 34 54 46 L58 62 Q50 70 48 86 L16 86 Q14 70 6 62 Z" fill="#2c3e5c"/><path d="M6 62 Q3 52 10 46 L14 50 Q9 56 10 64 Z M58 62 Q61 52 54 46 L50 50 Q55 56 54 64 Z" fill="#3a5078"/><circle cx="32" cy="27" r="15" fill="#f0bb45"/><path d="M19 30 Q32 40 45 30 L45 36 Q32 44 19 36 Z" fill="#0b1119"/><path d="M17 26 Q32 20 47 26" stroke="#b98418" stroke-width="2" fill="none"/><rect x="24" y="52" width="16" height="10" rx="2" fill="#f0bb45" opacity=".85"/></svg>`}
+function growDataV132(e){
+  const t=e.seasonStats||{},age=e.age,prev=age-1,b=e.body||{height:70,weight:180,muscle:50};
+  const b0=bodyNowV112(b,prev),b1=bodyNowV112(b,age),prof=t.ageProfile||mn(age);
+  const gains=Object.entries(t.gains||{}).filter(([,v])=>v>0).sort((a,c)=>c[1]-a[1]);
+  const ch=t.ageChanges||{},drops=Object.entries(ch).filter(([,v])=>v&&v.delta<0),lifts=Object.entries(ch).filter(([,v])=>v&&v.delta>0);
+  const grown=b1.height>b0.height||b1.weight>b0.weight||b1.muscle>b0.muscle,decline=(prof.decline||0)>0&&(drops.length>0||age>=30);
+  let ovr0=null;try{ovr0=t.attrsBefore?ae(Object.assign({},e,{attrs:Object.assign({},e.attrs,t.attrsBefore)})):null}catch(_){ovr0=null}
+  const ovr1=t.newOvr!=null?t.newOvr:ae(e);
+  const mode=decline?"decline":grown?"grown":"steady";
+  const title=mode==="decline"?"THE YEARS ARE TALKING":mode==="grown"?"A YEAR OLDER":"FULLY GROWN";
+  const sub=mode==="decline"?"the body is losing the argument":mode==="grown"?"and the frame is catching up to the projection":"the frame is finished — now it is all work";
+  return{age,prev,b0,b1,adult:b,prof,gains,drops,lifts,grown,decline,mode,title,sub,level:A[e.level]?A[e.level].name:"",season:e.totalSeasons||1,ovr0,ovr1,team:(()=>{try{return Xe(e)}catch(_){return""}})()};
+}
+let _gwAudio=null;
+function growBlipV132(f,ms,gain){
+  if(TU("growSoundV132",1)===0)return;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+    _gwAudio=_gwAudio||new AC();if(_gwAudio.state==="suspended")_gwAudio.resume();
+    const t0=_gwAudio.currentTime,o=_gwAudio.createOscillator(),g=_gwAudio.createGain();
+    o.type="triangle";o.frequency.setValueAtTime(f,t0);g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(gain||.05,t0+.008);g.gain.exponentialRampToValueAtTime(.0001,t0+(ms||45)/1000);
+    o.connect(g);g.connect(_gwAudio.destination);o.start(t0);o.stop(t0+(ms||45)/1000+.02);
+  }catch(_){}
+}
+function growSparksV132(cv,mode,burstAt){
+  const ctx=cv&&cv.getContext&&cv.getContext("2d");if(!ctx)return{stop(){},burst(){}};
+  const dpr=Math.min(2,window.devicePixelRatio||1);let w=0,h=0,on=true,raf=0,last=performance.now();const P=[];
+  const size=()=>{const r=cv.getBoundingClientRect();w=Math.max(1,r.width);h=Math.max(1,r.height);cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0)};size();
+  const col=mode==="decline"?["#e08a8a","#8c2b2b","#c9a1a1"]:mode==="steady"?["#bcd3ea","#9cbcff","#ffffff"]:["#f0bb45","#ffe9a0","#ffffff"];
+  const R=(a,b)=>a+Math.random()*(b-a);
+  for(let i=0;i<40;i++)P.push({x:R(0,1),y:R(0,1),r:R(.6,1.8),vx:R(-.01,.01),vy:mode==="decline"?R(.01,.03):R(-.03,-.01),a:R(.1,.4),c:col[i%3],ph:R(0,6.3)});
+  const burst=(n)=>{const cx=(burstAt&&burstAt().x)||w*.5,cy=(burstAt&&burstAt().y)||h*.4;for(let i=0;i<(n||60);i++){const an=R(0,6.283),sp=R(40,240);P.push({x:cx/w,y:cy/h,r:R(1,3),vx:Math.cos(an)*sp/w,vy:Math.sin(an)*sp/h-.25,a:R(.6,1),c:col[i%3],life:R(.6,1.3),t:0,g:.9,ph:0})}};
+  const tick=(now)=>{if(!on)return;const dt=Math.min(.05,(now-last)/1000);last=now;ctx.clearRect(0,0,w,h);
+    for(let i=P.length-1;i>=0;i--){const p=P[i];
+      if(p.life!=null){p.t+=dt;if(p.t>p.life){P.splice(i,1);continue}p.vy+=p.g*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;ctx.globalAlpha=p.a*(1-p.t/p.life)}
+      else{p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.y<-.02)p.y=1.02;if(p.y>1.02)p.y=-.02;if(p.x<-.02)p.x=1.02;if(p.x>1.02)p.x=-.02;ctx.globalAlpha=p.a*(.6+.4*Math.sin(now/500+p.ph))}
+      ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x*w,p.y*h,p.r,0,6.283);ctx.fill()}
+    ctx.globalAlpha=1;raf=requestAnimationFrame(tick)};
+  raf=requestAnimationFrame(tick);
+  window.addEventListener("resize",size);
+  return{stop(){on=false;cancelAnimationFrame(raf);window.removeEventListener("resize",size)},burst};
+}
+const GROW_V132={open:false,last:null,el:null,fx:null,timers:[],finished:false};
+function growCloseV132(){
+  const g=GROW_V132.el;if(!g)return;
+  GROW_V132.timers.forEach(clearTimeout);GROW_V132.timers=[];
+  if(GROW_V132.fx)GROW_V132.fx.stop();GROW_V132.fx=null;
+  g.classList.add("out");GROW_V132.open=false;GROW_V132.el=null;
+  setTimeout(()=>{try{g.remove()}catch(_){}},420);
+}
+function growShowV132(e,opts){
+  opts=opts||{};if(!e)return null;
+  const d=growDataV132(e);GROW_V132.last=d;
+  if(!opts.replay){e.growSeenV132=e.totalSeasons;I()}
+  if(!document.getElementById("growCssV132")){const st=document.createElement("style");st.id="growCssV132";st.textContent=GROW_CSS_V132;document.head.appendChild(st)}
+  const old=document.getElementById("growV132");if(old)old.remove();
+  const RM=(()=>{try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch(_){return false}})();
+  const fmtH=h=>zs(h),fmtW=w=>w+" lb",fmtM=m=>m+"%";
+  const dH=d.b1.height-d.b0.height,dW=d.b1.weight-d.b0.weight,dM=d.b1.muscle-d.b0.muscle;
+  const adultH=Math.max(d.adult.height||72,d.b1.height),adultW=Math.max(d.adult.weight||200,d.b1.weight);
+  // the figure is drawn to THIS year's frame (the box is his), last year's is the ghost inside it, and the
+  // rule marks both — so an inch reads as an inch of daylight between the two lines, not as a 2% scale
+  const refH=Math.max(1,d.b1.height),refW=Math.max(1,d.b1.weight);
+  const scale=b=>({sy:Math.max(.4,.98*b.height/refH),sx:Math.max(.4,.98*Math.sqrt(b.weight/refW))});
+  const s0=scale(d.b0),s1=scale(d.b1);
+  const ruleBottom=b=>(10+Math.round(160*.98*Math.max(.4,b.height/refH)))+"px";
+  const chip=(v,unit)=>v>0?`+${v}${unit}`:v<0?`${v}${unit}`:"—";
+  const chipCls=v=>v>0?"":v<0?"neg":"zero";
+  const pills=(list,cls,sign)=>list.map(([k,v])=>{const n=typeof v==="number"?v:v.delta;const L=Le[k]||{icon:"",name:k};return`<span class="gw-pill ${cls}"><span>${L.icon} ${L.name}</span><b>${n>0?"+":""}${n}</b></span>`}).join("");
+  const seasonPills=d.gains.length?pills(d.gains,"gain"):`<span class="gw-pill on"><span>No attribute moved this season</span></span>`;
+  const g=document.createElement("div");g.id="growV132";g.className="grow-v132 "+d.mode;
+  g.innerHTML=`<div class="gw-glow"></div><canvas class="gw-fx"></canvas><button class="gw-skip" type="button" data-gw-skip>SKIP ▸</button>
+    <div class="gw-in">
+      <div class="gw-eyebrow">OFFSEASON · ${d.level} · YEAR ${d.season}</div>
+      <div class="gw-title">${d.title}</div>
+      <div class="gw-sub">${d.sub}${d.team?` · <b style="color:#dfe6ef;font-weight:600">${d.team}</b>`:""}</div>
+      <div class="gw-age"><b data-gw-age>${d.prev}</b><small>YEARS OLD</small></div>
+      <div class="gw-stage" data-gw-stage>${d.prof.name}</div>
+      <div class="gw-body">
+        <div class="gw-fig">
+          <div class="gw-rule was" style="bottom:${ruleBottom(d.b0)}"><span>${fmtH(d.b0.height)}</span></div>
+          <div class="gw-rule now" data-gw-rule style="bottom:${ruleBottom(d.b0)}"><span data-gw-rule-lab>${fmtH(d.b0.height)}</span></div>
+          ${growFigV132("gw-ghost")}${growFigV132("gw-man")}
+        </div>
+        <div class="gw-tiles">
+          <div class="gw-tile"><small>HEIGHT</small><b data-gw-n="ht">${fmtH(d.b0.height)}</b><i class="${chipCls(dH)}">${chip(dH,'"')}</i><div class="gw-bar" data-gw-bar style="--to:${Math.round(100*d.b1.height/adultH)}%"></div></div>
+          <div class="gw-tile"><small>WEIGHT</small><b data-gw-n="wt">${fmtW(d.b0.weight)}</b><i class="${chipCls(dW)}">${chip(dW," lb")}</i><div class="gw-bar" data-gw-bar style="--to:${Math.round(100*d.b1.weight/adultW)}%"></div></div>
+          <div class="gw-tile"><small>MUSCLE</small><b data-gw-n="ms">${fmtM(d.b0.muscle)}</b><i class="${chipCls(dM)}">${chip(dM,"")}</i><div class="gw-bar" data-gw-bar style="--to:${d.b1.muscle}%"></div></div>
+        </div>
+      </div>
+      <div class="gw-sect" data-gw-sect><div class="gw-h">${d.mode==="decline"?"WHAT THE SEASON STILL BUILT":"THE SEASON'S WORK"}</div><div class="gw-pills">${seasonPills}</div></div>
+      ${d.drops.length||d.decline?`<div class="gw-sect" data-gw-sect><div class="gw-h red">WHAT THE YEARS TOOK</div><div class="gw-pills">${d.drops.length?pills(d.drops,"neg"):`<span class="gw-pill neg on"><span>Nothing this year — but the clock is running</span></span>`}</div><div class="gw-note">${d.prof.desc||""}${d.prof.decline?` Decline factor <b style="color:#ff9b93">${d.prof.decline}</b> · injury risk <b style="color:#ff9b93">${Math.round(d.prof.inj*100)}%</b>.`:""}</div></div>`:""}
+      ${d.lifts.length?`<div class="gw-sect" data-gw-sect><div class="gw-h blue">WHAT THE YEARS GAVE</div><div class="gw-pills">${pills(d.lifts,"lift")}</div></div>`:""}
+      <div class="gw-ovr">OVR <b data-gw-ovr>${d.ovr0!=null?d.ovr0:d.ovr1}</b><em>▸</em><b class="${d.ovr0!=null&&d.ovr1>d.ovr0?"up":d.ovr0!=null&&d.ovr1<d.ovr0?"dn":""}" data-gw-ovr1>${d.ovr1}</b></div>
+      <button class="gw-go" type="button" data-gw-go>SEE THE REPORT CARD ▸</button>
+    </div>`;
+  document.body.appendChild(g);GROW_V132.el=g;GROW_V132.open=true;GROW_V132.finished=false;
+  try{const C=window.__RIB_COACH;if(C&&C.isOpen&&C.close)C.close("grow")}catch(_){}
+  const man=g.querySelector(".gw-man"),ghost=g.querySelector(".gw-ghost");
+  man.style.transform=`translateX(-50%) scale(${s0.sx.toFixed(3)},${s0.sy.toFixed(3)})`;ghost.style.transform=`translateX(-50%) scale(${s0.sx.toFixed(3)},${s0.sy.toFixed(3)})`;
+  const Q=(fn,ms)=>{const id=setTimeout(()=>{try{fn()}catch(_){}},ms);GROW_V132.timers.push(id);return id};
+  const count=(el,from,to,fmt,ms,tone)=>{if(from===to){el.textContent=fmt(to);return}const t0=performance.now();let lastV=from;const step=(now)=>{if(!el.isConnected)return;const p=Math.min(1,(now-t0)/ms),v=Math.round(from+(to-from)*(1-Math.pow(1-p,3)));if(v!==lastV){lastV=v;el.textContent=fmt(v);growBlipV132(tone+Math.abs(v-from)*6,38,.035)}if(p<1)requestAnimationFrame(step)};requestAnimationFrame(step)};
+  const finish=()=>{if(GROW_V132.finished)return;GROW_V132.finished=true;GROW_V132.timers.forEach(clearTimeout);GROW_V132.timers=[];
+    g.classList.add("done");g.querySelector("[data-gw-age]").textContent=d.age;
+    g.querySelector('[data-gw-n="ht"]').textContent=fmtH(d.b1.height);g.querySelector('[data-gw-n="wt"]').textContent=fmtW(d.b1.weight);g.querySelector('[data-gw-n="ms"]').textContent=fmtM(d.b1.muscle);
+    man.style.transform=`translateX(-50%) scale(${s1.sx.toFixed(3)},${s1.sy.toFixed(3)})`;
+    const r=g.querySelector("[data-gw-rule]");r.style.bottom=ruleBottom(d.b1);g.querySelector("[data-gw-rule-lab]").textContent=fmtH(d.b1.height);
+    g.querySelectorAll("[data-gw-bar]").forEach(b=>b.style.width=b.style.getPropertyValue("--to"));
+    g.querySelectorAll(".gw-tile i,.gw-pill,.gw-go").forEach(x=>x.classList.add("on"));
+    g.querySelector("[data-gw-ovr1]").textContent=d.ovr1};
+  g.addEventListener("click",ev=>{if(ev.target.closest("[data-gw-go]")||ev.target.closest("[data-gw-skip]")){growCloseV132();return}if(!GROW_V132.finished)finish()});
+  requestAnimationFrame(()=>g.classList.add("on"));
+  if(RM||opts.instant){finish();return d}
+  GROW_V132.fx=growSparksV132(g.querySelector(".gw-fx"),d.mode,()=>{const r=man.getBoundingClientRect(),gr=g.getBoundingClientRect();return{x:r.left+r.width/2-gr.left,y:r.top+r.height*.35-gr.top}});
+  // the timeline: the words, the age, the body, the sheet, the number, the door
+  Q(()=>{g.querySelector(".gw-eyebrow").style.opacity=1;g.querySelector(".gw-eyebrow").style.transform="none";const T=g.querySelector(".gw-title");T.style.opacity=1;T.style.transform="none";g.querySelector(".gw-sub").style.opacity=1},60);
+  Q(()=>{const a=g.querySelector(".gw-age");a.style.opacity=1;const n=a.querySelector("b");count(n,d.prev,d.age,v=>v,520,660);Q(()=>{n.classList.add("pop");growBlipV132(880,120,.06);g.querySelector("[data-gw-stage]").style.opacity=1},560)},520);
+  Q(()=>{const b=g.querySelector(".gw-body");b.style.opacity=1;b.style.transform="none";
+    Q(()=>{man.style.transform=`translateX(-50%) scale(${s1.sx.toFixed(3)},${s1.sy.toFixed(3)})`;
+      const r=g.querySelector("[data-gw-rule]");r.style.bottom=ruleBottom(d.b1);
+      count(g.querySelector('[data-gw-n="ht"]'),d.b0.height,d.b1.height,fmtH,1100,520);
+      count(g.querySelector('[data-gw-n="wt"]'),d.b0.weight,d.b1.weight,fmtW,1200,440);
+      count(g.querySelector('[data-gw-n="ms"]'),d.b0.muscle,d.b1.muscle,fmtM,1000,600);
+      g.querySelectorAll("[data-gw-bar]").forEach(x=>x.style.width=x.style.getPropertyValue("--to"));
+      Q(()=>{g.querySelector("[data-gw-rule-lab]").textContent=fmtH(d.b1.height);man.classList.add("flash");if(GROW_V132.fx)GROW_V132.fx.burst(d.mode==="decline"?24:70);growBlipV132(d.mode==="decline"?220:1320,160,.07);
+        g.querySelectorAll(".gw-tile i").forEach((x,i)=>Q(()=>{x.classList.add("on");growBlipV132(990+i*120,60,.04)},i*110))},1250)},200)},1500);
+  Q(()=>{let k=0;g.querySelectorAll("[data-gw-sect]").forEach(sec=>{sec.style.opacity=1;sec.style.transform="none";sec.querySelectorAll(".gw-pill").forEach(p=>{Q(()=>{p.classList.add("on");growBlipV132(p.classList.contains("neg")?260:740+k*20,40,.03)},k*70);k++})})},3300);
+  Q(()=>{const o1=g.querySelector(".gw-ovr");o1.style.opacity=1;if(d.ovr0!=null)count(g.querySelector("[data-gw-ovr1]"),d.ovr0,d.ovr1,v=>v,700,700)},3900);
+  Q(()=>{g.querySelector("[data-gw-go]").classList.add("on");GROW_V132.finished=true},4700);
+  return d;
+}
+function growMaybeV132(e){
+  try{
+    if(!e||!e.seasonStats||o.view!=="result")return false;
+    if(TU("growScreenV132",1)===0)return false;
+    try{if(/[?&]noGrowV132\b/.test(location.search))return false}catch(_){}
+    if(e.growSeenV132===e.totalSeasons)return false;
+    if(document.getElementById("growV132"))return false;
+    growShowV132(e);return true;
+  }catch(_){return false}
+}
+const _AlV132=Al;Al=function(){const r=_AlV132.apply(this,arguments);growMaybeV132(o.player);return r};
+window.__GROW_V132={get open(){return GROW_V132.open},get last(){return GROW_V132.last},get finished(){return GROW_V132.finished},data:growDataV132,show:(opts)=>growShowV132(o.player,Object.assign({replay:true},opts||{})),close:growCloseV132,finish:()=>{const g=GROW_V132.el;if(g&&!GROW_V132.finished)g.click()}};
+
+const fc=Aa;Aa=function(){fc();const e=o.player,t=x("screen");if(!(!e||!t)){if(o.view==="hub"&&!t.querySelector(".age-card")){const a=t.querySelector(".depth-card")||t.querySelector(".card");a&&a.insertAdjacentHTML("afterend",An(e))}if(o.view==="result"&&!t.querySelector(".age-card")){const a=t.querySelector(".depth-card")||t.querySelector(".season-grade")||t.firstElementChild;a&&a.insertAdjacentHTML("afterend",An(e));const s=e.lastResult||o.lastResult;s&&s.youngRecoveries>0&&t.insertAdjacentHTML("afterbegin",`<div class="card tight" style="border-color:var(--good)"><div class="small">🩹 Youth recovery prevented <b style="color:var(--good)">${s.youngRecoveries}</b> game injur${s.youngRecoveries===1?"y":"ies"} this season.</div></div>`),e.retirementPending&&(t.insertAdjacentHTML("afterbegin",`<div class="banner nfl"><div class="big-emoji">🏛️</div><div class="bt">Mandatory Retirement — Age ${e.age}</div><div class="bs">No player may begin another season after age ${Qt}. Your final season is complete.</div></div>`),x("dock").innerHTML=`<button class="btn" onclick="endCareer()">Retire at Age ${e.age} · View Legacy</button>`)}}};const hc=na;na=function(){if(o.player&&o.player.age>=Qt){o.player.retirementPending=!0,o.view="result",q();return}return hc()};function mc(){if(o=dr()||Zs(),o.tree||(o.tree={}),o.shop){const t={genetics:"genetics",talent:"talent",iron:"iron",coachable:"coachable",headstart:"headstart"};for(const a in o.shop)t[a]&&o.shop[a]>0&&(o.tree[t[a]]=Math.max(o.tree[t[a]]||0,o.shop[a]));delete o.shop}if(o.player&&!o.player.body&&(o.player.body=Pi({height:0,weight:0,muscle:0})),o.challenges||(o.challenges={}),o.titlesWon==null&&(o.titlesWon=0),o.recordOvr==null&&(o.recordOvr=0),o.careersCompleted==null&&(o.careersCompleted=0),o.objectivesCompleted==null&&(o.objectivesCompleted=0),o.rings==null&&(o.rings=0),o.chaos||(o.chaos={}),o.mastery||(o.mastery={}),o.chaosUnlocked==null&&(o.chaosUnlocked=!1),o.chaosCap==null&&(o.chaosCap=Math.max(Ie(),o.chaosUnlocked?6:0)),o.era==null&&(o.era=0),o.hof||(o.hof=[]),o.hofWings==null&&(o.hofWings=0),o.posMastery||(o.posMastery={}),o.inventory||(o.inventory=[]),o.equipped||(o.equipped={}),o.player&&!o.player.nemesis&&_i(o.player),o.player){const t=o.player;t.traits||(t.traits=Ai()),t.teamIdentity||(t.teamIdentity=Xs()),t.titles==null&&(t.titles=0),t.declareBonus==null&&(t.declareBonus=0),t.seasonSeed||(t.seasonSeed=le(1,2e9)),oa(t)}(o.view==="sim"||o.view==="live"||o.view==="training"||o.view==="event")&&(o.view="hub"),q(),setTimeout(hr,1850);const e=document.getElementById("splash");e&&(window.__splashDoneV94?window.__splashDoneV94():(setTimeout(()=>e.classList.add("gone"),1100),setTimeout(()=>{e.parentNode&&e.parentNode.removeChild(e)},1700)))}window.go=te;/* v20 fix: dock Back buttons reference a global `S` (the state) that was never exported — every `go(S.player...)` onclick threw a ReferenceError, so Back appeared dead on menu-reachable screens. Expose the live state as a getter. */try{Object.defineProperty(window,"S",{configurable:!0,get:()=>o})}catch(_e){window.S=o}
 /* v20 personality side-effects (two-sided sliders): varMult widens/narrows game-to-game swings around 50, injMult scales injury rolls both ways. v23: perfFlat is NO LONGER a rating bump here — it is a REAL flat stat boost applied inside the sim's attribute accessor (_raw), so it shows up as actual production (and flows into the box-score grade) instead of an abstract "+performance" number. */
 const _pfxEt=et;et=function(e,t,a){const fx=e&&e.personaFxV20;if(!fx)return _pfxEt(e,t,a);const r=_pfxEt(e,(t||0),a);if(fx.varMult&&fx.varMult!==1)r.perf=f(Math.round(50+(r.perf-50)*fx.varMult),1,100);if((fx.injMult||1)>1&&!r.injured)r.injured=Math.random()<(fx.injMult-1)*.06;else if((fx.injMult||1)<1&&r.injured&&Math.random()<1-fx.injMult)r.injured=!1;return r};
 window.__V112_C={htFrac:HT_FRAC_V112,wtFrac:WT_FRAC_V112,bodyNow:bodyNowV112,bodyOf:bodyOfV112,frac:fracV112,pool:TRAIT_POOL_V112,offer:traitOfferV112,auto:traitAutoV112,traits:dt,fit:pa,rank:ns,ovr:en,abandoned:abandonedV112,active:()=>rerollActiveV112(o&&o.player),mul:e=>rerollMulV112(e||(o&&o.player)),why:()=>rerollWhyV112(o&&o.player),arm:armRerollV112,ledger:()=>(o&&o.rerollV112)||null,cond:e=>condMultV54(e||(o&&o.player)),eff:e=>effAttrsV85(e||(o&&o.player))};
@@ -22871,5 +23124,5 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   try { window.__HUB_V75 = { views: VIEWS, tabs: TAB, sweep } } catch (e) {}
 })();
 </script>
-<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v130a"></script><script src="./public/rib-menu-boot.js?v=v130a"></script><script src="./public/rib-menu.js?v=v130a"></script><script src="./public/rib-menu-howto.js?v=v130a"></script><script src="./public/rib-menu-coach.js?v=v130a"></script><script src="./public/rib-menu-navigation.js?v=v130a"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
+<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v132a"></script><script src="./public/rib-menu-boot.js?v=v132a"></script><script src="./public/rib-menu.js?v=v132a"></script><script src="./public/rib-menu-howto.js?v=v132a"></script><script src="./public/rib-menu-coach.js?v=v132a"></script><script src="./public/rib-menu-navigation.js?v=v132a"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
 </html>

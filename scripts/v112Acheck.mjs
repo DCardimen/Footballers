@@ -163,16 +163,20 @@ let liveNote = ''
     if (!clicked) await page.waitForTimeout(300)
   }
   console.log('  >> Continue to Match ->', clicked)
-  // the loader's own canvas, while it is up
+  // v132: door two draws no canvas any more — the loader is the sting's still with the film over it.
+  // The v112 A record for this mount is stamped by the first PICTURE (still or film), so `firstFrame`
+  // still answers "how long until the player saw something"; the motion is the film's own playhead.
   let live = null, lp0 = null, lp1 = null
+  const picture = () => { const el = document.querySelector('.rib-liveload-v94'); if (!el) return null; const v = el.querySelector('video')
+    return { still: el.classList.contains('still'), playing: el.classList.contains('playing'), layout: el.classList.contains('film'), canvas: !!el.querySelector('canvas'), t: v ? v.currentTime : -1, sum: v ? Math.round(v.currentTime * 1000) : (el.classList.contains('still') ? 1 : 0) } }
   for (let i = 0; i < 60; i++) {
     live = await page.evaluate(() => { const a = window.__V112_A; return a ? a.mounts.filter(m => m.tag === 'live')[0] || null : null })
-    if (live && live.firstFrame != null) { lp0 = await page.evaluate(canvasMoved, '.rib-liveload-cv-v94'); break }
+    if (live && live.firstFrame != null) { lp0 = await page.evaluate(picture); break }
     await page.waitForTimeout(100)
   }
   for (let i = 0; i < 12 && lp0; i++) {   // sample it again while it is still up
     await page.waitForTimeout(250)
-    lp1 = await page.evaluate(canvasMoved, '.rib-liveload-cv-v94')
+    lp1 = await page.evaluate(picture)
     if (!lp1 || lp1.sum !== lp0.sum) break
   }
   const cleared = await page.evaluate(() => new Promise(res => { const L = window.__LIVELOAD_V94; if (!L) return res('no loader'); const t = Date.now(); L.whenClear(() => res(Date.now() - t)) }))
@@ -182,8 +186,9 @@ let liveNote = ''
   ok(!!live, 'a SECOND loading scene mounted in the same session', liveNote)
   ok(live && live.cached === true, 'it found the sheet already decoded in memory', live && ('cached=' + live.cached))
   ok(live && live.reqsBefore === 2 && reqs.length === 2, 'it added ZERO network requests for the sheet', 'session total: ' + reqs.length + ' (' + reqs.join(' ') + ')')
-  ok(live && live.firstFrame != null, 'it painted the chase with nothing left to load', live && (live.ms + 'ms from the door opening'))
-  ok(lp0 && lp1 ? lp0.sum !== lp1.sum : true, 'its canvas picture changed too', lp0 && lp1 ? lp0.sum + ' -> ' + lp1.sum : 'loader already gone when sampled')
+  ok(live && live.firstFrame != null, 'it had a picture up with nothing left to load (v132: the sting\'s still, then the film)', live && (live.ms + 'ms from the door opening'))
+  ok(lp0 && lp0.layout && !lp0.canvas, 'and that picture is the film loader, with no chase canvas built at this door', JSON.stringify(lp0))
+  ok(lp0 && lp1 ? (lp1.playing ? lp0.sum !== lp1.sum : lp1.still) : true, 'its picture is alive (the playhead moves) or the still is holding it', lp0 && lp1 ? JSON.stringify({ a: lp0.sum, b: lp1.sum, playing: lp1.playing, still: lp1.still }) : 'loader already gone when sampled')
   ok(typeof cleared === 'number', '__LIVELOAD_V94.whenClear still opens for the sim', cleared + 'ms')
   // how long that mount then went WITHOUT a frame is not the chase's to answer: the career app
   // builds the scene and the first play on the same thread the moment the loader is up. Reported,

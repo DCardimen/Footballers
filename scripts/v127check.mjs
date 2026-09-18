@@ -12,7 +12,10 @@
 //   * it gets the picture up fast, and starts at v116's seam like the borrowed one does
 //   * the file comes out of the cache it is already in — the request is served, not re-downloaded
 //   * on the way out the film it built is PARKED, so the next game takes the fast path
-//   * and with the film off for a real reason (?noFilmV114) nothing is built and the chase runs
+//   * and with the film off for a real reason (?noFilmV114) nothing is built — v132: the STILL of the
+//     landed wordmark stands alone there (the chase is gone from this door)
+//   v132: the standby `__V114.warm()` builds when the splash leaves with nothing parked is emptied too,
+//   so this still exercises the build-it-yourself path.
 import { chromium } from 'playwright'
 
 let pass = 0, fail = 0
@@ -24,7 +27,7 @@ const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputed
 const loader = () => { const el = document.querySelector('.rib-liveload-v94'); if (!el) return null
   const v = el.querySelector('.rib-liveload-film-v115')
   const A = window.__LIVELOAD_V94 || {}
-  return { film: el.classList.contains('film'), chase: el.classList.contains('chase'),
+  return { film: el.classList.contains('playing'), layout: el.classList.contains('film'), still: el.classList.contains('still'), chase: el.classList.contains('chase') || !!el.querySelector('canvas'),
     t: v ? v.currentTime : -1, paused: v ? v.paused : null, loop: v ? v.loop : null,
     src: v ? (v.currentSrc || v.src || '').split('/').pop() : null,
     shown: v ? getComputedStyle(v).opacity : null,
@@ -81,7 +84,7 @@ async function reachLoader(q, before) {
 }
 
 // ---- 1. nothing parked: door two has to build its own ----
-const EMPTY = () => { try { window.__V114.parked = null } catch (e) {} }
+const EMPTY = () => { try { window.__V114.parked = null; window.__V114.standby = null } catch (e) {} }
 const A = await reachLoader('', EMPTY)
 ok(!!A, 'the walk reaches a live game with the park emptied')
 if (A) {
@@ -112,7 +115,8 @@ const B = await reachLoader('?noFilmV114', EMPTY)
 ok(!!B, '?noFilmV114: the walk reaches a live game')
 if (B) {
   console.log('door two (film off):', JSON.stringify(B.seen))
-  ok(!B.seen.film, 'with the film switched off, door two builds nothing and the v94 chase runs', `film=${B.seen.film} chase=${B.seen.chase}`)
+  ok(!B.seen.film && !B.seen.chase && B.seen.layout, 'with the film switched off, door two builds nothing and no chase runs — the still stands (v132)', `film=${B.seen.film} chase=${B.seen.chase} layout=${B.seen.layout}`)
+  ok(B.seen.still && B.seen.src == null, 'the still is up and there is no video element at all', `still=${B.seen.still} video=${B.seen.src}`)
   ok(B.filmReqs.length === 0, 'and it asks for no film at all', JSON.stringify(B.filmReqs))
   await B.ctx.close()
 }

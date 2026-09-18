@@ -55,6 +55,41 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v132 — the sting at every door, a year older, and a thousand hours on the menu.** Three things.
+  **The live game's loader is the intro film, and it is up on the first paint.** Door two used to be
+  the v94 chase with the film auditioning over it, and whenever the film missed its 1.2s window (a
+  main thread busy compiling Phaser, an emptied park, a cold decode) the chase stayed for the whole
+  door — the old loading screen a player kept meeting in front of live games. The chase is gone from
+  that door. The loader is the sting in three layers that agree on one picture: the STILL of the
+  landed wordmark (`rib_film_v116.jpg`, the film's own last frame) under everything, set before the
+  element is in the document, so the picture is on the loader's first paint whatever the film is
+  doing; the FILM over it from v116's seam, which is that same picture in motion; the matchup below.
+  The film is warm by construction — `__V114.take()` hands out the parked element or the STANDBY
+  `__V114.warm()` builds the moment the splash leaves with nothing parked, so a game is a seek and a
+  play, never a load. Reduced motion and `?noFilmV114` get the still alone. And the door opens on
+  the scene standing and the first play built (v101) after a short minimum (`LIVE_MIN_MS`, a film
+  seen for `LIVE_SEEN_MS`, a cold decode given `LIVE_FILM_WAIT_MS`) — it used to sit on the 9s
+  watchdog whenever the film was up, because only the chase's own beat ever opened it.
+  **A YEAR OLDER** (`growShowV132`, over the report card): the season roll turns the man a year
+  older, moves his frame along the v112 growth curve and, past his prime, takes attributes off him,
+  and the report card never showed any of it. Now a screen opens over the report card the first time
+  it renders for a finished season: the age counts up, the figure grows from last year's frame to
+  this year's against a height rule with both marks on it, height / weight / muscle count up beside
+  it with their deltas stamped, then what the season built and — from the veteran years — WHAT THE
+  YEARS TOOK, in red, in the age profile's own words. Every number is read back from the functions
+  the sheet uses (`bodyNowV112`, `zs`, `seasonStats.gains` / `ageChanges` / `ageProfile`). Tap to
+  fast-forward; the button hands over; the coach waits at his door. Once a season
+  (`player.growSeenV132`); `?noGrowV132` / `TU("growScreenV132",0)` switch it off.
+  **A THOUSAND HOURS** on the main menu: a ticker of the career's own headlines under the top bar,
+  embers drifting up the whole page under the cards, a stadium light sweeping across it, a bead of
+  light running the topbar's rule, film grain, a light leak and the odd flashbang on the hero,
+  pointer parallax on the hero (the picture leans away, the wordmark toward; the phone's tilt where
+  the browser hands it over without a prompt), a gloss and a 3D tilt on the tiles, an energy ring on
+  the CAREER tile, a spark riding the head of the OVR arc, a radar ping on the week that is up, the
+  played weeks popping in one after another, the name in the brand's metal, a headlight crossing the
+  continue card with a NEXT UP pin. All of it dies under `prefers-reduced-motion`. Also fixed on the
+  way: HOME was clipped off the nav at tablet widths. `growcheck.mjs`, `menufxcheck.mjs`,
+  `v115check.mjs`, `v127check.mjs`; `growshot.mjs` for the eyes.
 - **v131 — the price of starting over, in numbers.** When a career ends and you roll another one,
   two screens decide the next man and neither of them gave you a number. The **origin draft** —
   three cards, or four with the Expanded Origin Draft — described itself in prose ("Starts behind
