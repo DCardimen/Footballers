@@ -263,9 +263,11 @@ const breakLoose = await page.evaluate(() => {
       s.sleepAll()
       const b = s.wake(0); if (!b) break
       b.m = m; b.bounce = 0.34 / m; b.grip = 1 + (m - 1) * 0.85
-      // on the FLAT floor outside the heap: on the slope this measures the slope, not the tilt
-      b.gx = 1.25; b.gz = 0; b.gy = s.surfaceAt(1.25, 0); b.vx = b.vy = b.vz = 0
-      b.sleep = false; b.still = 0
+      // On the FLAT floor outside the heap — on the slope this measures the slope, not the
+      // tilt — and INSIDE the frame, or the screen-edge clamp moves it and reads as a slide.
+      const gx0 = Math.min(0.92, s.limAt(0) * 0.8)
+      b.gx = gx0; b.gz = 0; b.gy = s.surfaceAt(gx0, 0); b.vx = b.vy = b.vz = 0
+      b.sleep = false; b.still = 0; b.cnt = 1
       const x0 = b.gx
       s.setTilt(-Math.min(1, deg / 24), 0)
       for (let t = 0; t < 60; t++) s.stepBodies(16)
@@ -287,12 +289,14 @@ const slide = await page.evaluate(() => {
   const V = window.__RIB_VAULT_DEV, s = V.scene()
   s.sleepAll()
   const b = s.wake(0)
-  b.m = 1; b.grip = 1; b.gx = 0.9; b.gz = 0; b.gy = s.surfaceAt(0.9, 0)
+  const gx0 = Math.min(0.9, s.limAt(0) * 0.78)
+  b.m = 1; b.grip = 1; b.cnt = 1; b.gx = gx0; b.gz = 0; b.gy = s.surfaceAt(gx0, 0)
   b.vx = b.vy = b.vz = 0; b.sleep = false; b.still = 0
   s.setTilt(-1, 0)
   const x0 = b.gx
   for (let t = 0; t < 63; t++) s.stepBodies(16)     // one second
   const moved = Math.abs(b.gx - x0)
+  void moved
   s.sleepAll(); s.setTilt(0, 0)
   return +moved.toFixed(3)
 })
@@ -319,6 +323,87 @@ const repose = await page.evaluate(() => {
 ok(repose.n > 20, 'the probe really did shake the top of the heap loose', repose.n)
 ok(repose.worst < 0.05, 'and with the phone LEVEL a disturbed hoard sits at its angle of repose instead of creeping downhill', repose)
 ok(repose.asleep > repose.n * 0.7, 'and settles back to sleep, so a shaken hoard costs nothing once it is still', repose)
+
+// (5) THE MONEY LEFT THE PICTURE, AND THE BACK OF THE ROOM LOOKED LIKE THE AIR. The wall
+// was derived from the slot list's outermost spill — a ground coordinate with no relation to
+// the viewport — so a tilt slid most of the hoard off the side of the screen, and gz was free
+// to wander to the back of the room where the perspective draws a coin high and small.
+const framed = await page.evaluate(() => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene(), SC = window.__RIB_VAULT_SCENE
+  s.sleepAll(); s._lastWake = 0; s.tiltWake()
+  Object.values(V.bodies()).forEach(b => { b.sleep = false; b.still = 0 })
+  s.setTilt(-1, 0)
+  /* The hoard's own outer spill legitimately sits past the frame edge — the static pile is
+   * drawn that way too — so the claim is not "nothing is ever off-frame". It is that the
+   * TILT never pushes anything out that was in: a coin that starts inside the picture stays
+   * inside it, however hard the phone is tipped. */
+  const outside = (o) => {
+    const p = s.cam.project(o.gx, o.gy, SC.PILE.z + o.gz, {})
+    return Math.max(p.x < 0 ? -p.x : 0, p.x > s.cw ? p.x - s.cw : 0)
+  }
+  const began = {}
+  for (const k in V.bodies()) began[k] = outside(V.bodies()[k]) > 0
+  let off = 0, worst = 0, n = 0, wasOut = Object.values(began).filter(Boolean).length
+  for (let t = 0; t < 220; t++) {
+    s.stepBodies(16)
+    if (t % 20) continue
+    for (const k in V.bodies()) {
+      const o = V.bodies()[k]; n++
+      if (began[k]) continue                    // it was already out there
+      const over = outside(o)
+      if (over > 0) off++
+      worst = Math.max(worst, over)
+    }
+  }
+  // a shed coin is airborne for a moment — that is the mechanic. What must not happen is one
+  // LEFT hanging there. Let it all settle, then look.
+  s.setTilt(0, 0)
+  for (let t = 0; t < 400; t++) s.stepBodies(16)
+  let air = 0, maxAir = 0
+  for (const k in V.bodies()) {
+    const o = V.bodies()[k]
+    const a = o.gy - s.surfaceAt(o.gx, o.gz)
+    if (a > 0.05) air++
+    maxAir = Math.max(maxAir, a)
+  }
+  return { samples: n, pushedOut: off, beganOutside: wasOut, worstPx: +worst.toFixed(1),
+    air, maxAir: +maxAir.toFixed(4), settled: s.bodyCount() }
+})
+ok(framed.pushedOut === 0, 'a hard tilt never pushes a coin that was IN the picture off the side of it', framed)
+ok(framed.air === 0, 'and once it has all settled, no coin is left standing in the air', framed)
+
+// (6) A COLUMN COMES APART. It was one rigid body: tip the phone and the whole tower slid
+// across the floor like a bar of soap and stood there against the wall, intact.
+const topple = await page.evaluate(async () => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene()
+  s.sleepAll(); s._lastWake = 0; s.tiltWake()
+  Object.values(V.bodies()).forEach(b => { b.sleep = false; b.still = 0 })
+  const before = { towers: Object.values(V.bodies()).filter(b => b.cnt > 1).length,
+    coins: Object.values(V.bodies()).reduce((a, b) => a + b.cnt, 0), shards: 0 }
+  s.setTilt(-1, 0)
+  for (let t = 0; t < 260; t++) s.stepBodies(16)
+  const after = { towers: Object.values(V.bodies()).filter(b => b.cnt > 1 && !b.shard).length,
+    shards: Object.values(V.bodies()).filter(b => b.shard).length,
+    coins: Object.values(V.bodies()).reduce((a, b) => a + b.cnt, 0) }
+  s.setTilt(0, 0)
+  return { before, after }
+})
+ok(topple.before.towers > 10, 'the probe woke real columns', topple.before.towers)
+ok(topple.after.shards > 30, 'a driven column SHEDS — its coins come off the top and go their own way', topple.after)
+ok(topple.after.towers < topple.before.towers * 0.4,
+  'and the towers come apart rather than sliding across the floor intact', [topple.before.towers, topple.after.towers])
+
+// and RESTOCK has to put the columns back together, not just move them
+const rebuilt = await page.evaluate(async () => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene()
+  V.restock()
+  await new Promise(r => setTimeout(r, 1500))
+  const left = Object.values(V.bodies())
+  const wrong = s.slots.slot.filter((q, i) => false).length
+  return { bodies: s.bodyCount(), shards: left.filter(b => b.shard).length }
+})
+ok(rebuilt.bodies === 0 && rebuilt.shards === 0,
+  'RESTOCK puts the shed coins back in their columns and clears the shards', rebuilt)
 
 const restock = await page.evaluate(async () => {
   const V = window.__RIB_VAULT_DEV, s = V.scene()
