@@ -11,8 +11,11 @@
 //      every game. The film runs for as long as the loader lives, looping at the seam like
 //      door one's, and the loader leaves on top of it wherever round it is;
 //   4. the matchup and the bar are still on top of it, and still say what they said;
-//   5. ?noFilmV114 — and any browser where door one could not play the film — gets the v94 chase,
-//      unchanged. That is splashcheck's case 4, which now boots with the flag.
+//   5. ?noFilmV114 — and any browser where door one could not play the film — gets the STILL of the
+//      landed wordmark (v132: the chase is gone from this door; the still is the film's own last frame,
+//      under the film always, so the loader has its picture on the first paint either way).
+//   v132: `.film` is now the loader's LAYOUT from the first paint and `.playing` says the video is
+//   actually running; `.still` says the jpg under it has landed.
 //
 //   node scripts/v115check.mjs
 import { chromium } from 'playwright'
@@ -66,14 +69,14 @@ async function intoGame(q = '') {
 
 const loader = () => { const el = document.querySelector('.rib-liveload-v94'); if (!el) return null
   const v = el.querySelector('.rib-liveload-film-v115'), cv = el.querySelector('canvas')
-  return { film: el.classList.contains('film'), chase: el.classList.contains('chase'), inWrap: !!el.closest('.field-wrap'),
+  return { film: el.classList.contains('playing'), layout: el.classList.contains('film'), still: el.classList.contains('still'), chase: el.classList.contains('chase') || !!cv, inWrap: !!el.closest('.field-wrap'),
     cap: (el.querySelector('.rib-liveload-cap-v94 b') || {}).textContent, sub: (el.querySelector('.rib-liveload-cap-v94 span') || {}).textContent,
     bar: el.querySelector('.rib-liveload-bar-v94') ? getComputedStyle(el.querySelector('.rib-liveload-bar-v94')).display : 'absent',
     fit: v ? getComputedStyle(v).objectFit : null,
     box: (() => { const r = el.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) })(),
     t: v ? v.currentTime : -1, dur: v ? v.duration : -1, paused: v ? v.paused : null, loop: v ? v.loop : null,
     src: v ? (v.currentSrc || '').split('/').pop() : null, shown: v ? getComputedStyle(v).opacity : null,
-    cvShown: cv ? getComputedStyle(cv).display : null, shows: window.__LIVELOAD_V94.shows } }
+    cvShown: cv ? getComputedStyle(cv).display : 'absent', shows: window.__LIVELOAD_V94.shows } }
 
 /* The click-through into a live game is the flaky part of this check, not the film: the pregame
  * wizard and the story rolls vary, and a walk that never reaches the field would otherwise report
@@ -86,6 +89,14 @@ async function reachLoader(q) {
     // settle on the film if it is coming — breaking on whichever class lands first would report
     // the chase mounting for a beat as the final answer
     for (let i = 0; i < 60; i++) { const r = await g.page.evaluate(loader); if (r) seen = r; if (r && r.film) break; await g.page.waitForTimeout(100) }
+    // v132: the .playing class starts a .28s opacity transition: read it again once that has settled, and
+    // install a recorder for the exit, which the door (open the moment the scene stands and the film has
+    // been seen) may now play while this check is still taking its screenshot
+    if (seen && seen.film) { await g.page.waitForTimeout(420); const r2 = await g.page.evaluate(loader); if (r2) seen = r2 }
+    await g.page.evaluate(() => { const el = document.querySelector('.rib-liveload-v94'); if (!el || el.__v115rec) return; el.__v115rec = true
+      window.__v115exit = null
+      new MutationObserver(() => { if (el.classList.contains('gone') && !window.__v115exit) { const v = el.querySelector('.rib-liveload-film-v115')
+        window.__v115exit = { leaving: true, filmOn: !!(v && v.isConnected && getComputedStyle(v).opacity !== '0') } } }).observe(el, { attributes: true, attributeFilter: ['class'] }) })
     if (seen) return { ...g, seen }
     console.log('   (the walk did not reach the live game; retrying)')
     await g.page.context().close()
@@ -101,7 +112,8 @@ async function reachLoader(q) {
   const { page, errs, filmReqs, dismiss, seen } = got
   ok(!!seen && seen.inWrap, 'the loader still mounts over the field', seen && JSON.stringify({ film: seen.film, chase: seen.chase }))
   ok(!!seen && seen.film && seen.shown !== '0', 'and it is the FILM, not the chase', seen && `film=${seen.film} chase=${seen.chase} opacity=${seen.shown}`)
-  ok(!!seen && seen.cvShown === 'none', 'the chase canvas is put away', seen && `canvas display=${seen.cvShown}`)
+  ok(!!seen && (seen.cvShown === 'none' || seen.cvShown === 'absent'), 'the chase canvas is put away (v132: never built here)', seen && `canvas display=${seen.cvShown}`)
+  ok(!!seen && seen.layout && seen.still, 'v132: the still of the landed wordmark is under the film from the first paint', seen && `layout=${seen.layout} still=${seen.still}`)
   ok(!!seen && /rib_film_v116\.(mp4|webm)(#.*)?$/.test(seen.src || ''), 'playing the same file door one played', seen && seen.src)
   ok(filmReqs.length === 0, 'straight out of the cache — no new request for it', filmReqs.join(' ') || 'none')
   const seam = await page.evaluate(() => (window.__V114 && window.__V114.loopFrom) || 0)
@@ -160,6 +172,8 @@ async function reachLoader(q) {
     if (r.gone) { gone = true; if (process.env.V115_SHOTS) await page.screenshot({ path: '_v115_exit_done.png' }); break }; await page.waitForTimeout(50)
   }
   const openMs = Date.now() - t1
+  const rec = await page.evaluate(() => window.__v115exit || null)   // v132: the exit the recorder saw, if this loop was late for it
+  if (rec && rec.leaving) { sawGone = true; exitHadFilm = exitHadFilm || rec.filmOn }
   ok(gone, 'the door still opens on the scene, not on the film', openMs + 'ms')
   ok(sceneUp, 'the broadcast came up under it')
   ok(gone && openMs < 7700, 'and it did NOT wait out the 14.5s sting', openMs + 'ms')
@@ -180,8 +194,8 @@ async function reachLoader(q) {
   ok(!!got, '?noFilmV114: the walk reaches a live game')
   if (!got) { console.log(JSON.stringify({ pass, fail })); await browser.close(); process.exit(1) }
   const { page, errs, seen } = got
-  ok(!!seen && seen.chase && !seen.film, '?noFilmV114: the v94 chase has door two, exactly as before', seen && `chase=${seen.chase} film=${seen.film}`)
-  ok(!!seen && seen.cvShown !== 'none', 'its canvas is the thing on screen', seen && `canvas display=${seen.cvShown}`)
+  ok(!!seen && !seen.chase && !seen.film && seen.layout, '?noFilmV114: no chase and no film at door two — the still has it (v132)', seen && `chase=${seen.chase} film=${seen.film} layout=${seen.layout}`)
+  ok(!!seen && seen.still && seen.cvShown === 'absent', 'the still is the thing on screen, and there is no canvas', seen && `still=${seen.still} canvas=${seen.cvShown}`)
   let gone = false
   for (let i = 0; i < 140; i++) { gone = await page.evaluate(() => !document.querySelector('.rib-liveload-v94')); if (gone) break; await page.waitForTimeout(100) }
   ok(gone, 'and the door still opens')

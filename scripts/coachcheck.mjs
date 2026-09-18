@@ -356,6 +356,13 @@ const step = async (page, t, wait = 900) => {
   ok(lay.depthTop && !lay.depthInRing && lay.ringHasGradeOnly, 'the report card is ONE card — the depth chart is its own sibling, and the grade ring holds nothing but the grade', JSON.stringify(lay))
   ok(lay.overlaps === 0, 'nothing on the report screen overlaps the card above it', JSON.stringify({ overlaps: lay.overlaps, n: lay.n }))
   await shot(page, 'season-result')
+  // v132: the offseason body screen opens over the report card first, and the coach waits at the door
+  // until it is dismissed — so prove it is up, then hand over to the report card the way a player would
+  const grow = await page.evaluate(() => { const G = window.__GROW_V132; return G ? { open: G.open, el: !!document.getElementById('growV132'), age: G.last && G.last.age, prev: G.last && G.last.prev } : null })
+  ok(grow && grow.open && grow.el && grow.age === grow.prev + 1, 'v132: the offseason body screen is up over the report card, a year older', JSON.stringify(grow))
+  const heldOff = await H(page)
+  ok(!(heldOff && heldOff.open), 'and the coach waits at its door rather than talking over it', JSON.stringify({ open: heldOff && heldOff.open }))
+  await page.evaluate(() => { const b = document.querySelector('#growV132 [data-gw-go]'); if (b) b.click(); else window.__GROW_V132.close() }); await page.waitForTimeout(600)
   // and the coach reads the year back
   const d = await waitStop(page, 'debrief', 15000)
   ok(d && d.open && d.stop === 'debrief' && d.openedBy === 'season', 'the coach pops in on the report card with the season debrief, though the tour is OFF', JSON.stringify({ stop: d && d.stop, by: d && d.openedBy, enabled: d && d.enabled }))

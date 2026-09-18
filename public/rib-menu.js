@@ -254,7 +254,7 @@
       let cls = 'up', inner = '';
       if (w && w.played) { cls = w.sat ? 'sat' : w.won ? 'won' : 'lost'; inner = w.won ? svg('check') : w.sat ? svg('dash') : ''; }
       else if (i === (firstOpen < 0 ? season.weeks.length : firstOpen) && season.inProgress) cls = 'now';
-      dots.push(`<i class="rib9-dot ${cls}" title="Game ${i + 1}${w && w.played ? ' · ' + (w.won ? 'W' : 'L') + ' ' + w.us + '-' + w.them + ' vs ' + esc(w.opp || '') : ''}">${inner}</i>`);
+      dots.push(`<i class="rib9-dot ${cls}" style="--i:${i}" title="Game ${i + 1}${w && w.played ? ' · ' + (w.won ? 'W' : 'L') + ' ' + w.us + '-' + w.them + ' vs ' + esc(w.opp || '') : ''}">${inner}</i>`);
     }
     return dots.join('<span class="rib9-dotline"></span>');
   }
@@ -290,6 +290,125 @@
         ${right}<span class="rib9-chev">${svg('chev')}</span></div></div>`;
   }
 
+  /* ===== v132 A THOUSAND HOURS =====
+   * The menu's second layer of life, over the v89 layout and the v102 hero. In the markup: a TICKER of
+   * the career's own headlines under the top bar (built from the same feed as everything else), an
+   * AMBIENT canvas of embers drifting up the whole page under the cards, a stadium light SWEEP crossing
+   * it, grain / a light leak / the odd FLASHBANG on the hero, a spark riding the head of the OVR arc, a
+   * gloss and an energy ring on the tiles, a radar ping on the week that is up. In JS (startMenuFxV132):
+   * the ember loop, pointer parallax on the hero (and the phone's tilt where the browser hands it over
+   * without a permission prompt), a 3D tilt on the tiles under a mouse, and the flashbang's clock. Every
+   * bit of it dies under prefers-reduced-motion. `window.__RIB_MENU_FX_V132` is what the check reads. */
+  function tickerV132(data, has, num, year, week) {
+    const S = data.state || {}, pl = data.player || {}, season = data.season || { weeks: [] }, team = data.team || {};
+    const items = [];
+    const add = (html, cls = '') => items.push(`<li class="${cls}">${html}</li>`);
+    if (has) {
+      add(`<b>${esc(String(pl.name).toUpperCase())}</b> ${esc(pl.pos)} #${num}`);
+      add(`${esc(String(pl.levelName).toUpperCase())} · YEAR ${year} · WEEK ${week}`);
+      if (team.school || team.name) add(`<b>${esc(String(team.school + ' ' + (team.name || '')).trim().toUpperCase())}</b>`);
+      if (season.nextOpp) add(`NEXT UP · <b>vs ${esc(String(season.nextOpp).toUpperCase())}</b>`, 'live');
+      if (season.last) add(season.last.sat ? `LAST WEEK · <b>DID NOT PLAY</b>` : `LAST WEEK · <b>${season.last.won ? 'W' : 'L'} ${esc(season.last.us)}-${esc(season.last.them)}</b> vs ${esc(String(season.last.opp || '').toUpperCase())}`);
+      if (season.weeks && season.weeks.some(w => w.played)) add(`RECORD <b>${record(season)}</b>`);
+      add(`OVR <b>${esc(pl.ovr)}</b>`);
+      if (pl.stars) add(`<b>${'★'.repeat(Math.max(0, Math.min(5, pl.stars)))}</b> RECRUIT`);
+      if (pl.height || pl.weight) add(`${esc(pl.height || '')} ${esc(pl.weight || '')}`.trim());
+      const done = (pl.objectives || []).filter(o => o.done).length; if (done) add(`<b>${done}</b> MILESTONE${done === 1 ? '' : 'S'} DOWN`);
+    } else {
+      add(`<b>START A CAREER</b> · AGE 8 · PEE WEE`);
+      add(`NINE POSITIONS · <b>ONE ROAD TO THE DFL</b>`);
+      add(`PICK A POSITION · TRAIN · <b>PLAY LIVE</b>`);
+      add(`SURVIVE EVERY CUT`);
+    }
+    add(`HONORS <b>${esc(S.prestige || 0)}</b> · PP <b>${esc(S.pp || 0)}</b>`);
+    if (S.careers) add(`<b>${esc(S.careers)}</b> CAREER${S.careers === 1 ? '' : 'S'} PLAYED`);
+    if (S.nflReached) add(`<b>${esc(S.nflReached)}</b> REACHED THE DFL`);
+    if (S.highScore) add(`SCORE ATTACK BEST <b>${esc(Number(S.highScore).toLocaleString())}</b>`);
+    add(`<b>RUNNING IT BACK</b> · CAREER MODE`);
+    const dur = Math.max(26, items.length * 4.2);
+    // the list is doubled so the loop is seamless at translateX(-50%)
+    return `<div class="rib9-ticker-v132" aria-hidden="true" data-items="${items.length}"><ul style="--dur:${dur}s">${items.join('')}${items.join('')}</ul></div>`;
+  }
+  let menuFx = null;
+  function startMenuFxV132(menu) {
+    stopMenuFxV132();
+    const st = { on: true, frames: 0, embers: 0, sparks: 0, bangs: 0, raf: 0, timers: [], parallax: { x: 0, y: 0, moves: 0 }, tilt: 0, reduced: prefersReduced() };
+    menuFx = st;
+    window.__RIB_MENU_FX_V132 = { get on() { return st.on; }, get frames() { return st.frames; }, get embers() { return st.embers; }, get sparks() { return st.sparks; }, get bangs() { return st.bangs; },
+      get parallax() { return { ...st.parallax }; }, get tilt() { return st.tilt; }, get reduced() { return st.reduced; },
+      get ticker() { const t = menu.querySelector('.rib9-ticker-v132'); return t ? Number(t.dataset.items) : 0; },
+      bang: () => bang() };
+    const hero = menu.querySelector('.rib9-hero');
+    const bangEl = menu.querySelector('.rib9-hero-bang-v132');
+    const bang = () => { if (!bangEl || st.reduced) return; bangEl.classList.remove('go'); void bangEl.offsetWidth; bangEl.classList.add('go'); st.bangs++; };
+    if (st.reduced) return;   // the CSS rule already holds every animation; the loops simply never start
+    // ---- the flashbang: a bank of cameras going off together, every seven to fifteen seconds
+    const armBang = () => { const id = setTimeout(() => { if (!st.on) return; bang(); armBang(); }, 7000 + Math.random() * 8000); st.timers.push(id); };
+    armBang();
+    // ---- pointer parallax on the hero: the picture leans away from the pointer, the wordmark toward it
+    const setPar = (nx, ny) => {   // nx, ny in -1..1
+      st.parallax = { x: +nx.toFixed(3), y: +ny.toFixed(3), moves: st.parallax.moves + 1 };
+      if (!hero) return;
+      hero.style.setProperty('--ax', (-nx * 5).toFixed(1) + 'px'); hero.style.setProperty('--ay', (-ny * 3).toFixed(1) + 'px');
+      hero.style.setProperty('--cx', (nx * 9).toFixed(1) + 'px'); hero.style.setProperty('--cy', (ny * 5).toFixed(1) + 'px');
+    };
+    const onMove = (ev) => { if (!hero) return; const r = hero.getBoundingClientRect(); if (!r.width || !r.height) return; setPar(((ev.clientX - r.left) / r.width - .5) * 2, ((ev.clientY - r.top) / r.height - .5) * 2); };
+    const onLeave = () => setPar(0, 0);
+    if (hero) { hero.addEventListener('pointermove', onMove); hero.addEventListener('pointerleave', onLeave); }
+    // the phone's tilt, only where the browser hands it over without a permission prompt (a prompt on the menu is not worth it)
+    let onTilt = null;
+    if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission !== 'function' && matchMedia('(hover: none)').matches) {
+      let base = null;
+      onTilt = (ev) => { if (ev.gamma == null || ev.beta == null) return; if (!base) base = { g: ev.gamma, b: ev.beta }; const nx = Math.max(-1, Math.min(1, (ev.gamma - base.g) / 18)), ny = Math.max(-1, Math.min(1, (ev.beta - base.b) / 18)); setPar(nx, ny); };
+      window.addEventListener('deviceorientation', onTilt);
+    }
+    // ---- the tiles tilt under a mouse
+    const tiles = menu.querySelector('.rib9-tiles');
+    const onTileMove = (ev) => { const t = ev.target.closest('.rib9-tile'); if (!t) return; const r = t.getBoundingClientRect(); const nx = (ev.clientX - r.left) / r.width - .5, ny = (ev.clientY - r.top) / r.height - .5;
+      t.style.setProperty('--ry', (nx * 10).toFixed(1) + 'deg'); t.style.setProperty('--rx', (-ny * 8).toFixed(1) + 'deg'); st.tilt++; };
+    const onTileOut = (ev) => { const t = ev.target.closest('.rib9-tile'); if (t) { t.style.removeProperty('--rx'); t.style.removeProperty('--ry'); } };
+    if (tiles && matchMedia('(hover: hover)').matches) { tiles.addEventListener('pointermove', onTileMove); tiles.addEventListener('pointerout', onTileOut); }
+    // ---- the embers: one canvas the height of the page, drawn at 1x, a few dozen points and the odd spark
+    const cv = menu.querySelector('.rib9-ambient-v132'); const ctx = cv && cv.getContext('2d');
+    const shell = menu.querySelector('.rib9-shell');
+    if (ctx && shell) {
+      const rnd = (a, b) => a + Math.random() * (b - a);
+      let w = 1, h = 1; const P = [], SP = [];
+      const size = () => { w = Math.max(1, Math.round(shell.clientWidth)); h = Math.max(1, Math.min(2600, Math.round(shell.scrollHeight || shell.clientHeight))); cv.width = w; cv.height = h; cv.style.height = h + 'px'; };
+      size();
+      const N = w > 700 ? 54 : 36;
+      for (let i = 0; i < N; i++) P.push({ x: Math.random(), y: Math.random(), r: rnd(.7, 2.1), vy: rnd(-.028, -.009), vx: rnd(-.006, .006), a: rnd(.12, .5), ph: rnd(0, 6.3), c: i % 5 === 0 ? '#fff1c8' : i % 3 === 0 ? '#ff9b4a' : '#ffd66b' });
+      st.embers = P.length;
+      let last = performance.now(), nextSpark = last + rnd(1500, 4000);
+      const tick = (now) => {
+        if (!st.on) return;
+        if (!cv.isConnected) { stopMenuFxV132(); return; }
+        const dt = Math.min(.05, (now - last) / 1000); last = now; st.frames++;
+        if (document.hidden) { st.raf = requestAnimationFrame(tick); return; }
+        if (st.frames % 90 === 0 && Math.abs((shell.scrollHeight || 0) - h) > 40) size();
+        ctx.clearRect(0, 0, w, h);
+        const gust = 1 + .5 * Math.sin(now / 3100) * Math.sin(now / 1300);
+        for (const p of P) {
+          p.y += p.vy * dt * (h > 1200 ? 1200 / h : 1); p.x += (p.vx * gust + .004 * Math.sin(now / 900 + p.ph)) * dt;
+          if (p.y < -.02) { p.y = 1.02; p.x = Math.random(); } if (p.x < -.02) p.x = 1.02; if (p.x > 1.02) p.x = -.02;
+          ctx.globalAlpha = p.a * (.55 + .45 * Math.sin(now / 420 + p.ph));
+          ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x * w, p.y * h, p.r, 0, 6.283); ctx.fill();
+        }
+        // a spark: a short bright streak shooting up and across, gone in half a second
+        if (now > nextSpark) { nextSpark = now + rnd(1800, 5200); SP.push({ x: rnd(.1, .9) * w, y: rnd(.3, 1) * h, vx: rnd(-90, 90), vy: rnd(-260, -140), t: now, ms: rnd(380, 640) }); st.sparks++; }
+        for (let i = SP.length - 1; i >= 0; i--) { const s = SP[i], q = (now - s.t) / s.ms; if (q >= 1) { SP.splice(i, 1); continue; }
+          const x = s.x + s.vx * q * s.ms / 1000, y = s.y + s.vy * q * s.ms / 1000 + 120 * q * q;
+          ctx.globalAlpha = .9 * (1 - q); ctx.strokeStyle = '#fff3c4'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(x - s.vx * .04, y - s.vy * .04 + 4); ctx.lineTo(x, y); ctx.stroke(); }
+        ctx.globalAlpha = 1;
+        st.raf = requestAnimationFrame(tick);
+      };
+      st.raf = requestAnimationFrame(tick);
+      st.ro = window.ResizeObserver ? new ResizeObserver(size) : null; if (st.ro) st.ro.observe(shell);
+    }
+    st.off = () => { if (hero) { hero.removeEventListener('pointermove', onMove); hero.removeEventListener('pointerleave', onLeave); } if (onTilt) window.removeEventListener('deviceorientation', onTilt); if (tiles) { tiles.removeEventListener('pointermove', onTileMove); tiles.removeEventListener('pointerout', onTileOut); } };
+  }
+  function stopMenuFxV132() { if (!menuFx) return; const st = menuFx; st.on = false; cancelAnimationFrame(st.raf); st.timers.forEach(clearTimeout); if (st.ro) st.ro.disconnect(); if (st.off) st.off(); menuFx = null; }
+
   function renderMenu(data) {
     const S = data.state || {}, pl = data.player, season = data.season || { weeks: [], games: 0, played: 0 }, team = data.team || {};
     const has = !!(data.hasCareer && pl);
@@ -302,7 +421,7 @@
     const quote = has ? quoteFor(pl) : 'EVERY LEGEND HAS A FIRST SNAP.';
     const pk = has ? perks(data) : [];
     const stars = has ? Math.max(0, Math.min(5, pl.stars || 0)) : 0;
-    const tile = (action, icon, label, sub, cls = '') => `<button class="rib9-tile ${cls}" type="button" data-rib-action="${action}"><img src="${ART}${icon}.webp${ARTV}" alt="" loading="lazy"><b>${label}</b><small>${sub}</small></button>`;
+    const tile = (action, icon, label, sub, cls = '') => `<button class="rib9-tile ${cls}" type="button" data-rib-action="${action}"><img src="${ART}${icon}.webp${ARTV}" alt="" loading="lazy"><b>${label}</b><small>${sub}</small><i class="rib9-gloss-v132" aria-hidden="true"></i>${/rib9-tile-hot/.test(cls) ? '<i class="rib9-ring-v132" aria-hidden="true"></i>' : ''}</button>`;
     const coachOn = !!(window.__RIB_COACH && window.__RIB_COACH.enabled);   // v119: read at every render, so a re-render keeps the switch honest
     const tilesNav = `<nav class="rib9-tiles" aria-label="Sections">
           ${tile(has ? 'view:' + careerView : 'new', 'icon_career', 'CAREER', has ? 'PLAY NEXT GAME' : 'START A CAREER', 'rib9-tile-hot')}
@@ -320,6 +439,7 @@
 
     return `
       <div class="rib9-shell" role="main" aria-label="Running It Back main menu">
+        <canvas class="rib9-ambient-v132" aria-hidden="true"></canvas><div class="rib9-sweep-v132" aria-hidden="true"></div>
         <header class="rib9-topbar">
           <div class="rib9-brand"><span class="rib9-mark">RIB</span><div><b>RUNNING IT BACK</b><small>CAREER MODE</small></div></div>
           <nav class="rib9-nav" aria-label="Main">
@@ -328,6 +448,7 @@
           <button class="rib9-prestige" type="button" data-rib-action="prestige" title="Prestige tree">${svg('star')}<b data-rib-field="prestige">${esc(S.prestige || 0)}</b><small>PRESTIGE</small><i></i><b data-rib-field="pp">${esc(S.pp || 0)}</b><small>PP</small></button>
           <div class="rib9-motto">BUILD A PLAYER.<br>EARN EVERY REP.<br>CHASE THE LEAGUE.</div>
         </header>
+        ${tickerV132(data, has, num, year, week)}
 
         <section class="rib9-hero" aria-label="Running It Back">
           <div class="rib9-hero-art" style="position:absolute;inset:0"><!-- v104: the picture, its kit and the name breathe as ONE layer — the tints used to sit still under a picture scaling by 2%. v105: the box is set INLINE, so a stylesheet a cache held back (the old sheet has no rule for this layer) cannot collapse it and spill the kit -->
@@ -337,6 +458,7 @@
           ${has ? `<div class="rib9-hero-jersey" aria-hidden="true" data-at="0.5,0.52"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>` : ''}
           </div>
           ${heroFxMarkup()}
+          <i class="rib9-hero-leak-v132" aria-hidden="true"></i><i class="rib9-hero-grain-v132" aria-hidden="true"></i><i class="rib9-hero-bang-v132" aria-hidden="true"></i>
           <div class="rib9-hero-shade"></div>
           <div class="rib9-hero-copy"><h1><img src="${ART}logo_wordmark.webp${ARTV}" alt="Running It Back"><i class="rib9-sheen" style="--wm:url('${artUrl('logo_wordmark.webp' + ARTV)}')"></i></h1>
             <img class="rib9-swash" src="${ART}swash_underline.webp${ARTV}" alt=""></div>
@@ -356,7 +478,7 @@
             <div class="rib9-stars">${'<b>★</b>'.repeat(stars)}${'<u>★</u>'.repeat(5 - stars)}</div>
             <button class="rib9-level" type="button" data-rib-action="view:hub">${esc(String(pl.levelName).toUpperCase())} <span>›</span></button>
           </div>
-          <div class="rib9-ring" style="--rib-ovr:0"><div class="rib9-ring-val" data-rib-field="overall">${esc(pl.ovr)}</div><div class="rib9-ring-lab">OVR</div></div>
+          <div class="rib9-ring" style="--rib-ovr:0"><i class="rib9-ring-spark-v132" aria-hidden="true"></i><div class="rib9-ring-val" data-rib-field="overall">${esc(pl.ovr)}</div><div class="rib9-ring-lab">OVR</div></div>
         </section>
         ${tilesNav}
 
@@ -365,7 +487,8 @@
             <img src="${ART}card_continue.webp${ARTV}" alt="" data-nat="1000,640">
             ${tint(colors, 0, 'card_continue_mask_p', 1, RECOLOR && 'card_continue')}${tint(colors, 1, 'card_continue_mask_s', 1, RECOLOR && 'card_continue')}
             <div class="rib9-hero-jersey rib9-card-jersey" aria-hidden="true" data-at="0.775,0.535"><b>${esc(surname(pl.name))}</b><span>${num}</span></div>
-            <div class="rib9-continue-copy"><h2>CONTINUE<br>CAREER <span>${svg('chev')}</span></h2><div class="rib9-yw">Year ${year} <i></i> Week ${week}</div><div class="rib9-vs">${season.nextOpp ? `vs ${esc(season.nextOpp)} (${record(season)})` : season.weeks.length ? `Season complete (${record(season)})` : `${esc(String(pl.levelName))} · Season ${pl.seasonsAtLevel + 1}`}</div></div>
+            <i class="rib9-streak-v132" aria-hidden="true"></i>
+            <div class="rib9-continue-copy"><h2>CONTINUE<br>CAREER <span>${svg('chev')}</span></h2><div class="rib9-yw">Year ${year} <i></i> Week ${week}</div><div class="rib9-vs">${season.nextOpp ? `vs ${esc(season.nextOpp)} (${record(season)})` : season.weeks.length ? `Season complete (${record(season)})` : `${esc(String(pl.levelName))} · Season ${pl.seasonsAtLevel + 1}`}</div>${season.nextOpp ? '<span class="rib9-nextup-v132">NEXT UP</span>' : ''}</div>
           </section>
           <section class="rib9-card rib9-season">
             <div class="rib9-kicker">SEASON PROGRESS</div>
@@ -466,12 +589,14 @@
   function applyDynamic(menu, data, animateIn) {
     watchArt(menu);
     startHeroFx(menu);   // v102: the hero comes alive
+    startMenuFxV132(menu);   // v132: and the rest of the page with it
     const ring = menu.querySelector('.rib9-ring');
     if (ring) {
       const overall = Math.max(0, Number(data.player && data.player.ovr) || 0);
       ring.style.setProperty('--rib-ovr-color', overall >= 150 ? '#ffe9a0' : overall >= 60 ? '#7ddc6e' : '#e8734a');
       // a young player is still a visible arc: an empty ring reads as a broken ring
-      const applyArc = () => ring.style.setProperty('--rib-ovr', String(Math.max(0.055, Math.min(1, overall / 250))));   // a full circle is 250: ratings run past 99
+      const applyArc = () => { const k = Math.max(0.055, Math.min(1, overall / 250)); ring.style.setProperty('--rib-ovr', String(k));   // a full circle is 250: ratings run past 99
+        const spark = ring.querySelector('.rib9-ring-spark-v132'); if (spark) spark.style.setProperty('--spark', (k * 360).toFixed(1) + 'deg'); };   // v132: the spark rides the head of the arc
       if (animateIn && !prefersReduced()) whenAssetsReady(() => requestAnimationFrame(() => requestAnimationFrame(applyArc)));
       else applyArc();
     }
@@ -489,6 +614,7 @@
         const v = String(Math.round(target * (1 - Math.pow(1 - progress, 3))));
         for (const el of els) el.textContent = v;
         if (progress < 1) requestAnimationFrame(step);
+        else for (const el of els) { const lt = el.closest('.rib9-lt'); if (lt) { lt.classList.add('glint-v132'); setTimeout(() => lt.classList.remove('glint-v132'), 900); } }   // v132: a glint as the number lands
       };
       for (const el of els) el.textContent = '0';
       requestAnimationFrame(step);
@@ -688,6 +814,7 @@
 
   function unmountMenu() {
     stopHeroFx();
+    stopMenuFxV132();   // v132
     // v111: the how-to-play view is a body-level overlay (so the re-render below cannot wipe it);
     // it is a view OF the menu, so it leaves when the menu does
     try { window.dispatchEvent(new Event('rib-menu-unmounted')); } catch (e) { /* older engines */ }

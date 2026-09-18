@@ -150,9 +150,10 @@ const canvasStats = () => {
   }
   console.log('>> Continue to Match ->', clicked)
   let seen = null
-  for (let i = 0; i < 40; i++) { seen = await page.evaluate(() => { const el = document.querySelector('.rib-liveload-v94'); if (!el) return null; const cv = el.querySelector('canvas'); return { chase: el.classList.contains('chase'), inWrap: !!el.closest('.field-wrap'), cap: el.querySelector('.rib-liveload-cap-v94 b').textContent, w: cv ? cv.width : 0, shows: window.__LIVELOAD_V94.shows } }); if (seen && seen.chase) break; await page.waitForTimeout(100) }
+  // v132: door two is the sting — the still of the landed wordmark, the film over it when there is one — and never the chase
+  for (let i = 0; i < 40; i++) { seen = await page.evaluate(() => { const el = document.querySelector('.rib-liveload-v94'); if (!el) return null; const cv = el.querySelector('canvas'), im = el.querySelector('.rib-liveload-still-v132'); return { chase: el.classList.contains('chase') || !!cv, film: el.classList.contains('film'), still: el.classList.contains('still'), inWrap: !!el.closest('.field-wrap'), cap: el.querySelector('.rib-liveload-cap-v94 b').textContent, w: im ? im.getBoundingClientRect().width : 0, shows: window.__LIVELOAD_V94.shows } }); if (seen && seen.still) break; await page.waitForTimeout(100) }
   ok(!!seen, 'the live loader mounts over the field', JSON.stringify(seen))
-  ok(seen && seen.inWrap && seen.chase && seen.w > 0, 'it runs the chase inside .field-wrap', seen && (seen.w + 'px'))
+  ok(seen && seen.inWrap && seen.film && seen.still && !seen.chase && seen.w > 0, 'it shows the sting\'s still inside .field-wrap, and no chase', seen && (seen.w + 'px'))
   ok(seen && /vs/i.test(seen.cap), 'the caption names the matchup', seen && seen.cap)
   await dismiss(); await page.waitForTimeout(200)
   try { await page.locator('.rib-liveload-v94').screenshot({ path: '_splash_live.png' }) } catch (e) { await page.screenshot({ path: '_splash_live.png' }) }

@@ -469,6 +469,7 @@
   document.addEventListener('click', (ev) => { if (ev.target.closest && ev.target.closest('.onboard #onNext')) onboardClicks++; }, true);
   function scan() {
     if (document.querySelector('.onboard')) { sawOnboard = true; return; }   // the cards are up: wait for the player to read them
+    if (document.getElementById('growV132')) return;                          // v132: the offseason body screen is up over the report card — he waits at the door
     if (st.open || !splashGone()) return;
     // the game is saying something (a moment banner, a cinema flash): let it finish first. The class
     // stays on after the 1.7s pop, so it is a window from the moment it appears, not the class itself
