@@ -295,7 +295,7 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 @keyframes badgeSnapV95{0%{transform:translateX(-120%) rotate(-6deg);opacity:1}60%{transform:translateX(0) rotate(-6deg);opacity:1}to{transform:translateX(0) rotate(-6deg);opacity:0}}
 @media (prefers-reduced-motion:reduce){.rib-badge-rays-v95{animation:none}}
 </style>
-<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v132a"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v132a"><link rel="stylesheet" href="./public/rib-menu.css?v=v132a"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v132a"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=v132a"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
+<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v133a"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v133a"><link rel="stylesheet" href="./public/rib-menu.css?v=v133a"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v133a"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=v133a"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
 <body>
 <div id="splash">
 <div class="splash-inner">
@@ -733,13 +733,14 @@ window.addEventListener('unhandledrejection', function(e){
   }
   // ---- one cell, recoloured into a kit (ribRecolor's bands: navy -> primary, gold -> secondary)
   function cell(name, kit) {
-    var key = kit + ':' + name; if (cache[key]) return cache[key];
-    var mc = META[name]; if (!mc) return null;
+    // v133: a kit is a KITS key or a [primary, secondary] pair — the growth screen dresses the boy in his team
+    var K = Array.isArray(kit) ? kit : KITS[kit], key = (Array.isArray(kit) ? kit.join('') : kit) + ':' + name; if (cache[key]) return cache[key];
+    var mc = META && META[name]; if (!mc || !IMG) return null;
     var c = document.createElement('canvas'); c.width = 48; c.height = 48;
     var x = c.getContext('2d'); x.imageSmoothingEnabled = false;
     x.drawImage(IMG, mc[0] * 48, mc[1] * 48, 48, 48, 0, 0, 48, 48);
     if (kit !== 'raw') {
-      var img = x.getImageData(0, 0, 48, 48), d = img.data, P = hx(KITS[kit][0]), Q = hx(KITS[kit][1]);
+      var img = x.getImageData(0, 0, 48, 48), d = img.data, P = hx(K[0]), Q = hx(K[1]);
       for (var i = 0; i < d.length; i += 4) {
         if (d[i + 3] < 20) continue;
         var r = d[i], g = d[i + 1], b = d[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = (mx + mn) / 2;
@@ -995,7 +996,8 @@ window.addEventListener('unhandledrejection', function(e){
     }
     return ctrl;
   }
-  window.__CHASE_V94 = { load: load, make: make, get ready() { return !!IMG; }, get rm() { return RM; } };
+  window.__CHASE_V94 = { load: load, make: make, get ready() { return !!IMG; }, get rm() { return RM; },
+    cell: function (name, kit) { try { return cell(name, kit || 'you'); } catch (e) { return null; } } };   // v133: one recoloured cell, for the growth screen's boy
   load();   // v112 A: the cut happens now, not at the first mount — a page with no splash (the menu preview, a reload straight into the hub) still has its frames ready for the live game's loader
 
   // ---- door one: the boot splash
@@ -17802,12 +17804,17 @@ const GROW_CSS_V132=`
 #growV132 .gw-rule.was span{left:auto;right:5px;top:2px;color:#6d7a8c}
 #growV132 .gw-rule.now{border-top:1px solid #f0bb45;color:#f0bb45;box-shadow:0 0 12px rgba(240,187,69,.35)}
 #growV132.decline .gw-rule.now{border-top-color:#e08a8a;color:#e08a8a;box-shadow:0 0 12px rgba(224,138,138,.3)}
-#growV132 .gw-man,#growV132 .gw-ghost{position:absolute;left:50%;bottom:10px;width:64px;height:160px;transform-origin:50% 100%;transform:translateX(-50%)}
-#growV132 .gw-ghost{opacity:.5}
+#growV132 .gw-man,#growV132 .gw-ghost{position:absolute;left:50%;bottom:10px;width:128px;height:160px;transform-origin:50% 100%;transform:translateX(-50%)}
+#growV132 .gw-ghost{opacity:.3;filter:grayscale(.6) brightness(.9)}
 #growV132 .gw-ghost path,#growV132 .gw-ghost circle,#growV132 .gw-ghost rect{fill:none!important;stroke:#93a0b1;stroke-width:2;stroke-dasharray:4 3}
-#growV132 .gw-man{transition:transform 1.25s cubic-bezier(.2,.9,.25,1.15);filter:drop-shadow(0 8px 14px rgba(0,0,0,.6))}
-#growV132 .gw-man.flash{animation:gwFlash .6s ease}
-@keyframes gwFlash{0%{filter:drop-shadow(0 8px 14px rgba(0,0,0,.6)) brightness(1)}30%{filter:drop-shadow(0 0 22px rgba(240,187,69,.9)) brightness(1.9)}100%{filter:drop-shadow(0 8px 14px rgba(0,0,0,.6)) brightness(1)}}
+#growV132 .gw-cv{position:absolute;left:0;top:0;width:128px;height:160px;image-rendering:pixelated;image-rendering:crisp-edges;transform-origin:50% 100%}
+#growV132 .gw-man .gw-cv{animation:gwBreath 3.4s ease-in-out infinite}
+@keyframes gwBreath{0%,100%{transform:scale(1,1)}50%{transform:scale(1.014,1.026)}}
+#growV132 .gw-svg{position:absolute;left:32px;top:0;width:64px;height:160px}
+#growV132 .gw-man{transition:transform 1.25s cubic-bezier(.2,.9,.25,1.15)}
+#growV132 .gw-man .gw-svg{filter:drop-shadow(0 8px 14px rgba(0,0,0,.6))}
+#growV132 .gw-man.flash .gw-cv,#growV132 .gw-man.flash .gw-svg{animation:gwFlash .6s ease}
+@keyframes gwFlash{0%{filter:brightness(1)}30%{filter:brightness(1.9) drop-shadow(0 0 16px rgba(240,187,69,.9))}100%{filter:brightness(1)}}
 #growV132 .gw-tiles{display:grid;grid-template-rows:repeat(3,1fr);gap:8px}
 #growV132 .gw-tile{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:8px 12px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(0,0,0,.22));text-align:left;overflow:hidden}
 #growV132 .gw-tile small{font:600 10px/1 Oswald,sans-serif;letter-spacing:2.5px;color:#93a0b1}
@@ -17883,7 +17890,40 @@ function growSparksV132(cv,mode,burstAt){
   window.addEventListener("resize",size);
   return{stop(){on=false;cancelAnimationFrame(raf);window.removeEventListener("resize",size)},burst};
 }
-const GROW_V132={open:false,last:null,el:null,fx:null,timers:[],finished:false};
+/* ===== v133 THE BOY IN THE PICTURE =====
+ * The growth screen's figure was a hand-drawn SVG that read as a bollard. It is the game's own man now —
+ * the v91 sheet's front-facing idle (`idle_dn`, 48px, cut and recoloured by the chase's `cell()`, in the
+ * team's colours off the menu feed) — drawn in two pieces so his PROPORTIONS follow his age: the helmet
+ * (rows 0–17 of the cell) sits on the body (rows 18–47) at its own scale. `growStageV133(age)` is the
+ * curve: a child is small with a helmet too big for him, a teen is all limbs (narrow, the helmet
+ * settling), a college man is drawn to scale. His SIZE still comes from `bodyNowV132`'s frame through
+ * the `.gw-man` transform; this only decides the shape inside it. The canvas breathes on its own clock
+ * (`gwBreath`, off under reduced motion); the ghost is last year's shape at last year's size. With no
+ * sheet decoded the SVG stands in. `window.__GROW_V132.stage` / `.fig`. */
+const GROW_NECK_V133=18;   // the row of idle_dn where the helmet ends and the shoulders begin (measured)
+function growStageV133(age){
+  const a=f(Number(age)||18,8,22),L=(x0,y0,x1,y1)=>y0+(y1-y0)*f((a-x0)/(x1-x0),0,1);
+  const head=a<=12?L(8,1.5,12,1.32):a<=15?L(12,1.32,15,1.12):L(15,1.12,18,1);
+  const width=a<=12?L(8,1.06,12,1):a<=15?L(12,1,15,.84):L(15,.84,18,1);
+  return{head:+head.toFixed(3),width:+width.toFixed(3),name:a<=12?"child":a<=17?"teen":"grown"};
+}
+function growKitV133(){try{const d=window.__RIB_MENU_DATA_V89&&window.__RIB_MENU_DATA_V89();const c=d&&d.team&&d.team.colors;if(c&&c.length>=2&&/^#[0-9a-f]{6}$/i.test(c[0])&&/^#[0-9a-f]{6}$/i.test(c[1]))return[c[0],c[1]]}catch(_){}return"you"}
+function growDrawV133(cv,age,kit){
+  const C=window.__CHASE_V94,c=C&&C.cell?C.cell("idle_dn",kit):null;if(!c||!cv||!cv.getContext)return null;
+  const stg=growStageV133(age),W=128,H=160,dpr=Math.min(3,window.devicePixelRatio||1);   // v133: the box is twice the cell's width, so the arms at full height never leave it
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);const x=cv.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);x.imageSmoothingEnabled=false;x.clearRect(0,0,W,H);
+  x.save();x.fillStyle="rgba(0,0,0,.42)";x.beginPath();x.ellipse(W/2,H-3,22,4,0,0,6.283);x.fill();x.restore();   // the ground under him, drawn here rather than as a CSS filter (a filter rasterises the layer and smooths the pixels)
+  const N=GROW_NECK_V133,bodyRows=48-N-2,headRows=N-2;               // the cell's empty top and bottom rows are not drawn
+  // one cell row in canvas px: the whole man fits the box's height, and his INK (the body spans columns
+  // 11–37 of the cell, the helmet 12–34) fits its width — the arms were cut off at the sides otherwise
+  const k=Math.min((H-4)/(bodyRows+headRows*stg.head),(W-4)/Math.max(26*stg.width,22*stg.head*Math.sqrt(stg.width)));
+  const bw=48*k*stg.width,bh=bodyRows*k,bx=(W-bw)/2,by=H-2-bh;
+  x.drawImage(c,0,N,48,bodyRows,bx,by,bw,bh);
+  const hk=k*stg.head,hw=48*hk*Math.sqrt(stg.width),hh=headRows*hk,hx=(W-hw)/2,hy=by+k*1.5-hh;   // the chin overlaps the shoulders by a row and a half
+  x.drawImage(c,0,2,48,headRows,hx,hy,hw,hh);
+  return{mode:"sprite",stage:stg,k:+k.toFixed(3)};
+}
+const GROW_V132={open:false,last:null,el:null,fx:null,timers:[],finished:false,fig:null};
 function growCloseV132(){
   const g=GROW_V132.el;if(!g)return;
   GROW_V132.timers.forEach(clearTimeout);GROW_V132.timers=[];
@@ -17923,7 +17963,7 @@ function growShowV132(e,opts){
         <div class="gw-fig">
           <div class="gw-rule was" style="bottom:${ruleBottom(d.b0)}"><span>${fmtH(d.b0.height)}</span></div>
           <div class="gw-rule now" data-gw-rule style="bottom:${ruleBottom(d.b0)}"><span data-gw-rule-lab>${fmtH(d.b0.height)}</span></div>
-          ${growFigV132("gw-ghost")}${growFigV132("gw-man")}
+          <div class="gw-ghost" data-gw-fig="ghost"></div><div class="gw-man" data-gw-fig="man"></div>
         </div>
         <div class="gw-tiles">
           <div class="gw-tile"><small>HEIGHT</small><b data-gw-n="ht">${fmtH(d.b0.height)}</b><i class="${chipCls(dH)}">${chip(dH,'"')}</i><div class="gw-bar" data-gw-bar style="--to:${Math.round(100*d.b1.height/adultH)}%"></div></div>
@@ -17940,6 +17980,11 @@ function growShowV132(e,opts){
   document.body.appendChild(g);GROW_V132.el=g;GROW_V132.open=true;GROW_V132.finished=false;
   try{const C=window.__RIB_COACH;if(C&&C.isOpen&&C.close)C.close("grow")}catch(_){}
   const man=g.querySelector(".gw-man"),ghost=g.querySelector(".gw-ghost");
+  // v133: the boy himself — the sheet's idle man at this year's proportions, last year's as the ghost; the SVG only if the sheet never decoded
+  {const kit=growKitV133();let fig=null;
+    try{const cm=document.createElement("canvas");cm.className="gw-cv";fig=growDrawV133(cm,d.age,kit);if(fig){man.appendChild(cm);const cg=document.createElement("canvas");cg.className="gw-cv";growDrawV133(cg,d.prev,kit);ghost.appendChild(cg)}}catch(_){fig=null}
+    if(!fig){man.innerHTML=growFigV132("gw-svg");ghost.innerHTML=growFigV132("gw-svg");fig={mode:"svg",stage:growStageV133(d.age)}}
+    GROW_V132.fig=fig;}
   man.style.transform=`translateX(-50%) scale(${s0.sx.toFixed(3)},${s0.sy.toFixed(3)})`;ghost.style.transform=`translateX(-50%) scale(${s0.sx.toFixed(3)},${s0.sy.toFixed(3)})`;
   const Q=(fn,ms)=>{const id=setTimeout(()=>{try{fn()}catch(_){}},ms);GROW_V132.timers.push(id);return id};
   const count=(el,from,to,fmt,ms,tone)=>{if(from===to){el.textContent=fmt(to);return}const t0=performance.now();let lastV=from;const step=(now)=>{if(!el.isConnected)return;const p=Math.min(1,(now-t0)/ms),v=Math.round(from+(to-from)*(1-Math.pow(1-p,3)));if(v!==lastV){lastV=v;el.textContent=fmt(v);growBlipV132(tone+Math.abs(v-from)*6,38,.035)}if(p<1)requestAnimationFrame(step)};requestAnimationFrame(step)};
@@ -17983,7 +18028,7 @@ function growMaybeV132(e){
   }catch(_){return false}
 }
 const _AlV132=Al;Al=function(){const r=_AlV132.apply(this,arguments);growMaybeV132(o.player);return r};
-window.__GROW_V132={get open(){return GROW_V132.open},get last(){return GROW_V132.last},get finished(){return GROW_V132.finished},data:growDataV132,show:(opts)=>growShowV132(o.player,Object.assign({replay:true},opts||{})),close:growCloseV132,finish:()=>{const g=GROW_V132.el;if(g&&!GROW_V132.finished)g.click()}};
+window.__GROW_V132={get open(){return GROW_V132.open},get last(){return GROW_V132.last},get finished(){return GROW_V132.finished},get fig(){return GROW_V132.fig},stage:growStageV133,draw:growDrawV133,kit:growKitV133,data:growDataV132,show:(opts)=>growShowV132(o.player,Object.assign({replay:true},opts||{})),close:growCloseV132,finish:()=>{const g=GROW_V132.el;if(g&&!GROW_V132.finished)g.click()}};
 
 const fc=Aa;Aa=function(){fc();const e=o.player,t=x("screen");if(!(!e||!t)){if(o.view==="hub"&&!t.querySelector(".age-card")){const a=t.querySelector(".depth-card")||t.querySelector(".card");a&&a.insertAdjacentHTML("afterend",An(e))}if(o.view==="result"&&!t.querySelector(".age-card")){const a=t.querySelector(".depth-card")||t.querySelector(".season-grade")||t.firstElementChild;a&&a.insertAdjacentHTML("afterend",An(e));const s=e.lastResult||o.lastResult;s&&s.youngRecoveries>0&&t.insertAdjacentHTML("afterbegin",`<div class="card tight" style="border-color:var(--good)"><div class="small">🩹 Youth recovery prevented <b style="color:var(--good)">${s.youngRecoveries}</b> game injur${s.youngRecoveries===1?"y":"ies"} this season.</div></div>`),e.retirementPending&&(t.insertAdjacentHTML("afterbegin",`<div class="banner nfl"><div class="big-emoji">🏛️</div><div class="bt">Mandatory Retirement — Age ${e.age}</div><div class="bs">No player may begin another season after age ${Qt}. Your final season is complete.</div></div>`),x("dock").innerHTML=`<button class="btn" onclick="endCareer()">Retire at Age ${e.age} · View Legacy</button>`)}}};const hc=na;na=function(){if(o.player&&o.player.age>=Qt){o.player.retirementPending=!0,o.view="result",q();return}return hc()};function mc(){if(o=dr()||Zs(),o.tree||(o.tree={}),o.shop){const t={genetics:"genetics",talent:"talent",iron:"iron",coachable:"coachable",headstart:"headstart"};for(const a in o.shop)t[a]&&o.shop[a]>0&&(o.tree[t[a]]=Math.max(o.tree[t[a]]||0,o.shop[a]));delete o.shop}if(o.player&&!o.player.body&&(o.player.body=Pi({height:0,weight:0,muscle:0})),o.challenges||(o.challenges={}),o.titlesWon==null&&(o.titlesWon=0),o.recordOvr==null&&(o.recordOvr=0),o.careersCompleted==null&&(o.careersCompleted=0),o.objectivesCompleted==null&&(o.objectivesCompleted=0),o.rings==null&&(o.rings=0),o.chaos||(o.chaos={}),o.mastery||(o.mastery={}),o.chaosUnlocked==null&&(o.chaosUnlocked=!1),o.chaosCap==null&&(o.chaosCap=Math.max(Ie(),o.chaosUnlocked?6:0)),o.era==null&&(o.era=0),o.hof||(o.hof=[]),o.hofWings==null&&(o.hofWings=0),o.posMastery||(o.posMastery={}),o.inventory||(o.inventory=[]),o.equipped||(o.equipped={}),o.player&&!o.player.nemesis&&_i(o.player),o.player){const t=o.player;t.traits||(t.traits=Ai()),t.teamIdentity||(t.teamIdentity=Xs()),t.titles==null&&(t.titles=0),t.declareBonus==null&&(t.declareBonus=0),t.seasonSeed||(t.seasonSeed=le(1,2e9)),oa(t)}(o.view==="sim"||o.view==="live"||o.view==="training"||o.view==="event")&&(o.view="hub"),q(),setTimeout(hr,1850);const e=document.getElementById("splash");e&&(window.__splashDoneV94?window.__splashDoneV94():(setTimeout(()=>e.classList.add("gone"),1100),setTimeout(()=>{e.parentNode&&e.parentNode.removeChild(e)},1700)))}window.go=te;/* v20 fix: dock Back buttons reference a global `S` (the state) that was never exported — every `go(S.player...)` onclick threw a ReferenceError, so Back appeared dead on menu-reachable screens. Expose the live state as a getter. */try{Object.defineProperty(window,"S",{configurable:!0,get:()=>o})}catch(_e){window.S=o}
 /* v20 personality side-effects (two-sided sliders): varMult widens/narrows game-to-game swings around 50, injMult scales injury rolls both ways. v23: perfFlat is NO LONGER a rating bump here — it is a REAL flat stat boost applied inside the sim's attribute accessor (_raw), so it shows up as actual production (and flows into the box-score grade) instead of an abstract "+performance" number. */
@@ -18884,7 +18929,7 @@ function tpRangeV113(pj,ks){const vs=ks.map(k=>pj[k]||0);if(!vs.length)return"";
   const sg=v=>(v>=0?"+":"\u2212")+Math.abs(v);   // v124: a program that TRADES can project a negative, and "+-1" is not a number
   return lo===hi?sg(hi):sg(lo)+" to "+sg(hi)}
 // one attribute: where it stands, and the light-blue length this program would add to it
-function tpRowV113(e,k,g,pri){
+function tpRowV113(e,k,g,pri,gmax){
   // the bar is drawn against the SOFT CAP, not the absolute wall: at 12 of an eventual 250
   // every stat read as a sliver, and the number that actually governs this season is the cap
   // the next point starts costing more at. A stat already past it stretches the scale to fit
@@ -18894,9 +18939,10 @@ function tpRowV113(e,k,g,pri){
   const up=g>0?Math.min(100-pct,Math.max(TP_SEG_MIN_V113,g/scale*100)):0;
   const dn=g<0?Math.min(pct,Math.max(TP_SEG_MIN_V113,-g/scale*100)):0;
   const capPct=scale>cap+.5?f(cap/scale*100,0,100):0;
-  return `<div class="tp-row-v113${pri?" pri":""}${g<0?" neg":""}">
+  const tier=attrTierV133(e,k,g,gmax);   // v133: the colour of the season it would add
+  return `<div class="tp-row-v113${pri?" pri":""}${g<0?" neg":""} tier-${tier}" data-tier="${tier}">
       <div class="tp-rt-v113"><span class="tp-rn-v113">${Le[k].icon} ${Le[k].name}</span><span class="tp-rv-v113">${cur}${gn!==0?`<em>→ ${W1(cur+g)}</em>`:""}<span class="tp-capn-v113">/ ${W1(cap)} cap</span></span></div>
-      <div class="track ${tr(cur)} tp-bar-v113"><i style="width:${pct}%"></i>${up?`<b class="tp-up-v113${pri?" flash":""}" style="left:${pct}%;width:${up}%"></b>`:""}${dn?`<b class="tp-dn-v113" style="left:${pct-dn}%;width:${dn}%"></b>`:""}${capPct?`<b class="tp-capt-v113" style="left:${capPct}%"></b>`:""}</div>
+      <div class="track ${tr(cur)} tp-bar-v113"><i style="width:${pct}%"></i>${up?`<b class="tp-up-v113${pri?" flash":""} tier-${tier}" style="left:${pct}%;width:${up}%"></b>`:""}${dn?`<b class="tp-dn-v113" style="left:${pct-dn}%;width:${dn}%"></b>`:""}${capPct?`<b class="tp-capt-v113" style="left:${capPct}%"></b>`:""}</div>
     </div>`;
 }
 // the sheet under the grid: what a season of ONE program does to all seventeen stats
@@ -18914,20 +18960,21 @@ function tpPanelV113(e,key,sug){
   const fd=PLAN_FATE_V124[key],fate=fd?`<div class="threshold-note" style="margin-top:6px;color:#c9b8ff;border-color:rgba(201,184,255,.45)">\ud83c\udfb2 <b>THIS ONE IS A ROLL \u00b7 ${Math.round(planFateOddsV124(key)*100)}% IT LANDS</b><br><span style="color:#9fe6b0">Lands:</span> the trade above is <b>waived entirely</b> and every priority stat grows <b>\u00d7${fd.hi}</b>. <span style="color:#ff9b93">Misses:</span> the trade <b>doubles</b> (${Object.entries(n.cost||{}).map(([k,m])=>`${m*2} ${Le[k].name}`).join(", ")||"nothing to double"}) and priority growth is cut to <b>\u00d7${fd.lo}</b>.<br><span style="color:var(--chalk-dim)">The bars above show the AVERAGE of those two, so they are honest about a season you cannot predict. Weighted Coin raises the odds, Loaded Dice rolls twice and keeps the better, House Money pays part of a miss, Scripted Destiny rewrites one failure a season.</span></div>`:"";
   // priority stats first — they are the answer to "what would this improve" — then the rest
   // of the sheet in its usual order, so the eye can compare two programs row for row
-  const rest=ee.filter(k=>!pri(k)),lead=ee.filter(pri);
-  const rows=g=>g.map(k=>tpRowV113(e,k,pj[k]||0,pri(k))).join("");
+  const gmax=Math.max(.01,...ee.map(k=>pj[k]||0)),TR={green:0,blue:1,red:2,none:3,cost:4},byTier=ks=>ks.slice().sort((a,b)=>(TR[attrTierV133(e,a,pj[a]||0,gmax)]||0)-(TR[attrTierV133(e,b,pj[b]||0,gmax)]||0));   // v133: green first, then blue, then red
+  const rest=byTier(ee.filter(k=>!pri(k))),lead=byTier(ee.filter(pri));
+  const rows=g=>g.map(k=>tpRowV113(e,k,pj[k]||0,pri(k),gmax)).join("");
   return `<div class="tp-panel-v113">
       <div class="train-head">
         ${window.RIB_SKILL_ICO?window.RIB_SKILL_ICO("tp_"+key,n.icon,54):`<span style="font-size:24px">${n.icon}</span>`}
         <div style="flex:1;min-width:0">
-          <div class="pn">${n.name} ${key===sug?'<span class="fit-tag fit-natural">SUGGESTED</span>':""}</div>
+          <div class="pn">${n.name} ${key===sug?'<span class="fit-tag fit-natural">SUGGESTED</span>':""}${(()=>{try{const gb=boardGradesV133(e,sug).by[key];return gb?`<span class="tp-tierpill-v133" data-tier="${gb.tier}" style="color:${TIER_V133[gb.tier].col};border-color:${TIER_V133[gb.tier].col}">${TIER_V133[gb.tier].name}</span>`:""}catch(_){return""}})()}</div>
           <div class="train-meta"><span style="color:var(--good)">${head}</span> · <span style="color:${rc}">${risk}</span>${n.bonusPoints?` · <span style="color:var(--gold)">+${n.bonusPoints} pts</span>`:""}${cp?` · <span style="color:${cp.col}">${cp.label}</span>`:""}</div>
         </div>
       </div>
       <div class="pd" style="margin-top:7px">${n.desc}</div>
       <div class="train-chips">${chips}${costs}</div>
       ${trade}${fate}
-      <div class="tp-legend-v113"><span><b class="tp-key-v113 flash"></b> LIGHT BLUE · WHAT THIS PROGRAM IMPROVES THIS SEASON</span>${costs?'<span><b class="tp-key-v113 dn"></b> WHAT IT COSTS</span>':""}</div>
+      <div class="tp-legend-v113"><span><b class="tp-key-v113 tier-green flash"></b> GREEN · A KEY STAT WITH ROOM</span><span><b class="tp-key-v113 tier-blue"></b> BLUE · A SOLID GAIN</span><span><b class="tp-key-v113 tier-red"></b> RED · CAPPED, OR MINOR</span>${costs?'<span><b class="tp-key-v113 dn"></b> WHAT IT COSTS</span>':""}</div>
       <div class="tp-rows-v113">
         <div class="tp-grouphead-v113">${foc?"PRIORITY GROWTH":"EVERY STAT — NOTHING IS PRIORITISED"}</div>
         ${rows(lead)}
@@ -18935,19 +18982,82 @@ function tpPanelV113(e,key,sug){
       </div>
     </div>`;
 }
+/* ===== v133 THE COACH GRADES THE BOARD =====
+ * The board suggested ONE program off the single furthest-behind stat (v124) and told you nothing about
+ * the other eleven. Every program is graded now, from what a season of it would actually do to THIS
+ * sheet: `attrTierV133` grades one attribute under one program — GREEN when it is a stat the position is
+ * graded on (or a body stat that is breaking down) with room under its soft cap and a real gain, BLUE
+ * when the gain is real but the stat is secondary or near its cap, RED when it is at its cap (the next
+ * point costs double), secondary, or barely moves — and `trainGradeV133` sums a program's focus stats by
+ * the position's own weights into a value (a program that TRADES a key stat is dragged down). Relative
+ * to the best on the board: GREEN pushes several key stats with room (or is the coach's pick), BLUE is a
+ * solid gain, RED is minor or mostly capped; Balanced is BLUE by nature. `Hi` (the pick) is the best
+ * graded value now, not the single top stat — except a body that is breaking down still sends him to
+ * Conditioning, as v124 decided. The tiles wear the tier as a colour and a pill, the pick wears a
+ * ribbon and a pulse, the sheet's bars are shaded per attribute (green / blue / red) and sorted by it,
+ * and the coach's note says why in one line, with the runner-up. `window.__V133`; `gradecheck.mjs`. */
+const TIER_V133={green:{name:"KEY",col:"#7fe0a0"},blue:{name:"SOLID",col:"#7ec8ff"},red:{name:"MINOR",col:"#ff8a80"}};
+// the stats a position is graded on: its four heaviest weights — plus a body stat that is actually breaking down
+function keyStatsV133(e){const W=Ee[e.pos].w,top=Object.keys(W).sort((a,b)=>(W[b]||0)-(W[a]||0)).slice(0,4);
+  for(const k of["injuryResist","stamina"])if((e.attrs[k]||0)<14+e.level*3&&top.indexOf(k)<0)top.push(k);return top}
+// one attribute under one program. Gains are fractions of a point at Pee Wee and several in the DFL, so a
+// gain is read RELATIVE to the best gain on the sheet (gmax), never against a fixed number of points
+function attrTierV133(e,k,g,gmax){
+  const cur=e.attrs[k]||0,cap=f(drSoftCap(e,k),1,we()),room=cap-cur,key=keyStatsV133(e).indexOf(k)>=0,rel=g/Math.max(.01,gmax||Math.max(1,g));
+  if(g<0)return"cost";if(g<=0)return"none";
+  if(room<=0||rel<.3)return"red";
+  if(key&&rel>=.55)return"green";
+  return(key||rel>=.55)?"blue":"red";
+}
+function trainGradeV133(e,key){
+  const n=pt[key],pj=projectSeasonGainsV85(e,key,!0),foc=n.focus&&n.focus.length?n.focus:ee.slice(),W=Ee[e.pos].w,top=Math.max(1,...Object.values(W)),gmax=Math.max(.01,...ee.map(k=>pj[k]||0)),KEY=keyStatsV133(e);
+  let value=0;const keyHits=[],blue=[],red=[],capped=[];
+  for(const k of foc){const g=pj[k]||0,t=attrTierV133(e,k,g,gmax),want=Math.max((W[k]||0)/top,KEY.indexOf(k)>=0?.8:0),cur=e.attrs[k]||0,cap=f(drSoftCap(e,k),1,we());
+    if(t==="green")keyHits.push(k);else if(t==="blue")blue.push(k);else if(t==="red")red.push(k);
+    if(cap-cur<=0)capped.push(k);
+    if(n.focus)value+=Math.max(0,g)*(.35+want)*(cap-cur>0?1:.25)}
+  let costKey=0;if(n.cost)for(const k in n.cost)if((W[k]||0)/top>=.8)costKey++;
+  value-=costKey*1.2;
+  return{key,name:n.name,value:+value.toFixed(2),keyHits,blue,red,capped,focus:foc,costKey,balanced:!n.focus};
+}
+function boardGradesV133(e,sug){
+  const all=Object.keys(pt).map(k=>trainGradeV133(e,k)),best=Math.max(.01,...all.map(g=>g.value));
+  for(const g of all){const capShare=g.capped.length/Math.max(1,g.focus.length),P=e.pos;g.rel=+(g.value/best).toFixed(2);const rel=g.rel;   // the rounded number is the one the tier reads, so the board and its check agree
+    g.tier=g.key===sug?"green":g.balanced?"blue":(g.keyHits.length>=2&&rel>=.5&&capShare<.5)?"green":(rel>=.3&&capShare<.5&&(g.keyHits.length||g.blue.length>=2))?"blue":"red";
+    const nm=ks=>ks.map(k=>Le[k].name).join(", ");
+    g.why=g.balanced?"Even growth on every stat. Never wrong, never the fastest road to the stats a "+P+" is graded on."
+      :g.tier==="green"?(g.keyHits.length?`Pushes ${g.keyHits.length} key stat${g.keyHits.length===1?"":"s"} for a ${P} — ${nm(g.keyHits)} — with room under the cap${g.keyHits.length===1?"":"s"}.`:`The coach's pick — ${nm(g.focus.slice(0,3))} is where the sheet is furthest behind.`)
+      :g.tier==="blue"?`A real gain — ${nm([...g.keyHits,...g.blue].slice(0,3))||"across the sheet"} — but ${g.keyHits.length?"only one stat a "+P+" is graded on":"nothing a "+P+" is graded on"}${g.capped.length?", and "+nm(g.capped)+" already at cap":""}.`
+      :g.capped.length>=Math.ceil(g.focus.length/2)?`Mostly capped: ${nm(g.capped)} ${g.capped.length===1?"is":"are"} at the soft cap, so every point here costs double.`
+      :g.costKey?`Trades away a stat a ${P} is graded on. The growth does not pay for the loss.`
+      :`Minor for a ${P}: ${nm(g.focus.slice(0,3))} ${g.focus.length===1?"is":"are"} secondary at your position.`}
+  all.sort((a,b)=>b.value-a.value);
+  return{all,by:Object.fromEntries(all.map(g=>[g.key,g])),sug,best,runner:all.find(g=>g.key!==sug&&!g.balanced)||null};
+}
+// the pick: the best graded season for THIS sheet — the body's own rule (v124) still sends a breaking-down man to Conditioning
+const HiV124=Hi;Hi=function(e){
+  try{const top=trainScoreV124(e)[0];if(top&&top.key==="injuryResist")return"conditioning";
+    const all=Object.keys(pt).filter(k=>pt[k].focus).map(k=>trainGradeV133(e,k)).sort((a,b)=>b.value-a.value);
+    if(all.length&&all[0].value>0)return all[0].key}catch(_){}
+  return HiV124(e);
+};
+window.__V133={grade:(e,k)=>trainGradeV133(e||(o&&o.player),k),board:e=>{const p=e||(o&&o.player);return boardGradesV133(p,Hi(p))},attr:(e,k,g,gm)=>attrTierV133(e||(o&&o.player),k,g,gm),keys:e=>keyStatsV133(e||(o&&o.player)),tiers:TIER_V133,stage:typeof growStageV133=="function"?growStageV133:null};
 jr=function(){
-  const e=o.player,t=A[e.level],sug=Hi(e),key=tpSelV113&&pt[tpSelV113]?tpSelV113:sug;
+  const e=o.player,t=A[e.level],sug=Hi(e),key=tpSelV113&&pt[tpSelV113]?tpSelV113:sug,GR=boardGradesV133(e,sug);
   tpSelV113=key;
   x("screen").innerHTML=`
     <div class="eyebrow">${t.name} · Offseason</div>
     <div class="h1">Choose Your Training</div>
-    <div class="sub">This is where careers are built. Tap a program to see the season it would give you — the bars below are your stats today, and the light blue is what it adds. Nothing is locked until you confirm.<br><span style="color:var(--chalk-dim)">Each stat shows what your next <b>+1</b> costs in skill points: <b style="color:#7fe0a0">1 pt</b> below its soft cap, then <b style="color:#f0bb45">2</b>, <b style="color:#ff9a5a">3</b>, <b style="color:#ff8a80">4+</b> above it. Priority growth into a capped stat is growth you cannot afford to keep.</span></div>
-    ${(()=>{const w=trainWhyV124(e);return w?`<div class="threshold-note" style="margin-bottom:8px">\ud83d\udcdd <b>COACH SUGGESTS ${pt[sug].name.toUpperCase()}</b> \u00b7 ${w.line}</div>`:""})()}
+    <div class="sub">This is where careers are built. Tap a program to see the season it would give you — the bars below are your stats today, and the colour on each bar is what it adds: <b style="color:#7fe0a0">green</b> for a key stat with room, <b style="color:#7ec8ff">blue</b> for a solid gain, <b style="color:#ff8a80">red</b> for a stat that is capped or barely moves. Nothing is locked until you confirm.<br><span style="color:var(--chalk-dim)">Each stat shows what your next <b>+1</b> costs in skill points: <b style="color:#7fe0a0">1 pt</b> below its soft cap, then <b style="color:#f0bb45">2</b>, <b style="color:#ff9a5a">3</b>, <b style="color:#ff8a80">4+</b> above it. Priority growth into a capped stat is growth you cannot afford to keep.</span></div>
+    ${(()=>{const w=trainWhyV124(e),g=GR.by[sug];return`<div class="threshold-note tp-note-v133" style="margin-bottom:8px">\ud83d\udcdd <b>COACH SUGGESTS ${pt[sug].name.toUpperCase()}</b> \u00b7 ${g?g.why:""}${w?` <span class="tp-need-v133">Top need: ${w.line.replace(/^Train /,"")}</span>`:""}${GR.runner?` <span class="tp-runner-v133">Runner-up: <b>${GR.runner.name}</b>.</span>`:""}</div>
+      <div class="tp-tierkey-v133"><span><b style="background:${TIER_V133.green.col}"></b>GREEN · SEVERAL KEY STATS, ROOM TO GROW</span><span><b style="background:${TIER_V133.blue.col}"></b>BLUE · A SOLID, MODERATE GAIN</span><span><b style="background:${TIER_V133.red.col}"></b>RED · MINOR, OR CAPPED OUT</span></div>`})()}
     <div class="tp-grid-v113">
-      ${Object.entries(pt).map(([s,n])=>{const[risk,rc]=tpRiskV113(n);return`<div class="pos-card train-card tp-tile-v113${s===key?" sel":""}${s===sug?" best":""}" onclick="previewTraining('${s}')">
+      ${Object.entries(pt).map(([s,n])=>{const[risk,rc]=tpRiskV113(n),g=GR.by[s],T=TIER_V133[g.tier];return`<div class="pos-card train-card tp-tile-v113 tier-${g.tier}${s===key?" sel":""}${s===sug?" best":""}" onclick="previewTraining('${s}')" title="${g.why.replace(/"/g,"&quot;")}">
+          ${s===sug?'<i class="tp-pick-v133">COACH\'S PICK</i>':""}
           ${window.RIB_SKILL_ICO?window.RIB_SKILL_ICO("tp_"+s,n.icon,46):`<span style="font-size:24px">${n.icon}</span>`}
           <div class="tp-tname-v113">${n.name}</div>
           <div class="tp-trisk-v113" style="color:${rc}">${PLAN_FATE_V124[s]?`\ud83c\udfb2 ${Math.round(planFateOddsV124(s)*100)}%`:risk}</div>
+          <div class="tp-tier-v133" data-tier="${g.tier}" style="color:${T.col}">${g.tier==="green"&&g.keyHits.length?`${T.name} \u00d7${g.keyHits.length}`:g.tier==="red"&&g.capped.length>=Math.ceil(g.focus.length/2)?"CAPPED":T.name}</div>
         </div>`}).join("")}
     </div>
     ${tpPanelV113(e,key,sug)}
@@ -18964,6 +19074,29 @@ window.__V113={get sel(){return tpSelV113},set sel(v){tpSelV113=v},preview:k=>wi
 })();
 </script>
 <style id="tp-v113">
+/* ===== v133 THE COACH GRADES THE BOARD — the tiers, the pick, the shaded bars ===== */
+.pos-card.tp-tile-v113{position:relative;overflow:visible;border-width:1px}
+.pos-card.tp-tile-v113.tier-green{border-color:#7fe0a0aa;background:linear-gradient(180deg,#183324cc,#0f1a15cc);box-shadow:0 0 0 1px #7fe0a022 inset,0 6px 16px #0006}
+.pos-card.tp-tile-v113.tier-blue{border-color:#7ec8ff88;background:linear-gradient(180deg,#16283dcc,#0f1826cc)}
+.pos-card.tp-tile-v113.tier-red{border-color:#ff8a8066;background:linear-gradient(180deg,#331a1acc,#1a0f0fcc);opacity:.88}
+.pos-card.tp-tile-v113.sel{box-shadow:0 0 0 2px #fff inset,0 0 14px #ffffff33}
+.pos-card.tp-tile-v113.best{border-color:#f0bb45;box-shadow:0 0 0 1px #f0bb4566 inset,0 0 18px #f0bb4555;animation:tpPickPulse 2.2s ease-in-out infinite}
+.pos-card.tp-tile-v113.best.sel{box-shadow:0 0 0 2px #fff inset,0 0 18px #f0bb4577}
+@keyframes tpPickPulse{0%,100%{box-shadow:0 0 0 1px #f0bb4566 inset,0 0 12px #f0bb4544}50%{box-shadow:0 0 0 1px #f0bb45aa inset,0 0 26px #f0bb4599}}
+.tp-pick-v133{position:absolute;left:50%;top:-9px;transform:translateX(-50%);white-space:nowrap;font:700 8px/1 Oswald,sans-serif;letter-spacing:1.6px;color:#1a1206;background:linear-gradient(180deg,#ffd76f,#d9a028);padding:4px 7px;border-radius:999px;box-shadow:0 3px 8px #0008;z-index:2;font-style:normal}
+.tp-tier-v133{font:700 8px/1 Oswald,sans-serif;letter-spacing:1.4px;margin-top:2px;padding:3px 6px;border-radius:999px;background:#00000055}
+.tp-tierpill-v133{display:inline-block;margin-left:6px;padding:2px 7px;border:1px solid;border-radius:999px;font:700 9px/1.2 Oswald,sans-serif;letter-spacing:1.4px;vertical-align:middle}
+.tp-note-v133{border-color:#f0bb4577;background:linear-gradient(180deg,#2a2210cc,#141008cc)}
+.tp-need-v133{display:block;margin-top:4px;color:var(--chalk-dim)}
+.tp-runner-v133{display:block;margin-top:2px;color:var(--chalk-dim)}
+.tp-tierkey-v133{display:flex;flex-wrap:wrap;gap:6px 12px;margin:0 0 4px;font:600 8.5px/1 Oswald,sans-serif;letter-spacing:1.3px;color:var(--chalk-dim)}
+.tp-tierkey-v133 span{display:inline-flex;align-items:center;gap:5px}
+.tp-tierkey-v133 b{display:inline-block;width:10px;height:10px;border-radius:3px}
+.tp-up-v113.tier-green{background:#7fe0a0!important}.tp-up-v113.tier-blue{background:#7ec8ff!important}.tp-up-v113.tier-red{background:#ff8a80!important}
+.tp-row-v113.tier-green .tp-rv-v113 em{color:#7fe0a0}.tp-row-v113.tier-red .tp-rv-v113 em{color:#ff8a80}
+.tp-row-v113.tier-green .tp-rn-v113{color:#bff0cf}.tp-row-v113.tier-red .tp-rn-v113{color:#e7b3ad}
+.tp-key-v113.tier-green{background:#7fe0a0}.tp-key-v113.tier-blue{background:#7ec8ff}.tp-key-v113.tier-red{background:#ff8a80}
+@media (prefers-reduced-motion:reduce){.pos-card.tp-tile-v113.best{animation:none}}
 /* ===== v113 THE TRAINING BOARD — twelve scenes four across, and the sheet under them ===== */
 .tp-grid-v113{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:14px}
 .pos-card.tp-tile-v113{flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;text-align:center;padding:9px 4px;margin:0;min-width:0}
@@ -23124,5 +23257,5 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   try { window.__HUB_V75 = { views: VIEWS, tabs: TAB, sweep } } catch (e) {}
 })();
 </script>
-<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v132a"></script><script src="./public/rib-menu-boot.js?v=v132a"></script><script src="./public/rib-menu.js?v=v132a"></script><script src="./public/rib-menu-howto.js?v=v132a"></script><script src="./public/rib-menu-coach.js?v=v132a"></script><script src="./public/rib-menu-navigation.js?v=v132a"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
+<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v133a"></script><script src="./public/rib-menu-boot.js?v=v133a"></script><script src="./public/rib-menu.js?v=v133a"></script><script src="./public/rib-menu-howto.js?v=v133a"></script><script src="./public/rib-menu-coach.js?v=v133a"></script><script src="./public/rib-menu-navigation.js?v=v133a"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
 </html>

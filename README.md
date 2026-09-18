@@ -55,6 +55,32 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v133 — the coach grades the board, the boy in the picture, and a coach with a mouth on him.** Three
+  things. **THE COACH GRADES THE BOARD**: the offseason board suggested one program off the single
+  furthest-behind stat and said nothing about the other eleven. Every program is graded now, from what a
+  season of it would actually do to THIS sheet: `attrTierV133` grades one attribute under one program —
+  GREEN when it is a stat the position is graded on (its four heaviest weights, or a body stat that is
+  breaking down) with room under its soft cap and a real gain, BLUE when the gain is real but the stat is
+  secondary or near its cap, RED when it is at its cap, secondary, or barely moves — read RELATIVE to the
+  sheet's best gain, because a gain is a fraction of a point at Pee Wee and several in the DFL.
+  `trainGradeV133` sums a program's focus stats by the position's weights into a value (trading a key
+  stat drags it down) and `boardGradesV133` ranks the board: GREEN pushes several key stats with room,
+  BLUE is a solid gain, RED is minor or mostly capped, Balanced is BLUE by nature. The pick (`Hi`) is the
+  best graded value now, not the single top stat — a breaking body still goes to Conditioning. The tiles
+  wear the tier as a colour and a pill (KEY ×3 / SOLID / MINOR / CAPPED), the pick wears a COACH'S PICK
+  ribbon and a pulse, the sheet's bars are shaded per attribute and sorted green > blue > red, and the
+  coach's note says why in a line with the runner-up. **THE BOY IN THE PICTURE**: the growth screen's
+  hand-drawn SVG is the game's own man now — the v91 sheet's front-facing idle, cut and recoloured in
+  the team's colours by the chase's `cell()` (lent out on `__CHASE_V94.cell`), drawn in two pieces so his
+  PROPORTIONS follow his age (`growStageV133`): a child is small with a helmet too big for him, a teen
+  is all limbs, a college man is drawn to scale; he breathes (`gwBreath`), the ghost is last year's shape.
+  **A MOUTH ON HIM**: a coach line has a MOOD (`moodOf`) — brash on a barked pose, an exclamation or the
+  vocabulary in `BRASH_RE`, calm on the soft poses — and the voice follows it: brash is lower, louder,
+  faster, driven through a waveshaper so it rasps, with a bark on the first letter of a word; calm is
+  rounder through a lowpass; every line gets a word accent, a settling at the end of a sentence and a
+  breath before it. And forty-odd QUIPS for the laugh, one thrown in on about a third of the lines as a
+  tag on the bubble, barked. `gradecheck.mjs`, `growcheck.mjs`, `coachcheck.mjs`; `growshot.mjs`
+  (`BOARD=1` shoots the board too).
 - **v132 — the sting at every door, a year older, and a thousand hours on the menu.** Three things.
   **The live game's loader is the intro film, and it is up on the first paint.** Door two used to be
   the v94 chase with the film auditioning over it, and whenever the film missed its 1.2s window (a

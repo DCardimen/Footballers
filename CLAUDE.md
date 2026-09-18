@@ -68,6 +68,20 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v133 THE COACH GRADES THE BOARD` (in the v113 board block, before `jr=function`) / `v133 THE BOY IN
+  THE PICTURE` (beside `GROW_V132`) / `v133 THE COACH HAS A MOOD, AND A MOUTH ON HIM`
+  (`public/rib-menu-coach.js` + `.css`) — `keyStatsV133(e)` is the position's four heaviest weights plus a
+  breaking-down body stat; `attrTierV133(e,k,g,gmax)` grades one attribute under one program green /
+  blue / red RELATIVE to the sheet's best gain (never a fixed number of points); `trainGradeV133` /
+  `boardGradesV133(e,sug)` rank the board (the pick and Balanced have fixed tiers); `Hi` is wrapped to
+  pick the best graded value (v124's breaking-body rule kept); the tiles carry `tier-*`, `.tp-tier-v133`,
+  `.tp-pick-v133`, the rows `data-tier` and `.tp-up-v113.tier-*`. `growStageV133(age)` is the
+  proportion curve (head, width), `growDrawV133(cv, age, kit)` draws `idle_dn` in two pieces split at
+  `GROW_NECK_V133` (row 18, measured), `growKitV133()` reads the team's colours off the menu feed, and
+  `__CHASE_V94.cell(name, kit|[p,s])` is the sheet's cell lent out. The coach: `moodOf(L)`, `BRASH_RE`,
+  `breath()`, `blip(ch,pos,len,mood)`, `quip()`, `QUIPS`, `[data-c-quip]`, `root.dataset.mood`.
+  Hooks: `window.__V133`, `__GROW_V132.fig/.stage/.draw/.kit`, `__RIB_COACH.mood/.moodOf/.quips/.quip()`.
+  `gradecheck.mjs`, `growcheck.mjs`, `coachcheck.mjs`
 - `v132 THE INTRO FILM IS THE LOADER, AND IT IS UP ON THE FIRST PAINT` (door two, in the v94 block) /
   `v132 THE FILM IS ALWAYS WARM` (in the v114 block) / `v132 A YEAR OLDER` (beside `dc` / `An`) /
   `v132 A THOUSAND HOURS` (`public/rib-menu.js` + the tail of `rib-menu-v89.css`) — the live game's
@@ -481,6 +495,9 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | You changed… | Run |
 |---|---|
 | tackling / contact physics | `tacklecheck.mjs`, `jukecheck.mjs` |
+| the training board's grades — the tiers, the pick, the shaded bars (v133) | `gradecheck.mjs`, then `traincheck.mjs`, `capcheck.mjs`, `skillartcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs`; `BOARD=1 growshot.mjs` to look |
+| the growth screen's figure — the sprite, the age proportions, the breath (v133) | `growcheck.mjs`, then `coachcheck.mjs`; `growshot.mjs` / `VET=42 growshot.mjs` to look |
+| the coach's voice — the mood, the brash bark, the quips (v133) | `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs`, then `coachcheck.mjs`, `menu-integration-check.mjs` |
 | the live game's loader — the still, the warm film, when the door opens (v132) | `v115check.mjs`, `v127check.mjs`, then `splashcheck.mjs`, `v112Acheck.mjs`, `v114check.mjs` |
 | the offseason body screen — the age, the frame, what the years took (v132) | `growcheck.mjs`, then `coachcheck.mjs`, `declarecheck.mjs`, `walk.mjs`; `growshot.mjs` to look |
 | the menu's effects — the ticker, the embers, the sweep, parallax, the tiles (v132) | `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs`, then `menufxcheck.mjs`, `menu-integration-check.mjs`, `heroflashcheck.mjs`, `sheencheck.mjs`, `menushot.mjs` (`CAREER=1`) |
