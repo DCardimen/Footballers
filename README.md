@@ -55,6 +55,174 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v131 — the price of starting over, in numbers.** When a career ends and you roll another one,
+  two screens decide the next man and neither of them gave you a number. The **origin draft** —
+  three cards, or four with the Expanded Origin Draft — described itself in prose ("Starts behind
+  physically, then develops faster after 16", "Better scouting clarity and stronger matchup
+  counters"), while every one of those is an exact edit to the sheet that `As` applies and not one
+  of the numbers was shown. `originSayV131` builds each card's list from its own `effects`, in the
+  same order they are applied, so a card cannot promise something the game does not do —
+  `−3 to Speed, Acceleration & Quickness · +6 Durability · +12 recovery`. Which is also how three
+  dead keys turned up: `pressure` (the Prodigy's "harsher evaluations"), `clutch` (the Small-Town
+  Prospect's whole identity) and `versatility` were in the data and read by **nothing**. Two are
+  real now — `pressNeedV131` raises the promotion bar the Prodigy is judged against, `clutchV131` is
+  a genuine +7 rating in playoff and rivalry games and nothing in a routine week — and the third
+  always was real, just delivered under another name (the position-change button is gated on that
+  origin). And the **reroll penalty**, the −5% on every attribute for abandoning a man unfinished,
+  sat on the position screen and the hub card and nowhere near the pregame — the screen you read
+  right before playing the season it is charging you for. It is on the pregame stat sheet now, and
+  named on the wizard's impact page with its exact percentage. `window.__V131`;
+  `scripts/origincheck.mjs` is the gate.
+
+- **v130 — Honors, not stars.** The game had two star ratings and they meant nothing like each
+  other. One is the **recruit rating** — the 1–5 stars on a player, the thing scouts give him, the
+  thing `drSoftCap` reads. The other was the **account's prestige**, drawn with the same ★ and
+  quoted the same way: the header chip said `★3`, the prestige tree said `🔒 Needs ★8 prestige`, the
+  path screen said `Reach ★6 prestige`. Two currencies wearing one symbol is not a UI problem, it is
+  a rules problem — a player reading "Needs ★8" reasonably concludes he needs an eight-star recruit,
+  which does not exist. The account's rank has its own name and its own mark now: **HONORS 🎖️**.
+  Nothing about the model moves — `o.prestige` is still the number, `Li()` is still the threshold
+  curve, PP is still what you spend — but every place that drew a ★ for it draws a medal and says
+  Honors, a locked node reads `🔒 Needs 🎖️ 8 HONORS — you have 4`, the header chip carries a tooltip
+  saying which one it is *not*, and the ★ is left to mean the recruit rating and only that. The node
+  requirement key is `honors` too, with the old `stars` still read so a save or a patch layer
+  written against it keeps working. `window.__V130`; `scripts/honorcheck.mjs` is the gate.
+
+- **v129 — the ball in stride.** `leadSkillV101` is the fraction of the computed lead the passer
+  actually gets on the ball, and it sits around .46–.7 for almost everybody. That is the right
+  *average* — most throws in football are a step behind — but it meant the game had no **best**
+  case: a ninety-awareness arm throwing to a burner who had beaten his man still put the ball where
+  the man *was*, and the receiver came back for it. There was no ball thrown in stride anywhere in
+  the league. There is one now, and it is a decision the passer makes rather than a dice roll on
+  top of one. `strideOddsV129` is how often *this* quarterback, throwing to *this* receiver, commits
+  to the spot: the base rate is the **level** — Pee Wee is zero (a nine-year-old quarterback does
+  not throw a man open), middle school starts to see it, high school a few a game, college far more,
+  the DFL a staple — and it moves with the four things that decide it on a field: whether he can
+  read it before it happens (awareness), whether he can put it there (arm), whether the man can run
+  to it (speed), and whether that man has actually won (separation). A hurried, moving or panicking
+  passer never throws one; committing to a spot is the opposite of getting rid of it. When it lands,
+  three things change and nothing else does: the lead goes to **full**, so the ball arrives where he
+  is going rather than where he was (measured 1.00 vs 0.66, and 3.7yd of lead vs 1.9yd); the cone
+  **tightens** (0.88yd vs 1.54yd), because a throw you decided on before the break is a throw you
+  are not steering; and the receiver runs **through** it — his route walk gets a longer tail, since
+  he is being led past his last waypoint on purpose, and he does not break stride to track it. The
+  catch, pick and swat rolls are the same rolls; what improves is *where the ball is*, which is
+  exactly what "in stride" means — 70% caught against 60%, with YAC following on its own because
+  YAC is emergent. Score-neutral: the difference against the previous build is smaller than the
+  run-to-run variance of the same build. `window.__V129`; `scripts/stridecheck.mjs` is the gate.
+
+- **v128 — rivalry week means something.** Rivalry Week offered five choices and told you nothing
+  about any of them. "+Big performance, real injury risk" is not a number; "Safe, solid game" is not
+  a number; and "Needs strong Grit or it backfires" named **84 Grit at Middle School** — a line
+  essentially nobody clears — so the option was a trap that silently took a −1.6× rating penalty
+  when you picked it. There was also no rivalry *game*: the stage was a season-wide modifier wearing
+  a fixture's name, and one of its five effects (`rank`) was read by nothing at all. Now:
+  **every option states its effects as numbers**, built from its own `eff` so the card can never
+  drift from the model — the rating it adds to every game, the injury multiplier, the attributes it
+  pays at season's end, the chance the staff sits you for it. **Variance is a real multiplier**
+  (`eff.varMult`), applied to every game's rating around 50 exactly the way the persona sliders do
+  it, and the card says what wide *means*: the good games get better **and** the bad ones get worse.
+  **Every option but the safe one is locked** behind an attribute at a reachable line (+9 a level,
+  not the old +22): the card says the number you need and the number you have, and `chooseEvent`
+  refuses it — a choice you cannot make beats a choice that punishes you for making it.
+  **And the fixture is real**: one mid-season week is THE rivalry, against a side ~27% stronger than
+  the rest of the slate and hitting 18% harder, and it is the only rivalry on the schedule.
+  Everything it pays lands **double** — the coach-trust swing, the injury roll, and a real bonus to
+  the season's attribute growth if you win it. One more fix fell out of it: the season choice's own
+  rating swing rode the *silent* path only, so the week you actually played never saw it and the
+  card promised a number the game did not pay. `window.__V128`; `scripts/rivalcheck.mjs` is the gate.
+
+- **v127 — door two can load its own film.** v115 made the live game's loader *borrow* the element
+  the boot splash loaded — one decoded film a session, no second request. Taking it is the fast
+  path, but it was the **only** path: with nothing parked (the splash left before the film played,
+  an earlier game still holding it, a reload putting a fresh document in front of a warm HTTP cache)
+  door two fell silently back to the v94 chase for the rest of the session — the "the video isn't
+  playing on the live loader" case. It builds its own `<video>` on the same URL now. That URL is in
+  the browser cache, so it is a decode rather than a download; it is given to `give()` on the way
+  out, so from the second game on there *is* a parked element again. Two details make it look like
+  the borrowed one rather than a cold start: a self-built element has `duration` of NaN for a beat,
+  so the seek to v116's seam is skipped — it seeks on `loadedmetadata` instead, and does **not**
+  claim the stage until the playhead is at the seam, because claiming earlier would put the film's
+  opening second of near-black on the loader, which is exactly what this door exists not to do. Its
+  audition is longer than a borrowed film's (2.6s vs 1.2s), and with the film off for a real reason
+  — reduced motion, `?noFilmV114`, no codec — nothing is built and the chase runs unchanged.
+  `__LIVELOAD_V94.lastFilmMs` / `.lastFilmOwn`; `scripts/v127check.mjs` is the gate.
+
+- **v126 — the opponent has a face, he wears on you, and the season screen is four tabs.** Four
+  things about the two screens you come back to every week. **The opponent card** was a name, a
+  confidence dial, a fog count and a RECOMMENDED COUNTER — a game plan the player has not chosen
+  himself since the pregame wizard took the call, so the one concrete line on the card was the one
+  thing it could not act on, while everything worth knowing about the side you are about to play was
+  generated and thrown away. `oppReadV126` reads it back: the tier and the rating gap in points,
+  offence and defence as separate numbers, physicality, and tempo / hitting / pressure in words
+  rather than raw 0–100 dials. **Wear and tear** now names its causes: the ledger has always priced
+  the opponent (`oppMulV111`) and your body (`durMulV111`) and never said either, so the number had
+  no cause — `oppWearSayV126` names the side, their rating against yours, how hard they hit, your
+  durability, the multiplier each contributes, and the fatigue and injury they add up to for the
+  next game. And `oppMulV111` reads the opponent's **physicality** for the first time (it has been
+  generated since v11 and never used), so a side that hits at 90 really does leave you in a
+  different state than a finesse side of the same rating. **The pregame bars** were drawn against
+  `we()`, the absolute wall — 250 at prestige — so a Pee Wee's 12 was a 5% sliver and every stat on
+  the sheet looked identical and hopeless. They fill to the stat's **soft cap** now, with anything
+  past it in **gold** on a stretched scale and a tick left where the cap sits. **The season screen**
+  gets the v75 hub treatment: 1,878px of role battle, scouting report, body ledger, press strip and
+  schedule on an 844px phone becomes four icon tabs — 📅 SCHEDULE · 🎯 OPPONENT · 🩹 BODY · ⚔️ ROLE
+  — one screen each, schedule first. Also: opponents and the standings board draw from the v123
+  pools now instead of nine hard-coded lists of five that held Ducks, Dallas, Miami and Denver.
+
+- **v125 — the top of the country is absurd.** One line decided every national rank in the game:
+  `br()` mapped production onto its quality factor with `(a/(n*s)-.45)/.85`, so the #1 player in
+  America was whoever produced **1.85× his level's baseline — at every level**, Pee Wee to DFL. A
+  perf-75 season put you top five in the country; a perf-85 season finished #1 of 1.8 million kids.
+  The board never looked wrong because it generated its own top 25 off the same `.85`. It was just
+  far too easy. The elite line is per-level now, written in the unit the whole game already shares —
+  a multiple of the DFL per-game baseline, `per[7]`. The national leader at **Pee Wee puts up five
+  times what a DFL starter does**: 425 receiving yards a game, 525 rushing. The multiple slides down
+  through the grades (4.2×, 3.4×, 3.0×, **2.6× at Varsity**) to something merely great in college and
+  the pros. `eliteRV125` turns that into the multiple of *this* level's own baseline that `br()`
+  should call 1.65, and `Ni()` draws its top 25 off the same number, so the board shows the stats the
+  rank now demands. Nothing else moves: the median is still the median, rate stats and
+  lower-is-better stats keep the old line (a yards-per-carry is not five times anything), and the
+  floor is the old 1.85, so no level ever gets *easier*. The season that used to finish #1 in Pee Wee
+  now finishes **#85,189**. `window.__V125`; `scripts/v125check.mjs` is the gate.
+
+- **v124 — the program cuts both ways, and the coach names a stat.** Two things about training.
+  **The trade**: twelve programs were twelve flavours of the same promise — pick one, get its
+  stats — and the only price was a stray `-1 Stamina` on two of them, so "HIGH RISK" meant nothing
+  you could point at afterwards. The harder programs *trade* now: explosion work costs top-end
+  speed, the weight room costs time in the film room, the track costs mass off the frame, the grind
+  costs your body and your discipline. That price rides the same `cost` field the season roll and
+  the v113 preview sheet already read, so the board draws it in red and the season charges it — it
+  just has weight now, and the sheet says it in a sentence as well as in chips.
+  **The roll**: the four volatile programs (Full-Contact Camp, The Grind, Track Club, Explosion &
+  Hops) are a real roll with stated odds. It **lands** and the trade is waived entirely and every
+  priority stat grows ×1.35–×1.9; it **misses** and the trade *doubles* and growth is cut to
+  ×0.45–×0.7. The odds are yours to move: Weighted Coin lifts them, Loaded Dice rolls twice and
+  keeps the better, House Money turns a miss into a partial payout, Scripted Destiny rewrites one
+  failure a season — the same four prestige nodes the game-plan roll already reads. The roll happens
+  once a season, is stamped on the player (`player.planFateV124`), and the preview sheet shows the
+  *expected* season so a volatile program's bars sit honestly between its two outcomes.
+  **The coach**: `recommendTraining` opened with `if (injuryResist < 30 + level*20) return
+  "conditioning"` — a line almost nobody clears (70 at level 2), so the coach said CONDITIONING
+  every season of every career whatever you played. Gone. `trainScoreV124` scores the whole sheet —
+  how much the position is graded on that stat, how much room it still has under its **soft cap** (a
+  capped stat is worth nothing: the next point costs 4), and how far it lags — and `trainWhyV124`
+  says the answer in one line: the stat, the reason, and where it stands against its cap.
+  `window.__V124`; `scripts/traincheck.mjs` is the gate.
+
+- **v123 — the league has a map, and the crest matches the name.** Two halves of one bug. The
+  world only knew fifteen towns and fifteen mascots, so the same handful of school names came round
+  every season of every career; and the mascot was drawn with no regard for the crest, so a
+  "Buffaloes" side could wear the eagle — `logoForName` hashes any name it has no `LOGO_RULES`
+  pattern for, and eleven of the fifteen old mascots had none. Now: **120 invented towns** and
+  **88 mascots**, and every one of those mascots is matched by a rule, so the emblem a side wears is
+  always the animal or figure in its name — proved mascot by mascot, against the packed sheet, by
+  `scripts/namecheck.mjs`. The name is level-shaped too: a youth side is `Town Mascot`, a college is
+  `Town State / Tech / A&M / Poly / …`, and the DFL is a fixed fifty-club league (`DFL_V123`,
+  `dflClubV123`) drawn once per save, so the pro league a career climbs into holds still while the
+  schools below it keep rolling. No generated name — youth, college or pro — is a real NFL or major
+  college team, and no town is an NFL host city; `namecheck.mjs` enforces all three.
+
 - **v122 — the report card is one card, and the coach reads your year back.** Two things, one
   screen. **The jumble**: on the season result screen the depth-chart card was injected with
   `insertAdjacentHTML("afterend")` against `.season-grade` — which is the grade LETTER, inside the

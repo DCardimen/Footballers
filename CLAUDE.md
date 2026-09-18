@@ -68,6 +68,81 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v131 THE PRICE OF STARTING OVER, IN NUMBERS` (beside `Je` / `As`) — `originSayV131(origin)` builds
+  each origin card's effect list from its own `effects`, in the order `As` applies them, so a card
+  cannot promise what the game does not do. `pressNeedV131` (the Prodigy's promotion bar) and
+  `clutchV131` (the Small-Town Prospect, in playoff and rivalry games) make two keys real that were
+  in the data and read by nothing; `versatility` was always delivered by the position-change gate.
+  `rerollNoteV112` is now on the pregame stat sheet (`pregamePlayerStatsV25`) and named on the v112 D
+  impact page. `window.__V131`; `origincheck.mjs`, then `v112Ccheck.mjs`, `v112Dcheck.mjs`,
+  `declarecheck.mjs`
+- `v130 HONORS, NOT STARS` (beside `Li` / `Xa`) — the account's rank is HONORS 🎖️, not a second
+  star rating. `honorReqV130(req)` / `honorHasReqV130(req)` read the node key `honors` (still
+  accepting the old `stars`), `honorsV130()` is what you have, `HONOR_ICON_V130` is the mark. The ★
+  now means the 1–5 RECRUIT rating and only that (`player.stars`, `drSoftCap`). Bump
+  `RIB_MENU_VERSION` if you touch the menu's rank scraper, which reads the medal first and the star
+  second. `window.__V130`; `honorcheck.mjs`, then `menu-integration-check.mjs`, `walk.mjs`
+- `v129 THE BALL IN STRIDE` (beside `leadSkillV101`) — `strideOddsV129(qb, target, sep)` is how often
+  the passer COMMITS to the spot: `STRIDE_LVL_V129[level]` is the base (0 at Pee Wee, a staple in the
+  DFL), moved by awareness, arm, receiver speed and separation. Decided BEFORE `leadPointV101` (the
+  route walk gets a longer tail, `leadTailStrideYd`, because he is led past his last waypoint on
+  purpose), and never under pressure, off-platform or panicking. When it lands: `_lk` goes to ~1.0,
+  the cone is multiplied by `strideConeK`, the downfield cap opens to `strideOverYd`, and the
+  receiver tracks at `strideTrackMul` without breaking stride. The catch/pick/swat rolls are
+  untouched — only where the ball is. `TU("strideV129",0)` switches it off; the `throw` event carries
+  `stride`/`strideOdds`. `window.__V129`; `stridecheck.mjs`, then `scoreneutralcheck.mjs`,
+  `v109Bcheck.mjs`, `v101check.mjs`, `routecheck.mjs`, `simcheck.mjs`
+- `v128 RIVALRY WEEK MEANS SOMETHING` (beside `Da`, over the `Za` story stages) — `rivalSayV128`
+  builds each option's effect list FROM its own `eff` (so card and model cannot drift),
+  `rivalVarV128` turns `eff.varMult` into a band and a sentence, and `rivalLockV128` /
+  `rivalReqV128` (+9 a level, not `Da`'s +22) make every option but the safe one a real LOCK —
+  `chooseEvent` refuses it. `rivalWeekV128(games)` is the fixture: the v11 `ls` lifts that
+  opponent (rating, both units, physicality), marks the row `rivalV128`, downgrades any other
+  rivalrous week, and rolls the bench chance once for the season; `ca()` doubles its injury, applies
+  the variance reshape, and — new — finally feeds the season choice's own `perf` into the week you
+  actually play. `window.__V128`; `rivalcheck.mjs`, then `simcheck.mjs`, `v85check.mjs`, `injurycheck.mjs`
+- `v127 DOOR TWO CAN LOAD ITS OWN FILM` (in the v94 live-loader mount, beside `LIVE_FILM_FROM`) —
+  `F.take()` is the fast path, not the only one: with nothing parked, door two builds its own
+  `<video>` on `__V114.src` (cached) rather than falling back to the chase forever. A self-built
+  element seeks to the seam on `loadedmetadata` (its `duration` is NaN at mount) and does not claim
+  the stage until `atSeam()`, so the loader never shows the film's opening black; its audition is
+  `LIVE_FILM_OWN_MS` (2.6s) rather than `LIVE_FILM_START_MS`, and it is parked on the way out.
+  Nothing is built when `F.failed` / `F.off` / `F.rm`. `__LIVELOAD_V94.lastFilmMs` / `.lastFilmOwn`;
+  `v127check.mjs`, then `v115check.mjs`, `v114check.mjs`, `splashcheck.mjs`
+- `v126 THE OPPONENT HAS A FACE, AND HE WEARS ON YOU` (beside `oppMulV111`) — `oppReadV126(opp, pl)`
+  is the scouting profile the next-opponent card shows (tier, rating gap, offence/defence,
+  physicality, and tempo/hitting/pressure in words); the RECOMMENDED COUNTER is gone, because the
+  pregame wizard makes that call. `oppWearSayV126(pl, wk)` is the condition card's sentence — it
+  names the side, their rating and physicality, your durability, each one's multiplier and the
+  fatigue and injury they come to. `oppMulV111` now reads `physicality` (generated since v11, never
+  used). The pregame sheet's bars (`pregamePlayerStatsV25`) fill to `drSoftCap`, not `we()`, with
+  the over-cap run in gold and a tick at the cap. And the v75 sectioner has a `season` config —
+  📅 SCHEDULE / 🎯 OPPONENT / 🩹 BODY / ⚔️ ROLE, with `nofold: ["sched"]` so the fixtures never end up
+  behind a closed accordion. The coach's `body` spotlight points at the BODY TAB.
+  `v112Dcheck.mjs`, `v111Bcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs`, `namecheck.mjs`
+- `v125 THE TOP OF THE COUNTRY IS ABSURD` (beside `NAT_POOL` / `br` / `kr`) — the elite line is
+  per-LEVEL now, not a flat `/.85` at every level. `ELITE_NFL_V125[level]` is the national leader's
+  production as a multiple of the DFL baseline (`per[7]`) — 5× at Pee Wee, 2.6× at Varsity —
+  `eliteRV125(level, statDef)` turns that into the multiple of THIS level's own baseline, and
+  `eliteSlopeV125` is what `br()` divides by. `Ni()` (the generated top 25) draws off the same
+  number. Rate and lower-is-better stats keep 1.85, and 1.85 is the floor, so no level gets easier.
+  `window.__V125`; `v125check.mjs`, then `rankcheck.mjs`, `v88check.mjs`, `declarecheck.mjs`
+- `v124 THE PROGRAM CUTS BOTH WAYS` / `v124 THE COACH NAMES A STAT` (both beside the `pt` program
+  table) — the harder programs TRADE a named attribute for the one they build (it rides the same
+  `cost` field the season roll and `tpPanelV113` already read), and the four volatile ones are a
+  roll: `PLAN_FATE_V124` gives odds and two outcomes, `planFateSeasonV124` resolves it ONCE a season
+  onto `player.planFateV124` (a hit waives the trade and multiplies `Tt`; a miss doubles the trade
+  and cuts `Tt`), `planFateExpectV124` is what the PREVIEW shows so the bars sit between the two,
+  and the odds move with `fateOdds` / `fateReroll` / `fateHedge` / `fateDestiny` — the same four
+  prestige nodes the game-plan roll reads. `Hi()` (recommendTraining) no longer short-circuits to
+  conditioning: `trainScoreV124` scores the whole sheet by position weight, room under the SOFT cap
+  and lag, and `trainWhyV124` is the sentence. `window.__V124`; `traincheck.mjs`
+- `v123 THE LEAGUE HAS A MAP` (the `Ga` / `er` pools, beside `Xs()` / `Xe()`) — 120 invented towns
+  and 88 mascots, and EVERY mascot matches a `LOGO_RULES` pattern, so the crest is always the animal
+  in the name (it used to hash, which is how a Buffaloes side wore the eagle). `Xe(team)` is
+  level-shaped: youth = `Town Mascot`, college = `Town` + `COLLEGE_V123`, level 7+ = a club from
+  `DFL_V123` (fifty, built by `dflClubV123`, fixed per save). No generated name is a real NFL or
+  major college team. `window.__NAMES_V123`; `namecheck.mjs` (pure Node) is the gate
 - `v122 A` (the result-view injector) / `v122 THE SEASON DEBRIEF` (above `SEASON_LOG_MAX`) — the
   depth card anchored on `.season-grade`, the grade LETTER inside the 112px `.grade-ring`, so it
   rendered INSIDE the ring and smeared over the whole report screen; it anchors on the CARD now.
@@ -398,6 +473,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | OVR scale / the silent sim path / the attribute sheet (v85) | `v85check.mjs`, `bodycheck.mjs`, `wheelcheck.mjs` |
 | the broadcast renderer between plays / tackle looks (v86) | `v86check.mjs`, `readshot.mjs` |
 | pass coverage / credit, QB scramble & targets, the safety, the huddle (v87) | `v87check.mjs`, `creditcheck.mjs`, `simcheck.mjs` |
+| what it takes to rank nationally / the leaders board's own numbers (v125) | `v125check.mjs`, then `rankcheck.mjs`, `v88check.mjs`, `declarecheck.mjs`, `v85check.mjs` |
 | promotion odds / the declare (v88) | `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs` |
 | the callout badges / the moments the field shouts (v95) | `badgecheck.mjs`, `v86check.mjs` |
 | which eleven wears which kit / the you-player's colours on defense (v105.2) | `kitsidecheck.mjs` (LB), then `v104check.mjs`, `v105check.mjs`, `v86check.mjs`, `sidelinecheck.mjs` |
@@ -410,6 +486,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | shadows / the key light / the goalpost frame / the lamps holding (v99) | `v99check.mjs`, `v92check.mjs`, `v86check.mjs`, `sidelinecheck.mjs` |
 | the lights / the lit turf / the scorebug colours / crowd emoji / the handover cut / the coach row (v98) | `v98check.mjs`, `v92check.mjs`, `crowdcheck.mjs`, `postgamecheck.mjs` |
 | the loading film's loop — the seam, the rewind, what the door waits for (v116) | `v114check.mjs`, then `v115check.mjs`, `splashcheck.mjs`, `v112Acheck.mjs` |
+| whether the live game's loader gets the film up, with or without one parked (v127) | `v127check.mjs`, then `v115check.mjs`, `v114check.mjs`, `splashcheck.mjs` |
 | the live game's loader playing the film — the parked element, the offset, the door (v115) | `v115check.mjs`, then `v114check.mjs`, `splashcheck.mjs`, `v86check.mjs` |
 | the boot splash's film — the asset, the door, the bar (v114) | `v114check.mjs`, then `splashcheck.mjs`, `shot.mjs` |
 | the loading screen / the splash's door (v94) | `splashcheck.mjs`, `shot.mjs`, `walk.mjs` |
@@ -426,6 +503,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the wordmark sheen / the camera flashes, lamps and sun on the hero (v107.1) | `sheencheck.mjs`, `heroflashcheck.mjs`, then `v102check.mjs`, `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the throw's facing / the release's timing / the dropback / the pre-snap stances (v107) | `v107check.mjs`, then `v86check.mjs`, `v105check.mjs`, `v91check.mjs`, `renderpathcheck.mjs`, `kitsidecheck.mjs` (LB) |
 | the loading animation's readiness / the warm in the head / the loader bar (v112 A) | `v112Acheck.mjs`, then `splashcheck.mjs`, `renderpathcheck.mjs`, `v86check.mjs` |
+| the origin draft's cards, an origin's effects, or where the reroll penalty is shown (v131) | `origincheck.mjs`, then `v112Ccheck.mjs`, `v112Dcheck.mjs`, `declarecheck.mjs`, `walk.mjs` |
 | the body he has vs the body he projects to / the trait choice / the reroll penalty (v112 C) | `v112Ccheck.mjs`, then `bodycheck.mjs`, `v85check.mjs`, `menu-integration-check.mjs`, `simcheck.mjs`, `creditcheck.mjs`, `walk.mjs` |
 | the pregame wizard's pages, its defaults and the way into the game (v112 D) | `v112Dcheck.mjs`, then `v111Bcheck.mjs`, `walk.mjs`, `splashcheck.mjs` |
 | the masts / the bowl's base band and entrance / the stars / the near edge's distortion (v112 B) | `v112Bcheck.mjs`, then `v98check.mjs`, `v99check.mjs`, `v100check.mjs`, `v102check.mjs`, `v92check.mjs`, `v86check.mjs`, `crowdcheck.mjs`, `sidelinecheck.mjs` |
@@ -433,6 +511,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | a big hit taking a man off his feet — the launch, the arc, the landing (v112 F) | `v112Fcheck.mjs`, then `v103check.mjs`, `v109C1check.mjs`, `tacklecheck.mjs`, `readcheck.mjs`, `renderpathcheck.mjs`, `scoreneutralcheck.mjs` |
 | whether being in position decides the play — stops, break-ups, interceptions (v110) | `v110check.mjs`, then `creditcheck.mjs`, `tacklecheck.mjs`, `readcheck.mjs`, `v103check.mjs`, `scoreneutralcheck.mjs` |
 | anything in the live sim's FEEL (contact, possession, ball speed, catching, tackling, the clock) | `scoreneutralcheck.mjs` FIRST (keep the before row), then the v109 checks below |
+| whether the quarterback throws a man open — the lead, the cone, who gets one and how often (v129) | `stridecheck.mjs`, then `scoreneutralcheck.mjs`, `v109Bcheck.mjs`, `v101check.mjs`, `routecheck.mjs`, `simcheck.mjs` |
 | the throw's flight, arc, wobble or a throwaway (v109 A) | `v109Acheck.mjs`, then `v101check.mjs`, `v107check.mjs`, `v105check.mjs`, `simcheck.mjs` |
 | impact geometry, the gang, the pile, the loose fumble, the bobble (v109 C1) | `v109C1check.mjs`, then `v103check.mjs`, `tacklecheck.mjs`, `creditcheck.mjs`, `renderpathcheck.mjs` |
 | the plant, the lean, down men, pursuit pace, the stumble (v109 C2) | `v109C2check.mjs`, then `readcheck.mjs`, `jukecheck.mjs`, `tacklecheck.mjs`, `v86check.mjs` |
@@ -441,8 +520,13 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the clock, the try, timeouts, the flag, the chains, play descriptions (v109 D) | `v109Dcheck.mjs`, then `simcheck.mjs`, `postgamecheck.mjs`, `badgecheck.mjs`, `refcheck.mjs`, `walk.mjs` |
 | the deploy reaching a browser / the build meta / the one-time reload (v106.1) | `freshcheck.mjs` (no dev server), then `menu-integration-check.mjs`, `menu-mask-check.mjs` |
 | the team kit on the menu pictures / the hero, continue-card and portrait masks (v106) | `python3 scripts/build-menu-art.py` (or the one `menu-kit-*.py`), then `menu-mask-check.mjs`, `menu-kit-shot.mjs` (look at the shots), `menu-integration-check.mjs`, `v102check.mjs`, `menushot.mjs` (`CAREER=1`) |
+| a school, college or DFL club's name, or which crest it wears (v123) | `namecheck.mjs`, then `emblemcheck.mjs`, `menu-integration-check.mjs`, `walk.mjs` |
+| the account's rank, the prestige-tree gates, or anything drawing a ★ (v130) | `honorcheck.mjs`, then `menu-integration-check.mjs`, `walk.mjs`, `shot.mjs` |
 | team emblems / palettes / identity | `emblemcheck.mjs` |
 | training / skill art, the skill atlas | `skillartcheck.mjs`, `wheelcheck.mjs` |
+| the training programs — what a program trades away, the fate roll and its odds, or what the coach recommends (v124) | `traincheck.mjs`, then `capcheck.mjs`, `v85check.mjs`, `skillartcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs` |
+| the next-opponent card, the wear-and-tear copy, the pregame bars or the season screen's tabs (v126) | `v112Dcheck.mjs`, `v111Bcheck.mjs`, `scrollcheck.mjs`, `coachcheck.mjs`, then `namecheck.mjs`, `walk.mjs`, `shot.mjs` |
+| Rivalry Week — what an option does, what it takes, how wide it swings, or the rivalry fixture itself (v128) | `rivalcheck.mjs`, then `simcheck.mjs`, `v85check.mjs`, `injurycheck.mjs`, `walk.mjs` |
 | the offseason training board — the grid, the preview sheet, the confirm (v113) | `skillartcheck.mjs`, `capcheck.mjs`, `v85check.mjs`, then `walk.mjs`, `scrollcheck.mjs`, `shot.mjs` |
 | the crowd, the sideline, the team area | `crowdcheck.mjs`, `sidelinecheck.mjs` |
 | the declare / career-end screens | `declarecheck.mjs` |

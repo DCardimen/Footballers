@@ -167,7 +167,7 @@ const board = await page.evaluate(() => {
     if (k === 'speed') speedOnSpeed = chipVal('Speed')
     if (k === 'film') filmOnAware = chipVal('Awareness')
   }
-  const out = { n: cards.length, pct: metas.filter(m => /%/.test(m)).length, flat: metas.filter(m => /(FOCUS STATS|EVERY STAT) \+[\d.]+/.test(m)).length, chips: chips.slice(0, 5),
+  const out = { n: cards.length, pct: metas.filter(m => /%/.test(m)).length, flat: metas.filter(m => /(FOCUS STATS|EVERY STAT) [+−][\d.]+/.test(m)).length, chips: chips.slice(0, 5),
     speedOnSpeed, filmOnAware, sample: metas[1] }
   window.go('season')
   return out
