@@ -71,13 +71,18 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   no PP. Prices, gates, rewards and the banking rules are untouched. **The money is physical**:
   most of the hoard is stacked in columns rather than scattered loose, every coin draws its own edge
   so it reads as metal rather than a printed circle, and each denomination carries a weight that sets
-  how it bounces, how far a shove carries it and how it sounds when it lands. You can pick a coin up
-  and drag it off the heap; you can turn the phone on and tip the money around the floor — the towers
-  topple, coins shed off the top and roll down the slope to pile on the low side, all of it held in
-  place by real static friction so the bronze walks at about 9 degrees, the gold at 14 and the
-  billion-point coin at 18, a hoard held level sits at its angle of repose instead of sliding, and
-  nothing that was in the picture is ever pushed out of it; and RESTOCK puts every
-  disturbed coin back — or, on an already tidy hoard, pours the same money into a different heap.
+  how it bounces, how far a shove carries it and how it sounds when it lands. It stands as a PILE —
+  40% higher than it first did, against the same footprint, because a low spread of money reads as a
+  carpet of change rather than a hoard. You can pick a coin up and drag it off the heap, and when you
+  do, the heap GIVES WAY into the gap: the coins around it are shaken loose and slide down the slope,
+  the towers among them shedding from the top. How far each one goes is where it was sitting — a coin
+  on the steep flank runs, one on a flat shoulder barely shifts — and how heavy it is, so the same
+  shake moves a bronze coin furthest and a billion-point coin least. It is all held by real static
+  friction: the slope acts only on a coin that has actually been shaken loose, so an undisturbed hoard
+  sits at its angle of repose instead of creeping downhill, a disturbance is over in about a quarter
+  of a second, no coin travels more than a fraction of the heap's width, and nothing that was in the
+  picture is ever pushed out of it. RESTOCK puts every disturbed coin back — or, on an already tidy
+  hoard, pours the same money into a different heap.
   None of it touches a Prestige Point. The hoard is a seeded slot list
   that never reshuffles — coin *i* is born at a fixed fullness on the mound as it is at that fullness,
   so spending takes coins off the top and the outside and everything else stays exactly where it was;
@@ -88,7 +93,7 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   its lettering is painted out and the renderer draws the words itself; and no audio file was supplied,
   so every sound is synthesised in WebAudio and `__RIB_VAULT_AUDIO.manifest()` names what a real
   recording would replace. `docs/PRESTIGE-VAULT.md` is the write-up, `docs/vault-shots/` the pictures,
-  `scripts/vaultcheck.mjs` the gate (52 assertions, 60 fps under a 16x pour).
+  `scripts/vaultcheck.mjs` the gate (91 assertions, 60 fps under a 16x pour).
 
 - **v136 — the lineage: the prestige system is a father's lesson to his son.** Four asks. **THE LINEAGE
   (D)**: a career ends and the next player is the SON — a new first name, the family's surname, the

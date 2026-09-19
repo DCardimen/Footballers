@@ -80,8 +80,6 @@
 .rv-act .rv-btn{font-size:11px}
 .rv-act .go{background:linear-gradient(180deg,rgba(240,187,69,.22),rgba(240,187,69,.08));
   border-color:rgba(240,187,69,.55);color:#ffe3a6}
-.rv-act .rv-tilt.on{background:rgba(61,164,255,.20);border-color:rgba(109,190,255,.7);color:#bfe1ff}
-#ribVault.tilting .rv-hint{color:#8fc8ff}
 
 /* ---- the multiplier badge, while a hold is running ---- */
 .rv-mult{position:absolute;left:50%;transform:translate(-50%,0) scale(.7);opacity:0;

@@ -1,4 +1,4 @@
-// v137 B — look at the loose money: thickness, a coin in hand, a tilted phone, the restock.
+// v137 E — look at the loose money: thickness, a coin in hand, the avalanche it starts, the restock.
 import { chromium } from 'playwright'
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
 const page = await browser.newPage({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 2 })
@@ -27,23 +27,23 @@ console.log('dragging:', JSON.stringify(await page.evaluate(() => window.__RIB_V
 await page.mouse.up(); await page.waitForTimeout(700)
 await page.screenshot({ path: '_phys_dropped.png' })
 
-// the phone tipped over — driven through the REAL sensor handler, as a hand would
-await page.evaluate(async () => {
-  const V = window.__RIB_VAULT_DEV
-  V.tiltArm()
-  for (let i = 0; i < 12; i++) { V.tiltRaw(78, 1); await new Promise(r => setTimeout(r, 40)) }
+// lift a coin out of the heap and watch what the heap does about it
+const seat = await page.evaluate(() => {
+  const s = window.__RIB_VAULT_DEV.scene()
+  const h = s.hoardBox()
+  return { x: (h.x0 + h.x1) / 2 - 30, y: h.y0 + (h.y1 - h.y0) * 0.30 }
 })
-await page.screenshot({ path: '_phys_level.png' })
-for (let i = 0; i < 10; i++) { await page.evaluate(() => window.__RIB_VAULT_DEV.tiltRaw(78, -26)); await page.waitForTimeout(40) }
-await page.screenshot({ path: '_phys_tilt_a.png' })
-for (let i = 0; i < 20; i++) { await page.evaluate(() => window.__RIB_VAULT_DEV.tiltRaw(78, -26)); await page.waitForTimeout(40) }
-await page.screenshot({ path: '_phys_tilt_b.png' })
-for (let i = 0; i < 30; i++) { await page.evaluate(() => window.__RIB_VAULT_DEV.tiltRaw(78, -30)); await page.waitForTimeout(40) }
-await page.screenshot({ path: '_phys_tilt.png' })
-console.log('tilted:', JSON.stringify(await page.evaluate(() => window.__RIB_VAULT_DEV.state())))
+await page.mouse.move(seat.x, seat.y); await page.mouse.down()
+for (let i = 1; i <= 16; i++) { await page.mouse.move(seat.x + i * 5, seat.y - i * 7); await page.waitForTimeout(14) }
+await page.screenshot({ path: '_phys_lift.png' })
+await page.mouse.up()
+await page.waitForTimeout(180); await page.screenshot({ path: '_phys_slide_a.png' })
+await page.waitForTimeout(500); await page.screenshot({ path: '_phys_slide_b.png' })
+await page.waitForTimeout(900); await page.screenshot({ path: '_phys_settled.png' })
+console.log('after the lift:', JSON.stringify(await page.evaluate(() => window.__RIB_VAULT_DEV.state())))
 
 // restock
-await page.evaluate(() => { window.__RIB_VAULT_DEV.tilt(0, 0); window.__RIB_VAULT_DEV.restock() })
+await page.evaluate(() => { window.__RIB_VAULT_DEV.restock() })
 await page.waitForTimeout(500); await page.screenshot({ path: '_phys_restocking.png' })
 await page.waitForTimeout(1400); await page.screenshot({ path: '_phys_restocked.png' })
 console.log('restocked:', JSON.stringify(await page.evaluate(() => window.__RIB_VAULT_DEV.state())))

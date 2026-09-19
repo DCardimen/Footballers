@@ -56,9 +56,9 @@ Captured from the real game in headless Chromium at 412x915 (portrait, DPR 2) an
 
 ![Drag: a coin picked up off the heap, its shadow on the floor under it](13-coin-in-hand.jpg)
 
-### Tilt: the phone tipped left, the towers topple and the money rolls to the low side
+### The avalanche: lift one coin out and the heap gives way into the gap
 
-![Tilt: the phone tipped left and the money slumps that way](14-tilted.jpg)
+![The avalanche: lift one coin out and the heap gives way into the gap](14-avalanche.jpg)
 
 ### RESTOCK: every disturbed coin back in its place
 

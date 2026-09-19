@@ -88,6 +88,16 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   so `clean_banners()` paints its lettering out and the renderer draws all eight banner words itself.
   Audio is synthesised — no sound file was supplied; `__RIB_VAULT_AUDIO.manifest()` names the
   fourteen categories a recording would replace. Read `docs/PRESTIGE-VAULT.md`.
+  The heap is a PILE: `MOUND.H` peaks at 0.98 against a footprint of 1.00 (0.70 before — it read as a
+  spread of money, not a hoard). Nothing tilts; the money moves because you MOVE it.
+  `disturb(gx, gz, k)` is the one entry point — a lift (`startDrag`) or a hard landing (`landed`) wakes
+  the surface coins within `DIST_R` and hands each one ENERGY (`DIST_E` at the centre, smooth falloff,
+  an elliptical reach because the floor is one). In `stepBodies` the slope acts ONLY on a coin that
+  still holds energy, and in proportion to it (`drive = energy / (MU * grip)`), so an undisturbed heap
+  holds its angle of repose, a steep seat runs ~1.7x a flat one, a heavy coin moves least, `E_DECAY`
+  ends it in about a quarter-second and `SLIDE_MAX` caps how far any one coin goes. `endDrag` clears
+  the energy — a coin you PLACE is placed, not launched. `V.v.dragging` is the coin in the hand; a
+  probe must ask for it by name, because `bodies()` is keyed by SLOT INDEX and a lift now wakes dozens.
   `window.__V137`, `__RIB_VAULT*`; `vaultcheck.mjs`, then `honorcheck.mjs`, `v134check.mjs`,
   `coachcheck.mjs`, `menu-integration-check.mjs`, `v136check.mjs`, `freshcheck.mjs`
 - `v136 D THE LINEAGE` (beside `Di`) / `v136 C THE ESTATE IS SETTLED AT THE END` (beside `es`) /
@@ -585,7 +595,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 
 | You changed… | Run |
 |---|---|
-| the Prestige Vault — the hoard, the spend, the door, the payout, the sprites (v137) | `python3 scripts/build-vault-art.py --proof` (if a cell moved — then LOOK at `art/vault-proof/`), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-vault*` file), then `vaultcheck.mjs`, `honorcheck.mjs`, `v134check.mjs`, `coachcheck.mjs`, `menu-integration-check.mjs`, `v136check.mjs`, `freshcheck.mjs`; `vaultshot.mjs` / `WIDE=1 vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` to look |
+| the Prestige Vault — the hoard, the spend, the door, the payout, the sprites (v137) | `python3 scripts/build-vault-art.py --proof` (if a cell moved — then LOOK at `art/vault-proof/`), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-vault*` file), then `vaultcheck.mjs`, `honorcheck.mjs`, `v134check.mjs`, `coachcheck.mjs`, `menu-integration-check.mjs`, `v136check.mjs`, `freshcheck.mjs`; `vaultshot.mjs` / `WIDE=1 vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` / `vaultphys.mjs` to look |
 | tackling / contact physics | `tacklecheck.mjs`, `jukecheck.mjs` |
 | the lineage — the son, the surname, the family years, the father on every screen and in the coach's mouth (v136 D) | `v136check.mjs`, then `coachcheck.mjs`, `menu-integration-check.mjs`, `honorcheck.mjs`, `declarecheck.mjs`, `walk.mjs` |
 | when PP is paid — the bank, the settle, the career-end card (v136 C) | `v136check.mjs`, `v134check.mjs`, then `v85check.mjs`, `origincheck.mjs` |
