@@ -208,7 +208,7 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 #splash.ball:not(.film):not(.chase) .splash-stage .splash-ball{display:block}#splash.chase #splashChase{display:block}#splash.chase .splash-ball{display:none}
 .palette-grid-v153 .palette-v153{height:56px!important;display:flex;flex-wrap:wrap;align-content:flex-start}.palette-grid-v153 .palette-v153 i{height:34px}.palette-v153 .pal-name-v97{display:block;width:100%;height:20px;line-height:20px;font:600 8.5px/20px Oswald,sans-serif;letter-spacing:.4px;color:#c9d3df;background:#0b1119;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;box-sizing:border-box;font-style:normal}.palette-grid-v153 .palette-v153 small{inset:auto 2px 23px auto}
 .up-group-v97{padding:0;overflow:hidden}.up-group-head-v97{width:100%;display:flex;align-items:center;gap:10px;padding:12px 14px;border:0;background:transparent;color:#dfe6ef;font:700 13px Oswald,sans-serif;letter-spacing:2.5px;text-align:left;cursor:pointer}.up-group-head-v97 small{margin-left:auto;font:600 10px Oswald,sans-serif;letter-spacing:1.5px;color:var(--chalk-dim)}.up-group-head-v97 i{font-style:normal;color:#f0bb45;transition:transform .18s}.up-group-v97.on .up-group-head-v97{background:linear-gradient(180deg,rgba(240,187,69,.16),rgba(240,187,69,.04));color:#ffd76f}.up-group-v97.on .up-group-head-v97 i{transform:rotate(180deg)}.up-group-body-v97{display:none;padding:0 10px 6px}.up-group-v97.on .up-group-body-v97{display:block}
-.name-edit-v96{display:flex;align-items:center;gap:8px}.name-edit-v96 input{flex:1;min-width:0;background:transparent;border:0;border-bottom:1px dashed #f0bb4566;border-radius:0;color:inherit;font:inherit;letter-spacing:inherit;padding:0 0 2px;outline:none}.name-edit-v96 input:focus{border-bottom-color:var(--gold)}.name-dice-v96{flex:none;background:#ffffff12;border:1px solid var(--line);border-radius:10px;color:#f0bb45;font-size:18px;width:40px;height:40px;cursor:pointer;line-height:1}.name-hint-v96{margin-top:-4px;margin-bottom:8px;color:#f0bb45;letter-spacing:1px;font-size:11px;text-transform:uppercase;font-family:Oswald}
+.name-edit-v96{display:flex;align-items:center;gap:8px}.name-edit-v96 input{flex:1;min-width:0;background:transparent;border:0;border-bottom:1px dashed #f0bb4566;border-radius:0;color:inherit;font:inherit;letter-spacing:inherit;padding:0 0 2px;outline:none}.name-edit-v96 input:focus{border-bottom-color:var(--gold)}.name-dice-v96{flex:none;background:#ffffff12;border:1px solid var(--line);border-radius:10px;color:#f0bb45;font-size:18px;width:40px;height:40px;cursor:pointer;line-height:1}.name-hint-v96{margin-top:-4px;margin-bottom:8px;color:#f0bb45;letter-spacing:1px;font-size:11px;text-transform:uppercase;font-family:Oswald}.fam-name-v139{flex:none;max-width:48%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c9b8ff;opacity:.92}
 .live-stat-minor-v96{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px 12px;padding:6px 6px 0;font-family:Oswald;font-size:10px;letter-spacing:1.5px;color:var(--chalk-dim);text-transform:uppercase}.live-stat-minor-v96 span b{color:#dfe6ef;font-size:14px;font-weight:700;margin-right:5px;letter-spacing:0}.live-stat-minor-v96:empty{display:none}
 .rib-liveload-v94{position:absolute;inset:0;z-index:12;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:radial-gradient(120% 90% at 50% 30%,#182338,#0d141d 75%);border-radius:inherit;transition:opacity .4s ease,visibility .4s;overflow:hidden}
 .rib-liveload-v94.gone{opacity:0;visibility:hidden}
@@ -15733,6 +15733,15 @@ const POS_POOL=e=>Math.max(1,Math.round(NAT_POOL(e)/9));function br(e,t,a){const
       </div>`}).join("")}
       <button class="btn ghost" style="margin-top:4px" onclick="fieldFxReset()">↺ Reset to defaults</button>
     </div>
+    ${(function(){const L=lineageV136(),sur=famSurnameV139(),n=(L.fathers||[]).length;if(!sur&&!n)return"";
+      return `<div class="card">
+      <div class="l" style="font-size:11px;color:#c9b8ff;letter-spacing:2px;margin-bottom:8px">👨‍👦 FAMILY NAME</div>
+      <div class="small">Every generation carries one surname — you name each son yourself. Change it here and it is changed for the whole line: the player you have now and all ${n} father${n===1?"":"s"} on the books.</div>
+      <div style="height:10px"></div>
+      <div class="name-edit-v96"><input id="famNameV139" value="${S(sur)}" maxlength="18" autocomplete="off" spellcheck="false" aria-label="Family name"></div>
+      <div style="height:8px"></div>
+      <button class="btn secondary" onclick="famRenameV139(document.getElementById('famNameV139').value)">Rename the Line</button>
+    </div>`})()}
     <div class="card">
       <div class="l" style="font-size:11px;color:var(--chalk-dim);letter-spacing:2px;margin-bottom:8px">💾 SAVE DATA</div>
       <div class="small">Your progress saves automatically after every action, right here on your device. Prestige, upgrades, and your current player all persist.</div>
@@ -15787,12 +15796,35 @@ function lineageHofV136(){try{const F=familyV136();if(!F.fathers.length)return""
     <div class="card tight lineage-hof-v136">${F.fathers.slice().reverse().map(f=>`<div class="lineage-gen-v136"><span class="lg-gen">${ordV136(f.gen||1).toUpperCase()}</span><span class="lg-name"><b>${S(f.name)}</b> <small>${S(f.pos)}</small></span><span class="lg-line">${S(f.levelName)} · ${f.fate==="won"?"🏆 made it":f.fate==="walked"?"🚪 walked":"✗ cut"} · ${f.seasons} szn · ${f.peak} OVR</span></div>`).join("")}
     ${o.player?`<div class="lineage-gen-v136 now"><span class="lg-gen">${F.ordinal.toUpperCase()}</span><span class="lg-name"><b>${S(o.player.name)}</b> <small>${S(o.player.pos||"")}</small></span><span class="lg-line">playing now · ${o.player.totalSeasons|0} szn</span></div>`:""}</div>`}catch(_){return""}}
 window.__LINEAGE_V136={family:familyV136,end:lineageEndV136,birth:lineageBirthV136,fateSay:fateSayV136,ord:ordV136,raw:()=>lineageV136()};
-function Di(){if(!rerollGateV112())return;const _ab=abandonedV112(),_pv=_ab?o.player.name:"";_ab&&lineageEndV136(o.player,o.player.level,"walked");o.player=kt(),o.careers++,lineageBirthV136(o.player),_ab&&armRerollV112(o.player,_pv),(function(){try{window.__randomizeTeamLookV22&&window.__randomizeTeamLookV22((o.careers||1)*7919+Math.floor(Math.random()*99991))}catch(e){}})(),I(),te("choosePos")}/* ===== v96 A NAME OF HIS OWN — the rolled name is a starting point, not a sentence ===== */
-window.setPlayerNameV96=function(v){if(!o.player)return;const t=String(v||"").replace(/\s+/g," ").trim().slice(0,24);t&&(o.player.name=t,I())};window.rerollNameV96=function(){if(!o.player)return;o.player.name=W(Xo)+" "+(familyV136().gen>1?familyV136().surname:W(Zo)),I();const e=document.getElementById("playerNameV96");e&&(e.value=o.player.name)};
+function Di(){if(!rerollGateV112())return;const _ab=abandonedV112(),_pv=_ab?o.player.name:"";_ab&&lineageEndV136(o.player,o.player.level,"walked");o.player=kt(),o.careers++,lineageBirthV136(o.player),_ab&&armRerollV112(o.player,_pv),(function(){try{window.__randomizeTeamLookV22&&window.__randomizeTeamLookV22((o.careers||1)*7919+Math.floor(Math.random()*99991))}catch(e){}})(),I(),te("choosePos")}/* ===== v139 ONE SURNAME, A NEW FIRST NAME EVERY GENERATION =====
+ * The line already handed the son the family surname (v136 D) and then let the name box overwrite
+ * the whole thing, so a second-generation player could be typed into a different family and the
+ * lineage row would go on calling it THE <old name> LINE. The surname belongs to the LINE now:
+ * from the second generation on, the name box edits the FIRST name and the surname sits beside it
+ * as a chip, and the one place the family name can actually change is Settings — where changing it
+ * RETROFITS, rewriting the living player and every father on the books so the line reads as one
+ * family top to bottom. The first generation is unchanged: he names himself, surname and all. */
+function famLockedV139(){const L=lineageV136();return!!(L.surname&&(L.gen||0)>1&&(L.fathers||[]).length)}
+function famSurnameV139(){const L=lineageV136();return L.surname||(o.player&&surnameV136(o.player.name))||""}
+function famFirstV139(n){const p=String(n||"").trim().split(/\s+/);return p.length>1?p.slice(0,-1).join(" "):p[0]||""}
+function famSwapV139(n,sur){const f=famFirstV139(n);return sur?(f?f+" "+sur:sur):f}
+function famRenameV139(sur){const t=String(sur||"").replace(/[^A-Za-z'\- ]/g,"").replace(/\s+/g," ").trim().slice(0,18);
+  const L=lineageV136(),was=famSurnameV139();if(!t||t===was)return!1;L.surname=t;
+  o.player&&(o.player.name=famSwapV139(o.player.name,t));
+  (L.fathers||[]).forEach(f=>{f.name=famSwapV139(f.name,t)});
+  /* the Hall of Fame keeps its own copies, so the family's own men are rewritten there too */
+  (o.hof||[]).forEach(h=>{h&&h.name&&surnameV136(h.name)===was&&(h.name=famSwapV139(h.name,t))});
+  return I(),!0}
+window.famRenameV139=function(v){famRenameV139(v)&&F("The line is now the "+famSurnameV139()+" family")};
+window.__LINEAGE_V139={locked:famLockedV139,surname:famSurnameV139,first:famFirstV139,rename:famRenameV139};
+/* ===== v96 A NAME OF HIS OWN — the rolled name is a starting point, not a sentence ===== */
+window.setPlayerNameV96=function(v){if(!o.player)return;const t=String(v||"").replace(/\s+/g," ").trim().slice(0,24);
+  t&&(o.player.name=famLockedV139()?famFirstV139(t)+" "+famSurnameV139():t,I())};
+window.rerollNameV96=function(){if(!o.player)return;o.player.name=W(Xo)+" "+(famLockedV139()?famSurnameV139():W(Zo)),I();const e=document.getElementById("playerNameV96");e&&(e.value=famLockedV139()?famFirstV139(o.player.name):o.player.name)};
 function Lr(){const e=o.player,t=ns(e.attrs,e.body),a=t[0].ovr,s=ee.slice().sort((i,r)=>e.attrs[r]-e.attrs[i]).slice(0,3),n=bodyOfV112(e)||e.body,pj=e.body;x("screen").innerHTML=`
     <div class="eyebrow">Age ${e.age} · ${A[e.level].name}</div>
-    <div class="h1 name-edit-v96"><input id="playerNameV96" value="${String(e.name).replace(/&/g,"&amp;").replace(/"/g,"&quot;")}" maxlength="24" autocomplete="off" spellcheck="false" aria-label="Player name" oninput="setPlayerNameV96(this.value)"><button type="button" class="name-dice-v96" onclick="rerollNameV96()" title="Roll another name">🎲</button></div>
-    <div class="small name-hint-v96">Tap the name to make it yours</div>
+    <div class="h1 name-edit-v96"><input id="playerNameV96" value="${String(famLockedV139()?famFirstV139(e.name):e.name).replace(/&/g,"&amp;").replace(/"/g,"&quot;")}" maxlength="24" autocomplete="off" spellcheck="false" aria-label="${famLockedV139()?"First name":"Player name"}" oninput="setPlayerNameV96(this.value)">${famLockedV139()?`<span class="fam-name-v139" title="The family name. Change it in Settings.">${S(famSurnameV139())}</span>`:""}<button type="button" class="name-dice-v96" onclick="rerollNameV96()" title="Roll another name">🎲</button></div>
+    <div class="small name-hint-v96">${famLockedV139()?"Tap to name him — the "+S(famSurnameV139()).toUpperCase()+" name is the line's":"Tap the name to make it yours"}</div>
     ${lineageCardV136(e)}
     ${rerollNoteV112(e)}
     <div class="card tight" style="border-color:#4a90c9">

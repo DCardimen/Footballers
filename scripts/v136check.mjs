@@ -145,6 +145,37 @@ ok(/THE INHERITANCE · 2ND GENERATION/i.test(scr.shop) && /What the Family Learn
 ok(scr.hofRows === 2 && new RegExp('1ST ' + pre.name).test(scr.hof) && /cut/.test(scr.hof) && new RegExp('2ND ' + g2.rerolled + '.*playing now').test(scr.hof), 'the Hall of Fame draws the family line, generation by generation', scr.hof.slice(0, 120))
 ok(menu.gen === 'GEN 2' && menu.ticker && new RegExp('THE ' + SUR + ' LINE · GEN 2').test(menu.ticker), 'the main menu: GEN 2 on the card, the line on the ticker', JSON.stringify(menu))
 
+// ---------------------------------------------------------------- v139: one surname, a new first name
+// The line handed the son the family surname and then let the name box overwrite the whole thing, so a
+// second-generation player could be typed into a different family while the lineage row went on calling
+// it THE <old name> LINE. From gen 2 the box edits the FIRST name; Settings is the one place the family
+// name changes, and changing it retrofits the living player, every father and the Hall of Fame.
+const lin = await ev(() => {
+  const V = window.__LINEAGE_V139, S = window.__GRIDIRON_AUDIT__.getState(), p = S.player
+  const was = V.surname(), locked = V.locked(), first = V.first(p.name)
+  window.setPlayerNameV96('Tyrell Winters')                 // a whole new name, typed
+  const typed = p.name
+  const renamed = V.rename('Okafor')
+  const hofOwn = (S.hof || []).filter(h => /Okafor$/.test(h.name)).length
+  return { was, locked, first, typed, renamed, name: p.name, sur: V.surname(),
+    father: (S.lineageV136.fathers[0] || {}).name, hofOwn, hof: (S.hof || []).length,
+    blank: V.rename('   '), same: V.rename('Okafor') }
+})
+console.log('v139 lineage:', JSON.stringify(lin))
+ok(lin.locked && lin.first && lin.first !== lin.was, 'from the second generation the surname belongs to the LINE, not the name box', `${lin.first} · ${lin.was}`)
+ok(lin.typed === 'Tyrell ' + lin.was, 'so typing a whole new name changes the first name and keeps the family', `typed "Tyrell Winters" → ${lin.typed}`)
+ok(lin.renamed && lin.sur === 'Okafor' && lin.name === 'Tyrell Okafor', 'Settings is where the family name changes, and it changes his too', `${lin.name}`)
+ok(lin.father === 'Elijah Okafor'.replace('Elijah', lin.father.split(' ')[0]) && /Okafor$/.test(lin.father), 'and it RETROFITS: the father on the books carries the new name', lin.father)
+ok(lin.hofOwn >= 1 && lin.hofOwn <= lin.hof, "including the family's own men in the Hall of Fame, and only those", `${lin.hofOwn} of ${lin.hof}`)
+ok(!lin.blank && !lin.same, 'a blank name and the name it already has are both refused', JSON.stringify([lin.blank, lin.same]))
+const linUi = await ev(() => { window.go('choosePos'); const i = document.getElementById('playerNameV96'), c = document.querySelector('.fam-name-v139')
+  window.go('settings'); const f = document.getElementById('famNameV139'); const card = /FAMILY NAME/.test(document.getElementById('screen').textContent)
+  window.go('menu'); return { input: i && i.value, chip: c && c.textContent, field: f && f.value, card } })
+console.log('v139 name row:', JSON.stringify(linUi))
+ok(linUi.input === 'Tyrell' && linUi.chip === 'Okafor', 'the name row is a first-name box with the family name beside it', JSON.stringify(linUi))
+ok(linUi.card && linUi.field === 'Okafor', 'and Settings carries the family name with what changing it does', `field "${linUi.field}"`)
+await page.waitForTimeout(600)
+
 console.log('page errors:', errs.length ? errs.join('\n') : 'none')
 console.log(JSON.stringify({ pass, fail, pageErrors: errs.length }))
 await browser.close()
