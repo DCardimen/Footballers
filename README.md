@@ -81,7 +81,12 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   the RUNNING IT BACK wordmark is off the career screens and left to the main menu, and the man on
   the year-older screen finally wears the team's palette — the recolour was guarded on a function
   that lives in another script block and is not on `window`, so it had never once run.
-  `agecheck.mjs`, `yardfitcheck.mjs`, `honorcheck.mjs`, `growcheck.mjs`, `v136check.mjs`
+  And the program you commit to is the teams you face: a tier's `comp` moved exactly one number —
+  the divisor that decides how hard it is to stand out nationally — so the schedule was identical
+  at a Blue-Blood and a Mid-Major. It shifts the opponents themselves now, each card states the
+  average opponent OVR it will actually generate, and the extra recruit ★ is paid at the end of a
+  season you graded C or better instead of being handed over at the door.
+  `agecheck.mjs`, `tiercheck.mjs`, `yardfitcheck.mjs`, `honorcheck.mjs`, `growcheck.mjs`, `v136check.mjs`
 
 - **v137 — the Prestige Vault: your points, where you can see them.** Prestige Points stopped being a
   number on a chip and became a room. `o.pp` is drawn as ONE mixed hoard — bronze (1 PP), silver
