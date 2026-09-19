@@ -43,7 +43,8 @@ const it = await page.evaluate(() => {
   const pl = window.S.player, V = window.__V88, R = window.__RANK_V52
   const keep = JSON.stringify({ level: pl.level, sal: pl.seasonsAtLevel, lsl: pl.lastSeasonLine, ss: pl.seasonStats, attrs: pl.attrs, wr: pl.weekResults })
   pl.level = 6; pl.seasonsAtLevel = 1; pl.weekResults = null
-  const cfg = R.Ne()[pl.pos], prim = cfg.primary, sd = cfg.stats.find(x => x.key === prim), per = sd.per[6], games = 4
+  const cfg = R.Ne()[pl.pos], prim = cfg.primary, sd = cfg.stats.find(x => x.key === prim), per = sd.per[6]
+  const games = window.__GRIDIRON_AUDIT__.LEVELS[6].games   // v139: the combine is six drill weeks, not four games — read the table
   const line = {}; cfg.stats.forEach(st => { line[st.key] = st.rate ? st.per[6] * 1.6 : st.per[6] * games * 2.4 })   // double a strong season
   pl.lastSeasonLine = { level: 6, pos: pl.pos, statLine: line, avg: 90 }
   const rk = R.sn(pl, R.ovr(pl))

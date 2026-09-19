@@ -110,6 +110,20 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   `fitLogYardsV139` DROPPED every event past its cut, which threw away a stripped ball's
   `looseBall` and `recover` and the drags a stop beat — nothing is discarded now, an event past the
   cut is re-timed onto it. v109C1check goes 6 fails → 0 (main fails 1-2 intermittently).
+  And the DFL Combine is a combine. It was up to three more seasons of football games against
+  "COMBINE FIELD", graded like any other week, with a national leaders board that invented
+  twenty-five rushing lines for a year in which nobody played a down. It is ONE year now (`Bt`),
+  its six weeks ARE the six drills every scout writes down (`A[6].games` is six; the v11 schedule
+  builder names each week for its drill instead of drawing an opponent), and the numbers are
+  measured off the attributes a combine measures — speed, acceleration, strength, jumping,
+  quickness, agility — on the same curves the skills sheet already prints, reported as a time, a
+  rep count or inches (`COMBINE_V139`, `combineResultV139`). The season screen opens on that board,
+  the leaders tab shows those numbers instead of invented box scores, and the coach reads the week
+  back to you — your forty, your best drill, the one that will get brought up in the room, and the
+  stat to build to move it. `window.__COMBINE_V139`; `combinecheck.mjs`.
+  One regression fell out of the gate, too: the coach opened his WHEEL stop over the READY TO ROLL
+  card and his spotlight landed on the gate's button, so a first week stalled there — he waits the
+  gate out now (`c.gate`), and coachcheck walks it the way a player does.
   `agecheck.mjs`, `tiercheck.mjs`, `gatecheck.mjs`, `movecheck.mjs`, `yardfitcheck.mjs`,
   `honorcheck.mjs`, `growcheck.mjs`, `v136check.mjs`, `emblemcheck.mjs`, `scrollcheck.mjs`
 

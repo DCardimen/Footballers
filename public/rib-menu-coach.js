@@ -197,7 +197,7 @@
       { p: 'listen', t: "Your rating and the depth chart live here. Low on the chart means fewer snaps. Fewer snaps means fewer stats. Simple." },
       { p: 'point', t: "I don't trust you yet, so you get about half the snaps. Play well and you get more. Now start the season.", s: 'playSeason', tap: true },
     ] },
-    { id: 'wheel', title: 'THE WHEEL', sub: 'HOW HARD HE WORKS THIS YEAR', when: (c) => c.wheel && !c.planWheel && !c.pregame, lines: [   // over the training board, off PLAY SEASON (v135: never the wheel inside the pregame)
+    { id: 'wheel', title: 'THE WHEEL', sub: 'HOW HARD HE WORKS THIS YEAR', when: (c) => c.wheel && !c.gate && !c.planWheel && !c.pregame, lines: [   // over the training board, off PLAY SEASON (v135: never the wheel inside the pregame)
       { p: 'clipboard', t: "The wheel. How hard is your guy working this year? The spin decides. His personality loads the odds." },
       { p: 'tip', t: "LIGHT is safe. OBSESSIVE pays big and breaks big. Green means it worked. Red means it blew up in your face." },
       { p: 'point', t: "Tired guys roll red. Never spin worn out. Tap the wheel to hurry it, then hit CONTINUE.", s: 'cont', tap: true },
@@ -221,7 +221,7 @@
     ] },
     /* v135: the plan wheel spins on the wizard's FIFTH page now, not over the season screen before
      * it, so this stop comes after the pregame stop — keyed on the wheel whose title reads PREGAME */
-    { id: 'plan', title: 'THE WEEKLY PLAN', sub: 'ROLLED, NOT CHOSEN', when: (c) => c.planWheel, lines: [
+    { id: 'plan', title: 'THE WEEKLY PLAN', sub: 'ROLLED, NOT CHOSEN', when: (c) => c.planWheel && !c.gate, lines: [
       { p: 'clipboard', t: "The wheel. The staff drew up the plans. It picks the one you run. His personality loads it." },
       { p: 'tip', t: "Some plans chase big plays. Some keep it steady. One does the dirty work and earns my trust." },
       { p: 'point', t: "Tap the wheel to hurry it, then CONTINUE. It shows you what it did to your numbers. Your sheet is the last page, then it's kickoff.", s: 'cont', tap: true },
@@ -236,6 +236,9 @@
       { p: 'listen', t: "Good game? I trust you more and you get more snaps. Bad game? The opposite. Your rank follows your stats." },
       { p: 'point', t: "And every game costs the body something. Check YOUR BODY before next week." },
     ] },
+    /* v139: the combine is ONE year of six drills measured off what he can actually do, and the
+     * numbers mean nothing to anybody who has not read a scouting report. He reads it out. */
+    { id: 'combine', title: 'THE COMBINE', sub: 'WHAT THE STOPWATCH SAID', when: (c) => c.view === 'season' && !c.wheel && !c.pregame && !!document.getElementById('combineV139'), build: combineLinesV139, delay: 800, every: true },
     { id: 'debrief', title: 'THE SEASON', sub: 'WHAT THE YEAR SAYS', when: (c) => c.view === 'result' && !!debriefDue(), build: debriefLinesV122, delay: 900, every: true },
     { id: 'recovery', title: 'RECOVERY', sub: 'THE BODY AFTER A GAME', when: (c) => c.view === 'season' && !c.wheel && !c.pregame && !c.post && c.seen.has('result'), lines: [
       { p: 'open', t: "Back on the season screen. Your guy took some hits. WEAR & TEAR is what the season is costing him. NEXT GAME is the injury risk.", s: 'body' },
@@ -244,6 +247,24 @@
       { p: 'welcome', t: "That's your first week. I'm switching this tour off. The tile on the menu brings me back. Now go get hit." },
     ], last: true },
   ];
+
+  // ---- v139 the combine ------------------------------------------------------------------------
+  function combineLinesV139() {
+    try {
+      const C = window.__COMBINE_V139, S = getState();   // the game's state is NOT window.o (v119)
+      const p = S && S.player; if (!C || !p) return null;
+      const R = C.all(p);
+      const forty = R.rows.filter((r) => r.k === 'forty')[0];
+      const out = [
+        { p: 'clipboard', t: `This is the combine. One week, no games, no hiding \u2014 six drills and every scout in the league holding a stopwatch.` },
+        { p: 'tip', t: `You ran a ${forty ? forty.value : '?'} forty. Your ${R.best.name.toLowerCase()} was the best thing you did all week \u2014 that's the one they'll write down.` },
+      ];
+      if (R.worst.pct < 40) out.push({ p: 'armscrossed', t: `The ${R.worst.name.toLowerCase()} is what'll get brought up in the room. ${R.worst.grade === 'POOR' ? "It was bad." : "It wasn't good."} You want that number up, it's ${R.worst.attr} on the skill sheet.` });
+      out.push({ p: R.score >= 58 ? 'thumbsup' : 'stop', t: `${R.score}th percentile overall. Grade ${R.grade}. ${R.say}` });
+      out.push({ p: 'point', t: `Nothing here is a box score. It's what your BODY did. Build the stat, the number moves.`, s: 'body' });
+      return out;
+    } catch (e) { return null }
+  }
 
   // ---- state ----------------------------------------------------------------------------------
   const st = { open: false, stop: null, li: 0, lines: null, typing: false, auto: true, timer: 0, mouth: 0, raf: 0, spot: null, tap: false, flips: 0, text: '', pos: 0, preloaded: false, mood: 'plain', quip: null, lastQuip: false, quips: 0, quipTimer: 0 };
@@ -279,6 +300,8 @@
       // roll is in), and the weekly plan comes up off PLAY WEEK, before the pregame wizard — its title
       // reads PREGAME
       view: String(s.view || ''), menu: !!document.getElementById('rib-main-menu-v2'), persona: !!byId('personaV13'), wheel: !!byId('growthV42'),
+      // v139: the season wheel opens on a gate — READY TO ROLL? — and he does not talk over a decision
+      gate: !!byId('gv139gate'),
       planWheel: !!byId('growthV42') && /^\s*PREGAME/.test((document.querySelector('#growthV42 > div > div') || {}).textContent || ''),
       pregame: !!byId('pregameV1513'), post: !!byId('pgOverlayV13'), live: !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length) && String(s.view || '') === 'live',
       seen: seen(),
