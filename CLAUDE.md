@@ -68,6 +68,29 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v139 THE COMBINE IS DRILLS, NOT GAMES` (beside `COMBINE_V139`) / `v139 THE YEARS TAKE A CUT`
+  (beside `ageCutV139`) / the rest of v139, scattered by subject — the batch that made the screens
+  tell the truth. `fitLogYardsV139` cuts the broadcast at the spot the CREDITED yards name (and
+  never cuts a turnover — an event past the cut is re-timed, never dropped); `gradeFloorV139`
+  floors a season grade against the call-up chance; `honorPayV139` is the ONE conversion, so the
+  card and the settle agree. `ageCutV139` takes 5–16% off every physical attribute past the prime,
+  inside `dc`, answered by the endgame nodes `secondWind` / `earlyDeclare` / `apexOutput` /
+  `apexCeiling` / `goldenAge` / `inevitable`. The lineage keeps ONE surname (`famSurnameV139`,
+  `famRenameV139` retrofits the player, the fathers and the Hall). `#navV139` is the five-item
+  bottom bar and `--dockH-v139` is the real dock reserve. `gateV139` holds the season wheel behind
+  a READY TO ROLL card — its button carries the wheel's own `gv42go`, so drive loops keep working,
+  and the coach WAITS the gate out (`c.gate` in his `ctx`) rather than talking over it.
+  `nameIdeasV139` offers five whole team names per palette. `tierRewardV139` pays the recruit ★ at
+  the END of a season graded C or better and `tierOppShiftV139` makes a tier's `comp` move the
+  opponents. In the live sim `window.__V139.lunge` sizes a committed dive off its own closing
+  force, and the carrier has three ways to beat a man (spin / juke / side step) off the roll the
+  whiff already took. THE COMBINE: one year (`Bt`), six weeks that ARE the six drills
+  (`A[6].games` = 6; the v11 `ls` names each week for its drill and stamps `week.combineV139`),
+  numbers measured off speed / acceleration / strength / jumping / quickness / agility
+  (`combineResultV139`), the season screen's own board (`combineBoardV139`), the leaders tab
+  replaced (`combineLeadersV139`) and the coach's `combine` stop reading it back.
+  `window.__COMBINE_V139`, `__ageV139`, `__V139`. `combinecheck.mjs`, `agecheck.mjs`,
+  `tiercheck.mjs`, `gatecheck.mjs`, `movecheck.mjs`
 - `v137 THE VAULT IS WHERE THE POINTS LIVE` (in the career-app block, beside `__GRIDIRON_AUDIT__`)
   — the Prestige Vault: `o.pp` drawn as ONE mixed hoard of bronze (1) / silver (1K) / gold (1M) /
   electric-blue (1B) coins in a cinematic room, tapped and held to fund an upgrade. It lives in
@@ -610,6 +633,8 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 
 | You changed… | Run |
 |---|---|
+| the combine — the drills, the weeks, the board, the leaders tab, the coach's read (v139) | `combinecheck.mjs`, then `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs`, `coachcheck.mjs`, `simcheck.mjs`, `v85check.mjs` |
+| the age curve, the endgame nodes, the grade floor, the honors payout, the surname, the bottom nav, the wheel gate, the team-name ideas, the tier rewards, or the carrier's moves (v139) | `agecheck.mjs`, `tiercheck.mjs`, `gatecheck.mjs`, `movecheck.mjs`, then `coachcheck.mjs`, `wheelcheck.mjs`, `v112Dcheck.mjs`, `v136check.mjs`, `honorcheck.mjs`, `scrollcheck.mjs`, `menu-integration-check.mjs`, `emblemcheck.mjs`, `walk.mjs` |
 | the Prestige Vault — the hoard, the spend, the door, the payout, the sprites (v137) | `python3 scripts/build-vault-art.py --proof` (if a cell moved — then LOOK at `art/vault-proof/`), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-vault*` file), then `vaultcheck.mjs`, `honorcheck.mjs`, `v134check.mjs`, `coachcheck.mjs`, `menu-integration-check.mjs`, `v136check.mjs`, `freshcheck.mjs`; `vaultshot.mjs` / `WIDE=1 vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` / `vaultphys.mjs` to look |
 | tackling / contact physics | `tacklecheck.mjs`, `jukecheck.mjs` |
 | the lineage — the son, the surname, the family years, the father on every screen and in the coach's mouth (v136 D) | `v136check.mjs`, then `coachcheck.mjs`, `menu-integration-check.mjs`, `honorcheck.mjs`, `declarecheck.mjs`, `walk.mjs` |

@@ -67,7 +67,7 @@ const step = async (page, t, wait = 900) => {
   ok(h && !h.open, 'the dev-check boot (welcome cards removed without a click) never starts him on its own')
   const tile = await page.evaluate(() => { const t = document.querySelector('#rib-main-menu-v2 [data-rib-action="coach"]'); return t ? { on: t.getAttribute('aria-checked'), role: t.getAttribute('role'), label: (t.querySelector('b') || {}).textContent, face: (t.querySelector('small') || {}).textContent, img: !!t.querySelector('img') } : null })
   ok(tile && tile.role === 'switch' && tile.on === 'true' && /COACH'S TOUR/.test(tile.label) && /^ON\b/.test(tile.face) && tile.img, "the COACH'S TOUR switch is on the menu and reads ON on a fresh install", JSON.stringify(tile))
-  ok(h && h.stops === 16 && h.lines >= 30 && h.lines <= 64 && h.estimateMin >= 1.5 && h.estimateMin <= 6, 'sixteen stops (fifteen written — the prestige tree and the skill sheet each their own — plus the season debrief it builds) — a couple of minutes of talk over a week, not a lecture', h && `${h.estimateMin.toFixed(1)} min · ${h.lines} lines`)
+  ok(h && h.stops === 17 && h.lines >= 30 && h.lines <= 64 && h.estimateMin >= 1.5 && h.estimateMin <= 6, 'seventeen stops (fifteen written — the prestige tree and the skill sheet each their own — plus the season debrief and the combine, which he builds) — a couple of minutes of talk over a week, not a lecture', h && `${h.estimateMin.toFixed(1)} min · ${h.lines} lines`)
   // his lines are short and plain: almost no numbers (the guide has those), no line over two sentences' worth, and the
   // things a rookie must hear — fatigue means fewer snaps, each position wants its own skills, prestige is what you keep
   const lineFacts = await page.evaluate(() => fetch([...document.scripts].map((x) => x.src).find((u) => /rib-menu-coach/.test(u))).then((r) => r.text()).then((src) => { const m = src.match(/t: "([^"]+)"/g) || []; const all = m.join(' ')
@@ -243,6 +243,13 @@ const step = async (page, t, wait = 900) => {
   await step(page, 'Lock In Personality'); await expect('position', 'the position pick'); await dismiss(page)
   await step(page, 'POS'); await expect('hub', 'the hub'); await dismiss(page)
   await step(page, 'PLAY 8-GAME SEASON')
+  // v139: the season wheel opens on a gate — READY TO ROLL FOR YOUR CAREER FOCUS? — and its ROLL IT
+  // carries the wheel's own #gv42go, so the drive loops keep working. He waits it out: a decision
+  // prompt is not something to talk over.
+  await page.waitForSelector('#gv139gate', { timeout: 15000 }).catch(() => null)
+  const gateQuiet = await page.evaluate(() => !!document.getElementById('gv139gate') && !window.__RIB_COACH.isOpen)
+  ok(gateQuiet, 'the READY TO ROLL gate comes up first and he stays out of the way of it')
+  await page.click('#gv42go'); await page.waitForTimeout(500)
   const wheel = await expect('wheel', 'the season-commitment wheel, over the training board')
   // the wheel spins itself and rolls the fit; CONTINUE arrives with the roll — the last line's cut-out waits for it
   await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' && g.getBoundingClientRect().height > 0 }, null, { timeout: 30000 }).catch(() => null)

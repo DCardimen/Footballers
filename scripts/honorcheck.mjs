@@ -109,6 +109,34 @@ const menuRead = await page.evaluate(() => {
 console.log('menu reads rank:', JSON.stringify(menuRead))
 ok(menuRead === 7, 'the main menu still reads the account rank now that it is a medal, not a star', String(menuRead))
 
+// ---- 4. (v139) the honors the card promises are the honors the account gets ----
+// Qs() counts a career's honors and the DFL card printed that count, but both settles credited
+// it through TU("prestigeGainMult"), which was .2 — so "+7 HONORS" moved the account by 1.4 and
+// a short career by 0.2, against a prestige tree whose gates run to 30.
+const settle = await page.evaluate(() => {
+  const A = window.__GRIDIRON_AUDIT__, S = window.S
+  const mk = (lvl) => { const p = A.newPlayer(S, 'RB'); p.level = lvl; p.totalSeasons = 6; p.career = p.career || []; return p }
+  const run = (lvl, screen) => {
+    const p = mk(lvl); S.player = p; const before = S.prestige
+    const raw = A.prestigeStarReward(p, lvl, screen === 'win')
+    // the settle runs first; the screen it then draws wants a whole career's fixtures, so let it throw
+    try { A[screen]() } catch (e) {}
+    return { raw, paid: p._starGain, moved: +(S.prestige - before).toFixed(1), settled: !!p._settled }
+  }
+  const win = run(7, 'screenWin'), cut = run(5, 'screenGameOver')
+  return { win, cut, pay: window.__honorPayV139 && [0, 1, 7].map(n => window.__honorPayV139(n)) }
+})
+console.log('settle:', JSON.stringify(settle))
+ok(!!settle.pay, 'honorPayV139 is the one place a career\'s honors become account honors', JSON.stringify(settle.pay))
+ok(settle.win.paid === settle.win.moved, 'the DFL card pays exactly what the account gains',
+  `card +${settle.win.paid} · account +${settle.win.moved}`)
+ok(settle.win.paid === settle.win.raw, 'and that is the honor count the career actually earned',
+  `earned ${settle.win.raw} · paid ${settle.win.paid}`)
+ok(settle.cut.moved === settle.cut.raw && settle.cut.paid === settle.cut.raw,
+  'a career that ended short is settled on the same terms', `earned ${settle.cut.raw} · account +${settle.cut.moved}`)
+ok(settle.win.moved >= 1, 'a full DFL career moves the rank by at least one honor, against gates that run to 30',
+  `+${settle.win.moved}`)
+
 console.log('page errors:', errs.length ? errs.join('\n') : 'none')
 console.log(JSON.stringify({ pass, fail, pageErrors: errs.length }))
 await browser.close()

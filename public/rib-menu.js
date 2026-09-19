@@ -445,6 +445,8 @@
           ${tile('howto', 'badge_brain', 'HOW TO PLAY', 'ATTRIBUTES · POSITIONS · THE LADDER', 'rib9-tile-guide')}
           ${/* v119: the coach's tour — a TOGGLE, not a door. ON plays the tour after the welcome cards (or the moment it is switched on); the tour switches it OFF when it ends. rib-menu-coach.js owns the state. */''}
           <button class="rib9-tile rib9-tile-coach ${coachOn ? 'on' : ''}" type="button" data-rib-action="coach" role="switch" aria-checked="${coachOn ? 'true' : 'false'}" aria-label="Coach's tour, ${coachOn ? 'on' : 'off'}"><img src="${COACH_ART}tile.webp${ARTV}" alt="" loading="lazy"><b>COACH'S TOUR</b><small><i class="rib9-sw"><i></i></i>${coachOn ? 'ON · HE WALKS YOUR FIRST WEEK' : 'OFF · TAP TO BRING HIM BACK'}</small></button>
+          ${/* v139: the prestige tree is a door, and the only way in was the header chip — which is not where anyone looks. It sits beside the coach now, with what you have to spend on it. */''}
+          ${tile('prestige', 'legacy_gem', 'PRESTIGE', `${Number(S.pp || 0).toLocaleString()} PP TO SPEND`)}
         </nav>`;
     const navLink = (action, label, active) => `<button class="rib9-navlink ${active ? 'on' : ''}" type="button" data-rib-action="${action}">${label}</button>`;
 
@@ -609,7 +611,11 @@
        * and a second, gold arc goes round again for everything past it. A young player's ring used to be
        * a sliver of a 250-point circle he could not read; now it says how much of THIS year's ceiling he
        * has used, and a full gold lap is a man who has outgrown his caps. */
-      const softMax = Math.max(1, Number(data.player && data.player.softMaxOvr) || 0) || 250;
+      /* v139: `Math.max(1, x) || 250` can never reach its own fallback — Math.max(1, 0) is 1,
+       * which is truthy — so a feed with no softMaxOvr divided by ONE and every player came
+       * out past his soft max with a full gold lap. */
+      const sm0 = Number(data.player && data.player.softMaxOvr) || 0;
+      const softMax = sm0 > 0 ? sm0 : 250;
       const k1 = Math.min(1, overall / softMax), k2 = Math.max(0, Math.min(1, (overall - softMax) / softMax));
       ring.style.setProperty('--rib-ovr-color', k2 > 0 ? '#7ddc6e' : overall / softMax >= .85 ? '#7ddc6e' : overall / softMax >= .5 ? '#e8c86a' : '#e8734a');
       ring.classList.toggle('over', k2 > 0);

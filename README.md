@@ -55,6 +55,78 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v139 — the numbers the screens promise.** A run of fixes where the picture and the sheet had
+  drifted apart. The broadcast now obeys the box score (`fitLogYardsV139` cuts the animation at the
+  spot the credited yards name, measured against the CARRIER, so an 80-yard picture on a 30-yard gain
+  is gone), and `retagSimLog` verifies it is retagging its OWN play before it writes — it was
+  corrupting roughly a quarter of the queued logs. The OVR ring on the main menu is a ring again
+  (`radial-gradient(circle …)` sizes to farthest-corner, which swallowed the whole arc). A stellar
+  season's acceptance rate tops out at 99, not 97. The season grade is floored against the call-up
+  chance (`gradeFloorV139`), because a man the game says is a lock to move up is not having an F
+  season. The honors the career-end card promises are the honors the account actually gets
+  (`honorPayV139`: the card printed `Qs()` raw and the settle credited a fifth of it, against a
+  prestige tree whose gates run to 30). **The years take a real cut now** — past the athletic prime
+  every physical attribute loses 5% a season, steepening to 16% through the bands `mn()` already
+  described, at every level and not just the DFL (`ageCutV139`, the one cut, taken inside `dc` so the
+  v132 year-older screen shows every point of it) — and a five-figure endgame tier answers it:
+  Second Wind (5,000 PP) reads the curve a year younger per level to eight, Early Declaration
+  (10,000) takes a season off the minimum at this level, and four more sinks above them. The dock is
+  no longer a lid: `.screen` reserved a flat 108px for a `position:fixed` dock that is 325px tall on
+  the prestige tree, so the bottom of the node list could not be reached — the reserve is measured
+  off the dock now (`--dockH-v139`). And the line keeps ONE surname: from the second generation the
+  name box edits the first name only, the family name sits beside it, and changing it in Settings
+  retrofits the living player, every father on the books and the Hall of Fame.
+  The chrome moved with it: the topbar chip carries what is BANKED for the end of the career, the
+  main menu has a PRESTIGE tile beside the coach's switch (the tree's only door was a header chip),
+  the RUNNING IT BACK wordmark is off the career screens and left to the main menu, and the man on
+  the year-older screen finally wears the team's palette — the recolour was guarded on a function
+  that lives in another script block and is not on `window`, so it had never once run.
+  And the program you commit to is the teams you face: a tier's `comp` moved exactly one number —
+  the divisor that decides how hard it is to stand out nationally — so the schedule was identical
+  at a Blue-Blood and a Mid-Major. It shifts the opponents themselves now, each card states the
+  average opponent OVR it will actually generate, and the extra recruit ★ is paid at the end of a
+  season you graded C or better instead of being handed over at the door.
+  And the season no longer rolls your career focus while you are still reading the training board:
+  `cfg.gate` puts one beat in front of the commitment wheel — it is built and drawn, then held
+  behind a card that asks, and it spins when you say so. The gate's button carries the wheel's own
+  `gv42go`, so everything that drives that wheel by tapping until the overlay clears keeps working
+  with one extra tap. The coach also finally mentions the extra-season nodes, and what they cost
+  you in DFL years.
+  The team creator stops handing you two empty boxes, too: it offers five whole names — level-shaped
+  off v123's own 120 towns, 88 mascots, college suffixes and fifty DFL clubs — re-rolled every time
+  you pick a palette, and tapping one fills both fields.
+  And the bottom of the screen is the way around: a five-item bar (hub / season / skills / tree /
+  menu) under the dock, because every destination used to live behind a hamburger in the one corner
+  of a phone a thumb cannot reach. Settings tabs instead of running 1.9 screens deep, long
+  explanations clamp to three lines with a MORE on them, and the hub's dock stops repeating the two
+  buttons the bar already carries.
+  In the live game the carrier has THREE ways to beat a man — the spin, the juke and a SIDE STEP,
+  picked off his own ratings from the roll the whiff already took, so the sim's random stream is
+  untouched — the committed tackle's leap is sized by its own closing force instead of a flat 17px,
+  and a whiffed diver finishes his arc and LANDS instead of snapping to the turf a fifth of a
+  second after leaving his feet.
+  Two bugs fell out of it. `flyStartV112` cleared `_launchUntil` but not `_launchH`, so a stale
+  lunge height leaked into a v112 F flight and put a launched man above his own arc; and
+  `fitLogYardsV139` DROPPED every event past its cut, which threw away a stripped ball's
+  `looseBall` and `recover` and the drags a stop beat — nothing is discarded now, an event past the
+  cut is re-timed onto it. v109C1check goes 6 fails → 0 (main fails 1-2 intermittently).
+  And the DFL Combine is a combine. It was up to three more seasons of football games against
+  "COMBINE FIELD", graded like any other week, with a national leaders board that invented
+  twenty-five rushing lines for a year in which nobody played a down. It is ONE year now (`Bt`),
+  its six weeks ARE the six drills every scout writes down (`A[6].games` is six; the v11 schedule
+  builder names each week for its drill instead of drawing an opponent), and the numbers are
+  measured off the attributes a combine measures — speed, acceleration, strength, jumping,
+  quickness, agility — on the same curves the skills sheet already prints, reported as a time, a
+  rep count or inches (`COMBINE_V139`, `combineResultV139`). The season screen opens on that board,
+  the leaders tab shows those numbers instead of invented box scores, and the coach reads the week
+  back to you — your forty, your best drill, the one that will get brought up in the room, and the
+  stat to build to move it. `window.__COMBINE_V139`; `combinecheck.mjs`.
+  One regression fell out of the gate, too: the coach opened his WHEEL stop over the READY TO ROLL
+  card and his spotlight landed on the gate's button, so a first week stalled there — he waits the
+  gate out now (`c.gate`), and coachcheck walks it the way a player does.
+  `agecheck.mjs`, `tiercheck.mjs`, `gatecheck.mjs`, `movecheck.mjs`, `yardfitcheck.mjs`,
+  `honorcheck.mjs`, `growcheck.mjs`, `v136check.mjs`, `emblemcheck.mjs`, `scrollcheck.mjs`
+
 - **v137 — the Prestige Vault: your points, where you can see them.** Prestige Points stopped being a
   number on a chip and became a room. `o.pp` is drawn as ONE mixed hoard — bronze (1 PP), silver
   (1,000), gold (1,000,000) and electric blue (1,000,000,000), all in the same pile — on the floor of a

@@ -1,0 +1,90 @@
+{
+  "metrics": {
+    "viewport": {
+      "width": 358,
+      "height": 768
+    },
+    "pageHeight": 768,
+    "menu": {
+      "x": 0,
+      "y": 0,
+      "width": 358,
+      "height": 768,
+      "top": 0,
+      "right": 358,
+      "bottom": 768,
+      "left": 0
+    },
+    "hero": {
+      "x": 0,
+      "y": 135.6875,
+      "width": 358,
+      "height": 183.578125,
+      "top": 135.6875,
+      "right": 358,
+      "bottom": 319.265625,
+      "left": 0
+    },
+    "player": {
+      "x": 10,
+      "y": 331.265625,
+      "width": 338,
+      "height": 134.78125,
+      "top": 331.265625,
+      "right": 348,
+      "bottom": 466.046875,
+      "left": 10
+    },
+    "legacy": {
+      "x": 10,
+      "y": 1324.71875,
+      "width": 338,
+      "height": 177.078125,
+      "top": 1324.71875,
+      "right": 348,
+      "bottom": 1501.796875,
+      "left": 10
+    },
+    "tiles": 8,
+    "assets": {
+      "ready": true,
+      "loaded": [
+        "hero_tunnel",
+        "hero_mask_p",
+        "hero_mask_s",
+        "portrait_helmet",
+        "portrait_helmet_mask_s",
+        "logo_wordmark",
+        "card_continue",
+        "card_continue_mask_p",
+        "card_trophy",
+        "card_continue_mask_s",
+        "icon_career",
+        "icon_training",
+        "icon_goals",
+        "icon_hall",
+        "swash_underline",
+        "icon_locker",
+        "icon_settings",
+        "legacy_star",
+        "legacy_helmet",
+        "legacy_crown",
+        "legacy_gem",
+        "legacy_laurel",
+        "legacy_target",
+        "badge_crown",
+        "badge_shoe",
+        "badge_lightning",
+        "badge_shield",
+        "badge_brain",
+        "badge_eye",
+        "badge_fist",
+        "badge_target",
+        "badge_clock"
+      ],
+      "failed": [],
+      "fallback": false
+    }
+  },
+  "errors": []
+}
