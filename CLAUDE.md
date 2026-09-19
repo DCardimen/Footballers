@@ -68,6 +68,18 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v141 "MY PLAYS ONLY" WAS HIDING THE WHOLE GAME` (beside `vl` / `yourPlayV141`) — **`involved` is
+  STAT TRUTH and must stay narrow**: true only where the play NAMES the you-player as the actor. The
+  renderer gates "that man is YOU" on it (`payload.involved`) and `creditcheck` enforces it. It is
+  true on 0.7–7.5% of snaps, so the broadcast filter reading it meant MY PLAYS ONLY hid every play
+  and dropped you on the post-game card. `yourPlayV141(e)` is the PRESENTATION flag — the play names
+  him, or it is a scrimmage snap his unit is on the field for — and only the `onlyInvolved` branch of
+  `vlRawV141` reads it; `skipOpp` keeps `involved` so it still means "while your team has the ball".
+  `liveFilterV141(g)` is armed ONCE per game in `hl()` onto `o._liveFilterOffV141`: a filter that
+  would leave fewer than `TU("liveFilterMinV141", 8)` snaps stands down for that game. **Never widen
+  `involved` to fix a presentation problem — add a flag beside it.** `window.__V141`;
+  `livefiltercheck.mjs`, then `creditcheck.mjs`, `statcreditcheck.mjs`, `renderpathcheck.mjs`,
+  `v86check.mjs`, `v117check.mjs`
 - `v140 THE BOOT CANNOT TAKE THE REST OF THE FILE WITH IT` (beside `safeBootV140`, at the first
   top-level boot render) — **the career app restores the saved view and DRAWS it from the top level
   of its own script block**, three times (`mc()` and two later `q()` calls), hundreds of lines above
@@ -648,6 +660,8 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 
 | You changed… | Run |
 |---|---|
+| which plays the broadcast shows, the LIVE GAME settings, or anything reading `involved` (v141) | `livefiltercheck.mjs`, then `creditcheck.mjs`, `statcreditcheck.mjs`, `renderpathcheck.mjs`, `v86check.mjs`, `v117check.mjs`, `simcheck.mjs`, `coachcheck.mjs` |
+| the OVR ring on the main menu (v141) | `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs`, then `menufxcheck.mjs`, `menu-integration-check.mjs`, `freshcheck.mjs`; `menushot.mjs` (`CAREER=1`) to look |
 | anything at the TOP LEVEL of the career block, the boot, or a function a rendered screen calls by bare name (v140) | `bootviewcheck.mjs`, then `splashcheck.mjs`, `walk.mjs`, `vaultcheck.mjs`, `menu-integration-check.mjs`, `shot.mjs` |
 | the combine — the drills, the weeks, the board, the leaders tab, the coach's read (v139) | `combinecheck.mjs`, then `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs`, `coachcheck.mjs`, `simcheck.mjs`, `v85check.mjs` |
 | the age curve, the endgame nodes, the grade floor, the honors payout, the surname, the bottom nav, the wheel gate, the team-name ideas, the tier rewards, or the carrier's moves (v139) | `agecheck.mjs`, `tiercheck.mjs`, `gatecheck.mjs`, `movecheck.mjs`, then `coachcheck.mjs`, `wheelcheck.mjs`, `v112Dcheck.mjs`, `v136check.mjs`, `honorcheck.mjs`, `scrollcheck.mjs`, `menu-integration-check.mjs`, `emblemcheck.mjs`, `walk.mjs` |

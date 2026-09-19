@@ -150,19 +150,23 @@ html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
      was being drawn correctly the whole time and none of it was visible: all you could see
      was the spark at its head, which is exactly the "it just appears to be a dot". The
      unfilled track is brighter too, so the circle reads as a COMPLETE ring at any OVR. */
-  background:radial-gradient(circle closest-side,#101216 63%,transparent 65%),conic-gradient(var(--rib-ovr-color) calc(var(--rib-ovr)*360deg),rgba(255,255,255,.30) 0);transition:--rib-ovr 1.1s ease;
-  box-shadow:0 0 0 5px #101216 inset,0 0 0 1px rgba(255,255,255,.06),0 0 22px rgba(125,220,110,.14)}
+  /* v141: ONE ring. The band is set here and nowhere else — a 5px inset shadow used to eat its
+     outer edge while `:after` drew a hairline at radius 33 straight THROUGH it, so the thing read
+     as two circles that did not line up. The hole is wider too (the number had no room), and the
+     halo is the ring's OWN colour: it was hardcoded green under an arc that turns orange and gold. */
+  background:radial-gradient(circle closest-side,#101216 0 76%,transparent 78%),conic-gradient(var(--rib-ovr-color) calc(var(--rib-ovr)*360deg),rgba(255,255,255,.16) 0);transition:--rib-ovr 1.1s ease;
+  box-shadow:0 0 0 1px rgba(255,255,255,.07),0 0 16px -10px var(--rib-ovr-color,#7ddc6e)}
 @property --rib-ovr{syntax:'<number>';inherits:false;initial-value:0}
 /* v134: past the soft max a second, gold arc goes round again on top of the full green ring */
 @property --rib-ovr2{syntax:'<number>';inherits:false;initial-value:0}
 .rib9-ring{--rib-ovr2:0}
 .rib9-ring:before{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;z-index:0;
   background:conic-gradient(#ffd66b calc(var(--rib-ovr2)*360deg),transparent 0);
-  -webkit-mask:radial-gradient(circle closest-side,transparent 63%,#000 65.5%);mask:radial-gradient(circle closest-side,transparent 63%,#000 65.5%);transition:--rib-ovr2 1.1s ease .3s;opacity:0}
+  -webkit-mask:radial-gradient(circle closest-side,transparent 76%,#000 78%);mask:radial-gradient(circle closest-side,transparent 76%,#000 78%);transition:--rib-ovr2 1.1s ease .3s;opacity:0}
 .rib9-ring.over:before{opacity:1}
-.rib9-ring.over{box-shadow:0 0 0 5px #101216 inset,0 0 0 1px rgba(255,214,107,.25),0 0 26px rgba(255,214,107,.22)}
+.rib9-ring.over{box-shadow:0 0 0 1px rgba(255,214,107,.28),0 0 18px -9px rgba(255,214,107,.9)}
 .rib9-ring.over .rib9-ring-lab{color:#ffd66b}
-.rib9-ring:after{content:"";position:absolute;inset:11px;border-radius:50%;border:1px solid rgba(255,255,255,.08)}
+/* v141: the inner hairline is gone — at inset 11px it sat inside the band and cut across it. */
 .rib9-ring-val{position:relative;font-family:Oswald,sans-serif;font-weight:700;font-size:38px;line-height:.9;color:#fff;text-shadow:0 2px 8px #000}
 .rib9-ring-lab{position:relative;font-family:Oswald,sans-serif;font-size:10px;letter-spacing:3px;color:#cfd3da;margin-top:4px}
 .rib9-archcard{display:grid;grid-template-columns:1fr;gap:8px 14px;padding:9px 12px;align-items:center}
@@ -502,10 +506,8 @@ body.rib-howto-open{overflow:hidden!important}
 @keyframes rib9ring{to{--ang:360deg}}
 .rib9-tile-hot img{animation:rib9float 3.4s ease-in-out infinite}
 @keyframes rib9float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-4px) rotate(2deg)}}
-/* the OVR ring: a spark rides the head of the arc and breathes */
-.rib9-ring-spark-v132{position:absolute;inset:0;border-radius:50%;pointer-events:none;transform:rotate(var(--spark,0deg));transition:transform 1.1s ease}
-.rib9-ring-spark-v132:before{content:"";position:absolute;left:50%;top:-1px;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#fff;box-shadow:0 0 8px 2px var(--rib-ovr-color,#7ddc6e),0 0 18px 6px rgba(255,255,255,.3);animation:rib9sparkle 1.7s ease-in-out infinite}
-@keyframes rib9sparkle{0%,100%{transform:scale(.8);opacity:.75}50%{transform:scale(1.25);opacity:1}}
+/* v141: the OVR ring had a glowing orb riding the head of its arc. It is gone — it read as a
+   bead stuck on the ring, and it drew the eye off the number the ring is there to carry. */
 .rib9-ring-val{animation:rib9ovrin 1.2s cubic-bezier(.2,1.3,.3,1) both}
 @keyframes rib9ovrin{0%{transform:scale(.6);opacity:0;filter:blur(4px)}60%{filter:blur(0)}100%{transform:none;opacity:1}}
 /* the season dots: the week that is up pings like a radar; the played weeks pop in one after another */
