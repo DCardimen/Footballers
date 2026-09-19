@@ -55,6 +55,29 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v139 — the numbers the screens promise.** A run of fixes where the picture and the sheet had
+  drifted apart. The broadcast now obeys the box score (`fitLogYardsV139` cuts the animation at the
+  spot the credited yards name, measured against the CARRIER, so an 80-yard picture on a 30-yard gain
+  is gone), and `retagSimLog` verifies it is retagging its OWN play before it writes — it was
+  corrupting roughly a quarter of the queued logs. The OVR ring on the main menu is a ring again
+  (`radial-gradient(circle …)` sizes to farthest-corner, which swallowed the whole arc). A stellar
+  season's acceptance rate tops out at 99, not 97. The season grade is floored against the call-up
+  chance (`gradeFloorV139`), because a man the game says is a lock to move up is not having an F
+  season. The honors the career-end card promises are the honors the account actually gets
+  (`honorPayV139`: the card printed `Qs()` raw and the settle credited a fifth of it, against a
+  prestige tree whose gates run to 30). **The years take a real cut now** — past the athletic prime
+  every physical attribute loses 5% a season, steepening to 16% through the bands `mn()` already
+  described, at every level and not just the DFL (`ageCutV139`, the one cut, taken inside `dc` so the
+  v132 year-older screen shows every point of it) — and a five-figure endgame tier answers it:
+  Second Wind (5,000 PP) reads the curve a year younger per level to eight, Early Declaration
+  (10,000) takes a season off the minimum at this level, and four more sinks above them. The dock is
+  no longer a lid: `.screen` reserved a flat 108px for a `position:fixed` dock that is 325px tall on
+  the prestige tree, so the bottom of the node list could not be reached — the reserve is measured
+  off the dock now (`--dockH-v139`). And the line keeps ONE surname: from the second generation the
+  name box edits the first name only, the family name sits beside it, and changing it in Settings
+  retrofits the living player, every father on the books and the Hall of Fame.
+  `agecheck.mjs`, `yardfitcheck.mjs`, `honorcheck.mjs`
+
 - **v137 — the Prestige Vault: your points, where you can see them.** Prestige Points stopped being a
   number on a chip and became a room. `o.pp` is drawn as ONE mixed hoard — bronze (1 PP), silver
   (1,000), gold (1,000,000) and electric blue (1,000,000,000), all in the same pile — on the floor of a
