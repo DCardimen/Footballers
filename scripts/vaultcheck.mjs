@@ -136,29 +136,86 @@ const flight = await page.evaluate(() => {
 ok(flight.inBox && flight.i >= 0 && flight.i < flight.n, 'a tap detaches a REAL surface coin, not a spawn point', flight)
 await closeV()
 
-// ---------- 2b. THE MONEY IS LOOSE: drag, tilt, weight, restock ----------
+// ---------- 2b. THE MONEY IS LOOSE: drag, the avalanche, weight, restock ----------
 await setPP(900000)
 await openV()
 await page.waitForTimeout(900)
+
+// THE PILE IS A PILE. The whole mechanic being sold is a HOARD, and a low spread reads as a
+// carpet of change rather than a heap of money — so v137 E stands the mound 40% taller
+// against exactly the same footprint. The peak is the one number that says so.
+const shape = await page.evaluate(() => {
+  const M = window.__RIB_VAULT_MODEL, s = window.__RIB_VAULT_DEV.scene()
+  const h = s.hoardBox()
+  return { peak: +M.MOUND.H(1).toFixed(4), r: M.MOUND.R,
+    boxW: Math.round(h.x1 - h.x0), boxH: Math.round(h.y1 - h.y0) }
+})
+ok(shape.peak >= 0.979, 'the heap stands at least 40% higher than the pile it replaces', shape)
+ok(shape.boxH > 0 && shape.boxW > 0, 'and it is a real box on the screen', shape)
+
 const phys = await page.evaluate(async () => {
-  const V = window.__RIB_VAULT_DEV, s = V.scene(), M = window.__RIB_VAULT_MODEL
+  const V = window.__RIB_VAULT_DEV, s = V.scene()
   const h = s.hoardBox(), cx = (h.x0 + h.x1) / 2, cy = (h.y0 + h.y1) / 2
   const got = V.drag(cx, cy)
-  const b = Object.values(V.bodies())[0]
+  /* THE COIN IN THE HAND IS `V.v.dragging`, and it has to be asked for by name. It used to
+   * be read as `Object.values(V.bodies())[0]`, which worked only while a lift woke exactly
+   * one body: the map is keyed by SLOT INDEX, so `[0]` is the lowest-numbered woken slot,
+   * and since v137 E a lift also shakes the coins around it — dozens of them. */
+  const b = V.v.dragging
   const at0 = b ? { x: b.gx, y: b.gy } : null
   for (let i = 0; i < 12; i++) V.dragTo(cx + 70, cy - 90)
   const at1 = b ? { x: b.gx, y: b.gy } : null
+  // hold it still for a moment before letting go, the way a hand that is PLACING a coin
+  // does — otherwise this is a throw, and where a thrown coin ends up is the next probe
+  for (let i = 0; i < 8; i++) { await new Promise(r => setTimeout(r, 30)); V.dragTo(cx + 70, cy - 90) }
+  const air = b ? b.gy - s.surfaceAt(b.gx, b.gz) : 0
+  const dropX = b ? b.gx : 0, dropZ = b ? b.gz : 0
   V.drop()
   await new Promise(r => setTimeout(r, 900))
   const at2 = b ? { x: b.gx, y: b.gy, sleep: b.sleep } : null
   const surf = b ? s.surfaceAt(b.gx, b.gz) : 0
-  return { got, at0, at1, at2, surf: +surf.toFixed(4), held: b ? b.held : null,
+  return { got, at0, at1, at2, air: +air.toFixed(3), surf: +surf.toFixed(4),
+    fell: b ? +Math.abs(b.gx - dropX).toFixed(3) : 0, held: b ? b.held : null,
     moved: at0 && at1 ? Math.abs(at1.x - at0.x) > 0.02 : false,
-    onHeap: b ? b.gy >= surf - 0.02 : false, mass: b ? b.m : null }
+    onHeap: b ? Math.abs(b.gy - surf) <= 0.03 : false, mass: b ? b.m : null }
 })
 ok(phys.got && phys.moved, 'a coin can be PICKED UP and dragged off the heap', phys)
-ok(!phys.held && phys.onHeap, 'and when it is let go it falls and comes to rest ON the heap, not through it', phys)
+ok(phys.air > 0.1, 'and it is really held clear of the heap while the hand has it', phys.air)
+ok(!phys.held && phys.onHeap, 'and when it is PLACED it falls and comes to rest on the heap, not through it', phys)
+ok(phys.fell < 0.12, 'and it stays where it was put — placing a coin is not throwing one', phys)
 ok(phys.at2 && phys.at2.sleep, 'and then it goes to sleep, so a settled hoard costs nothing', phys.at2)
+
+/* A THROWN COIN ONCE LEFT THE ROOM. `fling` was a per-EVENT displacement used as a per-
+ * MILLISECOND velocity, so a coin left the hand at the pointer's sample rate times its real
+ * speed — and nothing clamped the vertical, so it went straight up and out. */
+const thrown = await page.evaluate(async () => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene()
+  s.sleepAll()
+  const h = s.hoardBox(), cx = (h.x0 + h.x1) / 2, cy = (h.y0 + h.y1) / 2
+  V.drag(cx, cy)
+  const b = V.v.dragging                   // the coin in the hand, by name (see above)
+  // a hard flick: eight samples, ~8ms apart, across a third of the screen
+  for (let i = 1; i <= 8; i++) { V.dragTo(cx + i * 22, cy - i * 16); await new Promise(r => setTimeout(r, 8)) }
+  V.drop()
+  const launch = { vx: b.vx, vy: b.vy, vz: b.vz }
+  let maxY = b.gy, escaped = false
+  for (let t = 0; t < 260; t++) {
+    s.stepBodies(16)
+    maxY = Math.max(maxY, b.gy)
+    // the room is sized to the hoard standing in it, so ask the scene where its walls are
+    const lx = s.limAt(b.gz), lz = s.limZ == null ? 0.55 : s.limZ
+    if (Math.abs(b.gx) > Math.max(lx, b.lim0 || 0) + 1e-6 || b.gy > 4 || Math.abs(b.gz) > lz + 1e-6) escaped = true
+  }
+  const rest = { gx: +b.gx.toFixed(3), gy: +b.gy.toFixed(4), gz: +b.gz.toFixed(3), sleep: b.sleep,
+    under: +(b.gy - Math.min(0, s.surfaceAt(b.gx, b.gz))).toFixed(4) }
+  s.sleepAll()
+  return { launch, maxY: +maxY.toFixed(3), escaped, rest }
+})
+ok(Math.abs(thrown.launch.vx) <= 0.0027 && Math.abs(thrown.launch.vy) <= 0.0017,
+  'a coin thrown as hard as a finger can flick it leaves the hand at a SANE speed', thrown.launch)
+ok(!thrown.escaped, 'and it never leaves the room', thrown)
+ok(thrown.maxY < 3, 'and it never flies off into space', thrown.maxY)
+ok(thrown.rest.sleep && thrown.rest.under >= -0.001, 'it lands on something, and it settles', thrown.rest)
 
 const weight = await page.evaluate(async () => {
   const V = window.__RIB_VAULT_DEV, s = V.scene(), M = window.__RIB_VAULT_MODEL
@@ -182,134 +239,101 @@ const weight = await page.evaluate(async () => {
 ok(weight.bronze > weight.gold && weight.gold > weight.blue,
   'WEIGHT is real: the same shove carries a bronze coin further than a gold one, and a gold further than a billion', weight)
 
-const tilt = await page.evaluate(async () => {
-  const V = window.__RIB_VAULT_DEV, s = V.scene()
-  s.sleepAll(); s.setTilt(0, 0)
-  V.tilt(-0.9, 0)                        // tip the phone hard to one side
-  const before = Object.values(V.bodies()).map(b => b.gx)
-  for (let t = 0; t < 90; t++) s.stepBodies(16)
-  const after = Object.values(V.bodies()).map(b => b.gx)
-  const n = before.length
-  const drift = n ? (after.reduce((a, b) => a + b, 0) - before.reduce((a, b) => a + b, 0)) / n : 0
-  V.tilt(0, 0)
-  return { n, drift: +drift.toFixed(4) }
-})
-ok(tilt.n > 0, 'a tilt shakes the top of the heap loose', tilt)
-ok(tilt.drift < -0.01, 'and the money slides the way the phone is tipped', tilt)
-ok(tilt.n <= 150, 'with the number of moving coins held to a cap', tilt.n)
-
-/* The three faults the phone found, each with the assertion that would have caught it. */
-
-// (1) A THROWN COIN LEFT THE ROOM. `fling` was a per-EVENT displacement used as a per-
-// MILLISECOND velocity, so a coin left the hand at the pointer's sample rate times its real
-// speed — and nothing clamped the vertical, so it went straight up and out.
-const thrown = await page.evaluate(async () => {
-  const V = window.__RIB_VAULT_DEV, s = V.scene()
+/* ---------- v137 E: THE AVALANCHE ----------
+ * Lifting one coin out of a heap does not leave a hole in it. The coins around the gap give
+ * way into it — the ones on the steep flank run, the ones on a flat shoulder barely shift,
+ * and none of them goes anywhere near far enough to leave the picture. That sentence is
+ * four separate claims and this is all four of them. */
+const avalanche = await page.evaluate(() => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene(), SC = window.__RIB_VAULT_SCENE
+  const e = 0.02
+  const slopeAt = (x, z) => Math.abs((s.surfaceAt(x + e, z) - s.surfaceAt(x - e, z)) / (2 * e))
   s.sleepAll()
-  const h = s.hoardBox(), cx = (h.x0 + h.x1) / 2, cy = (h.y0 + h.y1) / 2
-  V.drag(cx, cy)
-  const b = Object.values(V.bodies())[0]
-  // a hard flick: eight samples, ~8ms apart, across a third of the screen
-  for (let i = 1; i <= 8; i++) { V.dragTo(cx + i * 22, cy - i * 16); await new Promise(r => setTimeout(r, 8)) }
-  V.drop()
-  const launch = { vx: b.vx, vy: b.vy, vz: b.vz }
-  let maxY = b.gy, escaped = false
-  for (let t = 0; t < 260; t++) {
+  const h = s.hoardBox()
+  const pick = s.pickSurface((h.x0 + h.x1) / 2, (h.y0 + h.y1) / 2)
+  const seed = s.wake(pick.i)
+  const gx = seed.gx, gz = seed.gz
+  s.sleepAll()                                  // the lift itself is not what is measured
+  const woke = s.disturb(gx, gz, 1)
+  const start = {}, slope = {}, began = {}
+  const outside = (o) => {
+    const p = s.cam.project(o.gx, o.gy, SC.PILE.z + o.gz, {})
+    return p.x < -1 || p.x > s.cw + 1
+  }
+  for (const k in V.bodies()) {
+    const o = V.bodies()[k]
+    start[k] = { x: o.gx, z: o.gz }; slope[k] = slopeAt(o.gx, o.gz); began[k] = outside(o)
+  }
+  let offscreen = 0
+  for (let t = 0; t < 240; t++) {
     s.stepBodies(16)
-    maxY = Math.max(maxY, b.gy)
-    // the room is sized to the hoard standing in it, so ask the scene where its walls are
-    const lx = s.limX == null ? 1.55 : s.limX, lz = s.limZ == null ? 0.55 : s.limZ
-    if (Math.abs(b.gx) > lx + 1e-6 || b.gy > 4 || Math.abs(b.gz) > lz + 1e-6) escaped = true
+    for (const k in V.bodies()) if (!began[k] && outside(V.bodies()[k])) offscreen++
   }
-  const rest = { gx: +b.gx.toFixed(3), gy: b.gy, gz: +b.gz.toFixed(3), sleep: b.sleep }
+  const d = [], steep = [], flat = []
+  for (const k in V.bodies()) {
+    const o = V.bodies()[k], a = start[k]; if (!a) continue
+    const m = Math.hypot(o.gx - a.x, o.gz - a.z)
+    d.push(m); (slope[k] > 0.45 ? steep : flat).push(m)
+  }
+  d.sort((p, q) => p - q)
+  const avg = (a) => a.length ? a.reduce((p, q) => p + q, 0) / a.length : 0
+  const asleep = Object.values(V.bodies()).filter(o => o.sleep).length
   s.sleepAll()
-  return { launch, maxY: +maxY.toFixed(3), escaped, rest, wall: +(s.limX || 0).toFixed(2) }
+  return { woke, n: d.length, moved: d.filter(v => v > 0.004).length,
+    max: +(d[d.length - 1] || 0).toFixed(4), median: +(d[d.length >> 1] || 0).toFixed(4),
+    offscreen, asleep, steep: +avg(steep).toFixed(4), flat: +avg(flat).toFixed(4),
+    nSteep: steep.length, nFlat: flat.length }
 })
-ok(Math.abs(thrown.launch.vx) <= 0.0027 && Math.abs(thrown.launch.vy) <= 0.0017,
-  'a coin thrown as hard as a finger can flick it leaves the hand at a SANE speed', thrown.launch)
-ok(!thrown.escaped, 'and it never leaves the room', thrown)
-ok(thrown.maxY < 3, 'and it never flies off into space', thrown.maxY)
-ok(thrown.rest.sleep, 'it lands, and it settles', thrown.rest)
+ok(avalanche.woke > 15, 'lifting a coin out wakes the HEAP around it, not just the coin', avalanche.woke)
+ok(avalanche.moved > 8, 'and those coins really do give way into the gap', avalanche)
+ok(avalanche.max < 0.30, 'but nothing travels far — the money slides down the pile, it does not leave it', avalanche)
+ok(avalanche.offscreen === 0, 'and not one coin is pushed out of the picture', avalanche)
+ok(avalanche.nSteep > 2 && avalanche.nFlat > 2 && avalanche.steep > avalanche.flat * 1.15,
+  'SOME A LOT, SOME A LITTLE: a coin seated on the steep flank runs further than one on a flat shoulder', avalanche)
+ok(avalanche.asleep > avalanche.n * 0.8, 'and it is all asleep again a few seconds later', avalanche)
 
-// (2) TILT DID NOTHING ON A REAL PHONE. Neutral was hard-coded to a 48-degree hold, so
-// however you were holding it you had either a permanent lean or none at all. Drive the
-// REAL handler with the numbers a sensor sends.
-const sensor = await page.evaluate(async () => {
-  const V = window.__RIB_VAULT_DEV
-  if (!V.tiltArm()) return { armed: false }
-  // hold it upright and still for the calibration window, as a hand would
-  for (let i = 0; i < 12; i++) { V.tiltRaw(78 + Math.random() * 1.2, 1 + Math.random() * 0.8); await new Promise(r => setTimeout(r, 45)) }
-  const level = V.tiltRaw(78, 1)
-  const leftSmall = V.tiltRaw(78, -9)     // a small wrist roll
-  const leftHard = V.tiltRaw(78, -30)     // a real tilt
-  const fwd = V.tiltRaw(60, 1)            // tipped away from you
-  return { armed: true, level, leftSmall, leftHard, fwd }
-})
-ok(sensor.armed, 'the tilt handler arms')
-ok(sensor.level && Math.abs(sensor.level.gx) < 0.02 && Math.abs(sensor.level.gz) < 0.02,
-  'NEUTRAL is wherever the phone is actually being held, not a hard-coded angle', sensor.level)
-ok(sensor.leftSmall.gx < -0.2 && sensor.leftHard.gx < -0.9,
-  'a small wrist roll registers, and a real tilt saturates', [sensor.leftSmall.gx, sensor.leftHard.gx])
-ok(sensor.fwd.gz < -0.5, 'and tipping it away from you drives the other axis', sensor.fwd.gz)
-
-// (3) THE HEAVIEST COINS COULD NOT MOVE AT ALL. grip = 1+(m-1)*0.85 against MU 0.42 and a
-// drive capped at 0.85 meant the billion-point coin's threshold was above the maximum.
-const breakLoose = await page.evaluate(() => {
-  const V = window.__RIB_VAULT_DEV, s = V.scene()
-  const out = {}
-  for (const [den, m] of [['bronze', 1], ['gold', 1.75], ['blue', 2.4]]) {
-    let found = null
-    for (let deg = 1; deg <= 45 && !found; deg++) {
-      s.sleepAll()
-      const b = s.wake(0); if (!b) break
-      b.m = m; b.bounce = 0.34 / m; b.grip = 1 + (m - 1) * 0.85
-      // On the FLAT floor outside the heap — on the slope this measures the slope, not the
-      // tilt — and INSIDE the frame, or the screen-edge clamp moves it and reads as a slide.
-      const gx0 = Math.min(0.92, s.limAt(0) * 0.8)
-      b.gx = gx0; b.gz = 0; b.gy = s.surfaceAt(gx0, 0); b.vx = b.vy = b.vz = 0
-      b.sleep = false; b.still = 0; b.cnt = 1
-      const x0 = b.gx
-      s.setTilt(-Math.min(1, deg / 24), 0)
-      for (let t = 0; t < 60; t++) s.stepBodies(16)
-      if (Math.abs(b.gx - x0) > 0.05) found = deg
-    }
-    out[den] = found
-  }
-  s.sleepAll(); s.setTilt(0, 0)
-  return out
-})
-ok(breakLoose.bronze && breakLoose.gold && breakLoose.blue,
-  'EVERY denomination breaks loose at a reachable angle — the billion-point coin included', breakLoose)
-ok(breakLoose.bronze < breakLoose.gold && breakLoose.gold < breakLoose.blue,
-  'and the heavier it is the more tilt it takes', breakLoose)
-ok(breakLoose.blue <= 22, 'with even the heaviest inside a wrist turn', breakLoose.blue)
-
-// (4) ...and it must not be SLOW. Once loose, a coin should cross the heap in about a second.
+/* ...and the slide has to be worth watching. On the steepest part of the flank a shaken
+ * coin should visibly travel, and the heavier it is the less of that it does. */
 const slide = await page.evaluate(() => {
   const V = window.__RIB_VAULT_DEV, s = V.scene()
+  const e = 0.02
+  let gx = 0.2, best = 0
+  for (let q = 0.05; q < 1.0; q += 0.02) {
+    const sl = Math.abs((s.surfaceAt(q + e, 0) - s.surfaceAt(q - e, 0)) / (2 * e))
+    if (sl > best) { best = sl; gx = q }
+  }
+  const out = { at: +gx.toFixed(2), slope: +best.toFixed(3) }
+  for (const [den, m] of [['bronze', 1], ['gold', 1.75], ['blue', 2.4]]) {
+    s.sleepAll()
+    const b = s.wake(0); if (!b) break
+    b.m = m; b.bounce = 0.34 / m; b.grip = 1 + (m - 1) * 0.85; b.cnt = 1
+    b.gx = gx; b.gz = 0; b.gy = s.surfaceAt(gx, 0)
+    b.vx = b.vy = b.vz = 0; b.sleep = false; b.still = 0
+    b.energy = 0.85; b.travel = 0                  // exactly what a disturbance hands it
+    for (let t = 0; t < 200; t++) s.stepBodies(16)
+    out[den] = +Math.abs(b.gx - gx).toFixed(4)
+  }
   s.sleepAll()
-  const b = s.wake(0)
-  const gx0 = Math.min(0.9, s.limAt(0) * 0.78)
-  b.m = 1; b.grip = 1; b.cnt = 1; b.gx = gx0; b.gz = 0; b.gy = s.surfaceAt(gx0, 0)
-  b.vx = b.vy = b.vz = 0; b.sleep = false; b.still = 0
-  s.setTilt(-1, 0)
-  const x0 = b.gx
-  for (let t = 0; t < 63; t++) s.stepBodies(16)     // one second
-  const moved = Math.abs(b.gx - x0)
-  void moved
-  s.sleepAll(); s.setTilt(0, 0)
-  return +moved.toFixed(3)
+  return out
 })
-ok(slide > 0.5, 'a coin on a hard tilt actually TRAVELS — about a heap-width a second', slide)
+ok(slide.bronze > 0.04, 'a shaken coin on the steep flank actually TRAVELS', slide)
+ok(slide.bronze > slide.gold && slide.gold > slide.blue,
+  'and the same shake moves a billion-point coin least of all', slide)
+ok(slide.bronze < 0.30, 'and even the lightest one stops inside the heap', slide)
 
 const repose = await page.evaluate(() => {
-  // with the phone level, a woken hoard must SIT there. Weighting the slope as heavily as
-  // the tilt made every disturbed coin creep off the heap and the pile quietly deflated.
+  /* A hoard that has NOT been shaken must sit there. The slope acts only on a coin that
+   * still holds disturbance energy — spend that energy and the heap has to hold its own
+   * angle, or every woken coin creeps downhill and the pile quietly deflates. */
   const V = window.__RIB_VAULT_DEV, s = V.scene()
-  s.sleepAll(); s.setTilt(0, 0)
-  s._lastWake = 0                       // the wake is throttled to 220ms; this is a probe
-  s.tiltWake()
-  Object.values(V.bodies()).forEach(b => { b.sleep = false; b.still = 0 })
+  s.sleepAll()
+  const h = s.hoardBox()
+  const p = s.pickSurface((h.x0 + h.x1) / 2, (h.y0 + h.y1) / 2)
+  const seed = s.wake(p.i)
+  s.disturb(seed.gx, seed.gz, 1)
+  Object.values(V.bodies()).forEach(b => {
+    b.sleep = false; b.still = 0; b.energy = 0; b.vx = b.vy = b.vz = 0
+  })
   const before = Object.values(V.bodies()).map(b => ({ x: b.gx, y: b.gy }))
   for (let t = 0; t < 120; t++) s.stepBodies(16)
   const after = Object.values(V.bodies()).map(b => ({ x: b.gx, y: b.gy }))
@@ -321,43 +345,43 @@ const repose = await page.evaluate(() => {
   return { n: before.length, worst: +worst.toFixed(4), asleep }
 })
 ok(repose.n > 20, 'the probe really did shake the top of the heap loose', repose.n)
-ok(repose.worst < 0.05, 'and with the phone LEVEL a disturbed hoard sits at its angle of repose instead of creeping downhill', repose)
+ok(repose.worst < 0.05, 'and an UNDISTURBED woken coin sits at its angle of repose instead of creeping downhill', repose)
 ok(repose.asleep > repose.n * 0.7, 'and settles back to sleep, so a shaken hoard costs nothing once it is still', repose)
 
-// (5) THE MONEY LEFT THE PICTURE, AND THE BACK OF THE ROOM LOOKED LIKE THE AIR. The wall
-// was derived from the slot list's outermost spill — a ground coordinate with no relation to
-// the viewport — so a tilt slid most of the hoard off the side of the screen, and gz was free
-// to wander to the back of the room where the perspective draws a coin high and small.
+// THE MONEY STAYS IN THE PICTURE. The wall used to come from the slot list's outermost
+// spill — a ground coordinate with no relation to the viewport — so a shake slid coins off
+// the side of the screen, and gz was free to wander to the back of the room where the
+// perspective draws a coin high and small and it reads as floating.
 const framed = await page.evaluate(() => {
   const V = window.__RIB_VAULT_DEV, s = V.scene(), SC = window.__RIB_VAULT_SCENE
-  s.sleepAll(); s._lastWake = 0; s.tiltWake()
-  Object.values(V.bodies()).forEach(b => { b.sleep = false; b.still = 0 })
-  s.setTilt(-1, 0)
-  /* The hoard's own outer spill legitimately sits past the frame edge — the static pile is
-   * drawn that way too — so the claim is not "nothing is ever off-frame". It is that the
-   * TILT never pushes anything out that was in: a coin that starts inside the picture stays
-   * inside it, however hard the phone is tipped. */
+  s.sleepAll()
   const outside = (o) => {
     const p = s.cam.project(o.gx, o.gy, SC.PILE.z + o.gz, {})
     return Math.max(p.x < 0 ? -p.x : 0, p.x > s.cw ? p.x - s.cw : 0)
   }
+  /* The hoard's own outer spill legitimately sits past the frame edge — the static pile is
+   * drawn that way too — so the claim is not "nothing is ever off-frame". It is that a
+   * shake never pushes anything OUT that was IN, however hard the heap is worked over. */
   const began = {}
-  for (const k in V.bodies()) began[k] = outside(V.bodies()[k]) > 0
-  let off = 0, worst = 0, n = 0, wasOut = Object.values(began).filter(Boolean).length
-  for (let t = 0; t < 220; t++) {
-    s.stepBodies(16)
-    if (t % 20) continue
-    for (const k in V.bodies()) {
-      const o = V.bodies()[k]; n++
-      if (began[k]) continue                    // it was already out there
-      const over = outside(o)
-      if (over > 0) off++
-      worst = Math.max(worst, over)
+  const note = () => { for (const k in V.bodies()) if (began[k] === undefined) began[k] = outside(V.bodies()[k]) > 0 }
+  let off = 0, worst = 0, samples = 0
+  for (let r = 0; r < 6; r++) {
+    for (let q = -0.9; q <= 0.901; q += 0.3) s.disturb(q, ((r % 3) - 1) * 0.06, 1)
+    note()
+    for (let t = 0; t < 60; t++) {
+      s.stepBodies(16); note()
+      if (t % 10) continue
+      for (const k in V.bodies()) {
+        const o = V.bodies()[k]; samples++
+        if (began[k]) continue
+        const over = outside(o)
+        if (over > 0) off++
+        worst = Math.max(worst, over)
+      }
     }
   }
   // a shed coin is airborne for a moment — that is the mechanic. What must not happen is one
   // LEFT hanging there. Let it all settle, then look.
-  s.setTilt(0, 0)
   for (let t = 0; t < 400; t++) s.stepBodies(16)
   let air = 0, maxAir = 0
   for (const k in V.bodies()) {
@@ -366,32 +390,34 @@ const framed = await page.evaluate(() => {
     if (a > 0.05) air++
     maxAir = Math.max(maxAir, a)
   }
-  return { samples: n, pushedOut: off, beganOutside: wasOut, worstPx: +worst.toFixed(1),
+  const beganOutside = Object.values(began).filter(Boolean).length
+  return { samples, pushedOut: off, beganOutside, worstPx: +worst.toFixed(1),
     air, maxAir: +maxAir.toFixed(4), settled: s.bodyCount() }
 })
-ok(framed.pushedOut === 0, 'a hard tilt never pushes a coin that was IN the picture off the side of it', framed)
+ok(framed.pushedOut === 0, 'working the whole heap over never pushes a coin that was IN the picture off the side of it', framed)
 ok(framed.air === 0, 'and once it has all settled, no coin is left standing in the air', framed)
 
-// (6) A COLUMN COMES APART. It was one rigid body: tip the phone and the whole tower slid
-// across the floor like a bar of soap and stood there against the wall, intact.
-const topple = await page.evaluate(async () => {
+// A COLUMN COMES APART. It is not one rigid body: shake the heap under a stack and its
+// coins come off the top and go their own way.
+const topple = await page.evaluate(() => {
   const V = window.__RIB_VAULT_DEV, s = V.scene()
-  s.sleepAll(); s._lastWake = 0; s.tiltWake()
-  Object.values(V.bodies()).forEach(b => { b.sleep = false; b.still = 0 })
+  s.sleepAll()
+  for (let q = -0.9; q <= 0.901; q += 0.15) s.disturb(q, 0, 1)
   const before = { towers: Object.values(V.bodies()).filter(b => b.cnt > 1).length,
-    coins: Object.values(V.bodies()).reduce((a, b) => a + b.cnt, 0), shards: 0 }
-  s.setTilt(-1, 0)
-  for (let t = 0; t < 260; t++) s.stepBodies(16)
+    coins: Object.values(V.bodies()).reduce((a, b) => a + b.cnt, 0) }
+  for (let r = 0; r < 8; r++) {
+    for (let q = -0.9; q <= 0.901; q += 0.15) s.disturb(q, ((r % 3) - 1) * 0.05, 1)
+    for (let t = 0; t < 40; t++) s.stepBodies(16)
+  }
   const after = { towers: Object.values(V.bodies()).filter(b => b.cnt > 1 && !b.shard).length,
     shards: Object.values(V.bodies()).filter(b => b.shard).length,
     coins: Object.values(V.bodies()).reduce((a, b) => a + b.cnt, 0) }
-  s.setTilt(0, 0)
   return { before, after }
 })
 ok(topple.before.towers > 10, 'the probe woke real columns', topple.before.towers)
-ok(topple.after.shards > 30, 'a driven column SHEDS — its coins come off the top and go their own way', topple.after)
-ok(topple.after.towers < topple.before.towers * 0.4,
-  'and the towers come apart rather than sliding across the floor intact', [topple.before.towers, topple.after.towers])
+ok(topple.after.shards > 10, 'a shaken column SHEDS — its coins come off the top and go their own way', topple.after)
+ok(topple.after.towers < topple.before.towers,
+  'and the towers come apart rather than riding it out intact', [topple.before.towers, topple.after.towers])
 
 // and RESTOCK has to put the columns back together, not just move them
 const rebuilt = await page.evaluate(async () => {
@@ -430,8 +456,8 @@ await closeV()
 await openV()
 await page.waitForTimeout(600)
 const clean = await st()
-ok(clean.bodies === 0 && !clean.tilt && !clean.dragging,
-  'a fresh visit opens on a tidy hoard with the sensor off', clean)
+ok(clean.bodies === 0 && !clean.dragging,
+  'a fresh visit opens on a tidy hoard with nothing in the hand', clean)
 await closeV()
 
 // ---------- 3. THE TRANSACTION ----------

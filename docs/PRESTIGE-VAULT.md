@@ -111,7 +111,7 @@ derived from the actual balance rather than assuming the concept art's 1.25B.
 | `public/vault/*.webp` + `manifest.json` | 50 production sprites and their manifest. |
 | `scripts/vaultcut.py` | The extraction library (border flood → opening → largest component → hole fill → feather). |
 | `scripts/build-vault-art.py` | Drives the cutter over every cell; writes `public/vault/` and the manifest. `--proof` writes `art/vault-proof/` to look at. |
-| `scripts/vaultcheck.mjs` | The gate: 52 assertions. |
+| `scripts/vaultcheck.mjs` | The gate: 91 assertions. |
 | `scripts/vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` / `vaultphys.mjs` | Cameras, not checks. |
 
 Into `index.html` went **~40 lines**, in one banner block (`v137 THE VAULT IS WHERE THE
@@ -129,6 +129,14 @@ denomination (you sort your money) off the `flat` sprite, each a coin's thicknes
 last, the column wandering as it climbs because a stack of coins is never plumb, and a third
 of the taller ones carrying a coin lying askew across the top. The rest stay loose and
 tilted, which is what keeps the heap looking poured rather than stocked.
+
+**It is a PILE.** `MOUND.H` — the peak the mound reaches at full fullness — is `0.98` of a
+ground unit against a footprint that tops out at `1.00`. It was `0.70`, and at that height
+the hoard read as a *spread* of money rather than a heap of it: a carpet of change on the
+vault floor. The whole mechanic being sold is a pile, so it stands 40% taller against
+exactly the same footprint. Nothing else moved — the profile, the lobes, the slot list and
+the eight wealth states are the same, so the only thing that changed is how high the same
+money is stacked. `vaultcheck.mjs` asserts the peak.
 
 A column's height is keyed on how **low** in the heap it sits, not how near the middle:
 tall stacks at the base and the front, short ones out on the slope and at the crown. Keyed
@@ -170,7 +178,7 @@ reference hero shows. `breakdown()` is the exact decomposition and it is what th
 drawer prints; `vaultcheck` asserts it conserves the balance to the point.
 
 **Adaptive**: the scene watches its own frame time. The worst case is the biggest hoard on a
-high-density phone with a tilt running — about 270 live surface coins plus a couple of
+high-density phone mid-avalanche — about 270 live surface coins plus a couple of
 hundred loose bodies, each drawing a face *and* an edge, which measures out near a thousand
 `drawImage` calls a frame and falls to the mid thirties. Past 21 ms it drops the edge pass
 and caps the bodies, and comes back under 14.5 ms. The flip deliberately does **not** move
@@ -190,7 +198,7 @@ and are **not** a monotonic rotation — the cell widths run 56, 46, 38, 23, 17,
 50, 52, 54, 64 px, so the sequence pops at the sixth frame and never narrows again. Four
 sprites per denomination instead of forty-eight, no seam, and the spin axis can vary per coin.
 
-## The money is loose — drag, tilt and RESTOCK
+## The money is loose — drag, the avalanche and RESTOCK
 
 The layout is deterministic and that has to stay true, so nothing here ever moves a slot. A
 disturbed coin gets a row in a sparse **displacement map** — its own position, velocity and
@@ -202,23 +210,29 @@ exactly the hoard again, which is what RESTOCK does.
   pays immediately, because a laggy tap is worse than an extra coin — but past 13 px the
   hold is released and the gesture becomes a drag. The coin lags the hand by its own weight
   rather than sticking to it, and leaves it with the speed the hand had.
-- **Tilt.** `deviceorientation` (plus `deviceorientationabsolute`, which is the only one some
-  Android builds fire), behind a button because iOS requires the permission from a real
-  gesture. **Neutral is wherever you are holding it**: the first ~420 ms of readings are
-  averaged into the zero. If nothing arrives within 1.5 s the button turns itself off and
-  says so rather than sitting there lit.
+- **The avalanche.** Lifting a coin out of a heap does not leave a hole in it: the coins
+  around the gap give way into it. `disturb(gx, gz, strength)` wakes every surface coin
+  within `DIST_R` of the point and hands it **energy** — `DIST_E` at the centre, falling off
+  smoothly (`f²(3−2f)`) to nothing at the rim, so there is no hard edge to the disturbance.
+  The reach is an ellipse, because the hoard's floor is one. Both a lift (`startDrag`) and a
+  hard landing (`landed`) raise one, the second scaled by how hard the coin came down.
 
-  The physics that matters is **static friction**. Resist is `MU × grip`; drive is the tilt,
-  plus the coin's own slope *in proportion to how far the tilt has already sheared the
-  bond*. Level, the slope contributes nothing and the heap sits at its angle of repose —
-  weighting it unconditionally made every woken coin creep downhill and the pile quietly
-  slumped. Past the threshold it **accelerates** (`TILT_ACCEL`); scaling by
-  `(drive−hold)/drive` instead caps acceleration at one g however hard the phone is tipped,
-  which is what made a real tilt crawl.
+  The physics that matters is **static friction**. A hoard at rest holds its own shape —
+  coins in a heap interlock, which is why a pile of discs stands at an angle no single disc
+  would hold alone. So the slope acts **only on a coin that still holds disturbance
+  energy**, and in proportion to it: `drive = energy / (MU × grip)`. Weighting the slope
+  unconditionally made every woken coin creep downhill and the pile quietly slumped; never
+  weighting it meant nothing ever slid. Energy decays with a time constant of `E_DECAY`
+  (≈260 ms), so a disturbance is over in about a quarter of a second, and `SLIDE_MAX` caps
+  how far any one coin may travel from where it sat.
 
-  Measured break-loose angles: **bronze 9°, gold 14°, the billion-point coin 18°** — the
-  order is the point, and every one of them is inside a wrist turn. `vaultcheck.mjs` asserts
-  all three, and that a level hoard does not creep.
+  Two things fall out of that, and both are the point. **Where a coin was sitting decides how
+  far it goes**: on the steep flank the slope is most of a unit and it runs, on a flat
+  shoulder there is nothing to run down and it barely shifts — measured, a steep seat travels
+  about 1.7× a flat one. And **weight decides it too**: `grip` is in the denominator, so the
+  same shake moves a bronze coin furthest and a billion-point coin least. `vaultcheck.mjs`
+  asserts both orders, that nothing leaves the picture, and that an *undisturbed* woken coin
+  sits at its angle of repose instead of creeping.
 - **Weight.** Gravity is the same for every coin — that is physics — but nothing else is:
   `MASS` (bronze 1.00 → blue 2.40) sets bounce, grip, how much of a fling a coin carries,
   and how it sounds when it lands. A billion-point coin should feel like picking up a bar.
@@ -226,10 +240,10 @@ exactly the hoard again, which is what RESTOCK does.
   the clock and clamped (`THROW_V`, `THROW_VY`). A pointermove stream is 60–120 Hz and
   irregular, so a per-event displacement used as a velocity leaves a coin travelling at the
   sample rate times its real speed.
-- **A column comes apart.** A stack used to be one rigid body: tip the phone and the whole
-  tower slid across the floor like a bar of soap and stood there against the wall, intact.
+- **A column comes apart.** A stack used to be one rigid body: shake the heap under it and
+  the whole tower slid across the floor like a bar of soap and stood there intact.
   A driven column now **sheds from the top** — one coin at a time becomes its own body,
-  pushed off the way the heap is leaning, and it falls and rolls down the slope while the
+  pushed off the way the heap is giving way, and it falls and rolls down the slope while the
   column under it gets visibly shorter. Shedding has to be fast (`SHED_RATE`) or the towers
   survive the trip; a disturbed column is in pieces inside about a third of a second. A
   shard is keyed apart from the slot it came from, so that slot keeps drawing the coins
@@ -237,7 +251,7 @@ exactly the hoard again, which is what RESTOCK does.
 - **The room is what you can see.** `limAt(gz)` inverts the projection at the coin's own
   depth, so a coin stops at the edge of the *frame* whatever the aspect ratio. Deriving the
   wall from the slot list's own outermost spill instead put it at gx 1.99 on a phone where
-  the screen edge is about 0.8 — a tilt slid 77 of 90 coins clean off the side. And `gz` is
+  the screen edge is about 0.8 — a shake slid 77 of 90 coins clean off the side. And `gz` is
   held to the hoard's own depth, because a coin free to wander into the back of the room is
   drawn high and small by the perspective, which is what "floating in the air" was: nothing
   was ever airborne, it was standing on the floor behind the heap. The hoard's own spill
@@ -255,7 +269,7 @@ can push the money on top of the pile around, not the money underneath it. Bodie
 at `MAX_BODIES` and they **sleep** — but only after `STILL_FRAMES` consecutive quiet frames
 *and* only when nothing is driving them. A column sheds only when something is pushing it
 *sideways*: including the vertical velocity in that test meant the first frame of gravity
-after a wake shed a coin off every column in the hoard with the phone sitting level. A bare `speed < threshold` test sleeps a coin on the very
+after a wake shed a coin off every column in the hoard, untouched. A bare `speed < threshold` test sleeps a coin on the very
 frame it breaks loose, before it has accelerated, and zeroes the velocity it was just given.
 
 `surfaceAt(gx, gz)` takes **world** ground units and converts into and out of the slot space
@@ -383,7 +397,7 @@ node scripts/vaultshot.mjs                   # the eight wealth states
 WIDE=1 node scripts/vaultshot.mjs            # desktop
 KEY=oracle node scripts/vaultspend.mjs       # a real spend, photographed
 node scripts/vaultdoor.mjs                   # the opening and the payout
-node scripts/vaultphys.mjs                   # a coin in hand, a tilted phone, the restock
+node scripts/vaultphys.mjs                   # a coin in hand, the avalanche, the restock
 ```
 
 Hooks: `window.__RIB_VAULT`, `__RIB_VAULT_BRIDGE`, `__RIB_VAULT_MODEL`, `__RIB_VAULT_SCENE`,
