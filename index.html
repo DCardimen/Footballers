@@ -295,7 +295,7 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 @keyframes badgeSnapV95{0%{transform:translateX(-120%) rotate(-6deg);opacity:1}60%{transform:translateX(0) rotate(-6deg);opacity:1}to{transform:translateX(0) rotate(-6deg);opacity:0}}
 @media (prefers-reduced-motion:reduce){.rib-badge-rays-v95{animation:none}}
 </style>
-<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="20260919-v137f"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=20260919-v137f"><link rel="stylesheet" href="./public/rib-menu.css?v=20260919-v137f"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=20260919-v137f"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=20260919-v137f"><link rel="stylesheet" href="./public/rib-vault.css?v=20260919-v137f"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
+<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="20260919-v139"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=20260919-v139"><link rel="stylesheet" href="./public/rib-menu.css?v=20260919-v139"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=20260919-v139"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=20260919-v139"><link rel="stylesheet" href="./public/rib-vault.css?v=20260919-v139"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
 <body>
 <div id="splash">
 <div class="splash-inner">
@@ -15854,7 +15854,7 @@ function Lr(){const e=o.player,t=ns(e.attrs,e.body),a=t[0].ovr,s=ee.slice().sort
  * curve answers every screen: your national rank against the SHARE of this level's
  * pool that actually moves up (ADV_V88 — 9% of college reaches the combine, about a
  * third of the combine sticks in the league, a handful of the league gets the
- * interstellar call). #1 in the country is ~98%; the last man inside the share is a
+ * interstellar call). #1 in the country is ~99%; the last man inside the share is a
  * coin flip; well outside it is single digits. The rating roll still stands as a
  * floor for a player whose numbers beat his rank. Hub card, season screen and the
  * roll itself all read declareChanceV88, so the number you saw is the number that
@@ -15863,7 +15863,7 @@ const ADV_V88=[.5,.45,.35,.25,.12,.09,.32,.003,.003];
 function rankCurveV88(rank,of,level){const top=Math.max(0,(rank-1)/Math.max(1,of)),adv=ADV_V88[Math.min(Math.max(0,level),ADV_V88.length-1)]*TU("advShareK",1);const z=(adv-top)/(adv*TU("advSoft",.5));return f(50+49.5*Math.tanh(z),.3,99.5)}
 function rankChanceV88(e){try{const rk=sn(e,ae(e));if(!rk||!rk.of)return 0;return rankCurveV88(rk.rank,rk.of,e.level)}catch(_){return 0}}
 function __natAdvFloor(e){return rankChanceV88(e)}
-function declareChanceV88(e){const s=e.seasonStats,fresh=s&&s.chance!=null&&e.lastSeasonLine&&e.lastSeasonLine.level===e.level&&e.lastSeasonLine.pos===e.pos;const base=fresh?s.chance:qt(ae(e),e.level);return Math.max(Math.min(97,base+(e.declareBonus||0)),rankChanceV88(e))}
+function declareChanceV88(e){const s=e.seasonStats,fresh=s&&s.chance!=null&&e.lastSeasonLine&&e.lastSeasonLine.level===e.level&&e.lastSeasonLine.pos===e.pos;const base=fresh?s.chance:qt(ae(e),e.level);return Math.max(Math.min(TU("declareCeilV139",99),base+(e.declareBonus||0)),rankChanceV88(e))}   /* v139: a stellar season tops out at 99, not 97 */
 window.__V88={curve:rankCurveV88,rankChance:e=>rankChanceV88(e||o.player),declareChance:e=>declareChanceV88(e||o.player),ADV:ADV_V88};
 function Ar(){const e=o.player;if(e.seasonsAtLevel<ss()){F("You must finish this level first!");return}const t=declareChanceV88(e);e.seasonStats||(e.seasonStats={}),e.seasonStats.chance=t,Math.random()*100<t?na():failDeclareV77(e,t)}window.__mkTempBuffsV25=function(pl,sign,bold,good){var pos=(pl&&pl.pos)||"ATH";var POS={QB:["throwing","awareness","vision","acceleration"],RB:["speed","agility","acceleration","ballControl","vision"],WR:["speed","catching","agility","jumping"],TE:["catching","blocking","strength","agility"],OL:["blocking","strength","awareness"],DL:["strength","tackling","quickness","acceleration"],LB:["tackling","awareness","speed","strength"],CB:["speed","agility","jumping","awareness"],S:["tackling","speed","awareness","jumping"],K:["awareness","discipline"]};var pool=(POS[pos]||["speed","strength","agility","awareness","acceleration"]).filter(function(k){return Le&&Le[k]});if(!pool.length)pool=["speed","strength","agility","awareness"];var picks=[],p=pool.slice();var n=1+((bold>0.55||Math.random()<0.4)?1:0);for(var i=0;i<n&&p.length;i++){var idx=Math.floor(Math.random()*p.length);picks.push(p.splice(idx,1)[0]);}return picks.map(function(k){if(sign>0){var amt=Math.round(3+good*4+bold*3+Math.random()*3);return{stat:k,amt:amt,max:false};}return{stat:k,amt:-(Math.round(5+(1-good)*8+bold*3)),max:false};});};window.__statLabelV25=function(k){return(Le&&Le[k]&&Le[k].name)||k;};
 function pregamePlayerStatsV25(pl){
@@ -23822,5 +23822,5 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   try { window.__HUB_V75 = { views: VIEWS, tabs: TAB, sweep } } catch (e) {}
 })();
 </script>
-<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=20260919-v137f"></script><script src="./public/rib-menu-boot.js?v=20260919-v137f"></script><script src="./public/rib-menu.js?v=20260919-v137f"></script><script src="./public/rib-menu-howto.js?v=20260919-v137f"></script><script src="./public/rib-menu-coach.js?v=20260919-v137f"></script><script src="./public/rib-menu-navigation.js?v=20260919-v137f"></script><script src="./public/rib-vault.js?v=20260919-v137f"></script><script src="./public/rib-vault-audio.js?v=20260919-v137f"></script><script src="./public/rib-vault-bridge.js?v=20260919-v137f"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
+<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=20260919-v139"></script><script src="./public/rib-menu-boot.js?v=20260919-v139"></script><script src="./public/rib-menu.js?v=20260919-v139"></script><script src="./public/rib-menu-howto.js?v=20260919-v139"></script><script src="./public/rib-menu-coach.js?v=20260919-v139"></script><script src="./public/rib-menu-navigation.js?v=20260919-v139"></script><script src="./public/rib-vault.js?v=20260919-v139"></script><script src="./public/rib-vault-audio.js?v=20260919-v139"></script><script src="./public/rib-vault-bridge.js?v=20260919-v139"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
 </html>

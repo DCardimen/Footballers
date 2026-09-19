@@ -144,15 +144,21 @@ html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
 .rib9-level.rib9-cta{margin-top:12px;padding:10px 16px;border-radius:10px;background:linear-gradient(180deg,#ffd76f,#d9a028 55%,#b47c14);color:#1a1206;font-weight:700;letter-spacing:2px}
 .rib9-level.rib9-cta span{color:#1a1206}
 .rib9-ring{grid-area:ring;position:relative;width:88px;height:88px;margin:8px 0;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;--rib-ovr:0;--rib-ovr-color:#7ddc6e;
-  background:radial-gradient(circle,#101216 63%,transparent 65%),conic-gradient(var(--rib-ovr-color) calc(var(--rib-ovr)*360deg),rgba(255,255,255,.17) 0);transition:--rib-ovr 1.1s ease;
+  /* v139: CLOSEST-SIDE, or the hole is bigger than the ring. A bare `circle` radial-gradient
+     sizes to FARTHEST-CORNER — 62px on an 88px box, not the 44px radius — so the opaque
+     centre reached 39px of a 44px radius and the 5px inset shadow covered the rest. The arc
+     was being drawn correctly the whole time and none of it was visible: all you could see
+     was the spark at its head, which is exactly the "it just appears to be a dot". The
+     unfilled track is brighter too, so the circle reads as a COMPLETE ring at any OVR. */
+  background:radial-gradient(circle closest-side,#101216 63%,transparent 65%),conic-gradient(var(--rib-ovr-color) calc(var(--rib-ovr)*360deg),rgba(255,255,255,.30) 0);transition:--rib-ovr 1.1s ease;
   box-shadow:0 0 0 5px #101216 inset,0 0 0 1px rgba(255,255,255,.06),0 0 22px rgba(125,220,110,.14)}
 @property --rib-ovr{syntax:'<number>';inherits:false;initial-value:0}
 /* v134: past the soft max a second, gold arc goes round again on top of the full green ring */
 @property --rib-ovr2{syntax:'<number>';inherits:false;initial-value:0}
 .rib9-ring{--rib-ovr2:0}
 .rib9-ring:before{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;z-index:0;
-  background:radial-gradient(circle,transparent 63%,transparent 65%),conic-gradient(#ffd66b calc(var(--rib-ovr2)*360deg),transparent 0);
-  -webkit-mask:radial-gradient(circle,transparent 63%,#000 65.5%);mask:radial-gradient(circle,transparent 63%,#000 65.5%);transition:--rib-ovr2 1.1s ease .3s;opacity:0}
+  background:conic-gradient(#ffd66b calc(var(--rib-ovr2)*360deg),transparent 0);
+  -webkit-mask:radial-gradient(circle closest-side,transparent 63%,#000 65.5%);mask:radial-gradient(circle closest-side,transparent 63%,#000 65.5%);transition:--rib-ovr2 1.1s ease .3s;opacity:0}
 .rib9-ring.over:before{opacity:1}
 .rib9-ring.over{box-shadow:0 0 0 5px #101216 inset,0 0 0 1px rgba(255,214,107,.25),0 0 26px rgba(255,214,107,.22)}
 .rib9-ring.over .rib9-ring-lab{color:#ffd66b}

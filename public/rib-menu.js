@@ -609,7 +609,11 @@
        * and a second, gold arc goes round again for everything past it. A young player's ring used to be
        * a sliver of a 250-point circle he could not read; now it says how much of THIS year's ceiling he
        * has used, and a full gold lap is a man who has outgrown his caps. */
-      const softMax = Math.max(1, Number(data.player && data.player.softMaxOvr) || 0) || 250;
+      /* v139: `Math.max(1, x) || 250` can never reach its own fallback — Math.max(1, 0) is 1,
+       * which is truthy — so a feed with no softMaxOvr divided by ONE and every player came
+       * out past his soft max with a full gold lap. */
+      const sm0 = Number(data.player && data.player.softMaxOvr) || 0;
+      const softMax = sm0 > 0 ? sm0 : 250;
       const k1 = Math.min(1, overall / softMax), k2 = Math.max(0, Math.min(1, (overall - softMax) / softMax));
       ring.style.setProperty('--rib-ovr-color', k2 > 0 ? '#7ddc6e' : overall / softMax >= .85 ? '#7ddc6e' : overall / softMax >= .5 ? '#e8c86a' : '#e8734a');
       ring.classList.toggle('over', k2 > 0);
