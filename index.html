@@ -295,7 +295,7 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 @keyframes badgeSnapV95{0%{transform:translateX(-120%) rotate(-6deg);opacity:1}60%{transform:translateX(0) rotate(-6deg);opacity:1}to{transform:translateX(0) rotate(-6deg);opacity:0}}
 @media (prefers-reduced-motion:reduce){.rib-badge-rays-v95{animation:none}}
 </style>
-<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v139a"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v139a"><link rel="stylesheet" href="./public/rib-menu.css?v=v139a"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v139a"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=v139a"><link rel="stylesheet" href="./public/rib-vault.css?v=v139a"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
+<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v139b"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v139b"><link rel="stylesheet" href="./public/rib-menu.css?v=v139b"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v139b"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=v139b"><link rel="stylesheet" href="./public/rib-vault.css?v=v139b"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
 <body>
 <div id="splash">
 <div class="splash-inner">
@@ -22664,6 +22664,29 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
    * the result card standing on the page. */
   let inlineHostV135=null,retiredV136=0;
   function showWheelIn(host,pl,ctx,title,onDone){inlineHostV135=host||null;try{showWheel(pl,ctx,title,onDone)}finally{inlineHostV135=null}return !!(host&&host.querySelector("#growthV42"))}
+/* ===== v139 A BEAT BEFORE THE WHEEL =====
+ * The season's commitment wheel came up on its own 650ms after the season started and span
+ * itself: the single roll that decides how you live the whole year happened while you were still
+ * reading the training board. `cfg.gate` puts one beat in front of it — the wheel is built and
+ * drawn, then hidden behind a card that asks, and the wheel starts when you say so.
+ *
+ * The button carries the wheel's OWN id (`gv42go`), and the gate removes itself before the roll
+ * pop-up makes its own, so there is never two of it — and everything that drives this wheel by
+ * tapping `#gv42go` until the overlay is gone keeps working, one extra tap at the front. */
+function gateV139(root,cfg,go,DS){
+  if(!cfg||!cfg.gate||!root)return false;
+  const card=root.firstElementChild;if(!card)return false;
+  card.style.display="none";
+  root.insertAdjacentHTML("afterbegin",`<div id="gv139gate" style="max-width:440px;width:100%;background:linear-gradient(180deg,#152238,#0a111c);border:1px solid rgba(240,187,69,.45);border-radius:16px;padding:18px 15px;font-family:Oswald,sans-serif;color:#e8ecf2;text-align:center">
+    <div style="font-size:10px;letter-spacing:3px;color:#f0bb45">${cfg.title||""}</div>
+    <div style="font-size:21px;font-weight:700;margin:7px 0 9px;line-height:1.15">Ready to roll for your career focus?</div>
+    <div style="font-size:13px;color:#c6cdd8;line-height:1.45">${cfg.gate}</div>
+    <button id="gv42go" style="width:100%;margin-top:14px;padding:12px;border:0;border-radius:9px;background:linear-gradient(180deg,#ffd76f,#daa128);font:700 15px Oswald;color:#1a1206">ROLL IT \u203A</button>
+  </div>`);
+  const g=document.getElementById("gv139gate"),b=g&&g.querySelector("#gv42go");
+  if(!g||!b){g&&g.remove();card.style.display="";return false}
+  b.onclick=()=>{g.remove();card.style.display="";(DS&&DS.wait?DS.wait(250,go):setTimeout(go,250))};
+  return true}
   function spinWheel(cfg){
     if(showing&&!document.getElementById("growthV42"))showing=false;   // self-heal a torn-out overlay
     if(showing||document.getElementById("growthV42"))return false;
@@ -22840,7 +22863,9 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
       DS.wait(520,()=>{ if(F&&openRoll(band))return; el.className="gv42-opt "+band[0]; showResult(band) });
     }
     drawWheel(cv,opts,tot,0,idx,false,0);
-    DS.wait(350,()=>{frame._last=0;requestAnimationFrame(frame)});
+    const startV139=()=>{frame._last=0;requestAnimationFrame(frame)};
+    if(gateV139(root,cfg,startV139,DS))return true;   /* v139: he says when */
+    DS.wait(350,startV139);
     return true;
   }
   function showWheel(pl,ctx,title,onDone){
@@ -22858,6 +22883,9 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
     const why=`${jtxt?(out.jive>=.12?`<b>${jtxt}</b> — this is who you are.`:out.jive<=-.12?`<b>${jtxt}</b> — this cuts against you.`:`<b>${jtxt}</b> — you have no strong feelings here.`):"Nothing in your personality pulls either way here."} ${out.nudge<=-.06?`Then ${heavy?`<b>${out.tag}</b> risk and `:""}your current form drag${heavy?"":"s"} the odds back down.`:out.nudge>=.06?`Your standing and form push them further up.`:`Nothing else is moving them.`}`;
     const ok=spinWheel({
       title, sub:"Your habits decide. Then fate rolls.",
+      /* v139: only the SEASON commitment asks first — the weekly plan lives inside the pregame
+       * wizard, which is already a page you have to press through. */
+      gate: ctx==="season" ? "One roll decides what you commit to this year \u2014 your personality loads the wheel, and what it lands on rides every week of the season." : null,
       opts:opts.map(o=>({key:o.theme,skill:o.theme,icon:o.icon,name:o.name,col:wcol(o.theme),art:"th_"+o.theme,w:o.w,
         line1:`+${o.amt} ${o.stats.map(k=>LBL[k]).join(" / ")} · ${durTxtOf(o.dur)}`,
         line2:`${o.tag} · RISK ${Math.round(o.risk*100)}%`,
@@ -24015,5 +24043,5 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
   window.__DOCK_V139 = { sync: sync, h: function () { return last } };
 })();
 </script>
-<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v139a"></script><script src="./public/rib-menu-boot.js?v=v139a"></script><script src="./public/rib-menu.js?v=v139a"></script><script src="./public/rib-menu-howto.js?v=v139a"></script><script src="./public/rib-menu-coach.js?v=v139a"></script><script src="./public/rib-menu-navigation.js?v=v139a"></script><script src="./public/rib-vault.js?v=v139a"></script><script src="./public/rib-vault-audio.js?v=v139a"></script><script src="./public/rib-vault-bridge.js?v=v139a"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
+<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v139b"></script><script src="./public/rib-menu-boot.js?v=v139b"></script><script src="./public/rib-menu.js?v=v139b"></script><script src="./public/rib-menu-howto.js?v=v139b"></script><script src="./public/rib-menu-coach.js?v=v139b"></script><script src="./public/rib-menu-navigation.js?v=v139b"></script><script src="./public/rib-vault.js?v=v139b"></script><script src="./public/rib-vault-audio.js?v=v139b"></script><script src="./public/rib-vault-bridge.js?v=v139b"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
 </html>

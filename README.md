@@ -86,7 +86,14 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   at a Blue-Blood and a Mid-Major. It shifts the opponents themselves now, each card states the
   average opponent OVR it will actually generate, and the extra recruit ★ is paid at the end of a
   season you graded C or better instead of being handed over at the door.
-  `agecheck.mjs`, `tiercheck.mjs`, `yardfitcheck.mjs`, `honorcheck.mjs`, `growcheck.mjs`, `v136check.mjs`
+  And the season no longer rolls your career focus while you are still reading the training board:
+  `cfg.gate` puts one beat in front of the commitment wheel — it is built and drawn, then held
+  behind a card that asks, and it spins when you say so. The gate's button carries the wheel's own
+  `gv42go`, so everything that drives that wheel by tapping until the overlay clears keeps working
+  with one extra tap. The coach also finally mentions the extra-season nodes, and what they cost
+  you in DFL years.
+  `agecheck.mjs`, `tiercheck.mjs`, `gatecheck.mjs`, `yardfitcheck.mjs`, `honorcheck.mjs`,
+  `growcheck.mjs`, `v136check.mjs`
 
 - **v137 — the Prestige Vault: your points, where you can see them.** Prestige Points stopped being a
   number on a chip and became a room. `o.pp` is drawn as ONE mixed hoard — bronze (1 PP), silver

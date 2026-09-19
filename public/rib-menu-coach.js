@@ -163,6 +163,9 @@
       { p: 'tip', t: "Two numbers up top. PP is what you spend here. HONORS is your rank — it unlocks the deeper nodes. Both come from finishing careers." },
       { p: 'point', t: "Branches across the top. Tap one, buy a node, and it's yours forever — every son after this one starts with it.", s: 'branches' },
       { p: 'thumbsup', t: "The APEX branch is the top shelf of the prestige tree. Those nodes change the rules. Earn your way up there." },
+      /* v139: the extra-season nodes are the answer to "I keep getting stuck", and nobody was telling him what they cost him */
+      { p: 'armscrossed', t: "Stuck at a level? There are nodes in here that buy you extra seasons to make the jump. Worth it when you're close." },
+      { p: 'tip', t: "But a year spent down here is a year you don't spend in the DFL — and a body only has so many good ones before the legs go." },
       { p: 'point', t: "Hit BACK. Then we build your first player.", s: 'back', tap: true },
     ] },
     { id: 'career', title: 'THE MENU', sub: 'KICKOFF', when: (c) => c.menu && !c.persona && c.seen.has('prestige'), lines: [

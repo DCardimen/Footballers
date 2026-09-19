@@ -71,7 +71,8 @@ const sheet = await page.evaluate(() => {
     V.year(p, w)
     return { speed: [before.speed, p.attrs.speed], aware: [before.awareness, p.attrs.awareness],
       changed: Object.keys(w.ageChanges || {}).length, prof: (w.ageProfile || {}).key,
-      anyUp: Object.values(w.ageChanges || {}).some(c => c.delta > 0 && c.from >= 10) }
+      // the mind may still gain a point a year — that is v132's own lift and it is not the age cut
+      anyUp: Object.entries(w.ageChanges || {}).some(([k, c]) => V.attrs().indexOf(k) >= 0 && c.delta > 0 && c.from >= 10) }
   }
   const young = run(24, 7), vet = run(30, 7), college = run(30, 4)
   // a stat already under the floor is never lifted by it
@@ -85,7 +86,7 @@ ok(sheet.vet.speed[1] <= 76, 'a 30-year-old gives up at least 5% of his speed', 
 ok(sheet.vet.aware[0] <= sheet.vet.aware[1], 'while the mind is exempt — awareness never falls to age', `${sheet.vet.aware.join(' → ')}`)
 ok(sheet.vet.changed >= 8, 'and the year-older screen gets it attribute by attribute', `${sheet.vet.changed} attributes booked`)
 ok(sheet.college.speed[1] <= 76, 'the years reach a college veteran too, not just the DFL', `level 4: ${sheet.college.speed.join(' → ')}`)
-ok(!sheet.vet.anyUp && !sheet.college.anyUp, 'no physical attribute is RAISED by the age model')
+ok(!sheet.vet.anyUp && !sheet.college.anyUp, 'no PHYSICAL attribute is raised by the age model (the mind still may be)')
 ok(sheet.floor === 6, 'the floor never lifts a stat that is already under it', `6 → ${sheet.floor}`)
 
 // ---- 4. the declare ----
