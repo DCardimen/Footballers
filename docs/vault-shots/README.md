@@ -60,34 +60,42 @@ Captured from the real game in headless Chromium at 412x915 (portrait, DPR 2) an
 
 ![The avalanche: lift one coin out and the heap gives way into the gap](14-avalanche.jpg)
 
+### Press and hold: the money under your finger shakes, harder as the multiplier climbs
+
+![Press and hold: the money under your finger shakes](15-hold-shake.jpg)
+
+### Dragging ploughs: a coin hauled across the heap shoves what it crosses
+
+![Dragging ploughs a furrow through the coins it crosses](16-drag-ploughs.jpg)
+
 ### RESTOCK: every disturbed coin back in its place
 
-![RESTOCK: every disturbed coin back in its place](15-restocked.jpg)
+![RESTOCK: every disturbed coin back in its place](17-restocked.jpg)
 
 ### Walked in from the tree with an upgrade selected
 
-![Walked in from the tree with an upgrade selected](16-upgrade-selected.jpg)
+![Walked in from the tree with an upgrade selected](18-upgrade-selected.jpg)
 
 ### The first tap: a coin detaches and leaves the pile
 
-![The first tap: a coin detaches and leaves the pile](17-first-tap.jpg)
+![The first tap: a coin detaches and leaves the pile](19-first-tap.jpg)
 
 ### Holding: the stream accelerating
 
-![Holding: the stream accelerating](18-accelerating.jpg)
+![Holding: the stream accelerating](20-accelerating.jpg)
 
 ### 16x: the currency vortex, the core charging
 
-![16x: the currency vortex, the core charging](19-sixteen-times.jpg)
+![16x: the currency vortex, the core charging](21-sixteen-times.jpg)
 
 ### Upgrade unlocked, the price debited exactly once
 
-![Upgrade unlocked, the price debited exactly once](20-upgrade-complete.jpg)
+![Upgrade unlocked, the price debited exactly once](22-upgrade-complete.jpg)
 
 ### A career settles: the money falls into the vault
 
-![A career settles: the money falls into the vault](21-career-payout.jpg)
+![A career settles: the money falls into the vault](23-career-payout.jpg)
 
 ### Desktop / landscape
 
-![Desktop / landscape](22-desktop.jpg)
+![Desktop / landscape](24-desktop.jpg)

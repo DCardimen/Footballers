@@ -179,6 +179,67 @@ const phys = await page.evaluate(async () => {
     moved: at0 && at1 ? Math.abs(at1.x - at0.x) > 0.02 : false,
     onHeap: b ? Math.abs(b.gy - surf) <= 0.03 : false, mass: b ? b.m : null }
 })
+/* v137 F: WHATEVER YOU TOUCH RESPONDS. The reported symptom was "sometimes when I go to
+ * click one it's not responsive" — and it was real: picking searched a window of the slot
+ * list and returned the nearest centre in it with no distance limit, so most of the hoard
+ * could not be grabbed at all and a press on one of those silently moved a coin somewhere
+ * else. This walks a grid over the whole hoard and asks, at every point that has a coin
+ * drawn on it, whether the pick lands on a coin that actually covers that point. */
+const reach = await page.evaluate(() => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene(), SC = window.__RIB_VAULT_SCENE
+  const M = window.__RIB_VAULT_MODEL, P = SC.PILE, RISE = SC.STACK_RISE
+  s.sleepAll()
+  const h = s.hoardBox(), n = M.slotsFor(s.slots, Math.round(s.nShown))
+  // every coin's drawn footprint, so the probe knows where the hoard actually IS
+  const discs = [], p = {}
+  for (let i = 0; i < n; i++) {
+    const sl = s.slots.slot[i]
+    s.cam.project(sl.x * P.dx, sl.y * P.dy, P.z + sl.z * P.dz, p)
+    const size = p.s * sl.size
+    discs.push({ i, x: p.x, yb: p.y, yt: p.y - (sl.cnt > 1 ? (sl.cnt - 1) * size * RISE : 0), size })
+  }
+  const covers = (d, x, y) => {
+    const dx = x - d.x
+    const dy = y < d.yt ? y - d.yt : (y > d.yb ? y - d.yb : 0)
+    return (dx * dx) / (d.size * 0.54 * d.size * 0.54) + (dy * dy) / (d.size * 0.32 * d.size * 0.32) <= 1
+  }
+  let onCoin = 0, hit = 0, wrong = 0, deepHits = 0, far = 0
+  for (let gx = 0; gx <= 20; gx++) for (let gy = 0; gy <= 20; gy++) {
+    const x = h.x0 + (h.x1 - h.x0) * (gx / 20), y = h.y0 + (h.y1 - h.y0) * (gy / 20)
+    if (!discs.some(d => covers(d, x, y))) continue
+    onCoin++
+    const pick = s.pickSurface(x, y)
+    if (!pick.hit) { far++; continue }
+    hit++
+    const d = discs[pick.i]
+    if (!d || !covers(d, x, y)) wrong++
+    if (pick.i < (s.deepSlots || 0)) deepHits++
+  }
+  return { onCoin, hit, wrong, far, deepHits, deepSlots: s.deepSlots, slots: n }
+})
+ok(reach.onCoin > 120, 'the probe is sampling a real hoard', reach)
+ok(reach.far === 0, 'EVERY point of the hoard that has a coin drawn on it picks a coin', reach)
+ok(reach.wrong === 0, 'and the coin it picks is one that actually covers the point you touched', reach)
+ok(reach.deepHits > 0, 'including coins in the BAKED deep layer, which could not be picked at all before', reach)
+
+// ...and a deep coin really comes out of the bake when it is lifted
+const deep = await page.evaluate(async () => {
+  const V = window.__RIB_VAULT_DEV, s = V.scene()
+  s.sleepAll()
+  const before = s.deepKey
+  let i = -1
+  for (let k = 0; k < (s.deepSlots || 0); k++) { i = k; break }
+  if (i < 0) return { skipped: true }
+  const b = s.wake(i)
+  const seq = s._deepSeq
+  s.bakeDeep(Math.max(0, Math.round(s.nShown) - 200))
+  const after = s.deepKey
+  s.sleepAll()
+  return { woke: !!b, rebaked: before !== after, seq: seq > 0 }
+})
+ok(deep.skipped || (deep.woke && deep.seq && deep.rebaked),
+  'lifting a coin out of the baked layer forces that layer to be repainted without it', deep)
+
 ok(phys.got && phys.moved, 'a coin can be PICKED UP and dragged off the heap', phys)
 ok(phys.air > 0.1, 'and it is really held clear of the heap while the hand has it', phys.air)
 ok(!phys.held && phys.onHeap, 'and when it is PLACED it falls and comes to rest on the heap, not through it', phys)
@@ -246,8 +307,17 @@ ok(weight.bronze > weight.gold && weight.gold > weight.blue,
  * four separate claims and this is all four of them. */
 const avalanche = await page.evaluate(() => {
   const V = window.__RIB_VAULT_DEV, s = V.scene(), SC = window.__RIB_VAULT_SCENE
-  const e = 0.02
-  const slopeAt = (x, z) => Math.abs((s.surfaceAt(x + e, z) - s.surfaceAt(x - e, z)) / (2 * e))
+  const e = 0.02, P = SC.PILE
+  /* "How steep is the heap under this coin", measured the way the MODEL measures it — in
+   * the mound's own slot space, both axes. Taking the world-x gradient alone (which this
+   * did) reads the near and far faces of the pile as flat, because their fall is almost
+   * entirely in z, and z is a seventh of the size of x in ground units. Probe and model
+   * then disagreed about which coins were steep and the comparison was meaningless. */
+  const slopeAt = (x, z) => {
+    const a = (s.surfaceAt(x + e, z) - s.surfaceAt(x - e, z)) / (2 * e) * P.dx / P.dy
+    const b = (s.surfaceAt(x, z + e) - s.surfaceAt(x, z - e)) / (2 * e) * (P.dz * 0.62) / P.dy
+    return Math.sqrt(a * a + b * b)
+  }
   s.sleepAll()
   const h = s.hoardBox()
   const pick = s.pickSurface((h.x0 + h.x1) / 2, (h.y0 + h.y1) / 2)
@@ -269,12 +339,18 @@ const avalanche = await page.evaluate(() => {
     s.stepBodies(16)
     for (const k in V.bodies()) if (!began[k] && outside(V.bodies()[k])) offscreen++
   }
-  const d = [], steep = [], flat = []
+  // the STEEPEST THIRD against the FLATTEST THIRD, rather than a fixed gradient: the
+  // populations then stay comparable whatever shape the mound is tuned to next
+  const seats = []
   for (const k in V.bodies()) {
     const o = V.bodies()[k], a = start[k]; if (!a) continue
-    const m = Math.hypot(o.gx - a.x, o.gz - a.z)
-    d.push(m); (slope[k] > 0.45 ? steep : flat).push(m)
+    seats.push({ sl: slope[k], m: Math.hypot(o.gx - a.x, o.gz - a.z) })
   }
+  seats.sort((p, q) => p.sl - q.sl)
+  const third = Math.max(1, Math.floor(seats.length / 3))
+  const d = seats.map(q => q.m)
+  const flat = seats.slice(0, third).map(q => q.m)
+  const steep = seats.slice(-third).map(q => q.m)
   d.sort((p, q) => p - q)
   const avg = (a) => a.length ? a.reduce((p, q) => p + q, 0) / a.length : 0
   const asleep = Object.values(V.bodies()).filter(o => o.sleep).length
@@ -297,8 +373,16 @@ ok(avalanche.asleep > avalanche.n * 0.8, 'and it is all asleep again a few secon
 const slide = await page.evaluate(() => {
   const V = window.__RIB_VAULT_DEV, s = V.scene()
   const e = 0.02
+  /* Put the coin ON THE FLANK, with heap left below it to slide down. Taking the steepest
+   * point anywhere used to land it exactly on the mound's rim, where the gradient is
+   * highest and the slide is over in one frame because the next step is off the heap onto
+   * flat floor — so what got measured was one frame of drive and then three seconds of
+   * rolling friction, and the weight order came out of the noise in that. The seat has to
+   * carry at least a quarter of the peak's height under it to be a flank at all. */
+  const peak = s.surfaceAt(0, 0)
   let gx = 0.2, best = 0
-  for (let q = 0.05; q < 1.0; q += 0.02) {
+  for (let q = 0.05; q < 1.4; q += 0.02) {
+    if (s.surfaceAt(q, 0) < peak * 0.25) continue
     const sl = Math.abs((s.surfaceAt(q + e, 0) - s.surfaceAt(q - e, 0)) / (2 * e))
     if (sl > best) { best = sl; gx = q }
   }
@@ -310,6 +394,8 @@ const slide = await page.evaluate(() => {
     b.gx = gx; b.gz = 0; b.gy = s.surfaceAt(gx, 0)
     b.vx = b.vy = b.vz = 0; b.sleep = false; b.still = 0
     b.energy = 0.85; b.travel = 0                  // exactly what a disturbance hands it
+    b.shakenV137 = 1; b.hx = b.gx; b.hz = b.gz
+    s.grantSlide(b)                                // ...including the slide it is granted
     for (let t = 0; t < 200; t++) s.stepBodies(16)
     out[den] = +Math.abs(b.gx - gx).toFixed(4)
   }

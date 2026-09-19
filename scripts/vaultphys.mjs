@@ -1,4 +1,5 @@
-// v137 E — look at the loose money: thickness, a coin in hand, the avalanche it starts, the restock.
+// v137 F — look at the loose money: a coin in hand, the wake a drag ploughs, the shake a
+// HOLD raises, the avalanche a lift starts, and the restock that puts it all back.
 import { chromium } from 'playwright'
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
 const page = await browser.newPage({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 2 })
@@ -41,6 +42,29 @@ await page.waitForTimeout(180); await page.screenshot({ path: '_phys_slide_a.png
 await page.waitForTimeout(500); await page.screenshot({ path: '_phys_slide_b.png' })
 await page.waitForTimeout(900); await page.screenshot({ path: '_phys_settled.png' })
 console.log('after the lift:', JSON.stringify(await page.evaluate(() => window.__RIB_VAULT_DEV.state())))
+
+// a HOLD shakes the heap under the finger, harder as the multiplier climbs
+const hold = await page.evaluate(() => {
+  const s = window.__RIB_VAULT_DEV.scene(), h = s.hoardBox()
+  return { x: (h.x0 + h.x1) / 2, y: h.y0 + (h.y1 - h.y0) * 0.45 }
+})
+await page.mouse.move(hold.x, hold.y); await page.mouse.down()
+await page.waitForTimeout(700); await page.screenshot({ path: '_phys_hold_a.png' })
+await page.waitForTimeout(1400); await page.screenshot({ path: '_phys_hold_b.png' })
+console.log('holding:', JSON.stringify(await page.evaluate(() => window.__RIB_VAULT_DEV.state())))
+await page.mouse.up(); await page.waitForTimeout(900)
+
+// a DRAG ploughs a furrow across what it crosses
+const from = await page.evaluate(() => {
+  const s = window.__RIB_VAULT_DEV.scene(), h = s.hoardBox()
+  return { x: h.x0 + (h.x1 - h.x0) * 0.24, y: h.y0 + (h.y1 - h.y0) * 0.40 }
+})
+await page.mouse.move(from.x, from.y); await page.mouse.down()
+for (let i = 1; i <= 26; i++) { await page.mouse.move(from.x + i * 7, from.y + i * 1.5); await page.waitForTimeout(16) }
+await page.screenshot({ path: '_phys_plough.png' })
+await page.mouse.up(); await page.waitForTimeout(900)
+await page.screenshot({ path: '_phys_plough_after.png' })
+console.log('after the plough:', JSON.stringify(await page.evaluate(() => window.__RIB_VAULT_DEV.state())))
 
 // restock
 await page.evaluate(() => { window.__RIB_VAULT_DEV.restock() })

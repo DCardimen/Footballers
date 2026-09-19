@@ -147,15 +147,21 @@
 
   /* ---------- the mound ---------- */
   var MOUND = {
-    R: function (u) { return 0.30 + 0.70 * Math.pow(Math.max(u, 0), 0.34); },   // footprint
-    H: function (u) { return 0.98 * Math.pow(Math.max(u, 0), 0.86); },          // peak
-    // (0.70 before v137 E: the heap read as a spread rather than a PILE, and the whole
-    // mechanic is the pile — so it stands 40% taller against the same footprint.)
+    /* v137 F: THE HOARD IS TALLER THAN IT IS WIDE, ON SCREEN. Height alone was never the
+     * problem — v137 E already raised the peak 40% and the heap still read as a puddle,
+     * because the FOOTPRINT was growing with it. Measured on a 412px phone at the "large
+     * collection" state, the drawn hoard was 400 CSS px across and 131 tall: 3.05 : 1. A
+     * heap of anything reads as a heap at about 2 : 1, so the footprint comes in 15% and
+     * the peak goes up 30%, which lands it at 1.99 : 1 with the same coins in it. */
+    R: function (u) { return 0.26 + 0.59 * Math.pow(Math.max(u, 0), 0.34); },   // footprint
+    H: function (u) { return 1.26 * Math.pow(Math.max(u, 0), 0.82); },          // peak
     // the profile is not a cone. A poured mass sits at its angle of repose: a broad base,
     // a shoulder about a third of the way out, and a ROUNDED crown — a cone profile put a
-    // spire on the pile, which is the one shape a heap of discs never makes.
+    // spire on the pile, which is the one shape a heap of discs never makes. The flank is
+    // FULLER than it was (cos^0.92, not cos): a heap carries most of its mass low down,
+    // and the thin shoulder was the other half of why this looked like spilled change.
     prof: function (q) { q = Math.min(1, Math.max(0, q));
-      return Math.max(0, Math.cos(q * Math.PI * 0.5) * (0.88 + 0.12 * Math.cos(q * 3.1))); },
+      return Math.max(0, Math.pow(Math.cos(q * Math.PI * 0.5), 0.92) * (0.90 + 0.10 * Math.cos(q * 3.1))); },
     lobe: function (th) { return 1 + 0.17 * Math.sin(th * 2 + 0.7) + 0.11 * Math.sin(th * 3 - 1.9) + 0.06 * Math.sin(th * 5 + 0.3); }
   };
 
@@ -175,40 +181,91 @@
    * and it keeps `n` meaning the one thing it should mean. `cum[i]` is the running total, so
    * the slots to draw for n coins are still a prefix — slot i is born when the count passes
    * cum[i], nothing reshuffles, and the eight wealth states still land where they did. */
-  var STACK_SHARE = 0.66;        // most of the hoard is stacked
+  var STACK_SHARE = 0.74;        // most of the hoard is stacked — v137 F: more of it
   var LOOSE_FIRST = 14;          // ...but the first coins in an almost-empty vault are not
   var SEED = 0x5EED1337;         // fixed, so the vault is the same room every session
   function reseed() { SEED = (SEED * 1664525 + 1013904223) >>> 0; return SEED; }
 
+  /* v137 F: A COIN TAKES UP SPACE.
+   *
+   * Slots were sampled independently, so nothing stopped two of them landing on the same
+   * spot — and at 1700 coins in a footprint this size, plenty did. Coincident coins are
+   * invisible as coins: they composite into one brighter blob, which is a third of why the
+   * heap read as a texture rather than as objects. A coin now CLAIMS a volume, and a
+   * candidate that lands inside one already claimed is re-rolled.
+   *
+   * It is not hard sphere packing — a heap of discs overlaps heavily and should — it is
+   * only a floor on how close two centres may be. The test is in slot space with z opened
+   * back out (the floor is an ellipse, so z is compressed by 0.62 there) and y weighted
+   * down, because coins stacked a thickness apart are exactly what we want.
+   *
+   * The grid is a hash of 0.11-unit cells, so the whole build stays linear. */
+  var CLAIM = 0.092;             // minimum centre separation, slot units
+  var CLAIM_CELL = 0.11;
+  var CLAIM_TRIES = 10;          // ...then take it anyway: a wedged build is worse
+  function claimKey(x, z, y) {
+    return (Math.round(x / CLAIM_CELL) + 512) + ':' +
+      (Math.round(z / CLAIM_CELL) + 512) + ':' + Math.round(y / CLAIM_CELL);
+  }
+  function claimFree(grid, x, z, y) {
+    var gx = Math.round(x / CLAIM_CELL), gz = Math.round(z / CLAIM_CELL), gy = Math.round(y / CLAIM_CELL);
+    for (var a = -1; a <= 1; a++) for (var b = -1; b <= 1; b++) for (var c = -1; c <= 1; c++) {
+      var cell = grid[(gx + a + 512) + ':' + (gz + b + 512) + ':' + (gy + c)];
+      if (!cell) continue;
+      for (var i = 0; i < cell.length; i++) {
+        var dx = cell[i][0] - x, dz = (cell[i][1] - z) / 0.62, dy = (cell[i][2] - y) * 0.55;
+        if (dx * dx + dz * dz + dy * dy < CLAIM * CLAIM) return false;
+      }
+    }
+    return true;
+  }
+
   function buildSlots(coinBudget) {
-    var R = rng(SEED), s = [], cum = [], total = 0, i = 0;
+    var R = rng(SEED), s = [], cum = [], total = 0, i = 0, grid = {};
     while (total < coinBudget) {
       var u = Math.min(0.9999, total / coinBudget);
-      var th = R() * Math.PI * 2;
-      // a coin lands on the mound's surface as it is at ITS birth, biased outward so the
-      // footprint spreads as fast as the peak climbs
-      var q = Math.pow(R(), 0.62);
-      var spill = R() < 0.075;                   // a poured heap throws coins off its foot;
-      var rr = MOUND.R(u) * (spill ? 1.05 + R() * 0.55 : q) * MOUND.lobe(th);
-      var h = spill ? 0.012 * R()                // without them the mound has a cut-out edge
-        : MOUND.H(u) * MOUND.prof(q) * (0.80 + 0.20 * MOUND.lobe(th));
-      var sink = 0.55 + 0.45 * R();              // some coins are half-buried, not perched
-      // stacks are taller where the heap is deep and shorter out on the slope; the very
-      // first coins are always singles, because six coins standing in a column is not what
-      // an almost-empty vault looks like
-      var wantStack = total >= LOOSE_FIRST && !spill && R() < STACK_SHARE;
-      // A column needs something to stand on, so height is keyed on how LOW in the heap the
-      // slot sits, not on how near the middle: tall stacks at the base and the front, short
-      // ones out on the slope and at the crown. Keyed on the radius instead, the tallest
-      // columns land on the peak and the hoard grows a picket fence.
-      var room = 1 - Math.min(1, h / (MOUND.H(1) * 0.92));
+      var th, q, spill, rr, h, sink, x0, z0, y0, tries = 0;
+      do {
+        th = R() * Math.PI * 2;
+        // a coin lands on the mound's surface as it is at ITS birth, biased outward so the
+        // footprint spreads as fast as the peak climbs
+        q = Math.pow(R(), 0.62);
+        spill = R() < 0.055;                     // a poured heap throws coins off its foot;
+        rr = MOUND.R(u) * (spill ? 1.02 + R() * 0.42 : q) * MOUND.lobe(th);
+        h = spill ? 0.012 * R()                  // without them the mound has a cut-out edge
+          : MOUND.H(u) * MOUND.prof(q) * (0.80 + 0.20 * MOUND.lobe(th));
+        /* v137 F: a coin RESTS on the heap it landed on. `sink` ran 0.55 to 1.0, so half
+         * the hoard was parked at half the height of the surface it was supposed to have
+         * landed on — the heap was hollow at the top and packed at the bottom, which is
+         * the shape of a mat, not a mound. It settles a little now and no more; the coins
+         * that end up deep are the ones that later coins are poured ON TOP OF, which is
+         * how a real heap buries its own history. */
+        sink = 0.80 + 0.20 * R();
+        x0 = Math.cos(th) * rr;
+        z0 = Math.sin(th) * rr * 0.62;           // the hoard is an ellipse on the floor
+        y0 = h * sink;
+      } while (!claimFree(grid, x0, z0, y0) && ++tries < CLAIM_TRIES);
+      var ck = claimKey(x0, z0, y0);
+      (grid[ck] || (grid[ck] = [])).push([x0, z0, y0]);
+      /* HOW TALL A COLUMN STANDS. Two things have to be true at once or the heap loses its
+       * outline. A column needs something to stand ON, so it is short near the crown where
+       * there is no headroom left — that was already here. But it must ALSO be short out at
+       * the RIM, and that was not: keyed on headroom alone, the tallest columns in the
+       * hoard stood on its outer edge, where headroom is greatest, and the pile came out
+       * with vertical walls and a flat top. A drum, not a mound. `edge` is 1 at the middle
+       * of the footprint and 0 at its lip, and it governs both how tall a column may stand
+       * and how likely a slot is to be one at all — so the silhouette tapers to a scatter
+       * of loose coins at the lip, which is what the foot of a poured heap looks like. */
+      var edge = 1 - Math.min(1, rr / Math.max(1e-3, MOUND.R(u) * MOUND.lobe(th)));
+      var wantStack = total >= LOOSE_FIRST && !spill && R() < STACK_SHARE * (0.72 + 0.28 * edge);
+      var room = (1 - Math.min(1, h / (MOUND.H(1) * 0.92))) * (0.40 + 0.60 * edge);
       var k = wantStack
-        ? Math.max(2, 2 + Math.round(Math.pow(R(), 1.35) * (1.6 + 7.4 * room * room)))
+        ? Math.max(2, 2 + Math.round(Math.pow(R(), 1.30) * (2.0 + 11.0 * room * room)))
         : 1;
       s.push({
-        x: Math.cos(th) * rr,
-        z: Math.sin(th) * rr * 0.62,             // the hoard is an ellipse on the floor
-        y: h * sink,
+        x: x0,
+        z: z0,
+        y: y0,
         tilt: R(),                               // 0 = lying flat, 1 = standing on edge
         rot: R() * Math.PI * 2,                  // spin in the ground plane
         mixU: R(),                               // stable draw against the mix's CDF
@@ -308,7 +365,15 @@
     bottom: 1.12,       // where the near edge of the floor sits (just off-screen)
     spread: 0.62,       // half-width of the floor at the near edge, as a fraction of width
     lift: 0.34,         // how a unit of height reads as screen height
-    coin: 68            // a near coin's diameter in CSS px at a 430px-wide viewport
+    coin: 78,           // a coin's diameter in CSS px at a 430px-wide viewport, at the pile
+    /* v137 F: PERSPECTIVE ON THE COINS THEMSELVES. A coin's drawn size was the raw
+     * foreshortening `k`, and across the hoard's own depth that is a 1.28x spread between
+     * the nearest coin and the furthest — not enough to read as distance, so the heap came
+     * out looking like one flat layer of discs. Raising `k` to a power exaggerates the
+     * near/far difference without moving anything: 1.67x now, which the eye reads as depth.
+     * The exponent is chosen so a coin at the pile's own depth is EXACTLY the size it was
+     * (k=0.612 at PILE.z, and 0.612^1.28 * 78 = 0.612 * 68), so nothing else re-tunes. */
+    sizeExp: 1.28
   };
   function Cam(w, h) {
     this.w = w; this.h = h;
@@ -327,12 +392,17 @@
     out.k = k;
     out.x = this.w * 0.5 + gx * k * CAM.spread * this.span;
     out.y = this.h * (CAM.horizon + (CAM.bottom - CAM.horizon) * t) - gy * k * CAM.lift * this.h;
-    out.s = k * CAM.coin * this.u;
+    out.s = Math.pow(k, CAM.sizeExp) * CAM.coin * this.u;
     return out;
   };
 
-  /* the hoard's footprint in ground space */
-  var PILE = { z: 0.27, dz: 0.150, dx: 1.20, dy: 0.98 };
+  /* the hoard's footprint in ground space.
+   * v137 F: `dz` was 0.150, which gave the whole hoard a depth of about a tenth of the
+   * room — every coin was at nearly the same distance from the camera, so there was no
+   * near and no far to read. At 0.26 the pile occupies real depth: the back of it sits
+   * higher up the receding floor AND is drawn visibly smaller, which is the only honest
+   * way to say "this thing has a front and a back". */
+  var PILE = { z: 0.27, dz: 0.26, dx: 1.20, dy: 0.98 };
 
   /* ---------- pre-shaded sprite variants ----------
    * A coin in a hoard is lit by how deep in the hoard it sits. Compositing a darkening
@@ -483,16 +553,12 @@
     side.addColorStop(0.72, 'rgba(2,5,9,0)');
     side.addColorStop(1, 'rgba(2,5,9,.55)');
     x.fillStyle = side; x.fillRect(0, 0, w, h);
-    // the door at rest is part of the room: it is on the far wall, BEHIND the hoard, and
-    // nothing about it changes while the vault is open. Baked, it costs nothing and it
-    // stops occluding the pile it stands behind.
-    var dcl = this.sp.get('door_closed');
-    if (dcl) {
-      var dh2 = Math.min(h * 0.32, w * 0.62), dw2 = dh2 * (dcl.width / dcl.height);
-      x.save(); x.globalAlpha = 0.95;
-      x.drawImage(dcl, w * 1.08 - dw2 * 0.62, h * 0.46 - dh2 / 2, dw2, dh2);
-      x.restore();
-    }
+    /* v137 F: THE DOOR ON THE RIGHT IS GONE. A second leaf was parked half off the right
+     * edge as set dressing, and it read as a mistake rather than as a door: cropped by the
+     * frame, at a scale that fought the room's own perspective, and close enough to the
+     * hoard to crowd it. The room art already has a vault door on the far wall, which is
+     * the one the opening sequence swings. `door_closed` is still cut and still loaded —
+     * the opening uses `door_front` — it is simply not painted into the room any more. */
     // warm pool on the floor, under where the hoard sits
     var p = this.cam.project(0, 0, PILE.z, {});
     var g = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, w * 0.85);
@@ -631,6 +697,15 @@
    * scaleX = |cos spin| is exactly what a spinning disc does, and the face flips to the
    * back through the crossing, where the edge sprite is blended in. */
   var THICK = { face: 0.085, back: 0.085, flat: 0.070, hero: 0.045, edge: 0 };
+  /* v137 F: A COLUMN IS MADE OF THINGS, and each thing has a side to it. The per-coin rise
+   * was 0.086 of a diameter with the edge pass turned down to 0.55 — so a stack of eight
+   * stood 0.60 diameters tall and the discs in it had almost no visible thickness. They
+   * are 0.118 apart now (a coin in this camera presents a shallow ellipse, so the rise
+   * reads as rather more than a real coin's 1/16th) and each one draws its full edge, so
+   * the gap between two discs is filled by the SIDE of the lower one. Same eight coins,
+   * 0.83 diameters of column, and you can count them. */
+  var STACK_RISE = 0.118;
+  var EDGE_MUL = 1.15;
   Scene.prototype.drawCoin = function (x, den, kind, px, py, size, rot, spin, shadeIx, tilt, thickMul) {
     var img, sx = 1, alt = null, altA = 0;
     if (spin != null) {
@@ -680,7 +755,13 @@
   Scene.prototype.bakeDeep = function (nDeep) {
     var step = Math.max(10, Math.round(this.slots.coins * 0.012));
     var q = Math.round(nDeep / step) * step;
-    var key = q + '|' + this.mixKey();
+    /* v137 F: `_deepSeq` counts how many times a coin has entered or left the DEEP layer.
+     * The deep layer is a baked canvas, which is why picking used to be restricted to the
+     * live surface band — grab a coin from underneath and the bake kept drawing it where
+     * it had been. Every coin is grabbable now, so the bake has to be re-run on the frame
+     * a deep coin is lifted, and again when it comes home. It is bumped only for coins
+     * that are actually deep, so an ordinary lift off the surface still costs nothing. */
+    var key = q + '|' + this.mixKey() + '|' + (this._deepSeq || 0);
     if (key === this.deepKey) return;
     this.deepKey = key;
     var x = this.deep.getContext('2d');
@@ -688,7 +769,9 @@
     x.clearRect(0, 0, this.deep.width, this.deep.height);
     x.scale(this.dpr, this.dpr);
     this.deepSlots = M.slotsFor(this.slots, q);
-    this.drawRange(x, 0, this.deepSlots, true);
+    this._skip = this._bodies;                  // whatever is loose is drawn live, not baked
+    baseDrawRange.call(this, x, 0, this.deepSlots, true);
+    this._skip = null;
   };
   Scene.prototype.mixKey = function () {
     return DEN.map(function (d) { return Math.round(this.mix[d] * 40); }, this).join(',');
@@ -704,13 +787,34 @@
       sl = s[i];
       cam.project(sl.x * PILE.dx, sl.y * PILE.dy, PILE.z + sl.z * PILE.dz, p);
       size = p.s * sl.size;
-      if (withShadow && sl.y < 0.10) {
-        x.globalAlpha = 0.5;
-        x.drawImage(blob, p.x - size * 0.72, p.y - size * 0.24, size * 1.44, size * 0.5);
-        x.globalAlpha = 1;
+      /* v137 F: HOW DEEP IN THE HEAP THIS COIN SITS, and therefore how much light reaches
+       * it. Brightness used to key on the slot's own height, which is not the same thing:
+       * a coin sitting at 0.4 is on the SURFACE of a quarter-full vault and buried under
+       * half a metre of money in a full one, and it was drawn identically in both. `ao` is
+       * the coin's height as a fraction of the heap's surface at its own (x,z) RIGHT NOW,
+       * so the crown catches the room and the inside of the pile goes properly dark. That
+       * darkness is the single thing that makes a heap of discs read as having a volume
+       * rather than as a texture, and it costs one `surfaceAt` per drawn coin. */
+      var ao = 1;
+      if (this.surfaceAt) {
+        var sv = this.surfaceAt(sl.x * PILE.dx, sl.z * PILE.dz) / PILE.dy;
+        if (sv > 1e-3) ao = Math.min(1, sl.y / sv);
+      }
+      if (withShadow) {
+        if (sl.y < 0.10) {                       // on the floor: the heap's own contact shadow
+          x.globalAlpha = 0.5;
+          x.drawImage(blob, p.x - size * 0.72, p.y - size * 0.24, size * 1.44, size * 0.5);
+          x.globalAlpha = 1;
+        } else if (size > 6) {
+          /* ...and on the heap: a coin PRESSES INTO what it is lying on. Without this every
+           * coin floats on the one behind it and the pile has no interior. */
+          x.globalAlpha = 0.28 + 0.24 * ao;
+          x.drawImage(blob, p.x - size * 0.56, p.y - size * 0.02, size * 1.12, size * 0.40);
+          x.globalAlpha = 1;
+        }
       }
       den = M.denOf(sl, this.mix);
-      shadeIx = Math.min(3, Math.max(0, Math.round(sl.shade * 2.2 + (sl.y / 0.9) * 1.4)
+      shadeIx = Math.min(3, Math.max(0, Math.round(ao * 2.4 + sl.shade * 0.75 - 0.35)
         - (den === 'blue' ? 1 : 0)));
       if (sl.cnt > 1 && size > 7) { this.drawStack(x, sl, den, p.x, p.y, size, shadeIx); continue; }
       this.drawCoin(x, den, sl.face, p.x, p.y, size,
@@ -718,6 +822,11 @@
         null, shadeIx, sl.face === 'face' ? 0.06 + sl.tilt * 0.40 : null);
     }
   };
+
+  /* The bake must never go through the physics module's wrapper: that wrapper draws the
+   * LOOSE coins at their live positions, and baking those in freezes a coin you are still
+   * holding into the canvas behind it. */
+  var baseDrawRange = Scene.prototype.drawRange;
 
   /* A COLUMN. k coins of one denomination — you sort your money — each a coin's thickness
    * above the last, off the `flat` sprite, which is the shallow ellipse a coin lying in a
@@ -729,7 +838,7 @@
     return this.drawStackN(x, sl, den, px, py, size, shadeIx, sl.cnt);
   };
   Scene.prototype.drawStackN = function (x, sl, den, px, py, size, shadeIx, n) {
-    var k = Math.max(1, n | 0), step = size * 0.086;
+    var k = Math.max(1, n | 0), step = size * STACK_RISE;
     var wx = Math.cos(sl.lean) * size * 0.085, wy = Math.sin(sl.lean) * size * 0.030;
     var rot = (sl.rot - Math.PI) * 0.16;
     var j, sx, sy, ix;
@@ -737,8 +846,12 @@
       var t = j / Math.max(1, k - 1);
       sx = px + wx * t * t + (j & 1 ? size * 0.018 : -size * 0.015);
       sy = py - j * step + wy * t * t;
-      ix = Math.min(3, shadeIx + (j > k * 0.58 ? 1 : 0));    // the light climbs the column
-      this.drawCoin(x, den, 'flat', sx, sy, size, rot + t * 0.10, null, ix, null, 0.55);
+      /* THE LIGHT CLIMBS THE COLUMN, and it climbs it smoothly. A single step at 58% made
+       * every stack two flat blocks of tone; a ramp over the whole column is what a stack
+       * of metal discs under one overhead light actually does, and it is most of what says
+       * "this is a column" rather than "these are discs at different heights". */
+      ix = Math.max(0, Math.min(3, Math.round(shadeIx - 0.85 + t * 1.7)));
+      this.drawCoin(x, den, 'flat', sx, sy, size, rot + t * 0.10, null, ix, null, EDGE_MUL);
     }
     if (sl.capped && k === sl.cnt) {          // the coin lying across the top goes first
       this.drawCoin(x, den, 'hero', px + wx, py - (k - 0.30) * step,
@@ -770,17 +883,23 @@
       x.save(); x.setTransform(1, 0, 0, 1, 0, 0);
       x.drawImage(this.deep, 0, 0); x.restore();
     }
+    this._looseFrom = 0;              // loose coins from ANY depth are drawn in this pass
     this.drawRange(x, this.deepSlots, M.slotsFor(this.slots, n), true);
+    this._looseFrom = null;
   };
 
-  window.__RIB_VAULT_SCENE = { Scene: Scene, Cam: Cam, CAM: CAM, PILE: PILE };
+  // STACK_RISE crosses the module line: `pickSurface` and `hoardBox` live in the next
+  // block and both have to agree with `drawStackN` about how tall a column stands, or
+  // the thing you aim at and the thing you hit are different objects.
+  window.__RIB_VAULT_SCENE = { Scene: Scene, Cam: Cam, CAM: CAM, PILE: PILE,
+    STACK_RISE: STACK_RISE, EDGE_MUL: EDGE_MUL };
 })();
 
 /* ===== v137 THE PRESTIGE VAULT — the core, the door, the light, and the frame ===== */
 (function () {
   'use strict';
   var M = window.__RIB_VAULT_MODEL, S = window.__RIB_VAULT_SCENE;
-  var Scene = S.Scene, CAM = S.CAM, PILE = S.PILE;
+  var Scene = S.Scene, CAM = S.CAM, PILE = S.PILE, STACK_RISE = S.STACK_RISE;
 
   /* The receiver sits where the room's rear arch is, above the hoard. It is placed in
    * SCREEN space and the projection is asked for nothing, because it is the one thing in
@@ -1059,29 +1178,96 @@
 
   /* where on the hoard's visible surface a coin actually is. A flying coin must LEAVE the
    * pile, so the tap picks a real slot near the touch and hands back its screen point. */
+  /* v137 F: WHATEVER YOU TOUCH IS WHAT YOU GET.
+   *
+   * This used to search the last 22% of the slot list and return whichever of those had
+   * its centre nearest the finger — with no distance limit at all. Two things were wrong
+   * with that and both of them are the "sometimes it just doesn't respond" you can feel.
+   * Coins outside that window — which is most of the hoard, and all of the deep layer —
+   * could not be picked AT ALL; and because the nearest of the candidates always won, a
+   * press on one of them silently grabbed a coin somewhere else, often off the far side of
+   * the pile, so the coin under your finger sat there while something you were not looking
+   * at moved. Both read as dead touch.
+   *
+   * Now it walks the painter's order BACKWARDS — nearest to the camera first, which is the
+   * order your eye picks a coin out of the heap in — and returns the first one whose drawn
+   * body actually contains the point. A column is tested as the whole column, base to top,
+   * because that is what you can see and therefore what you will aim at. Only if nothing is
+   * under the finger at all does it fall back to the nearest centre, and that search now
+   * covers the whole hoard rather than a window of it. */
   Scene.prototype.pickSurface = function (px, py) {
     var n = M.slotsFor(this.slots, Math.round(this.nShown));
     if (n <= 0) {
       var c = this.cam.project(0, 0, PILE.z, {});
       return { x: c.x, y: c.y, i: -1, s: c.s };
     }
-    var s = this.slots.slot, best = -1, bd = 1e9, p = {}, i, d;
-    var lo = Math.max(0, n - Math.max(24, Math.round(this.slots.slot.length * 0.22)));
-    for (i = lo; i < n; i++) {
-      this.cam.project(s[i].x * PILE.dx, s[i].y * PILE.dy, PILE.z + s[i].z * PILE.dz, p);
-      var top = p.y - (s[i].cnt > 1 ? (s[i].cnt - 1) * p.s * s[i].size * 0.105 : 0);
-      d = (p.x - px) * (p.x - px) + (top - py) * (top - py);
-      if (d < bd) { bd = d; best = i; this.bx = p.x; this.by = top; this.bs = p.s * s[i].size; }
+    var s = this.slots.slot, ord = this.slots.order, p = {}, i, k, sl, size, rise, top, dx, dy;
+    var bd = 1e9, bi = -1, bx = 0, by = 0, bs = 0;
+    for (k = ord.length - 1; k >= 0; k--) {
+      i = ord[k];
+      if (i >= n) continue;
+      sl = s[i];
+      this.cam.project(sl.x * PILE.dx, sl.y * PILE.dy, PILE.z + sl.z * PILE.dz, p);
+      size = p.s * sl.size;
+      rise = sl.cnt > 1 ? (sl.cnt - 1) * size * STACK_RISE : 0;
+      top = p.y - rise;
+      dx = px - p.x;
+      // inside the column's own span the vertical miss is zero; outside it, the overhang
+      dy = py < top ? py - top : (py > p.y ? py - p.y : 0);
+      var rx = size * 0.54, ry = size * 0.32;
+      if ((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) <= 1) {
+        this.bx = p.x; this.by = top; this.bs = size;
+        return { x: p.x, y: top, i: i, s: size, hit: true };
+      }
+      var d = dx * dx + (py - top) * (py - top);
+      if (d < bd) { bd = d; bi = i; bx = p.x; by = top; bs = size; }
     }
-    return { x: this.bx, y: this.by, i: best, s: this.bs };
+    this.bx = bx; this.by = by; this.bs = bs;
+    return { x: bx, y: by, i: bi, s: bs, hit: false };
   };
+  /* The hoard's box on screen, measured off the coins that are actually drawn rather than
+   * guessed from the mound's formula. It gates every pointer event, so a guess that runs
+   * short is another way for a press to do nothing — and the formula ran short at the top
+   * of a tall pile and at the spill around its foot. Cached against the coin count, so the
+   * cost is one pass per change of balance, not one per event. */
   Scene.prototype.hoardBox = function () {
-    var f = Math.max(0.04, this.nShown / this.slots.coins);
-    var near = this.cam.project(0, 0, PILE.z - PILE.dz, {});
-    var top = this.cam.project(0, M.MOUND.H(f) * PILE.dy, PILE.z, {});
-    var half = this.cam.span * (0.16 + 0.46 * Math.pow(f, 0.42));
-    return { x0: this.cw / 2 - half, x1: this.cw / 2 + half,
-      y0: top.y - near.s * 0.8, y1: Math.min(this.ch, near.y + near.s * 0.6) };
+    var n = Math.round(this.nShown);
+    if (this._hbN === n && this._hb && this._hbW === this.cw && this._hbH === this.ch) return this._hb;
+    var k = M.slotsFor(this.slots, n), s = this.slots.slot, p = {}, i;
+    var box;
+    if (k <= 0) {
+      var c = this.cam.project(0, 0, PILE.z, {});
+      box = { x0: c.x - c.s, x1: c.x + c.s, y0: c.y - c.s, y1: c.y + c.s * 0.8 };
+    } else {
+      var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+      for (i = 0; i < k; i++) {
+        this.cam.project(s[i].x * PILE.dx, s[i].y * PILE.dy, PILE.z + s[i].z * PILE.dz, p);
+        var sz = p.s * s[i].size;
+        var rise = s[i].cnt > 1 ? (s[i].cnt - 1) * sz * STACK_RISE : 0;
+        if (p.x - sz * 0.6 < x0) x0 = p.x - sz * 0.6;
+        if (p.x + sz * 0.6 > x1) x1 = p.x + sz * 0.6;
+        if (p.y - rise - sz * 0.5 < y0) y0 = p.y - rise - sz * 0.5;
+        if (p.y + sz * 0.4 > y1) y1 = p.y + sz * 0.4;
+      }
+      box = { x0: x0, x1: x1, y0: y0, y1: Math.min(this.ch, y1) };
+    }
+    this._hbN = n; this._hbW = this.cw; this._hbH = this.ch; this._hb = box;
+    return box;
+  };
+
+  /* Where a point on the screen lands in the hoard's own ground space. The horizontal is
+   * the projection inverted at the pile's depth; the vertical is read off the hoard's own
+   * drawn box, because higher up the picture means further back in the room. It is only
+   * ever used as the EPICENTRE of a disturbance, which has a generous radius, so it does
+   * not need to be more exact than that — and unlike `pickSurface` it is O(1), which
+   * matters because a hold asks for it many times a second. */
+  Scene.prototype.groundAt = function (px, py) {
+    var cam = this.cam, k = cam.k(PILE.z);
+    var gx = (px - this.cw * 0.5) / (k * CAM.spread * cam.span);
+    var h = this.hoardBox();
+    var t = h.y1 > h.y0 ? (py - h.y0) / (h.y1 - h.y0) : 0.5;
+    t = Math.min(1, Math.max(0, t));
+    return { gx: gx, gz: (0.5 - t) * 1.6 * PILE.dz };
   };
 
   /* ---------- the frame ---------- */
@@ -1330,6 +1516,8 @@
    * clamped hardest, because that is the one that throws a coin out of the room. */
   var THROW_V = 0.0026;          // ground units per ms — about a room's width a second
   var THROW_VY = 0.0016;
+  var PLOUGH_STEP = 0.055;       // how far a held coin travels before it shoves again
+  var PLOUGH_K = 0.60;           // ...and how hard. Lighter than a lift: it is a graze
 
   Vault.prototype.endDrag = function () {
     if (!this.dragging) return;
@@ -1352,9 +1540,18 @@
     var s = this.scene;
     var pick = s.pickSurface(px, py);
     if (pick.i < 0) return;
+    /* A DRAG IS NOT A HOLD, and the invariant has to hold however startDrag is reached.
+     * The pointer handler releases the hold before it calls this, but nothing MADE that
+     * true — and a hold left standing keeps the pour running and (since v137 F) keeps
+     * shaking the heap, with the finger no longer on it. It ends here by construction.
+     * Not `release()`: that would commit a fully-funded upgrade, and starting to drag a
+     * coin is not a decision to buy. */
+    this.holding = false; this.stage = 0;
+    this.elMult && this.elMult.classList.remove('on');
     var o = s.wake(pick.i);
     if (!o) return;
     o.held = true; o.sleep = false; o.vx = o.vy = o.vz = 0;
+    o._ploughV137 = null; o.shakenV137 = 0;    // your hand, not the heap: no leash
     // lifting a coin out opens a gap, and the coins around it give way into it. The coin in
     // the HAND is not one of them: `disturb` reaches its own slot too, and a coin that is
     // put back down still carrying the lift's energy skates off down the slope instead of
@@ -1388,6 +1585,17 @@
     o.gx += (tgx - o.gx) * lag;
     o.gy += (Math.max(s.surfaceAt(o.gx, o.gz) - 0.02, lift) - o.gy) * lag;
     o.spin += dx * 0.004;
+    /* v137 F: DRAGGING PLOUGHS. A coin hauled across the top of a heap does not pass
+     * through it — it shoves what it crosses out of the way and leaves a furrow. The lift
+     * already opens a gap where the coin came from; this is the rest of the gesture. It
+     * fires on DISTANCE TRAVELLED rather than per move event, so a slow drag disturbs the
+     * same ground once and a fast one leaves an evenly spaced wake instead of a single
+     * hammer blow wherever the pointer happened to sample. */
+    var pl = o._ploughV137;
+    if (!pl || Math.abs(o.gx - pl.x) + Math.abs(o.gz - pl.z) > PLOUGH_STEP) {
+      o._ploughV137 = { x: o.gx, z: o.gz };
+      if (pl) s.disturb(o.gx, o.gz, PLOUGH_K);   // not on the first sample — that is the lift
+    }
     var ex = Math.exp(-dt / 70);               // EMA on the MEASURED velocity, not on a delta
     this.flingX = ((o.gx - ox) / dt) * (1 - ex) + (this.flingX || 0) * ex;
     this.flingY = ((o.gy - oy) / dt) * (1 - ex) + (this.flingY || 0) * ex;
@@ -1624,8 +1832,28 @@
   };
 
   /* ---------- the hold ---------- */
+  /* v137 F: A HOLD SHAKES THE MONEY.
+   *
+   * Pressing on a heap of coins and having it sit there perfectly still is the single most
+   * inert thing this screen did. A hold now disturbs the hoard under the finger on its own
+   * clock, and harder as the multiplier climbs — at x16 the pile is visibly working, which
+   * is also the clearest read you get that the pour has gone up a gear. It runs whether or
+   * not an upgrade is selected, because pressing the money should always move the money.
+   *
+   * It is rate-limited rather than run per frame: `disturb` wakes dozens of coins and they
+   * each need a few hundred milliseconds to spend the energy they were handed, so shaking
+   * at 60Hz would just pin every coin at full energy and the heap would boil. */
+  var SHAKE_MS = 95;
+  var SHAKE_K = [0.40, 0.62, 0.86, 1.15, 1.50];   // by stage: tap, x2, x4, x8, x16
+
   Vault.prototype.tick = function (now, dt) {
     if (this.depositTick) this.depositTick(now);
+    if (this.holding && !this.dragging && this.scene && this.touch &&
+        now - (this._shakeAt || 0) > SHAKE_MS) {
+      this._shakeAt = now;
+      var g = this.scene.groundAt(this.touch.x, this.touch.y);
+      this.scene.disturb(g.gx, g.gz, SHAKE_K[Math.min(SHAKE_K.length - 1, this.stage || 0)]);
+    }
     if (!this.holding || !this.target || this.committed) return;
     var held = now - this.holdFrom, st = 0, i;
     for (i = 0; i < STAGES.length; i++) if (held >= STAGES[i].at) st = i;
@@ -1839,7 +2067,12 @@
   var GRAV = 0.0000320;          // ground units per ms squared — coins FALL, they do not drift
   var BOUNCE = 0.34, ROLL = 0.982;
   var MU = 0.42;                 // static friction: metal on metal, and it is most of this
-  var SLOPE_K = 2.40;            // how hard the slope pulls a coin that has been shaken loose
+  /* v137 F: the mound is 1.5x steeper than the one this was tuned against (a narrower
+   * footprint under a taller peak), and the slope term reads that gradient directly — so
+   * the same disturbance threw coins about twice as far as it used to, right across the
+   * heap. The constant comes down by the same factor it went up by, which leaves the FEEL
+   * where v137 E put it and the travel where the checks assert it. */
+  var SLOPE_K = 1.20;            // how hard the slope pulls a coin that has been shaken loose
   var STILL_FRAMES = 9;          // consecutive quiet frames before a coin is allowed to sleep
 
   /* THE HEAP ANSWERS WHEN YOU TOUCH IT.
@@ -1856,7 +2089,34 @@
   var DIST_E = 0.85;             // energy at the centre of a disturbance
   var E_DECAY = 260;             // ms for that energy to fall by 1/e
   var E_FLOOR = 0.05;            // below this it is over
-  var SLIDE_MAX = 0.175;         // the furthest a shaken coin may travel from where it sat
+  /* HOW FAR ONE SHAKEN COIN IS ALLOWED TO SLIDE, and this is the whole of "some a lot,
+   * some a little". It used to be a single constant, and a single constant turns out to be
+   * the ONLY thing that decided the distance: the slope sets how fast a coin gets going,
+   * but with light rolling friction it keeps accumulating speed for the whole ~700ms the
+   * disturbance lasts, so every coin — on the steepest flank or the flattest shoulder —
+   * ran into the same cap and stopped in the same place. Measured, a coin on a flat
+   * shoulder travelled 0.165 and one on the steep flank 0.152: backwards, and both pinned
+   * to the cap. Dropping the slope constant by 14x did not change it, which is what said
+   * the cap was the mechanism rather than the physics.
+   *
+   * So the allowance is what carries the meaning. A coin is granted a slide when it is
+   * disturbed, measured off the gradient of the heap UNDER IT and divided by its own grip:
+   * a light coin on the steep flank gets the full run, a billion-point coin on a flat
+   * shoulder barely shifts, and everything in between is in between. It is a designed
+   * allowance rather than a simulated one, which is what the rest of this model is too. */
+  var SLIDE_MIN = 0.030;         // ...the least, on flat ground under the heaviest coin
+  var SLIDE_MAX = 0.175;         // ...and the most, on the steep flank under a bronze one
+  var SLOPE_REF = 1.80;          // the gradient that earns a full slide (slot units)
+  /* ...and the furthest it may END UP from it, by any means. `SLIDE_MAX` caps the driven
+   * part of the journey only, so a coin could spend its energy, get flicked off a column
+   * or bounce off the flank, and then COAST — in the air, where nothing brakes it — for
+   * half the room. That is the "coins go flying off" this whole mechanic is supposed not
+   * to do. A shaken coin is on a leash from the spot it was shaken at, and it is a leash
+   * rather than a wall: past it the coin is damped hard instead of being teleported back,
+   * so it comes to rest just outside and nothing ever snaps. A coin you are DRAGGING or
+   * have THROWN is not on it — that is your hand, not the heap, and it has its own limits
+   * in THROW_V and the room's own walls. */
+  var LEASH = 0.24;
   var MAX_V = 0.0030;            // ground units per ms — the heap is about one unit across
   var MAX_VY = 0.0060;           // ...and nothing leaves the room upward
   var SHED_RATE = 0.024;         // chance per ms that a driven column sheds its top coin
@@ -1905,7 +2165,8 @@
     M.reseed();
     this.slots = M.buildSlots(Scene.budget());
     this._bodies = {}; this._nBodies = 0; this.tidyTick = null;
-    this.limZ = null; this._shardN = 0;
+    this._deepSeq = (this._deepSeq || 0) + 1;
+    this.limZ = null; this._shardN = 0; this._hb = null;
     this.deepKey = ''; this.deepSlots = 0;
     this.setBalance(this.pp, false);
   };
@@ -1936,9 +2197,14 @@
       // any further out, and once it comes inside the frame it is held inside
       lim0: Math.abs(sl.x * PILE.dx) };
     this._nBodies = (this._nBodies || 0) + 1;
+    // a coin leaving the BAKED deep layer has to be painted out of it — see bakeDeep
+    if (i < (this.deepSlots || 0)) this._deepSeq = (this._deepSeq || 0) + 1;
     return b[i];
   };
-  Scene.prototype.sleepAll = function () { this._bodies = {}; this._nBodies = 0; };
+  Scene.prototype.sleepAll = function () {
+    if (this._nBodies) this._deepSeq = (this._deepSeq || 0) + 1;
+    this._bodies = {}; this._nBodies = 0;
+  };
 
   Scene.prototype.bodyCap = function () { return this.lite ? Math.round(MAX_BODIES * 0.55) : MAX_BODIES; };
 
@@ -1949,7 +2215,7 @@
     var sl = this.slots.slot[o.i];
     // the drawn column's step, converted out of screen pixels into ground height
     var p = this.cam.project(o.gx, o.gy, PILE.z + o.gz, {});
-    var stepPx = p.s * sl.size * 0.086;
+    var stepPx = p.s * sl.size * S.STACK_RISE;
     var lift = Math.max(1e-6, this.cam.k(PILE.z + o.gz) * 0.34 * this.ch);
     var top = o.gy + (o.cnt - 1) * (stepPx / lift);
     o.cnt--;
@@ -1961,6 +2227,13 @@
       vy: 0.0003 + Math.random() * 0.0004, vz: (Math.random() - 0.5) * 0.0006,
       spin: sl.rot + Math.random() * 3, vs: (Math.random() - 0.5) * 0.012,
       sleep: false, held: false, still: 0, energy: 0, travel: 0,
+      /* a coin shed off a shaken column is still part of that disturbance, so it inherits
+       * the leash post — without it the shards were the one thing in the avalanche with no
+       * limit on where they could end up, and they were exactly what "coins go flying off"
+       * meant. It is pinned to the COLUMN's post, not the shard's own spot, so a tower that
+       * sheds six coins does not walk its leash across the room one coin at a time. */
+      shakenV137: o.shakenV137 ? 1 : 0, slideCap: o.slideCap,
+      hx: o.shakenV137 ? o.hx : o.gx, hz: o.shakenV137 ? o.hz : o.gz,
       m: o.m, bounce: o.bounce, grip: o.grip };
     this._nBodies++;
     return b[key];
@@ -1970,11 +2243,35 @@
    * whole disturbance: lifting a coin out is a light one, dropping one back in is heavier.
    * The falloff is what makes it read as a heap rather than a switch — the nearest coins
    * give way, the ones a little further off shift, and past DIST_R nothing happens at all. */
+  /* HOW STEEP IS THE HEAP UNDER THIS COIN, and therefore how far it is allowed to slide.
+   *
+   * The gradient has to be measured in the mound's OWN space, not in the room's. The room
+   * is 1.20 wide and 0.26 deep in ground units, so a step across the pile's depth is worth
+   * seven steps across its width — measure there and the z term swamps everything, every
+   * coin in the hoard comes out at the maximum gradient, and every coin is granted the
+   * same full slide. Measured: 22 of 24 coins in one avalanche were handed an identical
+   * allowance whether the heap under them fell away at 0.04 or at 1.43. In slot space both
+   * axes are the circle the mound is actually built on, and the numbers mean what they say. */
+  Scene.prototype.grantSlide = function (o) {
+    var eg = 0.02;
+    var gx = (this.surfaceAt(o.gx + eg, o.gz) - this.surfaceAt(o.gx - eg, o.gz)) / (2 * eg);
+    var gz = (this.surfaceAt(o.gx, o.gz + eg) - this.surfaceAt(o.gx, o.gz - eg)) / (2 * eg);
+    gx *= PILE.dx / PILE.dy;
+    gz *= (PILE.dz * 0.62) / PILE.dy;
+    var gt = Math.min(1, Math.sqrt(gx * gx + gz * gz) / SLOPE_REF);
+    o.slideCap = (SLIDE_MIN + (SLIDE_MAX - SLIDE_MIN) * gt * gt) / o.grip;
+    return o.slideCap;
+  };
+
   Scene.prototype.disturb = function (gx, gz, strength) {
     var n = M.slotsFor(this.slots, Math.round(this.nShown));
     if (n <= 0) return 0;
     var s = this.slots.slot, woke = 0;
-    var lo = Math.max(0, n - Math.max(30, Math.round(this.slots.slot.length * 0.34)));
+    /* v137 F: never reach below the BAKED layer. A deep coin can be picked up deliberately
+     * — that is one event and one re-bake — but a shake wakes dozens of coins many times a
+     * second, and re-baking 1400 sprites on each of those is a stall you can feel. The
+     * live surface band is what a shake moves, which is also the honest limit. */
+    var lo = Math.max(this.deepSlots || 0, n - Math.max(30, Math.round(this.slots.slot.length * 0.34)));
     var r2 = DIST_R * DIST_R;
     for (var i = n - 1; i >= lo; i--) {
       var sx = s[i].x * PILE.dx - gx;
@@ -1988,10 +2285,23 @@
       o.sleep = false; o.still = 0;
       o.energy = Math.max(o.energy || 0, DIST_E * f * strength);
       o.travel = o.travel || 0;
+      /* The leash post and the slide allowance are both granted ONCE, at the start of the
+       * disturbance, and describe where this coin was SITTING when the heap gave way.
+       * Re-granting them on every disturb — and a landing coin raises one of its own —
+       * meant a coin that had already slid somewhere steeper was handed a fresh, longer
+       * allowance from there, so the distance stopped having anything to do with the seat
+       * it started from. Which is the claim. */
+      if (!o.shakenV137) {
+        o.shakenV137 = 1; o.hx = o.gx; o.hz = o.gz;
+        this.grantSlide(o);
+      }
       // a nudge outward from the hand, so the gap opens rather than only sagging
       var d = Math.max(1e-4, Math.sqrt(d2));
-      o.vx += (sx / d) * 0.00018 * f * strength;
-      o.vz += (sz / d) * 0.00008 * f * strength;
+      // the outward nudge is slope-INDEPENDENT, so it has to stay small: it is what makes
+      // the gap open rather than only sag, but every unit of it dilutes the one thing the
+      // avalanche is supposed to say, which is that where a coin sat decides where it goes
+      o.vx += (sx / d) * 0.00007 * f * strength;
+      o.vz += (sz / d) * 0.00003 * f * strength;
       woke++;
     }
     return woke;
@@ -2023,7 +2333,7 @@
         var sx2 = (this.surfaceAt(o.gx + e, o.gz) - this.surfaceAt(o.gx - e, o.gz)) / (2 * e);
         var sz2 = (this.surfaceAt(o.gx, o.gz + e) - this.surfaceAt(o.gx, o.gz - e)) / (2 * e);
         var en = o.energy || 0;
-        if (en > E_FLOOR && (o.travel || 0) < SLIDE_MAX) {
+        if (en > E_FLOOR && (o.travel || 0) < (o.slideCap || SLIDE_MAX)) {
           o.driven = true;
           /* HOW FAR A COIN GOES IS WHERE IT WAS SITTING. On the steep flank of the heap the
            * slope is most of a unit and it runs; on a flat shoulder there is nothing to run
@@ -2032,8 +2342,14 @@
           o.vx -= sx2 * SLOPE_K * g2 * GRAV * dt;
           o.vz -= sz2 * SLOPE_K * 0.6 * g2 * GRAV * dt;
         } else {                                     // it stays put, and settles
-          o.vx -= o.vx * Math.min(1, 0.014 * dt);
-          o.vz -= o.vz * Math.min(1, 0.014 * dt);
+          /* A coin that has SPENT its slide brakes hard. Letting it merely stop being
+           * driven leaves it coasting on whatever speed it had, so `SLIDE_MAX` capped the
+           * driven part of the journey and the coin then rolled on past it under its own
+           * momentum — which is how a "moves a little" avalanche ends up halfway across
+           * the room. Out of energy is out of energy. */
+          var brake = ((o.travel || 0) >= (o.slideCap || SLIDE_MAX)) ? 0.055 : 0.014;
+          o.vx -= o.vx * Math.min(1, brake * dt);
+          o.vz -= o.vz * Math.min(1, brake * dt);
         }
         o.energy = en * decay;
       }
@@ -2056,9 +2372,28 @@
        * The floor is never ABOVE where the coin already was: it can land on the surface,
        * it can never be lifted onto it. */
       var floor = Math.min(this.surfaceAt(o.gx, o.gz), gy0);
+      /* v137 F: A SLIDING COIN FOLLOWS THE SLOPE — it does not take off down it. On the
+       * flank of a heap this steep, one frame of drive carries a coin further sideways
+       * than gravity pulls it down in the same frame, so a coin that started ON the
+       * surface ended the frame ABOVE the surface at its new spot and went ballistic. Once
+       * airborne it is not `onGround`, so the slope stops acting on it entirely: it got a
+       * single frame of push and then coasted. Measured, a coin on the steepest flank
+       * travelled 0.018 of a ground unit — under three pixels, which is nothing. Holding a
+       * driven coin down onto the surface is both what a coin sliding down a pile actually
+       * does and what makes the slide visible. It only applies while the coin is being
+       * driven and was already resting; a thrown or shed coin flies as before. */
+      if (onGround && o.driven && o.gy > floor && o.vy <= 0) { o.gy = floor; o.vy = 0; }
       if (o.gy <= floor) {
         o.gy = floor;
-        if (o.vy < -SLEEP_V * 2) {
+        /* v137 F: A COIN AT REST DOES NOT BOUNCE. The gate was two frames of gravity
+         * (0.0007), which every settled coin in the hoard crosses on every single frame it
+         * sits there — so the whole heap was in a permanent micro-bounce, spending part of
+         * every frame off the ground where the slope cannot act on it. It shows up as a
+         * shimmer, and it silently INVERTED the weight order of an avalanche: a light coin
+         * bounces higher (bounce = 0.34/m), so it spent more of the slide airborne and
+         * undriven than a heavy one did, and travelled less. The gate is a real impact
+         * now — the same threshold `landed` already uses to decide something happened. */
+        if (o.vy < -SLEEP_V * 6) {
           var hit = -o.vy;
           o.vy = hit * o.bounce; o.vs = o.vx * 0.9;
           this.landed(o, hit);                 // the thud, and the dust
@@ -2077,6 +2412,31 @@
             o.sleep = true; o.vx = o.vy = o.vz = o.vs = 0; o.still = 0; o.energy = 0;
           }
         } else o.still = 0;
+      }
+      if (o.shakenV137) {
+        var lx = o.gx - o.hx, lz = o.gz - o.hz, ld2 = lx * lx + lz * lz;
+        if (ld2 > LEASH * LEASH * 0.7225) {          // the last 15% of the leash is a brake
+          var ld = Math.sqrt(ld2);
+          /* The brake zone has to be NARROW. Starting it at 60% of the leash braked almost
+           * every coin in the avalanche, and a brake applied to everything is just a second
+           * speed limit: every coin came to rest in the same thin band whatever slope it
+           * started on, which erased the one thing the mechanic is for. It catches the
+           * outliers now and leaves the rest of the spread alone. */
+          var over = Math.min(1, (ld - LEASH * 0.85) / (LEASH * 0.15));
+          var lk = Math.pow(1 - 0.34 * over, dt / 16);
+          o.vx *= lk; o.vz *= lk;
+          if (over >= 1) {
+            /* AT the leash, the OUTWARD part of the velocity is removed outright. Damping
+             * alone does not hold a line: a coin moving at the speed cap covers 0.048 of a
+             * unit a frame and a 14%-a-frame decay lets it coast a third of a unit past
+             * the limit before it stops. Taking the radial component leaves it free to
+             * slide along the leash or come back in — which is what a coin caught by the
+             * coins around it does — but it cannot get further from where it was shaken. */
+            var nx = lx / ld, nz = lz / ld, rad = o.vx * nx + o.vz * nz;
+            if (rad > 0) { o.vx -= rad * nx; o.vz -= rad * nz; }
+            o.energy = 0;
+          }
+        }
       }
       /* THE ROOM IS WHAT YOU CAN SEE. `limAt` inverts the projection at this coin's own
        * depth, so whatever the aspect ratio a coin stops at the edge of the frame. The
@@ -2133,9 +2493,15 @@
         o.spin += (sl.rot - o.spin) * 0.12;
         o.vx = o.vy = o.vz = o.vs = 0;
         if (Math.abs(tx2 - o.gx) + Math.abs(ty - o.gy) + Math.abs(tz2 - o.gz) > 0.004) left++;
-        else { delete bb[q]; self._nBodies = Math.max(0, (self._nBodies || 0) - 1); }
+        else {
+          if (bb[q].i < (self.deepSlots || 0)) self._deepSeq = (self._deepSeq || 0) + 1;
+          delete bb[q]; self._nBodies = Math.max(0, (self._nBodies || 0) - 1);
+        }
       }
-      if (!left || now - t0 > 2600) { self._bodies = {}; self._nBodies = 0; self.tidyTick = null; }
+      if (!left || now - t0 > 2600) {
+        if (self._nBodies) self._deepSeq = (self._deepSeq || 0) + 1;
+        self._bodies = {}; self._nBodies = 0; self.tidyTick = null;
+      }
     };
     return n;
   };
@@ -2150,9 +2516,13 @@
     this._skip = b;
     baseRange.call(this, x, from, to, withShadow);
     this._skip = null;
-    // ...then the loose coins, in their own depth order
+    /* ...then the loose coins, in their own depth order. `_looseFrom` is how a coin lifted
+     * out of the DEEP layer gets drawn at all: the deep layer is blitted from a bake that
+     * has already painted it out, so the live pass has to reach back past its own `from`
+     * to find it. Without this a deep coin you picked up simply vanished. */
+    var lf = this._looseFrom == null ? from : this._looseFrom;
     var keys = [], k;
-    for (k in b) { if (b[k].i >= from && b[k].i < to) keys.push(b[k]); }
+    for (k in b) { if (b[k].i >= lf && b[k].i < to) keys.push(b[k]); }
     keys.sort(function (p, q) { return q.gz - p.gz; });
     var cam = this.cam, p = {}, i;
     for (i = 0; i < keys.length; i++) {

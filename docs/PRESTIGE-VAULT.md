@@ -111,13 +111,18 @@ derived from the actual balance rather than assuming the concept art's 1.25B.
 | `public/vault/*.webp` + `manifest.json` | 50 production sprites and their manifest. |
 | `scripts/vaultcut.py` | The extraction library (border flood → opening → largest component → hole fill → feather). |
 | `scripts/build-vault-art.py` | Drives the cutter over every cell; writes `public/vault/` and the manifest. `--proof` writes `art/vault-proof/` to look at. |
-| `scripts/vaultcheck.mjs` | The gate: 91 assertions. |
+| `scripts/vaultcheck.mjs` | The gate: 96 assertions. |
 | `scripts/vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` / `vaultphys.mjs` | Cameras, not checks. |
 
 Into `index.html` went **~40 lines**, in one banner block (`v137 THE VAULT IS WHERE THE
 POINTS LIVE`) beside `__GRIDIRON_AUDIT__`, plus four one-token edits: the shop row's BUY
 now calls `vaultBuy`, the shop's dock gained a **Visit the Vault** button, the topbar chip's
 `+` opens it, and both career-end docks offer to show the payout landing.
+
+**The door on the right is gone.** A second leaf was parked half off the right edge as set
+dressing and it read as a mistake rather than as a door: cropped by the frame, at a scale
+that fought the room's own perspective, and close enough to the hoard to crowd it. The room
+art already has a vault door on the far wall, which is the one the opening sequence swings.
 
 ## The hoard
 
@@ -130,18 +135,65 @@ last, the column wandering as it climbs because a stack of coins is never plumb,
 of the taller ones carrying a coin lying askew across the top. The rest stay loose and
 tilted, which is what keeps the heap looking poured rather than stocked.
 
-**It is a PILE.** `MOUND.H` — the peak the mound reaches at full fullness — is `0.98` of a
-ground unit against a footprint that tops out at `1.00`. It was `0.70`, and at that height
-the hoard read as a *spread* of money rather than a heap of it: a carpet of change on the
-vault floor. The whole mechanic being sold is a pile, so it stands 40% taller against
-exactly the same footprint. Nothing else moved — the profile, the lobes, the slot list and
-the eight wealth states are the same, so the only thing that changed is how high the same
-money is stacked. `vaultcheck.mjs` asserts the peak.
+**It is a PILE, and it is taller than it is wide.** Height alone was never enough: v137 E
+raised the peak 40% and the heap still read as a puddle, because the *footprint* was
+growing with it. Measured on a 412px phone at the large-collection state, the drawn hoard
+was 400 CSS px across and 131 tall — **3.05 : 1**. A heap of anything reads as a heap at
+about 2 : 1. So the footprint came in 15% (`MOUND.R` tops out at 0.85) and the peak went up
+30% (`MOUND.H` to 1.26), which lands it at **1.99 : 1** with exactly the same coins in it.
+The flank is fuller too (`cos^0.92` rather than `cos`), because a heap carries most of its
+mass low down and a thin shoulder was the other half of why this looked like spilled change.
 
-A column's height is keyed on how **low** in the heap it sits, not how near the middle:
+**It has a front and a back.** `PILE.dz` was `0.150` — the whole hoard occupied a tenth of
+the room's depth, so every coin sat at nearly the same distance from the camera and there
+was no near and no far to read. At `0.26` the pile has real depth, and a coin's drawn size
+now goes as `k^1.28` rather than `k`, which widens the near/far size spread across the
+hoard from **1.28x to 1.67x**. The exponent is picked so that a coin at the pile's own
+depth is exactly the size it always was, so nothing downstream needed re-tuning.
+
+**And it tapers.** A column's height keys on how much headroom it has *and* how far out it
+sits. Keyed on headroom alone — which is what it did — the tallest columns in the hoard
+stood on its outer lip, where headroom is greatest, and the pile came out with vertical
+walls and a flat top. A drum, not a mound.
+
+**A column is made of things, and each has a side.** The per-coin rise was 0.086 of a
+diameter with the edge pass turned down to 0.55, so a stack of eight stood 0.60 diameters
+tall and the discs in it had almost no visible thickness. They are `STACK_RISE` = 0.118
+apart now and each draws its full edge, so the gap between two discs is filled by the *side*
+of the lower one: the same eight coins, 0.83 diameters of column, and you can count them.
+The light ramps smoothly up the column rather than stepping once at 58%, which is most of
+what says "column" rather than "discs at different heights".
+
+A column's height is also keyed on how **low** in the heap it sits, not how near the middle:
 tall stacks at the base and the front, short ones out on the slope and at the crown. Keyed
 on the radius instead — which is what it did first — the tallest columns land on the peak
 and the hoard grows a picket fence.
+
+**A coin takes up space.** Slots were sampled independently, so nothing stopped two of them
+landing on the same spot — and at 1700 coins in a footprint this size, plenty did.
+Coincident coins are invisible *as coins*: they composite into one brighter blob. A slot now
+claims a volume (`CLAIM`, a 0.092-unit minimum centre separation in the mound's own space,
+enforced through a hash grid so the build stays linear) and a candidate that lands inside
+one already claimed is re-rolled. It is not sphere packing — a heap of discs overlaps
+heavily and should — it is a floor on how close two centres may be.
+
+**A coin rests on what it landed on.** `sink` ran 0.55 to 1.0, so half the hoard was parked
+at half the height of the surface it was supposed to have landed on: the heap was hollow at
+the top and packed at the bottom, which is the shape of a mat. It settles a little now and
+no more (0.80–1.0). The coins that end up deep are the ones later coins are poured *on top
+of*, which is how a real heap buries its own history.
+
+**The inside of the pile is dark.** Brightness used to key on a slot's own height, which is
+not the same thing as how buried it is: a coin at 0.4 is on the *surface* of a quarter-full
+vault and under half a metre of money in a full one, and it was drawn identically in both.
+`ao` is the coin's height as a fraction of the heap's surface at its own (x, z) **right
+now**, so the crown catches the room and the interior goes properly dark. That darkness is
+the single thing that makes a heap of discs read as having a volume rather than as a
+texture, and it costs one `surfaceAt` per drawn coin.
+
+**Every coin presses into what it lies on.** A small contact shadow under each one, scaled
+by `ao`. Without it every coin floats on the one behind it and the pile has no interior. It
+is free on the deep layer, which is baked.
 
 **Coins have an edge.** Every coin draws its own silhouette once, darkened, a fraction below
 its face: the cheapest honest way to give a disc a side, and the thing that makes the hoard
@@ -205,6 +257,27 @@ disturbed coin gets a row in a sparse **displacement map** — its own position,
 sleep state — and the renderer draws it there instead. Clear the map and the hoard is
 exactly the hoard again, which is what RESTOCK does.
 
+- **Whatever you touch responds.** Picking used to search the last 22% of the slot list and
+  return whichever of those had its centre nearest the finger, *with no distance limit*.
+  Two things were wrong with that, and both of them are the "sometimes it just doesn't
+  respond" you can feel: coins outside that window — most of the hoard, and all of the
+  baked deep layer — could not be picked at all, and because the nearest candidate always
+  won, a press on one of those silently grabbed a coin somewhere else, often off the far
+  side of the pile. Both read as dead touch. It now walks the painter's order **backwards**
+  (nearest the camera first, which is the order your eye picks a coin out of a heap in) and
+  returns the first coin whose drawn body actually contains the point; a column is tested
+  as the whole column, base to top, because that is what you aim at. Only if nothing is
+  under the finger at all does it fall back to a nearest-centre search, and that now covers
+  the whole hoard. The hoard's own touch box is measured off the coins that are actually
+  drawn rather than guessed from the mound's formula, because a box that runs short is
+  another way for a press to do nothing.
+
+  A coin in the **baked deep layer** can be picked too, which it could not be before: the
+  bake is keyed on a counter (`_deepSeq`) that ticks whenever a coin enters or leaves that
+  layer, so the frame you lift one the layer is repainted without it. Measured over a grid
+  across the whole hoard, **217 of 217** sample points that have a coin drawn on them pick
+  a coin that covers that point, and **93 of them are in the deep layer**. `vaultcheck.mjs`
+  asserts all of it.
 - **Drag.** A press on the hoard is an invest hold; a press that then *travels* is a drag of
   the coin under the finger. The pour is not delayed waiting to find out — the first tap
   pays immediately, because a laggy tap is worse than an extra coin — but past 13 px the
@@ -223,16 +296,66 @@ exactly the hoard again, which is what RESTOCK does.
   energy**, and in proportion to it: `drive = energy / (MU × grip)`. Weighting the slope
   unconditionally made every woken coin creep downhill and the pile quietly slumped; never
   weighting it meant nothing ever slid. Energy decays with a time constant of `E_DECAY`
-  (≈260 ms), so a disturbance is over in about a quarter of a second, and `SLIDE_MAX` caps
-  how far any one coin may travel from where it sat.
+  (≈260 ms), so a disturbance is over in about a quarter of a second.
 
-  Two things fall out of that, and both are the point. **Where a coin was sitting decides how
-  far it goes**: on the steep flank the slope is most of a unit and it runs, on a flat
-  shoulder there is nothing to run down and it barely shifts — measured, a steep seat travels
-  about 1.7× a flat one. And **weight decides it too**: `grip` is in the denominator, so the
-  same shake moves a bronze coin furthest and a billion-point coin least. `vaultcheck.mjs`
-  asserts both orders, that nothing leaves the picture, and that an *undisturbed* woken coin
-  sits at its angle of repose instead of creeping.
+  **How far one coin is allowed to slide is the whole of "some a lot, some a little", and it
+  has to be a granted allowance rather than a single cap.** This is the correction v137 F
+  had to make. With a single `SLIDE_MAX`, the cap turned out to be the *only* thing deciding
+  the distance: the slope sets how fast a coin gets going, but under light rolling friction
+  it keeps gaining speed for the whole ~700 ms the disturbance lasts, so every coin — steep
+  flank or flat shoulder — ran into the same cap and stopped in the same place. Measured, a
+  coin on a flat shoulder travelled 0.165 and one on the steep flank 0.152: backwards, and
+  both pinned to the cap. Dropping the slope constant by 14× did not change it, which is
+  what proved the cap was the mechanism rather than the physics.
+
+  So `grantSlide` gives each coin an allowance when it is disturbed, off the gradient of the
+  heap **under it** divided by its own grip. The gradient has to be measured in the mound's
+  own slot space, not the room's: the room is 1.20 wide and 0.26 deep in ground units, so a
+  step across the pile's depth is worth seven across its width, and measuring there made 22
+  of 24 coins in an avalanche come out at the maximum gradient whether the heap under them
+  fell away at 0.04 or at 1.43. In slot space both axes are the circle the mound is actually
+  built on. A light coin on the steep flank gets the full run (0.175), a billion-point coin
+  on a flat shoulder barely shifts (0.030 / 2.19). Measured now: the steepest third of an
+  avalanche travels **0.141** against the flattest third's **0.081** — 1.74× — and the same
+  shake moves bronze 0.068, gold 0.038, blue 0.032.
+
+  **A sliding coin follows the slope; it does not take off down it.** On a flank this steep,
+  one frame of drive carries a coin further sideways than gravity pulls it down in the same
+  frame, so a coin that started on the surface ended the frame *above* it and went
+  ballistic — and once airborne it is not on the ground, so the slope stops acting on it
+  entirely. It got one frame of push and then coasted: 0.018 of a ground unit, under three
+  pixels.
+
+  **And a shaken coin is on a leash.** `SLIDE_MAX` caps only the *driven* part of a journey,
+  so a coin could spend its energy, get flicked off a column, and then coast — in the air,
+  where nothing brakes it — for half the room. A disturbed coin may not get further than
+  `LEASH` from the spot it was shaken at; at the limit the *outward* component of its
+  velocity is removed outright, because damping alone does not hold a line (a coin at the
+  speed cap covers 0.048 a frame and a 14%-per-frame decay lets it coast a third of a unit
+  past the limit). It can still slide along the leash or come back in, which is what a coin
+  caught by the coins around it does. A coin you are dragging or have thrown is not on it —
+  that is your hand, not the heap.
+
+  Two further things the retune turned up. Resting coins were in a permanent **micro-bounce**
+  — the bounce gate was two frames of gravity, which every settled coin crosses every frame
+  it sits there — which shows up as a shimmer and silently *inverted* the weight order of an
+  avalanche, because a light coin bounces higher and so spent more of its slide airborne and
+  undriven. And the leash's brake zone has to be **narrow**: starting it at 60% of the leash
+  braked almost every coin, and a brake applied to everything is just a second speed limit.
+
+  `vaultcheck.mjs` asserts the seat order, the weight order, that nothing leaves the picture,
+  and that an *undisturbed* woken coin sits at its angle of repose instead of creeping.
+- **A hold shakes the money.** Pressing on a heap of coins and having it sit there perfectly
+  still was the most inert thing this screen did. A hold now disturbs the hoard under the
+  finger on its own clock (`SHAKE_MS`, ~11 Hz — running it per frame just pins every coin at
+  full energy and the heap boils) and harder as the multiplier climbs, so at 16x the pile is
+  visibly working, which is also the clearest read you get that the pour has gone up a gear.
+  It runs whether or not an upgrade is selected, because pressing the money should move the
+  money.
+- **Dragging ploughs.** A coin hauled across the top of a heap does not pass through it — it
+  shoves what it crosses out of the way and leaves a furrow. It fires on distance travelled
+  rather than per pointer event, so a slow drag disturbs the same ground once and a fast one
+  leaves an evenly spaced wake.
 - **Weight.** Gravity is the same for every coin — that is physics — but nothing else is:
   `MASS` (bronze 1.00 → blue 2.40) sets bounce, grip, how much of a fling a coin carries,
   and how it sounds when it lands. A billion-point coin should feel like picking up a bar.
@@ -397,7 +520,7 @@ node scripts/vaultshot.mjs                   # the eight wealth states
 WIDE=1 node scripts/vaultshot.mjs            # desktop
 KEY=oracle node scripts/vaultspend.mjs       # a real spend, photographed
 node scripts/vaultdoor.mjs                   # the opening and the payout
-node scripts/vaultphys.mjs                   # a coin in hand, the avalanche, the restock
+node scripts/vaultphys.mjs                   # a coin in hand, the shake, the furrow, the restock
 ```
 
 Hooks: `window.__RIB_VAULT`, `__RIB_VAULT_BRIDGE`, `__RIB_VAULT_MODEL`, `__RIB_VAULT_SCENE`,
