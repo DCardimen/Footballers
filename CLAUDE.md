@@ -88,16 +88,31 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   so `clean_banners()` paints its lettering out and the renderer draws all eight banner words itself.
   Audio is synthesised — no sound file was supplied; `__RIB_VAULT_AUDIO.manifest()` names the
   fourteen categories a recording would replace. Read `docs/PRESTIGE-VAULT.md`.
-  The heap is a PILE: `MOUND.H` peaks at 0.98 against a footprint of 1.00 (0.70 before — it read as a
-  spread of money, not a hoard). Nothing tilts; the money moves because you MOVE it.
-  `disturb(gx, gz, k)` is the one entry point — a lift (`startDrag`) or a hard landing (`landed`) wakes
-  the surface coins within `DIST_R` and hands each one ENERGY (`DIST_E` at the centre, smooth falloff,
-  an elliptical reach because the floor is one). In `stepBodies` the slope acts ONLY on a coin that
-  still holds energy, and in proportion to it (`drive = energy / (MU * grip)`), so an undisturbed heap
-  holds its angle of repose, a steep seat runs ~1.7x a flat one, a heavy coin moves least, `E_DECAY`
-  ends it in about a quarter-second and `SLIDE_MAX` caps how far any one coin goes. `endDrag` clears
-  the energy — a coin you PLACE is placed, not launched. `V.v.dragging` is the coin in the hand; a
-  probe must ask for it by name, because `bodies()` is keyed by SLOT INDEX and a lift now wakes dozens.
+  The heap is a PILE and it is TALLER THAN IT IS WIDE on screen: `MOUND.R` tops out at 0.85 and
+  `MOUND.H` at 1.26 (3.05:1 before, 1.99:1 now — height alone was never the problem, the footprint was
+  growing with it), the flank is fuller (`cos^0.92`), and a column's height keys on headroom AND on
+  `edge` or the tallest stacks stand on the lip and the pile is a drum. `PILE.dz` is 0.26 (was 0.150)
+  and `CAM.sizeExp` 1.28 raises the near/far size spread across the hoard from 1.28x to 1.67x — the
+  exponent is chosen so a coin at `PILE.z` is exactly the size it was. `CLAIM` makes a slot claim a
+  volume (hash grid, re-roll on overlap) so no two coins sit in the same place; `ao` (height over
+  `surfaceAt` at the coin's own x,z, NOW) drives shade and a per-coin contact shadow, which is what
+  gives the heap an interior; `STACK_RISE` 0.118 + a full edge pass make a column countable.
+  Nothing tilts; the money moves because you MOVE it. `disturb(gx, gz, k)` is the one entry point —
+  a lift (`startDrag`), a hard landing (`landed`), a HOLD (`SHAKE_MS`/`SHAKE_K`, ~11Hz, harder by
+  stage) or a DRAG ploughing a furrow (`PLOUGH_STEP`/`PLOUGH_K`). In `stepBodies` the slope acts ONLY
+  on a coin that still holds energy and in proportion to it; how FAR it may slide is `grantSlide`, an
+  allowance off the gradient under it (measured in SLOT space — in ground units z is 7x compressed and
+  every coin clamps to the max) divided by its grip. A single `SLIDE_MAX` was the only thing deciding
+  distance and it INVERTED the seat order. A driven coin is held onto the surface (it slides, it does
+  not launch), a shaken coin is on a `LEASH` from where it was shaken (the outward velocity component
+  is removed at the limit; damping alone does not hold a line), and the bounce gate is a real impact
+  or the whole heap micro-bounces and the weight order inverts. `endDrag` clears the energy and
+  `startDrag` clears the HOLD — a drag is not a hold, and a hold left standing keeps pouring.
+  EVERYTHING DRAWN IS TOUCHABLE: `pickSurface` walks the painter's order backwards and returns the
+  first coin whose drawn body contains the point (a column base-to-top), `hoardBox` is measured off
+  the drawn coins, and a coin in the BAKED deep layer can be lifted — `_deepSeq` re-keys the bake so
+  the layer is repainted without it, and `_looseFrom` lets the live pass draw it. `V.v.dragging` is
+  the coin in the hand; a probe must ask for it by name, because `bodies()` is keyed by SLOT INDEX.
   `window.__V137`, `__RIB_VAULT*`; `vaultcheck.mjs`, then `honorcheck.mjs`, `v134check.mjs`,
   `coachcheck.mjs`, `menu-integration-check.mjs`, `v136check.mjs`, `freshcheck.mjs`
 - `v136 D THE LINEAGE` (beside `Di`) / `v136 C THE ESTATE IS SETTLED AT THE END` (beside `es`) /
