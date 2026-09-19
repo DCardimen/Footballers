@@ -10,7 +10,7 @@
 //   * a pointer crossing the hero moves the picture and the wordmark (parallax)
 //   * the name's metal sweep never leaves the letters transparent (the flat chalk sits under the band)
 //   * the coach tile still shows its switch (tiles clip their gloss, that one does not)
-//   * v89's contract holds: eight tiles, seven nav links, no new <img>, no page errors
+//   * v89's contract holds: nine tiles (v139 added PRESTIGE), seven nav links, no new <img>, no page errors
 //   * prefers-reduced-motion: nothing animates and the ember loop never starts
 //   node scripts/menufxcheck.mjs
 import { chromium } from 'playwright'
@@ -52,17 +52,18 @@ async function menuWithCareer(opts = {}) {
     const items = ul ? [...ul.querySelectorAll('li')].map(li => li.textContent.replace(/\s+/g, ' ').trim()) : []
     const cv = M.querySelector('.rib9-ambient-v132'); let ink = 0
     try { const x = cv.getContext('2d'); const d = x.getImageData(0, 0, cv.width, Math.min(cv.height, 1200)).data; for (let i = 3; i < d.length; i += 4 * 7) if (d[i] > 8) ink++ } catch (e) { ink = -1 }
-    const pieces = ['.rib9-hero-grain-v132', '.rib9-hero-leak-v132', '.rib9-ring-spark-v132', '.rib9-ring-v132', '.rib9-dot.now', '.rib9-name', '.rib9-tile-hot img', '.rib9-level.rib9-cta', '.rib9-ms-plate', '.rib9-nextup-v132']
+    const pieces = ['.rib9-hero-grain-v132', '.rib9-hero-leak-v132', '.rib9-ring-v132', '.rib9-dot.now', '.rib9-name', '.rib9-tile-hot img', '.rib9-level.rib9-cta', '.rib9-ms-plate', '.rib9-nextup-v132']
     const animOf = (sel, pseudo) => { const el = M.querySelector(sel); if (!el) return { sel, missing: true }; const s = getComputedStyle(el, pseudo || null); return { sel, name: s.animationName, dur: s.animationDuration } }
-    const pcs = [animOf('.rib9-topbar', '::after'), animOf('.rib9-hero-grain-v132'), animOf('.rib9-hero-leak-v132'), animOf('.rib9-ring-spark-v132', '::before'), animOf('.rib9-ring-v132'), animOf('.rib9-dot.now', '::after'), animOf('.rib9-name'), animOf('.rib9-tile-hot img'), animOf('.rib9-ms-plate'), animOf('.rib9-ticker-v132 ul')]
-    const ring = M.querySelector('.rib9-ring'), spark = M.querySelector('.rib9-ring-spark-v132')
-    const arc = ring && parseFloat(getComputedStyle(ring).getPropertyValue('--rib-ovr')), sparkDeg = spark && parseFloat(spark.style.getPropertyValue('--spark'))
+    const pcs = [animOf('.rib9-topbar', '::after'), animOf('.rib9-hero-grain-v132'), animOf('.rib9-hero-leak-v132'), animOf('.rib9-ring-v132'), animOf('.rib9-dot.now', '::after'), animOf('.rib9-name'), animOf('.rib9-tile-hot img'), animOf('.rib9-ms-plate'), animOf('.rib9-ticker-v132 ul')]
+    const ring = M.querySelector('.rib9-ring')
+    const arc = ring && parseFloat(getComputedStyle(ring).getPropertyValue('--rib-ovr'))
+    const orb = M.querySelectorAll('.rib9-ring-spark-v132').length   // v141: gone, and it stays gone
     const name = M.querySelector('.rib9-name'), ns = name && getComputedStyle(name)
     const coach = M.querySelector('.rib9-tile-coach'), sw = coach && coach.querySelector('.rib9-sw'), cr = coach && coach.getBoundingClientRect(), sr = sw && sw.getBoundingClientRect()
     const nav = M.querySelector('.rib9-nav'), first = nav && nav.firstElementChild, nr = nav && nav.getBoundingClientRect(), fr = first && first.getBoundingClientRect()
     return { fx: FX && { on: FX.on, frames: FX.frames, embers: FX.embers, sparks: FX.sparks, ticker: FX.ticker, reduced: FX.reduced }, tickerMoving: ul ? getComputedStyle(ul).animationName : null, tickerDur: ul ? getComputedStyle(ul).animationDuration : null,
       items: items.slice(0, items.length / 2), doubled: ul ? items.length : 0, ink, cvSize: cv ? [cv.width, cv.height] : null,
-      pieces: pcs, arc, sparkDeg, nameBg: ns && ns.backgroundColor, nameClip: ns && (ns.webkitBackgroundClip || ns.backgroundClip), nameColor: ns && ns.color,
+      pieces: pcs, arc, orb, nameBg: ns && ns.backgroundColor, nameClip: ns && (ns.webkitBackgroundClip || ns.backgroundClip), nameColor: ns && ns.color,
       coachSwitchIn: !!(sr && cr && sr.left >= cr.left - 1 && sr.right <= cr.right + 1 && sr.width > 0), coachOverflow: coach && getComputedStyle(coach).overflow,
       navFirstIn: !!(fr && nr && fr.left >= nr.left - 1), tiles: M.querySelectorAll('.rib9-tile').length, navLinks: M.querySelectorAll('.rib9-navlink').length, imgs: M.querySelectorAll('img').length,
       broken: [...M.querySelectorAll('img')].filter(i => !i.complete || i.naturalWidth === 0).length }
@@ -76,12 +77,12 @@ async function menuWithCareer(opts = {}) {
   ok(r.items.some(t => /PEE WEE|YEAR 1/.test(t)) && r.items.some(t => /NEXT UP/.test(t)) && r.items.some(t => /LAST WEEK/.test(t)), 'and they are built from the feed — the level, NEXT UP, last week', r.items.join(' | ').slice(0, 200))
   ok(r.tickerMoving === 'rib9ticker' && parseFloat(r.tickerDur) >= 26, 'the ticker is moving, at a pace set by its length', `${r.tickerMoving} ${r.tickerDur}`)
   const dead = r.pieces.filter(p => p.missing || !p.name || p.name === 'none')
-  ok(dead.length === 0, 'every piece exists and animates — wire, grain, leak, spark, ring, ping, name, float, plate, ticker (v134: the page sweep and the card streak are gone on purpose)', dead.length ? JSON.stringify(dead) : `${r.pieces.length} pieces`)
-  ok(r.arc > 0 && Math.abs(r.sparkDeg - r.arc * 360) < 1, 'the OVR spark sits at the head of the arc', `arc ${r.arc} -> ${r.sparkDeg}deg`)
+  ok(dead.length === 0, 'every piece exists and animates — wire, grain, leak, ring, ping, name, float, plate, ticker (v134: the page sweep and the card streak are gone on purpose; v141: so is the OVR orb)', dead.length ? JSON.stringify(dead) : `${r.pieces.length} pieces`)
+  ok(r.arc > 0 && r.orb === 0, 'the OVR arc is drawn, and no glowing orb rides it (v141: the bead is gone)', `arc ${r.arc}, ${r.orb} orbs`)
   ok(/text/.test(r.nameClip || '') && r.nameBg && !/rgba\(0, 0, 0, 0\)/.test(r.nameBg), 'the name is clipped to its metal with the flat chalk under the band (never transparent letters)', `${r.nameClip} on ${r.nameBg}`)
   ok(r.coachSwitchIn && r.coachOverflow === 'visible', 'the coach tile keeps its switch on screen', `switch in tile=${r.coachSwitchIn} overflow=${r.coachOverflow}`)
   ok(r.navFirstIn, 'the nav\'s first link (HOME) is not clipped at a tablet width', String(r.navFirstIn))
-  ok(r.tiles === 8 && r.navLinks === 7 && r.broken === 0, 'v89\'s contract holds — eight tiles, seven links, every picture rendered', `${r.tiles} tiles ${r.navLinks} links ${r.imgs} imgs`)
+  ok(r.tiles === 9 && r.navLinks === 7 && r.broken === 0, 'v89\'s contract holds — nine tiles (v139 added PRESTIGE), seven links, every picture rendered', `${r.tiles} tiles ${r.navLinks} links ${r.imgs} imgs`)
   // parallax: cross the hero with the pointer
   const hero = await page.locator('#rib-main-menu-v2 .rib9-hero').boundingBox()
   await page.mouse.move(hero.x + hero.width * 0.1, hero.y + hero.height * 0.2); await page.waitForTimeout(80)

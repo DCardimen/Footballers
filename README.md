@@ -55,6 +55,29 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v141 — "My plays only" was hiding the whole game, and the OVR ring loses its orb.**
+  Switching on MY PLAYS ONLY skipped the entire live game: the broadcast went straight to the
+  post-game card with nothing shown. The setting filtered on `involved`, which is **stat truth** —
+  true only where the play NAMES the you-player as the actor (he carried it, he caught it, he made
+  the stop, the flag was on him). The renderer gates "that man is YOU" on it and `creditcheck`
+  enforces it, so it is deliberately that narrow. Measured over full games it is true on **0.7% to
+  7.5% of snaps** — a level-4 TE and a level-8 WR got **0 of 119 and 0 of 108** — so a setting that
+  promised "jump straight to plays you're personally involved in" hid every play, ran the index to
+  the end and ended the game. `involved` is untouched; `yourPlayV141` is the PRESENTATION answer to
+  "was he part of this snap" (the play names him, or it is a scrimmage snap his unit is on the field
+  for) and the filter reads that instead. MY PLAYS ONLY now keeps 49–85 snaps of a game where it
+  kept 0–9. SKIP OPPONENT DRIVES still means exactly what it says. And `liveFilterV141` is the
+  backstop: a defender who switches on BOTH has asked for two opposite things (his snaps ARE the
+  opponent's drives) and used to come out with one play, so a filter that would leave less than
+  `TU("liveFilterMinV141", 8)` snaps stands down for that game rather than the broadcast vanishing.
+  No combination of the two can skip the game now. `window.__V141`; `livefiltercheck.mjs`.
+  The OVR ring is one ring. A glowing orb rode the head of its arc and breathed, reading as a bead
+  stuck on the outside; it is gone. So is the `:after` hairline, which sat at radius 33 INSIDE the
+  band and cut straight across it — that is what made the circle look like two circles that did not
+  line up. The 5px inset shadow that was eating the band's outer edge is gone too, so the band is
+  set in one place, the hole is wider (the number had no room), and the halo is the ring's OWN
+  colour instead of a hardcoded green under an arc that turns orange and gold.
+
 - **v140 — a dead splash, and the one line that caused it.** A career that ended left the save
   sitting on `End of the Road` (or `WELCOME TO THE DFL`), and from then on the game would not boot:
   `ERROR: Uncaught ReferenceError: vaultPayBtnV137 is not defined`, the loading bar stuck, every

@@ -491,7 +491,7 @@
             <div class="rib9-stars">${'<b>★</b>'.repeat(stars)}${'<u>★</u>'.repeat(5 - stars)}</div>
             <button class="rib9-level" type="button" data-rib-action="view:hub">${esc(String(pl.levelName).toUpperCase())} <span>›</span></button>
           </div>
-          <div class="rib9-ring" style="--rib-ovr:0"><i class="rib9-ring-spark-v132" aria-hidden="true"></i><div class="rib9-ring-val" data-rib-field="overall">${esc(pl.ovr)}</div><div class="rib9-ring-lab">OVR</div></div>
+          <div class="rib9-ring" style="--rib-ovr:0"><div class="rib9-ring-val" data-rib-field="overall">${esc(pl.ovr)}</div><div class="rib9-ring-lab">OVR</div></div>
         </section>
         ${tilesNav}
 
@@ -621,9 +621,9 @@
       ring.classList.toggle('over', k2 > 0);
       ring.title = k2 > 0 ? `OVR ${overall} — past his soft max of ${softMax} (gold lap: ${Math.round(k2 * 100)}% of the way round again)` : `OVR ${overall} of a soft max of ${softMax} — ${Math.round(k1 * 100)}% of this year's ceiling used`;
       // a young player is still a visible arc: an empty ring reads as a broken ring
-      const applyArc = () => { const k = Math.max(0.055, k1); ring.style.setProperty('--rib-ovr', String(k)); ring.style.setProperty('--rib-ovr2', String(k2));
-        const head = k2 > 0 ? k2 : k;
-        const spark = ring.querySelector('.rib9-ring-spark-v132'); if (spark) spark.style.setProperty('--spark', (head * 360).toFixed(1) + 'deg'); };   // v132: the spark rides the head of the (outermost) arc
+      /* v141: no orb. A glowing white dot rode the head of the arc and breathed, which read as a
+       * loose bead sitting on the ring rather than as part of it — the ring is the number now. */
+      const applyArc = () => { const k = Math.max(0.055, k1); ring.style.setProperty('--rib-ovr', String(k)); ring.style.setProperty('--rib-ovr2', String(k2)); };
       if (animateIn && !prefersReduced()) whenAssetsReady(() => requestAnimationFrame(() => requestAnimationFrame(applyArc)));
       else applyArc();
     }
