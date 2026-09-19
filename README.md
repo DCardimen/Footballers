@@ -100,8 +100,18 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   of a phone a thumb cannot reach. Settings tabs instead of running 1.9 screens deep, long
   explanations clamp to three lines with a MORE on them, and the hub's dock stops repeating the two
   buttons the bar already carries.
-  `agecheck.mjs`, `tiercheck.mjs`, `gatecheck.mjs`, `yardfitcheck.mjs`, `honorcheck.mjs`,
-  `growcheck.mjs`, `v136check.mjs`, `emblemcheck.mjs`, `scrollcheck.mjs`
+  In the live game the carrier has THREE ways to beat a man — the spin, the juke and a SIDE STEP,
+  picked off his own ratings from the roll the whiff already took, so the sim's random stream is
+  untouched — the committed tackle's leap is sized by its own closing force instead of a flat 17px,
+  and a whiffed diver finishes his arc and LANDS instead of snapping to the turf a fifth of a
+  second after leaving his feet.
+  Two bugs fell out of it. `flyStartV112` cleared `_launchUntil` but not `_launchH`, so a stale
+  lunge height leaked into a v112 F flight and put a launched man above his own arc; and
+  `fitLogYardsV139` DROPPED every event past its cut, which threw away a stripped ball's
+  `looseBall` and `recover` and the drags a stop beat — nothing is discarded now, an event past the
+  cut is re-timed onto it. v109C1check goes 6 fails → 0 (main fails 1-2 intermittently).
+  `agecheck.mjs`, `tiercheck.mjs`, `gatecheck.mjs`, `movecheck.mjs`, `yardfitcheck.mjs`,
+  `honorcheck.mjs`, `growcheck.mjs`, `v136check.mjs`, `emblemcheck.mjs`, `scrollcheck.mjs`
 
 - **v137 — the Prestige Vault: your points, where you can see them.** Prestige Points stopped being a
   number on a chip and became a room. `o.pp` is drawn as ONE mixed hoard — bronze (1 PP), silver

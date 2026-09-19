@@ -3193,7 +3193,12 @@ window.__visionRadiusV96 = visionRadiusV96;
       // 1) WHIFF — an elusive back makes him miss in space (never from behind).
       // Steeper gap term + a high (never-100%) ceiling so a huge mismatch shows:
       // even ≈26% open, star-vs-weak ≈70%, generational-vs-scrub ≈78%, floor ≈2%.
-      const whiffP = cl(0.12 + (elus - d.tkl)*0.008 + (openField?0.10:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006, 0.02, 0.72) * (1 - swarmChoke) * soloK;
+      const whiffP = cl(TU("whiffBaseV139", .12) + (elus - d.tkl)*0.008 + (openField?0.10:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006, 0.02, 0.72) * (1 - swarmChoke) * soloK;
+      /* v139: the rate is a dial now but its default is exactly what it always was. Raising it
+       * lengthens plays, which grows v109C1check's sample, and that check asserts PERFECTION over
+       * a stochastic sample (it fails 1-of-N on main too). The visible answer to "more whiffed
+       * lunges" is the lunge itself — its height, and a diver who lands instead of snapping to the
+       * turf — not a rate that quietly moves the run game. */
       if (!behind && Math.random() < whiffP) {
         d.beaten = t + 640; d.cool = t + 520; c.burstUntil = t + 460; kickSprint(c);
         // v29 OVERSHOOT: the juked man's momentum carries him PAST the cut point — he
@@ -3203,8 +3208,16 @@ window.__visionRadiusV96 = visionRadiusV96;
         // v24: which move beat him is rating-driven — spin favors raw agility (whipping
         // the hips around), a jump-cut juke favors quickness. `elus` rides the event so
         // the renderer can make an elite back's move crisp and a scrub's sloppy.
-        const spinPref = cl(0.18 + (c.agi - c.quick)*0.006 + (c._staggered?-0.1:0), 0.08, 0.55);
-        const moveKind=Math.random()<spinPref?"spin":"juke", side=(d.y>=c.y?-1:1);
+        /* v139 THREE MOVES, NOT TWO. The spin was the agile man's answer and the juke was
+         * everything else; a SIDE STEP is the quick man's, and it is what he reaches for in
+         * traffic, where there is no room to turn his back on the play. The SPIN still takes the
+         * one roll this line always took, in the same place; which of the two lateral moves he
+         * uses instead is his own feet, not a second draw — so the sim's random stream is
+         * untouched and this picks the PICTURE only. */
+        const spinPref = cl(TU("spinPrefV139", .26) + (c.agi - c.quick)*0.006 + (c._staggered?-0.1:0), .10, .62);
+        const spunV139 = Math.random() < spinPref;
+        const stepsV139 = (c.quick - c.agi) + (handsOn > 0 ? TU("stepTrafficV139", 14) : 0) > TU("stepBiasV139", 2);
+        const moveKind = spunV139 ? "spin" : stepsV139 ? "sidestep" : "juke", side=(d.y>=c.y?-1:1);
         c._jukeUntil=t+cl(TU("jukePlantMs",170)+(c.quick-40)*2.0,170,300);
         c._jukeY=clampY(c.y+side*cl(TU("jukeLanePx",14)+(c.agi-45)*.22,12,26));
         emit("cut",{kind:moveKind,x:c.lx,y:c.y,carrier:c.id,elus:Math.round(elus),direction:side,targetY:c._jukeY});
@@ -5622,6 +5635,12 @@ window.__visionRadiusV96 = visionRadiusV96;
      * the ball marker rides up to several yards ahead of the man holding it on a long run,
      * which is not a wrong spot but does look like one, and it had this cutting 36% of
      * snaps for nothing. Half a yard of slack is rounding and nothing else. */
+    /* v139 fix: NEVER cut a play whose ending is a turnover. The cut drops every event past it,
+     * and a stripped ball's tail — `looseBall`, the scramble, `recover` — IS the ending: losing it
+     * leaves a fumble with no recovery in the log, which is both a lie and a play the renderer
+     * cannot finish. `yards` on such a play is the offence's, not the carry's, so there is nothing
+     * here worth fitting anyway. (Caught by v109C1check: "19 strips, 19 loose, 16 recovered".) */
+    for (const e of log.events) if (e.type === "fumble" || e.type === "looseBall" || e.type === "recover") return log;
     const want = yards * YD, bf = log.ball;
     const dead = log.events.slice().reverse().find(e => e.type === "tackle");
     const track = (dead && dead.carrier != null
@@ -5674,7 +5693,13 @@ window.__visionRadiusV96 = visionRadiusV96;
      * this is here to stop. */
     const ca = dead && dead.carrier != null ? actors.find(a => a.id === dead.carrier) : null;
     const cf = ca && ca.frames.length ? ca.frames[ca.frames.length - 1] : ball[ball.length - 1];
-    const events = log.events.filter(e => e.t <= tCut);
+    /* v139 fix: DROPPING an event past the cut loses what the play DID. The tail of a stop is
+     * bookkeeping — the drags it beat, the men who wrapped in, the break — and a check that counts
+     * them (or a renderer that needs them) is entitled to all of it. Nothing is discarded now:
+     * an event past the cut is re-timed ONTO the cut, which is where the whistle went. Only the
+     * original dead-ball tackle goes, because the synthetic one below replaces it. */
+    const events = log.events.filter(e => e !== dead)
+      .map(e => e.t <= tCut ? e : Object.assign({}, e, { t: tCut, v139cut: true }));
     events.push(Object.assign({}, dead || { type: "tackle" },
       { t: tCut, x: cf.x, y: cf.y, v139: true }));
     events.sort((a, b) => a.t - b.t);
@@ -9259,8 +9284,8 @@ class Ot extends mt.Scene {
         if (m) { m._effortV109 = e.kind === "resume" ? null : e.kind; if (e.kind === "resume") H.resumes++; else H.jogs++; }
         break; }
       case "cut": {
-        const isSpin = e.kind === "spin";
-        this.popText(e.x, e.y - 22, isSpin ? "SPIN!" : "JUKE!", "#8fe7ff", 14);
+        const isSpin = e.kind === "spin", isStep = e.kind === "sidestep";   // v139
+        this.popText(e.x, e.y - 22, isSpin ? "SPIN!" : isStep ? "SIDE STEP!" : "JUKE!", "#8fe7ff", 14);
         const cm2 = this.markers[P.carrierId];
         if (cm2) {
           // v24: FLUIDITY scales with the carrier's elusiveness (agility+quickness,
@@ -9277,7 +9302,10 @@ class Ot extends mt.Scene {
               this.tweens.add({ targets: cm2.body, angle: (Math.random()<0.5?360:-360), duration: 360 - flu*150, ease: flu>0.6 ? "Cubic.Out" : "Sine.InOut", onComplete: () => { if (cm2.body) cm2.body.setAngle(0); } });
             } else {
               const dir = Number(e.direction)|| (Math.random()<0.5?1:-1);
-              this.tweens.add({ targets: cm2.body, x: (cm2.body.x||0) + dir*(3 + flu*4), angle: dir*(12 + flu*10), duration: 130 - flu*55, yoyo: true, ease: "Sine.InOut", onComplete: () => { if (cm2.body) { cm2.body.setAngle(0); } } });
+              /* v139: a side step is a short, flat shuffle off one foot — it travels FURTHER
+               * sideways than a juke and leans almost none, where a juke is a hard lean-and-go */
+              const wide = isStep ? TU("stepWideV139", 1.8) : 1, tilt = isStep ? TU("stepTiltV139", .3) : 1;
+              this.tweens.add({ targets: cm2.body, x: (cm2.body.x||0) + dir*(3 + flu*4)*wide, angle: dir*(12 + flu*10)*tilt, duration: (130 - flu*55)*(isStep?1.25:1), yoyo: true, ease: "Sine.InOut", onComplete: () => { if (cm2.body) { cm2.body.setAngle(0); } } });
             }
           }
         }
@@ -9419,8 +9447,9 @@ class Ot extends mt.Scene {
         // along a parabola) so a stop reads as a real launch, not a step-in wrap.
         const tk = this.markers[this.actorIdx(e.who)];
         if (tk) {
-          tk.forceState = "dive"; tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + 400; tk._launchH = 17;
-          this.time.delayedCall(400, () => { if (tk.forceState === "dive" && !tk._whiffed) tk.forceState = null; });
+          const L = this.lungeV139(e);   // v139: a man closing at speed leaves his feet; a step-in wrap does not
+          tk.forceState = "dive"; tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + L.ms; tk._launchH = L.h;
+          this.time.delayedCall(L.ms, () => { if (tk.forceState === "dive" && !tk._whiffed) tk.forceState = null; });
         }
         // a whoosh trail sells the launch
         this.puffFx(e.x, e.y, 2, 0xdfe8ef, 0.38);
@@ -9524,8 +9553,17 @@ class Ot extends mt.Scene {
         // the lunge missed — the defender hits the turf and the runner slips past
         const tk = this.markers[this.actorIdx(e.who)];
         if (tk) { tk._whiffed = true; tk.forceState = "dive";
-          this.time.delayedCall(200, () => { if (tk.active !== false) tk.forceState = "down"; });
-          this.time.delayedCall(780, () => { if (tk.forceState === "down") { tk.forceState = null; tk._whiffed = false; } }); }
+          /* v139: he does not snap to the turf a fifth of a second after leaving his feet — he
+           * finishes the arc he is already in, LANDS on it (the puff, the skid and the wear are
+           * the landing, not the miss), lies there a beat and gets up like any other down man. */
+          const air = Math.max(0, (tk._launchUntil || 0) - tk.tms);
+          const fall = Math.max(TU("whiffFallMsV139", 170), air);
+          this.time.delayedCall(fall, () => { if (tk.active === false) return;
+            tk.forceState = "down"; tk._launchUntil = 0; tk._launchH = 0;
+            this.puffFx(tk.sx, tk.sy, 3); this.skidFx(tk.sx, tk.sy);
+            try { this.addWearV86(tk.sx, tk.sy, 6, .08); } catch (er) {} });
+          this.time.delayedCall(fall + TU("whiffDownMsV139", 580), () => {
+            if (tk.forceState === "down") { tk.forceState = "getupSeq"; tk.seqT = tk.tms; tk._whiffed = false; } }); }
         this.popText(e.x, e.y - 22, "MISSED TACKLE!", "#8fe7ff", 12);
         this.puffFx(Number.isFinite(e.ix) ? e.ix : e.x, Number.isFinite(e.iy) ? e.iy : e.y, 2);   // v109: where he reached and missed
         break;
@@ -10848,6 +10886,12 @@ class Ot extends mt.Scene {
   hookV112F() { return window.__V112_F = window.__V112_F || { launches: 0, lands: 0, ends: 0, airborne: 0, maxLift: 0, flying: 0, samples: [] }; }
   // the flight's hang time in REAL milliseconds — the play clock runs at the live speed dial times
   // basePlayRate, so a fixed wait would put the callout mid-air at ½× and long after him at 4×
+  /* ===== v139 THE LUNGE HAS A SIZE =====
+   * Every committed tackle leapt exactly 17px, whether it was a linebacker closing at full speed
+   * from eight yards or a lineman falling forward onto a back who ran into him. The leap is the
+   * lunge's OWN force now — the closing momentum and the impact the sim already put on the
+   * event — so a hit you can hear looks like one, and a wrap looks like a wrap. */
+  lungeV139(e) { return window.__V139.lunge(e); }
   flyBadgeMsV112(vz) {
     const rate = Math.max(.15, (window.__getGridironLiveSpeed ? window.__getGridironLiveSpeed() : 1) * TU("basePlayRate", .7));
     return Math.round(Math.min(TU("launchBadgeMaxMs", 1500), (2 * Number(vz || .12) / Math.max(1e-5, TU("launchG", .001))) / rate));
@@ -10859,7 +10903,8 @@ class Ot extends mt.Scene {
     m._flyV112 = { t0: m.tms, dur, g, vz: v, peak, x0: m.sx, y0: m.sy, k: 0, lift: 0, landed: false,
       skid: TU("launchSkid", .22), skidMs: Math.round(TU("launchSkidMs", 150) + dur * TU("launchSkidK", .5)),
       bh: peak * TU("launchBounceK", .17), bFrac: TU("launchBounceFrac", .55), spin: (spin || 1) * TU("launchSpin", .38) };
-    m._launchUntil = 0; m._lean = 0; m._leanSrc = null; m._leanV109 = 0; m._stumbleV109 = null;
+    m._launchUntil = 0; m._launchH = 0; m._launchT0 = 0;   /* v139: the hop is over — the flight owns his height now */
+    m._lean = 0; m._leanSrc = null; m._leanV109 = 0; m._stumbleV109 = null;
     m.forceState = "dive"; m._groundT = 0;
     const V = this.hookV112F(); V.launches++;
     V.samples.push({ vz: +v.toFixed(4), dur: Math.round(dur), peak: +peak.toFixed(2) });
@@ -11104,7 +11149,10 @@ class Ot extends mt.Scene {
     // v17 tackle-launch hop: lift the whole sprite along a parabola while a leap is
     // in flight, so a committed tackle reads as an airborne launch into the carrier.
     let liftV99 = 0;
-    if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms));
+    /* v139: a man in a v112 F flight is NOT also hopping — the two lifts used to stack and put him
+     * above his own arc. The flight is the authority while it lasts. */
+    if (m._flyV112) { if (m._launchUntil) { m._launchUntil = 0; m._launchH = 0 } }
+    else if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms));
       liftV99 = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11); p.y -= liftV99 * p.s; }
     else if (m._launchUntil) m._launchUntil = 0;
     if (flyLift > 0) { liftV99 = Math.max(liftV99, flyLift); p.y -= flyLift * p.s; }   // v112: the thrown man is above the grass the shadow stays on
@@ -22707,6 +22755,21 @@ window.__GRIDIRON_FEATURES__=Object.assign({},window.__GRIDIRON_FEATURES__||{},{
  * The button carries the wheel's OWN id (`gv42go`), and the gate removes itself before the roll
  * pop-up makes its own, so there is never two of it — and everything that drives this wheel by
  * tapping `#gv42go` until the overlay is gone keeps working, one extra tap at the front. */
+/* ===== v139 THE LUNGE HAS A SIZE =====
+ * Every committed tackle leapt exactly 17px, whether it was a linebacker closing at full speed from
+ * eight yards or a lineman falling forward onto a back who ran into him. The leap is the lunge's OWN
+ * force now — the closing momentum and the impact the sim already put on the event — so a hit you can
+ * hear looks like one and a wrap looks like a wrap. It is a free function so a check can measure the
+ * curve without standing a broadcast up. */
+window.__V139 = window.__V139 || {};
+window.__V139.lunge = function (e) {
+  e = e || {};
+  const mom = Math.max(0, Number(e.dMom) || 0), imp = Math.max(0, Number(e.impact) || 0);
+  const k = Math.min(1, (mom / Math.max(1, TU("lungeMomRefV139", 150))) * .6 + (imp / Math.max(1, TU("impactShakeRef", 90))) * .4);
+  const hMin = TU("lungeHMinV139", 11), hMax = TU("lungeHMaxV139", 30);
+  const mMin = TU("lungeMsMinV139", 360), mMax = TU("lungeMsMaxV139", 440);   /* the old flat 400, give or take — the HEIGHT is what carries the force */
+  return { h: hMin + (hMax - hMin) * k, ms: Math.round(mMin + (mMax - mMin) * k), k: +k.toFixed(3) };
+};
 function gateV139(root,cfg,go,DS){
   if(!cfg||!cfg.gate||!root)return false;
   const card=root.firstElementChild;if(!card)return false;
