@@ -55,6 +55,30 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v140 — a dead splash, and the one line that caused it.** A career that ended left the save
+  sitting on `End of the Road` (or `WELCOME TO THE DFL`), and from then on the game would not boot:
+  `ERROR: Uncaught ReferenceError: vaultPayBtnV137 is not defined`, the loading bar stuck, every
+  reload the same, forever — because the save kept restoring the screen that threw. Shipped in v137
+  with the Prestige Vault and live ever since.
+  The cause is an ordering trap, not a typo. The career app **restores the saved view and draws it
+  from the top level of its own script block**, three separate times (`mc()`, and two later `q()`
+  calls), hundreds of lines above the end of that block. `ms` and `no` — the two career-end
+  screens — put `vaultPayBtnV137(e)` in their markup, and it was a `window.x = …` **assignment**
+  600 lines below them. Function *declarations* hoist; assignments do not. So the screen drawn at
+  boot reached for a function that did not exist yet, and the ReferenceError did not merely fail to
+  draw a button: it **aborted the rest of the block**, so `window.__GRIDIRON_AUDIT__`, the v137
+  vault glue and the whole patch layer never existed. The game was dead before it started.
+  Two fixes, because one of them is the class and one is the instance. The v137 glue
+  (`vaultPayBtnV137`, `vaultBuy`, `openVaultV137`, `vaultPayoutV137`) is a hoisted `function`
+  declaration now, so a screen drawn at boot cannot outrun it. And every top-level boot render goes
+  through `safeBootV140`, which catches and retries the render on a **deferred task** — by which
+  time the block has finished, so the same render just works, which is the whole bug — and falls
+  back to the menu if it still will not draw. Nothing is swallowed: both attempts go to the console.
+  Saves are untouched, so a bricked career comes straight back.
+  `bootviewcheck.mjs` is the gate: it writes a real save on each of the fourteen views the game
+  persists, reloads cold, and asserts the block ran to its end, the vault glue is callable and the
+  page is not dead. 7/0 here; 2/5 on the build that is live.
+
 - **v139 — the numbers the screens promise.** A run of fixes where the picture and the sheet had
   drifted apart. The broadcast now obeys the box score (`fitLogYardsV139` cuts the animation at the
   spot the credited yards name, measured against the CARRIER, so an 80-yard picture on a 30-yard gain
