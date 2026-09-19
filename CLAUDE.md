@@ -68,6 +68,21 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v140 THE BOOT CANNOT TAKE THE REST OF THE FILE WITH IT` (beside `safeBootV140`, at the first
+  top-level boot render) — **the career app restores the saved view and DRAWS it from the top level
+  of its own script block**, three times (`mc()` and two later `q()` calls), hundreds of lines above
+  the end of that block. A screen that throws while being restored therefore aborts the block's
+  remaining top level, and everything still to be assigned down there — `window.__GRIDIRON_AUDIT__`,
+  the v137 vault glue, the patch layer — never exists: the game dies on the splash, and dies there
+  on every reload, because the save still holds that view. That is how a save on either career-end
+  screen bricked from v137 to v139 (`ms`/`no` call `vaultPayBtnV137`, which was a `window.x = …`
+  assignment 600 lines below them). **So: anything a rendered screen calls by bare name must be a
+  hoisted `function` declaration, never a `window.x = …` assignment** — assignments run in source
+  order and a boot-time render can outrun them. `safeBootV140(run, label)` guards each top-level
+  boot render: it catches, retries on a DEFERRED task (the block has finished by then, so the same
+  render usually just works) and falls back to the menu if it still will not draw, logging both
+  attempts. `bootviewcheck.mjs` is the gate — it saves on each of the fourteen persisted views,
+  reloads cold, and asserts the block ran to its end
 - `v139 THE COMBINE IS DRILLS, NOT GAMES` (beside `COMBINE_V139`) / `v139 THE YEARS TAKE A CUT`
   (beside `ageCutV139`) / the rest of v139, scattered by subject — the batch that made the screens
   tell the truth. `fitLogYardsV139` cuts the broadcast at the spot the CREDITED yards name (and
@@ -633,6 +648,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 
 | You changed… | Run |
 |---|---|
+| anything at the TOP LEVEL of the career block, the boot, or a function a rendered screen calls by bare name (v140) | `bootviewcheck.mjs`, then `splashcheck.mjs`, `walk.mjs`, `vaultcheck.mjs`, `menu-integration-check.mjs`, `shot.mjs` |
 | the combine — the drills, the weeks, the board, the leaders tab, the coach's read (v139) | `combinecheck.mjs`, then `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs`, `coachcheck.mjs`, `simcheck.mjs`, `v85check.mjs` |
 | the age curve, the endgame nodes, the grade floor, the honors payout, the surname, the bottom nav, the wheel gate, the team-name ideas, the tier rewards, or the carrier's moves (v139) | `agecheck.mjs`, `tiercheck.mjs`, `gatecheck.mjs`, `movecheck.mjs`, then `coachcheck.mjs`, `wheelcheck.mjs`, `v112Dcheck.mjs`, `v136check.mjs`, `honorcheck.mjs`, `scrollcheck.mjs`, `menu-integration-check.mjs`, `emblemcheck.mjs`, `walk.mjs` |
 | the Prestige Vault — the hoard, the spend, the door, the payout, the sprites (v137) | `python3 scripts/build-vault-art.py --proof` (if a cell moved — then LOOK at `art/vault-proof/`), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-vault*` file), then `vaultcheck.mjs`, `honorcheck.mjs`, `v134check.mjs`, `coachcheck.mjs`, `menu-integration-check.mjs`, `v136check.mjs`, `freshcheck.mjs`; `vaultshot.mjs` / `WIDE=1 vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` / `vaultphys.mjs` to look |
