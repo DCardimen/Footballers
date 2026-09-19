@@ -5569,7 +5569,104 @@ window.__visionRadiusV96 = visionRadiusV96;
     out.flags = flagCand;   // v30: what an official COULD have flagged — the game layer rolls the call
     out.log = { duration: t, events, ball: ballFrames,
       actors: S.all.map(a=>({id:a.id, side:a.side, label:a.lb, sp:Math.round(a.spd), you:!!(a.player&&a.player.you), gas:Math.round(a.gas!==undefined?a.gas:(a.gas0!==undefined?a.gas0:100)), frames:a.frames})) };
+    /* Only a play the offence CARRIED to a spot: an incompletion's ball legitimately lands
+     * yards downfield on a zero-yard play, and a pick's ball changes hands and comes back
+     * the other way, so neither one's ball track means what `yards` means. */
+    if ((kind === "run" || kind === "pass") && out.complete !== false && !out.intercepted)
+      out.log = fitLogYardsV139(out.log, out.yards);
     return out;
+  }
+
+  /* ===== v139 THE PICTURE OBEYS THE NUMBER =====
+   *
+   * `out.yards` is clamped to [-6, 80] one line above the log is built, and dampV76 can
+   * pull it down again afterwards — but nothing ever told the PICTURE. The log kept the
+   * carrier's real `lx`, the bridge maps that straight to the field, and so the broadcast
+   * ran a play the box score did not agree with. Measured over 2,187 resolved snaps: 109
+   * of them (5%) animated at least six yards further than they credited, every single one
+   * of them at the 80-yard clamp, and 81 plays animated the ball more than 100 yards
+   * downfield — further than a football field is long. The ball is then spotted on the
+   * credited number, so the next snap starts somewhere the viewer did not just watch the
+   * play end. That is the "he got 80 and I was credited 30, and then they spot it wrong".
+   *
+   * The number is the truth — it is what the box score, the chains and the next spot are
+   * all built on — so the picture is cut to fit it. The play is TRUNCATED at the moment
+   * the ball reaches the credited yardage rather than rescaled: truncation keeps every
+   * speed, every relative position and every block exactly as the sim resolved them, and
+   * it is also what the number means. He was brought down here. The dead-ball event is
+   * carried onto the cut so the play still ends on a tackle, and the renderer's own
+   * between-plays phase takes it from there.
+   *
+   * It only ever SHORTENS. The reported number is never larger than the resolved one —
+   * both the clamp and the margin brake only reduce — so a log that already sits inside
+   * its number is returned untouched, and a loss (where `want` is behind the ball) fails
+   * the same test and is left alone. */
+  function fitLogYardsV139(log, yards) {
+    if (!log || !log.ball || log.ball.length < 2 || !isFinite(yards)) return log;
+    /* MEASURE THE MAN THE NUMBER WAS MEASURED FROM. `yards` is `Math.round(carrier.lx/YD)`
+     * taken at the whistle, and the whistle's own event carries that carrier and that very
+     * `lx` — so comparing against it is exact, and a play the clamp never touched comes out
+     * at a disagreement of zero. Comparing against the BALL instead needs a fudge factor:
+     * the ball marker rides up to several yards ahead of the man holding it on a long run,
+     * which is not a wrong spot but does look like one, and it had this cutting 36% of
+     * snaps for nothing. Half a yard of slack is rounding and nothing else. */
+    const want = yards * YD, bf = log.ball;
+    const dead = log.events.slice().reverse().find(e => e.type === "tackle");
+    const track = (dead && dead.carrier != null
+      && (log.actors.find(a => a.id === dead.carrier) || {}).frames) || bf;
+    const endX = dead && isFinite(dead.x) ? dead.x : bf[bf.length - 1].x;
+    if (!(endX > want + YD * 0.5)) return log;
+    /* THE LAST CROSSING, NOT THE FIRST. On a pass the carrier's own track only starts
+     * downfield, but the ball fallback is over the target yard line while it is still IN
+     * THE AIR — taking the first crossing there cut the play in mid flight, so the throw
+     * never arrived and the catch never happened. Scanning back from the dead ball finds
+     * the crossing that belongs to the CARRY, which is the one the number is about. */
+    const crossing = (arr) => {
+      for (let i = arr.length - 1; i > 0; i--) {
+        if (arr[i - 1].x <= want) {
+          const a = arr[i - 1], b = arr[i];
+          return a.t + (b.t - a.t) * cl((want - a.x) / ((b.x - a.x) || 1), 0, 1);
+        }
+      }
+      return -1;
+    };
+    /* A receiver's own track can begin ALREADY past the number — a man in motion, or a
+     * catch made behind where the play is credited to — and then it never crosses and the
+     * play was silently left long. The ball always starts in the backfield, so it always
+     * has a crossing to fall back on. */
+    let tCut = crossing(track);
+    if (tCut < 0 && track !== bf) tCut = crossing(bf);
+    if (tCut < 0) return log;
+    // every track is cut at the same instant, with one interpolated frame ON the cut so
+    // nobody is left a frame short of where the whistle went
+    const cut = (arr) => {
+      const out = [];
+      for (let i = 0; i < arr.length; i++) {
+        if (arr[i].t <= tCut) { out.push(arr[i]); continue; }
+        const a = arr[i - 1];
+        if (a) {
+          const f = cl((tCut - a.t) / ((arr[i].t - a.t) || 1), 0, 1), o = {};
+          for (const k in arr[i]) o[k] = (typeof arr[i][k] === "number" && typeof a[k] === "number")
+            ? a[k] + (arr[i][k] - a[k]) * f : arr[i][k];
+          o.t = tCut; out.push(o);
+        }
+        break;
+      }
+      return out.length ? out : arr.slice(0, 1);
+    };
+    const ball = cut(bf);
+    const actors = log.actors.map(a => Object.assign({}, a, { frames: cut(a.frames) }));
+    /* THE WHISTLE GOES WHERE THE MAN IS, not where the ball marker is. The ball rides
+     * ahead of the carrier, so spotting the synthetic dead ball on it put the new tackle
+     * a yard or two past the number the cut was made to hit — which is the very thing
+     * this is here to stop. */
+    const ca = dead && dead.carrier != null ? actors.find(a => a.id === dead.carrier) : null;
+    const cf = ca && ca.frames.length ? ca.frames[ca.frames.length - 1] : ball[ball.length - 1];
+    const events = log.events.filter(e => e.t <= tCut);
+    events.push(Object.assign({}, dead || { type: "tackle" },
+      { t: tCut, x: cf.x, y: cf.y, v139: true }));
+    events.sort((a, b) => a.t - b.t);
+    return { duration: tCut, events, ball, actors };
   }
 
   // pure contact formula: momentum, angle, attributes, open field
@@ -5684,7 +5781,7 @@ window.__visionRadiusV96 = visionRadiusV96;
         return { blocked: !!r.blocked, good: !!r.good };
       } catch (e) { console.warn("[FieldSim.fg]", e); return null; }
     },
-    _sim: sim, _Q: Q,
+    _sim: sim, _Q: Q, fitLogV139: fitLogYardsV139,
     takeLog(sig) {
       if (!Q.length) return null;
       // SEARCH for the first matching log rather than requiring it at the head.
@@ -16423,11 +16520,11 @@ if(base&&base.yards>=0&&base.yards<=2){
   else if(Math.random()<sustainP){dropSimLog();base={carrier:K,yards:le(4,8),breakaway:!1}}
 }
 if(base&&base.yards>0){const y2=Math.round(dampV76(base.yards));
-  if(y2!==base.yards){retagSimLog(y2);base={...base,yards:y2,breakaway:y2>=15}}}   /* v103: the picture follows the number */
+  if(y2!==base.yards){retagSimLog(y2,base.yards);base={...base,yards:y2,breakaway:y2>=15}}}   /* v103: the picture follows the number */
 return base}
 function b(w,concept,ctx={}){const{O:k,D:T}=ie(w),K=Y(k.off,["QB"]),g=(()=>{const g0=concept==="screen"?Y(k.off,["RB","WR","TE"]):concept==="shot"?Y(k.off,["WR","WR","TE"]):Y(k.off,["WR","WR","TE","RB"]);const yu=k.off.find(z=>z.you);if(yu&&yu!==g0){const tp=f((yu.pos==="WR"?.32:yu.pos==="TE"?.2:yu.pos==="RB"?.1:0)*_touch111,0,.62)/* v111: the dial buys targets */,ok=concept==="shot"?["WR","TE"].includes(yu.pos):["WR","TE","RB"].includes(yu.pos);if(tp&&ok&&Math.random()<tp)return yu}return g0})(),N=(()=>{/* v87: no coin flip puts YOU on the target — the sim covers by alignment, and the formula fallback never picks you */const safety=_starOutlier(T.def,"S");if(safety&&safety.player&&!safety.player.you&&Math.random()<.2*safety.blend)return safety.player;const others=T.def.filter(z=>!z.you);return Y(others.length?others:T.def,["CB","S","LB"])})();const need=(typeof down!=="undefined"&&down>=3)?Math.max(1,toGo):0;const __r=window.__FieldSim&&window.__FieldSim.pass(w,k,T,K,g,N,_,concept,{pressured:!!ctx.pressured,moving:!!ctx.moving,pa:!!ctx.pa,fieldPos:typeof pos!=="undefined"?pos:50,down:typeof down!=="undefined"?down:1,toGo:typeof toGo!=="undefined"?toGo:10,routes:ctx.play&&ctx.play.routes||null,play:ctx.play&&ctx.play.id||null});   /* v101: the call names the routes */
 if(__r){if(__r.complete&&__r.yards>0){const y2=Math.max(1,Math.round(dampV76(__r.yards)));
-  if(y2!==__r.yards){retagSimLog(y2);const air2=Math.min(__r.air||0,y2);return{...__r,yards:y2,breakaway:y2>=20,air:air2,yac:Math.max(0,y2-air2)}}}   /* v103: the picture follows the number */
+  if(y2!==__r.yards){retagSimLog(y2,__r.yards);const air2=Math.min(__r.air||0,y2);return{...__r,yards:y2,breakaway:y2>=20,air:air2,yac:Math.max(0,y2-air2)}}}   /* v103: the picture follows the number */
   return __r}const depth0=concept==="shot"?24:concept==="fade"?18:concept==="dropback"?11:concept==="quick"?5:concept==="screen"?1:8,depth=need&&concept!=="screen"?Math.max(depth0,Math.min(need+1,18)):depth0,H=_(g,"speed")*.5+_(g,"agility")*.5-_(N,"coverage")*.85+_(K,"awareness")*.25,poise=f((_(K,"awareness")-35)/100,0,.55),pressureAcc=ctx.pressured?(ctx.moving?.78:.86)+poise*(ctx.moving?.16:.1):1,oe=f((.57-depth*.008+H/150)*weatherFx.pass*pressureAcc,.07,.91);if(!(Math.random()<oe)){const ge=f(.012+depth*.0022+(_(N,"coverage")-_(K,"awareness"))*.0015+(ctx.pressured?.012:0)+(ctx.moving?.012:0),0,.18);return{qb:K,rec:g,cover:N,complete:!1,intercepted:Math.random()<ge,yards:0,pressured:!!ctx.pressured,moving:!!ctx.moving}}let ke=Math.round(depth+(_(g,"catching")+_(K,"awareness"))/2*.045+D(-2,4)),explosiveP=f((_(g,"speed")-_(N,"coverage"))/240+(concept==="shot"?.13:concept==="screen"?.07:.035)-(ctx.pressured?.035:0),.01,.3);Math.random()<explosiveP&&(ke+=le(concept==="shot"?12:8,18+Math.round(_(g,"speed")/7))),ke=f(ke,1,80);need&&ke<need&&Math.random()<f((_(K,"awareness")-40)/120,.05,.45)&&(ke=need+le(0,3));ke=Math.max(1,Math.round(dampV76(ke)));const air=f(Math.round(concept==="screen"?D(-1,2):ke*(concept==="shot"?.75:.45+Math.random()*.3)),0,ke);return{qb:K,rec:g,cover:N,complete:!0,intercepted:!1,yards:ke,breakaway:ke>=20,air,yac:Math.max(0,ke-air),pressured:!!ctx.pressured,moving:!!ctx.moving}}
 // keep the FieldSim render queue aligned when we alter a play's bookkept yards:
 // the log we're discarding is the one this play just pushed — the TAIL, not the
@@ -16444,7 +16541,25 @@ function dropSimLog(){try{const g=window.__FieldSim&&window.__FieldSim._Q;g&&g.l
  * later matches. The log is still the RIGHT log for this play; only the number moved. So
  * retag it instead of abandoning it. The log for the play just resolved is the TAIL, which
  * is the same entry dropSimLog pops. */
-function retagSimLog(y){try{const g=window.__FieldSim&&window.__FieldSim._Q;if(g&&g.length&&g[g.length-1]&&g[g.length-1].sig)g[g.length-1].sig.yards=y}catch(w){}}
+/* v139: two things were wrong with retagging blind.
+ *
+ * It writes to the queue's TAIL on the assumption that the tail is the play just resolved.
+ * That holds only when this play actually pushed a log — and plays resolved by the formula
+ * fallback push none, so the tail is then some EARLIER play, and retagging it rewrites a
+ * good play's yardage to a number from a different snap. That play can never match again,
+ * and (since v139 cuts the picture to the number) it would also have had its log truncated
+ * to a foreign yardage. So the caller now says what it is reshaping FROM, and the retag
+ * only happens if the tail really is holding that number.
+ *
+ * And retagging alone made the log MATCH a number it no longer depicted — the whole point
+ * of the match is that this log IS this play, so the picture is cut to the reshaped number
+ * too, exactly as the clamp's is. */
+function retagSimLog(y,y0){try{const F=window.__FieldSim,g=F&&F._Q,h=g&&g.length&&g[g.length-1];
+  if(!h||!h.sig)return;
+  if(y0!==undefined&&h.sig.yards!==y0)return;            // not our log — leave it alone
+  if(!isFinite(y))return;                                 // never write a number nothing can match
+  h.sig.yards=y;
+  if((h.sig.kind==="run"||h.sig.kind==="pass")&&F.fitLogV139)h.log=F.fitLogV139(h.log,y)}catch(w){}}
 function xe(){return`(${h}–${p})`}
 function st(){const w=c.us.off.filter(k=>["RB","WR","TE"].includes(k.pos)&&!k.you);return w.length?`${W(w).name}`:"your team"}
 function Tt(){const w=c.opp.off.filter(k=>["RB","WR","TE","QB"].includes(k.pos));return w.length?`${W(w).name}`:"the opponent"}
