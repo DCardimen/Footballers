@@ -92,8 +92,11 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   `gv42go`, so everything that drives that wheel by tapping until the overlay clears keeps working
   with one extra tap. The coach also finally mentions the extra-season nodes, and what they cost
   you in DFL years.
+  The team creator stops handing you two empty boxes, too: it offers five whole names — level-shaped
+  off v123's own 120 towns, 88 mascots, college suffixes and fifty DFL clubs — re-rolled every time
+  you pick a palette, and tapping one fills both fields.
   `agecheck.mjs`, `tiercheck.mjs`, `gatecheck.mjs`, `yardfitcheck.mjs`, `honorcheck.mjs`,
-  `growcheck.mjs`, `v136check.mjs`
+  `growcheck.mjs`, `v136check.mjs`, `emblemcheck.mjs`
 
 - **v137 — the Prestige Vault: your points, where you can see them.** Prestige Points stopped being a
   number on a chip and became a room. `o.pp` is drawn as ONE mixed hoard — bronze (1 PP), silver

@@ -120,14 +120,23 @@ async function creatorAudit(pg, label) {
     // the preview card re-renders (innerHTML swap) on every pick — always re-query it
     const jersey = () => document.querySelector('#creatorPreviewV44 .id-jersey-v44')
     const before = jersey() ? getComputedStyle(jersey()).backgroundColor : null
+    // v139: five whole names on offer, re-rolled by the very pick below
+    const ideaTxt = () => [...document.querySelectorAll('.ni-chip-v139')].map(c => c.innerText.replace(/\s+/g, ' ').trim())
+    const ideas0 = ideaTxt()
     window.pickPaletteV153(7)                     // palette pick must visibly change the preview
+    const ideas1 = ideaTxt()
     const after = jersey() ? getComputedStyle(jersey()).backgroundColor : null
+    // tapping one fills both boxes. It re-renders the preview, so it happens BEFORE the preview
+    // nodes below are captured — a stale jersey node measures zero.
+    const chip = document.querySelectorAll('.ni-chip-v139')[1], want = ideas1[1]
+    chip && chip.click()
+    const filled = { school: (document.getElementById('schoolNameV153') || {}).value, team: (document.getElementById('teamNameV153') || {}).value, want }
     window.pickLogoV153(0)                        // wolf -> its matched palette selected + ✓
     const m = document.querySelector('.palette-v153.match')
     const matchIsOn = m && m.classList.contains('on')
     const prevName = document.querySelector('#creatorPreviewV44 .id-meta-v44 b')?.textContent
     const pj = jersey(), pe = pj && pj.querySelector('i')
-    return { tiles: tiles.length, sampleTile: tileGeo[0], badTiles,
+    return { ideas0, ideas1, filled, tiles: tiles.length, sampleTile: tileGeo[0], badTiles,
       preview: pj ? { ...geo(pj), emblem: pe ? geo(pe) : null } : null,
       paletteReacts: !!before && !!after && before !== after, matchIsOn, prevName }
   }, GEO)
@@ -135,6 +144,11 @@ async function creatorAudit(pg, label) {
   check(`${label}: live preview present + emblem sized`, !!audit.preview && audit.preview.emblem && audit.preview.emblem.img && audit.preview.emblem.w > 30, audit.preview)
   check(`${label}: palette pick updates the preview`, !!audit.paletteReacts)
   check(`${label}: emblem pick selects+marks its palette`, !!audit.matchIsOn && audit.prevName === 'Wolf', { name: audit.prevName })
+  // v139: five whole names on offer beside the palettes, re-rolled by every palette pick
+  check(`${label}: five name ideas on offer`, audit.ideas0.length === 5 && audit.ideas1.length === 5, { first: audit.ideas0 })
+  check(`${label}: a palette pick re-rolls them`, audit.ideas0.join() !== audit.ideas1.join(), { before: audit.ideas0[0], after: audit.ideas1[0] })
+  check(`${label}: tapping one fills the school and the team`,
+    !!audit.filled.school && !!audit.filled.team && audit.filled.want === (audit.filled.school + ' ' + audit.filled.team), audit.filled)
   return audit
 }
 await creatorAudit(page, 'creator@520')
