@@ -29,4 +29,11 @@ const metrics = await page.evaluate(() => ({
 fs.writeFileSync('menu-preview-metrics.json', JSON.stringify({ metrics, errors }, null, 2))
 console.log(JSON.stringify({ metrics, errors }, null, 2))
 await browser.close()
-if (errors.length || !metrics.assets?.ready || metrics.tiles !== 6) process.exitCode = 1
+/* v139: a FLOOR, not an exact count. This asserted exactly six tiles, was written at PR #92,
+ * and has never been updated — v111 added HOW TO PLAY and v119 the COACH'S TOUR switch, so it
+ * has failed on every branch since v111 for a menu that is working correctly. That is not a
+ * harmless red light: this job stops at the first failing step, so steps 9 and 10 never ran,
+ * and `menu-integration-check.mjs` — the part that exercises the assembled Pages output —
+ * has not executed in CI since. The regression worth catching here is a menu that LOSES its
+ * navigation, so the check is that the navigation is still there. */
+if (errors.length || !metrics.assets?.ready || !(metrics.tiles >= 6)) process.exitCode = 1

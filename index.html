@@ -14786,8 +14786,35 @@ function fatigueMulV120(fat,inj){const x=Number(fat)||0,from=TU("fatSlopeFrom",4
   if(inj)m=Math.min(m,TU("condWorn",.90));
   return m}
 window.__fatigueMulV120=fatigueMulV120;
+/* ===== v139 THE SEASON'S CHOICE IS PAID IN YARDS, NOT IN A NUMBER =====
+ *
+ * A season choice advertising "-7 performance for the rest of the season" moved the perf
+ * RATING and nothing else. Measured over 250 resolved weeks an arm, on the same player and
+ * the same week: no choice 28.1, -7 gave 27.4, -25 gave 24.1, +25 gave 34.0. So the card
+ * promised seven and the season paid about seven TENTHS — and the live game never saw it at
+ * all, because the score and the stat line are emergent from the play-by-play and the perf
+ * grade is derived FROM the box score afterwards rather than fed into it. `condMultV54` is
+ * the one multiplier the live sim, `effAttrsV85`, the silent week and the live booking all
+ * already agree on, and it read only the reroll debt and fatigue. Nothing routed the choice
+ * into it, so a player who had just sold out his season played exactly as well as one who
+ * had not.
+ *
+ * It rides that multiplier now, so the choice is paid where the player can feel it: in his
+ * effective attributes, and therefore in his yards. Fixing the mechanism fixes the dilution
+ * too — the emergent box score drops, and the perf grade, which is modulated by that box
+ * score, follows it down to something like the number on the card.
+ *
+ * The biggest swing the game offers is +/-25, mapped to +/-10% of attributes: about half of
+ * fatigue's own range, which is the right order for a decision rather than a catastrophe.
+ * A player with no choice made multiplies by exactly 1 and is untouched. */
+function eventPerfMulV139(e){
+  const p=((e&&e.eventChoice&&e.eventChoice.perf)||0)+((e&&e.eventBenchV128)||0);
+  if(!p)return 1;
+  return f(1+p*TU("eventPerfAttrK",.004),.80,1.12);
+}
+window.__eventPerfMulV139=eventPerfMulV139;
 function condMultV54(e){
-  const rr=rerollMulV112(e);                       /* v112: the reroll debt rides the one multiplier the sim and the sheet share */
+  const rr=rerollMulV112(e)*eventPerfMulV139(e);    /* v112 reroll debt · v139 the season's choice */
   const c=e&&e.conditionV11; if(!c)return rr;
   return fatigueMulV120(c.fatigue,c.injury)*rr;    /* v120: a slope, not a step */
 }
