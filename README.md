@@ -95,8 +95,13 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   The team creator stops handing you two empty boxes, too: it offers five whole names — level-shaped
   off v123's own 120 towns, 88 mascots, college suffixes and fifty DFL clubs — re-rolled every time
   you pick a palette, and tapping one fills both fields.
+  And the bottom of the screen is the way around: a five-item bar (hub / season / skills / tree /
+  menu) under the dock, because every destination used to live behind a hamburger in the one corner
+  of a phone a thumb cannot reach. Settings tabs instead of running 1.9 screens deep, long
+  explanations clamp to three lines with a MORE on them, and the hub's dock stops repeating the two
+  buttons the bar already carries.
   `agecheck.mjs`, `tiercheck.mjs`, `gatecheck.mjs`, `yardfitcheck.mjs`, `honorcheck.mjs`,
-  `growcheck.mjs`, `v136check.mjs`, `emblemcheck.mjs`
+  `growcheck.mjs`, `v136check.mjs`, `emblemcheck.mjs`, `scrollcheck.mjs`
 
 - **v137 — the Prestige Vault: your points, where you can see them.** Prestige Points stopped being a
   number on a chip and became a room. `o.pp` is drawn as ONE mixed hoard — bronze (1 PP), silver
