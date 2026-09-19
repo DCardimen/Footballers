@@ -76,7 +76,12 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   off the dock now (`--dockH-v139`). And the line keeps ONE surname: from the second generation the
   name box edits the first name only, the family name sits beside it, and changing it in Settings
   retrofits the living player, every father on the books and the Hall of Fame.
-  `agecheck.mjs`, `yardfitcheck.mjs`, `honorcheck.mjs`
+  The chrome moved with it: the topbar chip carries what is BANKED for the end of the career, the
+  main menu has a PRESTIGE tile beside the coach's switch (the tree's only door was a header chip),
+  the RUNNING IT BACK wordmark is off the career screens and left to the main menu, and the man on
+  the year-older screen finally wears the team's palette — the recolour was guarded on a function
+  that lives in another script block and is not on `window`, so it had never once run.
+  `agecheck.mjs`, `yardfitcheck.mjs`, `honorcheck.mjs`, `growcheck.mjs`, `v136check.mjs`
 
 - **v137 — the Prestige Vault: your points, where you can see them.** Prestige Points stopped being a
   number on a chip and became a room. `o.pp` is drawn as ONE mixed hoard — bronze (1 PP), silver

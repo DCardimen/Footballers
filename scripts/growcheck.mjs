@@ -92,6 +92,22 @@ async function toReportCard(q = '') {
   ok(boy.teen.width < boy.kid.width && boy.teen.width < boy.grown.width && boy.grown.width === 1, 'a teen is lankier than both a child and a grown man', JSON.stringify({ kid: boy.kid.width, teen: boy.teen.width, grown: boy.grown.width }))
   ok(boy.anim === 'gwBreath', 'and he breathes', String(boy.anim))
   ok(boy.manTop != null && boy.manTop < 0.08, 'the man fills his box top to bottom', String(boy.manTop))
+  // v139: he wears the TEAM'S kit. The recolour inside growHiCellV134 was guarded on
+  // `typeof ribRecolor == "function"` — a function in another script block, never on window — so the
+  // guard was always false and the man wore the source art's blue and gold whatever the palette said.
+  const kitPx = await page.evaluate(() => { const G = window.__GROW_V132
+    const px = (kit) => { const cv = document.createElement('canvas'); const got = G.draw(cv, 22, kit); const x = cv.getContext('2d'); return { mode: got && got.mode, d: x.getImageData(0, 0, cv.width, cv.height).data, n: cv.width * cv.height } }
+    const A = px(['#d21f1f', '#f5d142']), B = px(['#1f3fd2', '#f5d142'])
+    let n = 0, ar = 0, ag = 0, ab = 0, br = 0, bg = 0, bb = 0
+    for (let i = 0; i < A.d.length; i += 4) { if (A.d[i + 3] < 200) continue
+      if (Math.abs(A.d[i] - B.d[i]) + Math.abs(A.d[i + 1] - B.d[i + 1]) + Math.abs(A.d[i + 2] - B.d[i + 2]) < 40) continue
+      n++; ar += A.d[i]; ag += A.d[i + 1]; ab += A.d[i + 2]; br += B.d[i]; bg += B.d[i + 1]; bb += B.d[i + 2] }
+    return { mode: A.mode, pixels: n, share: +(n / A.n * 100).toFixed(1),
+      red: n ? [Math.round(ar / n), Math.round(ag / n), Math.round(ab / n)] : null,
+      blue: n ? [Math.round(br / n), Math.round(bg / n), Math.round(bb / n)] : null } })
+  console.log('kit px:', JSON.stringify(kitPx))
+  ok(kitPx.pixels > 500 && kitPx.share > 1, 'the kit reaches the drawn man — a whole jersey of pixels moves when the palette does', `${kitPx.pixels}px (${kitPx.share}% of the canvas)`)
+  ok(kitPx.red && kitPx.red[0] > kitPx.red[2] + 50 && kitPx.blue && kitPx.blue[2] > kitPx.blue[0] + 50, 'and it is the palette he wears: a red team is red on him, a blue team blue', `red ${kitPx.red} · blue ${kitPx.blue}`)
   // the door
   await page.evaluate(() => document.querySelector('#growV132 [data-gw-go]').click()); await page.waitForTimeout(700)
   const after = await page.evaluate(() => ({ el: !!document.getElementById('growV132'), open: window.__GROW_V132.open, view: window.__GRIDIRON_AUDIT__.getState().view,
