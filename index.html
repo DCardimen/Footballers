@@ -2618,6 +2618,11 @@ window.__visionRadiusV96 = visionRadiusV96;
     return a.vel;
   }
 
+  /* v141: durability is a FieldSim read now — a glancing hit or a stagger takes a slice of the carrier's
+   * speed, and a durable body keeps more of it (±15% around 50). Counted on root.__V141F for the check. */
+  const durKeepV141 = c => { const k = cl(1 + ((c && c.dur || 50) - 50) * TU("durKeepK", .003), .85, 1.15);
+    const F = root.__V141F = root.__V141F || { hits: 0, keepSum: 0, youHits: 0, youKeep: 0 }; F.hits++; F.keepSum += k;
+    if (c && c.player && c.player.you) { F.youHits++; F.youKeep += k; } return k; };
   const RX_POS_V56={CB:1.14,S:1.08,LB:1.00,DE:.94,DT:.86,WR:1.10,RB:1.06,TE:.98,QB:1.00,OL:.84};
   function makeAgents(kOff, tDef, att, picks) {
     const byPos = (arr,pos)=>arr.filter(p=>p&&p.pos===pos);
@@ -2652,6 +2657,7 @@ window.__visionRadiusV96 = visionRadiusV96;
         burst:g("burst")||accel, accel, quick, aware:g("awareness"), cat:g("catching"),
         jump:g("jumping"), thr:g("throwing")||g("awareness"), vis:g("vision")||g("awareness"),
         stam:g("stamina"), grit:g("grit")||50, disc:g("discipline")||50, bc:g("ballControl")||50,
+        dur:g("injuryResist")||50,                              // v141 durability: how much of his speed a carrier keeps through a hit
         reactMs: Math.max(100, 340 - (quick-50)*2.4),          // quickness: first-step latency
         vel: 0,                                                 // acceleration: ramps toward top speed
         // v20 stamina: the gas tank persists across plays (carried on the roster
@@ -3306,7 +3312,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       const bounceP = cl(TU("bounceBase", .02) + (balance - wrapQ)*0.004 + (glancing ? TU("glancingBonus", .04) : 0) - (c._staggered&&t-c._staggered<500?0.05:0), 0.01, 0.3) * (1 - swarmChoke) * soloK;
       if (Math.random() < bounceP) {
         d.beaten = t + 520; d.cool = t + 480; d._osUntil = t + TU("overshootMs",420); d._osdx = d._dx||0; d._osdy = d._dy||0;
-        c.vel = Math.max(0,(c.vel||0)*0.78); c._staggered = t;
+        c.vel = Math.max(0,(c.vel||0)*0.78*durKeepV141(c)); c._staggered = t;
         c._evades = (c._evades||0) + 1; emit("bounce",{who:d.id, carrier:c.id, x:c.lx, y:c.y, glancing, ...hit});
         bobbleV109(c, hit);
         if (committerId===d.id) committerId = null;
@@ -3315,7 +3321,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       const staggerP = cl(0.11 + (balance - wrapQ)*0.006 - (behind?0.22:0) - (c._staggered&&t-c._staggered<500?0.20:0), 0.03, 0.46) * (1 - swarmChoke);
       if (Math.random() < staggerP) {
         d.stagger = t; d.cool = t + 300;
-        c.vel = Math.max(0,(c.vel||0)*0.75); c._staggered = t;  // knocked off-stride, loses a step
+        c.vel = Math.max(0,(c.vel||0)*0.75*durKeepV141(c)); c._staggered = t;  // knocked off-stride, loses a step (v141: a durable body keeps more of it)
         emit("stagger",{who:d.id, carrier:c.id, x:c.lx, y:c.y, ...hit});
         bobbleV109(c, hit);
         return "stagger";
@@ -14915,7 +14921,7 @@ function injChanceV54(e,opts){
   // outmatched by the same margin raises it by half again.
   const gapMult=f(1-gap/TU("injGapScale",60),TU("injGapMin",.28),TU("injGapMax",1.9));
   const resist=(e.attrs&&e.attrs.injuryResist)||10;
-  const resistMult=f(1.35-resist*.009,.45,1.4);
+  const resistMult=f(1.35-resist*.009-Math.max(0,resist-100)*TU("injResistPastK",.001),TU("injResistFloor",.25),1.4);   /* v141: past 100 it keeps buying something */
   const c=e.conditionV11||null;
   const fatMult=1+(opts.fatigue!=null?Number(opts.fatigue):((c&&c.fatigue)||0))/100*TU("injFatigueK",.9);
   /* v111: accumulated wear is a term in THIS roll, not a second coin flip beside it. `load` is
@@ -15353,6 +15359,7 @@ const FOCUS_V111={
  * the you-player's multiplier scales, so the buff lands on the agent either way: today it lifts
  * him off the league's flat 45 on that key, and once the roster carries the key it lifts his real
  * value instead. What it must never do is name a stat nobody asks for. */
+/* v141: the roster carries every one of these now (qr() and Wr's h()); the flat-45 fallback below is history. */
 const SIM_KEYS_V111=["speed","acceleration","burst","quickness","agility","awareness","strength",
   "blocking","tackling","coverage","catching","jumping","throwing","vision","stamina","grit",
   "discipline","ballControl"];
@@ -16411,7 +16418,42 @@ window.rivalDeferV136=rivalDeferV136;
 window.__V136_A={pending:rivalPendingV136,deck:rivalDeckV136,decide:rivalDecideV136,apply:rivalApplyV136,resolve:rivalResolveV136,say:rivalSayV128,variance:rivalVarV128,lock:rivalLockV128,defer:rivalDeferV136,spins:0};
 function Fr(e){const t=o.player,a=Za.find(n=>n.id===t.pendingEvent),s=a.choices[e];
   const _lkV128=rivalLockV128(s.eff,t);if(_lkV128&&!_lkV128.ok){F("🔒 Locked — you need "+_lkV128.need+" "+_lkV128.name+" and you have "+_lkV128.have+".");return}   /* v128: locked means locked */
-  s.eff.ppCost&&(o.pp-=s.eff.ppCost),t.eventChoice=s.eff,(function(){try{const fx=s.eff,c=(typeof cv18==="function")?cv18(t):null;if(!c)return;if(fx.restWeeks){const cur=c.injury;(!cur||!cur.seasonEnding)&&(c.injury={name:"Recovery rest",severity:1,weeksRemaining:fx.restWeeks,recurrence:.04,resting:!0})}if(fx.healFatigue)c.fatigue=Math.max(0,(c.fatigue||0)-fx.healFatigue)}catch(_e){}})(),t.eventLog=(t.eventLog||[]).concat({title:a.title,choice:s.label}),I(),te("sim")}const Dr=["Jaylen","Marcus","DeShawn","Tyler","Cameron","Malik","Trey","Xavier","Cole","Bryce","Damon","Kaiden","Rashad","Elijah","Jaxon","Dominic","Isaiah","Devin","Cade","Amari","Zion","Kobe","Deon","Landon","Micah","Tariq","Jamal","Nolan","Rex","Hunter"],Gr=["Carter","Brooks","Sylla","Okafor","Ramirez","Bennett","Washington","Freeman","Toledo","Nakamura","Boateng","Vance","Ellison","Duval","Krause","Mbeki","Santos","Rivera","Holloway","Pierce","Dresden","Ansah","Coleman","Reyes","Njoku","Fontaine","Barlow","Greer","Adeyemi","Stroud"];function Hr(){return W(Dr)+" "+W(Gr)}function qr(e,t){const a=o.player;if(!a||!a.attrs)return null;const s=i=>f(Math.round(en?Math.min(99,99*(1-Math.exp(-(i||10)/78))):(i||10)/2.5),5,99),n=a.attrs;return{speed:s(n.speed),accel:s(n.acceleration),agility:s(n.agility),strength:s(n.strength),catching:s(n.catching),tackling:s(n.tackling),awareness:s(n.awareness),hands:s(n.catching),power:s(n.strength),coverage:s(n.awareness*.5+n.speed*.5),blocking:s(n.blocking),burst:s(n.acceleration)}}function xn(e){const a={QB:[1,19],RB:[20,49],WR:[10,19],TE:[80,89],OL:[50,79],DL:[90,99],LB:[40,59],CB:[20,39],S:[20,39]}[e]||[1,99];return le(a[0],a[1])}function Wr(e,t,a,s,n,i,r){const l=["QB","RB","RB","WR","WR","TE","OL","OL","OL","OL","OL"],d=["DL","DL","DL","DL","LB","LB","LB","CB","CB","S","S"],c=["QB","RB","WR","TE","OL"].includes(e);i=i||(o.player?o.player.level:0),r=r||(o.player?ae(o.player):40);const u=[18,30,42,54,66,78,86,90][i]||55;function h(Y,_){const ie=f(_,5,99),B=()=>ie+D(-14,14),b={speed:B(),accel:B(),agility:B(),strength:B(),catching:B(),tackling:B(),awareness:B(),hands:B(),power:B(),coverage:B(),blocking:B(),burst:B()};for(const Q in b)b[Q]=f(Math.round(b[Q]),5,99);const pe=Math.random();return Y==="RB"&&(pe<.4?(b.speed=f(b.speed+14,5,99),b.burst=f(b.burst+12,5,99),b.strength=f(b.strength-8,5,99)):pe<.7&&(b.strength=f(b.strength+15,5,99),b.power=f(b.power+12,5,99),b.speed=f(b.speed-8,5,99))),Y==="WR"&&(pe<.45?(b.speed=f(b.speed+16,5,99),b.burst=f(b.burst+12,5,99)):(b.catching=f(b.catching+12,5,99),b.hands=f(b.hands+12,5,99),b.strength=f(b.strength+6,5,99))),Y==="QB"&&(b.awareness=f(b.awareness+8,5,99),pe<.4&&(b.speed=f(b.speed+16,5,99),b.agility=f(b.agility+12,5,99))),Y==="TE"&&(b.strength=f(b.strength+10,5,99),b.blocking=f(b.blocking+10,5,99)),Y==="OL"&&(b.blocking=f(b.blocking+18,5,99),b.strength=f(b.strength+14,5,99),b.speed=f(b.speed-16,5,99)),Y==="DL"&&(b.strength=f(b.strength+16,5,99),b.power=f(b.power+12,5,99)),Y==="LB"&&(b.tackling=f(b.tackling+14,5,99),b.strength=f(b.strength+8,5,99)),Y==="CB"&&(b.speed=f(b.speed+14,5,99),b.coverage=f(b.coverage+16,5,99),b.agility=f(b.agility+10,5,99)),Y==="S"&&(b.coverage=f(b.coverage+10,5,99),b.tackling=f(b.tackling+10,5,99)),b}function p(Y,_){const ie=f(_,.1,1),B=(pe,Q)=>Math.max(0,Math.round(pe*ie+D(-Q,Q))),b={pos:Y};switch(Y){case"QB":b.pass=B(240,50),b.td=B(2.4,1),b.int=Math.max(0,Math.round((1-ie)*2.2)),b.comp=B(21,4),b.att=b.comp+B(11,3);break;case"RB":b.rush=B(88,28),b.td=B(1.1,1),b.carries=B(18,5),b.rec=B(20,12);break;case"WR":b.rec=B(74,34),b.td=B(.8,1),b.rec_c=B(5,3),b.tgt=b.rec_c+B(3,2);break;case"TE":b.rec=B(48,22),b.td=B(.6,1),b.rec_c=B(4,2),b.tgt=b.rec_c+B(2,2);break;case"OL":b.pancake=B(5,3),b.sackAllowed=Math.max(0,Math.round((1-ie)*3));break;case"DL":b.tackle=B(4,2),b.sack=B(1,1),b.tfl=B(1.4,1),b.qbhit=B(3,2);break;case"LB":b.tackle=B(8,3),b.sack=B(.6,1),b.tfl=B(1.6,1),b.int=Math.random()<ie*.25?1:0;break;case"CB":b.tackle=B(4,2),b.pd=B(1.8,1),b.int=Math.random()<ie*.3?1:0;break;case"S":b.tackle=B(6,3),b.pd=B(1.3,1),b.int=Math.random()<ie*.25?1:0;break}return b}function m(Y){return f(Math.round(u*(.72+Y*.5)+D(-4,4)),3,999)}function y(Y){const _=(ie,B)=>ie.map(b=>{const pe=f(Y+D(-.15,.15),.05,1.7),Q=m(pe);return{name:Hr(),num:xn(b),pos:b,isOff:B,ovr:Q,attrs:h(b,Q),stat:p(b,pe)}});return{off:_(l,!0),def:_(d,!1)}}const _oppMul=(typeof window<"u"&&window.__oppMulV22!=null)?window.__oppMulV22:(.9+Math.random()*.4);const _prF=Math.min(1,((o.prestige||0)/15)+((o.rosterPrestigeV158?Object.values(o.rosterPrestigeV158).reduce((A2,B2)=>A2+B2,0):0)/50)+((o.tree?Object.values(o.tree).reduce((A2,B2)=>A2+B2,0):0)/70)*f(TU("teamQualK",.1),0,1));/* ===== v76 MARGIN CURVE (1/5) — where the blowouts came from =====
+  s.eff.ppCost&&(o.pp-=s.eff.ppCost),t.eventChoice=s.eff,(function(){try{const fx=s.eff,c=(typeof cv18==="function")?cv18(t):null;if(!c)return;if(fx.restWeeks){const cur=c.injury;(!cur||!cur.seasonEnding)&&(c.injury={name:"Recovery rest",severity:1,weeksRemaining:fx.restWeeks,recurrence:.04,resting:!0})}if(fx.healFatigue)c.fatigue=Math.max(0,(c.fatigue||0)-fx.healFatigue)}catch(_e){}})(),t.eventLog=(t.eventLog||[]).concat({title:a.title,choice:s.label}),I(),te("sim")}const Dr=["Jaylen","Marcus","DeShawn","Tyler","Cameron","Malik","Trey","Xavier","Cole","Bryce","Damon","Kaiden","Rashad","Elijah","Jaxon","Dominic","Isaiah","Devin","Cade","Amari","Zion","Kobe","Deon","Landon","Micah","Tariq","Jamal","Nolan","Rex","Hunter"],Gr=["Carter","Brooks","Sylla","Okafor","Ramirez","Bennett","Washington","Freeman","Toledo","Nakamura","Boateng","Vance","Ellison","Duval","Krause","Mbeki","Santos","Rivera","Holloway","Pierce","Dresden","Ansah","Coleman","Reyes","Njoku","Fontaine","Barlow","Greer","Adeyemi","Stroud"];function Hr(){return W(Dr)+" "+W(Gr)}/* ===== v141 EVERY STAT IS ON THE FIELD =====
+ * FieldSim's makeAgents asks the engine's accessor for eighteen keys by name (SIM_KEYS_V111 is the
+ * list). The you-player's roster entry used to carry TWELVE — and one of those under the wrong name
+ * (`accel`, asked for as `acceleration`) — so nine sheet stats (quickness, throwing, vision, jumping,
+ * stamina, grit, discipline, ball control, and the sustained half of acceleration) never reached the
+ * agent at all: the accessor's fallback answered a flat 45 for every man on the field, which the
+ * league normalise then turned into ~80 at Pee Wee and the 20 floor at the DFL (measured: every DFL
+ * quarterback threw as a 21, every DFL defender reacted in 409 ms, every Pee Wee kid was a composed
+ * genius). And the twelve that did arrive were squeezed through `99·(1−e^(−v/78))`, which puts 250
+ * at 95 and 350 at 98 — three roster points for the hundred sheet points the 5x wall charges.
+ *   `simScaleV141` is the one curve a sheet value takes onto the roster: OVR's own curve below the
+ * wall, continued past it (250 → ~116, 350 → ~172), so a stat sits on the same scale `_lgAvg`
+ * compares it against. `qr()` emits all eighteen keys (the old `accel`/`hands`/`power` aliases
+ * kept), `h()` in `Wr` generates them for the AI with position bumps, the accessor's fallback is
+ * the man's OWN OVR (which normalises to league-average, never a level-dependent constant), the
+ * normalise eases through a soft knee to 99 instead of clamping at 95, and no position's star floor
+ * sits under `TU("starFloorMinV141")`. Durability gets a FieldSim read (`dur`: how much speed a
+ * carrier keeps through a glancing hit) and its injury curve keeps working past 100.
+ * `window.__V141`; `v141check.mjs`, then `scoreneutralcheck.mjs`, `equaltalentcheck.mjs`. */
+function simScaleV141(v){v=Number(v)||10;const w=TU("simWallV141",215);return v<=w?99*(1-Math.exp(-v/78)):99*(1-Math.exp(-w/78))+Math.pow(v-w,.93)*.83}
+function qr(e,t){const a=o.player;if(!a||!a.attrs)return null;const s=i=>f(Math.round(simScaleV141(i||10)),5,999),n=a.attrs,acc=s(n.acceleration),cat=s(n.catching),str=s(n.strength);return{speed:s(n.speed),acceleration:acc,accel:acc,burst:acc,quickness:s(n.quickness),agility:s(n.agility),strength:str,power:str,catching:cat,hands:cat,throwing:s(n.throwing),tackling:s(n.tackling),blocking:s(n.blocking),awareness:s(n.awareness),coverage:s(n.awareness*.5+n.speed*.5),vision:s(n.vision),jumping:s(n.jumping),stamina:s(n.stamina),grit:s(n.grit),discipline:s(n.discipline),ballControl:s(n.ballControl),injuryResist:s(n.injuryResist)}}
+window.__V141={simScale:simScaleV141,rosterKeys:()=>Object.keys(qr()||{}),floorMin:()=>TU("starFloorMinV141",.6)};function xn(e){const a={QB:[1,19],RB:[20,49],WR:[10,19],TE:[80,89],OL:[50,79],DL:[90,99],LB:[40,59],CB:[20,39],S:[20,39]}[e]||[1,99];return le(a[0],a[1])}function Wr(e,t,a,s,n,i,r){const l=["QB","RB","RB","WR","WR","TE","OL","OL","OL","OL","OL"],d=["DL","DL","DL","DL","LB","LB","LB","CB","CB","S","S"],c=["QB","RB","WR","TE","OL"].includes(e);i=i||(o.player?o.player.level:0),r=r||(o.player?ae(o.player):40);const u=[18,30,42,54,66,78,86,90][i]||55;function h(Y,_){const ie=f(_,5,99),B=()=>ie+D(-14,14),b={speed:B(),accel:B(),agility:B(),strength:B(),catching:B(),tackling:B(),awareness:B(),hands:B(),power:B(),coverage:B(),blocking:B(),burst:B(),quickness:B(),throwing:B(),vision:B(),jumping:B(),stamina:B(),grit:B(),discipline:B(),ballControl:B(),injuryResist:B()};for(const Q in b)b[Q]=f(Math.round(b[Q]),5,99);const pe=Math.random();Y==="RB"&&(pe<.4?(b.speed=f(b.speed+14,5,99),b.burst=f(b.burst+12,5,99),b.strength=f(b.strength-8,5,99)):pe<.7&&(b.strength=f(b.strength+15,5,99),b.power=f(b.power+12,5,99),b.speed=f(b.speed-8,5,99))),Y==="WR"&&(pe<.45?(b.speed=f(b.speed+16,5,99),b.burst=f(b.burst+12,5,99)):(b.catching=f(b.catching+12,5,99),b.hands=f(b.hands+12,5,99),b.strength=f(b.strength+6,5,99))),Y==="QB"&&(b.awareness=f(b.awareness+8,5,99),pe<.4&&(b.speed=f(b.speed+16,5,99),b.agility=f(b.agility+12,5,99))),Y==="TE"&&(b.strength=f(b.strength+10,5,99),b.blocking=f(b.blocking+10,5,99)),Y==="OL"&&(b.blocking=f(b.blocking+18,5,99),b.strength=f(b.strength+14,5,99),b.speed=f(b.speed-16,5,99)),Y==="DL"&&(b.strength=f(b.strength+16,5,99),b.power=f(b.power+12,5,99)),Y==="LB"&&(b.tackling=f(b.tackling+14,5,99),b.strength=f(b.strength+8,5,99)),Y==="CB"&&(b.speed=f(b.speed+14,5,99),b.coverage=f(b.coverage+16,5,99),b.agility=f(b.agility+10,5,99)),Y==="S"&&(b.coverage=f(b.coverage+10,5,99),b.tackling=f(b.tackling+10,5,99));
+/* v141: the nine keys the roster never carried, shaped by position like the twelve above */
+const K=(k,d)=>{b[k]=f(b[k]+d,5,99)};
+Y==="QB"&&(K("throwing",18),K("vision",8),K("discipline",6),K("grit",4));
+Y==="RB"&&(K("vision",10),K("ballControl",10),K("quickness",6),K("jumping",4),K("stamina",4));
+Y==="WR"&&(K("jumping",10),K("quickness",6),K("stamina",4));
+Y==="TE"&&(K("jumping",6),K("grit",4));
+Y==="OL"&&(K("discipline",6),K("grit",6),K("stamina",4),K("quickness",-6),K("jumping",-8));
+Y==="DL"&&(K("quickness",10),K("grit",6),K("jumping",2));
+Y==="LB"&&(K("discipline",8),K("vision",6),K("grit",6),K("quickness",4),K("stamina",6));
+Y==="CB"&&(K("quickness",10),K("jumping",8),K("discipline",2));
+Y==="S"&&(K("vision",8),K("jumping",6),K("discipline",4),K("grit",4));
+b.acceleration=b.accel=b.burst;   /* one sheet stat, three names — they agree, as qr() makes them agree */
+if(!TU("v141Keys",1))for(const Q of ["acceleration","quickness","throwing","vision","jumping","stamina","grit","discipline","ballControl","injuryResist"])delete b[Q];   /* kill-switch: the pre-v141 roster */
+return b}function p(Y,_){const ie=f(_,.1,1),B=(pe,Q)=>Math.max(0,Math.round(pe*ie+D(-Q,Q))),b={pos:Y};switch(Y){case"QB":b.pass=B(240,50),b.td=B(2.4,1),b.int=Math.max(0,Math.round((1-ie)*2.2)),b.comp=B(21,4),b.att=b.comp+B(11,3);break;case"RB":b.rush=B(88,28),b.td=B(1.1,1),b.carries=B(18,5),b.rec=B(20,12);break;case"WR":b.rec=B(74,34),b.td=B(.8,1),b.rec_c=B(5,3),b.tgt=b.rec_c+B(3,2);break;case"TE":b.rec=B(48,22),b.td=B(.6,1),b.rec_c=B(4,2),b.tgt=b.rec_c+B(2,2);break;case"OL":b.pancake=B(5,3),b.sackAllowed=Math.max(0,Math.round((1-ie)*3));break;case"DL":b.tackle=B(4,2),b.sack=B(1,1),b.tfl=B(1.4,1),b.qbhit=B(3,2);break;case"LB":b.tackle=B(8,3),b.sack=B(.6,1),b.tfl=B(1.6,1),b.int=Math.random()<ie*.25?1:0;break;case"CB":b.tackle=B(4,2),b.pd=B(1.8,1),b.int=Math.random()<ie*.3?1:0;break;case"S":b.tackle=B(6,3),b.pd=B(1.3,1),b.int=Math.random()<ie*.25?1:0;break}return b}function m(Y){return f(Math.round(u*(.72+Y*.5)+D(-4,4)),3,999)}function y(Y){const _=(ie,B)=>ie.map(b=>{const pe=f(Y+D(-.15,.15),.05,1.7),Q=m(pe);return{name:Hr(),num:xn(b),pos:b,isOff:B,ovr:Q,attrs:h(b,Q),stat:p(b,pe)}});return{off:_(l,!0),def:_(d,!1)}}const _oppMul=(typeof window<"u"&&window.__oppMulV22!=null)?window.__oppMulV22:(.9+Math.random()*.4);const _prF=Math.min(1,((o.prestige||0)/15)+((o.rosterPrestigeV158?Object.values(o.rosterPrestigeV158).reduce((A2,B2)=>A2+B2,0):0)/50)+((o.tree?Object.values(o.tree).reduce((A2,B2)=>A2+B2,0):0)/70)*f(TU("teamQualK",.1),0,1));/* ===== v76 MARGIN CURVE (1/5) — where the blowouts came from =====
  * usQ is .42 + seed*.35 + prestige*1.05 (up to 1.65) while oppQ can only ever reach
  * (1.14-.72)*2 = .84, so a prestiged career fields a roster built at up to TWICE the
  * opponent's quality factor. Every player attribute derives from that factor, so the
@@ -16583,7 +16625,7 @@ U=["QB","RB","WR","TE"].includes(t),ce=["DL","LB","CB","S"].includes(t),
 // picked up here instead. `ownBuffs` never returns the roster's list, so nothing already working
 // changes shape — at every default both sides of this are empty.
 _tb111=(window.__youTempBuffsV25!=null?window.__youTempBuffsV25:(function(){try{return window.__V111?window.__V111.ownBuffs(o.player):null}catch(_){return null}})()),
-_raw=(w,k)=>{let _v=(w&&w.attrs&&w.attrs[k])||45;if(w&&w.you){if(window.__condMultV54)_v*=window.__condMultV54(o.player);var _tb=_tb111,_mu=1;if(_tb)for(var _bi=0;_bi<_tb.length;_bi++){if(_tb[_bi].stat===k){if(_tb[_bi].mul!=null)_mu*=Number(_tb[_bi].mul)||1;else _v+=_tb[_bi].max?10:_tb[_bi].amt}}if(_mu!==1)_v*=f(_mu,TU("focusMulFloor",.6),TU("focusMulCeil",1.35));/* v111: the focus is a multiplier, and it lands AFTER the body's swing */_v+=(G("perfFlat")||0)+((window.__youPersonaFxV20&&window.__youPersonaFxV20.perfFlat)||0)}return _v},
+_raw=(w,k)=>{let _v=(w&&w.attrs&&w.attrs[k]);if(!(_v>0))_v=TU("v141Fallback",1)?((w&&Number(w.ovr))||45):45;/* v141: own OVR, never a level-dependent constant (v141Fallback 0 = the old flat 45) */if(w&&w.you){if(window.__condMultV54)_v*=window.__condMultV54(o.player);var _tb=_tb111,_mu=1;if(_tb)for(var _bi=0;_bi<_tb.length;_bi++){if(_tb[_bi].stat===k){if(_tb[_bi].mul!=null)_mu*=Number(_tb[_bi].mul)||1;else _v+=_tb[_bi].max?10:_tb[_bi].amt}}if(_mu!==1)_v*=f(_mu,TU("focusMulFloor",.6),TU("focusMulCeil",1.35));/* v111: the focus is a multiplier, and it lands AFTER the body's swing */_v+=(G("perfFlat")||0)+((window.__youPersonaFxV20&&window.__youPersonaFxV20.perfFlat)||0)}return _v},
 // league-normalized attribute accessor: every league plays real football —
 // outcomes ride on RELATIVE strength, not absolute ratings (a high-school
 // game shouldn't end 6-3 because everyone is 22 OVR)
@@ -16591,14 +16633,16 @@ _lgAvg=(()=>{const g=[...c.us.off,...c.us.def,...c.opp.off,...c.opp.def];return 
 // v40 single-star AI calibration: a 20-OVR outlier should move a game, not
 // become the whole game. Compress only the attribute advantage above his own
 // unit's peers; equal teams and ordinary rating gaps remain completely intact.
+/* v141: above the knee the scale eases toward 99 instead of stopping at 95, so the band the 5x wall charges for is visible on the agent */
+kneeV141=x=>{const K=TU("simKneeV141",80),T=TU("simKneeTailV141",22);if(x>K)x=K+(99-K)*(x-K)/((x-K)+T);return f(Math.round(x),20,99)},__kneeExportV141=(window.__kneeV141=kneeV141),
 _starUnits=[c.us.off,c.us.def,c.opp.off,c.opp.def],_starUnit=new Map(),
 _starInit=_starUnits.forEach(unit=>unit.forEach(pl=>_starUnit.set(pl,unit))),
 _starScaleDefault={QB:.55,RB:.18,WR:.36,TE:.32,OL:.55,DL:1,LB:.27,CB:.28,S:.4},
-_starScale=(w,k)=>{const unit=_starUnit.get(w);if(!unit||unit.length<2)return 1;const peers=unit.filter(pl=>pl!==w),peerOvr=peers.reduce((sum,pl)=>sum+(Number(pl.ovr)||45),0)/peers.length,gap=(Number(w&&w.ovr)||peerOvr)-peerOvr,blend=f((gap-8)/2,0,1),override=window.__starImpactScalesV40&&window.__starImpactScalesV40[w.pos],floor=override==null?(_starScaleDefault[w.pos]??.5):override;return 1-(1-floor)*blend},
+_starScale=(w,k)=>{const unit=_starUnit.get(w);if(!unit||unit.length<2)return 1;const peers=unit.filter(pl=>pl!==w),peerOvr=peers.reduce((sum,pl)=>sum+(Number(pl.ovr)||45),0)/peers.length,gap=(Number(w&&w.ovr)||peerOvr)-peerOvr,blend=f((gap-8)/2,0,1),override=window.__starImpactScalesV40&&window.__starImpactScalesV40[w.pos],floor=override==null?Math.max(_starScaleDefault[w.pos]??.5,TU("starFloorMinV141",.6)):override;return 1-(1-floor)*blend},
 _starPeerRaw=(w,k)=>{const unit=_starUnit.get(w),peers=unit&&unit.filter(pl=>pl!==w);return peers&&peers.length?peers.reduce((sum,pl)=>sum+_raw(pl,k),0)/peers.length:_lgAvg},
 _starOutlier=(unit,pos)=>{if(!unit||unit.length<2)return null;const candidates=unit.filter(pl=>!pos||pl.pos===pos);if(!candidates.length)return null;const player=candidates.reduce((best,pl)=>(Number(pl.ovr)||0)>(Number(best.ovr)||0)?pl:best,candidates[0]),peers=unit.filter(pl=>pl!==player),peerOvr=peers.reduce((sum,pl)=>sum+(Number(pl.ovr)||45),0)/Math.max(1,peers.length),blend=f(((Number(player.ovr)||peerOvr)-peerOvr-8)/10,0,1);return blend>0?{player,blend}:null},
 _starFrontRating=(unit,front)=>{if(!front.length)return 45;const base=front.reduce((sum,pl)=>sum+_(pl,"tackling")+_(pl,"strength"),0)/(front.length*2);return[["S",.12],["LB",.1]].reduce((rating,[pos,weight])=>{const star=_starOutlier(unit,pos);return star?rating+((_(star.player,"tackling")+_(star.player,"strength"))/2-base)*weight*star.blend:rating},base)},
-_=(w,k)=>{const raw=_raw(w,k),scale=_starScale(w,k),peer=scale<.999?_starPeerRaw(w,k):raw,adjusted=peer+(raw-peer)*scale;return f(Math.round(51+(adjusted-_lgAvg)*1.15),20,95)},
+_=(w,k)=>{const raw=_raw(w,k),scale=_starScale(w,k),peer=scale<.999?_starPeerRaw(w,k):raw,adjusted=peer+(raw-peer)*scale;return kneeV141(51+(adjusted-_lgAvg)*1.15)},
 Y=(w,k)=>{const g=w.filter(N=>k.includes(N.pos));return g.length?W(g):w[0]},
 ie=w=>w?{O:c.us,D:c.opp}:{O:c.opp,D:c.us},
 pe=w=>w&&w.you,
