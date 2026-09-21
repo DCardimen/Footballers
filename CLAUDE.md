@@ -68,6 +68,17 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v141 EVERY STAT IS ON THE FIELD` (beside `qr()`, before `Wr`) — the sheet's eighteen keys all reach
+  the FieldSim agent now. `qr()` and `Wr`'s `h()` emit every key `makeAgents` asks for (nine were
+  missing and fell to a flat 45 that read ~80 at Pee Wee and 21 at the DFL for EVERY man);
+  `simScaleV141` puts a sheet value on OVR's scale past the wall (250 → ~116, 350 → ~172, where the
+  old curve gave 95 / 98); the accessor's fallback is the man's own OVR; `kneeV141` eases the
+  normalise to 99 instead of clamping at 95; `TU("starFloorMinV141", .6)` floors `_starScale`;
+  durability is `dur` on the agent (`durKeepV141`) and its injury curve runs past 100. Dials:
+  `aiQbThrowBumpV141`, `composurePivotV141`, `simKneeV141`, `simKneeTailV141`, `durKeepK`,
+  `injResistPastK`, `injResistFloor`; kill-switches `v141Keys` / `v141Fallback`. **`h()` returns via
+  a comma chain — keep `return b` live if you touch its tail.** `window.__V141`; `v141check.mjs`,
+  then `scoreneutralcheck.mjs`, `equaltalentcheck.mjs` (which loads blocks `[0,1,2,3,4,7]`)
 - `v140 THE BOOT CANNOT TAKE THE REST OF THE FILE WITH IT` (beside `safeBootV140`, at the first
   top-level boot render) — **the career app restores the saved view and DRAWS it from the top level
   of its own script block**, three times (`mc()` and two later `q()` calls), hundreds of lines above
@@ -648,6 +659,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 
 | You changed… | Run |
 |---|---|
+| which sheet stats reach the sim, the roster keys, the attribute scale past 250, the star floor, durability in contact (v141) | `v141check.mjs`, then `scoreneutralcheck.mjs` (keep the before row), `equaltalentcheck.mjs`, `creditcheck.mjs`, `statcreditcheck.mjs`, `v117check.mjs`, `simcheck.mjs`, `injurycheck.mjs` |
 | anything at the TOP LEVEL of the career block, the boot, or a function a rendered screen calls by bare name (v140) | `bootviewcheck.mjs`, then `splashcheck.mjs`, `walk.mjs`, `vaultcheck.mjs`, `menu-integration-check.mjs`, `shot.mjs` |
 | the combine — the drills, the weeks, the board, the leaders tab, the coach's read (v139) | `combinecheck.mjs`, then `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs`, `coachcheck.mjs`, `simcheck.mjs`, `v85check.mjs` |
 | the age curve, the endgame nodes, the grade floor, the honors payout, the surname, the bottom nav, the wheel gate, the team-name ideas, the tier rewards, or the carrier's moves (v139) | `agecheck.mjs`, `tiercheck.mjs`, `gatecheck.mjs`, `movecheck.mjs`, then `coachcheck.mjs`, `wheelcheck.mjs`, `v112Dcheck.mjs`, `v136check.mjs`, `honorcheck.mjs`, `scrollcheck.mjs`, `menu-integration-check.mjs`, `emblemcheck.mjs`, `walk.mjs` |

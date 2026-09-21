@@ -2658,7 +2658,7 @@ window.__visionRadiusV96 = visionRadiusV96;
         jump:g("jumping"), thr:g("throwing")||g("awareness"), vis:g("vision")||g("awareness"),
         stam:g("stamina"), grit:g("grit")||50, disc:g("discipline")||50, bc:g("ballControl")||50,
         dur:g("injuryResist")||50,                              // v141 durability: how much of his speed a carrier keeps through a hit
-        reactMs: Math.max(100, 340 - (quick-50)*2.4),          // quickness: first-step latency
+        reactMs: Math.max(100, TU("reactBaseMs", 340) - (quick-50)*2.4),   // quickness: first-step latency (v141: the base is a dial)
         vel: 0,                                                 // acceleration: ramps toward top speed
         // v20 stamina: the gas tank persists across plays (carried on the roster
         // player), and a player who emptied it is GASSED — moderately slower —
@@ -4202,7 +4202,7 @@ window.__visionRadiusV96 = visionRadiusV96;
          *     (discipline, grit, awareness) sets both how fast it rises and how high it goes,
          *     so a veteran with a rusher in his face is calmer than a rookie with a clean one. */
         qb._nearFreeV101 = nearest === undefined ? 999 : nearest; qb._freeNV101 = free.length;
-        { const compo = cl((qb.disc * .42 + qb.grit * .34 + qb.aware * .24 - 30) / 60, 0, 1);
+        { const compo = cl((qb.disc * .42 + qb.grit * .34 + qb.aware * .24 - TU("composurePivotV141", 30)) / 60, 0, 1);   // v141: the pivot is a dial (the keys under it are real now)
           const heat = (free.length ? cl(1 - qb._nearFreeV101 / TU("panicRangePx", 130), 0, 1) : 0)
             + (hurried ? TU("panicHitK", .45) : 0)
             + (t > throwAt + 200 ? TU("panicHoldK", .3) : 0);
@@ -16442,7 +16442,7 @@ function qr(e,t){const a=o.player;if(!a||!a.attrs)return null;const s=i=>f(Math.
 window.__V141={simScale:simScaleV141,rosterKeys:()=>Object.keys(qr()||{}),floorMin:()=>TU("starFloorMinV141",.6)};function xn(e){const a={QB:[1,19],RB:[20,49],WR:[10,19],TE:[80,89],OL:[50,79],DL:[90,99],LB:[40,59],CB:[20,39],S:[20,39]}[e]||[1,99];return le(a[0],a[1])}function Wr(e,t,a,s,n,i,r){const l=["QB","RB","RB","WR","WR","TE","OL","OL","OL","OL","OL"],d=["DL","DL","DL","DL","LB","LB","LB","CB","CB","S","S"],c=["QB","RB","WR","TE","OL"].includes(e);i=i||(o.player?o.player.level:0),r=r||(o.player?ae(o.player):40);const u=[18,30,42,54,66,78,86,90][i]||55;function h(Y,_){const ie=f(_,5,99),B=()=>ie+D(-14,14),b={speed:B(),accel:B(),agility:B(),strength:B(),catching:B(),tackling:B(),awareness:B(),hands:B(),power:B(),coverage:B(),blocking:B(),burst:B(),quickness:B(),throwing:B(),vision:B(),jumping:B(),stamina:B(),grit:B(),discipline:B(),ballControl:B(),injuryResist:B()};for(const Q in b)b[Q]=f(Math.round(b[Q]),5,99);const pe=Math.random();Y==="RB"&&(pe<.4?(b.speed=f(b.speed+14,5,99),b.burst=f(b.burst+12,5,99),b.strength=f(b.strength-8,5,99)):pe<.7&&(b.strength=f(b.strength+15,5,99),b.power=f(b.power+12,5,99),b.speed=f(b.speed-8,5,99))),Y==="WR"&&(pe<.45?(b.speed=f(b.speed+16,5,99),b.burst=f(b.burst+12,5,99)):(b.catching=f(b.catching+12,5,99),b.hands=f(b.hands+12,5,99),b.strength=f(b.strength+6,5,99))),Y==="QB"&&(b.awareness=f(b.awareness+8,5,99),pe<.4&&(b.speed=f(b.speed+16,5,99),b.agility=f(b.agility+12,5,99))),Y==="TE"&&(b.strength=f(b.strength+10,5,99),b.blocking=f(b.blocking+10,5,99)),Y==="OL"&&(b.blocking=f(b.blocking+18,5,99),b.strength=f(b.strength+14,5,99),b.speed=f(b.speed-16,5,99)),Y==="DL"&&(b.strength=f(b.strength+16,5,99),b.power=f(b.power+12,5,99)),Y==="LB"&&(b.tackling=f(b.tackling+14,5,99),b.strength=f(b.strength+8,5,99)),Y==="CB"&&(b.speed=f(b.speed+14,5,99),b.coverage=f(b.coverage+16,5,99),b.agility=f(b.agility+10,5,99)),Y==="S"&&(b.coverage=f(b.coverage+10,5,99),b.tackling=f(b.tackling+10,5,99));
 /* v141: the nine keys the roster never carried, shaped by position like the twelve above */
 const K=(k,d)=>{b[k]=f(b[k]+d,5,99)};
-Y==="QB"&&(K("throwing",18),K("vision",8),K("discipline",6),K("grit",4));
+Y==="QB"&&(K("throwing",TU("aiQbThrowBumpV141",18)),K("vision",8),K("discipline",6),K("grit",4));
 Y==="RB"&&(K("vision",10),K("ballControl",10),K("quickness",6),K("jumping",4),K("stamina",4));
 Y==="WR"&&(K("jumping",10),K("quickness",6),K("stamina",4));
 Y==="TE"&&(K("jumping",6),K("grit",4));

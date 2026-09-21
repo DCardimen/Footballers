@@ -55,6 +55,35 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v141 — every stat is on the field.** FieldSim's `makeAgents` asks the engine's attribute
+  accessor for eighteen keys by name, and the you-player's roster entry (`qr()`) carried twelve — one
+  of them under the wrong name (`accel`, asked for as `acceleration`). Nine sheet stats never reached
+  the agent at all: quickness, throwing, vision, jumping, stamina, grit, discipline, ball control and
+  the sustained half of acceleration. The accessor's fallback answered a flat 45 for every man on the
+  field, and the league normalise (`51 + (v − leagueAvgOVR) × 1.15`, clamped 20–95) turned that
+  constant into ~80 at Pee Wee and the 20 floor at the DFL — measured: every DFL quarterback threw
+  as a 21, every DFL defender reacted in 409 ms, every Pee Wee kid was a composed genius, and the
+  AI roster (`h()` in `Wr`) had the same twelve keys, so it was inert for everyone. The twelve that
+  did arrive went through `99·(1−e^(−v/78))`, which puts 250 at 95 and 350 at 98 — three roster
+  points for the hundred sheet points the 5x wall charges — and then through `_starScale`'s
+  position floors (a back kept 18% of his edge over his own peers). A DFL back at 250 and at 350 ran
+  for 59 and 63 yards; a DFL quarterback threw for 78 at every sheet value.
+  Now: `simScaleV141` is the one curve a sheet value takes onto the roster — OVR's own curve below
+  the wall, continued past it (250 → ~116, 350 → ~172) — and `qr()` emits all eighteen keys (the
+  `accel` / `hands` / `power` aliases kept); `h()` generates them for the AI with position bumps
+  (`TU("aiQbThrowBumpV141")` is the quarterback's); the accessor's fallback is the man's OWN OVR,
+  which normalises to league-average rather than a level-dependent constant; the normalise eases
+  through a soft knee to 99 (`kneeV141`: `TU("simKneeV141", 80)` / `TU("simKneeTailV141", 22)`)
+  instead of stopping at 95; no position's star floor sits under `TU("starFloorMinV141", .6)`;
+  durability is a FieldSim read (`dur` — how much speed a carrier keeps through a glancing hit or a
+  stagger, `TU("durKeepK")`) and its injury curve keeps working past 100 (`TU("injResistPastK")`,
+  `TU("injResistFloor")`); the quarterback's composure pivot is `TU("composurePivotV141", 30)`.
+  Measured on the agent, DFL linebacker: 250 → 60 and 350 → 91 (was 36 and 45), the AI at 45–53 at
+  every level on every key. DFL pass yards per attempt went from 4.7 (failing the equal-talent
+  realism band) to 7.0–7.4. Kill-switches `TU("v141Keys", 0)` / `TU("v141Fallback", 0)` restore the
+  old roster and the flat 45. `window.__V141`; `scripts/v141check.mjs` is the gate. Same pass:
+  `equaltalentcheck.mjs` loaded script blocks 0–4 and patched a needle that lives in block 7, so it
+  had been throwing before its first game; it loads the engine block again.
 - **v140 — a dead splash, and the one line that caused it.** A career that ended left the save
   sitting on `End of the Road` (or `WELCOME TO THE DFL`), and from then on the game would not boot:
   `ERROR: Uncaught ReferenceError: vaultPayBtnV137 is not defined`, the loading bar stuck, every

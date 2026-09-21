@@ -2305,6 +2305,55 @@ promotion, both lanes, clear) and watches a live run.
   `TU("lookaheadPerYdV96")` per yard). The upgrade sheet's Vision line quotes it ("Read
   radius: 3 yd") in place of the old made-up yards-after-contact figure.
 
+## v141 — every stat is on the field
+
+Anchor `v141 EVERY STAT IS ON THE FIELD` (beside `qr()`, before `Wr`). The pipeline a sheet value
+takes to a FieldSim agent, in order, and where each stat used to die:
+
+1. **The roster entry.** `qr()` maps `o.player.attrs` onto the roster player the engine builds, and
+   `h()` inside `Wr` generates the AI's. Both carried twelve keys (`speed, accel, agility, strength,
+   catching, tackling, awareness, hands, power, coverage, blocking, burst`); `makeAgents` asks the
+   accessor for eighteen (`SIM_KEYS_V111`), and asks for `acceleration`, not `accel`. Every miss fell
+   to the accessor's `|| 45`. Both now emit all eighteen (plus the three old aliases), and the AI's
+   nine new keys get position bumps like the twelve before them.
+2. **The scale.** `qr()` used `99·(1−e^(−v/78))` clamped 5–99, which saturates: 250 → 95, 350 → 98.
+   `simScaleV141(v)` is OVR's own curve below `TU("simWallV141", 215)` and its continuation past it
+   (`+ (v−215)^.93 × .83`), so a sheet stat sits on the same scale `_lgAvg` compares it against:
+   250 → ~116, 350 → ~172. (It is continuous where `en()`'s display curve jumps at 215.) AI attributes
+   stay clamped at 99 on purpose — the team-quality balance (`usQ`/`oppQ`, v76) is tuned on that.
+3. **The accessor.** `_raw(w,k)` reads `w.attrs[k]`; a missing key now answers the man's own OVR,
+   which the normalise turns into league-average — never a constant that drifts with level.
+   `TU("v141Fallback", 0)` restores the flat 45.
+4. **The star floor.** `_starScale` compresses a man's edge over his own unit's peers once his OVR is
+   10+ above them (always, past year one), to a position floor: QB/OL .55, S .40, WR .36, TE .32,
+   CB .28, LB .27, RB .18, DL 1. `TU("starFloorMinV141", .6)` is the lowest any position may sit.
+5. **The normalise.** `_(w,k)` = `51 + (adjusted − _lgAvg) × 1.15`, and instead of clamping at 95 it
+   goes through `kneeV141`: above `TU("simKneeV141", 80)` the value eases toward 99 with tail
+   `TU("simKneeTailV141", 22)` (100 → 89, 150 → 94). `makeAgents`' `g()` then adds ±8 jitter and
+   clamps 20–99.
+
+What that buys, measured (`v141check.mjs`): the AI's mean on every agent field is 45–57 at Pee Wee
+and at the DFL alike (it was ~80 / 21 on the nine missing keys); every sheet stat swung 10 → 350
+moves its own agent field by 30+ at both levels; a DFL linebacker at 250 / 350 sims at 60 / 91
+(was 36 / 45), a DFL back at 60 / 88. **Durability** is a FieldSim read now: `dur` on the agent,
+and `durKeepV141(c)` scales how much speed a carrier keeps through a bounce or a stagger
+(`TU("durKeepK", .003)`, ±15% around 50); `injChanceV54`'s `resistMult` keeps falling past resist
+100 (`TU("injResistPastK", .001)` to `TU("injResistFloor", .25)`) where it used to floor at .45.
+
+**The tuning.** Making the nine keys real at every level converges the levels: Pee Wee had been
+playing with superhuman-quick, composed, cannon-armed kids and the DFL with zombies. The DFL's
+passing came off the floor (4.7 → 7.0–7.4 yards per attempt; `equaltalentcheck` had been failing
+its realism band there) and Pee Wee's came down. Two dials carry the re-balance: the AI
+quarterback's throwing bump (`TU("aiQbThrowBumpV141")`) and the composure pivot in the QB panic
+model (`TU("composurePivotV141")`); `scoreneutralcheck.mjs` (Pee Wee) and `equaltalentcheck.mjs`
+(DFL) are the two rows to hold.
+
+Gotchas: `h()`'s tail was a `return`-comma-chain — an edit that turns the chain into statements
+must move the `return` too, or `attrs` becomes the last clause's value and every AI player sheets
+empty (the fallback then hands every man his OVR, uniformly — the field looks plausible and is
+wrong everywhere). `equaltalentcheck.mjs` loads blocks `[0,1,2,3,4,7]`: 5 is the Phaser bundle, 6
+its launcher, 7 the career app with the engine.
+
 ## Screens and their shapes (v73–v75)
 
 Three of the screens below are assembled by a long chain of patch layers, each of
