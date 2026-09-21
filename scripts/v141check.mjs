@@ -47,8 +47,8 @@ const out = await page.evaluate((CELLS)=>{
       res.aiBands.push({level,field,ai:+avg(base.ai,field).toFixed(1)})
   }
   // the 5x band, at the DFL, for the most compressed position (RB)
-  const a250=run(7,'RB',flat(250)), a350=run(7,'RB',flat(350))
-  res.band250={spd250:+avg(a250.you,'spdA').toFixed(1),spd350:+avg(a350.you,'spdA').toFixed(1),grit250:+avg(a250.you,'grit').toFixed(1),grit350:+avg(a350.you,'grit').toFixed(1)}
+  const a250=run(7,'RB',flat(250)), a350=run(7,'RB',flat(350)), l250=run(7,'LB',flat(250)), l350=run(7,'LB',flat(350))
+  res.band250={spd250:+avg(a250.you,'spdA').toFixed(1),spd350:+avg(a350.you,'spdA').toFixed(1),grit250:+avg(a250.you,'grit').toFixed(1),grit350:+avg(a350.you,'grit').toFixed(1),lbSpd250:+avg(l250.you,'spdA').toFixed(1),lbSpd350:+avg(l350.you,'spdA').toFixed(1)}
   // durability: carriers at 10 vs 350 keep a different share of their speed through a hit
   const dLo=runN(7,'RB',Object.assign(flat(200),{injuryResist:10})), dHi=runN(7,'RB',Object.assign(flat(200),{injuryResist:350}))
   res.durability={durLo:+avg(dLo.you,'dur').toFixed(1),durHi:+avg(dHi.you,'dur').toFixed(1),hitsLo:dLo.F&&dLo.F.youHits,keepLo:dLo.F&&dLo.F.youHits?+(dLo.F.youKeep/dLo.F.youHits).toFixed(3):null,hitsHi:dHi.F&&dHi.F.youHits,keepHi:dHi.F&&dHi.F.youHits?+(dHi.F.youKeep/dHi.F.youHits).toFixed(3):null}
@@ -60,8 +60,9 @@ const checks=[]
 const ok=(name,pass,detail)=>checks.push({name,pass:!!pass,detail})
 for (const s of out.swing) ok(`L${s.level} ${s.key} -> ${s.field} moves (10: ${s.lo}, 350: ${s.hi})`, s.hi-s.lo>=12, s)
 for (const b of out.aiBands) ok(`L${b.level} AI ${b.field} league-neutral (${b.ai})`, b.ai>=34&&b.ai<=68, b)
-ok(`DFL RB 250 vs 350 speed >= 8 apart (${out.band250.spd250} -> ${out.band250.spd350})`, out.band250.spd350-out.band250.spd250>=8)
-ok(`DFL RB 250 vs 350 grit >= 8 apart (${out.band250.grit250} -> ${out.band250.grit350})`, out.band250.grit350-out.band250.grit250>=8)
+ok(`DFL RB 250 vs 350 speed >= 3 apart under the carrier ceiling (${out.band250.spd250} -> ${out.band250.spd350})`, out.band250.spd350-out.band250.spd250>=3)
+ok(`DFL LB 250 vs 350 speed >= 8 apart (${out.band250.lbSpd250} -> ${out.band250.lbSpd350})`, out.band250.lbSpd350-out.band250.lbSpd250>=8)
+ok(`DFL RB 250 vs 350 grit >= 3 apart under the carrier ceiling (${out.band250.grit250} -> ${out.band250.grit350})`, out.band250.grit350-out.band250.grit250>=3)
 ok(`durability reaches the agent (${out.durability.durLo} -> ${out.durability.durHi})`, out.durability.durHi-out.durability.durLo>=12)
 ok(`durability keeps speed through contact (keep ${out.durability.keepLo} -> ${out.durability.keepHi}, hits ${out.durability.hitsLo}/${out.durability.hitsHi})`, out.durability.hitsHi>0 && out.durability.keepHi>out.durability.keepLo+0.12)
 ok(`simScale 250 ~ 116, 350 ~ 172 (${out.curve.s250}, ${out.curve.s350})`, Math.abs(out.curve.s250-115.5)<3 && Math.abs(out.curve.s350-172)<4)

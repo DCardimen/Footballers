@@ -16634,7 +16634,7 @@ _lgAvg=(()=>{const g=[...c.us.off,...c.us.def,...c.opp.off,...c.opp.def];return 
 // become the whole game. Compress only the attribute advantage above his own
 // unit's peers; equal teams and ordinary rating gaps remain completely intact.
 /* v141: above the knee the scale eases toward 99 instead of stopping at 95, so the band the 5x wall charges for is visible on the agent */
-/* v141: the ball-carrier positions get a LOWER ceiling (simKneeTopPosV141) — past a ~20-point edge over the tacklers every whiff, hurdle and broken-tackle roll saturates and they stack, and a back at 90 ran for 440 a game. The knee starts 12 under whichever ceiling applies. */
+/* v141: the YOU-PLAYER at a ball-carrier position gets a LOWER ceiling (simKneeTopPosV141) — past a ~20-point edge over the tacklers every whiff, hurdle and broken-tackle roll saturates and they stack, and a back at 90 ran for 440 a game. The knee starts 12 under whichever ceiling applies. */
 kneeV141=(x,pos)=>{const KT=TU("simKneeTopPosV141",{RB:72,WR:76,TE:76}),A=Math.min(TU("simKneeTopV141",99),(pos&&KT[pos])||99),T=TU("simKneeTailV141",22),K=Math.min(TU("simKneeV141",80),A-12);if(x>K)x=K+(A-K)*(x-K)/((x-K)+T);return f(Math.round(x),20,99)},__kneeExportV141=(window.__kneeV141=kneeV141),
 _starUnits=[c.us.off,c.us.def,c.opp.off,c.opp.def],_starUnit=new Map(),
 _starInit=_starUnits.forEach(unit=>unit.forEach(pl=>_starUnit.set(pl,unit))),
@@ -16643,7 +16643,7 @@ _starScale=(w,k)=>{const unit=_starUnit.get(w);if(!unit||unit.length<2)return 1;
 _starPeerRaw=(w,k)=>{const unit=_starUnit.get(w),peers=unit&&unit.filter(pl=>pl!==w);return peers&&peers.length?peers.reduce((sum,pl)=>sum+_raw(pl,k),0)/peers.length:_lgAvg},
 _starOutlier=(unit,pos)=>{if(!unit||unit.length<2)return null;const candidates=unit.filter(pl=>!pos||pl.pos===pos);if(!candidates.length)return null;const player=candidates.reduce((best,pl)=>(Number(pl.ovr)||0)>(Number(best.ovr)||0)?pl:best,candidates[0]),peers=unit.filter(pl=>pl!==player),peerOvr=peers.reduce((sum,pl)=>sum+(Number(pl.ovr)||45),0)/Math.max(1,peers.length),blend=f(((Number(player.ovr)||peerOvr)-peerOvr-8)/10,0,1);return blend>0?{player,blend}:null},
 _starFrontRating=(unit,front)=>{if(!front.length)return 45;const base=front.reduce((sum,pl)=>sum+_(pl,"tackling")+_(pl,"strength"),0)/(front.length*2);return[["S",.12],["LB",.1]].reduce((rating,[pos,weight])=>{const star=_starOutlier(unit,pos);return star?rating+((_(star.player,"tackling")+_(star.player,"strength"))/2-base)*weight*star.blend:rating},base)},
-_=(w,k)=>{const raw=_raw(w,k),scale=_starScale(w,k),peer=scale<.999?_starPeerRaw(w,k):raw,adjusted=peer+(raw-peer)*scale;return kneeV141(51+(adjusted-_lgAvg)*1.15,w&&w.pos)},
+_=(w,k)=>{const raw=_raw(w,k),scale=_starScale(w,k),peer=scale<.999?_starPeerRaw(w,k):raw,adjusted=peer+(raw-peer)*scale;return kneeV141(51+(adjusted-_lgAvg)*1.15,w&&w.you?w.pos:null)},   /* v141: the carrier ceiling is for the you-player — an AI back at Pee Wee sits at 85 by the normalise, and the game was tuned on that */
 Y=(w,k)=>{const g=w.filter(N=>k.includes(N.pos));return g.length?W(g):w[0]},
 ie=w=>w?{O:c.us,D:c.opp}:{O:c.opp,D:c.us},
 pe=w=>w&&w.you,
