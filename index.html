@@ -16634,7 +16634,7 @@ _lgAvg=(()=>{const g=[...c.us.off,...c.us.def,...c.opp.off,...c.opp.def];return 
 // become the whole game. Compress only the attribute advantage above his own
 // unit's peers; equal teams and ordinary rating gaps remain completely intact.
 /* v141: above the knee the scale eases toward 99 instead of stopping at 95, so the band the 5x wall charges for is visible on the agent */
-kneeV141=x=>{const K=TU("simKneeV141",80),T=TU("simKneeTailV141",22);if(x>K)x=K+(99-K)*(x-K)/((x-K)+T);return f(Math.round(x),20,99)},__kneeExportV141=(window.__kneeV141=kneeV141),
+kneeV141=x=>{const K=TU("simKneeV141",80),T=TU("simKneeTailV141",22),A=TU("simKneeTopV141",99);if(x>K)x=K+(A-K)*(x-K)/((x-K)+T);return f(Math.round(x),20,99)},__kneeExportV141=(window.__kneeV141=kneeV141),
 _starUnits=[c.us.off,c.us.def,c.opp.off,c.opp.def],_starUnit=new Map(),
 _starInit=_starUnits.forEach(unit=>unit.forEach(pl=>_starUnit.set(pl,unit))),
 _starScaleDefault={QB:.55,RB:.18,WR:.36,TE:.32,OL:.55,DL:1,LB:.27,CB:.28,S:.4},
