@@ -68,6 +68,22 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
+- `v143 THE TACKLE IS A MOVE, NOT A COLLISION` (in FieldSim, beside `hitGeoV109`) — three decisions
+  taken before any roll and written onto `hit`, so they ride every event the collision emits.
+  `angleQV143` grades the LINE he is on (his motion vs the vector to the carrier's lead point) and
+  **must be frozen on the approach** — at the point of contact the lead point is further off than
+  the carrier and the reading is noise (mean dot .08 vs .63 at the watch window); it is scaled by
+  his own speed so a stationary man in the gap is not punished (v110). `windupV143` is the gather:
+  time NEEDED (tackling, discipline) vs time HAD since entering `windupWatchPxV143` (64px — the
+  commit window alone leaves ~54ms, less than anyone needs). `aimPickV143` chooses LOW / MID / HIGH
+  before the rolls and `AIM_FX_V143` is what each costs — near zero-sum by design, `wrapQ` the
+  counterweight. `style` still answers to `"even"` for mid so the grip, the coast and v86's `tstyle`
+  are untouched. **The aim costs a `Math.random()`, so ON and OFF are different sample paths even
+  under a fixed seed — compare several seeds against the OFF spread, never one run against one run.**
+  `cid` restarts every snap, so key the log per play; and the two selection effects (LOW is chosen
+  against better carriers; the worst-angle bucket is full of easy chase-downs) will invert a naive
+  reading. Kill switch `TU("v143", 0)` restores the old engine including the unspent roll.
+  `window.__V143`; `v143check.mjs`, then `scoreneutralcheck.mjs` (several seeds), `tacklecheck.mjs`
 - `v142 EVERY STAT SAYS WHAT IT DOES` (beside `Le` / `ee`) — an ⓘ next to every attribute on all four
   screens that list them (`Vr`, `un`'s row closure, `pregamePlayerStatsV25`, `tpRowV113`), opening a
   card with a plain line, the player's own value / soft cap / real-world metric, what the stat does
@@ -678,6 +694,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the combine — the drills, the weeks, the board, the leaders tab, the coach's read (v139) | `combinecheck.mjs`, then `v88check.mjs`, `declarecheck.mjs`, `rankcheck.mjs`, `coachcheck.mjs`, `simcheck.mjs`, `v85check.mjs` |
 | the age curve, the endgame nodes, the grade floor, the honors payout, the surname, the bottom nav, the wheel gate, the team-name ideas, the tier rewards, or the carrier's moves (v139) | `agecheck.mjs`, `tiercheck.mjs`, `gatecheck.mjs`, `movecheck.mjs`, then `coachcheck.mjs`, `wheelcheck.mjs`, `v112Dcheck.mjs`, `v136check.mjs`, `honorcheck.mjs`, `scrollcheck.mjs`, `menu-integration-check.mjs`, `emblemcheck.mjs`, `walk.mjs` |
 | the Prestige Vault — the hoard, the spend, the door, the payout, the sprites (v137) | `python3 scripts/build-vault-art.py --proof` (if a cell moved — then LOOK at `art/vault-proof/`), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-vault*` file), then `vaultcheck.mjs`, `honorcheck.mjs`, `v134check.mjs`, `coachcheck.mjs`, `menu-integration-check.mjs`, `v136check.mjs`, `freshcheck.mjs`; `vaultshot.mjs` / `WIDE=1 vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` / `vaultphys.mjs` to look |
+| the tackle itself — the approach angle, the windup, low/medium/high, what each aim costs (v143) | `v143check.mjs`, then `scoreneutralcheck.mjs` (**several seeds, against the OFF spread**), `tacklecheck.mjs`, `jukecheck.mjs`, `creditcheck.mjs`, `v103check.mjs`, `v109C1check.mjs`, `v112Fcheck.mjs`, `renderpathcheck.mjs`, `v86check.mjs` |
 | tackling / contact physics | `tacklecheck.mjs`, `jukecheck.mjs` |
 | the lineage — the son, the surname, the family years, the father on every screen and in the coach's mouth (v136 D) | `v136check.mjs`, then `coachcheck.mjs`, `menu-integration-check.mjs`, `honorcheck.mjs`, `declarecheck.mjs`, `walk.mjs` |
 | when PP is paid — the bank, the settle, the career-end card (v136 C) | `v136check.mjs`, `v134check.mjs`, then `v85check.mjs`, `origincheck.mjs` |

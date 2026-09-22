@@ -2403,6 +2403,66 @@ these strings are quoted from the code that reads the stat, so a retune must upd
 truncated mid-word and the four stats with no entry looked like they did nothing. It is behind
 `TU("aiNoteV142", 0)` now; the card replaced it.
 
+## v143 — the tackle is a move, not a collision
+
+Anchor `v143 THE TACKLE IS A MOVE, NOT A COLLISION` (in FieldSim, beside `hitGeoV109`). Three
+decisions are taken at the top of `contact()`, before any roll, and all three ride `hit` so every
+event the collision emits carries them without threading an argument through nine `emit()` calls.
+
+**The angle — and why it must be taken on the approach.** `angleQV143(d, c, gap)` is the dot product
+of the defender's own unit motion with the unit vector to the carrier's lead point, where the lead
+is the time it will actually take him to cover the gap. Measured at the moment of contact this is
+worthless: he is 16px from the carrier while the lead point is ~48px beyond it, so the dot is
+dominated by the carrier's heading rather than by the line the defender took — measured mean 0.08,
+i.e. noise. Frozen when he enters the watch window it means what it says: measured mean 0.63. So it
+is taken once, at the commit site, and carried on `d._angQV143`. It is scaled by `spdFrac` because a
+man standing in the gap has no angle to get wrong, and v110 deliberately made that defender the most
+in-position one on the field. `angleGoodDotV143` (0.63) is the pivot and is set to the measured mean
+so the term is mean-zero; `d._angDotV143` keeps the RAW dot alongside it, because the weighted number
+folds speed in and is therefore useless for measuring whether the line itself matters.
+
+**The windup.** `windupV143(d, dSpd)` returns `{need, had, set}`. The need is bought with tackling and
+discipline and spent by closing speed; the had is the time since he entered the watch window
+(`windupWatchPxV143`, 64px — from `tackleLaunchDist`'s 30px there are only ~54ms left, and no man
+breaks down in 54ms). Both the clock and the frozen angle are dropped when the carrier gets away
+from him (`windupDropKV143`). `set` is centred on `windupSetMeanV143` (0.41, the measured rate) so
+the term is mean-zero over a game.
+
+**The aim.** `aimPickV143` weights low / mid / high off the height gap (v24's leverage, now a decision
+rather than an outcome), the carrier's speed and power, the space, the defender's discipline, whether
+the contact is from behind, and whether he is set — a rushed man mostly dives. `AIM_FX_V143` is the
+consequence table and is deliberately near zero-sum across the mix the picker produces: the point is
+to change HOW a man is stopped, not how often, and `wrapQ` is the counterweight that pays back the
+evasion bumps low and high hand out. `style` is derived from the aim (`mid` answers to the old name
+`"even"`), so the grip, the coast and v86's `tstyle` are untouched.
+
+**Tuning it, and the trap.** The aim costs a `Math.random()`, so v143 ON and OFF are different sample
+paths even under a fixed seed — seeding makes a run reproducible, not paired. Comparing one seeded
+run of each is therefore meaningless, and the first attempt at it reported a +73% swing in sacks and
+a 13-point swing in field-goal rate that were both pure resampling. The honest instrument is several
+many runs per config — `scoreneutralcheck.mjs` takes `SEED` and `TUNE` for exactly this
+(`SEED=1 TUNE='{"v143":0}' node scripts/scoreneutralcheck.mjs`). v143 was signed off on 12 OFF runs
+against 6 ON runs of 150 games each and a permutation test over all fourteen metrics, not on a
+before/after pair. Beware comparing a 3-run mean to the RANGE of individual runs: that is what makes
+a harmless change look significant, because a mean has its own sampling error and the range does not
+shrink to match it. Two real effects were
+found and tuned out that way: the low aim was 46% of attempts (it used to be the minority case the
+height gap produced) and it is the one that lets a carrier fall forward, which handed the run game
++13%; and narrowing the big stick to the high aim left more contacts able to open a grip, and a grip
+rolls for the ball every tick, which drifted takeaways up. A third was a genuine bug rather than a
+tuning miss: `style` IS the aim now, so the pre-existing `if (style === "high") drive *= 0.35` and
+the aim table's `driveK` were the same rule applied twice and a chest hit suppressed forward progress
+tenfold instead of threefold — caught by `v103check`'s "both of them travel", which is the assertion
+that notices when a grip stops moving. The table owns that multiplier now.
+
+**Reading the outcomes.** Every contact can be reconstructed from the log by the commit id `cid`,
+which rides every event — but `cid` restarts at 1 on every snap, so it must be keyed per play.
+Two selection effects will fool a naive reading: LOW is chosen precisely when the carrier is faster
+or stronger, so it faces better backs and is beaten more whatever it does; and the worst-angle
+bucket is full of chase-downs from behind, which have a poor dot to the lead point AND the largest
+wrap bonus in the game. `v143check.mjs` excludes `behind` and restricts the angle buckets to men who
+were actually running.
+
 ## Screens and their shapes (v73–v75)
 
 Three of the screens below are assembled by a long chain of patch layers, each of

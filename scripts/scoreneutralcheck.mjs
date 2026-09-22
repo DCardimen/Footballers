@@ -2,7 +2,8 @@
 // window.__simGameV2 and prints one JSON row of the numbers the suite is NOT allowed to change
 // (points, plays, yards, completion %, ypc, sacks, turnovers, punts, FGs). Run before and after a
 // change and diff: `GAMES=300 node scripts/scoreneutralcheck.mjs > before.json`.
-// Env: GAMES (default 200), POS (default cycles QB/RB/WR/DL/CB), OUT (write JSON to file), GAME_URL.
+// Env: GAMES (default 200), POS (default cycles QB/RB/WR/DL/CB), OUT (write JSON to file), GAME_URL,
+//      SEED (make the run reproducible), TUNE (RIB_TUNE overrides as JSON, e.g. '{"v143":0}').
 // v109: `snaps` counts the rows that are plays from scrimmage or kicks — the header-like rows (toss, period, warning,
 // timeout) and the try rows (xp, twopt) that v109 added inflate `plays`/`scrim` by design; compare `snaps` to the
 // pre-v109 `scrim` (80.4 ±2 on the 300-game baseline).
@@ -14,6 +15,18 @@ const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
+/* The engine is UNSEEDED, so two runs of this check differ by pure noise — which makes a single
+ * before/after pair meaningless for anything subtle. SEED makes a run reproducible (and TUNE lets a
+ * change be A/B'd against its own kill switch). Note that a change which spends a different number
+ * of random draws still takes a different path through the stream even under a fixed seed: seeding
+ * buys reproducibility, not pairing, so judge a delta against the spread of several seeds rather
+ * than against one run. Both are opt-in; with neither set this behaves exactly as it always did. */
+const TUNE_SN = JSON.parse(process.env.TUNE || '{}')
+if (process.env.SEED || process.env.TUNE) await page.addInitScript(({ t, seed }) => {
+  if (t && Object.keys(t).length) window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, t)
+  if (seed) { let s = seed >>> 0
+    Math.random = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let v = Math.imul(s ^ s >>> 15, 1 | s); v = v + Math.imul(v ^ v >>> 7, 61 | v) ^ v; return ((v ^ v >>> 14) >>> 0) / 4294967296 } }
+}, { t: TUNE_SN, seed: Number(process.env.SEED || 0) })
 const URL = process.env.GAME_URL || 'http://localhost:5173/'
 await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
 await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(2500)   // v109: warm past vite's one-time reload after an edit, like the other checks

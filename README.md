@@ -55,6 +55,42 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v143 — the tackle is a move, not a collision.** A stop resolved in one tick: the committer
+  arrived inside `tackleGrabDist` and `contact()` rolled the whole thing off ratings and a height
+  gap. Three things a real tackle has were missing, and all three are things you can see.
+  **The angle.** `behind` was the only geometry that counted, so a man flying across the carrier's
+  face at forty-five degrees and one breaking down square in front of him rolled identical numbers.
+  `angleQV143` grades the line he is actually on — his own motion against the vector to where the
+  carrier is GOING. It has to be taken on the APPROACH: measured at the collision the lead point is
+  further away than the carrier is and the reading is noise (mean dot 0.08), while frozen when he
+  enters the watch window it is a real signal (0.63). Measured, men at speed with chase-downs
+  excluded: a bad line stops the carrier **54%** of the time, a good one **73%**.
+  **The windup.** A defender who has had time to gather makes the tackle he is supposed to make;
+  one still at a dead sprint is lunging, and a lunge misses. `windupV143` is the time he needs
+  (tackling and discipline buy it, closing speed spends it) against the time he has had. The window
+  opens at 64px, not at the commit — from `tackleLaunchDist` there are only ~54ms left, less than
+  any man needs. SET stops **79%**, RUSHED **58%**.
+  **Low, medium and high.** `style` existed but was a CONSEQUENCE, derived from the height gap after
+  the wrap had landed and read only by the picture. It is a CHOICE now (`aimPickV143`), taken before
+  any roll off the height gap, the carrier's speed and power, the space, and whether he is set — and
+  each aim really is a different tackle. LOW beats speed and cannot be trucked, but gets hurdled
+  (6.1% vs 1.4%) and lets the carrier fall forward (drive 4.8 vs 0.04). MID is the form tackle, the
+  best wrap there is, and the one men mostly make (44% of attempts). HIGH kills forward progress and
+  is the only aim that strips or delivers a big stick, but it is what gets ducked and run through.
+  The aim rides `hit`, so it reaches every event for free and the renderer draws three different
+  dives — a cut is long and flat, a chest hit short and tall.
+  **Score-neutral, measured properly.** The aim costs a `Math.random()`, so ON and OFF take
+  different paths through the stream even under a fixed seed — seeding buys reproducibility, not
+  pairing, and the first single-run comparison reported a +73% swing in sacks and 13 points of
+  field-goal rate that were both pure resampling. Signed off instead on 12 OFF runs against 6 ON
+  runs of 150 games each (2,700 games) with a permutation test: points −2.6% (p=0.31), touchdowns
+  −2.6% (p=0.36), yards −2.1% (p=0.42), plays −0.8% (p=0.55), sacks ±0.0% (p=1.00), turnovers +6%
+  (p=0.41). Nothing is significant after correcting for the fourteen metrics tested; the largest
+  single reading is yards-per-carry at −2.9% (p=0.038, and 1-in-14 at that threshold is expected).
+  `scoreneutralcheck.mjs` takes `SEED` and `TUNE` now so this is repeatable.
+  `TU("v143", 0)` restores the old engine exactly, down to not spending the extra roll.
+  `window.__V143`; `scripts/v143check.mjs` is the gate (20/20).
+
 - **v142 — every stat says what it does.** An ⓘ sits beside every attribute on all four screens
   that list them (the hub's SKILLS sheet, the SKILLS screen, the pregame sheet and the offseason
   board's preview). Tapping it opens a card with a plain-language line, the player's own value, his
