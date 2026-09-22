@@ -55,6 +55,63 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v142 — every stat says what it does.** An ⓘ sits beside every attribute on all four screens
+  that list them (the hub's SKILLS sheet, the SKILLS screen, the pregame sheet and the offseason
+  board's preview). Tapping it opens a card with a plain-language line, the player's own value, his
+  soft cap and that stat's real-world metric, then two sections written off the code that reads it:
+  what it does **on the field** and what it does **through the season**, plus a closing note.
+  The detail is the mechanic, not flavour — v141 put all seventeen on the field, so the card can say
+  that quickness sets reaction time off a 295 ms base at 2.4 ms a point, that catching is worth
+  about a third of a percent of catch probability per point, that vision's read radius starts paying
+  above 75, and that durability does exactly one thing during a play and everything else between
+  them. It also tells you whether the stat is KEY for **your** position, merely counts toward your
+  rating, or is not part of it at all. Closes on the ✕, the backdrop or Escape, and opening it
+  spends nothing. Same pass retired the old `AI_NOTES` append, which glued a thirteen-stat blurb onto
+  each row's one-line `desc`: it pushed the line past its width, so every note read as
+  "…sets your marker's top speed i…" and the four stats it had no entry for looked inert.
+  It is behind `TU("aiNoteV142", 0)`. `window.__V142`; `scripts/v142check.mjs` is the gate.
+
+- **v141 — every stat is on the field.** FieldSim's `makeAgents` asks the engine's attribute
+  accessor for eighteen keys by name, and the you-player's roster entry (`qr()`) carried twelve — one
+  of them under the wrong name (`accel`, asked for as `acceleration`). Nine sheet stats never reached
+  the agent at all: quickness, throwing, vision, jumping, stamina, grit, discipline, ball control and
+  the sustained half of acceleration. The accessor's fallback answered a flat 45 for every man on the
+  field, and the league normalise (`51 + (v − leagueAvgOVR) × 1.15`, clamped 20–95) turned that
+  constant into ~80 at Pee Wee and the 20 floor at the DFL — measured: every DFL quarterback threw
+  as a 21, every DFL defender reacted in 409 ms, every Pee Wee kid was a composed genius, and the
+  AI roster (`h()` in `Wr`) had the same twelve keys, so it was inert for everyone. The twelve that
+  did arrive went through `99·(1−e^(−v/78))`, which puts 250 at 95 and 350 at 98 — three roster
+  points for the hundred sheet points the 5x wall charges — and then through `_starScale`'s
+  position floors (a back kept 18% of his edge over his own peers). A DFL back at 250 and at 350 ran
+  for 59 and 63 yards; a DFL quarterback threw for 78 at every sheet value.
+  Now: `simScaleV141` is the one curve a sheet value takes onto the roster — OVR's own curve below
+  the wall, continued past it (250 → ~116, 350 → ~172) — and `qr()` emits all eighteen keys (the
+  `accel` / `hands` / `power` aliases kept); `h()` generates them for the AI with position bumps
+  (`TU("aiQbThrowBumpV141")` is the quarterback's); the accessor's fallback is the man's OWN OVR,
+  which normalises to league-average rather than a level-dependent constant; the normalise eases
+  through a soft knee to 99 (`kneeV141`: `TU("simKneeV141", 80)` / `TU("simKneeTailV141", 22)`)
+  instead of stopping at 95; no position's star floor sits under `TU("starFloorMinV141", .6)`;
+  durability is a FieldSim read (`dur` — how much speed a carrier keeps through a glancing hit or a
+  stagger, `TU("durKeepK")`) and its injury curve keeps working past 100 (`TU("injResistPastK")`,
+  `TU("injResistFloor")`); the quarterback's composure pivot is `TU("composurePivotV141", 30)`.
+  The you-player at a ball-carrier position gets a LOWER ceiling (`TU("simKneeTopPosV141", {RB:72,
+  WR:76, TE:76})`): past a ~20-point edge over the tacklers every whiff, hurdle and broken-tackle
+  roll saturates and they stack, and a back at 90 ran for 440 a game. Only the you-player — an AI
+  back at Pee Wee sits at 85 by the normalise and the game was tuned on that. The reaction base is
+  a dial (`TU("reactBaseMs", 295)`; it was a bare 340 read against a quickness that sat at 80 for
+  kids and 21 for pros).
+  Measured on the agent, DFL linebacker: 250 → 64 and 350 → 87 (was 36 and 45); a DFL back 63 → 68
+  under his ceiling; the AI at 45–57 at every level on every key. Box scores, DFL, 20 games a cell:
+  a back at 250 / 350 runs for 118 / 190 (was 59 / 63), a receiver 118 / 228 (was 35 / 38), a
+  linebacker 10.7 / 14.6 tackles (was 6.1 / 7.3). The scoreboard: DFL equal-talent total 53.4 (was
+  52.2) with pass yards per attempt 7.0–7.4 (was 4.7, failing the realism band) and completions
+  69–71% (was 60%); Pee Wee score-neutral total 20.9 (was 24.7) with 8.1 yards per attempt (was
+  9.4) and 72% completions (was 74%) — kids no longer throw with an 80 arm, and that is the whole
+  gap; `aiQbThrowBumpV141` and `reactBaseMs` are the dials if it should come back. Kill-switches
+  `TU("v141Keys", 0)` / `TU("v141Fallback", 0)` restore the old roster and the flat 45.
+  `window.__V141`; `scripts/v141check.mjs` is the gate. Same pass:
+  `equaltalentcheck.mjs` loaded script blocks 0–4 and patched a needle that lives in block 7, so it
+  had been throwing before its first game; it loads the engine block again.
 - **v140 — a dead splash, and the one line that caused it.** A career that ended left the save
   sitting on `End of the Road` (or `WELCOME TO THE DFL`), and from then on the game would not boot:
   `ERROR: Uncaught ReferenceError: vaultPayBtnV137 is not defined`, the loading bar stuck, every

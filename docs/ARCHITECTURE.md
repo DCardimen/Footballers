@@ -2305,6 +2305,104 @@ promotion, both lanes, clear) and watches a live run.
   `TU("lookaheadPerYdV96")` per yard). The upgrade sheet's Vision line quotes it ("Read
   radius: 3 yd") in place of the old made-up yards-after-contact figure.
 
+## v141 — every stat is on the field
+
+Anchor `v141 EVERY STAT IS ON THE FIELD` (beside `qr()`, before `Wr`). The pipeline a sheet value
+takes to a FieldSim agent, in order, and where each stat used to die:
+
+1. **The roster entry.** `qr()` maps `o.player.attrs` onto the roster player the engine builds, and
+   `h()` inside `Wr` generates the AI's. Both carried twelve keys (`speed, accel, agility, strength,
+   catching, tackling, awareness, hands, power, coverage, blocking, burst`); `makeAgents` asks the
+   accessor for eighteen (`SIM_KEYS_V111`), and asks for `acceleration`, not `accel`. Every miss fell
+   to the accessor's `|| 45`. Both now emit all eighteen (plus the three old aliases), and the AI's
+   nine new keys get position bumps like the twelve before them.
+2. **The scale.** `qr()` used `99·(1−e^(−v/78))` clamped 5–99, which saturates: 250 → 95, 350 → 98.
+   `simScaleV141(v)` is OVR's own curve below `TU("simWallV141", 215)` and its continuation past it
+   (`+ (v−215)^.93 × .83`), so a sheet stat sits on the same scale `_lgAvg` compares it against:
+   250 → ~116, 350 → ~172. (It is continuous where `en()`'s display curve jumps at 215.) AI attributes
+   stay clamped at 99 on purpose — the team-quality balance (`usQ`/`oppQ`, v76) is tuned on that.
+3. **The accessor.** `_raw(w,k)` reads `w.attrs[k]`; a missing key now answers the man's own OVR,
+   which the normalise turns into league-average — never a constant that drifts with level.
+   `TU("v141Fallback", 0)` restores the flat 45.
+4. **The star floor.** `_starScale` compresses a man's edge over his own unit's peers once his OVR is
+   10+ above them (always, past year one), to a position floor: QB/OL .55, S .40, WR .36, TE .32,
+   CB .28, LB .27, RB .18, DL 1. `TU("starFloorMinV141", .6)` is the lowest any position may sit.
+5. **The normalise.** `_(w,k)` = `51 + (adjusted − _lgAvg) × 1.15`, and instead of clamping at 95 it
+   goes through `kneeV141`: above `TU("simKneeV141", 80)` the value eases toward 99 with tail
+   `TU("simKneeTailV141", 22)` (100 → 89, 150 → 94). `makeAgents`' `g()` then adds ±8 jitter and
+   clamps 20–99.
+
+What that buys, measured (`v141check.mjs`): the AI's mean on every agent field is 45–57 at Pee Wee
+and at the DFL alike (it was ~80 / 21 on the nine missing keys); every sheet stat swung 10 → 350
+moves its own agent field by 30+ at both levels; a DFL linebacker at 250 / 350 sims at 60 / 91
+(was 36 / 45), a DFL back at 60 / 88. **Durability** is a FieldSim read now: `dur` on the agent,
+and `durKeepV141(c)` scales how much speed a carrier keeps through a bounce or a stagger
+(`TU("durKeepK", .003)`, ±15% around 50); `injChanceV54`'s `resistMult` keeps falling past resist
+100 (`TU("injResistPastK", .001)` to `TU("injResistFloor", .25)`) where it used to floor at .45.
+
+**The carrier ceiling.** `kneeV141(x, pos)` takes the position for the YOU-PLAYER only, and
+`TU("simKneeTopPosV141", {RB:72, WR:76, TE:76})` is a lower ceiling for the ball-carrier
+positions (the knee starts 12 under whichever ceiling applies). Measured: at every floor and
+ceiling tried, a back at agent 90 ran for 340–490 a game while the same sheet at 250 ran for
+87–100 — past a ~20-point edge over the tacklers every whiff, hurdle and broken-tackle roll
+saturates and they stack, and the contact model has no diminishing returns on the gap. The
+ceiling holds a 350 back at ~68 (190 a game, 1.9 TD) while a quarterback or linebacker keeps the
+full 60 → 90. It is the you-player's only because an AI back at Pee Wee sits at 85 by the
+normalise (the ±14 raw jitter is wide against a league average of 20) and the game was tuned on
+that; applied to everyone it took Pee Wee scoring from 21 to 16.
+
+**The tuning.** Making the nine keys real at every level converges the levels: Pee Wee had been
+playing with superhuman-quick, composed, cannon-armed kids and the DFL with zombies. The DFL's
+passing came off the floor (4.7 → 7.0–7.4 yards per attempt; `equaltalentcheck` had been failing
+its realism band there; total 52.2 → 53.4, every band passing) and Pee Wee's came down
+(`scoreneutralcheck`: total 24.7 → 20.9, yards per attempt 9.4 → 8.1, completions 74 → 72%, yards
+per carry 5.0 → 5.4). The dials: `TU("reactBaseMs", 295)` (the reaction latency's base, a bare 340
+before, tuned against a quickness that sat at 80 for kids), the AI quarterback's throwing bump
+(`TU("aiQbThrowBumpV141", 18)`) and the composure pivot in the QB panic model
+(`TU("composurePivotV141", 30)`); the acceleration base (`accelBasePerSec`) was tried at 3.6 and
+4.2 and pushed the DFL equal-talent total to the 60 edge, so it stays at 3.0. Two pre-existing
+`equaltalentcheck` failures are untouched: "exact mirrors" (52–54 of 60) and "featured player
+matches team talent" (the 215-everything benchmark player reads 79–85 OVR, not the ~93 the check
+expects).
+
+Gotchas: `h()`'s tail was a `return`-comma-chain — an edit that turns the chain into statements
+must move the `return` too, or `attrs` becomes the last clause's value and every AI player sheets
+empty (the fallback then hands every man his OVR, uniformly — the field looks plausible and is
+wrong everywhere). `equaltalentcheck.mjs` loads blocks `[0,1,2,3,4,7]`: 5 is the Phaser bundle, 6
+its launcher, 7 the career app with the engine.
+
+## v142 — every stat says what it does
+
+Anchor `v142 EVERY STAT SAYS WHAT IT DOES` (beside `Le` / `ee`, in the career-app block).
+
+`STAT_INFO_V142` is one row per attribute: `short` (a plain sentence), `f[]` (what it drives in the
+live play sim), `s[]` (what it drives outside it) and `n` (the closing note). Every key of `Le` must
+have one — `v142check.mjs` fails the build otherwise, so a new attribute cannot ship unexplained.
+
+`statInfoBtnV142(k)` returns the button and is called **during render** by four separate screens:
+`Vr` (the hub's attribute sheet), the `row` closure inside `un` (the SKILLS screen),
+`pregamePlayerStatsV25` and `tpRowV113` (the offseason board's preview). Because a boot-time render
+can call it before the block's top level has finished, it is a **hoisted `function` declaration**
+beside `Le`, never a `window.x = …` assignment — see v140, which is exactly this trap.
+`statInfoV142(k)` builds the card and appends it to `<body>`; `statInfoCloseV142()` removes it and
+unbinds the key handler. Both are also on `window` because the button's `onclick` is an inline
+attribute, but the render path never depends on that.
+
+The card reads the player's live numbers rather than repeating constants: `drSoftCap` for the soft
+cap, `Le[k].metric.fmt` for the real-world figure (mph, reps, Wonderlic), `Ee[pos].w[k]` for whether
+it is KEY for his position, and `UP_GROUPS_V97` for the group label. `statWeightSayV142` is careful
+to say that a stat outside your OVR weights **still works on the field** — the two are different
+questions and conflating them is what made players dump points into the wrong stat.
+
+Writing more rows: keep `short` under about 90 characters (it is the only line a hurried player
+reads), keep each bullet to one mechanic, and say what the engine actually does — the numbers in
+these strings are quoted from the code that reads the stat, so a retune must update them.
+
+**The old `AI_NOTES`** (in the patch layer, near the prestige-recall button) appended a blurb to
+`Le[k].desc` for thirteen of the seventeen stats. The row gives `desc` one line, so every note was
+truncated mid-word and the four stats with no entry looked like they did nothing. It is behind
+`TU("aiNoteV142", 0)` now; the card replaced it.
+
 ## Screens and their shapes (v73–v75)
 
 Three of the screens below are assembled by a long chain of patch layers, each of
