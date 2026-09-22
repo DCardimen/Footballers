@@ -55,6 +55,22 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v142 — every stat says what it does.** An ⓘ sits beside every attribute on all four screens
+  that list them (the hub's SKILLS sheet, the SKILLS screen, the pregame sheet and the offseason
+  board's preview). Tapping it opens a card with a plain-language line, the player's own value, his
+  soft cap and that stat's real-world metric, then two sections written off the code that reads it:
+  what it does **on the field** and what it does **through the season**, plus a closing note.
+  The detail is the mechanic, not flavour — v141 put all seventeen on the field, so the card can say
+  that quickness sets reaction time off a 295 ms base at 2.4 ms a point, that catching is worth
+  about a third of a percent of catch probability per point, that vision's read radius starts paying
+  above 75, and that durability does exactly one thing during a play and everything else between
+  them. It also tells you whether the stat is KEY for **your** position, merely counts toward your
+  rating, or is not part of it at all. Closes on the ✕, the backdrop or Escape, and opening it
+  spends nothing. Same pass retired the old `AI_NOTES` append, which glued a thirteen-stat blurb onto
+  each row's one-line `desc`: it pushed the line past its width, so every note read as
+  "…sets your marker's top speed i…" and the four stats it had no entry for looked inert.
+  It is behind `TU("aiNoteV142", 0)`. `window.__V142`; `scripts/v142check.mjs` is the gate.
+
 - **v141 — every stat is on the field.** FieldSim's `makeAgents` asks the engine's attribute
   accessor for eighteen keys by name, and the you-player's roster entry (`qr()`) carried twelve — one
   of them under the wrong name (`accel`, asked for as `acceleration`). Nine sheet stats never reached

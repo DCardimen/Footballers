@@ -2371,6 +2371,38 @@ empty (the fallback then hands every man his OVR, uniformly — the field looks 
 wrong everywhere). `equaltalentcheck.mjs` loads blocks `[0,1,2,3,4,7]`: 5 is the Phaser bundle, 6
 its launcher, 7 the career app with the engine.
 
+## v142 — every stat says what it does
+
+Anchor `v142 EVERY STAT SAYS WHAT IT DOES` (beside `Le` / `ee`, in the career-app block).
+
+`STAT_INFO_V142` is one row per attribute: `short` (a plain sentence), `f[]` (what it drives in the
+live play sim), `s[]` (what it drives outside it) and `n` (the closing note). Every key of `Le` must
+have one — `v142check.mjs` fails the build otherwise, so a new attribute cannot ship unexplained.
+
+`statInfoBtnV142(k)` returns the button and is called **during render** by four separate screens:
+`Vr` (the hub's attribute sheet), the `row` closure inside `un` (the SKILLS screen),
+`pregamePlayerStatsV25` and `tpRowV113` (the offseason board's preview). Because a boot-time render
+can call it before the block's top level has finished, it is a **hoisted `function` declaration**
+beside `Le`, never a `window.x = …` assignment — see v140, which is exactly this trap.
+`statInfoV142(k)` builds the card and appends it to `<body>`; `statInfoCloseV142()` removes it and
+unbinds the key handler. Both are also on `window` because the button's `onclick` is an inline
+attribute, but the render path never depends on that.
+
+The card reads the player's live numbers rather than repeating constants: `drSoftCap` for the soft
+cap, `Le[k].metric.fmt` for the real-world figure (mph, reps, Wonderlic), `Ee[pos].w[k]` for whether
+it is KEY for his position, and `UP_GROUPS_V97` for the group label. `statWeightSayV142` is careful
+to say that a stat outside your OVR weights **still works on the field** — the two are different
+questions and conflating them is what made players dump points into the wrong stat.
+
+Writing more rows: keep `short` under about 90 characters (it is the only line a hurried player
+reads), keep each bullet to one mechanic, and say what the engine actually does — the numbers in
+these strings are quoted from the code that reads the stat, so a retune must update them.
+
+**The old `AI_NOTES`** (in the patch layer, near the prestige-recall button) appended a blurb to
+`Le[k].desc` for thirteen of the seventeen stats. The row gives `desc` one line, so every note was
+truncated mid-word and the four stats with no entry looked like they did nothing. It is behind
+`TU("aiNoteV142", 0)` now; the card replaced it.
+
 ## Screens and their shapes (v73–v75)
 
 Three of the screens below are assembled by a long chain of patch layers, each of
