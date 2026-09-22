@@ -24,6 +24,7 @@ let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0 }) })   // v144: this check reads night-time pixels — pin the sky and the weather
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
@@ -153,7 +154,10 @@ const S = await page.evaluate(() => {
   const sc = window.__gridironScene, T = window.RIB_TUNE
   const B = () => window.__V112_B()
   const band = () => { const cv = sc._warpCv, g = cv.getContext('2d', { willReadFrequently: true })
-    const st = B().stars, NS = B().nstop
+    /* the sky is what is ABOVE the bowl's own skyline. v144 E draws the far apron's grass in the
+       last few canvas rows before the turf proper — real ground, entirely behind the stands — so
+       scanning down to `nstop` counts lit turf as lit sky. */
+    const st = B().stars, NS = Math.min(B().nstop, B().bowl.top)
     const d = g.getImageData(0, 0, cv.width, NS).data
     let bright = 0, sum = 0, n = 0, lo = 1e9, hi = -1
     for (let y = 0; y < NS; y++) for (let x = 0; x < cv.width; x += 3) {
@@ -175,7 +179,7 @@ ok(S.one.stars && S.one.stars.n > 50, 'the sky is drawn with stars in it', S.one
 ok(S.one.bright > 30, 'and they are there in the canvas, not only in the hook', `${S.one.bright} lit samples above the sky gradient`)
 ok(S.one.bright === S.two.bright, 'a second bake draws exactly the same sky — no static between plays', `${S.one.bright} then ${S.two.bright}`)
 ok(S.one.stars.band[1] <= S.bowlTop + 2, 'the lowest star sits at or above the bowl\'s own skyline — never over the crowd', `floor ${S.one.stars.band[1]} vs bowl top ${S.bowlTop}`)
-ok(S.one.hi <= S.nstop, 'and every lit sample is inside the sky band, above the turf', `lowest lit row ${S.one.hi} of ${S.nstop}`)
+ok(S.one.hi <= S.bowlTop, 'and every lit sample is inside the sky band, above the stands', `lowest lit row ${S.one.hi} of ${S.bowlTop} (turf at ${S.nstop})`)
 ok(S.full.stars.n === 0 && S.full.bright < S.one.bright * 0.4,
   'crank the stadium rig to full and the sky washes out — there is no daylight setting, so the light dial is what governs them',
   `${S.one.bright} -> ${S.full.bright} lit samples`)

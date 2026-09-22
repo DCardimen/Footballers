@@ -25,6 +25,7 @@ let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0 }) })   // v144: this check reads night-time pixels — pin the sky and the weather
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text().slice(0, 200)) })
 page.on('response', r => { if (r.status() >= 400) bad.push(r.status() + ' ' + r.url()) })

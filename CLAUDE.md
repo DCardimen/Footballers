@@ -84,6 +84,39 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   against better carriers; the worst-angle bucket is full of easy chase-downs) will invert a naive
   reading. Kill switch `TU("v143", 0)` restores the old engine including the unspent roll.
   `window.__V143`; `v143check.mjs`, then `scoreneutralcheck.mjs` (several seeds), `tacklecheck.mjs`
+- `v144 A THE AGE OF THE MAN ON THE FIELD` (beside `crowdTier()`) / `v144 C` (the renderer's idle
+  branch) / `v144 D` (`postPadV144`) / `v144 E` (in `warpField`) / `v144 F` (in `sidePylons`) /
+  `v144 H THE GAME IS PLAYED IN WEATHER, AND AT A TIME OF DAY` — the field, the sky, the gap between
+  plays and the age of the man on it. `LIVE_AGE_K_V144` / `liveAgeKV144()` scale every sprite by the
+  LEVEL'S COHORT AGE (52% at Pee Wee, full from 22), resolved once a snap and stamped as
+  `marker._ageKV144`; `placeMarker` folds it into `p.s` so the shadow, the number, the hop, the
+  launch arc and the ball follow for free, and `p.y += 24 * (1 - k) * p.s` keeps his FEET on the row
+  (the container's ground plane is local y=24). **Anything reading a screen distance as sim units
+  must back the scale out** — v118's mesh probe does. The stall watchdog is budgeted against the
+  real play rate now (`watchdogSlowestSpeed`, `postPlayMs`, the play's own delay, published on
+  `__V144.watchdog`): the old `duration * 2 + 4000` was script-ms against a wall clock and at half
+  speed it fired mid-play and cut to the result line. `idleBetweenV144` runs where `update()` used
+  to `return` with no play in hand, so nobody stands frozen between the whistle and the snap (it
+  mills around `P.post.spot`, and uses `this._idleClockV144`, not the marker's `tms`).
+  `postPadV144` puts a blue padded socket round each upright's foot — called from BOTH
+  `drawGoalpostsV87` and `drawUprights`, because the second is the depth-6 kick overlay. The apron
+  runs to the frame on all four sides: the far end draws the rows above the end line, the near end
+  PING-PONGS a band of the art's own apron rows past where the painting stops (grain, no seam, no
+  repeat line) under a partial fade. **Those far apron rows are turf sitting just above `NSTOP`,
+  behind the stands — anything sampling the SKY must stop at the bowl's top, not at `NSTOP`.**
+  `PYL_X_V144` keeps ONE pylon a corner (the goal-line pair; the camera foreshortened the
+  goal-line and end-line pair into one thick marker) with `TU("pylonAllCornersV144", 1)` restoring
+  eight. `bowlTrimV112`'s cut is a closure and adds two RECTANGULAR corner vomitories beside the
+  middle arch. And the weather you can see: `wxV144()` is the one read (`{precip, day}`, cached per
+  FRAME — **the guard must check the cached VALUE, not just the frame number**, or the first bake
+  reads `.day` off `undefined` and `warpField` silently loses the field), `dayMulV144()` the one
+  number every night flourish multiplies by, `wxTickV144` a single retained Graphics in normalised
+  camera space that is deliberately NOT `trackFx`'d (weather does not stop for the whistle), and
+  `daySunA` one flat sheet of sun on the turf, because with the masts down the afternoon field
+  measured darker than the floodlit one. `WX_MODES_V144` / `wxModeSet144` wire it into Settings ›
+  FIELD VIEW like `camModeSet112`; `refreshPersp()` clears `_wxV144` because a click lands between
+  frames. Pinning a look moves nothing the sim reads — `__WX_V79` is the roll. `window.__V144`;
+  `v144check.mjs`
 - `v142 EVERY STAT SAYS WHAT IT DOES` (beside `Le` / `ee`) — an ⓘ next to every attribute on all four
   screens that list them (`Vr`, `un`'s row closure, `pregamePlayerStatsV25`, `tpRowV113`), opening a
   card with a plain line, the player's own value / soft cap / real-world metric, what the stat does
@@ -688,6 +721,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 
 | You changed… | Run |
 |---|---|
+| the sprite scale by age, the stall watchdog, the between-plays shuffle, the goalpost pad, the apron on all four sides, the pylons, the corner tunnels, or the weather and time of day (v144) | `v144check.mjs`, then `v112Bcheck.mjs`, `sidelinecheck.mjs`, `v98check.mjs`, `v99check.mjs`, `v100check.mjs`, `v92check.mjs`, `v102check.mjs`, `crowdcheck.mjs`, `v93check.mjs`, `v86check.mjs`, `v87check.mjs`, `renderpathcheck.mjs`, `v91check.mjs`, `v104check.mjs`, `v105check.mjs`, `v107check.mjs`, `v108check.mjs`, `kitsidecheck.mjs`, `v117check.mjs`, `badgecheck.mjs`, `v109Echeck.mjs`, `scrollcheck.mjs`, `bootviewcheck.mjs`, `walk.mjs`, `shot.mjs` |
 | the ⓘ beside a stat, what a stat's card says, or adding an attribute to the sheet (v142) | `v142check.mjs`, then `bootviewcheck.mjs`, `walk.mjs`, `shot.mjs`, `scrollcheck.mjs`, `capcheck.mjs` |
 | which sheet stats reach the sim, the roster keys, the attribute scale past 250, the star floor, durability in contact (v141) | `v141check.mjs`, then `scoreneutralcheck.mjs` (keep the before row), `equaltalentcheck.mjs`, `creditcheck.mjs`, `statcreditcheck.mjs`, `v117check.mjs`, `simcheck.mjs`, `injurycheck.mjs` |
 | anything at the TOP LEVEL of the career block, the boot, or a function a rendered screen calls by bare name (v140) | `bootviewcheck.mjs`, then `splashcheck.mjs`, `walk.mjs`, `vaultcheck.mjs`, `menu-integration-check.mjs`, `shot.mjs` |

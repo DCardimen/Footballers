@@ -55,6 +55,59 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v144 — the ground, the sky, the gap between plays, and the age of the man on the field.**
+  Eight things, all of them things you look at.
+  **The pause at the whistle.** When a play finished the renderer had no play in hand, so `update()`
+  returned early and twenty-two men stood perfectly still until the next snap built — then sprinted
+  to the line. `idleBetweenV144` runs in that gap: each man picks a loose spot near where the ball
+  was spotted (`P.post.spot`, so the mill is around the new line and not the old one), walks to it
+  at `idleShuffleSpeed`, waits a random beat and picks another. Measured at under 120px a second
+  across four separate gaps — a shuffle, not a run.
+  **The play that fast-forwarded to its own result.** At half speed a long handoff play would cut to
+  the yardage line without showing the run. The stall watchdog was budgeted as
+  `script.duration * 2 + 4000` — in SCRIPT milliseconds, against a clock running at
+  `basePlayRate * speed`. At 0.5× a 3.6s script with a 1.3s delay and the post-play gather really
+  takes ~30s of wall clock and the watchdog fired at 24s, calling `complete()` mid-play. It is
+  budgeted against the real rate now (`watchdogSlowestSpeed`, `postPlayMs`, the play's own delay)
+  and published on `window.__V144.watchdog`, and the check asserts the budget beats the slowest
+  speed the game offers.
+  **The uprights stand in something.** `postPadV144` wraps a blue padded socket round each post's
+  foot, drawn from the post's own base and scale so it follows the projection, in the field pass and
+  in the field-goal overlay both (depth 6 — without the second call it vanished for the whole kick).
+  **Grass on all four sides.** The two long sides always bled turf to the frame edge; the two ENDS
+  did not. North, `if (target <= 0) continue` threw away every row above the far end line, so the
+  five yards of apron the art paints beyond that end zone were never drawn and the stands sat
+  straight on the end line. South, the painting simply stopped and fell into black. North draws the
+  real painted apron now; south keeps going by ping-ponging a band of the art's own apron rows —
+  real grass with real grain, so there is no seam where the continuation starts and no repeat line
+  where a wrap would have jumped back — and recedes under a partial darkening instead of a wall.
+  **One pylon a corner.** There were eight, which is what the real game uses, but the goal-line
+  pylon and the end-line pylon behind it are eleven yards apart in depth and the broadcast camera
+  foreshortened them into one doubled, thick-looking marker at every corner. The goal-line pair
+  stays — they mark the plane the ball has to cross. `TU("pylonAllCornersV144", 1)` restores eight.
+  **Two more tunnels.** `bowlTrimV112`'s entrance cut is a closure now, so the middle arch is joined
+  by a rectangular vomitory in each upper corner of the far bowl, facing the corners of the field,
+  with strokes on the jambs.
+  **Weather, and a time of day.** The sim has rolled rain, wind, snow or clear since v79 and it
+  really does move the passing, the kicking and the fumble rolls — but the only thing that ever
+  SHOWED it was the sideline swapping towels for ponchos. `wxV144()` is the one read (resolved once
+  a frame and cached, because the sky bake, the lamps and the particle layer all ask): rain and snow
+  are a retained Graphics of drops in normalised camera space, so they ride the zoom, the handover
+  cut and the shake for free, and they do not stop for the whistle. A sunny afternoon takes the sky
+  to blue, the stars out, the lamps and their pools down to `dayLampMulV144`, most of the vignette
+  off — and lays one flat sheet of sun across the whole turf, because with the four masts down the
+  afternoon field was otherwise DARKER than the floodlit one. Settings › FIELD VIEW carries the
+  five options (Auto is the week's own roll); pinning one moves nothing the sim reads.
+  **The age of the man on the field.** An eight-year-old's game was a pro game with the names
+  changed. `LIVE_AGE_K_V144` scales every sprite by the level's own cohort age — 52% at Pee Wee,
+  99% by the declare, full in the DFL — read ONCE a snap and stamped on the marker rather than
+  looked up twenty-two times a frame. The scale rides `p.s`, so the shadow, the jersey number, the
+  tackle hop, the launch arc and the ball in his hand all follow for free; the shrink comes off the
+  HEAD (the container's ground plane is local y=24), so a smaller man stands on the same grass
+  instead of sinking into it. The one place it had to be backed out is the v118 mesh probe, which
+  reads a screen distance as sim units.
+  `v144check.mjs` is the gate (42 assertions).
+
 - **v143 — the tackle is a move, not a collision.** A stop resolved in one tick: the committer
   arrived inside `tackleGrabDist` and `contact()` rolled the whole thing off ratings and a height
   gap. Three things a real tackle has were missing, and all three are things you can see.
