@@ -3084,6 +3084,95 @@ window.__visionRadiusV96 = visionRadiusV96;
      * defender came from (+1 below him on screen, −1 above — the grip's own convention).
      * Cosmetic: nothing here feeds an outcome. */
     let commitSeqV109 = 0;
+    /* ===== v143 THE TACKLE IS A MOVE, NOT A COLLISION =====
+     * A stop resolved in one tick: the committer arrived inside `tackleGrabDist` and `contact()`
+     * rolled the whole thing off ratings and a height gap. Three things a real tackle has were
+     * missing, and all three are things a viewer can see.
+     *
+     * THE ANGLE. `behind` was the only geometry that counted (a dot product over .55), so a man
+     * flying across the carrier's face at forty-five degrees and one breaking down square in front
+     * of him rolled identical numbers. `angleQV143` grades the line he is actually on: his own
+     * motion against the unit vector to where the carrier is GOING — the same lead point the
+     * pursuit code aims at. On the intercept is +1, across it 0, over-running it negative. It is
+     * scaled by how fast HE is moving, because a man standing in the gap has no angle to get
+     * wrong; v110 made that defender the most in-position one on the field and this must not undo
+     * it. `angleGoodDotV143` is the pivot, set to the measured mean so the term is mean-zero.
+     *
+     * THE WINDUP. A defender who has had time to gather — to break down and sink his hips — makes
+     * the tackle he is supposed to make; one still at a dead sprint is lunging, and a lunge misses.
+     * `windupV143` is the time he NEEDS (tackling and discipline buy it, closing speed spends it)
+     * against the time he has HAD since he entered the commit window. SET or RUSHED is the one
+     * boolean the rolls read, centred on `windupSetMeanV143`.
+     *
+     * LOW / MEDIUM / HIGH. `style` existed but was a CONSEQUENCE — derived from the height gap
+     * after the wrap had already landed, and read only by the picture. It is a CHOICE now
+     * (`aimPickV143`), taken before any roll, off the height gap, the carrier's speed and power,
+     * the space, and whether he is set. Each aim is then really a different tackle:
+     *   LOW  — at the legs. Beats speed, cannot be trucked or stiff-armed, but a springy back
+     *          hurdles it, there is no ball to attack, and the carrier falls FORWARD over the top.
+     *   MID  — the form tackle. The best wrap there is and no way for it to go badly wrong.
+     *   HIGH — at the chest and the ball. Kills forward progress and is the only aim that strips or
+     *          delivers a big stick, but it is what gets ducked, stiff-armed and run through.
+     * `AIM_FX_V143` is deliberately near zero-sum across the aim mix, so the stop RATE holds while
+     * the WAY men are stopped changes; `scoreneutralcheck.mjs` is what proves that.
+     * The aim rides `hit`, so it reaches every event the collision emits for free.
+     * `window.__V143`; `v143check.mjs`, then `scoreneutralcheck.mjs`, `tacklecheck.mjs`. */
+    const V143 = root.__V143 = root.__V143 || { aim: { low: 0, mid: 0, high: 0 }, set: 0, rushed: 0,
+      angSum: 0, angN: 0, angRaw: 0, wuNeed: 0, wuHad: 0, res: {} };
+    /* Measured on the APPROACH and frozen, not at the collision: by the time he is 16px away he
+     * has already arrived, the lead point is further from him than the carrier is, and the dot
+     * product is dominated by the carrier's own heading rather than by the line the defender took
+     * (measured: a mean of 0.08, i.e. pure noise). The angle you took is decided on the way in, so
+     * it is taken once — when he enters the watch window — and carried on `d._angQV143`. The lead
+     * is the time it will actually take him to get there, not a fixed fifth of a second. */
+    const angleQV143 = (d, c, gap) => {
+      const mvl = Math.hypot(d._dx || 0, d._dy || 0);
+      const spdFrac = cl((d.vel || 0) / Math.max(.05, TU("angleFullVelV143", .55)), 0, 1);
+      if (mvl < .05 || spdFrac < .04) return 0;                 // not moving: judged on position, not on a line
+      const closing = Math.max(TU("angleMinClosePxV143", 70), (d.vel || 0) * d.spd);
+      const lead = cl((gap || 30) / closing, TU("angleLeadMinV143", .04), TU("angleLeadMaxV143", .40));
+      let ax = (c.lx + (c._dx || 0) * c.spd * lead) - d.lx, ay = (c.y + (c._dy || 0) * c.spd * lead) - d.y;
+      const al = Math.hypot(ax, ay); if (al < .25) return 0;
+      const dot = ((d._dx || 0) / mvl) * (ax / al) + ((d._dy || 0) / mvl) * (ay / al);
+      V143.angRaw += dot; V143.angN++;
+      d._angDotV143 = +dot.toFixed(3); d._angSpdV143 = +spdFrac.toFixed(3);
+      return cl((dot - TU("angleGoodDotV143", .63)) / TU("angleSpanV143", .30), -1, 1) * spdFrac;
+    };
+    const windupV143 = (d, dSpd) => {
+      const need = cl(TU("windupBaseMsV143", 150) - (d.tkl - 50) * TU("windupTklKV143", 1.1)
+        - (d.disc - 50) * TU("windupDiscKV143", .7)
+        + Math.max(0, dSpd - TU("windupSpdRefV143", 150)) * TU("windupSpdKV143", .35),
+        TU("windupMinMsV143", 40), TU("windupMaxMsV143", 320));
+      const had = d._closeV143 != null ? (t - d._closeV143) : 0;
+      return { need: Math.round(need), had: Math.round(had), set: had >= need };
+    };
+    /* what each aim is worth. Near zero-sum across the mix the picker actually produces — the
+     * point is to change HOW a man is stopped, not how often. `wrapQ` is the counterweight: the
+     * evasion bumps high and low hand out are paid back by a better wrap when the aim is right. */
+    const AIM_FX_V143 = {
+      low:  { whiff: -.015, hurdle: +.07, stiff: -.04, truck: -.07, bounce: +.01, wrapQ: +5, driveK: 1.00, strip: 0,    stick: 0 },
+      mid:  { whiff: -.010, hurdle: -.02, stiff: -.01, truck: -.02, bounce: -.02, wrapQ: +7, driveK: 1.00, strip: .45, stick: .6 },
+      high: { whiff: +.030, hurdle: -.06, stiff: +.035, truck: +.10, bounce: +.04, wrapQ: -3, driveK: .35,  strip: 1.25, stick: 1.3 }
+    };
+    const AIM_OFF_V143 = { whiff: 0, hurdle: 0, stiff: 0, truck: 0, bounce: 0, wrapQ: 0, driveK: 1, strip: 1, stick: 1 };
+    const aimPickV143 = (d, x) => {
+      let wLow = TU("aimLowBaseV143", 1), wMid = TU("aimMidBaseV143", 2.0), wHigh = TU("aimHighBaseV143", 1);
+      const lv = cl(x.lev, -8, 8), K = TU("aimLevKV143", .09);
+      wHigh *= 1 + lv * K; wLow *= 1 - lv * K;                  // v24's leverage, as a decision rather than an outcome
+      const fast = cl((x.cSpd - x.dSpd) / TU("aimSpdRefV143", 60), -1, 1);
+      wLow *= 1 + Math.max(0, fast) * TU("aimFastLowKV143", .55);
+      wHigh *= 1 - Math.max(0, fast) * TU("aimFastHighKV143", .5);
+      const pow = cl((x.cStr - x.dStr) / TU("aimPowRefV143", 30), -1, 1);
+      wHigh *= 1 - Math.max(0, pow) * TU("aimPowHighKV143", .6);
+      wLow *= 1 + Math.max(0, pow) * TU("aimPowLowKV143", .4);
+      if (!x.set) { wLow *= TU("aimRushLowKV143", 1.4); wMid *= TU("aimRushMidKV143", .55); wHigh *= TU("aimRushHighKV143", .7); }
+      wMid *= 1 + (d.disc - 50) * TU("aimDiscKV143", .006) + (x.openField ? TU("aimOpenMidKV143", .25) : 0);
+      if (x.behind) { wHigh *= TU("aimBehindHighKV143", 1.35); wLow *= TU("aimBehindLowKV143", .7); }
+      wLow = Math.max(0, wLow); wMid = Math.max(0, wMid); wHigh = Math.max(0, wHigh);
+      const tot = wLow + wMid + wHigh; if (!(tot > 0)) return "mid";
+      let r = Math.random() * tot;
+      return (r -= wLow) < 0 ? "low" : (r -= wMid) < 0 ? "mid" : "high";
+    };
     const hitGeoV109 = (d, c, dMom, cMom) => {
       let nx = c.lx - d.lx, ny = c.y - d.y; const nl = Math.hypot(nx, ny);
       if (nl < 0.25) { nx = c._dx || (c.side === "off" ? 1 : -1); ny = c._dy || 0; } else { nx /= nl; ny /= nl; }
@@ -3097,7 +3186,9 @@ window.__visionRadiusV96 = visionRadiusV96;
     const bobbleV109 = (c, hit) => {
       if (hit.impact < TU("bobbleImpact", 40)) return;
       const bcK = cl((TU("bobbleBcPivot", 75) - (c.bc || 50)) / TU("bobbleBcDiv", 25), TU("bobbleBcMin", .3), TU("bobbleBcMax", 1.8));
-      if (Math.random() < TU("bobbleP", .12) * bcK)
+      /* v143: a hit aimed at the chest jars the ball; one aimed at the shoelaces does not */
+      const aimBobK = !TU("v143", 1) ? 1 : hit && hit.aim === "high" ? TU("bobbleAimHighKV143", 1.35) : hit && hit.aim === "low" ? TU("bobbleAimLowKV143", .5) : 1;
+      if (Math.random() < TU("bobbleP", .12) * bcK * aimBobK)
         emit("ballLoose", { who: c.id, x: c.lx, y: c.y, ms: TU("bobbleMs", 260), secured: true, cid: hit.cid, impact: hit.impact, side: hit.side });
     };
     /* v109 THE GANG CONVERGES — the instantaneous tackle collected `supIds` for credit and never
@@ -3191,6 +3282,25 @@ window.__visionRadiusV96 = visionRadiusV96;
       // evasion after the first cuts the next one's odds; a back does not shake
       // the whole defence one at a time, and the swarm is arriving by then.
       const soloK = (handsOn <= 0 && kind === "run" ? TU("soloEvadeK", 1.0) : 1) * Math.pow(TU("evadeRepeatK", .6), Math.max(0, (c._evades||0) - 1));
+      /* v143: the three decisions, all taken BEFORE the first roll — the line he is on, whether he
+       * got his feet under him, and where he is aiming. `aim` is written onto `hit`, so it rides
+       * every event this collision emits without threading it through nine emit() calls. */
+      const onV143 = !!TU("v143", 1);
+      const angQ = onV143 && d._angQV143 != null ? d._angQV143 : 0;   // frozen on the approach (the commit site)
+      const wu = onV143 ? windupV143(d, dSpd) : { need: 0, had: 0, set: true };
+      /* the aim costs a roll, so with v143 off it is never taken and the random stream stays
+       * bit-identical to the pre-v143 engine — which is the only way the two are comparable */
+      const aim = onV143 ? aimPickV143(d, { lev, cSpd, dSpd, cStr, dStr, set: wu.set, openField, behind })
+                         : (lev > 1.5 ? "high" : lev < -1.5 ? "low" : "mid");
+      const afx = onV143 ? (AIM_FX_V143[aim] || AIM_FX_V143.mid) : AIM_OFF_V143;
+      const setQ = onV143 ? ((wu.set ? 1 : 0) - TU("windupSetMeanV143", .41)) : 0;       // centred: the term is mean-zero over a game
+      if (onV143) {
+        hit.aim = aim; hit.angQ = +angQ.toFixed(3); hit.set = wu.set;
+        hit.angDot = d._angDotV143 != null ? d._angDotV143 : null; hit.angSpd = d._angSpdV143 != null ? d._angSpdV143 : null;
+        V143.aim[aim]++; wu.set ? V143.set++ : V143.rushed++;
+        V143.angSum += angQ; V143.wuNeed += wu.need; V143.wuHad += Math.min(wu.had, 900);
+        emit("tackleWindup",{who:d.id, carrier:c.id, x:d.lx, y:d.y, aim, set:wu.set, need:wu.need, had:Math.min(wu.had,900), angQ:hit.angQ});
+      }
       emit("tackleLunge",{who:d.id, carrier:c.id, x:c.lx, y:c.y, behind, dMom:Math.round(dMom), cMom:Math.round(cMom), ...hit});   // v109: `cid` is echoed by the event that resolves this commit
       // v30 fatigue: collisions cost real gas on BOTH sides — a back who absorbs six
       // hits finishes the game on heavier legs than one who ran untouched.
@@ -3199,7 +3309,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       // 1) WHIFF — an elusive back makes him miss in space (never from behind).
       // Steeper gap term + a high (never-100%) ceiling so a huge mismatch shows:
       // even ≈26% open, star-vs-weak ≈70%, generational-vs-scrub ≈78%, floor ≈2%.
-      const whiffP = cl(TU("whiffBaseV139", .12) + (elus - d.tkl)*0.008 + (openField?0.10:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006, 0.02, 0.72) * (1 - swarmChoke) * soloK;
+      const whiffP = cl(TU("whiffBaseV139", .12) + (elus - d.tkl)*0.008 + (openField?0.10:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006
+        + afx.whiff * TU("aimFxV143", 1) - angQ * TU("angleWhiffKV143", .07) - setQ * TU("windupWhiffKV143", .10), 0.02, 0.72) * (1 - swarmChoke) * soloK;
       /* v139: the rate is a dial now but its default is exactly what it always was. Raising it
        * lengthens plays, which grows v109C1check's sample, and that check asserts PERFECTION over
        * a stochastic sample (it fails 1-of-N on main too). The visible answer to "more whiffed
@@ -3243,7 +3354,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       // 1.5) HURDLE — a springy carrier leaps clean OVER a low tackle attempt.
       // Driven by jumping + agility vs the tackler's wrap skill; open field helps,
       // never works from behind. The carrier sails over and keeps his momentum.
-      const hurdleP = (behind ? 0 : cl(0.03 + ((c.jump*0.6 + c.agi*0.4) - d.tkl)*0.006 + (openField?0.07:0) + Math.max(0,-lev)*0.005, 0.02, 0.38)) * (1 - swarmChoke) * soloK;
+      const hurdleP = (behind ? 0 : cl(0.03 + ((c.jump*0.6 + c.agi*0.4) - d.tkl)*0.006 + (openField?0.07:0) + Math.max(0,-lev)*0.005
+        + afx.hurdle * TU("aimFxV143", 1), 0.02, 0.38)) * (1 - swarmChoke) * soloK;
       if (Math.random() < hurdleP) {
         d.beaten = t + 560; d.cool = t + 480; c.burstUntil = t + 380; kickSprint(c);
         c.vel = Math.max(0,(c.vel||0)*0.98);
@@ -3257,7 +3369,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       // attack. Works even at low speed (unlike a truck), not from behind. The
       // defender is shoved off and stumbles; the runner is slowed a touch, keeps going.
       const armEdge = (cStr - dStr) + (c.str - 50)*0.45;
-      const stiffP = (behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005, 0, 0.5)) * (1 - swarmChoke) * soloK;
+      const stiffP = (behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005
+        + afx.stiff * TU("aimFxV143", 1), 0, 0.5)) * (1 - swarmChoke) * soloK;
       if (Math.random() < stiffP) {
         d.beaten = t + 520; d.stagger = t; c.vel = Math.max(0,(c.vel||0)*0.95); c.burstUntil = t + 300; kickSprint(c);
         c._evades = (c._evades||0) + 1; emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y, ...hit, armEdge: Math.round(armEdge)});   // v109: which arm, and how far he shoved him
@@ -3273,7 +3386,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       const cFaster = cSpd > dSpd, cStronger = cStr > dStr;
       const powerEdge = (cMom - dMom)*0.85 + (cStr - dStr)*0.5;
       const bothWin = cFaster && cStronger && !behind;
-      let truckP = cl(0.16 + powerEdge*0.011 + (behind?-0.09:0) + Math.max(0,lev)*0.006, 0.02, 0.72);
+      let truckP = cl(0.16 + powerEdge*0.011 + (behind?-0.09:0) + Math.max(0,lev)*0.006
+        + afx.truck * TU("aimFxV143", 1), 0.02, 0.72);
       if (bothWin) truckP = cl(truckP + 0.22 + (cSpd - dSpd)*0.006, 0.05, 0.90);
       truckP *= (1 - swarmChoke) * soloK;                          // v25: you don't truck THROUGH a gang
       if (Math.random() < truckP) {
@@ -3303,13 +3417,15 @@ window.__visionRadiusV96 = visionRadiusV96;
       // angle, or a well-balanced runner). He grazes the carrier, costing him a step,
       // and stumbles himself — the arm-tackle that only slows the runner down. Bumps
       // matter: a staggered carrier bleeds speed and is easier to bring down next hit.
-      const wrapQ = d.tkl*0.62 + (dMom>cMom?14:0) + (behind?22:0);
+      const wrapQ = d.tkl*0.62 + (dMom>cMom?14:0) + (behind?22:0)
+        + afx.wrapQ * TU("aimFxV143", 1) + angQ * TU("angleWrapKV143", 9) + setQ * TU("windupWrapKV143", 10);
       const balance = c.str*0.4 + c.agi*0.35 + (c.burst||c.spdA||50)*0.25;
       // v82 3.5) BOUNCE — a glancing hit from the side: the carrier absorbs it and keeps
       // his feet while the tackler goes to the ground reaching. Balance against the wrap,
       // and the ANGLE of the hit, decide it. Distinct from a stagger, where both stay up.
       const glancing = !behind && Math.abs(d._dy||0) > TU("glancingDy", .7);
-      const bounceP = cl(TU("bounceBase", .02) + (balance - wrapQ)*0.004 + (glancing ? TU("glancingBonus", .04) : 0) - (c._staggered&&t-c._staggered<500?0.05:0), 0.01, 0.3) * (1 - swarmChoke) * soloK;
+      const bounceP = cl(TU("bounceBase", .02) + (balance - wrapQ)*0.004 + (glancing ? TU("glancingBonus", .04) : 0) - (c._staggered&&t-c._staggered<500?0.05:0)
+        + afx.bounce * TU("aimFxV143", 1) - angQ * TU("angleBounceKV143", .03), 0.01, 0.3) * (1 - swarmChoke) * soloK;
       if (Math.random() < bounceP) {
         d.beaten = t + 520; d.cool = t + 480; d._osUntil = t + TU("overshootMs",420); d._osdx = d._dx||0; d._osdy = d._dy||0;
         c.vel = Math.max(0,(c.vel||0)*0.78*durKeepV141(c)); c._staggered = t;
@@ -3353,8 +3469,12 @@ window.__visionRadiusV96 = visionRadiusV96;
       // v25 tackle GEOMETRY by height: a HIGH tackle (taller man, hits the chest) rides
       // the carrier down and they FALL TOGETHER on the spot; a LOW tackle (shoestring)
       // trips him and both tumble APART, carried by their own momentum.
-      const style = lev > 1.5 ? "high" : lev < -1.5 ? "low" : "even";
-      const bigStick = !gang && collEdge > TU("bigStickEdge",1.6) && dMom > cMom + 44 && dSpd > d.spd*0.82;  // rare violent stop
+      /* v143: the style is the aim he CHOSE (the height gap is one of the things that chose it),
+       * not a label read off `lev` after the fact. "even" is kept as the name mid answers to, so
+       * every downstream reader — the grip, the coast, v86's tstyle — is untouched. */
+      const style = aim === "mid" ? "even" : aim;
+      const bigStick = !gang && collEdge > TU("bigStickEdge",1.6) && dMom > cMom + 44 && dSpd > d.spd*0.82
+        && (!onV143 || afx.stick >= TU("stickAimMinV143", 1));    // v143: only a man who went in high delivers one
       // v30: both men hit the turf only when the collision is genuinely even — a high
       // wrap where the defender clearly won the point is a controlled ride-down, and a
       // dominant wrap (stayUp) leaves the tackler ON HIS FEET over the runner, the way
@@ -3371,8 +3491,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       // v29: a genuinely powerful carrier CHURNS a pile forward — leg drive through the
       // group push earns extra ground exactly when strength wins the pileEdge contest.
       if (gang && pileEdge < 0) drive = cl(drive + (-pileEdge)*TU("pileDriveK",7), 0, TU("pileDriveMax",11));   // v41: piles churn, but they don't carry into the paint
-      if (style === "high") drive *= 0.35;                          // fall together, minimal forward slide
-      else if (style === "low") drive = cl(drive + cMom*0.03 + Math.max(0, cSpd - dSpd)*0.04, 0, 16);   // momentum stumble
+      if (style === "low") drive = cl(drive + cMom*0.03 + Math.max(0, cSpd - dSpd)*0.04, 0, 16);   // momentum stumble
+      drive = cl(drive * afx.driveK, 0, 16);                       // v143: the aim owns how much of it survives (high was 0.35 before v143 and still is)
       if (drive > 0.5) { c._drive = drive; c._drivedx = c._dx!=null?c._dx:(c.side==="off"?1:0); c._drivedy = c._dy||0; }
       // YOU are "in on it" only when the stop is actually assisted AND you are one
       // of the supporting wrappers — standing near the pile is not participation
@@ -3396,7 +3516,7 @@ window.__visionRadiusV96 = visionRadiusV96;
         const gripMs = cl(TU("gripBaseMs", 130) - collEdge * TU("gripEdgeMs", 130)
           + Math.max(0, c.grit - 50) * TU("gripGritMs", 1.5) + Math.max(0, cMom - dMom) * TU("gripMomMs", .45),
           TU("gripMinMs", 90), TU("gripMaxMs", 340));
-        c._grip = { by: d.id, t0: t, ms: gripMs, x0: c.lx, y0: c.y, style, gang, kb, drive, collEdge,
+        c._grip = { by: d.id, t0: t, ms: gripMs, x0: c.lx, y0: c.y, style, aim, gang, kb, drive, collEdge,
           handsOn, sup: supIds.slice(), nSupport, pileEdge, dMom, cMom, behind, lev, stayUp, bothFall,
           bigStick, side: (d.y >= c.y ? -1 : 1), joined: [], strip: false, strain: false, hc: false,
           openField, gangRolled: false,
@@ -3413,6 +3533,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       // v112: and a carrier STUCK this hard leaves his feet — the flight rides the same kb the
       // whistle coast is about to carry him back along, so the spot is untouched
       const flyT112 = launchV112({ fly: c.lb, by: d.lb, impact: hit.impact, strEdge: dStr - cStr, kb, stick: bigStick, lev: -lev, behind, hands: handsOn + nSupport });
+      (V143.res[aim] = V143.res[aim] || { n: 0, drive: 0, stick: 0 }).n++;
+      V143.res[aim].drive += drive; if (bigStick) V143.res[aim].stick++;
       emit("tackle",{tackler:d.id, carrier:c.id, x:c.lx, y:c.y, gang, bigHit: bigStick||kb>11, bothFall, stayUp, kb:Math.round(kb), drive:Math.round(drive), sup:supIds, youIn, style, hitStick: bigStick, handsOn, ...hit,
         ...(flyT112 ? { flyWho: c.id, flyVz: flyT112.vz, flyPow: flyT112.pow } : null)});
       return "tackle";
@@ -4790,7 +4912,9 @@ window.__visionRadiusV96 = visionRadiusV96;
               const puncher = G.joined.length ? A_all[G.joined[G.joined.length - 1]] : dfd;
               if (puncher) {
                 const exposure = (G.behind ? TU("stripBehindK", 1) : 0) + G.joined.length * TU("stripHandsK", 1.1);
-                const skill = ((puncher.str * .45 + puncher.tkl * .55) - (c.bc * .72 + c.str * .28)) * TU("stripSkillK", .00055);
+                /* v143: hands at the ball or hands at the ankles — a low tackle has no strip in it */
+                const aimStripK = (TU("v143", 1) && c._grip && AIM_FX_V143[c._grip.aim] ? AIM_FX_V143[c._grip.aim].strip : 1);
+                const skill = ((puncher.str * .45 + puncher.tkl * .55) - (c.bc * .72 + c.str * .28)) * TU("stripSkillK", .00055) * aimStripK;
                 const pPerTick = cl((TU("stripBase", .024) + exposure * TU("stripExposeK", .006) + skill), 0, TU("stripCap", .05)) * (TICK / 100);
                 if (Math.random() < pPerTick) {
                   G.strip = true;
@@ -5335,6 +5459,17 @@ window.__visionRadiusV96 = visionRadiusV96;
           }
           mv(dfd, dfd._aimX, dfd._aimY, beatenPace);
           const gapNow = Math.hypot(dfd.lx-c.lx, dfd.y-c.y);
+          /* v143: the WATCH WINDOW. The gather and the angle both belong to the approach, so they
+           * open well before the commit — from `tackleLaunchDist` there is only ~54ms left (measured),
+           * which is less than any man needs to break down, and the angle read there is noise. He
+           * loses both if the carrier gets away from him again. */
+          if (gapNow < TU("windupWatchPxV143", 64)) {
+            if (dfd._closeV143 == null || dfd._watchOnV143 !== c.id) {
+              dfd._closeV143 = t; dfd._watchOnV143 = c.id; dfd._angQV143 = angleQV143(dfd, c, gapNow);
+            }
+          } else if (gapNow > TU("windupWatchPxV143", 64) * TU("windupDropKV143", 1.6)) {
+            dfd._closeV143 = null; dfd._watchOnV143 = null; dfd._angQV143 = null;
+          }
           // v19 TACKLE LAUNCH — from ~2 sprite-lengths out (tackleLaunchDist) the
           // committer LEAPS: the dive carries him the last stretch so contact resolves
           // from a real launch into the grab, not a step-in wrap.
@@ -9454,11 +9589,25 @@ class Ot extends mt.Scene {
         const tk = this.markers[this.actorIdx(e.who)];
         if (tk) {
           const L = this.lungeV139(e);   // v139: a man closing at speed leaves his feet; a step-in wrap does not
-          tk.forceState = "dive"; tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + L.ms; tk._launchH = L.h;
-          this.time.delayedCall(L.ms, () => { if (tk.forceState === "dive" && !tk._whiffed) tk.forceState = null; });
+          /* v143: and WHERE he aimed decides the shape of it — a cut block is long and flat along
+           * the ground, a chest hit is short and tall. One number, and the three tackles read as
+           * three different moves from the stands. */
+          const aimK = e.aim === "low" ? TU("lungeLowHKV143", .5) : e.aim === "high" ? TU("lungeHighHKV143", 1.45) : 1;
+          const aimMs = e.aim === "low" ? TU("lungeLowMsKV143", 1.18) : e.aim === "high" ? TU("lungeHighMsKV143", .88) : 1;
+          const Lms = Math.round(L.ms * aimMs);
+          tk.forceState = "dive"; tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + Lms; tk._launchH = L.h * aimK;
+          this.time.delayedCall(Lms, () => { if (tk.forceState === "dive" && !tk._whiffed) tk.forceState = null; });
         }
-        // a whoosh trail sells the launch
-        this.puffFx(e.x, e.y, 2, 0xdfe8ef, 0.38);
+        // a whoosh trail sells the launch — a low dive scrapes up more of it
+        this.puffFx(e.x, e.y, e.aim === "low" ? 4 : 2, 0xdfe8ef, e.aim === "low" ? 0.46 : 0.38);
+        break;
+      }
+      case "tackleWindup": {
+        /* v143: he breaks down before he goes. A man who is SET plants and gathers (a puff at his
+         * feet, the dust of a man sinking his hips); a RUSHED man is still sprinting and gets
+         * nothing — which is the tell that the lunge coming next is a wild one. */
+        // the longer he had to gather, the more he kicks up planting his feet
+        if (e.set) this.puffFx(e.x, e.y, (e.need || 0) > 170 ? 3 : 2, 0xc8d4e0, 0.3);
         break;
       }
       case "hurdle": {
