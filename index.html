@@ -6087,6 +6087,14 @@ const CAM_MODES_V112 = [
   { id: "tight", n: "Tight", d: "Stays close on the ball the whole play. You see the man; you see less of the field.", z: 1.22, tight: 1.45, lead: 0.75, stiff: 1.35 },
   { id: "wide", n: "Wide", d: "Keeps the whole route tree and the pursuit in frame. Barely zooms at all.", z: 0.8, tight: 0.3, lead: 1.25, stiff: 0.85 },
   { id: "fixed", n: "Fixed", d: "The camera never moves — one frame on the line of scrimmage, every play.", z: 1, tight: 0, lead: 0, stiff: 1 },
+  /* ===== v145 THE CAMERA FOLLOWS HIM — two follow cams on the end of the list =====
+   * Appended, never inserted, so a saved `fxCam` index still names the mode it named. `follow`
+   * says WHO the frame is locked to ("me" = the you-player's own marker, "ball" = whoever or
+   * whatever has it), `lock` overrides v109's `camPerspLockK` (1 = his on-screen size held constant
+   * as he runs through the perspective, so the FIELD moves and he does not), `keep` is how far off
+   * dead centre he may drift before the pan drags the field under him. */
+  { id: "me", n: "Follow Me", d: "Locks on YOUR player, snap to whistle. He stays big in the middle of the screen and the field moves under him. Off the field this play? It follows the ball.", z: 1.5, tight: 0, lead: 0.45, stiff: 2.8, follow: "me", lock: 1, keep: 0.12 },
+  { id: "ball", n: "Follow Ball", d: "Locks on the ball — the carrier, the throw, the catch. Players stay big and the field scrolls past.", z: 1.4, tight: 0, lead: 0.6, stiff: 2.2, follow: "ball", lock: 1, keep: 0.14 },
 ];
 try { window.__CAM_MODES_V112 = CAM_MODES_V112; } catch (e) {}
 /* ===== v144 H THE SKY HAS OPTIONS — what Settings offers over the roll =====
@@ -7801,10 +7809,18 @@ class Ot extends mt.Scene {
     if (this.camOffV112() || !P.post || !P.post.camWide) return;
     try { const cam = this.cameras.main, W = P.post.camWide, sp = PJ(P.post.spot.x, P.post.spot.y);
       const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom);
-      const cx = hw >= FW / 2 ? FW / 2 : mt.Math.Clamp(sp.x, hw, FW - hw), cy = mt.Math.Clamp(sp.y - TU("camWhistleRise", 30), hh, WORLD_H - hh);
+      let cx = hw >= FW / 2 ? FW / 2 : mt.Math.Clamp(sp.x, hw, FW - hw), cy = mt.Math.Clamp(sp.y - TU("camWhistleRise", 30), hh, WORLD_H - hh);
       // v112: the WIDE for the gather belongs to the mode too, and the hit's own smaller step out
       // holds in front of it — the tackle reads as its own beat before the frame opens up
       let tz = W.z * this.camModeV112().z;
+      /* v145: a follow cam does not open up for the gather — it holds the size it has been riding,
+       * and FOLLOW ME stays on him wherever the whistle caught him */
+      const MDf = this.camModeV112();
+      if (MDf.follow) {
+        const me = this.camMeV145(P), xb = this.camSideV145(cam); if (me) { cx = hw >= FW / 2 + xb ? FW / 2 : mt.Math.Clamp(me.root.x, hw - xb, FW + xb - hw); cy = mt.Math.Clamp(me.root.y - TU("camWhistleRise", 30), hh, WORLD_H - hh); }
+        if (this._camFollowZV145) tz = Math.max(tz, this._camFollowZV145 * TU("camFollowPostK", 0.94));
+        this.v112E().followPost = (this.v112E().followPost || 0) + 1;
+      }
       P.post._camT = (P.post._camT || 0) + delta;
       const H = this._camHitV112, zs = H ? H.z0 * H.k : 0;
       if (H && P.post._camT < TU("camHitPostMs", 320) && zs > tz) { tz = zs; this.v112E().hitHold++; }
@@ -7822,6 +7838,10 @@ class Ot extends mt.Scene {
    * the frame eases toward where that flight is going to come down, so it ARRIVES with the ball
    * instead of chasing it. `camFocusV112` is the one answer and everything above it reads `kind`. */
   camFocusV112(P, glide) {
+    // v145: FOLLOW ME frames his own marker the whole play, the glide in and the whistle included;
+    // a snap his unit is not on the field for falls through to the ball like every other mode
+    const me = this.camMeV145(P);
+    if (me) return { m: me, id: P.featIdx, x: me.root.x, y: me.root.y, kind: "me" };
     const mode = P.ballMode || "ground";
     const loose = !!P.__looseBall || mode === "loose" || mode === "bounce";
     const air = mode === "flight" || mode === "kick" || mode === "tip";
@@ -7919,6 +7939,21 @@ class Ot extends mt.Scene {
     return L[Math.max(0, Math.min(L.length - 1, Math.round(Number(F.cam) || 0)))];
   }
   camOffV112() { return REDUCED_MOTION || this.camModeV112().id === "fixed"; }
+  /* v145: the camera's side bounds were the painted field's 0..FW, but the near rows PROJECT wider
+   * than that and the turf and the team area are painted ~240 px past it before the page's ground
+   * shows — so a man on the near sideline was a man no pan could reach. A follow cam may run
+   * `camFollowSidePx` past either side (inside the painting); every other mode keeps 0..FW. */
+  camSideV145(cam) {
+    const xb = this.camModeV112().follow ? Math.max(0, TU("camFollowSidePx", 180)) : 0;
+    try { const b = cam._bounds; if (!b || b.x !== -xb || b.width !== FW + 2 * xb) cam.setBounds(-xb, 0, FW + 2 * xb, WORLD_H); } catch (e) {}
+    return xb;
+  }
+  // v145: the you-player's marker, when this mode follows him and he is on the field this snap
+  camMeV145(P) {
+    if (!P || this.camModeV112().follow !== "me") return null;
+    const m = this.markers && this.markers[P.featIdx];
+    return m && m.root && m.team === "you" && m.active !== false ? m : null;
+  }
   camZoomStrV112() { const F = window.__FIELD_FX || {}; const v = F.camZoom == null ? 1 : Number(F.camZoom); return Math.max(0, Math.min(2, Number.isFinite(v) ? v : 1)); }
   /* Nothing v112 does may open the frame wider than the picture the FIELD VIEW dials already set:
    * the floor and the ceiling are read off the reset zoom itself, so the Field-zoom slider keeps its
@@ -7926,7 +7961,10 @@ class Ot extends mt.Scene {
    * stop at the edge of the painted field instead of past it. */
   camZoomFitV112(z) {
     const base = (((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16)) * TU("perspZoomK", 0.78);
-    return Math.min(base * TU("camZoomCeilK", 3), Math.max(base * TU("camZoomFloorK", 0.862), z));
+    // v145: a follow cam holds his size as he runs deep, which needs more room at the top than the
+    // broadcast's ceiling allows — the floor, which is what keeps the frame on the painted field, is untouched
+    const ceil = this.camModeV112().follow ? TU("camFollowCeilK", 4.6) : TU("camZoomCeilK", 3);
+    return Math.min(base * ceil, Math.max(base * TU("camZoomFloorK", 0.862), z));
   }
   v112E() {
     return window.__V112_E = window.__V112_E || { mode: "", zoomStr: 1, frames: 0, focus: {}, dist: {},
@@ -8095,7 +8133,7 @@ class Ot extends mt.Scene {
     // Madden-style follow camera: track the ball with look-ahead, wider on big plays
     try {
       const cam = this.cameras.main;
-      if (this.camOffV112()) { const VF = this.v112E(); VF.fixedFrames++; VF.mode = this.camModeV112().id; }
+      if (this.camOffV112()) { const VF = this.v112E(); VF.fixedFrames++; VF.mode = this.camModeV112().id; this.camSideV145(cam); }
       else {
         if (this.zoomPunch > 0) this.zoomPunch = Math.max(0, this.zoomPunch - delta * 0.0016);
         const gliding0 = P.t < (P.delay || 0);
@@ -8108,7 +8146,7 @@ class Ot extends mt.Scene {
         const _zf = (((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16) / 1.16) * TU("perspZoomK", 0.78);
         // v112: the focus is POSSESSION, read fresh — the man only while a man has it, else the ball
         const FOC = this.camFocusV112(P, gliding0), MD = this.camModeV112(), zStr = this.camZoomStrV112();
-        const carM = FOC.kind === "carry" ? FOC.m : null;
+        const carM = FOC.kind === "carry" || FOC.kind === "me" ? FOC.m : null;
         const kc = carM && carM.root ? Math.max(0.2, perspK(carM.sx)) : null;
         // v98 THE HANDOVER CUT: the moment the ball changes hands mid-play (the handoff, the
         // catch, the pick, the punt fielded) the camera commits to the new man — a short
@@ -8140,12 +8178,20 @@ class Ot extends mt.Scene {
          * dead-band, and the carrier is framed in the LEADING THIRD along his heading (camLeadFrac)
          * rather than dead centre. The v98 handover cut and the v71 flag focus still steer the
          * target; they stiffen the spring instead of swapping lerp constants. */
-        const lockK = TU("camPerspLockK", 0.5);
+        const lockK = MD.lock != null ? MD.lock : TU("camPerspLockK", 0.5);
         /* v112: the mode scales every target, the open-field pull-in rides on top of it, and the
          * tackle's own step out multiplies the lot — one target, still one spring under it. */
         const hitZ = this.camHitZoomV112(cam);
+        /* v145: a follow cam never falls back to the loose wide frame when nobody holds the ball —
+         * a throw, a bounce, the glide — it holds the locked size it last had, so the players do
+         * not shrink and swell every time the ball leaves a hand. `camFollowZoomK` is how close
+         * the follow sits, scaled by the Settings strength like every other pull-in. */
+        const flw = MD.follow && !FC, lockZ = kc ? mt.Math.Clamp(TU("zoomPlay",1.34) * _zf / Math.pow(kc, lockK), TU("zoomLockMin", 0.6), flw ? TU("camFollowLockMax", 3.6) : TU("zoomLockMax", 2.4)) : null;
+        const fZ = flw ? (lockZ || this._camFollowZV145 || baseZ) : null;
+        if (flw && lockZ) this._camFollowZV145 = lockZ;
         const targetZoom = this.camZoomFitV112(FC ? FC.zoom
-          : ((kc ? mt.Math.Clamp(TU("zoomPlay",1.34) * _zf / Math.pow(kc, lockK), TU("zoomLockMin", 0.6), TU("zoomLockMax", 2.4)) : baseZ)
+          : flw ? (fZ * MD.z * (TU("camFollowZoomK", 1) + (zStr - 1) * 0.35) + this.zoomPunch) * hitZ
+          : ((lockZ || baseZ)
             * MD.z * this.camTightV112(P, carM, zStr, MD) + this.zoomPunch) * hitZ);
         try { window.__CAMCUT_V98 = Object.assign(window.__CAMCUT_V98 || { cuts: 0 }, { active: !!cut, k: +cut.toFixed(3), carrier: P.carrierId }); if (P._camCut && P._camCut.t <= delta) window.__CAMCUT_V98.cuts++; } catch (e) {}
         if (this._pcam) { const dtc = Math.max(16, delta);
@@ -8174,10 +8220,10 @@ class Ot extends mt.Scene {
          * run the full `camLeadMax` plus the leading third, and a carrier 290 px off a 288 px half
          * frame is a carrier at the edge of it. The target is pulled back onto the focus so the man
          * with the ball never leaves the middle of the frame, whatever the lead asked for. */
-        const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom);
-        const kx = hw * TU("camKeepFracX", 0.4), ky = hh * TU("camKeepFracY", 0.4);
-        const cx = hw >= FW / 2 ? FW / 2 : mt.Math.Clamp(mt.Math.Clamp(fx + lx, fx - kx, fx + kx), hw, FW - hw);
-        const cy = mt.Math.Clamp(mt.Math.Clamp(fy + ly - 40, fy - ky, fy + ky), hh, WORLD_H - hh);
+        const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom), xb = this.camSideV145(cam);
+        const kx = hw * (MD.keep != null ? MD.keep : TU("camKeepFracX", 0.4)), ky = hh * (MD.keep != null ? MD.keep : TU("camKeepFracY", 0.4));   // v145: a follow cam keeps him near dead centre
+        const cx = hw >= FW / 2 + xb ? FW / 2 : mt.Math.Clamp(mt.Math.Clamp(fx + lx, fx - kx, fx + kx), hw - xb, FW + xb - hw);
+        const cy = mt.Math.Clamp(mt.Math.Clamp(fy + ly - (MD.follow ? 40 / Math.max(1, cam.zoom) : 40), fy - ky, fy + ky), hh, WORLD_H - hh);   // v145: the lift is a share of the frame, not 40 world px at 3x
         /* v112: the near sideline PROJECTS past the painted field, and the camera's bounds are the
          * painted field — so a man out on the numbers is a man the pan can never reach. It opens
          * UP for him instead of scrolling off the art: the zoom is capped at whatever brings the
