@@ -2340,13 +2340,30 @@ and `durKeepV141(c)` scales how much speed a carrier keeps through a bounce or a
 (`TU("durKeepK", .003)`, ±15% around 50); `injChanceV54`'s `resistMult` keeps falling past resist
 100 (`TU("injResistPastK", .001)` to `TU("injResistFloor", .25)`) where it used to floor at .45.
 
+**The carrier ceiling.** `kneeV141(x, pos)` takes the position for the YOU-PLAYER only, and
+`TU("simKneeTopPosV141", {RB:72, WR:76, TE:76})` is a lower ceiling for the ball-carrier
+positions (the knee starts 12 under whichever ceiling applies). Measured: at every floor and
+ceiling tried, a back at agent 90 ran for 340–490 a game while the same sheet at 250 ran for
+87–100 — past a ~20-point edge over the tacklers every whiff, hurdle and broken-tackle roll
+saturates and they stack, and the contact model has no diminishing returns on the gap. The
+ceiling holds a 350 back at ~68 (190 a game, 1.9 TD) while a quarterback or linebacker keeps the
+full 60 → 90. It is the you-player's only because an AI back at Pee Wee sits at 85 by the
+normalise (the ±14 raw jitter is wide against a league average of 20) and the game was tuned on
+that; applied to everyone it took Pee Wee scoring from 21 to 16.
+
 **The tuning.** Making the nine keys real at every level converges the levels: Pee Wee had been
 playing with superhuman-quick, composed, cannon-armed kids and the DFL with zombies. The DFL's
 passing came off the floor (4.7 → 7.0–7.4 yards per attempt; `equaltalentcheck` had been failing
-its realism band there) and Pee Wee's came down. Two dials carry the re-balance: the AI
-quarterback's throwing bump (`TU("aiQbThrowBumpV141")`) and the composure pivot in the QB panic
-model (`TU("composurePivotV141")`); `scoreneutralcheck.mjs` (Pee Wee) and `equaltalentcheck.mjs`
-(DFL) are the two rows to hold.
+its realism band there; total 52.2 → 53.4, every band passing) and Pee Wee's came down
+(`scoreneutralcheck`: total 24.7 → 20.9, yards per attempt 9.4 → 8.1, completions 74 → 72%, yards
+per carry 5.0 → 5.4). The dials: `TU("reactBaseMs", 295)` (the reaction latency's base, a bare 340
+before, tuned against a quickness that sat at 80 for kids), the AI quarterback's throwing bump
+(`TU("aiQbThrowBumpV141", 18)`) and the composure pivot in the QB panic model
+(`TU("composurePivotV141", 30)`); the acceleration base (`accelBasePerSec`) was tried at 3.6 and
+4.2 and pushed the DFL equal-talent total to the 60 edge, so it stays at 3.0. Two pre-existing
+`equaltalentcheck` failures are untouched: "exact mirrors" (52–54 of 60) and "featured player
+matches team talent" (the 215-everything benchmark player reads 79–85 OVR, not the ~93 the check
+expects).
 
 Gotchas: `h()`'s tail was a `return`-comma-chain — an edit that turns the chain into statements
 must move the `return` too, or `attrs` becomes the last clause's value and every AI player sheets

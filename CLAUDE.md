@@ -74,8 +74,11 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   `simScaleV141` puts a sheet value on OVR's scale past the wall (250 → ~116, 350 → ~172, where the
   old curve gave 95 / 98); the accessor's fallback is the man's own OVR; `kneeV141` eases the
   normalise to 99 instead of clamping at 95; `TU("starFloorMinV141", .6)` floors `_starScale`;
-  durability is `dur` on the agent (`durKeepV141`) and its injury curve runs past 100. Dials:
-  `aiQbThrowBumpV141`, `composurePivotV141`, `simKneeV141`, `simKneeTailV141`, `durKeepK`,
+  durability is `dur` on the agent (`durKeepV141`) and its injury curve runs past 100. The
+  YOU-PLAYER at RB / WR / TE eases toward a lower ceiling (`simKneeTopPosV141`, 72 / 76 / 76) —
+  the contact model stacks past a ~20-point edge and a back at 90 ran for 440 a game; AI never
+  takes it. Dials: `reactBaseMs` (295), `aiQbThrowBumpV141`, `composurePivotV141`, `simKneeV141`,
+  `simKneeTailV141`, `simKneeTopV141`, `simKneeTopPosV141`, `starFloorMinV141`, `durKeepK`,
   `injResistPastK`, `injResistFloor`; kill-switches `v141Keys` / `v141Fallback`. **`h()` returns via
   a comma chain — keep `return b` live if you touch its tail.** `window.__V141`; `v141check.mjs`,
   then `scoreneutralcheck.mjs`, `equaltalentcheck.mjs` (which loads blocks `[0,1,2,3,4,7]`)

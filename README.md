@@ -78,10 +78,22 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   durability is a FieldSim read (`dur` — how much speed a carrier keeps through a glancing hit or a
   stagger, `TU("durKeepK")`) and its injury curve keeps working past 100 (`TU("injResistPastK")`,
   `TU("injResistFloor")`); the quarterback's composure pivot is `TU("composurePivotV141", 30)`.
-  Measured on the agent, DFL linebacker: 250 → 60 and 350 → 91 (was 36 and 45), the AI at 45–53 at
-  every level on every key. DFL pass yards per attempt went from 4.7 (failing the equal-talent
-  realism band) to 7.0–7.4. Kill-switches `TU("v141Keys", 0)` / `TU("v141Fallback", 0)` restore the
-  old roster and the flat 45. `window.__V141`; `scripts/v141check.mjs` is the gate. Same pass:
+  The you-player at a ball-carrier position gets a LOWER ceiling (`TU("simKneeTopPosV141", {RB:72,
+  WR:76, TE:76})`): past a ~20-point edge over the tacklers every whiff, hurdle and broken-tackle
+  roll saturates and they stack, and a back at 90 ran for 440 a game. Only the you-player — an AI
+  back at Pee Wee sits at 85 by the normalise and the game was tuned on that. The reaction base is
+  a dial (`TU("reactBaseMs", 295)`; it was a bare 340 read against a quickness that sat at 80 for
+  kids and 21 for pros).
+  Measured on the agent, DFL linebacker: 250 → 64 and 350 → 87 (was 36 and 45); a DFL back 63 → 68
+  under his ceiling; the AI at 45–57 at every level on every key. Box scores, DFL, 20 games a cell:
+  a back at 250 / 350 runs for 118 / 190 (was 59 / 63), a receiver 118 / 228 (was 35 / 38), a
+  linebacker 10.7 / 14.6 tackles (was 6.1 / 7.3). The scoreboard: DFL equal-talent total 53.4 (was
+  52.2) with pass yards per attempt 7.0–7.4 (was 4.7, failing the realism band) and completions
+  69–71% (was 60%); Pee Wee score-neutral total 20.9 (was 24.7) with 8.1 yards per attempt (was
+  9.4) and 72% completions (was 74%) — kids no longer throw with an 80 arm, and that is the whole
+  gap; `aiQbThrowBumpV141` and `reactBaseMs` are the dials if it should come back. Kill-switches
+  `TU("v141Keys", 0)` / `TU("v141Fallback", 0)` restore the old roster and the flat 45.
+  `window.__V141`; `scripts/v141check.mjs` is the gate. Same pass:
   `equaltalentcheck.mjs` loaded script blocks 0–4 and patched a needle that lives in block 7, so it
   had been throwing before its first game; it loads the engine block again.
 - **v140 — a dead splash, and the one line that caused it.** A career that ended left the save
