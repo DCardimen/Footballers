@@ -8010,6 +8010,7 @@ class Ot extends mt.Scene {
         marker.posLabel = actor.label;
         marker.actorId = actor.id;
         marker._ageKV144 = AGE_K_THIS_PLAY_V144;   // v144: one state read a snap, not 22 a frame
+        marker._idleHomeV144 = null; marker._idleToV144 = null; marker._idleNextV144 = null;   // v144 C: the shuffle's leash belongs to ONE gap
         if (window.__RIB20_applyAppearance) window.__RIB20_applyAppearance(this, marker, actor.label, idx);
       });
       const feat = script.meta.featured || pickFeaturedIndex(et, this.offLabels, this.defLabels);
@@ -8788,13 +8789,24 @@ class Ot extends mt.Scene {
     const sp = TU("idleShuffleSpeed", 26) * (delta / 1000);
     for (let i = 0; i < M.length; i++) {
       const m = M[i]; if (!m || !m.root || m.root.visible === false) continue;
-      if (m.forceState === "getupSeq" || m.forceState === "down" || m.forceState === "tackleSeq") continue;
+      /* a man in a drawn SEQUENCE is busy — a celebration outranks the get-up and the wind-up
+       * everywhere else in this file, and it outranks the shuffle too. Only a man standing idle
+       * (or with nothing forced on him) mills, and only he has his `forceState` touched: clearing
+       * it indiscriminately cut a scorer's celebration off at the end of the post-play phase. */
+      if (m.forceState && m.forceState !== "idle") { m._idleNextV144 = null; continue; }
+      /* Every target is a step from where the WHISTLE left him, never from where he last wandered
+       * to. Two earlier cuts of this both drifted: building the target off the ball spot walked
+       * all twenty-two men into one band around the football, and a small per-pick pull toward
+       * the new line did the same thing geometrically over a long gap (16% of the distance, ten
+       * picks, 83% of the way there). Either way the field lost its depth — measured, the near/far
+       * spread fell from ~390px to ~50px, which is the thing that makes the near men read as near.
+       * A man between plays mills where he is; the next snap's glide is what moves him to the
+       * formation, and it already does that. So: one home per gap, and a leash on it. */
+      if (m._idleHomeV144 == null) m._idleHomeV144 = { x: m.sx, y: m.sy };
       if (m._idleNextV144 == null || now > m._idleNextV144) {
-        // a new loose spot, a short walk away, on his own side of where the ball ended up
-        const spot = this._idleSpotV144 || { x: m.sx, y: m.sy };
-        const side = i < 11 ? 1 : -1, r = TU("idleShuffleR", 18);
-        m._idleToV144 = { x: spot.x + side * (TU("idleShuffleBack", 10) + Math.random() * r),
-                          y: spot.y + (Math.random() * 2 - 1) * TU("idleShuffleSpread", 70) };
+        const h = m._idleHomeV144, r = TU("idleShuffleR", 18);
+        m._idleToV144 = { x: h.x + (Math.random() * 2 - 1) * r,
+                          y: h.y + (Math.random() * 2 - 1) * TU("idleShuffleSpread", 26) };
         m._idleNextV144 = now + TU("idleShuffleEveryMs", 900) + Math.random() * TU("idleShuffleJitterMs", 1100);
       }
       const T = m._idleToV144; if (!T) continue;
@@ -8981,7 +8993,6 @@ class Ot extends mt.Scene {
     this.resolveOverlaps();
     try { this.updateRefs(dt, false); this.updateSideline(dt); } catch (e) {}
     this.camPostV109(P, delta);   // v109: wide on the ball while they gather
-    if (P.post.spot) this._idleSpotV144 = { x: P.post.spot.x, y: P.post.spot.y };   /* v144 C: the shuffle mills around where the ball was spotted, not the old line */
     if (k >= P.post.ms) { P.post = null; this.markers.forEach(m => { m._post = null; m._walk = false; m._flyV112 = null; m._flySpinV112 = 0; if (m.forceState === "idle") m.forceState = null; });   // v112: nobody carries a flight into the next snap
       this._camSoftV109 = performance.now() + TU("camSoftMs", 900);   // v109: the next reset re-aims instead of snapping — the glide carries the frame to the new line
       this.resetCamera(); this.complete(); }

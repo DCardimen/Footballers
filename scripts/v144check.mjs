@@ -102,7 +102,12 @@ const C = await page.evaluate(async () => {
   const sc = window.__gridironScene
   // keyed on the MARKER OBJECT, never on its index: the per-play actors loop rebuilds the array
   // between snaps, so slot i before and slot i after are two different men
-  const snap = () => new Map(sc.markers.filter(m => m && m.root).map(m => [m, [m.root.x, m.root.y]]))
+  /* WORLD coordinates (`m.sx/m.sy`), not screen: the shuffle is what moves those, while `root.x/y`
+     also carries the camera, which opens up and re-frames between plays and can read as 200px/s of
+     "sprinting" that no man did. Keyed on the MARKER OBJECT, never on its index — the per-play
+     actors loop rebuilds the array between snaps, so slot i before and slot i after are two
+     different men. */
+  const snap = () => new Map(sc.markers.filter(m => m && m.root).map(m => [m, [m.sx, m.sy]]))
   const wait = (ms) => new Promise(r => setTimeout(r, ms))
   /* Sampled in SHORT steps and only ever between two samples that both fall with no play in hand:
    * the gap is about a second, and a snap landing inside a long window moves all twenty-two men
@@ -124,17 +129,18 @@ const C = await page.evaluate(async () => {
         n++
         const d = Math.hypot(p1[0] - p0[0], p1[1] - p0[1])
         if (d > 0.3) moved++
-        fastest = Math.max(fastest, d / (STEP / 1000))            // px a second
+        fastest = Math.max(fastest, d / (STEP / 1000))            // world units a second
       }
       prev = now
     }
   }
   return { idle: everIdle, spans, tA, tB, moved, n, fastest: +fastest.toFixed(1) }
 })
+const TU_IDLE = await page.evaluate(() => (window.RIB_TUNE && window.RIB_TUNE.idleShuffleSpeed) || 26)
 ok(C.idle, 'C: the play ends and the scene keeps running')
 ok(C.tB > C.tA, 'C: the between-plays tick keeps firing with no play in hand', `${C.tA} -> ${C.tB}`)
 ok(C.moved >= 8, 'C: and men actually shuffle in the gap instead of standing to attention', `${C.moved} of ${C.n} samples moved over ${C.spans} windows`)
-ok(C.spans >= 3 && C.fastest < 120, 'C: a shuffle, not a sprint — nobody breaks into a run between snaps', `fastest ${C.fastest}px/s over ${C.spans} windows`)
+ok(C.spans >= 3 && C.fastest < TU_IDLE * 2, 'C: a shuffle, not a sprint — nobody breaks into a run between snaps', `fastest ${C.fastest} world units/s against a ${TU_IDLE}/s walk, over ${C.spans} windows`)
 
 // ====================== D. THE UPRIGHTS STAND IN A PAD ======================
 const D = await page.evaluate(() => {
@@ -161,7 +167,16 @@ const E = await page.evaluate(() => {
   const rowGreen = (y) => { const d = g.getImageData(cv.width / 3 | 0, y, cv.width / 3 | 0, 1).data
     let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 1] > d[i] + 8 && d[i + 1] > d[i + 2] + 8 && d[i + 1] > 40) n++
     return n / (d.length / 4) }
-  const far = [rowGreen(NS - 1), rowGreen(NS - 2), rowGreen(NS - 3)]
+  /* exactly the rows the hook says it drew, not a fixed three: how far the far apron reaches above
+     the end line is a function of the projection, which moves with the snap's own line of
+     scrimmage, so the count is 3 or 4 depending on the play */
+  /* exactly the rows the far branch drew, and no more. It runs while `target <= 0`, i.e. from
+     canvas row NSTOP itself UPWARD — so N rows means NS-0 .. NS-(N-1). Sampling NS-1 .. NS-N reads
+     one row past the top of the apron, which is sky, and how far the apron reaches moves with the
+     snap's own line of scrimmage, so a fixed count is wrong too. */
+  const N = Math.max(0, (H.apron && H.apron.northRows) || 0)
+  const far = []
+  for (let i = 0; i < N; i++) far.push(rowGreen(NS - i))
   // and the near continuation: rows below where the PAINTING stopped
   const e = H.apron ? H.apron.edgeI : -1
   const near = e > 0 && e + 40 < cv.height ? [rowGreen(e + 8), rowGreen(e + 24)] : []
@@ -174,7 +189,7 @@ const E = await page.evaluate(() => {
 ok(E.apron && E.apron.on, 'E: the apron extension is on')
 ok(E.apron.northRows > 0, 'E: the far end draws the grass the art paints BEYOND the end zone — the stands no longer sit on the end line',
   `${E.apron.northRows} rows above the end line`)
-ok(E.far.every(v => v > 0.5), 'E: and those rows really are green in the canvas', E.far.map(v => v.toFixed(2)).join(' '))
+ok(E.far.length >= 2 && E.far.every(v => v > 0.5), 'E: and every one of those rows really is green in the canvas', `${E.far.length} rows: ${E.far.map(v => v.toFixed(2)).join(' ')}`)
 ok(E.apron.southRows > 200, 'E: the near end keeps going past where the painting stops, instead of falling into black',
   `${E.apron.southRows} rows of continuation`)
 ok(E.near.length === 2 && E.near.every(v => v > 0.4), 'E: and that continuation is grass too', E.near.map(v => v.toFixed(2)).join(' '))
@@ -263,7 +278,7 @@ ok(H.rain.wx === H.night.wx && H.day.wx === H.night.wx,
 
 console.log(JSON.stringify({ pass, fail, errors: errs.length,
   age: { pee: A.tab[8], drawn: +(A.pee.s / A.grown.s).toFixed(3), foot: +(A.pee.foot - A.grown.foot).toFixed(2) },
-  watchdog: B && B.W, idle: { moved: C.moved, fastest: C.fastest, spans: C.spans }, pads: D.n,
+  watchdog: B && B.W, idle: { moved: C.moved, fastest: C.fastest, spans: C.spans, walk: TU_IDLE }, pads: D.n,
   apron: E.apron, pylons: F, tunnels: G.on, wx: { night: H.tNight, day: H.tDay, drops: [H.rain.drops, H.snow.drops] } }))
 console.log('page errors:', errs.length ? errs.slice(0, 4).join('\n') : 'none')
 await browser.close()

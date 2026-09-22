@@ -96,8 +96,12 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   real play rate now (`watchdogSlowestSpeed`, `postPlayMs`, the play's own delay, published on
   `__V144.watchdog`): the old `duration * 2 + 4000` was script-ms against a wall clock and at half
   speed it fired mid-play and cut to the result line. `idleBetweenV144` runs where `update()` used
-  to `return` with no play in hand, so nobody stands frozen between the whistle and the snap (it
-  mills around `P.post.spot`, and uses `this._idleClockV144`, not the marker's `tms`).
+  to `return` with no play in hand, so nobody stands frozen between the whistle and the snap.
+  **Every target is a jitter around `m._idleHomeV144` — where the WHISTLE left him — never around
+  where he last wandered to**: anything with a per-pick pull toward the ball or the line converges
+  geometrically over a long gap and walks all twenty-two men into one band, which takes the near/far
+  screen spread from ~390px to ~50px and is what `v99check`'s shadow assertion catches. The home is
+  cleared in the per-play actors loop; it uses `this._idleClockV144`, not the marker's `tms`.
   `postPadV144` puts a blue padded socket round each upright's foot — called from BOTH
   `drawGoalpostsV87` and `drawUprights`, because the second is the depth-6 kick overlay. The apron
   runs to the frame on all four sides: the far end draws the rows above the end line, the near end

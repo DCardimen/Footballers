@@ -59,10 +59,13 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
   Eight things, all of them things you look at.
   **The pause at the whistle.** When a play finished the renderer had no play in hand, so `update()`
   returned early and twenty-two men stood perfectly still until the next snap built — then sprinted
-  to the line. `idleBetweenV144` runs in that gap: each man picks a loose spot near where the ball
-  was spotted (`P.post.spot`, so the mill is around the new line and not the old one), walks to it
-  at `idleShuffleSpeed`, waits a random beat and picks another. Measured at under 120px a second
-  across four separate gaps — a shuffle, not a run.
+  to the line. `idleBetweenV144` runs in that gap: each man picks a loose spot a step from where the
+  WHISTLE left him, walks to it at `idleShuffleSpeed`, waits a random beat and picks another off
+  that same home. The leash matters — two earlier cuts drifted, one building the target off the
+  ball spot and one pulling 16% toward the new line per pick, and both walked all twenty-two men
+  into one band around the football over a long gap. Measured, that took the near/far spread from
+  ~390px to ~50px, which is the thing that makes the near men read as near. Under 120px a second
+  across four separate gaps — a shuffle, not a run, and the field keeps its depth.
   **The play that fast-forwarded to its own result.** At half speed a long handoff play would cut to
   the yardage line without showing the run. The stall watchdog was budgeted as
   `script.duration * 2 + 4000` — in SCRIPT milliseconds, against a clock running at

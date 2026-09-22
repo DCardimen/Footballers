@@ -2496,11 +2496,18 @@ number. `window.__V144.watchdogFired` counts real stalls.
 
 **C — the field is never frozen** (anchor `v144 C`). `update()` used to `return` when `this.play`
 was null, so between the whistle and the next snap every marker held its last pixel. `idleBetweenV144`
-runs in that branch instead: each man picks a loose spot near `this._idleSpotV144` (set from
-`P.post.spot` when a play ends, so the mill is around where the ball is now and not where the old
-line was), walks to it at `idleShuffleSpeed`, and picks another after `idleShuffleEveryMs` plus
-jitter. `postGatherExtraMs` adds a beat to `postPlayMsV86` so the gather and the shuffle do not
-fight. It uses `this._idleClockV144`, NOT the marker's own `tms`.
+runs in that branch instead: on the first idle tick each man records `m._idleHomeV144` — where the
+whistle left him — and every target after that is a jitter around THAT, never around where he last
+wandered to. The leash is the whole design. Two earlier cuts drifted: building the target off the
+ball spot walked all twenty-two men into one band around the football, and replacing that with a
+small pull toward the new line (16% of the distance per pick) did the same thing geometrically over
+a long gap — ten picks is 83% of the way there. Both measured the same way: the near/far screen
+spread fell from ~390px to ~50px, and the field stopped reading as deep, which `v99check`'s
+near-vs-far shadow assertion is what caught. The next snap's glide is what moves a man to the
+formation and it already did that; the shuffle only has to stop him standing to attention.
+`postGatherExtraMs` adds a beat to `postPlayMsV86` so the gather and the shuffle do not fight, and
+the home is cleared in the per-play actors loop so a leash never spans two gaps. It uses
+`this._idleClockV144`, NOT the marker's own `tms`.
 
 **D — the uprights stand in something** (`postPadV144`). A blue padded socket round each post's foot,
 derived from the post's own `base` and `s` so it rides the projection. It is called from BOTH
@@ -2563,6 +2570,30 @@ day at all: v98 made it a night game and left it there.
   `__FIELD_FX.wx` through `__pushFieldFx`, and `refreshPersp()` clears `_wxV144` first because the
   sky is cached per FRAME and a Settings click lands between two of them. Pinning a look moves
   nothing: `__WX_V79` is the week's roll and it is the only thing the sim reads.
+
+**What v144 forced other checks to change, and why none of it is a weakened assertion.** Three
+checks measured something that the age scale or the shuffle moved out from under them, and in each
+case the fix was to measure the subject rather than the accident:
+
+- `v112Bcheck`'s star band scanned rows 0..`NSTOP` as "the sky". v144 E draws the far apron's grass
+  in the last few of those rows, behind the stands, so lit turf was being counted as lit sky
+  (1552 samples where 519 were stars). It stops at the bowl's own skyline now.
+- `v91check`, `v104check` and `v99check` all drive into week 1 — Pee Wee, where every man is drawn
+  at 52% — and all three measure DRAWN sprite geometry. They pin `liveAgeV144: 0`. The age scale is
+  `v144check`'s subject; in those three it only halves the margin each one reads.
+- `v99check` took "the first frame with twenty-two bodies" and asserted the near man's shadow is
+  longer than the far man's. That frame is whatever the play clock was doing 600ms in, and v86's
+  post-play gather walks everyone toward one spot — a frame caught there has the whole eleven
+  inside ~150px of screen depth and nothing to compare. It picks the DEEPEST of its twenty-four
+  frames now, which is the moment that actually contains a near man and a far man.
+- `sidelinecheck` asserted eight pylons, which is the behaviour v144 F deliberately changes; it
+  asserts four and proves the dial restores eight.
+
+Two `v144check` assertions of its own had to be written carefully for the same reason: the far
+apron's row count moves with the snap's line of scrimmage (so the check reads `northRows` rather
+than a fixed three, and samples `NS-0 .. NS-(N-1)` — the branch runs from `NSTOP` UPWARD), and the
+shuffle's speed is measured in WORLD units off `m.sx/m.sy`, because `root.x/y` also carries the
+camera's between-plays re-frame and that reads as 200px/s of sprinting nobody did.
 
 ## Screens and their shapes (v73–v75)
 
