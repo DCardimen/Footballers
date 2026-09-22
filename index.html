@@ -6089,6 +6089,20 @@ const CAM_MODES_V112 = [
   { id: "fixed", n: "Fixed", d: "The camera never moves — one frame on the line of scrimmage, every play.", z: 1, tight: 0, lead: 0, stiff: 1 },
 ];
 try { window.__CAM_MODES_V112 = CAM_MODES_V112; } catch (e) {}
+/* ===== v144 H THE SKY HAS OPTIONS — what Settings offers over the roll =====
+ * Index 0 is AUTO: the week's own rolled weather (`__WX_V79`) and time of day (`__WX_DAY_V144`),
+ * which is what a player sees unless they pin one. The rest pin a look without touching a single
+ * outcome — the sim's weather multipliers are rolled in the engine and this dial never reaches
+ * them. `wxV144()` reads the index off `__FIELD_FX.wx`; the panel reads this list, so a sky is
+ * described in exactly one place. */
+const WX_MODES_V144 = [
+  { id: "auto", n: "Auto", d: "Whatever the week rolled — clear, rain or snow, under lights or in the afternoon." },
+  { id: "night", n: "Clear night", d: "Under the floodlights, nothing falling. The look the broadcast has always had." },
+  { id: "rain", n: "Rain", d: "A steady night rain through the lights. The sim's own wet-ball penalties are rolled by the week, not by this." },
+  { id: "snow", n: "Snow", d: "Snow drifting down across the frame, lit from the masts." },
+  { id: "day", n: "Sunny day", d: "An afternoon kickoff: blue sky, no stars, and the floodlights down to almost nothing." },
+];
+try { window.__WX_MODES_V144 = WX_MODES_V144; } catch (e) {}
 const REDUCED_MOTION = (() => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } })();
 function vib(ms) { try { if (!REDUCED_MOTION && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 const EZ = 66, PLAY_L = EZ, PLAY_R = FW - EZ, PLAY_W = PLAY_R - PLAY_L;
@@ -6559,6 +6573,46 @@ function ribRegisterRefs(scene) {
  * Tier is picked from the level being played at (see crowdTier) — a high-school
  * bleacher is not a sold-out pro deck, and the art says so. */
 const RIB_META_CROWD = {"sparse_idle":[0,0,625,106,82],"sparse_cheer":[0,106,625,106,82],"mid_idle":[0,212,625,106,81],"mid_cheer":[0,318,625,106,81],"packed_idle":[0,424,625,106,82],"packed_cheer":[0,530,625,106,82]};
+/* ===== v144 A THEY ARE THE SIZE OF THE AGE THEY ARE =====
+ * Every man on the live field was drawn adult-sized, at Pee Wee as much as in the DFL, so an
+ * eight-year-old's game looked like a pro game with the names changed. `LIVE_AGE_K_V144` is the
+ * DRAWN size by age. Its young end is anchored on the v112 height fraction (`HT_FRAC_V112`, the
+ * one the body model and every printed height already use) SQUARED, because a child is not only
+ * shorter but narrower and the silhouette has to read as a child at a glance: 0.72 of an adult's
+ * height is 0.52 of his drawn mass. From the mid-teens it deliberately runs below that square and
+ * eases to 1 at 22 instead, because `HT_FRAC_V112` is flat by 18 and a college player is still
+ * filling out on his way to the league. It is a table rather than a formula so the curve can be
+ * read and retuned at a glance — nothing else derives from it.
+ *
+ * ONE scale for all twenty-two, taken from the LEVEL rather than from `o.player.age`: the opponent
+ * has no modelled age, and a full-size opponent beside a half-size you-player reads as a bug, not
+ * as youth football. Stamped once a snap (the state read is not free), applied in `placeMarker`
+ * where the projection is applied, so the shadow, the number, the tackle hop, the launch arc, the
+ * ball in his hands and the pair spread all follow it for nothing.
+ * `window.__V144`; `v144check.mjs`. */
+const LIVE_AGE_K_V144 = { 8:.52, 9:.56, 10:.60, 11:.64, 12:.68, 13:.73, 14:.79, 15:.85, 16:.90,
+  17:.94, 18:.96, 19:.975, 20:.985, 21:.99 };
+function liveAgeKV144() {
+  if (!TU("liveAgeV144", 1)) return 1;
+  const forced = window.__LIVE_AGE_FORCE_V144;                 // the dev checks pin an age
+  let age = Number(forced);
+  if (!isFinite(age)) {
+    try {
+      const st = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState && window.__GRIDIRON_AUDIT__.getState()) || window.o;
+      const lv = (st && st.player && st.player.level) || 0;
+      const L = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.LEVELS) || null;
+      age = (L && L[lv] && L[lv].age) || 0;
+      // a man who has sat at one level for a few seasons really is older than the cohort
+      if (st && st.player && isFinite(st.player.age)) age = Math.max(age, Math.min(st.player.age, age + 3));
+    } catch (e) { age = 0; }
+  }
+  age = Math.round(age);
+  if (!isFinite(age) || age <= 0) return 1;
+  const k = age >= 22 ? 1 : (LIVE_AGE_K_V144[age] != null ? LIVE_AGE_K_V144[age] : (age < 8 ? LIVE_AGE_K_V144[8] : 1));
+  return cl144(k * TU("liveAgeScaleK", 1), TU("liveAgeMin", .35), TU("liveAgeMax", 1.25));
+}
+function cl144(v, a, b) { return v < a ? a : v > b ? b : v; }
+try { window.__V144 = Object.assign(window.__V144 || {}, { ageK: liveAgeKV144, ageTable: LIVE_AGE_K_V144 }); } catch (e) {}
 function crowdTier() {
   // an explicit override wins (dev harness / checks), then the career level
   const forced = window.__CROWD_TIER;
@@ -7949,11 +8003,14 @@ class Ot extends mt.Scene {
         });
       }
       // v15.20: position data is wired into the active Phaser markers before rendering.
+      const AGE_K_THIS_PLAY_V144 = liveAgeKV144();
       script.actors.forEach((actor, idx) => {
         const marker = this.markers[idx];
         if (!marker) return;
         marker.posLabel = actor.label;
         marker.actorId = actor.id;
+        marker._ageKV144 = AGE_K_THIS_PLAY_V144;   // v144: one state read a snap, not 22 a frame
+        marker._idleHomeV144 = null; marker._idleToV144 = null; marker._idleNextV144 = null;   // v144 C: the shuffle's leash belongs to ONE gap
         if (window.__RIB20_applyAppearance) window.__RIB20_applyAppearance(this, marker, actor.label, idx);
       });
       const feat = script.meta.featured || pickFeaturedIndex(et, this.offLabels, this.defLabels);
@@ -7981,9 +8038,26 @@ class Ot extends mt.Scene {
       if (et.event === "fg") this.drawUprights(script.meta.dir);
       // pre-play broadcast ribbon: down & distance from the scoreboard
       // (pre-play ribbon removed by request — only the post-play result ribbon shows)
-      // stall watchdog — script durations are ≤6s at 1x. Widen it for the v24 base
-      // slow-down so the slowest setting (½× × basePlayRate) never trips it early.
-      this.time.delayedCall(script.duration / (0.5 * TU("basePlayRate", 0.7)) + 4200, () => this.complete());
+      /* ===== v144 B THE WATCHDOG WAS EATING THE PLAY =====
+       * This is a wall-clock budget for a play that runs on a SLOWED clock, and it only ever
+       * budgeted for `script.duration`. But a play is three things on that same clock — the glide
+       * in (the huddle, up to 2700 script-ms), the script itself, and the post-play phase
+       * (`postPlayMs`, 1450) — and on top of those the slow-motion windows and the hit-stops each
+       * spend real milliseconds while the script stands still.
+       * At 1x the old `duration/0.35 + 4200` happened to cover all of it. At ½× it did not: the
+       * budget is the same number while everything it has to cover takes twice as long, so the
+       * timer fired MID-PLAY and called `complete()`. The play vanished into its own result text —
+       * the quarterback frozen in the mesh, the yardage printed underneath — which is exactly what
+       * a running back at half speed sees, because a run script is the shortest (smallest budget),
+       * carries the most slow-motion windows, and reaches its handoff earliest of any play.
+       * The budget now covers the whole timeline and is always computed at the SLOWEST rate the
+       * user can select, so switching speed mid-play cannot truncate it either.
+       * `TU("watchdogSlackMs")` is the headroom for slow-mo and hit-stop. */
+      const wdRate144 = Math.max(.05, TU("watchdogSlowestSpeed", .5) * TU("basePlayRate", 0.7));
+      const wdSpan144 = script.duration + ((this.play && this.play.delay) || 0) + TU("postPlayMs", 1450);
+      const wdMs144 = wdSpan144 / wdRate144 + TU("watchdogSlackMs", 6000);
+      try { (window.__V144 = window.__V144 || {}).watchdog = { ms: Math.round(wdMs144), span: Math.round(wdSpan144), rate: +wdRate144.toFixed(3), dur: Math.round(script.duration), delay: Math.round((this.play && this.play.delay) || 0) }; } catch (e) {}
+      this.time.delayedCall(wdMs144, () => { try { (window.__V144 = window.__V144 || {}).watchdogFired = (window.__V144.watchdogFired || 0) + 1; } catch (e) {} this.complete(); });
     } catch (err) { console.warn("[LiveField] animate error:", err); this.complete(); }
   }
 
@@ -7992,8 +8066,16 @@ class Ot extends mt.Scene {
     // v57: the crowd lives between plays too, so it ticks BEFORE the no-play return
     this.updateCrowd(delta);
     this.updateStadiumV92(delta);   // v92: the lamps and the big screen live between plays too
+    this._wxTickV144 = (this._wxTickV144 || 0) + 1;   // v144 H: one weather read a frame
+    this.wxTickV144(delta);                            // v144 H: and it falls between plays as well
     this._klV99 = null; this._lgV101 = null;   // v99/v101: one read of the masts per tick, shared by every shadow
-    if (!P) return;
+    /* v144 C: the field is not dead between plays. `complete()` clears `this.play`, and the row
+     * loop then sits on a timer before the next one is handed down — half a second at 1x, a full
+     * second at ½× — during which this early return used to leave twenty-two men frozen on the
+     * exact frame the whistle caught them. Then the next play's glide started and they all
+     * sprinted off together. They breathe and shuffle through the gap now, so the restart is a
+     * continuation rather than a cut. */
+    if (!P) { this.idleBetweenV144(delta); return; }
     if (P.done) { if (P.post) this.updatePostV86(P, delta); return; }   // v86: the whistle is not the end of the picture
     if (this.hitStop > 0) { this.hitStop -= delta; return; }   // freeze-frame on big moments
     // v24: base movement runs 30% slower for everyone — a more deliberate, readable
@@ -8195,8 +8277,12 @@ class Ot extends mt.Scene {
       this.markers.forEach((m, mi) => {
         if (!m._hist || m._hist.length < 3 || (m._spdPx || 0) < TU("trailMin",170)) return;
         const h = m._hist, col = mi === P.carrierId ? 0xf0bb45 : 0xdfe8ef;
-        this.speedFx.lineStyle(3, col, 0.14).lineBetween(h[0].x, h[0].y + 7, h[2].x, h[2].y + 7);
-        this.speedFx.lineStyle(2, col, 0.26).lineBetween(h[1].x, h[1].y + 7, m.root.x, m.root.y + 7);
+        /* v144: the +7 is a drop from the marker's origin to his FEET, and the age scale shrank
+         * the body underneath it — so on a Pee Wee field the streak ran behind his head. Back the
+         * scale out of the offset and it lands on the grass at every age. */
+        const trK144 = 7 * ((m && m.root && m.root.scale) || 1) / Math.max(.2, PJ(m ? m.sx : 0, m ? m.sy : 0).s || 1);
+        this.speedFx.lineStyle(3, col, 0.14).lineBetween(h[0].x, h[0].y + trK144, h[2].x, h[2].y + trK144);
+        this.speedFx.lineStyle(2, col, 0.26).lineBetween(h[1].x, h[1].y + trK144, m.root.x, m.root.y + trK144);
       });
     }
     // v16.3 sprint stamina bars — a small draining bar over a player only while
@@ -8647,7 +8733,8 @@ class Ot extends mt.Scene {
         quad({ x: base.x, y: base.y }, bar, w0, w1);                        // the mast
         quad(lB, rB, w1 * 0.85, w1 * 0.85);                                  // the crossbar, laid across
         quad(lB, lT, w1 * 0.75, w1 * 0.75); quad(rB, rT, w1 * 0.75, w1 * 0.75); // both uprights
-        sg.fillStyle(0x04070d, a0 * 0.5); sg.fillEllipse(base.x, base.y + 1, 13 * s, 5 * s);   // the socket it stands in
+        const padK144 = TU("postPadV144", 1) ? TU("postPadSocketKV144", 1.5) : 1;   // v144 D: the pad is wider than the post, so its socket is too
+        sg.fillStyle(0x04070d, a0 * 0.5); sg.fillEllipse(base.x, base.y + 1, 13 * s * padK144, 5 * s * padK144);   // the socket it stands in
         if (!this._postShadDbgV99) this._postShadDbgV99 = {};
         // keyed by where the end lands ON SCREEN, not by field x — VDIR decides which end
         // of the field is the near one, and that flips with the drive
@@ -8656,10 +8743,88 @@ class Ot extends mt.Scene {
       }
       g.lineStyle(5 * s, 0x1a1408, 0.55); g.lineBetween(base.x, base.y + 2, base.x, barY);            // the post's shadow edge
       g.lineStyle(3.5 * s, 0xffe08a, 0.98); g.lineBetween(base.x, base.y, base.x, barY);              // the post
+      this.postPadV144(g, base, s);                                                                    // v144 D: and the pad wrapped round its foot
       g.lineStyle(3 * s, 0xffe08a, 0.98); g.lineBetween(l.x, barY, r.x, barY);                          // the crossbar
       g.lineBetween(l.x, barY, l.x, barY - up); g.lineBetween(r.x, barY, r.x, barY - up);              // the uprights
       g.fillStyle(0xf0bb45, 0.9); g.fillCircle(l.x, barY - up, 1.6 * s); g.fillCircle(r.x, barY - up, 1.6 * s);
     });
+  }
+  /* ===== v144 D THE PAD ROUND THE FOOT OF THE POST =====
+   * A real goalpost stands in a thick padded collar, and ours stood bare on the grass. It is drawn
+   * into whichever Graphics the caller is already using, in PJ space, every dimension multiplied by
+   * that end's own `s` — the one rule this function has to keep, or the far post's pad is the size
+   * of the near one. The blue is the stadium's own: `baseBandColV112`, the band round the foot of
+   * the bowl, so the pad reads as part of the same building. Drawn after the post and before the
+   * crossbar, at `goalG`'s depth (3.95): in front of the turf, the lines, the shadow and the
+   * sideline furniture, behind every player — a man in the end zone passes in front of it. */
+  postPadV144(g, base, s) {
+    if (!TU("postPadV144", 1)) return;
+    const h = TU("postPadHV144", 15) * s, w = TU("postPadWV144", 6.2) * s;
+    const col = TU("postPadColV144", 0x1a4694), lip = TU("postPadLipV144", 0x6f9be6);
+    const top = base.y - h, cap = Math.max(1, w * TU("postPadCapKV144", .42));
+    g.fillStyle(0x04070d, .35); g.fillEllipse(base.x, base.y + 1.5 * s, w * 2.25, cap * 1.5);   // it sits IN the grass
+    g.fillStyle(col, 1);
+    g.fillRect(base.x - w, top, w * 2, h);                                      // the collar
+    g.fillEllipse(base.x, top, w * 2, cap);                                     // its rounded top
+    g.fillEllipse(base.x, base.y, w * 2, cap);                                  // and its rounded foot
+    g.fillStyle(lip, TU("postPadLipAV144", .55));
+    g.fillEllipse(base.x, top, w * 2, cap * .55);                               // the light catching the top edge
+    g.fillStyle(0x000000, TU("postPadShadeAV144", .22));
+    g.fillRect(base.x + w * TU("postPadShadeKV144", .30), top, w * (1 - TU("postPadShadeKV144", .30)), h);   // the round of it
+    const D = (window.__V144 = window.__V144 || {});
+    (D.pads = D.pads || []).length > 8 && (D.pads.length = 0);
+    D.pads.push({ x: Math.round(base.x), y: Math.round(base.y), h: +h.toFixed(1), w: +w.toFixed(1), s: +s.toFixed(3) });
+  }
+  /* ===== v144 C NOBODY STANDS PERFECTLY STILL =====
+   * Between the whistle and the next snap the markers used to hold one frame. This keeps them
+   * alive on the cheapest possible terms: no script, no pathing, no new state that the next play
+   * has to clear. Each man drifts a couple of yards toward a loose spot on his own side of the
+   * ball, at a walk, and rolls his facing now and then — the milling about that happens while the
+   * officials spot it. It is deliberately slower than `walkSpeed`: they are not going anywhere.
+   * Reduced motion keeps the pose and drops the motion, the way the crowd does. */
+  idleBetweenV144(delta) {
+    if (!TU("idleBetweenV144", 1) || REDUCED_MOTION) return;
+    const M = this.markers; if (!M || !M.length) return;
+    const now = this._idleClockV144 = (this._idleClockV144 || 0) + delta;   // not `tms` — that name is the MARKER's own clock
+    const sp = TU("idleShuffleSpeed", 26) * (delta / 1000);
+    for (let i = 0; i < M.length; i++) {
+      const m = M[i]; if (!m || !m.root || m.root.visible === false) continue;
+      /* a man in a drawn SEQUENCE is busy — a celebration outranks the get-up and the wind-up
+       * everywhere else in this file, and it outranks the shuffle too. Only a man standing idle
+       * (or with nothing forced on him) mills, and only he has his `forceState` touched: clearing
+       * it indiscriminately cut a scorer's celebration off at the end of the post-play phase. */
+      if (m.forceState && m.forceState !== "idle") { m._idleNextV144 = null; continue; }
+      /* Every target is a step from where the WHISTLE left him, never from where he last wandered
+       * to. Two earlier cuts of this both drifted: building the target off the ball spot walked
+       * all twenty-two men into one band around the football, and a small per-pick pull toward
+       * the new line did the same thing geometrically over a long gap (16% of the distance, ten
+       * picks, 83% of the way there). Either way the field lost its depth — measured, the near/far
+       * spread fell from ~390px to ~50px, which is the thing that makes the near men read as near.
+       * A man between plays mills where he is; the next snap's glide is what moves him to the
+       * formation, and it already does that. So: one home per gap, and a leash on it. */
+      if (m._idleHomeV144 == null) m._idleHomeV144 = { x: m.sx, y: m.sy };
+      if (m._idleNextV144 == null || now > m._idleNextV144) {
+        const h = m._idleHomeV144, r = TU("idleShuffleR", 18);
+        m._idleToV144 = { x: h.x + (Math.random() * 2 - 1) * r,
+                          y: h.y + (Math.random() * 2 - 1) * TU("idleShuffleSpread", 26) };
+        m._idleNextV144 = now + TU("idleShuffleEveryMs", 900) + Math.random() * TU("idleShuffleJitterMs", 1100);
+      }
+      const T = m._idleToV144; if (!T) continue;
+      const dx = T.x - m.sx, dy = T.y - m.sy, d = Math.hypot(dx, dy);
+      /* `placeMarker(m, sx, sy, dtms)` takes the spot he is moving TO and derives his speed and
+       * his facing from it against the one he is on — so the new position must be passed IN, not
+       * written onto `m.sx` first, or it reads a standing man and never turns him. `idleCycleK`
+       * slows his animation clock: this is an amble, not a jog. */
+      const dt144 = Math.max(1, delta * TU("idleCycleK", .5));
+      if (d > TU("idleShuffleStopPx", 4)) {
+        const st = Math.min(d, sp);
+        m.forceState = null;
+        this.placeMarker(m, m.sx + dx / d * st, m.sy + dy / d * st, dt144);
+      } else {
+        this.placeMarker(m, m.sx, m.sy, dt144);   // standing: no step, but the idle cycle keeps running
+      }
+    }
+    try { (window.__V144 = window.__V144 || {}).idleTicks = (window.__V144.idleTicks || 0) + 1; } catch (e) {}
   }
   postPlayMsV86(P) {
     const pay = P.payload || {};
@@ -8668,7 +8833,7 @@ class Ot extends mt.Scene {
     if (pay.scored || pay.penalty) return 0;                                  // the celebration and the flag own those moments
     // v103: the post-play phase has to be long enough to hold a second of live contact AND
     // still show everyone letting go and gathering afterwards
-    return TU("postPlayMs", 1450);
+    return TU("postPlayMs", 1450) + TU("postGatherExtraMs", 260);   /* v144 C: the gather had 600ms of a 1450ms window once the late contact had its 850 — it reaches the huddle spot now */
   }
   startPostV86(P, ms) {
     const S = P.script, dir = S.meta.dir || VDIR || 1, YDF = PLAY_W / 100, MIDY = (F_TOP + F_BOT) / 2;
@@ -10404,6 +10569,7 @@ class Ot extends mt.Scene {
     const barY = base.y - TU("postH", 46) * s, up = TU("uprightH", 150) * s;
     g.lineStyle(4 * s, 0xffd75e, 0.95);
     g.lineBetween(base.x, base.y, base.x, barY);             // the post
+    this.postPadV144(g, base, s);                            // v144 D: this overlay sits at depth 6 — without the pad here it would vanish for the whole kick
     g.lineBetween(t.x, barY, b.x, barY);                     // crossbar (horizontal, at the attacking end)
     g.lineBetween(t.x, barY, t.x, barY - up);                // uprights point skyward
     g.lineBetween(b.x, barY, b.x, barY - up);
@@ -10570,7 +10736,7 @@ class Ot extends mt.Scene {
     if (kind === "snap") { ms = TU("snapZapMs", 150); arc = TU("snapArc", 2); }
     else if (kind === "handoff") {
       const qb = this.markers[8], rb = this.markers[P.ballHolderId];
-      const d = qb && rb && qb.root && rb.root ? Math.hypot(rb.root.x - qb.root.x, rb.root.y - qb.root.y) / Math.max(0.5, qb.root.scale || 1) : 0;
+      const d = qb && rb && qb.root && rb.root ? Math.hypot(rb.root.x - qb.root.x, rb.root.y - qb.root.y) / Math.max(0.5, (qb.root.scale || 1) / (qb._ageKV144 || 1)) : 0;   /* v144: back out the age scale — this is a screen distance being read as sim units */
       // a toss is a CALL — the playbook's sweep family (toss, jet, outside zone, pin and pull, the
       // reverse). Everything else is a hand: the sim does not stage a mesh (the QB drifts while the
       // back is already on his path, so the two are a few yards apart at the exchange), so the hand
@@ -11296,6 +11462,12 @@ class Ot extends mt.Scene {
       FLY.lift = flyLift; FLY.dx = flyDX; FLY.dy = flyDY; FLY.fx = sx + flyDX; FLY.fy = sy + flyDY;   // what he is actually drawn on, for the check
     } else if (m._flySpinV112) m._flySpinV112 = 0;
     const p = PJ(sx + flyDX, sy + flyDY);
+    /* v144: the age scale rides the projection, so everything below that reads `p.s` — the shadow,
+     * the number, the tackle hop, the launch arc, the pair spread, the ball in his hand — follows
+     * it for free. The y nudge puts his FEET back on the row: the container's origin is the
+     * sprite's centre and its ground plane is local y=24, so a smaller man would otherwise float. */
+    const ageK144 = m._ageKV144 || 1;
+    if (ageK144 !== 1) { p.y += 24 * (1 - ageK144) * p.s; p.s *= ageK144; }
     // v83 2.5D: paired sprites are pushed apart on screen so the man behind still reads —
     // a stable side per marker (the lower slot goes left), scaled with the projection
     if (engaged) { const side = this.markers.indexOf(m) < m._pair ? -1 : 1; m._nudgeX = side * TU("engageSpread", 6) * p.s; }
@@ -11702,6 +11874,96 @@ class Ot extends mt.Scene {
    * rolled off at both ends so the terrace closes over it, the base band breaks across it (a
    * vomitory interrupts the wall, it does not sit on it), and it carries a lit lintel, so it
    * reads as a mouth with something behind it and not as a bite out of the crowd. ===== */
+  /* ===== v144 H THE GAME IS PLAYED IN WEATHER, AND AT A TIME OF DAY =====
+   * The sim has rolled a weather since v79 — rain, wind, snow or clear, and it really does move
+   * the passing, the kicking and the fumble rolls — but the only thing that ever SHOWED it was the
+   * sideline swapping towels for ponchos. You could play a game in the rain and never see a drop.
+   * And there was no time of day at all: v98 made it a night game and left it there.
+   * `wxV144()` is the one read: what is falling, and whether the sun is up. The Settings override
+   * wins over the roll so a player can pin a look; `__WX_V79` / `__WX_DAY_V144` are the roll.
+   * It is resolved once a frame and cached, because it is read by the sky bake, the lamps and the
+   * particle layer. */
+  wxV144() {
+    /* the guard has to check the VALUE, not just the frame: before the first `update` tick both
+     * counters are undefined, `undefined === undefined` is true, and this returned the cache it
+     * had never filled — so the first bake (renderStatic, before any tick) read `.day` off
+     * undefined and threw inside warpField's try/catch, silently losing the whole field. */
+    if (this._wxV144 && this._wxFrameV144 === this._wxTickV144) return this._wxV144;
+    this._wxFrameV144 = this._wxTickV144;
+    let precip = "none", day = false;
+    try {
+      const ov = (window.__FIELD_FX && window.__FIELD_FX.wx) | 0;   // 0 auto, 1 clear-night, 2 rain, 3 snow, 4 sunny
+      if (ov === 1) { precip = "none"; day = false; }
+      else if (ov === 2) { precip = "rain"; day = false; }
+      else if (ov === 3) { precip = "snow"; day = false; }
+      else if (ov === 4) { precip = "none"; day = true; }
+      else {
+        const w = window.__WX_V79 || "clear";
+        precip = w === "rain" ? "rain" : w === "snow" ? "snow" : "none";
+        day = !!window.__WX_DAY_V144;
+      }
+    } catch (e) {}
+    if (!TU("wxV144", 1)) { precip = "none"; day = false; }
+    if (!TU("dayNightV144", 1)) day = false;
+    return (this._wxV144 = { precip, day });
+  }
+  /* The day factor every night-time flourish multiplies by: the lamps, their pools, the mast tint,
+   * the baked wash and the stars. One number, so "sunny" cannot half-apply. It is NOT folded into
+   * `lightMulV100` because that is the player's own brightness dial and must keep working. */
+  dayMulV144() { return this.wxV144().day ? TU("dayLampMulV144", 0.12) : 1; }
+  /* ===== the weather you can see =====
+   * One retained Graphics, cleared and redrawn each frame, with the drops in a plain array and a
+   * time accumulator — the pattern `trailV105` already uses for the ball's embers, and the reason
+   * there is not one Phaser object per drop. It is NOT `trackFx`'d: `softStop()` kills those
+   * between every play, and weather does not stop for the whistle.
+   * The drops live in normalised camera space and are mapped through `cameras.main.worldView`
+   * every frame, so they survive the zoom, the handover cut and the camera shake for free.
+   * Reduced motion keeps the weather and stops it moving, the way `updateCrowd` does. */
+  wxTickV144(delta) {
+    const W = this.wxV144();
+    if (!this.wxFx || !this.wxFx.scene) { this.wxFx = this.add.graphics().setDepth(TU("wxDepthV144", 28)); }
+    const g = this.wxFx; g.clear();
+    const H = (window.__V144 = window.__V144 || {});
+    H.wx = { precip: W.precip, day: W.day, drops: 0, ticks: (H.wx && H.wx.ticks || 0) + 1 };
+    if (W.precip === "none") { this._wxDropsV144 = null; return; }
+    const rain = W.precip === "rain";
+    const v = this.cameras.main.worldView, z = this.cameras.main.zoom || 1;
+    const want = Math.round(TU(rain ? "rainCountV144" : "snowCountV144", rain ? 190 : 120));
+    let D = this._wxDropsV144;
+    if (!D || D.kind !== W.precip) {
+      D = this._wxDropsV144 = { kind: W.precip, p: [] };
+      for (let i = 0; i < want; i++) D.p.push(this.wxDropV144(rain, Math.random()));
+    }
+    while (D.p.length < want) D.p.push(this.wxDropV144(rain, Math.random()));
+    if (D.p.length > want) D.p.length = want;
+    const dt = REDUCED_MOTION ? 0 : Math.min(60, delta) / 1000;
+    const fall = TU(rain ? "rainFallV144" : "snowFallV144", rain ? 1.55 : 0.22);
+    const drift = TU(rain ? "rainDriftV144" : "snowDriftV144", rain ? 0.10 : 0.16);
+    const col = rain ? TU("rainColV144", 0xbfd8f0) : TU("snowColV144", 0xffffff);
+    const alpha = TU(rain ? "rainAlphaV144" : "snowAlphaV144", rain ? 0.34 : 0.72);
+    for (let i = 0; i < D.p.length; i++) {
+      const d = D.p[i];
+      d.y += fall * d.z * dt; d.x += drift * d.z * dt * d.sw;
+      if (!rain) d.x += Math.sin((d.y + d.ph) * 9) * 0.0016;
+      if (d.y > 1.05) { D.p[i] = this.wxDropV144(rain, -0.05); continue; }
+      if (d.x > 1.08) d.x -= 1.16; else if (d.x < -0.08) d.x += 1.16;
+      const sx = v.x + d.x * v.width, sy = v.y + d.y * v.height;
+      if (rain) {
+        const len = TU("rainLenV144", 9) * d.z / z;
+        g.lineStyle(Math.max(0.6, TU("rainPxV144", 1.1) * d.z / z), col, alpha * d.z);
+        g.lineBetween(sx, sy, sx + len * drift * 5, sy + len);
+      } else {
+        g.fillStyle(col, alpha * d.z);
+        g.fillCircle(sx, sy, Math.max(0.5, TU("snowPxV144", 1.5) * d.z / z));
+      }
+    }
+    H.wx.drops = D.p.length;
+  }
+  wxDropV144(rain, y0) {
+    return { x: Math.random() * 1.16 - 0.08, y: y0 == null ? Math.random() : y0 + Math.random() * 0.02,
+      z: TU("wxNearV144", 0.55) + Math.random() * TU("wxSpreadV144", 0.75),
+      sw: Math.random() < 0.5 ? -1 : 1, ph: Math.random() * 6.28 };
+  }
   bowlTrimV112(built, HH) {
     const C = this.crowd; if (!C || !this.add) return false;
     let g = C.trimG;
@@ -11729,18 +11991,27 @@ class Ot extends mt.Scene {
         mid: [Math.round(m.sx), Math.round(m.sy)], midTop: [Math.round(top(m).x), Math.round(top(m).y)],
         foot: foot.map((p) => [+p.x.toFixed(2), +p.y.toFixed(2)]) });
     }
-    // ---- the way out
+    // ---- the ways out
     const B = built.find((b) => b.wall && b.wall.kind === "bowl");
     if (B && TU("entranceV112", 1) && B.pts.length > 8) {
       const P = B.pts, N = P.length - 1;
-      const at = Math.max(0.08, Math.min(0.92, TU("tunnelAtV112", 0.34))), wd = Math.max(0.03, TU("tunnelWideV112", 0.1));
-      const i0 = Math.max(0, Math.round((at - wd / 2) * N)), i1 = Math.min(N, Math.round((at + wd / 2) * N));
-      const seg = P.slice(i0, i1 + 1);
-      if (seg.length >= 3) {
-        const HF = Math.max(0.05, TU("tunnelHighV112", 0.3)), M = seg.length - 1;
-        // the arch: full height across the middle, rolled off at both jambs so the terrace
-        // closes over the opening instead of the wall simply stopping
-        const hAt = (j) => HH * seg[j].k * HF * Math.pow(Math.sin(Math.PI * (j / M)), 0.34);
+      /* One cut, drawn wherever it is asked for along the bowl. `rect` is the whole difference
+       * between the middle arch and the two corner tunnels: the arch rolls its height off toward
+       * both jambs (the terrace closes over it), a rectangular mouth holds full height to square
+       * jambs and a flat lintel. Nothing here needs a rotation term to "face the corner" — near
+       * the ends of this polyline the bowl's own tangent has already swung round toward the
+       * sideline and `rk` has ramped with it, so the mouth leans and skews with the wall it is
+       * cut into. A VDIR term would be wrong: `crowdProject` carries no mirror, so pts[0] is
+       * ALWAYS screen-left and pts[N] always screen-right, whichever way the drive is going. */
+      const cut = (at, wd, rect) => {
+        at = Math.max(0.04, Math.min(0.96, at)); wd = Math.max(0.025, wd);
+        const i0 = Math.max(0, Math.round((at - wd / 2) * N)), i1 = Math.min(N, Math.round((at + wd / 2) * N));
+        const seg = P.slice(i0, i1 + 1);
+        if (seg.length < 3) return null;
+        const HF = Math.max(0.05, rect ? TU("cornerTunnelHighV144", 0.26) : TU("tunnelHighV112", 0.3)), M = seg.length - 1;
+        const hAt = rect
+          ? (j) => HH * seg[j].k * HF
+          : (j) => HH * seg[j].k * HF * Math.pow(Math.sin(Math.PI * (j / M)), 0.34);
         const mouth = [], arch = [];
         for (let j = 0; j <= M; j++) { const p = seg[j], h = hAt(j);
           mouth.push({ x: p.sx, y: p.sy }); arch.push({ x: p.sx + (p.rk == null ? 0 : p.rk) * RK * h, y: p.sy - h }); }
@@ -11753,15 +12024,30 @@ class Ot extends mt.Scene {
         const lint = arch.slice(j0, j1 + 1).map((p) => ({ x: p.x, y: p.y + (base.y - mid.y) * TU("tunnelLintelDrop", 0.16) }));
         if (lint.length > 1) { g.lineStyle(Math.max(1, TU("tunnelLintelPx", 1.4) * (seg[M >> 1].k / 0.43)), TU("tunnelGlowV112", 0xffd79a), TU("tunnelGlowA", 0.5));
           g.strokePoints(lint, false); }
-        // the frame, in the trim the wall it interrupts is painted in
+        // the frame, in the trim the wall it interrupts is painted in. A square mouth gets its
+        // jambs drawn too — an arch's frame closes itself, a rectangle's does not.
         g.lineStyle(Math.max(1, TU("tunnelFramePx", 2) * (seg[M >> 1].k / 0.43)), TU("baseBandLipCol", 0x6f9be6), 0.95);
         g.strokePoints(arch, false);
-        dbg.ent = { i0, i1, n: seg.length, k: +seg[M >> 1].k.toFixed(3),
+        if (rect) { g.strokePoints([mouth[0], arch[0]], false); g.strokePoints([mouth[M], arch[M]], false); }
+        return { i0, i1, n: seg.length, k: +seg[M >> 1].k.toFixed(3), rect: !!rect,
           h: +(base.y - mid.y).toFixed(1), w: +Math.hypot(mouth[M].x - mouth[0].x, mouth[M].y - mouth[0].y).toFixed(1),
           mouth: mouth.map((p) => [Math.round(p.x), Math.round(p.y)]), arch: arch.map((p) => [Math.round(p.x), Math.round(p.y)]) };
+      };
+      // the middle arch, unchanged — `dbg.ent` still means THIS one, which is what v112Bcheck reads
+      dbg.ent = cut(TU("tunnelAtV112", 0.34), TU("tunnelWideV112", 0.1), false);
+      /* ===== v144 G A WAY OUT IN EACH UPPER CORNER =====
+       * Rectangular mouths cut where the bowl turns into each sideline — the players' tunnels, one
+       * per corner, facing in toward the corner of the field. */
+      dbg.corners = [];
+      if (TU("cornerTunnelV144", 1)) {
+        const cAt = Math.max(0.03, Math.min(0.25, TU("cornerTunnelAtV144", 0.085)));
+        const cWd = Math.max(0.025, TU("cornerTunnelWideV144", 0.075));
+        for (const a of [cAt, 1 - cAt]) { const e = cut(a, cWd, true); if (e) dbg.corners.push(e); }
       }
     }
     C.trim112 = dbg;
+    try { (window.__V144 = window.__V144 || {}).tunnels = { mid: !!dbg.ent, corners: (dbg.corners || []).length,
+      cornerW: (dbg.corners || []).map((e) => e.w), cornerH: (dbg.corners || []).map((e) => e.h) }; } catch (e) {}
     return true;
   }
   crowdSection(idx, sgn, rakeSgn, pts, strips, stripW, CELL_H, HH) {
@@ -12200,7 +12486,7 @@ class Ot extends mt.Scene {
         tw._face = face; tw.setFrame(face * RIB_META_V92.frames);
         tw._bx = x; tw._by = footY; tw._sway = [0, 1, 0, 0.7][i] || 0;                 // v98: two of the four masts move in the wind
         tw.setPosition(x, footY).setScale(H / RIB_META_V92.cell[1]).setDepth(depT).setVisible(true);
-        { const lm = this.lightMulV100(), g = Math.max(0, Math.min(255, Math.round(255 * Math.min(1, 0.28 + 0.72 * lm))));   // v100: dark masts when the lights are down
+        { const lm = this.lightMulV100() * this.dayMulV144(), g = Math.max(0, Math.min(255, Math.round(255 * Math.min(1, 0.28 + 0.72 * lm))));   // v100: dark masts. v144: and by day they are just steel when the lights are down
           tw.setTint((g << 16) | (g << 8) | g); }
         tw._poolK = TU("lightPoolKV112", 1);        // v112: the pool is the light, not the fixture — it does not halve
         this.lightRigV98(i, tw, side ? 1 : -1, depT);
@@ -12717,7 +13003,7 @@ class Ot extends mt.Scene {
         const L = rigs && rigs[i]; if (!L || !L.glow || !L.glow.scene) return;
         const br = 0.5 + 0.5 * Math.sin(ST.t / TU("lightBreatheMs", 1900) + t._phase) * Math.sin(ST.t / 730 + t._phase * 2.3) * 0.6 + 0.2 * Math.sin(ST.t / 3100 + t._phase);
         const k = (hold ? 1 : 0.72 + 0.28 * Math.max(0, Math.min(1, br))) * live;
-        const LM = this.lightMulV100();   // v100: the dial is the strength of the light itself
+        const LM = this.lightMulV100() * this.dayMulV144();   // v100: the dial is the strength of the light itself. v144: and the lamps are off in the afternoon
         L.glow.setAlpha(TU("lightGlowA", 0.62) * k * LM); L.beam.setAlpha(TU("lightBeamA", 0.2) * k * LM); L.pool.setAlpha(TU("fieldPoolLiveA", 0.11) * k * LM);
         L.glow.setVisible(LM > 0.01); L.beam.setVisible(LM > 0.01); L.pool.setVisible(LM > 0.01);
         if (t._sway) { L.glow.x = L.hx + (t.x - t._bx) * 0.9; L.beam.x = L.hx + (t.x - t._bx) * 0.9; }
@@ -13105,15 +13391,23 @@ class Ot extends mt.Scene {
     this.sideRelight(true);
     return true;
   }
-  // Eight pylons, one on each corner of each end zone, standing ON the corner
-  // rather than in the apron — they are the only thing in this system that is
-  // part of the playing field. PLAY_L/PLAY_R are the GOAL lines (the end zones
-  // are the EZ margins outside them), so the eight are those two plus the ends.
+  // The pylons stand ON the corner rather than in the apron — they are the only
+  // thing in this system that is part of the playing field. PLAY_L/PLAY_R are the
+  // GOAL lines (the end zones are the EZ margins outside them); the full set adds
+  // the two end lines. Which of those are drawn is v144 F's call, below.
   sidePylons() {
     // on the PAINTED corners — the pylon is the one sprite that belongs on the
     // line itself, so it alone opts out of the off-the-field clamp
     const MIDY = (F_TOP + F_BOT) / 2, PAINT = (this.side && this.side.paint) || 206;
-    for (const x of [3, PLAY_L, PLAY_R, FW - 3])
+    /* v144 F: ONE marker per corner. The full set is eight — a pylon on each of the four corners of
+     * each end zone, which is what the real game uses — but the goal-line pylon and the end-line
+     * pylon behind it are only eleven yards apart in depth, so through the broadcast camera they
+     * foreshorten into one doubled, thick-looking marker at every corner. Keeping the GOAL-LINE
+     * pair is keeping the ones that matter: they mark the plane the ball has to cross.
+     * `TU("pylonAllCornersV144", 1)` puts the real-football set of eight back. */
+    const PYL_X_V144 = TU("pylonAllCornersV144", 0) ? [3, PLAY_L, PLAY_R, FW - 3] : [PLAY_L, PLAY_R];
+    try { (window.__V144 = window.__V144 || {}).pylons = PYL_X_V144.length * 2; } catch (e) {}
+    for (const x of PYL_X_V144)
       for (const dy of [-PAINT, PAINT]) {
         const im = this.sideItem("pylon", x, MIDY + dy, { sc: TU("sidePylonScale", .55), keep: 1, noshadow: 1, onLine: 1 });
         if (im) im.setDepth(this.sideDepth(im.y) + .002);
@@ -13566,6 +13860,7 @@ class Ot extends mt.Scene {
     this.tweens.add({ targets: g, alpha: 0, duration: 700, onComplete: () => this.dropFx(g) });
   }
   refreshPersp() {   // re-project + re-warp after a slider change or late art decode
+    this._wxV144 = null;   // v144 H: the sky is cached per FRAME, and a Settings click lands between two of them
     if (this._lastField) this.drawField(this._lastField[0], this._lastField[1]);
   }
   /* ===== v72 END-ZONE MAPPING — the painted field and the simulated one are the
@@ -13655,7 +13950,13 @@ class Ot extends mt.Scene {
       // the end-zone stands it has to read as the dark behind them instead of as
       // grass floating above the goal line.
       const sky = ctx.createLinearGradient(0, 0, 0, NSTOP);
-      sky.addColorStop(0, "#010204"); sky.addColorStop(1, "#080b10");   // v98: darker still, so the lamps have something to glow against
+      /* v144 H: and by day it is a sky you can see. v98 made this a night game and nothing since
+       * has given it an alternative; the lamps, the stars and the warm wash below all key off the
+       * same `day` so a sunny afternoon cannot half-apply. Night is still the default and still
+       * exactly the old two stops. */
+      const DAY144 = this.wxV144().day;
+      if (DAY144) { sky.addColorStop(0, TU("daySkyTopV144", "#4d86c4")); sky.addColorStop(1, TU("daySkyLowV144", "#bcd6ea")); }
+      else { sky.addColorStop(0, "#010204"); sky.addColorStop(1, "#080b10"); }   // v98: darker still, so the lamps have something to glow against
       ctx.fillStyle = sky; ctx.fillRect(0, 0, CW, NSTOP + 1);
       this.starsV112(ctx, CW, NSTOP);   // v112: and the sky has stars in it
       const SWa = fimg.width, SHa = fimg.height;         // 360x700 art
@@ -13670,16 +13971,51 @@ class Ot extends mt.Scene {
        * ground's own edge falling into the dark beyond the ground — rather than stretching a
        * scanline into infinity. `nearEdgeV112` at 0 puts the old smear back. */
       const SLOPE = Math.abs(P.s(0)) || 1, EXT = TU("nearEdgeV112", 1);
-      let edgeI = -1;
+      /* ===== v144 E THE SAME GRASS ON ALL FOUR SIDES =====
+       * The two long sides already bleed grass to the frame edge at every depth (the art's
+       * outermost columns are stretched outward on every row). The two ENDS did not match.
+       *   NORTH: `if (target <= 0) continue` threw away every row above the far end line, so the
+       *     ~5 yards of apron the art paints beyond that end zone were never drawn and the stands
+       *     sat straight on the end line.
+       *   SOUTH: the apron was drawn as far as the painting went and then fell into black — v112
+       *     made that a deliberate edge because the alternative it replaced was one scanline
+       *     smeared over hundreds of rows, which streaked.
+       * Both ends now carry grass. North draws the real painted apron. South keeps going past the
+       * painting by CYCLING a band of the art's own apron rows — real grass pixels with real
+       * texture, not one row stretched — and recedes under a gentle darkening instead of a wall of
+       * black. `TU("apronV144", 0)` restores the v112 near edge and the bare far end line. */
+      const APRON144 = TU("apronV144", 1);
+      const SLOPE_N = Math.abs(P.s(FW)) || 1;
+      const A_BAND = Math.max(6, TU("apronBandV144", 22)), A_MINROW = TU("apronFarMinRowV144", 3);
+      let edgeI = -1, apronRows144 = 0, farRows144 = 0;
       for (let i = 0; i < CH; i++) {
         const target = (i - NSTOP) / P.VB;               // = total − C(u) at this row
         let u;
-        if (target <= 0) continue;                        // above the far end line: backdrop, not turf
+        if (target <= 0) {                                // above the far end line
+          if (!APRON144) continue;                        // v112 and earlier: backdrop, not turf
+          const uN = FW + (-target) / (SLOPE_N * SLOPE_N);
+          if (this.fieldArtY(uN) < A_MINROW) continue;    // v144 E: past the painting — this really is sky
+          u = uN; farRows144++;                           // v144 E: the far apron the art has always carried
+        }
         else if (target >= P.total) u = EXT ? (P.total - target) / (SLOPE * SLOPE) : 0;
         else { let lo = 0, hi = FW; const want = P.total - target;
           for (let it = 0; it < 18; it++) { const mid = (lo + hi) / 2; if (P.C(mid) < want) lo = mid; else hi = mid; }
           u = (lo + hi) / 2; }
-        if (EXT && this.fieldArtY(u) > SHa - 4) { edgeI = i; break; }   // v112: no apron left to draw
+        if (EXT && this.fieldArtY(u) > SHa - 4) {
+          if (edgeI < 0) edgeI = i;                       // v112 still reports where the PAINTED apron ended
+          if (!APRON144) break;                           // v112: no apron left to draw
+          /* v144 E: the ground does not stop where the painting does. Cycle a band of the art's
+           * own grass rows so the continuation has grain, and run it the full width — this far
+           * down the field is wider than the canvas anyway. */
+          /* ping-pong rather than wrap, and start on the row the painting stopped at: consecutive
+           * canvas rows then always come from ADJACENT art rows, so there is no seam where the
+           * continuation begins and no repeat line where a wrap would have jumped back. */
+          const span144 = Math.max(2, A_BAND - 4), tt144 = (i - edgeI) % (span144 * 2);
+          const sYa = (SHa - 4) - (tt144 < span144 ? tt144 : span144 * 2 - 1 - tt144);
+          ctx.drawImage(fimg, 0, sYa, SWa, 1, 0, i, CW, 1);
+          apronRows144++;
+          continue;
+        }
         const sY = Math.max(3, Math.min(SHa - 4, this.fieldArtY(u)));   // v72: by goal line, not by height
         const w = AW * (P.s(u) / P.sN), x0 = (CW - w) / 2;
         if (x0 > 0) {                                     // edge-extend the grass margins
@@ -13713,17 +14049,29 @@ class Ot extends mt.Scene {
         }
       }
       if (edgeI >= 0 && edgeI < CH) {
-        // v112: the ground ends here. Its own last apron rows carry the colour a short way
-        // down and fall into the dark — one soft edge instead of several hundred rows of one
-        // stretched scanline.
-        const fade = Math.max(8, TU("nearEdgeFadePx", 110)), n = Math.min(CH - edgeI, fade);
-        ctx.drawImage(fimg, 0, SHa - 3, SWa, 2, 0, edgeI, CW, n);
-        const ge = ctx.createLinearGradient(0, edgeI, 0, edgeI + n);
-        ge.addColorStop(0, "rgba(6,10,14,0)"); ge.addColorStop(1, "rgba(5,8,12,1)");
-        ctx.fillStyle = ge; ctx.fillRect(0, edgeI, CW, n);
-        if (edgeI + n < CH) { ctx.fillStyle = "#05080c"; ctx.fillRect(0, edgeI + n, CW, CH - edgeI - n); }
+        if (APRON144) {
+          /* v144 E: the grass carried on above; all this has to do is let it recede. A soft, and
+           * deliberately PARTIAL, darkening — the ground should read as running out of light, not
+           * as running out of ground. */
+          const gn = CH - edgeI;
+          const ge = ctx.createLinearGradient(0, edgeI, 0, CH);
+          ge.addColorStop(0, "rgba(6,10,14,0)");
+          ge.addColorStop(1, "rgba(5,8,12," + TU("apronFadeAV144", .5) + ")");
+          ctx.fillStyle = ge; ctx.fillRect(0, edgeI, CW, gn);
+        } else {
+          // v112: the ground ends here. Its own last apron rows carry the colour a short way
+          // down and fall into the dark — one soft edge instead of several hundred rows of one
+          // stretched scanline.
+          const fade = Math.max(8, TU("nearEdgeFadePx", 110)), n = Math.min(CH - edgeI, fade);
+          ctx.drawImage(fimg, 0, SHa - 3, SWa, 2, 0, edgeI, CW, n);
+          const ge = ctx.createLinearGradient(0, edgeI, 0, edgeI + n);
+          ge.addColorStop(0, "rgba(6,10,14,0)"); ge.addColorStop(1, "rgba(5,8,12,1)");
+          ctx.fillStyle = ge; ctx.fillRect(0, edgeI, CW, n);
+          if (edgeI + n < CH) { ctx.fillStyle = "#05080c"; ctx.fillRect(0, edgeI + n, CW, CH - edgeI - n); }
+        }
       }
       this._nearEdgeV112 = { edgeI, lastTurfY: Math.round(NSTOP + P.VB * P.total), kMax: +(P.kMax || 0).toFixed(3) };
+      try { (window.__V144 = window.__V144 || {}).apron = { on: !!APRON144, southRows: apronRows144, northRows: farRows144, edgeI }; } catch (e) {}
       this.lightFieldV98(ctx, CW, CH);   // v98: the lamps' wash, their pools and the edge falloff, baked on the turf
       if (this.textures.exists("rib_field_warp")) this.textures.get("rib_field_warp").refresh();
       else this.textures.addCanvas("rib_field_warp", this._warpCv);
@@ -13748,6 +14096,7 @@ class Ot extends mt.Scene {
     if (!TU("starsV112", 1)) return;
     const N = Math.round(TU("starCountV112", 190));
     if (N <= 0 || HT < 20) return;
+    if (this.wxV144().day) { this._starsV112 = { n: 0, washedOut: "day" }; return; }   // v144 H: no stars in an afternoon sky
     const wash = Math.max(0, Math.min(1, (TU("starWashAt", 1.8) - this.lightMulV100()) / Math.max(0.05, TU("starWashSpan", 1.25))));
     if (wash <= 0.02) { this._starsV112 = { n: 0, wash: +wash.toFixed(3) }; return; }
     // the band they live in. The camera sits low: at an ordinary anchoring only the strip of
@@ -13785,9 +14134,17 @@ class Ot extends mt.Scene {
   lightFieldV98(ctx, CW, CH) {
     if (!TU("fieldLightV98", 1)) return;
     try {
-      const x0 = (CW - FW) / 2, H = CH - NSTOP, LM = this.bakedMulV100();   // v100: the dial, softened at the top
+      const x0 = (CW - FW) / 2, H = CH - NSTOP, LM = this.bakedMulV100() * this.dayMulV144();   // v100: the dial, softened at the top. v144: and all but gone by day
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
+      /* v144 H: by day the light does not come from four masts — it comes from everywhere. The
+       * wash and the pools below are gone (LM is ~0.12), so without this the afternoon turf is
+       * DARKER than the floodlit one: a blue sky over a night field. One flat, even sheet of sun
+       * across the whole playing surface instead, still riding the player's own brightness dial. */
+      if (this.wxV144().day) {
+        ctx.fillStyle = "rgba(255,250,230," + (TU("daySunA", 0.22) * this.lightMulV100()).toFixed(3) + ")";
+        ctx.fillRect(0, NSTOP, CW, H);
+      }
       // the wash: warm at the far end, gone by mid-field
       const wash = ctx.createLinearGradient(0, NSTOP, 0, NSTOP + H * TU("fieldWashReach", 0.48));
       wash.addColorStop(0, "rgba(255,238,196," + (TU("fieldWashA", 0.15) * LM).toFixed(3) + ")"); wash.addColorStop(1, "rgba(255,238,196,0)");
@@ -13803,7 +14160,10 @@ class Ot extends mt.Scene {
       // the falloff: the light thins out past the touchlines and down toward the near corners
       ctx.globalCompositeOperation = "source-over";
       // as the lights come down the corners go deeper, not flatter — a dark stadium is not evenly dark
-      const va = TU("fieldVignA", 0.34) * Math.max(0.35, Math.min(1.5, 2 - LM)), vc = { x: CW / 2, y: NSTOP + H * 0.42 };
+      /* v144 H: daylight is flat. The vignette is what tells the eye the stadium is a pool of
+       * light in the dark, so by day it mostly goes — otherwise a sunny sky sits over a field
+       * with night-time corners. */
+      const va = TU("fieldVignA", 0.34) * Math.max(0.35, Math.min(1.5, 2 - LM)) * (this.wxV144().day ? TU("dayVignKV144", 0.3) : 1), vc = { x: CW / 2, y: NSTOP + H * 0.42 };
       const v = ctx.createRadialGradient(vc.x, vc.y, CW * 0.38, vc.x, vc.y, CW * 1.05);
       v.addColorStop(0, "rgba(3,6,14,0)"); v.addColorStop(1, "rgba(3,6,14," + va.toFixed(3) + ")");
       ctx.fillStyle = v; ctx.fillRect(0, NSTOP, CW, H);
@@ -16199,6 +16559,11 @@ const POS_POOL=e=>Math.max(1,Math.round(NAT_POOL(e)/9));function br(e,t,a){const
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:2px 0 4px">${L.map(function(m,i){return `<button class="btn camopt112 ${i===c?"secondary":"ghost"}" style="padding:8px 4px;font-size:12px" onclick="camModeSet112(${i})">${m.n}</button>`}).join("")}</div>
         <div class="fx-desc" id="fxCam_desc">${L[c].d}</div>
       </div>`})()}
+      ${(function(){var L=window.__WX_MODES_V144||[{id:"auto",n:"Auto",d:""}];var c=Math.max(0,Math.min(L.length-1,Math.round((o.settings&&o.settings.fxWx)||0)));return `<div class="fx-row">
+        <div class="fx-head"><span class="fx-label">Weather &amp; time of day</span><span class="fx-val" id="fxWx_val">${L[c].n}</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:2px 0 4px">${L.map(function(m,i){return `<button class="btn wxopt144 ${i===c?"secondary":"ghost"}" style="padding:8px 2px;font-size:11px" onclick="wxModeSet144(${i})">${m.n}</button>`}).join("")}</div>
+        <div class="fx-desc" id="fxWx_desc">${L[c].d}</div>
+      </div>`})()}
       ${[
         ["fxDepth","Field perspective (depth)","How hard everything recedes — 0 is flat top-down; higher = the far (north) field, numbers and players all shrink harder, always in step",0,0.9,0.01,0.78],
         ["fxSize","Player size","Overall size of every player",0.5,1.9,0.05,1.32],
@@ -16976,7 +17341,13 @@ nm=w=>{const g=String(w&&w.name||"");return g.split(" ")[1]||g||"—"};
 // every situational decision instead of each snap behaving like a coin flip.
 const avgAttr=(arr,key)=>arr.reduce((s,pl)=>s+_(pl,key),0)/Math.max(1,arr.length),
 teamProfile=tm=>{const qb=Y(tm.off,["QB"]),rb=Y(tm.off,["RB"]),ol=tm.off.filter(pl=>pl.pos==="OL"),rec=tm.off.filter(pl=>["WR","TE"].includes(pl.pos)),sec=tm.def.filter(pl=>["CB","S"].includes(pl.pos)),front=tm.def.filter(pl=>["DL","LB"].includes(pl.pos));return{qbIq:_(qb,"awareness"),qbSpeed:_(qb,"speed"),rbSkill:(_(rb,"speed")+_(rb,"burst")+_(rb,"strength"))/3,ballSecurity:(_(rb,"awareness")+_(rb,"strength"))/2,line:avgAttr(ol,"blocking"),receivers:(avgAttr(rec,"catching")+avgAttr(rec,"speed"))/2,front:(avgAttr(front,"strength")+avgAttr(front,"tackling"))/2,coverage:(avgAttr(sec,"coverage")+avgAttr(sec,"speed"))/2,discipline:avgAttr([...tm.off,...tm.def],"awareness")}},
-profiles={us:teamProfile(c.us),them:teamProfile(c.opp)},weatherRoll=Math.random(),weather=weatherRoll<.10?"rain":weatherRoll<.15?"wind":weatherRoll<.18?"snow":"clear",__wxSide=(typeof window<"u"?(window.__WX_V79=weather):weather),weatherFx={pass:weather==="rain"?.94:weather==="wind"?.91:weather==="snow"?.9:1,kick:weather==="wind"?.88:weather==="snow"?.9:weather==="rain"?.95:1,fumble:weather==="rain"?1.35:weather==="snow"?1.22:1};
+profiles={us:teamProfile(c.us),them:teamProfile(c.opp)},weatherRoll=Math.random(),weather=weatherRoll<.10?"rain":weatherRoll<.15?"wind":weatherRoll<.18?"snow":"clear",__wxSide=(typeof window<"u"?(window.__WX_V79=weather):weather),
+/* v144 H: a game is played at a time of day as well as in a weather. Rain and snow are night
+ * games as often as any other; a CLEAR game is the one that can be played in the sun. The roll is
+ * published beside the weather so the renderer can read both, and the sim itself does not care —
+ * nothing below reads `dayV144`, so no outcome moves. */
+dayV144=(weather==="clear"&&Math.random()<TU("dayChanceV144",.42)),
+__daySide=(typeof window<"u"?(window.__WX_DAY_V144=dayV144):dayV144),weatherFx={pass:weather==="rain"?.94:weather==="wind"?.91:weather==="snow"?.9:1,kick:weather==="wind"?.88:weather==="snow"?.9:weather==="rain"?.95:1,fumble:weather==="rain"?1.35:weather==="snow"?1.22:1};
 const usage=new Map(),touches=pl=>usage.get(pl)||0,addTouch=pl=>usage.set(pl,touches(pl)+1);
 /* ===== v111 THE DIAL REACHES THE SNAP =====
  * `share` is the share of HIS unit's snaps he is on the field for. A rest snap is not a
@@ -19065,8 +19436,9 @@ const fc=Aa;Aa=function(){fc();const e=o.player,t=x("screen");if(!(!e||!t)){if(o
 /* v20 personality side-effects (two-sided sliders): varMult widens/narrows game-to-game swings around 50, injMult scales injury rolls both ways. v23: perfFlat is NO LONGER a rating bump here — it is a REAL flat stat boost applied inside the sim's attribute accessor (_raw), so it shows up as actual production (and flows into the box-score grade) instead of an abstract "+performance" number. */
 const _pfxEt=et;et=function(e,t,a){const fx=e&&e.personaFxV20;if(!fx)return _pfxEt(e,t,a);const r=_pfxEt(e,(t||0),a);if(fx.varMult&&fx.varMult!==1)r.perf=f(Math.round(50+(r.perf-50)*fx.varMult),1,100);if((fx.injMult||1)>1&&!r.injured)r.injured=Math.random()<(fx.injMult-1)*.06;else if((fx.injMult||1)<1&&r.injured&&Math.random()<1-fx.injMult)r.injured=!1;return r};
 window.__V112_C={htFrac:HT_FRAC_V112,wtFrac:WT_FRAC_V112,bodyNow:bodyNowV112,bodyOf:bodyOfV112,frac:fracV112,pool:TRAIT_POOL_V112,offer:traitOfferV112,auto:traitAutoV112,traits:dt,fit:pa,rank:ns,ovr:en,abandoned:abandonedV112,active:()=>rerollActiveV112(o&&o.player),mul:e=>rerollMulV112(e||(o&&o.player)),why:()=>rerollWhyV112(o&&o.player),arm:armRerollV112,ledger:()=>(o&&o.rerollV112)||null,cond:e=>condMultV54(e||(o&&o.player)),eff:e=>effAttrsV85(e||(o&&o.player))};
-window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;window.startSeason=Br;window.alloc=Nl;window.doneUpgrade=Fl;window.autoAllocKey=jl;window.autoAllocSpread=Il;window.endCareer=fn;window.prestigeReset=Hl;window.buy=Yl;window.shopBack=ys;window.continueNFL=Gl;window.chooseTraining=Ir;window.chooseEvent=Fr;window.setBranch=Wl;window.watchLive=il;window.quickSimSeason=El;window.startSeasonGames=La;window.playWeek=lt;window.simRemainingWeeks=wt;window.finishSeasonGames=fs;window.finishWeekGame=Ea;window.setSpeed=ml;window.skipLive=pl;window.setRosterTab=rl;window.respecTree=ql;window.choosePath=oo;window.exportSave=Rr;window.importSave=Pr;window.hardReset=Cr;window.toggleSetting=ar;window.applyFieldFx=function(){var el=document.querySelector("#field");if(el){el.style.transform="";}try{var sc=window.__gridironScene;sc&&sc.refreshPersp&&sc.refreshPersp();}catch(e){}};function __pushFieldFx(){var s=(typeof o!=="undefined"&&o&&o.settings)||{};window.__FIELD_FX={tilt:0,depth:s.fxDepth==null?0.78:s.fxDepth,size:s.fxSize==null?1.32:s.fxSize,spread:s.fxSpread==null?1:s.fxSpread,radius:s.fxRadius==null?300:s.fxRadius,zoom:s.fxZoom==null?1.16:s.fxZoom,light:s.fxLight==null?1:s.fxLight,cam:s.fxCam==null?0:s.fxCam,camZoom:s.fxCamZoom==null?1:s.fxCamZoom};window.applyFieldFx();}window.__fxFmt=function(k,v){v=+v;return k==="fxTilt"?(Math.round(v)+"°"):(k==="fxRadius"||k==="fxPersp")?(Math.round(v)+"px"):(Math.round(v*100)+"%");};window.fieldFxSet=function(k,v,save){o.settings||(o.settings={});o.settings[k]=parseFloat(v);__pushFieldFx();var el=document.getElementById(k+"_val");el&&(el.textContent=window.__fxFmt(k,o.settings[k]));if(save)try{I()}catch(e){}};/* ===== v112 THE CAMERA HAS OPTIONS (the panel) — the picked behaviour is live before the panel closes ===== */
-window.camModeSet112=function(i){o.settings||(o.settings={});var L=window.__CAM_MODES_V112||[];o.settings.fxCam=Math.max(0,Math.min(L.length?L.length-1:3,i|0));__pushFieldFx();try{I()}catch(e){}var v=document.getElementById("fxCam_val"),d=document.getElementById("fxCam_desc");v&&(v.textContent=(L[o.settings.fxCam]||{}).n||"");d&&(d.textContent=(L[o.settings.fxCam]||{}).d||"");[].forEach.call(document.querySelectorAll(".camopt112"),function(b,j){b.className="btn camopt112 "+(j===o.settings.fxCam?"secondary":"ghost")});};window.fieldFxReset=function(){o.settings||(o.settings={});["fxTilt","fxPersp","fxDepth","fxSize","fxSpread","fxRadius","fxZoom","fxLight","fxCam","fxCamZoom"].forEach(function(k){delete o.settings[k]});try{I()}catch(e){}__pushFieldFx();o.view==="settings"&&Fi();};__pushFieldFx();window.declareAdvance=Vl;window.declareFromHub=Ar;window.chooseTier=Gi;window.setStatsTab=Sr;window.setLeadPos=Mr;window.setLeadSort=xr;window.setChaos=ir;window.chaosMaxAll=or;window.buyMastery=nr;window.screenDynasty=Ra;window.bigMoment=ye;window.equipGear=zr;window.scrapGear=Qr;window.screenHof=Bi;window.screenLocker=ts;bootV140();__pushFieldFx();/* ===== v140 THE BOOT CANNOT TAKE THE REST OF THE FILE WITH IT =====
+window.startCareer=Di;window.confirmNew=Tr;window.pickPos=rs;window.advance=na;window.startSeason=Br;window.alloc=Nl;window.doneUpgrade=Fl;window.autoAllocKey=jl;window.autoAllocSpread=Il;window.endCareer=fn;window.prestigeReset=Hl;window.buy=Yl;window.shopBack=ys;window.continueNFL=Gl;window.chooseTraining=Ir;window.chooseEvent=Fr;window.setBranch=Wl;window.watchLive=il;window.quickSimSeason=El;window.startSeasonGames=La;window.playWeek=lt;window.simRemainingWeeks=wt;window.finishSeasonGames=fs;window.finishWeekGame=Ea;window.setSpeed=ml;window.skipLive=pl;window.setRosterTab=rl;window.respecTree=ql;window.choosePath=oo;window.exportSave=Rr;window.importSave=Pr;window.hardReset=Cr;window.toggleSetting=ar;window.applyFieldFx=function(){var el=document.querySelector("#field");if(el){el.style.transform="";}try{var sc=window.__gridironScene;sc&&sc.refreshPersp&&sc.refreshPersp();}catch(e){}};function __pushFieldFx(){var s=(typeof o!=="undefined"&&o&&o.settings)||{};window.__FIELD_FX={tilt:0,depth:s.fxDepth==null?0.78:s.fxDepth,size:s.fxSize==null?1.32:s.fxSize,spread:s.fxSpread==null?1:s.fxSpread,radius:s.fxRadius==null?300:s.fxRadius,zoom:s.fxZoom==null?1.16:s.fxZoom,light:s.fxLight==null?1:s.fxLight,cam:s.fxCam==null?0:s.fxCam,camZoom:s.fxCamZoom==null?1:s.fxCamZoom,wx:s.fxWx==null?0:s.fxWx};window.applyFieldFx();}window.__fxFmt=function(k,v){v=+v;return k==="fxTilt"?(Math.round(v)+"°"):(k==="fxRadius"||k==="fxPersp")?(Math.round(v)+"px"):(Math.round(v*100)+"%");};window.fieldFxSet=function(k,v,save){o.settings||(o.settings={});o.settings[k]=parseFloat(v);__pushFieldFx();var el=document.getElementById(k+"_val");el&&(el.textContent=window.__fxFmt(k,o.settings[k]));if(save)try{I()}catch(e){}};/* ===== v112 THE CAMERA HAS OPTIONS (the panel) — the picked behaviour is live before the panel closes ===== */
+window.camModeSet112=function(i){o.settings||(o.settings={});var L=window.__CAM_MODES_V112||[];o.settings.fxCam=Math.max(0,Math.min(L.length?L.length-1:3,i|0));__pushFieldFx();try{I()}catch(e){}var v=document.getElementById("fxCam_val"),d=document.getElementById("fxCam_desc");v&&(v.textContent=(L[o.settings.fxCam]||{}).n||"");d&&(d.textContent=(L[o.settings.fxCam]||{}).d||"");[].forEach.call(document.querySelectorAll(".camopt112"),function(b,j){b.className="btn camopt112 "+(j===o.settings.fxCam?"secondary":"ghost")});};/* ===== v144 H THE SKY HAS OPTIONS (the panel) — a look pinned over the week's roll, and nothing else ===== */
+window.wxModeSet144=function(i){o.settings||(o.settings={});var L=window.__WX_MODES_V144||[];o.settings.fxWx=Math.max(0,Math.min(L.length?L.length-1:4,i|0));__pushFieldFx();try{I()}catch(e){}var v=document.getElementById("fxWx_val"),d=document.getElementById("fxWx_desc");v&&(v.textContent=(L[o.settings.fxWx]||{}).n||"");d&&(d.textContent=(L[o.settings.fxWx]||{}).d||"");[].forEach.call(document.querySelectorAll(".wxopt144"),function(b,j){b.className="btn wxopt144 "+(j===o.settings.fxWx?"secondary":"ghost")});};window.fieldFxReset=function(){o.settings||(o.settings={});["fxTilt","fxPersp","fxDepth","fxSize","fxSpread","fxRadius","fxZoom","fxLight","fxCam","fxCamZoom","fxWx"].forEach(function(k){delete o.settings[k]});try{I()}catch(e){}__pushFieldFx();o.view==="settings"&&Fi();};__pushFieldFx();window.declareAdvance=Vl;window.declareFromHub=Ar;window.chooseTier=Gi;window.setStatsTab=Sr;window.setLeadPos=Mr;window.setLeadSort=xr;window.setChaos=ir;window.chaosMaxAll=or;window.buyMastery=nr;window.screenDynasty=Ra;window.bigMoment=ye;window.equipGear=zr;window.scrapGear=Qr;window.screenHof=Bi;window.screenLocker=ts;bootV140();__pushFieldFx();/* ===== v140 THE BOOT CANNOT TAKE THE REST OF THE FILE WITH IT =====
  * `mc()` — load the save, restore its view, draw it — is called at the TOP LEVEL of this block,
  * hundreds of lines above the end of it. So a screen that throws while being restored does not
  * just fail to draw: it aborts this block's remaining top level, and everything still to be

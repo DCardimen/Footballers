@@ -11,6 +11,10 @@ const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
+/* v144 A: the atlas is measured on the DRAWN sprite, and this check plays week 1 — Pee Wee, where every
+ * man is drawn at 52%. The age scale is v144check's subject; here it only halves the margins
+ * this check reads. Pin the men to adult size. */
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { liveAgeV144: 0 }) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
 await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(1200)

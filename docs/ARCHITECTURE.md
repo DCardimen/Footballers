@@ -2463,6 +2463,138 @@ bucket is full of chase-downs from behind, which have a poor dot to the lead poi
 wrap bonus in the game. `v143check.mjs` excludes `behind` and restricts the angle buckets to men who
 were actually running.
 
+## v144 — the ground, the sky, the gap between plays, and the age of the man
+
+Eight changes, all in the renderer and the career block; nothing in FieldSim and nothing the sim
+rolls. `window.__V144` carries every hook; `v144check.mjs` is the gate.
+
+**A — the age of the man on the field** (anchor `v144 A THE AGE OF THE MAN ON THE FIELD`, beside
+`crowdTier()`). `LIVE_AGE_K_V144` is age → scale, 0.52 at eight to 0.99 at twenty-one and 1 from
+twenty-two; `liveAgeKV144()` reads the level's own cohort age off `LEVELS[lv].age` through
+`window.__GRIDIRON_AUDIT__.getState()`. It is resolved ONCE a snap in the per-play actors loop and
+stamped as `marker._ageKV144` — twenty-two state reads a frame is not a thing to do for a cosmetic
+scale. `placeMarker` applies it to `p.s` right after `PJ`, which is the whole trick: everything
+downstream of that line reads `p.s`, so the shadow, the jersey number, the tackle hop, the launch
+arc, the engage spread and the ball in his hand all follow with no further code. The y nudge
+(`p.y += 24 * (1 - k) * p.s`) is what keeps his FEET on the row — the container's origin is the
+sprite's centre and its ground plane is local y=24, so a smaller man would otherwise float above the
+grass. The one place the scale has to be BACKED OUT is v118's mesh probe, which divides a screen
+distance by the quarterback's own scale to read it as sim units; the speed trail's `+7` offset is
+`trK144` for the same reason. `TU("liveAgeV144", 0)` puts every man back to full size, and
+`window.__LIVE_AGE_FORCE_V144` pins an age for a check. The helmet is NOT held out of the scale —
+the whole body shrinks uniformly.
+
+**B — the watchdog is budgeted against the play rate.** The renderer arms a stall watchdog when a
+play starts. It was `script.duration * 2 + 4000` — a figure in SCRIPT milliseconds compared against
+a wall clock that runs at `basePlayRate * speed`. At half speed a 3.6s script with a 1.3s delay and
+the post-play gather takes ~30s of wall clock and the watchdog fired at 24s, calling `complete()`
+part-way through and cutting to the result line. It is now
+`(duration + delay + postPlayMs) / (basePlayRate * watchdogSlowestSpeed) + watchdogSlackMs`, which
+is the play at the slowest speed the game offers, and the arithmetic is published on
+`window.__V144.watchdog` so the check can assert the budget beats the need rather than trusting a
+number. `window.__V144.watchdogFired` counts real stalls.
+
+**C — the field is never frozen** (anchor `v144 C`). `update()` used to `return` when `this.play`
+was null, so between the whistle and the next snap every marker held its last pixel. `idleBetweenV144`
+runs in that branch instead: on the first idle tick each man records `m._idleHomeV144` — where the
+whistle left him — and every target after that is a jitter around THAT, never around where he last
+wandered to. The leash is the whole design. Two earlier cuts drifted: building the target off the
+ball spot walked all twenty-two men into one band around the football, and replacing that with a
+small pull toward the new line (16% of the distance per pick) did the same thing geometrically over
+a long gap — ten picks is 83% of the way there. Both measured the same way: the near/far screen
+spread fell from ~390px to ~50px, and the field stopped reading as deep, which `v99check`'s
+near-vs-far shadow assertion is what caught. The next snap's glide is what moves a man to the
+formation and it already did that; the shuffle only has to stop him standing to attention.
+`postGatherExtraMs` adds a beat to `postPlayMsV86` so the gather and the shuffle do not fight, and
+the home is cleared in the per-play actors loop so a leash never spans two gaps. It uses
+`this._idleClockV144`, NOT the marker's own `tms`.
+
+**D — the uprights stand in something** (`postPadV144`). A blue padded socket round each post's foot,
+derived from the post's own `base` and `s` so it rides the projection. It is called from BOTH
+`drawGoalpostsV87` and `drawUprights`: the second is the field-goal overlay at depth 6, and without
+the call there the pad vanishes for the whole kick. `postPadSocketKV144` widens the post's existing
+socket to match.
+
+**E — grass on all four sides** (in `warpField`). The two long sides already bled the art's outermost
+columns outward at every depth. The ENDS did not. NORTH: `if (target <= 0) continue` threw away every
+canvas row above the far end line, so the ~5 yards of apron the art paints beyond that end zone were
+never drawn and the bowl sat straight on the end line; those rows are drawn now, stopping where the
+painting genuinely stops (`fieldArtY(uN) < apronFarMinRowV144`). SOUTH: the painting ran out and v112
+faded to black, because the alternative it replaced was one scanline smeared over hundreds of rows.
+The continuation PING-PONGS a band of the art's own apron rows (`apronBandV144`), starting on the row
+the painting stopped at, so consecutive canvas rows always come from ADJACENT art rows — no seam
+where it begins, no repeat line where a wrap would jump back — under a PARTIAL darkening
+(`apronFadeAV144`), because the ground should read as running out of light rather than out of ground.
+Note for anything that samples the warp canvas: those far apron rows are real turf sitting in canvas
+rows just above `NSTOP`, entirely behind the stands. Anything measuring the SKY must stop at the
+bowl's own top, not at `NSTOP` — this is what `v112Bcheck`'s star band had to be corrected to.
+
+**F — one pylon a corner** (`sidePylons`). Eight is the real-football set: one on each of the four
+corners of each end zone. But the goal-line pylon and the end-line pylon behind it are eleven yards
+apart in depth, and through the broadcast camera they foreshorten into one doubled, thick-looking
+marker at every corner. `PYL_X_V144` keeps the GOAL-LINE pair — the ones that mark the plane the ball
+has to cross — and `TU("pylonAllCornersV144", 1)` restores all eight.
+
+**G — the corners have tunnels** (in `bowlTrimV112`). The entrance cut is a `cut(at, wd, rect)`
+closure now. The middle arch is unchanged; two RECTANGULAR vomitories are cut at
+`cornerTunnelAtV144` and its mirror, facing the corners of the field, with a constant lintel height
+and stroked jambs (an arch reads as a bite out of the crowd at that width). `window.__V144.tunnels`
+reports the mid arch and both corner mouths' measured width and height.
+
+**H — weather, and a time of day** (anchor `v144 H THE GAME IS PLAYED IN WEATHER...`). The sim has
+rolled `weather` since v79 and it really does move `weatherFx.pass` / `.kick` / `.fumble` — but the
+only thing that ever showed it was the sideline swapping towels for ponchos, and there was no time of
+day at all: v98 made it a night game and left it there.
+
+- `wxV144()` is the ONE read — `{precip, day}` — resolved once a frame and cached on
+  `_wxFrameV144` / `_wxV144`, because the sky bake, the lamps, the mast tint and the particle layer
+  all ask for it. **The guard has to check the cached VALUE, not just the frame number**: before the
+  first `update` tick both counters are `undefined`, `undefined === undefined` is true, and an
+  early version returned a cache it had never filled — so `renderStatic`'s first bake read `.day`
+  off `undefined`, threw inside `warpField`'s try/catch, and silently lost the whole field.
+- `dayMulV144()` is the one number every night-time flourish multiplies by (the lamps' glow, beam
+  and pool, the mast tint, the baked wash, the stars). It is deliberately NOT folded into
+  `lightMulV100`, which is the player's own brightness dial and has to keep working.
+- Daylight is not "night with a blue sky". The sky gradient goes to `daySkyTopV144`/`daySkyLowV144`,
+  `starsV112` returns early, most of the vignette comes off (`dayVignKV144`) — and `lightFieldV98`
+  lays ONE flat sheet of sun (`daySunA`) across the whole playing surface, because with the four
+  masts down to 0.12 the afternoon turf measured DARKER than the floodlit one.
+- `wxTickV144` is a single retained Graphics, cleared and redrawn each frame, with the drops in a
+  plain array and a time accumulator — the pattern `trailV105` already uses for the ball's embers,
+  and the reason there is not one Phaser object per drop. It is **not** `trackFx`'d: `softStop()`
+  kills those between every play, and weather does not stop for the whistle. The drops live in
+  normalised camera space and map through `cameras.main.worldView` every frame, so they survive the
+  zoom, the handover cut and the shake for free. Reduced motion keeps the weather and stops it moving.
+- `WX_MODES_V144` is the Settings list (Auto, Clear night, Rain, Snow, Sunny day) and
+  `wxModeSet144` the setter, wired into FIELD VIEW exactly like `camModeSet112` — the index lands on
+  `__FIELD_FX.wx` through `__pushFieldFx`, and `refreshPersp()` clears `_wxV144` first because the
+  sky is cached per FRAME and a Settings click lands between two of them. Pinning a look moves
+  nothing: `__WX_V79` is the week's roll and it is the only thing the sim reads.
+
+**What v144 forced other checks to change, and why none of it is a weakened assertion.** Three
+checks measured something that the age scale or the shuffle moved out from under them, and in each
+case the fix was to measure the subject rather than the accident:
+
+- `v112Bcheck`'s star band scanned rows 0..`NSTOP` as "the sky". v144 E draws the far apron's grass
+  in the last few of those rows, behind the stands, so lit turf was being counted as lit sky
+  (1552 samples where 519 were stars). It stops at the bowl's own skyline now.
+- `v91check`, `v104check` and `v99check` all drive into week 1 — Pee Wee, where every man is drawn
+  at 52% — and all three measure DRAWN sprite geometry. They pin `liveAgeV144: 0`. The age scale is
+  `v144check`'s subject; in those three it only halves the margin each one reads.
+- `v99check` took "the first frame with twenty-two bodies" and asserted the near man's shadow is
+  longer than the far man's. That frame is whatever the play clock was doing 600ms in, and v86's
+  post-play gather walks everyone toward one spot — a frame caught there has the whole eleven
+  inside ~150px of screen depth and nothing to compare. It picks the DEEPEST of its twenty-four
+  frames now, which is the moment that actually contains a near man and a far man.
+- `sidelinecheck` asserted eight pylons, which is the behaviour v144 F deliberately changes; it
+  asserts four and proves the dial restores eight.
+
+Two `v144check` assertions of its own had to be written carefully for the same reason: the far
+apron's row count moves with the snap's line of scrimmage (so the check reads `northRows` rather
+than a fixed three, and samples `NS-0 .. NS-(N-1)` — the branch runs from `NSTOP` UPWARD), and the
+shuffle's speed is measured in WORLD units off `m.sx/m.sy`, because `root.x/y` also carries the
+camera's between-plays re-frame and that reads as 200px/s of sprinting nobody did.
+
 ## Screens and their shapes (v73–v75)
 
 Three of the screens below are assembled by a long chain of patch layers, each of

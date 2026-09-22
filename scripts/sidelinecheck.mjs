@@ -22,6 +22,7 @@ async function drive(block) {
   const errs = []
   page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
   page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
+  await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0 }) })   // v144: this check measures the lit night scene — pin the sky and the weather
   await page.addInitScript(() => { setInterval(() => { try { if (window.S) window.S.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
   if (block) await page.route('**/rib_side_v78.png', r => r.abort())
   // the sheet is BAKED into index.html as a data URL, so blocking the file is not
@@ -89,10 +90,25 @@ ok(named(/^(med_cart|med_kit|med_bag|stretcher|towels)$/).length >= 6, 'the medi
 ok(named(/^(helmet_rack|pad_rack|ball_rack|ball_bin|ponchos|tape_bin)$/).length >= 8, 'the equipment racks are set out', named(/^(helmet_rack|pad_rack|ball_rack|ball_bin|ponchos|tape_bin)$/).length + '')
 ok(named(/^(trunk|trunk_b|trunk_c|case_up|case_up_b|duffel|duffel_b)$/).length >= 10, 'storage is stacked behind the bench', named(/^(trunk|trunk_b|trunk_c|case_up|case_up_b|duffel|duffel_b)$/).length + '')
 ok(named(/^(play_board|whiteboard|comms|table|table_b|camera)$/).length >= 10, 'the coaching tech is out', named(/^(play_board|whiteboard|comms|table|table_b|camera)$/).length + '')
-ok(named(/^pylon$/).length === 8, 'eight pylons, one per end-zone corner', named(/^pylon$/).length + '')
+ok(named(/^pylon$/).length === 4, 'v144 F: ONE pylon per end-zone corner — the goal-line pair at each end, not the doubled set of eight', named(/^pylon$/).length + '')
+const PYL = await page.evaluate(() => {
+  // lay a second set down with the dial up, count what it adds, then take the extras
+  // straight back off the scene so nothing after this reads a doubled sideline
+  const sc = window.__gridironScene, mark = sc.side.items.length
+  const before = sc.side.items.filter(i => i._side && i._side.name === 'pylon').length
+  const keep = window.RIB_TUNE.pylonAllCornersV144
+  window.RIB_TUNE.pylonAllCornersV144 = 1
+  sc.sidePylons()
+  const added = sc.side.items.filter(i => i._side && i._side.name === 'pylon').length - before
+  const hook = (window.__V144 || {}).pylons
+  window.RIB_TUNE.pylonAllCornersV144 = keep
+  for (const im of sc.side.items.splice(mark)) { try { im.destroy() } catch (e) {} }
+  return { before, added, hook, left: sc.side.items.filter(i => i._side && i._side.name === 'pylon').length }
+})
+ok(PYL.added === 8 && PYL.hook === 8 && PYL.left === 4, 'and the dial puts the real-football set of eight back', `+${PYL.added}, hook ${PYL.hook}, scene back to ${PYL.left}`)
 ok(named(/^down\d$/).length === 1 && named(/^chain_rod$/).length === 2, 'the chain crew is a down box and two sticks')
 ok(named(/^yard\d+$/).length >= 6, 'the yardage markers stand outside the touchline', named(/^yard\d+$/).length + '')
-ok(markers.length >= 15, 'the field markers are all placed', markers.length + '')
+ok(markers.length >= 11, 'the field markers are all placed', markers.length + '')   // v144 F: four pylons, not eight
 
 // ---- both sidelines, and each in its own kit
 const left = S.list.filter(i => i.vv < S.midy), right = S.list.filter(i => i.vv > S.midy)

@@ -14,6 +14,11 @@ let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
+/* v144: this check reads night-time pixels AND the geometry of a drawn man, and it plays week 1 —
+ * Pee Wee, where v144 A draws every man at 52%. Both are somebody else's subject (v144check owns
+ * the age scale), and at half size the near/far shadow spread this asserts on is halved with it.
+ * Pin the sky, the weather and the men's size so this keeps measuring the light. */
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0, liveAgeV144: 0 }) })
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message)); page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
 await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
@@ -55,7 +60,17 @@ const glowSets = S[0].glow.map((_, i) => S.map(s => s.glow[i]))
 ok(glowSets.every(g => { const m = g.reduce((a, b) => a + b, 0) / g.length; return Math.max(...g) - Math.min(...g) < m * 0.45 }), 'the light output breathes inside a tight band — no strobe', glowSets.map(g => Math.min(...g) + '..' + Math.max(...g)).join(' '))
 
 // ---- the men: direction away from the light, and it swings as they cross the field
-const frame = S.find(s => s.men.length >= 20) || S[0]
+/* The frame to measure the LIGHT on is one where the men are actually spread down the field.
+ * Taking the first frame with twenty-two bodies takes whatever the play clock happened to be
+ * doing 600ms in: v86's post-play gather walks everyone toward one spot, and v144 C's shuffle
+ * then holds them there until the next snap, so a frame caught in that window has the whole
+ * eleven inside ~150px of screen depth and the near-vs-far reading below has nothing to read.
+ * That is a fact about when the frame was taken, not about the shadows. Pick the deepest frame
+ * of the twenty-four instead — every one of them is a legitimate moment, and this one is the
+ * moment that actually has a near man and a far man in it. */
+const depth = (s) => s.men.length < 20 ? -1 : Math.max(...s.men.map(m => m.root.y)) - Math.min(...s.men.map(m => m.root.y))
+const frame = S.reduce((best, s) => depth(s) > depth(best) ? s : best, S[0])
+console.log('frame depth:', Math.round(depth(frame)), 'of', S.map(s => Math.round(depth(s))).join(','))
 const dirs = frame.men.map(m => {
   const wantX = m.root.x - K.x, wantY = Math.max(30, m.root.y - K.y), d = Math.hypot(wantX, wantY)
   const gotX = Math.cos(m.rot), gotY = Math.sin(m.rot)
