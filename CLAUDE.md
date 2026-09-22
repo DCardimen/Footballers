@@ -65,7 +65,9 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   `camLandV112` so it arrives with the flight), `camTightV112` tightens by how far the nearest
   tackler actually is, `camZoomFitV112` never opens wider than the pre-snap frame the FIELD VIEW
   dials already set, and `CAM_MODES_V112` (Broadcast / Tight / Wide / Fixed, plus `fxCamZoom`) is
-  the one place a behaviour is described. Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
+  the one place a behaviour is described. v145 appends FOLLOW ME / FOLLOW BALL to that list (`follow`,
+  `lock`, `keep` on the mode row; `camMeV145` is the you-marker; `camSideV145` widens the side bounds
+  for the follow cams only; `v145check.mjs`). Hooks: `window.__V112_A`, `__V112_B()`, `__V112_C`,
   `__V112_D`, `__V112_E` / `__CAM_MODES_V112`, `__V112_F` / `__V112_F_SIM`. `v112Acheck.mjs`,
   `v112Bcheck.mjs`, `v112Ccheck.mjs`, `v112Dcheck.mjs`, `v112Echeck.mjs`, `v112Fcheck.mjs`
 - `v143 THE TACKLE IS A MOVE, NOT A COLLISION` (in FieldSim, beside `hitGeoV109`) — three decisions
@@ -790,7 +792,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 | the body he has vs the body he projects to / the trait choice / the reroll penalty (v112 C) | `v112Ccheck.mjs`, then `bodycheck.mjs`, `v85check.mjs`, `menu-integration-check.mjs`, `simcheck.mjs`, `creditcheck.mjs`, `walk.mjs` |
 | the pregame wizard's pages, its defaults and the way into the game (v112 D) | `v112Dcheck.mjs`, then `v111Bcheck.mjs`, `walk.mjs`, `splashcheck.mjs` |
 | the masts / the bowl's base band and entrance / the stars / the near edge's distortion (v112 B) | `v112Bcheck.mjs`, then `v98check.mjs`, `v99check.mjs`, `v100check.mjs`, `v102check.mjs`, `v92check.mjs`, `v86check.mjs`, `crowdcheck.mjs`, `sidelinecheck.mjs` |
-| the camera — what it follows, how tight, and the Settings behaviours (v112 E) | `v112Echeck.mjs`, then `v109Echeck.mjs`, `v86check.mjs`, `v98check.mjs`, `v105check.mjs`, `renderpathcheck.mjs`, `sidelinecheck.mjs` |
+| the camera — what it follows, how tight, and the Settings behaviours (v112 E / v145 follow cams) | `v112Echeck.mjs`, `v145check.mjs`, then `v109Echeck.mjs`, `v86check.mjs`, `v98check.mjs`, `v105check.mjs`, `renderpathcheck.mjs`, `sidelinecheck.mjs` |
 | a big hit taking a man off his feet — the launch, the arc, the landing (v112 F) | `v112Fcheck.mjs`, then `v103check.mjs`, `v109C1check.mjs`, `tacklecheck.mjs`, `readcheck.mjs`, `renderpathcheck.mjs`, `scoreneutralcheck.mjs` |
 | whether being in position decides the play — stops, break-ups, interceptions (v110) | `v110check.mjs`, then `creditcheck.mjs`, `tacklecheck.mjs`, `readcheck.mjs`, `v103check.mjs`, `scoreneutralcheck.mjs` |
 | anything in the live sim's FEEL (contact, possession, ball speed, catching, tackling, the clock) | `scoreneutralcheck.mjs` FIRST (keep the before row), then the v109 checks below |

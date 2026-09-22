@@ -55,6 +55,19 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v145 — the camera follows HIM.** Settings › FIELD VIEW › Camera has two more behaviours after
+  Broadcast / Tight / Wide / Fixed (appended, so a saved choice keeps its mode). **Follow Me** locks on
+  the you-player's own marker from the huddle to the whistle — a receiver running a deep route stays
+  big in the middle of the screen and the field scrolls under him; a snap he is not on the field for
+  follows the ball. **Follow Ball** is the same lock on whoever (or whatever) has the ball. Both ride
+  the v28/v109 perspective lock at full strength (`lock: 1` — his drawn size held constant as he moves
+  through the perspective), keep him near dead centre (`keep`), hold the locked size through a throw
+  or a bounce instead of snapping back to the loose frame, and do not open up for the whistle's
+  gather (`camFollowPostK`). Two limits moved for them only: the zoom ceiling (`camFollowCeilK` 4.6,
+  `camFollowLockMax` 3.6), so he does not shrink as he runs deep, and the camera's side bounds
+  (`camFollowSidePx` 180, `camSideV145`) — the near rows are painted ~240 px wider than the old 0..FW
+  bounds, and a man split out on the near sideline was a man no pan could reach. Every other mode
+  keeps 0..FW. `v145check.mjs`.
 - **v144 — the ground, the sky, the gap between plays, and the age of the man on the field.**
   Eight things, all of them things you look at.
   **The pause at the whistle.** When a play finished the renderer had no play in hand, so `update()`

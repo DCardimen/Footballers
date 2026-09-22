@@ -50,8 +50,9 @@ const ui = await page.evaluate(() => ({
   fx: { cam: window.__FIELD_FX.cam, camZoom: window.__FIELD_FX.camZoom },
 }))
 console.log('settings panel:', JSON.stringify(ui))
-ok(ui.modes.join(',') === 'broadcast,tight,wide,fixed' && ui.btns.length === 4 && ui.strength,
-  'Settings › FIELD VIEW offers four camera behaviours and a zoom-strength control', `${ui.btns.join(' / ')} · strength slider ${ui.strength}`)
+// v145 appended Follow Me / Follow Ball — the first four keep their indices, so saves keep their mode
+ok(ui.modes.join(',') === 'broadcast,tight,wide,fixed,me,ball' && ui.btns.length === 6 && ui.strength,
+  'Settings › FIELD VIEW offers six camera behaviours and a zoom-strength control', `${ui.btns.join(' / ')} · strength slider ${ui.strength}`)
 
 // the choice persists into the save and reaches __FIELD_FX with no reload
 const live = await page.evaluate(() => {
