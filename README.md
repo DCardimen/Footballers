@@ -55,6 +55,40 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v147 — the league is the UFF, and nine fixes from the phone.**
+  **The UFF.** The league is the United Football Federation now — every string a player reads (the game,
+  the menu, the guide, the coach) says UFF; code names keep their old spelling (`DFL_V123`,
+  `dflClubV123`, `dflMvpTitle`).
+  **A · The career runs to the end, and ends when you say.** In the UFF and the Interstellar League you can
+  retire at any time: a 🌅 Life & Retire chip on the hub, Retire in the life screen's dock (the v146 E shell
+  used to clip it out of its card; `qs` hid it under 30), and Retire Instead on the club screen. Sim the
+  Rest of the Season plays the regular season, the playoffs and lands on the report card in one tap. An old
+  v11 offer list that silently stopped every sim now opens the three-club screen, and a mid-sim cut pauses
+  and resumes after you sign. From the UFF up, no story decision interrupts the season: the season event,
+  Rivalry Week, life events and midseason crossroads are answered off screen (`TU("storyProV147")`) and
+  logged. `v147Acheck.mjs`.
+  **B · The menu wears the coin.** Prestige on the main menu — and on the in-game header chip — is the
+  Vault's gold coin, not a star or a medal. The OVR ring's glow now sits exactly at the end of the coloured
+  bar (it rode the ring's outer rim, off the band), and the gold lap past the soft max finally draws (a
+  registered `inherits:false` property never reached its pseudo-element). The Lombardi-style trophy on the
+  milestones card is replaced by an original UFF federation-shield trophy (`build-uff-trophy.mjs`).
+  `v147Bcheck.mjs`.
+  **C · The gear has a roll.** Every gear piece rolls 0–3 modifiers by rarity (Common 0–1, Rare 1, Epic 2,
+  Legendary/Mythic 3), once, seeded by its id and scaled by rarity and the level it dropped at; old pieces
+  are given theirs once. Fifty modifiers, each a real hook: 17 attribute bonuses (the live sim's `_raw` +
+  `effAttrsV85`), 17 per-stat production lines (the season line `is()`), and 16 more (injury chance and
+  time, fatigue gain, recovery, coach trust, snaps, variance, fate odds, PP, soft caps, upgrade points,
+  training, age decline, clutch, call-up, team quality), capped per key via `TU`. The Conditioning gear
+  effect finally works. The Locker shows rarity, modifier lines, a compare view and your total gear
+  bonuses, and fits the phone shell. `v147Ccheck.mjs`.
+  **D · The camera holds still at 4×.** At 4× the predictive lead was four times as long (wall-time
+  velocity), nothing filtered the camera's target for speed, and the zoom target moved four times as fast —
+  the picture shook 2–2.5× as much as at 1×. The focus velocity and lead are in play time now, the pan
+  target rides a g-h filter fed forward into the spring, the zoom target is low-passed, follow cams get a
+  dead zone, and a live edge-open reads where the camera actually is. The identity at 1×;
+  `TU("camRateV147",0)` restores the old camera. Measured on the same replayed plays: 4×/1× steadiness
+  1.8–2.6× → 0.5–1.0× across Broadcast, Tight, Follow Me and Follow Ball, with the ball in frame.
+  `v147Dcheck.mjs`.
 - **v146 — five things you asked for in one batch.**
   **A · Every man who goes down was taken down.** The broadcast folded the carrier the instant the
   dead-ball `tackle` fired, wherever the named tackler stood — on ~15–20% of stops that was 1.5 to 25+

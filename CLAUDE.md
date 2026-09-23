@@ -86,6 +86,45 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   against better carriers; the worst-angle bucket is full of easy chase-downs) will invert a naive
   reading. Kill switch `TU("v143", 0)` restores the old engine including the unspent roll.
   `window.__V143`; `v143check.mjs`, then `scoreneutralcheck.mjs` (several seeds), `tacklecheck.mjs`
+- `v147 A THE CAREER RUNS TO THE END, AND ENDS WHEN YOU SAY` (before `window.__prestigeNodesV137`, plus guards in
+  `v135MountD` / `rivalPageV136`) — retiring: `qs` allows it at any age from level 7 (`retireAnyTimeV147`);
+  `retireNowV147` → `Md`; chips in the hub dock, the life dock (an `St` wrapper) and the club dock (`postV147`).
+  The sim: `migrateOffersV147` turns a stale `nflStateV11.offers` list (which blocks `silentWeekV85`) into
+  `openOffersV146B(e,"fa")`; `simSeasonV147` replaces `wt` from level 7 (regular season, `dn` playoffs,
+  `finishSeasonGames`); a cut stamps `offersV146B.simV147` and the `signClubV146B` wrapper resumes. Story decisions:
+  `proV147` (`storyProV147` / `storyProLevelV147`); the outermost `q` wrapper auto-answers the `event` view
+  (`pickEventV147` → `Fr`, or `rivalDeferV136` for bigGame) and drains leftover story/life queues; the `wi` wrapper
+  answers life events on queue (`pickLifeV147`, `lifeSpendShareV147`); every answer lands on
+  `player.autoDecisionsV147`. **Interstellar is level 8 — every `level>=7` rule (cuts, offers, story-pro) applies to
+  it too.** `window.__V147A`; `v147Acheck.mjs`
+- `v147 B THE MENU WEARS THE COIN` (`public/rib-menu.js` + `rib-menu-v89.css`) — prestige on the main menu is the
+  Vault's gold coin (`VAULT_ART + COIN_V147B` = `public/vault/coin_gold_face.webp`) in the header chip and the YOUR
+  LEGACY tile, and the career shell's `.prestige-chip` wears the same coin (`img.coin-v147`); the ★ is the recruit
+  rating only. `ringArcV147B(ring, ovr, softMax, apply)` is the ONE place the OVR arc's head is decided — the conic
+  and the spark's `--spark` both come from it — and the spark sits ON the band (`RING_BAND_V147B`, 64%..88.6% of the
+  radius), not on the rim. `--rib-ovr2` is `inherits:false`, so the gold lap's `::before` must say
+  `--rib-ovr2: inherit` or it draws nothing. The milestones card wears `card_trophy_uff.webp`, drawn by
+  `scripts/build-uff-trophy.mjs`. `window.__V147B`; `v147Bcheck.mjs`
+- `v147 C THE GEAR HAS A ROLL` (just above the locker screen `ts()`) — `gearCatV147()` is the 50-modifier catalogue
+  (17 `a_*` attributes, 17 `p_*` production lines, 16 others), each naming its hook. `gearRollV147(it, tier)` rolls
+  once from an id-seeded PRNG (`gearModCountV147`: Common 0–1 / Rare 1 / Epic 2 / Legendary–Mythic 3;
+  `gearRsV147`; `gearTierStepV147`); `Kr` calls it and `gearEnsureV147` / `gearMigrateV147` migrate old items by id.
+  `gearTotalsV147` caps each key over the equipped pieces (`gearAttrCapV147`, `gearProdCapV147`,
+  `gearCapV147_<key>`) and `gearV147(k)` is the one read; kill switch `TU("v147C",0)`. Hooks: `_raw` /
+  `effAttrsV85` (`gearAttrV147`, which also reads `Ze("perfFlat")`), `is()` (never the baseline `Ha`),
+  `injChanceV54`, `healWeeksV146`, `wearFatKV147`, v11 recovery, `et`, `trustShareV120`, `planFateOddsV124`,
+  `ms`/`no` PP, `drSoftCap`, `tt`, `ageCutV139`, `clutchV131`, `qt`, the v76 margin. **A new gear stat must name a
+  hook the game already reads.** `window.__V147C`; `v147Ccheck.mjs`
+- `v147 D THE CAMERA HOLDS STILL AT 4×` (beside `camSpringV109`) — `camRateV147()` is the one read of the play
+  speed; every change is the identity at 1× and `TU("camRateV147",0)` is the old camera exactly. Focus velocity is
+  in PLAY time (`camVelRateExpV147`), the lead window × speed^0.5 (`camLeadRateExpV147`, air
+  `camAirLeadRateExpV147`). `camPreV147` puts the pan target through a fading-memory g-h filter
+  (`camPanTauMsV147`) and feeds its velocity to `camSpringV109`'s `tv` argument; the zoom target is low-passed
+  (`camZoomTauMsV147`). Follow cams: `camFollowDeadV147`, `camFollowPanTauMsV147`, `camFollowStiffRateExpV147`,
+  `camFollowZoomRateExpV147`, `camFollowAirOpenV147`. The spring sub-steps past `camSubstepWdtV147`;
+  `camLiveEdgeV147` opens the zoom off where the camera IS. **Measure the camera in WALL time on PAIRED replays** —
+  play-time normalisation made the old laggy 4× camera look smooth, and two unpaired live runs differ 2× on the same
+  code. `window.__V147D`; `v147Dcheck.mjs`
 - `v146 A EVERY MAN WHO GOES DOWN WAS TAKEN DOWN` (end of the choreographer IIFE) / `v146 A THE SACK HE TAKES IS
   TAKEN BY SOMEBODY` (FieldSim drop phase) / `v146 A THEY GO DOWN TOGETHER (renderer)` (the `tackle` case) — no
   phantom downs. `contactV146(script)` runs on EVERY script (`window.buildPlayScript` wraps it): a named tackler more
@@ -97,7 +136,7 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   (`sackContactPxV146`, `sackCloseMaxMsV146`, `sackCloseCapMsV146`, `sackBrace` event; it spends extra random
   draws — compare seeds against the OFF spread). Renderer `F146` = {stick, foldMs}. Kill switches `contactV146` /
   `sackCloseV146` / `togetherV146`. `window.__V146` / `__V146R`; `v146Acheck.mjs`
-- `v146 B TWO STRIKES IN THE DFL, AND YOU PICK THE TEAM` (before `window.__prestigeNodesV137`) — `cutV146B(e, why)`
+- `v146 B TWO STRIKES IN THE UFF, AND YOU PICK THE TEAM` (before `window.__prestigeNodesV137`) — `cutV146B(e, why)`
   is the one strike (`cutsV146B = {k: "level:season", n}`); `cutsAllowedV146B()` = `TU("dflCutsAllowedV146B", 2)` +
   the `secondChance` node's `cutLives`; short of it `openOffersV146B(e, "cut")`, on it `cutOutV146B` +
   `nflCutPending` → `ms`. Strikes come from `Qn` (waivers), the v10 season-end roll (the v11 `tt` wrapper now keeps
@@ -504,7 +543,8 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   commitment comes up OVER the training board off PLAY SEASON, the weekly plan off PLAY WEEK before
   the wizard (its title reads PREGAME); both spin themselves — `#gv42go` is CONTINUE, not a spin
   button. The
-  league is the DFL in every string a player reads — never write NFL into game copy.
+  league is the UFF (United Football Federation — renamed from DFL in v147) in every string a player reads —
+  never write NFL or DFL into game copy. Code names keep their old spelling (`DFL_V123`, `dflClubV123`, `dflMvpTitle`).
   `window.__RIB_COACH`; `coachcheck.mjs` (it plays the whole first week)
 - `v118 THE QUARTERBACK'S OWN SHEETS` (in `build-field-art.py`) / `v118 THE MESH` (beside
   `startExchangeV108`) — the handoff, the pitch and the throw both ways are cut from
@@ -773,6 +813,11 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 
 | You changed… | Run |
 |---|---|
+| retiring above college, Sim the Rest of the Season at 7+, stale offers, auto-answered story decisions in the UFF/Interstellar (v147 A) | `v147Acheck.mjs`, then `v146Bcheck.mjs`, `rivalcheck.mjs`, `v90check.mjs`, `v85check.mjs`, `v136check.mjs`, `declarecheck.mjs`, `v88check.mjs`, `bootviewcheck.mjs`, `v146Echeck.mjs`, `walk.mjs` |
+| the menu's prestige coin, the OVR ring's arc and spark, the milestones trophy (v147 B) | `node scripts/build-uff-trophy.mjs` (if the trophy art changed), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs`, then `v147Bcheck.mjs`, `menu-integration-check.mjs`, `menufxcheck.mjs`, `heroflashcheck.mjs`, `sheencheck.mjs`, `honorcheck.mjs`, `freshcheck.mjs`, `menu-mask-check.mjs`, `menushot.mjs` (`CAREER=1`) |
+| gear — the rolled modifiers, the catalogue, the migration, the locker's compare/totals (v147 C) | `v147Ccheck.mjs`, then `bootviewcheck.mjs`, `v85check.mjs`, `creditcheck.mjs`, `statcreditcheck.mjs`, `injurycheck.mjs`, `v146Echeck.mjs`, `v146Dcheck.mjs`, `walk.mjs`, `menu-integration-check.mjs` |
+| the camera at speed — the play-time lead, the target filters, the follow dead zone, the live edge-open (v147 D) | `v147Dcheck.mjs` (also `READ_POS=WR MODES=0,1,4,5`), then `v112Echeck.mjs`, `v145check.mjs`, `v109Echeck.mjs`, `v86check.mjs`, `v98check.mjs`, `v105check.mjs`, `renderpathcheck.mjs`, `sidelinecheck.mjs`, `v144check.mjs` |
+| any league name a player reads (the UFF) | `coachcheck.mjs` (the league-string assertion), then `v146Bcheck.mjs`, `menu-integration-check.mjs`, `walk.mjs` |
 | a tackle's contact — who is on him when he goes down, the fall together, the taken sack (v146 A) | `v146Acheck.mjs`, then `v143check.mjs`, `scoreneutralcheck.mjs` (several seeds), `tacklecheck.mjs`, `jukecheck.mjs`, `creditcheck.mjs`, `v103check.mjs`, `v109C1check.mjs`, `v112Fcheck.mjs`, `renderpathcheck.mjs`, `v86check.mjs`, `v110check.mjs` |
 | DFL cuts, the strike count, Second Chances, the three-offer club screen, what a signing sets (v146 B) | `v146Bcheck.mjs`, then `declarecheck.mjs`, `v88check.mjs`, `bootviewcheck.mjs`, `namecheck.mjs`, `v111Bcheck.mjs`, `v85check.mjs`, `menu-integration-check.mjs`, `honorcheck.mjs`, `walk.mjs` |
 | the Impossible branch — the over-cap price, the wall, mega nodes, the Evergreen refund (v146 C) | `v146Ccheck.mjs`, then `agecheck.mjs`, `capcheck.mjs`, `vaultcheck.mjs`, `honorcheck.mjs`, `v134check.mjs`, `v136check.mjs`, `bootviewcheck.mjs`, `walk.mjs` |

@@ -460,7 +460,7 @@ const step = async (page, t, wait = 900) => {
   const txt = await page.evaluate(() => (document.getElementById('rib-howto-v111').textContent + ' ' + document.getElementById('rib-main-menu-v2').textContent + ' ' + JSON.stringify(window.__RIB_COACH.stops)))
   const coachText = await page.evaluate(() => { const s = [...document.scripts].map((x) => x.src).find((u) => /rib-menu-coach/.test(u)); return fetch(s).then((r) => r.text()) })
   const bad = (txt + coachText).match(/\bNFL\b|Pro Bowl/g) || []
-  ok(bad.length === 0 && /\bDFL\b/.test(txt), 'the guide, the menu and the coach say DFL — the real league name is gone', bad.length ? bad.slice(0, 4).join(',') : 'DFL present, NFL absent')
+  ok(bad.length === 0 && /\bUFF\b/.test(txt) && !/\bDFL\b/.test(txt), 'the guide, the menu and the coach say UFF — the real league name and the old DFL are gone', bad.length ? bad.slice(0, 4).join(',') : 'UFF present, NFL and DFL absent')
   await context.close()
 }
 

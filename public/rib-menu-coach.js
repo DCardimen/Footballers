@@ -58,7 +58,7 @@
     "Nobody's tired. Tired is a rumor.", 'Run it again. Then again.', "The film doesn't lie. You might.", 'Pads on. Excuses off.', 'Great effort. Terrible result. Fix the result.',
     'Speed is a decision.', "Somebody get this kid a mirror. He's the problem.", "I don't do participation trophies. I do sprints.", 'Winners drink water. Also losers. Drink water.',
     "Your helmet's on. Good start.", 'Fast, strong, smart. Pick two. Then get the third.', "Losing builds character. I'd rather have wins.", "If you're not sweating, you're spectating.",
-    "Practice like it's the DFL title game. One day it might be.", 'The other team ate breakfast too.', 'Blocking is just hugging with intent.', 'Tackle the man, not the idea of the man.',
+    "Practice like it's the UFF title game. One day it might be.", 'The other team ate breakfast too.', 'Blocking is just hugging with intent.', 'Tackle the man, not the idea of the man.',
     "Nobody ever pulled a hamstring stretching. Probably.", "That's not a juke. That's a stumble with confidence.", "Big game? Every game's big if you play small.",
     "Cardio's not a punishment. It's a lifestyle. Also a punishment.", 'The playbook has pictures. Look at the pictures.', 'Catch it with your hands. Your chest is not a glove.',
     'Talk less. Sprint more.', "You'll thank me later. Or you won't. Sprint anyway.", "I've cut guys for less.", "Coffee's for coaches. Water's for players.",
@@ -166,7 +166,7 @@
       { p: 'thumbsup', t: "The APEX branch is the top shelf of the prestige tree. Those nodes change the rules. Earn your way up there." },
       /* v139: the extra-season nodes are the answer to "I keep getting stuck", and nobody was telling him what they cost him */
       { p: 'armscrossed', t: "Stuck at a level? There are nodes in here that buy you extra seasons to make the jump. Worth it when you're close." },
-      { p: 'tip', t: "But a year spent down here is a year you don't spend in the DFL — and a body only has so many good ones before the legs go." },
+      { p: 'tip', t: "But a year spent down here is a year you don't spend in the UFF — and a body only has so many good ones before the legs go." },
       { p: 'point', t: "Hit BACK. Then we build your first player.", s: 'back', tap: true },
     ] },
     { id: 'career', title: 'THE MENU', sub: 'KICKOFF', when: (c) => c.menu && !c.persona && c.seen.has('prestige'), lines: [

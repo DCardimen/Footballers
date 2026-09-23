@@ -139,7 +139,7 @@
         archetype: { id: 'prodigy', name: 'Field General' }, traits: [{ id: 'bigGameHunter', name: 'Accuracy' }, { id: 'gymRat', name: 'Footwork' }, { id: 'bornLeader', name: 'Leadership' }],
         totalSeasons: 0, objectives: [
           { id: 'a', title: 'Win your first game', done: true, reward: 2 }, { id: 'b', title: 'Throw for 300+ yards', done: true, reward: 2 }, { id: 'c', title: '3+ TD passes', done: true, reward: 2 },
-          { id: 'd', title: 'Win your conference', done: false, reward: 3 }, { id: 'e', title: 'Reach the state championship', done: false, reward: 3 }, { id: 'f', title: 'Get drafted to the DFL', done: false, reward: 5 }] },
+          { id: 'd', title: 'Win your conference', done: false, reward: 3 }, { id: 'e', title: 'Reach the state championship', done: false, reward: 3 }, { id: 'f', title: 'Get drafted to the UFF', done: false, reward: 5 }] },
       season: { games: 12, played: 3, weeks: [{ played: true, won: true }, { played: true, won: true }, { played: true, won: true }], inProgress: true,
         last: { won: true, us: 28, them: 17, opp: 'Central High', stat: { pass: 312, td: 3, int: 0 } }, nextOpp: 'Westlake Wildcats', nextWeek: 4 },
       team: { school: 'Westfield State', name: 'Storm', colors: ['#1a2a44', '#e8c86a'], logo: null, logoCss: '' } };
@@ -155,7 +155,7 @@
     const ovr = numeric(card?.querySelector('.continue-ovr')?.textContent, 0);
     const pos = (cardText.match(/\b(QB|RB|WR|TE|OL|DL|LB|CB|S)\b/)?.[1] || 'QB');
     return { hasCareer, state: { prestige: numeric((screenText.match(/\uD83C\uDF96\uFE0F?\s*(\d+)/) || screenText.match(/★\s*(\d+)/) || [])[1], 0), pp: 0, careers: 0, nflReached: 0, interstellar: 0, hallBest: 0, enshrined: 0, challenges: 0, challengesOf: 0 },
-      player: hasCareer ? { name, pos, level: 0, levelName: (cardText.match(/(Pee Wee|Youth League|Middle School|JV|Varsity|College|DFL Combine|The DFL|Interstellar League)/) || [])[1] || 'Career', stars: (cardText.match(/★/g) || []).length, ovr, height: '', weight: '', traits: [], objectives: [], totalSeasons: 0 } : null,
+      player: hasCareer ? { name, pos, level: 0, levelName: (cardText.match(/(Pee Wee|Youth League|Middle School|JV|Varsity|College|UFF Combine|The UFF|Interstellar League)/) || [])[1] || 'Career', stars: (cardText.match(/★/g) || []).length, ovr, height: '', weight: '', traits: [], objectives: [], totalSeasons: 0 } : null,
       season: { games: 0, played: 0, weeks: [], inProgress: false, last: null }, team: { school: '', name: '', colors: null, logo: null, logoCss: '' } };
   }
 
@@ -243,7 +243,7 @@
   const LEGACY_TILES = [
     ['gold rib9-lt-coin-v147', 'coin', 'prestige', 'PRESTIGE', (S) => S.prestige || 0],   // v147 B: the vault's coin, not a star
     ['blue', 'helmet', 'careers', 'CAREERS', (S) => S.careers || 0],
-    ['green', 'crown', 'nflReached', 'DFL REACHED', (S) => S.nflReached || 0],
+    ['green', 'crown', 'nflReached', 'UFF REACHED', (S) => S.nflReached || 0],
     ['purple', 'gem', 'interstellar', 'INTERSTELLAR', (S) => S.interstellar || 0],
     ['gold2', 'laurel', 'hallPoints', 'HALL POINTS', (S) => S.hallBest || 0],
     ['red', 'target', 'iconicMoments', 'ICONIC MOMENTS', (S) => S.challenges || 0],
@@ -336,14 +336,14 @@
       const done = (pl.objectives || []).filter(o => o.done).length; if (done) add(`<b>${done}</b> MILESTONE${done === 1 ? '' : 'S'} DOWN`);
     } else {
       add(`<b>START A CAREER</b> · AGE 8 · PEE WEE`);
-      add(`NINE POSITIONS · <b>ONE ROAD TO THE DFL</b>`);
+      add(`NINE POSITIONS · <b>ONE ROAD TO THE UFF</b>`);
       add(`PICK A POSITION · TRAIN · <b>PLAY LIVE</b>`);
       add(`SURVIVE EVERY CUT`);
     }
     add(`HONORS <b>${esc(S.prestige || 0)}</b> · PP <b>${esc(S.pp || 0)}</b>`);
     if (S.lineage && S.lineage.gen) add(`THE ${esc(String(S.lineage.surname || '').toUpperCase())} LINE · <b>GEN ${esc(S.lineage.gen)}</b> · ${esc(S.lineage.years || 0)} FAMILY YEAR${Number(S.lineage.years) === 1 ? '' : 'S'}`);   // v136 D
     if (S.careers) add(`<b>${esc(S.careers)}</b> CAREER${S.careers === 1 ? '' : 'S'} PLAYED`);
-    if (S.nflReached) add(`<b>${esc(S.nflReached)}</b> REACHED THE DFL`);
+    if (S.nflReached) add(`<b>${esc(S.nflReached)}</b> REACHED THE UFF`);
     if (S.highScore) add(`SCORE ATTACK BEST <b>${esc(Number(S.highScore).toLocaleString())}</b>`);
     add(`<b>RUNNING IT BACK</b> · CAREER MODE`);
     const dur = Math.max(26, items.length * 4.2);
