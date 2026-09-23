@@ -267,16 +267,16 @@ const step = async (page, t, wait = 900) => {
   await page.waitForSelector('#pregameV1513', { timeout: 15000 }).catch(() => null)
   ok(await page.evaluate(() => !document.getElementById('growthV42')), 'PLAY WEEK opens the pregame with no wheel spun over the season screen (v135)')
   await expect('pregame', 'the pregame wizard'); await dismiss(page)
-  for (let p = 0; p < 4; p++) { const n = await step(page, p === 3 ? 'SPIN THE WHEEL' : 'NEXT', 700); if (!n) break }
-  const plan = await expect('plan', 'the weekly-plan wheel, on the fifth page')
-  ok(await page.evaluate(() => !!document.querySelector('#v112Page5 #growthV42')), '  …and the wheel he talks over is the one inside the wizard')
-  await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' && g.getBoundingClientRect().height > 0 }, null, { timeout: 30000 }).catch(() => null)
+  // v146 D: page 5 is the plan BOARD — he picks the plan, nothing spins — and the coach's PLAN stop
+  // talks over the board and ends on the projection strip (the numbers the pick is priced in)
+  for (let p = 0; p < 4; p++) { const n = await step(page, p === 3 ? 'THE GAME PLAN' : 'NEXT', 700); if (!n) break }
+  const plan = await expect('plan', 'the weekly-plan board, on the fifth page')
+  ok(await page.evaluate(() => !!document.querySelector('#v112Page5 #v146Plan') && !document.getElementById('growthV42')), '  …and what he talks over is the plan board inside the wizard, not a wheel')
   await page.evaluate(() => { const C = window.__RIB_COACH, S = C.stops.find((x) => x.id === C.stop), last = (S ? S.lines : 1) - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(700)
-  const planSpot = await page.evaluate(() => { const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), g = document.getElementById('gv42go'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, gr = g ? g.getBoundingClientRect() : null
+  const planSpot = await page.evaluate(() => { const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), g = document.getElementById('v146Proj'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, gr = g ? g.getBoundingClientRect() : null
     return { line: C.line, key: C.spot, shown: !!sr, over: !!(sr && gr && sr.left <= gr.left + 1 && sr.right >= gr.right - 1 && sr.top <= gr.top + 1 && sr.bottom >= gr.bottom - 1) } })
-  ok(plan && plan.stop === 'plan' && planSpot.key === 'cont' && planSpot.shown && planSpot.over, "the plan stop's last line lights CONTINUE once the plan is rolled", JSON.stringify(planSpot))
+  ok(plan && plan.stop === 'plan' && planSpot.key === 'proj' && planSpot.shown && planSpot.over, "the plan stop's last line lights the projection the pick is priced in", JSON.stringify(planSpot))
   await dismiss(page)
-  await page.click('#gv42go'); await page.waitForTimeout(600)
   await step(page, 'CONTINUE TO MATCH', 1500)
   await expect('live', 'the broadcast', { ms: 60000 }); await dismiss(page)
   // run the game out at the fastest speed, clicking through any sheet over the field (never the post-game card)
