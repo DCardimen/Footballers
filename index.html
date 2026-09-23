@@ -2552,7 +2552,129 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         .forEach(a=>{const d=Math.hypot(a.x-x,a.y-y);if(d<bd){bd=d;b=a;}});
       return b||A.def2; }
   }
-  root.buildPlayScript = buildPlayScript;
+  /* ===== v146 A EVERY MAN WHO GOES DOWN WAS TAKEN DOWN =====
+   * The dead-ball tackle names a man, and the broadcast folds the carrier the instant that event
+   * fires — wherever the named man happens to be standing. Measured over 1,600 scripted snaps the
+   * named tackler was more than 1.7 yd off the carrier on ~20% of the play-ending tackles, and on
+   * the worst of them 25+ yards off: nobody near him, and he fell down. Four sources, all of them
+   * upstream of the picture and none of them about who MADE the stop:
+   *   - v139's cut (`fitLogYardsV139`): a play booked shorter than the sim ran is truncated where
+   *     the carrier crosses the credited yard and the SAME tackler is named on the cut — but that
+   *     man made the tackle further downfield, later. 17% of all tackles, mean 28px apart.
+   *   - the sack a smart quarterback TAKES (v82) resolved on the tick he decided, with the free
+   *     rusher still ~20px away (fixed at its source in FieldSim, `v146 A` beside it; this pass is
+   *     the belt to that braces).
+   *   - the choreographer's path-end tackle SNAPS the closer onto the carrier, and v22's anti-
+   *     teleport then turns the snap into a slide that arrives several frames after the whistle.
+   *   - a hit stick measured at arm's length.
+   * The stop itself is never in question — the man, the spot, the yards and the frame of the event
+   * are all booked before this runs — so the fix belongs to the PICTURE: the named man is walked
+   * onto the carrier over the approach before the event (a smooth, ease-in-out offset added to his
+   * own path, so he keeps every step and cut the sim gave him and simply takes a better line), and
+   * after the event he is GLUED to the carrier: they go down together and slide as one. The hit
+   * stick is the exception — the hitter is on him at the moment of the hit and then runs on through,
+   * on his feet. A script that stops dead ON the tackle (the v139 cut) gets a short coast so the
+   * fall has time to read before the whistle phase takes the field. Nothing here reads or writes a
+   * number the game books: no roll, no yard, no name, no event time moves.
+   * `contactV146(script)`; kill switch `TU("contactV146", 0)`; `window.__V146` is the hook. */
+  function contactV146(S) {
+    if (!S || !S.actors || !S.events || !TU("contactV146", 1)) return S;
+    const H = root.__V146 = root.__V146 || {};   // shared with FieldSim's sack close-out, which may have made it first
+    for (const k of ["scripts", "tackles", "already", "fixed", "glued", "stick", "coast", "maxFixPx", "maxVx", "farAfter"]) if (typeof H[k] !== "number") H[k] = 0;
+    if (!H.byWhy) H.byWhy = {};
+    H.scripts++;
+    let e = null;
+    for (let i = S.events.length - 1; i >= 0; i--) { const q = S.events[i]; if (q && q.type === "tackle" && q.tackler && q.carrier && q.tackler !== q.carrier) { e = q; break; } }
+    if (!e) return S;
+    const K = S.actors.find(a => a.id === e.tackler), C = S.actors.find(a => a.id === e.carrier);
+    if (!K || !C || !K.frames || !C.frames || K.frames.length < 2 || C.frames.length < 2) return S;
+    H.tackles++;
+    // where a man is at time t, interpolated between the two keyframes around it
+    const at = (fr, t) => {
+      if (t <= fr[0].t) return { x: fr[0].x, y: fr[0].y };
+      for (let i = 1; i < fr.length; i++) if (fr[i].t >= t) { const a = fr[i - 1], b = fr[i], k = (t - a.t) / ((b.t - a.t) || 1); return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k }; }
+      const l = fr[fr.length - 1]; return { x: l.x, y: l.y };
+    };
+    const te = e.t, c0 = at(C.frames, te), k0 = at(K.frames, te);
+    const stick = !!(e.hitStick || (e.flyWho && e.flyWho === e.carrier && Number(e.flyVz) > 0));
+    const d0 = Math.hypot(k0.x - c0.x, k0.y - c0.y);
+    // the side he came from is the side he hits from; a man exactly on top keeps his own side
+    let ux = k0.x - c0.x, uy = k0.y - c0.y; const un = Math.hypot(ux, uy);
+    if (un < 0.5) { ux = -(e.dirX || 1); uy = 0; } else { ux /= un; uy /= un; }
+    const reach = TU("contactPxV146", 9), setPx = TU("contactSetPxV146", 6);
+    const why = e.v139 ? "cut" : e.sack ? (e.taken ? "sackTaken" : "sack") : stick ? "stick" : S.meta && S.meta.fieldSim ? "sim" : "choreo";
+    let dx = 0, dy = 0;
+    if (d0 > reach) {
+      const tx = c0.x + ux * setPx, ty = c0.y + uy * setPx;
+      dx = tx - k0.x; dy = ty - k0.y;
+      const off = Math.hypot(dx, dy);
+      // the approach window: long enough that the extra pace stays inside a man's stride, never
+      // reaching back before the snap
+      const snapE = S.events.find(q => q.type === "snap");
+      const t0 = Math.max(K.frames[0].t, snapE ? snapE.t : 0);
+      const avail = Math.max(TICK, te - t0);
+      const want = Math.max(TU("closeMinMsV146", 260), off / Math.max(1e-3, TU("closePxPerSV146", 150) / 1000));
+      const W = Math.min(avail, want), from = te - W;
+      const ease = u => u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
+      K.frames = K.frames.map(f => f.t < from ? f : f.t > te ? f : Object.assign({}, f, { x: f.x + dx * ease((f.t - from) / W), y: f.y + dy * ease((f.t - from) / W) }));
+      // a keyframe exactly ON the event, so the frame he is drawn at the whistle is the contact frame
+      if (!K.frames.some(f => Math.abs(f.t - te) < 0.01)) {
+        const i = K.frames.findIndex(f => f.t > te);
+        const nf = { t: te, x: tx, y: ty };
+        if (i < 0) K.frames.push(nf); else K.frames.splice(i, 0, nf);
+      }
+      H.fixed++; H.maxFixPx = Math.max(H.maxFixPx, Math.round(off));
+      const vx = Math.round(off / W * 1000 * 1.5); H.maxVx = Math.max(H.maxVx, vx);   // peak added pace (smoothstep peaks at 1.5x the mean)
+      (H.byWhy[why] = H.byWhy[why] || { n: 0, px: 0 }).n++; H.byWhy[why].px += Math.round(off);
+      e.v146 = { d0: Math.round(d0 * 10) / 10, fixPx: Math.round(off * 10) / 10, fixMs: Math.round(W), addPxS: vx };
+    } else { H.already++; e.v146 = { d0: Math.round(d0 * 10) / 10, fixPx: 0 }; }
+    const kc = { x: k0.x + dx - c0.x, y: k0.y + dy - c0.y };   // his offset from the carrier at the hit
+    // a script that stops dead on the tackle (the v139 cut) gets a coast, so the fall reads
+    const coastMs = TU("fallWindowMsV146", 360), end = S.duration;
+    if (end - te < coastMs * 0.5 && coastMs > 0) {
+      const n = Math.ceil(coastMs / TICK);
+      const vel = fr => { const l = fr[fr.length - 1], p = fr.length > 1 ? fr[fr.length - 2] : l, dt = Math.max(1, l.t - p.t); return { vx: (l.x - p.x) / dt, vy: (l.y - p.y) / dt }; };
+      const drive = TU("fallDrivePxV146", 4);
+      S.actors.forEach(a => {
+        if (!a.frames || !a.frames.length) return;
+        const l = a.frames[a.frames.length - 1], v = vel(a.frames); let x = l.x, y = l.y;
+        for (let k = 1; k <= n; k++) {
+          const t = l.t + k * TICK, dec = Math.max(0, 1 - k / (n * 0.7));
+          if (a === C) { const q = Math.min(1, k / (n * 0.6)); x = c0.x - ux * drive * q * (stick ? 0 : 1); y = c0.y - uy * drive * q * (stick ? 0 : 1); }
+          else { x += v.vx * TICK * dec * 0.8; y += v.vy * TICK * dec * 0.8; }
+          a.frames.push({ t, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 });
+        }
+      });
+      if (S.ball && S.ball.length) { const l = S.ball[S.ball.length - 1];
+        for (let k = 1; k <= n; k++) S.ball.push({ t: l.t + k * TICK, x: l.x, y: l.y, h: 0 }); }
+      S.duration = Math.max(end, te + n * TICK);
+      H.coast++;
+    }
+    // after the hit: they go down TOGETHER — his frames ride the carrier's, closing onto him as
+    // the two of them fall. The hit stick hitter keeps his own legs and runs on through.
+    if (stick) {
+      // he drives THROUGH the man for a beat (`stickThroughMsV146`), then his own legs carry him on
+      const thr = Math.max(1, TU("stickThroughMsV146", 120));
+      K.frames = K.frames.map(f => { if (f.t <= te) return f;
+        const own = { x: f.x + dx, y: f.y + dy }, q = Math.min(1, (f.t - te) / thr);
+        if (q >= 1) return Object.assign({}, f, own);
+        const c = at(C.frames, f.t), gx = c.x + kc.x, gy = c.y + kc.y, k = q * q;
+        return Object.assign({}, f, { x: gx + (own.x - gx) * k, y: gy + (own.y - gy) * k }); });
+      H.stick++;
+    } else {
+      const land = TU("pileOnPxV146", 4) / Math.max(1, Math.hypot(kc.x, kc.y));
+      K.frames = K.frames.map(f => { if (f.t <= te) return f;
+        const c = at(C.frames, f.t), q = Math.min(1, (f.t - te) / TU("fallMsV146", 300)), s = 1 - q * (1 - Math.min(1, land));
+        return Object.assign({}, f, { x: Math.round((c.x + kc.x * s) * 10) / 10, y: Math.round((c.y + kc.y * s) * 10) / 10 }); });
+      H.glued++;
+    }
+    const k1 = at(K.frames, te);
+    if (Math.hypot(k1.x - c0.x, k1.y - c0.y) > reach + 0.5) H.farAfter++;
+    e.v146 = Object.assign(e.v146 || {}, { stick, glued: !stick, why });
+    return S;
+  }
+  root.__contactV146 = contactV146;
+  root.buildPlayScript = function (payload, cfg) { const s = buildPlayScript(payload, cfg); try { return contactV146(s); } catch (er) { return s; } };
   root.__computeLead = function(cx,cy,vx,vy,ax,ay,spd){
     const d=Math.hypot(cx-ax,cy-ay), tt=Math.min(0.38, d/Math.max(40,spd)*0.6);
     return {x:cx+vx*tt, y:cy+vy*tt};
@@ -4411,7 +4533,36 @@ window.__visionRadiusV96 = visionRadiusV96;
             emit("doubleMove",{});
             if (Math.random() < 0.3 + Math.max(0,(50-coverA.disc))*0.012) { sep += 2.2; coverA.beaten = t + 380; }
           } }
-        if (t >= throwAt || (hurried && t >= 680)) {
+        /* ===== v146 A THE SACK HE TAKES IS TAKEN BY SOMEBODY =====
+         * v82 resolved the eaten sack on the tick the quarterback decided, with the free rusher
+         * wherever he was — measured ~20px (3+ yards) off on average, so the broadcast folded a
+         * quarterback nobody had touched. Now he braces on the spot he chose and the rusher
+         * finishes his run; the tackle is emitted the tick they MEET (`sackContactPxV146`), and
+         * only a rusher who somehow cannot close (`sackCloseMaxMsV146`) is ruled home where he is. */
+        if (qb._eatV146) {
+          const E = qb._eatV146;
+          qb.lx = E.lx; qb.y = E.y; qb.vel = 0;                 // tucked, braced — he is not going anywhere
+          const dOf = a => Math.hypot(a.lx - qb.lx, a.y - qb.y), reachS = TU("sackContactPxV146", 8);
+          // the man he gave himself up to was picked up on the way: the nearest defender with nobody
+          // on him takes over the run (and, if he is the one who gets there, the sack — named truly)
+          if (E.th.engaging && t - E.t0 >= TU("sackCloseMaxMsV146", 1200)) {
+            const open = S.def.filter(d => !d.engaging).sort((a2, b2) => dOf(a2) - dOf(b2))[0];
+            if (open) E.th = open;
+          }
+          if (free.indexOf(E.th) < 0 && !E.th.engaging) mv(E.th, qb.lx, qb.y, 1.0);   // a free man is already running at him
+          // whoever actually GETS there is the man who sacks him
+          const near = S.def.slice().sort((a2, b2) => dOf(a2) - dOf(b2))[0];
+          const th = dOf(E.th) <= reachS ? E.th : (near && dOf(near) <= reachS ? near : E.th);
+          const dq = dOf(th);
+          if (dq <= reachS || t - E.t0 >= TU("sackCloseCapMsV146", 2600)) {
+            try { const V = root.__V146 = root.__V146 || {}; V.sackClose = (V.sackClose || 0) + 1; V.sackCloseMs = (V.sackCloseMs || 0) + (t - E.t0); if (dq > reachS) V.sackCloseTimeout = (V.sackCloseTimeout || 0) + 1; } catch (e) {}
+            emit("tackle", { tackler: th.id, carrier: qb.id, x: qb.lx, y: qb.y, sack: true, taken: true, closeMs: t - E.t0 });
+            done = true; out = { kind: "pass", complete: false, intercepted: false, yards: Math.round(qb.lx / YD), sack: true, sacker: th.player || null };
+            rec(); continue;
+          }
+          // still closing: the rest of the field plays on this tick (routes, coverage), the ball stays in his arms
+        }
+        if (!qb._eatV146 && (t >= throwAt || (hurried && t >= 680))) {
           const underPressure = hurried || !!opts?.pressured;
           const movingThrow = !!opts?.moving || (underPressure && !!qb._slid) || !!qb._roll;
           // v82 THE SACK HE TAKES: a smart quarterback with nothing open and a man on him
@@ -4433,6 +4584,15 @@ window.__visionRadiusV96 = visionRadiusV96;
           }
           if (sep < -1.6 && underPressure && S.off[8].aware >= TU("sackSmartAware", 60) && Math.random() < TU("takeSackP", .32)) {
             const th = free.slice().sort((a2,b2)=>Math.hypot(a2.lx-qb.lx,a2.y-qb.y)-Math.hypot(b2.lx-qb.lx,b2.y-qb.y))[0];
+            if (th && TU("sackCloseV146", 1)) {
+              /* v146 A: he gives himself up — but the sack is not in until the man GETS there. The
+               * decision is taken here (same roll, same tick, same free man); the quarterback tucks
+               * and braces on this spot, and the tackle is emitted by the close-out below on the
+               * tick the rusher is actually on him. The spot is this spot, so the yards are too. */
+              qb._eatV146 = { th, lx: qb.lx, y: qb.y, t0: t };
+              emit("sackBrace", { who: qb.id, by: th.id, x: qb.lx, y: qb.y, d: Math.round(Math.hypot(th.lx - qb.lx, th.y - qb.y)) });
+              rec(); continue;
+            }
             if (th) {
               emit("tackle", { tackler: th.id, carrier: qb.id, x: qb.lx, y: qb.y, sack: true, taken: true });
               done = true; out = { kind: "pass", complete: false, intercepted: false, yards: Math.round(qb.lx / YD), sack: true, sacker: th.player || null };
@@ -9977,6 +10137,23 @@ class Ot extends mt.Scene {
           try { const V = (window.__V86 = window.__V86 || {}); const key = slide ? "slides" : tstyle ? tstyle + "s" : "plain"; V[key] = (V[key] || 0) + 1; } catch (er) {}
         }
         P.scrambling = false;
+        /* ===== v146 A THEY GO DOWN TOGETHER (renderer) =====
+         * `F146` is decided once, here: whether this is the one tackle the hitter walks away from
+         * (the hit stick / a launch), and when the CARRIER starts to fall — the wrap beat on a plain
+         * stop (longer on a sack, where the rusher wraps and twists him down), the drag or the
+         * knock-back where v86 already read one — so the tackler's fold can be timed off it. The
+         * contact itself is guaranteed upstream (`contactV146` walks the named man onto him before
+         * the event); `__V146R` measures what was actually drawn on the frame he went down. */
+        const F146 = (TU("togetherV146", 1) && m && tk && !slide) ? {
+          stick: !!(e.hitStick || willFly112),
+          foldMs: tstyle === "drag" ? TU("dragMs", 240) + Number(e.kb || 0) * 20 : tstyle === "knock" ? TU("knockMs", 150)
+            : tstyle === "forward" ? TU("fallFwdMs", 260) : e.sack ? TU("sackWrapMsV146", 220) : TU("wrapBeatMsV146", 110)
+        } : null;
+        try { const R = window.__V146R = window.__V146R || { downs: 0, far: 0, maxD: 0, stick: 0, together: 0, sacks: 0, samples: [] };
+          if (m) { R.downs++; if (e.sack) R.sacks++;
+            const dd = tk ? Math.hypot(tk.sx - m.sx, tk.sy - m.sy) : 999; R.maxD = Math.max(R.maxD, Math.round(dd * 10) / 10);
+            if (dd > TU("contactPxV146", 9) + 3) { R.far++; if (R.samples.length < 10) R.samples.push({ d: Math.round(dd), sack: !!e.sack, why: e.v146 && e.v146.why, fs: !!P.script.meta.fieldSim }); }
+            if (F146) F146.stick ? R.stick++ : R.together++; } } catch (er) {}
         // v103: the grip is over — clear the drag look, and say what the drag was worth
         try { const cmD = this.markers[P.carrierId]; if (cmD) { cmD._dragging = false; } } catch (er) {}
         P.gripPair = null;
@@ -10005,12 +10182,27 @@ class Ot extends mt.Scene {
           // v29 INTRICATE TACKLES: the wrap is a visible GRAB held for the whole
           // drag/drive/knockback phase — the longer the carrier fights (drive or kb),
           // the longer the tackler hangs on before both fold with the tackleSeq arc.
-          tk.forceState = big || e.gang !== true && !e.stayUp && Math.random() < TU("diveChance",0.4) ? "dive" : "grab";
           const holdMs = TU("grabHoldMs",260) + Math.max(Number(e.drive||0), Number(e.kb||0)) * TU("grabHoldK",30);
+          if (F146) {
+            /* v146 A: the hitter who laid the hit stick is the ONE man who stays up — he stands in
+             * his grab through the collision and runs on (the script walks him through). Everyone
+             * else goes down WITH the man he tackled: a low aim leaves his feet at the legs, the
+             * rest wrap, and his fold is timed off the carrier's own (F146.foldMs) so the two of
+             * them hit the grass together instead of one of them a quarter-second late. */
+            if (F146.stick) { tk.forceState = "grab"; tk._lean = 0;
+              this.time.delayedCall(TU("stickHoldMsV146", 260), () => { if (tk.active !== false && tk.forceState === "grab") tk.forceState = null; }); }
+            else {
+              tk.forceState = (e.style === "low" || (e.gang !== true && Math.random() < TU("diveChance",0.4) && e.style !== "high")) ? "dive" : "grab";
+              if (tk.forceState === "dive") { tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + Math.max(120, F146.foldMs); tk._launchH = e.style === "low" ? 2 : 4; }
+              this.time.delayedCall(F146.foldMs + TU("tkFoldLagMsV146", 50), () => { if (tk.active !== false && tk.forceState !== "getupSeq") { tk.forceState = "tackleSeq"; tk.seqT = tk.tms; tk._lean = 0; } });
+            }
+          } else {
+          tk.forceState = big || e.gang !== true && !e.stayUp && Math.random() < TU("diveChance",0.4) ? "dive" : "grab";
           // v30: a tackler who WON the wrap outright (stayUp) finishes on his feet,
           // standing over the runner — only the carrier goes to the turf.
           if (e.stayUp) this.time.delayedCall(holdMs + 320, () => { if (tk.active !== false && tk.forceState === "grab") tk.forceState = null; });
           else this.time.delayedCall(holdMs, () => { if (tk.active !== false && tk.forceState != null) { tk.forceState = "tackleSeq"; tk.seqT = tk.tms; } });
+          }
           // a genuinely assisted stop shows it: the nearest support wrapper latches on
           // with his own grab a beat later, then joins the pile on the ground
           // v109 THE GANG CONVERGES: every man who closed in (`wrapIn` / `pileOn`) is already in
@@ -10048,6 +10240,13 @@ class Ot extends mt.Scene {
             // hit low or from the side at speed: he falls forward for the extra yard
             m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + TU("fallFwdMs", 260); m._launchH = 5; m._lean = 0;
             this.time.delayedCall(TU("fallFwdMs", 260), () => { if (m.active !== false && m.forceState === "dive") m.forceState = "down"; });
+          } else if (F146 && !F146.stick && F146.foldMs > 0) {
+            // v146 A: the wrap is SEEN before the fall — he is held up in the tackler's arms for a
+            // beat (a sack twists him round with it), then the two of them go down as one
+            m.forceState = null; const dirW = (tk.sx - m.sx) >= 0 ? -1 : 1;
+            m._lean = dirW * TU("wrapLeanV146", 0.18);
+            if (e.sack && m.body && !REDUCED_MOTION) this.tweens.add({ targets: m.body, angle: dirW * TU("sackTwistDegV146", 22), duration: F146.foldMs, ease: "Quad.easeIn" });
+            this.time.delayedCall(F146.foldMs, () => { if (m.active !== false && m.forceState !== "getupSeq") { m._lean = 0; if (m.body) { this.tweens.killTweensOf(m.body); m.body.angle = 0; } m.forceState = "tackleSeq"; m.seqT = m.tms; } });
           } else {
             // the carrier visibly folds to the ground after the whistle and stays down
             m.forceState = "tackleSeq"; m.seqT = m.tms;
