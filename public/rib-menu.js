@@ -17,6 +17,16 @@
   const previewMode = new URLSearchParams(location.search).has('menuPreview');
   const ART = './public/menu/';
   const COACH_ART = ART.replace(/menu\/$/, 'coach/');   // v119: the coach's cells live beside the menu art
+  /* ===== v147 B THE MENU WEARS THE COIN =====
+   * Prestige is money you spend in the Vault, so the menu shows it as the Vault's own GOLD COIN
+   * (public/vault/coin_gold_face.webp — the same sprite the hoard is built from), not a star: the
+   * header chip and the YOUR LEGACY prestige tile. The ★ on the player card is the RECRUIT rating
+   * and stays a star. The trophy on the milestones card is the UFF's own (card_trophy_uff.webp,
+   * drawn by scripts/build-uff-trophy.mjs) instead of a Lombardi look-alike. And the OVR ring's
+   * spark rides the BAND of the arc it marks (ringArcV147B below). */
+  const VAULT_ART = ART.replace(/menu\/$/, 'vault/');
+  const COIN_V147B = 'coin_gold_face.webp';
+  const TROPHY_V147B = 'card_trophy_uff';
   // v104: the pictures and their masks keep their names from build to build, so a browser that
   // has seen the menu once keeps the OLD kit masks forever unless the URL moves. The baked build
   // stamp (`<meta name="rib-menu-build">`, set by scripts/bake-menu-into-index.mjs) rides every
@@ -129,7 +139,7 @@
         archetype: { id: 'prodigy', name: 'Field General' }, traits: [{ id: 'bigGameHunter', name: 'Accuracy' }, { id: 'gymRat', name: 'Footwork' }, { id: 'bornLeader', name: 'Leadership' }],
         totalSeasons: 0, objectives: [
           { id: 'a', title: 'Win your first game', done: true, reward: 2 }, { id: 'b', title: 'Throw for 300+ yards', done: true, reward: 2 }, { id: 'c', title: '3+ TD passes', done: true, reward: 2 },
-          { id: 'd', title: 'Win your conference', done: false, reward: 3 }, { id: 'e', title: 'Reach the state championship', done: false, reward: 3 }, { id: 'f', title: 'Get drafted to the DFL', done: false, reward: 5 }] },
+          { id: 'd', title: 'Win your conference', done: false, reward: 3 }, { id: 'e', title: 'Reach the state championship', done: false, reward: 3 }, { id: 'f', title: 'Get drafted to the UFF', done: false, reward: 5 }] },
       season: { games: 12, played: 3, weeks: [{ played: true, won: true }, { played: true, won: true }, { played: true, won: true }], inProgress: true,
         last: { won: true, us: 28, them: 17, opp: 'Central High', stat: { pass: 312, td: 3, int: 0 } }, nextOpp: 'Westlake Wildcats', nextWeek: 4 },
       team: { school: 'Westfield State', name: 'Storm', colors: ['#1a2a44', '#e8c86a'], logo: null, logoCss: '' } };
@@ -145,7 +155,7 @@
     const ovr = numeric(card?.querySelector('.continue-ovr')?.textContent, 0);
     const pos = (cardText.match(/\b(QB|RB|WR|TE|OL|DL|LB|CB|S)\b/)?.[1] || 'QB');
     return { hasCareer, state: { prestige: numeric((screenText.match(/\uD83C\uDF96\uFE0F?\s*(\d+)/) || screenText.match(/★\s*(\d+)/) || [])[1], 0), pp: 0, careers: 0, nflReached: 0, interstellar: 0, hallBest: 0, enshrined: 0, challenges: 0, challengesOf: 0 },
-      player: hasCareer ? { name, pos, level: 0, levelName: (cardText.match(/(Pee Wee|Youth League|Middle School|JV|Varsity|College|DFL Combine|The DFL|Interstellar League)/) || [])[1] || 'Career', stars: (cardText.match(/★/g) || []).length, ovr, height: '', weight: '', traits: [], objectives: [], totalSeasons: 0 } : null,
+      player: hasCareer ? { name, pos, level: 0, levelName: (cardText.match(/(Pee Wee|Youth League|Middle School|JV|Varsity|College|UFF Combine|The UFF|Interstellar League)/) || [])[1] || 'Career', stars: (cardText.match(/★/g) || []).length, ovr, height: '', weight: '', traits: [], objectives: [], totalSeasons: 0 } : null,
       season: { games: 0, played: 0, weeks: [], inProgress: false, last: null }, team: { school: '', name: '', colors: null, logo: null, logoCss: '' } };
   }
 
@@ -231,9 +241,9 @@
 
   // the legacy panel: one tile per lifetime number, each with its own icon
   const LEGACY_TILES = [
-    ['gold', 'star', 'prestige', 'PRESTIGE', (S) => S.prestige || 0],
+    ['gold rib9-lt-coin-v147', 'coin', 'prestige', 'PRESTIGE', (S) => S.prestige || 0],   // v147 B: the vault's coin, not a star
     ['blue', 'helmet', 'careers', 'CAREERS', (S) => S.careers || 0],
-    ['green', 'crown', 'nflReached', 'DFL REACHED', (S) => S.nflReached || 0],
+    ['green', 'crown', 'nflReached', 'UFF REACHED', (S) => S.nflReached || 0],
     ['purple', 'gem', 'interstellar', 'INTERSTELLAR', (S) => S.interstellar || 0],
     ['gold2', 'laurel', 'hallPoints', 'HALL POINTS', (S) => S.hallBest || 0],
     ['red', 'target', 'iconicMoments', 'ICONIC MOMENTS', (S) => S.challenges || 0],
@@ -241,7 +251,7 @@
   const legacyPanel = (S) => `<section class="rib9-card rib9-legacy">
             <div class="rib9-kicker">YOUR LEGACY</div>
             <div class="rib9-legacy-grid">
-              ${LEGACY_TILES.map(([cls, icon, field, label, read]) => `<div class="rib9-lt ${cls}"><i><img src="${ART}legacy_${icon}.webp${ARTV}" alt="" loading="lazy"></i><b data-rib-field="${field}">${esc(read(S))}</b><small>${label}</small></div>`).join('')}
+              ${LEGACY_TILES.map(([cls, icon, field, label, read]) => `<div class="rib9-lt ${cls}"><i><img src="${icon === 'coin' ? VAULT_ART + COIN_V147B : ART + 'legacy_' + icon + '.webp'}${ARTV}" alt="" loading="lazy"></i><b data-rib-field="${field}">${esc(read(S))}</b><small>${label}</small></div>`).join('')}
             </div>
           </section>`;
 
@@ -326,14 +336,14 @@
       const done = (pl.objectives || []).filter(o => o.done).length; if (done) add(`<b>${done}</b> MILESTONE${done === 1 ? '' : 'S'} DOWN`);
     } else {
       add(`<b>START A CAREER</b> · AGE 8 · PEE WEE`);
-      add(`NINE POSITIONS · <b>ONE ROAD TO THE DFL</b>`);
+      add(`NINE POSITIONS · <b>ONE ROAD TO THE UFF</b>`);
       add(`PICK A POSITION · TRAIN · <b>PLAY LIVE</b>`);
       add(`SURVIVE EVERY CUT`);
     }
     add(`HONORS <b>${esc(S.prestige || 0)}</b> · PP <b>${esc(S.pp || 0)}</b>`);
     if (S.lineage && S.lineage.gen) add(`THE ${esc(String(S.lineage.surname || '').toUpperCase())} LINE · <b>GEN ${esc(S.lineage.gen)}</b> · ${esc(S.lineage.years || 0)} FAMILY YEAR${Number(S.lineage.years) === 1 ? '' : 'S'}`);   // v136 D
     if (S.careers) add(`<b>${esc(S.careers)}</b> CAREER${S.careers === 1 ? '' : 'S'} PLAYED`);
-    if (S.nflReached) add(`<b>${esc(S.nflReached)}</b> REACHED THE DFL`);
+    if (S.nflReached) add(`<b>${esc(S.nflReached)}</b> REACHED THE UFF`);
     if (S.highScore) add(`SCORE ATTACK BEST <b>${esc(Number(S.highScore).toLocaleString())}</b>`);
     add(`<b>RUNNING IT BACK</b> · CAREER MODE`);
     const dur = Math.max(26, items.length * 4.2);
@@ -458,7 +468,7 @@
           <nav class="rib9-nav" aria-label="Main">
             ${navLink('home', 'HOME', true)}${navLink(has ? 'continue' : 'new', 'CAREER')}${navLink('goals', 'GOALS')}${navLink('hall', 'HALL')}${navLink('view:leaderboard', 'LEADERBOARDS')}${navLink('howto', 'HOW TO PLAY')}${navLink('settings', 'SETTINGS')}
           </nav>
-          <button class="rib9-prestige" type="button" data-rib-action="prestige" title="Prestige tree">${svg('star')}<b data-rib-field="prestige">${esc(S.prestige || 0)}</b><small>PRESTIGE</small><i></i><b data-rib-field="pp">${esc(S.pp || 0)}</b><small>PP</small></button>
+          <button class="rib9-prestige" type="button" data-rib-action="prestige" title="Prestige tree"><img class="rib9-coin-v147" src="${VAULT_ART}${COIN_V147B}${ARTV}" alt="" width="18" height="18" decoding="async"><b data-rib-field="prestige">${esc(S.prestige || 0)}</b><small>PRESTIGE</small><i></i><b data-rib-field="pp">${esc(S.pp || 0)}</b><small>PP</small></button>
           <div class="rib9-motto">BUILD A PLAYER.<br>EARN EVERY REP.<br>CHASE THE LEAGUE.</div>
         </header>
         ${tickerV132(data, has, num, year, week)}
@@ -510,7 +520,7 @@
           </section>
           ${legacyPanel(S)}
           <section class="rib9-card rib9-milestones" data-rib-action="goals" role="button" tabindex="0">
-            <img class="rib9-trophy" src="${ART}card_trophy.webp${ARTV}" alt="">
+            <img class="rib9-trophy" src="${ART}${TROPHY_V147B}.webp${ARTV}" alt="The UFF trophy">
             <div class="rib9-ms-copy"><div class="rib9-kicker">CAREER MILESTONES</div>${milestones(data)}</div>
             <div class="rib9-ms-plate">A HIGHER<br>STANDARD</div>
           </section>
@@ -535,7 +545,7 @@
         <div class="rib9-grid">
           ${legacyPanel(S)}
           <section class="rib9-card rib9-milestones" data-rib-action="new" role="button" tabindex="0">
-            <img class="rib9-trophy" src="${ART}card_trophy.webp${ARTV}" alt="">
+            <img class="rib9-trophy" src="${ART}${TROPHY_V147B}.webp${ARTV}" alt="The UFF trophy">
             <div class="rib9-ms-copy"><div class="rib9-kicker">CAREER MILESTONES</div>${milestones(data)}</div>
             <div class="rib9-ms-plate">A HIGHER<br>STANDARD</div>
           </section>
@@ -599,6 +609,27 @@
   window.addEventListener('resize', () => { const m = document.getElementById(MENU_ID); if (m) layoutArt(m); });
 
   // ---- dynamic touches: the ring, the count-up --------------------------------
+  /* v147 B: ONE place decides where the arc ends, and the spark is put there. The arc is a
+   * conic-gradient from 12 o'clock, clockwise, `k` of a turn (v134: k = ovr / softMax, floored at
+   * .055 so a young player's arc is visible; past the soft max the gold lap's k2 is the head). The
+   * spark used to ride the ring's OUTER EDGE (radius 41 of 44) while the coloured band runs from
+   * 64% to 88.6% of the radius (the closest-side hole to the 5px inset shadow) — so the light sat
+   * OUTSIDE the bar, off its end, and read as a different angle. Now it is centred ON the band
+   * (RING_BAND_V147B, mirrored in the CSS) at exactly the angle the gradient stops, and the gold
+   * lap is masked to the same band. `apply` writes the properties; the geometry is returned either
+   * way, which is what v147Bcheck.mjs compares against the pixels. */
+  const RING_BAND_V147B = { inner: 0.64, outer: 0.886 };
+  function ringArcV147B(ring, overall, softMax, apply) {
+    const k1 = Math.min(1, overall / softMax), k2 = Math.max(0, Math.min(1, (overall - softMax) / softMax));
+    const k = Math.max(0.055, k1), over = k2 > 0, head = over ? k2 : k;
+    const color = over ? '#7ddc6e' : overall / softMax >= .85 ? '#7ddc6e' : overall / softMax >= .5 ? '#e8c86a' : '#e8734a';
+    if (apply && ring) {
+      ring.style.setProperty('--rib-ovr', String(k)); ring.style.setProperty('--rib-ovr2', String(k2));
+      const spark = ring.querySelector('.rib9-ring-spark-v132'); if (spark) spark.style.setProperty('--spark', (head * 360).toFixed(2) + 'deg');   // v132: the spark rides the head of the (outermost) arc
+    }
+    return { overall, softMax, k1, k2, k, over, head, headDeg: head * 360, color, band: RING_BAND_V147B };
+  }
+  window.__V147B = { ringArc: ringArcV147B, band: RING_BAND_V147B, coin: () => VAULT_ART + COIN_V147B, trophy: () => ART + TROPHY_V147B + '.webp' };
   function applyDynamic(menu, data, animateIn) {
     watchArt(menu);
     startHeroFx(menu);   // v102: the hero comes alive
@@ -616,14 +647,12 @@
        * out past his soft max with a full gold lap. */
       const sm0 = Number(data.player && data.player.softMaxOvr) || 0;
       const softMax = sm0 > 0 ? sm0 : 250;
-      const k1 = Math.min(1, overall / softMax), k2 = Math.max(0, Math.min(1, (overall - softMax) / softMax));
-      ring.style.setProperty('--rib-ovr-color', k2 > 0 ? '#7ddc6e' : overall / softMax >= .85 ? '#7ddc6e' : overall / softMax >= .5 ? '#e8c86a' : '#e8734a');
-      ring.classList.toggle('over', k2 > 0);
-      ring.title = k2 > 0 ? `OVR ${overall} — past his soft max of ${softMax} (gold lap: ${Math.round(k2 * 100)}% of the way round again)` : `OVR ${overall} of a soft max of ${softMax} — ${Math.round(k1 * 100)}% of this year's ceiling used`;
+      const G = ringArcV147B(ring, overall, softMax, false);
+      ring.style.setProperty('--rib-ovr-color', G.color);
+      ring.classList.toggle('over', G.over);
+      ring.title = G.over ? `OVR ${overall} — past his soft max of ${softMax} (gold lap: ${Math.round(G.k2 * 100)}% of the way round again)` : `OVR ${overall} of a soft max of ${softMax} — ${Math.round(G.k1 * 100)}% of this year's ceiling used`;
       // a young player is still a visible arc: an empty ring reads as a broken ring
-      const applyArc = () => { const k = Math.max(0.055, k1); ring.style.setProperty('--rib-ovr', String(k)); ring.style.setProperty('--rib-ovr2', String(k2));
-        const head = k2 > 0 ? k2 : k;
-        const spark = ring.querySelector('.rib9-ring-spark-v132'); if (spark) spark.style.setProperty('--spark', (head * 360).toFixed(1) + 'deg'); };   // v132: the spark rides the head of the (outermost) arc
+      const applyArc = () => ringArcV147B(ring, overall, softMax, true);
       if (animateIn && !prefersReduced()) whenAssetsReady(() => requestAnimationFrame(() => requestAnimationFrame(applyArc)));
       else applyArc();
     }

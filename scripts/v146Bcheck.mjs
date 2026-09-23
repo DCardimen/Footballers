@@ -83,7 +83,7 @@ const offerScreen = (page) => page.evaluate(() => {
   const scr = await offerScreen(page)
   ok(scr.view === 'club' && scr.n === 3, 'the hub waits for the signature: the three-offer screen is up', { view: scr.view, n: scr.n })
   ok(scr.text.every(t => /TEAM OVR/.test(t) && /SNAP SHARE/.test(t) && /\d+%/.test(t) && /DEPTH/.test(t)), 'every offer shows team OVR, snap share, depth', scr.text[0])
-  ok(/2 times in one DFL season/.test(scr.rules), 'the rule is stated on the screen', scr.rules.slice(0, 90))
+  ok(/2 times in one UFF season/.test(scr.rules), 'the rule is stated on the screen', scr.rules.slice(0, 90))
   ok(scr.scroll <= 1 && scr.allVisible, 'the screen fits 400x860 with no scroll, every card and the sign button on screen', { scroll: scr.scroll })
   ok(scr.btnBelowCards && scr.btnDisabled, 'the action is at the bottom, and needs a pick first')
   if (SHOT) {
@@ -165,7 +165,7 @@ const offerScreen = (page) => page.evaluate(() => {
   ok(r.node && /cut/i.test(r.node.desc) && r.allowed === 3, 'Second Chances is a prestige node and level 1 allows one more cut', { allowed: r.allowed, desc: r.node && r.node.desc })
   ok(r.c1 && !r.c1.end && r.c2 && !r.c2.end, 'with it, the second cut is survived too', [r.c1, r.c2])
   ok(r.c3 && r.c3.end && r.out, 'and the third one ends the career', r.c3)
-  ok(/3 times in one DFL season/.test(r.rules), 'the stated rule follows the node', r.rules.slice(0, 60))
+  ok(/3 times in one UFF season/.test(r.rules), 'the stated rule follows the node', r.rules.slice(0, 60))
   await ctx.close()
 }
 
