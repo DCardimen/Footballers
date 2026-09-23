@@ -100,6 +100,9 @@ html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
   background:rgba(255,255,255,.03);color:#fff;font-family:Oswald,sans-serif;white-space:nowrap}
 .rib9-prestige:hover{border-color:var(--line)}
 .rib9-prestige svg{width:13px;height:13px;fill:var(--g2);stroke:none}
+/* ===== v147 B THE MENU WEARS THE COIN ===== the prestige mark is the Vault's gold coin (the ★ is the recruit rating only) */
+.rib9-prestige .rib9-coin-v147{display:block;flex:none;width:18px;height:18px;margin:-2px 1px -2px -2px;object-fit:contain;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.7)) drop-shadow(0 0 4px rgba(255,214,107,.28))}
+.rib9-lt.rib9-lt-coin-v147 i img{width:30px;height:30px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6)) drop-shadow(0 0 6px rgba(255,214,107,.25))}
 .rib9-prestige b{font-size:14px;font-weight:700;color:var(--g2)}
 .rib9-prestige small{font-size:8px;letter-spacing:1.6px;color:var(--mute)}
 .rib9-prestige i{width:1px;height:12px;background:var(--line2);margin:0 1px}
@@ -156,9 +159,12 @@ html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
 /* v134: past the soft max a second, gold arc goes round again on top of the full green ring */
 @property --rib-ovr2{syntax:'<number>';inherits:false;initial-value:0}
 .rib9-ring{--rib-ovr2:0}
-.rib9-ring:before{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;z-index:0;
+/* v147 B: --rib-ovr2 is registered with inherits:false, so the pseudo-element never saw the value set on
+   the ring and the gold lap was drawn at 0 — past the soft max you got a full green ring and a spark on
+   nothing. The pseudo now takes it explicitly. */
+.rib9-ring:before{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;z-index:0;--rib-ovr2:inherit;
   background:conic-gradient(#ffd66b calc(var(--rib-ovr2)*360deg),transparent 0);
-  -webkit-mask:radial-gradient(circle closest-side,transparent 63%,#000 65.5%);mask:radial-gradient(circle closest-side,transparent 63%,#000 65.5%);transition:--rib-ovr2 1.1s ease .3s;opacity:0}
+  -webkit-mask:radial-gradient(circle closest-side,transparent 63%,#000 65%,#000 88%,transparent 89%);mask:radial-gradient(circle closest-side,transparent 63%,#000 65%,#000 88%,transparent 89%);transition:--rib-ovr2 1.1s ease .3s;opacity:0}   /* v147 B: the band the green arc shows (64%..88.6% of the radius), not out to the rim */
 .rib9-ring.over:before{opacity:1}
 .rib9-ring.over{box-shadow:0 0 0 5px #101216 inset,0 0 0 1px rgba(255,214,107,.25),0 0 26px rgba(255,214,107,.22)}
 .rib9-ring.over .rib9-ring-lab{color:#ffd66b}
@@ -504,7 +510,12 @@ body.rib-howto-open{overflow:hidden!important}
 @keyframes rib9float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-4px) rotate(2deg)}}
 /* the OVR ring: a spark rides the head of the arc and breathes */
 .rib9-ring-spark-v132{position:absolute;inset:0;border-radius:50%;pointer-events:none;transform:rotate(var(--spark,0deg));transition:transform 1.1s ease}
-.rib9-ring-spark-v132:before{content:"";position:absolute;left:50%;top:-1px;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#fff;box-shadow:0 0 8px 2px var(--rib-ovr-color,#7ddc6e),0 0 18px 6px rgba(255,255,255,.3);animation:rib9sparkle 1.7s ease-in-out infinite}
+/* v147 B: the spark sits ON the arc's band — its centre at the band's mid radius, (64% + 88.6%) / 2 = 76.3%
+   of the radius, i.e. 11.85% of the ring's height from its top — not on the rim at radius 41 of 44, which put
+   the light outside the bar it marks. The rotation (the --spark angle) and the arc's end come from ONE
+   number, ringArcV147B's head, and share the same 1.1s ease, so they also agree while they travel. */
+.rib9-ring-spark-v132:before{content:"";position:absolute;left:50%;top:calc(11.85% - 4px);width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#fff;box-shadow:0 0 8px 2px var(--rib-ovr-color,#7ddc6e),0 0 18px 6px rgba(255,255,255,.3);animation:rib9sparkle 1.7s ease-in-out infinite}
+.rib9-ring.over .rib9-ring-spark-v132:before{box-shadow:0 0 8px 2px #ffd66b,0 0 18px 6px rgba(255,236,170,.35)}   /* v147 B: on the gold lap the spark glows gold */
 @keyframes rib9sparkle{0%,100%{transform:scale(.8);opacity:.75}50%{transform:scale(1.25);opacity:1}}
 .rib9-ring-val{animation:rib9ovrin 1.2s cubic-bezier(.2,1.3,.3,1) both}
 @keyframes rib9ovrin{0%{transform:scale(.6);opacity:0;filter:blur(4px)}60%{filter:blur(0)}100%{transform:none;opacity:1}}

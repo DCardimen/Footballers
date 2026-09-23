@@ -32,7 +32,7 @@ const menuArt = [
   'menu/hero_tunnel.webp',
   'menu/portrait_helmet.webp',
   'menu/card_continue.webp',
-  'menu/card_trophy.webp',
+  'menu/card_trophy_uff.webp',   // v147 B
 ]
 
 function requireFile(filePath) {

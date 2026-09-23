@@ -78,7 +78,9 @@ c = por.crop(b); s = max(c.size)
 sq = Image.new('RGB', (s, s), (4, 4, 6)); sq.paste(c, ((s - c.width) // 2, (s - c.height) // 2))
 save(sq.resize((640, 640), Image.LANCZOS), 'portrait_helmet.webp', 84)
 
-for name, w, q in [('card_continue', 1000, 82), ('card_trophy', 900, 82)]:
+# v147 B: card_trophy (a Lombardi look-alike) is retired; the milestones card wears the UFF's own
+# trophy, card_trophy_uff.webp, drawn by scripts/build-uff-trophy.mjs
+for name, w, q in [('card_continue', 1000, 82)]:
     im = Image.open(f'{SRC}/{name}.png').convert('RGB')
     save(im.resize((w, round(w * im.height / im.width)), Image.LANCZOS), f'{name}.webp', q)
 
