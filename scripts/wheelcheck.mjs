@@ -418,6 +418,10 @@ await page.screenshot({ path: 'scripts/_wheel_landed.png' })
 await page.evaluate(() => { const g = document.getElementById('gv42go'); if (g) g.click(); document.getElementById('growthV42')?.remove() })
 await page.waitForTimeout(500)
 await click('Balanced Program'); await click('CONFIRM TRAINING')
+// v146 D: the weekly plan is CHOSEN off a board by default now (v146Dcheck proves the board); the wheel
+// is behind planWheelV146 = 1, and this section keeps that wheel honest — so it turns the dial first,
+// before the deck appears and the week's decision is held
+await page.evaluate(() => { window.RIB_TUNE.planWheelV146 = 1 })
 await click('PLAY WEEK 1 LIVE')
 // v135: the wheel no longer spins over the season screen — PLAY WEEK opens the pregame wizard and the
 // wheel is its FIFTH page, mounted into the page. Walk there.

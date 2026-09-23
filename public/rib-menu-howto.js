@@ -237,7 +237,12 @@
       your recent form, and the Field General prestige node.</p>
       ${note('TRUST THE MECHANISM, NOT THE BAR.', 'The impact meter on that screen reads low — the script moves further your way than the percentage it prints. Pick the read you believe in and do not let the bar talk you out of it.')}
       <h4>The weekly plan</h4>
-      <p>This one is <b>rolled, not chosen</b> — weighted by your personality. What each outcome does:</p>
+      <p>This one is <b>yours to choose</b>, on the fifth page of the pregame — every plan the staff drew
+      up is a tile, and its card prints what it does. Each plan still carries a <b>roll</b> (clicks,
+      nothing, or backfires — your personality loads the odds) that is revealed at kickoff, and VAR is
+      its <b>swing</b>: ±3 × VAR on every attribute for the game, and ±6 × VAR on the grade. The
+      projection under every pregame page is your box score for the game, with the range VARIANCE
+      says it can land in. What the main plans do:</p>
       ${tab(['PLAN', 'PERF', 'VAR', 'SNAPS', 'TRUST'], [
         ['Disciplined Execution', '+2', '0.55×', '—', '+1'],
         ['Demand the Spotlight', '+5', '1.28×', '+10%', '—'],

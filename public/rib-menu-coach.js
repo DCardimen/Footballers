@@ -78,6 +78,7 @@
     career: '#rib-main-menu-v2 .rib9-tiles .rib9-tile:nth-child(1)', coach: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="coach"]', howto: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="howto"]', prestige: 'text:^TRAINING\\b',   // the tile's action is view:upgrade with a career and new without one: find it by its face
     lockIn: 'text:Lock In Personality', posCards: '.pos-card', playSeason: 'text:Play \\d+-Game Season', confirm: 'text:CONFIRM TRAINING', playWeek: 'text:Play Week \\d+ Live',
     cont: '#gv42go', next: 'text:^NEXT', speed: '.speed-btn',
+    planTiles: '#v146Plan', proj: '#v146Proj',   // v146 D: the plan board on the pregame's fifth page, and the projection strip under every page
     /* v134: the prestige tree is the shop, reached off the HONORS chip in the header (TRAINING on the
      * menu opens the SKILL-POINT sheet, view `upgrade` -- a different screen, with its own stop now) */
     honors: '#rib-main-menu-v2 [data-rib-action="prestige"], .prestige-chip', branches: '#screen .btn-row', back: 'text:^Back$', done: 'text:^DONE$',   // the menu overlay hides the game's topbar chip: on the menu the target is the menu's own PRESTIGE button
@@ -181,7 +182,7 @@
         return [proud ? { p: 'thumbsup', t: `You're a ${F.surname}. Your old man ${say}. I was proud of him. Now go top it.` } : { p: 'armscrossed', t: `You're a ${F.surname}. Your old man only ${say}. Learn from his mistakes — that's the whole point of you.` }]; }, lines: [
       { p: 'clipboard', t: "This is who your guy is. The dice picked his personality." },
       { p: 'thinkcap', t: "Each trait cuts two ways. Something he's good at, something he's not. Don't overthink it. You can't change it yet anyway." },
-      { p: 'point', t: "It also loads the wheel you spin before games. Lock it in.", s: 'lockIn', tap: true },
+      { p: 'point', t: "It also loads the season wheel, and the odds on every game plan you pick. Lock it in.", s: 'lockIn', tap: true },
     ] },
     { id: 'position', title: 'YOUR POSITION', sub: 'THE BODY HE WAS DEALT', when: (c) => c.view === 'choosePos' && !c.persona, pre: () => { const F = family(); if (!F || F.gen <= 1) return null;
         return [{ p: 'shrug', t: `Different first name from the old man — his mother's call. Same last name, same chin. ${F.years} years the ${F.surname}s have put on a field. Add to it.` }]; }, lines: [
@@ -216,15 +217,16 @@
     { id: 'pregame', title: 'BEFORE KICKOFF', sub: 'THE PAGES', when: (c) => c.pregame && !c.wheel, lines: [
       { p: 'clipboard', t: "A few pages before kickoff. Page one: how much do you want to play? NORMAL is the snaps I trust you with. Fewer snaps, less wear." },
       { p: 'stop', t: "Ask for more than your share and it costs your body — until you earn it. More trust, more say." },
-      { p: 'tip', t: "Page two: pick one thing to focus on. Page three: the game plan. Page four: what it costs. Then the wheel — two of them on rivalry week." },
+      { p: 'tip', t: "Page two: pick one thing to focus on. Page three: the scout. Page four: what it costs. Page five: you pick the game plan. Rivalry week, the rival gets a wheel." },
       { p: 'point', t: "Work through the pages. The last one is your sheet — what you actually take onto the field.", s: 'next', tap: true },
     ] },
-    /* v135: the plan wheel spins on the wizard's FIFTH page now, not over the season screen before
-     * it, so this stop comes after the pregame stop — keyed on the wheel whose title reads PREGAME */
-    { id: 'plan', title: 'THE WEEKLY PLAN', sub: 'ROLLED, NOT CHOSEN', when: (c) => c.planWheel && !c.gate, lines: [
-      { p: 'clipboard', t: "The wheel. The staff drew up the plans. It picks the one you run. His personality loads it." },
-      { p: 'tip', t: "Some plans chase big plays. Some keep it steady. One does the dirty work and earns my trust." },
-      { p: 'point', t: "Tap the wheel to hurry it, then CONTINUE. It shows you what it did to your numbers. Your sheet is the last page, then it's kickoff.", s: 'cont', tap: true },
+    /* v135: the plan lives on the wizard's FIFTH page, so this stop comes after the pregame stop.
+     * v146 D: it is a BOARD now and he picks the plan (`planBoard`); the wheel (`planWheel`, whose title
+     * reads PREGAME) only comes back with planWheelV146 = 1, and the stop still keys on it then */
+    { id: 'plan', title: 'THE WEEKLY PLAN', sub: 'YOUR CALL', when: (c) => (c.planBoard || c.planWheel) && !c.gate, lines: [
+      { p: 'clipboard', t: "Your call. The staff drew up the plans. You pick the one you run. Tap one and the card tells you what it does." },
+      { p: 'tip', t: "Every plan has a roll on it. Green, it clicks. Red, it backfires. You find out at kickoff. The wild ones swing further." },
+      { p: 'point', t: "Watch the numbers at the bottom. That's what I expect from you. Variance is how far off it you can land.", s: 'proj' },
     ] },
     { id: 'live', title: 'THE BROADCAST', sub: 'WATCH IT', when: (c) => c.live && !c.post, delay: 2600, lines: [
       { p: 'open', t: "Game time. Your guy has a ring under his feet. Watch him." },
@@ -303,6 +305,7 @@
       // v139: the season wheel opens on a gate — READY TO ROLL? — and he does not talk over a decision
       gate: !!byId('gv139gate'),
       planWheel: !!byId('growthV42') && /^\s*PREGAME/.test((document.querySelector('#growthV42 > div > div') || {}).textContent || ''),
+      planBoard: !!(byId('v146Plan') && byId('v146Plan').offsetParent),   // v146 D: the plan board, on screen (page 5 is hidden off it)
       pregame: !!byId('pregameV1513'), post: !!byId('pgOverlayV13'), live: !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length) && String(s.view || '') === 'live',
       seen: seen(),
     };
