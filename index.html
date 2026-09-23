@@ -7936,7 +7936,9 @@ class Ot extends mt.Scene {
    * small corrections and micro-stepped on large ones; a spring has no dead-band, no step, and
    * its acceleration is capped (`camAccelMax`, px/s²), which is the number the hook reports as
    * `maxJerk` — the worst per-frame change of pan velocity a viewer would have felt. */
-  camSpringV109(cam, cx, cy, tz, delta, stiffK) {
+  camSpringV109(cam, cx, cy, tz, delta, stiffK, tv) {
+    // v147 D: `tv` = the target's own velocity and how much of it to damp against (0 = the v109 spring)
+    const ff = tv && tv.ff > 0 ? tv.ff : 0, tvx = ff ? tv.vx * ff : 0, tvy = ff ? tv.vy * ff : 0;
     const dt = Math.min(0.05, Math.max(0.004, (delta || 16) / 1000)), sk = stiffK || 1;
     const S = this._camSpr || (this._camSpr = { vx: 0, vy: 0, vz: 0, px: cam.midPoint.x, py: cam.midPoint.y, pvx: 0, pvy: 0, n: 0, t0: 0 });
     // the measurement is of the SPRING's own continuity: a frame the camera was moved by something
@@ -7947,22 +7949,98 @@ class Ot extends mt.Scene {
     S.t0 = nowMs;
     const k = TU("camStiff", 40) * sk, c = 2 * Math.sqrt(k) * TU("camDamp", 1), aMax = TU("camAccelMax", 9000) * Math.sqrt(sk);
     const x = cam.midPoint.x, y = cam.midPoint.y;
-    let ax = k * (cx - x) - c * S.vx, ay = k * (cy - y) - c * S.vy;
-    const am = Math.hypot(ax, ay); if (am > aMax) { ax *= aMax / am; ay *= aMax / am; }
-    const v0x = S.vx, v0y = S.vy;
-    S.vx += ax * dt; S.vy += ay * dt;
-    const nx = x + S.vx * dt, ny = y + S.vy * dt;
-    const jerk = Math.hypot(S.vx - v0x, S.vy - v0y) / dt, step = Math.hypot(nx - x, ny - y);
-    // zoom in log space, so a pull-in and the pull-back out of it take the same time
     const kz = TU("camZoomStiff", 45) * sk, cz = 2 * Math.sqrt(kz) * TU("camDamp", 1);
-    const lz = Math.log(Math.max(0.05, cam.zoom)), ltz = Math.log(Math.max(0.05, tz));
-    S.vz += (kz * (ltz - lz) - cz * S.vz) * dt;
-    cam.setZoom(Math.exp(lz + S.vz * dt)); cam.centerOn(nx, ny);
+    const lz0 = Math.log(Math.max(0.05, cam.zoom)), ltz = Math.log(Math.max(0.05, tz));
+    /* v147 D: one frame is several SUB-STEPS when the spring is stiff for the frame it is given —
+     * a follow cam in a cut at 4× (ω ≈ 24/s) on a 45 ms frame was ωdt ≈ 1.1, where a semi-implicit
+     * step overshoots and rings, frame to frame. The same continuous spring, integrated finely
+     * enough; at 1× in Broadcast ωdt ≈ 0.1 and it is still exactly one step. */
+    const nSub = !TU("camRateV147", 1) ? 1 : Math.max(1, Math.min(8, Math.ceil(Math.sqrt(Math.max(k, kz)) * dt / Math.max(0.05, TU("camSubstepWdtV147", 0.35)))));
+    const h = dt / nSub, v0x = S.vx, v0y = S.vy;
+    if (nSub > 1 && window.__V147D) window.__V147D.sub++;
+    let px = x, py = y, lz = lz0;
+    for (let s = 0; s < nSub; s++) {
+      let ax = k * (cx + tvx * h * s - px) - c * (S.vx - tvx), ay = k * (cy + tvy * h * s - py) - c * (S.vy - tvy);
+      const am = Math.hypot(ax, ay); if (am > aMax) { ax *= aMax / am; ay *= aMax / am; }
+      S.vx += ax * h; S.vy += ay * h; px += S.vx * h; py += S.vy * h;
+      // zoom in log space, so a pull-in and the pull-back out of it take the same time
+      S.vz += (kz * (ltz - lz) - cz * S.vz) * h; lz += S.vz * h;
+    }
+    const nx = px, ny = py;
+    const jerk = Math.hypot(S.vx - v0x, S.vy - v0y) / dt, step = Math.hypot(nx - x, ny - y);
+    cam.setZoom(Math.exp(lz)); cam.centerOn(nx, ny);
+    // v147 D: a pan the bounds stopped keeps no velocity into the wall, or the feed-forward winds it up
+    if (ff) { if (Math.abs(cam.midPoint.x - nx) > 0.5) S.vx = 0; if (Math.abs(cam.midPoint.y - ny) > 0.5) S.vy = 0; }
     { const V = this.v109E().cam;
       if (jerk > V.maxJerk) V.maxJerk = Math.round(jerk);
       if (step > (V.maxStepPx || 0)) V.maxStepPx = +step.toFixed(2);
       V.frames++; }
     S.px = nx; S.py = ny; S.n++;
+  }
+  /* ===== v147 D THE CAMERA HOLDS STILL AT 4× =====
+   * Every dial on the camera was tuned at 1×, in WALL time, against a world that moves at 1×. At 4×
+   * the world moves four times as far per frame and the camera did three things wrong with it:
+   *  1. the predictive lead was the focus's velocity in WALL px/s × `camLeadMs`, so it came out four
+   *     times as long — it sat pinned on `camLeadMax` / the keep-clamp and FLIPPED end to end on
+   *     every juke and every hand-over (the target's own shake, `tHf`, measured ~2× the focus's);
+   *  2. nothing on its way to the spring was filtered for speed: the target's shake measured 2–3× the
+   *     focus's own at 4×, and the camera passed it to the screen — pan shake 2–3× the 1× picture;
+   *  3. the zoom target — `1/perspK` of the man under a lock, the open-field pull-in, the hit step
+   *     out — changed four times as fast, and the zoom spring pumped with it frame to frame (2–4×).
+   * The eye watches the camera in WALL time, so that is where it is held still. The focus's velocity
+   * is measured in PLAY time (the lead is the 1× lead for the same run, stretched by √speed) and
+   * smoothed over a wall window that lengthens with the speed; the pan TARGET rides a fading-memory
+   * g-h filter (`camPanTauMsV147`) whose velocity is fed forward into the spring, so the spring tracks
+   * a steady run with no lag at its 1× stiffness instead of being stiffened into the shake; the zoom
+   * target rides a first-order low-pass (`camZoomTauMsV147`); a ball in the air may open the zoom off
+   * where the camera actually IS. The FOLLOW cams, locked to one man in a box an eighth of the frame
+   * wide, get a dead zone (`camFollowDeadV147`), a plain low-pass, a speed^0.35 spring, a shorter lead,
+   * and stand a little further back at speed (`camFollowZoomRateExpV147`, and the play frame for a ball
+   * in the air). The spring sub-steps whenever ωdt would ring (`camSubstepWdtV147`). Every time constant
+   * scales with (speed − 1) / 3 and every exponent is of the speed, so 1× is the old camera (the same
+   * plays measure within a few % at 1×). Measured on the SAME plays, 4× against 1× (geometric mean of
+   * pan acc / pan shake / reversals / zoom shake): Broadcast 1.9–2.5× → 0.6–0.95×, Follow Me
+   * 2.1–2.6× → 0.5–0.85×, the ball in frame as before. `camRateV147` is the one read of the user's
+   * speed; `TU("camRateV147", 0)` restores the old camera exactly. `window.__V147D` is the hook
+   * (`frames`, `rate`, `pre`, `resets`, `sub`); `scripts/v147Dcheck.mjs` the gate. */
+  camRateV147() {
+    if (!TU("camRateV147", 1)) return 1;
+    const u = Number(window.__getGridironLiveSpeed ? window.__getGridironLiveSpeed() : 1);
+    return Math.min(TU("camRateMaxV147", 8), Math.max(1, Number.isFinite(u) ? u : 1));
+  }
+  camStiffRateV147(r, fol) { return Math.pow(r, fol ? TU("camFollowStiffRateExpV147", 0.35) : TU("camStiffRateExpV147", 0)); }
+  // the pan and zoom targets, low-passed in wall time; the constant is 0 at 1× and grows with the speed
+  camPreV147(P, cx, cy, tz, delta, r, fol, hw, hh, air) {
+    const V = window.__V147D = window.__V147D || { frames: 0, rate: 1, pre: 0, resets: 0, sub: 0 };
+    V.frames++; V.rate = r;
+    let Q = this._camPreV147;
+    if (!Q || Q.P !== P || r <= 1) { Q = this._camPreV147 = { P, x: cx, y: cy, vx: 0, vy: 0, lz: Math.log(Math.max(0.05, tz)) }; if (r > 1) V.resets++; return { x: cx, y: cy, z: tz, vx: 0, vy: 0, ff: 0 }; }
+    const s = (r - 1) / 3, d = Math.max(1, delta || 16), dt = d / 1000;
+    /* the pan target rides a FADING-MEMORY g-h filter (Brown's double smoothing: θ = e^(−dt/τ), g = 1 − θ²,
+     * h = (1 − θ)²) — it takes the shake out of the target and still tracks a steady run with no lag,
+     * which a plain low-pass cannot: a lag here is a 4× runner at the edge of the frame. Its velocity is
+     * handed to the spring as a feed-forward, so the spring damps against the TARGET's motion instead of
+     * against standing still — no steady-state lag either, and no need to stiffen it into the shake. */
+    /* a FOLLOW cam is locked to one man inside a box an eighth of the frame wide, so at 4× every step he
+     * takes is a step the whole field takes. It gets a DEAD ZONE instead (`camFollowDeadV147` of the half
+     * frame at 4×): the target holds while he jostles inside it and moves only when he pushes its edge —
+     * a follow cam's shake measured WORSE than his own marker's through any smoothing that let it lag. */
+    if (fol && hw && !air) { const dx = hw * TU("camFollowDeadV147", 0.25) * s, dy = (hh || hw) * TU("camFollowDeadV147", 0.25) * s;
+      cx += Math.max(-dx, Math.min(dx, Q.x - cx)); cy += Math.max(-dy, Math.min(dy, Q.y - cy)); }
+    const gh = fol ? TU("camFollowGhV147", 0) : TU("camGhV147", 1);   // 0: a plain first-order low-pass
+    /* a ball in the AIR: Broadcast filters it like anything else (`camAirTauKV147` 1 — a shorter window
+     * measured SHAKIER, the catch and the release swinging the lead through it) and leans on the
+     * edge-open below to keep it in the picture; a FOLLOW cam, zoomed in three times as far, takes half
+     * the window (`camFollowAirTauKV147`), half the lead stretch and none of the stiffening in the air —
+     * each of those, tried at full, doubled the shake of a punt */
+    const airK = !air ? 1 : fol ? TU("camFollowAirTauKV147", 0.5) : TU("camAirTauKV147", 1);
+    const th = Math.exp(-d / Math.max(1, (fol ? TU("camFollowPanTauMsV147", 200) : TU("camPanTauMsV147", 500)) * s * airK)), g = gh ? 1 - th * th : 1 - th, h = gh ? (1 - th) * (1 - th) : 0;
+    const px = Q.x + Q.vx * dt, py = Q.y + Q.vy * dt, ex = cx - px, ey = cy - py;
+    Q.x = px + g * ex; Q.y = py + g * ey; Q.vx += h * ex / dt; Q.vy += h * ey / dt;
+    const az = 1 - Math.exp(-d / Math.max(1, (fol ? TU("camFollowZoomTauMsV147", 700) : TU("camZoomTauMsV147", 600)) * s * airK));
+    Q.lz += (Math.log(Math.max(0.05, tz)) - Q.lz) * az;
+    V.pre++;
+    return { x: Q.x, y: Q.y, z: Math.exp(Q.lz), vx: Q.vx, vy: Q.vy, ff: Math.min(1, s) * (fol ? TU("camFollowFeedFwdV147", 0) : TU("camFeedFwdV147", 1)) };
   }
   // the whistle: wide, on the ball, for as long as the post phase runs
   camPostV109(P, delta) {
@@ -8305,7 +8383,7 @@ class Ot extends mt.Scene {
         // field around him rescales dynamically as he moves through the perspective.
         const _zf = (((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16) / 1.16) * TU("perspZoomK", 0.78);
         // v112: the focus is POSSESSION, read fresh — the man only while a man has it, else the ball
-        const FOC = this.camFocusV112(P, gliding0), MD = this.camModeV112(), zStr = this.camZoomStrV112();
+        const FOC = this.camFocusV112(P, gliding0), MD = this.camModeV112(), zStr = this.camZoomStrV112(), r147 = this.camRateV147(), air147 = /^(flight|kick|loose)$/.test(FOC.kind);   // v147 D: the speed, read once a frame
         const carM = FOC.kind === "carry" || FOC.kind === "me" ? FOC.m : null;
         const kc = carM && carM.root ? Math.max(0.2, perspK(carM.sx)) : null;
         // v98 THE HANDOVER CUT: the moment the ball changes hands mid-play (the handoff, the
@@ -8347,21 +8425,33 @@ class Ot extends mt.Scene {
          * not shrink and swell every time the ball leaves a hand. `camFollowZoomK` is how close
          * the follow sits, scaled by the Settings strength like every other pull-in. */
         const flw = MD.follow && !FC, lockZ = kc ? mt.Math.Clamp(TU("zoomPlay",1.34) * _zf / Math.pow(kc, lockK), TU("zoomLockMin", 0.6), flw ? TU("camFollowLockMax", 3.6) : TU("zoomLockMax", 2.4)) : null;
-        const fZ = flw ? (lockZ || this._camFollowZV145 || baseZ) : null;
+        let fZ = flw ? (lockZ || this._camFollowZV145 || baseZ) : null;
+        // v147 D: at speed a follow cam with nobody to hold — a punt, a pass in the air — does not keep the
+        // size it last had; it stands back to the ordinary play frame, or a 4× punt leaves the picture
+        if (flw && !lockZ && air147 && r147 > 1) fZ = Math.min(fZ, baseZ * TU("camFollowAirOpenV147", 1));
         if (flw && lockZ) this._camFollowZV145 = lockZ;
         const targetZoom = this.camZoomFitV112(FC ? FC.zoom
-          : flw ? (fZ * MD.z * (TU("camFollowZoomK", 1) + (zStr - 1) * 0.35) + this.zoomPunch) * hitZ
+          : flw ? (fZ * MD.z * (TU("camFollowZoomK", 1) + (zStr - 1) * 0.35) * Math.pow(r147, -TU("camFollowZoomRateExpV147", 0.25)) + this.zoomPunch) * hitZ
           : ((lockZ || baseZ)
             * MD.z * this.camTightV112(P, carM, zStr, MD) + this.zoomPunch) * hitZ);
         try { window.__CAMCUT_V98 = Object.assign(window.__CAMCUT_V98 || { cuts: 0 }, { active: !!cut, k: +cut.toFixed(3), carrier: P.carrierId }); if (P._camCut && P._camCut.t <= delta) window.__CAMCUT_V98.cuts++; } catch (e) {}
-        if (this._pcam) { const dtc = Math.max(16, delta);
+        /* v147 D: the focus's velocity is measured on the PLAY clock (px per play-second, the number a
+         * 1× run of the same play gives) and smoothed over a WALL window that lengthens with the speed
+         * (`camVelRateExpV147`; alpha is exactly 0.15 a frame at 1×), so the lead neither balloons nor
+         * flips end to end on every cut a 4× runner makes in a quarter of the time. */
+        if (this._pcam) { const dtc = Math.max(16, delta) * r147;
           const nvx = (fx - this._pcam.x) / dtc * 1000, nvy = (fy - this._pcam.y) / dtc * 1000;
-          this._cvx = (this._cvx || 0) + (nvx - (this._cvx || 0)) * 0.15;
-          this._cvy = (this._cvy || 0) + (nvy - (this._cvy || 0)) * 0.15; }
+          const va = 1 - Math.pow(1 - TU("camVelAlpha", 0.15), Math.pow(r147, -(air147 ? 0 : TU("camVelRateExpV147", 1))));   // a ball in the air is not shaking: its velocity is read at the 1× rate
+          this._cvx = (this._cvx || 0) + (nvx - (this._cvx || 0)) * va;
+          this._cvy = (this._cvy || 0) + (nvy - (this._cvy || 0)) * va; }
         this._pcam = { x: fx, y: fy };
         // the predictive lead exists to keep a RUNNER in frame; on a flag it would
         // only drag the official back off the edge of it
-        let lx = FC ? 0 : (this._cvx || 0) * TU("camLeadMs", 420) / 1000, ly = FC ? 0 : (this._cvy || 0) * TU("camLeadMs", 420) / 1000;
+        // v147 D: the lead window is play time too, stretched a little with the speed because the
+        // spring lags a 4× runner by more world than a 1× one (`camLeadRateExpV147`; a flight in
+        // Broadcast keeps the old full stretch, `camAirLeadRateExpV147`, or a punt runs off the frame)
+        const leadMs147 = TU("camLeadMs", 420) * Math.pow(r147, air147 ? (MD.follow ? TU("camFollowAirLeadRateExpV147", 0.5) : TU("camAirLeadRateExpV147", 1)) : TU("camLeadRateExpV147", 0.5));
+        let lx = FC ? 0 : (this._cvx || 0) * leadMs147 / 1000, ly = FC ? 0 : (this._cvy || 0) * leadMs147 / 1000;
         if (cut && !FC && carM) {   // v98: lead the new carrier the way the play is going, not the way the ball just came
           const dir = (S.meta && S.meta.dir) || VDIR || 1, kk = kc || 1;
           lx += lx * 0.35 * cut; ly -= dir * TU("camCutLead", 70) * kk * cut; }
@@ -8373,6 +8463,9 @@ class Ot extends mt.Scene {
           lx += (this._cvx / vsp) * lf * (FW / cam.zoom); ly += (this._cvy / vsp) * lf * (FVH / cam.zoom);
           this.v109E().cam.leadFrames++; }
         if (!FC && MD.lead !== 1) { lx *= MD.lead; ly *= MD.lead; }   // v112: a wide frame runs further ahead, a tight one less
+        // v147 D: a follow cam's lead is its leading third swinging end to end on every juke; at speed it is
+        // most of what shakes the frame, and the dead zone holds him in the picture without it
+        if (!FC && MD.follow && !air147 && r147 > 1) { const lk = Math.pow(r147, -TU("camFollowLeadRateExpV147", 0.5)); lx *= lk; ly *= lk; }
         const lm = Math.hypot(lx, ly), mL = TU("camLeadMax", 130) * (cut ? 1.3 : 1) + (carM && !FC ? TU("camLeadFracMax", 120) : 0);
         if (lm > mL) { lx *= mL / lm; ly *= mL / lm; }
         /* ===== v112 THE BALL STAYS IN THE PICTURE =====
@@ -8381,7 +8474,10 @@ class Ot extends mt.Scene {
          * frame is a carrier at the edge of it. The target is pulled back onto the focus so the man
          * with the ball never leaves the middle of the frame, whatever the lead asked for. */
         const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom), xb = this.camSideV145(cam);
-        const kx = hw * (MD.keep != null ? MD.keep : TU("camKeepFracX", 0.4)), ky = hh * (MD.keep != null ? MD.keep : TU("camKeepFracY", 0.4));   // v145: a follow cam keeps him near dead centre
+        // v147 D: a follow cam's dead-centre box MAY widen with the speed (`camKeepRateExpV147`, 0 — off:
+        // camPreV147's dead zone holds him still for less of the frame)
+        const keep147 = MD.keep != null ? Math.min(TU("camKeepMaxV147", 0.3), MD.keep * Math.pow(r147, TU("camKeepRateExpV147", 0))) : null;
+        const kx = hw * (keep147 != null ? keep147 : TU("camKeepFracX", 0.4)), ky = hh * (keep147 != null ? keep147 : TU("camKeepFracY", 0.4));   // v145: a follow cam keeps him near dead centre
         const cx = hw >= FW / 2 + xb ? FW / 2 : mt.Math.Clamp(mt.Math.Clamp(fx + lx, fx - kx, fx + kx), hw - xb, FW + xb - hw);
         const cy = mt.Math.Clamp(mt.Math.Clamp(fy + ly - (MD.follow ? 40 / Math.max(1, cam.zoom) : 40), fy - ky, fy + ky), hh, WORLD_H - hh);   // v145: the lift is a share of the frame, not 40 world px at 3x
         /* v112: the near sideline PROJECTS past the painted field, and the camera's bounds are the
@@ -8395,7 +8491,16 @@ class Ot extends mt.Scene {
         if (dxE > 1) zTgt = Math.min(zTgt, FW * edge / (2 * dxE));
         if (dyE > 1) zTgt = Math.min(zTgt, FVH * edge / (2 * dyE));
         if (zTgt < targetZoom) this.v112E().edgeOpens++;
-        this.camSpringV109(cam, cx, cy, this.camZoomFitV112(zTgt), delta, FC ? TU("flagCamStiffK", 2.2) : (1 + cut * TU("camCutStiffK", 1.6)) * MD.stiff);
+        // v147 D: the targets through the speed's low-pass; a follow cam's spring stiffens with speed^0.35
+        const fol147 = !!(MD.follow && !FC), pre147 = this.camPreV147(P, cx, cy, zTgt, delta, r147, fol147, hw, hh, !FC && air147);
+        /* at speed a ball in the air can outrun the pan, and the pan lags the target it is allowed; so for
+         * a flight the edge-open also reads where the camera IS — applied after the low-pass, so it is not
+         * itself held back by it (a punt at 4× was off the frame on 13–20% of its frames) */
+        if (!FC && air147 && r147 > 1 && TU("camAirEdgeV147", 1)) {
+          const bs = this.ballSpr || { x: fx, y: fy }, ax = Math.max(Math.abs(fx - cam.midPoint.x), Math.abs(bs.x - cam.midPoint.x)), ay = Math.max(Math.abs(fy - cam.midPoint.y), Math.abs(bs.y - cam.midPoint.y));
+          if (ax > 1) pre147.z = Math.min(pre147.z, FW * edge / (2 * ax));
+          if (ay > 1) pre147.z = Math.min(pre147.z, FVH * edge / (2 * ay)); }
+        this.camSpringV109(cam, pre147.x, pre147.y, this.camZoomFitV112(pre147.z), delta, (FC ? TU("flagCamStiffK", 2.2) : (1 + cut * TU("camCutStiffK", 1.6)) * MD.stiff) * this.camStiffRateV147(r147, fol147 && !air147), pre147);
         if (P._camCut && P._camCut.t <= delta) this.v109E().cam.cuts++;
       }
     } catch (e) {}
