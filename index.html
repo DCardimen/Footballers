@@ -8493,11 +8493,13 @@ class Ot extends mt.Scene {
         if (zTgt < targetZoom) this.v112E().edgeOpens++;
         // v147 D: the targets through the speed's low-pass; a follow cam's spring stiffens with speed^0.35
         const fol147 = !!(MD.follow && !FC), pre147 = this.camPreV147(P, cx, cy, zTgt, delta, r147, fol147, hw, hh, !FC && air147);
-        /* at speed a ball in the air can outrun the pan, and the pan lags the target it is allowed; so for
-         * a flight the edge-open also reads where the camera IS — applied after the low-pass, so it is not
-         * itself held back by it (a punt at 4× was off the frame on 13–20% of its frames) */
-        if (!FC && air147 && r147 > 1 && TU("camAirEdgeV147", 1)) {
-          const bs = this.ballSpr || { x: fx, y: fy }, ax = Math.max(Math.abs(fx - cam.midPoint.x), Math.abs(bs.x - cam.midPoint.x)), ay = Math.max(Math.abs(fy - cam.midPoint.y), Math.abs(bs.y - cam.midPoint.y));
+        /* at speed the man or the ball can outrun the pan, and the smoothed pan lags the target it is
+         * allowed; so the edge-open also reads where the camera IS — applied after the low-pass, so it is
+         * not itself held back by it. It only bites past `camEdgeFrac` of the half frame, which the 1×
+         * framing never asks for: without it a 4× punt was off the frame on up to half its frames, and
+         * Tight's carrier on one in ten (`camLiveEdgeV147` 0 turns it off) */
+        if (!FC && r147 > 1 && TU("camLiveEdgeV147", 1)) {
+          const bs = air147 && this.ballSpr ? this.ballSpr : { x: fx, y: fy }, ax = Math.max(Math.abs(fx - cam.midPoint.x), Math.abs(bs.x - cam.midPoint.x)), ay = Math.max(Math.abs(fy - cam.midPoint.y), Math.abs(bs.y - cam.midPoint.y));
           if (ax > 1) pre147.z = Math.min(pre147.z, FW * edge / (2 * ax));
           if (ay > 1) pre147.z = Math.min(pre147.z, FVH * edge / (2 * ay)); }
         this.camSpringV109(cam, pre147.x, pre147.y, this.camZoomFitV112(pre147.z), delta, (FC ? TU("flagCamStiffK", 2.2) : (1 + cut * TU("camCutStiffK", 1.6)) * MD.stiff) * this.camStiffRateV147(r147, fol147 && !air147), pre147);
