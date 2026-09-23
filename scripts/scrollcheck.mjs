@@ -46,6 +46,11 @@ const measure = (tag) => page.evaluate((tag) => {
     const cs = getComputedStyle(el)
     if (!/auto|scroll/.test(cs.overflowY)) continue
     if (el.closest('#rib-main-menu-v2')) continue
+    // v146 E: in the shell a long LIST scrolls inside its own box (`.fill-v146` — the schedule, the
+    // tree's nodes, a leaders board) while the page and the panel stay put. That is the design, not
+    // overflow: the question this check asks is whether the SCREEN runs past the phone, so the
+    // lists are reported on their own line (`inner`) and judged by the page and the panel alone
+    if (el.closest('.fill-v146')) continue
     const over = el.scrollHeight - el.clientHeight
     if (el.clientHeight > 200 && (!best || over > best.over)) best = { el, over }
   }
@@ -55,7 +60,8 @@ const measure = (tag) => page.evaluate((tag) => {
     scroller: el.id || el.className || el.tagName,
     scrollH: el.scrollHeight, clientH: el.clientHeight,
     over: +((el.scrollHeight - el.clientHeight) / el.clientHeight).toFixed(2),
-    cards: screen ? screen.querySelectorAll('.card').length : 0 }
+    cards: screen ? screen.querySelectorAll('.card').length : 0,
+    inner: [...document.querySelectorAll('.fill-v146')].filter(e => e.getClientRects().length).map(e => (e.id || e.className.split(' ')[0] || e.tagName) + ' ' + e.scrollHeight + '/' + e.clientHeight).join(', ') }
 }, tag)
 
 const rows = []
@@ -103,7 +109,7 @@ for (const [view, tag] of [['upgrade', 'upgrade'], ['stats', 'stats'], ['roster'
 
 rows.sort((a, b) => b.over - a.over)
 console.log(`viewport ${W}x${H} — overflow in screens (0 = fits)`)
-for (const r of rows) console.log(`  ${String(r.over).padStart(5)}  ${r.tag.padEnd(14)} ${r.scrollH}px / ${r.clientH}px  ${r.cards} cards  [${r.scroller}]`)
+for (const r of rows) console.log(`  ${String(r.over).padStart(5)}  ${r.tag.padEnd(14)} ${r.scrollH}px / ${r.clientH}px  ${r.cards} cards  [${r.scroller}]` + (r.inner ? `  inner lists: ${r.inner}` : ''))
 const worst = rows[0]
 console.log('worst:', worst ? `${worst.tag} at ${worst.over} screens` : 'none')
 const over = rows.filter(r => r.over > (BUDGET[r.tag] || LIMIT))

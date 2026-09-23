@@ -389,12 +389,20 @@ const step = async (page, t, wait = 900) => {
   const lay = await page.evaluate(() => {
     const sc = document.getElementById('screen'), dc = sc && sc.querySelector('.depth-card')
     const ring = sc && sc.querySelector('.grade-ring'), grade = sc && sc.querySelector('.season-grade')
+    // v146 E: the report card is SECTIONED now (GRADE / SEASON / STATS / GROWTH, the v75 machinery,
+    // with its tab strip fixed at the foot of the phone), so its blocks live one level down — in the
+    // open `.hubv75-sec`, or an accordion body inside it. A block is a child of #screen, a section or
+    // a fold body; the overlap walk reads the blocks that are on screen, in order, and skips the
+    // fixed tab strip (it is not in the flow, it is the bottom of the shell)
+    const holder = (el) => !!el && (el === sc || el.classList.contains('hubv75-sec') || el.classList.contains('hubv97-body'))
+    const shown = (el) => el.getClientRects().length && getComputedStyle(el).position !== 'fixed'
+    const blocks = [...sc.querySelectorAll(':scope > *, :scope > .hubv75-sec.on > *')].filter(el => shown(el) && !el.classList.contains('hubv75-sec') && !el.classList.contains('hubv75-tabs'))
     let overlaps = 0, prev = null, boxes = []
-    for (const el of sc.children) { const r = el.getBoundingClientRect(); if (prev != null && r.top < prev - 1) overlaps++; prev = r.bottom
+    for (const el of blocks) { const r = el.getBoundingClientRect(); if (prev != null && r.top < prev - 1) overlaps++; prev = r.bottom
       boxes.push(String(el.className).slice(0, 22) + ' ' + Math.round(r.top) + '-' + Math.round(r.bottom)) }
-    return { depthTop: !!(dc && dc.parentElement === sc), depthInRing: !!(dc && ring && ring.contains(dc)),
+    return { depthTop: !!(dc && holder(dc.parentElement)), depthInRing: !!(dc && ring && ring.contains(dc)),
       ringKids: ring ? ring.children.length : -1, ringHasGradeOnly: !!(ring && grade && ring.children.length === 1),
-      overlaps, n: sc.children.length, boxes: boxes.slice(0, 6) }
+      overlaps, n: blocks.length, boxes: boxes.slice(0, 6) }
   })
   ok(lay.depthTop && !lay.depthInRing && lay.ringHasGradeOnly, 'the report card is ONE card — the depth chart is its own sibling, and the grade ring holds nothing but the grade', JSON.stringify(lay))
   ok(lay.overlaps === 0, 'nothing on the report screen overlaps the card above it', JSON.stringify({ overlaps: lay.overlaps, n: lay.n }))
