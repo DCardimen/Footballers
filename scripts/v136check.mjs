@@ -84,10 +84,14 @@ for (let step = 0; step < 12; step++) {
   await ev(() => document.getElementById('v112Next').click()); await page.waitForTimeout(500)
 }
 const kicks = seen.map(w => w.kick.replace(/STEP \d+ OF \d+ · /, ''))
-ok(JSON.stringify(kicks) === JSON.stringify(['YOUR INVOLVEMENT', 'YOUR FOCUS', 'THE SCOUT & THE PLAN', 'THE IMPACT', 'THE WHEEL', 'RIVALRY WEEK', 'YOUR SHEET']), 'the pages come in order, the sheet last', kicks.join(' → '))
+// v146 D: the weekly plan is CHOSEN off a board on page 5 by default (planWheelV146 = 0) — no plan wheel
+// spins and nothing is applied until kickoff; the rivalry approach is still a wheel on page 6
+const CH = await ev(() => window.__PREGAME_V51.choice())
+ok(JSON.stringify(kicks) === JSON.stringify(['YOUR INVOLVEMENT', 'YOUR FOCUS', 'THE SCOUT & THE PLAN', 'THE IMPACT', CH ? 'THE GAME PLAN' : 'THE WHEEL', 'RIVALRY WEEK', 'YOUR SHEET']), 'the pages come in order, the sheet last', kicks.join(' → '))
 const W5 = seen[4], W6 = seen[5], W7 = seen[6] || {}
-ok(W5 && W5.planSpins === 1 && W5.held && W5.held.applied && W5.wheels === 1 && /RIVALRY WEEK/.test(W5.next), 'page 5: the plan wheel spun once (a queued crossroads ahead of it if due), its swing applied, NEXT reads RIVALRY WEEK', JSON.stringify({ spins: W5 && W5.planSpins, crossroads: W5 && W5.crossroads, held: W5 && W5.held, next: W5 && W5.next }))
-ok(W6 && W6.rivalWheel && W6.rivalOpts === 5 && /RIVALRY WEEK/.test(W6.rivalTitle || '') && W6.wheels === 2, 'page 6: the RIVALRY wheel is mounted into the page beside the landed plan wheel, all five approaches open', JSON.stringify({ wheel: W6 && W6.rivalWheel, opts: W6 && W6.rivalOpts, title: W6 && W6.rivalTitle }))
+if (CH) ok(W5 && W5.planSpins === 0 && W5.held && !W5.held.applied && /RIVALRY WEEK/.test(W5.next), 'page 5: the plan board — he picks, no plan wheel spins (a queued crossroads still spins first), nothing applied before kickoff, NEXT reads RIVALRY WEEK (v146 D)', JSON.stringify({ spins: W5 && W5.planSpins, crossroads: W5 && W5.crossroads, held: W5 && W5.held, next: W5 && W5.next }))
+else ok(W5 && W5.planSpins === 1 && W5.held && W5.held.applied && W5.wheels === 1 && /RIVALRY WEEK/.test(W5.next), 'page 5: the plan wheel spun once (a queued crossroads ahead of it if due), its swing applied, NEXT reads RIVALRY WEEK', JSON.stringify({ spins: W5 && W5.planSpins, crossroads: W5 && W5.crossroads, held: W5 && W5.held, next: W5 && W5.next }))
+ok(W6 && W6.rivalWheel && W6.rivalOpts === 5 && /RIVALRY WEEK/.test(W6.rivalTitle || '') && W6.wheels === (CH ? 1 : 2), CH ? 'page 6: the RIVALRY wheel is mounted into the page, all five approaches open' : 'page 6: the RIVALRY wheel is mounted into the page beside the landed plan wheel, all five approaches open', JSON.stringify({ wheel: W6 && W6.rivalWheel, opts: W6 && W6.rivalOpts, title: W6 && W6.rivalTitle, wheels: W6 && W6.wheels }))
 const LABELS = ['Go all-out', 'Play smart', 'Showboat', 'Study the rival', 'Feed your teammates']
 ok(W6 && W6.rivalSpins === 1 && W6.ec && !W6.ec.pending && W6.ec.how === 'wheel' && LABELS.some(l => (W6.ec.chosen || '').startsWith(l)) && typeof W6.ec.perf === 'number', 'it lands an approach into player.eventChoice — the object the game reads', JSON.stringify(W6 && W6.ec))
 ok(W6 && new RegExp((W6.ec.chosen || '§').slice(0, 12)).test(W6.rivalOut || '') && /Decided by the wheel/i.test(W6.rivalOut || '') && /from this game on/i.test(W6.rivalOut || ''), 'and THE APPROACH names it, who decided it, and that it counts from this game on', (W6 && W6.rivalOut || '').slice(0, 100))

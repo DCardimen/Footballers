@@ -55,6 +55,43 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v146 — five things you asked for in one batch.**
+  **A · Every man who goes down was taken down.** The broadcast folded the carrier the instant the
+  dead-ball `tackle` fired, wherever the named tackler stood — on ~15–20% of stops that was 1.5 to 25+
+  yards away. Causes: the v139 cut (the tackler named on the cut made the stop later, downfield), the
+  sack a quarterback TAKES (resolved with the rusher ~3 yd off), the choreographer's snap-and-slide,
+  and hit sticks at arm's length. The quarterback who eats the ball now braces on his spot and the
+  sack is only booked when a man is on him, named by who actually arrives; `contactV146` walks the
+  named tackler onto the carrier over the approach, glues them after the hit so they go down
+  together, lets a hit-stick hitter drive through and stay up, and gives a script that stops dead on
+  the tackle a short coast so the fall reads. Score-neutral over 4 seeds (21.47 → 21.21 pts, 173.2 →
+  173.2 yds). `v146Acheck.mjs`.
+  **B · Two strikes in the DFL, and you pick the team.** A DFL cut is a strike, counted per season:
+  the first costs you your club (pick one of three teams that want you as a backup, on fewer snaps),
+  the second ends the career. The v10 season-end cut roll that `longLeash` / `survivor` tune had been
+  cleared by a v11 wrapper and never fired; it is a real strike again. New Franchise node **Second
+  Chances** survives one more cut per level. Every DFL signing (entering the league, after a cut, free
+  agency) is a choice of three offers — club and crest, team OVR, role, snap share, depth, coach
+  trust — and the choice is real: name/crest/colours everywhere, the club's quality in both the
+  watched and the simmed game, the snap share the engine uses. `v146Bcheck.mjs`.
+  **C · The hoard buys the impossible.** A 13-node **Impossible** prestige branch (100K–10M PP) that
+  bends the over-cap price ladder (Crack the Wall: ×5 past 250 → ×4/×3/×2; Move the Wall to 350;
+  Long Bands; The Price Ceiling), raises every soft cap, and adds season points, coach trust, fatigue
+  relief, faster healing, recruit stars, PP, stat production and potential. **Evergreen** (never age)
+  is removed and refunded once. `v146Ccheck.mjs`.
+  **D · The plan is yours, and the numbers say what it costs.** The weekly game plan is CHOSEN on page
+  5 of the pregame — a board of every plan, each card spelling out what it does, what it costs, its
+  roll odds and its variance (the old wheel is `TU("planWheelV146",1)`). Every pregame page shows the
+  projected box score for this game with an 80% range and a VARIANCE figure, computed by playing the
+  week in the real engine behind the wizard. A plan's volatility now really widens the stats (a form
+  swing), and the watched live game plays on the same inputs as the booked one. `v146Dcheck.mjs`.
+  **E · The menus live at the bottom, and nothing scrolls.** Every career screen wears the main
+  menu's frame: crest, wordmark and honors chip fixed at the top with the career ticker under them;
+  one panel that never scrolls the page (long lists scroll inside their own box); the section tabs
+  moved from the top of the page to a strip just above the bottom bar, and each screen's buttons are
+  one primary plus a slim row of chips. The prestige tree's bottom options went from half the phone
+  to 13%. Every screen opens at the top (`#app` kept the last screen's scroll; the tab strip's
+  `scrollIntoView` pushed it further). `v146Echeck.mjs`, `v146Eshot.mjs`.
 - **v145 — the camera follows HIM.** Settings › FIELD VIEW › Camera has two more behaviours after
   Broadcast / Tight / Wide / Fixed (appended, so a saved choice keeps its mode). **Follow Me** locks on
   the you-player's own marker from the huddle to the whistle — a receiver running a deep route stays

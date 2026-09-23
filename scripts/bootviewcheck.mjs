@@ -25,8 +25,9 @@ let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const U = (q) => url + (url.includes('?') ? '&' : '?') + 'stayStale' + (q || '')
 
-// every view the app persists, plus the two career-end screens that did the bricking
-const VIEWS = ['hub', 'season', 'training', 'shop', 'result', 'gameover', 'win', 'settings', 'live', 'event', 'life', 'sim', 'highscore', 'daily']
+// every view the app persists, plus the two career-end screens that did the bricking (v146 B: and
+// `club`, the DFL offers screen — with no offers in the save it must fall back to the hub)
+const VIEWS = ['hub', 'season', 'training', 'shop', 'result', 'gameover', 'win', 'settings', 'live', 'event', 'life', 'sim', 'highscore', 'daily', 'club']
 // `highscore` and `daily` are the arcade screens; they draw off their own state, which a seeded
 // career save does not carry, so they legitimately come back empty here. The invariant that matters
 // for every view is the one above them: the block ran to the end and the page is not dead.

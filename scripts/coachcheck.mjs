@@ -267,16 +267,16 @@ const step = async (page, t, wait = 900) => {
   await page.waitForSelector('#pregameV1513', { timeout: 15000 }).catch(() => null)
   ok(await page.evaluate(() => !document.getElementById('growthV42')), 'PLAY WEEK opens the pregame with no wheel spun over the season screen (v135)')
   await expect('pregame', 'the pregame wizard'); await dismiss(page)
-  for (let p = 0; p < 4; p++) { const n = await step(page, p === 3 ? 'SPIN THE WHEEL' : 'NEXT', 700); if (!n) break }
-  const plan = await expect('plan', 'the weekly-plan wheel, on the fifth page')
-  ok(await page.evaluate(() => !!document.querySelector('#v112Page5 #growthV42')), '  …and the wheel he talks over is the one inside the wizard')
-  await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' && g.getBoundingClientRect().height > 0 }, null, { timeout: 30000 }).catch(() => null)
+  // v146 D: page 5 is the plan BOARD — he picks the plan, nothing spins — and the coach's PLAN stop
+  // talks over the board and ends on the projection strip (the numbers the pick is priced in)
+  for (let p = 0; p < 4; p++) { const n = await step(page, p === 3 ? 'THE GAME PLAN' : 'NEXT', 700); if (!n) break }
+  const plan = await expect('plan', 'the weekly-plan board, on the fifth page')
+  ok(await page.evaluate(() => !!document.querySelector('#v112Page5 #v146Plan') && !document.getElementById('growthV42')), '  …and what he talks over is the plan board inside the wizard, not a wheel')
   await page.evaluate(() => { const C = window.__RIB_COACH, S = C.stops.find((x) => x.id === C.stop), last = (S ? S.lines : 1) - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(700)
-  const planSpot = await page.evaluate(() => { const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), g = document.getElementById('gv42go'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, gr = g ? g.getBoundingClientRect() : null
+  const planSpot = await page.evaluate(() => { const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), g = document.getElementById('v146Proj'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, gr = g ? g.getBoundingClientRect() : null
     return { line: C.line, key: C.spot, shown: !!sr, over: !!(sr && gr && sr.left <= gr.left + 1 && sr.right >= gr.right - 1 && sr.top <= gr.top + 1 && sr.bottom >= gr.bottom - 1) } })
-  ok(plan && plan.stop === 'plan' && planSpot.key === 'cont' && planSpot.shown && planSpot.over, "the plan stop's last line lights CONTINUE once the plan is rolled", JSON.stringify(planSpot))
+  ok(plan && plan.stop === 'plan' && planSpot.key === 'proj' && planSpot.shown && planSpot.over, "the plan stop's last line lights the projection the pick is priced in", JSON.stringify(planSpot))
   await dismiss(page)
-  await page.click('#gv42go'); await page.waitForTimeout(600)
   await step(page, 'CONTINUE TO MATCH', 1500)
   await expect('live', 'the broadcast', { ms: 60000 }); await dismiss(page)
   // run the game out at the fastest speed, clicking through any sheet over the field (never the post-game card)
@@ -389,12 +389,20 @@ const step = async (page, t, wait = 900) => {
   const lay = await page.evaluate(() => {
     const sc = document.getElementById('screen'), dc = sc && sc.querySelector('.depth-card')
     const ring = sc && sc.querySelector('.grade-ring'), grade = sc && sc.querySelector('.season-grade')
+    // v146 E: the report card is SECTIONED now (GRADE / SEASON / STATS / GROWTH, the v75 machinery,
+    // with its tab strip fixed at the foot of the phone), so its blocks live one level down — in the
+    // open `.hubv75-sec`, or an accordion body inside it. A block is a child of #screen, a section or
+    // a fold body; the overlap walk reads the blocks that are on screen, in order, and skips the
+    // fixed tab strip (it is not in the flow, it is the bottom of the shell)
+    const holder = (el) => !!el && (el === sc || el.classList.contains('hubv75-sec') || el.classList.contains('hubv97-body'))
+    const shown = (el) => el.getClientRects().length && getComputedStyle(el).position !== 'fixed'
+    const blocks = [...sc.querySelectorAll(':scope > *, :scope > .hubv75-sec.on > *')].filter(el => shown(el) && !el.classList.contains('hubv75-sec') && !el.classList.contains('hubv75-tabs'))
     let overlaps = 0, prev = null, boxes = []
-    for (const el of sc.children) { const r = el.getBoundingClientRect(); if (prev != null && r.top < prev - 1) overlaps++; prev = r.bottom
+    for (const el of blocks) { const r = el.getBoundingClientRect(); if (prev != null && r.top < prev - 1) overlaps++; prev = r.bottom
       boxes.push(String(el.className).slice(0, 22) + ' ' + Math.round(r.top) + '-' + Math.round(r.bottom)) }
-    return { depthTop: !!(dc && dc.parentElement === sc), depthInRing: !!(dc && ring && ring.contains(dc)),
+    return { depthTop: !!(dc && holder(dc.parentElement)), depthInRing: !!(dc && ring && ring.contains(dc)),
       ringKids: ring ? ring.children.length : -1, ringHasGradeOnly: !!(ring && grade && ring.children.length === 1),
-      overlaps, n: sc.children.length, boxes: boxes.slice(0, 6) }
+      overlaps, n: blocks.length, boxes: boxes.slice(0, 6) }
   })
   ok(lay.depthTop && !lay.depthInRing && lay.ringHasGradeOnly, 'the report card is ONE card — the depth chart is its own sibling, and the grade ring holds nothing but the grade', JSON.stringify(lay))
   ok(lay.overlaps === 0, 'nothing on the report screen overlaps the card above it', JSON.stringify({ overlaps: lay.overlaps, n: lay.n }))

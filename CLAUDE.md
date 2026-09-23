@@ -86,6 +86,52 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   against better carriers; the worst-angle bucket is full of easy chase-downs) will invert a naive
   reading. Kill switch `TU("v143", 0)` restores the old engine including the unspent roll.
   `window.__V143`; `v143check.mjs`, then `scoreneutralcheck.mjs` (several seeds), `tacklecheck.mjs`
+- `v146 A EVERY MAN WHO GOES DOWN WAS TAKEN DOWN` (end of the choreographer IIFE) / `v146 A THE SACK HE TAKES IS
+  TAKEN BY SOMEBODY` (FieldSim drop phase) / `v146 A THEY GO DOWN TOGETHER (renderer)` (the `tackle` case) — no
+  phantom downs. `contactV146(script)` runs on EVERY script (`window.buildPlayScript` wraps it): a named tackler more
+  than `contactPxV146` off the carrier at the last `tackle` gets a smoothstep offset on his own path so he is
+  `contactSetPxV146` off at the event, then is GLUED to the carrier (`fallMsV146`, `pileOnPxV146`) — except a hit
+  stick or launch (`stickThroughMsV146`). A script that ends on the tackle (the v139 cut) gets a `fallWindowMsV146`
+  coast. It never renames, re-times or re-spots anything, so **any new dead-ball tackle is covered for free, but a
+  new yardage reshape must still go through `retagSimLog`**. The taken sack braces and waits for contact
+  (`sackContactPxV146`, `sackCloseMaxMsV146`, `sackCloseCapMsV146`, `sackBrace` event; it spends extra random
+  draws — compare seeds against the OFF spread). Renderer `F146` = {stick, foldMs}. Kill switches `contactV146` /
+  `sackCloseV146` / `togetherV146`. `window.__V146` / `__V146R`; `v146Acheck.mjs`
+- `v146 B TWO STRIKES IN THE DFL, AND YOU PICK THE TEAM` (before `window.__prestigeNodesV137`) — `cutV146B(e, why)`
+  is the one strike (`cutsV146B = {k: "level:season", n}`); `cutsAllowedV146B()` = `TU("dflCutsAllowedV146B", 2)` +
+  the `secondChance` node's `cutLives`; short of it `openOffersV146B(e, "cut")`, on it `cutOutV146B` +
+  `nflCutPending` → `ms`. Strikes come from `Qn` (waivers), the v10 season-end roll (the v11 `tt` wrapper now keeps
+  it as `t.nflCutRollV146B`) and `Jn`'s waiver. `offersForV146B(e, kind)` is three clubs (contender / mid / rebuild);
+  `signClubV146B` sets `teamIdentity.dfl`, `clubV146B`, `teamOvr`, the v11 status and coach trust. `clubQV146B` is
+  added to `C` in `Wr` and `teamPairV76`; `roleShareV146B` multiplies `trustShareV120`; `clubCustomV146B` puts the
+  club over the Team Creator. View `club` (hoisted). Kill switches `TU("v146B", 0)`, `TU("seasonCutRollV146B", 0)`.
+  `window.__V146B`; `v146Bcheck.mjs`
+- `v146 C THE HOARD BUYS THE IMPOSSIBLE` (after `const ot`/`mt`, before the v130 banner) — `sa.impossible`,
+  thirteen nodes from 100,000 to 10,000,000 PP on code that already exists: `drCost` (`wallMultV146` ×5→×2,
+  `wallAtV146`, `bandWV146`, `bandTopV146`), `drSoftCap` (`softPctV146`), `fatigueMulV120` (`fatKeepV146`),
+  `materializeInjuryV18` (`healWeeksV146`), `kt` (`starsPlusV146`, `trustPlusV146`), `dc` (`repsV146`), fx
+  `ppMult` / `statProd` / `ceilPlus`. **Never route "+N a level" through `pointsFlat`/`coachStart` — `ai()` caps
+  them.** EVERGREEN is retired: `evergreenRefundV146` in `mc()` refunds it once (`o.evergreenRefundV146`).
+  `ppFmtV146` formats prices. `window.__V146C`; `v146Ccheck.mjs`
+- `v146 D THE PLAN IS YOURS, AND THE NUMBERS SAY WHAT IT COSTS` (three banners: the engine beside `silentWeekV85`,
+  the choice beside `holdPlanV135`, the pages beside `window.__V135`) — the weekly plan is CHOSEN on page 5's board
+  (`__PREGAME_V51.choice/pick/band/defaultPick`, `pl.planPickV146`, dice held in `heldV135.dice`, result at kickoff
+  via `rollSayV146` / `week.planRollV146`; `TU("planWheelV146",1)` restores the wheel). `formRollV146` puts the
+  plan's varMult on the box score; `liveInV146` plays the watched game on the booked inputs. `projSampleV146` /
+  `projFitV146` / `projectV146` / `planFactsV146` are the projection (real `Yr` games behind the wizard, guarded by
+  `projGuardV146` — **et() moves coach trust; anything that samples must restore the player**). Dials:
+  `projGamesV146`, `projKappaV146`, `projSeedKV146`, `projThinV146`, `projBandZV146`, `planFormPtsV146`.
+  `window.__V146`; `v146Dcheck.mjs`
+- `v146 E THE MENUS LIVE AT THE BOTTOM, AND NOTHING SCROLLS` (a style + script block before
+  `RIB_DIRECT_MENU_BODY_BEGIN`, plus `v146 E THE SHELL'S HOOK` after the last `q` wrapper) — one shell for every
+  career screen (not `live` / `menu` / arcade), `html.shell-v146`. TOP fixed: `.topbar` in the menu's look and
+  `#tickV146` (the v132 ticker off `__RIB_MENU_DATA_V89`). MIDDLE: `#screen` is the ONE panel; `#app` never
+  scrolls; a long list gets `.fill-v146` (`fit()` over the `FILL` list). BOTTOM fixed, from the thumb up:
+  `#navV139`, the v75 `.hubv75-tabs` (still in `#screen`, `position:fixed`), and `.dock` as the action slot
+  (`qa-main-v146` the one primary; the rest `qa-chip-v146` in `.qa-row-v146` — buttons are MOVED, never rebuilt).
+  `shellPreV146` / `shellPostV146` (hoisted) reset every scroller on a view change, the boot's restore and v140's
+  retry; the v75 tab click no longer calls `scrollIntoView`. The report card is sectioned (`result`: GRADE /
+  SEASON / STATS / GROWTH). `window.__SHELL_V146`; `v146Echeck.mjs`, `v146Eshot.mjs`
 - `v144 A THE AGE OF THE MAN ON THE FIELD` (beside `crowdTier()`) / `v144 C` (the renderer's idle
   branch) / `v144 D` (`postPadV144`) / `v144 E` (in `warpField`) / `v144 F` (in `sidePylons`) /
   `v144 H THE GAME IS PLAYED IN WEATHER, AND AT A TIME OF DAY` — the field, the sky, the gap between
@@ -727,6 +773,11 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 
 | You changed… | Run |
 |---|---|
+| a tackle's contact — who is on him when he goes down, the fall together, the taken sack (v146 A) | `v146Acheck.mjs`, then `v143check.mjs`, `scoreneutralcheck.mjs` (several seeds), `tacklecheck.mjs`, `jukecheck.mjs`, `creditcheck.mjs`, `v103check.mjs`, `v109C1check.mjs`, `v112Fcheck.mjs`, `renderpathcheck.mjs`, `v86check.mjs`, `v110check.mjs` |
+| DFL cuts, the strike count, Second Chances, the three-offer club screen, what a signing sets (v146 B) | `v146Bcheck.mjs`, then `declarecheck.mjs`, `v88check.mjs`, `bootviewcheck.mjs`, `namecheck.mjs`, `v111Bcheck.mjs`, `v85check.mjs`, `menu-integration-check.mjs`, `honorcheck.mjs`, `walk.mjs` |
+| the Impossible branch — the over-cap price, the wall, mega nodes, the Evergreen refund (v146 C) | `v146Ccheck.mjs`, then `agecheck.mjs`, `capcheck.mjs`, `vaultcheck.mjs`, `honorcheck.mjs`, `v134check.mjs`, `v136check.mjs`, `bootviewcheck.mjs`, `walk.mjs` |
+| the weekly plan board, a plan's card, the projection / variance, the form swing, the live game's inputs (v146 D) | `v146Dcheck.mjs` (POS=RB,WR,LB; also QB,DL,S), then `v112Dcheck.mjs` (and `WHEEL=1`), `wheelcheck.mjs`, `coachcheck.mjs`, `v136check.mjs`, `v111Bcheck.mjs`, `v111Acheck.mjs`, `v85check.mjs`, `rivalcheck.mjs`, `traincheck.mjs`, `simcheck.mjs`, `bootviewcheck.mjs`, `walk.mjs` |
+| the shell — the fixed top bar and ticker, the bottom tabs and action slot, the page that never scrolls, opening at the top, the report card's tabs (v146 E) | `v146Echeck.mjs`, then `scrollcheck.mjs`, `bootviewcheck.mjs`, `coachcheck.mjs`, `v112Dcheck.mjs`, `gatecheck.mjs`, `menu-integration-check.mjs`, `vaultcheck.mjs`, `walk.mjs`; `v146Eshot.mjs` to look |
 | the sprite scale by age, the stall watchdog, the between-plays shuffle, the goalpost pad, the apron on all four sides, the pylons, the corner tunnels, or the weather and time of day (v144) | `v144check.mjs`, then `v112Bcheck.mjs`, `sidelinecheck.mjs`, `v98check.mjs`, `v99check.mjs`, `v100check.mjs`, `v92check.mjs`, `v102check.mjs`, `crowdcheck.mjs`, `v93check.mjs`, `v86check.mjs`, `v87check.mjs`, `renderpathcheck.mjs`, `v91check.mjs`, `v104check.mjs`, `v105check.mjs`, `v107check.mjs`, `v108check.mjs`, `kitsidecheck.mjs`, `v117check.mjs`, `badgecheck.mjs`, `v109Echeck.mjs`, `scrollcheck.mjs`, `bootviewcheck.mjs`, `walk.mjs`, `shot.mjs` |
 | the ⓘ beside a stat, what a stat's card says, or adding an attribute to the sheet (v142) | `v142check.mjs`, then `bootviewcheck.mjs`, `walk.mjs`, `shot.mjs`, `scrollcheck.mjs`, `capcheck.mjs` |
 | which sheet stats reach the sim, the roster keys, the attribute scale past 250, the star floor, durability in contact (v141) | `v141check.mjs`, then `scoreneutralcheck.mjs` (keep the before row), `equaltalentcheck.mjs`, `creditcheck.mjs`, `statcreditcheck.mjs`, `v117check.mjs`, `simcheck.mjs`, `injurycheck.mjs` |
