@@ -20372,6 +20372,110 @@ window.pickClubV146B=pickClubV146B;window.signClubV146B=signClubV146B;
 window.__V146B={log:[],allowed:()=>cutsAllowedV146B(),strikes:e=>strikesV146B(e||o.player),rules:()=>clubRulesV146B(),roleShare:e=>roleShareV146B(e||o.player),
   offers:(e,k)=>openOffersV146B(e||o.player,k||"entry"),sign:i=>signClubV146B(i),pick:i=>pickClubV146B(i),cut:(why,e)=>cutV146B(e||o.player,why||"test"),
   evaluate:(perf,e)=>{e=e||o.player;return Qn(e,{perf:perf==null?10:perf,injured:!1},ae(e))},clubQ:e=>clubQV146B(e||o.player),ROLE:ROLE_V146B};
+/* ===== v147 A THE CAREER RUNS TO THE END, AND ENDS WHEN YOU SAY =====
+ * Three reports from a phone, a QB in the Interstellar League, and one cause under each.
+ *
+ * ENDING A CAREER. The only voluntary exit above college is the life screen's RETIRE FROM FOOTBALL
+ * (`Md`), and it could not be reached: the way in (`showLifeV12`, "Manage Money, Home & Family
+ * Goals") is appended by `Ed()` AFTER the v75 sectioner has split the hub, so it lands in the STORY
+ * tab inside a folded v97 accordion; and on the life screen the v146 E shell's `fit()` squeezes the
+ * retirement card (`#screen > .card`) into an inner scroller, which clips the button off the bottom
+ * of the card — tapping around the screen finds nothing. And `qs()` hid the button entirely under age
+ * 30 unless the exit plan was funded. Now: at level 7+ `qs` lets him walk away any time
+ * (TU("retireAnyTimeV147",1)), the life screen carries the retire button in its DOCK (never
+ * clipped), the hub dock has a "🌅 LIFE & RETIRE" chip, and the v146 B club screen has "🌅 RETIRE
+ * INSTEAD" — every one of them goes through `Md` (the confirm, `voluntaryRetirementV12`, `Si`, `fn`).
+ *
+ * THE SIM. `silentWeekV85` refuses to play a week while `nflStateV11.offers` holds anything ("an
+ * offer on the table needs an answer first"), and v146 B moved signing to `offersV146B` — but a save
+ * from before v146 B, or a season end where `cutV146B` declined a second strike, still carries the
+ * v11 list. Sim Remaining then played NOTHING and said nothing, and PLAY LIVE opened the dead v11
+ * offers overlay. `migrateOffersV147` turns a stale list into the v146 B three-club screen (free
+ * agency, no strike) wherever it is found. And at level 7+ Sim Remaining is `simSeasonV147`: the
+ * regular season, the playoffs round by round (`dn`), and the report card (`finishSeasonGames`) in
+ * one tap (TU("simSeasonEndV147",1) / TU("simFinishV147",1)). A real cut still stops it — the club
+ * screen says the sim is paused and after how many games, and signing picks the sim back up
+ * (TU("simResumeV147",1)).
+ *
+ * STORY DECISIONS. From the DFL up (TU("storyProLevelV147",7), switch TU("storyProV147",1)) nothing
+ * stops the season to ask: the season event (`Za` via the `event` view) is answered by
+ * `pickEventV147` — the option with the best safe return, never a locked one and never one that
+ * spends PP; Rivalry Week is booked for game week and decided there off screen (`rivalResolveV136`
+ * in `ca()`; the pregame page is off — `rivalPageV136`); DFL life events are answered the moment
+ * `wi` queues them (`pickLifeV147`: the best family / fulfillment / recovery return he can afford
+ * out of TU("lifeSpendShareV147",.35) of his cash); a queued midseason crossroads is dropped
+ * (`v135MountD`); and a leftover v11 story stage is rolled the v90 way. Every answer is written on
+ * the player (`autoDecisionsV147`) and toasted. Lower levels are unchanged. `window.__V147A`;
+ * scripts/v147Acheck.mjs. ===== */
+function proV147(e){return!!(e&&(e.level||0)>=TU("storyProLevelV147",7)&&TU("storyProV147",1))}
+function noteV147(e,kind,title,choice){const r={kind,title:String(title||""),choice:String(choice||""),season:e&&e.totalSeasons||0,week:e&&e.weekResults?e.weekResults.filter(w=>w&&w.played).length:0};
+  try{if(e){(e.autoDecisionsV147=e.autoDecisionsV147||[]).push(r);e.autoDecisionsV147.length>30&&e.autoDecisionsV147.splice(0,e.autoDecisionsV147.length-30)}}catch(_){}
+  try{window.__V147A.log.push(r)}catch(_){}return r}
+/* the season event: the best safe return among the options he can actually take */
+function eventScoreV147(e,c){const X=c&&c.eff||{};if(X.ppCost)return null;let lk=null;try{lk=rivalLockV128(X,e)}catch(_){}if(lk&&!lk.ok)return null;
+  const A=e.attrs||{};if(X.awareReqBase&&(A.awareness||0)<Da(X.awareReqBase,e.level))return null;if(X.gritReqBase&&(A.grit||0)<Da(X.gritReqBase,e.level))return null;
+  const fg=X.focusGainBase?Object.values(X.focusGainBase).reduce((s,v)=>s+(+v||0),0)/3:0,gain=(X.awareGainBase||0)+(X.gritGainBase||0)+(X.disciplineGainBase||0)+fg;
+  return(X.perf||0)+(X.growth||0)*40+gain*1.5-(X.inj||0)*60-(X.bench||0)*40-(X.restWeeks||0)*3+(X.healFatigue||0)*.1-((X.varMult||1)-1)*4}
+function pickEventV147(e,ev){let bi=-1,bs=-1e9;(ev&&ev.choices||[]).forEach((c,i)=>{const s=eventScoreV147(e,c);if(s!=null&&s>bs){bs=s;bi=i}});return bi}
+function autoEventV147(e){const ev=Za.find(z=>z.id===e.pendingEvent);if(!ev)return!1;
+  if(ev.id==="bigGame"&&TU("rivalSpinOnWeekV136",1)){noteV147(e,"event",ev.title,"the approach is decided on game week");rivalDeferV136();return o.view!=="event"}
+  const i=pickEventV147(e,ev);
+  if(i<0){noteV147(e,"event",ev.title,"passed");e.pendingEvent=null;te("sim");return!0}
+  noteV147(e,"event",ev.title,ev.choices[i].label);Fr(i);
+  try{F(`📋 ${ev.title} — handled for you: ${ev.choices[i].label}`)}catch(_){}
+  return o.view!=="event"}
+/* DFL life: the best return he can afford */
+function pickLifeV147(e,ev){const a=re(e),cash=a?a.cash||0:0,cs=ev&&ev.choices||[];if(!cs.length)return null;
+  const cost=c=>Math.max(0,-(c.cash||0))+(c.amount||0),room=cash*TU("lifeSpendShareV147",.35),
+    sc=c=>(c.family||0)+(c.fulfillment||0)+(c.trust||0)*2+(c.recovery||0)*1.5-(c.fatigue||0)*1.5-(c.mental||0)*.5-(c.media||0)*.3+Math.max(0,c.cash||0)/5e4;
+  const ok=cs.filter(c=>cost(c)<=room),pool=ok.length?ok:cs.slice().sort((a2,b2)=>cost(a2)-cost(b2)).slice(0,1);
+  return pool.slice().sort((a2,b2)=>sc(b2)-sc(a2))[0]||cs[0]}
+function autoLifeV147(e,w){const out=[];if(!e)return out;let g=0;for(;;){const a=e.lifeV12,s=a&&a.eventQueue&&a.eventQueue[0];if(!s||g++>12)break;const c=pickLifeV147(e,s);if(!c)break;const r=$i(e,c.id);if(!r)break;
+    const lab=(r.choice&&r.choice.label)||c.label||c.id,rec={kind:"life",arc:s.title||s.id||"",stage:"",choice:lab,success:null,week:w?w.week:null};out.push(rec);if(w)(w.autoRollsV90=w.autoRollsV90||[]).push(rec);noteV147(e,"life",s.title||s.id,lab)}
+  return out}
+/* a v11 offer list the v146 B era never answers: it becomes the three-club screen */
+function migrateOffersV147(e){try{const s=e&&e.nflStateV11;if(!e||!(e.level>=7)||e._settled||!TU("v146B",1)||!TU("offersMigrateV147",1)||e.offersV146B||e.cutOutV146B||!s||!s.offers||!s.offers.length)return!1;
+  openOffersV146B(e,"fa");noteV147(e,"offers","old roster offers","moved to the club screen");window.__V147A.migrated++;I();return!0}catch(_){return!1}}
+/* Sim Remaining at 7+: the regular season, the playoffs, and the report card */
+function simSeasonV147(e){migrateOffersV147(e);let n=0,po=0,why=null,g=0;const rolls=[];
+  for(;g++<60;){if(e.cutOutV146B){why="out";break}if(e.offersV146B){why="club";break}
+    try{dn(e)}catch(_){}
+    const w=(e.weekResults||[]).find(z=>!z.played);if(!w)break;
+    rolls.push(...autoStoryV90(e,w),...autoLifeV147(e,w));
+    if(!silentWeekV85(e,w)){if(e.offersV146B||e.cutOutV146B)continue;why="stuck";break}
+    n++;w.playoff&&po++;He(w,e)}
+  try{dn(e)}catch(_){}
+  rolls.push(...autoStoryV90(e,null),...autoLifeV147(e,null));try{window.__V90.last=rolls}catch(_){}
+  const left=(e.weekResults||[]).filter(z=>!z.played).length,err=(window.__V85&&window.__V85.lastSilentError)||null;
+  window.__V147A.lastSim={n,po,why,left,err:why==="stuck"?err:null};I();
+  const say=`⏭ Simmed ${n} game${n===1?"":"s"}${po?` (${po} in the playoffs)`:""}${rolls.length?` · ${rolls.length} decision${rolls.length===1?"":"s"} made for you`:""}`;
+  if(why==="club"&&e.offersV146B){e.offersV146B.simV147={n,left};te("season");try{F(`✂️ Released after ${n} simmed game${n===1?"":"s"} — pick a club and the rest of the season sims on`)}catch(_){}return}
+  if(!why&&!left&&(!e.playoffState||e.playoffState.done)&&TU("simFinishV147",1)){try{F(say+" — the season is done")}catch(_){}(window.finishSeasonGames||fs)();return}
+  te("season");try{F(why==="stuck"?`⏸ The sim stopped after ${n} game${n===1?"":"s"} — play the next week to see why`:say)}catch(_){}}
+/* walking away: the life screen's own exit, reachable */
+function retireNowV147(){const e=o&&o.player;if(!e||e._settled)return;if(!qs(e)){F("You are not ready to retire yet.");return}const had=e.offersV146B;Md();if(o.view==="gameover"&&had)e.offersV146B=null}
+function postV147(){const e=o&&o.player,d=x("dock"),v=o&&o.view;if(!e||!d||e._settled||!(e.level>=7))return;
+  if(v==="season"&&TU("simSeasonEndV147",1)&&e.weekResults&&e.weekResults.some(w=>!w.played)){const lbl="⏭ Sim the Rest of the Season";let b=d.querySelector('[onclick^="simRemainingWeeks"]');
+    if(!b){const qp=[...d.querySelectorAll("button")].find(z=>/playWeek\(false\)/.test(z.getAttribute("onclick")||""));qp&&qp.insertAdjacentHTML("afterend",`<button class="btn ghost" onclick="simRemainingWeeks()">${lbl}</button>`)}else if(b.textContent!==lbl)b.textContent=lbl}
+  if(v==="hub"&&TU("retireAnyTimeV147",1)&&!d.querySelector(".retire-chip-v147"))d.insertAdjacentHTML("beforeend",`<button class="btn ghost retire-chip-v147" onclick="showLifeV12()">🌅 Life & Retire</button>`);
+  if(v==="club"){const O=e.offersV146B,sc=x("screen"),box=sc&&sc.querySelector(".club-v146b");
+    if(O&&O.simV147&&box&&!box.querySelector(".sim-note-v147"))box.insertAdjacentHTML("afterbegin",`<div class="small sim-note-v147" style="color:var(--gold)">⏸ The sim is paused after ${O.simV147.n} game${O.simV147.n===1?"":"s"} (${O.simV147.left} left). Sign, and the rest of the season sims on by itself.</div>`);
+    if(TU("retireAnyTimeV147",1)&&!d.querySelector(".retire-chip-v147"))d.insertAdjacentHTML("beforeend",`<button class="btn ghost retire-chip-v147" onclick="retireNowV147()">🌅 Retire Instead</button>`)}}
+const qs0V147=qs;qs=function(e){return!!(qs0V147(e)||(e&&e.level>=7&&TU("retireAnyTimeV147",1)&&re(e)))};
+const St0V147=St;St=function(){const r=St0V147.apply(this,arguments);try{const e=o&&o.player,d=x("dock");if(o.view==="life"&&e&&!e._settled&&d&&qs(e)&&!d.querySelector(".retire-chip-v147"))d.insertAdjacentHTML("beforeend",`<button class="btn ghost retire-chip-v147" onclick="retireNowV147()">🌅 Retire From Football</button>`)}catch(_){}return r};
+const wi0V147=wi;wi=function(e,t){const r=wi0V147.apply(this,arguments);try{if(r&&proV147(e)){const out=autoLifeV147(e,t);out.length&&!window.__silentSimV85&&F(`🤲 ${r.title||"Life"} — handled for you: ${out[0].choice}`)}}catch(_){}return r};
+const wt0V147=wt;wt=function(){const e=o&&o.player;if(e&&e.weekResults&&e.level>=7&&TU("simSeasonEndV147",1))return simSeasonV147(e);return wt0V147.apply(this,arguments)};window.simRemainingWeeks=wt;
+const sign0V147=signClubV146B;signClubV146B=function(i){const e=o&&o.player,O=e&&e.offersV146B,sim=O&&O.simV147,r=sign0V147.apply(this,arguments);
+  try{const p=o&&o.player;if(r&&sim&&TU("simResumeV147",1)&&p&&p.weekResults&&p.weekResults.some(w=>!w.played)){window.__V147A.resumed++;setTimeout(()=>{try{o.player===p&&!p.offersV146B&&wt()}catch(_){}},TU("simResumeMsV147",450))}}catch(_){}return r};
+window.signClubV146B=signClubV146B;
+let busyV147=0;const q0V147=q;q=function(){try{const e=o&&o.player;if(e&&!e._settled&&e.level>=7){migrateOffersV147(e);
+    if(proV147(e)){(e.storyDecisionQueueV11||[]).length&&autoStoryV90(e,null);e.lifeV12&&e.lifeV12.eventQueue&&e.lifeV12.eventQueue.length&&autoLifeV147(e,null);
+      if(o.view==="event"&&e.pendingEvent&&!busyV147){busyV147=1;let done=!1;try{done=autoEventV147(e)}finally{busyV147=0}if(done)return}}}}catch(_){}
+  const r=q0V147.apply(this,arguments);try{postV147()}catch(_){}return r};
+window.retireNowV147=retireNowV147;
+window.__V147A={log:[],migrated:0,resumed:0,lastSim:null,pro:proV147,note:noteV147,pickEvent:pickEventV147,eventScore:eventScoreV147,autoEvent:autoEventV147,pickLife:pickLifeV147,autoLife:autoLifeV147,migrate:migrateOffersV147,sim:()=>simSeasonV147(o.player),retire:retireNowV147,canRetire:e=>qs(e||o.player)};
+/* a save that stopped on a story week or on an old offer list is drawn again through the wrapper */
+safeBootV140(function(){const e=o&&o.player;if(e&&!e._settled&&e.level>=7&&((o.view==="event"&&proV147(e))||(e.nflStateV11&&e.nflStateV11.offers&&e.nflStateV11.offers.length&&!e.offersV146B)))q()},"v147 A: settle a story week or an old offer list");
 window.__prestigeNodesV137=()=>({node:k=>ot[k],level:k=>M(k),price:k=>ot[k]?At(ot[k]):0,open:k=>ot[k]?!!Xa(ot[k]):!1,keys:()=>Object.keys(ot)});
 window.__prestigeRefreshV137=()=>{try{o.view==="shop"&&ps()}catch(_){}try{an()}catch(_){}};
 window.__ribToast=m=>{try{F(m)}catch(_){}};
@@ -22292,6 +22396,7 @@ function v135MountD(){
   const host=document.getElementById("v135Wheel"); if(!host)return;
   const V=window.__PREGAME_V51,G=window.__GROWTH_V42,h=V&&V.hold?V.hold():null;
   const S=gsStateV23,pl=(h&&h.pl)||(S&&S.pl)||null;
+  try{if(pl&&pl._crossroadsV135&&window.__V147A&&window.__V147A.pro(pl)){window.__V147A.note(pl,"crossroads",pl._crossroadsV135.title||"MIDSEASON CROSSROADS","skipped — no story wheels at this level");delete pl._crossroadsV135}}catch(e){}   // v147 A: no midseason crossroads in the DFL and above
   if(v146OnD()){   // v146 D: the board, not the wheel — only a queued crossroads still spins, first
     const q=pl&&pl._crossroadsV135;
     if(q&&q.ctx&&G&&G.showWheelIn&&!document.getElementById("growthV42")){
@@ -22346,7 +22451,7 @@ function v135FinalD(){
  * always last, and `v136SummaryHTMLD` heads it with the week, settled. */
 let v136RivalDoneD=false;
 const V136_RIV_COL=["#7d1a20","#10456e","#5e4a0a","#28571a","#3a2668"];
-function rivalPageV136(){const S=gsStateV23;return!!(S&&S.wk&&S.wk.rivalV128&&S.pl&&S.pl.eventChoice&&S.pl.eventChoice.rivalV128&&TU("rivalSpinOnWeekV136",1))}
+function rivalPageV136(){const S=gsStateV23;return!!(S&&S.wk&&S.wk.rivalV128&&S.pl&&S.pl.eventChoice&&S.pl.eventChoice.rivalV128&&TU("rivalSpinOnWeekV136",1)&&!(window.__V147A&&window.__V147A.pro(S.pl)))}   /* v147 A: in the DFL and above the rival's approach is decided off screen (rivalResolveV136 in ca()), no page */
 function v136ParkRivalD(){const host=document.getElementById("v136Rival");if(!host||v136RivalDoneD)return;if(host.querySelector("#growthV42")){host.innerHTML="";const out=document.getElementById("v136RivalOut");if(out)out.innerHTML=""}}
 function v136RivalOutD(pick,how){const out=document.getElementById("v136RivalOut");if(!out)return;const A=window.__V136_A,S=gsStateV23,pl=S&&S.pl;const say=(A&&A.say&&pl)?A.say(pick.eff||{},pl):[],vr=A&&A.variance?A.variance(pick.eff||{}):null;
   const row=(k,v,c)=>`<div class="v112-imp-row"><span>${k}</span><b${c?` style="color:${c}"`:""}>${v}</b></div>`;
