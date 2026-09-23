@@ -11,7 +11,7 @@
 // cut steepens band by band and stops at the cap; the mind is exempt; the cut reaches the sheet
 // through `dc` (so the v132 year-older screen shows it) and is booked attribute by attribute; the
 // floor never LIFTS a stat that is already under it; Second Wind pushes the whole curve back;
-// Evergreen still halves what is left; and the new endgame nodes exist at the prices asked for.
+// Evergreen is retired (v146 C) and reads as nothing; and the endgame nodes exist at the prices asked for.
 //
 //   node scripts/agecheck.mjs
 import { chromium } from 'playwright'
@@ -45,8 +45,8 @@ ok(curve.bands.join() === 'prime,veteran,decline,late,legend', 'the bands are th
 
 // ---- 2. the nodes that answer it ----
 ok(curve.wind[28] === 0 && curve.wind[35] === 0 && curve.wind[36] > 0, 'Second Wind at Lv 8 reads the curve eight years younger', `28→${curve.wind[28]}% · 35→${curve.wind[35]}% · 36→${curve.wind[36]}%`)
-ok(Math.abs(curve.half[32] - curve.plain[32] / 2) < 0.06, 'Evergreen still halves what is left, per level', `${curve.plain[32]}% → ${curve.half[32]}%`)
-ok(curve.none[40] === 0, 'and at Lv 2 the years never take a point off him, as its card says', `${curve.none[40]}% at 40`)
+ok(curve.half[32] === curve.plain[32] && curve.none[40] === curve.plain[40], 'Evergreen is retired (v146 C): a stale level of it takes nothing off the cut — the years are real', `32: ${curve.plain[32]}% / ${curve.half[32]}% · 40: ${curve.plain[40]}% / ${curve.none[40]}%`)
+ok(await page.evaluate(() => !window.__GRIDIRON_AUDIT__.TREE_NODES.evergreen), 'and Evergreen is no longer on the tree')
 
 const nodes = await page.evaluate(() => {
   const A = window.__GRIDIRON_AUDIT__
