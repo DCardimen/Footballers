@@ -11,8 +11,9 @@
 // changes colour when the player is gassed — a plumbob that carries mood is the
 // reason the Sims one works. Also saves a zoomed crop so the shape can be eyeballed.
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 }, deviceScaleFactor: 3 })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
@@ -20,7 +21,7 @@ page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.te
 await page.addInitScript(() => {
   setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60)
 })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 25000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 25000 })
 await page.waitForTimeout(1400)
 
 let pass = 0, fail = 0

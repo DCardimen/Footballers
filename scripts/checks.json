@@ -1,0 +1,3144 @@
+{
+ "suites": {
+  "smoke": {
+   "desc": "fast and broad — boot to menu, the shell, a career screen or five, the pregame, the live field, the engine; every check here is under ~3 min and passes on main. Run before every commit.",
+   "anchors": [],
+   "files": [],
+   "checks": [
+    "namecheck",
+    "walk",
+    "shot",
+    "menu-integration-check",
+    "honorcheck",
+    "v85check",
+    "v146Echeck",
+    "v112Dcheck",
+    "v144check",
+    "simcheck",
+    "v110check",
+    "v146Bcheck",
+    "v147Ccheck",
+    "scrollcheck",
+    "freshcheck",
+    "v142check",
+    "agecheck",
+    "traincheck",
+    "layoutcheck"
+   ]
+  },
+  "career-uff": {
+   "desc": "v147 A — retiring above college, sim the rest at 7+, stale offers, auto-answered story decisions",
+   "anchors": [
+    "v147 A"
+   ],
+   "files": [],
+   "checks": [
+    "v147Acheck",
+    "v146Bcheck",
+    "rivalcheck",
+    "v90check",
+    "v85check",
+    "v136check",
+    "declarecheck",
+    "v88check",
+    "bootviewcheck",
+    "v146Echeck",
+    "walk"
+   ]
+  },
+  "menu-coin": {
+   "desc": "v147 B — the menu prestige coin, the OVR ring arc and spark, the milestones trophy",
+   "anchors": [
+    "v147 B"
+   ],
+   "files": [
+    "scripts/build-uff-trophy.mjs",
+    "public/menu/**"
+   ],
+   "checks": [
+    "v147Bcheck",
+    "menu-integration-check",
+    "menufxcheck",
+    "heroflashcheck",
+    "sheencheck",
+    "honorcheck",
+    "freshcheck",
+    "menu-mask-check"
+   ]
+  },
+  "gear": {
+   "desc": "v147 C — gear rolled modifiers, catalogue, migration, locker",
+   "anchors": [
+    "v147 C"
+   ],
+   "files": [],
+   "checks": [
+    "v147Ccheck",
+    "bootviewcheck",
+    "v85check",
+    "creditcheck",
+    "statcreditcheck",
+    "injurycheck",
+    "v146Echeck",
+    "v146Dcheck",
+    "walk",
+    "menu-integration-check"
+   ]
+  },
+  "camera": {
+   "desc": "v147 D / v112 E / v145 — what the camera follows, how tight, the play-rate camera, follow cams",
+   "anchors": [
+    "v147 D",
+    "v112 E",
+    "v145",
+    "CAM_MODES",
+    "camSpring"
+   ],
+   "files": [],
+   "checks": [
+    "v147Dcheck",
+    "v112Echeck",
+    "v145check",
+    "v109Echeck",
+    "v86check",
+    "v98check",
+    "v105check",
+    "renderpathcheck",
+    "sidelinecheck",
+    "v144check",
+    "v148check"
+   ]
+  },
+  "league": {
+   "desc": "any league name a player reads (the UFF)",
+   "anchors": [
+    "UFF",
+    "DFL_V123"
+   ],
+   "files": [],
+   "checks": [
+    "coachcheck",
+    "v146Bcheck",
+    "menu-integration-check",
+    "walk"
+   ]
+  },
+  "contact": {
+   "desc": "v146 A — who is on him when he goes down, the fall together, the taken sack",
+   "anchors": [
+    "v146 A"
+   ],
+   "files": [],
+   "checks": [
+    "v146Acheck",
+    "v143check",
+    "scoreneutralcheck",
+    "tacklecheck",
+    "jukecheck",
+    "creditcheck",
+    "v103check",
+    "v109C1check",
+    "v112Fcheck",
+    "renderpathcheck",
+    "v86check",
+    "v110check"
+   ]
+  },
+  "cuts": {
+   "desc": "v146 B — UFF cuts, the strike count, Second Chances, the three-offer club screen",
+   "anchors": [
+    "v146 B"
+   ],
+   "files": [],
+   "checks": [
+    "v146Bcheck",
+    "declarecheck",
+    "v88check",
+    "bootviewcheck",
+    "namecheck",
+    "v111Bcheck",
+    "v85check",
+    "menu-integration-check",
+    "honorcheck",
+    "walk"
+   ]
+  },
+  "impossible": {
+   "desc": "v146 C — the Impossible branch, the over-cap price, the wall, the Evergreen refund",
+   "anchors": [
+    "v146 C"
+   ],
+   "files": [],
+   "checks": [
+    "v146Ccheck",
+    "agecheck",
+    "capcheck",
+    "vaultcheck",
+    "honorcheck",
+    "v134check",
+    "v136check",
+    "bootviewcheck",
+    "walk"
+   ]
+  },
+  "plan": {
+   "desc": "v146 D — the weekly plan board, projection / variance, form swing, the live game inputs",
+   "anchors": [
+    "v146 D"
+   ],
+   "files": [],
+   "checks": [
+    "v146Dcheck",
+    "v112Dcheck",
+    "wheelcheck",
+    "coachcheck",
+    "v136check",
+    "v111Bcheck",
+    "v111Acheck",
+    "v85check",
+    "rivalcheck",
+    "traincheck",
+    "simcheck",
+    "bootviewcheck",
+    "walk"
+   ]
+  },
+  "shell": {
+   "desc": "v146 E — the shell: fixed top bar, bottom tabs, the page that never scrolls, the report card tabs",
+   "anchors": [
+    "v146 E"
+   ],
+   "files": [],
+   "checks": [
+    "v146Echeck",
+    "scrollcheck",
+    "bootviewcheck",
+    "coachcheck",
+    "v112Dcheck",
+    "gatecheck",
+    "menu-integration-check",
+    "vaultcheck",
+    "walk"
+   ]
+  },
+  "field": {
+   "desc": "v144 — sprite scale by age, stall watchdog, between-plays shuffle, goalpost pad, apron, pylons, weather",
+   "anchors": [
+    "v144"
+   ],
+   "files": [],
+   "checks": [
+    "v144check",
+    "v112Bcheck",
+    "sidelinecheck",
+    "v98check",
+    "v99check",
+    "v100check",
+    "v92check",
+    "v102check",
+    "crowdcheck",
+    "v93check",
+    "v86check",
+    "v87check",
+    "renderpathcheck",
+    "v91check",
+    "v104check",
+    "v105check",
+    "v107check",
+    "v108check",
+    "kitsidecheck",
+    "v117check",
+    "badgecheck",
+    "v109Echeck",
+    "scrollcheck",
+    "bootviewcheck",
+    "walk",
+    "shot",
+    "v148check"
+   ]
+  },
+  "statinfo": {
+   "desc": "v142 — the ⓘ beside a stat, the stat cards, adding an attribute",
+   "anchors": [
+    "v142"
+   ],
+   "files": [],
+   "checks": [
+    "v142check",
+    "bootviewcheck",
+    "walk",
+    "shot",
+    "scrollcheck",
+    "capcheck"
+   ]
+  },
+  "sim-keys": {
+   "desc": "v141 — which sheet stats reach the sim, attribute scale past 250, star floor, durability",
+   "anchors": [
+    "v141"
+   ],
+   "files": [],
+   "checks": [
+    "v141check",
+    "scoreneutralcheck",
+    "equaltalentcheck",
+    "creditcheck",
+    "statcreditcheck",
+    "v117check",
+    "simcheck",
+    "injurycheck"
+   ]
+  },
+  "boot": {
+   "desc": "v140 — the top level of the career block, the boot, functions a rendered screen calls by bare name",
+   "anchors": [
+    "v140",
+    "safeBootV140"
+   ],
+   "files": [],
+   "checks": [
+    "bootviewcheck",
+    "splashcheck",
+    "walk",
+    "vaultcheck",
+    "menu-integration-check",
+    "shot"
+   ]
+  },
+  "combine": {
+   "desc": "v139 — the combine drills, weeks, board, leaders tab",
+   "anchors": [
+    "COMBINE_V139",
+    "THE COMBINE"
+   ],
+   "files": [],
+   "checks": [
+    "combinecheck",
+    "v88check",
+    "declarecheck",
+    "rankcheck",
+    "coachcheck",
+    "simcheck",
+    "v85check"
+   ]
+  },
+  "age": {
+   "desc": "v139 — age curve, endgame nodes, grade floor, honors payout, surname, bottom nav, wheel gate, tiers, carrier moves",
+   "anchors": [
+    "v139"
+   ],
+   "files": [],
+   "checks": [
+    "agecheck",
+    "tiercheck",
+    "gatecheck",
+    "movecheck",
+    "coachcheck",
+    "wheelcheck",
+    "v112Dcheck",
+    "v136check",
+    "honorcheck",
+    "scrollcheck",
+    "menu-integration-check",
+    "emblemcheck",
+    "walk"
+   ]
+  },
+  "vault": {
+   "desc": "v137 — the Prestige Vault: hoard, spend, door, payout, sprites",
+   "anchors": [
+    "v137"
+   ],
+   "files": [
+    "public/rib-vault*",
+    "public/vault/**",
+    "scripts/build-vault-art.py",
+    "scripts/vaultcut.py"
+   ],
+   "checks": [
+    "vaultcheck",
+    "honorcheck",
+    "v134check",
+    "coachcheck",
+    "menu-integration-check",
+    "v136check",
+    "freshcheck"
+   ]
+  },
+  "tackle": {
+   "desc": "v143 + contact physics — approach angle, windup, low/mid/high, what each aim costs",
+   "anchors": [
+    "v143",
+    "hitGeoV109"
+   ],
+   "files": [],
+   "checks": [
+    "v143check",
+    "scoreneutralcheck",
+    "tacklecheck",
+    "jukecheck",
+    "creditcheck",
+    "v103check",
+    "v109C1check",
+    "v112Fcheck",
+    "renderpathcheck",
+    "v86check"
+   ]
+  },
+  "lineage": {
+   "desc": "v136 D — the lineage: the son, the surname, family years",
+   "anchors": [
+    "v136 D"
+   ],
+   "files": [],
+   "checks": [
+    "v136check",
+    "coachcheck",
+    "menu-integration-check",
+    "honorcheck",
+    "declarecheck",
+    "walk"
+   ]
+  },
+  "pp-bank": {
+   "desc": "v136 C — when PP is paid: the bank, the settle, the career-end card",
+   "anchors": [
+    "v136 C"
+   ],
+   "files": [],
+   "checks": [
+    "v136check",
+    "v134check",
+    "v85check",
+    "origincheck"
+   ]
+  },
+  "summary": {
+   "desc": "v136 B — the COACH'S SUMMARY button and its AUTO switch",
+   "anchors": [
+    "v136 B"
+   ],
+   "files": [],
+   "checks": [
+    "coachcheck",
+    "v112Dcheck"
+   ]
+  },
+  "pregame": {
+   "desc": "v136 A / v112 D / v126 — the pregame wizard's pages, rivalry spin, next-opponent card, wear copy",
+   "anchors": [
+    "v136 A",
+    "v112 D",
+    "v126"
+   ],
+   "files": [],
+   "checks": [
+    "v136check",
+    "v112Dcheck",
+    "wheelcheck",
+    "rivalcheck",
+    "v111Bcheck",
+    "coachcheck",
+    "walk",
+    "scrollcheck",
+    "namecheck",
+    "splashcheck",
+    "shot"
+   ]
+  },
+  "wheel": {
+   "desc": "v135 — the game-plan wheel, the held roll, the fifth pregame page",
+   "anchors": [
+    "v135"
+   ],
+   "files": [],
+   "checks": [
+    "v112Dcheck",
+    "wheelcheck",
+    "coachcheck",
+    "v111Bcheck",
+    "v85check",
+    "walk",
+    "scrollcheck"
+   ]
+  },
+  "goals": {
+   "desc": "v134 — goal payouts, Hall of Fame box scores, Apex branch, ring soft max, season strip",
+   "anchors": [
+    "v134"
+   ],
+   "files": [],
+   "checks": [
+    "v134check",
+    "coachcheck",
+    "growcheck",
+    "menufxcheck",
+    "menu-integration-check",
+    "honorcheck",
+    "stridecheck",
+    "rivalcheck",
+    "v85check",
+    "declarecheck",
+    "walk"
+   ]
+  },
+  "grow": {
+   "desc": "v132 / v133 / v134 — the offseason body screen, the growth figure and its art",
+   "anchors": [
+    "v132 A YEAR",
+    "v133 THE BOY",
+    "GROW_V132",
+    "growDraw"
+   ],
+   "files": [
+    "public/grow/**",
+    "scripts/build-grow-art.py"
+   ],
+   "checks": [
+    "growcheck",
+    "coachcheck",
+    "declarecheck",
+    "walk"
+   ]
+  },
+  "grades": {
+   "desc": "v133 — the training board's grades, tiers, the pick",
+   "anchors": [
+    "v133 THE COACH GRADES"
+   ],
+   "files": [],
+   "checks": [
+    "gradecheck",
+    "traincheck",
+    "capcheck",
+    "skillartcheck",
+    "scrollcheck",
+    "coachcheck"
+   ]
+  },
+  "coach": {
+   "desc": "v119 / v122 / v133 — the coach: stops, talking head, spotlights, voice, the season debrief",
+   "anchors": [
+    "v119",
+    "v122",
+    "v133 THE COACH HAS"
+   ],
+   "files": [
+    "public/rib-menu-coach*",
+    "public/coach/**",
+    "scripts/build-coach-art.py"
+   ],
+   "checks": [
+    "coachcheck",
+    "faqcheck",
+    "menu-integration-check",
+    "walk",
+    "v85check",
+    "postgamecheck",
+    "declarecheck"
+   ]
+  },
+  "loader": {
+   "desc": "v94 / v112 A / v114–v116 / v121 / v127 / v132 — the splash, the film, the live game's loader",
+   "anchors": [
+    "v94",
+    "v112 A",
+    "v114",
+    "v115",
+    "v116",
+    "v121",
+    "v127",
+    "v132 THE INTRO",
+    "v132 THE FILM"
+   ],
+   "files": [
+    "public/rib_film*",
+    "scripts/build-splash-film.mjs"
+   ],
+   "checks": [
+    "splashcheck",
+    "v114check",
+    "v115check",
+    "v127check",
+    "v112Acheck",
+    "shot",
+    "walk"
+   ]
+  },
+  "menu": {
+   "desc": "v89 / v102 / v106 / v106.1 / v107.1 / v132 — the main menu, its feed, effects, masks, staleness",
+   "anchors": [
+    "v89",
+    "v106",
+    "v107.1",
+    "v132 A THOUSAND",
+    "RIB_DIRECT_MENU"
+   ],
+   "files": [
+    "public/rib-menu*",
+    "public/menu/**",
+    "scripts/menu-kit-*.py",
+    "scripts/build-menu-art.*",
+    "scripts/bake-menu-into-index.mjs",
+    "scripts/assemble-pages.mjs"
+   ],
+   "checks": [
+    "menu-integration-check",
+    "menufxcheck",
+    "heroflashcheck",
+    "sheencheck",
+    "menu-mask-check",
+    "freshcheck",
+    "v102check",
+    "honorcheck"
+   ]
+  },
+  "reads": {
+   "desc": "v81 / v82 — defender reads, blocking, pursuit, the point of attack",
+   "anchors": [
+    "v81",
+    "v82",
+    "GRIDIRON FieldSim"
+   ],
+   "files": [],
+   "checks": [
+    "readcheck",
+    "movementcheck",
+    "simcheck",
+    "reactioncheck"
+   ]
+  },
+  "credit": {
+   "desc": "stat credit / the box score",
+   "anchors": [
+    "v16 EMERGENT",
+    "who ACTUALLY made the stop"
+   ],
+   "files": [],
+   "checks": [
+    "creditcheck",
+    "statcreditcheck"
+   ]
+  },
+  "slots": {
+   "desc": "v117 — who is on the field, duplicate players, which slot he lines up in",
+   "anchors": [
+    "v117"
+   ],
+   "files": [],
+   "checks": [
+    "v117check",
+    "creditcheck",
+    "statcreditcheck",
+    "v110check",
+    "scoreneutralcheck",
+    "simcheck"
+   ]
+  },
+  "sim": {
+   "desc": "game engine / play-calling / yardage, and whether it is visible",
+   "anchors": [
+    "v16 EMERGENT",
+    "GRIDIRON FieldSim",
+    "GRIDIRON play choreography"
+   ],
+   "files": [],
+   "checks": [
+    "simcheck",
+    "renderpathcheck",
+    "scoreneutralcheck",
+    "blowoutcheck",
+    "teamqualcheck",
+    "yardfitcheck",
+    "starimpactcheck"
+   ]
+  },
+  "injury": {
+   "desc": "injuries and availability",
+   "anchors": [
+    "v54",
+    "materializeInjuryV18"
+   ],
+   "files": [],
+   "checks": [
+    "injurycheck",
+    "availabilitycheck"
+   ]
+  },
+  "ovr": {
+   "desc": "v85 — OVR scale, the silent sim path, the attribute sheet",
+   "anchors": [
+    "v85"
+   ],
+   "files": [],
+   "checks": [
+    "v85check",
+    "bodycheck",
+    "wheelcheck"
+   ]
+  },
+  "between-plays": {
+   "desc": "v86 — the renderer between plays, tackle looks",
+   "anchors": [
+    "v86"
+   ],
+   "files": [],
+   "checks": [
+    "v86check"
+   ]
+  },
+  "coverage": {
+   "desc": "v87 — pass coverage / credit, QB scramble & targets, the safety, the huddle",
+   "anchors": [
+    "v87"
+   ],
+   "files": [],
+   "checks": [
+    "v87check",
+    "creditcheck",
+    "simcheck"
+   ]
+  },
+  "rank": {
+   "desc": "v88 / v125 — national rank, promotion odds, the declare",
+   "anchors": [
+    "v88",
+    "v125"
+   ],
+   "files": [],
+   "checks": [
+    "v125check",
+    "rankcheck",
+    "v88check",
+    "declarecheck",
+    "v85check"
+   ]
+  },
+  "badges": {
+   "desc": "v95 — the callout badges",
+   "anchors": [
+    "v95"
+   ],
+   "files": [
+    "public/badges/**",
+    "scripts/build-badge-art.*"
+   ],
+   "checks": [
+    "badgecheck",
+    "v86check"
+   ]
+  },
+  "kits": {
+   "desc": "v96 / v104 / v105 / v105.2 — kits, jersey numbers, the ball between hands, the heat book",
+   "anchors": [
+    "v96",
+    "v104",
+    "v105"
+   ],
+   "files": [],
+   "checks": [
+    "kitsidecheck",
+    "v104check",
+    "v105check",
+    "v86check",
+    "sidelinecheck",
+    "v91check",
+    "v92check",
+    "v99check",
+    "crowdcheck",
+    "renderpathcheck",
+    "bobcheck"
+   ]
+  },
+  "lights": {
+   "desc": "v92 / v98 / v99 / v100 / v102 / v112 B — the lights, shadows, lighting dial, stadium, masts",
+   "anchors": [
+    "v92",
+    "v98",
+    "v99",
+    "v100",
+    "v102",
+    "v112 B"
+   ],
+   "files": [
+    "scripts/build-stadium-art.*"
+   ],
+   "checks": [
+    "v102check",
+    "v98check",
+    "v99check",
+    "v92check",
+    "v86check",
+    "v100check",
+    "sidelinecheck",
+    "crowdcheck",
+    "postgamecheck",
+    "v112Bcheck"
+   ]
+  },
+  "playbook": {
+   "desc": "v101 — asset paths, the playbook, the throw, shading, prebuild, crowd emoji",
+   "anchors": [
+    "v101"
+   ],
+   "files": [],
+   "checks": [
+    "v101check",
+    "simcheck",
+    "readcheck",
+    "routecheck",
+    "v99check"
+   ]
+  },
+  "endzones": {
+   "desc": "v72 / v93 — the painted end zones, home and away",
+   "anchors": [
+    "v93",
+    "v72"
+   ],
+   "files": [],
+   "checks": [
+    "v93check",
+    "endzonecheck",
+    "v86check"
+   ]
+  },
+  "field-art": {
+   "desc": "v91 / v107 / v108 / v118 — field sheets, QB sheets, throw facing, the exchange, the mesh",
+   "anchors": [
+    "v91",
+    "v107",
+    "v108",
+    "v118"
+   ],
+   "files": [
+    "scripts/build-field-art.*"
+   ],
+   "checks": [
+    "v91check",
+    "v107check",
+    "v108check",
+    "v105check",
+    "v104check",
+    "renderpathcheck",
+    "v86check",
+    "kitsidecheck"
+   ]
+  },
+  "story": {
+   "desc": "v90 — story rolls on the silent path, the upgrade sheet numbers",
+   "anchors": [
+    "v90"
+   ],
+   "files": [],
+   "checks": [
+    "v90check",
+    "v85check"
+   ]
+  },
+  "snaps": {
+   "desc": "v111 / v120 — the pregame ladder's snaps, coach trust, the fatigue slope",
+   "anchors": [
+    "v111",
+    "v120"
+   ],
+   "files": [],
+   "checks": [
+    "v111Acheck",
+    "v111Bcheck",
+    "v111Ccheck",
+    "v112Dcheck",
+    "v85check",
+    "creditcheck",
+    "simcheck",
+    "scoreneutralcheck",
+    "faqcheck"
+   ]
+  },
+  "origin": {
+   "desc": "v112 C / v131 — body now vs projected, the trait choice, the reroll penalty, origin cards",
+   "anchors": [
+    "v112 C",
+    "v131"
+   ],
+   "files": [],
+   "checks": [
+    "origincheck",
+    "v112Ccheck",
+    "v112Dcheck",
+    "declarecheck",
+    "walk",
+    "bodycheck",
+    "v85check",
+    "menu-integration-check",
+    "simcheck",
+    "creditcheck"
+   ]
+  },
+  "launch": {
+   "desc": "v112 F — a big hit taking a man off his feet",
+   "anchors": [
+    "v112 F"
+   ],
+   "files": [],
+   "checks": [
+    "v112Fcheck",
+    "v103check",
+    "v109C1check",
+    "tacklecheck",
+    "readcheck",
+    "renderpathcheck",
+    "scoreneutralcheck"
+   ]
+  },
+  "position": {
+   "desc": "v110 — being in position decides the play",
+   "anchors": [
+    "v110"
+   ],
+   "files": [],
+   "checks": [
+    "v110check",
+    "creditcheck",
+    "tacklecheck",
+    "readcheck",
+    "v103check",
+    "scoreneutralcheck"
+   ]
+  },
+  "feel": {
+   "desc": "anything in the live sim's FEEL (contact, possession, ball speed, catching, tackling, the clock) — v109",
+   "anchors": [
+    "v109"
+   ],
+   "files": [],
+   "checks": [
+    "scoreneutralcheck",
+    "v109Acheck",
+    "v109Bcheck",
+    "v109C1check",
+    "v109C2check",
+    "v109Dcheck",
+    "v109Echeck"
+   ]
+  },
+  "stride": {
+   "desc": "v129 — the ball in stride",
+   "anchors": [
+    "v129"
+   ],
+   "files": [],
+   "checks": [
+    "stridecheck",
+    "scoreneutralcheck",
+    "v109Bcheck",
+    "v101check",
+    "routecheck",
+    "simcheck"
+   ]
+  },
+  "throw": {
+   "desc": "v109 A — the throw's flight, arc, wobble, throwaway",
+   "anchors": [
+    "v109 THE BALL"
+   ],
+   "files": [],
+   "checks": [
+    "v109Acheck",
+    "v101check",
+    "v107check",
+    "v105check",
+    "simcheck"
+   ]
+  },
+  "pile": {
+   "desc": "v103 / v109 C1 — the grab, the pile, the strip, impact geometry, the bobble",
+   "anchors": [
+    "v103",
+    "v109 THE HIT"
+   ],
+   "files": [],
+   "checks": [
+    "v109C1check",
+    "v103check",
+    "readcheck",
+    "tacklecheck",
+    "creditcheck",
+    "simcheck",
+    "renderpathcheck",
+    "v86check"
+   ]
+  },
+  "plant": {
+   "desc": "v109 C2 — the plant, the lean, down men, the stumble",
+   "anchors": [
+    "v109 THE FEET"
+   ],
+   "files": [],
+   "checks": [
+    "v109C2check",
+    "readcheck",
+    "jukecheck",
+    "tacklecheck",
+    "v86check"
+   ]
+  },
+  "catch": {
+   "desc": "v109 B — the receiver's track, the reach and tuck, break-ups",
+   "anchors": [],
+   "files": [],
+   "checks": [
+    "v109Bcheck",
+    "v87check",
+    "v107check",
+    "v91check",
+    "routecheck"
+   ]
+  },
+  "crew": {
+   "desc": "v109 E — the camera crew, the huddle, celebrations, the QB eyes",
+   "anchors": [],
+   "files": [],
+   "checks": [
+    "v109Echeck",
+    "v86check",
+    "v98check",
+    "refcheck",
+    "sidelinecheck"
+   ]
+  },
+  "clock": {
+   "desc": "v109 D — the clock, the try, timeouts, the flag, the chains",
+   "anchors": [
+    "v109 THE GAME HAS A CLOCK",
+    "v109 THE STICKS",
+    "v109 THE FLAG"
+   ],
+   "files": [],
+   "checks": [
+    "v109Dcheck",
+    "simcheck",
+    "postgamecheck",
+    "badgecheck",
+    "refcheck",
+    "walk"
+   ]
+  },
+  "names": {
+   "desc": "v123 — school / college / club names and crests",
+   "anchors": [
+    "v123"
+   ],
+   "files": [],
+   "checks": [
+    "namecheck",
+    "emblemcheck",
+    "menu-integration-check",
+    "walk"
+   ]
+  },
+  "honors": {
+   "desc": "v130 — the account rank, the prestige-tree gates, anything drawing a ★",
+   "anchors": [
+    "v130"
+   ],
+   "files": [],
+   "checks": [
+    "honorcheck",
+    "menu-integration-check",
+    "walk",
+    "shot"
+   ]
+  },
+  "emblems": {
+   "desc": "team emblems / palettes / identity",
+   "anchors": [
+    "v44",
+    "v153",
+    "LOGO_RULES"
+   ],
+   "files": [
+    "public/rib_logos*"
+   ],
+   "checks": [
+    "emblemcheck"
+   ]
+  },
+  "training": {
+   "desc": "v64 / v113 / v124 — training programs, skill art, the training board",
+   "anchors": [
+    "v113",
+    "v124",
+    "v64"
+   ],
+   "files": [
+    "public/rib_skill*"
+   ],
+   "checks": [
+    "traincheck",
+    "skillartcheck",
+    "wheelcheck",
+    "capcheck",
+    "v85check",
+    "scrollcheck",
+    "coachcheck",
+    "growthcheck"
+   ]
+  },
+  "rivalry": {
+   "desc": "v128 — Rivalry Week",
+   "anchors": [
+    "v128"
+   ],
+   "files": [],
+   "checks": [
+    "rivalcheck",
+    "simcheck",
+    "v85check",
+    "injurycheck",
+    "walk"
+   ]
+  },
+  "crowd": {
+   "desc": "v57 / v78 — the crowd, the sideline, the team area",
+   "anchors": [
+    "v57",
+    "v78",
+    "SIDELINE"
+   ],
+   "files": [
+    "public/rib_crowd*",
+    "public/rib_side*"
+   ],
+   "checks": [
+    "crowdcheck",
+    "sidelinecheck",
+    "refcheck"
+   ]
+  },
+  "declare": {
+   "desc": "the declare / career-end screens",
+   "anchors": [
+    "declare"
+   ],
+   "files": [],
+   "checks": [
+    "declarecheck"
+   ]
+  },
+  "modes": {
+   "desc": "v46 / v47 / v48 — Score Attack, leaderboards, Daily Challenge",
+   "anchors": [
+    "v46",
+    "v47",
+    "v48"
+   ],
+   "files": [
+    "scripts/daily-engine.mjs"
+   ],
+   "checks": [
+    "hscheck",
+    "lbcheck",
+    "dailycheck"
+   ]
+  },
+  "ui": {
+   "desc": "UI / screens — screenshot and click-through",
+   "anchors": [],
+   "files": [],
+   "checks": [
+    "shot",
+    "walk"
+   ]
+  },
+  "layout": {
+   "desc": "v149 A — the src/ split, the build and the deploy",
+   "anchors": [
+    "v149 A"
+   ],
+   "files": [
+    "index.html",
+    "vite.config.js",
+    "scripts/assemble-pages.mjs",
+    "scripts/lib/layout.mjs"
+   ],
+   "checks": [
+    "layoutcheck",
+    "bootviewcheck",
+    "freshcheck",
+    "menu-integration-check",
+    "walk"
+   ]
+  },
+  "monetize": {
+   "desc": "v149 E — the monetization module (switched off by default)",
+   "anchors": [
+    "v149 E",
+    "RIB_MONETIZE"
+   ],
+   "files": [
+    "src/27-monetize.js"
+   ],
+   "checks": [
+    "v149Echeck",
+    "bootviewcheck",
+    "walk",
+    "menu-integration-check",
+    "layoutcheck",
+    "honorcheck"
+   ]
+  },
+  "pwa": {
+   "desc": "v149 D — the PWA, service worker, platform layer and Capacitor config",
+   "anchors": [
+    "v149 D"
+   ],
+   "files": [
+    "src/26-platform.js",
+    "pwa/sw.js",
+    "scripts/lib/pwa.mjs",
+    "vite.config.js",
+    "scripts/assemble-pages.mjs",
+    "capacitor.config.json"
+   ],
+   "checks": [
+    "v149Dcheck",
+    "bootviewcheck",
+    "freshcheck",
+    "splashcheck",
+    "walk",
+    "menu-integration-check",
+    "layoutcheck"
+   ]
+  }
+ },
+ "checks": {
+  "agecheck": {
+   "file": "scripts/agecheck.mjs",
+   "desc": "Dev check (v139 THE YEARS TAKE THEIR CUT): age is worth something now.",
+   "areas": [
+    "smoke",
+    "impossible",
+    "age"
+   ],
+   "runtimeSec": 25,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "availabilitycheck": {
+   "file": "scripts/availabilitycheck.mjs",
+   "desc": "v54 availability: the injury model scales with the opponent gap (25 above ≈ 40% safer, outmatched ≈ 40% riskier), the condition swing is exactly +5% fresh / −10% worn, the season distribution lands on",
+   "areas": [
+    "injury"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "badgecheck": {
+   "file": "scripts/badgecheck.mjs",
+   "desc": "v95 — the callout wall",
+   "areas": [
+    "field",
+    "badges",
+    "clock"
+   ],
+   "runtimeSec": 145,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "live field is up"
+   ]
+  },
+  "blowoutcheck": {
+   "file": "scripts/blowoutcheck.mjs",
+   "desc": "v76 — the margin curve",
+   "areas": [
+    "sim"
+   ],
+   "runtimeSec": 2700,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "timeoutSec": 5400,
+   "note": "samples BLOW_N (1600) live games; did not finish in 40 min at load ~25 — run it alone, or with BLOW_N=400 for a quick read"
+  },
+  "bobcheck": {
+   "file": "scripts/bobcheck.mjs",
+   "desc": "v70 — the you-marker is a crystal over the head, not an aura on the turf",
+   "areas": [
+    "kits"
+   ],
+   "runtimeSec": 70,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the crystal floats above the head"
+   ]
+  },
+  "bodycheck": {
+   "file": "scripts/bodycheck.mjs",
+   "desc": "v73 — the injury section answers the question it exists for",
+   "areas": [
+    "ovr",
+    "origin"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "bootviewcheck": {
+   "file": "scripts/bootviewcheck.mjs",
+   "desc": "Dev check (v140 THE BOOT CANNOT TAKE THE REST OF THE FILE WITH IT).",
+   "areas": [
+    "career-uff",
+    "gear",
+    "cuts",
+    "impossible",
+    "plan",
+    "shell",
+    "field",
+    "statinfo",
+    "boot"
+   ],
+   "runtimeSec": 530,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "capcheck": {
+   "file": "scripts/capcheck.mjs",
+   "desc": "v67 — the price of a point is stated where the choice is made",
+   "areas": [
+    "impossible",
+    "statinfo",
+    "grades",
+    "training"
+   ],
+   "runtimeSec": 35,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "coachcheck": {
+   "file": "scripts/coachcheck.mjs",
+   "desc": "v119 — the coach: the dev-check boot never starts him on its own",
+   "areas": [
+    "league",
+    "plan",
+    "shell",
+    "combine",
+    "age",
+    "vault",
+    "lineage",
+    "summary",
+    "pregame",
+    "wheel",
+    "goals",
+    "grow",
+    "grades",
+    "coach",
+    "training"
+   ],
+   "runtimeSec": 550,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the post-game card: he pops in with the RESULT stop",
+    "the season screen after the game: he pops in with the RECOVERY stop",
+    "the last stop's button reads DONE",
+    "fourteen stops of the week"
+   ],
+   "timeoutSec": 2400
+  },
+  "combinecheck": {
+   "file": "scripts/combinecheck.mjs",
+   "desc": "Dev check (v139 THE COMBINE IS DRILLS, NOT GAMES).",
+   "areas": [
+    "combine"
+   ],
+   "runtimeSec": 25,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "creditcheck": {
+   "file": "scripts/creditcheck.mjs",
+   "desc": "Tackle-credit truth. Sims 60 games as an LB, wraps __FieldSim.run/pass to record who the sim actually named tackler/assist, and asserts the credited tackle stat never exceeds sim-truth + sacks. Exits",
+   "areas": [
+    "gear",
+    "contact",
+    "sim-keys",
+    "tackle",
+    "credit",
+    "slots",
+    "coverage",
+    "snaps",
+    "origin",
+    "position",
+    "pile"
+   ],
+   "runtimeSec": 205,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "crowdcheck": {
+   "file": "scripts/crowdcheck.mjs",
+   "desc": "v57 crowd stands: the sheet decodes into sections on both sidelines, the stands recede and converge (a far section is shorter than a near one and sits closer to the centre line), and — measured on the",
+   "areas": [
+    "field",
+    "kits",
+    "lights",
+    "crowd"
+   ],
+   "runtimeSec": 50,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "crowdCheer raises section heat"
+   ]
+  },
+  "dailycheck": {
+   "file": "scripts/dailycheck.mjs",
+   "desc": "v48 Daily Challenge: proves the browser engine == the canonical daily-engine.mjs over a 160-case parity matrix (no drift), plus determinism, the full 5-round play flow, one-attempt-per-day lock, daily",
+   "areas": [
+    "modes"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "declarecheck": {
+   "file": "scripts/declarecheck.mjs",
+   "desc": "v77: a failed declare is the end of the career",
+   "areas": [
+    "career-uff",
+    "cuts",
+    "combine",
+    "lineage",
+    "goals",
+    "grow",
+    "coach",
+    "rank",
+    "origin",
+    "declare"
+   ],
+   "runtimeSec": 70,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "emblemcheck": {
+   "file": "scripts/emblemcheck.mjs",
+   "desc": "v44 team emblems, full surface audit: every generated nickname resolves to the right emblem (Wolves → wolf), every emblem's matched palette exists, the sheet is baked (data URL — no server file), crea",
+   "areas": [
+    "age",
+    "names",
+    "emblems"
+   ],
+   "runtimeSec": 50,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "pregame: 2 emblem chips, 44px"
+   ]
+  },
+  "endzonecheck": {
+   "file": "scripts/endzonecheck.mjs",
+   "desc": "v72 — the painted field and the simulated field are one field",
+   "areas": [
+    "endzones"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "equaltalentcheck": {
+   "file": "scripts/equaltalentcheck.mjs",
+   "desc": "Loads the real full-game engine with exact mirrored rosters and asserts fair wins, realistic scoring, YPC, completion/YPA, interceptions, sacks, and blowout frequency",
+   "areas": [
+    "sim-keys"
+   ],
+   "runtimeSec": 195,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": []
+  },
+  "faqcheck": {
+   "file": "scripts/faqcheck.mjs",
+   "desc": "The guide is a view of the main menu with no screen behind it in the game app, so everything",
+   "areas": [
+    "coach",
+    "snaps"
+   ],
+   "runtimeSec": 65,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "freshcheck": {
+   "file": "scripts/freshcheck.mjs",
+   "desc": "v106.1 — the page knows when it is stale",
+   "areas": [
+    "smoke",
+    "menu-coin",
+    "vault",
+    "menu"
+   ],
+   "runtimeSec": 50,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": []
+  },
+  "gatecheck": {
+   "file": "scripts/gatecheck.mjs",
+   "desc": "Dev check (v139 A BEAT BEFORE THE WHEEL).",
+   "areas": [
+    "shell",
+    "age"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "gradecheck": {
+   "file": "scripts/gradecheck.mjs",
+   "desc": "v133 — the coach grades the board",
+   "areas": [
+    "grades"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "growcheck": {
+   "file": "scripts/growcheck.mjs",
+   "desc": "v132 — the offseason body screen",
+   "areas": [
+    "goals",
+    "grow"
+   ],
+   "runtimeSec": 115,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "growthcheck": {
+   "file": "scripts/growthcheck.mjs",
+   "desc": "v42 Growth Decisions entertainment probe: Monte-Carlos the outcome generator (mix, magnitudes, durations, permanents, story variety) via window.__GROWTH_V42.simulate",
+   "areas": [
+    "training"
+   ],
+   "runtimeSec": 5,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "heroflashcheck": {
+   "file": "scripts/heroflashcheck.mjs",
+   "desc": "v107.1 — the hero's camera flashes are only over the crowd",
+   "areas": [
+    "menu-coin",
+    "menu"
+   ],
+   "runtimeSec": 85,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the hero canvas loop is running"
+   ]
+  },
+  "honorcheck": {
+   "file": "scripts/honorcheck.mjs",
+   "desc": "v130 — two currencies, two symbols",
+   "areas": [
+    "smoke",
+    "menu-coin",
+    "cuts",
+    "impossible",
+    "age",
+    "vault",
+    "lineage",
+    "goals",
+    "menu",
+    "honors"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "hscheck": {
+   "file": "scripts/hscheck.mjs",
+   "desc": "v46 Score Attack, end-to-end through the real UI: menu button navigates to the mode, a run plays and survives/ends correctly, the Steady + Glory paths resolve without JS errors, and the best score per",
+   "areas": [
+    "modes"
+   ],
+   "runtimeSec": 15,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "injurycheck": {
+   "file": "scripts/injurycheck.mjs",
+   "desc": "Serious injuries force DNP weeks, heal on schedule, clear the worn flag",
+   "areas": [
+    "gear",
+    "sim-keys",
+    "injury",
+    "rivalry"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "jukecheck": {
+   "file": "scripts/jukecheck.mjs",
+   "desc": "Stat gaps drive evasion: one-on-one juke probability across superstar/scrub matchups",
+   "areas": [
+    "contact",
+    "tackle",
+    "plant"
+   ],
+   "runtimeSec": 65,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "kitsidecheck": {
+   "file": "scripts/kitsidecheck.mjs",
+   "desc": "v105.2 — with a linebacker (the user's plays are on defense), watches a live game across both possessions and asserts that the user's eleven wear the off kit and the opponent's the def kit whoever has",
+   "areas": [
+    "field",
+    "kits",
+    "field-art"
+   ],
+   "runtimeSec": 195,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the broadcast is live"
+   ]
+  },
+  "lbcheck": {
+   "file": "scripts/lbcheck.mjs",
+   "desc": "v47 Leaderboards, end-to-end on the mock backend: a Score Attack run auto-submits, the score appears on the Global board (sorted, tops the seeds), Weekly + Per-position filters work, the board screen",
+   "areas": [
+    "modes"
+   ],
+   "runtimeSec": 15,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "menu-integration-check": {
+   "file": "scripts/menu-integration-check.mjs",
+   "desc": "v89 main menu on the real index.html: every picture decoded, the drawn wordmark / swash / six legacy icons actually in use (and the wall slogan coming from the photograph, not from the DOM), the no-ca",
+   "areas": [
+    "smoke",
+    "menu-coin",
+    "gear",
+    "league",
+    "cuts",
+    "shell",
+    "boot",
+    "age",
+    "vault",
+    "lineage",
+    "goals",
+    "coach",
+    "menu",
+    "origin",
+    "names",
+    "honors"
+   ],
+   "runtimeSec": 65,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "menu-mask-check": {
+   "file": "scripts/menu-mask-check.mjs",
+   "desc": "v104, probes re-sited in v106 onto the measured garment edges — the team kit on the menu pictures",
+   "areas": [
+    "menu-coin",
+    "menu"
+   ],
+   "runtimeSec": 165,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "menufxcheck": {
+   "file": "scripts/menufxcheck.mjs",
+   "desc": "v132 — the menu's second layer of life",
+   "areas": [
+    "menu-coin",
+    "goals",
+    "menu"
+   ],
+   "runtimeSec": 70,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the ember loop is running"
+   ]
+  },
+  "movecheck": {
+   "file": "scripts/movecheck.mjs",
+   "desc": "Dev check (v139 THREE MOVES, THE LUNGE THAT LEAVES THE GROUND, AND THE LANDING).",
+   "areas": [
+    "age"
+   ],
+   "runtimeSec": 10,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "movementcheck": {
+   "file": "scripts/movementcheck.mjs",
+   "desc": "Ten seeded 120-play batches (1,200 plays total): exact sideline spots, no out-of-field frames, first-frame offensive TD/pick-six crossings, route-break reactions, directional cuts/bad angles, low/mid/",
+   "areas": [
+    "reads"
+   ],
+   "runtimeSec": 30,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": true,
+   "flaky": []
+  },
+  "namecheck": {
+   "file": "scripts/namecheck.mjs",
+   "desc": "v123 — the league's names",
+   "areas": [
+    "smoke",
+    "cuts",
+    "pregame",
+    "names"
+   ],
+   "runtimeSec": 5,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": true,
+   "flaky": []
+  },
+  "origincheck": {
+   "file": "scripts/origincheck.mjs",
+   "desc": "v131 — the origin draft and the reroll penalty",
+   "areas": [
+    "pp-bank",
+    "origin"
+   ],
+   "runtimeSec": 15,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "postgamecheck": {
+   "file": "scripts/postgamecheck.mjs",
+   "desc": "v53 post-game card: plays two LIVE weeks (the quick sim bypasses the card entirely) and asserts SEASON TOTALS leads both the game grade and the single-game box, that the season line states how many ga",
+   "areas": [
+    "coach",
+    "lights",
+    "clock"
+   ],
+   "runtimeSec": 385,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "rankcheck": {
+   "file": "scripts/rankcheck.mjs",
+   "desc": "v52 national rank vs the leaders board: asserts both describe the same world — every level ranks against the population on the level table (A[].slots), the positional pool is exactly that split 9 ways",
+   "areas": [
+    "combine",
+    "rank"
+   ],
+   "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "reactioncheck": {
+   "file": "scripts/reactioncheck.mjs",
+   "desc": "v56 reaction time: the route-break curve separates every stat level (the old hard clamp made stat 10 and 50 differ by 17ms on a sharp break — now 89ms), the reaction blend leans on quickness while rec",
+   "areas": [
+    "reads"
+   ],
+   "runtimeSec": 110,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "readcheck": {
+   "file": "scripts/readcheck.mjs",
+   "desc": "v81 ball awareness + v82 systems, pure Node (no server)",
+   "areas": [
+    "reads",
+    "playbook",
+    "launch",
+    "position",
+    "pile",
+    "plant"
+   ],
+   "runtimeSec": 80,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": true,
+   "flaky": []
+  },
+  "refcheck": {
+   "file": "scripts/refcheck.mjs",
+   "desc": "v45 referee crew + v49 ref art: drives into a live game and asserts 7 officials take the field (referee in the backfield), that they move during a play, and that a foul spot pulls the nearest official into a flag-throw",
+   "areas": [
+    "crew",
+    "clock",
+    "crowd"
+   ],
+   "runtimeSec": 105,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "renderpathcheck": {
+   "file": "scripts/renderpathcheck.mjs",
+   "desc": "Fraction of plays rendering from the FieldSim agent log vs falling back to the legacy choreographer (healthy: ~87–90%)",
+   "areas": [
+    "camera",
+    "contact",
+    "field",
+    "tackle",
+    "sim",
+    "kits",
+    "field-art",
+    "launch",
+    "pile"
+   ],
+   "runtimeSec": 65,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "rivalcheck": {
+   "file": "scripts/rivalcheck.mjs",
+   "desc": "v128 — Rivalry Week. That every option states its effects as numbers built from its own eff (the rating, the injury multiplier, the attributes at season's end, the bench risk) and its VARIANCE in a ba",
+   "areas": [
+    "career-uff",
+    "plan",
+    "pregame",
+    "goals",
+    "rivalry"
+   ],
+   "runtimeSec": 15,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "routecheck": {
+   "file": "scripts/routecheck.mjs",
+   "desc": "v55 route tree: drives the real FieldSim, records every assigned route and the path actually walked in the sim's own coordinates, and checks they match",
+   "areas": [
+    "playbook",
+    "stride",
+    "catch"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "scoreneutralcheck": {
+   "file": "scripts/scoreneutralcheck.mjs",
+   "desc": "The score-neutrality probe",
+   "areas": [
+    "contact",
+    "sim-keys",
+    "tackle",
+    "slots",
+    "sim",
+    "snaps",
+    "launch",
+    "position",
+    "feel",
+    "stride"
+   ],
+   "runtimeSec": 145,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "scrollcheck": {
+   "file": "scripts/scrollcheck.mjs",
+   "desc": "v75 — how far each screen overflows a phone",
+   "areas": [
+    "smoke",
+    "shell",
+    "field",
+    "statinfo",
+    "age",
+    "pregame",
+    "wheel",
+    "grades",
+    "training"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "sheencheck": {
+   "file": "scripts/sheencheck.mjs",
+   "desc": "v107.1 — the wordmark sheen and the brand gold flash TWICE a cycle and alike: samples the computed background-position across a cycle (driving the CSSAnimation's currentTime), finds every window where",
+   "areas": [
+    "menu-coin",
+    "menu"
+   ],
+   "runtimeSec": 25,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "shot": {
+   "file": "scripts/shot.mjs",
+   "desc": "Boot headless and screenshot: node scripts/shot.mjs [out.png] [url] (also npm run shot)",
+   "areas": [
+    "smoke",
+    "field",
+    "statinfo",
+    "boot",
+    "pregame",
+    "loader",
+    "honors",
+    "ui"
+   ],
+   "runtimeSec": 10,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "args": [
+    "{LOGDIR}/shot.png"
+   ]
+  },
+  "sidelinecheck": {
+   "file": "scripts/sidelinecheck.mjs",
+   "desc": "v78 team area: the sideline sheet decodes and every packed cell reaches a texture",
+   "areas": [
+    "camera",
+    "field",
+    "kits",
+    "lights",
+    "crew",
+    "crowd"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the far end of the sideline sits in dimmer air than the near end",
+    "and the reaction dies back down"
+   ]
+  },
+  "simcheck": {
+   "file": "scripts/simcheck.mjs",
+   "desc": "Batch-runs the emergent game engine (window.__simGameV2) — score, pace, and yardage distributions",
+   "areas": [
+    "smoke",
+    "plan",
+    "sim-keys",
+    "combine",
+    "reads",
+    "slots",
+    "sim",
+    "coverage",
+    "playbook",
+    "snaps",
+    "origin",
+    "stride",
+    "throw",
+    "pile",
+    "clock",
+    "rivalry"
+   ],
+   "runtimeSec": 170,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "skillartcheck": {
+   "file": "scripts/skillartcheck.mjs",
+   "desc": "v65 — the training art on the offseason board, the other screen a season's training is chosen on (wheelcheck owns the wheel)",
+   "areas": [
+    "grades",
+    "training"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the skill sheet is on the page and decodes"
+   ]
+  },
+  "splashcheck": {
+   "file": "scripts/splashcheck.mjs",
+   "desc": "v94 — the chase. Boots the game three ways: normal (the sheet lands, the canvas shows the stands, turf, both kits and chalk, the runner moves, the loop keeps drawing, the beats roll, one full cycle —",
+   "areas": [
+    "boot",
+    "pregame",
+    "loader"
+   ],
+   "runtimeSec": 95,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the splash did not overstay"
+   ]
+  },
+  "starimpactcheck": {
+   "file": "scripts/starimpactcheck.mjs",
+   "desc": "Paired full-game calibration for one player rated above an otherwise mirrored",
+   "areas": [
+    "sim"
+   ],
+   "runtimeSec": 5,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": []
+  },
+  "statcreditcheck": {
+   "file": "scripts/statcreditcheck.mjs",
+   "desc": "Box score may only credit plays the user's roster actor actually made or was in the pile for (all stats, several positions)",
+   "areas": [
+    "gear",
+    "sim-keys",
+    "credit",
+    "slots"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "stridecheck": {
+   "file": "scripts/stridecheck.mjs",
+   "desc": "v129 — the ball in stride",
+   "areas": [
+    "goals",
+    "stride"
+   ],
+   "runtimeSec": 65,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": true,
+   "flaky": []
+  },
+  "tacklecheck": {
+   "file": "scripts/tacklecheck.mjs",
+   "desc": "Solo/gang tackle split (~70/30 target) and whiff / truck / stiff-arm / stagger / big-hit rates across ~3,000 run plays",
+   "areas": [
+    "contact",
+    "tackle",
+    "launch",
+    "position",
+    "pile",
+    "plant"
+   ],
+   "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "teamqualcheck": {
+   "file": "scripts/teamqualcheck.mjs",
+   "desc": "v68 — a maxed team-quality tree is an edge, not the game",
+   "areas": [
+    "sim"
+   ],
+   "runtimeSec": 15,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "tiercheck": {
+   "file": "scripts/tiercheck.mjs",
+   "desc": "Dev check (v139 THE PROGRAM YOU PICKED IS THE TEAMS YOU FACE).",
+   "areas": [
+    "age"
+   ],
+   "runtimeSec": 15,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "traincheck": {
+   "file": "scripts/traincheck.mjs",
+   "desc": "v124 — training. That the high-risk programs take a real, named attribute off the sheet to pay for the one they build (and the safe ones still cost nothing); that the four volatile programs are a roll",
+   "areas": [
+    "smoke",
+    "plan",
+    "grades",
+    "training"
+   ],
+   "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v100check": {
+   "file": "scripts/v100check.mjs",
+   "desc": "v100 — the lighting dial",
+   "areas": [
+    "field",
+    "lights"
+   ],
+   "runtimeSec": 75,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v101check": {
+   "file": "scripts/v101check.mjs",
+   "desc": "v101 — the asset root (every sheet URL resolves against the document and is really served as its own file, not an index.html fallback, and the drawn player sheet registers), the playbook (42 named cal",
+   "areas": [
+    "playbook",
+    "stride",
+    "throw"
+   ],
+   "runtimeSec": 75,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v102check": {
+   "file": "scripts/v102check.mjs",
+   "desc": "v102 — the far four exactly where v98 fixed them and the key light still fixed",
+   "areas": [
+    "field",
+    "menu",
+    "lights"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v103check": {
+   "file": "scripts/v103check.mjs",
+   "desc": "v103 — most tackles arrive through a GRIP rather than ending on the spot",
+   "areas": [
+    "contact",
+    "tackle",
+    "launch",
+    "position",
+    "pile"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "and BOTH of them travel"
+   ]
+  },
+  "v104check": {
+   "file": "scripts/v104check.mjs",
+   "desc": "v104 — every registered player texture scanned for its kit bands and every pose that can show a number carrying one",
+   "areas": [
+    "field",
+    "kits",
+    "field-art"
+   ],
+   "runtimeSec": 80,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the broadcast is live with markers on the field"
+   ]
+  },
+  "v105check": {
+   "file": "scripts/v105check.mjs",
+   "desc": "v105 — a fresh save opens at 78% field perspective and the slider says so",
+   "areas": [
+    "camera",
+    "field",
+    "kits",
+    "field-art",
+    "throw"
+   ],
+   "runtimeSec": 370,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v107check": {
+   "file": "scripts/v107check.mjs",
+   "desc": "v107 — the registered throw frames really come from the v91 sheet (up, dn and ur are three different cycles, frame 4 differs from frame 0, and the borrowed sd/dr carry the quarter and the front)",
+   "areas": [
+    "field",
+    "field-art",
+    "throw",
+    "catch"
+   ],
+   "runtimeSec": 195,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the backpedal was drawn while the QB dropped back",
+    "the center is down in the three-point"
+   ]
+  },
+  "v108check": {
+   "file": "scripts/v108check.mjs",
+   "desc": "v108 — throwR/throwL/handoff/toss registered for every kit off the atlas's own cells (the two throw directions are two different drawings, the exchange frames differ from each other and from the idle)",
+   "areas": [
+    "field",
+    "field-art"
+   ],
+   "runtimeSec": 240,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "and a toss played toss_up0..4",
+    "a handoff played handoff_up0..4"
+   ]
+  },
+  "v109Acheck": {
+   "file": "scripts/v109Acheck.mjs",
+   "desc": "v109 A — the ball has a speed",
+   "areas": [
+    "feel",
+    "throw"
+   ],
+   "runtimeSec": 100,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the renderer reads the ball's numbers off the throw"
+   ]
+  },
+  "v109Bcheck": {
+   "file": "scripts/v109Bcheck.mjs",
+   "desc": "v109 B — the receiver finds the ball",
+   "areas": [
+    "feel",
+    "stride",
+    "catch"
+   ],
+   "runtimeSec": 420,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v109C1check": {
+   "file": "scripts/v109C1check.mjs",
+   "desc": "v109 C1 — the hit has a point",
+   "areas": [
+    "contact",
+    "tackle",
+    "launch",
+    "feel",
+    "pile"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "an instantaneous tackle with supporters emits one wrapIn per sup"
+   ]
+  },
+  "v109C2check": {
+   "file": "scripts/v109C2check.mjs",
+   "desc": "v109 C2 — the feet plant",
+   "areas": [
+    "feel",
+    "plant"
+   ],
+   "runtimeSec": 215,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v109Dcheck": {
+   "file": "scripts/v109Dcheck.mjs",
+   "desc": "v109 D — the game has a clock",
+   "areas": [
+    "feel",
+    "clock"
+   ],
+   "runtimeSec": 320,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v109Echeck": {
+   "file": "scripts/v109Echeck.mjs",
+   "desc": "v109 E — the broadcast",
+   "areas": [
+    "camera",
+    "field",
+    "feel",
+    "crew"
+   ],
+   "runtimeSec": 230,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v110check": {
+   "file": "scripts/v110check.mjs",
+   "desc": "v110 — the man who is there",
+   "areas": [
+    "smoke",
+    "contact",
+    "slots",
+    "position"
+   ],
+   "runtimeSec": 35,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [
+    "and the credit follows the man who made the play, never the man who was assigned"
+   ]
+  },
+  "v111Acheck": {
+   "file": "scripts/v111Acheck.mjs",
+   "desc": "v111 A dev check — THE MODEL AND THE ENGINE.",
+   "areas": [
+    "plan",
+    "snaps"
+   ],
+   "runtimeSec": 710,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "a focus does not reach the engine's attribute accessor"
+   ],
+   "timeoutSec": 3600
+  },
+  "v111Bcheck": {
+   "file": "scripts/v111Bcheck.mjs",
+   "desc": "Dev check: v111 (B) — THE PREGAME DECISION. Drives a real career to the pregame screen and",
+   "areas": [
+    "cuts",
+    "plan",
+    "pregame",
+    "wheel",
+    "snaps"
+   ],
+   "runtimeSec": 55,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v111Ccheck": {
+   "file": "scripts/v111Ccheck.mjs",
+   "desc": "Dev check: v111 C — the wear-and-tear section in the body card.",
+   "areas": [
+    "snaps"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v112Acheck": {
+   "file": "scripts/v112Acheck.mjs",
+   "desc": "v112 A — the chase is always ready",
+   "areas": [
+    "loader"
+   ],
+   "runtimeSec": 85,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "COLD: the first animated frame is painted inside the budget"
+   ]
+  },
+  "v112Bcheck": {
+   "file": "scripts/v112Bcheck.mjs",
+   "desc": "v112 B — the stadium. The masts are A/B'd against the dials put BACK to v98's values in the same page (height, width, foot row, face); every lamp pool is checked against the v103 turf quad and no mast",
+   "areas": [
+    "field",
+    "lights"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the lowest star sits at or above the bowl's own skyline",
+    "below the near apron the picture falls into the dark"
+   ]
+  },
+  "v112Ccheck": {
+   "file": "scripts/v112Ccheck.mjs",
+   "desc": "v112 C — who you start as",
+   "areas": [
+    "origin"
+   ],
+   "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v112Dcheck": {
+   "file": "scripts/v112Dcheck.mjs",
+   "desc": "v112 D — the pregame, one decision at a time (v136: seven pages built, six live on an ordinary week, YOUR SHEET last",
+   "areas": [
+    "smoke",
+    "plan",
+    "shell",
+    "age",
+    "summary",
+    "pregame",
+    "wheel",
+    "snaps",
+    "origin"
+   ],
+   "runtimeSec": 130,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v112Echeck": {
+   "file": "scripts/v112Echeck.mjs",
+   "desc": "v112 E — the camera finds the ball",
+   "areas": [
+    "camera"
+   ],
+   "runtimeSec": 375,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "and none of it broke the v109 spring"
+   ]
+  },
+  "v112Fcheck": {
+   "file": "scripts/v112Fcheck.mjs",
+   "desc": "v112 F — the hit has weight",
+   "areas": [
+    "contact",
+    "tackle",
+    "launch"
+   ],
+   "runtimeSec": 250,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v114check": {
+   "file": "scripts/v114check.mjs",
+   "desc": "v114 — the boot splash's film",
+   "areas": [
+    "loader"
+   ],
+   "runtimeSec": 85,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the loop is a TAIL"
+   ]
+  },
+  "v115check": {
+   "file": "scripts/v115check.mjs",
+   "desc": "v115 — the live game's loader plays the film",
+   "areas": [
+    "loader"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "and it is the FILM, not the chase",
+    "v132: the still of the landed wordmark is under the film"
+   ]
+  },
+  "v117check": {
+   "file": "scripts/v117check.mjs",
+   "desc": "One man, one slot. Sims 30 games and reads each snap's actor list: no roster player may hold two markers at once (the you-player is the probe — he is the man the old pool draw doubled, on 56% of his d",
+   "areas": [
+    "field",
+    "sim-keys",
+    "slots"
+   ],
+   "runtimeSec": 70,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v125check": {
+   "file": "scripts/v125check.mjs",
+   "desc": "v125 — what it takes to be #1 in the country",
+   "areas": [
+    "rank"
+   ],
+   "runtimeSec": 15,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v127check": {
+   "file": "scripts/v127check.mjs",
+   "desc": "v127 — the live game's loader with NOTHING parked",
+   "areas": [
+    "loader"
+   ],
+   "runtimeSec": 140,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "door two still plays the FILM"
+   ]
+  },
+  "v134check": {
+   "file": "scripts/v134check.mjs",
+   "desc": "v134 — the goals' table and screen (the DFL-title MVP at 10,000 PP, the Interstellar MVP at 1,000,000, the rest rescaled, the payouts printed with commas), softMaxOvrV134 above the current OVR and off",
+   "areas": [
+    "impossible",
+    "vault",
+    "pp-bank",
+    "goals"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v136check": {
+   "file": "scripts/v136check.mjs",
+   "desc": "v136 — the lineage, the bank, the rivalry spin and the sheet as the last page",
+   "areas": [
+    "career-uff",
+    "impossible",
+    "plan",
+    "age",
+    "vault",
+    "lineage",
+    "pp-bank",
+    "pregame"
+   ],
+   "runtimeSec": 95,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the coach's persona stop opens on the father",
+    "Settings is where the family name changes"
+   ]
+  },
+  "v141check": {
+   "file": "scripts/v141check.mjs",
+   "desc": "v141 — every stat is on the field",
+   "areas": [
+    "sim-keys"
+   ],
+   "runtimeSec": 55,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v142check": {
+   "file": "scripts/v142check.mjs",
+   "desc": "v142 — every stat says what it does",
+   "areas": [
+    "smoke",
+    "statinfo"
+   ],
+   "runtimeSec": 25,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v143check": {
+   "file": "scripts/v143check.mjs",
+   "desc": "v143 — the tackle is a move",
+   "areas": [
+    "contact",
+    "tackle"
+   ],
+   "runtimeSec": 170,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v144check": {
+   "file": "scripts/v144check.mjs",
+   "desc": "v144 — the ground, the sky, the gap and the age",
+   "areas": [
+    "smoke",
+    "camera",
+    "field"
+   ],
+   "runtimeSec": 75,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [
+    "D: both goalposts are drawn standing in a pad",
+    "a shuffle, not a sprint"
+   ],
+   "loadSensitive": true
+  },
+  "v145check": {
+   "file": "scripts/v145check.mjs",
+   "desc": "v145 — the camera follows him",
+   "areas": [
+    "camera"
+   ],
+   "runtimeSec": 280,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v146Acheck": {
+   "file": "scripts/v146Acheck.mjs",
+   "desc": "v146 A — no phantom downs: a taken sack is only booked with the rusher on the QB (braced spot, yards unmoved)",
+   "areas": [
+    "contact"
+   ],
+   "runtimeSec": 720,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v146Bcheck": {
+   "file": "scripts/v146Bcheck.mjs",
+   "desc": "v146 B — DFL entry opens three offers (OVR, snap share, depth",
+   "areas": [
+    "smoke",
+    "career-uff",
+    "league",
+    "cuts"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v146Ccheck": {
+   "file": "scripts/v146Ccheck.mjs",
+   "desc": "v146 C — the Impossible branch: Evergreen gone and refunded exactly once, every node ≥100K, Crack the Wall bought through window.buy cuts window.alloc's over-wall price 5→4, every other node moves its",
+   "areas": [
+    "impossible"
+   ],
+   "runtimeSec": 50,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v146Dcheck": {
+   "file": "scripts/v146Dcheck.mjs",
+   "desc": "v146 D — the plan board (chosen, not rolled",
+   "areas": [
+    "gear",
+    "plan"
+   ],
+   "runtimeSec": 745,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v146Echeck": {
+   "file": "scripts/v146Echeck.mjs",
+   "desc": "v146 E — the shell. Walks a career at 400x860 (CHECK_W/CHECK_H) through every career screen and tab: the page never scrolls, every screen fits its panel, the header sits at y=0 with the ticker, the ta",
+   "areas": [
+    "smoke",
+    "career-uff",
+    "gear",
+    "shell"
+   ],
+   "runtimeSec": 130,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v147Acheck": {
+   "file": "scripts/v147Acheck.mjs",
+   "desc": "v147 A — for a UFF and an Interstellar save at 400x860 touch: one tap sims the whole season, playoffs included, to the report card",
+   "areas": [
+    "career-uff"
+   ],
+   "runtimeSec": 590,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "DFL: with one week left and a playoff record, one tap plays the last week AND the playoffs"
+   ],
+   "timeoutSec": 2400
+  },
+  "v147Bcheck": {
+   "file": "scripts/v147Bcheck.mjs",
+   "desc": "v147 B — the menu's prestige coin (loaded, no ★ left for prestige), the OVR ring's spark vs the drawn arc end in pixels at nine OVR / soft-max pairs (≤2px, ≤1.5°), the UFF trophy loads and card_trophy.webp is gone",
+   "areas": [
+    "menu-coin"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v147Ccheck": {
+   "file": "scripts/v147Ccheck.mjs",
+   "desc": "v147 C — gear modifiers: rarity bands over 2,500 rolls, 40–50 unique catalogue keys, roll stable across reload, one-time id-keyed migration, 17 hooks move when equipped and restore when unequipped, ca",
+   "areas": [
+    "smoke",
+    "gear"
+   ],
+   "runtimeSec": 50,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v147Dcheck": {
+   "file": "scripts/v147Dcheck.mjs",
+   "desc": "v147 D — the camera at 4×: captures live plays, freezes their scripts and replays them at 1× and 4× (MODES=) with v147 D off and on",
+   "areas": [
+    "camera"
+   ],
+   "runtimeSec": 675,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v85check": {
+   "file": "scripts/v85check.mjs",
+   "desc": "v85 — ratings past 99 (a prestiged NFL side clears 99 on Wr and teamPairV76), the wheel in the background (quick play and sim-the-rest book every week through ca() with a wheelV85 record and nothing o",
+   "areas": [
+    "smoke",
+    "career-uff",
+    "gear",
+    "cuts",
+    "plan",
+    "combine",
+    "pp-bank",
+    "wheel",
+    "goals",
+    "coach",
+    "ovr",
+    "rank",
+    "story",
+    "snaps",
+    "origin",
+    "training",
+    "rivalry"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v86check": {
+   "file": "scripts/v86check.mjs",
+   "desc": "v86 — the seven no-new-art animations, watched on a live game for ~90s (READ_POS, V86_MS, V86_SHOTS=1 writes scripts/_v86_post*.png / _v86_pre*.png from the game's own framebuffer): post-play phases r",
+   "areas": [
+    "camera",
+    "contact",
+    "field",
+    "tackle",
+    "between-plays",
+    "badges",
+    "kits",
+    "lights",
+    "endzones",
+    "field-art",
+    "pile",
+    "plant",
+    "crew"
+   ],
+   "runtimeSec": 185,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v87check": {
+   "file": "scripts/v87check.mjs",
+   "desc": "v87 — sims games at CB, LB and QB with the sim wrapped for truth: coverage share by alignment (a corner covers 5–42% of targets, a linebacker <20%), pass break-ups ≤ the sim's swats by you, zero throw",
+   "areas": [
+    "field",
+    "coverage",
+    "catch"
+   ],
+   "runtimeSec": 130,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v88check": {
+   "file": "scripts/v88check.mjs",
+   "desc": "v88 — the promotion curve on its own (#1 near-certain at every level, the last man inside the advancing share a coin flip, well outside single digits, monotonic) and the integration: a combine player",
+   "areas": [
+    "career-uff",
+    "cuts",
+    "combine",
+    "rank"
+   ],
+   "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v90check": {
+   "file": "scripts/v90check.mjs",
+   "desc": "v90 — a queued story stage no longer stops sim-the-rest (answered and rolled in the background through the game's own resolver, recorded on the week, no card left on screen), the choice rule (safest a",
+   "areas": [
+    "career-uff",
+    "story"
+   ],
+   "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v91check": {
+   "file": "scripts/v91check.mjs",
+   "desc": "v91 — drives a live game and asserts the field sheet decoded and registered for every team (run x5 facings, cut, 8-frame get-up, celebration, plant, hurt, 24 ball frames), the recolour reached the new",
+   "areas": [
+    "field",
+    "kits",
+    "field-art",
+    "catch"
+   ],
+   "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v92check": {
+   "file": "scripts/v92check.mjs",
+   "desc": "v92 (park window made snap-aware in v100: the career app starts the next snap from its own timer, which re-centres the camera and puts the feed back to LIVE from outside the paused scene, so the readi",
+   "areas": [
+    "field",
+    "kits",
+    "lights"
+   ],
+   "runtimeSec": 105,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the whistle freezes the feed into a replay still"
+   ]
+  },
+  "v93check": {
+   "file": "scripts/v93check.mjs",
+   "desc": "v93 — the schedule alternates home weeks",
+   "areas": [
+    "field",
+    "endzones"
+   ],
+   "runtimeSec": 55,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "(throws: teamNames of undefined)"
+   ]
+  },
+  "v98check": {
+   "file": "scripts/v98check.mjs",
+   "desc": "v98 — drives a live game and asserts the legend and the pulse bars are gone, the scorebug's variables come from the two kits and both scores glow in their palettes (not the old green/red), the four ma",
+   "areas": [
+    "camera",
+    "field",
+    "lights",
+    "crew"
+   ],
+   "runtimeSec": 105,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v99check": {
+   "file": "scripts/v99check.mjs",
+   "desc": "v99 — the shadows. Drives a live game and asserts the key light is a real mast that never moves and does not sway, that every mast holds one lamp frame with a steady output (no cycling), that all 22 s",
+   "areas": [
+    "field",
+    "kits",
+    "lights",
+    "playbook"
+   ],
+   "runtimeSec": 110,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the key light is a real mast on the stadium"
+   ]
+  },
+  "vaultcheck": {
+   "file": "scripts/vaultcheck.mjs",
+   "desc": "The Prestige Vault (v137)",
+   "areas": [
+    "impossible",
+    "shell",
+    "boot",
+    "vault"
+   ],
+   "runtimeSec": 105,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
+   "flaky": [
+    "the vault holds a usable frame rate under a 16x pour",
+    "and then it goes to sleep"
+   ]
+  },
+  "walk": {
+   "file": "scripts/walk.mjs",
+   "desc": "Click through screens by button text: node scripts/walk.mjs \"START NEW CAREER\" \"ARCH\" …, screenshotting each step",
+   "areas": [
+    "smoke",
+    "career-uff",
+    "gear",
+    "league",
+    "cuts",
+    "impossible",
+    "plan",
+    "shell",
+    "field",
+    "statinfo",
+    "boot",
+    "age",
+    "lineage",
+    "pregame",
+    "wheel",
+    "goals",
+    "grow",
+    "coach",
+    "loader",
+    "origin",
+    "clock",
+    "names",
+    "honors",
+    "rivalry",
+    "ui"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "wheelcheck": {
+   "file": "scripts/wheelcheck.mjs",
+   "desc": "v50 decision wheel (v135: the pregame section walks to the wizard's fifth page, proves nothing spun over the season screen, that the wheel lands on the held pick, that CONTINUE leaves it standing and",
+   "areas": [
+    "plan",
+    "age",
+    "pregame",
+    "wheel",
+    "ovr",
+    "training"
+   ],
+   "runtimeSec": 80,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "yardfitcheck": {
+   "file": "scripts/yardfitcheck.mjs",
+   "desc": "v139 THE PICTURE OBEYS THE NUMBER — the broadcast must depict the yardage the box",
+   "areas": [
+    "sim"
+   ],
+   "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "layoutcheck": {
+   "file": "scripts/layoutcheck.mjs",
+   "desc": "v149 A — the src/ split: the page + src/ files put back together equal the old single file's structure, no code leaked into the markup, one script tag per block.",
+   "areas": [
+    "smoke",
+    "layout"
+   ],
+   "runtimeSec": 5,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": true,
+   "flaky": []
+  },
+  "v148check": {
+   "file": "scripts/v148check.mjs",
+   "desc": "v148 — the field keeps one vertical density all drive: yard spacing near both goal lines, overlays on the painted lines, every camera mode.",
+   "areas": [
+    "field",
+    "camera"
+   ],
+   "runtimeSec": 240,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v149Echeck": {
+   "file": "scripts/v149Echeck.mjs",
+   "desc": "v149 E — the monetization module: OFF changes nothing; ON (dev flag) the mock rewarded ad, Pro, entitlements outside the save, the store screen.",
+   "areas": [
+    "monetize"
+   ],
+   "runtimeSec": 300,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v149Dcheck": {
+   "file": "scripts/v149Dcheck.mjs",
+   "desc": "v149 D — PWA + platform: manifest/icons, the service worker precache and offline play on a built site, freshness with a worker, Capacitor stub (back button, haptics, no SW), dialogs, save file/backups.",
+   "areas": [
+    "pwa"
+   ],
+   "runtimeSec": 420,
+   "slow": true,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": []
+  }
+ }
+}

@@ -55,6 +55,36 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v149 E — the store is wired, and switched off.** `src/27-monetize.js` is `window.RIB_MONETIZE`: a
+  provider-agnostic monetization module behind ONE master switch, `MONETIZE_ENABLED`, that ships `false` —
+  while off it defines the API and does nothing else (no wrapper, no DOM, no timer, no storage write;
+  `v149Echeck.mjs` proves it against a boot with the file blocked). Switched on (`?monetize=1` on a dev host
+  only, or an injected `RIB_MONETIZE_CONFIG`) it gates 4× behind a `speed4` entitlement (opt-in rewarded ad:
+  20 minutes; PRO: permanent; grandfathered for a device that already had a career), offers "double this
+  payout" on the career-end screens, adds a STORE chip to the shell's top bar and a Store / PRO screen, and
+  keeps entitlements in their own versioned, tagged localStorage key — never in the save. Providers: a
+  working `mock`, and stubs for AdMob, RevenueCat (StoreKit / Play Billing) and a Stripe web path.
+  `docs/MONETIZATION.md` is the model, catalogue, policy notes, in-game hook list and the owner's decisions;
+  `docs/COMMERCIAL.md`'s "premium $2.99, no ads, no IAP" row is now marked open.
+- **v149 D — it installs.** The built site is a PWA and the repo is ready for Capacitor. `vite build` and the Pages
+  assembly finish with `scripts/lib/pwa.mjs`: the page gets `<meta name="rib-sw">` and a `sw.js` (template
+  `pwa/sw.js`) precaching the page, every `src/` file as stamped, the menu and every sheet (~13 MB, by content
+  revision; the film encodes stream). Navigations are network-first, so v106.1's freshness reload is unchanged and
+  its `cache:'reload'` fetch passes through; offline, the last page and a career keep going. A deploy is a new
+  worker that re-fetches only what moved. `src/26-platform.js` (loaded last, attaches to existing hooks, edits no
+  game code) adds `ribDialog` (in-app confirm / prompt / alert / frame), `ribSave` (export to a file, import
+  through a reload so the boot migrates it, and a rolling backup of the last five distinct saves — session start,
+  each new season, every 10 minutes — restorable from Settings › Save File & Backups), `ribHaptics`, and the native
+  shell: Android back walks the views and exits at the menu (never out of a live game or a decision), the v106.1
+  probe is held, no worker, `navigator.vibrate` → Capacitor Haptics, keep-awake in a live game (Wake Lock on the
+  web), a blank `window.open` becomes an in-app frame, and the save is mirrored to Preferences against an iOS
+  purge. New icons are cut from the film's crest (`scripts/build-app-icons.py`, `resources/` for
+  `@capacitor/assets`); `capacitor.config.json` points at `dist/` with Capacitor 8 + plugins in `package.json`
+  (`npm run cap:sync|cap:android|cap:ios`). `docs/APP-STORE.md` is the release checklist (accounts, signing, sizes,
+  age rating, data safety, loot boxes — earned, never sold — trademark, and the art-provenance finding:
+  132 source images carry OpenAI "AI-generated" credentials, `docs/ART-PROVENANCE.md`), with `docs/PRIVACY.md` /
+  `docs/TERMS.md` templates. Gate: `scripts/v149Dcheck.mjs`.
+
 - **v148 — the lines hold to the goal line.** Near the end zone being attacked the field was squashed top to
   bottom: the row density (`VB` — canvas rows per unit of ground) was re-capped every snap so the WHOLE field
   fit the 2800-row warp canvas measured from the anchor, and the anchor rides the LOS, so the further the drive

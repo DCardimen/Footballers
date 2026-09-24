@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { stampLayoutRefs, layoutFiles } from './lib/layout.mjs'
+import { writeServiceWorker } from './lib/pwa.mjs'
 
 const root = process.cwd()
 const outputDir = path.resolve(root, process.argv[2] || '_site')
@@ -107,9 +108,15 @@ for (const asset of menuArt) requireFile(path.resolve(outputDir, 'public', asset
   for (const name of names) requireFile(path.resolve(outputDir, 'public', manifest.sprites[name].file))
 }
 
+// v149 D: the offline worker — <meta name="rib-sw"> into the page, sw.js with a content-hashed precache beside it
+// (scripts/lib/pwa.mjs; the worker is pwa/sw.js). Its version IS the build's, so a deploy is a new worker.
+const sw = writeServiceWorker(outputDir, { version })
+if (!fs.readFileSync(indexPath, 'utf8').includes('name="rib-sw"')) throw new Error('The service-worker meta did not land in index.html')
+for (const f of ['manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png']) requireFile(path.resolve(outputDir, 'public', f))
+
 fs.writeFileSync(
   path.resolve(outputDir, 'rib-build.json'),
-  `${JSON.stringify({ version, generatedAt: new Date().toISOString(), directIndexMenu: true, menuCss, menuJs, menuArt, layout }, null, 2)}\n`,
+  `${JSON.stringify({ version, generatedAt: new Date().toISOString(), directIndexMenu: true, menuCss, menuJs, menuArt, layout, sw: { entries: sw.entries, required: sw.required, bytes: sw.bytes } }, null, 2)}\n`,
 )
 
 console.log(`Assembled direct-index GitHub Pages site in ${path.relative(root, outputDir)} (${version})`)

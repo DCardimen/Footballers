@@ -14,8 +14,9 @@
 //      arm still fired from `up`), and the pickup / blitz / linebackerDrop cases fired.
 //   node scripts/v109Echeck.mjs        (GAME_URL=http://localhost:5186/, READ_POS=RB, V109_MS=150000)
 import { chromium } from 'playwright'
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const URL = GAME_URL
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

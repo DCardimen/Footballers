@@ -1,8 +1,9 @@
 import { chromium } from 'playwright'
+import { CHROME, gameUrl } from './lib/env.mjs'
 /* v89 menu QA: screenshots the LIVE main menu at a set of sizes. CAREER=1 starts a career and
  * plays three silent weeks first so the card, season row and latest game are populated.
  *   SIZES=390x844,900x1100 OUT=/tmp/menu CAREER=1 node scripts/menushot.mjs */
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const out = process.env.OUT || 'menu_now'
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 for (const [w, h] of (process.env.SIZES || '390x844,430x932,900x1100').split(',').map(x => x.split('x').map(Number))) {
@@ -10,7 +11,7 @@ for (const [w, h] of (process.env.SIZES || '390x844,430x932,900x1100').split(','
   const page = await context.newPage()
   const errors = []; page.on('pageerror', e => errors.push(e.message))
   await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-  await page.goto(process.env.URL || 'http://127.0.0.1:5173/index.html', { waitUntil: 'domcontentloaded', timeout: 30000 })
+  await page.goto(process.env.URL || gameUrl('index.html'), { waitUntil: 'domcontentloaded', timeout: 30000 })
   await page.waitForSelector('#rib-main-menu-v2', { state: 'attached', timeout: 20000 })
   await page.waitForFunction(() => document.documentElement.classList.contains('rib-assets-ready'), null, { timeout: 30000 }).catch(() => {})
   if (process.env.CAREER) {

@@ -15,10 +15,11 @@
 //   B (the COACH'S SUMMARY button on the report card) is proven in coachcheck.mjs, which plays to the card.
 //   node scripts/v136check.mjs        (GAME_URL, SHOT=dir)
 import { chromium } from 'playwright'
-const URL = process.env.GAME_URL || 'http://localhost:5173/', SHOT = process.env.SHOT || ''
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const URL = GAME_URL, SHOT = process.env.SHOT || ''
 let pass = 0, fail = 0; const errs = []
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 400, height: 860 } })
 page.on('pageerror', e => errs.push(String(e.message || e).slice(0, 120) + ' @ ' + String(e.stack || '').split('\n').slice(1, 3).join(' ').slice(0, 220)))
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`

@@ -8,12 +8,13 @@
  * further than a football field is long. The ball is then spotted on the credited
  * number, so the next snap starts somewhere the viewer did not watch the play end. */
 import { chromium } from 'playwright'
+import { CHROME, gameUrl } from './lib/env.mjs'
 const YD = 5.88
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
-await page.goto('http://localhost:5173/?stayStale&noFilmV114', { waitUntil: 'networkidle', timeout: 45000 })
+await page.goto(gameUrl('?stayStale&noFilmV114'), { waitUntil: 'networkidle', timeout: 45000 })
 await page.waitForTimeout(1200)
 await page.evaluate(() => { try { window.__splashDoneV94() } catch (e) {} })
 await page.waitForFunction(() => !!window.__GRIDIRON_AUDIT__ && !!window.__FieldSim, null, { timeout: 60000 })

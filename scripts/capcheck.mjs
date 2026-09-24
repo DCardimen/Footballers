@@ -12,13 +12,14 @@
 // tracks the points as they are spent. The badges must also agree with drCost —
 // a decorative badge that drifts from the real charge is worse than none.
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 1000 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 25000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 25000 })
 await page.waitForTimeout(1400)
 
 let pass = 0, fail = 0

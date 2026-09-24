@@ -21,8 +21,9 @@
 //   npm run dev            # leave running
 //   node scripts/heroflashcheck.mjs
 import { chromium } from 'playwright'
+import { CHROME, gameUrl } from './lib/env.mjs'
 
-const URL = 'http://127.0.0.1:5173/index.html?stayStale'
+const URL = gameUrl('index.html?stayStale')
 const SIZES = [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 900, height: 1100 }]
 const RUN_MS = 6000
 const LUMA_MIN = 70, WARM_MIN = 20, MASK_MAX = 8   // crowd, not wall; and not on the man
@@ -43,7 +44,7 @@ const inPoly = (poly, x, y) => {
   return hit
 }
 
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const out = {}
 
 for (const size of SIZES) {

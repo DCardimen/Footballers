@@ -1,11 +1,12 @@
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 /* v90 — the rolls happen in the background; the upgrade sheet rounds; the ring is out of 250.
  *   node scripts/v90check.mjs   (dev server on :5173) */
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await (await browser.newContext({ viewport: { width: 430, height: 932 } })).newPage()
 const errs = []; page.on('pageerror', e => errs.push(e.message))
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 25000 }); await page.waitForTimeout(1200)
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 25000 }); await page.waitForTimeout(1200)
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`

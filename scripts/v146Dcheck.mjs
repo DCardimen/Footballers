@@ -23,8 +23,9 @@
 //     Execution's and matches the ±pts/√3 the card states.
 //   node scripts/v146Dcheck.mjs        (GAME_URL, POS=RB,WR,LB (any of QB/RB/WR/TE/DL/LB/CB/S), M=36 booked games a config, NB=30 baseline games, SHOT=dir)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
+const URL = GAME_URL
 const POSS = (process.env.POS || 'RB,WR,LB').split(',').map(s => s.trim()).filter(Boolean)
 const M = +(process.env.M || 36), NB = +(process.env.NB || 30)
 const SHOT = process.env.SHOT || '/tmp/claude-0/shots'
@@ -34,7 +35,7 @@ let pass = 0, fail = 0
 const errs = []
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const vis = `el => { if(!el) return false; const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 
 async function openPage() {
   const page = await browser.newPage({ viewport: { width: 400, height: 860 } })

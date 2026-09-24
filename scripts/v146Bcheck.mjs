@@ -21,10 +21,11 @@
 //   node scripts/v146Bcheck.mjs   (GAME_URL=http://localhost:5302/ to point it elsewhere)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const url = process.env.GAME_URL || 'http://localhost:5173/'
+const url = GAME_URL
 const SHOT = process.env.SHOT || ''
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const b = await chromium.launch({ executablePath: CHROME })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + (typeof d === 'string' ? d : JSON.stringify(d)) : '')); c ? pass++ : fail++ }
 const errs = []

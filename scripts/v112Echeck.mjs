@@ -20,10 +20,11 @@
 //   node scripts/v112Echeck.mjs   (GAME_URL=http://localhost:5205/index.html, READ_POS=RB, V112_MS=110000)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
+const URL = GAME_URL
 const SHOTS = process.env.V112_SHOTS || ''
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 400, height: 860 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

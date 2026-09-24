@@ -13,8 +13,9 @@
 // Parts 1-2 run headless off window.__GROWTH_V42; part 3 drives the real overlay
 // in a live career and times it. Exits non-zero on any failure.
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
@@ -22,7 +23,7 @@ page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.te
 await page.addInitScript(() => {
   setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60)
 })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 20000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 20000 })
 await page.waitForTimeout(1200)
 
 const fails = []

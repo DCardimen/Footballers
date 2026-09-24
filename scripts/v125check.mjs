@@ -12,11 +12,12 @@
 // the numbers the rank now demands and stays ordered; and the ranking itself is much harder —
 // the season that used to finish #1 in the country now finishes well down the board.
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+import { CHROME, gameUrl } from './lib/env.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 1000 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
-await page.goto('http://localhost:5173/?stayStale', { waitUntil: 'networkidle', timeout: 25000 })
+await page.goto(gameUrl('?stayStale'), { waitUntil: 'networkidle', timeout: 25000 })
 await page.waitForTimeout(1400)
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }

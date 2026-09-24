@@ -9,6 +9,7 @@
 // pre-v109 `scrim` (80.4 ±2 on the 300-game baseline).
 import { chromium } from 'playwright'
 import { writeFileSync } from 'fs'
+import { GAME_URL } from './lib/env.mjs'
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
@@ -27,7 +28,7 @@ if (process.env.SEED || process.env.TUNE) await page.addInitScript(({ t, seed })
   if (seed) { let s = seed >>> 0
     Math.random = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let v = Math.imul(s ^ s >>> 15, 1 | s); v = v + Math.imul(v ^ v >>> 7, 61 | v) ^ v; return ((v ^ v >>> 14) >>> 0) / 4294967296 } }
 }, { t: TUNE_SN, seed: Number(process.env.SEED || 0) })
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
+const URL = GAME_URL
 await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
 await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(2500)   // v109: warm past vite's one-time reload after an edit, like the other checks
 await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 })

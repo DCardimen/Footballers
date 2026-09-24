@@ -19,12 +19,13 @@
 //   node scripts/v147Dcheck.mjs   (GAME_URL=…, READ_POS=RB, PLAYS=10, SPEEDS=1,4, MODES=0,4, TOL, CAP,
 //   PROBE=1 prints only, CONFIGS='[{"name":…,"tune":{…},"speeds":[4]}]' to sweep the dials)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
+const URL = GAME_URL
 const SPEEDS = (process.env.SPEEDS || '1,4').split(',').map(Number)
 const MODES = (process.env.MODES || '0,4').split(',').map(Number)
 const TOL = +(process.env.TOL || 1.2), CAP = +(process.env.CAP || 2), PROBE = !!process.env.PROBE
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 400, height: 860 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

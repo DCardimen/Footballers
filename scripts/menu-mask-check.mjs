@@ -14,8 +14,9 @@
 //   node scripts/menu-mask-check.mjs           (dev server on :5173)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const URL = process.env.MENU_INTEGRATION_URL || 'http://127.0.0.1:5173/index.html'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, gameUrl } from './lib/env.mjs'
+const URL = process.env.MENU_INTEGRATION_URL || gameUrl('index.html')
+const browser = await chromium.launch({ executablePath: CHROME })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 

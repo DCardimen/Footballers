@@ -1,6 +1,7 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+import { CHROME } from './lib/env.mjs'
+const b = await chromium.launch({ executablePath: CHROME })
 const page = await b.newPage({ viewport: { width: 900, height: 900 } })
 await page.goto('file:///tmp/vid/')
 const info = await page.evaluate(async () => {

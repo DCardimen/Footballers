@@ -5,9 +5,10 @@
 // engine is inlined in index.html, so no production build is needed).
 import { chromium } from 'playwright';
 import { run as nodeRun, dayKey as nodeDayKey, ROUNDS } from './daily-engine.mjs';
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const BROWSER = process.env.PLAYWRIGHT_CHROMIUM || '/opt/pw-browsers/chromium';
-const URL = process.env.URL || 'http://localhost:5173/';
+const BROWSER = CHROME;
+const URL = process.env.URL || GAME_URL;
 
 // build a parity matrix in Node
 const seeds = [20260810, 20260811, 20260812, 20260101, 20251231];

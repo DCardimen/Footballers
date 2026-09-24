@@ -1,7 +1,8 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
+import { CHROME, gameUrl } from './lib/env.mjs'
 
-const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined) })
+const browser = await chromium.launch({ headless: true, executablePath: CHROME })
 const context = await browser.newContext({
   viewport: { width: 358, height: 768 },
   deviceScaleFactor: 2,
@@ -11,7 +12,7 @@ const context = await browser.newContext({
 const page = await context.newPage()
 const errors = []
 page.on('pageerror', error => errors.push(error.message))
-await page.goto('http://127.0.0.1:5173/menu-preview.html?menuPreview=1', { waitUntil: 'domcontentloaded', timeout: 30000 })
+await page.goto(gameUrl('menu-preview.html?menuPreview=1'), { waitUntil: 'domcontentloaded', timeout: 30000 })
 await page.waitForSelector('#rib-main-menu-v2', { state: 'attached', timeout: 20000 })
 await page.waitForFunction(() => document.documentElement.classList.contains('rib-assets-ready'), null, { timeout: 30000 })
 await page.waitForTimeout(300)

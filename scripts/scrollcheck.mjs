@@ -6,6 +6,7 @@
 // fine, a screen that needs three is a screen whose primary control the player cannot
 // see. `worst` is the number that matters — the deepest screen in the loop.
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
 const W = +(process.env.SCROLL_W || 390), H = +(process.env.SCROLL_H || 844)
 const LIMIT = +(process.env.SCROLL_LIMIT || 1.35)   // screens of overflow we accept
@@ -16,14 +17,14 @@ const LIMIT = +(process.env.SCROLL_LIMIT || 1.35)   // screens of overflow we ac
 // to LIMIT.
 const BUDGET = { 'prestige tree': +(process.env.SCROLL_LIMIT_SHOP || 1.7) }
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: W, height: H } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 await page.addInitScript(() => {
   setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60)
 })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 25000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 25000 })
 await page.waitForTimeout(1600)
 
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`

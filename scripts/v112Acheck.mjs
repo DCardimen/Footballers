@@ -23,15 +23,16 @@
 //   GAME_URL=http://localhost:5201/index.html node scripts/v112Acheck.mjs
 import { chromium } from 'playwright'
 import { createHash } from 'node:crypto'
+import { CHROME, gameUrl } from './lib/env.mjs'
 
 // v114 put the title film on the boot splash, so the SPLASH assertions below — the ones that
 // watch the chase paint its first frame and keep drawing — boot ?noFilmV114. What v112 A warms
 // is the v91 sheet, and the sheet still feeds the chase on that fallback and, more to the point,
 // door two: the live game's loader, which is the loading scene a player actually sees over and
 // over, and which v114 does not touch. The warm itself is measured on the unmodified page.
-const URL = process.env.GAME_URL || 'http://localhost:5173/index.html'
+const URL = gameUrl('index.html')
 const CHASE_URL = URL + (URL.includes('?') ? '&' : '?') + 'noFilmV114'
-const EXE = process.env.CHROME_PATH || '/opt/pw-browsers/chromium'
+const EXE = CHROME
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 

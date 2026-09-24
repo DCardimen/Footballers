@@ -15,7 +15,8 @@
 //   4. The near end (LOS on the own 3) still draws the v144 apron and the paint there still registers.
 // Usage: npm run dev, then: node scripts/v148check.mjs   (GAME_URL=…, KILL=1 runs with TU("v148",0))
 import { chromium } from 'playwright'
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
+import { GAME_URL } from './lib/env.mjs'
+const URL = GAME_URL
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })

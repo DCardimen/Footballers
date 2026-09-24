@@ -1,12 +1,13 @@
 // Dev check: the box score may only credit plays the user's roster actor actually made (or was in the pile for). node scripts/statcreditcheck.mjs
 // v18 check: stat credit must match the involved flag and play events
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 20000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 20000 })
 await page.waitForTimeout(1200)
 async function click(t) {
   await page.evaluate((t) => {

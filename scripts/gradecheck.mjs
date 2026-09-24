@@ -12,11 +12,12 @@
 //   * a stat at its cap is RED on every program; a key stat with a real gain is GREEN
 //   node scripts/gradecheck.mjs
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
-const URL = process.env.URL || 'http://localhost:5173/'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const URL = process.env.URL || GAME_URL
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 420, height: 900 } }); const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 await page.addInitScript(() => { try { localStorage.setItem('rib.coachTour.v119', 'off') } catch {} setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })

@@ -8,17 +8,18 @@
 //   - the stakes are stated BEFORE the roll, on both screens that offer it
 // node scripts/declarecheck.mjs   (needs `npm run dev` on :5173)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
 const fails = []
 const ok = (c, label, detail) => { console.log(`${c ? 'ok  ' : 'FAIL'} ${label}${detail ? '  ' + detail : ''}`); if (!c) fails.push(label) }
 
-const b = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM || '/opt/pw-browsers/chromium' })
+const b = await chromium.launch({ executablePath: CHROME })
 const page = await b.newPage({ viewport: { width: 520, height: 1100 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.S) window.S.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto(process.env.DECLARE_URL || 'http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 })
+await page.goto(process.env.DECLARE_URL || GAME_URL, { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(1200)
 
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`

@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { defineConfig } from 'vite'
 import { stampLayoutRefs } from './scripts/lib/layout.mjs'
+import { writeServiceWorker } from './scripts/lib/pwa.mjs'
 
 /* v101: the shipped site (scripts/assemble-pages.mjs) keeps every runtime asset under
  * ./public/ next to index.html, and index.html asks for them there through
@@ -59,8 +60,26 @@ function shipSrcDir() {
   }
 }
 
+/* v149 D IT INSTALLS: once dist/ is whole (the public/ mirror and src/ copied — both synchronous closeBundle
+ * hooks earlier in the list), mark the page for the worker and write dist/sw.js with its precache manifest
+ * (scripts/lib/pwa.mjs). Build only: `vite` dev never gets the meta, so it never registers a worker. */
+function serviceWorker() {
+  return {
+    name: 'rib-service-worker',
+    apply: 'build',
+    closeBundle: {
+      sequential: true,
+      order: 'post',
+      handler() {
+        const r = writeServiceWorker(path.resolve(process.cwd(), 'dist'), { version: process.env.RIB_BUILD_VERSION })
+        console.log(`[rib-sw] dist/sw.js ${r.version}: ${r.entries} files (${r.required} required), ${(r.bytes / 1048576).toFixed(1)} MB precache`)
+      },
+    },
+  }
+}
+
 export default defineConfig({
   server: { host: true, port: 5173 },
   build: { target: 'es2020' },
-  plugins: [serveSrcRaw(), mirrorPublicDir(), shipSrcDir()],
+  plugins: [serveSrcRaw(), mirrorPublicDir(), shipSrcDir(), serviceWorker()],
 })

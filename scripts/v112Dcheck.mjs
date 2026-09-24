@@ -24,8 +24,9 @@
 //     wheel assertions instead, with planWheelV146 = 1 (the dial that restores the wheel).
 //   node scripts/v112Dcheck.mjs        (GAME_URL, POS=RB, SHOT=dir, WHEEL=1)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
+const URL = GAME_URL
 const POS = process.env.POS || 'RB'
 const SHOT = process.env.SHOT || 'scripts/_v112D'
 const WHEEL = !!process.env.WHEEL   // v146 D: the wheel is behind planWheelV146 now
@@ -35,7 +36,7 @@ let pass = 0, fail = 0
 const errs = []
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 // 400px on purpose — the complaint this whole version answers is that the screen was a wall on a phone
 const page = await browser.newPage({ viewport: { width: 400, height: 900 } })
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

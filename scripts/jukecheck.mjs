@@ -2,9 +2,10 @@
 // one-on-one juke probability across matchups and per-play evasion rates for
 // controlled superstar/scrub rosters. Usage: npm run dev, then: node scripts/jukecheck.mjs
 import { chromium } from 'playwright'
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const b = await chromium.launch({ executablePath: CHROME })
 const page = await b.newPage({ viewport: { width: 520, height: 900 } })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(800)
 const out = await page.evaluate(() => {
   const FS = window.__FieldSim

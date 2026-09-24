@@ -6,14 +6,18 @@
   "start_url": "../",
   "scope": "../",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
   "orientation": "portrait",
   "background_color": "#070b12",
-  "theme_color": "#16281b",
+  "theme_color": "#070b12",
+  "lang": "en",
+  "dir": "ltr",
   "categories": ["games", "sports"],
+  "prefer_related_applications": false,
   "icons": [
-    { "src": "icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
     { "src": "icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
     { "src": "icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "icon-maskable-192.png", "type": "image/png", "sizes": "192x192", "purpose": "maskable" },
     { "src": "icon-maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
   ]
 }

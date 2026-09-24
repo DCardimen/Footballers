@@ -10,8 +10,9 @@
 //     running man's drawn facing flipped 180° in one frame.
 //   GAME_URL=http://localhost:5173/ node scripts/v109C2check.mjs        (READ_POS=RB)
 import { chromium } from 'playwright'
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const URL = GAME_URL
+const browser = await chromium.launch({ executablePath: CHROME })
 const errs = [], bad = []
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
