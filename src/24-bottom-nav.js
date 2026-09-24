@@ -26,7 +26,7 @@
 
   function state() {
     try {
-      var S = window.S || window.o;
+      var S = window.S;
       if (!S || !S.player) return null;
       if (OFF[S.view]) return null;
       if (document.querySelector(OVERLAYS)) return null;

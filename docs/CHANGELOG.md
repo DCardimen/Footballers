@@ -11,6 +11,27 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v151 B — he looks the part.** Cosmetics and a profile, selling status and never power. `src/28-cosmetics.js`
+  (`window.RIB_COSMETICS`) holds 79 items in nine categories — uniforms (incl. a historical bundle), helmets, card
+  frames, touchdown celebrations, stadium themes, vault themes, profile banners, trophy shelves, recap themes — from
+  five sources (free, earned by eight achievements, season-pass tiers, shop packs at the owner's prices, the Founder
+  bundle). Everything is really drawn: the uniform and helmet re-dress the you-player's own textures on the live field
+  (patterns, helmet shell / stripe / decal / finish; never the opponent's or his team-mates') and the menu's kit masks;
+  a celebration plays on his touchdowns; a stadium theme repaints the bowl's band and washes the stands at home; a vault
+  theme grades the room, tints the coins and hangs motes. New PROFILE view (menu legacy card, hub, locker) with the
+  drawn character in his kit, team colours and crest, the bank, honours, titles by level, MVPs, Hall, lineage and the
+  equipped frame / banner / shelf; `profile()` / `renderCard()` are what the leaderboard shows. The Locker gained a
+  STYLE tab. The Team Creator's crests and palettes are gated: five free picks (shared), then 10 PP doubling, or a
+  one-time `unlock_all_team_style` while monetization is on; the look a save wears is grandfathered. No sim number
+  moves (seeded games identical, all equipped vs none). `docs/COSMETICS.md`; `v151Bcheck`.
+- **v151 C — the season is an event.** Two competitive seasons a year (UTC Jan 1 / Jul 1, "Season 1 · Kickoff"): each has its own career boards and a 30-tier CAREER PASS (a free track of 11 cosmetics, a premium track of 30 — the $9.99 pass, sold by the commerce module, still off), 20 season challenges and 3 weekly ones, all rotated by the season id. XP comes from watching the career (games, live games, wins, seasons, titles, awards, promotions, career ends, the Daily Challenge, Score Attack) — nothing on the pass changes a snap, a stat or a payout. The leaderboards rank whole careers on thirteen boards (All-Time Career Score, Season, Weekly, Best QB / RB / WR / TE / OL / DEF, Most Championships, Craziest Career, Fastest to the League, Best Without Prestige), labelled LOCAL until a server exists; a row opens that career's profile and how its score adds up. A season's end archives its board and your finish into a trophy case that is never wiped, resets the pass and the season board, and greets the next boot with a "Season N begins" recap. Careers are never touched. Menu: SEASON PASS and LEADERBOARDS tiles; the hub carries a countdown chip. `docs/SEASONS.md`, `v151Ccheck`.
+- **v150 A — the bugs the audit found.** Names can't run code: `cleanNameV150` cleans every input (name box, family
+  name, Team Creator, leaderboard handle), `cleanSaveV150` cleans a save at boot, and 19 screen templates print names
+  through `escHtml`. The v42 growth dials save. The declare's one-shot stakes sit beside the button. The three
+  career-end screens have tabs and fit the phone. Import goes through storage and a reload so `boot()` migrates it,
+  after a shape check; a corrupt save boots from a backup and says so. Every confirm, prompt and pop-up is an in-app
+  dialog. `v150Acheck.mjs`.
+
 - **v150 C — the hooks are in, the switch is still off.** The monetization hooks now live in the game code: the speed
   guard and clamp, an optional 3× flag, the career payout double, a cosmetic gate for NEW content only, a STORE tile on
   the menu, Restore Purchases in Settings, and Android back closing the store's sheets. With monetization off (the

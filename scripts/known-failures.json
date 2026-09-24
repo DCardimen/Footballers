@@ -9,8 +9,6 @@
   { "check": "bodycheck", "pattern": "^an ordinary body reads neutral", "note": "reads -1.93 (NET NEGATIVE) on every run", "since": "2026-09-24" },
   { "check": "crowdcheck", "pattern": "^and the scan now covers the curved north end too", "note": "the scan count (182 / 120 / 120) is under the check's floor on every run", "since": "2026-09-24" },
   { "check": "crowdcheck", "pattern": "^(crowdCheer raises section heat|cheer layer alpha follows heat|heat decays back down after the roar)", "note": "peak 0 — the roar never registered on 2 of 4 tries (timing)", "since": "2026-09-24", "flaky": true },
-  { "check": "declarecheck", "pattern": "^the season-result declare card states the one-shot stakes", "note": "copy drift on the declare card", "since": "2026-09-24" },
-  { "check": "declarecheck", "pattern": "^the epitaph fits inside v75's scroll budget on a phone", "note": "2.15 screens, every run", "since": "2026-09-24" },
   { "check": "emblemcheck", "pattern": "^pregame: 2 emblem chips, 44px", "note": "the chips measure 0x0 (w:0,h:0) — 3 of 4 tries", "since": "2026-09-24", "flaky": true },
   { "check": "endzonecheck", "pattern": "^the painted far goal line lands where the projection puts the sim far goal line", "note": "1.09 yards apart on every run", "since": "2026-09-24" },
   { "check": "equaltalentcheck", "pattern": "^(all rosters are exact mirrors|featured player matches team talent)", "note": "both runs; it loads index.html's blocks by index ([0,1,2,3,4,7]) — recheck after the index.html split lands", "since": "2026-09-24" },

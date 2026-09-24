@@ -2364,39 +2364,9 @@
       })
     );
   } catch (e) {}
-  function maybeStartStoryArc(e, t, a) {
+  /* v150 A: retired long ago — everything after its leading return null was unreachable, and is gone */
+  function maybeStartStoryArc() {
     return null;
-    if ((ensureStoryState(e), e.storyDecisionQueueV11.length)) return null;
-    if (e.activeStoryArcV11)
-      return (
-        (e.activeStoryArcV11.weeksSinceStage = (e.activeStoryArcV11.weeksSinceStage || 0) + 1),
-        e.activeStoryArcV11.weeksSinceStage >= 2
-          ? $n(e, e.activeStoryArcV11.templateId, e.activeStoryArcV11.stage + 1)
-          : null
-      );
-    const s = e.level >= 7 ? 6 : e.level >= 5 ? 5 : e.level >= 3 ? 4 : 2;
-    if ((e.storyArcsThisSeasonV11 || 0) >= s || (t.week || 1) < 2 || (t.week || 1) % 2 !== 0) return null;
-    const n = e.storyArcHistoryV11 || [],
-      i = STORY_ARCS.filter(
-        d =>
-          e.level >= d.minLevel &&
-          e.level <= d.maxLevel &&
-          (!n.find(c => c.id === d.id) || (t.week || 0) - (n.find(c => c.id === d.id)?.week || 0) >= d.cooldown) &&
-          d.trigger(e, t)
-      );
-    let r = i.length ? sample(i, seededRng(e.seasonSeed, t.week, t.perf, "arc")) : null;
-    const l = seededRng(e.seasonSeed, t.week, t.perf, "arc-fallback");
-    if (!r && l() < (e.level >= 5 ? 0.34 : 0.22)) {
-      const d = STORY_ARCS.filter(c => e.level >= c.minLevel && e.level <= c.maxLevel);
-      d.length && (r = sample(d, seededRng(e.seasonSeed, t.week, "fallback")));
-    }
-    return r
-      ? ((e.activeStoryArcV11 = { templateId: r.id, stage: 0, startedWeek: t.week, weeksSinceStage: 0, choices: [] }),
-        e.storyArcsThisSeasonV11++,
-        e.storyArcHistoryV11.unshift({ id: r.id, title: r.title, icon: r.icon, week: t.week, status: "active" }),
-        (e.storyArcHistoryV11 = e.storyArcHistoryV11.slice(0, 12)),
-        $n(e, r.id, 0))
-      : null;
   }
   function addClamped(e, t, a, s = 0, n = 100) {
     a && (e[t] = clamp((e[t] || 0) + a, s, n));
@@ -8767,6 +8737,69 @@
     return b;
   }
   window.__V136_C = { bank: bankPPV136, banked: bankedV136, flush: flushBankV136, banking: bankingV136 };
+  /* ===== v151 B HE LOOKS THE PART (the career app's side) =====
+   * src/28-cosmetics.js is the cosmetics module (`window.RIB_COSMETICS`); these are its hooks in here, each a
+   * hoisted declaration because screens restored at boot call them by bare name (v140) and 28 loads AFTER
+   * this file — so every one of them works (as the identity) with the module absent.
+   *   screenProfileV151B   view "profile" → the module's screen (a placeholder until it loads)
+   *   cosStyleBlockV151B   the Locker's STYLE tab (the v75 sectioner splits GEAR / STYLE)
+   *   cosColorsV151B       the menu feed's team.colors → [jersey, pants, helmet] when he wears something
+   *   spendPPV151B         the Team Creator's paid unlocks: debits `state.pp`, saves, never below 0
+   *   teamStyleLockV151B / teamStyleBarV151B / teamStyleNeedV151B   the Team Creator's gate */
+  function screenProfileV151B() {
+    if (window.__profileRenderV151B) return window.__profileRenderV151B(state);
+    byId("screen").innerHTML = '<div class="card center"><div class="small">Loading your profile…</div></div>';
+    byId("dock").innerHTML = `<button class="btn secondary" onclick="go('menu')">Back</button>`;
+  }
+  function cosStyleBlockV151B() {
+    try {
+      const C = window.RIB_COSMETICS;
+      return C && C.stylePanel ? C.stylePanel() : "";
+    } catch (e) {
+      return "";
+    }
+  }
+  function cosColorsV151B(c) {
+    try {
+      const C = window.RIB_COSMETICS;
+      return C && C.menuColors ? C.menuColors(c) : c;
+    } catch (e) {
+      return c;
+    }
+  }
+  function spendPPV151B(n, why) {
+    n = Math.round(Number(n) || 0);
+    if (!(n > 0) || !state || (state.pp || 0) < n) return !1;
+    state.pp -= n;
+    try {
+      saveGame();
+    } catch (e) {}
+    return !0;
+  }
+  window.__spendPPV151B = spendPPV151B;
+  function teamStyleV151B() {
+    const C = window.RIB_COSMETICS;
+    return C && C.teamStyle ? C.teamStyle : null;
+  }
+  function teamStyleLockV151B(kind, i) {
+    const T = teamStyleV151B();
+    return T && !T.owned(kind, i) ? " lock-v151b" : "";
+  }
+  function teamStyleBarV151B() {
+    const T = teamStyleV151B();
+    return T ? T.barHTML() : "";
+  }
+  function teamStyleNeedV151B(palette, logo) {
+    const T = teamStyleV151B();
+    if (!T) return Promise.resolve(!0);
+    try {
+      T.grandfather(window.__GRIDIRON_TEAM_CUSTOM__);
+    } catch (e) {}
+    return T.acquire([
+      { kind: "logo", i: logo },
+      { kind: "pal", i: palette }
+    ]);
+  }
   /* ===== v150 C THE HOOKS ARE IN, THE SWITCH IS STILL OFF =====
    * The in-game ends of docs/MONETIZATION.md §8 (H1–H11). Every hook asks `mzV150C()` first, and that is null
    * unless `window.RIB_MONETIZE` exists AND says it is enabled — so while the master switch is off (the default)
@@ -8945,13 +8978,13 @@
     }
   }
   function chaosMaxAll() {
-    if (
-      !state.chaosUnlocked ||
-      !confirm(
-        "Set chaos to your FULL capacity (" + chaosCap() + ")? Every enemy in the world becomes vastly stronger."
-      )
-    )
-      return;
+    if (!state.chaosUnlocked) return;
+    return askV150(
+      "Set chaos to your FULL capacity (" + chaosCap() + ")? Every enemy in the world becomes vastly stronger.",
+      { title: "Chaos: max all", ok: "Max it", danger: !0 }
+    ).then(ok => ok && chaosMaxAllNowV150());
+  }
+  function chaosMaxAllNowV150() {
     state.chaos = {};
     let e = chaosCap();
     (ATTR_KEYS.forEach(t => {
@@ -9084,7 +9117,7 @@
         <span class="hof-rank">${n === 0 ? "👑" : "#" + (n + 1)}</span>
         <span class="hof-bust">🗿</span>
         <div class="hof-info">
-          <div class="hof-name">${s.name} <small>${s.pos}</small></div>
+          <div class="hof-name">${escHtml(s.name)} <small>${s.pos}</small></div>
           <div class="hof-line">${LEVELS[s.reached].name}${s.won ? " 🏆" : ""} · ${s.peak} OVR${s.power > s.peak ? ' <b style="color:#c9b8ff">' + s.power + " PWR</b>" : ""} · ${s.titles}💍 · ${s.seasons} szn${s.box && s.box.totals ? ` · <span style="color:#8ec3ee">${s.box.totals.games} gp</span>` : ""}</div>
         </div>
         <span class="hof-goat">${s.goat}<small>GOAT</small></span>
@@ -9559,9 +9592,11 @@
         : '<div class="card tight"><div class="small center">No gear yet — finish a career for your first drop.</div></div>'
     }
     </div>
+    ${cosStyleBlockV151B()}
   `),
       (byId("dock").innerHTML = `
     <div class="btn-row">
+      <button class="btn ghost" onclick="go('profile')">🪪 Profile</button>
       <button class="btn ghost" onclick="go('hof')">🏛️ Hall of Fame</button>
       <button class="btn secondary" onclick="go(S.player&&S.player.pos?'hub':'menu')">Back</button>
     </div>`));
@@ -10343,15 +10378,17 @@
       ? `<div class="threshold-note rr-note-v112" style="color:#e08a8a;border-color:rgba(224,138,138,.5);margin-bottom:8px">\u26a0 <b>REROLL PENALTY \u2212${t.pct}%</b> \u00b7 ${rerollWhyV112(e || state.player)}</div>`
       : "";
   }
+  /* v150 A: true when there is nothing to warn about, else a Promise<boolean> off the in-app dialog */
   function rerollGateV112() {
     if (!abandonedV112() || nodeLvl("cleanSlate") > 0) return !0;
     const e = state.player;
-    return confirm(
+    return askV150(
       "\u26a0 REROLL PENALTY\n\n" +
         e.name +
         " hasn't finished his career. Abandon him now and your NEXT player starts with \u2212" +
         TU("rerollPenaltyPct", 5) +
-        "% to EVERY attribute \u2014 in games and on the sheet \u2014 until he is promoted one level.\n\nFinish this career instead and there is no penalty, and you keep his prestige.\n\nRoll a new character anyway?"
+        "% to EVERY attribute \u2014 in games and on the sheet \u2014 until he is promoted one level.\n\nFinish this career instead and there is no penalty, and you keep his prestige.\n\nRoll a new character anyway?",
+      { title: "Reroll penalty", ok: "Roll a new character", danger: !0 }
     );
   }
   /* ===== v120 FATIGUE IS A SLOPE =====
@@ -12611,7 +12648,7 @@
             (m, y) => `
           <div class="lb2-row ${m.me ? "me" : ""}">
             <span class="lbr">${y + 1}</span>
-            <span class="lbn">${m.me ? "<b>" + m.name + " (You)</b>" : m.name}<small>${m.team}</small></span>
+            <span class="lbn">${m.me ? "<b>" + escHtml(m.name) + " (You)</b>" : escHtml(m.name)}<small>${escHtml(m.team)}</small></span>
             <span class="lbv">${fmtLeadVal(i, m.line[leadStat])}</span>
             <span class="lbo">${p.map(C => fmtLeadVal(C, m.line[C.key])).join(" · ")}</span>
           </div>`
@@ -12623,7 +12660,7 @@
           <div class="lb2-gap">···</div>
           <div class="lb2-row me">
             <span class="lbr">${fmtInt(c)}</span>
-            <span class="lbn"><b>${e.name} (You)</b><small>${e.teamIdentity ? e.teamIdentity.town : ""}</small></span>
+            <span class="lbn"><b>${escHtml(e.name)} (You)</b><small>${e.teamIdentity ? escHtml(e.teamIdentity.town) : ""}</small></span>
             <span class="lbv">${fmtLeadVal(i, l.line[leadStat])}</span>
             <span class="lbo">${p.map(m => fmtLeadVal(m, l.line[m.key])).join(" · ")}</span>
           </div>`
@@ -12688,7 +12725,7 @@
             return `${l === i ? '<div class="cutline">— PLAYOFF CUT —</div>' : ""}
           <div class="lb2-row ${r.me ? "me" : ""}">
             <span class="lbr">${l + 1}</span>
-            <span class="lbn">${r.me ? "<b>" + r.name + " (You)</b>" : r.name}</span>
+            <span class="lbn">${r.me ? "<b>" + escHtml(r.name) + " (You)</b>" : escHtml(r.name)}</span>
             <span class="lbv">${r.w}-${r.l}</span>
             <span class="lbo">${r.pf} · ${r.pa} · <b style="color:${d >= 0 ? "var(--good)" : "#e08a8a"}">${d >= 0 ? "+" : ""}${d}</b></span>
           </div>`;
@@ -12699,7 +12736,7 @@
     `;
     }
     ((byId("screen").innerHTML = `
-    <div class="eyebrow">${t.name} · ${teamName(e)}</div>
+    <div class="eyebrow">${t.name} · ${escHtml(teamName(e))}</div>
     <div class="h1">National Stats</div>
     <div class="btn-row" style="margin:10px 0 4px">
       <button class="branch-tab ${leadTab === "leaders" ? "active" : ""}" style="flex:1;padding:9px;border-radius:9px;border:1px solid ${leadTab === "leaders" ? "var(--gold)" : "var(--line)"};background:${leadTab === "leaders" ? "rgba(240,187,69,.13)" : "transparent"};color:${leadTab === "leaders" ? "var(--gold)" : "var(--chalk-dim)"};font-family:'Oswald';font-weight:600;cursor:pointer" onclick="setStatsTab('leaders')">🏅 STAT LEADERS</button>
@@ -12730,6 +12767,7 @@
     if (e === "highscore") return window.__hsRender && window.__hsRender(state);
     if (e === "leaderboard") return window.__lbRender && window.__lbRender(state);
     if (e === "daily") return window.__dailyRender && window.__dailyRender(state);
+    if (e === "seasons") return window.__seasonsRender ? window.__seasonsRender(state) : screenMenuLegacy(); // v151 C (src/29-seasons.js re-draws it once loaded)
     if (e === "settings") return screenSettings();
     if (e === "choosePos") return screenChoosePos();
     if (e === "hub") return screenHub();
@@ -12753,6 +12791,7 @@
     if (e === "gameover") return screenGameOver();
     if (e === "win") return screenWin();
     if (e === "club") return clubV146B();
+    if (e === "profile") return screenProfileV151B(); /* v151 B */
     screenMenuLegacy();
   }
   function screenMenuLegacy() {
@@ -12771,7 +12810,7 @@
         ? `<div class="card continue-card tap mt" style="margin-top:16px;border-color:var(--gold)" onclick="go('hub')">
       <div class="continue-ovr">${playerOvr(t)}<small>OVR</small></div>
       <div class="l" style="font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:5px">▶ CONTINUE CAREER</div>
-      <div class="name-row"><span class="pname">${t.name}</span></div>
+      <div class="name-row"><span class="pname">${escHtml(t.name)}</span></div>
       <div class="meta-row"><span class="meta"><b>${LEVELS[t.level].name}</b></span><span class="meta">${t.pos}</span><span class="meta">${"★".repeat(t.stars)}</span><span class="meta">${t.body ? (bd => fmtHeight(bd.height) + " · " + bd.weight + "lb" + (bd.grown ? "" : " · 📈" + fmtHeight(t.body.height)))(bodyOfV112(t)) : ""}</span></div>
     </div>`
         : ""
@@ -12828,9 +12867,10 @@
       startCareer();
       return;
     }
-    confirm(
-      "Start a Run it back? Your current player will be replaced (no prestige gained unless you finish their career first)."
-    ) && startCareer();
+    return askV150(
+      "Start a Run it back? Your current player will be replaced (no prestige gained unless you finish their career first).",
+      { title: "New career", ok: "Start over" }
+    ).then(ok => ok && startCareer(!0));
   }
   function toggleRow(e, t, a) {
     const s = settingOn(e);
@@ -12980,31 +13020,39 @@
   function exportSave() {
     try {
       const e = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
-      navigator.clipboard
+      return navigator.clipboard
         ? navigator.clipboard.writeText(e).then(
             () => showToast("Backup code copied!"),
-            () => prompt("Copy your backup code:", e)
+            () => showCodeV150(e)
           )
-        : prompt("Copy your backup code:", e);
+        : showCodeV150(e);
     } catch {
       showToast("Export failed");
     }
   }
-  function importSave() {
-    const e = prompt("Paste your backup code:");
-    if (e)
-      try {
-        const t = JSON.parse(decodeURIComponent(escape(atob(e.trim()))));
-        if (!t || typeof t != "object" || !("prestige" in t)) throw 0;
-        ((state = t), state.tree || (state.tree = {}), saveGame(), showToast("Save imported!"), goView("menu"));
-      } catch {
-        showToast("Invalid code");
-      }
+  /* v150 A: the pasted code goes to storage and the page reloads through boot(), so the migrations run on
+   * it (the old path set `state = t` and skipped every one of them). `code` skips the paste box. */
+  function importSave(code) {
+    if (code != null) return importCodeV150(code);
+    const D = window.ribDialog;
+    return D && D.prompt
+      ? D.prompt("Paste your backup code:", "", { title: "Import save", ok: "Next", multiline: !0 }).then(
+          e => (e && e.trim() ? importCodeV150(e) : !1)
+        )
+      : (showToast("Import needs the save panel — use Save File & Backups"), Promise.resolve(!1));
   }
   function hardReset() {
-    confirm("Erase ALL progress permanently? This cannot be undone.") &&
-      confirm("Are you absolutely sure? Everything will be lost.") &&
-      ((state = freshState()), saveGame(), showToast("Progress erased"), goView("menu"));
+    return askV150("Erase ALL progress permanently? Everything will be lost — this cannot be undone.", {
+      title: "Erase everything",
+      ok: "Erase",
+      danger: !0
+    }).then(ok => {
+      if (!ok) return !1;
+      try {
+        window.ribSave && window.ribSave.backups.snapshot("before-erase");
+      } catch (e) {}
+      return ((state = freshState()), saveGame(), showToast("Progress erased"), goView("menu"), !0);
+    });
   } /* ===== v136 D THE LINEAGE — the prestige system is a father's lesson to his son =====
    * A career ends. The next player is not a stranger with the same account behind him — he is the
    * SON, and what the old man learned is what he starts with. That is what the prestige tree always
@@ -13142,8 +13190,11 @@
     ord: ordV136,
     raw: () => lineageV136()
   };
-  function startCareer() {
-    if (!rerollGateV112()) return;
+  function startCareer(passed) {
+    if (passed !== !0) {
+      const g = rerollGateV112();
+      if (g !== !0) return (Promise.resolve(g).then(ok => ok && startCareer(!0)), void 0);
+    } /* v150 A: the warning is an in-app dialog now, so the career starts when it is answered */
     const _ab = abandonedV112(),
       _pv = _ab ? state.player.name : "";
     _ab && lineageEndV136(state.player, state.player.level, "walked");
@@ -13186,11 +13237,13 @@
     return sur ? (f ? f + " " + sur : sur) : f;
   }
   function famRenameV139(sur) {
-    const t = String(sur || "")
-      .replace(/[^A-Za-z'\- ]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 18);
+    const t = cleanNameV150(
+      String(sur || "")
+        .replace(/[^A-Za-z'\- ]/g, "")
+        .replace(/\s+/g, " ")
+        .trim(),
+      18
+    ); /* v150 A: the same cleaner as every other name */
     const L = lineageV136(),
       was = famSurnameV139();
     if (!t || t === was) return !1;
@@ -13214,13 +13267,128 @@
     first: famFirstV139,
     rename: famRenameV139
   };
+  /* ===== v150 A THE BUGS THE AUDIT FOUND =====
+   * Four of the audit's confirmed bugs meet here, and all of them are about what the game TRUSTS.
+   * A name was stored raw and printed raw, so `<img src onerror=…>` in the name box ran code on the
+   * hub, the leaders, the Hall and both career-end screens. Two layers now: every way text gets IN
+   * (the name box, the family name, the Team Creator, the leaderboard handle, a save coming back from
+   * storage or an import) goes through `cleanNameV150` — control and bidi characters out, no `<>`,
+   * quotes and `&` swapped for their typographic twins so a name can never close an attribute or an
+   * inline handler, a length cap — and the screens that print a name print `escHtml(name)` anyway.
+   * `cleanSaveV150` is the same pass over a whole save at boot, so a save written before this is
+   * cleaned the first time it loads. `checkSaveV150` is the shape an import must have before it is
+   * allowed near storage (the import itself now goes through the boot, by a reload, so every lazy
+   * migration runs on it). `askV150` is the in-app confirm: `ribDialog` (v149 D) when it is there,
+   * the browser's own only if the platform file never loaded. */
+  function cleanNameV150(v, max) {
+    return String(v == null ? "" : v)
+      .normalize("NFC")
+      .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, "")
+      .replace(/[<>`\\{}]/g, "")
+      .replace(/&/g, "\uff06")
+      .replace(/"/g, "\u201d")
+      .replace(/'/g, "\u2019")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, max || TU("nameMaxV150", 24));
+  }
+  function cleanSaveV150(s) {
+    if (!s || typeof s != "object") return 0;
+    let n = 0;
+    const cap = TU("nameStoreMaxV150", 40),
+      fix = (o, k) => {
+        if (o && typeof o[k] == "string") {
+          const c = cleanNameV150(o[k], cap);
+          c !== o[k] && ((o[k] = c), n++);
+        }
+      },
+      p = s.player;
+    if (p && typeof p == "object") {
+      fix(p, "name");
+      const T = p.teamIdentity;
+      T && typeof T == "object" && ["town", "mascot", "college", "dfl"].forEach(k => fix(T, k));
+      p.nemesis && fix(p.nemesis, "name");
+    }
+    const L = s.lineageV136;
+    L && typeof L == "object" && (fix(L, "surname"), Array.isArray(L.fathers) && L.fathers.forEach(f => fix(f, "name")));
+    Array.isArray(s.hof) && s.hof.forEach(h => fix(h, "name"));
+    return n;
+  }
+  const HOSTILE_V150 = /<\s*\/?\s*(script|iframe|object|embed|base|meta|link|frame|svg)\b|<[^>]*\bon[a-z]+\s*=|javascript\s*:/i;
+  function checkSaveV150(t) {
+    if (!t || typeof t != "object" || Array.isArray(t)) return "not a save";
+    if (typeof t.prestige != "number" || !isFinite(t.prestige)) return "no prestige on it";
+    if (t.pp != null && (typeof t.pp != "number" || !isFinite(t.pp))) return "a broken PP balance";
+    if (t.player != null && (typeof t.player != "object" || Array.isArray(t.player))) return "a broken player";
+    if (t.player && t.player.attrs != null && typeof t.player.attrs != "object") return "a broken attribute sheet";
+    if (t.tree != null && (typeof t.tree != "object" || Array.isArray(t.tree))) return "a broken prestige tree";
+    for (const k of ["hof", "inventory"]) if (t[k] != null && !Array.isArray(t[k])) return "a broken " + k;
+    let seen = 0,
+      bad = "";
+    const walk = (v, d) => {
+      if (bad || d > TU("saveScanDepthV150", 12) || ++seen > TU("saveScanMaxV150", 200000)) return;
+      if (typeof v == "string") HOSTILE_V150.test(v) && (bad = "markup inside it");
+      else if (v && typeof v == "object") for (const k in v) walk(v[k], d + 1);
+    };
+    return (walk(t, 0), bad);
+  }
+  function askV150(msg, o) {
+    const D = window.ribDialog;
+    if (D && D.confirm) return D.confirm(msg, o || {});
+    try {
+      return Promise.resolve(!!window.confirm(msg));
+    } catch (e) {
+      return Promise.resolve(!1);
+    }
+  }
+  /* an imported save goes to storage and the page reloads, so boot() migrates it exactly like a cold start */
+  function importCodeV150(code) {
+    if (window.ribSave && window.ribSave.importText) return window.ribSave.importText(code);
+    let t;
+    try {
+      const x = String(code || "").trim();
+      t = x[0] === "{" ? JSON.parse(x) : JSON.parse(decodeURIComponent(escape(atob(x.replace(/\s+/g, "")))));
+      t && t.format === "rib-save" && t.save && (t = typeof t.save == "string" ? JSON.parse(t.save) : t.save);
+    } catch {
+      return (showToast("Invalid code"), Promise.resolve(!1));
+    }
+    const why = checkSaveV150(t);
+    if (why) return (showToast("That save can't be imported: " + why), Promise.resolve(!1));
+    return askV150("Replace the save on this device with the imported one?", { title: "Import save", ok: "Import", danger: !0 }).then(
+      ok => {
+        if (!ok) return !1;
+        try {
+          window.GridironStorage ? window.GridironStorage.save(t) : localStorage.setItem(SAVE_KEY, JSON.stringify(t));
+        } catch (e) {
+          return (showToast("Import failed"), !1);
+        }
+        return (setTimeout(() => location.reload(), 60), !0);
+      }
+    );
+  }
+  function showCodeV150(code) {
+    const D = window.ribDialog;
+    return D && D.show
+      ? D.show({
+          title: "Your backup code",
+          message: "Copy this code and keep it somewhere safe. Paste it into Settings › Import to bring the career back.",
+          input: { value: code, multiline: !0, readonly: !0 },
+          buttons: [{ label: "Done", value: !0, kind: "primary" }]
+        })
+      : (showToast("Copy failed — try Export to file"), Promise.resolve(!1));
+  }
+  window.__V150A = {
+    clean: cleanNameV150,
+    cleanSave: cleanSaveV150,
+    checkSave: checkSaveV150,
+    ask: askV150,
+    importCode: importCodeV150,
+    recovered: () => window.__saveRecoveredV150 || null
+  };
   /* ===== v96 A NAME OF HIS OWN — the rolled name is a starting point, not a sentence ===== */
   window.setPlayerNameV96 = function (v) {
     if (!state.player) return;
-    const t = String(v || "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 24);
+    const t = cleanNameV150(v, TU("nameMaxV150", 24));
     t && ((state.player.name = famLockedV139() ? famFirstV139(t) + " " + famSurnameV139() : t), saveGame());
   };
   window.rerollNameV96 = function () {
@@ -13354,7 +13522,7 @@
     byId("screen").innerHTML = `
     <div class="card player-hero">
       <div class="pos-badge">${e.pos}</div>
-      <div class="name-row"><span class="pname">${e.name}</span><span class="page">· ${e.pos} · Age ${e.age}</span></div>
+      <div class="name-row"><span class="pname">${escHtml(e.name)}</span><span class="page">· ${e.pos} · Age ${e.age}</span></div>
       <div class="meta-row">
         <span class="meta"><b>${t.name}</b></span>
         <span class="meta">Season <b>${e.seasonsAtLevel + 1}</b></span>
@@ -13362,7 +13530,7 @@
         ${currentTier(e) ? `<span class="meta" style="color:var(--gold)">${currentTier(e).icon} ${currentTier(e).name}</span>` : ""}
       </div>
       <div class="meta-row" style="margin-top:4px">
-        <span class="meta" style="color:#9fb8a6">🏟 ${teamName(e)}</span>
+        <span class="meta" style="color:#9fb8a6">🏟 ${escHtml(teamName(e))}</span>
         ${(e.titles || 0) > 0 ? `<span class="meta" style="color:var(--gold)">💍×${e.titles}</span>` : ""}
         ${e.declareBonus ? `<span class="meta" style="color:var(--gold)">😤 +${e.declareBonus}%</span>` : ""}
         ${rerollChipV112(e)}
@@ -13459,7 +13627,7 @@
     ${
       r && !s
         ? `<button class="btn" ${e.level === 7 ? 'style="background:linear-gradient(180deg,#b9a6ff,#7a5adf);color:#120a2e;box-shadow:0 4px 0 #3c2a8a, 0 6px 16px rgba(122,90,223,.4)"' : ""} onclick="declareFromHub()">${e.level === 7 ? "🛸 Answer the Interstellar Call" : e.level === 5 ? "🎓 Declare for the Draft" : "⬆️ Declare for " + LEVELS[e.level + 1].name} · ${Math.round(d)}%</button>
-         <div class="small center" style="margin-top:8px;color:var(--blood)">⚠️ One shot — a failed declare ends the career.</div>
+         <div class="small center declare-stakes-v150" style="margin-top:8px;color:var(--blood)">⚠️ One shot — a failed declare ends the career.</div>
          ${y ? '<div class="small center" style="margin-top:4px;color:var(--gold)">Final season played — you must declare now.</div>' : `<div style="height:8px"></div><button class="btn secondary" onclick="startSeason()">▶ Play Another Season (${e.seasonsAtLevel + 1}/${maxSeasons()})</button>`}`
         : `<button class="btn" onclick="startSeason()">▶ Play ${t.games}-Game Season (${e.seasonsAtLevel + 1}/${maxSeasons()})</button>`
     }
@@ -13470,6 +13638,7 @@
     <div class="btn-row">
       <button class="btn ghost" onclick="setStatsTab('leaders');go('stats')">📊 Stats</button>
       <button class="btn ghost" onclick="go('challenges')">🎯 Goals</button>
+      <button class="btn ghost" onclick="go('profile')">🪪 Profile</button>
     </div>
   `;
   } // v17: national standing → promotion floor. The rank on the declare screen IS
@@ -14037,7 +14206,7 @@
         team: {
           school: tc.schoolName || "",
           name: tc.teamName || "",
-          colors: tc.col || null,
+          colors: cosColorsV151B(tc.col || null) /* v151 B: his uniform / helmet on the menu's pictures */,
           logo: tc.logo != null ? tc.logo : null,
           logoCss: window.TEAM_LOGOS_V44 && tc.logo != null ? window.TEAM_LOGOS_V44.cssFull(tc.logo) : ""
         }
@@ -18999,6 +19168,7 @@
       gen: Math.max(1, lineageV136().gen || 1)
     };
     ((s.goat = hofScore(s)),
+      seasonsCareerEndV151C(e, s, t) /* v151 C: the career goes on the boards */,
       state.hof.push(s),
       state.hof.sort((r, l) => l.goat - r.goat),
       state.hof.length > 60 && (state.hof.length = 60));
@@ -19012,6 +19182,37 @@
       t >= 7 && (state.posMastery[e.pos].nfl = !0),
       e.nflRings > 0 && (state.posMastery[e.pos].ring = !0));
   }
+  /* ===== v151 C THE SEASON IS AN EVENT (the career's hand-off) =====
+   * A finished career is handed to the competitive layer (src/20-leaderboards.js boards, src/29-seasons.js
+   * pass + trophy case) as a plain snapshot, queued on `window.__seasonsQV151C` because the settle can run
+   * before those files have loaded (the boot restore draws from the top level of this block — v140). Nothing
+   * here reads or writes a gameplay number; the queue lives outside the save. Hoisted: screens call it. */
+  function seasonsCareerEndV151C(e, row, level) {
+    try {
+      const F = familyV136();
+      (window.__seasonsQV151C || (window.__seasonsQV151C = [])).push({
+        hof: JSON.parse(JSON.stringify(row)),
+        level: Math.max(level | 0, (e && e.level) | 0),
+        traits: ((e && e.traits) || []).length,
+        origin: (e && e.originNameV11) || "",
+        age: (e && e.age) | 0,
+        nodes: Object.values(state.tree || {}).reduce((a, n) => a + (n | 0), 0),
+        surname: F.surname || "",
+        careerNo: state.careers | 0,
+        team: (() => {
+          try {
+            const d = window.__RIB_MENU_DATA_V89 && window.__RIB_MENU_DATA_V89();
+            return d && d.team ? { school: d.team.school, name: d.team.name, colors: d.team.colors, logo: d.team.logo } : null;
+          } catch (_) {
+            return null;
+          }
+        })(),
+        at: Date.now()
+      });
+      window.RIB_SEASONS && window.RIB_SEASONS.flush && window.RIB_SEASONS.flush();
+    } catch (_) {}
+  }
+  window.__escHtmlV151C = escHtml;
   function hofWings() {
     return (state && state.hofWings) || 0;
   }
@@ -19133,7 +19334,7 @@
     let m = 0;
     if (
       ((byId("screen").innerHTML = `
-    <div class="eyebrow">${t.name} · ${teamName(e)} · ${e.training ? PROGRAMS[e.training].name : "Season"}</div>
+    <div class="eyebrow">${t.name} · ${escHtml(teamName(e))} · ${e.training ? PROGRAMS[e.training].name : "Season"}</div>
     <div class="h1">${combineYearV139(e) ? "The Combine" : "Season Schedule"}</div>
     ${combineYearV139(e) ? combineBoardV139(e) : ""}
     ${seasonModBanner(e)}
@@ -19517,11 +19718,11 @@
       })()}
       <div class="live-down">
         <span class="watch-badge">${e.pos}</span>
-        <span class="watch-info" id="featuredLabel"><b>${e.name} (${e.pos})</b><small>${s} ${i ? "DEFENSE" : "OFFENSE"}</small></span>
+        <span class="watch-info" id="featuredLabel"><b>${escHtml(e.name)} (${e.pos})</b><small>${s} ${i ? "DEFENSE" : "OFFENSE"}</small></span>
         <span id="playClock">● LIVE</span>
       </div>
       <canvas id="field" width="360" height="230"></canvas>
-      <div class="commentary" id="commentary"><span class="ev-ic">🏈</span><div class="ev-body">Kickoff! ${e.name} takes the field…</div><span class="chev">›</span></div>
+      <div class="commentary" id="commentary"><span class="ev-ic">🏈</span><div class="ev-body">Kickoff! ${escHtml(e.name)} takes the field…</div><span class="chev">›</span></div>
     </div>
     <div class="speed-row">
       ${[
@@ -19539,7 +19740,7 @@
       <button class="speed-btn" onclick="skipLive()">SKIP<small>⏭</small></button>
     </div>
     <div class="boxscore-head">
-      <div class="h2">${e.name} — <span style="color:var(--chalk-dim)">Live Box Score</span></div>
+      <div class="h2">${escHtml(e.name)} — <span style="color:var(--chalk-dim)">Live Box Score</span></div>
       <a onclick="document.getElementById('fullBoxCard').scrollIntoView({behavior:'smooth'})">VIEW FULL STATS ›</a>
     </div>
     <div class="live-stats" id="liveStats"></div>
@@ -19608,7 +19809,7 @@
       <span class="rnum">#${u.num}</span>
       <span class="rpos">${u.pos}</span>
       <span class="rovr" style="color:${n(u.ovr)}">${u.ovr}</span>
-      <span class="rname">${u.name}${u.you ? " ⭐" : ""}</span>
+      <span class="rname">${escHtml(u.name)}${u.you ? " ⭐" : ""}</span>
       <span class="rstat">${p}</span>
     </div>`;
           })
@@ -20289,7 +20490,7 @@
     if (C) {
       const $ = r.name.split(" ")[1].slice(0, 8).toUpperCase();
       if (m.featuredIsMe)
-        C.innerHTML = `<b>${r.name} (${r.pos})</b><small>${$} ${["DL", "LB", "CB", "S"].includes(r.pos) ? "DEFENSE" : "OFFENSE"}</small>`;
+        C.innerHTML = `<b>${escHtml(r.name)} (${r.pos})</b><small>${$} ${["DL", "LB", "CB", "S"].includes(r.pos) ? "DEFENSE" : "OFFENSE"}</small>`;
       else {
         const J = d ? l.roster && l.roster.us : l.roster && l.roster.opp;
         let w = "";
@@ -21226,6 +21427,7 @@
     ${
       d
         ? `<button class="btn" onclick="declareAdvance()">${e.level === 5 ? "🎓 Declare for the Draft" : "Declare for " + LEVELS[e.level + 1].name} · ${Math.round(i)}%${e.declareBonus ? " 😤" : ""}</button>
+         <div class="small center declare-stakes-v150" style="margin-top:6px;color:var(--blood)">⚠️ One shot — miss the roll and the career ends here.</div>
          ${P ? `<div style="height:8px"></div><button class="btn ghost" onclick="go('hub')">${e.level === 5 ? "Stay in School — Play Another Year" : "Play Another Season"}</button>` : ""}`
         : `<button class="btn" onclick="go('hub')">Continue — Play Next Season ▸</button>`
     }
@@ -21724,7 +21926,7 @@
     <div class="banner fail">
       <div class="big-emoji">🥀</div>
       <div class="bt">Didn't Make the Cut</div>
-      <div class="bs">${nx ? `The coaches at <b>${nx.name}</b> went another direction.` : "The call never came."} ${e.name}'s climb ends at <b>${t.name}</b>.</div>
+      <div class="bs">${nx ? `The coaches at <b>${nx.name}</b> went another direction.` : "The call never came."} ${escHtml(e.name)}'s climb ends at <b>${t.name}</b>.</div>
     </div>
     <div class="card tight">
       <div class="small center">You declared${ch != null ? ` at <b style="color:var(--gold)">${Math.round(ch)}%</b>` : ""} and it didn't land. A declare is <b>one shot</b> — there is no next season to take another.</div>
@@ -22083,7 +22285,7 @@
           const h = c.me ? 0 : c.ovr - a;
           return `<div class="lb-row ${c.me ? "me" : ""}">
       <div class="lb-rank">${u + 1}</div>
-      <div class="lb-name">${c.name}${c.me ? " (You)" : ""} <span style="color:var(--gold);font-size:12px">${"★".repeat(c.stars)}</span></div>
+      <div class="lb-name">${escHtml(c.name)}${c.me ? " (You)" : ""} <span style="color:var(--gold);font-size:12px">${"★".repeat(c.stars)}</span></div>
       <div class="lb-ovr">${n || c.me ? c.ovr : "?"}${!c.me && n ? `<span style="font-size:11px;color:${h > 0 ? "#e08a8a" : "var(--good)"}"> ${h > 0 ? "+" + h : h}</span>` : ""}</div>
     </div>`;
         })
@@ -22096,7 +22298,7 @@
     ((byId("screen").innerHTML = `
     <div class="eyebrow">${t.name} · Age ${e.age} Class</div>
     <div class="h1">Recruiting Board</div>
-    <div class="sub">${e.name} vs. the ${e.pos}s chasing the same dream. ${n ? "Your Scouting Network reveals their exact ratings." : "Unlock <b>Scouting Network</b> in the Legacy tree to see rival ratings."}</div>
+    <div class="sub">${escHtml(e.name)} vs. the ${e.pos}s chasing the same dream. ${n ? "Your Scouting Network reveals their exact ratings." : "Unlock <b>Scouting Network</b> in the Legacy tree to see rival ratings."}</div>
 
     <div class="card mt" style="margin-top:14px">
       <div class="statline">
@@ -22172,9 +22374,9 @@
     <div class="banner fail">
       <div class="big-emoji">🥀</div>
       <div class="bt">End of the Road</div>
-      <div class="bs">${e.name}'s dream ends at <b>${t.name}</b>. Not everyone makes it — but every rep made you tougher, and his son starts with everything he learned.</div>
+      <div class="bs">${escHtml(e.name)}'s dream ends at <b>${t.name}</b>. Not everyone makes it — but every rep made you tougher, and his son starts with everything he learned.</div>
     </div>
-    <div class="card">
+    <div class="card end-pay-v150">
       <div class="statline">
         <div class="statbox"><div class="n">${LEVELS[a].name.split(" ")[0]}</div><div class="l">Reached</div></div>
         <div class="statbox"><div class="n">+${l}</div><div class="l">Honors 🎖️</div></div>
@@ -22187,13 +22389,13 @@
     <div class="card"><div class="career-log">${d}</div></div>
     ${
       c.length
-        ? `<div class="card tight" style="border-color:var(--gold)">
+        ? `<div class="card tight end-legacy-v150" style="border-color:var(--gold)">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px">🌳 YOU CAN NOW AFFORD</div>
       ${c.map(h => `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-family:'Barlow Condensed';font-size:14px"><span>${h.icon} ${h.name}</span><span style="color:var(--gold);font-family:'Oswald'">${nodeCost(h)} PP</span></div>`).join("")}
     </div>`
         : ""
     }
-    <div class="card tight">
+    <div class="card tight end-legacy-v150">
       <div style="font-family:'Oswald';font-weight:600;font-size:16px;color:var(--gold)">His son picks it up</div>
       <div class="small mt" style="margin-top:6px">The ${escHtml(familyV136().surname)} line goes on: the next player is <b>${escHtml(e.name)}</b>'s son, and every lesson in the tree is his from day one — starting attributes, growth, points. Spend PP on the inheritance, then hand it to him.</div>
     </div>
@@ -22250,9 +22452,9 @@
     <div class="banner nfl">
       <div class="big-emoji">🏆</div>
       <div class="bt">WELCOME TO THE UFF</div>
-      <div class="bs">${e.name} — ${POSITIONS[e.pos].name} — made it all the way from the Pee Wee fields to the pros as a <b>${t} OVR</b> pro. A one-in-a-million story.</div>
+      <div class="bs">${escHtml(e.name)} — ${POSITIONS[e.pos].name} — made it all the way from the Pee Wee fields to the pros as a <b>${t} OVR</b> pro. A one-in-a-million story.</div>
     </div>
-    <div class="card">
+    <div class="card end-pay-v150">
       <div class="statline">
         <div class="statbox"><div class="n">${t}</div><div class="l">Final OVR</div></div>
         <div class="statbox"><div class="n">${e.totalSeasons}</div><div class="l">Seasons</div></div>
@@ -22261,7 +22463,7 @@
     </div>
     <div class="h2">The Journey</div>
     <div class="card"><div class="career-log">${e.career.map(a => `<div><span class="lvl-done">✓</span> ${a.level} — OVR ${a.ovr} at ${a.age}</div>`).join("")}<div><span class="lvl-done" style="color:var(--gold)">★</span> The UFF — OVR ${t}, age ${e.age}</div></div></div>
-    <div class="card tight"><div class="center" style="font-family:'Oswald';color:var(--gold);font-size:16px">+${e._starGain} HONORS ${HONOR_ICON_V130} · His son starts with everything he learned</div></div>
+    <div class="card tight end-legacy-v150"><div class="center" style="font-family:'Oswald';color:var(--gold);font-size:16px">+${e._starGain} HONORS ${HONOR_ICON_V130} · His son starts with everything he learned</div></div>
   `),
       (byId("dock").innerHTML = `
     ${vaultPayBtnV137(e)}
@@ -24023,7 +24225,21 @@
     return hc();
   };
   function boot() {
-    if (((state = loadSave() || freshState()), state.tree || (state.tree = {}), evergreenRefundV146(), state.shop)) {
+    ((state = loadSave() || freshState()), cleanSaveV150(state)); /* v150 A: a name from an older (or imported) save is cleaned on the way in */
+    (function () {
+      const R = window.__saveRecoveredV150;
+      R &&
+        setTimeout(
+          () =>
+            showToast(
+              R.from === "fresh"
+                ? "⚠ Your save could not be read — a copy was kept, and a new one started"
+                : "⚠ Your save was damaged — restored from the backup" + (R.at ? " of " + new Date(R.at).toLocaleString() : "")
+            ),
+          TU("recoverToastMsV150", 2600)
+        );
+    })();
+    if ((state.tree || (state.tree = {}), evergreenRefundV146(), state.shop)) {
       const t = {
         genetics: "genetics",
         talent: "talent",
@@ -27100,8 +27316,11 @@
       showToast("You are not ready to retire yet.");
       return;
     }
-    confirm("Retire from football now? This ends the career and locks in your financial legacy.") &&
-      ((e.voluntaryRetirementV12 = !0), retirePlayer(e), saveGame(), endCareer());
+    return askV150("Retire from football now? This ends the career and locks in your financial legacy.", {
+      title: "Retire",
+      ok: "Retire",
+      danger: !0
+    }).then(ok => ok && state.player === e && !e._settled && ((e.voluntaryRetirementV12 = !0), retirePlayer(e), saveGame(), endCareer(), !0));
   }
   function xd(e) {
     const t = e.lifeV12?.eventQueue?.[0];
@@ -28041,8 +28260,9 @@
       return;
     }
     const had = e.offersV146B;
-    retireV12();
-    if (state.view === "gameover" && had) e.offersV146B = null;
+    return Promise.resolve(retireV12()).then(done => {
+      if (done && state.view === "gameover" && had) e.offersV146B = null;
+    });
   }
   function postV147() {
     const e = state && state.player,
@@ -29539,10 +29759,7 @@
       const EMB = window.TEAM_LOGOS_V44 || null,
         NLOGO = EMB ? EMB.db.length : 90;
       function safeText(v, max) {
-        return String(v || "")
-          .replace(/[<>]/g, "")
-          .trim()
-          .slice(0, max || 24);
+        return cleanNameV150(v, max || 24); /* v150 A: it only stripped <>, so a quote closed the input's value="…" */
       }
       function logoDef(i) {
         i = (((Number(i) || 0) % NLOGO) + NLOGO) % NLOGO;
@@ -29592,6 +29809,8 @@
         c.palette = Math.max(0, Math.min(palettes.length - 1 || 39, Number(c.palette) || 0));
         c.logo = Math.max(0, Math.min(NLOGO - 1, Number(c.logo) || 0));
         c.byLevel = c.byLevel && typeof c.byLevel === "object" ? c.byLevel : {};
+        c.schoolName = safeText(c.schoolName, 24) || "Westfield State"; /* v150 A: what storage hands back is cleaned too */
+        c.teamName = safeText(c.teamName, 18) || "Storm";
         return c;
       }
       function saveCustom(c) {
@@ -29680,7 +29899,7 @@
       function creatorHTML() {
         const c = getCustom(),
           mp = EMB ? EMB.palIdx(c.logo) : -1;
-        return `<div class="team-modal-v153" id="teamModalV153"><div class="team-panel-v153"><button class="team-close-v153" onclick="closeTeamCreatorV153()">×</button><div class="eyebrow">TEAM CREATOR</div><div class="h1">Build Your School</div><div class="team-form-v153"><label>School name<input id="schoolNameV153" maxlength="24" value="${safeText(c.schoolName, 24)}"></label><label>Team name<input id="teamNameV153" maxlength="18" value="${safeText(c.teamName, 18)}" oninput="teamNameLiveV44(this.value)"></label></div><div id="nameIdeasV139">${nameIdeasHTMLV139()}</div><div class="creator-preview-v44" id="creatorPreviewV44">${idPrevHTML(c.palette, c.logo)}</div><div class="h2">${palettes.length} Uniform Palettes <small class="pal-hint-v44">✓ marks the palette matched to your emblem</small></div><div class="palette-grid-v153">${palettes.map((p, i) => `<button class="palette-v153 ${i === c.palette ? "on" : ""} ${i === mp ? "match" : ""}" data-i="${i}" title="${palNameV97(p)}" onclick="pickPaletteV153(${i})"><i style="background:${p[0]}"></i><i style="background:${p[1]}"></i><small>${i + 1}</small><em class="pal-name-v97">${palNameV97(p)}</em></button>`).join("")}</div><div class="h2">${NLOGO} Team Emblems <small class="pal-hint-v44">picking one selects its matching palette</small></div><div class="logo-grid-v153">${Array.from({ length: NLOGO }, (_, i) => `<button class="logo-pick-v153 ${i === c.logo ? "on" : ""}" data-i="${i}" title="${EMB ? EMB.name(i) : i + 1}" onclick="pickLogoV153(${i})">${logoHTML(i)}</button>`).join("")}</div><div class="btn-row mt"><button class="btn secondary" onclick="previewUniformV153()">Open Uniform Preview</button><button class="btn" onclick="saveTeamCreatorV153()">Save Team</button></div></div></div>`;
+        return `<div class="team-modal-v153" id="teamModalV153"><div class="team-panel-v153"><button class="team-close-v153" onclick="closeTeamCreatorV153()">×</button><div class="eyebrow">TEAM CREATOR</div><div class="h1">Build Your School</div><div class="team-form-v153"><label>School name<input id="schoolNameV153" maxlength="24" value="${escHtml(safeText(c.schoolName, 24))}"></label><label>Team name<input id="teamNameV153" maxlength="18" value="${escHtml(safeText(c.teamName, 18))}" oninput="teamNameLiveV44(this.value)"></label></div><div id="nameIdeasV139">${nameIdeasHTMLV139()}</div><div class="creator-preview-v44" id="creatorPreviewV44">${idPrevHTML(c.palette, c.logo)}</div>${teamStyleBarV151B()}<div class="h2">${palettes.length} Uniform Palettes <small class="pal-hint-v44">✓ marks the palette matched to your emblem</small></div><div class="palette-grid-v153">${palettes.map((p, i) => `<button class="palette-v153 ${i === c.palette ? "on" : ""} ${i === mp ? "match" : ""}${teamStyleLockV151B("pal", i)}" data-i="${i}" title="${palNameV97(p)}" onclick="pickPaletteV153(${i})"><i style="background:${p[0]}"></i><i style="background:${p[1]}"></i><small>${i + 1}</small><em class="pal-name-v97">${palNameV97(p)}</em></button>`).join("")}</div><div class="h2">${NLOGO} Team Emblems <small class="pal-hint-v44">picking one selects its matching palette</small></div><div class="logo-grid-v153">${Array.from({ length: NLOGO }, (_, i) => `<button class="logo-pick-v153 ${i === c.logo ? "on" : ""}${teamStyleLockV151B("logo", i)}" data-i="${i}" title="${EMB ? EMB.name(i) : i + 1}" onclick="pickLogoV153(${i})">${logoHTML(i)}</button>`).join("")}</div><div class="btn-row mt"><button class="btn secondary" onclick="previewUniformV153()">Open Uniform Preview</button><button class="btn" onclick="saveTeamCreatorV153()">Save Team</button></div></div></div>`;
       }
       window.openTeamCreatorV153 = function () {
         window.__tempLogoV153 = null;
@@ -29774,7 +29993,14 @@
         }
         refreshIdPrevV44();
       };
+      /* v151 B: the save goes through the gate — a crest or colours not yet unlocked take a free pick or PP first */
       window.saveTeamCreatorV153 = function () {
+        const old = getCustom(),
+          pal = window.__tempPaletteV153 ?? old.palette,
+          lg = window.__tempLogoV153 ?? old.logo;
+        return teamStyleNeedV151B(pal, lg).then(ok => (ok ? (saveTeamCreatorCoreV151B(), !0) : !1));
+      };
+      const saveTeamCreatorCoreV151B = function () {
         const old = getCustom(),
           c = {
             schoolName: safeText(document.getElementById("schoolNameV153")?.value, 24) || old.schoolName,
@@ -29820,15 +30046,21 @@
           },
           p = palettes[c.palette],
           d = logoDef(c.logo);
-        const w = window.open("", "gridironUniformPreview", "width=430,height=720");
-        if (!w) return showToast("Pop-up blocked. Allow pop-ups for the preview.");
         const _mark = EMB
           ? `<i style="position:absolute;left:50%;top:52px;transform:translateX(-50%);width:80px;height:80px;filter:drop-shadow(0 3px 5px #0009);${EMB.cssFull(c.logo)}"></i>`
           : "";
-        w.document.write(
-          `<!doctype html><title>${c.schoolName} Uniform</title><style>body{margin:0;background:#0b1119;color:white;font-family:Arial;display:grid;place-items:center;min-height:100vh}.card{width:330px;padding:28px;border-radius:24px;background:linear-gradient(160deg,#182434,#080c12);box-shadow:0 20px 60px #000}.jersey{position:relative;margin:20px auto;width:220px;height:270px;background:${p[0]};clip-path:polygon(20% 0,38% 8%,62% 8%,80% 0,100% 24%,84% 39%,76% 31%,76% 100%,24% 100%,24% 31%,16% 39%,0 24%);box-shadow:inset 0 0 0 8px ${p[1]}}${EMB ? "" : `.jersey:before{content:'${d.glyph}';position:absolute;left:50%;top:66px;transform:translateX(-50%);width:72px;height:72px;border-radius:18px;display:grid;place-items:center;background:${p[1]};color:${p[0]};font-size:42px;font-weight:900}`}.jersey:after{content:'00';position:absolute;left:50%;top:145px;transform:translateX(-50%);font-size:66px;font-weight:900;color:${p[1]};text-shadow:3px 3px 0 #0006}h1{text-align:center;margin:0}p{text-align:center;color:#aab4c2}</style><div class=card><h1>${c.schoolName}</h1><p>${c.teamName} · ${EMB ? EMB.name(c.logo) : "Logo " + (c.logo + 1)} · Palette ${c.palette + 1}</p><div class=jersey>${_mark}</div></div>`
-        );
-        w.document.close();
+        const _html =
+          `<!doctype html><title>${escHtml(c.schoolName)} Uniform</title><style>body{margin:0;background:#0b1119;color:white;font-family:Arial;display:grid;place-items:center;min-height:100vh}.card{width:330px;padding:28px;border-radius:24px;background:linear-gradient(160deg,#182434,#080c12);box-shadow:0 20px 60px #000}.jersey{position:relative;margin:20px auto;width:220px;height:270px;background:${p[0]};clip-path:polygon(20% 0,38% 8%,62% 8%,80% 0,100% 24%,84% 39%,76% 31%,76% 100%,24% 100%,24% 31%,16% 39%,0 24%);box-shadow:inset 0 0 0 8px ${p[1]}}${EMB ? "" : `.jersey:before{content:'${d.glyph}';position:absolute;left:50%;top:66px;transform:translateX(-50%);width:72px;height:72px;border-radius:18px;display:grid;place-items:center;background:${p[1]};color:${p[0]};font-size:42px;font-weight:900}`}.jersey:after{content:'00';position:absolute;left:50%;top:145px;transform:translateX(-50%);font-size:66px;font-weight:900;color:${p[1]};text-shadow:3px 3px 0 #0006}h1{text-align:center;margin:0}p{text-align:center;color:#aab4c2}</style><div class=card><h1>${escHtml(c.schoolName)}</h1><p>${escHtml(c.teamName)} · ${EMB ? EMB.name(c.logo) : "Logo " + (c.logo + 1)} · Palette ${c.palette + 1}</p><div class=jersey>${_mark}</div></div>`; /* v150 A: an in-app frame (ribDialog), not a pop-up a WebView blocks or leaves the app for */
+        const _paint = w => {
+          if (!w) return;
+          w.document.open();
+          w.document.write(_html);
+          w.document.close();
+        };
+        if (window.ribDialog && window.ribDialog.frame) return window.ribDialog.frame("Uniform preview").then(_paint);
+        const w = window.open("", "gridironUniformPreview", "width=430,height=720");
+        if (!w) return showToast("Pop-up blocked. Allow pop-ups for the preview.");
+        _paint(w);
       };
       function addCreatorButton() {
         if (document.getElementById("teamCreatorBtnV153")) return;

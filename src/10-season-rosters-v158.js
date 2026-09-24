@@ -68,7 +68,7 @@
   };
   function state() {
     try {
-      return window.__GRIDIRON_AUDIT__?.getState?.() || window.o || null;
+      return window.__GRIDIRON_AUDIT__?.getState?.() || window.S || null;
     } catch (e) {
       return null;
     }

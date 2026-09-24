@@ -178,15 +178,24 @@ const M = (page, fn, arg) => page.evaluate(fn, arg)
   const rl = await M(p, () => ({ has: RIB_MONETIZE.has('speed4'), save: /speed4|rib\.monetize|noAds/.test(localStorage.getItem('gridiron_save_v1') || ''), store: !!localStorage.getItem('rib.monetize.ents.v1') }))
   ok(r2.rewarded && rl.has && rl.store && !rl.save, 'ON: the boost survives a reload, in its own storage key — the game save does not mention it', JSON.stringify(rl))
   // a new career, an imported save and a hard reset leave it alone
-  const ind = await M(p, () => { const A = __GRIDIRON_AUDIT__, out = {}
+  // v150 A: import writes the save and reloads through boot() (so the migrations run), and both it and the reset
+  // ask through the in-app ribDialog — press its confirm, then read the result after the reload
+  const yes = () => { const d = document.getElementById('ribDlgV149'); const x = d && d.querySelector('button.danger-v149, button.primary-v149'); if (x) x.click(); return !!x }
+  const ind = await M(p, async (yesSrc) => { const yes = eval(yesSrc), A = __GRIDIRON_AUDIT__, out = {}
     const S = A.freshState(); S.tutorialSeen = true; A.setState(S); window.GridironStorage.save(S); out.fresh = RIB_MONETIZE.has('speed4')
     const code = btoa(unescape(encodeURIComponent(JSON.stringify({ prestige: 3, pp: 5, tree: {}, settings: {} }))))
-    const pr = window.prompt, cf = window.confirm; window.prompt = () => code; window.confirm = () => true
-    try { window.importSave(); out.imported = RIB_MONETIZE.has('speed4') && A.getState().prestige === 3; window.hardReset(); out.reset = RIB_MONETIZE.has('speed4') && A.getState().prestige === 0 } finally { window.prompt = pr; window.confirm = cf }
-    return out })
+    window.__PLATFORM_V149.noReload = true
+    const pr = window.importSave(code); out.asked = yes(); out.accepted = await pr
+    out.imported = RIB_MONETIZE.has('speed4') && JSON.parse(localStorage.getItem('gridiron_save_v1')).prestige === 3
+    return out }, yes.toString())
+  await p.goto(U(...ON), { waitUntil: 'networkidle' }); await booted(p)
+  const ind1 = await M(p, async (yesSrc) => { const yes = eval(yesSrc), A = __GRIDIRON_AUDIT__, out = { loaded: A.getState().prestige === 3 }
+    const pr = window.hardReset(); out.asked = yes(); await pr
+    out.reset = RIB_MONETIZE.has('speed4') && A.getState().prestige === 0
+    return out }, yes.toString())
   await p.goto(U(...ON), { waitUntil: 'networkidle' }); await booted(p)
   const ind2 = await M(p, () => RIB_MONETIZE.has('speed4'))
-  ok(ind.fresh && ind.imported && ind.reset && ind2, 'ON: a new career, an imported save and a hard reset neither grant nor take the entitlement', JSON.stringify({ ...ind, afterReload: ind2 }))
+  ok(ind.fresh && ind.imported && ind1.loaded && ind1.reset && ind2, 'ON: a new career, an imported save and a hard reset neither grant nor take the entitlement', JSON.stringify({ ...ind, ...ind1, afterReload: ind2 }))
 
   // the store screen fits a 400x860 phone, with no page scroll
   const fit = async (tag) => { await M(p, () => RIB_MONETIZE.openStore()); await p.waitForTimeout(300)
