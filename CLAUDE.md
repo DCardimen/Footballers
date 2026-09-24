@@ -21,7 +21,7 @@ are headless Playwright (or pure-Node) checks.
 | `src/11-pregame-v1513.js` | the pregame wizard's pages |
 | `12`–`21` | gear overlay, `DEV` harness, personality, speed-through, story / pregame / growth wheels, Score Attack, leaderboards, Daily Challenge |
 | `22`–`25` | hub sections, dock, bottom nav, the v146 E shell |
-| `src/26-platform.js` / `src/27-monetize.js` | PWA + native shell (loaded last) / monetization (**OFF**) |
+| `src/26-platform.js` / `src/27-monetize.js` / `src/29-seasons.js` | PWA + native shell (loaded last) / monetization (**OFF**) / seasons, the Career Pass, the trophy case |
 | `src/styles/*.css`, `public/` | the app CSS; the menu, coach and vault (`public/rib-menu*`, `rib-vault*`), sheets, film, art |
 
 ## Finding things
@@ -114,4 +114,4 @@ node scripts/<name>check.mjs                       # one check by hand against :
 | `docs/CHANGELOG.md` | the history, newest first (the README's old "Recent changes") |
 | `docs/AUDIT.md` | the engineering audit: wrapper stacks, dead code, risks, roadmap |
 | `docs/MONETIZATION.md` / `docs/APP-STORE.md` / `docs/COMMERCIAL.md` | the store module / shipping to the stores / the plan |
-| `docs/PRESTIGE-VAULT.md` / `docs/LEADERBOARDS.md` | the vault's physics and money / the online boards |
+| `docs/PRESTIGE-VAULT.md` / `docs/LEADERBOARDS.md` / `docs/SEASONS.md` | the vault's physics and money / the online boards / seasons, the Career Pass, the career boards |
