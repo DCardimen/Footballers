@@ -2,8 +2,8 @@
 // across personalities/positions/prestige and report the fun curve — outcome
 // mix, magnitudes, durations, permanents, story variety. Run with dev server up.
 import { chromium } from 'playwright'
-import { gameUrl } from './lib/env.mjs'
-const browser = await chromium.launch({ headless: true })
+import { CHROME, gameUrl } from './lib/env.mjs'
+const browser = await chromium.launch({ headless: true, executablePath: CHROME })
 const page = await browser.newPage()
 const errors = []
 page.on('pageerror', e => errors.push(e.message))
