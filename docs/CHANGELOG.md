@@ -11,6 +11,18 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v151 E — the band plays.** The owner's "Brass Anthem" (moved to `public/audio/brass_anthem.m4a`; it is Opus in an MP4
+  box, 48 kHz stereo, 153.57 s) now plays on a seamless loop through the whole game — menu, career screens, live game —
+  from `src/30-music.js` (`window.RIB_MUSIC`). The file does not loop by itself (150 ms of silence at the head, a ringing
+  note cut at the tail), so it is decoded once and looped by WebAudio with the tail spliced into the head; loudness is
+  normalised in code (−18.2 → −20 dBFS RMS). It waits for a gesture, fades in, pauses with the tab / the app and ducks
+  under the coach, the vault and the broadcast stingers. Every other sound now runs through one effects gain per audio
+  context, so Settings has a SOUND tab: Mute all, Music, Music volume (default 50%), Sound effects (the save's `sound`),
+  Effects volume, Coach's voice — and a speaker button in the career top bar and on the main menu mutes everything.
+  **No ffmpeg on the build box:** the `.mp3` fallback was made by decoding the m4a in Chromium and encoding with
+  `lameenc` (pip, 128 kbps); with ffmpeg it is `ffmpeg -i public/audio/brass_anthem.m4a -b:a 128k public/audio/brass_anthem.mp3`.
+  The m4a is precached best-effort after the shell; the mp3 is never precached. `v151Echeck.mjs` (suite `audio`, smoke).
+
 - **v151 C — the season is an event.** Two competitive seasons a year (UTC Jan 1 / Jul 1, "Season 1 · Kickoff"): each has its own career boards and a 30-tier CAREER PASS (a free track of 11 cosmetics, a premium track of 30 — the $9.99 pass, sold by the commerce module, still off), 20 season challenges and 3 weekly ones, all rotated by the season id. XP comes from watching the career (games, live games, wins, seasons, titles, awards, promotions, career ends, the Daily Challenge, Score Attack) — nothing on the pass changes a snap, a stat or a payout. The leaderboards rank whole careers on thirteen boards (All-Time Career Score, Season, Weekly, Best QB / RB / WR / TE / OL / DEF, Most Championships, Craziest Career, Fastest to the League, Best Without Prestige), labelled LOCAL until a server exists; a row opens that career's profile and how its score adds up. A season's end archives its board and your finish into a trophy case that is never wiped, resets the pass and the season board, and greets the next boot with a "Season N begins" recap. Careers are never touched. Menu: SEASON PASS and LEADERBOARDS tiles; the hub carries a countdown chip. `docs/SEASONS.md`, `v151Ccheck`.
 - **v150 A — the bugs the audit found.** Names can't run code: `cleanNameV150` cleans every input (name box, family
   name, Team Creator, leaderboard handle), `cleanSaveV150` cleans a save at boot, and 19 screen templates print names

@@ -54,6 +54,7 @@ across `src/` instead of `index.html` (`grep -rn "v146 E THE MENUS" src/`).
 | 25 | `src/25-shell.js` | 16K | `v146 E THE MENUS LIVE AT THE BOTTOM, AND NOTHING SCROLLS` | |
 | 27 | `src/27-monetize.js` | 47K | `window.RIB_MONETIZE` — the monetization module, **OFF** by default (v149 E, a new file, not a split block; docs/MONETIZATION.md) | `v149 E THE STORE IS WIRED, AND SWITCHED OFF` |
 | – | `public/rib-menu*.js`, `rib-vault*.js` | | the menu, the coach, the vault — unchanged, baked by `bake-menu-into-index.mjs` | |
+| 30 | `src/30-music.js` | 25K | `window.RIB_MUSIC` — the music (the anthem's WebAudio loop, the gesture, the pause, the duck) and the effects bus every other audio context is routed through (v151 E, a new file after `26-platform.js`) | `v151 E THE BAND PLAYS` |
 | 29 | `src/29-seasons.js` | 45K | `window.RIB_SEASONS` — competitive seasons, the Career Pass, the trophy case, the season screen (v151 C, a new file after `27-monetize.js`; the career boards are in `20-leaderboards.js`; docs/SEASONS.md) | `v151 C THE SEASON IS AN EVENT` |
 | 26 | `src/26-platform.js` | 30K | `v149 D IT INSTALLS` — the platform layer: worker registration, `ribDialog`, `ribSave` (file + rolling backups), `ribHaptics`, the native shell (back button, keep-awake, freshness held, Preferences mirror). Loaded LAST so no older block index moves; `bake-menu-into-index.mjs` may put the menu block after it — it copes with either order | `v149 D` |
 

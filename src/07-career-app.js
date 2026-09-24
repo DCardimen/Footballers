@@ -12813,6 +12813,59 @@
     <div class="switch ${s ? "on" : ""}"><i></i></div>
   </div>`;
   }
+  /* ===== v151 E THE BAND PLAYS (the Settings › SOUND card) =====
+   * Drawn from storage alone, so a boot restore to Settings never waits on src/30-music.js (v140); the handlers
+   * (`ribSoundV151E`) live there and are only called on a tap. Music / volumes / MUTE ALL are the device's
+   * `rib.music.v151`; SOUND EFFECTS is still the save's `settings.sound`; the coach's voice is `rib.coachVoice.v119`. */
+  function soundCardV151E() {
+    let p = {};
+    try {
+      p = (window.RIB_MUSIC && window.RIB_MUSIC.prefs()) || JSON.parse(localStorage.getItem("rib.music.v151") || "{}") || {};
+    } catch (_) {
+      p = {};
+    }
+    const music = p.music !== false,
+      muteAll = p.muteAll === true,
+      vol = p.vol != null ? +p.vol : 0.5,
+      sfxVol = p.sfxVol != null ? +p.sfxVol : 1;
+    let voice = true;
+    try {
+      voice = localStorage.getItem("rib.coachVoice.v119") !== "off";
+    } catch (_) {}
+    const row = (id, on, label, desc, click) => `<div class="toggle-row snd-dim-v151e" id="${id}" onclick="${click}">
+    <div class="toggle-info"><div class="toggle-label">${label}</div><div class="toggle-desc">${desc}</div></div>
+    <div class="switch ${on ? "on" : ""}"><i></i></div>
+  </div>`;
+    const slider = (id, label, v, what) => `<div class="fx-row snd-dim-v151e" style="margin:2px 0 6px">
+        <div class="fx-head"><span class="fx-label">${label}</span><span class="fx-val" id="${id}_val">${Math.round(v * 100)}%</span></div>
+        <input class="fx-slider" id="${id}" type="range" min="0" max="1" step="0.05" value="${v}" oninput="ribSoundV151E('${what}',this.value)" onchange="ribSoundV151E('${what}',this.value)">
+      </div>`;
+    return `<div class="card snd-v151e${muteAll ? " muted-v151e" : ""}" id="soundCardV151E">
+      <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:6px">🔊 SOUND</div>
+      <div class="toggle-row" id="sndMuteV151E" onclick="ribSoundV151E('muteAll')">
+    <div class="toggle-info"><div class="toggle-label">Mute all</div><div class="toggle-desc">Silence the music, the effects and the coach at once</div></div>
+    <div class="switch ${muteAll ? "on" : ""}"><i></i></div>
+  </div>
+      ${row("sndMusicV151E", music, "Music", "The Brass Anthem, on a loop through the whole game", "ribSoundV151E('music')")}
+      ${slider("sndVolV151E", "Music volume", vol, "vol")}
+      ${row("sndSfxOnV151E", settingOn("sound"), "Sound effects", "Broadcast cues, rewards, and game-impact audio", "toggleSetting('sound')")}
+      ${slider("sndSfxV151E", "Effects volume", sfxVol, "sfxVol")}
+      ${row("sndVoiceV151E", voice, "Coach's voice", "The coach's blips as he talks you through a screen", "coachVoiceV151E()")}
+    </div>`;
+  }
+  function coachVoiceV151E() {
+    const C = window.__RIB_COACH;
+    let on = true;
+    try {
+      on = localStorage.getItem("rib.coachVoice.v119") !== "off";
+    } catch (_) {}
+    if (C && C.voice && C.voice.setEnabled) C.voice.setEnabled(!on);
+    else
+      try {
+        localStorage.setItem("rib.coachVoice.v119", on ? "off" : "on");
+      } catch (_) {}
+    state.view === "settings" && screenSettings();
+  }
   function screenSettings() {
     const e = (() => {
       try {
@@ -12829,9 +12882,9 @@
       ${toggleRow("skipOpp", "Skip opponent drives", "Only watch plays while your team has the ball")}
       ${toggleRow("onlyInvolved", "My plays only", "Jump straight to plays you're personally involved in")}
       ${toggleRow("fastSim", "Faster live sim", "Speed up the default play animation")}
-      ${toggleRow("sound", "Sound effects", "Broadcast cues, rewards, and game-impact audio")}
       ${toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices")}
     </div>
+    ${soundCardV151E() /* v151 E: the SOUND tab (music, effects, the coach's voice, mute all) */}
     <div class="card">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:4px">📐 FIELD VIEW</div>
       <div class="small" style="margin-bottom:10px">Adjust the 2.5D perspective — one dial shrinks the far field, numbers AND players together (always consistent) — plus size, spacing, and zoom.</div>
@@ -24298,6 +24351,7 @@
   window.importSave = importSave;
   window.hardReset = hardReset;
   window.toggleSetting = toggleSetting;
+  window.coachVoiceV151E = coachVoiceV151E;
   window.applyFieldFx = function () {
     var el = document.querySelector("#field");
     if (el) {

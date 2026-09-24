@@ -11,6 +11,7 @@
 //   the rest         every other runtime file under public/ (the sheets, the menu/coach/vault/badge art, fonts,
 //                    icons) — best effort, a miss is fetched at runtime
 //   never            the film encodes (a byte-range stream the worker leaves to the network; the .jpg still is in),
+//                    the music's .mp3 fallback (v151 E — the .m4a IS precached, best effort, after the shell),
 //                    the 1024 store icon, rib-build.json and sw.js themselves.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -18,7 +19,7 @@ import crypto from 'node:crypto'
 import { ROOT } from './layout.mjs'
 
 export const SW_META = '<meta name="rib-sw" content="./sw.js">'
-const EXCLUDE = [/\.(mp4|webm|mov)$/i, /^icon-1024\.png$/, /\.map$/, /(^|\/)\.DS_Store$/]
+const EXCLUDE = [/\.(mp4|webm|mov)$/i, /^audio\/.*\.mp3$/i /* v151 E: the music's fallback encode — fetched only where Opus-in-MP4 will not decode */, /^icon-1024\.png$/, /\.map$/, /(^|\/)\.DS_Store$/]
 
 const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16)
 function walk(dir, base = dir, out = []) {
