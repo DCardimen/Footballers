@@ -7,10 +7,18 @@
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="yes" name="mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
-<meta content="#16281b" name="theme-color"/>
-<link rel="manifest" href="./public/manifest.webmanifest"/>
-<link rel="apple-touch-icon" href="./public/apple-touch-icon.png"/>
-<link rel="icon" type="image/png" sizes="512x512" href="./public/icon-512.png"/>
+<meta content="#070b12" name="theme-color"/>
+<!-- v149 D IT INSTALLS: the manifest, the icons (scripts/build-app-icons.py, cut from the film's crest) and
+     no telephone/email auto-links. `vite-ignore` keeps vite build from hashing them into /assets/ (the
+     manifest's own icon paths would then point at nothing). The service worker is registered by src/26-platform.js, and only when a
+     BUILD put the rib-sw meta here (scripts/lib/pwa.mjs) — never under `vite` dev, never in the app shell. -->
+<meta content="telephone=no" name="format-detection"/>
+<link rel="manifest" href="./public/manifest.webmanifest" vite-ignore/>
+<link rel="apple-touch-icon" href="./public/apple-touch-icon.png" vite-ignore/>
+<link rel="apple-touch-icon" sizes="167x167" href="./public/apple-touch-icon-167.png" vite-ignore/>
+<link rel="apple-touch-icon" sizes="152x152" href="./public/apple-touch-icon-152.png" vite-ignore/>
+<link rel="icon" type="image/png" sizes="32x32" href="./public/favicon-32.png" vite-ignore/>
+<link rel="icon" type="image/png" sizes="192x192" href="./public/icon-192.png" vite-ignore/>
 <meta content="Running It Back" name="apple-mobile-web-app-title"/>
 <meta content="Running It Back" name="application-name"/>
 <title>RUNNING IT BACK — Life of a Player v15.20</title>
@@ -551,5 +559,5 @@ html.shell-v146 .dock .qa-empty-v146{display:none}
 </style>
 <script src="./src/25-shell.js" vite-ignore></script>
 <script src="./src/27-monetize.js" vite-ignore></script>
-<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v147uff"></script><script src="./public/rib-menu-boot.js?v=v147uff"></script><script src="./public/rib-menu.js?v=v147uff"></script><script src="./public/rib-menu-howto.js?v=v147uff"></script><script src="./public/rib-menu-coach.js?v=v147uff"></script><script src="./public/rib-menu-navigation.js?v=v147uff"></script><script src="./public/rib-vault.js?v=v147uff"></script><script src="./public/rib-vault-audio.js?v=v147uff"></script><script src="./public/rib-vault-bridge.js?v=v147uff"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
+<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v147uff"></script><script src="./public/rib-menu-boot.js?v=v147uff"></script><script src="./public/rib-menu.js?v=v147uff"></script><script src="./public/rib-menu-howto.js?v=v147uff"></script><script src="./public/rib-menu-coach.js?v=v147uff"></script><script src="./public/rib-menu-navigation.js?v=v147uff"></script><script src="./public/rib-vault.js?v=v147uff"></script><script src="./public/rib-vault-audio.js?v=v147uff"></script><script src="./public/rib-vault-bridge.js?v=v147uff"></script><!-- RIB_DIRECT_MENU_BODY_END --><script src="./src/26-platform.js" vite-ignore></script></body>
 </html>
