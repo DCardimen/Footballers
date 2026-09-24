@@ -112,6 +112,44 @@
       // the grade and the COACH'S SUMMARY button under it are the tab: never behind an accordion header
       nofold: ["grade"],
     },
+    /* v150 A: the three career-end screens were one long stack — the failed-declare epitaph measured 2.15
+     * screens in the shell's panel. Same machinery as the report card: the verdict first (the banner, the
+     * legacy grade, what it paid), then the rest one tap each. The epitaph keeps its "one shot" line on the
+     * first tab. The retirement plan and the last-thought vow ride their own LIFE tab on the gameover screen. */
+    declineResult: {
+      start: "epitaph",
+      secs: [
+        { k: "epitaph", name: "EPITAPH", re: /(^|\s)banner(\s|$)/ },
+        { k: "totals",  name: "TOTALS",  re: /\bnever-v150\b/ },
+        { k: "best",    name: "BEST",    re: /\bnever-v150\b/ },
+        { k: "log",     name: "LOG",     re: /\bnever-v150\b/ },
+      ],
+      txt: [
+        { k: "totals", re: /^Career Totals$/i },
+        { k: "best",   re: /^Best Season$/i },
+        { k: "log",    re: /^Career Log$/i },
+      ],
+      nofold: ["epitaph"],
+    },
+    gameover: {
+      start: "end",
+      secs: [
+        { k: "end",    name: "THE END", re: /(^|\s)banner(\s|$)|legacy-summary-v11|end-pay-v150/ },
+        { k: "life",   name: "LIFE",    re: /regret-card-v12|finance-legacy-v12/ },
+        { k: "log",    name: "LOG",     re: /\bnever-v150\b/ },
+        { k: "legacy", name: "HIS SON", re: /end-legacy-v150/ },
+      ],
+      txt: [{ k: "log", re: /^Career Log$/i }],
+    },
+    win: {
+      start: "end",
+      secs: [
+        { k: "end",    name: "THE END", re: /(^|\s)banner(\s|$)|legacy-summary-v11|end-pay-v150/ },
+        { k: "log",    name: "JOURNEY", re: /\bnever-v150\b/ },
+        { k: "legacy", name: "HIS SON", re: /end-legacy-v150/ },
+      ],
+      txt: [{ k: "log", re: /^The Journey$/i }],
+    },
     // the prestige tree put 862px of specialization and rewards cards ABOVE the
     // branch row, so the shop you came for started a screen and a half down
     shop: {
@@ -127,8 +165,8 @@
       nofold: ["nodes"],
     },
   };
-  const ICON = { now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱" };
-  const TAB = { hub: "now", shop: "nodes", season: "sched", settings: "game", result: "grade" };
+  const ICON = { now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
+  const TAB = { hub: "now", shop: "nodes", season: "sched", settings: "game", result: "grade", declineResult: "epitaph", gameover: "end", win: "end" };
 
   function cfg() { const s = window.S; return (s && VIEWS[s.view]) || null }
   function classify(el, C) {
