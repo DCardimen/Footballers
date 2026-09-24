@@ -39,12 +39,17 @@ static assets, so it wraps cleanly in a native shell and runs fully offline.
   (`Dt`). Real *city* names are retained by design. No real-league logos or marks
   are used (team emblems are procedurally generated). See the audit note below.
 - **Installable-app packaging.** A web app manifest (`public/manifest.webmanifest`),
-  maskable icon set (`public/icon-*.png`, generated from `public/icon.svg` via
-  `scripts/genicons.mjs`), and iOS/Android install meta tags are wired into
-  `index.html`. The game can now be "Added to Home Screen" and is ready to wrap
-  with Capacitor.
-- **Capacitor config** (`capacitor.config.json`) targeting `_site` as the web
-  directory (the same output the Pages workflow assembles).
+  maskable icon set (`public/icon-*.png`, cut from the title film's crest by
+  `scripts/build-app-icons.py`), and iOS/Android install meta tags are wired into
+  `index.html`. **v149 D:** a service worker makes the built site installable and
+  playable offline, and `src/26-platform.js` is the native-shell layer (back button,
+  haptics, dialogs, save file + rolling backups). **The full, current store checklist is
+  `docs/APP-STORE.md`** — it supersedes the step lists below where they differ.
+- **Capacitor config** (`capacitor.config.json`) targeting `dist` (the `vite build`
+  output) as the web directory; Capacitor 8 + plugins are in `package.json`.
+- **Art (correction pending, see `docs/APP-STORE.md` §7):** 132 source images carry
+  OpenAI C2PA "AI-generated" credentials (`docs/ART-PROVENANCE.md`), so "all art produced
+  by the owner" below needs the owner's confirmation / rewording before submission.
 
 ## The path to the stores
 
@@ -78,8 +83,9 @@ npx cap open android   # Android Studio
 
 ### 2. App icons & splash
 
-- Replace the placeholder `public/icon.svg` with final art, then re-run
-  `node scripts/genicons.mjs` to regenerate the PNG sizes.
+- The icons are cut from the title film's crest by `python3 scripts/build-app-icons.py`
+  (`npm run icons`); to change the art, change that script's source and re-run it.
+- `npm run cap:assets` builds the native sets from `resources/`.
 - Generate the full native icon/splash sets with
   [`@capacitor/assets`](https://github.com/ionic-team/capacitor-assets):
   `npx @capacitor/assets generate` (needs a 1024×1024 icon and a splash source).

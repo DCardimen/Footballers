@@ -86,6 +86,14 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   against better carriers; the worst-angle bucket is full of easy chase-downs) will invert a naive
   reading. Kill switch `TU("v143", 0)` restores the old engine including the unspent roll.
   `window.__V143`; `v143check.mjs`, then `scoreneutralcheck.mjs` (several seeds), `tacklecheck.mjs`
+- `v149 D IT INSTALLS` (`src/26-platform.js`, loaded LAST; `pwa/sw.js`; `scripts/lib/pwa.mjs`) — the PWA and the native
+  shell. Builds (`vite build`, `assemble-pages.mjs`) add `<meta name="rib-sw">` + `sw.js` (content-hashed precache,
+  network-first navigation so v106.1 is unchanged); the worker registers only on a built site, never in dev or
+  Capacitor. `ribDialog` (use it for new confirms/prompts — the old call sites are listed in `docs/APP-STORE.md` §13),
+  `ribSave` (file export/import via a reload, rolling backups `rib_backup_v149_*`), `ribHaptics`, Android back
+  (`__PLATFORM_V149.back.parent/.hold`), keep-awake, freshness held in the shell. **It wraps
+  `GridironStorage.save` — keep saves going through it.** Icons: `scripts/build-app-icons.py`. Store checklist:
+  `docs/APP-STORE.md`. `window.__PLATFORM_V149`; `v149Dcheck.mjs`
 - `v148 THE LINES HOLD TO THE GOAL LINE` (in `buildPersp`, after the v112 cap) — `PERSP.VB` is ONE row density for
   the whole drive: the one the field has with the anchor at the own 25 (`rowRefYdV148`), never re-capped per snap
   (the old cap, `VB0`, fell 2.6× as the LOS neared the attacked goal and squashed everything near the end zone —
@@ -823,6 +831,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 
 | You changed… | Run |
 |---|---|
+| the PWA — the manifest, icons, the service worker, the build's precache, the platform layer (dialogs, save file / backups, back button, haptics), Capacitor config (v149 D) | `v149Dcheck.mjs`, then `freshcheck.mjs`, `layoutcheck.mjs`, `bootviewcheck.mjs`, `splashcheck.mjs`, `walk.mjs`, `menu-integration-check.mjs` (dev AND a served `dist/`) |
 | the row density / the squash near the end zone, the far-behind taper, what the paint and the overlays register to near either goal line (v148) | `v148check.mjs` (also `KILL=1` to see the old failures), then `v144check.mjs`, `v112Bcheck.mjs`, `v93check.mjs`, `v99check.mjs`, `v92check.mjs`, `v145check.mjs`, `v112Echeck.mjs`, `v86check.mjs`, `sidelinecheck.mjs`, `renderpathcheck.mjs` |
 | retiring above college, Sim the Rest of the Season at 7+, stale offers, auto-answered story decisions in the UFF/Interstellar (v147 A) | `v147Acheck.mjs`, then `v146Bcheck.mjs`, `rivalcheck.mjs`, `v90check.mjs`, `v85check.mjs`, `v136check.mjs`, `declarecheck.mjs`, `v88check.mjs`, `bootviewcheck.mjs`, `v146Echeck.mjs`, `walk.mjs` |
 | the menu's prestige coin, the OVR ring's arc and spark, the milestones trophy (v147 B) | `node scripts/build-uff-trophy.mjs` (if the trophy art changed), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs`, then `v147Bcheck.mjs`, `menu-integration-check.mjs`, `menufxcheck.mjs`, `heroflashcheck.mjs`, `sheencheck.mjs`, `honorcheck.mjs`, `freshcheck.mjs`, `menu-mask-check.mjs`, `menushot.mjs` (`CAREER=1`) |

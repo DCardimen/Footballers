@@ -55,6 +55,25 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v149 D — it installs.** The built site is a PWA and the repo is ready for Capacitor. `vite build` and the Pages
+  assembly finish with `scripts/lib/pwa.mjs`: the page gets `<meta name="rib-sw">` and a `sw.js` (template
+  `pwa/sw.js`) precaching the page, every `src/` file as stamped, the menu and every sheet (~13 MB, by content
+  revision; the film encodes stream). Navigations are network-first, so v106.1's freshness reload is unchanged and
+  its `cache:'reload'` fetch passes through; offline, the last page and a career keep going. A deploy is a new
+  worker that re-fetches only what moved. `src/26-platform.js` (loaded last, attaches to existing hooks, edits no
+  game code) adds `ribDialog` (in-app confirm / prompt / alert / frame), `ribSave` (export to a file, import
+  through a reload so the boot migrates it, and a rolling backup of the last five distinct saves — session start,
+  each new season, every 10 minutes — restorable from Settings › Save File & Backups), `ribHaptics`, and the native
+  shell: Android back walks the views and exits at the menu (never out of a live game or a decision), the v106.1
+  probe is held, no worker, `navigator.vibrate` → Capacitor Haptics, keep-awake in a live game (Wake Lock on the
+  web), a blank `window.open` becomes an in-app frame, and the save is mirrored to Preferences against an iOS
+  purge. New icons are cut from the film's crest (`scripts/build-app-icons.py`, `resources/` for
+  `@capacitor/assets`); `capacitor.config.json` points at `dist/` with Capacitor 8 + plugins in `package.json`
+  (`npm run cap:sync|cap:android|cap:ios`). `docs/APP-STORE.md` is the release checklist (accounts, signing, sizes,
+  age rating, data safety, loot boxes — earned, never sold — trademark, and the art-provenance finding:
+  132 source images carry OpenAI "AI-generated" credentials, `docs/ART-PROVENANCE.md`), with `docs/PRIVACY.md` /
+  `docs/TERMS.md` templates. Gate: `scripts/v149Dcheck.mjs`.
+
 - **v148 — the lines hold to the goal line.** Near the end zone being attacked the field was squashed top to
   bottom: the row density (`VB` — canvas rows per unit of ground) was re-capped every snap so the WHOLE field
   fit the 2800-row warp canvas measured from the anchor, and the anchor rides the LOS, so the further the drive

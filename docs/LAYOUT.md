@@ -53,6 +53,7 @@ across `src/` instead of `index.html` (`grep -rn "v146 E THE MENUS" src/`).
 | – | `index.html` `<style id="shellV146css">` | 8K | the v146 E shell's look (kept inline: it has an id) | |
 | 25 | `src/25-shell.js` | 16K | `v146 E THE MENUS LIVE AT THE BOTTOM, AND NOTHING SCROLLS` | |
 | – | `public/rib-menu*.js`, `rib-vault*.js` | | the menu, the coach, the vault — unchanged, baked by `bake-menu-into-index.mjs` | |
+| 26 | `src/26-platform.js` | 30K | `v149 D IT INSTALLS` — the platform layer: worker registration, `ribDialog`, `ribSave` (file + rolling backups), `ribHaptics`, the native shell (back button, keep-awake, freshness held, Preferences mirror). Loaded LAST so no older block index moves; `bake-menu-into-index.mjs` may put the menu block after it — it copes with either order | `v149 D` |
 
 A file's number is the index its block had among the old `<script>` elements, so anything that
 still says "block 7" (e.g. `equaltalentcheck.mjs` loading blocks `[0,1,2,3,4,7]`) means
@@ -130,3 +131,11 @@ inline; they are cheap, some carry ids code may look up, and moving them buys no
   top-level block becomes a new `src/NN-name.js` with its own `<script src="./src/NN-name.js"
   vite-ignore></script>` at the position it must run — then run `layoutcheck.mjs`.
 - Markup, the three inline scripts and the small styles: `index.html`.
+
+## The build outputs (v149 D)
+
+`vite build` (dist/, the Capacitor `webDir`) and `scripts/assemble-pages.mjs` (_site/, GitHub Pages) both finish with
+`scripts/lib/pwa.mjs`'s `writeServiceWorker(outDir)`: `<meta name="rib-sw" content="./sw.js">` goes into the page and
+`sw.js` = a content-hashed precache manifest + `pwa/sw.js`. `src/26-platform.js` registers the worker only when that
+meta is present, so `vite` dev and the checks that run on it never have one. The manifest and icon `<link>`s in the
+head carry `vite-ignore`, or vite build hashes them into `/assets/` and the manifest's relative icon paths break.
