@@ -1187,6 +1187,29 @@
     "layoutcheck",
     "honorcheck"
    ]
+  },
+  "pwa": {
+   "desc": "v149 D — the PWA, service worker, platform layer and Capacitor config",
+   "anchors": [
+    "v149 D"
+   ],
+   "files": [
+    "src/26-platform.js",
+    "pwa/sw.js",
+    "scripts/lib/pwa.mjs",
+    "vite.config.js",
+    "scripts/assemble-pages.mjs",
+    "capacitor.config.json"
+   ],
+   "checks": [
+    "v149Dcheck",
+    "bootviewcheck",
+    "freshcheck",
+    "splashcheck",
+    "walk",
+    "menu-integration-check",
+    "layoutcheck"
+   ]
   }
  },
  "checks": {
@@ -3100,6 +3123,18 @@
    "runtimeSec": 300,
    "slow": false,
    "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v149Dcheck": {
+   "file": "scripts/v149Dcheck.mjs",
+   "desc": "v149 D — PWA + platform: manifest/icons, the service worker precache and offline play on a built site, freshness with a worker, Capacitor stub (back button, haptics, no SW), dialogs, save file/backups.",
+   "areas": [
+    "pwa"
+   ],
+   "runtimeSec": 420,
+   "slow": true,
+   "needsServer": false,
    "pureNode": false,
    "flaky": []
   }
