@@ -8544,9 +8544,11 @@
     };
   }
   function settingOn(e) {
+    if (e === "onlyInvolved" && !playsOnlyOkV151A()) return !1; /* v151 A: unlocked by the first finished career */
     return (state.settings && state.settings[e]) || !1;
   }
   function toggleSetting(e) {
+    if (e === "onlyInvolved" && !playsOnlyOkV151A()) return void showToast("🔒 My Plays Only unlocks when you complete a career");
     (state.settings || (state.settings = {}),
       (state.settings[e] = !state.settings[e]),
       saveGame(),
@@ -8784,11 +8786,13 @@
   }
   // H1/H3: a speed the device may not use becomes the module's clamp (2× today); identity while off
   function speedClampV150C(s) {
-    const m = mzV150C();
-    return m && m.clampSpeed ? m.clampSpeed(s) : s;
+    /* v151 A: the progression gate applies with the store on or off — step down to the fastest speed this player has */
+    if (speedOkV151A(s)) return s;
+    return [3, 2, 1].find(x => x < +s && speedOkV151A(x)) || 1;
   }
   // H2: the 3× rung is a config flag (features.speed3), off by default — the row is byte-for-byte the old one
   function speed3V150C() {
+    if (TU("speed3RungV151A", 1)) return !0; /* v151 A: 3× is a rung of the free ladder (reach the UFF), shown to everyone */
     const m = mzV150C();
     return !!(m && m.config && m.config.features && m.config.features.speed3);
   }
@@ -8796,7 +8800,8 @@
   // Returns the extra PP, already on state.pp and the vault's payout; 0 (and nothing written) while off.
   function payoutBoostV150C(e, pay, ctx) {
     const m = mzV150C();
-    if (!m || !e) return 0;
+    /* v151 A: the payout double is retired (it sold prestige) — identity unless a future non-prestige use sets features.payoutBoost */
+    if (!m || !e || !(m.config && m.config.features && m.config.features.payoutBoost)) return 0;
     pay != null ? (e._payV150C = Math.max(0, Math.round(pay))) : (pay = e._payV150C);
     if (!(pay > 0) || e._ppDoubledV149E) return 0;
     const x = Math.max(0, Math.round(m.claimPayoutBoost(pay, ctx || state.view) || 0));
@@ -8842,6 +8847,241 @@
       if (x) (saveGame(), render());
       return x;
     }
+  };
+  /* ===== v151 A THE GATES ARE EARNED ON THE FIELD =====
+   * The owner's progression gates. They are LIVE whatever the store's master switch says — they change the free game
+   * by design — and each has a kill switch (TU "<name>", 0 restores the old path):
+   *   My Plays Only (`onlyInvolved`) after the FIRST finished career — any career that reached a career-end screen
+   *     (`careersCompleted`, both settles count it; a Hall of Fame entry grandfathers an old save). `playsOnlyGateV151A`.
+   *   3× on REACHING THE UFF (level `speed3LevelV151A`, 7) in any career — `state.bestLevel` is account-wide, so a man
+   *     who already got there keeps it. 4×: with the store OFF it comes WITH 3× (nothing is unobtainable); with the store
+   *     ON it is Pro's (`RIB_MONETIZE.has("speed4")` — Pro / Founder / the 20-minute ad / grandfathered). `speedGateV151A`.
+   *   Season skips (`seasonSkipV151A`, the ⏭ button; `simRemainingWeeks` itself stays ungated for the engine and the
+   *     checks): a day's count comes from LIFETIME PP EARNED (`ppLifetimeV151A` — PP only ever goes up on it; spending
+   *     does not lower it): 1 at 1,000, then +2 for every ×100 (3 at 100,000, 5 at 10M, 7 at 1B — `skipFirstPPV151A`,
+   *     `skipStepMulV151A`, `skipFirstV151A`, `skipPerStepV151A`, `skipMaxV151A`). Pro adds `skipProBonusV151A` (3);
+   *     a rewarded ad adds one today (the module's `simExtra`). Quick Play (one week) is never counted. `seasonSkipGateV151A`.
+   * Lifetime PP: the game never kept it, so it starts from what the save already shows — PP in hand + banked + what the
+   * prestige tree's levels cost at base price — and from then on every save adds any rise in `state.pp` (`ppTrackV151A`).
+   * The advanced filters (Stats / Leaders / Hall of Fame) are free while the store is OFF and Pro's while it is ON
+   * (`RIB_MONETIZE.filtersLocked()`); `advFiltersV151A` is their kill switch. Hoisted declarations (v140). */
+  function gateOnV151A(k) {
+    return !!TU(k, 1);
+  }
+  function careerDoneV151A() {
+    return (state.careersCompleted || 0) > 0 || !!(state.hof && state.hof.length);
+  }
+  function uffReachedV151A() {
+    const lv = TU("speed3LevelV151A", 7);
+    return (state.bestLevel || 0) >= lv || !!(state.player && (state.player.level || 0) >= lv);
+  }
+  function playsOnlyOkV151A() {
+    return !gateOnV151A("playsOnlyGateV151A") || careerDoneV151A();
+  }
+  function gate4V151A() {
+    const m = mzV150C();
+    return !!(m && m.config && m.config.features && m.config.features.gateSpeed4);
+  }
+  // THE speed question: the progression gate (3× the UFF) and, while the store is ON, the money gate (4× Pro)
+  function speedOkV151A(s) {
+    s = +s;
+    if (s < 3) return !0;
+    const m = mzV150C();
+    if (!gateOnV151A("speedGateV151A")) return s >= 4 && gate4V151A() ? m.has("speed4") : !0;
+    if (s >= 4) return gate4V151A() ? m.has("speed4") : uffReachedV151A();
+    return uffReachedV151A() || !!(m && m.has("speed3"));
+  }
+  function speedWhyV151A(s) {
+    return +s >= 4 && gate4V151A() ? "Pro Career" : "Reach the UFF";
+  }
+  const SPEED_GLYPH_V151A = { "0.5": "◀◀", 1: "▶ ❚❚", 2: "▶▶", 3: "▶▶▸", 4: "▶▶▶" };
+  function speedSmallV151A(r) {
+    return speedOkV151A(r) ? SPEED_GLYPH_V151A[r] : "🔒 " + (speedWhyV151A(r) === "Pro Career" ? "PRO" : "UFF");
+  }
+  // a locked tap: the store's offer for a paid 4× (ON), a plain line for an earned one
+  function speedLockV151A(s) {
+    const m = mzV150C();
+    if (m && +s >= 4 && gate4V151A()) return void (m.speedLocked && m.speedLocked(s));
+    showToast(`🔒 ${s}× unlocks when you reach the UFF`);
+  }
+  // the live row's buttons follow a gate that opened mid-game (an ad watched, a purchase) — the module calls it too
+  function speedRowSyncV151A() {
+    document.querySelectorAll(".speed-row .speed-btn[data-spd]").forEach(b => {
+      const r = b.dataset.spd,
+        ok = speedOkV151A(r),
+        sm = b.querySelector("small"),
+        t = speedSmallV151A(r);
+      b.classList.toggle("speed-lock-v151", !ok);
+      ok ? b.removeAttribute("title") : b.setAttribute("title", speedWhyV151A(r));
+      sm && sm.textContent !== t && (sm.textContent = t);
+    });
+  }
+  // ---- lifetime PP (the prestige the season skips are measured in)
+  function ppSpentV151A() {
+    let t = 0;
+    Object.keys(state.tree || {}).forEach(k => {
+      const n = TREE_NODES[k],
+        l = state.tree[k] || 0;
+      if (n) for (let i = 0; i < l; i++) t += n.cost * Math.pow(n.mult || 1, i);
+    });
+    return Math.round(t);
+  }
+  function ppLifetimeV151A() {
+    if (!state) return 0;
+    if (state.ppLifetimeV151A == null)
+      ((state.ppLifetimeV151A = Math.max(0, Math.round((state.pp || 0) + (state.ppBankV136 || 0) + ppSpentV151A()))),
+        (state.ppSeenV151A = state.pp || 0));
+    return state.ppLifetimeV151A;
+  }
+  function ppTrackV151A() {
+    if (!state || typeof state !== "object") return;
+    ppLifetimeV151A();
+    const d = (state.pp || 0) - (state.ppSeenV151A || 0);
+    d > 0 && (state.ppLifetimeV151A += Math.round(d));
+    state.ppSeenV151A = state.pp || 0;
+  }
+  // ---- season skips a day
+  function skipLadderV151A(L) {
+    const base = TU("skipFirstPPV151A", 1e3),
+      mul = Math.max(2, TU("skipStepMulV151A", 100)),
+      first = TU("skipFirstV151A", 1),
+      per = TU("skipPerStepV151A", 2),
+      max = TU("skipMaxV151A", 9);
+    if (!(L >= base)) return { perDay: 0, next: { at: base, perDay: first } };
+    const steps = Math.floor(Math.log(L / base) / Math.log(mul) + 1e-9),
+      perDay = Math.min(max, first + steps * per);
+    return { perDay, next: perDay >= max ? null : { at: base * Math.pow(mul, steps + 1), perDay: Math.min(max, perDay + per) } };
+  }
+  function dayKeyV151A() {
+    const d = new Date();
+    return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+  }
+  function seasonSkipsV151A() {
+    const gated = gateOnV151A("seasonSkipGateV151A"),
+      L = ppLifetimeV151A(),
+      m = mzV150C(),
+      lad = skipLadderV151A(L),
+      proBonus = TU("skipProBonusV151A", 3),
+      pro = m && m.has("simPlus") ? proBonus : 0,
+      perDay = lad.perDay + pro,
+      rec = state.skipsV151A && state.skipsV151A.day === dayKeyV151A() ? state.skipsV151A : { used: 0 },
+      extra = m ? m.value("simExtra") || 0 : 0;
+    return {
+      gated,
+      lifetime: L,
+      earned: lad.perDay,
+      pro,
+      proBonus,
+      perDay,
+      used: rec.used || 0,
+      extra,
+      left: gated ? Math.max(0, perDay - (rec.used || 0)) + extra : 1 / 0,
+      firstAt: TU("skipFirstPPV151A", 1e3),
+      next: lad.next
+    };
+  }
+  function skipLineV151A() {
+    const s = seasonSkipsV151A();
+    if (!s.gated) return "";
+    if (s.left > 0) return `${s.left} season skip${s.left === 1 ? "" : "s"} left today`;
+    if (s.perDay) return `No skips left today · ${s.next ? `${s.next.perDay} a day at ${fmtInt(s.next.at)} PP` : "back tomorrow"} · Quick Play is free`;
+    return `Skips unlock at ${fmtInt(s.firstAt)} lifetime PP (${fmtInt(s.lifetime)} so far) · Quick Play is free`;
+  }
+  function skipBtnV151A(label) {
+    const l = skipLineV151A();
+    return label + (l ? `<small class="skip-left-v151" style="display:block;font-size:10px;letter-spacing:.8px;opacity:.75;margin-top:3px">${l}</small>` : "");
+  }
+  // THE ⏭ button: one skip a call when there is a season left to sim; none left → the store's sheet (ON) or a line
+  function seasonSkipV151A() {
+    const e = state && state.player;
+    if (!e || !e.weekResults || !e.weekResults.some(w => !w.played) || !gateOnV151A("seasonSkipGateV151A"))
+      return simRemainingWeeks();
+    const s = seasonSkipsV151A(),
+      m = mzV150C();
+    if (s.perDay - s.used > 0) state.skipsV151A = { day: dayKeyV151A(), used: s.used + 1 };
+    else if (!(m && s.extra > 0 && m.consume("simExtra"))) {
+      m && m.simLocked ? m.simLocked() : showToast("⏭ " + skipLineV151A());
+      return;
+    }
+    saveGame();
+    return simRemainingWeeks();
+  }
+  window.seasonSkipV151A = seasonSkipV151A;
+  // ---- the advanced filters: a bar over a list whose rows carry data-advf-row / data-q / data-pos / data-s-<key>
+  const ADVF_V151A = {};
+  function advfLockedV151A() {
+    const m = mzV150C();
+    return !!(m && m.filtersLocked && m.filtersLocked());
+  }
+  // sorts: [[key, label, defaultDir]] — the first is the list's own order; pos: the positions to offer, or null
+  function advfBarV151A(key, sorts, pos) {
+    if (!gateOnV151A("advFiltersV151A")) return "";
+    if (advfLockedV151A())
+      return `<div class="advf-v151 locked" data-advf-bar="${key}" style="display:flex;justify-content:flex-end;margin:6px 0"><button class="chip" onclick="RIB_MONETIZE.openStore('pro')">🔒 Advanced filters · Pro Career</button></div>`;
+    const f = ADVF_V151A[key] || (ADVF_V151A[key] = { q: "", sort: sorts[0][0], dir: sorts[0][2], pos: "", sort0: sorts[0][0], dir0: sorts[0][2] }),
+      inp = "background:#111317;border:1px solid var(--line);border-radius:8px;color:var(--chalk);font:12px Oswald,sans-serif;padding:6px 7px;min-width:0";
+    return `<div class="advf-v151" data-advf-bar="${key}" style="display:flex;gap:6px;margin:8px 0 6px;align-items:center">
+      <input type="search" aria-label="Search" placeholder="🔎 Search" value="${escHtml(f.q)}" oninput="advfSetV151A('${key}','q',this.value)" style="${inp};flex:1 1 auto;width:40%">
+      ${pos ? `<select aria-label="Position" onchange="advfSetV151A('${key}','pos',this.value)" style="${inp};flex:0 0 auto"><option value="">ALL</option>${pos.map(p => `<option value="${p}"${f.pos === p ? " selected" : ""}>${p}</option>`).join("")}</select>` : ""}
+      <select aria-label="Sort" onchange="advfSetV151A('${key}','sort',this.value,this.selectedOptions[0].dataset.dir)" style="${inp};flex:0 1 auto;max-width:34%">${sorts.map(([k, l, d]) => `<option value="${k}" data-dir="${d}"${f.sort === k ? " selected" : ""}>${l}</option>`).join("")}</select>
+      <button class="chip" aria-label="Order" onclick="advfSetV151A('${key}','dir')" style="flex:0 0 auto">${f.dir === "asc" ? "▲" : "▼"}</button>
+    </div>`;
+  }
+  function advfSetV151A(key, k, v, d) {
+    const f = ADVF_V151A[key];
+    if (!f || advfLockedV151A()) return;
+    k === "dir" ? (f.dir = f.dir === "asc" ? "desc" : "asc") : ((f[k] = v), k === "sort" && d && (f.dir = d));
+    const b = document.querySelector(`[data-advf-bar="${key}"] button[aria-label="Order"]`);
+    b && (b.textContent = f.dir === "asc" ? "▲" : "▼");
+    advfApplyV151A(key);
+  }
+  window.advfSetV151A = advfSetV151A;
+  function advfApplyV151A(key) {
+    const box = document.querySelector(`[data-advf="${key}"]`),
+      f = ADVF_V151A[key];
+    if (!box || !f || advfLockedV151A() || !gateOnV151A("advFiltersV151A")) return;
+    const q = (f.q || "").trim().toLowerCase(),
+      active = !!(q || f.pos),
+      home = f.sort === f.sort0 && f.dir === f.dir0,
+      val = r => {
+        const x = parseFloat(r.getAttribute("data-s-" + f.sort));
+        return isNaN(x) ? -1 / 0 : x;
+      },
+      // each row travels with the marker in front of it (the playoff cut) and the card behind it (a bust's box)
+      rows = [...box.querySelectorAll("[data-advf-row]")].map(r => {
+        const h = r.previousElementSibling,
+          t = r.nextElementSibling;
+        return { r, head: h && h.hasAttribute("data-advf-head") ? h : null, tail: t && t.hasAttribute("data-advf-tail") ? t : null };
+      });
+    rows.sort((a, b) => (f.dir === "asc" ? val(a.r) - val(b.r) : val(b.r) - val(a.r)));
+    rows.forEach(({ r, head, tail }) => {
+      const hit = (!q || (r.getAttribute("data-q") || "").includes(q)) && (!f.pos || r.getAttribute("data-pos") === f.pos),
+        show = hit && (active || !r.hasAttribute("data-advf-extra"));
+      head && (box.appendChild(head), (head.hidden = !(home && !active)));
+      box.appendChild(r);
+      tail && (box.appendChild(tail), show || (tail.hidden = !0));
+      r.hidden = !show;
+    });
+  }
+  window.__V151A = {
+    speedOk: speedOkV151A,
+    speedWhy: speedWhyV151A,
+    clamp: s => speedClampV150C(s),
+    relabel: speedRowSyncV151A,
+    skips: seasonSkipsV151A,
+    skip: seasonSkipV151A,
+    ladder: skipLadderV151A,
+    lifetime: ppLifetimeV151A,
+    track: ppTrackV151A,
+    filters: { bar: advfBarV151A, set: advfSetV151A, apply: advfApplyV151A, state: ADVF_V151A, locked: advfLockedV151A },
+    gates: () => ({
+      playsOnly: { ok: playsOnlyOkV151A(), why: "Complete a career" },
+      speed3: { ok: speedOkV151A(3), why: speedWhyV151A(3) },
+      speed4: { ok: speedOkV151A(4), why: speedWhyV151A(4) },
+      bestLevel: state.bestLevel || 0,
+      bestName: LEVELS[state.bestLevel || 0] ? LEVELS[state.bestLevel || 0].name : "",
+      careers: state.careersCompleted || 0
+    })
   };
   function completeChallenges(e) {
     state.challenges || (state.challenges = {});
@@ -9074,13 +9314,14 @@
     </div>
 
     <div class="h2">🗿 The Busts <span style="color:var(--chalk-dim);font-size:12px;font-weight:400">— tap one for the whole career</span></div>
+    ${e.length > 1 ? advfBarV151A("hof", [["goat", "GOAT", "desc"], ["ovr", "PEAK OVR", "desc"], ["titles", "TITLES", "desc"], ["seasons", "SEASONS", "desc"], ["level", "LEVEL", "desc"]], Object.keys(POSITIONS)) : "" /* v151 A */}
     ${
       e.length
-        ? e
-            .slice(0, 25)
+        ? '<div data-advf="hof">' + e
+            .slice(0, e.length > 1 && gateOnV151A("advFiltersV151A") && !advfLockedV151A() ? TU("hofRowsV151A", 200) : 25)
             .map(
               (s, n) => `
-      <div class="hof-row ${n === 0 ? "top" : ""} hof-tap-v134" onclick="hofOpenV134(${n})" role="button" tabindex="0">
+      <div class="hof-row ${n === 0 ? "top" : ""} hof-tap-v134" onclick="hofOpenV134(${n})" role="button" tabindex="0" data-advf-row${n >= 25 ? " data-advf-extra hidden" : ""} data-q="${escHtml(((s.name || "") + " " + (s.pos || "")).toLowerCase())}" data-pos="${s.pos || ""}" data-s-goat="${+s.goat || 0}" data-s-ovr="${+s.peak || 0}" data-s-titles="${+s.titles || 0}" data-s-seasons="${+s.seasons || 0}" data-s-level="${+s.reached || 0}">
         <span class="hof-rank">${n === 0 ? "👑" : "#" + (n + 1)}</span>
         <span class="hof-bust">🗿</span>
         <div class="hof-info">
@@ -9089,9 +9330,9 @@
         </div>
         <span class="hof-goat">${s.goat}<small>GOAT</small></span>
       </div>
-      <div class="hof-box-v134" id="hofBox${n}" hidden>${hofCardV134(s, n)}</div>`
+      <div class="hof-box-v134" id="hofBox${n}" hidden data-advf-tail>${hofCardV134(s, n)}</div>`
             )
-            .join("")
+            .join("") + "</div>"
         : '<div class="card tight"><div class="small center">Complete a career to enshrine your first legend.</div></div>'
     }
   `),
@@ -9099,7 +9340,8 @@
     <div class="btn-row">
       <button class="btn ghost" onclick="go('locker')">🎒 Locker</button>
       <button class="btn secondary" onclick="go('menu')">Back</button>
-    </div>`));
+    </div>`),
+      advfApplyV151A("hof") /* v151 A */);
   } /* one bust's whole career: totals, the sheet he ended on, every season's line, the hardware */
   function hofCardV134(s, n) {
     const b = s.box;
@@ -10039,6 +10281,9 @@
   }
   const SAVE_KEY = "gridiron_save_v1";
   function saveGame() {
+    try {
+      ppTrackV151A(); /* v151 A: lifetime PP only ever rises */
+    } catch (e) {}
     try {
       window.GridironStorage
         ? window.GridironStorage.save(state)
@@ -12604,19 +12849,20 @@
         .join("")}</div>
       <div class="chips" style="margin-top:6px">${n.stats.map(m => `<button class="chip gold ${m.key === leadStat ? "on" : ""}" onclick="setLeadSort('${m.key}')">${m.name}${m.lowerBetter ? " ▼" : ""}</button>`).join("")}</div>
       ${l && l.pace ? `<div class="threshold-note" style="margin-top:8px">📈 Mid-season: your row shows your <b>full-season pace</b> through ${l.games} game${l.games > 1 ? "s" : ""}.</div>` : ""}
+      ${advfBarV151A("leaders", [["rank", "RANK", "asc"]].concat(n.stats.map(m => [m.key, m.name.toUpperCase(), m.lowerBetter ? "asc" : "desc"])), null) /* v151 A */}
       <div class="card" style="margin-top:10px;padding:10px 10px">
         <div class="lb-hdr"><span class="lbr">#</span><span class="lbn">Player</span><span class="lbv">${i.name}</span><span class="lbo">${p.map(m => m.name).join(" · ")}</span></div>
-        ${u
+        <div data-advf="leaders">${u
           .map(
             (m, y) => `
-          <div class="lb2-row ${m.me ? "me" : ""}">
+          <div class="lb2-row ${m.me ? "me" : ""}" data-advf-row data-q="${escHtml((m.name + " " + (m.team || "")).toLowerCase())}" data-s-rank="${y + 1}"${n.stats.map(C => ` data-s-${C.key}="${+m.line[C.key] || 0}"`).join("")}>
             <span class="lbr">${y + 1}</span>
             <span class="lbn">${m.me ? "<b>" + m.name + " (You)</b>" : m.name}<small>${m.team}</small></span>
             <span class="lbv">${fmtLeadVal(i, m.line[leadStat])}</span>
             <span class="lbo">${p.map(C => fmtLeadVal(C, m.line[C.key])).join(" · ")}</span>
           </div>`
           )
-          .join("")}
+          .join("")}</div>
         ${
           l && !h
             ? `
@@ -12680,20 +12926,21 @@
         i = 4;
       s = `
       <div class="small" style="margin:4px 0 8px">Your league this season. Finish with a <b style="color:var(--gold)">60%+ win rate</b> to make the playoffs — win it all for a ring.</div>
+      ${advfBarV151A("standings", [["rank", "RANK", "asc"], ["w", "WINS", "desc"], ["pf", "PF", "desc"], ["pa", "PA", "asc"], ["diff", "DIFF", "desc"]], null) /* v151 A */}
       <div class="card" style="padding:10px">
         <div class="lb-hdr"><span class="lbr">#</span><span class="lbn">Team</span><span class="lbv">W-L</span><span class="lbo">PF · PA · DIFF</span></div>
-        ${n.teams
+        <div data-advf="standings">${n.teams
           .map((r, l) => {
             const d = r.pf - r.pa;
-            return `${l === i ? '<div class="cutline">— PLAYOFF CUT —</div>' : ""}
-          <div class="lb2-row ${r.me ? "me" : ""}">
+            return `${l === i ? '<div class="cutline" data-advf-head>— PLAYOFF CUT —</div>' : ""}
+          <div class="lb2-row ${r.me ? "me" : ""}" data-advf-row data-q="${escHtml(r.name.toLowerCase())}" data-s-rank="${l + 1}" data-s-w="${r.w}" data-s-pf="${r.pf}" data-s-pa="${r.pa}" data-s-diff="${d}">
             <span class="lbr">${l + 1}</span>
             <span class="lbn">${r.me ? "<b>" + r.name + " (You)</b>" : r.name}</span>
             <span class="lbv">${r.w}-${r.l}</span>
             <span class="lbo">${r.pf} · ${r.pa} · <b style="color:${d >= 0 ? "var(--good)" : "#e08a8a"}">${d >= 0 ? "+" : ""}${d}</b></span>
           </div>`;
           })
-          .join("")}
+          .join("")}</div>
       </div>
       ${n.haveMine ? "" : '<div class="small center" style="margin-top:6px;color:var(--chalk-dim)">Play games this season to post your record.</div>'}
     `;
@@ -12711,7 +12958,8 @@
     <div class="btn-row">
       <button class="btn ghost" onclick="go('rank')">🥊 Recruiting Board</button>
       <button class="btn secondary" onclick="go(S.player.weekResults?'season':'hub')">Back</button>
-    </div>`));
+    </div>`),
+      advfApplyV151A(leadTab === "leaders" ? "leaders" : "standings") /* v151 A */);
   }
   function setStatsTab(e) {
     ((leadTab = e), screenLeaders());
@@ -12833,6 +13081,11 @@
     ) && startCareer();
   }
   function toggleRow(e, t, a) {
+    if (e === "onlyInvolved" && !playsOnlyOkV151A())
+      return `<div class="toggle-row locked-v151" onclick="toggleSetting('${e}')" title="Complete a career">
+    <div class="toggle-info"><div class="toggle-label">🔒 ${t}</div><div class="toggle-desc">Complete a career to unlock — finish any career, win or cut</div></div>
+    <div class="switch" style="opacity:.4"><i></i></div>
+  </div>`;
     const s = settingOn(e);
     return `<div class="toggle-row" onclick="toggleSetting('${e}')">
     <div class="toggle-info"><div class="toggle-label">${t}</div><div class="toggle-desc">${a}</div></div>
@@ -19173,7 +19426,7 @@
       <button class="btn" onclick="playWeek(true)">▶ Play ${C} Live</button>
       <div style="height:8px"></div>
       <button class="btn secondary" onclick="playWeek(false)">⏩ Quick Play ${C}</button>
-      ${V > 1 && !(y && y.playoff) ? '<div style="height:8px"></div><button class="btn ghost" onclick="simRemainingWeeks()">⏭ Sim Remaining Regular Season</button>' : ""}
+      ${V > 1 && !(y && y.playoff) ? '<div style="height:8px"></div><button class="btn ghost" onclick="seasonSkipV151A()">' + skipBtnV151A("⏭ Sim Remaining Regular Season") + "</button>" : ""}
       <div style="height:8px"></div>
       <div class="btn-row">
         <button class="btn ghost" onclick="go('stats')">📊 Leaders</button>
@@ -19533,7 +19786,7 @@
       ]
         .map(
           ([r, l, d]) =>
-            `<button class="speed-btn ${r === "1" ? "active" : ""}" data-spd="${r}" onclick="setSpeed(${r})">${l}<small>${d}</small></button>`
+            `<button class="speed-btn ${r === "1" ? "active" : ""}${speedOkV151A(r) ? "" : " speed-lock-v151"}" data-spd="${r}" onclick="setSpeed(${r})"${speedOkV151A(r) ? "" : ` title="${speedWhyV151A(r)}"`}>${l}<small>${speedOkV151A(r) ? d : speedSmallV151A(r)}</small></button>`
         )
         .join("")}
       <button class="speed-btn" onclick="skipLive()">SKIP<small>⏭</small></button>
@@ -19856,9 +20109,8 @@
       liveTick());
   }
   function setSpeed(e) {
-    /* v150 C H1: a speed this device may not use goes to the module's offer, and the speed stays */
-    const mz = mzV150C();
-    if (mz && !mz.speedAllowed(e)) return void (mz.speedLocked && mz.speedLocked(e));
+    /* v150 C H1 / v151 A: a speed this player has not earned (the UFF) or bought (Pro, while the store is on) stays locked */
+    if (!speedOkV151A(e)) return void speedLockV151A(e);
     (liveCtl && (liveCtl.speed = e),
       document
         .querySelectorAll(".speed-btn[data-spd]")
@@ -28051,14 +28303,15 @@
     if (!e || !d || e._settled || !(e.level >= 7)) return;
     if (v === "season" && TU("simSeasonEndV147", 1) && e.weekResults && e.weekResults.some(w => !w.played)) {
       const lbl = "⏭ Sim the Rest of the Season";
-      let b = d.querySelector('[onclick^="simRemainingWeeks"]');
+      let b = d.querySelector('[onclick^="seasonSkipV151A"]');
+      const h = skipBtnV151A(lbl); /* v151 A: the skip button says how many are left today */
       if (!b) {
         const qp = [...d.querySelectorAll("button")].find(z =>
           /playWeek\(false\)/.test(z.getAttribute("onclick") || "")
         );
         qp &&
-          qp.insertAdjacentHTML("afterend", `<button class="btn ghost" onclick="simRemainingWeeks()">${lbl}</button>`);
-      } else if (b.textContent !== lbl) b.textContent = lbl;
+          qp.insertAdjacentHTML("afterend", `<button class="btn ghost" onclick="seasonSkipV151A()" data-v151="1">${h}</button>`);
+      } else if (b.dataset.v151h !== h) ((b.innerHTML = h), (b.dataset.v151h = h));
     }
     if (v === "hub" && TU("retireAnyTimeV147", 1) && !d.querySelector(".retire-chip-v147"))
       d.insertAdjacentHTML(

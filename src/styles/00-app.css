@@ -45,3 +45,7 @@ html,body{height:100%;overflow:hidden;touch-action:pan-y}
 #field{aspect-ratio:720/576}
 
   
+/* v151 A: a speed rung not earned yet (the UFF) or not bought (Pro, store on) */
+.speed-btn.speed-lock-v151{opacity:.5;filter:saturate(.35)}
+.speed-btn.speed-lock-v151 small{font-size:8px;letter-spacing:.4px;white-space:nowrap}
+.toggle-row.locked-v151{opacity:.72}
