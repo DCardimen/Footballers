@@ -4639,7 +4639,7 @@
     const t = Kt(e);
     return t ? t.growth : 1;
   }
-  function Us(e) {
+  function tierPPMult(e) {
     let t = 1;
     if (e.tiers)
       for (const a in e.tiers) {
@@ -5187,7 +5187,7 @@
     const e = chaosTotal();
     return e ? 3 * Math.pow(1.16, e) * (1 + treeFx("chaosPP")) : 1;
   }
-  function Qa(e) {
+  function chaosEarnedMult(e) {
     return 1 + (it() - 1) * clamp99(Math.pow((e + 1) / 8, 1.6), 0.06, 1);
   }
   function Yo() {
@@ -7340,7 +7340,7 @@
     hasReq: honorHasReqV130,
     curve: n => Li(n)
   };
-  function Xa(e) {
+  function nodeUnlocked(e) {
     return e.req
       ? !((honorHasReqV130(e.req) && state.prestige < honorReqV130(e.req)) || (e.req.node && nodeLvl(e.req.node) < e.req.lvl))
       : !0;
@@ -7355,7 +7355,7 @@
     return +((raw || 0) * TU("prestigeGainMult", 1)).toFixed(1);
   }
   window.__honorPayV139 = honorPayV139;
-  function Qs(e, t, a) {
+  function prestigeStarReward(e, t, a) {
     let s = 0;
     return (
       t >= 4 && (s += 1),
@@ -7805,13 +7805,13 @@
     req: rivalReqV128,
     week: rivalWeekV128,
     lock: (e, p) => rivalLockV128(e, p || (state && state.player)),
-    sched: p => ls(p || (state && state.player)),
+    sched: p => buildSeasonSchedule(p || (state && state.player)),
     say: (e, p) => rivalSayV128(e, p || (state && state.player)),
     vary: rivalVarV128,
     won: p => rivalWonV128(p || (state && state.player)),
-    stage: () => Za.find(z => z.id === "bigGame")
+    stage: () => SEASON_EVENTS.find(z => z.id === "bigGame")
   };
-  const Za = [
+  const SEASON_EVENTS = [
       {
         id: "bigGame",
         title: "Rivalry Week",
@@ -8482,7 +8482,7 @@
     return e >= 200 ? "g-elite" : e >= 140 ? "g-hi" : e >= 80 ? "g-mid" : "g-lo";
   }
   let state = null;
-  function Zs() {
+  function freshState() {
     return {
       prestige: 0,
       pp: 0,
@@ -8509,16 +8509,16 @@
   function ut(e) {
     return (state.settings && state.settings[e]) || !1;
   }
-  function ar(e) {
+  function toggleSetting(e) {
     (state.settings || (state.settings = {}), (state.settings[e] = !state.settings[e]), saveGame(), state.view === "settings" && Fi());
   }
   const sr = [0, 2, 4, 8, 14, 24, 40, 70, 220];
-  function Vi(e) {
+  function grantMilestone(e) {
     state.milestones || (state.milestones = {});
     const t = LEVELS[e].key;
     if (state.milestones[t]) return 0;
     state.milestones[t] = !0;
-    const a = Math.round((sr[e] || 0) * (1 + treeFx("mileMult")) * Qa(e));
+    const a = Math.round((sr[e] || 0) * (1 + treeFx("mileMult")) * chaosEarnedMult(e));
     return (a > 0 && bankPPV136(a, "milestone"), a);
   } /* ===== v134 THE GOALS ARE WORTH CHASING =====
    * The challenge board paid 6 to 150 PP for feats that take whole careers: a UFF title was 10 PP, the
@@ -8793,7 +8793,7 @@
       t
     );
   }
-  function nr(e) {
+  function buyMastery(e) {
     if (!Oi().find(n => n.key === e)) return;
     state.mastery || (state.mastery = {});
     const a = Ja(e);
@@ -8806,9 +8806,9 @@
       showToast("Not enough Rings — win the UFF Championship! 💍");
       return;
     }
-    ((state.rings -= s), (state.mastery[e] = a + 1), saveGame(), Ra());
+    ((state.rings -= s), (state.mastery[e] = a + 1), saveGame(), screenDynasty());
   }
-  function ir(e, t) {
+  function setChaos(e, t) {
     if (!state.chaosUnlocked) {
       showToast("Chaos requires an UFF title, 85 OVR, and 20 completed objectives!");
       return;
@@ -8823,11 +8823,11 @@
       }
       ((state.chaos[e] = s),
         saveGame(),
-        Ra(),
+        screenDynasty(),
         s > a && showToast("🔥 Chaos +1 — enemies stronger, PP +" + Math.round((it() - 1) * 100) + "%"));
     }
   }
-  function or() {
+  function chaosMaxAll() {
     if (
       !state.chaosUnlocked ||
       !confirm("Set chaos to your FULL capacity (" + Jt() + ")? Every enemy in the world becomes vastly stronger.")
@@ -8840,9 +8840,9 @@
       (a > 0 && (state.chaos[t] = a), (e -= a));
     }),
       saveGame(),
-      Ra());
+      screenDynasty());
   }
-  function Ra() {
+  function screenDynasty() {
     const e = !!state.chaosUnlocked,
       t = chaosTotal(),
       a = it(),
@@ -8920,10 +8920,10 @@
   `),
       (byId("dock").innerHTML = `<button class="btn secondary" onclick="go('shop')">← Back to Prestige</button>`));
   }
-  function Bi() {
+  function screenHof() {
     const e = state.hof || [],
       t = state.era || 0,
-      a = Ca();
+      a = hofWings();
     ((byId("screen").innerHTML = `
     <div class="eyebrow">${nn()} · Era ${t + 1}</div>
     <div class="h1">🏛️ Hall of Fame</div>
@@ -8935,7 +8935,7 @@
         <div class="statbox"><div class="n">${state.careersCompleted || 0}</div><div class="l">Enshrined</div></div>
         <div class="statbox"><div class="n" style="color:#57e07a">+${a * 5}%</div><div class="l">Museum PP</div></div>
       </div>
-      ${t > 0 ? `<div class="threshold-note" style="margin-top:8px;color:#c9b8ff">🌌 Era bonus: permanent <b>+${Math.round((vt() - 1) * 100)}% PP</b>. Next era: win the UFF title at <b>${Wi()}+ total chaos</b>.</div>` : '<div class="threshold-note" style="margin-top:8px">🌌 Win the UFF title to begin your first Era.</div>'}
+      ${t > 0 ? `<div class="threshold-note" style="margin-top:8px;color:#c9b8ff">🌌 Era bonus: permanent <b>+${Math.round((eraMult() - 1) * 100)}% PP</b>. Next era: win the UFF title at <b>${Wi()}+ total chaos</b>.</div>` : '<div class="threshold-note" style="margin-top:8px">🌌 Win the UFF title to begin your first Era.</div>'}
     </div>
 
     ${lineageHofV136()}
@@ -8953,7 +8953,7 @@
           })
           .join("")}
       </div>
-      <div class="small center" style="margin-top:7px">Mastered: <b>${Zt("nfl")}/9</b> UFF · <b>${Zt("ring")}/9</b> ringed</div>
+      <div class="small center" style="margin-top:7px">Mastered: <b>${posMasteryCount("nfl")}/9</b> UFF · <b>${posMasteryCount("ring")}/9</b> ringed</div>
     </div>
 
     <div class="h2">🗿 The Busts <span style="color:var(--chalk-dim);font-size:12px;font-weight:400">— tap one for the whole career</span></div>
@@ -9348,7 +9348,7 @@
   }
   function gearPickV147(id) {
     _gearSelV147 = _gearSelV147 === id ? null : id;
-    ts();
+    screenLocker();
   }
   /* a redraw keeps the list where it was, and keeps the picked piece in view inside the list's own
    * scroller — never scrollIntoView, which moves the page (v146 E). Run again a beat later, because
@@ -9374,7 +9374,7 @@
       delete state.equipped[slot];
       saveGame();
     }
-    ts();
+    screenLocker();
   }
   /* a save from before v147: every piece gets its roll once, keyed on its id */
   function gearMigrateV147() {
@@ -9390,7 +9390,7 @@
     });
     return n;
   }
-  function ts() {
+  function screenLocker() {
     gearMigrateV147();
     const _gl = document.querySelector(".gear-list-v147"),
       _gst = _gl ? _gl.scrollTop : 0;
@@ -9549,7 +9549,7 @@
     const h = ATTR_KEYS.reduce((v, j) => v + t[j], 0) / ATTR_KEYS.length;
     let p = clamp99(Math.round(h / 14) + nodeLvl("recruited") + nodeLvl("agent") + starsPlusV146() + (nodeLvl("phenom") > 0 ? 5 : 0), 1, 5);
     if ((pathVal("startStars", 0) && (p = Math.max(p, pathVal("startStars"))), nodeLvl("idealBody"))) {
-      const v = ns(t, u)[0].pos,
+      const v = suggestPositions(t, u)[0].pos,
         j = Ta[v];
       ((u.height = j.h[0]), (u.weight = j.w[0]), (u.muscle = Math.min(90, u.muscle + 15)));
     }
@@ -9598,7 +9598,7 @@
       v.length && m.traits.push(randPick(v));
     }
     const C = Math.round(gearFx("startAll")),
-      V = Zt("nfl");
+      V = posMasteryCount("nfl");
     (C + V > 0 &&
       ATTR_KEYS.forEach(v => {
         m.attrs[v] = clamp99(m.attrs[v] + C + V, 1, attrCap());
@@ -9625,7 +9625,7 @@
       m
     );
   }
-  function as(e) {
+  function genRivals(e) {
     const t = playerOvr(e),
       a = [],
       s = 5;
@@ -9842,21 +9842,21 @@
     one: combineDrillV139,
     all: combineResultV139
   };
-  function Bt() {
+  function maxSeasons() {
     const e = state.player;
     if (!e) return 5;
     const t = LEVELS[e.level].seasons,
       a = nodeLvl("extra") + nodeLvl("unstoppable") * 2 + pathVal("extraSeasons", 0);
     return e.level <= 2 ? t + a : e.level <= 4 ? t + 1 + a : e.level === 5 ? t + a : e.level === 6 ? t + a : t + 2 + a;
   }
-  /* v139: the combine is ONE year — it is a draft week, not a season */ function ss() {
+  /* v139: the combine is ONE year — it is a draft week, not a season */ function minSeasons() {
     const e = state.player;
     if (!e) return 1;
     const t = LEVELS[e.level];
-    return e.level === 5 ? Math.min(2, t.seasons) : e.level >= 7 ? 1 : Math.min(t.seasons, Bt());
+    return e.level === 5 ? Math.min(2, t.seasons) : e.level >= 7 ? 1 : Math.min(t.seasons, maxSeasons());
   }
-  const minSeasV139 = ss;
-  ss = function () {
+  const minSeasV139 = minSeasons;
+  minSeasons = function () {
     return Math.max(1, minSeasV139() - nodeLvl("earlyDeclare"));
   }; /* v139 Apex: Early Declaration */
   function en(e, t, a) {
@@ -9873,7 +9873,7 @@
     }
     return Math.round(clamp99(l, 1, 999));
   }
-  function cr(e) {
+  function devRating(e) {
     const t = POSITIONS[e.pos].w;
     let a = 0,
       s = 0;
@@ -9906,7 +9906,7 @@
                         ? { label: "Prospect", color: "#a9b8ad" }
                         : { label: "Developing", color: "#8a988e" };
   }
-  function ns(e, t) {
+  function suggestPositions(e, t) {
     const a = { QB: 7.18, RB: 7.91, WR: 7.9, TE: 2.98, OL: 1.19, DL: 2.62, LB: 5.75, CB: 6.96, S: 7.22 },
       s = { QB: 0, RB: -0.35, WR: 0, TE: 0.35, OL: 0.55, DL: 1, LB: -0.1, CB: -0.35, S: 0.25 };
     return Object.keys(POSITIONS)
@@ -10666,7 +10666,7 @@
       imp = String((wk.opponentV11 && wk.opponentV11.importance) || ""),
       rnd = String(wk.round || "");
     if (wk.playoff) {
-      const rounds = (typeof ea === "function" && ea(pl.level)) || [],
+      const rounds = (typeof playoffRoundNames === "function" && playoffRoundNames(pl.level)) || [],
         last = Math.max(0, rounds.length - 1),
         i = wk.roundIdx != null ? wk.roundIdx : last;
       if (i >= last) return { mul: TU("wearStakesFinal", 1.7) * riv, label: wk.round || "Championship" };
@@ -11642,7 +11642,7 @@
     return (s[i] || 0) / r;
   }
   const vr = [0, 0.28, 0.48, 0.75, 1.02, 1.62, 1.92, 1.84, 2.7];
-  function qt(e, t, a, s, n) {
+  function advanceChance(e, t, a, s, n) {
     n = n || 1;
     const i = Math.min(t + 1, LEVELS.length - 1);
     if (t <= 2 && chaosTotal() === 0) return clamp99(96 + (e - LEVELS[i].need) * 0.3, 82, 99.5);
@@ -11673,7 +11673,7 @@
       return _adv;
     }
     const d = mr(e, t);
-    return qt(e, t, a || yr(), d, n);
+    return advanceChance(e, t, a || yr(), d, n);
   }
   function yr() {
     return (state.player && state.player.pos) || "RB";
@@ -11753,7 +11753,7 @@
         n.disciplineGainBase &&
           (e.attrs.discipline = clamp99((e.attrs.discipline || 10) + Math.round(n.disciplineGainBase * 0.3 * O), 1, attrCap())));
     }
-    e.contracts || (ds(e), us(e));
+    e.contracts || (rollSeasonMod(e), genContracts(e));
     let d = 0,
       c = 0,
       u = 0,
@@ -11798,7 +11798,7 @@
     const U = d / t.games,
       ce = P.length - y,
       Y = y / P.length,
-      _ = ea(e.level);
+      _ = playoffRoundNames(e.level);
     let ie = [],
       B = !1,
       b = 0,
@@ -11920,7 +11920,7 @@
       ke = !1;
     if (
       B &&
-      ((be = Math.round((2 + Math.round(e.level * 0.8)) * (1 + treeFx("titleMult") + seasonModFx("ppMult")) * it() * vt())),
+      ((be = Math.round((2 + Math.round(e.level * 0.8)) * (1 + treeFx("titleMult") + seasonModFx("ppMult")) * it() * eraMult())),
       bankPPV136(be, "title"),
       (e.titles = (e.titles || 0) + 1),
       (state.titlesWon = (state.titlesWon || 0) + 1),
@@ -12042,7 +12042,7 @@
         Ae = O.per[e.level] * (O.rate ? 1 : t.games) * (0.45 + Pe * 0.85),
         De = de[O.key] || 0;
       ((Ke = O.lowerBetter ? De <= Ae : De >= Ae),
-        Ke && ((e.nemesis.beaten = (e.nemesis.beaten || 0) + 1), bankPPV136(Math.round(2 * it() * vt()), "nemesis")));
+        Ke && ((e.nemesis.beaten = (e.nemesis.beaten || 0) + 1), bankPPV136(Math.round(2 * it() * eraMult()), "nemesis")));
     }
     ((e.lastSeasonLine = { level: e.level, pos: e.pos, statLine: { ...de }, avg: Math.round(U) }),
       (e.lastTeamRecord = {
@@ -12056,7 +12056,7 @@
         qualified: pe
       }));
     const So = Ha(e.pos, e.level),
-      Mo = qt(se, e.level, e.pos, U, Go(e)),
+      Mo = advanceChance(se, e.level, e.pos, U, Go(e)),
       xo = {
         avg: Math.round(U),
         best: c,
@@ -12548,13 +12548,13 @@
       <button class="btn secondary" onclick="go(S.player.weekResults?'season':'hub')">Back</button>
     </div>`));
   }
-  function Sr(e) {
+  function setStatsTab(e) {
     ((leadTab = e), os());
   }
-  function Mr(e) {
+  function setLeadPos(e) {
     ((nt = e), (leadStat = null), os());
   }
-  function xr(e) {
+  function setLeadSort(e) {
     ((leadStat = e), os());
   }
   function render() {
@@ -12580,13 +12580,13 @@
     if (e === "rank") return Dl();
     if (e === "stats") return os();
     if (e === "challenges") return rr();
-    if (e === "dynasty") return Ra();
-    if (e === "hof") return Bi();
-    if (e === "locker") return ts();
+    if (e === "dynasty") return screenDynasty();
+    if (e === "hof") return screenHof();
+    if (e === "locker") return screenLocker();
     if (e === "shop") return ps();
     if (e === "path") return io();
-    if (e === "gameover") return ms();
-    if (e === "win") return no();
+    if (e === "gameover") return screenGameOver();
+    if (e === "win") return screenWin();
     if (e === "club") return clubV146B();
     Mn();
   }
@@ -12658,14 +12658,14 @@
     </div>
   `));
   }
-  function Tr() {
+  function confirmNew() {
     if (abandonedV112()) {
-      Di();
+      startCareer();
       return;
     }
     confirm(
       "Start a Run it back? Your current player will be replaced (no prestige gained unless you finish their career first)."
-    ) && Di();
+    ) && startCareer();
   }
   function ha(e, t, a) {
     const s = ut(e);
@@ -12809,7 +12809,7 @@
       (byId("dock").innerHTML =
         `<button class="btn secondary" onclick="go(S.player&&S.player.pos?'hub':'menu')">Back</button>`));
   }
-  function Rr() {
+  function exportSave() {
     try {
       const e = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
       navigator.clipboard
@@ -12822,7 +12822,7 @@
       showToast("Export failed");
     }
   }
-  function Pr() {
+  function importSave() {
     const e = prompt("Paste your backup code:");
     if (e)
       try {
@@ -12833,10 +12833,10 @@
         showToast("Invalid code");
       }
   }
-  function Cr() {
+  function hardReset() {
     confirm("Erase ALL progress permanently? This cannot be undone.") &&
       confirm("Are you absolutely sure? Everything will be lost.") &&
-      ((state = Zs()), saveGame(), showToast("Progress erased"), goView("menu"));
+      ((state = freshState()), saveGame(), showToast("Progress erased"), goView("menu"));
   } /* ===== v136 D THE LINEAGE — the prestige system is a father's lesson to his son =====
    * A career ends. The next player is not a stranger with the same account behind him — he is the
    * SON, and what the old man learned is what he starts with. That is what the prestige tree always
@@ -12974,7 +12974,7 @@
     ord: ordV136,
     raw: () => lineageV136()
   };
-  function Di() {
+  function startCareer() {
     if (!rerollGateV112()) return;
     const _ab = abandonedV112(),
       _pv = _ab ? state.player.name : "";
@@ -13063,7 +13063,7 @@
   };
   function Lr() {
     const e = state.player,
-      t = ns(e.attrs, e.body),
+      t = suggestPositions(e.attrs, e.body),
       a = t[0].ovr,
       s = ATTR_KEYS
         .slice()
@@ -13156,8 +13156,8 @@
       (byId("dock").innerHTML =
         '<div class="small center">Build bonus reads your PROJECTED adult frame — scouts grade what you grow into, not what you weigh today. Develop your body between careers in the Prestige → Body tree.</div>'));
   }
-  function rs(e) {
-    (traitAutoV112(state.player), (state.player.pos = e), as(state.player), saveGame(), goView("hub"));
+  function pickPos(e) {
+    (traitAutoV112(state.player), (state.player.pos = e), genRivals(state.player), saveGame(), goView("hub"));
   }
   function Er() {
     const e = state.player,
@@ -13165,8 +13165,8 @@
       a = playerOvr(e),
       s = e.level >= 8 || (t.key === "nfl" && !((e.nflRings || 0) >= 1));
     t.key === "nfl" && (e.nflRings || 0) >= 1;
-    const n = Bt() - e.seasonsAtLevel,
-      i = ss(),
+    const n = maxSeasons() - e.seasonsAtLevel,
+      i = minSeasons(),
       r = e.seasonsAtLevel >= i;
     e.level === 5 && r && n > 0;
     const l = sn(e, a),
@@ -13292,8 +13292,8 @@
       r && !s
         ? `<button class="btn" ${e.level === 7 ? 'style="background:linear-gradient(180deg,#b9a6ff,#7a5adf);color:#120a2e;box-shadow:0 4px 0 #3c2a8a, 0 6px 16px rgba(122,90,223,.4)"' : ""} onclick="declareFromHub()">${e.level === 7 ? "🛸 Answer the Interstellar Call" : e.level === 5 ? "🎓 Declare for the Draft" : "⬆️ Declare for " + LEVELS[e.level + 1].name} · ${Math.round(d)}%</button>
          <div class="small center" style="margin-top:8px;color:var(--blood)">⚠️ One shot — a failed declare ends the career.</div>
-         ${y ? '<div class="small center" style="margin-top:4px;color:var(--gold)">Final season played — you must declare now.</div>' : `<div style="height:8px"></div><button class="btn secondary" onclick="startSeason()">▶ Play Another Season (${e.seasonsAtLevel + 1}/${Bt()})</button>`}`
-        : `<button class="btn" onclick="startSeason()">▶ Play ${t.games}-Game Season (${e.seasonsAtLevel + 1}/${Bt()})</button>`
+         ${y ? '<div class="small center" style="margin-top:4px;color:var(--gold)">Final season played — you must declare now.</div>' : `<div style="height:8px"></div><button class="btn secondary" onclick="startSeason()">▶ Play Another Season (${e.seasonsAtLevel + 1}/${maxSeasons()})</button>`}`
+        : `<button class="btn" onclick="startSeason()">▶ Play ${t.games}-Game Season (${e.seasonsAtLevel + 1}/${maxSeasons()})</button>`
     }
     ${!s && !r ? `<div style="height:8px"></div><div class="small center" style="color:var(--gold)">📚 ${t.grade} — ${i - e.seasonsAtLevel} more season${i - e.seasonsAtLevel > 1 ? "s" : ""} to play${e.level === 5 ? " before you can declare" : ""}.</div>` : ""}
     ${t.key === "nfl" && !(e.nflRings >= 1) ? '<div style="height:8px"></div><div class="small center" style="color:#c9b8ff">🛸 Rumors of an <b>Interstellar League</b>… they only call <b>champions</b>. Win a ring.</div>' : ""}
@@ -13346,7 +13346,7 @@
         e.lastSeasonLine &&
         e.lastSeasonLine.level === e.level &&
         e.lastSeasonLine.pos === e.pos;
-    const base = fresh ? s.chance : qt(playerOvr(e), e.level);
+    const base = fresh ? s.chance : advanceChance(playerOvr(e), e.level);
     return Math.max(Math.min(TU("declareCeilV139", 99), base + (e.declareBonus || 0)), rankChanceV88(e));
   } /* v139: a stellar season tops out at 99, not 97 */
   window.__V88 = {
@@ -13355,16 +13355,16 @@
     declareChance: e => declareChanceV88(e || state.player),
     ADV: ADV_V88
   };
-  function Ar() {
+  function declareFromHub() {
     const e = state.player;
-    if (e.seasonsAtLevel < ss()) {
+    if (e.seasonsAtLevel < minSeasons()) {
       showToast("You must finish this level first!");
       return;
     }
     const t = declareChanceV88(e);
     (e.seasonStats || (e.seasonStats = {}),
       (e.seasonStats.chance = t),
-      Math.random() * 100 < t ? na() : failDeclareV77(e, t));
+      Math.random() * 100 < t ? advanceLevel() : failDeclareV77(e, t));
   }
   window.__mkTempBuffsV25 = function (pl, sign, bold, good) {
     var pos = (pl && pl.pos) || "ATH";
@@ -13908,7 +13908,7 @@
     ${l}
   </div>`;
   }
-  function na() {
+  function advanceLevel() {
     const e = state.player,
       t = sn(e, playerOvr(e));
     (e.career.push({
@@ -13924,12 +13924,12 @@
       (e.declareBonus = 0),
       (e.playoffState = null),
       e.level > state.bestLevel && (state.bestLevel = e.level));
-    const a = Vi(e.level);
+    const a = grantMilestone(e.level);
     if (LEVELS[e.level].key === "nfl" && !e._wonShown) {
       ((e._wonShown = !0), (state.view = "win"), saveGame(), render());
       return;
     }
-    (e.level >= 8 && showToast("🛸 WELCOME TO THE INTERSTELLAR LEAGUE — 96 beings in the galaxy. You are one."), as(e), saveGame());
+    (e.level >= 8 && showToast("🛸 WELCOME TO THE INTERSTELLAR LEAGUE — 96 beings in the galaxy. You are one."), genRivals(e), saveGame());
     const s = LEVELS[e.level].key;
     if (_s(s) && !(e.tiers && e.tiers[s])) {
       ((state.view = "tier"), render());
@@ -14037,7 +14037,7 @@
       (byId("dock").innerHTML =
         '<div class="small center">Ambitious players pick the powerhouse: harder path, but the growth and exposure pay off on the road to the UFF.</div>'));
   }
-  function Gi(e) {
+  function chooseTier(e) {
     const t = state.player,
       a = LEVELS[t.level],
       s = _s(a.key).find(n => n.key === e);
@@ -14048,13 +14048,13 @@
       showToast("Committed to " + s.name + "!") /* v139: the ★ is earned at season's end, not handed over at the door */,
       goView("hub"));
   }
-  function Br() {
+  function startSeason() {
     ((state.player.eventChoice = null), (state.player.pendingEvent = null), goView("training"));
   }
   function jr() {
     const e = state.player,
       t = LEVELS[e.level],
-      a = Hi(e);
+      a = recommendTraining(e);
     ((byId("screen").innerHTML = `
     <div class="eyebrow">${t.name} · Offseason</div>
     <div class="h1">Choose Your Training</div>
@@ -14119,16 +14119,16 @@
       (byId("dock").innerHTML =
         '<div class="small center">All stats grow from season performance. Your program marks priority stats for a modest extra boost.</div>'));
   }
-  function Hi(e) {
+  function recommendTraining(e) {
     /* v124: no conditioning short-circuit — the whole sheet is scored, durability included */ const t =
       trainWhyV124(e);
     return t && PROGRAMS[t.prog] ? t.prog : "balanced";
   }
-  function Ir(e) {
+  function chooseTraining(e) {
     ((state.player.training = e), saveGame());
     const t = state.player;
     t.midInjury = Math.random() < 0.35;
-    const a = Za.filter(
+    const a = SEASON_EVENTS.filter(
         n =>
           !(
             t.level < (n.minLevel || 0) ||
@@ -14154,7 +14154,7 @@
   }
   function Nr() {
     const e = state.player,
-      t = Za.find(s => s.id === e.pendingEvent);
+      t = SEASON_EVENTS.find(s => s.id === e.pendingEvent);
     if (!t) {
       goView("sim");
       return;
@@ -14222,7 +14222,7 @@
       (byId("dock").innerHTML =
         '<div class="small center">Every option states exactly what it does. A locked one needs the attribute it names — build the player, then take the choice.</div>'));
   }
-  window.__ZaV18 = Za;
+  window.__ZaV18 = SEASON_EVENTS;
   /* ===== v136 A THE RIVAL IS SPUN ON GAME WEEK =====
    * Rivalry Week's five approaches were decided at the season's start, on the event screen, by the
    * v13 story wheel rolling over the buttons — weeks before the game it was about, on a screen that
@@ -14240,7 +14240,7 @@
     return !!(c && c.rivalV128 && c.pendingV136);
   }
   function rivalChoicesV136() {
-    const ev = Za.find(z => z.id === "bigGame");
+    const ev = SEASON_EVENTS.find(z => z.id === "bigGame");
     return ev ? ev.choices : [];
   }
   function rivalWeightsV136(pl, choices) {
@@ -14314,7 +14314,7 @@
   }
   function rivalDeferV136() {
     const t = state.player,
-      a = t && Za.find(n => n.id === t.pendingEvent);
+      a = t && SEASON_EVENTS.find(n => n.id === t.pendingEvent);
     if (!t || !a) return;
     t.eventChoice = { rivalV128: !0, perf: 0, varMult: 1, pendingV136: !0 };
     t.eventLog = (t.eventLog || []).concat({ title: a.title, choice: "The approach is spun on game week" });
@@ -14341,9 +14341,9 @@
     defer: rivalDeferV136,
     spins: 0
   };
-  function Fr(e) {
+  function chooseEvent(e) {
     const t = state.player,
-      a = Za.find(n => n.id === t.pendingEvent),
+      a = SEASON_EVENTS.find(n => n.id === t.pendingEvent),
       s = a.choices[e];
     const _lkV128 = rivalLockV128(s.eff, t);
     if (_lkV128 && !_lkV128.ok) {
@@ -15193,7 +15193,7 @@
     return pool[pool.length - 1];
   }
   window.__pickPlayV101 = pickPlayV101;
-  function Yr(e, t) {
+  function simGameV2(e, t) {
     /* ===== v16 EMERGENT GAME ENGINE ==========================================
      * The game is no longer scripted outcome-first. Every drive is resolved
      * play-by-play (FieldSim agents when available), on a real game clock,
@@ -18024,7 +18024,7 @@
       }
     };
   }
-  window.__simGameV2 = Yr;
+  window.__simGameV2 = simGameV2;
   /* v22.2: pregame preview built from the SAME roster builder the game uses (Wr),
    * so the displayed team OVRs + top-5 MATCH the team you actually play. The old
    * pregame generated a separate scouting-scale roster (__GRIDIRON_GENERATE_ROSTER_V157)
@@ -18285,7 +18285,7 @@
   /* v128: one fixture is the rivalry. It is played against a boosted opponent, its injury roll is
    * doubled, and the row carries the flag so the schedule, the pregame and the growth roll can all
    * read it. With no rivalry stage this season nothing below changes. */
-  function ls(e) {
+  function buildSeasonSchedule(e) {
     const t = LEVELS[e.level],
       a = PROGRAMS[e.training || "balanced"];
     let s = 0;
@@ -18328,7 +18328,7 @@
     const e = state.era || 0;
     return e < Rn.length ? Rn[e] : "ERA " + (e + 1) + " — BEYOND";
   }
-  function vt() {
+  function eraMult() {
     return Math.pow(1.2, state.era || 0);
   }
   function Wi() {
@@ -18424,11 +18424,11 @@
   function ka(e) {
     return ba.findIndex(t => t.key === e.rarity);
   }
-  function zr(e) {
+  function equipGear(e) {
     const t = (state.inventory || []).find(a => a.id === e);
-    t && (state.equipped || (state.equipped = {}), (state.equipped[t.slot] = t), saveGame(), ts());
+    t && (state.equipped || (state.equipped = {}), (state.equipped[t.slot] = t), saveGame(), screenLocker());
   }
-  function Qr(e) {
+  function scrapGear(e) {
     const t = (state.inventory || []).findIndex(i => i.id === e);
     if (t < 0) return;
     const a = state.inventory[t];
@@ -18441,7 +18441,7 @@
       bankPPV136(n, "scrap"),
       showToast("♻️ Scrapped for +" + n + " PP" + (bankingV136() ? " (banked)" : "")),
       saveGame(),
-      ts());
+      screenLocker());
   }
   const cs = [
     {
@@ -18537,7 +18537,7 @@
       varMult: 1.25
     }
   ];
-  function ds(e) {
+  function rollSeasonMod(e) {
     e.seasonMod = Math.random() < 0.75 ? randPick(cs).key : null;
   }
   function seasonModFx(e) {
@@ -18557,7 +18557,7 @@
     const t = cs.find(a => a.key === e.seasonMod);
     return t ? `<div class="mod-banner">${t.icon} <b>${t.name}</b> — ${t.desc}</div>` : "";
   }
-  function us(e) {
+  function genContracts(e) {
     const t = LEVELS[e.level],
       a = POS_STATS[e.pos],
       s = a.stats.find(d => d.key === a.primary),
@@ -18650,7 +18650,7 @@
               break;
           }
         } catch {}
-        const c = d ? Math.round(l.pp * it() * vt()) : 0;
+        const c = d ? Math.round(l.pp * it() * eraMult()) : 0;
         return (
           d && (bankPPV136(c, "objective"), (state.objectivesCompleted = (state.objectivesCompleted || 0) + 1)),
           { ...l, ok: d, paid: c }
@@ -18784,16 +18784,16 @@
       t >= 7 && (state.posMastery[e.pos].nfl = !0),
       e.nflRings > 0 && (state.posMastery[e.pos].ring = !0));
   }
-  function Ca() {
+  function hofWings() {
     return (state && state.hofWings) || 0;
   }
-  function Zt(e) {
+  function posMasteryCount(e) {
     return !state || !state.posMastery ? 0 : Object.values(state.posMastery).filter(t => t[e]).length;
   }
   function al(e) {
-    return Math.round((6 + (e.titles || 0) * 2 + (e.nflSeasons || 0)) * it() * vt() * (1 + Ca() * 0.05));
+    return Math.round((6 + (e.titles || 0) * 2 + (e.nflSeasons || 0)) * it() * eraMult() * (1 + hofWings() * 0.05));
   }
-  function ea(e) {
+  function playoffRoundNames(e) {
     return e === 6
       ? []
       : e >= 8
@@ -18814,7 +18814,7 @@
     let s = 0;
     const n = e.eventChoice;
     n && n.perf && (s += n.perf);
-    const d = ea(e.level),
+    const d = playoffRoundNames(e.level),
       c = t === d.length - 1,
       i = __aiSeasonGame(e, { perfSeed: s, playoff: !0, oppBoost: 0.12 + t * 0.11 + (c && e.nemesis ? 0.04 : 0) }),
       r = (1 - nodeLvl("medic") * 0.05 - nodeLvl("unstoppable") * 0.15) * pathVal("injuryMult", 1),
@@ -18823,18 +18823,18 @@
     return (
       (i.opp = c && e.nemesis ? e.nemesis.name + "'s " + Dt(e.level) : Dt(e.level)),
       (i.playoff = !0),
-      (i.round = ea(e.level)[t]),
+      (i.round = playoffRoundNames(e.level)[t]),
       (i.roundIdx = t),
       (i.played = !1),
       i
     );
   }
-  function dn(e) {
+  function ensurePlayoffs(e) {
     const t = e.weekResults;
     if (!t) return;
     const a = t.filter(l => !l.playoff);
     if (a.some(l => !l.played)) return;
-    const s = ea(e.level);
+    const s = playoffRoundNames(e.level);
     if (!e.playoffState) {
       const l = a.filter(c => c.won).length,
         d = s.length > 0 && Ki(l, a.length);
@@ -18858,20 +18858,20 @@
       t.push(cn(e, n.round));
     }
   }
-  function La() {
+  function startSeasonGames() {
     const e = state.player;
     ((e.seasonSeed = randInt(1, 2e9)),
       (e.playoffState = null),
-      ds(e),
-      us(e),
-      (e.weekResults = ls(e)),
+      rollSeasonMod(e),
+      genContracts(e),
+      (e.weekResults = buildSeasonSchedule(e)),
       (e.currentWeek = 0),
       goView("season"));
   }
   function sl() {
     const e = state.player,
       t = LEVELS[e.level];
-    dn(e);
+    ensurePlayoffs(e);
     const a = e.weekResults || [],
       s = a.filter(y => !y.playoff),
       n = s.filter(y => y.played && y.won).length,
@@ -19112,7 +19112,7 @@
     return w && w.home != null ? !!w.home : (i || 0) % 2 === 0;
   }
   window.homeWeekV93 = homeWeekV93;
-  function lt(e) {
+  function playWeek(e) {
     const t = state.player,
       a = t.weekResults.findIndex(n => !n.played);
     if (a < 0) {
@@ -19138,7 +19138,7 @@
           : null;
       t._gameScriptV23 = null;
       try {
-        state._liveGame = Yr(_in146 ? _in146.seed : s.perf, t.pos);
+        state._liveGame = simGameV2(_in146 ? _in146.seed : s.perf, t.pos);
       } finally {
         window.__youStatBoostPctV20 = 0;
         window.__youTempBuffsV25 = null;
@@ -19173,7 +19173,7 @@
       saveGame(),
       goView("season"));
   }
-  function Ea() {
+  function finishWeekGame() {
     const e = state.player;
     if (e.weekResults && e.currentWeek != null) {
       const w = e.weekResults[e.currentWeek];
@@ -19183,9 +19183,9 @@
     }
     ((state._oppName = null), goView("season"));
   }
-  function fs() {
+  function finishSeasonGames() {
     const e = state.player;
-    if ((dn(e), e.weekResults && e.weekResults.some(a => !a.played))) {
+    if ((ensurePlayoffs(e), e.weekResults && e.weekResults.some(a => !a.played))) {
       goView("season");
       return;
     }
@@ -19206,10 +19206,10 @@
       render());
   }
   function nl() {
-    La();
+    startSeasonGames();
   }
   let liveCtl = null;
-  function il() {
+  function watchLive() {
     ((state.view = "live"), render());
   } /* v123: the opponent comes out of the SAME world the player's own side does — the 120 towns and
    * the 88 crest-matched mascots — instead of nine hard-coded lists of five, which between them
@@ -19331,7 +19331,7 @@
       hl());
   }
   let zi = "us";
-  function rl(e) {
+  function setRosterTab(e) {
     ((zi = e),
       document.querySelectorAll(".rtab[data-rt]").forEach(t => t.classList.toggle("active", t.dataset.rt === e)),
       qa());
@@ -19618,13 +19618,13 @@
         .forEach(e => e.classList.toggle("active", parseFloat(e.dataset.spd) === liveCtl.speed)),
       Ia());
   }
-  function ml(e) {
+  function setSpeed(e) {
     (liveCtl && (liveCtl.speed = e),
       document
         .querySelectorAll(".speed-btn[data-spd]")
         .forEach(t => t.classList.toggle("active", parseFloat(t.dataset.spd) === e)));
   }
-  function pl() {
+  function skipLive() {
     (window.GridironPhaser && window.GridironPhaser.cancel(),
       liveCtl && ((liveCtl.playing = !1), liveCtl.anim && cancelAnimationFrame(liveCtl.anim)),
       to());
@@ -20761,14 +20761,14 @@
       (liveCtl = null),
       state.player.weekResults && state.player.currentWeek != null)
     ) {
-      Ea();
+      finishWeekGame();
       return;
     }
     state._oppName = null;
     const e = state.player.seasonStats;
     (ao(e), (state.view = "result"), saveGame(), render());
   }
-  function El() {
+  function quickSimSeason() {
     const e = state.player.seasonStats;
     (ao(e), es(e), (state.view = "result"), saveGame(), render());
   }
@@ -20802,8 +20802,8 @@
       n = e.level >= 8 || (a.key === "nfl" && !((e.nflRings || 0) >= 1));
     a.key === "nfl" && (e.nflRings || 0) >= 1;
     const i = declareChanceV88(e),
-      r = Bt() - e.seasonsAtLevel,
-      l = ss(),
+      r = maxSeasons() - e.seasonsAtLevel,
+      l = minSeasons(),
       d = e.seasonsAtLevel >= l,
       c = r <= 0 && !n,
       u =
@@ -20980,10 +20980,10 @@
     <button class="btn ghost" onclick="setStatsTab('leaders');go('stats')">📊 See National Leaders — where did your season rank?</button>
   `;
   }
-  function Vl() {
+  function declareAdvance() {
     const e = state.player,
       a = declareChanceV88(e);
-    Math.random() * 100 < a ? na() : failDeclareV77(e, a);
+    Math.random() * 100 < a ? advanceLevel() : failDeclareV77(e, a);
   } /* ===== v77 THE DECLARE IS THE CAREER — one shot, then the epitaph =====
    * Failing a declare used to be a slap on the wrist: you banked a Determination
    * bonus, played another season and took another swing, and the career only
@@ -21057,7 +21057,7 @@
     try {
       rank = window.__RANK_V52 ? window.__RANK_V52.sn(pl, ovr) : null;
     } catch (e) {}
-    const left = Math.max(0, (typeof Bt == "function" ? Bt(pl) : 0) - (pl.seasonsAtLevel || 0));
+    const left = Math.max(0, (typeof maxSeasons == "function" ? maxSeasons(pl) : 0) - (pl.seasonsAtLevel || 0));
     const chance = Math.round(Number(t.chance) || 0);
     const notes = [];
     const push = (k, w, head, body) => {
@@ -21193,7 +21193,7 @@
     // ---- what to work on: the game's own recommendation, named
     let focus = null;
     try {
-      const key = Hi(pl),
+      const key = recommendTraining(pl),
         prog = PROGRAMS[key] || null,
         w = (POSITIONS[pl.pos] || {}).w || {};
       const weak = Object.keys(w)
@@ -21247,8 +21247,8 @@
     };
   }
   /* the roll clears the week rows, so the capture has to happen in front of it */
-  const fsV122 = fs;
-  fs = function () {
+  const fsV122 = finishSeasonGames;
+  finishSeasonGames = function () {
     let cap = null;
     try {
       cap = capV122(state.player);
@@ -21634,7 +21634,7 @@
     }
     un();
   }
-  function jl() {
+  function autoAllocKey() {
     const e = state.player,
       a = POSITIONS[e.pos].w;
     drAutoAlloc(
@@ -21643,12 +21643,12 @@
         .slice(0, Math.min(6, Object.keys(a).length))
     );
   }
-  function Il() {
+  function autoAllocSpread() {
     drAutoAlloc(ATTR_KEYS.slice());
   }
   let Qe = {},
     Q2 = {};
-  function Nl(e, t) {
+  function alloc(e, t) {
     const a = state.player;
     if (t > 0) {
       const c = drCost(a, e);
@@ -21713,7 +21713,7 @@
                 " more");
     });
   }
-  function Fl() {
+  function doneUpgrade() {
     ((Qe = {}), (Q2 = {}), saveGame(), showToast("Player upgraded!"), goView("hub"));
   }
   /* ===== v67 SOFT-CAP LEGIBILITY — the price of a point, stated where the choice is
@@ -21851,10 +21851,10 @@
       (byId("dock").innerHTML =
         `<button class="btn secondary" onclick="go(S.player.seasonStats&&S.view==='rank'?'hub':'hub')">Back</button>`));
   }
-  function fn() {
+  function endCareer() {
     ((state.view = "gameover"), render());
   }
-  function ms() {
+  function screenGameOver() {
     const e = state.player,
       t = LEVELS[e.level],
       a = e.level,
@@ -21867,16 +21867,16 @@
           treeFx("ppMult") +
           gearFx("ppMult") +
           gearV147("ppGain") +
-          Ca() * 0.05 +
-          Zt("ring") * 0.03) *
-        Us(e) *
+          hofWings() * 0.05 +
+          posMasteryCount("ring") * 0.03) *
+        tierPPMult(e) *
         pathVal("ppMult", 1) *
         (hasTrait(e, "showman") ? 1.15 : 1) *
-        vt(),
+        eraMult(),
       n = nodeLvl("legacy") * e.totalSeasons,
       i = [1, 2, 4, 8, 15, 28, 45, 70, 120][Math.min(a, 8)] || 1,
-      r = Math.max(1, Math.round(((i + e.totalSeasons * 0.35 + (e.titles || 0) * 4) * s + n) * Qa(a))),
-      l = Qs(e, a, !1);
+      r = Math.max(1, Math.round(((i + e.totalSeasons * 0.35 + (e.titles || 0) * 4) * s + n) * chaosEarnedMult(a))),
+      l = prestigeStarReward(e, a, !1);
     e._settled ||
       ((e._settled = !0),
       (e._ppBankV136 = flushBankV136()),
@@ -21897,7 +21897,7 @@
           .join("") +
         `<div><span style="color:var(--blood)">✗</span> ${t.name} — cut at OVR ${playerOvr(e)}, age ${e.age}</div>`,
       c = Object.values(TREE_NODES)
-        .filter(h => nodeLvl(h.key) < h.max && Xa(h) && state.pp >= nodeCost(h))
+        .filter(h => nodeLvl(h.key) < h.max && nodeUnlocked(h) && state.pp >= nodeCost(h))
         .sort((h, p) => nodeCost(p) - nodeCost(h))
         .slice(0, 3),
       u = Math.round((s - 1) * 100);
@@ -21937,7 +21937,7 @@
     <button class="btn ${state.pp > 0 ? "secondary" : ""}" onclick="prestigeReset()">Run It Back — His Son's Career</button>
   `));
   }
-  function no() {
+  function screenWin() {
     const e = state.player;
     if (!e._settled) {
       e._settled = !0;
@@ -21950,15 +21950,15 @@
             treeFx("ppMult") +
             gearFx("ppMult") +
             gearV147("ppGain") +
-            Ca() * 0.05 +
-            Zt("ring") * 0.03) *
-          Us(e) *
+            hofWings() * 0.05 +
+            posMasteryCount("ring") * 0.03) *
+          tierPPMult(e) *
           pathVal("ppMult", 1) *
           (hasTrait(e, "showman") ? 1.15 : 1) *
-          vt(),
+          eraMult(),
         s = 1 + nodeLvl("hof") * 0.3,
-        n = Math.round((85 + e.totalSeasons * 0.75 + (e.titles || 0) * 6) * a * s * Qa(Math.max(7, e.level))),
-        i = Qs(e, Math.max(7, e.level), !0);
+        n = Math.round((85 + e.totalSeasons * 0.75 + (e.titles || 0) * 6) * a * s * chaosEarnedMult(Math.max(7, e.level))),
+        i = prestigeStarReward(e, Math.max(7, e.level), !0);
       ((e._ppBankV136 = flushBankV136()),
         (state.pp += n),
         (e._vaultPayV137 = (e._vaultPayV137 || 0) + n + (e._ppBankV136 || 0)),
@@ -22000,10 +22000,10 @@
     <button class="btn secondary" onclick="prestigeReset()">Hand It to His Son</button>
   `));
   }
-  function Gl() {
+  function continueNFL() {
     ((state.view = "hub"), saveGame(), render());
   }
-  function Hl() {
+  function prestigeReset() {
     ((state.player = null), saveGame(), goView("menu"));
   }
   function io() {
@@ -22031,7 +22031,7 @@
   `),
       (byId("dock").innerHTML = `<button class="btn secondary" onclick="go('shop')">Back to Prestige Tree</button>`));
   }
-  function oo(e) {
+  function choosePath(e) {
     if (state.prestige < Xt) {
       showToast("Reach " + HONOR_ICON_V130 + " " + Xt + " Honors first");
       return;
@@ -22095,7 +22095,7 @@
       .map(a => {
         const s = nodeLvl(a.key),
           n = s >= a.max,
-          i = Xa(a),
+          i = nodeUnlocked(a),
           r = nodeCost(a),
           l = state.pp >= r && !n && i;
         let d = "";
@@ -22118,7 +22118,7 @@
       })
       .join("");
   }
-  function ql() {
+  function respecTree() {
     if (Math.max(1, state.prestige) - (state.respecUsed || 0) <= 0) {
       showToast("No free respecs left — earn more prestige");
       return;
@@ -22135,15 +22135,15 @@
       showToast("♻️ Respec complete — " + t + " PP refunded"),
       ps());
   }
-  function Wl(e) {
+  function setBranch(e) {
     Ut = e;
     const t = byId("branchNodes");
     (t && (t.innerHTML = vs(e)), ps());
   }
-  function Yl(e) {
+  function buyNode(e) {
     const t = TREE_NODES[e];
     if (nodeLvl(e) >= t.max) return;
-    if (!Xa(t)) {
+    if (!nodeUnlocked(t)) {
       showToast("Locked — meet the requirement first");
       return;
     }
@@ -22154,7 +22154,7 @@
     }
     ((state.pp -= s), (state.tree[e] = (state.tree[e] || 0) + 1), saveGame(), showToast(t.name + " → Lv " + state.tree[e]), ps(), an());
   }
-  function ys() {
+  function shopBack() {
     goView(state.player && state.player.pos ? "hub" : "menu");
   }
   function goView(e) {
@@ -22365,15 +22365,15 @@
   render = function () {
     (hypeState(), Ql(), Aa());
   };
-  const Jl = lt;
-  lt = function (e) {
+  const Jl = playWeek;
+  playWeek = function (e) {
     const t = state.player,
       a = t && t.weekResults ? t.weekResults.findIndex(n => !n.played) : -1,
       s = a >= 0 ? t.weekResults[a] : null;
     (Jl(e), !e && s && (processWeek95(s, t), render()));
   };
-  const Xl = Ea;
-  Ea = function () {
+  const Xl = finishWeekGame;
+  finishWeekGame = function () {
     const e = state.player,
       t = e && e.weekResults && e.currentWeek != null ? e.weekResults[e.currentWeek] : null;
     (Xl(), t && (processWeek95(t, e), render()));
@@ -22384,8 +22384,8 @@
       t = e && e.weekResults ? e.weekResults.filter(a => !a.played && !a.playoff) : [];
     (Zl(), t.forEach(a => processWeek95(a, e)), render());
   };
-  const ec = fs;
-  fs = function () {
+  const ec = finishSeasonGames;
+  finishSeasonGames = function () {
     const e = state.player,
       t = (e.weekResults || []).slice();
     ((e._lastRecord95 = {
@@ -22540,8 +22540,8 @@
       r
     );
   };
-  const sc = qt;
-  qt = function (e, t, a, s, n) {
+  const sc = advanceChance;
+  advanceChance = function (e, t, a, s, n) {
     const r = e + ((a && { QB: 1, RB: 2, WR: -2.5, TE: 3.5, OL: 4.5, DL: -2, LB: 1.5, CB: 0, S: -1 }[a]) || 0);
     let l = sc(r, t, a, s, n) - lo(t);
     (t >= 4 && a && (l += { QB: 2, RB: 2, WR: -4, TE: 2, OL: 3, DL: -3, LB: 3, CB: -2, S: -2 }[a] || 0),
@@ -23711,8 +23711,8 @@
       }
     }
   };
-  const hc = na;
-  na = function () {
+  const hc = advanceLevel;
+  advanceLevel = function () {
     if (state.player && state.player.age >= retireAgeV134()) {
       ((state.player.retirementPending = !0), (state.view = "result"), render());
       return;
@@ -23720,7 +23720,7 @@
     return hc();
   };
   function mc() {
-    if (((state = dr() || Zs()), state.tree || (state.tree = {}), evergreenRefundV146(), state.shop)) {
+    if (((state = dr() || freshState()), state.tree || (state.tree = {}), evergreenRefundV146(), state.shop)) {
       const t = {
         genetics: "genetics",
         talent: "talent",
@@ -23800,7 +23800,7 @@
     auto: traitAutoV112,
     traits: TRAITS,
     fit: pa,
-    rank: ns,
+    rank: suggestPositions,
     ovr: en,
     abandoned: abandonedV112,
     active: () => rerollActiveV112(state && state.player),
@@ -23811,39 +23811,39 @@
     cond: e => condMultV54(e || (state && state.player)),
     eff: e => effAttrsV85(e || (state && state.player))
   };
-  window.startCareer = Di;
-  window.confirmNew = Tr;
-  window.pickPos = rs;
-  window.advance = na;
-  window.startSeason = Br;
-  window.alloc = Nl;
-  window.doneUpgrade = Fl;
-  window.autoAllocKey = jl;
-  window.autoAllocSpread = Il;
-  window.endCareer = fn;
-  window.prestigeReset = Hl;
-  window.buy = Yl;
-  window.shopBack = ys;
-  window.continueNFL = Gl;
-  window.chooseTraining = Ir;
-  window.chooseEvent = Fr;
-  window.setBranch = Wl;
-  window.watchLive = il;
-  window.quickSimSeason = El;
-  window.startSeasonGames = La;
-  window.playWeek = lt;
+  window.startCareer = startCareer;
+  window.confirmNew = confirmNew;
+  window.pickPos = pickPos;
+  window.advance = advanceLevel;
+  window.startSeason = startSeason;
+  window.alloc = alloc;
+  window.doneUpgrade = doneUpgrade;
+  window.autoAllocKey = autoAllocKey;
+  window.autoAllocSpread = autoAllocSpread;
+  window.endCareer = endCareer;
+  window.prestigeReset = prestigeReset;
+  window.buy = buyNode;
+  window.shopBack = shopBack;
+  window.continueNFL = continueNFL;
+  window.chooseTraining = chooseTraining;
+  window.chooseEvent = chooseEvent;
+  window.setBranch = setBranch;
+  window.watchLive = watchLive;
+  window.quickSimSeason = quickSimSeason;
+  window.startSeasonGames = startSeasonGames;
+  window.playWeek = playWeek;
   window.simRemainingWeeks = simRemainingWeeks;
-  window.finishSeasonGames = fs;
-  window.finishWeekGame = Ea;
-  window.setSpeed = ml;
-  window.skipLive = pl;
-  window.setRosterTab = rl;
-  window.respecTree = ql;
-  window.choosePath = oo;
-  window.exportSave = Rr;
-  window.importSave = Pr;
-  window.hardReset = Cr;
-  window.toggleSetting = ar;
+  window.finishSeasonGames = finishSeasonGames;
+  window.finishWeekGame = finishWeekGame;
+  window.setSpeed = setSpeed;
+  window.skipLive = skipLive;
+  window.setRosterTab = setRosterTab;
+  window.respecTree = respecTree;
+  window.choosePath = choosePath;
+  window.exportSave = exportSave;
+  window.importSave = importSave;
+  window.hardReset = hardReset;
+  window.toggleSetting = toggleSetting;
   window.applyFieldFx = function () {
     var el = document.querySelector("#field");
     if (el) {
@@ -23945,21 +23945,21 @@
     state.view === "settings" && Fi();
   };
   __pushFieldFx();
-  window.declareAdvance = Vl;
-  window.declareFromHub = Ar;
-  window.chooseTier = Gi;
-  window.setStatsTab = Sr;
-  window.setLeadPos = Mr;
-  window.setLeadSort = xr;
-  window.setChaos = ir;
-  window.chaosMaxAll = or;
-  window.buyMastery = nr;
-  window.screenDynasty = Ra;
+  window.declareAdvance = declareAdvance;
+  window.declareFromHub = declareFromHub;
+  window.chooseTier = chooseTier;
+  window.setStatsTab = setStatsTab;
+  window.setLeadPos = setLeadPos;
+  window.setLeadSort = setLeadSort;
+  window.setChaos = setChaos;
+  window.chaosMaxAll = chaosMaxAll;
+  window.buyMastery = buyMastery;
+  window.screenDynasty = screenDynasty;
   window.bigMoment = bigMoment;
-  window.equipGear = zr;
-  window.scrapGear = Qr;
-  window.screenHof = Bi;
-  window.screenLocker = ts;
+  window.equipGear = equipGear;
+  window.scrapGear = scrapGear;
+  window.screenHof = screenHof;
+  window.screenLocker = screenLocker;
   bootV140();
   __pushFieldFx(); /* ===== v140 THE BOOT CANNOT TAKE THE REST OF THE FILE WITH IT =====
    * `mc()` — load the save, restore its view, draw it — is called at the TOP LEVEL of this block,
@@ -24456,7 +24456,7 @@
       s = a >= 0 ? t.weekResults[a] : null;
     return `<div class="gameplan-overlay"><div class="gameplan-panel"><div class="decision-kicker">WEEKLY GAME PLAN · ${s ? escHtml(s.opp) : "NEXT OPPONENT"}</div><div class="decision-title">How will you earn your snaps?</div><div class="decision-copy">Your role is not guaranteed. Choose an approach that changes performance variance, playing time, trust, injury risk, and role-battle progress.</div>${GAME_PLANS.map((n, i) => `<button class="gameplan-choice" onclick="chooseGamePlan103('${n.id}',${e ? "true" : "false"})"><b>${n.icon} ${n.name}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(r => `<span>${r}</span>`).join("")}</div></button>`).join("")}<button class="btn ghost" style="margin-top:12px" onclick="closeGamePlan103()">Back</button></div></div>`;
   }
-  function $t(e) {
+  function prepareWeek103(e) {
     const t = state.player;
     if ((at(t), t.decisionQueue && t.decisionQueue.length)) {
       showToast("Resolve the post-game decision first.");
@@ -24464,16 +24464,16 @@
     }
     document.querySelector(".gameplan-overlay") || document.body.insertAdjacentHTML("beforeend", gs(!!e));
   }
-  function Ya() {
+  function closeGamePlan103() {
     const e = document.querySelector(".gameplan-overlay");
     e && e.remove();
   }
-  function $c(e, t) {
+  function chooseGamePlan103(e, t) {
     const a = state.player;
     (at(a), (a.weeklyPlan103 = e));
     const s = a.weekResults.findIndex(r => !r.played);
     if (s < 0) {
-      Ya();
+      closeGamePlan103();
       return;
     }
     const n = a.weekResults[s],
@@ -24495,7 +24495,7 @@
       const p = ia(a, n.perf, { oppBoost: n.playoff ? 0.08 : 0 });
       ((n.us = p.us), (n.them = p.them), (n.won = p.won), (n._plan103 = e));
     }
-    (Ya(), saveGame(), lt(!!t));
+    (closeGamePlan103(), saveGame(), playWeek(!!t));
   }
   function vn(e, t) {
     if (!e || e._loop103) return;
@@ -24568,21 +24568,21 @@
           .querySelectorAll('[onclick="playWeek(false)"]')
           .forEach(a => a.setAttribute("onclick", "prepareWeek103(false)"))));
   };
-  const xc = lt;
-  lt = function (e) {
+  const xc = playWeek;
+  playWeek = function (e) {
     const t = state.player;
     at(t);
     const a = t.weekResults ? t.weekResults.findIndex(n => !n.played) : -1,
       s = a >= 0 ? t.weekResults[a] : null;
     if (s && !s._plan103) {
-      $t(!!e);
+      prepareWeek103(!!e);
       return;
     }
     xc(e);
   };
-  window.prepareWeek103 = $t;
-  window.chooseGamePlan103 = $c;
-  window.closeGamePlan103 = Ya;
+  window.prepareWeek103 = prepareWeek103;
+  window.chooseGamePlan103 = chooseGamePlan103;
+  window.closeGamePlan103 = closeGamePlan103;
   function _a(e, t) {
     return e < 35 ? "#ff6b72" : e > 68 ? (t === "comp" ? "#8ec3ee" : "#78e993") : "#f0bb45";
   }
@@ -24625,7 +24625,7 @@
         ""
       )}<button class="btn ghost" style="margin:11px 0 4px" onclick="closeGamePlan103()">Back</button></div></div></div>`;
   };
-  function ho(e) {
+  function breakthroughTakeover104(e) {
     const t = document.querySelector(".breakthrough-takeover");
     (t && t.remove(),
       document.body.insertAdjacentHTML(
@@ -24640,7 +24640,7 @@
   const Rc = vn;
   vn = function (e, t) {
     const a = t ? Number(t.breakthroughs103 || 0) : 0;
-    (Rc(e, t), t && Number(t.breakthroughs103 || 0) > a && setTimeout(() => ho(), 220));
+    (Rc(e, t), t && Number(t.breakthroughs103 || 0) > a && setTimeout(() => breakthroughTakeover104(), 220));
   };
   function Pc(e) {
     return (
@@ -24658,7 +24658,7 @@
       a && a.insertAdjacentHTML("afterend", Pc(e));
     }
   };
-  window.breakthroughTakeover104 = ho;
+  window.breakthroughTakeover104 = breakthroughTakeover104;
   window.__getGridironState = () => state;
   window.__getGridironLiveSpeed = () => (liveCtl && liveCtl.speed ? liveCtl.speed : 1);
   window.__GRIDIRON_LEGACY_VERSION__ = "10.4-impact-ui";
@@ -24704,8 +24704,8 @@
     const a = applyOrigin(t, e, ATTR_KEYS);
     a && ((t._originAppliedV11 = !0), ensureV11(t), saveGame(), render(), bigMoment(a.name, a.strength + " · " + a.weakness, "gold"));
   }
-  const Oc = rs;
-  rs = function (e) {
+  const Oc = pickPos;
+  pickPos = function (e) {
     if (!state.player.originV11) {
       showToast("Choose this career’s origin first.");
       return;
@@ -24740,7 +24740,7 @@
     const e = SPECIALIZATIONS.find(t => t.id === state.specializationV11) || SPECIALIZATIONS[0];
     return `<div class="card specialization-card-v11"><div class="eyebrow">PRESTIGE SPECIALIZATION · NO RAW OVR</div><div class="h2" style="margin:3px 0 5px">${e.icon} ${e.name}</div><div class="small">${e.description} Switch freely; this changes strategy rather than making every run automatically stronger.</div><div class="specialization-grid-v11">${SPECIALIZATIONS.map(t => `<button class="spec-btn-v11 ${t.id === state.specializationV11 ? "on" : ""}" onclick="chooseSpecializationV11('${t.id}')"><span>${t.icon}</span><b>${t.name}</b><small>${t.description}</small></button>`).join("")}</div></div>`;
   }
-  const bn = ra;
+  const depthChartCore = ra;
   ra = function (e) {
     if (e && e._v11SeasonActive && e.roleRivalV11) {
       const t = clamp99(e.snapShare == null ? 0.12 : e.snapShare, 0.04, 0.98),
@@ -24760,13 +24760,13 @@
         { role: a, share: t, score: (t - 0.5) * 40, peer: LEVELS[e.level].need }
       );
     }
-    return bn(e);
+    return depthChartCore(e);
   }; /* v128: one fixture on the schedule is THE RIVALRY. It is built here, when the schedule is, so
    * the season screen, the scouting card, the wear ledger and the week generator all read the same
    * row: the side is lifted (rating, both units, and how hard they hit, which is what oppMulV111
    * prices), the row carries the flag, and the "showboat" bench roll is made ONCE for the season
    * rather than per game. With no rivalry stage chosen, `riv` is -1 and nothing below changes. */
-  ls = function (e) {
+  buildSeasonSchedule = function (e) {
     ((e._seasonPerfBoost = 0), (e._nextGameBoost = 0));
     const t = LEVELS[e.level],
       a = [];
@@ -24814,7 +24814,7 @@
     return a;
   };
   cn = function (e, t) {
-    const a = ea(e.level),
+    const a = playoffRoundNames(e.level),
       s = t === a.length - 1,
       n = s && e.nemesis ? e.nemesis.name + "'s " + Dt(e.level) : Dt(e.level),
       i = createOpponentProfile(n, e.level, (e.weekResults || []).length + 1, e.seasonSeed, t);
@@ -24838,23 +24838,23 @@
       }
     );
   };
-  La = function () {
+  startSeasonGames = function () {
     const e = state.player;
     (ensureV11(e),
       (e.seasonSeed = randInt(1, 2e9)),
       (e.playoffState = null),
       (e._v11SeasonActive = !0),
       resetSeasonSystems(e),
-      ds(e),
-      us(e),
+      rollSeasonMod(e),
+      genContracts(e),
       (e._v11SeasonActive = !1));
     const t = e.depthStarts || 0;
-    (bn(e),
+    (depthChartCore(e),
       (e.depthStarts = t),
       (e._v11SeasonActive = !0),
       (e.roleRivalV11 = null),
       ensureRival(e, LEVELS[e.level].need, seededRng(e.seasonSeed, e.level, e.pos, "season-rival")),
-      (e.weekResults = ls(e)),
+      (e.weekResults = buildSeasonSchedule(e)),
       (e.currentWeek = 0),
       (state.view = "season"),
       saveGame(),
@@ -24867,7 +24867,7 @@
       else break;
     return a;
   }
-  function ca(e, t, a) {
+  function resolveWeekV11(e, t, a) {
     if (t.generatedV11) return t;
     t.rivalV128 && rivalResolveV136(e, "auto");
     /* v136 A: a rivalry week reached without the page still gets its approach */ ensureV11(e);
@@ -24989,9 +24989,9 @@
       s = a.weekResults.findIndex(i => !i.played);
     if (s < 0) return;
     const n = a.weekResults[s];
-    (ca(a, n, e), Ya(), saveGame(), Yt(!!t));
+    (resolveWeekV11(a, n, e), closeGamePlan103(), saveGame(), Yt(!!t));
   }
-  $t = function (e) {
+  prepareWeek103 = function (e) {
     const t = state.player;
     if (!t || !t.weekResults) return;
     const a = t.weekResults.find(n => !n.played);
@@ -25007,7 +25007,7 @@
     const s = document.querySelector(".gameplan-overlay");
     (s && s.remove(), document.body.insertAdjacentHTML("beforeend", bs(!!e)));
   };
-  const po = lt;
+  const po = playWeek;
   function Fc(e, t, a) {
     return `<div class="decision-overlay moment-overlay-v11"><div class="decision-panel moment-panel-v11"><div class="decision-kicker">${escHtml((t.opponentV11?.importance || "IMPORTANT").toUpperCase())} MOMENT · ${escHtml(t.opp)}</div><div class="moment-score-v11"><span>${t.us}</span><small>–</small><span>${t.them}</span></div><div class="decision-title">${escHtml(a.title)}</div><div class="decision-copy">${escHtml(a.copy)} Your attributes, composure, condition, scouting, and choice all affect the roll.</div>${a.choices.map(s => `<button class="decision-choice moment-choice-v11" onclick="resolveMomentV11('${s.id}')"><b>${escHtml(s.label)}</b><small>${escHtml(s.description)}</small><span class="decision-risk">${escHtml(s.risk)} risk · displayed chance is intentionally approximate</span></button>`).join("")}</div></div>`;
   }
@@ -25073,12 +25073,12 @@
       return;
     }
     if (!s.generatedV11) {
-      $t(e);
+      prepareWeek103(e);
       return;
     }
     ((s.pendingLiveV11 = !!e), !(!s.momentsCompleteV11 && vo()) && (delete s.pendingLiveV11, po(!!e)));
   }
-  lt = function (e) {
+  playWeek = function (e) {
     const t = state.player,
       a = t && t.weekResults ? t.weekResults.find(s => !s.played) : null;
     if (!a) {
@@ -25093,7 +25093,7 @@
       return;
     }
     if (!a.generatedV11) {
-      $t(!!e);
+      prepareWeek103(!!e);
       return;
     }
     Yt(!!e);
@@ -25218,7 +25218,7 @@
   }
   function Yc() {
     const e = document.querySelector(".nfl-offers-overlay-v11");
-    (e && e.remove(), fn());
+    (e && e.remove(), endCareer());
   }
   function Bn(e) {
     // v73: lead with the one number the card exists to give — what this body is worth
@@ -25363,7 +25363,7 @@
     return t && t.replace(/<\/div>\s*$/, `${zc(e)}</div>`);
   };
   function Jc(e) {
-    return `<div class="decision-overlay position-overlay-v11"><div class="decision-panel"><div class="decision-kicker">POSITION CONVERSION · ONE PER LEVEL</div><div class="decision-title">Trade Mastery for Versatility</div><div class="decision-copy">Changing positions resets your named role battle, cuts coach trust, and lowers immediate snaps. It can unlock a better long-term fit and completes part of your origin legacy.</div>${ns(
+    return `<div class="decision-overlay position-overlay-v11"><div class="decision-panel"><div class="decision-kicker">POSITION CONVERSION · ONE PER LEVEL</div><div class="decision-title">Trade Mastery for Versatility</div><div class="decision-copy">Changing positions resets your named role battle, cuts coach trust, and lowers immediate snaps. It can unlock a better long-term fit and completes part of your origin legacy.</div>${suggestPositions(
       e.attrs,
       e.body
     )
@@ -25406,7 +25406,7 @@
       (t.snapShare = clamp99(Math.min(t.snapShare || 0.12, 0.18), 0.04, 0.98)),
       (t.coachTrust = clamp99((t.coachTrust || 50) - 8, 0, 100)),
       (t.roleBattle103 = 0),
-      as(t),
+      genRivals(t),
       ensureRival(t, LEVELS[t.level].need, seededRng(t.seasonSeed, t.level, e, "position-change")),
       document.querySelector(".position-overlay-v11")?.remove(),
       pushStory(
@@ -25421,8 +25421,8 @@
   pn = function (e) {
     return bo(e).replace("card rival-card-v11", "card weekly-loop-card rival-card-v11");
   };
-  const ed = $t;
-  $t = function (e) {
+  const ed = prepareWeek103;
+  prepareWeek103 = function (e) {
     const t = state.player;
     if (t && !t.originV11) {
       (render(), showToast("Choose this career’s origin first."));
@@ -25470,8 +25470,8 @@
     const n = ad(e);
     return (t != null && (e.potentialCeil = t), a != null && (e.potential = a), (n.originGrowthV11 = s), n);
   };
-  const sd = ca;
-  ca = function (e, t, a) {
+  const sd = resolveWeekV11;
+  resolveWeekV11 = function (e, t, a) {
     const s = sd(e, t, a);
     if (!t.originPerfAppliedV11) {
       const n = originPerformanceModifier(e, t);
@@ -25782,7 +25782,7 @@
         // fate roll (v50 wrapper) → ca() → the week is marked played: the played-week chain
         if (typeof window.chooseGamePlanV11 == "function") window.chooseGamePlanV11(plan, !1);
         else {
-          ca(e, w, plan);
+          resolveWeekV11(e, w, plan);
           Yt(!1);
         }
       } else Yt(!1);
@@ -26028,7 +26028,7 @@
       window.__youTempBuffsV25 = (base || []).concat(ownBuffsV111(e));
       window.__gameScriptBiasV23 = e._gameScriptV23 && e._gameScriptV23.gsPass != null ? e._gameScriptV23.gsPass : null;
       window.__youStatBoostPctV20 = 0;
-      g = Yr(seed, e.pos);
+      g = simGameV2(seed, e.pos);
     } catch (_) {
       g = null;
     } finally {
@@ -26503,13 +26503,13 @@
     showPositionChangeV11: Xc,
     changePositionV11: Zc,
     buyLegacyUnlockV11: id,
-    prepareWeek103: $t,
-    playWeek: lt,
-    pickPos: rs,
-    finishWeekGame: Ea,
-    finishSeasonGames: fs,
+    prepareWeek103: prepareWeek103,
+    playWeek: playWeek,
+    pickPos: pickPos,
+    finishWeekGame: finishWeekGame,
+    finishSeasonGames: finishSeasonGames,
     simRemainingWeeks: simRemainingWeeks,
-    startSeasonGames: La,
+    startSeasonGames: startSeasonGames,
     render: render
   });
   window.__GRIDIRON_LEGACY_VERSION__ = "11.0-career-loop";
@@ -26530,7 +26530,7 @@
     render();
   }, "draw the restored screen");
   let Lt = "overview";
-  function ks() {
+  function ensureV12() {
     (ensureAccountV12(state), state.player && (ensureV11(state.player), state.player.level >= 7 && ensureFinanceState(state.player)));
   }
   const cd = newPlayer;
@@ -26576,16 +26576,16 @@
       goView("shop"),
       setTimeout(() => bigMoment("PROMISE MADE", "Spend Prestige, then run the career back", "gold"), 180));
   }
-  const md = ys;
-  ys = function () {
+  const md = shopBack;
+  shopBack = function () {
     if (state.afterCareerV12) {
       ((state.afterCareerV12 = !1), (state.player = null), saveGame(), goView("menu"));
       return;
     }
     md();
   };
-  const pd = ms;
-  ms = function () {
+  const pd = screenGameOver;
+  screenGameOver = function () {
     pd();
     const e = state.player;
     if (!e) return;
@@ -26631,7 +26631,7 @@
       goView("hub");
       return;
     }
-    ks();
+    ensureV12();
     const t = ensureFinanceState(e),
       a = retirementReadiness(e),
       s = e.nflStateV11 || {},
@@ -26743,7 +26743,7 @@
       return;
     }
     confirm("Retire from football now? This ends the career and locks in your financial legacy.") &&
-      ((e.voluntaryRetirementV12 = !0), retirePlayer(e), saveGame(), fn());
+      ((e.voluntaryRetirementV12 = !0), retirePlayer(e), saveGame(), endCareer());
   }
   function xd(e) {
     const t = e.lifeV12?.eventQueue?.[0];
@@ -26905,7 +26905,7 @@
   }
   const Ad = render;
   render = function () {
-    if ((ks(), state.view === "life")) {
+    if ((ensureV12(), state.view === "life")) {
       St();
       return;
     }
@@ -26958,7 +26958,7 @@
     fundGoalV12: Sd,
     retireV12: Md,
     resolveLifeEventV12: Td,
-    shopBack: ys,
+    shopBack: shopBack,
     simRemainingWeeks: simRemainingWeeks,
     render: render
   });
@@ -26975,7 +26975,7 @@
     retirementPlanning: !0
   };
   safeBootV140(function () {
-    ks();
+    ensureV12();
     render();
   }, "settle the save and draw it"); /* ===== v137 THE VAULT IS WHERE THE POINTS LIVE =====
    * The Prestige Vault (public/rib-vault*.js) is a self-contained screen that knows nothing
@@ -27338,8 +27338,8 @@
     return t;
   };
   /* the door into the UFF */
-  const na0V146B = na;
-  na = function () {
+  const na0V146B = advanceLevel;
+  advanceLevel = function () {
     const e = state && state.player,
       was = e ? e.level : 99,
       r = na0V146B.apply(this, arguments);
@@ -27353,7 +27353,7 @@
     } catch (_) {}
     return r;
   };
-  window.advance = na;
+  window.advance = advanceLevel;
   /* the screens between weeks wait for the signature; a career that is over goes to its screen */
   const q0V146B = render;
   render = function () {
@@ -27496,7 +27496,7 @@
     return bi;
   }
   function autoEventV147(e) {
-    const ev = Za.find(z => z.id === e.pendingEvent);
+    const ev = SEASON_EVENTS.find(z => z.id === e.pendingEvent);
     if (!ev) return !1;
     if (ev.id === "bigGame" && TU("rivalSpinOnWeekV136", 1)) {
       noteV147(e, "event", ev.title, "the approach is decided on game week");
@@ -27511,7 +27511,7 @@
       return !0;
     }
     noteV147(e, "event", ev.title, ev.choices[i].label);
-    Fr(i);
+    chooseEvent(i);
     try {
       showToast(`📋 ${ev.title} — handled for you: ${ev.choices[i].label}`);
     } catch (_) {}
@@ -27614,7 +27614,7 @@
         break;
       }
       try {
-        dn(e);
+        ensurePlayoffs(e);
       } catch (_) {}
       const w = (e.weekResults || []).find(z => !z.played);
       if (!w) break;
@@ -27629,7 +27629,7 @@
       processWeek95(w, e);
     }
     try {
-      dn(e);
+      ensurePlayoffs(e);
     } catch (_) {}
     rolls.push(...autoStoryV90(e, null), ...autoLifeV147(e, null));
     try {
@@ -27652,7 +27652,7 @@
       try {
         showToast(say + " — the season is done");
       } catch (_) {}
-      (window.finishSeasonGames || fs)();
+      (window.finishSeasonGames || finishSeasonGames)();
       return;
     }
     goView("season");
@@ -27833,7 +27833,7 @@
     node: k => TREE_NODES[k],
     level: k => nodeLvl(k),
     price: k => (TREE_NODES[k] ? nodeCost(TREE_NODES[k]) : 0),
-    open: k => (TREE_NODES[k] ? !!Xa(TREE_NODES[k]) : !1),
+    open: k => (TREE_NODES[k] ? !!nodeUnlocked(TREE_NODES[k]) : !1),
     keys: () => Object.keys(TREE_NODES)
   });
   window.__prestigeRefreshV137 = () => {
@@ -27860,7 +27860,7 @@
   function vaultBuy(key) {
     const n = TREE_NODES[key];
     if (!n) return;
-    if (!window.__RIB_VAULT_BRIDGE || !window.__RIB_VAULT || nodeLvl(key) >= n.max || !Xa(n) || state.pp < nodeCost(n)) return Yl(key);
+    if (!window.__RIB_VAULT_BRIDGE || !window.__RIB_VAULT || nodeLvl(key) >= n.max || !nodeUnlocked(n) || state.pp < nodeCost(n)) return buyNode(key);
     window.__RIB_VAULT_BRIDGE.open({ key: key });
   }
   function openVaultV137(key) {
@@ -27889,7 +27889,7 @@
     pp: () => state.pp,
     banked: () => bankedV136(),
     tree: () => state.tree,
-    buy: k => Yl(k)
+    buy: k => buyNode(k)
   };
   /* v146 C: Hand-Picked -- trust at birth, added after the coachStart sum (whose ai() soft limit would eat it) */ const kt146C =
     newPlayer;
@@ -27904,56 +27904,56 @@
     },
     completeChallengesV134: e => es(e),
     materializeInjuryV134: (e, w) => materializeInjuryV18(e, w),
-    freshState: Zs,
+    freshState: freshState,
     newPlayer: newPlayer,
-    suggestPositions: ns,
-    genRivals: as,
+    suggestPositions: suggestPositions,
+    genRivals: genRivals,
     playerOVR: playerOvr,
-    devRating: cr,
-    recommendTraining: Hi,
+    devRating: devRating,
+    recommendTraining: recommendTraining,
     simSeason: simSeason,
-    startSeasonGames: La,
-    buildSeasonSchedule: ls,
-    ensurePlayoffs: dn,
-    resolveSequentialWeekV11: ca,
+    startSeasonGames: startSeasonGames,
+    buildSeasonSchedule: buildSeasonSchedule,
+    ensurePlayoffs: ensurePlayoffs,
+    resolveSequentialWeekV11: resolveWeekV11,
     processWeek95: processWeek95,
-    advanceChance: qt,
-    maxSeasonsAllowed: Bt,
-    minSeasonsRequired: ss,
-    advance: na,
-    grantMilestone: Vi,
-    prestigeStarReward: Qs,
-    screenGameOver: ms,
-    screenWin: no,
+    advanceChance: advanceChance,
+    maxSeasonsAllowed: maxSeasons,
+    minSeasonsRequired: minSeasons,
+    advance: advanceLevel,
+    grantMilestone: grantMilestone,
+    prestigeStarReward: prestigeStarReward,
+    screenGameOver: screenGameOver,
+    screenWin: screenWin,
     LEVELS: LEVELS,
     POSITIONS: POSITIONS,
     ATTRS: ATTR_KEYS,
     TRAINING: PROGRAMS,
-    EVENTS: Za,
+    EVENTS: SEASON_EVENTS,
     TREE: TREE,
     TREE_NODES: TREE_NODES,
-    nodeUnlocked: Xa,
+    nodeUnlocked: nodeUnlocked,
     nodeCost: nodeCost,
     nodeLvl: nodeLvl,
-    chooseTier: Gi,
-    choosePath: oo,
+    chooseTier: chooseTier,
+    choosePath: choosePath,
     V11: V11_MODULE,
     V12: V12_MODULE,
     ensureV11: ensureV11,
-    ensureV12: ks,
-    rollSeasonMod: ds,
-    genContracts: us,
-    depthChartCoreV11: bn,
-    playoffRoundNames: ea,
+    ensureV12: ensureV12,
+    rollSeasonMod: rollSeasonMod,
+    genContracts: genContracts,
+    depthChartCoreV11: depthChartCore,
+    playoffRoundNames: playoffRoundNames,
     treeFx: treeFx,
     pathVal: pathVal,
-    tierPPMult: Us,
+    tierPPMult: tierPPMult,
     hasTrait: hasTrait,
     gearFx: gearFx,
-    hofWings: Ca,
-    posMasteryCount: Zt,
-    eraMult: vt,
-    chaosEarnedMult: Qa
+    hofWings: hofWings,
+    posMasteryCount: posMasteryCount,
+    eraMult: eraMult,
+    chaosEarnedMult: chaosEarnedMult
   };
 
   /* ===== GRIDIRON PATCH LAYER — runs inside the legacy scope ===== */
@@ -28327,7 +28327,7 @@
   /* ===== POST-GAME STATS + SEASON TOTALS + NATIONAL RANK (v13) ===== */
   (function () {
     try {
-      if (typeof Ea !== "function") return;
+      if (typeof finishWeekGame !== "function") return;
       var MAXKEYS = { longest: 1 }; // some box-score keys are a season best, not a sum
       // v17: expose the box-score grader to the (top-level) AI season engine so every
       // simmed game — watched or quick — grades its emergent stat line the same way.
@@ -29004,8 +29004,8 @@
         };
         return true;
       }
-      var origEa = Ea;
-      Ea = function () {
+      var origEa = finishWeekGame;
+      finishWeekGame = function () {
         var self = this,
           args = arguments,
           shown = false;
@@ -29019,7 +29019,7 @@
         }
         if (!shown) return origEa.apply(self, args);
       };
-      window.finishWeekGame = Ea;
+      window.finishWeekGame = finishWeekGame;
       window.__GRIDIRON_POSTGAME_V13__ = true;
     } catch (e) {
       console.warn("[postgame patch]", e);
@@ -29841,8 +29841,8 @@
     };
   }
   // the pick: the best graded season for THIS sheet — the body's own rule (v124) still sends a breaking-down man to Conditioning
-  const HiV124 = Hi;
-  Hi = function (e) {
+  const HiV124 = recommendTraining;
+  recommendTraining = function (e) {
     try {
       const top = trainScoreV124(e)[0];
       if (top && top.key === "injuryResist") return "conditioning";
@@ -29858,7 +29858,7 @@
     grade: (e, k) => trainGradeV133(e || (state && state.player), k),
     board: e => {
       const p = e || (state && state.player);
-      return boardGradesV133(p, Hi(p));
+      return boardGradesV133(p, recommendTraining(p));
     },
     attr: (e, k, g, gm) => attrTierV133(e || (state && state.player), k, g, gm),
     keys: e => keyStatsV133(e || (state && state.player)),
@@ -29868,7 +29868,7 @@
   jr = function () {
     const e = state.player,
       t = LEVELS[e.level],
-      sug = Hi(e),
+      sug = recommendTraining(e),
       key = tpSelV113 && PROGRAMS[tpSelV113] ? tpSelV113 : sug,
       GR = boardGradesV133(e, sug);
     tpSelV113 = key;
@@ -29911,17 +29911,17 @@
     el && el.scrollIntoView({ behavior: "smooth", block: "nearest" });
   };
   window.confirmTraining = function () {
-    const k = tpSelV113 && PROGRAMS[tpSelV113] ? tpSelV113 : Hi(state.player);
+    const k = tpSelV113 && PROGRAMS[tpSelV113] ? tpSelV113 : recommendTraining(state.player);
     tpSelV113 = null;
-    Ir(k);
+    chooseTraining(k);
   };
   // a fresh trip to the board starts on the suggestion again, not on last season's preview
-  const tpStartV113 = Br;
-  Br = function () {
+  const tpStartV113 = startSeason;
+  startSeason = function () {
     tpSelV113 = null;
     return tpStartV113.apply(this, arguments);
   };
-  window.startSeason = Br;
+  window.startSeason = startSeason;
   window.__V124 = {
     fate: PLAN_FATE_V124,
     odds: planFateOddsV124,
@@ -29931,7 +29931,7 @@
     say: planFateSayV124,
     score: e => trainScoreV124(e || (state && state.player)),
     why: e => trainWhyV124(e || (state && state.player)),
-    rec: e => Hi(e || (state && state.player)),
+    rec: e => recommendTraining(e || (state && state.player)),
     trade: (e, k) => planTradeV124(e || (state && state.player), k),
     progFor: PROG_FOR_V124
   };
