@@ -575,7 +575,7 @@
       recovery: t.recovery
     };
   }
-  const wn = [
+  const INJURIES = [
     ["Ankle sprain", 1, 2, 0.18],
     ["Hamstring strain", 1, 3, 0.24],
     ["Shoulder bruise", 1, 2, 0.15],
@@ -588,8 +588,8 @@
   function rollInjury(e, t = Math.random) {
     const a = ensureCondition(e),
       s = clamp((a.fatigue - 50) / 45 + Math.max(0, (e.age || 18) - 31) / 20, 0, 1.3);
-    let n = wn.filter(l => l[1] <= (s > 0.72 ? 3 : s > 0.28 ? 2 : 1));
-    n.length || (n = [...wn]);
+    let n = INJURIES.filter(l => l[1] <= (s > 0.72 ? 3 : s > 0.28 ? 2 : 1));
+    n.length || (n = [...INJURIES]);
     const i = sample(n, t),
       r = getOrigin(e);
     return {
@@ -657,7 +657,7 @@
       ["Vulnerable to explosive plays", "explosive"],
       ["Weak interior protection", "team"]
     ],
-    Eo = [
+    OPP_TENDENCIES = [
       "Disguises pressure until the snap",
       "Rotates safeties late",
       "Overloads the strong side",
@@ -688,7 +688,7 @@
       pressure: Math.round(35 + i() * 55),
       strength: r[0],
       weakness: l[0],
-      tendency: sample(Eo, i),
+      tendency: sample(OPP_TENDENCIES, i),
       counterPlan: l[1],
       trapPlan: r[2],
       rivalry: u,
@@ -745,7 +745,7 @@
       "Highly Drafted Rookie",
       "Injury-Prone Veteran"
     ],
-    Vo = [
+    SCOUT_NOTES = [
       "Excellent practice player",
       "Clutch in important games",
       "Limited athletic ceiling",
@@ -776,7 +776,7 @@
         ovr: Math.round(clamp(r + (a() - 0.45) * 12, t - 7, t + 12)),
         potential: Math.round(45 + a() * 50),
         personality: i,
-        trait: sample(Vo, a),
+        trait: sample(SCOUT_NOTES, a),
         coachTrust: Math.round(46 + a() * 32),
         snapShare: clamp(0.55 + (a() - 0.5) * 0.28, 0.25, 0.88),
         health: Math.round(68 + a() * 31),
@@ -3944,7 +3944,7 @@
       if (n !== t.lastContractSignature) {
         const i = Math.max(0, Math.round(s.signingBonus || 0));
         if (i) {
-          const r = Math.round(i * (mi(s.salary || i) + 0.03)),
+          const r = Math.round(i * (taxRate(s.salary || i) + 0.03)),
             l = Math.max(0, i - r);
           ((t.cash += l),
             (t.careerGross += i),
@@ -3962,7 +3962,7 @@
     }
     return t;
   }
-  function ws(e, t) {
+  function lifestyleById(e, t) {
     return LIFESTYLES[e].find(a => a.id === t) || LIFESTYLES[e][0];
   }
   function houseById(e) {
@@ -3987,9 +3987,9 @@
         media: 0,
         fatigue: 0
       };
-    const a = ws("meals", t.lifestyle.meals),
-      s = ws("recovery", t.lifestyle.recovery),
-      n = ws("luxury", t.lifestyle.luxury),
+    const a = lifestyleById("meals", t.lifestyle.meals),
+      s = lifestyleById("recovery", t.lifestyle.recovery),
+      n = lifestyleById("luxury", t.lifestyle.luxury),
       i = houseById(t.houseId);
     return {
       weeklyCost: a.weekly + s.weekly + n.weekly + i.weekly,
@@ -4029,7 +4029,7 @@
       s = RETIREMENT_PLANS.find(n => n.id === t);
     return !a || !s ? !1 : ((a.retirementPlanId = s.id), (a.retirementTarget = s.target), !0);
   }
-  function mi(e) {
+  function taxRate(e) {
     return e <= 1e6 ? 0.36 : e <= 3e6 ? 0.405 : e <= 8e6 ? 0.445 : 0.475;
   }
   function Fo(e, t, a) {
@@ -4093,7 +4093,7 @@
       n = Math.max(0, s.contract?.salary || 0),
       i = String(s.status || "camp"),
       r = i === "practice-squad" ? n / 36 : n / 18,
-      l = r * mi(n),
+      l = r * taxRate(n),
       d = r * 0.03,
       c = lifestyleEffects(e);
     let u = 0;
@@ -4631,11 +4631,11 @@
     const a = TIERS[t];
     return (a && a.find(s => s.key === e.tiers[t])) || null;
   }
-  function Go(e) {
+  function tierComp(e) {
     const t = currentTier(e);
     return t ? t.comp : 1;
   }
-  function Ho(e) {
+  function tierGrowth(e) {
     const t = currentTier(e);
     return t ? t.growth : 1;
   }
@@ -5180,7 +5180,7 @@
   function chaosCap() {
     return (state && state.chaosCap) || 0;
   }
-  function Wo() {
+  function chaosMaxed() {
     return chaosTotal() >= chaosCap();
   }
   function chaosPPMult() {
@@ -5387,7 +5387,7 @@
   function fmtHeight(e) {
     return Math.floor(e / 12) + "'" + (e % 12) + '"';
   }
-  function Ri(e) {
+  function bodyLabel(e) {
     return e
       ? e.weight >= 290
         ? "Massive"
@@ -7370,14 +7370,14 @@
       Math.max(1, s)
     );
   }
-  function Js() {
+  function objectivesDone() {
     return state.objectivesCompleted || 0;
   }
-  function Ko(e) {
-    return !!(e && e.level >= 7 && (e.peakOvr || playerOvr(e)) >= 85 && Js() >= 20);
+  function chaosUnlockReady(e) {
+    return !!(e && e.level >= 7 && (e.peakOvr || playerOvr(e)) >= 85 && objectivesDone() >= 20);
   }
-  function zo(e) {
-    return `UFF title · 85 OVR (${e ? e.peakOvr || playerOvr(e) : 0}) · 20 objectives (${Js()})`;
+  function chaosUnlockReq(e) {
+    return `UFF title · 85 OVR (${e ? e.peakOvr || playerOvr(e) : 0}) · 20 objectives (${objectivesDone()})`;
   }
   const PROGRAMS = {
     balanced: {
@@ -8024,7 +8024,7 @@
         ]
       }
     ],
-    Qo = [
+    RIVAL_FIRST = [
       "Jaylen",
       "Trey",
       "DeAndre",
@@ -8040,7 +8040,7 @@
       "Deacon",
       "Axel"
     ],
-    Jo = [
+    RIVAL_LAST = [
       "Washington",
       "Kingsley",
       "Duval",
@@ -8061,7 +8061,7 @@
     clamp99 = (e, t = 1, a = 99) => Math.max(t, Math.min(a, e)),
     randPick = e => e[Math.floor(Math.random() * e.length)],
     byId = e => document.getElementById(e),
-    Xo = [
+    FIRST_NAMES = [
       "Marcus",
       "Deshawn",
       "Tyler",
@@ -8083,7 +8083,7 @@
       "Hunter",
       "Amari"
     ],
-    Zo = [
+    LAST_NAMES = [
       "Reyes",
       "Johnson",
       "Colt",
@@ -8149,7 +8149,7 @@
   function hasTrait(e, t) {
     return !!(e && e.traits && e.traits.includes(t));
   }
-  function Ai() {
+  function rollTraits() {
     const e = Object.keys(TRAITS),
       t = e.filter(l => TRAITS[l].good === 1),
       a = e.filter(l => TRAITS[l].good === 0),
@@ -8478,7 +8478,7 @@
           ? town + " " + COLLEGE_V123[hashV123(town) % COLLEGE_V123.length]
           : town + " " + mascot
   };
-  function tr(e) {
+  function ovrGradeClass(e) {
     return e >= 200 ? "g-elite" : e >= 140 ? "g-hi" : e >= 80 ? "g-mid" : "g-lo";
   }
   let state = null;
@@ -8512,13 +8512,13 @@
   function toggleSetting(e) {
     (state.settings || (state.settings = {}), (state.settings[e] = !state.settings[e]), saveGame(), state.view === "settings" && screenSettings());
   }
-  const sr = [0, 2, 4, 8, 14, 24, 40, 70, 220];
+  const MILESTONE_PP = [0, 2, 4, 8, 14, 24, 40, 70, 220];
   function grantMilestone(e) {
     state.milestones || (state.milestones = {});
     const t = LEVELS[e].key;
     if (state.milestones[t]) return 0;
     state.milestones[t] = !0;
-    const a = Math.round((sr[e] || 0) * (1 + treeFx("mileMult")) * chaosEarnedMult(e));
+    const a = Math.round((MILESTONE_PP[e] || 0) * (1 + treeFx("mileMult")) * chaosEarnedMult(e));
     return (a > 0 && bankPPV136(a, "milestone"), a);
   } /* ===== v134 THE GOALS ARE WORTH CHASING =====
    * The challenge board paid 6 to 150 PP for feats that take whole careers: a UFF title was 10 PP, the
@@ -8935,7 +8935,7 @@
         <div class="statbox"><div class="n">${state.careersCompleted || 0}</div><div class="l">Enshrined</div></div>
         <div class="statbox"><div class="n" style="color:#57e07a">+${a * 5}%</div><div class="l">Museum PP</div></div>
       </div>
-      ${t > 0 ? `<div class="threshold-note" style="margin-top:8px;color:#c9b8ff">🌌 Era bonus: permanent <b>+${Math.round((eraMult() - 1) * 100)}% PP</b>. Next era: win the UFF title at <b>${Wi()}+ total chaos</b>.</div>` : '<div class="threshold-note" style="margin-top:8px">🌌 Win the UFF title to begin your first Era.</div>'}
+      ${t > 0 ? `<div class="threshold-note" style="margin-top:8px;color:#c9b8ff">🌌 Era bonus: permanent <b>+${Math.round((eraMult() - 1) * 100)}% PP</b>. Next era: win the UFF title at <b>${nextEraChaos()}+ total chaos</b>.</div>` : '<div class="threshold-note" style="margin-top:8px">🌌 Win the UFF title to begin your first Era.</div>'}
     </div>
 
     ${lineageHofV136()}
@@ -9553,10 +9553,10 @@
         j = POS_BODY[v];
       ((u.height = j.h[0]), (u.weight = j.w[0]), (u.muscle = Math.min(90, u.muscle + 15)));
     }
-    const _t112 = Ai()[0],
+    const _t112 = rollTraits()[0],
       _o112 = traitOfferV112([_t112]);
     const m = {
-        name: randPick(Xo) + " " + randPick(Zo),
+        name: randPick(FIRST_NAMES) + " " + randPick(LAST_NAMES),
         attrs: t,
         body: u,
         pos: null,
@@ -9603,7 +9603,7 @@
       ATTR_KEYS.forEach(v => {
         m.attrs[v] = clamp99(m.attrs[v] + C + V, 1, attrCap());
       }),
-      _i(m),
+      rollNemesis(m),
       (m.peakOvr = 0));
     const P = Object.values(state.tree || {}).reduce((v, j) => v + j, 0);
     return (
@@ -9632,7 +9632,7 @@
     for (let n = 0; n < s; n++) {
       const i = randInt(-8, 10);
       a.push({
-        name: randPick(Qo) + " " + randPick(Jo),
+        name: randPick(RIVAL_FIRST) + " " + randPick(RIVAL_LAST),
         pos: e.pos,
         ovr: clamp99(t + i, 5, 999),
         growth: randRange(0.9, 1.3),
@@ -9883,7 +9883,7 @@
   function playerOvr(e) {
     return calcOvr(e.attrs, e.pos, e.body);
   }
-  function $s(e) {
+  function ovrTier(e) {
     return e >= 180
       ? { label: "GALAXY-CLASS", color: "#ff5a5a" }
       : e >= 140
@@ -9957,7 +9957,7 @@
           s.stop(a.currentTime + r[1] + 0.02));
       } catch {}
   }
-  function ji(e) {
+  function haptic(e) {
     if (settingOn("haptics") && navigator.vibrate)
       try {
         navigator.vibrate(e || 18);
@@ -9983,7 +9983,7 @@
       s.classList.add("go"),
       n.classList.add("go"),
       playSfx(a === "bad" ? "bad" : "big"),
-      ji(a === "bad" ? [35, 45, 35] : [20, 35, 55]));
+      haptic(a === "bad" ? [35, 45, 35] : [20, 35, 55]));
   }
   function ur(e) {
     const t = playerOvr(e),
@@ -9999,7 +9999,7 @@
     const t = ur(e);
     return `<div class="card objective-card"><div class="objective-head"><div class="objective-icon">🎯</div><div><div class="objective-kicker">CAREER STORYLINE</div><div class="objective-title">${t.filter(s => s.done).length}/3 objectives complete</div></div></div><div class="objective-list">${t.map(s => `<div class="objective-row ${s.done ? "done" : ""}"><span>${s.done ? "✓" : s.ic}</span><span>${s.text}</span><span class="objective-reward">${s.reward}</span></div>`).join("")}</div></div>`;
   }
-  function hr() {
+  function showTutorial() {
     if (state.tutorialSeen) return;
     let e = 0;
     const t = [
@@ -10023,7 +10023,7 @@
       ((a.innerHTML = `<div class="onboard-card"><div class="onboard-step">WELCOME · ${e + 1}/3</div><div class="onboard-title">${n[0]}</div><div class="onboard-copy">${n[1]}</div><div class="onboard-dots">${t.map((i, r) => `<i class="${r === e ? "on" : ""}"></i>`).join("")}</div><button class="btn" id="onNext">${e === 2 ? "Start Your Legacy" : "Next"}</button></div>`),
         (byId("onNext").onclick = () => {
           (playSfx("good"),
-            ji(18),
+            haptic(18),
             e < 2
               ? (e++, s())
               : ((state.tutorialSeen = !0),
@@ -11641,12 +11641,12 @@
       r = n[i] || 1;
     return (s[i] || 0) / r;
   }
-  const vr = [0, 0.28, 0.48, 0.75, 1.02, 1.62, 1.92, 1.84, 2.7];
+  const ADVANCE_BASE = [0, 0.28, 0.48, 0.75, 1.02, 1.62, 1.92, 1.84, 2.7];
   function advanceChance(e, t, a, s, n) {
     n = n || 1;
     const i = Math.min(t + 1, LEVELS.length - 1);
     if (t <= 2 && chaosTotal() === 0) return clamp99(96 + (e - LEVELS[i].need) * 0.3, 82, 99.5);
-    const r = (vr[i] || 0) + (t <= 2, 0),
+    const r = (ADVANCE_BASE[i] || 0) + (t <= 2, 0),
       l = LEVELS[i].need + chaosTotal() * 0.45 + (state && state.player && state.player.level === t ? pressNeedV131(state.player) : 0);
     /* v131: the Prodigy is judged against a higher bar — the "harsher evaluations" his card promised and nothing delivered */ if (
       a != null &&
@@ -11846,7 +11846,7 @@
     (hasTrait(e, "lateBloomer") && (xt *= e.age >= 16 ? 1.07 : 0.95),
       hasTrait(e, "slowStarter") && (xt *= e.seasonsSinceStart < 3 ? 0.94 : 1.05));
     const ua =
-        treeFx("eGrowth") + gearFx("growth") + Math.max(0, Ho(e) - 1) + Math.max(0, pathVal("growthMult", 1) - 1) + Math.max(0, l),
+        treeFx("eGrowth") + gearFx("growth") + Math.max(0, tierGrowth(e) - 1) + Math.max(0, pathVal("growthMult", 1) - 1) + Math.max(0, l),
       fa = clamp99(1 + ua * 0.22, 0.88, 1.34),
       xe = clamp99(e.potential * Me * Fe * xt * da * fa, 0.62, 1.58),
       st = (0.42 + he * 1.18 + Mt) * xe,
@@ -11930,19 +11930,19 @@
       ((state.rings = (state.rings || 0) + (R ? 3 : 1)),
         (e.nflRings = (e.nflRings || 0) + 1),
         (ke = !0),
-        !state.chaosUnlocked && Ko(e)
+        !state.chaosUnlocked && chaosUnlockReady(e)
           ? ((state.chaosUnlocked = !0),
             (state.chaosCap = Math.max(state.chaosCap || 0, 6)),
             typeof document < "u" && byId("toast") && showToast("🔥 CHAOS MODE UNLOCKED — mastery requirements complete!"))
           : !state.chaosUnlocked &&
             typeof document < "u" &&
             byId("toast") &&
-            showToast("💍 Ring earned. Chaos still requires: " + zo(e)),
+            showToast("💍 Ring earned. Chaos still requires: " + chaosUnlockReq(e)),
         state.chaosUnlocked &&
-          Wo() &&
+          chaosMaxed() &&
           ((state.chaosCap = (state.chaosCap || 0) + (R ? 10 : 6)),
           typeof document < "u" && byId("toast") && showToast("⛓️ CHAOS CLEARANCE — capacity raised to " + state.chaosCap + "!")),
-        _r() && typeof document < "u" && byId("toast") && showToast("🌌 NEW ERA: " + eraName() + " — permanent +20% PP!"),
+        tryNextEra() && typeof document < "u" && byId("toast") && showToast("🌌 NEW ERA: " + eraName() + " — permanent +20% PP!"),
         dropGear(R ? 3 : 2, "Championship loot"));
     }
     const ge = 4 + e.level * 3,
@@ -12056,7 +12056,7 @@
         qualified: pe
       }));
     const So = baselineStats(e.pos, e.level),
-      Mo = advanceChance(se, e.level, e.pos, U, Go(e)),
+      Mo = advanceChance(se, e.level, e.pos, U, tierComp(e)),
       xo = {
         avg: Math.round(U),
         best: c,
@@ -12182,7 +12182,7 @@
   function fmtInt(e) {
     return Math.round(e).toLocaleString("en-US");
   }
-  const Rs = [
+  const NEMESIS_FIRST = [
       "Jaylen",
       "Trey",
       "DeAndre",
@@ -12209,7 +12209,7 @@
       "Rashad",
       "Quincy"
     ],
-    Ps = [
+    NEMESIS_LAST = [
       "Washington",
       "Kingsley",
       "Duval",
@@ -12344,7 +12344,7 @@
               ));
       }),
         r.push({
-          name: Rs[Math.floor(s() * Rs.length)] + " " + Ps[Math.floor(s() * Ps.length)],
+          name: NEMESIS_FIRST[Math.floor(s() * NEMESIS_FIRST.length)] + " " + NEMESIS_LAST[Math.floor(s() * NEMESIS_LAST.length)],
           team: TOWNS[Math.floor(s() * TOWNS.length)],
           q: d,
           line: c,
@@ -12569,13 +12569,13 @@
     if (e === "choosePos") return screenChoosePos();
     if (e === "hub") return screenHub();
     if (e === "training") return screenTraining();
-    if (e === "event") return Nr();
+    if (e === "event") return screenEvent();
     if (e === "sim") return nl();
     if (e === "season") return screenSeason();
     if (e === "live") return ol();
     if (e === "result") return screenResult();
     if (e === "declineResult") return Ol();
-    if (e === "tier") return Or();
+    if (e === "tier") return screenTier();
     if (e === "upgrade") return Bl();
     if (e === "rank") return Dl();
     if (e === "stats") return screenLeaders();
@@ -12924,7 +12924,7 @@
       }
       L.gen = L.fathers.length + 1;
       const f = L.fathers[L.fathers.length - 1];
-      son.name = randPick(Xo) + " " + L.surname;
+      son.name = randPick(FIRST_NAMES) + " " + L.surname;
       son.genV136 = L.gen;
       son.fatherV136 = f.name;
     } catch (_) {}
@@ -13057,7 +13057,7 @@
   };
   window.rerollNameV96 = function () {
     if (!state.player) return;
-    ((state.player.name = randPick(Xo) + " " + (famLockedV139() ? famSurnameV139() : randPick(Zo))), saveGame());
+    ((state.player.name = randPick(FIRST_NAMES) + " " + (famLockedV139() ? famSurnameV139() : randPick(LAST_NAMES))), saveGame());
     const e = document.getElementById("playerNameV96");
     e && (e.value = famLockedV139() ? famFirstV139(state.player.name) : state.player.name);
   };
@@ -13085,13 +13085,13 @@
     ${lineageCardV136(e)}
     ${rerollNoteV112(e)}
     <div class="card tight" style="border-color:#4a90c9">
-      <div class="l" style="font-size:11px;color:#7ab6e0;letter-spacing:2px;margin-bottom:6px">🧍 PHYSICAL PROFILE · TODAY, AGE ${e.age} — ${Ri(n)}</div>
+      <div class="l" style="font-size:11px;color:#7ab6e0;letter-spacing:2px;margin-bottom:6px">🧍 PHYSICAL PROFILE · TODAY, AGE ${e.age} — ${bodyLabel(n)}</div>
       <div class="statline">
         <div class="statbox"><div class="n">${fmtHeight(n.height)}</div><div class="l">Height</div></div>
         <div class="statbox"><div class="n">${n.weight}</div><div class="l">Weight (lb)</div></div>
         <div class="statbox"><div class="n">${n.muscle}</div><div class="l">Muscle</div></div>
       </div>
-      ${n.grown ? "" : `<div class="threshold-note proj-v112" style="margin-top:8px">📈 <b style="color:var(--gold)">PROJECTS TO</b> ${fmtHeight(pj.height)} · ${pj.weight} lb · ${pj.muscle} muscle — <b>${Ri(pj)}</b> by ${TU("growAdultAge", 22)}. Scouts grade the frame he is going to get, so the position fit below reads that projection.</div>`}
+      ${n.grown ? "" : `<div class="threshold-note proj-v112" style="margin-top:8px">📈 <b style="color:var(--gold)">PROJECTS TO</b> ${fmtHeight(pj.height)} · ${pj.weight} lb · ${pj.muscle} muscle — <b>${bodyLabel(pj)}</b> by ${TU("growAdultAge", 22)}. Scouts grade the frame he is going to get, so the position fit below reads that projection.</div>`}
     </div>
     ${
       Array.isArray(e.traitOfferV112) && e.traitOfferV112.length
@@ -13221,7 +13221,7 @@
               return `<div class="meta-row body-row-v112" style="margin-top:4px;font-size:13px;color:#7ab6e0">
         <span class="meta" style="color:#7ab6e0">🧍 ${fmtHeight(bd.height)}</span>
         <span class="meta" style="color:#7ab6e0">${bd.weight} lb</span>
-        <span class="meta" style="color:#7ab6e0">${Ri(bd)}</span>
+        <span class="meta" style="color:#7ab6e0">${bodyLabel(bd)}</span>
         ${bd.grown ? "" : `<span class="meta proj-v112" style="color:var(--gold)" title="Projected adult frame by ${TU("growAdultAge", 22)}">📈 projects ${fmtHeight(e.body.height)} · ${e.body.weight} lb</span>`}
         <span class="meta" style="color:${physFit(e.body, e.pos) >= 0 ? "var(--good)" : "#e08a8a"}" title="Build fit is graded on the projected adult frame">${physFit(e.body, e.pos) >= 0 ? "+" : ""}${physFit(e.body, e.pos)} fit</span>
       </div>`;
@@ -13229,15 +13229,15 @@
           : ""
       }
       <div class="progress-wrap">
-        <div class="progress-label"><span>Overall Rating</span><span><b style="color:${$s(a).color}">${a}</b> OVR${Tn() > 0 ? ` <b class="pwr-badge">⚡+${Tn()} PWR</b>` : ""} · <span style="color:${$s(a).color};font-size:12px">${$s(a).label}</span></span></div>
+        <div class="progress-label"><span>Overall Rating</span><span><b style="color:${ovrTier(a).color}">${a}</b> OVR${gearPowerBonus() > 0 ? ` <b class="pwr-badge">⚡+${gearPowerBonus()} PWR</b>` : ""} · <span style="color:${ovrTier(a).color};font-size:12px">${ovrTier(a).label}</span></span></div>
         <div class="bar"><i style="width:${clamp99(a, 0, 100)}%"></i></div>
         ${e.potentialCeil ? `<div class="threshold-note" style="margin-top:5px;font-size:11px">📈 Potential ceiling: <b style="color:var(--gold)">~${Math.round(99 * (1 - Math.exp(-(e.potentialCeil + 12) / 78)))} OVR</b> — raise it with <b>Prestige</b> & upgrades.</div>` : ""}
       </div>
     </div>
 
-    ${Yi(e)}
+    ${seasonModBanner(e)}
     ${fr(e)}
-    ${e.nemesis && Math.random() < 0.4 ? el(e) : ""}
+    ${e.nemesis && Math.random() < 0.4 ? nemesisBanner(e) : ""}
     ${
       e.contracts && e.contracts.length
         ? `<div class="card tight" style="border-color:rgba(90,208,201,.45)">
@@ -13280,7 +13280,7 @@
 
     <div class="h2">Attributes</div>
     <div class="card">
-      ${bodyBadgeV85(e)}<div class="attrs">${ATTR_KEYS.map(C => Vr(C, e)).join("")}</div>
+      ${bodyBadgeV85(e)}<div class="attrs">${ATTR_KEYS.map(C => attrRow(C, e)).join("")}</div>
       <div class="attrs-legend-v85"><span><i style="background:#e0645a"></i>your body's cut next game</span><span><i style="background:#57e07a"></i>lift next game</span><span><i style="border:1.5px solid var(--good);box-sizing:border-box;background:repeating-linear-gradient(90deg,transparent 0 3px,#57e07a26 3px 5px)"></i>expected by season's end · ${(PROGRAMS[e.training || "balanced"] || {}).name || "current plan"}</span></div>
     </div>
     ${e.totalSeasons === 0 && state.careers <= 1 ? `<div class="card tight" style="border-color:var(--gold)"><div class="small"><b style="color:var(--gold)">How it works:</b> Each level has a stat target. Play seasons and spend upgrade points to raise your production and your <b>promotion odds</b>. When you're ready, <b>declare</b> to roll for the next level — hit your target for a strong shot. A declare is <b>one shot</b>: miss it, or run out of seasons, and the career ends.</div></div>` : ""}
@@ -13635,7 +13635,7 @@
       (hasTrait(e, "lateBloomer") && (xt *= e.age >= 16 ? 1.07 : 0.95),
         hasTrait(e, "slowStarter") && (xt *= e.seasonsSinceStart < 3 ? 0.94 : 1.05));
       const ua =
-          treeFx("eGrowth") + gearFx("growth") + Math.max(0, Ho(e) - 1) + Math.max(0, pathVal("growthMult", 1) - 1) + Math.max(0, l),
+          treeFx("eGrowth") + gearFx("growth") + Math.max(0, tierGrowth(e) - 1) + Math.max(0, pathVal("growthMult", 1) - 1) + Math.max(0, l),
         fa = clamp99(1 + ua * 0.22, 0.88, 1.34),
         xe = clamp99(e.potential * Me * Fe * xt * da * fa, 0.62, 1.58),
         st = (0.42 + he * 1.18 + Mt) * xe,
@@ -13695,9 +13695,9 @@
         (t.weekResults || []).filter(w => w.played).length,
         ATTR_KEYS.reduce((s, k) => s + (t.attrs[k] || 0), 0)
       ].join("|");
-    const m = Vr._m;
+    const m = attrRow._m;
     if (m && m.t === t && m.key === key && Date.now() - m.at < 400) return m;
-    return (Vr._m = { t, key, at: Date.now(), ef: effAttrsV85(t), pj: projectSeasonGainsV85(t) });
+    return (attrRow._m = { t, key, at: Date.now(), ef: effAttrsV85(t), pj: projectSeasonGainsV85(t) });
   }
   window.__V85 = { effAttrs: effAttrsV85, project: projectSeasonGainsV85, bodyBadge: bodyBadgeV85 };
   /* ===== v89 THE MENU'S OWN FEED =====
@@ -13871,21 +13871,21 @@
    * flat per-game swing — so a row could read "13.4 -> 12.8". Every player-facing number on
    * the skills surfaces goes through W1 now: one rounding, applied where it is DRAWN, so the
    * maths underneath keeps its precision and the reader never sees a fraction of a point. */
-  function W1(v) {
+  function wholeNum(v) {
     const n = Number(v);
     return Number.isFinite(n) ? Math.round(n) : 0;
   }
-  window.__W1_V101 = W1;
-  function Vr(e, t) {
-    const a = W1(t.attrs[e]),
-      s = W1(t.lastGains[e] || 0),
+  window.__W1_V101 = wholeNum;
+  function attrRow(e, t) {
+    const a = wholeNum(t.attrs[e]),
+      s = wholeNum(t.lastGains[e] || 0),
       n = t.pos && POSITIONS[t.pos].w[e],
       i = clamp99((a / attrCap()) * 100, 0, 100),
       r = ATTR_INFO[e].metric,
       l = r ? `<span class="attr-metric" title="${r.label}">${r.label}: <b>${r.fmt(a)}</b></span>` : "";
     // v85: the body's cut (or lift) for the next game, and the season's expected gain
     const X = sheetCtxV85(t),
-      ev = W1(X.ef.eff[e] != null ? X.ef.eff[e] : a),
+      ev = wholeNum(X.ef.eff[e] != null ? X.ef.eff[e] : a),
       d = ev - a,
       ie = clamp99((ev / attrCap()) * 100, 0, 100),
       pj = X.pj[e] || 0,
@@ -13893,7 +13893,7 @@
       pStart = Math.max(i, ie),
       pw = pn > 0 ? Math.min(100 - pStart, Math.max(TU("projMinPct", 2.4), (pj / attrCap()) * 100)) : 0;
     const effTag = d
-      ? `<span class="eff ${d < 0 ? "dn" : "up"}" title="What you take onto the field next game: your body ${d < 0 ? "takes " + -d + " off" : "adds " + d + " to"} this attribute${X.ef.buffs[e] ? " (includes this game's wheel swing " + (X.ef.buffs[e] > 0 ? "+" : "") + W1(X.ef.buffs[e]) + ")" : ""}">→ ${ev}</span>`
+      ? `<span class="eff ${d < 0 ? "dn" : "up"}" title="What you take onto the field next game: your body ${d < 0 ? "takes " + -d + " off" : "adds " + d + " to"} this attribute${X.ef.buffs[e] ? " (includes this game's wheel swing " + (X.ef.buffs[e] > 0 ? "+" : "") + wholeNum(X.ef.buffs[e]) + ")" : ""}">→ ${ev}</span>`
       : "";
     const projTag =
       pn > 0
@@ -13904,7 +13904,7 @@
     return `<div class="attr ${s ? "up" : ""}${d < 0 ? " worn" : d > 0 ? " fresh" : ""}">
     <div class="top"><span class="an">${ATTR_INFO[e].icon} ${ATTR_INFO[e].name}${statInfoBtnV142(e)}${n ? " •" : ""}${t.statCeilV17 && t.statCeilV17[e] > 1 ? ` <span style="color:#f0bb45;font:700 9px Oswald,sans-serif;margin-left:3px;letter-spacing:.5px" title="Personality raised this stat's MAX LEVEL by ${Math.round((t.statCeilV17[e] - 1) * 100)}%">▲${Math.round((t.statCeilV17[e] - 1) * 100)}% CAP</span>` : ""}</span>
       <span class="av">${a}${s ? `<span class="plus">+${s}</span>` : ""}${effTag}${projTag}</span></div>
-    <div class="track ${tr(a)}"><i style="width:${i}%"></i>${d < 0 ? `<b class="loss" style="left:${ie}%;width:${Math.max(0, i - ie)}%"></b>` : d > 0 ? `<b class="gain" style="left:${i}%;width:${Math.max(0, ie - i)}%"></b>` : ""}${pw > 0 ? `<b class="proj" style="left:${pStart}%;width:${pw}%"></b>` : ""}</div>
+    <div class="track ${ovrGradeClass(a)}"><i style="width:${i}%"></i>${d < 0 ? `<b class="loss" style="left:${ie}%;width:${Math.max(0, i - ie)}%"></b>` : d > 0 ? `<b class="gain" style="left:${i}%;width:${Math.max(0, ie - i)}%"></b>` : ""}${pw > 0 ? `<b class="proj" style="left:${pStart}%;width:${pw}%"></b>` : ""}</div>
     ${l}
   </div>`;
   }
@@ -14000,7 +14000,7 @@
     tiers: k => tiersFor(k),
     of: e => currentTier(e)
   };
-  function Or() {
+  function screenTier() {
     const e = state.player,
       t = LEVELS[e.level],
       a = tiersFor(t.key);
@@ -14152,7 +14152,7 @@
     }
     goView("sim");
   }
-  function Nr() {
+  function screenEvent() {
     const e = state.player,
       t = SEASON_EVENTS.find(s => s.id === e.pendingEvent);
     if (!t) {
@@ -14375,7 +14375,7 @@
       saveGame(),
       goView("sim"));
   }
-  const Dr = [
+  const ROSTER_FIRST = [
       "Jaylen",
       "Marcus",
       "DeShawn",
@@ -14407,7 +14407,7 @@
       "Rex",
       "Hunter"
     ],
-    Gr = [
+    ROSTER_LAST = [
       "Carter",
       "Brooks",
       "Sylla",
@@ -14439,8 +14439,8 @@
       "Adeyemi",
       "Stroud"
     ];
-  function Hr() {
-    return randPick(Dr) + " " + randPick(Gr);
+  function randName() {
+    return randPick(ROSTER_FIRST) + " " + randPick(ROSTER_LAST);
   } /* ===== v141 EVERY STAT IS ON THE FIELD =====
    * FieldSim's makeAgents asks the engine's accessor for eighteen keys by name (SIM_KEYS_V111 is the
    * list). The you-player's roster entry used to carry TWELVE — and one of those under the wrong name
@@ -14661,7 +14661,7 @@
         ie.map(b => {
           const pe = clamp99(Y + randRange(-0.15, 0.15), 0.05, 1.7),
             Q = m(pe);
-          return { name: Hr(), num: jerseyNum(b), pos: b, isOff: B, ovr: Q, attrs: h(b, Q), stat: p(b, pe) };
+          return { name: randName(), num: jerseyNum(b), pos: b, isOff: B, ovr: Q, attrs: h(b, Q), stat: p(b, pe) };
         });
       return { off: _(l, !0), def: _(d, !1) };
     }
@@ -14714,7 +14714,7 @@
         }
         let nm2 = pl.name,
           guard = 0;
-        while (seen.has(nm2) && guard++ < 40) nm2 = Hr();
+        while (seen.has(nm2) && guard++ < 40) nm2 = randName();
         pl.name = nm2;
         seen.add(nm2);
       });
@@ -15537,7 +15537,7 @@
               at = {};
             for (const k in _you111.attrs || {}) at[k] = clamp99(Math.round((_you111.attrs[k] || 45) * q), 5, 99);
             return {
-              name: Hr(),
+              name: randName(),
               num: _you111.num,
               pos: _you111.pos,
               isOff: _you111.isOff,
@@ -18309,7 +18309,7 @@
   function playerPower(e) {
     return !e || !e.pos ? 0 : playerOvr(e) + gearFx("power");
   }
-  function Tn(e) {
+  function gearPowerBonus(e) {
     return Math.max(0, Math.round(gearFx("power")));
   }
   const ERA_NAMES = [
@@ -18331,11 +18331,11 @@
   function eraMult() {
     return Math.pow(1.2, state.era || 0);
   }
-  function Wi() {
+  function nextEraChaos() {
     return (state.era || 0) * 15;
   }
-  function _r() {
-    return chaosTotal() >= Wi() && (state.era || 0) < 999 ? ((state.era = (state.era || 0) + 1), !0) : !1;
+  function tryNextEra() {
+    return chaosTotal() >= nextEraChaos() && (state.era || 0) < 999 ? ((state.era = (state.era || 0) + 1), !0) : !1;
   }
   const RARITIES = [
       { key: "common", name: "Common", color: "#9aa6b5", mult: 1, w: 52 },
@@ -18358,7 +18358,7 @@
       { key: "startAll", name: "Talent", fmt: e => "+" + Math.round(e) + " all starting attrs", base: 1.5 },
       { key: "pointsFlat", name: "Coaching", fmt: e => "+" + Math.round(e) + " points/season", base: 0.8 }
     ],
-    Ur = {
+    GEAR_ADJECTIVES = {
       common: ["Worn", "Standard", "Team-Issue"],
       rare: ["Polished", "Custom", "Signature"],
       epic: ["Phantom", "Vapor", "Stealth"],
@@ -18388,7 +18388,7 @@
         id: Date.now() + "_" + randInt(100, 999),
         slot: l.key,
         rarity: r.key,
-        name: randPick(Ur[r.key]) + " " + l.name,
+        name: randPick(GEAR_ADJECTIVES[r.key]) + " " + l.name,
         eff: d.key,
         val: c,
         icon: l.icon
@@ -18552,7 +18552,7 @@
     const a = SEASON_MODS.find(s => s.key === t.seasonMod);
     return !a || !a.statProd ? 0 : !a.statPos || a.statPos.includes(e) ? a.statProd : 0;
   }
-  function Yi(e) {
+  function seasonModBanner(e) {
     if (!e.seasonMod) return "";
     const t = SEASON_MODS.find(a => a.key === e.seasonMod);
     return t ? `<div class="mod-banner">${t.icon} <b>${t.name}</b> — ${t.desc}</div>` : "";
@@ -18658,7 +18658,7 @@
       });
     return ((e.contracts = null), r);
   }
-  const Zr = [
+  const NEMESIS_TAUNTS = [
     "says you peaked in Pee Wee.",
     "called you 'a practice-squad body' on a podcast.",
     "posted your missed tackle. Again.",
@@ -18666,13 +18666,13 @@
     "liked a post ranking you outside the top 100.",
     "told scouts you're 'all hype, no film.'"
   ];
-  function _i(e) {
-    e.nemesis = { name: randPick(Rs) + " " + randPick(Ps), pos: e.pos, beaten: 0 };
+  function rollNemesis(e) {
+    e.nemesis = { name: randPick(NEMESIS_FIRST) + " " + randPick(NEMESIS_LAST), pos: e.pos, beaten: 0 };
   }
-  function el(e) {
-    return e.nemesis ? `<div class="nem-banner">😈 <b>${e.nemesis.name}</b> ${randPick(Zr)}</div>` : "";
+  function nemesisBanner(e) {
+    return e.nemesis ? `<div class="nem-banner">😈 <b>${e.nemesis.name}</b> ${randPick(NEMESIS_TAUNTS)}</div>` : "";
   }
-  function tl(e) {
+  function hofScore(e) {
     return Math.round(
       e.peak * 2 + e.power * 0.5 + e.titles * 15 + e.reached * 12 + e.seasons * 1.5 + (e.rings || 0) * 25
     );
@@ -18774,7 +18774,7 @@
       box: hofSnapV134(e, t),
       gen: Math.max(1, lineageV136().gen || 1)
     };
-    ((s.goat = tl(s)), state.hof.push(s), state.hof.sort((r, l) => l.goat - r.goat), state.hof.length > 60 && (state.hof.length = 60));
+    ((s.goat = hofScore(s)), state.hof.push(s), state.hof.sort((r, l) => l.goat - r.goat), state.hof.length > 60 && (state.hof.length = 60));
     const n = state.careersCompleted || 0,
       i = [5, 10, 25, 50].filter(r => n >= r).length;
     (i > (state.hofWings || 0) &&
@@ -18906,7 +18906,7 @@
     <div class="eyebrow">${t.name} · ${teamName(e)} · ${e.training ? PROGRAMS[e.training].name : "Season"}</div>
     <div class="h1">${combineYearV139(e) ? "The Combine" : "Season Schedule"}</div>
     ${combineYearV139(e) ? combineBoardV139(e) : ""}
-    ${Yi(e)}
+    ${seasonModBanner(e)}
     <div class="sub">${d ? "All games played — finish the season to see your results." : `Record: <b style="color:var(--good)">${c}-${u}</b>`}${p && p.startsWith('<div class="threshold') ? p : ""}</div>
     ${p && !p.startsWith('<div class="threshold') ? p : ""}
     <div class="sched-list mt" style="margin-top:14px">
@@ -19330,9 +19330,9 @@
       (byId("dock").innerHTML = ""),
       startLivePlayback());
   }
-  let zi = "us";
+  let rosterSide = "us";
   function setRosterTab(e) {
-    ((zi = e),
+    ((rosterSide = e),
       document.querySelectorAll(".rtab[data-rt]").forEach(t => t.classList.toggle("active", t.dataset.rt === e)),
       renderLiveRoster());
   }
@@ -19363,7 +19363,7 @@
     if (!e || !e.roster) return;
     const t = byId("rosterBox");
     if (!t) return;
-    const a = zi === "us" ? e.roster.us : e.roster.opp,
+    const a = rosterSide === "us" ? e.roster.us : e.roster.opp,
       s = liveCtl ? clamp99((liveCtl.idx + 1) / e.plays.length, 0, 1) : 1,
       n = l => (l >= 85 ? "var(--good)" : l >= 65 ? "var(--gold)" : l >= 45 ? "var(--chalk)" : "#c98"),
       i = (l, d, c) =>
@@ -19462,7 +19462,7 @@
         ];
     }
   }
-  function Qi(e) {
+  function renderLiveBox(e) {
     const t = byId("fullBox");
     t &&
       (t.innerHTML = liveBoxLine(state.player.pos, e)
@@ -19610,7 +19610,7 @@
       state._liveGame,
       (liveCtl = { idx: -1, speed: (liveCtl && liveCtl.speed) || (settingOn("fastSim") ? 2 : 1), playing: !0, anim: null, t: 0 }),
       fl({}),
-      Qi({}),
+      renderLiveBox({}),
       dl(),
       renderLiveRoster(),
       document
@@ -19747,7 +19747,7 @@
             ((u.textContent = h), u.classList.add("flash"), setTimeout(() => u.classList.remove("flash"), 400));
         }),
         flMinorV96(t.stat),
-        Qi(qi(state.player.pos, t.stat, state._liveGame.stat)),
+        renderLiveBox(qi(state.player.pos, t.stat, state._liveGame.stat)),
         t.team && ul(t.team, t.oppStat),
         liveCtl.idx % 3 === 0 && renderLiveRoster());
       const d = Math.max(90, 520 / liveCtl.speed);
@@ -19903,7 +19903,7 @@
       }
     return e[e.length - 1];
   }
-  function Pn(e, t, a, s, n, i) {
+  function routePath(e, t, a, s, n, i) {
     const r = t < i ? 1 : -1;
     switch (s) {
       case "slant":
@@ -19956,7 +19956,7 @@
         ];
     }
   }
-  function Cn(e) {
+  function pickRoute(e) {
     return e <= 5
       ? randPick(["slant", "drag", "curl"])
       : e <= 13
@@ -20100,8 +20100,8 @@
         else {
           Me = Fe;
           const g = Math.abs(k - Fe.start.x),
-            N = Cn(g),
-            H = Pn(Fe.start.x, Fe.start.y, c, N, g, p).map(oe => ({ x: oe.x, y: oe.y, t: oe.t * 0.58 }));
+            N = pickRoute(g),
+            H = routePath(Fe.start.x, Fe.start.y, c, N, g, p).map(oe => ({ x: oe.x, y: oe.y, t: oe.t * 0.58 }));
           if (((H[H.length - 1] = { x: k, y: T, t: 0.58 }), ie || _))
             (H.push({ x: k + c * 1, y: T, t: 1 }), Q.push({ t: 0.6, type: _ ? "int" : "deflect", x: k, y: T }));
           else {
@@ -20122,7 +20122,7 @@
         J.forEach(g => {
           if (g === Fe) return;
           const N = 8 + Math.random() * 12;
-          ((g.path = Pn(g.start.x, g.start.y, c, Cn(N), N, p).map(H => ({ x: H.x, y: H.y, t: H.t * 0.9 }))),
+          ((g.path = routePath(g.start.x, g.start.y, c, pickRoute(N), N, p).map(H => ({ x: H.x, y: H.y, t: H.t * 0.9 }))),
             g.path.push({ x: g.path[g.path.length - 1].x, y: g.path[g.path.length - 1].y, t: 1 }));
         });
         const K = m.off.find(g => g.pos === "RB");
@@ -21552,7 +21552,7 @@
       ).join("");
     })()}
   `),
-      so(),
+      refreshAllocButtons(),
       (byId("dock").innerHTML = `
     <div class="btn-row">
       <button class="btn secondary" onclick="autoAllocKey()">⚡ Auto: Key Stats</button>
@@ -21674,9 +21674,9 @@
     (n && i && (n.textContent = i.fmt(a.attrs[e])),
       (byId("ptsLeft").textContent = a.points),
       (byId("liveOvr").textContent = "OVR " + playerOvr(a)),
-      so());
+      refreshAllocButtons());
   }
-  function so() {
+  function refreshAllocButtons() {
     const e = state.player;
     ATTR_KEYS.forEach(a => {
       const s = byId("plus-" + a),
@@ -21709,7 +21709,7 @@
               : "Soft cap " +
                 sc +
                 ' — <b style="color:#7fe0a0">1 pt per +1</b> for ' +
-                W1(sc - (e.attrs[a] || 0)) +
+                wholeNum(sc - (e.attrs[a] || 0)) +
                 " more");
     });
   }
@@ -21733,7 +21733,7 @@
     const v = e.attrs[k] || 0,
       cap = drSoftCap(e, k),
       abs = attrCap();
-    return { v: W1(v), cap, abs, cost: drCost(e, k), atMax: v >= abs, over: v >= cap, room: W1(Math.max(0, cap - v)) };
+    return { v: wholeNum(v), cap, abs, cost: drCost(e, k), atMax: v >= abs, over: v >= cap, room: wholeNum(Math.max(0, cap - v)) };
   } /* v101: whole points on the badge */
   // MAX is the absolute wall (v21 kept exactly one); everything else is a price, and
   // the price is the thing worth reading.
@@ -22078,7 +22078,7 @@
         ? `💍 Dynasty · ${state.rings || 0} Rings · Chaos ${chaosTotal()}`
         : (state.rings || 0) > 0
           ? `💍 Dynasty · ${state.rings} Rings`
-          : "💍 Dynasty 🔒 (" + Js() + "/20 objectives)";
+          : "💍 Dynasty 🔒 (" + objectivesDone() + "/20 objectives)";
     byId("dock").innerHTML = `
     <button class="btn" style="background:linear-gradient(180deg,#ff7a72,#c23a3a);color:#fff;box-shadow:0 4px 0 #6e1e1e, 0 6px 14px rgba(0,0,0,.3)" onclick="go('dynasty')">${s}</button>
     <div style="height:8px"></div>
@@ -22330,14 +22330,14 @@
     }
     return String(s).toUpperCase();
   }
-  function Ln(e) {
+  function gradeColor(e) {
     return e[0] === "A" ? "var(--good)" : e[0] === "B" ? "var(--gold)" : e[0] === "C" ? "#d39a55" : "var(--blood)";
   }
   function zl(e) {
     const t = hypeState(),
       a = hn(e),
       s = e._lastRecord95 || { w: 0, l: 0 };
-    return `<div class="card center" style="border-color:${Ln(a)};background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(13,18,28,.96))"><div class="eyebrow">SEASON REPORT CARD</div><div class="grade-ring" style="color:${Ln(a)}"><div class="season-grade">${a}</div></div><div class="h1">${s.w}-${s.l} · ${s.champ ? "Champions" : "Season Complete"}</div><div class="sub">Coach trust ${Math.round(t.coach)} · fan hype ${Math.round(t.hype)} · best run ${Math.max(0, t.bestStreak)} wins</div><div class="press-strip" style="justify-content:center;margin-top:11px"><span class="press-chip hot">${t.coach >= 70 ? "STAFF FAVORITE" : "PROVING GROUND"}</span><span class="press-chip">${t.hype >= 70 ? "FAN PHENOMENON" : "BUILDING A FOLLOWING"}</span><span class="press-chip">${playerOvr(e)} OVR</span></div></div>`;
+    return `<div class="card center" style="border-color:${gradeColor(a)};background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(13,18,28,.96))"><div class="eyebrow">SEASON REPORT CARD</div><div class="grade-ring" style="color:${gradeColor(a)}"><div class="season-grade">${a}</div></div><div class="h1">${s.w}-${s.l} · ${s.champ ? "Champions" : "Season Complete"}</div><div class="sub">Coach trust ${Math.round(t.coach)} · fan hype ${Math.round(t.hype)} · best run ${Math.max(0, t.bestStreak)} wins</div><div class="press-strip" style="justify-content:center;margin-top:11px"><span class="press-chip hot">${t.coach >= 70 ? "STAFF FAVORITE" : "PROVING GROUND"}</span><span class="press-chip">${t.hype >= 70 ? "FAN PHENOMENON" : "BUILDING A FOLLOWING"}</span><span class="press-chip">${playerOvr(e)} OVR</span></div></div>`;
   }
   function decorateScreen() {
     if (!state || !state.player || !state.player.pos) return;
@@ -22594,7 +22594,7 @@
     }
     return t;
   };
-  function En(e) {
+  function depthCard(e) {
     const t = depthChart(e),
       a = e.lastLuck10;
     return `<div class="card depth-card ${e.nflCutPending ? "cut-warning" : ""}"><div class="eyebrow">Depth Chart · Playing Time</div>
@@ -22610,13 +22610,13 @@
     if (!(!e || !t)) {
       if ((ensureDepth(e), state.view === "hub" && !t.querySelector(".depth-card"))) {
         const a = t.querySelector(".card");
-        a && a.insertAdjacentHTML("afterend", En(e));
+        a && a.insertAdjacentHTML("afterend", depthCard(e));
       }
       if (state.view === "result" && !t.querySelector(".depth-card")) {
         /* v122 A: .season-grade is the LETTER, inside the 112px .grade-ring — inserting afterend put the whole depth card inside the ring, where it overflowed across the report card and everything under it. Anchor on the CARD. */ const sg =
             t.querySelector(".season-grade"),
           a = (sg && sg.closest(".card")) || t.querySelector(".card") || t.firstElementChild;
-        (a && a.insertAdjacentHTML("afterend", En(e)),
+        (a && a.insertAdjacentHTML("afterend", depthCard(e)),
           e.nflCutPending &&
             (t.insertAdjacentHTML(
               "afterbegin",
@@ -22645,8 +22645,8 @@
       __h
     );
   };
-  const Qt = 45;
-  const retireAgeV134 = () => Qt + nodeLvl("longevity");
+  const RETIRE_AGE = 45;
+  const retireAgeV134 = () => RETIRE_AGE + nodeLvl("longevity");
   /* v134 Apex: Borrowed Time */ function ageProfile(e) {
     return e <= 12
       ? {
@@ -22756,10 +22756,10 @@
           ? "#8ec3ee"
           : "var(--blood)";
   }
-  function An(e) {
+  function ageCard(e) {
     const t = ageProfile(e.age),
       a = lc(t);
-    return `<div class="card age-card"><div class="eyebrow">Age Curve · ${e.age}/${Qt}</div>
+    return `<div class="card age-card"><div class="eyebrow">Age Curve · ${e.age}/${RETIRE_AGE}</div>
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><div class="h2" style="margin:0;color:${a}">${t.name}</div><div class="small">${t.desc}</div></div><div class="ovr-big" style="color:${a}">${e.age}</div></div>
     <div class="age-grid"><div><b>${t.perf >= 0 ? "+" : ""}${t.perf}</b><small>Game Performance</small></div><div><b>${Math.round(t.inj * 100)}%</b><small>Injury Risk</small></div><div><b>${Math.round(t.recovery * 100)}%</b><small>Recovery Chance</small></div><div><b>${Math.round(t.growth * 100)}%</b><small>Natural Growth</small></div></div>
     ${e.age >= 40 ? `<div class="threshold-note" style="color:var(--blood);margin-top:8px">⏳ ${Math.max(0, retireAgeV134() - e.age)} season${retireAgeV134() - e.age === 1 ? "" : "s"} remain before mandatory retirement.</div>` : ""}</div>`;
@@ -22814,9 +22814,9 @@
     cut: ageCutV139,
     attrs: ageAttrsV139,
     profile: e => ageProfile(ageForV139(e)),
-    year: (e, t) => dc(e, t || {})
+    year: (e, t) => ageYear(e, t || {})
   };
-  function dc(e, t) {
+  function ageYear(e, t) {
     const a = ageProfile(e.age);
     e.level >= 7 &&
       t.attrsAfter &&
@@ -22850,7 +22850,7 @@
   const uc = simSeason;
   simSeason = function (e) {
     const t = uc(e);
-    return (dc(e, t), t);
+    return (ageYear(e, t), t);
   };
   /* ===== v132 A YEAR OLDER — the offseason body screen =====
    * The season roll (`tt`) does three things to the man that the report card never showed him doing: he
@@ -23689,11 +23689,11 @@
     if (!(!e || !t)) {
       if (state.view === "hub" && !t.querySelector(".age-card")) {
         const a = t.querySelector(".depth-card") || t.querySelector(".card");
-        a && a.insertAdjacentHTML("afterend", An(e));
+        a && a.insertAdjacentHTML("afterend", ageCard(e));
       }
       if (state.view === "result" && !t.querySelector(".age-card")) {
         const a = t.querySelector(".depth-card") || t.querySelector(".season-grade") || t.firstElementChild;
-        a && a.insertAdjacentHTML("afterend", An(e));
+        a && a.insertAdjacentHTML("afterend", ageCard(e));
         const s = e.lastResult || state.lastResult;
         (s &&
           s.youngRecoveries > 0 &&
@@ -23749,11 +23749,11 @@
       state.posMastery || (state.posMastery = {}),
       state.inventory || (state.inventory = []),
       state.equipped || (state.equipped = {}),
-      state.player && !state.player.nemesis && _i(state.player),
+      state.player && !state.player.nemesis && rollNemesis(state.player),
       state.player)
     ) {
       const t = state.player;
-      (t.traits || (t.traits = Ai()),
+      (t.traits || (t.traits = rollTraits()),
         t.teamIdentity || (t.teamIdentity = newTeamIdentity()),
         t.titles == null && (t.titles = 0),
         t.declareBonus == null && (t.declareBonus = 0),
@@ -23762,7 +23762,7 @@
     }
     ((state.view === "sim" || state.view === "live" || state.view === "training" || state.view === "event") && (state.view = "hub"),
       render(),
-      setTimeout(hr, 1850));
+      setTimeout(showTutorial, 1850));
     const e = document.getElementById("splash");
     e &&
       (window.__splashDoneV94
@@ -24255,10 +24255,10 @@
       a = e.careerArcs.slice(0, 4);
     return `<div class="card world-card"><div class="eyebrow">LIVING FOOTBALL WORLD</div><div class="h2" style="margin:2px 0 7px">Your Career Has Consequences</div><div class="depth-grid"><div class="depth-cell"><div class="n">${Math.round(t.teamChemistry)}</div><div class="l">Chemistry</div></div><div class="depth-cell"><div class="n">${Math.round(t.programMomentum)}</div><div class="l">Program</div></div><div class="depth-cell"><div class="n">${Math.round(t.mediaHeat)}</div><div class="l">Media Heat</div></div></div>${a.length ? `<div style="margin-top:8px">${a.map(s => `<span class="arc-chip ${s.tone || ""}">${escHtml(s.text)}</span>`).join("")}</div>` : '<div class="small" style="margin-top:8px">Major decisions will create permanent story arcs here.</div>'}</div>`;
   }
-  const uo = processWeek95;
+  const processWeek95Core = processWeek95;
   processWeek95 = function (e, t) {
     const a = !!(e && e._pulse95);
-    (uo(e, t), e && !a && co(t));
+    (processWeek95Core(e, t), e && !a && co(t));
   };
   const kc = render;
   render = function () {
@@ -24444,7 +24444,7 @@
   function gamePlanById(e) {
     return GAME_PLANS.find(t => t.id === e) || GAME_PLANS[0];
   }
-  function pn(e) {
+  function weeklyLoopCard(e) {
     ensureWeekly103(e);
     const t = e.weeklyPlan103 ? gamePlanById(e.weeklyPlan103) : null;
     return `<div class="card weekly-loop-card"><div class="eyebrow">WEEKLY COMPETITIVE LOOP</div><div class="h2" style="margin:2px 0 3px">Earn the Next Role</div><div class="small">Outperform your opportunities, build trust, and fill the battle meter to challenge for <b style="color:var(--gold)">${fo(e)}</b>.</div><div class="loop-grid"><div class="loop-cell"><div class="n" style="color:${e.momentum103 >= 60 ? "var(--good)" : e.momentum103 < 40 ? "#e08a8a" : "var(--chalk)"}">${Math.round(e.momentum103)}</div><div class="l">Momentum</div></div><div class="loop-cell"><div class="n" style="color:${e.composure103 >= 60 ? "#8ec3ee" : e.composure103 < 40 ? "#e08a8a" : "var(--chalk)"}">${Math.round(e.composure103)}</div><div class="l">Composure</div></div><div class="loop-cell"><div class="n" style="color:var(--gold)">${e.breakthroughs103 || 0}</div><div class="l">Breakthroughs</div></div></div><div class="role-track"><i style="width:${clamp99(e.roleBattle103, 0, 100)}%"></i></div><div class="small" style="margin-top:5px">Depth-chart battle: <b>${Math.round(e.roleBattle103)}%</b>${t ? `<br><span class="plan-chip">${t.icon} ${t.name}</span>` : ""}</div></div>`;
@@ -24559,7 +24559,7 @@
           t.querySelector(".world-card") ||
           t.querySelector(".objective-card") ||
           t.firstElementChild
-        ).insertAdjacentHTML("afterend", pn(e)),
+        ).insertAdjacentHTML("afterend", weeklyLoopCard(e)),
       state.view === "season" &&
         (t
           .querySelectorAll('[onclick="playWeek(true)"]')
@@ -24583,13 +24583,13 @@
   window.prepareWeek103 = prepareWeek103;
   window.chooseGamePlan103 = chooseGamePlan103;
   window.closeGamePlan103 = closeGamePlan103;
-  function _a(e, t) {
+  function statColor(e, t) {
     return e < 35 ? "#ff6b72" : e > 68 ? (t === "comp" ? "#8ec3ee" : "#78e993") : "#f0bb45";
   }
   function Tc(e) {
     return e.depthRole || e.depthChart || "Bench";
   }
-  pn = function (e) {
+  weeklyLoopCard = function (e) {
     ensureWeekly103(e);
     const t = e.weeklyPlan103 ? gamePlanById(e.weeklyPlan103) : null,
       a = Tc(e),
@@ -24597,7 +24597,7 @@
       n = clamp99(e.roleBattle103, 0, 100),
       i = Math.round(e.momentum103),
       r = Math.round(e.composure103);
-    return `<div class="card weekly-loop-card impact-loop"><div class="impact-head"><div><div class="impact-kicker">WEEKLY COMPETITIVE LOOP</div><div class="h2" style="margin:2px 0 0">Fight for Every Snap</div></div><div class="impact-target">NEXT: ${escHtml(s)}</div></div><div class="role-arena"><div class="role-labels"><span class="role-current">${escHtml(a)}</span><span class="role-next">${escHtml(s)}</span></div><div class="role-race"><i style="width:${n}%"></i></div><div class="role-percent">${Math.round(n)}<small>% ROLE BATTLE</small></div></div><div class="dual-gauges"><div class="impact-gauge"><div class="gauge-head"><span>MOMENTUM</span><b style="color:${_a(i, "mom")}">${i}</b></div><div class="gauge-scale"><i class="gauge-needle" style="left:${i}%"></i></div><div class="gauge-caption"><span>SLUMP</span><span>LOCKED IN</span></div></div><div class="impact-gauge"><div class="gauge-head"><span>COMPOSURE</span><b style="color:${_a(r, "comp")}">${r}</b></div><div class="gauge-scale"><i class="gauge-needle" style="left:${r}%"></i></div><div class="gauge-caption"><span>RATTLED</span><span>ICE COLD</span></div></div></div><div class="breakthrough-counter"><span class="small">Career role breakthroughs</span><b>🚀 ${e.breakthroughs103 || 0}</b></div>${t ? `<div class="plan-selected"><div class="ic">${t.icon}</div><div><b>${t.name}</b><small>Active approach for the next game</small></div></div>` : ""}</div>`;
+    return `<div class="card weekly-loop-card impact-loop"><div class="impact-head"><div><div class="impact-kicker">WEEKLY COMPETITIVE LOOP</div><div class="h2" style="margin:2px 0 0">Fight for Every Snap</div></div><div class="impact-target">NEXT: ${escHtml(s)}</div></div><div class="role-arena"><div class="role-labels"><span class="role-current">${escHtml(a)}</span><span class="role-next">${escHtml(s)}</span></div><div class="role-race"><i style="width:${n}%"></i></div><div class="role-percent">${Math.round(n)}<small>% ROLE BATTLE</small></div></div><div class="dual-gauges"><div class="impact-gauge"><div class="gauge-head"><span>MOMENTUM</span><b style="color:${statColor(i, "mom")}">${i}</b></div><div class="gauge-scale"><i class="gauge-needle" style="left:${i}%"></i></div><div class="gauge-caption"><span>SLUMP</span><span>LOCKED IN</span></div></div><div class="impact-gauge"><div class="gauge-head"><span>COMPOSURE</span><b style="color:${statColor(r, "comp")}">${r}</b></div><div class="gauge-scale"><i class="gauge-needle" style="left:${r}%"></i></div><div class="gauge-caption"><span>RATTLED</span><span>ICE COLD</span></div></div></div><div class="breakthrough-counter"><span class="small">Career role breakthroughs</span><b>🚀 ${e.breakthroughs103 || 0}</b></div>${t ? `<div class="plan-selected"><div class="ic">${t.icon}</div><div><b>${t.name}</b><small>Active approach for the next game</small></div></div>` : ""}</div>`;
   };
   function yn(e) {
     return e.id === "disciplined"
@@ -24608,7 +24608,7 @@
           ? [100, 22, 92]
           : [38, 78, 42];
   }
-  function gn(e) {
+  function planColor(e) {
     return e === "disciplined" ? "#8ec3ee" : e === "feature" ? "#f0bb45" : e === "explosive" ? "#ff6870" : "#78e993";
   }
   gamePlanOverlay = function (e) {
@@ -24619,7 +24619,7 @@
     return `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan"><div class="plan-hero"><div class="decision-kicker">WEEKLY TACTICAL MEETING</div><div class="decision-title">Choose Your Identity</div><div class="decision-copy" style="margin:7px auto 0;max-width:390px">This choice changes your snaps, volatility, trust, injury exposure, and path up the depth chart.</div><div class="opponent-chip">VS ${s ? escHtml(s.opp) : "NEXT OPPONENT"}</div></div><div class="plan-deck">${GAME_PLANS
       .map(n => {
         const i = yn(n);
-        return `<button class="impact-plan-choice" style="--planColor:${gn(n.id)}" onclick="chooseGamePlan103('${n.id}',${e ? "true" : "false"})"><div class="plan-icon">${n.icon}</div><div><b>${n.name}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(l => `<span>${l}</span>`).join("")}</div></div><div class="plan-bars"><div class="mini-rating"><label><span>UPSIDE</span><span>${i[0]}</span></label><div class="mbar"><i style="width:${i[0]}%"></i></div></div><div class="mini-rating"><label><span>CONTROL</span><span>${i[1]}</span></label><div class="mbar"><i style="width:${i[1]}%"></i></div></div><div class="mini-rating"><label><span>RISK</span><span>${i[2]}</span></label><div class="mbar"><i style="width:${i[2]}%"></i></div></div></div></button>`;
+        return `<button class="impact-plan-choice" style="--planColor:${planColor(n.id)}" onclick="chooseGamePlan103('${n.id}',${e ? "true" : "false"})"><div class="plan-icon">${n.icon}</div><div><b>${n.name}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(l => `<span>${l}</span>`).join("")}</div></div><div class="plan-bars"><div class="mini-rating"><label><span>UPSIDE</span><span>${i[0]}</span></label><div class="mbar"><i style="width:${i[0]}%"></i></div></div><div class="mini-rating"><label><span>CONTROL</span><span>${i[1]}</span></label><div class="mbar"><i style="width:${i[1]}%"></i></div></div><div class="mini-rating"><label><span>RISK</span><span>${i[2]}</span></label><div class="mbar"><i style="width:${i[2]}%"></i></div></div></div></button>`;
       })
       .join(
         ""
@@ -24645,7 +24645,7 @@
   function Pc(e) {
     return (
       ensureWeekly103(e),
-      `<div class="live-loop-strip"><div class="live-loop-stat"><b style="color:${_a(e.momentum103, "mom")}">${Math.round(e.momentum103)}</b><small>Momentum</small></div><div class="live-loop-stat"><b style="color:${_a(e.composure103, "comp")}">${Math.round(e.composure103)}</b><small>Composure</small></div><div class="live-loop-stat"><b>${Math.round(e.roleBattle103)}%</b><small>Role Battle</small><div class="live-role-mini"><i style="width:${clamp99(e.roleBattle103, 0, 100)}%"></i></div></div></div>`
+      `<div class="live-loop-strip"><div class="live-loop-stat"><b style="color:${statColor(e.momentum103, "mom")}">${Math.round(e.momentum103)}</b><small>Momentum</small></div><div class="live-loop-stat"><b style="color:${statColor(e.composure103, "comp")}">${Math.round(e.composure103)}</b><small>Composure</small></div><div class="live-loop-stat"><b>${Math.round(e.roleBattle103)}%</b><small>Role Battle</small><div class="live-role-mini"><i style="width:${clamp99(e.roleBattle103, 0, 100)}%"></i></div></div></div>`
     );
   }
   const Cc = render;
@@ -24698,7 +24698,7 @@
     const e = Ac();
     return ((e.originOptionsV11 = selectOriginOptions(state, e).map(t => t.id)), (e.originV11 = null), (e._originAppliedV11 = !1), ensureV11(e), e);
   };
-  function Vc(e) {
+  function chooseOriginV11(e) {
     const t = state.player;
     if (!t || t.originV11) return;
     const a = applyOrigin(t, e, ATTR_KEYS);
@@ -24715,7 +24715,7 @@
       Oc(e),
       ensureV11(state.player));
   };
-  function Ms(e) {
+  function originCard(e) {
     if (e.originV11) {
       const a = ORIGINS.find(s => s.id === e.originV11);
       return a
@@ -24733,7 +24733,7 @@
       )
       .join("")}</div></div>`;
   }
-  function Bc(e) {
+  function chooseSpecializationV11(e) {
     SPECIALIZATIONS.some(t => t.id === e) && ((state.specializationV11 = e), saveGame(), render(), showToast("Legacy focus changed."));
   }
   function jc() {
@@ -24860,7 +24860,7 @@
       saveGame(),
       render());
   };
-  function Ic(e, t) {
+  function planStreak(e, t) {
     let a = 0;
     for (const s of e.planHistoryV11 || [])
       if (s === t) a++;
@@ -24874,7 +24874,7 @@
     const s = gamePlanById(a),
       n = t.opponentV11 || createOpponentProfile(t.opp, e.level, t.week || 1, e.seasonSeed, t.playoff ? t.roundIdx : void 0);
     ((t.opponentV11 = n), n.scouted || scoutOpponent(n, e, state.specializationV11));
-    const i = Ic(e, a),
+    const i = planStreak(e, a),
       r = matchupPlanModifier(n, a, i, state.specializationV11),
       l = conditionModifiers(e),
       d =
@@ -24957,7 +24957,7 @@
       t
     );
   }
-  function mo(e, t) {
+  function scoutCard(e, t) {
     const a = e.opponentV11;
     if (!a) return "";
     const s = a.scouted || scoutOpponent(a, t, state.specializationV11),
@@ -24973,10 +24973,10 @@
       ? (s.opponentV11 ||
           (s.opponentV11 = createOpponentProfile(s.opp, t.level, s.week || a + 1, t.seasonSeed, s.playoff ? s.roundIdx : void 0)),
         scoutOpponent(s.opponentV11, t, state.specializationV11),
-        `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week || a + 1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Your choice now generates the game. Future games remain unresolved until their week.</div></div>${mo(s, t)}<div class="plan-deck">${GAME_PLANS
+        `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week || a + 1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Your choice now generates the game. Future games remain unresolved until their week.</div></div>${scoutCard(s, t)}<div class="plan-deck">${GAME_PLANS
           .map(n => {
             const i = yn(n),
-              r = gn(n.id),
+              r = planColor(n.id),
               l = s.opponentV11.scouted?.recommendedPlan === n.id;
             return `<button class="impact-plan-choice ${l ? "recommended-v11" : ""}" style="--planColor:${r}" onclick="chooseGamePlanV11('${n.id}',${e ? "true" : "false"})"><div class="plan-icon">${n.icon}</div><div><b>${n.name}${l ? " · SCOUT PICK" : ""}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(d => `<span>${d}</span>`).join("")}</div></div><div class="plan-bars"><div class="mini-rating"><label><span>UPSIDE</span><span>${i[0]}</span></label><div class="mbar"><i style="width:${i[0]}%"></i></div></div><div class="mini-rating"><label><span>CONTROL</span><span>${i[1]}</span></label><div class="mbar"><i style="width:${i[1]}%"></i></div></div><div class="mini-rating"><label><span>RISK</span><span>${i[2]}</span></label><div class="mbar"><i style="width:${i[2]}%"></i></div></div></div></button>`;
           })
@@ -24984,7 +24984,7 @@
       : "";
   }
   gamePlanOverlay = gamePlanOverlayV11;
-  function Nc(e, t) {
+  function chooseGamePlanV11(e, t) {
     const a = state.player,
       s = a.weekResults.findIndex(i => !i.played);
     if (s < 0) return;
@@ -25007,7 +25007,7 @@
     const s = document.querySelector(".gameplan-overlay");
     (s && s.remove(), document.body.insertAdjacentHTML("beforeend", gamePlanOverlayV11(!!e)));
   };
-  const po = playWeek;
+  const playWeekCore = playWeek;
   function Fc(e, t, a) {
     return `<div class="decision-overlay moment-overlay-v11"><div class="decision-panel moment-panel-v11"><div class="decision-kicker">${escHtml((t.opponentV11?.importance || "IMPORTANT").toUpperCase())} MOMENT · ${escHtml(t.opp)}</div><div class="moment-score-v11"><span>${t.us}</span><small>–</small><span>${t.them}</span></div><div class="decision-title">${escHtml(a.title)}</div><div class="decision-copy">${escHtml(a.copy)} Your attributes, composure, condition, scouting, and choice all affect the roll.</div>${a.choices.map(s => `<button class="decision-choice moment-choice-v11" onclick="resolveMomentV11('${s.id}')"><b>${escHtml(s.label)}</b><small>${escHtml(s.description)}</small><span class="decision-risk">${escHtml(s.risk)} risk · displayed chance is intentionally approximate</span></button>`).join("")}</div></div>`;
   }
@@ -25029,7 +25029,7 @@
       !0
     );
   }
-  function Dc(e) {
+  function resolveMomentV11(e) {
     const t = state.player,
       a = t.weekResults[t.currentWeek],
       s = a.momentsV11[a.momentIndexV11],
@@ -25050,7 +25050,7 @@
       !vo())
     ) {
       const r = !!a.pendingLiveV11;
-      ((a.momentsCompleteV11 = !0), delete a.pendingLiveV11, po(r));
+      ((a.momentsCompleteV11 = !0), delete a.pendingLiveV11, playWeekCore(r));
     }
   }
   function startWeek(e) {
@@ -25069,14 +25069,14 @@
       return;
     }
     if (((t.currentWeek = a), t.level >= 7 && t.nflStateV11?.offers?.length)) {
-      go();
+      showNflOffersV11();
       return;
     }
     if (!s.generatedV11) {
       prepareWeek103(e);
       return;
     }
-    ((s.pendingLiveV11 = !!e), !(!s.momentsCompleteV11 && vo()) && (delete s.pendingLiveV11, po(!!e)));
+    ((s.pendingLiveV11 = !!e), !(!s.momentsCompleteV11 && vo()) && (delete s.pendingLiveV11, playWeekCore(!!e)));
   }
   playWeek = function (e) {
     const t = state.player,
@@ -25126,7 +25126,7 @@
   }
   processWeek95 = function (e, t) {
     if (!e || e._v11Processed) return;
-    ((e._v11Processed = !0), ensureV11(t), uo(e, t), co(t));
+    ((e._v11Processed = !0), ensureV11(t), processWeek95Core(e, t), co(t));
     const a = resolveRivalWeek(t, e, LEVELS[t.level].need, state.specializationV11);
     ((e.rivalResultV11 = a),
       (t.depthRole = Gc(t.snapShare || 0.1)),
@@ -25177,7 +25177,7 @@
     }
     return (evaluateMilestones(e, state), evaluateLegacyObjectives(e, state), t);
   };
-  function yo(e) {
+  function fmtMoneyShort(e) {
     return e ? (e >= 1e6 ? "$" + Math.round(e / 1e6) + "M" : "$" + Math.round(e / 1e3) + "K") : "$0";
   }
   function nflSurvivalCard(e) {
@@ -25185,14 +25185,14 @@
     if (!t) return "";
     const a = String(t.status).replaceAll("-", " ").toUpperCase(),
       s = t.security < 25 ? "var(--blood)" : t.security < 50 ? "var(--gold)" : "var(--good)";
-    return `<div class="card nfl-survival-v11"><div class="impact-head"><div><div class="impact-kicker">UFF ROSTER SURVIVAL</div><div class="h2" style="margin:2px 0 0">${escHtml(a)}</div></div><div class="nfl-security-v11" style="color:${s}">${Math.round(t.security)}<small>SECURITY</small></div></div><div class="nfl-security-track-v11"><i style="width:${clamp99(t.security, 0, 100)}%"></i></div><div class="nfl-grid-v11"><div><b>${Math.round(t.expectation)}</b><small>Expected Grade</small></div><div><b>${Math.round(t.schemeFit)}</b><small>Scheme Fit</small></div><div><b>${t.contract?.yearsRemaining || 0}</b><small>Years Left</small></div><div><b>${yo(t.contract?.salary || 0)}</b><small>Salary</small></div></div>${strikeLineV146B(e)}${t.offers?.length ? `<button class="btn" style="margin-top:10px" onclick="showNflOffersV11()">Review ${t.offers.length} Roster Offer${t.offers.length > 1 ? "s" : ""}</button>` : '<div class="small" style="margin-top:9px">Poor games reduce snaps and security immediately. Strong play earns active status, starts, and extensions.</div>'}</div>`;
+    return `<div class="card nfl-survival-v11"><div class="impact-head"><div><div class="impact-kicker">UFF ROSTER SURVIVAL</div><div class="h2" style="margin:2px 0 0">${escHtml(a)}</div></div><div class="nfl-security-v11" style="color:${s}">${Math.round(t.security)}<small>SECURITY</small></div></div><div class="nfl-security-track-v11"><i style="width:${clamp99(t.security, 0, 100)}%"></i></div><div class="nfl-grid-v11"><div><b>${Math.round(t.expectation)}</b><small>Expected Grade</small></div><div><b>${Math.round(t.schemeFit)}</b><small>Scheme Fit</small></div><div><b>${t.contract?.yearsRemaining || 0}</b><small>Years Left</small></div><div><b>${fmtMoneyShort(t.contract?.salary || 0)}</b><small>Salary</small></div></div>${strikeLineV146B(e)}${t.offers?.length ? `<button class="btn" style="margin-top:10px" onclick="showNflOffersV11()">Review ${t.offers.length} Roster Offer${t.offers.length > 1 ? "s" : ""}</button>` : '<div class="small" style="margin-top:9px">Poor games reduce snaps and security immediately. Strong play earns active status, starts, and extensions.</div>'}</div>`;
   }
   function qc(e) {
     const t = e.nflStateV11,
       a = t?.offers || [];
-    return `<div class="decision-overlay nfl-offers-overlay-v11"><div class="decision-panel"><div class="decision-kicker">FREE AGENCY · CAREER SURVIVAL</div><div class="decision-title">The League Gives You ${a.length} Path${a.length === 1 ? "" : "s"}</div><div class="decision-copy">Role, scheme fit, security, salary, and guarantees differ. Signing continues the current career.</div>${a.map(s => `<button class="decision-choice nfl-offer-v11" onclick="acceptNflOfferV11('${s.id}')"><b>${escHtml(s.team)} · ${escHtml(s.role.replaceAll("-", " ").toUpperCase())}</b><small>${escHtml(s.scheme)} · ${s.years} year${s.years > 1 ? "s" : ""} · ${yo(s.salary)} · ${Math.round(s.guaranteed * 100)}% guaranteed</small><span class="decision-risk">Security ${s.security} · Scheme fit ${s.schemeFit}</span></button>`).join("")}${a.length ? '<button class="btn danger" onclick="declineNflOffersV11()">Decline All · Retire</button>' : '<button class="btn danger" onclick="endCareer()">No Offers · Retire</button>'}</div></div>`;
+    return `<div class="decision-overlay nfl-offers-overlay-v11"><div class="decision-panel"><div class="decision-kicker">FREE AGENCY · CAREER SURVIVAL</div><div class="decision-title">The League Gives You ${a.length} Path${a.length === 1 ? "" : "s"}</div><div class="decision-copy">Role, scheme fit, security, salary, and guarantees differ. Signing continues the current career.</div>${a.map(s => `<button class="decision-choice nfl-offer-v11" onclick="acceptNflOfferV11('${s.id}')"><b>${escHtml(s.team)} · ${escHtml(s.role.replaceAll("-", " ").toUpperCase())}</b><small>${escHtml(s.scheme)} · ${s.years} year${s.years > 1 ? "s" : ""} · ${fmtMoneyShort(s.salary)} · ${Math.round(s.guaranteed * 100)}% guaranteed</small><span class="decision-risk">Security ${s.security} · Scheme fit ${s.schemeFit}</span></button>`).join("")}${a.length ? '<button class="btn danger" onclick="declineNflOffersV11()">Decline All · Retire</button>' : '<button class="btn danger" onclick="endCareer()">No Offers · Retire</button>'}</div></div>`;
   }
-  function go() {
+  function showNflOffersV11() {
     const e = state.player;
     if (!e?.nflStateV11?.offers?.length) {
       showToast("No active offers.");
@@ -25201,7 +25201,7 @@
     const t = document.querySelector(".nfl-offers-overlay-v11");
     (t && t.remove(), document.body.insertAdjacentHTML("beforeend", qc(e)));
   }
-  function Wc(e) {
+  function acceptNflOfferV11(e) {
     const t = state.player,
       a = acceptNflOffer(t, e);
     if (!a) return;
@@ -25216,7 +25216,7 @@
       render(),
       bigMoment("ROSTER LIFELINE", `${a.team} · ${a.role.replaceAll("-", " ")}`, "good"));
   }
-  function Yc() {
+  function declineNflOffersV11() {
     const e = document.querySelector(".nfl-offers-overlay-v11");
     (e && e.remove(), endCareer());
   }
@@ -25292,7 +25292,7 @@
       ? `<div class="card identity-card-v11"><div class="impact-head"><div><div class="impact-kicker">RUN IDENTITY</div><div class="h2" style="margin:2px 0 0">${t.icon} ${escHtml(t.name)}</div></div><div class="legacy-token-v11">${state.legacyTokensV11 || 0}<small>LEGACY TOKENS</small></div></div><div class="small">${escHtml(t.description)}</div><div class="legacy-objectives-v11">${s.map(i => `<div class="${n[i.id] ? "done" : ""}"><span>${n[i.id] ? "✓" : i.icon}</span><b>${escHtml(i.title)}</b><small>${escHtml(i.description)}</small><em>+${i.reward}</em></div>`).join("")}</div></div>`
       : "";
   }
-  function jn(e) {
+  function storyArcCard(e) {
     const t = e.activeStoryArcV11,
       a = (e.storyArcHistoryV11 || []).slice(0, 3);
     if (!t && !a.length) return "";
@@ -25305,13 +25305,13 @@
       s = (e.legacyObjectivesV11 || []).length;
     return `<div class="card legacy-summary-v11"><div class="legacy-grade-v11">${t.grade}</div><div><div class="eyebrow">PARTIAL VICTORY · CAREER LEGACY</div><div class="h2" style="margin:2px 0">${escHtml(t.ending)}</div><div class="small">Legacy score ${t.score} · ${a}/${s} origin objectives · highest level ${LEVELS[e.level]?.name || "Unknown"}. A career can matter without reaching the UFF.</div></div></div>`;
   }
-  function ko(e) {
+  function storyOverlay(e) {
     const t = e.storyDecisionQueueV11?.[0];
     return t
       ? `<div class="decision-overlay story-overlay-v11"><div class="decision-panel"><div class="decision-kicker">${t.icon} ${escHtml(t.arcTitle)} · MULTI-WEEK ARC</div><div class="decision-title">${escHtml(t.title)}</div><div class="decision-copy">${escHtml(t.copy)} This decision persists beyond one game.</div>${t.choices.map(a => `<button class="decision-choice" onclick="resolveStoryChoiceV11('${a.id}')"><b>${escHtml(a.label)}</b><small>${escHtml(a.description)}</small><span class="decision-risk">${escHtml(a.risk)} · ${Math.round(a.baseChance * 100)}% base chance</span></button>`).join("")}</div></div>`
       : "";
   }
-  function Uc(e) {
+  function resolveStoryChoiceV11(e) {
     const t = state.player,
       a = resolveStoryChoice(t, state, e, state.specializationV11);
     if (!a) return;
@@ -25377,7 +25377,7 @@
         ""
       )}<button class="btn ghost" onclick="document.querySelector('.position-overlay-v11')?.remove()">Cancel</button></div></div>`;
   }
-  function Xc() {
+  function showPositionChangeV11() {
     const e = state.player;
     if (!(!e || e.originV11 !== "position-convert")) {
       if ((e.positionChangesV11 || []).includes(e.level)) {
@@ -25387,7 +25387,7 @@
       (document.querySelector(".position-overlay-v11")?.remove(), document.body.insertAdjacentHTML("beforeend", Jc(e)));
     }
   }
-  function Zc(e) {
+  function changePositionV11(e) {
     const t = state.player;
     if (
       !t ||
@@ -25418,7 +25418,7 @@
       render(),
       bigMoment("POSITION CHANGED", `${a} → ${e} · prove the fit`, "gold"));
   }
-  pn = function (e) {
+  weeklyLoopCard = function (e) {
     return bo(e).replace("card rival-card-v11", "card weekly-loop-card rival-card-v11");
   };
   const ed = prepareWeek103;
@@ -25488,7 +25488,7 @@
     const e = state.legacyUnlocksV11 || {};
     return `<div class="card legacy-rewards-v11"><div class="impact-head"><div><div class="impact-kicker">PARTIAL-VICTORY REWARDS</div><div class="h2" style="margin:2px 0 0">Legacy Workshop</div></div><div class="legacy-token-v11">${state.legacyTokensV11 || 0}<small>TOKENS</small></div></div><div class="small">Milestones and identity objectives fund information, content, and strategic options—not large universal attribute boosts.</div><div class="legacy-shop-v11">${LEGACY_UNLOCKS.map(t => `<div class="legacy-shop-row-v11 ${e[t.id] ? "owned" : ""}"><span>${t.icon}</span><div><b>${escHtml(t.name)}</b><small>${escHtml(t.description)}</small></div><button ${e[t.id] || (state.legacyTokensV11 || 0) < t.cost ? "disabled" : ""} onclick="buyLegacyUnlockV11('${t.id}')">${e[t.id] ? "OWNED" : t.cost + " ◇"}</button></div>`).join("")}</div></div>`;
   }
-  function id(e) {
+  function buyLegacyUnlockV11(e) {
     const t = buyLegacyUnlock(state, e);
     if (t === !1) {
       showToast("Not enough Legacy Tokens.");
@@ -25518,7 +25518,7 @@
       l = Math.round(clamp99(i + 0.05, 0.05, 0.98) * 100);
     return `${escHtml(t.risk)} · estimated ${r}–${l}%`;
   }
-  ko = function (e) {
+  storyOverlay = function (e) {
     const t = e.storyDecisionQueueV11?.[0];
     return t
       ? `<div class="decision-overlay story-overlay-v11"><div class="decision-panel"><div class="decision-kicker">${t.icon} ${escHtml(t.arcTitle)} · MULTI-WEEK ARC</div><div class="decision-title">${escHtml(t.title)}</div><div class="decision-copy">${escHtml(t.copy)} This decision persists beyond one game.</div>${t.choices.map(a => `<button class="decision-choice" onclick="resolveStoryChoiceV11('${a.id}')"><b>${escHtml(a.label)}</b><small>${escHtml(a.description)}</small><span class="decision-risk">${od(e, a)}</span></button>`).join("")}</div></div>`
@@ -25538,29 +25538,29 @@
     if ((ensureV11(e), state.view === "choosePos")) {
       if (!t.querySelector(".origin-card-v11")) {
         const n = t.querySelector(".card");
-        insertAfter(n, Ms(e));
+        insertAfter(n, originCard(e));
       }
       t.querySelectorAll(".pos-card").forEach(n => n.classList.toggle("origin-locked-v11", !e.originV11));
     }
     if (state.view === "hub") {
       const n = t.querySelector(".player-hero");
-      (!e.originV11 && !t.querySelector(".origin-card-v11") && insertAfter(n, Ms(e)),
+      (!e.originV11 && !t.querySelector(".origin-card-v11") && insertAfter(n, originCard(e)),
         e.originV11 && !t.querySelector(".identity-card-v11") && insertAfter(n, kn(e)));
       const i = t.querySelector(".weekly-loop-card") || n;
       t.querySelector(".condition-card-v11") || insertAfter(i, Bn(e));
       const r = t.querySelector(".condition-card-v11") || i;
-      (t.querySelector(".arc-card-v11") || insertAfter(r, jn(e)),
+      (t.querySelector(".arc-card-v11") || insertAfter(r, storyArcCard(e)),
         e.level >= 7 && !t.querySelector(".nfl-survival-v11") && insertAfter(t.querySelector(".arc-card-v11") || r, nflSurvivalCard(e)),
         t.querySelector(".legacy-progress-v11") || t.insertAdjacentHTML("beforeend", In(e)));
     }
     if (state.view === "season") {
       const n = t.querySelector(".h1");
-      !e.originV11 && !t.querySelector(".origin-card-v11") && insertAfter(n, Ms(e));
+      !e.originV11 && !t.querySelector(".origin-card-v11") && insertAfter(n, originCard(e));
       const i = t.querySelector(".origin-card-v11") || n;
       t.querySelector(".opponent-card-v11") || insertAfter(i, Kc(e));
       const r = t.querySelector(".opponent-card-v11") || n;
       (t.querySelector(".condition-card-v11") || insertAfter(r, Bn(e)),
-        t.querySelector(".arc-card-v11") || insertAfter(t.querySelector(".condition-card-v11") || r, jn(e)),
+        t.querySelector(".arc-card-v11") || insertAfter(t.querySelector(".condition-card-v11") || r, storyArcCard(e)),
         e.level >= 7 && !t.querySelector(".nfl-survival-v11") && insertAfter(t.querySelector(".arc-card-v11") || r, nflSurvivalCard(e)));
       const l = e.weekResults || [];
       t.querySelectorAll(".sched-row").forEach((d, c) => {
@@ -25625,7 +25625,7 @@
     (a &&
       !s &&
       !["menu", "gameover", "win", "declineResult"].includes(state.view) &&
-      document.body.insertAdjacentHTML("beforeend", ko(e)),
+      document.body.insertAdjacentHTML("beforeend", storyOverlay(e)),
       !a && s && s.remove());
   }
   const ld = render;
@@ -26188,8 +26188,8 @@
     if (!e || !w || !p || p.id !== id) return null;
     const I = projWeekInV146(e, w),
       gm = Math.max(1, LEVELS[e.level].games);
-    const r = I.n ? matchupPlanModifier(I.n, id, Ic(e, id), state.specializationV11) : { perf: 0, trust: 0, injuryRisk: 0, note: "" },
-      rep = Ic(e, id);
+    const r = I.n ? matchupPlanModifier(I.n, id, planStreak(e, id), state.specializationV11) : { perf: 0, trust: 0, injuryRisk: 0, note: "" },
+      rep = planStreak(e, id);
     const F = (window.__FATE_PLANS || {})[id];
     let fate = null;
     if (F) {
@@ -26492,17 +26492,17 @@
     }
   };
   Object.assign(window, {
-    chooseOriginV11: Vc,
-    chooseSpecializationV11: Bc,
-    chooseGamePlanV11: Nc,
-    resolveMomentV11: Dc,
-    resolveStoryChoiceV11: Uc,
-    showNflOffersV11: go,
-    acceptNflOfferV11: Wc,
-    declineNflOffersV11: Yc,
-    showPositionChangeV11: Xc,
-    changePositionV11: Zc,
-    buyLegacyUnlockV11: id,
+    chooseOriginV11: chooseOriginV11,
+    chooseSpecializationV11: chooseSpecializationV11,
+    chooseGamePlanV11: chooseGamePlanV11,
+    resolveMomentV11: resolveMomentV11,
+    resolveStoryChoiceV11: resolveStoryChoiceV11,
+    showNflOffersV11: showNflOffersV11,
+    acceptNflOfferV11: acceptNflOfferV11,
+    declineNflOffersV11: declineNflOffersV11,
+    showPositionChangeV11: showPositionChangeV11,
+    changePositionV11: changePositionV11,
+    buyLegacyUnlockV11: buyLegacyUnlockV11,
     prepareWeek103: prepareWeek103,
     playWeek: playWeek,
     pickPos: pickPos,
@@ -26543,7 +26543,7 @@
       .replaceAll("-", " ")
       .replace(/\b\w/g, a => a.toUpperCase());
   }
-  function wo(e, t = !1) {
+  function financeCard(e, t = !1) {
     const a = ensureFinanceState(e);
     if (!a) return "";
     const s = retirementReadiness(e),
@@ -26566,7 +26566,7 @@
     const t = regretScenario(e.level, e);
     return `<div class="card regret-card-v12"><div class="regret-scene-v12"><span>💭</span><div><div class="eyebrow">ONE LAST THOUGHT</div><div class="regret-dialogue-v12">${escHtml(t.dialogue)}</div></div></div><div class="small" style="margin-top:8px">Choose the promise that carries into the next career, then the Prestige menu opens immediately.</div><div class="vow-grid-v12">${t.vows.map(a => `<button onclick="chooseRegretVowV12('${a.id}')"><span>${a.icon}</span><b>${escHtml(a.label)}</b><small>${escHtml(a.description)}</small></button>`).join("")}</div></div>`;
   }
-  function hd(e) {
+  function chooseRegretVowV12(e) {
     const t = state.player;
     !t ||
       !regretScenario(t.level, t).vows.some(s => s.id === e) ||
@@ -26601,28 +26601,28 @@
           `${escHtml(e.name)} walks away at age ${e.age} with <b>${formatMoney(a.netWorth)}</b> in net worth, ${Object.keys(s.completedGoals || {}).length} life goals completed, and a family plan that lasts beyond football.`));
       const n = byId("screen").querySelector(".regret-card-v12");
       (n && n.remove(),
-        t?.insertAdjacentHTML("afterend", Nn(e)),
+        t?.insertAdjacentHTML("afterend", retirementCard(e)),
         (byId("dock").innerHTML =
           `<button class="btn" onclick="S.afterCareerV12=true;go('shop')">🔁 RUN IT BACK — Prestige & Begin the Next Legacy</button><div style="height:8px"></div><button class="btn secondary" onclick="prestigeReset()">Run It Back Now</button>`));
     } else
       (t?.insertAdjacentHTML("afterend", fd(e)),
-        e.level >= 7 && t?.insertAdjacentHTML("afterend", Nn(e)),
+        e.level >= 7 && t?.insertAdjacentHTML("afterend", retirementCard(e)),
         (byId("dock").innerHTML =
           `<div class="small center" style="margin-bottom:8px">Choose what you would change. You will be taken to Prestige immediately.</div><button class="btn" onclick="chooseRegretVowV12('smarter')">🧠 Train Smarter & Open Prestige</button><div style="height:8px"></div><button class="btn secondary" onclick="chooseRegretVowV12('health')">🩺 Protect My Body & Open Prestige</button>`));
   };
-  function Nn(e) {
+  function retirementCard(e) {
     const t = ensureFinanceState(e);
     if (!t) return "";
     const a = retirementReadiness(e);
     return `<div class="card finance-legacy-v12"><div class="eyebrow">LIFE AFTER THE FINAL SNAP</div><div class="h2" style="margin:2px 0">${formatMoney(a.netWorth)} left for the future</div><div class="life-money-grid-v12"><div><b>${formatMoney(t.careerGross)}</b><small>Career gross</small></div><div><b>${formatMoney(t.investmentGains)}</b><small>Market gains</small></div><div><b>${Object.keys(t.completedGoals || {}).length}</b><small>Life goals</small></div><div><b>${Math.round(t.familySecurity)}</b><small>Family security</small></div></div></div>`;
   }
-  function vd(e) {
+  function setLifeTabV12(e) {
     ((lifeTab = e), screenLife());
   }
-  function yd() {
+  function showLifeV12() {
     ((state.view = "life"), saveGame(), render());
   }
-  function xs(e, t, a) {
+  function lifeChoiceBtn(e, t, a) {
     return `<button class="life-choice-v12 ${a === t.id ? "active" : ""}" onclick="chooseLifestyleV12('${e}','${t.id}')"><span>${t.icon}</span><div><b>${escHtml(t.name)}</b><small>${escHtml(t.description)}</small></div><em>${t.weekly ? formatMoney(t.weekly) + "/wk" : "FREE"}</em></button>`;
   }
   function screenLife() {
@@ -26658,7 +26658,7 @@
         : '<div class="small">Your first game check will appear here.</div>'
     }</div></div>`),
       lifeTab === "lifestyle" &&
-        (d = `<div class="card"><div class="eyebrow">FOOD · RECOVERY · LUXURY</div><div class="h2" style="margin:2px 0">Spend Money to Shape the Player</div><div class="small">Better support can improve performance and recovery, but every expense reduces the money available for family and retirement.</div></div><div class="h2">Meals</div>${LIFESTYLES.meals.map(c => xs("meals", c, t.lifestyle.meals)).join("")}<div class="h2">Recovery Team</div>${LIFESTYLES.recovery.map(c => xs("recovery", c, t.lifestyle.recovery)).join("")}<div class="h2">Off-Field Lifestyle</div>${LIFESTYLES.luxury.map(c => xs("luxury", c, t.lifestyle.luxury)).join("")}<div class="card tight center"><b style="font-family:Oswald;color:var(--gold)">${formatMoney(i.weeklyCost)} per week</b><div class="small">Recovery +${i.recovery} · performance +${Math.round(i.perf)} · injury risk ${Math.round(i.injuryRisk * 100)}%</div></div>`),
+        (d = `<div class="card"><div class="eyebrow">FOOD · RECOVERY · LUXURY</div><div class="h2" style="margin:2px 0">Spend Money to Shape the Player</div><div class="small">Better support can improve performance and recovery, but every expense reduces the money available for family and retirement.</div></div><div class="h2">Meals</div>${LIFESTYLES.meals.map(c => lifeChoiceBtn("meals", c, t.lifestyle.meals)).join("")}<div class="h2">Recovery Team</div>${LIFESTYLES.recovery.map(c => lifeChoiceBtn("recovery", c, t.lifestyle.recovery)).join("")}<div class="h2">Off-Field Lifestyle</div>${LIFESTYLES.luxury.map(c => lifeChoiceBtn("luxury", c, t.lifestyle.luxury)).join("")}<div class="card tight center"><b style="font-family:Oswald;color:var(--gold)">${formatMoney(i.weeklyCost)} per week</b><div class="small">Recovery +${i.recovery} · performance +${Math.round(i.perf)} · injury risk ${Math.round(i.injuryRisk * 100)}%</div></div>`),
       lifeTab === "home" &&
         (d = `<div class="card"><div class="eyebrow">CURRENT HOME</div><div class="h2" style="margin:2px 0">${r.icon} ${escHtml(r.name)}</div><div class="small">${escHtml(r.description)} · value ${formatMoney(t.houseValue)}</div></div>${HOUSES.map(c => `<div class="house-card-v12 ${t.houseId === c.id ? "owned" : ""}"><span>${c.icon}</span><div><b>${escHtml(c.name)}</b><small>${escHtml(c.description)}</small><em>${c.price ? formatMoney(c.price) : "CURRENT RENTAL"} · ${formatMoney(c.weekly)}/wk upkeep</em></div><button ${t.houseId === c.id ? "disabled" : ""} onclick="buyHouseV12('${c.id}')">${t.houseId === c.id ? "OWNED" : "BUY"}</button></div>`).join("")}`),
       lifeTab === "invest" &&
@@ -26691,15 +26691,15 @@
         `<button class="btn secondary" onclick="go(S.player.weekResults?'season':'hub')">Back to Football</button>`),
       $o());
   }
-  function gd(e, t) {
+  function chooseLifestyleV12(e, t) {
     const a = state.player;
     chooseLifestyle(a, e, t) && (saveGame(), screenLife(), showToast("Lifestyle updated."));
   }
-  function bd(e) {
+  function setRetirementPlanV12(e) {
     const t = state.player;
     setRetirementPlan(t, e) && (saveGame(), screenLife(), showToast("Retirement target updated."));
   }
-  function kd(e) {
+  function buyHouseV12(e) {
     const t = buyHouse(state.player, e);
     if (!t.ok) {
       showToast(t.reason || "Purchase failed.");
@@ -26707,7 +26707,7 @@
     }
     (saveGame(), screenLife(), bigMoment("NEW HOME", t.house.name, "good"));
   }
-  function wd(e, t) {
+  function investV12(e, t) {
     const a = ensureFinanceState(state.player),
       s = Math.max(1e3, Math.round(a.cash * t)),
       n = invest(state.player, e, s);
@@ -26717,7 +26717,7 @@
     }
     (saveGame(), screenLife(), showToast(`Invested ${formatMoney(n.amount)}`));
   }
-  function $d(e, t) {
+  function withdrawV12(e, t) {
     const a = ensureFinanceState(state.player),
       s = Math.round((a.investments[e] || 0) * t),
       n = withdraw(state.player, e, s);
@@ -26727,7 +26727,7 @@
     }
     (saveGame(), screenLife(), showToast(`Moved ${formatMoney(n.amount)} to cash`));
   }
-  function Sd(e, t) {
+  function fundGoalV12(e, t) {
     const a = ensureFinanceState(state.player),
       s = contributeGoal(state.player, e, Math.round(a.cash * t));
     if (!s.ok) {
@@ -26736,7 +26736,7 @@
     }
     (saveGame(), screenLife(), s.completed ? bigMoment("LIFE GOAL COMPLETE", lifeGoalById(e).name, "good") : showToast(`Funded ${formatMoney(s.amount)}`));
   }
-  function Md() {
+  function retireV12() {
     const e = state.player;
     if (!canRetire(e)) {
       showToast("You are not ready to retire yet.");
@@ -26757,7 +26757,7 @@
       a = document.querySelector(".life-event-overlay-v12");
     (t && !a && document.body.insertAdjacentHTML("beforeend", xd(e)), !t && a && a.remove());
   }
-  function Td(e) {
+  function resolveLifeEventV12(e) {
     const t = resolveLifeEvent(state.player, e);
     if (!t) return;
     (document.querySelector(".life-event-overlay-v12")?.remove(), saveGame(), render());
@@ -26852,10 +26852,10 @@
       ? (s.opponentV11 ||
           (s.opponentV11 = createOpponentProfile(s.opp, t.level, s.week || a + 1, t.seasonSeed, s.playoff ? s.roundIdx : void 0)),
         scoutOpponent(s.opponentV11, t, state.specializationV11),
-        `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week || a + 1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Projected fatigue and injury risk include age, health, and the selected workload.</div></div>${mo(s, t)}<div class="plan-deck">${GAME_PLANS
+        `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week || a + 1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Projected fatigue and injury risk include age, health, and the selected workload.</div></div>${scoutCard(s, t)}<div class="plan-deck">${GAME_PLANS
           .map(n => {
             const i = yn(n),
-              r = gn(n.id),
+              r = planColor(n.id),
               l = s.opponentV11.scouted?.recommendedPlan === n.id,
               d = recoveryProjection(t, n.id);
             return `<button class="impact-plan-choice ${l ? "recommended-v11" : ""}" style="--planColor:${r}" onclick="chooseGamePlanV11('${n.id}',${e ? "true" : "false"})"><div class="plan-icon">${n.icon}</div><div><b>${n.name}${l ? " · SCOUT PICK" : ""}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(c => `<span>${c}</span>`).join("")}<span class="projection-v12 ${d.label.toLowerCase()}">Fatigue ${d.fatigueAfter} · ${Math.round(d.injuryRisk * 100)}% injury</span></div></div><div class="plan-bars"><div class="mini-rating"><label><span>UPSIDE</span><span>${i[0]}</span></label><div class="mbar"><i style="width:${i[0]}%"></i></div></div><div class="mini-rating"><label><span>CONTROL</span><span>${i[1]}</span></label><div class="mbar"><i style="width:${i[1]}%"></i></div></div><div class="mini-rating"><label><span>RISK</span><span>${i[2]}</span></label><div class="mbar"><i style="width:${i[2]}%"></i></div></div></div></button>`;
@@ -26882,7 +26882,7 @@
     return expectedGrade(s, u, e.snapShare || 0.5, r).grade;
   };
   function Cd(e) {
-    return e.level >= 7 ? wo(e, !1) : "";
+    return e.level >= 7 ? financeCard(e, !1) : "";
   }
   const Ld = nflSurvivalCard;
   nflSurvivalCard = function (e) {
@@ -26899,7 +26899,7 @@
       (e.level >= 7 &&
         (state.view === "hub" || state.view === "season" || state.view === "result") &&
         !t.querySelector(".nfl-life-summary-v12") &&
-        t.insertAdjacentHTML("beforeend", wo(e, !1)),
+        t.insertAdjacentHTML("beforeend", financeCard(e, !1)),
         $o());
     }
   }
@@ -26947,17 +26947,17 @@
     }
   };
   Object.assign(window, {
-    chooseRegretVowV12: hd,
-    setLifeTabV12: vd,
-    showLifeV12: yd,
-    chooseLifestyleV12: gd,
-    setRetirementPlanV12: bd,
-    buyHouseV12: kd,
-    investV12: wd,
-    withdrawV12: $d,
-    fundGoalV12: Sd,
-    retireV12: Md,
-    resolveLifeEventV12: Td,
+    chooseRegretVowV12: chooseRegretVowV12,
+    setLifeTabV12: setLifeTabV12,
+    showLifeV12: showLifeV12,
+    chooseLifestyleV12: chooseLifestyleV12,
+    setRetirementPlanV12: setRetirementPlanV12,
+    buyHouseV12: buyHouseV12,
+    investV12: investV12,
+    withdrawV12: withdrawV12,
+    fundGoalV12: fundGoalV12,
+    retireV12: retireV12,
+    resolveLifeEventV12: resolveLifeEventV12,
     shopBack: shopBack,
     simRemainingWeeks: simRemainingWeeks,
     render: render
@@ -27278,7 +27278,7 @@
         pal = E ? E.pal(li) : ["#333", "#999"],
         on = O.sel === k;
       return `<button class="club-card-v146b${on ? " on" : ""}" style="--cp:${pal[0]};--cs:${pal[1]}" onclick="pickClubV146B(${k})">
-      <div class="cc-top"><i class="emblem-v44 cc-crest" style="${E ? E.css(li) : ""}"></i><div class="cc-name"><b>${escHtml(c.name)}</b><small>${c.tierLabel} · ${c.years} yr · ${yo(c.salary)}</small></div><div class="cc-role cc-${c.role}">${ROLE_V146B[c.role].label}</div></div>
+      <div class="cc-top"><i class="emblem-v44 cc-crest" style="${E ? E.css(li) : ""}"></i><div class="cc-name"><b>${escHtml(c.name)}</b><small>${c.tierLabel} · ${c.years} yr · ${fmtMoneyShort(c.salary)}</small></div><div class="cc-role cc-${c.role}">${ROLE_V146B[c.role].label}</div></div>
       <div class="cc-grid"><div><b>${c.rating}</b><small>TEAM OVR</small></div><div><b>${Math.round(c.share * 100)}%</b><small>SNAP SHARE</small></div><div><b>${escHtml(c.depth)}</b><small>DEPTH</small></div><div><b>${c.trust}</b><small>COACH TRUST</small></div></div></button>`;
     };
     document.getElementById("screen").innerHTML =
@@ -27671,7 +27671,7 @@
       return;
     }
     const had = e.offersV146B;
-    Md();
+    retireV12();
     if (state.view === "gameover" && had) e.offersV146B = null;
   }
   function postV147() {
@@ -29606,7 +29606,7 @@
     // every stat read as a sliver, and the number that actually governs this season is the cap
     // the next point starts costing more at. A stat already past it stretches the scale to fit
     // and keeps a tick where the cap sits, so "over the cap" stays visible instead of pinned.
-    const cur = W1(e.attrs[k] || 0),
+    const cur = wholeNum(e.attrs[k] || 0),
       abs = attrCap(),
       cap = clamp99(drSoftCap(e, k), 1, abs);
     const scale = Math.min(abs, Math.max(cap, cur + Math.max(0, g))),
@@ -29617,8 +29617,8 @@
     const capPct = scale > cap + 0.5 ? clamp99((cap / scale) * 100, 0, 100) : 0;
     const tier = attrTierV133(e, k, g, gmax); // v133: the colour of the season it would add
     return `<div class="tp-row-v113${pri ? " pri" : ""}${g < 0 ? " neg" : ""} tier-${tier}" data-tier="${tier}">
-      <div class="tp-rt-v113"><span class="tp-rn-v113">${ATTR_INFO[k].icon} ${ATTR_INFO[k].name}${statInfoBtnV142(k)}</span><span class="tp-rv-v113">${cur}${gn !== 0 ? `<em>→ ${W1(cur + g)}</em>` : ""}<span class="tp-capn-v113">/ ${W1(cap)} cap</span></span></div>
-      <div class="track ${tr(cur)} tp-bar-v113"><i style="width:${pct}%"></i>${up ? `<b class="tp-up-v113${pri ? " flash" : ""} tier-${tier}" style="left:${pct}%;width:${up}%"></b>` : ""}${dn ? `<b class="tp-dn-v113" style="left:${pct - dn}%;width:${dn}%"></b>` : ""}${capPct ? `<b class="tp-capt-v113" style="left:${capPct}%"></b>` : ""}</div>
+      <div class="tp-rt-v113"><span class="tp-rn-v113">${ATTR_INFO[k].icon} ${ATTR_INFO[k].name}${statInfoBtnV142(k)}</span><span class="tp-rv-v113">${cur}${gn !== 0 ? `<em>→ ${wholeNum(cur + g)}</em>` : ""}<span class="tp-capn-v113">/ ${wholeNum(cap)} cap</span></span></div>
+      <div class="track ${ovrGradeClass(cur)} tp-bar-v113"><i style="width:${pct}%"></i>${up ? `<b class="tp-up-v113${pri ? " flash" : ""} tier-${tier}" style="left:${pct}%;width:${up}%"></b>` : ""}${dn ? `<b class="tp-dn-v113" style="left:${pct - dn}%;width:${dn}%"></b>` : ""}${capPct ? `<b class="tp-capt-v113" style="left:${capPct}%"></b>` : ""}</div>
     </div>`;
   }
   // the sheet under the grid: what a season of ONE program does to all seventeen stats
