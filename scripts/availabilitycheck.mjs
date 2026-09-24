@@ -38,8 +38,12 @@ const m = await page.evaluate(() => {
   const at = g => +M.chance(p, { oppRating: mine - g }).toFixed(4)
   return { mine, even: at(0), up25: at(25), up45: at(45), down25: at(-25),
     cond: { fresh: (p.conditionV11.fatigue = 10, window.__condMultV54(p)),
+            calm:  (p.conditionV11.fatigue = 35, window.__condMultV54(p)),
             mid:   (p.conditionV11.fatigue = 50, window.__condMultV54(p)),
-            worn:  (p.conditionV11.fatigue = 85, window.__condMultV54(p)) } }
+            at70:  (p.conditionV11.fatigue = 70, window.__condMultV54(p)),
+            worn:  (p.conditionV11.fatigue = 85, window.__condMultV54(p)),
+            hurt:  (() => { const c = p.conditionV11, keep = c.injury; c.fatigue = 30; c.injury = { name: 'probe', weeksRemaining: 1 }; const v = window.__condMultV54(p); c.injury = keep; return v })() },
+    slope: [10, 35, 50, 70, 85].map(f => window.__fatigueMulV120(f, null)) }
 })
 console.log('model:', JSON.stringify(m))
 ok(!m.err, 'the availability model is reachable')
@@ -48,8 +52,15 @@ ok(m.up25 < m.even * .8, 'being ~25 above the opponent makes you meaningfully sa
 ok(m.up45 < m.up25, 'and further above is safer still', `${m.up25} -> ${m.up45}`)
 ok(m.down25 > m.even, 'being outmatched raises the risk', `${m.even} -> ${m.down25}`)
 ok(m.cond.fresh === 1.05, 'fresh and clean is +5% stats', String(m.cond.fresh))
-ok(m.cond.worn === 0.90, 'worn or injured is -10% stats', String(m.cond.worn))
-ok(m.cond.mid === 1, 'in between is neutral', String(m.cond.mid))
+/* v150 B: since v120 (FATIGUE IS A SLOPE, beside condMultV54) the body is not a step (1.05 / 1 / 0.90) but a slope:
+ * +5% fresh (<=25), nothing to fatSlopeFrom (40), then a straight line to condWornMax (-20%) at 100 — which passes
+ * the old -10% line exactly at 70 — and playing hurt is at least -10% wherever fatigue sits. So a man at 85 is -15%,
+ * at 50 about -3.3%, and condMultV54 must be exactly fatigueMulV120 for a player with no reroll debt or season choice. */
+const near = (a, b) => Math.abs(a - b) < 1e-9
+ok(near(m.cond.at70, 0.90) && near(m.cond.worn, 0.85), 'worn is v120\'s slope: -10% at the old line of 70, -15% at 85', `${m.cond.at70} / ${m.cond.worn}`)
+ok(near(m.cond.hurt, 0.90), 'injured is -10% stats even when fresh-ish', String(m.cond.hurt))
+ok(m.cond.calm === 1 && near(m.cond.mid, 1 - (10 / 60) * 0.2), 'in between is neutral up to 40, then the slope starts', `${m.cond.calm} @35 / ${m.cond.mid} @50`)
+ok([m.cond.fresh, m.cond.calm, m.cond.mid, m.cond.at70, m.cond.worn].every((v, i) => v === m.slope[i]), 'and condMultV54 is exactly fatigueMulV120 (one multiplier for the sim, the sheet and the silent week)', JSON.stringify(m.slope))
 
 // ---- 2. the season distribution hits the design target ----------------------
 const dist = await page.evaluate(() => {

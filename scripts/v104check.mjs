@@ -14,6 +14,7 @@
 //   node scripts/v104check.mjs        (READ_POS=RB)
 import { chromium } from 'playwright'
 import { CHROME, GAME_URL } from './lib/env.mjs'
+import { waitLive } from './lib/live.mjs'
 const browser = await chromium.launch({ executablePath: CHROME })
 const errs = [], bad = []
 let pass = 0, fail = 0
@@ -44,7 +45,7 @@ async function step(t) {
 }
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 let scene = false
-for (let i = 0; i < 60; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(400) }
+scene = await waitLive(page)   // v150 B: on game state, up to 90s (scripts/lib/live.mjs) — the fixed 16-24s poll cascaded under --jobs 3-4
 ok(scene, 'the broadcast is live with markers on the field')
 
 // ================= 1. the bands the ART gave, and the ink placed inside them =================
@@ -122,8 +123,12 @@ for (let i = 0; i < 170; i++) {
       tex: m.tex, row: m._numRowV104, rear: !!m._ribRearFacing, fs: m.label.style.fontSize,
       // the ink on screen, and the body it is painted on
       inkH: (window.TU('numCellH', 6)) * (m.body.scaleY || 1) * m.root.scale,
+      // v150 B: v144 A scales every sprite by the level's cohort age (52% at Pee Wee, full from 22), folded into root.scale;
+      // the size band is a statement about a GROWN man's number, so the age factor is backed out of it (CLAUDE.md, v144 A)
+      ageK: m._ageKV144 || 1,
       bodyH: m.body.displayHeight * m.root.scale, sc: m.root.scale, sy: m.body.scaleY, x: Math.round(m.root.x), y: Math.round(m.root.y), st: m.forceState || null })) })
   for (const r of (st || [])) { seen++
+    r.inkH = r.inkH / r.ageK
     if (r.inkH < minH) smallest = r
     fonts.add(r.fs)
     if (r.rear) seenRear++; else seenFront++

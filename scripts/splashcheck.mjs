@@ -20,6 +20,8 @@
 //   node scripts/splashcheck.mjs
 import { chromium } from 'playwright'
 import { CHROME, GAME_URL } from './lib/env.mjs'
+import { loadScale } from './lib/load.mjs'
+const LS = loadScale()
 const browser = await chromium.launch({ executablePath: CHROME })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
@@ -82,7 +84,8 @@ const canvasStats = () => {
   // the door: the app was ready ~1s in; the splash must still be up until the minimum, then leave
   let gone = false, goneAt = 0
   let tdShot = false
-  for (let i = 0; i < 120; i++) { const r = await page.evaluate(() => { const S = window.__SPLASH_V94.state; if (S && S.confetti && S.confetti.length) window.__confettiSeenV94 = (window.__confettiSeenV94 || 0) + 1
+  // v150 B: poll until the budget (and a margin) of WALL time has gone, not a fixed 120 polls
+  for (let i = 0, w0 = Date.now(); Date.now() - w0 < 14000 * LS + 4000; i++) { const r = await page.evaluate(() => { const S = window.__SPLASH_V94.state; if (S && S.confetti && S.confetti.length) window.__confettiSeenV94 = (window.__confettiSeenV94 || 0) + 1
       if (S && S.crossed) { const past = S.run.x - S.exitX; window.__pastGoalV94 = Math.round(Math.max(window.__pastGoalV94 || 0, past)); if (past > 60 && S.run.st === 'run') window.__ranThroughV94 = true }
       return { gone: !document.getElementById('splash'), crossed: !!(S && S.crossed) } }); gone = r.gone
     if (r.crossed && !tdShot) { tdShot = true; await page.screenshot({ path: '_splash_td.png' }) }
@@ -96,7 +99,9 @@ const canvasStats = () => {
   ok(final.castSeen >= 1, 'defenders came in from the angles', final.castSeen + ' entered')
   ok(final.ranThrough, 'he ran through the shot after crossing, no celebration', 'x past the goal line: ' + final.pastGoal)
   ok(goneAt >= 2600, 'the splash held its minimum', goneAt + 'ms')
-  ok(goneAt < 14000, 'the splash did not overstay', goneAt + 'ms')
+  // v150 B: 14s on a quiet machine; stretched by the load per core under contention (scripts/lib/load.mjs), since the
+  // splash leaves on app-ready AND the chase's beat, both of which wait for a core at load 30+
+  ok(goneAt < 14000 * LS, 'the splash did not overstay', goneAt + 'ms (< ' + Math.round(14000 * LS) + 'ms at load scale ' + LS + ')')
   ok(final.menu, 'the app is rendered behind it')
   console.log('page errors (normal):', errs.length ? errs.slice(0, 6).join('\n') : 'NONE'); if (errs.length) fail++
   await page.context().close()

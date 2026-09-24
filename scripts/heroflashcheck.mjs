@@ -53,7 +53,12 @@ for (const size of SIZES) {
   page.on('pageerror', e => errs.push(`${tag} PAGEERROR: ` + e.message))
   page.on('console', m => { if (m.type() === 'error') errs.push(`${tag} CONSOLE: ` + m.text().slice(0, 200)) })
   page.on('response', r => { if (r.status() >= 400) bad.push(`${tag} ` + r.status() + ' ' + r.url()) })
-  page.on('requestfailed', r => bad.push(`${tag} FAILED ` + r.url()) )
+  /* v150 B: a request the PAGE cancelled is not a broken asset. The warm-up goto below navigates away with the menu's
+   * lazy images, the coach's poses and the vault sheets still in flight, and page.close() does the same at the end, so
+   * 27-32 of them came back requestfailed as net::ERR_ABORTED on every run and were each added to `fail` with no
+   * assertion line. A missing file is still caught twice over — its 4xx `response` above, and any other network error
+   * (refused, reset, DNS) below. */
+  page.on('requestfailed', r => { const why = (r.failure() && r.failure().errorText) || ''; if (!/ERR_ABORTED/.test(why)) bad.push(`${tag} FAILED ${why} ` + r.url()) })
   await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
   await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1000)
   await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(2500)   // warm: vite's one-time reload after an edit
@@ -98,7 +103,11 @@ for (const size of SIZES) {
 
   console.log(`\n===== ${tag} =====`)
   if (!r.fx) { ok(false, 'the hero FX layer is running', 'no window.__RIB_MENU_FX_V102'); await page.close(); continue }
-  ok(r.on && r.frames > 60, 'the hero canvas loop is running', `${r.frames} frames`)
+  /* v150 B: "running" is the loop advancing, not a frame RATE: 60 frames in 6s is 10fps, and the menu draws at 4-5fps on
+   * a loaded headless box (AUDIT §0 #6) — 55 frames failed it once. Any frames, and more of them a moment later. */
+  let framesLater = r.frames
+  for (let i = 0; i < 30 && framesLater <= r.frames; i++) { await page.waitForTimeout(100); framesLater = await page.evaluate(() => (window.__RIB_MENU_FX_V102 || {}).frames || 0) }
+  ok(r.on && r.frames > 0 && framesLater > r.frames, 'the hero canvas loop is running', `${r.frames} -> ${framesLater} frames`)
   ok(!!r.box && r.box.w > 0 && r.box.h > 0, 'the FX layer knows where the photograph sits in its box', JSON.stringify(r.box && { x: +r.box.x.toFixed(1), y: +r.box.y.toFixed(1), w: +r.box.w.toFixed(1), h: +r.box.h.toFixed(1) }))
   ok(r.log.length >= 6, 'flashes are popping and logged in picture coordinates', `${r.log.length} spawns in ${RUN_MS} ms, ${r.skipped} skipped`)
 

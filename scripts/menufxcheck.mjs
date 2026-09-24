@@ -47,6 +47,8 @@ async function menuWithCareer(opts = {}) {
 {
   const { page, ctx, errs } = await menuWithCareer()
   const anim = (sel) => { const el = document.querySelector(sel); if (!el) return null; const s = getComputedStyle(el); return { name: s.animationName, dur: s.animationDuration } }
+  // v150 B: the arc starts at the template's --rib-ovr:0 and is applied after the assets land and two frames pass — wait for it
+  await page.waitForFunction(() => { const g = document.querySelector('#rib-main-menu-v2 .rib9-ring'); return g && parseFloat(g.style.getPropertyValue('--rib-ovr')) > 0 }, null, { timeout: 15000 }).catch(() => {})
   const r = await page.evaluate(() => {
     const M = document.getElementById('rib-main-menu-v2'), FX = window.__RIB_MENU_FX_V132 || null
     const tick = M.querySelector('.rib9-ticker-v132'), ul = tick && tick.querySelector('ul')
@@ -57,32 +59,46 @@ async function menuWithCareer(opts = {}) {
     const animOf = (sel, pseudo) => { const el = M.querySelector(sel); if (!el) return { sel, missing: true }; const s = getComputedStyle(el, pseudo || null); return { sel, name: s.animationName, dur: s.animationDuration } }
     const pcs = [animOf('.rib9-topbar', '::after'), animOf('.rib9-hero-grain-v132'), animOf('.rib9-hero-leak-v132'), animOf('.rib9-ring-spark-v132', '::before'), animOf('.rib9-ring-v132'), animOf('.rib9-dot.now', '::after'), animOf('.rib9-name'), animOf('.rib9-tile-hot img'), animOf('.rib9-ms-plate'), animOf('.rib9-ticker-v132 ul')]
     const ring = M.querySelector('.rib9-ring'), spark = M.querySelector('.rib9-ring-spark-v132')
-    const arc = ring && parseFloat(getComputedStyle(ring).getPropertyValue('--rib-ovr')), sparkDeg = spark && parseFloat(spark.style.getPropertyValue('--spark'))
+    /* v150 B: the arc is read from the INLINE target ringArcV147B wrote (and its gold lap `--rib-ovr2`), not from
+     * getComputedStyle: `--rib-ovr` is a registered property with a 1.1s transition, so the computed value is
+     * wherever the sweep happens to be (0 / .014 / .35 on the baseline runs) while the spark is already set to
+     * the head. v147 B made ringArcV147B the ONE place the head is decided — `head = k2 > 0 ? k2 : k` — so the
+     * spark must equal that head, and that head must equal what the function says for the feed's OVR/softMax. */
+    const arc = ring && parseFloat(ring.style.getPropertyValue('--rib-ovr')), arc2 = ring && (parseFloat(ring.style.getPropertyValue('--rib-ovr2')) || 0)
+    const sparkDeg = spark && parseFloat(spark.style.getPropertyValue('--spark'))
+    let want = null
+    try { const P = (window.__RIB_MENU_DATA_V89() || {}).player || {}; const sm = Number(P.softMaxOvr) || 0
+      want = window.__V147B.ringArc(null, Math.max(0, Number(P.ovr) || 0), sm > 0 ? sm : 250, false) } catch (e) {}
     const name = M.querySelector('.rib9-name'), ns = name && getComputedStyle(name)
     const coach = M.querySelector('.rib9-tile-coach'), sw = coach && coach.querySelector('.rib9-sw'), cr = coach && coach.getBoundingClientRect(), sr = sw && sw.getBoundingClientRect()
     const nav = M.querySelector('.rib9-nav'), first = nav && nav.firstElementChild, nr = nav && nav.getBoundingClientRect(), fr = first && first.getBoundingClientRect()
     return { fx: FX && { on: FX.on, frames: FX.frames, embers: FX.embers, sparks: FX.sparks, ticker: FX.ticker, reduced: FX.reduced }, tickerMoving: ul ? getComputedStyle(ul).animationName : null, tickerDur: ul ? getComputedStyle(ul).animationDuration : null,
       items: items.slice(0, items.length / 2), doubled: ul ? items.length : 0, ink, cvSize: cv ? [cv.width, cv.height] : null,
-      pieces: pcs, arc, sparkDeg, nameBg: ns && ns.backgroundColor, nameClip: ns && (ns.webkitBackgroundClip || ns.backgroundClip), nameColor: ns && ns.color,
+      pieces: pcs, arc, arc2, sparkDeg, wantDeg: want && want.headDeg, wantK: want && want.k, nameBg: ns && ns.backgroundColor, nameClip: ns && (ns.webkitBackgroundClip || ns.backgroundClip), nameColor: ns && ns.color,
       coachSwitchIn: !!(sr && cr && sr.left >= cr.left - 1 && sr.right <= cr.right + 1 && sr.width > 0), coachOverflow: coach && getComputedStyle(coach).overflow,
       navFirstIn: !!(fr && nr && fr.left >= nr.left - 1), tiles: M.querySelectorAll('.rib9-tile').length, navLinks: M.querySelectorAll('.rib9-navlink').length, imgs: M.querySelectorAll('img').length,
       broken: [...M.querySelectorAll('img')].filter(i => !i.complete || i.naturalWidth === 0).length }
   })
   console.log('v132:', JSON.stringify({ fx: r.fx, ink: r.ink, cv: r.cvSize, items: r.items }))
-  await page.waitForTimeout(500)
-  const later = await page.evaluate(() => window.__RIB_MENU_FX_V132.frames)
-  ok(r.fx && r.fx.on && r.fx.frames > 8 && later > r.fx.frames, 'the ember loop is running', r.fx && `${r.fx.frames} -> ${later} frames, ${r.fx.embers} embers, ${r.fx.sparks} sparks`)
+  /* v150 B: "running" means the counter keeps moving. The menu draws at 4-5 fps on a loaded headless box (AUDIT §0 #6), so
+   * a fixed 500ms window saw 1-2 frames and flaked; wait up to 4s for the counter to move past where it was. */
+  let later = r.fx ? r.fx.frames : 0
+  for (let i = 0; i < 40 && r.fx && later <= r.fx.frames; i++) { await page.waitForTimeout(100); later = await page.evaluate(() => window.__RIB_MENU_FX_V132.frames) }
+  ok(r.fx && r.fx.on && r.fx.frames >= 1 && later > r.fx.frames, 'the ember loop is running', r.fx && `${r.fx.frames} -> ${later} frames, ${r.fx.embers} embers, ${r.fx.sparks} sparks`)
   ok(r.ink > 20, 'and there is ink on the ambient canvas', `${r.ink} lit samples`)
   ok(r.fx && r.fx.ticker >= 6 && r.doubled === r.fx.ticker * 2, 'the ticker has the career\'s headlines, doubled for the loop', `${r.fx && r.fx.ticker} items`)
   ok(r.items.some(t => /PEE WEE|YEAR 1/.test(t)) && r.items.some(t => /NEXT UP/.test(t)) && r.items.some(t => /LAST WEEK/.test(t)), 'and they are built from the feed — the level, NEXT UP, last week', r.items.join(' | ').slice(0, 200))
   ok(r.tickerMoving === 'rib9ticker' && parseFloat(r.tickerDur) >= 26, 'the ticker is moving, at a pace set by its length', `${r.tickerMoving} ${r.tickerDur}`)
   const dead = r.pieces.filter(p => p.missing || !p.name || p.name === 'none')
   ok(dead.length === 0, 'every piece exists and animates — wire, grain, leak, spark, ring, ping, name, float, plate, ticker (v134: the page sweep and the card streak are gone on purpose)', dead.length ? JSON.stringify(dead) : `${r.pieces.length} pieces`)
-  ok(r.arc > 0 && Math.abs(r.sparkDeg - r.arc * 360) < 1, 'the OVR spark sits at the head of the arc', `arc ${r.arc} -> ${r.sparkDeg}deg`)
+  const headDeg = (r.arc2 > 0 ? r.arc2 : r.arc) * 360
+  ok(r.arc > 0 && Math.abs(r.sparkDeg - headDeg) < 1 && r.wantDeg != null && Math.abs(r.sparkDeg - r.wantDeg) < 1 && Math.abs(r.arc - r.wantK) < 1e-6, 'the OVR spark sits at the head of the arc', `arc ${r.arc}/${r.arc2} -> ${r.sparkDeg}deg (ringArcV147B says ${r.wantDeg != null ? r.wantDeg.toFixed(2) : '?'}deg)`)
   ok(/text/.test(r.nameClip || '') && r.nameBg && !/rgba\(0, 0, 0, 0\)/.test(r.nameBg), 'the name is clipped to its metal with the flat chalk under the band (never transparent letters)', `${r.nameClip} on ${r.nameBg}`)
   ok(r.coachSwitchIn && r.coachOverflow === 'visible', 'the coach tile keeps its switch on screen', `switch in tile=${r.coachSwitchIn} overflow=${r.coachOverflow}`)
   ok(r.navFirstIn, 'the nav\'s first link (HOME) is not clipped at a tablet width', String(r.navFirstIn))
-  ok(r.tiles === 8 && r.navLinks === 7 && r.broken === 0, 'v89\'s contract holds — eight tiles, seven links, every picture rendered', `${r.tiles} tiles ${r.navLinks} links ${r.imgs} imgs`)
+  // v150 B: nine tiles — v89's eight (CAREER, TRAINING, GOALS, HALL, LOCKER, SETTINGS, HOW TO PLAY, COACH'S TOUR since v119)
+  // plus v139's PRESTIGE door beside the coach (rib-menu.js `tilesNav`)
+  ok(r.tiles === 9 && r.navLinks === 7 && r.broken === 0, 'v89\'s contract holds — nine tiles (v139 PRESTIGE), seven links, every picture rendered', `${r.tiles} tiles ${r.navLinks} links ${r.imgs} imgs`)
   // parallax: cross the hero with the pointer
   const hero = await page.locator('#rib-main-menu-v2 .rib9-hero').boundingBox()
   await page.mouse.move(hero.x + hero.width * 0.1, hero.y + hero.height * 0.2); await page.waitForTimeout(80)

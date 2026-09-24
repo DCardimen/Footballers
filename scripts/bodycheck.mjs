@@ -70,20 +70,26 @@ const led = await page.evaluate(() => {
   const snap = () => { const L = B.ledger(pl); return { net: +L.net.toFixed(2), mult: L.mult, risk: +L.risk.toFixed(4),
     riskUp: +L.riskUp.toFixed(4), verdict: L.verdict, sit: L.sit, missNext: +L.missNext.toFixed(3), rows: L.rows.length } }
   set(8, null); const fresh = snap()
-  set(50, null); const mid = snap()
+  /* v150 B: "ordinary" is inside v120's flat band — fresh at <=25 (freshFatigue), nothing from there to fatSlopeFrom
+   * (40), then the slope. Fatigue 50 is ON the slope since v120 (x0.967 -> -1.93, correctly NET NEGATIVE), so the
+   * neutral reading is taken at 35; 50 must still sit between neutral and worn. */
+  set(35, null); const mid = snap()
+  set(50, null); const slope = snap()
   set(88, null); const worn = snap()
   set(20, { name: 'High ankle sprain', severity: 2, weeksRemaining: 2, recurrence: .1 }); const hurt = snap()
   // and the multipliers the ledger quotes have to be the ones the game plays with
   set(8, null); const cFresh = c(pl)
   set(88, null); const cWorn = c(pl)
   set(30, null)
-  return { fresh, mid, worn, hurt, cFresh, cWorn }
+  return { fresh, mid, slope, worn, hurt, cFresh, cWorn }
 })
 console.log('ledger:', JSON.stringify(led))
 ok(led.fresh.net > 0.8 && led.fresh.verdict === 'NET POSITIVE',
   'a fresh body reads NET POSITIVE, with a number', led.fresh.net + ' (' + led.fresh.verdict + ')')
 ok(Math.abs(led.mid.net) < 0.8 && led.mid.verdict === 'NEUTRAL',
   'an ordinary body reads neutral', led.mid.net + ' (' + led.mid.verdict + ')')
+ok(led.slope.net < led.mid.net && led.slope.net > led.worn.net,
+  'past 40 the slope starts: fatigue 50 sits between neutral and worn (v120)', `${led.mid.net} > ${led.slope.net} > ${led.worn.net}`)
 ok(led.worn.net < -0.8 && led.worn.verdict === 'NET NEGATIVE',
   'a worn body reads NET NEGATIVE', led.worn.net + ' (' + led.worn.verdict + ')')
 ok(led.fresh.mult === led.cFresh && led.worn.mult === led.cWorn,

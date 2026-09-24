@@ -135,7 +135,9 @@ ok(g2.gen === 2 && g2.ordinal === '2nd' && g2.surname === g1.surname && g2.name.
 ok(g2.rolls.every(n => n.endsWith(' ' + g1.surname)) && g2.rolls.some(n => n !== g2.name), 'the name dice keep the surname', g2.rolls.join(', '))
 await ev(() => window.__RIB_COACH.open('persona', { by: 'check' })); await page.waitForTimeout(800)
 const coach = await ev(() => ({ open: !!document.getElementById('rib-coach-v119'), stop: window.__RIB_COACH.stop, first: (document.querySelector('#rib-coach-v119 [data-c-text]') || {}).textContent || '' }))
-await page.waitForTimeout(2500)
+// v150 B: the line TYPES out (TYPE_MS a letter), so wait for it on the page — the old man named and the line finished — for
+// up to 20s, not a fixed 2.5s that a loaded box could not type the sentence inside
+await page.waitForFunction(() => { const t = (document.querySelector('#rib-coach-v119 [data-c-text]') || {}).textContent || ''; return /old man/.test(t) && /(cut|Learn|proud|top it)/i.test(t) }, null, { timeout: 20000 }).catch(() => null)
 const coachTxt = await ev(() => (document.querySelector('#rib-coach-v119 [data-c-text]') || {}).textContent || '')
 ok(coach.open && coach.stop === 'persona' && new RegExp("^You're a " + g1.surname).test(coachTxt) && /old man/.test(coachTxt) && /(cut|Learn|proud|top it)/i.test(coachTxt), "the coach's persona stop opens on the father: which league the old man made and what to do about it", coachTxt.slice(0, 120))
 await ev(() => window.__RIB_COACH.close())

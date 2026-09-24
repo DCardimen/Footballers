@@ -189,6 +189,15 @@ async function dismissModals() {
     if (gone && i > 1) break
   }
 }
+/* v150 B: since v112 D the pregame is a wizard and the matchup chips live on its SCOUT page (page 3, "THE SCOUT & THE
+ * PLAN"); on page 1 they exist but sit in a display:none page, so they measured 0x0. Walk the wizard forward (the
+ * wizard's own NEXT, which takes the defaults) until the chips are on screen, then measure them. */
+for (let i = 0; i < 6; i++) {
+  const shown = await page.evaluate(() => { const c = document.querySelector('.pregame-emblem-v44'); return !!(c && c.getBoundingClientRect().width > 0) })
+  if (shown) break
+  const moved = await page.evaluate(() => { const b = document.getElementById('v112Next'); if (b && !b.disabled) { b.click(); return true } return false })
+  await page.waitForTimeout(moved ? 700 : 300)
+}
 const pregame = await page.evaluate((geoSrc) => {
   const geo = eval(geoSrc)
   const chips = [...document.querySelectorAll('.pregame-emblem-v44')]
@@ -201,6 +210,12 @@ await page.evaluate(() => { [...document.querySelectorAll('body > div')].filter(
 await page.screenshot({ path: 'scripts/_emblem_pregame.png' })
 await page.evaluate(() => { [...document.querySelectorAll('body > div')].forEach(d => { if (d.style.visibility === 'hidden') d.style.visibility = '' }) })
 
+// v150 B: finish the wizard through its own NEXT (the last page's NEXT is CONTINUE TO MATCH; the plan page waits for its roll)
+for (let i = 0; i < 30; i++) {
+  const st = await page.evaluate(() => { if (!document.getElementById('pregameV1513')) return 'gone'; const b = document.getElementById('v112Next'); if (b && !b.disabled) { b.click(); return 'next' } return 'wait' })
+  if (st === 'gone') break
+  await page.waitForTimeout(700)
+}
 await click('CONTINUE TO MATCH')
 for (let i = 0; i < 20; i++) { const c = await page.evaluate(() => document.querySelectorAll('canvas').length); if (c) break; await page.waitForTimeout(300) }
 await page.waitForTimeout(2500)   // let a snap or two run so warpField() bakes the crest in

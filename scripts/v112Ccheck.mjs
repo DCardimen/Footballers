@@ -131,19 +131,23 @@ ok(grow.rows[grow.rows.length - 1].h === grow.proj.height && grow.rows[grow.rows
 /* ---------- 4. no penalty on a first-ever character ---------- */
 ok((await page.evaluate(() => window.__V112_C.mul())) === 1, 'a first career carries no penalty')
 /* the neutrality argument, made exactly rather than statistically: with no penalty the reroll
- * factor is the number 1, so condMultV54 returns one of its three original constants unchanged —
- * and condMultV54 is the ONLY thing v112 (C) touches that the live engine can reach. */
+ * factor is the number 1, so condMultV54 returns the bare fatigue multiplier unchanged —
+ * and condMultV54 is the ONLY thing v112 (C) touches that the live engine can reach.
+ * v150 B: the "three original constants" (1 / 0.90 / 1.05) were the pre-v120 step. v120 (FATIGUE IS A SLOPE)
+ * replaced the step with fatigueMulV120, so at 50 / 90 / 5 the body reads 0.967 / 0.833 / 1.05 — the neutral
+ * multiplier is now whatever fatigueMulV120 says, and condMultV54 must be bit-identical to it. */
 const neutral = await page.evaluate(() => {
   const p = window.S.player, c = p.conditionV11 || (p.conditionV11 = { fatigue: 20 }), keep = { ...c }
   const out = {}
-  c.injury = null; c.fatigue = 50; out.mid = window.__condMultV54(p)
-  c.fatigue = 90; out.worn = window.__condMultV54(p)
-  c.fatigue = 5; out.fresh = window.__condMultV54(p)
+  c.injury = null; c.fatigue = 50; out.mid = window.__condMultV54(p); out.fMid = window.__fatigueMulV120(50, null)
+  c.fatigue = 90; out.worn = window.__condMultV54(p); out.fWorn = window.__fatigueMulV120(90, null)
+  c.fatigue = 5; out.fresh = window.__condMultV54(p); out.fFresh = window.__fatigueMulV120(5, null)
   Object.assign(c, keep)
   return { ...out, factor: window.__V112_C.mul() }
 })
-ok(neutral.factor === 1 && neutral.mid === 1 && neutral.worn === 0.9 && neutral.fresh === 1.05,
-  'with no penalty condMultV54 is bit-identical to its pre-v112 constants (1 / 0.90 / 1.05)', neutral)
+ok(neutral.factor === 1 && neutral.mid === neutral.fMid && neutral.worn === neutral.fWorn && neutral.fresh === neutral.fFresh
+  && neutral.fresh === 1.05 && neutral.mid < 1 && neutral.worn < neutral.mid,
+  'with no penalty condMultV54 is bit-identical to the bare fatigue multiplier (v120 fatigueMulV120)', neutral)
 ok((await page.evaluate(() => window.__V112_C.eff().mult)) === (await page.evaluate(() => window.__condMultV54(window.S.player))),
   'the sheet and the sim read the SAME multiplier')
 

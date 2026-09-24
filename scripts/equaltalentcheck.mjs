@@ -99,6 +99,12 @@ const results = await page.evaluate(gameCount => {
       level: 7,
       pos,
       name: 'Benchmark Player',
+      /* v150 B: since v120 (THE COACH DECIDES YOUR SNAPS) NORMAL is the share the coach trusts you with — a man with
+       * no coachTrust reads 50, plays ~65% of the snaps and a backup at 0.92 of his ratings (v111 `_sub111`) takes the
+       * rest. The roster is then no longer a mirror whenever the last snap was a rest snap, and the featured player is
+       * missing from it (ovr 0 in the average). This benchmark measures two equal teams with the featured man on the
+       * field, so he is a trusted starter: every snap is his, and no substitution is ever made. */
+      coachTrust: 100,
       // ~93 OVR on the game's nonlinear rating curve: level-7 teammates are in
       // the same band, so featured-player usage is neither a hidden buff nor tax.
       attrs: Object.fromEntries(attrNames.map(name => [name, 215]))

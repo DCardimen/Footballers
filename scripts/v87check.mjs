@@ -10,6 +10,7 @@
 //   node scripts/v87check.mjs   (V87_GAMES=14, V87_LIVE_MS=30000)
 import { chromium } from 'playwright'
 import { CHROME, GAME_URL } from './lib/env.mjs'
+import { waitLive } from './lib/live.mjs'
 const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0 }) })   // v144: this check reads night-time pixels — pin the sky and the weather
@@ -103,7 +104,7 @@ for (let i = 0; i < 30; i++) {
   await page.waitForTimeout(700)
 }
 let scene = false
-for (let i = 0; i < 40; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(400) }
+scene = await waitLive(page)   // v150 B: on game state, up to 90s (scripts/lib/live.mjs) — the fixed poll cascaded under --jobs 3-4
 console.log('scene:', scene)
 const LIVE = +(process.env.V87_LIVE_MS || 30000); const t0 = Date.now(); let hudFrames = 0, ringTight = 0, samples = 0
 while (Date.now() - t0 < LIVE) {
