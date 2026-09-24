@@ -14,10 +14,11 @@
 //   node scripts/v147Ccheck.mjs        (GAME_URL=… to point it elsewhere)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const url = process.env.GAME_URL || 'http://localhost:5173/index.html'
+import { CHROME, gameUrl } from './lib/env.mjs'
+const url = gameUrl('index.html')
 const OUT = process.env.SHOT_DIR || '/tmp/claude-0/shots'
 fs.mkdirSync(OUT, { recursive: true })
-const browser = await chromium.launch({ executablePath: fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 400, height: 860 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

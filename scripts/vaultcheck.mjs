@@ -13,8 +13,9 @@
 //   npm run dev, then: node scripts/vaultcheck.mjs
 //   GAMES/… none. VAULT_SLOW=1 keeps the browser open on failure.
 import { chromium } from 'playwright'
+import { CHROME, gameUrl } from './lib/env.mjs'
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
 // Page errors are thrown exceptions. Console errors are noisier — a deliberately aborted
 // request logs "Failed to load resource", which is the thing the missing-sheet case is
@@ -29,7 +30,7 @@ page.on('console', m => { if (m.type() !== 'error') return
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + JSON.stringify(d) : '')); c ? pass++ : fail++ }
 
-async function boot (url = 'http://localhost:5173/?stayStale&noFilmV114') {
+async function boot (url = gameUrl('?stayStale&noFilmV114')) {
   await page.goto(url, { waitUntil: 'networkidle', timeout: 45000 })
   await page.waitForTimeout(1800)
   await page.evaluate(() => { try { window.__splashDoneV94 && window.__splashDoneV94() } catch (e) {} })

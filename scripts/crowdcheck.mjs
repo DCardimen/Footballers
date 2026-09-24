@@ -12,8 +12,9 @@
 //   - tiers differ, and the level actually picks one
 // Screenshots the field with the crowd idle and mid-roar.
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0 }) })   // v144: this check reads night-time pixels — pin the sky and the weather
 const errs = []
@@ -22,7 +23,7 @@ page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.te
 await page.addInitScript(() => {
   setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60)
 })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 20000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 20000 })
 await page.waitForTimeout(1000)
 
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
@@ -581,7 +582,7 @@ const fb = await (async () => {
     Object.defineProperty(window, '__RIB_CROWD_V57', { get: () => 'data:image/png;base64,AAAA', set: () => {} })
     setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60)
   })
-  await p2.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 20000 })
+  await p2.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 20000 })
   await p2.waitForTimeout(1200)
   for (const t of ['START NEW CAREER', 'ARCH', 'QB Quarterback', 'Lock In Personality', 'PLAY 8-GAME SEASON',
     'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'CONTINUE TO MATCH', 'Continue']) {

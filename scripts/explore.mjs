@@ -1,6 +1,7 @@
 import { chromium } from 'playwright'
-const url = 'http://localhost:5173/'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const url = GAME_URL
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

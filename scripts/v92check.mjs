@@ -8,7 +8,8 @@
 //   node scripts/v92check.mjs        (READ_POS=RB, V92_MS=40000, V92_SHOTS=1)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const errs = []
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
@@ -18,7 +19,7 @@ async function newPage() {
 await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0 }) })   // v144: this check reads night-time pixels — pin the sky and the weather
   page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message)); page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
   await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-  await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
+  await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
   return page
 }
 async function step(page, t) { const r = await page.evaluate(({ t, visSrc }) => { const vis = eval(visSrc); const els = [...document.querySelectorAll('button,[onclick],a,[role=button]')].filter(vis); const txt = e => (e.innerText || e.textContent || '').replace(/\s+/g, ' ').trim()
@@ -117,7 +118,7 @@ await page.close()
 const p2 = await browser.newPage({ viewport: { width: 430, height: 932 } })
 p2.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 await p2.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await p2.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 25000 }); await p2.waitForTimeout(1200)
+await p2.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 25000 }); await p2.waitForTimeout(1200)
 await p2.evaluate(p => { window.__readPos = p }, process.env.READ_POS || 'RB')
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING']) await step(p2, t)
 await p2.evaluate(async () => { document.getElementById('growthV42')?.remove(); window.go('season'); window.simRemainingWeeks(); await new Promise(r => setTimeout(r, 1500)) })

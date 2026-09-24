@@ -9,13 +9,14 @@
 // Usage: npm run dev, then node scripts/v142check.mjs   (GAME_URL to point elsewhere)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
+import { GAME_URL } from './lib/env.mjs'
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage({ viewport: { width: 420, height: 880 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 120) })
-const APP_URL = process.env.GAME_URL || 'http://localhost:5173/'
+const APP_URL = GAME_URL
 await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1500)
 await page.waitForFunction(() => typeof window.__V142 === 'object' && window.__V142, null, { timeout: 60000 })
 

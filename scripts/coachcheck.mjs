@@ -22,14 +22,15 @@
 //   node scripts/coachcheck.mjs      (GAME_URL, SHOTS=/tmp/coach writes screenshots, READ_POS=RB)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const url = process.env.GAME_URL || 'http://127.0.0.1:5173/index.html'
+import { CHROME, gameUrl } from './lib/env.mjs'
+const url = gameUrl('index.html')
 // v106.1 reloads the page once when the baked build stamp has moved on. That is correct in a
 // browser and fatal in a check — a rebake between runs destroys the execution context mid-walk —
 // so every boot here pins `?stayStale`; freshcheck.mjs is what proves the reload itself.
 const U = (...q) => url + (url.includes('?') ? '&' : '?') + ['stayStale'].concat(q).join('&')
 const shots = process.env.SHOTS || ''
 const POS = process.env.READ_POS || 'RB'
-const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined) })
+const browser = await chromium.launch({ headless: true, executablePath: CHROME })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const errors = []

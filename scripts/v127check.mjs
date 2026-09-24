@@ -17,11 +17,12 @@
 //   v132: the standby `__V114.warm()` builds when the splash leaves with nothing parked is emptied too,
 //   so this still exercises the build-it-yourself path.
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
-const URL = process.env.SPLASH_URL || 'http://localhost:5173/'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const URL = process.env.SPLASH_URL || GAME_URL
+const browser = await chromium.launch({ executablePath: CHROME })
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 
 const loader = () => { const el = document.querySelector('.rib-liveload-v94'); if (!el) return null

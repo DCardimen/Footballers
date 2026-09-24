@@ -2,9 +2,10 @@
 // Asserts: no JS errors, the board screen renders seeded rows, tabs switch,
 // a Score Attack run submits and appears on the board, and the name persists.
 import { chromium } from 'playwright';
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const BROWSER = process.env.PLAYWRIGHT_CHROMIUM || '/opt/pw-browsers/chromium';
-const URL = process.env.URL || 'http://localhost:5173/';
+const BROWSER = CHROME;
+const URL = process.env.URL || GAME_URL;
 
 const browser = await chromium.launch({ executablePath: BROWSER });
 const page = await browser.newPage({ viewport: { width: 430, height: 900 } });

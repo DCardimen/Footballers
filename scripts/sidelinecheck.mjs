@@ -11,13 +11,14 @@
 //   - a blocked sheet leaves the bare apron v57 shipped, with no page errors
 // node scripts/sidelinecheck.mjs   (needs `npm run dev` on :5173)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
 const fails = []
 const ok = (c, label, detail) => { console.log(`${c ? 'ok  ' : 'FAIL'} ${label}${detail ? '  ' + detail : ''}`); if (!c) fails.push(label) }
-const URL = process.env.SIDE_URL || 'http://localhost:5173/'
+const URL = process.env.SIDE_URL || GAME_URL
 
 async function drive(block) {
-  const b = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM || '/opt/pw-browsers/chromium' })
+  const b = await chromium.launch({ executablePath: CHROME })
   const page = await b.newPage({ viewport: { width: 520, height: 900 } })
   const errs = []
   page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

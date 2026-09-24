@@ -5,10 +5,11 @@ import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { CHROME } from './lib/env.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const svg = readFileSync(join(ROOT, 'public', 'icon.svg'), 'utf8');
-const BROWSER = process.env.PLAYWRIGHT_CHROMIUM || '/opt/pw-browsers/chromium';
+const BROWSER = CHROME;
 
 // [filename, pixel size, pad fraction] — maskable variants get transparent-safe padding baked by the SVG safe zone.
 const TARGETS = [

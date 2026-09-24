@@ -18,10 +18,11 @@
 //
 //   node scripts/v146Echeck.mjs            (GAME_URL=http://localhost:5305/ for another port)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 const W = +(process.env.CHECK_W || 400), H = +(process.env.CHECK_H || 860)
-const base = process.env.GAME_URL || 'http://localhost:5173/'
+const base = GAME_URL
 const url = base + (base.includes('?') ? '&' : '?') + 'stayStale'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + (typeof d === 'string' ? d : JSON.stringify(d)) : '')); c ? pass++ : fail++ }
 const ctx = await browser.newContext({ viewport: { width: W, height: H } })

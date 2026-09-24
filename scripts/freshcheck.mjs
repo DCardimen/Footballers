@@ -14,6 +14,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
+import { CHROME } from './lib/env.mjs'
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 
@@ -35,7 +36,7 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': TYPES[path.extname(p)] || 'application/octet-stream', 'cache-control': 'max-age=600' }); res.end(body)
 })
 await new Promise(r => server.listen(0, '127.0.0.1', r)); const URL_ = `http://127.0.0.1:${server.address().port}/`
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 
 async function visit(label, { version, stripMeta = false, query = '' }) {
   served.version = version; served.stripMeta = stripMeta; served.hits = {}

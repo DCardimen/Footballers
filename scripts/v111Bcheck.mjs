@@ -26,8 +26,9 @@
 //   so scraping alone would have gone on passing even if a control had been hidden by accident.
 //   node scripts/v111Bcheck.mjs        (GAME_URL, POS=RB, SHOT=path.png)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
+const URL = GAME_URL
 const POS = process.env.POS || 'RB'
 const SHOT = process.env.SHOT || 'scripts/_v111B.png'
 const POS_LABEL = { QB: 'QB Quarterback', RB: 'RB Running Back', WR: 'WR Wide Receiver', TE: 'TE Tight End', OL: 'OL Offensive Line', DL: 'DL Defensive Line', LB: 'LB Linebacker', CB: 'CB Cornerback', S: 'S Safety' }[POS] || POS
@@ -36,7 +37,7 @@ let pass = 0, fail = 0
 const errs = []
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 // 400px wide on purpose: this game is played on a phone, so the check never sees a desktop layout
 const page = await browser.newPage({ viewport: { width: 400, height: 1100 } })
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

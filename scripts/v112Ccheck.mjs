@@ -11,10 +11,11 @@
 //   * a career that ENDED naturally (_settled) is not an abandonment and is never charged
 // Usage: a static server on the port below, then: GAME_URL=http://localhost:5203/index.html node scripts/v112Ccheck.mjs
 import { chromium } from 'playwright'
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const URL = GAME_URL
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + JSON.stringify(d) : '')); c ? pass++ : fail++ }
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 400, height: 860 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

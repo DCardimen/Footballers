@@ -19,8 +19,9 @@
 //   node scripts/bootviewcheck.mjs
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const url = process.env.GAME_URL || 'http://localhost:5173/index.html'
-const browser = await chromium.launch({ executablePath: fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined })
+import { CHROME, gameUrl } from './lib/env.mjs'
+const url = gameUrl('index.html')
+const browser = await chromium.launch({ executablePath: CHROME })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const U = (q) => url + (url.includes('?') ? '&' : '?') + 'stayStale' + (q || '')

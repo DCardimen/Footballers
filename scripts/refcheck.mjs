@@ -7,8 +7,9 @@
 //     flag / first-down sequences each reach a real texture
 //   - screenshots the canvas, plus zoomed crops of one official mid-pose
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
@@ -16,7 +17,7 @@ page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.te
 await page.addInitScript(() => {
   setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60)
 })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 20000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 20000 })
 await page.waitForTimeout(1000)
 
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
@@ -284,7 +285,7 @@ const fb = await (async () => {
     Object.defineProperty(window, '__RIB_REFS_V49', { get: () => 'data:image/png;base64,AAAA', set: () => {} })
     setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60)
   })
-  await p2.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 20000 })
+  await p2.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 20000 })
   await p2.waitForTimeout(1200)
   for (const t of ['START NEW CAREER', 'ARCH', 'QB Quarterback', 'Lock In Personality', 'PLAY 8-GAME SEASON',
     'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'CONTINUE TO MATCH']) {

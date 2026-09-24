@@ -12,15 +12,16 @@
 //      were blurred into one blend, weighted 58% awareness even for the reaction.
 // node scripts/reactioncheck.mjs   (needs `npm run dev` on :5173)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
 const fails = []
 const ok = (c, label, detail) => { console.log(`${c ? 'ok  ' : 'FAIL'} ${label}${detail ? '  ' + detail : ''}`); if (!c) fails.push(label) }
 
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const b = await chromium.launch({ executablePath: CHROME })
 const page = await b.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
-await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded', timeout: 30000 })
+await page.goto(GAME_URL, { waitUntil: 'domcontentloaded', timeout: 30000 })
 await page.waitForTimeout(3000)
 await page.waitForFunction(() => !!window.buildPlayScript && !!window.__simGameV2, { timeout: 20000 })
 
