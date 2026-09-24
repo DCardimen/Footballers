@@ -55,6 +55,21 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v148 — the lines hold to the goal line.** Near the end zone being attacked the field was squashed top to
+  bottom: the row density (`VB` — canvas rows per unit of ground) was re-capped every snap so the WHOLE field
+  fit the 2800-row warp canvas measured from the anchor, and the anchor rides the LOS, so the further the drive
+  got the lower it went — 6.91 at the own 20, 4.72 at midfield, 2.68 on the goal line at the shipped depth.
+  Widths never read it, so at the goal line the ground at the LOS was 39% as tall as it was wide: yard lines,
+  hashes and numbers crowded under full-size players and the end zone came out a third of its depth, and every
+  zoom (the v145 follow cams most of all, which ride up to 4.6× on exactly that stretch) blew the squash up to
+  fill the frame. The density is now ONE number for the drive — the one the field has with the anchor at the
+  own 25 (`rowRefYdV148`), which is the ideal isotropic density at the shipped depth — and the canvas is paid
+  for by ground nobody can see: past `rowKeepYdV148` (25) yards behind the backfield the ground recedes like a
+  pinhole looking the other way (rows and widths together, `L` in closed form so the near end line lands on the
+  old budget row). The far end line still sits on `NSTOP`; turf, sprites, stands and the LOS / first-down
+  overlays all read the same `s` and `C`. `window.__V148`; `TU("v148", 0)` restores the per-snap cap.
+  `scripts/v148check.mjs` (99 assertions; 8–10 fail with the kill switch — the drive-long density, the aspect, the goal-to-5 depth, and the squashed 10-yard line wobbling across the frame).
+
 - **v147 — the league is the UFF, and nine fixes from the phone.**
   **The UFF.** The league is the United Football Federation now — every string a player reads (the game,
   the menu, the guide, the coach) says UFF; code names keep their old spelling (`DFL_V123`,

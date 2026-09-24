@@ -86,6 +86,16 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   against better carriers; the worst-angle bucket is full of easy chase-downs) will invert a naive
   reading. Kill switch `TU("v143", 0)` restores the old engine including the unspent roll.
   `window.__V143`; `v143check.mjs`, then `scoreneutralcheck.mjs` (several seeds), `tacklecheck.mjs`
+- `v148 THE LINES HOLD TO THE GOAL LINE` (in `buildPersp`, after the v112 cap) — `PERSP.VB` is ONE row density for
+  the whole drive: the one the field has with the anchor at the own 25 (`rowRefYdV148`), never re-capped per snap
+  (the old cap, `VB0`, fell 2.6× as the LOS neared the attacked goal and squashed everything near the end zone —
+  widths never read VB). The canvas budget is paid behind the backfield instead: past `rowKeepYdV148` (25 yds)
+  behind the clamp point `s` and the row density taper together as a reversed pinhole, `s = kMax/(1+(uk−u)/L)`,
+  `L` in closed form (`rowKeepShareV148` caps the full-density share). `PERSP.s`/`PERSP.C` ARE the tapered curves,
+  so PJ, the warp, the stands and the overlays follow for free; `PERSP.d0` is the density at u=0 (the warp's
+  near-edge continuation and `crowdC` past the near end read it). **Measure the density with PJ at the LOS, not
+  a screen spacing** — the anchor's flat region and the pinhole ahead make raw spacings anchor-dependent.
+  Kill switch `TU("v148", 0)`. `window.__V148`; `v148check.mjs`
 - `v147 A THE CAREER RUNS TO THE END, AND ENDS WHEN YOU SAY` (before `window.__prestigeNodesV137`, plus guards in
   `v135MountD` / `rivalPageV136`) — retiring: `qs` allows it at any age from level 7 (`retireAnyTimeV147`);
   `retireNowV147` → `Md`; chips in the hub dock, the life dock (an `St` wrapper) and the club dock (`postV147`).
@@ -813,6 +823,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 
 | You changed… | Run |
 |---|---|
+| the row density / the squash near the end zone, the far-behind taper, what the paint and the overlays register to near either goal line (v148) | `v148check.mjs` (also `KILL=1` to see the old failures), then `v144check.mjs`, `v112Bcheck.mjs`, `v93check.mjs`, `v99check.mjs`, `v92check.mjs`, `v145check.mjs`, `v112Echeck.mjs`, `v86check.mjs`, `sidelinecheck.mjs`, `renderpathcheck.mjs` |
 | retiring above college, Sim the Rest of the Season at 7+, stale offers, auto-answered story decisions in the UFF/Interstellar (v147 A) | `v147Acheck.mjs`, then `v146Bcheck.mjs`, `rivalcheck.mjs`, `v90check.mjs`, `v85check.mjs`, `v136check.mjs`, `declarecheck.mjs`, `v88check.mjs`, `bootviewcheck.mjs`, `v146Echeck.mjs`, `walk.mjs` |
 | the menu's prestige coin, the OVR ring's arc and spark, the milestones trophy (v147 B) | `node scripts/build-uff-trophy.mjs` (if the trophy art changed), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs`, then `v147Bcheck.mjs`, `menu-integration-check.mjs`, `menufxcheck.mjs`, `heroflashcheck.mjs`, `sheencheck.mjs`, `honorcheck.mjs`, `freshcheck.mjs`, `menu-mask-check.mjs`, `menushot.mjs` (`CAREER=1`) |
 | gear — the rolled modifiers, the catalogue, the migration, the locker's compare/totals (v147 C) | `v147Ccheck.mjs`, then `bootviewcheck.mjs`, `v85check.mjs`, `creditcheck.mjs`, `statcreditcheck.mjs`, `injurycheck.mjs`, `v146Echeck.mjs`, `v146Dcheck.mjs`, `walk.mjs`, `menu-integration-check.mjs` |

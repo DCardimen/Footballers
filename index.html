@@ -6358,8 +6358,54 @@ function buildPersp() {
   const total = C(FW);
   // ideal row density keeps the LOS yard spacing of the flat view; cap it so the whole
   // projected field always fits inside the WORLD_H warp canvas
-  const VB = Math.min(2 * PERSP_OA / (sN * sN), (WORLD_H - NSTOP - 10) / Math.max(1, mkC(PERSP_BACKMAX)(FW)));
-  PERSP = { s, C, total, sN, VB, kMax };
+  const VB0 = Math.min(2 * PERSP_OA / (sN * sN), (WORLD_H - NSTOP - 10) / Math.max(1, mkC(PERSP_BACKMAX)(FW)));
+  /* ===== v148 THE LINES HOLD TO THE GOAL LINE =====
+   * VB is the row density — how many canvas rows a unit of ground gets — and the line above made
+   * it pay for the WHOLE field fitting in the WORLD_H canvas, measured from wherever the anchor
+   * happened to be. The anchor rides the LOS, so the further the drive got the more field lay
+   * behind it and the lower VB went: 6.91 at the own 20, 4.72 at midfield, 2.68 on the goal line
+   * at the shipped depth. Widths never read VB, so the ground was squashed top to bottom and
+   * nowhere else — at the LOS row the picture is isotropic (17 px a yard both ways) on the own
+   * 20 and 39% as tall as it is wide on the goal line. Every yard line, hash and number near the
+   * attacking end zone crowded together under full-size players, and the end zone itself came
+   * out a third of its depth; any zoom (the follow cams most of all, which ride up to 4.6x on
+   * exactly that stretch) blew the squash up to fill the frame.
+   * The density is now ONE number for the whole drive: the one the field has with the anchor
+   * where a drive starts (`rowRefYdV148`, the own 25 — the ideal at the shipped depth, and
+   * still the budget's cap at a depth where the budget binds even there). It no longer depends
+   * on where the ball is. What pays for the canvas instead is ground nobody can see: everything
+   * within `rowKeepYdV148` yards behind the clamp point keeps its full density, and past that
+   * the ground recedes the way it recedes ahead of the anchor — a pinhole looking the other way,
+   * s = kMax / (1 + (uk − u)/L), rows ∝ s², with `L` solved in closed form so the near end line
+   * lands on the old budget row. Rows AND widths taper together, so a yard there is still a
+   * square yard and a man there shrinks with the ground under him (it is only ever on screen
+   * for a long return the wrong way). The far end line still sits on NSTOP, and the sprites,
+   * stands and turf all read this same s and C, so they move together. `TU("v148", 0)` is the
+   * old per-snap cap exactly. */
+  let VB = VB0, Cf = C, sf = s, d0 = kMax * kMax, taper = null;
+  if (TU("v148", 1) && q > 0) {
+    const AUr = PLAY_L + Math.max(0, Math.min(100, TU("rowRefYdV148", 25))) / 100 * PLAY_W - PERSP_AB;
+    const qr = (u) => { const uc = AUr - (1 - 1 / PERSP_BACKMAX) / q; let c = PERSP_BACKMAX * PERSP_BACKMAX * Math.max(0, Math.min(u, uc));
+      const lo = Math.max(0, uc); if (u > lo) { const G = (t) => -1 / (q * (1 + q * (t - AUr))); c += G(u) - G(lo); } return c; };
+    VB = Math.min(2 * PERSP_OA / (sN * sN), (WORLD_H - NSTOP - 10) / Math.max(1, qr(FW)));   // the drive-start density, not this snap's
+    const room = (WORLD_H - NSTOP - 10) / VB, km2 = kMax * kMax;
+    const uc = Math.max(0, Math.min(FW, AU - (1 - 1 / kMax) / q)), head = C(FW) - C(uc);
+    if (C(FW) > room) {
+      const avail = room - head;
+      const keep = Math.min(uc, Math.max(0, TU("rowKeepYdV148", 25)) * PLAY_W / 100, Math.max(0, avail) * TU("rowKeepShareV148", 0.85) / km2);
+      const uk = uc - keep, need = avail - km2 * keep;
+      // ∫0..uk km²/(1 + (uk − t)/L)² dt = km²·L·uk/(L + uk): solve it for L
+      if (uk > 0 && need > 0 && km2 * uk > need) {
+        const L = (need / km2) * uk / (uk - need / km2), Ck = km2 * L * uk / (L + uk), Cuk = C(uk);
+        Cf = (u) => u >= uk ? Ck + C(u) - Cuk : Ck - km2 * L * (uk - Math.max(0, u)) / (L + uk - Math.max(0, u));
+        sf = (u) => u >= uk ? s(u) : kMax / (1 + (uk - u) / L);
+        d0 = sf(0) * sf(0); taper = { uk: +uk.toFixed(1), L: +L.toFixed(1), keep: +keep.toFixed(1), s0: +sf(0).toFixed(3) };
+      } else VB = VB0;                                // the ground ahead alone will not fit: the old cap, as before
+    }
+  }
+  const total148 = Cf(FW);
+  PERSP = { s: sf, C: Cf, total: total148, sN, VB, kMax, d0, VB0, taper };
+  try { window.__V148 = Object.assign(window.__V148 || {}, { VB: +VB.toFixed(3), VB0: +VB0.toFixed(3), ideal: +(2 * PERSP_OA / (sN * sN)).toFixed(3), sN: +sN.toFixed(4), AU: +AU.toFixed(1), taper, lastRow: +(NSTOP + VB * total148).toFixed(1) }); } catch (e) {}
 }
 function perspK(x) {
   // carrier-lock helper: the pure perspective ratio at sim-x (1 at the LOS row)
@@ -11964,7 +12010,7 @@ class Ot extends mt.Scene {
     // region, where s is already pinned at PERSP_BACKMAX and the integral really is
     // linear. Without this the near end-zone stand is drawn ON the goal line.
     const P = PERSP;
-    return u >= 0 ? P.C(u) : u * PERSP_BACKMAX * PERSP_BACKMAX;
+    return u >= 0 ? P.C(u) : u * (P.taper ? P.d0 : PERSP_BACKMAX * PERSP_BACKMAX);   // v148: past a tapered near end, the taper's own density
   }
   crowdProject(u, vv) {
     // PJ, but in the direction-adjusted (u, vv) space the stands are laid out in, and
@@ -14362,7 +14408,7 @@ class Ot extends mt.Scene {
           if (this.fieldArtY(uN) < A_MINROW) continue;    // v144 E: past the painting — this really is sky
           u = uN; farRows144++;                           // v144 E: the far apron the art has always carried
         }
-        else if (target >= P.total) u = EXT ? (P.total - target) / (SLOPE * SLOPE) : 0;
+        else if (target >= P.total) u = EXT ? (P.total - target) / (P.d0 || SLOPE * SLOPE) : 0;   // v148: the density the curve has at u=0 (the taper's, when it runs)
         else { let lo = 0, hi = FW; const want = P.total - target;
           for (let it = 0; it < 18; it++) { const mid = (lo + hi) / 2; if (P.C(mid) < want) lo = mid; else hi = mid; }
           u = (lo + hi) / 2; }
