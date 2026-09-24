@@ -335,7 +335,7 @@ scb = sheet_scale(rows[3:4], 44)
 for i in range(6): CELLS[f'backpedal_up{i}'] = cell_of(im, rows[3][i], scb)
 # The row 2 idles differ only in the helmet's shading, not in the body — no sway to loop — so the
 # ready pose is one cell, not a cycle. art/field/throw_quarter_b.png and snap_catch_mini.png are
-# deliberately not cut: see the note in README's Recent changes.
+# deliberately not cut: see the note in docs/CHANGELOG.md.
 
 # ---- throw_dir_a / throw_dir_b: the throw carries a DIRECTION ---------------------------
 # Both sheets are 4 rows x 8 frames and every row on both is drawn from BEHIND — the helmet shows

@@ -1,21 +1,42 @@
 # Dev scripts
 
-Headless Playwright helpers. All of them drive the running dev server —
-start `npm run dev` first, then `node scripts/<name>.mjs` from the repo root.
-Chromium is launched from `/opt/pw-browsers/chromium` (pre-installed; no
-`playwright install` needed). Every check prints JSON plus a `page errors`
-line — treat any page error as a failure even if the numbers look right.
+Headless Playwright (and a few pure-Node) checks, the utilities that look at the game, and the build
+scripts that cut its art. **Running the checks is `docs/CHECKS.md`** — one command per area, in parallel,
+with a baseline that says whether a failure is yours:
 
-`movementcheck.mjs` and `equaltalentcheck.mjs` are the exceptions. The movement
-check loads the pure choreography/FieldSim block directly in Node and can compare
-an older revision with `node scripts/movementcheck.mjs --git-ref=<commit>`.
-The equal-talent check launches Chromium but injects the real engine directly,
-so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
+```bash
+node scripts/run-checks.mjs --since main --jobs 4   # the suites your diff touches
+node scripts/run-checks.mjs smoke --jobs 4          # before every commit (npm run check:smoke)
+node scripts/run-checks.mjs --list                  # the suites
+node scripts/<name>.mjs                             # one check by hand, against `npm run dev` on :5173 or GAME_URL
+```
+
+The harness:
+
+| File | What it is |
+|---|---|
+| `run-checks.mjs` | The runner: suites, `--jobs`, one vite server per job from `--base-port` (default 5400), `--since <ref>`, `--retry-flaky`, KNOWN vs NEW against `known-failures.json`, logs + `summary.json` under `--out`. |
+| `checks.json` | The manifest: `checks.<name>` (file, desc, areas, runtimeSec, slow, needsServer, pureNode, flaky, args/env/timeoutSec) and `suites.<name>` (desc, checks, the `anchors` / `files` that `--since` matches, and the by-hand `steps` / `variants` / `look`). |
+| `known-failures.json` | The baseline — failing assertions that fail on main too (pattern per check, with the reason). Never add one for something you broke. |
+| `checks-table.mjs` | Regenerates the "which suite for which change" appendix of `docs/CHECKS.md` from `checks.json` (`--check` to test it is current; `anchorcheck` does). Run it after editing the manifest. |
+| `lib/env.mjs` | The ONE place a check gets its URL and browser: `GAME_URL` / `gameUrl(path)`, `CHROME` (`/opt/pw-browsers/chromium`), `launch()`. Never hard-code a port. |
+| `lib/serve.mjs` | The runner's dev server (vite through its API, so `pkill -f vite` does not take it down). |
+| `lib/layout.mjs` | The `src/` layout: `readGameHtml()` (the old monolith rebuilt, optionally from a git ref), `scriptBlocks()`, `layoutFiles()`, `findLayoutFile(needle)` — use these rather than reading `index.html` by block index (`docs/LAYOUT.md`). |
+| `lib/pwa.mjs` | The service worker + precache the builds write (v149 D). |
+| `readable/` | v149 C's proven formatter and renamer for `src/07-career-app.js` (`format.mjs`, `rename.mjs`, the map in `names.mjs`) — also how a pre-v149 C branch is ported (`docs/NAMES.md`). |
+| `layout-split.mjs` | Splits an old one-file `index.html` into today's `src/` layout (porting a pre-v149 A branch). |
+
+Every check prints one `ok` / `FAIL` line per assertion (label first) and a final one-line JSON
+`{"pass","fail","pageErrors"}`, and treats any page error as a failure. Chromium is pre-installed at
+`/opt/pw-browsers/chromium` — no `playwright install`. Pure-Node checks (`readcheck`, `movementcheck`,
+`namecheck`, `layoutcheck`, `anchorcheck`, `equaltalentcheck`, `v141check`) need no server;
+`movementcheck.mjs` can compare an older revision with `--git-ref=<commit>`.
 
 ## Checks (assert game behavior)
 
 | Script | What it verifies |
 |---|---|
+| `anchorcheck.mjs` | **The map fits on a page (v150 D).** Pure Node, in `smoke` and `docs`. Every anchor in `docs/ANCHORS.md` (the backticked names before an entry's first "—") occurs in the file(s) it names; every `src/` `docs/` `scripts/` `public/` path that CLAUDE.md, ANCHORS.md, AGENT-WORKFLOW.md and the READMEs name exists; `docs/CHECKS.md`'s generated appendix matches `checks.json`; CLAUDE.md stays about a page. |
 | `v149Echeck.mjs` | **The store is wired, and switched off (v149 E).** OFF: against a boot with `src/27-monetize.js` blocked, `setSpeed` / `buy` are the same functions, the localStorage keys are the same, no node or style is injected, not one timer / listener / observer / storage write comes from the file, the API says nothing is held and every speed is free, and a career-end payout settles the same. ON (`?monetize=1`, dev hosts only): a fresh device has 4× locked with the AD badge and the offer chip under the live speed row, a locked tap keeps 2× and offers the ad, an early close grants nothing, a watched mock ad grants 4× for 20 minutes and switches the game to it, the fake clock expires it back to 2×, the entitlement survives a reload and is not in the save (new career, imported save, hard reset leave it alone), a hand-edited store is refused and `restore()` brings Pro back, Pro removes every ad offer and makes 4× permanent, the career-end chip pays the settle once, and the store fits 400x860 with no page scroll. `GAME_URL`, `SHOTS=<prefix>`. |
 | `vaultcheck.mjs` | **The Prestige Vault (v137).** 96 assertions. The money first: the four coin faces decompose the balance exactly, a completed purchase debits the price once and grants one level, five commits in a row still debit one, twenty-five rapid taps spend a whole price or nothing, a cancel or a reload mid-pour debits nothing, a locked node is refused at the door, a maxed node falls through to the game, banked PP is never in the balance, and replaying the career payout creates no PP. Then the room: every sprite loads, the hoard is deterministic and keeps its coins in place as the balance moves, a tap detaches a real surface coin, reduced motion emits no particles and skips the door, mute persists, two deliberately missing sheets degrade without throwing, the frame holds 60 fps under a 16x pour, and the loop stops when the vault closes. Then the shape: the mound's peak stands at least 40 percent higher than the pile it replaces. Then the reach: over a grid across the whole hoard, EVERY sample point that has a coin drawn on it picks a coin, the coin it picks is one that actually covers that point, coins in the BAKED deep layer are included, and lifting one out of that layer forces it to be repainted without the coin. Then the loose money: a coin can be picked up, is really held clear of the heap while the hand has it, and when it is PLACED it comes to rest on the heap rather than through it and stays where it was put; weight is real (the same shove carries a bronze coin further than a gold one and a gold further than a billion); and RESTOCK empties the displacement map — or re-pours the same money into a different heap — without touching a Prestige Point. Then the avalanche: lifting one coin out wakes the heap around it, those coins really do give way into the gap, none of them travels far, not one is pushed out of the picture, a coin seated on the steep flank runs further than one on a flat shoulder, the same shake moves a billion-point coin least of all, and it is all asleep again a few seconds later. An UNDISTURBED woken coin sits at its angle of repose instead of creeping downhill. It also holds the picture: working the whole heap over never pushes a coin that was IN frame off the side of it, nothing is left standing in the air once it settles, a shaken column SHEDS its coins off the top instead of riding it out as an intact tower, RESTOCK puts them back, and a coin thrown as hard as a finger can flick it leaves the hand at a sane speed and never leaves the room. |
 | `creditcheck.mjs` | **Tackle-credit truth.** Sims 60 games as an LB, wraps `__FieldSim.run/pass` to record who the sim actually named tackler/assist, and asserts the credited tackle stat never exceeds sim-truth + sacks. Exits non-zero on violation. |
@@ -29,7 +50,7 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 | `v144check.mjs` | v144 — the ground, the sky, the gap and the age. Drives into a live game and measures the scene itself: the age table is monotonic and the drawn sprite really is that much smaller with its FEET on the same row; the stall watchdog's published budget beats the slowest speed the game offers; the between-plays shuffle ticks and men move, under 120px a second, sampled only across windows where no snap landed; both goalposts stand in a pad; the far apron's rows above the end line are green in the warp canvas and the near continuation has grain (adjacent rows differ); four pylons with the dial restoring eight; two mirrored rectangular vomitories beside the middle arch; and each of the five Settings skies pins what it says — rain and snow put particles in the frame, the stars go out by day, the turf is genuinely brighter by day (sampled down the whole field, not on one row, because the night rig lights the far end hard and the near end barely at all), the layer keeps drawing through the whistle, and pinning a look never touches `__WX_V79`. Needs the dev server. |
 | `v143check.mjs` | v143 — the tackle is a move. Wraps FieldSim, plays a stack of games and rebuilds every contact from the event log by its per-play commit id, then asserts the windup precedes the lunge, all three aims occur with the form tackle the plurality, the three produce genuinely different outcomes (low gets hurdled and falls forward, high strips and delivers the only big sticks), a worse approach angle really is a worse tackle, a SET man stops more than a RUSHED one, and `TU("v143",0)` puts the old engine back. Excludes chase-downs from behind and slow-moving defenders from the angle buckets, which otherwise invert the reading. Needs the dev server. |
 | `v142check.mjs` | v142 — every stat says what it does. Drives the real app, creates a career, and asserts every key of `Le` has a `STAT_INFO_V142` entry (a plain line, field bullets, a note), that all four attribute screens call `statInfoBtnV142` and that it is a hoisted declaration (v140), that every row on the hub sheet and the SKILLS sheet carries a button, and that the card opens with the player's own numbers and closes on the ✕, the backdrop and Escape without spending a point. Needs the dev server. |
-| `equaltalentcheck.mjs` | Loads the real full-game engine with exact mirrored rosters and asserts fair wins, realistic scoring, YPC, completion/YPA, interceptions, sacks, and blowout frequency. Runs without a dev server. Loads script blocks `[0,1,2,3,4,7]` (the engine is in block 7; 5 is the Phaser bundle) — v141 fixed a `slice(0,5)` that had been missing it, so the check threw before its first game. |
+| `equaltalentcheck.mjs` | Loads the real full-game engine with exact mirrored rosters and asserts fair wins, realistic scoring, YPC, completion/YPA, interceptions, sacks, and blowout frequency. Runs without a dev server. Loads the inline boot scripts, `src/03-splash.js`, `src/04-engine.js` and `src/07-career-app.js` by file (v141 added the career app, which runs the games; the Phaser bundle and the renderer stay out). |
 | `realismprobe.mjs` | The v30 realism dashboard over 60 full games: yards-per-carry + run-distance histogram, sacks/scrambles, punts vs FG attempts, penalty counts BY TYPE (holding/DPI/face-mask are flag-on-the-play), and average scores. Run after any tuning that touches the run game, kicking decisions, or penalties. |
 | `movementcheck.mjs` | Ten seeded 120-play batches (1,200 plays total): exact sideline spots, no out-of-field frames, first-frame offensive TD/pick-six crossings, route-break reactions, directional cuts/bad angles, low/mid/elite acceleration curves, and run/pass/YAC stability. Pure Node; no server required. |
 | `renderpathcheck.mjs` | Fraction of plays rendering from the FieldSim agent log vs falling back to the legacy choreographer (healthy: ~87–90%). Run when sim changes don't show on screen. |
@@ -176,11 +197,16 @@ so it does not need a dev server; set `CHROME_PATH` when Chromium is elsewhere.
 
 ## Writing a new check
 
-Copy the shape of `tacklecheck.mjs` / `creditcheck.mjs`:
+The convention, the manifest entry and the steps are in `docs/CHECKS.md` ("Adding a check") and
+`docs/AGENT-WORKFLOW.md`. In short: take the URL and browser from `lib/env.mjs`, print `ok` / `FAIL`
+lines and a final `{"pass","fail","pageErrors"}` line, exit 1 on any failure, register it in
+`checks.json`, run `node scripts/checks-table.mjs`, and add a row here. For a browser check, copy the
+shape of `tacklecheck.mjs` / `creditcheck.mjs`:
 
 1. `addInitScript` kills the tutorial/onboard overlay.
 2. Click through career creation by button text (see `explore.mjs` for labels).
 3. In `page.evaluate`, drive the exposed hooks — `window.__simGameV2(perf, pos)`
    for full games, `window.__FieldSim` (wrap `.run`/`.pass` to observe every
-   resolved play), `window.RIB_TUNE` to pin tunables.
-4. Print a JSON summary, report `page errors`, exit non-zero on failure.
+   resolved play), `window.RIB_TUNE` to pin tunables, `window.__getGridironState()`
+   for the save (**not** `window.o`, which does not exist).
+4. Report `page errors`, exit non-zero on failure.
