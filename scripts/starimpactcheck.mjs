@@ -59,7 +59,7 @@ if (!archetypes.length) throw new Error('POSITIONS did not select a benchmark po
 
 
 // v149 C: the career app is formatted (docs/NAMES.md) — the hook goes in after the you-player's roster slot is written
-const rosterNeedle = /attrs:\s*qr\(\),\s*stat:\s*a\s*\}\);/
+const rosterNeedle = /attrs:\s*youSimAttrs\(\),\s*stat:\s*a\s*\}\);/   /* qr → youSimAttrs */
 const rosterHook = `if(window.__starImpactBenchmarkV40&&U>=0){const star=j[U],peers=j.filter((_,idx)=>idx!==U),avg=(key)=>peers.reduce((sum,pl)=>sum+(Number(pl.attrs&&pl.attrs[key])||45),0)/Math.max(1,peers.length),clone=(pl,isOff)=>Object.assign({},pl,{name:pl.name+" Mirror",isOff,you:!1,attrs:Object.assign({},pl.attrs||{}),stat:Object.assign({},pl.stat||{})}),keys=Object.keys(star.attrs||{}),peerOvr=Math.round(peers.reduce((sum,pl)=>sum+(Number(pl.ovr)||45),0)/Math.max(1,peers.length));star.ovr=peerOvr,keys.forEach(key=>star.attrs[key]=avg(key));v.off=P.off.map(pl=>clone(pl,!0)),v.def=P.def.map(pl=>clone(pl,!1));const boost=window.__starImpactBoostV40,gap=Math.max(1,Number(window.__starImpactGapV40)||20),attrScale=gap/20;if(boost){star.ovr=peerOvr+gap;Object.entries(boost).forEach(([key,delta])=>star.attrs[key]=(Number(star.attrs[key])||45)+Number(delta||0)*attrScale)}}`
 let installed = false
 const runtimeScripts = gameScripts(['inline:0', 'inline:1', 'inline:2', 'src/03-splash.js', 'src/04-engine.js']).map(source => {

@@ -50,7 +50,7 @@ const src = await page.evaluate(pageSource)
 ok(/function vaultPayBtnV137\s*\(/.test(src), 'vaultPayBtnV137 is a function DECLARATION — a screen drawn at boot cannot outrun it')
 ok(!/window\.vaultPayBtnV137\s*=\s*(e|\()/.test(src), '…and is not defined by a bare assignment any more')
 // the fix, shape 2: every top-level boot render is guarded
-ok(!/(^|[;}])\s*mc\(\)\s*;/.test(src) && /safeBootV140\(/.test(src), 'the boot renders go through safeBootV140, which catches and retries instead of aborting the block')
+ok(!/(^|[;}])\s*boot\(\)\s*;/.test(src)   /* v149 C: mc → boot */ && /safeBootV140\(/.test(src), 'the boot renders go through safeBootV140, which catches and retries instead of aborting the block')
 const guards = (src.match(/safeBootV140\(function/g) || []).length
 ok(guards >= 3, 'all three top-level boot renders are guarded', `${guards} guarded`)
 

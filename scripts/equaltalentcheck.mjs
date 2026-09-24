@@ -9,7 +9,7 @@ const gameCount = Math.max(20, Number(process.env.GAMES || 120))
 const chromePath = process.env.CHROME_PATH || '/opt/pw-browsers/chromium'
 
 // v149 C: the career app is formatted (docs/NAMES.md) — the hook goes in after the you-player's roster slot is written
-const mirrorNeedle = /attrs:\s*qr\(\),\s*stat:\s*a\s*\}\);/
+const mirrorNeedle = /attrs:\s*youSimAttrs\(\),\s*stat:\s*a\s*\}\);/   /* qr → youSimAttrs */
 const mirrorPatch = `if(window.__equalTalentBenchmarkV39){const Y=(_,ie)=>Object.assign({},_,{name:Hr(),isOff:ie,you:!1,attrs:Object.assign({},_.attrs||{}),stat:Object.assign({},_.stat||{})});v.off=P.off.map(_=>Y(_,!0)),v.def=P.def.map(_=>Y(_,!1))}`
 let enginePatched = false
 const runtimeScripts = gameScripts(['inline:0', 'inline:1', 'inline:2', 'src/03-splash.js', 'src/04-engine.js', 'src/07-career-app.js']).map(source => {   // v141: the career app (old block 7) runs the games; the Phaser bundle, the renderer and its launcher stay out

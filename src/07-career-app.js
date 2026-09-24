@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  class Po {
+  class RngCore {
     state;
     constructor(t) {
       this.state = t >>> 0 || 1831565813;
@@ -384,13 +384,13 @@
     }
     return a;
   }
-  function Co(e) {
+  function hashFnv1a(e) {
     let t = 2166136261;
     for (let a = 0; a < e.length; a++) ((t ^= e.charCodeAt(a)), (t = Math.imul(t, 16777619)));
     return t >>> 0;
   }
   function seededRng(...e) {
-    const t = new Po(Co(e.map(a => String(a ?? "")).join("|")));
+    const t = new RngCore(hashFnv1a(e.map(a => String(a ?? "")).join("|")));
     return () => t.next();
   }
   function selectOriginOptions(e, t, a = 3) {
@@ -637,7 +637,7 @@
         ((t.injury.weeksRemaining = Math.max(0, t.injury.weeksRemaining - 3)),
         t.injury.weeksRemaining <= 0 && (t.injury = null)));
   }
-  const Lo = [
+  const OPP_STRENGTHS = [
       ["Relentless pass rush", "disciplined", "explosive"],
       ["Fast, physical secondary", "team", "explosive"],
       ["Elite run fits", "feature", "team"],
@@ -647,7 +647,7 @@
       ["Power rushing attack", "team", "explosive"],
       ["Disciplined coverage unit", "feature", "explosive"]
     ],
-    ja = [
+    OPP_WEAKNESSES = [
       ["Slow linebackers in space", "explosive"],
       ["Thin defensive rotation", "team"],
       ["Undersized secondary", "feature"],
@@ -669,9 +669,9 @@
     ];
   function createOpponentProfile(e, t, a, s, n) {
     const i = seededRng(s, t, a, e, n, "opponent"),
-      r = sample(Lo, i);
-    let l = sample(ja, i);
-    l[1] === r[1] && (l = ja[(ja.indexOf(l) + 1) % ja.length]);
+      r = sample(OPP_STRENGTHS, i);
+    let l = sample(OPP_WEAKNESSES, i);
+    l[1] === r[1] && (l = OPP_WEAKNESSES[(OPP_WEAKNESSES.indexOf(l) + 1) % OPP_WEAKNESSES.length]);
     const d = n != null,
       c = d && (n || 0) >= 2,
       u = !d && (i() < 0.12 || a === Math.max(2, Math.min(8, t + 3))),
@@ -4556,7 +4556,7 @@
         desc: "The IFL. Ninety-six beings in the galaxy get the call. Champions only."
       }
     ],
-    Ys = {
+    TIERS = {
       varsity: [
         {
           key: "power",
@@ -4622,28 +4622,28 @@
         }
       ]
     };
-  function _s(e) {
-    return Ys[e] || null;
+  function tiersFor(e) {
+    return TIERS[e] || null;
   }
-  function Kt(e) {
+  function currentTier(e) {
     const t = LEVELS[e.level].key;
     if (!e.tiers || !e.tiers[t]) return null;
-    const a = Ys[t];
+    const a = TIERS[t];
     return (a && a.find(s => s.key === e.tiers[t])) || null;
   }
   function Go(e) {
-    const t = Kt(e);
+    const t = currentTier(e);
     return t ? t.comp : 1;
   }
   function Ho(e) {
-    const t = Kt(e);
+    const t = currentTier(e);
     return t ? t.growth : 1;
   }
   function tierPPMult(e) {
     let t = 1;
     if (e.tiers)
       for (const a in e.tiers) {
-        const s = Ys[a];
+        const s = TIERS[a];
         if (!s) continue;
         const n = s.find(i => i.key === e.tiers[a]);
         n && (t = Math.max(t, n.ppMult));
@@ -5221,7 +5221,7 @@
           ? 96 + ((e - 150) / 20) * 4
           : 55 + 45 * (1 - Math.exp(-(e - 55) / 40));
   }
-  function Ti(e) {
+  function perfScale(e) {
     return Math.max(0.1, Math.pow(Math.max(e, 6) / 60, 2.15));
   }
   const POSITIONS = {
@@ -5360,7 +5360,7 @@
         }
       }
     },
-    Ta = {
+    POS_BODY = {
       QB: { h: [75, 4], w: [225, 25], mus: 0.5, note: "Tall to see the field" },
       RB: { h: [70, 3], w: [215, 20], mus: 0.8, note: "Compact & powerful" },
       WR: { h: [73, 4], w: [195, 20], mus: 0.6, note: "Long & lean speedster" },
@@ -5371,9 +5371,9 @@
       CB: { h: [71, 3], w: [190, 18], mus: 0.7, note: "Quick-twitch & lean" },
       S: { h: [72, 3], w: [205, 18], mus: 0.75, note: "Rangy & physical" }
     };
-  function Uo(e, t) {
+  function bodyFit(e, t) {
     if (!e) return 0.6;
-    const a = Ta[t],
+    const a = POS_BODY[t],
       s = Math.max(0, 1 - Math.abs(e.height - a.h[0]) / (a.h[1] * 2.2)),
       n = Math.max(0, 1 - Math.abs(e.weight - a.w[0]) / (a.w[1] * 2.2));
     let i = a.mus;
@@ -5381,8 +5381,8 @@
     const r = e.muscle / 100;
     return s * 0.4 + n * 0.4 + r * i * 0.2;
   }
-  function pa(e, t) {
-    return Math.round((Uo(e, t) - 0.6) * 35);
+  function physFit(e, t) {
+    return Math.round((bodyFit(e, t) - 0.6) * 35);
   }
   function zs(e) {
     return Math.floor(e / 12) + "'" + (e % 12) + '"';
@@ -8105,7 +8105,7 @@
       "Ellison",
       "Prince"
     ];
-  function Ei(e) {
+  function mulberry32(e) {
     return function () {
       ((e |= 0), (e = (e + 1831565813) | 0));
       let t = Math.imul(e ^ (e >>> 15), 1 | e);
@@ -8206,7 +8206,7 @@
       (t.traitPickedV112 = e),
       (t.traitOfferV112 = null),
       saveGame(),
-      state.view === "choosePos" ? Lr() : render(),
+      state.view === "choosePos" ? screenChoosePos() : render(),
       !0
     );
   };
@@ -8510,7 +8510,7 @@
     return (state.settings && state.settings[e]) || !1;
   }
   function toggleSetting(e) {
-    (state.settings || (state.settings = {}), (state.settings[e] = !state.settings[e]), saveGame(), state.view === "settings" && Fi());
+    (state.settings || (state.settings = {}), (state.settings[e] = !state.settings[e]), saveGame(), state.view === "settings" && screenSettings());
   }
   const sr = [0, 2, 4, 8, 14, 24, 40, 70, 220];
   function grantMilestone(e) {
@@ -8529,7 +8529,7 @@
    * game points at have their own rows: the UFF title as its MVP is 10,000 PP, the Interstellar title
    * as its MVP is 1,000,000. A challenge still pays once, ever, through the same chalMult / chaos
    * multiplier it always did (`es()`). */
-  const zt = [
+  const CHALLENGES = [
     {
       id: "ring",
       icon: "💍",
@@ -8726,12 +8726,12 @@
     return b;
   }
   window.__V136_C = { bank: bankPPV136, banked: bankedV136, flush: flushBankV136, banking: bankingV136 };
-  function es(e) {
+  function completeChallenges(e) {
     state.challenges || (state.challenges = {});
     let t = 0;
     const a = [];
     if (
-      (zt.forEach(s => {
+      (CHALLENGES.forEach(s => {
         if (state.challenges[s.id] || !s.check) return;
         let n = !1;
         try {
@@ -8750,11 +8750,11 @@
         const i = POS_STATS[n.pos],
           r = i.stats.find(l => l.key === i.primary);
         if (r) {
-          const l = Ni(s.level, n.pos, s.seasonSeed || 1),
+          const l = genNationalLeaders(s.level, n.pos, s.seasonSeed || 1),
             d = n.statLine[i.primary];
           if (r.lowerBetter ? l.every(u => d <= u.line[i.primary]) : l.every(u => d >= u.line[i.primary])) {
             state.challenges.natlNo1 = !0;
-            const u = zt.find(p => p.id === "natlNo1"),
+            const u = CHALLENGES.find(p => p.id === "natlNo1"),
               h = Math.round(u.pp * (1 + treeFx("chalMult")) * it());
             (bankPPV136(h, "goal"), (t += h), a.push(u.icon + " " + u.name));
           }
@@ -8777,7 +8777,7 @@
       t
     );
   }
-  function Oi() {
+  function allStatDefs() {
     const e = {},
       t = [];
     return (
@@ -8794,7 +8794,7 @@
     );
   }
   function buyMastery(e) {
-    if (!Oi().find(n => n.key === e)) return;
+    if (!allStatDefs().find(n => n.key === e)) return;
     state.mastery || (state.mastery = {});
     const a = Ja(e);
     if (a >= Ts) {
@@ -8846,7 +8846,7 @@
     const e = !!state.chaosUnlocked,
       t = chaosTotal(),
       a = it(),
-      s = Oi();
+      s = allStatDefs();
     ((byId("screen").innerHTML = `
     <div class="eyebrow" style="color:#ff5a5a">Dynasty · Endgame</div>
     <div class="h1">💍 Rings & Chaos</div>
@@ -8925,7 +8925,7 @@
       t = state.era || 0,
       a = hofWings();
     ((byId("screen").innerHTML = `
-    <div class="eyebrow">${nn()} · Era ${t + 1}</div>
+    <div class="eyebrow">${eraName()} · Era ${t + 1}</div>
     <div class="h1">🏛️ Hall of Fame</div>
     <div class="sub">Every career you complete is enshrined forever. Museum wings open at 5 / 10 / 25 / 50 careers — each a permanent <b style="color:var(--gold)">+5% PP</b>.</div>
 
@@ -9239,7 +9239,7 @@
     if (c && c.eq === eq && c.a === eq.cleats && c.b === eq.gloves && c.c === eq.chain) return c.t;
     const raw = {},
       t = {};
-    on.forEach(s => {
+    GEAR_SLOTS.forEach(s => {
       const it = eq[s.key];
       if (!it) return;
       gearEnsureV147(it);
@@ -9293,7 +9293,7 @@
     const out = {};
     if (!it) return out;
     gearEnsureV147(it);
-    const b = rn.find(n => n.key === it.eff);
+    const b = GEAR_EFFECTS.find(n => n.key === it.eff);
     b && (out["b_" + it.eff] = { v: +it.val || 0, t: b.fmt(it.val), base: 1 });
     (it.mods || []).forEach(m => {
       out[m.k] = { v: +m.v || 0, t: gearTxtV147(m.k, m.v) };
@@ -9309,7 +9309,7 @@
   function gearSumV147(pos) {
     const eq = state.equipped || {},
       parts = [];
-    rn.forEach(b => {
+    GEAR_EFFECTS.forEach(b => {
       const v = gearFx(b.key);
       v && parts.push(`<span class="gm-v147 base">${escHtml(b.fmt(v))}</span>`);
     });
@@ -9333,7 +9333,7 @@
       A = gearFxV147(it),
       B = same ? {} : gearFxV147(cur),
       keys = [...new Set(Object.keys(A).concat(Object.keys(B)))],
-      r = ba.find(i => i.key === it.rarity);
+      r = RARITIES.find(i => i.key === it.rarity);
     const rows = keys
       .map(k => {
         const a = A[k],
@@ -9343,7 +9343,7 @@
         return `<div class="gc-row-v147 ${cls}${a && !a.base && !gearLiveV147(k, pos) ? " off" : ""}"><span>${escHtml((a || b).t)}</span><b>${same ? "" : d > 1e-9 ? "▲ new" : d < -1e-9 ? (a ? "▼ less" : "✕ lost") : "="}</b></div>`;
       })
       .join("");
-    return `<div class="gear-cmp-v147"><div class="gc-h-v147">${same ? "EQUIPPED" : cur ? `vs <span style="color:${(ba.find(i => i.key === cur.rarity) || {}).color}">${escHtml(cur.name)}</span>` : "slot is empty"}</div>${rows || '<div class="gm-none-v147">no effects</div>'}
+    return `<div class="gear-cmp-v147"><div class="gc-h-v147">${same ? "EQUIPPED" : cur ? `vs <span style="color:${(RARITIES.find(i => i.key === cur.rarity) || {}).color}">${escHtml(cur.name)}</span>` : "slot is empty"}</div>${rows || '<div class="gm-none-v147">no effects</div>'}
     <div class="gc-btns-v147">${same ? `<button class="mr-buy" onclick="unequipGearV147('${it.slot}')">UNEQUIP</button>` : `<button class="mr-buy" onclick="equipGear('${it.id}')">EQUIP</button><button class="gr-scrap" onclick="scrapGear('${it.id}')">♻️ SCRAP</button>`}</div></div>`;
   }
   function gearPickV147(id) {
@@ -9384,7 +9384,7 @@
       it && !it.modsV147 && (gearEnsureV147(it), n++);
     });
     const eq = state.equipped || {};
-    on.forEach(s => {
+    GEAR_SLOTS.forEach(s => {
       const it = eq[s.key];
       it && !it.modsV147 && (gearEnsureV147(it), n++);
     });
@@ -9397,16 +9397,16 @@
     const e = state.inventory || [],
       t = state.equipped || {},
       pos = state.player && state.player.pos,
-      a = n => ba.find(i => i.key === n) || ba[0],
+      a = n => RARITIES.find(i => i.key === n) || RARITIES[0],
       s = n => {
-        const b = rn.find(i => i.key === n.eff);
+        const b = GEAR_EFFECTS.find(i => i.key === n.eff);
         return b ? b.fmt(n.val) : "";
       };
     _gearSelV147 && !e.some(n => n.id === _gearSelV147) && (_gearSelV147 = null);
     ((byId("screen").innerHTML = `
     <div class="eyebrow">Drops at every career end · rarer = more modifiers</div>
     <div class="eq-row eq-row-v147">
-      ${on
+      ${GEAR_SLOTS
         .map(n => {
           const i = t[n.key],
             r = i ? a(i.rarity) : null;
@@ -9423,7 +9423,7 @@
     ${
       e.length
         ? [...e]
-            .sort((n, i) => ka(i) - ka(n))
+            .sort((n, i) => rarityIndex(i) - rarityIndex(n))
             .map(n => {
               const i = a(n.rarity),
                 r = t[n.slot] && t[n.slot].id === n.id,
@@ -9469,7 +9469,7 @@
     count: gearModCountV147,
     rng: gearRngV147,
     make: (minR, tier) => {
-      const it = Kr(minR);
+      const it = rollGear(minR);
       return tier != null ? gearRollV147(it, tier) : it;
     },
     /* the hooks, read through the real functions, for the check */
@@ -9488,13 +9488,13 @@
   };
   function rr() {
     state.challenges || (state.challenges = {});
-    const e = zt.filter(t => state.challenges[t.id]).length;
+    const e = CHALLENGES.filter(t => state.challenges[t.id]).length;
     ((byId("screen").innerHTML = `
-    <div class="eyebrow">Career Challenges · ${e}/${zt.length} complete</div>
+    <div class="eyebrow">Career Challenges · ${e}/${CHALLENGES.length} complete</div>
     <div class="h1">Prove It</div>
     <div class="sub">One-time feats that pay permanent Prestige Points — banked, and paid the day the career ends. They stay done forever — chase them across careers. The two at the bottom are the whole game: the UFF title <b>as its MVP</b> pays <b style="color:var(--gold)">10,000</b>, the Interstellar title as its MVP pays <b style="color:var(--gold)">1,000,000</b>.</div>
     <div class="mt" style="margin-top:14px">
-    ${zt
+    ${CHALLENGES
       .map(t => {
         const a = !!state.challenges[t.id];
         return `<div class="shop-item" style="border-color:${a ? "var(--good)" : "var(--line)"};${a ? "" : "opacity:.85"}">
@@ -9550,7 +9550,7 @@
     let p = clamp99(Math.round(h / 14) + nodeLvl("recruited") + nodeLvl("agent") + starsPlusV146() + (nodeLvl("phenom") > 0 ? 5 : 0), 1, 5);
     if ((pathVal("startStars", 0) && (p = Math.max(p, pathVal("startStars"))), nodeLvl("idealBody"))) {
       const v = suggestPositions(t, u)[0].pos,
-        j = Ta[v];
+        j = POS_BODY[v];
       ((u.height = j.h[0]), (u.weight = j.w[0]), (u.muscle = Math.min(90, u.muscle + 15)));
     }
     const _t112 = Ai()[0],
@@ -9869,7 +9869,7 @@
     let l = 99 * (1 - Math.exp(-r / 78));
     if ((r > 215 && (l = 99 + Math.pow(r - 215, 0.93) * 0.83), a)) {
       const d = 1 + nodeLvl("perfectFrame") * 0.4;
-      l += pa(a, t) * d;
+      l += physFit(a, t) * d;
     }
     return Math.round(clamp99(l, 1, 999));
   }
@@ -9912,23 +9912,23 @@
     return Object.keys(POSITIONS)
       .map(n => {
         const i = en(e, n, t),
-          r = t ? pa(t, n) : 0;
+          r = t ? physFit(t, n) : 0;
         return { pos: n, ovr: i, phys: r, fitScore: i - (a[n] || 0) + (s[n] || 0) };
       })
       .sort((n, i) => i.fitScore - n.fitScore || i.ovr - n.ovr);
   }
-  const tn = "gridiron_save_v1";
+  const SAVE_KEY = "gridiron_save_v1";
   function saveGame() {
     try {
-      window.GridironStorage ? window.GridironStorage.save(state) : localStorage.setItem(tn, JSON.stringify(state));
+      window.GridironStorage ? window.GridironStorage.save(state) : localStorage.setItem(SAVE_KEY, JSON.stringify(state));
     } catch (e) {
       console.warn("Running It Back save failed", e);
     }
   }
-  function dr() {
+  function loadSave() {
     try {
       if (window.GridironStorage) return window.GridironStorage.load();
-      const e = localStorage.getItem(tn);
+      const e = localStorage.getItem(SAVE_KEY);
       if (e) return JSON.parse(e);
     } catch (e) {
       console.warn("Running It Back load failed", e);
@@ -11613,7 +11613,7 @@
   function is(e, t, a, ng) {
     const s = LEVELS[a].games,
       n = POS_STATS[e],
-      i = Ti(t),
+      i = perfScale(t),
       r = t / 100,
       l = 1 + treeFx("statProd") + Jr(e),
       d = {};
@@ -11682,7 +11682,7 @@
     return Math.round(+t);
   }
   function gr(e, t) {
-    const a = Ti(t),
+    const a = perfScale(t),
       s = t / 100,
       n = (i, r) => Math.max(0, Math.round(i * a + randRange(-r, r)));
     switch (e.pos) {
@@ -11942,8 +11942,8 @@
           Wo() &&
           ((state.chaosCap = (state.chaosCap || 0) + (R ? 10 : 6)),
           typeof document < "u" && byId("toast") && showToast("⛓️ CHAOS CLEARANCE — capacity raised to " + state.chaosCap + "!")),
-        _r() && typeof document < "u" && byId("toast") && showToast("🌌 NEW ERA: " + nn() + " — permanent +20% PP!"),
-        ln(R ? 3 : 2, "Championship loot"));
+        _r() && typeof document < "u" && byId("toast") && showToast("🌌 NEW ERA: " + eraName() + " — permanent +20% PP!"),
+        dropGear(R ? 3 : 2, "Championship loot"));
     }
     const ge = 4 + e.level * 3,
       $e =
@@ -12019,7 +12019,7 @@
       lr(e));
     const Ct = nodeLvl("sculpt");
     if (Ct && e.body && e.pos) {
-      const R = Ta[e.pos],
+      const R = POS_BODY[e.pos],
         O = Ct;
       (e.body.height < R.h[0]
         ? (e.body.height = Math.min(R.h[0], e.body.height + 1))
@@ -12096,7 +12096,7 @@
       dominantGames: m,
       perfPoints: H,
       teamBonus: oe,
-      tier: Kt(e),
+      tier: currentTier(e),
       record: `${y}-${ce}`,
       teamWins: y,
       teamLosses: ce,
@@ -12125,7 +12125,7 @@
    * longer contradict each other. With no stat line yet (a fresh level) there is
    * nothing to measure and the rating carries it alone, as before. */
   const RANK_OVR_K = 2; // how hard the rating can push a rank up or down
-  function sn(e, t) {
+  function nationalRank(e, t) {
     const pool = NAT_POOL(e.level),
       pos = POS_POOL(e.level);
     const s = LEVELS[e.level].need - 8,
@@ -12135,7 +12135,7 @@
     let posRank = null,
       prodRank = null;
     try {
-      const ln = wr(e),
+      const ln = seasonPaceLine(e),
         cfg = POS_STATS[e.pos],
         prim = cfg && cfg.primary;
       if (ln && ln.line && prim && ln.line[prim] != null) {
@@ -12147,7 +12147,7 @@
           // the rating scales his rank instead: a weak one multiplies it, a strong
           // one divides it. The two screens can now differ by a sensible factor,
           // never by orders of magnitude.
-          prodRank = kr(e.level, sd, ln.line[prim]);
+          prodRank = prodRankFor(e.level, sd, ln.line[prim]);
           posRank = Math.max(1, Math.min(pos, Math.round(prodRank * (1 + (0.5 - ovrPct) * RANK_OVR_K))));
         }
       }
@@ -12170,14 +12170,14 @@
   // every reference deferred: the pools are declared further down the file, so an
   // eager one lands in the temporal dead zone at parse time
   window.__RANK_V52 = {
-    sn: (e, t) => sn(e, t),
-    kr: (l, sd, v) => kr(l, sd, v),
+    sn: (e, t) => nationalRank(e, t),
+    kr: (l, sd, v) => prodRankFor(l, sd, v),
     natPool: e => NAT_POOL(e),
     posPool: e => POS_POOL(e),
     prodW: () => RANK_OVR_K,
     Ne: () => POS_STATS,
     ovr: e => playerOvr(e),
-    line: e => wr(e)
+    line: e => seasonPaceLine(e)
   };
   function fmtInt(e) {
     return Math.round(e).toLocaleString("en-US");
@@ -12298,7 +12298,7 @@
   };
   const NAT_POOL = e => (LEVELS[e] && LEVELS[e].slots) || 5e3; // everyone at this level
   const POS_POOL = e => Math.max(1, Math.round(NAT_POOL(e) / 9));
-  function br(e, t, a) {
+  function eliteScore(e, t, a) {
     const s = LEVELS[e].games,
       n = t.per[e];
     return t.rate
@@ -12307,9 +12307,9 @@
         ? (1.2 - a / (n * s)) / 0.5
         : (a / (n * s) - 0.45) / eliteSlopeV125(e, t);
   }
-  function kr(e, t, a) {
+  function prodRankFor(e, t, a) {
     const s = POS_POOL(e),
-      n = br(e, t, a);
+      n = eliteScore(e, t, a);
     if (n <= 0.06) return s;
     if (n < 0.4) {
       const r = 26 * Math.pow(2.3, 5),
@@ -12319,8 +12319,8 @@
     const i = Math.round(26 * Math.pow(0.92 / n, 5));
     return clamp99(i, 1, s);
   }
-  function Ni(e, t, a) {
-    const s = Ei((a || 1) + t.charCodeAt(0) * 7919 + (t.charCodeAt(1) || 7) * 131 + e * 104729),
+  function genNationalLeaders(e, t, a) {
+    const s = mulberry32((a || 1) + t.charCodeAt(0) * 7919 + (t.charCodeAt(1) || 7) * 131 + e * 104729),
       n = POS_STATS[t],
       i = LEVELS[e].games,
       r = [];
@@ -12353,7 +12353,7 @@
     }
     return r;
   }
-  function wr(e) {
+  function seasonPaceLine(e) {
     if (e.weekResults) {
       const t = e.weekResults.filter(s => s.played && !s.playoff);
       if (!t.length) return null;
@@ -12365,7 +12365,7 @@
       : null;
   }
   function $r(e, t) {
-    const a = Ei(t + e.level * 7907 + 13),
+    const a = mulberry32(t + e.level * 7907 + 13),
       s = LEVELS[e.level].games,
       n = er /* v123: the standings draw from the same crest-matched pool */,
       i = TOWNS.filter(m => m !== (e.teamIdentity && e.teamIdentity.town)),
@@ -12405,7 +12405,7 @@
   let leadTab = "leaders",
     nt = null,
     leadStat = null;
-  function os() {
+  function screenLeaders() {
     const e = state.player;
     if (!e || !e.pos) {
       goView("menu");
@@ -12424,12 +12424,12 @@
       const n = POS_STATS[nt];
       (!leadStat || !n.stats.some(m => m.key === leadStat)) && (leadStat = n.primary);
       const i = n.stats.find(m => m.key === leadStat),
-        r = Ni(e.level, nt, a);
-      let l = nt === e.pos ? wr(e) : null;
+        r = genNationalLeaders(e.level, nt, a);
+      let l = nt === e.pos ? seasonPaceLine(e) : null;
       (l && r.push({ name: e.name, team: e.teamIdentity ? e.teamIdentity.town : "—", line: l.line, me: !0 }),
         r.sort((m, y) => (i.lowerBetter ? m.line[leadStat] - y.line[leadStat] : y.line[leadStat] - m.line[leadStat])));
       const d = r.findIndex(m => m.me),
-        c = l ? (d < 25 ? d + 1 : kr(e.level, i, l.line[leadStat])) : null,
+        c = l ? (d < 25 ? d + 1 : prodRankFor(e.level, i, l.line[leadStat])) : null,
         u = r.slice(0, 25),
         h = u.some(m => m.me),
         p = n.stats.filter(m => m.key !== leadStat);
@@ -12473,7 +12473,7 @@
         if (!nx)
           return '<div class="card tight" style="margin-top:10px"><div class="small center">🏔️ You\'re at the top level — there is nowhere left to climb.</div></div>';
         const pool = NAT_POOL(e.level);
-        const cur = sn(e, playerOvr(e));
+        const cur = nationalRank(e, playerOvr(e));
         const _NEED = [0.5, 0.55, 0.62, 0.7, 0.93, 0.985, 0.997, 0.99999];
         const _need = _NEED[Math.min(Math.max(0, e.level), _NEED.length - 1)];
         const _od = pp =>
@@ -12549,48 +12549,48 @@
     </div>`));
   }
   function setStatsTab(e) {
-    ((leadTab = e), os());
+    ((leadTab = e), screenLeaders());
   }
   function setLeadPos(e) {
-    ((nt = e), (leadStat = null), os());
+    ((nt = e), (leadStat = null), screenLeaders());
   }
   function setLeadSort(e) {
-    ((leadStat = e), os());
+    ((leadStat = e), screenLeaders());
   }
   function render() {
     an();
     const e = state.view,
       t = document.querySelector && document.querySelector(".topbar");
-    if ((t && (t.style.display = e === "menu" ? "none" : ""), e === "menu")) return Mn();
+    if ((t && (t.style.display = e === "menu" ? "none" : ""), e === "menu")) return screenMenuLegacy();
     if (e === "highscore") return window.__hsRender && window.__hsRender(state);
     if (e === "leaderboard") return window.__lbRender && window.__lbRender(state);
     if (e === "daily") return window.__dailyRender && window.__dailyRender(state);
-    if (e === "settings") return Fi();
-    if (e === "choosePos") return Lr();
-    if (e === "hub") return Er();
-    if (e === "training") return jr();
+    if (e === "settings") return screenSettings();
+    if (e === "choosePos") return screenChoosePos();
+    if (e === "hub") return screenHub();
+    if (e === "training") return screenTraining();
     if (e === "event") return Nr();
     if (e === "sim") return nl();
-    if (e === "season") return sl();
+    if (e === "season") return screenSeason();
     if (e === "live") return ol();
-    if (e === "result") return Al();
+    if (e === "result") return screenResult();
     if (e === "declineResult") return Ol();
     if (e === "tier") return Or();
     if (e === "upgrade") return Bl();
     if (e === "rank") return Dl();
-    if (e === "stats") return os();
+    if (e === "stats") return screenLeaders();
     if (e === "challenges") return rr();
     if (e === "dynasty") return screenDynasty();
     if (e === "hof") return screenHof();
     if (e === "locker") return screenLocker();
-    if (e === "shop") return ps();
-    if (e === "path") return io();
+    if (e === "shop") return screenPrestige();
+    if (e === "path") return screenPath();
     if (e === "gameover") return screenGameOver();
     if (e === "win") return screenWin();
     if (e === "club") return clubV146B();
-    Mn();
+    screenMenuLegacy();
   }
-  function Mn() {
+  function screenMenuLegacy() {
     const e = state.player && state.player.pos,
       t = state.player,
       a = Object.values(state.tree || {}).reduce((s, n) => s + n, 0);
@@ -12612,7 +12612,7 @@
         : ""
     }
     <div class="card mt" style="margin-top:14px;">
-      <div class="l" style="font-size:10px;color:var(--chalk-dim);letter-spacing:2px;margin-bottom:10px">🏆 YOUR LEGACY${(state.era || 0) > 0 ? ` · <span style="color:#c9b8ff">🌌 ${nn()}</span>` : ""}${state.path ? ` · <span style="color:${PATHS[state.path].color}">${PATHS[state.path].icon} ${PATHS[state.path].name.toUpperCase()}</span>` : ""}</div>
+      <div class="l" style="font-size:10px;color:var(--chalk-dim);letter-spacing:2px;margin-bottom:10px">🏆 YOUR LEGACY${(state.era || 0) > 0 ? ` · <span style="color:#c9b8ff">🌌 ${eraName()}</span>` : ""}${state.path ? ` · <span style="color:${PATHS[state.path].color}">${PATHS[state.path].icon} ${PATHS[state.path].name.toUpperCase()}</span>` : ""}</div>
       <div class="statline">
         <div class="statbox"><div class="n" style="color:var(--gold)">${HONOR_ICON_V130}${state.prestige}</div><div class="l">Honors</div></div>
         <div class="statbox"><div class="n">${state.careers}</div><div class="l">Careers</div></div>
@@ -12628,7 +12628,7 @@
           ? `<div class="statline" style="margin-top:10px">
         <div class="statbox"><div class="n" style="color:var(--gold)">${state.recordOvr || "—"}</div><div class="l">Best OVR Ever</div></div>
         <div class="statbox"><div class="n" ${state.rings ? 'style="color:#ff8a80"' : ""}>${state.rings ? state.rings + " 💍" : (state.titlesWon || 0) + " 🏆"}</div><div class="l">${state.rings ? "UFF Rings" : "Titles Won"}</div></div>
-        <div class="statbox"><div class="n">${Object.keys(state.challenges || {}).length}/${zt.length}</div><div class="l">Challenges</div></div>
+        <div class="statbox"><div class="n">${Object.keys(state.challenges || {}).length}/${CHALLENGES.length}</div><div class="l">Challenges</div></div>
       </div>`
           : ""
       }
@@ -12674,10 +12674,10 @@
     <div class="switch ${s ? "on" : ""}"><i></i></div>
   </div>`;
   }
-  function Fi() {
+  function screenSettings() {
     const e = (() => {
       try {
-        return (localStorage.getItem(tn) || "").length;
+        return (localStorage.getItem(SAVE_KEY) || "").length;
       } catch {
         return 0;
       }
@@ -13061,7 +13061,7 @@
     const e = document.getElementById("playerNameV96");
     e && (e.value = famLockedV139() ? famFirstV139(state.player.name) : state.player.name);
   };
-  function Lr() {
+  function screenChoosePos() {
     const e = state.player,
       t = suggestPositions(e.attrs, e.body),
       a = t[0].ovr,
@@ -13145,7 +13145,7 @@
         <div class="pos-abbr">${i.pos}</div>
         <div class="pos-info">
           <div class="pn">${POSITIONS[i.pos].name}</div>
-          <div class="pd">${Ta[i.pos].note} · ${c}</div>
+          <div class="pd">${POS_BODY[i.pos].note} · ${c}</div>
           <span class="fit-tag fit-${r}">${l}</span>
         </div>
         <div class="pos-fit"><div class="ovr" style="color:${r === "natural" ? "var(--gold)" : "var(--chalk)"}">${i.ovr}</div><div class="lbl">OVR</div></div>
@@ -13159,7 +13159,7 @@
   function pickPos(e) {
     (traitAutoV112(state.player), (state.player.pos = e), genRivals(state.player), saveGame(), goView("hub"));
   }
-  function Er() {
+  function screenHub() {
     const e = state.player,
       t = LEVELS[e.level],
       a = playerOvr(e),
@@ -13169,7 +13169,7 @@
       i = minSeasons(),
       r = e.seasonsAtLevel >= i;
     e.level === 5 && r && n > 0;
-    const l = sn(e, a),
+    const l = nationalRank(e, a),
       d = s ? 100 : declareChanceV88(e),
       c = s ? null : Ha(e.pos, e.level),
       u = POS_STATS[e.pos],
@@ -13191,7 +13191,7 @@
         <span class="meta"><b>${t.name}</b></span>
         <span class="meta">Season <b>${e.seasonsAtLevel + 1}</b></span>
         <span class="meta">${"★".repeat(e.stars)}<span style="color:#3b4759">${"★".repeat(5 - e.stars)}</span> recruit</span>
-        ${Kt(e) ? `<span class="meta" style="color:var(--gold)">${Kt(e).icon} ${Kt(e).name}</span>` : ""}
+        ${currentTier(e) ? `<span class="meta" style="color:var(--gold)">${currentTier(e).icon} ${currentTier(e).name}</span>` : ""}
       </div>
       <div class="meta-row" style="margin-top:4px">
         <span class="meta" style="color:#9fb8a6">🏟 ${teamName(e)}</span>
@@ -13223,7 +13223,7 @@
         <span class="meta" style="color:#7ab6e0">${bd.weight} lb</span>
         <span class="meta" style="color:#7ab6e0">${Ri(bd)}</span>
         ${bd.grown ? "" : `<span class="meta proj-v112" style="color:var(--gold)" title="Projected adult frame by ${TU("growAdultAge", 22)}">📈 projects ${zs(e.body.height)} · ${e.body.weight} lb</span>`}
-        <span class="meta" style="color:${pa(e.body, e.pos) >= 0 ? "var(--good)" : "#e08a8a"}" title="Build fit is graded on the projected adult frame">${pa(e.body, e.pos) >= 0 ? "+" : ""}${pa(e.body, e.pos)} fit</span>
+        <span class="meta" style="color:${physFit(e.body, e.pos) >= 0 ? "var(--good)" : "#e08a8a"}" title="Build fit is graded on the projected adult frame">${physFit(e.body, e.pos) >= 0 ? "+" : ""}${physFit(e.body, e.pos)} fit</span>
       </div>`;
             })()
           : ""
@@ -13328,7 +13328,7 @@
   }
   function rankChanceV88(e) {
     try {
-      const rk = sn(e, playerOvr(e));
+      const rk = nationalRank(e, playerOvr(e));
       if (!rk || !rk.of) return 0;
       return rankCurveV88(rk.rank, rk.of, e.level);
     } catch (_) {
@@ -13719,9 +13719,9 @@
         hallBest: hof.length ? hof[0].goat || 0 : 0,
         enshrined: (state && state.careersCompleted) || 0,
         challenges: Object.keys((state && state.challenges) || {}).length,
-        challengesOf: typeof zt != "undefined" ? zt.length : 0,
+        challengesOf: typeof CHALLENGES != "undefined" ? CHALLENGES.length : 0,
         era: (state && state.era) || 0,
-        eraName: state && state.era ? nn() : "",
+        eraName: state && state.era ? eraName() : "",
         bestLevel: state && LEVELS[state.bestLevel || 0] ? LEVELS[state.bestLevel || 0].name : "",
         titles: (state && state.titlesWon) || 0,
         rings: (state && state.rings) || 0,
@@ -13786,7 +13786,7 @@
         });
       let rank = null;
       try {
-        rank = sn(e, playerOvr(e));
+        rank = nationalRank(e, playerOvr(e));
       } catch (_) {}
       let chance = null;
       try {
@@ -13910,7 +13910,7 @@
   }
   function advanceLevel() {
     const e = state.player,
-      t = sn(e, playerOvr(e));
+      t = nationalRank(e, playerOvr(e));
     (e.career.push({
       level: LEVELS[e.level].name,
       ovr: playerOvr(e),
@@ -13931,7 +13931,7 @@
     }
     (e.level >= 8 && showToast("🛸 WELCOME TO THE INTERSTELLAR LEAGUE — 96 beings in the galaxy. You are one."), genRivals(e), saveGame());
     const s = LEVELS[e.level].key;
-    if (_s(s) && !(e.tiers && e.tiers[s])) {
+    if (tiersFor(s) && !(e.tiers && e.tiers[s])) {
       ((state.view = "tier"), render());
       return;
     }
@@ -13955,7 +13955,7 @@
     try {
       const p = state && state.player;
       if (!p || p.level !== level) return 0;
-      const t = Kt(p);
+      const t = currentTier(p);
       return t ? TU("tierOppSpreadV139", 26) * (t.comp - 1) : 0;
     } catch (_) {
       return 0;
@@ -13974,7 +13974,7 @@
   }
   function tierRewardV139(e, t) {
     try {
-      const tier = Kt(e);
+      const tier = currentTier(e);
       if (!tier || !tier.stars || !t) return;
       const key = LEVELS[e.level].key;
       if (e._tierStarPaidV139 === key) return;
@@ -13997,13 +13997,13 @@
     say: tierRewardSayV139,
     reward: tierRewardV139,
     opp: (n, l, w, sd, r) => createOpponentProfile(n, l, w, sd, r),
-    tiers: k => _s(k),
-    of: e => Kt(e)
+    tiers: k => tiersFor(k),
+    of: e => currentTier(e)
   };
   function Or() {
     const e = state.player,
       t = LEVELS[e.level],
-      a = _s(t.key);
+      a = tiersFor(t.key);
     if (!a) {
       goView("hub");
       return;
@@ -14040,7 +14040,7 @@
   function chooseTier(e) {
     const t = state.player,
       a = LEVELS[t.level],
-      s = _s(a.key).find(n => n.key === e);
+      s = tiersFor(a.key).find(n => n.key === e);
     (t.tiers || (t.tiers = {}),
       (t.tiers[a.key] = e),
       delete t._tierStarPaidV139,
@@ -14051,7 +14051,7 @@
   function startSeason() {
     ((state.player.eventChoice = null), (state.player.pendingEvent = null), goView("training"));
   }
-  function jr() {
+  function screenTraining() {
     const e = state.player,
       t = LEVELS[e.level],
       a = recommendTraining(e);
@@ -14465,7 +14465,7 @@
     const w = TU("simWallV141", 215);
     return v <= w ? 99 * (1 - Math.exp(-v / 78)) : 99 * (1 - Math.exp(-w / 78)) + Math.pow(v - w, 0.93) * 0.83;
   }
-  function qr(e, t) {
+  function youSimAttrs(e, t) {
     const a = state.player;
     if (!a || !a.attrs) return null;
     const s = i => clamp99(Math.round(simScaleV141(i || 10)), 5, 999),
@@ -14500,10 +14500,10 @@
   }
   window.__V141 = {
     simScale: simScaleV141,
-    rosterKeys: () => Object.keys(qr() || {}),
+    rosterKeys: () => Object.keys(youSimAttrs() || {}),
     floorMin: () => TU("starFloorMinV141", 0.6)
   };
-  function xn(e) {
+  function jerseyNum(e) {
     const a = {
       QB: [1, 19],
       RB: [20, 49],
@@ -14517,7 +14517,7 @@
     }[e] || [1, 99];
     return randInt(a[0], a[1]);
   }
-  function Wr(e, t, a, s, n, i, r) {
+  function buildGameRosters(e, t, a, s, n, i, r) {
     const l = ["QB", "RB", "RB", "WR", "WR", "TE", "OL", "OL", "OL", "OL", "OL"],
       d = ["DL", "DL", "DL", "DL", "LB", "LB", "LB", "CB", "CB", "S", "S"],
       c = ["QB", "RB", "WR", "TE", "OL"].includes(e);
@@ -14661,7 +14661,7 @@
         ie.map(b => {
           const pe = clamp99(Y + randRange(-0.15, 0.15), 0.05, 1.7),
             Q = m(pe);
-          return { name: Hr(), num: xn(b), pos: b, isOff: B, ovr: Q, attrs: h(b, Q), stat: p(b, pe) };
+          return { name: Hr(), num: jerseyNum(b), pos: b, isOff: B, ovr: Q, attrs: h(b, Q), stat: p(b, pe) };
         });
       return { off: _(l, !0), def: _(d, !1) };
     }
@@ -14697,12 +14697,12 @@
     U >= 0 &&
       (j[U] = {
         name: (state.player && state.player.name) || "You",
-        num: xn(e),
+        num: jerseyNum(e),
         pos: e,
         isOff: c,
         you: !0,
         ovr: r,
-        attrs: qr(),
+        attrs: youSimAttrs(),
         stat: a
       });
     (function () {
@@ -15282,7 +15282,7 @@
         break;
     }
     const l = { sacks: 0 },
-      c = Wr(t, a, r, l, {}, state.player ? state.player.level : 0, state.player ? playerOvr(state.player) : 40),
+      c = buildGameRosters(t, a, r, l, {}, state.player ? state.player.level : 0, state.player ? playerOvr(state.player) : 40),
       u = [];
     // v20 stamina: every game starts on a full tank — clear cross-play carry-over
     [...c.us.off, ...c.us.def, ...c.opp.off, ...c.opp.def].forEach(w => {
@@ -18046,7 +18046,7 @@
       const _wk = (e.weekResults || []).find(w => !w.played);
       const _prev = window.__oppMulV22;
       window.__oppMulV22 = __oppMulForV22(_wk && _wk.opp);
-      const c = Wr(pos || e.pos, seed / 100, {}, { sacks: 0 }, {}, e.level, playerOvr(e));
+      const c = buildGameRosters(pos || e.pos, seed / 100, {}, { sacks: 0 }, {}, e.level, playerOvr(e));
       window.__oppMulV22 = _prev;
       const roster = t =>
         [...t.off, ...t.def].map(x => ({ name: x.name, pos: x.pos, ovr: Math.round(x.ovr || 0), you: !!x.you }));
@@ -18312,7 +18312,7 @@
   function Tn(e) {
     return Math.max(0, Math.round(gearFx("power")));
   }
-  const Rn = [
+  const ERA_NAMES = [
     "ROOKIE ERA",
     "THE ASCENSION",
     "THE TAKEOVER",
@@ -18324,9 +18324,9 @@
     "THE ETERNAL",
     "THE INFINITE"
   ];
-  function nn() {
+  function eraName() {
     const e = state.era || 0;
-    return e < Rn.length ? Rn[e] : "ERA " + (e + 1) + " — BEYOND";
+    return e < ERA_NAMES.length ? ERA_NAMES[e] : "ERA " + (e + 1) + " — BEYOND";
   }
   function eraMult() {
     return Math.pow(1.2, state.era || 0);
@@ -18337,19 +18337,19 @@
   function _r() {
     return chaosTotal() >= Wi() && (state.era || 0) < 999 ? ((state.era = (state.era || 0) + 1), !0) : !1;
   }
-  const ba = [
+  const RARITIES = [
       { key: "common", name: "Common", color: "#9aa6b5", mult: 1, w: 52 },
       { key: "rare", name: "Rare", color: "#5aa0dc", mult: 1.7, w: 30 },
       { key: "epic", name: "Epic", color: "#a05ac9", mult: 2.8, w: 13 },
       { key: "legendary", name: "Legendary", color: "#f0bb45", mult: 4.5, w: 4.2 },
       { key: "mythic", name: "Mythic", color: "#ff5a5a", mult: 7.5, w: 0.8 }
     ],
-    on = [
+    GEAR_SLOTS = [
       { key: "cleats", icon: "👟", name: "Cleats" },
       { key: "gloves", icon: "🧤", name: "Gloves" },
       { key: "chain", icon: "📿", name: "Chain" }
     ],
-    rn = [
+    GEAR_EFFECTS = [
       { key: "power", name: "Power", fmt: e => "+" + Math.round(e) + " Power", base: 1.2 },
       { key: "perfFlat", name: "Conditioning", fmt: e => "+" + Math.round(e) + " to ALL stats every game", base: 0.8 },
       { key: "ppMult", name: "Prestige", fmt: e => "+" + Math.round(e * 100) + "% PP", base: 0.05 },
@@ -18365,9 +18365,9 @@
       legendary: ["Golden", "Hall-of-Fame", "Prime"],
       mythic: ["GOAT", "Celestial", "Forbidden"]
     };
-  function Kr(e) {
+  function rollGear(e) {
     const t = Math.min(30, chaosTotal() * 0.25),
-      a = ba.map((u, h) => {
+      a = RARITIES.map((u, h) => {
         let p = u.w;
         return (h >= 2 && (p += t * (h - 1)), h < (e || 0) && (p = 0), p);
       }),
@@ -18379,9 +18379,9 @@
         i = u;
         break;
       }
-    const r = ba[i],
-      l = randPick(on),
-      d = randPick(rn),
+    const r = RARITIES[i],
+      l = randPick(GEAR_SLOTS),
+      d = randPick(GEAR_EFFECTS),
       c = +(d.base * r.mult * (0.85 + Math.random() * 0.3)).toFixed(2);
     return gearRollV147(
       {
@@ -18400,29 +18400,29 @@
     if (!state || !state.equipped) return 0;
     let t = 0;
     return (
-      on.forEach(a => {
+      GEAR_SLOTS.forEach(a => {
         const s = state.equipped[a.key];
         s && s.eff === e && (t += s.val);
       }),
       t
     );
   }
-  function ln(e, t) {
+  function dropGear(e, t) {
     state.inventory || (state.inventory = []);
-    const a = Kr(e);
-    (state.inventory.push(a), state.inventory.length > 40 && state.inventory.sort((n, i) => ka(i) - ka(n)).splice(40));
-    const s = ba.find(n => n.key === a.rarity);
+    const a = rollGear(e);
+    (state.inventory.push(a), state.inventory.length > 40 && state.inventory.sort((n, i) => rarityIndex(i) - rarityIndex(n)).splice(40));
+    const s = RARITIES.find(n => n.key === a.rarity);
     return (
       typeof document < "u" &&
         byId("toast") &&
         showToast(
-          `🎁 ${t || "Drop"}: <b style="color:${s.color}">${a.name}</b> — ${rn.find(n => n.key === a.eff).fmt(a.val)}${(a.mods || []).length ? " · " + a.mods.map(m => gearTxtV147(m.k, m.v)).join(" · ") : ""}`
+          `🎁 ${t || "Drop"}: <b style="color:${s.color}">${a.name}</b> — ${GEAR_EFFECTS.find(n => n.key === a.eff).fmt(a.val)}${(a.mods || []).length ? " · " + a.mods.map(m => gearTxtV147(m.k, m.v)).join(" · ") : ""}`
         ),
       a
     );
   }
-  function ka(e) {
-    return ba.findIndex(t => t.key === e.rarity);
+  function rarityIndex(e) {
+    return RARITIES.findIndex(t => t.key === e.rarity);
   }
   function equipGear(e) {
     const t = (state.inventory || []).find(a => a.id === e);
@@ -18436,14 +18436,14 @@
       showToast("Unequip it first.");
       return;
     }
-    const n = [1, 3, 8, 20, 50][ka(a)];
+    const n = [1, 3, 8, 20, 50][rarityIndex(a)];
     (state.inventory.splice(t, 1),
       bankPPV136(n, "scrap"),
       showToast("♻️ Scrapped for +" + n + " PP" + (bankingV136() ? " (banked)" : "")),
       saveGame(),
       screenLocker());
   }
-  const cs = [
+  const SEASON_MODS = [
     {
       key: "passRen",
       icon: "🎯",
@@ -18538,23 +18538,23 @@
     }
   ];
   function rollSeasonMod(e) {
-    e.seasonMod = Math.random() < 0.75 ? randPick(cs).key : null;
+    e.seasonMod = Math.random() < 0.75 ? randPick(SEASON_MODS).key : null;
   }
   function seasonModFx(e) {
     const t = state && state.player;
     if (!t || !t.seasonMod) return 0;
-    const a = cs.find(s => s.key === t.seasonMod);
+    const a = SEASON_MODS.find(s => s.key === t.seasonMod);
     return (a && a[e]) || 0;
   }
   function Jr(e) {
     const t = state && state.player;
     if (!t || !t.seasonMod) return 0;
-    const a = cs.find(s => s.key === t.seasonMod);
+    const a = SEASON_MODS.find(s => s.key === t.seasonMod);
     return !a || !a.statProd ? 0 : !a.statPos || a.statPos.includes(e) ? a.statProd : 0;
   }
   function Yi(e) {
     if (!e.seasonMod) return "";
-    const t = cs.find(a => a.key === e.seasonMod);
+    const t = SEASON_MODS.find(a => a.key === e.seasonMod);
     return t ? `<div class="mod-banner">${t.icon} <b>${t.name}</b> — ${t.desc}</div>` : "";
   }
   function genContracts(e) {
@@ -18757,7 +18757,7 @@
       return null;
     }
   }
-  function Ui(e, t, a) {
+  function enshrineHof(e, t, a) {
     state.hof || (state.hof = []);
     const s = {
       name: e.name,
@@ -18868,7 +18868,7 @@
       (e.currentWeek = 0),
       goView("season"));
   }
-  function sl() {
+  function screenSeason() {
     const e = state.player,
       t = LEVELS[e.level];
     ensurePlayoffs(e);
@@ -19200,7 +19200,7 @@
       logSeasonV77(e, t),
       (e.weekResults = null),
       (e.currentWeek = null),
-      es(),
+      completeChallenges(),
       (state.view = "result"),
       saveGame(),
       render());
@@ -19328,7 +19328,7 @@
     <div class="card tight"><div id="rosterBox" class="rosterbox"></div></div>
   `),
       (byId("dock").innerHTML = ""),
-      hl());
+      startLivePlayback());
   }
   let zi = "us";
   function setRosterTab(e) {
@@ -19605,7 +19605,7 @@
       .map(([l, v]) => `<span><b>${v}</b>${l}</span>`)
       .join("");
   }
-  function hl() {
+  function startLivePlayback() {
     (state.player,
       state._liveGame,
       (liveCtl = { idx: -1, speed: (liveCtl && liveCtl.speed) || (ut("fastSim") ? 2 : 1), playing: !0, anim: null, t: 0 }),
@@ -19616,7 +19616,7 @@
       document
         .querySelectorAll(".speed-btn[data-spd]")
         .forEach(e => e.classList.toggle("active", parseFloat(e.dataset.spd) === liveCtl.speed)),
-      Ia());
+      liveTick());
   }
   function setSpeed(e) {
     (liveCtl && (liveCtl.speed = e),
@@ -19627,7 +19627,7 @@
   function skipLive() {
     (window.GridironPhaser && window.GridironPhaser.cancel(),
       liveCtl && ((liveCtl.playing = !1), liveCtl.anim && cancelAnimationFrame(liveCtl.anim)),
-      to());
+      endLive());
   }
   function vl(e) {
     return e
@@ -19636,11 +19636,11 @@
         : !!((ut("onlyInvolved") && !e.involved) || (ut("skipOpp") && e.offense !== "us" && !e.involved))
       : !1;
   }
-  function Ia() {
+  function liveTick() {
     if (!liveCtl || !liveCtl.playing) return;
     const e = state._liveGame;
     if ((liveCtl.idx++, liveCtl.idx >= e.plays.length)) {
-      to();
+      endLive();
       return;
     }
     const t = e.plays[liveCtl.idx];
@@ -19650,7 +19650,7 @@
       (i && (i.textContent = t.usScore),
         r && (r.textContent = t.themScore),
         liveCtl.idx % 4 === 0 && qa(),
-        (liveCtl.anim = requestAnimationFrame(() => Ia())));
+        (liveCtl.anim = requestAnimationFrame(() => liveTick())));
       return;
     }
     const a = byId("qtr");
@@ -19730,7 +19730,7 @@
       (i && (i.textContent = t.usScore),
         r && (r.textContent = t.themScore),
         yl(t),
-        setTimeout(Ia, Math.max(150, 600 / liveCtl.speed)));
+        setTimeout(liveTick, Math.max(150, 600 / liveCtl.speed)));
       return;
     }
     kl(t, () => {
@@ -19751,7 +19751,7 @@
         t.team && ul(t.team, t.oppStat),
         liveCtl.idx % 3 === 0 && qa());
       const d = Math.max(90, 520 / liveCtl.speed);
-      setTimeout(Ia, d);
+      setTimeout(liveTick, d);
     });
   }
   function yl(e) {
@@ -20754,7 +20754,7 @@
     ((e.fillStyle = s > 0 ? "rgba(255,90,95,.45)" : "rgba(90,230,130,.45)"),
       s > 0 ? e.fillRect(t - 26, 6, 26, a - 12) : e.fillRect(0, 6, 26, a - 12));
   }
-  function to() {
+  function endLive() {
     if (
       (window.GridironPhaser && window.GridironPhaser.cancel(),
       liveCtl && liveCtl.anim && cancelAnimationFrame(liveCtl.anim),
@@ -20770,7 +20770,7 @@
   }
   function quickSimSeason() {
     const e = state.player.seasonStats;
-    (ao(e), es(e), (state.view = "result"), saveGame(), render());
+    (ao(e), completeChallenges(e), (state.view = "result"), saveGame(), render());
   }
   function ao(e) {
     if (e.record) return;
@@ -20786,7 +20786,7 @@
       (e.ptsFor = a),
       (e.ptsAgainst = s));
   }
-  function Al() {
+  function screenResult() {
     const e = state.player;
     setTimeout(() => {
       const v = e.seasonStats || {};
@@ -21488,7 +21488,7 @@
       (byId("dock").innerHTML = '<button class="btn danger" onclick="endCareer()">See Career Result ▸</button>'));
   }
   function Bl() {
-    (state.player, un());
+    (state.player, screenUpgrade());
   }
   const UP_GROUPS_V97 = [
     ["PHYSICAL", ["speed", "acceleration", "quickness", "agility", "strength", "jumping", "stamina", "injuryResist"]],
@@ -21508,7 +21508,7 @@
       } catch (e) {}
     }
   };
-  function un() {
+  function screenUpgrade() {
     const e = state.player,
       t = playerOvr(e);
     ((byId("screen").innerHTML = `
@@ -21632,7 +21632,7 @@
       if (!pick) break;
       (e.attrs[pick]++, (e.points -= mc), (Qe[pick] = (Qe[pick] || 0) + 1), (Q2[pick] = Q2[pick] || []).push(mc));
     }
-    un();
+    screenUpgrade();
   }
   function autoAllocKey() {
     const e = state.player,
@@ -21807,7 +21807,7 @@
     const e = state.player,
       t = LEVELS[e.level],
       a = playerOvr(e),
-      s = sn(e, a),
+      s = nationalRank(e, a),
       n = nodeLvl("scout") > 0,
       i = e.rivals.filter(c => c.alive).map(c => ({ name: c.name, ovr: c.ovr, stars: c.stars, me: !1 }));
     (i.push({ name: e.name, ovr: a, stars: e.stars, me: !0 }), i.sort((c, u) => u.ovr - c.ovr));
@@ -21886,10 +21886,10 @@
       (state.careersCompleted = (state.careersCompleted || 0) + 1),
       (e._starGain = honorPayV139(l)),
       (state.lastCareerAttrs = { ...e.attrs }),
-      Ui(e, a, !1),
+      enshrineHof(e, a, !1),
       lineageEndV136(e, a, "cut"),
-      ln(a >= 5 ? 1 : 0, "Career-end drop"),
-      es(),
+      dropGear(a >= 5 ? 1 : 0, "Career-end drop"),
+      completeChallenges(),
       saveGame());
     const d =
         e.career
@@ -21967,12 +21967,12 @@
         (state.nflReached = (state.nflReached || 0) + 1),
         (state.careersCompleted = (state.careersCompleted || 0) + 1),
         (state.lastCareerAttrs = { ...e.attrs }),
-        Ui(e, 7, !0),
+        enshrineHof(e, 7, !0),
         lineageEndV136(e, Math.max(7, e.level), "won"),
-        ln(1, "UFF career drop"),
+        dropGear(1, "UFF career drop"),
         (e._ppGain = n),
         (e._starGain = honorPayV139(i)),
-        es(),
+        completeChallenges(),
         saveGame());
     }
     const t = playerOvr(e);
@@ -22006,7 +22006,7 @@
   function prestigeReset() {
     ((state.player = null), saveGame(), goView("menu"));
   }
-  function io() {
+  function screenPath() {
     const e = state.prestige >= Xt,
       t = state.path;
     ((byId("screen").innerHTML = `
@@ -22044,11 +22044,11 @@
         }
         ((state.prestige -= 2), (state.pathResets = (state.pathResets || 0) + 1), showToast("Switched paths (−2 Honors)"));
       } else showToast("Path chosen: " + PATHS[e].name);
-      ((state.path = e), saveGame(), io());
+      ((state.path = e), saveGame(), screenPath());
     }
   }
   let Ut = "physical";
-  function ps() {
+  function screenPrestige() {
     const e = Object.values(state.tree || {}).reduce((n, i) => n + i, 0);
     byId("screen").innerHTML = `
     <div class="eyebrow">The Inheritance · ${familyV136().ordinal} generation · ${e} lesson${e === 1 ? "" : "s"} handed down</div>
@@ -22133,12 +22133,12 @@
       (state.respecUsed = (state.respecUsed || 0) + 1),
       saveGame(),
       showToast("♻️ Respec complete — " + t + " PP refunded"),
-      ps());
+      screenPrestige());
   }
   function setBranch(e) {
     Ut = e;
     const t = byId("branchNodes");
-    (t && (t.innerHTML = vs(e)), ps());
+    (t && (t.innerHTML = vs(e)), screenPrestige());
   }
   function buyNode(e) {
     const t = TREE_NODES[e];
@@ -22152,7 +22152,7 @@
       showToast("Not enough PP");
       return;
     }
-    ((state.pp -= s), (state.tree[e] = (state.tree[e] || 0) + 1), saveGame(), showToast(t.name + " → Lv " + state.tree[e]), ps(), an());
+    ((state.pp -= s), (state.tree[e] = (state.tree[e] || 0) + 1), saveGame(), showToast(t.name + " → Lv " + state.tree[e]), screenPrestige(), an());
   }
   function shopBack() {
     goView(state.player && state.player.pos ? "hub" : "menu");
@@ -23650,8 +23650,8 @@
       return false;
     }
   }
-  const _AlV132 = Al;
-  Al = function () {
+  const _AlV132 = screenResult;
+  screenResult = function () {
     const r = _AlV132.apply(this, arguments);
     growMaybeV132(state.player);
     return r;
@@ -23719,8 +23719,8 @@
     }
     return hc();
   };
-  function mc() {
-    if (((state = dr() || freshState()), state.tree || (state.tree = {}), evergreenRefundV146(), state.shop)) {
+  function boot() {
+    if (((state = loadSave() || freshState()), state.tree || (state.tree = {}), evergreenRefundV146(), state.shop)) {
       const t = {
         genetics: "genetics",
         talent: "talent",
@@ -23799,7 +23799,7 @@
     offer: traitOfferV112,
     auto: traitAutoV112,
     traits: TRAITS,
-    fit: pa,
+    fit: physFit,
     rank: suggestPositions,
     ovr: en,
     abandoned: abandonedV112,
@@ -23942,7 +23942,7 @@
       saveGame();
     } catch (e) {}
     __pushFieldFx();
-    state.view === "settings" && Fi();
+    state.view === "settings" && screenSettings();
   };
   __pushFieldFx();
   window.declareAdvance = declareAdvance;
@@ -24005,7 +24005,7 @@
   }
   function bootV140() {
     safeBootV140(function () {
-      mc();
+      boot();
     }, "restore the saved screen");
   }
   function la(e) {
@@ -24449,7 +24449,7 @@
     const t = e.weeklyPlan103 ? Wt(e.weeklyPlan103) : null;
     return `<div class="card weekly-loop-card"><div class="eyebrow">WEEKLY COMPETITIVE LOOP</div><div class="h2" style="margin:2px 0 3px">Earn the Next Role</div><div class="small">Outperform your opportunities, build trust, and fill the battle meter to challenge for <b style="color:var(--gold)">${fo(e)}</b>.</div><div class="loop-grid"><div class="loop-cell"><div class="n" style="color:${e.momentum103 >= 60 ? "var(--good)" : e.momentum103 < 40 ? "#e08a8a" : "var(--chalk)"}">${Math.round(e.momentum103)}</div><div class="l">Momentum</div></div><div class="loop-cell"><div class="n" style="color:${e.composure103 >= 60 ? "#8ec3ee" : e.composure103 < 40 ? "#e08a8a" : "var(--chalk)"}">${Math.round(e.composure103)}</div><div class="l">Composure</div></div><div class="loop-cell"><div class="n" style="color:var(--gold)">${e.breakthroughs103 || 0}</div><div class="l">Breakthroughs</div></div></div><div class="role-track"><i style="width:${clamp99(e.roleBattle103, 0, 100)}%"></i></div><div class="small" style="margin-top:5px">Depth-chart battle: <b>${Math.round(e.roleBattle103)}%</b>${t ? `<br><span class="plan-chip">${t.icon} ${t.name}</span>` : ""}</div></div>`;
   }
-  function gs(e) {
+  function gamePlanOverlay(e) {
     const t = state.player;
     at(t);
     const a = t.weekResults ? t.weekResults.findIndex(n => !n.played) : -1,
@@ -24462,7 +24462,7 @@
       showToast("Resolve the post-game decision first.");
       return;
     }
-    document.querySelector(".gameplan-overlay") || document.body.insertAdjacentHTML("beforeend", gs(!!e));
+    document.querySelector(".gameplan-overlay") || document.body.insertAdjacentHTML("beforeend", gamePlanOverlay(!!e));
   }
   function closeGamePlan103() {
     const e = document.querySelector(".gameplan-overlay");
@@ -24611,7 +24611,7 @@
   function gn(e) {
     return e === "disciplined" ? "#8ec3ee" : e === "feature" ? "#f0bb45" : e === "explosive" ? "#ff6870" : "#78e993";
   }
-  gs = function (e) {
+  gamePlanOverlay = function (e) {
     const t = state.player;
     at(t);
     const a = t.weekResults ? t.weekResults.findIndex(n => !n.played) : -1,
@@ -24964,7 +24964,7 @@
       n = Wt(s.recommendedPlan);
     return `<div class="scout-card-v11"><div class="scout-head-v11"><div><span>${a.rivalry ? "🔥 RIVALRY" : "🔭 SCOUTING REPORT"}</span><b>${escHtml(a.name)}</b></div><div class="scout-confidence-v11">${s.confidence}%<small>CONFIDENCE</small></div></div><div class="scout-tags-v11"><span>${escHtml(s.matchupLabel)}</span><span>${escHtml(a.importance.toUpperCase())}</span><span>${a.rating} OPP RATING</span></div><div class="scout-facts-v11">${s.reveals.map(i => `<div>• ${escHtml(i)}</div>`).join("")}${s.hiddenCount ? `<div class="hidden-fact-v11">• ${s.hiddenCount} detail${s.hiddenCount > 1 ? "s" : ""} unresolved</div>` : ""}</div><div class="scout-rec-v11">Suggested counter: <b>${n.icon} ${escHtml(n.name)}</b>${s.confidence < 50 ? " <small>Low-confidence report</small>" : ""}</div></div>`;
   }
-  function bs(e) {
+  function gamePlanOverlayV11(e) {
     const t = state.player;
     ensureV11(t);
     const a = t.weekResults ? t.weekResults.findIndex(n => !n.played) : -1,
@@ -24983,7 +24983,7 @@
           .join("")}<button class="btn ghost" onclick="closeGamePlan103()">Back</button></div></div></div>`)
       : "";
   }
-  gs = bs;
+  gamePlanOverlay = gamePlanOverlayV11;
   function Nc(e, t) {
     const a = state.player,
       s = a.weekResults.findIndex(i => !i.played);
@@ -25005,7 +25005,7 @@
       return;
     }
     const s = document.querySelector(".gameplan-overlay");
-    (s && s.remove(), document.body.insertAdjacentHTML("beforeend", bs(!!e)));
+    (s && s.remove(), document.body.insertAdjacentHTML("beforeend", gamePlanOverlayV11(!!e)));
   };
   const po = playWeek;
   function Fc(e, t, a) {
@@ -25371,7 +25371,7 @@
       .slice(0, 6)
       .map(
         a =>
-          `<button class="decision-choice" onclick="changePositionV11('${a.pos}')"><b>${a.pos} · ${escHtml(POSITIONS[a.pos].name)} · ${a.ovr} projected OVR</b><small>${escHtml(Ta[a.pos].note)}</small><span class="decision-risk">New rival · −8 trust · reduced snaps</span></button>`
+          `<button class="decision-choice" onclick="changePositionV11('${a.pos}')"><b>${a.pos} · ${escHtml(POSITIONS[a.pos].name)} · ${a.ovr} projected OVR</b><small>${escHtml(POS_BODY[a.pos].note)}</small><span class="decision-risk">New rival · −8 trust · reduced snaps</span></button>`
       )
       .join(
         ""
@@ -25758,7 +25758,7 @@
           roll = null;
         try {
           const deck = document.createElement("div");
-          deck.innerHTML = bs(!1);
+          deck.innerHTML = gamePlanOverlayV11(!1);
           const V = window.__PREGAME_V51;
           roll = V && V.silentPlan ? V.silentPlan(e, deck) : null;
           if (roll) plan = roll.id;
@@ -26617,7 +26617,7 @@
     return `<div class="card finance-legacy-v12"><div class="eyebrow">LIFE AFTER THE FINAL SNAP</div><div class="h2" style="margin:2px 0">${formatMoney(a.netWorth)} left for the future</div><div class="life-money-grid-v12"><div><b>${formatMoney(t.careerGross)}</b><small>Career gross</small></div><div><b>${formatMoney(t.investmentGains)}</b><small>Market gains</small></div><div><b>${Object.keys(t.completedGoals || {}).length}</b><small>Life goals</small></div><div><b>${Math.round(t.familySecurity)}</b><small>Family security</small></div></div></div>`;
   }
   function vd(e) {
-    ((Lt = e), St());
+    ((Lt = e), screenLife());
   }
   function yd() {
     ((state.view = "life"), saveGame(), render());
@@ -26625,7 +26625,7 @@
   function xs(e, t, a) {
     return `<button class="life-choice-v12 ${a === t.id ? "active" : ""}" onclick="chooseLifestyleV12('${e}','${t.id}')"><span>${t.icon}</span><div><b>${escHtml(t.name)}</b><small>${escHtml(t.description)}</small></div><em>${t.weekly ? formatMoney(t.weekly) + "/wk" : "FREE"}</em></button>`;
   }
-  function St() {
+  function screenLife() {
     const e = state.player;
     if (!e || e.level < 7) {
       goView("hub");
@@ -26693,11 +26693,11 @@
   }
   function gd(e, t) {
     const a = state.player;
-    chooseLifestyle(a, e, t) && (saveGame(), St(), showToast("Lifestyle updated."));
+    chooseLifestyle(a, e, t) && (saveGame(), screenLife(), showToast("Lifestyle updated."));
   }
   function bd(e) {
     const t = state.player;
-    setRetirementPlan(t, e) && (saveGame(), St(), showToast("Retirement target updated."));
+    setRetirementPlan(t, e) && (saveGame(), screenLife(), showToast("Retirement target updated."));
   }
   function kd(e) {
     const t = buyHouse(state.player, e);
@@ -26705,7 +26705,7 @@
       showToast(t.reason || "Purchase failed.");
       return;
     }
-    (saveGame(), St(), bigMoment("NEW HOME", t.house.name, "good"));
+    (saveGame(), screenLife(), bigMoment("NEW HOME", t.house.name, "good"));
   }
   function wd(e, t) {
     const a = ensureFinanceState(state.player),
@@ -26715,7 +26715,7 @@
       showToast(n.reason || "Investment failed.");
       return;
     }
-    (saveGame(), St(), showToast(`Invested ${formatMoney(n.amount)}`));
+    (saveGame(), screenLife(), showToast(`Invested ${formatMoney(n.amount)}`));
   }
   function $d(e, t) {
     const a = ensureFinanceState(state.player),
@@ -26725,7 +26725,7 @@
       showToast(n.reason || "Sale failed.");
       return;
     }
-    (saveGame(), St(), showToast(`Moved ${formatMoney(n.amount)} to cash`));
+    (saveGame(), screenLife(), showToast(`Moved ${formatMoney(n.amount)} to cash`));
   }
   function Sd(e, t) {
     const a = ensureFinanceState(state.player),
@@ -26734,7 +26734,7 @@
       showToast(s.reason || "Contribution failed.");
       return;
     }
-    (saveGame(), St(), s.completed ? bigMoment("LIFE GOAL COMPLETE", lifeGoalById(e).name, "good") : showToast(`Funded ${formatMoney(s.amount)}`));
+    (saveGame(), screenLife(), s.completed ? bigMoment("LIFE GOAL COMPLETE", lifeGoalById(e).name, "good") : showToast(`Funded ${formatMoney(s.amount)}`));
   }
   function Md() {
     const e = state.player;
@@ -26843,7 +26843,7 @@
           `⏭ Simmed ${n} week${n === 1 ? "" : "s"}${rolls.length ? ` · ${rolls.length} decision${rolls.length === 1 ? "" : "s"} made in the background (${rolls.filter(r => r.success).length} rolled up, ${rolls.filter(r => r.success === !1).length} down)` : ""} — every week on the plan you last chose, every game played by the engine`
         ));
   };
-  bs = function (e) {
+  gamePlanOverlayV11 = function (e) {
     const t = state.player;
     ensureV11(t);
     const a = t.weekResults ? t.weekResults.findIndex(n => !n.played) : -1,
@@ -26863,7 +26863,7 @@
           .join("")}<button class="btn ghost" onclick="closeGamePlan103()">Back</button></div></div></div>`)
       : "";
   };
-  gs = bs;
+  gamePlanOverlay = gamePlanOverlayV11;
   hn = function (e) {
     const t = e.seasonStats || {};
     if (t.grade)
@@ -26906,7 +26906,7 @@
   const Ad = render;
   render = function () {
     if ((ensureV12(), state.view === "life")) {
-      St();
+      screenLife();
       return;
     }
     (Ad(), Ed());
@@ -27255,7 +27255,7 @@
       O = e && e.offersV146B;
     if (!O || !O.list || !O.list.length) {
       state.view = "hub";
-      return Er();
+      return screenHub();
     }
     const E = window.TEAM_LOGOS_V44,
       cut = O.kind === "cut",
@@ -27715,8 +27715,8 @@
   canRetire = function (e) {
     return !!(qs0V147(e) || (e && e.level >= 7 && TU("retireAnyTimeV147", 1) && ensureFinanceState(e)));
   };
-  const St0V147 = St;
-  St = function () {
+  const St0V147 = screenLife;
+  screenLife = function () {
     const r = St0V147.apply(this, arguments);
     try {
       const e = state && state.player,
@@ -27838,7 +27838,7 @@
   });
   window.__prestigeRefreshV137 = () => {
     try {
-      state.view === "shop" && ps();
+      state.view === "shop" && screenPrestige();
     } catch (_) {}
     try {
       an();
@@ -27902,7 +27902,7 @@
     setState: e => {
       state = e;
     },
-    completeChallengesV134: e => es(e),
+    completeChallengesV134: e => completeChallenges(e),
     materializeInjuryV134: (e, w) => materializeInjuryV18(e, w),
     freshState: freshState,
     newPlayer: newPlayer,
@@ -28365,7 +28365,7 @@
       }
       function pgRankLine(p) {
         var avg = pgSeasonAvg(p);
-        var r = typeof sn === "function" ? sn(p, avg) : { rank: 0, of: 0 };
+        var r = typeof nationalRank === "function" ? nationalRank(p, avg) : { rank: 0, of: 0 };
         var prev = p._pgRank;
         var delta = prev ? prev - r.rank : 0; // positive = climbed the board
         p._pgRank = r.rank;
@@ -29865,7 +29865,7 @@
     tiers: TIER_V133,
     stage: typeof growStageV133 == "function" ? growStageV133 : null
   };
-  jr = function () {
+  screenTraining = function () {
     const e = state.player,
       t = LEVELS[e.level],
       sug = recommendTraining(e),
