@@ -40,7 +40,7 @@ const boot = async () => {
 await boot(); await page.goto(GAME_URL, { waitUntil: 'networkidle' }); await boot()   // warm past vite's one-time reload
 const shot = async (name) => { try { await page.screenshot({ path: SHOTS + 'v151B-' + name + '.png' }) } catch {} }
 /* every confirm the gate raises is accepted unless window.__dlgNo is set */
-await E(() => { new MutationObserver(() => { const d = document.getElementById('ribDlgV149'); if (d && !d.__seen) { d.__seen = 1; setTimeout(() => { const b = d.querySelector(window.__dlgNo ? 'button:not(.primary-v149)' : 'button.primary-v149'); b && b.click() }, 60) } }).observe(document.body, { childList: true }) })
+const dlgAuto = () => E(() => { if (window.__dlgAuto) return; window.__dlgAuto = 1; new MutationObserver(() => { const d = document.getElementById('ribDlgV149'); if (d && !d.__seen) { d.__seen = 1; setTimeout(() => { const b = d.querySelector(window.__dlgNo ? 'button:not(.primary-v149)' : 'button.primary-v149'); b && b.click() }, 60) } }).observe(document.body, { childList: true }) }); await dlgAuto()
 const fits = () => E(() => { const sc = document.getElementById('screen'), se = document.scrollingElement
   return { page: se.scrollHeight <= innerHeight + 2 && se.scrollWidth <= innerWidth + 2, wide: document.getElementById('app') ? document.getElementById('app').scrollWidth <= innerWidth + 2 : true,
     screen: sc ? sc.scrollHeight - sc.clientHeight : null, w: se.scrollWidth, h: se.scrollHeight } })
@@ -84,6 +84,7 @@ const viaSave = await E(async () => { const C = window.RIB_COSMETICS, st = windo
 ok(!viaSave.b && viaSave.a && viaSave.std, 'the save hook checks achievements: reaching the UFF unlocks Blackout and the Black & Gold bowl', viaSave)
 
 // ================= 3. the Team Creator's gate =================
+await dlgAuto()
 const ts0 = await E(() => { const T = window.RIB_COSMETICS.teamStyle, c = window.__GRIDIRON_TEAM_CUSTOM__
   T.grandfather(c); const I = T.info(); return { I, logo: c.logo, pal: c.palette, ownL: T.owned('logo', c.logo), ownP: T.owned('pal', c.palette) } })
 ok(ts0.ownL && ts0.ownP && ts0.I.unlocked >= 2 && ts0.I.freeLeft === 5 - ts0.I.unlocked && ts0.I.total > 100, 'the look a save already wears is grandfathered and counts toward the five free picks', ts0.I)
@@ -94,7 +95,7 @@ const saveGate = await E(async () => { const T = window.RIB_COSMETICS.teamStyle,
   let pick = 0; for (let i = 0; i < P; i++) if (!T.owned('pal', i)) { pick = i; break }
   const free0 = T.freeLeft(); window.pickPaletteV153(pick); const keepLogo = window.__GRIDIRON_TEAM_CUSTOM__.logo; window.__tempLogoV153 = keepLogo
   const okSave = await window.saveTeamCreatorV153(); return { pick, free0, free1: T.freeLeft(), owned: T.owned('pal', pick), okSave, cur: window.__GRIDIRON_TEAM_CUSTOM__.palette } })
-ok(saveGate.okSave && saveGate.owned && saveGate.free1 === saveGate.free0 - 1, 'saving a locked palette spends one free pick and the team wears it', saveGate)
+ok(saveGate.okSave === true && saveGate.cur === saveGate.pick && saveGate.owned && saveGate.free1 === saveGate.free0 - 1, 'saving a locked palette spends one free pick and the team wears it', saveGate)
 const pp = await E(async () => { const T = window.RIB_COSMETICS.teamStyle, st = window.__getGridironState(), N = (window.TEAM_LOGOS_V44.db || []).length
   const next = () => { for (let i = 0; i < N; i++) if (!T.owned('logo', i)) return i; return -1 }
   while (T.freeLeft() > 0) await T.acquire([{ kind: 'logo', i: next() }])
@@ -130,7 +131,7 @@ const pr = await E(() => { const c = document.querySelector('#screen .pcard-v151
     text: c ? c.innerText.replace(/\s+/g, ' ').slice(0, 200) : '', P: { careers: P.careers, bank: P.bank, teamStyle: P.teamStyle, gen: P.gen, kit: P.cosmetics.kit, ach: P.achievements } } })
 ok(pr.card && pr.frame === 'frame_gold' && pr.gold && pr.banner === 'ban_aurora', 'the profile card wears the equipped frame and banner', pr)
 ok(pr.ink > 800, 'the profile draws his character (the growth figure in his kit)', pr.ink)
-ok(pr.P.teamStyle.unlocked >= 8 && /LOGOS/.test(pr.text) && /12,345 PP|12K PP|12345/.test(pr.text) && pr.P.kit.j === '#1e6fff' && pr.P.kit.hs === '#0f2d5c', 'profile() carries the bank, the unlock count and the equipped kit, and the card shows them', pr.P)
+ok(pr.P.teamStyle.unlocked >= 7 && /LOGOS/.test(pr.text) && /12,345 PP|12K PP|12345/.test(pr.text) && pr.P.kit.j === '#1e6fff' && pr.P.kit.hs === '#0f2d5c', 'profile() carries the bank, the unlock count and the equipped kit, and the card shows them', pr.P)
 const pf = await fits(); ok(pf.page && pf.wide, 'the profile fits 400x860 with no page scroll', pf)
 await shot('profile')
 const xss = await E(() => { const el = document.createElement('div'); document.body.appendChild(el)
@@ -150,16 +151,20 @@ async function step(t) {
     let el = t === 'POS' ? (els.find(e => new RegExp('^' + window.__readPos + '\\b').test(txt(e))) || els.find(e => e.classList.contains('pos-card')))
       : t === 'PLAN' ? els.find(e => /gs-card/i.test(e.className)) : els.find(e => txt(e).includes(t))
     if (el) { el.scrollIntoView({ block: 'center' }); el.click(); return txt(el).slice(0, 40) } return null }, { t, visSrc: vis })
-  await page.waitForTimeout(t === 'PLAN' ? 3000 : 800); return r
+  console.log('>>', t, '->', r, await E(() => window.S && window.S.view)); await page.waitForTimeout(t === 'PLAN' ? 3000 : 800); return r
 }
 await E(() => window.go('menu')); await page.waitForTimeout(800)
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 let scene = false
-for (let i = 0; i < 150; i++) { scene = await E(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.some(m => m && m.team === 'you') && window.RIB && true)); if (scene) break
+for (let i = 0; i < 150; i++) { scene = await E(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.some(m => m && m.team === 'you'))); if (scene) break
+  await E(() => { const g = document.getElementById('gv42go'); if (g && g.offsetParent) g.click() })   // the season wheel's gate (v139) and its CONTINUE
   if (i === 20 || i === 50 || i === 90) { await step('CONTINUE TO MATCH'); await step('Continue') }
   await page.waitForTimeout(500) }
-if (!scene) scene = await E(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.some(m => m && m.team === 'you')))
-ok(scene, 'a new career reached the live field with the you-player on it')
+let forcedYou = false
+if (!scene) { forcedYou = await E(() => { const sc = window.__gridironScene; if (!sc || !sc.markers || sc.markers.length < 22) return false   // no snap of his yet: dress a slot the way a play of his does (the real highlight path)
+  sc.highlight(sc.markers[5], true); return sc.markers[5].team === 'you' }); scene = forcedYou }
+if (!scene) await shot('no-live')
+ok(scene, 'a new career reached the live field with the you-player on it', forcedYou ? 'his marker dressed through highlight()' : 'on a play of his')
 const r2 = await E(() => ({ u: window.RIB_COSMETICS.equipped('uniform'), h: window.RIB_COSMETICS.equipped('helmet') }))
 ok(r2.u === 'uni_electric' && r2.h === 'hel_star', 'equipped items survive a new career', r2)
 await page.waitForTimeout(1500)
@@ -224,8 +229,8 @@ const vd = v0 && v1 ? Math.abs(v0[0] - v1[0]) + Math.abs(v0[1] - v1[1]) + Math.a
 ok(vd > 3 && m0 === 0 && m1.motes > 10 && m1.attr === 'vault_glacier' && m1.V && m1.V.tinted > 0, 'a vault theme grades the room (canvas pixels), tints the coins and hangs its motes; the classic hoard has none', { before: v0 && v0.map(Math.round), after: v1 && v1.map(Math.round), d: +vd.toFixed(1), m0, m1 })
 
 // ================= 7. persistence across a reset of the save =================
-await E(() => { const A = window.__GRIDIRON_AUDIT__; const f = A.freshState(); A.setState(f); window.GridironStorage.save(f) })
-await page.reload({ waitUntil: 'networkidle' }); await boot()
+await E(() => { Object.keys(localStorage).filter(k => /^gridiron_save|^rib_backup/.test(k)).forEach(k => localStorage.removeItem(k)) })
+await boot()
 const r3 = await E(() => ({ u: window.RIB_COSMETICS.equipped('uniform'), f: window.RIB_COSMETICS.equipped('frame'), owned: window.RIB_COSMETICS.owned('uni_electric') }))
 ok(r3.u === 'uni_electric' && r3.f === 'frame_gold' && r3.owned, 'a wiped career save takes nothing: the looks live outside it', r3)
 

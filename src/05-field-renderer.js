@@ -1515,6 +1515,16 @@ function ribSyncYouKitV96(scene, side) {
 function cosKitV151B(teamCols) {
   try { const C = window.RIB_COSMETICS; return C && C.fieldKit ? C.fieldKit(teamCols, RIB.defPal || null) : null; } catch (e) { return null; }
 }
+// the module equips between plays: re-dress him now (RIB lives in this file's scope, not on window)
+window.__COS_FIELD_V151B = {
+  resync(scene) {
+    if (!scene || !scene.markers) return false;
+    RIB.youKitV96 = null;
+    const me = scene.markers.find((m) => m && m.team === "you");
+    ribSyncYouKitV96(scene, (me && me.kitSide) || "off");
+    return true;
+  },
+};
 // the atlas decodes the moment the page loads — long before any game starts
 (function () {
   if (!window.__RIB_ATLAS) return;

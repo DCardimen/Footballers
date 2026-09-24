@@ -484,10 +484,7 @@
   function refreshField() {
     try {
       var sc = window.__gridironScene; if (!sc) return false;
-      if (typeof RIB !== "undefined" && RIB) RIB.youKitV96 = null;
-      var me = (sc.markers || []).find(function (m) { return m && m.team === "you"; });
-      if (me && typeof ribSyncYouKitV96 === "function") ribSyncYouKitV96(sc, me.kitSide || "off");
-      else if (typeof ribSyncYouKitV96 === "function" && RIB && RIB.teamCols && RIB.teamCols.off) ribSyncYouKitV96(sc, "off");
+      if (window.__COS_FIELD_V151B) window.__COS_FIELD_V151B.resync(sc);
       if (sc.buildCrowd) sc.buildCrowd();
       return true;
     } catch (e) { return false; }

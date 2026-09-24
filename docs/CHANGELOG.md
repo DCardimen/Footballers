@@ -11,6 +11,20 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v151 B — he looks the part.** Cosmetics and a profile, selling status and never power. `src/28-cosmetics.js`
+  (`window.RIB_COSMETICS`) holds 79 items in nine categories — uniforms (incl. a historical bundle), helmets, card
+  frames, touchdown celebrations, stadium themes, vault themes, profile banners, trophy shelves, recap themes — from
+  five sources (free, earned by eight achievements, season-pass tiers, shop packs at the owner's prices, the Founder
+  bundle). Everything is really drawn: the uniform and helmet re-dress the you-player's own textures on the live field
+  (patterns, helmet shell / stripe / decal / finish; never the opponent's or his team-mates') and the menu's kit masks;
+  a celebration plays on his touchdowns; a stadium theme repaints the bowl's band and tints the crowd at home; a vault
+  theme grades the room, tints the coins and hangs motes. New PROFILE view (menu legacy card, hub, locker) with the
+  drawn character in his kit, team colours and crest, the bank, honours, titles by level, MVPs, Hall, lineage and the
+  equipped frame / banner / shelf; `profile()` / `renderCard()` are what the leaderboard shows. The Locker gained a
+  STYLE tab. The Team Creator's crests and palettes are gated: five free picks (shared), then 10 PP doubling, or a
+  one-time `unlock_all_team_style` while monetization is on; the look a save wears is grandfathered. No sim number
+  moves (seeded games identical, all equipped vs none). `docs/COSMETICS.md`; `v151Bcheck`.
+
 - **v150 C — the hooks are in, the switch is still off.** The monetization hooks now live in the game code: the speed
   guard and clamp, an optional 3× flag, the career payout double, a cosmetic gate for NEW content only, a STORE tile on
   the menu, Restore Purchases in Settings, and Android back closing the store's sheets. With monetization off (the

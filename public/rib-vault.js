@@ -700,6 +700,13 @@
 
   Scene.prototype.coinImg = function (den, kind, shadeIx) {
     var n = 'coin_' + den + '_' + kind;
+    // v151 B: a vault theme's coins are the tinted sprite, shaded the same four ways (baked once per theme)
+    var T = this._tV151B;
+    if (T && this.sp.img && window.RIB_COSMETICS && window.RIB_COSMETICS.vaultTint) {
+      var cc = this._shadeV151B || (this._shadeV151B = {}), ck = T.id + ':' + n;
+      if (cc[ck] === undefined) { var raw = this.sp.img[n], tt = raw ? window.RIB_COSMETICS.vaultTint(raw, n) : null; cc[ck] = tt ? shadeBake(tt) : null; }
+      if (cc[ck]) return cc[ck][shadeIx];
+    }
     var v = this.shade[n];
     return v ? v[shadeIx] : this.sp.get(n);
   };
@@ -1286,6 +1293,7 @@
     this.resize();
     // v151 B: a theme equipped (or taken off) since the room was baked re-bakes the room and the deep layer once
     try { var tV = window.RIB_COSMETICS && window.RIB_COSMETICS.vaultTheme ? window.RIB_COSMETICS.vaultTheme() : null;
+      this._tV151B = tV;
       if ((tV ? tV.id : '') !== (this._themeV151B || '')) { this.bakeRoom(); this.deepKey = ''; } } catch (e) {}
     var x = this.ctx;
     x.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);

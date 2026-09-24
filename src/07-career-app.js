@@ -29846,7 +29846,7 @@
         const old = getCustom(),
           pal = window.__tempPaletteV153 ?? old.palette,
           lg = window.__tempLogoV153 ?? old.logo;
-        return teamStyleNeedV151B(pal, lg).then(ok => (ok ? saveTeamCreatorCoreV151B() : !1));
+        return teamStyleNeedV151B(pal, lg).then(ok => (ok ? (saveTeamCreatorCoreV151B(), !0) : !1));
       };
       const saveTeamCreatorCoreV151B = function () {
         const old = getCustom(),
