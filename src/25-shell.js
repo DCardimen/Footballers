@@ -26,11 +26,11 @@
  * and the boot's restore, and v140's deferred retry — back at the top of every scroller it owns.
  * `window.__SHELL_V146`; `v146Echeck.mjs`, `v146Eshot.mjs`. */
 (function () {
-  var OFF = { live: 1, menu: 1, highscore: 1, daily: 1, leaderboard: 1 };
+  var OFF = { live: 1, menu: 1, highscore: 1, daily: 1 };   // v151 C: the leaderboards (career + Score Attack) and the season screen sit in the shell
   var TITLE = { hub: "CAREER HUB", season: "THE SEASON", training: "OFFSEASON TRAINING", upgrade: "SKILLS", shop: "PRESTIGE TREE",
     settings: "SETTINGS", stats: "STATS & LEADERS", challenges: "GOALS", hof: "HALL OF FAME", locker: "LOCKER", legacy: "LEGACY",
     dynasty: "DYNASTY", rank: "RECRUITING BOARD", result: "SEASON REPORT", declineResult: "SEASON REPORT", event: "STORY WEEK", sim: "THE SEASON",
-    life: "LIFE", roster: "ROSTER", path: "THE PATH", tier: "THE NEXT LEVEL", gameover: "CAREER OVER", win: "CHAMPION", choosePos: "NEW CAREER" };
+    life: "LIFE", roster: "ROSTER", path: "THE PATH", tier: "THE NEXT LEVEL", gameover: "CAREER OVER", win: "CHAMPION", choosePos: "NEW CAREER", leaderboard: "LEADERBOARDS", seasons: "SEASON & PASS" };
   var NO_MAIN = { shop: 1 };                       // the tree's buttons are all doors; the TREE is the screen
   /* what may scroll inside itself when a screen will not fit, most specific first: the named lists,
    * then the open accordion's body, then the one big card or block the screen is made of */
