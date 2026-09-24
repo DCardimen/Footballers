@@ -12730,6 +12730,7 @@
     if (e === "highscore") return window.__hsRender && window.__hsRender(state);
     if (e === "leaderboard") return window.__lbRender && window.__lbRender(state);
     if (e === "daily") return window.__dailyRender && window.__dailyRender(state);
+    if (e === "seasons") return window.__seasonsRender ? window.__seasonsRender(state) : screenMenuLegacy(); // v151 C (src/29-seasons.js re-draws it once loaded)
     if (e === "settings") return screenSettings();
     if (e === "choosePos") return screenChoosePos();
     if (e === "hub") return screenHub();
@@ -18999,6 +19000,7 @@
       gen: Math.max(1, lineageV136().gen || 1)
     };
     ((s.goat = hofScore(s)),
+      seasonsCareerEndV151C(e, s, t) /* v151 C: the career goes on the boards */,
       state.hof.push(s),
       state.hof.sort((r, l) => l.goat - r.goat),
       state.hof.length > 60 && (state.hof.length = 60));
@@ -19012,6 +19014,37 @@
       t >= 7 && (state.posMastery[e.pos].nfl = !0),
       e.nflRings > 0 && (state.posMastery[e.pos].ring = !0));
   }
+  /* ===== v151 C THE SEASON IS AN EVENT (the career's hand-off) =====
+   * A finished career is handed to the competitive layer (src/20-leaderboards.js boards, src/29-seasons.js
+   * pass + trophy case) as a plain snapshot, queued on `window.__seasonsQV151C` because the settle can run
+   * before those files have loaded (the boot restore draws from the top level of this block — v140). Nothing
+   * here reads or writes a gameplay number; the queue lives outside the save. Hoisted: screens call it. */
+  function seasonsCareerEndV151C(e, row, level) {
+    try {
+      const F = familyV136();
+      (window.__seasonsQV151C || (window.__seasonsQV151C = [])).push({
+        hof: JSON.parse(JSON.stringify(row)),
+        level: Math.max(level | 0, (e && e.level) | 0),
+        traits: ((e && e.traits) || []).length,
+        origin: (e && e.originNameV11) || "",
+        age: (e && e.age) | 0,
+        nodes: Object.values(state.tree || {}).reduce((a, n) => a + (n | 0), 0),
+        surname: F.surname || "",
+        careerNo: state.careers | 0,
+        team: (() => {
+          try {
+            const d = window.__RIB_MENU_DATA_V89 && window.__RIB_MENU_DATA_V89();
+            return d && d.team ? { school: d.team.school, name: d.team.name, colors: d.team.colors, logo: d.team.logo } : null;
+          } catch (_) {
+            return null;
+          }
+        })(),
+        at: Date.now()
+      });
+      window.RIB_SEASONS && window.RIB_SEASONS.flush && window.RIB_SEASONS.flush();
+    } catch (_) {}
+  }
+  window.__escHtmlV151C = escHtml;
   function hofWings() {
     return (state && state.hofWings) || 0;
   }
