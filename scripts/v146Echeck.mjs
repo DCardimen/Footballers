@@ -192,7 +192,7 @@ for (const v of ['season', 'upgrade', 'shop']) {
 }
 // the hook the career block calls is hoisted (v140)
 const src = await page.evaluate(pageSource)
-ok(/function shellPreV146\(/.test(src) && /function shellPostV146\(/.test(src) && /const _qV146=q;q=function/.test(src), 'the shell hook is a hoisted declaration wrapped round the last q()')
+ok(/function shellPreV146\(/.test(src) && /function shellPostV146\(/.test(src) && /const _qV146\s*=\s*q;\s*q\s*=\s*function/.test(src), 'the shell hook is a hoisted declaration wrapped round the last q()')
 
 console.log('page errors:', errs.length ? '\n' + errs.join('\n') : 'none')
 console.log(JSON.stringify({ pass, fail, pageErrors: errs.length }))

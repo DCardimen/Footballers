@@ -44,7 +44,7 @@ for (const [screen, needle] of [
   ['the offseason board (tpRowV113)',    '${Le[k].icon} ${Le[k].name}${statInfoBtnV142(k)}</span>']
 ]) ok(`${screen} renders the button`, SRC.includes(needle), needle)
 ok('the button helper is a hoisted declaration (v140: a boot render calls it by bare name)',
-   /\nfunction statInfoBtnV142\(/.test(SRC) && !/statInfoBtnV142\s*=\s*function/.test(SRC))
+   /\n\s*function statInfoBtnV142\(/.test(SRC) && !/statInfoBtnV142\s*=\s*function/.test(SRC))
 
 // ---- 1. the data covers every stat on the sheet
 const data = await page.evaluate(() => {
