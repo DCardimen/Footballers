@@ -92,7 +92,8 @@ if (SHOTS) await snap('scripts/_v92_far.png')
 await page.evaluate(() => { window.__gridironScene.scene.resume() })
 
 // the posts: real proportions in the source, and drawn at both ends every snap
-const src = await page.evaluate(async () => (await (await fetch('/index.html')).text()))
+const src = await page.evaluate(async () => { const h = await (await fetch('/index.html')).text()   // v149 A: the page and the src/ scripts it loads
+  return h + (await Promise.all([...h.matchAll(/src="\.\/(src\/[^"?]+\.js)/g)].map(m => fetch('/' + m[1]).then(r => r.text())))).join('\n') })
 const up = +(src.match(/TU\("uprightH", (\d+)\)/) || [])[1], ph = +(src.match(/TU\("postH", (\d+)\)/) || [])[1]
 ok(up >= 120 && ph >= 40, 'the goalposts stand at real proportions (crossbar on a post, tall uprights)', `postH=${ph} uprightH=${up}`)
 const posts = await page.evaluate(() => { const sc = window.__gridironScene; return { g: !!(sc.goalG && sc.goalG.visible), cmds: sc.goalG && sc.goalG.commandBuffer ? sc.goalG.commandBuffer.length : 0 } })

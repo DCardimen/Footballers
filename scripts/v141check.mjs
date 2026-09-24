@@ -10,7 +10,8 @@
 // Usage: node scripts/v141check.mjs   (GAMES per cell via CELLS, default 1)
 import fs from 'node:fs'
 import { chromium } from 'playwright'
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
+const html = readGameHtml()
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m => m[1])
 const needle = 'return { off, def, all: off.concat(def) };'
 const patch = 'if(root.__AP){root.__AP.push(off.concat(def).map(a=>({lb:a.lb,you:!!(a.player&&a.player.you),spdA:a.spdA,burst:a.burst,accel:a.accel,quick:a.quick,agi:a.agi,str:a.str,cat:a.cat,thr:a.thr,tkl:a.tkl,blk:a.blk,aware:a.aware,vis:a.vis,grit:a.grit,stam:a.stam,dur:a.dur,jump:a.jump,bc:a.bc,disc:a.disc,cov:a.cov})))}' + needle

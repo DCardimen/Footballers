@@ -18,8 +18,9 @@
 //   * and it pays off where it should — air yards and yards after the catch, not the catch roll
 import fs from "node:fs";
 import vm from "node:vm";
+import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
 
-const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const html = readGameHtml();
 const anchor = html.indexOf("/* ===== RIB_TUNE"), open = html.lastIndexOf("<script>", anchor), close = html.indexOf("</script>", anchor);
 if (anchor < 0 || open < 0 || close < 0) throw new Error("play engine script block not found");
 const src = html.slice(open + "<script>".length, close);

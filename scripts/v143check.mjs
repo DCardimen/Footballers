@@ -10,6 +10,7 @@
 // Usage: npm run dev, then node scripts/v143check.mjs   (GAMES, default 90)
 import fs from 'node:fs'
 import { chromium } from 'playwright'
+import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
@@ -86,7 +87,7 @@ await browser.close()
 
 const checks = []
 const ok = (name, pass, detail) => checks.push({ name, pass: !!pass, detail })
-const SRC = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+const SRC = readGameHtml()
 
 ok(`a sample worth judging (${on.contacts} resolved contacts)`, on.contacts >= 400, on.contacts)
 ok(`every lunge carries the aim (${on.lungeNoAim} without)`, on.lungeNoAim === 0, on.lungeNoAim)

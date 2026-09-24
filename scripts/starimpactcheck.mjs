@@ -9,6 +9,7 @@
 //   PAIRS=20 ASSERT=1 STAR_SCALES='{"RB":0.12}' npm run check:star
 import fs from 'node:fs'
 import { chromium } from 'playwright'
+import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
 
 const runs = Math.max(1, Number(process.env.RUNS || 1))
 const pairs = Math.max(1, Number(process.env.PAIRS || 4))
@@ -56,7 +57,7 @@ const requestedPositions = new Set((process.env.POSITIONS || 'QB,RB,WR,TE,OL,DL,
 const archetypes = allArchetypes.filter(archetype => requestedPositions.has(archetype.pos))
 if (!archetypes.length) throw new Error('POSITIONS did not select a benchmark position')
 
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+const html = readGameHtml()
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(match => match[1])
 if (scripts.length < 5) throw new Error(`Expected at least 5 inline scripts, found ${scripts.length}`)
 

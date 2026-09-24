@@ -1,13 +1,12 @@
 import fs from "node:fs";
 import vm from "node:vm";
 import { execFileSync } from "node:child_process";
+import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
 
 const root = new URL("../", import.meta.url);
 const refArg = process.argv.find(a => a.startsWith("--git-ref="));
 const gitRef = refArg ? refArg.slice("--git-ref=".length) : null;
-const html = gitRef
-  ? execFileSync("git", ["show", `${gitRef}:index.html`], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 })
-  : fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const html = readGameHtml(gitRef ? { gitRef } : {});   // v149 A: a pre-split ref is still one file, and reads as one
 
 const scriptAnchor = html.indexOf("/* ===== RIB_TUNE");
 const scriptOpen = html.lastIndexOf("<script>", scriptAnchor);

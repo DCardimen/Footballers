@@ -9,6 +9,7 @@
 // Usage: npm run dev, then node scripts/v142check.mjs   (GAME_URL to point elsewhere)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
+import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage({ viewport: { width: 420, height: 880 } })
 const errs = []
@@ -35,7 +36,7 @@ const ok = (name, pass, detail) => checks.push({ name, pass: !!pass, detail })
 
 // ---- 0. every screen that lists attributes asks for the button (source-level: two of the four
 //         screens sit behind a long walk, and a renderer that silently drops it is the failure mode)
-const SRC = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+const SRC = readGameHtml()
 for (const [screen, needle] of [
   ['the hub sheet (Vr)',                 '${Le[e].icon} ${Le[e].name}${statInfoBtnV142(e)}'],
   ['the SKILLS sheet (un)',              '${Le[a].icon} ${Le[a].name}${statInfoBtnV142(a)}'],

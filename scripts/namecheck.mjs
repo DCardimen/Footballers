@@ -12,8 +12,9 @@
 //   * the college suffixes and the fifty DFL clubs are well formed and unique
 import fs from "node:fs";
 import vm from "node:vm";
+import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
 
-const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const html = readGameHtml();
 function grab(head, tail) {
   const i = html.indexOf(head); if (i < 0) throw new Error("missing " + head);
   const j = html.indexOf(tail, i); if (j < 0) throw new Error("missing end of " + head);

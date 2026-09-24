@@ -3,10 +3,11 @@
 // football-shaped outcome ranges. Usage: CHROME_PATH=/path/to/chromium npm run check:equal
 import fs from 'node:fs'
 import { chromium } from 'playwright'
+import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
 
 const gameCount = Math.max(20, Number(process.env.GAMES || 120))
 const chromePath = process.env.CHROME_PATH || '/opt/pw-browsers/chromium'
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+const html = readGameHtml()
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m => m[1])
 if (scripts.length < 5) throw new Error(`Expected at least 5 inline scripts, found ${scripts.length}`)
 
