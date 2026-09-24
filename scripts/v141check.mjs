@@ -10,13 +10,11 @@
 // Usage: node scripts/v141check.mjs   (GAMES per cell via CELLS, default 1)
 import fs from 'node:fs'
 import { chromium } from 'playwright'
-import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
-const html = readGameHtml()
-const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m => m[1])
+import { gameScripts } from './lib/layout.mjs'   // v149 A: the game's scripts by file (docs/LAYOUT.md)
 const needle = 'return { off, def, all: off.concat(def) };'
 const patch = 'if(root.__AP){root.__AP.push(off.concat(def).map(a=>({lb:a.lb,you:!!(a.player&&a.player.you),spdA:a.spdA,burst:a.burst,accel:a.accel,quick:a.quick,agi:a.agi,str:a.str,cat:a.cat,thr:a.thr,tkl:a.tkl,blk:a.blk,aware:a.aware,vis:a.vis,grit:a.grit,stam:a.stam,dur:a.dur,jump:a.jump,bc:a.bc,disc:a.disc,cov:a.cov})))}' + needle
 let hit = 0
-const runtime = [0,1,2,3,4,7].map(i=>scripts[i]).map(s=>{ let l=s.replace(/data:image\/[^;"']+;base64,[A-Za-z0-9+/=]+/g,'data:image/png;base64,'); if(l.includes(needle)){l=l.replace(needle,patch);hit++} return l })
+const runtime = gameScripts(['inline:0', 'inline:1', 'inline:2', 'src/03-splash.js', 'src/04-engine.js', 'src/07-career-app.js']).map(s=>{ let l=s.replace(/data:image\/[^;"']+;base64,[A-Za-z0-9+/=]+/g,'data:image/png;base64,'); if(l.includes(needle)){l=l.replace(needle,patch);hit++} return l })
 if(!hit) throw new Error('could not patch makeAgents')
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage({ viewport:{width:520,height:900} })

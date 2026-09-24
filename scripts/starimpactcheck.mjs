@@ -9,7 +9,7 @@
 //   PAIRS=20 ASSERT=1 STAR_SCALES='{"RB":0.12}' npm run check:star
 import fs from 'node:fs'
 import { chromium } from 'playwright'
-import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
+import { gameScripts } from './lib/layout.mjs'   // v149 A: the game's scripts by file (docs/LAYOUT.md)
 
 const runs = Math.max(1, Number(process.env.RUNS || 1))
 const pairs = Math.max(1, Number(process.env.PAIRS || 4))
@@ -57,14 +57,11 @@ const requestedPositions = new Set((process.env.POSITIONS || 'QB,RB,WR,TE,OL,DL,
 const archetypes = allArchetypes.filter(archetype => requestedPositions.has(archetype.pos))
 if (!archetypes.length) throw new Error('POSITIONS did not select a benchmark position')
 
-const html = readGameHtml()
-const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(match => match[1])
-if (scripts.length < 5) throw new Error(`Expected at least 5 inline scripts, found ${scripts.length}`)
 
 const rosterNeedle = 'U>=0&&(j[U]={name:o.player&&o.player.name||"You",num:xn(e),pos:e,isOff:c,you:!0,ovr:r,attrs:qr(),stat:a});'
 const rosterHook = `${rosterNeedle}if(window.__starImpactBenchmarkV40&&U>=0){const star=j[U],peers=j.filter((_,idx)=>idx!==U),avg=(key)=>peers.reduce((sum,pl)=>sum+(Number(pl.attrs&&pl.attrs[key])||45),0)/Math.max(1,peers.length),clone=(pl,isOff)=>Object.assign({},pl,{name:pl.name+" Mirror",isOff,you:!1,attrs:Object.assign({},pl.attrs||{}),stat:Object.assign({},pl.stat||{})}),keys=Object.keys(star.attrs||{}),peerOvr=Math.round(peers.reduce((sum,pl)=>sum+(Number(pl.ovr)||45),0)/Math.max(1,peers.length));star.ovr=peerOvr,keys.forEach(key=>star.attrs[key]=avg(key));v.off=P.off.map(pl=>clone(pl,!0)),v.def=P.def.map(pl=>clone(pl,!1));const boost=window.__starImpactBoostV40,gap=Math.max(1,Number(window.__starImpactGapV40)||20),attrScale=gap/20;if(boost){star.ovr=peerOvr+gap;Object.entries(boost).forEach(([key,delta])=>star.attrs[key]=(Number(star.attrs[key])||45)+Number(delta||0)*attrScale)}}`
 let installed = false
-const runtimeScripts = scripts.slice(0, 5).map(source => {
+const runtimeScripts = gameScripts(['inline:0', 'inline:1', 'inline:2', 'src/03-splash.js', 'src/04-engine.js']).map(source => {
   let lean = source.replace(/data:image\/[^;"']+;base64,[A-Za-z0-9+/=]+/g, 'data:image/png;base64,')
   if (lean.includes(rosterNeedle)) {
     lean = lean.replace(rosterNeedle, rosterHook)

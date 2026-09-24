@@ -3,18 +3,15 @@
 // football-shaped outcome ranges. Usage: CHROME_PATH=/path/to/chromium npm run check:equal
 import fs from 'node:fs'
 import { chromium } from 'playwright'
-import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
+import { gameScripts } from './lib/layout.mjs'   // v149 A: the game's scripts by file (docs/LAYOUT.md)
 
 const gameCount = Math.max(20, Number(process.env.GAMES || 120))
 const chromePath = process.env.CHROME_PATH || '/opt/pw-browsers/chromium'
-const html = readGameHtml()
-const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m => m[1])
-if (scripts.length < 5) throw new Error(`Expected at least 5 inline scripts, found ${scripts.length}`)
 
 const mirrorNeedle = 'U>=0&&(j[U]={name:o.player&&o.player.name||"You",num:xn(e),pos:e,isOff:c,you:!0,ovr:r,attrs:qr(),stat:a});'
 const mirrorPatch = `${mirrorNeedle}if(window.__equalTalentBenchmarkV39){const Y=(_,ie)=>Object.assign({},_,{name:Hr(),isOff:ie,you:!1,attrs:Object.assign({},_.attrs||{}),stat:Object.assign({},_.stat||{})});v.off=P.off.map(_=>Y(_,!0)),v.def=P.def.map(_=>Y(_,!1))}`
 let enginePatched = false
-const runtimeScripts = [0, 1, 2, 3, 4, 7].map(i => scripts[i]).map(source => {   // v141: the engine lives in block 7 now (5 is the Phaser bundle, 6 its launcher); slice(0,5) has been missing it
+const runtimeScripts = gameScripts(['inline:0', 'inline:1', 'inline:2', 'src/03-splash.js', 'src/04-engine.js', 'src/07-career-app.js']).map(source => {   // v141: the career app (old block 7) runs the games; the Phaser bundle, the renderer and its launcher stay out
   let lean = source.replace(/data:image\/[^;"']+;base64,[A-Za-z0-9+/=]+/g, 'data:image/png;base64,')
   if (lean.includes(mirrorNeedle)) {
     lean = lean.replace(mirrorNeedle, mirrorPatch)
