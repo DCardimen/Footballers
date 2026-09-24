@@ -82,8 +82,8 @@ A check that greps `07` must match readable text now, and should not depend on l
 `\s*` where the formatter may put a space or a newline, and use today's names. The ones v149 C moved:
 `bootviewcheck` (`boot()` guarded by `safeBootV140(function (`), `v146Echeck` (`const _qV146 = render;
 render = function`), `v142check` (`${ATTR_INFO[e].icon}…`, `\n\s*function statInfoBtnV142(`),
-`namecheck` (`TOWNS` / `MASCOTS` / `COLLEGE_V123` / `newTeamIdentity`), `equaltalentcheck` and
-`starimpactcheck` (their roster hook anchors on `/attrs:\s*youSimAttrs\(\),\s*stat:\s*a\s*\}\);/`).
+`namecheck` (`TOWNS` / `MASCOTS` / `COLLEGE_V123` / `newTeamIdentity`), `equaltalentcheck` (also its patch: `randName()`, was `Hr`) and
+`v149Echeck` (`window.setSpeed` is `function setSpeed(`, was `ml`), `starimpactcheck` (their roster hook anchors on `/attrs:\s*youSimAttrs\(\),\s*stat:\s*a\s*\}\);/`).
 `starimpactcheck` still loads the scripts WITHOUT `07` (as it has since v141 moved the games into the
 career app), so it cannot install its hook — a pre-existing break, not v149 C's.
 
