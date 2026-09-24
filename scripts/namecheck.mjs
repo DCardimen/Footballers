@@ -24,11 +24,11 @@ const ctx = vm.createContext({ Math, Array, String });
 vm.runInContext([
   grab("const LOGO_DB = [", "\n];"),
   grab("const LOGO_RULES = [", "\n];"),
-  // v149 C: the career app is formatted (docs/NAMES.md); one `const TOWNS = [...], er = [...]` ends on "Octopi" (Ga → TOWNS)
+  // v149 C: the career app is formatted (docs/NAMES.md); one `const TOWNS = [...], MASCOTS = [...]` ends on "Octopi" (Ga → TOWNS, er → MASCOTS, Xs → newTeamIdentity)
   grab("const TOWNS = [", '"Octopi"') + "];",
   grab("const COLLEGE_V123 = [", "];"),
-  html.slice(html.indexOf("function dflClubV123"), html.indexOf("function Xs()")),
-  "globalThis.OUT={LOGO_DB,LOGO_RULES,Ga:TOWNS,er,COLLEGE_V123,DFL_V123,dflClubV123};",
+  html.slice(html.indexOf("function dflClubV123"), html.indexOf("function newTeamIdentity()")),
+  "globalThis.OUT={LOGO_DB,LOGO_RULES,Ga:TOWNS,er:MASCOTS,COLLEGE_V123,DFL_V123,dflClubV123};",
 ].join("\n"), ctx);
 const { LOGO_DB, LOGO_RULES, Ga, er, COLLEGE_V123, DFL_V123 } = ctx.OUT;
 

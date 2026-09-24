@@ -2157,7 +2157,7 @@
       ]
     }
   );
-  function Os(e) {
+  function ensureStoryState(e) {
     ((e.storyDecisionQueueV11 = e.storyDecisionQueueV11 || []),
       (e.storyArcHistoryV11 = e.storyArcHistoryV11 || []),
       (e.activeStoryArcV11 = e.activeStoryArcV11 || null),
@@ -2362,7 +2362,7 @@
   } catch (e) {}
   function maybeStartStoryArc(e, t, a) {
     return null;
-    if ((Os(e), e.storyDecisionQueueV11.length)) return null;
+    if ((ensureStoryState(e), e.storyDecisionQueueV11.length)) return null;
     if (e.activeStoryArcV11)
       return (
         (e.activeStoryArcV11.weeksSinceStage = (e.activeStoryArcV11.weeksSinceStage || 0) + 1),
@@ -2432,7 +2432,7 @@
       a.legacy && (t.legacyTokensV11 = (t.legacyTokensV11 || 0) + a.legacy));
   }
   function resolveStoryChoice(e, t, a, s) {
-    Os(e);
+    ensureStoryState(e);
     const n = e.storyDecisionQueueV11[0];
     if (!n) return null;
     const i = n.choices.find(C => C.id === a) || n.choices[0],
@@ -2823,7 +2823,7 @@
       (t.planHistoryV11 = t.planHistoryV11 || []),
       (t.weekModifiersV11 = t.weekModifiersV11 || []),
       (t.worldState = t.worldState || { teamChemistry: 50, programMomentum: 50, mediaHeat: 20 }),
-      Os(t),
+      ensureStoryState(t),
       ensureCondition(t),
       t.pos && ensureRival(t, s, seededRng(t.seasonSeed, t.level, t.pos, "ensure-rival")),
       t.level >= 7 && ensureNflState(t, n),
@@ -4840,7 +4840,7 @@
       }
     },
     ATTR_KEYS = Object.keys(ATTR_INFO),
-    qo = 999;
+    ATTR_HARD_CAP = 999;
 
   /* ===== v142 EVERY STAT SAYS WHAT IT DOES =====
    * An ⓘ beside every attribute, on all four screens that list them (the hub sheet `Vr`, the
@@ -5177,39 +5177,39 @@
     for (const t in state.chaos) e += state.chaos[t] || 0;
     return e;
   }
-  function Jt() {
+  function chaosCap() {
     return (state && state.chaosCap) || 0;
   }
   function Wo() {
-    return chaosTotal() >= Jt();
+    return chaosTotal() >= chaosCap();
   }
-  function it() {
+  function chaosPPMult() {
     const e = chaosTotal();
     return e ? 3 * Math.pow(1.16, e) * (1 + treeFx("chaosPP")) : 1;
   }
   function chaosEarnedMult(e) {
-    return 1 + (it() - 1) * clamp99(Math.pow((e + 1) / 8, 1.6), 0.06, 1);
+    return 1 + (chaosPPMult() - 1) * clamp99(Math.pow((e + 1) / 8, 1.6), 0.06, 1);
   }
   function Yo() {
     const e = chaosTotal();
     return e ? 0.18 + e * 0.012 + Math.floor(e / 30) * 0.08 + treeFx("chaosEnemy") / 100 : 0;
   }
-  function Ks() {
+  function chaosOppBoost() {
     const e = chaosTotal();
     return e ? 22 + e * 1.05 + Math.floor(e / 30) * 12 + treeFx("chaosEnemy") : 0;
   }
   function attrCap() {
-    return qo + treeFx("capPlus") + chaosTotal() * 3;
+    return ATTR_HARD_CAP + treeFx("capPlus") + chaosTotal() * 3;
   }
-  const Ts = 10;
-  function Ja(e) {
+  const MASTERY_MAX = 10;
+  function masteryLvl(e) {
     return (state && state.mastery && state.mastery[e]) || 0;
   }
-  function Mi(e) {
-    return 1 + Math.floor(Ja(e) / 3);
+  function masteryCost(e) {
+    return 1 + Math.floor(masteryLvl(e) / 3);
   }
-  function _o(e) {
-    const t = Ja(e.key);
+  function masteryMult(e) {
+    const t = masteryLvl(e.key);
     return t ? (e.lowerBetter ? Math.max(0.4, 1 - 0.06 * t) : e.rate ? 1 + 0.04 * t : 1 + 0.08 * t) : 1;
   }
   function xi(e) {
@@ -5384,7 +5384,7 @@
   function physFit(e, t) {
     return Math.round((bodyFit(e, t) - 0.6) * 35);
   }
-  function zs(e) {
+  function fmtHeight(e) {
     return Math.floor(e / 12) + "'" + (e % 12) + '"';
   }
   function Ri(e) {
@@ -7036,11 +7036,11 @@
       ppMult: 1
     }
   };
-  function Ci() {
+  function currentPath() {
     return state.path ? PATHS[state.path] : null;
   }
   function pathVal(e, t) {
-    const a = Ci();
+    const a = currentPath();
     return a && a[e] != null ? a[e] : t || 0;
   }
   function nodeLvl(e) {
@@ -7048,11 +7048,11 @@
   }
   function nodeCost(e) {
     let t = e.cost * Math.pow(e.mult, nodeLvl(e.key));
-    const a = Ci(),
+    const a = currentPath(),
       s = (TREE_NODES[e.key] && TREE_NODES[e.key].branch) || e.branch;
     return (a && a.cheapBranch && s === a.cheapBranch && (t *= 0.75), Math.max(1, Math.round(t)));
   }
-  const Xt = 6;
+  const PATH_HONORS = 6;
   function Li(e) {
     return Math.max(1, Math.round(e * 1.6));
   }
@@ -7692,7 +7692,7 @@
       line: "Train " + ATTR_INFO[r.key].name + " — " + why + " (" + r.val + " of a " + r.cap + " cap)."
     };
   }
-  function Da(e, t) {
+  function eventReq(e, t) {
     return Math.round(e + t * 22);
   }
   /* ===== v128 RIVALRY WEEK MEANS SOMETHING =====
@@ -8347,7 +8347,7 @@
       "Greyrock",
       "Hallowell"
     ],
-    er = [
+    MASCOTS = [
       "Bulldogs",
       "Mustangs",
       "Wolverines",
@@ -8451,15 +8451,15 @@
   }
   function dflClubV123(i) {
     const t = TOWNS[(i * 7 + 3) % TOWNS.length],
-      m = er[(i * 11 + 5) % er.length];
+      m = MASCOTS[(i * 11 + 5) % MASCOTS.length];
     return t + " " + m;
   }
   const DFL_V123 = Array.from({ length: 50 }, (_, i) => dflClubV123(i));
-  function Xs() {
-    return { town: randPick(TOWNS), mascot: randPick(er), dfl: DFL_V123[(Math.random() * DFL_V123.length) | 0] };
+  function newTeamIdentity() {
+    return { town: randPick(TOWNS), mascot: randPick(MASCOTS), dfl: DFL_V123[(Math.random() * DFL_V123.length) | 0] };
   }
   function teamName(e) {
-    e.teamIdentity || (e.teamIdentity = Xs());
+    e.teamIdentity || (e.teamIdentity = newTeamIdentity());
     const I = e.teamIdentity,
       t = e.level;
     if (t >= 7) return I.dfl || (I.dfl = DFL_V123[hashV123(I.town + I.mascot) % DFL_V123.length]); // the pro club he signed with
@@ -8468,7 +8468,7 @@
   }
   window.__NAMES_V123 = {
     towns: () => TOWNS.slice(),
-    mascots: () => er.slice(),
+    mascots: () => MASCOTS.slice(),
     colleges: () => COLLEGE_V123.slice(),
     dfl: () => DFL_V123.slice(),
     nameFor: (lvl, town, mascot) =>
@@ -8506,7 +8506,7 @@
       view: "menu"
     };
   }
-  function ut(e) {
+  function settingOn(e) {
     return (state.settings && state.settings[e]) || !1;
   }
   function toggleSetting(e) {
@@ -8738,7 +8738,7 @@
           n = s.check(state, e || (state.player && state.player.seasonStats));
         } catch {}
         if (n) {
-          const i = Math.round(s.pp * (1 + treeFx("chalMult")) * it());
+          const i = Math.round(s.pp * (1 + treeFx("chalMult")) * chaosPPMult());
           ((state.challenges[s.id] = !0), bankPPV136(i, "goal"), (t += i), a.push(s.icon + " " + s.name));
         }
       }),
@@ -8755,7 +8755,7 @@
           if (r.lowerBetter ? l.every(u => d <= u.line[i.primary]) : l.every(u => d >= u.line[i.primary])) {
             state.challenges.natlNo1 = !0;
             const u = CHALLENGES.find(p => p.id === "natlNo1"),
-              h = Math.round(u.pp * (1 + treeFx("chalMult")) * it());
+              h = Math.round(u.pp * (1 + treeFx("chalMult")) * chaosPPMult());
             (bankPPV136(h, "goal"), (t += h), a.push(u.icon + " " + u.name));
           }
         }
@@ -8796,12 +8796,12 @@
   function buyMastery(e) {
     if (!allStatDefs().find(n => n.key === e)) return;
     state.mastery || (state.mastery = {});
-    const a = Ja(e);
-    if (a >= Ts) {
+    const a = masteryLvl(e);
+    if (a >= MASTERY_MAX) {
       showToast("Maxed out!");
       return;
     }
-    const s = Mi(e);
+    const s = masteryCost(e);
     if ((state.rings || 0) < s) {
       showToast("Not enough Rings — win the UFF Championship! 💍");
       return;
@@ -8817,24 +8817,24 @@
     const a = state.chaos[e] || 0,
       s = clamp99(a + t, 0, 10);
     if (s !== a) {
-      if (t > 0 && chaosTotal() + t > Jt()) {
-        showToast("⛓️ Chaos capacity " + Jt() + " reached — win a championship at FULL chaos to raise it!");
+      if (t > 0 && chaosTotal() + t > chaosCap()) {
+        showToast("⛓️ Chaos capacity " + chaosCap() + " reached — win a championship at FULL chaos to raise it!");
         return;
       }
       ((state.chaos[e] = s),
         saveGame(),
         screenDynasty(),
-        s > a && showToast("🔥 Chaos +1 — enemies stronger, PP +" + Math.round((it() - 1) * 100) + "%"));
+        s > a && showToast("🔥 Chaos +1 — enemies stronger, PP +" + Math.round((chaosPPMult() - 1) * 100) + "%"));
     }
   }
   function chaosMaxAll() {
     if (
       !state.chaosUnlocked ||
-      !confirm("Set chaos to your FULL capacity (" + Jt() + ")? Every enemy in the world becomes vastly stronger.")
+      !confirm("Set chaos to your FULL capacity (" + chaosCap() + ")? Every enemy in the world becomes vastly stronger.")
     )
       return;
     state.chaos = {};
-    let e = Jt();
+    let e = chaosCap();
     (ATTR_KEYS.forEach(t => {
       const a = Math.min(10, e);
       (a > 0 && (state.chaos[t] = a), (e -= a));
@@ -8845,7 +8845,7 @@
   function screenDynasty() {
     const e = !!state.chaosUnlocked,
       t = chaosTotal(),
-      a = it(),
+      a = chaosPPMult(),
       s = allStatDefs();
     ((byId("screen").innerHTML = `
     <div class="eyebrow" style="color:#ff5a5a">Dynasty · Endgame</div>
@@ -8874,7 +8874,7 @@
         e
           ? `
       <div class="chaos-summary">
-        <div class="cs-box"><div class="n">${t}<span style="font-size:12px;color:var(--chalk-dim)">/${Jt()}</span></div><div class="l">Chaos / Capacity</div></div>
+        <div class="cs-box"><div class="n">${t}<span style="font-size:12px;color:var(--chalk-dim)">/${chaosCap()}</span></div><div class="l">Chaos / Capacity</div></div>
         <div class="cs-box"><div class="n" style="color:var(--gold)">+${Math.round((a - 1) * 100)}%</div><div class="l">All PP Gains</div></div>
         <div class="cs-box"><div class="n" style="color:#57e07a">${attrCap()}</div><div class="l">Stat Cap</div></div>
       </div>
@@ -8903,14 +8903,14 @@
     <div class="sub" style="margin-bottom:10px">Each level: <b style="color:#57e07a">+8% production</b> of that stat (rate stats +4%, turnovers −6%). Paid in Rings.</div>
     ${s
       .map(n => {
-        const i = Ja(n.key),
-          r = Mi(n.key),
-          l = i >= Ts,
+        const i = masteryLvl(n.key),
+          r = masteryCost(n.key),
+          l = i >= MASTERY_MAX,
           d = n.lowerBetter ? `−${i * 6}%` : n.rate ? `+${i * 4}%` : `+${i * 8}%`;
         return `<div class="mastery-row">
         <div class="mr-info">
           <div class="mr-name">${n.name} <span class="mr-pos">${n.pos.join(" · ")}</span></div>
-          <div class="mr-track">${Array.from({ length: Ts }, (c, u) => `<i class="${u < i ? "on" : ""}"></i>`).join("")}</div>
+          <div class="mr-track">${Array.from({ length: MASTERY_MAX }, (c, u) => `<i class="${u < i ? "on" : ""}"></i>`).join("")}</div>
         </div>
         <div class="mr-eff ${i > 0 ? "hot" : ""}">${i > 0 ? d : "—"}</div>
         <button class="mr-buy ${l ? "maxed" : ""}" onclick="buyMastery('${n.key}')" ${l ? "disabled" : ""}>${l ? "MAX" : `💍 ${r}`}</button>
@@ -9473,7 +9473,7 @@
       return tier != null ? gearRollV147(it, tier) : it;
     },
     /* the hooks, read through the real functions, for the check */
-    seasonLine: (pos, perf, lvl) => is(pos, perf, lvl),
+    seasonLine: (pos, perf, lvl) => prodStats(pos, perf, lvl),
     wearFatK: () => wearFatKV147(),
     heal: w => healWeeksV146(w),
     softCap: (e, k) => drSoftCap(e, k),
@@ -9581,7 +9581,7 @@
         traits: [_t112],
         traitOfferV112: _o112,
         traitPickedV112: null,
-        teamIdentity: Xs(),
+        teamIdentity: newTeamIdentity(),
         titles: 0,
         declareBonus: 0,
         seasonSeed: randInt(1, 2e9)
@@ -9859,7 +9859,7 @@
   minSeasons = function () {
     return Math.max(1, minSeasV139() - nodeLvl("earlyDeclare"));
   }; /* v139 Apex: Early Declaration */
-  function en(e, t, a) {
+  function calcOvr(e, t, a) {
     if (!t) return 0;
     const s = POSITIONS[t].w;
     let n = 0,
@@ -9881,7 +9881,7 @@
     return Math.round((a / s) * 4);
   }
   function playerOvr(e) {
-    return en(e.attrs, e.pos, e.body);
+    return calcOvr(e.attrs, e.pos, e.body);
   }
   function $s(e) {
     return e >= 180
@@ -9911,7 +9911,7 @@
       s = { QB: 0, RB: -0.35, WR: 0, TE: 0.35, OL: 0.55, DL: 1, LB: -0.1, CB: -0.35, S: 0.25 };
     return Object.keys(POSITIONS)
       .map(n => {
-        const i = en(e, n, t),
+        const i = calcOvr(e, n, t),
           r = t ? physFit(t, n) : 0;
         return { pos: n, ovr: i, phys: r, fitScore: i - (a[n] || 0) + (s[n] || 0) };
       })
@@ -9935,13 +9935,13 @@
     }
     return null;
   }
-  let Sn;
-  function ga(e) {
-    if (ut("sound"))
+  let toastTimer;
+  function playSfx(e) {
+    if (settingOn("sound"))
       try {
         const t = window.AudioContext || window.webkitAudioContext;
         if (!t) return;
-        const a = ga.ctx || (ga.ctx = new t()),
+        const a = playSfx.ctx || (playSfx.ctx = new t()),
           s = a.createOscillator(),
           n = a.createGain();
         (s.connect(n), n.connect(a.destination));
@@ -9958,7 +9958,7 @@
       } catch {}
   }
   function ji(e) {
-    if (ut("haptics") && navigator.vibrate)
+    if (settingOn("haptics") && navigator.vibrate)
       try {
         navigator.vibrate(e || 18);
       } catch {}
@@ -9967,9 +9967,9 @@
     const t = byId("toast");
     ((t.textContent = e),
       t.classList.add("show"),
-      ga("tap"),
-      clearTimeout(Sn),
-      (Sn = setTimeout(() => t.classList.remove("show"), 1900)));
+      playSfx("tap"),
+      clearTimeout(toastTimer),
+      (toastTimer = setTimeout(() => t.classList.remove("show"), 1900)));
   }
   function bigMoment(e, t, a) {
     const s = byId("momentBanner"),
@@ -9982,7 +9982,7 @@
       s.offsetWidth,
       s.classList.add("go"),
       n.classList.add("go"),
-      ga(a === "bad" ? "bad" : "big"),
+      playSfx(a === "bad" ? "bad" : "big"),
       ji(a === "bad" ? [35, 45, 35] : [20, 35, 55]));
   }
   function ur(e) {
@@ -10022,7 +10022,7 @@
       const n = t[e];
       ((a.innerHTML = `<div class="onboard-card"><div class="onboard-step">WELCOME · ${e + 1}/3</div><div class="onboard-title">${n[0]}</div><div class="onboard-copy">${n[1]}</div><div class="onboard-dots">${t.map((i, r) => `<i class="${r === e ? "on" : ""}"></i>`).join("")}</div><button class="btn" id="onNext">${e === 2 ? "Start Your Legacy" : "Next"}</button></div>`),
         (byId("onNext").onclick = () => {
-          (ga("good"),
+          (playSfx("good"),
             ji(18),
             e < 2
               ? (e++, s())
@@ -10035,7 +10035,7 @@
     s();
   } /* v139: what is BANKED rides the chip too — v136 C holds a live player's PP until the career
    * settles, and until now the only place that number appeared was the career-end card. */
-  function an() {
+  function syncCounters() {
     ((byId("prestigeCount").textContent = Math.round((state.prestige || 0) * 10) / 10), (byId("ppCount").textContent = state.pp));
     const b = byId("ppBankChipV139"),
       n = bankedV136();
@@ -11499,7 +11499,7 @@
     a = a || {};
     const s = playerPower(e),
       n = LEVELS[e.level],
-      i = n.need - 6 + Ks() + seasonModFx("peerShift"),
+      i = n.need - 6 + chaosOppBoost() + seasonModFx("peerShift"),
       r = 1 + nodeLvl("clutch") * 0.02,
       l = 1 + (e.attrs.grit - 10) * 0.003 * r,
       d = 1 + (e.attrs.stamina - 10) * 0.0015;
@@ -11607,20 +11607,20 @@
     })
   );
   function mr(e, t) {
-    const a = LEVELS[t].need - 6 + Ks();
+    const a = LEVELS[t].need - 6 + chaosOppBoost();
     return clamp99(xi((e - a) * 2.4 + 50 + treeFx("perfFlat")), 1, 100);
   }
-  function is(e, t, a, ng) {
+  function prodStats(e, t, a, ng) {
     const s = LEVELS[a].games,
       n = POS_STATS[e],
       i = perfScale(t),
       r = t / 100,
-      l = 1 + treeFx("statProd") + Jr(e),
+      l = 1 + treeFx("statProd") + seasonModStatProd(e),
       d = {};
     return (
       n.stats.forEach(c => {
         const u = c.per[a],
-          h = _o(c);
+          h = masteryMult(c);
         const gk = ng ? 0 : gearProdV147(c);
         /* v147 C: the gear's production line, where statProd lands — never the baseline Ha() */ c.rate
           ? (d[c.key] = +(u * (0.72 + 0.42 * Math.pow(t / 90, 1.4)) * h * (1 + gk)).toFixed(1))
@@ -11631,12 +11631,12 @@
       d
     );
   }
-  function Ha(e, t) {
-    return is(e, 60, t, 1);
+  function baselineStats(e, t) {
+    return prodStats(e, 60, t, 1);
   }
   function pr(e, t, a) {
-    const s = is(e, t, a),
-      n = Ha(e, a),
+    const s = prodStats(e, t, a),
+      n = baselineStats(e, a),
       i = POS_STATS[e].primary,
       r = n[i] || 1;
     return (s[i] || 0) / r;
@@ -11678,7 +11678,7 @@
   function yr() {
     return (state.player && state.player.pos) || "RB";
   }
-  function Vt(e, t) {
+  function fmtLeadVal(e, t) {
     return Math.round(+t);
   }
   function gr(e, t) {
@@ -11731,11 +11731,11 @@
         i += Pe || (e.attrs[n.reqAttr] || 0) >= Ae ? 0 : -(n.perf || 0) * 1.6;
       } /* v128: a locked choice should never reach here, but a loaded save might carry one */
       if (n.gritReqBase) {
-        const Ae = Da(n.gritReqBase, R);
+        const Ae = eventReq(n.gritReqBase, R);
         i += Pe || e.attrs.grit >= Ae ? 0 : -(n.perf || 0) * 1.6;
       }
       if (n.awareReqBase) {
-        const Ae = Da(n.awareReqBase, R);
+        const Ae = eventReq(n.awareReqBase, R);
         i += Pe || e.attrs.awareness >= Ae ? 0 : -(n.perf || 0) * 1.6;
       }
       if (
@@ -11802,7 +11802,7 @@
     let ie = [],
       B = !1,
       b = 0,
-      pe = _.length > 0 && Ki(y, P.length);
+      pe = _.length > 0 && madePlayoffs(y, P.length);
     if (e.weekResults && e.playoffState) {
       const R = e.playoffState;
       ((pe = R.qualified),
@@ -11920,7 +11920,7 @@
       ke = !1;
     if (
       B &&
-      ((be = Math.round((2 + Math.round(e.level * 0.8)) * (1 + treeFx("titleMult") + seasonModFx("ppMult")) * it() * eraMult())),
+      ((be = Math.round((2 + Math.round(e.level * 0.8)) * (1 + treeFx("titleMult") + seasonModFx("ppMult")) * chaosPPMult() * eraMult())),
       bankPPV136(be, "title"),
       (e.titles = (e.titles || 0) + 1),
       (state.titlesWon = (state.titlesWon || 0) + 1),
@@ -11954,7 +11954,7 @@
         oe +
         Math.floor(treeFx("pointsFlat") + gearFx("pointsFlat") + seasonModFx("pointsFlat") + gearV147("points")) +
         repsV146(),
-      de = is(e.pos, U, e.level),
+      de = prodStats(e.pos, U, e.level),
       ne = Object.values(state.tree || {}).reduce((R, O) => R + O, 0),
       ue = 30 + effectivePrestige(state.prestige) * 0.65 + Math.sqrt(ne) * 0.75,
       me = 45 + (playerOvr(e) - t.need) * 0.85,
@@ -11990,7 +11990,7 @@
       ((de.pick6 = _pick6), Te.push({ icon: "🏈", name: _pick6 + "× Pick Six" + (_pick6 > 1 ? "es" : "") }));
     const qe = POS_STATS[e.pos]?.primary;
     if (qe && de[qe] != null) {
-      const R = Ha(e.pos, e.level)[qe] || 1;
+      const R = baselineStats(e.pos, e.level)[qe] || 1;
       if (de[qe] >= R * 1.4) {
         const O = {
           passYds: "Passing Title",
@@ -12042,7 +12042,7 @@
         Ae = O.per[e.level] * (O.rate ? 1 : t.games) * (0.45 + Pe * 0.85),
         De = de[O.key] || 0;
       ((Ke = O.lowerBetter ? De <= Ae : De >= Ae),
-        Ke && ((e.nemesis.beaten = (e.nemesis.beaten || 0) + 1), bankPPV136(Math.round(2 * it() * eraMult()), "nemesis")));
+        Ke && ((e.nemesis.beaten = (e.nemesis.beaten || 0) + 1), bankPPV136(Math.round(2 * chaosPPMult() * eraMult()), "nemesis")));
     }
     ((e.lastSeasonLine = { level: e.level, pos: e.pos, statLine: { ...de }, avg: Math.round(U) }),
       (e.lastTeamRecord = {
@@ -12055,7 +12055,7 @@
         roundsWon: b,
         qualified: pe
       }));
-    const So = Ha(e.pos, e.level),
+    const So = baselineStats(e.pos, e.level),
       Mo = advanceChance(se, e.level, e.pos, U, Go(e)),
       xo = {
         avg: Math.round(U),
@@ -12358,7 +12358,7 @@
       const t = e.weekResults.filter(s => s.played && !s.playoff);
       if (!t.length) return null;
       const a = t.reduce((s, n) => s + n.perf, 0) / t.length;
-      return { line: is(e.pos, a, e.level), pace: !0, games: t.length };
+      return { line: prodStats(e.pos, a, e.level), pace: !0, games: t.length };
     }
     return e.lastSeasonLine && e.lastSeasonLine.level === e.level && e.lastSeasonLine.pos === e.pos
       ? { line: e.lastSeasonLine.statLine, pace: !1 }
@@ -12367,7 +12367,7 @@
   function $r(e, t) {
     const a = mulberry32(t + e.level * 7907 + 13),
       s = LEVELS[e.level].games,
-      n = er /* v123: the standings draw from the same crest-matched pool */,
+      n = MASCOTS /* v123: the standings draw from the same crest-matched pool */,
       i = TOWNS.filter(m => m !== (e.teamIdentity && e.teamIdentity.town)),
       r = [];
     let l = 0,
@@ -12403,7 +12403,7 @@
     );
   }
   let leadTab = "leaders",
-    nt = null,
+    leadPos = null,
     leadStat = null;
   function screenLeaders() {
     const e = state.player;
@@ -12412,7 +12412,7 @@
       return;
     }
     const t = LEVELS[e.level];
-    nt || (nt = e.pos);
+    leadPos || (leadPos = e.pos);
     const a = e.seasonSeed || 1;
     let s = "";
     /* v139: the combine year has NO GAMES, so a national leaders board for it was twenty-five
@@ -12421,11 +12421,11 @@
     if (leadTab === "leaders" && combineYearV139(e)) {
       s = combineLeadersV139(e);
     } else if (leadTab === "leaders") {
-      const n = POS_STATS[nt];
+      const n = POS_STATS[leadPos];
       (!leadStat || !n.stats.some(m => m.key === leadStat)) && (leadStat = n.primary);
       const i = n.stats.find(m => m.key === leadStat),
-        r = genNationalLeaders(e.level, nt, a);
-      let l = nt === e.pos ? seasonPaceLine(e) : null;
+        r = genNationalLeaders(e.level, leadPos, a);
+      let l = leadPos === e.pos ? seasonPaceLine(e) : null;
       (l && r.push({ name: e.name, team: e.teamIdentity ? e.teamIdentity.town : "—", line: l.line, me: !0 }),
         r.sort((m, y) => (i.lowerBetter ? m.line[leadStat] - y.line[leadStat] : y.line[leadStat] - m.line[leadStat])));
       const d = r.findIndex(m => m.me),
@@ -12435,7 +12435,7 @@
         p = n.stats.filter(m => m.key !== leadStat);
       s = `
       <div class="chips">${Object.keys(POSITIONS)
-        .map(m => `<button class="chip ${m === nt ? "on" : ""}" onclick="setLeadPos('${m}')">${m}</button>`)
+        .map(m => `<button class="chip ${m === leadPos ? "on" : ""}" onclick="setLeadPos('${m}')">${m}</button>`)
         .join("")}</div>
       <div class="chips" style="margin-top:6px">${n.stats.map(m => `<button class="chip gold ${m.key === leadStat ? "on" : ""}" onclick="setLeadSort('${m.key}')">${m.name}${m.lowerBetter ? " ▼" : ""}</button>`).join("")}</div>
       ${l && l.pace ? `<div class="threshold-note" style="margin-top:8px">📈 Mid-season: your row shows your <b>full-season pace</b> through ${l.games} game${l.games > 1 ? "s" : ""}.</div>` : ""}
@@ -12447,8 +12447,8 @@
           <div class="lb2-row ${m.me ? "me" : ""}">
             <span class="lbr">${y + 1}</span>
             <span class="lbn">${m.me ? "<b>" + m.name + " (You)</b>" : m.name}<small>${m.team}</small></span>
-            <span class="lbv">${Vt(i, m.line[leadStat])}</span>
-            <span class="lbo">${p.map(C => Vt(C, m.line[C.key])).join(" · ")}</span>
+            <span class="lbv">${fmtLeadVal(i, m.line[leadStat])}</span>
+            <span class="lbo">${p.map(C => fmtLeadVal(C, m.line[C.key])).join(" · ")}</span>
           </div>`
           )
           .join("")}
@@ -12459,14 +12459,14 @@
           <div class="lb2-row me">
             <span class="lbr">${fmtInt(c)}</span>
             <span class="lbn"><b>${e.name} (You)</b><small>${e.teamIdentity ? e.teamIdentity.town : ""}</small></span>
-            <span class="lbv">${Vt(i, l.line[leadStat])}</span>
-            <span class="lbo">${p.map(m => Vt(m, l.line[m.key])).join(" · ")}</span>
+            <span class="lbv">${fmtLeadVal(i, l.line[leadStat])}</span>
+            <span class="lbo">${p.map(m => fmtLeadVal(m, l.line[m.key])).join(" · ")}</span>
           </div>`
             : ""
         }
-        ${!l && nt === e.pos ? '<div class="small center" style="margin-top:8px;color:var(--chalk-dim)">Play a season at this level to enter the national board.</div>' : ""}
+        ${!l && leadPos === e.pos ? '<div class="small center" style="margin-top:8px;color:var(--chalk-dim)">Play a season at this level to enter the national board.</div>' : ""}
       </div>
-      ${l ? `<div class="small center" style="margin-top:6px">You rank <b style="color:var(--gold)">#${fmtInt(c)}</b> of ${fmtInt(POS_POOL(e.level))} ${nt}s nationally in ${i.name}${c === 1 ? " — 👑 NATIONAL LEADER!" : ""}</div>` : ""}
+      ${l ? `<div class="small center" style="margin-top:6px">You rank <b style="color:var(--gold)">#${fmtInt(c)}</b> of ${fmtInt(POS_POOL(e.level))} ${leadPos}s nationally in ${i.name}${c === 1 ? " — 👑 NATIONAL LEADER!" : ""}</div>` : ""}
       ${(() => {
         /* v20: rank thresholds — what national rank realistically gets you to the next level */
         const nx = LEVELS[e.level + 1];
@@ -12552,13 +12552,13 @@
     ((leadTab = e), screenLeaders());
   }
   function setLeadPos(e) {
-    ((nt = e), (leadStat = null), screenLeaders());
+    ((leadPos = e), (leadStat = null), screenLeaders());
   }
   function setLeadSort(e) {
     ((leadStat = e), screenLeaders());
   }
   function render() {
-    an();
+    syncCounters();
     const e = state.view,
       t = document.querySelector && document.querySelector(".topbar");
     if ((t && (t.style.display = e === "menu" ? "none" : ""), e === "menu")) return screenMenuLegacy();
@@ -12607,7 +12607,7 @@
       <div class="continue-ovr">${playerOvr(t)}<small>OVR</small></div>
       <div class="l" style="font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:5px">▶ CONTINUE CAREER</div>
       <div class="name-row"><span class="pname">${t.name}</span></div>
-      <div class="meta-row"><span class="meta"><b>${LEVELS[t.level].name}</b></span><span class="meta">${t.pos}</span><span class="meta">${"★".repeat(t.stars)}</span><span class="meta">${t.body ? (bd => zs(bd.height) + " · " + bd.weight + "lb" + (bd.grown ? "" : " · 📈" + zs(t.body.height)))(bodyOfV112(t)) : ""}</span></div>
+      <div class="meta-row"><span class="meta"><b>${LEVELS[t.level].name}</b></span><span class="meta">${t.pos}</span><span class="meta">${"★".repeat(t.stars)}</span><span class="meta">${t.body ? (bd => fmtHeight(bd.height) + " · " + bd.weight + "lb" + (bd.grown ? "" : " · 📈" + fmtHeight(t.body.height)))(bodyOfV112(t)) : ""}</span></div>
     </div>`
         : ""
     }
@@ -12667,8 +12667,8 @@
       "Start a Run it back? Your current player will be replaced (no prestige gained unless you finish their career first)."
     ) && startCareer();
   }
-  function ha(e, t, a) {
-    const s = ut(e);
+  function toggleRow(e, t, a) {
+    const s = settingOn(e);
     return `<div class="toggle-row" onclick="toggleSetting('${e}')">
     <div class="toggle-info"><div class="toggle-label">${t}</div><div class="toggle-desc">${a}</div></div>
     <div class="switch ${s ? "on" : ""}"><i></i></div>
@@ -12687,11 +12687,11 @@
     <div class="h1">Settings & Save</div>
     <div class="card">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:10px">🎮 LIVE GAME</div>
-      ${ha("skipOpp", "Skip opponent drives", "Only watch plays while your team has the ball")}
-      ${ha("onlyInvolved", "My plays only", "Jump straight to plays you're personally involved in")}
-      ${ha("fastSim", "Faster live sim", "Speed up the default play animation")}
-      ${ha("sound", "Sound effects", "Broadcast cues, rewards, and game-impact audio")}
-      ${ha("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices")}
+      ${toggleRow("skipOpp", "Skip opponent drives", "Only watch plays while your team has the ball")}
+      ${toggleRow("onlyInvolved", "My plays only", "Jump straight to plays you're personally involved in")}
+      ${toggleRow("fastSim", "Faster live sim", "Speed up the default play animation")}
+      ${toggleRow("sound", "Sound effects", "Broadcast cues, rewards, and game-impact audio")}
+      ${toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices")}
     </div>
     <div class="card">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:4px">📐 FIELD VIEW</div>
@@ -13087,11 +13087,11 @@
     <div class="card tight" style="border-color:#4a90c9">
       <div class="l" style="font-size:11px;color:#7ab6e0;letter-spacing:2px;margin-bottom:6px">🧍 PHYSICAL PROFILE · TODAY, AGE ${e.age} — ${Ri(n)}</div>
       <div class="statline">
-        <div class="statbox"><div class="n">${zs(n.height)}</div><div class="l">Height</div></div>
+        <div class="statbox"><div class="n">${fmtHeight(n.height)}</div><div class="l">Height</div></div>
         <div class="statbox"><div class="n">${n.weight}</div><div class="l">Weight (lb)</div></div>
         <div class="statbox"><div class="n">${n.muscle}</div><div class="l">Muscle</div></div>
       </div>
-      ${n.grown ? "" : `<div class="threshold-note proj-v112" style="margin-top:8px">📈 <b style="color:var(--gold)">PROJECTS TO</b> ${zs(pj.height)} · ${pj.weight} lb · ${pj.muscle} muscle — <b>${Ri(pj)}</b> by ${TU("growAdultAge", 22)}. Scouts grade the frame he is going to get, so the position fit below reads that projection.</div>`}
+      ${n.grown ? "" : `<div class="threshold-note proj-v112" style="margin-top:8px">📈 <b style="color:var(--gold)">PROJECTS TO</b> ${fmtHeight(pj.height)} · ${pj.weight} lb · ${pj.muscle} muscle — <b>${Ri(pj)}</b> by ${TU("growAdultAge", 22)}. Scouts grade the frame he is going to get, so the position fit below reads that projection.</div>`}
     </div>
     ${
       Array.isArray(e.traitOfferV112) && e.traitOfferV112.length
@@ -13171,7 +13171,7 @@
     e.level === 5 && r && n > 0;
     const l = nationalRank(e, a),
       d = s ? 100 : declareChanceV88(e),
-      c = s ? null : Ha(e.pos, e.level),
+      c = s ? null : baselineStats(e.pos, e.level),
       u = POS_STATS[e.pos],
       h = d >= 70 ? "var(--good)" : d >= 45 ? "var(--gold)" : "var(--blood)",
       p = n <= 1 && d < 60 && !s,
@@ -13179,7 +13179,7 @@
         ? ""
         : u.stats
             .map(C => {
-              const V = Vt(C, c[C.key]);
+              const V = fmtLeadVal(C, c[C.key]);
               return `<div class="tgt-row"><span class="tgt-name">${C.name}</span><span class="tgt-need" style="color:var(--gold)">${V}${C.lowerBetter ? " or fewer" : ""}</span></div>`;
             })
             .join("");
@@ -13219,10 +13219,10 @@
           ? (() => {
               const bd = bodyOfV112(e);
               return `<div class="meta-row body-row-v112" style="margin-top:4px;font-size:13px;color:#7ab6e0">
-        <span class="meta" style="color:#7ab6e0">🧍 ${zs(bd.height)}</span>
+        <span class="meta" style="color:#7ab6e0">🧍 ${fmtHeight(bd.height)}</span>
         <span class="meta" style="color:#7ab6e0">${bd.weight} lb</span>
         <span class="meta" style="color:#7ab6e0">${Ri(bd)}</span>
-        ${bd.grown ? "" : `<span class="meta proj-v112" style="color:var(--gold)" title="Projected adult frame by ${TU("growAdultAge", 22)}">📈 projects ${zs(e.body.height)} · ${e.body.weight} lb</span>`}
+        ${bd.grown ? "" : `<span class="meta proj-v112" style="color:var(--gold)" title="Projected adult frame by ${TU("growAdultAge", 22)}">📈 projects ${fmtHeight(e.body.height)} · ${e.body.weight} lb</span>`}
         <span class="meta" style="color:${physFit(e.body, e.pos) >= 0 ? "var(--good)" : "#e08a8a"}" title="Build fit is graded on the projected adult frame">${physFit(e.body, e.pos) >= 0 ? "+" : ""}${physFit(e.body, e.pos)} fit</span>
       </div>`;
             })()
@@ -13599,11 +13599,11 @@
           i += Pe || (e.attrs[n.reqAttr] || 0) >= Ae ? 0 : -(n.perf || 0) * 1.6;
         }
         if (n.gritReqBase) {
-          const Ae = Da(n.gritReqBase, e.level);
+          const Ae = eventReq(n.gritReqBase, e.level);
           i += Pe || e.attrs.grit >= Ae ? 0 : -(n.perf || 0) * 1.6;
         }
         if (n.awareReqBase) {
-          const Ae = Da(n.awareReqBase, e.level);
+          const Ae = eventReq(n.awareReqBase, e.level);
           i += Pe || e.attrs.awareness >= Ae ? 0 : -(n.perf || 0) * 1.6;
         }
         n.growth && (l += n.growth);
@@ -13618,7 +13618,7 @@
       else {
         const s = playerPower(e),
           need =
-            t.need - 6 + (typeof Ks == "function" ? Ks() : 0) + (typeof seasonModFx == "function" ? seasonModFx("peerShift") || 0 : 0);
+            t.need - 6 + (typeof chaosOppBoost == "function" ? chaosOppBoost() : 0) + (typeof seasonModFx == "function" ? seasonModFx("peerShift") || 0 : 0);
         exp = clamp99((s - need) * 2.4 + 50 + (i / t.games) * 2, 1, 100);
       }
       const U = (played.reduce((s, R) => s + R.perf, 0) + exp * left) / Math.max(1, t.games),
@@ -13806,9 +13806,9 @@
           stars: e.stars || 0,
           ovr: playerOvr(e),
           softMaxOvr: softMaxOvrV134(e),
-          height: e.body ? zs(bodyOfV112(e).height) : "",
+          height: e.body ? fmtHeight(bodyOfV112(e).height) : "",
           weight: e.body ? bodyOfV112(e).weight + " lb" : "",
-          heightProj: e.body ? zs(e.body.height) : "",
+          heightProj: e.body ? fmtHeight(e.body.height) : "",
           weightProj: e.body ? e.body.weight + " lb" : "",
           grownV112: e.body ? !!bodyOfV112(e).grown : !0,
           archetype: orig
@@ -14174,14 +14174,14 @@
             .map((s, n) => {
               let i = "";
               if (s.eff.gritReqBase) {
-                const l = Da(s.eff.gritReqBase, e.level);
+                const l = eventReq(s.eff.gritReqBase, e.level);
                 i =
                   e.attrs.grit >= l
                     ? `<span class="fit-tag fit-natural">GRIT ${e.attrs.grit} ✓</span>`
                     : `<span class="fit-tag fit-poor">NEEDS GRIT ${l}</span>`;
               }
               if (s.eff.awareReqBase) {
-                const l = Da(s.eff.awareReqBase, e.level);
+                const l = eventReq(s.eff.awareReqBase, e.level);
                 i =
                   e.attrs.awareness >= l
                     ? `<span class="fit-tag fit-natural">IQ ${e.attrs.awareness} ✓</span>`
@@ -18302,7 +18302,7 @@
       if (vm !== 1) l.perf = clamp99(Math.round(50 + (l.perf - 50) * vm), 1, 100);
       l.injured &&
         (l.injured = Math.random() < injPlanMultV54(a) * Math.max(0.1, d) * c * (isR ? RIVAL_MULT_V128() : 1));
-      ((l.opp = Dt(e.level)), (l.played = !1), isR && ((l.rivalV128 = !0), (l.importance = "rivalry")), i.push(l));
+      ((l.opp = randOppName(e.level)), (l.played = !1), isR && ((l.rivalV128 = !0), (l.importance = "rivalry")), i.push(l));
     }
     return i;
   }
@@ -18546,7 +18546,7 @@
     const a = SEASON_MODS.find(s => s.key === t.seasonMod);
     return (a && a[e]) || 0;
   }
-  function Jr(e) {
+  function seasonModStatProd(e) {
     const t = state && state.player;
     if (!t || !t.seasonMod) return 0;
     const a = SEASON_MODS.find(s => s.key === t.seasonMod);
@@ -18650,7 +18650,7 @@
               break;
           }
         } catch {}
-        const c = d ? Math.round(l.pp * it() * eraMult()) : 0;
+        const c = d ? Math.round(l.pp * chaosPPMult() * eraMult()) : 0;
         return (
           d && (bankPPV136(c, "objective"), (state.objectivesCompleted = (state.objectivesCompleted || 0) + 1)),
           { ...l, ok: d, paid: c }
@@ -18791,7 +18791,7 @@
     return !state || !state.posMastery ? 0 : Object.values(state.posMastery).filter(t => t[e]).length;
   }
   function al(e) {
-    return Math.round((6 + (e.titles || 0) * 2 + (e.nflSeasons || 0)) * it() * eraMult() * (1 + hofWings() * 0.05));
+    return Math.round((6 + (e.titles || 0) * 2 + (e.nflSeasons || 0)) * chaosPPMult() * eraMult() * (1 + hofWings() * 0.05));
   }
   function playoffRoundNames(e) {
     return e === 6
@@ -18806,7 +18806,7 @@
               ? ["Semifinal", "CHAMPIONSHIP"]
               : ["CHAMPIONSHIP"];
   }
-  function Ki(e, t) {
+  function madePlayoffs(e, t) {
     return t > 0 && e / t >= 0.6;
   }
   function cn(e, t) {
@@ -18821,7 +18821,7 @@
       l = 1 - nodeLvl("motor") * 0.015;
     i.injured && (i.injured = Math.random() < injPlanMultV54(a) * Math.max(0.1, r) * l);
     return (
-      (i.opp = c && e.nemesis ? e.nemesis.name + "'s " + Dt(e.level) : Dt(e.level)),
+      (i.opp = c && e.nemesis ? e.nemesis.name + "'s " + randOppName(e.level) : randOppName(e.level)),
       (i.playoff = !0),
       (i.round = playoffRoundNames(e.level)[t]),
       (i.roundIdx = t),
@@ -18837,7 +18837,7 @@
     const s = playoffRoundNames(e.level);
     if (!e.playoffState) {
       const l = a.filter(c => c.won).length,
-        d = s.length > 0 && Ki(l, a.length);
+        d = s.length > 0 && madePlayoffs(l, a.length);
       e.playoffState = { qualified: d, round: 0, alive: d, done: !d, champion: !1 };
     }
     const n = e.playoffState;
@@ -19216,17 +19216,17 @@
    * held Ducks, Dallas, Miami and Denver. Youth and high school are schools (the mascot, shouted,
    * the way a schedule board reads them), college is a college, and the UFF and the Interstellar
    * League are clubs out of the fifty. */
-  function Dt(e) {
+  function randOppName(e) {
     if (e === 6) return randPick(["COMBINE FIELD", "DRAFT PROSPECTS", "ALL-STARS", "THE NATIONAL TEAM"]);
     if (e >= 7) return DFL_V123[(Math.random() * DFL_V123.length) | 0].toUpperCase();
     if (e === 5) return randPick(TOWNS) + " " + randPick(COLLEGE_V123);
-    return randPick(er).toUpperCase();
+    return randPick(MASCOTS).toUpperCase();
   }
   function ol() {
     const e = state.player,
       t = state._liveGame;
     LEVELS[e.level];
-    const a = state._oppName || (state._oppName = Dt(e.level)),
+    const a = state._oppName || (state._oppName = randOppName(e.level)),
       s = e.name.split(" ")[1].slice(0, 8).toUpperCase(),
       n = a.split(" ").pop().slice(0, 8).toUpperCase(),
       i = ["DL", "LB", "CB", "S"].includes(e.pos);
@@ -19334,7 +19334,7 @@
   function setRosterTab(e) {
     ((zi = e),
       document.querySelectorAll(".rtab[data-rt]").forEach(t => t.classList.toggle("active", t.dataset.rt === e)),
-      qa());
+      renderLiveRoster());
   }
   function ll(e) {
     const t = e.stat || {};
@@ -19358,7 +19358,7 @@
         return "";
     }
   }
-  function qa() {
+  function renderLiveRoster() {
     const e = state._liveGame;
     if (!e || !e.roster) return;
     const t = byId("rosterBox");
@@ -19385,7 +19385,7 @@
       r = `<div class="team-ovr-hdr"><span>TEAM OVERALL</span><b style="color:${n(a.ovr)}">${a.ovr}</b><span class="small">OFF ${a.offOvr} · DEF ${a.defOvr}</span></div>`;
     t.innerHTML = r + i("OFFENSE", a.off, a.offOvr) + i("DEFENSE", a.def, a.defOvr);
   }
-  function cl(e, t) {
+  function liveBoxLine(e, t) {
     switch ((state._liveGame, t.att && Math.round((t.comp / t.att) * 100), e)) {
       case "QB":
         return [
@@ -19465,7 +19465,7 @@
   function Qi(e) {
     const t = byId("fullBox");
     t &&
-      (t.innerHTML = cl(state.player.pos, e)
+      (t.innerHTML = liveBoxLine(state.player.pos, e)
         .map(([a, s]) => {
           const n = parseFloat(s) > 0 && !["INT", "FUM", "SACKS ALL", "PEN"].includes(a);
           return `<div class="fb-item"><span class="fb-l">${a}</span><span class="fb-v ${n ? "pos" : ""}" id="fb-${a.replace(/[^a-z]/gi, "")}">${s}</span></div>`;
@@ -19517,7 +19517,7 @@
       )
       .join("");
   }
-  function Ji(e) {
+  function liveStatCols(e) {
     switch (e) {
       case "QB":
         return [
@@ -19572,7 +19572,7 @@
   }
   function fl(e) {
     const t = state.player,
-      a = Ji(t.pos),
+      a = liveStatCols(t.pos),
       s = { tackle: "🏈", sack: "🪖", int: "🧤", pd: "🖐", td: "🔥", rush: "💨", rec: "🙌", pass: "🎯" };
     ((byId("liveStats").innerHTML =
       a
@@ -19588,7 +19588,7 @@
     const t = state.player,
       r = byId("liveMinorV96");
     if (!r || !t) return;
-    const a = Ji(t.pos),
+    const a = liveStatCols(t.pos),
       k = {
         rush: ["RUSH YDS", "RUSH"],
         td: ["TD"],
@@ -19600,7 +19600,7 @@
         pd: ["PD"]
       },
       h = new Set(a.flatMap(([n]) => k[n] || []));
-    r.innerHTML = cl(t.pos, e || {})
+    r.innerHTML = liveBoxLine(t.pos, e || {})
       .filter(([l]) => !h.has(l))
       .map(([l, v]) => `<span><b>${v}</b>${l}</span>`)
       .join("");
@@ -19608,11 +19608,11 @@
   function startLivePlayback() {
     (state.player,
       state._liveGame,
-      (liveCtl = { idx: -1, speed: (liveCtl && liveCtl.speed) || (ut("fastSim") ? 2 : 1), playing: !0, anim: null, t: 0 }),
+      (liveCtl = { idx: -1, speed: (liveCtl && liveCtl.speed) || (settingOn("fastSim") ? 2 : 1), playing: !0, anim: null, t: 0 }),
       fl({}),
       Qi({}),
       dl(),
-      qa(),
+      renderLiveRoster(),
       document
         .querySelectorAll(".speed-btn[data-spd]")
         .forEach(e => e.classList.toggle("active", parseFloat(e.dataset.spd) === liveCtl.speed)),
@@ -19632,8 +19632,8 @@
   function vl(e) {
     return e
       ? e.header || e.event === "drive"
-        ? !!((ut("skipOpp") && e.offense !== "us") || ut("onlyInvolved"))
-        : !!((ut("onlyInvolved") && !e.involved) || (ut("skipOpp") && e.offense !== "us" && !e.involved))
+        ? !!((settingOn("skipOpp") && e.offense !== "us") || settingOn("onlyInvolved"))
+        : !!((settingOn("onlyInvolved") && !e.involved) || (settingOn("skipOpp") && e.offense !== "us" && !e.involved))
       : !1;
   }
   function liveTick() {
@@ -19649,7 +19649,7 @@
         r = byId("themScore");
       (i && (i.textContent = t.usScore),
         r && (r.textContent = t.themScore),
-        liveCtl.idx % 4 === 0 && qa(),
+        liveCtl.idx % 4 === 0 && renderLiveRoster(),
         (liveCtl.anim = requestAnimationFrame(() => liveTick())));
       return;
     }
@@ -19739,7 +19739,7 @@
         r = byId("themScore");
       (i && (i.textContent = t.usScore),
         r && (r.textContent = t.themScore),
-        Ji(state.player.pos).forEach(([c]) => {
+        liveStatCols(state.player.pos).forEach(([c]) => {
           const u = byId("ls-" + c);
           if (!u) return;
           const h = t.stat[c] || 0;
@@ -19749,7 +19749,7 @@
         flMinorV96(t.stat),
         Qi(qi(state.player.pos, t.stat, state._liveGame.stat)),
         t.team && ul(t.team, t.oppStat),
-        liveCtl.idx % 3 === 0 && qa());
+        liveCtl.idx % 3 === 0 && renderLiveRoster());
       const d = Math.max(90, 520 / liveCtl.speed);
       setTimeout(liveTick, d);
     });
@@ -19892,7 +19892,7 @@
       n
     );
   }
-  function ct(e, t) {
+  function pathPointAt(e, t) {
     if (t <= e[0].t) return e[0];
     for (let a = 1; a < e.length; a++)
       if (t <= e[a].t) {
@@ -20172,7 +20172,7 @@
             }));
       }
       if (pe && !Y) {
-        const $ = Me ? ct(Me.path, 0.93) : { y: p };
+        const $ = Me ? pathPointAt(Me.path, 0.93) : { y: p };
         Q.push({
           t: 0.93,
           type: "hit",
@@ -20344,13 +20344,13 @@
         (s.save(), (s.strokeStyle = "rgba(240,187,69,.5)"), (s.lineWidth = 1.4), s.setLineDash([4, 3]), s.beginPath());
         let g = !1;
         for (let N = 0; N <= Math.min(w, 0.95); N += 0.03) {
-          const H = ct(Mt, N);
+          const H = pathPointAt(Mt, N);
           g ? s.lineTo(v(H.x), j(H.y)) : (s.moveTo(v(H.x), j(H.y)), (g = !0));
         }
         (s.stroke(), s.setLineDash([]), s.restore());
       }
       if (Me && Me.path) {
-        const g = ct(Me.path, k);
+        const g = pathPointAt(Me.path, k);
         ((xe.length === 0 || Math.hypot(g.x - xe[xe.length - 1].x, g.y - xe[xe.length - 1].y) > 0.9) &&
           xe.push({ x: g.x, y: g.y }),
           xe.length > 9 && xe.shift(),
@@ -20364,7 +20364,7 @@
       if (
         (m.off.forEach(g => {
           let N = g.path
-            ? ct(g.path, k)
+            ? pathPointAt(g.path, k)
             : { x: g.start.x + (g.engage ? c * Math.min(1.4, Math.abs(ce) * 0.08) * k : 0), y: g.start.y };
           (g.engage && (N = { x: N.x, y: N.y + Math.sin($ / 60 + g.start.y) * 0.35 }),
             (g._cx = N.x),
@@ -20374,17 +20374,17 @@
         m.def.forEach(g => {
           let N;
           if (g.flatAt != null && k >= g.flatAt) {
-            ((N = ct(g.path, g.flatAt)),
+            ((N = pathPointAt(g.path, g.flatAt)),
               xl(s, v(N.x), j(N.y), !d),
               k < g.flatAt + 0.1 && Ss(s, v(N.x), j(N.y) - 4, "PANCAKE!", "#ffd97a"));
             return;
           }
           if (g.mirror && g.mirror.path) {
-            const H = ct(g.mirror.path, Math.max(0, k - 0.07));
+            const H = pathPointAt(g.mirror.path, Math.max(0, k - 0.07));
             N = { x: H.x + c * 1.5, y: H.y + (H.y < p ? 1.2 : -1.2) };
           } else
             g.path
-              ? (N = ct(g.path, k))
+              ? (N = pathPointAt(g.path, k))
               : g.engage
                 ? (N = { x: g.start.x - c * 1.2 * k, y: g.start.y + Math.sin($ / 60 + g.start.y * 2) * 0.35 })
                 : (N = { x: g.start.x, y: g.start.y });
@@ -20453,7 +20453,7 @@
           s.restore()),
         J > 0.9 && !e.scored && e.yards != null && Math.abs(e.yards) >= 1 && !ie && B)
       ) {
-        const g = Me ? ct(Me.path, 1) : { y: p };
+        const g = Me ? pathPointAt(Me.path, 1) : { y: p };
         wl(s, v(h), j(g.y), e.yards);
       }
       (s.restore(), J < 1 ? (liveCtl.anim = requestAnimationFrame(Ye)) : t());
@@ -20822,8 +20822,8 @@
           const j = t.statLine[v.key],
             U = t.target[v.key],
             ce = v.lowerBetter ? j <= U : j >= U,
-            Y = Vt(v, j),
-            _ = Vt(v, U);
+            Y = fmtLeadVal(v, j),
+            _ = fmtLeadVal(v, U);
           return `<div class="tgt-row ${ce ? "hit" : "miss"}">
       <span class="tgt-name">${v.name}</span>
       <span class="tgt-got">${Y}</span>
@@ -21402,7 +21402,7 @@
         const shown = Math.round(+v).toLocaleString();
         const sub =
           per && per[st.key] != null
-            ? `<span class="small" style="opacity:.65;margin-left:6px">${st.rate ? "" : Vt(st, per[st.key]) + "/season"}</span>`
+            ? `<span class="small" style="opacity:.65;margin-left:6px">${st.rate ? "" : fmtLeadVal(st, per[st.key]) + "/season"}</span>`
             : "";
         return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font-family:'Barlow Condensed';font-size:15px;border-bottom:1px solid rgba(255,255,255,.05)"><span>${st.name}${sub}</span><b style="font-family:'Oswald';font-size:17px;color:var(--gold)">${shown}</b></div>`;
       })
@@ -21580,7 +21580,7 @@
       ATTR_KEYS.forEach(k => {
         a[k] = drSoftCap(e, k);
       });
-      return en(a, e.pos, e.body);
+      return calcOvr(a, e.pos, e.body);
     } catch (_) {
       return 0;
     }
@@ -21630,7 +21630,7 @@
         }
       }
       if (!pick) break;
-      (e.attrs[pick]++, (e.points -= mc), (Qe[pick] = (Qe[pick] || 0) + 1), (Q2[pick] = Q2[pick] || []).push(mc));
+      (e.attrs[pick]++, (e.points -= mc), (allocSpent[pick] = (allocSpent[pick] || 0) + 1), (allocCosts[pick] = allocCosts[pick] || []).push(mc));
     }
     screenUpgrade();
   }
@@ -21646,8 +21646,8 @@
   function autoAllocSpread() {
     drAutoAlloc(ATTR_KEYS.slice());
   }
-  let Qe = {},
-    Q2 = {};
+  let allocSpent = {},
+    allocCosts = {};
   function alloc(e, t) {
     const a = state.player;
     if (t > 0) {
@@ -21662,11 +21662,11 @@
       }
       ((a.attrs[e] = Math.round(a.attrs[e]) + 1),
         (a.points -= c),
-        (Qe[e] = (Qe[e] || 0) + 1),
-        (Q2[e] = Q2[e] || []).push(c));
+        (allocSpent[e] = (allocSpent[e] || 0) + 1),
+        (allocCosts[e] = allocCosts[e] || []).push(c));
     } else {
-      if ((Qe[e] || 0) <= 0) return;
-      ((a.attrs[e] = Math.round(a.attrs[e]) - 1), (a.points += Q2[e] && Q2[e].length ? Q2[e].pop() : 1), Qe[e]--);
+      if ((allocSpent[e] || 0) <= 0) return;
+      ((a.attrs[e] = Math.round(a.attrs[e]) - 1), (a.points += allocCosts[e] && allocCosts[e].length ? allocCosts[e].pop() : 1), allocSpent[e]--);
     }
     byId("uv-" + e).textContent = Math.round(a.attrs[e]);
     const n = byId("mtr-" + e),
@@ -21692,7 +21692,7 @@
           ? "Past soft cap " + sc + " — each +1 costs " + c + " pts here"
           : "1 pt per +1 until soft cap " + sc)),
         v && ((v.style.color = over ? (c >= 4 ? "#ff8a80" : "var(--gold)") : ""), (v.title = "Soft cap: " + sc)),
-        n && (n.disabled = (Qe[a] || 0) <= 0));
+        n && (n.disabled = (allocSpent[a] || 0) <= 0));
       const cp = byId("cap-" + a);
       cp &&
         (cp.innerHTML =
@@ -21714,7 +21714,7 @@
     });
   }
   function doneUpgrade() {
-    ((Qe = {}), (Q2 = {}), saveGame(), showToast("Player upgraded!"), goView("hub"));
+    ((allocSpent = {}), (allocCosts = {}), saveGame(), showToast("Player upgraded!"), goView("hub"));
   }
   /* ===== v67 SOFT-CAP LEGIBILITY — the price of a point, stated where the choice is
    * made. v21 gave every stat a soft cap and a rising price above it (2, then 3, then
@@ -22007,12 +22007,12 @@
     ((state.player = null), saveGame(), goView("menu"));
   }
   function screenPath() {
-    const e = state.prestige >= Xt,
+    const e = state.prestige >= PATH_HONORS,
       t = state.path;
     ((byId("screen").innerHTML = `
     <div class="eyebrow">Prestige Path · Permanent Archetype</div>
     <div class="h1">Choose Your Legend</div>
-    <div class="sub">${e ? "Commit to a path that reshapes every future career. This is the deepest choice in the game — each path is a completely different way to reach the UFF. You can switch later for a Legacy Reset cost." : `Reach <b style="color:var(--gold)">${HONOR_ICON_V130} ${Xt} Honors</b> to unlock a Prestige Path. You're at ${HONOR_ICON_V130} ${state.prestige}. Honors come from finishing careers — they are not recruit stars.`}</div>
+    <div class="sub">${e ? "Commit to a path that reshapes every future career. This is the deepest choice in the game — each path is a completely different way to reach the UFF. You can switch later for a Legacy Reset cost." : `Reach <b style="color:var(--gold)">${HONOR_ICON_V130} ${PATH_HONORS} Honors</b> to unlock a Prestige Path. You're at ${HONOR_ICON_V130} ${state.prestige}. Honors come from finishing careers — they are not recruit stars.`}</div>
     <div class="mt" style="margin-top:14px">
       ${Object.entries(PATHS)
         .map(([a, s]) => {
@@ -22032,8 +22032,8 @@
       (byId("dock").innerHTML = `<button class="btn secondary" onclick="go('shop')">Back to Prestige Tree</button>`));
   }
   function choosePath(e) {
-    if (state.prestige < Xt) {
-      showToast("Reach " + HONOR_ICON_V130 + " " + Xt + " Honors first");
+    if (state.prestige < PATH_HONORS) {
+      showToast("Reach " + HONOR_ICON_V130 + " " + PATH_HONORS + " Honors first");
       return;
     }
     if (state.path !== e) {
@@ -22047,7 +22047,7 @@
       ((state.path = e), saveGame(), screenPath());
     }
   }
-  let Ut = "physical";
+  let branchTab = "physical";
   function screenPrestige() {
     const e = Object.values(state.tree || {}).reduce((n, i) => n + i, 0);
     byId("screen").innerHTML = `
@@ -22061,19 +22061,19 @@
       ${Object.entries(TREE)
         .map(
           ([n, i]) =>
-            `<button class="branch-tab ${Ut === n ? "active" : ""}" onclick="setBranch('${n}')" style="flex:1;min-width:70px;padding:9px 4px;border-radius:9px;border:1px solid ${Ut === n ? i.color : "var(--line)"};background:${Ut === n ? i.color + "22" : "transparent"};color:${Ut === n ? i.color : "var(--chalk-dim)"};font-family:'Oswald';font-weight:600;font-size:13px;cursor:pointer">${i.icon} ${i.name}</button>`
+            `<button class="branch-tab ${branchTab === n ? "active" : ""}" onclick="setBranch('${n}')" style="flex:1;min-width:70px;padding:9px 4px;border-radius:9px;border:1px solid ${branchTab === n ? i.color : "var(--line)"};background:${branchTab === n ? i.color + "22" : "transparent"};color:${branchTab === n ? i.color : "var(--chalk-dim)"};font-family:'Oswald';font-weight:600;font-size:13px;cursor:pointer">${i.icon} ${i.name}</button>`
         )
         .join("")}
     </div>
 
-    <div id="branchNodes">${vs(Ut)}</div>
+    <div id="branchNodes">${branchNodesHtml(branchTab)}</div>
   `;
     const t = Math.max(0, Math.max(1, state.prestige) - (state.respecUsed || 0)),
       a = state.path
         ? PATHS[state.path].icon + " " + PATHS[state.path].name
-        : state.prestige >= Xt
+        : state.prestige >= PATH_HONORS
           ? "⚡ Choose Path"
-          : "🔒 Path (" + HONOR_ICON_V130 + Xt + ")",
+          : "🔒 Path (" + HONOR_ICON_V130 + PATH_HONORS + ")",
       s = state.chaosUnlocked
         ? `💍 Dynasty · ${state.rings || 0} Rings · Chaos ${chaosTotal()}`
         : (state.rings || 0) > 0
@@ -22089,7 +22089,7 @@
     <div style="height:8px"></div>
     <button class="btn ghost" onclick="shopBack()">Back</button>`;
   }
-  function vs(e) {
+  function branchNodesHtml(e) {
     const t = TREE[e];
     return t.nodes
       .map(a => {
@@ -22136,9 +22136,9 @@
       screenPrestige());
   }
   function setBranch(e) {
-    Ut = e;
+    branchTab = e;
     const t = byId("branchNodes");
-    (t && (t.innerHTML = vs(e)), screenPrestige());
+    (t && (t.innerHTML = branchNodesHtml(e)), screenPrestige());
   }
   function buyNode(e) {
     const t = TREE_NODES[e];
@@ -22152,7 +22152,7 @@
       showToast("Not enough PP");
       return;
     }
-    ((state.pp -= s), (state.tree[e] = (state.tree[e] || 0) + 1), saveGame(), showToast(t.name + " → Lv " + state.tree[e]), screenPrestige(), an());
+    ((state.pp -= s), (state.tree[e] = (state.tree[e] || 0) + 1), saveGame(), showToast(t.name + " → Lv " + state.tree[e]), screenPrestige(), syncCounters());
   }
   function shopBack() {
     goView(state.player && state.player.pos ? "hub" : "menu");
@@ -22191,7 +22191,7 @@
     const s = hypeState();
     (s.stories.unshift({ icon: e, title: t, deck: a, at: Date.now() }), (s.stories = s.stories.slice(0, 8)));
   }
-  function ro(e) {
+  function hubHeadline(e) {
     const t = hypeState(),
       a = LEVELS[e.level],
       s = playerOvr(e),
@@ -22219,7 +22219,7 @@
   }
   function _l(e) {
     const t = hypeState(),
-      a = ro(e),
+      a = hubHeadline(e),
       s = t.streak === 0 ? "—" : t.streak > 0 ? "W" + t.streak : "L" + Math.abs(t.streak);
     return `<div class="card pulse-card"><div class="pulse-top"><div class="pulse-mark">📡</div><div><div class="pulse-title">Career Pulse</div><div class="pulse-sub">Your performance now changes how the football world sees you.</div></div></div>
   <div class="pulse-grid"><div class="pulse-stat"><b style="color:${t.coach >= 70 ? "var(--good)" : t.coach < 35 ? "var(--blood)" : "var(--gold)"}">${Math.round(t.coach)}</b><small>Coach Trust</small><div class="pulse-meter"><i style="width:${clamp99(t.coach, 0, 100)}%"></i></div></div><div class="pulse-stat"><b style="color:${t.hype >= 70 ? "var(--gold)" : "var(--ice)"}">${Math.round(t.hype)}</b><small>Fan Hype</small><div class="pulse-meter"><i style="width:${clamp99(t.hype, 0, 100)}%"></i></div></div><div class="pulse-stat"><b style="color:${t.streak > 0 ? "var(--good)" : t.streak < 0 ? "var(--blood)" : "var(--chalk)"}">${s}</b><small>Form</small><div class="pulse-meter"><i style="width:${clamp99(50 + t.streak * 10, 4, 100)}%"></i></div></div></div></div>
@@ -22255,7 +22255,7 @@
       `<div class="card mission-card"><div class="objective-head"><div class="objective-icon">⚡</div><div><div class="objective-kicker" style="color:var(--violet)">DAILY DRIVE</div><div class="objective-title">${d ? "All rewards claimed" : r.filter(c => c.done).length + "/3 missions complete"}</div></div></div><div>${r.map(c => `<div class="mission-row ${c.done ? "done" : ""}"><div class="mi">${c.done ? "✅" : c.ic}</div><div class="mtx"><b>${c.name}</b><small>${c.desc}</small></div><div class="mission-prize">+${c.pp} PP</div></div>`).join("")}</div></div>`
     );
   }
-  function Kl() {
+  function storyFeedHtml() {
     const e = hypeState();
     return e.stories.length
       ? `<div class="h2">Career Headlines</div><div class="card tight"><div class="story-feed">${e.stories
@@ -22339,7 +22339,7 @@
       s = e._lastRecord95 || { w: 0, l: 0 };
     return `<div class="card center" style="border-color:${Ln(a)};background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(13,18,28,.96))"><div class="eyebrow">SEASON REPORT CARD</div><div class="grade-ring" style="color:${Ln(a)}"><div class="season-grade">${a}</div></div><div class="h1">${s.w}-${s.l} · ${s.champ ? "Champions" : "Season Complete"}</div><div class="sub">Coach trust ${Math.round(t.coach)} · fan hype ${Math.round(t.hype)} · best run ${Math.max(0, t.bestStreak)} wins</div><div class="press-strip" style="justify-content:center;margin-top:11px"><span class="press-chip hot">${t.coach >= 70 ? "STAFF FAVORITE" : "PROVING GROUND"}</span><span class="press-chip">${t.hype >= 70 ? "FAN PHENOMENON" : "BUILDING A FOLLOWING"}</span><span class="press-chip">${playerOvr(e)} OVR</span></div></div>`;
   }
-  function Aa() {
+  function decorateScreen() {
     if (!state || !state.player || !state.player.pos) return;
     const e = state.player,
       t = byId("screen");
@@ -22347,7 +22347,7 @@
       if (state.view === "hub") {
         const a = t.querySelector(".player-hero");
         (a && !t.querySelector(".pulse-card") && a.insertAdjacentHTML("afterend", _l(e) + Ul(e)),
-          t.querySelector(".story-feed") || t.insertAdjacentHTML("beforeend", Kl()));
+          t.querySelector(".story-feed") || t.insertAdjacentHTML("beforeend", storyFeedHtml()));
       }
       if (state.view === "season") {
         const a = t.querySelector(".h1");
@@ -22355,7 +22355,7 @@
           !t.querySelector(".press-strip") &&
           a.insertAdjacentHTML(
             "afterend",
-            `<div class="press-strip"><span class="press-chip hot">COACH ${Math.round(hypeState().coach)}</span><span class="press-chip">HYPE ${Math.round(hypeState().hype)}</span><span class="press-chip">FORM ${hypeState().streak > 0 ? "W" + hypeState().streak : hypeState().streak < 0 ? "L" + Math.abs(hypeState().streak) : "EVEN"}</span><span class="press-chip">${escHtml(ro(e)[0])}</span></div>`
+            `<div class="press-strip"><span class="press-chip hot">COACH ${Math.round(hypeState().coach)}</span><span class="press-chip">HYPE ${Math.round(hypeState().hype)}</span><span class="press-chip">FORM ${hypeState().streak > 0 ? "W" + hypeState().streak : hypeState().streak < 0 ? "L" + Math.abs(hypeState().streak) : "EVEN"}</span><span class="press-chip">${escHtml(hubHeadline(e)[0])}</span></div>`
           );
       }
       state.view === "result" && !t.querySelector(".season-grade") && t.insertAdjacentHTML("afterbegin", zl(e));
@@ -22363,7 +22363,7 @@
   }
   const Ql = render;
   render = function () {
-    (hypeState(), Ql(), Aa());
+    (hypeState(), Ql(), decorateScreen());
   };
   const Jl = playWeek;
   playWeek = function (e) {
@@ -22437,7 +22437,7 @@
               ? Math.max(0, 30 - t * 0.48)
               : Math.max(0, 6 - t * 0.22);
   }
-  function oa(e) {
+  function ensureDepth(e) {
     return e
       ? (e.coachTrust == null && (e.coachTrust = clamp99(28 + treeFx("coachStart") + randRange(-8, 8), 0, 100)),
         e.depthRole == null && (e.depthRole = "BENCH"),
@@ -22447,9 +22447,9 @@
         e)
       : null;
   }
-  function ra(e) {
-    oa(e);
-    const t = LEVELS[e.level].need - 5 + lo(e.level) + Ks(),
+  function depthChart(e) {
+    ensureDepth(e);
+    const t = LEVELS[e.level].need - 5 + lo(e.level) + chaosOppBoost(),
       a = playerPower(e) + e.coachTrust * 0.18 + treeFx("depthPower") * 20 - t;
     let s, n;
     return (
@@ -22501,8 +22501,8 @@
   }
   const ac = rollGamePerf;
   rollGamePerf = function (e, t, a) {
-    oa(e);
-    const s = ra(e),
+    ensureDepth(e);
+    const s = depthChart(e),
       n = tc();
     let i = 0;
     (e.level <= 4 && (i += treeFx("youthPerf")),
@@ -22555,22 +22555,22 @@
   const nc = newPlayer;
   newPlayer = function () {
     const e = nc();
-    oa(e);
+    ensureDepth(e);
     const t = ["speed", "strength", "quickness", "acceleration", "agility", "jumping", "stamina"],
       a = ["awareness", "vision", "discipline"];
     return (
       t.forEach(s => (e.attrs[s] = clamp99(e.attrs[s] + treeFx("physicalStart") - treeFx("athleticStartPenalty"), 1, attrCap()))),
       a.forEach(s => (e.attrs[s] = clamp99(e.attrs[s] + treeFx("mentalStart") - treeFx("mentalStartPenalty"), 1, attrCap()))),
       (e.coachTrust = clamp99(e.coachTrust + treeFx("coachStart"), 0, 100)),
-      ra(e),
+      depthChart(e),
       e
     );
   };
   const ic = simSeason;
   simSeason = function (e) {
-    (oa(e), e._bounceBack10);
+    (ensureDepth(e), e._bounceBack10);
     const t = ic(e);
-    ra(e);
+    depthChart(e);
     const a = t.avg || 0;
     if (
       ((e._bounceBack10 = a < 48),
@@ -22595,20 +22595,20 @@
     return t;
   };
   function En(e) {
-    const t = ra(e),
+    const t = depthChart(e),
       a = e.lastLuck10;
     return `<div class="card depth-card ${e.nflCutPending ? "cut-warning" : ""}"><div class="eyebrow">Depth Chart · Playing Time</div>
     <div style="display:flex;align-items:center;justify-content:space-between"><div><div class="depth-role">${t.role}</div><div class="small">Your role changes with OVR, practice reputation and game performance.</div></div><div class="ovr-big">${Math.round(t.share * 100)}<span style="font-size:13px">%</span></div></div>
     <div class="depth-grid"><div class="depth-cell"><div class="n">${Math.round(e.coachTrust)}</div><div class="l">Coach Trust</div></div><div class="depth-cell"><div class="n">${e.lastSnaps10 || 0}</div><div class="l">Last Snaps</div></div><div class="depth-cell"><div class="n">${e.depthStarts || 0}</div><div class="l">Career Starts</div></div></div>
     ${a && a.v ? `<div class="luck-pill ${a.good ? "luck-good" : "luck-bad"}">${a.good ? "🍀" : "⚠️"} ${a.n}: ${a.v > 0 ? "+" : ""}${a.v} game swing</div>` : ""}</div>`;
   }
-  const oc = Aa;
-  Aa = function () {
+  const oc = decorateScreen;
+  decorateScreen = function () {
     oc();
     const e = state.player,
       t = byId("screen");
     if (!(!e || !t)) {
-      if ((oa(e), state.view === "hub" && !t.querySelector(".depth-card"))) {
+      if ((ensureDepth(e), state.view === "hub" && !t.querySelector(".depth-card"))) {
         const a = t.querySelector(".card");
         a && a.insertAdjacentHTML("afterend", En(e));
       }
@@ -22627,8 +22627,8 @@
       }
     }
   };
-  const rc = vs;
-  vs = function (e) {
+  const rc = branchNodesHtml;
+  branchNodesHtml = function (e) {
     const __h = rc(e);
     return (
       e === "fate" &&
@@ -22647,7 +22647,7 @@
   };
   const Qt = 45;
   const retireAgeV134 = () => Qt + nodeLvl("longevity");
-  /* v134 Apex: Borrowed Time */ function mn(e) {
+  /* v134 Apex: Borrowed Time */ function ageProfile(e) {
     return e <= 12
       ? {
           key: "child",
@@ -22757,7 +22757,7 @@
           : "var(--blood)";
   }
   function An(e) {
-    const t = mn(e.age),
+    const t = ageProfile(e.age),
       a = lc(t);
     return `<div class="card age-card"><div class="eyebrow">Age Curve · ${e.age}/${Qt}</div>
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><div class="h2" style="margin:0;color:${a}">${t.name}</div><div class="small">${t.desc}</div></div><div class="ovr-big" style="color:${a}">${e.age}</div></div>
@@ -22766,7 +22766,7 @@
   }
   const cc = rollGamePerf;
   rollGamePerf = function (e, t, a) {
-    const s = mn(e.age),
+    const s = ageProfile(e.age),
       n = cc(e, (t || 0) + s.perf, a);
     return (
       n.injured && Math.random() < s.recovery * TU("ageCancelK", 0.32)
@@ -22799,7 +22799,7 @@
     return Math.max(0, ((e && e.age) || 0) - nodeLvl("secondWind"));
   }
   function ageCutV139(e) {
-    const d = mn(ageForV139(e)).decline;
+    const d = ageProfile(ageForV139(e)).decline;
     if (!(d > 0)) return 0;
     const c = Math.min(TU("ageCutMaxV139", 0.16), TU("ageCutBaseV139", 0.05) * (1 + (d - 0.2) * 1.6));
     return Math.max(0, c) * (1 - gearV147("ageDecline"));
@@ -22813,11 +22813,11 @@
     age: ageForV139,
     cut: ageCutV139,
     attrs: ageAttrsV139,
-    profile: e => mn(ageForV139(e)),
+    profile: e => ageProfile(ageForV139(e)),
     year: (e, t) => dc(e, t || {})
   };
   function dc(e, t) {
-    const a = mn(e.age);
+    const a = ageProfile(e.age);
     e.level >= 7 &&
       t.attrsAfter &&
       ATTR_KEYS.forEach(n => {
@@ -22948,7 +22948,7 @@
       b = e.body || { height: 70, weight: 180, muscle: 50 };
     const b0 = bodyNowV112(b, prev),
       b1 = bodyNowV112(b, age),
-      prof = t.ageProfile || mn(age);
+      prof = t.ageProfile || ageProfile(age);
     const gains = Object.entries(t.gains || {})
       .filter(([, v]) => v > 0)
       .sort((a, c) => c[1] - a[1]);
@@ -23403,7 +23403,7 @@
         return false;
       }
     })();
-    const fmtH = h => zs(h),
+    const fmtH = h => fmtHeight(h),
       fmtW = w => w + " lb",
       fmtM = m => m + "%";
     const dH = d.b1.height - d.b0.height,
@@ -23681,8 +23681,8 @@
     }
   };
 
-  const fc = Aa;
-  Aa = function () {
+  const fc = decorateScreen;
+  decorateScreen = function () {
     fc();
     const e = state.player,
       t = byId("screen");
@@ -23754,11 +23754,11 @@
     ) {
       const t = state.player;
       (t.traits || (t.traits = Ai()),
-        t.teamIdentity || (t.teamIdentity = Xs()),
+        t.teamIdentity || (t.teamIdentity = newTeamIdentity()),
         t.titles == null && (t.titles = 0),
         t.declareBonus == null && (t.declareBonus = 0),
         t.seasonSeed || (t.seasonSeed = randInt(1, 2e9)),
-        oa(t));
+        ensureDepth(t));
     }
     ((state.view === "sim" || state.view === "live" || state.view === "training" || state.view === "event") && (state.view = "hub"),
       render(),
@@ -23801,7 +23801,7 @@
     traits: TRAITS,
     fit: physFit,
     rank: suggestPositions,
-    ovr: en,
+    ovr: calcOvr,
     abandoned: abandonedV112,
     active: () => rerollActiveV112(state && state.player),
     mul: e => rerollMulV112(e || (state && state.player)),
@@ -24008,7 +24008,7 @@
       boot();
     }, "restore the saved screen");
   }
-  function la(e) {
+  function ensureWorld(e) {
     return e
       ? (Array.isArray(e.decisionQueue) || (e.decisionQueue = []),
         Array.isArray(e.careerArcs) || (e.careerArcs = []),
@@ -24020,7 +24020,7 @@
       : null;
   }
   function co(e) {
-    (la(e),
+    (ensureWorld(e),
       Object.keys(e.tempEffects).forEach(t => {
         const a = e.tempEffects[t];
         a && typeof a == "object" && a.games != null && (a.games--, a.games <= 0 && delete e.tempEffects[t]);
@@ -24224,7 +24224,7 @@
     }
   ];
   function vc(e, t) {
-    la(e);
+    ensureWorld(e);
     const a = pc.filter(n => !(e.level < 4 && n.id === "opportunity")),
       s = a[Math.floor(Math.random() * a.length)];
     return {
@@ -24239,18 +24239,18 @@
     };
   }
   function yc(e, t) {
-    (la(e), e.decisionQueue.push(vc(e, t)), saveGame());
+    (ensureWorld(e), e.decisionQueue.push(vc(e, t)), saveGame());
   }
   function gc() {
     const e = state.player;
-    la(e);
+    ensureWorld(e);
     const t = e.decisionQueue[0];
     return t
       ? `<div class="decision-overlay"><div class="decision-panel"><div class="decision-kicker">POST-GAME DECISION · ${t.opp ? escHtml(t.opp) : "CAREER CROSSROADS"}</div><div class="decision-title">${escHtml(t.title)}</div><div class="decision-copy">${escHtml(t.copy)} Your previous game rating was <b>${Math.round(t.perf)}</b>.</div>${t.choices.map((a, s) => `<button class="decision-choice" onclick="resolveDecision102(${s})"><b>${escHtml(a.n)}</b><small>${escHtml(a.d)}</small><span class="decision-risk">${escHtml(a.risk)} · ${Math.round(clamp99(a.good, 0, 1) * 100)}% base success</span></button>`).join("")}</div></div>`
       : "";
   }
   function bc(e) {
-    la(e);
+    ensureWorld(e);
     const t = e.worldState,
       a = e.careerArcs.slice(0, 4);
     return `<div class="card world-card"><div class="eyebrow">LIVING FOOTBALL WORLD</div><div class="h2" style="margin:2px 0 7px">Your Career Has Consequences</div><div class="depth-grid"><div class="depth-cell"><div class="n">${Math.round(t.teamChemistry)}</div><div class="l">Chemistry</div></div><div class="depth-cell"><div class="n">${Math.round(t.programMomentum)}</div><div class="l">Program</div></div><div class="depth-cell"><div class="n">${Math.round(t.mediaHeat)}</div><div class="l">Media Heat</div></div></div>${a.length ? `<div style="margin-top:8px">${a.map(s => `<span class="arc-chip ${s.tone || ""}">${escHtml(s.text)}</span>`).join("")}</div>` : '<div class="small" style="margin-top:8px">Major decisions will create permanent story arcs here.</div>'}</div>`;
@@ -24267,7 +24267,7 @@
       t = byId("screen");
     !e ||
       !t ||
-      (la(e),
+      (ensureWorld(e),
       state.view === "hub" &&
         !t.querySelector(".world-card") &&
         (t.querySelector(".depth-card") || t.firstElementChild).insertAdjacentHTML("afterend", bc(e)),
@@ -24418,7 +24418,7 @@
       tags: ["TEAM BUFF", "INJURY RISK"]
     }
   ];
-  function at(e) {
+  function ensureWeekly103(e) {
     return e
       ? (e.momentum103 == null && (e.momentum103 = 50),
         e.composure103 == null && (e.composure103 = 50),
@@ -24441,24 +24441,24 @@
             ? "First String"
             : "Team Star";
   }
-  function Wt(e) {
+  function gamePlanById(e) {
     return GAME_PLANS.find(t => t.id === e) || GAME_PLANS[0];
   }
   function pn(e) {
-    at(e);
-    const t = e.weeklyPlan103 ? Wt(e.weeklyPlan103) : null;
+    ensureWeekly103(e);
+    const t = e.weeklyPlan103 ? gamePlanById(e.weeklyPlan103) : null;
     return `<div class="card weekly-loop-card"><div class="eyebrow">WEEKLY COMPETITIVE LOOP</div><div class="h2" style="margin:2px 0 3px">Earn the Next Role</div><div class="small">Outperform your opportunities, build trust, and fill the battle meter to challenge for <b style="color:var(--gold)">${fo(e)}</b>.</div><div class="loop-grid"><div class="loop-cell"><div class="n" style="color:${e.momentum103 >= 60 ? "var(--good)" : e.momentum103 < 40 ? "#e08a8a" : "var(--chalk)"}">${Math.round(e.momentum103)}</div><div class="l">Momentum</div></div><div class="loop-cell"><div class="n" style="color:${e.composure103 >= 60 ? "#8ec3ee" : e.composure103 < 40 ? "#e08a8a" : "var(--chalk)"}">${Math.round(e.composure103)}</div><div class="l">Composure</div></div><div class="loop-cell"><div class="n" style="color:var(--gold)">${e.breakthroughs103 || 0}</div><div class="l">Breakthroughs</div></div></div><div class="role-track"><i style="width:${clamp99(e.roleBattle103, 0, 100)}%"></i></div><div class="small" style="margin-top:5px">Depth-chart battle: <b>${Math.round(e.roleBattle103)}%</b>${t ? `<br><span class="plan-chip">${t.icon} ${t.name}</span>` : ""}</div></div>`;
   }
   function gamePlanOverlay(e) {
     const t = state.player;
-    at(t);
+    ensureWeekly103(t);
     const a = t.weekResults ? t.weekResults.findIndex(n => !n.played) : -1,
       s = a >= 0 ? t.weekResults[a] : null;
     return `<div class="gameplan-overlay"><div class="gameplan-panel"><div class="decision-kicker">WEEKLY GAME PLAN · ${s ? escHtml(s.opp) : "NEXT OPPONENT"}</div><div class="decision-title">How will you earn your snaps?</div><div class="decision-copy">Your role is not guaranteed. Choose an approach that changes performance variance, playing time, trust, injury risk, and role-battle progress.</div>${GAME_PLANS.map((n, i) => `<button class="gameplan-choice" onclick="chooseGamePlan103('${n.id}',${e ? "true" : "false"})"><b>${n.icon} ${n.name}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(r => `<span>${r}</span>`).join("")}</div></button>`).join("")}<button class="btn ghost" style="margin-top:12px" onclick="closeGamePlan103()">Back</button></div></div>`;
   }
   function prepareWeek103(e) {
     const t = state.player;
-    if ((at(t), t.decisionQueue && t.decisionQueue.length)) {
+    if ((ensureWeekly103(t), t.decisionQueue && t.decisionQueue.length)) {
       showToast("Resolve the post-game decision first.");
       return;
     }
@@ -24470,14 +24470,14 @@
   }
   function chooseGamePlan103(e, t) {
     const a = state.player;
-    (at(a), (a.weeklyPlan103 = e));
+    (ensureWeekly103(a), (a.weeklyPlan103 = e));
     const s = a.weekResults.findIndex(r => !r.played);
     if (s < 0) {
       closeGamePlan103();
       return;
     }
     const n = a.weekResults[s],
-      i = Wt(e);
+      i = gamePlanById(e);
     if (!n._plan103) {
       const l = n.perf - 60,
         d = randRange(-10, 10) * i.varMult,
@@ -24499,8 +24499,8 @@
   }
   function vn(e, t) {
     if (!e || e._loop103) return;
-    ((e._loop103 = !0), at(t));
-    const a = Wt(e._plan103 || t.weeklyPlan103 || "disciplined"),
+    ((e._loop103 = !0), ensureWeekly103(t));
+    const a = gamePlanById(e._plan103 || t.weeklyPlan103 || "disciplined"),
       s = clamp99(t.snapShare || 0.12, 0.06, 0.98),
       n = Math.max(0.28, s);
     let r =
@@ -24552,7 +24552,7 @@
       t = byId("screen");
     !e ||
       !t ||
-      (at(e),
+      (ensureWeekly103(e),
       (state.view === "hub" || state.view === "season") &&
         !t.querySelector(".weekly-loop-card") &&
         (
@@ -24571,7 +24571,7 @@
   const xc = playWeek;
   playWeek = function (e) {
     const t = state.player;
-    at(t);
+    ensureWeekly103(t);
     const a = t.weekResults ? t.weekResults.findIndex(n => !n.played) : -1,
       s = a >= 0 ? t.weekResults[a] : null;
     if (s && !s._plan103) {
@@ -24590,8 +24590,8 @@
     return e.depthRole || e.depthChart || "Bench";
   }
   pn = function (e) {
-    at(e);
-    const t = e.weeklyPlan103 ? Wt(e.weeklyPlan103) : null,
+    ensureWeekly103(e);
+    const t = e.weeklyPlan103 ? gamePlanById(e.weeklyPlan103) : null,
       a = Tc(e),
       s = fo(e),
       n = clamp99(e.roleBattle103, 0, 100),
@@ -24613,7 +24613,7 @@
   }
   gamePlanOverlay = function (e) {
     const t = state.player;
-    at(t);
+    ensureWeekly103(t);
     const a = t.weekResults ? t.weekResults.findIndex(n => !n.played) : -1,
       s = a >= 0 ? t.weekResults[a] : null;
     return `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan"><div class="plan-hero"><div class="decision-kicker">WEEKLY TACTICAL MEETING</div><div class="decision-title">Choose Your Identity</div><div class="decision-copy" style="margin:7px auto 0;max-width:390px">This choice changes your snaps, volatility, trust, injury exposure, and path up the depth chart.</div><div class="opponent-chip">VS ${s ? escHtml(s.opp) : "NEXT OPPONENT"}</div></div><div class="plan-deck">${GAME_PLANS
@@ -24644,7 +24644,7 @@
   };
   function Pc(e) {
     return (
-      at(e),
+      ensureWeekly103(e),
       `<div class="live-loop-strip"><div class="live-loop-stat"><b style="color:${_a(e.momentum103, "mom")}">${Math.round(e.momentum103)}</b><small>Momentum</small></div><div class="live-loop-stat"><b style="color:${_a(e.composure103, "comp")}">${Math.round(e.composure103)}</b><small>Composure</small></div><div class="live-loop-stat"><b>${Math.round(e.roleBattle103)}%</b><small>Role Battle</small><div class="live-role-mini"><i style="width:${clamp99(e.roleBattle103, 0, 100)}%"></i></div></div></div>`
     );
   }
@@ -24740,8 +24740,8 @@
     const e = SPECIALIZATIONS.find(t => t.id === state.specializationV11) || SPECIALIZATIONS[0];
     return `<div class="card specialization-card-v11"><div class="eyebrow">PRESTIGE SPECIALIZATION · NO RAW OVR</div><div class="h2" style="margin:3px 0 5px">${e.icon} ${e.name}</div><div class="small">${e.description} Switch freely; this changes strategy rather than making every run automatically stronger.</div><div class="specialization-grid-v11">${SPECIALIZATIONS.map(t => `<button class="spec-btn-v11 ${t.id === state.specializationV11 ? "on" : ""}" onclick="chooseSpecializationV11('${t.id}')"><span>${t.icon}</span><b>${t.name}</b><small>${t.description}</small></button>`).join("")}</div></div>`;
   }
-  const depthChartCore = ra;
-  ra = function (e) {
+  const depthChartCore = depthChart;
+  depthChart = function (e) {
     if (e && e._v11SeasonActive && e.roleRivalV11) {
       const t = clamp99(e.snapShare == null ? 0.12 : e.snapShare, 0.04, 0.98),
         a =
@@ -24780,7 +24780,7 @@
     const cmb = combineYearV139(e) ? COMBINE_V139 : null;
     for (let s = 0; s < t.games; s++) {
       const dr = cmb && cmb[s % cmb.length],
-        n = dr ? dr.name.toUpperCase() : Dt(e.level),
+        n = dr ? dr.name.toUpperCase() : randOppName(e.level),
         i = createOpponentProfile(n, e.level, s + 1, e.seasonSeed),
         isR = s === riv;
       if (isR) {
@@ -24816,7 +24816,7 @@
   cn = function (e, t) {
     const a = playoffRoundNames(e.level),
       s = t === a.length - 1,
-      n = s && e.nemesis ? e.nemesis.name + "'s " + Dt(e.level) : Dt(e.level),
+      n = s && e.nemesis ? e.nemesis.name + "'s " + randOppName(e.level) : randOppName(e.level),
       i = createOpponentProfile(n, e.level, (e.weekResults || []).length + 1, e.seasonSeed, t);
     return (
       (i.importance = s ? "championship" : "playoff"),
@@ -24871,7 +24871,7 @@
     if (t.generatedV11) return t;
     t.rivalV128 && rivalResolveV136(e, "auto");
     /* v136 A: a rivalry week reached without the page still gets its approach */ ensureV11(e);
-    const s = Wt(a),
+    const s = gamePlanById(a),
       n = t.opponentV11 || createOpponentProfile(t.opp, e.level, t.week || 1, e.seasonSeed, t.playoff ? t.roundIdx : void 0);
     ((t.opponentV11 = n), n.scouted || scoutOpponent(n, e, state.specializationV11));
     const i = Ic(e, a),
@@ -24961,7 +24961,7 @@
     const a = e.opponentV11;
     if (!a) return "";
     const s = a.scouted || scoutOpponent(a, t, state.specializationV11),
-      n = Wt(s.recommendedPlan);
+      n = gamePlanById(s.recommendedPlan);
     return `<div class="scout-card-v11"><div class="scout-head-v11"><div><span>${a.rivalry ? "🔥 RIVALRY" : "🔭 SCOUTING REPORT"}</span><b>${escHtml(a.name)}</b></div><div class="scout-confidence-v11">${s.confidence}%<small>CONFIDENCE</small></div></div><div class="scout-tags-v11"><span>${escHtml(s.matchupLabel)}</span><span>${escHtml(a.importance.toUpperCase())}</span><span>${a.rating} OPP RATING</span></div><div class="scout-facts-v11">${s.reveals.map(i => `<div>• ${escHtml(i)}</div>`).join("")}${s.hiddenCount ? `<div class="hidden-fact-v11">• ${s.hiddenCount} detail${s.hiddenCount > 1 ? "s" : ""} unresolved</div>` : ""}</div><div class="scout-rec-v11">Suggested counter: <b>${n.icon} ${escHtml(n.name)}</b>${s.confidence < 50 ? " <small>Low-confidence report</small>" : ""}</div></div>`;
   }
   function gamePlanOverlayV11(e) {
@@ -24989,7 +24989,7 @@
       s = a.weekResults.findIndex(i => !i.played);
     if (s < 0) return;
     const n = a.weekResults[s];
-    (resolveWeekV11(a, n, e), closeGamePlan103(), saveGame(), Yt(!!t));
+    (resolveWeekV11(a, n, e), closeGamePlan103(), saveGame(), startWeek(!!t));
   }
   prepareWeek103 = function (e) {
     const t = state.player;
@@ -24997,11 +24997,11 @@
     const a = t.weekResults.find(n => !n.played);
     if (!a) return;
     if (a.generatedV11) {
-      Yt(!!e);
+      startWeek(!!e);
       return;
     }
     if (!e && TU("quickSilent", 1)) {
-      silentWeekV85(t, a) || Yt(!1);
+      silentWeekV85(t, a) || startWeek(!1);
       return;
     }
     const s = document.querySelector(".gameplan-overlay");
@@ -25053,7 +25053,7 @@
       ((a.momentsCompleteV11 = !0), delete a.pendingLiveV11, po(r));
     }
   }
-  function Yt(e) {
+  function startWeek(e) {
     const t = state.player,
       a = t.weekResults.findIndex(n => !n.played);
     if (a < 0) {
@@ -25096,7 +25096,7 @@
       prepareWeek103(!!e);
       return;
     }
-    Yt(!!e);
+    startWeek(!!e);
   };
   function Gc(e) {
     return e >= 0.82
@@ -25180,7 +25180,7 @@
   function yo(e) {
     return e ? (e >= 1e6 ? "$" + Math.round(e / 1e6) + "M" : "$" + Math.round(e / 1e3) + "K") : "$0";
   }
-  function va(e) {
+  function nflSurvivalCard(e) {
     const t = ensureNflState(e, playerOvr(e));
     if (!t) return "";
     const a = String(t.status).replaceAll("-", " ").toUpperCase(),
@@ -25430,8 +25430,8 @@
     }
     ed(!!e);
   };
-  const td = Yt;
-  Yt = function (e) {
+  const td = startWeek;
+  startWeek = function (e) {
     const t = state.player;
     if (t && !t.originV11) {
       (render(), showToast("Choose this career’s origin first."));
@@ -25550,7 +25550,7 @@
       t.querySelector(".condition-card-v11") || insertAfter(i, Bn(e));
       const r = t.querySelector(".condition-card-v11") || i;
       (t.querySelector(".arc-card-v11") || insertAfter(r, jn(e)),
-        e.level >= 7 && !t.querySelector(".nfl-survival-v11") && insertAfter(t.querySelector(".arc-card-v11") || r, va(e)),
+        e.level >= 7 && !t.querySelector(".nfl-survival-v11") && insertAfter(t.querySelector(".arc-card-v11") || r, nflSurvivalCard(e)),
         t.querySelector(".legacy-progress-v11") || t.insertAdjacentHTML("beforeend", In(e)));
     }
     if (state.view === "season") {
@@ -25561,7 +25561,7 @@
       const r = t.querySelector(".opponent-card-v11") || n;
       (t.querySelector(".condition-card-v11") || insertAfter(r, Bn(e)),
         t.querySelector(".arc-card-v11") || insertAfter(t.querySelector(".condition-card-v11") || r, jn(e)),
-        e.level >= 7 && !t.querySelector(".nfl-survival-v11") && insertAfter(t.querySelector(".arc-card-v11") || r, va(e)));
+        e.level >= 7 && !t.querySelector(".nfl-survival-v11") && insertAfter(t.querySelector(".arc-card-v11") || r, nflSurvivalCard(e)));
       const l = e.weekResults || [];
       t.querySelectorAll(".sched-row").forEach((d, c) => {
         const u = l[c];
@@ -25614,7 +25614,7 @@
     if (state.view === "result" && !t.querySelector(".legacy-progress-v11")) {
       const n = t.querySelector(".card") || t.firstElementChild;
       (insertAfter(n, In(e)),
-        e.level >= 7 && !t.querySelector(".nfl-survival-v11") && insertAfter(t.querySelector(".legacy-progress-v11"), va(e)));
+        e.level >= 7 && !t.querySelector(".nfl-survival-v11") && insertAfter(t.querySelector(".legacy-progress-v11"), nflSurvivalCard(e)));
     }
     if ((state.view === "gameover" || state.view === "win") && !t.querySelector(".legacy-summary-v11")) {
       const n = t.querySelector(".banner") || t.firstElementChild;
@@ -25778,14 +25778,14 @@
         if (!plan) plan = e.weeklyPlan103 || "balanced";
         w.wheelV85 = roll
           ? { id: roll.id, name: roll.name, icon: roll.icon, band: roll.band, lines: roll.lines, chosen: !!roll.chosen }
-          : { id: plan, name: (Wt(plan) || {}).name || plan, band: "scout", lines: "scout pick" };
+          : { id: plan, name: (gamePlanById(plan) || {}).name || plan, band: "scout", lines: "scout pick" };
         // fate roll (v50 wrapper) → ca() → the week is marked played: the played-week chain
         if (typeof window.chooseGamePlanV11 == "function") window.chooseGamePlanV11(plan, !1);
         else {
           resolveWeekV11(e, w, plan);
-          Yt(!1);
+          startWeek(!1);
         }
-      } else Yt(!1);
+      } else startWeek(!1);
     } catch (err) {
       window.__V85.lastSilentError = String((err && err.stack) || err);
     } finally {
@@ -26184,7 +26184,7 @@
   function planFactsV146(e, id) {
     e = e || (state && state.player);
     const w = curWeekV111(e),
-      p = Wt(id);
+      p = gamePlanById(id);
     if (!e || !w || !p || p.id !== id) return null;
     const I = projWeekInV146(e, w),
       gm = Math.max(1, LEVELS[e.level].games);
@@ -26417,7 +26417,7 @@
   function autoStoryV90(e, w) {
     const out = [];
     if (!e) return out;
-    Os(e);
+    ensureStoryState(e);
     let guard = 0;
     while (e.storyDecisionQueueV11.length && guard++ < 12) {
       const st = e.storyDecisionQueueV11[0],
@@ -26486,7 +26486,7 @@
     queueStage: (e, idx) => {
       const t = STORY_ARCS[idx || 0];
       if (!t) return null;
-      Os(e);
+      ensureStoryState(e);
       e.activeStoryArcV11 = e.activeStoryArcV11 || { id: t.id, stage: 0, weeksSinceStage: 0, choices: [] };
       return $n(e, t.id, 0);
     }
@@ -26529,7 +26529,7 @@
   safeBootV140(function () {
     render();
   }, "draw the restored screen");
-  let Lt = "overview";
+  let lifeTab = "overview";
   function ensureV12() {
     (ensureAccountV12(state), state.player && (ensureV11(state.player), state.player.level >= 7 && ensureFinanceState(state.player)));
   }
@@ -26617,7 +26617,7 @@
     return `<div class="card finance-legacy-v12"><div class="eyebrow">LIFE AFTER THE FINAL SNAP</div><div class="h2" style="margin:2px 0">${formatMoney(a.netWorth)} left for the future</div><div class="life-money-grid-v12"><div><b>${formatMoney(t.careerGross)}</b><small>Career gross</small></div><div><b>${formatMoney(t.investmentGains)}</b><small>Market gains</small></div><div><b>${Object.keys(t.completedGoals || {}).length}</b><small>Life goals</small></div><div><b>${Math.round(t.familySecurity)}</b><small>Family security</small></div></div></div>`;
   }
   function vd(e) {
-    ((Lt = e), screenLife());
+    ((lifeTab = e), screenLife());
   }
   function yd() {
     ((state.view = "life"), saveGame(), render());
@@ -26638,11 +26638,11 @@
       n = s.contract || {},
       i = lifestyleEffects(e),
       r = houseById(t.houseId);
-    an();
+    syncCounters();
     const l = document.querySelector(".topbar");
     l && (l.style.display = "");
     let d = "";
-    (Lt === "overview" &&
+    (lifeTab === "overview" &&
       (d = `
     <div class="card life-contract-v12"><div class="impact-head"><div><div class="impact-kicker">${escHtml(dd(e).toUpperCase())} · CURRENT CONTRACT</div><div class="h2" style="margin:2px 0 0">${formatMoney(n.salary || 0)} / season</div></div><div class="contract-years-v12">${n.yearsRemaining || 0}<small>YEARS LEFT</small></div></div><div class="life-money-grid-v12"><div><b>${Math.round((n.guaranteed || 0) * 100)}%</b><small>Guaranteed</small></div><div><b>${formatMoney(n.signingBonus || 0)}</b><small>Signing bonus</small></div><div><b>${formatMoney(i.weeklyCost)}</b><small>Weekly lifestyle</small></div><div><b>${Math.round(s.security || 0)}</b><small>Roster security</small></div></div></div>
     <div class="card retirement-v12"><div class="impact-head"><div><div class="impact-kicker">RETIREMENT PLAN · ${escHtml(a.plan.name.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">${a.ready ? "You Can Walk Away" : "Still Building the Exit"}</div></div><div class="life-ready-v12 ${a.ready ? "ready" : ""}">${Math.round(a.ratio * 100)}%<small>FUNDED</small></div></div><div class="retirement-track-v12"><i style="width:${clamp99(a.ratio * 100, 0, 100)}%"></i></div><div class="small">Target ${formatMoney(a.target)} · retirement assets ${formatMoney(a.retirementAssets)} · total net worth ${formatMoney(a.netWorth)} · sustainable income ${formatMoney(a.annualIncome)}/yr</div><div class="life-goal-pills-v12"><span>${a.goals}/${a.totalGoals} goals</span><span>Family ${Math.round(t.familySecurity)}</span><span>Fulfillment ${Math.round(t.fulfillment)}</span><span class="${t.debt > 0 ? "danger" : ""}">Debt ${formatMoney(t.debt || 0)}</span></div><div class="retirement-plan-grid-v12">${RETIREMENT_PLANS.map(c => `<button class="${t.retirementPlanId === c.id ? "active" : ""}" onclick="setRetirementPlanV12('${c.id}')"><span>${c.icon}</span><b>${escHtml(c.name)}</b><small>${formatMoney(c.target)} target</small></button>`).join("")}</div>${canRetire(e) ? `<button class="btn ${a.ready ? "" : "secondary"}" style="margin-top:10px" onclick="retireV12()">🌅 Retire From Football</button>` : ""}</div>
@@ -26657,18 +26657,18 @@
             .join("")
         : '<div class="small">Your first game check will appear here.</div>'
     }</div></div>`),
-      Lt === "lifestyle" &&
+      lifeTab === "lifestyle" &&
         (d = `<div class="card"><div class="eyebrow">FOOD · RECOVERY · LUXURY</div><div class="h2" style="margin:2px 0">Spend Money to Shape the Player</div><div class="small">Better support can improve performance and recovery, but every expense reduces the money available for family and retirement.</div></div><div class="h2">Meals</div>${LIFESTYLES.meals.map(c => xs("meals", c, t.lifestyle.meals)).join("")}<div class="h2">Recovery Team</div>${LIFESTYLES.recovery.map(c => xs("recovery", c, t.lifestyle.recovery)).join("")}<div class="h2">Off-Field Lifestyle</div>${LIFESTYLES.luxury.map(c => xs("luxury", c, t.lifestyle.luxury)).join("")}<div class="card tight center"><b style="font-family:Oswald;color:var(--gold)">${formatMoney(i.weeklyCost)} per week</b><div class="small">Recovery +${i.recovery} · performance +${Math.round(i.perf)} · injury risk ${Math.round(i.injuryRisk * 100)}%</div></div>`),
-      Lt === "home" &&
+      lifeTab === "home" &&
         (d = `<div class="card"><div class="eyebrow">CURRENT HOME</div><div class="h2" style="margin:2px 0">${r.icon} ${escHtml(r.name)}</div><div class="small">${escHtml(r.description)} · value ${formatMoney(t.houseValue)}</div></div>${HOUSES.map(c => `<div class="house-card-v12 ${t.houseId === c.id ? "owned" : ""}"><span>${c.icon}</span><div><b>${escHtml(c.name)}</b><small>${escHtml(c.description)}</small><em>${c.price ? formatMoney(c.price) : "CURRENT RENTAL"} · ${formatMoney(c.weekly)}/wk upkeep</em></div><button ${t.houseId === c.id ? "disabled" : ""} onclick="buyHouseV12('${c.id}')">${t.houseId === c.id ? "OWNED" : "BUY"}</button></div>`).join("")}`),
-      Lt === "invest" &&
+      lifeTab === "invest" &&
         (d = `<div class="card"><div class="eyebrow">COMPOUNDING PORTFOLIO</div><div class="h2" style="margin:2px 0">${formatMoney(liquidInvestments(e))} Invested</div><div class="small">Returns and losses are applied after every UFF week. The game protects an emergency reserve of ${formatMoney(emergencyReserve(e))}; debt costs 16% annually until repaid.</div>${t.debt > 0 ? `<div class="nem-banner" style="margin-top:10px">⚠️ Outstanding debt: <b>${formatMoney(t.debt)}</b>. Half of cash above the reserve automatically repays it.</div>` : ""}</div>${PORTFOLIOS
           .map(c => {
             const u = t.investments[c.id] || 0;
             return `<div class="portfolio-card-v12"><span>${c.icon}</span><div><b>${escHtml(c.name)}</b><small>${escHtml(c.description)}</small><em>${formatMoney(u)} · ${Math.round(c.annualReturn * 100)}% expected annual return</em></div><div class="portfolio-actions-v12"><button onclick="investV12('${c.id}',.10)">+10%</button><button onclick="investV12('${c.id}',.25)">+25%</button><button ${u < 1e3 ? "disabled" : ""} onclick="withdrawV12('${c.id}',.25)">SELL</button></div></div>`;
           })
           .join("")}`),
-      Lt === "goals" &&
+      lifeTab === "goals" &&
         (d = `<div class="card"><div class="eyebrow">WHAT THE MONEY IS FOR</div><div class="h2" style="margin:2px 0">Lifelong Family Goals</div><div class="small">Football ends. These objectives determine whether the career changed one life or an entire family.</div></div>${LIFE_GOALS.map(
           c => {
             const u = !!t.completedGoals[c.id],
@@ -26685,7 +26685,7 @@
           ["invest", "Invest"],
           ["goals", "Goals"]
         ]
-          .map(([c, u]) => `<button class="${Lt === c ? "active" : ""}" onclick="setLifeTabV12('${c}')">${u}</button>`)
+          .map(([c, u]) => `<button class="${lifeTab === c ? "active" : ""}" onclick="setLifeTabV12('${c}')">${u}</button>`)
           .join("")}</div>${d}`),
       (byId("dock").innerHTML =
         `<button class="btn secondary" onclick="go(S.player.weekResults?'season':'hub')">Back to Football</button>`),
@@ -26810,8 +26810,8 @@
       (e._financeProcessedV12 = !0),
       saveGame());
   };
-  const Pd = Yt;
-  Yt = function (e) {
+  const Pd = startWeek;
+  startWeek = function (e) {
     if (state.player?.lifeV12?.eventQueue?.length) {
       (render(), showToast("Resolve the UFF life decision first."));
       return;
@@ -26884,8 +26884,8 @@
   function Cd(e) {
     return e.level >= 7 ? wo(e, !1) : "";
   }
-  const Ld = va;
-  va = function (e) {
+  const Ld = nflSurvivalCard;
+  nflSurvivalCard = function (e) {
     return Ld(e) + Cd(e);
   };
   function Ed() {
@@ -27117,7 +27117,7 @@
         i,
         name: DFL_V123[i],
         town: TOWNS[(i * 7 + 3) % TOWNS.length],
-        mascot: er[(i * 11 + 5) % er.length],
+        mascot: MASCOTS[(i * 11 + 5) % MASCOTS.length],
         tier: T.k,
         tierLabel: T.label,
         q,
@@ -27200,7 +27200,7 @@
     }
     e.nflCutPending = !1;
     e.coachTrust = c.trust;
-    e.teamIdentity = e.teamIdentity || Xs();
+    e.teamIdentity = e.teamIdentity || newTeamIdentity();
     e.teamIdentity.dfl = c.name;
     e.clubV146B = {
       i: c.i,
@@ -27468,8 +27468,8 @@
     } catch (_) {}
     if (lk && !lk.ok) return null;
     const A = e.attrs || {};
-    if (X.awareReqBase && (A.awareness || 0) < Da(X.awareReqBase, e.level)) return null;
-    if (X.gritReqBase && (A.grit || 0) < Da(X.gritReqBase, e.level)) return null;
+    if (X.awareReqBase && (A.awareness || 0) < eventReq(X.awareReqBase, e.level)) return null;
+    if (X.gritReqBase && (A.grit || 0) < eventReq(X.gritReqBase, e.level)) return null;
     const fg = X.focusGainBase ? Object.values(X.focusGainBase).reduce((s, v) => s + (+v || 0), 0) / 3 : 0,
       gain = (X.awareGainBase || 0) + (X.gritGainBase || 0) + (X.disciplineGainBase || 0) + fg;
     return (
@@ -27841,7 +27841,7 @@
       state.view === "shop" && screenPrestige();
     } catch (_) {}
     try {
-      an();
+      syncCounters();
     } catch (_) {}
   };
   window.__ribToast = m => {
@@ -28252,8 +28252,8 @@
       // ---------- 5. TIGHT END BLOCKING STATS + OVR REBALANCE ----------
       try {
         // live-sim tiles: REC / TD / PANCAKES
-        var origJi = Ji;
-        Ji = function (pos) {
+        var origJi = liveStatCols;
+        liveStatCols = function (pos) {
           if (pos === "TE")
             return [
               ["rec", "REC YDS"],
@@ -28270,8 +28270,8 @@
           return r;
         };
         // full box score: add the blocking line for TE
-        var origCl = cl;
-        cl = function (e, t) {
+        var origCl = liveBoxLine;
+        liveBoxLine = function (e, t) {
           var rows = origCl(e, t);
           if (e === "TE") {
             rows.push(["PANCAKES", (t && t.pancake) || 0]);
@@ -28301,7 +28301,7 @@
         }
         window.__qcTE = {
           w: POSITIONS.TE.w,
-          ji: Ji("TE"),
+          ji: liveStatCols("TE"),
           seasonKeys: POS_STATS.TE.stats.map(function (s) {
             return s.key;
           })
@@ -28380,11 +28380,11 @@
         return { rank: r.rank, of: r.of, arrow: arrow, col: col };
       }
       function pgGrid(pos, statObj, gameObj) {
-        var rows = typeof cl === "function" ? cl(pos, statObj) : [];
+        var rows = typeof liveBoxLine === "function" ? liveBoxLine(pos, statObj) : [];
         var gmap = null;
         if (gameObj) {
           gmap = {};
-          (cl(pos, gameObj) || []).forEach(function (r) {
+          (liveBoxLine(pos, gameObj) || []).forEach(function (r) {
             gmap[r[0]] = r[1];
           });
         }
