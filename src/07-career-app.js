@@ -623,7 +623,9 @@
         )),
         n.injury.weeksRemaining <= 0 && ((e.recentlyRecoveredV11 = n.injury.severity), (n.injury = null))),
       (n.fatigue = clamp(n.fatigue - u * (1 + gearV147("recovery")), 0, 100)),
-      t.injured && !n.injury && (n.injury = rollInjury(e, seededRng(e.seasonSeed, e.level, t.week, t.opp, t.perf, "injury-roll"))),
+      t.injured &&
+        !n.injury &&
+        (n.injury = rollInjury(e, seededRng(e.seasonSeed, e.level, t.week, t.opp, t.perf, "injury-roll"))),
       { fatigueDelta: d - u, condition: n }
     );
   }
@@ -792,7 +794,9 @@
     const n = ensureRival(e, a, seededRng(e.seasonSeed, t.week, "rival")),
       i = seededRng(e.seasonSeed, t.week, n.id, t.perf, "rival-week"),
       r = n.personality === "Coach Favorite" ? 4 : n.personality === "Quiet Professional" ? 2 : 0;
-    ((n.weeklyPerf = Math.round(clamp(54 + (n.ovr - a) * 0.65 + r - (100 - n.health) * 0.08 + (i() - 0.5) * 25, 20, 98))),
+    ((n.weeklyPerf = Math.round(
+      clamp(54 + (n.ovr - a) * 0.65 + r - (100 - n.health) * 0.08 + (i() - 0.5) * 25, 20, 98)
+    )),
       (n.health = clamp(n.health - 3 + i() * 6, 25, 100)),
       i() < 0.04 + (100 - n.health) / 1200 && (n.health = clamp(n.health - 28, 10, 100)));
     const l = ((e.coachTrust || 50) - n.coachTrust) * 0.04,
@@ -4196,7 +4200,12 @@
       ? { ok: !1, amount: 0, reason: `Keep at least ${formatMoney(n)} in emergency cash` }
       : ((s.cash -= i),
         (s.investments[t] = (s.investments[t] || 0) + i),
-        s.history.unshift({ week: s.weeksPaid, label: `Invested in ${portfolioById(t)?.name || t}`, amount: -i, netWorth: netWorth(e) }),
+        s.history.unshift({
+          week: s.weeksPaid,
+          label: `Invested in ${portfolioById(t)?.name || t}`,
+          amount: -i,
+          netWorth: netWorth(e)
+        }),
         evaluateLifeGoals(e),
         { ok: !0, amount: i });
   }
@@ -4209,7 +4218,12 @@
       ? { ok: !1, amount: 0, reason: "Not enough invested" }
       : ((s.investments[t] -= i),
         (s.cash += i),
-        s.history.unshift({ week: s.weeksPaid, label: `Sold ${portfolioById(t)?.name || t}`, amount: i, netWorth: netWorth(e) }),
+        s.history.unshift({
+          week: s.weeksPaid,
+          label: `Sold ${portfolioById(t)?.name || t}`,
+          amount: i,
+          netWorth: netWorth(e)
+        }),
         { ok: !0, amount: i });
   }
   function contributeGoal(e, t, a) {
@@ -4322,7 +4336,12 @@
       a.eventQueue.shift());
     const i = evaluateLifeGoals(e);
     return (
-      a.history.unshift({ week: a.weeksPaid, label: s.title, amount: n.cash || -(n.amount || 0), netWorth: netWorth(e) }),
+      a.history.unshift({
+        week: a.weeksPaid,
+        label: s.title,
+        amount: n.cash || -(n.amount || 0),
+        netWorth: netWorth(e)
+      }),
       { event: s, choice: n, goals: i }
     );
   }
@@ -5377,7 +5396,12 @@
       s = Math.max(0, 1 - Math.abs(e.height - a.h[0]) / (a.h[1] * 2.2)),
       n = Math.max(0, 1 - Math.abs(e.weight - a.w[0]) / (a.w[1] * 2.2));
     let i = a.mus;
-    typeof state < "u" && state && state.tree && nodeLvl("lean") && ["WR", "CB", "RB", "S"].includes(t) && (i += nodeLvl("lean") * 0.06);
+    typeof state < "u" &&
+      state &&
+      state.tree &&
+      nodeLvl("lean") &&
+      ["WR", "CB", "RB", "S"].includes(t) &&
+      (i += nodeLvl("lean") * 0.06);
     const r = e.muscle / 100;
     return s * 0.4 + n * 0.4 + r * i * 0.2;
   }
@@ -7221,7 +7245,10 @@
     TREE_NODES[a.key] = { ...a, branch: "impossible" };
   });
   function wallMultV146() {
-    return Math.max(TU("wallMultFloorV146", 2), TU("drWallMult", 5) - nodeLvl("wallCrack") * TU("wallCrackStepV146", 1));
+    return Math.max(
+      TU("wallMultFloorV146", 2),
+      TU("drWallMult", 5) - nodeLvl("wallCrack") * TU("wallCrackStepV146", 1)
+    );
   }
   function wallAtV146() {
     return TU("drWallAt", 250) + nodeLvl("wallPush") * TU("wallPushStepV146", 25);
@@ -7342,7 +7369,10 @@
   };
   function nodeUnlocked(e) {
     return e.req
-      ? !((honorHasReqV130(e.req) && state.prestige < honorReqV130(e.req)) || (e.req.node && nodeLvl(e.req.node) < e.req.lvl))
+      ? !(
+          (honorHasReqV130(e.req) && state.prestige < honorReqV130(e.req)) ||
+          (e.req.node && nodeLvl(e.req.node) < e.req.lvl)
+        )
       : !0;
   } /* ===== v139 THE HONORS THE CARD PROMISES ARE THE HONORS YOU GET =====
    * Qs() counts the honors a career earned — level reached, rings, peak OVR, titles — and the
@@ -7544,7 +7574,11 @@
     const d = PLAN_FATE_V124[k];
     if (!d) return 0;
     return clamp99(
-      d.odds + nodeLvl("fateOdds") * 0.04 + (state && state.path === "prodigy" ? 0.05 : 0) + treeFx("fateOdds") + gearV147("fateOdds"),
+      d.odds +
+        nodeLvl("fateOdds") * 0.04 +
+        (state && state.path === "prodigy" ? 0.05 : 0) +
+        treeFx("fateOdds") +
+        gearV147("fateOdds"),
       0.05,
       0.97
     );
@@ -8157,7 +8191,10 @@
       n = randPick(t),
       i = Math.random();
     let r;
-    return (i < 0.45 ? (r = randPick(t.filter(l => l !== n))) : i < 0.75 ? (r = randPick(a)) : (r = randPick(s)), [n, r]);
+    return (
+      i < 0.45 ? (r = randPick(t.filter(l => l !== n))) : i < 0.75 ? (r = randPick(a)) : (r = randPick(s)),
+      [n, r]
+    );
   }
   /* ===== v112 TWO CARDS FROM A POOL OF TEN =====
    * The second trait used to be a silent roll the player never saw (45% good / 30% neutral /
@@ -8510,7 +8547,10 @@
     return (state.settings && state.settings[e]) || !1;
   }
   function toggleSetting(e) {
-    (state.settings || (state.settings = {}), (state.settings[e] = !state.settings[e]), saveGame(), state.view === "settings" && screenSettings());
+    (state.settings || (state.settings = {}),
+      (state.settings[e] = !state.settings[e]),
+      saveGame(),
+      state.view === "settings" && screenSettings());
   }
   const MILESTONE_PP = [0, 2, 4, 8, 14, 24, 40, 70, 220];
   function grantMilestone(e) {
@@ -8830,7 +8870,9 @@
   function chaosMaxAll() {
     if (
       !state.chaosUnlocked ||
-      !confirm("Set chaos to your FULL capacity (" + chaosCap() + ")? Every enemy in the world becomes vastly stronger.")
+      !confirm(
+        "Set chaos to your FULL capacity (" + chaosCap() + ")? Every enemy in the world becomes vastly stronger."
+      )
     )
       return;
     state.chaos = {};
@@ -8880,10 +8922,9 @@
       </div>
       <div class="threshold-note" style="margin-top:4px;color:#ff9b93">⛓️ <b>Chaos Clearance:</b> win a championship at <b>FULL capacity</b> to raise it (+6 UFF · +10 Interstellar). Depth must be earned — flaming out early under chaos pays only a fraction.</div>
       <div class="small" style="margin:6px 0 10px;color:var(--chalk-dim)">Every chaos level also raises your <b>potential ceiling</b> — the harder the world, the higher you can climb.</div>
-      ${ATTR_KEYS
-        .map(n => {
-          const i = (state.chaos && state.chaos[n]) || 0;
-          return `<div class="chaos-row">
+      ${ATTR_KEYS.map(n => {
+        const i = (state.chaos && state.chaos[n]) || 0;
+        return `<div class="chaos-row">
           <span class="cr-name">${ATTR_INFO[n].name}</span>
           <span class="cr-fill"><i style="width:${i * 10}%"></i></span>
           <button class="step cstep" onclick="setChaos('${n}',-1)" ${i <= 0 ? "disabled" : ""}>−</button>
@@ -8891,8 +8932,7 @@
           <button class="step cstep hotbtn" onclick="setChaos('${n}',1)" ${i >= 10 ? "disabled" : ""}>+</button>
           <span class="cr-pct">+${i * 10}%</span>
         </div>`;
-        })
-        .join("")}
+      }).join("")}
       <button class="btn danger" style="margin-top:10px" onclick="chaosMaxAll()">🔥 MAXIMUM CHAOS</button>
       `
           : ""
@@ -9011,7 +9051,8 @@
       <span class="hs-line">${cfg.stats
         .slice(0, 3)
         .map(
-          st => `<i>${r.line && r.line[st.key] != null ? stat(st.key, r.line[st.key]) : "—"} <em>${escHtml(st.name)}</em></i>`
+          st =>
+            `<i>${r.line && r.line[st.key] != null ? stat(st.key, r.line[st.key]) : "—"} <em>${escHtml(st.name)}</em></i>`
         )
         .join("")}</span>
       <span class="hs-grade" style="color:${/^A/.test(r.grade || "") ? "var(--good)" : /^[DF]/.test(r.grade || "") ? "var(--blood)" : "var(--gold)"}">${escHtml(r.grade || "")}<small>${r.avg} rtg · ${r.ovr} OVR</small></span>
@@ -9129,47 +9170,45 @@
       int,
       hook
     });
-    return (_gcV147 = ATTR_KEYS
-      .map(A)
-      .concat(
-        [
-          P("passYds", "Pass Yards"),
-          P("passTD", "Pass TDs"),
-          P("int", "INTs Thrown", 1),
-          P("rushYds", "Rush Yards"),
-          P("rushTD", "Rush TDs"),
-          P("ypc", "Yards / Carry"),
-          P("rec", "Catches"),
-          P("recYds", "Rec Yards"),
-          P("recTD", "Rec TDs"),
-          P("grade", "Block Grade"),
-          P("pancakes", "Pancakes"),
-          P("sacksAllowed", "Sacks Allowed", 1),
-          P("tackles", "Tackles"),
-          P("sacks", "Sacks"),
-          P("tfl", "Tackles for Loss"),
-          P("pd", "Passes Defended"),
-          P("int", "Interceptions")
-        ],
-        [
-          X("injChance", "Injury Chance", 0.04, 0.3, -1, 1, "injChanceV54"),
-          X("injDur", "Injury Time Out", 0.05, 0.35, -1, 1, "healWeeksV146"),
-          X("fatigueGain", "Fatigue Gain", 0.04, 0.3, -1, 1, "chargeV111 · forecastV111"),
-          X("recovery", "Weekly Recovery", 0.06, 0.4, 1, 1, "v11 week recovery"),
-          X("trustGain", "Coach Trust Gain", 0.06, 0.4, 1, 1, "et (v10 wrapper)"),
-          X("snapShare", "Snap Share", 0.02, 0.1, 1, 1, "trustShareV120"),
-          X("varDown", "Game-to-Game Swing", 0.03, 0.2, -1, 1, "et variance"),
-          X("fateOdds", "Program Fate Odds", 0.012, 0.08, 1, 1, "planFateOddsV124"),
-          X("ppGain", "Prestige Points", 0.04, 0.3, 1, 1, "ms / no (career-end PP)"),
-          X("softCap", "Soft Caps", 0.006, 0.04, 1, 1, "drSoftCap"),
-          X("points", "Upgrade Pts / Season", 1, 4, 1, 0, "tt points", 1),
-          X("training", "Training Effect", 0.04, 0.25, 1, 1, "tt Tt · projectSeasonGainsV85"),
-          X("ageDecline", "Age Decline", 0.05, 0.3, -1, 1, "ageCutV139"),
-          X("clutch", "Playoff Rating", 1.2, 8, 1, 0, "clutchV131"),
-          X("callUp", "Call-Up Chance", 0.6, 4, 1, 0, "qt (advanceChance)"),
-          X("teamQual", "Team Quality", 0.012, 0.06, 1, 1, "v76 margin")
-        ]
-      ));
+    return (_gcV147 = ATTR_KEYS.map(A).concat(
+      [
+        P("passYds", "Pass Yards"),
+        P("passTD", "Pass TDs"),
+        P("int", "INTs Thrown", 1),
+        P("rushYds", "Rush Yards"),
+        P("rushTD", "Rush TDs"),
+        P("ypc", "Yards / Carry"),
+        P("rec", "Catches"),
+        P("recYds", "Rec Yards"),
+        P("recTD", "Rec TDs"),
+        P("grade", "Block Grade"),
+        P("pancakes", "Pancakes"),
+        P("sacksAllowed", "Sacks Allowed", 1),
+        P("tackles", "Tackles"),
+        P("sacks", "Sacks"),
+        P("tfl", "Tackles for Loss"),
+        P("pd", "Passes Defended"),
+        P("int", "Interceptions")
+      ],
+      [
+        X("injChance", "Injury Chance", 0.04, 0.3, -1, 1, "injChanceV54"),
+        X("injDur", "Injury Time Out", 0.05, 0.35, -1, 1, "healWeeksV146"),
+        X("fatigueGain", "Fatigue Gain", 0.04, 0.3, -1, 1, "chargeV111 · forecastV111"),
+        X("recovery", "Weekly Recovery", 0.06, 0.4, 1, 1, "v11 week recovery"),
+        X("trustGain", "Coach Trust Gain", 0.06, 0.4, 1, 1, "et (v10 wrapper)"),
+        X("snapShare", "Snap Share", 0.02, 0.1, 1, 1, "trustShareV120"),
+        X("varDown", "Game-to-Game Swing", 0.03, 0.2, -1, 1, "et variance"),
+        X("fateOdds", "Program Fate Odds", 0.012, 0.08, 1, 1, "planFateOddsV124"),
+        X("ppGain", "Prestige Points", 0.04, 0.3, 1, 1, "ms / no (career-end PP)"),
+        X("softCap", "Soft Caps", 0.006, 0.04, 1, 1, "drSoftCap"),
+        X("points", "Upgrade Pts / Season", 1, 4, 1, 0, "tt points", 1),
+        X("training", "Training Effect", 0.04, 0.25, 1, 1, "tt Tt · projectSeasonGainsV85"),
+        X("ageDecline", "Age Decline", 0.05, 0.3, -1, 1, "ageCutV139"),
+        X("clutch", "Playoff Rating", 1.2, 8, 1, 0, "clutchV131"),
+        X("callUp", "Call-Up Chance", 0.6, 4, 1, 0, "qt (advanceChance)"),
+        X("teamQual", "Team Quality", 0.012, 0.06, 1, 1, "v76 margin")
+      ]
+    ));
   }
   function gearDefV147(k) {
     return gearCatV147().find(c => c.k === k) || null;
@@ -9406,16 +9445,14 @@
     ((byId("screen").innerHTML = `
     <div class="eyebrow">Drops at every career end · rarer = more modifiers</div>
     <div class="eq-row eq-row-v147">
-      ${GEAR_SLOTS
-        .map(n => {
-          const i = t[n.key],
-            r = i ? a(i.rarity) : null;
-          return `<div class="eq-slot ${i ? "r-" + i.rarity : ""}"${i ? ` onclick="gearPickV147('${i.id}')"` : ""}>
+      ${GEAR_SLOTS.map(n => {
+        const i = t[n.key],
+          r = i ? a(i.rarity) : null;
+        return `<div class="eq-slot ${i ? "r-" + i.rarity : ""}"${i ? ` onclick="gearPickV147('${i.id}')"` : ""}>
           <div class="eq-ic">${n.icon}</div>
           ${i ? `<div class="eq-name" style="color:${r.color}">${escHtml(i.name)}</div><div class="eq-eff">${r.name} · ${(i.mods || []).length} mod${(i.mods || []).length === 1 ? "" : "s"}</div>` : `<div class="eq-name" style="color:var(--chalk-dim)">Empty ${n.name}</div>`}
         </div>`;
-        })
-        .join("")}
+      }).join("")}
     </div>
     ${gearSumV147(pos)}
     <div class="h2 gear-h-v147">Inventory <span>(${e.length}/40) · tap to compare</span></div>
@@ -9494,17 +9531,15 @@
     <div class="h1">Prove It</div>
     <div class="sub">One-time feats that pay permanent Prestige Points — banked, and paid the day the career ends. They stay done forever — chase them across careers. The two at the bottom are the whole game: the UFF title <b>as its MVP</b> pays <b style="color:var(--gold)">10,000</b>, the Interstellar title as its MVP pays <b style="color:var(--gold)">1,000,000</b>.</div>
     <div class="mt" style="margin-top:14px">
-    ${CHALLENGES
-      .map(t => {
-        const a = !!state.challenges[t.id];
-        return `<div class="shop-item" style="border-color:${a ? "var(--good)" : "var(--line)"};${a ? "" : "opacity:.85"}">
+    ${CHALLENGES.map(t => {
+      const a = !!state.challenges[t.id];
+      return `<div class="shop-item" style="border-color:${a ? "var(--good)" : "var(--line)"};${a ? "" : "opacity:.85"}">
         <div class="ic">${t.icon}</div>
         <div class="si"><div class="st">${t.name} ${a ? '<span style="color:var(--good)">✓ DONE</span>' : ""}</div>
           <div class="sd">${t.desc}</div></div>
         <div style="font-family:'Oswald';font-weight:700;color:${a ? "var(--good)" : "var(--gold)"};white-space:nowrap">${a ? "+" : ""}${t.pp.toLocaleString("en-US")} PP</div>
       </div>`;
-      })
-      .join("")}
+    }).join("")}
     </div>
   `),
       (byId("dock").innerHTML =
@@ -9527,7 +9562,11 @@
       (t.strength = clamp99(t.strength + nodeLvl("frame") * 7 + nodeLvl("campStr") * 4, 1, n)),
       (t.injuryResist = clamp99(t.injuryResist + nodeLvl("iron") * 7, 1, n + 20)),
       (t.stamina = clamp99(t.stamina + nodeLvl("motor") * 4 + nodeLvl("lungs") * 7, 1, n + 15)),
-      (t.awareness = clamp99(t.awareness + nodeLvl("filmrat") * 7 + nodeLvl("genius") * 14 + nodeLvl("campIQ") * 4, 1, n)),
+      (t.awareness = clamp99(
+        t.awareness + nodeLvl("filmrat") * 7 + nodeLvl("genius") * 14 + nodeLvl("campIQ") * 4,
+        1,
+        n
+      )),
       (t.vision = clamp99((t.vision || 10) + nodeLvl("filmrat") * 4 + nodeLvl("genius") * 8, 1, n)),
       (t.grit = clamp99(t.grit + nodeLvl("clutch") * 7, 1, n + 15)),
       (t.catching = clamp99(t.catching + nodeLvl("handsy") * 7 + nodeLvl("campHands") * 4, 1, n)),
@@ -9547,7 +9586,11 @@
       randRange(0.85, 1.25) + (effectivePrestige(state.prestige) + i) * 0.006 + nodeLvl("talent") * 0.06;
     let u = Pi({ height: nodeLvl("devHeight"), weight: nodeLvl("devWeight"), muscle: nodeLvl("devMuscle") });
     const h = ATTR_KEYS.reduce((v, j) => v + t[j], 0) / ATTR_KEYS.length;
-    let p = clamp99(Math.round(h / 14) + nodeLvl("recruited") + nodeLvl("agent") + starsPlusV146() + (nodeLvl("phenom") > 0 ? 5 : 0), 1, 5);
+    let p = clamp99(
+      Math.round(h / 14) + nodeLvl("recruited") + nodeLvl("agent") + starsPlusV146() + (nodeLvl("phenom") > 0 ? 5 : 0),
+      1,
+      5
+    );
     if ((pathVal("startStars", 0) && (p = Math.max(p, pathVal("startStars"))), nodeLvl("idealBody"))) {
       const v = suggestPositions(t, u)[0].pos,
         j = POS_BODY[v];
@@ -9920,7 +9963,9 @@
   const SAVE_KEY = "gridiron_save_v1";
   function saveGame() {
     try {
-      window.GridironStorage ? window.GridironStorage.save(state) : localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+      window.GridironStorage
+        ? window.GridironStorage.save(state)
+        : localStorage.setItem(SAVE_KEY, JSON.stringify(state));
     } catch (e) {
       console.warn("Running It Back save failed", e);
     }
@@ -10036,7 +10081,8 @@
   } /* v139: what is BANKED rides the chip too — v136 C holds a live player's PP until the career
    * settles, and until now the only place that number appeared was the career-end card. */
   function syncCounters() {
-    ((byId("prestigeCount").textContent = Math.round((state.prestige || 0) * 10) / 10), (byId("ppCount").textContent = state.pp));
+    ((byId("prestigeCount").textContent = Math.round((state.prestige || 0) * 10) / 10),
+      (byId("ppCount").textContent = state.pp));
     const b = byId("ppBankChipV139"),
       n = bankedV136();
     if (b) {
@@ -10123,7 +10169,8 @@
     let m = TU("injBase", 0.17) * gapMult * resistMult * fatMult * loadMult;
     if (hasTrait(e, "ironFrame")) m *= 0.7;
     if (hasTrait(e, "glassBones")) m *= 1.35;
-    m *= Math.max(0.15, 1 - treeFx("injDown") - gearFx("injDown") - gearV147("injChance")) * (seasonModFx("injMult") || 1);
+    m *=
+      Math.max(0.15, 1 - treeFx("injDown") - gearFx("injDown") - gearV147("injChance")) * (seasonModFx("injMult") || 1);
     /* v120: asking the coach for more snaps than he trusts you with is a term in THIS roll too — the
      * forecast passes it; a game-day caller with just the week gets it read off the week's dial */
     let askK = 1;
@@ -10531,7 +10578,8 @@
   /* how much football he played, as one number: snaps are close to linear, touches are not — a
    * back handed the ball twenty-five times pays more than proportionally for the last five. */
   const workV111 = (share, touchMul) =>
-    Math.pow(clamp99(share, 0.05, 1), TU("wearSnapPow", 0.9)) * Math.pow(clamp99(touchMul, 0.2, 2.5), TU("wearTouchPow", 1.6));
+    Math.pow(clamp99(share, 0.05, 1), TU("wearSnapPow", 0.9)) *
+    Math.pow(clamp99(touchMul, 0.2, 2.5), TU("wearTouchPow", 1.6));
   /* the same durability curve injChanceV54 runs on, and the same two traits */
   function durMulV111(pl) {
     let m = clamp99(1.35 - ((pl && pl.attrs && pl.attrs.injuryResist) || 10) * 0.009, 0.45, 1.4);
@@ -11023,7 +11071,8 @@
     buffs: pl => wearBuffsV111(pl || (typeof state < "u" && state ? state.player : null)),
     ownBuffs: pl => ownBuffsV111(pl || (typeof state < "u" && state ? state.player : null)),
     decay: (pl, wk) => decayWearV111(pl || (typeof state < "u" && state ? state.player : null), wk),
-    wear: pl => (pl || (typeof state < "u" && state ? state.player : null) || {})._wearV111 || { load: 0, lingering: [] },
+    wear: pl =>
+      (pl || (typeof state < "u" && state ? state.player : null) || {})._wearV111 || { load: 0, lingering: [] },
     work: workV111,
     cost: (pl, wk, work) => costV111(pl, wk, work),
     stakes: (pl, wk) => stakesV111(pl, wk),
@@ -11118,7 +11167,8 @@
     const stakes = WEAR_STAKE_V111[imp] || 1;
     const worn =
       1 +
-      clamp99(((e && e._wearV111 && e._wearV111.load) || 0) / TU("wearScaleV111", 120), 0, 1.4) * TU("wearWornKV111", 0.35);
+      clamp99(((e && e._wearV111 && e._wearV111.load) || 0) / TU("wearScaleV111", 120), 0, 1.4) *
+        TU("wearWornKV111", 0.35);
     // the multipliers compound, so the product is compressed rather than clipped — a
     // brutal week stays the most expensive week without becoming the whole season, and
     // a neutral one (every driver at 1) still comes out at exactly the base
@@ -11647,7 +11697,10 @@
     const i = Math.min(t + 1, LEVELS.length - 1);
     if (t <= 2 && chaosTotal() === 0) return clamp99(96 + (e - LEVELS[i].need) * 0.3, 82, 99.5);
     const r = (ADVANCE_BASE[i] || 0) + (t <= 2, 0),
-      l = LEVELS[i].need + chaosTotal() * 0.45 + (state && state.player && state.player.level === t ? pressNeedV131(state.player) : 0);
+      l =
+        LEVELS[i].need +
+        chaosTotal() * 0.45 +
+        (state && state.player && state.player.level === t ? pressNeedV131(state.player) : 0);
     /* v131: the Prodigy is judged against a higher bar — the "harsher evaluations" his card promised and nothing delivered */ if (
       a != null &&
       s != null
@@ -11661,7 +11714,11 @@
         C = m ? r * (1 - y * 0.28) : r * (1 - y * 0.45),
         P = (u * 0.38 + p * 0.64 - C * 0.52 - 0.72) / 0.14;
       let _adv = clamp99(
-        (1 / (1 + Math.exp(-P))) * 100 + pathVal("advBonus", 0) + treeFx("advFlat") + seasonModFx("advFlat") + gearV147("callUp"),
+        (1 / (1 + Math.exp(-P))) * 100 +
+          pathVal("advBonus", 0) +
+          treeFx("advFlat") +
+          seasonModFx("advFlat") +
+          gearV147("callUp"),
         0.3,
         99.5
       );
@@ -11687,7 +11744,11 @@
       n = (i, r) => Math.max(0, Math.round(i * a + randRange(-r, r)));
     switch (e.pos) {
       case "QB":
-        return { "Pass Yds": n(207, 28), TD: n(1.6, 1), INT: Math.max(0, Math.round((1 - s) * 2.4 + randRange(-0.6, 0.7))) };
+        return {
+          "Pass Yds": n(207, 28),
+          TD: n(1.6, 1),
+          INT: Math.max(0, Math.round((1 - s) * 2.4 + randRange(-0.6, 0.7)))
+        };
       case "RB":
         return { "Rush Yds": n(84, 18), TD: n(0.9, 1), YPC: (2.6 + s * 4.6 + randRange(-0.5, 0.5)).toFixed(0) };
       case "WR":
@@ -11749,9 +11810,14 @@
           e.attrs[De] = clamp99((e.attrs[De] || 10) + Math.round(n.focusGainBase[De] * 0.25 * O) * Ae, 1, attrCap());
       }
       (n.gritGainBase && (e.attrs.grit = clamp99(e.attrs.grit + Math.round(n.gritGainBase * 0.3 * O), 1, attrCap())),
-        n.awareGainBase && (e.attrs.awareness = clamp99(e.attrs.awareness + Math.round(n.awareGainBase * 0.3 * O), 1, attrCap())),
+        n.awareGainBase &&
+          (e.attrs.awareness = clamp99(e.attrs.awareness + Math.round(n.awareGainBase * 0.3 * O), 1, attrCap())),
         n.disciplineGainBase &&
-          (e.attrs.discipline = clamp99((e.attrs.discipline || 10) + Math.round(n.disciplineGainBase * 0.3 * O), 1, attrCap())));
+          (e.attrs.discipline = clamp99(
+            (e.attrs.discipline || 10) + Math.round(n.disciplineGainBase * 0.3 * O),
+            1,
+            attrCap()
+          )));
     }
     e.contracts || (rollSeasonMod(e), genContracts(e));
     let d = 0,
@@ -11846,7 +11912,11 @@
     (hasTrait(e, "lateBloomer") && (xt *= e.age >= 16 ? 1.07 : 0.95),
       hasTrait(e, "slowStarter") && (xt *= e.seasonsSinceStart < 3 ? 0.94 : 1.05));
     const ua =
-        treeFx("eGrowth") + gearFx("growth") + Math.max(0, tierGrowth(e) - 1) + Math.max(0, pathVal("growthMult", 1) - 1) + Math.max(0, l),
+        treeFx("eGrowth") +
+        gearFx("growth") +
+        Math.max(0, tierGrowth(e) - 1) +
+        Math.max(0, pathVal("growthMult", 1) - 1) +
+        Math.max(0, l),
       fa = clamp99(1 + ua * 0.22, 0.88, 1.34),
       xe = clamp99(e.potential * Me * Fe * xt * da * fa, 0.62, 1.58),
       st = (0.42 + he * 1.18 + Mt) * xe,
@@ -11898,7 +11968,10 @@
     }
     e.potentialCeil = Math.round(k);
     const K = {};
-    if ((ATTR_KEYS.forEach(R => (K[R] = e.attrs[R] || 0)), a.cost && !nodeLvl("workhorse") && (_fv124 ? _fv124.tradeMul : 1) > 0))
+    if (
+      (ATTR_KEYS.forEach(R => (K[R] = e.attrs[R] || 0)),
+      a.cost && !nodeLvl("workhorse") && (_fv124 ? _fv124.tradeMul : 1) > 0)
+    )
       for (const R in a.cost)
         e.attrs[R] = clamp99(e.attrs[R] + Math.round(a.cost[R] * (_fv124 ? _fv124.tradeMul : 1)), 1, attrCap());
     nodeLvl("nutrition") && e.body && (e.body.muscle = clamp99(e.body.muscle + nodeLvl("nutrition") * 2, 20, 95));
@@ -11920,7 +11993,9 @@
       ke = !1;
     if (
       B &&
-      ((be = Math.round((2 + Math.round(e.level * 0.8)) * (1 + treeFx("titleMult") + seasonModFx("ppMult")) * chaosPPMult() * eraMult())),
+      ((be = Math.round(
+        (2 + Math.round(e.level * 0.8)) * (1 + treeFx("titleMult") + seasonModFx("ppMult")) * chaosPPMult() * eraMult()
+      )),
       bankPPV136(be, "title"),
       (e.titles = (e.titles || 0) + 1),
       (state.titlesWon = (state.titlesWon || 0) + 1),
@@ -11933,7 +12008,9 @@
         !state.chaosUnlocked && chaosUnlockReady(e)
           ? ((state.chaosUnlocked = !0),
             (state.chaosCap = Math.max(state.chaosCap || 0, 6)),
-            typeof document < "u" && byId("toast") && showToast("🔥 CHAOS MODE UNLOCKED — mastery requirements complete!"))
+            typeof document < "u" &&
+              byId("toast") &&
+              showToast("🔥 CHAOS MODE UNLOCKED — mastery requirements complete!"))
           : !state.chaosUnlocked &&
             typeof document < "u" &&
             byId("toast") &&
@@ -11941,8 +12018,13 @@
         state.chaosUnlocked &&
           chaosMaxed() &&
           ((state.chaosCap = (state.chaosCap || 0) + (R ? 10 : 6)),
-          typeof document < "u" && byId("toast") && showToast("⛓️ CHAOS CLEARANCE — capacity raised to " + state.chaosCap + "!")),
-        tryNextEra() && typeof document < "u" && byId("toast") && showToast("🌌 NEW ERA: " + eraName() + " — permanent +20% PP!"),
+          typeof document < "u" &&
+            byId("toast") &&
+            showToast("⛓️ CHAOS CLEARANCE — capacity raised to " + state.chaosCap + "!")),
+        tryNextEra() &&
+          typeof document < "u" &&
+          byId("toast") &&
+          showToast("🌌 NEW ERA: " + eraName() + " — permanent +20% PP!"),
         dropGear(R ? 3 : 2, "Championship loot"));
     }
     const ge = 4 + e.level * 3,
@@ -11968,7 +12050,8 @@
     (B
       ? Te.push({
           icon: "💍",
-          name: (e.level >= 7 ? "League Champion" : e.level >= 5 ? "National Champion" : "Champions") + " — " + teamName(e)
+          name:
+            (e.level >= 7 ? "League Champion" : e.level >= 5 ? "National Champion" : "Champions") + " — " + teamName(e)
         })
       : b > 0 && Te.push({ icon: "🎟️", name: "Playoff Run (" + b + " win" + (b > 1 ? "s" : "") + ")" }),
       Y >= 0.999 && B && Te.push({ icon: "💯", name: "Perfect Season" }),
@@ -12042,7 +12125,9 @@
         Ae = O.per[e.level] * (O.rate ? 1 : t.games) * (0.45 + Pe * 0.85),
         De = de[O.key] || 0;
       ((Ke = O.lowerBetter ? De <= Ae : De >= Ae),
-        Ke && ((e.nemesis.beaten = (e.nemesis.beaten || 0) + 1), bankPPV136(Math.round(2 * chaosPPMult() * eraMult()), "nemesis")));
+        Ke &&
+          ((e.nemesis.beaten = (e.nemesis.beaten || 0) + 1),
+          bankPPV136(Math.round(2 * chaosPPMult() * eraMult()), "nemesis")));
     }
     ((e.lastSeasonLine = { level: e.level, pos: e.pos, statLine: { ...de }, avg: Math.round(U) }),
       (e.lastTeamRecord = {
@@ -12344,7 +12429,10 @@
               ));
       }),
         r.push({
-          name: NEMESIS_FIRST[Math.floor(s() * NEMESIS_FIRST.length)] + " " + NEMESIS_LAST[Math.floor(s() * NEMESIS_LAST.length)],
+          name:
+            NEMESIS_FIRST[Math.floor(s() * NEMESIS_FIRST.length)] +
+            " " +
+            NEMESIS_LAST[Math.floor(s() * NEMESIS_LAST.length)],
           team: TOWNS[Math.floor(s() * TOWNS.length)],
           q: d,
           line: c,
@@ -13057,7 +13145,8 @@
   };
   window.rerollNameV96 = function () {
     if (!state.player) return;
-    ((state.player.name = randPick(FIRST_NAMES) + " " + (famLockedV139() ? famSurnameV139() : randPick(LAST_NAMES))), saveGame());
+    ((state.player.name = randPick(FIRST_NAMES) + " " + (famLockedV139() ? famSurnameV139() : randPick(LAST_NAMES))),
+      saveGame());
     const e = document.getElementById("playerNameV96");
     e && (e.value = famLockedV139() ? famFirstV139(state.player.name) : state.player.name);
   };
@@ -13065,8 +13154,7 @@
     const e = state.player,
       t = suggestPositions(e.attrs, e.body),
       a = t[0].ovr,
-      s = ATTR_KEYS
-        .slice()
+      s = ATTR_KEYS.slice()
         .sort((i, r) => e.attrs[r] - e.attrs[i])
         .slice(0, 3),
       n = bodyOfV112(e) || e.body,
@@ -13618,7 +13706,10 @@
       else {
         const s = playerPower(e),
           need =
-            t.need - 6 + (typeof chaosOppBoost == "function" ? chaosOppBoost() : 0) + (typeof seasonModFx == "function" ? seasonModFx("peerShift") || 0 : 0);
+            t.need -
+            6 +
+            (typeof chaosOppBoost == "function" ? chaosOppBoost() : 0) +
+            (typeof seasonModFx == "function" ? seasonModFx("peerShift") || 0 : 0);
         exp = clamp99((s - need) * 2.4 + 50 + (i / t.games) * 2, 1, 100);
       }
       const U = (played.reduce((s, R) => s + R.perf, 0) + exp * left) / Math.max(1, t.games),
@@ -13635,7 +13726,11 @@
       (hasTrait(e, "lateBloomer") && (xt *= e.age >= 16 ? 1.07 : 0.95),
         hasTrait(e, "slowStarter") && (xt *= e.seasonsSinceStart < 3 ? 0.94 : 1.05));
       const ua =
-          treeFx("eGrowth") + gearFx("growth") + Math.max(0, tierGrowth(e) - 1) + Math.max(0, pathVal("growthMult", 1) - 1) + Math.max(0, l),
+          treeFx("eGrowth") +
+          gearFx("growth") +
+          Math.max(0, tierGrowth(e) - 1) +
+          Math.max(0, pathVal("growthMult", 1) - 1) +
+          Math.max(0, l),
         fa = clamp99(1 + ua * 0.22, 0.88, 1.34),
         xe = clamp99(e.potential * Me * Fe * xt * da * fa, 0.62, 1.58),
         st = (0.42 + he * 1.18 + Mt) * xe,
@@ -13752,7 +13847,11 @@
         nxt = wk.find(w => !w.played) || null;
       const orig = (typeof getOrigin == "function" && getOrigin(e)) || null,
         traits = (e.traits || [])
-          .map(k => (TRAITS[k] ? { id: k, name: TRAITS[k].name, icon: TRAITS[k].icon, good: TRAITS[k].good, desc: TRAITS[k].desc } : null))
+          .map(k =>
+            TRAITS[k]
+              ? { id: k, name: TRAITS[k].name, icon: TRAITS[k].icon, good: TRAITS[k].good, desc: TRAITS[k].desc }
+              : null
+          )
           .filter(Boolean);
       const done = e.completedObjectivesV11 || {},
         mine = e.legacyObjectivesV11 || [],
@@ -13814,7 +13913,9 @@
           archetype: orig
             ? { id: orig.id, name: orig.name, icon: orig.icon, strength: orig.strength, weakness: orig.weakness }
             : null,
-          path: state.path ? { id: state.path, name: (PATHS[state.path] && PATHS[state.path].name) || state.path } : null,
+          path: state.path
+            ? { id: state.path, name: (PATHS[state.path] && PATHS[state.path].name) || state.path }
+            : null,
           traits,
           seasonsAtLevel: e.seasonsAtLevel || 0,
           totalSeasons: e.totalSeasons || 0,
@@ -13929,7 +14030,9 @@
       ((e._wonShown = !0), (state.view = "win"), saveGame(), render());
       return;
     }
-    (e.level >= 8 && showToast("🛸 WELCOME TO THE INTERSTELLAR LEAGUE — 96 beings in the galaxy. You are one."), genRivals(e), saveGame());
+    (e.level >= 8 && showToast("🛸 WELCOME TO THE INTERSTELLAR LEAGUE — 96 beings in the galaxy. You are one."),
+      genRivals(e),
+      saveGame());
     const s = LEVELS[e.level].key;
     if (tiersFor(s) && !(e.tiers && e.tiers[s])) {
       ((state.view = "tier"), render());
@@ -14045,7 +14148,9 @@
       (t.tiers[a.key] = e),
       delete t._tierStarPaidV139,
       saveGame(),
-      showToast("Committed to " + s.name + "!") /* v139: the ★ is earned at season's end, not handed over at the door */,
+      showToast(
+        "Committed to " + s.name + "!"
+      ) /* v139: the ★ is earned at season's end, not handed over at the door */,
       goView("hub"));
   }
   function startSeason() {
@@ -14108,7 +14213,9 @@
               Object.keys(POSITIONS[e.pos].w)
                 .sort((p, m) => POSITIONS[e.pos].w[m] - POSITIONS[e.pos].w[p])
                 .slice(0, 4)
-                .map(p => `<span class="train-chip">${ATTR_INFO[p].icon} ${ATTR_INFO[p].name}${capBadgeV67(e, p)}</span>`)
+                .map(
+                  p => `<span class="train-chip">${ATTR_INFO[p].icon} ${ATTR_INFO[p].name}${capBadgeV67(e, p)}</span>`
+                )
                 .join("")
           }${h}</div>
         </div>`;
@@ -14670,7 +14777,8 @@
       1,
       (state.prestige || 0) / 15 +
         (state.rosterPrestigeV158 ? Object.values(state.rosterPrestigeV158).reduce((A2, B2) => A2 + B2, 0) : 0) / 50 +
-        ((state.tree ? Object.values(state.tree).reduce((A2, B2) => A2 + B2, 0) : 0) / 70) * clamp99(TU("teamQualK", 0.1), 0, 1)
+        ((state.tree ? Object.values(state.tree).reduce((A2, B2) => A2 + B2, 0) : 0) / 70) *
+          clamp99(TU("teamQualK", 0.1), 0, 1)
     ); /* ===== v76 MARGIN CURVE (1/5) — where the blowouts came from =====
      * usQ is .42 + seed*.35 + prestige*1.05 (up to 1.65) while oppQ can only ever reach
      * (1.14-.72)*2 = .84, so a prestiged career fields a roster built at up to TWICE the
@@ -14688,7 +14796,11 @@
      * is a 100-0 scoreline. So the roster is left exactly as it was, and the whole curve
      * is carried by the four play-level levers below, which act on the game rather than
      * on the team sheet. ===== */
-    const C = clamp99(0.42 + t * 0.35 + _prF * 1.05 + clubQV146B(state.player) /* v146 B: the club he signed with */, 0.3, 1.65),
+    const C = clamp99(
+        0.42 + t * 0.35 + _prF * 1.05 + clubQV146B(state.player) /* v146 B: the club he signed with */,
+        0.3,
+        1.65
+      ),
       V = clamp99((_oppMul - 0.72) * 2, 0.36, 1.16),
       P = y(C),
       v = y(V),
@@ -15282,7 +15394,15 @@
         break;
     }
     const l = { sacks: 0 },
-      c = buildGameRosters(t, a, r, l, {}, state.player ? state.player.level : 0, state.player ? playerOvr(state.player) : 40),
+      c = buildGameRosters(
+        t,
+        a,
+        r,
+        l,
+        {},
+        state.player ? state.player.level : 0,
+        state.player ? playerOvr(state.player) : 40
+      ),
       u = [];
     // v20 stamina: every game starts on a full tank — clear cross-play carry-over
     [...c.us.off, ...c.us.def, ...c.opp.off, ...c.opp.def].forEach(w => {
@@ -15917,10 +16037,15 @@
         );
       (Math.random() < explosiveP && (ke += randInt(concept === "shot" ? 12 : 8, 18 + Math.round(_(g, "speed") / 7))),
         (ke = clamp99(ke, 1, 80)));
-      need && ke < need && Math.random() < clamp99((_(K, "awareness") - 40) / 120, 0.05, 0.45) && (ke = need + randInt(0, 3));
+      need &&
+        ke < need &&
+        Math.random() < clamp99((_(K, "awareness") - 40) / 120, 0.05, 0.45) &&
+        (ke = need + randInt(0, 3));
       ke = Math.max(1, Math.round(dampV76(ke)));
       const air = clamp99(
-        Math.round(concept === "screen" ? randRange(-1, 2) : ke * (concept === "shot" ? 0.75 : 0.45 + Math.random() * 0.3)),
+        Math.round(
+          concept === "screen" ? randRange(-1, 2) : ke * (concept === "shot" ? 0.75 : 0.45 + Math.random() * 0.3)
+        ),
         0,
         ke
       );
@@ -16279,7 +16404,8 @@
         N = "touchback";
       w >= touchP && w < 0.985
         ? ((g = clamp99(Math.round(20 + (retSkill - 50) * 0.12 + randRange(-7, 9)), 10, 42)), (N = "kick returned"))
-        : w >= 0.985 && ((g = clamp99(randInt(37, 55) + Math.round((retSkill - 55) * 0.15), 30, 65)), (N = "a HUGE return!"));
+        : w >= 0.985 &&
+          ((g = clamp99(randInt(37, 55) + Math.round((retSkill - 55) * 0.15), 30, 65)), (N = "a HUGE return!"));
       // v82: a returned kickoff is an agent play — the kicking team's lanes against the wedge
       let __ko = null;
       if (N !== "touchback") {
@@ -16335,7 +16461,10 @@
         }
       }
       // rare kickoff return TD — the returner takes it the distance
-      if (N !== "touchback" && (__ko ? __ko.td : Math.random() < clamp99(0.004 + (retSkill - 60) * 0.00008, 0.0015, 0.006))) {
+      if (
+        N !== "touchback" &&
+        (__ko ? __ko.td : Math.random() < clamp99(0.004 + (retSkill - 60) * 0.00008, 0.0015, 0.006))
+      ) {
         team === "us" ? (h += 6) : (p += 6);
         const tr =
           quarter >= 5
@@ -17118,8 +17247,11 @@
             skr = starRush && Math.random() < 0.4 * starRush.blend ? starRush.player : Y(Dk.def, ["DL", "DL", "LB"]),
             meSk = !usDrive && pe(skr);
           const stripP =
-            clamp99(0.045 + (_(skr, "strength") - _(qb2, "awareness")) * 0.0015 + (weatherFx.fumble - 1) * 0.08, 0.02, 0.14) *
-            toV76();
+            clamp99(
+              0.045 + (_(skr, "strength") - _(qb2, "awareness")) * 0.0015 + (weatherFx.fumble - 1) * 0.08,
+              0.02,
+              0.14
+            ) * toV76();
           if (Math.random() < stripP) {
             // strip sack — defender power, QB awareness and weather matter
             const defRecP = clamp99(0.48 + (dlR - olB) * 0.004, 0.32, 0.68),
@@ -18122,7 +18254,15 @@
     const grader = typeof gradeGame === "function" ? gradeGame : window.__gradeGame;
     if (!g || !g.stat || typeof grader !== "function") {
       const sc = ia(e, etRoll.perf, opts);
-      return { perf: etRoll.perf, ovr: playerPower(e), injured: injRoll, us: sc.us, them: sc.them, won: sc.won, statLine: null };
+      return {
+        perf: etRoll.perf,
+        ovr: playerPower(e),
+        injured: injRoll,
+        us: sc.us,
+        them: sc.them,
+        won: sc.won,
+        statLine: null
+      };
     }
     const snaps = (g.plays || []).filter(pl => pl && pl.involved).length || 12;
     const grade = grader(e.pos, g.stat, snaps);
@@ -18206,7 +18346,8 @@
       1,
       (state.prestige || 0) / 15 +
         (state.rosterPrestigeV158 ? Object.values(state.rosterPrestigeV158).reduce((a2, b2) => a2 + b2, 0) : 0) / 50 +
-        ((state.tree ? Object.values(state.tree).reduce((a2, b2) => a2 + b2, 0) : 0) / 70) * clamp99(TU("teamQualK", 0.1), 0, 1)
+        ((state.tree ? Object.values(state.tree).reduce((a2, b2) => a2 + b2, 0) : 0) / 70) *
+          clamp99(TU("teamQualK", 0.1), 0, 1)
     );
     // the same seed the live engine builds its roster from, so the two agree
     let _sd = opts.seed;
@@ -18302,7 +18443,10 @@
       if (vm !== 1) l.perf = clamp99(Math.round(50 + (l.perf - 50) * vm), 1, 100);
       l.injured &&
         (l.injured = Math.random() < injPlanMultV54(a) * Math.max(0.1, d) * c * (isR ? RIVAL_MULT_V128() : 1));
-      ((l.opp = randOppName(e.level)), (l.played = !1), isR && ((l.rivalV128 = !0), (l.importance = "rivalry")), i.push(l));
+      ((l.opp = randOppName(e.level)),
+        (l.played = !1),
+        isR && ((l.rivalV128 = !0), (l.importance = "rivalry")),
+        i.push(l));
     }
     return i;
   }
@@ -18410,7 +18554,8 @@
   function dropGear(e, t) {
     state.inventory || (state.inventory = []);
     const a = rollGear(e);
-    (state.inventory.push(a), state.inventory.length > 40 && state.inventory.sort((n, i) => rarityIndex(i) - rarityIndex(n)).splice(40));
+    (state.inventory.push(a),
+      state.inventory.length > 40 && state.inventory.sort((n, i) => rarityIndex(i) - rarityIndex(n)).splice(40));
     const s = RARITIES.find(n => n.key === a.rarity);
     return (
       typeof document < "u" &&
@@ -18688,8 +18833,7 @@
     try {
       const T = typeof careerTotalsV77 == "function" ? careerTotalsV77(e) : null,
         log = (e.seasonLogV77 || []).slice(-SEASON_LOG_MAX);
-      const top = ATTR_KEYS
-        .slice()
+      const top = ATTR_KEYS.slice()
         .sort((a, b) => (e.attrs[b] || 0) - (e.attrs[a] || 0))
         .slice(0, 6)
         .map(k => ({
@@ -18774,11 +18918,15 @@
       box: hofSnapV134(e, t),
       gen: Math.max(1, lineageV136().gen || 1)
     };
-    ((s.goat = hofScore(s)), state.hof.push(s), state.hof.sort((r, l) => l.goat - r.goat), state.hof.length > 60 && (state.hof.length = 60));
+    ((s.goat = hofScore(s)),
+      state.hof.push(s),
+      state.hof.sort((r, l) => l.goat - r.goat),
+      state.hof.length > 60 && (state.hof.length = 60));
     const n = state.careersCompleted || 0,
       i = [5, 10, 25, 50].filter(r => n >= r).length;
     (i > (state.hofWings || 0) &&
-      ((state.hofWings = i), typeof document < "u" && byId("toast") && showToast("🏛️ Museum wing opened — permanent +5% PP!")),
+      ((state.hofWings = i),
+      typeof document < "u" && byId("toast") && showToast("🏛️ Museum wing opened — permanent +5% PP!")),
       state.posMastery || (state.posMastery = {}),
       state.posMastery[e.pos] || (state.posMastery[e.pos] = {}),
       t >= 7 && (state.posMastery[e.pos].nfl = !0),
@@ -18791,7 +18939,9 @@
     return !state || !state.posMastery ? 0 : Object.values(state.posMastery).filter(t => t[e]).length;
   }
   function al(e) {
-    return Math.round((6 + (e.titles || 0) * 2 + (e.nflSeasons || 0)) * chaosPPMult() * eraMult() * (1 + hofWings() * 0.05));
+    return Math.round(
+      (6 + (e.titles || 0) * 2 + (e.nflSeasons || 0)) * chaosPPMult() * eraMult() * (1 + hofWings() * 0.05)
+    );
   }
   function playoffRoundNames(e) {
     return e === 6
@@ -19608,7 +19758,13 @@
   function startLivePlayback() {
     (state.player,
       state._liveGame,
-      (liveCtl = { idx: -1, speed: (liveCtl && liveCtl.speed) || (settingOn("fastSim") ? 2 : 1), playing: !0, anim: null, t: 0 }),
+      (liveCtl = {
+        idx: -1,
+        speed: (liveCtl && liveCtl.speed) || (settingOn("fastSim") ? 2 : 1),
+        playing: !0,
+        anim: null,
+        t: 0
+      }),
       fl({}),
       renderLiveBox({}),
       dl(),
@@ -19755,7 +19911,10 @@
     });
   }
   function yl(e) {
-    if (window.GridironPhaser && window.GridironPhaser.drawStatic(((e.playerPos = state && state.player && state.player.pos), e)))
+    if (
+      window.GridironPhaser &&
+      window.GridironPhaser.drawStatic(((e.playerPos = state && state.player && state.player.pos), e))
+    )
       return;
     const t = byId("field");
     if (!t) return;
@@ -20020,7 +20179,10 @@
     return (V && ((V.featured = !0), (V.isMe = C)), { off: i, def: r, featuredIsMe: C, featuredPlayer: V });
   }
   function kl(e, t) {
-    if (window.GridironPhaser && window.GridironPhaser.animate(((e.playerPos = state && state.player && state.player.pos), e), t))
+    if (
+      window.GridironPhaser &&
+      window.GridironPhaser.animate(((e.playerPos = state && state.player && state.player.pos), e), t)
+    )
       return;
     const a = byId("field");
     if (!a) {
@@ -20122,7 +20284,11 @@
         J.forEach(g => {
           if (g === Fe) return;
           const N = 8 + Math.random() * 12;
-          ((g.path = routePath(g.start.x, g.start.y, c, pickRoute(N), N, p).map(H => ({ x: H.x, y: H.y, t: H.t * 0.9 }))),
+          ((g.path = routePath(g.start.x, g.start.y, c, pickRoute(N), N, p).map(H => ({
+            x: H.x,
+            y: H.y,
+            t: H.t * 0.9
+          }))),
             g.path.push({ x: g.path[g.path.length - 1].x, y: g.path[g.path.length - 1].y, t: 1 }));
         });
         const K = m.off.find(g => g.pos === "RB");
@@ -20142,7 +20308,9 @@
             { x: u - c * 1, y: ($.start.y + J) / 2, t: 0.2 },
             { x: u + c * 1.5, y: J, t: 0.38 }
           ];
-        if (ce < 0) (w.push({ x: u + c * 0.5, y: J + randPick([-4, 4]), t: 0.6 }), w.push({ x: h, y: J + randRange(-2, 2), t: 0.9 }));
+        if (ce < 0)
+          (w.push({ x: u + c * 0.5, y: J + randPick([-4, 4]), t: 0.6 }),
+            w.push({ x: h, y: J + randRange(-2, 2), t: 0.9 }));
         else if (y.miss) {
           const T = clamp99(u + c * Math.max(2, ce * 0.45), 2, 98),
             K = J + randPick([-1, 1]) * 5.5;
@@ -20303,7 +20471,10 @@
     (b &&
       (he = {
         from: { x: u - c * 7, y: p },
-        to: { x: clamp99(u + c * (e.event === "fg" ? Math.min(100 - u + 2, 40) : 38), 0, 100), y: p + randRange(-3, 3) },
+        to: {
+          x: clamp99(u + c * (e.event === "fg" ? Math.min(100 - u + 2, 40) : 38), 0, 100),
+          y: p + randRange(-3, 3)
+        },
         t0: 0.25,
         t1: 0.8,
         high: !0
@@ -20928,14 +21099,12 @@
       <div class="bar"><i style="width:${clamp99(s, 0, 100)}%"></i></div>
       <div class="threshold-note mt" style="margin-top:8px">All attributes received performance-based development. <b style="color:var(--gold)">${t.training && PROGRAMS[t.training].focus ? "Priority training" : "Balanced training"}</b> added only a modest extra boost.</div>
       <div style="display:grid;grid-template-columns:1fr auto;gap:5px 10px;margin-top:10px">
-        ${ATTR_KEYS
-          .map(v => {
-            const j = t.attrsBefore ? t.attrsBefore[v] : e.attrs[v] - (t.gains[v] || 0),
-              U = t.attrsAfter ? t.attrsAfter[v] : e.attrs[v],
-              ce = (t.priorityStats || []).includes(v);
-            return `<div style="font-size:13px;color:${ce ? "var(--gold)" : "var(--chalk-dim)"}">${ATTR_INFO[v].icon} ${ATTR_INFO[v].name}${ce ? " · PRIORITY" : ""}</div><div style="font-family:Oswald;font-size:13px;color:${U > j ? "var(--good)" : "var(--chalk-dim)"}">${Math.round(j)} → ${Math.round(U)}${U > j ? ` <small>(+${Math.round(U - j)})</small>` : ""}</div>`;
-          })
-          .join("")}
+        ${ATTR_KEYS.map(v => {
+          const j = t.attrsBefore ? t.attrsBefore[v] : e.attrs[v] - (t.gains[v] || 0),
+            U = t.attrsAfter ? t.attrsAfter[v] : e.attrs[v],
+            ce = (t.priorityStats || []).includes(v);
+          return `<div style="font-size:13px;color:${ce ? "var(--gold)" : "var(--chalk-dim)"}">${ATTR_INFO[v].icon} ${ATTR_INFO[v].name}${ce ? " · PRIORITY" : ""}</div><div style="font-family:Oswald;font-size:13px;color:${U > j ? "var(--good)" : "var(--chalk-dim)"}">${Math.round(j)} → ${Math.round(U)}${U > j ? ` <small>(+${Math.round(U - j)})</small>` : ""}</div>`;
+        }).join("")}
       </div>
       ${h.length ? `<div class="threshold-note" style="margin-top:6px">🥊 You outrank <b style="color:var(--gold)">${p}/${h.length}</b> position rivals.</div>` : ""}
     </div>
@@ -21630,7 +21799,10 @@
         }
       }
       if (!pick) break;
-      (e.attrs[pick]++, (e.points -= mc), (allocSpent[pick] = (allocSpent[pick] || 0) + 1), (allocCosts[pick] = allocCosts[pick] || []).push(mc));
+      (e.attrs[pick]++,
+        (e.points -= mc),
+        (allocSpent[pick] = (allocSpent[pick] || 0) + 1),
+        (allocCosts[pick] = allocCosts[pick] || []).push(mc));
     }
     screenUpgrade();
   }
@@ -21666,7 +21838,9 @@
         (allocCosts[e] = allocCosts[e] || []).push(c));
     } else {
       if ((allocSpent[e] || 0) <= 0) return;
-      ((a.attrs[e] = Math.round(a.attrs[e]) - 1), (a.points += allocCosts[e] && allocCosts[e].length ? allocCosts[e].pop() : 1), allocSpent[e]--);
+      ((a.attrs[e] = Math.round(a.attrs[e]) - 1),
+        (a.points += allocCosts[e] && allocCosts[e].length ? allocCosts[e].pop() : 1),
+        allocSpent[e]--);
     }
     byId("uv-" + e).textContent = Math.round(a.attrs[e]);
     const n = byId("mtr-" + e),
@@ -21733,7 +21907,15 @@
     const v = e.attrs[k] || 0,
       cap = drSoftCap(e, k),
       abs = attrCap();
-    return { v: wholeNum(v), cap, abs, cost: drCost(e, k), atMax: v >= abs, over: v >= cap, room: wholeNum(Math.max(0, cap - v)) };
+    return {
+      v: wholeNum(v),
+      cap,
+      abs,
+      cost: drCost(e, k),
+      atMax: v >= abs,
+      over: v >= cap,
+      room: wholeNum(Math.max(0, cap - v))
+    };
   } /* v101: whole points on the badge */
   // MAX is the absolute wall (v21 kept exactly one); everything else is a price, and
   // the price is the thing worth reading.
@@ -21957,7 +22139,9 @@
           (hasTrait(e, "showman") ? 1.15 : 1) *
           eraMult(),
         s = 1 + nodeLvl("hof") * 0.3,
-        n = Math.round((85 + e.totalSeasons * 0.75 + (e.titles || 0) * 6) * a * s * chaosEarnedMult(Math.max(7, e.level))),
+        n = Math.round(
+          (85 + e.totalSeasons * 0.75 + (e.titles || 0) * 6) * a * s * chaosEarnedMult(Math.max(7, e.level))
+        ),
         i = prestigeStarReward(e, Math.max(7, e.level), !0);
       ((e._ppBankV136 = flushBankV136()),
         (state.pp += n),
@@ -22042,7 +22226,9 @@
           showToast("Need " + HONOR_ICON_V130 + " 2 Honors to switch paths");
           return;
         }
-        ((state.prestige -= 2), (state.pathResets = (state.pathResets || 0) + 1), showToast("Switched paths (−2 Honors)"));
+        ((state.prestige -= 2),
+          (state.pathResets = (state.pathResets || 0) + 1),
+          showToast("Switched paths (−2 Honors)"));
       } else showToast("Path chosen: " + PATHS[e].name);
       ((state.path = e), saveGame(), screenPath());
     }
@@ -22152,7 +22338,12 @@
       showToast("Not enough PP");
       return;
     }
-    ((state.pp -= s), (state.tree[e] = (state.tree[e] || 0) + 1), saveGame(), showToast(t.name + " → Lv " + state.tree[e]), screenPrestige(), syncCounters());
+    ((state.pp -= s),
+      (state.tree[e] = (state.tree[e] || 0) + 1),
+      saveGame(),
+      showToast(t.name + " → Lv " + state.tree[e]),
+      screenPrestige(),
+      syncCounters());
   }
   function shopBack() {
     goView(state.player && state.player.pos ? "hub" : "menu");
@@ -22301,12 +22492,24 @@
         ),
         setTimeout(() => bigMoment("SIGNATURE PERFORMANCE", `${s} game rating · the hype is real`, "good"), 220))
       : e.playoff && e.won
-        ? (pushStory("🏆", `${teamName(t)} survives and advances`, `A postseason win over ${i} keeps the title dream alive.`),
+        ? (pushStory(
+            "🏆",
+            `${teamName(t)} survives and advances`,
+            `A postseason win over ${i} keeps the title dream alive.`
+          ),
           setTimeout(() => bigMoment("SURVIVE AND ADVANCE", `Postseason victory over ${i}`, "good"), 220))
         : e.won && a.streak >= 3
-          ? pushStory("🔥", `${teamName(t)} extends the streak`, `${a.streak} straight wins have transformed the season.`)
+          ? pushStory(
+              "🔥",
+              `${teamName(t)} extends the streak`,
+              `${a.streak} straight wins have transformed the season.`
+            )
           : !e.won && s < 40
-            ? (pushStory("📉", `${t.name} faces hard questions`, `${s} rating in a loss to ${i}; the next response matters.`),
+            ? (pushStory(
+                "📉",
+                `${t.name} faces hard questions`,
+                `${s} rating in a loss to ${i}; the next response matters.`
+              ),
               setTimeout(() => bigMoment("ROUGH NIGHT", "The film room will be uncomfortable", "bad"), 220))
             : pushStory(
                 e.won ? "✅" : "❌",
@@ -22532,7 +22735,9 @@
       (r.depthRole = s.role),
       (r.luck = n));
     const c =
-      ((r.perf - 50) / 13) * (1 + (s.share < 0.4 ? treeFx("trustGain") : 0)) * (r.perf > 50 ? 1 + gearV147("trustGain") : 1);
+      ((r.perf - 50) / 13) *
+      (1 + (s.share < 0.4 ? treeFx("trustGain") : 0)) *
+      (r.perf > 50 ? 1 + gearV147("trustGain") : 1);
     return (
       (e.coachTrust = clamp99(e.coachTrust + c - (r.injured ? 2 : 0), 0, 100)),
       (e.lastLuck10 = n),
@@ -22559,8 +22764,12 @@
     const t = ["speed", "strength", "quickness", "acceleration", "agility", "jumping", "stamina"],
       a = ["awareness", "vision", "discipline"];
     return (
-      t.forEach(s => (e.attrs[s] = clamp99(e.attrs[s] + treeFx("physicalStart") - treeFx("athleticStartPenalty"), 1, attrCap()))),
-      a.forEach(s => (e.attrs[s] = clamp99(e.attrs[s] + treeFx("mentalStart") - treeFx("mentalStartPenalty"), 1, attrCap()))),
+      t.forEach(
+        s => (e.attrs[s] = clamp99(e.attrs[s] + treeFx("physicalStart") - treeFx("athleticStartPenalty"), 1, attrCap()))
+      ),
+      a.forEach(
+        s => (e.attrs[s] = clamp99(e.attrs[s] + treeFx("mentalStart") - treeFx("mentalStartPenalty"), 1, attrCap()))
+      ),
       (e.coachTrust = clamp99(e.coachTrust + treeFx("coachStart"), 0, 100)),
       depthChart(e),
       e
@@ -22588,7 +22797,11 @@
       a < n || e.coachTrust < 24 ? e.nflPoorYears++ : (e.nflPoorYears = Math.max(0, e.nflPoorYears - 1));
       let i = 0;
       (e.nflSeasons > s &&
-        ((i = clamp99((n - a) * 0.055 + (30 - e.coachTrust) * 0.018 + e.nflPoorYears * 0.12 + treeFx("cutRisk"), 0, 0.94)),
+        ((i = clamp99(
+          (n - a) * 0.055 + (30 - e.coachTrust) * 0.018 + e.nflPoorYears * 0.12 + treeFx("cutRisk"),
+          0,
+          0.94
+        )),
         (i *= Math.max(0.35, 1 - treeFx("cutSave")))),
         Math.random() < i && ((e.nflCutPending = !0), (t.nflCut = !0), (t.cutChance = Math.round(i * 100))));
     }
@@ -22807,7 +23020,9 @@
   /* every physical attribute on the sheet — the mind (awareness, vision, grit) is what he has left */
   let _ageAttrsV139 = null;
   function ageAttrsV139() {
-    return _ageAttrsV139 || (_ageAttrsV139 = ATTR_KEYS.filter(k => k !== "awareness" && k !== "vision" && k !== "grit"));
+    return (
+      _ageAttrsV139 || (_ageAttrsV139 = ATTR_KEYS.filter(k => k !== "awareness" && k !== "vision" && k !== "grit"))
+    );
   }
   window.__ageV139 = {
     age: ageForV139,
@@ -22959,7 +23174,9 @@
       decline = (prof.decline || 0) > 0 && (drops.length > 0 || age >= 30);
     let ovr0 = null;
     try {
-      ovr0 = t.attrsBefore ? playerOvr(Object.assign({}, e, { attrs: Object.assign({}, e.attrs, t.attrsBefore) })) : null;
+      ovr0 = t.attrsBefore
+        ? playerOvr(Object.assign({}, e, { attrs: Object.assign({}, e.attrs, t.attrsBefore) }))
+        : null;
     } catch (_) {
       ovr0 = null;
     }
@@ -23728,7 +23945,8 @@
         coachable: "coachable",
         headstart: "headstart"
       };
-      for (const a in state.shop) t[a] && state.shop[a] > 0 && (state.tree[t[a]] = Math.max(state.tree[t[a]] || 0, state.shop[a]));
+      for (const a in state.shop)
+        t[a] && state.shop[a] > 0 && (state.tree[t[a]] = Math.max(state.tree[t[a]] || 0, state.shop[a]));
       delete state.shop;
     }
     if (
@@ -23760,7 +23978,8 @@
         t.seasonSeed || (t.seasonSeed = randInt(1, 2e9)),
         ensureDepth(t));
     }
-    ((state.view === "sim" || state.view === "live" || state.view === "training" || state.view === "event") && (state.view = "hub"),
+    ((state.view === "sim" || state.view === "live" || state.view === "training" || state.view === "event") &&
+      (state.view = "hub"),
       render(),
       setTimeout(showTutorial, 1850));
     const e = document.getElementById("splash");
@@ -24616,14 +24835,14 @@
     ensureWeekly103(t);
     const a = t.weekResults ? t.weekResults.findIndex(n => !n.played) : -1,
       s = a >= 0 ? t.weekResults[a] : null;
-    return `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan"><div class="plan-hero"><div class="decision-kicker">WEEKLY TACTICAL MEETING</div><div class="decision-title">Choose Your Identity</div><div class="decision-copy" style="margin:7px auto 0;max-width:390px">This choice changes your snaps, volatility, trust, injury exposure, and path up the depth chart.</div><div class="opponent-chip">VS ${s ? escHtml(s.opp) : "NEXT OPPONENT"}</div></div><div class="plan-deck">${GAME_PLANS
-      .map(n => {
+    return `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan"><div class="plan-hero"><div class="decision-kicker">WEEKLY TACTICAL MEETING</div><div class="decision-title">Choose Your Identity</div><div class="decision-copy" style="margin:7px auto 0;max-width:390px">This choice changes your snaps, volatility, trust, injury exposure, and path up the depth chart.</div><div class="opponent-chip">VS ${s ? escHtml(s.opp) : "NEXT OPPONENT"}</div></div><div class="plan-deck">${GAME_PLANS.map(
+      n => {
         const i = yn(n);
         return `<button class="impact-plan-choice" style="--planColor:${planColor(n.id)}" onclick="chooseGamePlan103('${n.id}',${e ? "true" : "false"})"><div class="plan-icon">${n.icon}</div><div><b>${n.name}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(l => `<span>${l}</span>`).join("")}</div></div><div class="plan-bars"><div class="mini-rating"><label><span>UPSIDE</span><span>${i[0]}</span></label><div class="mbar"><i style="width:${i[0]}%"></i></div></div><div class="mini-rating"><label><span>CONTROL</span><span>${i[1]}</span></label><div class="mbar"><i style="width:${i[1]}%"></i></div></div><div class="mini-rating"><label><span>RISK</span><span>${i[2]}</span></label><div class="mbar"><i style="width:${i[2]}%"></i></div></div></div></button>`;
-      })
-      .join(
-        ""
-      )}<button class="btn ghost" style="margin:11px 0 4px" onclick="closeGamePlan103()">Back</button></div></div></div>`;
+      }
+    ).join(
+      ""
+    )}<button class="btn ghost" style="margin:11px 0 4px" onclick="closeGamePlan103()">Back</button></div></div></div>`;
   };
   function breakthroughTakeover104(e) {
     const t = document.querySelector(".breakthrough-takeover");
@@ -24665,8 +24884,11 @@
   function ensureV11(e) {
     if ((ensureAccountState(state), e)) {
       const t = LEVELS[e.level] ? LEVELS[e.level].need : 16,
-        a = e.pos ? playerOvr(e) : Math.round(ATTR_KEYS.reduce((s, n) => s + (e.attrs[n] || 0), 0) / Math.max(1, ATTR_KEYS.length));
-      (ensurePlayerState(state, e, ATTR_KEYS, t, a), e.decisionQueue && e.decisionQueue.length && (e.decisionQueue = []));
+        a = e.pos
+          ? playerOvr(e)
+          : Math.round(ATTR_KEYS.reduce((s, n) => s + (e.attrs[n] || 0), 0) / Math.max(1, ATTR_KEYS.length));
+      (ensurePlayerState(state, e, ATTR_KEYS, t, a),
+        e.decisionQueue && e.decisionQueue.length && (e.decisionQueue = []));
     }
   }
   ensureV11(state && state.player);
@@ -24696,13 +24918,24 @@
   const Ac = newPlayer;
   newPlayer = function () {
     const e = Ac();
-    return ((e.originOptionsV11 = selectOriginOptions(state, e).map(t => t.id)), (e.originV11 = null), (e._originAppliedV11 = !1), ensureV11(e), e);
+    return (
+      (e.originOptionsV11 = selectOriginOptions(state, e).map(t => t.id)),
+      (e.originV11 = null),
+      (e._originAppliedV11 = !1),
+      ensureV11(e),
+      e
+    );
   };
   function chooseOriginV11(e) {
     const t = state.player;
     if (!t || t.originV11) return;
     const a = applyOrigin(t, e, ATTR_KEYS);
-    a && ((t._originAppliedV11 = !0), ensureV11(t), saveGame(), render(), bigMoment(a.name, a.strength + " · " + a.weakness, "gold"));
+    a &&
+      ((t._originAppliedV11 = !0),
+      ensureV11(t),
+      saveGame(),
+      render(),
+      bigMoment(a.name, a.strength + " · " + a.weakness, "gold"));
   }
   const Oc = pickPos;
   pickPos = function (e) {
@@ -24734,7 +24967,8 @@
       .join("")}</div></div>`;
   }
   function chooseSpecializationV11(e) {
-    SPECIALIZATIONS.some(t => t.id === e) && ((state.specializationV11 = e), saveGame(), render(), showToast("Legacy focus changed."));
+    SPECIALIZATIONS.some(t => t.id === e) &&
+      ((state.specializationV11 = e), saveGame(), render(), showToast("Legacy focus changed."));
   }
   function jc() {
     const e = SPECIALIZATIONS.find(t => t.id === state.specializationV11) || SPECIALIZATIONS[0];
@@ -24872,7 +25106,9 @@
     t.rivalV128 && rivalResolveV136(e, "auto");
     /* v136 A: a rivalry week reached without the page still gets its approach */ ensureV11(e);
     const s = gamePlanById(a),
-      n = t.opponentV11 || createOpponentProfile(t.opp, e.level, t.week || 1, e.seasonSeed, t.playoff ? t.roundIdx : void 0);
+      n =
+        t.opponentV11 ||
+        createOpponentProfile(t.opp, e.level, t.week || 1, e.seasonSeed, t.playoff ? t.roundIdx : void 0);
     ((t.opponentV11 = n), n.scouted || scoutOpponent(n, e, state.specializationV11));
     const i = planStreak(e, a),
       r = matchupPlanModifier(n, a, i, state.specializationV11),
@@ -24971,16 +25207,22 @@
       s = a >= 0 ? t.weekResults[a] : null;
     return s
       ? (s.opponentV11 ||
-          (s.opponentV11 = createOpponentProfile(s.opp, t.level, s.week || a + 1, t.seasonSeed, s.playoff ? s.roundIdx : void 0)),
+          (s.opponentV11 = createOpponentProfile(
+            s.opp,
+            t.level,
+            s.week || a + 1,
+            t.seasonSeed,
+            s.playoff ? s.roundIdx : void 0
+          )),
         scoutOpponent(s.opponentV11, t, state.specializationV11),
-        `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week || a + 1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Your choice now generates the game. Future games remain unresolved until their week.</div></div>${scoutCard(s, t)}<div class="plan-deck">${GAME_PLANS
-          .map(n => {
+        `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week || a + 1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Your choice now generates the game. Future games remain unresolved until their week.</div></div>${scoutCard(s, t)}<div class="plan-deck">${GAME_PLANS.map(
+          n => {
             const i = yn(n),
               r = planColor(n.id),
               l = s.opponentV11.scouted?.recommendedPlan === n.id;
             return `<button class="impact-plan-choice ${l ? "recommended-v11" : ""}" style="--planColor:${r}" onclick="chooseGamePlanV11('${n.id}',${e ? "true" : "false"})"><div class="plan-icon">${n.icon}</div><div><b>${n.name}${l ? " · SCOUT PICK" : ""}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(d => `<span>${d}</span>`).join("")}</div></div><div class="plan-bars"><div class="mini-rating"><label><span>UPSIDE</span><span>${i[0]}</span></label><div class="mbar"><i style="width:${i[0]}%"></i></div></div><div class="mini-rating"><label><span>CONTROL</span><span>${i[1]}</span></label><div class="mbar"><i style="width:${i[1]}%"></i></div></div><div class="mini-rating"><label><span>RISK</span><span>${i[2]}</span></label><div class="mbar"><i style="width:${i[2]}%"></i></div></div></div></button>`;
-          })
-          .join("")}<button class="btn ghost" onclick="closeGamePlan103()">Back</button></div></div></div>`)
+          }
+        ).join("")}<button class="btn ghost" onclick="closeGamePlan103()">Back</button></div></div></div>`)
       : "";
   }
   gamePlanOverlay = gamePlanOverlayV11;
@@ -25319,7 +25561,11 @@
     (s && s.remove(),
       saveGame(),
       render(),
-      bigMoment(a.success ? "STORYLINE BREAKTHROUGH" : "STORYLINE SETBACK", a.choice.label, a.success ? "good" : "bad"));
+      bigMoment(
+        a.success ? "STORYLINE BREAKTHROUGH" : "STORYLINE SETBACK",
+        a.choice.label,
+        a.success ? "good" : "bad"
+      ));
   }
   function insertAfter(e, t) {
     e && t && e.insertAdjacentHTML("afterend", t);
@@ -25327,7 +25573,14 @@
   function Kc(e) {
     const t = e.weekResults?.find(i => !i.played);
     if (!t) return "";
-    t.opponentV11 || (t.opponentV11 = createOpponentProfile(t.opp, e.level, t.week || 1, e.seasonSeed, t.playoff ? t.roundIdx : void 0));
+    t.opponentV11 ||
+      (t.opponentV11 = createOpponentProfile(
+        t.opp,
+        e.level,
+        t.week || 1,
+        e.seasonSeed,
+        t.playoff ? t.roundIdx : void 0
+      ));
     const a = t.opponentV11.scouted || scoutOpponent(t.opponentV11, e, state.specializationV11),
       s = String(t.opponentV11.importance || "routine").toUpperCase();
     return `<div class="card opponent-card-v11" style="border-color:${["playoff", "championship"].includes(t.opponentV11.importance) ? "var(--gold)" : t.opponentV11.importance === "evaluation" ? "var(--blood)" : "var(--cyan)"}"><div class="impact-head"><div><div class="impact-kicker">NEXT OPPONENT · ${s}</div><div class="h2" style="margin:2px 0 0">${escHtml(t.opp)}</div></div><div class="scout-confidence-v11">${a.confidence}<small>SCOUT CONF.</small></div></div><div class="matchup-badge-v11">${escHtml(a.matchupLabel)} matchup · ${a.hiddenCount} detail${a.hiddenCount === 1 ? "" : "s"} hidden</div>${(() => {
@@ -25550,7 +25803,9 @@
       t.querySelector(".condition-card-v11") || insertAfter(i, Bn(e));
       const r = t.querySelector(".condition-card-v11") || i;
       (t.querySelector(".arc-card-v11") || insertAfter(r, storyArcCard(e)),
-        e.level >= 7 && !t.querySelector(".nfl-survival-v11") && insertAfter(t.querySelector(".arc-card-v11") || r, nflSurvivalCard(e)),
+        e.level >= 7 &&
+          !t.querySelector(".nfl-survival-v11") &&
+          insertAfter(t.querySelector(".arc-card-v11") || r, nflSurvivalCard(e)),
         t.querySelector(".legacy-progress-v11") || t.insertAdjacentHTML("beforeend", In(e)));
     }
     if (state.view === "season") {
@@ -25561,7 +25816,9 @@
       const r = t.querySelector(".opponent-card-v11") || n;
       (t.querySelector(".condition-card-v11") || insertAfter(r, Bn(e)),
         t.querySelector(".arc-card-v11") || insertAfter(t.querySelector(".condition-card-v11") || r, storyArcCard(e)),
-        e.level >= 7 && !t.querySelector(".nfl-survival-v11") && insertAfter(t.querySelector(".arc-card-v11") || r, nflSurvivalCard(e)));
+        e.level >= 7 &&
+          !t.querySelector(".nfl-survival-v11") &&
+          insertAfter(t.querySelector(".arc-card-v11") || r, nflSurvivalCard(e)));
       const l = e.weekResults || [];
       t.querySelectorAll(".sched-row").forEach((d, c) => {
         const u = l[c];
@@ -25614,7 +25871,9 @@
     if (state.view === "result" && !t.querySelector(".legacy-progress-v11")) {
       const n = t.querySelector(".card") || t.firstElementChild;
       (insertAfter(n, In(e)),
-        e.level >= 7 && !t.querySelector(".nfl-survival-v11") && insertAfter(t.querySelector(".legacy-progress-v11"), nflSurvivalCard(e)));
+        e.level >= 7 &&
+          !t.querySelector(".nfl-survival-v11") &&
+          insertAfter(t.querySelector(".legacy-progress-v11"), nflSurvivalCard(e)));
     }
     if ((state.view === "gameover" || state.view === "win") && !t.querySelector(".legacy-summary-v11")) {
       const n = t.querySelector(".banner") || t.firstElementChild;
@@ -25855,7 +26114,9 @@
   }
   /* the plan-free inputs ca() and __aiSeasonGame build for THIS week (the same arithmetic, read-only) */
   function projWeekInV146(e, w) {
-    const n = w.opponentV11 || createOpponentProfile(w.opp, e.level, w.week || 1, e.seasonSeed, w.playoff ? w.roundIdx : void 0),
+    const n =
+        w.opponentV11 ||
+        createOpponentProfile(w.opp, e.level, w.week || 1, e.seasonSeed, w.playoff ? w.roundIdx : void 0),
       l = conditionModifiers(e),
       d = e.level >= 7 ? lifestyleEffects(e) : { perf: 0, injuryRisk: 0 },
       evP = ((e.eventChoice && e.eventChoice.perf) || 0) + (e.eventBenchV128 || 0),
@@ -26188,7 +26449,9 @@
     if (!e || !w || !p || p.id !== id) return null;
     const I = projWeekInV146(e, w),
       gm = Math.max(1, LEVELS[e.level].games);
-    const r = I.n ? matchupPlanModifier(I.n, id, planStreak(e, id), state.specializationV11) : { perf: 0, trust: 0, injuryRisk: 0, note: "" },
+    const r = I.n
+        ? matchupPlanModifier(I.n, id, planStreak(e, id), state.specializationV11)
+        : { perf: 0, trust: 0, injuryRisk: 0, note: "" },
       rep = planStreak(e, id);
     const F = (window.__FATE_PLANS || {})[id];
     let fate = null;
@@ -26531,7 +26794,8 @@
   }, "draw the restored screen");
   let lifeTab = "overview";
   function ensureV12() {
-    (ensureAccountV12(state), state.player && (ensureV11(state.player), state.player.level >= 7 && ensureFinanceState(state.player)));
+    (ensureAccountV12(state),
+      state.player && (ensureV11(state.player), state.player.level >= 7 && ensureFinanceState(state.player)));
   }
   const cd = newPlayer;
   newPlayer = function () {
@@ -26662,12 +26926,12 @@
       lifeTab === "home" &&
         (d = `<div class="card"><div class="eyebrow">CURRENT HOME</div><div class="h2" style="margin:2px 0">${r.icon} ${escHtml(r.name)}</div><div class="small">${escHtml(r.description)} · value ${formatMoney(t.houseValue)}</div></div>${HOUSES.map(c => `<div class="house-card-v12 ${t.houseId === c.id ? "owned" : ""}"><span>${c.icon}</span><div><b>${escHtml(c.name)}</b><small>${escHtml(c.description)}</small><em>${c.price ? formatMoney(c.price) : "CURRENT RENTAL"} · ${formatMoney(c.weekly)}/wk upkeep</em></div><button ${t.houseId === c.id ? "disabled" : ""} onclick="buyHouseV12('${c.id}')">${t.houseId === c.id ? "OWNED" : "BUY"}</button></div>`).join("")}`),
       lifeTab === "invest" &&
-        (d = `<div class="card"><div class="eyebrow">COMPOUNDING PORTFOLIO</div><div class="h2" style="margin:2px 0">${formatMoney(liquidInvestments(e))} Invested</div><div class="small">Returns and losses are applied after every UFF week. The game protects an emergency reserve of ${formatMoney(emergencyReserve(e))}; debt costs 16% annually until repaid.</div>${t.debt > 0 ? `<div class="nem-banner" style="margin-top:10px">⚠️ Outstanding debt: <b>${formatMoney(t.debt)}</b>. Half of cash above the reserve automatically repays it.</div>` : ""}</div>${PORTFOLIOS
-          .map(c => {
+        (d = `<div class="card"><div class="eyebrow">COMPOUNDING PORTFOLIO</div><div class="h2" style="margin:2px 0">${formatMoney(liquidInvestments(e))} Invested</div><div class="small">Returns and losses are applied after every UFF week. The game protects an emergency reserve of ${formatMoney(emergencyReserve(e))}; debt costs 16% annually until repaid.</div>${t.debt > 0 ? `<div class="nem-banner" style="margin-top:10px">⚠️ Outstanding debt: <b>${formatMoney(t.debt)}</b>. Half of cash above the reserve automatically repays it.</div>` : ""}</div>${PORTFOLIOS.map(
+          c => {
             const u = t.investments[c.id] || 0;
             return `<div class="portfolio-card-v12"><span>${c.icon}</span><div><b>${escHtml(c.name)}</b><small>${escHtml(c.description)}</small><em>${formatMoney(u)} · ${Math.round(c.annualReturn * 100)}% expected annual return</em></div><div class="portfolio-actions-v12"><button onclick="investV12('${c.id}',.10)">+10%</button><button onclick="investV12('${c.id}',.25)">+25%</button><button ${u < 1e3 ? "disabled" : ""} onclick="withdrawV12('${c.id}',.25)">SELL</button></div></div>`;
-          })
-          .join("")}`),
+          }
+        ).join("")}`),
       lifeTab === "goals" &&
         (d = `<div class="card"><div class="eyebrow">WHAT THE MONEY IS FOR</div><div class="h2" style="margin:2px 0">Lifelong Family Goals</div><div class="small">Football ends. These objectives determine whether the career changed one life or an entire family.</div></div>${LIFE_GOALS.map(
           c => {
@@ -26685,7 +26949,9 @@
           ["invest", "Invest"],
           ["goals", "Goals"]
         ]
-          .map(([c, u]) => `<button class="${lifeTab === c ? "active" : ""}" onclick="setLifeTabV12('${c}')">${u}</button>`)
+          .map(
+            ([c, u]) => `<button class="${lifeTab === c ? "active" : ""}" onclick="setLifeTabV12('${c}')">${u}</button>`
+          )
           .join("")}</div>${d}`),
       (byId("dock").innerHTML =
         `<button class="btn secondary" onclick="go(S.player.weekResults?'season':'hub')">Back to Football</button>`),
@@ -26734,7 +27000,11 @@
       showToast(s.reason || "Contribution failed.");
       return;
     }
-    (saveGame(), screenLife(), s.completed ? bigMoment("LIFE GOAL COMPLETE", lifeGoalById(e).name, "good") : showToast(`Funded ${formatMoney(s.amount)}`));
+    (saveGame(),
+      screenLife(),
+      s.completed
+        ? bigMoment("LIFE GOAL COMPLETE", lifeGoalById(e).name, "good")
+        : showToast(`Funded ${formatMoney(s.amount)}`));
   }
   function retireV12() {
     const e = state.player;
@@ -26770,7 +27040,9 @@
     if ((Rd(e, t), !e || !a)) return;
     if (t.level >= 7) {
       const c = processNflFinancialWeek(t, e);
-      ((e.financeV12 = c), maybeQueueLifeEvent(t, e), t.nflStateV11 && (t.nflStateV11.careerEarnings = t.lifeV12?.careerGross || 0));
+      ((e.financeV12 = c),
+        maybeQueueLifeEvent(t, e),
+        t.nflStateV11 && (t.nflStateV11.careerEarnings = t.lifeV12?.careerGross || 0));
     }
     const s = e.matchupV11 || {},
       n = e.conditionResultV11 || {},
@@ -26850,17 +27122,23 @@
       s = a >= 0 ? t.weekResults[a] : null;
     return s
       ? (s.opponentV11 ||
-          (s.opponentV11 = createOpponentProfile(s.opp, t.level, s.week || a + 1, t.seasonSeed, s.playoff ? s.roundIdx : void 0)),
+          (s.opponentV11 = createOpponentProfile(
+            s.opp,
+            t.level,
+            s.week || a + 1,
+            t.seasonSeed,
+            s.playoff ? s.roundIdx : void 0
+          )),
         scoutOpponent(s.opponentV11, t, state.specializationV11),
-        `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week || a + 1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Projected fatigue and injury risk include age, health, and the selected workload.</div></div>${scoutCard(s, t)}<div class="plan-deck">${GAME_PLANS
-          .map(n => {
+        `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week || a + 1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Projected fatigue and injury risk include age, health, and the selected workload.</div></div>${scoutCard(s, t)}<div class="plan-deck">${GAME_PLANS.map(
+          n => {
             const i = yn(n),
               r = planColor(n.id),
               l = s.opponentV11.scouted?.recommendedPlan === n.id,
               d = recoveryProjection(t, n.id);
             return `<button class="impact-plan-choice ${l ? "recommended-v11" : ""}" style="--planColor:${r}" onclick="chooseGamePlanV11('${n.id}',${e ? "true" : "false"})"><div class="plan-icon">${n.icon}</div><div><b>${n.name}${l ? " · SCOUT PICK" : ""}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(c => `<span>${c}</span>`).join("")}<span class="projection-v12 ${d.label.toLowerCase()}">Fatigue ${d.fatigueAfter} · ${Math.round(d.injuryRisk * 100)}% injury</span></div></div><div class="plan-bars"><div class="mini-rating"><label><span>UPSIDE</span><span>${i[0]}</span></label><div class="mbar"><i style="width:${i[0]}%"></i></div></div><div class="mini-rating"><label><span>CONTROL</span><span>${i[1]}</span></label><div class="mbar"><i style="width:${i[1]}%"></i></div></div><div class="mini-rating"><label><span>RISK</span><span>${i[2]}</span></label><div class="mbar"><i style="width:${i[2]}%"></i></div></div></div></button>`;
-          })
-          .join("")}<button class="btn ghost" onclick="closeGamePlan103()">Back</button></div></div></div>`)
+          }
+        ).join("")}<button class="btn ghost" onclick="closeGamePlan103()">Back</button></div></div></div>`)
       : "";
   };
   gamePlanOverlay = gamePlanOverlayV11;
@@ -27111,7 +27389,9 @@
           nflStateV11: { status: RR.status }
         }),
         rating = teamPairV76(e, { clubQ: q }).us,
-        salary = Math.round(nflSalaryForStatus(RR.status, ovr, security) * (kind === "cut" ? TU("cutPayV146B", 0.7) : 1) * (1 + q)),
+        salary = Math.round(
+          nflSalaryForStatus(RR.status, ovr, security) * (kind === "cut" ? TU("cutPayV146B", 0.7) : 1) * (1 + q)
+        ),
         years = kind === "cut" ? 1 : role === "starter" ? 3 : 2;
       return {
         i,
@@ -27644,7 +27924,9 @@
       e.offersV146B.simV147 = { n, left };
       goView("season");
       try {
-        showToast(`✂️ Released after ${n} simmed game${n === 1 ? "" : "s"} — pick a club and the rest of the season sims on`);
+        showToast(
+          `✂️ Released after ${n} simmed game${n === 1 ? "" : "s"} — pick a club and the rest of the season sims on`
+        );
       } catch (_) {}
       return;
     }
@@ -27735,7 +28017,9 @@
     try {
       if (r && proV147(e)) {
         const out = autoLifeV147(e, t);
-        out.length && !window.__silentSimV85 && showToast(`🤲 ${r.title || "Life"} — handled for you: ${out[0].choice}`);
+        out.length &&
+          !window.__silentSimV85 &&
+          showToast(`🤲 ${r.title || "Life"} — handled for you: ${out[0].choice}`);
       }
     } catch (_) {}
     return r;
@@ -27860,7 +28144,14 @@
   function vaultBuy(key) {
     const n = TREE_NODES[key];
     if (!n) return;
-    if (!window.__RIB_VAULT_BRIDGE || !window.__RIB_VAULT || nodeLvl(key) >= n.max || !nodeUnlocked(n) || state.pp < nodeCost(n)) return buyNode(key);
+    if (
+      !window.__RIB_VAULT_BRIDGE ||
+      !window.__RIB_VAULT ||
+      nodeLvl(key) >= n.max ||
+      !nodeUnlocked(n) ||
+      state.pp < nodeCost(n)
+    )
+      return buyNode(key);
     window.__RIB_VAULT_BRIDGE.open({ key: key });
   }
   function openVaultV137(key) {
@@ -29900,7 +30191,8 @@
     </div>
     ${tpPanelV113(e, key, sug)}
   `;
-    byId("dock").innerHTML = `<button class="btn" onclick="confirmTraining()">CONFIRM TRAINING · ${PROGRAMS[key].name}</button>`;
+    byId("dock").innerHTML =
+      `<button class="btn" onclick="confirmTraining()">CONFIRM TRAINING · ${PROGRAMS[key].name}</button>`;
   };
   // the preview costs the player nothing; only the dock's button reaches chooseTraining
   window.previewTraining = function (k) {
@@ -29926,8 +30218,16 @@
     fate: PLAN_FATE_V124,
     odds: planFateOddsV124,
     expect: planFateExpectV124,
-    roll: (e, k) => rollPlanFateV124(e || (state && state.player), k || (state && state.player && state.player.training) || "balanced"),
-    season: (e, k) => planFateSeasonV124(e || (state && state.player), k || (state && state.player && state.player.training) || "balanced"),
+    roll: (e, k) =>
+      rollPlanFateV124(
+        e || (state && state.player),
+        k || (state && state.player && state.player.training) || "balanced"
+      ),
+    season: (e, k) =>
+      planFateSeasonV124(
+        e || (state && state.player),
+        k || (state && state.player && state.player.training) || "balanced"
+      ),
     say: planFateSayV124,
     score: e => trainScoreV124(e || (state && state.player)),
     why: e => trainWhyV124(e || (state && state.player)),
