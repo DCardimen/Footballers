@@ -38,10 +38,10 @@ const ok = (name, pass, detail) => checks.push({ name, pass: !!pass, detail })
 //         screens sit behind a long walk, and a renderer that silently drops it is the failure mode)
 const SRC = readGameHtml()
 for (const [screen, needle] of [
-  ['the hub sheet (Vr)',                 '${Le[e].icon} ${Le[e].name}${statInfoBtnV142(e)}'],
-  ['the SKILLS sheet (un)',              '${Le[a].icon} ${Le[a].name}${statInfoBtnV142(a)}'],
-  ['the pregame sheet (pregamePlayerStatsV25)', '${Le[k].name}${statInfoBtnV142(k)}</span>`'],
-  ['the offseason board (tpRowV113)',    '${Le[k].icon} ${Le[k].name}${statInfoBtnV142(k)}</span>']
+  ['the hub sheet (Vr)',                 '${ATTR_INFO[e].icon} ${ATTR_INFO[e].name}${statInfoBtnV142(e)}'],   // v149 C: Le → ATTR_INFO
+  ['the SKILLS sheet (un)',              '${ATTR_INFO[a].icon} ${ATTR_INFO[a].name}${statInfoBtnV142(a)}'],
+  ['the pregame sheet (pregamePlayerStatsV25)', '${ATTR_INFO[k].name}${statInfoBtnV142(k)}</span>`'],
+  ['the offseason board (tpRowV113)',    '${ATTR_INFO[k].icon} ${ATTR_INFO[k].name}${statInfoBtnV142(k)}</span>']
 ]) ok(`${screen} renders the button`, SRC.includes(needle), needle)
 ok('the button helper is a hoisted declaration (v140: a boot render calls it by bare name)',
    /\n\s*function statInfoBtnV142\(/.test(SRC) && !/statInfoBtnV142\s*=\s*function/.test(SRC))
