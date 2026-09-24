@@ -1363,6 +1363,29 @@
     "walk",
     "menu-integration-check"
    ]
+  },
+  "seasons": {
+   "desc": "v151 C — competitive seasons, the Career Pass, the career leaderboards, the trophy case (src/29-seasons.js, src/20-leaderboards.js v151 C)",
+   "anchors": [
+    "v151 C",
+    "RIB_SEASONS"
+   ],
+   "files": [
+    "src/29-seasons.js",
+    "src/20-leaderboards.js",
+    "docs/SEASONS.md"
+   ],
+   "checks": [
+    "v151Ccheck",
+    "lbcheck",
+    "dailycheck",
+    "bootviewcheck",
+    "menu-integration-check",
+    "v146Echeck",
+    "v150Ccheck",
+    "layoutcheck",
+    "walk"
+   ]
   }
  },
  "checks": {
@@ -3347,6 +3370,18 @@
     "pwa"
    ],
    "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v151Ccheck": {
+   "file": "scripts/v151Ccheck.mjs",
+   "desc": "v151 C — the season calendar and rollover on a faked clock (archive to the trophy case, boards and pass reset, careers untouched, the event card), Career Score determinism, all 13 career boards populate and sort, a real career end restored at boot, pass XP from events and the observer, tier claims through the RIB_COSMETICS contract (stub + queue), premium gating, the cosmetic-only validator, XSS, 400x860 fit.",
+   "areas": [
+    "seasons"
+   ],
+   "runtimeSec": 90,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
