@@ -456,8 +456,16 @@
           ${/* v119: the coach's tour — a TOGGLE, not a door. ON plays the tour after the welcome cards (or the moment it is switched on); the tour switches it OFF when it ends. rib-menu-coach.js owns the state. */''}
           <button class="rib9-tile rib9-tile-coach ${coachOn ? 'on' : ''}" type="button" data-rib-action="coach" role="switch" aria-checked="${coachOn ? 'true' : 'false'}" aria-label="Coach's tour, ${coachOn ? 'on' : 'off'}"><img src="${COACH_ART}tile.webp${ARTV}" alt="" loading="lazy"><b>COACH'S TOUR</b><small><i class="rib9-sw"><i></i></i>${coachOn ? 'ON · HE WALKS YOUR FIRST WEEK' : 'OFF · TAP TO BRING HIM BACK'}</small></button>
           ${/* v139: the prestige tree is a door, and the only way in was the header chip — which is not where anyone looks. It sits beside the coach now, with what you have to spend on it. */''}
-          ${tile('prestige', 'legacy_gem', 'PRESTIGE', `${Number(S.pp || 0).toLocaleString()} PP TO SPEND`)}
+          ${tile('prestige', 'legacy_gem', 'PRESTIGE', `${Number(S.pp || 0).toLocaleString()} PP TO SPEND`)}${storeTileV150C()}
         </nav>`;
+    // v150 C H9: the STORE tile — only while window.RIB_MONETIZE says it is on (and its store feature is); "" otherwise, so the
+    // menu's markup is byte-for-byte the old one with the switch off. rib-menu-navigation.js routes action "store".
+    function storeTileV150C() {
+      const M = window.RIB_MONETIZE;
+      if (!M || !M.enabled || !(M.config && M.config.features && M.config.features.store)) return '';
+      const pro = M.has('pro');
+      return tile('store', 'legacy_crown', 'STORE', pro ? 'PRO ✓ · RESTORE' : 'PRO · 4× BOOST', 'rib9-tile-store-v150');
+    }
     const navLink = (action, label, active) => `<button class="rib9-navlink ${active ? 'on' : ''}" type="button" data-rib-action="${action}">${label}</button>`;
 
     return `

@@ -124,7 +124,7 @@ const M = (page, fn, arg) => page.evaluate(fn, arg)
   const ctx = await newCtx(), p = await ctx.newPage(); watch(p, 'on')
   await p.goto(U(...ON), { waitUntil: 'networkidle', timeout: 40000 }); await booted(p)
   const s0 = await M(p, () => ({ on: RIB_MONETIZE.enabled, hooks: RIB_MONETIZE.hooks, s4: RIB_MONETIZE.speedAllowed(4), s2: RIB_MONETIZE.speedAllowed(2), list: RIB_MONETIZE.list(), css: !!document.getElementById('mz149css') }))
-  ok(s0.on && s0.hooks.setSpeed && s0.hooks.buy && s0.css, 'ON: ?monetize=1 on a dev host turns it on and installs the setSpeed / buy hooks', JSON.stringify(s0.hooks))
+  ok(s0.on && s0.hooks.speed === 'game' && s0.hooks.payout === 'game' && s0.hooks.buy && s0.css, 'ON: ?monetize=1 on a dev host turns it on, finds the game\'s v150 C speed and payout hooks and installs the buy wrapper (v150 C: setSpeed is no longer wrapped)', JSON.stringify(s0.hooks))
   ok(!s0.s4 && s0.s2 && s0.list.length === 0, 'ON: a fresh device (no career yet — not grandfathered) has 1–2× free and 4× locked')
 
   // drive a real first week into the live game

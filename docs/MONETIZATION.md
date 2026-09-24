@@ -1,13 +1,15 @@
-# MONETIZATION — v149 E, "THE STORE IS WIRED, AND SWITCHED OFF"
+# MONETIZATION — v149 E, "THE STORE IS WIRED, AND SWITCHED OFF" · v150 C, "THE HOOKS ARE IN, THE SWITCH IS STILL OFF"
 
 `src/27-monetize.js` is the monetization foundation: one provider-agnostic module, `window.RIB_MONETIZE`,
 behind **one master switch that ships `false`**. While it is off the file defines the API object and does
 nothing else — no wrapper, no DOM, no style, no timer, no listener, no observer, no storage write — and
 `scripts/v149Echeck.mjs` proves that against a boot with the file blocked. **Nothing changes for any
-player until the owner flips it.**
+player until the owner flips it.** Since v150 C the game carries the hooks (§8) — each one the identity while the
+switch is off, which `scripts/v150Ccheck.mjs` proves against the same blocked boot.
 
 This page is the model, the catalogue, the honesty about client-side limits, the provider steps per
-platform, the store-policy notes, the in-game hooks still to add, and the decisions only the owner can make.
+platform, the store-policy notes, the in-game hooks (H1–H11) and where they live, how to launch it (§9), and the
+decisions only the owner can make.
 `docs/AUDIT.md` §3 is the analysis it grew out of.
 
 ---
@@ -26,8 +28,10 @@ platform, the store-policy notes, the in-game hooks still to add, and the decisi
 ### The speed ladder
 Today the live row is ½× / 1× / 2× / 4× and **4× is free**. The owner's ladder is 1–2× free, 3× earned by
 playing, 4× paid or rewarded. What is built: `features.gateSpeed4` locks 4× behind `speed4` (ad, Pro,
-membership, or **grandfathered** — see decision D1). What is not built: a 3× button and "earned by playing"
-(needs a line in the live template and an earn rule — hook H2 below).
+membership, or **grandfathered** — see decision D1). v150 C adds the 3× rung as a flag: `features.speed3` puts a
+3× button between 2× and 4× (off by default — the row is then byte-for-byte the old one), and `features.gateSpeed3`
+makes it need `speed3` (or `speed4`). What is still not built: the "earned by playing" rule that grants `speed3`
+(decision D10) — until there is one, leave `gateSpeed3` off or nobody can reach 3×.
 
 ---
 
@@ -81,6 +85,10 @@ M.value(key)                      // e.g. value("saveSlots") → 3
 M.grant(key, {until|minutes|periodDays, uses, value, source})   // what providers call; refused while OFF
 M.revoke(key), M.consume(key), M.list(), M.onChange(cb) → unsubscribe
 M.speedAllowed(s)                 // THE speed question; true for every speed while OFF
+M.clampSpeed(s)                   // v150 C (H3): s if allowed, else the fastest allowed below it (2× today); s while OFF
+M.speedLocked(s)                  // v150 C (H1): the game's setSpeed() hands a refused tap here → the offer sheet
+M.back()                          // v150 C (H11): close the top store / ad / checkout sheet; false if none (or OFF)
+M.restoreUI()                     // v150 C (H10): RESTORE PURCHASES with a toast; re-draws Settings
 M.claimPayoutBoost(amount, ctx)   // the in-game payout hook: returns the EXTRA PP (0 while OFF / no ppDouble)
 M.showRewarded(placement) → Promise<{rewarded, reward?, reason?}>
 M.purchase(productId)     → Promise<{ok, productId, reason?, pending?}>
@@ -89,11 +97,13 @@ M.track(event, props), M.addAnalyticsSink(fn)
 M.registerProvider(name, adapter), M.providers, M.provider
 M.openStore(), M.closeStore()
 M.tampered                        // true if the entitlement store failed its tag this session
-M.hooks                           // which wrappers are installed ({} while OFF)
+M.hooks                           // {speed:"game", payout:"game", buy:true} while ON ({} while OFF)
 M.dev                             // dev hosts only: advance(ms) fake clock, reset(), events, now()
 ```
 
-**The game reads only `has()` / `until()` / `speedAllowed()` / `claimPayoutBoost()`.** A reward is granted
+**The game reads only `enabled` / `has()` / `list()` / `speedAllowed()` / `clampSpeed()` / `claimPayoutBoost()` /
+`config.features`, and calls `speedLocked()` / `back()` / `restoreUI()` / `openStore()` — every one of them behind
+`enabled`.** A reward is granted
 only when the provider reports `rewarded:true` (the ad was watched to the end); an early close grants nothing.
 
 ### Analytics
@@ -204,31 +214,55 @@ web would need AdSense-for-games / H5 rewarded ads — not stubbed; the web prov
 
 ## 8. The hooks
 
-### Installed by the module (only while ON), from outside the game's files
+v150 C put the hooks IN the game. Every in-game hook asks `mzV150C()` (src/07-career-app.js) — or, outside the
+career block, `window.RIB_MONETIZE && RIB_MONETIZE.enabled` — first, and that is false unless the module exists AND
+says it is on. **With the switch off each hook is the identity**: the same speed, the same markup, the same payout,
+not one field written. `scripts/v150Ccheck.mjs` proves it against a boot with `27-monetize.js` blocked (the live speed
+row, the Settings screen and the menu's tiles byte-for-byte; both career-end payouts to the PP and the player's
+fields), and `scripts/v149Echeck.mjs` still proves the module itself makes no timer, listener, observer, element or
+storage write. The in-game helpers are hoisted `function` declarations beside `bankPPV136` under the banner
+`v150 C THE HOOKS ARE IN, THE SWITCH IS STILL OFF`, because screens restored at boot call them by bare name (v140);
+`window.__V150C` is the module's handle on the game's side (`mz`, `clamp`, `speed3`, `cosOk`, `payout(ctx, pay)`).
 
-| Hook | How | What it does |
-|---|---|---|
-| **Speed** | wraps `window.setSpeed` (= `ml`, `src/07-career-app.js`); the live buttons call `setSpeed(r)` by global name at click time | a locked 4× opens the offer sheet instead of changing speed; the 1 s tick steps an expired 4× back to 2× through the original `ml` |
-| **Speed row UI** | MutationObserver on `.speed-row` | the `▶ AD` / `PRO` badge on 4×, the offer chip under the row, the countdown |
-| **Prestige purchase** | wraps `window.buy` (= `Yl`, already wrapped once by the patch layer for haptics) | analytics only (`prestige_buy`); nothing about the purchase changes |
-| **Career payout** | reads `__GRIDIRON_AUDIT__.getState()` on views `gameover` / `win` once `player._settled` | the chip; on a watched ad `claimPayoutBoost(settle)` is added to `o.pp` and `_vaultPayV137`, marked `player._ppDoubledV149E`, saved through `GridironStorage.save` |
-| **Store entry** | `.topbar` (the v146 E shell) | a STORE / PRO ✓ chip |
+### In the game (v150 C)
 
-### To add in the game later (one line each; the owner's call)
-
-| # | File · anchor | The line | Why it is not done from outside |
+| # | File · function | What it does | OFF |
 |---|---|---|---|
-| H1 | `src/07-career-app.js` · `function ml(e){` | `if(window.RIB_MONETIZE&&!RIB_MONETIZE.speedAllowed(e))return;` as its first statement | the wrapper covers the buttons; this covers any caller that uses `ml` by bare name |
-| H2 | `src/07-career-app.js` · the live template's `[["0.5","½×","◀◀"],["1","1×","▶ ❚❚"],["2","2×","▶▶"],["4","4×","▶▶▶"]]` | add `["3","3×","▶▶▸"]` and gate it on an earned key (e.g. `speed3`, granted by a milestone through `RIB_MONETIZE.grant`) | the ladder's middle rung needs a button that does not exist; v147 D's camera needs a `v147Dcheck` row at 3× |
-| H3 | `src/07-career-app.js` · `function hl(){` — `Z={idx:-1,speed:Z&&Z.speed\|\|(ut("fastSim")?2:1)` | clamp: `speed:(s=>window.RIB_MONETIZE&&!RIB_MONETIZE.speedAllowed(s)?2:s)(Z&&Z.speed\|\|(ut("fastSim")?2:1))` | the tick already corrects it within a second; this makes it exact |
-| H4 | `src/07-career-app.js` · `ms()` — `o.pp+=r,e._vaultPayV137=r+(e._ppBankV136\|\|0)` | `const x=window.RIB_MONETIZE?RIB_MONETIZE.claimPayoutBoost(r,"gameover"):0;` then `o.pp+=r+x` and `_vaultPayV137=r+x+…` | inline, the vault's payout presentation and the card show the doubled figure at once; the external chip adds after the settle |
-| H5 | `src/07-career-app.js` · `no()` — `e._ppBankV136=flushBankV136(),o.pp+=n,` | the same with `claimPayoutBoost(n,"win")` | as H4 |
-| H6 | `src/07-career-app.js` · `function bankPPV136(n,why)` | **none — deliberately.** Season PP is not boosted | keeps the boost to one visible, capped moment |
-| H7 | `src/06-phaser-launcher.js` · `var SAVE='gridiron_save_v1'` | slot-aware keys (`gridiron_save_v1`, `…_slot2`…) up to `1 + RIB_MONETIZE.value("saveSlots")`, and a slot picker | Pro's "extra save slots" needs the storage layer to know about slots |
-| H8 | `src/07-career-app.js` · `window.camModeSet112=` / `window.wxModeSet144=` / the v15.3 Team Creator | show NEW cosmetic entries only when `RIB_MONETIZE.has("cos_…")` | the existing modes stay free; only added content is gated |
-| H9 | `public/rib-menu.js` · the tile list (`data-rib-action="…"`) | a STORE tile (`data-rib-action="store"` → `RIB_MONETIZE.openStore()`), hidden while `!RIB_MONETIZE.enabled`; bump `RIB_MENU_VERSION` | the menu is baked; the topbar chip covers career screens today |
-| H10 | `src/07-career-app.js` · `function Fi(){` (Settings) | a "Store & Purchases" row: RESTORE PURCHASES, the entitlement list | Apple wants restore reachable; the store has it already |
-| H11 | Capacitor `App.addListener('backButton', …)` | close `.mz149-veil` first | Android back should dismiss the store / ad / checkout sheet |
+| H1 | `src/07-career-app.js` · `setSpeed(e)` — its first statement | a speed `speedAllowed()` refuses returns before `liveCtl.speed` moves and goes to `RIB_MONETIZE.speedLocked(e)` (the offer sheet; a gated 3× only says it is earned). Covers the buttons AND every caller by bare name, so the module no longer wraps `window.setSpeed` | `mzV150C()` is null → the old body |
+| H2 | `src/07-career-app.js` · the live template's speed list (`["2","2×","▶▶"]` …) | `...(speed3V150C() ? [["3","3×","▶▶▸"]] : [])` — the 3× rung, only with `features.speed3`; `gateSpeed3` gates it on `speed3` | spreads `[]` → ½× / 1× / 2× / 4×, byte-for-byte |
+| H3 | `src/07-career-app.js` · `startLivePlayback()` — `speed:` | `speedClampV150C(...)` → `RIB_MONETIZE.clampSpeed(s)`: a carried 4× with no `speed4` restarts at 2× the moment playback (re)starts, not a second later on the module's tick | returns `s` |
+| H4 | `src/07-career-app.js` · `screenGameOver()` — the settle chain, after `_vaultPayV137` | `payoutBoostV150C(e, r, "gameover")`: records the settle (`e._payV150C`) and, if a `ppDouble` is held, pays it again (capped) onto `state.pp` and `_vaultPayV137`, marks `_ppDoubledV149E`; the card's PP EARNED adds `_ppDoubledV149E` | returns 0, writes nothing (the card adds `undefined \|\| 0`) |
+| H5 | `src/07-career-app.js` · `screenWin()` — the same place | `payoutBoostV150C(e, n, "win")` | as H4 |
+| H6 | `src/07-career-app.js` · `bankPPV136(n, why)` | **none — deliberately** (a comment says so). Season PP is never boosted; only the settle is | — |
+| H8 | `src/07-career-app.js` · `screenSettings()` camera / weather rows, `window.camModeSet112`, `window.wxModeSet144` | an entry tagged `cos: "cos_…"` is not drawn and its setter refuses it until `has(cos)`. **No existing entry is tagged** — only NEW content can be gated (decision D9) | untagged → always shown |
+| H9 | `public/rib-menu.js` · `storeTileV150C()` in the tile nav; `public/rib-menu-navigation.js` · `activate('store')` | a STORE tile after PRESTIGE (`legacy_crown`, "PRO · 4× BOOST" / "PRO ✓ · RESTORE"), opens `RIB_MONETIZE.openStore()`. Baked with `RIB_MENU_VERSION=v150c` | `''` → the tiles are byte-for-byte the old ones |
+| H10 | `src/07-career-app.js` · `screenSettings()` → `storeRowV150C()`; `src/22-hub-sections.js` puts it in the SAVE tab | a 🛒 STORE & PURCHASES card: what this device holds, RESTORE PURCHASES (`RIB_MONETIZE.restoreUI()`), Open the Store | `""` |
+| H11 | `src/26-platform.js` · `back()` — first line | `RIB_MONETIZE.back()`: the ad (forfeits the reward, as CLOSE does), the checkout (cancelled), the offer sheet, the store — the top one closes and back stops there | skipped |
+| H7 | `src/06-phaser-launcher.js` · `var SAVE='gridiron_save_v1'` | **documented only** — see below | — |
+
+### Still installed by the module (only while ON), from outside the game's files
+
+| Hook | How | Why it is still outside |
+|---|---|---|
+| **Prestige purchase** | wraps `window.buy` (analytics only: `prestige_buy`) | there is no hook for it, and nothing about the purchase changes — the tree is never for sale |
+| **Speed row UI** | MutationObserver on `.speed-row` | the `▶ AD` / `PRO` badge on 4×, a dimmed gated 3×, the offer chip under the row and its countdown |
+| **Career-end chip** | the same observer on views `gameover` / `win` | "▶ Watch an ad: double this payout"; a watched ad calls `window.__V150C.payout(view, settle)`, which pays, saves and redraws the card (a settle drawn by the boot restore runs before the module loads, so the module passes the settle it reads off `_vaultPayV137 − _ppBankV136`) |
+| **Store entry on career screens** | `.topbar` (the v146 E shell) | a STORE / PRO ✓ chip |
+| **Expiry tick** | a 1 s interval | a timed 4× that runs out steps the live game down through `setSpeed(clampSpeed(s))` |
+
+### H7 — save slots (not built)
+
+Pro promises "3 extra save slots (when slots ship)" (`value("saveSlots")` = 3). Slots are not a one-liner: the key
+`gridiron_save_v1` is read and written in four places — `src/06-phaser-launcher.js` (`GridironStorage`, plus
+`…_backup`), `src/07-career-app.js` (`SAVE_KEY`, the Settings size line, export/import), `src/26-platform.js`
+(`ribSave`, the rolling backups, the native Preferences mirror) and the module's own grandfather test — and the
+v106.1 / v140 boot restores the saved VIEW from it. The shape that fits: slot 1 stays `gridiron_save_v1` forever
+(no migration), slot n is `gridiron_save_v1_slot<n>`, `localStorage["rib.saveSlot.v1"]` names the active one,
+`GridironStorage` resolves the key per call (everything else already goes through it — the platform wraps
+`GridironStorage.save`), a slot switch is a save + reload (like `ribSave`'s import), and the picker lives in Settings ›
+SAVE. The number of slots is `1 + (RIB_MONETIZE.enabled ? RIB_MONETIZE.value("saveSlots") : 0)`; a slot that loses
+its entitlement stays readable, never deleted. Checks to write with it: `bootviewcheck` on every slot, `v149Dcheck`'s
+backups per slot.
 
 ---
 
@@ -238,14 +272,49 @@ web would need AdSense-for-games / H5 rewarded ads — not stubbed; the web prov
   mock ads). Or `localStorage["rib.monetize.dev.v149"]="1"`. The flag is honoured **only** on `localhost`,
   `127.0.0.1`, `[::1]`, `0.0.0.0` or `file:` — a shipped build ignores it. `?monetize=0` forces it off.
   `RIB_MONETIZE.dev.reset()` clears the entitlement and mock stores; `dev.advance(ms)` moves its clock.
-- **Ship it:** set `var MONETIZE_ENABLED = true;` in `src/27-monetize.js`, **or** leave the file alone and
-  inject `window.RIB_MONETIZE_CONFIG = { enabled: true, provider: "admob+revenuecat", native: {…} }` from a
-  script that runs before it (a store build's own config file — better, because the web build stays off).
 - **Turn a feature off without code:** any `features.*` flag in the injected config.
-- **Verify:** `node scripts/v149Echeck.mjs` (OFF proof + the ON flows); then with the switch OFF,
-  `bootviewcheck`, `walk`, `menu-integration-check`, `layoutcheck`, `honorcheck`, `vaultcheck`. The existing
+- **Verify:** `node scripts/run-checks.mjs v149Echeck v150Ccheck` (the OFF proofs + the ON flows); then with the switch
+  OFF, `bootviewcheck`, `walk`, `menu-integration-check`, `layoutcheck`, `honorcheck`, `vaultcheck`. The existing
   checks drive the live game at its fastest button (4×): run them with the switch OFF, or on a Pro / grandfathered
   device.
+
+### How to launch — the checklist
+
+**The rule: leave `var MONETIZE_ENABLED = false;` in `src/27-monetize.js` alone, forever.** Each build turns it on
+(or not) by injecting `window.RIB_MONETIZE_CONFIG` from a script that runs BEFORE `./src/27-monetize.js` in
+`index.html`. The config is merged over the defaults (objects deep, arrays replaced), so a build names only what it
+changes. `v150Ccheck` section 5 boots exactly this way.
+
+| Build | Config it injects | Provider | Notes |
+|---|---|---|---|
+| **Web (GitHub Pages / PWA)** | nothing — **OFF** | — | The shipped web game stays free and ad-free with every speed. If D8 ever says yes: `{enabled:true, provider:"web", features:{gateSpeed4:false, rewardedSpeed:false, rewardedPP:false}, web:{paymentLinks:{…}, verifyUrl:"…"}}` — and only once `verifyUrl` exists |
+| **Android (Play)** | `{enabled:true, provider:"admob+revenuecat", native:{revenuecatApiKey:{android:"goog_…"}, admobRewardedId:{android:"ca-app-pub-…/…"}}}` | AdMob + RevenueCat | + `features.gateSpeed4` per D1 |
+| **iOS (App Store)** | `{enabled:true, provider:"admob+revenuecat", native:{revenuecatApiKey:{ios:"appl_…"}, admobRewardedId:{ios:"ca-app-pub-…/…"}}}` | AdMob + RevenueCat | never `"web"` (Apple 3.1.1) |
+
+1. **Decide D1–D10** (§10). At minimum: D1 (is 4× gated), D2 (model), D4 (price), D6 (audience → ad personalisation).
+2. **Write the per-build config file** — e.g. `native/monetize.config.js` = `window.RIB_MONETIZE_CONFIG = {…}` — and
+   have the Capacitor build copy it into `dist/` and add `<script src="./monetize.config.js"></script>` right before
+   the `27-monetize.js` tag (a small step in the build script or a post-`vite build` patch; the web build does not
+   do it). The keys are PUBLIC SDK keys; no secret belongs in the page.
+3. **Strip the dev surface from store builds** (AUDIT §3.3): the `?monetize` / `rib.monetize.dev.v149` flag is already
+   dev-host-only, but also drop `M.dev`, `DEV`, `__GRIDIRON_AUDIT__.setState` and `RIB_TUNE` writes.
+4. **Providers** (§6): install `@capacitor-community/admob` and `@revenuecat/purchases-capacitor`, `npx cap sync`;
+   AdMob app + a Rewarded unit per platform (Google's test ids until release); the App ID in `AndroidManifest.xml` /
+   `Info.plist` (+ `SKAdNetworkItems`); UMP consent before the first ad; ATT only for personalised ads.
+5. **Products**: `rib.pro` as a one-time product (Play) / Non-Consumable (App Store); in RevenueCat an entitlement
+   `pro` → `rib.pro` and a current offering holding it (`native.entitlementMap` maps it back); the membership and the
+   cosmetic pack only when their flags (`features.membership`, `features.cosmetics`) and content exist.
+6. **Restore at boot**: call `RIB_MONETIZE.restore()` once after launch in the store builds (RevenueCat caches it) —
+   the entitlement store is a cache, the store is the truth. RESTORE PURCHASES is on the store screen and in
+   Settings › SAVE (H10) — Apple requires it reachable.
+7. **Store forms**: Play Data safety and the App Store privacy label change the day AdMob ships (identifiers, usage
+   data, possibly tracking); a privacy-policy URL either way; the age rating / Families / Kids answer per D6.
+8. **Sandbox pass** on a real device per platform: a rewarded ad watched through (4× for 20 min; the chip counts
+   down; it expires back to 2×), one closed early (nothing), the payout double on both career-end screens (once),
+   Pro bought (no ads, 4× for good), the app deleted and reinstalled → RESTORE brings Pro back, Android back closes
+   each sheet (H11), and a device that already had a career keeps 4× (grandfathered, if D1 gates it).
+9. **Before release**: `node scripts/run-checks.mjs v149Echeck v150Ccheck bootviewcheck walk menu-integration-check
+   honorcheck vaultcheck layoutcheck smoke`; then real ad unit ids, production RevenueCat keys, and a staged rollout.
 
 ---
 
@@ -261,3 +330,5 @@ web would need AdSense-for-games / H5 rewarded ads — not stubbed; the web prov
 | D6 | Audience / age rating → ad personalisation | not decided | Pee Wee framing may attract under-13s: non-personalised ads, or an age gate. |
 | D7 | Rewarded-ad daily cap and the 20-minute window | 6 a day, 20 min | Tune after real data. |
 | D8 | Web purchases at all | web provider never grants | Needs the verification endpoint and a Stripe account; must be excluded from the iOS build. |
+| D9 | New cosmetic content (a camera, a weather look, a kit) while monetization is OFF — shown or hidden? | hidden until owned (`cosOkV150C`); OFF = not offered | With the store off there is nothing to buy it with; the alternative is to ship it free on the web build. No existing entry is tagged either way. |
+| D10 | The 3× rung: shown at all (`features.speed3`), and how it is earned (`gateSpeed3` + an earn rule granting `speed3`) | both off | Needs an earn rule (e.g. a milestone calling `RIB_MONETIZE.grant("speed3")`) and a `v147Dcheck` row at 3× before it ships. |

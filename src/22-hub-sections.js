@@ -86,7 +86,7 @@
         { k: "game",   re: /LIVE GAME/i },
         { k: "field",  re: /FIELD VIEW/i },
         { k: "family", re: /FAMILY NAME/i },
-        { k: "save",   re: /SAVE DATA|BACKUP \/ TRANSFER/i },
+        { k: "save",   re: /SAVE DATA|BACKUP \/ TRANSFER|STORE & PURCHASES/i },   // v150 C H10: the store row (only while monetization is on)
         { k: "danger", re: /DANGER ZONE/i },
       ],
       nofold: ["game", "field", "family", "save", "danger"],

@@ -456,6 +456,9 @@
   }
   function back() {
     var r = (function () {
+      // v150 C H11: the store's sheets (an ad, a checkout, an offer, the store itself) sit over everything — they go first.
+      // RIB_MONETIZE.back() is false (and touches nothing) while monetization is off.
+      try { var mz = window.RIB_MONETIZE; if (mz && mz.enabled && mz.back && mz.back()) return 'monetize'; } catch (e) {}
       if (ribDialog.isOpen) { ribDialog.close(); return 'dialog'; }
       try { if (window.__RIB_VAULT && window.__RIB_VAULT.isOpen()) { window.__RIB_VAULT.close('back'); return 'vault'; } } catch (e) {}
       try { if (window.__RIB_HOWTO && window.__RIB_HOWTO.isOpen) { window.__RIB_HOWTO.close(); return 'howto'; } } catch (e) {}
