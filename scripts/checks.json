@@ -2694,8 +2694,10 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": [
-    "D: both goalposts are drawn standing in a pad"
-   ]
+    "D: both goalposts are drawn standing in a pad",
+    "a shuffle, not a sprint"
+   ],
+   "loadSensitive": true
   },
   "v145check": {
    "file": "scripts/v145check.mjs",
