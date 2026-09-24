@@ -19,6 +19,7 @@
 //   node scripts/bootviewcheck.mjs
 import { chromium } from 'playwright'
 import fs from 'node:fs'
+import { pageSource } from './lib/layout.mjs'   // v149 A: the served page + the src/ files it names
 const url = process.env.GAME_URL || 'http://localhost:5173/index.html'
 const browser = await chromium.launch({ executablePath: fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined })
 let pass = 0, fail = 0
@@ -45,7 +46,7 @@ ok(await page.evaluate(() => typeof window.__GRIDIRON_AUDIT__ === 'object' && !!
 
 // the fix, shape 1: the vault glue a rendered screen calls is a HOISTED declaration, not an
 // assignment that a boot-time render can outrun
-const src = await page.evaluate(() => fetch(location.pathname).then(r => r.text()))
+const src = await page.evaluate(pageSource)
 ok(/function vaultPayBtnV137\s*\(/.test(src), 'vaultPayBtnV137 is a function DECLARATION — a screen drawn at boot cannot outrun it')
 ok(!/window\.vaultPayBtnV137\s*=\s*(e|\()/.test(src), '…and is not defined by a bare assignment any more')
 // the fix, shape 2: every top-level boot render is guarded

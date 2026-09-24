@@ -1,5 +1,6 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
+import { pageSource } from './lib/layout.mjs'   // v149 A: the served page + the src/ files it names
 /* ===== v147 B THE MENU WEARS THE COIN — the gate =====
  * 1. the header's prestige mark is the Vault's gold coin (an <img>, loaded, a real size), no ★ is
  *    left for prestige in the chip, and the YOUR LEGACY prestige tile wears the same coin; the
@@ -133,16 +134,16 @@ for (const [ovr, sm] of CASES) {
 }
 
 // ---- 3. the trophy --------------------------------------------------------------------------
-const trophy = await page.evaluate(async () => {
+const idxSrc = await page.evaluate(pageSource)
+const trophy = await page.evaluate(async (idx) => {
   const imgs = [...document.querySelectorAll('#rib-main-menu-v2 img.rib9-trophy')]
   for (const i of imgs) if (!i.complete) await new Promise(r => { i.onload = i.onerror = r })
   const srcs = [...document.querySelectorAll('#rib-main-menu-v2 img')].map(i => i.getAttribute('src') || '')
   const served = await Promise.all(['./public/rib-menu.js', './public/rib-menu-v89-runtime.js', './public/rib-menu-v89.css'].map(u => fetch(u, { cache: 'no-store' }).then(r => r.text()).catch(() => '')))
-  const idx = await fetch(location.pathname, { cache: 'no-store' }).then(r => r.text()).catch(() => '')
   const oldRe = /card_trophy(?!_uff)(\.webp|['"])/
   return { n: imgs.length, uff: imgs.every(i => /card_trophy_uff\.webp/.test(i.getAttribute('src'))), loaded: imgs.every(i => i.naturalWidth > 0), nat: imgs.map(i => i.naturalWidth + 'x' + i.naturalHeight),
     oldInDom: srcs.some(s => oldRe.test(s)), oldServed: served.some(t => oldRe.test(t)) || oldRe.test(idx), warmed: (window.__RIB_MENU_ASSETS || {}).loaded?.includes('card_trophy_uff') }
-})
+}, idxSrc)
 ok(trophy.n >= 1 && trophy.uff && trophy.loaded, 'milestones trophy is not the loaded UFF trophy: ' + JSON.stringify(trophy))
 ok(!trophy.oldInDom && !trophy.oldServed, 'card_trophy.webp is still referenced')
 if (SHOTS) {

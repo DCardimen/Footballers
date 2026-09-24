@@ -162,6 +162,16 @@ export function strayCodeInPage(html) {
   return hits
 }
 
+/** For `page.evaluate(pageSource)`: the SERVED page's text plus every ./src/ file it names, in
+ *  order — what `fetch(location.pathname)` used to return on its own when the game was one file.
+ *  (Runs in the browser: it must not close over anything in this module.) */
+export async function pageSource() {
+  const h = await fetch(location.pathname, { cache: 'no-store' }).then((r) => r.text())
+  const rels = [...h.matchAll(/(?:src|href)="\.\/(src\/[^"?]+)/g)].map((m) => m[1])
+  const parts = await Promise.all(rels.map((rel) => fetch(new URL(rel, location.href), { cache: 'no-store' }).then((r) => r.text()).catch(() => '')))
+  return [h, ...parts].join('\n')
+}
+
 /** Script sources BY NAME, for the checks that inject the game into a blank page: 'inline:N' is the
  *  Nth inline <script> still in index.html (0 = the v112 A warm, 1 = the v114 film picker, 2 = error
  *  surfacing + __RIB_ASSET), anything else a path such as 'src/04-engine.js'. */
