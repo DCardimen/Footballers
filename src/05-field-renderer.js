@@ -1522,6 +1522,8 @@ window.__COS_FIELD_V151B = {
     RIB.youKitV96 = null;
     const me = scene.markers.find((m) => m && m.team === "you");
     ribSyncYouKitV96(scene, (me && me.kitSide) || "off");
+    // rebind at once: the old "you" textures are gone, and a frame drawn before the next update would read a dead frame
+    scene.markers.forEach((m) => { try { const k = m && m.body && m.body.texture && m.body.texture.key; if (k && /^spr_you_/.test(k)) m.body.setTexture(scene.textures.exists(k) ? k : "rib_player_fallback"); } catch (e) {} });
     return true;
   },
 };
@@ -6179,19 +6181,23 @@ class Ot extends mt.Scene {
     g.setDepth(TU("crowdDepth", 3.45) + 0.012).setVisible(true);
     if (!TU("bowlTrimV112", 1)) { C.trim112 = null; return false; }
     /* ===== v151 B THE HOUSE WEARS HIS COLOURS — an equipped stadium theme, on home games only =====
-     * The band, its lip, the tunnels' frame and a tint over the crowd sections. Presentation only: nothing
+     * The band, its lip, the tunnels' frame and a wash of its colour over the stands. Presentation only: nothing
      * here is read by the sim, and `__WX_V79` (the weather roll) is never touched. */
     const thV151B = (() => { try { const C = window.RIB_COSMETICS; return C && C.stadiumTheme ? C.stadiumTheme() : null; } catch (e) { return null; } })();
-    try { for (let i = 0; i < (C.built || 0); i++) { const s = C.secs[i]; if (!s || !s.spr) continue; for (const k of ["idle", "cheer"]) { const sp = s.spr[k]; if (!sp || !sp.setTint) continue; thV151B ? sp.setTint(thV151B.crowd) : sp.clearTint(); } }
-      window.__V151B = window.__V151B || {}; window.__V151B.stadium = thV151B ? { id: thV151B.id, band: thV151B.band, lip: thV151B.lip, crowd: thV151B.crowd, home: window.__homeGameV93 !== false } : { id: null, home: window.__homeGameV93 !== false }; } catch (e) {}
+    // (a wash drawn over the stands below, not a sprite tint: in the canvas renderer a tint re-tints every crowd frame, every frame)
+    try { window.__V151B = window.__V151B || {}; window.__V151B.stadium = thV151B ? { id: thV151B.id, band: thV151B.band, lip: thV151B.lip, crowd: thV151B.crowd, home: window.__homeGameV93 !== false } : { id: null, home: window.__homeGameV93 !== false }; } catch (e) {}
     const RK = TU("crowdRake", 0.24), COL = thV151B ? thV151B.band : TU("baseBandColV112", 0x1a4694);
     const FR = Math.max(0.01, TU("baseBandFracV112", 0.068));          // of the stand's own height
-    const dbg = { band: [], ent: null, col: COL, frac: FR };
+    const dbg = { band: [], ent: null, col: COL, frac: FR, wash: thV151B ? thV151B.crowd : null };
     const top = (p) => { const h = HH * p.k * FR; return { x: p.sx + (p.rk == null ? 0 : p.rk) * RK * h, y: p.sy - h, h }; };
     for (const B of built) {
       const P = B.pts; if (!P || P.length < 2) continue;
       const foot = [], cap = [];
       for (const p of P) { foot.push({ x: p.sx, y: p.sy }); cap.push(top(p)); }
+      if (thV151B) {   // v151 B: the theme's colour washed over the whole stand, foot to rim
+        const rim = P.map((p) => { const h = HH * p.k; return { x: p.sx + (p.rk == null ? 0 : p.rk) * RK * h, y: p.sy - h }; });
+        g.fillStyle(thV151B.crowd, TU("cosCrowdWashV151B", 0.2)); g.fillPoints(foot.concat(rim.slice().reverse()), true);
+      }
       g.fillStyle(COL, TU("baseBandAV112", 0.92));
       g.fillPoints(foot.concat(cap.slice().reverse()), true);
       // a paler lip along the top of the band — a painted wall has an edge, and it is what

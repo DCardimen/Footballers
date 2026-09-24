@@ -36,7 +36,7 @@ look. Shop and founder items are never written here — their entitlements live 
 are a live, free feature whatever the switch.
 
 ### `profile()`
-`{v, at, name, pos, level, levelName, age, ovr, team:{school,name,colors,logo}, club, careers, bank:{pp,honors},
+`{v, name, pos, level, levelName, age, ovr, team:{school,name,colors,logo}, club, careers, bank:{pp,honors},
 titles, rings, mvps, awards, hof, uffTitles, interstellarTitles, titlesByLevel, gen, surname, bestScore, careerScore,
 teamStyle:{unlocked,total,all}, achievements:[ids], cosmetics:{frame,banner,shelf,uniform,helmet,recap,kit}}` — no PII
 beyond the in-game name. `kit` is the drawn look (`j`/`p`/`t`/`pat`/`ps` jersey, pants, trim, pattern, pant stripe;
@@ -87,7 +87,7 @@ once with a toast.
 | uniform / helmet | `src/05` `ribSyncYouKitV96` → `cosKitV151B` → `fieldKit(teamCols, oppCols)` | the "you" textures only, re-registered with the uniform's palette and `kitDeco` as `ribRegisterTeam`'s deco (it now receives the pose, v104's measured collar/waist and the raw cell): jersey pattern, pant stripe, helmet shell/stripe/decal/finish. A jersey too close to the opponent's (`cosKitClashV151B`, 90) is not worn that game. `window.__COS_FIELD_V151B.resync(scene)` re-dresses him mid-game |
 | uniform / helmet (menu) | `src/07` feed `team.colors` → `cosColorsV151B` → `menuColors` | `[jersey, pants, helmet]`; `public/rib-menu.js` gives the portrait's helmet mask `colors[2]`; the growth figure reads the same feed |
 | celebration | `src/05` `celebrate()` | on HIS touchdown only: particles + a callout (`celebrate(scene, x, y)`) |
-| stadium | `src/05` `bowlTrimV112` → `stadiumTheme()` | on home games (`__homeGameV93 !== false`): the base band, its lip, the tunnels' frame, a tint over every crowd section. `__WX_V79` is never touched |
+| stadium | `src/05` `bowlTrimV112` → `stadiumTheme()` | on home games (`__homeGameV93 !== false`): the base band, its lip, the tunnels' frame, a wash of the theme colour over the stands (`cosCrowdWashV151B`, .2 — a Graphics fill, not a sprite tint: the canvas renderer re-tints tinted sprites every frame). `__WX_V79` is never touched |
 | vault | `public/rib-vault.js` `bakeRoom`, `frame`, `coinImg`, `Vault.open` | room graded toward the theme colour, coins = `vaultTint` copies shaded like the originals, `.rv-cos-v151b` motes |
 | frame / banner / shelf | `renderCard` | CSS on the card (`.fr-*`, the banner background, `.sh-*`) |
 | recap | `html[data-cos-recap]` on views `result` / `declineResult` / `gameover` / `win` | a skin over the report card and career-end cards |

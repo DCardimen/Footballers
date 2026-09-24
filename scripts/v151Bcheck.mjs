@@ -26,7 +26,7 @@ try { fs.mkdirSync(SHOTS, { recursive: true }) } catch {}
 const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 400, height: 860 } })
 const errs = []
-page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
+page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message + ' @ ' + String(e.stack || '').split('\n').slice(1, 4).join(' | ')))
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) errs.push('CONSOLE: ' + m.text().slice(0, 200)) })
 await page.addInitScript(() => { setInterval(() => { document.querySelector('.onboard')?.remove() }, 60) })
 let pass = 0, fail = 0
@@ -51,8 +51,9 @@ const cat = await E(() => { const C = window.RIB_COSMETICS, all = C.catalog(), b
   const pv = {}; for (const k in by) pv[k] = by[k].filter(it => { const el = document.createElement('div'); document.body.appendChild(el); it.preview(el); const good = el.childNodes.length > 0 && (el.querySelector('canvas,div,i') != null); el.remove(); return good }).length
   return { slots: C.slots, counts: Object.fromEntries(Object.entries(by).map(([k, v]) => [k, v.length])), pv, sources: [...new Set(all.map(i => i.source))],
     packs: C.packs().map(p => [p.id, p.price, p.items.length]), ids: all.length, uniq: new Set(all.map(i => i.id)).size } })
-ok(cat.slots.length === 9 && cat.slots.every(s => (cat.counts[s] || 0) >= 6), 'nine categories, at least six items in each', cat.counts)
-ok(cat.slots.every(s => cat.pv[s] === cat.counts[s]), 'every item draws a preview', cat.pv)
+const BASE = ['uniform', 'helmet', 'frame', 'celebration', 'stadium', 'vault', 'banner', 'shelf', 'recap']
+ok(BASE.every(s => cat.slots.includes(s) && (cat.counts[s] || 0) >= 6), 'the nine designed categories hold at least six items each', cat.counts)
+ok(cat.slots.every(s => cat.pv[s] === cat.counts[s]), 'every item draws a preview (the Career Pass kinds included)', cat.pv)
 ok(cat.ids === cat.uniq && ['free', 'earned', 'pass', 'shop', 'founder'].every(s => cat.sources.includes(s)), 'ids are unique and all five sources are used', cat.sources)
 const price = Object.fromEntries(cat.packs.map(p => [p[0], p[1]]))
 ok(price.pack_uniforms1 === '$1.99' && price.pack_helmets1 === '$1.99' && price.pack_celebrations1 === '$2.99' && price.pack_stadium_neon === '$2.99' && price.pack_frames1 === '$1.99' && price.pack_vault_rose === '$2.99' && price.pack_historical === '$4.99' && cat.packs.every(p => p[2] > 0),
@@ -82,6 +83,30 @@ ok(!earned.before && earned.after && earned.got.includes('frame_gold') && earned
 const viaSave = await E(async () => { const C = window.RIB_COSMETICS, st = window.__getGridironState(); const b = C.owned('uni_blackout')
   st.nflReached = Math.max(1, st.nflReached || 0); window.GridironStorage.save(st); await new Promise(r => setTimeout(r, 120)); return { b, a: C.owned('uni_blackout'), std: C.owned('std_blackgold') } })
 ok(!viaSave.b && viaSave.a && viaSave.std, 'the save hook checks achievements: reaching the UFF unlocks Blackout and the Black & Gold bowl', viaSave)
+
+// ================= 2b. the Career Pass's rewards (src/29-seasons.js) =================
+const pz = await E(() => { const C = window.RIB_COSMETICS, S = window.RIB_SEASONS
+  if (!S) return { seasons: false }
+  const sid = S.current().id, R = S.rewards(sid), all = (R.free || []).concat(R.premium || [])
+  const inCat = all.filter(r => C.catalog().some(i => i.id === r.id)).length
+  const kinds = {}; all.forEach(r => { kinds[r.kind] = (kinds[r.kind] || 0) + 1 })
+  const pick = k => all.find(r => r.kind === k)
+  const t = pick('title'), ic = pick('icon'), bd = pick('badge'), np = pick('nameplate'), kt = pick('kit')
+  const before = C.owned(t.id)
+  const got = [t, ic, bd, np, kt].map(r => C.grant(r.id, 'pass', r))
+  const eq = [['title', t], ['icon', ic], ['badge', bd], ['nameplate', np]].map(([s, r]) => C.equip(s, r.id))
+  // an older season's reward, granted by id with its reward object (the queue flushing late)
+  const old = { id: 'pass.s1.premium.7', kind: 'banner', name: 'Old Banner', rarity: 'common', track: 'premium', tier: 7, season: 's1' }
+  const oldOk = C.grant(old.id, 'pass', old) && C.owned(old.id)
+  const el = document.createElement('div'); document.body.appendChild(el); C.renderCard(C.profile(), el)
+  const card = { title: !!el.querySelector('[data-title]'), icon: !!el.querySelector('[data-icon]'), badge: !!el.querySelector('[data-badge]'), plate: !!el.querySelector('[data-plate]'), text: (el.querySelector('.pc-title-v151b') || {}).textContent || '' }
+  el.remove()
+  const allEq = C.equipped(); const keep = C.equipped('uniform'); C.equip('uniform', kt.id); const kitTeam = C.profile().cosmetics.kit; C.equip('uniform', keep)
+  return { seasons: true, sid, n: all.length, inCat, kinds, before, got, eq, oldOk, card, allEq: Object.keys(allEq).length, kitTeam, open: typeof C.openProfile } })
+ok(pz.seasons && pz.inCat === pz.n && pz.n > 20, 'the current Career Pass track is in the catalogue, locked until claimed', pz)
+ok(!pz.before && pz.got.every(Boolean) && pz.eq.every(Boolean) && pz.oldOk, 'pass rewards (title, icon, badge, nameplate, kit trim — and an older season\'s banner by id) are granted and equipped', pz.got)
+ok(pz.card.title && pz.card.icon && pz.card.badge && pz.card.plate && pz.card.text.length > 3, 'the card wears the pass title, icon, badge and nameplate', pz.card)
+ok(pz.allEq === 13 && pz.open === 'function' && pz.kitTeam && /^#[0-9a-f]{6}$/i.test(pz.kitTeam.j), 'equipped() with no slot is every slot; openProfile exists; a Kit Trim keeps the team jersey', { allEq: pz.allEq, open: pz.open, kit: pz.kitTeam })
 
 // ================= 3. the Team Creator's gate =================
 await dlgAuto()
@@ -201,18 +226,23 @@ ok(cel.n2 === cel.n1, 'a team-mate\'s touchdown does not play it', cel)
 const bowlShot = async () => { const b = await E(() => { const r = window.__gridironScene.game.canvas.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: Math.min(r.height, 260) } })
   const buf = await page.screenshot({ clip: { x: b.x, y: b.y, width: b.w, height: b.h } })
   return E(async (b64) => { const im = new Image(); im.src = 'data:image/png;base64,' + b64; await im.decode(); const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0)
-    const d = x.getImageData(0, 0, c.width, c.height).data; let r = 0, g = 0, bl = 0, n = 0; for (let i = 0; i < d.length; i += 16) { r += d[i]; g += d[i + 1]; bl += d[i + 2]; n++ } return [r / n, g / n, bl / n] }, buf.toString('base64')) }
+    const d = x.getImageData(0, 0, c.width, c.height).data, prev = window.__bowlPrev; let ice = 0, n = 0, moved = 0
+    for (let i = 0; i < d.length; i += 4) { n++; if (Math.abs(d[i] - 207) + Math.abs(d[i + 1] - 232) + Math.abs(d[i + 2] - 255) < 70) ice++; if (prev && prev.length === d.length && Math.abs(d[i] - prev[i]) + Math.abs(d[i + 1] - prev[i + 1]) + Math.abs(d[i + 2] - prev[i + 2]) > 40) moved++ }
+    window.__bowlPrev = d; return { ice, n, moved } }, buf.toString('base64')) }
+/* the scene's update is stubbed for the two frames (still drawn, nothing moves), so the camera cannot move between them */
+await E(() => { const sc = window.__gridironScene; window.__updV151B = sc.update; sc.update = function () {} })
 await E(() => { window.RIB_COSMETICS.equip('stadium', 'std_home'); window.__homeGameV93 = true; window.RIB_COSMETICS.refreshField() }); await page.waitForTimeout(700)
 const s0 = await E(() => ({ st: window.__V151B.stadium, col: window.__gridironScene.crowd && window.__gridironScene.crowd.trim112 && window.__gridironScene.crowd.trim112.col })); const px0 = await bowlShot(); await shot('stadium-before')
 await E(() => { window.RIB_COSMETICS.equip('stadium', 'std_ice'); window.RIB_COSMETICS.refreshField() }); await page.waitForTimeout(700)
-const s1 = await E(() => { const sc = window.__gridironScene, s = sc.crowd.secs.find(q => q && q.spr && q.spr.idle); return { st: window.__V151B.stadium, col: sc.crowd.trim112 && sc.crowd.trim112.col, tint: s ? s.spr.idle.tintTopLeft : null } }); const px1 = await bowlShot(); await shot('stadium-home')
+const s1 = await E(() => { const sc = window.__gridironScene, s = sc.crowd.secs.find(q => q && q.spr && q.spr.idle); return { st: window.__V151B.stadium, col: sc.crowd.trim112 && sc.crowd.trim112.col, tint: sc.crowd.trim112 && sc.crowd.trim112.wash } }); const px1 = await bowlShot(); await shot('stadium-home')
+await E(() => { const sc = window.__gridironScene; if (window.__updV151B) { sc.update = window.__updV151B; delete window.__updV151B } })
 await E(() => { window.__homeGameV93 = false; window.RIB_COSMETICS.refreshField() }); await page.waitForTimeout(700)
-const s2 = await E(() => { const sc = window.__gridironScene, s = sc.crowd.secs.find(q => q && q.spr && q.spr.idle); return { st: window.__V151B.stadium, col: sc.crowd.trim112 && sc.crowd.trim112.col, tint: s ? s.spr.idle.tintTopLeft : null } })
+const s2 = await E(() => { const sc = window.__gridironScene, s = sc.crowd.secs.find(q => q && q.spr && q.spr.idle); return { st: window.__V151B.stadium, col: sc.crowd.trim112 && sc.crowd.trim112.col, tint: sc.crowd.trim112 && sc.crowd.trim112.wash } })
 await E(() => { window.__homeGameV93 = true; window.RIB_COSMETICS.refreshField() })
-const pxd = Math.abs(px0[0] - px1[0]) + Math.abs(px0[1] - px1[1]) + Math.abs(px0[2] - px1[2])
-ok(s0.st && s0.st.id === null && s1.st && s1.st.id === 'std_ice' && s1.col === 0xcfe8ff && s1.tint === 0xd6ecff, 'a stadium theme on a home game repaints the bowl\'s band and tints the crowd', { s0: s0.st, s1 })
-ok(pxd > 1.5, 'and the broadcast\'s pixels over the bowl move', { before: px0.map(Math.round), after: px1.map(Math.round), d: +pxd.toFixed(2) })
-ok(s2.st && s2.st.id === null && s2.col !== 0xcfe8ff && s2.tint === 0xffffff, 'on an away game the home theme is not worn', s2)
+
+ok(s0.st && s0.st.id === null && s1.st && s1.st.id === 'std_ice' && s1.col === 0xcfe8ff && s1.tint === 0xd6ecff, 'a stadium theme on a home game repaints the bowl\'s band and washes the stands in its colour', { s0: s0.st, s1 })
+ok(px1.moved > 250, 'and the broadcast\'s pixels over the bowl change (same frozen frame, theme on vs off)', { changed: px1.moved, ice: [px0.ice, px1.ice], of: px1.n })
+ok(s2.st && s2.st.id === null && s2.col !== 0xcfe8ff && s2.tint === null, 'on an away game the home theme is not worn', s2)
 const wx = await E(() => JSON.stringify(window.__WX_V79 || null)); ok(true, 'the weather roll is untouched by the stadium theme (informational)', wx.slice(0, 80))
 
 // ================= 6. the vault =================

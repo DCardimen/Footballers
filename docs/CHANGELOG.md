@@ -17,7 +17,7 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
   five sources (free, earned by eight achievements, season-pass tiers, shop packs at the owner's prices, the Founder
   bundle). Everything is really drawn: the uniform and helmet re-dress the you-player's own textures on the live field
   (patterns, helmet shell / stripe / decal / finish; never the opponent's or his team-mates') and the menu's kit masks;
-  a celebration plays on his touchdowns; a stadium theme repaints the bowl's band and tints the crowd at home; a vault
+  a celebration plays on his touchdowns; a stadium theme repaints the bowl's band and washes the stands at home; a vault
   theme grades the room, tints the coins and hangs motes. New PROFILE view (menu legacy card, hub, locker) with the
   drawn character in his kit, team colours and crest, the bank, honours, titles by level, MVPs, Hall, lineage and the
   equipped frame / banner / shelf; `profile()` / `renderCard()` are what the leaderboard shows. The Locker gained a

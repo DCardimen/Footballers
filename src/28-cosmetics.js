@@ -27,7 +27,7 @@
  *                     a deco on ribRegisterTeam's put (patterns, helmet shell / stripe / decal / finish);
  *                     the menu feed's team.colors (07) → the hero, portrait and continue-card masks
  *   celebration       src/05 `celebrate()` → celebrate(): extra particles + a callout on HIS touchdown
- *   stadium           src/05 `bowlTrimV112` → stadiumTheme(): band, lip, tunnel frame, crowd tint (home only)
+ *   stadium           src/05 `bowlTrimV112` → stadiumTheme(): band, lip, tunnel frame, a wash over the stands (home only)
  *   vault             public/rib-vault.js → vaultTheme() / vaultTint(): room grade, coin tint, motes
  *   frame / banner / shelf   renderCard()                recap   html[data-cos-recap] on the report / career end
  * `window.__V151B` is what the check reads. */
@@ -49,7 +49,7 @@
   var rnd = prng(Date.now() ^ 0x5eed);
 
   /* ---------------- the catalogue ---------------- */
-  var SLOTS = ["uniform", "helmet", "frame", "celebration", "stadium", "vault", "banner", "shelf", "recap"];
+  var SLOTS = ["uniform", "helmet", "frame", "celebration", "stadium", "vault", "banner", "shelf", "recap", "title", "badge", "nameplate", "icon"];
   var CATS = {
     uniform: { name: "UNIFORMS", icon: "👕", def: "uni_team" },
     helmet: { name: "HELMETS", icon: "🪖", def: "hel_team" },
@@ -59,7 +59,12 @@
     vault: { name: "VAULT THEMES", icon: "🪙", def: "vault_classic" },
     banner: { name: "BANNERS", icon: "🎌", def: "ban_charcoal" },
     shelf: { name: "TROPHY SHELF", icon: "🏆", def: "shelf_oak" },
-    recap: { name: "RECAP THEMES", icon: "📰", def: "recap_broadcast" }
+    recap: { name: "RECAP THEMES", icon: "📰", def: "recap_broadcast" },
+    /* the Career Pass's own kinds (src/29-seasons.js): filled from `RIB_SEASONS.rewards()` — see passItem() */
+    title: { name: "TITLES", icon: "🏷", def: "title_none" },
+    badge: { name: "BADGES", icon: "🎖", def: "badge_none" },
+    nameplate: { name: "NAMEPLATES", icon: "🔖", def: "plate_none" },
+    icon: { name: "PROFILE ICONS", icon: "👤", def: "icon_none" }
   };
   /* earned: the achievement that unlocks it (ACH below) · pass: the season-pass tier the pass worker grants */
   var ITEMS = [
@@ -150,7 +155,12 @@
     { id: "recap_gold", cat: "recap", name: "Gold Edition", rarity: "epic", source: "earned", ach: "title", css: "gold" },
     { id: "recap_neon", cat: "recap", name: "Neon Replay", rarity: "rare", source: "pass", tier: 6, css: "neon" },
     { id: "recap_chalk", cat: "recap", name: "Chalkboard", rarity: "rare", source: "pass", tier: 26, css: "chalk" },
-    { id: "recap_founder", cat: "recap", name: "Founder's Edition", rarity: "mythic", source: "founder", css: "founder" }
+    { id: "recap_founder", cat: "recap", name: "Founder's Edition", rarity: "mythic", source: "founder", css: "founder" },
+    // the pass kinds' defaults (nothing shown); the items themselves arrive from the Career Pass
+    { id: "title_none", cat: "title", name: "No Title", rarity: "common", source: "free", text: "" },
+    { id: "badge_none", cat: "badge", name: "No Badge", rarity: "common", source: "free", glyph: "" },
+    { id: "plate_none", cat: "nameplate", name: "Plain", rarity: "common", source: "free", plate: "" },
+    { id: "icon_none", cat: "icon", name: "Initials", rarity: "common", source: "free", glyph: "" }
   ];
   var PACKS = [
     { id: "pack_uniforms1", name: "Uniform Pack", price: "$1.99", productId: "rib.cos.uniforms1", items: [] },
@@ -174,6 +184,56 @@
     if (pk && pk.price) it.price = pk.price;
     it.preview = function (el) { return previewInto(el, it); };
   });
+  /* ---------------- the Career Pass's rewards (src/29-seasons.js) ----------------
+   * The pass grants `pass.<seasonId>.<track>.<tier>` ids, each with a kind (banner, frame, title, badge, nameplate,
+   * icon, celebration, kit). They are registered here as ordinary catalogue items — the current season's whole
+   * track up front (locked until claimed, so the Locker says where they come from), any other season's the moment
+   * one is granted or found in stored profile data. Their look is derived from the id alone (a hash), so every
+   * device draws the same reward the same way. */
+  var PASS_CAT = { banner: "banner", frame: "frame", celebration: "celebration", kit: "uniform", title: "title", badge: "badge", nameplate: "nameplate", icon: "icon" };
+  function hsh(str) { var h = 2166136261 >>> 0; str = String(str); for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function hslHex(h, s2, l) { var a = s2 * Math.min(l, 1 - l), f = function (n) { var k = (n + h / 30) % 12, c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return Math.round(255 * c).toString(16).padStart(2, "0"); }; return "#" + f(0) + f(8) + f(4); }
+  var ICON_GLYPHS = ["🦅", "🐺", "🦁", "🐻", "⚡", "🔥", "🛡️", "👑", "🐍", "🦈"];
+  function passItem(rw) {
+    try {
+      if (!rw || !/^pass\.[A-Za-z0-9_-]+\.(free|premium)\.\d+$/.test(String(rw.id || ""))) return null;
+      if (BY[rw.id]) return BY[rw.id];
+      var cat = PASS_CAT[rw.kind]; if (!cat) return null;
+      var h = hsh(rw.id), c1 = hslHex(h % 360, 0.62, 0.42), c2 = hslHex((h >>> 9) % 360, 0.72, 0.62), rr = /^(common|rare|epic|legendary)$/.test(rw.rarity) ? rw.rarity : "common";
+      var it = { id: rw.id, cat: cat, name: String(rw.name || "Pass reward").replace(/[<>]/g, "").slice(0, 40), rarity: rr, source: "pass", tier: rw.tier | 0, track: rw.track === "premium" ? "premium" : "free", season: String(rw.season || "").slice(0, 12), packs: [], passKind: rw.kind };
+      if (cat === "banner") it.bg = "linear-gradient(135deg," + c1 + " 0%," + c2 + " 55%,#0b0f16 100%)";
+      else if (cat === "frame") it.css = { common: "steel", rare: "carbon", epic: "diamond", legendary: "gold" }[rr];
+      else if (cat === "celebration") it.c = { kind: { common: "spot", rare: "stars", epic: "fireworks", legendary: "rain" }[rr], col: [c2, "#ffffff", c1], say: rr === "legendary" ? "LEGEND" : "SEASON " + String(it.season).replace(/^s/, "") };
+      else if (cat === "uniform") it.k = { j: "team", p: "team", t: c2, pat: ["sleeves", "yoke", "chest", "hoops"][h % 4] };
+      else if (cat === "title") it.text = it.name.replace(/[“”"]/g, "");
+      else if (cat === "badge") it.glyph = ["🎖", "🏅", "⭐", "🔰", "💠"][h % 5], it.col = c2;
+      else if (cat === "nameplate") it.plate = "linear-gradient(90deg," + c1 + "cc," + c2 + "33 70%,transparent)";
+      else if (cat === "icon") it.glyph = ICON_GLYPHS[h % ICON_GLYPHS.length], it.col = c1;
+      it.preview = function (el) { return previewInto(el, it); };
+      ITEMS.push(it); BY[it.id] = it; return it;
+    } catch (e) { return null; }
+  }
+  var passSynced = "";
+  function syncPass() {
+    try {
+      var S = window.RIB_SEASONS; if (!S || !S.rewards || !S.current) return;
+      var sid = S.current().id; if (passSynced === sid) return; passSynced = sid;
+      var R = S.rewards(sid) || {}; (R.free || []).concat(R.premium || []).forEach(passItem);
+      // what the store already owns from earlier seasons
+      Object.keys(load().owned).forEach(function (id) { if (!BY[id]) findItem(id); });
+    } catch (e) {}
+  }
+  function findItem(id) {
+    if (BY[id]) return BY[id];
+    var m = /^pass\.([A-Za-z0-9_-]+)\.(free|premium)\.(\d+)$/.exec(String(id || ""));
+    if (!m) return null;
+    try { var S = window.RIB_SEASONS, R = S && S.rewards ? S.rewards(m[1]) : null, list = R ? R[m[2]] || [] : []; for (var i = 0; i < list.length; i++) if (list[i].id === id) return passItem(list[i]); } catch (e) {}
+    return null;
+  }
+  /* "team" in a kit means the team's own colour (the pass's Kit Trim keeps the team's jersey and adds a trim) */
+  function teamCol(i) { var t = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col; return (Array.isArray(t) && hexOk(t[i])) || (i ? "#e8c86a" : "#1f4fd0"); }
+  function resolveU(U, tc) { if (!U) return null; if (U.j !== "team" && U.p !== "team") return U; var o = Object.assign({}, U); if (o.j === "team") o.j = (tc && hexOk(tc[0])) || teamCol(0); if (o.p === "team") o.p = (tc && hexOk(tc[1])) || teamCol(1); return o; }
+
   /* ACHIEVEMENTS — read off the account's own state; each grants its items once, with a toast */
   var ACH = [
     { id: "title", name: "First title", desc: "Win a championship at any level", test: function (A) { return A.titles >= 1; } },
@@ -207,15 +267,15 @@
   function shopOn() { var m = M(); return !!(m && (!m.config || !m.config.features || m.config.features.cosmetics !== false)); }
 
   function owned(id) {
-    var it = BY[id]; if (!it) return false;
+    syncPass(); var it = findItem(id); if (!it) return false;
     if (it.source === "free") return true;
     if (it.source === "earned" || it.source === "pass") return !!load().owned[id];
     if (it.source === "shop") return mHas("cos:" + id) || it.packs.some(function (p) { return mHas("cos:" + p); });
     if (it.source === "founder") return mHas("founder") || mHas("cos:" + id) || mHas("cos:founder");
     return false;
   }
-  function grant(id, source) {
-    var it = BY[id]; if (!it) return false;
+  function grant(id, source, reward) {
+    syncPass(); var it = findItem(id) || (reward ? passItem(Object.assign({}, reward, { id: id })) : null); if (!it) return false;
     if (it.source === "free") return true;
     if (it.source === "shop" || it.source === "founder") {
       var m = M(); if (!m) return false;
@@ -234,30 +294,32 @@
     var ok = true; p.items.forEach(function (id) { ok = grant(id, source) && ok; }); return ok;
   }
   function equipped(slot) {
-    var id = load().equipped[slot];
+    if (slot == null) { var all = {}; SLOTS.forEach(function (s) { all[s] = equipped(s); }); return all; }
+    syncPass();
+    var id = load().equipped[slot]; if (id && !BY[id]) findItem(id);
     if (id && BY[id] && BY[id].cat === slot && owned(id)) return id;
     return CATS[slot] ? CATS[slot].def : null;
   }
   function equip(slot, id) {
     if (!CATS[slot]) return false;
     if (id == null) id = CATS[slot].def;
-    var it = BY[id]; if (!it || it.cat !== slot || !owned(id)) return false;
+    var it = findItem(id); if (!it || it.cat !== slot || !owned(id)) return false;
     load().equipped[slot] = id; persist(); fire({ equip: slot, id: id }); return true;
   }
   function item(slot) { return BY[equipped(slot)] || null; }
   function onChange(cb) { if (typeof cb !== "function") return function () {}; subs.push(cb); return function () { var i = subs.indexOf(cb); if (i >= 0) subs.splice(i, 1); }; }
-  function catalog() { return ITEMS.slice(); }
+  function catalog() { syncPass(); return ITEMS.slice(); }
   function packs() { return PACKS.map(function (p) { return { id: p.id, name: p.name, price: p.price, productId: p.productId, founder: !!p.founder, items: p.items.slice() }; }); }
   function howTo(it) {
     if (it.source === "free") return "Free";
     if (it.source === "earned") { var a = ACH_BY[it.ach]; return "Earn it: " + (a ? a.desc : "an achievement"); }
-    if (it.source === "pass") return "Season Pass · tier " + (it.tier || 1);
+    if (it.source === "pass") return (it.season ? "Career Pass " + it.season.toUpperCase() + " · " + (it.track === "premium" ? "premium " : "") : "Season Pass · ") + "tier " + (it.tier || 1);
     if (it.source === "founder") return "Founder Bundle";
     var p = PACKS.find(function (q) { return q.id === it.packs[0]; });
     return (p ? p.name : "Store") + (p && p.price ? " · " + p.price : "");
   }
   /* shop / founder items are not shown as purchasable with monetization OFF (owned ones still show) */
-  function listed(it) { return owned(it.id) || it.source === "free" || it.source === "earned" || it.source === "pass" || shopOn(); }
+  function listed(it) { if (it.season && window.RIB_SEASONS && !owned(it.id)) { try { if (window.RIB_SEASONS.current().id !== it.season) return false; } catch (e) {} } return owned(it.id) || it.source === "free" || it.source === "earned" || it.source === "pass" || shopOn(); }
 
   function toast(msg) {
     try { var t = document.getElementById("toast"); if (!t) return; t.textContent = msg; t.classList.add("show"); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove("show"); }, 2600); } catch (e) {}
@@ -324,6 +386,12 @@
     if (hue >= 33 && hue <= 62 && sat > 0.3 && L > 60) return [2, L];
     return [0, L];
   }
+  function shellClass(r, g, b) {
+    var k = classify(r, g, b); if (k[0]) return [k[0], k[1] / (k[0] === 1 ? 95 : 165)];
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = (mx + mn) / 2, sat = mx ? (mx - mn) / mx : 0;
+    if (sat < 0.2 && L > 70) return [3, L / 200];
+    return [0, 0];
+  }
   function pix(canvasOrImg, w, h) {
     if (!canvasOrImg) return null;
     try {
@@ -347,7 +415,7 @@
         var top = band && band.top != null ? band.top : head + Math.round(ink * 0.3);
         var waist = band && band.waist != null ? band.waist : head + Math.round(ink * 0.62);
         var hRows = {};
-        if (H) for (var y2 = head; y2 < top; y2++) { var a0 = 1e9, a1 = -1; for (var x2 = 0; x2 < W; x2++) { var i2 = (y2 * W + x2) * 4; if (s[i2 + 3] < 20) continue; if (classify(s[i2], s[i2 + 1], s[i2 + 2])[0]) { if (x2 < a0) a0 = x2; if (x2 > a1) a1 = x2; } } if (a1 >= 0) hRows[y2] = [a0, a1]; }
+        if (H) for (var y2 = head; y2 < top; y2++) { var a0 = 1e9, a1 = -1; for (var x2 = 0; x2 < W; x2++) { var i2 = (y2 * W + x2) * 4; if (s[i2 + 3] < 20) continue; if (shellClass(s[i2], s[i2 + 1], s[i2 + 2])[0]) { if (x2 < a0) a0 = x2; if (x2 > a1) a1 = x2; } } if (a1 >= 0) hRows[y2] = [a0, a1]; }
         var HS = H ? rgb(H.s) : null, HST = H && H.st ? rgb(H.st) : null, HD = H && H.d ? rgb(H.d) : null;
         var UT = U ? rgb(U.t || U.j) : null, UJ = U ? rgb(U.j) : null, UPS = U && U.ps ? rgb(U.ps) : null;
         var hMid = top - head > 2 ? Math.round((head + top) / 2) : head + 1, rr = prng(seed);
@@ -356,8 +424,8 @@
           if (UPS && yy > waist) for (var xq = 0; xq < W; xq++) { var iq = (yy * W + xq) * 4; if (s[iq + 3] >= 20 && classify(s[iq], s[iq + 1], s[iq + 2])[0] === 2) { if (xq < pl) pl = xq; if (xq > pr) pr = xq; } }
           for (var xx = 0; xx < W; xx++) {
             var i = (yy * W + xx) * 4; if (s[i + 3] < 20) continue;
-            var k = classify(s[i], s[i + 1], s[i + 2]), cls = k[0]; if (!cls) continue;
-            var sc = Math.min(1.75, Math.max(0.25, k[1] / (cls === 1 ? 95 : 165))), out = null;
+            var inHelm = yy < top && H, k = inHelm ? shellClass(s[i], s[i + 1], s[i + 2]) : classify(s[i], s[i + 1], s[i + 2]), cls = k[0]; if (!cls) continue;
+            var sc = Math.min(1.75, Math.max(0.25, inHelm ? k[1] : k[1] / (cls === 1 ? 95 : 165))), out = null;
             if (yy < top && H) {
               var f = H.f || "gloss", s2 = sc;
               if (f === "matte") s2 = 1 + (sc - 1) * 0.5;
@@ -396,13 +464,13 @@
   /* src/05 `ribSyncYouKitV96` asks this for the you-player's kit. `teamCols` is his team's palette, `oppCols`
    * the opponent's: a uniform whose jersey would read as the OTHER side's is not worn that game. */
   function fieldKit(teamCols, oppCols) {
-    var U = (item("uniform") || {}).k || null, H = (item("helmet") || {}).h || null;
+    var U = resolveU((item("uniform") || {}).k || null, teamCols), H = (item("helmet") || {}).h || null;
     if (!U && !H) { V.kit = null; return null; }
     var clash = false;
     if (U && oppCols && hexOk(oppCols[0]) && cdist(U.j, oppCols[0]) < TUv("cosKitClashV151B", 90)) { clash = true; U = null; }
     if (!U && !H) { V.kit = { clash: clash }; return null; }
     var p1 = U ? U.j : teamCols[0], p2 = U ? U.p : teamCols[1];
-    var stamp = "u:" + (U ? equipped("uniform") : "-") + "|h:" + (H ? equipped("helmet") : "-");
+    var stamp = "u:" + (U ? equipped("uniform") + ":" + U.j + U.p : "-") + "|h:" + (H ? equipped("helmet") : "-");
     if (decoCache.key !== stamp) decoCache = { key: stamp, fn: kitDeco(U, H) };
     V.kit = { uniform: U ? equipped("uniform") : null, helmet: H ? equipped("helmet") : null, p1: p1, p2: p2, clash: clash, stamp: stamp };
     return { p1: p1, p2: p2, deco: decoCache.fn, stamp: stamp };
@@ -410,14 +478,14 @@
   /* the menu feed's team.colors: [jersey, pants, helmet] when he wears something, else exactly what it was */
   function menuColors(c) {
     try {
-      var U = (item("uniform") || {}).k || null, H = (item("helmet") || {}).h || null;
+      var U = resolveU((item("uniform") || {}).k || null, c), H = (item("helmet") || {}).h || null;
       if (!U && !H) return c;
       var base = Array.isArray(c) && c.length >= 2 ? c : ["#1a2a44", "#e8c86a"];
       return [U ? U.j : base[0], U ? U.p : base[1], H ? H.s : U ? U.p : base[1]];
     } catch (e) { return c; }
   }
   function kitData() {
-    var U = (item("uniform") || {}).k || null, H = (item("helmet") || {}).h || null;
+    var U = resolveU((item("uniform") || {}).k || null, null), H = (item("helmet") || {}).h || null;
     var tc = window.__GRIDIRON_TEAM_CUSTOM__ || {}, col = Array.isArray(tc.col) ? tc.col : ["#1f4fd0", "#e8c86a"];
     return { j: U ? U.j : col[0], p: U ? U.p : col[1], t: U ? U.t || null : null, pat: U ? U.pat || "solid" : "solid", ps: U ? U.ps || null : null,
       hs: H ? H.s : null, hst: H ? H.st || null : null, hf: H ? H.f || null : null, hd: H ? H.d || null : null, hdk: H ? H.dk || null : null };
@@ -535,7 +603,7 @@
     el.classList.add("cos-pv-v151b", "cat-" + cat);
     if (cat === "uniform" || cat === "helmet") {
       var tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"];
-      var U = it.k || (cat === "helmet" ? (item("uniform") || {}).k : null) || { j: tc[0], p: tc[1], pat: "solid" };
+      var U = resolveU(it.k || (cat === "helmet" ? (item("uniform") || {}).k : null), tc) || { j: tc[0], p: tc[1], pat: "solid" };
       var H = it.h || (cat === "uniform" ? (item("helmet") || {}).h : null);
       var cv = spriteCanvas({ U: U, H: H }, 64);
       el.innerHTML = "";
@@ -553,6 +621,9 @@
     else if (cat === "banner") html = '<div class="cos-ban-v151b" style="background:' + it.bg + (it.edge ? ";border-bottom:2px solid " + it.edge : "") + '"></div>';
     else if (cat === "shelf") html = '<div class="cos-shelf-v151b sh-' + it.css + '"><span>🏆</span><span>🏅</span><span>💍</span></div>';
     else if (cat === "recap") html = '<div class="cos-rcp-v151b rc-' + (it.css || "none") + '"><b>A</b><i></i><i></i></div>';
+    else if (cat === "title") html = '<div class="cos-flair-v151b"><small>' + escHtml(it.text || "—") + "</small></div>";
+    else if (cat === "badge" || cat === "icon") html = '<div class="cos-flair-v151b big"' + (it.col ? ' style="box-shadow:0 0 0 2px ' + it.col + ' inset"' : "") + ">" + escHtml(it.glyph || "·") + "</div>";
+    else if (cat === "nameplate") html = '<div class="cos-flair-v151b plate" style="background:' + (it.plate || "#1a2230") + '"><small>NAME</small></div>';
     el.innerHTML = html; return el;
   }
 
@@ -609,7 +680,7 @@
     var feed = null; try { feed = window.__RIB_MENU_DATA_V89 && window.__RIB_MENU_DATA_V89(); } catch (x) {}
     var ovr = feed && feed.player ? feed.player.ovr : null;
     return {
-      v: 1, at: Date.now(),
+      v: 1,
       name: String((e && e.name) || (A.surname ? "The " + A.surname + " line" : "Rookie")).slice(0, 40),
       pos: e ? String(e.pos || "") : "", level: e ? e.level || 0 : null, levelName: e ? levelName(e.level || 0) : "", age: e ? e.age || null : null, ovr: ovr,
       team: { school: String(tc.schoolName || "").slice(0, 24), name: String(tc.teamName || "").slice(0, 18), colors: Array.isArray(tc.col) ? tc.col.slice(0, 2).filter(hexOk) : [], logo: tc.logo != null ? tc.logo | 0 : null },
@@ -619,7 +690,7 @@
       titlesByLevel: A.byLevel, gen: A.gen, surname: String(A.surname || "").slice(0, 24), bestScore: A.bestScore, careerScore: A.careerScore || 0,
       teamStyle: { unlocked: ts.unlocked, total: ts.total, all: ts.all },
       achievements: Object.keys(load().ach),
-      cosmetics: { frame: equipped("frame"), banner: equipped("banner"), shelf: equipped("shelf"), uniform: equipped("uniform"), helmet: equipped("helmet"), recap: equipped("recap"), kit: kitData() }
+      cosmetics: { title: equipped("title"), badge: equipped("badge"), nameplate: equipped("nameplate"), icon: equipped("icon"), frame: equipped("frame"), banner: equipped("banner"), shelf: equipped("shelf"), uniform: equipped("uniform"), helmet: equipped("helmet"), recap: equipped("recap"), kit: kitData() }
     };
   }
   function num(n) { n = Number(n) || 0; return n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "M" : n >= 1e4 ? Math.round(n / 1e3) + "K" : n.toLocaleString("en-US"); }
@@ -630,6 +701,9 @@
     var fr = BY[cz.frame] && BY[cz.frame].cat === "frame" ? BY[cz.frame] : BY.frame_basic;
     var bn = BY[cz.banner] && BY[cz.banner].cat === "banner" ? BY[cz.banner] : BY.ban_charcoal;
     var sh = BY[cz.shelf] && BY[cz.shelf].cat === "shelf" ? BY[cz.shelf] : BY.shelf_oak;
+    var pick = function (id, cat) { var it = id ? findItem(id) : null; return it && it.cat === cat ? it : null; };
+    var fr2 = pick(cz.frame, "frame"), bn2 = pick(cz.banner, "banner"); if (fr2) fr = fr2; if (bn2) bn = bn2;   // a Career Pass frame / banner
+    var ttl = pick(cz.title, "title"), bdg = pick(cz.badge, "badge"), npl = pick(cz.nameplate, "nameplate"), ico = pick(cz.icon, "icon");
     var t = d.team || {}, cols = (t.colors || []).filter(hexOk), compact = !!opts.compact;
     var logo = ""; try { if (t.logo != null && window.TEAM_LOGOS_V44) logo = '<i class="pc-logo-v151b emblem-v44" style="' + escHtml(window.TEAM_LOGOS_V44.cssFull(t.logo | 0)) + '"></i>'; } catch (x) {}
     var trophies = [["🏆", d.titles, "TITLES"], ["💍", d.rings, "RINGS"], ["⭐", d.mvps, "MVPS"], ["🏛️", d.hof, "HALL"]];
@@ -637,9 +711,12 @@
     var team = [t.school, t.name].filter(Boolean).join(" ");
     var html = '<div class="pcard-v151b fr-' + escHtml(fr.css) + (compact ? " compact" : "") + '" data-frame="' + escHtml(fr.id) + '">' +
       '<div class="pc-ban-v151b" style="background:' + bn.bg + (bn.edge ? ";border-bottom:2px solid " + bn.edge : "") + '" data-banner="' + escHtml(bn.id) + '">' +
-      (d.gen > 1 ? '<span class="pc-gen-v151b">GEN ' + (d.gen | 0) + "</span>" : "") + (d.ovr != null ? '<span class="pc-ovr-v151b"><b>' + (d.ovr | 0) + "</b>OVR</span>" : "") + "</div>" +
+      (ico && ico.glyph ? '<span class="pc-ico-v151b" style="box-shadow:0 0 0 2px ' + (ico.col || "#f0bb45") + ' inset" data-icon="' + escHtml(ico.id) + '">' + escHtml(ico.glyph) + "</span>" : "") +
+      (d.gen > 1 ? '<span class="pc-gen-v151b' + (ico && ico.glyph ? " shift" : "") + '">GEN ' + (d.gen | 0) + "</span>" : "") +
+      (bdg && bdg.glyph ? '<span class="pc-bdg-v151b" data-badge="' + escHtml(bdg.id) + '">' + escHtml(bdg.glyph) + "</span>" : "") + (d.ovr != null ? '<span class="pc-ovr-v151b"><b>' + (d.ovr | 0) + "</b>OVR</span>" : "") + "</div>" +
       '<div class="pc-body-v151b"><div class="pc-fig-v151b"><canvas class="pc-cv-v151b" width="128" height="160"></canvas></div>' +
-      '<div class="pc-id-v151b"><div class="pc-name-v151b">' + escHtml(String(d.name || "").toUpperCase()) + "</div>" +
+      '<div class="pc-id-v151b"><div class="pc-name-v151b"' + (npl && npl.plate ? ' style="background:' + npl.plate + ';padding:1px 6px;border-radius:5px" data-plate="' + escHtml(npl.id) + '"' : "") + ">" + escHtml(String(d.name || "").toUpperCase()) + "</div>" +
+      (ttl && ttl.text ? '<div class="pc-title-v151b" data-title="' + escHtml(ttl.id) + '">' + escHtml(ttl.text) + "</div>" : "") +
       '<div class="pc-meta-v151b">' + meta + "</div>" +
       (team || cols.length ? '<div class="pc-team-v151b">' + logo + cols.map(function (c) { return '<i class="pc-sw-v151b" style="background:' + c + '"></i>'; }).join("") + "<span>" + escHtml(team.toUpperCase()) + "</span></div>" : "") +
       (d.club ? '<div class="pc-club-v151b">' + escHtml(d.club) + "</div>" : "") + "</div></div>" +
@@ -672,6 +749,7 @@
     V.profileShown = (V.profileShown || 0) + 1;
   }
   window.__profileRenderV151B = screenProfile;
+  function openProfile() { try { if (window.go) { window.go("profile"); return true; } } catch (e) {} return false; }
   window.cosOpenStyleV151B = function () { try { var H = window.__HUB_V75; if (H && H.tabs) H.tabs.locker = "style"; } catch (e) {} window.go && window.go("locker"); };
 
   /* ---------------- the STYLE tab in the Locker ---------------- */
@@ -857,6 +935,10 @@
       ".rv-cos-v151b i{position:absolute;bottom:-8px;width:calc(4px*var(--s));height:calc(4px*var(--s));border-radius:50%;background:var(--mote);box-shadow:0 0 8px var(--mote);opacity:.7;animation:cosMoteV151B linear infinite}",
       "@keyframes cosMoteV151B{0%{transform:translateY(0);opacity:0}15%{opacity:.75}100%{transform:translateY(-105vh);opacity:0}}",
       "@media(prefers-reduced-motion:reduce){.rv-cos-v151b i{animation:none;opacity:.35;bottom:40%}}",
+      ".pc-ico-v151b{position:absolute;left:10px;top:8px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.6);font-size:15px}.pc-gen-v151b.shift{left:42px!important}",
+      ".pc-bdg-v151b{position:absolute;right:62px;top:10px;font-size:20px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.7))}",
+      ".pc-title-v151b{font:600 10px Oswald,sans-serif;letter-spacing:1.2px;color:#ffd76f;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+      ".cos-flair-v151b{min-width:58px;height:40px;border-radius:8px;display:grid;place-items:center;background:#131b27;color:#ffd76f;font:600 9px Oswald,sans-serif;letter-spacing:.8px;padding:0 4px;text-align:center}.cos-flair-v151b.big{width:40px;min-width:0;border-radius:50%;font-size:20px}.cos-flair-v151b.plate small{color:#fff}",
       /* the profile screen */
       ".prof-chips-v151b{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}.prof-more-v151b{margin-top:0}",
       /* the team creator's gate */
@@ -871,7 +953,7 @@
   var API = {
     version: "v151b", slots: SLOTS.slice(), cats: CATS, achievements: ACH.map(function (a) { return { id: a.id, name: a.name, desc: a.desc }; }),
     catalog: catalog, owned: owned, grant: grant, grantPack: grantPack, equip: equip, equipped: equipped, packs: packs, onChange: onChange,
-    profile: profile, renderCard: renderCard, drawCharacter: drawCharacter, howTo: howTo, listed: listed,
+    profile: profile, renderCard: renderCard, openProfile: openProfile, passItem: passItem, drawCharacter: drawCharacter, howTo: howTo, listed: listed,
     checkEarned: checkEarned, account: account, teamStyle: teamStyle,
     /* the renderer's and the vault's reads */
     fieldKit: fieldKit, menuColors: menuColors, celebrate: celebrate, stadiumTheme: stadiumTheme, vaultTheme: vaultTheme, vaultTint: vaultTint, vaultDress: vaultDress,
