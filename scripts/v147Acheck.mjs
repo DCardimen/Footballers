@@ -36,6 +36,13 @@ async function boot() {
   page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
   page.on('dialog', d => d.accept())
   await page.addInitScript(() => {
+    // v150 A: RETIRE asks through the in-app ribDialog now — press its confirm the way a player would
+    setInterval(() => {
+      const d = document.getElementById('ribDlgV149')
+      if (!d || d.__seenV150) return
+      d.__seenV150 = 1
+      setTimeout(() => { const x = d.querySelector('button.danger-v149, button.primary-v149'); if (x) x.click() }, 40)
+    }, 50)
     try { localStorage.setItem('rib.coachTour.v119', 'off'); localStorage.setItem('rib.debriefOff.v122', 'off') } catch {}
     setInterval(() => { try { if (window.S) window.S.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove(); document.getElementById('personaV13')?.remove() }, 60)
   })

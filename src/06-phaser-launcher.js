@@ -5,9 +5,26 @@
 var SAVE='gridiron_save_v1', BACKUP='gridiron_save_v1_backup', SCHEMA=1;
 function migrate(e){ e.schemaVersion=Number(e.schemaVersion!=null?e.schemaVersion:SCHEMA); return e; }
 function read(k){ var i=localStorage.getItem(k); if(!i)return null; try{return JSON.parse(i)}catch(err){return null} }
+/* ===== v150 A A DAMAGED SAVE HAS SOMEWHERE TO GO =====
+ * A save is a save only if it is an object carrying `prestige` (a bare JSON value used to reach migrate() and
+ * throw). When the main key will not read, the one-deep backup is tried, then the v149 D rolling backups
+ * (rib_backup_v149_*, newest first); the unreadable text is kept under gridiron_save_v1_corrupt, and
+ * window.__saveRecoveredV150 says what happened so the career app can tell the player. And the one-deep
+ * backup is only overwritten by text that looks whole — a damaged save no longer evicts the good copy. */
+function isSave(e){ return !!e && typeof e==='object' && !Array.isArray(e) && ('prestige' in e); }
+function rolling(){ try{ var idx=JSON.parse(localStorage.getItem('rib_backups_v149')||'[]'); if(!Array.isArray(idx))return null; for(var i=0;i<idx.length;i++){ var m=idx[i]||{}, e=read('rib_backup_v149_'+m.id); if(isSave(e))return {save:e,meta:m}; } }catch(err){} return null; }
+function whole(t){ return typeof t==='string' && t.charAt(0)==='{' && t.charAt(t.length-1)==='}'; }
 window.GridironStorage={
-  load:function(){ var e=read(SAVE); if(e)return migrate(e); var i=read(BACKUP); return i?migrate(i):null; },
-  save:function(e){ var i=migrate(typeof structuredClone==='function'?structuredClone(e):JSON.parse(JSON.stringify(e))); var l=localStorage.getItem(SAVE); if(l)localStorage.setItem(BACKUP,l); localStorage.setItem(SAVE,JSON.stringify(i)); try{window.__savePulse&&window.__savePulse();}catch(err){} },
+  load:function(){
+    var raw=localStorage.getItem(SAVE), e=read(SAVE); if(isSave(e))return migrate(e);
+    if(raw){ try{ localStorage.setItem(SAVE+'_corrupt',raw); }catch(err){} }
+    var note=function(from,at){ window.__saveRecoveredV150={from:from,at:at||0,had:!!raw}; };
+    var i=read(BACKUP); if(isSave(i)){ if(raw)note('backup'); return migrate(i); }
+    var r=rolling(); if(r){ note('rolling',r.meta.at); return migrate(r.save); }
+    if(raw)note('fresh');
+    return null;
+  },
+  save:function(e){ var i=migrate(typeof structuredClone==='function'?structuredClone(e):JSON.parse(JSON.stringify(e))); var l=localStorage.getItem(SAVE); if(l&&whole(l))localStorage.setItem(BACKUP,l); localStorage.setItem(SAVE,JSON.stringify(i)); try{window.__savePulse&&window.__savePulse();}catch(err){} },
   export:function(){ return localStorage.getItem(SAVE); }
 };
 var inst;

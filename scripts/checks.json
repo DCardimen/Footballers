@@ -23,7 +23,8 @@
     "v142check",
     "agecheck",
     "traincheck",
-    "layoutcheck"
+    "layoutcheck",
+    "v150Acheck"
    ]
   },
   "career-uff": {
@@ -297,6 +298,7 @@
    ],
    "files": [],
    "checks": [
+    "v150Acheck",
     "bootviewcheck",
     "splashcheck",
     "walk",
@@ -1031,6 +1033,7 @@
    ],
    "files": [],
    "checks": [
+    "v150Acheck",
     "namecheck",
     "emblemcheck",
     "menu-integration-check",
@@ -1123,6 +1126,7 @@
    ],
    "files": [],
    "checks": [
+    "v150Acheck",
     "declarecheck"
    ]
   },
@@ -1202,6 +1206,7 @@
     "capacitor.config.json"
    ],
    "checks": [
+    "v150Acheck",
     "v149Dcheck",
     "bootviewcheck",
     "freshcheck",
@@ -1209,6 +1214,34 @@
     "walk",
     "menu-integration-check",
     "layoutcheck"
+   ]
+  },
+  "v150a": {
+   "desc": "v150 A — the bugs the audit found: name escaping/sanitising, the growth dials, the declare stakes, import through boot, corrupt-save recovery, ribDialog at every confirm/prompt",
+   "anchors": [
+    "v150 A",
+    "cleanNameV150",
+    "cleanSaveV150",
+    "checkSaveV150",
+    "askV150",
+    "setGrowthDialV150",
+    "__saveRecoveredV150"
+   ],
+   "files": [
+    "scripts/v150Acheck.mjs"
+   ],
+   "checks": [
+    "v150Acheck",
+    "declarecheck",
+    "bootviewcheck",
+    "v146Echeck",
+    "v147Acheck",
+    "v112Ccheck",
+    "v149Dcheck",
+    "v149Echeck",
+    "honorcheck",
+    "walk",
+    "menu-integration-check"
    ]
   }
  },
@@ -3137,6 +3170,22 @@
    "runtimeSec": 420,
    "slow": true,
    "needsServer": false,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v150Acheck": {
+   "file": "scripts/v150Acheck.mjs",
+   "desc": "v150 A — the audit's confirmed bugs: hostile names render inert (inputs cleaned, saves cleaned at boot, screens escape), the v42 growth dials save, the declare stakes are on screen, an import runs the boot migrations and refuses bad shapes/markup, a corrupt save boots from a backup, every confirm/prompt/pop-up is ribDialog.",
+   "areas": [
+    "v150a",
+    "boot",
+    "declare",
+    "names",
+    "pwa"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
    "pureNode": false,
    "flaky": []
   }

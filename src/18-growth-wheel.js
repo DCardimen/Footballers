@@ -10,7 +10,7 @@
  */
 (function(){
   "use strict";
-  const ST=()=>{try{return window.__GRIDIRON_AUDIT__?.getState?.()||window.o||null}catch(e){return null}};
+  const ST=()=>{try{return window.__GRIDIRON_AUDIT__?.getState?.()||window.S||null}catch(e){return null}};
   const PL=()=>{const s=ST();return s&&s.player||null};
   const SET=()=>{const s=ST();if(!s)return{};s.settings=s.settings||{};return s.settings};
   const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -969,6 +969,10 @@ function gateV139(root,cfg,go,DS){
     }
     if(played<lastPlayed)lastPlayed=played;                               // new career/season reset
   }catch(e){}},700);
+  /* v150 A: the dials wrote window.o.settings — window.o never existed (the state is window.S), so every change threw
+   * and none was kept. One setter on the live state, saved through GridironStorage like every other write. */
+  window.setGrowthDialV150=function(k,v){const s=ST();if(!s||!/^(freq|luck|soften|jive)$/.test(String(k)))return false;const n=+v;if(!isFinite(n))return false;
+    s.settings=s.settings||{};s.settings["growth_"+k]=n;try{window.GridironStorage&&window.GridironStorage.save(s)}catch(e){}return true};
   // hub chips + settings dials (polled injection, same pattern as other late blocks)
   setInterval(()=>{try{
     const s=ST(),pl=PL(),scr=document.getElementById("screen");if(!s||!pl||!scr)return;
@@ -977,7 +981,7 @@ function gateV139(root,cfg,go,DS){
       (scr.querySelector(".card")||scr.firstElementChild)?.insertAdjacentHTML("afterend",`<div class="card gv42-chips"><div class="eyebrow">ACTIVE GROWTH EFFECTS</div>${chips}</div>`);
     }
     if(s.view==="settings"&&!scr.querySelector(".gv42-set")){
-      const row=(k,lab,opts)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #ffffff10"><span style="font-size:13px">${lab}</span><select onchange="(${'window.o.settings=window.o.settings||{}'},window.o.settings['growth_${k}']=+this.value,(function(){try{I()}catch(e){}})())" style="background:#0d1420;color:#e8ecf2;border:1px solid #ffffff22;border-radius:6px;padding:4px 7px">${opts.map(o=>`<option value="${o[0]}" ${dial(k,{freq:1,luck:0,soften:0}[k])===o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></div>`;
+      const row=(k,lab,opts)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #ffffff10"><span style="font-size:13px">${lab}</span><select data-growth-dial="${k}" onchange="setGrowthDialV150('${k}',this.value)" style="background:#0d1420;color:#e8ecf2;border:1px solid #ffffff22;border-radius:6px;padding:4px 7px">${opts.map(o=>`<option value="${o[0]}" ${dial(k,{freq:1,luck:0,soften:0,jive:.85}[k])===o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></div>`;
       scr.insertAdjacentHTML("beforeend",`<div class="card gv42-set"><div class="eyebrow">GROWTH DECISIONS</div>
         ${row("freq","Midseason decision frequency",[[0,"Off"],[1,"Normal (2-3/season)"],[2,"Busy"],[3,"Constant"]])}
         ${row("luck","Outcome luck bias",[[-1,"Harsh"],[0,"Fair"],[1,"Kind"],[2,"Charmed"]])}

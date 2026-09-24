@@ -47,7 +47,7 @@
 
     const screenText = originalText(screen);
     const appText = originalText(app);
-    const viewName = clean(window.o?.view).toLowerCase();
+    const viewName = clean(((window.__GRIDIRON_AUDIT__?.getState?.()) || window.S)?.view).toLowerCase();   // v150 A: window.o never existed
     const viewLooksMain = /^(main|menu|home|title)$/.test(viewName);
     const hasOriginalHero = !!screen.querySelector('.hero:not([data-rib-main-sentinel])');
     const label = labelFrom(screenText) || ((hasOriginalHero || viewLooksMain) ? labelFrom(appText) : '');

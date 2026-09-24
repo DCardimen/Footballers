@@ -25,7 +25,13 @@
   var POS_LIST = ["QB", "RB", "WR", "TE", "LB", "CB", "S", "DL"];
   var $ = function (id) { return document.getElementById(id); };
   var fmt = function (n) { return (n | 0).toLocaleString(); };
-  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); };
+  // v150 A: a handle is cleaned the way every name in the game is (window.__V150A.clean); a local copy if the career block is absent
+  var cleanName = function (n, max) {
+    if (window.__V150A && window.__V150A.clean) return window.__V150A.clean(n, max);
+    return String(n == null ? "" : n).replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, "").replace(/[<>`\\{}]/g, "")
+      .replace(/&/g, "\uff06").replace(/"/g, "\u201d").replace(/'/g, "\u2019").replace(/\s+/g, " ").trim().slice(0, max);
+  };
 
   // ---- rolling-week key (year + ISO-ish week number) ----
   function weekKey(ts) {
@@ -42,7 +48,7 @@
     try { var v = localStorage.getItem(k); if (!v) { v = "d_" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(k, v); } return v; }
     catch (e) { return "d_anon"; }
   }
-  function localName() { try { return localStorage.getItem("rib_lb_handle") || ""; } catch (e) { return ""; } }
+  function localName() { try { return cleanName(localStorage.getItem("rib_lb_handle") || "", 16); } catch (e) { return ""; } }
   function setLocalName(n) { try { localStorage.setItem("rib_lb_handle", n); } catch (e) {} }
   var IDENT = null;
   async function identity() {
@@ -186,7 +192,7 @@
     },
     top: function (opts) { return backend.top(opts || { board: "global" }); },
     identity: identity,
-    setName: async function (n) { n = (n || "").trim().slice(0, 16); if (!n) return; setLocalName(n); IDENT = null; await identity(); }
+    setName: async function (n) { n = cleanName(n || "", 16); if (!n) return; setLocalName(n); IDENT = null; await identity(); }
   };
 
   // ---- leaderboard screen ----
@@ -245,7 +251,9 @@
     pos: function (p) { LPOS = p; load(); },
     rename: async function () {
       var cur = localName();
-      var n = window.prompt("Leaderboard name (max 16 chars):", cur || "");
+      // v150 A: the in-app dialog (v149 D), not the browser's prompt
+      var D = window.ribDialog;
+      var n = D && D.prompt ? await D.prompt("Your name on the leaderboards (max 16 characters):", cur || "", { title: "Leaderboard name", ok: "Save", maxLength: 16 }) : null;
       if (n && n.trim()) { await window.__lb.setName(n); draw(); }
     }
   };
