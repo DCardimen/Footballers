@@ -20,8 +20,8 @@
       return Math.floor(this.between(t, a + 1));
     }
   }
-  const Fn = ["disciplined", "feature", "explosive", "team", "recovery"],
-    ma = [
+  const PLAN_IDS = ["disciplined", "feature", "explosive", "team", "recovery"],
+    SPECIALIZATIONS = [
       {
         id: "tactician",
         icon: "🧠",
@@ -48,7 +48,7 @@
         description: "Story choices and chemistry effects become more reliable."
       }
     ],
-    Cs = [
+    LEGACY_UNLOCKS = [
       {
         id: "origin-draft",
         icon: "🎭",
@@ -85,7 +85,7 @@
         description: "Every new run receives one additional optional legacy objective."
       }
     ],
-    It = [
+    ORIGINS = [
       {
         id: "late-bloomer",
         icon: "🌱",
@@ -167,14 +167,14 @@
         objectiveIds: ["starter", "scholarship", "second-contract"]
       }
     ],
-    Ua = [
+    LEGACY_OBJECTIVES = [
       {
         id: "varsity-starter",
         icon: "💡",
         title: "Late Arrival",
         description: "Become a Varsity starter.",
         reward: 2,
-        check: e => e.level >= 4 && Et(e.depthRole) >= 3
+        check: e => e.level >= 4 && roleRank(e.depthRole) >= 3
       },
       {
         id: "college-starter",
@@ -182,7 +182,7 @@
         title: "Belong Here",
         description: "Become a College starter.",
         reward: 3,
-        check: e => e.level >= 5 && Et(e.depthRole) >= 3
+        check: e => e.level >= 5 && roleRank(e.depthRole) >= 3
       },
       {
         id: "late-nfl",
@@ -262,7 +262,7 @@
         title: "Earn the First Team",
         description: "Become a starter.",
         reward: 2,
-        check: e => Et(e.depthRole) >= 3
+        check: e => roleRank(e.depthRole) >= 3
       },
       {
         id: "two-positions",
@@ -278,7 +278,7 @@
         title: "Useful Everywhere",
         description: "Earn a rotational role.",
         reward: 1,
-        check: e => Et(e.depthRole) >= 2
+        check: e => roleRank(e.depthRole) >= 2
       },
       {
         id: "nfl-roster",
@@ -329,8 +329,8 @@
         check: e => (e.nflStateV11?.contractsEarned || 0) >= 2
       }
     ],
-    Dn = [
-      { id: "first-start", icon: "🏈", title: "First Start", tokens: 1, test: e => Et(e.depthRole) >= 3 },
+    MILESTONES = [
+      { id: "first-start", icon: "🏈", title: "First Start", tokens: 1, test: e => roleRank(e.depthRole) >= 3 },
       { id: "varsity-roster", icon: "🌃", title: "Friday Night Roster", tokens: 1, test: e => e.level >= 4 },
       { id: "college-offer", icon: "🎓", title: "College Opportunity", tokens: 2, test: e => e.level >= 5 },
       {
@@ -338,7 +338,7 @@
         icon: "📣",
         title: "College Starter",
         tokens: 2,
-        test: e => e.level >= 5 && Et(e.depthRole) >= 3
+        test: e => e.level >= 5 && roleRank(e.depthRole) >= 3
       },
       { id: "combine", icon: "⏱️", title: "Combine Invitation", tokens: 3, test: e => e.level >= 6 },
       { id: "nfl-camp", icon: "📋", title: "UFF Training Camp", tokens: 3, test: e => e.level >= 7 },
@@ -359,7 +359,7 @@
       { id: "champion", icon: "🏆", title: "Champion", tokens: 3, test: e => (e.titles || 0) >= 1 },
       { id: "comeback", icon: "❤️‍🩹", title: "Comeback Complete", tokens: 2, test: e => (e.comebackGamesV11 || 0) >= 1 }
     ];
-  function Et(e) {
+  function roleRank(e) {
     const t = String(e || "").toLowerCase();
     return t.includes("franchise") || t.includes("team star") || t.includes("first string")
       ? 5
@@ -375,7 +375,7 @@
   }
   const clamp = (e, t, a) => Math.max(t, Math.min(a, e)),
     sample = (e, t = Math.random) => e[Math.floor(t() * e.length)];
-  function Ls(e, t = Math.random) {
+  function shuffled(e, t = Math.random) {
     const a = [...e];
     for (let s = a.length - 1; s > 0; s--) {
       const n = Math.floor(t() * (s + 1)),
@@ -393,16 +393,16 @@
     const t = new Po(Co(e.map(a => String(a ?? "")).join("|")));
     return () => t.next();
   }
-  function Es(e, t, a = 3) {
+  function selectOriginOptions(e, t, a = 3) {
     a = Math.max(a, e.legacyUnlocksV11?.["origin-draft"] ? 4 : a);
     const s = seededRng(e.careers || 0, t.name, t.seasonSeed, "origins"),
-      n = [...It],
+      n = [...ORIGINS],
       i = [];
     for (; n.length && i.length < a;) i.push(n.splice(Math.floor(s() * n.length), 1)[0]);
     return i;
   }
   function getOrigin(e) {
-    return It.find(t => t.id === e.originV11);
+    return ORIGINS.find(t => t.id === e.originV11);
   }
   /* ===== v131 THE PRICE OF STARTING OVER, IN NUMBERS =====
    * When a career ends and you roll another one, two screens decide the next man and neither of
@@ -506,13 +506,13 @@
   window.__V131 = {
     eff: originEffV131,
     say: originSayV131,
-    origins: () => It,
+    origins: () => ORIGINS,
     press: e => pressNeedV131(e || (state && state.player)),
     clutch: (e, op) => clutchV131(e || (state && state.player), op || { playoff: !0 }),
     reroll: e => rerollNoteV112(e || (state && state.player))
   };
-  function As(e, t, a) {
-    const s = It.find(d => d.id === t);
+  function applyOrigin(e, t, a) {
+    const s = ORIGINS.find(d => d.id === t);
     if (!s || e.originV11) return s || null;
     ((e.originV11 = s.id),
       (e.originNameV11 = s.name),
@@ -539,7 +539,7 @@
       s
     );
   }
-  function gt(e) {
+  function ensureCondition(e) {
     e.conditionV11 ||
       (e.conditionV11 = {
         fatigue: 14,
@@ -561,8 +561,8 @@
       t
     );
   }
-  function Vs(e) {
-    const t = gt(e),
+  function conditionModifiers(e) {
+    const t = ensureCondition(e),
       a = t.injury ? t.injury.severity * 5 + Math.min(8, t.injury.weeksRemaining) : 0,
       s = Math.max(0, t.fatigue - 45) * 0.16,
       n = Math.max(0, t.mentalLoad - 62) * 0.08,
@@ -585,8 +585,8 @@
     ["Torn muscle", 3, 7, 0.36],
     ["Major knee injury", 3, 10, 0.42]
   ];
-  function Gn(e, t = Math.random) {
-    const a = gt(e),
+  function rollInjury(e, t = Math.random) {
+    const a = ensureCondition(e),
       s = clamp((a.fatigue - 50) / 45 + Math.max(0, (e.age || 18) - 31) / 20, 0, 1.3);
     let n = wn.filter(l => l[1] <= (s > 0.72 ? 3 : s > 0.28 ? 2 : 1));
     n.length || (n = [...wn]);
@@ -600,8 +600,8 @@
       recurrence: clamp(i[3] + (r?.effects.recurrence || 0), 0.04, 0.7)
     };
   }
-  function Hn(e, t, a, s) {
-    const n = gt(e),
+  function updateConditionAfterGame(e, t, a, s) {
+    const n = ensureCondition(e),
       i = { disciplined: 5, feature: 11, explosive: 16, team: 9, recovery: -10 },
       r = Math.max(0, (e.age || 18) - 28) * 0.7,
       l = t.snaps || Math.round((e.snapShare || 0.2) * 65),
@@ -623,12 +623,12 @@
         )),
         n.injury.weeksRemaining <= 0 && ((e.recentlyRecoveredV11 = n.injury.severity), (n.injury = null))),
       (n.fatigue = clamp(n.fatigue - u * (1 + gearV147("recovery")), 0, 100)),
-      t.injured && !n.injury && (n.injury = Gn(e, seededRng(e.seasonSeed, e.level, t.week, t.opp, t.perf, "injury-roll"))),
+      t.injured && !n.injury && (n.injury = rollInjury(e, seededRng(e.seasonSeed, e.level, t.week, t.opp, t.perf, "injury-roll"))),
       { fatigueDelta: d - u, condition: n }
     );
   }
-  function qn(e) {
-    const t = gt(e),
+  function restBetweenSeasons(e) {
+    const t = ensureCondition(e),
       a = clamp(42 - Math.max(0, (e.age || 18) - 29) * 1.4, 12, 45);
     ((t.fatigue = clamp(t.fatigue - a, 0, 100)),
       (t.mentalLoad = clamp(t.mentalLoad - 28, 0, 100)),
@@ -667,7 +667,7 @@
       "Forces long drives",
       "Gambles on early-down aggression"
     ];
-  function rt(e, t, a, s, n) {
+  function createOpponentProfile(e, t, a, s, n) {
     const i = seededRng(s, t, a, e, n, "opponent"),
       r = sample(Lo, i);
     let l = sample(ja, i);
@@ -695,7 +695,7 @@
       importance: h
     };
   }
-  function bt(e, t, a) {
+  function scoutOpponent(e, t, a) {
     const s = t.attrs?.awareness || 10,
       n = t.training === "film" || t.training === "mental" ? 12 : 0,
       i = a === "tactician" ? 18 : 0,
@@ -710,19 +710,19 @@
         `Tempo: ${e.tempo}`
       ],
       u = l >= 82 ? 5 : l >= 66 ? 4 : l >= 48 ? 3 : 2,
-      h = Ls(c, d).slice(0, u);
+      h = shuffled(c, d).slice(0, u);
     let p = e.counterPlan;
     l < 45 &&
       d() < 0.32 &&
       (p = sample(
-        Fn.filter(C => C !== e.counterPlan),
+        PLAN_IDS.filter(C => C !== e.counterPlan),
         d
       ));
     const m = e.rating > t.level * 6 + 58 ? "Difficult" : e.rating < t.level * 5 + 43 ? "Favorable" : "Competitive",
       y = { confidence: Math.round(l), reveals: h, hiddenCount: c.length - u, recommendedPlan: p, matchupLabel: m };
     return ((e.scouted = y), y);
   }
-  function Wn(e, t, a, s) {
+  function matchupPlanModifier(e, t, a, s) {
     let n = 0,
       i = 0,
       r = 0,
@@ -755,7 +755,7 @@
       "Fast developer",
       "Recurring injury concern"
     ];
-  function Gt(e, t, a = Math.random) {
+  function ensureRival(e, t, a = Math.random) {
     if (e.roleRivalV11 && e.roleRivalV11.level === e.level) return e.roleRivalV11;
     const s = sample(
         ["Jaylen", "Trey", "DeAndre", "Cooper", "Zane", "Marcus", "Kai", "Bryce", "Tank", "Julian", "Rome", "Deacon"],
@@ -788,8 +788,8 @@
       e.roleRivalV11
     );
   }
-  function Yn(e, t, a, s) {
-    const n = Gt(e, a, seededRng(e.seasonSeed, t.week, "rival")),
+  function resolveRivalWeek(e, t, a, s) {
+    const n = ensureRival(e, a, seededRng(e.seasonSeed, t.week, "rival")),
       i = seededRng(e.seasonSeed, t.week, n.id, t.perf, "rival-week"),
       r = n.personality === "Coach Favorite" ? 4 : n.personality === "Quiet Professional" ? 2 : 0;
     ((n.weeklyPerf = Math.round(clamp(54 + (n.ovr - a) * 0.65 + r - (100 - n.health) * 0.08 + (i() - 0.5) * 25, 20, 98))),
@@ -814,7 +814,7 @@
       { rival: n, rivalPerf: n.weeklyPerf, swing: Math.round(h), defeated: m }
     );
   }
-  function _n(e, t) {
+  function makeHighLeverageMoments(e, t) {
     const a = t.opponentV11?.importance || (t.playoff ? "playoff" : "routine"),
       s = a === "championship" ? 3 : a === "playoff" ? 2 : ["rivalry", "evaluation"].includes(a) ? 1 : 0;
     if (!s) return [];
@@ -1042,11 +1042,11 @@
                   }
                 ];
   }
-  function Un(e, t, a, s, n) {
+  function resolveHighLeverageMoment(e, t, a, s, n) {
     const i = a.choices.find(U => U.id === s) || a.choices[0],
       r = e.attrs?.awareness || 10,
       l = e.composure103 || 50,
-      d = Vs(e),
+      d = conditionModifiers(e),
       c = t.opponentV11?.scouted?.confidence || 40,
       u = getOrigin(e),
       h = u?.id === "small-town" && t.opponentV11?.importance !== "routine" ? 0.045 : 0,
@@ -2360,7 +2360,7 @@
       })
     );
   } catch (e) {}
-  function Kn(e, t, a) {
+  function maybeStartStoryArc(e, t, a) {
     return null;
     if ((Os(e), e.storyDecisionQueueV11.length)) return null;
     if (e.activeStoryArcV11)
@@ -2412,7 +2412,7 @@
       a.security && e.nflStateV11 && addClamped(e.nflStateV11, "security", a.security),
       a.expectation && e.nflStateV11 && addClamped(e.nflStateV11, "expectation", a.expectation, 20, 95),
       a.schemeFit && e.nflStateV11 && addClamped(e.nflStateV11, "schemeFit", a.schemeFit));
-    const s = gt(e);
+    const s = ensureCondition(e);
     (addClamped(s, "fatigue", a.fatigue || 0),
       addClamped(s, "recovery", a.recovery || 0),
       s.injury &&
@@ -2431,7 +2431,7 @@
       a.comeback && (e.comebackPendingV11 = !0),
       a.legacy && (t.legacyTokensV11 = (t.legacyTokensV11 || 0) + a.legacy));
   }
-  function zn(e, t, a, s) {
+  function resolveStoryChoice(e, t, a, s) {
     Os(e);
     const n = e.storyDecisionQueueV11[0];
     if (!n) return null;
@@ -2468,7 +2468,7 @@
     }
     return { success: y, chance: p, choice: i, decision: n };
   }
-  function Ka(e, t, a = 50) {
+  function nflSalaryForStatus(e, t, a = 50) {
     const s = Math.max(0, t - 68),
       n = Math.max(0, a - 40),
       i = {
@@ -2495,13 +2495,13 @@
       (i[e] || 1e6) + s * (r[e] || 45e3) + n * (e === "franchise" ? 115e3 : e === "starter" ? 55e3 : 18e3)
     );
   }
-  function wa(e, t = 70) {
+  function ensureNflState(e, t = 70) {
     if (e.level < 7) return null;
     if (!e.nflStateV11) {
       const a = (e.stars || 1) < 4,
         s = "camp",
         n = clamp(34 + (t - 74) * 1.5 + (e.coachTrust || 50) * 0.18, 18, 72),
-        i = Ka(s, t, n);
+        i = nflSalaryForStatus(s, t, n);
       e.nflStateV11 = {
         status: s,
         security: n,
@@ -2524,7 +2524,7 @@
     }
     return e.nflStateV11;
   }
-  function Na(e, t, a = 3) {
+  function generateNflOffers(e, t, a = 3) {
     const s = seededRng(e.name, e.age, e.totalSeasons, t, "offers"),
       n = [
         "Austin Outlaws",
@@ -2537,14 +2537,14 @@
         "Oklahoma City Bison"
       ],
       i = ["Vertical Spread", "West Coast", "Power Run", "Multiple Front", "Pressure Defense", "Zone Match"];
-    return Ls(n, s)
+    return shuffled(n, s)
       .slice(0, a)
       .map((r, l) => {
         const d = clamp(30 + (t - 70) * 1.1 + s() * 28 - l * 4, 16, 88),
           c = d >= 81 ? "starter" : d >= 62 ? "rotation" : d >= 44 ? "active-backup" : "practice-squad",
           u = c === "starter" ? 3 : c === "rotation" ? 2 : 1,
           h = Math.round(35 + s() * 55),
-          p = Math.round(Ka(c, t, d) * (0.9 + s() * 0.22));
+          p = Math.round(nflSalaryForStatus(c, t, d) * (0.9 + s() * 0.22));
         return {
           id: `offer-${e.seasonSeed || 0}-${e.totalSeasons || 0}-${e.age || 0}-${l}-${r.replace(/\s+/g, "-").toLowerCase()}`,
           team: r,
@@ -2561,8 +2561,8 @@
         };
       });
   }
-  function Qn(e, t, a) {
-    const s = wa(e, a);
+  function evaluateNflWeek(e, t, a) {
+    const s = ensureNflState(e, a);
     if (!s) return null;
     const n = s.expectation || 55,
       i = s.status === "starter" ? 4 : s.status === "franchise" ? 7 : 0,
@@ -2590,7 +2590,7 @@
     };
     return (
       c[s.status] && (e.snapShare = clamp(Math.max(e.snapShare || 0, c[s.status][0]), c[s.status][0], c[s.status][1])),
-      s.status === "waivers" && (s.cuts++, (s.offers = Na(e, a, 3))),
+      s.status === "waivers" && (s.cuts++, (s.offers = generateNflOffers(e, a, 3))),
       {
         previous: d,
         status: s.status,
@@ -2600,15 +2600,15 @@
       }
     );
   }
-  function Jn(e, t, a) {
-    const s = wa(e, a);
+  function evaluateNflSeason(e, t, a) {
+    const s = ensureNflState(e, a);
     if (!s) return null;
     s.contract.yearsRemaining = Math.max(0, (s.contract.yearsRemaining || 0) - 1);
     const n = t.avg || 50;
     if (s.contract.yearsRemaining <= 0) {
       if (n >= s.expectation - 3 && s.security >= 42) {
         const i = s.status === "franchise" ? 5 : s.status === "starter" ? 4 : s.status === "rotation" ? 3 : 2,
-          r = Math.round(Ka(s.status, a, s.security) * (1 + Math.max(0, n - 68) / 115));
+          r = Math.round(nflSalaryForStatus(s.status, a, s.security) * (1 + Math.max(0, n - 68) / 115));
         return (
           (s.contract = {
             yearsRemaining: i,
@@ -2624,16 +2624,16 @@
         );
       }
       return (
-        (s.offers = Na(e, a, n >= 58 ? 3 : n >= 48 ? 2 : 1)),
+        (s.offers = generateNflOffers(e, a, n >= 58 ? 3 : n >= 48 ? 2 : 1)),
         (s.status = "free-agent"),
         { freeAgent: !0, offers: s.offers }
       );
     }
     return s.security < 16
-      ? ((s.offers = Na(e, a, n >= 52 ? 2 : 1)), (s.status = "waivers"), { cut: !0, offers: s.offers })
+      ? ((s.offers = generateNflOffers(e, a, n >= 52 ? 2 : 1)), (s.status = "waivers"), { cut: !0, offers: s.offers })
       : { retained: !0 };
   }
-  function Xn(e, t) {
+  function acceptNflOffer(e, t) {
     const a = e.nflStateV11;
     if (!a) return null;
     const s = (a.offers || []).find(n => n.id === t);
@@ -2654,20 +2654,20 @@
         s)
       : null;
   }
-  function Zn(e, t) {
-    $a(e);
-    const a = Cs.find(s => s.id === t);
+  function buyLegacyUnlock(e, t) {
+    ensureAccountState(e);
+    const a = LEGACY_UNLOCKS.find(s => s.id === t);
     return !a || e.legacyUnlocksV11[t]
       ? null
       : (e.legacyTokensV11 || 0) < a.cost
         ? !1
         : ((e.legacyTokensV11 -= a.cost), (e.legacyUnlocksV11[t] = !0), a);
   }
-  function Bs(e, t) {
+  function evaluateMilestones(e, t) {
     ((t.legacyMilestonesV11 = t.legacyMilestonesV11 || {}), (t.legacyTokensV11 = t.legacyTokensV11 || 0));
     const a = [];
     return (
-      Dn.forEach(s => {
+      MILESTONES.forEach(s => {
         !t.legacyMilestonesV11[s.id] &&
           s.test(e) &&
           ((t.legacyMilestonesV11[s.id] = !0), (t.legacyTokensV11 += s.tokens), a.push(s));
@@ -2675,12 +2675,12 @@
       a
     );
   }
-  function js(e, t) {
+  function evaluateLegacyObjectives(e, t) {
     ((e.completedObjectivesV11 = e.completedObjectivesV11 || {}), (t.legacyTokensV11 = t.legacyTokensV11 || 0));
     const a = [];
     return (
       (e.legacyObjectivesV11 || []).forEach(s => {
-        const n = Ua.find(i => i.id === s);
+        const n = LEGACY_OBJECTIVES.find(i => i.id === s);
         n &&
           !e.completedObjectivesV11[s] &&
           n.check(e) &&
@@ -2696,7 +2696,7 @@
       a
     );
   }
-  function Is(e) {
+  function careerLegacyGrade(e) {
     const t = [4, 10, 20, 34, 50, 68, 86, 104, 132][Math.max(0, Math.min(8, e.level || 0))] || 4,
       a = Math.min(24, (e.awards || []).length * 2.5),
       s = Math.min(30, (e.titles || 0) * 8),
@@ -2725,7 +2725,7 @@
       u = d >= 205 ? "S" : d >= 168 ? "A" : d >= 128 ? "B" : d >= 94 ? "C" : d >= 58 ? "D" : "E";
     return { score: d, ending: c, grade: u };
   }
-  function ei(e) {
+  function originGrowthMultiplier(e) {
     const t = getOrigin(e)?.id;
     return t === "late-bloomer"
       ? (e.age || 8) >= 16
@@ -2737,7 +2737,7 @@
           ? 0.96
           : 1;
   }
-  function ti(e, t) {
+  function originPerformanceModifier(e, t) {
     const a = getOrigin(e)?.id;
     return a === "small-town" && t?.opponentV11?.importance !== "routine"
       ? 3
@@ -2747,7 +2747,7 @@
           ? -2
           : 0;
   }
-  function ai(e, t) {
+  function prestigeCap(e, t) {
     const s = {
       startAll: 4,
       perfFlat: 3,
@@ -2771,7 +2771,7 @@
       i = Math.abs(t);
     return i <= s ? t : n * (s + Math.log1p(i - s) * s * 0.18);
   }
-  function si(e, t) {
+  function pathCap(e, t) {
     return e === "startAttr"
       ? Math.min(t, 6)
       : e === "growthMult"
@@ -2784,15 +2784,15 @@
               ? Math.max(t, 0.55)
               : t;
   }
-  function ni(e) {
+  function resetSeasonSystems(e) {
     ((e.storyArcsThisSeasonV11 = 0),
       (e.storyDecisionQueueV11 = []),
       (e.activeStoryArcV11 = null),
       (e.planHistoryV11 = []),
       (e.highLeverageStatsV11 = { attempts: 0, successes: 0 }),
-      qn(e));
+      restBetweenSeasons(e));
   }
-  function $a(e) {
+  function ensureAccountState(e) {
     ((e.schemaVersion = Math.max(e.schemaVersion || 1, 11)),
       (e.legacyTokensV11 = e.legacyTokensV11 || 0),
       (e.legacyMilestonesV11 = e.legacyMilestonesV11 || {}),
@@ -2812,88 +2812,88 @@
         ...(e.featureFlagsV11 || {})
       }));
   }
-  function ii(e, t, a, s, n) {
+  function ensurePlayerState(e, t, a, s, n) {
     if (
-      ($a(e),
+      (ensureAccountState(e),
       (t._displayOvrV11 = n),
       (t.legacyUnlocksV11 = { ...(e.legacyUnlocksV11 || {}) }),
-      (t.originOptionsV11 = t.originOptionsV11 || Es(e, t).map(i => i.id)),
+      (t.originOptionsV11 = t.originOptionsV11 || selectOriginOptions(e, t).map(i => i.id)),
       (t.completedObjectivesV11 = t.completedObjectivesV11 || {}),
       (t.positionsPlayedV11 = t.positionsPlayedV11 || (t.pos ? [t.pos] : [])),
       (t.planHistoryV11 = t.planHistoryV11 || []),
       (t.weekModifiersV11 = t.weekModifiersV11 || []),
       (t.worldState = t.worldState || { teamChemistry: 50, programMomentum: 50, mediaHeat: 20 }),
       Os(t),
-      gt(t),
-      t.pos && Gt(t, s, seededRng(t.seasonSeed, t.level, t.pos, "ensure-rival")),
-      t.level >= 7 && wa(t, n),
+      ensureCondition(t),
+      t.pos && ensureRival(t, s, seededRng(t.seasonSeed, t.level, t.pos, "ensure-rival")),
+      t.level >= 7 && ensureNflState(t, n),
       t.originV11 && !t._originAppliedV11)
     ) {
       const i = t.originV11;
-      ((t.originV11 = null), As(t, i, a), (t._originAppliedV11 = !0));
+      ((t.originV11 = null), applyOrigin(t, i, a), (t._originAppliedV11 = !0));
     }
     if (t.originV11 && e.legacyUnlocksV11?.["fourth-objective"] && (t.legacyObjectivesV11 || []).length < 4) {
-      const i = Ua.filter(r => !(t.legacyObjectivesV11 || []).includes(r.id));
+      const i = LEGACY_OBJECTIVES.filter(r => !(t.legacyObjectivesV11 || []).includes(r.id));
       i.length && t.legacyObjectivesV11.push(sample(i, seededRng(t.seasonSeed, t.originV11, "fourth-objective")).id);
     }
   }
-  const jo = Object.freeze(
+  const V11_MODULE = Object.freeze(
       Object.defineProperty(
         {
           __proto__: null,
-          LEGACY_OBJECTIVES: Ua,
-          LEGACY_UNLOCKS: Cs,
-          MILESTONES: Dn,
-          ORIGINS: It,
-          PLAN_IDS: Fn,
-          SPECIALIZATIONS: ma,
+          LEGACY_OBJECTIVES: LEGACY_OBJECTIVES,
+          LEGACY_UNLOCKS: LEGACY_UNLOCKS,
+          MILESTONES: MILESTONES,
+          ORIGINS: ORIGINS,
+          PLAN_IDS: PLAN_IDS,
+          SPECIALIZATIONS: SPECIALIZATIONS,
           STORY_ARCS: STORY_ARCS,
-          acceptNflOffer: Xn,
-          applyOrigin: As,
+          acceptNflOffer: acceptNflOffer,
+          applyOrigin: applyOrigin,
           bounded: clamp,
-          buyLegacyUnlock: Zn,
-          careerLegacyGrade: Is,
-          conditionModifiers: Vs,
-          createOpponentProfile: rt,
-          ensureAccountState: $a,
-          ensureCondition: gt,
-          ensureNflState: wa,
-          ensurePlayerState: ii,
-          ensureRival: Gt,
-          evaluateLegacyObjectives: js,
-          evaluateMilestones: Bs,
-          evaluateNflSeason: Jn,
-          evaluateNflWeek: Qn,
-          generateNflOffers: Na,
+          buyLegacyUnlock: buyLegacyUnlock,
+          careerLegacyGrade: careerLegacyGrade,
+          conditionModifiers: conditionModifiers,
+          createOpponentProfile: createOpponentProfile,
+          ensureAccountState: ensureAccountState,
+          ensureCondition: ensureCondition,
+          ensureNflState: ensureNflState,
+          ensurePlayerState: ensurePlayerState,
+          ensureRival: ensureRival,
+          evaluateLegacyObjectives: evaluateLegacyObjectives,
+          evaluateMilestones: evaluateMilestones,
+          evaluateNflSeason: evaluateNflSeason,
+          evaluateNflWeek: evaluateNflWeek,
+          generateNflOffers: generateNflOffers,
           getOrigin: getOrigin,
-          makeHighLeverageMoments: _n,
-          matchupPlanModifier: Wn,
-          maybeStartStoryArc: Kn,
-          nflSalaryForStatus: Ka,
-          originGrowthMultiplier: ei,
-          originPerformanceModifier: ti,
-          pathCap: si,
-          prestigeCap: ai,
-          resetSeasonSystems: ni,
-          resolveHighLeverageMoment: Un,
-          resolveRivalWeek: Yn,
-          resolveStoryChoice: zn,
-          restBetweenSeasons: qn,
-          roleRank: Et,
-          rollInjury: Gn,
+          makeHighLeverageMoments: makeHighLeverageMoments,
+          matchupPlanModifier: matchupPlanModifier,
+          maybeStartStoryArc: maybeStartStoryArc,
+          nflSalaryForStatus: nflSalaryForStatus,
+          originGrowthMultiplier: originGrowthMultiplier,
+          originPerformanceModifier: originPerformanceModifier,
+          pathCap: pathCap,
+          prestigeCap: prestigeCap,
+          resetSeasonSystems: resetSeasonSystems,
+          resolveHighLeverageMoment: resolveHighLeverageMoment,
+          resolveRivalWeek: resolveRivalWeek,
+          resolveStoryChoice: resolveStoryChoice,
+          restBetweenSeasons: restBetweenSeasons,
+          roleRank: roleRank,
+          rollInjury: rollInjury,
           sample: sample,
-          scoutOpponent: bt,
+          scoutOpponent: scoutOpponent,
           seededRng: seededRng,
-          selectOriginOptions: Es,
-          shuffled: Ls,
-          updateConditionAfterGame: Hn
+          selectOriginOptions: selectOriginOptions,
+          shuffled: shuffled,
+          updateConditionAfterGame: updateConditionAfterGame
         },
         Symbol.toStringTag,
         { value: "Module" }
       )
     ),
-    oi = 12,
-    Ft = [
+    LIFE_VERSION = 12,
+    RETIREMENT_PLANS = [
       {
         id: "comfortable",
         icon: "🛋️",
@@ -3031,7 +3031,7 @@
         }
       ]
     },
-    Fa = [
+    HOUSES = [
       {
         id: "rental",
         icon: "🏢",
@@ -3095,7 +3095,7 @@
         media: 3
       }
     ],
-    za = [
+    PORTFOLIOS = [
       {
         id: "bonds",
         icon: "🛡️",
@@ -3129,7 +3129,7 @@
         description: "High upside with real loss risk."
       }
     ],
-    Sa = [
+    LIFE_GOALS = [
       {
         id: "parents-retirement",
         icon: "❤️",
@@ -3198,7 +3198,7 @@
         fulfillment: 20
       }
     ],
-    ri = [
+    LIFE_EVENTS = [
       {
         id: "parents-call",
         icon: "📞",
@@ -3573,7 +3573,7 @@
               : 21.85 + Math.log1p(t - 60) * 2;
     return v * TU("prestigeEffectMult", 0.2);
   }
-  function Io(e) {
+  function rawPrestigePowerRatio(e) {
     return e <= 0 ? 0 : effectivePrestige(e) / e;
   } /* ===== v139 THE NATIONAL STANDING IS A FLOOR ON THE SEASON GRADE =====
    *
@@ -3603,7 +3603,7 @@
     return obj ? Object.assign({}, g, { grade: min, floorV139: { from: cur, chance: Math.round(chance) } }) : min;
   }
   window.__gradeFloorV139 = gradeFloorV139;
-  function Ns(e, t, a, s = 60) {
+  function expectedGrade(e, t, a, s = 60) {
     const n = (1 - clamp(a, 0.04, 0.98)) * 8,
       i = (s - 60) * 0.12,
       r = e - t + n + i;
@@ -3613,7 +3613,7 @@
       score: r
     };
   }
-  function No(e, t, a = 0) {
+  function capDecisionChance(e, t, a = 0) {
     const s = String(t || "").toLowerCase();
     let n = 0.84;
     return (
@@ -3625,26 +3625,26 @@
       clamp(e + a, 0.12, n)
     );
   }
-  function Fs(e, t) {
+  function tunedInjuryRisk(e, t) {
     const a = t.conditionV11?.injury?.severity || 0,
       s = t.conditionV11?.fatigue || 0,
       n = Math.max(0, (t.age || 22) - 31);
     return clamp(e * 0.42 + Math.max(0, s - 72) * 0.0025 + n * 0.002 + a * 0.01, 0.003, 0.19);
   }
-  function li(e, t) {
+  function recoveryProjection(e, t) {
     const a = e.conditionV11 || { fatigue: 20, recovery: 55, susceptibility: 18 },
       n =
         ({ disciplined: 5, feature: 11, explosive: 16, team: 9, recovery: -14 }[t] ?? 7) +
         Math.max(0, (e.age || 22) - 28) * 0.7,
       i = clamp(a.fatigue + n - (a.recovery || 55) * 0.11, 0, 100),
-      r = Fs(0.008 + (a.susceptibility || 18) / 900 + i / 1150, e);
+      r = tunedInjuryRisk(0.008 + (a.susceptibility || 18) / 900 + i / 1150, e);
     return {
       fatigueAfter: Math.round(i),
       injuryRisk: r,
       label: i < 35 ? "Fresh" : i < 58 ? "Manageable" : i < 76 ? "Heavy" : "Danger"
     };
   }
-  function Ds(e, t) {
+  function regretScenario(e, t) {
     const a = [
         [
           {
@@ -3864,7 +3864,7 @@
       ]
     };
   }
-  function ci(e, t) {
+  function applyPendingVow(e, t) {
     const a = e.pendingVowV12;
     return !a || t._vowAppliedV12
       ? null
@@ -3934,7 +3934,7 @@
       (t.careerInterest = Math.max(0, Number(t.careerInterest) || 0)),
       (t.missedPayments = Math.max(0, Number(t.missedPayments) || 0)),
       (t.retirementPlanId = t.retirementPlanId || "secure"));
-    const a = Ft.find(n => n.id === t.retirementPlanId) || Ft[1];
+    const a = RETIREMENT_PLANS.find(n => n.id === t.retirementPlanId) || RETIREMENT_PLANS[1];
     t.retirementTarget = Number(t.retirementTarget) || a.target;
     const s = e.nflStateV11?.contract;
     if (s) {
@@ -3965,16 +3965,16 @@
   function ws(e, t) {
     return LIFESTYLES[e].find(a => a.id === t) || LIFESTYLES[e][0];
   }
-  function ya(e) {
-    return Fa.find(t => t.id === e) || Fa[0];
+  function houseById(e) {
+    return HOUSES.find(t => t.id === e) || HOUSES[0];
   }
-  function Gs(e) {
-    return za.find(t => t.id === e);
+  function portfolioById(e) {
+    return PORTFOLIOS.find(t => t.id === e);
   }
-  function Hs(e) {
-    return Sa.find(t => t.id === e);
+  function lifeGoalById(e) {
+    return LIFE_GOALS.find(t => t.id === e);
   }
-  function ta(e) {
+  function lifestyleEffects(e) {
     const t = ensureFinanceState(e);
     if (!t)
       return {
@@ -3990,7 +3990,7 @@
     const a = ws("meals", t.lifestyle.meals),
       s = ws("recovery", t.lifestyle.recovery),
       n = ws("luxury", t.lifestyle.luxury),
-      i = ya(t.houseId);
+      i = houseById(t.houseId);
     return {
       weeklyCost: a.weekly + s.weekly + n.weekly + i.weekly,
       recovery: (a.recovery || 0) + (s.recovery || 0) + (i.recovery || 0),
@@ -4010,23 +4010,23 @@
         )
       : 0;
   }
-  function Ma(e) {
+  function liquidInvestments(e) {
     const t = ensureFinanceState(e);
     return t ? Object.values(t.investments).reduce((a, s) => a + (Number(s) || 0), 0) : 0;
   }
-  function di(e) {
-    return Math.round(Ma(e) * 0.04);
+  function safeAnnualIncome(e) {
+    return Math.round(liquidInvestments(e) * 0.04);
   }
-  function ui(e) {
+  function retirementAssets(e) {
     const t = ensureFinanceState(e);
-    return t ? Math.max(0, Math.round(t.cash + Ma(e) + t.houseValue * 0.5 - t.debt)) : 0;
+    return t ? Math.max(0, Math.round(t.cash + liquidInvestments(e) + t.houseValue * 0.5 - t.debt)) : 0;
   }
-  function fi(e) {
-    return Ft.find(t => t.id === e) || Ft[1];
+  function retirementPlanById(e) {
+    return RETIREMENT_PLANS.find(t => t.id === e) || RETIREMENT_PLANS[1];
   }
-  function hi(e, t) {
+  function setRetirementPlan(e, t) {
     const a = ensureFinanceState(e),
-      s = Ft.find(n => n.id === t);
+      s = RETIREMENT_PLANS.find(n => n.id === t);
     return !a || !s ? !1 : ((a.retirementPlanId = s.id), (a.retirementTarget = s.target), !0);
   }
   function mi(e) {
@@ -4040,7 +4040,7 @@
       r = i === "celebrity" ? 0.006 : i === "fiduciary" ? -0.001 : 0,
       l = i === "celebrity" ? 1.32 : i === "fiduciary" ? 0.8 : 1,
       d = i === "celebrity" ? 0.022 : i === "fiduciary" ? 0.0065 : 0;
-    for (const c of za) {
+    for (const c of PORTFOLIOS) {
       const u = s.investments[c.id] || 0;
       if (u <= 0) continue;
       const h = (c.annualReturn + r) / 18,
@@ -4081,12 +4081,12 @@
       Math.round(n)
     );
   }
-  function xa(e) {
+  function emergencyReserve(e) {
     if (!ensureFinanceState(e)) return 5e3;
-    const a = ta(e).weeklyCost * (52 / 18);
+    const a = lifestyleEffects(e).weeklyCost * (52 / 18);
     return Math.max(25e3, Math.round(a * 5), Math.round((e.nflStateV11?.contract?.salary || 0) * 0.018));
   }
-  function pi(e, t) {
+  function processNflFinancialWeek(e, t) {
     const a = ensureFinanceState(e);
     if (!a) return null;
     const s = e.nflStateV11 || {},
@@ -4095,7 +4095,7 @@
       r = i === "practice-squad" ? n / 36 : n / 18,
       l = r * mi(n),
       d = r * 0.03,
-      c = ta(e);
+      c = lifestyleEffects(e);
     let u = 0;
     ((t.perf || 0) >= 85 && (u += i === "franchise" ? 5e4 : i === "starter" ? 25e3 : i === "rotation" ? 1e4 : 3500),
       t.playoff && (u += i === "franchise" ? 4e4 : i === "starter" ? 2e4 : 7500),
@@ -4114,7 +4114,7 @@
         (a.familySecurity = clamp(a.familySecurity - 3, 0, 100)),
         (a.fulfillment = clamp(a.fulfillment - 5, 0, 100)));
     }
-    const V = xa(e);
+    const V = emergencyReserve(e);
     if (a.debt > 0 && a.cash > V) {
       const P = Math.min(a.debt, Math.round((a.cash - V) * 0.5));
       ((a.cash -= P), (a.debt -= P));
@@ -4142,7 +4142,7 @@
           (e.conditionV11.injury.recurrence = clamp(e.conditionV11.injury.recurrence + c.recurrence, 0.02, 0.75))),
       e.worldState && (e.worldState.mediaHeat = clamp((e.worldState.mediaHeat || 20) + c.media * 0.08, 0, 100)),
       Fo(e, t, seededRng(e.seasonSeed, e.totalSeasons, t.week, "finance")),
-      aa(e),
+      evaluateLifeGoals(e),
       a.history.unshift({
         week: t.week || a.weeksPaid,
         label: `Game check${u ? ` + ${formatMoney(u)} bonus` : ""}${m ? " + insurance" : ""}`,
@@ -4164,16 +4164,16 @@
       }
     );
   }
-  function vi(e, t, a) {
+  function chooseLifestyle(e, t, a) {
     const s = ensureFinanceState(e);
     return !s || !LIFESTYLES[t].some(n => n.id === a) ? !1 : ((s.lifestyle[t] = a), !0);
   }
-  function yi(e, t) {
+  function buyHouse(e, t) {
     const a = ensureFinanceState(e),
-      s = ya(t);
+      s = houseById(t);
     if (!a || !s) return { ok: !1, reason: "Unavailable" };
     if (a.houseId === t) return { ok: !1, reason: "Already owned" };
-    const n = ya(a.houseId),
+    const n = houseById(a.houseId),
       i = Math.round((a.houseValue || n.value || 0) * 0.86),
       r = Math.max(0, s.price - i);
     return a.cash < r
@@ -4184,23 +4184,23 @@
         (a.familySecurity = clamp(a.familySecurity + (s.family || 0), 0, 100)),
         (a.fulfillment = clamp(a.fulfillment + (s.fulfillment || 0), 0, 100)),
         a.history.unshift({ week: a.weeksPaid, label: `Bought ${s.name}`, amount: -r, netWorth: netWorth(e) }),
-        aa(e),
+        evaluateLifeGoals(e),
         { ok: !0, house: s, refund: i });
   }
-  function gi(e, t, a) {
+  function invest(e, t, a) {
     const s = ensureFinanceState(e);
     if (!s || t === "cash") return { ok: !1, amount: 0, reason: "Invalid investment" };
-    const n = xa(e),
+    const n = emergencyReserve(e),
       i = Math.max(0, Math.min(Math.round(a), Math.max(0, s.cash - n)));
     return i < 1e3
       ? { ok: !1, amount: 0, reason: `Keep at least ${formatMoney(n)} in emergency cash` }
       : ((s.cash -= i),
         (s.investments[t] = (s.investments[t] || 0) + i),
-        s.history.unshift({ week: s.weeksPaid, label: `Invested in ${Gs(t)?.name || t}`, amount: -i, netWorth: netWorth(e) }),
-        aa(e),
+        s.history.unshift({ week: s.weeksPaid, label: `Invested in ${portfolioById(t)?.name || t}`, amount: -i, netWorth: netWorth(e) }),
+        evaluateLifeGoals(e),
         { ok: !0, amount: i });
   }
-  function bi(e, t, a) {
+  function withdraw(e, t, a) {
     const s = ensureFinanceState(e);
     if (!s || t === "cash") return { ok: !1, amount: 0, reason: "Invalid investment" };
     const n = s.investments[t] || 0,
@@ -4209,12 +4209,12 @@
       ? { ok: !1, amount: 0, reason: "Not enough invested" }
       : ((s.investments[t] -= i),
         (s.cash += i),
-        s.history.unshift({ week: s.weeksPaid, label: `Sold ${Gs(t)?.name || t}`, amount: i, netWorth: netWorth(e) }),
+        s.history.unshift({ week: s.weeksPaid, label: `Sold ${portfolioById(t)?.name || t}`, amount: i, netWorth: netWorth(e) }),
         { ok: !0, amount: i });
   }
-  function ki(e, t, a) {
+  function contributeGoal(e, t, a) {
     const s = ensureFinanceState(e),
-      n = Hs(t);
+      n = lifeGoalById(t);
     if (!s || !n) return { ok: !1, amount: 0, reason: "Goal unavailable" };
     const i = Math.max(0, n.target - (s.contributions[t] || 0)),
       r = Math.max(0, Math.min(Math.round(a), s.cash, i));
@@ -4222,18 +4222,18 @@
     ((s.cash -= r),
       (s.contributions[t] = (s.contributions[t] || 0) + r),
       t === "charity-foundation" && (s.donations += r));
-    const l = aa(e).some(d => d.id === t);
+    const l = evaluateLifeGoals(e).some(d => d.id === t);
     return (
       s.history.unshift({ week: s.weeksPaid, label: `Funded ${n.name}`, amount: -r, netWorth: netWorth(e) }),
       { ok: !0, amount: r, completed: l }
     );
   }
-  function aa(e) {
+  function evaluateLifeGoals(e) {
     const t = ensureFinanceState(e);
     if (!t) return [];
     const a = [],
       s = netWorth(e);
-    for (const n of Sa) {
+    for (const n of LIFE_GOALS) {
       const i = n;
       if (t.completedGoals[i.id]) continue;
       let r = !1;
@@ -4252,10 +4252,10 @@
     }
     return a;
   }
-  function wi(e, t) {
+  function maybeQueueLifeEvent(e, t) {
     const a = ensureFinanceState(e);
     if (!a || a.eventQueue.length || (t.week || 0) < 2 || (t.week || 0) % 3 !== 0) return null;
-    const s = ri.filter(
+    const s = LIFE_EVENTS.filter(
       l => (t.week || 0) >= l.minWeek && !a.resolvedEvents.includes(`${l.id}-${e.totalSeasons || 0}`)
     );
     if (!s.length) return null;
@@ -4265,7 +4265,7 @@
       r = { ...i, uid: `${i.id}-${e.totalSeasons || 0}-${t.week}` };
     return (a.eventQueue.push(r), r);
   }
-  function $i(e, t) {
+  function resolveLifeEvent(e, t) {
     const a = ensureFinanceState(e),
       s = a?.eventQueue?.[0];
     if (!a || !s) return null;
@@ -4292,7 +4292,7 @@
         (a.contributions[n.goalCredit] = (a.contributions[n.goalCredit] || 0) + n.creditAmount),
       n.investCashPct && n.portfolio)
     ) {
-      const r = xa(e),
+      const r = emergencyReserve(e),
         l = Math.max(0, Math.min(a.cash - r, a.cash * n.investCashPct));
       ((a.cash -= l), (a.investments[n.portfolio] = (a.investments[n.portfolio] || 0) + l));
     }
@@ -4320,21 +4320,21 @@
         (e.tempEffects[`life-${s.uid}`] = { games: 1, fx: { nextPerf: n.nextPerf } })),
       a.resolvedEvents.push(`${s.id}-${e.totalSeasons || 0}`),
       a.eventQueue.shift());
-    const i = aa(e);
+    const i = evaluateLifeGoals(e);
     return (
       a.history.unshift({ week: a.weeksPaid, label: s.title, amount: n.cash || -(n.amount || 0), netWorth: netWorth(e) }),
       { event: s, choice: n, goals: i }
     );
   }
-  function Ht(e) {
+  function retirementReadiness(e) {
     const t = ensureFinanceState(e);
     if (!t) return null;
     const a = netWorth(e),
-      s = ui(e),
-      n = fi(t.retirementPlanId),
+      s = retirementAssets(e),
+      n = retirementPlanById(t.retirementPlanId),
       i = t.retirementTarget || n.target,
       r = clamp(s / i, 0, 2.5),
-      l = di(e),
+      l = safeAnnualIncome(e),
       d = s >= i && t.familySecurity >= n.family && t.debt <= 0 && t.fulfillment >= 40;
     return {
       netWorth: a,
@@ -4344,20 +4344,20 @@
       annualIncome: l,
       ready: d,
       goals: Object.keys(t.completedGoals).length,
-      totalGoals: Sa.length,
+      totalGoals: LIFE_GOALS.length,
       plan: n,
       debt: t.debt
     };
   }
-  function qs(e) {
-    const t = Ht(e);
+  function canRetire(e) {
+    const t = retirementReadiness(e);
     return !!t && ((e.age || 0) >= 30 || t.ready);
   }
-  function Si(e) {
+  function retirePlayer(e) {
     const t = ensureFinanceState(e);
     if (!t) return null;
     t.retired = !0;
-    const a = Ht(e);
+    const a = retirementReadiness(e);
     return {
       ...a,
       ending: a?.ready
@@ -4378,9 +4378,9 @@
           ? `${t < 0 ? "-" : ""}$${Math.round(a / 1e3)}K`
           : `${t < 0 ? "-" : ""}$${a.toLocaleString()}`;
   }
-  function Ws(e) {
+  function ensureAccountV12(e) {
     return (
-      (e.schemaVersion = Math.max(e.schemaVersion || 1, oi)),
+      (e.schemaVersion = Math.max(e.schemaVersion || 1, LIFE_VERSION)),
       (e.featureFlagsV12 = {
         cutReflection: !0,
         balancePolish: !0,
@@ -4396,51 +4396,51 @@
       e
     );
   }
-  const Do = Object.freeze(
+  const V12_MODULE = Object.freeze(
       Object.defineProperty(
         {
           __proto__: null,
-          HOUSES: Fa,
+          HOUSES: HOUSES,
           LIFESTYLES: LIFESTYLES,
-          LIFE_EVENTS: ri,
-          LIFE_GOALS: Sa,
-          LIFE_VERSION: oi,
-          PORTFOLIOS: za,
-          RETIREMENT_PLANS: Ft,
-          applyPendingVow: ci,
-          buyHouse: yi,
-          canRetire: qs,
-          capDecisionChance: No,
-          chooseLifestyle: vi,
-          contributeGoal: ki,
+          LIFE_EVENTS: LIFE_EVENTS,
+          LIFE_GOALS: LIFE_GOALS,
+          LIFE_VERSION: LIFE_VERSION,
+          PORTFOLIOS: PORTFOLIOS,
+          RETIREMENT_PLANS: RETIREMENT_PLANS,
+          applyPendingVow: applyPendingVow,
+          buyHouse: buyHouse,
+          canRetire: canRetire,
+          capDecisionChance: capDecisionChance,
+          chooseLifestyle: chooseLifestyle,
+          contributeGoal: contributeGoal,
           effectivePrestige: effectivePrestige,
-          emergencyReserve: xa,
-          ensureAccountV12: Ws,
+          emergencyReserve: emergencyReserve,
+          ensureAccountV12: ensureAccountV12,
           ensureFinanceState: ensureFinanceState,
-          evaluateLifeGoals: aa,
-          expectedGrade: Ns,
+          evaluateLifeGoals: evaluateLifeGoals,
+          expectedGrade: expectedGrade,
           formatMoney: formatMoney,
-          houseById: ya,
-          invest: gi,
-          lifeGoalById: Hs,
-          lifestyleEffects: ta,
-          liquidInvestments: Ma,
-          maybeQueueLifeEvent: wi,
+          houseById: houseById,
+          invest: invest,
+          lifeGoalById: lifeGoalById,
+          lifestyleEffects: lifestyleEffects,
+          liquidInvestments: liquidInvestments,
+          maybeQueueLifeEvent: maybeQueueLifeEvent,
           netWorth: netWorth,
-          portfolioById: Gs,
-          processNflFinancialWeek: pi,
-          rawPrestigePowerRatio: Io,
-          recoveryProjection: li,
-          regretScenario: Ds,
-          resolveLifeEvent: $i,
-          retirePlayer: Si,
-          retirementAssets: ui,
-          retirementPlanById: fi,
-          retirementReadiness: Ht,
-          safeAnnualIncome: di,
-          setRetirementPlan: hi,
-          tunedInjuryRisk: Fs,
-          withdraw: bi
+          portfolioById: portfolioById,
+          processNflFinancialWeek: processNflFinancialWeek,
+          rawPrestigePowerRatio: rawPrestigePowerRatio,
+          recoveryProjection: recoveryProjection,
+          regretScenario: regretScenario,
+          resolveLifeEvent: resolveLifeEvent,
+          retirePlayer: retirePlayer,
+          retirementAssets: retirementAssets,
+          retirementPlanById: retirementPlanById,
+          retirementReadiness: retirementReadiness,
+          safeAnnualIncome: safeAnnualIncome,
+          setRetirementPlan: setRetirementPlan,
+          tunedInjuryRisk: tunedInjuryRisk,
+          withdraw: withdraw
         },
         Symbol.toStringTag,
         { value: "Module" }
@@ -11961,7 +11961,7 @@
       Pt = [28, 35, 43, 52, 62, 72, 78, 84, 90][e.level] || 50,
       _e = e.performanceExpectationV12 || 0,
       Va = clamp99(Math.max(Pt, me, ue, _e), 26, 95),
-      Oa = Ns(U, Va, e.snapShare || 0.5, 58 + e.level * 2).grade;
+      Oa = expectedGrade(U, Va, e.snapShare || 0.5, 58 + e.level * 2).grade;
     e.performanceExpectationV12 = _e ? _e * 0.45 + U * 0.55 : U * 0.9;
     const Te = [],
       Ba = e.level >= 5;
@@ -13757,7 +13757,7 @@
       const done = e.completedObjectivesV11 || {},
         mine = e.legacyObjectivesV11 || [],
         stamps = e.objectiveStampsV89 || {},
-        objs = (typeof Ua != "undefined" ? Ua : []).map(u => {
+        objs = (typeof LEGACY_OBJECTIVES != "undefined" ? LEGACY_OBJECTIVES : []).map(u => {
           let ok = !!done[u.id];
           if (!ok) {
             try {
@@ -13996,7 +13996,7 @@
     shift: tierOppShiftV139,
     say: tierRewardSayV139,
     reward: tierRewardV139,
-    opp: (n, l, w, sd, r) => rt(n, l, w, sd, r),
+    opp: (n, l, w, sd, r) => createOpponentProfile(n, l, w, sd, r),
     tiers: k => _s(k),
     of: e => Kt(e)
   };
@@ -24663,20 +24663,20 @@
   window.__getGridironLiveSpeed = () => (liveCtl && liveCtl.speed ? liveCtl.speed : 1);
   window.__GRIDIRON_LEGACY_VERSION__ = "10.4-impact-ui";
   function ensureV11(e) {
-    if (($a(state), e)) {
+    if ((ensureAccountState(state), e)) {
       const t = LEVELS[e.level] ? LEVELS[e.level].need : 16,
         a = e.pos ? playerOvr(e) : Math.round(ATTR_KEYS.reduce((s, n) => s + (e.attrs[n] || 0), 0) / Math.max(1, ATTR_KEYS.length));
-      (ii(state, e, ATTR_KEYS, t, a), e.decisionQueue && e.decisionQueue.length && (e.decisionQueue = []));
+      (ensurePlayerState(state, e, ATTR_KEYS, t, a), e.decisionQueue && e.decisionQueue.length && (e.decisionQueue = []));
     }
   }
   ensureV11(state && state.player);
   const Lc = treeFx;
   treeFx = function (e) {
-    return ai(e, Lc(e));
+    return prestigeCap(e, Lc(e));
   };
   const Ec = pathVal;
   pathVal = function (e, t) {
-    return si(e, Ec(e, t));
+    return pathCap(e, Ec(e, t));
   };
   GAME_PLANS.some(e => e.id === "recovery") ||
     GAME_PLANS.push({
@@ -24696,12 +24696,12 @@
   const Ac = newPlayer;
   newPlayer = function () {
     const e = Ac();
-    return ((e.originOptionsV11 = Es(state, e).map(t => t.id)), (e.originV11 = null), (e._originAppliedV11 = !1), ensureV11(e), e);
+    return ((e.originOptionsV11 = selectOriginOptions(state, e).map(t => t.id)), (e.originV11 = null), (e._originAppliedV11 = !1), ensureV11(e), e);
   };
   function Vc(e) {
     const t = state.player;
     if (!t || t.originV11) return;
-    const a = As(t, e, ATTR_KEYS);
+    const a = applyOrigin(t, e, ATTR_KEYS);
     a && ((t._originAppliedV11 = !0), ensureV11(t), saveGame(), render(), bigMoment(a.name, a.strength + " · " + a.weakness, "gold"));
   }
   const Oc = rs;
@@ -24717,7 +24717,7 @@
   };
   function Ms(e) {
     if (e.originV11) {
-      const a = It.find(s => s.id === e.originV11);
+      const a = ORIGINS.find(s => s.id === e.originV11);
       return a
         ? `<div class="card origin-card-v11 selected"><div class="eyebrow">RUN IDENTITY</div><div class="origin-selected-v11"><span>${a.icon}</span><div><b>${escHtml(a.name)}</b><small>${escHtml(a.description)}</small>${originSayV131(a)}</div></div></div>`
         : "";
@@ -24725,7 +24725,7 @@
     return `<div class="card origin-card-v11"><div class="eyebrow">CHOOSE THIS CAREER'S IDENTITY</div><div class="h2" style="margin:3px 0 4px">Every Run Has a Story</div><div class="small">Origins add a real strength, a real weakness, and three legacy objectives. Every number below is applied to your sheet the moment you choose — nothing here is flavour.</div><div class="origin-grid-v11">${(
       e.originOptionsV11 || []
     )
-      .map(a => It.find(s => s.id === a))
+      .map(a => ORIGINS.find(s => s.id === a))
       .filter(Boolean)
       .map(
         a =>
@@ -24734,11 +24734,11 @@
       .join("")}</div></div>`;
   }
   function Bc(e) {
-    ma.some(t => t.id === e) && ((state.specializationV11 = e), saveGame(), render(), showToast("Legacy focus changed."));
+    SPECIALIZATIONS.some(t => t.id === e) && ((state.specializationV11 = e), saveGame(), render(), showToast("Legacy focus changed."));
   }
   function jc() {
-    const e = ma.find(t => t.id === state.specializationV11) || ma[0];
-    return `<div class="card specialization-card-v11"><div class="eyebrow">PRESTIGE SPECIALIZATION · NO RAW OVR</div><div class="h2" style="margin:3px 0 5px">${e.icon} ${e.name}</div><div class="small">${e.description} Switch freely; this changes strategy rather than making every run automatically stronger.</div><div class="specialization-grid-v11">${ma.map(t => `<button class="spec-btn-v11 ${t.id === state.specializationV11 ? "on" : ""}" onclick="chooseSpecializationV11('${t.id}')"><span>${t.icon}</span><b>${t.name}</b><small>${t.description}</small></button>`).join("")}</div></div>`;
+    const e = SPECIALIZATIONS.find(t => t.id === state.specializationV11) || SPECIALIZATIONS[0];
+    return `<div class="card specialization-card-v11"><div class="eyebrow">PRESTIGE SPECIALIZATION · NO RAW OVR</div><div class="h2" style="margin:3px 0 5px">${e.icon} ${e.name}</div><div class="small">${e.description} Switch freely; this changes strategy rather than making every run automatically stronger.</div><div class="specialization-grid-v11">${SPECIALIZATIONS.map(t => `<button class="spec-btn-v11 ${t.id === state.specializationV11 ? "on" : ""}" onclick="chooseSpecializationV11('${t.id}')"><span>${t.icon}</span><b>${t.name}</b><small>${t.description}</small></button>`).join("")}</div></div>`;
   }
   const bn = ra;
   ra = function (e) {
@@ -24781,7 +24781,7 @@
     for (let s = 0; s < t.games; s++) {
       const dr = cmb && cmb[s % cmb.length],
         n = dr ? dr.name.toUpperCase() : Dt(e.level),
-        i = rt(n, e.level, s + 1, e.seasonSeed),
+        i = createOpponentProfile(n, e.level, s + 1, e.seasonSeed),
         isR = s === riv;
       if (isR) {
         i.rating = Math.round(i.rating * lift);
@@ -24817,7 +24817,7 @@
     const a = ea(e.level),
       s = t === a.length - 1,
       n = s && e.nemesis ? e.nemesis.name + "'s " + Dt(e.level) : Dt(e.level),
-      i = rt(n, e.level, (e.weekResults || []).length + 1, e.seasonSeed, t);
+      i = createOpponentProfile(n, e.level, (e.weekResults || []).length + 1, e.seasonSeed, t);
     return (
       (i.importance = s ? "championship" : "playoff"),
       {
@@ -24844,7 +24844,7 @@
       (e.seasonSeed = randInt(1, 2e9)),
       (e.playoffState = null),
       (e._v11SeasonActive = !0),
-      ni(e),
+      resetSeasonSystems(e),
       ds(e),
       us(e),
       (e._v11SeasonActive = !1));
@@ -24853,7 +24853,7 @@
       (e.depthStarts = t),
       (e._v11SeasonActive = !0),
       (e.roleRivalV11 = null),
-      Gt(e, LEVELS[e.level].need, seededRng(e.seasonSeed, e.level, e.pos, "season-rival")),
+      ensureRival(e, LEVELS[e.level].need, seededRng(e.seasonSeed, e.level, e.pos, "season-rival")),
       (e.weekResults = ls(e)),
       (e.currentWeek = 0),
       (state.view = "season"),
@@ -24872,14 +24872,14 @@
     t.rivalV128 && rivalResolveV136(e, "auto");
     /* v136 A: a rivalry week reached without the page still gets its approach */ ensureV11(e);
     const s = Wt(a),
-      n = t.opponentV11 || rt(t.opp, e.level, t.week || 1, e.seasonSeed, t.playoff ? t.roundIdx : void 0);
-    ((t.opponentV11 = n), n.scouted || bt(n, e, state.specializationV11));
+      n = t.opponentV11 || createOpponentProfile(t.opp, e.level, t.week || 1, e.seasonSeed, t.playoff ? t.roundIdx : void 0);
+    ((t.opponentV11 = n), n.scouted || scoutOpponent(n, e, state.specializationV11));
     const i = Ic(e, a),
-      r = Wn(n, a, i, state.specializationV11),
-      l = Vs(e),
+      r = matchupPlanModifier(n, a, i, state.specializationV11),
+      l = conditionModifiers(e),
       d =
         e.level >= 7
-          ? ta(e)
+          ? lifestyleEffects(e)
           : { weeklyCost: 0, recovery: 0, perf: 0, injuryRisk: 0, recurrence: 0, fulfillment: 0, media: 0, fatigue: 0 },
       c = rollGamePerf(e, (s.perf || 0) + (r.perf || 0) + (l.perf || 0) + (d.perf || 0), { playoff: !!t.playoff }),
       __omSet = (window.__oppMulV22 = __oppMulForV22(t.opp || (n && n.name))),
@@ -24915,7 +24915,7 @@
       (t.snaps = Math.max(3, Math.round((e.level >= 5 ? 68 : 52) * t.snapShare * randRange(0.88, 1.12)))));
     let y = l.injuryRisk + (s.inj || 0) + (r.injuryRisk || 0) + (d.injuryRisk || 0);
     (a === "recovery" && (y -= 0.08),
-      (y = Fs(y + (c.injured ? 0.055 : 0), e) * (t.rivalV128 ? RIVAL_MULT_V128() : 1)),
+      (y = tunedInjuryRisk(y + (c.injured ? 0.055 : 0), e) * (t.rivalV128 ? RIVAL_MULT_V128() : 1)),
       (t.injuryRiskV12 = y),
       /* v128: the rivalry costs double, and the card says so before you play it */ (t.lifeEffectsV12 = d),
       (function () {
@@ -24960,7 +24960,7 @@
   function mo(e, t) {
     const a = e.opponentV11;
     if (!a) return "";
-    const s = a.scouted || bt(a, t, state.specializationV11),
+    const s = a.scouted || scoutOpponent(a, t, state.specializationV11),
       n = Wt(s.recommendedPlan);
     return `<div class="scout-card-v11"><div class="scout-head-v11"><div><span>${a.rivalry ? "🔥 RIVALRY" : "🔭 SCOUTING REPORT"}</span><b>${escHtml(a.name)}</b></div><div class="scout-confidence-v11">${s.confidence}%<small>CONFIDENCE</small></div></div><div class="scout-tags-v11"><span>${escHtml(s.matchupLabel)}</span><span>${escHtml(a.importance.toUpperCase())}</span><span>${a.rating} OPP RATING</span></div><div class="scout-facts-v11">${s.reveals.map(i => `<div>• ${escHtml(i)}</div>`).join("")}${s.hiddenCount ? `<div class="hidden-fact-v11">• ${s.hiddenCount} detail${s.hiddenCount > 1 ? "s" : ""} unresolved</div>` : ""}</div><div class="scout-rec-v11">Suggested counter: <b>${n.icon} ${escHtml(n.name)}</b>${s.confidence < 50 ? " <small>Low-confidence report</small>" : ""}</div></div>`;
   }
@@ -24971,8 +24971,8 @@
       s = a >= 0 ? t.weekResults[a] : null;
     return s
       ? (s.opponentV11 ||
-          (s.opponentV11 = rt(s.opp, t.level, s.week || a + 1, t.seasonSeed, s.playoff ? s.roundIdx : void 0)),
-        bt(s.opponentV11, t, state.specializationV11),
+          (s.opponentV11 = createOpponentProfile(s.opp, t.level, s.week || a + 1, t.seasonSeed, s.playoff ? s.roundIdx : void 0)),
+        scoutOpponent(s.opponentV11, t, state.specializationV11),
         `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week || a + 1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Your choice now generates the game. Future games remain unresolved until their week.</div></div>${mo(s, t)}<div class="plan-deck">${GAME_PLANS
           .map(n => {
             const i = yn(n),
@@ -25017,7 +25017,7 @@
     if (1) return !1;
     if (
       !t ||
-      ((t.momentsV11 = t.momentsV11 || _n(e, t)),
+      ((t.momentsV11 = t.momentsV11 || makeHighLeverageMoments(e, t)),
       (t.momentIndexV11 = t.momentIndexV11 || 0),
       t.momentIndexV11 >= t.momentsV11.length)
     )
@@ -25033,7 +25033,7 @@
     const t = state.player,
       a = t.weekResults[t.currentWeek],
       s = a.momentsV11[a.momentIndexV11],
-      n = Un(t, a, s, e, state.specializationV11);
+      n = resolveHighLeverageMoment(t, a, s, e, state.specializationV11);
     ((t.highLeverageStatsV11 = t.highLeverageStatsV11 || { attempts: 0, successes: 0 }),
       t.highLeverageStatsV11.attempts++,
       n.success && t.highLeverageStatsV11.successes++,
@@ -25127,18 +25127,18 @@
   processWeek95 = function (e, t) {
     if (!e || e._v11Processed) return;
     ((e._v11Processed = !0), ensureV11(t), uo(e, t), co(t));
-    const a = Yn(t, e, LEVELS[t.level].need, state.specializationV11);
+    const a = resolveRivalWeek(t, e, LEVELS[t.level].need, state.specializationV11);
     ((e.rivalResultV11 = a),
       (t.depthRole = Gc(t.snapShare || 0.1)),
       (t.snapShare || 0) >= 0.65 && (t.depthStarts = (t.depthStarts || 0) + 1),
       (t.roleBattle103 = Math.round(clamp99((t.snapShare || 0.1) * 100, 0, 100))));
-    const s = Hn(t, e, e.planV11 || "disciplined", state.specializationV11);
+    const s = updateConditionAfterGame(t, e, e.planV11 || "disciplined", state.specializationV11);
     ((e.conditionResultV11 = { fatigue: Math.round(s.condition.fatigue), injury: s.condition.injury?.name || null }),
       t.recentlyRecoveredV11 &&
         e.perf >= 80 &&
         ((t.comebackGamesV11 = (t.comebackGamesV11 || 0) + 1), (t.recentlyRecoveredV11 = 0)),
       t.level >= 7 &&
-        ((e.nflEvaluationV11 = Qn(t, e, playerOvr(t))),
+        ((e.nflEvaluationV11 = evaluateNflWeek(t, e, playerOvr(t))),
         e.nflEvaluationV11 &&
           e.nflEvaluationV11.previous !== e.nflEvaluationV11.status &&
           pushStory(
@@ -25146,9 +25146,9 @@
             "UFF role evaluation",
             `${e.nflEvaluationV11.previous} → ${e.nflEvaluationV11.status}; security ${e.nflEvaluationV11.security}.`
           )),
-      Kn(t, e));
-    const n = Bs(t, state),
-      i = js(t, state);
+      maybeStartStoryArc(t, e));
+    const n = evaluateMilestones(t, state),
+      i = evaluateLegacyObjectives(t, state);
     (On(n, "MILESTONE"),
       On(i, "LEGACY OBJECTIVE"),
       a.defeated &&
@@ -25169,19 +25169,19 @@
       (t.sampleGames || []).length >= 10 && t.injuries === 0 && (e.healthySeasonsV11 = (e.healthySeasonsV11 || 0) + 1),
       e.level >= 7)
     ) {
-      const a = Jn(e, t, playerOvr(e));
+      const a = evaluateNflSeason(e, t, playerOvr(e));
       ((t.nflCareerV11 = a),
         (t.nflCutRollV146B = !!(e.nflCutPending || t.nflCut)) /* v146 B: the v10 roll is read, not dropped */,
         (e.nflCutPending = !1),
         (t.nflCut = !1));
     }
-    return (Bs(e, state), js(e, state), t);
+    return (evaluateMilestones(e, state), evaluateLegacyObjectives(e, state), t);
   };
   function yo(e) {
     return e ? (e >= 1e6 ? "$" + Math.round(e / 1e6) + "M" : "$" + Math.round(e / 1e3) + "K") : "$0";
   }
   function va(e) {
-    const t = wa(e, playerOvr(e));
+    const t = ensureNflState(e, playerOvr(e));
     if (!t) return "";
     const a = String(t.status).replaceAll("-", " ").toUpperCase(),
       s = t.security < 25 ? "var(--blood)" : t.security < 50 ? "var(--gold)" : "var(--good)";
@@ -25203,7 +25203,7 @@
   }
   function Wc(e) {
     const t = state.player,
-      a = Xn(t, e);
+      a = acceptNflOffer(t, e);
     if (!a) return;
     const s = document.querySelector(".nfl-offers-overlay-v11");
     (s && s.remove(),
@@ -25223,7 +25223,7 @@
   function Bn(e) {
     // v73: lead with the one number the card exists to give — what this body is worth
     // in the NEXT game — then show the inputs underneath rather than instead.
-    const t = gt(e),
+    const t = ensureCondition(e),
       L = bodyLedgerV73(e);
     if (!document.getElementById("bodyv73css"))
       document.head.insertAdjacentHTML(
@@ -25278,15 +25278,15 @@
     <div class="small">Fatigue is the dial you control: a heavy plan buys snaps and trust, a recovery week buys the number above back. Durability is the dial you BUY — every 10 points of injuryResist take about ${Math.round((L.risk - L.riskUp) * 1000)}% off this week's risk.</div></div>`;
   }
   function bo(e) {
-    const t = Gt(e, LEVELS[e.level].need, seededRng(e.seasonSeed, e.level, e.pos, "ui-rival")),
+    const t = ensureRival(e, LEVELS[e.level].need, seededRng(e.seasonSeed, e.level, e.pos, "ui-rival")),
       a = Math.round((e.snapShare || 0.1) * 100),
       s = Math.round((t.snapShare || 0.5) * 100);
     return `<div class="card rival-card-v11"><div class="impact-head"><div><div class="impact-kicker">NAMED ROLE BATTLE · ${escHtml(t.personality.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">You vs. ${escHtml(t.name)}</div></div><div class="rival-health-v11">${Math.round(t.health)}<small>RIVAL HEALTH</small></div></div><div class="rival-versus-v11"><div><span>YOU</span><b>${a}%</b><small>${escHtml(e.depthRole || "BENCH")} · trust ${Math.round(e.coachTrust || 50)}</small></div><em>VS</em><div><span>${escHtml(t.position)}</span><b>${s}%</b><small>${t.ovr} OVR · trust ${Math.round(t.coachTrust)}</small></div></div><div class="snap-split-v11"><i style="width:${a}%"></i></div><div class="rival-trait-v11">${escHtml(t.trait)} · relationship ${Math.round(t.relationship)}</div>${t.history?.length ? `<div class="small">Last comparison: ${t.history[0].playerPerf} vs ${t.history[0].rivalPerf} · ${t.history[0].swing >= 0 ? "+" : ""}${t.history[0].swing}% snap swing</div>` : ""}</div>`;
   }
   function kn(e) {
-    const t = It.find(i => i.id === e.originV11),
+    const t = ORIGINS.find(i => i.id === e.originV11),
       a = e.legacyObjectivesV11 || [],
-      s = a.map(i => Ua.find(r => r.id === i)).filter(Boolean),
+      s = a.map(i => LEGACY_OBJECTIVES.find(r => r.id === i)).filter(Boolean),
       n = e.completedObjectivesV11 || {};
     return t
       ? `<div class="card identity-card-v11"><div class="impact-head"><div><div class="impact-kicker">RUN IDENTITY</div><div class="h2" style="margin:2px 0 0">${t.icon} ${escHtml(t.name)}</div></div><div class="legacy-token-v11">${state.legacyTokensV11 || 0}<small>LEGACY TOKENS</small></div></div><div class="small">${escHtml(t.description)}</div><div class="legacy-objectives-v11">${s.map(i => `<div class="${n[i.id] ? "done" : ""}"><span>${n[i.id] ? "✓" : i.icon}</span><b>${escHtml(i.title)}</b><small>${escHtml(i.description)}</small><em>+${i.reward}</em></div>`).join("")}</div></div>`
@@ -25300,7 +25300,7 @@
     return `<div class="card arc-card-v11"><div class="eyebrow">MULTI-WEEK CAREER ARCS</div>${s ? `<div class="active-arc-v11"><span>${s.icon}</span><div><b>${escHtml(s.title)}</b><small>Stage ${t.stage + 1}/${s.stages.length} · choices carry into future weeks</small></div></div>` : '<div class="small">No active storyline. Your performance and world state determine what begins next.</div>'}${a.length ? `<div class="arc-history-v11">${a.map(n => `<span class="${n.status}">${n.icon} ${escHtml(n.title)}</span>`).join("")}</div>` : ""}</div>`;
   }
   function _c(e) {
-    const t = Is(e),
+    const t = careerLegacyGrade(e),
       a = Object.keys(e.completedObjectivesV11 || {}).length,
       s = (e.legacyObjectivesV11 || []).length;
     return `<div class="card legacy-summary-v11"><div class="legacy-grade-v11">${t.grade}</div><div><div class="eyebrow">PARTIAL VICTORY · CAREER LEGACY</div><div class="h2" style="margin:2px 0">${escHtml(t.ending)}</div><div class="small">Legacy score ${t.score} · ${a}/${s} origin objectives · highest level ${LEVELS[e.level]?.name || "Unknown"}. A career can matter without reaching the UFF.</div></div></div>`;
@@ -25313,7 +25313,7 @@
   }
   function Uc(e) {
     const t = state.player,
-      a = zn(t, state, e, state.specializationV11);
+      a = resolveStoryChoice(t, state, e, state.specializationV11);
     if (!a) return;
     const s = document.querySelector(".story-overlay-v11");
     (s && s.remove(),
@@ -25327,8 +25327,8 @@
   function Kc(e) {
     const t = e.weekResults?.find(i => !i.played);
     if (!t) return "";
-    t.opponentV11 || (t.opponentV11 = rt(t.opp, e.level, t.week || 1, e.seasonSeed, t.playoff ? t.roundIdx : void 0));
-    const a = t.opponentV11.scouted || bt(t.opponentV11, e, state.specializationV11),
+    t.opponentV11 || (t.opponentV11 = createOpponentProfile(t.opp, e.level, t.week || 1, e.seasonSeed, t.playoff ? t.roundIdx : void 0));
+    const a = t.opponentV11.scouted || scoutOpponent(t.opponentV11, e, state.specializationV11),
       s = String(t.opponentV11.importance || "routine").toUpperCase();
     return `<div class="card opponent-card-v11" style="border-color:${["playoff", "championship"].includes(t.opponentV11.importance) ? "var(--gold)" : t.opponentV11.importance === "evaluation" ? "var(--blood)" : "var(--cyan)"}"><div class="impact-head"><div><div class="impact-kicker">NEXT OPPONENT · ${s}</div><div class="h2" style="margin:2px 0 0">${escHtml(t.opp)}</div></div><div class="scout-confidence-v11">${a.confidence}<small>SCOUT CONF.</small></div></div><div class="matchup-badge-v11">${escHtml(a.matchupLabel)} matchup · ${a.hiddenCount} detail${a.hiddenCount === 1 ? "" : "s"} hidden</div>${(() => {
       /* v126: who they actually are. The RECOMMENDED COUNTER used to sit here — a game plan the player has not chosen himself since the pregame wizard took the call, so the one concrete line on the card was the one thing it could not act on. */
@@ -25347,7 +25347,7 @@
     })()}<div class="scout-facts-v11">${a.reveals.map(i => `<span>${escHtml(i)}</span>`).join("")}</div><div class="small">${a.hiddenCount ? `<b>${a.hiddenCount}</b> more detail${a.hiddenCount === 1 ? " is" : "s are"} still hidden — scouting confidence rises with Awareness, Film Study and the Scouting Notebook.` : "Your scouting is complete: there is nothing about this side you have not seen."}</div></div>`;
   }
   function In(e) {
-    const t = Is(e),
+    const t = careerLegacyGrade(e),
       a = Object.keys(e.completedObjectivesV11 || {}).length,
       s = (e.legacyObjectivesV11 || []).length;
     return `<div class="card legacy-progress-v11"><div class="legacy-grade-v11 small-grade">${t.grade}</div><div><div class="eyebrow">CAREER LEGACY IN PROGRESS</div><div class="h2" style="margin:2px 0">${escHtml(t.ending)}</div><div class="small">Score ${t.score} · ${a}/${s} identity goals complete · partial victories earn permanent Legacy Tokens without requiring an UFF career.</div></div></div>`;
@@ -25407,7 +25407,7 @@
       (t.coachTrust = clamp99((t.coachTrust || 50) - 8, 0, 100)),
       (t.roleBattle103 = 0),
       as(t),
-      Gt(t, LEVELS[t.level].need, seededRng(t.seasonSeed, t.level, e, "position-change")),
+      ensureRival(t, LEVELS[t.level].need, seededRng(t.seasonSeed, t.level, e, "position-change")),
       document.querySelector(".position-overlay-v11")?.remove(),
       pushStory(
         "🔄",
@@ -25465,7 +25465,7 @@
     ensureV11(e);
     const t = e.potentialCeil,
       a = e.potential,
-      s = ei(e);
+      s = originGrowthMultiplier(e);
     (e.potentialCeil != null && (e.potentialCeil *= s), e.potential != null && (e.potential *= s));
     const n = ad(e);
     return (t != null && (e.potentialCeil = t), a != null && (e.potential = a), (n.originGrowthV11 = s), n);
@@ -25474,7 +25474,7 @@
   ca = function (e, t, a) {
     const s = sd(e, t, a);
     if (!t.originPerfAppliedV11) {
-      const n = ti(e, t);
+      const n = originPerformanceModifier(e, t);
       if (((t.perf = Math.round(clamp99((t.perf || 50) + n, 1, 100))), n)) {
         const i = ia(e, t.perf, { oppBoost: t.playoff ? 0.08 : 0 });
         ((t.us = i.us), (t.them = i.them), (t.won = i.won));
@@ -25484,12 +25484,12 @@
     return s;
   };
   function nd() {
-    $a(state);
+    ensureAccountState(state);
     const e = state.legacyUnlocksV11 || {};
-    return `<div class="card legacy-rewards-v11"><div class="impact-head"><div><div class="impact-kicker">PARTIAL-VICTORY REWARDS</div><div class="h2" style="margin:2px 0 0">Legacy Workshop</div></div><div class="legacy-token-v11">${state.legacyTokensV11 || 0}<small>TOKENS</small></div></div><div class="small">Milestones and identity objectives fund information, content, and strategic options—not large universal attribute boosts.</div><div class="legacy-shop-v11">${Cs.map(t => `<div class="legacy-shop-row-v11 ${e[t.id] ? "owned" : ""}"><span>${t.icon}</span><div><b>${escHtml(t.name)}</b><small>${escHtml(t.description)}</small></div><button ${e[t.id] || (state.legacyTokensV11 || 0) < t.cost ? "disabled" : ""} onclick="buyLegacyUnlockV11('${t.id}')">${e[t.id] ? "OWNED" : t.cost + " ◇"}</button></div>`).join("")}</div></div>`;
+    return `<div class="card legacy-rewards-v11"><div class="impact-head"><div><div class="impact-kicker">PARTIAL-VICTORY REWARDS</div><div class="h2" style="margin:2px 0 0">Legacy Workshop</div></div><div class="legacy-token-v11">${state.legacyTokensV11 || 0}<small>TOKENS</small></div></div><div class="small">Milestones and identity objectives fund information, content, and strategic options—not large universal attribute boosts.</div><div class="legacy-shop-v11">${LEGACY_UNLOCKS.map(t => `<div class="legacy-shop-row-v11 ${e[t.id] ? "owned" : ""}"><span>${t.icon}</span><div><b>${escHtml(t.name)}</b><small>${escHtml(t.description)}</small></div><button ${e[t.id] || (state.legacyTokensV11 || 0) < t.cost ? "disabled" : ""} onclick="buyLegacyUnlockV11('${t.id}')">${e[t.id] ? "OWNED" : t.cost + " ◇"}</button></div>`).join("")}</div></div>`;
   }
   function id(e) {
-    const t = Zn(state, e);
+    const t = buyLegacyUnlock(state, e);
     if (t === !1) {
       showToast("Not enough Legacy Tokens.");
       return;
@@ -25525,7 +25525,7 @@
       : "";
   };
   bo = function (e) {
-    const t = Gt(e, LEVELS[e.level].need, seededRng(e.seasonSeed, e.level, e.pos, "ui-rival")),
+    const t = ensureRival(e, LEVELS[e.level].need, seededRng(e.seasonSeed, e.level, e.pos, "ui-rival")),
       a = Math.round((e.snapShare || 0.1) * 100),
       s = Math.round((t.snapShare || 0.5) * 100),
       n = !!state.legacyUnlocksV11?.["rival-dossier"];
@@ -25855,9 +25855,9 @@
   }
   /* the plan-free inputs ca() and __aiSeasonGame build for THIS week (the same arithmetic, read-only) */
   function projWeekInV146(e, w) {
-    const n = w.opponentV11 || rt(w.opp, e.level, w.week || 1, e.seasonSeed, w.playoff ? w.roundIdx : void 0),
-      l = Vs(e),
-      d = e.level >= 7 ? ta(e) : { perf: 0, injuryRisk: 0 },
+    const n = w.opponentV11 || createOpponentProfile(w.opp, e.level, w.week || 1, e.seasonSeed, w.playoff ? w.roundIdx : void 0),
+      l = conditionModifiers(e),
+      d = e.level >= 7 ? lifestyleEffects(e) : { perf: 0, injuryRisk: 0 },
       evP = ((e.eventChoice && e.eventChoice.perf) || 0) + (e.eventBenchV128 || 0),
       oppRating = n ? n.rating : 45 + e.level * 5.5;
     return {
@@ -26188,7 +26188,7 @@
     if (!e || !w || !p || p.id !== id) return null;
     const I = projWeekInV146(e, w),
       gm = Math.max(1, LEVELS[e.level].games);
-    const r = I.n ? Wn(I.n, id, Ic(e, id), state.specializationV11) : { perf: 0, trust: 0, injuryRisk: 0, note: "" },
+    const r = I.n ? matchupPlanModifier(I.n, id, Ic(e, id), state.specializationV11) : { perf: 0, trust: 0, injuryRisk: 0, note: "" },
       rep = Ic(e, id);
     const F = (window.__FATE_PLANS || {})[id];
     let fate = null;
@@ -26222,7 +26222,7 @@
       injMul = null;
     try {
       const ch = injChanceV54(e, I.opts),
-        yy = Fs(y0 + ch * 0.055, e) * (w.rivalV128 ? RIVAL_MULT_V128() : 1);
+        yy = tunedInjuryRisk(y0 + ch * 0.055, e) * (w.rivalV128 ? RIVAL_MULT_V128() : 1);
       injBase = ch;
       injMul = Math.min(1, injPlanMultV54({ injury: yy }));
       pInj = ch * injMul;
@@ -26423,7 +26423,7 @@
       const st = e.storyDecisionQueueV11[0],
         pick = pickStoryChoiceV90(st);
       if (!pick) break;
-      const r = zn(e, state, pick.id, state.specializationV11);
+      const r = resolveStoryChoice(e, state, pick.id, state.specializationV11);
       if (!r) break;
       const rec = {
         arc: st.arcTitle || "",
@@ -26449,7 +26449,7 @@
       if (!s || guard++ > 12) break;
       const c = s.choices && s.choices[0];
       if (!c) break;
-      const r = $i(e, c.id);
+      const r = resolveLifeEvent(e, c.id);
       if (!r) break;
       const rec = {
         kind: "life",
@@ -26478,7 +26478,7 @@
       const a = ensureFinanceState(e);
       if (!a) return null;
       const w = week || 3,
-        i = ri.find(l => w >= l.minWeek);
+        i = LIFE_EVENTS.find(l => w >= l.minWeek);
       if (!i) return null;
       const r = { ...i, uid: `${i.id}-${e.totalSeasons || 0}-${w}` };
       return (a.eventQueue.push(r), r);
@@ -26531,12 +26531,12 @@
   }, "draw the restored screen");
   let Lt = "overview";
   function ks() {
-    (Ws(state), state.player && (ensureV11(state.player), state.player.level >= 7 && ensureFinanceState(state.player)));
+    (ensureAccountV12(state), state.player && (ensureV11(state.player), state.player.level >= 7 && ensureFinanceState(state.player)));
   }
   const cd = newPlayer;
   newPlayer = function () {
     const e = cd();
-    return (Ws(state), ci(state, e), e);
+    return (ensureAccountV12(state), applyPendingVow(state, e), e);
   };
   function dd(e) {
     return String(e.nflStateV11?.status || "camp")
@@ -26546,12 +26546,12 @@
   function wo(e, t = !1) {
     const a = ensureFinanceState(e);
     if (!a) return "";
-    const s = Ht(e),
-      n = ta(e),
+    const s = retirementReadiness(e),
+      n = lifestyleEffects(e),
       i = e.nflStateV11?.contract || {};
     return `<div class="card nfl-life-summary-v12">
     <div class="impact-head"><div><div class="impact-kicker">UFF LIFE · MONEY COMPOUNDS EVERY WEEK</div><div class="h2" style="margin:2px 0 0">${formatMoney(s.netWorth)} Net Worth</div></div><div class="life-ready-v12 ${s.ready ? "ready" : ""}">${Math.round(s.ratio * 100)}%<small>RETIREMENT</small></div></div>
-    <div class="life-money-grid-v12"><div><b>${formatMoney(a.cash)}</b><small>Cash</small></div><div><b>${formatMoney(Ma(e))}</b><small>Invested</small></div><div><b style="color:${a.debt > 0 ? "var(--blood)" : "var(--chalk)"}">${formatMoney(a.debt || 0)}</b><small>Debt</small></div><div><b>${formatMoney(i.salary || 0)}</b><small>Salary</small></div><div><b>${formatMoney(n.weeklyCost * 52)}</b><small>Annual life</small></div><div><b>${escHtml(s.plan.name)}</b><small>Exit plan</small></div></div>
+    <div class="life-money-grid-v12"><div><b>${formatMoney(a.cash)}</b><small>Cash</small></div><div><b>${formatMoney(liquidInvestments(e))}</b><small>Invested</small></div><div><b style="color:${a.debt > 0 ? "var(--blood)" : "var(--chalk)"}">${formatMoney(a.debt || 0)}</b><small>Debt</small></div><div><b>${formatMoney(i.salary || 0)}</b><small>Salary</small></div><div><b>${formatMoney(n.weeklyCost * 52)}</b><small>Annual life</small></div><div><b>${escHtml(s.plan.name)}</b><small>Exit plan</small></div></div>
     ${t ? "" : `<div class="retirement-track-v12"><i style="width:${clamp99(s.ratio * 100, 0, 100)}%"></i></div><div class="small">Retirement assets ${formatMoney(s.retirementAssets)} · safe investment income ${formatMoney(s.annualIncome)}/yr · family security ${Math.round(a.familySecurity)} · fulfillment ${Math.round(a.fulfillment)}</div>`}
     <button class="btn secondary" style="margin-top:10px" onclick="showLifeV12()">💼 Manage Money, Home & Family Goals</button>
   </div>`;
@@ -26563,13 +26563,13 @@
     return `<div class="card feedback-v12"><div class="eyebrow">WHY THIS WEEK HAPPENED</div><div class="h2" style="margin:2px 0 8px">${t.perf} Rating · ${t.won ? "Win" : "Loss"} vs ${escHtml(t.opp)}</div><div class="feedback-lines-v12">${a.reasons.map(s => `<div class="${s.tone || ""}"><span>${s.value}</span><b>${escHtml(s.label)}</b></div>`).join("")}</div><div class="feedback-future-v12">${a.future.map(s => `<span>${escHtml(s)}</span>`).join("")}</div></div>`;
   }
   function fd(e) {
-    const t = Ds(e.level, e);
+    const t = regretScenario(e.level, e);
     return `<div class="card regret-card-v12"><div class="regret-scene-v12"><span>💭</span><div><div class="eyebrow">ONE LAST THOUGHT</div><div class="regret-dialogue-v12">${escHtml(t.dialogue)}</div></div></div><div class="small" style="margin-top:8px">Choose the promise that carries into the next career, then the Prestige menu opens immediately.</div><div class="vow-grid-v12">${t.vows.map(a => `<button onclick="chooseRegretVowV12('${a.id}')"><span>${a.icon}</span><b>${escHtml(a.label)}</b><small>${escHtml(a.description)}</small></button>`).join("")}</div></div>`;
   }
   function hd(e) {
     const t = state.player;
     !t ||
-      !Ds(t.level, t).vows.some(s => s.id === e) ||
+      !regretScenario(t.level, t).vows.some(s => s.id === e) ||
       ((state.pendingVowV12 = e),
       (state.afterCareerV12 = !0),
       saveGame(),
@@ -26591,7 +26591,7 @@
     if (!e) return;
     const t = byId("screen")?.querySelector(".banner");
     if (e.voluntaryRetirementV12) {
-      const a = Ht(e),
+      const a = retirementReadiness(e),
         s = ensureFinanceState(e);
       t &&
         ((t.className = "banner nfl"),
@@ -26613,7 +26613,7 @@
   function Nn(e) {
     const t = ensureFinanceState(e);
     if (!t) return "";
-    const a = Ht(e);
+    const a = retirementReadiness(e);
     return `<div class="card finance-legacy-v12"><div class="eyebrow">LIFE AFTER THE FINAL SNAP</div><div class="h2" style="margin:2px 0">${formatMoney(a.netWorth)} left for the future</div><div class="life-money-grid-v12"><div><b>${formatMoney(t.careerGross)}</b><small>Career gross</small></div><div><b>${formatMoney(t.investmentGains)}</b><small>Market gains</small></div><div><b>${Object.keys(t.completedGoals || {}).length}</b><small>Life goals</small></div><div><b>${Math.round(t.familySecurity)}</b><small>Family security</small></div></div></div>`;
   }
   function vd(e) {
@@ -26633,11 +26633,11 @@
     }
     ks();
     const t = ensureFinanceState(e),
-      a = Ht(e),
+      a = retirementReadiness(e),
       s = e.nflStateV11 || {},
       n = s.contract || {},
-      i = ta(e),
-      r = ya(t.houseId);
+      i = lifestyleEffects(e),
+      r = houseById(t.houseId);
     an();
     const l = document.querySelector(".topbar");
     l && (l.style.display = "");
@@ -26645,7 +26645,7 @@
     (Lt === "overview" &&
       (d = `
     <div class="card life-contract-v12"><div class="impact-head"><div><div class="impact-kicker">${escHtml(dd(e).toUpperCase())} · CURRENT CONTRACT</div><div class="h2" style="margin:2px 0 0">${formatMoney(n.salary || 0)} / season</div></div><div class="contract-years-v12">${n.yearsRemaining || 0}<small>YEARS LEFT</small></div></div><div class="life-money-grid-v12"><div><b>${Math.round((n.guaranteed || 0) * 100)}%</b><small>Guaranteed</small></div><div><b>${formatMoney(n.signingBonus || 0)}</b><small>Signing bonus</small></div><div><b>${formatMoney(i.weeklyCost)}</b><small>Weekly lifestyle</small></div><div><b>${Math.round(s.security || 0)}</b><small>Roster security</small></div></div></div>
-    <div class="card retirement-v12"><div class="impact-head"><div><div class="impact-kicker">RETIREMENT PLAN · ${escHtml(a.plan.name.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">${a.ready ? "You Can Walk Away" : "Still Building the Exit"}</div></div><div class="life-ready-v12 ${a.ready ? "ready" : ""}">${Math.round(a.ratio * 100)}%<small>FUNDED</small></div></div><div class="retirement-track-v12"><i style="width:${clamp99(a.ratio * 100, 0, 100)}%"></i></div><div class="small">Target ${formatMoney(a.target)} · retirement assets ${formatMoney(a.retirementAssets)} · total net worth ${formatMoney(a.netWorth)} · sustainable income ${formatMoney(a.annualIncome)}/yr</div><div class="life-goal-pills-v12"><span>${a.goals}/${a.totalGoals} goals</span><span>Family ${Math.round(t.familySecurity)}</span><span>Fulfillment ${Math.round(t.fulfillment)}</span><span class="${t.debt > 0 ? "danger" : ""}">Debt ${formatMoney(t.debt || 0)}</span></div><div class="retirement-plan-grid-v12">${Ft.map(c => `<button class="${t.retirementPlanId === c.id ? "active" : ""}" onclick="setRetirementPlanV12('${c.id}')"><span>${c.icon}</span><b>${escHtml(c.name)}</b><small>${formatMoney(c.target)} target</small></button>`).join("")}</div>${qs(e) ? `<button class="btn ${a.ready ? "" : "secondary"}" style="margin-top:10px" onclick="retireV12()">🌅 Retire From Football</button>` : ""}</div>
+    <div class="card retirement-v12"><div class="impact-head"><div><div class="impact-kicker">RETIREMENT PLAN · ${escHtml(a.plan.name.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">${a.ready ? "You Can Walk Away" : "Still Building the Exit"}</div></div><div class="life-ready-v12 ${a.ready ? "ready" : ""}">${Math.round(a.ratio * 100)}%<small>FUNDED</small></div></div><div class="retirement-track-v12"><i style="width:${clamp99(a.ratio * 100, 0, 100)}%"></i></div><div class="small">Target ${formatMoney(a.target)} · retirement assets ${formatMoney(a.retirementAssets)} · total net worth ${formatMoney(a.netWorth)} · sustainable income ${formatMoney(a.annualIncome)}/yr</div><div class="life-goal-pills-v12"><span>${a.goals}/${a.totalGoals} goals</span><span>Family ${Math.round(t.familySecurity)}</span><span>Fulfillment ${Math.round(t.fulfillment)}</span><span class="${t.debt > 0 ? "danger" : ""}">Debt ${formatMoney(t.debt || 0)}</span></div><div class="retirement-plan-grid-v12">${RETIREMENT_PLANS.map(c => `<button class="${t.retirementPlanId === c.id ? "active" : ""}" onclick="setRetirementPlanV12('${c.id}')"><span>${c.icon}</span><b>${escHtml(c.name)}</b><small>${formatMoney(c.target)} target</small></button>`).join("")}</div>${canRetire(e) ? `<button class="btn ${a.ready ? "" : "secondary"}" style="margin-top:10px" onclick="retireV12()">🌅 Retire From Football</button>` : ""}</div>
     <div class="card"><div class="eyebrow">RECENT MONEY MOVES</div><div class="money-history-v12">${
       t.history.length
         ? t.history
@@ -26660,16 +26660,16 @@
       Lt === "lifestyle" &&
         (d = `<div class="card"><div class="eyebrow">FOOD · RECOVERY · LUXURY</div><div class="h2" style="margin:2px 0">Spend Money to Shape the Player</div><div class="small">Better support can improve performance and recovery, but every expense reduces the money available for family and retirement.</div></div><div class="h2">Meals</div>${LIFESTYLES.meals.map(c => xs("meals", c, t.lifestyle.meals)).join("")}<div class="h2">Recovery Team</div>${LIFESTYLES.recovery.map(c => xs("recovery", c, t.lifestyle.recovery)).join("")}<div class="h2">Off-Field Lifestyle</div>${LIFESTYLES.luxury.map(c => xs("luxury", c, t.lifestyle.luxury)).join("")}<div class="card tight center"><b style="font-family:Oswald;color:var(--gold)">${formatMoney(i.weeklyCost)} per week</b><div class="small">Recovery +${i.recovery} · performance +${Math.round(i.perf)} · injury risk ${Math.round(i.injuryRisk * 100)}%</div></div>`),
       Lt === "home" &&
-        (d = `<div class="card"><div class="eyebrow">CURRENT HOME</div><div class="h2" style="margin:2px 0">${r.icon} ${escHtml(r.name)}</div><div class="small">${escHtml(r.description)} · value ${formatMoney(t.houseValue)}</div></div>${Fa.map(c => `<div class="house-card-v12 ${t.houseId === c.id ? "owned" : ""}"><span>${c.icon}</span><div><b>${escHtml(c.name)}</b><small>${escHtml(c.description)}</small><em>${c.price ? formatMoney(c.price) : "CURRENT RENTAL"} · ${formatMoney(c.weekly)}/wk upkeep</em></div><button ${t.houseId === c.id ? "disabled" : ""} onclick="buyHouseV12('${c.id}')">${t.houseId === c.id ? "OWNED" : "BUY"}</button></div>`).join("")}`),
+        (d = `<div class="card"><div class="eyebrow">CURRENT HOME</div><div class="h2" style="margin:2px 0">${r.icon} ${escHtml(r.name)}</div><div class="small">${escHtml(r.description)} · value ${formatMoney(t.houseValue)}</div></div>${HOUSES.map(c => `<div class="house-card-v12 ${t.houseId === c.id ? "owned" : ""}"><span>${c.icon}</span><div><b>${escHtml(c.name)}</b><small>${escHtml(c.description)}</small><em>${c.price ? formatMoney(c.price) : "CURRENT RENTAL"} · ${formatMoney(c.weekly)}/wk upkeep</em></div><button ${t.houseId === c.id ? "disabled" : ""} onclick="buyHouseV12('${c.id}')">${t.houseId === c.id ? "OWNED" : "BUY"}</button></div>`).join("")}`),
       Lt === "invest" &&
-        (d = `<div class="card"><div class="eyebrow">COMPOUNDING PORTFOLIO</div><div class="h2" style="margin:2px 0">${formatMoney(Ma(e))} Invested</div><div class="small">Returns and losses are applied after every UFF week. The game protects an emergency reserve of ${formatMoney(xa(e))}; debt costs 16% annually until repaid.</div>${t.debt > 0 ? `<div class="nem-banner" style="margin-top:10px">⚠️ Outstanding debt: <b>${formatMoney(t.debt)}</b>. Half of cash above the reserve automatically repays it.</div>` : ""}</div>${za
+        (d = `<div class="card"><div class="eyebrow">COMPOUNDING PORTFOLIO</div><div class="h2" style="margin:2px 0">${formatMoney(liquidInvestments(e))} Invested</div><div class="small">Returns and losses are applied after every UFF week. The game protects an emergency reserve of ${formatMoney(emergencyReserve(e))}; debt costs 16% annually until repaid.</div>${t.debt > 0 ? `<div class="nem-banner" style="margin-top:10px">⚠️ Outstanding debt: <b>${formatMoney(t.debt)}</b>. Half of cash above the reserve automatically repays it.</div>` : ""}</div>${PORTFOLIOS
           .map(c => {
             const u = t.investments[c.id] || 0;
             return `<div class="portfolio-card-v12"><span>${c.icon}</span><div><b>${escHtml(c.name)}</b><small>${escHtml(c.description)}</small><em>${formatMoney(u)} · ${Math.round(c.annualReturn * 100)}% expected annual return</em></div><div class="portfolio-actions-v12"><button onclick="investV12('${c.id}',.10)">+10%</button><button onclick="investV12('${c.id}',.25)">+25%</button><button ${u < 1e3 ? "disabled" : ""} onclick="withdrawV12('${c.id}',.25)">SELL</button></div></div>`;
           })
           .join("")}`),
       Lt === "goals" &&
-        (d = `<div class="card"><div class="eyebrow">WHAT THE MONEY IS FOR</div><div class="h2" style="margin:2px 0">Lifelong Family Goals</div><div class="small">Football ends. These objectives determine whether the career changed one life or an entire family.</div></div>${Sa.map(
+        (d = `<div class="card"><div class="eyebrow">WHAT THE MONEY IS FOR</div><div class="h2" style="margin:2px 0">Lifelong Family Goals</div><div class="small">Football ends. These objectives determine whether the career changed one life or an entire family.</div></div>${LIFE_GOALS.map(
           c => {
             const u = !!t.completedGoals[c.id],
               h = t.contributions[c.id] || 0,
@@ -26693,14 +26693,14 @@
   }
   function gd(e, t) {
     const a = state.player;
-    vi(a, e, t) && (saveGame(), St(), showToast("Lifestyle updated."));
+    chooseLifestyle(a, e, t) && (saveGame(), St(), showToast("Lifestyle updated."));
   }
   function bd(e) {
     const t = state.player;
-    hi(t, e) && (saveGame(), St(), showToast("Retirement target updated."));
+    setRetirementPlan(t, e) && (saveGame(), St(), showToast("Retirement target updated."));
   }
   function kd(e) {
-    const t = yi(state.player, e);
+    const t = buyHouse(state.player, e);
     if (!t.ok) {
       showToast(t.reason || "Purchase failed.");
       return;
@@ -26710,7 +26710,7 @@
   function wd(e, t) {
     const a = ensureFinanceState(state.player),
       s = Math.max(1e3, Math.round(a.cash * t)),
-      n = gi(state.player, e, s);
+      n = invest(state.player, e, s);
     if (!n.ok) {
       showToast(n.reason || "Investment failed.");
       return;
@@ -26720,7 +26720,7 @@
   function $d(e, t) {
     const a = ensureFinanceState(state.player),
       s = Math.round((a.investments[e] || 0) * t),
-      n = bi(state.player, e, s);
+      n = withdraw(state.player, e, s);
     if (!n.ok) {
       showToast(n.reason || "Sale failed.");
       return;
@@ -26729,21 +26729,21 @@
   }
   function Sd(e, t) {
     const a = ensureFinanceState(state.player),
-      s = ki(state.player, e, Math.round(a.cash * t));
+      s = contributeGoal(state.player, e, Math.round(a.cash * t));
     if (!s.ok) {
       showToast(s.reason || "Contribution failed.");
       return;
     }
-    (saveGame(), St(), s.completed ? bigMoment("LIFE GOAL COMPLETE", Hs(e).name, "good") : showToast(`Funded ${formatMoney(s.amount)}`));
+    (saveGame(), St(), s.completed ? bigMoment("LIFE GOAL COMPLETE", lifeGoalById(e).name, "good") : showToast(`Funded ${formatMoney(s.amount)}`));
   }
   function Md() {
     const e = state.player;
-    if (!qs(e)) {
+    if (!canRetire(e)) {
       showToast("You are not ready to retire yet.");
       return;
     }
     confirm("Retire from football now? This ends the career and locks in your financial legacy.") &&
-      ((e.voluntaryRetirementV12 = !0), Si(e), saveGame(), fn());
+      ((e.voluntaryRetirementV12 = !0), retirePlayer(e), saveGame(), fn());
   }
   function xd(e) {
     const t = e.lifeV12?.eventQueue?.[0];
@@ -26758,7 +26758,7 @@
     (t && !a && document.body.insertAdjacentHTML("beforeend", xd(e)), !t && a && a.remove());
   }
   function Td(e) {
-    const t = $i(state.player, e);
+    const t = resolveLifeEvent(state.player, e);
     if (!t) return;
     (document.querySelector(".life-event-overlay-v12")?.remove(), saveGame(), render());
     const a = t.goals || [];
@@ -26769,8 +26769,8 @@
     const a = !!e && !e._financeProcessedV12;
     if ((Rd(e, t), !e || !a)) return;
     if (t.level >= 7) {
-      const c = pi(t, e);
-      ((e.financeV12 = c), wi(t, e), t.nflStateV11 && (t.nflStateV11.careerEarnings = t.lifeV12?.careerGross || 0));
+      const c = processNflFinancialWeek(t, e);
+      ((e.financeV12 = c), maybeQueueLifeEvent(t, e), t.nflStateV11 && (t.nflStateV11.careerEarnings = t.lifeV12?.careerGross || 0));
     }
     const s = e.matchupV11 || {},
       n = e.conditionResultV11 || {},
@@ -26850,14 +26850,14 @@
       s = a >= 0 ? t.weekResults[a] : null;
     return s
       ? (s.opponentV11 ||
-          (s.opponentV11 = rt(s.opp, t.level, s.week || a + 1, t.seasonSeed, s.playoff ? s.roundIdx : void 0)),
-        bt(s.opponentV11, t, state.specializationV11),
+          (s.opponentV11 = createOpponentProfile(s.opp, t.level, s.week || a + 1, t.seasonSeed, s.playoff ? s.roundIdx : void 0)),
+        scoutOpponent(s.opponentV11, t, state.specializationV11),
         `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week || a + 1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Projected fatigue and injury risk include age, health, and the selected workload.</div></div>${mo(s, t)}<div class="plan-deck">${GAME_PLANS
           .map(n => {
             const i = yn(n),
               r = gn(n.id),
               l = s.opponentV11.scouted?.recommendedPlan === n.id,
-              d = li(t, n.id);
+              d = recoveryProjection(t, n.id);
             return `<button class="impact-plan-choice ${l ? "recommended-v11" : ""}" style="--planColor:${r}" onclick="chooseGamePlanV11('${n.id}',${e ? "true" : "false"})"><div class="plan-icon">${n.icon}</div><div><b>${n.name}${l ? " · SCOUT PICK" : ""}</b><small>${n.desc}</small><div class="gameplan-meta">${n.tags.map(c => `<span>${c}</span>`).join("")}<span class="projection-v12 ${d.label.toLowerCase()}">Fatigue ${d.fatigueAfter} · ${Math.round(d.injuryRisk * 100)}% injury</span></div></div><div class="plan-bars"><div class="mini-rating"><label><span>UPSIDE</span><span>${i[0]}</span></label><div class="mbar"><i style="width:${i[0]}%"></i></div></div><div class="mini-rating"><label><span>CONTROL</span><span>${i[1]}</span></label><div class="mbar"><i style="width:${i[1]}%"></i></div></div><div class="mini-rating"><label><span>RISK</span><span>${i[2]}</span></label><div class="mbar"><i style="width:${i[2]}%"></i></div></div></div></button>`;
           })
           .join("")}<button class="btn ghost" onclick="closeGamePlan103()">Back</button></div></div></div>`)
@@ -26879,7 +26879,7 @@
       d = 30 + effectivePrestige(state.prestige) * 0.65 + Math.sqrt(l) * 0.75,
       c = [28, 35, 43, 52, 62, 72, 78, 84, 90][e.level] || 50,
       u = clamp99(Math.max(c, 45 + (i - n.need) * 0.85, d, e.performanceExpectationV12 || 0), 26, 95);
-    return Ns(s, u, e.snapShare || 0.5, r).grade;
+    return expectedGrade(s, u, e.snapShare || 0.5, r).grade;
   };
   function Cd(e) {
     return e.level >= 7 ? wo(e, !1) : "";
@@ -27111,7 +27111,7 @@
           nflStateV11: { status: RR.status }
         }),
         rating = teamPairV76(e, { clubQ: q }).us,
-        salary = Math.round(Ka(RR.status, ovr, security) * (kind === "cut" ? TU("cutPayV146B", 0.7) : 1) * (1 + q)),
+        salary = Math.round(nflSalaryForStatus(RR.status, ovr, security) * (kind === "cut" ? TU("cutPayV146B", 0.7) : 1) * (1 + q)),
         years = kind === "cut" ? 1 : role === "starter" ? 3 : 2;
       return {
         i,
@@ -27184,7 +27184,7 @@
     if (!O) return null;
     const c = O.list[i == null ? O.sel : i];
     if (!c) return null;
-    const s = typeof wa == "function" ? wa(e, playerOvr(e)) : null;
+    const s = typeof ensureNflState == "function" ? ensureNflState(e, playerOvr(e)) : null;
     if (s) {
       s.status = c.status;
       s.security = c.security;
@@ -27308,8 +27308,8 @@
     } catch (_) {}
   })();
   /* the weekly evaluation: waivers is a cut */
-  const Qn0V146B = Qn;
-  Qn = function (e, t, a) {
+  const Qn0V146B = evaluateNflWeek;
+  evaluateNflWeek = function (e, t, a) {
     const r = Qn0V146B.apply(this, arguments);
     try {
       if (r && r.status === "waivers" && TU("v146B", 1)) {
@@ -27396,7 +27396,7 @@
     cut: (why, e) => cutV146B(e || state.player, why || "test"),
     evaluate: (perf, e) => {
       e = e || state.player;
-      return Qn(e, { perf: perf == null ? 10 : perf, injured: !1 }, playerOvr(e));
+      return evaluateNflWeek(e, { perf: perf == null ? 10 : perf, injured: !1 }, playerOvr(e));
     },
     clubQ: e => clubQV146B(e || state.player),
     ROLE: ROLE_V146B
@@ -27553,7 +27553,7 @@
       if (!s || g++ > 12) break;
       const c = pickLifeV147(e, s);
       if (!c) break;
-      const r = $i(e, c.id);
+      const r = resolveLifeEvent(e, c.id);
       if (!r) break;
       const lab = (r.choice && r.choice.label) || c.label || c.id,
         rec = {
@@ -27666,7 +27666,7 @@
   function retireNowV147() {
     const e = state && state.player;
     if (!e || e._settled) return;
-    if (!qs(e)) {
+    if (!canRetire(e)) {
       showToast("You are not ready to retire yet.");
       return;
     }
@@ -27711,8 +27711,8 @@
         );
     }
   }
-  const qs0V147 = qs;
-  qs = function (e) {
+  const qs0V147 = canRetire;
+  canRetire = function (e) {
     return !!(qs0V147(e) || (e && e.level >= 7 && TU("retireAnyTimeV147", 1) && ensureFinanceState(e)));
   };
   const St0V147 = St;
@@ -27721,7 +27721,7 @@
     try {
       const e = state && state.player,
         d = byId("dock");
-      if (state.view === "life" && e && !e._settled && d && qs(e) && !d.querySelector(".retire-chip-v147"))
+      if (state.view === "life" && e && !e._settled && d && canRetire(e) && !d.querySelector(".retire-chip-v147"))
         d.insertAdjacentHTML(
           "beforeend",
           `<button class="btn ghost retire-chip-v147" onclick="retireNowV147()">🌅 Retire From Football</button>`
@@ -27729,8 +27729,8 @@
     } catch (_) {}
     return r;
   };
-  const wi0V147 = wi;
-  wi = function (e, t) {
+  const wi0V147 = maybeQueueLifeEvent;
+  maybeQueueLifeEvent = function (e, t) {
     const r = wi0V147.apply(this, arguments);
     try {
       if (r && proV147(e)) {
@@ -27815,7 +27815,7 @@
     migrate: migrateOffersV147,
     sim: () => simSeasonV147(state.player),
     retire: retireNowV147,
-    canRetire: e => qs(e || state.player)
+    canRetire: e => canRetire(e || state.player)
   };
   /* a save that stopped on a story week or on an old offer list is drawn again through the wrapper */
   safeBootV140(function () {
@@ -27937,8 +27937,8 @@
     nodeLvl: nodeLvl,
     chooseTier: Gi,
     choosePath: oo,
-    V11: jo,
-    V12: Do,
+    V11: V11_MODULE,
+    V12: V12_MODULE,
     ensureV11: ensureV11,
     ensureV12: ks,
     rollSeasonMod: ds,
