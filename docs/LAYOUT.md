@@ -52,6 +52,7 @@ across `src/` instead of `index.html` (`grep -rn "v146 E THE MENUS" src/`).
 | 24 | `src/24-bottom-nav.js` | 5K | `v139 THE BOTTOM OF THE SCREEN IS THE WAY AROUND` | |
 | – | `index.html` `<style id="shellV146css">` | 8K | the v146 E shell's look (kept inline: it has an id) | |
 | 25 | `src/25-shell.js` | 16K | `v146 E THE MENUS LIVE AT THE BOTTOM, AND NOTHING SCROLLS` | |
+| 27 | `src/27-monetize.js` | 47K | `window.RIB_MONETIZE` — the monetization module, **OFF** by default (v149 E, a new file, not a split block; docs/MONETIZATION.md) | `v149 E THE STORE IS WIRED, AND SWITCHED OFF` |
 | – | `public/rib-menu*.js`, `rib-vault*.js` | | the menu, the coach, the vault — unchanged, baked by `bake-menu-into-index.mjs` | |
 
 A file's number is the index its block had among the old `<script>` elements, so anything that

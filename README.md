@@ -55,6 +55,18 @@ live via `window.RIB_TUNE[key] = ...` without touching code.
 
 ## Recent changes
 
+- **v149 E — the store is wired, and switched off.** `src/27-monetize.js` is `window.RIB_MONETIZE`: a
+  provider-agnostic monetization module behind ONE master switch, `MONETIZE_ENABLED`, that ships `false` —
+  while off it defines the API and does nothing else (no wrapper, no DOM, no timer, no storage write;
+  `v149Echeck.mjs` proves it against a boot with the file blocked). Switched on (`?monetize=1` on a dev host
+  only, or an injected `RIB_MONETIZE_CONFIG`) it gates 4× behind a `speed4` entitlement (opt-in rewarded ad:
+  20 minutes; PRO: permanent; grandfathered for a device that already had a career), offers "double this
+  payout" on the career-end screens, adds a STORE chip to the shell's top bar and a Store / PRO screen, and
+  keeps entitlements in their own versioned, tagged localStorage key — never in the save. Providers: a
+  working `mock`, and stubs for AdMob, RevenueCat (StoreKit / Play Billing) and a Stripe web path.
+  `docs/MONETIZATION.md` is the model, catalogue, policy notes, in-game hook list and the owner's decisions;
+  `docs/COMMERCIAL.md`'s "premium $2.99, no ads, no IAP" row is now marked open.
+
 - **v148 — the lines hold to the goal line.** Near the end zone being attacked the field was squashed top to
   bottom: the row density (`VB` — canvas rows per unit of ground) was re-capped every snap so the WHOLE field
   fit the 2800-row warp canvas measured from the anchor, and the anchor rides the LOS, so the further the drive

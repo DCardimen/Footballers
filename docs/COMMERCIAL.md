@@ -6,13 +6,18 @@ and the concrete remaining path to the App Store / Google Play. Update it as
 scope evolves — it is meant to be the single source of truth for "what does
 commercial v1 mean."
 
-## Product definition (locked)
+## Product definition
+
+> **v149 E:** the monetization row below is no longer locked. The code now carries a monetization module
+> (`window.RIB_MONETIZE`, `src/27-monetize.js`) behind a master switch that ships OFF, and
+> `docs/MONETIZATION.md` holds the model, catalogue, provider steps and store-policy notes. Until the owner
+> picks a model, §3 "Store setup — premium" below is one of two options, not the plan.
 
 | Decision | Choice |
 |---|---|
 | Platform | **Mobile** — iOS + Android |
-| Monetization | **Premium, one-time $2.99 for the whole game** (no ads, no IAP) |
-| IP posture | **Real cities, fully fictional team names** (no real-league marks) |
+| Monetization | **OPEN — owner to decide (v149 E).** Was: premium, one-time $2.99, no ads, no IAP. The owner's current direction is free + opt-in rewarded ads + a one-time PRO unlock (~$5.99) + cosmetics; that is what `src/27-monetize.js` is wired for, **switched off**. See `docs/MONETIZATION.md` §10 for the decisions |
+| IP posture | **Invented towns (v123), fully fictional team names** (no real-league marks). The league is the UFF |
 | Core fantasy | **Single-player** — be one player, live a career |
 | Marquee replay hook | **Score Attack** — a single-player high-score mode |
 | Art | Cohesive look; **all art produced by the owner** |
@@ -86,7 +91,11 @@ npx cap open android   # Android Studio
 - Store listing art needed: 1024×1024 icon (no alpha for iOS), feature graphic
   (Play: 1024×500), and phone screenshots (App Store: 6.7" + 5.5"; Play: min 2).
 
-### 3. Store setup — premium ($2.99)
+### 3. Store setup — premium ($2.99) — *if D2 in docs/MONETIZATION.md stays premium*
+
+(If the model is free + rewarded ads + PRO instead, the app is listed **Free**, `rib.pro` is a non-consumable
+IAP, AdMob + RevenueCat are the providers, and the privacy labels are no longer "no data collected" — see
+`docs/MONETIZATION.md` §6–7.)
 
 - **App Store Connect:** create the app, set price tier to $2.99, no IAP. Fill
   privacy nutrition labels — if you add **no** analytics/tracking, you can

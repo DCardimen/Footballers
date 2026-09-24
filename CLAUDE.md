@@ -86,6 +86,15 @@ Line numbers drift; banner comments don't. Key anchors in `index.html`:
   against better carriers; the worst-angle bucket is full of easy chase-downs) will invert a naive
   reading. Kill switch `TU("v143", 0)` restores the old engine including the unspent roll.
   `window.__V143`; `v143check.mjs`, then `scoreneutralcheck.mjs` (several seeds), `tacklecheck.mjs`
+- `v149 E THE STORE IS WIRED, AND SWITCHED OFF` (`src/27-monetize.js`, a new file after `25-shell.js`) —
+  `window.RIB_MONETIZE`, the monetization module. **`MONETIZE_ENABLED` ships `false`, and while false the file
+  must stay a complete no-op** (API object only: no wrapper, DOM, style, timer, listener, observer or storage
+  write — `v149Echeck.mjs` diffs it against a boot with the file blocked). ON (`?monetize=1` /
+  `rib.monetize.dev.v149`, honoured on dev hosts only; or `window.RIB_MONETIZE_CONFIG` injected before it) it
+  wraps `window.setSpeed` (4× needs `speed4`) and `window.buy` (analytics only), adds the speed-row offer, the
+  career-end "double this payout" chip, the topbar STORE chip and the store screen (`.mz149-*`). Entitlements
+  live in `rib.monetize.ents.v1`, **never in the save**. Never sell gear, rolls, wheel spins, PP or a setting
+  that is free today. The in-game one-liners still to add are listed in `docs/MONETIZATION.md` §8.
 - `v148 THE LINES HOLD TO THE GOAL LINE` (in `buildPersp`, after the v112 cap) — `PERSP.VB` is ONE row density for
   the whole drive: the one the field has with the anchor at the own 25 (`rowRefYdV148`), never re-capped per snap
   (the old cap, `VB0`, fell 2.6× as the LOS neared the attacked goal and squashed everything near the end zone —
@@ -823,6 +832,7 @@ Run the checks that cover what you touched (each prints JSON + `page errors`):
 
 | You changed… | Run |
 |---|---|
+| monetization — the switch, entitlements, the rewarded offers, the store screen, a provider adapter (v149 E) | `v149Echeck.mjs`, then (switch OFF) `bootviewcheck.mjs`, `walk.mjs`, `menu-integration-check.mjs`, `layoutcheck.mjs`, `honorcheck.mjs`, `vaultcheck.mjs` |
 | the row density / the squash near the end zone, the far-behind taper, what the paint and the overlays register to near either goal line (v148) | `v148check.mjs` (also `KILL=1` to see the old failures), then `v144check.mjs`, `v112Bcheck.mjs`, `v93check.mjs`, `v99check.mjs`, `v92check.mjs`, `v145check.mjs`, `v112Echeck.mjs`, `v86check.mjs`, `sidelinecheck.mjs`, `renderpathcheck.mjs` |
 | retiring above college, Sim the Rest of the Season at 7+, stale offers, auto-answered story decisions in the UFF/Interstellar (v147 A) | `v147Acheck.mjs`, then `v146Bcheck.mjs`, `rivalcheck.mjs`, `v90check.mjs`, `v85check.mjs`, `v136check.mjs`, `declarecheck.mjs`, `v88check.mjs`, `bootviewcheck.mjs`, `v146Echeck.mjs`, `walk.mjs` |
 | the menu's prestige coin, the OVR ring's arc and spark, the milestones trophy (v147 B) | `node scripts/build-uff-trophy.mjs` (if the trophy art changed), `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs`, then `v147Bcheck.mjs`, `menu-integration-check.mjs`, `menufxcheck.mjs`, `heroflashcheck.mjs`, `sheencheck.mjs`, `honorcheck.mjs`, `freshcheck.mjs`, `menu-mask-check.mjs`, `menushot.mjs` (`CAREER=1`) |
