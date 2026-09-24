@@ -78,7 +78,7 @@
 .field-wrap{width:100%!important;max-width:100%!important;overflow:hidden!important}
 </style>
 <link rel="stylesheet" href="./src/styles/02-live-sim.css" vite-ignore>
-<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v151b"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v151b"><link rel="stylesheet" href="./public/rib-menu.css?v=v151b"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v151b"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=v151b"><link rel="stylesheet" href="./public/rib-vault.css?v=v151b"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
+<!-- RIB_DIRECT_MENU_HEAD_BEGIN --><meta name="rib-menu-build" content="v151bc"><link rel="stylesheet" href="./public/rib-menu-reset.css?v=v151bc"><link rel="stylesheet" href="./public/rib-menu.css?v=v151bc"><link rel="stylesheet" href="./public/rib-menu-v89.css?v=v151bc"><link rel="stylesheet" href="./public/rib-menu-coach.css?v=v151bc"><link rel="stylesheet" href="./public/rib-vault.css?v=v151bc"><!-- RIB_DIRECT_MENU_HEAD_END --></head>
 <body>
 <div id="splash">
 <div class="splash-inner">
@@ -149,26 +149,8 @@ window.addEventListener('unhandledrejection', function(e){
     window.__GRIDIRON_MEMORY_STORAGE__=true;
   }
 })();
-// confirm/prompt are suppressed in sandboxed iframes (always false/null),
-// which would block new careers and resets. Auto-accept confirm: every
-// confirm in this game is behind an explicit, labeled button tap.
-(function(){
-  var origConfirm = window.confirm, origPrompt = window.prompt;
-  window.confirm = function(msg){
-    var t0 = Date.now(), r;
-    try{ r = origConfirm ? origConfirm.call(window, msg) : undefined; }catch(e){ r = undefined; }
-    if (r === true) return true;
-    // real dialogs block for human-scale time; an instant false/undefined
-    // means the sandbox suppressed the dialog — treat as accepted, since
-    // every confirm here sits behind an explicit labeled button tap
-    if (Date.now() - t0 < 50) return true;
-    return false;
-  };
-  window.prompt = function(msg, def){
-    try{ var r = origPrompt ? origPrompt.call(window, msg, def) : null; return r === undefined ? null : r; }
-    catch(e){ return null; }
-  };
-})();
+// v150 A: the sandbox confirm/prompt auto-accept shim is gone — every confirm and prompt in the game is
+// the in-app ribDialog (src/26-platform.js) now, which a sandboxed iframe does not suppress.
 /* ===== v101 ONE ASSET ROOT — every sheet answers to the same URL =====
  * The sheets had drifted into two conventions: the older ones asked for "/rib_x.png"
  * (the server root) and the newer ones for "./public/rib_x.png" (the folder the deploy
@@ -560,6 +542,7 @@ html.shell-v146 .dock .qa-empty-v146{display:none}
 <script src="./src/25-shell.js" vite-ignore></script>
 <script src="./src/27-monetize.js" vite-ignore></script>
 <script src="./src/28-cosmetics.js" vite-ignore></script>
-<script src="./src/26-platform.js" vite-ignore></script>
-<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v151b"></script><script src="./public/rib-menu-boot.js?v=v151b"></script><script src="./public/rib-menu.js?v=v151b"></script><script src="./public/rib-menu-howto.js?v=v151b"></script><script src="./public/rib-menu-coach.js?v=v151b"></script><script src="./public/rib-menu-navigation.js?v=v151b"></script><script src="./public/rib-vault.js?v=v151b"></script><script src="./public/rib-vault-audio.js?v=v151b"></script><script src="./public/rib-vault-bridge.js?v=v151b"></script><!-- RIB_DIRECT_MENU_BODY_END --></body>
+<script src="./src/29-seasons.js" vite-ignore></script>
+<!-- RIB_DIRECT_MENU_BODY_BEGIN --><script src="./public/rib-menu-v89-runtime.js?v=v151bc"></script><script src="./public/rib-menu-boot.js?v=v151bc"></script><script src="./public/rib-menu.js?v=v151bc"></script><script src="./public/rib-menu-howto.js?v=v151bc"></script><script src="./public/rib-menu-coach.js?v=v151bc"></script><script src="./public/rib-menu-navigation.js?v=v151bc"></script><script src="./public/rib-vault.js?v=v151bc"></script><script src="./public/rib-vault-audio.js?v=v151bc"></script><script src="./public/rib-vault-bridge.js?v=v151bc"></script><!-- RIB_DIRECT_MENU_BODY_END --><script src="./src/26-platform.js" vite-ignore></script>
+</body>
 </html>

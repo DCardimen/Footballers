@@ -12,7 +12,7 @@
  * it falls straight back to v41's silent auto-pick. */
 (function(){
   "use strict";
-  const ST=()=>{try{return window.__GRIDIRON_AUDIT__?.getState?.()||window.o||null}catch(e){return null}};
+  const ST=()=>{try{return window.__GRIDIRON_AUDIT__?.getState?.()||window.S||null}catch(e){return null}};
   const getPl=()=>{const s=ST();return s&&s.player||null};
   const G=()=>window.__GROWTH_V42;
   const cl=(v,a,b)=>Math.max(a,Math.min(b,v));

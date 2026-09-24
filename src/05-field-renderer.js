@@ -597,7 +597,7 @@ function liveAgeKV144() {
   let age = Number(forced);
   if (!isFinite(age)) {
     try {
-      const st = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState && window.__GRIDIRON_AUDIT__.getState()) || window.o;
+      const st = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState && window.__GRIDIRON_AUDIT__.getState()) || window.S;
       const lv = (st && st.player && st.player.level) || 0;
       const L = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.LEVELS) || null;
       age = (L && L[lv] && L[lv].age) || 0;
@@ -621,7 +621,7 @@ function crowdTier() {
   // is not always reachable as a window property, and reading only it silently
   // pinned every stadium to the high-school bleacher.
   try {
-    const st = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState && window.__GRIDIRON_AUDIT__.getState()) || window.o;
+    const st = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState && window.__GRIDIRON_AUDIT__.getState()) || window.S;
     lv = (st && st.player && st.player.level) || 0;
   } catch (e) {}
   return lv <= 2 ? "sparse" : lv <= 5 ? "mid" : "packed";

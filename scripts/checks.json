@@ -24,7 +24,8 @@
     "agecheck",
     "traincheck",
     "layoutcheck",
-    "anchorcheck"
+    "anchorcheck",
+    "v150Acheck"
    ]
   },
   "docs": {
@@ -336,7 +337,8 @@
     "walk",
     "vaultcheck",
     "menu-integration-check",
-    "shot"
+    "shot",
+    "v150Acheck"
    ]
   },
   "combine": {
@@ -1121,7 +1123,8 @@
     "namecheck",
     "emblemcheck",
     "menu-integration-check",
-    "walk"
+    "walk",
+    "v150Acheck"
    ]
   },
   "honors": {
@@ -1212,7 +1215,8 @@
    ],
    "files": [],
    "checks": [
-    "declarecheck"
+    "declarecheck",
+    "v150Acheck"
    ]
   },
   "modes": {
@@ -1303,7 +1307,8 @@
     "splashcheck",
     "walk",
     "menu-integration-check",
-    "layoutcheck"
+    "layoutcheck",
+    "v150Acheck"
    ]
   },
   "rows": {
@@ -1329,6 +1334,57 @@
    ],
    "variants": [
     "`KILL=1` for `v148check` shows the old failures"
+   ]
+  },
+  "v150a": {
+   "desc": "v150 A — the bugs the audit found: name escaping/sanitising, the growth dials, the declare stakes, import through boot, corrupt-save recovery, ribDialog at every confirm/prompt",
+   "anchors": [
+    "v150 A",
+    "cleanNameV150",
+    "cleanSaveV150",
+    "checkSaveV150",
+    "askV150",
+    "setGrowthDialV150",
+    "__saveRecoveredV150"
+   ],
+   "files": [
+    "scripts/v150Acheck.mjs"
+   ],
+   "checks": [
+    "v150Acheck",
+    "declarecheck",
+    "bootviewcheck",
+    "v146Echeck",
+    "v147Acheck",
+    "v112Ccheck",
+    "v149Dcheck",
+    "v149Echeck",
+    "honorcheck",
+    "walk",
+    "menu-integration-check"
+   ]
+  },
+  "seasons": {
+   "desc": "v151 C — competitive seasons, the Career Pass, the career leaderboards, the trophy case (src/29-seasons.js, src/20-leaderboards.js v151 C)",
+   "anchors": [
+    "v151 C",
+    "RIB_SEASONS"
+   ],
+   "files": [
+    "src/29-seasons.js",
+    "src/20-leaderboards.js",
+    "docs/SEASONS.md"
+   ],
+   "checks": [
+    "v151Ccheck",
+    "lbcheck",
+    "dailycheck",
+    "bootviewcheck",
+    "menu-integration-check",
+    "v146Echeck",
+    "v150Ccheck",
+    "layoutcheck",
+    "walk"
    ]
   }
  },
@@ -3301,6 +3357,34 @@
    "slow": false,
    "needsServer": false,
    "pureNode": true,
+   "flaky": []
+  },
+  "v150Acheck": {
+   "file": "scripts/v150Acheck.mjs",
+   "desc": "v150 A — the audit's confirmed bugs: hostile names render inert (inputs cleaned, saves cleaned at boot, screens escape), the v42 growth dials save, the declare stakes are on screen, an import runs the boot migrations and refuses bad shapes/markup, a corrupt save boots from a backup, every confirm/prompt/pop-up is ribDialog.",
+   "areas": [
+    "v150a",
+    "boot",
+    "declare",
+    "names",
+    "pwa"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v151Ccheck": {
+   "file": "scripts/v151Ccheck.mjs",
+   "desc": "v151 C — the season calendar and rollover on a faked clock (archive to the trophy case, boards and pass reset, careers untouched, the event card), Career Score determinism, all 13 career boards populate and sort, a real career end restored at boot, pass XP from events and the observer, tier claims through the RIB_COSMETICS contract (stub + queue), premium gating, the cosmetic-only validator, XSS, 400x860 fit.",
+   "areas": [
+    "seasons"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
    "flaky": []
   }
  }
