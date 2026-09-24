@@ -1,11 +1,15 @@
 # LAYOUT — where the game lives (v149 A, "THE FILE BECOMES A FOLDER")
 
 Until v149 A the whole game was one 9.9MB `index.html` (26.6k lines: 35 `<script>` blocks, 14
-`<style>` blocks, 6.1MB of base64 sheets). It is now a 70KB page plus a folder. **Nothing about
+`<style>` blocks, 6.1MB of base64 sheets). It is now a 54KB page plus a folder. **Nothing about
 the game changed**: every block moved byte for byte into a classic script file that is loaded by a
 `<script src>` standing exactly where the inline block stood, in the same order, with the same
-attributes. `node scripts/layoutcheck.mjs --against ca9db0a` rebuilds the old file from the new
-one (sheets re-baked) and it is byte-identical.
+attributes. `node scripts/layoutcheck.mjs --against adfd250 --at 703499b` rebuilds the last
+monolithic `index.html` (adfd250, v148) from the split commit's layout (sheets re-baked) and it is
+byte-identical. The one deliberate edit after the split is the removal of 16.8KB of HTML-mangled
+Phaser source that a bad bake had left in the markup between two blocks (the parser read it as
+stray end tags, so it never rendered); `layoutcheck.mjs` and `bake-menu-into-index.mjs` now refuse
+code in the page's markup (`strayCodeInPage`).
 
 Banner anchors (`/* ===== vNN NAME ===== */`) did not move relative to each other — search for them
 across `src/` instead of `index.html` (`grep -rn "v146 E THE MENUS" src/`).
@@ -104,8 +108,9 @@ inline; they are cheap, some carry ids code may look up, and moving them buys no
   it in anything that writes generated code), `stampLayoutRefs()`, `bakeSheet()`.
 - `scripts/layoutcheck.mjs` — pure Node gate: every `src/` file named exists and is loaded once,
   the tags say `vite-ignore` and are classic, the Phaser bundle's pinned sha1, the bridge's one
-  hand-off, every sheet wired through `__RIB_ASSET`, no big data URL crept back.
-  `--against ca9db0a` adds the byte-identity proof against the last monolithic `index.html`.
+  hand-off, every sheet wired through `__RIB_ASSET`, no big data URL crept back,
+  no code leaked into the markup. `--against adfd250 --at 703499b` adds the byte-identity proof of
+  the split against the last monolithic `index.html`.
 - Generated-code writers now write `src/`: `build-field-art.py` (`RIB_META_V91`),
   `build-stadium-art.py` (`RIB_META_V92`), `build-badge-art.py` (`RIB_BADGES_V95`) →
   `src/05-field-renderer.js`; the spritekit `bake_*.mjs` refresh `RIB_META_REF/CROWD/SIDE` in

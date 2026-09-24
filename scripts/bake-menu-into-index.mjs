@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { strayCodeInPage } from './lib/layout.mjs'
 
 const root = process.cwd()
 const indexPath = path.resolve(root, 'index.html')
@@ -77,5 +78,7 @@ for (const file of jsFiles) {
 }
 
 if (layoutTags(html) !== layoutBefore) throw new Error('The bake disturbed the src/ layout tags (docs/LAYOUT.md)')
+const stray = strayCodeInPage(html)
+if (stray.length) throw new Error(`The page's markup carries code outside any <script> (a bad bake): ${JSON.stringify(stray.slice(0, 2))}`)
 fs.writeFileSync(indexPath, html)
 console.log(`Baked redesigned menu directly into index.html (${version})`)

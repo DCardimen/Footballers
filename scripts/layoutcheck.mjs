@@ -12,17 +12,19 @@
 //   node scripts/layoutcheck.mjs                    the invariants above
 //   node scripts/layoutcheck.mjs --against <ref>    ALSO: the reconstruction, with the sheets
 //                                                    re-baked, is byte-identical to <ref>:index.html
-//                                                    (ca9db0a is the last monolithic index.html)
+//                                                    (adfd250 is the last monolithic index.html; add
+//                                                    --at <commit> to rebuild THAT commit's layout — the
+//                                                    split itself is byte-identical: --against adfd250 --at 703499b)
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { ROOT, PHASER_FILE, BRIDGE_TAKE, DATA_ASSETS, assetLine, phaserBundle, readGameHtml, layoutFiles } from './lib/layout.mjs'
+import { ROOT, PHASER_FILE, BRIDGE_TAKE, DATA_ASSETS, assetLine, phaserBundle, readGameHtml, layoutFiles, strayCodeInPage } from './lib/layout.mjs'
 
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const sha1 = (b) => crypto.createHash('sha1').update(b).digest('hex')
-const PHASER_SHA1 = '7a5fcb9f86dad30a475a247304ca7dab27ac1769'   // the bundle as it shipped inline up to ca9db0a
+const PHASER_SHA1 = '7a5fcb9f86dad30a475a247304ca7dab27ac1769'   // the bundle as it shipped inline up to adfd250
 
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8')
 const files = layoutFiles().slice(1)
@@ -55,6 +57,9 @@ for (const f of ['index.html', ...files]) {
 }
 ok(big.length === 0, 'no data URL over 4KB is baked into the page or its scripts (sheets are files in public/)', big.join(', '))
 
+const stray = strayCodeInPage(html)
+ok(stray.length === 0, 'no code has leaked into the page\'s markup (a bad bake once left 16.8KB of mangled Phaser there)', JSON.stringify(stray.slice(0, 2)))
+
 const game = readGameHtml()
 const inlineBlocks = [...game.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].length
 const tags = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].length
@@ -64,10 +69,11 @@ const i = process.argv.indexOf('--against')
 if (i > 0) {
   const ref = process.argv[i + 1]
   const want = execFileSync('git', ['show', `${ref}:index.html`], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 })
-  const got = Buffer.from(readGameHtml({ bake: true }), 'utf8')
+  const atI = process.argv.indexOf('--at'), at_ = atI > 0 ? process.argv[atI + 1] : null
+  const got = Buffer.from(readGameHtml(at_ ? { bake: true, gitRef: at_ } : { bake: true }), 'utf8')
   let at = -1
   if (!got.equals(want)) { const n = Math.min(got.length, want.length); for (at = 0; at < n && got[at] === want[at]; at++); }
-  ok(got.equals(want), `the reconstruction with its sheets re-baked is byte-identical to ${ref}:index.html (${want.length} bytes)`,
+  ok(got.equals(want), `the reconstruction with its sheets re-baked is byte-identical to ${ref}:index.html (${want.length} bytes)${at_ ? ' — the layout as of ' + at_ : ''}`,
     at >= 0 ? `first difference at byte ${at}: ${JSON.stringify(got.slice(at, at + 60).toString())} vs ${JSON.stringify(want.slice(at, at + 60).toString())}` : undefined)
 }
 

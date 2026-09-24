@@ -148,3 +148,29 @@ export function bakeSheet({ global, meta, cellmap }, root = ROOT) {
   fs.writeFileSync(file, text.replace(re, () => `const ${meta} = ${map};`))
   console.log(`refreshed ${meta} (${Object.keys(JSON.parse(map)).length} cells) in ${path.relative(root, file)}`)
 }
+
+/** Code that has leaked into the page's MARKUP (outside every <script>/<style> element). Until
+ *  v149 A a bad bake had left 16.8KB of HTML-mangled Phaser source — `</h.length;e++)if(r.
+ *  hasownproperty(…` — between a </script> and a <style>; the parser swallowed it as stray end tags,
+ *  so it rendered nothing and nobody saw it. Returns the offending snippets (empty = clean). */
+export function strayCodeInPage(html) {
+  const markup = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '').replace(/<!--[\s\S]*?-->/g, '')
+  const hits = []
+  for (const re of [/hasownproperty/gi, /p\.exports\s*=/g, /\.addfile\(/gi, /<\/[^>\s]*[;(){}][^>]*>/g]) {
+    for (const m of markup.matchAll(re)) { hits.push(markup.slice(Math.max(0, m.index - 20), m.index + 40)); if (hits.length > 5) return hits }
+  }
+  return hits
+}
+
+/** Script sources BY NAME, for the checks that inject the game into a blank page: 'inline:N' is the
+ *  Nth inline <script> still in index.html (0 = the v112 A warm, 1 = the v114 film picker, 2 = error
+ *  surfacing + __RIB_ASSET), anything else a path such as 'src/04-engine.js'. */
+export function gameScripts(names, root = ROOT) {
+  const html = fs.readFileSync(path.resolve(root, 'index.html'), 'utf8')
+  const inline = [...html.matchAll(/<script(?![^>]*\ssrc=)(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map((m) => m[1])
+  return names.map((n) => {
+    const m = /^inline:(\d+)$/.exec(n)
+    if (m) { if (inline[+m[1]] == null) throw new Error(`index.html has no inline script ${n}`); return inline[+m[1]] }
+    return fs.readFileSync(path.resolve(root, n), 'utf8')
+  })
+}
