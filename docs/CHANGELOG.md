@@ -11,6 +11,12 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v150 C — the hooks are in, the switch is still off.** The monetization hooks now live in the game code: the speed
+  guard and clamp, an optional 3× flag, the career payout double, a cosmetic gate for NEW content only, a STORE tile on
+  the menu, Restore Purchases in Settings, and Android back closing the store's sheets. With monetization off (the
+  default) each is the identity — `v150Ccheck` proves it against a boot with the module blocked. `docs/MONETIZATION.md`
+  now has a launch checklist (web build off, store builds on via injected config).
+
 - **v150 D — the map fits on a page.** CLAUDE.md, loaded into every agent session, was 957 lines /
   ~14k words (~25k tokens) and still said the game was "one file, ~6,500 lines". It is now a one-page map
   (the layout, how to find things, the dev loop, the house rules, the gotchas that have bitten) and points
