@@ -11,6 +11,13 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v150 A — the bugs the audit found.** Names can't run code: `cleanNameV150` cleans every input (name box, family
+  name, Team Creator, leaderboard handle), `cleanSaveV150` cleans a save at boot, and 19 screen templates print names
+  through `escHtml`. The v42 growth dials save. The declare's one-shot stakes sit beside the button. The three
+  career-end screens have tabs and fit the phone. Import goes through storage and a reload so `boot()` migrates it,
+  after a shape check; a corrupt save boots from a backup and says so. Every confirm, prompt and pop-up is an in-app
+  dialog. `v150Acheck.mjs`.
+
 - **v150 C — the hooks are in, the switch is still off.** The monetization hooks now live in the game code: the speed
   guard and clamp, an optional 3× flag, the career payout double, a cosmetic gate for NEW content only, a STORE tile on
   the menu, Restore Purchases in Settings, and Android back closing the store's sheets. With monetization off (the
