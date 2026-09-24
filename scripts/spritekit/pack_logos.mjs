@@ -24,6 +24,7 @@
 // come out the same visual weight.
 import { chromium } from 'playwright'
 import fs from 'fs'
+import { bakeSheet } from '../lib/layout.mjs'
 
 const SHEETS = [
   'art/football-logo-sheet-1-animals.png',
@@ -153,14 +154,10 @@ console.log('emblems that overhang their own square (kept whole now):', over.map
 console.log('crops a neighbour reaches into (its ink was left behind):', alien.map(r => r.idx + ':' + r.alienPx + 'px').join(', ') || 'none')
 if (empty.length) console.error('EMPTY CELLS:', empty.map(r => r.idx).join(', '))
 
-// Re-bake the sheet into index.html (window.__RIB_LOGOS_V44) so the single-file /
-// GitHub Pages build ships the emblems too — public/ is only reachable in vite dev.
-const INDEX = 'index.html'
-const html = fs.readFileSync(INDEX, 'utf8')
-const line = `window.__RIB_LOGOS_V44 = "${dataUrl}";`
-const re = /window\.__RIB_LOGOS_V44 = "data:image\/png;base64,[^"]*";/
-if (!re.test(html)) throw new Error('index.html is missing the baked __RIB_LOGOS_V44 line')
-fs.writeFileSync(INDEX, html.replace(re, line))
+// v149 A: the sheet is no longer re-baked into the page as a data URL — public/ ships with the
+// Pages build, so the PNG written above IS the asset (window.__RIB_LOGOS_V44 = __RIB_ASSET(...)).
+// This only checks that wiring is still in place.
+bakeSheet({ global: '__RIB_LOGOS_V44' })
 console.log(JSON.stringify({ out: OUT, atlas: res.size.join('x'), cells: res.report.length,
   empty: empty.length, bytes: buf.length, baked: true }))
 await browser.close()

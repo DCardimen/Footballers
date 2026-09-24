@@ -4,7 +4,7 @@ Each sheet is AI-drawn on no fixed grid, so sprites are found by their alpha, gr
 split at transparent column gaps, and named by the renderer's own vocabulary (run_dn0, cut_sd,
 getup_up3, celebrate_dn0, ball_spin7 ...). Every sprite is scaled by ONE factor per sheet so a
 cycle never breathes, and anchored feet-down at a fixed baseline. Also rewrites the RIB_META_V91
-block in index.html and paints a labelled preview to /tmp/field_v91_preview.png."""
+block in src/05-field-renderer.js (v149 A: the renderer left index.html) and paints a labelled preview to /tmp/field_v91_preview.png."""
 from PIL import Image, ImageDraw, ImageFilter
 import numpy as np, json, re, os
 
@@ -430,7 +430,7 @@ _ = (hand, toss, figx)
 # throws then share one shrink and the two exchanges another, so a quarterback does not change
 # size between the ball leaving right and leaving left. `cell_offset` measures where the drawing
 # put the ball (or, on a frame with none, the right hand) in each cut cell and prints it: those
-# numbers are HAND_V108 in index.html, and BALL_DRAWN_V108 is the `drawn` flag beside them.
+# numbers are HAND_V108 in src/05-field-renderer.js, and BALL_DRAWN_V108 is the `drawn` flag beside them.
 # The handoff is cut a second time MIRRORED (`handoffL_up*`) for a back coming off the
 # quarterback's LEFT, which v108 could only skip: the reach goes to the side the back is on. The
 # pitch is not mirrored — a pitch is thrown, and he throws right-handed.
@@ -454,7 +454,7 @@ def fit_k(parts):   # the one shrink a family takes so its tallest and widest po
     return k
 hand = [rowsH[0][i] for i in (1, 2, 3, 4, 5)]; toss = [rowsT[0][i] for i in (1, 2, 3, 4, 5)]
 thrR = [rowsR[0][i] for i in (0, 1, 2, 2, 4, 3)]; thrX = [rowsX[0][0], rowsX[0][1]]
-# which of those cells draw a football (the eye's list; BALL_DRAWN_V108 in index.html):
+# which of those cells draw a football (the eye's list; BALL_DRAWN_V108 in src/05-field-renderer.js):
 # 1 the cell draws it, 0 it does not (the ball rides the throwing hand), a pair: it does not and
 # there is no glove to find either — the set, hands on the hips, the ball tucked behind the right one
 DRAWN = { 'handoff_up': [1, 1, 1, 1, 0], 'handoffL_up': [1, 1, 1, 1, 0], 'toss_up': [1, 1, 1, 0, 0], 'throwR_up': [(9.5, -1.0), 1, 1, 1, 0, 0], 'throwL_up': [(9.5, -1.0), 1, 1, 1, 0, 0] }
@@ -527,13 +527,13 @@ else:
     assert np.array_equal(back[..., :3][op], rgba[..., :3][op]) and np.array_equal(back[..., 3] > 0, op), 'the palette file does not round-trip the atlas'
 meta['_ballAngles'] = BALL_ANGLES
 json.dump(meta, open('public/rib_field_v91.json', 'w'), separators=(',', ':'))
-# the renderer reads the map inline
-html = open('index.html').read()
+# the renderer reads the map inline (src/05-field-renderer.js since v149 A)
+html = open('src/05-field-renderer.js').read()
 blk = 'const RIB_META_V91 = ' + json.dumps(meta, separators=(',', ':')) + ';'
 pat = re.compile(r'/\* RIB_META_V91_BEGIN \*/.*?/\* RIB_META_V91_END \*/', re.S)
 if pat.search(html): html = pat.sub('/* RIB_META_V91_BEGIN */ ' + blk + ' /* RIB_META_V91_END */', html)
-else: print('NOTE: no RIB_META_V91 marker in index.html yet; map written to public/rib_field_v91.json')
-open('index.html', 'w').write(html)
+else: print('NOTE: no RIB_META_V91 marker in src/05-field-renderer.js yet; map written to public/rib_field_v91.json')
+open('src/05-field-renderer.js', 'w').write(html)
 # labelled preview
 pv = atlas.copy(); d = ImageDraw.Draw(pv)
 for nm, (c, r) in ((k, v) for k, v in meta.items() if not k.startswith('_')): d.text((c * CELL + 1, r * CELL + 1), nm[:9], fill=(255, 255, 0, 255))

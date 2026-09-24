@@ -5,7 +5,7 @@ alpha to cut on. Each pixel's alpha is recovered from how far it sits from the g
 (a screen-style unpremultiply: the glow keeps its colour, the ground goes to 0), then the
 badges are found as connected blobs, named by their position on the sheet (the layout below
 is the order the sheets were drawn in), trimmed, and written one file per badge so the live
-field only fetches the ones it shows. Also rewrites the RIB_BADGES_V95 block in index.html
+field only fetches the ones it shows. Also rewrites the RIB_BADGES_V95 block in src/05-field-renderer.js (v149 A: the renderer left index.html)
 (name -> [w, h] of the file) and paints a labelled contact sheet to /tmp/badges_v95_preview.png.
   python3 scripts/build-badge-art.py"""
 from PIL import Image, ImageDraw, ImageFilter
@@ -101,12 +101,12 @@ for sheet, rows in LAYOUT.items():
             meta[name] = [b.width, b.height]; tiles.append((name, b))
     print(f'{sheet}: ground {bg.astype(int).tolist()}, {sum(len(r) for r in rows)} badges')
 
-# the renderer reads the manifest inline
-html = open('index.html').read()
+# the renderer reads the manifest inline (src/05-field-renderer.js since v149 A)
+html = open('src/05-field-renderer.js').read()
 blk = 'const RIB_BADGES_V95 = ' + json.dumps(meta, separators=(',', ':')) + ';'
 pat = re.compile(r'/\* RIB_BADGES_V95_BEGIN \*/.*?/\* RIB_BADGES_V95_END \*/', re.S)
-if pat.search(html): html = pat.sub('/* RIB_BADGES_V95_BEGIN */ ' + blk + ' /* RIB_BADGES_V95_END */', html); open('index.html', 'w').write(html)
-else: print('NOTE: no RIB_BADGES_V95 marker in index.html yet; manifest not written')
+if pat.search(html): html = pat.sub('/* RIB_BADGES_V95_BEGIN */ ' + blk + ' /* RIB_BADGES_V95_END */', html); open('src/05-field-renderer.js', 'w').write(html)
+else: print('NOTE: no RIB_BADGES_V95 marker in src/05-field-renderer.js yet; manifest not written')
 json.dump(meta, open(f'{OUT}/manifest.json', 'w'), separators=(',', ':'))
 
 # labelled contact sheet

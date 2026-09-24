@@ -5,7 +5,7 @@ left, row 1 to the right, and the six frames of a row are the same tower with it
 flaring differently, so a slow cycle through them reads as the lamps breathing. Sprites are
 found by their alpha with the v91 slicer, scaled by ONE factor for the sheet, and packed on a
 fixed grid (six columns, two rows) so the renderer can address them as a Phaser sprite sheet.
-Rewrites the RIB_META_V92 block in index.html."""
+Rewrites the RIB_META_V92 block in src/05-field-renderer.js (v149 A: the renderer left index.html)."""
 from PIL import Image, ImageFilter
 import numpy as np, json, re
 src = open('scripts/build-field-art.py').read().split('# ---- run8')[0]
@@ -27,10 +27,10 @@ for ri, r in enumerate(rows):
 # a palette PNG: the glow's soft alpha survives 255 colours and the file drops from ~430KB to ~100KB
 sheet.quantize(colors=255, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save('public/rib_lights_v92.png', optimize=True)
 meta = {'cell': [CW, CH], 'cols': 6, 'rows': 2, 'faces': {'left': 0, 'right': 1}, 'frames': 6}
-html = open('index.html').read()
+html = open('src/05-field-renderer.js').read()
 block = '/* RIB_META_V92_BEGIN */ const RIB_META_V92 = ' + json.dumps(meta, separators=(',', ':')) + '; /* RIB_META_V92_END */'
 if 'RIB_META_V92_BEGIN' in html:
     html = re.sub(r'/\* RIB_META_V92_BEGIN \*/.*?/\* RIB_META_V92_END \*/', lambda m: block, html, count=1, flags=re.S)
-    open('index.html', 'w').write(html)
-else: print('index.html has no RIB_META_V92 markers yet — paste this line:\n' + block)
+    open('src/05-field-renderer.js', 'w').write(html)
+else: print('src/05-field-renderer.js has no RIB_META_V92 markers yet — paste this line:\n' + block)
 print('lights: 12 towers ->', sheet.size, 'scale %.3f' % sc)

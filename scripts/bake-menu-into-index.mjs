@@ -34,6 +34,11 @@ for (const file of [...cssFiles, ...jsFiles]) {
 }
 
 let html = fs.readFileSync(indexPath, 'utf8')
+// v149 A: index.html is a thin page over src/ (docs/LAYOUT.md). The menu block is the only region
+// this rewrites; the game's own <script src="./src/…"> / <link href="./src/…"> tags must come through
+// untouched, in the same order, or the page loses its engine.
+const layoutTags = (h) => [...h.matchAll(/(?:src|href)="\.\/src\/[^"]+"/g)].map((m) => m[0]).join('\n')
+const layoutBefore = layoutTags(html)
 
 html = html
   .replace(/\s*<!-- RIB_DIRECT_MENU_HEAD_BEGIN -->[\s\S]*?<!-- RIB_DIRECT_MENU_HEAD_END -->\s*/g, '\n')
@@ -71,5 +76,6 @@ for (const file of jsFiles) {
   if (!html.includes(`./public/${file}?v=${version}`)) throw new Error(`Failed to inject ${file}`)
 }
 
+if (layoutTags(html) !== layoutBefore) throw new Error('The bake disturbed the src/ layout tags (docs/LAYOUT.md)')
 fs.writeFileSync(indexPath, html)
 console.log(`Baked redesigned menu directly into index.html (${version})`)

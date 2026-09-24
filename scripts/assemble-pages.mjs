@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { stampLayoutRefs, layoutFiles } from './lib/layout.mjs'
 
 const root = process.cwd()
 const outputDir = path.resolve(root, process.argv[2] || '_site')
@@ -59,10 +60,18 @@ const publicDir = path.resolve(root, 'public')
 if (!fs.existsSync(publicDir)) throw new Error('Required public directory is missing')
 fs.cpSync(publicDir, path.resolve(outputDir, 'public'), { recursive: true })
 
+// v149 A: the game's scripts and styles are classic files in src/ (docs/LAYOUT.md). Ship the folder,
+// and stamp every reference with the file's content hash — Pages caches for ten minutes, and the
+// one reload v106.1 makes must not come back to a fresh index.html over yesterday's scripts.
+const layout = layoutFiles(root).slice(1)
+if (layout.length < 20) throw new Error(`index.html names only ${layout.length} src/ files`)
+for (const file of layout) copyFile(file)
+
 fs.writeFileSync(path.resolve(outputDir, '.nojekyll'), '')
 
 const indexPath = path.resolve(outputDir, 'index.html')
-let html = fs.readFileSync(indexPath, 'utf8')
+let html = stampLayoutRefs(fs.readFileSync(indexPath, 'utf8'), root)
+for (const file of layout) if (!html.includes(`./${file}?v=`)) throw new Error(`Missing stamped layout reference: ${file}`)
 
 // v106.1: the page carries the build it was published with, so it can ask rib-build.json whether
 // the site has moved on (public/rib-menu.js, freshV106) — the browser keeps index.html for ten
@@ -100,7 +109,7 @@ for (const asset of menuArt) requireFile(path.resolve(outputDir, 'public', asset
 
 fs.writeFileSync(
   path.resolve(outputDir, 'rib-build.json'),
-  `${JSON.stringify({ version, generatedAt: new Date().toISOString(), directIndexMenu: true, menuCss, menuJs, menuArt }, null, 2)}\n`,
+  `${JSON.stringify({ version, generatedAt: new Date().toISOString(), directIndexMenu: true, menuCss, menuJs, menuArt, layout }, null, 2)}\n`,
 )
 
 console.log(`Assembled direct-index GitHub Pages site in ${path.relative(root, outputDir)} (${version})`)

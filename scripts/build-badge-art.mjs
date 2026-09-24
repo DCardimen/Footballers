@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Cuts the v95 callout badges from the sheets in art/badges/ into public/badges/ and
- * regenerates RIB_BADGES_V95 in index.html. Run after changing any sheet:
+ * regenerates RIB_BADGES_V95 in src/05-field-renderer.js. Run after changing any sheet:
  *   node scripts/build-badge-art.mjs */
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'

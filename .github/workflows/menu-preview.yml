@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'index.html'
+      - 'src/**'
       - 'public/rib-menu*.css'
       - 'public/rib-menu*.js'
       - 'menu-preview.html'
@@ -45,6 +46,8 @@ jobs:
           grep -q './public/rib-menu-navigation.js?v=' _site/index.html
           test -f _site/public/rib-menu-v89.css
           test -f _site/public/rib-menu-navigation.js
+          test -f _site/src/vendor/phaser.min.js
+          node scripts/layoutcheck.mjs
 
       - run: npx playwright install --with-deps chromium
 

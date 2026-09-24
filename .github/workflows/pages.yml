@@ -49,6 +49,11 @@ jobs:
           test -f _site/public/rib-menu-navigation.js
           test -f _site/public/menu/hero_tunnel.webp
           test -f _site/public/menu/portrait_helmet.webp
+          test -f _site/src/vendor/phaser.min.js
+          test -f _site/src/07-career-app.js
+          test -f _site/src/styles/00-app.css
+          grep -q './src/07-career-app.js?v=' _site/index.html
+          node scripts/layoutcheck.mjs
 
       - uses: actions/configure-pages@v5
 
