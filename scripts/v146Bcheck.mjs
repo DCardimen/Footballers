@@ -142,7 +142,8 @@ const offerScreen = (page) => page.evaluate(() => {
   const cut2 = await page.evaluate(() => { const p = window.S.player; p.nflStateV11.security = 0; const r = window.__V146B.evaluate(5); return { r: r && r.cutV146B, out: !!p.cutOutV146B, offers: !!p.offersV146B } })
   ok(cut2.r && cut2.r.end && cut2.out && !cut2.offers, 'the second cut in the same season ends the career', cut2.r)
   await page.evaluate(() => window.go('season')); await page.waitForTimeout(800)
-  const end = await page.evaluate(() => ({ view: window.S.view, txt: (document.getElementById('screen') || {}).innerText || '' }))
+  // v150 A: the career-end screen is tabbed — the log line sits in the LOG tab, so read the whole screen, not just the open tab
+  const end = await page.evaluate(() => ({ view: window.S.view, txt: (document.getElementById('screen') || {}).textContent || '' }))
   ok(end.view === 'gameover' && /cut at OVR/i.test(end.txt), 'and lands on the cut career-end screen', end.view)
 
   // ---------------- a new season starts the count clean

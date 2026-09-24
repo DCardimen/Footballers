@@ -456,8 +456,19 @@
           ${/* v119: the coach's tour — a TOGGLE, not a door. ON plays the tour after the welcome cards (or the moment it is switched on); the tour switches it OFF when it ends. rib-menu-coach.js owns the state. */''}
           <button class="rib9-tile rib9-tile-coach ${coachOn ? 'on' : ''}" type="button" data-rib-action="coach" role="switch" aria-checked="${coachOn ? 'true' : 'false'}" aria-label="Coach's tour, ${coachOn ? 'on' : 'off'}"><img src="${COACH_ART}tile.webp${ARTV}" alt="" loading="lazy"><b>COACH'S TOUR</b><small><i class="rib9-sw"><i></i></i>${coachOn ? 'ON · HE WALKS YOUR FIRST WEEK' : 'OFF · TAP TO BRING HIM BACK'}</small></button>
           ${/* v139: the prestige tree is a door, and the only way in was the header chip — which is not where anyone looks. It sits beside the coach now, with what you have to spend on it. */''}
-          ${tile('prestige', 'legacy_gem', 'PRESTIGE', `${Number(S.pp || 0).toLocaleString()} PP TO SPEND`)}${storeTileV150C()}
+          ${tile('prestige', 'legacy_gem', 'PRESTIGE', `${Number(S.pp || 0).toLocaleString()} PP TO SPEND`)}${seasonTilesV151C()}${storeTileV150C()}
         </nav>`;
+    // v151 C: the season's two doors — the PASS (with the countdown: season, days left, tier) and the career LEADERBOARDS.
+    // src/29-seasons.js is loaded before this file; without it the tiles are simply not drawn. rib-menu-navigation.js
+    // routes actions "seasons" and "boards".
+    function seasonTilesV151C() {
+      const R = window.RIB_SEASONS;
+      if (!R || !R.current) return '';
+      let c = null, p = null;
+      try { c = R.current(); p = R.pass(); } catch (e) { return ''; }
+      return tile('seasons', 'legacy_laurel', 'SEASON PASS', `S${esc(c.number)} · ${esc(c.daysLeft)} DAYS LEFT · TIER ${esc(p.tier)}`, 'rib9-tile-season-v151') +
+        tile('boards', 'legacy_star', 'LEADERBOARDS', 'CAREER SCORE · TITLES · FASTEST', 'rib9-tile-boards-v151');
+    }
     // v150 C H9: the STORE tile — only while window.RIB_MONETIZE says it is on (and its store feature is); "" otherwise, so the
     // menu's markup is byte-for-byte the old one with the switch off. rib-menu-navigation.js routes action "store".
     function storeTileV150C() {

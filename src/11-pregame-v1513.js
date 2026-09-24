@@ -3,7 +3,7 @@
 (function(){
 'use strict';
 const finite=n=>Number.isFinite(Number(n));
-const getState=()=>{try{return window.__GRIDIRON_AUDIT__?.getState?.()||window.o||null}catch(e){return null}};
+const getState=()=>{try{return window.__GRIDIRON_AUDIT__?.getState?.()||window.S||null}catch(e){return null}};
 function safeDestroy(obj){try{if(obj&&obj.active!==false&&!obj.destroyed)obj.destroy()}catch(e){}}
 function objectValid(obj){return !!(obj&&obj.scene&&obj.active!==false&&!obj.destroyed&&finite(obj.x)&&finite(obj.y));}
 function playBallFrame(scene){
