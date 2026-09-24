@@ -77,7 +77,7 @@ async function reachLoader(q, before) {
     let seen = null
     // v150 B: for as long as the loader is up, up to 30s — not a fixed 6s: door two mounts after the Phaser bundle compiles, and
     // at load 30+ the old window closed before it had (film=false chase=false on both baseline tries — nothing was measured)
-    for (let i = 0, w0 = Date.now(); Date.now() - w0 < 30000; i++) { const r = await g.page.evaluate(loader); if (r) seen = r; if (r && r.film) break; if (seen && !r) break; await g.page.waitForTimeout(100) }
+    for (let i = 0, w0 = Date.now(); Date.now() - w0 < 30000 * Math.min(3, LS); i++) { const r = await g.page.evaluate(loader); if (r) seen = r; if (r && r.film) break; if (seen && !r) break; await g.page.waitForTimeout(100) }
     // the .film class starts a .28s opacity transition: read it again once that has settled,
     // or the picture is reported at whatever fraction the fade happened to be on
     if (seen && seen.film) { await g.page.waitForTimeout(420); const r2 = await g.page.evaluate(loader); if (r2) seen = r2 }

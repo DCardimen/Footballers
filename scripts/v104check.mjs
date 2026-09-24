@@ -115,7 +115,7 @@ ok(legacy.length > 0 && legacyBad.length / legacy.length > 0.9,
   `${legacyBad.length}/${legacy.length} rear poses`)
 
 // ================= 2. what the field actually draws, over live play =================
-let minH = 1e9, maxH = 0, minR = 1e9, maxR = 0, seenRear = 0, seenFront = 0, fonts = new Set(), seen = 0, smallest = null
+let minH = 1e9, minHGrown = 1e9, maxH = 0, minR = 1e9, maxR = 0, seenRear = 0, seenFront = 0, fonts = new Set(), seen = 0, smallest = null
 const rowsByTex = {}
 for (let i = 0; i < 170; i++) {
   const st = await page.evaluate(() => { const sc = window.__gridironScene; if (!sc) return null
@@ -133,6 +133,7 @@ for (let i = 0; i < 170; i++) {
     fonts.add(r.fs)
     if (r.rear) seenRear++; else seenFront++
     minH = Math.min(minH, r.inkH); maxH = Math.max(maxH, r.inkH)
+    if (r.bodyH / r.ageK >= 26) minHGrown = Math.min(minHGrown, r.inkH)
     const ratio = r.inkH / r.bodyH; minR = Math.min(minR, ratio); maxR = Math.max(maxR, ratio)
     ;(rowsByTex[r.tex] || (rowsByTex[r.tex] = new Set())).add(r.row.toFixed(2)) }
   await page.waitForTimeout(70)
@@ -146,7 +147,12 @@ ok(maxR / Math.max(1e-6, minR) < 1.35, 'the number holds its share of the body a
   `ratio ${minR.toFixed(4)}..${maxR.toFixed(4)} (${(maxR / minR).toFixed(2)}x)`)
 // v105 moved the default perspective to 78%, so the near rows draw bigger and the number with them: the band is the body's, not a fixed pixel count
 console.log('smallest placement:', JSON.stringify(smallest))
-ok(minH > 3.2 && maxH < 16, 'and it stays inside a sane on-screen size band', `${minH.toFixed(2)}..${maxH.toFixed(2)} px`)
+/* v150 B: the floor is asked of a man drawn at a readable size. The number is painted as a share of the body (~1/8, held
+ * constant by the ratio assertion above), so a man the camera draws 15px tall at the far rows (measured: 15.6px
+ * body, 0.32 scale) carries a 1.95px number — correctly, as his share. The 3.2px floor was written when the smallest man
+ * on screen was bigger; it now applies to every man drawn at least 26px tall (age backed out, v144 A), and the 16px ceiling
+ * to everyone. */
+ok(minHGrown > 3.2 && maxH < 16, 'and it stays inside a sane on-screen size band', `${minHGrown < 1e9 ? minHGrown.toFixed(2) : '-'}..${maxH.toFixed(2)} px on men drawn >= 26px (${minH.toFixed(2)}px on the smallest man)`)
 // one texture = one row: a run cycle must not make the number breathe
 const pulsing = Object.entries(rowsByTex).filter(([, s]) => s.size > 1)
 ok(pulsing.length === 0, 'one pose, one anchor — the number does not wander frame to frame',

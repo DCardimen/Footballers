@@ -82,7 +82,7 @@ check('atlas: no cell carries ink in its pad ring — where a neighbour\'s slive
   atlas.dirtyRing && atlas.dirtyRing.length === 0, atlas.dirtyRing)
 
 // ---- name matching + structure + baked delivery ----
-const api = await page.evaluate(() => {
+const api = await page.evaluate(async () => {
   const L = window.TEAM_LOGOS_V44, P = window.TEAM_PALETTES
   if (!L) return { why: 'TEAM_LOGOS_V44 missing' }
   const expected = {
@@ -100,11 +100,14 @@ const api = await page.evaluate(() => {
   for (const [name, want] of Object.entries(expected)) { const got = L.name(L.forName(name)); if (got !== want) misses.push(`${name}: got ${got}, want ${want}`) }
   const fb1 = L.forName('Dallas State')
   return { logos: L.db.length, palettes: P.length, badPal: L.db.filter(d => !P[d.p]).length,
-    misses, baked: /^data:image\/png/.test(L.url), fb: fb1 === L.forName('Dallas State') && fb1 >= 0 && fb1 < 90 }
+    misses, baked: /^data:image\/png/.test(L.url), url: String(L.url).slice(0, 80),
+    // v150 B: since v149 A the sheet is a file under public/ asked for through __RIB_ASSET (DATA_ASSETS: __RIB_LOGOS_V44 ->
+    // rib_logos_v44.png), not a data URL baked into the page — so the assertion is that it resolves there and is served
+    served: /^data:image\/png/.test(L.url) ? true : (/rib_logos_v44\.png/.test(L.url) ? await fetch(L.url).then(r => r.ok).catch(() => false) : false), fb: fb1 === L.forName('Dallas State') && fb1 >= 0 && fb1 < 90 }
 })
 check('name matching', api.misses && !api.misses.length, api.misses)
 check('90 logos / valid palettes', api.logos === 90 && api.badPal === 0, { logos: api.logos, palettes: api.palettes })
-check('sheet baked as data URL (no server file needed)', !!api.baked)
+check('the logo sheet is served from public/ (v149 A: no longer a baked data URL)', !!api.served, api.url)
 check('deterministic fallback', !!api.fb)
 
 // ---- team creator: tiles, live preview, palette reaction (520px) ----
@@ -203,8 +206,10 @@ const pregame = await page.evaluate((geoSrc) => {
   const chips = [...document.querySelectorAll('.pregame-emblem-v44')]
   return { n: chips.length, chips: chips.map(c => geo(c, c.closest('.pregame-team-v1513'))) }
 }, GEO)
-check('pregame: 2 emblem chips, 44px, sprite-backed, inside tiles',
-  pregame.n === 2 && pregame.chips.every(c => c.img && c.inside && Math.abs(c.w - 44) < 2 && Math.abs(c.h - 44) < 2), pregame)
+// v150 B: inside the v112 D wizard the chips are 34px — its own sheet sets `.v112-wiz-d .pregame-emblem-v44{width:34px;height:34px}`
+// (11-pregame-v1513.js) so the matchup fits the page; 44px was the pre-wizard pregame screen
+check('pregame: 2 emblem chips, 34px in the wizard, sprite-backed, inside tiles',
+  pregame.n === 2 && pregame.chips.every(c => c.img && c.inside && Math.abs(c.w - 34) < 2 && Math.abs(c.h - 34) < 2), pregame)
 // the commitment modal respawns with the pregame screen — hide it for the shot only
 await page.evaluate(() => { [...document.querySelectorAll('body > div')].filter(d => /SEASON COMMITMENT/.test(d.innerText || '')).forEach(d => d.style.visibility = 'hidden') })
 await page.screenshot({ path: 'scripts/_emblem_pregame.png' })

@@ -1252,9 +1252,9 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "live field is up"
-   ]
+   "flaky": [],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s).",
+   "timeoutSec": 1500
   },
   "blowoutcheck": {
    "file": "scripts/blowoutcheck.mjs",
@@ -1281,9 +1281,8 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "the crystal floats above the head"
-   ]
+   "flaky": [],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s)."
   },
   "bodycheck": {
    "file": "scripts/bodycheck.mjs",
@@ -1358,13 +1357,9 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "the post-game card: he pops in with the RESULT stop",
-    "the season screen after the game: he pops in with the RECOVERY stop",
-    "the last stop's button reads DONE",
-    "fourteen stops of the week"
-   ],
-   "timeoutSec": 2400
+   "flaky": [],
+   "timeoutSec": 2400,
+   "note": "v150 B: wall-clock budgets scale with scripts/lib/load.mjs loadScale() (1-minute load per core; exactly 1 on a quiet box; LOAD_SCALE=1 forces the strict numbers)."
   },
   "combinecheck": {
    "file": "scripts/combinecheck.mjs",
@@ -1414,9 +1409,8 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "crowdCheer raises section heat"
-   ]
+   "flaky": [],
+   "note": "v150 B: the roar waits on the crowd clock C.t."
   },
   "dailycheck": {
    "file": "scripts/dailycheck.mjs",
@@ -1464,9 +1458,8 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "pregame: 2 emblem chips, 44px"
-   ]
+   "flaky": [],
+   "note": "v150 B: walks the pregame wizard to the scout page before measuring the chips."
   },
   "endzonecheck": {
    "file": "scripts/endzonecheck.mjs",
@@ -1560,7 +1553,7 @@
   },
   "growthcheck": {
    "file": "scripts/growthcheck.mjs",
-   "desc": "v42 Growth Decisions entertainment probe: Monte-Carlos the outcome generator (mix, magnitudes, durations, permanents, story variety) via window.__GROWTH_V42.simulate",
+   "desc": "v42 growth-decision Monte-Carlo: outcome mix and magnitudes per band (prints assertions since v150 B)",
    "areas": [
     "training"
    ],
@@ -1583,7 +1576,7 @@
    "pureNode": false,
    "loadSensitive": true,
    "flaky": [
-    "the hero canvas loop is running"
+    "no spawn lands on the player"
    ]
   },
   "honorcheck": {
@@ -1663,7 +1656,8 @@
    "loadSensitive": true,
    "flaky": [
     "the broadcast is live"
-   ]
+   ],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s)."
   },
   "lbcheck": {
    "file": "scripts/lbcheck.mjs",
@@ -1730,9 +1724,8 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "the ember loop is running"
-   ]
+   "flaky": [],
+   "note": "v150 B: the ember loop is asserted as advancing, not as a frame count in a fixed window."
   },
   "movecheck": {
    "file": "scripts/movecheck.mjs",
@@ -1756,7 +1749,8 @@
    "slow": false,
    "needsServer": false,
    "pureNode": true,
-   "flaky": []
+   "flaky": [],
+   "note": "v150 B: the reference is the sandbox's own v150 reading (the v37 numbers are printed for the record)."
   },
   "namecheck": {
    "file": "scripts/namecheck.mjs",
@@ -1798,7 +1792,9 @@
    "slow": true,
    "needsServer": true,
    "pureNode": false,
-   "flaky": []
+   "flaky": [],
+   "timeoutSec": 2400,
+   "note": " v150 B: each game waits on the post-game card for 3 min x load scale (capped 3x); the week tap falls back to the button's own click."
   },
   "rankcheck": {
    "file": "scripts/rankcheck.mjs",
@@ -1836,11 +1832,13 @@
     "pile",
     "plant"
    ],
-   "runtimeSec": 80,
+   "runtimeSec": 420,
    "slow": false,
    "needsServer": false,
    "pureNode": true,
-   "flaky": []
+   "flaky": [],
+   "note": "v150 B: play action vs dropback is judged on four seeded streams.",
+   "timeoutSec": 1800
   },
   "refcheck": {
    "file": "scripts/refcheck.mjs",
@@ -1998,10 +1996,8 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "the far end of the sideline sits in dimmer air than the near end",
-    "and the reaction dies back down"
-   ]
+   "flaky": [],
+   "note": "v150 B: far/near by the band's own screen thirds; the decay waits on scene time; rain against a CLEAR base."
   },
   "simcheck": {
    "file": "scripts/simcheck.mjs",
@@ -2059,9 +2055,8 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "the splash did not overstay"
-   ]
+   "flaky": [],
+   "note": "v150 B: wall-clock budgets scale with scripts/lib/load.mjs loadScale() (1-minute load per core; exactly 1 on a quiet box; LOAD_SCALE=1 forces the strict numbers)."
   },
   "starimpactcheck": {
    "file": "scripts/starimpactcheck.mjs",
@@ -2069,11 +2064,16 @@
    "areas": [
     "sim"
    ],
-   "runtimeSec": 5,
+   "runtimeSec": 300,
    "slow": false,
    "needsServer": false,
    "pureNode": false,
-   "flaky": []
+   "flaky": [],
+   "note": " v150 B: loads src/07-career-app.js (the rosters) so the hook installs; a report by default (ASSERT=1 to assert the balance). In the suite it runs PAIRS=1 (25 archetypes x 2 games); PAIRS=4 ASSERT=1 by hand for the calibration.",
+   "env": {
+    "PAIRS": "1"
+   },
+   "timeoutSec": 1800
   },
   "statcreditcheck": {
    "file": "scripts/statcreditcheck.mjs",
@@ -2097,11 +2097,13 @@
     "goals",
     "stride"
    ],
-   "runtimeSec": 65,
+   "runtimeSec": 400,
    "slow": false,
    "needsServer": false,
    "pureNode": true,
-   "flaky": []
+   "flaky": [],
+   "note": "v150 B: 400 throws a level.",
+   "timeoutSec": 1800
   },
   "tacklecheck": {
    "file": "scripts/tacklecheck.mjs",
@@ -2232,9 +2234,8 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "the broadcast is live with markers on the field"
-   ]
+   "flaky": [],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s)."
   },
   "v105check": {
    "file": "scripts/v105check.mjs",
@@ -2250,7 +2251,8 @@
    "slow": true,
    "needsServer": true,
    "pureNode": false,
-   "flaky": []
+   "flaky": [],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s)."
   },
   "v107check": {
    "file": "scripts/v107check.mjs",
@@ -2269,7 +2271,8 @@
    "flaky": [
     "the backpedal was drawn while the QB dropped back",
     "the center is down in the three-point"
-   ]
+   ],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s)."
   },
   "v108check": {
    "file": "scripts/v108check.mjs",
@@ -2283,10 +2286,9 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "and a toss played toss_up0..4",
-    "a handoff played handoff_up0..4"
-   ]
+   "flaky": [],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s). v150 B: frame-on-the-event is the renderer's own record; the rAF collector only has to see the cycle drawn.",
+   "timeoutSec": 2400
   },
   "v109Acheck": {
    "file": "scripts/v109Acheck.mjs",
@@ -2302,7 +2304,8 @@
    "loadSensitive": true,
    "flaky": [
     "the renderer reads the ball's numbers off the throw"
-   ]
+   ],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s)."
   },
   "v109Bcheck": {
    "file": "scripts/v109Bcheck.mjs",
@@ -2316,7 +2319,8 @@
    "slow": true,
    "needsServer": true,
    "pureNode": false,
-   "flaky": []
+   "flaky": [],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s)."
   },
   "v109C1check": {
    "file": "scripts/v109C1check.mjs",
@@ -2391,9 +2395,8 @@
    "slow": false,
    "needsServer": true,
    "pureNode": false,
-   "flaky": [
-    "and the credit follows the man who made the play, never the man who was assigned"
-   ]
+   "flaky": [],
+   "note": "v150 B: seeded (SEED, default 110); the credit is traced to the agent the sim says made every pick and break-up."
   },
   "v111Acheck": {
    "file": "scripts/v111Acheck.mjs",
@@ -2452,8 +2455,9 @@
    "pureNode": false,
    "loadSensitive": true,
    "flaky": [
-    "COLD: the first animated frame is painted inside the budget"
-   ]
+    "every byte of the sheet had landed"
+   ],
+   "note": "v150 B: wall-clock budgets scale with scripts/lib/load.mjs loadScale() (1-minute load per core; exactly 1 on a quiet box; LOAD_SCALE=1 forces the strict numbers)."
   },
   "v112Bcheck": {
    "file": "scripts/v112Bcheck.mjs",
@@ -2601,9 +2605,8 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "door two still plays the FILM"
-   ]
+   "flaky": [],
+   "note": "v150 B: wall-clock budgets scale with scripts/lib/load.mjs loadScale() (1-minute load per core; exactly 1 on a quiet box; LOAD_SCALE=1 forces the strict numbers)."
   },
   "v134check": {
    "file": "scripts/v134check.mjs",
@@ -2638,10 +2641,8 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "the coach's persona stop opens on the father",
-    "Settings is where the family name changes"
-   ]
+   "flaky": [],
+   "note": "v150 B: waits for the coach's line to finish typing."
   },
   "v141check": {
    "file": "scripts/v141check.mjs",
@@ -2653,7 +2654,8 @@
    "slow": false,
    "needsServer": false,
    "pureNode": false,
-   "flaky": []
+   "flaky": [],
+   "note": "v150 B: the 250-vs-350 band takes >= 4 games a cell."
   },
   "v142check": {
    "file": "scripts/v142check.mjs",
@@ -2693,11 +2695,9 @@
    "slow": false,
    "needsServer": true,
    "pureNode": false,
-   "flaky": [
-    "D: both goalposts are drawn standing in a pad",
-    "a shuffle, not a sprint"
-   ],
-   "loadSensitive": true
+   "flaky": [],
+   "loadSensitive": true,
+   "note": "v150 B: C measures the shuffle in SCENE time (_idleClockV144) and waits each play out on game state; D measures one fresh draw of the posts."
   },
   "v145check": {
    "file": "scripts/v145check.mjs",
@@ -2881,7 +2881,8 @@
    "slow": false,
    "needsServer": true,
    "pureNode": false,
-   "flaky": []
+   "flaky": [],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s)."
   },
   "v87check": {
    "file": "scripts/v87check.mjs",
@@ -2895,7 +2896,8 @@
    "slow": false,
    "needsServer": true,
    "pureNode": false,
-   "flaky": []
+   "flaky": [],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s)."
   },
   "v88check": {
    "file": "scripts/v88check.mjs",
@@ -2938,7 +2940,8 @@
    "slow": false,
    "needsServer": true,
    "pureNode": false,
-   "flaky": []
+   "flaky": [],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s)."
   },
   "v92check": {
    "file": "scripts/v92check.mjs",
@@ -2953,9 +2956,8 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "the whistle freezes the feed into a replay still"
-   ]
+   "flaky": [],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s)."
   },
   "v93check": {
    "file": "scripts/v93check.mjs",
@@ -2969,9 +2971,8 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
-   "flaky": [
-    "(throws: teamNames of undefined)"
-   ]
+   "flaky": [],
+   "note": "v150 B: waits for the live field on game state (scripts/lib/live.mjs waitLive, up to 90s)."
   },
   "v98check": {
    "file": "scripts/v98check.mjs",

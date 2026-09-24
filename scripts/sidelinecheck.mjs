@@ -265,10 +265,11 @@ const react = await page.evaluate(async () => {
   const peak = sc.side.excite
   /* v150 B: the decay runs on the SCENE's clock (0.5^(dt/1.3s) per update), and Phaser's TimeStep swaps a frame longer
    * than ~200ms for one nominal step — so on a loaded box with the canvas renderer at a few fps, 1.2s of wall time was
-   * a fraction of that in game time and the reaction had barely moved (1 -> .95). Wait 1.2s of SCENE time instead
-   * (capped at 20s of wall time). */
-  const t0 = sc.time.now, w0 = Date.now()
-  while (sc.time.now - t0 < 1200 && Date.now() - w0 < 20000) await new Promise(r => setTimeout(r, 50))
+   * a fraction of that in game time and the reaction had barely moved (1 -> .95). Wait 1.2s of the SIDELINE's time instead
+   * (capped at 30s of wall time). */
+  // (the sideline's own clock, `side.t` in seconds, is exactly the dt the decay is stepped with)
+  const t0 = sc.side.t || 0, w0 = Date.now()
+  while ((sc.side.t || 0) - t0 < 1.2 && Date.now() - w0 < 30000) await new Promise(r => setTimeout(r, 50))
   return { peak, later: sc.side.excite, quiet: (sc.sideReact({ type: 'snap' }), sc.side.excite) }
 })
 ok(react.peak >= 1, 'a touchdown sends the bench into the air', 'excite=' + react.peak)

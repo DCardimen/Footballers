@@ -90,4 +90,6 @@ ok(ring.softMax > 0 && Math.abs(ring.arc - ring.k) < 0.002 && Math.abs(ring.arc2
 
 console.log(JSON.stringify({ pass, fail }))
 console.log('page errors:', errs.length ? errs : 'none')
-if (fail || errs.length) process.exit(1)
+// v150 B: close the browser and exit either way — a PASSING run used to leave Chromium open and hang to its time limit
+await browser.close()
+process.exit(fail || errs.length ? 1 : 0)

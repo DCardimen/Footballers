@@ -31,11 +31,13 @@ await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.
  * built behind it), and when it closed. The prebuild can only be asserted when the door had the chance to see it: the
  * loader closes on its 9s watchdog when the main thread is held longer than that (the Phaser bundle compiling at load 30+
  * ran 13s in one probe), and then the first play is simply asked for after the door is gone — no prebuild, by design. */
+// (the door's OWN mount stamp `current.t0` is used, not when this poll first ran: a main thread held by the Phaser compile
+// holds this interval too, and the first sighting can be seconds after the mount)
 await page.addInitScript(() => { const D = window.__DOOR2_V150 = { mountAt: null, readySeen: false, goneAt: null }
-  setInterval(() => { try { const L = window.__LIVELOAD_V94, c = L && L.current, el = document.querySelector('.rib-liveload-v94')
-    if (el && D.mountAt == null) D.mountAt = Date.now()
+  setInterval(() => { try { const L = window.__LIVELOAD_V94, c = L && L.current
+    if (c && D.mountAt == null) D.mountAt = c.t0
     if (c && c.ready) D.readySeen = true
-    if (D.mountAt != null && !el && D.goneAt == null) D.goneAt = Date.now() } catch (e) {} }, 40) })
+    if (D.mountAt != null && !c && D.goneAt == null) D.goneAt = Date.now() } catch (e) {} }, 40) })
 await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
 await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)   // warm: vite's one-time reload after an edit
 await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 })

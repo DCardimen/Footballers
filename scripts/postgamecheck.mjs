@@ -8,6 +8,8 @@
 // node scripts/postgamecheck.mjs   (needs `npm run dev` on :5173)
 import { chromium } from 'playwright'
 import { CHROME, GAME_URL } from './lib/env.mjs'
+import { loadScale } from './lib/load.mjs'
+const LS = loadScale()
 
 const fails = []
 const ok = (c, label, detail) => { console.log(`${c ? 'ok  ' : 'FAIL'} ${label}${detail ? '  ' + detail : ''}`); if (!c) fails.push(label) }
@@ -61,7 +63,9 @@ async function playLiveWeek(n) {
   // timed tap races whichever is slowest. Keep clearing whatever is in front of us
   // until the post-game card shows up.
   // a live game can run long even with SKIP, so give it a generous budget
-  for (let i = 0; i < 200; i++) {
+  // v150 B: a budget of WALL time stretched by the load per core (scripts/lib/load.mjs), not 200 polls — at load 30+ the
+  // pregame, the loader and the first snaps outlasted the polls (it passes alone, failed at --jobs 2-4)
+  for (let i = 0, w0 = Date.now(); Date.now() - w0 < 180000 * Math.min(3, LS); i++) {
     if (await page.evaluate(() => !!document.getElementById('pgOverlayV13'))) return true
     const stage = await page.evaluate(() => {
       if (document.getElementById('growthV42')) {

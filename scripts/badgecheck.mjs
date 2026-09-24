@@ -12,6 +12,8 @@ import { chromium } from 'playwright'
 import fs from 'node:fs'
 import { CHROME, GAME_URL } from './lib/env.mjs'
 import { waitLive } from './lib/live.mjs'
+import { loadScale } from './lib/load.mjs'
+const LS = loadScale()
 const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = [], failedReq = []
@@ -68,7 +70,10 @@ const qres = await page.evaluate(async () => {
   r.repeat = B.show('bigplay', { hold: 5000 })            // the same moment again, inside the repeat window: refused
   r.lower = B.show('flag', { force: true, hold: 5000 }); r.qAfterLower = B.queue.length   // waits (same tier, lower prio)
   r.cutIn = B.show('sack', { force: true, hold: 5000 })   // higher prio, no promotion: cuts in
-  await wait(320); r.nowKind = B.current && B.current.kind; r.countAfterCut = up()
+  // v150 B: the cut badge plays its exit before the new one takes the stage — poll for the handover (up to 4s of wall), a
+  // fixed 320ms read null at load 30+
+  for (let w0 = Date.now(); Date.now() - w0 < 4000 && !(B.current && B.current.kind === 'sack');) await wait(60)
+  await wait(80); r.nowKind = B.current && B.current.kind; r.countAfterCut = up()
   r.token1 = B.show('intercepted', { token: 'tok:1', force: true }); r.token2 = B.show('intercepted', { token: 'tok:1', force: true })
   for (const k of ['fumble', 'breakaway', 'bighit']) B.show(k, { force: true })
   r.qMax = B.queue.length
@@ -113,7 +118,7 @@ ok(qres.both, 'the panel and the stage badge share the screen')
 ok(qres.cleared2, 'clear() empties both lanes')
 
 // 3. the live run
-const MS = +(process.env.BADGE_MS || 100000)
+const MS = +(process.env.BADGE_MS || Math.round(100000 * Math.min(3, LS)))   // v150 B: the watch is wall time: stretched by the load per core (lib/load.mjs, capped at 3x)
 const t0 = Date.now(); let shot = false, tookTakeover = false; const popSeen = new Set(); let plays = 0, lastTok = null
 const RETIRED = /^(TOUCHDOWN!|INTERCEPTED!|FUMBLE!|SACKED!|FIRST DOWN ✓|FLAG ON THE PLAY|BIG HIT!|HIT STICK!|IT'S GOOD!|NO GOOD|TOUCHDOWN|INTERCEPTED|FUMBLE — TURNOVER|FIELD GOAL IS GOOD|FIELD GOAL NO GOOD)$/
 while (Date.now() - t0 < MS) {

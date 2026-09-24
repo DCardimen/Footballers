@@ -15,6 +15,8 @@
 import { chromium } from 'playwright'
 import { CHROME, GAME_URL } from './lib/env.mjs'
 import { waitLive } from './lib/live.mjs'
+import { loadScale } from './lib/load.mjs'
+const LS = loadScale()
 const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
@@ -112,7 +114,7 @@ await page.evaluate(({ tossMs }) => {
     requestAnimationFrame(tick) }
   requestAnimationFrame(tick)
 }, { tossMs: +(process.env.V108_TOSS_MS || 90000) })
-const MS = +(process.env.V108_MS || 300000)
+const MS = +(process.env.V108_MS || Math.round(300000 * Math.min(3, LS)))   // v150 B: the watch is wall time (it stops early once it has seen everything): stretched by the load per core, capped at 3x
 const t0 = Date.now()
 let lastV = null, R = {}, week = 1, stall = 0, lastPlays = -1
 const tap = async (t, ms = 900) => { try { await page.locator('button', { hasText: t }).first().click({ timeout: ms }); return true } catch (e) { return false } }
