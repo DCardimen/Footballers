@@ -169,20 +169,22 @@ The 2026-09-24 baseline on `ca9db0a` had 46 entries. v150 B asked of each one: i
 were checks — stale since a later version changed the thing they measure on purpose, sampling one seed of a noisy
 statistic, or waiting on the wall clock on a box shared by four jobs. Those were fixed in the check, each change carrying
 a comment that cites the version it follows. One was a real stat-credit hole, closed in the engine. What is left in
-`known-failures.json` is the game being wrong somewhere this pass did not own, or an assertion that is a wall-clock frame
-rate by nature:
+`known-failures.json` is the game being wrong somewhere this pass did not own, or an assertion that is wall-clock by nature
+(a frame rate, a watchdog that the Phaser compile outlasts on a starved box):
 
 | check | assertion (pattern) | | why it is still here |
 |---|---|---|---|
 | `declarecheck` | the season-result declare card states the one-shot stakes | always | GAME: the stakes live in a hidden report-card tab (AUDIT §2.1) — the v150 A worker's |
 | `declarecheck` | the epitaph fits inside v75's scroll budget on a phone | always | GAME: `declineResult` has no sectioner config since v146 E — the v150 A worker's |
-| `vaultcheck` | a RELOAD mid-pour loses nothing and buys nothing | always | GAME: `visibilitychange`/`blur` call `release()`, which COMMITS a fully-funded reservation, so a reload (or backgrounding) mid-hold buys the upgrade — v137 says it must drop it. Fix in `public/rib-vault.js` + a menu bake |
 | `vaultcheck` | frame rate under a 16x pour / goes to sleep / RESTOCK | sometimes | fps and settle timers in wall time |
 | `v104check` | every pose that can show a number carries a band read off the art | always | GAME (renderer): v109 B's `catchseq` cells are numbered (`detailedAction` misses `catchseq`) but never banded |
 | `heroflashcheck` | no spawn lands on the player | sometimes | one spawn on the kit mask's feathered edge (alpha 19 > 8) in the baseline; not reproduced since |
 | `v112Acheck` | every byte of the sheet had landed | sometimes | a network-vs-first-script race, not a budget |
+| `v112Acheck` | the loader bar keeps sweeping while the main thread is jammed | sometimes | distinct COMPOSITOR frames in 1.5s; at load 30 the compositor itself is starved |
+| `v112Acheck`, `v127check`, `splashcheck` | door two's assertions (the second scene, the film, the still, the caption) | sometimes | door two lives under a 9s watchdog from its own mount; at load 30+ the Phaser compile holds the main thread past it (probed: blocked ~7s, closed at 9s, never READY) and the door is gone before it can be read |
+| `v108check` | the throw / exchange / ball-frame assertions | sometimes | a 5-minute watch that must see a throw each way, a handoff and a toss; at load 30+ the field ran ONE play in it |
 
-#### What happened to the other 39
+#### What happened to the rest
 
 | check | verdict | fix |
 |---|---|---|
@@ -207,7 +209,8 @@ rate by nature:
 | `sidelinecheck` ×2 | CHECK | far/near by the band's own screen thirds, not fixed pixel rows; the decay waits on scene time; rain is compared with a CLEAR base |
 | `starimpactcheck` | CHECK | loads `src/07-career-app.js` (the rosters live there since v141); the star is a trusted starter |
 | `stridecheck` | CHECK, sample size | 400 throws a level (seeds 7/11/12/13 all ladder .08 → .15 → .27) |
-| `v101check` | CHECK (load) | door two's prebuild is asserted when the door had the chance; closed by its 9s watchdog with the main thread held (13s in one probe), it prints SKIP with the evidence |
+| `v101check` | CHECK (load) | door two's prebuild is asserted when the door had the chance; closed by its 9s watchdog (read off the door's own `t0`) with the main thread held, it prints SKIP with the evidence |
+| `vaultcheck` reload | CHECK, timing | the reload is taken inside stage 0 (held 1 of gmEye's 8 PP) and the precondition is asserted: an 800ms hold could fund the 8-PP node, and a funded reservation commits on its own — then the reload had nothing left to lose |
 | `v104check` size band | CHECK, since v144 A | the age factor is backed out of the number's pixel height |
 | `v110check` | CHECK (+ an engine hole) | see v110 below |
 | `v112Acheck` budgets, `v127check`, `splashcheck`, `coachcheck` | CHECK, wall clock | budgets × `scripts/lib/load.mjs` `loadScale()` (1-minute load per core, exactly 1 on a quiet box, printed) and waits on game state |
