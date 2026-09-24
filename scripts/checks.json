@@ -1263,9 +1263,10 @@
    ]
   },
   "monetize": {
-   "desc": "v149 E — the monetization module (switched off by default)",
+   "desc": "v149 E / v150 C — the monetization module and its in-game hooks (switched off by default)",
    "anchors": [
     "v149 E",
+    "v150 C",
     "RIB_MONETIZE"
    ],
    "files": [
@@ -1273,6 +1274,7 @@
    ],
    "checks": [
     "v149Echeck",
+    "v150Ccheck",
     "bootviewcheck",
     "walk",
     "menu-integration-check",
@@ -3255,6 +3257,18 @@
   "v149Echeck": {
    "file": "scripts/v149Echeck.mjs",
    "desc": "v149 E — the monetization module: OFF changes nothing; ON (dev flag) the mock rewarded ad, Pro, entitlements outside the save, the store screen.",
+   "areas": [
+    "monetize"
+   ],
+   "runtimeSec": 300,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v150Ccheck": {
+   "file": "scripts/v150Ccheck.mjs",
+   "desc": "v150 C — the monetization hooks H1–H11 in the game: OFF each is the identity against a boot with the module blocked (speed row, Settings, menu tiles, both payouts); ON the speed guard/clamp, the 3× flag, the payout boost once, the STORE tile, Restore Purchases, Android back over the sheets, a cosmetic gate.",
    "areas": [
     "monetize"
    ],

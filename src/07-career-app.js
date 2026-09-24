@@ -8745,6 +8745,7 @@
     return !!(e && !e._settled && TU("ppBankV136", 1));
   }
   function bankPPV136(n, why) {
+    /* v150 C H6: deliberately no payout boost here — season PP is never doubled, only the settle (H4/H5) */
     n = Math.round(n || 0);
     if (!(n > 0)) return 0;
     if (!bankingV136()) {
@@ -8766,6 +8767,82 @@
     return b;
   }
   window.__V136_C = { bank: bankPPV136, banked: bankedV136, flush: flushBankV136, banking: bankingV136 };
+  /* ===== v150 C THE HOOKS ARE IN, THE SWITCH IS STILL OFF =====
+   * The in-game ends of docs/MONETIZATION.md §8 (H1–H11). Every hook asks `mzV150C()` first, and that is null
+   * unless `window.RIB_MONETIZE` exists AND says it is enabled — so while the master switch is off (the default)
+   * each hook is the identity: the same speed, the same markup, the same payout, not one field written.
+   * H1 `setSpeed` refuses a locked speed and hands the tap to the module's offer. H2 the live speed row's 3×
+   * (`speed3V150C`, only with `features.speed3`). H3 `startLivePlayback` clamps a carried-over speed. H4/H5
+   * `screenGameOver` / `screenWin` pay the career SETTLE through `payoutBoostV150C` (the banked season PP is
+   * never boosted — H6 is deliberately nothing, see `bankPPV136`). H8 `cosOkV150C` hides a camera / weather
+   * entry tagged `cos:"cos_…"` until it is owned — no existing entry is tagged. H10 `storeRowV150C` is the
+   * Settings card. H9 is `public/rib-menu.js`, H11 `src/26-platform.js`, H7 (save slots) is documented only.
+   * These are hoisted declarations: screens restored at boot call them by bare name (v140). */
+  function mzV150C() {
+    const m = typeof window < "u" && window.RIB_MONETIZE;
+    return m && m.enabled ? m : null;
+  }
+  // H1/H3: a speed the device may not use becomes the module's clamp (2× today); identity while off
+  function speedClampV150C(s) {
+    const m = mzV150C();
+    return m && m.clampSpeed ? m.clampSpeed(s) : s;
+  }
+  // H2: the 3× rung is a config flag (features.speed3), off by default — the row is byte-for-byte the old one
+  function speed3V150C() {
+    const m = mzV150C();
+    return !!(m && m.config && m.config.features && m.config.features.speed3);
+  }
+  // H4/H5: the career settle `pay` (already added to state.pp) can be paid once more by a held ppDouble.
+  // Returns the extra PP, already on state.pp and the vault's payout; 0 (and nothing written) while off.
+  function payoutBoostV150C(e, pay, ctx) {
+    const m = mzV150C();
+    if (!m || !e) return 0;
+    pay != null ? (e._payV150C = Math.max(0, Math.round(pay))) : (pay = e._payV150C);
+    if (!(pay > 0) || e._ppDoubledV149E) return 0;
+    const x = Math.max(0, Math.round(m.claimPayoutBoost(pay, ctx || state.view) || 0));
+    if (!x) return 0;
+    state.pp += x;
+    e._vaultPayV137 = (e._vaultPayV137 || 0) + x;
+    e._ppDoubledV149E = x;
+    return x;
+  }
+  // H8: a NEW cosmetic entry carries `cos: "<entitlement>"`; untagged entries (every one today) always show
+  function cosOkV150C(item) {
+    if (!item || !item.cos) return !0;
+    const m = mzV150C();
+    return !!(m && m.has(item.cos));
+  }
+  // H10: Settings › Store & Purchases — RESTORE PURCHASES and what this device holds; "" while off
+  function storeRowV150C() {
+    const m = mzV150C();
+    if (!m) return "";
+    const held = m.list() || [],
+      L = held.length
+        ? held.map(x => `<div class="small" style="display:flex;justify-content:space-between"><span>${escHtml(x.key)}</span><span style="color:var(--gold)">${x.until === Infinity ? "PERMANENT" : x.uses != null ? x.uses + " LEFT" : "UNTIL " + new Date(x.until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></div>`).join("")
+        : `<div class="small">Nothing bought yet — the whole game is free.</div>`;
+    return `<div class="card" id="storeRowV150C">
+      <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px">🛒 STORE &amp; PURCHASES</div>
+      ${L}
+      <div style="height:10px"></div>
+      <button class="btn secondary" data-mz150="restore" onclick="RIB_MONETIZE.restoreUI()">Restore Purchases</button>
+      <div style="height:8px"></div>
+      <button class="btn ghost" data-mz150="store" onclick="RIB_MONETIZE.openStore()">Open the Store</button>
+    </div>`;
+  }
+  window.__V150C = {
+    mz: mzV150C,
+    clamp: speedClampV150C,
+    speed3: speed3V150C,
+    cosOk: cosOkV150C,
+    // the module calls this after a watched ad: pay the settle again, save, redraw the card with the new figure
+    payout: function (ctx, pay) {
+      const e = state && state.player;
+      if (!e || !e._settled) return 0;
+      const x = payoutBoostV150C(e, e._payV150C != null ? null : pay, ctx);
+      if (x) (saveGame(), render());
+      return x;
+    }
+  };
   function completeChallenges(e) {
     state.challenges || (state.challenges = {});
     let t = 0;
@@ -12790,6 +12867,7 @@
         return `<div class="fx-row">
         <div class="fx-head"><span class="fx-label">Camera</span><span class="fx-val" id="fxCam_val">${L[c].n}</span></div>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:2px 0 4px">${L.map(function (m, i) {
+          if (!cosOkV150C(m)) return ""; /* v150 C H8: a new, tagged, unowned camera is not offered */
           return `<button class="btn camopt112 ${i === c ? "secondary" : "ghost"}" style="padding:8px 4px;font-size:12px" onclick="camModeSet112(${i})">${m.n}</button>`;
         }).join("")}</div>
         <div class="fx-desc" id="fxCam_desc">${L[c].d}</div>
@@ -12801,6 +12879,7 @@
         return `<div class="fx-row">
         <div class="fx-head"><span class="fx-label">Weather &amp; time of day</span><span class="fx-val" id="fxWx_val">${L[c].n}</span></div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:2px 0 4px">${L.map(function (m, i) {
+          if (!cosOkV150C(m)) return ""; /* v150 C H8 */
           return `<button class="btn wxopt144 ${i === c ? "secondary" : "ghost"}" style="padding:8px 2px;font-size:11px" onclick="wxModeSet144(${i})">${m.n}</button>`;
         }).join("")}</div>
         <div class="fx-desc" id="fxWx_desc">${L[c].d}</div>
@@ -12875,6 +12954,7 @@
       <div class="small">Your progress saves automatically after every action, right here on your device. Prestige, upgrades, and your current player all persist.</div>
       <div class="threshold-note mt" style="margin-top:8px">Save size: ${Math.round(e / 1024)} KB · ${state.careers} careers played</div>
     </div>
+    ${storeRowV150C() /* v150 C H10: only while the store is on */}
     <div class="card">
       <div class="l" style="font-size:11px;color:var(--chalk-dim);letter-spacing:2px;margin-bottom:8px">📤 BACKUP / TRANSFER</div>
       <div class="small">Export a backup code to move your save to another device, or import one here.</div>
@@ -19448,6 +19528,7 @@
         ["0.5", "½×", "◀◀"],
         ["1", "1×", "▶ ❚❚"],
         ["2", "2×", "▶▶"],
+        ...(speed3V150C() ? [["3", "3×", "▶▶▸"]] : []) /* v150 C H2: the earned rung, off by default */,
         ["4", "4×", "▶▶▶"]
       ]
         .map(
@@ -19760,7 +19841,7 @@
       state._liveGame,
       (liveCtl = {
         idx: -1,
-        speed: (liveCtl && liveCtl.speed) || (settingOn("fastSim") ? 2 : 1),
+        speed: speedClampV150C((liveCtl && liveCtl.speed) || (settingOn("fastSim") ? 2 : 1)) /* v150 C H3 */,
         playing: !0,
         anim: null,
         t: 0
@@ -19775,6 +19856,9 @@
       liveTick());
   }
   function setSpeed(e) {
+    /* v150 C H1: a speed this device may not use goes to the module's offer, and the speed stays */
+    const mz = mzV150C();
+    if (mz && !mz.speedAllowed(e)) return void (mz.speedLocked && mz.speedLocked(e));
     (liveCtl && (liveCtl.speed = e),
       document
         .querySelectorAll(".speed-btn[data-spd]")
@@ -22064,6 +22148,7 @@
       (e._ppBankV136 = flushBankV136()),
       (state.pp += r),
       (e._vaultPayV137 = r + (e._ppBankV136 || 0)),
+      payoutBoostV150C(e, r, "gameover") /* v150 C H4 */,
       (state.prestige = +(state.prestige + honorPayV139(l)).toFixed(1)),
       (state.careersCompleted = (state.careersCompleted || 0) + 1),
       (e._starGain = honorPayV139(l)),
@@ -22093,7 +22178,7 @@
       <div class="statline">
         <div class="statbox"><div class="n">${LEVELS[a].name.split(" ")[0]}</div><div class="l">Reached</div></div>
         <div class="statbox"><div class="n">+${l}</div><div class="l">Honors 🎖️</div></div>
-        <div class="statbox"><div class="n">+${r + (e._ppBankV136 || 0)}</div><div class="l">PP Earned</div></div>
+        <div class="statbox"><div class="n">+${r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0)}</div><div class="l">PP Earned</div></div>
       </div>
       ${u > 0 ? `<div class="threshold-note" style="margin-top:8px;text-align:center">💰 Your legacy bonuses boosted PP earnings by <b style="color:var(--gold)">+${u}%</b></div>` : ""}
       ${e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.</div>` : ""}
@@ -22146,6 +22231,7 @@
       ((e._ppBankV136 = flushBankV136()),
         (state.pp += n),
         (e._vaultPayV137 = (e._vaultPayV137 || 0) + n + (e._ppBankV136 || 0)),
+        payoutBoostV150C(e, n, "win") /* v150 C H5 */,
         (state.prestige = +(state.prestige + honorPayV139(i)).toFixed(1)),
         (state.bestLevel = 7),
         (state.nflReached = (state.nflReached || 0) + 1),
@@ -22170,7 +22256,7 @@
       <div class="statline">
         <div class="statbox"><div class="n">${t}</div><div class="l">Final OVR</div></div>
         <div class="statbox"><div class="n">${e.totalSeasons}</div><div class="l">Seasons</div></div>
-        <div class="statbox"><div class="n">+${e._ppGain + (e._ppBankV136 || 0)}</div><div class="l">PP Earned</div></div>
+        <div class="statbox"><div class="n">+${e._ppGain + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0)}</div><div class="l">PP Earned</div></div>
       </div>
     </div>
     <div class="h2">The Journey</div>
@@ -24111,6 +24197,7 @@
   window.camModeSet112 = function (i) {
     state.settings || (state.settings = {});
     var L = window.__CAM_MODES_V112 || [];
+    if (L[i | 0] && !cosOkV150C(L[i | 0])) return; /* v150 C H8 */
     state.settings.fxCam = Math.max(0, Math.min(L.length ? L.length - 1 : 3, i | 0));
     __pushFieldFx();
     try {
@@ -24127,6 +24214,7 @@
   window.wxModeSet144 = function (i) {
     state.settings || (state.settings = {});
     var L = window.__WX_MODES_V144 || [];
+    if (L[i | 0] && !cosOkV150C(L[i | 0])) return; /* v150 C H8 */
     state.settings.fxWx = Math.max(0, Math.min(L.length ? L.length - 1 : 4, i | 0));
     __pushFieldFx();
     try {

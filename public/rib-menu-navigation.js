@@ -60,6 +60,12 @@
       if (!window.__RIB_COACH) { console.warn('[RIB menu] the coach is not loaded'); return false; }
       return window.__RIB_COACH.toggle();
     }
+    // v150 C H9: the STORE tile (present only while monetization is on) opens the store over the menu
+    if (action === 'store') {
+      const M = window.RIB_MONETIZE;
+      if (!M || !M.enabled) return false;
+      M.openStore(); return true;
+    }
     if (/^view:/.test(action || '')) return routeView(action.slice(5));
     // The primary CTA doubles as START NEW CAREER: if no continue target
     // exists (no career yet, or the game relabeled it), fall through to new.
