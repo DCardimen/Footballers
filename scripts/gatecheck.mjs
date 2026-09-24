@@ -16,8 +16,9 @@
 //   node scripts/gatecheck.mjs
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const url = process.env.GAME_URL || 'http://localhost:5173/index.html'
-const browser = await chromium.launch({ executablePath: fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined })
+import { CHROME, gameUrl } from './lib/env.mjs'
+const url = gameUrl('index.html')
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

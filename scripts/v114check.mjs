@@ -19,10 +19,11 @@
 //   node scripts/v114check.mjs
 import { chromium } from 'playwright'
 import { readFileSync } from 'node:fs'
+import { GAME_URL } from './lib/env.mjs'
 
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
-const URL = process.env.SPLASH_URL || 'http://localhost:5173/'
+const URL = process.env.SPLASH_URL || GAME_URL
 
 // ---- 0. the asset itself: faststart, off the bytes
 {

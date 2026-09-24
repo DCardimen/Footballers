@@ -17,6 +17,7 @@
 // play-by-play engine (`__simGameV2`) for watched and AI-simmed games, and the quick
 // generator (`ia`, exposed as `__TEAMQUAL_V68.score`) behind the weekly resolver.
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
 const N = +(process.env.BLOW_N || 1600)        // total live games sampled
 const SLOPE = +(process.env.BLOW_SLOPE || 0.7) // target points of margin per OVR
@@ -44,14 +45,14 @@ const TOL = +(process.env.BLOW_TOL || 0.3)     // allowed slope error, absolute
 // contain a team as good as a prestiged save's. See ARCHITECTURE.md.
 const CURVE_TOL = +(process.env.BLOW_CURVE_TOL || 4.5)
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 await page.addInitScript(() => {
   setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60)
 })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 25000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 25000 })
 await page.waitForTimeout(1600)
 
 let pass = 0, fail = 0

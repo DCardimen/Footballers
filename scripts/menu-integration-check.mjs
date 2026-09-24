@@ -1,5 +1,6 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
+import { CHROME, gameUrl } from './lib/env.mjs'
 
 /* ===== v89 MAIN MENU integration check =====
  * The menu overlay must: mount over the legacy menu screen with every picture loaded and
@@ -8,8 +9,8 @@ import fs from 'node:fs'
  * same menu; and stay reachable top to bottom on a phone. Run with the dev server up:
  *   node scripts/menu-integration-check.mjs            (fresh page + a new career)
  *   MENU_INTEGRATION_URL=http://127.0.0.1:5173/index.html node scripts/menu-integration-check.mjs */
-const integrationUrl = process.env.MENU_INTEGRATION_URL || 'http://127.0.0.1:5173/index.html'
-const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined) })
+const integrationUrl = process.env.MENU_INTEGRATION_URL || gameUrl('index.html')
+const browser = await chromium.launch({ headless: true, executablePath: CHROME })
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
 const page = await context.newPage()
 const errors = [], failedRequests = []

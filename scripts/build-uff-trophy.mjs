@@ -1,6 +1,7 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 import path from 'node:path'
+import { CHROME } from './lib/env.mjs'
 /* ===== v147 B THE UFF TROPHY =====
  * The milestones card's trophy (public/menu/card_trophy_uff.webp) is ORIGINAL art, drawn here as an
  * SVG and rasterised through Chromium — it replaces card_trophy.webp, which was a Lombardi look-alike.
@@ -282,7 +283,7 @@ ${glint(1012, 132, 26)}${glint(1128, 268, 16, 0.9)}${glint(1052, 345, 13, 0.85)}
 
 const tmp = path.resolve(root, 'scripts/.uff-trophy.html')
 fs.writeFileSync(tmp, page())
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const pg = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 })
 await pg.goto('file://' + tmp)
 await pg.evaluate(() => document.fonts.ready)

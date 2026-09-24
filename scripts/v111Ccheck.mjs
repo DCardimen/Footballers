@@ -23,9 +23,10 @@
 //      section without throwing.
 //   6. The whole card fits a 400px viewport with no horizontal scroll.
 import { chromium } from 'playwright'
+import { CHROME, gameUrl } from './lib/env.mjs'
 
-const URL = process.env.GAME_URL || 'http://localhost:5173/index.html'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const URL = gameUrl('index.html')
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 400, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

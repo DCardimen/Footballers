@@ -1,11 +1,12 @@
 // Dev helper: boot the game in a headless browser and screenshot it.
 // Usage: node scripts/shot.mjs [outfile.png] [url]
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
 const out = process.argv[2] || 'shot.png'
-const url = process.argv[3] || 'http://localhost:5173/'
+const url = process.argv[3] || GAME_URL
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('console', m => { if (m.type() === 'error') errs.push(m.text()) })

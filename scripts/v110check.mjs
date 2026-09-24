@@ -9,11 +9,12 @@
 //     merely assigned — the repo's stat-credit invariant.
 // Usage: npm run dev (or any static server on :5173), then: node scripts/v110check.mjs
 import { chromium } from 'playwright'
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const URL = GAME_URL
 const GAMES = Number(process.env.V110_GAMES || 12)
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

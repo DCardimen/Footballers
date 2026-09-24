@@ -12,16 +12,17 @@
 //   normally-played week never got a severity or a weeksRemaining at all.
 // node scripts/availabilitycheck.mjs   (needs `npm run dev` on :5173)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
 const fails = []
 const ok = (c, label, detail) => { console.log(`${c ? 'ok  ' : 'FAIL'} ${label}${detail ? '  ' + detail : ''}`); if (!c) fails.push(label) }
 
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const b = await chromium.launch({ executablePath: CHROME })
 const page = await b.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(1500)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 async function click(t){ await page.evaluate(({t,visSrc})=>{const vis=eval(visSrc);const els=[...document.querySelectorAll('button,[onclick],a')].filter(vis);let el;if(t==='ARCH')el=els.find(e=>/^(⭐|🦾|🏘️|🚪|🩹|🔄|💎|🔥|🧊|👑)/.test((e.innerText||'').trim()));else el=els.find(e=>((e.innerText||e.textContent||'').replace(/\s+/g,' ').includes(t)));if(el){el.scrollIntoView({block:'center'});el.click()}},{t,visSrc:vis}); await page.waitForTimeout(450) }

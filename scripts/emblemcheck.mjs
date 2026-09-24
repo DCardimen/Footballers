@@ -5,7 +5,8 @@
 // identity preview (reacts to palette picks), pregame matchup chips, live scoreboard
 // chips, and the midfield crest proportion. Prints JSON + page errors; exits 1 on failure.
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const fails = []
 const errs = []
 function check(name, ok, detail) { console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ' ' + JSON.stringify(detail) : ''}`); if (!ok) fails.push(name) }
@@ -19,7 +20,7 @@ async function boot(viewport) {
       document.querySelector('.onboard')?.remove()
     }, 60)
   })
-  await page.goto('http://localhost:5173/', { waitUntil: 'load', timeout: 30000 })
+  await page.goto(GAME_URL, { waitUntil: 'load', timeout: 30000 })
   await page.waitForTimeout(2000)
   return page
 }

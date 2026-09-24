@@ -1,6 +1,7 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 import { pageSource } from './lib/layout.mjs'   // v149 A: the served page + the src/ files it names
+import { CHROME, gameUrl } from './lib/env.mjs'
 /* ===== v147 B THE MENU WEARS THE COIN — the gate =====
  * 1. the header's prestige mark is the Vault's gold coin (an <img>, loaded, a real size), no ★ is
  *    left for prestige in the chip, and the YOUR LEGACY prestige tile wears the same coin; the
@@ -15,11 +16,11 @@ import { pageSource } from './lib/layout.mjs'   // v149 A: the served page + the
  * 4. no page errors.
  *   node scripts/v147Bcheck.mjs                  (dev server on :5173; GAME_URL= to point elsewhere)
  *   SHOTS=/tmp/claude-0/shots node scripts/v147Bcheck.mjs   also writes the chip, the rings and the card */
-const BASE = process.env.GAME_URL || 'http://127.0.0.1:5173/index.html'
+const BASE = gameUrl('index.html')
 const URL = BASE + (BASE.includes('?') ? '&' : '?') + 'menuPreview'
 const SHOTS = process.env.SHOTS || ''
 if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true })
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
 const page = await context.newPage()
 const errors = []; page.on('pageerror', e => errors.push(e.message))

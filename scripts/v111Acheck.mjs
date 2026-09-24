@@ -17,17 +17,18 @@
 //      "everysnap" the load climbs, the injury chance climbs with it, a lingering cut arrives
 //      and his effective rating falls; dialled back to "limited" the load is paid off again.
 //
-// Env: GAME_URL (default http://localhost:5191/index.html), BASE_URL (the pre-v111 build, for
+// Env: GAME_URL (default http://localhost:5173/, via scripts/lib/env.mjs), BASE_URL (the pre-v111 build, for
 // the identity test — skipped when unset), GAMES (per involvement key, default 150), AB (games
 // for the identity test, default 30), POS (default RB).
 import { chromium } from 'playwright'
+import { CHROME, gameUrl } from './lib/env.mjs'
 
-const URL = process.env.GAME_URL || 'http://localhost:5191/index.html'
+const URL = gameUrl('index.html')
 const BASE = process.env.BASE_URL || ''
 const N = Number(process.env.GAMES || 150)   // v120: 90 left the team-spread verdict inside its own sampling noise
 const AB = Number(process.env.AB || 30)
 const POS = process.env.POS || 'RB'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const pageErrors = []
 const fails = []
 const ok = (cond, label, extra) => { if (!cond) fails.push(label + (extra !== undefined ? ' — ' + JSON.stringify(extra) : '')) }

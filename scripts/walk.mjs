@@ -1,10 +1,11 @@
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 const steps = process.argv.slice(2)
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
-await page.goto(process.env.GAME_URL || 'http://localhost:5173/', { waitUntil: 'networkidle', timeout: 20000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 20000 })
 await page.waitForTimeout(1200)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 async function dump(tag) {

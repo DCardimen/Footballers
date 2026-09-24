@@ -4,12 +4,13 @@
 //   node scripts/v146Eshot.mjs            (GAME_URL=http://localhost:5305/ for another port)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 const W = +(process.env.SHOT_W || 400), H = +(process.env.SHOT_H || 860)
 const OUT = process.env.SHOT_DIR || '/tmp/claude-0/shots'
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null
 fs.mkdirSync(OUT, { recursive: true })
-const url = process.env.GAME_URL || 'http://localhost:5173/'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const url = GAME_URL
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: W, height: H } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

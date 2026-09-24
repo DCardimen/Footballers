@@ -14,7 +14,8 @@
 //   GAME_URL=http://localhost:5351/index.html node scripts/v149Echeck.mjs
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const url = process.env.GAME_URL || 'http://localhost:5173/index.html'
+import { gameUrl } from './lib/env.mjs'
+const url = gameUrl('index.html')
 const U = (...q) => url + (url.includes('?') ? '&' : '?') + ['stayStale', 'noFilmV114'].concat(q).join('&')
 const ON = ['monetize=1', 'monetizeAdMs=500']
 const browser = await chromium.launch({ executablePath: fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined })

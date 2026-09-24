@@ -13,7 +13,8 @@
 //     text canvases every tick).
 //   node scripts/v104check.mjs        (READ_POS=RB)
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const errs = [], bad = []
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
@@ -27,8 +28,8 @@ page.on('response', r => { if (r.status() >= 400) bad.push(r.status() + ' ' + r.
  * this check reads. Pin the men to adult size. */
 await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { liveAgeV144: 0 }) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(2500)   // warm: vite's one-time reload after an edit
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(2500)   // warm: vite's one-time reload after an edit
 await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 })
 await page.evaluate(p => { window.__readPos = p }, process.env.READ_POS || 'RB')
 async function step(t) {

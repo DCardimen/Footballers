@@ -16,10 +16,11 @@
 // Usage: npm run dev (or any static server on :5173), then: node scripts/v144check.mjs
 //   env: GAME_URL, POS (default RB)
 import { chromium } from 'playwright'
-const GAME = process.env.GAME_URL || 'http://localhost:5173/'
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const GAME = GAME_URL
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))

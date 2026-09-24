@@ -19,10 +19,11 @@
 //      since v115 gave that door the film too.
 //   node scripts/splashcheck.mjs
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
-const URL = process.env.SPLASH_URL || 'http://localhost:5173/'
+const URL = process.env.SPLASH_URL || GAME_URL
 
 async function boot(opts) {
   const ctx = await browser.newContext({ viewport: { width: 420, height: 860 }, reducedMotion: opts.rm ? 'reduce' : 'no-preference' })

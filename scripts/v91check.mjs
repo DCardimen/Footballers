@@ -6,7 +6,8 @@
 // after tackles, spinning ball frames in flight), with no page errors.
 //   node scripts/v91check.mjs        (READ_POS=QB|RB|WR|LB..., V91_MS=70000, V91_SHOTS=1)
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
@@ -16,7 +17,7 @@ page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.te
  * this check reads. Pin the men to adult size. */
 await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { liveAgeV144: 0 }) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(1200)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 const POS = process.env.READ_POS || 'RB'

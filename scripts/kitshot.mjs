@@ -1,8 +1,9 @@
 import { chromium } from 'playwright'
+import { CHROME, gameUrl } from './lib/env.mjs'
 // Renders the menu kit in a saturated palette (crimson jersey, gold helmet and pants) so the team tint is judged on more than the default slate: OUT=/tmp/kit.png node scripts/kitshot.mjs
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const b = await chromium.launch({ executablePath: CHROME })
 const p = await (await b.newContext({ viewport: { width: 1080, height: 1500 }, deviceScaleFactor: 2 })).newPage()
-await p.goto(process.env.URL || 'http://127.0.0.1:5173/index.html?menuPreview=1', { waitUntil: 'domcontentloaded' })
+await p.goto(process.env.URL || gameUrl('index.html?menuPreview=1'), { waitUntil: 'domcontentloaded' })
 await p.waitForSelector('#rib-main-menu-v2 .rib9-tint'); await p.waitForTimeout(1500)
 await p.evaluate(() => { const P = '#a3161c', S = '#e9b93a'
   for (const t of document.querySelectorAll('.rib9-tint')) { const c = /_p$/.test(t.dataset.mask || '') ? P : S

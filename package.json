@@ -8,6 +8,13 @@
     "build": "vite build",
     "preview": "vite preview",
     "shot": "node scripts/shot.mjs",
+    "check": "node scripts/run-checks.mjs",
+    "check:smoke": "node scripts/run-checks.mjs smoke --jobs 4",
+    "check:area": "node scripts/run-checks.mjs --jobs 4",
+    "check:since": "node scripts/run-checks.mjs --jobs 4 --retry-flaky --since main",
+    "check:fast": "node scripts/run-checks.mjs fast --jobs 4 --retry-flaky",
+    "check:full": "node scripts/run-checks.mjs full --jobs 4 --retry-flaky",
+    "check:list": "node scripts/run-checks.mjs --list",
     "check:movement": "node scripts/movementcheck.mjs",
     "check:equal": "node scripts/equaltalentcheck.mjs",
     "check:star": "node scripts/starimpactcheck.mjs"

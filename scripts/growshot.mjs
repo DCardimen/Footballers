@@ -3,13 +3,14 @@
 // year (age 42, synthetic decline) once the report card is up; OUT=/path/prefix names the shots.
 //   OUT=/tmp/grow node scripts/growshot.mjs      VET=42 OUT=/tmp/vet node scripts/growshot.mjs
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+import { CHROME, gameUrl } from './lib/env.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, deviceScaleFactor: 2 })
 const page = await ctx.newPage(); const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text().slice(0, 200)) })
 await page.addInitScript(() => { try { localStorage.setItem('rib.coachTour.v119', 'off') } catch {} setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/?noFilmV114', { waitUntil: 'networkidle', timeout: 60000 })
+await page.goto(gameUrl('?noFilmV114'), { waitUntil: 'networkidle', timeout: 60000 })
 for (let i = 0; i < 200; i++) { if (await page.evaluate(() => !document.getElementById('splash'))) break; await page.waitForTimeout(100) }
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 async function step(t) { await page.evaluate(({ t, visSrc }) => { const vis = eval(visSrc); const els = [...document.querySelectorAll('button,[onclick],a')].filter(vis); const txt = e => (e.innerText || e.textContent || '').replace(/\s+/g, ' ').trim(); const el = t === 'POS' ? (els.find(e => /^RB\b/.test(txt(e))) || els.find(e => e.classList.contains('pos-card'))) : els.find(e => txt(e).includes(t)); if (el) { el.scrollIntoView({ block: 'center' }); el.click() } }, { t, visSrc: vis }); await page.waitForTimeout(900) }

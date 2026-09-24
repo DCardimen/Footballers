@@ -11,8 +11,9 @@
 //       sheet's own cells; a pump was drawn (throw frames 0-3, no release) at least once
 //   GAME_URL=http://localhost:5173/ node scripts/v109Bcheck.mjs   (V109B_GAMES=50, V109B_MS=240000)
 import { chromium } from 'playwright'
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const URL = GAME_URL
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
