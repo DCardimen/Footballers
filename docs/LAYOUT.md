@@ -111,6 +111,11 @@ inline; they are cheap, some carry ids code may look up, and moving them buys no
   hand-off, every sheet wired through `__RIB_ASSET`, no big data URL crept back,
   no code leaked into the markup. `--against adfd250 --at 703499b` adds the byte-identity proof of
   the split against the last monolithic `index.html`.
+- `scripts/layout-split.mjs <monolith.html>` — the splitter itself, kept for porting a branch that
+  still edits the one big file: `git show <branch>:index.html > /tmp/mono.html`, run it, and the
+  branch's edits land in the right `src/` files (`git diff` shows them). Run on `adfd250`'s
+  `index.html` it reproduces the split commit exactly. It warns about the stray markup `accd794`
+  removed; delete it again.
 - Generated-code writers now write `src/`: `build-field-art.py` (`RIB_META_V91`),
   `build-stadium-art.py` (`RIB_META_V92`), `build-badge-art.py` (`RIB_BADGES_V95`) →
   `src/05-field-renderer.js`; the spritekit `bake_*.mjs` refresh `RIB_META_REF/CROWD/SIDE` in
