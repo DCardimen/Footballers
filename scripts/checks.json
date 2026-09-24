@@ -1267,10 +1267,11 @@
    ]
   },
   "monetize": {
-   "desc": "v149 E / v150 C — the monetization module and its in-game hooks (switched off by default)",
+   "desc": "v149 E / v150 C / v151 A — the monetization module, its in-game hooks (switched off by default) and the v151 A progression gates",
    "anchors": [
     "v149 E",
     "v150 C",
+    "v151 A",
     "RIB_MONETIZE"
    ],
    "files": [
@@ -1279,6 +1280,7 @@
    "checks": [
     "v149Echeck",
     "v150Ccheck",
+    "v151Acheck",
     "bootviewcheck",
     "walk",
     "menu-integration-check",
@@ -3325,6 +3327,18 @@
   "v150Ccheck": {
    "file": "scripts/v150Ccheck.mjs",
    "desc": "v150 C — the monetization hooks H1–H11 in the game: OFF each is the identity against a boot with the module blocked (speed row, Settings, menu tiles, both payouts); ON the speed guard/clamp, the 3× flag, the payout boost once, the STORE tile, Restore Purchases, Android back over the sheets, a cosmetic gate.",
+   "areas": [
+    "monetize"
+   ],
+   "runtimeSec": 300,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v151Acheck": {
+   "file": "scripts/v151Acheck.mjs",
+   "desc": "v151 A — the hybrid store and the progression gates: OFF no store/ads/prices but 3×/4× at the UFF, My Plays Only after a career, season skips from lifetime PP (the same with the module blocked), free filters; ON the tier chain and upgrades, restore, 4× Pro, ad cap + day rollover, convenience-only rewards, no PP double, the catalogue guard, the per-season pass, packs via RIB_COSMETICS, unlock_all_team_style, expansions not for sale, the store at 400x860.",
    "areas": [
     "monetize"
    ],

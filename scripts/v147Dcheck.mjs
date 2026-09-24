@@ -30,6 +30,7 @@ const page = await browser.newPage({ viewport: { width: 400, height: 860 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text().slice(0, 200)) })
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { speedGateV151A: 0 }) })   // v151 A: the camera is measured at 4× whatever the UFF gate says
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
 await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1500)
 await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 })

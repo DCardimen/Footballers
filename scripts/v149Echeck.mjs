@@ -97,25 +97,15 @@ const M = (page, fn, arg) => page.evaluate(fn, arg)
   await ctxA.close(); await ctxB.close()
 }
 
-// ============================== 2. ON: the career payout, doubled once ==============================
+// ============================== 2. ON: the career payout is NOT doubled (v151 A retired the PP double — it sold prestige) ==============================
 {
   const ctx = await newCtx(), p = await ctx.newPage(); watch(p, 'pp')
   await p.goto(U(...ON), { waitUntil: 'networkidle', timeout: 40000 }); await booted(p)
   await p.evaluate(() => { const A = window.__GRIDIRON_AUDIT__, S = A.getState(); S.tutorialSeen = true; S.pp = 100
     S.player = A.newPlayer(); S.player.pos = 'RB'; S.player.level = 5; S.player.totalSeasons = 8; S.player.career = [{ level: 'College', ovr: 60, age: 21 }]; S.view = 'gameover'; window.GridironStorage.save(S) })
-  await p.goto(U(...ON), { waitUntil: 'networkidle' }); await booted(p)
-  await p.waitForSelector('#mz149Pay', { timeout: 8000 }).catch(() => null)
-  const before = await p.evaluate(() => { const S = __GRIDIRON_AUDIT__.getState(), e = S.player; return { pp: S.pp, settle: Math.round((e._vaultPayV137 || 0) - (e._ppBankV136 || 0)), chip: (document.querySelector('#mz149Pay button') || {}).textContent || '' } })
-  await shot(p, 'payout')
-  ok(before.settle > 0 && /double this payout/.test(before.chip), 'ON: the career-end screen offers "Watch an ad: double this payout"', JSON.stringify(before))
-  await tap(p, '#mz149Pay button'); await p.waitForSelector('#mz149Ad', { timeout: 3000 }).catch(() => null)
-  const adUp = await p.evaluate(() => !!document.getElementById('mz149Ad'))
-  await p.waitForFunction(() => !document.getElementById('mz149Ad'), null, { timeout: 5000 }).catch(() => null); await p.waitForTimeout(400)
-  const after = await p.evaluate(() => { const S = __GRIDIRON_AUDIT__.getState(); return { pp: S.pp, mark: S.player._ppDoubledV149E, chip: !!document.getElementById('mz149Pay'), held: RIB_MONETIZE.has('ppDouble'), saved: JSON.parse(localStorage.getItem('gridiron_save_v1')).pp } })
-  ok(adUp && after.pp === before.pp + before.settle && after.mark === before.settle && !after.chip && !after.held && after.saved === after.pp, 'ON: the mock ad plays, the settle is paid a second time (once), the chip goes, the ppDouble is spent and the save holds it', JSON.stringify(after))
-  await p.goto(U(...ON), { waitUntil: 'networkidle' }); await booted(p)
-  const again = await p.evaluate(() => ({ pp: __GRIDIRON_AUDIT__.getState().pp, chip: !!document.getElementById('mz149Pay') }))
-  ok(again.pp === after.pp && !again.chip, 'ON: a reload on the same screen offers nothing again and mints nothing', JSON.stringify(again))
+  await p.goto(U(...ON), { waitUntil: 'networkidle' }); await booted(p); await p.waitForTimeout(1200)
+  const r = await p.evaluate(() => ({ chip: !!document.getElementById('mz149Pay'), place: Object.keys(RIB_MONETIZE.config.placements).join(','), boost: RIB_MONETIZE.claimPayoutBoost(5000, 'x'), grant: RIB_MONETIZE.grant('ppDouble', { uses: 1 }) }))
+  ok(!r.chip && !/ppDouble/.test(r.place) && r.boost === 0 && r.grant === false, 'ON: the career-end screen offers no payout double — no chip, no placement, no key, the boost answers 0', JSON.stringify(r))
   await ctx.close()
 }
 
@@ -124,7 +114,7 @@ const M = (page, fn, arg) => page.evaluate(fn, arg)
   const ctx = await newCtx(), p = await ctx.newPage(); watch(p, 'on')
   await p.goto(U(...ON), { waitUntil: 'networkidle', timeout: 40000 }); await booted(p)
   const s0 = await M(p, () => ({ on: RIB_MONETIZE.enabled, hooks: RIB_MONETIZE.hooks, s4: RIB_MONETIZE.speedAllowed(4), s2: RIB_MONETIZE.speedAllowed(2), list: RIB_MONETIZE.list(), css: !!document.getElementById('mz149css') }))
-  ok(s0.on && s0.hooks.speed === 'game' && s0.hooks.payout === 'game' && s0.hooks.buy && s0.css, 'ON: ?monetize=1 on a dev host turns it on, finds the game\'s v150 C speed and payout hooks and installs the buy wrapper (v150 C: setSpeed is no longer wrapped)', JSON.stringify(s0.hooks))
+  ok(s0.on && s0.hooks.speed === 'game' && s0.hooks.sim === 'game' && !('payout' in s0.hooks) && s0.hooks.buy && s0.css, 'ON: ?monetize=1 on a dev host turns it on, finds the game\'s v150 C speed hook and the v151 A gates (the payout double is retired) and installs the buy wrapper (v150 C: setSpeed is no longer wrapped)', JSON.stringify(s0.hooks))
   ok(!s0.s4 && s0.s2 && s0.list.length === 0, 'ON: a fresh device (no career yet — not grandfathered) has 1–2× free and 4× locked')
 
   // drive a real first week into the live game
@@ -200,16 +190,16 @@ const M = (page, fn, arg) => page.evaluate(fn, arg)
   // the store screen fits a 400x860 phone, with no page scroll
   const fit = async (tag) => { await M(p, () => RIB_MONETIZE.openStore()); await p.waitForTimeout(300)
     const f = await M(p, () => { const c = document.querySelector('#mz149Store .mz149-card'), r = c.getBoundingClientRect(), s = document.scrollingElement
-      return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), clip: c.scrollHeight > c.clientHeight + 1, pageScroll: s.scrollHeight > innerHeight + 1 || s.scrollWidth > innerWidth + 1, ad: !!c.querySelector('[data-sec=ad]'), font: getComputedStyle(c.querySelector('.mz149-h')).fontFamily } })
+      return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), clip: c.scrollHeight > c.clientHeight + 1, inner: (() => { const b = c.querySelector('.mz151-body'); return !!b && getComputedStyle(b).overflowY === 'auto' })(), pageScroll: s.scrollHeight > innerHeight + 1 || s.scrollWidth > innerWidth + 1, ad: !!c.querySelector('[data-ad=speed4]'), font: getComputedStyle(c.querySelector('.mz149-h')).fontFamily } })
     ok(f.top >= 0 && f.bottom <= H && f.left >= 0 && f.right <= W && !f.clip && !f.pageScroll && /Oswald/.test(f.font), `ON: the store (${tag}) fits 400x860 whole — nothing clipped, no page scroll, Oswald`, JSON.stringify(f)); return f }
   const f1 = await fit('free player'); await shot(p, 'store')
-  ok(f1.ad, 'ON: a free player\'s store carries the free-boost ad')
+  ok(f1.ad && f1.inner, 'ON: a free player\'s store carries the free-boost ad, and the ladder scrolls inside the card')
   // Pro through the mock checkout
   await tap(p, '#mz149Store [data-buy="rib.pro"]'); await p.waitForSelector('#mz149Buy', { timeout: 3000 }).catch(() => null)
   await tap(p, '#mz149Buy [data-yes]'); await p.waitForTimeout(600)
   const pro = await M(p, async () => { const R = RIB_MONETIZE; const ad = await R.showRewarded('speed4'); return { pro: R.has('pro'), noAds: R.has('noAds'), s4: R.until('speed4') === Infinity, slots: R.value('saveSlots'), ad: ad.reason, top: (document.querySelector('.mz149-top') || {}).textContent } })
-  ok(pro.pro && pro.noAds && pro.s4 && pro.slots === 3 && pro.ad === 'no-ads-entitlement' && pro.top === 'PRO ✓', 'ON: the mock Pro purchase grants pro + noAds + permanent 4× + 3 save slots, and no ad will show any more', JSON.stringify(pro))
-  const f2 = await fit('Pro'); ok(!f2.ad, 'ON: the Pro store has no ad offer')
+  ok(pro.pro && pro.noAds && pro.s4 && pro.slots === 3 && (pro.ad === 'no-ads-entitlement' || pro.ad === 'already-held') && pro.top === 'PRO ✓', 'ON: the mock Pro purchase grants pro + noAds + permanent 4× + 3 save slots, and no ad will show any more', JSON.stringify(pro))
+  const f2 = await fit('Pro'); ok(!f2.ad, 'ON: the Pro store has no 4× ad offer (4× is his for good)')
   await M(p, () => RIB_MONETIZE.closeStore())
   // the live speed row for a Pro: no badge, no offer
   const proRow = await M(p, () => { const d = document.createElement('div'); d.innerHTML = '<div class="speed-row" id="mzTestRow"><button class="speed-btn" data-spd="4">4×</button></div>'; document.body.appendChild(d); return new Promise((r) => setTimeout(() => { const o = { lock: document.querySelector('#mzTestRow [data-spd="4"]').classList.contains('mz149-lock'), offer: !!document.querySelector('#mzTestRow + .mz149-offer-row') }; d.remove(); r(o) }, 300)) })

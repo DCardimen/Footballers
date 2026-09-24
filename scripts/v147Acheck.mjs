@@ -35,6 +35,7 @@ async function boot() {
   const page = await ctx.newPage()
   page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
   page.on('dialog', d => d.accept())
+  await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { seasonSkipGateV151A: 0 }) })   // v151 A: season skips are v151Acheck's; this one taps Sim the Rest
   await page.addInitScript(() => {
     // v150 A: RETIRE asks through the in-app ribDialog now — press its confirm the way a player would
     setInterval(() => {

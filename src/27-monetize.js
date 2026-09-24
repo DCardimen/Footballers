@@ -317,7 +317,7 @@
     var S = SEA(); if (!CFG.features.pass || !S) return [];
     var c = null; try { c = S.current() } catch (e) {}
     if (!c || !c.id) return [];
-    return [{ id: CFG.pass.prefix + sid(c.id), kind: "nonconsumable", title: "Season Career Pass — " + (c.name || c.id), price: CFG.pass.price, season: c.id, grants: (function () { var g = {}; g["pass:" + sid(c.id)] = {}; return g })() }];
+    return [{ id: CFG.pass.prefix + sid(c.id), kind: "nonconsumable", title: "Season Career Pass — " + (c.name || c.id), price: CFG.pass.price, season: c.id, grants: (function () { var g = {}; g["pass:" + c.id] = {}; return g })() }];   // the key is the season's own id (RIB_SEASONS.premiumOwned reads it)
   }
   function packProducts() {
     var C = COS(); if (!CFG.features.cosmetics || !C) return [];
@@ -526,6 +526,7 @@
   }
   function purchase(productId) {
     if (!ON) return Promise.resolve({ ok: false, reason: "disabled" });
+    if (/^pass:/.test(String(productId))) productId = CFG.pass.prefix + sid(String(productId).slice(5));   // RIB_SEASONS.buyPremium's spelling
     if (/^rib\.exp\./.test(String(productId))) return Promise.resolve({ ok: false, productId: productId, reason: "coming-soon" });   // never sold before it exists
     var p = product(productId);
     if (!p || !productOn(p)) return Promise.resolve({ ok: false, reason: "unknown-product" });
@@ -580,7 +581,8 @@
     validateProduct: validateProduct, keyAllowed: keyAllowed, catalog: catalog,
     cosmeticAccess: cosmeticAccess, expansions: expansions, expansionUnlocked: expansionUnlocked,
     verifyWeb: verifyWeb,
-    showRewarded: showRewarded, purchase: purchase, restore: restore, owns: function (id) { return ON && owns(id) },
+    showRewarded: showRewarded, purchase: purchase,
+    purchasePass: function (seasonId) { var P = passProducts()[0]; if (!ON || !P) return Promise.resolve({ ok: false, reason: ON ? "no-season" : "disabled" }); if (seasonId && String(seasonId) !== String(P.season)) return Promise.resolve({ ok: false, reason: "not-the-current-season" }); return purchase(P.id) }, restore: restore, owns: function (id) { return ON && owns(id) },
     track: track, addAnalyticsSink: addSink,
     registerProvider: registerProvider, providers: PROVIDERS,
     get provider() { return CFG.provider },
@@ -664,7 +666,7 @@
     var s = simInfo(), canAd = CFG.features.rewardedSim && adsLeft() > 0, free = has("noAds"), pro = has("simPlus");
     ui.sheet({
       title: s.perDay ? "TODAY'S SEASON SKIPS ARE USED" : "SEASON SKIPS COME WITH PRESTIGE",
-      lines: [(s.perDay ? "Your prestige gives you " + s.perDay + " season skip" + (s.perDay === 1 ? "" : "s") + " a day." : "Season skips unlock at " + fmtN(s.firstAt) + " lifetime PP.") + (s.next ? " More at " + fmtN(s.next.at) + " PP (" + s.next.perDay + " a day)." : "") + " Quick Play still sims any week, one at a time — free, always.",
+      lines: [(s.perDay ? "Your prestige gives you " + s.perDay + " season skip" + (s.perDay === 1 ? "" : "s") + " a day." : "Season skips unlock at " + fmtN(s.firstAt) + " lifetime PP.") + (s.next && s.perDay ? " More at " + fmtN(s.next.at) + " PP (" + s.next.perDay + " a day)." : "") + " Quick Play still sims any week, one at a time — free, always.",
         canAd ? (free ? "Ad Free: claim one more skip today." : "Watch a short ad for one more skip today.") : "", CFG.features.pro && !pro ? "Pro Career: +" + (s.proBonus || 3) + " skips a day." : ""],
       yes: canAd ? (free ? "✓ +1 SKIP" : "▶ +1 SKIP") : (CFG.features.pro && !pro ? "SEE PRO" : "OK"), no: "NOT NOW",
       onYes: function () { if (canAd) rewardSim().then(function (r) { if (r.rewarded && typeof window.seasonSkipV151A === "function") window.seasonSkipV151A() }); else if (CFG.features.pro && !pro) API.openStore("pro") }
@@ -843,7 +845,7 @@
   function passRung() {
     var S = SEA(), P = passProducts()[0]; if (!S || !P) return "";
     var c = {}; try { c = S.current() || {} } catch (e) {}
-    var own = has("pass:" + sid(c.id)); if (!own) try { own = !!(S.pass && S.pass() && S.pass().owned) } catch (e) {}
+    var own = has("pass:" + c.id); if (!own) try { own = !!(S.pass && S.pass() && S.pass().owned) } catch (e) {}
     return '<div class="mz151-rung' + (own ? " owned" : "") + '" data-sec="pass"><span class="mz151-step">THIS SEASON</span>' +
       '<div class="mz149-prod"><b>' + esc(P.title) + '</b><i class="' + (own ? "mz151-ok" : "") + '">' + (own ? "OWNED ✓" : P.price) + "</i></div>" +
       li(["The premium track of " + esc(c.name || c.id) + (c.daysLeft != null ? " — " + c.daysLeft + " days left" : ""), "Cosmetic rewards and season challenges — never power", "One pass per competitive season (~6 months)"]) +
@@ -984,7 +986,7 @@
   if (CFG.provider === "web" && QS.get("session_id")) verifyWeb(QS.get("session_id")).then(function (r) { if (r.granted && r.granted.length) toast("THANK YOU · UNLOCKED"); try { var u = new URL(location.href); u.searchParams.delete("session_id"); history.replaceState(null, "", u.toString()) } catch (e) {} });
   // the entitlements a device holds reach the workers' stores (a pass bought on another launch, a restore)
   setTimeout(function () {
-    var S = SEA(); if (S && typeof S.grantPremium === "function") { var c = null; try { c = S.current() } catch (e) {} if (c && c.id && has("pass:" + sid(c.id))) { var o = null; try { o = S.pass && S.pass() } catch (e) {} if (!o || !o.owned) try { S.grantPremium(c.id) } catch (e) {} } }
+    var S = SEA(); if (S && typeof S.grantPremium === "function") { var c = null; try { c = S.current() } catch (e) {} if (c && c.id && has("pass:" + c.id)) { var o = null; try { o = S.pass && S.pass() } catch (e) {} if (!o || !o.owned) try { S.grantPremium(c.id) } catch (e) {} } }
     var C = COS(); if (C && typeof C.owned === "function") list().forEach(function (x) { if (x.key.indexOf("cos:") === 0) { var id = x.key.slice(4); try { if (!C.owned(id)) cosGrant(id, x.source && /founder/.test(x.source) ? "founder" : "shop") } catch (e) {} } });
   }, 0);
   track("monetize_on", { provider: CFG.provider });

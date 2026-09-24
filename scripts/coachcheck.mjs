@@ -38,6 +38,7 @@ const newPage = async (opts = {}) => {
   const context = await browser.newContext({ viewport: { width: opts.w || 400, height: opts.h || 860 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
   const page = await context.newPage()
   page.on('pageerror', (e) => errors.push(e.message))
+  await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { speedGateV151A: 0, seasonSkipGateV151A: 0 }) })   // v151 A: the progression gates are not what this check measures
   if (!opts.realFirstVisit) await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
   return { page, context }
 }

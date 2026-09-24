@@ -110,9 +110,11 @@ const endFacts = (page) => M(page, () => { const S = __GRIDIRON_AUDIT__.getState
   await toLive(a); await toLive(b)
   const ra = await speedRow(a), rb = await speedRow(b)
   const btns = await M(a, () => [...document.querySelectorAll('.speed-row .speed-btn[data-spd]')].map((x) => x.dataset.spd).join(','))
-  ok(ra && ra === rb && btns === '0.5,1,2,4', 'OFF H2: the live speed row is byte-for-byte the old one (½× / 1× / 2× / 4×, no 3×)', btns)
-  const sp = await M(a, () => { const s0 = window.__getGridironLiveSpeed(); window.setSpeed(4); const s4 = window.__getGridironLiveSpeed(); window.setSpeed(2); const s2 = window.__getGridironLiveSpeed(); window.setSpeed(4); return { s0, s4, s2, sheet: !!document.getElementById('mz149Sheet') } })
-  ok(sp.s4 === 4 && sp.s2 === 2 && !sp.sheet, 'OFF H1: setSpeed(4) is 4× straight away, free, with no offer', sp)
+  // v151 A: the row carries the earned 3× rung for everyone; with the module blocked it is the same markup
+  ok(ra && ra === rb && btns === '0.5,1,2,3,4', 'OFF H2 (v151 A): the live speed row is byte-for-byte the row with the module blocked (½× / 1× / 2× / 3× / 4×)', btns)
+  // v151 A: 3× and 4× are progression gates (the UFF) whatever the switch says; OFF 4× comes with 3×, and no offer is ever drawn
+  const sp = await M(a, () => { window.setSpeed(2); window.setSpeed(4); const locked = window.__getGridironLiveSpeed(); window.S.bestLevel = 7; window.__V151A.relabel(); window.setSpeed(4); const s4 = window.__getGridironLiveSpeed(); window.setSpeed(2); const s2 = window.__getGridironLiveSpeed(); window.setSpeed(4); return { locked, s4, s2, sheet: !!document.getElementById('mz149Sheet') } })
+  ok(sp.locked === 2 && sp.s4 === 4 && sp.s2 === 2 && !sp.sheet, 'OFF H1 (v151 A): setSpeed(4) is locked until the UFF, then free, with no offer', sp)
   // the carried speed: the live screen re-drawn mid-game (a render while the game is on) restarts playback with the controller's speed
   const carried = await M(a, () => { window.setSpeed(4); window.go('live'); return window.__getGridironLiveSpeed() })
   ok(carried === 4, 'OFF H3: a 4× carried through a re-drawn live screen stays 4×', carried)
@@ -133,11 +135,11 @@ const endFacts = (page) => M(page, () => { const S = __GRIDIRON_AUDIT__.getState
 {
   const ctx = await newCtx(), p = await open(ctx, 'on-speed', ON)
   const s0 = await M(p, () => ({ on: RIB_MONETIZE.enabled, hooks: RIB_MONETIZE.hooks, fn: String(window.setSpeed).slice(0, 20), version: RIB_MONETIZE.version }))
-  ok(s0.on && s0.hooks.speed === 'game' && s0.hooks.payout === 'game' && /^function setSpeed\(/.test(s0.fn) && !('setSpeed' in s0.hooks), 'ON: the game\'s hooks are found (speed, payout) and window.setSpeed is the game\'s own function — nothing wraps it', s0)
+  ok(s0.on && s0.hooks.speed === 'game' && s0.hooks.sim === 'game' && !('payout' in s0.hooks) && /^function setSpeed\(/.test(s0.fn) && !('setSpeed' in s0.hooks), 'ON: the game\'s hooks are found (speed, the v151 A gates; the payout double is retired) and window.setSpeed is the game\'s own function — nothing wraps it', s0)
   ok(await toSeason(p), 'ON: a career is started')
   await toLive(p)
   const r0 = await M(p, () => ({ btns: [...document.querySelectorAll('.speed-row .speed-btn[data-spd]')].map((x) => x.dataset.spd).join(','), lock: document.querySelector('.speed-btn[data-spd="4"]')?.classList.contains('mz149-lock') }))
-  ok(r0.btns === '0.5,1,2,4', 'ON H2: with features.speed3 off (the default) there is still no 3×', r0.btns)
+  ok(r0.btns === '0.5,1,2,3,4' && r0.lock, 'ON H2 (v151 A): the row carries 3× (earned at the UFF) and a locked 4× (Pro)', r0)
   await M(p, () => window.setSpeed(2))
   const locked = await M(p, async () => { window.setSpeed(4); await new Promise((r) => setTimeout(r, 200)); return { speed: window.__getGridironLiveSpeed(), sheet: !!document.getElementById('mz149Sheet'), ev: RIB_MONETIZE.dev.events.map((e) => e.ev).slice(-1)[0] } })
   ok(locked.speed === 2 && locked.sheet && locked.ev === 'speed_locked_tap', 'ON H1: the game\'s setSpeed(4) keeps 2× and hands the tap to the module\'s offer', locked)
@@ -160,7 +162,7 @@ const endFacts = (page) => M(page, () => { const S = __GRIDIRON_AUDIT__.getState
   ok(back3.up && back3.b === 'monetize' && !back3.ok && back3.reason === 'cancelled' && !back3.pro, 'ON H11: back on the checkout cancels it — nothing bought', back3)
   const pro = await M(p, async () => { const pr = RIB_MONETIZE.purchase('rib.pro'); await new Promise((r) => setTimeout(r, 100)); document.querySelector('#mz149Buy [data-yes]').click(); const res = await pr
     window.setSpeed(4); await new Promise((r) => setTimeout(r, 1300))
-    const ad = await RIB_MONETIZE.showRewarded('speed4'); return { ok: res.ok, s4: RIB_MONETIZE.until('speed4') === Infinity, speed: window.__getGridironLiveSpeed(), ad: ad.reason, offer: !!document.querySelector('.mz149-offer-row'), lock: document.querySelector('.speed-btn[data-spd="4"]')?.classList.contains('mz149-lock') } })
+    const ad = await RIB_MONETIZE.showRewarded('speed4'); return { ok: res.ok, s4: RIB_MONETIZE.until('speed4') === Infinity, speed: window.__getGridironLiveSpeed(), ad: ad.reason === 'already-held' ? 'no-ads-entitlement' : ad.reason, offer: !!document.querySelector('.mz149-offer-row'), lock: document.querySelector('.speed-btn[data-spd="4"]')?.classList.contains('mz149-lock') } })
   ok(pro.ok && pro.s4 && pro.speed === 4 && pro.ad === 'no-ads-entitlement' && !pro.offer && !pro.lock, 'ON: Pro = permanent 4× through the game\'s own setSpeed, no ads, no offer chip, no lock', pro)
   await M(p, () => { try { window.skipLive() } catch (e) {} })
   // H10: Settings › Store & Purchases, and RESTORE PURCHASES after the entitlement store is wiped
@@ -180,34 +182,17 @@ const endFacts = (page) => M(page, () => { const S = __GRIDIRON_AUDIT__.getState
   await ctx.close()
 }
 
-// ============================== 3. ON: the payout boost — H4 at the settle, H5 by the chip, once ==============================
+// ============================== 3. ON: the payout boost is RETIRED (v151 A — it sold prestige) ==============================
 {
   const ctx = await newCtx(), p = await open(ctx, 'on-pay', ON)
-  // a ppDouble already held is paid AT the gameover settle, through the game's own line, and the card shows it
-  await seedEnd(p, 'gameover'); await M(p, () => RIB_MONETIZE.grant('ppDouble', { uses: 1, source: 'test' }))
-  await p.goto(U(...ON), { waitUntil: 'networkidle' }); await booted(p)
-  const g = await endFacts(p), gHeld = await M(p, () => RIB_MONETIZE.has('ppDouble'))
-  ok(g.view === 'gameover' && g.pay > 0 && g.doubled === g.pay && g.pp - g.vault >= 100 && g.vault === 40 + 2 * g.pay && +String(g.earned).replace(/\D/g, '') === 40 + 2 * g.pay && !gHeld && !g.chip,
-    'ON H4: a held ppDouble doubles the gameover settle at the settle — PP, the vault\'s payout and the card agree, the double is spent, no chip', g)
-  await p.goto(U(...ON), { waitUntil: 'networkidle' }); await booted(p)
-  const g2 = await endFacts(p)
-  ok(g2.pp === g.pp && !g2.chip, 'ON H4: a reload pays nothing again', { pp: g2.pp })
-  // the win screen: the chip, a watched ad, the game pays it and redraws the card
-  await seedEnd(p, 'win')
-  await p.goto(U(...ON), { waitUntil: 'networkidle' }); await booted(p)
-  await p.waitForSelector('#mz149Pay', { timeout: 8000 }).catch(() => null)
-  const w0 = await endFacts(p)
-  // (a settle drawn by the BOOT restore runs before 27-monetize.js has loaded, so _payV150C may be unset — the module then
-  // hands __V150C.payout the settle it reads off the vault's payout minus the bank)
-  ok(w0.view === 'win' && w0.chip && !w0.doubled, 'ON H5: the win screen offers the double', w0)
-  await p.click('#mz149Pay button'); await p.waitForSelector('#mz149Ad', { timeout: 3000 }).catch(() => null)
-  await p.waitForFunction(() => !document.getElementById('mz149Ad'), null, { timeout: 6000 }).catch(() => null); await p.waitForTimeout(600)
-  const w1 = await endFacts(p), saved = await M(p, () => JSON.parse(localStorage.getItem('gridiron_save_v1')).pp)
-  const settle = w0.pay != null ? w0.pay : w0.vault - w0.bank
-  ok(settle > 0 && w1.doubled === settle && w1.pp === w0.pp + settle && w1.vault === w0.vault + settle && +String(w1.earned).replace(/\D/g, '') === +String(w0.earned).replace(/\D/g, '') + settle && !w1.chip && saved === w1.pp,
-    'ON H5: the watched ad pays the settle once more through window.__V150C.payout — PP, vault, the redrawn card and the save agree', { before: w0, after: w1 })
-  const w2 = await M(p, () => ({ again: window.__V150C.payout('win', 999), pp: window.S.pp, boost: RIB_MONETIZE.claimPayoutBoost(999, 'x') }))
-  ok(w2.again === 0 && w2.pp === w1.pp && w2.boost === 0, 'ON H5: never twice — a second call pays nothing', w2)
+  const g0 = await M(p, () => ({ grant: RIB_MONETIZE.grant('ppDouble', { uses: 1, source: 'test' }), place: Object.keys(RIB_MONETIZE.config.placements), boost: RIB_MONETIZE.claimPayoutBoost(1000, 'x') }))
+  ok(g0.grant === false && !g0.place.includes('ppDouble') && g0.boost === 0, 'ON (v151 A): no ppDouble placement, the key cannot be granted, claimPayoutBoost answers 0', g0)
+  for (const view of ['gameover', 'win']) {
+    await seedEnd(p, view)
+    await p.goto(U(...ON), { waitUntil: 'networkidle' }); await booted(p); await p.waitForTimeout(800)
+    const g = await endFacts(p), x = await M(p, () => window.__V150C.payout('win', 999))
+    ok(g.view === view && !g.doubled && g.pay === undefined && !g.chip && x === 0, `ON H4/H5 (v151 A): the ${view} settle is paid once — no chip, no field written, __V150C.payout pays nothing`, g)
+  }
   await ctx.close()
 }
 
@@ -235,13 +220,11 @@ const endFacts = (page) => M(page, () => { const S = __GRIDIRON_AUDIT__.getState
   ok(await toSeason(p), 'ON: a career is started (3×)')
   await toLive(p)
   const r3 = await M(p, () => { const b = [...document.querySelectorAll('.speed-row .speed-btn[data-spd]')]; const row = document.querySelector('.speed-row').getBoundingClientRect()
-    window.setSpeed(3); return { btns: b.map((x) => x.dataset.spd).join(','), label: (document.querySelector('.speed-btn[data-spd="3"]') || {}).textContent, speed: window.__getGridironLiveSpeed(), right: Math.round(row.right), active: (document.querySelector('.speed-btn.active[data-spd]') || {}).dataset?.spd } })
-  ok(r3.btns === '0.5,1,2,3,4' && /3×/.test(r3.label || '') && r3.speed === 3 && r3.active === '3' && r3.right <= W, 'ON H2: with features.speed3 the row carries 3× between 2× and 4×, and it plays at 3×', r3)
-  // gateSpeed3: 3× wants speed3 (or speed4) — the earned rung is not sold, the tap only says so
-  const g3 = await M(p, async () => { RIB_MONETIZE.config.features.gateSpeed3 = true; window.setSpeed(2); window.setSpeed(3); await new Promise((r) => setTimeout(r, 1200))
-    const a = { speed: window.__getGridironLiveSpeed(), sheet: !!document.getElementById('mz149Sheet'), dim: document.querySelector('.speed-btn[data-spd="3"]')?.classList.contains('mz149-lock3') }
-    RIB_MONETIZE.grant('speed3', { minutes: 5, source: 'test' }); window.setSpeed(3); a.after = window.__getGridironLiveSpeed(); RIB_MONETIZE.config.features.gateSpeed3 = false; return a })
-  ok(g3.speed === 2 && !g3.sheet && g3.dim && g3.after === 3, 'ON H2: with gateSpeed3 a 3× tap without speed3 stays at 2× (no ad offer — it is earned), and plays once speed3 is held', g3)
+    window.setSpeed(2); window.setSpeed(3); const locked = window.__getGridironLiveSpeed(), label = (document.querySelector('.speed-btn[data-spd="3"] small') || {}).textContent
+    window.S.bestLevel = 7; window.__V151A.relabel(); window.setSpeed(3)
+    return { btns: b.map((x) => x.dataset.spd).join(','), locked, label, speed: window.__getGridironLiveSpeed(), right: Math.round(row.right), active: (document.querySelector('.speed-btn.active[data-spd]') || {}).dataset?.spd, four: window.__V151A.speedOk(4), sheet: !!document.getElementById('mz149Sheet') } })
+  ok(r3.btns === '0.5,1,2,3,4' && r3.locked === 2 && /UFF/.test(r3.label || '') && r3.speed === 3 && r3.active === '3' && r3.right <= W && !r3.four && !r3.sheet,
+    'ON H2 (v151 A): 3× says 🔒 UFF and stays at 2× until the UFF is reached, then plays at 3× — never sold; 4× stays Pro\'s', r3)
   await M(p, () => { try { window.skipLive() } catch (e) {} })
   // H8: a NEW camera tagged with a cosmetic entitlement is not offered until it is owned; every existing one still is
   const cos = await M(p, async () => { const L = window.__CAM_MODES_V112, n0 = L.length; L.push({ id: 'testcos', n: 'Test Cosmetic Cam', d: '', cos: 'cos_kits1' })
@@ -257,7 +240,7 @@ const endFacts = (page) => M(page, () => { const S = __GRIDIRON_AUDIT__.getState
   const src = fs.readFileSync(new URL('../src/07-career-app.js', import.meta.url), 'utf8')
   const mz = fs.readFileSync(new URL('../src/27-monetize.js', import.meta.url), 'utf8')
   ok(/function mzV150C\(\) \{\s*const m = typeof window < "u" && window\.RIB_MONETIZE;\s*return m && m\.enabled \? m : null;/.test(src), 'every in-game hook goes through mzV150C(), which is null unless RIB_MONETIZE says enabled')
-  ok(/function setSpeed\(e\) \{[\s\S]{0,200}mzV150C\(\)/.test(src) && /speedClampV150C\(\(liveCtl && liveCtl\.speed\)/.test(src), 'H1 is setSpeed\'s first statement and H3 wraps the carried speed')
+  ok(/function setSpeed\(e\) \{[\s\S]{0,200}speedOkV151A\(e\)/.test(src) && /speedClampV150C\(\(liveCtl && liveCtl\.speed\)/.test(src), 'H1 (v151 A: the gates) is setSpeed\'s first statement and H3 wraps the carried speed')
   ok(/payoutBoostV150C\(e, r, "gameover"\)/.test(src) && /payoutBoostV150C\(e, n, "win"\)/.test(src) && !/payoutBoostV150C|claimPayoutBoost/.test(src.slice(src.indexOf('function bankPPV136'), src.indexOf('function bankedV136'))), 'H4/H5 are in the two settles and H6 (bankPPV136) has no boost')
   ok(!/window\.setSpeed\s*=\s*function/.test(mz) && /var MONETIZE_ENABLED = false;/.test(mz), 'the module no longer wraps window.setSpeed, and the switch still ships FALSE')
 }

@@ -8,15 +8,17 @@ commercial v1 mean."
 
 ## Product definition
 
-> **v149 E:** the monetization row below is no longer locked. The code now carries a monetization module
-> (`window.RIB_MONETIZE`, `src/27-monetize.js`) behind a master switch that ships OFF, and
-> `docs/MONETIZATION.md` holds the model, catalogue, provider steps and store-policy notes. Until the owner
-> picks a model, §3 "Store setup — premium" below is one of two options, not the plan.
+> **v151 A:** the owner chose the model — **hybrid**: a free game that is legitimately good, opt-in rewarded ads
+> for conveniences, three permanent tiers (Ad Free $3.99 ⊂ Pro Career $8.99 ⊂ Founder $14.99), a Season Career
+> Pass ($9.99 a ~6-month season), cosmetic packs ($1.99–$4.99) and expansions listed as "coming soon". The module
+> (`src/27-monetize.js`) is built for it and still ships **OFF** until the providers are set up; the progression
+> gates (3×/4× at the UFF, My Plays Only after a finished career, season skips from lifetime PP) are live in the free
+> game regardless. `docs/MONETIZATION.md` is the catalogue, product ids and open decisions.
 
 | Decision | Choice |
 |---|---|
 | Platform | **Mobile** — iOS + Android |
-| Monetization | **OPEN — owner to decide (v149 E).** Was: premium, one-time $2.99, no ads, no IAP. The owner's current direction is free + opt-in rewarded ads + a one-time PRO unlock (~$5.99) + cosmetics; that is what `src/27-monetize.js` is wired for, **switched off**. See `docs/MONETIZATION.md` §10 for the decisions |
+| Monetization | **Hybrid (v151 A, owner's choice).** Free to play; rewarded ads (opt-in, 4 a day, conveniences only); Ad Free $3.99 / Pro Career $8.99 / Founder $14.99 (one-time, nested); Season Career Pass $9.99 per season; cosmetic packs $1.99–$4.99; expansions "coming soon". Never sold: PP, prestige, stat boosts, rerolls, gear, wheel spins. Wired in `src/27-monetize.js`, **switched off** until AdMob + RevenueCat are set up. `docs/MONETIZATION.md` |
 | IP posture | **Invented towns (v123), fully fictional team names** (no real-league marks). The league is the UFF |
 | Core fantasy | **Single-player** — be one player, live a career |
 | Marquee replay hook | **Score Attack** — a single-player high-score mode |
@@ -97,11 +99,16 @@ npx cap open android   # Android Studio
 - Store listing art needed: 1024×1024 icon (no alpha for iOS), feature graphic
   (Play: 1024×500), and phone screenshots (App Store: 6.7" + 5.5"; Play: min 2).
 
-### 3. Store setup — premium ($2.99) — *if D2 in docs/MONETIZATION.md stays premium*
+### 3. Store setup — hybrid (v151 A, the chosen model)
 
-(If the model is free + rewarded ads + PRO instead, the app is listed **Free**, `rib.pro` is a non-consumable
-IAP, AdMob + RevenueCat are the providers, and the privacy labels are no longer "no data collected" — see
-`docs/MONETIZATION.md` §6–7.)
+The app is listed **Free**. Non-consumable IAPs: `rib.noads` $3.99, `rib.pro` $8.99, `rib.founder` $14.99, the
+upgrade products `rib.upgrade.noads_pro` $5.00 / `rib.upgrade.pro_founder` $6.00 / `rib.upgrade.noads_founder`
+$11.00, `rib.pass.<seasonId>` $9.99 (a new product each season), `rib.cos.<packId>` $1.99–$4.99 and
+`unlock_all_team_style` $2.99. AdMob (one Rewarded unit) + RevenueCat are the providers, and the privacy labels are
+no longer "no data collected" — see `docs/MONETIZATION.md` §3, §6–7. The premium ($2.99) listing below is kept
+only as the historical alternative.
+
+#### (historical) premium ($2.99)
 
 - **App Store Connect:** create the app, set price tier to $2.99, no IAP. Fill
   privacy nutrition labels — if you add **no** analytics/tracking, you can
