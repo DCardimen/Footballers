@@ -112,6 +112,20 @@
       // the grade and the COACH'S SUMMARY button under it are the tab: never behind an accordion header
       nofold: ["grade"],
     },
+    /* ===== v151 B THE LOCKER HAS A STYLE TAB =====
+     * GEAR is the locker as it was (the slots, the totals, the inventory); STYLE is the cosmetics panel
+     * src/28-cosmetics.js renders into the same screen (`.cos-style-v151b`). Before that module loads the
+     * panel is absent, only one section is live, and the locker draws exactly as it always did. */
+    locker: {
+      start: "gear",
+      keep: /(^|\s)eyebrow(\s|$)/,
+      secs: [
+        { k: "gear",  name: "GEAR",  re: /eq-row|gear-list-v147|gear-h-v147|gear-sum/ },
+        { k: "style", name: "STYLE", re: /cos-style-v151b/ },
+      ],
+      txt: [],
+      nofold: ["gear", "style"],
+    },
     // the prestige tree put 862px of specialization and rewards cards ABOVE the
     // branch row, so the shop you came for started a screen and a half down
     shop: {
@@ -127,8 +141,8 @@
       nofold: ["nodes"],
     },
   };
-  const ICON = { now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱" };
-  const TAB = { hub: "now", shop: "nodes", season: "sched", settings: "game", result: "grade" };
+  const ICON = { gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱" };
+  const TAB = { locker: "gear", hub: "now", shop: "nodes", season: "sched", settings: "game", result: "grade" };
 
   function cfg() { const s = window.S; return (s && VIEWS[s.view]) || null }
   function classify(el, C) {

@@ -248,8 +248,9 @@
     ['gold2', 'laurel', 'hallPoints', 'HALL POINTS', (S) => S.hallBest || 0],
     ['red', 'target', 'iconicMoments', 'ICONIC MOMENTS', (S) => S.challenges || 0],
   ];
+  // v151 B: the PROFILE door rides the legacy card's kicker (a button, not a tile — the nine tiles stay nine)
   const legacyPanel = (S) => `<section class="rib9-card rib9-legacy">
-            <div class="rib9-kicker">YOUR LEGACY</div>
+            <div class="rib9-kicker">YOUR LEGACY<button class="rib9-prof-v151b" type="button" data-rib-action="view:profile">PROFILE ›</button></div>
             <div class="rib9-legacy-grid">
               ${LEGACY_TILES.map(([cls, icon, field, label, read]) => `<div class="rib9-lt ${cls}"><i><img src="${icon === 'coin' ? VAULT_ART + COIN_V147B : ART + 'legacy_' + icon + '.webp'}${ARTV}" alt="" loading="lazy"></i><b data-rib-field="${field}">${esc(read(S))}</b><small>${label}</small></div>`).join('')}
             </div>
@@ -499,7 +500,7 @@
         <section class="rib9-card rib9-player">
           <div class="rib9-portrait" data-rib-action="locker" role="button" tabindex="0">
             <img src="${ART}portrait_helmet.webp${ARTV}" alt="" data-nat="640,640" data-op="0.5,0.5">
-            ${tint(colors, 1, 'portrait_helmet_mask_s', 1, RECOLOR && 'portrait_helmet')}
+            ${tint(colors, colors && colors[2] ? 2 : 1, 'portrait_helmet_mask_s', 1, RECOLOR && 'portrait_helmet')}
             ${team.logoCss ? `<span class="rib9-helmet-logo emblem-v44" style="${esc(team.logoCss)}"><i class="rib9-helmet-shade" style="${esc(maskOf(team.logoCss))}"></i></span>` : ''}
             <span class="rib9-edit">✎ EDIT PLAYER</span>
           </div>

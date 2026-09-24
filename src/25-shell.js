@@ -28,13 +28,13 @@
 (function () {
   var OFF = { live: 1, menu: 1, highscore: 1, daily: 1, leaderboard: 1 };
   var TITLE = { hub: "CAREER HUB", season: "THE SEASON", training: "OFFSEASON TRAINING", upgrade: "SKILLS", shop: "PRESTIGE TREE",
-    settings: "SETTINGS", stats: "STATS & LEADERS", challenges: "GOALS", hof: "HALL OF FAME", locker: "LOCKER", legacy: "LEGACY",
+    settings: "SETTINGS", stats: "STATS & LEADERS", challenges: "GOALS", hof: "HALL OF FAME", locker: "LOCKER", profile: "PROFILE", legacy: "LEGACY",
     dynasty: "DYNASTY", rank: "RECRUITING BOARD", result: "SEASON REPORT", declineResult: "SEASON REPORT", event: "STORY WEEK", sim: "THE SEASON",
     life: "LIFE", roster: "ROSTER", path: "THE PATH", tier: "THE NEXT LEVEL", gameover: "CAREER OVER", win: "CHAMPION", choosePos: "NEW CAREER" };
   var NO_MAIN = { shop: 1 };                       // the tree's buttons are all doors; the TREE is the screen
   /* what may scroll inside itself when a screen will not fit, most specific first: the named lists,
    * then the open accordion's body, then the one big card or block the screen is made of */
-  var FILL = [".gear-list-v147", ".sched-list", ".tp-rows-v113", "#screen > .tp-panel-v113", ".up-group-v97.on .up-group-body-v97", ".hubv97-fold.on > .hubv97-body",
+  var FILL = [".cos-grid-v151b", ".gear-list-v147", ".sched-list", ".tp-rows-v113", "#screen > .tp-panel-v113", ".up-group-v97.on .up-group-body-v97", ".hubv97-fold.on > .hubv97-body",
     '.hubv75-sec.on[data-sec="nodes"] > div:not(.btn-row)', ".hof-list,.lb-list,.leaders-list,.standings-list",
     ".hubv75-sec.on > .card", "#screen > .mt", "#screen > .card", ".hubv75-sec.on > *"];
   var FILL_MIN = 110;
