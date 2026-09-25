@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v152 A — the Legacy Rank.** 500 medals in one climb above every career (bronze and silver only in 1-200),
+  Legacy XP every season and at the end, a milestone every tenth rank, the pour and the medal swap, Rank 500's own
+  sequence, and the profile's trophy case and collection book. `src/31-legacy.js`; `v152Acheck`.
 - **v150 D — the map fits on a page.** CLAUDE.md is one page; the anchor encyclopedia is `docs/ANCHORS.md`
   (grouped by subsystem, proven by `scripts/anchorcheck.mjs`), the history moved to `docs/CHANGELOG.md`, and the
   "which check for which change" table is generated from `scripts/checks.json`.

@@ -11,6 +11,20 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v152 A — the Legacy Rank.** A permanent account rank above every career, from the owner's 500 medal sheets. The
+  art is re-ordered, not shipped as drawn: each medal's metal is read off its pixels, every bronze and silver medal
+  climbs ranks 1-200 by size, and ranks 201-500 are gold and enamel only — crowns, wings, gems, eagles and lions —
+  ending on the drawn 500, Ultimate Legacy, with an endless Legacy Level past it. Legacy XP is paid every season
+  (the level, the grade, titles, playoff wins, awards, the ring) and at the career's end (the stage reached, the
+  seasons, the peak), multiplied by Chaos; it never resets and is never spent. Every tenth rank pays a PP bounty
+  (x3 on the 50s, x10 at 500). The season report and the career-end screen pour the XP into the bar and every rank
+  crossed swaps the medal (it splits and flies, the new one slams in with sparks and a clink); every tenth rank is a
+  full-screen milestone, every fiftieth a new tier, and Rank 500 is a blackout, a six-shard assembly, the hit and
+  the crowd, with the family's history behind it. The rank sits by the name on the menu, the top bar, career setup,
+  the boards and the profile, which gains THE TROPHY CASE and THE COLLECTION BOOK (ten pages, every medal earned —
+  when and by whom — and the rest as silhouettes with their cost). An old save's Hall is credited once.
+  `src/31-legacy.js`, the ledger in 07, `scripts/build-legacy-medals.py`; `v152Acheck`.
+
 - **v151 E.2 — the band is heard, not just playing.** On iOS the music could start "playing" in silence (context running, element playing, playhead moving, nothing out) until MUTE / UNMUTE suspended and resumed the context. `src/30-music.js` now listens on the master's analyser: past the file's lead-in with the fade up and a ~0 peak for 900 ms is a stall (`state().stalled`), and the next trusted tap runs the same suspend/resume + replay inside the gesture (`kick`, at most 4; `state().kicks`). Once the band has been heard the watch stands down. Test hook `RIB_MUSIC._silenceV151E2()`.
 
 - **v151 E.1 — the first tap starts the band.** The music waited for a gesture, but it treated the first `pointerdown` as the start even when the browser refused it (iOS Safari does not count a press as activation) and then stopped listening, so it stayed silent until a Settings toggle. `src/30-music.js` now keeps the gesture listeners until the sound is really running (`audible()`: context running, deck playing), re-primes the parked deck on the next gesture, and retries on a click. Probe: a refused first play now recovers on the same tap's click.

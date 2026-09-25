@@ -13513,6 +13513,7 @@
     const _ab = abandonedV112(),
       _pv = _ab ? state.player.name : "";
     _ab && lineageEndV136(state.player, state.player.level, "walked");
+    _ab && legacyCareerEndV152(state.player, state.player.level, "walked") /* v152 A */;
     ((state.player = newPlayer()),
       state.careers++,
       lineageBirthV136(state.player),
@@ -19483,6 +19484,8 @@
       gen: Math.max(1, lineageV136().gen || 1)
     };
     ((s.goat = hofScore(s)),
+      legacyCareerEndV152(e, t, a ? "won" : "cut") /* v152 A: the career pays its Legacy XP */,
+      (s.legacyRank = legacyRankV152(legacyV152().xp).rank),
       seasonsCareerEndV151C(e, s, t) /* v151 C: the career goes on the boards */,
       state.hof.push(s),
       state.hof.sort((r, l) => l.goat - r.goat),
@@ -19528,6 +19531,195 @@
     } catch (_) {}
   }
   window.__escHtmlV151C = escHtml;
+  /* ===== v152 A THE LEGACY RANK (the ledger) =====
+   * A permanent rank above every career: 500 medals (50 families x 10 evolutions, src/31-legacy.js draws
+   * them), then an endless numeric Legacy Level. Legacy XP is paid as the career happens, so the rank moves
+   * on the season report and pours on the career-end screen:
+   *   a SEASON  (`legacySeasonV152`, after `logSeasonV77`)  the level's base x the grade, + a title, playoff
+   *             rounds, awards; a UFF / Interstellar title also pays the ring (`legacyRingXpV152`);
+   *   the END   (`legacyCareerEndV152`, from `enshrineHof` and a walk-away in `startCareer`) the stage he
+   *             reached, the seasons he lasted and his peak OVR — once per career (`_legacyEndV152`), half
+   *             for a walk-away.
+   * Both are multiplied by the difficulty (`legacyDiffV152`: the Chaos modifiers he runs with).
+   * XP never resets and is never spent (Prestige Points are the currency; this is the record). Every tenth
+   * rank is a milestone that pays a PP bounty (`legacyBountyV152`, x3 on the 50s, x10 at 500) — added to
+   * `state.pp` the way a career settle adds it. The truth lives in the save (`state.legacyV152`); 31 only
+   * reads it and draws. Nothing here touches a gameplay number the sim reads or spends a random draw.
+   * Hoisted: the career-end screens call `legacyCardV152` from their markup. `window.__V152A`; `v152Acheck`. */
+  const LEGACY_SEASON_XP_V152 = [40, 60, 90, 130, 180, 260, 320, 450, 650];
+  const LEGACY_STAGE_XP_V152 = [100, 200, 350, 550, 800, 1500, 2200, 3500, 6000];
+  const LEGACY_GRADE_V152 = { "A+": 1.6, A: 1.45, "B+": 1.3, B: 1.2, C: 1, D: 0.8, F: 0.6 };
+  function legacyV152() {
+    const L = state.legacyV152 || (state.legacyV152 = {});
+    L.v = 1;
+    L.xp = Math.max(0, +L.xp || 0);
+    L.ms = L.ms | 0;
+    L.n = L.n | 0;
+    (L.got && typeof L.got == "object") || (L.got = {});
+    Array.isArray(L.log) || (L.log = []);
+    return L;
+  }
+  /* XP from rank r to r + 1: ranks 1-20 fly by (a first career is ~12 of them), 100 is ~10 good careers,
+   * 500 is ~5M XP — a few hundred careers. Past 500 the same curve runs on as the Legacy Level. */
+  function legacyReqV152(r) {
+    return (
+      Math.round((TU("legacyReqBaseV152", 50) + TU("legacyReqKV152", 12.5) * Math.pow(Math.max(1, r), TU("legacyReqPowV152", 1.2))) / 10) * 10
+    );
+  }
+  function legacyRankV152(xp) {
+    let r = 1,
+      left = Math.max(0, +xp || 0),
+      need = legacyReqV152(1);
+    while (left >= need && r < 1e5) ((left -= need), r++, (need = legacyReqV152(r)));
+    return { rank: r, medal: Math.min(500, r), into: Math.round(left), need: need, xp: Math.round(+xp || 0) };
+  }
+  function legacyXpAtRankV152(r) {
+    let x = 0;
+    for (let i = 1; i < r; i++) x += legacyReqV152(i);
+    return x;
+  }
+  function legacyDiffV152() {
+    return Math.min(TU("legacyDiffCapV152", 3), 1 + chaosTotal() * TU("legacyDiffPerChaosV152", 0.03));
+  }
+  function legacyBountyV152(m) {
+    const k = m >= 500 && m % 500 === 0 ? 10 : m % 50 === 0 ? 3 : 1;
+    return Math.round(TU("legacyBountyV152", 25) * Math.pow(m / 10, 1.5) * k);
+  }
+  function legacyRingXpV152(level) {
+    return level >= 8 ? TU("legacyRingIslV152", 4000) : level >= 7 ? TU("legacyRingXpV152", 2500) : 0;
+  }
+  function legacySeasonXpV152(e, t) {
+    const lv = clamp99(e.level | 0, 0, 8),
+      base = LEGACY_SEASON_XP_V152[lv] * TU("legacySeasonMultV152", 1),
+      g = String((t && t.grade) || "C"),
+      perf = LEGACY_GRADE_V152[g] || LEGACY_GRADE_V152[g[0]] || 1,
+      pl = (t && t.playoffs) || {},
+      aw = ((t && t.awards) || []).length,
+      d = legacyDiffV152(),
+      parts = [["Season · " + ((LEVELS[lv] || {}).name || "") + " · " + g, base * perf]];
+    pl.champion && parts.push([lv >= 7 ? "The ring" : "Championship", base * 3 + (pl.champion ? legacyRingXpV152(lv) : 0)]);
+    (pl.roundsWon | 0) > 0 && parts.push(["Playoff wins ×" + (pl.roundsWon | 0), base * 0.5 * (pl.roundsWon | 0)]);
+    aw > 0 && parts.push(["Awards ×" + aw, base * aw]);
+    d > 1 && parts.push(["Chaos ×" + d.toFixed(2), 0]);
+    return { gain: Math.round(parts.reduce((a, p) => a + p[1], 0) * d), parts: parts.map(p => [p[0], Math.round(p[1] * d)]) };
+  }
+  function legacyEndXpV152(e, level, fate) {
+    const lv = clamp99(Math.max(level | 0, e.level | 0), 0, 8),
+      d = legacyDiffV152(),
+      k = fate === "walked" ? TU("legacyWalkKV152", 0.5) : 1,
+      parts = [
+        ["Reached " + ((LEVELS[lv] || {}).name || ""), LEGACY_STAGE_XP_V152[lv]],
+        ["Seasons ×" + (e.totalSeasons | 0), (e.totalSeasons | 0) * TU("legacySeasonLenXpV152", 25)],
+        ["Peak OVR " + Math.round(e.peakOvr || playerOvr(e)), Math.max(0, Math.round(e.peakOvr || playerOvr(e)) - 60) * TU("legacyPeakXpV152", 20)]
+      ];
+    fate === "walked" && parts.push(["Walked away ×" + k, 0]);
+    d > 1 && parts.push(["Chaos ×" + d.toFixed(2), 0]);
+    return { gain: Math.round(parts.reduce((a, p) => a + p[1], 0) * d * k), parts: parts.map(p => [p[0], Math.round(p[1] * d * k)]) };
+  }
+  /* The one place Legacy XP is added. Records every medal the gain crosses (`got[rank]`, the collection
+   * book's "earned by"), pays the milestones it crosses, and leaves the award on `last` for the screens. */
+  function legacyPayV152(e, gain, why, parts) {
+    const L = legacyV152();
+    if (!TU("legacyV152", 1)) return null;
+    gain = Math.max(0, Math.round(+gain || 0));
+    if (!gain) return null;
+    const from = legacyRankV152(L.xp),
+      at = Date.now(),
+      who = (e && e.name) || "";
+    L.xp += gain;
+    const to = legacyRankV152(L.xp);
+    for (let r = from.rank + 1; r <= Math.min(500, to.rank); r++) L.got[r] || (L.got[r] = { at: at, by: who });
+    const ms = [];
+    let bounty = 0;
+    for (let m = (Math.floor(from.rank / 10) + 1) * 10; m <= to.rank; m += 10)
+      m > L.ms && ((L.ms = m), ms.push({ rank: m, pp: legacyBountyV152(m) }), (bounty += legacyBountyV152(m)));
+    bounty > 0 && (state.pp = (state.pp || 0) + bounty);
+    L.best = Math.max(L.best | 0, to.rank);
+    L.last = { id: ++L.n, why: why, gain: gain, parts: parts || [], xpFrom: from.xp, xpTo: to.xp, from: from.rank, to: to.rank, ms: ms, bounty: bounty, at: at, who: who };
+    L.log.push({ id: L.n, why: why, gain: gain, from: from.rank, to: to.rank, at: at, who: who });
+    L.log.length > 40 && L.log.splice(0, L.log.length - 40);
+    e && ((e.legacyXpV152 = (e.legacyXpV152 || 0) + gain), why === "season" && (e.legacySeasonV152 = L.n));
+    try {
+      window.RIB_LEGACY && window.RIB_LEGACY.awarded && window.RIB_LEGACY.awarded(L.last);
+    } catch (_) {}
+    return L.last;
+  }
+  function legacySeasonV152(e, t) {
+    try {
+      if (!e || !t) return null;
+      const x = legacySeasonXpV152(e, t);
+      return legacyPayV152(e, x.gain, "season", x.parts);
+    } catch (_) {
+      return null;
+    }
+  }
+  function legacyCareerEndV152(e, level, fate) {
+    try {
+      if (!e || e._legacyEndV152) return null;
+      e._legacyEndV152 = !0;
+      const x = legacyEndXpV152(e, level, fate);
+      const a = legacyPayV152(e, x.gain, "career", x.parts);
+      e.legacyEndIdV152 = a ? a.id : 0;
+      return a;
+    } catch (_) {
+      return null;
+    }
+  }
+  /* A save from before v152 already has careers behind it: the Hall rows (up to 60) are credited once, as
+   * their stage + seasons + titles + rings + peak, so a veteran does not open the medal at Rank 1. */
+  function legacyBootV152() {
+    try {
+      const L = legacyV152();
+      if (L.boot) return;
+      L.boot = 1;
+      if (L.xp > 0) return;
+      let xp = 0;
+      (state.hof || []).forEach(h => {
+        const lv = clamp99(h.reached | 0, 0, 8);
+        xp +=
+          LEGACY_STAGE_XP_V152[lv] +
+          (h.seasons | 0) * (LEGACY_SEASON_XP_V152[Math.min(lv, 5)] + TU("legacySeasonLenXpV152", 25)) +
+          (h.titles | 0) * LEGACY_SEASON_XP_V152[Math.min(lv, 5)] * 3 +
+          (h.rings | 0) * legacyRingXpV152(7) +
+          Math.max(0, (h.peak | 0) - 60) * TU("legacyPeakXpV152", 20);
+      });
+      if (!xp) return;
+      L.xp = Math.round(xp);
+      const R = legacyRankV152(L.xp);
+      for (let r = 2; r <= R.medal; r++) L.got[r] = { at: 0, by: "" };
+      L.best = R.rank;
+      L.ms = Math.floor(R.rank / 10) * 10;
+      L.grandV152 = L.xp;
+    } catch (_) {}
+  }
+  /* The career-end and season-report card: markup with the numbers in it (so it reads before 31 loads);
+   * 31 finds `.legacy-card-v152[data-award]` and plays the pour on it once per award. */
+  function legacyCardV152(where) {
+    try {
+      const L = legacyV152(),
+        e = state.player,
+        id = where === "season" ? (e && e.legacySeasonV152) | 0 : (e && e.legacyEndIdV152) | 0,
+        a = L.last && L.last.id === id ? L.last : null,
+        R = legacyRankV152(L.xp);
+      if (window.RIB_LEGACY && window.RIB_LEGACY.cardHtml) return window.RIB_LEGACY.cardHtml(where, a, R, L);
+      return `<div class="card tight legacy-card-v152" data-where="${where}"${a ? ` data-award="${a.id}"` : ""}><div class="small center">🎖️ LEGACY RANK <b style="color:var(--gold)">${R.rank}</b>${a ? ` · <b style="color:var(--gold)">+${fmtInt(a.gain)}</b> Legacy XP` : ""}</div></div>`;
+    } catch (_) {
+      return "";
+    }
+  }
+  window.__V152A = {
+    state: () => legacyV152(),
+    rank: legacyRankV152,
+    req: legacyReqV152,
+    xpAt: legacyXpAtRankV152,
+    bounty: legacyBountyV152,
+    diff: legacyDiffV152,
+    seasonXp: legacySeasonXpV152,
+    endXp: legacyEndXpV152,
+    pay: legacyPayV152,
+    card: legacyCardV152,
+    save: () => saveGame()
+  };
   function hofWings() {
     return (state && state.hofWings) || 0;
   }
@@ -19944,6 +20136,7 @@
     const t = simSeason(e);
     ((e.seasonStats = t),
       logSeasonV77(e, t),
+      legacySeasonV152(e, t) /* v152 A: the season pays its Legacy XP */,
       (e.weekResults = null),
       (e.currentWeek = null),
       completeChallenges(),
@@ -21727,6 +21920,7 @@
     </div>
 
     ${n ? "" : `<div class="small center" style="margin-top:4px">${d ? (c ? '<span class="miss">⚠ Final season at this level — you must declare now. Miss the roll and your career ends here.</span>' : `You have <b>${r}</b> season${r > 1 ? "s" : ""} left to raise your stats before you're forced to declare.`) : `<span style="color:var(--gold)">📚 You're still in ${a.grade.toLowerCase()} — play <b>${l - e.seasonsAtLevel}</b> more season${l - e.seasonsAtLevel > 1 ? "s" : ""} here before you can move up.</span>`}</div>`}
+    ${legacyCardV152("season")}
   `),
       n)
     ) {
@@ -22699,6 +22893,7 @@
       ${u > 0 ? `<div class="threshold-note" style="margin-top:8px;text-align:center">💰 Your legacy bonuses boosted PP earnings by <b style="color:var(--gold)">+${u}%</b></div>` : ""}
       ${e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.</div>` : ""}
     </div>
+    ${legacyCardV152("career")}
     <div class="h2">Career Log</div>
     <div class="card"><div class="career-log">${d}</div></div>
     ${
@@ -22775,6 +22970,7 @@
         <div class="statbox"><div class="n">+${e._ppGain + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0)}</div><div class="l">PP Earned</div></div>
       </div>
     </div>
+    ${legacyCardV152("career")}
     <div class="h2">The Journey</div>
     <div class="card"><div class="career-log">${e.career.map(a => `<div><span class="lvl-done">✓</span> ${a.level} — OVR ${a.ovr} at ${a.age}</div>`).join("")}<div><span class="lvl-done" style="color:var(--gold)">★</span> The UFF — OVR ${t}, age ${e.age}</div></div></div>
     <div class="card tight end-legacy-v150"><div class="center" style="font-family:'Oswald';color:var(--gold);font-size:16px">+${e._starGain} HONORS ${HONOR_ICON_V130} · His son starts with everything he learned</div></div>
@@ -24596,6 +24792,7 @@
     }
     ((state.view === "sim" || state.view === "live" || state.view === "training" || state.view === "event") &&
       (state.view = "hub"),
+      legacyBootV152() /* v152 A: a pre-v152 save's Hall is credited once */,
       render(),
       setTimeout(showTutorial, 1850));
     const e = document.getElementById("splash");

@@ -25,6 +25,7 @@ DERIVED = [
     ('public/rib_side_v78.png, rib_crowd_v57.png, rib_refs_v49.png, rib_wheel_v50.png, rib_skill_v64.png, rib_plan_v66.png', 'art/source/*pixel art.png', 'the spritekit bake_*.mjs'),
     ('public/rib_logos_v44.png', 'art/football-logo-sheet-*.png', 'the v44 emblem bake'),
     ('public/vault/*.webp', 'art/Prestige/*', 'scripts/build-vault-art.py'),
+    ('public/legacy/*.webp', 'art/legacy/sheet-*.png', 'scripts/build-legacy-medals.py'),
     ('public/rib_film_v116.{mp4,webm,jpg} and the app icons', 'art/splash/rib_loop_master_v116.mp4', 'scripts/build-splash-film.mjs, scripts/build-app-icons.py'),
 ]
 

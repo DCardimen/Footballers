@@ -21,3 +21,6 @@ _v116_*.png
 _vault_*.png
 scripts/__pycache__/
 _phys_*.png
+
+# v152 A: the legacy medal proof sheet (scripts/build-legacy-medals.py --proof)
+art/legacy-proof/
