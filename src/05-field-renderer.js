@@ -3853,7 +3853,7 @@ class Ot extends mt.Scene {
         break; }
       case "cut": {
         const isSpin = e.kind === "spin", isStep = e.kind === "sidestep";   // v139
-        this.popText(e.x, e.y - 22, isSpin ? "SPIN!" : isStep ? "SIDE STEP!" : "JUKE!", "#8fe7ff", 14);
+        this.popText(e.x, e.y - 22, e.escapeV153A ? "SPUN OUT!" : isSpin ? "SPIN!" : isStep ? "SIDE STEP!" : "JUKE!", "#8fe7ff", 14);   // v153 A: backing out of a pile
         const cm2 = this.markers[P.carrierId];
         if (cm2) {
           // v24: FLUIDITY scales with the carrier's elusiveness (agility+quickness,
@@ -4036,6 +4036,21 @@ class Ot extends mt.Scene {
         this.slowMoment(P, TU("breakSlow", 0.45), 700);
         try { this.crowdReact({ type: "brokenTackle", x: e.x }, P); } catch (er) {}
         try { const V = window.__V103 = window.__V103 || {}; V.breaks = (V.breaks || 0) + 1; } catch (er) {}
+        break;
+      }
+      /* v153 A GIVE GROUND (renderer): he backed out of a forming gang tackle — the men who had hands
+       * on him grab air and stumble; the spin itself is the `cut` that follows on the same tick */
+      case "escapeV153A": {
+        const cm = this.markers[this.actorIdx(e.carrier)];
+        (Array.isArray(e.from) ? e.from : []).forEach(id => { const a = this.markers[this.actorIdx(id)]; if (!a || a === cm) return;
+          a.forceState = "stagger"; a._lean = 0; a._pair = null; a._wrapInV109 = 0;
+          this.time.delayedCall(TU("escapeStumbleMsV153A", 380), () => { if (a.forceState === "stagger") a.forceState = null; }); });
+        if (cm) { cm._dragging = false; cm._lean = 0; cm.forceState = null; }
+        P.gripPair = null;
+        this.puffFx(e.x, e.y, 3, 0xcfe0d2, 0.42); vib(20);
+        this.slowMoment(P, TU("escapeSlowV153A", 0.55), 520);
+        try { this.crowdReact({ type: "brokenTackle", x: e.x }, P); } catch (er) {}
+        try { const R = window.__V153A_R = window.__V153A_R || { gangs: 0, fell: 0, maxN: 0 }; R.escapes = (R.escapes || 0) + 1; } catch (er) {}
         break;
       }
       case "secondEffort": {
@@ -4228,7 +4243,10 @@ class Ot extends mt.Scene {
         if (mine) { this.flash(e.x, e.y, 0xf0bb45); this.popText(e.x, e.y - 44, "YOUR TACKLE!", "#f0bb45", 13); }
         this.hitFx(e.x, e.y, big, !!e.bigHit, e); vib(big ? 40 : 18);
         this.puffFx(ixV109, iyV109, big ? 4 : 2);
-        this.setSpot(e.x, e.y);
+        /* v153 A: forward progress — the official spots the ball where his progress stopped, not where the pile left him */
+        const fp153 = TU("v153A", 1) && Number.isFinite(e.fpX) && Number(e.fpYd) > 0;
+        this.setSpot(fp153 ? e.fpX : e.x, e.y);
+        if (fp153 && Number(e.fpYd) >= TU("fwdProgCallYdV153A", 0.75)) this.popText(e.fpX, e.y - 34, "FORWARD PROGRESS", "#e8f0ff", 11);
         this.finishYd(e);
         const m = this.markers[P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier)];
         const tk = this.markers[this.actorIdx(e.tackler)];
@@ -4334,6 +4352,20 @@ class Ot extends mt.Scene {
             const sm = supsV109[0];
             this.time.delayedCall(TU("supGrabMs",120), () => { if (sm.active !== false) sm.forceState = "grab"; });
             this.time.delayedCall(holdMs + 180, () => { if (sm.active !== false && sm.forceState === "grab") { sm.forceState = "tackleSeq"; sm.seqT = sm.tms; } });
+          }
+          /* ===== v153 A THE PILE GOES DOWN TOGETHER (renderer) =====
+           * The men FieldSim put in the heap (`downV153A`; contactV146 has already laid their frames
+           * onto the pile) go down with him instead of standing round it: each grabs on, then folds a
+           * beat after the tackler, in order — the whole gang on the grass. `__V153A_R` counts them. */
+          if (TU("v153A", 1) && TU("gangDownV153A", 1) && Array.isArray(e.downV153A) && !(F146 && F146.stick)) {
+            const R153 = window.__V153A_R = window.__V153A_R || { gangs: 0, fell: 0, maxN: 0 };
+            let n153 = 0;
+            e.downV153A.forEach((id, i) => { const sm = this.markers[this.actorIdx(id)]; if (!sm || sm === tk || sm === m) return; n153++;
+              sm.forceState = "grab"; sm._launchUntil = 0; sm._whiffed = false; sm._downV153A = P.t;
+              const cmP = m ? PJ(m.sx, m.sy) : null, smP = PJ(sm.sx, sm.sy); if (cmP) this.faceMarker(sm, cmP.x - smP.x, cmP.y - smP.y);
+              this.time.delayedCall(holdMs + TU("gangFoldLagMsV153A", 120) + i * TU("wrapFoldStepMs", 60), () => {
+                if (sm.active !== false && sm.forceState !== "getupSeq" && sm.forceState !== "tackleSeq") { sm.forceState = "tackleSeq"; sm.seqT = sm.tms; sm._lean = 0; } }); });
+            if (n153) { R153.gangs++; R153.fell += n153; R153.maxN = Math.max(R153.maxN, n153); }
           }
         }
         if (m) {
@@ -9057,6 +9089,23 @@ const BADGE_V95 = (() => {
   return { show, preload, clear, log, lanes, meta: RIB_BADGES_V95, book: BADGE_BOOK_V95, promo: BADGE_PROMO_V95, get queue() { return lanes.stage.q; }, get current() { return lanes.stage.cur; }, get hudCurrent() { return lanes.hud.cur; } };
 })();
 window.__BADGE_V95 = BADGE_V95;
+/* ===== v153 A THE STAT GAIN LANDS (the broadcast end) =====
+ * Where HIS marker is on the page right now, in client pixels — the point a stat callout rises from
+ * (07's `statGainShowV153A`). The featured you-marker, projected through PJ and the scene camera's
+ * world view onto the #field canvas's box; null when there is no scene, no you-marker, or he is off frame. */
+window.__ribYouClientV153A = function () {
+  try {
+    const sc = window.__gridironScene; if (!sc || !sc.markers || !sc.cameras) return null;
+    const P = sc.play; let m = P && P.featIdx >= 0 ? sc.markers[P.featIdx] : null;
+    if (!m || m.team !== "you") m = sc.markers.find((k) => k && k.team === "you") || null;
+    if (!m || m.active === false || !Number.isFinite(m.sx) || !Number.isFinite(m.sy)) return null;
+    const cv = document.querySelector("#field"); if (!cv) return null;
+    const r = cv.getBoundingClientRect(), p = PJ(m.sx, m.sy), v = sc.cameras.main.worldView;
+    const fx = (p.x - v.x) / v.width, fy = (p.y - v.y) / v.height;
+    if (!(fx > -0.1 && fx < 1.1 && fy > -0.1 && fy < 1.1)) return null;
+    return { x: r.left + fx * r.width, y: r.top + fy * r.height, fx, fy };
+  } catch (e) { return null; }
+};
 // the badge's caption for a yardage
 function badgeYdsV95(yd) { yd = Number(yd || 0); return yd > 0 ? "+" + yd + " YARDS" : yd < 0 ? "LOSS OF " + Math.abs(yd) : ""; }
 class Dt {

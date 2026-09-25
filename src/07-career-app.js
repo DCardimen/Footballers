@@ -812,6 +812,7 @@
       c?.id === "walk-on" && (t.perf || 50) > n.weeklyPerf && (e.coachTrust = clamp((e.coachTrust || 50) + 2, 0, 100)),
       n.history.unshift({ week: t.week || 0, playerPerf: t.perf || 50, rivalPerf: n.weeklyPerf, swing: Math.round(h) }),
       (n.history = n.history.slice(0, 8)));
+    snapSplitV153A(e); /* v153 A: the position's snaps add up to 100% (hoisted; the kill switch lives inside) */
     const m = e.snapShare >= 0.66 && n.snapShare <= 0.3 && (t.perf || 0) >= n.weeklyPerf;
     return (
       m && !n.defeated && ((n.defeated = !0), (e.rivalsDefeatedV11 = (e.rivalsDefeatedV11 || 0) + 1)),
@@ -20545,6 +20546,269 @@
       .map(([l, v]) => `<span><b>${v}</b>${l}</span>`)
       .join("");
   }
+  /* ===== v153 A THE STAT GAIN LANDS =====
+   * A stat he earned on a play used to arrive as a number swapped in a tile with a 400ms flash. Now the
+   * moment is seen: when the live box's running line goes up after a play (`t.stat` — the engine's own
+   * booked line, so nothing here decides WHAT he earned, only how it looks), a callout ("+1 TACKLE",
+   * "+14 RUSH YDS") rises off HIS marker on the broadcast (`__ribYouClientV153A`, 05) and flies into the
+   * tile (or the minor line) that keeps that stat; on arrival the tile counts up from the old number with
+   * a pop, a short blip through the effects bus (`sfxOutV151E` → `RIB_MUSIC.sfxOut`) and a light haptic
+   * (`ribHaptics.impact('LIGHT')`). MILESTONES — a 100-yard game, 300 through the air, double-digit
+   * tackles, a hat trick of scores — and a new CAREER HIGH (his best single game, `gameHighsV153A`, seeded
+   * from this season's booked lines) get the big version: a gold banner, a bigger pop, a rising chord, a
+   * MEDIUM haptic. Presentation only: stat truth is untouched. `TU("statGainV153A", 0)` is the old flash. */
+  const GAIN_V153A = [
+    // key, callout, prio, yards?
+    ["td", "TOUCHDOWN", 10],
+    ["int", "INTERCEPTION", 9],
+    ["pick6", "PICK SIX", 9],
+    ["sack", "SACK", 8],
+    ["ff", "FORCED FUMBLE", 7],
+    ["tfl", "TACKLE FOR LOSS", 6],
+    ["tackle", "TACKLE", 5],
+    ["pd", "PASS DEFENSED", 5],
+    ["pancake", "PANCAKE", 4],
+    ["rush", "RUSH YDS", 3, !0],
+    ["rec", "REC YDS", 3, !0],
+    ["pass", "PASS YDS", 3, !0],
+    ["rec_c", "CATCH", 2]
+  ];
+  function milestonesV153A() {
+    return [
+      ["rush", TU("mileRushV153A", 100), "100-YARD GAME", "rushing"],
+      ["rec", TU("mileRecV153A", 100), "100-YARD GAME", "receiving"],
+      ["pass", TU("milePassV153A", 300), "300-YARD GAME", "passing"],
+      ["tackle", TU("mileTackleV153A", 10), "DOUBLE-DIGIT TACKLES", ""],
+      ["sack", TU("mileSackV153A", 3), "SACK PARTY", ""],
+      ["td", TU("mileTdV153A", 3), "HAT TRICK", ""],
+      ["int", TU("mileIntV153A", 2), "BALL HAWK", ""]
+    ];
+  }
+  function statGainStartV153A(pl) {
+    /* the career-high baseline: his stored single-game bests, raised by every booked line this season */
+    const base = Object.assign({}, (pl && pl.gameHighsV153A) || {});
+    try {
+      ((pl && pl.weekResults) || []).forEach(w => {
+        const s = w && w.played && w.statLine;
+        if (s) GAIN_V153A.forEach(([k]) => (base[k] = Math.max(base[k] || 0, Number(s[k]) || 0)));
+      });
+    } catch (_) {}
+    return { prev: {}, highs: base, fired: {}, seq: 0 };
+  }
+  function statGainCssV153A() {
+    if (document.getElementById("sg153-css")) return;
+    const st = document.createElement("style");
+    st.id = "sg153-css";
+    st.textContent =
+      ".sg153{position:fixed;z-index:190;left:0;top:0;pointer-events:none;font:700 13px Oswald,sans-serif;letter-spacing:1px;color:#fff;background:linear-gradient(180deg,#1d3a26,#0f2216);border:1px solid rgba(120,240,150,.65);border-radius:12px;padding:3px 9px;white-space:nowrap;box-shadow:0 0 14px rgba(87,224,122,.45);transform:translate(-50%,-50%) scale(.4);opacity:0;will-change:transform,opacity}" +
+      ".sg153 b{color:#7dff9d;margin-right:4px}.sg153.big{font-size:17px;color:#1a1204;background:linear-gradient(180deg,#ffe28a,#f0bb45);border-color:#fff3c4;box-shadow:0 0 26px rgba(240,187,69,.8)}.sg153.big b{color:#5a3a00}" +
+      ".sg153.big small{display:block;font:600 10px Barlow Condensed,sans-serif;letter-spacing:1.4px;text-align:center;color:#5a3a00}" +
+      ".sg153-pop{animation:sg153pop .42s cubic-bezier(.2,1.6,.4,1)}.sg153-pop.big{animation:sg153big .7s cubic-bezier(.2,1.6,.4,1)}" +
+      "@keyframes sg153pop{0%{transform:scale(1);text-shadow:none}35%{transform:scale(1.45);color:#7dff9d;text-shadow:0 0 12px #57e07a}100%{transform:scale(1)}}" +
+      "@keyframes sg153big{0%{transform:scale(1)}30%{transform:scale(1.8);color:#ffe28a;text-shadow:0 0 18px #f0bb45}60%{transform:scale(.92)}100%{transform:scale(1)}}";
+    document.head.appendChild(st);
+  }
+  function statGainSfxV153A(big, step) {
+    if (!settingOn("sound")) return;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const a = playSfx.ctx || (playSfx.ctx = new AC()),
+        out = sfxOutV151E(a),
+        now = a.currentTime,
+        notes = big ? [660, 830, 990, 1320] : [880 + Math.min(4, step || 0) * 60];
+      notes.forEach((f, i) => {
+        const o = a.createOscillator(),
+          g = a.createGain(),
+          t0 = now + i * (big ? 0.075 : 0),
+          len = big ? 0.2 : 0.07;
+        o.type = big ? "triangle" : "sine";
+        o.frequency.setValueAtTime(f, t0);
+        o.frequency.exponentialRampToValueAtTime(f * 1.18, t0 + len);
+        g.gain.setValueAtTime(1e-4, t0);
+        g.gain.exponentialRampToValueAtTime(big ? 0.06 : 0.04, t0 + 0.012);
+        g.gain.exponentialRampToValueAtTime(1e-4, t0 + len);
+        o.connect(g);
+        g.connect(out);
+        o.start(t0);
+        o.stop(t0 + len + 0.02);
+      });
+    } catch (_) {}
+  }
+  function statGainBuzzV153A(big) {
+    if (!settingOn("haptics")) return;
+    try {
+      window.ribHaptics && window.ribHaptics.impact(big ? "MEDIUM" : "LIGHT");
+    } catch (_) {}
+  }
+  /* write a tile's number and remember it is the TARGET, so a count-up in flight never fights the next play */
+  function setLiveTileV153A(el, v) {
+    if (!el) return;
+    el.dataset.v153t = String(v);
+    el.textContent = v;
+  }
+  function countUpV153A(el, from, to, ms, big) {
+    if (!el) return;
+    if (el.dataset.v153t != null && el.dataset.v153t !== String(to)) ((to = Number(el.dataset.v153t) || to), (from = to)); /* a newer play already moved it */
+    el.dataset.v153t = String(to);
+    const t0 = performance.now(),
+      yards = Math.abs(to - from) > 1;
+    const step = now => {
+      if (el.dataset.v153t !== String(to)) return; /* a newer number took the tile */
+      const k = Math.min(1, (now - t0) / Math.max(1, ms));
+      el.textContent = yards ? Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3))) : k >= 1 ? to : from;
+      if (k < 1 && yards) requestAnimationFrame(step);
+      else el.textContent = to;
+    };
+    requestAnimationFrame(step);
+    el.classList.remove("sg153-pop", "big");
+    void el.offsetWidth;
+    el.classList.add("sg153-pop");
+    big && el.classList.add("big");
+    setTimeout(() => el.classList.remove("sg153-pop", "big"), big ? 760 : 460);
+  }
+  function statGainPlayV153A(row, G, pl) {
+    G = G || (liveCtl && liveCtl._gainV153A);
+    pl = pl || state.player;
+    const cur = (row && row.stat) || {};
+    if (!G || !pl) return null;
+    const prev = G.prev,
+      tiles = new Set(liveStatCols(pl.pos).map(([k]) => k)),
+      gains = [];
+    GAIN_V153A.forEach(([k, label, prio, yds]) => {
+      const d = (Number(cur[k]) || 0) - (Number(prev[k]) || 0);
+      if (d > 0) gains.push({ k, label, prio, yds: !!yds, d, from: Number(prev[k]) || 0, to: Number(cur[k]) || 0, tile: tiles.has(k) });
+    });
+    /* a catch and its yards are one moment */
+    const rc = gains.find(g => g.k === "rec"),
+      cc = gains.find(g => g.k === "rec_c");
+    if (rc && cc) (gains.splice(gains.indexOf(cc), 1), (rc.label = "REC YDS"), (rc.catch = !0));
+    gains.sort((a, b) => b.prio - a.prio);
+    /* the big ones: a milestone crossed on this play, or a new single-game career best */
+    const bigs = [];
+    milestonesV153A().forEach(([k, at, title, sub]) => {
+      const was = Number(prev[k]) || 0,
+        now = Number(cur[k]) || 0;
+      if (was < at && now >= at && !G.fired["m:" + k]) ((G.fired["m:" + k] = 1), bigs.push({ k, title, sub: sub ? sub.toUpperCase() + " · " + now : String(now) }));
+    });
+    GAIN_V153A.forEach(([k]) => {
+      const now = Number(cur[k]) || 0,
+        hi = Number(G.highs[k]) || 0;
+      if (
+        now > hi &&
+        hi >= TU("careerHighMinV153A", 1) &&
+        !G.fired["h:" + k] &&
+        !bigs.some(b => b.k === k) &&
+        k !== "rec_c"
+      )
+        ((G.fired["h:" + k] = 1), bigs.push({ k, title: "CAREER HIGH", sub: (GAIN_V153A.find(r => r[0] === k)[1] || k.toUpperCase()) + " · " + now }));
+    });
+    /* his stored bests move up as he sets them */
+    const H = pl.gameHighsV153A || (pl.gameHighsV153A = {});
+    GAIN_V153A.forEach(([k]) => {
+      const now = Number(cur[k]) || 0;
+      now > (H[k] || 0) && (H[k] = now);
+    });
+    G.prev = Object.assign({}, cur);
+    return { gains: gains.slice(0, Math.max(1, Math.round(TU("statGainMaxV153A", 3)))), bigs };
+  }
+  function statGainShowV153A(res) {
+    if (!res || (!res.gains.length && !res.bigs.length)) return;
+    statGainCssV153A();
+    const speed = (liveCtl && liveCtl.speed) || 1,
+      rm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      flyMs = Math.round(TU("statGainFlyMsV153A", 620) / Math.sqrt(speed)),
+      field = byId("field"),
+      fr = field ? field.getBoundingClientRect() : null;
+    let src = null;
+    try {
+      src = window.__ribYouClientV153A ? window.__ribYouClientV153A() : null;
+    } catch (_) {}
+    if (!src && fr) src = { x: fr.left + fr.width / 2, y: fr.top + fr.height * 0.45 };
+    const V = (window.__V153A_LIVE = window.__V153A_LIVE || { plays: 0, chips: 0, bigs: 0, sfx: 0, buzz: 0, last: null, log: [] });
+    V.plays++;
+    const all = res.gains.map(g => ({ g })).concat(res.bigs.map(b => ({ b })));
+    all.forEach((it, i) => {
+      const g = it.g,
+        b = it.b,
+        key = g ? g.k : b.k,
+        tgt = byId("ls-" + key) || byId("liveMinorV96") || byId("liveStats"),
+        big = !!b,
+        delay = i * Math.round(TU("statGainStaggerMsV153A", 170) / Math.sqrt(speed));
+      const chip = document.createElement("div");
+      chip.className = "sg153" + (big ? " big" : "");
+      chip.dataset.k = key;
+      chip.innerHTML = big
+        ? `${escHtml(b.title)}<small>${escHtml(b.sub)}</small>`
+        : g.yds
+          ? `<b>+${g.d}</b>${escHtml(g.catch ? "CATCH · " + g.label : g.label)}`
+          : `<b>+${g.d}</b>${escHtml(g.label)}`;
+      V.chips++;
+      big && V.bigs++;
+      V.last = { key, text: chip.textContent, big };
+      V.log.push(V.last);
+      V.log.length > 40 && V.log.shift();
+      let landed = !1;
+      const land = () => {
+        if (landed) return;
+        landed = !0;
+        if (g && g.tile) countUpV153A(tgt, g.from, g.to, Math.round(TU("statGainCountMsV153A", 360) / Math.sqrt(speed)), !1);
+        else if (big && tgt && tgt.id && tgt.id.indexOf("ls-") === 0) {
+          const v = Number(tgt.dataset.v153t != null ? tgt.dataset.v153t : tgt.textContent) || 0;
+          countUpV153A(tgt, v, v, 10, !0);
+        }
+        statGainSfxV153A(big, i);
+        statGainBuzzV153A(big);
+        V.sfx++;
+        V.buzz++;
+      };
+      setTimeout(() => {
+        if (!document.body.contains(tgt || document.body)) return;
+        document.body.appendChild(chip);
+        const tr = tgt ? tgt.getBoundingClientRect() : null,
+          s = big && fr ? { x: fr.left + fr.width / 2, y: fr.top + fr.height * 0.38 } : src || { x: innerWidth / 2, y: innerHeight / 2 },
+          d = tr ? { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 } : s;
+        chip.style.left = s.x + "px";
+        chip.style.top = s.y + "px";
+        if (rm) {
+          chip.style.opacity = "1";
+          chip.style.transform = "translate(-50%,-50%) scale(1)";
+          land();
+          setTimeout(() => chip.remove(), big ? 1100 : 500);
+          return;
+        }
+        const hold = big ? TU("statGainBigHoldMsV153A", 900) / Math.sqrt(speed) : 0;
+        const anim = chip.animate(
+          [
+            { transform: "translate(-50%,-50%) scale(.4)", opacity: 0, offset: 0 },
+            { transform: "translate(-50%,-90%) scale(" + (big ? 1.25 : 1.12) + ")", opacity: 1, offset: big ? 0.12 : 0.22 },
+            { transform: "translate(-50%,-90%) scale(1)", opacity: 1, offset: big ? 0.6 : 0.4 },
+            {
+              transform: `translate(calc(-50% + ${d.x - s.x}px),calc(-50% + ${d.y - s.y}px)) scale(.45)`,
+              opacity: 0.2,
+              offset: 1
+            }
+          ],
+          { duration: flyMs + hold, easing: "cubic-bezier(.3,.1,.3,1)", fill: "forwards" }
+        );
+        anim.onfinish = () => {
+          chip.remove();
+          land();
+        };
+        setTimeout(() => (chip.remove(), land()), flyMs + hold + 400);
+      }, delay);
+    });
+  }
+  /* for checks: read what a play WOULD call out, against a throwaway player (never the save) */
+  window.__V153A_LIVE_API = {
+    gains: GAIN_V153A,
+    milestones: milestonesV153A,
+    probe: (prev, cur, highs, pos) => {
+      const G = { prev: Object.assign({}, prev || {}), highs: Object.assign({}, highs || {}), fired: {}, seq: 0 };
+      return statGainPlayV153A({ stat: cur || {} }, G, { pos: pos || "RB", gameHighsV153A: {} });
+    },
+    show: res => statGainShowV153A(res)
+  };
   function startLivePlayback() {
     (state.player,
       state._liveGame,
@@ -20553,7 +20817,8 @@
         speed: speedClampV150C((liveCtl && liveCtl.speed) || (settingOn("fastSim") ? 2 : 1)) /* v150 C H3 */,
         playing: !0,
         anim: null,
-        t: 0
+        t: 0,
+        _gainV153A: statGainStartV153A(state.player) /* v153 A: the running line and his career bests */
       }),
       fl({}),
       renderLiveBox({}),
@@ -20687,13 +20952,23 @@
         r = byId("themScore");
       (i && (i.textContent = t.usScore),
         r && (r.textContent = t.themScore),
-        liveStatCols(state.player.pos).forEach(([c]) => {
-          const u = byId("ls-" + c);
-          if (!u) return;
-          const h = t.stat[c] || 0;
-          parseInt(u.textContent) !== h &&
-            ((u.textContent = h), u.classList.add("flash"), setTimeout(() => u.classList.remove("flash"), 400));
-        }),
+        (() => {
+          /* v153 A THE STAT GAIN LANDS: a tile his gain is flying into keeps its old number until the
+           * callout lands and counts it up; every other tile is written as before */
+          const on153 = TU("statGainV153A", 1) && liveCtl._gainV153A,
+            res153 = on153 ? statGainPlayV153A(t) : null,
+            flying = new Set(res153 ? res153.gains.filter(g => g.tile).map(g => g.k) : []);
+          liveStatCols(state.player.pos).forEach(([c]) => {
+            const u = byId("ls-" + c);
+            if (!u) return;
+            const h = t.stat[c] || 0,
+              shown = u.dataset.v153t != null ? Number(u.dataset.v153t) : parseInt(u.textContent);
+            if (flying.has(c)) return void (u.dataset.v153t = String(h));
+            shown !== h &&
+              (setLiveTileV153A(u, h), u.classList.add("flash"), setTimeout(() => u.classList.remove("flash"), 400));
+          });
+          res153 && statGainShowV153A(res153);
+        })(),
         flMinorV96(t.stat),
         renderLiveBox(qi(state.player.pos, t.stat, state._liveGame.stat)),
         t.team && ul(t.team, t.oppStat),
@@ -25790,8 +26065,48 @@
     const e = SPECIALIZATIONS.find(t => t.id === state.specializationV11) || SPECIALIZATIONS[0];
     return `<div class="card specialization-card-v11"><div class="eyebrow">PRESTIGE SPECIALIZATION · NO RAW OVR</div><div class="h2" style="margin:3px 0 5px">${e.icon} ${e.name}</div><div class="small">${e.description} Switch freely; this changes strategy rather than making every run automatically stronger.</div><div class="specialization-grid-v11">${SPECIALIZATIONS.map(t => `<button class="spec-btn-v11 ${t.id === state.specializationV11 ? "on" : ""}" onclick="chooseSpecializationV11('${t.id}')"><span>${t.icon}</span><b>${t.name}</b><small>${t.description}</small></button>`).join("")}</div></div>`;
   }
+  /* ===== v153 A OVER 100% IS FOR THE SUPERHUMAN WITH NO BACKUP =====
+   * His share and his named rival's (`roleRivalV11`, the man behind him on the depth chart) were
+   * moved week to week against a combined pool clamped to 0.65-1.15, so the two of them together
+   * routinely took 105-143% of one position's snaps — the role battle card could read "YOU 94% VS 15%".
+   * The snaps at a position add up to 100% now: the rival takes at most what he leaves (`1 - share`).
+   * The one exception is the man the depth chart cannot rest: SUPERHUMAN (`superhumanV153A` — past the
+   * 99 wall, `superWallV153A`, AND far above his level's bar, `superGapV153A`) with NO BACKUP (no named
+   * rival, or a rival he has beaten for the job) plays every snap of his unit and the special-teams
+   * snaps on top: `superShareCapV153A` (109%). Applied wherever the share is shown or evaluated
+   * (`depthChart`, the weekly rival resolution, the role battle card). `TU("snapCapV153A", 0)` / `TU("v153A", 0)`. */
+  function superhumanV153A(e) {
+    if (!e) return !1;
+    const ovr = playerOvr(e),
+      need = (LEVELS[e.level] && LEVELS[e.level].need) || 0;
+    return ovr >= Math.max(TU("superWallV153A", 100), need + TU("superGapV153A", 30));
+  }
+  function snapSplitV153A(e) {
+    if (!e || !TU("v153A", 1) || !TU("snapCapV153A", 1)) return e;
+    const r = e.roleRivalV11 && e.roleRivalV11.level === e.level ? e.roleRivalV11 : null,
+      noBackup = !r || !!r.defeated;
+    if (noBackup && superhumanV153A(e)) {
+      e.snapShare = Math.max(1, TU("superShareCapV153A", 1.09));
+      r && (r.snapShare = 0);
+    } else {
+      e.snapShare = clamp99(e.snapShare == null ? 0.12 : e.snapShare, 0.04, 0.98);
+      r && (r.snapShare = clamp99(Math.min(r.snapShare == null ? 0.5 : r.snapShare, 1 - e.snapShare), 0, 0.92));
+    }
+    return e;
+  }
+  window.__V153A_SNAP = { superhuman: superhumanV153A, split: snapSplitV153A };
   const depthChartCore = depthChart;
   depthChart = function (e) {
+    if (e && TU("v153A", 1) && TU("snapCapV153A", 1)) {
+      /* v153 A: the split first; a superhuman with no backup is FIRST STRING on every snap */
+      const out = e._v11SeasonActive && e.roleRivalV11 ? null : depthChartCore(e);
+      snapSplitV153A(e);
+      if (e.snapShare > 1) {
+        e.depthRole = "FIRST STRING";
+        return Object.assign(out || { score: 20, peer: LEVELS[e.level].need }, { role: "FIRST STRING", share: e.snapShare });
+      }
+      if (out) return Object.assign(out, { share: e.snapShare });
+    }
     if (e && e._v11SeasonActive && e.roleRivalV11) {
       const t = clamp99(e.snapShare == null ? 0.12 : e.snapShare, 0.04, 0.98),
         a =
@@ -26339,7 +26654,7 @@
     const t = ensureRival(e, LEVELS[e.level].need, seededRng(e.seasonSeed, e.level, e.pos, "ui-rival")),
       a = Math.round((e.snapShare || 0.1) * 100),
       s = Math.round((t.snapShare || 0.5) * 100);
-    return `<div class="card rival-card-v11"><div class="impact-head"><div><div class="impact-kicker">NAMED ROLE BATTLE · ${escHtml(t.personality.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">You vs. ${escHtml(t.name)}</div></div><div class="rival-health-v11">${Math.round(t.health)}<small>RIVAL HEALTH</small></div></div><div class="rival-versus-v11"><div><span>YOU</span><b>${a}%</b><small>${escHtml(e.depthRole || "BENCH")} · trust ${Math.round(e.coachTrust || 50)}</small></div><em>VS</em><div><span>${escHtml(t.position)}</span><b>${s}%</b><small>${t.ovr} OVR · trust ${Math.round(t.coachTrust)}</small></div></div><div class="snap-split-v11"><i style="width:${a}%"></i></div><div class="rival-trait-v11">${escHtml(t.trait)} · relationship ${Math.round(t.relationship)}</div>${t.history?.length ? `<div class="small">Last comparison: ${t.history[0].playerPerf} vs ${t.history[0].rivalPerf} · ${t.history[0].swing >= 0 ? "+" : ""}${t.history[0].swing}% snap swing</div>` : ""}</div>`;
+    return `<div class="card rival-card-v11"><div class="impact-head"><div><div class="impact-kicker">NAMED ROLE BATTLE · ${escHtml(t.personality.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">You vs. ${escHtml(t.name)}</div></div><div class="rival-health-v11">${Math.round(t.health)}<small>RIVAL HEALTH</small></div></div><div class="rival-versus-v11"><div><span>YOU</span><b>${a}%</b><small>${escHtml(e.depthRole || "BENCH")} · trust ${Math.round(e.coachTrust || 50)}</small></div><em>VS</em><div><span>${escHtml(t.position)}</span><b>${s}%</b><small>${t.ovr} OVR · trust ${Math.round(t.coachTrust)}</small></div></div><div class="snap-split-v11"><i style="width:${Math.min(100, a)}%"></i></div><div class="rival-trait-v11">${escHtml(t.trait)} · relationship ${Math.round(t.relationship)}</div>${t.history?.length ? `<div class="small">Last comparison: ${t.history[0].playerPerf} vs ${t.history[0].rivalPerf} · ${t.history[0].swing >= 0 ? "+" : ""}${t.history[0].swing}% snap swing</div>` : ""}</div>`;
   }
   function kn(e) {
     const t = ORIGINS.find(i => i.id === e.originV11),
@@ -26595,10 +26910,11 @@
   };
   bo = function (e) {
     const t = ensureRival(e, LEVELS[e.level].need, seededRng(e.seasonSeed, e.level, e.pos, "ui-rival")),
+      _split153 = snapSplitV153A(e) /* v153 A: never more than the position has, unless he is superhuman and alone */,
       a = Math.round((e.snapShare || 0.1) * 100),
       s = Math.round((t.snapShare || 0.5) * 100),
       n = !!state.legacyUnlocksV11?.["rival-dossier"];
-    return `<div class="card rival-card-v11"><div class="impact-head"><div><div class="impact-kicker">NAMED ROLE BATTLE · ${escHtml(t.personality.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">You vs. ${escHtml(t.name)}</div></div><div class="rival-health-v11">${Math.round(t.health)}<small>RIVAL HEALTH</small></div></div><div class="rival-versus-v11"><div><span>YOU</span><b>${a}%</b><small>${escHtml(e.depthRole || "BENCH")} · trust ${Math.round(e.coachTrust || 50)}</small></div><em>VS</em><div><span>${escHtml(t.position)}</span><b>${s}%</b><small>${t.ovr} OVR · trust ${Math.round(t.coachTrust)}</small></div></div><div class="snap-split-v11"><i style="width:${a}%"></i></div><div class="rival-trait-v11">${n ? `${escHtml(t.trait)} · ${t.potential} potential` : "Trait and potential hidden · unlock Rival Dossier"} · relationship ${Math.round(t.relationship)}</div>${t.history?.length ? `<div class="small">Last comparison: ${t.history[0].playerPerf} vs ${t.history[0].rivalPerf} · ${t.history[0].swing >= 0 ? "+" : ""}${t.history[0].swing}% snap swing</div>` : ""}</div>`;
+    return `<div class="card rival-card-v11"><div class="impact-head"><div><div class="impact-kicker">NAMED ROLE BATTLE · ${escHtml(t.personality.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">You vs. ${escHtml(t.name)}</div></div><div class="rival-health-v11">${Math.round(t.health)}<small>RIVAL HEALTH</small></div></div><div class="rival-versus-v11"><div><span>YOU</span><b>${a}%</b><small>${escHtml(e.depthRole || "BENCH")} · trust ${Math.round(e.coachTrust || 50)}</small></div><em>VS</em><div><span>${escHtml(t.position)}</span><b>${s}%</b><small>${t.ovr} OVR · trust ${Math.round(t.coachTrust)}</small></div></div><div class="snap-split-v11"><i style="width:${Math.min(100, a)}%"></i></div><div class="rival-trait-v11">${n ? `${escHtml(t.trait)} · ${t.potential} potential` : "Trait and potential hidden · unlock Rival Dossier"} · relationship ${Math.round(t.relationship)}</div>${t.history?.length ? `<div class="small">Last comparison: ${t.history[0].playerPerf} vs ${t.history[0].rivalPerf} · ${t.history[0].swing >= 0 ? "+" : ""}${t.history[0].swing}% snap swing</div>` : ""}</div>`;
   };
   function rd() {
     const e = state.player,

@@ -204,7 +204,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
             frames: a.frames.map(f2=>({t:f2.t, x:tw(f2.x), y:f2.y})) }));
           const ballOut = log.ball.map(f2=>({t:f2.t, x:tw(f2.x), y:f2.y, h:f2.h||0}));
           const eventsOut = log.events.map(e=>Object.assign({}, e,
-            e.x!==undefined?{x:tw(e.x)}:{}, e.tx!==undefined?{tx:tw(e.tx)}:{}));
+            e.x!==undefined?{x:tw(e.x)}:{}, e.tx!==undefined?{tx:tw(e.tx)}:{}, e.fpX!==undefined?{fpX:tw(e.fpX)}:{}));   // v153 A: the forward-progress spot is a field x too
           /* ===== v109 THE STICKS COME OUT — the sim never emits a first down, so the badge, the crew's point and the
            * ribbon's "· FIRST DOWN" only ever fired on fallback choreography. A converting sim log gets the event at
            * its dead ball. A measured spot is left to the whistle (badgesWhistleV95), so the chains come out first. */
@@ -1551,6 +1551,24 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
         const c = at(C.frames, f.t), q = Math.min(1, (f.t - te) / TU("fallMsV146", 300)), s = 1 - q * (1 - Math.min(1, land));
         return Object.assign({}, f, { x: Math.round((c.x + kc.x * s) * 10) / 10, y: Math.round((c.y + kc.y * s) * 10) / 10 }); });
       H.glued++;
+      /* v153 A THE PILE GOES DOWN TOGETHER (the script): every man FieldSim listed in the heap
+       * (`downV153A`) rides the carrier from the whistle and settles onto the pile ring
+       * (`gangRingPxV153A` off him, on the side he came in from) over the same fall, so the renderer
+       * folds him ON the pile, not where he stood. Nobody listed is moved before the whistle. */
+      if (Array.isArray(e.downV153A) && e.downV153A.length && TU("v153A", 1) && TU("gangDownV153A", 1)) {
+        const ring = TU("gangRingPxV153A", 7), far = TU("gangDownPxV153A", 20) * TU("gangDownSupKV153A", 1.4) + reach;
+        e.downV153A.forEach((id, i) => {
+          const F = S.actors.find(a => a.id === id); if (!F || F === K || F === C || !F.frames || F.frames.length < 2) return;
+          const f0 = at(F.frames, te), ox = f0.x - c0.x, oy = f0.y - c0.y, od = Math.hypot(ox, oy);
+          if (od > far) return;
+          const land = (ring + i * TU("gangRingStepPxV153A", 1.5)) / Math.max(1, od);
+          if (!F.frames.some(f => Math.abs(f.t - te) < 0.01)) { const j = F.frames.findIndex(f => f.t > te); const nf = { t: te, x: f0.x, y: f0.y }; if (j < 0) F.frames.push(nf); else F.frames.splice(j, 0, nf); }
+          F.frames = F.frames.map(f => { if (f.t <= te) return f;
+            const c = at(C.frames, f.t), q = Math.min(1, (f.t - te) / TU("fallMsV146", 300)), s = 1 - q * (1 - Math.min(1, land));
+            return Object.assign({}, f, { x: Math.round((c.x + ox * s) * 10) / 10, y: Math.round((c.y + oy * s) * 10) / 10 }); });
+          H.gangDown = (H.gangDown || 0) + 1;
+        });
+      }
     }
     const k1 = at(K.frames, te);
     if (Math.hypot(k1.x - c0.x, k1.y - c0.y) > reach + 0.5) H.farAfter++;
@@ -2239,6 +2257,28 @@ window.__visionRadiusV96 = visionRadiusV96;
         s.lx += ux * step; s.y = clampY(s.y + uy * step); s.vel = Math.min(s.vel || 0, TU("wrapInVel", .2)); s._dx = ux; s._dy = uy;
         emit("wrapIn", { who: s.id, carrier: c.id, x: s.lx, y: s.y, bearing: +Math.atan2(uy, ux).toFixed(3), cid }); }
     };
+    /* ===== v153 A THE PILE GOES DOWN TOGETHER =====
+     * A gang tackle used to fold the tackler and the men the sim had walked in, and leave everybody
+     * else who had arrived on the heap standing round it like spectators. When the stop is a gang stop
+     * (booked as assisted, or two or more hands on the carrier) the men who are IN the heap go down
+     * with him: every supporter / joiner within `gangDownPxV153A` of the carrier, plus any other
+     * defender that close who is still closing (`gangDownVelV153A`), nearest first, at most
+     * `gangDownMaxV153A`. The tackler is not listed (he already falls). Pure geometry: no roll, no
+     * credit, no spot — the list rides the tackle event as `downV153A` for contactV146 (which lays
+     * them onto the pile) and the renderer (which folds them). `TU("gangDownV153A", 0)` / `TU("v153A", 0)`. */
+    const gangDownV153A = (c, tkId, ids, gang, hands) => {
+      if (!TU("v153A", 1) || !TU("gangDownV153A", 1) || !(gang || hands >= 2)) return undefined;
+      const reach = TU("gangDownPxV153A", 20), inHeap = new Set(ids || []), rows = [];
+      for (const a of S.all) {
+        if (a.side === c.side || a.id === tkId || a === c) continue;
+        const d = Math.hypot(a.lx - c.lx, a.y - c.y);
+        if (inHeap.has(a.id) ? d > reach * TU("gangDownSupKV153A", 1.4) : (d > reach || (a.vel || 0) < TU("gangDownVelV153A", .3))) continue;
+        rows.push({ id: a.id, d });
+      }
+      rows.sort((p, q) => p.d - q.d);
+      const out = rows.slice(0, Math.max(0, Math.round(TU("gangDownMaxV153A", 4)))).map(r => r.id);
+      return out.length ? out : undefined;
+    };
     /* ===== v112 THE HIT HAS WEIGHT =====
      * A violent collision ended with a man sliding to a stop on the turf: the sim booked the
      * knock-back, the renderer lifted him a fixed few pixels along a fixed hump for a fixed number
@@ -2582,8 +2622,9 @@ window.__visionRadiusV96 = visionRadiusV96;
       const flyT112 = launchV112({ fly: c.lb, by: d.lb, impact: hit.impact, strEdge: dStr - cStr, kb, stick: bigStick, lev: -lev, behind, hands: handsOn + nSupport });
       (V143.res[aim] = V143.res[aim] || { n: 0, drive: 0, stick: 0 }).n++;
       V143.res[aim].drive += drive; if (bigStick) V143.res[aim].stick++;
+      const downV153A = bigStick ? undefined : gangDownV153A(c, d.id, supIds, gang, handsOn + nSupport);   // v153 A: the heap goes down with him
       emit("tackle",{tackler:d.id, carrier:c.id, x:c.lx, y:c.y, gang, bigHit: bigStick||kb>11, bothFall, stayUp, kb:Math.round(kb), drive:Math.round(drive), sup:supIds, youIn, style, hitStick: bigStick, handsOn, ...hit,
-        ...(flyT112 ? { flyWho: c.id, flyVz: flyT112.vz, flyPow: flyT112.pow } : null)});
+        ...(flyT112 ? { flyWho: c.id, flyVz: flyT112.vz, flyPow: flyT112.pow } : null), ...(downV153A ? { downV153A } : null)});
       return "tackle";
     };
 
@@ -3902,8 +3943,9 @@ window.__visionRadiusV96 = visionRadiusV96;
           // for real, and paying the old blind fudge on top of it counts the yard twice.
           if (!c._wasGripped) c.lx += Math.max(0, (c.grit-50)) * 0.018 * (c.side==="off"?1:-1);
           done = true;
-          const yds = c.side==="off" ? Math.round(c.lx/YD) : 0;
-          if (isKick) { out = { kind, yards: 0, ret: Math.round(((c._catchLx||0) - c.lx) / YD), spotLx: c.lx }; return; }   // v82: the return is booked as return yards
+          const spotLx = c._fpSpotV153A != null ? c._fpSpotV153A : c.lx;   // v153 A: forward progress — the spot, not where the pile left him
+          const yds = c.side==="off" ? Math.round(spotLx/YD) : 0;
+          if (isKick) { out = { kind, yards: 0, ret: Math.round(((c._catchLx||0) - spotLx) / YD), spotLx }; return; }   // v82: the return is booked as return yards
           if (!out) out = { kind, yards: yds }; else out.yards = 0;           // pick return: passer line stays 0
         };
         /* ===== v103 THE GRIP TICK — they travel together, and where they LAND is the spot =====
@@ -3993,6 +4035,44 @@ window.__visionRadiusV96 = visionRadiusV96;
                 emit("pileOn", { who: a.id, carrier: c.id, x: c.lx, y: c.y, n: G.joined.length + 1,
                   angle: +appr.toFixed(3), mom: Math.round(aMom), cid: G.hit.cid });   // v109: the bearing he arrived on, and how hard
                 if (G.joined.length >= TU("gripJoinMax", 3)) break;
+              }
+            }
+            /* ===== v153 A GIVE GROUND — he backs out of the pile before it closes =====
+             * A group tackle is not finished when the first man grabs him: while the second man is
+             * still arriving the carrier can give a yard, drop his hips and spin back out of it. Rolled
+             * ONCE per grip, the first tick a group is forming (a joiner has hands on, or support was
+             * already there when the wrap landed), on the contact odds the grip already weighs — his
+             * agility, strength and ball security against the tacklers' tackling and strength, less
+             * for every extra man, and each move he has already made this play counts against the
+             * next (`evadeRepeatK`, as a broken grip does). On a make: the grip opens, the men who
+             * had hands on are beaten for `escapeBeatenMsV153A`, and he gives ground — a short
+             * backward, sideways step (`escapeMsV153A`, `escapeBackPxV153A`) with the spin drawn —
+             * then turns it upfield again. Giving ground is VOLUNTARY, so no forward progress is kept
+             * for it (THE BALL IS SPOTTED WHERE HE GOT TO, below). The roll spends a Math.random()
+             * only when a group forms, so ON and OFF are different sample paths: compare seeds.
+             * Kill switches `TU("escapeV153A", 0)` / `TU("v153A", 0)`. */
+            if (TU("v153A", 1) && TU("escapeV153A", 1) && !G.escRolledV153A && !isKick && !G.strip
+                && (G.joined.length || G.nSupport > 0) && age >= TU("escapeFromMsV153A", 33)) {
+              G.escRolledV153A = true;
+              const menV153A = [dfd].concat(G.joined.map(id => A_all[id]).filter(Boolean));
+              const holdV153A = menV153A.reduce((s, a) => s + (a.tkl || 50) * .6 + (a.str || 50) * .4, 0) / menV153A.length;
+              const giveV153A = (c.agi || 50) * TU("escapeAgiKV153A", .45) + (c.str || 50) * TU("escapeStrKV153A", .25) + (c.bc || 50) * TU("escapeBcKV153A", .3);
+              const pEsc = cl((TU("escapeBaseV153A", .08) + (giveV153A - holdV153A) * TU("escapeEdgeKV153A", .004)
+                - Math.max(0, menV153A.length + (G.joined.length ? 0 : Math.min(1, G.nSupport)) - 2) * TU("escapeManKV153A", .03))
+                * Math.pow(TU("evadeRepeatK", .6), Math.max(0, c._evades || 0)), 0, TU("escapeCapV153A", .22));
+              const Vesc = root.__V153A = root.__V153A || { rolls: 0, escapes: 0, fp: 0, fpYd: 0, fpSkipQB: 0, gangDown: 0, last: null };
+              Vesc.rolls++;
+              if (Math.random() < pEsc) {
+                const sideV153A = G.side || (c.y < MIDY ? 1 : -1), msV153A = TU("escapeMsV153A", 230);
+                c._grip = null; dfd._gripOn = null;
+                menV153A.forEach(a => { a.beaten = Math.max(a.beaten || 0, t + TU("escapeBeatenMsV153A", 520)); a.cool = t + 480; a._gripOn = null; });
+                c._escV153A = { t0: t, until: t + msV153A, side: sideV153A, x0: c.lx };
+                c.burstUntil = t + msV153A + TU("escapeBurstMsV153A", 380); c._evades = (c._evades || 0) + 1;
+                Vesc.escapes++; Vesc.last = { p: +pEsc.toFixed(3), men: menV153A.length };
+                emit("escapeV153A", { carrier: c.id, from: menV153A.map(a => a.id), x: c.lx, y: c.y, side: sideV153A, p: +pEsc.toFixed(3), cid: G.hit.cid });
+                emit("cut", { kind: "spin", x: c.lx, y: c.y, carrier: c.id, elus: Math.round((c.agi || 50) * .5 + (c.quick || 50) * .5),
+                  direction: sideV153A, targetY: clampY(c.y + sideV153A * TU("escapeLatPxV153A", 22)), escapeV153A: true });
+                rec(); continue;
               }
             }
             // ---- the strip: the ball is up in traffic and somebody punches at it
@@ -4101,6 +4181,9 @@ window.__visionRadiusV96 = visionRadiusV96;
               c.vel = Math.min(c.vel || 0, bp); c.lx -= dsg * bp * c.spd * TICK / 1000;
             }
             else mv(c, c.lx + dsg * 46, c.y, pull);
+            // v153 A: the furthest point his forward progress reached inside this grip (see the landing)
+            if (G.fpLxV153A == null) G.fpLxV153A = G.x0;
+            if ((c.lx - G.fpLxV153A) * dsg > 0) G.fpLxV153A = c.lx;
             // v109: the gripper settles onto the back hip FROM where he latched rather than snapping
             // there; each joiner rides in along the ray he arrived on (THE PILE HAS A SHAPE)
             const setK = cl(age / TU("gripSettleMs", 120), 0, 1), hx = -dsg * TU("gripHoldPx", 8), hy = G.side * TU("gripHoldY", 4);
@@ -4132,7 +4215,28 @@ window.__visionRadiusV96 = visionRadiusV96;
                 && (G.joined.indexOf(a.id) >= 0 || (G.gang && G.sup.indexOf(a.id) >= 0)))) || undefined;
               // v109: the men who were merely near the wrap close into the landing too (credit untouched)
               wrapInV109(c, G.sup.filter(id => G.joined.indexOf(id) < 0 && id !== dfd.id), G.hit.cid);
-              emit("tackle", { tackler: dfd.id, carrier: c.id, x: c.lx, y: c.y,
+              /* ===== v153 A THE BALL IS SPOTTED WHERE HE GOT TO (forward progress) =====
+               * A carrier the tackle drove BACKWARDS (v151 D's push, a pile that won the shove) used
+               * to be spotted where he ended up — he lost the ground he had been driven through. The
+               * rule is forward progress: the ball goes down at the furthest point his progress
+               * reached, and where the pile carried him after that does not count. `G.fpLxV153A` is
+               * that point (the grab, or further if he dragged them); when he lands more than
+               * `fwdProgMinPxV153A` behind it, `endTackle` books the yards from it
+               * (`c._fpSpotV153A`), the tackle carries `fpX` / `fpYd` for the official's spot, and
+               * the picture keeps the real landing. Not for a quarterback taken down behind his own
+               * line (a sack — he was going backwards anyway), and not for ground he GAVE (v153 A
+               * GIVE GROUND ends the grip first). No roll. `TU("fwdProgV153A", 0)` / `TU("v153A", 0)`. */
+              let fpV153A = null;
+              if (TU("v153A", 1) && TU("fwdProgV153A", 1) && G.fpLxV153A != null) {
+                const lostPx = (G.fpLxV153A - c.lx) * dsg, qbBehind = c.lb === "QB" && G.fpLxV153A * dsg <= TU("fwdProgQbLosPxV153A", 0);
+                const Vfp = root.__V153A = root.__V153A || { rolls: 0, escapes: 0, fp: 0, fpYd: 0, fpSkipQB: 0, gangDown: 0, last: null };
+                if (lostPx > TU("fwdProgMinPxV153A", 2)) {
+                  if (qbBehind) Vfp.fpSkipQB++;
+                  else { fpV153A = { fpX: G.fpLxV153A, fpYd: +(lostPx / YD).toFixed(2) }; c._fpSpotV153A = G.fpLxV153A; Vfp.fp++; Vfp.fpYd += lostPx / YD; }
+                }
+              }
+              const downV153A = G.bigStick ? undefined : gangDownV153A(c, dfd.id, G.sup.concat(G.joined), !!G.gang, G.handsOn + G.joined.length);
+              emit("tackle", { tackler: dfd.id, carrier: c.id, x: c.lx, y: c.y, ...(fpV153A || null), ...(downV153A ? { downV153A } : null),
                 gang: !!G.gang, bigHit: G.bigStick || G.kb > 11, bothFall: G.bothFall,
                 stayUp: G.stayUp && !G.joined.length, kb: Math.round(G.kb), drive: Math.round(G.drive),
                 sup: G.sup.concat(G.joined), youIn, style: G.style, hitStick: G.bigStick,
@@ -4297,7 +4401,9 @@ window.__visionRadiusV96 = visionRadiusV96;
         c._laneAimV109 = laneY;
         if (c._gatherUntil && t < c._gatherUntil) gear9 *= TU("plantGatherMult", .8);
         const carrot9 = TU("carryAimAhead", 56) * cl(TU("carrotBase", .55) + TU("carrotVelK", .75)*(c.vel||0), TU("carrotMin", .55), 1);
-        mv(c, c.lx + dirSign*carrot9, laneY, gear9);
+        const esc153 = c._escV153A && t < c._escV153A.until ? c._escV153A : null;   // v153 A GIVE GROUND: he backs out of the pile, then turns it up
+        if (esc153) mv(c, c.lx - dirSign * TU("escapeBackPxV153A", 30), clampY(c.y + esc153.side * TU("escapeLatPxV153A", 22)), TU("escapePaceV153A", .75));
+        else mv(c, c.lx + dirSign*carrot9, laneY, gear9);
         // A catch/return secured on the boundary is dead at that possession
         // point. It has no incoming carry segment this tick, so preserve the
         // exact spot explicitly instead of letting the runner turn back infield.
