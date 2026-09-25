@@ -31191,7 +31191,7 @@
     byId("screen").innerHTML = `
     <div class="eyebrow">${t.name} · Offseason</div>
     <div class="h1">Choose Your Training</div>
-    <div class="sub">This is where careers are built. Tap a program to see the season it would give you — the bars below are your stats today, and the colour on each bar is what it adds: <b style="color:#7fe0a0">green</b> for a key stat with room, <b style="color:#7ec8ff">blue</b> for a solid gain, <b style="color:#ff8a80">red</b> for a stat that is capped or barely moves. Nothing is locked until you confirm.<br><span style="color:var(--chalk-dim)">Each stat shows what your next <b>+1</b> costs in skill points: <b style="color:#7fe0a0">1 pt</b> below its soft cap, then <b style="color:#f0bb45">2</b>, <b style="color:#ff9a5a">3</b>, <b style="color:#ff8a80">4+</b> above it. Priority growth into a capped stat is growth you cannot afford to keep.</span></div>
+    <div class="sub tp-sub-v153">This is where careers are built. Tap a program to see the season it would give you — the bars below are your stats today, and the colour on each bar is what it adds: <b style="color:#7fe0a0">green</b> for a key stat with room, <b style="color:#7ec8ff">blue</b> for a solid gain, <b style="color:#ff8a80">red</b> for a stat that is capped or barely moves. Nothing is locked until you confirm.<br><span style="color:var(--chalk-dim)">Each stat shows what your next <b>+1</b> costs in skill points: <b style="color:#7fe0a0">1 pt</b> below its soft cap, then <b style="color:#f0bb45">2</b>, <b style="color:#ff9a5a">3</b>, <b style="color:#ff8a80">4+</b> above it. Priority growth into a capped stat is growth you cannot afford to keep.</span></div>
     ${(() => {
       const w = trainWhyV124(e),
         g = GR.by[sug];
@@ -31758,10 +31758,22 @@
           ? `<div class="card tight" id="lockerV153B"><div class="eyebrow">🤝 SACRIFICE FOR A TEAMMATE</div><div class="small">Done this offseason — ${escHtml(
               (Lk.events.find(v => v.kind === "sacrifice") || {}).name || "a teammate"
             )} carries your work into the season.</div></div>`
-          : `<div class="card tight" id="lockerV153B"><div class="eyebrow">🤝 SACRIFICE FOR A TEAMMATE · ONCE A SEASON</div><div class="small">Give up <b>${c} points</b> off your three best stats so <b>${escHtml(m.p.name)}</b> (${m.p.pos}, ${m.p.ovr} OVR — the weakest man in your unit) grows <b style="color:var(--good)">+${lift} OVR</b> and the locker room warms (chemistry +${TU("v153BsacChem", 6)}). The team gets better; your line in the box score gets a little smaller.</div><button class="btn secondary" style="margin-top:6px" onclick="sacrificeV153B()">GIVE UP ${c} POINTS FOR ${escHtml(m.p.name.toUpperCase())}</button></div>`
+          : /* v153 integration: one compact button (the board must fit the shell with E's 36px targets); the terms are in the dialog */
+            `<div class="card tight sac-v153" id="lockerV153B" style="padding:6px 8px;margin-bottom:0"><button class="btn secondary" style="padding:8px 10px;font-size:13px;line-height:1.15" onclick="sacrificeAskV153B()"><small style="display:block;font-size:11px;letter-spacing:1.2px;opacity:.8">🤝 SACRIFICE FOR A TEAMMATE · ONCE A SEASON</small>GIVE UP ${c} PTS → ${escHtml(m.p.name.toUpperCase())} +${lift} OVR</button></div>`
       );
     }
   }
+  /* the terms, read before the points go: the one confirm is askV150 (never a native dialog) */
+  function sacrificeAskV153B() {
+    const e = state && state.player, m = e && sacrificeMateV153B(e);
+    if (!m) return;
+    const c = sacrificeCostV153B(e), lift = Math.max(1, Math.round(levelRatingV153B(e) * TU("v153BsacLiftK", 0.12)));
+    return askV150(
+      `Give up ${c} points off your three best stats so ${m.p.name} (${m.p.pos}, ${m.p.ovr} OVR — the weakest man in your unit) grows +${lift} OVR and the locker room warms (chemistry +${TU("v153BsacChem", 6)}). The team gets better; your line in the box score gets a little smaller.`,
+      { title: "Sacrifice for a teammate", ok: "Give up " + c + " points" }
+    ).then(ok => ok && sacrificeV153B());
+  }
+  window.sacrificeAskV153B = sacrificeAskV153B;
   function showLockerPopV153B(evs) {
     if (!evs || !evs.length) return;
     document.getElementById("lockerPopV153B")?.remove();

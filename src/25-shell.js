@@ -258,7 +258,8 @@
       "html.shell-v146 #navV139 button b{font-size:11px!important;letter-spacing:.9px!important}",
       "html.shell-v146 .hubv75-tab{min-height:42px!important;font-size:11px!important;letter-spacing:.8px!important;padding:8px 2px!important}",
       "html.shell-v146 .hubv75-tab i{font-size:13px!important}",
-      "html.shell-v146 .dock .qa-chip-v146{min-height:36px!important;font-size:11.5px!important;padding:6px 10px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important}",
+      "html.shell-v146 .tp-sub-v153,html.shell-v146 .tp-sub-v153+.more-v139{display:none!important}",   // v153 integration: the training board's intro is the coach's job on a phone — the board itself must fit
+      "html.shell-v146 .dock .qa-chip-v146{min-height:36px!important;font-size:11.5px!important;padding:6px 10px!important;display:inline-flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important}",   // column: a chip's second line (v151 A's skips-left <small>) stacks under it, never beside it
       "html.shell-v146 .dock>.small,html.shell-v146 .dock>.center:not(.btn){font-size:11.5px!important}",
       /* in the panel: the labels every screen shares */
       "html.shell-v146 #screen .eyebrow,html.shell-v146 #screen>.eyebrow{font-size:11px!important;letter-spacing:2px!important}",
