@@ -19,7 +19,7 @@
 import { chromium } from 'playwright'
 import { CHROME, GAME_URL } from './lib/env.mjs'
 const URL = GAME_URL
-const GAMES = Number(process.env.V110_GAMES || 12)
+const GAMES = Number(process.env.V110_GAMES || 30)   // v151 D: 30 — a near read is ~1 in 400 plays, and 12 games could draw none (seed 110, 11)
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const browser = await chromium.launch({ executablePath: CHROME })

@@ -173,7 +173,7 @@ if (!process.env.SKIP_LIVE) {
         try {
           if (e && (e.type === 'cut' || e.type === 'pushV151D' || e.type === 'stagger' || e.type === 'tackleWhiff' || e.type === 'tackle')) {
             const id = e.type === 'cut' ? P.carrierId : sc.actorIdx(e.carrier || e.who), m = sc.markers[id]
-            if (e.type === 'cut' && !e.__inj) W.moves.push({ kind: e.kind, simT: Math.round(e.t), drawnT: Math.round(P.t), spin: !!(m && m._spinV151), juke: !!(m && m._jukeV151) })
+            if (e.type === 'cut' && !e.__inj) W.moves.push({ kind: e.kind, simT: Math.round(e.t), drawnT: Math.round(P.t - (P.delay || 0)) /* the script clock: P.t runs through the pre-snap glide first */, speed: window.__V151_SPEED || 1, spin: !!(m && m._spinV151), juke: !!(m && m._jukeV151) })
             if (m && m.root && !W.want && !e.__inj) W.want = { type: e.type + (e.kind ? ':' + e.kind : '') + (e.type === 'tackleWhiff' && e.angQ != null && e.angQ < -.3 ? ':bad' : e.type === 'tackleWhiff' ? ':good' : '') + (e.type === 'pushV151D' ? (e.dir < 0 ? ':back' : ':fwd') : ''), x: m.root.x, y: m.root.y, id }
           }
         } catch (er) {}
@@ -269,7 +269,7 @@ if (!process.env.SKIP_LIVE) {
     const rm = L.recoverMs || [], mean = rm.length ? rm.reduce((a, b) => a + b, 0) / rm.length : 0
     ok(L.recover > 0 && rm.length > 0 && mean > 120 && mean < 800, 'every stumble hands over to a recovery — he finds his feet instead of popping back', `${L.recover} recoveries, mean ${Math.round(mean)}ms over ${rm.length}, ${L.recoverFrames} frames`)
     const mv = L.moves || [], drawn = mv.filter(m => (m.kind === 'spin' ? m.spin : m.juke))
-    ok(mv.length >= 1 && drawn.length === mv.length && mv.every(m => Math.abs(m.drawnT - m.simT) <= 250), 'every juke / spin / side step draws its move on the sim\'s own cut event', `${drawn.length}/${mv.length} drawn, kinds ${JSON.stringify(mv.reduce((a, m) => (a[m.kind] = (a[m.kind] || 0) + 1, a), {}))}`)
+    ok(mv.length >= 1 && drawn.length === mv.length && mv.every(m => Math.abs(m.drawnT - m.simT) <= 250 * (m.speed || 1)), 'every juke / spin / side step draws its move on the sim\'s own cut event', `${drawn.length}/${mv.length} drawn, kinds ${JSON.stringify(mv.reduce((a, m) => (a[m.kind] = (a[m.kind] || 0) + 1, a), {}))}, lag ${mv.map(m => (m.drawnT - m.simT) + 'ms@' + (m.speed || 1) + 'x').join(' ')}`)   /* the lag is one frame of PLAY time, so it scales with the speed */
     const seq = L.spinSeq || []
     ok(L.spin === 0 || (seq.length > 0 && seq.filter(s => new Set(s).size >= 4).length >= seq.length * .6), 'a spin turns THROUGH the facings (at least four in order), not a sprite rotation', `${L.spin} spins ${JSON.stringify(seq.slice(0, 3))}`)
     ok(L.push > 0 && L.pushFrames > 0, 'a push is drawn — both men lean into it', `${L.push} pushes, ${L.pushFrames} frames`)
