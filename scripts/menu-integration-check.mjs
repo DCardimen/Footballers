@@ -62,8 +62,8 @@ try {
   const fresh = await snapshot()
   ok(fresh.ready && fresh.assets && fresh.assets.ready && !fresh.assets.fallback && fresh.assets.failed.length === 0, 'the asset runtime opened the gate with every picture decoded', `loaded=${fresh.assets?.loaded.length} failed=${fresh.assets?.failed.join(',') || 'none'}`)
   ok(fresh.images >= 9 && fresh.broken.length === 0, 'every <img> in the menu rendered', `${fresh.images} images, broken: ${fresh.broken.join(',') || 'none'}`)
-  // v111: the seventh tile and the seventh nav link are HOW TO PLAY, handled inside the menu
-  ok(fresh.tiles.length === 11 && fresh.nav.length === 7 && fresh.tiles.includes('seasons') && fresh.tiles.includes('boards') && fresh.tiles.includes('howto') && fresh.tiles.includes('coach') && fresh.tiles.includes('prestige') && fresh.nav.includes('howto'), "eleven tiles (the guide, the coach's switch, the prestige door and v151 C's season pass and leaderboards among them) and seven nav links", `${fresh.tiles.join(' ')} | ${fresh.nav.join(' ')}`)
+  // v111: the seventh tile and the seventh nav link are HOW TO PLAY, handled inside the menu · v153 D: the twelfth tile is PROFILE
+  ok(fresh.tiles.length === 12 && fresh.tiles.includes('view:profile') && fresh.nav.length === 7 && fresh.tiles.includes('seasons') && fresh.tiles.includes('boards') && fresh.tiles.includes('howto') && fresh.tiles.includes('coach') && fresh.tiles.includes('prestige') && fresh.nav.includes('howto'), "twelve tiles (the guide, the coach's switch, the prestige door, v151 C's season pass and leaderboards and v153 D's profile among them) and seven nav links", `${fresh.tiles.join(' ')} | ${fresh.nav.join(' ')}`)
   // the drawn wordmark, the swash and the six legacy icons are art, not CSS: if any of them
   // falls back to type or an inline path the menu stops matching the reference
   ok(fresh.wordmark && fresh.swash && fresh.legacyIcons === 6 && !fresh.heroSlogan,

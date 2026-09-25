@@ -66,6 +66,32 @@
     "walk"
    ]
   },
+  "menu-goal": {
+   "desc": "v153 D — the menu's goal trophy (UFF → Interstellar), the Legacy medal box under the logo, the PROFILE tile, the prestige coin tile, the breathing players, 400 wide",
+   "anchors": [
+    "v153 D"
+   ],
+   "files": [
+    "scripts/build-goal-trophies.py",
+    "art/menu/trophy_*",
+    "public/menu/trophy_goal_*"
+   ],
+   "checks": [
+    "v153Dcheck",
+    "v147Bcheck",
+    "v152Acheck",
+    "menu-integration-check",
+    "heroflashcheck",
+    "menufxcheck"
+   ],
+   "steps": [
+    "`python3 scripts/build-goal-trophies.py` (if the trophy art changed), then `python3 scripts/art-provenance.py`",
+    "`RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-menu*` file)"
+   ],
+   "look": [
+    "`SHOTS=<dir> node scripts/v153Dcheck.mjs`"
+   ]
+  },
   "menu-coin": {
    "desc": "v147 B — the menu prestige coin, the OVR ring arc and spark, the milestones trophy",
    "anchors": [
@@ -3529,6 +3555,18 @@
     "legacy"
    ],
    "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v153Dcheck": {
+   "file": "scripts/v153Dcheck.mjs",
+   "desc": "v153 D — the goal trophy on the milestones card (UFF CHAMPIONS until a UFF title — from the Hall or the season log, not the spendable rings — then INTERSTELLAR CHAMPIONS, WON after an Interstellar title; framed 4:5, shine, <=150 KB), the Legacy medal box under the logo (rank, medal, tier, XP bar, hover, refresh, taps to profile; the header chip gone), the PROFILE tile routes, PRESTIGE wears the coin, the players breathe and stop under reduced motion, the menu fits 400x860 with equal tiles, no page errors.",
+   "areas": [
+    "menu-goal"
+   ],
+   "runtimeSec": 60,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

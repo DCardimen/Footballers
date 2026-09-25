@@ -11,6 +11,16 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v153 D — the goal on the wall.** The main menu's milestones card holds up THE GOAL: the owner's new UFF
+  CHAMPIONS trophy art, framed whole as a gilt 4:5 card with a slow shine, until the account wins the UFF — then
+  it becomes NEXT: INTERSTELLAR CHAMPIONS (the space trophy, a violet frame), and WON once that title is taken too.
+  The title is read from the lifetime record (the season log's and the Hall's champion rows), never from the
+  rings, which are spent on mastery. Your Legacy medal now has its own box right under the RUNNING IT BACK logo:
+  the medal hovering in its tier's glow, the rank, the medal's name, the tier and a thin XP bar; tap it for the
+  profile (it replaces the small header chip). A PROFILE tile joins the menu beside LEADERBOARDS; PRESTIGE wears
+  the vault's gold coin instead of the purple crystal; the hero and the card portrait breathe (in, a held beat,
+  out — the shoulders rise); and the tiles are three equal columns on a phone.
+
 - **v152 A.2 — the medal gets the spotlight, the book turns, the band plays on arrival.** The profile card wears the
   Legacy medal in its own framed, glowing box beside the name (tap: the trophy case). The collection book turns real
   pages: a two-faced leaf lifts, curls and falls over the spine (or swings back in), with a paper swish, a landing thump,

@@ -1,6 +1,6 @@
 # Art provenance (generated — `python3 scripts/art-provenance.py`)
 
-137 of 342 tracked image/video files carry an embedded AI-generation record or a tool name. A C2PA manifest with `trainedAlgorithmicMedia` is the generator itself stating the picture was produced by a generative model; OpenAI embeds one in every ChatGPT / DALL·E image. Files in `public/` are re-encoded cuts (the build scripts strip metadata), so they carry no record of their own — they inherit it from their source.
+139 of 344 tracked image/video files carry an embedded AI-generation record or a tool name. A C2PA manifest with `trainedAlgorithmicMedia` is the generator itself stating the picture was produced by a generative model; OpenAI embeds one in every ChatGPT / DALL·E image. Files in `public/` are re-encoded cuts (the build scripts strip metadata), so they carry no record of their own — they inherit it from their source.
 
 **docs/COMMERCIAL.md says "all art produced by the owner". The owner must confirm, per group below, how the art was made and that they hold the rights to ship it** (docs/APP-STORE.md §7).
 
@@ -14,7 +14,7 @@
 | `art/coach` | 3 |
 | `art/field` | 23 |
 | `art/legacy` | 5 |
-| `art/menu` | 29 |
+| `art/menu` | 31 |
 | `art/source` | 16 |
 | `art/ui` | 14 |
 
@@ -138,6 +138,8 @@
 | `art/menu/logo_wordmark.png` | 2561 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
 | `art/menu/portrait_helmet.png` | 1570 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
 | `art/menu/swash_underline.png` | 512 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
+| `art/menu/trophy_interstellar_champions.png` | 2975 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
+| `art/menu/trophy_uff_champions.png` | 2610 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
 | `art/source/block and pancake pixel art.png` | 1704 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
 | `art/source/catches pixel art.png` | 1777 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
 | `art/source/crowd stands pixel art.png` | 2152 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
