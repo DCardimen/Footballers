@@ -1397,7 +1397,9 @@
    ],
    "files": [
     "src/30-music.js",
-    "public/audio/*"
+    "public/audio/*",
+    "public/rib-menu-coach.js",
+    "public/rib-vault-audio.js"
    ],
    "checks": [
     "v151Echeck",
@@ -3413,7 +3415,7 @@
   },
   "v151Echeck": {
    "file": "scripts/v151Echeck.mjs",
-   "desc": "v151 E — the music: the anthem is served and decodes, the loop is spliced (no hole at the wrap), nothing plays before a gesture, a key press starts it and it loops past the end, Settings › SOUND fits 400x860 and its switches/sliders act at once and persist, MUTE ALL (top bar + menu) silences music, effects and the coach, another sound ducks it, a hidden tab pauses and resumes, one instance across view changes.",
+   "desc": "v151 E — the music: the anthem is served and streamed (two crossfading decks, nothing decoded), the swap fires at the loop point with no hole on the music bus, nothing plays before a gesture, Settings › SOUND fits 400x860 and its switches/sliders act at once and persist, MUTE ALL (top bar + menu) silences music, effects and the coach, another sound ducks it, the coach opts into the effects bus, a hidden tab pauses and resumes, one instance across view changes.",
    "areas": [
     "v151e",
     "audio",

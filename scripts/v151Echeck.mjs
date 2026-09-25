@@ -48,31 +48,44 @@ ok(mp3.ok(), 'the mp3 fallback is served', { status: mp3.status() })
 await load()
 await wait(4200)   // past the idle fetch
 let s = await st()
-ok(s.state !== 'playing' && s.ctx == null && s.sourcesMade === 0, 'nothing plays before a gesture', { state: s.state, ctx: s.ctx, sources: s.sourcesMade, fetched: s.fetched })
-ok(s.fetched, 'the file is fetched once the page is idle (not on the boot path)', { fetched: s.fetched })
+ok(s.state !== 'playing' && s.ctx == null && s.started === 0 && s.decks === 0, 'nothing plays before a gesture', { state: s.state, ctx: s.ctx, started: s.started, decks: s.decks })
+ok(s.fetched && s.blobBytes > 2e6 && !s.decoded, 'the file is fetched once the page is idle (compressed, not decoded)', { fetched: s.fetched, blobBytes: s.blobBytes, decoded: s.decoded })
 
 // ------------------------------------------------------------------------------ 3. a gesture starts it; it loops
 await gesture()
-const playing = await until(() => { const s = window.RIB_MUSIC.state(); return s.state === 'playing' && s.ctx === 'running' && s.decoded }, 15000)
+const playing = await until(() => { const s = window.RIB_MUSIC.state(); return s.state === 'playing' && s.ctx === 'running' && s.playingDecks === 1 && s.position > 0.3 }, 15000)
 s = await st()
-ok(playing && s.liveSources === 1, 'after a key press the music is playing', { state: s.state, ctx: s.ctx, kind: s.kind, live: s.liveSources })
+ok(playing && s.mode === 'stream' && s.decks === 2 && !s.decoded, 'after a key press the music is playing — streamed, two decks, nothing decoded', { state: s.state, ctx: s.ctx, mode: s.mode, kind: s.kind, decks: s.decks, playing: s.playingDecks, pos: s.position })
 await wait(2600)
 s = await st()
 ok(s.level > 0.005 && s.fade > 0.5, 'it fades in and there is signal on the music bus', { level: s.level, fade: s.fade, gain: s.gain })
 const L = await page.evaluate(() => window.RIB_MUSIC.loopInfo())
-ok(L && Math.abs(L.duration - 153.57) < 0.5, 'the track decodes at its length', { duration: L && L.duration, loopStart: L && L.loopStart, loopEnd: L && L.loopEnd, norm: L && L.norm, rmsDb: L && L.rmsDb })
-ok(L && Math.min(...L.seamBefore) < 0.005 && Math.min(...L.seamAfter) > 0.02, 'the loop is spliced: the raw wrap has a hole, the spliced one does not', { before: L && L.seamBefore, after: L && L.seamAfter })
-const pos0 = s.position
-await page.evaluate(() => window.RIB_MUSIC._seek(window.RIB_MUSIC.loopInfo().loopEnd - 1.2))
-await wait(2500)
+ok(L && Math.abs(L.duration - 153.57) < 0.5 && L.loopEnd < L.duration && L.loopStart > 0.1, 'the track streams at its length, with the loop points inside it', L)
+// the wrap, heard on the music bus: RMS every ~8 ms across the swap
+const seam = await page.evaluate(async () => {
+  const M = window.RIB_MUSIC, L = M.loopInfo()
+  M._seek(L.loopEnd - 1.4)
+  const t0 = performance.now(), log = []
+  await new Promise(res => { const id = setInterval(() => { log.push([performance.now() - t0, M._rms()]); if (performance.now() - t0 > 2600) { clearInterval(id); res() } }, 8) })
+  const s = M.state(), sw = s.swaps[s.swaps.length - 1]
+  const at = sw ? sw.at - (Date.now() - performance.now()) - t0 : null
+  const win = log.filter(([t]) => at != null && t > at - 200 && t < at + 400).map(x => x[1])
+  const all = log.filter(([t]) => t > 300).map(x => x[1]).sort((a, b) => a - b), med = all[Math.floor(all.length / 2)]
+  // 24 ms moving mean: the smallest over the swap window
+  let minMean = 1; for (let i = 0; i + 3 <= win.length; i++) minMean = Math.min(minMean, (win[i] + win[i + 1] + win[i + 2]) / 3)
+  return { swap: sw, samples: win.length, minMean: +minMean.toFixed(4), median: +(med || 0).toFixed(4), loops: s.loops, playingDecks: s.playingDecks, state: s.state, loopEnd: L.loopEnd }
+})
+ok(seam.swap && Math.abs(seam.swap.out - seam.loopEnd) < 0.12 && Math.abs(seam.swap.in - 0.161) < 0.03, 'the crossfade lands at the loop point: the old deck at LOOP_END, the new one at its first attack', seam.swap)
+ok(seam.samples > 10 && seam.minMean > 0.3 * seam.median && seam.minMean > 0.01, 'no hole at the wrap: the level through the crossfade never drops out', { minMean: seam.minMean, median: seam.median, samples: seam.samples })
+await wait(600)
 s = await st()
-ok(s.state === 'playing' && s.loops >= 1 && s.level > 0.005 && s.liveSources === 1, 'it loops past the end without stopping', { loops: s.loops, position: s.position, level: s.level, before: pos0 })
+ok(s.state === 'playing' && s.loops >= 1 && s.level > 0.005 && s.playingDecks === 1 && s.position < 5, 'it loops past the end without stopping (one deck playing again)', { loops: s.loops, position: s.position, level: s.level, playing: s.playingDecks })
 
 // ------------------------------------------------------------------------------ 6. the duck
 const ducked = await page.evaluate(async () => {
   const AC = window.AudioContext || window.webkitAudioContext, c = new AC(); await c.resume()
-  const o = c.createOscillator(), g = c.createGain(); g.gain.value = 0.2; o.connect(g); g.connect(c.destination); o.start()
-  let seen = false, dmin = 1
+  const o = c.createOscillator(), g = c.createGain(); g.gain.value = 0.2; o.connect(g); g.connect(window.RIB_MUSIC.sfxOut(c)); o.start()
+  let seen = false
   for (let i = 0; i < 12; i++) { await new Promise(r => setTimeout(r, 100)); const s = window.RIB_MUSIC.state(); if (s.ducking) seen = true }
   o.stop(); window.__ducktest = c
   await new Promise(r => setTimeout(r, 1500))
@@ -80,6 +93,13 @@ const ducked = await page.evaluate(async () => {
   return { seen, afterDucking: after.ducking, playing: after.state, buses: after.buses }
 })
 ok(ducked.seen && !ducked.afterDucking && ducked.playing === 'playing', 'another sound ducks the music and it comes back (a dip, not a stop)', ducked)
+const coachBus = await page.evaluate(async () => {
+  const b0 = window.RIB_MUSIC.state().buses, C = window.__RIB_COACH
+  if (C && C.voice) { C.voice.setEnabled(false); C.voice.setEnabled(true) }
+  await new Promise(r => setTimeout(r, 200))
+  return { before: b0, after: window.RIB_MUSIC.state().buses, coach: !!(C && C.voice) }
+})
+ok(coachBus.coach && coachBus.after === coachBus.before + 1, "the coach's voice opts into the effects bus", coachBus)
 
 // ------------------------------------------------------------------------------ 7. hidden tab
 const hid = await page.evaluate(async () => {
@@ -87,12 +107,14 @@ const hid = await page.evaluate(async () => {
   const before = window.RIB_MUSIC.state().position
   setVis('hidden'); await new Promise(r => setTimeout(r, 900))
   const h = window.RIB_MUSIC.state()
+  await new Promise(r => setTimeout(r, 800))
+  const h2 = window.RIB_MUSIC.state().position
   setVis('visible'); await new Promise(r => setTimeout(r, 1200))
   const v = window.RIB_MUSIC.state()
-  return { before, hidden: { state: h.state, ctx: h.ctx }, back: { state: v.state, ctx: v.ctx, position: v.position, live: v.liveSources } }
+  return { before, hidden: { state: h.state, ctx: h.ctx, playing: h.playingDecks, held: +(h2 - h.position).toFixed(3) }, back: { state: v.state, ctx: v.ctx, position: v.position, playing: v.playingDecks } }
 })
-ok(hid.hidden.state === 'paused' && hid.hidden.ctx === 'suspended', 'a hidden tab pauses (the context suspends)', hid.hidden)
-ok(hid.back.state === 'playing' && hid.back.ctx === 'running' && hid.back.live === 1, 'the return resumes the same source', hid.back)
+ok(hid.hidden.state === 'paused' && hid.hidden.ctx === 'suspended' && hid.hidden.playing === 0 && Math.abs(hid.hidden.held) < 0.05, 'a hidden tab pauses (decks paused, the context suspended, the place held)', hid.hidden)
+ok(hid.back.state === 'playing' && hid.back.ctx === 'running' && hid.back.playing === 1 && hid.back.position >= hid.before, 'the return resumes from the same place', { ...hid.back, before: hid.before })
 
 // ------------------------------------------------------------------------------ 8. one instance
 const one = await page.evaluate(async () => {
@@ -101,9 +123,9 @@ const one = await page.evaluate(async () => {
   const sc = document.createElement('script'); sc.src = './src/30-music.js?again=1'; document.body.appendChild(sc)
   await new Promise(r => { sc.onload = r; sc.onerror = r })
   const s = window.RIB_MUSIC.state()
-  return { same: window.RIB_MUSIC === api, started: s.started, live: s.liveSources, state: s.state }
+  return { same: window.RIB_MUSIC === api, started: s.started, decks: s.decks, playing: s.playingDecks, state: s.state, audioEls: document.querySelectorAll('audio').length }
 })
-ok(one.same && one.started === 1 && one.live === 1 && one.state === 'playing', 'one instance across view changes and a second copy of the script', one)
+ok(one.same && one.started === 1 && one.decks === 2 && one.playing === 1 && one.state === 'playing', 'one instance across view changes and a second copy of the script', one)
 
 // ------------------------------------------------------------------------------ 4. Settings › SOUND
 await page.evaluate(() => { document.getElementById('splash')?.remove(); window.go('settings') })
@@ -135,11 +157,11 @@ const eff = await page.evaluate(async () => {
   q('sndSfxOnV151E').click(); await new Promise(r => setTimeout(r, 300))
   q('sndVoiceV151E').click(); await new Promise(r => setTimeout(r, 300))
   const sound = window.__GRIDIRON_AUDIT__.getState().settings.sound, voice = localStorage.getItem('rib.coachVoice.v119')
-  return { gain: a.gain, want: +(0.3 * L.norm).toFixed(4), volLabel: q('sndVolV151E_val') && q('sndVolV151E_val').textContent, sfxGains: b.sfxGains, dctx: window.__ducktest && window.__ducktest.state, off: { state: c.state, ctx: c.ctx, enabled: c.enabled }, sound, voice }
+  return { gain: a.gain, want: +(0.3 * L.norm).toFixed(4), volLabel: q('sndVolV151E_val') && q('sndVolV151E_val').textContent, sfxGains: b.sfxGains, dctx: window.__ducktest && window.__ducktest.state, off: { state: c.state, ctx: c.ctx, enabled: c.enabled, playing: c.playingDecks }, sound, voice }
 })
 ok(Math.abs(eff.gain - eff.want) < 0.02 && eff.volLabel === '30%', 'the music volume takes effect at once', { gain: eff.gain, want: eff.want, label: eff.volLabel })
 ok(eff.sfxGains.length > 0 && eff.sfxGains.every(g => Math.abs(g - 0.4) < 0.02), 'the effects volume sets every other context\'s bus', { sfxGains: eff.sfxGains, dctx: eff.dctx })
-ok(eff.off.state === 'off' && eff.off.ctx === 'suspended' && !eff.off.enabled, 'music off stops it at once (and suspends the context)', eff.off)
+ok(eff.off.state === 'off' && eff.off.ctx === 'suspended' && !eff.off.enabled && eff.off.playing === 0, 'music off stops it at once (and suspends the context)', eff.off)
 ok(eff.sound === false && eff.voice === 'off', 'the SFX switch writes the save\'s `sound`, the voice switch writes rib.coachVoice.v119', { sound: eff.sound, voice: eff.voice })
 
 // persist across a reload
@@ -148,7 +170,7 @@ const per = await page.evaluate(() => ({ p: window.RIB_MUSIC.prefs(), sound: win
 ok(per.p.music === false && per.p.vol === 0.3 && per.p.sfxVol === 0.4 && per.sound === false && per.voice === 'off', 'the settings persist across a reload', per)
 await gesture(); await wait(1500)
 s = await st()
-ok(s.state !== 'playing' && s.sourcesMade === 0, 'with music off a gesture starts nothing', { state: s.state, sources: s.sourcesMade })
+ok(s.state !== 'playing' && s.started === 0 && s.decks === 0, 'with music off a gesture starts nothing', { state: s.state, started: s.started, decks: s.decks })
 // restore and turn music back on through the card
 await page.evaluate(async () => { document.getElementById('splash')?.remove(); window.go('settings'); await new Promise(r => setTimeout(r, 400)); document.getElementById('sndMusicV151E').click(); document.getElementById('sndSfxOnV151E').click(); document.getElementById('sndVoiceV151E').click() })
 const back = await until(() => window.RIB_MUSIC.state().state === 'playing' && window.RIB_MUSIC.state().ctx === 'running', 15000)
@@ -159,17 +181,17 @@ const mute = await page.evaluate(async () => {
   // a coach-like voice and an effect, each in its own context, connected before the mute
   const AC = window.AudioContext || window.webkitAudioContext
   const c1 = new AC(), c2 = new AC(); await c1.resume(); await c2.resume()
-  const g1 = c1.createGain(); g1.connect(c1.destination); const g2 = c2.createGain(); g2.connect(c2.destination)
+  const g1 = c1.createGain(); g1.connect(window.RIB_MUSIC.sfxOut(c1)); const g2 = c2.createGain(); g2.connect(window.RIB_MUSIC.sfxOut(c2))
   const btn = document.getElementById('muteV151E'); const shown = !!(btn && btn.offsetWidth && btn.querySelector('svg'))
   btn.click(); await new Promise(r => setTimeout(r, 900))
   const a = window.RIB_MUSIC.state(), card = document.getElementById('sndMuteV151E')
-  const res = { shown, muteAll: a.muteAll, state: a.state, ctx: a.ctx, sfxGains: a.sfxGains, pressed: btn.getAttribute('aria-pressed'), cardSwitch: !!(card && card.querySelector('.switch.on')), voiceKey: localStorage.getItem('rib.coachVoice.v119') }
+  const res = { shown, muteAll: a.muteAll, state: a.state, ctx: a.ctx, playing: a.playingDecks, sfxGains: a.sfxGains, pressed: btn.getAttribute('aria-pressed'), cardSwitch: !!(card && card.querySelector('.switch.on')), voiceKey: localStorage.getItem('rib.coachVoice.v119') }
   btn.click(); await new Promise(r => setTimeout(r, 1500))
   const b = window.RIB_MUSIC.state(); res.after = { state: b.state, ctx: b.ctx, sfxGains: b.sfxGains, muteAll: b.muteAll }
   return res
 })
 ok(mute.shown && mute.muteAll && mute.pressed === 'true' && mute.cardSwitch, 'the quick mute is in the top bar and flips MUTE ALL (the card follows)', { shown: mute.shown, pressed: mute.pressed, card: mute.cardSwitch })
-ok(mute.state !== 'playing' && mute.ctx === 'suspended' && mute.sfxGains.every(g => g === 0) && mute.voiceKey !== 'off', 'mute all silences the music, every effects bus and the coach (his own switch untouched)', { state: mute.state, ctx: mute.ctx, sfxGains: mute.sfxGains, voiceKey: mute.voiceKey })
+ok(mute.state !== 'playing' && mute.ctx === 'suspended' && mute.playing === 0 && mute.sfxGains.every(g => g === 0) && mute.voiceKey !== 'off', 'mute all silences the music, every effects bus and the coach (his own switch untouched)', { state: mute.state, ctx: mute.ctx, sfxGains: mute.sfxGains, voiceKey: mute.voiceKey })
 ok(mute.after.state === 'playing' && !mute.after.muteAll && mute.after.sfxGains.every(g => g > 0.3), 'unmuting brings it all back', mute.after)
 
 // the main menu's quick mute

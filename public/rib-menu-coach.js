@@ -377,7 +377,7 @@
     if (voice.ctx) { if (voice.ctx.state === 'suspended') { try { voice.ctx.resume(); } catch (e) { /* no gesture yet */ } } return voice.ctx; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
     try { voice.ctx = new AC(); } catch (e) { return null; }
-    voice.master = voice.ctx.createGain(); voice.master.gain.value = 0.16; voice.master.connect(voice.ctx.destination);
+    voice.master = voice.ctx.createGain(); voice.master.gain.value = 0.16; var out = null; try { out = window.RIB_MUSIC && window.RIB_MUSIC.sfxOut && window.RIB_MUSIC.sfxOut(voice.ctx); } catch (e) { out = null; } voice.master.connect(out || voice.ctx.destination);   // v151 E THE BAND PLAYS: the effects bus (mute all, the duck)
     return voice.ctx;
   }
   let rasp = null;   // the waveshaper the brash voice is driven through, made once

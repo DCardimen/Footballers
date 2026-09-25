@@ -45,7 +45,9 @@
     var comp = A.createDynamicsCompressor();
     comp.threshold.value = -16; comp.ratio.value = 7; comp.attack.value = 0.003; comp.release.value = 0.18;
     bus = A.createGain(); bus.gain.value = 1;
-    bus.connect(comp); comp.connect(master); master.connect(A.destination);
+    bus.connect(comp); comp.connect(master);
+    var out = null; try { out = window.RIB_MUSIC && window.RIB_MUSIC.sfxOut && window.RIB_MUSIC.sfxOut(A); } catch (e) { out = null; }
+    master.connect(out || A.destination);   // v151 E THE BAND PLAYS: the effects bus (mute all, the duck)
     var n = A.sampleRate * 1.2, b = A.createBuffer(1, n, A.sampleRate), d = b.getChannelData(0);
     for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n) * 0.8 + (Math.random() * 2 - 1) * 0.2;
     noiseBuf = b;

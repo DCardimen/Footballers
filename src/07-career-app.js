@@ -10036,7 +10036,7 @@
         const a = playSfx.ctx || (playSfx.ctx = new t()),
           s = a.createOscillator(),
           n = a.createGain();
-        (s.connect(n), n.connect(a.destination));
+        (s.connect(n), n.connect(sfxOutV151E(a)));
         const i = { tap: [180, 0.035], good: [520, 0.11], big: [760, 0.18], bad: [120, 0.16], coin: [920, 0.09] },
           r = i[e] || i.tap;
         ((s.type = e === "bad" ? "sawtooth" : "sine"),
@@ -12817,6 +12817,15 @@
    * Drawn from storage alone, so a boot restore to Settings never waits on src/30-music.js (v140); the handlers
    * (`ribSoundV151E`) live there and are only called on a tap. Music / volumes / MUTE ALL are the device's
    * `rib.music.v151`; SOUND EFFECTS is still the save's `settings.sound`; the coach's voice is `rib.coachVoice.v119`. */
+  /* the effects bus every sound path opts into (src/30-music.js): volume, MUTE ALL, the duck. Before the music file
+   * has loaded, or if it throws, a sound goes straight to its destination exactly as it always did. */
+  function sfxOutV151E(ctx) {
+    try {
+      return (window.RIB_MUSIC && window.RIB_MUSIC.sfxOut && window.RIB_MUSIC.sfxOut(ctx)) || ctx.destination;
+    } catch (_) {
+      return ctx.destination;
+    }
+  }
   function soundCardV151E() {
     let p = {};
     try {
@@ -23508,7 +23517,7 @@
       g.gain.linearRampToValueAtTime(gain || 0.05, t0 + 0.008);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + (ms || 45) / 1000);
       o.connect(g);
-      g.connect(_gwAudio.destination);
+      g.connect(sfxOutV151E(_gwAudio));
       o.start(t0);
       o.stop(t0 + (ms || 45) / 1000 + 0.02);
     } catch (_) {}
