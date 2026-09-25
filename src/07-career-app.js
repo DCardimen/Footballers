@@ -5522,7 +5522,7 @@
           key: "motor",
           name: "High Motor",
           icon: "⚙️",
-          desc: "Injuries a shade rarer (−0.5% a level); +4 Stamina.",
+          desc: "Injuries a shade rarer (half a percent a level); +4 Stamina.",
           cost: 7,
           mult: 1.5,
           max: 6,
@@ -7775,7 +7775,7 @@
       );
     if (eff.inj)
       out.push(
-        `injury risk <b style="color:${eff.inj > 0 ? "#ff9b93" : "#9fe6b0"}">×${(1 + eff.inj * 3).toFixed(2)}</b> all season`
+        `injury risk <b style="color:${eff.inj > 0 ? "#ff9b93" : "#9fe6b0"}">${eff.inj >= 0 ? "+" : "−"}${Math.abs(Math.round(eff.inj * 300))}%</b> all season`   /* v92: a percent, never a decimal */
       );
     if (eff.awareGainBase) out.push(`<b style="color:#9fe6b0">+${g("awareGainBase")}</b> Awareness at season’s end`);
     if (eff.gritGainBase) out.push(`<b style="color:#9fe6b0">+${g("gritGainBase")}</b> Grit at season’s end`);
@@ -9236,7 +9236,7 @@
         s > a &&
           showToast(
             "🔥 Chaos +1 — enemies stronger · PP ×" +
-              chaosPPMult().toFixed(1) +
+              Math.round(chaosPPMult()) +
               " · Legacy XP +" +
               Math.round((legacyDiffV152() - 1) * 100) +
               "%"
@@ -9314,7 +9314,7 @@
           ? `
       <div class="chaos-summary">
         <div class="cs-box"><div class="n">${t}<span style="font-size:12px;color:var(--chalk-dim)">/${chaosCap()}</span></div><div class="l">Chaos / Capacity</div></div>
-        <div class="cs-box"><div class="n" style="color:var(--gold)">×${a.toFixed(a >= 100 ? 0 : 1)}</div><div class="l">PP Gains</div></div>
+        <div class="cs-box"><div class="n" style="color:var(--gold)">×${Math.round(a)}</div><div class="l">PP Gains</div></div>
         <div class="cs-box chaos-lxp-v153"><div class="n" style="color:#e8c86a">+${Math.round((legacyDiffV152() - 1) * 100)}%</div><div class="l">Legacy XP</div></div>
         <div class="cs-box"><div class="n" style="color:#57e07a">${attrCap()}</div><div class="l">Stat Cap</div></div>
       </div>
@@ -19698,7 +19698,7 @@
     pl.champion && parts.push([lv >= 7 ? "The ring" : "Championship", base * 3 + (pl.champion ? legacyRingXpV152(lv) : 0)]);
     (pl.roundsWon | 0) > 0 && parts.push(["Playoff wins ×" + (pl.roundsWon | 0), base * 0.5 * (pl.roundsWon | 0)]);
     aw > 0 && parts.push(["Awards ×" + aw, base * aw]);
-    d > 1 && parts.push(["Chaos ×" + d.toFixed(2) + " · +" + Math.round((d - 1) * 100) + "% XP", 0]);
+    d > 1 && parts.push(["Chaos +" + Math.round((d - 1) * 100) + "% XP", 0]);
     return { gain: Math.round(parts.reduce((a, p) => a + p[1], 0) * d), parts: parts.map(p => [p[0], Math.round(p[1] * d)]) };
   }
   function legacyEndXpV152(e, level, fate) {
@@ -19711,7 +19711,7 @@
         ["Peak OVR " + Math.round(e.peakOvr || playerOvr(e)), Math.max(0, Math.round(e.peakOvr || playerOvr(e)) - 60) * TU("legacyPeakXpV152", 20)]
       ];
     fate === "walked" && parts.push(["Walked away ×" + k, 0]);
-    d > 1 && parts.push(["Chaos ×" + d.toFixed(2) + " · +" + Math.round((d - 1) * 100) + "% XP", 0]);
+    d > 1 && parts.push(["Chaos +" + Math.round((d - 1) * 100) + "% XP", 0]);
     return { gain: Math.round(parts.reduce((a, p) => a + p[1], 0) * d * k), parts: parts.map(p => [p[0], Math.round(p[1] * d * k)]) };
   }
   /* The one place Legacy XP is added. Records every medal the gain crosses (`got[rank]`, the collection
@@ -32209,7 +32209,7 @@
     const r = d.risk,
       what =
         r.kind === "injury"
-          ? "his injury odds are ×" + r.mul + " all season"
+          ? "his injury odds are +" + Math.round((r.mul - 1) * 100) + "% all season"   /* v92: no decimals on a sheet */
           : r.kind === "regress"
             ? "he loses " + Math.round(r.pct * 100) + "% of his " + ATTR_INFO[r.stat].name
             : "he opens the season at +" + r.amt + " fatigue";
@@ -32241,7 +32241,7 @@
       out.line = r.say + ": +" + r.amt + " fatigue.";
     } else if (hit) {
       out.mul = r.mul;
-      out.line = r.say + ": injury odds ×" + r.mul + " this season.";
+      out.line = r.say + ": injury odds +" + Math.round((r.mul - 1) * 100) + "% this season.";
     } else out.line = "Camp went clean — no " + r.name.toLowerCase() + ".";
     return (e.riskV153B = out);
   }
