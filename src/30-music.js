@@ -387,6 +387,29 @@
     armedCheck(); setTimeout(armedCheck, 250);
   }
   GESTURES.forEach(function (g) { document.addEventListener(g, onGesture, { capture: true, passive: true }); });
+  /* ===== v152 A.2 THE BAND PLAYS ON ARRIVAL =====
+   * The owner: the music should start when the game loads, not on the first tap. A page cannot fake that tap —
+   * a synthetic click is not a user activation, and the browser refuses sound until a real one — but it can
+   * ASK: the context is made at load and, if it is allowed to run (desktop Chrome for a site you come back
+   * to, an installed app), the band starts there and then. In the native shell there is nothing to ask:
+   * Capacitor already turns the gesture rule off in both web views (Bridge.java
+   * setMediaPlaybackRequiresUserGesture(false), CAPBridgeViewController mediaTypesRequiringUserActionForPlayback
+   * = []), so it just plays. Refused, nothing sounds, the context waits suspended, and the first tap starts it
+   * exactly as before (onGesture above). `state().auto` says which way it went. */
+  function autoStart() {
+    try {
+      if (M.gestured || !wantPlay() || document.visibilityState === 'hidden') return;
+      var C = window.Capacitor, nat = !!(C && (C.isNativePlatform ? C.isNativePlatform() : C.isNative));
+      if (nat) { M.gestured = true; M.auto = 'native'; play('auto'); return; }
+      var c = makeCtx(); if (!c) return;
+      var go = function () { if (!M.gestured && c.state === 'running' && wantPlay()) { M.gestured = true; M.auto = 'web'; play('auto'); } };
+      if (c.state === 'running') return go();
+      M.auto = 'refused';                                               // until a tap, or until the browser relents
+      try { var pr = c.resume(); if (pr && pr.then) pr.then(go, function () {}); } catch (e) {}
+    } catch (e) {}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(autoStart, 0); });
+  else setTimeout(autoStart, 0);
   // after that one is consumed, a cheap listener for iOS interruptions (a call suspends the context)
   document.addEventListener('pointerdown', function (ev) {
     if (!ev.isTrusted) return; M.gestured = true;
@@ -457,7 +480,7 @@
     state: function () {
       var p = position();
       var level = 0; if (M.an && M.state === 'playing') { try { M.an.getFloatTimeDomainData(M.anData); for (var i = 0; i < M.anData.length; i++) level = Math.max(level, Math.abs(M.anData[i])); } catch (e) {} }
-      return { state: M.state, mode: M.mode, enabled: prefs.music, muteAll: prefs.muteAll, volume: prefs.vol, sfxVolume: prefs.sfxVol, gestured: M.gestured,
+      return { state: M.state, mode: M.mode, enabled: prefs.music, muteAll: prefs.muteAll, volume: prefs.vol, sfxVolume: prefs.sfxVol, gestured: M.gestured, auto: M.auto || null,
         ctx: M.ctx ? M.ctx.state : null, kind: M.kind, error: M.err, fetched: !!fetching, blobBytes: M.blobBytes || 0, decoded: !!M.buf, started: M.started,
         heard: M.heard, kicks: M.kicks, stalled: !!stalled(), decks: M.decks.length, playingDecks: M.decks.filter(function (d) { return !d.el.paused; }).length, cur: M.cur, swapping: M.swapping, swaps: M.swaps.slice(),
         position: +p.pos.toFixed(3), loops: p.loops, gain: M.master ? +M.master.gain.value.toFixed(4) : null,
