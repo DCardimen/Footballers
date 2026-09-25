@@ -8,13 +8,43 @@
     "build": "vite build",
     "preview": "vite preview",
     "shot": "node scripts/shot.mjs",
+    "check": "node scripts/run-checks.mjs",
+    "check:smoke": "node scripts/run-checks.mjs smoke --jobs 4",
+    "check:area": "node scripts/run-checks.mjs --jobs 4",
+    "check:since": "node scripts/run-checks.mjs --jobs 4 --retry-flaky --since main",
+    "check:fast": "node scripts/run-checks.mjs fast --jobs 4 --retry-flaky",
+    "check:full": "node scripts/run-checks.mjs full --jobs 4 --retry-flaky",
+    "check:list": "node scripts/run-checks.mjs --list",
     "check:movement": "node scripts/movementcheck.mjs",
     "check:equal": "node scripts/equaltalentcheck.mjs",
-    "check:star": "node scripts/starimpactcheck.mjs"
+    "check:star": "node scripts/starimpactcheck.mjs",
+    "icons": "python3 scripts/build-app-icons.py",
+    "check:pwa": "node scripts/v149Dcheck.mjs",
+    "cap:build": "vite build",
+    "cap:sync": "vite build && cap sync",
+    "cap:add": "cap add android && cap add ios",
+    "cap:assets": "npx --yes @capacitor/assets generate --assetPath resources --iconBackgroundColor \"#070b12\" --splashBackgroundColor \"#070b12\"",
+    "cap:android": "vite build && cap sync android && cap open android",
+    "cap:ios": "vite build && cap sync ios && cap open ios"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
     "js-beautify": "^2.0.3",
     "playwright": "^1.61.1",
     "vite": "^8.1.4"
+  },
+  "dependencies": {
+    "@capacitor-community/keep-awake": "^8.0.1",
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/filesystem": "^8.1.3",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.5.2",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
   }
 }

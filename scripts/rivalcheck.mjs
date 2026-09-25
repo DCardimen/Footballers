@@ -17,12 +17,13 @@
 //     the injury roll, the coach-trust swing, and a real growth bonus for winning it
 //   * variance is a real multiplier on every game's rating, not a word
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+import { CHROME, gameUrl } from './lib/env.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 1000 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
-await page.goto('http://localhost:5173/?stayStale', { waitUntil: 'networkidle', timeout: 25000 })
+await page.goto(gameUrl('?stayStale'), { waitUntil: 'networkidle', timeout: 25000 })
 await page.waitForTimeout(1400)
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }

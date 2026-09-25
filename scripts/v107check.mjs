@@ -11,7 +11,9 @@
 //     a three-point, the skill men wait ready and a standing ball carrier has it tucked.
 //   node scripts/v107check.mjs        (READ_POS=QB, V107_MS=150000)
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+import { waitLive } from './lib/live.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 let pass = 0, fail = 0
@@ -19,7 +21,7 @@ const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undef
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text().slice(0, 200)) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(1200)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 const POS = process.env.READ_POS || 'QB'
@@ -30,7 +32,7 @@ async function step(t) { let r = null; try { r = await page.evaluate(({ t, visSr
 await page.evaluate(p => { window.__readPos = p }, POS)
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 let scene = false
-for (let i = 0; i < 40; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(400) }
+scene = await waitLive(page)   // v150 B: on game state, up to 90s (scripts/lib/live.mjs) — the fixed poll cascaded under --jobs 3-4
 console.log('scene:', scene)
 
 // ---- the atlas behind the keys: every registered throw frame, by its pixels ----

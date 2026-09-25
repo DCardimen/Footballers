@@ -18,10 +18,12 @@
 //
 //   node scripts/v146Echeck.mjs            (GAME_URL=http://localhost:5305/ for another port)
 import { chromium } from 'playwright'
+import { pageSource } from './lib/layout.mjs'   // v149 A: the served page + the src/ files it names
+import { CHROME, GAME_URL } from './lib/env.mjs'
 const W = +(process.env.CHECK_W || 400), H = +(process.env.CHECK_H || 860)
-const base = process.env.GAME_URL || 'http://localhost:5173/'
+const base = GAME_URL
 const url = base + (base.includes('?') ? '&' : '?') + 'stayStale'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + (typeof d === 'string' ? d : JSON.stringify(d)) : '')); c ? pass++ : fail++ }
 const ctx = await browser.newContext({ viewport: { width: W, height: H } })
@@ -190,8 +192,8 @@ for (const v of ['season', 'upgrade', 'shop']) {
   ok(m.view === v && m.shell && !m.scrolled.length && m.headerTop === 0, `a save on "${v}" restores cold at the top, in the shell`, { view: m.view, scrolled: m.scrolled })
 }
 // the hook the career block calls is hoisted (v140)
-const src = await page.evaluate(() => fetch(location.pathname).then(r => r.text()))
-ok(/function shellPreV146\(/.test(src) && /function shellPostV146\(/.test(src) && /const _qV146=q;q=function/.test(src), 'the shell hook is a hoisted declaration wrapped round the last q()')
+const src = await page.evaluate(pageSource)
+ok(/function shellPreV146\(/.test(src) && /function shellPostV146\(/.test(src) && /const _qV146\s*=\s*render;\s*render\s*=\s*function/.test(src), 'the shell hook is a hoisted declaration wrapped round the last q()')
 
 console.log('page errors:', errs.length ? '\n' + errs.join('\n') : 'none')
 console.log(JSON.stringify({ pass, fail, pageErrors: errs.length }))

@@ -9,12 +9,13 @@
 //
 // Usage: npm run dev, then: node scripts/v117check.mjs   (POS=LB GAMES=25 to vary)
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 await page.addInitScript(() => { setInterval(() => { try { const s=window.__getGridironState&&window.__getGridironState(); if (s) s.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto(process.env.GAME_URL || 'http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(1200)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 async function click(t) {

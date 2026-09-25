@@ -8,17 +8,18 @@
 //   - the stakes are stated BEFORE the roll, on both screens that offer it
 // node scripts/declarecheck.mjs   (needs `npm run dev` on :5173)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
 const fails = []
 const ok = (c, label, detail) => { console.log(`${c ? 'ok  ' : 'FAIL'} ${label}${detail ? '  ' + detail : ''}`); if (!c) fails.push(label) }
 
-const b = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM || '/opt/pw-browsers/chromium' })
+const b = await chromium.launch({ executablePath: CHROME })
 const page = await b.newPage({ viewport: { width: 520, height: 1100 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.S) window.S.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto(process.env.DECLARE_URL || 'http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 })
+await page.goto(process.env.DECLARE_URL || GAME_URL, { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(1200)
 
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
@@ -76,6 +77,7 @@ for (let s = 0; s < 6; s++) {
   // the word "declare" also appears in the odds explainer, so look for the BUTTON
   const dec = await declareButton()
   if (process.env.DECLARE_DEBUG) console.log('  [season]', seasonsPlayed, 'declare button:', JSON.stringify(dec))
+  // v150 A: the stakes must be READABLE when the button is pressed — the dock or the tab on screen, not a hidden tab
   if (dec) { if (/one shot/i.test((await screenText()) + ' ' + (await dockText()))) sawStakes = true; break }
   // no declare yet — leave the result screen, take the next season
   for (let i = 0; i < 40; i++) {
@@ -115,12 +117,17 @@ await page.evaluate(() => { if (window.__realRandom) Math.random = window.__real
 
 const v = await view()
 ok(v === 'declineResult', 'a failed declare lands on the career-end screen', 'view=' + v)
+await page.waitForTimeout(500)   // v150 A: the epitaph is sectioned into tabs (the v75 sectioner settles ~90ms after a render)
 const txt = await screenText(), dock = await dockText()
+// everything on the epitaph, whichever tab it sits in (innerText only reads the open tab)
+const allTxt = await page.evaluate(() => (document.getElementById('screen') || {}).textContent || '')
+const tabs = await page.evaluate(() => [...document.querySelectorAll('#screen .hubv75-tab')].map(t => (t.innerText || '').replace(/\s+/g, ' ').trim()))
 ok(/Didn't Make the Cut/i.test(txt), 'the screen says the climb is over')
-ok(/one shot/i.test(txt), 'it states there is no second attempt')
-ok(/Career Totals/i.test(txt), 'career totals are summarised')
-ok(/Best Season/i.test(txt), 'the best season is summarised')
-ok(/Career Log/i.test(txt), 'the level-by-level log is shown')
+ok(/one shot/i.test(txt), 'it states there is no second attempt — on the tab the screen opens on')
+ok(tabs.length >= 3 && tabs.some(t => /TOTALS/.test(t)) && tabs.some(t => /LOG/.test(t)), 'the epitaph is tabbed (v150 A), one screen a tab', tabs.join(' | '))
+ok(/Career Totals/i.test(allTxt), 'career totals are summarised')
+ok(/Best Season/i.test(allTxt), 'the best season is summarised')
+ok(/Career Log/i.test(allTxt), 'the level-by-level log is shown')
 ok(/See Career Result/i.test(dock), 'the only way out is the career result')
 ok(!/Back to Career/i.test(dock) && !/Play Another Season/i.test(dock), 'no path back into the career')
 

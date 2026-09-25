@@ -16,8 +16,9 @@
 //     released tackler never freezes the rest of the defence (no untouched 80s)
 import fs from "node:fs";
 import vm from "node:vm";
+import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
 
-const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const html = readGameHtml();
 const anchor = html.indexOf("/* ===== RIB_TUNE"), open = html.lastIndexOf("<script>", anchor), close = html.indexOf("</script>", anchor);
 if (anchor < 0 || open < 0 || close < 0) throw new Error("play engine script block not found");
 const src = html.slice(open + "<script>".length, close);
@@ -112,6 +113,14 @@ const R = { inside: runs(0xC0FFEE, "inside"), power: runs(0xC0FFEE, "power"), sw
   bigOL: runs(0xC0FFEE, "inside", {}, { blocking: 88, strength: 88 }) };
 const Pz = { plain: passes(0xBEEF, false, {}, N * 2), pa: passes(0xBEEF, true, {}, N * 2), paLowIQ: passes(0xBEEF, true, { awareness: 30, discipline: 30 }), paHighIQ: passes(0xBEEF, true, { awareness: 90, discipline: 90 }) };
 Pz.mobileQB = passes(0xBEEF, false, {}, N, { speed: 78 });
+/* v150 B: the play-action payout is a difference of two YPAs of ~10 yards' spread each, and ONE seed of 320 attempts a
+ * side has a standard error of ~0.8 on that difference — the 0xBEEF stream alone read 9.35 vs 10.56 (a -1.2 that failed
+ * every run, deterministically), while seeds 1..7 read -0.08 / +0.55 / +1.82 / +1.35 / +2.68 / +0.82 / +0.18 and the
+ * eight together 9.05 plain vs 9.81 play action. Judge it on the pooled YPA of four streams (1,280 attempts a side),
+ * never on one sample path (CLAUDE.md: compare against the spread). */
+const PA_SEEDS = [0xBEEF, 1, 2, 3];
+const poolYpa = pa => { const rows = PA_SEEDS.map(sd => sd === 0xBEEF ? (pa ? Pz.pa : Pz.plain) : passes(sd, pa, {}, N * 2)); return +(rows.reduce((a, r) => a + r.ypa, 0) / rows.length).toFixed(2); };
+Pz.pool = { plainYpa: poolYpa(false), paYpa: poolYpa(true), seeds: PA_SEEDS.length };
 const K = { punt: kicks(0xF00D, "punt"), kickoff: kicks(0xF00D, "kickoff"), fg: kicks(0xF00D, "fg") };
 const mixed = +((R.inside.ypc * .49 + R.sweep.ypc * .21 + R.power.ypc * .15 + R.draw.ypc * .15)).toFixed(2);   // roughly the play-caller's mix
 console.log(JSON.stringify({ runs: R, passes: Pz, kicks: K, mixedYpc: mixed }, null, 1));
@@ -127,7 +136,7 @@ ok(R.draw.bitesPerPlay >= 0.6 && R.inside.bitesPerPlay === 0, `draws draw bites 
 ok(R.drawHighIQ.bitesPerPlay * 2.5 < R.drawLowIQ.bitesPerPlay, `discipline resists the draw (${R.drawHighIQ.bitesPerPlay} vs ${R.drawLowIQ.bitesPerPlay} bites/play)`);
 ok(Pz.pa.fakePct >= 95 && Pz.plain.bitesPerPlay === 0 && Pz.pa.bitesPerPlay >= 0.6, `play action fakes and gets bitten on (${Pz.pa.fakePct}% faked, ${Pz.pa.bitesPerPlay} bites/play)`);
 ok(Pz.paHighIQ.bitesPerPlay * 2.5 < Pz.paLowIQ.bitesPerPlay, `discipline resists play action (${Pz.paHighIQ.bitesPerPlay} vs ${Pz.paLowIQ.bitesPerPlay} bites/play)`);
-ok(Pz.pa.ypa >= Pz.plain.ypa - 0.3, `play action pays out at least even with a straight dropback (${Pz.pa.ypa} vs ${Pz.plain.ypa} YPA)`);
+ok(Pz.pool.paYpa >= Pz.pool.plainYpa - 0.3, `play action pays out at least even with a straight dropback (${Pz.pool.paYpa} vs ${Pz.pool.plainYpa} YPA over ${Pz.pool.seeds} streams; ${Pz.pa.ypa} vs ${Pz.plain.ypa} on 0xBEEF alone)`);
 ok(R.inside.blocksPerPlay >= 0.6 && R.inside.blocksPerPlay <= 3.5, `blocks are won at the point of attack (${R.inside.blocksPerPlay} push+drive per play)`);
 ok(R.inside.pancakesPerPlay > 0 && R.inside.pancakesPerPlay <= 0.06, `pancakes happen and stay rare (${R.inside.pancakesPerPlay}/play)`);
 ok(R.bigOL.pancakesPerPlay > R.inside.pancakesPerPlay * 2 && R.bigOL.blocksPerPlay > R.inside.blocksPerPlay, `a dominant line wins more and flattens more (${R.bigOL.pancakesPerPlay}/play, ${R.bigOL.blocksPerPlay} wins)`);

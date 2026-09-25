@@ -1,11 +1,12 @@
 // v137 — the opening, and the payout. Photographs both sequences.
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+import { CHROME, gameUrl } from './lib/env.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 2 })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
-await page.goto('http://localhost:5173/?stayStale&noFilmV114', { waitUntil: 'networkidle', timeout: 45000 })
+await page.goto(gameUrl('?stayStale&noFilmV114'), { waitUntil: 'networkidle', timeout: 45000 })
 await page.waitForTimeout(2200)
 await page.evaluate(() => { try { window.__splashDoneV94() } catch (e) {} })
 await page.waitForFunction(() => { const s = document.getElementById('splash')

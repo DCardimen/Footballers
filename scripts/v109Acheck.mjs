@@ -17,8 +17,10 @@
 //     rate differs between a bullet and a lob (a touch ball stands in if no lob is thrown).
 //   GAME_URL=http://localhost:5173/ node scripts/v109Acheck.mjs        (READ_POS=QB)
 import { chromium } from 'playwright'
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+import { waitLive } from './lib/live.mjs'
+const URL = GAME_URL
+const browser = await chromium.launch({ executablePath: CHROME })
 const errs = []
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
@@ -114,7 +116,7 @@ for (let attempt = 0; attempt < 2 && !scene; attempt++) {
   await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
   await page.evaluate(p => { window.__readPos = p }, process.env.READ_POS || 'QB')
   for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
-  for (let i = 0; i < 80; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(500) }
+  scene = await waitLive(page)   // v150 B: on game state, up to 90s (scripts/lib/live.mjs) — the fixed poll cascaded under --jobs 3-4
   console.log('scene:', scene, attempt ? '(retry)' : '')
 }
 // a real priced ball first: a FieldSim throw carries vel/wobble/dur/apex, and the ball block

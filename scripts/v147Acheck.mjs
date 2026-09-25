@@ -22,9 +22,10 @@
 //   - no page errors
 //   node scripts/v147Acheck.mjs   (GAME_URL=http://localhost:5311/ to point it elsewhere)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const url = process.env.GAME_URL || 'http://localhost:5173/'
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const url = GAME_URL
+const b = await chromium.launch({ executablePath: CHROME })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + (typeof d === 'string' ? d : JSON.stringify(d)) : '')); c ? pass++ : fail++ }
 const errs = []
@@ -34,7 +35,15 @@ async function boot() {
   const page = await ctx.newPage()
   page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
   page.on('dialog', d => d.accept())
+  await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { seasonSkipGateV151A: 0 }) })   // v151 A: season skips are v151Acheck's; this one taps Sim the Rest
   await page.addInitScript(() => {
+    // v150 A: RETIRE asks through the in-app ribDialog now — press its confirm the way a player would
+    setInterval(() => {
+      const d = document.getElementById('ribDlgV149')
+      if (!d || d.__seenV150) return
+      d.__seenV150 = 1
+      setTimeout(() => { const x = d.querySelector('button.danger-v149, button.primary-v149'); if (x) x.click() }, 40)
+    }, 50)
     try { localStorage.setItem('rib.coachTour.v119', 'off'); localStorage.setItem('rib.debriefOff.v122', 'off') } catch {}
     setInterval(() => { try { if (window.S) window.S.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove(); document.getElementById('personaV13')?.remove() }, 60)
   })

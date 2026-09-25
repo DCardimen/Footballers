@@ -8,7 +8,10 @@
 // timeout) and the try rows (xp, twopt) that v109 added inflate `plays`/`scrim` by design; compare `snaps` to the
 // pre-v109 `scrim` (80.4 ±2 on the 300-game baseline).
 import { chromium } from 'playwright'
-import { writeFileSync } from 'fs'
+import { writeFileSync, readFileSync, existsSync } from 'fs'
+import os from 'os'
+import path from 'path'
+import { GAME_URL } from './lib/env.mjs'
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
@@ -22,12 +25,25 @@ await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.
  * buys reproducibility, not pairing, so judge a delta against the spread of several seeds rather
  * than against one run. Both are opt-in; with neither set this behaves exactly as it always did. */
 const TUNE_SN = JSON.parse(process.env.TUNE || '{}')
+/* v150 B: SEED IS A SEED. Seeding Math.random once at page load did not make a run reproducible: between the load and the
+ * first game the menus, the coach, the splash film, the ambient canvas and every polling interval draw from the same stream
+ * on WALL-CLOCK timers, so how far the stream had advanced when the career was created — and so the player himself (his
+ * rolled attributes, persona, traits, origin, rivals, schedule, seasonSeed) — and where the games began in it depended on
+ * the machine's load. Two runs of SEED=11 on one build gave 22.37 and 22.98 points. Now the stream is RESEEDED at the two
+ * moments that matter, and both happen inside ONE synchronous evaluate, where no timer can run:
+ *   1. the career is created by clicking the same buttons as before, all in one evaluate, from reseed(SEED);
+ *   2. the games start from reseed(SEED ^ 0x5eed5eed), in the evaluate that plays all of them.
+ * Every draw that decides the career or a game therefore comes from a known position, whatever the timers did in between.
+ * Proof: three runs of one seed are byte-identical, and different seeds differ (docs/CHECKS.md). The career screens that
+ * only appear on a timer (the season wheel, v139's gate) are not needed by the sim and are not clicked. */
 if (process.env.SEED || process.env.TUNE) await page.addInitScript(({ t, seed }) => {
   if (t && Object.keys(t).length) window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, t)
   if (seed) { let s = seed >>> 0
-    Math.random = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let v = Math.imul(s ^ s >>> 15, 1 | s); v = v + Math.imul(v ^ v >>> 7, 61 | v) ^ v; return ((v ^ v >>> 14) >>> 0) / 4294967296 } }
+    Math.random = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let v = Math.imul(s ^ s >>> 15, 1 | s); v = v + Math.imul(v ^ v >>> 7, 61 | v) ^ v; return ((v ^ v >>> 14) >>> 0) / 4294967296 }
+    window.__reseedSN = (n) => { s = n >>> 0 } }
 }, { t: TUNE_SN, seed: Number(process.env.SEED || 0) })
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
+const SEED = Number(process.env.SEED || 0)
+const URL = GAME_URL
 await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
 await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(2500)   // v109: warm past vite's one-time reload after an edit, like the other checks
 await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 })
@@ -42,10 +58,30 @@ async function click(t) {
     if(el) el.click() }, {t, visSrc:vis})
   await page.waitForTimeout(400)
 }
-for (const s of ["START NEW CAREER","ARCH","QB Quarterback","Lock In Personality","PLAY 8-GAME SEASON","Balanced Program","CONFIRM TRAINING"]) await click(s)
+const STEPS = ["START NEW CAREER","ARCH","QB Quarterback","Lock In Personality","PLAY 8-GAME SEASON","Balanced Program","CONFIRM TRAINING"]
+/* v150 B: the career under a SEED. Its screens arrive on timers, and the menus draw from Math.random on timers of their own,
+ * so a click-through cannot be made to land on the same player twice (probed: two walks of SEED=11 made two different men).
+ * So a seeded run does not depend on the walk: the career it plays is a SNAPSHOT — the whole game state as JSON — taken
+ * the first time a seed is run and kept in SEED_STATE (default: <tmpdir>/gridiron-scoreneutral-seed-<SEED>.json). Every run
+ * of that seed, the first included, loads the snapshot into the game and then plays from reseed(SEED ^ 0x5eed5eed), so two
+ * runs of a seed start from the same man at the same point in the stream — on this build or the next, which is what an A/B
+ * needs. SEED_FRESH=1 walks a new career and replaces the snapshot. */
+const SEED_STATE = process.env.SEED_STATE || path.join(os.tmpdir(), `gridiron-scoreneutral-seed-${SEED}.json`)
+let stateJson = null
+if (SEED && !process.env.SEED_FRESH && existsSync(SEED_STATE)) { stateJson = readFileSync(SEED_STATE, 'utf8'); console.error('seeded career: loaded ' + SEED_STATE) }
+else {
+  for (const s of STEPS) await click(s)
+  if (SEED) { stateJson = await page.evaluate(() => JSON.stringify(window.__GRIDIRON_AUDIT__.getState())); writeFileSync(SEED_STATE, stateJson); console.error('seeded career: walked and saved ' + SEED_STATE)
+    // and start over on a clean page, exactly as a later run will: the screens the walk went through leave window-level
+    // state of their own (probed: the walking run and the loading runs of one seed differed until this reload)
+    // (and with the save the walk wrote wiped, so the page boots to the same empty menu a later run boots to)
+    await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear() } catch (e) {} })
+    await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 }); await page.waitForTimeout(800) }
+}
 const N = Math.max(1, Number(process.env.GAMES || 200))
 const POS = process.env.POS || ''
-const res = await page.evaluate(({N, POS}) => {
+const res = await page.evaluate(({N, POS, SEED, stateJson}) => {
+  if (SEED) { window.__GRIDIRON_AUDIT__.setState(JSON.parse(stateJson)); window.__reseedSN(SEED ^ 0x5eed5eed) }   // v150 B: the same man, from a known point in the stream
   const a = { games:0, us:0, them:0, total:0, margin:0, plays:0, scrim:0, snaps:0, drives:0, yds:0, oppYds:0, pass:0, rush:0, first:0,
     sacks:0, turn:0, punts:0, fgAtt:0, fgGood:0, tds:0, runs:0, runYds:0, passes:0, passYds:0, inc:0, scr:0, pen:0, ot:0, safeties:0,
     runDist:{neg:0,z2:0,m3to6:0,m7to14:0,x15:0}, passDist:{z5:0,m6to14:0,m15to29:0,x30:0}, errors:[] }
@@ -74,7 +110,7 @@ const res = await page.evaluate(({N, POS}) => {
     } catch(e){ a.errors.push(String(e&&e.stack||e).slice(0,400)) }
   }
   return a
-}, {N, POS})
+}, {N, POS, SEED, stateJson})
 const g=res.games||1, f=(v,d=2)=>+(v/g).toFixed(d)
 const out = { games:g, us:f(res.us), them:f(res.them), total:f(res.total), absMargin:f(res.margin), plays:f(res.plays,1), scrim:f(res.scrim,1), snaps:f(res.snaps,1), drives:f(res.drives,1),
   yds:f(res.yds,1), oppYds:f(res.oppYds,1), passYds:f(res.pass,1), rushYds:f(res.rush,1), first:f(res.first), sacks:f(res.sacks), turn:f(res.turn), punts:f(res.punts),

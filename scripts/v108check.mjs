@@ -13,15 +13,20 @@
 //     inside it.
 //   node scripts/v108check.mjs        (READ_POS=QB, V108_MS=300000, V108_TOSS_MS=90000)
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+import { waitLive } from './lib/live.mjs'
+import { loadScale } from './lib/load.mjs'
+const LS = loadScale()
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text().slice(0, 200)) })
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { speedGateV151A: 0 }) })   // v151 A: drive the fastest button whatever the UFF gate says
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(1200)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 const POS = process.env.READ_POS || 'QB'
@@ -32,7 +37,7 @@ async function step(t) { let r = null; try { r = await page.evaluate(({ t, visSr
 await page.evaluate(p => { window.__readPos = p }, POS)
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 let scene = false
-for (let i = 0; i < 40; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(400) }
+scene = await waitLive(page)   // v150 B: on game state, up to 90s (scripts/lib/live.mjs) — the fixed 16-24s poll cascaded under --jobs 3-4
 console.log('scene:', scene)
 // the live game at its fastest setting — the same plays, four times as many of them per minute
 const spd = await page.evaluate(() => { const b = [...document.querySelectorAll('.speed-btn[data-spd]')].sort((x, y) => parseFloat(y.dataset.spd) - parseFloat(x.dataset.spd))[0]
@@ -110,7 +115,7 @@ await page.evaluate(({ tossMs }) => {
     requestAnimationFrame(tick) }
   requestAnimationFrame(tick)
 }, { tossMs: +(process.env.V108_TOSS_MS || 90000) })
-const MS = +(process.env.V108_MS || 300000)
+const MS = +(process.env.V108_MS || Math.round(300000 * Math.min(3, LS)))   // v150 B: the watch is wall time (it stops early once it has seen everything): stretched by the load per core, capped at 3x
 const t0 = Date.now()
 let lastV = null, R = {}, week = 1, stall = 0, lastPlays = -1
 const tap = async (t, ms = 900) => { try { await page.locator('button', { hasText: t }).first().click({ timeout: ms }); return true } catch (e) { return false } }
@@ -175,9 +180,15 @@ ok(relOk.length >= 1 && relOk.length >= right.length + left.length - 1, 'the rel
   'residuals ' + done.filter(r => r.dir).map(r => r.residualMs).join(',') + ' ms')
 const hOK = (V.handoffs || []).filter(h => h.frameAtEvent === 3)
 const tOK = (V.tosses || []).filter(h => h.frameAtEvent === 3)
-ok(hOK.length >= 1 && ((R.ex || {}).handoff3 > 0 || (R.ex || {}).handoffL3 > 0), 'a handoff played handoff_up0..4 (or its mirror) with one hand at full stretch ON the event',
+/* v150 B: WHICH frame was on the event is the renderer's own record (`frameAtEvent`, taken at the event itself); the rAF
+ * collector above only proves the cycle was DRAWN. It used to demand that the collector had also sampled frame 3 itself —
+ * but a cycle frame lasts 70-80ms (handoffFrameMs / tossFrameMs), and on a loaded box the canvas renderer runs at 3-5fps,
+ * so the one rAF tick that could see frame 3 often never came: "0/1 tosses" on 3 of 4 baseline tries with the event
+ * record saying 3. Drawn = any frame of the cycle seen on the quarterback; on-the-event = frameAtEvent. */
+const drawn = (re) => Object.keys(R.ex || {}).some(k => re.test(k) && R.ex[k] > 0)
+ok(hOK.length >= 1 && drawn(/^handoffL?\d$/), 'a handoff played handoff_up0..4 (or its mirror) with one hand at full stretch ON the event',
   `${hOK.length}/${(V.handoffs || []).length} handoffs · frames ` + JSON.stringify(R.ex))
-ok(tOK.length >= 1 && (R.ex || {}).toss3 > 0, 'and a toss played toss_up0..4 with the release ON the event',
+ok(tOK.length >= 1 && drawn(/^toss\d$/), 'and a toss played toss_up0..4 with the release ON the event',
   `${tOK.length}/${(V.tosses || []).length} tosses` + (R.forced ? ' (one sweep forced onto a run play)' : ''))
 ok((V.ballFrames || 0) >= 20 && V.ballDoubled === 0 && V.ballMissing === 0,
   'one football through every drawn frame of those cycles — never two, never none',

@@ -7,15 +7,14 @@
 //      parks at 80 for kids and 21 for pros any more);
 //   3. the 5x band has resolution: 250 vs 350 on the sheet lands >= 8 agent points apart at the DFL;
 //   4. simScaleV141 / kneeV141 / the star floor read as documented.
-// Usage: node scripts/v141check.mjs   (GAMES per cell via CELLS, default 1)
+// Usage: node scripts/v141check.mjs   (GAMES per cell via CELLS, default 1; the 250-vs-350 band always takes >= 4)
 import fs from 'node:fs'
 import { chromium } from 'playwright'
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8')
-const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m => m[1])
+import { gameScripts } from './lib/layout.mjs'   // v149 A: the game's scripts by file (docs/LAYOUT.md)
 const needle = 'return { off, def, all: off.concat(def) };'
 const patch = 'if(root.__AP){root.__AP.push(off.concat(def).map(a=>({lb:a.lb,you:!!(a.player&&a.player.you),spdA:a.spdA,burst:a.burst,accel:a.accel,quick:a.quick,agi:a.agi,str:a.str,cat:a.cat,thr:a.thr,tkl:a.tkl,blk:a.blk,aware:a.aware,vis:a.vis,grit:a.grit,stam:a.stam,dur:a.dur,jump:a.jump,bc:a.bc,disc:a.disc,cov:a.cov})))}' + needle
 let hit = 0
-const runtime = [0,1,2,3,4,7].map(i=>scripts[i]).map(s=>{ let l=s.replace(/data:image\/[^;"']+;base64,[A-Za-z0-9+/=]+/g,'data:image/png;base64,'); if(l.includes(needle)){l=l.replace(needle,patch);hit++} return l })
+const runtime = gameScripts(['inline:0', 'inline:1', 'inline:2', 'src/03-splash.js', 'src/04-engine.js', 'src/07-career-app.js']).map(s=>{ let l=s.replace(/data:image\/[^;"']+;base64,[A-Za-z0-9+/=]+/g,'data:image/png;base64,'); if(l.includes(needle)){l=l.replace(needle,patch);hit++} return l })
 if(!hit) throw new Error('could not patch makeAgents')
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage({ viewport:{width:520,height:900} })
@@ -31,8 +30,8 @@ const out = await page.evaluate((CELLS)=>{
   window.__youStatBoostPctV20=0; window.__youTempBuffsV25=null; window.__gameScriptBiasV23=null
   let seed=0x51a7e; Math.random=()=>{seed|=0;seed=seed+0x6D2B79F5|0;let v=Math.imul(seed^seed>>>15,1|seed);v=v+Math.imul(v^v>>>7,61|v)^v;return((v^v>>>14)>>>0)/4294967296}
   const avg=(a,k)=>a.length?a.reduce((s,x)=>s+x[k],0)/a.length:null
-  const run=(level,pos,attrs)=>{ st.player={level,pos,name:'P',attrs}; window.__AP=[]; window.__V141F=null
-    for(let g=0;g<CELLS;g++) window.__simGameV2(9+g,pos)
+  const run=(level,pos,attrs,n)=>{ st.player={level,pos,name:'P',attrs}; window.__AP=[]; window.__V141F=null
+    for(let g=0;g<(n||CELLS);g++) window.__simGameV2(9+g,pos)
     const you=[],ai=[]; window.__AP.forEach(sn=>sn.forEach(a=>{(a.you?you:ai).push(a)})); return {you,ai,F:window.__V141F} }
   const flat=v=>Object.fromEntries(names.map(n=>[n,v]))
   const runN=(level,pos,attrs)=>{ st.player={level,pos,name:'P',attrs}; window.__AP=[]; window.__V141F=null; for(let g=0;g<4;g++) window.__simGameV2(9+g,pos); const you=[],ai=[]; window.__AP.forEach(sn=>sn.forEach(a=>{(a.you?you:ai).push(a)})); return {you,ai,F:window.__V141F} }
@@ -47,7 +46,11 @@ const out = await page.evaluate((CELLS)=>{
       res.aiBands.push({level,field,ai:+avg(base.ai,field).toFixed(1)})
   }
   // the 5x band, at the DFL, for the most compressed position (RB)
-  const a250=run(7,'RB',flat(250)), a350=run(7,'RB',flat(350)), l250=run(7,'LB',flat(250)), l350=run(7,'LB',flat(350))
+  /* v150 B: the band is a statistic over the RB's snaps, and one game is one sample path — it passed at v141 / v146 B /
+   * v146 D and flipped after the v146 merge train only because v146 A spends extra random draws in the sack/contact
+   * path (CLAUDE.md: compare against the spread, never one run). Four games a cell (AUDIT §2.6: 79/79 at HEAD). */
+  const BAND=Math.max(4,CELLS)
+  const a250=run(7,'RB',flat(250),BAND), a350=run(7,'RB',flat(350),BAND), l250=run(7,'LB',flat(250),BAND), l350=run(7,'LB',flat(350),BAND)
   res.band250={spd250:+avg(a250.you,'spdA').toFixed(1),spd350:+avg(a350.you,'spdA').toFixed(1),grit250:+avg(a250.you,'grit').toFixed(1),grit350:+avg(a350.you,'grit').toFixed(1),lbSpd250:+avg(l250.you,'spdA').toFixed(1),lbSpd350:+avg(l350.you,'spdA').toFixed(1)}
   // durability: carriers at 10 vs 350 keep a different share of their speed through a hit
   const dLo=runN(7,'RB',Object.assign(flat(200),{injuryResist:10})), dHi=runN(7,'RB',Object.assign(flat(200),{injuryResist:350}))

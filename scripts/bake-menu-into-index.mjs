@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { strayCodeInPage } from './lib/layout.mjs'
 
 const root = process.cwd()
 const indexPath = path.resolve(root, 'index.html')
@@ -34,6 +35,11 @@ for (const file of [...cssFiles, ...jsFiles]) {
 }
 
 let html = fs.readFileSync(indexPath, 'utf8')
+// v149 A: index.html is a thin page over src/ (docs/LAYOUT.md). The menu block is the only region
+// this rewrites; the game's own <script src="./src/…"> / <link href="./src/…"> tags must come through
+// untouched, in the same order, or the page loses its engine.
+const layoutTags = (h) => [...h.matchAll(/(?:src|href)="\.\/src\/[^"]+"/g)].map((m) => m[0]).join('\n')
+const layoutBefore = layoutTags(html)
 
 html = html
   .replace(/\s*<!-- RIB_DIRECT_MENU_HEAD_BEGIN -->[\s\S]*?<!-- RIB_DIRECT_MENU_HEAD_END -->\s*/g, '\n')
@@ -61,7 +67,10 @@ const bodyBlock = [
 ].join('')
 
 html = `${html.slice(0, headClose)}${headBlock}${html.slice(headClose)}`
-const updatedBodyClose = html.lastIndexOf('</body>')
+// v150 A: the platform layer (src/26-platform.js) is documented to load LAST — the menu block goes in front of it,
+// not after it (it used to land just before </body>, i.e. after the platform tag, on every bake)
+const platformTag = html.search(/<script\b[^>]*src="\.\/src\/26-platform\.js"[^>]*><\/script>\s*<\/body>/)
+const updatedBodyClose = platformTag >= 0 ? platformTag : html.lastIndexOf('</body>')
 html = `${html.slice(0, updatedBodyClose)}${bodyBlock}${html.slice(updatedBodyClose)}`
 
 for (const file of cssFiles) {
@@ -71,5 +80,8 @@ for (const file of jsFiles) {
   if (!html.includes(`./public/${file}?v=${version}`)) throw new Error(`Failed to inject ${file}`)
 }
 
+if (layoutTags(html) !== layoutBefore) throw new Error('The bake disturbed the src/ layout tags (docs/LAYOUT.md)')
+const stray = strayCodeInPage(html)
+if (stray.length) throw new Error(`The page's markup carries code outside any <script> (a bad bake): ${JSON.stringify(stray.slice(0, 2))}`)
 fs.writeFileSync(indexPath, html)
 console.log(`Baked redesigned menu directly into index.html (${version})`)

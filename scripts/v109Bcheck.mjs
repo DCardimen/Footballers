@@ -11,8 +11,10 @@
 //       sheet's own cells; a pump was drawn (throw frames 0-3, no release) at least once
 //   GAME_URL=http://localhost:5173/ node scripts/v109Bcheck.mjs   (V109B_GAMES=50, V109B_MS=240000)
 import { chromium } from 'playwright'
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+import { waitLive } from './lib/live.mjs'
+const URL = GAME_URL
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
@@ -90,7 +92,7 @@ await page.waitForTimeout(1200)
 await page.evaluate(() => { window.__readPos = 'QB'; window.RIB_TUNE = window.RIB_TUNE || {}; window.RIB_TUNE.pumpRate = 1 })   // every eligible drop pumps, so one game is enough to see it drawn
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 let scene = false
-for (let i = 0; i < 40; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(400) }
+scene = await waitLive(page)   // v150 B: on game state, up to 90s (scripts/lib/live.mjs) — the fixed poll cascaded under --jobs 3-4
 console.log('scene:', scene)
 await page.evaluate(() => { const R = window.__v109rec = { hold: 0, seq: {}, pumpF: 0, pumpFrames: {}, lookQuarter: 0, lookSide: 0 }
   const tick = () => { try { const sc = window.__gridironScene, ms = (sc && sc.markers) || []

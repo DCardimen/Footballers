@@ -11,16 +11,30 @@
 //   * a career that ENDED naturally (_settled) is not an abandonment and is never charged
 // Usage: a static server on the port below, then: GAME_URL=http://localhost:5203/index.html node scripts/v112Ccheck.mjs
 import { chromium } from 'playwright'
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const URL = GAME_URL
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + JSON.stringify(d) : '')); c ? pass++ : fail++ }
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 400, height: 860 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
 const dialogs = []
 page.on('dialog', d => { dialogs.push(d.message()); d.accept() })
+// v150 A: the game's confirms are the in-app ribDialog (#ribDlgV149) now, not window.confirm — log each one's
+// text and press its confirm button, the way a player would
+await page.addInitScript(() => {
+  window.__dlgLogV150 = []
+  setInterval(() => {
+    const d = document.getElementById('ribDlgV149')
+    if (!d || d.__seenV150) return
+    d.__seenV150 = 1
+    window.__dlgLogV150.push((d.querySelector('.msg-v149') || d).textContent || '')
+    setTimeout(() => { const b = d.querySelector('button.danger-v149, button.primary-v149') || d.querySelector('button'); if (b) b.click() }, 40)
+  }, 50)
+})
+const ribDlgs = async () => { const a = await page.evaluate(() => { const x = window.__dlgLogV150 || []; window.__dlgLogV150 = []; return x }); dialogs.push(...a); return dialogs }
 await page.addInitScript(() => { setInterval(() => { try { if (window.S) window.S.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
 await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1500)
 await page.waitForFunction(() => !!window.__V112_C, null, { timeout: 60000 })
@@ -130,26 +144,30 @@ ok(grow.rows[grow.rows.length - 1].h === grow.proj.height && grow.rows[grow.rows
 /* ---------- 4. no penalty on a first-ever character ---------- */
 ok((await page.evaluate(() => window.__V112_C.mul())) === 1, 'a first career carries no penalty')
 /* the neutrality argument, made exactly rather than statistically: with no penalty the reroll
- * factor is the number 1, so condMultV54 returns one of its three original constants unchanged —
- * and condMultV54 is the ONLY thing v112 (C) touches that the live engine can reach. */
+ * factor is the number 1, so condMultV54 returns the bare fatigue multiplier unchanged —
+ * and condMultV54 is the ONLY thing v112 (C) touches that the live engine can reach.
+ * v150 B: the "three original constants" (1 / 0.90 / 1.05) were the pre-v120 step. v120 (FATIGUE IS A SLOPE)
+ * replaced the step with fatigueMulV120, so at 50 / 90 / 5 the body reads 0.967 / 0.833 / 1.05 — the neutral
+ * multiplier is now whatever fatigueMulV120 says, and condMultV54 must be bit-identical to it. */
 const neutral = await page.evaluate(() => {
   const p = window.S.player, c = p.conditionV11 || (p.conditionV11 = { fatigue: 20 }), keep = { ...c }
   const out = {}
-  c.injury = null; c.fatigue = 50; out.mid = window.__condMultV54(p)
-  c.fatigue = 90; out.worn = window.__condMultV54(p)
-  c.fatigue = 5; out.fresh = window.__condMultV54(p)
+  c.injury = null; c.fatigue = 50; out.mid = window.__condMultV54(p); out.fMid = window.__fatigueMulV120(50, null)
+  c.fatigue = 90; out.worn = window.__condMultV54(p); out.fWorn = window.__fatigueMulV120(90, null)
+  c.fatigue = 5; out.fresh = window.__condMultV54(p); out.fFresh = window.__fatigueMulV120(5, null)
   Object.assign(c, keep)
   return { ...out, factor: window.__V112_C.mul() }
 })
-ok(neutral.factor === 1 && neutral.mid === 1 && neutral.worn === 0.9 && neutral.fresh === 1.05,
-  'with no penalty condMultV54 is bit-identical to its pre-v112 constants (1 / 0.90 / 1.05)', neutral)
+ok(neutral.factor === 1 && neutral.mid === neutral.fMid && neutral.worn === neutral.fWorn && neutral.fresh === neutral.fFresh
+  && neutral.fresh === 1.05 && neutral.mid < 1 && neutral.worn < neutral.mid,
+  'with no penalty condMultV54 is bit-identical to the bare fatigue multiplier (v120 fatigueMulV120)', neutral)
 ok((await page.evaluate(() => window.__V112_C.eff().mult)) === (await page.evaluate(() => window.__condMultV54(window.S.player))),
   'the sheet and the sim read the SAME multiplier')
 
 /* ---------- 5. abandon and reroll: warn, then charge ---------- */
 const before = await page.evaluate(() => ({ mult: window.__condMultV54(window.S.player), careers: window.S.careers }))
 dialogs.length = 0
-await page.evaluate(() => window.confirmNew()); await page.waitForTimeout(800)
+await page.evaluate(() => window.confirmNew()); await page.waitForTimeout(800); await ribDlgs()
 ok(dialogs.length === 1 && /REROLL PENALTY/.test(dialogs[0]) && /5%/.test(dialogs[0]),
   'abandoning an unfinished career warns, by name, before the new one exists', (dialogs[0] || '').slice(0, 60))
 const after = await page.evaluate(() => {
@@ -196,7 +214,7 @@ ok((await page.evaluate(() => window.__V112_C.mul())) === 0.95, 'the penalty sur
 
 /* ---------- 7. rerolling again cannot erase it ---------- */
 dialogs.length = 0
-await page.evaluate(() => { window.S.view = 'hub'; window.confirmNew() }); await page.waitForTimeout(800)
+await page.evaluate(() => { window.S.view = 'hub'; window.confirmNew() }); await page.waitForTimeout(800); await ribDlgs()
 const again = await page.evaluate(() => ({ mul: window.__V112_C.mul(), ledger: window.__V112_C.ledger() }))
 ok(again.mul === 0.95 && again.ledger.count === 2, 'a second reroll re-arms the same −5% (it does not stack, and it does not clear)', again.ledger)
 
@@ -229,8 +247,9 @@ ok(ended.settled === true, 'ending a career settles it (the screen sets _settled
 ok(ended.abandoned === false, 'a settled (finished) career is NOT an abandonment')
 const afterReset = await page.evaluate(() => { window.prestigeReset(); return { player: window.S.player, abandoned: window.__V112_C.abandoned() } })
 ok(afterReset.player === null && afterReset.abandoned === false, 'and neither is the empty slot prestigeReset leaves behind')
-dialogs.length = 0
+dialogs.length = 0; await ribDlgs(); dialogs.length = 0
 const fresh = await page.evaluate(() => { window.startCareer(); const p = window.S.player; return { ledger: window.__V112_C.ledger(), mul: window.__V112_C.mul(), traits: p.traits.length, offer: (p.traitOfferV112 || []).length } })
+await page.waitForTimeout(300); await ribDlgs()
 ok(dialogs.length === 0, 'starting the next career after a natural ending asks for nothing', dialogs)
 ok(fresh.mul === 1 && !fresh.ledger, 'and it carries no penalty', fresh)
 ok(fresh.traits === 1 && fresh.offer === 2, 'and it is still one guaranteed trait plus two cards', fresh)

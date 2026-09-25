@@ -8,7 +8,7 @@
 // re-runs this exact logic to verify a submitted score — see scripts/replay.mjs
 // and supabase/functions/verify-daily/).
 //
-// A byte-identical mirror is inlined in index.html (the `v48 DAILY CHALLENGE`
+// A byte-identical mirror is inlined in src/21-daily-challenge.js (the `v48 DAILY CHALLENGE`
 // block) so the game works without loading an external file; scripts/dailycheck.mjs
 // cross-checks the browser copy against this one so they can never drift.
 // If you change the algorithm here, change it there too.

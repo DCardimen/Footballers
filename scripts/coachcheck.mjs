@@ -22,14 +22,17 @@
 //   node scripts/coachcheck.mjs      (GAME_URL, SHOTS=/tmp/coach writes screenshots, READ_POS=RB)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const url = process.env.GAME_URL || 'http://127.0.0.1:5173/index.html'
+import { CHROME, gameUrl } from './lib/env.mjs'
+import { loadScale } from './lib/load.mjs'
+const LS = loadScale()
+const url = gameUrl('index.html')
 // v106.1 reloads the page once when the baked build stamp has moved on. That is correct in a
 // browser and fatal in a check — a rebake between runs destroys the execution context mid-walk —
 // so every boot here pins `?stayStale`; freshcheck.mjs is what proves the reload itself.
 const U = (...q) => url + (url.includes('?') ? '&' : '?') + ['stayStale'].concat(q).join('&')
 const shots = process.env.SHOTS || ''
 const POS = process.env.READ_POS || 'RB'
-const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined) })
+const browser = await chromium.launch({ headless: true, executablePath: CHROME })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const errors = []
@@ -37,6 +40,7 @@ const newPage = async (opts = {}) => {
   const context = await browser.newContext({ viewport: { width: opts.w || 400, height: opts.h || 860 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
   const page = await context.newPage()
   page.on('pageerror', (e) => errors.push(e.message))
+  await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { speedGateV151A: 0, seasonSkipGateV151A: 0 }) })   // v151 A: the progression gates are not what this check measures
   if (!opts.realFirstVisit) await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
   return { page, context }
 }
@@ -44,7 +48,8 @@ const shot = async (page, name) => { if (shots) await page.screenshot({ path: `$
 const menuUp = async (page) => { await page.waitForSelector('#rib-main-menu-v2 .rib9-tiles', { timeout: 30000 }); await page.waitForTimeout(600) }
 const H = (page) => page.evaluate(() => { const C = window.__RIB_COACH; return C ? { open: C.isOpen, enabled: C.enabled, stop: C.stop, line: C.line, typing: C.typing, flips: C.flips, spot: C.spot, auto: C.auto, openedBy: C.openedBy || null, openedStop: C.openedStop || null, closedBy: C.closedBy || null, opens: C.opens || 0, stops: C.stops.length, lines: C.stops.reduce((n, c) => n + c.lines, 0), estimateMin: C.estimateMs() / 60000, seen: C.seen, current: C.currentStop(), last: C.last || null } : null })
 // wait for a stop to open on its screen, then read it
-const waitStop = async (page, id, ms = 12000) => { await page.waitForFunction((id) => { const C = window.__RIB_COACH; return C && C.isOpen && C.stop === id && !!document.querySelector('#rib-coach-v119.rib-coach-ready') }, id, { timeout: ms }).catch(() => null); await page.waitForTimeout(250); return H(page) }
+// v150 B: every wait for a stop is stretched by the load per core under contention (scripts/lib/load.mjs; exactly 1 on a quiet box)
+const waitStop = async (page, id, ms = 12000) => { ms = Math.round(ms * LS); await page.waitForFunction((id) => { const C = window.__RIB_COACH; return C && C.isOpen && C.stop === id && !!document.querySelector('#rib-coach-v119.rib-coach-ready') }, id, { timeout: ms }).catch(() => null); await page.waitForTimeout(250); return H(page) }
 // the player reads it and taps through: every NEXT, then GOT IT / DONE
 const dismiss = async (page) => { await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.isOpen && n++ < 12) C.next() }); await page.waitForTimeout(300); return H(page) }
 // a visible button by its text (the first-week flow), like the other checks
@@ -282,7 +287,10 @@ const step = async (page, t, wait = 900) => {
   // run the game out at the fastest speed, clicking through any sheet over the field (never the post-game card)
   await page.evaluate(() => { const b = [...document.querySelectorAll('.speed-btn[data-spd]')].sort((x, y) => parseFloat(y.dataset.spd) - parseFloat(x.dataset.spd))[0]; if (b) b.click() })
   const tGame = Date.now(); let reopened = 0
-  while (Date.now() - tGame < 300000) {
+  /* v150 B: the game is run out on game state — until the post-game card — with 5 minutes of wall time on a quiet box and that
+   * stretched by the load per core under contention (the watchdog's own budget for one play is ~25s at load 40, and a whole
+   * game at 4x ran past 300s: every assertion from the RESULT stop on then cascaded without measuring anything) */
+  while (Date.now() - tGame < 300000 * LS) {
     const s = await page.evaluate(() => { const pg = document.getElementById('pgOverlayV13'); if (pg && pg.getBoundingClientRect().height > 0) return 'pg'; if (window.__RIB_COACH.isOpen) return 'coach'
       const b = [...document.querySelectorAll('button')].find((x) => /^\s*CONTINUE\s*$/i.test(x.innerText || '') && x.getBoundingClientRect().height > 0 && !x.closest('#rib-coach-v119') && !x.closest('#pgOverlayV13')); if (b) { b.click(); return 'sheet' } return null })
     if (s === 'pg') break

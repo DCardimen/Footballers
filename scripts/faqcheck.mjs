@@ -1,5 +1,6 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
+import { CHROME, gameUrl } from './lib/env.mjs'
 
 /* ===== v111 HOW TO PLAY check =====
  * The guide is a view of the main menu with no screen behind it in the game app, so everything
@@ -15,10 +16,10 @@ import fs from 'node:fs'
  *   * the menu's other actions still route after the guide has been used.
  *   GAME_URL=http://localhost:5194/index.html node scripts/faqcheck.mjs
  * SHOTS=/tmp/faq writes screenshots of the closed menu, the guide, and an open section. */
-const url = process.env.GAME_URL || 'http://127.0.0.1:5173/index.html'
+const url = gameUrl('index.html')
 const shots = process.env.SHOTS || ''
 const W = Number(process.env.W || 400), H = Number(process.env.H || 860)
-const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined) })
+const browser = await chromium.launch({ headless: true, executablePath: CHROME })
 const context = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
 const page = await context.newPage()
 const errors = []

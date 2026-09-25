@@ -11,13 +11,14 @@
 //   - a blocked sheet leaves the bare apron v57 shipped, with no page errors
 // node scripts/sidelinecheck.mjs   (needs `npm run dev` on :5173)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
 const fails = []
 const ok = (c, label, detail) => { console.log(`${c ? 'ok  ' : 'FAIL'} ${label}${detail ? '  ' + detail : ''}`); if (!c) fails.push(label) }
-const URL = process.env.SIDE_URL || 'http://localhost:5173/'
+const URL = process.env.SIDE_URL || GAME_URL
 
 async function drive(block) {
-  const b = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM || '/opt/pw-browsers/chromium' })
+  const b = await chromium.launch({ executablePath: CHROME })
   const page = await b.newPage({ viewport: { width: 520, height: 900 } })
   const errs = []
   page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
@@ -191,7 +192,12 @@ ok(S2().fx > 120, 'every sprite casts a contact shadow', S2().fx + ' shadow elli
 const lit = await page.evaluate(() => {
   const l = window.__SIDE_V78.list()
   const tints = l.filter(i => i.tint != null && i.tint !== 0xffffff)
-  const far = l.filter(i => i.y < 700 && i.tint != null), near = l.filter(i => i.y > 900 && i.tint != null)
+  /* v150 B: far vs near by the band's OWN screen rows — the top third against the bottom third of the tinted sprites —
+   * not the fixed pixel rows (y < 700 / y > 900) this used to take. Those were written for one framing; after v144
+   * (sprite scale by age) and v148 (one row density for the drive) the band sits higher on the canvas and the
+   * near-end count under y > 900 dropped to <= 4, so the assertion failed on the COUNT with the averages right. */
+  const tl = l.filter(i => i.tint != null).sort((a, b) => a.y - b.y), third = Math.floor(tl.length / 3)
+  const far = tl.slice(0, third), near = tl.slice(tl.length - third)
   const lum = (t) => ((t >> 16) & 255) + ((t >> 8) & 255) + (t & 255)
   const avg = (a) => a.reduce((s2, i) => s2 + lum(i.tint), 0) / Math.max(1, a.length)
   return { tinted: tints.length, total: l.length, farAvg: avg(far), nearAvg: avg(near), nFar: far.length, nNear: near.length }
@@ -257,7 +263,13 @@ const react = await page.evaluate(async () => {
   sc.side.excite = 0
   sc.sideReact({ type: 'td' })
   const peak = sc.side.excite
-  await new Promise(r => setTimeout(r, 1200))
+  /* v150 B: the decay runs on the SCENE's clock (0.5^(dt/1.3s) per update), and Phaser's TimeStep swaps a frame longer
+   * than ~200ms for one nominal step — so on a loaded box with the canvas renderer at a few fps, 1.2s of wall time was
+   * a fraction of that in game time and the reaction had barely moved (1 -> .95). Wait 1.2s of the SIDELINE's time instead
+   * (capped at 30s of wall time). */
+  // (the sideline's own clock, `side.t` in seconds, is exactly the dt the decay is stepped with)
+  const t0 = sc.side.t || 0, w0 = Date.now()
+  while ((sc.side.t || 0) - t0 < 1.2 && Date.now() - w0 < 30000) await new Promise(r => setTimeout(r, 50))
   return { peak, later: sc.side.excite, quiet: (sc.sideReact({ type: 'snap' }), sc.side.excite) }
 })
 ok(react.peak >= 1, 'a touchdown sends the bench into the air', 'excite=' + react.peak)
@@ -302,6 +314,9 @@ ok(paint && paint.kit < paint.mid - 8, 'a grounding shade sits under the equipme
 const wx = await page.evaluate(() => {
   const sc = window.__gridironScene
   const count = (re) => window.__SIDE_V78.list().filter(i => re.test(i.name || '')).length
+  // v150 B: the base is built on a CLEAR day — the game's own weather roll can already be rain or snow, and then
+  // "rain adds ponchos" compared rain with rain (the flake in the baseline)
+  window.__WX_V79 = 'clear'; sc.buildSideline()
   const base = { ponchos: count(/^ponchos$/), towels: count(/^towels$/), heaters: count(/^heater$/), fans: count(/^fan$/) }
   window.__WX_V79 = 'rain'; sc.buildSideline()
   const rain = { ponchos: count(/^ponchos$/), towels: count(/^towels$/) }

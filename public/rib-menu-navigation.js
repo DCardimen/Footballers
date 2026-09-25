@@ -60,6 +60,16 @@
       if (!window.__RIB_COACH) { console.warn('[RIB menu] the coach is not loaded'); return false; }
       return window.__RIB_COACH.toggle();
     }
+    // v150 C H9: the STORE tile (present only while monetization is on) opens the store over the menu
+    if (action === 'store') {
+      const M = window.RIB_MONETIZE;
+      if (!M || !M.enabled) return false;
+      M.openStore(); return true;
+    }
+    // v151 C: the season pass and the career leaderboards (src/29-seasons.js, src/20-leaderboards.js)
+    if (action === 'seasons') { if (window.__seasonsUI) window.__seasonsUI.tab = 'pass'; return routeView('seasons'); }
+    if (action === 'boards') { if (window.__lbUI) window.__lbUI.nextMode = 'career'; return routeView('leaderboard'); }
+    if (action === 'view:leaderboard' && window.__lbUI) window.__lbUI.nextMode = 'career';   // v151 C: the menu's LEADERBOARDS opens the career boards
     if (/^view:/.test(action || '')) return routeView(action.slice(5));
     // The primary CTA doubles as START NEW CAREER: if no continue target
     // exists (no career yet, or the game relabeled it), fall through to new.

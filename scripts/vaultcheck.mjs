@@ -13,8 +13,9 @@
 //   npm run dev, then: node scripts/vaultcheck.mjs
 //   GAMES/… none. VAULT_SLOW=1 keeps the browser open on failure.
 import { chromium } from 'playwright'
+import { CHROME, gameUrl } from './lib/env.mjs'
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
 // Page errors are thrown exceptions. Console errors are noisier — a deliberately aborted
 // request logs "Failed to load resource", which is the thing the missing-sheet case is
@@ -29,7 +30,7 @@ page.on('console', m => { if (m.type() !== 'error') return
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + JSON.stringify(d) : '')); c ? pass++ : fail++ }
 
-async function boot (url = 'http://localhost:5173/?stayStale&noFilmV114') {
+async function boot (url = gameUrl('?stayStale&noFilmV114')) {
   await page.goto(url, { waitUntil: 'networkidle', timeout: 45000 })
   await page.waitForTimeout(1800)
   await page.evaluate(() => { try { window.__splashDoneV94 && window.__splashDoneV94() } catch (e) {} })
@@ -683,12 +684,17 @@ await closeV()
 await setPP(5000)
 await openV(KEY)
 await page.waitForTimeout(500)
-await pressHoard(); await page.waitForTimeout(800)
+await pressHoard(); await page.waitForTimeout(300)
+/* v150 B: "mid-pour" is a reservation that is NOT yet the price. The target is gmEye (8 PP), and a hold runs out of stage 0
+ * at 420ms and escalates from there — so how much of an 8-PP node 800ms funded depended on the box, and a funded
+ * reservation commits on its own. Reload inside stage 0 (the first tap's chunk and nothing more), and say what was held. */
+const relHeld = await st()
 const relBefore = await game()
 await page.reload({ waitUntil: 'networkidle' })
 await page.waitForTimeout(2200)
 const relAfter = await page.evaluate(() => { const o = window.__GRIDIRON_AUDIT__.getState(); return { pp: o.pp, tree: JSON.parse(JSON.stringify(o.tree || {})) } })
-ok(relAfter.pp === relBefore.pp, 'a RELOAD mid-pour loses nothing and buys nothing — the reservation was never written', [relBefore.pp, relAfter.pp])
+ok(relHeld.pending > 0 && relHeld.pending < ((relHeld.target && relHeld.target.cost) || Infinity) && !relHeld.committed && relAfter.pp === relBefore.pp,
+  'a RELOAD mid-pour loses nothing and buys nothing — the reservation was never written', [relBefore.pp, relAfter.pp, 'held ' + relHeld.pending + '/' + (relHeld.target && relHeld.target.cost)])
 
 await boot()
 await setPP(5000)

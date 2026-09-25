@@ -1,13 +1,12 @@
 import fs from "node:fs";
 import vm from "node:vm";
 import { execFileSync } from "node:child_process";
+import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
 
 const root = new URL("../", import.meta.url);
 const refArg = process.argv.find(a => a.startsWith("--git-ref="));
 const gitRef = refArg ? refArg.slice("--git-ref=".length) : null;
-const html = gitRef
-  ? execFileSync("git", ["show", `${gitRef}:index.html`], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 })
-  : fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const html = readGameHtml(gitRef ? { gitRef } : {});   // v149 A: a pre-split ref is still one file, and reads as one
 
 const scriptAnchor = html.indexOf("/* ===== RIB_TUNE");
 const scriptOpen = html.lastIndexOf("<script>", scriptAnchor);
@@ -143,7 +142,17 @@ passes.forEach(p => console.log(JSON.stringify(p)));
 const sum = key => passes.reduce((n, p) => n + p[key], 0);
 const average = key => +(sum(key) / passes.length).toFixed(2);
 const range = key => +(Math.max(...passes.map(p => p[key])) - Math.min(...passes.map(p => p[key]))).toFixed(2);
-const V37_REFERENCE = { avgRunYpc: 7.8, avgCompletionPct: 68.5, avgPassYpa: 7.98, avgAirYpa: 4.78, avgYacPerCompletion: 4.68 };
+/* v150 B: the calibration this sandbox is held to. It was the v37 numbers (7.8 / 68.5 / 7.98 / 4.78 / 4.68), which this
+ * deterministic sandbox has not produced at any commit in the repository's history: the earliest one here (PR #102, v102)
+ * already reads 56.0% / 4.02 air / 6.62 YAC, #115 (the v109 realism suite) 54.8 / 4.03 / 7.15, #130 54.2 / 3.89 / 5.84,
+ * #143 57.7 / 4.16 / 7.79 — the passing game was deliberately re-cut by v101 (the lead: a ball thrown into space, caught
+ * in stride, with the YAC that follows), v109 (the throw has a speed; incompletions have reasons) and v129 (the ball in
+ * stride). The real-game balance is held by the checks that play whole games (equaltalentcheck's completion band,
+ * scoreneutralcheck, simcheck); what THIS check guards is drift in the sandbox from here on, so the reference is the
+ * sandbox's own reading at v150 (seeded, identical every run) and the ±12% band is unchanged. The v37 numbers are kept
+ * beside it for the record. */
+const V37_REFERENCE_HISTORIC = { avgRunYpc: 7.8, avgCompletionPct: 68.5, avgPassYpa: 7.98, avgAirYpa: 4.78, avgYacPerCompletion: 4.68 };
+const V37_REFERENCE = { avgRunYpc: 8.04, avgCompletionPct: 57.49, avgPassYpa: 8.48, avgAirYpa: 4.13, avgYacPerCompletion: 7.61 };   // v150 B: measured at HEAD
 const summary = {
   source: gitRef || "worktree",
   simulations: passes.length,
@@ -165,6 +174,7 @@ const pctDelta = (value, baseline) => +((value - baseline) / baseline * 100).toF
 summary.balanceVsV37 = Object.fromEntries(Object.entries(V37_REFERENCE).map(([key, baseline]) => [key, {
   baseline, current: summary[key], deltaPct: pctDelta(summary[key], baseline),
 }]));
+summary.vsHistoricV37 = Object.fromEntries(Object.entries(V37_REFERENCE_HISTORIC).map(([key, baseline]) => [key, pctDelta(summary[key], baseline)]));   // v150 B: for the record only
 console.log("summary", JSON.stringify(summary, null, 2));
 
 if (!gitRef) {
@@ -184,7 +194,7 @@ if (!gitRef) {
     if (!(ap.elite.brake50 < ap.low.brake50)) failures.push("agility did not improve braking time");
   }
   for (const [key, comparison] of Object.entries(summary.balanceVsV37)) {
-    if (Math.abs(comparison.deltaPct) > 12) failures.push(`${key} moved ${comparison.deltaPct}% from the v37 calibration`);
+    if (Math.abs(comparison.deltaPct) > 12) failures.push(`${key} moved ${comparison.deltaPct}% from the v150 calibration`);
   }
   if (failures.length) {
     console.error("movementcheck failed:", failures.join("; "));

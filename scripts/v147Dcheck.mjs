@@ -19,16 +19,18 @@
 //   node scripts/v147Dcheck.mjs   (GAME_URL=…, READ_POS=RB, PLAYS=10, SPEEDS=1,4, MODES=0,4, TOL, CAP,
 //   PROBE=1 prints only, CONFIGS='[{"name":…,"tune":{…},"speeds":[4]}]' to sweep the dials)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
+const URL = GAME_URL
 const SPEEDS = (process.env.SPEEDS || '1,4').split(',').map(Number)
 const MODES = (process.env.MODES || '0,4').split(',').map(Number)
 const TOL = +(process.env.TOL || 1.2), CAP = +(process.env.CAP || 2), PROBE = !!process.env.PROBE
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 400, height: 860 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text().slice(0, 200)) })
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { speedGateV151A: 0 }) })   // v151 A: the camera is measured at 4× whatever the UFF gate says
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
 await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1500)
 await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 })

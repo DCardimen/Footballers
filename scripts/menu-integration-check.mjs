@@ -1,5 +1,6 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
+import { CHROME, gameUrl } from './lib/env.mjs'
 
 /* ===== v89 MAIN MENU integration check =====
  * The menu overlay must: mount over the legacy menu screen with every picture loaded and
@@ -8,8 +9,8 @@ import fs from 'node:fs'
  * same menu; and stay reachable top to bottom on a phone. Run with the dev server up:
  *   node scripts/menu-integration-check.mjs            (fresh page + a new career)
  *   MENU_INTEGRATION_URL=http://127.0.0.1:5173/index.html node scripts/menu-integration-check.mjs */
-const integrationUrl = process.env.MENU_INTEGRATION_URL || 'http://127.0.0.1:5173/index.html'
-const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined) })
+const integrationUrl = process.env.MENU_INTEGRATION_URL || gameUrl('index.html')
+const browser = await chromium.launch({ headless: true, executablePath: CHROME })
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
 const page = await context.newPage()
 const errors = [], failedRequests = []
@@ -62,7 +63,7 @@ try {
   ok(fresh.ready && fresh.assets && fresh.assets.ready && !fresh.assets.fallback && fresh.assets.failed.length === 0, 'the asset runtime opened the gate with every picture decoded', `loaded=${fresh.assets?.loaded.length} failed=${fresh.assets?.failed.join(',') || 'none'}`)
   ok(fresh.images >= 9 && fresh.broken.length === 0, 'every <img> in the menu rendered', `${fresh.images} images, broken: ${fresh.broken.join(',') || 'none'}`)
   // v111: the seventh tile and the seventh nav link are HOW TO PLAY, handled inside the menu
-  ok(fresh.tiles.length === 9 && fresh.nav.length === 7 && fresh.tiles.includes('howto') && fresh.tiles.includes('coach') && fresh.tiles.includes('prestige') && fresh.nav.includes('howto'), "nine tiles (the guide, the coach's switch and the prestige door among them) and seven nav links", `${fresh.tiles.join(' ')} | ${fresh.nav.join(' ')}`)
+  ok(fresh.tiles.length === 11 && fresh.nav.length === 7 && fresh.tiles.includes('seasons') && fresh.tiles.includes('boards') && fresh.tiles.includes('howto') && fresh.tiles.includes('coach') && fresh.tiles.includes('prestige') && fresh.nav.includes('howto'), "eleven tiles (the guide, the coach's switch, the prestige door and v151 C's season pass and leaderboards among them) and seven nav links", `${fresh.tiles.join(' ')} | ${fresh.nav.join(' ')}`)
   // the drawn wordmark, the swash and the six legacy icons are art, not CSS: if any of them
   // falls back to type or an inline path the menu stops matching the reference
   ok(fresh.wordmark && fresh.swash && fresh.legacyIcons === 6 && !fresh.heroSlogan,

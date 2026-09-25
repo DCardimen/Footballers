@@ -1,0 +1,204 @@
+
+/* v13 compact live-sim UI */
+.field-wrap{border-radius:12px;margin:4px 0}
+.field-wrap canvas{display:block;width:100%!important;height:auto!important}
+.speed-row{padding:5px 0;gap:5px}
+.speed-row .btn,.speed-row button{padding:7px 0;font-size:12px}
+.sb-score{font-size:24px}
+.sb-team{font-size:14px}
+.sb-mid{margin:2px 0;font-size:11px}
+.headline-card{padding:8px 12px;margin:6px 0}
+.stat-sec-label{margin:6px 0 3px}
+.fullbox{gap:1px 5px}
+/* field 2.5D perspective sliders (settings) */
+.fx-row{padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.fx-row:last-of-type{border-bottom:0}
+.fx-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+.fx-label{font-family:Oswald,sans-serif;font-weight:600;font-size:13.5px;color:var(--chalk);letter-spacing:.3px}
+.fx-val{font-family:Oswald,sans-serif;font-weight:700;font-size:13px;color:var(--gold);min-width:44px;text-align:right}
+.fx-desc{font-family:Barlow Condensed,sans-serif;font-size:11.5px;color:var(--chalk-dim);margin-top:3px;line-height:1.2}
+.fx-slider{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:4px;background:linear-gradient(90deg,#3a4a5f,#1a2330);outline:none;cursor:pointer}
+.fx-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe9ad,#f0bb45);border:2px solid #0a0f16;box-shadow:0 1px 5px rgba(0,0,0,.5),0 0 8px #f0bb4566;cursor:pointer}
+.fx-slider::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe9ad,#f0bb45);border:2px solid #0a0f16;box-shadow:0 1px 5px rgba(0,0,0,.5);cursor:pointer}
+/* live-sim reorder — scoreboard drops to just above the field (matches broadcast reference):
+   player identity + momentum meters + coach/fan bars sit at the top of the card. CSS-only. */
+.field-wrap{display:flex;flex-direction:column}
+.field-wrap>.live-down{order:1}
+.field-wrap>.live-loop-strip{order:2}
+.field-wrap>.live-pulse{order:3}
+.field-wrap>.live-scoreboard{order:4;border-radius:0}
+.field-wrap>.sb-dots{order:4}
+.field-wrap>.live-buffline{order:4}
+.field-wrap>.field-legend{order:5;border-top:0;border-bottom:1px solid var(--line)}
+.field-wrap>#field,.field-wrap>canvas{order:6}
+.field-wrap>.commentary{order:7}
+/* broadcast-style scoreboard bar (logos · records · big scores · angled panels) */
+.live-scoreboard{display:grid!important;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:0!important;padding:0!important;background:#0a0f16!important;border-radius:0!important;border-bottom:1px solid var(--line);overflow:hidden}
+.live-scoreboard .sb-side{position:relative;display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;justify-content:flex-start!important;align-items:center!important;gap:10px;min-height:0!important;padding:11px 16px!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:hidden}
+.live-scoreboard .sb-side.us{background:linear-gradient(100deg,color-mix(in srgb,var(--sbUs1,#206c3a) 82%,#0a0f16),color-mix(in srgb,var(--sbUs1,#0c2417) 28%,#0a0f16) 92%)!important;box-shadow:inset 0 -3px 0 var(--sbUs2,#e8c86a);clip-path:polygon(0 0,100% 0,calc(100% - 20px) 100%,0 100%);padding-right:28px!important;text-align:left;align-items:center}
+.live-scoreboard .sb-side.them{background:linear-gradient(260deg,color-mix(in srgb,var(--sbThem1,#7c2429) 82%,#0a0f16),color-mix(in srgb,var(--sbThem1,#250c0e) 28%,#0a0f16) 92%)!important;box-shadow:inset 0 -3px 0 var(--sbThem2,#c3c9d2);clip-path:polygon(20px 0,100% 0,100% 100%,0 100%);padding-left:28px!important;text-align:right;align-items:center}
+.live-scoreboard .sb-side:before,.live-scoreboard .sb-side:after{display:none!important}
+.sb-logo{width:38px;height:38px;flex:0 0 38px;border-radius:50%;display:grid;place-items:center;font:700 16px Oswald,sans-serif;color:#fff;background:rgba(0,0,0,.3);box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.sb-logo:before{content:attr(data-mark)}
+.sb-side.us .sb-logo{border:2px solid var(--sbUs2,#7fe0a0);color:#fff}
+.sb-side.them .sb-logo{border:2px solid var(--sbThem2,#ff9a9a);color:#fff}
+.sb-meta{display:flex;flex-direction:column;line-height:1.05}
+.live-scoreboard .sb-side .team{font:700 15px Oswald,sans-serif!important;letter-spacing:1.2px;text-transform:uppercase;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.live-scoreboard .sb-side .rec{font:600 10px Oswald,sans-serif;letter-spacing:1px;color:var(--chalk-dim);margin-top:2px}
+.live-scoreboard .sb-side .sc{position:relative;font:800 29px Oswald,sans-serif!important;line-height:.9;text-shadow:0 0 14px currentColor;flex:0 0 auto;min-width:26px;text-align:center}
+.live-scoreboard .sb-side.us .sc{color:var(--sbUsSc,#5fe082);margin-left:auto}
+.live-scoreboard .sb-side.them .sc{color:var(--sbThemSc,#ff6167);margin-right:auto}
+/* v109: the timeout pips and the stopped clock */
+.sb-to-v109{display:flex;gap:3px;margin-top:3px}.sb-to-v109 i{display:block;width:9px;height:3px;border-radius:2px;background:rgba(255,255,255,.16)}.sb-to-v109 i.on{background:var(--gold,#f0bb45);box-shadow:0 0 4px rgba(240,187,69,.55)}.sb-side.them .sb-to-v109{justify-content:flex-end}#gameClock.stopped{color:#ffb4b8!important;text-shadow:0 0 8px rgba(255,120,120,.45)}
+.live-scoreboard .clock{display:flex!important;flex-direction:column;align-items:center;justify-content:center;background:#0a0f16;padding:6px 16px!important;min-width:96px!important;z-index:2}
+.live-scoreboard .clock .qline{display:flex;flex-direction:column;align-items:center;line-height:1}
+.live-scoreboard .clock .qline b{font:700 23px Oswald,sans-serif!important;color:var(--gold)!important;display:block!important;text-shadow:0 0 14px rgba(240,187,69,.4)}
+.live-scoreboard .clock .qline span{font:600 8px Oswald,sans-serif;letter-spacing:2.5px;color:var(--chalk-dim)}
+.live-scoreboard .clock #downDist{margin-top:4px!important;font:600 12px Oswald,sans-serif!important;letter-spacing:.5px;color:var(--chalk)!important;white-space:nowrap;display:block}
+/* v18 phone-portrait scoreboard — everything shrinks and truncates instead of wrapping/overlapping */
+@media (max-width:480px){
+.live-scoreboard .sb-side{padding:8px 8px!important;gap:6px!important}
+.live-scoreboard .sb-side.us{padding-right:16px!important;clip-path:polygon(0 0,100% 0,calc(100% - 10px) 100%,0 100%)}
+.live-scoreboard .sb-side.them{padding-left:16px!important;clip-path:polygon(10px 0,100% 0,100% 100%,0 100%)}
+.live-scoreboard .sb-side .team{font:700 11px Oswald,sans-serif!important;letter-spacing:.6px!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:74px}
+.live-scoreboard .sb-side .rec{font:600 8px Oswald,sans-serif!important;letter-spacing:.5px!important}
+.live-scoreboard .sb-side .team-ovr-badge{font-size:8.5px!important;letter-spacing:.8px!important}
+.live-scoreboard .sb-side .sc{font:800 21px Oswald,sans-serif!important;min-width:18px!important}
+.live-scoreboard .sb-side:before{font-size:44px!important;top:-7px!important}
+.live-scoreboard .clock{min-width:62px!important;padding:4px 5px!important}
+.live-scoreboard .clock .qline b{font:700 17px Oswald,sans-serif!important}
+.live-scoreboard .clock .qline span{letter-spacing:1.2px!important;font-size:7px!important}
+.live-scoreboard .clock #downDist{font:600 10px Oswald,sans-serif!important;margin-top:2px!important;letter-spacing:.3px!important}
+.live-scoreboard .sb-logo{transform:scale(.8);margin:-3px}
+.live-scoreboard .sb-side .sb-meta{min-width:0;overflow:hidden}
+}
+.live-buffline{display:flex;align-items:center;gap:6px;overflow-x:auto;white-space:nowrap;padding:5px 10px;background:linear-gradient(180deg,#0d141d,#0b1119);border-bottom:1px solid var(--line);scrollbar-width:none}
+.live-buffline::-webkit-scrollbar{display:none}
+.live-buffline .lb-season{font:700 10px Oswald,sans-serif;letter-spacing:1.2px;color:var(--gold);flex:0 0 auto}
+.live-buffline .lb-chip{flex:0 0 auto;font:600 10px Barlow Condensed,sans-serif;letter-spacing:.4px;padding:2px 7px;border-radius:10px;color:var(--chalk-dim)}
+.live-buffline .lb-chip b{font-weight:700}
+.live-buffline .lb-chip.g{background:rgba(107,191,89,.12);border:1px solid rgba(107,191,89,.35)}.live-buffline .lb-chip.g b{color:#8fe0a0}
+.live-buffline .lb-chip.b{background:rgba(224,100,90,.12);border:1px solid rgba(224,100,90,.35)}.live-buffline .lb-chip.b b{color:#e8938b}
+@media (max-width:370px){
+.live-scoreboard .sb-logo{display:none!important}
+.live-scoreboard .sb-side .team{max-width:62px}
+.live-scoreboard .sb-side:before{display:none!important}
+}
+/* ===== v114 THE SPLASH IS A FILM — the stage, the film on it, and a bar that means something =====
+ * The film is 16:9, so on the film path the stage takes that shape instead of the chase's fixed
+ * 200px strip. It sits UNDER the canvas in the stacking order only because the two never show at
+ * once: `#splash.film` is the film's state, `#splash.chase` the fallback's. */
+#splash .splash-stage .splash-film-v114{position:absolute;inset:0;width:100%;height:100%;display:none;object-fit:cover;background:transparent}
+/* v115: the film ran as a rounded, shadowed CARD on the splash's blue-grey ground, and the film's
+   own frames are near-black — so the card's edge was a visible seam and everything around it read
+   as dead space. Measured off the shipped file, the film's border pixels sit around rgb(4,8,11)
+   (corners 1,1,1 to 9,20,27), so the splash wears that same black under `.film` and the film runs
+   the full width with no radius and no shadow. Nothing marks where the picture stops. */
+#splash.film{background:radial-gradient(130% 90% at 50% 40%,#080d13,#04070b 72%)}
+#splash.film .splash-stage{width:100vw;max-width:100vw;height:auto;aspect-ratio:16/9;margin:0}
+#splash.film .splash-film-v114{display:block;border-radius:0;box-shadow:none}
+#splash.film #splashChase,#splash.film .splash-ball{display:none}
+/* the film ENDS on the wordmark, so the typeset one under it would be the same words twice */
+#splash.film .splash-title span{display:none}
+#splash.film .splash-title{margin-top:18px}
+/* The bar. The sweeping `i` is v112 A's compositor animation and it stays exactly as it was —
+ * it is the one thing that keeps moving while the main thread is jammed compiling the bundle.
+ * `b` is the new determinate fill: a transform with a long ease, so the GLIDE to each new target
+ * also runs on the compositor and a jam mid-transition does not freeze it either. Two layers,
+ * one honest reading: where we are, and that we are still alive. */
+.splash-loader{position:relative}
+.splash-loader b{position:absolute;left:0;top:0;bottom:0;width:100%;border-radius:3px;background:linear-gradient(90deg,#6bbf59,#f0bb45);transform:scaleX(0);transform-origin:0 50%;transition:transform 1.3s cubic-bezier(.25,.85,.3,1);display:none;will-change:transform}
+#splash.film .splash-loader b{display:block}
+#splash.film .splash-loader i{opacity:.32}
+@media (prefers-reduced-motion:reduce){.splash-loader b{transition:none}}
+/* ===== v94 THE CHASE — the loading screen stage ===== */
+.splash-stage{position:relative;width:min(92vw,420px);height:200px;margin:0 auto}#splashChase{position:absolute;inset:0;width:100%;height:100%;display:none;border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.45)}#splash .splash-stage .splash-ball{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none}
+#splash.ball:not(.film):not(.chase) .splash-stage .splash-ball{display:block}#splash.chase #splashChase{display:block}#splash.chase .splash-ball{display:none}
+.palette-grid-v153 .palette-v153{height:56px!important;display:flex;flex-wrap:wrap;align-content:flex-start}.palette-grid-v153 .palette-v153 i{height:34px}.palette-v153 .pal-name-v97{display:block;width:100%;height:20px;line-height:20px;font:600 8.5px/20px Oswald,sans-serif;letter-spacing:.4px;color:#c9d3df;background:#0b1119;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;box-sizing:border-box;font-style:normal}.palette-grid-v153 .palette-v153 small{inset:auto 2px 23px auto}
+.up-group-v97{padding:0;overflow:hidden}.up-group-head-v97{width:100%;display:flex;align-items:center;gap:10px;padding:12px 14px;border:0;background:transparent;color:#dfe6ef;font:700 13px Oswald,sans-serif;letter-spacing:2.5px;text-align:left;cursor:pointer}.up-group-head-v97 small{margin-left:auto;font:600 10px Oswald,sans-serif;letter-spacing:1.5px;color:var(--chalk-dim)}.up-group-head-v97 i{font-style:normal;color:#f0bb45;transition:transform .18s}.up-group-v97.on .up-group-head-v97{background:linear-gradient(180deg,rgba(240,187,69,.16),rgba(240,187,69,.04));color:#ffd76f}.up-group-v97.on .up-group-head-v97 i{transform:rotate(180deg)}.up-group-body-v97{display:none;padding:0 10px 6px}.up-group-v97.on .up-group-body-v97{display:block}
+.name-edit-v96{display:flex;align-items:center;gap:8px}.name-edit-v96 input{flex:1;min-width:0;background:transparent;border:0;border-bottom:1px dashed #f0bb4566;border-radius:0;color:inherit;font:inherit;letter-spacing:inherit;padding:0 0 2px;outline:none}.name-edit-v96 input:focus{border-bottom-color:var(--gold)}.name-dice-v96{flex:none;background:#ffffff12;border:1px solid var(--line);border-radius:10px;color:#f0bb45;font-size:18px;width:40px;height:40px;cursor:pointer;line-height:1}.name-hint-v96{margin-top:-4px;margin-bottom:8px;color:#f0bb45;letter-spacing:1px;font-size:11px;text-transform:uppercase;font-family:Oswald}.fam-name-v139{flex:none;max-width:48%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c9b8ff;opacity:.92}
+.live-stat-minor-v96{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px 12px;padding:6px 6px 0;font-family:Oswald;font-size:10px;letter-spacing:1.5px;color:var(--chalk-dim);text-transform:uppercase}.live-stat-minor-v96 span b{color:#dfe6ef;font-size:14px;font-weight:700;margin-right:5px;letter-spacing:0}.live-stat-minor-v96:empty{display:none}
+.rib-liveload-v94{position:absolute;inset:0;z-index:12;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:radial-gradient(120% 90% at 50% 30%,#182338,#0d141d 75%);border-radius:inherit;transition:opacity .4s ease,visibility .4s;overflow:hidden}
+.rib-liveload-v94.gone{opacity:0;visibility:hidden}
+/* v102: the slow-motion letterbox — bars drop in with the clock, a gold hairline on their inner edge, the moment named */
+.rib-slomo-v102{position:absolute;inset:0;pointer-events:none;z-index:11;--k:0;opacity:0;transition:opacity .12s linear}
+.rib-slomo-v102.on{opacity:1}
+.rib-slomo-v102 i{position:absolute;left:0;right:0;height:calc(var(--k)*7.5%);background:#000;opacity:.85;box-shadow:0 0 0 1px rgba(240,187,69,.55)}
+.rib-slomo-v102 i:first-child{top:0}.rib-slomo-v102 i:nth-child(2){bottom:0}
+.rib-slomo-v102 b{position:absolute;right:12px;bottom:calc(var(--k)*7.5% + 6px);font:700 10px Oswald,sans-serif;letter-spacing:2.5px;color:#f0bb45;opacity:calc(var(--k)*.9);text-shadow:0 1px 3px #000}
+.rib-liveload-cv-v94{width:min(92%,420px);height:170px;display:none;border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.45)}
+.rib-liveload-v94.chase .rib-liveload-cv-v94{display:block}
+/* ===== v115 THE FILM AT BOTH DOORS — the live loader's own copy =====
+ * Here the film is the BACKDROP, not a card: it fills the loader box edge to edge under the
+ * matchup and the bar, so there is no seam and no dead space. The scrim is what keeps the
+ * caption readable over the bright middle of the sting. */
+/* it is hidden with OPACITY, never display:none: a display:none <video> is not a reliable thing to
+   ask to play, and the loader cannot show it until it knows the film is actually running */
+.rib-liveload-film-v115{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .28s ease,transform .62s cubic-bezier(.32,.05,.2,1);z-index:0;will-change:transform,opacity}
+.rib-liveload-v94.film{background:radial-gradient(130% 90% at 50% 40%,#080d13,#04070b 72%)}
+/* v132: the loader is in its film LAYOUT from the first paint (.film), and the video only shows once it is
+   actually running (.playing) — under it, the still of the landed wordmark carries the picture until then */
+.rib-liveload-v94.playing .rib-liveload-film-v115{opacity:1}
+.rib-liveload-still-v132{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:0;opacity:0;transition:opacity .22s ease,transform .62s cubic-bezier(.32,.05,.2,1);will-change:transform,opacity}
+.rib-liveload-v94.still .rib-liveload-still-v132{opacity:1}
+.rib-liveload-v94.film.gone .rib-liveload-still-v132{transition:transform .66s cubic-bezier(.32,.05,.2,1);transform:scale(1.09)}
+@media (prefers-reduced-motion:reduce){.rib-liveload-v94.film.gone .rib-liveload-still-v132{transform:none}}
+/* the chase canvas is display:none by default and block only under .chase, but it was still
+   computing to block here and taking 300x150 of the flex column under the caption — state it */
+.rib-liveload-v94.film .rib-liveload-cv-v94{display:none}
+/* The hand-off. A plain opacity fade left the loader sitting on the field for four hundred
+   milliseconds looking like a dropped frame. The film PUSHES THROUGH instead, in that order:
+   the caption drops away first (.26s), the film keeps its own opacity and swells (.66s), and the
+   LAYER goes last, after a .12s beat — so the wordmark is still solid while the grass comes up
+   behind it and it is the last thing off the screen, rather than the caption ghosting over an
+   already-visible field. The removal timeout matches .12 + .5, or the layer is torn out
+   mid-animation. */
+.rib-liveload-v94.film{transition:opacity .5s cubic-bezier(.4,0,.2,1) .12s,visibility .62s}
+.rib-liveload-v94.film.gone .rib-liveload-film-v115{transition:transform .66s cubic-bezier(.32,.05,.2,1);transform:scale(1.09);opacity:1}
+.rib-liveload-v94.film .rib-liveload-cap-v94{transition:opacity .26s ease,transform .44s cubic-bezier(.3,0,.2,1)}
+.rib-liveload-v94.film.gone .rib-liveload-cap-v94{opacity:0;transform:translateY(12px) scale(.96)}
+@media (prefers-reduced-motion:reduce){
+  .rib-liveload-v94.film.gone .rib-liveload-film-v115{transform:none}
+  .rib-liveload-v94.film.gone .rib-liveload-cap-v94{transform:none}
+}
+.rib-liveload-v94.film:after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(4,7,11,.15) 0%,rgba(4,7,11,0) 38%,rgba(4,7,11,.62) 100%)}
+/* with the film letterboxed rather than cropped, a flex-centred caption lands exactly on the
+   wordmark — so under .film it moves into the matched-black band below the picture, which is
+   also where the scrim is darkest and where dropping away on the exit reads best */
+.rib-liveload-v94.film .rib-liveload-cap-v94{position:absolute;left:0;right:0;bottom:max(14px,7%);z-index:2}
+.rib-liveload-v94.film .rib-liveload-bar-v94{display:none}
+.rib-liveload-v94.film .rib-liveload-cap-v94 b{text-shadow:0 2px 10px rgba(0,0,0,.8)}
+.rib-liveload-cap-v94{text-align:center;font-family:Oswald,sans-serif}
+.rib-liveload-cap-v94 b{display:block;font-weight:700;font-size:20px;letter-spacing:3px;color:#f2efe4}
+.rib-liveload-cap-v94 b i{font-style:normal;font-size:12px;letter-spacing:2px;color:#93a0b1;margin:0 8px}
+.rib-liveload-cap-v94 span{display:block;font-weight:600;font-size:11px;letter-spacing:4px;color:#f0bb45;margin-top:2px}
+.rib-liveload-bar-v94{width:120px;height:4px;border-radius:3px;background:#ffffff1f;overflow:hidden}
+.rib-liveload-bar-v94 i{display:block;height:100%;width:40%;border-radius:3px;background:linear-gradient(90deg,#6bbf59,#f0bb45);animation:splashLoad 1.1s ease-in-out infinite}
+/* ===== v95 THE CALLOUT WALL — the badge layer over the field ===== */
+.field-wrap{position:relative}
+.rib-badge-host-v95{position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden;perspective:900px}
+.rib-badge-dim-v95{position:absolute;inset:0;background:#000;opacity:0}
+.rib-badge-flash-v95{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 42%,rgba(255,255,255,.95),rgba(255,255,255,.35) 45%,rgba(255,255,255,0) 72%);opacity:0}
+.rib-badge-v95{position:absolute;left:50%;top:46%;width:340px;aspect-ratio:var(--ar,1.6);transform:translate(-50%,-50%);opacity:0;will-change:transform,opacity;transform-style:preserve-3d}
+.rib-badge-v95 img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 10px 18px rgba(0,0,0,.55));backface-visibility:hidden}
+.rib-badge-glow-v95{position:absolute;left:50%;top:50%;width:150%;height:160%;transform:translate(-50%,-50%);background:radial-gradient(ellipse,rgba(0,0,0,.45),rgba(0,0,0,0) 60%)}
+.rib-badge-rays-v95{position:absolute;left:50%;top:50%;width:230%;aspect-ratio:1;transform:translate(-50%,-50%);background:repeating-conic-gradient(from 0deg,color-mix(in srgb,var(--ray,#ffd76a) 55%,transparent) 0deg 5deg,transparent 5deg 22deg);-webkit-mask:radial-gradient(circle,#000 8%,rgba(0,0,0,.5) 28%,transparent 56%);mask:radial-gradient(circle,#000 8%,rgba(0,0,0,.5) 28%,transparent 56%);opacity:.42;animation:badgeRaysV95 2.6s linear infinite}
+.rib-badge-sub-v95{position:absolute;left:50%;top:calc(100% - 6px);transform:translateX(-50%);white-space:nowrap;font-family:Oswald,sans-serif;font-weight:700;font-size:12px;letter-spacing:2.5px;color:#f7f1dc;background:#0b1119e6;border:1px solid #ffffff2e;border-radius:999px;padding:3px 12px;text-shadow:0 1px 0 #000}
+.rib-badge-v95.t2 .rib-badge-sub-v95{font-size:11px;letter-spacing:2px}
+.rib-badge-streak-v95{position:absolute;height:26px;width:140%;left:-140%;background:linear-gradient(90deg,transparent,var(--c,#59b6ff) 40%,#fff 50%,var(--c,#59b6ff) 60%,transparent);filter:blur(1.5px);opacity:0;transform-origin:center}
+.rib-badge-line-v95{position:absolute;border-radius:2px;background:linear-gradient(90deg,transparent,var(--c,#8fe7a5),#fff,transparent);opacity:0}
+.rib-badge-flag-v95{position:absolute;left:0;top:0;width:36px;height:26px;background:linear-gradient(135deg,#ffe15a,#e0b800);border-radius:3px 10px 10px 3px;box-shadow:0 4px 10px rgba(0,0,0,.5);transform-origin:20% 50%}
+.rib-badge-ball-v95{position:absolute;left:0;top:0;width:48px;height:48px;image-rendering:pixelated;filter:drop-shadow(0 6px 6px rgba(0,0,0,.5))}
+.rib-badge-ring-v95{position:absolute;width:120px;height:120px;border-radius:50%;border:5px solid var(--c,#ff8a70);box-shadow:0 0 18px var(--c,#ff8a70),inset 0 0 12px var(--c,#ff8a70)}
+.rib-badge-p-v95{position:absolute;width:5px;height:5px;border-radius:1px;will-change:transform,opacity}
+.rib-badge-p-v95.confetti{width:6px;height:11px}
+.rib-badge-p-v95.sparks{width:4px;height:4px;border-radius:50%;box-shadow:0 0 6px 1px currentColor}
+.rib-badge-p-v95.shards{width:9px;height:9px;clip-path:polygon(50% 0,100% 100%,0 100%)}
+.rib-badge-p-v95.dirt{width:4px;height:4px;border-radius:50%}
+.rib-hud-v95{position:absolute;right:8px;top:8px;display:flex;align-items:center;gap:8px;height:52px;max-width:min(64%,250px);padding:4px 12px 4px 6px;background:linear-gradient(160deg,#0f1722f2,#1a2534f2);border:1px solid #ffffff2a;border-left:4px solid var(--pulse,#f0bb45);border-radius:9px;box-shadow:0 10px 26px rgba(0,0,0,.55);transform:translateX(112%);opacity:0;overflow:hidden}
+.rib-hud-v95 img{height:44px;width:auto;max-width:120px;object-fit:contain;flex:none}
+.rib-hud-txt-v95{font-family:Oswald,sans-serif;font-weight:600;font-size:12px;letter-spacing:1.2px;color:#dfe6ef;white-space:nowrap;text-transform:uppercase}
+.rib-hud-snap-v95{position:absolute;left:-10%;top:50%;width:120%;height:3px;background:var(--c,#ff5a5a);box-shadow:0 0 8px var(--c,#ff5a5a);transform:translateX(-120%) rotate(-6deg);animation:badgeSnapV95 .45s .5s cubic-bezier(.1,.9,.2,1) forwards}
+@keyframes badgeRaysV95{to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes badgeSnapV95{0%{transform:translateX(-120%) rotate(-6deg);opacity:1}60%{transform:translateX(0) rotate(-6deg);opacity:1}to{transform:translateX(0) rotate(-6deg);opacity:0}}
+@media (prefers-reduced-motion:reduce){.rib-badge-rays-v95{animation:none}}

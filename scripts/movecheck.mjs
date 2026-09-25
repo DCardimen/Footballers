@@ -15,8 +15,9 @@
 //   node scripts/movecheck.mjs
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const url = process.env.GAME_URL || 'http://localhost:5173/index.html'
-const browser = await chromium.launch({ executablePath: fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined })
+import { CHROME, gameUrl } from './lib/env.mjs'
+const url = gameUrl('index.html')
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
@@ -54,7 +55,12 @@ const mix = await page.evaluate(() => {
 })
 console.log('mix:', JSON.stringify(mix))
 ok(mix.agile.cuts > 40 && mix.quick.cuts > 40, 'men are beating tackles often enough to measure the mix', `${mix.agile.cuts} / ${mix.quick.cuts} cuts`)
-ok(mix.agile.spin > 0 && mix.agile.sidestep > 0 && mix.agile.juke > 0, 'all three moves are in the game', JSON.stringify([mix.agile.spin, mix.agile.sidestep, mix.agile.juke]))
+/* v150 B: the lateral move is not a roll — `stepsV139` (v139 THREE MOVES, NOT TWO) is the man's own feet: quickness over
+ * agility (+14 in traffic) past stepBiasV139 side-steps, anything else jukes. So the AGILE back (agility 92, quickness 58)
+ * can never side-step and the QUICK back never jukes, by design; the spin is the one roll either can win. "All three are
+ * in the game" is therefore a claim about the two backs together: spins from both, the side step from the quick man,
+ * the juke from the agile one. (It used to ask the agile back alone for all three — [41.3, 0, 58.7] every run.) */
+ok(mix.agile.spin > 0 && mix.quick.spin > 0 && mix.quick.sidestep > 0 && mix.agile.juke > 0, 'all three moves are in the game', JSON.stringify({ agile: [mix.agile.spin, mix.agile.sidestep, mix.agile.juke], quick: [mix.quick.spin, mix.quick.sidestep, mix.quick.juke] }))
 ok(mix.agile.spin > mix.quick.spin + 8, 'the AGILE back spins — he turns his back and whips round', `agile ${mix.agile.spin}% vs quick ${mix.quick.spin}%`)
 ok(mix.quick.sidestep > mix.agile.sidestep + 8, 'the QUICK back side-steps — one foot, off the line, gone', `quick ${mix.quick.sidestep}% vs agile ${mix.agile.sidestep}%`)
 ok(mix.agile.juke < 70 && mix.quick.juke < 70, 'and the juke is no longer nearly all of them', `agile ${mix.agile.juke}% · quick ${mix.quick.juke}%`)
@@ -71,7 +77,9 @@ if (lunge.missing) {
   ok(false, 'window.__V139.lunge is mounted', 'missing')
 } else {
   ok(lunge.hard.h > lunge.soft.h + 8, 'a man closing at speed leaves his feet; a step-in wrap barely does', `${lunge.soft.h.toFixed(1)}px → ${lunge.hard.h.toFixed(1)}px`)
-  ok(lunge.hard.ms > lunge.soft.ms + 80, 'and he hangs there longer for it', `${lunge.soft.ms}ms → ${lunge.hard.ms}ms`)
+  // v150 B: the hang runs lungeMsMinV139..lungeMsMaxV139 (360..440, "the old flat 400, give or take — the HEIGHT is what
+  // carries the force"), so the whole dial is 80ms and a full-force lunge hangs exactly that much longer; `> 80` could never pass
+  ok(lunge.hard.ms >= lunge.soft.ms + 80 && lunge.mid.ms > lunge.soft.ms && lunge.mid.ms < lunge.hard.ms, 'and he hangs there longer for it', `${lunge.soft.ms}ms → ${lunge.mid.ms}ms → ${lunge.hard.ms}ms`)
   ok(lunge.over.h === lunge.hard.h || lunge.over.k === 1, 'the arc is capped — nobody launches into orbit', JSON.stringify(lunge.over))
   ok(lunge.soft.h >= 8 && lunge.over.h <= 34, 'and every lunge stays inside its dials', `${lunge.soft.h.toFixed(1)} … ${lunge.over.h.toFixed(1)}px`)
 }

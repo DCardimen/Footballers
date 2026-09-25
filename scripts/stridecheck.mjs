@@ -18,8 +18,9 @@
 //   * and it pays off where it should — air yards and yards after the catch, not the catch roll
 import fs from "node:fs";
 import vm from "node:vm";
+import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
 
-const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const html = readGameHtml();
 const anchor = html.indexOf("/* ===== RIB_TUNE"), open = html.lastIndexOf("<script>", anchor), close = html.indexOf("</script>", anchor);
 if (anchor < 0 || open < 0 || close < 0) throw new Error("play engine script block not found");
 const src = html.slice(open + "<script>".length, close);
@@ -72,7 +73,11 @@ const mean = (a, k) => a.length ? a.reduce((s, r) => s + (r[k] || 0), 0) / a.len
 
 // ---- 1. the level is the base rate ----
 const byLevel = {}
-for (const lv of [0, 2, 4, 5, 7]) { const { rows } = run(lv, 140); byLevel[lv] = { n: rows.length, rate: +rate(rows).toFixed(3) } }
+/* v150 B: 400 throws a level, not 140. The rates are a proportion of ~120 throws at 140 — a standard error of ~.03 against a
+ * designed high-school/college gap of .24 -> .42 in STRIDE_LVL_V129 that realises as ~.08 -> ~.15 once pressure, platform and
+ * panic have vetoed their share — and seed 7 at 140 read .114 -> .105 (every run: pure Node, seeded). At 400, seeds 7/11/12/13
+ * read .076/.093/.082/.083 -> .136/.178/.177/.172 -> .282/.256/.232/.283: the ladder the table describes, every time. */
+for (const lv of [0, 2, 4, 5, 7]) { const { rows } = run(lv, 400); byLevel[lv] = { n: rows.length, rate: +rate(rows).toFixed(3) } }
 console.log("stride rate by level:", JSON.stringify(byLevel))
 ok(byLevel[0].rate === 0, "Pee Wee never sees one — a nine-year-old quarterback does not throw a man open", String(byLevel[0].rate))
 ok(byLevel[2].rate > 0 && byLevel[2].rate < byLevel[4].rate, "middle school starts to, and high school does it more", `${byLevel[2].rate} → ${byLevel[4].rate}`)

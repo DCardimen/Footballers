@@ -8,7 +8,10 @@
 //   node scripts/v92check.mjs        (READ_POS=RB, V92_MS=40000, V92_SHOTS=1)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { pageSource } from './lib/layout.mjs'   // v149 A: the served page + the src/ files it names
+import { CHROME, GAME_URL } from './lib/env.mjs'
+import { waitLive } from './lib/live.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const errs = []
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
@@ -18,7 +21,7 @@ async function newPage() {
 await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0 }) })   // v144: this check reads night-time pixels — pin the sky and the weather
   page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message)); page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
   await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-  await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
+  await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
   return page
 }
 async function step(page, t) { const r = await page.evaluate(({ t, visSrc }) => { const vis = eval(visSrc); const els = [...document.querySelectorAll('button,[onclick],a,[role=button]')].filter(vis); const txt = e => (e.innerText || e.textContent || '').replace(/\s+/g, ' ').trim()
@@ -30,7 +33,7 @@ const page = await newPage()
 await page.evaluate(p => { window.__readPos = p }, process.env.READ_POS || 'RB')
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(page, t)
 let scene = false
-for (let i = 0; i < 40; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(500) }
+scene = await waitLive(page)   // v150 B: on game state, up to 90s (scripts/lib/live.mjs) — the fixed 16-24s poll cascaded under --jobs 3-4
 console.log('scene:', scene)
 await page.waitForFunction(() => window.__V92 && window.__V92.loaded && window.__V92.on, null, { timeout: 15000 }).catch(() => {})
 await page.waitForTimeout(800)
@@ -72,7 +75,12 @@ for (let tries = 0; tries < 4; tries++) {
   const S1 = window.__V92.screen(); const wv = c.worldView, z = c.zoom, R = S1.rect
   const raw = { x: (R.x - wv.x) * z, y: (R.y - wv.y) * z, w: R.w * z, h: R.h * z }   // clipped to the canvas, as the viewport must be
   const want = { x: Math.max(0, raw.x), y: Math.max(0, raw.y), w: Math.min(720, raw.x + raw.w) - Math.max(0, raw.x), h: Math.min(576, raw.y + raw.h) - Math.max(0, raw.y) }
-  const whistle = sc.stadiumWhistleV92(); await new Promise(r => setTimeout(r, 800)); sc.updateStadiumV92(16); await new Promise(r => setTimeout(r, 150))
+  /* v150 B: the still is taken by `snapshotArea`, whose callback runs after the renderer's NEXT frame and the snapshot image's
+   * own decode. On a loaded box at 3-5fps that is not reliably inside a fixed 800ms, and the assertion read a feed that had
+   * simply not been captured yet (2 of 3 baseline tries). Wait for the screen to report the replay (up to 10s), then read. */
+  const whistle = sc.stadiumWhistleV92()
+  for (let w0 = Date.now(); Date.now() - w0 < 10000;) { await new Promise(r => setTimeout(r, 100)); sc.updateStadiumV92(16); const m = window.__V92.screen(); if (m.mode === 'replay' && sc.stadium.still && sc.stadium.still.visible) break }
+  await new Promise(r => setTimeout(r, 150))
   const S2 = window.__V92.screen(); const stillTex = sc.textures.exists('jumbo_still_v92'); const still = sc.stadium.still; const stillVis = !!(still && still.visible)
   sc.stadiumLiveV92(); sc.updateStadiumV92(16); await new Promise(r => setTimeout(r, 150))
   const S3 = window.__V92.screen(); const stillVis3 = !!(still && still.visible)
@@ -92,7 +100,7 @@ if (SHOTS) await snap('scripts/_v92_far.png')
 await page.evaluate(() => { window.__gridironScene.scene.resume() })
 
 // the posts: real proportions in the source, and drawn at both ends every snap
-const src = await page.evaluate(async () => (await (await fetch('/index.html')).text()))
+const src = await page.evaluate(pageSource)
 const up = +(src.match(/TU\("uprightH", (\d+)\)/) || [])[1], ph = +(src.match(/TU\("postH", (\d+)\)/) || [])[1]
 ok(up >= 120 && ph >= 40, 'the goalposts stand at real proportions (crossbar on a post, tall uprights)', `postH=${ph} uprightH=${up}`)
 const posts = await page.evaluate(() => { const sc = window.__gridironScene; return { g: !!(sc.goalG && sc.goalG.visible), cmds: sc.goalG && sc.goalG.commandBuffer ? sc.goalG.commandBuffer.length : 0 } })
@@ -109,7 +117,10 @@ console.log('watch:', JSON.stringify(seen))
 // v102: a mast may SPUTTER a few times over a 30s watch (a tenth-of-a-second bulb dip that shows
 // another frame while it dips) — a handful of changes, never the old continuous six-frame walk
 ok(seen.changed - 1 <= Math.max(6, Math.round(seen.samples * 0.06)), 'the lamps hold their frame over the watch, bar a sputter — no cycling', `frame changes=${seen.changed - 1}/${seen.samples}`)
-ok(seen.camOn === seen.camOnScreen, 'the feed camera only renders while the far end is in the frame', `on=${seen.camOn} inFrame=${seen.camOnScreen}`)
+// v150 B: the renderer gates the feed on the worldView of its LAST update, and this sample reads the worldView NOW — a pan
+// that crosses the edge between the two reads one sample "on but out of frame" (AUDIT §2.6: on=44 inFrame=43). One such
+// straddling sample is the race, not a leak; the camera left running off-screen would show as a run of them.
+ok(seen.camOn - seen.camOnScreen <= 1, 'the feed camera only renders while the far end is in the frame', `on=${seen.camOn} inFrame=${seen.camOnScreen}`)
 if (SHOTS) await snap('scripts/_v92_field.png')
 await page.close()
 
@@ -117,7 +128,7 @@ await page.close()
 const p2 = await browser.newPage({ viewport: { width: 430, height: 932 } })
 p2.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 await p2.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await p2.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 25000 }); await p2.waitForTimeout(1200)
+await p2.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 25000 }); await p2.waitForTimeout(1200)
 await p2.evaluate(p => { window.__readPos = p }, process.env.READ_POS || 'RB')
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING']) await step(p2, t)
 await p2.evaluate(async () => { document.getElementById('growthV42')?.remove(); window.go('season'); window.simRemainingWeeks(); await new Promise(r => setTimeout(r, 1500)) })

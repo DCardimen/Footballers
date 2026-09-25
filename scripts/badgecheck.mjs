@@ -10,7 +10,11 @@
 //   node scripts/badgecheck.mjs        (READ_POS=QB|RB|WR|LB..., BADGE_MS=90000)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+import { waitLive } from './lib/live.mjs'
+import { loadScale } from './lib/load.mjs'
+const LS = loadScale()
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = [], failedReq = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
@@ -18,8 +22,8 @@ page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.te
 page.on('requestfailed', r => failedReq.push(r.url()))
 page.on('response', r => { if (r.status() >= 400) failedReq.push(r.status() + ' ' + r.url()) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/', { waitUntil: 'load', timeout: 60000 }); await page.waitForTimeout(1500)   // warm-up: absorbs vite's one full-reload after an index.html edit
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 })
+await page.goto(GAME_URL, { waitUntil: 'load', timeout: 60000 }); await page.waitForTimeout(1500)   // warm-up: absorbs vite's one full-reload after an index.html edit
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(1500); errs.length = 0; failedReq.length = 0
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
@@ -34,7 +38,7 @@ async function step(t) { let ok = null; try { ok = await page.evaluate(({ t, vis
 await page.evaluate(p => { window.__readPos = p }, POS)
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 let scene = false
-for (let i = 0; i < 40; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(400) }
+scene = await waitLive(page)   // v150 B: on game state, up to 90s (scripts/lib/live.mjs) — the fixed 16-24s poll cascaded under --jobs 3-4
 ok(scene, 'live field is up')
 
 // 1. the files
@@ -66,7 +70,10 @@ const qres = await page.evaluate(async () => {
   r.repeat = B.show('bigplay', { hold: 5000 })            // the same moment again, inside the repeat window: refused
   r.lower = B.show('flag', { force: true, hold: 5000 }); r.qAfterLower = B.queue.length   // waits (same tier, lower prio)
   r.cutIn = B.show('sack', { force: true, hold: 5000 })   // higher prio, no promotion: cuts in
-  await wait(320); r.nowKind = B.current && B.current.kind; r.countAfterCut = up()
+  // v150 B: the cut badge plays its exit before the new one takes the stage — poll for the handover (up to 4s of wall), a
+  // fixed 320ms read null at load 30+
+  for (let w0 = Date.now(); Date.now() - w0 < 4000 && !(B.current && B.current.kind === 'sack');) await wait(60)
+  await wait(80); r.nowKind = B.current && B.current.kind; r.countAfterCut = up()
   r.token1 = B.show('intercepted', { token: 'tok:1', force: true }); r.token2 = B.show('intercepted', { token: 'tok:1', force: true })
   for (const k of ['fumble', 'breakaway', 'bighit']) B.show(k, { force: true })
   r.qMax = B.queue.length
@@ -111,7 +118,7 @@ ok(qres.both, 'the panel and the stage badge share the screen')
 ok(qres.cleared2, 'clear() empties both lanes')
 
 // 3. the live run
-const MS = +(process.env.BADGE_MS || 100000)
+const MS = +(process.env.BADGE_MS || Math.round(100000 * Math.min(3, LS)))   // v150 B: the watch is wall time: stretched by the load per core (lib/load.mjs, capped at 3x)
 const t0 = Date.now(); let shot = false, tookTakeover = false; const popSeen = new Set(); let plays = 0, lastTok = null
 const RETIRED = /^(TOUCHDOWN!|INTERCEPTED!|FUMBLE!|SACKED!|FIRST DOWN ✓|FLAG ON THE PLAY|BIG HIT!|HIT STICK!|IT'S GOOD!|NO GOOD|TOUCHDOWN|INTERCEPTED|FUMBLE — TURNOVER|FIELD GOAL IS GOOD|FIELD GOAL NO GOOD)$/
 while (Date.now() - t0 < MS) {

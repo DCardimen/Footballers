@@ -10,12 +10,14 @@
 // Usage: npm run dev, then node scripts/v143check.mjs   (GAMES, default 90)
 import fs from 'node:fs'
 import { chromium } from 'playwright'
+import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
+import { GAME_URL } from './lib/env.mjs'
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 await page.addInitScript(() => { setInterval(() => { try { const s=window.__getGridironState&&window.__getGridironState(); if (s) s.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 120) })
-await page.goto(process.env.GAME_URL || 'http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(1200)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 async function click(t) {
@@ -86,7 +88,7 @@ await browser.close()
 
 const checks = []
 const ok = (name, pass, detail) => checks.push({ name, pass: !!pass, detail })
-const SRC = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+const SRC = readGameHtml()
 
 ok(`a sample worth judging (${on.contacts} resolved contacts)`, on.contacts >= 400, on.contacts)
 ok(`every lunge carries the aim (${on.lungeNoAim} without)`, on.lungeNoAim === 0, on.lungeNoAim)

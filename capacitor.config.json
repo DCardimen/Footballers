@@ -1,15 +1,41 @@
 {
   "appId": "com.runningitback.game",
   "appName": "Running It Back",
-  "webDir": "_site",
-  "backgroundColor": "070b12ff",
+  "webDir": "dist",
+  "backgroundColor": "#070b12",
+  "loggingBehavior": "debug",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "iosScheme": "capacitor"
   },
   "ios": {
-    "contentInset": "always"
+    "contentInset": "never",
+    "backgroundColor": "#070b12",
+    "scrollEnabled": false,
+    "preferredContentMode": "mobile",
+    "limitsNavigationsToAppBoundDomains": false
   },
   "android": {
-    "backgroundColor": "070b12ff"
+    "backgroundColor": "#070b12",
+    "allowMixedContent": false,
+    "captureInput": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "launchFadeOutDuration": 200,
+      "backgroundColor": "#070b12",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP",
+      "splashFullScreen": true,
+      "splashImmersive": false
+    },
+    "StatusBar": {
+      "overlaysWebView": true,
+      "style": "DARK",
+      "backgroundColor": "#00000000"
+    }
   }
 }

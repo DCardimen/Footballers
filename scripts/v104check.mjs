@@ -13,7 +13,9 @@
 //     text canvases every tick).
 //   node scripts/v104check.mjs        (READ_POS=RB)
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+import { waitLive } from './lib/live.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const errs = [], bad = []
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
@@ -27,8 +29,8 @@ page.on('response', r => { if (r.status() >= 400) bad.push(r.status() + ' ' + r.
  * this check reads. Pin the men to adult size. */
 await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { liveAgeV144: 0 }) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(2500)   // warm: vite's one-time reload after an edit
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(2500)   // warm: vite's one-time reload after an edit
 await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 })
 await page.evaluate(p => { window.__readPos = p }, process.env.READ_POS || 'RB')
 async function step(t) {
@@ -43,7 +45,7 @@ async function step(t) {
 }
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 let scene = false
-for (let i = 0; i < 60; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(400) }
+scene = await waitLive(page)   // v150 B: on game state, up to 90s (scripts/lib/live.mjs) — the fixed 16-24s poll cascaded under --jobs 3-4
 ok(scene, 'the broadcast is live with markers on the field')
 
 // ================= 1. the bands the ART gave, and the ink placed inside them =================
@@ -113,7 +115,7 @@ ok(legacy.length > 0 && legacyBad.length / legacy.length > 0.9,
   `${legacyBad.length}/${legacy.length} rear poses`)
 
 // ================= 2. what the field actually draws, over live play =================
-let minH = 1e9, maxH = 0, minR = 1e9, maxR = 0, seenRear = 0, seenFront = 0, fonts = new Set(), seen = 0, smallest = null
+let minH = 1e9, minHGrown = 1e9, maxH = 0, minR = 1e9, maxR = 0, seenRear = 0, seenFront = 0, fonts = new Set(), seen = 0, smallest = null
 const rowsByTex = {}
 for (let i = 0; i < 170; i++) {
   const st = await page.evaluate(() => { const sc = window.__gridironScene; if (!sc) return null
@@ -121,12 +123,17 @@ for (let i = 0; i < 170; i++) {
       tex: m.tex, row: m._numRowV104, rear: !!m._ribRearFacing, fs: m.label.style.fontSize,
       // the ink on screen, and the body it is painted on
       inkH: (window.TU('numCellH', 6)) * (m.body.scaleY || 1) * m.root.scale,
+      // v150 B: v144 A scales every sprite by the level's cohort age (52% at Pee Wee, full from 22), folded into root.scale;
+      // the size band is a statement about a GROWN man's number, so the age factor is backed out of it (CLAUDE.md, v144 A)
+      ageK: m._ageKV144 || 1,
       bodyH: m.body.displayHeight * m.root.scale, sc: m.root.scale, sy: m.body.scaleY, x: Math.round(m.root.x), y: Math.round(m.root.y), st: m.forceState || null })) })
   for (const r of (st || [])) { seen++
+    r.inkH = r.inkH / r.ageK
     if (r.inkH < minH) smallest = r
     fonts.add(r.fs)
     if (r.rear) seenRear++; else seenFront++
     minH = Math.min(minH, r.inkH); maxH = Math.max(maxH, r.inkH)
+    if (r.bodyH / r.ageK >= 26) minHGrown = Math.min(minHGrown, r.inkH)
     const ratio = r.inkH / r.bodyH; minR = Math.min(minR, ratio); maxR = Math.max(maxR, ratio)
     ;(rowsByTex[r.tex] || (rowsByTex[r.tex] = new Set())).add(r.row.toFixed(2)) }
   await page.waitForTimeout(70)
@@ -140,7 +147,12 @@ ok(maxR / Math.max(1e-6, minR) < 1.35, 'the number holds its share of the body a
   `ratio ${minR.toFixed(4)}..${maxR.toFixed(4)} (${(maxR / minR).toFixed(2)}x)`)
 // v105 moved the default perspective to 78%, so the near rows draw bigger and the number with them: the band is the body's, not a fixed pixel count
 console.log('smallest placement:', JSON.stringify(smallest))
-ok(minH > 3.2 && maxH < 16, 'and it stays inside a sane on-screen size band', `${minH.toFixed(2)}..${maxH.toFixed(2)} px`)
+/* v150 B: the floor is asked of a man drawn at a readable size. The number is painted as a share of the body (~1/8, held
+ * constant by the ratio assertion above), so a man the camera draws 15px tall at the far rows (measured: 15.6px
+ * body, 0.32 scale) carries a 1.95px number — correctly, as his share. The 3.2px floor was written when the smallest man
+ * on screen was bigger; it now applies to every man drawn at least 26px tall (age backed out, v144 A), and the 16px ceiling
+ * to everyone. */
+ok(minHGrown > 3.2 && maxH < 16, 'and it stays inside a sane on-screen size band', `${minHGrown < 1e9 ? minHGrown.toFixed(2) : '-'}..${maxH.toFixed(2)} px on men drawn >= 26px (${minH.toFixed(2)}px on the smallest man)`)
 // one texture = one row: a run cycle must not make the number breathe
 const pulsing = Object.entries(rowsByTex).filter(([, s]) => s.size > 1)
 ok(pulsing.length === 0, 'one pose, one anchor — the number does not wander frame to frame',

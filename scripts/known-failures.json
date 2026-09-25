@@ -1,0 +1,107 @@
+{
+ "about": "Assertions that fail on this branch for a reason that is NOT the change you are testing. run-checks.mjs marks a failure KNOWN when EVERY failing item of that check matches one of these patterns (a regex tested against the failing line's text); anything else is NEW. `flaky: true` = it fails on some runs only (a timing budget on a loaded box) — accepted when it fails, never reported FIXED? when it passes. v150 B took the 2026-09-24 baseline (46 entries, main at ca9db0a) down to these: every other entry was a stale or under-sampled CHECK and was fixed in the check (docs/CHECKS.md, 'The baseline'), and the v110 credit fall-through was closed in the engine. What is left is the GAME being wrong in a place this pass did not own (the declare screens — another worker's; the vault; the renderer's jersey numbers) or an assertion that is a wall-clock frame rate by nature. Delete an entry when you fix it; see docs/CHECKS.md.",
+ "failures": [
+  {
+   "check": "vaultcheck",
+   "pattern": "^(the vault holds a usable frame rate under a 16x pour|and then it goes to sleep, so a settled hoard costs nothing|RESTOCK puts the shed coins back in their columns)",
+   "note": "a frames-per-second floor and a settle timer measured in wall time on a CPU-contended headless box; one run each in the baseline",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v104check",
+   "pattern": "^every pose that can show a number carries a band read off the art",
+   "note": "GAME (renderer): v109 B's catch sequence (`spr_<kit>_<dir>_catchseq<v>_<f>`) is registered after the v104 band scan and never gets a band, yet placeMarker NUMBERS it — its `detailedAction` regex /^(juke|stiff|hurdle|catch\\d|divecatch|pancake|getup)/ does not match 'catchseq'. Either read the band for the catchseq cells when they are registered, or add catchseq to detailedAction (hide the number through the reach, as for catch\\d)",
+   "since": "2026-09-24"
+  },
+  {
+   "check": "heroflashcheck",
+   "pattern": "^no spawn lands on the player",
+   "note": "one spawn in the baseline read kit-mask alpha 19 (> MASK_MAX 8): the crowd polygon touches the feathered edge of the v106 kit mask, so a rare flash lands on the soft edge of the man. Not reproduced in v150 B's runs; GAME if it recurs (the spawn should reject mask alpha > 8, as the check does)",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v112Acheck",
+   "pattern": "^every byte of the sheet had landed",
+   "note": "a race between the network and the v94 script's first run (the warm's last byte vs the engine tick), not a budget the load scale can stretch; on a loaded box the script can run before the transfer ends. The v112 A requests themselves (two, adopted) are asserted separately",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v112Acheck",
+   "pattern": "^(a SECOND loading scene mounted in the same session|it found the sheet already decoded in memory|it added ZERO network requests for the sheet|it had a picture up with nothing left to load|and that picture is the film loader)",
+   "note": "door two (the live game's loader) only exists while the Phaser bundle compiles and the scene stands, under a 9s watchdog measured from its own mount (03-splash.js). At a 1-minute load of 30+ on 4 cores the compile holds the main thread past that ceiling (a v150 B probe: mounted, main thread blocked ~7s, closed by the watchdog at 9s, never READY), so the door is gone before the check can read it. Passes on a quiet box; the waits are game-state and load-scaled since v150 B",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v127check",
+   "pattern": "^(door two still plays the FILM|and it built that element itself|it gets the picture up inside its audition|and starts at v116.s seam|the picture is actually on screen)",
+   "note": "door two (the live game's loader) only exists while the Phaser bundle compiles and the scene stands, under a 9s watchdog measured from its own mount (03-splash.js). At a 1-minute load of 30+ on 4 cores the compile holds the main thread past that ceiling (a v150 B probe: mounted, main thread blocked ~7s, closed by the watchdog at 9s, never READY), so the door is gone before the check can read it. Passes on a quiet box; the waits are game-state and load-scaled since v150 B",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "splashcheck",
+   "pattern": "^(the live loader mounts over the field|it shows the sting's still inside \\.field-wrap|the caption names the matchup|the loader leaves once the scene is up|the broadcast scene came up under it|it showed once for the game)",
+   "note": "door two (the live game's loader) only exists while the Phaser bundle compiles and the scene stands, under a 9s watchdog measured from its own mount (03-splash.js). At a 1-minute load of 30+ on 4 cores the compile holds the main thread past that ceiling (a v150 B probe: mounted, main thread blocked ~7s, closed by the watchdog at 9s, never READY), so the door is gone before the check can read it. Passes on a quiet box; the waits are game-state and load-scaled since v150 B",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v108check",
+   "pattern": "^(v118: |a throw to his screen-RIGHT|and one to his LEFT|every drawn direction matches|the release is still frame 4|a handoff played handoff_up|and a toss played toss_up|one football through every drawn frame)",
+   "note": "a 5-minute watch (x load scale, capped at 3) of the live field at 4x that has to see a throw each way, a handoff and a toss; at load 30+ the rAF-driven field ran ONE play in the window (v150 B validation run). Sample-starved, not wrong: passes when the field runs at rate",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v112Acheck",
+   "pattern": "^the loader bar keeps sweeping while the main thread is jammed",
+   "note": "counts distinct COMPOSITOR frames (CDP screencast) over 1.5s while the page's main thread is jammed on purpose; at load 30 the compositor itself is starved (3 distinct pictures where a quiet box shows > 10). A wall-clock frame rate by nature",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v115check",
+   "pattern": "^(and it is the FILM, not the chase|v132: the still of the landed wordmark is under the film)",
+   "note": "door two (the live game's loader) only exists while the Phaser bundle compiles and the scene stands, under a 9s watchdog measured from its own mount (03-splash.js). At a 1-minute load of 30+ on 4 cores the compile holds the main thread past that ceiling (a v150 B probe: mounted, main thread blocked ~7s, closed by the watchdog at 9s, never READY), so the door is gone before the check can read it. Passes on a quiet box; the waits are game-state and load-scaled since v150 B",
+   "since": "2026-09-25",
+   "flaky": true
+  },
+  {
+   "check": "v103check",
+   "pattern": "^and BOTH of them travel: the carrier drags, the tackler is dragged",
+   "note": "a knife edge, not a regression: 187/400 and 191/400 (need > 200) on both v150 B full runs, and it was already 'load-sensitive, passed on a rerun' in the 2026-09-24 baseline. The share of grips in which both men move > 2px sits at ~47-50% of the threshold's 50% (unseeded, 400 grips). Needs a decision on the intended share (v103 THE GRIP TICK vs v146 A's glue), not a looser number",
+   "since": "2026-09-25",
+   "flaky": true
+  },
+  {
+   "check": "v112Bcheck",
+   "pattern": "^(the lowest star sits at or above the bowl's own skyline|the near rows draw the field art over far fewer canvas rows|the painted end line, measured in the warp canvas, is thinner|with the extension off that band is the old smear)",
+   "note": "deterministic on the branch head, passing at the 2026-09-24 baseline commit: v148 (THE LINES HOLD TO THE GOAL LINE, landed after the baseline) replaced the per-snap row cap v112 B measured against (4.64 -> 7.70 px per art row is v112 B's own before/after, now read under v148's single row density and taper). The assertions need re-anchoring against v148's geometry (v148check passes 99/99); not done in v150 B",
+   "since": "2026-09-25"
+  },
+  {
+   "check": "v147Dcheck",
+   "pattern": "^(Broadcast|Follow Me|Follow Ball|Tight|Wide|Fixed): ",
+   "note": "the camera at 4x measured on LIVE runs in wall time; CLAUDE.md (v147 D) says two unpaired live runs differ 2x on the same code, and at load 20-40 one mode's measure crosses its x2 / p90 line per run (different ones each run). Load-sensitive by nature until the check replays paired scripts",
+   "since": "2026-09-25",
+   "flaky": true
+  },
+  {
+   "check": "coachcheck",
+   "pattern": "^(the coach stands at the bottom of a phone screen at a readable size|the line types out on the bubble|NEXT moves to the next line, and its spotlight cuts the dim over the COACH'S TOUR tile|DONE ends the walk|  …and lights body on that screen|fourteen stops of the week)",
+   "note": "a 30-minute walk of the whole first week against the coach's typing and spotlight timers; at load 20-40 a different one of these trips on each try (both tries of the v150 B after-run failed once each, on different lines). NEXT's spotlight 'inside:false' recurs in both full runs — worth a look on a quiet box",
+   "since": "2026-09-25",
+   "flaky": true
+  },
+  {
+   "check": "blowoutcheck",
+   "pattern": "^live: five-score blowouts are rare",
+   "note": "UNVERIFIED GAME signal: the check never finished inside the suite before v150 B (1,600 games), so it had no baseline; at BLOW_N=400 it reads 7.0% of games at |margin| >= 45. Could be the smaller sample or a real drift in the v76 margin curve since v141/v146 — run it alone at the default 1,600 before acting",
+   "since": "2026-09-25"
+  }
+ ]
+}

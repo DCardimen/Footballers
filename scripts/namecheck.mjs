@@ -12,8 +12,9 @@
 //   * the college suffixes and the fifty DFL clubs are well formed and unique
 import fs from "node:fs";
 import vm from "node:vm";
+import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
 
-const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const html = readGameHtml();
 function grab(head, tail) {
   const i = html.indexOf(head); if (i < 0) throw new Error("missing " + head);
   const j = html.indexOf(tail, i); if (j < 0) throw new Error("missing end of " + head);
@@ -23,10 +24,11 @@ const ctx = vm.createContext({ Math, Array, String });
 vm.runInContext([
   grab("const LOGO_DB = [", "\n];"),
   grab("const LOGO_RULES = [", "\n];"),
-  grab("const Ga=[", '"Octopi"];'),
-  grab("const COLLEGE_V123=[", "];"),
-  html.slice(html.indexOf("function dflClubV123"), html.indexOf("function Xs()")),
-  "globalThis.OUT={LOGO_DB,LOGO_RULES,Ga,er,COLLEGE_V123,DFL_V123,dflClubV123};",
+  // v149 C: the career app is formatted (docs/NAMES.md); one `const TOWNS = [...], MASCOTS = [...]` ends on "Octopi" (Ga → TOWNS, er → MASCOTS, Xs → newTeamIdentity)
+  grab("const TOWNS = [", '"Octopi"') + "];",
+  grab("const COLLEGE_V123 = [", "];"),
+  html.slice(html.indexOf("function dflClubV123"), html.indexOf("function newTeamIdentity()")),
+  "globalThis.OUT={LOGO_DB,LOGO_RULES,Ga:TOWNS,er:MASCOTS,COLLEGE_V123,DFL_V123,dflClubV123};",
 ].join("\n"), ctx);
 const { LOGO_DB, LOGO_RULES, Ga, er, COLLEGE_V123, DFL_V123 } = ctx.OUT;
 

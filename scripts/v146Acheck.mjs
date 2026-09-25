@@ -13,8 +13,9 @@
 //     tackle, both of them are on the ground after a plain tackle, and a hit-stick hitter stays up.
 //   GAME_URL=http://localhost:5301/ node scripts/v146Acheck.mjs
 import { chromium } from 'playwright'
-const URL = process.env.GAME_URL || 'http://localhost:5173/'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const URL = GAME_URL
+const browser = await chromium.launch({ executablePath: CHROME })
 const errs = [], bad = []
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
@@ -118,7 +119,7 @@ ok(ON.stick > 5 && ON.stickGlued < ON.stick, 'a hit-stick hitter keeps his own l
 const N = await page.evaluate(() => {
   const real = Math.random
   const seed = s => { let x = s >>> 0; Math.random = () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296 } }
-  const run = (off) => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, off ? { contactV146: 0 } : {}); if (!off) delete window.RIB_TUNE.contactV146
+  const run = (off) => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, off ? { contactV146: 0 } : {}, { approachV151D: 0 }); if (!off) delete window.RIB_TUNE.contactV146   // v151 D's whistle-wait re-times the hit ON PURPOSE (v151Dcheck covers it); this asserts v146 A's own pass
     const rows = []; const dims = { PLAY_L: 66, PLAY_R: 654, F_TOP: 14, F_BOT: 426 }
     for (let g = 0; g < 5; g++) { seed(771 + g * 31); window.__FieldSim._Q.length = 0
       const r = window.__simGameV2(55 + g, 'LB')
@@ -126,7 +127,7 @@ const N = await page.evaluate(() => {
       rows.push(r.usScore + ':' + r.themScore + '|' + r.plays.map(p => (p.event || '') + ',' + (p.yards ?? '')).join(';') + '#' + names.join(';')) }
     return rows }
   try { const a = run(true), b = run(false); return { games: a.length, same: a.filter((r, i) => r === b[i]).length } }
-  finally { Math.random = real; if (window.RIB_TUNE) delete window.RIB_TUNE.contactV146 }
+  finally { Math.random = real; if (window.RIB_TUNE) { delete window.RIB_TUNE.contactV146; delete window.RIB_TUNE.approachV151D } }
 })
 ok(N.same === N.games, 'the render pass changes nothing booked: same score, yards, tackler, event time and spot, seeded, on and off', `${N.same}/${N.games}`)
 

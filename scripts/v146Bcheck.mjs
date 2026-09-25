@@ -21,10 +21,11 @@
 //   node scripts/v146Bcheck.mjs   (GAME_URL=http://localhost:5302/ to point it elsewhere)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const url = process.env.GAME_URL || 'http://localhost:5173/'
+const url = GAME_URL
 const SHOT = process.env.SHOT || ''
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const b = await chromium.launch({ executablePath: CHROME })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + (typeof d === 'string' ? d : JSON.stringify(d)) : '')); c ? pass++ : fail++ }
 const errs = []
@@ -141,7 +142,8 @@ const offerScreen = (page) => page.evaluate(() => {
   const cut2 = await page.evaluate(() => { const p = window.S.player; p.nflStateV11.security = 0; const r = window.__V146B.evaluate(5); return { r: r && r.cutV146B, out: !!p.cutOutV146B, offers: !!p.offersV146B } })
   ok(cut2.r && cut2.r.end && cut2.out && !cut2.offers, 'the second cut in the same season ends the career', cut2.r)
   await page.evaluate(() => window.go('season')); await page.waitForTimeout(800)
-  const end = await page.evaluate(() => ({ view: window.S.view, txt: (document.getElementById('screen') || {}).innerText || '' }))
+  // v150 A: the career-end screen is tabbed — the log line sits in the LOG tab, so read the whole screen, not just the open tab
+  const end = await page.evaluate(() => ({ view: window.S.view, txt: (document.getElementById('screen') || {}).textContent || '' }))
   ok(end.view === 'gameover' && /cut at OVR/i.test(end.txt), 'and lands on the cut career-end screen', end.view)
 
   // ---------------- a new season starts the count clean

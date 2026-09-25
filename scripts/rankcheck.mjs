@@ -10,6 +10,7 @@
 //   3. MONOTONICITY — producing more must never rank you worse.
 // node scripts/rankcheck.mjs   (needs `npm run dev` on :5173)
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
 const SLOTS = [18e5, 11e5, 6e5, 28e4, 11e4, 16e3, 1500, 1700, 96]   // A[].slots, the level table
 const fails = []
@@ -18,13 +19,13 @@ const ok = (cond, label, detail) => {
   if (!cond) fails.push(label)
 }
 
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const b = await chromium.launch({ executablePath: CHROME })
 const page = await b.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 })
 await page.waitForTimeout(1200)
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
 async function click(t) {
@@ -107,8 +108,11 @@ await click('LEADERS')
 await page.waitForTimeout(900)
 const screen = await page.evaluate(() => {
   const t = document.getElementById('screen')?.innerText || ''
-  const board = t.match(/You rank\s+#?([\d.kM]+)\s+of\s+([\d.kM]+)\s+(\w+)s nationally/i)
-  return { board: board ? board[0] : null, hasThresholds: /rank/i.test(t) }
+  // v150 B: the rank and the population print through fmtInt (thousands separators: "#1,234 of 48,000"), which the old
+  // [\d.kM]+ could not read past the first comma — the line was on the screen, the pattern missed it
+  const board = t.match(/You rank\s+#?([\d.,kM]+)\s+of\s+([\d.,kM]+)\s+(\w+)s nationally/i)
+  const at = t.indexOf('You rank')
+  return { board: board ? board[0] : null, hasThresholds: /rank/i.test(t), view: (window.S || {}).view, line: at >= 0 ? t.slice(at, at + 90).replace(/\s+/g, ' ') : null }
 })
 console.log('leaders screen:', JSON.stringify(screen))
 ok(!!screen.board, 'the leaders screen still states a rank and a population', screen.board || '')

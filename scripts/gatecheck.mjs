@@ -11,17 +11,22 @@
 //
 // Asserts: the gate is up with the wheel hidden behind it; it asks the question in those words;
 // there is exactly one #gv42go and it reads ROLL IT; the old drive loop still clears the overlay;
-// and the weekly plan wheel inside the pregame wizard is NOT gated.
+// and the weekly plan choice inside the pregame wizard is NOT gated.
+// v150 B: since v146 D the wizard's page 5 is the plan BOARD (choice mode, `TU("planWheelV146",0)`), so there is
+// no weekly wheel to find by default; the board is what must be ungated. `WHEEL=1` restores the v135 wheel
+// (`planWheelV146: 1`) and asserts the old way.
 //
-//   node scripts/gatecheck.mjs
+//   node scripts/gatecheck.mjs          (WHEEL=1 for the v135 wheel)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const url = process.env.GAME_URL || 'http://localhost:5173/index.html'
-const browser = await chromium.launch({ executablePath: fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined })
+import { CHROME, gameUrl } from './lib/env.mjs'
+const url = gameUrl('index.html')
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
+if (process.env.WHEEL === '1') await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { planWheelV146: 1 }) })
 await page.goto(url + (url.includes('?') ? '&' : '?') + 'stayStale', { waitUntil: 'networkidle', timeout: 25000 })
 await page.waitForTimeout(1400)
 let pass = 0, fail = 0
@@ -76,10 +81,14 @@ await page.waitForTimeout(1200)
 const weekly = await page.evaluate(() => ({
   wizard: !!document.getElementById('pregameV1513'),
   page: (() => { try { return window.__V112_D.page() } catch (e) { return -1 } })(),
+  choice: (() => { try { return !!window.__PREGAME_V51.choice() } catch (e) { return null } })(),
+  board: !!document.querySelector('#pregameV1513 .v146-board .v146-tile'),
   wheel: !!document.querySelector('#pregameV1513 #growthV42'),
   gate: !!document.getElementById('gv139gate') }))
 console.log('weekly:', JSON.stringify(weekly))
-ok(weekly.wizard && weekly.wheel && !weekly.gate, 'the weekly plan wheel inside the pregame wizard is NOT gated — the wizard already is one', JSON.stringify(weekly))
+// v146 D: in choice mode (the default) page 5 lays the plans out as tiles; with planWheelV146 1 it is the v135 wheel
+ok(weekly.wizard && weekly.page >= 5 && (weekly.choice ? weekly.board : weekly.wheel) && !weekly.gate,
+  'the weekly plan choice inside the pregame wizard (v146 D board, or the v135 wheel) is NOT gated — the wizard already is one', JSON.stringify(weekly))
 
 console.log('page errors:', errs.length ? errs.join('\n') : 'none')
 console.log(JSON.stringify({ pass, fail, pageErrors: errs.length }))

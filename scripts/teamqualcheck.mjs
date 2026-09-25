@@ -11,12 +11,13 @@
 // and asserts the new setting is ~10x weaker in points-per-game AND that the edge
 // survives at all — a nerf to zero would be its own bug.
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 25000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 25000 })
 await page.waitForTimeout(1200)
 
 let pass = 0, fail = 0

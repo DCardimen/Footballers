@@ -11,8 +11,10 @@
 // changes colour when the player is gassed — a plumbob that carries mood is the
 // reason the Sims one works. Also saves a zoomed crop so the shape can be eyeballed.
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
+import { waitLive } from './lib/live.mjs'
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 }, deviceScaleFactor: 3 })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
@@ -20,7 +22,7 @@ page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.te
 await page.addInitScript(() => {
   setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60)
 })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 25000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 25000 })
 await page.waitForTimeout(1400)
 
 let pass = 0, fail = 0
@@ -70,6 +72,7 @@ for (let i = 0; i < 40; i++) {
 }
 await click('CONTINUE TO MATCH')
 await page.waitForTimeout(1500)
+await waitLive(page)   // v150 B: the field on game state, up to 90s (scripts/lib/live.mjs) — the 24s poll below alone missed it under --jobs 3-4
 
 // let a play actually run so the markers are live
 let scene = null
@@ -102,19 +105,26 @@ const geom = scene ? await page.evaluate(async () => {
   const me = sc.markers.find(m => m.bob)
   const above = me.bob.y < me.root.y
   const lift = +(me.root.y - me.bob.y).toFixed(1)
+  /* v150 B: in the MARKER's own units. v144 A scales every sprite by the level's cohort age (52% at Pee Wee) and the
+   * perspective scales it by depth, both folded into root.scale — so the crystal of a nine-year-old on the far hash sat
+   * "+5.5px" above his root, under a flat 12px floor written for a grown man near the camera. The cell is 48 units tall
+   * about the root (the head at -24), so the crystal is above the head when its lift is more than 24 of his units. */
+  const sc0 = me.root.scale || 1, liftU = +((me.root.y - me.bob.y) / sc0).toFixed(1)
   const depth = me.bob.depth
   // the silhouette IS the rotation, so sample the drawn half-width over time. The
   // draw records it (a command buffer cannot be read back into a shape).
-  const ws = []
-  for (let i = 0; i < 20; i++) { ws.push(+(me.bob._bobW || 0).toFixed(2)); await wait(80) }
-  return { above, lift, depth, ws, spread: +(Math.max(...ws) - Math.min(...ws)).toFixed(2) }
-}) : { above: false, lift: 0, depth: 0, ws: [], spread: 0 }
+  /* v150 B: over one full spin of the MARKER's clock (bobSpinMs, 1700ms of tms), not 1.6s of wall — at a few fps the
+   * marker clock crawls and a fixed window saw a sliver of the turn (0.55px) — and in his units, like the lift. */
+  const ws = [], t0 = me.tms, w0 = Date.now(), spin = (window.TU ? window.TU('bobSpinMs', 1700) : 1700)
+  while ((me.tms - t0 < spin || ws.length < 20) && Date.now() - w0 < 15000) { ws.push(+((me.bob._bobW || 0) / sc0).toFixed(2)); await wait(80) }
+  return { above, lift, liftU, depth, ws: ws.slice(0, 30), n: ws.length, tmsSpan: Math.round(me.tms - t0), spread: +(Math.max(...ws) - Math.min(...ws)).toFixed(2) }
+}) : { above: false, lift: 0, liftU: 0, depth: 0, ws: [], spread: 0 }
 console.log('geometry:', JSON.stringify(geom))
-ok(geom.above && geom.lift > 12, 'the crystal floats above the head, in the empty part of the frame',
-  '+' + geom.lift + 'px above the sprite root')
+ok(geom.above && geom.liftU > 24, 'the crystal floats above the head, in the empty part of the frame',
+  '+' + geom.liftU + ' of his units above the root (head at 24) · +' + geom.lift + 'px on screen')
 ok(geom.depth >= 20, 'it draws over the players, so a pile cannot bury it', 'depth ' + geom.depth)
 ok(geom.spread > 1, 'it turns — the silhouette changes frame to frame, it is not a static badge',
-  'width swings ' + geom.spread + 'px across ' + geom.ws.length + ' samples')
+  'width swings ' + geom.spread + ' of his units across ' + geom.n + ' samples (' + geom.tmsSpan + 'ms of his clock)')
 
 // ---- the mood tint
 const mood = scene ? await page.evaluate(async () => {

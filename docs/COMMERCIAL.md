@@ -6,13 +6,20 @@ and the concrete remaining path to the App Store / Google Play. Update it as
 scope evolves — it is meant to be the single source of truth for "what does
 commercial v1 mean."
 
-## Product definition (locked)
+## Product definition
+
+> **v151 A:** the owner chose the model — **hybrid**: a free game that is legitimately good, opt-in rewarded ads
+> for conveniences, three permanent tiers (Ad Free $3.99 ⊂ Pro Career $8.99 ⊂ Founder $14.99), a Season Career
+> Pass ($9.99 a ~6-month season), cosmetic packs ($1.99–$4.99) and expansions listed as "coming soon". The module
+> (`src/27-monetize.js`) is built for it and still ships **OFF** until the providers are set up; the progression
+> gates (3×/4× at the UFF, My Plays Only after a finished career, season skips from lifetime PP) are live in the free
+> game regardless. `docs/MONETIZATION.md` is the catalogue, product ids and open decisions.
 
 | Decision | Choice |
 |---|---|
 | Platform | **Mobile** — iOS + Android |
-| Monetization | **Premium, one-time $2.99 for the whole game** (no ads, no IAP) |
-| IP posture | **Real cities, fully fictional team names** (no real-league marks) |
+| Monetization | **Hybrid (v151 A, owner's choice).** Free to play; rewarded ads (opt-in, 4 a day, conveniences only); Ad Free $3.99 / Pro Career $8.99 / Founder $14.99 (one-time, nested); Season Career Pass $9.99 per season; cosmetic packs $1.99–$4.99; expansions "coming soon". Never sold: PP, prestige, stat boosts, rerolls, gear, wheel spins. Wired in `src/27-monetize.js`, **switched off** until AdMob + RevenueCat are set up. `docs/MONETIZATION.md` |
+| IP posture | **Invented towns (v123), fully fictional team names** (no real-league marks). The league is the UFF |
 | Core fantasy | **Single-player** — be one player, live a career |
 | Marquee replay hook | **Score Attack** — a single-player high-score mode |
 | Art | Cohesive look; **all art produced by the owner** |
@@ -39,12 +46,17 @@ static assets, so it wraps cleanly in a native shell and runs fully offline.
   (`Dt`). Real *city* names are retained by design. No real-league logos or marks
   are used (team emblems are procedurally generated). See the audit note below.
 - **Installable-app packaging.** A web app manifest (`public/manifest.webmanifest`),
-  maskable icon set (`public/icon-*.png`, generated from `public/icon.svg` via
-  `scripts/genicons.mjs`), and iOS/Android install meta tags are wired into
-  `index.html`. The game can now be "Added to Home Screen" and is ready to wrap
-  with Capacitor.
-- **Capacitor config** (`capacitor.config.json`) targeting `_site` as the web
-  directory (the same output the Pages workflow assembles).
+  maskable icon set (`public/icon-*.png`, cut from the title film's crest by
+  `scripts/build-app-icons.py`), and iOS/Android install meta tags are wired into
+  `index.html`. **v149 D:** a service worker makes the built site installable and
+  playable offline, and `src/26-platform.js` is the native-shell layer (back button,
+  haptics, dialogs, save file + rolling backups). **The full, current store checklist is
+  `docs/APP-STORE.md`** — it supersedes the step lists below where they differ.
+- **Capacitor config** (`capacitor.config.json`) targeting `dist` (the `vite build`
+  output) as the web directory; Capacitor 8 + plugins are in `package.json`.
+- **Art (correction pending, see `docs/APP-STORE.md` §7):** 132 source images carry
+  OpenAI C2PA "AI-generated" credentials (`docs/ART-PROVENANCE.md`), so "all art produced
+  by the owner" below needs the owner's confirmation / rewording before submission.
 
 ## The path to the stores
 
@@ -78,15 +90,25 @@ npx cap open android   # Android Studio
 
 ### 2. App icons & splash
 
-- Replace the placeholder `public/icon.svg` with final art, then re-run
-  `node scripts/genicons.mjs` to regenerate the PNG sizes.
+- The icons are cut from the title film's crest by `python3 scripts/build-app-icons.py`
+  (`npm run icons`); to change the art, change that script's source and re-run it.
+- `npm run cap:assets` builds the native sets from `resources/`.
 - Generate the full native icon/splash sets with
   [`@capacitor/assets`](https://github.com/ionic-team/capacitor-assets):
   `npx @capacitor/assets generate` (needs a 1024×1024 icon and a splash source).
 - Store listing art needed: 1024×1024 icon (no alpha for iOS), feature graphic
   (Play: 1024×500), and phone screenshots (App Store: 6.7" + 5.5"; Play: min 2).
 
-### 3. Store setup — premium ($2.99)
+### 3. Store setup — hybrid (v151 A, the chosen model)
+
+The app is listed **Free**. Non-consumable IAPs: `rib.noads` $3.99, `rib.pro` $8.99, `rib.founder` $14.99, the
+upgrade products `rib.upgrade.noads_pro` $5.00 / `rib.upgrade.pro_founder` $6.00 / `rib.upgrade.noads_founder`
+$11.00, `rib.pass.<seasonId>` $9.99 (a new product each season), `rib.cos.<packId>` $1.99–$4.99 and
+`unlock_all_team_style` $2.99. AdMob (one Rewarded unit) + RevenueCat are the providers, and the privacy labels are
+no longer "no data collected" — see `docs/MONETIZATION.md` §3, §6–7. The premium ($2.99) listing below is kept
+only as the historical alternative.
+
+#### (historical) premium ($2.99)
 
 - **App Store Connect:** create the app, set price tier to $2.99, no IAP. Fill
   privacy nutrition labels — if you add **no** analytics/tracking, you can

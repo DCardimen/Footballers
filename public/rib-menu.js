@@ -248,8 +248,9 @@
     ['gold2', 'laurel', 'hallPoints', 'HALL POINTS', (S) => S.hallBest || 0],
     ['red', 'target', 'iconicMoments', 'ICONIC MOMENTS', (S) => S.challenges || 0],
   ];
+  // v151 B: the PROFILE door rides the legacy card's kicker (a button, not a tile — the nine tiles stay nine)
   const legacyPanel = (S) => `<section class="rib9-card rib9-legacy">
-            <div class="rib9-kicker">YOUR LEGACY</div>
+            <div class="rib9-kicker">YOUR LEGACY<button class="rib9-prof-v151b" type="button" data-rib-action="view:profile">PROFILE ›</button></div>
             <div class="rib9-legacy-grid">
               ${LEGACY_TILES.map(([cls, icon, field, label, read]) => `<div class="rib9-lt ${cls}"><i><img src="${icon === 'coin' ? VAULT_ART + COIN_V147B : ART + 'legacy_' + icon + '.webp'}${ARTV}" alt="" loading="lazy"></i><b data-rib-field="${field}">${esc(read(S))}</b><small>${label}</small></div>`).join('')}
             </div>
@@ -456,8 +457,27 @@
           ${/* v119: the coach's tour — a TOGGLE, not a door. ON plays the tour after the welcome cards (or the moment it is switched on); the tour switches it OFF when it ends. rib-menu-coach.js owns the state. */''}
           <button class="rib9-tile rib9-tile-coach ${coachOn ? 'on' : ''}" type="button" data-rib-action="coach" role="switch" aria-checked="${coachOn ? 'true' : 'false'}" aria-label="Coach's tour, ${coachOn ? 'on' : 'off'}"><img src="${COACH_ART}tile.webp${ARTV}" alt="" loading="lazy"><b>COACH'S TOUR</b><small><i class="rib9-sw"><i></i></i>${coachOn ? 'ON · HE WALKS YOUR FIRST WEEK' : 'OFF · TAP TO BRING HIM BACK'}</small></button>
           ${/* v139: the prestige tree is a door, and the only way in was the header chip — which is not where anyone looks. It sits beside the coach now, with what you have to spend on it. */''}
-          ${tile('prestige', 'legacy_gem', 'PRESTIGE', `${Number(S.pp || 0).toLocaleString()} PP TO SPEND`)}
+          ${tile('prestige', 'legacy_gem', 'PRESTIGE', `${Number(S.pp || 0).toLocaleString()} PP TO SPEND`)}${seasonTilesV151C()}${storeTileV150C()}
         </nav>`;
+    // v151 C: the season's two doors — the PASS (with the countdown: season, days left, tier) and the career LEADERBOARDS.
+    // src/29-seasons.js is loaded before this file; without it the tiles are simply not drawn. rib-menu-navigation.js
+    // routes actions "seasons" and "boards".
+    function seasonTilesV151C() {
+      const R = window.RIB_SEASONS;
+      if (!R || !R.current) return '';
+      let c = null, p = null;
+      try { c = R.current(); p = R.pass(); } catch (e) { return ''; }
+      return tile('seasons', 'legacy_laurel', 'SEASON PASS', `S${esc(c.number)} · ${esc(c.daysLeft)} DAYS LEFT · TIER ${esc(p.tier)}`, 'rib9-tile-season-v151') +
+        tile('boards', 'legacy_star', 'LEADERBOARDS', 'CAREER SCORE · TITLES · FASTEST', 'rib9-tile-boards-v151');
+    }
+    // v150 C H9: the STORE tile — only while window.RIB_MONETIZE says it is on (and its store feature is); "" otherwise, so the
+    // menu's markup is byte-for-byte the old one with the switch off. rib-menu-navigation.js routes action "store".
+    function storeTileV150C() {
+      const M = window.RIB_MONETIZE;
+      if (!M || !M.enabled || !(M.config && M.config.features && M.config.features.store)) return '';
+      const pro = M.has('pro');
+      return tile('store', 'legacy_crown', 'STORE', pro ? 'PRO ✓ · RESTORE' : 'PRO · 4× BOOST', 'rib9-tile-store-v150');
+    }
     const navLink = (action, label, active) => `<button class="rib9-navlink ${active ? 'on' : ''}" type="button" data-rib-action="${action}">${label}</button>`;
 
     return `
@@ -491,7 +511,7 @@
         <section class="rib9-card rib9-player">
           <div class="rib9-portrait" data-rib-action="locker" role="button" tabindex="0">
             <img src="${ART}portrait_helmet.webp${ARTV}" alt="" data-nat="640,640" data-op="0.5,0.5">
-            ${tint(colors, 1, 'portrait_helmet_mask_s', 1, RECOLOR && 'portrait_helmet')}
+            ${tint(colors, colors && colors[2] ? 2 : 1, 'portrait_helmet_mask_s', 1, RECOLOR && 'portrait_helmet')}
             ${team.logoCss ? `<span class="rib9-helmet-logo emblem-v44" style="${esc(team.logoCss)}"><i class="rib9-helmet-shade" style="${esc(maskOf(team.logoCss))}"></i></span>` : ''}
             <span class="rib9-edit">✎ EDIT PLAYER</span>
           </div>

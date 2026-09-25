@@ -7,13 +7,15 @@
 // far end. No page errors.   node scripts/v93check.mjs   (V93_SHOTS=1 saves scripts/_v93_*.png)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+import { waitLive } from './lib/live.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0 }) })   // v144: this check reads night-time pixels — pin the sky and the weather
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message)); page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
@@ -29,8 +31,10 @@ ok(sched.length >= 4 && sched[0] === true && sched.every((h, i) => h === (i % 2 
 
 for (const t of ['PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 let scene = false
-for (let i = 0; i < 40; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(500) }
+scene = await waitLive(page)   // v150 B: on game state, up to 90s (scripts/lib/live.mjs) — the fixed 16-24s poll cascaded under --jobs 3-4
 console.log('scene:', scene)
+// v150 B: no field, nothing to measure — say so as one failure instead of throwing on `teamNames` of undefined
+if (!scene) { ok(false, 'the live field came up for the end-zone half of this check', 'no markers after 90s'); console.log(JSON.stringify({ pass, fail })); console.log('page errors:', errs.length ? errs.slice(0, 6) : 'none'); await browser.close(); process.exit(1) }
 await page.waitForFunction(() => window.__V93 && window.__V93.painted, null, { timeout: 15000 }).catch(() => {})
 await page.waitForTimeout(600)
 const snap = async (path) => { const src = await page.evaluate(() => new Promise(res => { try { window.__gridironScene.game.renderer.snapshot(img => res(img.src || null)) } catch (e) { res(null) } })); if (src) fs.writeFileSync(path, Buffer.from(src.split(',')[1], 'base64')) }
@@ -71,12 +75,18 @@ if (SHOTS) { const s = await shot(); if (s) fs.writeFileSync('scripts/_v93_home.
 // ---- 3. away: the opponent's palette (their jersey palette) and name
 const away = await page.evaluate(async () => { const V = window.__V93; const changed = V.set(false); await new Promise(r => setTimeout(r, 400)); const V2 = window.__V93; const sc = window.__gridironScene
   const def = V2.cols; const jersey = window.__V91 && window.__V91.teamCols ? window.__V91.teamCols().def : null
-  return { changed, home: V2.home, name: V2.name, cols: def, jersey, them: sc.teamNames().them, far: V2.sample('far'), nearBand: V2.sample('near') } })
+  /* v150 B: since v97 the FAR end is TOUCHDOWN in the USER's colours home or away (ribSyncEndZonesV93: ends.far.cols =
+   * usPal), but `sample()` counts lettering pixels against `_ezV93.cols[1]` — the HOME side's secondary, which on the road
+   * is the opponent's. So the far end read sec=0 on every away run although TOUCHDOWN is painted there. Count each end
+   * against the secondary it is actually lettered in: `__V93.cols` is the very array sample() reads, so it is pointed at
+   * the far end's own colours for that one call and put back. */
+  const farSample = (() => { const keep = V2.cols[1]; try { V2.cols[1] = (V2.ends && V2.ends.far && V2.ends.far.cols[1]) || keep; return V2.sample('far') } finally { V2.cols[1] = keep } })()
+  return { changed, home: V2.home, name: V2.name, cols: def, jersey, them: sc.teamNames().them, far: farSample, farLabel: V2.ends && V2.ends.far && V2.ends.far.label, nearBand: V2.sample('near') } })
 console.log('away:', JSON.stringify(away))
 ok(away.changed && away.home === false && away.name === away.them, 'an away fixture repaints for the opponent, with the opponent\'s name', `${away.name} home=${away.home}`)
 ok(away.jersey && away.cols[0] === away.jersey[0] && away.cols[1] === away.jersey[1], 'the away paint is the palette the opponent\'s jerseys wear', `${away.cols && away.cols.join('/')} vs ${away.jersey && away.jersey.join('/')}`)
 ok(away.nearBand && near(away.nearBand, away.cols[0], 0.82, 60), 'v97: the near end zone averages the opponent primary on the road', JSON.stringify(away.nearBand) + ' vs ' + away.cols[0])
-ok(away.far && away.far.sec > 150 && away.nearBand && away.nearBand.sec > 100, 'TOUCHDOWN at the far end and the opponent\'s name at the near are both lettered', `sec far=${away.far.sec} near=${away.nearBand.sec}`)
+ok(away.farLabel === 'TOUCHDOWN' && away.far && away.far.sec > 150 && away.nearBand && away.nearBand.sec > 100, 'TOUCHDOWN at the far end and the opponent\'s name at the near are both lettered', `sec far=${away.far && away.far.sec} (${away.farLabel}) near=${away.nearBand && away.nearBand.sec}`)
 if (SHOTS) { const s = await shot(); if (s) fs.writeFileSync('scripts/_v93_away.png', Buffer.from(s.split(',')[1], 'base64')) }
 await page.evaluate(() => { window.__V93.set(true); window.__gridironScene.scene.resume() })
 await page.waitForTimeout(3000)

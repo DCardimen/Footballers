@@ -5,7 +5,8 @@
 // identity preview (reacts to palette picks), pregame matchup chips, live scoreboard
 // chips, and the midfield crest proportion. Prints JSON + page errors; exits 1 on failure.
 import { chromium } from 'playwright'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+import { CHROME, GAME_URL } from './lib/env.mjs'
+const browser = await chromium.launch({ executablePath: CHROME })
 const fails = []
 const errs = []
 function check(name, ok, detail) { console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ' ' + JSON.stringify(detail) : ''}`); if (!ok) fails.push(name) }
@@ -19,7 +20,7 @@ async function boot(viewport) {
       document.querySelector('.onboard')?.remove()
     }, 60)
   })
-  await page.goto('http://localhost:5173/', { waitUntil: 'load', timeout: 30000 })
+  await page.goto(GAME_URL, { waitUntil: 'load', timeout: 30000 })
   await page.waitForTimeout(2000)
   return page
 }
@@ -81,7 +82,7 @@ check('atlas: no cell carries ink in its pad ring — where a neighbour\'s slive
   atlas.dirtyRing && atlas.dirtyRing.length === 0, atlas.dirtyRing)
 
 // ---- name matching + structure + baked delivery ----
-const api = await page.evaluate(() => {
+const api = await page.evaluate(async () => {
   const L = window.TEAM_LOGOS_V44, P = window.TEAM_PALETTES
   if (!L) return { why: 'TEAM_LOGOS_V44 missing' }
   const expected = {
@@ -99,11 +100,14 @@ const api = await page.evaluate(() => {
   for (const [name, want] of Object.entries(expected)) { const got = L.name(L.forName(name)); if (got !== want) misses.push(`${name}: got ${got}, want ${want}`) }
   const fb1 = L.forName('Dallas State')
   return { logos: L.db.length, palettes: P.length, badPal: L.db.filter(d => !P[d.p]).length,
-    misses, baked: /^data:image\/png/.test(L.url), fb: fb1 === L.forName('Dallas State') && fb1 >= 0 && fb1 < 90 }
+    misses, baked: /^data:image\/png/.test(L.url), url: String(L.url).slice(0, 80),
+    // v150 B: since v149 A the sheet is a file under public/ asked for through __RIB_ASSET (DATA_ASSETS: __RIB_LOGOS_V44 ->
+    // rib_logos_v44.png), not a data URL baked into the page — so the assertion is that it resolves there and is served
+    served: /^data:image\/png/.test(L.url) ? true : (/rib_logos_v44\.png/.test(L.url) ? await fetch(L.url).then(r => r.ok).catch(() => false) : false), fb: fb1 === L.forName('Dallas State') && fb1 >= 0 && fb1 < 90 }
 })
 check('name matching', api.misses && !api.misses.length, api.misses)
 check('90 logos / valid palettes', api.logos === 90 && api.badPal === 0, { logos: api.logos, palettes: api.palettes })
-check('sheet baked as data URL (no server file needed)', !!api.baked)
+check('the logo sheet is served from public/ (v149 A: no longer a baked data URL)', !!api.served, api.url)
 check('deterministic fallback', !!api.fb)
 
 // ---- team creator: tiles, live preview, palette reaction (520px) ----
@@ -188,18 +192,35 @@ async function dismissModals() {
     if (gone && i > 1) break
   }
 }
+/* v150 B: since v112 D the pregame is a wizard and the matchup chips live on its SCOUT page (page 3, "THE SCOUT & THE
+ * PLAN"); on page 1 they exist but sit in a display:none page, so they measured 0x0. Walk the wizard forward (the
+ * wizard's own NEXT, which takes the defaults) until the chips are on screen, then measure them. */
+for (let i = 0; i < 6; i++) {
+  const shown = await page.evaluate(() => { const c = document.querySelector('.pregame-emblem-v44'); return !!(c && c.getBoundingClientRect().width > 0) })
+  if (shown) break
+  const moved = await page.evaluate(() => { const b = document.getElementById('v112Next'); if (b && !b.disabled) { b.click(); return true } return false })
+  await page.waitForTimeout(moved ? 700 : 300)
+}
 const pregame = await page.evaluate((geoSrc) => {
   const geo = eval(geoSrc)
   const chips = [...document.querySelectorAll('.pregame-emblem-v44')]
   return { n: chips.length, chips: chips.map(c => geo(c, c.closest('.pregame-team-v1513'))) }
 }, GEO)
-check('pregame: 2 emblem chips, 44px, sprite-backed, inside tiles',
-  pregame.n === 2 && pregame.chips.every(c => c.img && c.inside && Math.abs(c.w - 44) < 2 && Math.abs(c.h - 44) < 2), pregame)
+// v150 B: inside the v112 D wizard the chips are 34px — its own sheet sets `.v112-wiz-d .pregame-emblem-v44{width:34px;height:34px}`
+// (11-pregame-v1513.js) so the matchup fits the page; 44px was the pre-wizard pregame screen
+check('pregame: 2 emblem chips, 34px in the wizard, sprite-backed, inside tiles',
+  pregame.n === 2 && pregame.chips.every(c => c.img && c.inside && Math.abs(c.w - 34) < 2 && Math.abs(c.h - 34) < 2), pregame)
 // the commitment modal respawns with the pregame screen — hide it for the shot only
 await page.evaluate(() => { [...document.querySelectorAll('body > div')].filter(d => /SEASON COMMITMENT/.test(d.innerText || '')).forEach(d => d.style.visibility = 'hidden') })
 await page.screenshot({ path: 'scripts/_emblem_pregame.png' })
 await page.evaluate(() => { [...document.querySelectorAll('body > div')].forEach(d => { if (d.style.visibility === 'hidden') d.style.visibility = '' }) })
 
+// v150 B: finish the wizard through its own NEXT (the last page's NEXT is CONTINUE TO MATCH; the plan page waits for its roll)
+for (let i = 0; i < 30; i++) {
+  const st = await page.evaluate(() => { if (!document.getElementById('pregameV1513')) return 'gone'; const b = document.getElementById('v112Next'); if (b && !b.disabled) { b.click(); return 'next' } return 'wait' })
+  if (st === 'gone') break
+  await page.waitForTimeout(700)
+}
 await click('CONTINUE TO MATCH')
 for (let i = 0; i < 20; i++) { const c = await page.evaluate(() => document.querySelectorAll('canvas').length); if (c) break; await page.waitForTimeout(300) }
 await page.waitForTimeout(2500)   // let a snap or two run so warpField() bakes the crest in

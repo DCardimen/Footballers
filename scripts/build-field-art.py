@@ -4,7 +4,7 @@ Each sheet is AI-drawn on no fixed grid, so sprites are found by their alpha, gr
 split at transparent column gaps, and named by the renderer's own vocabulary (run_dn0, cut_sd,
 getup_up3, celebrate_dn0, ball_spin7 ...). Every sprite is scaled by ONE factor per sheet so a
 cycle never breathes, and anchored feet-down at a fixed baseline. Also rewrites the RIB_META_V91
-block in index.html and paints a labelled preview to /tmp/field_v91_preview.png."""
+block in src/05-field-renderer.js (v149 A: the renderer left index.html) and paints a labelled preview to /tmp/field_v91_preview.png."""
 from PIL import Image, ImageDraw, ImageFilter
 import numpy as np, json, re, os
 
@@ -25,6 +25,26 @@ def components(mask):
                     lab[yy, xx] = n; stack.append((yy, xx))
     return lab, n
 
+def skin_mask(a):
+    """v151 D THE SKIN IS HIS OWN — the drawn skin (the arms, the face, a bare calf) is an orange-brown at
+    hue 24-31, and the pants are an orange gold at hue 32-39. normalize_palette used to pull BOTH onto the
+    atlas's gold (hue 46), so ribRecolor painted every man's arms and face in his team's SECONDARY colour
+    (white pants, white arms). Skin is read off the RAW sheet here — warm, saturated, and redder than the
+    pants (hue under `SKIN_HUE`, or a darker pixel just past it), a majority vote over its neighbours so a
+    shadowed fold of the pants does not flip, and never the football's brown (g under .47 r) — and is left
+    out of the normalisation, so it keeps its own colour and stays outside the recolour's gold band. The
+    renderer tints it per player from the same mask (skinMaskV151D)."""
+    r, g, b, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+    mx = np.maximum(np.maximum(r, g), b); mn = np.minimum(np.minimum(r, g), b); L = (mx + mn) / 2; d = np.maximum(mx - mn, 1e-6)
+    sat = (mx - mn) / np.maximum(mx, 1)
+    hue = np.where(mx == r, (60 * ((g - b) / d) + 360) % 360, np.where(mx == g, 60 * ((b - r) / d) + 120, 60 * ((r - g) / d) + 240))
+    warm = (al > 24) & (sat > .3) & (hue >= 8) & (hue < 46) & (L >= 22) & ~(g < r * 0.47)
+    sk = warm & ((hue < SKIN_HUE) | ((hue < 34) & (L < 58)))
+    f = np.asarray(Image.fromarray((sk * 255).astype('uint8')).filter(ImageFilter.BoxBlur(1))).astype(float)
+    w = np.asarray(Image.fromarray((warm * 255).astype('uint8')).filter(ImageFilter.BoxBlur(1))).astype(float)
+    return warm & (f >= w * 0.5) & (f > 0)
+SKIN_HUE = 31.0
+
 def normalize_palette(im):
     """Pull the sheet's kit onto the base atlas's palette so ribRecolor treats it identically.
     The drawn pants are an orange gold (hue 25-35) that falls under the recolour's gold band
@@ -35,6 +55,7 @@ def normalize_palette(im):
     sat = np.where(mx > 0, (mx - mn) / np.maximum(mx, 1), 0); d = np.maximum(mx - mn, 1e-6)
     hue = np.where(mx == r, (60 * ((g - b) / d) + 360) % 360, np.where(mx == g, 60 * ((b - r) / d) + 120, 60 * ((r - g) / d) + 240))
     gold = (al > 0) & (hue >= 24) & (hue < 46) & (sat > 0.3) & (L >= 40)
+    if os.environ.get('SKIN_V151D', '1') != '0': gold &= ~skin_mask(a)   # v151 D: the skin keeps its own colour
     # rebuild the gold pixels at hue 46 with their own saturation and lightness
     C = (1 - np.abs(2 * L / 255 - 1)) * (mx - mn) / np.maximum(mx, 1) * 255 * 0 + (mx - mn)   # chroma = max-min
     X = C * (1 - np.abs(((46 / 60) % 2) - 1)); mval = mn
@@ -335,7 +356,7 @@ scb = sheet_scale(rows[3:4], 44)
 for i in range(6): CELLS[f'backpedal_up{i}'] = cell_of(im, rows[3][i], scb)
 # The row 2 idles differ only in the helmet's shading, not in the body — no sway to loop — so the
 # ready pose is one cell, not a cycle. art/field/throw_quarter_b.png and snap_catch_mini.png are
-# deliberately not cut: see the note in README's Recent changes.
+# deliberately not cut: see the note in docs/CHANGELOG.md.
 
 # ---- throw_dir_a / throw_dir_b: the throw carries a DIRECTION ---------------------------
 # Both sheets are 4 rows x 8 frames and every row on both is drawn from BEHIND — the helmet shows
@@ -430,7 +451,7 @@ _ = (hand, toss, figx)
 # throws then share one shrink and the two exchanges another, so a quarterback does not change
 # size between the ball leaving right and leaving left. `cell_offset` measures where the drawing
 # put the ball (or, on a frame with none, the right hand) in each cut cell and prints it: those
-# numbers are HAND_V108 in index.html, and BALL_DRAWN_V108 is the `drawn` flag beside them.
+# numbers are HAND_V108 in src/05-field-renderer.js, and BALL_DRAWN_V108 is the `drawn` flag beside them.
 # The handoff is cut a second time MIRRORED (`handoffL_up*`) for a back coming off the
 # quarterback's LEFT, which v108 could only skip: the reach goes to the side the back is on. The
 # pitch is not mirrored — a pitch is thrown, and he throws right-handed.
@@ -454,7 +475,7 @@ def fit_k(parts):   # the one shrink a family takes so its tallest and widest po
     return k
 hand = [rowsH[0][i] for i in (1, 2, 3, 4, 5)]; toss = [rowsT[0][i] for i in (1, 2, 3, 4, 5)]
 thrR = [rowsR[0][i] for i in (0, 1, 2, 2, 4, 3)]; thrX = [rowsX[0][0], rowsX[0][1]]
-# which of those cells draw a football (the eye's list; BALL_DRAWN_V108 in index.html):
+# which of those cells draw a football (the eye's list; BALL_DRAWN_V108 in src/05-field-renderer.js):
 # 1 the cell draws it, 0 it does not (the ball rides the throwing hand), a pair: it does not and
 # there is no glove to find either — the set, hands on the hips, the ball tucked behind the right one
 DRAWN = { 'handoff_up': [1, 1, 1, 1, 0], 'handoffL_up': [1, 1, 1, 1, 0], 'toss_up': [1, 1, 1, 0, 0], 'throwR_up': [(9.5, -1.0), 1, 1, 1, 0, 0], 'throwL_up': [(9.5, -1.0), 1, 1, 1, 0, 0] }
@@ -527,13 +548,13 @@ else:
     assert np.array_equal(back[..., :3][op], rgba[..., :3][op]) and np.array_equal(back[..., 3] > 0, op), 'the palette file does not round-trip the atlas'
 meta['_ballAngles'] = BALL_ANGLES
 json.dump(meta, open('public/rib_field_v91.json', 'w'), separators=(',', ':'))
-# the renderer reads the map inline
-html = open('index.html').read()
+# the renderer reads the map inline (src/05-field-renderer.js since v149 A)
+html = open('src/05-field-renderer.js').read()
 blk = 'const RIB_META_V91 = ' + json.dumps(meta, separators=(',', ':')) + ';'
 pat = re.compile(r'/\* RIB_META_V91_BEGIN \*/.*?/\* RIB_META_V91_END \*/', re.S)
 if pat.search(html): html = pat.sub('/* RIB_META_V91_BEGIN */ ' + blk + ' /* RIB_META_V91_END */', html)
-else: print('NOTE: no RIB_META_V91 marker in index.html yet; map written to public/rib_field_v91.json')
-open('index.html', 'w').write(html)
+else: print('NOTE: no RIB_META_V91 marker in src/05-field-renderer.js yet; map written to public/rib_field_v91.json')
+open('src/05-field-renderer.js', 'w').write(html)
 # labelled preview
 pv = atlas.copy(); d = ImageDraw.Draw(pv)
 for nm, (c, r) in ((k, v) for k, v in meta.items() if not k.startswith('_')): d.text((c * CELL + 1, r * CELL + 1), nm[:9], fill=(255, 255, 0, 255))

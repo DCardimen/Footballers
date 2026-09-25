@@ -1,11 +1,12 @@
 import { chromium } from 'playwright'
-/* v90 — the rolls happen in the background; the upgrade sheet rounds; the ring is out of 250.
+import { CHROME, GAME_URL } from './lib/env.mjs'
+/* v90 — the rolls happen in the background; the upgrade sheet rounds; the ring fills to the soft max (v134; it was out of 250).
  *   node scripts/v90check.mjs   (dev server on :5173) */
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await (await browser.newContext({ viewport: { width: 430, height: 932 } })).newPage()
 const errs = []; page.on('pageerror', e => errs.push(e.message))
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 25000 }); await page.waitForTimeout(1200)
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 25000 }); await page.waitForTimeout(1200)
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
@@ -74,12 +75,21 @@ console.log('upgrade:', JSON.stringify(up).slice(0, 300))
 ok(up.allInts, 'every attribute on the upgrade sheet is a whole number', up.shown.slice(0, 6).join(' '))
 ok(up.beforeText === '41' && up.afterText === '42' && up.stored === 42, 'a fractional 41.37 shows as 41 and one point makes it exactly 42', `${up.beforeText} → ${up.afterText} (stored ${up.stored})`)
 
-// ---- 4. the menu ring: a full circle is 250
-await page.evaluate(() => window.go('menu')); await page.waitForSelector('#rib-main-menu-v2 .rib9-ring'); await page.waitForTimeout(1600)
-const ring = await page.evaluate(() => { const r = document.querySelector('.rib9-ring'); const ovr = Number(document.querySelector('.rib9-ring-val').textContent); return { ovr, arc: parseFloat(r.style.getPropertyValue('--rib-ovr')) } })
-ok(Math.abs(ring.arc - Math.max(0.055, ring.ovr / 250)) < 0.002, 'the OVR ring fills ovr/250 of the circle', `ovr=${ring.ovr} arc=${ring.arc.toFixed(3)}`)
+// ---- 4. the menu ring
+/* v150 B: since v134 the ring is drawn against the player's SOFT MAX (the feed's `softMaxOvr`), not a flat 250 — a
+ * young player's arc used to be an unreadable sliver of a 250-point circle — and since v147 B `ringArcV147B` is the
+ * ONE place the arc is decided (k = max(.055, ovr/softMax), a gold lap `--rib-ovr2` past it). So the ring must carry
+ * exactly the k that function gives for the feed's own OVR and soft max, and that k must be ovr/softMax (not /250). */
+await page.evaluate(() => window.go('menu')); await page.waitForSelector('#rib-main-menu-v2 .rib9-ring')
+await page.waitForFunction(() => { const g = document.querySelector('.rib9-ring'); return g && parseFloat(g.style.getPropertyValue('--rib-ovr')) > 0 }, null, { timeout: 15000 }).catch(() => {})
+const ring = await page.evaluate(() => { const r = document.querySelector('.rib9-ring'); const P = (window.__RIB_MENU_DATA_V89() || {}).player || {}
+  const ovr = Number(P.ovr) || 0, sm = Number(P.softMaxOvr) || 0, want = window.__V147B.ringArc(null, ovr, sm > 0 ? sm : 250, false)
+  return { ovr, softMax: sm, arc: parseFloat(r.style.getPropertyValue('--rib-ovr')), arc2: parseFloat(r.style.getPropertyValue('--rib-ovr2')) || 0, k: want.k, k2: want.k2 } })
+ok(ring.softMax > 0 && Math.abs(ring.arc - ring.k) < 0.002 && Math.abs(ring.arc2 - ring.k2) < 0.002 && Math.abs(ring.k - Math.max(0.055, Math.min(1, ring.ovr / ring.softMax))) < 0.002,
+  'the OVR ring fills ovr/softMaxOvr of the circle (v134), exactly as ringArcV147B says', `ovr=${ring.ovr} softMax=${ring.softMax} arc=${ring.arc.toFixed(3)} gold=${ring.arc2.toFixed(3)}`)
 
-await browser.close()
 console.log(JSON.stringify({ pass, fail }))
 console.log('page errors:', errs.length ? errs : 'none')
-if (fail || errs.length) process.exit(1)
+// v150 B: close the browser and exit either way — a PASSING run used to leave Chromium open and hang to its time limit
+await browser.close()
+process.exit(fail || errs.length ? 1 : 0)

@@ -19,8 +19,10 @@
 //   node scripts/bootviewcheck.mjs
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const url = process.env.GAME_URL || 'http://localhost:5173/index.html'
-const browser = await chromium.launch({ executablePath: fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined })
+import { pageSource } from './lib/layout.mjs'   // v149 A: the served page + the src/ files it names
+import { CHROME, gameUrl } from './lib/env.mjs'
+const url = gameUrl('index.html')
+const browser = await chromium.launch({ executablePath: CHROME })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const U = (q) => url + (url.includes('?') ? '&' : '?') + 'stayStale' + (q || '')
@@ -45,11 +47,11 @@ ok(await page.evaluate(() => typeof window.__GRIDIRON_AUDIT__ === 'object' && !!
 
 // the fix, shape 1: the vault glue a rendered screen calls is a HOISTED declaration, not an
 // assignment that a boot-time render can outrun
-const src = await page.evaluate(() => fetch(location.pathname).then(r => r.text()))
+const src = await page.evaluate(pageSource)
 ok(/function vaultPayBtnV137\s*\(/.test(src), 'vaultPayBtnV137 is a function DECLARATION — a screen drawn at boot cannot outrun it')
 ok(!/window\.vaultPayBtnV137\s*=\s*(e|\()/.test(src), '…and is not defined by a bare assignment any more')
 // the fix, shape 2: every top-level boot render is guarded
-ok(!/(^|[;}])\s*mc\(\)\s*;/.test(src) && /safeBootV140\(/.test(src), 'the boot renders go through safeBootV140, which catches and retries instead of aborting the block')
+ok(!/(^|[;}])\s*boot\(\)\s*;/.test(src)   /* v149 C: mc → boot */ && /safeBootV140\(/.test(src), 'the boot renders go through safeBootV140, which catches and retries instead of aborting the block')
 const guards = (src.match(/safeBootV140\(function/g) || []).length
 ok(guards >= 3, 'all three top-level boot renders are guarded', `${guards} guarded`)
 

@@ -12,8 +12,9 @@
 //   - tiers differ, and the level actually picks one
 // Screenshots the field with the crowd idle and mid-roar.
 import { chromium } from 'playwright'
+import { CHROME, GAME_URL } from './lib/env.mjs'
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0 }) })   // v144: this check reads night-time pixels — pin the sky and the weather
 const errs = []
@@ -22,7 +23,7 @@ page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.te
 await page.addInitScript(() => {
   setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60)
 })
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 20000 })
+await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 20000 })
 await page.waitForTimeout(1000)
 
 const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none' }`
@@ -207,7 +208,12 @@ const intrude = await page.evaluate(() => {
     gap: (window.__CROWD_V57 || {}).gap }
 })
 ok(intrude.samples > 500, 'the intrusion scan actually found crowd pixels', intrude.samples)
-ok(intrude.endSamples > 200, 'and the scan now covers the curved north end too, not just the sidelines',
+/* v150 B: the floor was 200 when it was written (v63), against the field of the day. The end sections' pixels only count
+ * on rows that carry playing surface (the round-trip test above), so the count is pure camera geometry — how much of the
+ * curved end overlaps field rows in THIS framing — and the perspective has been reworked since (v105 fxDepth .78, v112 B
+ * near cap, v148 row density). It reads 120..182 on every run of the current field; the assertion is that the end is
+ * SCANNED, not how big it is, and 60 (half the smallest seen) still proves that. */
+ok(intrude.endSamples > 60, 'and the scan now covers the curved north end too, not just the sidelines',
   intrude.endSamples)
 ok(intrude.overField <= 2, 'no crowd pixel is drawn over the playing surface (px)', intrude.overField)
 // 40 world units is ~5 yards of sideline — enough to stand a bench, a coaching box
@@ -405,7 +411,10 @@ const cheer = await page.evaluate(async () => {
   // roar from one end of the field, so the wave has somewhere to travel
   sc.crowdCheer(1, 80)
   const pend = C.secs.slice(0, C.built).map(s => ({ ux: Math.round(s.ux), at: Math.round(s.pendAt - C.t), amt: +s.pendAmt.toFixed(3) }))
-  const wait = ms => new Promise(r => setTimeout(r, ms))
+  /* v150 B: wait on the CROWD's own clock (C.t, advanced by updateCrowd's capped dt), not the wall. The wave is scheduled
+   * in C.t and the heat decays in C.t; on a loaded box with the canvas renderer at a few fps, 420ms of wall time was less
+   * than one crowd tick and the roar had not landed yet (peak 0 on 2 of 4 baseline tries). 20s wall cap. */
+  const wait = ms => { const t0 = C.t, w0 = Date.now(); return new Promise(r => { const tick = () => (C.t - t0 >= ms || Date.now() - w0 > 20000) ? r() : setTimeout(tick, 25); tick() }) }
   await wait(420)
   const mid = C.secs.slice(0, C.built).map(s => +s.heat.toFixed(3))
   const midAlpha = C.secs.slice(0, C.built).map(s => +s.spr.cheer.alpha.toFixed(3))
@@ -581,7 +590,7 @@ const fb = await (async () => {
     Object.defineProperty(window, '__RIB_CROWD_V57', { get: () => 'data:image/png;base64,AAAA', set: () => {} })
     setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60)
   })
-  await p2.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 20000 })
+  await p2.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 20000 })
   await p2.waitForTimeout(1200)
   for (const t of ['START NEW CAREER', 'ARCH', 'QB Quarterback', 'Lock In Personality', 'PLAY 8-GAME SEASON',
     'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'CONTINUE TO MATCH', 'Continue']) {

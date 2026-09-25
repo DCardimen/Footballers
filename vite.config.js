@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { defineConfig } from 'vite'
+import { stampLayoutRefs } from './scripts/lib/layout.mjs'
+import { writeServiceWorker } from './scripts/lib/pwa.mjs'
 
 /* v101: the shipped site (scripts/assemble-pages.mjs) keeps every runtime asset under
  * ./public/ next to index.html, and index.html asks for them there through
@@ -20,8 +22,64 @@ function mirrorPublicDir() {
   }
 }
 
+/* v149 A: the game's scripts and sheets live in src/ as CLASSIC files (docs/LAYOUT.md), loaded by
+ * <script src> / <link> tags that stand exactly where the inline blocks stood. Vite must not touch
+ * them: in dev its transform pipeline rewrites any .js it serves outside public/ (it reformats the
+ * code and replaces process.env), so src/ is served RAW here, ahead of Vite's own middleware; in a
+ * build the tags carry `vite-ignore` (left as written, the attribute stripped), so the folder is
+ * copied beside index.html and every reference stamped with its content hash for the cache. */
+function serveSrcRaw() {
+  const TYPES = { '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' }
+  return {
+    name: 'rib-serve-src-raw',
+    apply: 'serve',
+    configureServer(server) {
+      const root = path.resolve(server.config.root, 'src')
+      server.middlewares.use((req, res, next) => {
+        const url = (req.url || '').split('?')[0]
+        if (!url.startsWith('/src/')) return next()
+        const file = path.resolve(root, decodeURIComponent(url.slice('/src/'.length)))
+        const type = TYPES[path.extname(file)]
+        if (!type || !file.startsWith(root + path.sep) || !fs.existsSync(file)) return next()
+        res.setHeader('Content-Type', type)
+        res.setHeader('Cache-Control', 'no-cache')
+        res.end(fs.readFileSync(file))
+      })
+    },
+  }
+}
+function shipSrcDir() {
+  return {
+    name: 'rib-ship-src-dir',
+    apply: 'build',
+    transformIndexHtml: { order: 'post', handler: (html) => stampLayoutRefs(html) },
+    closeBundle() {
+      const from = path.resolve(process.cwd(), 'src')
+      if (fs.existsSync(from)) fs.cpSync(from, path.resolve(process.cwd(), 'dist', 'src'), { recursive: true })
+    },
+  }
+}
+
+/* v149 D IT INSTALLS: once dist/ is whole (the public/ mirror and src/ copied — both synchronous closeBundle
+ * hooks earlier in the list), mark the page for the worker and write dist/sw.js with its precache manifest
+ * (scripts/lib/pwa.mjs). Build only: `vite` dev never gets the meta, so it never registers a worker. */
+function serviceWorker() {
+  return {
+    name: 'rib-service-worker',
+    apply: 'build',
+    closeBundle: {
+      sequential: true,
+      order: 'post',
+      handler() {
+        const r = writeServiceWorker(path.resolve(process.cwd(), 'dist'), { version: process.env.RIB_BUILD_VERSION })
+        console.log(`[rib-sw] dist/sw.js ${r.version}: ${r.entries} files (${r.required} required), ${(r.bytes / 1048576).toFixed(1)} MB precache`)
+      },
+    },
+  }
+}
+
 export default defineConfig({
   server: { host: true, port: 5173 },
   build: { target: 'es2020' },
-  plugins: [mirrorPublicDir()],
+  plugins: [serveSrcRaw(), mirrorPublicDir(), shipSrcDir(), serviceWorker()],
 })

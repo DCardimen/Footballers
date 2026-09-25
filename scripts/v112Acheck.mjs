@@ -23,15 +23,16 @@
 //   GAME_URL=http://localhost:5201/index.html node scripts/v112Acheck.mjs
 import { chromium } from 'playwright'
 import { createHash } from 'node:crypto'
+import { CHROME, gameUrl } from './lib/env.mjs'
 
 // v114 put the title film on the boot splash, so the SPLASH assertions below — the ones that
 // watch the chase paint its first frame and keep drawing — boot ?noFilmV114. What v112 A warms
 // is the v91 sheet, and the sheet still feeds the chase on that fallback and, more to the point,
 // door two: the live game's loader, which is the loading scene a player actually sees over and
 // over, and which v114 does not touch. The warm itself is measured on the unmodified page.
-const URL = process.env.GAME_URL || 'http://localhost:5173/index.html'
+const URL = gameUrl('index.html')
 const CHASE_URL = URL + (URL.includes('?') ? '&' : '?') + 'noFilmV114'
-const EXE = process.env.CHROME_PATH || '/opt/pw-browsers/chromium'
+const EXE = CHROME
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 
@@ -43,9 +44,16 @@ const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undef
 // on a local server: the parser reaches v94 around 90-230ms and every byte of the sheet has landed
 // before it does, so 700ms is a 3x margin over the ~180-225ms measured — it fails loudly if the
 // warm ever stops being a warm. A second scene has nothing left to do at all: MOUNT_MS.
-const COLD_MS = Number(process.env.COLD_MS || 700)
-const DOOR_MS = Number(process.env.DOOR_MS || 250)
-const MOUNT_MS = Number(process.env.MOUNT_MS || 150)
+/* v150 B: the budgets are the quiet-machine numbers, and on a quiet machine they are applied exactly. When the suite runs at
+ * --jobs 3-4 beside other work (1-minute load 15-45 on 4 cores) the same cold path takes several times as long because it
+ * is waiting for a core; the budget then stretches by the load per core (scripts/lib/load.mjs — 1 when load <= cores, and
+ * printed beside every budget). COLD_MS / DOOR_MS / MOUNT_MS pin a budget exactly; LOAD_SCALE=1 forces the strict ones. */
+import { loadScale } from './lib/load.mjs'
+const LS = loadScale()
+const COLD_MS = Number(process.env.COLD_MS || Math.round(700 * LS))
+const DOOR_MS = Number(process.env.DOOR_MS || Math.round(250 * LS))
+const MOUNT_MS = Number(process.env.MOUNT_MS || Math.round(150 * LS))
+console.log('load scale', LS, '→ budgets', { COLD_MS, DOOR_MS, MOUNT_MS })
 
 const canvasMoved = (sel) => {   // sample the drawn pixels, not the element's existence
   const cv = document.querySelector(sel); if (!cv || !cv.width) return null
@@ -102,10 +110,10 @@ let liveNote = ''
     const b0 = await page.evaluate(() => window.__V112_A.mounts[0].frames)
     await page.waitForTimeout(500)
     const b1 = await page.evaluate(() => window.__V112_A.mounts[0].frames)
-    grew = b1 - b0; if (grew > 15) break
+    grew = b1 - b0; if (grew > 15 / LS) break
     if (await page.evaluate(() => !document.getElementById('splash'))) break
   }
-  ok(grew > 15, 'the mount keeps drawing frames at rate', grew + ' frames in 0.5s')
+  ok(grew > 15 / LS, 'the mount keeps drawing frames at rate', grew + ' frames in 0.5s (> ' + (15 / LS).toFixed(1) + ' at load scale ' + LS + ')')
   const a1 = await A(page)
   ok(a1 && a1.cells >= 100, 'every cell the chase can draw is cut and recoloured once, up front', a1 && (a1.cells + ' cells, the run cycle in ' + a1.cellsMs + 'ms and the rest by ' + a1.cellsAllMs + 'ms'))
   console.log('     boot stall (the inline bundle compiling, not the chase):', a1.mounts[0].maxGapMs + 'ms at ' + a1.mounts[0].maxGapAt + 'ms')
@@ -169,7 +177,9 @@ let liveNote = ''
   let live = null, lp0 = null, lp1 = null
   const picture = () => { const el = document.querySelector('.rib-liveload-v94'); if (!el) return null; const v = el.querySelector('video')
     return { still: el.classList.contains('still'), playing: el.classList.contains('playing'), layout: el.classList.contains('film'), canvas: !!el.querySelector('canvas'), t: v ? v.currentTime : -1, sum: v ? Math.round(v.currentTime * 1000) : (el.classList.contains('still') ? 1 : 0) } }
-  for (let i = 0; i < 60; i++) {
+  // v150 B: wait for door two on game state for up to 60s, not 6 — the Phaser bundle compiles before it mounts, and at load
+  // 30+ that alone outlasted the old poll (the mount was never seen and every door-two assertion failed with it)
+  for (let i = 0, w0 = Date.now(); Date.now() - w0 < 60000; i++) {
     live = await page.evaluate(() => { const a = window.__V112_A; return a ? a.mounts.filter(m => m.tag === 'live')[0] || null : null })
     if (live && live.firstFrame != null) { lp0 = await page.evaluate(picture); break }
     await page.waitForTimeout(100)
