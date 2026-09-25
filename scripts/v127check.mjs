@@ -18,6 +18,8 @@
 //   so this still exercises the build-it-yourself path.
 import { chromium } from 'playwright'
 import { CHROME, GAME_URL } from './lib/env.mjs'
+import { loadScale } from './lib/load.mjs'
+const LS = loadScale()
 
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
@@ -73,7 +75,9 @@ async function reachLoader(q, before) {
   for (let a = 0; a < 2; a++) {
     const g = await intoGame(q, before)
     let seen = null
-    for (let i = 0; i < 60; i++) { const r = await g.page.evaluate(loader); if (r) seen = r; if (r && r.film) break; await g.page.waitForTimeout(100) }
+    // v150 B: for as long as the loader is up, up to 30s — not a fixed 6s: door two mounts after the Phaser bundle compiles, and
+    // at load 30+ the old window closed before it had (film=false chase=false on both baseline tries — nothing was measured)
+    for (let i = 0, w0 = Date.now(); Date.now() - w0 < 30000 * Math.min(3, LS); i++) { const r = await g.page.evaluate(loader); if (r) seen = r; if (r && r.film) break; if (seen && !r) break; await g.page.waitForTimeout(100) }
     // the .film class starts a .28s opacity transition: read it again once that has settled,
     // or the picture is reported at whatever fraction the fade happened to be on
     if (seen && seen.film) { await g.page.waitForTimeout(420); const r2 = await g.page.evaluate(loader); if (r2) seen = r2 }
@@ -93,7 +97,8 @@ if (A) {
   ok(A.seen.film && !A.seen.chase, 'door two still plays the FILM, not the chase', `film=${A.seen.film} chase=${A.seen.chase}`)
   ok(A.seen.own === true, 'and it built that element itself, because there was none to borrow', `own=${A.seen.own}`)
   ok(A.seen.shown === '1', 'the picture is actually on screen', `opacity=${A.seen.shown}`)
-  ok(A.seen.filmMs != null && A.seen.filmMs < 2600, 'it gets the picture up inside its audition', `${A.seen.filmMs}ms`)
+  // v150 B: LIVE_FILM_OWN_MS (2.6s) is the audition on a quiet machine; stretched by the load per core under contention (lib/load.mjs)
+  ok(A.seen.filmMs != null && A.seen.filmMs < 2600 * LS, 'it gets the picture up inside its audition', `${A.seen.filmMs}ms (< ${Math.round(2600 * LS)}ms at load scale ${LS})`)
   ok(A.seen.t >= A.seen.seam - .05, 'and starts at v116’s seam, like the borrowed one', `${A.seen.t?.toFixed(2)}s (seam ${A.seen.seam}s)`)
   ok(A.seen.loop === false, 'still not natively looping — v116 rewinds to the seam by hand', `loop=${A.seen.loop}`)
   ok(/rib_film_v116\.(mp4|webm)/.test(A.seen.src || ''), 'playing the same file door one played', A.seen.src)

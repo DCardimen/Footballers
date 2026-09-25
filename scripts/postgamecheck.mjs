@@ -8,6 +8,8 @@
 // node scripts/postgamecheck.mjs   (needs `npm run dev` on :5173)
 import { chromium } from 'playwright'
 import { CHROME, GAME_URL } from './lib/env.mjs'
+import { loadScale } from './lib/load.mjs'
+const LS = loadScale()
 
 const fails = []
 const ok = (c, label, detail) => { console.log(`${c ? 'ok  ' : 'FAIL'} ${label}${detail ? '  ' + detail : ''}`); if (!c) fails.push(label) }
@@ -31,7 +33,15 @@ async function click(t) {
   }, { t, visSrc: vis })
   await page.waitForTimeout(650)
 }
-const tap = async (text, ms = 4000) => { try { await page.locator('button', { hasText: text }).first().click({ timeout: ms }); return true } catch (e) { return false } }
+/* v150 B: a Playwright click waits for the button to be stable and to receive the pointer. Since v146 E the action slot is
+ * a FIXED dock under the ticker and the bottom nav, and on a loaded box the shell re-lays it out (and the coach's
+ * spotlight can sit over it) inside the 4s budget, so the week-1 tap timed out on a button that was plainly there
+ * ("[tap PLAY WEEK 1 LIVE] -> false" with it in the dump) and the whole check failed at the first step. Fall back to the
+ * button's own click() — the same handler a tap runs — when the pointer route times out. */
+const tap = async (text, ms = 4000) => {
+  try { await page.locator('button', { hasText: text }).first().click({ timeout: ms }); return true } catch (e) {}
+  return page.evaluate(t => { const b = [...document.querySelectorAll('button')].find(x => (x.innerText || '').includes(t) && x.getBoundingClientRect().width > 0 && !x.disabled); if (b) { b.click(); return true } return false }, text).catch(() => false)
+}
 const clearWheel = async () => { for (let i = 0; i < 50; i++) { const d = await page.evaluate(() => { const g = document.getElementById('gv42go'); if (g && g.style.display !== 'none') { g.click(); return true } if (window.continuePregameV1513 && document.getElementById('pregameV1513')) { window.continuePregameV1513(); return false } return !document.getElementById('growthV42') }); if (d) break; await page.waitForTimeout(300) } }
 
 for (const s of ['START NEW CAREER', 'ARCH', 'QB Quarterback', 'Lock In Personality', 'PLAY 8-GAME SEASON']) await click(s)
@@ -53,7 +63,9 @@ async function playLiveWeek(n) {
   // timed tap races whichever is slowest. Keep clearing whatever is in front of us
   // until the post-game card shows up.
   // a live game can run long even with SKIP, so give it a generous budget
-  for (let i = 0; i < 200; i++) {
+  // v150 B: a budget of WALL time stretched by the load per core (scripts/lib/load.mjs), not 200 polls — at load 30+ the
+  // pregame, the loader and the first snaps outlasted the polls (it passes alone, failed at --jobs 2-4)
+  for (let i = 0, w0 = Date.now(); Date.now() - w0 < 180000 * Math.min(3, LS); i++) {
     if (await page.evaluate(() => !!document.getElementById('pgOverlayV13'))) return true
     const stage = await page.evaluate(() => {
       if (document.getElementById('growthV42')) {

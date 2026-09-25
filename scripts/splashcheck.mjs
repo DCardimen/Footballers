@@ -20,6 +20,8 @@
 //   node scripts/splashcheck.mjs
 import { chromium } from 'playwright'
 import { CHROME, GAME_URL } from './lib/env.mjs'
+import { loadScale } from './lib/load.mjs'
+const LS = loadScale()
 const browser = await chromium.launch({ executablePath: CHROME })
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
@@ -82,7 +84,8 @@ const canvasStats = () => {
   // the door: the app was ready ~1s in; the splash must still be up until the minimum, then leave
   let gone = false, goneAt = 0
   let tdShot = false
-  for (let i = 0; i < 120; i++) { const r = await page.evaluate(() => { const S = window.__SPLASH_V94.state; if (S && S.confetti && S.confetti.length) window.__confettiSeenV94 = (window.__confettiSeenV94 || 0) + 1
+  // v150 B: poll until the budget (and a margin) of WALL time has gone, not a fixed 120 polls
+  for (let i = 0, w0 = Date.now(); Date.now() - w0 < 14000 * LS + 4000; i++) { const r = await page.evaluate(() => { const S = window.__SPLASH_V94.state; if (S && S.confetti && S.confetti.length) window.__confettiSeenV94 = (window.__confettiSeenV94 || 0) + 1
       if (S && S.crossed) { const past = S.run.x - S.exitX; window.__pastGoalV94 = Math.round(Math.max(window.__pastGoalV94 || 0, past)); if (past > 60 && S.run.st === 'run') window.__ranThroughV94 = true }
       return { gone: !document.getElementById('splash'), crossed: !!(S && S.crossed) } }); gone = r.gone
     if (r.crossed && !tdShot) { tdShot = true; await page.screenshot({ path: '_splash_td.png' }) }
@@ -96,7 +99,9 @@ const canvasStats = () => {
   ok(final.castSeen >= 1, 'defenders came in from the angles', final.castSeen + ' entered')
   ok(final.ranThrough, 'he ran through the shot after crossing, no celebration', 'x past the goal line: ' + final.pastGoal)
   ok(goneAt >= 2600, 'the splash held its minimum', goneAt + 'ms')
-  ok(goneAt < 14000, 'the splash did not overstay', goneAt + 'ms')
+  // v150 B: 14s on a quiet machine; stretched by the load per core under contention (scripts/lib/load.mjs), since the
+  // splash leaves on app-ready AND the chase's beat, both of which wait for a core at load 30+
+  ok(goneAt < 14000 * LS, 'the splash did not overstay', goneAt + 'ms (< ' + Math.round(14000 * LS) + 'ms at load scale ' + LS + ')')
   ok(final.menu, 'the app is rendered behind it')
   console.log('page errors (normal):', errs.length ? errs.slice(0, 6).join('\n') : 'NONE'); if (errs.length) fail++
   await page.context().close()
@@ -143,7 +148,8 @@ const canvasStats = () => {
   await dismiss()
   // the pregame wheel and a story roll take their own time: wait for the match button, clearing any roll's CONTINUE on the way
   let clicked = null
-  for (let i = 0; i < 60 && !clicked; i++) {
+  // v150 B: these three waits are WALL budgets stretched by the load per core (scripts/lib/load.mjs), not fixed poll counts
+  for (let i = 0, w0 = Date.now(); Date.now() - w0 < 18000 * LS && !clicked; i++) {
     clicked = await page.evaluate((visSrc) => { const vis = eval(visSrc); const els = [...document.querySelectorAll('button,[onclick],a')].filter(vis)
       const m = els.find(e => /Continue to Match/i.test(e.textContent || '')); if (m) { m.click(); return 'match' }
       const c = els.find(e => /^continue$/i.test((e.textContent || '').trim())); if (c) c.click(); return null }, vis)
@@ -152,14 +158,14 @@ const canvasStats = () => {
   console.log('>> Continue to Match ->', clicked)
   let seen = null
   // v132: door two is the sting — the still of the landed wordmark, the film over it when there is one — and never the chase
-  for (let i = 0; i < 40; i++) { seen = await page.evaluate(() => { const el = document.querySelector('.rib-liveload-v94'); if (!el) return null; const cv = el.querySelector('canvas'), im = el.querySelector('.rib-liveload-still-v132'); return { chase: el.classList.contains('chase') || !!cv, film: el.classList.contains('film'), still: el.classList.contains('still'), inWrap: !!el.closest('.field-wrap'), cap: el.querySelector('.rib-liveload-cap-v94 b').textContent, w: im ? im.getBoundingClientRect().width : 0, shows: window.__LIVELOAD_V94.shows } }); if (seen && seen.still) break; await page.waitForTimeout(100) }
+  for (let i = 0, w0 = Date.now(); Date.now() - w0 < 6000 * LS; i++) { seen = await page.evaluate(() => { const el = document.querySelector('.rib-liveload-v94'); if (!el) return null; const cv = el.querySelector('canvas'), im = el.querySelector('.rib-liveload-still-v132'); return { chase: el.classList.contains('chase') || !!cv, film: el.classList.contains('film'), still: el.classList.contains('still'), inWrap: !!el.closest('.field-wrap'), cap: el.querySelector('.rib-liveload-cap-v94 b').textContent, w: im ? im.getBoundingClientRect().width : 0, shows: window.__LIVELOAD_V94.shows } }); if (seen && seen.still) break; await page.waitForTimeout(100) }
   ok(!!seen, 'the live loader mounts over the field', JSON.stringify(seen))
   ok(seen && seen.inWrap && seen.film && seen.still && !seen.chase && seen.w > 0, 'it shows the sting\'s still inside .field-wrap, and no chase', seen && (seen.w + 'px'))
   ok(seen && /vs/i.test(seen.cap), 'the caption names the matchup', seen && seen.cap)
   await dismiss(); await page.waitForTimeout(200)
   try { await page.locator('.rib-liveload-v94').screenshot({ path: '_splash_live.png' }) } catch (e) { await page.screenshot({ path: '_splash_live.png' }) }
   let gone = false, sceneUp = false; const t1 = Date.now()
-  for (let i = 0; i < 120; i++) { const r = await page.evaluate(() => ({ gone: !document.querySelector('.rib-liveload-v94'), scene: !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length) })); sceneUp = sceneUp || r.scene; if (r.gone) { gone = true; break }; await page.waitForTimeout(100) }
+  for (let i = 0, w0 = Date.now(); Date.now() - w0 < 14000 * LS; i++) { const r = await page.evaluate(() => ({ gone: !document.querySelector('.rib-liveload-v94'), scene: !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length) })); sceneUp = sceneUp || r.scene; if (r.gone) { gone = true; break }; await page.waitForTimeout(100) }
   ok(gone, 'the loader leaves once the scene is up', (Date.now() - t1) + 'ms')
   ok(sceneUp, 'the broadcast scene came up under it')
   const again = await page.evaluate(() => window.__LIVELOAD_V94.shows)

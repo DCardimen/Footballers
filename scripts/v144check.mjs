@@ -114,43 +114,63 @@ const C = await page.evaluate(async () => {
    * the gap is about a second, and a snap landing inside a long window moves all twenty-two men
    * to their new alignment at once, which is not a shuffle and not this test's business. */
   const STEP = 90
-  let tA = 0, tB = 0, moved = 0, n = 0, fastest = 0, spans = 0, everIdle = false
+  let tA = 0, tB = 0, moved = 0, n = 0, fastest = 0, spans = 0, everIdle = false, fastestWall = 0, maxGms = 0
   for (let gap = 0; gap < 8 && spans < 4; gap++) {
-    for (let i = 0; i < 140 && sc.play; i++) await wait(120)     // wait this play out
+    /* v150 B: wait the play out on GAME state, with a budget that is not a guess about the machine: the watchdog's own
+     * budget for this play is ~25s of wall time at load 40 (B above prints it), and the old 17s cap gave up mid-play,
+     * never saw a gap, and failed all four C assertions ("the between-plays tick never fires") without measuring one. */
+    for (let i = 0, w0 = Date.now(); sc.play && Date.now() - w0 < 90000; i++) await wait(120)     // wait this play out
     if (sc.play) break
     everIdle = true
-    let prev = snap(); if (!tA) tA = (window.__V144 || {}).idleTicks || 0
-    for (let i = 0; i < 12 && spans < 4; i++) {
+    /* v150 B: speed is measured against the shuffle's OWN clock (`_idleClockV144`, the sum of the deltas idleBetweenV144
+     * stepped with), not the 90ms of wall time between two samples. Under parallel load the canvas renderer drops to a
+     * few fps and one frame can carry a 200ms delta: that step lands inside a 90ms wall window and reads as 2-3x the walk
+     * though nobody moved faster than idleShuffleSpeed of GAME time (it failed only at --jobs 3-4, 42/0 alone). A window
+     * in which the clock did not move at all (no frame ran) is not a sample. */
+    const clk = () => sc._idleClockV144 || 0
+    let prev = snap(), c0 = clk(); if (!tA) tA = (window.__V144 || {}).idleTicks || 0
+    for (let i = 0; i < 24 && spans < 4; i++) {
       await wait(STEP)
       if (sc.play) break                                          // the next snap has been called
-      const now = snap(); spans++
+      const now = snap(), c1 = clk(), gms = c1 - c0
       tB = (window.__V144 || {}).idleTicks || 0
+      if (gms < 1) { prev = now; c0 = c1; continue }
+      spans++; maxGms = Math.max(maxGms, gms)
       for (const [m, p0] of prev) {
         const p1 = now.get(m); if (!p1) continue
         n++
         const d = Math.hypot(p1[0] - p0[0], p1[1] - p0[1])
         if (d > 0.3) moved++
-        fastest = Math.max(fastest, d / (STEP / 1000))            // world units a second
+        fastest = Math.max(fastest, d / (gms / 1000))             // world units a second of the scene's time
+        fastestWall = Math.max(fastestWall, d / (STEP / 1000))    // the old reading, for the record
       }
-      prev = now
+      prev = now; c0 = c1
     }
   }
-  return { idle: everIdle, spans, tA, tB, moved, n, fastest: +fastest.toFixed(1) }
+  return { idle: everIdle, spans, tA, tB, moved, n, fastest: +fastest.toFixed(1), fastestWall: +fastestWall.toFixed(1), maxGms: Math.round(maxGms) }
 })
 const TU_IDLE = await page.evaluate(() => (window.RIB_TUNE && window.RIB_TUNE.idleShuffleSpeed) || 26)
 ok(C.idle, 'C: the play ends and the scene keeps running')
 ok(C.tB > C.tA, 'C: the between-plays tick keeps firing with no play in hand', `${C.tA} -> ${C.tB}`)
 ok(C.moved >= 8, 'C: and men actually shuffle in the gap instead of standing to attention', `${C.moved} of ${C.n} samples moved over ${C.spans} windows`)
-ok(C.spans >= 3 && C.fastest < TU_IDLE * 2, 'C: a shuffle, not a sprint — nobody breaks into a run between snaps', `fastest ${C.fastest} world units/s against a ${TU_IDLE}/s walk, over ${C.spans} windows`)
+ok(C.spans >= 3 && C.fastest < TU_IDLE * 2, 'C: a shuffle, not a sprint — nobody breaks into a run between snaps', `fastest ${C.fastest} world units/s of scene time against a ${TU_IDLE}/s walk, over ${C.spans} windows (per 90ms of wall: ${C.fastestWall}; longest window ${C.maxGms}ms of scene time)`)
 
 // ====================== D. THE UPRIGHTS STAND IN A PAD ======================
+/* v150 B: `__V144.pads` is a rolling log (postPadV144 empties it past 8 entries, and the depth-6 kick overlay adds ONE
+ * pad at a time), so whatever it held at a random moment could be a single entry just after the roll-over — the "1 pads"
+ * flake. Clear it and draw the posts once ourselves: drawGoalpostsV87 draws BOTH ends every call, so exactly what one
+ * draw puts down is what gets measured. */
 const D = await page.evaluate(() => {
-  const P = (window.__V144 || {}).pads || [], T = window.RIB_TUNE
+  const H = (window.__V144 = window.__V144 || {}), T = window.RIB_TUNE = window.RIB_TUNE || {}
+  const sc = window.__gridironScene
+  H.pads = []; try { sc.drawGoalpostsV87 && sc.drawGoalpostsV87() } catch (e) {}
+  const P = (H.pads || []).slice()
   const keep = T.postPadV144
   window.RIB_TUNE.postPadV144 = 0
-  const sc = window.__gridironScene; try { sc.drawGoalpostsV87 && sc.drawGoalpostsV87() } catch (e) {}
-  const after = ((window.__V144 || {}).pads || []).length
+  H.pads = []; try { sc.drawGoalpostsV87 && sc.drawGoalpostsV87() } catch (e) {}
+  const after = (H.pads || []).length + P.length
   window.RIB_TUNE.postPadV144 = keep
+  try { sc.drawGoalpostsV87 && sc.drawGoalpostsV87() } catch (e) {}   // and put them back on screen
   return { pads: P, n: P.length, offAdded: after - P.length }
 })
 ok(D.n >= 2, 'D: both goalposts are drawn standing in a pad', `${D.n} pads`)

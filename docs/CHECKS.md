@@ -51,11 +51,11 @@ details:
 
 ```
 check                    status    time  result
-v90check                 KNOWN      21s  10 ok / 1 fail / exit 1
+vaultcheck               KNOWN    4m05s  94 ok / 1 fail / exit 1
 v147Dcheck               PASS     3m12s  41 ok / 0 fail
 ...
-KNOWN v90check
-     · the OVR ring fills ovr/250 of the circle  ovr=24 arc=0.615  — the ring fills to softMaxOvr since v134
+KNOWN vaultcheck
+     · a RELOAD mid-pour loses nothing and buys nothing  [5000,4992]  — GAME: hide/blur commit a funded reservation
 ```
 
 | status | meaning |
@@ -149,8 +149,8 @@ suites; for a sweeping commit (a rename across the file) it picks most of them, 
 
 ```json
 { "failures": [
-  { "check": "v90check", "pattern": "the OVR ring fills ovr/250 of the circle",
-    "note": "why it fails on main", "since": "2026-09-24", "flaky": false }
+  { "check": "vaultcheck", "pattern": "^a RELOAD mid-pour loses nothing and buys nothing",
+    "note": "why it fails, GAME or CHECK, and where the fix goes", "since": "2026-09-24", "flaky": false }
 ] }
 ```
 
@@ -164,63 +164,106 @@ entry by hand or `node scripts/run-checks.mjs <check> --record-known` and replac
 with the reason. Never add an entry for something your own change broke. `--report <dir>` re-reads a
 previous run so you can iterate on the file without re-running anything.
 
-### The baseline on main (2026-09-24, `ca9db0a`)
+### The baseline now (v150 B — THE BASELINE GOES TO ZERO)
 
-Established by the full suite at `--jobs 4` (the box at load 15–33 with other agents' runs), then every failing
-check re-run twice at `--jobs 3`. **Always** = failed on every run that got far enough to test it;
-**sometimes** = the `flaky: true` entries.
+The 2026-09-24 baseline on `ca9db0a` had 46 entries. v150 B asked of each one: is the GAME wrong, or the CHECK? Most
+were checks — stale since a later version changed the thing they measure on purpose, sampling one seed of a noisy
+statistic, or waiting on the wall clock on a box shared by four jobs. Those were fixed in the check, each change carrying
+a comment that cites the version it follows. One was a real stat-credit hole, closed in the engine. What is left in
+`known-failures.json` is the game being wrong somewhere this pass did not own, or an assertion that is wall-clock by nature
+(a frame rate, a watchdog that the Phaser compile outlasts on a starved box):
 
-| check | assertion (pattern) | | why |
+| check | assertion (pattern) | | why it is still here |
 |---|---|---|---|
-| `availabilitycheck` | worn or injured is -10% stats | always | stale: v120 made fatigue a slope (fatigueMulV120) — worn now reads 0.85, not the flat 0.90 this asserts |
-| `availabilitycheck` | in between is neutral | always | stale: v120's slope puts a mid-fatigue man at 0.967, not 1.0 |
-| `badgecheck` | (live field is up\|the wall mounts inside .field-wrap\|watched a run of plays\|a badge was on screen during the run) | sometimes | its click-through (PLAN -> null) often never reaches the live field since the v146 D plan board; 3 of 4 tries failed, one passed |
-| `bobcheck` | (the crystal floats above the head\|it turns — the silhouette changes\|the live field is up\|it draws over the players\|a gassed player gets a different crystal) | sometimes | +5.5px above the sprite root / 0.55px width swing on the run that reached the field; the other runs never reached it (a crash in the probe) |
-| `bobcheck` | exit 1: page.evaluate | sometimes | the probe throws when the live field never comes up |
-| `bodycheck` | an ordinary body reads neutral | always | reads -1.93 (NET NEGATIVE) on every run |
-| `crowdcheck` | and the scan now covers the curved north end too | always | the scan count (182 / 120 / 120) is under the check's floor on every run |
-| `crowdcheck` | (crowdCheer raises section heat\|cheer layer alpha follows heat\|heat decays back down after the roar) | sometimes | peak 0 — the roar never registered on 2 of 4 tries (timing) |
-| `declarecheck` | the season-result declare card states the one-shot stakes | always | copy drift on the declare card |
-| `declarecheck` | the epitaph fits inside v75's scroll budget on a phone | always | 2.15 screens, every run |
-| `emblemcheck` | pregame: 2 emblem chips, 44px | sometimes | the chips measure 0x0 (w:0,h:0) — 3 of 4 tries |
-| `endzonecheck` | the painted far goal line lands where the projection puts the sim far goal line | always | 1.09 yards apart on every run |
-| `equaltalentcheck` | (all rosters are exact mirrors\|featured player matches team talent) | always | both runs; it loads index.html's blocks by index ([0,1,2,3,4,7]) — recheck after the index.html split lands |
-| `gatecheck` | the weekly plan wheel inside the pregame wizard is NOT gated | always | stale since v146 D: page 5 is the plan BOARD, there is no wheel to find (wheel:false) |
-| `growthcheck` | exit 1 | always | magnitude.min is 2 (< 3) in the v42 Monte Carlo; the script has no assertion lines, only exitCode. (Before v149 B it did not even launch: chromium.launch() had no executablePath.) |
-| `heroflashcheck` | \d+ failure(s) counted with no assertion line | always | the script adds every failed request to `fail`; 27–32 menu/coach/vault images come back requestfailed (aborted) on every run |
-| `heroflashcheck` | (the hero canvas loop is running\|no spawn lands on the player) | sometimes | 55 frames / mask alpha 19 — one run each |
-| `menufxcheck` | v89's contract holds — eight tiles, seven links | always | 9 tiles since the coach tile — stale count |
-| `menufxcheck` | the OVR spark sits at the head of the arc | always | arc 0 -> 165deg / 0.014 -> 180deg / 0.35 -> 148deg: every run (v147 B ringArcV147B) |
-| `menufxcheck` | the ember loop is running | sometimes | a frame count (3 -> 7, 5 -> 6): load-sensitive |
-| `movecheck` | all three moves are in the game | always | [41.3, 0, 58.7] / [45.2, 0, 54.8] — the middle move never fires |
-| `movecheck` | and he hangs there longer for it | always | 360ms -> 440ms, every run |
-| `movementcheck` | movementcheck failed: .*from the v37 calibration | always | completion% -16, air YPA -14, YAC/completion +63 against the v37 calibration (pure Node, deterministic) |
-| `postgamecheck` | a live game reaches the post-game card | always | its click-through never reaches the card (both runs) |
-| `rankcheck` | the leaders screen still states a rank and a population | always | every run |
-| `readcheck` | play action pays out at least even with a straight dropback | always | 9.35 vs 10.56 YPA (pure Node, seeded — identical every run) |
-| `sidelinecheck` | the far end of the sideline sits in dimmer air than the near end | sometimes | 570 < 646 failed, 578 < 644 passed — a knife edge |
-| `sidelinecheck` | (and the reaction dies back down\|rain breaks out the ponchos) | sometimes | timing; one run each |
-| `starimpactcheck` | exit 1: Error: Could not install the star-gap benchmark hook | always | the hook it wraps is gone; the check never starts |
-| `stridecheck` | college a lot more than high school | always | 0.114 -> 0.105 (pure Node, identical every run) |
-| `v101check` | (the first play was choreographed while the loading chase was still running\|and the door opened onto that already-built play) | always | built 0 / misses 1 on every run — v132 took the chase out of door two |
-| `v104check` | (every pose that can show a number carries a band read off the art\|and it stays inside a sane on-screen size band) | always | the catchseq3 poses carry no band; size band 2.03..11.20px (the one run that reached the field) |
-| `v104check` | (the broadcast is live with markers on the field\|every registered player texture was scanned\|and it is the SAME numeral pose to pose\|and the old fixed offset really was in the pants\|numbers were drawn front and back\|the label is rasterized ONCE) | sometimes | the cascade when its click-through does not reach the live field |
-| `v108check` | (and a toss played toss_up0..4\|a handoff played handoff_up0..4\|one football through every drawn frame) | sometimes | sample-size: 0/1 tosses in a short watch; 3 of 4 tries |
-| `v112Acheck` | (every byte of the sheet had landed\|COLD: the first animated frame\|the splash door paints within the budget\|the mount keeps drawing frames\|a later scene is a synchronous start\|it had a picture up with nothing left to load\|and that picture is the film loader) | sometimes | millisecond budgets (700ms / 250ms / 150ms) on a box at load 15–30; unverified on an idle one |
-| `v112Ccheck` | with no penalty condMultV54 is bit-identical to its pre-v112 constants | always | stale: v120's fatigue slope changed those constants (0.967 / 0.833 / 1.05) |
-| `v127check` | (door two still plays the FILM\|and it built that element itself\|it gets the picture up inside its audition\|and starts at v116.s seam) | sometimes | film=false chase=false on both tries of the baseline run; unverified on an idle box |
-| `v110check` | and the credit follows the man who made the play, never the man who was assigned | sometimes | `1 wrong` in 2 of 3 runs (4 followed · 1 wrong; 1 followed · 1 wrong) — a rare interception/break-up credited to the assigned man. Stat-credit truth: worth a real look, not just a baseline entry |
-| `v144check` | D: (both goalposts are drawn standing in a pad\|and there is one at each end of the field) | sometimes | `1 pads` on 1 of 3 runs — the far post was off the frame when it looked |
-| `v141check` | DFL RB 250 vs 350 (speed\|grit) >= 3 apart under the carrier ceiling | always | 64 -> 66.7 / 64.5 -> 67.4: the v141 RB knee (simKneeTopPosV141) squeezes them under 3 |
-| `v90check` | the OVR ring fills ovr/250 of the circle | always | the ring fills to softMaxOvr since v134, not /250 |
-| `v92check` | the whistle freezes the feed into a replay still | sometimes | 2 of 3 tries |
-| `v93check` | TOUCHDOWN at the far end and the opponent's name at the near are both lettered | always | far=0 — the far end zone's lettering is not found |
-| `v93check` | exit 1: page.evaluate: TypeError: Cannot read properties of undefined (reading 'teamNames') | sometimes | the probe throws when the live field is not up yet |
-| `vaultcheck` | a RELOAD mid-pour loses nothing and buys nothing | always | [5000, 4992] — 8 PP debited across the reload, every run |
-| `vaultcheck` | (the vault holds a usable frame rate under a 16x pour\|and then it goes to sleep, so a settled hoard costs nothing\|RESTOCK puts the shed coins back in their columns) | sometimes | fps / settle timing on a loaded box; one run each |
+| `declarecheck` ×2 | — | fixed | GAME, fixed by the v150 A worker (the declare warning, the career-end tabs); removed on the merge |
+| `vaultcheck` | frame rate under a 16x pour / goes to sleep / RESTOCK | sometimes | fps and settle timers in wall time |
+| `v104check` | every pose that can show a number carries a band read off the art | always | GAME (renderer): v109 B's `catchseq` cells are numbered (`detailedAction` misses `catchseq`) but never banded |
+| `heroflashcheck` | no spawn lands on the player | sometimes | one spawn on the kit mask's feathered edge (alpha 19 > 8) in the baseline; not reproduced since |
+| `v112Acheck` | every byte of the sheet had landed | sometimes | a network-vs-first-script race, not a budget |
+| `v112Acheck` | the loader bar keeps sweeping while the main thread is jammed | sometimes | distinct COMPOSITOR frames in 1.5s; at load 30 the compositor itself is starved |
+| `v112Acheck`, `v127check`, `splashcheck` | door two's assertions (the second scene, the film, the still, the caption) | sometimes | door two lives under a 9s watchdog from its own mount; at load 30+ the Phaser compile holds the main thread past it (probed: blocked ~7s, closed at 9s, never READY) and the door is gone before it can be read |
+| `v108check` | the throw / exchange / ball-frame assertions | sometimes | a 5-minute watch that must see a throw each way, a handoff and a toss; at load 30+ the field ran ONE play in it |
+| `v115check` | it is the FILM / the still under it | sometimes | door two again (above) |
+| `v103check` | and BOTH of them travel | sometimes | a knife edge (187/400, 191/400 against > 200) that was already load-listed at the baseline; needs a decision on the intended share, not a looser number |
+| `v112Bcheck` | the stars' floor / the near rows / the end line / the smear | always | passes at the baseline commit; v148 (after it) replaced the row cap v112 B measures against — re-anchor on v148's geometry (v148check passes 99/99) |
+| `v147Dcheck` | a mode's measure at 4× | sometimes | live camera runs in wall time; CLAUDE.md: unpaired live runs differ 2× — needs paired replays |
+| `coachcheck` | a typed line / a spotlight / the stop order | sometimes | a 30-minute walk against the coach's timers; a different line trips each try under load (NEXT's spotlight `inside:false` recurs — look on a quiet box) |
 
-**Load-sensitive** (`loadSensitive: true` in the manifest — failed at load ~25 during the baseline, passed on a quieter
-rerun, so they are NOT in the baseline and a failure prints a hint to rerun alone): `badgecheck`, `bobcheck`, `coachcheck`, `crowdcheck`, `emblemcheck`, `heroflashcheck`, `kitsidecheck`, `menufxcheck`, `sidelinecheck`, `skillartcheck`, `splashcheck`, `v103check`, `v104check`, `v107check`, `v108check`, `v109Acheck`, `v109C1check`, `v111Acheck`, `v112Acheck`, `v112Bcheck`, `v112Echeck`, `v114check`, `v115check`, `v127check`, `v136check`, `v147Acheck`, `v92check`, `v93check`, `v99check`, `vaultcheck`.
+#### What happened to the rest
+
+| check | verdict | fix |
+|---|---|---|
+| `availabilitycheck` ×2 | CHECK, stale since v120 | asserts v120's fatigue slope (−10% at 70, −15% at 85, neutral to 40, hurt ≥ −10%) and that `condMultV54` IS `fatigueMulV120` |
+| `badgecheck`, `bobcheck` (live field), `v104check` (cascade), `v93check` (`teamNames` throw), `v108check`, `v92check` | CHECK, wall-clock nav | `scripts/lib/live.mjs` `waitLive()`: wait for the field on game state for up to 90s, finishing a pregame wizard left standing; v93 fails once, cleanly, if the field never comes |
+| `bobcheck` (lift / turn) | CHECK, since v144 A | measured in the marker's own units (backs out the age × depth scale) over one spin of the marker's clock |
+| `bodycheck` | CHECK, since v120 | "ordinary" is fatigue 35 (inside v120's flat band); 50 must sit between neutral and worn |
+| `crowdcheck` north end | CHECK | floor 200 → 60: the count is camera geometry (120–182 every run); the claim is that the end is scanned |
+| `crowdcheck` roar | CHECK, wall clock | waits on the crowd's own clock `C.t` |
+| `emblemcheck` | CHECK, since v112 D | walks the wizard to the scout page before measuring the chips |
+| `endzonecheck` | CHECK, resolution | tolerance max(0.6 yd, 1.5 canvas px): at the far goal line a yard is 1.12px and the 1.09 yd was one row — the stripe |
+| `equaltalentcheck` ×2 | CHECK, since v120 | the benchmark player is a trusted starter (`coachTrust: 100`) — at 50 a backup took ~35% of his snaps and broke the mirror |
+| `gatecheck` | CHECK, since v146 D | page 5 is the plan BOARD by default; asserts the board (or, with `WHEEL=1`, the v135 wheel) is ungated |
+| `growthcheck` | CHECK | the neutral band is `max(2, amt × .45)` by design; floors per band; the script now prints assertions |
+| `heroflashcheck` (requests / loop) | CHECK | `net::ERR_ABORTED` from the page's own navigation is not a broken asset; "running" = frames advancing |
+| `menufxcheck` ×3 | CHECK | nine tiles (v139 PRESTIGE); the spark vs `ringArcV147B`'s head from the inline target, not the mid-transition computed value; the ember loop "advances" |
+| `movecheck` ×2 | CHECK | the side step is the QUICK back's and the juke the AGILE one's by design (`stepsV139`), so "all three" is across both; the hang dial is exactly 80ms |
+| `movementcheck` | CHECK, stale reference | the v37 numbers were never met in the repo's history (PR #102 already read 56.0% / 4.02 / 6.62); re-anchored on the sandbox's own v150 reading, same ±12% |
+| `postgamecheck` | CHECK | the week tap falls back to the button's own click when the pointer route times out (the fixed dock under load) |
+| `rankcheck` | CHECK | the rank prints through `fmtInt` ("#1,234 of 48,000"); the regex reads the commas |
+| `readcheck` | CHECK, one seed | play action vs dropback on four seeded streams (1,280 attempts a side): 9.54 vs 9.28 |
+| `sidelinecheck` ×2 | CHECK | far/near by the band's own screen thirds, not fixed pixel rows; the decay waits on scene time; rain is compared with a CLEAR base |
+| `starimpactcheck` | CHECK | loads `src/07-career-app.js` (the rosters live there since v141); the star is a trusted starter |
+| `stridecheck` | CHECK, sample size | 400 throws a level (seeds 7/11/12/13 all ladder .08 → .15 → .27) |
+| `v101check` | CHECK (load) | door two's prebuild is asserted when the door had the chance; closed by its 9s watchdog (read off the door's own `t0`) with the main thread held, it prints SKIP with the evidence |
+| `vaultcheck` reload | CHECK, timing | the reload is taken inside stage 0 (held 1 of gmEye's 8 PP) and the precondition is asserted: an 800ms hold could fund the 8-PP node, and a funded reservation commits on its own — then the reload had nothing left to lose |
+| `v104check` size band | CHECK, since v144 A | the age factor is backed out of the number's pixel height |
+| `v110check` | CHECK (+ an engine hole) | see v110 below |
+| `v112Acheck` budgets, `v127check`, `splashcheck`, `coachcheck` | CHECK, wall clock | budgets × `scripts/lib/load.mjs` `loadScale()` (1-minute load per core, exactly 1 on a quiet box, printed) and waits on game state |
+| `v112Ccheck` | CHECK, since v120 | `condMultV54` must be bit-identical to `fatigueMulV120` with no penalty |
+| `v136check` | CHECK | waits for the coach's line to finish typing |
+| `v141check` | CHECK, one game | the 250-vs-350 band takes four games a cell (79/79) |
+| `v144check` C / D | CHECK | the shuffle's speed in SCENE time (`_idleClockV144`), waiting the play out on game state for up to 90s; the pads measured from one fresh draw |
+| `v90check` | CHECK, since v134 | the ring fills to `softMaxOvr`, as `ringArcV147B` says |
+| `v92check` | CHECK | waits for the replay still to be captured; one straddling sample of the feed camera is the race, not a leak |
+| `v93check` lettering | CHECK, since v97 | the far end is TOUCHDOWN in the USER's colours home or away; counted against that secondary |
+
+**v110 — the credit.** The `1 wrong` in 2 of 3 runs was the check: it compared the booked credit with `FS.pass`'s 6th
+argument (the engine's pre-rolled cover pick) and called a match wrong, but the sim's coverage man is `coverA`, chosen by
+alignment, and when the nearest man to the ball happened to BE the engine's pick the credit was right (4 of 4 such cases
+over 20 seeds × 10 games; 429 of 429 picks and break-ups credited to the agent the sim says made them, 0 wrong). The engine
+did have a hole in the same line — `ballMan.player || ballPlayerV110` fell through to `coverA.player` and then to the
+engine's pick if the man who played the ball had no roster player — which never fired with full rosters but is exactly what
+the stat-credit rule forbids; it is closed (`ballByV110`, `X.coverBy`, `__V110.lastBall`). A seeded A/B of FieldSim pass
+plays, HEAD vs the change, is byte-identical over 12 seeds × 400 plays (no draw is spent, nothing moves), and
+`scoreneutralcheck` with the now-deterministic SEED plays byte-identical 200-game rows before and after on seeds 11, 22, 33.
+
+**SEED is a seed (`scoreneutralcheck`).** Seeding `Math.random` once at page load did not make a run reproducible: the
+menus, the coach, the film and every polling interval draw from the same stream on wall-clock timers between the load and
+the games, so the career the check created (his rolled attributes, persona, traits, origin, schedule, `seasonSeed` — two
+walks of `SEED=11` made two different men) and the stream's position at the first snap depended on the load; two runs of
+one seed on one build gave 22.37 and 22.98 points. Now a seeded run plays a SNAPSHOT of the career — the whole game state
+as JSON, walked once per seed and kept in `SEED_STATE` (default `<tmpdir>/gridiron-scoreneutral-seed-<SEED>.json`;
+`SEED_FRESH=1` re-walks it) — loaded with `__GRIDIRON_AUDIT__.setState` into a page that booted to the empty menu (the
+walking run wipes its save and reloads, so it starts exactly like a loading run), and the games are played from
+`reseed(SEED ^ 0x5eed5eed)` inside the one synchronous evaluate that plays them, where no timer can run. Proof (30 games a
+run, separate processes, the box at load ~20): three runs of `SEED=11` — the walking one and two loading ones — are
+byte-identical; `SEED=12` differs. For an A/B, point both builds at the same `SEED_STATE` so they play the same man.
+Earlier "seeded" before/after comparisons (the v143 / v146 A notes that say "compare several seeds against the OFF spread")
+were right to distrust one seed: they were not reproducible either.
+
+**Two helpers for new checks.** `scripts/lib/live.mjs` `waitLive(page, ms)` waits for the live field on game state (and
+finishes a pregame wizard left standing). `scripts/lib/load.mjs` `loadScale()` is the factor to stretch a wall-clock budget
+by: the 1-minute load average per core, exactly 1 on a quiet box, `LOAD_SCALE=1` to force the strict numbers. Measure in
+the game's own clock where there is one (`sc.time.now`, the crowd's `C.t`, `_idleClockV144`, a marker's `tms`) — Phaser
+replaces a frame longer than ~200ms with one nominal step, so game time runs slower than the wall under load.
+
+**Load-sensitive** (`loadSensitive: true` in the manifest — failed at load ~25 during the 2026-09-24 baseline, passed on a
+quieter rerun; a failure prints a hint to rerun alone): `badgecheck`, `bobcheck`, `coachcheck`, `crowdcheck`, `emblemcheck`,
+`heroflashcheck`, `kitsidecheck`, `menufxcheck`, `sidelinecheck`, `skillartcheck`, `splashcheck`, `v103check`, `v104check`,
+`v107check`, `v108check`, `v109Acheck`, `v109C1check`, `v111Acheck`, `v112Acheck`, `v112Bcheck`, `v112Echeck`, `v114check`,
+`v115check`, `v127check`, `v136check`, `v147Acheck`, `v92check`, `v93check`, `v99check`, `vaultcheck`. v150 B moved the
+ones in the baseline off the wall clock (game-state waits, game-time measurement, `loadScale()` budgets); the flag stays as
+documentation, because a check that drives the live field is still the first thing a starved box slows down.
 
 `blowoutcheck` did not finish inside 40 minutes at that load (1,600 live games) and has no baseline; run it alone,
 or `BLOW_N=400`.
@@ -233,6 +276,8 @@ or `BLOW_N=400`.
 | `smoke --jobs 4` | 4m52s | 18m40s |
 | `full --jobs 4 --retry-flaky --timeout 2400` (119 checks, load 15–33) | 2h09m42s | 8h26m (with ~40 retries and a 2×40 min `blowoutcheck` timeout) |
 | the manifest's serial estimate for `full` | — | ~4h50m (of which `blowoutcheck` ~45 min) |
+| v150 B before (`122980f`, `full --jobs 3 --retry-flaky --timeout 2400`, load 15–45) | 2h39m | 7h58m — 61 PASS, 27 KNOWN, 18 NEW, 1 TIMEOUT, 10 INFO, 6 FLAKY |
+| v150 B after (same command) | 2h06m | 6h17m — 92 PASS, 9 KNOWN, 0 NEW (re-judged against the final baseline), 1 TIMEOUT (`blowoutcheck` at 1,600 games; the suite runs it at `BLOW_N=400` now), 12 INFO, 9 FLAKY |
 
 `fast` (everything not `slow`) is the practical "run it all" on a 4-core box.
 

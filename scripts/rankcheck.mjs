@@ -108,8 +108,11 @@ await click('LEADERS')
 await page.waitForTimeout(900)
 const screen = await page.evaluate(() => {
   const t = document.getElementById('screen')?.innerText || ''
-  const board = t.match(/You rank\s+#?([\d.kM]+)\s+of\s+([\d.kM]+)\s+(\w+)s nationally/i)
-  return { board: board ? board[0] : null, hasThresholds: /rank/i.test(t) }
+  // v150 B: the rank and the population print through fmtInt (thousands separators: "#1,234 of 48,000"), which the old
+  // [\d.kM]+ could not read past the first comma — the line was on the screen, the pattern missed it
+  const board = t.match(/You rank\s+#?([\d.,kM]+)\s+of\s+([\d.,kM]+)\s+(\w+)s nationally/i)
+  const at = t.indexOf('You rank')
+  return { board: board ? board[0] : null, hasThresholds: /rank/i.test(t), view: (window.S || {}).view, line: at >= 0 ? t.slice(at, at + 90).replace(/\s+/g, ' ') : null }
 })
 console.log('leaders screen:', JSON.stringify(screen))
 ok(!!screen.board, 'the leaders screen still states a rank and a population', screen.board || '')

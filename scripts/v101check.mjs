@@ -27,6 +27,17 @@ page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.te
 page.on('response', r => { if (r.status() >= 400) bad.push(r.status() + ' ' + r.url()) })
 page.on('requestfailed', r => bad.push('FAILED ' + r.url()))
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
+/* v150 B: a recorder for door two's life — when it mounted, whether it ever reached READY (field standing + the first play
+ * built behind it), and when it closed. The prebuild can only be asserted when the door had the chance to see it: the
+ * loader closes on its 9s watchdog when the main thread is held longer than that (the Phaser bundle compiling at load 30+
+ * ran 13s in one probe), and then the first play is simply asked for after the door is gone — no prebuild, by design. */
+// (the door's OWN mount stamp `current.t0` is used, not when this poll first ran: a main thread held by the Phaser compile
+// holds this interval too, and the first sighting can be seconds after the mount)
+await page.addInitScript(() => { const D = window.__DOOR2_V150 = { mountAt: null, readySeen: false, goneAt: null }
+  setInterval(() => { try { const L = window.__LIVELOAD_V94, c = L && L.current
+    if (c && D.mountAt == null) D.mountAt = c.t0
+    if (c && c.ready) D.readySeen = true
+    if (D.mountAt != null && !c && D.goneAt == null) D.goneAt = Date.now() } catch (e) {} }, 40) })
 await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
 await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)   // warm: vite's one-time reload after an edit
 await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 })
@@ -227,8 +238,17 @@ for (let i = 0; i < 40; i++) {
   if (warm && (warm.hits || warm.misses)) break
   await page.waitForTimeout(500)
 }
-ok(!!warm && warm.built > 0, 'the first play was choreographed while the loading chase was still running', JSON.stringify(warm))
-ok(!!warm && warm.hits > 0, 'and the door opened onto that already-built play', JSON.stringify(warm))
+const door = await page.evaluate(() => window.__DOOR2_V150 || null)
+const doorMs = door && door.mountAt != null && door.goneAt != null ? door.goneAt - door.mountAt : null
+// the watchdog opened the door (never READY, open for 9s+): the main thread was held past the ceiling and no first play was
+// ever asked for while it stood — there was nothing to prebuild. Say so; do not pretend to have measured it.
+if (door && !door.readySeen && doorMs != null && doorMs >= 8800 && !(warm && warm.built)) {
+  console.log(`SKIP the first play was choreographed behind the loader — door two closed on its 9s watchdog (${doorMs}ms, never READY: the main thread was held past the ceiling), so no play was asked for while it stood ${JSON.stringify(warm)}`)
+} else {
+  // v132: door two is the sting's still and film now, not the chase — the play is built behind whatever the loader shows
+  ok(!!warm && warm.built > 0, 'the first play was choreographed while the loading chase was still running', JSON.stringify(warm) + ' door ' + JSON.stringify({ ms: doorMs, ready: door && door.readySeen }))
+  ok(!!warm && warm.hits > 0, 'and the door opened onto that already-built play', JSON.stringify(warm))
+}
 
 console.log(JSON.stringify({ pass, fail, errors: errs.length, badRequests: bad.length }))
 console.log('page errors:', errs.length ? errs.slice(0, 6) : 'none')

@@ -1,49 +1,107 @@
 {
- "about": "Assertions that fail on main (ca9db0a, v147) before anyone touches anything. run-checks.mjs marks a failure KNOWN when EVERY failing item of that check matches one of these patterns (a regex tested against the failing line's text); anything else is NEW. `flaky: true` = it fails on some runs only (usually a timing budget on a loaded box) — accepted when it fails, never reported FIXED? when it passes. Evidence: the baseline run of 2026-09-24 (full suite, 4 jobs, then every failure re-run twice at 3 jobs). Delete an entry when you fix it; see docs/CHECKS.md.",
+ "about": "Assertions that fail on this branch for a reason that is NOT the change you are testing. run-checks.mjs marks a failure KNOWN when EVERY failing item of that check matches one of these patterns (a regex tested against the failing line's text); anything else is NEW. `flaky: true` = it fails on some runs only (a timing budget on a loaded box) — accepted when it fails, never reported FIXED? when it passes. v150 B took the 2026-09-24 baseline (46 entries, main at ca9db0a) down to these: every other entry was a stale or under-sampled CHECK and was fixed in the check (docs/CHECKS.md, 'The baseline'), and the v110 credit fall-through was closed in the engine. What is left is the GAME being wrong in a place this pass did not own (the declare screens — another worker's; the vault; the renderer's jersey numbers) or an assertion that is a wall-clock frame rate by nature. Delete an entry when you fix it; see docs/CHECKS.md.",
  "failures": [
-  { "check": "availabilitycheck", "pattern": "^worn or injured is -10% stats", "note": "stale: v120 made fatigue a slope (fatigueMulV120) — worn now reads 0.85, not the flat 0.90 this asserts", "since": "2026-09-24" },
-  { "check": "availabilitycheck", "pattern": "^in between is neutral", "note": "stale: v120's slope puts a mid-fatigue man at 0.967, not 1.0", "since": "2026-09-24" },
-  { "check": "badgecheck", "pattern": "^(live field is up|the wall mounts inside \\.field-wrap|watched a run of plays|a badge was on screen during the run)", "note": "its click-through (PLAN -> null) often never reaches the live field since the v146 D plan board; 3 of 4 tries failed, one passed", "since": "2026-09-24", "flaky": true },
-  { "check": "bobcheck", "pattern": "^(the crystal floats above the head|it turns — the silhouette changes|the live field is up|it draws over the players|a gassed player gets a different crystal)", "note": "+5.5px above the sprite root / 0.55px width swing on the run that reached the field; the other runs never reached it (a crash in the probe)", "since": "2026-09-24", "flaky": true },
-  { "check": "bobcheck", "pattern": "^exit 1: page\\.evaluate", "note": "the probe throws when the live field never comes up", "since": "2026-09-24", "flaky": true },
-  { "check": "bodycheck", "pattern": "^an ordinary body reads neutral", "note": "reads -1.93 (NET NEGATIVE) on every run", "since": "2026-09-24" },
-  { "check": "crowdcheck", "pattern": "^and the scan now covers the curved north end too", "note": "the scan count (182 / 120 / 120) is under the check's floor on every run", "since": "2026-09-24" },
-  { "check": "crowdcheck", "pattern": "^(crowdCheer raises section heat|cheer layer alpha follows heat|heat decays back down after the roar)", "note": "peak 0 — the roar never registered on 2 of 4 tries (timing)", "since": "2026-09-24", "flaky": true },
-  { "check": "emblemcheck", "pattern": "^pregame: 2 emblem chips, 44px", "note": "the chips measure 0x0 (w:0,h:0) — 3 of 4 tries", "since": "2026-09-24", "flaky": true },
-  { "check": "endzonecheck", "pattern": "^the painted far goal line lands where the projection puts the sim far goal line", "note": "1.09 yards apart on every run", "since": "2026-09-24" },
-  { "check": "equaltalentcheck", "pattern": "^(all rosters are exact mirrors|featured player matches team talent)", "note": "both runs; it loads index.html's blocks by index ([0,1,2,3,4,7]) — recheck after the index.html split lands", "since": "2026-09-24" },
-  { "check": "gatecheck", "pattern": "^the weekly plan wheel inside the pregame wizard is NOT gated", "note": "stale since v146 D: page 5 is the plan BOARD, there is no wheel to find (wheel:false)", "since": "2026-09-24" },
-  { "check": "growthcheck", "pattern": "^exit 1", "note": "magnitude.min is 2 (< 3) in the v42 Monte Carlo; the script has no assertion lines, only exitCode. (Before v149 B it did not even launch: chromium.launch() had no executablePath.)", "since": "2026-09-24" },
-  { "check": "heroflashcheck", "pattern": "^\\d+ failure\\(s\\) counted with no assertion line", "note": "the script adds every failed request to `fail`; 27–32 menu/coach/vault images come back requestfailed (aborted) on every run", "since": "2026-09-24" },
-  { "check": "heroflashcheck", "pattern": "^(the hero canvas loop is running|no spawn lands on the player)", "note": "55 frames / mask alpha 19 — one run each", "since": "2026-09-24", "flaky": true },
-  { "check": "menufxcheck", "pattern": "^v89's contract holds — eight tiles, seven links", "note": "9 tiles since the coach tile — stale count", "since": "2026-09-24" },
-  { "check": "menufxcheck", "pattern": "^the OVR spark sits at the head of the arc", "note": "arc 0 -> 165deg / 0.014 -> 180deg / 0.35 -> 148deg: every run (v147 B ringArcV147B)", "since": "2026-09-24" },
-  { "check": "menufxcheck", "pattern": "^the ember loop is running", "note": "a frame count (3 -> 7, 5 -> 6): load-sensitive", "since": "2026-09-24", "flaky": true },
-  { "check": "movecheck", "pattern": "^all three moves are in the game", "note": "[41.3, 0, 58.7] / [45.2, 0, 54.8] — the middle move never fires", "since": "2026-09-24" },
-  { "check": "movecheck", "pattern": "^and he hangs there longer for it", "note": "360ms -> 440ms, every run", "since": "2026-09-24" },
-  { "check": "movementcheck", "pattern": "movementcheck failed: .*from the v37 calibration", "note": "completion% -16, air YPA -14, YAC/completion +63 against the v37 calibration (pure Node, deterministic)", "since": "2026-09-24" },
-  { "check": "postgamecheck", "pattern": "^a live game reaches the post-game card", "note": "its click-through never reaches the card (both runs)", "since": "2026-09-24" },
-  { "check": "rankcheck", "pattern": "^the leaders screen still states a rank and a population", "note": "every run", "since": "2026-09-24" },
-  { "check": "readcheck", "pattern": "^play action pays out at least even with a straight dropback", "note": "9.35 vs 10.56 YPA (pure Node, seeded — identical every run)", "since": "2026-09-24" },
-  { "check": "sidelinecheck", "pattern": "^the far end of the sideline sits in dimmer air than the near end", "note": "570 < 646 failed, 578 < 644 passed — a knife edge", "since": "2026-09-24", "flaky": true },
-  { "check": "sidelinecheck", "pattern": "^(and the reaction dies back down|rain breaks out the ponchos)", "note": "timing; one run each", "since": "2026-09-24", "flaky": true },
-  { "check": "starimpactcheck", "pattern": "^exit 1: Error: Could not install the star-gap benchmark hook", "note": "the hook it wraps is gone; the check never starts", "since": "2026-09-24" },
-  { "check": "stridecheck", "pattern": "^college a lot more than high school", "note": "0.114 -> 0.105 (pure Node, identical every run)", "since": "2026-09-24" },
-  { "check": "v101check", "pattern": "^(the first play was choreographed while the loading chase was still running|and the door opened onto that already-built play)", "note": "built 0 / misses 1 on every run — v132 took the chase out of door two", "since": "2026-09-24" },
-  { "check": "v104check", "pattern": "^(every pose that can show a number carries a band read off the art|and it stays inside a sane on-screen size band)", "note": "the catchseq3 poses carry no band; size band 2.03..11.20px (the one run that reached the field)", "since": "2026-09-24" },
-  { "check": "v104check", "pattern": "^(the broadcast is live with markers on the field|every registered player texture was scanned|and it is the SAME numeral pose to pose|and the old fixed offset really was in the pants|numbers were drawn front and back|the label is rasterized ONCE)", "note": "the cascade when its click-through does not reach the live field", "since": "2026-09-24", "flaky": true },
-  { "check": "v108check", "pattern": "^(and a toss played toss_up0\\.\\.4|a handoff played handoff_up0\\.\\.4|one football through every drawn frame)", "note": "sample-size: 0/1 tosses in a short watch; 3 of 4 tries", "since": "2026-09-24", "flaky": true },
-  { "check": "v112Acheck", "pattern": "^(every byte of the sheet had landed|COLD: the first animated frame|the splash door paints within the budget|the mount keeps drawing frames|a later scene is a synchronous start|it had a picture up with nothing left to load|and that picture is the film loader)", "note": "millisecond budgets (700ms / 250ms / 150ms) on a box at load 15–30; unverified on an idle one", "since": "2026-09-24", "flaky": true },
-  { "check": "v112Ccheck", "pattern": "^with no penalty condMultV54 is bit-identical to its pre-v112 constants", "note": "stale: v120's fatigue slope changed those constants (0.967 / 0.833 / 1.05)", "since": "2026-09-24" },
-  { "check": "v127check", "pattern": "^(door two still plays the FILM|and it built that element itself|it gets the picture up inside its audition|and starts at v116.s seam)", "note": "film=false chase=false on both tries of the baseline run; unverified on an idle box", "since": "2026-09-24", "flaky": true },
-  { "check": "v110check", "pattern": "^and the credit follows the man who made the play, never the man who was assigned", "note": "`1 wrong` in 2 of 3 runs (4 followed · 1 wrong; 1 followed · 1 wrong) — a rare interception/break-up credited to the assigned man. Stat-credit truth: worth a real look, not just a baseline entry", "since": "2026-09-24", "flaky": true },
-  { "check": "v144check", "pattern": "^D: (both goalposts are drawn standing in a pad|and there is one at each end of the field)", "note": "`1 pads` on 1 of 3 runs — the far post was off the frame when it looked", "since": "2026-09-24", "flaky": true },
-  { "check": "v141check", "pattern": "^DFL RB 250 vs 350 (speed|grit) >= 3 apart under the carrier ceiling", "note": "64 -> 66.7 / 64.5 -> 67.4: the v141 RB knee (simKneeTopPosV141) squeezes them under 3", "since": "2026-09-24" },
-  { "check": "v90check", "pattern": "^the OVR ring fills ovr/250 of the circle", "note": "the ring fills to softMaxOvr since v134, not /250", "since": "2026-09-24" },
-  { "check": "v92check", "pattern": "^the whistle freezes the feed into a replay still", "note": "2 of 3 tries", "since": "2026-09-24", "flaky": true },
-  { "check": "v93check", "pattern": "^TOUCHDOWN at the far end and the opponent's name at the near are both lettered", "note": "far=0 — the far end zone's lettering is not found", "since": "2026-09-24" },
-  { "check": "v93check", "pattern": "^exit 1: page\\.evaluate: TypeError: Cannot read properties of undefined \\(reading 'teamNames'\\)", "note": "the probe throws when the live field is not up yet", "since": "2026-09-24", "flaky": true },
-  { "check": "vaultcheck", "pattern": "^a RELOAD mid-pour loses nothing and buys nothing", "note": "[5000, 4992] — 8 PP debited across the reload, every run", "since": "2026-09-24" },
-  { "check": "vaultcheck", "pattern": "^(the vault holds a usable frame rate under a 16x pour|and then it goes to sleep, so a settled hoard costs nothing|RESTOCK puts the shed coins back in their columns)", "note": "fps / settle timing on a loaded box; one run each", "since": "2026-09-24", "flaky": true }
+  {
+   "check": "vaultcheck",
+   "pattern": "^(the vault holds a usable frame rate under a 16x pour|and then it goes to sleep, so a settled hoard costs nothing|RESTOCK puts the shed coins back in their columns)",
+   "note": "a frames-per-second floor and a settle timer measured in wall time on a CPU-contended headless box; one run each in the baseline",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v104check",
+   "pattern": "^every pose that can show a number carries a band read off the art",
+   "note": "GAME (renderer): v109 B's catch sequence (`spr_<kit>_<dir>_catchseq<v>_<f>`) is registered after the v104 band scan and never gets a band, yet placeMarker NUMBERS it — its `detailedAction` regex /^(juke|stiff|hurdle|catch\\d|divecatch|pancake|getup)/ does not match 'catchseq'. Either read the band for the catchseq cells when they are registered, or add catchseq to detailedAction (hide the number through the reach, as for catch\\d)",
+   "since": "2026-09-24"
+  },
+  {
+   "check": "heroflashcheck",
+   "pattern": "^no spawn lands on the player",
+   "note": "one spawn in the baseline read kit-mask alpha 19 (> MASK_MAX 8): the crowd polygon touches the feathered edge of the v106 kit mask, so a rare flash lands on the soft edge of the man. Not reproduced in v150 B's runs; GAME if it recurs (the spawn should reject mask alpha > 8, as the check does)",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v112Acheck",
+   "pattern": "^every byte of the sheet had landed",
+   "note": "a race between the network and the v94 script's first run (the warm's last byte vs the engine tick), not a budget the load scale can stretch; on a loaded box the script can run before the transfer ends. The v112 A requests themselves (two, adopted) are asserted separately",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v112Acheck",
+   "pattern": "^(a SECOND loading scene mounted in the same session|it found the sheet already decoded in memory|it added ZERO network requests for the sheet|it had a picture up with nothing left to load|and that picture is the film loader)",
+   "note": "door two (the live game's loader) only exists while the Phaser bundle compiles and the scene stands, under a 9s watchdog measured from its own mount (03-splash.js). At a 1-minute load of 30+ on 4 cores the compile holds the main thread past that ceiling (a v150 B probe: mounted, main thread blocked ~7s, closed by the watchdog at 9s, never READY), so the door is gone before the check can read it. Passes on a quiet box; the waits are game-state and load-scaled since v150 B",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v127check",
+   "pattern": "^(door two still plays the FILM|and it built that element itself|it gets the picture up inside its audition|and starts at v116.s seam|the picture is actually on screen)",
+   "note": "door two (the live game's loader) only exists while the Phaser bundle compiles and the scene stands, under a 9s watchdog measured from its own mount (03-splash.js). At a 1-minute load of 30+ on 4 cores the compile holds the main thread past that ceiling (a v150 B probe: mounted, main thread blocked ~7s, closed by the watchdog at 9s, never READY), so the door is gone before the check can read it. Passes on a quiet box; the waits are game-state and load-scaled since v150 B",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "splashcheck",
+   "pattern": "^(the live loader mounts over the field|it shows the sting's still inside \\.field-wrap|the caption names the matchup|the loader leaves once the scene is up|the broadcast scene came up under it|it showed once for the game)",
+   "note": "door two (the live game's loader) only exists while the Phaser bundle compiles and the scene stands, under a 9s watchdog measured from its own mount (03-splash.js). At a 1-minute load of 30+ on 4 cores the compile holds the main thread past that ceiling (a v150 B probe: mounted, main thread blocked ~7s, closed by the watchdog at 9s, never READY), so the door is gone before the check can read it. Passes on a quiet box; the waits are game-state and load-scaled since v150 B",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v108check",
+   "pattern": "^(v118: |a throw to his screen-RIGHT|and one to his LEFT|every drawn direction matches|the release is still frame 4|a handoff played handoff_up|and a toss played toss_up|one football through every drawn frame)",
+   "note": "a 5-minute watch (x load scale, capped at 3) of the live field at 4x that has to see a throw each way, a handoff and a toss; at load 30+ the rAF-driven field ran ONE play in the window (v150 B validation run). Sample-starved, not wrong: passes when the field runs at rate",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v112Acheck",
+   "pattern": "^the loader bar keeps sweeping while the main thread is jammed",
+   "note": "counts distinct COMPOSITOR frames (CDP screencast) over 1.5s while the page's main thread is jammed on purpose; at load 30 the compositor itself is starved (3 distinct pictures where a quiet box shows > 10). A wall-clock frame rate by nature",
+   "since": "2026-09-24",
+   "flaky": true
+  },
+  {
+   "check": "v115check",
+   "pattern": "^(and it is the FILM, not the chase|v132: the still of the landed wordmark is under the film)",
+   "note": "door two (the live game's loader) only exists while the Phaser bundle compiles and the scene stands, under a 9s watchdog measured from its own mount (03-splash.js). At a 1-minute load of 30+ on 4 cores the compile holds the main thread past that ceiling (a v150 B probe: mounted, main thread blocked ~7s, closed by the watchdog at 9s, never READY), so the door is gone before the check can read it. Passes on a quiet box; the waits are game-state and load-scaled since v150 B",
+   "since": "2026-09-25",
+   "flaky": true
+  },
+  {
+   "check": "v103check",
+   "pattern": "^and BOTH of them travel: the carrier drags, the tackler is dragged",
+   "note": "a knife edge, not a regression: 187/400 and 191/400 (need > 200) on both v150 B full runs, and it was already 'load-sensitive, passed on a rerun' in the 2026-09-24 baseline. The share of grips in which both men move > 2px sits at ~47-50% of the threshold's 50% (unseeded, 400 grips). Needs a decision on the intended share (v103 THE GRIP TICK vs v146 A's glue), not a looser number",
+   "since": "2026-09-25",
+   "flaky": true
+  },
+  {
+   "check": "v112Bcheck",
+   "pattern": "^(the lowest star sits at or above the bowl's own skyline|the near rows draw the field art over far fewer canvas rows|the painted end line, measured in the warp canvas, is thinner|with the extension off that band is the old smear)",
+   "note": "deterministic on the branch head, passing at the 2026-09-24 baseline commit: v148 (THE LINES HOLD TO THE GOAL LINE, landed after the baseline) replaced the per-snap row cap v112 B measured against (4.64 -> 7.70 px per art row is v112 B's own before/after, now read under v148's single row density and taper). The assertions need re-anchoring against v148's geometry (v148check passes 99/99); not done in v150 B",
+   "since": "2026-09-25"
+  },
+  {
+   "check": "v147Dcheck",
+   "pattern": "^(Broadcast|Follow Me|Follow Ball|Tight|Wide|Fixed): ",
+   "note": "the camera at 4x measured on LIVE runs in wall time; CLAUDE.md (v147 D) says two unpaired live runs differ 2x on the same code, and at load 20-40 one mode's measure crosses its x2 / p90 line per run (different ones each run). Load-sensitive by nature until the check replays paired scripts",
+   "since": "2026-09-25",
+   "flaky": true
+  },
+  {
+   "check": "coachcheck",
+   "pattern": "^(the coach stands at the bottom of a phone screen at a readable size|the line types out on the bubble|NEXT moves to the next line, and its spotlight cuts the dim over the COACH'S TOUR tile|DONE ends the walk|  …and lights body on that screen|fourteen stops of the week)",
+   "note": "a 30-minute walk of the whole first week against the coach's typing and spotlight timers; at load 20-40 a different one of these trips on each try (both tries of the v150 B after-run failed once each, on different lines). NEXT's spotlight 'inside:false' recurs in both full runs — worth a look on a quiet box",
+   "since": "2026-09-25",
+   "flaky": true
+  },
+  {
+   "check": "blowoutcheck",
+   "pattern": "^live: five-score blowouts are rare",
+   "note": "UNVERIFIED GAME signal: the check never finished inside the suite before v150 B (1,600 games), so it had no baseline; at BLOW_N=400 it reads 7.0% of games at |margin| >= 45. Could be the smaller sample or a real drift in the v76 margin curve since v141/v146 — run it alone at the default 1,600 before acting",
+   "since": "2026-09-25"
+  }
  ]
 }

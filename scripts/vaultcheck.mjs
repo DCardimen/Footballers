@@ -684,12 +684,17 @@ await closeV()
 await setPP(5000)
 await openV(KEY)
 await page.waitForTimeout(500)
-await pressHoard(); await page.waitForTimeout(800)
+await pressHoard(); await page.waitForTimeout(300)
+/* v150 B: "mid-pour" is a reservation that is NOT yet the price. The target is gmEye (8 PP), and a hold runs out of stage 0
+ * at 420ms and escalates from there — so how much of an 8-PP node 800ms funded depended on the box, and a funded
+ * reservation commits on its own. Reload inside stage 0 (the first tap's chunk and nothing more), and say what was held. */
+const relHeld = await st()
 const relBefore = await game()
 await page.reload({ waitUntil: 'networkidle' })
 await page.waitForTimeout(2200)
 const relAfter = await page.evaluate(() => { const o = window.__GRIDIRON_AUDIT__.getState(); return { pp: o.pp, tree: JSON.parse(JSON.stringify(o.tree || {})) } })
-ok(relAfter.pp === relBefore.pp, 'a RELOAD mid-pour loses nothing and buys nothing — the reservation was never written', [relBefore.pp, relAfter.pp])
+ok(relHeld.pending > 0 && relHeld.pending < ((relHeld.target && relHeld.target.cost) || Infinity) && !relHeld.committed && relAfter.pp === relBefore.pp,
+  'a RELOAD mid-pour loses nothing and buys nothing — the reservation was never written', [relBefore.pp, relAfter.pp, 'held ' + relHeld.pending + '/' + (relHeld.target && relHeld.target.cost)])
 
 await boot()
 await setPP(5000)

@@ -14,6 +14,7 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 import { CHROME, GAME_URL } from './lib/env.mjs'
+import { waitLive } from './lib/live.mjs'
 const browser = await chromium.launch({ executablePath: CHROME })
 const errs = []
 let pass = 0, fail = 0
@@ -46,7 +47,7 @@ async function step(t) {
 }
 for (const t of ['START NEW CAREER', 'Lock In Personality', 'POS', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING', 'PLAY WEEK 1 LIVE', 'PLAN', 'CONTINUE TO MATCH']) await step(t)
 let scene = false
-for (let i = 0; i < 60; i++) { scene = await page.evaluate(() => !!(window.__gridironScene && window.__gridironScene.markers && window.__gridironScene.markers.length)); if (scene) break; await page.waitForTimeout(400) }
+scene = await waitLive(page)   // v150 B: on game state, up to 90s (scripts/lib/live.mjs) — the fixed poll cascaded under --jobs 3-4
 ok(scene, 'the broadcast is live')
 
 // ================= 1. the ball through live play =================

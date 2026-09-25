@@ -1632,7 +1632,18 @@ window.__visionRadiusV96 = visionRadiusV96;
     const sprinting = a => !!(a && a.sprintUntil && t < a.sprintUntil);
     let t = 0, done = false, result = null, carrier = null, ballFlight = null;
     let ballPlayerV110 = null;   // v110: the roster player who actually played the ball, when it was not the coverage man
+    /* ===== v150 B THE CREDIT IS THE MAN, NOT A FALLBACK =====
+     * `ballPlayerV110 = ballMan.player || ballPlayerV110` let a break-up or a pick made by an agent with
+     * no roster player fall through, at the booking, to `coverA.player` and then to `picks.cover` — the
+     * man who was ASSIGNED, or the engine's own pre-rolled pick, who may not even be the agent standing
+     * there. Measured over ~1,000 arrivals no defender ever carried a null player, so this never fired;
+     * but it is exactly the fall-through CLAUDE.md's stat-credit rule forbids, so the play now remembers
+     * the AGENT who made it (`ballByV110`), and the credit is his roster player or nobody — never a
+     * stand-in. Nothing is rolled, nothing moves: the same random stream, the same result. `out.coverBy`
+     * and `__V110.lastBall` name him, which is what v110check traces the credit against. */
+    let ballByV110 = null;
     const V110 = root.__V110 = root.__V110 || { laps: 0, takeovers: 0, ballMen: 0, holds: 0 };   // v110: what the new paths actually did
+    V110.lastBall = null;
     let ball = { lx: S.off[8].lx, y: S.off[8].y, h: 0 };
     const emit = (type, extra) => events.push(Object.assign({ t, type }, extra));
     const rec = () => { S.all.forEach(a=>a.frames.push({t, x:Math.round(a.lx*10)/10, y:Math.round(a.y*10)/10}));
@@ -3593,7 +3604,8 @@ window.__visionRadiusV96 = visionRadiusV96;
                 const _from = (boxOut || ballMan.lx < target.lx - TU("swatSidePx", 3)) ? "behind" : ballMan.lx > target.lx + TU("swatSidePx", 3) ? "front" : "over";
                 emit("swat", { by: ballMan.id, on: target.id, x: cx, y: cyIn, contact: true, from: _from, boxOut: !!boxOut, edgeMs: Math.round(arrivalEdgeMs) });
                 emit("incomplete", _reasonV109("swat", { by: ballMan.id, on: target.id, from: _from })); done = true;
-                ballPlayerV110 = ballMan.player || ballPlayerV110;   // v110: the break-up is credited to the man who made it
+                ballByV110 = ballMan; ballPlayerV110 = ballMan.player || null;   // v110: the break-up is credited to the man who made it (v150 B: and only to him)
+                V110.lastBall = { by: ballMan.id, player: ballMan.player || null, kind: "swat" };
                 try { const B = root.__V109_B; B.swatN = (B.swatN || 0) + 1; (B.swatFrom = B.swatFrom || {})[_from] = (B.swatFrom[_from] || 0) + 1; } catch (e) {}
                 out = { kind: "pass", complete: false, intercepted: false, yards: 0, swat: true };
               } else if (Math.random() < catchP) {
@@ -3632,7 +3644,8 @@ window.__visionRadiusV96 = visionRadiusV96;
                 if (Math.random() < intP) {
                   emit("pick",{by:ballMan.id,x:cx,y:cyy});
                   carrier = ballMan; phase = "carry";           // v110: the man who picked it is the man who returns it
-                  ballPlayerV110 = ballMan.player || ballPlayerV110;
+                  ballByV110 = ballMan; ballPlayerV110 = ballMan.player || null;   // v150 B: the pick is his, or nobody's
+                  V110.lastBall = { by: ballMan.id, player: ballMan.player || null, kind: "pick" };
                   out = { kind:"pass", complete:false, intercepted:true, yards:0 };
                 } else {
                   // v109 AN INCOMPLETION HAS A REASON — classified AFTER the rolls, changing none of them.
@@ -4563,7 +4576,7 @@ window.__visionRadiusV96 = visionRadiusV96;
     }
     out = out || { kind, yards: 0 };
     out.yards = cl(out.yards, -6, 80);
-    if(kind==="pass"&&target){ out.targetPlayer=target.player||picks.target||null; out.coverPlayer=ballPlayerV110||coverA&&coverA.player||picks.cover||null;   // v110: credit follows the man who made the play
+    if(kind==="pass"&&target){ out.targetPlayer=target.player||picks.target||null; out.coverPlayer=ballByV110?ballPlayerV110:(coverA&&coverA.player||picks.cover||null); out.coverBy=ballByV110?ballByV110.id:null;   // v110: credit follows the man who made the play (v150 B: no fall-through once somebody made it)
       out.throwStyle=throwStyle; out.throwWindow=throwWindow; out.arrivalEdgeMs=Math.round(arrivalEdgeMs); out.locationQuality=locationQuality; }
     // v18 post-whistle coast: bodies don't freeze at the whistle — everyone keeps
     // moving and decelerates naturally for ~1 second after the play is blown dead.
@@ -4815,7 +4828,9 @@ window.__visionRadiusV96 = visionRadiusV96;
         const tSlot = g && g.pos === "TE" ? 2 : g && g.pos === "RB" ? 9 : 0;
         const cSlot = N && N.pos === "S" ? 2 : N && N.pos === "LB" ? 4 : 0;
         const r = sim("pass", k.off, T.def, att, { target: g, cover: N, off: { 8: K, [tSlot]: g }, def: {} }, Object.assign({ concept },ctx));   // v87: nobody is moved into coverage by the pick
-        const X = { qb: K, rec: r.targetPlayer||g, cover: r.coverPlayer||N, complete: !!(r.kind==="pass" && !r.intercepted && r.yards!==undefined && r.complete!==false),
+        // v150 B: a swat or a pick names the agent who made it (`coverBy`); his roster player is the credit, never the
+        // engine's pre-rolled cover man `N` standing in for him
+        const X = { qb: K, rec: r.targetPlayer||g, cover: r.coverBy ? r.coverPlayer : (r.coverPlayer||N), coverBy: r.coverBy||null, complete: !!(r.kind==="pass" && !r.intercepted && r.yards!==undefined && r.complete!==false),
           intercepted: !!r.intercepted, yards: 0, breakaway: false };
         // completed = we entered carry as the target and got tackled with yards
         const catchEv = r.log.events.find(e=>e.type==="catch");

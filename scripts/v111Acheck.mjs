@@ -65,7 +65,17 @@ async function click (page, t) {
   await page.waitForTimeout(350)
 }
 async function career (page, pos) {
-  for (const s of ['START NEW CAREER', 'ARCH', pos + ' ', 'Lock In Personality', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING']) await click(page, s)
+  /* v150 B: the click-through is a fixed 350ms a step; on a loaded box a step can land before its screen is up, and the
+   * check then read `weekResults` of a career that never reached the season and threw ("reading 'find'"). Walk it until the
+   * season exists (the season wheel cleared on the way), three tries at most. */
+  for (let tries = 0; tries < 3; tries++) {
+    for (const s of ['START NEW CAREER', 'ARCH', pos + ' ', 'Lock In Personality', 'PLAY 8-GAME SEASON', 'Balanced Program', 'CONFIRM TRAINING']) {
+      await click(page, s)
+      await page.evaluate(() => { const g = document.getElementById('gv42go'); if (g && g.style.display !== 'none') g.click() }).catch(() => {})
+    }
+    const ready = await page.waitForFunction(() => { try { const p = window.__GRIDIRON_AUDIT__.getState().player; return !!(p && p.weekResults && p.weekResults.length) } catch (e) { return false } }, null, { timeout: 20000 }).then(() => true).catch(() => false)
+    if (ready) return
+  }
 }
 
 // ================================================================ 1/2. the API, and identity

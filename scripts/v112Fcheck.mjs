@@ -87,18 +87,20 @@ const S = await page.evaluate(() => {
     }
   }
   wrap('run'); wrap('pass')
-  for (let i = 0; i < Number(window.__V112F_GAMES || 20); i++) window.__simGameV2(400 + i, 'RB')
+  // v150 B: 40 games, not 20 — the purity assertion needs > 20 distinct collision powers to mean anything, and on the branch head
+  // 20 games reached only 13-19 of them (both tries of the v150 B before-run); the per-game rates divide by the real count
+  for (let i = 0; i < Number(window.__V112F_GAMES || 40); i++) window.__simGameV2(400 + i, 'RB')
   // one vz per pow, and vz never falls as pow rises
   const pows = Object.keys(A.vzByPow).map(Number).sort((a, b) => a - b)
   let mono = true, last = -1
   for (const p of pows) { const vs = Object.keys(A.vzByPow[p]); if (vs.length > 1) A.vzMulti++; const v = Number(vs[0]); if (v < last - 1e-9) mono = false; last = v }
-  return { ...A, pows: pows.length, mono, vzByPow: undefined }
+  return { ...A, pows: pows.length, mono, vzByPow: undefined, games: Number(window.__V112F_GAMES || 40) }
 })
 const frac = 100 * (S.flyT + S.flyB) / Math.max(1, S.contacts)
-console.log('sim:', JSON.stringify({ plays: S.plays, contacts: S.contacts, launches: S.flyT + S.flyB, carriers: S.flyT, defenders: S.flyB, pctOfContacts: +frac.toFixed(2), perGame: +((S.flyT + S.flyB) / 20).toFixed(2), vz: [S.minVz, S.maxVz], pow: [S.minPow, S.maxPow], distinctPow: S.pows }))
+console.log('sim:', JSON.stringify({ plays: S.plays, contacts: S.contacts, launches: S.flyT + S.flyB, carriers: S.flyT, defenders: S.flyB, pctOfContacts: +frac.toFixed(2), perGame: +((S.flyT + S.flyB) / S.games).toFixed(2), vz: [S.minVz, S.maxVz], pow: [S.minPow, S.maxPow], distinctPow: S.pows }))
 ok(S.plays > 900 && S.contacts > 1500, 'sampled a real body of contact', `${S.plays} plays, ${S.contacts} resolved contacts`)
 ok(S.flyT > 10 && S.flyB > 5, 'both men are candidates — carriers stuck, and defenders run through', `${S.flyT} carriers, ${S.flyB} defenders`)
-ok(frac > 0.5 && frac < 6, 'ONLY THE VIOLENT TAIL LEAVES HIS FEET (a cartoon is a fail, and so is never)', `${frac.toFixed(2)}% of resolved contacts, ${((S.flyT + S.flyB) / 20).toFixed(1)} per game`)
+ok(frac > 0.5 && frac < 6, 'ONLY THE VIOLENT TAIL LEAVES HIS FEET (a cartoon is a fail, and so is never)', `${frac.toFixed(2)}% of resolved contacts, ${((S.flyT + S.flyB) / S.games).toFixed(1)} per game`)
 ok(S.flyMissingFields === 0 && S.flyBadWho === 0, 'every launch names the man who was HIT and carries flyVz/flyPow', `${S.flyBadWho} wrong man, ${S.flyMissingFields} short of fields`)
 ok(S.flyOnDragged === 0, 'a man carried in a v103 grip never launches — he was set down, not thrown')
 ok(S.flyLowKb === 0 && S.kbMin >= 5, 'a hit that does not MOVE him never launches him', `smallest kb on a launch ${S.kbMin}`)

@@ -99,12 +99,6 @@ const results = await page.evaluate(gameCount => {
       level: 7,
       pos,
       name: 'Benchmark Player',
-      /* v150 B: since v120 (THE COACH DECIDES YOUR SNAPS) NORMAL is the share the coach trusts you with — a man with
-       * no coachTrust reads 50, plays ~65% of the snaps and a backup at 0.92 of his ratings (v111 `_sub111`) takes the
-       * rest. The roster is then no longer a mirror whenever the last snap was a rest snap, and the featured player is
-       * missing from it (ovr 0 in the average). This benchmark measures two equal teams with the featured man on the
-       * field, so he is a trusted starter: every snap is his, and no substitution is ever made. */
-      coachTrust: 100,
       // ~93 OVR on the game's nonlinear rating curve: level-7 teammates are in
       // the same band, so featured-player usage is neither a hidden buff nor tax.
       attrs: Object.fromEntries(attrNames.map(name => [name, 215]))
@@ -114,6 +108,7 @@ const results = await page.evaluate(gameCount => {
       us: sideStats(game, 'us'),
       them: sideStats(game, 'them'),
       exactMirror: JSON.stringify(rosterSig(game.roster.us)) === JSON.stringify(rosterSig(game.roster.opp)),
+      dbg: (JSON.stringify(rosterSig(game.roster.us)) !== JSON.stringify(rosterSig(game.roster.opp))) ? [pos, game.roster.us.off.concat(game.roster.us.def).map(p=>p.pos+(p.you?'*':'')).join(','), game.roster.opp.off.concat(game.roster.opp.def).map(p=>p.pos).join(',')].concat((() => { const a = rosterSig(game.roster.us), b = rosterSig(game.roster.opp); const d = []; for (const k of ['ovr','offOvr','defOvr']) if (a[k] !== b[k]) d.push([k, a[k], b[k]]); for (const s of ['off','def']) a[s].forEach((x, i) => { const y = b[s][i]; if (JSON.stringify(x) !== JSON.stringify(y)) d.push([s, i, JSON.stringify(x).slice(0, 300), JSON.stringify(y).slice(0, 300)]) }); return d.slice(0, 3) })()) : null,
       teamOvr: game.roster.us.ovr,
       playerOvr: game.roster.us.off.concat(game.roster.us.def).find(player => player.you)?.ovr || 0
     })
@@ -190,7 +185,7 @@ const checks = [
   ['no page errors', summary.pageErrors.length === 0]
 ]
 
-console.log(JSON.stringify(summary, null, 2))
+console.log(JSON.stringify(results.map(r=>r.dbg).filter(Boolean).slice(0,3), null, 1)); console.log(JSON.stringify(summary, null, 2))
 console.log('\nEqual-talent checks:')
 for (const [label, passed] of checks) console.log(`${passed ? 'PASS' : 'FAIL'}  ${label}`)
 if (checks.some(([, passed]) => !passed)) process.exitCode = 1

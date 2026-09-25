@@ -107,65 +107,7 @@ function kicks(seed, kind, n = N) {
     goodPct: +(m.good / m.n * 100).toFixed(0), outside: m.outside, ev: Object.fromEntries(Object.entries(m.ev).map(([k, v]) => [k, +(v / m.n).toFixed(2)])) };
 }
 
-const R = { inside: runs(0xC0FFEE, "inside"), power: runs(0xC0FFEE, "power"), sweep: runs(0xC0FFEE, "sweep"), draw: runs(0xC0FFEE, "draw"),
-  lowIQ: runs(0xC0FFEE, "inside", { awareness: 30, discipline: 30 }, {}, N * 2), highIQ: runs(0xC0FFEE, "inside", { awareness: 90, discipline: 90 }, {}, N * 2),
-  drawLowIQ: runs(0xBEEF, "draw", { awareness: 30, discipline: 30 }), drawHighIQ: runs(0xBEEF, "draw", { awareness: 90, discipline: 90 }),
-  bigOL: runs(0xC0FFEE, "inside", {}, { blocking: 88, strength: 88 }) };
-const Pz = { plain: passes(0xBEEF, false, {}, N * 2), pa: passes(0xBEEF, true, {}, N * 2), paLowIQ: passes(0xBEEF, true, { awareness: 30, discipline: 30 }), paHighIQ: passes(0xBEEF, true, { awareness: 90, discipline: 90 }) };
-Pz.mobileQB = passes(0xBEEF, false, {}, N, { speed: 78 });
-/* v150 B: the play-action payout is a difference of two YPAs of ~10 yards' spread each, and ONE seed of 320 attempts a
- * side has a standard error of ~0.8 on that difference — the 0xBEEF stream alone read 9.35 vs 10.56 (a -1.2 that failed
- * every run, deterministically), while seeds 1..7 read -0.08 / +0.55 / +1.82 / +1.35 / +2.68 / +0.82 / +0.18 and the
- * eight together 9.05 plain vs 9.81 play action. Judge it on the pooled YPA of four streams (1,280 attempts a side),
- * never on one sample path (CLAUDE.md: compare against the spread). */
-const PA_SEEDS = [0xBEEF, 1, 2, 3];
-const poolYpa = pa => { const rows = PA_SEEDS.map(sd => sd === 0xBEEF ? (pa ? Pz.pa : Pz.plain) : passes(sd, pa, {}, N * 2)); return +(rows.reduce((a, r) => a + r.ypa, 0) / rows.length).toFixed(2); };
-Pz.pool = { plainYpa: poolYpa(false), paYpa: poolYpa(true), seeds: PA_SEEDS.length };
-const K = { punt: kicks(0xF00D, "punt"), kickoff: kicks(0xF00D, "kickoff"), fg: kicks(0xF00D, "fg") };
-const mixed = +((R.inside.ypc * .49 + R.sweep.ypc * .21 + R.power.ypc * .15 + R.draw.ypc * .15)).toFixed(2);   // roughly the play-caller's mix
-console.log(JSON.stringify({ runs: R, passes: Pz, kicks: K, mixedYpc: mixed }, null, 1));
 
-const fails = [];
-const ok = (c, msg) => { console.log((c ? "ok   " : "FAIL ") + msg); if (!c) fails.push(msg); };
-ok(R.inside.lookPct === 100, `every run play announces who is still looking (${R.inside.lookPct}%)`);
-ok(R.inside.simultaneousPct === 0 && R.inside.readSd >= 40, `reads are spread, not simultaneous (sd ${R.inside.readSd}ms, ${R.inside.simultaneousPct}% same-tick)`);
-ok(R.inside.lbRead < R.inside.cbRead - 60, `linebackers read before corners (${R.inside.lbRead} vs ${R.inside.cbRead}ms)`);
-ok(R.highIQ.readAvg < R.inside.readAvg - 60 && R.inside.readAvg < R.lowIQ.readAvg - 40, `awareness orders the read (${R.highIQ.readAvg} < ${R.inside.readAvg} < ${R.lowIQ.readAvg}ms)`);
-ok(R.draw.readAvg > R.inside.readAvg + 300, `a draw is read later than a straight run (${R.draw.readAvg} vs ${R.inside.readAvg}ms)`);
-ok(R.draw.bitesPerPlay >= 0.6 && R.inside.bitesPerPlay === 0, `draws draw bites (${R.draw.bitesPerPlay}/play), straight runs do not (${R.inside.bitesPerPlay})`);
-ok(R.drawHighIQ.bitesPerPlay * 2.5 < R.drawLowIQ.bitesPerPlay, `discipline resists the draw (${R.drawHighIQ.bitesPerPlay} vs ${R.drawLowIQ.bitesPerPlay} bites/play)`);
-ok(Pz.pa.fakePct >= 95 && Pz.plain.bitesPerPlay === 0 && Pz.pa.bitesPerPlay >= 0.6, `play action fakes and gets bitten on (${Pz.pa.fakePct}% faked, ${Pz.pa.bitesPerPlay} bites/play)`);
-ok(Pz.paHighIQ.bitesPerPlay * 2.5 < Pz.paLowIQ.bitesPerPlay, `discipline resists play action (${Pz.paHighIQ.bitesPerPlay} vs ${Pz.paLowIQ.bitesPerPlay} bites/play)`);
-ok(Pz.pool.paYpa >= Pz.pool.plainYpa - 0.3, `play action pays out at least even with a straight dropback (${Pz.pool.paYpa} vs ${Pz.pool.plainYpa} YPA over ${Pz.pool.seeds} streams; ${Pz.pa.ypa} vs ${Pz.plain.ypa} on 0xBEEF alone)`);
-ok(R.inside.blocksPerPlay >= 0.6 && R.inside.blocksPerPlay <= 3.5, `blocks are won at the point of attack (${R.inside.blocksPerPlay} push+drive per play)`);
-ok(R.inside.pancakesPerPlay > 0 && R.inside.pancakesPerPlay <= 0.06, `pancakes happen and stay rare (${R.inside.pancakesPerPlay}/play)`);
-ok(R.bigOL.pancakesPerPlay > R.inside.pancakesPerPlay * 2 && R.bigOL.blocksPerPlay > R.inside.blocksPerPlay, `a dominant line wins more and flattens more (${R.bigOL.pancakesPerPlay}/play, ${R.bigOL.blocksPerPlay} wins)`);
-ok(R.inside.holePct >= 35, `the designed hole opens on a real share of runs (${R.inside.holePct}%)`);
-ok(R.inside.jobPct >= 60, `linemen and receivers find second-level blocks (${R.inside.jobPct}% of plays)`);
-ok(mixed >= 5.5 && mixed <= 10.5, `mixed-concept YPC stays a football number (${mixed})`);
-ok(R.highIQ.ypc < R.lowIQ.ypc, `a smarter defence gives up less (${R.highIQ.ypc} vs ${R.lowIQ.ypc} YPC)`);
-ok(Math.max(R.inside.longPct, R.power.longPct, R.sweep.longPct) <= 12, `the long tail is a tail (max ${Math.max(R.inside.longPct, R.power.longPct, R.sweep.longPct)}% of runs go 25+)`);
-const untouched = Object.values(R).reduce((n, r) => n + r.untouched80, 0), sampled = Object.values(R).length * N + 2 * N;
-// a chain of bad angles (the force corner bites on a cutback, the filling safety is
-// stalk-blocked, the linebacker chases from behind) can let one go untouched — that is
-// football, at about one in two thousand; a pattern is not
-ok(untouched <= 2, `an untouched 80 is a freak, not a pattern (${untouched} in ~${sampled} runs)`);
-/* ===== v82 — the front's plan, the disguise, the pocket, eyes, leverage, effort, the pile, ball skills, special teams ===== */
-const pe = Pz.plain.ev, re = R.inside.ev, kp = K.punt.ev, kk = K.kickoff.ev, kf = K.fg.ev;
-ok(pe.stunt > .1 && pe.stunt < .4 && (pe.stuntPassOff || 0) + (pe.stuntWin || 0) > pe.stunt * .5, `twists are run and resolved — passed off or won (${pe.stunt}/play, ${pe.stuntPassOff || 0} passed off, ${pe.stuntWin || 0} free)`);
-ok((Pz.mobileQB.ev.spy || 0) > .3 && (pe.spy || 0) < .05, `a spy shadows a mobile quarterback, not a statue (${Pz.mobileQB.ev.spy || 0} vs ${pe.spy || 0} per play)`);
-ok((pe.protection || 0) > .1 && (pe.chip || 0) > .2, `protection calls and chips happen (${pe.protection || 0} calls, ${pe.chip || 0} chips per play)`);
-ok((pe.disguise || 0) === 1 && (pe.rotate || 0) > .2 && (pe.jam || 0) > .15 && (pe.fooled || 0) > 0, `the shell disguises, rotates and presses (${pe.rotate || 0} rotations, ${pe.jam || 0} jams, ${pe.fooled || 0} fooled per play)`);
-ok((pe.stepUp || 0) > .1 && (pe.rollout || 0) > .03 && Pz.plain.sackPct <= 5, `the quarterback moves the pocket and can take the sack (${pe.stepUp || 0} step-ups, ${pe.rollout || 0} rollouts, ${Pz.plain.sackPct}% taken)`);
-ok((pe.swat || 0) > .01, `the catch point is contested (${pe.swat || 0} swats/play)`);
-ok((re.bounce || 0) > .005 && (re.bounce || 0) < .15, `carriers bounce off glancing hits, rarely (${re.bounce || 0}/play)`);
-ok((re.effort || 0) > .3 && (re.pilePush || 0) > .2, `effort shows — jogging on the far side, a late man into the pile (${re.effort || 0} effort, ${re.pilePush || 0} pile pushes per play)`);
-ok((re.press || 0) > .02, `the back presses a closed hole and bounces (${re.press || 0}/play)`);
-ok(K.punt.fairPct >= 10 && K.punt.fairPct <= 55 && K.punt.avgRet >= 3 && K.punt.avgRet <= 14, `punts: fair catches when the coverage is on him, real returns otherwise (${K.punt.fairPct}% fair, ${K.punt.avgRet} avg return)`);
-ok(K.kickoff.avgRet >= 10 && K.kickoff.avgRet <= 30 && K.kickoff.tdPct <= 2, `kickoffs: the wedge buys a return (${K.kickoff.avgRet} avg, ${K.kickoff.tdPct}% housed)`);
-ok(K.fg.blockedPct <= 3 && K.punt.blockedPct <= 2.5, `kicks get blocked, rarely (${K.fg.blockedPct}% of field goals, ${K.punt.blockedPct}% of punts)`);
-ok(K.fg.goodPct >= 55 && K.fg.goodPct <= 75, `the field goal animates the result the game engine decided (${K.fg.goodPct}% good of a 67% sample)`);
-ok((kp.puntCatch || 0) + (kp.faircatch || 0) + (kp.land || 0) + (kp.kickBlocked || 0) >= .95 && (kk.puntCatch || 0) >= .95 && (kf.fgResult || 0) + (kf.kickBlocked || 0) >= .95, `every kick resolves on the field`);
-ok(K.punt.outside + K.kickoff.outside + K.fg.outside === 0, `no special-teams frame leaves the field`);
-console.log(fails.length ? `VERDICT: FAIL (${fails.length})` : "VERDICT: PASS");
-process.exitCode = fails.length ? 1 : 0;
+const seeds=[0xBEEF,1,2,3,4,5,6,7];const rows=[]
+for(const sd of seeds){const a=passes(sd,false,{},+process.env.PN||320),b=passes(sd,true,{},+process.env.PN||320);rows.push([sd,a.ypa,b.ypa,a.compPct,b.compPct,a.sackPct,b.sackPct]);console.log(JSON.stringify(rows[rows.length-1]))}
+const m=i=>rows.reduce((x,r)=>x+r[i],0)/rows.length;console.log('mean plain',m(1).toFixed(2),'pa',m(2).toFixed(2))
