@@ -11,6 +11,20 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v153 E — the kit reads, the sheet fits, the thumb fits, the unknown is black.** The profile card's player wore the
+  art's own navy torso and socks whatever the team or the equipped uniform was (the borrowed recolour skipped every
+  pixel darker than the navy's median) with blotchy grey-blue sleeves, on a near-black box: the card now recolours the
+  figure itself — navy is the jersey (the helmet shell inside the helmet only), gold the pants and arms, each re-shaded
+  around its own median so a black kit keeps its folds and a white one its creases, patterns painted before the scale —
+  on a lit studio wall with a rim light. The SKILLS sheet fits one phone screen: a one-line header (the points, the OVR),
+  the pricing paragraph behind HOW PRICES WORK, and PHYSICAL / BALL SKILLS / MENTAL as a segmented control, each group
+  with every row on screen — the live metric, the v67 cap readout over a soft-cap bar, KEY badges, 40px steppers. Every
+  career screen was measured at 400x860 and lifted to 11px type and 36px tap targets (the top bar's chips and buttons,
+  the section tabs, the bar, the dock's chips, the (i) cards, chips, selects, sliders; the wordmark squeezed to "R."
+  gives way to the screen's name on the ticker); the stats screen's leaders table gets its own tab instead of a
+  three-row box. Locked Legacy medals are solid black silhouettes — in the book, the detail panel, the trophy case's
+  next milestone and the milestone card. Looks and layout only: no gameplay number moves. `v153Echeck`.
+
 - **v152 A.2 — the medal gets the spotlight, the book turns, the band plays on arrival.** The profile card wears the
   Legacy medal in its own framed, glowing box beside the name (tap: the trophy case). The collection book turns real
   pages: a two-faced leaf lifts, curls and falls over the spine (or swings back in), with a paper swish, a landing thump,

@@ -40,7 +40,7 @@ const ok = (name, pass, detail) => checks.push({ name, pass: !!pass, detail })
 const SRC = readGameHtml()
 for (const [screen, needle] of [
   ['the hub sheet (Vr)',                 '${ATTR_INFO[e].icon} ${ATTR_INFO[e].name}${statInfoBtnV142(e)}'],   // v149 C: Le → ATTR_INFO
-  ['the SKILLS sheet (un)',              '${ATTR_INFO[a].icon} ${ATTR_INFO[a].name}${statInfoBtnV142(a)}'],
+  ['the SKILLS sheet (un)',              '${ATTR_INFO[a].name}</span>${isKey(a) ? \'<span class="weight-tag">KEY</span>\' : ""}${statInfoBtnV142(a)}'],   // v153 E: the one-page row
   ['the pregame sheet (pregamePlayerStatsV25)', '${ATTR_INFO[k].name}${statInfoBtnV142(k)}</span>`'],
   ['the offseason board (tpRowV113)',    '${ATTR_INFO[k].icon} ${ATTR_INFO[k].name}${statInfoBtnV142(k)}</span>']
 ]) ok(`${screen} renders the button`, SRC.includes(needle), needle)

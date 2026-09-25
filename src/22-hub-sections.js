@@ -182,6 +182,19 @@
       txt: [{ k: "log", re: /^The Journey$/i }],
       nofold: ["xp"],
     },
+    /* v153 E: the stats screen stacked the leaders table and the promotion-odds card, and the shell squeezed the
+     * TABLE to fit (three rows in a 149px box on a linebacker, whose odds card runs five tiers). Two tabs: the board
+     * you came for with its filters, and what rank gets you promoted, each with the whole panel. */
+    stats: {
+      start: "lead",
+      keep: /(^|\s)(eyebrow|h1)(\s|$)/,
+      secs: [
+        { k: "lead", name: "LEADERS",   re: /(^|\s)(btn-row|chips|advf-v151)(\s|$)/ },
+        { k: "odds", name: "PROMOTION", re: /\bnever-v153\b/ },
+      ],
+      txt: [{ k: "odds", re: /WHAT RANK REACHES|RANK REACHES/i }],
+      nofold: ["lead", "odds"],
+    },
     // the prestige tree put 862px of specialization and rewards cards ABOVE the
     // branch row, so the shop you came for started a screen and a half down
     shop: {
@@ -197,7 +210,7 @@
       nofold: ["nodes"],
     },
   };
-  const ICON = { xp: "🎖️", card: "🪪", case: "🏆", book: "📖", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
+  const ICON = { lead: "🏅", odds: "🎯", xp: "🎖️", card: "🪪", case: "🏆", book: "📖", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
   const TAB = { locker: "gear", hub: "now", shop: "nodes", season: "sched", settings: "game", result: "grade", declineResult: "epitaph", gameover: "end", win: "end" };
 
   function cfg() { const s = window.S; return (s && VIEWS[s.view]) || null }
