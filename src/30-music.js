@@ -327,12 +327,44 @@
     M.timer = setInterval(function () {
       if (M.state !== 'playing') { clearInterval(M.timer); M.timer = 0; if (M.duck) ramp(M.duck.gain, 1, 0.05); M.duckOn = false; return; }
       var t = Date.now();
+      listenV151E2(t);
       if (loudElsewhere()) M.lastLoud = t;
       var on = t - M.lastLoud < DUCK_HOLD_MS || t < (M.duckUntil || 0);
       if (on !== M.duckOn) { M.duckOn = on; if (on) M.ducks++; if (M.duck) ramp(M.duck.gain, on ? DUCK : 1, on ? DUCK_ATTACK : DUCK_RELEASE); }
       if (M.el) M.el.volume = Math.max(0, Math.min(1, volTarget() * (on ? DUCK : 1)));
     }, 110);
   }
+
+  /* ===== v151 E.2 THE BAND IS HEARD, NOT JUST PLAYING =====
+   * iOS Safari can leave a MediaElementAudioSourceNode putting out silence after a first start: the context says
+   * running, the element says playing, the playhead moves, and nothing comes out — until the context is suspended
+   * and resumed (which is exactly what MUTE / UNMUTE did, and why that "fixed" it). So the master's own analyser
+   * listens: a deck well past the file's silent lead-in with the fade up and a peak of ~0 for STALL_MS is a stall,
+   * and the next trusted tap does the mute/unmute cycle inside the gesture (`kick`). Once the band has been heard
+   * the watch stands down — a quiet bar later in the track is music, not a fault. */
+  var STALL_MS = 900, STALL_PEAK = 0.0004, KICKS_MAX = 4;
+  M.heard = false; M.silentSince = 0; M.kicks = 0;
+  function listenV151E2(t) {
+    if (M.heard || M.mode !== 'stream' || !M.an || !M.fade) return;
+    var d = M.decks[M.cur];
+    if (!d || d.el.paused || (d.el.currentTime || 0) < LOOP_START + 0.35 || M.fade.gain.value < 0.5 || volTarget() < 0.01) { M.silentSince = 0; return; }
+    var peak = 0; try { M.an.getFloatTimeDomainData(M.anData); for (var i = 0; i < M.anData.length; i++) peak = Math.max(peak, Math.abs(M.anData[i])); } catch (e) { return; }
+    if (peak > STALL_PEAK) { M.heard = true; M.silentSince = 0; return; }
+    if (!M.silentSince) M.silentSince = t;
+  }
+  function stalled() { return !M.heard && M.state === 'playing' && M.silentSince && Date.now() - M.silentSince > STALL_MS; }
+  function kick() {
+    if (M.kicks >= KICKS_MAX || !M.ctx) return;
+    M.kicks++; M.silentSince = 0;
+    var c = M.ctx, d = M.decks[M.cur];
+    try { d && d.el.pause(); } catch (e) {}
+    try { c.suspend(); } catch (e) {}
+    try { var r = c.resume(); if (r && r.catch) r.catch(function () {}); } catch (e) {}
+    if (d) { var p = d.el.play(); if (p && p.catch) p.catch(function (e) { M.err = String(e && e.message || e); }); }
+  }
+  ['touchend', 'click', 'keydown'].forEach(function (g) {
+    document.addEventListener(g, function (ev) { if (ev.isTrusted && wantPlay() && stalled()) kick(); }, { capture: true, passive: true });
+  });
 
   /* ---------- the gesture, the tab, the app ---------- */
   var GESTURES = ['pointerdown', 'touchend', 'keydown', 'click'];
@@ -427,7 +459,7 @@
       var level = 0; if (M.an && M.state === 'playing') { try { M.an.getFloatTimeDomainData(M.anData); for (var i = 0; i < M.anData.length; i++) level = Math.max(level, Math.abs(M.anData[i])); } catch (e) {} }
       return { state: M.state, mode: M.mode, enabled: prefs.music, muteAll: prefs.muteAll, volume: prefs.vol, sfxVolume: prefs.sfxVol, gestured: M.gestured,
         ctx: M.ctx ? M.ctx.state : null, kind: M.kind, error: M.err, fetched: !!fetching, blobBytes: M.blobBytes || 0, decoded: !!M.buf, started: M.started,
-        decks: M.decks.length, playingDecks: M.decks.filter(function (d) { return !d.el.paused; }).length, cur: M.cur, swapping: M.swapping, swaps: M.swaps.slice(),
+        heard: M.heard, kicks: M.kicks, stalled: !!stalled(), decks: M.decks.length, playingDecks: M.decks.filter(function (d) { return !d.el.paused; }).length, cur: M.cur, swapping: M.swapping, swaps: M.swaps.slice(),
         position: +p.pos.toFixed(3), loops: p.loops, gain: M.master ? +M.master.gain.value.toFixed(4) : null,
         fade: M.fade ? +M.fade.gain.value.toFixed(4) : null, ducking: M.duckOn, ducks: M.ducks, level: +level.toFixed(4), hidden: M.hidden, buses: buses.length,
         sfxGains: buses.map(function (b) { return +b.gain.gain.value.toFixed(3); }) };
@@ -441,6 +473,7 @@
       return false;
     },
     /* for the check: the level on the music bus right now (RMS over the analyser's window) */
+    _silenceV151E2: function () { M.heard = false; M.silentSince = 0; var d = M.decks[M.cur]; if (d) { d.g.gain.cancelScheduledValues(0); d.g.gain.value = 0; } },   // checks: fake the iOS stall
     _rms: function () { if (!M.an) return 0; try { M.an.getFloatTimeDomainData(M.anData); } catch (e) { return 0; } var t = 0; for (var i = 0; i < M.anData.length; i++) t += M.anData[i] * M.anData[i]; return Math.sqrt(t / M.anData.length); },
     refreshUi: refreshUi,
     key: KEY

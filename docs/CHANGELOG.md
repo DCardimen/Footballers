@@ -11,6 +11,8 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v151 E.2 — the band is heard, not just playing.** On iOS the music could start "playing" in silence (context running, element playing, playhead moving, nothing out) until MUTE / UNMUTE suspended and resumed the context. `src/30-music.js` now listens on the master's analyser: past the file's lead-in with the fade up and a ~0 peak for 900 ms is a stall (`state().stalled`), and the next trusted tap runs the same suspend/resume + replay inside the gesture (`kick`, at most 4; `state().kicks`). Once the band has been heard the watch stands down. Test hook `RIB_MUSIC._silenceV151E2()`.
+
 - **v151 E.1 — the first tap starts the band.** The music waited for a gesture, but it treated the first `pointerdown` as the start even when the browser refused it (iOS Safari does not count a press as activation) and then stopped listening, so it stayed silent until a Settings toggle. `src/30-music.js` now keeps the gesture listeners until the sound is really running (`audible()`: context running, deck playing), re-primes the parked deck on the next gesture, and retries on a click. Probe: a refused first play now recovers on the same tap's click.
 
 - **v151 A — the free game is the game, and the store is a ladder.** The owner chose the hybrid model and the
