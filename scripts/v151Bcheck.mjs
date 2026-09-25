@@ -102,11 +102,11 @@ const pz = await E(() => { const C = window.RIB_COSMETICS, S = window.RIB_SEASON
   const card = { title: !!el.querySelector('[data-title]'), icon: !!el.querySelector('[data-icon]'), badge: !!el.querySelector('[data-badge]'), plate: !!el.querySelector('[data-plate]'), text: (el.querySelector('.pc-title-v151b') || {}).textContent || '' }
   el.remove()
   const allEq = C.equipped(); const keep = C.equipped('uniform'); C.equip('uniform', kt.id); const kitTeam = C.profile().cosmetics.kit; C.equip('uniform', keep)
-  return { seasons: true, sid, n: all.length, inCat, kinds, before, got, eq, oldOk, card, allEq: Object.keys(allEq).length, kitTeam, open: typeof C.openProfile } })
+  return { seasons: true, sid, n: all.length, inCat, kinds, before, got, eq, oldOk, card, allEq: Object.keys(allEq).length, slotsN: C.slots.length, kitTeam, open: typeof C.openProfile } })
 ok(pz.seasons && pz.inCat === pz.n && pz.n > 20, 'the current Career Pass track is in the catalogue, locked until claimed', pz)
 ok(!pz.before && pz.got.every(Boolean) && pz.eq.every(Boolean) && pz.oldOk, 'pass rewards (title, icon, badge, nameplate, kit trim — and an older season\'s banner by id) are granted and equipped', pz.got)
 ok(pz.card.title && pz.card.icon && pz.card.badge && pz.card.plate && pz.card.text.length > 3, 'the card wears the pass title, icon, badge and nameplate', pz.card)
-ok(pz.allEq === 13 && pz.open === 'function' && pz.kitTeam && /^#[0-9a-f]{6}$/i.test(pz.kitTeam.j), 'equipped() with no slot is every slot; openProfile exists; a Kit Trim keeps the team jersey', { allEq: pz.allEq, open: pz.open, kit: pz.kitTeam })
+ok(pz.allEq >= 13 && pz.allEq === pz.slotsN && pz.open === 'function' && pz.kitTeam && /^#[0-9a-f]{6}$/i.test(pz.kitTeam.j), 'equipped() with no slot is every slot; openProfile exists; a Kit Trim keeps the team jersey', { allEq: pz.allEq, open: pz.open, kit: pz.kitTeam })
 
 // ================= 3. the Team Creator's gate =================
 await dlgAuto()

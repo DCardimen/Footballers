@@ -1610,6 +1610,14 @@ function ribSyncYouKitV96(scene, side) {
 function cosKitV151B(teamCols) {
   try { const C = window.RIB_COSMETICS; return C && C.fieldKit ? C.fieldKit(teamCols, RIB.defPal || null) : null; } catch (e) { return null; }
 }
+/* ===== v153 G HIS FLAIR ON THE FIELD — footprints, wings, crown, aura, number font =====
+ * Called from placeMarker for the you-marker (and once for a marker that stops being him, so his flair comes off).
+ * Everything is src/28's `fieldFx`: children of HIS container (wings, crown, aura), one Graphics under the players
+ * (the footprints) and his number's font. Nothing equipped → it returns at once and draws nothing. It reads the
+ * marker's drawn state only and never draws Math.random. */
+function cosFxV153G(scene, m, p) {
+  try { const C = window.RIB_COSMETICS; if (C && C.fieldFx) C.fieldFx(scene, m, p); } catch (e) {}
+}
 // the module equips between plays: re-dress him now (RIB lives in this file's scope, not on window)
 window.__COS_FIELD_V151B = {
   resync(scene) {
@@ -6000,6 +6008,7 @@ class Ot extends mt.Scene {
       this.drawPlumbob(m.bob, m.tms, p.s, !!m._gassedV20);
     } else m.bob = null;
     if (m.tag && m.tag.active) m.tag.setPosition(p.x, p.y + 27 * p.s).setScale(p.s); else m.tag = null;
+    if (m.team === "you" || m._cosV153G) cosFxV153G(this, m, p);   // v153 G: his footprints, wings, crown, aura, number font
     return p;
   }
   resolveOverlaps() {

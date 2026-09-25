@@ -11,6 +11,22 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v153 G — the full locker: footprints, wings, crowns, and a 50-tier pass.** Five new things to wear, all drawn from
+  code at the broadcast's pixel scale: FOOTPRINTS behind him while he moves on the live field (flame, frost, gold
+  sparks, lightning, stardust, smoke, rainbow, 8-bit, petals, comet, an afterimage of himself), WINGS on his back
+  (angel, seraph, night/bat, ice crystal, phoenix, mech, 8-bit, monarch — they flap, fold at a sprint, and sit over his
+  back when he faces away), CROWNS on his head (gold, royal, halo, laurel, circlet, horns, fire, star — drawn over the
+  plumbob so it never hides them), AURAS (glow, pulse, heat haze, frost, void) and NUMBER FONTS for his jersey number.
+  All of them are worn on the profile card's figure too. The catalogue also gains 12 jerseys (chevron, stripes,
+  shoulders, check, sash, tiger), 9 helmets (satin and pearl finishes, twin and wide stripes), 10 card frames (neon,
+  hardwood, frostbite, circuit, emerald, royal, molten, holographic, heaven's gate, the void) and 7 touchdown
+  celebrations (shockwave, snow globe, 8-bit burst, meteor shower, over the rainbow, halo ring, angel descends). The
+  Career Pass grows from 30 to 50 tiers (800 XP each): a reward on 37 free tiers and all 50 premium ones, a highlight
+  every fifth tier, and a showcase at 50 (mythic seraph wings; a legendary crown on the free track), every jersey,
+  helmet and flair reward naming the style it draws. Still status, never power: nothing reads a sim value or spends
+  `Math.random`, `validateReward` refuses anything non-cosmetic, and with monetization OFF nothing is sold.
+  `src/28-cosmetics.js`, `src/29-seasons.js`, the `cosFxV153G` hook in `src/05`; `v153Gcheck`.
+
 - **v152 A.2 — the medal gets the spotlight, the book turns, the band plays on arrival.** The profile card wears the
   Legacy medal in its own framed, glowing box beside the name (tap: the trophy case). The collection book turns real
   pages: a two-faced leaf lifts, curls and falls over the spine (or swings back in), with a paper swish, a landing thump,
