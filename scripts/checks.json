@@ -156,7 +156,8 @@
   "contact": {
    "desc": "v146 A — who is on him when he goes down, the fall together, the taken sack",
    "anchors": [
-    "v146 A"
+    "v146 A",
+    "v151 D"
    ],
    "files": [],
    "checks": [
@@ -171,7 +172,8 @@
     "v112Fcheck",
     "renderpathcheck",
     "v86check",
-    "v110check"
+    "v110check",
+    "v151Dcheck"
    ]
   },
   "cuts": {
@@ -413,7 +415,8 @@
    "desc": "v143 + contact physics — approach angle, windup, low/mid/high, what each aim costs",
    "anchors": [
     "v143",
-    "hitGeoV109"
+    "hitGeoV109",
+    "v151 D"
    ],
    "files": [],
    "checks": [
@@ -426,7 +429,8 @@
     "v109C1check",
     "v112Fcheck",
     "renderpathcheck",
-    "v86check"
+    "v86check",
+    "v151Dcheck"
    ],
    "steps": [
     "`scoreneutralcheck` over several seeds, against the OFF spread (the aim roll changes sample paths)"
@@ -3482,6 +3486,20 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v151Dcheck": {
+   "file": "scripts/v151Dcheck.mjs",
+   "desc": "v151 D — the live field's feel: tackler pace capped at his own legs (no flying in), contact distance, angle -> stop rate, push-backs, the recovery, stride band 1x/2x/4x, juke/spin/side-step sequences, skin tones natural + varied with kits untouched",
+   "areas": [
+    "contact",
+    "tackle"
+   ],
+   "runtimeSec": 600,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   }
  }
 }

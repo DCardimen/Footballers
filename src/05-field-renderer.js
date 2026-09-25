@@ -995,6 +995,90 @@ function ribRecolor(src, p1hex, p2hex) {
   c.putImageData(img, 0, 0);
   return cv;
 }
+/* ===== v151 D THE SKIN IS HIS OWN =====
+ * Every man on the field had the same orange skin — and on half the sheets not even that: the
+ * v91 build pulled the drawn skin (hue 24-31) onto the kit's gold with the pants, and the v22
+ * sheets' arms already sat in ribRecolor's gold band, so the recolour painted arms and faces in
+ * the team's SECONDARY colour (white-pants teams had white arms). Three parts:
+ *   - the build (`skin_mask` in build-field-art.py) leaves the skin out of the gold normalisation;
+ *   - `skinMaskV151D(cell)` finds the skin on any cell at runtime with the SAME rule (warm,
+ *     saturated, redder than the pants, never the football's brown, a neighbour vote), and `put`
+ *     restores those pixels after the kit recolour — so a kit never touches skin, and (below) skin
+ *     never touches a kit;
+ *   - the skin is drawn as its own layer (`m.skin`, a second image in the marker's container) off a
+ *     grey luminance cell (`skin151_<cell>`), tinted per man: his tone times the light the body is
+ *     lit with. `SKIN_TONES_V151D` is a natural range, light to deep; `skinToneV151D(player|seed)` is
+ *     deterministic per roster player (his name), or `player.skinTone` when one is set (the
+ *     you-player's to choose), and rides the sim log's actor (`skin`) onto the marker (`m.skinTone`).
+ * The kit masks are untouched, so cosmetics' kit recolours (v151 B) compose with it for free.
+ * Kill switch `TU("skinV151D", 0)`: no layer, and the old recolour. `window.__V151D_SKIN`. */
+const SKIN_TONES_V151D = ["#f3d2b3", "#e8bc97", "#d6a37c", "#bf8a62", "#a4704b", "#86573a", "#6a432c", "#4f3121"];
+function skinToneV151D(p) {
+  if (p && Number.isFinite(p.skinTone)) return Math.max(0, Math.min(SKIN_TONES_V151D.length - 1, Math.round(p.skinTone)));
+  const s = String(p && typeof p === "object" ? (p.name || p.id || "") : (p == null ? "" : p));
+  let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 997) % SKIN_TONES_V151D.length;
+}
+window.__skinToneV151D = skinToneV151D;
+// the check's handle: the same recolour, the same mask, the same cell lookup, and the kits as registered
+window.__V151D_SKIN_API = { recolor: (c, p1, p2) => ribRecolor(c, p1, p2), mask: c => skinMaskV151D(c), cell: n => ribCellV91(n) || ribCellV22(n) || ribCell(n), cols: () => RIB.teamCols, tones: SKIN_TONES_V151D, texSkin: k => RIB.skinOfTexV151D ? RIB.skinOfTexV151D[k] : undefined };
+const SKIN_MASKS_V151D = new WeakMap();
+// the man on the marker: the you-player's own choice (or his name), a roster man's name, else the slot
+function skinToneForV151D(actor, marker, idx) {
+  try {
+    if (actor && (actor.you || (marker && marker.kit === "you"))) {
+      const st = window.__getGridironState && window.__getGridironState(), pl = st && st.player;
+      if (pl) return skinToneV151D({ skinTone: pl.skinTone, name: pl.name || "you" });
+    }
+    if (actor && Number.isFinite(actor.skin)) return skinToneV151D({ skinTone: actor.skin });
+    if (actor && actor.nm) return skinToneV151D({ name: actor.nm });
+  } catch (e) {}
+  return skinToneV151D("slot" + idx + ":" + (actor && actor.side || ""));
+}
+function skinMaskV151D(src) {
+  if (!src) return null;
+  const hit = SKIN_MASKS_V151D.get(src); if (hit) return hit;
+  let d;
+  try { d = src.getContext("2d").getImageData(0, 0, 48, 48).data; } catch (e) { return null; }
+  const N = 48 * 48, warm = new Uint8Array(N), sk = new Uint8Array(N), L = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2], al = d[i * 4 + 3];
+    if (al <= 24) continue;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, sat = mx ? (mx - mn) / mx : 0;
+    if (sat <= .3 || l < 22 || mx === mn || g < r * .47) continue;
+    let hue; if (mx === r) hue = (60 * ((g - b) / (mx - mn)) + 360) % 360; else if (mx === g) hue = 60 * ((b - r) / (mx - mn)) + 120; else hue = 60 * ((r - g) / (mx - mn)) + 240;
+    if (hue < 8 || hue >= 46) continue;
+    warm[i] = 1; L[i] = l;
+    if (hue < TU("skinHueV151D", 31) || (hue < 34 && l < 58)) sk[i] = 1;
+  }
+  const mask = new Uint8Array(N); let n = 0, lsum = 0;
+  for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) {
+    const i = y * 48 + x; if (!warm[i]) continue;
+    let f = 0, w = 0;
+    for (let yy = Math.max(0, y - 1); yy <= Math.min(47, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(47, x + 1); xx++) { const j = yy * 48 + xx; f += sk[j]; w += warm[j]; }
+    if (f > 0 && f >= w * .5) { mask[i] = 1; n++; lsum += L[i]; }
+  }
+  const out = { mask, n, lmean: n ? lsum / n : 0, L };
+  SKIN_MASKS_V151D.set(src, out); return out;
+}
+// the grey luminance cell the tone multiplies: the drawn shading kept, the colour thrown away
+function skinCellV151D(srcName, cell0, sk) {
+  const C = RIB.skinCellsV151D || (RIB.skinCellsV151D = {});
+  if (C[srcName]) return C[srcName];
+  const cv = document.createElement("canvas"); cv.width = 48; cv.height = 48;
+  const cx = cv.getContext("2d"), img = cx.createImageData(48, 48), o = img.data, ref = Math.max(30, sk.lmean);
+  for (let i = 0; i < 48 * 48; i++) { if (!sk.mask[i]) continue;
+    const v = Math.max(40, Math.min(255, Math.round(TU("skinGreyMidV151D", 214) * Math.pow(sk.L[i] / ref, TU("skinGreyGammaV151D", .8)))));
+    o[i * 4] = v; o[i * 4 + 1] = v; o[i * 4 + 2] = v; o[i * 4 + 3] = 255; }
+  cx.putImageData(img, 0, 0);
+  return (C[srcName] = cv);
+}
+function skinRegisterV151D(scene, srcName, cell0, sk) {
+  const key = "skin151_" + srcName;
+  if (!scene.textures.exists(key)) { try { scene.textures.addCanvas(key, skinCellV151D(srcName, cell0, sk)); } catch (e) {} }
+  const V = window.__V151D_SKIN = window.__V151D_SKIN || { cells: 0, px: 0, restored: 0, layers: 0, frames: 0, tones: {} };
+  return key;
+}
 // v45 REFEREE ZEBRA: paint vertical black bars across the torso band of a
 // recolored (white) official so the crew reads as the classic striped shirt
 // from broadcast distance. Only light, opaque pixels in the chest rows are
@@ -1327,6 +1411,17 @@ function ribRegisterTeam(scene, team, p1, p2, deco) {
     const cell0 = ribCellV91(srcName) || ribCellV22(srcName) || ribCell(srcName); if (!cell0) return;   // v91 > v22 > baked, by name
     RIB.numBandTex[key] = numBandV104(srcName, cell0);   // v104: where this pose wears its number
     let cv = ribRecolor(cell0, p1, p2);
+    // v151 D: the kit never touches skin — the skin pixels come back from the drawn cell, and the
+    // texture remembers which grey skin cell its layer wears
+    const sk151 = TU("skinV151D", 1) ? skinMaskV151D(cell0) : null;
+    (RIB.skinOfTexV151D || (RIB.skinOfTexV151D = {}))[key] = null;
+    if (sk151 && sk151.n >= TU("skinMinPxV151D", 6)) {
+      try { const c2 = cv.getContext("2d"), a = c2.getImageData(0, 0, 48, 48), b = cell0.getContext("2d").getImageData(0, 0, 48, 48);
+        for (let i = 0; i < 48 * 48; i++) if (sk151.mask[i]) { a.data[i * 4] = b.data[i * 4]; a.data[i * 4 + 1] = b.data[i * 4 + 1]; a.data[i * 4 + 2] = b.data[i * 4 + 2]; a.data[i * 4 + 3] = b.data[i * 4 + 3]; }
+        c2.putImageData(a, 0, 0);
+        RIB.skinOfTexV151D[key] = skinRegisterV151D(scene, srcName, cell0, sk151);
+        const V = window.__V151D_SKIN; V.cells++; V.px += sk151.n; } catch (e) {}
+    }
     if (deco) { try { cv = deco(cv, srcName, RIB.numBandTex[key], cell0) || cv; } catch (e) {} }   // v151 B: a cosmetic deco reads the pose's own collar/waist and the raw art
     try { scene.textures.remove(key); } catch (e) {}
     scene.textures.addCanvas(key, cv);
@@ -2139,6 +2234,7 @@ class Ot extends mt.Scene {
         marker.posLabel = actor.label;
         marker.actorId = actor.id;
         marker._ageKV144 = AGE_K_THIS_PLAY_V144;   // v144: one state read a snap, not 22 a frame
+        marker.skinTone = skinToneForV151D(actor, marker, idx);   // v151 D: his own skin, whoever he is
         marker._idleHomeV144 = null; marker._idleToV144 = null; marker._idleNextV144 = null;   // v144 C: the shuffle's leash belongs to ONE gap
         if (window.__RIB20_applyAppearance) window.__RIB20_applyAppearance(this, marker, actor.label, idx);
       });
@@ -3765,11 +3861,52 @@ class Ot extends mt.Scene {
           // a low-rated one is slower, wobblier, and hangs in the cut longer.
           const flu = mt.Math.Clamp(((e.elus != null ? e.elus : 55) - 30) / 55, 0, 1);
           cm2.cutUntil = cm2.tms + (300 - flu * 130);            // higher rating recovers quicker
-          if(!isSpin){cm2.forceState="jukeSeq";cm2.seqT=cm2.tms;}
+          const mv151 = !!TU("moveV151D", 1);
+          if(!isSpin && !(mv151 && isStep)){cm2.forceState="jukeSeq";cm2.seqT=cm2.tms;}
           this.skidFx(e.x, e.y); this.puffFx(e.x, e.y, 2);
           try { this.addWearV86(e.x, e.y, 4, 0.05); } catch (er) {}   // v86: a planted foot tears the turf
+          /* ===== v151 D THE MOVE IS A MOVE =====
+           * The spin was the whole sprite turned 360 degrees like a top — a picture no body makes —
+           * and the juke and the side step were one sprite nudge each way. Now, off the sim's own `cut`
+           * event (same tick, same side, same rating):
+           *   SPIN — he turns THROUGH the sheet's facings in order (`faceMarker` walked round the
+           *     circle over `spinMsV151D`, faster for an agile man), hips dropping through the middle
+           *     of it; the ball stays in the hand because the hand is the cell's own (v105/v108).
+           *   JUKE — the plant (the drawn juke frames), a shoulder dip toward the fake, a small hop off
+           *     the planted foot, and a short burst of quicker steps out of it (`jukeBurstMsV151D`).
+           *   SIDE STEP — no plant pose: a quick two-beat lateral shuffle (`stepHopsV151D` hops) on the
+           *     run frames, almost no lean.
+           * And the men he beat react: the lunger on a bad line OVERRUNS on his feet and has to plant
+           * and turn (tackleWhiff below), and a man who bites on the move false-steps the wrong way
+           * (badAngle). Kill switch `TU("moveV151D", 0)` restores the old tweens. */
+          const H151 = this.hookV151D(), fluMs = 1 - flu;
+          if (mv151 && cm2.body) {
+            const dir = Number(e.direction) || (Math.random() < 0.5 ? 1 : -1);
+            const scrDir = Math.sign(PJ(cm2.sx, cm2.sy + dir * 10).x - PJ(cm2.sx, cm2.sy).x) || dir;
+            if (H151.moves.length < 60) H151.moves.push({ kind: e.kind, t: Math.round(P.t), evT: Math.round(e.t || 0) });
+            if (isSpin) {
+              // which way round: away from the man he is spinning off, i.e. the side he is cutting to
+              const a0 = this.faceAngV109 ? this.faceAngV109(cm2) : -Math.PI / 2;
+              cm2._spinV151 = { t0: cm2.tms, ms: TU("spinMsV151D", 420) - flu * 120, a0, dir: scrDir, faces: [cm2.dirKey + (cm2.flip ? "f" : "")], last: cm2.dirKey + (cm2.flip ? "f" : "") };
+              cm2.cutUntil = cm2.tms + cm2._spinV151.ms;
+              H151.spin++; const sq = cm2._spinV151; this.time.delayedCall(sq.ms + 20, () => { if (H151.spinSeq.length < 40) H151.spinSeq.push(sq.faces.slice()); });
+            } else if (isStep) {
+              cm2._jukeV151 = { t0: cm2.tms, ms: TU("stepMsV151D", 240), dir: scrDir, step: true }; H151.step++;
+              const hops = TU("stepHopsV151D", 2), hopMs = Math.max(40, (TU("stepMsV151D", 240) - flu * 60) / (hops * 2));
+              this.tweens.add({ targets: cm2.body, x: (cm2.body.x || 0) + scrDir * TU("stepHopPxV151D", 3), y: -1.5, duration: hopMs, yoyo: true, repeat: hops - 1, ease: "Quad.Out",
+                onRepeat: () => { H151.stepHops++; }, onComplete: () => { if (cm2.body) { cm2.body.x = 0; cm2.body.y = 0; } } });
+              H151.stepHops++;
+            } else {
+              cm2._jukeV151 = { t0: cm2.tms, ms: TU("jukeMsV151D", 300) - flu * 80, dir: scrDir, step: false }; H151.juke++;
+              cm2._burstV151 = cm2.tms + TU("jukeBurstMsV151D", 260) + TU("jukeMsV151D", 300);
+              // the hop off the planted foot, laterally toward the cut
+              this.tweens.add({ targets: cm2.body, x: (cm2.body.x || 0) + scrDir * (2 + flu * 3), y: -TU("jukeHopPxV151D", 2.5), duration: 90 + fluMs * 40, yoyo: true, ease: "Quad.Out",
+                onComplete: () => { if (cm2.body) { cm2.body.x = 0; cm2.body.y = 0; } } });
+              H151.jukeHop++;
+            }
+          }
           // a spin whips the body around; a juke throws a sharp lateral lean-and-recover.
-          if (cm2.body) {
+          if (cm2.body && !mv151) {
             if (isSpin) {
               this.tweens.add({ targets: cm2.body, angle: (Math.random()<0.5?360:-360), duration: 360 - flu*150, ease: flu>0.6 ? "Cubic.Out" : "Sine.InOut", onComplete: () => { if (cm2.body) cm2.body.setAngle(0); } });
             } else {
@@ -3978,6 +4115,16 @@ class Ot extends mt.Scene {
        * `drag` arrives every ~99ms while the grip travels. Both men churn — feet driving, a short
        * bob on the body — at a cadence set by the pull and slowed as the pile grows, and the
        * carrier's lean deepens with every man on his back. */
+      /* v151 D THE PUSH (renderer): the sim says who is driving whom; both lean into it for the beat */
+      case "pushV151D": {
+        const dm = this.markers[this.actorIdx(e.who)], om = this.markers[this.actorIdx(e.on)];
+        if (dm && om && TU("moveV151D", 1)) { const ms = Math.max(120, Number(e.ms) || 200) + TU("pushHoldMsV151D", 120);
+          dm._pushV151 = { t0: dm.tms, until: dm.tms + ms, role: "drive", other: om, dir: e.dir };
+          om._pushV151 = { t0: om.tms, until: om.tms + ms, role: "driven", other: dm, dir: e.dir };
+          const H = this.hookV151D(); H.push++; H.lastPush = { dir: e.dir, who: e.who, on: e.on, t: Math.round(P.t) };
+          if (e.dir < 0) { this.puffFx(e.x, e.y + 3, 2, 0x8a7a55, 0.45); if (Math.abs(e.edge || 0) > 2.2) this.popText(e.x, e.y - 22, "DRIVEN BACK!", "#ffd97a", 12); } }
+        break;
+      }
       case "drag": {
         const tk = this.markers[this.actorIdx(e.by)], cm = this.markers[this.actorIdx(e.carrier)];
         const n = Math.max(1, Number(e.n || 1)), pull = Math.max(.05, Number(e.pull || .1));
@@ -4038,6 +4185,17 @@ class Ot extends mt.Scene {
       case "tackleWhiff": {
         // the lunge missed — the defender hits the turf and the runner slips past
         const tk = this.markers[this.actorIdx(e.who)];
+        /* v151 D: a man who came in on a BAD LINE did not dive at anything — he overran it. He stays
+         * on his feet, carried past by his own momentum (the sim runs the overrun and the brake), then
+         * plants and turns back. Only a man who was on the carrier's line lunges and hits the turf. */
+        if (tk && TU("moveV151D", 1) && e.angQ != null && e.angQ < -TU("overrunAngV151D", .3) && !(tk._launchUntil > tk.tms)) {
+          tk._whiffed = true; tk.forceState = null; this.hookV151D().overrun++;
+          const brake = TU("overrunPlantAtMsV151D", 300);
+          this.time.delayedCall(brake, () => { if (tk.active === false || tk.forceState) return; tk._plantUntilV109 = tk.tms + TU("overrunPlantMsV151D", 140); this.skidFx(tk.sx, tk.sy); });
+          this.time.delayedCall(brake + 400, () => { tk._whiffed = false; });
+          this.popText(e.x, e.y - 22, "OVERRAN IT!", "#8fe7ff", 12);
+          break;
+        }
         if (tk) { tk._whiffed = true; tk.forceState = "dive";
           /* v139: he does not snap to the turf a fifth of a second after leaving his feet — he
            * finishes the arc he is already in, LANDS on it (the puff, the skid and the wear are
@@ -4377,6 +4535,10 @@ class Ot extends mt.Scene {
       }
       case "badAngle": {
         const m = this.markers[this.actorIdx(e.who)];
+        // v151 D: he BIT — the false step is drawn: the hips open the wrong way before he can recover
+        if (m && TU("moveV151D", 1) && e.reason === "juke-help") { const cm = this.markers[P.carrierId];
+          const away = cm && cm.root ? -(Math.sign(PJ(cm.sx, cm.sy).x - PJ(m.sx, m.sy).x) || 1) : 1;
+          m._jukeV151 = { t0: m.tms, ms: Math.min(420, e.delay || 260), dir: away, step: false }; this.hookV151D().bite++; }
         if (m) { m.forceState = null; m.cutUntil = m.tms + 160; this.puffFx(e.x, e.y, 1);
           if (m.team === "you") this.popText(e.x, e.y - 22, "BAD ANGLE", "#ff9a9a", 11); }
         break;
@@ -5205,8 +5367,9 @@ class Ot extends mt.Scene {
     // direction) — the old path re-set the font size on every marker on every frame.
     const label = this.add.text(0, -3, String(num), numStyleV104(team)).setOrigin(0.5);
     { const sw = TU("numStroke", 2.2); if (sw > 0) label.setStroke("#0a0e14", sw); }
-    const root = this.add.container(0, 0, [fill, shadow, body, label]).setDepth(4);
-    const m = { root, body, label, shadow, fill, team, kit, num, sx, sy, dirKey: "dn", flip: false, ft: 0, hd: null, cutUntil: 0, tms: 0 };
+    const skin = this.add.image(0, 0, initialKey).setVisible(false);   // v151 D: his own skin, a layer over the kit
+    const root = this.add.container(0, 0, [fill, shadow, body, skin, label]).setDepth(4);
+    const m = { root, body, skin, label, shadow, fill, team, kit, num, sx, sy, dirKey: "dn", flip: false, ft: 0, hd: null, cutUntil: 0, tms: 0 };
     if (faceDx != null) this.faceMarker(m, faceDx, faceDy || 0);
     this.placeMarker(m, sx, sy, 16);
     return m;
@@ -5284,6 +5447,119 @@ class Ot extends mt.Scene {
     m._lean = L; m._leanV109 = L; m._leanSrc = L === 0 ? null : "turn";
     if (L !== 0) { H.leans.n++; H.leans.max = Math.max(H.leans.max, Math.round(Math.abs(L) * 1000) / 1000); }
   }
+  /* ===== v151 D THE FEET ARE ON THE GROUND =====
+   * The run cycle advanced on sim px per wall ms — `ft += dt * min(2.4, speed / 58)` — which has two
+   * faults a viewer reads as skating. It ignores how BIG he is drawn (the far side of the field, a
+   * Pee Wee at 52% scale, a man near the camera: the same ground covered turned the legs the same
+   * number of times however long they were), and it saturated at 139 px/s, so every sprint past that
+   * slid. The cycle is now paced by the ground his own body covers: the screen distance he moved,
+   * divided by his drawn scale (the projection's `s` times the v144 age scale), is the distance in
+   * the SPRITE's own pixels, and one 8-frame cycle is one stride of `strideV151D`'s length — longer
+   * as he goes faster (a jog is short quick steps, a sprint is long ones), so cadence rises with
+   * speed but less than linearly, the way a runner's does. Play speed changes nothing: 2x and 4x
+   * cover twice and four times the ground in twice and four times the script time. The hook
+   * `__V151D_R.stride` keeps frames per cell-pixel so the check can measure the slide.
+   * Kill switch `TU("strideV151D", 0)`. */
+  runFrameV151D(m, dtms) {
+    let mul = 1;
+    const R = m._recV151;
+    if (R && TU("recoverV151D", 1)) { const k = (m.tms - R.t0) / R.ms;
+      mul = TU("recoverCadV151D", .62) + (1 - TU("recoverCadV151D", .62)) * Math.max(0, Math.min(1, k));
+      if (k > .38 && k < .38 + TU("recoverHitchMsV151D", 70) / R.ms) { mul = 0; R.hitch = true; } }   // the hitch: one foot stays down a beat
+    if (m._burstV151 > m.tms) mul *= TU("jukeBurstCadV151D", 1.2);
+    m.ft += this.strideV151D(m, dtms, m._stepDxV151 || 0, m._stepDyV151 || 0, mul);
+    return "run" + (Math.floor(m.ft / 96) % (window.__RIB_FRAMES || 4));
+  }
+  strideV151D(m, dtms, dx, dy, mul) {
+    const dt = Math.max(1, dtms || 16), old = dt * Math.min(2.4, m.sSm / 58) * (mul || 1);
+    if (!TU("strideV151D", 1) || m.sx == null) return old;
+    const p0 = PJ(m.sx - dx, m.sy - dy), p1 = PJ(m.sx, m.sy);
+    const k = Math.max(.05, (p1.s || 1) * (m._ageKV144 || 1));
+    const cell = Math.hypot(p1.x - p0.x, p1.y - p0.y) / k;                 // the ground he covered, in his own sprite's pixels
+    const v = cell / dt * 1000;
+    m._cellVV151 = m._cellVV151 == null ? v : m._cellVV151 * .75 + v * .25;
+    const L = Math.max(TU("strideMinCellV151D", 30), Math.min(TU("strideMaxCellV151D", 84), TU("strideBaseCellV151D", 26) + m._cellVV151 * TU("strideSpdKV151D", .16)));
+    const frames = Math.min(cell, TU("strideTeleCellV151D", 24)) / L * 8 * (mul || 1);   // a re-spot is not a stride
+    const R = this.hookV151D().stride; R.frames += frames; R.cell += Math.min(cell, TU("strideTeleCellV151D", 24)); R.n++;
+    const sp = (window.__getGridironLiveSpeed && window.__getGridironLiveSpeed()) || 1, b = R.by[sp] = R.by[sp] || { frames: 0, cell: 0, n: 0 };
+    b.frames += frames; b.cell += Math.min(cell, TU("strideTeleCellV151D", 24)); b.n++;
+    return frames * 96;                                                       // ft keeps its old unit: 96 a frame
+  }
+  /* the skin layer wears the same cell, the same mirror, the same lean, hop and squash as the body,
+   * tinted his tone times the light the body is lit with; a tween moving the body between frames is
+   * followed in postUpdate by skinFollowV151D */
+  skinSyncV151D(m, tex) {
+    const sk = m.skin; if (!sk) return;
+    const key = TU("skinV151D", 1) && RIB.skinOfTexV151D ? RIB.skinOfTexV151D[tex] : null;
+    if (!key || !this.textures.exists(key) || m.body.visible === false) { if (sk.visible) sk.setVisible(false); return; }
+    if (sk.texture.key !== key) sk.setTexture(key);
+    if (!sk.visible) sk.setVisible(true);
+    const b = m.body, tone = SKIN_TONES_V151D[m.skinTone != null ? m.skinTone : 3] || SKIN_TONES_V151D[3];
+    const tv = parseInt(tone.slice(1), 16), lt = b.isTinted ? b.tintTopLeft : 0xffffff;
+    const mulc = (s2) => Math.round(((tv >> s2) & 255) * ((lt >> s2) & 255) / 255);
+    const tint = (mulc(16) << 16) | (mulc(8) << 8) | mulc(0);
+    if (sk._tintV151 !== tint) { sk.setTint(tint); sk._tintV151 = tint; }
+    if (!this._skinHookV151) { this._skinHookV151 = true; this.events.on("postupdate", () => { for (const mm of this.markers || []) if (mm && mm.skin) this.skinFollowV151D(mm); }); }
+    this.skinFollowV151D(m);
+    const V = window.__V151D_SKIN; if (V) { V.frames++; V.tones[m.skinTone] = (V.tones[m.skinTone] || 0) + 1; }
+  }
+  skinFollowV151D(m) {
+    const sk = m.skin, b = m.body; if (!sk || !sk.visible) return;
+    sk.setFlipX(b.flipX); sk.setRotation(b.rotation); sk.setPosition(b.x, b.y); sk.setScale(b.scaleX, b.scaleY); sk.setAlpha(b.alpha);
+  }
+  hookV151D() {
+    return window.__V151D_R = window.__V151D_R || { stride: { frames: 0, cell: 0, n: 0, by: {} }, push: 0, pushFrames: 0, recover: 0, recoverFrames: 0, recoverMs: [],
+      spin: 0, spinFaces: 0, spinSeq: [], juke: 0, jukeHop: 0, step: 0, stepHops: 0, bite: 0, overrun: 0, moves: [] };
+  }
+  /* ===== v151 D HE FINDS HIS FEET (the picture) =====
+   * The stumble was 250 ms of the hurt frames and a fixed lean, and then the full run came back in one
+   * frame. A man knocked off balance gets it BACK: after the stumble a recovery (`recoverMsV151D`,
+   * longer for a harder knock and shorter for an agile man) eases the lean out through a small
+   * counter-lean — the body swinging back over the feet, the arm out — runs the stride at a clipped
+   * cadence that builds back to full, and holds one frame mid-way (the hitch in the stride). The
+   * ground he covers is still the sim's; the sim already took the speed off him and gives it back on
+   * its own acceleration curve, so the picture and the number agree. */
+  recoverV151D(m, ms, lean) {
+    if (!m || !m.root || !TU("recoverV151D", 1)) return;
+    m._recV151 = { t0: m.tms, ms: Math.max(120, ms || TU("recoverMsV151D", 340)), lean: lean || 0, hitch: false };
+    const H = this.hookV151D(); H.recover++;
+  }
+  /* one call a frame from placeMarker, after the v109 lean: the push, the recovery, the spin's facings
+   * and the juke's dip all own the lean or the facing for their beat, then hand it back */
+  moveV151D(m, dtms, spdPx) {
+    const H = this.hookV151D(), now = m.tms;
+    let lean = null;
+    const R = m._recV151;
+    if (R) { const k = (now - R.t0) / R.ms;
+      if (k >= 1 || m.forceState) { m._recV151 = null; H.recoverMs.length < 400 && H.recoverMs.push(Math.round(now - R.t0)); }
+      else { H.recoverFrames++;
+        // the body swings back over the feet: the lean eases out through a small counter-lean
+        lean = R.lean * (1 - k) * (1 - k) - R.lean * TU("recoverOverV151D", .35) * Math.sin(Math.PI * k) * (1 - k); } }
+    const Pu = m._pushV151;
+    if (Pu) { if (now > Pu.until || /^(tackleSeq|down|dive|fall)$/.test(String(m.forceState || ""))) m._pushV151 = null;
+      else if (Pu.other && Pu.other.root) { H.pushFrames++;
+        const sx = Math.sign(PJ(Pu.other.sx, Pu.other.sy).x - PJ(m.sx, m.sy).x) || (m.flip ? 1 : -1);
+        const ramp = Math.min(1, (now - Pu.t0) / 90);
+        // the man driving leans INTO him, the man being driven is bent back off his feet
+        lean = (Pu.role === "drive" ? 1 : -1) * sx * TU("pushLeanV151D", .26) * ramp;
+        if (Pu.role === "driven" && m.body && !REDUCED_MOTION) m.body.y = Math.sin(now / 45) * .6; } }
+    const Sp = m._spinV151;
+    if (Sp) { const k = (now - Sp.t0) / Sp.ms;
+      if (k >= 1) { m._spinV151 = null; if (m.body) m.body.setScale(1, 1); }
+      else { const a = Sp.a0 + Sp.dir * Math.PI * 2 * k;
+        this.faceMarker(m, Math.cos(a), Math.sin(a));
+        const key = m.dirKey + (m.flip ? "f" : "");
+        if (key !== Sp.last) { Sp.last = key; Sp.faces.push(key); H.spinFaces++; }
+        // he drops his hips into the turn: a little lower and wider through the middle of it
+        if (m.body) { const q = Math.sin(Math.PI * k); m.body.setScale(1 + .06 * q, 1 - .08 * q); }
+        lean = 0; } }
+    const Ju = m._jukeV151;
+    if (Ju) { const k = (now - Ju.t0) / Ju.ms;
+      if (k >= 1) m._jukeV151 = null;
+      else if (lean == null) lean = Ju.dir * TU("jukeDipV151D", .3) * Math.sin(Math.PI * Math.min(1, k * 1.6)) * (Ju.step ? .35 : 1); }   // the shoulder dips into the plant, then comes up out of it
+    if (lean != null) { m._lean = lean; m._leanSrc = "v151"; m._leanV109 = 0; }
+    else if (m._leanSrc === "v151") { m._lean = 0; m._leanSrc = null; }
+  }
   /* the run cadence's special cases: the plant (the feet stop, the cycle stalls), the stumble (the
    * hurt frames at half cadence), the jog and the man who gave up (a slowed cycle, the walk) */
   cadenceV109(m, dtms) {
@@ -5292,14 +5568,16 @@ class Ot extends mt.Scene {
     if (m._downUntilV109 > m.tms && m.sSm < TU("downHoldSpd", 14)) return "down";   // the sim's clock keeps him on the turf
     const SB = m._stumbleV109;
     if (SB) {
-      if (m.tms >= SB.until) { m._stumbleV109 = null; if (m._leanSrc === "stumble") { m._leanSrc = null; m._lean = 0; m._leanV109 = 0; } }
-      else if (m.sSm >= 8) { m.ft += dt * Math.min(2.4, m.sSm / 58) * TU("stumbleCadence", .5); H.stumbleFrames++;
+      if (m.tms >= SB.until) { m._stumbleV109 = null; const l0 = m._leanSrc === "stumble" ? (m._lean || 0) : 0;
+        if (m._leanSrc === "stumble") { m._leanSrc = null; m._lean = 0; m._leanV109 = 0; }
+        if (!m.forceState) this.recoverV151D(m, TU("recoverMsV151D", 340) * Math.max(.6, Math.min(1.6, (SB.until - SB.t0) / TU("stumbleMs", 250))), l0 || -(SB.side || 1) * TU("stumbleLean", .22)); }   // v151 D: he finds his feet
+      else if (m.sSm >= 8) { m.ft += this.strideV151D(m, dt, m._stepDxV151 || 0, m._stepDyV151 || 0, TU("stumbleCadence", .5)); H.stumbleFrames++;
         return "hurt" + (Math.floor((m.tms - SB.t0) / Math.max(40, TU("stumbleMs", 250) / 2)) % 2); }
     }
     const E = m._effortV109;
     if (E && m.sSm >= 8 && m.tms >= m.cutUntil) { H.jogFrames++;
       if (E === "givesUp") { m.ft += dt; return "walk" + (Math.floor(m.ft / TU("walkFrameMs", 190)) % 2); }
-      m.ft += dt * Math.min(2.4, m.sSm / 58) * TU("jogCadence", .65); return "run" + (Math.floor(m.ft / 96) % (window.__RIB_FRAMES || 4)); }
+      m.ft += this.strideV151D(m, dt, m._stepDxV151 || 0, m._stepDyV151 || 0, TU("strideV151D", 1) ? 1 : TU("jogCadence", .65)); return "run" + (Math.floor(m.ft / 96) % (window.__RIB_FRAMES || 4)); }   // v151 D: a jog is short steps on the ground, not a slowed film
     return null;
   }
   /* which side the contact came from, in SCREEN x: the sim's `side` (C1: +1 when the defender is
@@ -5444,6 +5722,7 @@ class Ot extends mt.Scene {
     const dx = sx - m.sx, dy = sy - m.sy;
     m.prevSx=m.sx; m.prevSy=m.sy;
     m.sx = sx; m.sy = sy; m.tms += (dtms || 16);
+    m._stepDxV151 = dx; m._stepDyV151 = dy;   // v151 D: the stride reads the ground this step covered
     const spdPx = Math.hypot(dx, dy) / Math.max(1, dtms || 16) * 1000;
     m.sSm = m.sSm == null ? spdPx : m.sSm * 0.7 + spdPx * 0.3;   // v11: smoothed speed kills state flicker
     const lineLocked = m.isLine && !m.forceState && m.sSm < TU("blockBand",78);   // engaged linemen hold their facing
@@ -5475,6 +5754,7 @@ class Ot extends mt.Scene {
       if (d > 0.9) { if (m.tms >= m.cutUntil) cutSkid = true; m.cutUntil = m.tms + 160; } }
     if (spdPx > 4) m.hd = hd;
     this.leanV109(m, dtms, spdPx, lineLocked, engaged, m.hd);   // v109: the lean, and the facing's rate
+    if (TU("moveV151D", 1)) this.moveV151D(m, dtms, spdPx);    // v151 D: the push, the recovery, the spin's facings, the juke's dip
     let st;
     if (m.forceState) {
       st = m.forceState;
@@ -5537,7 +5817,7 @@ class Ot extends mt.Scene {
     else if (m.tms < m.cutUntil) st = "cut";
     else if (m.sSm < 8) st = "idle";
     else if (m._walk && this.textures.exists("spr_" + (m.kit || m.team) + "_" + m.dirKey + "_walk0")) { m.wt = (m.wt || 0) + (dtms || 16); st = "walk" + (Math.floor(m.wt / TU("walkFrameMs", 170)) % 2); this.v109E().walkFrames++; }   // v109 WALK: a man told to walk (m._walk — the huddle break, the helper, the walk-off, the LB drop) uses the drawn walk cycle
-    else { m.ft += (dtms || 16) * Math.min(2.4, m.sSm / 58); st = "run" + (Math.floor(m.ft / 96) % (window.__RIB_FRAMES || 4)); }
+    else { st = this.runFrameV151D(m, dtms); }   // v151 D: the stride is paced by the ground his own body covers
     // v107: a dropback is a BACKPEDAL, not the run cycle played facing the line. Paced by the
     // ground he covers, the same way the run frames are, so a hurried seven-step churns.
     if (!m.forceState && m._dropback && m.dirKey === "up" && st !== "idle"
@@ -5626,6 +5906,7 @@ class Ot extends mt.Scene {
     // flat, clean sprites — only the diving tackle gets a slight tilt
     // v112: and a man in the air off a hit keeps turning through the flight, then settles as he skids
     m.body.setRotation((st === "dive" ? (m.flip ? 0.3 : -0.3) : (m._lean || 0)) + (m._flySpinV112 || 0));   // v86: a lean survives the frame
+    this.skinSyncV151D(m, tex);
     // v41: side profiles NEVER show a number (chest/back art isn't visible from the
     // side, any state), while linemen keep their numbers even in the pre-snap stance.
     const ribSideProfile = m.dirKey === "sd";

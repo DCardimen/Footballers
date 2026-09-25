@@ -200,7 +200,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           intercepted: isPick ? true : (payload.event==="turnover"?true:undefined) });
         if (log && log.actors && log.actors.length === 22) {
           const tw = (lx)=>Math.max(6, Math.min(714, losX + dir*lx));
-          const actorsOut = log.actors.map(a=>({ id:a.id, side:a.side, label:a.label,
+          const actorsOut = log.actors.map(a=>({ id:a.id, side:a.side, label:a.label, sp:a.sp, nm:a.nm, skin:a.skin, you:a.you,   // v151 D: his own top speed rides the script (the pace caps read it)
             frames: a.frames.map(f2=>({t:f2.t, x:tw(f2.x), y:f2.y})) }));
           const ballOut = log.ball.map(f2=>({t:f2.t, x:tw(f2.x), y:f2.y, h:f2.h||0}));
           const eventsOut = log.events.map(e=>Object.assign({}, e,
@@ -577,7 +577,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       if(a.id===closerId&&tackleAt){
         const rem=Math.max(1,(tackleAt.eta-t));
         const need=Math.hypot(tackleAt.x-a.x,tackleAt.y-a.y);
-        moveToward(a, c.x, c.y, TICK, Math.min(2.1, Math.max(0.8, (need/(a.spd*rem/1000))||1)));
+        moveToward(a, c.x, c.y, TICK, Math.min(TU("paceV151D",1)?TU("choreoCloseMultV151D",1.35):2.1, Math.max(0.8, (need/(a.spd*rem/1000))||1)));   // v151 D: the choreographed closer runs at most his own sprint, not 2.1x it
       } else {
         const L=root.__computeLead(c.x,c.y,c.vx||0,c.vy||0,a.x,a.y,a.spd);
         // v8: a rusher who broke free SPRINTS at a QB still holding the ball
@@ -1285,8 +1285,14 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     // the field (e.g. punt coverage). Cap any single-frame jump to a realistic sprint
     // step so a teleport becomes a fast slide instead. FieldSim plays are already
     // <=17px/frame (well under the cap), so this only touches choreographer output.
-    const _deTPv22=(fr)=>{ if(!fr||fr.length<2)return fr; const MAX=TU("choreoMaxStep",22); const out=[fr[0]]; let px=fr[0].x, py=fr[0].y; for(let k=1;k<fr.length;k++){ const dx=fr[k].x-px, dy=fr[k].y-py, d=Math.hypot(dx,dy); if(d>MAX){ px+=dx/d*MAX; py+=dy/d*MAX; } else { px=fr[k].x; py=fr[k].y; } out.push(Object.assign({},fr[k],{x:px,y:py})); } return out; };
-    return { duration:t, actors:actors.map(a=>({id:a.id,side:a.side,label:a.label,frames:_deTPv22(a.frames)})),
+    /* v151 D: and a man's step is capped at his own legs (`choreoDefPaceV151D` x his speed a frame),
+     * not at 22px — 666px/s, which is how a choreographed closer (or a kick-coverage man) arrived from
+     * nowhere. Any man who ever has the ball in his hands (`_holdV151`, read off the ball track) keeps
+     * the old cap: his frames and the ball's must never part. */
+    const _holdV151=(()=>{ const H=new Set(); if(!ballFrames||!ballFrames.length) return H; const bt={}; ballFrames.forEach(b=>{bt[Math.round(b.t)]=b;});
+      actors.forEach(a=>{ for(const f of a.frames){ const b=bt[Math.round(f.t)]; if(b&&(b.h||0)<3&&Math.hypot(b.x-f.x,b.y-f.y)<TU("choreoHoldPxV151D",14)){H.add(a.id);break;} } }); return H; })();
+    const _deTPv22=(fr,spd,side,id)=>{ if(!fr||fr.length<2)return fr; const MAX=(!_holdV151.has(id)&&TU("paceV151D",1))?Math.min(TU("choreoMaxStep",22),Math.max(TU("choreoDefMinStepV151D",5),(spd||130)*TU("choreoDefPaceV151D",1.45)*TICK/1000)):TU("choreoMaxStep",22); const out=[fr[0]]; let px=fr[0].x, py=fr[0].y; for(let k=1;k<fr.length;k++){ const dx=fr[k].x-px, dy=fr[k].y-py, d=Math.hypot(dx,dy); if(d>MAX){ px+=dx/d*MAX; py+=dy/d*MAX; } else { px=fr[k].x; py=fr[k].y; } out.push(Object.assign({},fr[k],{x:px,y:py})); } return out; };
+    return { duration:t, actors:actors.map(a=>({id:a.id,side:a.side,label:a.label,sp:Math.round(a.spd||SPEED[a.label]||130),nm:a._player&&a._player.name||null,skin:a._player&&Number.isFinite(a._player.skinTone)?a._player.skinTone:null,frames:_deTPv22(a.frames,a.spd,a.side,a.id)})),   // v151 D: sp rides the script
              ball:ballFrames, events, meta:{concept,targetId,losX,endX,dir,scoreDir,scored,
                featured, involved, targetRoute: targetRoute||null,
                coveragePlan:{shell,bracketTargetId,bracketHelperId,manAssignments,
@@ -1325,6 +1331,129 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
    * fall has time to read before the whistle phase takes the field. Nothing here reads or writes a
    * number the game books: no roll, no yard, no name, no event time moves.
    * `contactV146(script)`; kill switch `TU("contactV146", 0)`; `window.__V146` is the hook. */
+  /* ===== v151 D THE MAN HAS TO GET THERE ON HIS OWN LEGS =====
+   * v146 A walked the named tackler onto the carrier with a smoothstep offset laid over his own
+   * path, and the window it gave him was `min(the time since the snap, ~off/150px/s)` — so when he
+   * started far away and late (the v139 cut, which names a man who really made the stop yards
+   * further downfield; a choreographed return; a sack close) the ADDED pace alone reached 400-590
+   * px/s on top of his own sprint. Measured over ~570 play-ending tackles: 72 of 85 cut tackles and
+   * 21 of 23 hit sticks had the named man drawn above 1.25x his top speed in the last 1.2 s, the
+   * worst at 3.4x. That is the man who "flies in from nowhere".
+   *
+   * The spot, the yards and the NAME are the sim's truth and never move (stat credit follows the
+   * name — `pe(X.tackler)`), so there is exactly one honest thing left to spend: TIME. The man is
+   * given an approach no faster than `tacklerPaceCapV151D` times his own top speed (`sp`, carried on
+   * the script's actor) — or than the sim already drew him, whichever is more — and if even the
+   * whole play since the snap is not long enough for that, the WHISTLE WAITS FOR HIM: the carrier's
+   * last `waitWinMsV151D` is eased out (a quadratic time-map, rate 1 going in, near zero at the
+   * spot: he is cornered, looking for a way out, and slowing into the man who finally arrives), the
+   * dead-ball event and everything after it move later by the wait, and the other twenty men carry
+   * their own motion through it. The carrier still reaches the SAME spot, the tackle still names
+   * the SAME man; only the moment of the hit moves. `waitMaxMsV151D` bounds the wait; beyond it the
+   * remaining gap is closed at whatever pace is left (counted as `over`, so the check can see it).
+   * The possession guard keeps the eased window after the carrier has the ball, so no throw, catch
+   * or handoff is ever slowed. `window.__V151D` counts every approach; kill switch
+   * `TU("approachV151D", 0)` restores v146 A exactly. */
+  function approachV151D(S, e, K, C, te, c0, k0, ux, uy, setPx, why) {
+    const V = root.__V151D = root.__V151D || { approaches: 0, capped: 0, waits: 0, waitMs: 0, maxWait: 0, over: 0, maxRatio: 0, byWhy: {} };
+    V.approaches++;
+    const at = (fr, t) => {
+      if (t <= fr[0].t) return { x: fr[0].x, y: fr[0].y };
+      for (let i = 1; i < fr.length; i++) if (fr[i].t >= t) { const a = fr[i - 1], b = fr[i], k = (t - a.t) / ((b.t - a.t) || 1); return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, h: a.h != null ? a.h + ((b.h || 0) - a.h) * k : undefined }; }
+      const l = fr[fr.length - 1]; return { x: l.x, y: l.y, h: l.h };
+    };
+    const T = { x: c0.x + ux * setPx, y: c0.y + uy * setPx }, dx = T.x - k0.x, dy = T.y - k0.y, off = Math.hypot(dx, dy);
+    const sp = K.sp || SPEED[K.label] || 140, cap = sp * TU("tacklerPaceCapV151D", 1.45);
+    const snapE = S.events.find(q => q.type === "snap");
+    const t0 = Math.max(K.frames[0].t, snapE ? snapE.t : 0);
+    const pre = K.frames.filter(f => f.t <= te + 0.01);
+    const ease = u => u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
+    const peak = (fr, fromT) => { let m = 0; for (let i = 1; i < fr.length; i++) { if (fr[i].t < fromT) continue; const dt = (fr[i].t - fr[i - 1].t) / 1000; if (dt > 0) m = Math.max(m, Math.hypot(fr[i].x - fr[i - 1].x, fr[i].y - fr[i - 1].y) / dt); } return m; };
+    // the path he runs: his own until the whistle, held on the spot he reached through any wait,
+    // plus the correction eased in over the last W ms before the (possibly later) hit
+    const build = (W, D) => {
+      const tE = te + D, from = tE - W, out = [];
+      const put = (t, bx, by) => { const q = ease((t - from) / W); out.push({ t, x: Math.round((bx + dx * q) * 10) / 10, y: Math.round((by + dy * q) * 10) / 10 }); };
+      for (const f of pre) { if (f.t >= te - 0.01) break; if (f.t < from) out.push(f); else put(f.t, f.x, f.y); }
+      for (let t = te; t < tE - 0.01; t += TICK) put(t, k0.x, k0.y);
+      out.push({ t: tE, x: T.x, y: T.y });
+      return { fr: out, from, tE };
+    };
+    const ownPeak = peak(pre, te - TU("waitWinMsV151D", 700));
+    const limit = Math.max(cap, ownPeak);
+    const wMin = Math.max(TU("closeMinMsV146", 260), TICK * 2), dMax = Math.max(0, TU("waitMaxMsV151D", 1400));
+    let best = null;
+    for (let D = 0; D <= dMax + 0.01 && !(best && best.ok); D += TICK * 2) {
+      const avail = Math.max(TICK, te + D - t0);
+      if (avail < wMin) continue;
+      // the widest window first: if even that is too fast, no window at this wait will do
+      const wide = build(avail, D), pw = peak(wide.fr, wide.from - TICK);
+      if (!best || pw < best.pk) best = { W: avail, D, pk: pw, ok: pw <= limit + 0.5 };
+      if (pw > limit + 0.5) continue;
+      // then the tightest that still fits, so he keeps as much of his own path as he can
+      for (let W = wMin; W < avail; W += TICK) { const b = build(W, D), pk = peak(b.fr, b.from - TICK); if (pk <= limit + 0.5) { best = { W, D, pk, ok: true }; break; } }
+      if (!best.ok) best = { W: avail, D, pk: pw, ok: true };
+    }
+    if (!best) return null;
+    let D = best.D, W = best.W;
+    // the carrier's eased window must start after he has the ball (no throw, catch or handoff is slowed)
+    if (D > 0) {
+      const POSS = /^(snap|handoff|catch|pick|puntCatch|pickup|recover|snapCatch|kick|land|td)$/;
+      let lastPoss = snapE ? snapE.t : 0;
+      for (const q of S.events) if (q.t <= te && POSS.test(q.type)) lastPoss = Math.max(lastPoss, q.t);
+      const room = te - (lastPoss + TU("waitPossPadMsV151D", 90));
+      const Wc = Math.min(Math.max(TU("waitWinMsV151D", 700), D / TU("waitMaxRateV151D", .8)), room);
+      const Dfit = Math.max(0, Math.floor(Wc * TU("waitMaxRateV151D", .8) / TICK) * TICK);
+      if (Dfit < D) {   // not enough of his run to ease out: wait what fits, close the rest at the pace that is left
+        D = Dfit; const avail = Math.max(TICK, te + D - t0); W = avail; best.ok = false;
+      }
+      if (D > 0) waitV151D(S, C, K, te, D, te - Wc, at);
+    }
+    const b = build(W, D);
+    K.frames = b.fr.concat(K.frames.filter(f => f.t > te + 0.01).map(f => Object.assign({}, f, { t: f.t + D })));
+    const pk = peak(b.fr, b.from - TICK), ratio = pk / sp;
+    V.maxRatio = Math.max(V.maxRatio, +ratio.toFixed(2));
+    if (pk > cap + 0.5 && pk > ownPeak + 0.5) V.over++;
+    if (W > Math.max(TU("closeMinMsV146", 260), off / Math.max(1e-3, TU("closePxPerSV146", 150) / 1000)) + 1 || D > 0) V.capped++;
+    if (D > 0) { V.waits++; V.waitMs += D; V.maxWait = Math.max(V.maxWait, D); }
+    (V.byWhy[why] = V.byWhy[why] || { n: 0, waits: 0 }).n++; if (D > 0) V.byWhy[why].waits++;
+    e.v151D = { W: Math.round(W), waitMs: Math.round(D), peak: Math.round(pk), cap: Math.round(cap), ratio: +ratio.toFixed(2) };
+    return { dx, dy, off, W, D, tE: te + D, addPxS: Math.round(off / W * 1000 * 1.5) };
+  }
+  /* the whistle waits: the carrier eases into the spot over [a0, te] -> [a0, te + D]; every event
+   * after the hit, the hit itself and every frame past it move D later; everyone else carries on. */
+  function waitV151D(S, C, K, te, D, a0, at) {
+    const Wc = te - a0, L = Wc + D, A = -D / (L * L);          // old = s + A·s², rate 1 at a0, 1-2D/L at the spot
+    const oldOf = s => s + A * s * s, newOf = o => { const q = 1 + 4 * A * o; return q <= 0 ? L : (-1 + Math.sqrt(q)) / (2 * A); };
+    const warp = (fr, withH) => {
+      const out = fr.filter(f => f.t <= a0 + 0.01);
+      for (let s = TICK - ((a0 % TICK) || 0) || TICK; s < L - 0.01; s += TICK) { const p = at(fr, a0 + oldOf(s)); const f = { t: Math.round((a0 + s) * 10) / 10, x: p.x, y: p.y }; if (withH) f.h = p.h || 0; out.push(f); }
+      const pe = at(fr, te), fe = { t: te + D, x: pe.x, y: pe.y }; if (withH) fe.h = pe.h || 0; out.push(fe);
+      for (const f of fr) if (f.t > te + 0.01) out.push(Object.assign({}, f, { t: f.t + D }));
+      return out;
+    };
+    const shift = fr => {   // the rest of the field keeps moving through the wait, fading, then plays its own tail from there
+      const pre = fr.filter(f => f.t <= te + 0.01), post = fr.filter(f => f.t > te + 0.01);
+      if (!pre.length) return fr.map(f => Object.assign({}, f, { t: f.t + D }));
+      const l = pre[pre.length - 1], p = pre.length > 1 ? pre[pre.length - 2] : l, dt = Math.max(1, l.t - p.t);
+      const vx = (l.x - p.x) / dt, vy = (l.y - p.y) / dt, n = Math.max(1, Math.round(D / TICK));
+      let x = l.x, y = l.y; const out = pre.slice();
+      for (let k = 1; k <= n; k++) { const dec = Math.max(0, 1 - k / n); x += vx * TICK * dec; y += vy * TICK * dec; out.push({ t: l.t + k * TICK * (D / (n * TICK)), x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 }); }
+      const ox = x - l.x, oy = y - l.y;
+      for (const f of post) out.push(Object.assign({}, f, { t: f.t + D, x: f.x + ox, y: f.y + oy }));
+      return out;
+    };
+    S.actors.forEach(a => { if (!a.frames || !a.frames.length || a === K) return; a.frames = a === C ? warp(a.frames, false) : shift(a.frames); });
+    if (S.ball && S.ball.length) S.ball = warp(S.ball, true);
+    const cid = C.id;
+    S.events.forEach(q => {
+      if (q.t > te + 0.01) q.t += D;
+      else if (Math.abs(q.t - te) <= 0.01) q.t = te + D;
+      else if (q.t > a0 && (q.carrier === cid || q.who === cid)) q.t = a0 + newOf(q.t - a0);   // his own moves keep their place in his (slower) run
+    });
+    S.events.sort((p, q) => p.t - q.t);
+    S.duration = (S.duration || te) + D;
+  }
   function contactV146(S) {
     if (!S || !S.actors || !S.events || !TU("contactV146", 1)) return S;
     const H = root.__V146 = root.__V146 || {};   // shared with FieldSim's sack close-out, which may have made it first
@@ -1343,7 +1472,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       for (let i = 1; i < fr.length; i++) if (fr[i].t >= t) { const a = fr[i - 1], b = fr[i], k = (t - a.t) / ((b.t - a.t) || 1); return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k }; }
       const l = fr[fr.length - 1]; return { x: l.x, y: l.y };
     };
-    const te = e.t, c0 = at(C.frames, te), k0 = at(K.frames, te);
+    let te = e.t; const c0 = at(C.frames, te), k0 = at(K.frames, te);   // v151 D: `te` moves when the whistle waits for the man
     const stick = !!(e.hitStick || (e.flyWho && e.flyWho === e.carrier && Number(e.flyVz) > 0));
     const d0 = Math.hypot(k0.x - c0.x, k0.y - c0.y);
     // the side he came from is the side he hits from; a man exactly on top keeps his own side
@@ -1352,7 +1481,13 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const reach = TU("contactPxV146", 9), setPx = TU("contactSetPxV146", 6);
     const why = e.v139 ? "cut" : e.sack ? (e.taken ? "sackTaken" : "sack") : stick ? "stick" : S.meta && S.meta.fieldSim ? "sim" : "choreo";
     let dx = 0, dy = 0;
-    if (d0 > reach) {
+    /* v151 D: the capped approach (below) replaces the smoothstep walk-on when it is on; the old
+     * walk-on stays byte-for-byte under `TU("approachV151D", 0)`. */
+    const A151 = d0 > reach && TU("approachV151D", 1) ? approachV151D(S, e, K, C, te, c0, k0, ux, uy, setPx, why) : null;
+    if (A151) { dx = A151.dx; dy = A151.dy; H.fixed++; H.maxFixPx = Math.max(H.maxFixPx, Math.round(A151.off));
+      (H.byWhy[why] = H.byWhy[why] || { n: 0, px: 0 }).n++; H.byWhy[why].px += Math.round(A151.off);
+      e.v146 = { d0: Math.round(d0 * 10) / 10, fixPx: Math.round(A151.off * 10) / 10, fixMs: Math.round(A151.W), addPxS: A151.addPxS, v151: true };
+    } else if (d0 > reach) {
       const tx = c0.x + ux * setPx, ty = c0.y + uy * setPx;
       dx = tx - k0.x; dy = ty - k0.y;
       const off = Math.hypot(dx, dy);
@@ -1376,6 +1511,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       (H.byWhy[why] = H.byWhy[why] || { n: 0, px: 0 }).n++; H.byWhy[why].px += Math.round(off);
       e.v146 = { d0: Math.round(d0 * 10) / 10, fixPx: Math.round(off * 10) / 10, fixMs: Math.round(W), addPxS: vx };
     } else { H.already++; e.v146 = { d0: Math.round(d0 * 10) / 10, fixPx: 0 }; }
+    if (A151) te = A151.tE;   // v151 D: the hit is where the man could really get to it — later, when the whistle waited
     const kc = { x: k0.x + dx - c0.x, y: k0.y + dy - c0.y };   // his offset from the carrier at the hit
     // a script that stops dead on the tackle (the v139 cut) gets a coast, so the fall reads
     const coastMs = TU("fallWindowMsV146", 360), end = S.duration;
@@ -1762,7 +1898,22 @@ window.__visionRadiusV96 = visionRadiusV96;
       const targetGear=Math.max(0,(mult||0)*fade*rel*tank*gassed);
       evolveSpeed(a,targetGear,TICK,t,turn,1);
       if (a.vel > 0.92) a.gas = Math.max(0, a.gas - 0.42*(a._gasBurnMul||1)); else a.gas = Math.min(100, a.gas + 0.2);
-      const step=Math.min(d, a.spd*a.vel*TICK/1000);
+      let step=Math.min(d, a.spd*a.vel*TICK/1000);
+      /* ===== v151 D ONE PAIR OF LEGS A TICK =====
+       * `mv` is a steering command, and a few callers issue it twice in one tick for the same man —
+       * a rush lane then a sack close-out, a pursuit then a support close — so each call spent a
+       * full stride and he covered two. Measured: 3% of all moves were a second move in the same
+       * tick, and they are the defenders the broadcast shows arriving at twice their top speed
+       * ("flying in from nowhere"). The budget is his legs, not the call: whatever ground the
+       * first command spent this tick, the second only gets what is left of `paceTickCapV151D`
+       * times his top speed (the fieldSpeedCap ceiling every single move already respects).
+       * Kill switch `TU("paceV151D", 0)`. */
+      if (TU("paceV151D", 1)) {
+        if (a._mvT151 !== t) { a._mvT151 = t; a._mvUsed151 = 0; }
+        const room = Math.max(0, a.spd * TU("paceTickCapV151D", 1.35) * TICK / 1000 - a._mvUsed151);
+        if (step > room) { step = room; const P = root.__V151D_SIM = root.__V151D_SIM || {}; P.paceClamped = (P.paceClamped || 0) + 1; }
+        a._mvUsed151 += step;
+      }
       const x0=a.lx,y0=a.y,x1=x0+dx*step,y1=y0+dy*step;
       // Preserve the un-clamped segment long enough to resolve the exact first
       // sideline contact. Clamping alone made fast players live on the stripe for
@@ -2168,6 +2319,20 @@ window.__visionRadiusV96 = visionRadiusV96;
        * every event this collision emits without threading it through nine emit() calls. */
       const onV143 = !!TU("v143", 1);
       const angQ = onV143 && d._angQV143 != null ? d._angQV143 : 0;   // frozen on the approach (the commit site)
+      /* ===== v151 D THE HIT IS WON AT THE ANGLE =====
+       * v143 graded the line he came in on and let it nudge the whiff, the wrap and the bounce — and
+       * measured over 3,000 commits a man square on the intercept already stopped the carrier 77% of
+       * the time against 56% for one chasing from a bad line. It should decide more than that. The
+       * grade is amplified by `angleGainV151D` AROUND the measured mean (`angleMeanV151D` — the mix of
+       * lines the sim actually produces), so the stop rate over a game does not move while the spread
+       * between a good angle and a bad one widens; and it now reaches the two outcomes it never
+       * touched: a man on a bad line is run THROUGH (`angleTruckKV151D`) and stiff-armed
+       * (`angleStiffKV151D`) more, a square man is not. A whiff off a bad line is an OVERRUN — his
+       * momentum carries him past for longer (`overrunKV151D`), which is what the picture shows.
+       * Kill switch `TU("angleV151D", 0)`. */
+      const angOnV151 = onV143 && !!TU("angleV151D", 1);
+      const angMovV151 = angOnV151 && angQ !== 0;   // a man standing in the gap has no line to grade (v110) — he is left exactly as v143 had him
+      const angX = angMovV151 ? angQ + (angQ - TU("angleMeanV151D", .15)) * (TU("angleGainV151D", 1.8) - 1) : angQ;
       const wu = onV143 ? windupV143(d, dSpd) : { need: 0, had: 0, set: true };
       /* the aim costs a roll, so with v143 off it is never taken and the random stream stays
        * bit-identical to the pre-v143 engine — which is the only way the two are comparable */
@@ -2191,7 +2356,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       // Steeper gap term + a high (never-100%) ceiling so a huge mismatch shows:
       // even ≈26% open, star-vs-weak ≈70%, generational-vs-scrub ≈78%, floor ≈2%.
       const whiffP = cl(TU("whiffBaseV139", .12) + (elus - d.tkl)*0.008 + (openField?0.10:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006
-        + afx.whiff * TU("aimFxV143", 1) - angQ * TU("angleWhiffKV143", .07) - setQ * TU("windupWhiffKV143", .10), 0.02, 0.72) * (1 - swarmChoke) * soloK;
+        + afx.whiff * TU("aimFxV143", 1) - angX * TU("angleWhiffKV143", .07) - setQ * TU("windupWhiffKV143", .10), 0.02, 0.72) * (1 - swarmChoke) * soloK;
       /* v139: the rate is a dial now but its default is exactly what it always was. Raising it
        * lengthens plays, which grows v109C1check's sample, and that check asserts PERFECTION over
        * a stochastic sample (it fails 1-of-N on main too). The visible answer to "more whiffed
@@ -2201,7 +2366,8 @@ window.__visionRadiusV96 = visionRadiusV96;
         d.beaten = t + 640; d.cool = t + 520; c.burstUntil = t + 460; kickSprint(c);
         // v29 OVERSHOOT: the juked man's momentum carries him PAST the cut point — he
         // keeps flying along his old line while beaten instead of freezing in place.
-        d._osUntil = t + TU("overshootMs",420); d._osdx = d._dx||((c.lx-d.lx)>=0?1:-1); d._osdy = d._dy||0;
+        d._osUntil = t + TU("overshootMs",420) * (angMovV151 ? 1 + Math.max(0, -angX) * TU("overrunKV151D", .6) : 1); d._osdx = d._dx||((c.lx-d.lx)>=0?1:-1); d._osdy = d._dy||0;
+        if (angMovV151 && angX < -.3) d.beaten = Math.max(d.beaten, d._osUntil);   // v151 D: the overrun — he is past him until he can plant and turn
         c._evades = (c._evades||0) + 1; emit("tackleWhiff",{who:d.id, carrier:c.id, x:d.lx, y:d.y, ...hit});
         // v24: which move beat him is rating-driven — spin favors raw agility (whipping
         // the hips around), a jump-cut juke favors quickness. `elus` rides the event so
@@ -2251,7 +2417,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       // defender is shoved off and stumbles; the runner is slowed a touch, keeps going.
       const armEdge = (cStr - dStr) + (c.str - 50)*0.45;
       const stiffP = (behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005
-        + afx.stiff * TU("aimFxV143", 1), 0, 0.5)) * (1 - swarmChoke) * soloK;
+        + afx.stiff * TU("aimFxV143", 1) - (angMovV151 ? (angX - TU("angleMeanV151D", .15)) * TU("angleStiffKV151D", .03) : 0), 0, 0.5)) * (1 - swarmChoke) * soloK;
       if (Math.random() < stiffP) {
         d.beaten = t + 520; d.stagger = t; c.vel = Math.max(0,(c.vel||0)*0.95); c.burstUntil = t + 300; kickSprint(c);
         c._evades = (c._evades||0) + 1; emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y, ...hit, armEdge: Math.round(armEdge)});   // v109: which arm, and how far he shoved him
@@ -2268,7 +2434,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       const powerEdge = (cMom - dMom)*0.85 + (cStr - dStr)*0.5;
       const bothWin = cFaster && cStronger && !behind;
       let truckP = cl(0.16 + powerEdge*0.011 + (behind?-0.09:0) + Math.max(0,lev)*0.006
-        + afx.truck * TU("aimFxV143", 1), 0.02, 0.72);
+        + afx.truck * TU("aimFxV143", 1) - (angMovV151 ? (angX - TU("angleMeanV151D", .15)) * TU("angleTruckKV151D", .06) : 0), 0.02, 0.72);
       if (bothWin) truckP = cl(truckP + 0.22 + (cSpd - dSpd)*0.006, 0.05, 0.90);
       truckP *= (1 - swarmChoke) * soloK;                          // v25: you don't truck THROUGH a gang
       if (Math.random() < truckP) {
@@ -2299,14 +2465,14 @@ window.__visionRadiusV96 = visionRadiusV96;
       // and stumbles himself — the arm-tackle that only slows the runner down. Bumps
       // matter: a staggered carrier bleeds speed and is easier to bring down next hit.
       const wrapQ = d.tkl*0.62 + (dMom>cMom?14:0) + (behind?22:0)
-        + afx.wrapQ * TU("aimFxV143", 1) + angQ * TU("angleWrapKV143", 9) + setQ * TU("windupWrapKV143", 10);
+        + afx.wrapQ * TU("aimFxV143", 1) + angX * TU("angleWrapKV143", 9) + setQ * TU("windupWrapKV143", 10);
       const balance = c.str*0.4 + c.agi*0.35 + (c.burst||c.spdA||50)*0.25;
       // v82 3.5) BOUNCE — a glancing hit from the side: the carrier absorbs it and keeps
       // his feet while the tackler goes to the ground reaching. Balance against the wrap,
       // and the ANGLE of the hit, decide it. Distinct from a stagger, where both stay up.
       const glancing = !behind && Math.abs(d._dy||0) > TU("glancingDy", .7);
       const bounceP = cl(TU("bounceBase", .02) + (balance - wrapQ)*0.004 + (glancing ? TU("glancingBonus", .04) : 0) - (c._staggered&&t-c._staggered<500?0.05:0)
-        + afx.bounce * TU("aimFxV143", 1) - angQ * TU("angleBounceKV143", .03), 0.01, 0.3) * (1 - swarmChoke) * soloK;
+        + afx.bounce * TU("aimFxV143", 1) - angX * TU("angleBounceKV143", .03), 0.01, 0.3) * (1 - swarmChoke) * soloK;
       if (Math.random() < bounceP) {
         d.beaten = t + 520; d.cool = t + 480; d._osUntil = t + TU("overshootMs",420); d._osdx = d._dx||0; d._osdy = d._dy||0;
         c.vel = Math.max(0,(c.vel||0)*0.78*durKeepV141(c)); c._staggered = t;
@@ -3308,7 +3474,9 @@ window.__visionRadiusV96 = visionRadiusV96;
             const open = S.def.filter(d => !d.engaging).sort((a2, b2) => dOf(a2) - dOf(b2))[0];
             if (open) E.th = open;
           }
-          if (free.indexOf(E.th) < 0 && !E.th.engaging) mv(E.th, qb.lx, qb.y, 1.0);   // a free man is already running at him
+          // v151 D: the close-out is his one job now — whatever else steered him this tick, at least half a stride is left for it
+          if (TU("paceV151D", 1) && E.th._mvT151 === t) E.th._mvUsed151 = Math.min(E.th._mvUsed151 || 0, E.th.spd * TU("paceTickCapV151D", 1.35) * TICK / 1000 * .5);
+          if ((free.indexOf(E.th) < 0 || TU("paceV151D", 1)) && !E.th.engaging) mv(E.th, qb.lx, qb.y, 1.0);   // a free man is already running at him (v151 D: and is steered AT him, not past him)
           // whoever actually GETS there is the man who sacks him
           const near = S.def.slice().sort((a2, b2) => dOf(a2) - dOf(b2))[0];
           const th = dOf(E.th) <= reachS ? E.th : (near && dOf(near) <= reachS ? near : E.th);
@@ -3905,7 +4073,34 @@ window.__visionRadiusV96 = visionRadiusV96;
             // grip caps his gear outright, so the drag is the yard or two he can churn out and
             // never the tail of a full-speed deceleration
             c.vel = Math.min(c.vel || 0, cl(TU("gripVelCap", .24) + strain * .5, .08, .9));
-            mv(c, c.lx + dsg * 46, c.y, pull);
+            /* ===== v151 D THE PUSH =====
+             * The grip only ever travelled FORWARD: a tackler who won the collision outright still
+             * got dragged, because the pair's pace was the carrier's strength against his and
+             * nothing else. Contact is a shove match. When the tackler clearly won the point of
+             * attack (`collEdge` past `pushBackEdgeV151D` — a bigger, faster, stronger man square on
+             * him, a gang) he DRIVES the carrier back for the first `pushBackMsV151D` of the grip,
+             * both men travelling together along the push, before they go down; the stronger the win
+             * the harder the drive (`pushBackPaceV151D`), capped (`pushBackMaxPaceV151D`) and never
+             * while he is straining for the sticks. When the CARRIER won it by a street, the forward
+             * drag is announced as a push the other way. Either way the pair moves together (the
+             * tackler's spot is written from the carrier's just below), the landing is the spot, and
+             * `pushV151D` says who drove whom so the renderer can lean them into it. The yards are
+             * the ground they really covered — sim truth, exactly as the drag always was.
+             * Kill switch `TU("pushV151D", 0)`. */
+            let pushDir = 0;
+            if (TU("pushV151D", 1)) {
+              const eB = TU("pushBackEdgeV151D", 1.5);
+              if (G.collEdge > eB && !strain && age < TU("pushBackMsV151D", 200)) pushDir = -1;
+              else if (G.collEdge < -TU("pushFwdEdgeV151D", .6) && pull >= TU("pushFwdPullV151D", .2)) pushDir = 1;
+              if (pushDir && !G.pushSaid) { G.pushSaid = true;
+                emit("pushV151D", { who: pushDir < 0 ? dfd.id : c.id, on: pushDir < 0 ? c.id : dfd.id, carrier: c.id, dir: pushDir,
+                  edge: +G.collEdge.toFixed(2), ms: pushDir < 0 ? Math.min(TU("pushBackMsV151D", 200), G.ms) : Math.round(G.ms), x: c.lx, y: c.y, cid: G.hit.cid }); }
+            }
+            if (pushDir < 0) {   // driven back: he is not running there, he is being moved — his heading stays on the man in front of him
+              const bp = cl((G.collEdge - TU("pushBackEdgeV151D", 1.5)) * TU("pushBackPaceV151D", .15) + .06, .05, TU("pushBackMaxPaceV151D", .25));
+              c.vel = Math.min(c.vel || 0, bp); c.lx -= dsg * bp * c.spd * TICK / 1000;
+            }
+            else mv(c, c.lx + dsg * 46, c.y, pull);
             // v109: the gripper settles onto the back hip FROM where he latched rather than snapping
             // there; each joiner rides in along the ray he arrived on (THE PILE HAS A SHAPE)
             const setK = cl(age / TU("gripSettleMs", 120), 0, 1), hx = -dsg * TU("gripHoldPx", 8), hy = G.side * TU("gripHoldY", 4);
@@ -4190,8 +4385,18 @@ window.__visionRadiusV96 = visionRadiusV96;
           if (t < (dfd.beaten||0)) {
             // v29 OVERSHOOT: a beaten man doesn't freeze — his momentum carries him past
             // the move that beat him before he can gather himself and re-pursue.
-            if (dfd._osUntil && t < dfd._osUntil && (dfd._osdx || dfd._osdy))
-              mv(dfd, dfd.lx + dfd._osdx*34, clampY(dfd.y + dfd._osdy*34), TU("overshootPace",1.0));
+            /* ===== v151 D HE FINDS HIS FEET (the beaten man) =====
+             * The overrun used to run at full pace to the last tick and then stop dead, and the
+             * man stood frozen until `beaten` ran out and he reversed in one tick. Now the overrun
+             * BRAKES (pace falling to `overrunEndPaceV151D` by its end) and the rest of the beat is
+             * the plant and turn: he swings back toward the carrier at a walk (`plantTurnPaceV151D`)
+             * before he can pursue again. Kill switch `TU("recoverV151D", 0)`. */
+            const rcv151 = !!TU("recoverV151D", 1);
+            if (dfd._osUntil && t < dfd._osUntil && (dfd._osdx || dfd._osdy)) {
+              if (dfd._osKeyV151 !== dfd._osUntil) { dfd._osKeyV151 = dfd._osUntil; dfd._osT0V151 = t; }   // a new overrun starts its own clock
+              const left = rcv151 ? cl((dfd._osUntil - t) / Math.max(1, dfd._osUntil - dfd._osT0V151), 0, 1) : 1;
+              mv(dfd, dfd.lx + dfd._osdx*34, clampY(dfd.y + dfd._osdy*34), TU("overshootPace",1.0) * (rcv151 ? TU("overrunEndPaceV151D", .35) + (1 - TU("overrunEndPaceV151D", .35)) * left : 1));
+            } else if (rcv151) mv(dfd, c.lx, c.y, TU("plantTurnPaceV151D", .3));
             continue;
           }
           if (dfd.trucked && t < dfd.trucked + 900) { downSlideV109(dfd, "truck", c); continue; }     // flattened: he's on the ground (v109: sliding, then still)
@@ -4655,7 +4860,7 @@ window.__visionRadiusV96 = visionRadiusV96;
     if (_tke && _tke.youIn) { const _yu = S.all.find(a=>a.player&&a.player.you); out.assist = _yu ? _yu.player : null; }
     out.flags = flagCand;   // v30: what an official COULD have flagged — the game layer rolls the call
     out.log = { duration: t, events, ball: ballFrames,
-      actors: S.all.map(a=>({id:a.id, side:a.side, label:a.lb, sp:Math.round(a.spd), you:!!(a.player&&a.player.you), gas:Math.round(a.gas!==undefined?a.gas:(a.gas0!==undefined?a.gas0:100)), frames:a.frames})) };
+      actors: S.all.map(a=>({id:a.id, side:a.side, label:a.lb, sp:Math.round(a.spd), you:!!(a.player&&a.player.you), nm:a.player&&a.player.name||null, skin:a.player&&Number.isFinite(a.player.skinTone)?a.player.skinTone:null,   /* v151 D: who he is, for his skin tone (render-only) */ gas:Math.round(a.gas!==undefined?a.gas:(a.gas0!==undefined?a.gas0:100)), frames:a.frames})) };
     /* Only a play the offence CARRIED to a spot: an incompletion's ball legitimately lands
      * yards downfield on a zero-yard play, and a pick's ball changes hands and comes back
      * the other way, so neither one's ball track means what `yards` means. */
