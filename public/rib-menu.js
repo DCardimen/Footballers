@@ -177,7 +177,7 @@
     const name = (card?.querySelector('.pname')?.textContent || '').trim() || 'YOUR PLAYER';
     const ovr = numeric(card?.querySelector('.continue-ovr')?.textContent, 0);
     const pos = (cardText.match(/\b(QB|RB|WR|TE|OL|DL|LB|CB|S)\b/)?.[1] || 'QB');
-    return { hasCareer, state: { prestige: numeric((screenText.match(/\uD83C\uDF96\uFE0F?\s*(\d+)/) || screenText.match(/★\s*(\d+)/) || [])[1], 0), pp: 0, careers: 0, nflReached: 0, interstellar: 0, hallBest: 0, enshrined: 0, challenges: 0, challengesOf: 0 },
+    return { hasCareer, state: { prestige: numeric((screenText.match(/(?:\u269C|\uD83C\uDF96)\uFE0F?\s*(\d+)/) || screenText.match(/★\s*(\d+)/) || [])[1], 0), pp: 0, careers: 0, nflReached: 0, interstellar: 0, hallBest: 0, enshrined: 0, challenges: 0, challengesOf: 0 },
       player: hasCareer ? { name, pos, level: 0, levelName: (cardText.match(/(Pee Wee|Youth League|Middle School|JV|Varsity|College|UFF Combine|The UFF|Interstellar League)/) || [])[1] || 'Career', stars: (cardText.match(/★/g) || []).length, ovr, height: '', weight: '', traits: [], objectives: [], totalSeasons: 0 } : null,
       season: { games: 0, played: 0, weeks: [], inProgress: false, last: null }, team: { school: '', name: '', colors: null, logo: null, logoCss: '' } };
   }
