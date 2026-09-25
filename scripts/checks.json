@@ -384,9 +384,10 @@
    ]
   },
   "vault": {
-   "desc": "v137 — the Prestige Vault: hoard, spend, door, payout, sprites",
+   "desc": "v137 — the Prestige Vault: hoard, spend, door, payout, sprites; v153 C — the payday (the reward sequence)",
    "anchors": [
-    "v137"
+    "v137",
+    "v153 C"
    ],
    "files": [
     "public/rib-vault*",
@@ -396,6 +397,7 @@
    ],
    "checks": [
     "vaultcheck",
+    "v153Ccheck",
     "honorcheck",
     "v134check",
     "coachcheck",
@@ -408,7 +410,8 @@
     "`RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-menu*` / `rib-vault*` file)"
    ],
    "look": [
-    "`vaultshot.mjs` / `WIDE=1 vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` / `vaultphys.mjs`"
+    "`vaultshot.mjs` / `WIDE=1 vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` / `vaultphys.mjs`",
+    "`v153Cshot.mjs` (the payday; `GAINS=12,1284,250000`, `RECORD=1`, `REDUCED=1`)"
    ]
   },
   "tackle": {
@@ -3529,6 +3532,18 @@
     "legacy"
    ],
    "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v153Ccheck": {
+   "file": "scripts/v153Ccheck.mjs",
+   "desc": "v153 C — the payday: the vault's reward sequence. The shower's size is logarithmic in the gain and in the owner's tiers (tiny 8-15 … huge 120-180, a record or 100M+ is the 200-coin storm); a REAL career end makes the award pending and the vault plays it once: the old balance first, +N PRESTIGE, one coin alone, the shower, the count climbing only as coins land and locking on the final coin, controls live only after; shown-state written before it plays and outside the save, so reopening / reloading / leaving mid-shower never replays it; PP truth untouched; a tap accelerates, a second skips; a record says so; pooled coins, capped rain voices, a handful of haptics; the settled pile wiggles; reduced motion is a quick count-up; the reserve at extreme totals; the kill switch; no Math.random; no page errors.",
+   "areas": [
+    "vault"
+   ],
+   "runtimeSec": 150,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

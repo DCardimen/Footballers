@@ -11,6 +11,26 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v153 C — payday: your run becomes wealth.** Earned Prestige Points no longer appear already in the pile. When the
+  vault opens after a completed run it plays a reward sequence: the room darkens on the OLD balance, "+N PRESTIGE"
+  arrives with a gold pulse, one coin drops and lands, a pause, then a shower that builds like a jackpot — coins from
+  different heights and sides, each tumbling and spinning its own way, a shadow firming under it as it nears the floor,
+  a squash on impact, one or two smaller bounces, then it lies down on the pile, which grows under it (mid-depth coins
+  land on the very slots the grown hoard reveals; far ones are smaller and behind the heap, near ones larger and blurred
+  in front). The count climbs only as coins land; the last few slow down, a silence, then the largest coin — gold, or
+  the billion blue — lands with a heavy CLINK, the total locks, a warm pulse runs across the floor and the door, a
+  highlight crosses the number, and only then are RESTOCK / DETAILS / CHOOSE AN UPGRADE live. The rain is logarithmic
+  in the gain (8-15 coins for a few PP up to 180 for millions; a new personal record or a 100M+ award is a 200-coin
+  "prestige storm" with god-rays and NEW PRESTIGE RECORD). Layered coin sounds (ticks, clinks, heavy impacts, a
+  cascade bed, a whispered riser for big awards) through the vault's own voice-capped audio; a handful of haptics, never
+  one per coin; a tap speeds it up, a second skips to the end; reduced motion is a quick count-up with a few coins.
+  The award is owed when a career has settled since the vault last played one, and its size is the lifetime PP earned
+  since the vault last showed a balance; what was shown lives in `rib.vaultPay.v153`, outside the save, written before
+  it plays — reopening, reloading or leaving mid-shower never replays it, and nothing in it can move a point. After it
+  settles a touch on the pile shifts the top coins with a quiet metal sound. And past 100M the wealth outgrows one heap:
+  columns of coin, then crates (1B), sacks (10B), stacked crates (100B) and a treasury along the back wall (1T), at the
+  sides of the room. `RIB_TUNE.v153C = 0` turns the sequence off. `v153Ccheck`, camera `v153Cshot.mjs`.
+
 - **v152 A.2 — the medal gets the spotlight, the book turns, the band plays on arrival.** The profile card wears the
   Legacy medal in its own framed, glowing box beside the name (tap: the trophy case). The collection book turns real
   pages: a two-faced leaf lifts, curls and falls over the spine (or swings back in), with a paper swish, a landing thump,

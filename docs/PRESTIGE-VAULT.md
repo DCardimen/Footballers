@@ -440,6 +440,107 @@ really rose. A refusal inside the game can never leave the vault claiming a sale
 - the payout presentation reads the balance the game **already holds** and animates up to
   it, so replaying it can never mint a point.
 
+## Payday — your run becomes wealth (v153 C)
+
+Earned PP used to be in the pile the moment the vault opened. Now the vault **shows it
+arriving**, once, as a reward sequence, and only then is the pile the new pile.
+
+**What triggers it.** The career settle (`screenGameOver` / `screenWin`) has already put the
+PP on `state.pp`, counted the career (`careersCompleted`) and saved — and the save raises
+v151 A's lifetime-earned counter (`ppLifetimeV151A`, which only ever goes up). The bridge's
+`pending()` owes a payday when **a career has settled since the vault last played one**; its
+size is the lifetime PP earned **since the vault last showed a balance** (every ordinary
+open brings that up to date), so the whole run — the payout, the bank, any bounty on the
+way — lands as one shower. A first sight with no record at all takes the settled player's
+own `_vaultPayV137`. A different save (fewer careers, a lower lifetime) resets the record
+rather than replaying anything. Whichever door opens the vault — the tree's *Visit the
+Vault*, the top-bar chip, a BUY row, the win screen's button — the payday plays first.
+
+**Why it cannot replay or mint.** What was shown lives in `rib.vaultPay.v153` — presentation
+state, OUTSIDE the save, like `rib.legacy.v152` — and it is written **before** the sequence
+starts, so leaving mid-shower, reopening, or reloading never plays it again. The vault's own
+`balance` is `to`, the game's real number, from the first frame; the sequence only moves the
+*displayed* number and the hoard's *drawn* balance from `from = to − gain` up to it. Nothing
+in it reads or writes `state`. `payout(n)` (the old hook) plays a pending award, and
+otherwise a presentation-only replay of `n` that records nothing.
+
+**The pacing** — one coin, a handful, a shower, an avalanche, silence, CLINK:
+
+1. The room darkens (a vignette centred on the pile) and holds the **old** balance ~0.4 s.
+2. `+1,284 PRESTIGE` appears above the pile with a slow gold pulse.
+3. One coin drops from the top and lands near the centre; a light haptic, a clink.
+4. A short pause, then the shower. Its rate is a jackpot building: it starts sparse and
+   climbs for ~70% of its length (`buildSchedule` inverts that rate's running total), then
+   thins, so the last few arrive on their own — and those fall 1.3x slower.
+5. The balance counts up **as coins land** (each carries a share of the gain; the first 2%,
+   the last 8%), rapidly but never ahead of them, and never to the total before the last coin.
+6. A silence (`gap`), then the final coin — the largest, gold (blue for a billion+), spinning
+   slowly — lands with a heavy CLINK: the total locks, a warm ring runs out across the floor,
+   a band sweeps it, the door on the far wall answers, a highlight crosses the number.
+7. Only now are RESTOCK / DETAILS / CHOOSE AN UPGRADE live (they were there, dimmed, asleep).
+
+**Size is logarithmic in the gain** (`paydayPlan`): tiny (<25) 8-15 coins, ~2 s to the lock ·
+small (<250) 20-35 · medium (<2.5K) 40-70 · large (<50K) 80-120 · huge 120-180 · a **new
+personal record** (the biggest award this device has shown, after the first) or a 100M+ award
+is the **prestige storm**: 200 coins, god-rays over the peak, a longer finale, a heavy haptic,
+and NEW PRESTIGE RECORD. One coin never stands for one point; 40x the PP is well under 2x the
+coins.
+
+**Each coin is physical** (screen space, one pooled object): its own start X and height, fall
+time, size, spin speed and direction about its axis (the procedural `|cos|` squeeze through
+the edge sprite, as everywhere in the vault), in-plane tumble, bounce height and landing
+scatter. A shadow under it firms up and widens as it nears the floor. On impact it squashes
+a little, bounces once or twice lower each time, turns from the tumbling face to the `flat`
+sprite as it lies down, rests, and fades into the hoard — whose drawn balance has risen under
+it. **Mid-depth coins land on the very slots the grown hoard reveals** (the slots between
+`coinsFor(from)` and `coinsFor(to)`, in reveal order), so a coin comes to rest exactly where
+the pile then shows one; with no new slot to show (a small gain on a big pile) they land on
+the live surface. **Far** coins (~22%) are smaller, darker, and drawn before the hoard so the
+heap hides them; **near** ones (~12%) are larger, pre-blurred (a down-and-up copy of the
+sprite, once per face) with a short smear, and land at the pile's foot — never down among the
+controls. Now and then one bounces **at the camera** (it grows as it comes forward), one
+valuable coin spins slowly on its way down, a face swinging square to the camera flashes a
+glint, and major impacts throw dust and sparks. Not every coin: the strongest effects are kept
+for the storm and the finale.
+
+**Performance.** `MAX_LIVE` (150) coin objects and `MAX_PARTS` (200) particles allocated once
+per sequence and reused (when the pool is full the coin lying still longest merges early);
+all of it is `drawImage` on the scene's one canvas, into the frame the scene already draws
+(wrappers on `drawHoard` / `drawFlyers` / `drawAir`), and a coin out of frame is not drawn.
+The rain honours the scene's adaptive `lite` flag (no rims, no smear, only the big bursts).
+The hoard's balance is pushed at most every 90 ms, so the deep layer re-bakes a few times a
+second, not per coin. A local seeded PRNG (`M.rng`) — nothing is drawn from the game's random
+stream.
+
+**Sound** (`rib-vault-audio.js`, same bus, compressor and `RIB_MUSIC.sfxOut`): a distant coin
+is a light high tick, one on the pile a medium clink, a near / heavy / gold one an impact with
+a thud under it — pitch and level jittered per strike, through the rain's own pool (`RAIN_MAX`
+= 9 at once, a floor between two; the rest are counted as dropped, never stacked). Under the
+peak a cascade bed swells with the impact rate; under a large award a very quiet riser climbs
+a fifth and **resolves** on the final coin, which is one heavy CLINK (a low thud, a long gold
+ring, a shimmer). **Haptics** (`ribHaptics.impact`): LIGHT on the first coin, a LIGHT on a big
+near impact at most every 320 ms, MEDIUM at the lock (HEAVY for a record or a storm).
+
+**Interaction.** A tap anywhere on the room (not a button) during the sequence accelerates it
+(x2.6); a second tap skips straight to the locked final state. It is caught before the canvas's
+own handler, so it can never start a pour. After it settles, a press on the pile shifts the top
+layer (v137 F's hold-shake) and it, and a drag across the pile, answer with a quiet metal `wiggle`.
+
+**Reduced motion**: no fall, no shake, no particles, no sweep — six coins fade in on the pile
+while the number counts up quickly, and the final pulse is a fade (~1.5 s).
+
+**Beyond a pile — the reserve.** At extreme totals the wealth outgrows one heap: columns of
+coin either side at 100M, crates at 1B, sacks at 10B, the crates stacked at 100B, a treasury
+along the back wall at 1T (`RESERVE`, `RESERVE_AT`, `drawReserveV153`). It is set dressing at
+the **sides** and back of the room, behind the hoard, so the pile, the number and the controls
+stay clear; each new layer fades in as the balance crosses it, and every piece is drawn once
+into its own small canvas.
+
+`RIB_TUNE.v153C = 0` turns the sequence off. Hooks: `__RIB_VAULT_DEV.payday()` (the state),
+`payTap()`, `payStep(ms, draw)` / `payFreeze(on)` (drive the sequence's clock in fixed steps —
+how `v153Ccheck` stays exact on a loaded box), `reserve()`, `window.__V153C`,
+`__RIB_VAULT_BRIDGE.pending()` / `paydayRecord()`, `__RIB_VAULT_AUDIO.stats()`.
+
 ## Audio
 
 **No playable audio file was supplied with this feature and none is generated.** The art
@@ -521,6 +622,8 @@ WIDE=1 node scripts/vaultshot.mjs            # desktop
 KEY=oracle node scripts/vaultspend.mjs       # a real spend, photographed
 node scripts/vaultdoor.mjs                   # the opening and the payout
 node scripts/vaultphys.mjs                   # a coin in hand, the shake, the furrow, the restock
+node scripts/v153Ccheck.mjs                  # the payday (v153 C)
+node scripts/v153Cshot.mjs                   # ...photographed: GAINS=12,1284,250000 RECORD=1 REDUCED=1
 ```
 
 Hooks: `window.__RIB_VAULT`, `__RIB_VAULT_BRIDGE`, `__RIB_VAULT_MODEL`, `__RIB_VAULT_SCENE`,
