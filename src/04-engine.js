@@ -3463,7 +3463,9 @@ window.__visionRadiusV96 = visionRadiusV96;
             const open = S.def.filter(d => !d.engaging).sort((a2, b2) => dOf(a2) - dOf(b2))[0];
             if (open) E.th = open;
           }
-          if (free.indexOf(E.th) < 0 && !E.th.engaging) mv(E.th, qb.lx, qb.y, 1.0);   // a free man is already running at him
+          // v151 D: the close-out is his one job now — whatever else steered him this tick, at least half a stride is left for it
+          if (TU("paceV151D", 1) && E.th._mvT151 === t) E.th._mvUsed151 = Math.min(E.th._mvUsed151 || 0, E.th.spd * TU("paceTickCapV151D", 1.35) * TICK / 1000 * .5);
+          if ((free.indexOf(E.th) < 0 || TU("paceV151D", 1)) && !E.th.engaging) mv(E.th, qb.lx, qb.y, 1.0);   // a free man is already running at him (v151 D: and is steered AT him, not past him)
           // whoever actually GETS there is the man who sacks him
           const near = S.def.slice().sort((a2, b2) => dOf(a2) - dOf(b2))[0];
           const th = dOf(E.th) <= reachS ? E.th : (near && dOf(near) <= reachS ? near : E.th);
