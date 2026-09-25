@@ -101,7 +101,7 @@
     var d = $("dock"); if (!d || arranging) return;
     arranging = true;
     try {
-      var v = view(), btns = [].slice.call(d.querySelectorAll("button,.btn,a[onclick]"));
+      var v = view(), btns = [].slice.call(d.querySelectorAll("button,.btn,a[onclick]")).filter(function (b) { return !b.closest(".dock-keep-v154") });   // v154 A: a grid that must stay a grid
       var main = null;
       if (!NO_MAIN[v]) main = btns.filter(function (b) { return b.classList.contains("btn") && !b.classList.contains("ghost") && !b.classList.contains("secondary") })[0] || null;   // a lone BACK is a chip, not the screen's big button
       btns.forEach(function (b) {

@@ -57,7 +57,7 @@ async function boot() {
 // a signed DFL (7) or Interstellar (8) player, strong enough to keep his job, on the season screen
 const seed = (page, lv, opts = {}) => page.evaluate(({ lv, opts }) => {
   const A = window.__GRIDIRON_AUDIT__, S = A.getState()
-  S.tree = {}
+  S.tree = opts.tree || {}
   S.player = A.newPlayer(); const p = S.player
   p.pos = opts.pos || 'QB'; p.level = 6; p.age = 22; p.totalSeasons = 12; p.career = []
   p._wonShown = true; S.view = 'hub'
@@ -148,7 +148,7 @@ for (const LV of [7, 8]) {
   }
   {
     const { ctx, page } = await boot()
-    await seed(page, LV)
+    await seed(page, LV, { tree: { secondChance: 1 } })   // v154 A: one cut ends it by default — Free Agency makes this cut a club screen
     await page.evaluate(() => { const p = window.S.player; p.nflStateV11.security = 0; p.nflStateV11.status = 'practice-squad'; window.go('season') }); await page.waitForTimeout(700)
     await tap(page, /Sim the Rest of the Season/)
     await waitView(page, 'club', 30000); await page.waitForTimeout(500)
@@ -213,7 +213,7 @@ for (const LV of [7, 8]) {
   // ------------------------------------------------------------ club screen: retire instead; report card: accept release
   {
     const { ctx, page } = await boot()
-    await seed(page, LV)
+    await seed(page, LV, { tree: { secondChance: 1 } })   // v154 A: with Free Agency the cut opens the club screen
     await page.evaluate(() => { window.__V146B.cut('test'); window.go('season') }); await page.waitForTimeout(800)
     const t = await tap(page, /Retire Instead/, '#dock button')
     await page.waitForTimeout(900)

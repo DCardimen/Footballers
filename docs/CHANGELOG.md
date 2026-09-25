@@ -10,6 +10,17 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v154 A — the UFF is where the career goes on: retiring works, the end screen has every option, one cut by default,
+  Free Agency buys the second.** (`src/07-career-app.js`, `scripts/v154Acheck.mjs`.) Reaching the UFF settled the
+  career (paid, enshrined, `_settled`) and "Keep Playing UFF Seasons" left it settled, so every way out that checks
+  `!_settled` was dead: retire did nothing, the Life (management) screen and the hub never drew a retire button,
+  and a cut-out never ended it. Keep playing now REOPENS the career; the real end (retire, or the last cut) settles
+  only the tail — the seasons and titles since the arrival in PP, no second career counted, no second Honors, the
+  Hall row updated in place. Saves already stuck are reopened at boot. The career-end screen offers all four regret
+  vows (not two), RUN IT BACK NOW, the Hall of Fame and the vault. Cuts are counted over the whole UFF career: ONE
+  ends it by default; the old Second Chances node is now FREE AGENCY (200,000 PP, one level) and turns the first
+  cut into a trip to free agency (backup offers) — never more than two. Old Second Chances levels beyond one are
+  refunded. Kill switches `reopenV154`, `cutsCareerV154`, `cutsMaxV154`.
 - **v153 B — the locker room remembers who you are, the team is built by decisions, training is a gamble, injuries
   stay on his mind, My Plays Only is free.** Five owner asks, one version (`src/07-career-app.js`, hooks in
   `src/10`, `src/18`, the coach; `scripts/v153Bcheck.mjs`).

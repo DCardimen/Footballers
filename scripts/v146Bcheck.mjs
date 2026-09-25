@@ -1,8 +1,9 @@
 // Dev check: v146 B — TWO STRIKES IN THE DFL, AND YOU PICK THE TEAM.
 //
-// A DFL cut is a strike, counted per season. Short of the allowance (TU("dflCutsAllowedV146B", 2)
-// plus the `secondChance` prestige node) a cut releases him to a choice of three clubs that want him
-// as a BACKUP; the strike that reaches the allowance ends the career on the cut screen. Signing is a
+// A UFF cut is a strike, counted over the career since v154 A (per season before). Short of the
+// allowance (TU("dflCutsAllowedV146B", 1) plus the `secondChance` node — FREE AGENCY, 200K PP —
+// capped at TU("cutsMaxV154", 2)) a cut releases him to a choice of three clubs that want him as a
+// BACKUP; the strike that reaches the allowance ends the career on the cut screen. Signing is a
 // choice of three at the door into the DFL too, and the choice drives the game: the club's name and
 // crest, its rating in the roster factor, and the snap share the pregame and the engine read.
 //
@@ -13,10 +14,10 @@
 //   - choosing one sets the team name (Xe, the scorebug's Team Creator identity, the menu feed), the
 //     club quality in the rating the sim reads (teamPairV76), and the share the engine uses
 //     (window.__V120.trustShare / __V111.usage) to what the card said
-//   - the first cut (the weekly evaluation dropping him to waivers) is strike 1 of 2 and opens
-//     backup-only offers at lower snap shares than the entry offers; the second cut in the same
-//     season ends the career on the cut screen
-//   - with Second Chances at level 1, the second cut is survivable and the third ends it
+//   - with Free Agency bought, the first cut (the weekly evaluation dropping him to waivers) is
+//     strike 1 of 2 and opens backup-only offers at lower snap shares than the entry offers; the
+//     second cut ends the career on the cut screen
+//   - by default (no Free Agency) the first cut ends it; an old save's extra levels still cap at 2
 //   - no page errors
 //   node scripts/v146Bcheck.mjs   (GAME_URL=http://localhost:5302/ to point it elsewhere)
 import { chromium } from 'playwright'
@@ -75,7 +76,7 @@ const offerScreen = (page) => page.evaluate(() => {
 // ------------------------------------------------------------------ entry
 {
   const { ctx, page } = await boot()
-  const s = await seed(page, {})
+  const s = await seed(page, { secondChance: 1 })
   ok(s.level === 7 && s.kind === 'entry', 'advancing into the DFL opens three entry offers', s)
   await page.waitForTimeout(600)
   // the win screen is skipped in the seed; the hub redirect is what sends him to the screen
@@ -84,7 +85,7 @@ const offerScreen = (page) => page.evaluate(() => {
   const scr = await offerScreen(page)
   ok(scr.view === 'club' && scr.n === 3, 'the hub waits for the signature: the three-offer screen is up', { view: scr.view, n: scr.n })
   ok(scr.text.every(t => /TEAM OVR/.test(t) && /SNAP SHARE/.test(t) && /\d+%/.test(t) && /DEPTH/.test(t)), 'every offer shows team OVR, snap share, depth', scr.text[0])
-  ok(/2 times in one UFF season/.test(scr.rules), 'the rule is stated on the screen', scr.rules.slice(0, 90))
+  ok(/cut twice in the UFF/i.test(scr.rules), 'the rule is stated on the screen', scr.rules.slice(0, 90))
   ok(scr.scroll <= 1 && scr.allVisible, 'the screen fits 400x860 with no scroll, every card and the sign button on screen', { scroll: scr.scroll })
   ok(scr.btnBelowCards && scr.btnDisabled, 'the action is at the bottom, and needs a pick first')
   if (SHOT) {
@@ -138,43 +139,43 @@ const offerScreen = (page) => page.evaluate(() => {
   const back = await page.evaluate(() => ({ view: window.S.view, role: window.S.player.clubV146B.role, share: window.__V120.trustShare(window.S.player), status: window.S.player.nflStateV11.status }))
   ok(back.view === 'season' && back.role === 'backup' && back.status === 'active-backup', 'he signs as a backup and goes back where he was', back)
 
-  // ---------------- the second cut, same season: the career is over
+  // ---------------- the second cut: the career is over
   const cut2 = await page.evaluate(() => { const p = window.S.player; p.nflStateV11.security = 0; const r = window.__V146B.evaluate(5); return { r: r && r.cutV146B, out: !!p.cutOutV146B, offers: !!p.offersV146B } })
-  ok(cut2.r && cut2.r.end && cut2.out && !cut2.offers, 'the second cut in the same season ends the career', cut2.r)
+  ok(cut2.r && cut2.r.end && cut2.out && !cut2.offers, 'the second cut ends the career', cut2.r)
   await page.evaluate(() => window.go('season')); await page.waitForTimeout(800)
   // v150 A: the career-end screen is tabbed — the log line sits in the LOG tab, so read the whole screen, not just the open tab
   const end = await page.evaluate(() => ({ view: window.S.view, txt: (document.getElementById('screen') || {}).textContent || '' }))
   ok(end.view === 'gameover' && /cut at OVR/i.test(end.txt), 'and lands on the cut career-end screen', end.view)
 
-  // ---------------- a new season starts the count clean
-  const clean = await page.evaluate(() => { const p = { level: 7, totalSeasons: 3, cutsV146B: { k: '7:2', n: 1 } }; return window.__V146B.strikes(p) })
-  ok(clean === 0, 'the count is per season: last season\'s strike does not carry')
+  // ---------------- v154 A: the count is over the career — last season's strike carries
+  const carry = await page.evaluate(() => { const p = { level: 7, totalSeasons: 3, cutsV146B: { k: 'career', n: 1 } }; return window.__V146B.strikes(p) })
+  ok(carry === 1, 'the count is over the career: an earlier season\'s strike carries', carry)
   await ctx.close()
 }
 
-// ------------------------------------------------------------------ Second Chances, level 1
+// ------------------------------------------------------------------ by default one cut ends it; the cap is 2
 {
   const { ctx, page } = await boot()
-  await seed(page, { secondChance: 1 })
+  await seed(page, {})
   const r = await page.evaluate(() => {
     const p = window.S.player, out = { allowed: window.__V146B.allowed(), node: window.__GRIDIRON_AUDIT__.TREE_NODES.secondChance }
     window.__V146B.sign(0)
-    const cut = () => { p.nflStateV11.security = 0; const r = window.__V146B.evaluate(5); const c = r && r.cutV146B; if (p.offersV146B) window.__V146B.sign(0); return c }
-    out.c1 = cut(); out.c2 = cut(); out.c3 = cut(); out.out = !!p.cutOutV146B
     out.rules = window.__V146B.rules()
+    p.nflStateV11.security = 0; const c = window.__V146B.evaluate(5); out.c1 = c && c.cutV146B; out.out = !!p.cutOutV146B
+    window.S.tree.secondChance = 3; out.capped = window.__V146B.allowed()   // an old save's Second Chances levels
     return out
   })
-  ok(r.node && /cut/i.test(r.node.desc) && r.allowed === 3, 'Second Chances is a prestige node and level 1 allows one more cut', { allowed: r.allowed, desc: r.node && r.node.desc })
-  ok(r.c1 && !r.c1.end && r.c2 && !r.c2.end, 'with it, the second cut is survived too', [r.c1, r.c2])
-  ok(r.c3 && r.c3.end && r.out, 'and the third one ends the career', r.c3)
-  ok(/3 times in one UFF season/.test(r.rules), 'the stated rule follows the node', r.rules.slice(0, 60))
+  ok(r.allowed === 1 && r.c1 && r.c1.end && r.out, 'by default the first UFF cut ends the career', r.c1)
+  ok(/once<\/b> in the UFF/i.test(r.rules), 'and the rule on the screen says so', r.rules.slice(0, 60))
+  ok(r.node && r.node.name === 'Free Agency' && r.node.cost === 200000 && r.node.max === 1 && /free agency/i.test(r.node.desc), 'the node is Free Agency: 200K PP, one level', { name: r.node && r.node.name, cost: r.node && r.node.cost, max: r.node && r.node.max })
+  ok(r.capped === 2, 'extra levels on an old save still cap at 2 cuts', r.capped)
   await ctx.close()
 }
 
 // ------------------------------------------------------------------ the season-end roll is a strike again
 {
   const { ctx, page } = await boot()
-  await seed(page, {})
+  await seed(page, { secondChance: 1 })   // with Free Agency, so the strike releases him instead of ending it
   const r = await page.evaluate(() => {
     const A = window.__GRIDIRON_AUDIT__, p = window.S.player
     window.__V146B.sign(0)
