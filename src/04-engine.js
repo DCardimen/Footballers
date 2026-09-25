@@ -200,7 +200,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
           intercepted: isPick ? true : (payload.event==="turnover"?true:undefined) });
         if (log && log.actors && log.actors.length === 22) {
           const tw = (lx)=>Math.max(6, Math.min(714, losX + dir*lx));
-          const actorsOut = log.actors.map(a=>({ id:a.id, side:a.side, label:a.label, sp:a.sp,   // v151 D: his own top speed rides the script (the pace caps read it)
+          const actorsOut = log.actors.map(a=>({ id:a.id, side:a.side, label:a.label, sp:a.sp, nm:a.nm, skin:a.skin, you:a.you,   // v151 D: his own top speed rides the script (the pace caps read it)
             frames: a.frames.map(f2=>({t:f2.t, x:tw(f2.x), y:f2.y})) }));
           const ballOut = log.ball.map(f2=>({t:f2.t, x:tw(f2.x), y:f2.y, h:f2.h||0}));
           const eventsOut = log.events.map(e=>Object.assign({}, e,
@@ -577,7 +577,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       if(a.id===closerId&&tackleAt){
         const rem=Math.max(1,(tackleAt.eta-t));
         const need=Math.hypot(tackleAt.x-a.x,tackleAt.y-a.y);
-        moveToward(a, c.x, c.y, TICK, Math.min(2.1, Math.max(0.8, (need/(a.spd*rem/1000))||1)));
+        moveToward(a, c.x, c.y, TICK, Math.min(TU("paceV151D",1)?TU("choreoCloseMultV151D",1.35):2.1, Math.max(0.8, (need/(a.spd*rem/1000))||1)));   // v151 D: the choreographed closer runs at most his own sprint, not 2.1x it
       } else {
         const L=root.__computeLead(c.x,c.y,c.vx||0,c.vy||0,a.x,a.y,a.spd);
         // v8: a rusher who broke free SPRINTS at a QB still holding the ball
@@ -1285,11 +1285,14 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     // the field (e.g. punt coverage). Cap any single-frame jump to a realistic sprint
     // step so a teleport becomes a fast slide instead. FieldSim plays are already
     // <=17px/frame (well under the cap), so this only touches choreographer output.
-    /* v151 D: and a DEFENDER's step is capped at his own legs (`choreoDefPaceV151D` x his speed a
-     * frame), not at 22px — 666px/s, which is how a choreographed closer arrived from nowhere. The
-     * offence keeps the old cap: its carrier's frames and the ball's must never part. */
-    const _deTPv22=(fr,spd,side)=>{ if(!fr||fr.length<2)return fr; const MAX=(side==="def"&&TU("paceV151D",1))?Math.min(TU("choreoMaxStep",22),Math.max(TU("choreoDefMinStepV151D",5),(spd||130)*TU("choreoDefPaceV151D",1.6)*TICK/1000)):TU("choreoMaxStep",22); const out=[fr[0]]; let px=fr[0].x, py=fr[0].y; for(let k=1;k<fr.length;k++){ const dx=fr[k].x-px, dy=fr[k].y-py, d=Math.hypot(dx,dy); if(d>MAX){ px+=dx/d*MAX; py+=dy/d*MAX; } else { px=fr[k].x; py=fr[k].y; } out.push(Object.assign({},fr[k],{x:px,y:py})); } return out; };
-    return { duration:t, actors:actors.map(a=>({id:a.id,side:a.side,label:a.label,sp:Math.round(a.spd||SPEED[a.label]||130),frames:_deTPv22(a.frames,a.spd,a.side)})),   // v151 D: sp rides the script
+    /* v151 D: and a man's step is capped at his own legs (`choreoDefPaceV151D` x his speed a frame),
+     * not at 22px — 666px/s, which is how a choreographed closer (or a kick-coverage man) arrived from
+     * nowhere. Any man who ever has the ball in his hands (`_holdV151`, read off the ball track) keeps
+     * the old cap: his frames and the ball's must never part. */
+    const _holdV151=(()=>{ const H=new Set(); if(!ballFrames||!ballFrames.length) return H; const bt={}; ballFrames.forEach(b=>{bt[Math.round(b.t)]=b;});
+      actors.forEach(a=>{ for(const f of a.frames){ const b=bt[Math.round(f.t)]; if(b&&(b.h||0)<3&&Math.hypot(b.x-f.x,b.y-f.y)<TU("choreoHoldPxV151D",14)){H.add(a.id);break;} } }); return H; })();
+    const _deTPv22=(fr,spd,side,id)=>{ if(!fr||fr.length<2)return fr; const MAX=(!_holdV151.has(id)&&TU("paceV151D",1))?Math.min(TU("choreoMaxStep",22),Math.max(TU("choreoDefMinStepV151D",5),(spd||130)*TU("choreoDefPaceV151D",1.45)*TICK/1000)):TU("choreoMaxStep",22); const out=[fr[0]]; let px=fr[0].x, py=fr[0].y; for(let k=1;k<fr.length;k++){ const dx=fr[k].x-px, dy=fr[k].y-py, d=Math.hypot(dx,dy); if(d>MAX){ px+=dx/d*MAX; py+=dy/d*MAX; } else { px=fr[k].x; py=fr[k].y; } out.push(Object.assign({},fr[k],{x:px,y:py})); } return out; };
+    return { duration:t, actors:actors.map(a=>({id:a.id,side:a.side,label:a.label,sp:Math.round(a.spd||SPEED[a.label]||130),nm:a._player&&a._player.name||null,skin:a._player&&Number.isFinite(a._player.skinTone)?a._player.skinTone:null,frames:_deTPv22(a.frames,a.spd,a.side,a.id)})),   // v151 D: sp rides the script
              ball:ballFrames, events, meta:{concept,targetId,losX,endX,dir,scoreDir,scored,
                featured, involved, targetRoute: targetRoute||null,
                coveragePlan:{shell,bracketTargetId,bracketHelperId,manAssignments,
@@ -1378,7 +1381,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     };
     const ownPeak = peak(pre, te - TU("waitWinMsV151D", 700));
     const limit = Math.max(cap, ownPeak);
-    const wMin = Math.max(TU("closeMinMsV146", 260), TICK * 2), dMax = Math.max(0, TU("waitMaxMsV151D", 900));
+    const wMin = Math.max(TU("closeMinMsV146", 260), TICK * 2), dMax = Math.max(0, TU("waitMaxMsV151D", 1400));
     let best = null;
     for (let D = 0; D <= dMax + 0.01 && !(best && best.ok); D += TICK * 2) {
       const avail = Math.max(TICK, te + D - t0);
@@ -2305,6 +2308,20 @@ window.__visionRadiusV96 = visionRadiusV96;
        * every event this collision emits without threading it through nine emit() calls. */
       const onV143 = !!TU("v143", 1);
       const angQ = onV143 && d._angQV143 != null ? d._angQV143 : 0;   // frozen on the approach (the commit site)
+      /* ===== v151 D THE HIT IS WON AT THE ANGLE =====
+       * v143 graded the line he came in on and let it nudge the whiff, the wrap and the bounce — and
+       * measured over 3,000 commits a man square on the intercept already stopped the carrier 77% of
+       * the time against 56% for one chasing from a bad line. It should decide more than that. The
+       * grade is amplified by `angleGainV151D` AROUND the measured mean (`angleMeanV151D` — the mix of
+       * lines the sim actually produces), so the stop rate over a game does not move while the spread
+       * between a good angle and a bad one widens; and it now reaches the two outcomes it never
+       * touched: a man on a bad line is run THROUGH (`angleTruckKV151D`) and stiff-armed
+       * (`angleStiffKV151D`) more, a square man is not. A whiff off a bad line is an OVERRUN — his
+       * momentum carries him past for longer (`overrunKV151D`), which is what the picture shows.
+       * Kill switch `TU("angleV151D", 0)`. */
+      const angOnV151 = onV143 && !!TU("angleV151D", 1);
+      const angMovV151 = angOnV151 && angQ !== 0;   // a man standing in the gap has no line to grade (v110) — he is left exactly as v143 had him
+      const angX = angMovV151 ? angQ + (angQ - TU("angleMeanV151D", .15)) * (TU("angleGainV151D", 1.8) - 1) : angQ;
       const wu = onV143 ? windupV143(d, dSpd) : { need: 0, had: 0, set: true };
       /* the aim costs a roll, so with v143 off it is never taken and the random stream stays
        * bit-identical to the pre-v143 engine — which is the only way the two are comparable */
@@ -2328,7 +2345,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       // Steeper gap term + a high (never-100%) ceiling so a huge mismatch shows:
       // even ≈26% open, star-vs-weak ≈70%, generational-vs-scrub ≈78%, floor ≈2%.
       const whiffP = cl(TU("whiffBaseV139", .12) + (elus - d.tkl)*0.008 + (openField?0.10:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006
-        + afx.whiff * TU("aimFxV143", 1) - angQ * TU("angleWhiffKV143", .07) - setQ * TU("windupWhiffKV143", .10), 0.02, 0.72) * (1 - swarmChoke) * soloK;
+        + afx.whiff * TU("aimFxV143", 1) - angX * TU("angleWhiffKV143", .07) - setQ * TU("windupWhiffKV143", .10), 0.02, 0.72) * (1 - swarmChoke) * soloK;
       /* v139: the rate is a dial now but its default is exactly what it always was. Raising it
        * lengthens plays, which grows v109C1check's sample, and that check asserts PERFECTION over
        * a stochastic sample (it fails 1-of-N on main too). The visible answer to "more whiffed
@@ -2338,7 +2355,8 @@ window.__visionRadiusV96 = visionRadiusV96;
         d.beaten = t + 640; d.cool = t + 520; c.burstUntil = t + 460; kickSprint(c);
         // v29 OVERSHOOT: the juked man's momentum carries him PAST the cut point — he
         // keeps flying along his old line while beaten instead of freezing in place.
-        d._osUntil = t + TU("overshootMs",420); d._osdx = d._dx||((c.lx-d.lx)>=0?1:-1); d._osdy = d._dy||0;
+        d._osUntil = t + TU("overshootMs",420) * (angMovV151 ? 1 + Math.max(0, -angX) * TU("overrunKV151D", .6) : 1); d._osdx = d._dx||((c.lx-d.lx)>=0?1:-1); d._osdy = d._dy||0;
+        if (angMovV151 && angX < -.3) d.beaten = Math.max(d.beaten, d._osUntil);   // v151 D: the overrun — he is past him until he can plant and turn
         c._evades = (c._evades||0) + 1; emit("tackleWhiff",{who:d.id, carrier:c.id, x:d.lx, y:d.y, ...hit});
         // v24: which move beat him is rating-driven — spin favors raw agility (whipping
         // the hips around), a jump-cut juke favors quickness. `elus` rides the event so
@@ -2388,7 +2406,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       // defender is shoved off and stumbles; the runner is slowed a touch, keeps going.
       const armEdge = (cStr - dStr) + (c.str - 50)*0.45;
       const stiffP = (behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005
-        + afx.stiff * TU("aimFxV143", 1), 0, 0.5)) * (1 - swarmChoke) * soloK;
+        + afx.stiff * TU("aimFxV143", 1) - (angMovV151 ? (angX - TU("angleMeanV151D", .15)) * TU("angleStiffKV151D", .03) : 0), 0, 0.5)) * (1 - swarmChoke) * soloK;
       if (Math.random() < stiffP) {
         d.beaten = t + 520; d.stagger = t; c.vel = Math.max(0,(c.vel||0)*0.95); c.burstUntil = t + 300; kickSprint(c);
         c._evades = (c._evades||0) + 1; emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y, ...hit, armEdge: Math.round(armEdge)});   // v109: which arm, and how far he shoved him
@@ -2405,7 +2423,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       const powerEdge = (cMom - dMom)*0.85 + (cStr - dStr)*0.5;
       const bothWin = cFaster && cStronger && !behind;
       let truckP = cl(0.16 + powerEdge*0.011 + (behind?-0.09:0) + Math.max(0,lev)*0.006
-        + afx.truck * TU("aimFxV143", 1), 0.02, 0.72);
+        + afx.truck * TU("aimFxV143", 1) - (angMovV151 ? (angX - TU("angleMeanV151D", .15)) * TU("angleTruckKV151D", .06) : 0), 0.02, 0.72);
       if (bothWin) truckP = cl(truckP + 0.22 + (cSpd - dSpd)*0.006, 0.05, 0.90);
       truckP *= (1 - swarmChoke) * soloK;                          // v25: you don't truck THROUGH a gang
       if (Math.random() < truckP) {
@@ -2436,14 +2454,14 @@ window.__visionRadiusV96 = visionRadiusV96;
       // and stumbles himself — the arm-tackle that only slows the runner down. Bumps
       // matter: a staggered carrier bleeds speed and is easier to bring down next hit.
       const wrapQ = d.tkl*0.62 + (dMom>cMom?14:0) + (behind?22:0)
-        + afx.wrapQ * TU("aimFxV143", 1) + angQ * TU("angleWrapKV143", 9) + setQ * TU("windupWrapKV143", 10);
+        + afx.wrapQ * TU("aimFxV143", 1) + angX * TU("angleWrapKV143", 9) + setQ * TU("windupWrapKV143", 10);
       const balance = c.str*0.4 + c.agi*0.35 + (c.burst||c.spdA||50)*0.25;
       // v82 3.5) BOUNCE — a glancing hit from the side: the carrier absorbs it and keeps
       // his feet while the tackler goes to the ground reaching. Balance against the wrap,
       // and the ANGLE of the hit, decide it. Distinct from a stagger, where both stay up.
       const glancing = !behind && Math.abs(d._dy||0) > TU("glancingDy", .7);
       const bounceP = cl(TU("bounceBase", .02) + (balance - wrapQ)*0.004 + (glancing ? TU("glancingBonus", .04) : 0) - (c._staggered&&t-c._staggered<500?0.05:0)
-        + afx.bounce * TU("aimFxV143", 1) - angQ * TU("angleBounceKV143", .03), 0.01, 0.3) * (1 - swarmChoke) * soloK;
+        + afx.bounce * TU("aimFxV143", 1) - angX * TU("angleBounceKV143", .03), 0.01, 0.3) * (1 - swarmChoke) * soloK;
       if (Math.random() < bounceP) {
         d.beaten = t + 520; d.cool = t + 480; d._osUntil = t + TU("overshootMs",420); d._osdx = d._dx||0; d._osdy = d._dy||0;
         c.vel = Math.max(0,(c.vel||0)*0.78*durKeepV141(c)); c._staggered = t;
@@ -4040,7 +4058,34 @@ window.__visionRadiusV96 = visionRadiusV96;
             // grip caps his gear outright, so the drag is the yard or two he can churn out and
             // never the tail of a full-speed deceleration
             c.vel = Math.min(c.vel || 0, cl(TU("gripVelCap", .24) + strain * .5, .08, .9));
-            mv(c, c.lx + dsg * 46, c.y, pull);
+            /* ===== v151 D THE PUSH =====
+             * The grip only ever travelled FORWARD: a tackler who won the collision outright still
+             * got dragged, because the pair's pace was the carrier's strength against his and
+             * nothing else. Contact is a shove match. When the tackler clearly won the point of
+             * attack (`collEdge` past `pushBackEdgeV151D` — a bigger, faster, stronger man square on
+             * him, a gang) he DRIVES the carrier back for the first `pushBackMsV151D` of the grip,
+             * both men travelling together along the push, before they go down; the stronger the win
+             * the harder the drive (`pushBackPaceV151D`), capped (`pushBackMaxPaceV151D`) and never
+             * while he is straining for the sticks. When the CARRIER won it by a street, the forward
+             * drag is announced as a push the other way. Either way the pair moves together (the
+             * tackler's spot is written from the carrier's just below), the landing is the spot, and
+             * `pushV151D` says who drove whom so the renderer can lean them into it. The yards are
+             * the ground they really covered — sim truth, exactly as the drag always was.
+             * Kill switch `TU("pushV151D", 0)`. */
+            let pushDir = 0;
+            if (TU("pushV151D", 1)) {
+              const eB = TU("pushBackEdgeV151D", 1.5);
+              if (G.collEdge > eB && !strain && age < TU("pushBackMsV151D", 200)) pushDir = -1;
+              else if (G.collEdge < -TU("pushFwdEdgeV151D", .6) && pull >= TU("pushFwdPullV151D", .2)) pushDir = 1;
+              if (pushDir && !G.pushSaid) { G.pushSaid = true;
+                emit("pushV151D", { who: pushDir < 0 ? dfd.id : c.id, on: pushDir < 0 ? c.id : dfd.id, carrier: c.id, dir: pushDir,
+                  edge: +G.collEdge.toFixed(2), ms: pushDir < 0 ? Math.min(TU("pushBackMsV151D", 200), G.ms) : Math.round(G.ms), x: c.lx, y: c.y, cid: G.hit.cid }); }
+            }
+            if (pushDir < 0) {   // driven back: he is not running there, he is being moved — his heading stays on the man in front of him
+              const bp = cl((G.collEdge - TU("pushBackEdgeV151D", 1.5)) * TU("pushBackPaceV151D", .15) + .06, .05, TU("pushBackMaxPaceV151D", .25));
+              c.vel = Math.min(c.vel || 0, bp); c.lx -= dsg * bp * c.spd * TICK / 1000;
+            }
+            else mv(c, c.lx + dsg * 46, c.y, pull);
             // v109: the gripper settles onto the back hip FROM where he latched rather than snapping
             // there; each joiner rides in along the ray he arrived on (THE PILE HAS A SHAPE)
             const setK = cl(age / TU("gripSettleMs", 120), 0, 1), hx = -dsg * TU("gripHoldPx", 8), hy = G.side * TU("gripHoldY", 4);
@@ -4325,8 +4370,18 @@ window.__visionRadiusV96 = visionRadiusV96;
           if (t < (dfd.beaten||0)) {
             // v29 OVERSHOOT: a beaten man doesn't freeze — his momentum carries him past
             // the move that beat him before he can gather himself and re-pursue.
-            if (dfd._osUntil && t < dfd._osUntil && (dfd._osdx || dfd._osdy))
-              mv(dfd, dfd.lx + dfd._osdx*34, clampY(dfd.y + dfd._osdy*34), TU("overshootPace",1.0));
+            /* ===== v151 D HE FINDS HIS FEET (the beaten man) =====
+             * The overrun used to run at full pace to the last tick and then stop dead, and the
+             * man stood frozen until `beaten` ran out and he reversed in one tick. Now the overrun
+             * BRAKES (pace falling to `overrunEndPaceV151D` by its end) and the rest of the beat is
+             * the plant and turn: he swings back toward the carrier at a walk (`plantTurnPaceV151D`)
+             * before he can pursue again. Kill switch `TU("recoverV151D", 0)`. */
+            const rcv151 = !!TU("recoverV151D", 1);
+            if (dfd._osUntil && t < dfd._osUntil && (dfd._osdx || dfd._osdy)) {
+              if (dfd._osKeyV151 !== dfd._osUntil) { dfd._osKeyV151 = dfd._osUntil; dfd._osT0V151 = t; }   // a new overrun starts its own clock
+              const left = rcv151 ? cl((dfd._osUntil - t) / Math.max(1, dfd._osUntil - dfd._osT0V151), 0, 1) : 1;
+              mv(dfd, dfd.lx + dfd._osdx*34, clampY(dfd.y + dfd._osdy*34), TU("overshootPace",1.0) * (rcv151 ? TU("overrunEndPaceV151D", .35) + (1 - TU("overrunEndPaceV151D", .35)) * left : 1));
+            } else if (rcv151) mv(dfd, c.lx, c.y, TU("plantTurnPaceV151D", .3));
             continue;
           }
           if (dfd.trucked && t < dfd.trucked + 900) { downSlideV109(dfd, "truck", c); continue; }     // flattened: he's on the ground (v109: sliding, then still)
@@ -4790,7 +4845,7 @@ window.__visionRadiusV96 = visionRadiusV96;
     if (_tke && _tke.youIn) { const _yu = S.all.find(a=>a.player&&a.player.you); out.assist = _yu ? _yu.player : null; }
     out.flags = flagCand;   // v30: what an official COULD have flagged — the game layer rolls the call
     out.log = { duration: t, events, ball: ballFrames,
-      actors: S.all.map(a=>({id:a.id, side:a.side, label:a.lb, sp:Math.round(a.spd), you:!!(a.player&&a.player.you), gas:Math.round(a.gas!==undefined?a.gas:(a.gas0!==undefined?a.gas0:100)), frames:a.frames})) };
+      actors: S.all.map(a=>({id:a.id, side:a.side, label:a.lb, sp:Math.round(a.spd), you:!!(a.player&&a.player.you), nm:a.player&&a.player.name||null, skin:a.player&&Number.isFinite(a.player.skinTone)?a.player.skinTone:null,   /* v151 D: who he is, for his skin tone (render-only) */ gas:Math.round(a.gas!==undefined?a.gas:(a.gas0!==undefined?a.gas0:100)), frames:a.frames})) };
     /* Only a play the offence CARRIED to a spot: an incompletion's ball legitimately lands
      * yards downfield on a zero-yard play, and a pick's ball changes hands and comes back
      * the other way, so neither one's ball track means what `yards` means. */

@@ -43,7 +43,7 @@ const R = await page.evaluate(({ G, tune }) => {
       B.n++; B.sumR += ratio; B.maxR = Math.max(B.maxR, +ratio.toFixed(2)); if (ratio > 1.5) B.over++; if (e.v146 && e.v146.fixPx) { B.fixed++; B.d0 += e.v146.d0 }
       A.ratioHist[Math.min(5, Math.floor(ratio / 0.5))]++
       const k0 = at(K.frames, e.t), c0 = at(C.frames, e.t); A.dist.push(Math.hypot(k0.x - c0.x, k0.y - c0.y))
-      if (ratio > 1.6 && A.worst.length < 8) A.worst.push({ why, ratio: +ratio.toFixed(2), sp, d0: e.v146 && e.v146.d0, fix: e.v146 && e.v146.fixMs, ev: p.event })
+      if (ratio > 1.5 && A.worst.length < 14) A.worst.push({ pkT: (()=>{let bt=0,m=0;const fr=K.frames;for(let i=1;i<fr.length;i++){if(fr[i].t<e.t-1200||fr[i].t>e.t)continue;const v=Math.hypot(fr[i].x-fr[i-1].x,fr[i].y-fr[i-1].y)/((fr[i].t-fr[i-1].t)/1000||1);if(v>m){m=v;bt=fr[i].t}}return [Math.round(e.t-bt), s.events.filter(q=>Math.abs(q.t-bt)<=50&&(q.who===K.id||q.tackler===K.id||q.by===K.id||q.carrier===C.id)).map(q=>q.type).join(',')]})(), why, ratio: +ratio.toFixed(2), sp, d0: e.v146 && e.v146.d0, fix: e.v146 && e.v146.fixMs, ev: p.event })
     }
   }
   for (const k in A.byWhy) { const B = A.byWhy[k]; B.meanR = +(B.sumR / B.n).toFixed(2); delete B.sumR; B.d0 = B.fixed ? Math.round(B.d0 / B.fixed) : 0 }
