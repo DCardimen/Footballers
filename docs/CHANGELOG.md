@@ -11,6 +11,8 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v151 E.1 — the first tap starts the band.** The music waited for a gesture, but it treated the first `pointerdown` as the start even when the browser refused it (iOS Safari does not count a press as activation) and then stopped listening, so it stayed silent until a Settings toggle. `src/30-music.js` now keeps the gesture listeners until the sound is really running (`audible()`: context running, deck playing), re-primes the parked deck on the next gesture, and retries on a click. Probe: a refused first play now recovers on the same tap's click.
+
 - **v151 A — the free game is the game, and the store is a ladder.** The owner chose the hybrid model and the
   module is built for it (still switched OFF until the providers exist): Ad Free $3.99 ⊂ Pro Career $8.99 (permanent
   4×, +3 season skips a day, advanced filters) ⊂ Founder $14.99 (the founder cosmetic bundle), upgrades priced at the

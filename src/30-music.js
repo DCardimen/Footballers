@@ -273,20 +273,18 @@
     if (!M.gestured) return Promise.resolve(false);
     if (M.mode === 'element') return playElement();
     var c = makeCtx(); if (!c) return playElement();
-    try { if (c.state !== 'running') c.resume(); } catch (e) {}
+    try { if (c.state !== 'running') { var pr = c.resume(); if (pr && pr.then) pr.then(function () { armedCheck(); }, function () {}); } } catch (e) {}
     if (!M.mode && !makeDecks()) {                                   // cannot route an element: decode instead
       M.state = 'loading';
       return bufferMode().then(function () { return play(why); }, function (e) { M.err = String(e && e.message || e); M.mode = 'element'; return playElement(); });
     }
     if (M.mode === 'stream') {
       var a = M.decks[M.cur], b = M.decks[1 - M.cur];
-      if (!M.started) {
-        M.started = 1;
-        try { a.el.currentTime = LOOP_START; } catch (e) {}
-        // prime the parked deck inside this gesture (iOS), silent through its own gain
-        var pb = b.el.play(); if (pb && pb.then) pb.then(function () { if (!M.swapping && M.decks[M.cur] !== b) park(b); }, function () {});
-      }
-      if (a.el.paused) { var pa = a.el.play(); if (pa && pa.catch) pa.catch(function (e) { M.err = String(e && e.message || e); M.state = 'paused'; }); }
+      if (!M.started) { M.started = 1; try { a.el.currentTime = LOOP_START; } catch (e) {} }
+      // prime the parked deck inside this gesture (iOS), silent through its own gain — again on the next
+      // gesture if this one was not one the browser counts (v151 E.1: iOS does not count a pointerdown)
+      if (!M.primedB && b.el.paused) { var pb = b.el.play(); if (pb && pb.then) pb.then(function () { M.primedB = 1; if (!M.swapping && M.decks[M.cur] !== b) park(b); }, function () {}); }
+      if (a.el.paused) { var pa = a.el.play(); if (pa && pa.then) pa.then(armedCheck, function (e) { M.err = String(e && e.message || e); if (M.state === 'playing') M.state = 'paused'; }); }
       fadeUp(); watch();
       return Promise.resolve(true);
     }
@@ -338,18 +336,32 @@
 
   /* ---------- the gesture, the tab, the app ---------- */
   var GESTURES = ['pointerdown', 'touchend', 'keydown', 'click'];
+  /* v151 E.1 THE FIRST TAP STARTS THE BAND: a browser may refuse a gesture silently (iOS Safari does not count
+   * pointerdown/touchstart as activation), so the listeners stay until the sound is REALLY running — the context
+   * running and the deck actually playing — not merely until play() was called. */
+  function audible() {
+    if (M.state !== 'playing') return false;
+    if (M.mode === 'element') return !!(M.el && !M.el.paused);
+    if (!M.ctx || M.ctx.state !== 'running') return false;
+    if (M.mode === 'stream') { var d = M.decks[M.cur]; return !!(d && !d.el.paused); }
+    return true;
+  }
+  function armedCheck() { if (audible()) GESTURES.forEach(function (g) { document.removeEventListener(g, onGesture, true); }); }
   function onGesture(ev) {
     if (ev && ev.isTrusted === false) return;
     M.gestured = true;
     if (!wantPlay()) return;
-    if (M.state !== 'playing' || (M.ctx && M.ctx.state !== 'running')) play('gesture');
-    if (M.state === 'playing') GESTURES.forEach(function (g) { document.removeEventListener(g, onGesture, true); });
+    if (!audible()) play('gesture');
+    armedCheck(); setTimeout(armedCheck, 250);
   }
   GESTURES.forEach(function (g) { document.addEventListener(g, onGesture, { capture: true, passive: true }); });
   // after that one is consumed, a cheap listener for iOS interruptions (a call suspends the context)
   document.addEventListener('pointerdown', function (ev) {
     if (!ev.isTrusted) return; M.gestured = true;
     if (M.ctx && M.ctx.state !== 'running' && M.state === 'playing' && wantPlay()) play('interrupted');
+  }, { capture: true, passive: true });
+  document.addEventListener('click', function (ev) {                 // v151 E.1: the gesture iOS does count
+    if (!ev.isTrusted || !wantPlay() || M.state !== 'playing' || audible()) return; play('interrupted');
   }, { capture: true, passive: true });
 
   function onVisibility() {
