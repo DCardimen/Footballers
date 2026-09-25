@@ -5506,14 +5506,22 @@
           max: 8
         },
         { key: "frame", name: "Big Frame", icon: "🏋️", desc: "+7 starting Strength.", cost: 5, mult: 1.4, max: 8 },
-        { key: "iron", name: "Iron Body", icon: "🦾", desc: "+7 starting Durability.", cost: 4, mult: 1.38, max: 8 },
+        {
+          key: "iron",
+          name: "Iron Body",
+          icon: "🦾",
+          desc: "+2 starting Durability (v153 B: was +7 — injuries stay on his mind).",
+          cost: 4,
+          mult: 1.38,
+          max: 8
+        },
         { key: "nimble", name: "Loose Hips", icon: "🌀", desc: "+6 starting Agility.", cost: 5, mult: 1.4, max: 8 },
         { key: "lungs", name: "Big Lungs", icon: "🫁", desc: "+7 starting Stamina.", cost: 4, mult: 1.38, max: 8 },
         {
           key: "motor",
           name: "High Motor",
           icon: "⚙️",
-          desc: "Injuries hurt less; +4 Stamina.",
+          desc: "Injuries a shade rarer (−0.5% a level); +4 Stamina.",
           cost: 7,
           mult: 1.5,
           max: 6,
@@ -5593,7 +5601,7 @@
           key: "recovery",
           name: "Rapid Recovery",
           icon: "🧊",
-          desc: "Injuries 6% rarer per level.",
+          desc: "Injuries 2% rarer per level (v153 B: was 6%).",
           cost: 7,
           mult: 1.5,
           max: 6,
@@ -5829,7 +5837,7 @@
           key: "medic",
           name: "Team Medical Staff",
           icon: "⚕️",
-          desc: "Season-ending injuries 20% less likely.",
+          desc: "In-season injuries 1.5% less likely per level (v153 B: was 5%).",
           cost: 8,
           mult: 1.5,
           max: 6
@@ -5838,7 +5846,7 @@
           key: "goodProgram",
           name: "Winning Culture",
           icon: "🏆",
-          desc: "Your teams are stronger — half a percent of team quality per level, up to +3% (win more games).",
+          desc: "Your teams are a little stronger — a quarter percent of team quality per level, up to +1.5%. Decisions build the rest.",
           cost: 9,
           mult: 1.5,
           max: 6
@@ -5895,7 +5903,7 @@
           key: "dynastyTeam",
           name: "Dynasty Program",
           icon: "🏰",
-          desc: "Recruited by championship teams — +4% team quality per 5 levels & you carry them further.",
+          desc: "Recruited by championship teams — +2% team quality per 5 levels & you carry them further.",
           cost: 18,
           mult: 1.75,
           max: 4,
@@ -5925,7 +5933,7 @@
           key: "unstoppable",
           name: "Unstoppable",
           icon: "🚂",
-          desc: "+2 seasons allowed AND injuries 15% rarer.",
+          desc: "+2 seasons allowed AND injuries 4.5% rarer per level.",
           cost: 38,
           mult: 2.2,
           max: 2,
@@ -5946,7 +5954,7 @@
           key: "boosters",
           name: "Booster Club",
           icon: "📣",
-          desc: "+2% team quality per 5 levels — the whole program lifts.",
+          desc: "+1% team quality per 5 levels — the whole program lifts.",
           cost: 8,
           mult: 1.5,
           max: 6,
@@ -6176,7 +6184,7 @@
           key: "ligaments",
           name: "Steel Ligaments",
           icon: "🦿",
-          desc: "Injuries 8% rarer per level.",
+          desc: "Injuries 2.4% rarer per level (v153 B: was 8%).",
           cost: 9,
           mult: 1.55,
           max: 5,
@@ -6187,7 +6195,7 @@
           key: "boneDensity",
           name: "Bone Density",
           icon: "🦴",
-          desc: "+4 starting Durability & Strength.",
+          desc: "+2 starting Strength a level; Durability +0.6 a level (rounded).",
           cost: 6,
           mult: 1.45,
           max: 8,
@@ -6361,7 +6369,7 @@
           key: "crowdFavorite",
           name: "Crowd Favorite",
           icon: "📢",
-          desc: "+3% team quality per 10 levels — the stadium lifts them.",
+          desc: "+1.5% team quality per 10 levels — the stadium lifts them.",
           cost: 9,
           mult: 1.55,
           max: 6,
@@ -6461,7 +6469,7 @@
           key: "etAegis",
           name: "Eternal Aegis",
           icon: "🌗",
-          desc: "Injuries 2% rarer. FOREVER repeatable (soft cap 85%).",
+          desc: "Injuries 0.6% rarer. FOREVER repeatable — but the whole tree never takes more than 25% off the injury roll.",
           cost: 12,
           mult: 1.22,
           max: 999,
@@ -6518,7 +6526,7 @@
           key: "trainerRoom",
           name: "Trainer's Room",
           icon: "🏥",
-          desc: "Once per career, a season-ending injury is downgraded to three games out.",
+          desc: "Once per career, a season-ending injury is downgraded to six games out.",
           cost: 90,
           mult: 1,
           max: 1,
@@ -6653,7 +6661,7 @@
           key: "gmEye",
           name: "GM's Eye",
           icon: "🔍",
-          desc: "Half a percent of team quality per level — front office finds talent.",
+          desc: "A quarter percent of team quality per level — front office finds talent.",
           cost: 8,
           mult: 1.5,
           max: 6,
@@ -6663,7 +6671,7 @@
           key: "oline_wall",
           name: "The Wall",
           icon: "🧱",
-          desc: "Your line protects: injuries 5% rarer, +1 perf.",
+          desc: "Your line protects: injuries 1.5% rarer, +1 perf.",
           cost: 10,
           mult: 1.6,
           max: 5,
@@ -6685,7 +6693,7 @@
           key: "homeField",
           name: "Fortress Home Field",
           icon: "🏰",
-          desc: "+2% team quality per 5 levels & +2 playoff performance.",
+          desc: "+1% team quality per 5 levels & +2 playoff performance.",
           cost: 14,
           mult: 1.65,
           max: 5,
@@ -6707,7 +6715,7 @@
           key: "juggernautTeam",
           name: "Superteam",
           icon: "💫",
-          desc: "+7% team quality per 10 levels — a loaded roster every year.",
+          desc: "+3.5% team quality per 10 levels — a loaded roster every year.",
           cost: 24,
           mult: 1.9,
           max: 4,
@@ -7023,7 +7031,7 @@
       color: "#4a90c9",
       tag: "Unbreakable",
       cheapBranch: "body",
-      desc: "Nearly injury-proof (−70% injury), +2 season attempts at every level, and durability never limits you. Longevity wins championships. Body branch 25% cheaper.",
+      desc: "Tougher than most (−21% injury — nobody is injury-proof), +2 season attempts at every level, and durability never limits you. Longevity wins championships. Body branch 25% cheaper.",
       injuryMult: 0.3,
       extraSeasons: 2,
       growthMult: 1.08,
@@ -7150,7 +7158,7 @@
         key: "fastHeal",
         name: "Miracle Hands",
         icon: "🩺",
-        desc: "An injury that keeps him out 2+ games heals 25% faster per level (rounded, never under 1 game). Season-enders are untouched.",
+        desc: "An injury that keeps him out 2+ games heals 7.5% faster per level (rounded, never under 1 game). Season-enders are untouched.",
         cost: 5e5,
         mult: 2,
         max: 2,
@@ -7243,7 +7251,12 @@
       g = gearV147("injDur");
     return (!l && !g) || !(w > 1)
       ? w
-      : Math.max(1, Math.round(w * Math.max(0, 1 - l * TU("fastHealStepV146", 0.25)) * (1 - g)));
+      : Math.max(
+          1,
+          Math.round(
+            w * Math.max(0, 1 - l * TU("fastHealStepV146", 0.25) * injNodeKV153B()) * (1 - g * injGearKV153B())
+          )
+        ); /* v153 B */
   } /* v147 C: gear shortens it too */
   function repsV146() {
     return nodeLvl("megaReps") * TU("megaRepsPtsV146", 4);
@@ -8505,7 +8518,7 @@
       path: null,
       pathResets: 0,
       rerollV112: null,
-      settings: { skipOpp: !1, onlyInvolved: !1, fastSim: !1, sound: !0, haptics: !0 },
+      settings: { skipOpp: !1, onlyInvolved: !0, playsDefaultV153B: 1, fastSim: !1, sound: !0, haptics: !0 },
       tutorialSeen: !1,
       highScore: 0,
       highStreak: 0,
@@ -8514,6 +8527,7 @@
     };
   }
   function settingOn(e) {
+    if (e === "onlyInvolved") playsDefaultV153B(); /* v153 B: on by default, once, for every save */
     if (e === "onlyInvolved" && !playsOnlyOkV151A()) return !1; /* v151 A: unlocked by the first finished career */
     return (state.settings && state.settings[e]) || !1;
   }
@@ -8909,6 +8923,7 @@
     return (state.bestLevel || 0) >= lv || !!(state.player && (state.player.level || 0) >= lv);
   }
   function playsOnlyOkV151A() {
+    if (TU("v153Bplays", 1)) return !0; /* v153 B: My Plays Only is free — the owner's call; no gate, no price */
     return !gateOnV151A("playsOnlyGateV151A") || careerDoneV151A();
   }
   function gate4V151A() {
@@ -9914,7 +9929,7 @@
       (t.quickness = clamp99(t.quickness + nodeLvl("fastTwitch") * 6 + nodeLvl("explosive") * 8, 1, n)),
       (t.agility = clamp99(t.agility + nodeLvl("nimble") * 6 + nodeLvl("explosive") * 8, 1, n)),
       (t.strength = clamp99(t.strength + nodeLvl("frame") * 7 + nodeLvl("campStr") * 4, 1, n)),
-      (t.injuryResist = clamp99(t.injuryResist + nodeLvl("iron") * 7, 1, n + 20)),
+      (t.injuryResist = clamp99(t.injuryResist + nodeLvl("iron") * ironStepV153B(), 1, n + 20)),
       (t.stamina = clamp99(t.stamina + nodeLvl("motor") * 4 + nodeLvl("lungs") * 7, 1, n + 15)),
       (t.awareness = clamp99(
         t.awareness + nodeLvl("filmrat") * 7 + nodeLvl("genius") * 14 + nodeLvl("campIQ") * 4,
@@ -9986,7 +10001,8 @@
       y = treeFx("startAll");
     if (
       (ATTR_KEYS.forEach(v => {
-        const j = y + treeFx("start_" + v);
+        const j =
+          y + (v === "injuryResist" ? Math.round(treeFx("start_" + v) * injNodeKV153B()) : treeFx("start_" + v));
         j > 0 && (m.attrs[v] = clamp99(m.attrs[v] + j, 1, attrCap()));
       }),
       treeFx("trait3") > 0)
@@ -10527,7 +10543,9 @@
     if (hasTrait(e, "ironFrame")) m *= 0.7;
     if (hasTrait(e, "glassBones")) m *= 1.35;
     m *=
-      Math.max(0.15, 1 - treeFx("injDown") - gearFx("injDown") - gearV147("injChance")) * (seasonModFx("injMult") || 1);
+      Math.max(0.15, 1 - injTreeDownV153B() - injGearDownV153B()) *
+      (seasonModFx("injMult") || 1) *
+      riskInjMulV153B(e); /* v153 B */
     /* v120: asking the coach for more snaps than he trusts you with is a term in THIS roll too — the
      * forecast passes it; a game-day caller with just the week gets it read off the week's dial */
     let askK = 1;
@@ -12203,8 +12221,8 @@
         O = __aiSeasonGame(e, { perfSeed: i, oppBoost: R === _rwV128 ? TU("rivalOppBoost", 0.38) : 0 });
         if (_vmV128 !== 1) O.perf = clamp99(Math.round(50 + (O.perf - 50) * _vmV128), 1, 100);
         if (R === _rwV128) O.rivalV128 = !0;
-        const Pe = (1 - nodeLvl("medic") * 0.05 - nodeLvl("unstoppable") * 0.15) * pathVal("injuryMult", 1),
-          Ae = 1 - nodeLvl("motor") * 0.015;
+        const Pe = injNodeMulV153B(),
+          Ae = injMotorMulV153B();
         O.injured &&
           (O.injured =
             Math.random() < injPlanMultV54(a) * r * Math.max(0.1, Pe) * Ae * (O.rivalV128 ? RIVAL_MULT_V128() : 1));
@@ -13208,7 +13226,7 @@
     <div class="card">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:10px">🎮 LIVE GAME</div>
       ${toggleRow("skipOpp", "Skip opponent drives", "Only watch plays while your team has the ball")}
-      ${toggleRow("onlyInvolved", "My plays only", "Jump straight to plays you're personally involved in")}
+      ${toggleRow("onlyInvolved", "My plays only", TU("v153Bplays", 1) ? "Watch your side of the ball — offense if you play offense, defense if you play defense (special teams only when you are in them). Off shows every snap." : "Jump straight to plays you're personally involved in")}
       ${toggleRow("fastSim", "Faster live sim", "Speed up the default play animation")}
       ${toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices")}
     </div>
@@ -15362,7 +15380,11 @@
      * is carried by the four play-level levers below, which act on the game rather than
      * on the team sheet. ===== */
     const C = clamp99(
-        0.42 + t * 0.35 + _prF * 1.05 + clubQV146B(state.player) /* v146 B: the club he signed with */,
+        0.42 +
+          t * 0.35 +
+          teamPrestigeQV153B(_prF) +
+          teamDecisionQV153B(state.player) +
+          clubQV146B(state.player) /* v146 B: the club he signed with · v153 B: prestige halved, decisions added */,
         0.3,
         1.65
       ),
@@ -18930,7 +18952,11 @@
       if (wk && wk.opp && typeof __oppMulForV22 === "function") oppMul = __oppMulForV22(wk.opp);
     } catch (_e) {}
     const C = clamp99(
-        0.42 + t * 0.35 + prF * 1.05 + (opts.clubQ != null ? opts.clubQ : clubQV146B(e)) /* v146 B */,
+        0.42 +
+          t * 0.35 +
+          teamPrestigeQV153B(prF) +
+          teamDecisionQV153B(e) +
+          (opts.clubQ != null ? opts.clubQ : clubQV146B(e)) /* v146 B · v153 B */,
         0.3,
         1.65
       ),
@@ -18968,6 +18994,7 @@
           treeFx("teamQual") +
           gearV147("teamQual")
       ) *
+        teamNodeKV153B() /* v153 B: the tree's share of the team is halved */ *
         TU("teamQualK", 0.1) *
         40 +
       (hasTrait(e, "bornLeader") ? 2.4 : 0);
@@ -19003,8 +19030,8 @@
     for (let r = 0; r < t.games; r++) {
       const isR = r === riv,
         l = __aiSeasonGame(e, { perfSeed: s, oppBoost: isR ? TU("rivalOppBoost", 0.38) : 0 }),
-        d = (1 - nodeLvl("medic") * 0.05 - nodeLvl("unstoppable") * 0.15) * pathVal("injuryMult", 1),
-        c = 1 - nodeLvl("motor") * 0.015;
+        d = injNodeMulV153B(),
+        c = injMotorMulV153B();
       if (vm !== 1) l.perf = clamp99(Math.round(50 + (l.perf - 50) * vm), 1, 100);
       l.injured &&
         (l.injured = Math.random() < injPlanMultV54(a) * Math.max(0.1, d) * c * (isR ? RIVAL_MULT_V128() : 1));
@@ -19755,8 +19782,8 @@
     const d = playoffRoundNames(e.level),
       c = t === d.length - 1,
       i = __aiSeasonGame(e, { perfSeed: s, playoff: !0, oppBoost: 0.12 + t * 0.11 + (c && e.nemesis ? 0.04 : 0) }),
-      r = (1 - nodeLvl("medic") * 0.05 - nodeLvl("unstoppable") * 0.15) * pathVal("injuryMult", 1),
-      l = 1 - nodeLvl("motor") * 0.015;
+      r = injNodeMulV153B(),
+      l = injMotorMulV153B();
     i.injured && (i.injured = Math.random() < injPlanMultV54(a) * Math.max(0.1, r) * l);
     return (
       (i.opp = c && e.nemesis ? e.nemesis.name + "'s " + randOppName(e.level) : randOppName(e.level)),
@@ -19988,12 +20015,14 @@
     /* v134 Apex: Trainer's Room -- once a career, the season-ender is three games out instead */
     if (inj && inj.seasonEnding && nodeLvl("trainerRoom") > 0 && !e._trainerRoomUsedV134) {
       inj.seasonEnding = !1;
-      inj.weeksRemaining = 3;
+      inj.weeksRemaining = trainerWeeksV153B(); /* v153 B: six, not three */
       inj.severity = Math.min(inj.severity || 2, 2);
       e._trainerRoomUsedV134 = !0;
       wk.trainerRoomV134 = !0;
       try {
-        toast("🏥 TRAINER'S ROOM — " + inj.name + " was a season-ender. He is back in three.");
+        toast(
+          "🏥 TRAINER'S ROOM — " + inj.name + " was a season-ender. He is back in " + inj.weeksRemaining + " games."
+        );
       } catch (x) {}
     }
     /* v146 C: Miracle Hands -- a 2+ game injury is shorter, never under one game; season-enders untouched */
@@ -20578,6 +20607,10 @@
       endLive());
   }
   function vl(e) {
+    if (e && TU("v153Bplays", 1) && settingOn("onlyInvolved"))
+      return (
+        playsSkipV153B(e) || !!(settingOn("skipOpp") && e.offense !== "us" && !e.involved)
+      ); /* v153 B: your side of the ball */
     return e
       ? e.header || e.event === "drive"
         ? !!((settingOn("skipOpp") && e.offense !== "us") || settingOn("onlyInvolved"))
@@ -31047,6 +31080,939 @@
     return tpStartV113.apply(this, arguments);
   };
   window.startSeason = startSeason;
+  /* ===== v153 B INJURIES STAY ON HIS MIND =====
+   * The owner: "Remove injury related prestiges, or nerf them heavily. I always want injuries to be on players
+   * minds." Every prestige lever on the injury roll still exists and still does something — nothing to refund —
+   * but at `v153BinjNodeK` (0.3) of what it paid, and the tree as a whole can never take more than
+   * `v153BinjTreeCap` (25%) off the roll:
+   *   treeFx("injDown")  Rapid Recovery 6% → ~2% a level, Steel Ligaments 8% → 2.4%, Eternal Aegis 2% → 0.6%,
+   *                      The Wall 5% → 1.5% — summed, x K, capped at 25%        (`injTreeDownV153B`, injChanceV54)
+   *   medic / unstoppable / the Ironman path   5% / 15% a level / −70% → 1.5% / 4.5% / −21%   (`injNodeMulV153B`)
+   *   motor              1.5% → 0.45% a level                                         (`injMotorMulV153B`)
+   *   Iron Body          +7 → +2 starting Durability a level (`ironStepV153B`); Bone Density's Durability x K
+   *   Miracle Hands      25% → 7.5% shorter layoffs a level (healWeeksV146)
+   *   Trainer's Room     a season-ender becomes SIX games out, not three (`trainerWeeksV153B`)
+   *   gear               injChance / injDown / injDur at `v153BinjGearK` (0.5) of their roll
+   * Kill switch `TU("v153Binj", 0)` restores every old number. Hoisted declarations (v140: the boot reads them). */
+  function injOnV153B() {
+    return !!TU("v153Binj", 1);
+  }
+  function injNodeKV153B() {
+    return injOnV153B() ? clamp99(TU("v153BinjNodeK", 0.3), 0, 1) : 1;
+  }
+  function injGearKV153B() {
+    return injOnV153B() ? clamp99(TU("v153BinjGearK", 0.5), 0, 1) : 1;
+  }
+  function injTreeDownV153B() {
+    const d = treeFx("injDown");
+    return injOnV153B() ? Math.min(TU("v153BinjTreeCap", 0.25), d * injNodeKV153B()) : d;
+  }
+  function injGearDownV153B() {
+    return (gearFx("injDown") + gearV147("injChance")) * injGearKV153B();
+  }
+  function injNodeMulV153B() {
+    const k = injNodeKV153B(),
+      p = pathVal("injuryMult", 1);
+    return (1 - (nodeLvl("medic") * 0.05 + nodeLvl("unstoppable") * 0.15) * k) * (1 - (1 - p) * k);
+  }
+  function injMotorMulV153B() {
+    return 1 - nodeLvl("motor") * 0.015 * injNodeKV153B();
+  }
+  function ironStepV153B() {
+    return injOnV153B() ? TU("ironStepV153B", 2) : 7;
+  }
+  function trainerWeeksV153B() {
+    return injOnV153B() ? TU("trainerRoomWeeksV153B", 6) : 3;
+  }
+
+  /* ===== v153 B THE LOCKER ROOM REMEMBERS WHO YOU ARE =====
+   * The owner: "Have key personality decisions affect roster construction. Maybe you're toxic and scare a few
+   * players away. Maybe your team player attitude enhances someone's ability." — and: "Enhancing team overall
+   * scores is too dependent on prestige mechanics. Have it more tied to key decisions."
+   *
+   * THE TEAM'S QUALITY (`teamPairV76` and `buildGameRosters` read the same two numbers, so the simmed week and the
+   * watched week still agree — v76):
+   *   `teamPrestigeQV153B(prF)`  the prestige share — prestige count / the Roster Department / tree levels — at
+   *                              `v153BprestigeTeamK` (0.5) of its old weight (it was up to +1.05 quality, ~+45 team
+   *                              OVR in the UFF; now up to ~+22). The seven team-quality nodes' margin edge in `ia`
+   *                              is halved by the same dial (`teamNodeKV153B`) and their descriptions say so.
+   *   `teamDecisionQV153B(e)`    what he DID: the locker room's chemistry (`worldState.teamChemistry`, 0-100, 50
+   *                              neutral — the story arcs already move it) at ±`v153BchemQ` (0.2) quality (±8.6 team
+   *                              OVR in the UFF, ±1.8 at Pee Wee), plus this season's roster moves converted exactly
+   *                              (a teammate's OVR change / 22 is the team's OVR change). Bounded −0.3 … +0.4.
+   * WHAT MOVES THE CHEMISTRY (`chemMoveV153B`, every move logged on `player.lockerV153B.log`):
+   *   season start  his personality drifts it (`personaScoresV153B`: TOXIC = me-first + brash + volatile + stubborn;
+   *                 TEAM = team-first + even-keeled + coachable + humble) ±`v153BpersonaChem` (3) a season, and last
+   *                 season's weekly plans count: "Do the Dirty Work" +`v153BplanTeamChem` (1.5) each, "Demand the
+   *                 Spotlight" −1; 10% of the gap to 50 fades each season (`v153BchemFade`)
+   *   story arcs    any outcome that moves chemistry (Bo) — unchanged numbers, and a big swing (±5) earns a roll
+   *   the wheel     the season commitment landing on Team Cookouts / Captain's Council (+4 / +3 on a good land),
+   *                 an underground 7-on-7 gone wrong (−3)
+   *   the sacrifice SACRIFICE FOR A TEAMMATE on the offseason board: give up `v153BsacBase` (2) + level points off
+   *                 your three best attributes; a named teammate in your unit gains `v153BsacLiftK` (12%) of the
+   *                 level's team rating in OVR (≈ +10 in the UFF) and chemistry +`v153BsacChem` (6). Once a season.
+   * THE ROLLS (`rollLockerV153B`, seeded per season + trigger + count, so a season rolls the same on a reload):
+   *   season start  TOXIC ≥ `v153BtoxMin` (0.35): P = `v153BtoxBase` (0.1) + tox × `v153BtoxK` (0.3), ≤ 0.8 — 1-3
+   *                 named teammates transfer / quit, each replaced at `v153BreplK` (80%) of his OVR, chemistry −3 each.
+   *                 TEAM ≥ `v153BteamMin` (0.35): P = `v153BliftBase` (0.1) + team × `v153BliftK` (0.3) — a named
+   *                 teammate improves by `v153BliftAmtK` (8%) of the level's rating (+1 chemistry).
+   *   story / wheel a follow-up roll at `v153BfollowK` (0.5) of those odds, in the direction the swing went.
+   *   At most `v153BleaveMax` (3) departures and `v153BliftMax` (2) lifts a season.
+   * Every move is a toast + a LOCKER ROOM card on the season screen naming the man; the roster (src/10) carries
+   * it — a departed slot is the replacement's name, a lifted man plays at his new number — and a roster rebuilt
+   * mid-season (a new club) re-applies the season's moves (`window.__V153B.applyRoster`). Kill switches:
+   * `TU("v153Broster", 0)` (no rolls, no roster moves), `TU("v153Bteam", 0)` (the old prestige weight, no chemistry
+   * term, no sacrifice). `window.__V153B`; `scripts/v153Bcheck.mjs`. */
+  function rosterOnV153B() {
+    return !!TU("v153Broster", 1);
+  }
+  function teamOnV153B() {
+    return !!TU("v153Bteam", 1);
+  }
+  function teamNodeKV153B() {
+    return teamOnV153B() ? clamp99(TU("v153BprestigeTeamK", 0.5), 0, 1) : 1;
+  }
+  function teamPrestigeQV153B(prF) {
+    return (Number(prF) || 0) * 1.05 * teamNodeKV153B();
+  }
+  function levelRatingV153B(e) {
+    return [18, 30, 42, 54, 66, 78, 86, 90][(e && e.level) | 0] || 55;
+  }
+  function chemOfV153B(e) {
+    const c = e && e.worldState && e.worldState.teamChemistry;
+    return c == null || isNaN(+c) ? 50 : +c;
+  }
+  function teamDecisionQV153B(e) {
+    if (!e) return 0;
+    let q = 0;
+    if (teamOnV153B()) q += ((chemOfV153B(e) - 50) / 50) * TU("v153BchemQ", 0.2);
+    if (rosterOnV153B()) {
+      const L = e.lockerV153B;
+      if (L && L.stamp === stampV153B(e) && L.ovrDelta) q += (2 * L.ovrDelta) / levelRatingV153B(e);
+    }
+    return clamp99(q, TU("v153BdecMinQ", -0.3), TU("v153BdecMaxQ", 0.4));
+  }
+  function stampV153B(e) {
+    return ((e && e.level) | 0) + ":" + ((e && e.totalSeasons) | 0);
+  }
+  // the ledger for THIS season (a new season starts a clean sheet; the log keeps the career's last 24 moves)
+  function lockerV153B(e) {
+    if (!e) return null;
+    const st = stampV153B(e);
+    let L = e.lockerV153B;
+    if (!L || L.stamp !== st)
+      L = e.lockerV153B = {
+        stamp: st,
+        events: [],
+        ovrDelta: 0,
+        leaves: 0,
+        lifts: 0,
+        sacrificed: !1,
+        rolled: {},
+        seen: 0,
+        log: (L && L.log) || []
+      };
+    return L;
+  }
+  function personaScoresV153B(e) {
+    const p = (e && e.personaV13) || {},
+      g = k => ((p[k] == null ? 5 : +p[k]) - 5) / 5;
+    const tox = clamp99(
+        -g("loyalty") * 1 + g("confidence") * 0.45 - g("eq") * 0.5 - g("coachability") * 0.35 + g("aggression") * 0.2,
+        0,
+        2
+      ),
+      team = clamp99(g("loyalty") * 1 + g("eq") * 0.4 + g("coachability") * 0.35 - g("confidence") * 0.25, 0, 2),
+      chem = (chemOfV153B(e) - 50) / 50;
+    // a sour room makes a toxic man worse and a warm one makes a leader better
+    return {
+      tox: +clamp99(tox + Math.max(0, -chem) * 0.6, 0, 2.2).toFixed(3),
+      team: +clamp99(team + Math.max(0, chem) * 0.6, 0, 2.2).toFixed(3)
+    };
+  }
+  function chemMoveV153B(e, d, why) {
+    if (!e || !d || !teamOnV153B()) return 0;
+    e.worldState = e.worldState || { teamChemistry: 50, programMomentum: 50, mediaHeat: 20 };
+    const was = chemOfV153B(e),
+      now = clamp99(Math.round((was + d) * 10) / 10, 0, 100);
+    e.worldState.teamChemistry = now;
+    const L = lockerV153B(e);
+    L && L.log.push({ k: "chem", d: +(now - was).toFixed(1), why: why || "", at: L.stamp });
+    L && (L.log = L.log.slice(-24));
+    return now - was;
+  }
+  function rosterV153B(e) {
+    let r = null;
+    // the live player: ask src/10 (it rebuilds the roster when the season key moved); anyone else: what he carries
+    if (e && state && e === state.player && window.__V158_ROSTER)
+      try {
+        r = window.__V158_ROSTER();
+      } catch (_) {
+        r = null;
+      }
+    if (!Array.isArray(r)) r = e && Array.isArray(e.teamRosterV158) ? e.teamRosterV158 : null;
+    return Array.isArray(r) ? r : null;
+  }
+  var OFF_POS_V153B = ["QB", "RB", "WR", "TE", "LT", "LG", "C", "RG", "RT"];
+  function unitOfV153B(pos) {
+    return ["QB", "RB", "WR", "TE", "OL"].includes(pos) ? "off" : "def";
+  }
+  // a teammate the roll can name: never the kicker or punter, weighted toward the men who matter
+  function pickMateV153B(e, rnd, filter) {
+    const R = rosterV153B(e);
+    if (!R || !R.length) return null;
+    const L = lockerV153B(e),
+      used = new Set((L.events || []).map(v => v.slot));
+    const pool = R.map((p, i) => ({ p, i })).filter(
+      o => o.p && o.p.pos !== "K" && o.p.pos !== "P" && !used.has(o.i) && (!filter || filter(o))
+    );
+    if (!pool.length) return null;
+    const w = pool.map(o => 1 + (o.p.ovr || 1) / 40),
+      tot = w.reduce((a, b) => a + b, 0);
+    let x = rnd() * tot;
+    for (let k = 0; k < pool.length; k++) if ((x -= w[k]) <= 0) return pool[k];
+    return pool[pool.length - 1];
+  }
+  function applyEventV153B(slotP, ev) {
+    if (!slotP || !ev) return;
+    if (ev.kind === "leave") {
+      slotP.name = ev.newName;
+      slotP.ovr = slotP.overall = Math.max(1, Math.round((slotP.ovr || 1) * TU("v153BreplK", 0.8)));
+      slotP.tier = "depth";
+      slotP.star = !1;
+      slotP.lockerV153B = "replacement";
+    } else {
+      slotP.name = ev.name;
+      slotP.ovr = slotP.overall = Math.min(999, Math.round((slotP.ovr || 1) + ev.amt));
+      slotP.lockerV153B = ev.kind;
+    }
+  }
+  function recordEventV153B(e, ev, silent) {
+    const L = lockerV153B(e),
+      R = rosterV153B(e),
+      p = R && R[ev.slot];
+    if (p) {
+      const before = p.ovr || 0;
+      applyEventV153B(p, ev);
+      ev.ovrFrom = before;
+      ev.ovrTo = p.ovr;
+      L.ovrDelta = +(L.ovrDelta + (p.ovr - before) / 22).toFixed(3);
+    }
+    L.events.push(ev);
+    ev.kind === "leave" ? L.leaves++ : L.lifts++;
+    L.log.push({ k: ev.kind, name: ev.name, pos: ev.pos, newName: ev.newName, why: ev.why, at: L.stamp });
+    L.log = L.log.slice(-24);
+    if (!silent)
+      try {
+        showToast(lockerLineV153B(ev));
+      } catch (_) {}
+    return ev;
+  }
+  function lockerLineV153B(ev) {
+    return ev.kind === "leave"
+      ? "🚪 " +
+          ev.name +
+          " (" +
+          ev.pos +
+          ") " +
+          (ev.quit ? "quit the team" : "entered the transfer portal") +
+          " — " +
+          ev.why
+      : ev.kind === "sacrifice"
+        ? "🤝 You gave up " + ev.cost + " points so " + ev.name + " (" + ev.pos + ") could grow: +" + ev.amt + " OVR"
+        : "⭐ " + ev.name + " (" + ev.pos + ") is better for playing beside you: +" + ev.amt + " OVR — " + ev.why;
+  }
+  /* one roll. trigger: "season" | "story" | "spin"; dir: "leave" | "lift" | null (both); force: skip the odds */
+  function rollLockerV153B(e, trigger, opts) {
+    opts = opts || {};
+    if (!e || !rosterOnV153B()) return [];
+    const L = lockerV153B(e),
+      n = (L.rolled[trigger] = (L.rolled[trigger] || 0) + 1),
+      rnd = seededRng("v153B", e.name || "", L.stamp, trigger, n, opts.salt || ""),
+      S = personaScoresV153B(e),
+      k = trigger === "season" ? 1 : TU("v153BfollowK", 0.5),
+      out = [];
+    const leaveP =
+        S.tox >= TU("v153BtoxMin", 0.35)
+          ? clamp99((TU("v153BtoxBase", 0.1) + S.tox * TU("v153BtoxK", 0.3)) * k, 0, TU("v153BtoxMax", 0.8))
+          : 0,
+      liftP =
+        S.team >= TU("v153BteamMin", 0.35)
+          ? clamp99((TU("v153BliftBase", 0.1) + S.team * TU("v153BliftK", 0.3)) * k, 0, TU("v153BliftMax", 0.8))
+          : 0;
+    const why =
+      trigger === "story"
+        ? "after how the story played out"
+        : trigger === "spin"
+          ? "after the way your offseason went"
+          : trigger === "sacrifice"
+            ? "you put him first"
+            : S.tox > S.team
+              ? "your me-first act wore the room down"
+              : "your team-first attitude rubbed off";
+    if (opts.dir !== "lift" && (opts.force === "leave" || rnd() < leaveP)) {
+      let cnt = 1 + (rnd() < (S.tox - 0.8) * 0.6 ? 1 : 0) + (rnd() < (S.tox - 1.4) * 0.6 ? 1 : 0);
+      cnt = Math.min(cnt, Math.max(0, TU("v153BleaveMax", 3) - L.leaves), opts.count || 3);
+      for (let i = 0; i < cnt; i++) {
+        const m = pickMateV153B(e, rnd);
+        if (!m) break;
+        out.push(
+          recordEventV153B(
+            e,
+            {
+              kind: "leave",
+              slot: m.i,
+              name: m.p.name,
+              pos: m.p.pos,
+              newName: randNameV153B(rnd),
+              quit: rnd() < 0.35,
+              trigger,
+              why: S.tox >= S.team ? "he could not play beside you" : why
+            },
+            opts.silent
+          )
+        );
+        chemMoveV153B(e, -TU("v153BleaveChem", 3), "a teammate left");
+      }
+    }
+    if (opts.dir !== "leave" && L.lifts < TU("v153BliftMax", 2) && (opts.force === "lift" || rnd() < liftP)) {
+      const mine = unitOfV153B(e.pos),
+        m =
+          pickMateV153B(e, rnd, o => (OFF_POS_V153B.includes(o.p.pos) ? "off" : "def") === mine) ||
+          pickMateV153B(e, rnd);
+      if (m) {
+        out.push(
+          recordEventV153B(
+            e,
+            {
+              kind: "lift",
+              slot: m.i,
+              name: m.p.name,
+              pos: m.p.pos,
+              amt: Math.max(1, Math.round(levelRatingV153B(e) * TU("v153BliftAmtK", 0.08) * (1 + S.team * 0.25))),
+              trigger,
+              why
+            },
+            opts.silent
+          )
+        );
+        chemMoveV153B(e, TU("v153BliftChem", 1), "a teammate grew");
+      }
+    }
+    return out;
+  }
+  function randNameV153B(rnd) {
+    try {
+      return (
+        ROSTER_FIRST[Math.floor(rnd() * ROSTER_FIRST.length)] +
+        " " +
+        ROSTER_LAST[Math.floor(rnd() * ROSTER_LAST.length)]
+      );
+    } catch (_) {
+      return randName();
+    }
+  }
+  /* the season-start drift: who he is, and how he played last year */
+  function seasonDriftV153B(e) {
+    if (!e || !teamOnV153B()) return 0;
+    const L = lockerV153B(e);
+    if (L.drifted) return 0;
+    L.drifted = !0;
+    const S = personaScoresV153B(e),
+      plans = e.planHistoryV11 || [],
+      pid = x => (x && typeof x === "object" ? x.id || x.plan : x),
+      team = plans.filter(x => pid(x) === "team").length,
+      feat = plans.filter(x => pid(x) === "feature").length,
+      fade = (50 - chemOfV153B(e)) * TU("v153BchemFade", 0.1);
+    const d =
+      (S.team - S.tox) * TU("v153BpersonaChem", 3) +
+      team * TU("v153BplanTeamChem", 1.5) -
+      feat * TU("v153BplanFeatChem", 1) +
+      fade;
+    return chemMoveV153B(e, Math.round(d * 10) / 10, "who you are, and how you played last season");
+  }
+  /* SACRIFICE FOR A TEAMMATE — give up some of your own sheet so a named teammate grows */
+  function sacrificeCostV153B(e) {
+    return Math.max(1, Math.round(TU("v153BsacBase", 2) + ((e && e.level) | 0)));
+  }
+  function sacrificeMateV153B(e) {
+    const R = rosterV153B(e);
+    if (!R) return null;
+    const mine = unitOfV153B(e.pos);
+    let best = null;
+    R.forEach((p, i) => {
+      if (!p || p.pos === "K" || p.pos === "P") return;
+      if ((OFF_POS_V153B.includes(p.pos) ? "off" : "def") !== mine) return;
+      if ((lockerV153B(e).events || []).some(v => v.slot === i)) return;
+      if (!best || (p.ovr || 0) < (best.p.ovr || 0)) best = { p, i };
+    });
+    return best;
+  }
+  function sacrificeV153B(e, opts) {
+    opts = opts || {};
+    e = e || (state && state.player);
+    if (!e || !e.attrs || !teamOnV153B()) return null;
+    const L = lockerV153B(e);
+    if (L.sacrificed) return null;
+    const m = sacrificeMateV153B(e);
+    if (!m) return null;
+    const cost = sacrificeCostV153B(e),
+      top = Object.keys(e.attrs)
+        .filter(k => typeof e.attrs[k] === "number")
+        .sort((a, b) => (e.attrs[b] || 0) - (e.attrs[a] || 0))
+        .slice(0, 3),
+      took = {};
+    for (let i = 0; i < cost; i++) {
+      const k = top[i % top.length];
+      if (!k) break;
+      e.attrs[k] = Math.max(1, (e.attrs[k] || 1) - 1);
+      took[k] = (took[k] || 0) - 1;
+    }
+    L.sacrificed = !0;
+    const ev = recordEventV153B(
+      e,
+      {
+        kind: "sacrifice",
+        slot: m.i,
+        name: m.p.name,
+        pos: m.p.pos,
+        amt: Math.max(1, Math.round(levelRatingV153B(e) * TU("v153BsacLiftK", 0.12))),
+        cost,
+        took,
+        trigger: "sacrifice",
+        why: "you put him first"
+      },
+      opts.silent
+    );
+    chemMoveV153B(e, TU("v153BsacChem", 6), "you sacrificed for a teammate");
+    try {
+      saveGame();
+    } catch (_) {}
+    return ev;
+  }
+  window.sacrificeV153B = function () {
+    const ev = sacrificeV153B(state && state.player);
+    if (!ev) return void showToast("Nothing to give this season.");
+    render();
+  };
+  /* re-apply this season's moves to a roster src/10 has just built (a new club mid-season, a reload) */
+  function applyRosterV153B(e, roster) {
+    if (!e || !Array.isArray(roster) || !rosterOnV153B()) return roster;
+    const L = e.lockerV153B;
+    if (!L || L.stamp !== stampV153B(e)) return roster;
+    for (const ev of L.events || []) roster[ev.slot] && applyEventV153B(roster[ev.slot], ev);
+    return roster;
+  }
+  // the story arcs already move chemistry through Bo — a big swing now earns a roll in its direction
+  const Bo0V153B = Bo;
+  Bo = function (e, t, a) {
+    const was = chemOfV153B(e),
+      r = Bo0V153B.apply(this, arguments);
+    try {
+      const d = chemOfV153B(e) - was;
+      if (e && Math.abs(d) >= TU("v153BstorySwing", 5)) rollLockerV153B(e, "story", { dir: d > 0 ? "lift" : "leave" });
+    } catch (_) {}
+    return r;
+  };
+  // the season commitment wheel (src/18) reports where it landed
+  function spinV153B(pl, out) {
+    if (!pl || !out) return;
+    const up = out.sign > 0,
+      T = { social: up ? 4 : 1, mentor: up ? 3 : 1, craft: up ? 1 : 0, edge: up ? 0 : -3 },
+      d = T[out.card] || 0;
+    if (!d) return;
+    chemMoveV153B(pl, d, "the wheel: " + (out.name || out.card));
+    if (Math.abs(d) >= 3) rollLockerV153B(pl, "spin", { dir: d > 0 ? "lift" : "leave" });
+  }
+  // season start: the drift, then the roll, against the roster the season is played with
+  const ssg0V153B = startSeasonGames;
+  // the drift reads last season's weekly plans, so it runs BEFORE the v11 layer clears them; the roll runs after
+  // the new season seed, so it names men off the roster the season is played with
+  function seasonStartV153B(e, phase) {
+    if (!e || !e.pos) return;
+    try {
+      if (phase !== "roll") seasonDriftV153B(e);
+      if (phase === "drift") return;
+      const L = lockerV153B(e);
+      if (!L.rolled.season) rollLockerV153B(e, "season");
+    } catch (x) {
+      console.warn("[v153 B locker]", x);
+    }
+  }
+  function seasonWrapV153B(f0) {
+    return function () {
+      seasonStartV153B(state && state.player, "drift");
+      const r = f0.apply(this, arguments);
+      seasonStartV153B(state && state.player, "roll");
+      return r;
+    };
+  }
+  startSeasonGames = seasonWrapV153B(ssg0V153B);
+  typeof window.startSeasonGames === "function" && (window.startSeasonGames = seasonWrapV153B(window.startSeasonGames));
+  // last season's layoffs, counted before the season roll clears the weeks — the training suggestion reads it
+  function finishWrapV153B(f0) {
+    return function () {
+      try {
+        const e = state && state.player;
+        e && e.weekResults && (e.lastInjWeeksV153B = e.weekResults.filter(w => w && w.satOut).length);
+      } catch (_) {}
+      return f0.apply(this, arguments);
+    };
+  }
+  finishSeasonGames = finishWrapV153B(finishSeasonGames);
+  typeof window.finishSeasonGames === "function" &&
+    (window.finishSeasonGames = finishWrapV153B(window.finishSeasonGames));
+  // the LOCKER ROOM card: the season screen names every man this season's moves touched
+  function lockerCardV153B() {
+    const e = state && state.player;
+    if (!e || !rosterOnV153B()) return;
+    const sc = byId("screen");
+    if (!sc || sc.querySelector("#lockerV153B")) return;
+    const L = e.lockerV153B;
+    if (state.view === "season" && L && L.stamp === stampV153B(e) && L.events.length) {
+      const chem = Math.round(chemOfV153B(e));
+      sc.insertAdjacentHTML(
+        "afterbegin",
+        `<div class="card tight" id="lockerV153B" style="border-color:${L.leaves > L.lifts ? "rgba(255,138,128,.55)" : "rgba(127,224,160,.55)"}"><div class="eyebrow">🏈 LOCKER ROOM · CHEMISTRY ${chem}</div>${L.events
+          .map(v => `<div class="small" style="margin-top:3px">${escHtml(lockerLineV153B(v))}</div>`)
+          .join(
+            ""
+          )}${L.ovrDelta ? `<div class="small" style="margin-top:4px;color:var(--chalk-dim)">Team rating ${L.ovrDelta > 0 ? "+" : ""}${L.ovrDelta.toFixed(1)} OVR from these moves.</div>` : ""}</div>`
+      );
+      if (L.seen < L.events.length) {
+        const fresh = L.events.slice(L.seen);
+        L.seen = L.events.length;
+        try {
+          showLockerPopV153B(fresh);
+        } catch (_) {}
+      }
+    }
+    if (state.view === "training" && teamOnV153B()) {
+      const m = sacrificeMateV153B(e),
+        c = sacrificeCostV153B(e),
+        Lk = lockerV153B(e);
+      if (!m) return;
+      const lift = Math.max(1, Math.round(levelRatingV153B(e) * TU("v153BsacLiftK", 0.12)));
+      sc.insertAdjacentHTML(
+        "beforeend",
+        Lk.sacrificed
+          ? `<div class="card tight" id="lockerV153B"><div class="eyebrow">🤝 SACRIFICE FOR A TEAMMATE</div><div class="small">Done this offseason — ${escHtml(
+              (Lk.events.find(v => v.kind === "sacrifice") || {}).name || "a teammate"
+            )} carries your work into the season.</div></div>`
+          : `<div class="card tight" id="lockerV153B"><div class="eyebrow">🤝 SACRIFICE FOR A TEAMMATE · ONCE A SEASON</div><div class="small">Give up <b>${c} points</b> off your three best stats so <b>${escHtml(m.p.name)}</b> (${m.p.pos}, ${m.p.ovr} OVR — the weakest man in your unit) grows <b style="color:var(--good)">+${lift} OVR</b> and the locker room warms (chemistry +${TU("v153BsacChem", 6)}). The team gets better; your line in the box score gets a little smaller.</div><button class="btn secondary" style="margin-top:6px" onclick="sacrificeV153B()">GIVE UP ${c} POINTS FOR ${escHtml(m.p.name.toUpperCase())}</button></div>`
+      );
+    }
+  }
+  function showLockerPopV153B(evs) {
+    if (!evs || !evs.length) return;
+    document.getElementById("lockerPopV153B")?.remove();
+    const bad = evs.some(v => v.kind === "leave");
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<div class="roll-pop-v20" id="lockerPopV153B" onclick="this.remove()"><div class="roll-pop-card" style="border-color:${bad ? "rgba(255,120,120,.6)" : "rgba(127,224,160,.6)"}"><div class="roll-pop-kick" style="color:${bad ? "#ff9a9a" : "#9fe6b0"}">${bad ? "🚪 THE LOCKER ROOM · PLAYERS LEFT" : "⭐ THE LOCKER ROOM · A TEAMMATE GREW"}</div><div class="roll-pop-fx">${evs
+        .map(v => `<span class="rollfx ${v.kind === "leave" ? "dn" : "up"}">${escHtml(lockerLineV153B(v))}</span>`)
+        .join("")}</div><div class="roll-pop-hint">tap to dismiss</div></div></div>`
+    );
+    setTimeout(() => document.getElementById("lockerPopV153B")?.remove(), 5200);
+  }
+
+  /* ===== v153 B ONE KEY STAT, OR TWO AND A RISK =====
+   * The owner: "Training throughout a career tends to be the exact same suggestion … no training has more than 1
+   * key stat, and if it has two then there's a clear risk. Maybe that risk is worth it maybe not. Slightly modified
+   * by prestige menu, but always a risk."
+   * Each program's `focus` / `priorityBonus` / `desc` is a getter over `TRAIN_V153B()` (the old v124 values come
+   * back with `TU("v153Btrain", 0)`): ONE key stat at priority ×(1 + `v153BpbOne` 1.6), or TWO at ×(1 + `v153BpbTwo`
+   * 0.9) each — more growth in total, and a RISK rolled once a season when he commits (`riskSeasonV153B`, stamped):
+   *   Weight Room      Strength + Blocking     35%  a tweaked back: the season's injury roll ×1.35
+   *   Full-Contact     Tackling + Grit         40%  camp dings: ×1.45
+   *   Track Club       Acceleration + Quickness 30% a hamstring: ×1.3   (its v124 roll is still on top)
+   *   Film Study       Awareness + Vision      30%  he loses a step: −5% of his Speed
+   *   Skills Clinic    Catching + Throwing     30%  the extra reps: he opens the season at +25 fatigue
+   * Prestige softens the odds a little — `v153BriskSoftStep` (2 points) a level of Weighted Coin / House Money /
+   * Quick Study, never more than `v153BriskSoftMax` (8) — and never below `v153BriskFloor` (15%). One-stat programs
+   * keep their v124 trade (a price, not a risk) and Explosion & Hops keeps its v124 roll; Balanced and The Grind
+   * are unchanged (every stat — no key stat). The board shows the risk on the tile (⚠️ %) and a sentence in the
+   * sheet; the camp result is a pop + toast at CONFIRM.
+   * THE SUGGESTION MOVES (`recMulV153B`, folded into `trainGradeV133`'s value, so the pick is still the best
+   * graded program on the board): the program he ran last season −35% (`v153BrecRepeat`), the last three −15%;
+   * a tired body (fatigue past 30) and last season's injuries lift Conditioning / Recovery Lab / Yoga; a player
+   * in his first two seasons leans to one-stat work, a veteran to the two-stat gamble; a seeded ±10% a season
+   * (`v153BrecJitter`). The coach's note says which of those moved it. A body that is breaking down goes to the
+   * Recovery Lab (Conditioning is Stamina alone now) — but not two seasons running. */
+  function TRAIN_V153B() {
+    return {
+      speed: { focus: ["speed"], flavor: "Straight-line speed and nothing else." },
+      hops: { focus: ["jumping"], flavor: "Plyometrics for the vertical." },
+      yoga: { focus: ["agility"], flavor: "Mobility work for the hips — very low wear, +1 bonus point." },
+      conditioning: { focus: ["stamina"], flavor: "The engine. Safest program there is." },
+      lab: { focus: ["injuryResist"], flavor: "Cryo, sleep science and nutrition: the body that holds up." },
+      weight: {
+        focus: ["strength", "blocking"],
+        flavor: "The squat rack and the sled.",
+        risk: {
+          kind: "injury",
+          odds: 0.35,
+          mul: 1.35,
+          name: "A TWEAKED BACK",
+          say: "He tweaked his back under the bar and plays the season with it"
+        }
+      },
+      contact: {
+        focus: ["tackling", "grit"],
+        flavor: "Live hitting, every day.",
+        risk: {
+          kind: "injury",
+          odds: 0.4,
+          mul: 1.45,
+          name: "CAMP DINGS",
+          say: "Camp left him dinged up — the knocks follow him into the season"
+        }
+      },
+      track: {
+        focus: ["acceleration", "quickness"],
+        flavor: "Starts, bursts and a stopwatch.",
+        risk: {
+          kind: "injury",
+          odds: 0.3,
+          mul: 1.3,
+          name: "A GRABBY HAMSTRING",
+          say: "The hamstring grabbed at the end of the block"
+        }
+      },
+      film: {
+        focus: ["awareness", "vision"],
+        flavor: "The tape room, all summer. +2 bonus points.",
+        risk: {
+          kind: "regress",
+          stat: "speed",
+          pct: 0.05,
+          odds: 0.3,
+          name: "A STEP SLOWER",
+          say: "Too many hours in the dark — he lost a step"
+        }
+      },
+      skills: {
+        focus: ["catching", "throwing"],
+        flavor: "Hands and arm, rep after rep.",
+        risk: {
+          kind: "fatigue",
+          amt: 25,
+          odds: 0.3,
+          name: "WORN DOWN",
+          say: "The extra reps wore on him — he opens the season tired"
+        }
+      }
+    };
+  }
+  function trainOnV153B() {
+    return !!TU("v153Btrain", 1);
+  }
+  function riskOddsV153B(k) {
+    const d = TRAIN_V153B()[k];
+    if (!d || !d.risk || !trainOnV153B()) return 0;
+    const soft = Math.min(
+      TU("v153BriskSoftMax", 0.08),
+      TU("v153BriskSoftStep", 0.02) * (nodeLvl("fateOdds") + nodeLvl("fateHedge") + nodeLvl("quickstudy"))
+    );
+    return clamp99(d.risk.odds - soft, TU("v153BriskFloor", 0.15), 0.9);
+  }
+  function riskSayV153B(k) {
+    const d = TRAIN_V153B()[k];
+    if (!d || !d.risk) return "";
+    const r = d.risk,
+      what =
+        r.kind === "injury"
+          ? "his injury odds are ×" + r.mul + " all season"
+          : r.kind === "regress"
+            ? "he loses " + Math.round(r.pct * 100) + "% of his " + ATTR_INFO[r.stat].name
+            : "he opens the season at +" + r.amt + " fatigue";
+    return Math.round(riskOddsV153B(k) * 100) + "% " + r.name + " — " + what;
+  }
+  // resolved ONCE a season, when he commits, and written down
+  function riskSeasonV153B(e, k) {
+    if (!e || !trainOnV153B()) return null;
+    const d = TRAIN_V153B()[k],
+      st = stampV153B(e);
+    if (!d || !d.risk) return (e.riskV153B = null);
+    if (e.riskV153B && e.riskV153B.key === k && e.riskV153B.stamp === st) return e.riskV153B;
+    const p = riskOddsV153B(k),
+      rnd = seededRng("v153Brisk", e.name || "", st, k, e.seasonSeed || 0),
+      hit = rnd() < p,
+      r = d.risk,
+      out = { key: k, stamp: st, kind: r.kind, odds: p, hit, name: r.name, say: r.say };
+    if (hit && r.kind === "regress" && e.attrs) {
+      const v = e.attrs[r.stat] || 1,
+        amt = Math.max(1, Math.round(v * r.pct));
+      e.attrs[r.stat] = Math.max(1, v - amt);
+      out.stat = r.stat;
+      out.amt = amt;
+      out.line = r.say + ": −" + amt + " " + ATTR_INFO[r.stat].name + ".";
+    } else if (hit && r.kind === "fatigue") {
+      const c = ensureCondition(e);
+      c.fatigue = clamp99((c.fatigue || 0) + r.amt, 0, 100);
+      out.amt = r.amt;
+      out.line = r.say + ": +" + r.amt + " fatigue.";
+    } else if (hit) {
+      out.mul = r.mul;
+      out.line = r.say + ": injury odds ×" + r.mul + " this season.";
+    } else out.line = "Camp went clean — no " + r.name.toLowerCase() + ".";
+    return (e.riskV153B = out);
+  }
+  function riskInjMulV153B(e) {
+    const r = e && e.riskV153B;
+    return r && r.hit && r.kind === "injury" && trainOnV153B() && r.stamp === stampV153B(e) ? r.mul || 1 : 1;
+  }
+  // the program data: getters, so the kill switch works live
+  (function () {
+    const T = TRAIN_V153B();
+    for (const k in T) {
+      const n = PROGRAMS[k];
+      if (!n) continue;
+      const old = { focus: n.focus, priorityBonus: n.priorityBonus, desc: n.desc },
+        d = T[k],
+        two = d.focus.length > 1,
+        desc = () =>
+          (two ? "TWO KEY STATS — " : "ONE KEY STAT — ") +
+          d.focus.map(s => ATTR_INFO[s].name).join(" & ") +
+          ". " +
+          d.flavor +
+          (two ? " The risk: " + riskSayV153B(k) + "." : "");
+      Object.defineProperty(n, "focus", {
+        get: () => (trainOnV153B() ? d.focus.slice() : old.focus),
+        enumerable: !0,
+        configurable: !0
+      });
+      Object.defineProperty(n, "priorityBonus", {
+        get: () => (trainOnV153B() ? (two ? TU("v153BpbTwo", 0.9) : TU("v153BpbOne", 1.6)) : old.priorityBonus),
+        enumerable: !0,
+        configurable: !0
+      });
+      Object.defineProperty(n, "desc", {
+        get: () => (trainOnV153B() ? desc() : old.desc),
+        enumerable: !0,
+        configurable: !0
+      });
+    }
+  })();
+  // the suggestion moves with the season
+  function recMulV153B(e, key) {
+    const out = { mul: 1, why: [] };
+    if (!e || !trainOnV153B()) return out;
+    const T = TRAIN_V153B()[key],
+      hist = e.trainHistV153B || [];
+    if (hist[hist.length - 1] === key)
+      ((out.mul *= 1 - TU("v153BrecRepeat", 0.35)), out.why.push("you ran it last season"));
+    else if (hist.slice(-3).includes(key)) ((out.mul *= 0.85), out.why.push("you ran it recently"));
+    const body = key === "conditioning" || key === "lab" || key === "yoga",
+      fat = (e.conditionV11 && e.conditionV11.fatigue) || 0,
+      hurt = e.lastInjWeeksV153B || 0;
+    if (body && fat > 30)
+      ((out.mul *= 1 + Math.min(0.5, (fat - 30) / 100)),
+        out.why.push("he is carrying " + Math.round(fat) + " fatigue"));
+    if (body && hurt) ((out.mul *= 1 + Math.min(0.4, hurt * 0.1)), out.why.push("he missed games hurt last season"));
+    const young = (e.seasonsSinceStart | 0) < 2,
+      two = !!(T && T.risk);
+    if (T && young && !two) ((out.mul *= 1.1), out.why.push("early in a career, one thing at a time"));
+    if (T && !young && two) ((out.mul *= 1.1), out.why.push("a veteran can take the gamble"));
+    const j = seededRng("v153Brec", e.name || "", e.totalSeasons | 0, e.level | 0, key)();
+    out.mul *= 1 + (j - 0.5) * TU("v153BrecJitter", 0.2);
+    out.mul = +out.mul.toFixed(3);
+    return out;
+  }
+  // the stat → program map the coach's "top need" reads follows the new focus lists (ball control and
+  // discipline have no program of their own now and keep their old home)
+  (function () {
+    const NEW = {
+      acceleration: "track",
+      quickness: "track",
+      agility: "yoga",
+      tackling: "contact",
+      grit: "contact",
+      injuryResist: "lab"
+    };
+    for (const k in NEW) {
+      const old = PROG_FOR_V124[k];
+      Object.defineProperty(PROG_FOR_V124, k, {
+        get: () => (trainOnV153B() ? NEW[k] : old),
+        enumerable: !0,
+        configurable: !0
+      });
+    }
+  })();
+  // the pick: the best graded program this season. A body that is breaking down still goes to the program that
+  // trains Durability (Recovery Lab now — Conditioning is Stamina alone) — but not two seasons running: after a
+  // season of body work the board's best graded program gets its turn
+  const rec0V153B = recommendTraining;
+  recommendTraining = function (e) {
+    if (!e || !trainOnV153B()) return rec0V153B.apply(this, arguments);
+    try {
+      const top = trainScoreV124(e)[0],
+        hist = e.trainHistV153B || [],
+        last = hist[hist.length - 1];
+      if (top && top.key === "injuryResist" && last !== "lab" && last !== "conditioning") return "lab";
+      const all = Object.keys(PROGRAMS)
+        .filter(k => PROGRAMS[k].focus)
+        .map(k => trainGradeV133(e, k))
+        .sort((a, b) => b.value - a.value);
+      if (all.length && all[0].value > 0) return all[0].key;
+    } catch (_) {}
+    return rec0V153B.apply(this, arguments);
+  };
+  const tg0V153B = trainGradeV133;
+  trainGradeV133 = function (e, key) {
+    const g = tg0V153B.apply(this, arguments);
+    try {
+      if (g && !g.balanced && trainOnV153B()) {
+        const m = recMulV153B(e, key);
+        g.value = +(g.value * m.mul).toFixed(2);
+        g.mixV153B = m;
+      }
+    } catch (_) {}
+    return g;
+  };
+  const tp0V153B = tpPanelV113;
+  tpPanelV113 = function (e, key, sug) {
+    let h = tp0V153B.apply(this, arguments);
+    try {
+      const d = TRAIN_V153B()[key];
+      if (trainOnV153B() && d && d.risk)
+        h = h.replace(
+          '<div class="tp-rows-v113">',
+          `<div class="threshold-note tp-risk-v153b" style="margin-top:6px;color:#ffc36b;border-color:rgba(255,195,107,.5)">⚠️ <b>TWO KEY STATS · A REAL RISK · ${Math.round(riskOddsV153B(key) * 100)}%</b> — ${escHtml(riskSayV153B(key))}. Rolled once, when you confirm. Weighted Coin, House Money and Quick Study shave a little off the odds; nothing takes it below ${Math.round(TU("v153BriskFloor", 0.15) * 100)}%.</div><div class="tp-rows-v113">`
+        );
+    } catch (_) {}
+    return h;
+  };
+  function chooseTrainingWrapV153B(f0) {
+    return function (k) {
+      const e = state && state.player;
+      try {
+        if (e && trainOnV153B()) {
+          // last season's layoffs feed next year's suggestion
+          e.trainHistV153B = (e.trainHistV153B || []).concat(k).slice(-6);
+          const r = riskSeasonV153B(e, k);
+          if (r && r.hit) {
+            showToast("⚠️ " + r.name + " — " + r.line);
+            riskPopV153B(r);
+          }
+        }
+      } catch (x) {
+        console.warn("[v153 B training]", x);
+      }
+      return f0.apply(this, arguments);
+    };
+  }
+  function riskPopV153B(r) {
+    document.getElementById("riskPopV153B")?.remove();
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<div class="roll-pop-v20" id="riskPopV153B" onclick="this.remove()"><div class="roll-pop-card" style="border-color:rgba(255,195,107,.6)"><div class="roll-pop-kick" style="color:#ffc36b">⚠️ CAMP · ${escHtml(r.name)}</div><div class="roll-pop-fx"><span class="rollfx dn">${escHtml(r.line)}</span></div><div class="roll-pop-hint">tap to dismiss</div></div></div>`
+    );
+    setTimeout(() => document.getElementById("riskPopV153B")?.remove(), 5200);
+  }
+  chooseTraining = chooseTrainingWrapV153B(chooseTraining);
+  typeof window.chooseTraining === "function" &&
+    (window.chooseTraining = chooseTrainingWrapV153B(window.chooseTraining));
+  // the coach's note says what moved his pick this season, and each risky tile wears its odds
+  function trainBoardV153B() {
+    if (state.view !== "training" || !trainOnV153B()) return;
+    const e = state.player,
+      sc = byId("screen");
+    if (!e || !sc) return;
+    const note = sc.querySelector(".tp-note-v133");
+    if (note && !note.querySelector(".tp-mix-v153b")) {
+      const sug = recommendTraining(e),
+        m = recMulV153B(e, sug);
+      m.why.length &&
+        note.insertAdjacentHTML(
+          "beforeend",
+          ` <span class="tp-mix-v153b">This season: ${escHtml(m.why.join("; "))}.</span>`
+        );
+    }
+    sc.querySelectorAll(".tp-tile-v113").forEach(t => {
+      const k = ((t.getAttribute("onclick") || "").match(/'([a-zA-Z]+)'/) || [])[1];
+      if (!k || t.querySelector(".tp-riskpill-v153b") || !riskOddsV153B(k)) return;
+      t.insertAdjacentHTML(
+        "beforeend",
+        `<div class="tp-riskpill-v153b" style="font-size:10px;color:#ffc36b">⚠️ ${Math.round(riskOddsV153B(k) * 100)}% RISK</div>`
+      );
+    });
+  }
+
+  /* ===== v153 B MY PLAYS ARE MY SIDE OF THE BALL =====
+   * The owner decided My Plays Only is FREE (no gate, no price — house rule) and ON BY DEFAULT for everyone, and
+   * that it means HIS SIDE OF THE BALL: an offensive player (QB/RB/WR/TE/OL) watches every snap his offense takes,
+   * a defender (DL/LB/CB/S) every snap his defense is on the field for; special teams (kickoff, punt, field goal,
+   * extra point) only when he is in the play; drive headers only for his side; any play that names him always.
+   * `playsOnlyOkV151A` answers yes; a save that never saw v153 B has it switched ON once (`playsDefaultV153B` stamps
+   * `settings.playsDefaultV153B`), and Settings still turns it off. Kill switch `TU("v153Bplays", 0)` restores the
+   * v151 A gate and the old strictly-involved filter. */
+  function sideV153B(e) {
+    return e && ["QB", "RB", "WR", "TE", "OL"].includes(e.pos) ? "us" : "them";
+  }
+  function playsSkipV153B(r) {
+    if (!r || r.involved) return !1;
+    const e = state && state.player;
+    if (!e || !e.pos) return !1; // no career player (an arcade game): every snap
+    const side = sideV153B(e);
+    if (r.header || r.event === "drive") return !(r.event === "drive" && r.offense === side);
+    if (/^(punt|kickoff|onside|fg|xp|kick)$/.test(r.event || "")) return !0;
+    return r.offense !== side;
+  }
+  function playsDefaultV153B() {
+    if (!TU("v153Bplays", 1) || !state || !state.settings) return;
+    if (!state.settings.playsDefaultV153B) {
+      state.settings.playsDefaultV153B = 1;
+      state.settings.onlyInvolved = !0;
+    }
+  }
+
+  const q0V153B = render;
+  render = function () {
+    const r = q0V153B.apply(this, arguments);
+    try {
+      lockerCardV153B();
+      trainBoardV153B();
+    } catch (x) {
+      console.warn("[v153 B render]", x);
+    }
+    return r;
+  };
+  window.__V153B = {
+    persona: e => personaScoresV153B(e || state.player),
+    chem: e => chemOfV153B(e || state.player),
+    chemMove: (d, why, e) => chemMoveV153B(e || state.player, d, why),
+    locker: e => lockerV153B(e || state.player),
+    roll: (trigger, opts, e) => rollLockerV153B(e || state.player, trigger || "season", opts),
+    seasonStart: e => seasonStartV153B(e || state.player),
+    sacrifice: (e, opts) => sacrificeV153B(e || state.player, opts),
+    sacrificeCost: e => sacrificeCostV153B(e || state.player),
+    applyRoster: (e, roster) => applyRosterV153B(e || state.player, roster),
+    spin: (pl, out) => spinV153B(pl || state.player, out),
+    story: (fx, e) => Bo(e || state.player, state, fx),
+    decisionQ: e => teamDecisionQV153B(e || state.player),
+    prestigeQ: prF => teamPrestigeQV153B(prF),
+    teamPair: e => teamPairV76(e || state.player, {}),
+    programs: TRAIN_V153B,
+    riskOdds: riskOddsV153B,
+    riskSay: riskSayV153B,
+    risk: (k, e) => riskSeasonV153B(e || state.player, k),
+    riskInjMul: e => riskInjMulV153B(e || state.player),
+    recMul: (k, e) => recMulV153B(e || state.player, k),
+    rec: e => recommendTraining(e || state.player),
+    playsSkip: playsSkipV153B,
+    side: e => sideV153B(e || state.player),
+    inj: {
+      nodeK: injNodeKV153B,
+      gearK: injGearKV153B,
+      treeDown: injTreeDownV153B,
+      nodeMul: injNodeMulV153B,
+      motorMul: injMotorMulV153B,
+      iron: ironStepV153B,
+      trainerWeeks: trainerWeeksV153B,
+      heal: w => healWeeksV146(w)
+    }
+  };
   window.__V124 = {
     fate: PLAN_FATE_V124,
     odds: planFateOddsV124,

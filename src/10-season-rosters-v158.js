@@ -146,6 +146,10 @@
       let pack = window.__GRIDIRON_GENERATE_ROSTER_V157(target, (p.seasonSeed || 1) + (p.level || 0) * 1009);
       ensureMeta(pack.players, p.seasonSeed || 1);
       applyProgramBoost(pack.players);
+      // v153 B: this season's locker-room moves (departures, lifts, the sacrifice) ride a rebuilt roster too
+      try {
+        window.__V153B && window.__V153B.applyRoster(p, pack.players);
+      } catch (e) {}
       p.teamRosterV158 = pack.players;
       p.teamRosterSeasonV158 = key;
       p.rosterHistoryV158[key] = JSON.parse(JSON.stringify(pack.players));
@@ -293,6 +297,7 @@
     } catch (e) {}
   }
   ensureUserRoster();
+  window.__V158_ROSTER = ensureUserRoster; // v153 B: the locker-room rolls name men off THIS roster
   window.__GRIDIRON_SIMULATE_V158 = function (iterations) {
     iterations = Math.max(1000, iterations || 50000);
     const errors = [];
