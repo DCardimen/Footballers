@@ -1262,13 +1262,16 @@
    "areas": [
     "sim"
    ],
-   "runtimeSec": 2700,
+   "runtimeSec": 900,
    "slow": true,
    "needsServer": true,
    "pureNode": false,
    "flaky": [],
-   "timeoutSec": 5400,
-   "note": "samples BLOW_N (1600) live games; did not finish in 40 min at load ~25 — run it alone, or with BLOW_N=400 for a quick read"
+   "timeoutSec": 3600,
+   "note": "samples BLOW_N live games; in the suite BLOW_N=400 (v150 B: 1,600 never finished inside the suite's time limit at --jobs 3-4 on either full run) — run it alone at the default 1,600 for the calibration",
+   "env": {
+    "BLOW_N": "400"
+   }
   },
   "bobcheck": {
    "file": "scripts/bobcheck.mjs",

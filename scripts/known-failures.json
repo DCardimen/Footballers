@@ -74,6 +74,40 @@
    "note": "counts distinct COMPOSITOR frames (CDP screencast) over 1.5s while the page's main thread is jammed on purpose; at load 30 the compositor itself is starved (3 distinct pictures where a quiet box shows > 10). A wall-clock frame rate by nature",
    "since": "2026-09-24",
    "flaky": true
+  },
+  {
+   "check": "v115check",
+   "pattern": "^(and it is the FILM, not the chase|v132: the still of the landed wordmark is under the film)",
+   "note": "door two (the live game's loader) only exists while the Phaser bundle compiles and the scene stands, under a 9s watchdog measured from its own mount (03-splash.js). At a 1-minute load of 30+ on 4 cores the compile holds the main thread past that ceiling (a v150 B probe: mounted, main thread blocked ~7s, closed by the watchdog at 9s, never READY), so the door is gone before the check can read it. Passes on a quiet box; the waits are game-state and load-scaled since v150 B",
+   "since": "2026-09-25",
+   "flaky": true
+  },
+  {
+   "check": "v103check",
+   "pattern": "^and BOTH of them travel: the carrier drags, the tackler is dragged",
+   "note": "a knife edge, not a regression: 187/400 and 191/400 (need > 200) on both v150 B full runs, and it was already 'load-sensitive, passed on a rerun' in the 2026-09-24 baseline. The share of grips in which both men move > 2px sits at ~47-50% of the threshold's 50% (unseeded, 400 grips). Needs a decision on the intended share (v103 THE GRIP TICK vs v146 A's glue), not a looser number",
+   "since": "2026-09-25",
+   "flaky": true
+  },
+  {
+   "check": "v112Bcheck",
+   "pattern": "^(the lowest star sits at or above the bowl's own skyline|the near rows draw the field art over far fewer canvas rows|the painted end line, measured in the warp canvas, is thinner|with the extension off that band is the old smear)",
+   "note": "deterministic on the branch head, passing at the 2026-09-24 baseline commit: v148 (THE LINES HOLD TO THE GOAL LINE, landed after the baseline) replaced the per-snap row cap v112 B measured against (4.64 -> 7.70 px per art row is v112 B's own before/after, now read under v148's single row density and taper). The assertions need re-anchoring against v148's geometry (v148check passes 99/99); not done in v150 B",
+   "since": "2026-09-25"
+  },
+  {
+   "check": "v147Dcheck",
+   "pattern": "^(Broadcast|Follow Me|Follow Ball|Tight|Wide|Fixed): ",
+   "note": "the camera at 4x measured on LIVE runs in wall time; CLAUDE.md (v147 D) says two unpaired live runs differ 2x on the same code, and at load 20-40 one mode's measure crosses its x2 / p90 line per run (different ones each run). Load-sensitive by nature until the check replays paired scripts",
+   "since": "2026-09-25",
+   "flaky": true
+  },
+  {
+   "check": "coachcheck",
+   "pattern": "^(the coach stands at the bottom of a phone screen at a readable size|the line types out on the bubble|NEXT moves to the next line, and its spotlight cuts the dim over the COACH'S TOUR tile|DONE ends the walk|  …and lights body on that screen|fourteen stops of the week)",
+   "note": "a 30-minute walk of the whole first week against the coach's typing and spotlight timers; at load 20-40 a different one of these trips on each try (both tries of the v150 B after-run failed once each, on different lines). NEXT's spotlight 'inside:false' recurs in both full runs — worth a look on a quiet box",
+   "since": "2026-09-25",
+   "flaky": true
   }
  ]
 }

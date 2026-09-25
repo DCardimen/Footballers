@@ -8,9 +8,7 @@
 // timeout) and the try rows (xp, twopt) that v109 added inflate `plays`/`scrim` by design; compare `snaps` to the
 // pre-v109 `scrim` (80.4 ±2 on the 300-game baseline).
 import { chromium } from 'playwright'
-import { writeFileSync, readFileSync, existsSync } from 'fs'
-import os from 'os'
-import path from 'path'
+import { writeFileSync } from 'fs'
 import { GAME_URL } from './lib/env.mjs'
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' })
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
@@ -59,33 +57,34 @@ async function click(t) {
   await page.waitForTimeout(400)
 }
 const STEPS = ["START NEW CAREER","ARCH","QB Quarterback","Lock In Personality","PLAY 8-GAME SEASON","Balanced Program","CONFIRM TRAINING"]
-/* v150 B: the career under a SEED. Its screens arrive on timers, and the menus draw from Math.random on timers of their own,
- * so a click-through cannot be made to land on the same player twice (probed: two walks of SEED=11 made two different men).
- * So a seeded run does not depend on the walk: the career it plays is a SNAPSHOT — the whole game state as JSON — taken
- * the first time a seed is run and kept in SEED_STATE (default: <tmpdir>/gridiron-scoreneutral-seed-<SEED>.json). Every run
- * of that seed, the first included, loads the snapshot into the game and then plays from reseed(SEED ^ 0x5eed5eed), so two
- * runs of a seed start from the same man at the same point in the stream — on this build or the next, which is what an A/B
- * needs. SEED_FRESH=1 walks a new career and replaces the snapshot. */
-const SEED_STATE = process.env.SEED_STATE || path.join(os.tmpdir(), `gridiron-scoreneutral-seed-${SEED}.json`)
-let stateJson = null
-if (SEED && !process.env.SEED_FRESH && existsSync(SEED_STATE)) { stateJson = readFileSync(SEED_STATE, 'utf8'); console.error('seeded career: loaded ' + SEED_STATE) }
-else {
-  for (const s of STEPS) await click(s)
-  if (SEED) { stateJson = await page.evaluate(() => JSON.stringify(window.__GRIDIRON_AUDIT__.getState())); writeFileSync(SEED_STATE, stateJson); console.error('seeded career: walked and saved ' + SEED_STATE)
-    // and start over on a clean page, exactly as a later run will: the screens the walk went through leave window-level
-    // state of their own (probed: the walking run and the loading runs of one seed differed until this reload)
-    // (and with the save the walk wrote wiped, so the page boots to the same empty menu a later run boots to)
-    await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear() } catch (e) {} })
-    await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 }); await page.waitForTimeout(800) }
-}
+if (SEED) {
+  /* v150 B: the screens between the clicks arrive on timers, so the walk cannot be one evaluate. Instead every click is made
+   * in the same evaluate as a reseed (SEED + its step), so whatever the click's handler draws comes from a known point, and
+   * then the walk WAITS for the screen the next step needs before it goes on. What an idle timer drew in between no longer
+   * matters: the next reseed throws it away. */
+  for (let i = 0; i < STEPS.length; i++) {
+    const t = STEPS[i]
+    for (let k = 0; k < 40; k++) {
+      const hit = await page.evaluate(({ t, visSrc, n }) => { const vis = eval(visSrc)
+        const els = [...document.querySelectorAll('button,[onclick],a')].filter(vis)
+        const el = t === 'ARCH' ? els.find(e => /^(⭐|🦾|🏘️|🚪|🩹|🔄|💎|🔥|🧊|👑)/.test((e.innerText || '').trim())) : els.find(e => ((e.innerText || e.textContent || '').replace(/\s+/g, ' ').includes(t)))
+        if (!el) return false
+        window.__reseedSN(n); el.click(); return true }, { t, visSrc: vis, n: (SEED + (i + 1) * 0x9E3779B1) >>> 0 })
+      if (hit) break
+      await page.waitForTimeout(150)
+    }
+    await page.waitForTimeout(400)
+  }
+} else for (const s of STEPS) await click(s)
 const N = Math.max(1, Number(process.env.GAMES || 200))
 const POS = process.env.POS || ''
-const res = await page.evaluate(({N, POS, SEED, stateJson}) => {
-  if (SEED) { window.__GRIDIRON_AUDIT__.setState(JSON.parse(stateJson)); window.__reseedSN(SEED ^ 0x5eed5eed) }   // v150 B: the same man, from a known point in the stream
+const res = await page.evaluate(({N, POS, SEED}) => {
+  if (SEED) window.__reseedSN(SEED ^ 0x5eed5eed)   // v150 B: the games start from a known point too
   const a = { games:0, us:0, them:0, total:0, margin:0, plays:0, scrim:0, snaps:0, drives:0, yds:0, oppYds:0, pass:0, rush:0, first:0,
     sacks:0, turn:0, punts:0, fgAtt:0, fgGood:0, tds:0, runs:0, runYds:0, passes:0, passYds:0, inc:0, scr:0, pen:0, ot:0, safeties:0,
     runDist:{neg:0,z2:0,m3to6:0,m7to14:0,x15:0}, passDist:{z5:0,m6to14:0,m15to29:0,x30:0}, errors:[] }
   const poss=["QB","RB","WR","DL","CB"]
+  { const st=window.__GRIDIRON_AUDIT__.getState(); const P=Object.assign({},st.player); delete P.objectiveStampsV89; const h=x=>{let v=0;const t=JSON.stringify(x);for(let i=0;i<t.length;i++)v=(v*31+t.charCodeAt(i))|0;return v}; a.ph=h(P); a.pn=st.player&&st.player.name }
   for (let g=0; g<N; g++) {
     try {
       const r = window.__simGameV2(45 + (g%9)*5, POS || poss[g%5])
@@ -110,7 +109,7 @@ const res = await page.evaluate(({N, POS, SEED, stateJson}) => {
     } catch(e){ a.errors.push(String(e&&e.stack||e).slice(0,400)) }
   }
   return a
-}, {N, POS, SEED, stateJson})
+}, {N, POS, SEED})
 const g=res.games||1, f=(v,d=2)=>+(v/g).toFixed(d)
 const out = { games:g, us:f(res.us), them:f(res.them), total:f(res.total), absMargin:f(res.margin), plays:f(res.plays,1), scrim:f(res.scrim,1), snaps:f(res.snaps,1), drives:f(res.drives,1),
   yds:f(res.yds,1), oppYds:f(res.oppYds,1), passYds:f(res.pass,1), rushYds:f(res.rush,1), first:f(res.first), sacks:f(res.sacks), turn:f(res.turn), punts:f(res.punts),
@@ -119,7 +118,7 @@ const out = { games:g, us:f(res.us), them:f(res.them), total:f(res.total), absMa
   scrambles:f(res.scr), pen:f(res.pen), otPct:+(100*res.ot/g).toFixed(1), safeties:f(res.safeties,3),
   runDist:Object.fromEntries(Object.entries(res.runDist).map(([k,v])=>[k,+(100*v/Math.max(1,res.runs)).toFixed(1)])),
   passDist:Object.fromEntries(Object.entries(res.passDist).map(([k,v])=>[k,+(100*v/Math.max(1,res.passes)).toFixed(1)])),
-  errors:res.errors.length, pageErrors:errs.length }
+  errors:res.errors.length, pageErrors:errs.length, ph:res.ph, pn:res.pn }
 console.log(JSON.stringify(out))
 if (res.errors.length) console.log('ENGINE ERRORS:\n'+res.errors.slice(0,3).join('\n---\n'))
 if (errs.length) console.log('PAGE ERRORS:\n' + errs.slice(0, 5).join('\n'))

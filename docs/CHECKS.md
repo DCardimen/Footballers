@@ -183,6 +183,11 @@ a comment that cites the version it follows. One was a real stat-credit hole, cl
 | `v112Acheck` | the loader bar keeps sweeping while the main thread is jammed | sometimes | distinct COMPOSITOR frames in 1.5s; at load 30 the compositor itself is starved |
 | `v112Acheck`, `v127check`, `splashcheck` | door two's assertions (the second scene, the film, the still, the caption) | sometimes | door two lives under a 9s watchdog from its own mount; at load 30+ the Phaser compile holds the main thread past it (probed: blocked ~7s, closed at 9s, never READY) and the door is gone before it can be read |
 | `v108check` | the throw / exchange / ball-frame assertions | sometimes | a 5-minute watch that must see a throw each way, a handoff and a toss; at load 30+ the field ran ONE play in it |
+| `v115check` | it is the FILM / the still under it | sometimes | door two again (above) |
+| `v103check` | and BOTH of them travel | sometimes | a knife edge (187/400, 191/400 against > 200) that was already load-listed at the baseline; needs a decision on the intended share, not a looser number |
+| `v112Bcheck` | the stars' floor / the near rows / the end line / the smear | always | passes at the baseline commit; v148 (after it) replaced the row cap v112 B measures against — re-anchor on v148's geometry (v148check passes 99/99) |
+| `v147Dcheck` | a mode's measure at 4× | sometimes | live camera runs in wall time; CLAUDE.md: unpaired live runs differ 2× — needs paired replays |
+| `coachcheck` | a typed line / a spotlight / the stop order | sometimes | a 30-minute walk against the coach's timers; a different line trips each try under load (NEXT's spotlight `inside:false` recurs — look on a quiet box) |
 
 #### What happened to the rest
 
@@ -229,7 +234,22 @@ over 20 seeds × 10 games; 429 of 429 picks and break-ups credited to the agent 
 did have a hole in the same line — `ballMan.player || ballPlayerV110` fell through to `coverA.player` and then to the
 engine's pick if the man who played the ball had no roster player — which never fired with full rosters but is exactly what
 the stat-credit rule forbids; it is closed (`ballByV110`, `X.coverBy`, `__V110.lastBall`). A seeded A/B of FieldSim pass
-plays, HEAD vs the change, is byte-identical (no draw is spent, nothing moves).
+plays, HEAD vs the change, is byte-identical over 12 seeds × 400 plays (no draw is spent, nothing moves), and
+`scoreneutralcheck` with the now-deterministic SEED plays byte-identical 200-game rows before and after on seeds 11, 22, 33.
+
+**SEED is a seed (`scoreneutralcheck`).** Seeding `Math.random` once at page load did not make a run reproducible: the
+menus, the coach, the film and every polling interval draw from the same stream on wall-clock timers between the load and
+the games, so the career the check created (his rolled attributes, persona, traits, origin, schedule, `seasonSeed` — two
+walks of `SEED=11` made two different men) and the stream's position at the first snap depended on the load; two runs of
+one seed on one build gave 22.37 and 22.98 points. Now a seeded run plays a SNAPSHOT of the career — the whole game state
+as JSON, walked once per seed and kept in `SEED_STATE` (default `<tmpdir>/gridiron-scoreneutral-seed-<SEED>.json`;
+`SEED_FRESH=1` re-walks it) — loaded with `__GRIDIRON_AUDIT__.setState` into a page that booted to the empty menu (the
+walking run wipes its save and reloads, so it starts exactly like a loading run), and the games are played from
+`reseed(SEED ^ 0x5eed5eed)` inside the one synchronous evaluate that plays them, where no timer can run. Proof (30 games a
+run, separate processes, the box at load ~20): three runs of `SEED=11` — the walking one and two loading ones — are
+byte-identical; `SEED=12` differs. For an A/B, point both builds at the same `SEED_STATE` so they play the same man.
+Earlier "seeded" before/after comparisons (the v143 / v146 A notes that say "compare several seeds against the OFF spread")
+were right to distrust one seed: they were not reproducible either.
 
 **Two helpers for new checks.** `scripts/lib/live.mjs` `waitLive(page, ms)` waits for the live field on game state (and
 finishes a pregame wizard left standing). `scripts/lib/load.mjs` `loadScale()` is the factor to stretch a wall-clock budget
@@ -256,6 +276,8 @@ or `BLOW_N=400`.
 | `smoke --jobs 4` | 4m52s | 18m40s |
 | `full --jobs 4 --retry-flaky --timeout 2400` (119 checks, load 15–33) | 2h09m42s | 8h26m (with ~40 retries and a 2×40 min `blowoutcheck` timeout) |
 | the manifest's serial estimate for `full` | — | ~4h50m (of which `blowoutcheck` ~45 min) |
+| v150 B before (`122980f`, `full --jobs 3 --retry-flaky --timeout 2400`, load 15–45) | 2h39m | 7h58m — 61 PASS, 27 KNOWN, 18 NEW, 1 TIMEOUT, 10 INFO, 6 FLAKY |
+| v150 B after (same command) | 2h06m | 6h17m — 92 PASS, 9 KNOWN, 0 NEW (re-judged against the final baseline), 1 TIMEOUT (`blowoutcheck` at 1,600 games; the suite runs it at `BLOW_N=400` now), 12 INFO, 9 FLAKY |
 
 `fast` (everything not `slow`) is the practical "run it all" on a 4-core box.
 
