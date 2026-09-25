@@ -120,6 +120,24 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
   `Math.random`, `validateReward` refuses anything non-cosmetic, and with monetization OFF nothing is sold.
   `src/28-cosmetics.js`, `src/29-seasons.js`, the `cosFxV153G` hook in `src/05`; `v153Gcheck`.
 
+- **v153 A — the pile goes down, the way out of it, forward progress, the stat gain lands, the 109% rule.** A gang
+  stop names the men in the heap (`downV153A`: supporters and closers within `gangDownPxV153A` of the carrier, at most
+  `gangDownMaxV153A`); contactV146 lays them onto the pile ring and the broadcast folds them with him instead of leaving
+  them standing. A forming group tackle can be escaped by GIVING GROUND: rolled once per grip on the carrier's agility,
+  strength and ball security against the tacklers (`escape*V153A`, `evadeRepeatK`), he backs out and spins away
+  (`escapeV153A` + a `cut` spin; the men who had hands on are beaten). FORWARD PROGRESS: a carrier the grip drove back
+  (v151 D's push) is spotted at the furthest point his progress reached — `endTackle` books the yards from it, the
+  tackle carries `fpX`/`fpYd`, the official spots it there ("FORWARD PROGRESS") — never for a QB taken down behind his
+  line, never for ground he gave. Kill switches `TU("v153A"|"gangDownV153A"|"escapeV153A"|"fwdProgV153A", 0)`; the
+  escape roll spends a `Math.random()` only when a group forms (compare seeds). In the live box a stat he earns is a
+  callout that rises off his marker (`__ribYouClientV153A`) and flies into its tile, which counts up with a pop, a blip
+  through `RIB_MUSIC.sfxOut` and a LIGHT haptic; a 100-yard / 300-yard game, double-digit tackles, a hat trick and a
+  new single-game CAREER HIGH (`gameHighsV153A`) get the gold banner, a chord and a MEDIUM haptic
+  (`TU("statGainV153A", 0)` is the old flash). The snap share: he and his named rival used to split a pool clamped to
+  65-115% of one position's snaps ("YOU 94% VS 15%"); the position now adds up to 100%, and only a SUPERHUMAN
+  (past the wall and far above the level's bar) with NO BACKUP plays 109% (`snapSplitV153A`, `TU("snapCapV153A", 0)`).
+  `scripts/v153Acheck.mjs`.
+
 - **v152 A.2 — the medal gets the spotlight, the book turns, the band plays on arrival.** The profile card wears the
   Legacy medal in its own framed, glowing box beside the name (tap: the trophy case). The collection book turns real
   pages: a two-faced leaf lifts, curls and falls over the spine (or swings back in), with a paper swish, a landing thump,

@@ -183,7 +183,8 @@
    "desc": "v146 A — who is on him when he goes down, the fall together, the taken sack",
    "anchors": [
     "v146 A",
-    "v151 D"
+    "v151 D",
+    "v153 A"
    ],
    "files": [],
    "checks": [
@@ -199,7 +200,8 @@
     "renderpathcheck",
     "v86check",
     "v110check",
-    "v151Dcheck"
+    "v151Dcheck",
+    "v153Acheck"
    ]
   },
   "cuts": {
@@ -975,7 +977,8 @@
     "creditcheck",
     "simcheck",
     "scoreneutralcheck",
-    "faqcheck"
+    "faqcheck",
+    "v153Acheck"
    ]
   },
   "origin": {
@@ -1092,7 +1095,8 @@
     "creditcheck",
     "simcheck",
     "renderpathcheck",
-    "v86check"
+    "v86check",
+    "v153Acheck"
    ]
   },
   "plant": {
@@ -3692,6 +3696,20 @@
    ],
    "runtimeSec": 420,
    "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v153Acheck": {
+   "file": "scripts/v153Acheck.mjs",
+   "desc": "v153 A — a gang stop names the heap and it goes down with him (defenders in reach, never the tackler; laid on the pile ring), a forming group tackle is sometimes escaped by giving ground (backward, the grabbers beaten), forward progress (the spot and the booked yards are the furthest point, never a QB behind his line), the kill switch, the run game in band; the live stat gain (exact gains, one callout per catch, milestones once, career highs, the callout flies, the tile counts up, sound + LIGHT/MEDIUM haptic); the snap share (him + rival <= 100%, 109% only superhuman with no backup); no page errors.",
+   "areas": [
+    "contact",
+    "pile",
+    "snaps"
+   ],
+   "runtimeSec": 240,
+   "slow": false,
    "needsServer": true,
    "pureNode": false,
    "flaky": []
