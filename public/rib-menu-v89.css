@@ -578,7 +578,8 @@ body.rib-howto-open{overflow:hidden!important}
 .rib9-goal-v153d[data-stage="isl"] figcaption b,.rib9-goal-v153d[data-stage="done"] figcaption b{color:#e6dcff;text-shadow:0 1px 0 rgba(0,0,0,.6),0 0 10px rgba(170,140,255,.4)}
 .rib9-goal-v153d[data-stage="done"] figcaption small{color:#7fe38f}
 
-.rib9-medalbox-v153d{position:relative;z-index:3;margin:-34px 12px 0;display:grid;grid-template-columns:100px minmax(0,1fr);align-items:center;gap:10px;min-height:114px;padding:8px 14px 10px 8px;border-radius:16px;cursor:pointer;
+/* the box never overlaps the hero: its kit tints are measured there (menu-mask-check) */
+.rib9-medalbox-v153d{position:relative;z-index:3;margin:0 12px;display:grid;grid-template-columns:100px minmax(0,1fr);align-items:center;gap:10px;min-height:114px;padding:8px 14px 10px 8px;border-radius:16px;cursor:pointer;
   border:1px solid rgba(255,214,107,.6);background:radial-gradient(90% 150% at 0% 50%,color-mix(in srgb,var(--lgbox-glow,#e8c86a) 26%,transparent),transparent 62%),linear-gradient(180deg,rgba(30,25,15,.95),rgba(13,12,10,.97));
   box-shadow:0 14px 30px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.6),0 1px 0 rgba(255,230,160,.2) inset,0 0 22px color-mix(in srgb,var(--lgbox-glow,#e8c86a) 18%,transparent)}
 .rib9-medalbox-v153d:active{transform:scale(.985)}
@@ -614,5 +615,5 @@ body.rib-howto-open{overflow:hidden!important}
   .rib9-tile small{white-space:normal;line-height:1.3}
 }
 @media (min-width:760px){
-  .rib9-medalbox-v153d{align-self:flex-start;width:min(520px,calc(100% - 28px));margin:-52px 0 0 14px}
+  .rib9-medalbox-v153d{align-self:flex-start;width:min(520px,calc(100% - 28px));margin:0 0 0 14px}
 }
