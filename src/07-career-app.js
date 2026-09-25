@@ -6836,14 +6836,13 @@
         fx: { cutSave: 0.1 }
       },
       {
-        key: "secondChance",
-        name: "Second Chances",
-        icon: "🔂",
-        desc: "Survive one more UFF cut a season per level before the career ends.",
-        cost: 30,
-        mult: 2.1,
-        max: 3,
-        req: { honors: 16 },
+        key: "secondChance" /* v154 A: the save key stays; the node is FREE AGENCY now */,
+        name: "Free Agency",
+        icon: "✍️",
+        desc: "Cut in the UFF? Hit free agency instead of the end: another club signs you as a backup. The SECOND cut ends the career (without this, the first one does).",
+        cost: 200000,
+        mult: 1,
+        max: 1,
         fx: { cutLives: 1 }
       },
       {
@@ -19574,7 +19573,9 @@
       box: hofSnapV134(e, t),
       gen: Math.max(1, lineageV136().gen || 1)
     };
-    ((s.goat = hofScore(s)),
+    ((s.tagV154 = (state.careers | 0) + "|" + (e.name || "") + "|" + (e.totalSeasons | 0)),
+      (e._hofTagV154 = s.tagV154) /* v154 A: the row a reopened UFF career updates at its real end */,
+      (s.goat = hofScore(s)),
       legacyCareerEndV152(e, t, a ? "won" : "cut") /* v152 A: the career pays its Legacy XP */,
       (s.legacyRank = legacyRankV152(legacyV152().xp).rank),
       seasonsCareerEndV151C(e, s, t) /* v151 C: the career goes on the boards */,
@@ -23293,6 +23294,7 @@
     const e = state.player,
       t = LEVELS[e.level],
       a = e.level,
+      arr = !e._settled && e._arrivedV154 ? e._arrivedV154 : null /* v154 A: a UFF career reopened at "keep playing" */,
       s =
         (1 +
           nodeLvl("endorse") * 0.2 +
@@ -23310,8 +23312,10 @@
         eraMult(),
       n = nodeLvl("legacy") * e.totalSeasons,
       i = [1, 2, 4, 8, 15, 28, 45, 70, 120][Math.min(a, 8)] || 1,
-      r = Math.max(1, Math.round(((i + e.totalSeasons * 0.35 + (e.titles || 0) * 4) * s + n) * chaosEarnedMult(a))),
-      l = prestigeStarReward(e, a, !1);
+      r = arr
+        ? tailPPV154(e, arr, s, a)
+        : Math.max(1, Math.round(((i + e.totalSeasons * 0.35 + (e.titles || 0) * 4) * s + n) * chaosEarnedMult(a))),
+      l = arr ? 0 : prestigeStarReward(e, a, !1);
     e._settled ||
       ((e._settled = !0),
       (e._ppBankV136 = flushBankV136()),
@@ -23319,11 +23323,11 @@
       (e._vaultPayV137 = r + (e._ppBankV136 || 0)),
       payoutBoostV150C(e, r, "gameover") /* v150 C H4 */,
       (state.prestige = +(state.prestige + honorPayV139(l)).toFixed(1)),
-      (state.careersCompleted = (state.careersCompleted || 0) + 1),
+      (state.careersCompleted = (state.careersCompleted || 0) + (arr ? 0 : 1)) /* counted once, at the arrival */,
       (e._starGain = honorPayV139(l)),
       (state.lastCareerAttrs = { ...e.attrs }),
-      enshrineHof(e, a, !1),
-      lineageEndV136(e, a, "cut"),
+      arr ? refreshHofV154(e, arr, a) : enshrineHof(e, a, !1),
+      lineageEndV136(e, a, arr ? "won" : "cut"),
       dropGear(a >= 5 ? 1 : 0, "Career-end drop"),
       completeChallenges(),
       saveGame());
@@ -23442,11 +23446,106 @@
   `));
   }
   function continueNFL() {
+    reopenCareerV154(state.player) /* v154 A: keep playing = the career is not over */;
     ((state.view = "hub"), saveGame(), render());
   }
   function prestigeReset() {
     ((state.player = null), saveGame(), goView("menu"));
   }
+  /* ===== v154 A THE UFF IS WHERE THE CAREER GOES ON =====
+   * The owner: "retiring the player doesn't work correctly … I can't manually retire from the management
+   * section … max 2 times to be cut should exist, 1 time by default, 200k buys the free agency option."
+   * The cause under the first two: reaching the UFF (`screenWin`) SETTLED the career — paid it, enshrined it,
+   * set `_settled` — and "Keep Playing UFF Seasons" went back to the hub with `_settled` still true. Every
+   * exit checks `!_settled`: `retireV12`, `retireNowV147`, the dock chips (`postV147`), the life screen's
+   * RETIRE FROM FOOTBALL, and v146 B's cut-out route to the career end. So after the arrival nothing could end
+   * the career — retire did nothing, the retire buttons never drew, and a cut-out never ended it.
+   * Now "keep playing" REOPENS it (`reopenCareerV154`: `_settled` false, `_arrivedV154` remembers the arrival).
+   * The real end (retire, the last cut) settles once more, as the tail of a career already paid: the arrival
+   * counted it and enshrined it, so `screenGameOver` adds no second career, pays only the seasons after the
+   * arrival (`tailPPV154`, plus the banked season PP), no second Honors, and updates the Hall row in place
+   * (`refreshHofV154`). A save already stuck in that state is reopened once at boot (`reopenBootV154`).
+   * Cuts: counted over the career (`cutKeyV154`), one by default, two with the FREE AGENCY node (the old
+   * Second Chances key, now 200,000 PP, one level; `freeAgencyRefundV154` refunds levels beyond the first).
+   * The end screen offers every vow, a skip, the vault and the Hall (`endDockV154`). Kill switch
+   * TU("reopenV154", 0). `window.__V154A`; scripts/v154Acheck.mjs. ===== */
+  function reopenCareerV154(e) {
+    if (!e || !TU("reopenV154", 1) || !e._settled || e._arrivedV154 || !((e.level | 0) >= 7)) return !1;
+    e._arrivedV154 = { seasons: e.totalSeasons | 0, titles: e.titles | 0, level: e.level | 0, tag: e._hofTagV154 || null, at: Date.now() };
+    e._settled = !1;
+    return !0;
+  }
+  /* the seasons after the arrival, at the career-end rate (the UFF salary already paid each of them) */
+  function tailPPV154(e, arr, mult, lv) {
+    const n = Math.max(0, (e.totalSeasons | 0) - (arr.seasons | 0)),
+      t = Math.max(0, (e.titles | 0) - (arr.titles | 0));
+    return Math.max(1, Math.round((n * TU("uffTailPPV154", 4) + t * 4) * mult * chaosEarnedMult(lv)));
+  }
+  function refreshHofV154(e, arr, lv) {
+    const rows = state.hof || (state.hof = []),
+      row = arr && arr.tag ? rows.find(h => h.tagV154 === arr.tag) : null;
+    if (!row) return enshrineHof(e, Math.max(7, lv | 0), !0);
+    row.peak = Math.max(row.peak | 0, e.peakOvr || playerOvr(e));
+    row.power = Math.round(playerPower(e));
+    row.titles = e.titles || 0;
+    row.rings = e.nflRings || 0;
+    row.reached = Math.max(row.reached | 0, lv | 0);
+    row.seasons = e.totalSeasons;
+    row.won = !0;
+    row.box = hofSnapV134(e, lv) || row.box;
+    row.goat = hofScore(row);
+    try {
+      row.legacyRank = legacyRankV152(legacyV152().xp).rank;
+    } catch (_) {}
+    rows.sort((x, y) => y.goat - x.goat);
+    return row;
+  }
+  /* a save from before v154: arrived, "kept playing", and stuck settled — reopen it once */
+  function reopenBootV154() {
+    try {
+      const e = state && state.player;
+      if (!e || !e._settled || !e._wonShown || e._arrivedV154 || !((e.level | 0) >= 7)) return;
+      if (["win", "gameover", "declineResult"].indexOf(state.view) >= 0) return;
+      const row = (state.hof || []).filter(h => h.name === e.name && h.won).pop();
+      e._hofTagV154 = row ? row.tagV154 || (row.tagV154 = "boot|" + e.name + "|" + (row.seasons | 0)) : null;
+      reopenCareerV154(e) && (e._arrivedV154.seasons = row ? row.seasons | 0 : e.totalSeasons | 0);
+    } catch (_) {}
+  }
+  function freeAgencyRefundV154() {
+    try {
+      if (!state || !state.tree || state.freeAgencyRefundV154) return 0;
+      const l = Math.max(0, state.tree.secondChance | 0);
+      state.freeAgencyRefundV154 = { lv: l, at: Date.now() };
+      if (l <= 1) return 0;
+      let t = 0;
+      for (let i = 1; i < l; i++) t += Math.round(30 * Math.pow(2.1, i)); // the old Second Chances prices, beyond the first level
+      state.tree.secondChance = 1;
+      state.pp = (state.pp || 0) + t;
+      state.freeAgencyRefundV154.pp = t;
+      setTimeout(() => {
+        try {
+          showToast("✍️ Second Chances is now FREE AGENCY — you keep it, and " + t + " PP for the extra levels is refunded");
+        } catch (_) {}
+      }, 2000);
+      return t;
+    } catch (_) {
+      return 0;
+    }
+  }
+  /* the career-end dock: every vow (not two), a skip, the vault, the Hall */
+  function endDockV154(e) {
+    const vows = (regretScenario(e.level, e).vows || []).map(
+      v => `<button class="btn secondary end-vow-v154" onclick="chooseRegretVowV12('${v.id}')">${v.icon} ${escHtml(v.label)}</button>`
+    );
+    return `${vaultPayBtnV137(e)}<div class="small center" style="margin-bottom:6px">If you could do it over — pick a promise for his son, then spend Prestige.</div><div class="end-vows-v154">${vows.join("")}</div><div style="height:8px"></div><div class="btn-row"><button class="btn ghost" onclick="prestigeReset()">⏭ Run It Back Now</button><button class="btn ghost" onclick="go('hof')">🏛️ Hall of Fame</button></div>`;
+  }
+  window.__V154A = {
+    reopen: e => reopenCareerV154(e || state.player),
+    tail: (e, arr) => tailPPV154(e || state.player, arr || (state.player && state.player._arrivedV154) || { seasons: 0, titles: 0 }, 1, 7),
+    cutsAllowed: () => cutsAllowedV146B(),
+    boot: () => reopenBootV154(),
+    refund: () => freeAgencyRefundV154()
+  };
   function screenPath() {
     const e = state.prestige >= PATH_HONORS,
       t = state.path;
@@ -25252,6 +25351,8 @@
     ((state.view === "sim" || state.view === "live" || state.view === "training" || state.view === "event") &&
       (state.view = "hub"),
       legacyBootV152() /* v152 A: a pre-v152 save's Hall is credited once */,
+      reopenBootV154() /* v154 A: a UFF career stuck settled after the arrival is reopened */,
+      freeAgencyRefundV154() /* v154 A: Second Chances → Free Agency */,
       render(),
       setTimeout(showTutorial, 1850));
     const e = document.getElementById("splash");
@@ -28183,12 +28284,17 @@
       (n && n.remove(),
         t?.insertAdjacentHTML("afterend", retirementCard(e)),
         (byId("dock").innerHTML =
-          `<button class="btn" onclick="S.afterCareerV12=true;go('shop')">🔁 RUN IT BACK — Prestige & Begin the Next Legacy</button><div style="height:8px"></div><button class="btn secondary" onclick="prestigeReset()">Run It Back Now</button>`));
+          `${vaultPayBtnV137(e)}<button class="btn" onclick="S.afterCareerV12=true;go('shop')">🔁 RUN IT BACK — Prestige & Begin the Next Legacy</button><div style="height:8px"></div><div class="btn-row"><button class="btn secondary" onclick="prestigeReset()">⏭ Run It Back Now</button><button class="btn ghost" onclick="go('hof')">🏛️ Hall of Fame</button></div>`));
     } else
-      (t?.insertAdjacentHTML("afterend", fd(e)),
+      (e._arrivedV154 &&
+        t &&
+        ((t.className = "banner nfl"),
+        (t.querySelector(".big-emoji").textContent = "🏈"),
+        (t.querySelector(".bt").textContent = "The Final Whistle"),
+        (t.querySelector(".bs").innerHTML = `${escHtml(e.name)} made the UFF and played ${Math.max(1, (e.totalSeasons | 0) - (e._arrivedV154.seasons | 0) + 1)} season${(e.totalSeasons | 0) - (e._arrivedV154.seasons | 0) === 0 ? "" : "s"} there before the league let him go. His son starts with everything he learned.`)) /* v154 A */,
+        t?.insertAdjacentHTML("afterend", fd(e)),
         e.level >= 7 && t?.insertAdjacentHTML("afterend", retirementCard(e)),
-        (byId("dock").innerHTML =
-          `<div class="small center" style="margin-bottom:8px">Choose what you would change. You will be taken to Prestige immediately.</div><button class="btn" onclick="chooseRegretVowV12('smarter')">🧠 Train Smarter & Open Prestige</button><div style="height:8px"></div><button class="btn secondary" onclick="chooseRegretVowV12('health')">🩺 Protect My Body & Open Prestige</button>`));
+        (byId("dock").innerHTML = endDockV154(e)) /* v154 A: every vow, a skip, the vault, the Hall */);
   };
   function retirementCard(e) {
     const t = ensureFinanceState(e);
@@ -28623,11 +28729,16 @@
     try {
       g = treeFx("cutLives");
     } catch (_) {}
-    return Math.max(1, Math.round(TU("dflCutsAllowedV146B", 2) + g));
+    /* v154 A: ONE cut ends a UFF career by default; Free Agency (200K PP) buys the second — never more than two */
+    return Math.max(1, Math.min(TU("cutsMaxV154", 2), Math.round(TU("dflCutsAllowedV146B", 1) + g)));
+  }
+  /* v154 A: the cuts are counted over the whole career ("max two times to be cut"), not reset each season */
+  function cutKeyV154(e, key) {
+    return TU("cutsCareerV154", 1) ? "career" : key || seasonKeyV146B(e);
   }
   function strikesV146B(e) {
     const C = e && e.cutsV146B;
-    return C && C.k === seasonKeyV146B(e) ? C.n : 0;
+    return C && C.k === cutKeyV154(e) ? C.n : 0;
   }
   function clubQV146B(e) {
     return e && e.level >= 7 && e.clubV146B && !isNaN(+e.clubV146B.q) ? +e.clubV146B.q : 0;
@@ -28657,19 +28768,22 @@
   }
   function clubRulesV146B() {
     const n = cutsAllowedV146B();
-    return `Get cut <b>${n} times in one UFF season</b> and your career is over. ${n > 2 ? `Each of the first ${n - 1} cuts costs` : "The first cut costs"} you your team: you sign with another club as a <b>backup</b>, on fewer snaps. The count resets every season, and a backup who plays well earns his role back.`;
+    const car = TU("cutsCareerV154", 1);
+    return n <= 1
+      ? `Get cut <b>once</b> in the UFF and your career is over. <b>Free Agency</b> (200K PP in the tree) turns the first cut into a trip to free agency — another club signs you as a backup.`
+      : `Get cut <b>${n === 2 ? "twice" : n + " times"}</b>${car ? " in the UFF" : " in one UFF season"} and it is over. The first cut sends you to <b>free agency</b>: you sign with another club as a <b>backup</b>, on fewer snaps, and a backup who plays well earns his role back.`;
   }
   function strikeLineV146B(e) {
     if (!e || e.level < 7) return "";
     const n = strikesV146B(e),
       a = cutsAllowedV146B();
-    return `<div class="small strike-line-v146b" style="margin-top:8px">✂️ Cuts this season: <b style="color:${n ? "var(--blood)" : "var(--good)"}">${n} of ${a}</b> — cut number ${a} ends the career.${e.clubV146B ? ` · ${escHtml(e.clubV146B.name)}, signed as ${escHtml(ROLE_V146B[e.clubV146B.role] ? ROLE_V146B[e.clubV146B.role].label : "")}` : ""}</div>`;
+    return `<div class="small strike-line-v146b" style="margin-top:8px">✂️ Cuts ${TU("cutsCareerV154", 1) ? "this career" : "this season"}: <b style="color:${n ? "var(--blood)" : "var(--good)"}">${n} of ${a}</b> — cut number ${a} ends the career.${e.clubV146B ? ` · ${escHtml(e.clubV146B.name)}, signed as ${escHtml(ROLE_V146B[e.clubV146B.role] ? ROLE_V146B[e.clubV146B.role].label : "")}` : ""}</div>`;
   }
   function leftV146B(e) {
     const l = cutsAllowedV146B() - strikesV146B(e);
     return l <= 1
-      ? "One more cut this season ends the career."
-      : `Get cut ${l} more times this season and the career is over.`;
+      ? "One more cut ends the career."
+      : `Get cut ${l} more times and the career is over.`;
   }
   /* three clubs, one from each tier: the strong side has the least room for him, the weak side
    * starts him. After a cut every door is a backup's, and the trust he walks in with is lower. */
@@ -28747,7 +28861,7 @@
   function cutV146B(e, why, key) {
     if (!e || !(e.level >= 7) || e.cutOutV146B) return null;
     if (e.offersV146B && e.offersV146B.kind === "cut") return null; // released and not yet re-signed: one release, one strike
-    key = key || seasonKeyV146B(e);
+    key = cutKeyV154(e, key);
     const C = e.cutsV146B && e.cutsV146B.k === key ? e.cutsV146B : (e.cutsV146B = { k: key, n: 0, log: [] });
     const from = typeof teamName == "function" ? teamName(e) : "";
     C.n++;
@@ -28882,7 +28996,7 @@
     };
     document.getElementById("screen").innerHTML =
       `<div class="club-v146b"><div class="eyebrow" style="color:${cut ? "var(--blood)" : "var(--gold)"}">${kick}</div><div class="h2 cc-title">${title}</div><div class="small cc-lead">${lead}</div>
-    ${O.list.map(card).join("")}<div class="cc-rules">✂️ ${clubRulesV146B()}${n || cut ? ` <b>This season: ${n} of ${allowed}.</b>` : ""}</div></div>`;
+    ${O.list.map(card).join("")}<div class="cc-rules">✂️ ${clubRulesV146B()}${n || cut ? ` <b>${TU("cutsCareerV154", 1) ? "Cuts so far" : "This season"}: ${n} of ${allowed}.</b>` : ""}</div></div>`;
     document.getElementById("dock").innerHTML =
       `<button class="btn" id="clubSignV146B" ${O.sel == null ? "disabled" : ""} onclick="signClubV146B()">${O.sel == null ? "Tap a club to choose" : "✍️ Sign with the " + escHtml(O.list[O.sel].mascot) + " ›"}</button>`;
   }

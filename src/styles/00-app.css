@@ -61,3 +61,6 @@ html.shell-v146 .prestige-chip .honor-crest-v153{font-size:12px;margin-right:-1p
  * E's 36px tap targets and the crest together pushed v149 E's STORE chip off a 400 screen */
 html.shell-v146 .prestige-chip .chip-lbl-v153{display:none}
 html.shell-v146 .prestige-chip img.coin-v147{width:14px!important;height:14px!important}
+
+/* v154 A: the career-end vows, two a row */
+.end-vows-v154{display:grid;grid-template-columns:1fr 1fr;gap:6px}.end-vows-v154 .btn{margin:0;padding:10px 8px;font-size:13px;line-height:1.15}

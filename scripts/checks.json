@@ -49,10 +49,12 @@
   "career-uff": {
    "desc": "v147 A — retiring above college, sim the rest at 7+, stale offers, auto-answered story decisions",
    "anchors": [
-    "v147 A"
+    "v147 A",
+    "v154 A"
    ],
    "files": [],
    "checks": [
+    "v154Acheck",
     "v147Acheck",
     "v146Bcheck",
     "rivalcheck",
@@ -205,12 +207,14 @@
    ]
   },
   "cuts": {
-   "desc": "v146 B — UFF cuts, the strike count, Second Chances, the three-offer club screen",
+   "desc": "v146 B — UFF cuts, the strike count (v154 A: per career, 1 by default, Free Agency buys a 2nd), the three-offer club screen",
    "anchors": [
-    "v146 B"
+    "v146 B",
+    "v154 A"
    ],
    "files": [],
    "checks": [
+    "v154Acheck",
     "v146Bcheck",
     "declarecheck",
     "v88check",
@@ -3072,7 +3076,7 @@
   },
   "v146Bcheck": {
    "file": "scripts/v146Bcheck.mjs",
-   "desc": "v146 B — DFL entry opens three offers (OVR, snap share, depth",
+   "desc": "v146 B — DFL entry opens three offers (OVR, snap share, depth; v154 A: cuts counted over the career, one by default, two with Free Agency, capped at 2)",
    "areas": [
     "smoke",
     "career-uff",
@@ -3709,6 +3713,19 @@
     "snaps"
    ],
    "runtimeSec": 240,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v154Acheck": {
+   "file": "scripts/v154Acheck.mjs",
+   "desc": "v154 A — the UFF arrival settles, KEEP PLAYING reopens the career; the Life (management) screen and the hub draw the retire way out, and retiring there (through its confirm) lands on the retired end screen settled once (no second career, no second Hall row, tail PP only) with the vault, RUN IT BACK, a skip and the Hall; by default one UFF cut ends a reopened career on the end screen with all four vows, a skip and the Hall; Free Agency is 200K PP, one level, two cuts counted over the career; old Second Chances levels refunded; a save stuck settled is reopened at boot; no page errors.",
+   "areas": [
+    "career-uff",
+    "cuts"
+   ],
+   "runtimeSec": 60,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
