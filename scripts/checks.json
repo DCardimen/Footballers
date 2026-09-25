@@ -3459,6 +3459,7 @@
     "shell"
    ],
    "runtimeSec": 60,
+   "loadSensitive": true,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
