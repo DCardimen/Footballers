@@ -96,9 +96,9 @@ const no = page => page.evaluate(() => { if (!window.ribDialog.isOpen) return fa
     return { open: !!m, school: a && a.value, team: t && t.value, attrs: a ? a.getAttributeNames() : [], fired: (window.__xss || []).length + (window.__xss3 ? 1 : 0), hostile: m ? m.querySelectorAll('img[onerror],svg[onload]').length : -1 }
   })
   ok(tc.open && !tc.fired && !tc.hostile && !tc.attrs.includes('onfocus') && !bad(tc.school) && !bad(tc.team), 'the Team Creator renders stored hostile names as plain values (no attribute break-out)', tc)
-  const tcs = await page.evaluate((PAY) => {
+  const tcs = await page.evaluate(async (PAY) => {
     document.getElementById('schoolNameV153').value = PAY; document.getElementById('teamNameV153').value = '"><b>x'
-    window.saveTeamCreatorV153()
+    await window.saveTeamCreatorV153() /* v151 B: the save waits on the team-style gate */
     return JSON.parse(localStorage.getItem('gridironTeamCustomV153'))
   }, PAY)
   ok(!bad(tcs.schoolName) && !bad(tcs.teamName), 'and what it saves is cleaned', { school: tcs.schoolName, team: tcs.teamName })
