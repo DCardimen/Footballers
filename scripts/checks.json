@@ -25,7 +25,8 @@
     "traincheck",
     "layoutcheck",
     "anchorcheck",
-    "v150Acheck"
+    "v150Acheck",
+    "v151Echeck"
    ]
   },
   "docs": {
@@ -1408,6 +1409,31 @@
     "bootviewcheck",
     "menu-integration-check",
     "v146Echeck",
+    "layoutcheck",
+    "walk"
+   ]
+  },
+  "audio": {
+   "desc": "v151 E — the music and every sound level: the anthem loop, the effects bus, the duck, the Settings › SOUND tab, the quick mute (src/30-music.js, soundCardV151E in 07)",
+   "anchors": [
+    "v151 E",
+    "RIB_MUSIC",
+    "soundCardV151E"
+   ],
+   "files": [
+    "src/30-music.js",
+    "public/audio/*",
+    "public/rib-menu-coach.js",
+    "public/rib-vault-audio.js"
+   ],
+   "checks": [
+    "v151Echeck",
+    "bootviewcheck",
+    "scrollcheck",
+    "v146Echeck",
+    "menu-integration-check",
+    "coachcheck",
+    "vaultcheck",
     "layoutcheck",
     "walk"
    ]
@@ -3436,6 +3462,23 @@
    ],
    "runtimeSec": 480,
    "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v151Echeck": {
+   "file": "scripts/v151Echeck.mjs",
+   "desc": "v151 E — the music: the anthem is served and streamed (two crossfading decks, nothing decoded), the crossfade lands at the loop point with no hole on the music bus, nothing plays before a gesture, Settings › SOUND fits 400x860 and its switches/sliders act at once and persist, MUTE ALL (top bar + menu) silences music, effects and the coach, another sound ducks it, the coach opts into the effects bus, a hidden tab pauses and resumes, one instance across view changes.",
+   "areas": [
+    "v151e",
+    "audio",
+    "settings",
+    "menu",
+    "shell"
+   ],
+   "runtimeSec": 60,
+   "loadSensitive": true,
+   "slow": false,
    "needsServer": true,
    "pureNode": false,
    "flaky": []

@@ -21,7 +21,7 @@ are headless Playwright (or pure-Node) checks.
 | `src/11-pregame-v1513.js` | the pregame wizard's pages |
 | `12`–`21` | gear overlay, `DEV` harness, personality, speed-through, story / pregame / growth wheels, Score Attack, leaderboards, Daily Challenge |
 | `22`–`25` | hub sections, dock, bottom nav, the v146 E shell |
-| `src/26-platform.js` / `src/27-monetize.js` / `src/29-seasons.js` | PWA + native shell (loaded last) / monetization (**OFF**) / seasons, the Career Pass, the trophy case |
+| `src/26-platform.js` / `src/27-monetize.js` / `src/29-seasons.js` / `src/30-music.js` | PWA + native shell (loaded last) / monetization (**OFF**) / seasons, the Career Pass, the trophy case / the music + every sound's level (`RIB_MUSIC`) |
 | `src/styles/*.css`, `public/` | the app CSS; the menu, coach and vault (`public/rib-menu*`, `rib-vault*`), sheets, film, art |
 
 ## Finding things

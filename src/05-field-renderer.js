@@ -8757,10 +8757,11 @@ const BADGE_V95 = (() => {
     try {
       const st = window.__getGridironState && window.__getGridironState(); if (!st || !st.settings || !st.settings.sound) return;
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; actx = actx || new AC(); const a = actx, t = a.currentTime;
+      const out = (window.RIB_MUSIC && window.RIB_MUSIC.sfxOut && window.RIB_MUSIC.sfxOut(a)) || a.destination; // v151 E THE BAND PLAYS: the effects bus (volume, mute all, the duck)
       const tone = (type, f0, f1, t0, len, g) => { const o = a.createOscillator(), v = a.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t + t0); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + t0 + len);
-        v.gain.setValueAtTime(1e-4, t + t0); v.gain.exponentialRampToValueAtTime(g, t + t0 + 0.012); v.gain.exponentialRampToValueAtTime(1e-4, t + t0 + len); o.connect(v); v.connect(a.destination); o.start(t + t0); o.stop(t + t0 + len + 0.03); };
+        v.gain.setValueAtTime(1e-4, t + t0); v.gain.exponentialRampToValueAtTime(g, t + t0 + 0.012); v.gain.exponentialRampToValueAtTime(1e-4, t + t0 + len); o.connect(v); v.connect(out); o.start(t + t0); o.stop(t + t0 + len + 0.03); };
       const noise = (t0, len, g, fc) => { const n = a.createBufferSource(), buf = a.createBuffer(1, a.sampleRate * len, a.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-        n.buffer = buf; const f = a.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = fc; const v = a.createGain(); v.gain.setValueAtTime(g, t + t0); v.gain.exponentialRampToValueAtTime(1e-4, t + t0 + len); n.connect(f); f.connect(v); v.connect(a.destination); n.start(t + t0); };
+        n.buffer = buf; const f = a.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = fc; const v = a.createGain(); v.gain.setValueAtTime(g, t + t0); v.gain.exponentialRampToValueAtTime(1e-4, t + t0 + len); n.connect(f); f.connect(v); v.connect(out); n.start(t + t0); };
       switch (name) {
         case "takeover": tone("sine", 440, 0, 0, 0.1, 0.07); tone("sine", 660, 0, 0.09, 0.1, 0.07); tone("sine", 880, 1320, 0.18, 0.32, 0.08); noise(0.17, 0.35, 0.05, 2400); break;
         case "stinger": tone("triangle", 520, 780, 0, 0.09, 0.06); tone("triangle", 780, 1040, 0.08, 0.16, 0.06); break;

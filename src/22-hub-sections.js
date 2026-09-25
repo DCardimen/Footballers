@@ -77,6 +77,7 @@
        * so these patterns are deliberately unmatchable against a bare `card` class */
       secs: [
         { k: "game",   name: "GAME",     re: /\bnever-v139\b/ },
+        { k: "sound",  name: "SOUND",    re: /\bsnd-v151e\b/ },   // v151 E THE BAND PLAYS: the card carries the class
         { k: "field",  name: "FIELD",    re: /\bnever-v139\b/ },
         { k: "family", name: "FAMILY",   re: /\bnever-v139\b/ },
         { k: "save",   name: "SAVE",     re: /\bnever-v139\b/ },
@@ -89,7 +90,7 @@
         { k: "save",   re: /SAVE DATA|BACKUP \/ TRANSFER|STORE & PURCHASES/i },   // v150 C H10: the store row (only while monetization is on)
         { k: "danger", re: /DANGER ZONE/i },
       ],
-      nofold: ["game", "field", "family", "save", "danger"],
+      nofold: ["game", "sound", "field", "family", "save", "danger"],
     },
     /* v146 E: the season report card was nineteen stacked blocks — 1,700px on a phone that shows
      * 560 of them between the shell's two ends. Same machinery, four tabs: the GRADE (the card and the
@@ -179,7 +180,7 @@
       nofold: ["nodes"],
     },
   };
-  const ICON = { gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
+  const ICON = { gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
   const TAB = { locker: "gear", hub: "now", shop: "nodes", season: "sched", settings: "game", result: "grade", declineResult: "epitaph", gameover: "end", win: "end" };
 
   function cfg() { const s = window.S; return (s && VIEWS[s.view]) || null }

@@ -21,6 +21,23 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
   of the free game and apply with the store off: 3× (and, while the store is off, 4×) on reaching the UFF, My Plays
   Only after the first finished career, season skips a day from lifetime PP (1 at 1,000, 3 at 100,000, …), and new
   sort/search/position filters on the leaders, standings and Hall of Fame. `v151Acheck`; `docs/MONETIZATION.md`.
+- **v151 E — the band plays.** The owner's "Brass Anthem" (moved to `public/audio/brass_anthem.m4a`; it is Opus in an MP4
+  box, 48 kHz stereo, 153.57 s) now plays on a gapless loop through the whole game — menu, career screens, live game —
+  from `src/30-music.js` (`window.RIB_MUSIC`). The file does not loop by itself (160 ms of silence at the head, a ringing
+  note cut at the tail), so it is STREAMED by two `<audio>` decks routed through WebAudio and crossfaded across measured
+  loop points (the incoming deck starts in the file's own silent lead-in, and the fade is keyed to its real playhead) —
+  nothing is decoded, so the page holds the 2.5 MB file and two small decode windows instead of 59 MB of PCM (measured
+  renderer +2 MB vs +35 MB for the decoded-buffer version; Chrome's audio-service process, +78 MB on desktop, starts for
+  any sound at all). Loudness is normalised in code (−18.2 → −20 dBFS RMS). It waits for a gesture, fades in, pauses with
+  the tab / the app and ducks under the coach, the vault and the broadcast stingers. The other sound paths opt into one
+  effects gain per audio context (`RIB_MUSIC.sfxOut(ctx)`, a one-line bannered edit in 05, 07, the coach and the vault),
+  so Settings has a SOUND tab: Mute all, Music, Music volume (default 50%), Sound effects (the save's `sound`), Effects
+  volume, Coach's voice — and a speaker button in the career top bar and on the main menu mutes everything.
+  **No ffmpeg on the build box:** the `.mp3` fallback was made by decoding the m4a in Chromium and encoding with
+  `lameenc` (pip, 128 kbps); with ffmpeg it is `ffmpeg -i public/audio/brass_anthem.m4a -b:a 128k public/audio/brass_anthem.mp3`.
+  The m4a is precached best-effort after the shell; the mp3 is never precached. Menu files baked as `v151e`.
+  `v151Echeck.mjs` (suite `audio`, smoke).
+
 
 - **v151 B — he looks the part.** Cosmetics and a profile, selling status and never power. `src/28-cosmetics.js`
   (`window.RIB_COSMETICS`) holds 79 items in nine categories — uniforms (incl. a historical bundle), helmets, card
