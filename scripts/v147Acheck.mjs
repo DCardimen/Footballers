@@ -213,7 +213,7 @@ for (const LV of [7, 8]) {
   // ------------------------------------------------------------ club screen: retire instead; report card: accept release
   {
     const { ctx, page } = await boot()
-    await seed(page, LV)
+    await seed(page, LV, { tree: { secondChance: 1 } })   // v154 A: with Free Agency the cut opens the club screen
     await page.evaluate(() => { window.__V146B.cut('test'); window.go('season') }); await page.waitForTimeout(800)
     const t = await tap(page, /Retire Instead/, '#dock button')
     await page.waitForTimeout(900)
