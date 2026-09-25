@@ -29012,15 +29012,23 @@
     }
     window.__RIB_VAULT_BRIDGE.open(key ? { key: key } : {});
   }
+  /* v153 C PAYDAY: the award plays ONCE, as the vault's reward sequence (public/rib-vault-bridge.js
+   * `pending`, shown-state in `rib.vaultPay.v153`, outside the save). Until it has been shown the button
+   * offers to watch it land; afterwards it is a plain way into the vault, never a replay. */
   function vaultPayBtnV137(e) {
-    return window.__RIB_VAULT_BRIDGE && e && (e._vaultPayV137 || 0) > 0
-      ? `<button class="btn secondary" onclick="vaultPayoutV137()">\u{1F3E6} Watch ${fmtInt(e._vaultPayV137)} PP land in the Vault</button><div style="height:8px"></div>`
-      : "";
+    const B = window.__RIB_VAULT_BRIDGE;
+    if (!B || !e || !((e._vaultPayV137 || 0) > 0)) return "";
+    let pend = null;
+    try {
+      pend = B.pending ? B.pending() : null;
+    } catch (_) {}
+    const label = pend ? `Watch ${fmtInt(pend.gain)} PP land in the Vault` : "Open the Vault";
+    return `<button class="btn secondary" data-vaultpay-v153="1" onclick="vaultPayoutV137()">\u{1F3E6} ${label}</button><div style="height:8px"></div>`;
   }
   function vaultPayoutV137() {
     const e = state.player;
     if (!window.__RIB_VAULT_BRIDGE || !e || !(e._vaultPayV137 > 0)) return;
-    window.__RIB_VAULT_BRIDGE.payout(e._vaultPayV137);
+    window.__RIB_VAULT_BRIDGE.open({ skipDoor: true, stay: true });
   }
   window.vaultBuy = vaultBuy;
   window.openVaultV137 = openVaultV137;

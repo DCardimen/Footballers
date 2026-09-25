@@ -222,5 +222,113 @@
         'upgrade_receive', 'upgrade_complete', 'career_payout'];
     }
   };
+  /* ===== v153 C PAYDAY — the sound of a run becoming wealth =====
+   *
+   * The coin rain is layered, not looped: a DISTANT coin is a light high tick, a coin on the
+   * pile a medium clink, a coin landing in front of the camera (or a gold / blue one) a
+   * heavier impact with a thud under it. Pitch and level are jittered per strike. The rain has
+   * its OWN voice pool (`RAIN_MAX` at once, a floor on the gap between two), separate from the
+   * spend path's, so a two-hundred-coin storm thins itself out instead of stacking into
+   * distortion; what it drops is counted (`stats`). Under the peak a cascade bed (the stream's
+   * filtered noise, brighter) swells with the impact rate; under a large reward a very quiet
+   * rising tone climbs until the final coin and RESOLVES on it. Then one heavy CLINK.
+   * All of it goes through the same bus, compressor and `RIB_MUSIC.sfxOut` as the rest. */
+  var RAIN_MAX = 9, rainVoices = 0, rainLast = 0;
+  var bed = null, bedGain = null, bedFilt = null, riser = null;
+  var stats = { rain: 0, dropped: 0, peak: 0, finals: 0, wiggles: 0 };
+  function rainSlot(gap) {
+    if (muted || !ctx()) return false;
+    var t = now();
+    if (rainVoices >= RAIN_MAX || t - rainLast < gap) { stats.dropped++; return false; }
+    rainLast = t; rainVoices++;
+    if (rainVoices > stats.peak) stats.peak = rainVoices;
+    setTimeout(function () { rainVoices = Math.max(0, rainVoices - 1); }, 190);
+    return true;
+  }
+  /* one coin of the rain landing. `weight` 0 = distant tick, 1 = on the pile, 2 = heavy */
+  api.rain = function (den, weight) {
+    stats.rain++;
+    if (!rainSlot(weight >= 2 ? 0.020 : 0.014)) return;
+    var v = VOICE[den] || VOICE.bronze;
+    var pitch = (weight === 0 ? 1.28 : weight >= 2 ? 0.86 : 1.0) * (0.90 + Math.random() * 0.22);
+    var lvl = (weight === 0 ? 0.035 : weight >= 2 ? 0.12 : 0.075) * (0.75 + Math.random() * 0.5);
+    noise(weight === 0 ? 0.018 : 0.03, v.f * 2.4 * pitch, 1.6, lvl * 0.6);
+    if (weight >= 2) noise(0.06, 150, 0.8, lvl * 1.2, 'lowpass');
+    partials(v, pitch, lvl, v.d * (weight === 0 ? 0.45 : weight >= 2 ? 0.95 : 0.7) * (0.85 + Math.random() * 0.3));
+  };
+  /* the cascade: continuous metal under the peak, 0..1 */
+  api.cascade = function (level) {
+    if (muted || !ctx()) return;
+    level = Math.max(0, Math.min(1, level || 0));
+    if (!bed) {
+      if (level <= 0.01) return;
+      bed = A.createBufferSource(); bed.buffer = noiseBuf; bed.loop = true;
+      bedFilt = A.createBiquadFilter(); bedFilt.type = 'bandpass'; bedFilt.frequency.value = 2600; bedFilt.Q.value = 0.9;
+      bedGain = A.createGain(); bedGain.gain.value = 0;
+      bed.connect(bedFilt); bedFilt.connect(bedGain); bedGain.connect(bus);
+      bed.start();
+    }
+    bedGain.gain.setTargetAtTime(0.085 * level, now(), 0.09);
+    bedFilt.frequency.setTargetAtTime(2200 + 2600 * level, now(), 0.15);
+  };
+  /* the rising tone under a large reward: two detuned voices through a lowpass, climbing
+   * a fifth over `ms`, never louder than a whisper */
+  api.riser = function (ms) {
+    if (muted || !ctx() || riser) return;
+    var t = now(), d = Math.max(0.6, (ms || 3000) / 1000);
+    var lp = A.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(380, t);
+    lp.frequency.exponentialRampToValueAtTime(1500, t + d);
+    var g = A.createGain(); g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.045, t + d * 0.8);
+    var o1 = A.createOscillator(), o2 = A.createOscillator();
+    o1.type = 'sawtooth'; o2.type = 'triangle';
+    o1.frequency.setValueAtTime(98, t); o1.frequency.exponentialRampToValueAtTime(147, t + d);
+    o2.frequency.setValueAtTime(98.7, t); o2.frequency.exponentialRampToValueAtTime(148.2, t + d);
+    o1.connect(lp); o2.connect(lp); lp.connect(g); g.connect(bus);
+    o1.start(t); o2.start(t);
+    riser = { o: [o1, o2], g: g, lp: lp };
+  };
+  /* ...and it resolves when the final total appears */
+  api.resolve = function () {
+    if (!riser || !A) return;
+    var t = now(), r = riser; riser = null;
+    try {
+      r.o[0].frequency.cancelScheduledValues(t); r.o[1].frequency.cancelScheduledValues(t);
+      r.o[0].frequency.setTargetAtTime(196, t, 0.05); r.o[1].frequency.setTargetAtTime(294, t, 0.05);
+      r.g.gain.cancelScheduledValues(t); r.g.gain.setValueAtTime(Math.max(0.0001, r.g.gain.value), t);
+      r.g.gain.linearRampToValueAtTime(0.05, t + 0.06);
+      r.g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+      r.o[0].stop(t + 1.7); r.o[1].stop(t + 1.7);
+    } catch (e) {}
+  };
+  /* THE final coin: a low thud, a long gold ring, a shimmer on top */
+  api.finalClink = function (big) {
+    stats.finals++;
+    if (muted || !ctx()) return;
+    api.cascade(0);
+    var v = VOICE.gold;
+    noise(0.22, 120, 0.7, big ? 0.34 : 0.26, 'lowpass');
+    partials(v, 0.74, big ? 0.30 : 0.24, 1.25);
+    partials(VOICE.blue, 0.62, 0.10, 1.6);
+    setTimeout(function () { if (!muted && A) noise(0.9, 5200, 0.8, big ? 0.05 : 0.035); }, 40);
+  };
+  /* the settled pile, touched: a quiet shift of metal */
+  api.wiggle = function () {
+    stats.wiggles++;
+    if (!rainSlot(0.09)) return;
+    var v = VOICE.silver, pitch = 0.9 + Math.random() * 0.3;
+    noise(0.025, 2400 * pitch, 1.4, 0.02);
+    partials(v, pitch, 0.026, 0.16);
+  };
+  api.paydayStop = function () {
+    api.cascade(0);
+    if (riser) { try { riser.g.gain.setTargetAtTime(0.0001, now(), 0.08); riser.o[0].stop(now() + 0.4); riser.o[1].stop(now() + 0.4); } catch (e) {} riser = null; }
+  };
+  api.stats = function () { return { rain: stats.rain, dropped: stats.dropped, peak: stats.peak, finals: stats.finals, wiggles: stats.wiggles, max: RAIN_MAX }; };
+  var baseStop = api.stop;
+  api.stop = function () { api.paydayStop(); baseStop(); };
+  var baseManifest = api.manifest;
+  api.manifest = function () { return baseManifest().concat(['payday_tick', 'payday_clink', 'payday_impact', 'payday_cascade', 'payday_riser', 'payday_final', 'pile_wiggle']); };
+
   window.__RIB_VAULT_AUDIO = api;
 })();
