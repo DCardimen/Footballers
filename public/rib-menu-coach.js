@@ -231,6 +231,7 @@
     { id: 'live', title: 'THE BROADCAST', sub: 'WATCH IT', when: (c) => c.live && !c.post, delay: 2600, lines: [
       { p: 'open', t: "Game time. Your guy has a ring under his feet. Watch him." },
       { p: 'listen', t: "These buttons set the speed. SKIP jumps to the whistle. Your stats show under the field.", s: 'speed' },
+      { p: 'tip', t: "My Plays Only is on by default. You watch your side of the ball — offense if you play offense, defense if you play defense. Want every snap? Settings." },   // v153 B
       { p: 'relaxed', t: "I'll see you after." },
     ] },
     { id: 'result', title: 'THE CARD', sub: 'AFTER THE WHISTLE', when: (c) => c.post, lines: [
@@ -267,6 +268,41 @@
       return out;
     } catch (e) { return null }
   }
+
+  /* ===== v153 F THE COACH ON CHAOS =====
+   * Chaos is the endgame — long after the first-week tour is over — so these are not stops of the walk
+   * (STOPS, the tour's order and count, are untouched). They are two SOLO stops of their own, said ONCE
+   * each whether the tour is on or off: `chaosLocked` the first time the RINGS & CHAOS screen (view
+   * `dynasty`) is opened with Chaos still locked — how to open it — and `chaosOpen` the first time it is
+   * opened with Chaos unlocked — the dials, the risk, and the pay, with the live multipliers read off
+   * `window.__V153F` (07). NEXT or SKIP on one marks it said (`rib.coachChaos.v153`) and never touches the
+   * tour's switch. `window.__RIB_COACH.chaos`; `v153Fcheck`. */
+  const CHAOS_KEY = 'rib.coachChaos.v153';
+  const chaosSaid = () => { try { return JSON.parse(localStorage.getItem(CHAOS_KEY) || '{}') || {}; } catch (e) { return {}; } };
+  const chaosMark = (id) => { const m = chaosSaid(); m[id] = Date.now(); try { localStorage.setItem(CHAOS_KEY, JSON.stringify(m)); } catch (e) { /* private mode */ } };
+  const chaosInfo = () => { try { const S = getState(); if (!S) return null; const F = window.__V153F;
+    return { open: !!S.chaosUnlocked, cap: S.chaosCap || 0, total: F ? F.total() : 0, xp: F ? F.legacyMult() : 1, pp: F ? F.ppMult() : 1, per: F ? F.per() : 0.08, max: F ? F.cap() : 5 }; } catch (e) { return null; } };
+  const onDynasty = () => { const S = getState(); return !!(S && String(S.view || '') === 'dynasty' && !document.getElementById('rib-main-menu-v2') && !byId('personaV13')); };
+  function chaosOpenLines() {
+    const I = chaosInfo() || { total: 0, xp: 1, pp: 1, per: 0.08, max: 5, cap: 6 };
+    const pct = Math.round(I.per * 100);
+    return [
+      { p: 'firedup', t: "Chaos is open. This is the hard mode — and it's how a family name gets carved into the big medals." },
+      { p: 'clipboard', t: "Seventeen dials, one per stat. Every point makes the world better at that stat, and the whole league jumps the second you turn one on. You've got room for " + I.cap + " points." },
+      { p: 'tip', t: "Here's the pay. Every point is +" + pct + "% Legacy XP, up to " + I.max + " times. And your PP gets multiplied — three times on the first point, more for every one after." + (I.total > 0 ? " Right now: ×" + I.pp.toFixed(1) + " PP, ×" + I.xp.toFixed(2) + " Legacy XP." : '') },
+      { p: 'stop', t: "The catch. Flame out early and you keep only part of the PP. And the little leagues aren't a free pass anymore — a bad year can end it." },
+      { p: 'point', t: "Start with a few points, not the max. Win a title at FULL chaos and they give you more room. Now go get hit." },
+    ];
+  }
+  const CHAOS_STOPS = [
+    { id: 'chaosLocked', title: 'CHAOS', sub: 'THE LOCKED DOOR', solo: true, when: () => onDynasty() && !(chaosInfo() || {}).open, lines: [
+      { p: 'clipboard', t: "Rings and Chaos. A UFF title leaves you a ring. Spend rings down there on Stat Mastery." },
+      { p: 'tip', t: "Chaos is locked. Win a UFF title with a guy who peaked at 85 or better, with 20 season objectives done across your careers. Then the door opens." },
+      { p: 'armscrossed', t: "When it does, you turn the whole world up. Every team gets nastier — and your PP and your Legacy XP grow a whole lot faster. HOW TO PLAY has the numbers." },
+    ] },
+    { id: 'chaosOpen', title: 'CHAOS', sub: 'THE DIAL', solo: true, when: () => onDynasty() && !!(chaosInfo() || {}).open, build: chaosOpenLines },
+  ];
+  const chaosDue = () => { if (!onDynasty()) return null; const said = chaosSaid(); for (const S0 of CHAOS_STOPS) { try { if (!said[S0.id] && S0.when()) return S0; } catch (e) { /* mid-render */ } } return null; };
 
   // ---- state ----------------------------------------------------------------------------------
   const st = { open: false, stop: null, li: 0, lines: null, typing: false, auto: true, timer: 0, mouth: 0, raf: 0, spot: null, tap: false, flips: 0, text: '', pos: 0, preloaded: false, mood: 'plain', quip: null, lastQuip: false, quips: 0, quipTimer: 0 };
@@ -498,7 +534,7 @@
     const S0 = st.stop, LS = lines(), L = line(), i = stopIndex(S0.id), lastLine = st.li === LS.length - 1;
     // v122: an `every` stop (the season debrief) is not a step of the walk — its crumb and bar are
     // its own, and its SKIP silences that stop rather than the tour
-    const solo = !!S0.every, d122 = solo ? debrief() : null;
+    const solo = !!S0.every || !!S0.solo, d122 = S0.every ? debrief() : null;   // v153 F: a chaos stop is solo too
     q('[data-c-crumb]').textContent = solo ? ((d122 ? 'SEASON ' + d122.season + ' · ' : '') + S0.title) : ((i + 1) + ' / ' + STOPS.length + ' · ' + S0.title);
     q('[data-c-ch]').textContent = S0.title; q('[data-c-sub]').textContent = S0.sub;
     q('[data-c-bar]').style.width = Math.round(100 * (solo ? (st.li + 1) / LS.length : (i + (st.li + 1) / LS.length) / STOPS.length)) + '%';
@@ -537,6 +573,7 @@
     if (st.li < lines().length - 1) { st.li++; show(); return; }
     const S0 = st.stop;
     if (S0.id === 'debrief') { const d = debrief(); try { if (d) window.__DEBRIEF_V122.seen(d.season); } catch (e) {} close('gotit'); return; }
+    if (S0.solo) { chaosMark(S0.id); close('gotit'); return; }   // v153 F
     markSeen(S0.id);
     if (S0.last) { finish('done'); return; }
     close('gotit');
@@ -547,7 +584,7 @@
   // ---- open / close -------------------------------------------------------------------------------------------
   function open(stopId, opts) {
     if (document.getElementById(ID)) return true;
-    const S0 = STOPS.find((x) => x.id === stopId); if (!S0) return false;
+    const S0 = STOPS.find((x) => x.id === stopId) || CHAOS_STOPS.find((x) => x.id === stopId); if (!S0) return false;   // v153 F: or a chaos stop
     const root = document.createElement('div');
     root.id = ID; root.className = 'rib-coach'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.setAttribute('aria-label', 'The coach'); root.tabIndex = -1;
     root.innerHTML = markup();
@@ -572,6 +609,7 @@
   function finish(why) {
     // v122: SKIP on the season debrief silences the DEBRIEF — the tour's own switch is not his to flip
     if (st.stop && st.stop.id === 'debrief') { const d = debrief(); store.set(DEBRIEF_OFF, 'off'); try { if (d) window.__DEBRIEF_V122.seen(d.season); } catch (e) {} close(why || 'skip'); return; }
+    if (st.stop && st.stop.solo) { chaosMark(st.stop.id); close(why || 'skip'); return; }   // v153 F: a chaos stop is said once; the tour's switch is not his to flip
     setEnabled(false); close(why || 'done');   // the walk is over, or skipped: the switch goes OFF and remembers
   }
 
@@ -620,6 +658,9 @@
     if (menu && armed && !queryDone && /[?&]coachTour\b/.test(location.search)) { queryDone = true; armed = false; resetSeen(); setEnabled(true); open('menu', { by: 'query' }); return; }
     if (menu && armed && sawOnboard && !welcomed && onboardClicks >= 3 && enabled()) {   // the cards clicked through (a fresh install is ON): the coach takes over
       welcomed = true; armed = false; resetSeen(); setEnabled(true); setTimeout(() => { if (!st.open && document.getElementById('rib-main-menu-v2')) open('menu', { by: 'welcome' }); }, 500); return; }
+    { const ch = chaosDue();   // v153 F: the Chaos screen gets its say once, tour on or off
+      if (ch) { if (pendingId !== ch.id && !st.open) { clearTimeout(pending); pendingId = ch.id;
+        pending = setTimeout(() => { pending = 0; pendingId = null; const again = chaosDue(); if (!st.open && again && again.id === ch.id) open(ch.id, { by: 'chaos' }); }, 700); } return; } }
     if (state() !== 'on') {   // v122: the tour is off, but a season debrief is its own thing and still comes round
       const d = debriefDue(); if (!d || st.open) return;
       const S0 = STOPS.find((x) => x.id === 'debrief'); let fits = false; try { fits = S0.when(ctx()); } catch (e) {}
@@ -659,6 +700,7 @@
     stops: STOPS.map((S0) => ({ id: S0.id, title: S0.title, lines: (S0.lines || (S0.id === 'debrief' && debriefLinesV122()) || []).length })), poses: POSES.slice(), estimateMs, key: KEY, seenKey: SEEN_KEY,
     debrief: { get: debrief, due: debriefDue, lines: debriefLinesV122, get off() { return debriefOff(); }, setOff: (v) => store.set(DEBRIEF_OFF, v ? 'off' : 'on'), key: DEBRIEF_OFF },
     voice: { setEnabled: setVoice, get enabled() { return voiceOn(); }, get blips() { return voice.blips; }, get state() { return voice.ctx ? voice.ctx.state : null; }, get mouthLog() { return voice.mouthLog.slice(); }, key: VOICE_KEY, get moods() { return { ...voice.moods }; } },
+    chaos: { stops: CHAOS_STOPS.map((S0) => ({ id: S0.id, title: S0.title, lines: (S0.lines || chaosOpenLines()).map((L) => L.t) })), said: chaosSaid, due: () => { const c = chaosDue(); return c ? c.id : null; }, lines: chaosOpenLines, key: CHAOS_KEY },   // v153 F
     get mood() { return st.mood; }, moodOf, quips: QUIPS.slice(), quip: (t) => quip(t || true), get quipsThisStop() { return st.quips; }, get lastQuipText() { return st.quip; },
   };
 })();

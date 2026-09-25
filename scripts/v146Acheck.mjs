@@ -160,11 +160,15 @@ await page.evaluate(() => {
     if (pre) {
       W.tackles++; if (e.sack) W.sacks++
       W.maxD = Math.max(W.maxD, Math.round(pre.d * 10) / 10); if (pre.d > window.TU('contactPxV146', 9) + 3) { W.farDrawn++; if (W.rows.length < 6) W.rows.push({ d: Math.round(pre.d), sack: !!e.sack, why: e.v146 && e.v146.why }) }
-      const t0 = performance.now(); let cDown = false, kDown = false
+      // the watch runs for 1.4s of wall time AND ~90 rendered frames: the folds are delayedCalls on
+      // the scene clock, which steps a frame at a time, so a main-thread stall right after the hit
+      // (a loaded machine) must not end the watch before the scene has played the wrap beat (v153 A)
+      const t0 = performance.now(); let cDown = false, kDown = false, frames = 0
       const tick = () => {
         if (GROUND.test(String(pre.m.forceState || '')) || pre.m._flyV112) cDown = true
         if (GROUND.test(String(pre.tk.forceState || ''))) kDown = true
-        if (performance.now() - t0 < 1400 && !(cDown && kDown && !pre.stick)) return requestAnimationFrame(tick)
+        const wall = performance.now() - t0; frames++
+        if ((wall < 1400 || (frames < 90 && wall < 10000)) && !(cDown && kDown && !pre.stick)) return requestAnimationFrame(tick)
         if (pre.slide) return
         if (pre.stick) { W.stickChecked++; if (kDown) W.stickTkDown++ }
         else { W.plainChecked++; if (cDown && kDown) W.plainBothDown++; else if (cDown && !kDown) W.plainTkUp++ }

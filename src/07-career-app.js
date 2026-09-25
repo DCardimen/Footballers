@@ -812,6 +812,7 @@
       c?.id === "walk-on" && (t.perf || 50) > n.weeklyPerf && (e.coachTrust = clamp((e.coachTrust || 50) + 2, 0, 100)),
       n.history.unshift({ week: t.week || 0, playerPerf: t.perf || 50, rivalPerf: n.weeklyPerf, swing: Math.round(h) }),
       (n.history = n.history.slice(0, 8)));
+    snapSplitV153A(e); /* v153 A: the position's snaps add up to 100% (hoisted; the kill switch lives inside) */
     const m = e.snapShare >= 0.66 && n.snapShare <= 0.3 && (t.perf || 0) >= n.weeklyPerf;
     return (
       m && !n.defeated && ((n.defeated = !0), (e.rivalsDefeatedV11 = (e.rivalsDefeatedV11 || 0) + 1)),
@@ -4819,7 +4820,7 @@
       discipline: {
         name: "Discipline",
         desc: "Avoid penalties & mental errors",
-        icon: "🎖️",
+        icon: "🧘",
         metric: {
           label: "Penalties/season",
           better: "low",
@@ -5506,14 +5507,22 @@
           max: 8
         },
         { key: "frame", name: "Big Frame", icon: "🏋️", desc: "+7 starting Strength.", cost: 5, mult: 1.4, max: 8 },
-        { key: "iron", name: "Iron Body", icon: "🦾", desc: "+7 starting Durability.", cost: 4, mult: 1.38, max: 8 },
+        {
+          key: "iron",
+          name: "Iron Body",
+          icon: "🦾",
+          desc: "+2 starting Durability (v153 B: was +7 — injuries stay on his mind).",
+          cost: 4,
+          mult: 1.38,
+          max: 8
+        },
         { key: "nimble", name: "Loose Hips", icon: "🌀", desc: "+6 starting Agility.", cost: 5, mult: 1.4, max: 8 },
         { key: "lungs", name: "Big Lungs", icon: "🫁", desc: "+7 starting Stamina.", cost: 4, mult: 1.38, max: 8 },
         {
           key: "motor",
           name: "High Motor",
           icon: "⚙️",
-          desc: "Injuries hurt less; +4 Stamina.",
+          desc: "Injuries a shade rarer (half a percent a level); +4 Stamina.",
           cost: 7,
           mult: 1.5,
           max: 6,
@@ -5593,7 +5602,7 @@
           key: "recovery",
           name: "Rapid Recovery",
           icon: "🧊",
-          desc: "Injuries 6% rarer per level.",
+          desc: "Injuries 2% rarer per level (v153 B: was 6%).",
           cost: 7,
           mult: 1.5,
           max: 6,
@@ -5709,7 +5718,7 @@
         {
           key: "vet",
           name: "Veteran Presence",
-          icon: "🎖️",
+          icon: "🧓",
           desc: "+2 upgrade points per season.",
           cost: 14,
           mult: 1.7,
@@ -5829,7 +5838,7 @@
           key: "medic",
           name: "Team Medical Staff",
           icon: "⚕️",
-          desc: "Season-ending injuries 20% less likely.",
+          desc: "In-season injuries 1.5% less likely per level (v153 B: was 5%).",
           cost: 8,
           mult: 1.5,
           max: 6
@@ -5838,7 +5847,7 @@
           key: "goodProgram",
           name: "Winning Culture",
           icon: "🏆",
-          desc: "Your teams are stronger — half a percent of team quality per level, up to +3% (win more games).",
+          desc: "Your teams are a little stronger — a quarter percent of team quality per level, up to +1.5%. Decisions build the rest.",
           cost: 9,
           mult: 1.5,
           max: 6
@@ -5895,7 +5904,7 @@
           key: "dynastyTeam",
           name: "Dynasty Program",
           icon: "🏰",
-          desc: "Recruited by championship teams — +4% team quality per 5 levels & you carry them further.",
+          desc: "Recruited by championship teams — +2% team quality per 5 levels & you carry them further.",
           cost: 18,
           mult: 1.75,
           max: 4,
@@ -5925,7 +5934,7 @@
           key: "unstoppable",
           name: "Unstoppable",
           icon: "🚂",
-          desc: "+2 seasons allowed AND injuries 15% rarer.",
+          desc: "+2 seasons allowed AND injuries 4.5% rarer per level.",
           cost: 38,
           mult: 2.2,
           max: 2,
@@ -5946,7 +5955,7 @@
           key: "boosters",
           name: "Booster Club",
           icon: "📣",
-          desc: "+2% team quality per 5 levels — the whole program lifts.",
+          desc: "+1% team quality per 5 levels — the whole program lifts.",
           cost: 8,
           mult: 1.5,
           max: 6,
@@ -6176,7 +6185,7 @@
           key: "ligaments",
           name: "Steel Ligaments",
           icon: "🦿",
-          desc: "Injuries 8% rarer per level.",
+          desc: "Injuries 2.4% rarer per level (v153 B: was 8%).",
           cost: 9,
           mult: 1.55,
           max: 5,
@@ -6187,7 +6196,7 @@
           key: "boneDensity",
           name: "Bone Density",
           icon: "🦴",
-          desc: "+4 starting Durability & Strength.",
+          desc: "+2 starting Strength a level; Durability +0.6 a level (rounded).",
           cost: 6,
           mult: 1.45,
           max: 8,
@@ -6361,7 +6370,7 @@
           key: "crowdFavorite",
           name: "Crowd Favorite",
           icon: "📢",
-          desc: "+3% team quality per 10 levels — the stadium lifts them.",
+          desc: "+1.5% team quality per 10 levels — the stadium lifts them.",
           cost: 9,
           mult: 1.55,
           max: 6,
@@ -6461,7 +6470,7 @@
           key: "etAegis",
           name: "Eternal Aegis",
           icon: "🌗",
-          desc: "Injuries 2% rarer. FOREVER repeatable (soft cap 85%).",
+          desc: "Injuries 0.6% rarer. FOREVER repeatable — but the whole tree never takes more than 25% off the injury roll.",
           cost: 12,
           mult: 1.22,
           max: 999,
@@ -6518,7 +6527,7 @@
           key: "trainerRoom",
           name: "Trainer's Room",
           icon: "🏥",
-          desc: "Once per career, a season-ending injury is downgraded to three games out.",
+          desc: "Once per career, a season-ending injury is downgraded to six games out.",
           cost: 90,
           mult: 1,
           max: 1,
@@ -6653,7 +6662,7 @@
           key: "gmEye",
           name: "GM's Eye",
           icon: "🔍",
-          desc: "Half a percent of team quality per level — front office finds talent.",
+          desc: "A quarter percent of team quality per level — front office finds talent.",
           cost: 8,
           mult: 1.5,
           max: 6,
@@ -6663,7 +6672,7 @@
           key: "oline_wall",
           name: "The Wall",
           icon: "🧱",
-          desc: "Your line protects: injuries 5% rarer, +1 perf.",
+          desc: "Your line protects: injuries 1.5% rarer, +1 perf.",
           cost: 10,
           mult: 1.6,
           max: 5,
@@ -6685,7 +6694,7 @@
           key: "homeField",
           name: "Fortress Home Field",
           icon: "🏰",
-          desc: "+2% team quality per 5 levels & +2 playoff performance.",
+          desc: "+1% team quality per 5 levels & +2 playoff performance.",
           cost: 14,
           mult: 1.65,
           max: 5,
@@ -6707,7 +6716,7 @@
           key: "juggernautTeam",
           name: "Superteam",
           icon: "💫",
-          desc: "+7% team quality per 10 levels — a loaded roster every year.",
+          desc: "+3.5% team quality per 10 levels — a loaded roster every year.",
           cost: 24,
           mult: 1.9,
           max: 4,
@@ -7023,7 +7032,7 @@
       color: "#4a90c9",
       tag: "Unbreakable",
       cheapBranch: "body",
-      desc: "Nearly injury-proof (−70% injury), +2 season attempts at every level, and durability never limits you. Longevity wins championships. Body branch 25% cheaper.",
+      desc: "Tougher than most (−21% injury — nobody is injury-proof), +2 season attempts at every level, and durability never limits you. Longevity wins championships. Body branch 25% cheaper.",
       injuryMult: 0.3,
       extraSeasons: 2,
       growthMult: 1.08,
@@ -7150,7 +7159,7 @@
         key: "fastHeal",
         name: "Miracle Hands",
         icon: "🩺",
-        desc: "An injury that keeps him out 2+ games heals 25% faster per level (rounded, never under 1 game). Season-enders are untouched.",
+        desc: "An injury that keeps him out 2+ games heals 7.5% faster per level (rounded, never under 1 game). Season-enders are untouched.",
         cost: 5e5,
         mult: 2,
         max: 2,
@@ -7243,7 +7252,12 @@
       g = gearV147("injDur");
     return (!l && !g) || !(w > 1)
       ? w
-      : Math.max(1, Math.round(w * Math.max(0, 1 - l * TU("fastHealStepV146", 0.25)) * (1 - g)));
+      : Math.max(
+          1,
+          Math.round(
+            w * Math.max(0, 1 - l * TU("fastHealStepV146", 0.25) * injNodeKV153B()) * (1 - g * injGearKV153B())
+          )
+        ); /* v153 B */
   } /* v147 C: gear shortens it too */
   function repsV146() {
     return nodeLvl("megaReps") * TU("megaRepsPtsV146", 4);
@@ -7318,8 +7332,11 @@
    * the currency you spend — but every place that used to draw a ★ for it now draws a medal and
    * says Honors, and the ★ means the recruit rating and only that. The node requirement key is
    * `honors` too, with the old `stars` still read so a save or a patch layer written against it
-   * keeps working. `window.__V130`; `honorcheck.mjs` is the gate. ===== */
-  const HONOR_ICON_V130 = "🎖️";
+   * keeps working. `window.__V130`; `honorcheck.mjs` is the gate.
+   * v153 F: the mark was a medal (🎖️) and v152 A's Legacy Rank is 500 medals, so the account had two
+   * kinds of "medal" meaning unrelated things. Honors wear the crest (⚜️) now, and every medal on
+   * screen is a Legacy medal. `v153Fcheck`. ===== */
+  const HONOR_ICON_V130 = "\u269C\uFE0F";
   const honorsV130 = () => Math.max(0, Math.round((typeof state < "u" && state && state.prestige) || 0));
   const honorTagV130 = n => HONOR_ICON_V130 + Math.round(n || 0);
   const honorReqV130 = req =>
@@ -7758,7 +7775,7 @@
       );
     if (eff.inj)
       out.push(
-        `injury risk <b style="color:${eff.inj > 0 ? "#ff9b93" : "#9fe6b0"}">×${(1 + eff.inj * 3).toFixed(2)}</b> all season`
+        `injury risk <b style="color:${eff.inj > 0 ? "#ff9b93" : "#9fe6b0"}">${eff.inj >= 0 ? "+" : "−"}${Math.abs(Math.round(eff.inj * 300))}%</b> all season`   /* v92: a percent, never a decimal */
       );
     if (eff.awareGainBase) out.push(`<b style="color:#9fe6b0">+${g("awareGainBase")}</b> Awareness at season’s end`);
     if (eff.gritGainBase) out.push(`<b style="color:#9fe6b0">+${g("gritGainBase")}</b> Grit at season’s end`);
@@ -8130,7 +8147,7 @@
     ironFrame: { name: "Iron Frame", icon: "🦾", good: 1, desc: "Injury chance −30%" },
     bornLeader: {
       name: "Born Leader",
-      icon: "🎖️",
+      icon: "🦁",
       good: 1,
       desc: "Teammates rally around you — team plays +6% better"
     },
@@ -8505,7 +8522,7 @@
       path: null,
       pathResets: 0,
       rerollV112: null,
-      settings: { skipOpp: !1, onlyInvolved: !1, fastSim: !1, sound: !0, haptics: !0 },
+      settings: { skipOpp: !1, onlyInvolved: !0, playsDefaultV153B: 1, fastSim: !1, sound: !0, haptics: !0 },
       tutorialSeen: !1,
       highScore: 0,
       highStreak: 0,
@@ -8514,6 +8531,7 @@
     };
   }
   function settingOn(e) {
+    if (e === "onlyInvolved") playsDefaultV153B(); /* v153 B: on by default, once, for every save */
     if (e === "onlyInvolved" && !playsOnlyOkV151A()) return !1; /* v151 A: unlocked by the first finished career */
     return (state.settings && state.settings[e]) || !1;
   }
@@ -8909,6 +8927,7 @@
     return (state.bestLevel || 0) >= lv || !!(state.player && (state.player.level || 0) >= lv);
   }
   function playsOnlyOkV151A() {
+    if (TU("v153Bplays", 1)) return !0; /* v153 B: My Plays Only is free — the owner's call; no gate, no price */
     return !gateOnV151A("playsOnlyGateV151A") || careerDoneV151A();
   }
   function gate4V151A() {
@@ -9214,7 +9233,14 @@
       ((state.chaos[e] = s),
         saveGame(),
         screenDynasty(),
-        s > a && showToast("🔥 Chaos +1 — enemies stronger, PP +" + Math.round((chaosPPMult() - 1) * 100) + "%"));
+        s > a &&
+          showToast(
+            "🔥 Chaos +1 — enemies stronger · PP ×" +
+              Math.round(chaosPPMult()) +
+              " · Legacy XP +" +
+              Math.round((legacyDiffV152() - 1) * 100) +
+              "%"
+          ));
     }
   }
   function chaosMaxAll() {
@@ -9234,6 +9260,27 @@
       saveGame(),
       screenDynasty());
   }
+  /* ===== v153 F CHAOS PAYS THE RANK =====
+   * The Chaos card says what the risk buys, in the two numbers that outlive the career: the PP multiplier
+   * (chaosPPMult — ×3 the moment one point is on, ×1.16 per point after; a career that flames out early
+   * banks only part of it, chaosEarnedMult) and the Legacy XP multiplier (legacyDiffV152 — +8% per point,
+   * up to ×5). `window.__V153F`; `v153Fcheck`. */
+  function chaosRewardNoteV153F() {
+    const t = chaosTotal(),
+      on = TU("v153F", 1),
+      per = on ? TU("legacyDiffPerChaosV153F", 0.08) : TU("legacyDiffPerChaosV152", 0.03),
+      cap = on ? TU("legacyDiffCapV153F", 5) : TU("legacyDiffCapV152", 3);
+    return `<div class="threshold-note chaos-reward-v153" style="margin-top:4px;color:#f3d98a">💰 <b>What it pays:</b> every chaos point is <b>+${Math.round(per * 100)}% Legacy XP</b> on every season and career end (up to <b>×${cap}</b>), and it multiplies every PP you earn${t ? ` — right now <b>×${chaosPPMult().toFixed(1)} PP</b> and <b>×${legacyDiffV152().toFixed(2)} Legacy XP</b>` : ""}. A career that flames out early under chaos banks only part of the PP.</div>`;
+  }
+  window.__V153F = {
+    legacyMult: () => legacyDiffV152(),
+    ppMult: () => chaosPPMult(),
+    earned: lv => chaosEarnedMult(lv),
+    total: () => chaosTotal(),
+    per: () => (TU("v153F", 1) ? TU("legacyDiffPerChaosV153F", 0.08) : TU("legacyDiffPerChaosV152", 0.03)),
+    cap: () => (TU("v153F", 1) ? TU("legacyDiffCapV153F", 5) : TU("legacyDiffCapV152", 3)),
+    note: () => chaosRewardNoteV153F()
+  };
   function screenDynasty() {
     const e = !!state.chaosUnlocked,
       t = chaosTotal(),
@@ -9267,9 +9314,11 @@
           ? `
       <div class="chaos-summary">
         <div class="cs-box"><div class="n">${t}<span style="font-size:12px;color:var(--chalk-dim)">/${chaosCap()}</span></div><div class="l">Chaos / Capacity</div></div>
-        <div class="cs-box"><div class="n" style="color:var(--gold)">+${Math.round((a - 1) * 100)}%</div><div class="l">All PP Gains</div></div>
+        <div class="cs-box"><div class="n" style="color:var(--gold)">×${Math.round(a)}</div><div class="l">PP Gains</div></div>
+        <div class="cs-box chaos-lxp-v153"><div class="n" style="color:#e8c86a">+${Math.round((legacyDiffV152() - 1) * 100)}%</div><div class="l">Legacy XP</div></div>
         <div class="cs-box"><div class="n" style="color:#57e07a">${attrCap()}</div><div class="l">Stat Cap</div></div>
       </div>
+      ${chaosRewardNoteV153F()}
       <div class="threshold-note" style="margin-top:4px;color:#ff9b93">⛓️ <b>Chaos Clearance:</b> win a championship at <b>FULL capacity</b> to raise it (+6 UFF · +10 Interstellar). Depth must be earned — flaming out early under chaos pays only a fraction.</div>
       <div class="small" style="margin:6px 0 10px;color:var(--chalk-dim)">Every chaos level also raises your <b>potential ceiling</b> — the harder the world, the higher you can climb.</div>
       ${ATTR_KEYS.map(n => {
@@ -9914,7 +9963,7 @@
       (t.quickness = clamp99(t.quickness + nodeLvl("fastTwitch") * 6 + nodeLvl("explosive") * 8, 1, n)),
       (t.agility = clamp99(t.agility + nodeLvl("nimble") * 6 + nodeLvl("explosive") * 8, 1, n)),
       (t.strength = clamp99(t.strength + nodeLvl("frame") * 7 + nodeLvl("campStr") * 4, 1, n)),
-      (t.injuryResist = clamp99(t.injuryResist + nodeLvl("iron") * 7, 1, n + 20)),
+      (t.injuryResist = clamp99(t.injuryResist + nodeLvl("iron") * ironStepV153B(), 1, n + 20)),
       (t.stamina = clamp99(t.stamina + nodeLvl("motor") * 4 + nodeLvl("lungs") * 7, 1, n + 15)),
       (t.awareness = clamp99(
         t.awareness + nodeLvl("filmrat") * 7 + nodeLvl("genius") * 14 + nodeLvl("campIQ") * 4,
@@ -9986,7 +10035,8 @@
       y = treeFx("startAll");
     if (
       (ATTR_KEYS.forEach(v => {
-        const j = y + treeFx("start_" + v);
+        const j =
+          y + (v === "injuryResist" ? Math.round(treeFx("start_" + v) * injNodeKV153B()) : treeFx("start_" + v));
         j > 0 && (m.attrs[v] = clamp99(m.attrs[v] + j, 1, attrCap()));
       }),
       treeFx("trait3") > 0)
@@ -10527,7 +10577,9 @@
     if (hasTrait(e, "ironFrame")) m *= 0.7;
     if (hasTrait(e, "glassBones")) m *= 1.35;
     m *=
-      Math.max(0.15, 1 - treeFx("injDown") - gearFx("injDown") - gearV147("injChance")) * (seasonModFx("injMult") || 1);
+      Math.max(0.15, 1 - injTreeDownV153B() - injGearDownV153B()) *
+      (seasonModFx("injMult") || 1) *
+      riskInjMulV153B(e); /* v153 B */
     /* v120: asking the coach for more snaps than he trusts you with is a term in THIS roll too — the
      * forecast passes it; a game-day caller with just the week gets it read off the week's dial */
     let askK = 1;
@@ -12203,8 +12255,8 @@
         O = __aiSeasonGame(e, { perfSeed: i, oppBoost: R === _rwV128 ? TU("rivalOppBoost", 0.38) : 0 });
         if (_vmV128 !== 1) O.perf = clamp99(Math.round(50 + (O.perf - 50) * _vmV128), 1, 100);
         if (R === _rwV128) O.rivalV128 = !0;
-        const Pe = (1 - nodeLvl("medic") * 0.05 - nodeLvl("unstoppable") * 0.15) * pathVal("injuryMult", 1),
-          Ae = 1 - nodeLvl("motor") * 0.015;
+        const Pe = injNodeMulV153B(),
+          Ae = injMotorMulV153B();
         O.injured &&
           (O.injured =
             Math.random() < injPlanMultV54(a) * r * Math.max(0.1, Pe) * Ae * (O.rivalV128 ? RIVAL_MULT_V128() : 1));
@@ -12422,7 +12474,7 @@
             ? Te.push({ icon: "⭐", name: Ba ? "All-American" : "All-Conference" })
             : U >= 72
               ? Te.push({ icon: "✅", name: "All-District" })
-              : U >= 64 && Te.push({ icon: "🎖️", name: "Team Captain" }),
+              : U >= 64 && Te.push({ icon: "📣", name: "Team Captain" }),
       m >= 3
         ? Te.push({ icon: "🔥", name: `${m}× Player of the Week` })
         : c >= 95 && Te.push({ icon: "💥", name: "Game of the Week" }),
@@ -13208,7 +13260,7 @@
     <div class="card">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:10px">🎮 LIVE GAME</div>
       ${toggleRow("skipOpp", "Skip opponent drives", "Only watch plays while your team has the ball")}
-      ${toggleRow("onlyInvolved", "My plays only", "Jump straight to plays you're personally involved in")}
+      ${toggleRow("onlyInvolved", "My plays only", TU("v153Bplays", 1) ? "Watch your side of the ball — offense if you play offense, defense if you play defense (special teams only when you are in them). Off shows every snap." : "Jump straight to plays you're personally involved in")}
       ${toggleRow("fastSim", "Faster live sim", "Speed up the default play animation")}
       ${toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices")}
     </div>
@@ -14366,6 +14418,35 @@
    * hands it everything the new menu draws: the player, the season so far, the
    * objectives with their live checks, the team's custom identity and colors, and
    * the legacy totals — from the state, in one call. Returns null with no state. */
+  /* ===== v153 D THE GOAL ON THE WALL (the feed) =====
+   * Which championship the account has won, for the main menu's goal trophy: the UFF until one is won, then the
+   * Interstellar League. Read from the lifetime record, never from `state.rings` alone (rings are SPENT on mastery):
+   * the champion rows of the season log (this career) and of every Hall box, the Hall rows' rings, the position
+   * mastery's ring flag, and a player already in the Interstellar League (it only calls UFF champions). */
+  function menuGoalV153D() {
+    let uff = 0,
+      isl = 0;
+    const count = rows =>
+      (rows || []).forEach(r => {
+        if (!r || !r.champion) return;
+        if ((r.level | 0) >= 8) isl++;
+        else if ((r.level | 0) === 7) uff++;
+      });
+    try {
+      const e = state && state.player;
+      count(e && e.seasonLogV77);
+      ((state && state.hof) || []).forEach(h => {
+        if (!h) return;
+        count(h.box && h.box.log);
+        if ((h.rings | 0) > 0) uff = Math.max(uff, 1);
+      });
+      if (e && ((e.nflRings | 0) > 0 || (e.level | 0) >= 8)) uff = Math.max(uff, 1);
+      if (state && state.rings > 0) uff = Math.max(uff, 1);
+      Object.values((state && state.posMastery) || {}).forEach(m => m && m.ring && (uff = Math.max(uff, 1)));
+      if (isl) uff = Math.max(uff, 1);
+    } catch (_) {}
+    return { uff, isl, stage: isl ? "done" : uff ? "isl" : "uff" };
+  }
   window.__RIB_MENU_DATA_V89 = function () {
     try {
       const e = state && state.player;
@@ -14385,6 +14466,7 @@
         bestLevel: state && LEVELS[state.bestLevel || 0] ? LEVELS[state.bestLevel || 0].name : "",
         titles: (state && state.titlesWon) || 0,
         rings: (state && state.rings) || 0,
+        goal: menuGoalV153D() /* v153 D: the trophy the milestones card holds up */,
         recordOvr: (state && state.recordOvr) || 0,
         highScore: (state && state.highScore) || 0,
         lineage: (function () {
@@ -15362,7 +15444,11 @@
      * is carried by the four play-level levers below, which act on the game rather than
      * on the team sheet. ===== */
     const C = clamp99(
-        0.42 + t * 0.35 + _prF * 1.05 + clubQV146B(state.player) /* v146 B: the club he signed with */,
+        0.42 +
+          t * 0.35 +
+          teamPrestigeQV153B(_prF) +
+          teamDecisionQV153B(state.player) +
+          clubQV146B(state.player) /* v146 B: the club he signed with · v153 B: prestige halved, decisions added */,
         0.3,
         1.65
       ),
@@ -18930,7 +19016,11 @@
       if (wk && wk.opp && typeof __oppMulForV22 === "function") oppMul = __oppMulForV22(wk.opp);
     } catch (_e) {}
     const C = clamp99(
-        0.42 + t * 0.35 + prF * 1.05 + (opts.clubQ != null ? opts.clubQ : clubQV146B(e)) /* v146 B */,
+        0.42 +
+          t * 0.35 +
+          teamPrestigeQV153B(prF) +
+          teamDecisionQV153B(e) +
+          (opts.clubQ != null ? opts.clubQ : clubQV146B(e)) /* v146 B · v153 B */,
         0.3,
         1.65
       ),
@@ -18968,6 +19058,7 @@
           treeFx("teamQual") +
           gearV147("teamQual")
       ) *
+        teamNodeKV153B() /* v153 B: the tree's share of the team is halved */ *
         TU("teamQualK", 0.1) *
         40 +
       (hasTrait(e, "bornLeader") ? 2.4 : 0);
@@ -19003,8 +19094,8 @@
     for (let r = 0; r < t.games; r++) {
       const isR = r === riv,
         l = __aiSeasonGame(e, { perfSeed: s, oppBoost: isR ? TU("rivalOppBoost", 0.38) : 0 }),
-        d = (1 - nodeLvl("medic") * 0.05 - nodeLvl("unstoppable") * 0.15) * pathVal("injuryMult", 1),
-        c = 1 - nodeLvl("motor") * 0.015;
+        d = injNodeMulV153B(),
+        c = injMotorMulV153B();
       if (vm !== 1) l.perf = clamp99(Math.round(50 + (l.perf - 50) * vm), 1, 100);
       l.injured &&
         (l.injured = Math.random() < injPlanMultV54(a) * Math.max(0.1, d) * c * (isR ? RIVAL_MULT_V128() : 1));
@@ -19578,8 +19669,15 @@
     for (let i = 1; i < r; i++) x += legacyReqV152(i);
     return x;
   }
+  /* v153 F: Chaos is the game's hard mode, and the rank now says so — +8% Legacy XP per chaos point, up
+   * to ×5 (was +3% to ×3: a full first capacity of 6 paid ×1.18, too little to notice). TU("v153F", 0)
+   * restores the old .03 / ×3. The Chaos screen and the XP card quote this function. */
   function legacyDiffV152() {
-    return Math.min(TU("legacyDiffCapV152", 3), 1 + chaosTotal() * TU("legacyDiffPerChaosV152", 0.03));
+    const on = TU("v153F", 1);
+    return Math.min(
+      on ? TU("legacyDiffCapV153F", 5) : TU("legacyDiffCapV152", 3),
+      1 + chaosTotal() * (on ? TU("legacyDiffPerChaosV153F", 0.08) : TU("legacyDiffPerChaosV152", 0.03))
+    );
   }
   function legacyBountyV152(m) {
     const k = m >= 500 && m % 500 === 0 ? 10 : m % 50 === 0 ? 3 : 1;
@@ -19600,7 +19698,7 @@
     pl.champion && parts.push([lv >= 7 ? "The ring" : "Championship", base * 3 + (pl.champion ? legacyRingXpV152(lv) : 0)]);
     (pl.roundsWon | 0) > 0 && parts.push(["Playoff wins ×" + (pl.roundsWon | 0), base * 0.5 * (pl.roundsWon | 0)]);
     aw > 0 && parts.push(["Awards ×" + aw, base * aw]);
-    d > 1 && parts.push(["Chaos ×" + d.toFixed(2), 0]);
+    d > 1 && parts.push(["Chaos +" + Math.round((d - 1) * 100) + "% XP", 0]);
     return { gain: Math.round(parts.reduce((a, p) => a + p[1], 0) * d), parts: parts.map(p => [p[0], Math.round(p[1] * d)]) };
   }
   function legacyEndXpV152(e, level, fate) {
@@ -19613,7 +19711,7 @@
         ["Peak OVR " + Math.round(e.peakOvr || playerOvr(e)), Math.max(0, Math.round(e.peakOvr || playerOvr(e)) - 60) * TU("legacyPeakXpV152", 20)]
       ];
     fate === "walked" && parts.push(["Walked away ×" + k, 0]);
-    d > 1 && parts.push(["Chaos ×" + d.toFixed(2), 0]);
+    d > 1 && parts.push(["Chaos +" + Math.round((d - 1) * 100) + "% XP", 0]);
     return { gain: Math.round(parts.reduce((a, p) => a + p[1], 0) * d * k), parts: parts.map(p => [p[0], Math.round(p[1] * d * k)]) };
   }
   /* The one place Legacy XP is added. Records every medal the gain crosses (`got[rank]`, the collection
@@ -19755,8 +19853,8 @@
     const d = playoffRoundNames(e.level),
       c = t === d.length - 1,
       i = __aiSeasonGame(e, { perfSeed: s, playoff: !0, oppBoost: 0.12 + t * 0.11 + (c && e.nemesis ? 0.04 : 0) }),
-      r = (1 - nodeLvl("medic") * 0.05 - nodeLvl("unstoppable") * 0.15) * pathVal("injuryMult", 1),
-      l = 1 - nodeLvl("motor") * 0.015;
+      r = injNodeMulV153B(),
+      l = injMotorMulV153B();
     i.injured && (i.injured = Math.random() < injPlanMultV54(a) * Math.max(0.1, r) * l);
     return (
       (i.opp = c && e.nemesis ? e.nemesis.name + "'s " + randOppName(e.level) : randOppName(e.level)),
@@ -19988,12 +20086,14 @@
     /* v134 Apex: Trainer's Room -- once a career, the season-ender is three games out instead */
     if (inj && inj.seasonEnding && nodeLvl("trainerRoom") > 0 && !e._trainerRoomUsedV134) {
       inj.seasonEnding = !1;
-      inj.weeksRemaining = 3;
+      inj.weeksRemaining = trainerWeeksV153B(); /* v153 B: six, not three */
       inj.severity = Math.min(inj.severity || 2, 2);
       e._trainerRoomUsedV134 = !0;
       wk.trainerRoomV134 = !0;
       try {
-        toast("🏥 TRAINER'S ROOM — " + inj.name + " was a season-ender. He is back in three.");
+        toast(
+          "🏥 TRAINER'S ROOM — " + inj.name + " was a season-ender. He is back in " + inj.weeksRemaining + " games."
+        );
       } catch (x) {}
     }
     /* v146 C: Miracle Hands -- a 2+ game injury is shorter, never under one game; season-enders untouched */
@@ -20545,6 +20645,269 @@
       .map(([l, v]) => `<span><b>${v}</b>${l}</span>`)
       .join("");
   }
+  /* ===== v153 A THE STAT GAIN LANDS =====
+   * A stat he earned on a play used to arrive as a number swapped in a tile with a 400ms flash. Now the
+   * moment is seen: when the live box's running line goes up after a play (`t.stat` — the engine's own
+   * booked line, so nothing here decides WHAT he earned, only how it looks), a callout ("+1 TACKLE",
+   * "+14 RUSH YDS") rises off HIS marker on the broadcast (`__ribYouClientV153A`, 05) and flies into the
+   * tile (or the minor line) that keeps that stat; on arrival the tile counts up from the old number with
+   * a pop, a short blip through the effects bus (`sfxOutV151E` → `RIB_MUSIC.sfxOut`) and a light haptic
+   * (`ribHaptics.impact('LIGHT')`). MILESTONES — a 100-yard game, 300 through the air, double-digit
+   * tackles, a hat trick of scores — and a new CAREER HIGH (his best single game, `gameHighsV153A`, seeded
+   * from this season's booked lines) get the big version: a gold banner, a bigger pop, a rising chord, a
+   * MEDIUM haptic. Presentation only: stat truth is untouched. `TU("statGainV153A", 0)` is the old flash. */
+  const GAIN_V153A = [
+    // key, callout, prio, yards?
+    ["td", "TOUCHDOWN", 10],
+    ["int", "INTERCEPTION", 9],
+    ["pick6", "PICK SIX", 9],
+    ["sack", "SACK", 8],
+    ["ff", "FORCED FUMBLE", 7],
+    ["tfl", "TACKLE FOR LOSS", 6],
+    ["tackle", "TACKLE", 5],
+    ["pd", "PASS DEFENSED", 5],
+    ["pancake", "PANCAKE", 4],
+    ["rush", "RUSH YDS", 3, !0],
+    ["rec", "REC YDS", 3, !0],
+    ["pass", "PASS YDS", 3, !0],
+    ["rec_c", "CATCH", 2]
+  ];
+  function milestonesV153A() {
+    return [
+      ["rush", TU("mileRushV153A", 100), "100-YARD GAME", "rushing"],
+      ["rec", TU("mileRecV153A", 100), "100-YARD GAME", "receiving"],
+      ["pass", TU("milePassV153A", 300), "300-YARD GAME", "passing"],
+      ["tackle", TU("mileTackleV153A", 10), "DOUBLE-DIGIT TACKLES", ""],
+      ["sack", TU("mileSackV153A", 3), "SACK PARTY", ""],
+      ["td", TU("mileTdV153A", 3), "HAT TRICK", ""],
+      ["int", TU("mileIntV153A", 2), "BALL HAWK", ""]
+    ];
+  }
+  function statGainStartV153A(pl) {
+    /* the career-high baseline: his stored single-game bests, raised by every booked line this season */
+    const base = Object.assign({}, (pl && pl.gameHighsV153A) || {});
+    try {
+      ((pl && pl.weekResults) || []).forEach(w => {
+        const s = w && w.played && w.statLine;
+        if (s) GAIN_V153A.forEach(([k]) => (base[k] = Math.max(base[k] || 0, Number(s[k]) || 0)));
+      });
+    } catch (_) {}
+    return { prev: {}, highs: base, fired: {}, seq: 0 };
+  }
+  function statGainCssV153A() {
+    if (document.getElementById("sg153-css")) return;
+    const st = document.createElement("style");
+    st.id = "sg153-css";
+    st.textContent =
+      ".sg153{position:fixed;z-index:190;left:0;top:0;pointer-events:none;font:700 13px Oswald,sans-serif;letter-spacing:1px;color:#fff;background:linear-gradient(180deg,#1d3a26,#0f2216);border:1px solid rgba(120,240,150,.65);border-radius:12px;padding:3px 9px;white-space:nowrap;box-shadow:0 0 14px rgba(87,224,122,.45);transform:translate(-50%,-50%) scale(.4);opacity:0;will-change:transform,opacity}" +
+      ".sg153 b{color:#7dff9d;margin-right:4px}.sg153.big{font-size:17px;color:#1a1204;background:linear-gradient(180deg,#ffe28a,#f0bb45);border-color:#fff3c4;box-shadow:0 0 26px rgba(240,187,69,.8)}.sg153.big b{color:#5a3a00}" +
+      ".sg153.big small{display:block;font:600 10px Barlow Condensed,sans-serif;letter-spacing:1.4px;text-align:center;color:#5a3a00}" +
+      ".sg153-pop{animation:sg153pop .42s cubic-bezier(.2,1.6,.4,1)}.sg153-pop.big{animation:sg153big .7s cubic-bezier(.2,1.6,.4,1)}" +
+      "@keyframes sg153pop{0%{transform:scale(1);text-shadow:none}35%{transform:scale(1.45);color:#7dff9d;text-shadow:0 0 12px #57e07a}100%{transform:scale(1)}}" +
+      "@keyframes sg153big{0%{transform:scale(1)}30%{transform:scale(1.8);color:#ffe28a;text-shadow:0 0 18px #f0bb45}60%{transform:scale(.92)}100%{transform:scale(1)}}";
+    document.head.appendChild(st);
+  }
+  function statGainSfxV153A(big, step) {
+    if (!settingOn("sound")) return;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const a = playSfx.ctx || (playSfx.ctx = new AC()),
+        out = sfxOutV151E(a),
+        now = a.currentTime,
+        notes = big ? [660, 830, 990, 1320] : [880 + Math.min(4, step || 0) * 60];
+      notes.forEach((f, i) => {
+        const o = a.createOscillator(),
+          g = a.createGain(),
+          t0 = now + i * (big ? 0.075 : 0),
+          len = big ? 0.2 : 0.07;
+        o.type = big ? "triangle" : "sine";
+        o.frequency.setValueAtTime(f, t0);
+        o.frequency.exponentialRampToValueAtTime(f * 1.18, t0 + len);
+        g.gain.setValueAtTime(1e-4, t0);
+        g.gain.exponentialRampToValueAtTime(big ? 0.06 : 0.04, t0 + 0.012);
+        g.gain.exponentialRampToValueAtTime(1e-4, t0 + len);
+        o.connect(g);
+        g.connect(out);
+        o.start(t0);
+        o.stop(t0 + len + 0.02);
+      });
+    } catch (_) {}
+  }
+  function statGainBuzzV153A(big) {
+    if (!settingOn("haptics")) return;
+    try {
+      window.ribHaptics && window.ribHaptics.impact(big ? "MEDIUM" : "LIGHT");
+    } catch (_) {}
+  }
+  /* write a tile's number and remember it is the TARGET, so a count-up in flight never fights the next play */
+  function setLiveTileV153A(el, v) {
+    if (!el) return;
+    el.dataset.v153t = String(v);
+    el.textContent = v;
+  }
+  function countUpV153A(el, from, to, ms, big) {
+    if (!el) return;
+    if (el.dataset.v153t != null && el.dataset.v153t !== String(to)) ((to = Number(el.dataset.v153t) || to), (from = to)); /* a newer play already moved it */
+    el.dataset.v153t = String(to);
+    const t0 = performance.now(),
+      yards = Math.abs(to - from) > 1;
+    const step = now => {
+      if (el.dataset.v153t !== String(to)) return; /* a newer number took the tile */
+      const k = Math.min(1, (now - t0) / Math.max(1, ms));
+      el.textContent = yards ? Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3))) : k >= 1 ? to : from;
+      if (k < 1 && yards) requestAnimationFrame(step);
+      else el.textContent = to;
+    };
+    requestAnimationFrame(step);
+    el.classList.remove("sg153-pop", "big");
+    void el.offsetWidth;
+    el.classList.add("sg153-pop");
+    big && el.classList.add("big");
+    setTimeout(() => el.classList.remove("sg153-pop", "big"), big ? 760 : 460);
+  }
+  function statGainPlayV153A(row, G, pl) {
+    G = G || (liveCtl && liveCtl._gainV153A);
+    pl = pl || state.player;
+    const cur = (row && row.stat) || {};
+    if (!G || !pl) return null;
+    const prev = G.prev,
+      tiles = new Set(liveStatCols(pl.pos).map(([k]) => k)),
+      gains = [];
+    GAIN_V153A.forEach(([k, label, prio, yds]) => {
+      const d = (Number(cur[k]) || 0) - (Number(prev[k]) || 0);
+      if (d > 0) gains.push({ k, label, prio, yds: !!yds, d, from: Number(prev[k]) || 0, to: Number(cur[k]) || 0, tile: tiles.has(k) });
+    });
+    /* a catch and its yards are one moment */
+    const rc = gains.find(g => g.k === "rec"),
+      cc = gains.find(g => g.k === "rec_c");
+    if (rc && cc) (gains.splice(gains.indexOf(cc), 1), (rc.label = "REC YDS"), (rc.catch = !0));
+    gains.sort((a, b) => b.prio - a.prio);
+    /* the big ones: a milestone crossed on this play, or a new single-game career best */
+    const bigs = [];
+    milestonesV153A().forEach(([k, at, title, sub]) => {
+      const was = Number(prev[k]) || 0,
+        now = Number(cur[k]) || 0;
+      if (was < at && now >= at && !G.fired["m:" + k]) ((G.fired["m:" + k] = 1), bigs.push({ k, title, sub: sub ? sub.toUpperCase() + " · " + now : String(now) }));
+    });
+    GAIN_V153A.forEach(([k]) => {
+      const now = Number(cur[k]) || 0,
+        hi = Number(G.highs[k]) || 0;
+      if (
+        now > hi &&
+        hi >= TU("careerHighMinV153A", 1) &&
+        !G.fired["h:" + k] &&
+        !bigs.some(b => b.k === k) &&
+        k !== "rec_c"
+      )
+        ((G.fired["h:" + k] = 1), bigs.push({ k, title: "CAREER HIGH", sub: (GAIN_V153A.find(r => r[0] === k)[1] || k.toUpperCase()) + " · " + now }));
+    });
+    /* his stored bests move up as he sets them */
+    const H = pl.gameHighsV153A || (pl.gameHighsV153A = {});
+    GAIN_V153A.forEach(([k]) => {
+      const now = Number(cur[k]) || 0;
+      now > (H[k] || 0) && (H[k] = now);
+    });
+    G.prev = Object.assign({}, cur);
+    return { gains: gains.slice(0, Math.max(1, Math.round(TU("statGainMaxV153A", 3)))), bigs };
+  }
+  function statGainShowV153A(res) {
+    if (!res || (!res.gains.length && !res.bigs.length)) return;
+    statGainCssV153A();
+    const speed = (liveCtl && liveCtl.speed) || 1,
+      rm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      flyMs = Math.round(TU("statGainFlyMsV153A", 620) / Math.sqrt(speed)),
+      field = byId("field"),
+      fr = field ? field.getBoundingClientRect() : null;
+    let src = null;
+    try {
+      src = window.__ribYouClientV153A ? window.__ribYouClientV153A() : null;
+    } catch (_) {}
+    if (!src && fr) src = { x: fr.left + fr.width / 2, y: fr.top + fr.height * 0.45 };
+    const V = (window.__V153A_LIVE = window.__V153A_LIVE || { plays: 0, chips: 0, bigs: 0, sfx: 0, buzz: 0, last: null, log: [] });
+    V.plays++;
+    const all = res.gains.map(g => ({ g })).concat(res.bigs.map(b => ({ b })));
+    all.forEach((it, i) => {
+      const g = it.g,
+        b = it.b,
+        key = g ? g.k : b.k,
+        tgt = byId("ls-" + key) || byId("liveMinorV96") || byId("liveStats"),
+        big = !!b,
+        delay = i * Math.round(TU("statGainStaggerMsV153A", 170) / Math.sqrt(speed));
+      const chip = document.createElement("div");
+      chip.className = "sg153" + (big ? " big" : "");
+      chip.dataset.k = key;
+      chip.innerHTML = big
+        ? `${escHtml(b.title)}<small>${escHtml(b.sub)}</small>`
+        : g.yds
+          ? `<b>+${g.d}</b>${escHtml(g.catch ? "CATCH · " + g.label : g.label)}`
+          : `<b>+${g.d}</b>${escHtml(g.label)}`;
+      V.chips++;
+      big && V.bigs++;
+      V.last = { key, text: chip.textContent, big };
+      V.log.push(V.last);
+      V.log.length > 40 && V.log.shift();
+      let landed = !1;
+      const land = () => {
+        if (landed) return;
+        landed = !0;
+        if (g && g.tile) countUpV153A(tgt, g.from, g.to, Math.round(TU("statGainCountMsV153A", 360) / Math.sqrt(speed)), !1);
+        else if (big && tgt && tgt.id && tgt.id.indexOf("ls-") === 0) {
+          const v = Number(tgt.dataset.v153t != null ? tgt.dataset.v153t : tgt.textContent) || 0;
+          countUpV153A(tgt, v, v, 10, !0);
+        }
+        statGainSfxV153A(big, i);
+        statGainBuzzV153A(big);
+        V.sfx++;
+        V.buzz++;
+      };
+      setTimeout(() => {
+        if (!document.body.contains(tgt || document.body)) return;
+        document.body.appendChild(chip);
+        const tr = tgt ? tgt.getBoundingClientRect() : null,
+          s = big && fr ? { x: fr.left + fr.width / 2, y: fr.top + fr.height * 0.38 } : src || { x: innerWidth / 2, y: innerHeight / 2 },
+          d = tr ? { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 } : s;
+        chip.style.left = s.x + "px";
+        chip.style.top = s.y + "px";
+        if (rm) {
+          chip.style.opacity = "1";
+          chip.style.transform = "translate(-50%,-50%) scale(1)";
+          land();
+          setTimeout(() => chip.remove(), big ? 1100 : 500);
+          return;
+        }
+        const hold = big ? TU("statGainBigHoldMsV153A", 900) / Math.sqrt(speed) : 0;
+        const anim = chip.animate(
+          [
+            { transform: "translate(-50%,-50%) scale(.4)", opacity: 0, offset: 0 },
+            { transform: "translate(-50%,-90%) scale(" + (big ? 1.25 : 1.12) + ")", opacity: 1, offset: big ? 0.12 : 0.22 },
+            { transform: "translate(-50%,-90%) scale(1)", opacity: 1, offset: big ? 0.6 : 0.4 },
+            {
+              transform: `translate(calc(-50% + ${d.x - s.x}px),calc(-50% + ${d.y - s.y}px)) scale(.45)`,
+              opacity: 0.2,
+              offset: 1
+            }
+          ],
+          { duration: flyMs + hold, easing: "cubic-bezier(.3,.1,.3,1)", fill: "forwards" }
+        );
+        anim.onfinish = () => {
+          chip.remove();
+          land();
+        };
+        setTimeout(() => (chip.remove(), land()), flyMs + hold + 400);
+      }, delay);
+    });
+  }
+  /* for checks: read what a play WOULD call out, against a throwaway player (never the save) */
+  window.__V153A_LIVE_API = {
+    gains: GAIN_V153A,
+    milestones: milestonesV153A,
+    probe: (prev, cur, highs, pos) => {
+      const G = { prev: Object.assign({}, prev || {}), highs: Object.assign({}, highs || {}), fired: {}, seq: 0 };
+      return statGainPlayV153A({ stat: cur || {} }, G, { pos: pos || "RB", gameHighsV153A: {} });
+    },
+    show: res => statGainShowV153A(res)
+  };
   function startLivePlayback() {
     (state.player,
       state._liveGame,
@@ -20553,7 +20916,8 @@
         speed: speedClampV150C((liveCtl && liveCtl.speed) || (settingOn("fastSim") ? 2 : 1)) /* v150 C H3 */,
         playing: !0,
         anim: null,
-        t: 0
+        t: 0,
+        _gainV153A: statGainStartV153A(state.player) /* v153 A: the running line and his career bests */
       }),
       fl({}),
       renderLiveBox({}),
@@ -20578,6 +20942,10 @@
       endLive());
   }
   function vl(e) {
+    if (e && TU("v153Bplays", 1) && settingOn("onlyInvolved"))
+      return (
+        playsSkipV153B(e) || !!(settingOn("skipOpp") && e.offense !== "us" && !e.involved)
+      ); /* v153 B: your side of the ball */
     return e
       ? e.header || e.event === "drive"
         ? !!((settingOn("skipOpp") && e.offense !== "us") || settingOn("onlyInvolved"))
@@ -20687,13 +21055,23 @@
         r = byId("themScore");
       (i && (i.textContent = t.usScore),
         r && (r.textContent = t.themScore),
-        liveStatCols(state.player.pos).forEach(([c]) => {
-          const u = byId("ls-" + c);
-          if (!u) return;
-          const h = t.stat[c] || 0;
-          parseInt(u.textContent) !== h &&
-            ((u.textContent = h), u.classList.add("flash"), setTimeout(() => u.classList.remove("flash"), 400));
-        }),
+        (() => {
+          /* v153 A THE STAT GAIN LANDS: a tile his gain is flying into keeps its old number until the
+           * callout lands and counts it up; every other tile is written as before */
+          const on153 = TU("statGainV153A", 1) && liveCtl._gainV153A,
+            res153 = on153 ? statGainPlayV153A(t) : null,
+            flying = new Set(res153 ? res153.gains.filter(g => g.tile).map(g => g.k) : []);
+          liveStatCols(state.player.pos).forEach(([c]) => {
+            const u = byId("ls-" + c);
+            if (!u) return;
+            const h = t.stat[c] || 0,
+              shown = u.dataset.v153t != null ? Number(u.dataset.v153t) : parseInt(u.textContent);
+            if (flying.has(c)) return void (u.dataset.v153t = String(h));
+            shown !== h &&
+              (setLiveTileV153A(u, h), u.classList.add("flash"), setTimeout(() => u.classList.remove("flash"), 400));
+          });
+          res153 && statGainShowV153A(res153);
+        })(),
         flMinorV96(t.stat),
         renderLiveBox(qi(state.player.pos, t.stat, state._liveGame.stat)),
         t.team && ul(t.team, t.oppStat),
@@ -22458,62 +22836,135 @@
     ["BALL SKILLS", ["catching", "throwing", "tackling", "blocking", "ballControl"]],
     ["MENTAL", ["awareness", "vision", "grit", "discipline"]]
   ];
-  window.toggleUpGroupV97 = function (g) {
-    const open = window.__upGroupV97 === g;
-    window.__upGroupV97 = open ? "" : g;
-    document.querySelectorAll(".up-group-v97").forEach(el => {
-      el.classList.toggle("on", !open && el.dataset.g === g);
+  /* ===== v153 E THE SKILL SHEET ON ONE PAGE =====
+   * The v97 sheet was three accordion cards under a two-paragraph header, so on a 400x860 phone the open
+   * group got a 212px window of its own inside the shell (`.fill-v146`) — two and a half rows at a time,
+   * steppers scrolling past under the thumb. Now the header is one line (the title, the points and the
+   * OVR), the pricing paragraph folds behind HOW PRICES WORK, and the three groups are a segmented control:
+   * one group on screen at a time, every row of it visible — the icon, the name, KEY, the stat card's (i),
+   * the live metric, the soft-cap readout (v67's words, unchanged) over a bar that fills to the soft cap and
+   * turns gold past it, and 40px steppers. Every group's rows stay in the DOM (hidden), so `alloc`,
+   * `refreshAllocButtons` and every check that reads `.up-cap` / `.uv` see all seventeen. Layout only:
+   * the prices, the caps and `alloc` are exactly v21 / v67 / v97's. `upSegV153`; `v153Echeck`. ===== */
+  function upSegV153(g) {
+    window.__upGroupV97 = g;
+    document.querySelectorAll(".up-group-v97").forEach(el => el.classList.toggle("on", el.dataset.g === g));
+    document.querySelectorAll(".up-seg-v153 button").forEach(el => {
+      const on = el.dataset.g === g;
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-selected", on ? "true" : "false");
     });
-    if (!open) {
-      const el = document.querySelector('.up-group-v97[data-g="' + g + '"]');
-      try {
-        el && el.scrollIntoView({ block: "start", behavior: "smooth" });
-      } catch (e) {}
-    }
+    try {
+      const sc = byId("screen");
+      if (sc) sc.scrollTop = 0;
+    } catch (e) {}
+  }
+  function upHowV153() {
+    const box = document.querySelector(".up-how-v153");
+    if (box) box.classList.toggle("open");
+  }
+  window.upSegV153 = upSegV153;
+  window.upHowV153 = upHowV153;
+  (function () {
+    if (document.getElementById("upV153css")) return;
+    const st = document.createElement("style");
+    st.id = "upV153css";
+    st.textContent = [
+      ".up-v153>.eyebrow{margin-bottom:0}",
+      ".up-top-v153{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 6px}",
+      ".up-top-v153 .h1{font-size:21px!important;margin:0!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}",
+      ".up-v153 .up-pts-v153{flex:none;display:flex;align-items:center;gap:10px;margin:0!important;padding:4px 10px!important;border-radius:10px}",
+      ".up-pts-v153 .n{font:700 20px Oswald,sans-serif!important;color:var(--gold)}.up-pts-v153 .l{font:600 11px Oswald,sans-serif;letter-spacing:1.5px;color:var(--chalk-dim);margin-left:4px}",
+      ".up-ovr-v153{font:700 16px Oswald,sans-serif;color:var(--gold);padding-left:10px;border-left:1px solid rgba(240,187,69,.35)}",
+      ".up-how-v153{position:relative;margin:0 0 8px}",
+      ".up-how-b-v153{width:100%;min-height:38px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.03);color:var(--chalk-dim);font:500 13px 'Barlow Condensed',sans-serif;text-align:left;cursor:pointer}",
+      ".up-how-b-v153>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.up-how-b-v153 b{color:var(--chalk)}.up-v153 b.gold{color:var(--gold)}",
+      ".up-how-b-v153 em{flex:none;font:700 11px Oswald,sans-serif;letter-spacing:1.2px;color:var(--gold);font-style:normal;white-space:nowrap}",
+      ".up-how-note-v153{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:8;padding:10px 12px;border:1px solid rgba(240,187,69,.45);border-radius:12px;background:#0f141c;box-shadow:0 10px 24px rgba(0,0,0,.6);font-size:13px;line-height:1.38;color:var(--chalk-dim)}",
+      ".up-how-note-v153 b{color:var(--chalk)}.up-how-v153.open .up-how-note-v153{display:block}.up-how-v153.open .up-how-b-v153 em{color:#fff}",
+      ".up-seg-v153{display:flex;gap:4px;padding:3px;margin:0 0 8px;border-radius:12px;background:rgba(0,0,0,.35);border:1px solid var(--line)}",
+      ".up-seg-v153 button{flex:1 1 0;min-width:0;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:0;border-radius:9px;background:transparent;color:#aab4c2;font:700 12.5px Oswald,sans-serif;letter-spacing:1.2px;cursor:pointer}",
+      ".up-seg-v153 small{font:600 11px Oswald,sans-serif;letter-spacing:.8px;color:var(--chalk-dim)}.up-seg-v153 small b{color:var(--good);font-weight:700}",
+      ".up-seg-v153 button.on{background:linear-gradient(180deg,rgba(240,187,69,.26),rgba(240,187,69,.1));color:#ffd76f;box-shadow:0 0 0 1px rgba(240,187,69,.5) inset}",
+      ".up-v153 .up-group-v97{display:none;padding:2px 10px!important;margin:0!important}.up-v153 .up-group-v97.on{display:block}",
+      ".up-v153 .up-group-body-v97{display:block!important;padding:0!important}",
+      ".up-v153 .up-attr{display:flex;align-items:center;gap:6px;padding:5px 0!important;min-height:52px;border-bottom:1px solid rgba(255,255,255,.06)}.up-v153 .up-attr:last-child{border-bottom:0}",
+      ".up-v153 .up-attr .info{flex:1;min-width:0}",
+      ".up-v153 .up-attr .un{display:flex;align-items:center;gap:5px;font:600 16px 'Barlow Condensed',sans-serif;line-height:1.15;white-space:nowrap;min-width:0}",
+      ".up-ic-v153{flex:none;width:18px;text-align:center}.up-nm-v153{overflow:hidden;text-overflow:ellipsis;min-width:0}",
+      ".up-v153 .up-attr .desc{display:none!important}",
+      ".up-line-v153{display:flex;gap:8px;align-items:baseline;white-space:nowrap;overflow:hidden;line-height:1.3;margin-top:1px}",
+      ".up-v153 .up-metric{display:flex!important;align-items:baseline;gap:4px;flex:0 1 auto;min-width:0;margin:0 0 0 auto!important;padding-left:6px;font-size:12px!important;white-space:nowrap}",
+      ".up-v153 .up-metric small{min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:11px;opacity:.8}.up-v153 .up-metric b{flex:none}",
+      ".up-v153 .up-nm-v153{flex:none}",
+      ".up-v153 .up-cap{display:block!important;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:11px!important;margin:0!important}",
+      ".up-bar-v153{height:4px;margin-top:3px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden}",
+      ".up-bar-v153 i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#3f9e5a,#7fe0a0);transition:width .25s}",
+      ".up-bar-v153.over i{background:linear-gradient(90deg,#c9962a,#f0bb45)}.up-bar-v153.deep i{background:linear-gradient(90deg,#c94a3a,#ff8a80)}",
+      ".up-v153 .up-attr .step{flex:none;width:40px;height:40px;font-size:22px;border-radius:10px}",
+      ".up-v153 .up-attr .uv{flex:none;width:36px;font-size:19px}",
+      ".up-v153 .weight-tag{flex:none;font-size:11px;margin-left:1px}",
+      "@media(prefers-reduced-motion:reduce){.up-bar-v153 i{transition:none}}"
+    ].join("");
+    (document.head || document.documentElement).appendChild(st);
+  })();
+  window.toggleUpGroupV97 = function (g) {
+    upSegV153(g); // v153 E: the groups are tabs now; the old accordion entry point selects one
   };
   function screenUpgrade() {
     const e = state.player,
       t = playerOvr(e);
+    const isKey = a => !!(POSITIONS[e.pos].w[a] && POSITIONS[e.pos].w[a] >= 0.14);
     ((byId("screen").innerHTML = `
+    <div class="up-v153">
     <div class="eyebrow">${e.pos} · Current OVR ${t}</div>
-    <div class="h1">Train Your Player</div>
-    <div class="sub">Invest points into attributes. Stats marked <span class="weight-tag">KEY</span> matter most for your position and raise your OVR the fastest.</div>
+    <div class="up-top-v153">
+      <div class="h1">Train Your Player</div>
+      <div class="pts-banner up-pts-v153">
+        <div><span class="n" id="ptsLeft">${e.points}</span><span class="l">PTS</span></div>
+        <div class="up-ovr-v153" id="liveOvr">OVR ${t}</div>
+      </div>
+    </div>
     ${(() => {
       const st = clamp99(Math.round(e.stars || 1), 1, 5),
         bp = Math.round((TU("drStarBase", 0.6) + (st - 1) * TU("drStarStep", 0.0625)) * 100),
         pp = Math.round((TU("drPrestigePct", 0.01) * (state.prestige || 0) + softPctV146()) * 100);
-      return `<div class="threshold-note" style="margin-top:8px">📉 <b>Diminishing returns — no hard cap.</b> Each stat costs <b>1 pt</b> up to its <b style="color:var(--gold)">soft cap</b>, then <b>2, 3, 4…</b> per band of ${bandWV146()} above it${bandTopV146() < 1 / 0 ? ` (never more than <b>${bandTopV146()}</b>)` : ""}, and <b>×${wallMultV146()}</b> from <b>${wallAtV146()}</b> on. ★${st} sets your soft caps at <b>${bp}%</b> of ceiling${pp ? ` · Honors add <b style="color:#7fe0a0">+${pp}%</b>` : ""} — more RECRUIT stars (the ★ above) and more HONORS push the cheap zone massively higher. Gold values are past their soft cap.</div>`;
+      return `<div class="up-how-v153"><button type="button" class="up-how-b-v153" onclick="upHowV153()"><span>📉 <b>1 pt</b> per +1 up to each <b class="gold">soft cap</b>, then more</span><em>HOW PRICES WORK</em></button>
+      <div class="up-how-note-v153">Stats marked <span class="weight-tag">KEY</span> matter most for your position and raise your OVR the fastest. <b>Diminishing returns — no hard cap.</b> Each stat costs <b>1 pt</b> up to its <b class="gold">soft cap</b>, then <b>2, 3, 4…</b> per band of ${bandWV146()} above it${bandTopV146() < 1 / 0 ? ` (never more than <b>${bandTopV146()}</b>)` : ""}, and <b>×${wallMultV146()}</b> from <b>${wallAtV146()}</b> on. ★${st} sets your soft caps at <b>${bp}%</b> of ceiling${pp ? ` · Honors add <b style="color:#7fe0a0">+${pp}%</b>` : ""} — more RECRUIT stars and more HONORS push the cheap zone massively higher. The bar under each stat fills to its soft cap; gold values are past it.</div></div>`;
     })()}
-    <div class="pts-banner mt" style="margin-top:14px">
-      <div><span class="n" id="ptsLeft">${e.points}</span> <span class="l">POINTS TO SPEND</span></div>
-      <div style="font-family:'Oswald';font-size:20px;color:var(--gold)" id="liveOvr">OVR ${t}</div>
-    </div>
     ${(() => {
       const row = a => {
-        const s = POSITIONS[e.pos].w[a] && POSITIONS[e.pos].w[a] >= 0.14,
-          n = ATTR_INFO[a].metric;
-        return `<div class="up-attr">
-          <div class="info"><div class="un">${ATTR_INFO[a].icon} ${ATTR_INFO[a].name}${statInfoBtnV142(a)}${s ? ' <span class="weight-tag">KEY</span>' : ""}</div>
+        const n = ATTR_INFO[a].metric;
+        return `<div class="up-attr${isKey(a) ? " key" : ""}" data-k="${a}">
+          <div class="info"><div class="un"><span class="up-ic-v153">${ATTR_INFO[a].icon}</span><span class="up-nm-v153">${ATTR_INFO[a].name}</span>${isKey(a) ? '<span class="weight-tag">KEY</span>' : ""}${statInfoBtnV142(a)}${n ? `<span class="up-metric" title="${n.label}"><small>${n.label}</small><b id="mtr-${a}">${n.fmt(e.attrs[a])}</b></span>` : ""}</div>
             <div class="desc">${ATTR_INFO[a].desc}</div>
-            ${n ? `<div class="up-metric">${n.label}: <b id="mtr-${a}">${n.fmt(e.attrs[a])}</b></div>` : ""}
-            <div class="up-cap" id="cap-${a}"></div></div>
-          <button class="step" onclick="alloc('${a}',-1)" id="minus-${a}">−</button>
+            <div class="up-line-v153"><span class="up-cap" id="cap-${a}"></span></div>
+            <div class="up-bar-v153" id="bar-${a}"><i></i></div></div>
+          <button class="step" onclick="alloc('${a}',-1)" id="minus-${a}" aria-label="Lower ${ATTR_INFO[a].name}">−</button>
           <div class="uv" id="uv-${a}">${Math.round(e.attrs[a])}</div>
-          <button class="step" onclick="alloc('${a}',1)" id="plus-${a}">+</button>
+          <button class="step" onclick="alloc('${a}',1)" id="plus-${a}" aria-label="Raise ${ATTR_INFO[a].name}">+</button>
         </div>`;
       };
-      /* v97: three folding groups instead of one seventeen-row wall; the group holding the most KEY stats opens first */
+      /* v97's three groups (the one holding the most KEY stats opens first), shown one at a time (v153 E) */
       const G = UP_GROUPS_V97.map(g => [g[0], g[1].filter(k => ATTR_KEYS.includes(k))])
           .concat([["OTHER", ATTR_KEYS.filter(k => !UP_GROUPS_V97.some(g => g[1].includes(k)))]])
           .filter(g => g[1].length),
-        keyN = g => g[1].filter(k => POSITIONS[e.pos].w[k] && POSITIONS[e.pos].w[k] >= 0.14).length;
+        keyN = g => g[1].filter(isKey).length;
       if (window.__upGroupV97 == null || !G.some(g => g[0] === window.__upGroupV97))
         window.__upGroupV97 = G.slice().sort((a, b) => keyN(b) - keyN(a))[0][0];
-      return G.map(
+      const seg = `<div class="up-seg-v153" role="tablist">${G.map(
         g =>
-          `<div class="card up-group-v97 ${g[0] === window.__upGroupV97 ? "on" : ""}" data-g="${g[0]}"><button type="button" class="up-group-head-v97" onclick="toggleUpGroupV97('${g[0]}')"><span>${g[0]}</span><small>${keyN(g) ? keyN(g) + " KEY · " : ""}${g[1].length} stats</small><i>▾</i></button><div class="up-group-body-v97">${g[1].map(row).join("")}</div></div>`
-      ).join("");
+          `<button type="button" role="tab" data-g="${g[0]}" class="${g[0] === window.__upGroupV97 ? "on" : ""}" aria-selected="${g[0] === window.__upGroupV97 ? "true" : "false"}" onclick="upSegV153('${g[0]}')"><span>${g[0]}</span><small>${keyN(g) ? `<b>${keyN(g)} KEY</b> · ` : ""}${g[1].length}</small></button>`
+      ).join("")}</div>`;
+      return (
+        seg +
+        G.map(
+          g =>
+            `<div class="card up-group-v97 ${g[0] === window.__upGroupV97 ? "on" : ""}" data-g="${g[0]}" role="tabpanel"><div class="up-group-body-v97">${g[1].map(row).join("")}</div></div>`
+        ).join("")
+      );
     })()}
+    </div>
   `),
       refreshAllocButtons(),
       (byId("dock").innerHTML = `
@@ -22679,6 +23130,14 @@
                 ' — <b style="color:#7fe0a0">1 pt per +1</b> for ' +
                 wholeNum(sc - (e.attrs[a] || 0)) +
                 " more");
+      /* v153 E: the soft-cap bar — fills to the cap (green), gold past it, red where a +1 costs 4 or more */
+      const bar = byId("bar-" + a);
+      if (bar) {
+        const fill = bar.firstElementChild,
+          v = e.attrs[a] || 0;
+        bar.className = "up-bar-v153" + ((v >= attrCap() || c >= 4) && over ? " deep" : over ? " over" : "");
+        if (fill) fill.style.width = Math.max(3, Math.min(100, (v / Math.max(1, sc)) * 100)).toFixed(1) + "%";
+      }
     });
   }
   function doneUpgrade() {
@@ -22887,7 +23346,7 @@
     <div class="card end-pay-v150">
       <div class="statline">
         <div class="statbox"><div class="n">${LEVELS[a].name.split(" ")[0]}</div><div class="l">Reached</div></div>
-        <div class="statbox"><div class="n">+${l}</div><div class="l">Honors 🎖️</div></div>
+        <div class="statbox"><div class="n">+${l}</div><div class="l">Honors ${HONOR_ICON_V130}</div></div>
         <div class="statbox"><div class="n">+${r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0)}</div><div class="l">PP Earned</div></div>
       </div>
       ${u > 0 ? `<div class="threshold-note" style="margin-top:8px;text-align:center">💰 Your legacy bonuses boosted PP earnings by <b style="color:var(--gold)">+${u}%</b></div>` : ""}
@@ -25790,8 +26249,48 @@
     const e = SPECIALIZATIONS.find(t => t.id === state.specializationV11) || SPECIALIZATIONS[0];
     return `<div class="card specialization-card-v11"><div class="eyebrow">PRESTIGE SPECIALIZATION · NO RAW OVR</div><div class="h2" style="margin:3px 0 5px">${e.icon} ${e.name}</div><div class="small">${e.description} Switch freely; this changes strategy rather than making every run automatically stronger.</div><div class="specialization-grid-v11">${SPECIALIZATIONS.map(t => `<button class="spec-btn-v11 ${t.id === state.specializationV11 ? "on" : ""}" onclick="chooseSpecializationV11('${t.id}')"><span>${t.icon}</span><b>${t.name}</b><small>${t.description}</small></button>`).join("")}</div></div>`;
   }
+  /* ===== v153 A OVER 100% IS FOR THE SUPERHUMAN WITH NO BACKUP =====
+   * His share and his named rival's (`roleRivalV11`, the man behind him on the depth chart) were
+   * moved week to week against a combined pool clamped to 0.65-1.15, so the two of them together
+   * routinely took 105-143% of one position's snaps — the role battle card could read "YOU 94% VS 15%".
+   * The snaps at a position add up to 100% now: the rival takes at most what he leaves (`1 - share`).
+   * The one exception is the man the depth chart cannot rest: SUPERHUMAN (`superhumanV153A` — past the
+   * 99 wall, `superWallV153A`, AND far above his level's bar, `superGapV153A`) with NO BACKUP (no named
+   * rival, or a rival he has beaten for the job) plays every snap of his unit and the special-teams
+   * snaps on top: `superShareCapV153A` (109%). Applied wherever the share is shown or evaluated
+   * (`depthChart`, the weekly rival resolution, the role battle card). `TU("snapCapV153A", 0)` / `TU("v153A", 0)`. */
+  function superhumanV153A(e) {
+    if (!e) return !1;
+    const ovr = playerOvr(e),
+      need = (LEVELS[e.level] && LEVELS[e.level].need) || 0;
+    return ovr >= Math.max(TU("superWallV153A", 100), need + TU("superGapV153A", 30));
+  }
+  function snapSplitV153A(e) {
+    if (!e || !TU("v153A", 1) || !TU("snapCapV153A", 1)) return e;
+    const r = e.roleRivalV11 && e.roleRivalV11.level === e.level ? e.roleRivalV11 : null,
+      noBackup = !r || !!r.defeated;
+    if (noBackup && superhumanV153A(e)) {
+      e.snapShare = Math.max(1, TU("superShareCapV153A", 1.09));
+      r && (r.snapShare = 0);
+    } else {
+      e.snapShare = clamp99(e.snapShare == null ? 0.12 : e.snapShare, 0.04, 0.98);
+      r && (r.snapShare = clamp99(Math.min(r.snapShare == null ? 0.5 : r.snapShare, 1 - e.snapShare), 0, 0.92));
+    }
+    return e;
+  }
+  window.__V153A_SNAP = { superhuman: superhumanV153A, split: snapSplitV153A };
   const depthChartCore = depthChart;
   depthChart = function (e) {
+    if (e && TU("v153A", 1) && TU("snapCapV153A", 1)) {
+      /* v153 A: the split first; a superhuman with no backup is FIRST STRING on every snap */
+      const out = e._v11SeasonActive && e.roleRivalV11 ? null : depthChartCore(e);
+      snapSplitV153A(e);
+      if (e.snapShare > 1) {
+        e.depthRole = "FIRST STRING";
+        return Object.assign(out || { score: 20, peer: LEVELS[e.level].need }, { role: "FIRST STRING", share: e.snapShare });
+      }
+      if (out) return Object.assign(out, { share: e.snapShare });
+    }
     if (e && e._v11SeasonActive && e.roleRivalV11) {
       const t = clamp99(e.snapShare == null ? 0.12 : e.snapShare, 0.04, 0.98),
         a =
@@ -26339,7 +26838,7 @@
     const t = ensureRival(e, LEVELS[e.level].need, seededRng(e.seasonSeed, e.level, e.pos, "ui-rival")),
       a = Math.round((e.snapShare || 0.1) * 100),
       s = Math.round((t.snapShare || 0.5) * 100);
-    return `<div class="card rival-card-v11"><div class="impact-head"><div><div class="impact-kicker">NAMED ROLE BATTLE · ${escHtml(t.personality.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">You vs. ${escHtml(t.name)}</div></div><div class="rival-health-v11">${Math.round(t.health)}<small>RIVAL HEALTH</small></div></div><div class="rival-versus-v11"><div><span>YOU</span><b>${a}%</b><small>${escHtml(e.depthRole || "BENCH")} · trust ${Math.round(e.coachTrust || 50)}</small></div><em>VS</em><div><span>${escHtml(t.position)}</span><b>${s}%</b><small>${t.ovr} OVR · trust ${Math.round(t.coachTrust)}</small></div></div><div class="snap-split-v11"><i style="width:${a}%"></i></div><div class="rival-trait-v11">${escHtml(t.trait)} · relationship ${Math.round(t.relationship)}</div>${t.history?.length ? `<div class="small">Last comparison: ${t.history[0].playerPerf} vs ${t.history[0].rivalPerf} · ${t.history[0].swing >= 0 ? "+" : ""}${t.history[0].swing}% snap swing</div>` : ""}</div>`;
+    return `<div class="card rival-card-v11"><div class="impact-head"><div><div class="impact-kicker">NAMED ROLE BATTLE · ${escHtml(t.personality.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">You vs. ${escHtml(t.name)}</div></div><div class="rival-health-v11">${Math.round(t.health)}<small>RIVAL HEALTH</small></div></div><div class="rival-versus-v11"><div><span>YOU</span><b>${a}%</b><small>${escHtml(e.depthRole || "BENCH")} · trust ${Math.round(e.coachTrust || 50)}</small></div><em>VS</em><div><span>${escHtml(t.position)}</span><b>${s}%</b><small>${t.ovr} OVR · trust ${Math.round(t.coachTrust)}</small></div></div><div class="snap-split-v11"><i style="width:${Math.min(100, a)}%"></i></div><div class="rival-trait-v11">${escHtml(t.trait)} · relationship ${Math.round(t.relationship)}</div>${t.history?.length ? `<div class="small">Last comparison: ${t.history[0].playerPerf} vs ${t.history[0].rivalPerf} · ${t.history[0].swing >= 0 ? "+" : ""}${t.history[0].swing}% snap swing</div>` : ""}</div>`;
   }
   function kn(e) {
     const t = ORIGINS.find(i => i.id === e.originV11),
@@ -26595,10 +27094,11 @@
   };
   bo = function (e) {
     const t = ensureRival(e, LEVELS[e.level].need, seededRng(e.seasonSeed, e.level, e.pos, "ui-rival")),
+      _split153 = snapSplitV153A(e) /* v153 A: never more than the position has, unless he is superhuman and alone */,
       a = Math.round((e.snapShare || 0.1) * 100),
       s = Math.round((t.snapShare || 0.5) * 100),
       n = !!state.legacyUnlocksV11?.["rival-dossier"];
-    return `<div class="card rival-card-v11"><div class="impact-head"><div><div class="impact-kicker">NAMED ROLE BATTLE · ${escHtml(t.personality.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">You vs. ${escHtml(t.name)}</div></div><div class="rival-health-v11">${Math.round(t.health)}<small>RIVAL HEALTH</small></div></div><div class="rival-versus-v11"><div><span>YOU</span><b>${a}%</b><small>${escHtml(e.depthRole || "BENCH")} · trust ${Math.round(e.coachTrust || 50)}</small></div><em>VS</em><div><span>${escHtml(t.position)}</span><b>${s}%</b><small>${t.ovr} OVR · trust ${Math.round(t.coachTrust)}</small></div></div><div class="snap-split-v11"><i style="width:${a}%"></i></div><div class="rival-trait-v11">${n ? `${escHtml(t.trait)} · ${t.potential} potential` : "Trait and potential hidden · unlock Rival Dossier"} · relationship ${Math.round(t.relationship)}</div>${t.history?.length ? `<div class="small">Last comparison: ${t.history[0].playerPerf} vs ${t.history[0].rivalPerf} · ${t.history[0].swing >= 0 ? "+" : ""}${t.history[0].swing}% snap swing</div>` : ""}</div>`;
+    return `<div class="card rival-card-v11"><div class="impact-head"><div><div class="impact-kicker">NAMED ROLE BATTLE · ${escHtml(t.personality.toUpperCase())}</div><div class="h2" style="margin:2px 0 0">You vs. ${escHtml(t.name)}</div></div><div class="rival-health-v11">${Math.round(t.health)}<small>RIVAL HEALTH</small></div></div><div class="rival-versus-v11"><div><span>YOU</span><b>${a}%</b><small>${escHtml(e.depthRole || "BENCH")} · trust ${Math.round(e.coachTrust || 50)}</small></div><em>VS</em><div><span>${escHtml(t.position)}</span><b>${s}%</b><small>${t.ovr} OVR · trust ${Math.round(t.coachTrust)}</small></div></div><div class="snap-split-v11"><i style="width:${Math.min(100, a)}%"></i></div><div class="rival-trait-v11">${n ? `${escHtml(t.trait)} · ${t.potential} potential` : "Trait and potential hidden · unlock Rival Dossier"} · relationship ${Math.round(t.relationship)}</div>${t.history?.length ? `<div class="small">Last comparison: ${t.history[0].playerPerf} vs ${t.history[0].rivalPerf} · ${t.history[0].swing >= 0 ? "+" : ""}${t.history[0].swing}% snap swing</div>` : ""}</div>`;
   };
   function rd() {
     const e = state.player,
@@ -28982,15 +29482,23 @@
     }
     window.__RIB_VAULT_BRIDGE.open(key ? { key: key } : {});
   }
+  /* v153 C PAYDAY: the award plays ONCE, as the vault's reward sequence (public/rib-vault-bridge.js
+   * `pending`, shown-state in `rib.vaultPay.v153`, outside the save). Until it has been shown the button
+   * offers to watch it land; afterwards it is a plain way into the vault, never a replay. */
   function vaultPayBtnV137(e) {
-    return window.__RIB_VAULT_BRIDGE && e && (e._vaultPayV137 || 0) > 0
-      ? `<button class="btn secondary" onclick="vaultPayoutV137()">\u{1F3E6} Watch ${fmtInt(e._vaultPayV137)} PP land in the Vault</button><div style="height:8px"></div>`
-      : "";
+    const B = window.__RIB_VAULT_BRIDGE;
+    if (!B || !e || !((e._vaultPayV137 || 0) > 0)) return "";
+    let pend = null;
+    try {
+      pend = B.pending ? B.pending() : null;
+    } catch (_) {}
+    const label = pend ? `Watch ${fmtInt(pend.gain)} PP land in the Vault` : "Open the Vault";
+    return `<button class="btn secondary" data-vaultpay-v153="1" onclick="vaultPayoutV137()">\u{1F3E6} ${label}</button><div style="height:8px"></div>`;
   }
   function vaultPayoutV137() {
     const e = state.player;
     if (!window.__RIB_VAULT_BRIDGE || !e || !(e._vaultPayV137 > 0)) return;
-    window.__RIB_VAULT_BRIDGE.payout(e._vaultPayV137);
+    window.__RIB_VAULT_BRIDGE.open({ skipDoor: true, stay: true });
   }
   window.vaultBuy = vaultBuy;
   window.openVaultV137 = openVaultV137;
@@ -30999,7 +31507,7 @@
     byId("screen").innerHTML = `
     <div class="eyebrow">${t.name} · Offseason</div>
     <div class="h1">Choose Your Training</div>
-    <div class="sub">This is where careers are built. Tap a program to see the season it would give you — the bars below are your stats today, and the colour on each bar is what it adds: <b style="color:#7fe0a0">green</b> for a key stat with room, <b style="color:#7ec8ff">blue</b> for a solid gain, <b style="color:#ff8a80">red</b> for a stat that is capped or barely moves. Nothing is locked until you confirm.<br><span style="color:var(--chalk-dim)">Each stat shows what your next <b>+1</b> costs in skill points: <b style="color:#7fe0a0">1 pt</b> below its soft cap, then <b style="color:#f0bb45">2</b>, <b style="color:#ff9a5a">3</b>, <b style="color:#ff8a80">4+</b> above it. Priority growth into a capped stat is growth you cannot afford to keep.</span></div>
+    <div class="sub tp-sub-v153">This is where careers are built. Tap a program to see the season it would give you — the bars below are your stats today, and the colour on each bar is what it adds: <b style="color:#7fe0a0">green</b> for a key stat with room, <b style="color:#7ec8ff">blue</b> for a solid gain, <b style="color:#ff8a80">red</b> for a stat that is capped or barely moves. Nothing is locked until you confirm.<br><span style="color:var(--chalk-dim)">Each stat shows what your next <b>+1</b> costs in skill points: <b style="color:#7fe0a0">1 pt</b> below its soft cap, then <b style="color:#f0bb45">2</b>, <b style="color:#ff9a5a">3</b>, <b style="color:#ff8a80">4+</b> above it. Priority growth into a capped stat is growth you cannot afford to keep.</span></div>
     ${(() => {
       const w = trainWhyV124(e),
         g = GR.by[sug];
@@ -31047,6 +31555,951 @@
     return tpStartV113.apply(this, arguments);
   };
   window.startSeason = startSeason;
+  /* ===== v153 B INJURIES STAY ON HIS MIND =====
+   * The owner: "Remove injury related prestiges, or nerf them heavily. I always want injuries to be on players
+   * minds." Every prestige lever on the injury roll still exists and still does something — nothing to refund —
+   * but at `v153BinjNodeK` (0.3) of what it paid, and the tree as a whole can never take more than
+   * `v153BinjTreeCap` (25%) off the roll:
+   *   treeFx("injDown")  Rapid Recovery 6% → ~2% a level, Steel Ligaments 8% → 2.4%, Eternal Aegis 2% → 0.6%,
+   *                      The Wall 5% → 1.5% — summed, x K, capped at 25%        (`injTreeDownV153B`, injChanceV54)
+   *   medic / unstoppable / the Ironman path   5% / 15% a level / −70% → 1.5% / 4.5% / −21%   (`injNodeMulV153B`)
+   *   motor              1.5% → 0.45% a level                                         (`injMotorMulV153B`)
+   *   Iron Body          +7 → +2 starting Durability a level (`ironStepV153B`); Bone Density's Durability x K
+   *   Miracle Hands      25% → 7.5% shorter layoffs a level (healWeeksV146)
+   *   Trainer's Room     a season-ender becomes SIX games out, not three (`trainerWeeksV153B`)
+   *   gear               injChance / injDown / injDur at `v153BinjGearK` (0.5) of their roll
+   * Kill switch `TU("v153Binj", 0)` restores every old number. Hoisted declarations (v140: the boot reads them). */
+  function injOnV153B() {
+    return !!TU("v153Binj", 1);
+  }
+  function injNodeKV153B() {
+    return injOnV153B() ? clamp99(TU("v153BinjNodeK", 0.3), 0, 1) : 1;
+  }
+  function injGearKV153B() {
+    return injOnV153B() ? clamp99(TU("v153BinjGearK", 0.5), 0, 1) : 1;
+  }
+  function injTreeDownV153B() {
+    const d = treeFx("injDown");
+    return injOnV153B() ? Math.min(TU("v153BinjTreeCap", 0.25), d * injNodeKV153B()) : d;
+  }
+  function injGearDownV153B() {
+    return (gearFx("injDown") + gearV147("injChance")) * injGearKV153B();
+  }
+  function injNodeMulV153B() {
+    const k = injNodeKV153B(),
+      p = pathVal("injuryMult", 1);
+    return (1 - (nodeLvl("medic") * 0.05 + nodeLvl("unstoppable") * 0.15) * k) * (1 - (1 - p) * k);
+  }
+  function injMotorMulV153B() {
+    return 1 - nodeLvl("motor") * 0.015 * injNodeKV153B();
+  }
+  function ironStepV153B() {
+    return injOnV153B() ? TU("ironStepV153B", 2) : 7;
+  }
+  function trainerWeeksV153B() {
+    return injOnV153B() ? TU("trainerRoomWeeksV153B", 6) : 3;
+  }
+
+  /* ===== v153 B THE LOCKER ROOM REMEMBERS WHO YOU ARE =====
+   * The owner: "Have key personality decisions affect roster construction. Maybe you're toxic and scare a few
+   * players away. Maybe your team player attitude enhances someone's ability." — and: "Enhancing team overall
+   * scores is too dependent on prestige mechanics. Have it more tied to key decisions."
+   *
+   * THE TEAM'S QUALITY (`teamPairV76` and `buildGameRosters` read the same two numbers, so the simmed week and the
+   * watched week still agree — v76):
+   *   `teamPrestigeQV153B(prF)`  the prestige share — prestige count / the Roster Department / tree levels — at
+   *                              `v153BprestigeTeamK` (0.5) of its old weight (it was up to +1.05 quality, ~+45 team
+   *                              OVR in the UFF; now up to ~+22). The seven team-quality nodes' margin edge in `ia`
+   *                              is halved by the same dial (`teamNodeKV153B`) and their descriptions say so.
+   *   `teamDecisionQV153B(e)`    what he DID: the locker room's chemistry (`worldState.teamChemistry`, 0-100, 50
+   *                              neutral — the story arcs already move it) at ±`v153BchemQ` (0.2) quality (±8.6 team
+   *                              OVR in the UFF, ±1.8 at Pee Wee), plus this season's roster moves converted exactly
+   *                              (a teammate's OVR change / 22 is the team's OVR change). Bounded −0.3 … +0.4.
+   * WHAT MOVES THE CHEMISTRY (`chemMoveV153B`, every move logged on `player.lockerV153B.log`):
+   *   season start  his personality drifts it (`personaScoresV153B`: TOXIC = me-first + brash + volatile + stubborn;
+   *                 TEAM = team-first + even-keeled + coachable + humble) ±`v153BpersonaChem` (3) a season, and last
+   *                 season's weekly plans count: "Do the Dirty Work" +`v153BplanTeamChem` (1.5) each, "Demand the
+   *                 Spotlight" −1; 10% of the gap to 50 fades each season (`v153BchemFade`)
+   *   story arcs    any outcome that moves chemistry (Bo) — unchanged numbers, and a big swing (±5) earns a roll
+   *   the wheel     the season commitment landing on Team Cookouts / Captain's Council (+4 / +3 on a good land),
+   *                 an underground 7-on-7 gone wrong (−3)
+   *   the sacrifice SACRIFICE FOR A TEAMMATE on the offseason board: give up `v153BsacBase` (2) + level points off
+   *                 your three best attributes; a named teammate in your unit gains `v153BsacLiftK` (12%) of the
+   *                 level's team rating in OVR (≈ +10 in the UFF) and chemistry +`v153BsacChem` (6). Once a season.
+   * THE ROLLS (`rollLockerV153B`, seeded per season + trigger + count, so a season rolls the same on a reload):
+   *   season start  TOXIC ≥ `v153BtoxMin` (0.35): P = `v153BtoxBase` (0.1) + tox × `v153BtoxK` (0.3), ≤ 0.8 — 1-3
+   *                 named teammates transfer / quit, each replaced at `v153BreplK` (80%) of his OVR, chemistry −3 each.
+   *                 TEAM ≥ `v153BteamMin` (0.35): P = `v153BliftBase` (0.1) + team × `v153BliftK` (0.3) — a named
+   *                 teammate improves by `v153BliftAmtK` (8%) of the level's rating (+1 chemistry).
+   *   story / wheel a follow-up roll at `v153BfollowK` (0.5) of those odds, in the direction the swing went.
+   *   At most `v153BleaveMax` (3) departures and `v153BliftMax` (2) lifts a season.
+   * Every move is a toast + a LOCKER ROOM card on the season screen naming the man; the roster (src/10) carries
+   * it — a departed slot is the replacement's name, a lifted man plays at his new number — and a roster rebuilt
+   * mid-season (a new club) re-applies the season's moves (`window.__V153B.applyRoster`). Kill switches:
+   * `TU("v153Broster", 0)` (no rolls, no roster moves), `TU("v153Bteam", 0)` (the old prestige weight, no chemistry
+   * term, no sacrifice). `window.__V153B`; `scripts/v153Bcheck.mjs`. */
+  function rosterOnV153B() {
+    return !!TU("v153Broster", 1);
+  }
+  function teamOnV153B() {
+    return !!TU("v153Bteam", 1);
+  }
+  function teamNodeKV153B() {
+    return teamOnV153B() ? clamp99(TU("v153BprestigeTeamK", 0.5), 0, 1) : 1;
+  }
+  function teamPrestigeQV153B(prF) {
+    return (Number(prF) || 0) * 1.05 * teamNodeKV153B();
+  }
+  function levelRatingV153B(e) {
+    return [18, 30, 42, 54, 66, 78, 86, 90][(e && e.level) | 0] || 55;
+  }
+  function chemOfV153B(e) {
+    const c = e && e.worldState && e.worldState.teamChemistry;
+    return c == null || isNaN(+c) ? 50 : +c;
+  }
+  function teamDecisionQV153B(e) {
+    if (!e) return 0;
+    let q = 0;
+    if (teamOnV153B()) q += ((chemOfV153B(e) - 50) / 50) * TU("v153BchemQ", 0.2);
+    if (rosterOnV153B()) {
+      const L = e.lockerV153B;
+      if (L && L.stamp === stampV153B(e) && L.ovrDelta) q += (2 * L.ovrDelta) / levelRatingV153B(e);
+    }
+    return clamp99(q, TU("v153BdecMinQ", -0.3), TU("v153BdecMaxQ", 0.4));
+  }
+  function stampV153B(e) {
+    return ((e && e.level) | 0) + ":" + ((e && e.totalSeasons) | 0);
+  }
+  // the ledger for THIS season (a new season starts a clean sheet; the log keeps the career's last 24 moves)
+  function lockerV153B(e) {
+    if (!e) return null;
+    const st = stampV153B(e);
+    let L = e.lockerV153B;
+    if (!L || L.stamp !== st)
+      L = e.lockerV153B = {
+        stamp: st,
+        events: [],
+        ovrDelta: 0,
+        leaves: 0,
+        lifts: 0,
+        sacrificed: !1,
+        rolled: {},
+        seen: 0,
+        log: (L && L.log) || []
+      };
+    return L;
+  }
+  function personaScoresV153B(e) {
+    const p = (e && e.personaV13) || {},
+      g = k => ((p[k] == null ? 5 : +p[k]) - 5) / 5;
+    const tox = clamp99(
+        -g("loyalty") * 1 + g("confidence") * 0.45 - g("eq") * 0.5 - g("coachability") * 0.35 + g("aggression") * 0.2,
+        0,
+        2
+      ),
+      team = clamp99(g("loyalty") * 1 + g("eq") * 0.4 + g("coachability") * 0.35 - g("confidence") * 0.25, 0, 2),
+      chem = (chemOfV153B(e) - 50) / 50;
+    // a sour room makes a toxic man worse and a warm one makes a leader better
+    return {
+      tox: +clamp99(tox + Math.max(0, -chem) * 0.6, 0, 2.2).toFixed(3),
+      team: +clamp99(team + Math.max(0, chem) * 0.6, 0, 2.2).toFixed(3)
+    };
+  }
+  function chemMoveV153B(e, d, why) {
+    if (!e || !d || !teamOnV153B()) return 0;
+    e.worldState = e.worldState || { teamChemistry: 50, programMomentum: 50, mediaHeat: 20 };
+    const was = chemOfV153B(e),
+      now = clamp99(Math.round((was + d) * 10) / 10, 0, 100);
+    e.worldState.teamChemistry = now;
+    const L = lockerV153B(e);
+    L && L.log.push({ k: "chem", d: +(now - was).toFixed(1), why: why || "", at: L.stamp });
+    L && (L.log = L.log.slice(-24));
+    return now - was;
+  }
+  function rosterV153B(e) {
+    let r = null;
+    // the live player: ask src/10 (it rebuilds the roster when the season key moved); anyone else: what he carries
+    if (e && state && e === state.player && window.__V158_ROSTER)
+      try {
+        r = window.__V158_ROSTER();
+      } catch (_) {
+        r = null;
+      }
+    if (!Array.isArray(r)) r = e && Array.isArray(e.teamRosterV158) ? e.teamRosterV158 : null;
+    return Array.isArray(r) ? r : null;
+  }
+  var OFF_POS_V153B = ["QB", "RB", "WR", "TE", "LT", "LG", "C", "RG", "RT"];
+  function unitOfV153B(pos) {
+    return ["QB", "RB", "WR", "TE", "OL"].includes(pos) ? "off" : "def";
+  }
+  // a teammate the roll can name: never the kicker or punter, weighted toward the men who matter
+  function pickMateV153B(e, rnd, filter) {
+    const R = rosterV153B(e);
+    if (!R || !R.length) return null;
+    const L = lockerV153B(e),
+      used = new Set((L.events || []).map(v => v.slot));
+    const pool = R.map((p, i) => ({ p, i })).filter(
+      o => o.p && o.p.pos !== "K" && o.p.pos !== "P" && !used.has(o.i) && (!filter || filter(o))
+    );
+    if (!pool.length) return null;
+    const w = pool.map(o => 1 + (o.p.ovr || 1) / 40),
+      tot = w.reduce((a, b) => a + b, 0);
+    let x = rnd() * tot;
+    for (let k = 0; k < pool.length; k++) if ((x -= w[k]) <= 0) return pool[k];
+    return pool[pool.length - 1];
+  }
+  function applyEventV153B(slotP, ev) {
+    if (!slotP || !ev) return;
+    if (ev.kind === "leave") {
+      slotP.name = ev.newName;
+      slotP.ovr = slotP.overall = Math.max(1, Math.round((slotP.ovr || 1) * TU("v153BreplK", 0.8)));
+      slotP.tier = "depth";
+      slotP.star = !1;
+      slotP.lockerV153B = "replacement";
+    } else {
+      slotP.name = ev.name;
+      slotP.ovr = slotP.overall = Math.min(999, Math.round((slotP.ovr || 1) + ev.amt));
+      slotP.lockerV153B = ev.kind;
+    }
+  }
+  function recordEventV153B(e, ev, silent) {
+    const L = lockerV153B(e),
+      R = rosterV153B(e),
+      p = R && R[ev.slot];
+    if (p) {
+      const before = p.ovr || 0;
+      applyEventV153B(p, ev);
+      ev.ovrFrom = before;
+      ev.ovrTo = p.ovr;
+      L.ovrDelta = +(L.ovrDelta + (p.ovr - before) / 22).toFixed(3);
+    }
+    L.events.push(ev);
+    ev.kind === "leave" ? L.leaves++ : L.lifts++;
+    L.log.push({ k: ev.kind, name: ev.name, pos: ev.pos, newName: ev.newName, why: ev.why, at: L.stamp });
+    L.log = L.log.slice(-24);
+    if (!silent)
+      try {
+        showToast(lockerLineV153B(ev));
+      } catch (_) {}
+    return ev;
+  }
+  function lockerLineV153B(ev) {
+    return ev.kind === "leave"
+      ? "🚪 " +
+          ev.name +
+          " (" +
+          ev.pos +
+          ") " +
+          (ev.quit ? "quit the team" : "entered the transfer portal") +
+          " — " +
+          ev.why
+      : ev.kind === "sacrifice"
+        ? "🤝 You gave up " + ev.cost + " points so " + ev.name + " (" + ev.pos + ") could grow: +" + ev.amt + " OVR"
+        : "⭐ " + ev.name + " (" + ev.pos + ") is better for playing beside you: +" + ev.amt + " OVR — " + ev.why;
+  }
+  /* one roll. trigger: "season" | "story" | "spin"; dir: "leave" | "lift" | null (both); force: skip the odds */
+  function rollLockerV153B(e, trigger, opts) {
+    opts = opts || {};
+    if (!e || !rosterOnV153B()) return [];
+    const L = lockerV153B(e),
+      n = (L.rolled[trigger] = (L.rolled[trigger] || 0) + 1),
+      rnd = seededRng("v153B", e.name || "", L.stamp, trigger, n, opts.salt || ""),
+      S = personaScoresV153B(e),
+      k = trigger === "season" ? 1 : TU("v153BfollowK", 0.5),
+      out = [];
+    const leaveP =
+        S.tox >= TU("v153BtoxMin", 0.35)
+          ? clamp99((TU("v153BtoxBase", 0.1) + S.tox * TU("v153BtoxK", 0.3)) * k, 0, TU("v153BtoxMax", 0.8))
+          : 0,
+      liftP =
+        S.team >= TU("v153BteamMin", 0.35)
+          ? clamp99((TU("v153BliftBase", 0.1) + S.team * TU("v153BliftK", 0.3)) * k, 0, TU("v153BliftMax", 0.8))
+          : 0;
+    const why =
+      trigger === "story"
+        ? "after how the story played out"
+        : trigger === "spin"
+          ? "after the way your offseason went"
+          : trigger === "sacrifice"
+            ? "you put him first"
+            : S.tox > S.team
+              ? "your me-first act wore the room down"
+              : "your team-first attitude rubbed off";
+    if (opts.dir !== "lift" && (opts.force === "leave" || rnd() < leaveP)) {
+      let cnt = 1 + (rnd() < (S.tox - 0.8) * 0.6 ? 1 : 0) + (rnd() < (S.tox - 1.4) * 0.6 ? 1 : 0);
+      cnt = Math.min(cnt, Math.max(0, TU("v153BleaveMax", 3) - L.leaves), opts.count || 3);
+      for (let i = 0; i < cnt; i++) {
+        const m = pickMateV153B(e, rnd);
+        if (!m) break;
+        out.push(
+          recordEventV153B(
+            e,
+            {
+              kind: "leave",
+              slot: m.i,
+              name: m.p.name,
+              pos: m.p.pos,
+              newName: randNameV153B(rnd),
+              quit: rnd() < 0.35,
+              trigger,
+              why: S.tox >= S.team ? "he could not play beside you" : why
+            },
+            opts.silent
+          )
+        );
+        chemMoveV153B(e, -TU("v153BleaveChem", 3), "a teammate left");
+      }
+    }
+    if (opts.dir !== "leave" && L.lifts < TU("v153BliftMax", 2) && (opts.force === "lift" || rnd() < liftP)) {
+      const mine = unitOfV153B(e.pos),
+        m =
+          pickMateV153B(e, rnd, o => (OFF_POS_V153B.includes(o.p.pos) ? "off" : "def") === mine) ||
+          pickMateV153B(e, rnd);
+      if (m) {
+        out.push(
+          recordEventV153B(
+            e,
+            {
+              kind: "lift",
+              slot: m.i,
+              name: m.p.name,
+              pos: m.p.pos,
+              amt: Math.max(1, Math.round(levelRatingV153B(e) * TU("v153BliftAmtK", 0.08) * (1 + S.team * 0.25))),
+              trigger,
+              why
+            },
+            opts.silent
+          )
+        );
+        chemMoveV153B(e, TU("v153BliftChem", 1), "a teammate grew");
+      }
+    }
+    return out;
+  }
+  function randNameV153B(rnd) {
+    try {
+      return (
+        ROSTER_FIRST[Math.floor(rnd() * ROSTER_FIRST.length)] +
+        " " +
+        ROSTER_LAST[Math.floor(rnd() * ROSTER_LAST.length)]
+      );
+    } catch (_) {
+      return randName();
+    }
+  }
+  /* the season-start drift: who he is, and how he played last year */
+  function seasonDriftV153B(e) {
+    if (!e || !teamOnV153B()) return 0;
+    const L = lockerV153B(e);
+    if (L.drifted) return 0;
+    L.drifted = !0;
+    const S = personaScoresV153B(e),
+      plans = e.planHistoryV11 || [],
+      pid = x => (x && typeof x === "object" ? x.id || x.plan : x),
+      team = plans.filter(x => pid(x) === "team").length,
+      feat = plans.filter(x => pid(x) === "feature").length,
+      fade = (50 - chemOfV153B(e)) * TU("v153BchemFade", 0.1);
+    const d =
+      (S.team - S.tox) * TU("v153BpersonaChem", 3) +
+      team * TU("v153BplanTeamChem", 1.5) -
+      feat * TU("v153BplanFeatChem", 1) +
+      fade;
+    return chemMoveV153B(e, Math.round(d * 10) / 10, "who you are, and how you played last season");
+  }
+  /* SACRIFICE FOR A TEAMMATE — give up some of your own sheet so a named teammate grows */
+  function sacrificeCostV153B(e) {
+    return Math.max(1, Math.round(TU("v153BsacBase", 2) + ((e && e.level) | 0)));
+  }
+  function sacrificeMateV153B(e) {
+    const R = rosterV153B(e);
+    if (!R) return null;
+    const mine = unitOfV153B(e.pos);
+    let best = null;
+    R.forEach((p, i) => {
+      if (!p || p.pos === "K" || p.pos === "P") return;
+      if ((OFF_POS_V153B.includes(p.pos) ? "off" : "def") !== mine) return;
+      if ((lockerV153B(e).events || []).some(v => v.slot === i)) return;
+      if (!best || (p.ovr || 0) < (best.p.ovr || 0)) best = { p, i };
+    });
+    return best;
+  }
+  function sacrificeV153B(e, opts) {
+    opts = opts || {};
+    e = e || (state && state.player);
+    if (!e || !e.attrs || !teamOnV153B()) return null;
+    const L = lockerV153B(e);
+    if (L.sacrificed) return null;
+    const m = sacrificeMateV153B(e);
+    if (!m) return null;
+    const cost = sacrificeCostV153B(e),
+      top = Object.keys(e.attrs)
+        .filter(k => typeof e.attrs[k] === "number")
+        .sort((a, b) => (e.attrs[b] || 0) - (e.attrs[a] || 0))
+        .slice(0, 3),
+      took = {};
+    for (let i = 0; i < cost; i++) {
+      const k = top[i % top.length];
+      if (!k) break;
+      e.attrs[k] = Math.max(1, (e.attrs[k] || 1) - 1);
+      took[k] = (took[k] || 0) - 1;
+    }
+    L.sacrificed = !0;
+    const ev = recordEventV153B(
+      e,
+      {
+        kind: "sacrifice",
+        slot: m.i,
+        name: m.p.name,
+        pos: m.p.pos,
+        amt: Math.max(1, Math.round(levelRatingV153B(e) * TU("v153BsacLiftK", 0.12))),
+        cost,
+        took,
+        trigger: "sacrifice",
+        why: "you put him first"
+      },
+      opts.silent
+    );
+    chemMoveV153B(e, TU("v153BsacChem", 6), "you sacrificed for a teammate");
+    try {
+      saveGame();
+    } catch (_) {}
+    return ev;
+  }
+  window.sacrificeV153B = function () {
+    const ev = sacrificeV153B(state && state.player);
+    if (!ev) return void showToast("Nothing to give this season.");
+    render();
+  };
+  /* re-apply this season's moves to a roster src/10 has just built (a new club mid-season, a reload) */
+  function applyRosterV153B(e, roster) {
+    if (!e || !Array.isArray(roster) || !rosterOnV153B()) return roster;
+    const L = e.lockerV153B;
+    if (!L || L.stamp !== stampV153B(e)) return roster;
+    for (const ev of L.events || []) roster[ev.slot] && applyEventV153B(roster[ev.slot], ev);
+    return roster;
+  }
+  // the story arcs already move chemistry through Bo — a big swing now earns a roll in its direction
+  const Bo0V153B = Bo;
+  Bo = function (e, t, a) {
+    const was = chemOfV153B(e),
+      r = Bo0V153B.apply(this, arguments);
+    try {
+      const d = chemOfV153B(e) - was;
+      if (e && Math.abs(d) >= TU("v153BstorySwing", 5)) rollLockerV153B(e, "story", { dir: d > 0 ? "lift" : "leave" });
+    } catch (_) {}
+    return r;
+  };
+  // the season commitment wheel (src/18) reports where it landed
+  function spinV153B(pl, out) {
+    if (!pl || !out) return;
+    const up = out.sign > 0,
+      T = { social: up ? 4 : 1, mentor: up ? 3 : 1, craft: up ? 1 : 0, edge: up ? 0 : -3 },
+      d = T[out.card] || 0;
+    if (!d) return;
+    chemMoveV153B(pl, d, "the wheel: " + (out.name || out.card));
+    if (Math.abs(d) >= 3) rollLockerV153B(pl, "spin", { dir: d > 0 ? "lift" : "leave" });
+  }
+  // season start: the drift, then the roll, against the roster the season is played with
+  const ssg0V153B = startSeasonGames;
+  // the drift reads last season's weekly plans, so it runs BEFORE the v11 layer clears them; the roll runs after
+  // the new season seed, so it names men off the roster the season is played with
+  function seasonStartV153B(e, phase) {
+    if (!e || !e.pos) return;
+    try {
+      if (phase !== "roll") seasonDriftV153B(e);
+      if (phase === "drift") return;
+      const L = lockerV153B(e);
+      if (!L.rolled.season) rollLockerV153B(e, "season");
+    } catch (x) {
+      console.warn("[v153 B locker]", x);
+    }
+  }
+  function seasonWrapV153B(f0) {
+    return function () {
+      seasonStartV153B(state && state.player, "drift");
+      const r = f0.apply(this, arguments);
+      seasonStartV153B(state && state.player, "roll");
+      return r;
+    };
+  }
+  startSeasonGames = seasonWrapV153B(ssg0V153B);
+  typeof window.startSeasonGames === "function" && (window.startSeasonGames = seasonWrapV153B(window.startSeasonGames));
+  // last season's layoffs, counted before the season roll clears the weeks — the training suggestion reads it
+  function finishWrapV153B(f0) {
+    return function () {
+      try {
+        const e = state && state.player;
+        e && e.weekResults && (e.lastInjWeeksV153B = e.weekResults.filter(w => w && w.satOut).length);
+      } catch (_) {}
+      return f0.apply(this, arguments);
+    };
+  }
+  finishSeasonGames = finishWrapV153B(finishSeasonGames);
+  typeof window.finishSeasonGames === "function" &&
+    (window.finishSeasonGames = finishWrapV153B(window.finishSeasonGames));
+  // the LOCKER ROOM card: the season screen names every man this season's moves touched
+  function lockerCardV153B() {
+    const e = state && state.player;
+    if (!e || !rosterOnV153B()) return;
+    const sc = byId("screen");
+    if (!sc || sc.querySelector("#lockerV153B")) return;
+    const L = e.lockerV153B;
+    if (state.view === "season" && L && L.stamp === stampV153B(e) && L.events.length) {
+      const chem = Math.round(chemOfV153B(e));
+      sc.insertAdjacentHTML(
+        "afterbegin",
+        `<div class="card tight" id="lockerV153B" style="border-color:${L.leaves > L.lifts ? "rgba(255,138,128,.55)" : "rgba(127,224,160,.55)"}"><div class="eyebrow">🏈 LOCKER ROOM · CHEMISTRY ${chem}</div>${L.events
+          .map(v => `<div class="small" style="margin-top:3px">${escHtml(lockerLineV153B(v))}</div>`)
+          .join(
+            ""
+          )}${L.ovrDelta ? `<div class="small" style="margin-top:4px;color:var(--chalk-dim)">Team rating ${L.ovrDelta > 0 ? "+" : ""}${L.ovrDelta.toFixed(1)} OVR from these moves.</div>` : ""}</div>`
+      );
+      if (L.seen < L.events.length) {
+        const fresh = L.events.slice(L.seen);
+        L.seen = L.events.length;
+        try {
+          showLockerPopV153B(fresh);
+        } catch (_) {}
+      }
+    }
+    if (state.view === "training" && teamOnV153B()) {
+      const m = sacrificeMateV153B(e),
+        c = sacrificeCostV153B(e),
+        Lk = lockerV153B(e);
+      if (!m) return;
+      const lift = Math.max(1, Math.round(levelRatingV153B(e) * TU("v153BsacLiftK", 0.12)));
+      sc.insertAdjacentHTML(
+        "beforeend",
+        Lk.sacrificed
+          ? `<div class="card tight" id="lockerV153B"><div class="eyebrow">🤝 SACRIFICE FOR A TEAMMATE</div><div class="small">Done this offseason — ${escHtml(
+              (Lk.events.find(v => v.kind === "sacrifice") || {}).name || "a teammate"
+            )} carries your work into the season.</div></div>`
+          : /* v153 integration: one compact button (the board must fit the shell with E's 36px targets); the terms are in the dialog */
+            `<div class="card tight sac-v153" id="lockerV153B" style="padding:6px 8px;margin-bottom:0"><button class="btn secondary" style="padding:8px 10px;font-size:13px;line-height:1.15" onclick="sacrificeAskV153B()"><small style="display:block;font-size:11px;letter-spacing:1.2px;opacity:.8">🤝 SACRIFICE FOR A TEAMMATE · ONCE A SEASON</small>GIVE UP ${c} PTS → ${escHtml(m.p.name.toUpperCase())} +${lift} OVR</button></div>`
+      );
+    }
+  }
+  /* the terms, read before the points go: the one confirm is askV150 (never a native dialog) */
+  function sacrificeAskV153B() {
+    const e = state && state.player, m = e && sacrificeMateV153B(e);
+    if (!m) return;
+    const c = sacrificeCostV153B(e), lift = Math.max(1, Math.round(levelRatingV153B(e) * TU("v153BsacLiftK", 0.12)));
+    return askV150(
+      `Give up ${c} points off your three best stats so ${m.p.name} (${m.p.pos}, ${m.p.ovr} OVR — the weakest man in your unit) grows +${lift} OVR and the locker room warms (chemistry +${TU("v153BsacChem", 6)}). The team gets better; your line in the box score gets a little smaller.`,
+      { title: "Sacrifice for a teammate", ok: "Give up " + c + " points" }
+    ).then(ok => ok && sacrificeV153B());
+  }
+  window.sacrificeAskV153B = sacrificeAskV153B;
+  function showLockerPopV153B(evs) {
+    if (!evs || !evs.length) return;
+    document.getElementById("lockerPopV153B")?.remove();
+    const bad = evs.some(v => v.kind === "leave");
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<div class="roll-pop-v20" id="lockerPopV153B" onclick="this.remove()"><div class="roll-pop-card" style="border-color:${bad ? "rgba(255,120,120,.6)" : "rgba(127,224,160,.6)"}"><div class="roll-pop-kick" style="color:${bad ? "#ff9a9a" : "#9fe6b0"}">${bad ? "🚪 THE LOCKER ROOM · PLAYERS LEFT" : "⭐ THE LOCKER ROOM · A TEAMMATE GREW"}</div><div class="roll-pop-fx">${evs
+        .map(v => `<span class="rollfx ${v.kind === "leave" ? "dn" : "up"}">${escHtml(lockerLineV153B(v))}</span>`)
+        .join("")}</div><div class="roll-pop-hint">tap to dismiss</div></div></div>`
+    );
+    setTimeout(() => document.getElementById("lockerPopV153B")?.remove(), 5200);
+  }
+
+  /* ===== v153 B ONE KEY STAT, OR TWO AND A RISK =====
+   * The owner: "Training throughout a career tends to be the exact same suggestion … no training has more than 1
+   * key stat, and if it has two then there's a clear risk. Maybe that risk is worth it maybe not. Slightly modified
+   * by prestige menu, but always a risk."
+   * Each program's `focus` / `priorityBonus` / `desc` is a getter over `TRAIN_V153B()` (the old v124 values come
+   * back with `TU("v153Btrain", 0)`): ONE key stat at priority ×(1 + `v153BpbOne` 1.6), or TWO at ×(1 + `v153BpbTwo`
+   * 0.9) each — more growth in total, and a RISK rolled once a season when he commits (`riskSeasonV153B`, stamped):
+   *   Weight Room      Strength + Blocking     35%  a tweaked back: the season's injury roll ×1.35
+   *   Full-Contact     Tackling + Grit         40%  camp dings: ×1.45
+   *   Track Club       Acceleration + Quickness 30% a hamstring: ×1.3   (its v124 roll is still on top)
+   *   Film Study       Awareness + Vision      30%  he loses a step: −5% of his Speed
+   *   Skills Clinic    Catching + Throwing     30%  the extra reps: he opens the season at +25 fatigue
+   * Prestige softens the odds a little — `v153BriskSoftStep` (2 points) a level of Weighted Coin / House Money /
+   * Quick Study, never more than `v153BriskSoftMax` (8) — and never below `v153BriskFloor` (15%). One-stat programs
+   * keep their v124 trade (a price, not a risk) and Explosion & Hops keeps its v124 roll; Balanced and The Grind
+   * are unchanged (every stat — no key stat). The board shows the risk on the tile (⚠️ %) and a sentence in the
+   * sheet; the camp result is a pop + toast at CONFIRM.
+   * THE SUGGESTION MOVES (`recMulV153B`, folded into `trainGradeV133`'s value, so the pick is still the best
+   * graded program on the board): the program he ran last season −35% (`v153BrecRepeat`), the last three −15%;
+   * a tired body (fatigue past 30) and last season's injuries lift Conditioning / Recovery Lab / Yoga; a player
+   * in his first two seasons leans to one-stat work, a veteran to the two-stat gamble; a seeded ±10% a season
+   * (`v153BrecJitter`). The coach's note says which of those moved it. A body that is breaking down goes to the
+   * Recovery Lab (Conditioning is Stamina alone now) — but not two seasons running. */
+  function TRAIN_V153B() {
+    return {
+      speed: { focus: ["speed"], flavor: "Straight-line speed and nothing else." },
+      hops: { focus: ["jumping"], flavor: "Plyometrics for the vertical." },
+      yoga: { focus: ["agility"], flavor: "Mobility work for the hips — very low wear, +1 bonus point." },
+      conditioning: { focus: ["stamina"], flavor: "The engine. Safest program there is." },
+      lab: { focus: ["injuryResist"], flavor: "Cryo, sleep science and nutrition: the body that holds up." },
+      weight: {
+        focus: ["strength", "blocking"],
+        flavor: "The squat rack and the sled.",
+        risk: {
+          kind: "injury",
+          odds: 0.35,
+          mul: 1.35,
+          name: "A TWEAKED BACK",
+          say: "He tweaked his back under the bar and plays the season with it"
+        }
+      },
+      contact: {
+        focus: ["tackling", "grit"],
+        flavor: "Live hitting, every day.",
+        risk: {
+          kind: "injury",
+          odds: 0.4,
+          mul: 1.45,
+          name: "CAMP DINGS",
+          say: "Camp left him dinged up — the knocks follow him into the season"
+        }
+      },
+      track: {
+        focus: ["acceleration", "quickness"],
+        flavor: "Starts, bursts and a stopwatch.",
+        risk: {
+          kind: "injury",
+          odds: 0.3,
+          mul: 1.3,
+          name: "A GRABBY HAMSTRING",
+          say: "The hamstring grabbed at the end of the block"
+        }
+      },
+      film: {
+        focus: ["awareness", "vision"],
+        flavor: "The tape room, all summer. +2 bonus points.",
+        risk: {
+          kind: "regress",
+          stat: "speed",
+          pct: 0.05,
+          odds: 0.3,
+          name: "A STEP SLOWER",
+          say: "Too many hours in the dark — he lost a step"
+        }
+      },
+      skills: {
+        focus: ["catching", "throwing"],
+        flavor: "Hands and arm, rep after rep.",
+        risk: {
+          kind: "fatigue",
+          amt: 25,
+          odds: 0.3,
+          name: "WORN DOWN",
+          say: "The extra reps wore on him — he opens the season tired"
+        }
+      }
+    };
+  }
+  function trainOnV153B() {
+    return !!TU("v153Btrain", 1);
+  }
+  function riskOddsV153B(k) {
+    const d = TRAIN_V153B()[k];
+    if (!d || !d.risk || !trainOnV153B()) return 0;
+    const soft = Math.min(
+      TU("v153BriskSoftMax", 0.08),
+      TU("v153BriskSoftStep", 0.02) * (nodeLvl("fateOdds") + nodeLvl("fateHedge") + nodeLvl("quickstudy"))
+    );
+    return clamp99(d.risk.odds - soft, TU("v153BriskFloor", 0.15), 0.9);
+  }
+  function riskSayV153B(k) {
+    const d = TRAIN_V153B()[k];
+    if (!d || !d.risk) return "";
+    const r = d.risk,
+      what =
+        r.kind === "injury"
+          ? "his injury odds are +" + Math.round((r.mul - 1) * 100) + "% all season"   /* v92: no decimals on a sheet */
+          : r.kind === "regress"
+            ? "he loses " + Math.round(r.pct * 100) + "% of his " + ATTR_INFO[r.stat].name
+            : "he opens the season at +" + r.amt + " fatigue";
+    return Math.round(riskOddsV153B(k) * 100) + "% " + r.name + " — " + what;
+  }
+  // resolved ONCE a season, when he commits, and written down
+  function riskSeasonV153B(e, k) {
+    if (!e || !trainOnV153B()) return null;
+    const d = TRAIN_V153B()[k],
+      st = stampV153B(e);
+    if (!d || !d.risk) return (e.riskV153B = null);
+    if (e.riskV153B && e.riskV153B.key === k && e.riskV153B.stamp === st) return e.riskV153B;
+    const p = riskOddsV153B(k),
+      rnd = seededRng("v153Brisk", e.name || "", st, k, e.seasonSeed || 0),
+      hit = rnd() < p,
+      r = d.risk,
+      out = { key: k, stamp: st, kind: r.kind, odds: p, hit, name: r.name, say: r.say };
+    if (hit && r.kind === "regress" && e.attrs) {
+      const v = e.attrs[r.stat] || 1,
+        amt = Math.max(1, Math.round(v * r.pct));
+      e.attrs[r.stat] = Math.max(1, v - amt);
+      out.stat = r.stat;
+      out.amt = amt;
+      out.line = r.say + ": −" + amt + " " + ATTR_INFO[r.stat].name + ".";
+    } else if (hit && r.kind === "fatigue") {
+      const c = ensureCondition(e);
+      c.fatigue = clamp99((c.fatigue || 0) + r.amt, 0, 100);
+      out.amt = r.amt;
+      out.line = r.say + ": +" + r.amt + " fatigue.";
+    } else if (hit) {
+      out.mul = r.mul;
+      out.line = r.say + ": injury odds +" + Math.round((r.mul - 1) * 100) + "% this season.";
+    } else out.line = "Camp went clean — no " + r.name.toLowerCase() + ".";
+    return (e.riskV153B = out);
+  }
+  function riskInjMulV153B(e) {
+    const r = e && e.riskV153B;
+    return r && r.hit && r.kind === "injury" && trainOnV153B() && r.stamp === stampV153B(e) ? r.mul || 1 : 1;
+  }
+  // the program data: getters, so the kill switch works live
+  (function () {
+    const T = TRAIN_V153B();
+    for (const k in T) {
+      const n = PROGRAMS[k];
+      if (!n) continue;
+      const old = { focus: n.focus, priorityBonus: n.priorityBonus, desc: n.desc },
+        d = T[k],
+        two = d.focus.length > 1,
+        desc = () =>
+          (two ? "TWO KEY STATS — " : "ONE KEY STAT — ") +
+          d.focus.map(s => ATTR_INFO[s].name).join(" & ") +
+          ". " +
+          d.flavor +
+          (two ? " The risk: " + riskSayV153B(k) + "." : "");
+      Object.defineProperty(n, "focus", {
+        get: () => (trainOnV153B() ? d.focus.slice() : old.focus),
+        enumerable: !0,
+        configurable: !0
+      });
+      Object.defineProperty(n, "priorityBonus", {
+        get: () => (trainOnV153B() ? (two ? TU("v153BpbTwo", 0.9) : TU("v153BpbOne", 1.6)) : old.priorityBonus),
+        enumerable: !0,
+        configurable: !0
+      });
+      Object.defineProperty(n, "desc", {
+        get: () => (trainOnV153B() ? desc() : old.desc),
+        enumerable: !0,
+        configurable: !0
+      });
+    }
+  })();
+  // the suggestion moves with the season
+  function recMulV153B(e, key) {
+    const out = { mul: 1, why: [] };
+    if (!e || !trainOnV153B()) return out;
+    const T = TRAIN_V153B()[key],
+      hist = e.trainHistV153B || [];
+    if (hist[hist.length - 1] === key)
+      ((out.mul *= 1 - TU("v153BrecRepeat", 0.35)), out.why.push("you ran it last season"));
+    else if (hist.slice(-3).includes(key)) ((out.mul *= 0.85), out.why.push("you ran it recently"));
+    const body = key === "conditioning" || key === "lab" || key === "yoga",
+      fat = (e.conditionV11 && e.conditionV11.fatigue) || 0,
+      hurt = e.lastInjWeeksV153B || 0;
+    if (body && fat > 30)
+      ((out.mul *= 1 + Math.min(0.5, (fat - 30) / 100)),
+        out.why.push("he is carrying " + Math.round(fat) + " fatigue"));
+    if (body && hurt) ((out.mul *= 1 + Math.min(0.4, hurt * 0.1)), out.why.push("he missed games hurt last season"));
+    const young = (e.seasonsSinceStart | 0) < 2,
+      two = !!(T && T.risk);
+    if (T && young && !two) ((out.mul *= 1.1), out.why.push("early in a career, one thing at a time"));
+    if (T && !young && two) ((out.mul *= 1.1), out.why.push("a veteran can take the gamble"));
+    const j = seededRng("v153Brec", e.name || "", e.totalSeasons | 0, e.level | 0, key)();
+    out.mul *= 1 + (j - 0.5) * TU("v153BrecJitter", 0.2);
+    out.mul = +out.mul.toFixed(3);
+    return out;
+  }
+  // the stat → program map the coach's "top need" reads follows the new focus lists (ball control and
+  // discipline have no program of their own now and keep their old home)
+  (function () {
+    const NEW = {
+      acceleration: "track",
+      quickness: "track",
+      agility: "yoga",
+      tackling: "contact",
+      grit: "contact",
+      injuryResist: "lab"
+    };
+    for (const k in NEW) {
+      const old = PROG_FOR_V124[k];
+      Object.defineProperty(PROG_FOR_V124, k, {
+        get: () => (trainOnV153B() ? NEW[k] : old),
+        enumerable: !0,
+        configurable: !0
+      });
+    }
+  })();
+  // the pick: the best graded program this season. A body that is breaking down still goes to the program that
+  // trains Durability (Recovery Lab now — Conditioning is Stamina alone) — but not two seasons running: after a
+  // season of body work the board's best graded program gets its turn
+  const rec0V153B = recommendTraining;
+  recommendTraining = function (e) {
+    if (!e || !trainOnV153B()) return rec0V153B.apply(this, arguments);
+    try {
+      const top = trainScoreV124(e)[0],
+        hist = e.trainHistV153B || [],
+        last = hist[hist.length - 1];
+      if (top && top.key === "injuryResist" && last !== "lab" && last !== "conditioning") return "lab";
+      const all = Object.keys(PROGRAMS)
+        .filter(k => PROGRAMS[k].focus)
+        .map(k => trainGradeV133(e, k))
+        .sort((a, b) => b.value - a.value);
+      if (all.length && all[0].value > 0) return all[0].key;
+    } catch (_) {}
+    return rec0V153B.apply(this, arguments);
+  };
+  const tg0V153B = trainGradeV133;
+  trainGradeV133 = function (e, key) {
+    const g = tg0V153B.apply(this, arguments);
+    try {
+      if (g && !g.balanced && trainOnV153B()) {
+        const m = recMulV153B(e, key);
+        g.value = +(g.value * m.mul).toFixed(2);
+        g.mixV153B = m;
+      }
+    } catch (_) {}
+    return g;
+  };
+  const tp0V153B = tpPanelV113;
+  tpPanelV113 = function (e, key, sug) {
+    let h = tp0V153B.apply(this, arguments);
+    try {
+      const d = TRAIN_V153B()[key];
+      if (trainOnV153B() && d && d.risk)
+        h = h.replace(
+          '<div class="tp-rows-v113">',
+          `<div class="threshold-note tp-risk-v153b" style="margin-top:6px;color:#ffc36b;border-color:rgba(255,195,107,.5)">⚠️ <b>TWO KEY STATS · A REAL RISK · ${Math.round(riskOddsV153B(key) * 100)}%</b> — ${escHtml(riskSayV153B(key))}. Rolled once, when you confirm. Weighted Coin, House Money and Quick Study shave a little off the odds; nothing takes it below ${Math.round(TU("v153BriskFloor", 0.15) * 100)}%.</div><div class="tp-rows-v113">`
+        );
+    } catch (_) {}
+    return h;
+  };
+  function chooseTrainingWrapV153B(f0) {
+    return function (k) {
+      const e = state && state.player;
+      try {
+        if (e && trainOnV153B()) {
+          // last season's layoffs feed next year's suggestion
+          e.trainHistV153B = (e.trainHistV153B || []).concat(k).slice(-6);
+          const r = riskSeasonV153B(e, k);
+          if (r && r.hit) {
+            showToast("⚠️ " + r.name + " — " + r.line);
+            riskPopV153B(r);
+          }
+        }
+      } catch (x) {
+        console.warn("[v153 B training]", x);
+      }
+      return f0.apply(this, arguments);
+    };
+  }
+  function riskPopV153B(r) {
+    document.getElementById("riskPopV153B")?.remove();
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<div class="roll-pop-v20" id="riskPopV153B" onclick="this.remove()"><div class="roll-pop-card" style="border-color:rgba(255,195,107,.6)"><div class="roll-pop-kick" style="color:#ffc36b">⚠️ CAMP · ${escHtml(r.name)}</div><div class="roll-pop-fx"><span class="rollfx dn">${escHtml(r.line)}</span></div><div class="roll-pop-hint">tap to dismiss</div></div></div>`
+    );
+    setTimeout(() => document.getElementById("riskPopV153B")?.remove(), 5200);
+  }
+  chooseTraining = chooseTrainingWrapV153B(chooseTraining);
+  typeof window.chooseTraining === "function" &&
+    (window.chooseTraining = chooseTrainingWrapV153B(window.chooseTraining));
+  // the coach's note says what moved his pick this season, and each risky tile wears its odds
+  function trainBoardV153B() {
+    if (state.view !== "training" || !trainOnV153B()) return;
+    const e = state.player,
+      sc = byId("screen");
+    if (!e || !sc) return;
+    const note = sc.querySelector(".tp-note-v133");
+    if (note && !note.querySelector(".tp-mix-v153b")) {
+      const sug = recommendTraining(e),
+        m = recMulV153B(e, sug);
+      m.why.length &&
+        note.insertAdjacentHTML(
+          "beforeend",
+          ` <span class="tp-mix-v153b">This season: ${escHtml(m.why.join("; "))}.</span>`
+        );
+    }
+    sc.querySelectorAll(".tp-tile-v113").forEach(t => {
+      const k = ((t.getAttribute("onclick") || "").match(/'([a-zA-Z]+)'/) || [])[1];
+      if (!k || t.querySelector(".tp-riskpill-v153b") || !riskOddsV153B(k)) return;
+      t.insertAdjacentHTML(
+        "beforeend",
+        `<div class="tp-riskpill-v153b" style="font-size:10px;color:#ffc36b">⚠️ ${Math.round(riskOddsV153B(k) * 100)}% RISK</div>`
+      );
+    });
+  }
+
+  /* ===== v153 B MY PLAYS ARE MY SIDE OF THE BALL =====
+   * The owner decided My Plays Only is FREE (no gate, no price — house rule) and ON BY DEFAULT for everyone, and
+   * that it means HIS SIDE OF THE BALL: an offensive player (QB/RB/WR/TE/OL) watches every snap his offense takes,
+   * a defender (DL/LB/CB/S) every snap his defense is on the field for; special teams (kickoff, punt, field goal,
+   * extra point) only when he is in the play; drive headers only for his side; any play that names him always.
+   * `playsOnlyOkV151A` answers yes; a save that never saw v153 B has it switched ON once (`playsDefaultV153B` stamps
+   * `settings.playsDefaultV153B`), and Settings still turns it off. Kill switch `TU("v153Bplays", 0)` restores the
+   * v151 A gate and the old strictly-involved filter. */
+  function sideV153B(e) {
+    return e && ["QB", "RB", "WR", "TE", "OL"].includes(e.pos) ? "us" : "them";
+  }
+  function playsSkipV153B(r) {
+    if (!r || r.involved) return !1;
+    const e = state && state.player;
+    if (!e || !e.pos) return !1; // no career player (an arcade game): every snap
+    const side = sideV153B(e);
+    if (r.header || r.event === "drive") return !(r.event === "drive" && r.offense === side);
+    if (/^(punt|kickoff|onside|fg|xp|kick)$/.test(r.event || "")) return !0;
+    return r.offense !== side;
+  }
+  function playsDefaultV153B() {
+    if (!TU("v153Bplays", 1) || !state || !state.settings) return;
+    if (!state.settings.playsDefaultV153B) {
+      state.settings.playsDefaultV153B = 1;
+      state.settings.onlyInvolved = !0;
+    }
+  }
+
+  const q0V153B = render;
+  render = function () {
+    const r = q0V153B.apply(this, arguments);
+    try {
+      lockerCardV153B();
+      trainBoardV153B();
+    } catch (x) {
+      console.warn("[v153 B render]", x);
+    }
+    return r;
+  };
+  window.__V153B = {
+    persona: e => personaScoresV153B(e || state.player),
+    chem: e => chemOfV153B(e || state.player),
+    chemMove: (d, why, e) => chemMoveV153B(e || state.player, d, why),
+    locker: e => lockerV153B(e || state.player),
+    roll: (trigger, opts, e) => rollLockerV153B(e || state.player, trigger || "season", opts),
+    seasonStart: e => seasonStartV153B(e || state.player),
+    sacrifice: (e, opts) => sacrificeV153B(e || state.player, opts),
+    sacrificeCost: e => sacrificeCostV153B(e || state.player),
+    applyRoster: (e, roster) => applyRosterV153B(e || state.player, roster),
+    spin: (pl, out) => spinV153B(pl || state.player, out),
+    story: (fx, e) => Bo(e || state.player, state, fx),
+    decisionQ: e => teamDecisionQV153B(e || state.player),
+    prestigeQ: prF => teamPrestigeQV153B(prF),
+    teamPair: e => teamPairV76(e || state.player, {}),
+    programs: TRAIN_V153B,
+    riskOdds: riskOddsV153B,
+    riskSay: riskSayV153B,
+    risk: (k, e) => riskSeasonV153B(e || state.player, k),
+    riskInjMul: e => riskInjMulV153B(e || state.player),
+    recMul: (k, e) => recMulV153B(e || state.player, k),
+    rec: e => recommendTraining(e || state.player),
+    playsSkip: playsSkipV153B,
+    side: e => sideV153B(e || state.player),
+    inj: {
+      nodeK: injNodeKV153B,
+      gearK: injGearKV153B,
+      treeDown: injTreeDownV153B,
+      nodeMul: injNodeMulV153B,
+      motorMul: injMotorMulV153B,
+      iron: ironStepV153B,
+      trainerWeeks: trainerWeeksV153B,
+      heal: w => healWeeksV146(w)
+    }
+  };
   window.__V124 = {
     fate: PLAN_FATE_V124,
     odds: planFateOddsV124,

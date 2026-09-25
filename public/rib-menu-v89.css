@@ -45,8 +45,8 @@ html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
 .rib9-tint-shade{mix-blend-mode:multiply;opacity:calc(var(--ts)*.38)}
 .rib9-hero-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,7,9,.72) 0,rgba(6,7,9,.34) 34%,rgba(6,7,9,0) 56%),linear-gradient(180deg,rgba(6,7,9,.18),rgba(6,7,9,0) 26%,rgba(6,7,9,.42) 100%)}
 /* — v102: the hero is alive — */
-.rib9-hero-art{position:absolute;inset:0;animation:rib9breathe 4.4s ease-in-out infinite;transform-origin:50% 62%;will-change:transform}   /* v104: the whole art layer breathes, kit and name with it */
-@keyframes rib9breathe{0%,100%{transform:scale(1.012) translateY(0)}50%{transform:scale(1.024) translateY(-.25cqh)}}
+.rib9-hero-art{position:absolute;inset:0;animation:rib9breathe 4.6s ease-in-out infinite;transform-origin:50% 62%;will-change:transform}   /* v104: the whole art layer breathes, kit and name with it */
+@keyframes rib9breathe{0%,100%{transform:scale(1.012,1.012) translateY(0)}40%,52%{transform:scale(1.02,1.03) translateY(-.55cqh)}}   /* v153 D: a breath, not a zoom — in quick, a held beat, out slow; taller than wide so the shoulders rise */
 .rib9-hero-fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .rib9-hero-cv{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:screen}
 .rib9-lamp{position:absolute;left:var(--x);top:var(--y);width:9cqw;height:9cqw;margin:-4.5cqw 0 0 -4.5cqw;border-radius:50%;pointer-events:none;mix-blend-mode:screen;
@@ -78,8 +78,8 @@ html:not(.rib-assets-ready) #rib-main-menu-v2{opacity:0}
 /* same rhythm on the header gold. The gradient IS the letters' colour here (clipped to the text),
    so no-repeat needs the flat gold under it — otherwise the word vanishes wherever the band is not. */
 @keyframes rib9brand{0%,6%{background-position:110% 0;animation-timing-function:ease-in-out}48%{background-position:-110% 0;animation-timing-function:steps(1,end)}54%{background-position:110% 0;animation-timing-function:ease-in-out}96%,100%{background-position:-110% 0}}
-.rib9-portrait img{animation:rib9breathe2 4.4s ease-in-out infinite;transform-origin:50% 70%}
-@keyframes rib9breathe2{0%,100%{transform:scale(1)}50%{transform:scale(1.022)}}
+.rib9-portrait img{animation:rib9breathe2 4.6s ease-in-out infinite;transform-origin:50% 78%}
+@keyframes rib9breathe2{0%,100%{transform:scale(1,1) translateY(0)}40%,52%{transform:scale(1.01,1.026) translateY(-1.2%)}}   /* v153 D: the helmet rises on the breath */
 .rib9-hero-copy{position:absolute;left:2.5%;top:13%;width:44%;max-width:580px;transform-origin:0 50%;transform:perspective(90cqw) rotateY(28deg) rotateZ(-6deg)}
 .rib9-hero-copy h1{margin:0;line-height:0;font-size:0}
 .rib9-hero-copy h1 img{width:100%;height:auto;filter:drop-shadow(6px 10px 18px rgba(0,0,0,.7)) brightness(.76) saturate(.92)}
@@ -558,3 +558,62 @@ body.rib-howto-open{overflow:hidden!important}
 .rib9-meta .rib9-gen{color:#c9b8ff;font-weight:700}
 /* v151 B: the PROFILE door on the legacy card */
 .rib9-legacy .rib9-kicker{display:flex;align-items:center;justify-content:space-between;gap:8px}.rib9-prof-v151b{border:1px solid rgba(240,187,69,.45);background:rgba(240,187,69,.1);color:#ffd76f;font:700 9px Oswald,sans-serif;letter-spacing:1.6px;padding:3px 8px;border-radius:7px;cursor:pointer}.rib9-prof-v151b:hover{background:rgba(240,187,69,.2)}
+
+/* ===== v153 D THE GOAL ON THE WALL ===== (public/rib-menu.js: goalCardV153D, medalBoxV153D; src/31-legacy.js menuBox)
+   The milestones card holds up the goal trophy in a gilt frame (the owner's art keeps its own stadium / starfield);
+   the Legacy medal hovers in its own box under the hero's logo; PROFILE is a two-wide tile; PRESTIGE wears the coin. */
+.rib9-milestones{grid-template-columns:minmax(0,1fr) clamp(118px,37%,210px);align-items:center;gap:0}
+.rib9-goal-v153d{position:relative;z-index:2;margin:12px 12px 12px 0;display:flex;flex-direction:column;align-items:stretch;gap:7px}
+.rib9-goal-frame{position:relative;display:block;aspect-ratio:4/5;border-radius:9px;overflow:hidden;background:#0a0b0e;
+  box-shadow:0 0 0 1px rgba(255,222,140,.85),0 0 0 3px #1b140a,0 0 0 4px rgba(230,178,58,.6),0 10px 22px rgba(0,0,0,.6),0 0 24px rgba(255,196,84,.2)}
+.rib9-goal-img{width:100%;height:100%;object-fit:cover}
+.rib9-goal-frame:after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:0 0 0 1px rgba(0,0,0,.55) inset,0 -26px 30px -18px rgba(0,0,0,.55) inset;pointer-events:none}
+.rib9-goal-shine{position:absolute;inset:-2px;pointer-events:none;mix-blend-mode:screen;background:linear-gradient(105deg,rgba(255,255,255,0) 38%,rgba(255,236,190,.34) 47%,rgba(255,255,255,.1) 53%,rgba(255,255,255,0) 60%);background-size:280% 100%;background-position:135% 0;animation:rib9goalshine 6s ease-in-out infinite}
+@keyframes rib9goalshine{0%,52%{background-position:135% 0}86%,100%{background-position:-35% 0}}
+.rib9-goal-v153d figcaption{text-align:center;display:flex;flex-direction:column;gap:1px;line-height:1.1}
+.rib9-goal-v153d figcaption small{font-family:Oswald,sans-serif;font-size:9.5px;font-weight:600;letter-spacing:2.6px;color:var(--g)}
+.rib9-goal-v153d figcaption b{font-family:Oswald,sans-serif;font-weight:700;font-size:12.5px;letter-spacing:1px;color:#ffe7a6;text-shadow:0 1px 0 rgba(0,0,0,.6),0 0 10px rgba(255,200,90,.25)}
+.rib9-goal-v153d figcaption em{font-style:normal;font-size:9px;letter-spacing:1.3px;color:var(--mute)}
+.rib9-goal-v153d[data-stage="isl"] .rib9-goal-frame,.rib9-goal-v153d[data-stage="done"] .rib9-goal-frame{box-shadow:0 0 0 1px rgba(214,200,255,.85),0 0 0 3px #150f26,0 0 0 4px rgba(170,140,255,.6),0 10px 22px rgba(0,0,0,.6),0 0 26px rgba(160,130,255,.28)}
+.rib9-goal-v153d[data-stage="isl"] figcaption b,.rib9-goal-v153d[data-stage="done"] figcaption b{color:#e6dcff;text-shadow:0 1px 0 rgba(0,0,0,.6),0 0 10px rgba(170,140,255,.4)}
+.rib9-goal-v153d[data-stage="done"] figcaption small{color:#7fe38f}
+
+/* the box never overlaps the hero: its kit tints are measured there (menu-mask-check) */
+.rib9-medalbox-v153d{position:relative;z-index:3;margin:0 12px;display:grid;grid-template-columns:100px minmax(0,1fr);align-items:center;gap:10px;min-height:114px;padding:8px 14px 10px 8px;border-radius:16px;cursor:pointer;
+  border:1px solid rgba(255,214,107,.6);background:radial-gradient(90% 150% at 0% 50%,color-mix(in srgb,var(--lgbox-glow,#e8c86a) 26%,transparent),transparent 62%),linear-gradient(180deg,rgba(30,25,15,.95),rgba(13,12,10,.97));
+  box-shadow:0 14px 30px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.6),0 1px 0 rgba(255,230,160,.2) inset,0 0 22px color-mix(in srgb,var(--lgbox-glow,#e8c86a) 18%,transparent)}
+.rib9-medalbox-v153d:active{transform:scale(.985)}
+.rib9-medalbox-v153d .lgbox-stage{position:relative;width:100px;height:100px;display:grid;place-items:center}
+.rib9-medalbox-v153d .lgbox-halo{position:absolute;inset:6px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--lgbox-glow,#e8c86a) 70%,transparent) 0,transparent 68%);filter:blur(6px);opacity:.6;animation:rib9medalhalo 4.2s ease-in-out infinite}
+.rib9-medalbox-v153d .lgbox-medal{position:relative;z-index:1;display:inline-grid;place-items:center;animation:rib9medalfloat 4.2s ease-in-out infinite;filter:drop-shadow(0 6px 8px rgba(0,0,0,.55))}
+.rib9-medalbox-v153d .lgbox-shadow{position:absolute;bottom:2px;left:50%;width:46px;height:7px;margin-left:-23px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.6),transparent);animation:rib9medalshadow 4.2s ease-in-out infinite}
+@keyframes rib9medalfloat{0%,100%{transform:translateY(3px) rotate(-2deg)}50%{transform:translateY(-5px) rotate(2deg)}}
+@keyframes rib9medalhalo{0%,100%{opacity:.45;transform:scale(.94)}50%{opacity:.8;transform:scale(1.06)}}
+@keyframes rib9medalshadow{0%,100%{transform:scaleX(1);opacity:.9}50%{transform:scaleX(.72);opacity:.5}}
+.rib9-medalbox-v153d .lgbox-ph{width:64px;height:64px;border-radius:50%;border:2px dashed rgba(255,214,107,.35)}
+.rib9-medalbox-v153d .lgbox-copy{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"k k" "r n" "r t" "bar bar" "xp xp";align-items:center;gap:0 10px;min-width:0;padding-right:4px}
+.rib9-medalbox-v153d .lgbox-copy small{grid-area:k;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:2.6px;color:var(--g);margin-bottom:1px}
+.rib9-medalbox-v153d .lgbox-rank{grid-area:r;font-family:Oswald,sans-serif;font-weight:700;font-size:36px;line-height:.95;color:#ffe39a;text-shadow:0 2px 0 rgba(0,0,0,.55),0 0 14px color-mix(in srgb,var(--lgbox-glow,#e8c86a) 55%,transparent)}
+.rib9-medalbox-v153d .lgbox-name{grid-area:n;align-self:end;font-family:Oswald,sans-serif;font-weight:600;font-size:14px;letter-spacing:.4px;color:#f2f3f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rib9-medalbox-v153d .lgbox-tier{grid-area:t;align-self:start;font-style:normal;font-family:Oswald,sans-serif;font-size:10px;letter-spacing:2px;color:color-mix(in srgb,var(--lgbox-glow,#e8c86a) 75%,#fff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rib9-medalbox-v153d .lgbox-bar{grid-area:bar;display:block;height:4px;margin-top:7px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden}
+.rib9-medalbox-v153d .lgbox-bar>i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#b98418,#ffd66b 70%,#fff3c4);box-shadow:0 0 8px rgba(255,214,107,.6)}
+.rib9-medalbox-v153d .lgbox-xp{grid-area:xp;text-decoration:none;font-size:9.5px;letter-spacing:1.2px;color:var(--mute);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rib9-medalbox-v153d .lgbox-go{position:absolute;top:8px;right:10px;font-family:Oswald,sans-serif;font-size:9px;font-weight:700;letter-spacing:1.6px;color:#ffd76f;padding:2px 7px;border:1px solid rgba(240,187,69,.45);border-radius:7px;background:rgba(240,187,69,.1)}
+
+.rib9-tile-profile-v153d{grid-column:span 2;display:grid;grid-template-columns:56px minmax(0,1fr);grid-template-rows:auto auto;align-content:center;justify-items:start;gap:2px 12px;text-align:left;padding:12px 14px}
+.rib9-tile-profile-v153d img{grid-row:1/3;width:56px;height:56px;margin:0;border-radius:50%;object-fit:cover;box-shadow:0 0 0 2px rgba(255,214,107,.75),0 0 0 4px rgba(0,0,0,.5),0 4px 10px rgba(0,0,0,.6)}
+.rib9-tile-profile-v153d b{grid-column:2;align-self:end;font-size:16px}
+.rib9-tile-profile-v153d small{grid-column:2;align-self:start;white-space:normal;line-height:1.3}
+.rib9-tile-coin-v153d img{width:58px;height:58px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.6)) drop-shadow(0 0 10px rgba(255,214,107,.35))}
+
+/* phones: three EQUAL columns — a nowrap label ("HALL OF FAME", the coach's long switch line) used to widen the first
+   column to twice the others and squeeze TRAINING / GOALS to 90px; the labels wrap instead of stretching the grid */
+@media (max-width:759px){
+  .rib9-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .rib9-tile b{white-space:normal;line-height:1.1}
+  .rib9-tile small{white-space:normal;line-height:1.3}
+}
+@media (min-width:760px){
+  .rib9-medalbox-v153d{align-self:flex-start;width:min(520px,calc(100% - 28px));margin:0 0 0 14px}
+}

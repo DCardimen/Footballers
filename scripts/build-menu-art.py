@@ -95,6 +95,10 @@ for kit in ['menu-kit-hero.py', 'menu-kit-card.py', 'menu-kit-portrait.py']:
     print(f'--- {kit}'); sys.stdout.flush()
     runpy.run_path(os.path.join(os.path.dirname(os.path.abspath(__file__)), kit), run_name='__main__')
 
+# v153 D: the goal trophies on the milestones card (the owner's art, framed whole) — their own script
+print('--- build-goal-trophies.py'); sys.stdout.flush()
+runpy.run_path(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build-goal-trophies.py'), run_name='__main__')
+
 for f in ['hero_mask_p','hero_mask_s','card_continue_mask_p','card_continue_mask_s','portrait_helmet_mask_s']:
     report.append((f + '.webp', 'mask', os.path.getsize(f'{OUT}/{f}.webp')))
 

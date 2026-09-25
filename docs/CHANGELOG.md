@@ -10,6 +10,133 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v153 B — the locker room remembers who you are, the team is built by decisions, training is a gamble, injuries
+  stay on his mind, My Plays Only is free.** Five owner asks, one version (`src/07-career-app.js`, hooks in
+  `src/10`, `src/18`, the coach; `scripts/v153Bcheck.mjs`).
+  *The locker room* (`v153 B THE LOCKER ROOM REMEMBERS WHO YOU ARE`): at every season start the personality sliders
+  roll against the persistent roster — a TOXIC kid (me-first, brash, volatile, stubborn) drives 1-3 NAMED teammates to
+  the portal or off the team (P = 0.1 + 0.3 × toxicity, ≤ 0.8; replaced at 80% of their OVR; chemistry −3 each), a
+  TEAM-FIRST kid (loyal, even-keeled, coachable, humble) lifts a named teammate by 8% of the level's team rating.
+  Story swings of ±5 chemistry and the season wheel (Team Cookouts +4, Captain's Council +3, an underground 7-on-7
+  gone wrong −3) earn half-odds follow-up rolls. Seeded per season; a toast, a pop and a LOCKER ROOM card on the season
+  screen name every man.
+  *The team rating*: the prestige share (prestige count / the Roster Department / tree levels) is halved
+  (`v153BprestigeTeamK` 0.5: a fully prestiged save loses ~20 team OVR in the UFF from prestige alone), the seven
+  team-quality nodes' margin edge too (descriptions restated). What replaces it is what he did: locker-room chemistry
+  (±0.2 team quality — ±8.6 OVR in the UFF, ±1.8 at Pee Wee), this season's roster moves (exactly: a teammate's OVR
+  change / 22), the weekly plan (+1.5 chemistry a "Do the Dirty Work" week, −1 a "Demand the Spotlight" week, read at
+  the next season start), a 3-a-season personality drift, and the new **SACRIFICE FOR A TEAMMATE** on the offseason
+  board: give up 2 + level points off your three best stats, the weakest man in your unit gains 12% of the level's
+  rating (≈ +10 OVR in the UFF), chemistry +6 — once a season.
+  *Training* (`v153 B ONE KEY STAT, OR TWO AND A RISK`): Speed Academy / Explosion & Hops / Mobility & Yoga /
+  Conditioning / Recovery Lab train ONE key stat (priority ×2.6); Weight Room (STR+BLK), Full-Contact (TKL+GRIT),
+  Track Club (ACC+QCK), Film Study (AWR+VIS), Skills Clinic (CTH+THR) train TWO (×1.9 each) with a risk rolled once a
+  season at CONFIRM — a tweaked back ×1.35 injury odds (35%), camp dings ×1.45 (40%), a hamstring ×1.3 (30%), a step of
+  Speed lost (30%), +25 fatigue (30%). Weighted Coin / House Money / Quick Study shave ≤ 8 points, never below 15%.
+  The coach's suggestion moves: last season's program −35%, fatigue and last season's layoffs lift the body programs,
+  one-stat work early and the gamble later, a seeded ±10% a season; a breaking body goes to the Recovery Lab, not two
+  seasons running. v124's trades and rolls are untouched.
+  *Injuries* (`v153 B INJURIES STAY ON HIS MIND`): every prestige injury lever pays 30% of what it did and the tree can
+  never take more than 25% off the roll (a maxed tree took 52%); the Ironman path −70% → −21%; Iron Body +7 → +2
+  Durability; Miracle Hands 25% → 7.5% a level; Trainer's Room six games, not three; gear injury rolls at half. Nothing
+  became pointless, so nothing is refunded.
+  *My Plays Only* (`v153 B MY PLAYS ARE MY SIDE OF THE BALL`): free, ON by default (an old save is switched on once,
+  Settings still turns it off), and it means your side of the ball — a linebacker watches every defensive snap, a QB
+  every offensive one, special teams only when he is in them. The coach says so at the first broadcast; the v151 A gate
+  is retired (`docs/MONETIZATION.md`). Kill switches `v153Broster`, `v153Bteam`, `v153Btrain`, `v153Binj`, `v153Bplays`.
+
+
+- **v153 D — the goal on the wall.** The main menu's milestones card holds up THE GOAL: the owner's new UFF
+  CHAMPIONS trophy art, framed whole as a gilt 4:5 card with a slow shine, until the account wins the UFF — then
+  it becomes NEXT: INTERSTELLAR CHAMPIONS (the space trophy, a violet frame), and WON once that title is taken too.
+  The title is read from the lifetime record (the season log's and the Hall's champion rows), never from the
+  rings, which are spent on mastery. Your Legacy medal now has its own box right under the RUNNING IT BACK logo:
+  the medal hovering in its tier's glow, the rank, the medal's name, the tier and a thin XP bar; tap it for the
+  profile (it replaces the small header chip). A PROFILE tile joins the menu beside LEADERBOARDS; PRESTIGE wears
+  the vault's gold coin instead of the purple crystal; the hero and the card portrait breathe (in, a held beat,
+  out — the shoulders rise); and the tiles are three equal columns on a phone.
+- **v153 C — payday: your run becomes wealth.** Earned Prestige Points no longer appear already in the pile. When the
+  vault opens after a completed run it plays a reward sequence: the room darkens on the OLD balance, "+N PRESTIGE"
+  arrives with a gold pulse, one coin drops and lands, a pause, then a shower that builds like a jackpot — coins from
+  different heights and sides, each tumbling and spinning its own way, a shadow firming under it as it nears the floor,
+  a squash on impact, one or two smaller bounces, then it lies down on the pile, which grows under it (mid-depth coins
+  land on the very slots the grown hoard reveals; far ones are smaller and behind the heap, near ones larger and blurred
+  in front). The count climbs only as coins land; the last few slow down, a silence, then the largest coin — gold, or
+  the billion blue — lands with a heavy CLINK, the total locks, a warm pulse runs across the floor and the door, a
+  highlight crosses the number, and only then are RESTOCK / DETAILS / CHOOSE AN UPGRADE live. The rain is logarithmic
+  in the gain (8-15 coins for a few PP up to 180 for millions; a new personal record or a 100M+ award is a 200-coin
+  "prestige storm" with god-rays and NEW PRESTIGE RECORD). Layered coin sounds (ticks, clinks, heavy impacts, a
+  cascade bed, a whispered riser for big awards) through the vault's own voice-capped audio; a handful of haptics, never
+  one per coin; a tap speeds it up, a second skips to the end; reduced motion is a quick count-up with a few coins.
+  The award is owed when a career has settled since the vault last played one, and its size is the lifetime PP earned
+  since the vault last showed a balance; what was shown lives in `rib.vaultPay.v153`, outside the save, written before
+  it plays — reopening, reloading or leaving mid-shower never replays it, and nothing in it can move a point. After it
+  settles a touch on the pile shifts the top coins with a quiet metal sound. And past 100M the wealth outgrows one heap:
+  columns of coin, then crates (1B), sacks (10B), stacked crates (100B) and a treasury along the back wall (1T), at the
+  sides of the room. `RIB_TUNE.v153C = 0` turns the sequence off. `v153Ccheck`, camera `v153Cshot.mjs`.
+- **v153 F — one medal, four numbers, and Chaos pays the rank.** The owner: "stars vs medals… two different types of
+  medals is confusing." Honors wore a medal (🎖️) and the Legacy Rank is 500 medals, so Honors now wear the crest
+  (⚜️ — `HONOR_ICON_V130`, the top-bar chip reads `⚜️ N HONORS · 🪙 M PP`, the career-end card, the tree, the Path), and
+  the few other 🎖️ icons in 07 / the pregame (Discipline, Veteran Presence, Born Leader, Team Captain, Ice In The
+  Veins) became 🧘 🧓 🦁 📣 🧊 — the medal means the Legacy Rank. How To Play gains **STARS, HONORS, PP & LEGACY** (what
+  each number is, how it is earned, what it does; the Legacy Rank's ten tiers, where its XP comes from, the milestone
+  bounties, the trophy case and the collection book) and **CHAOS** (how to unlock it, what the dials do, the pay table,
+  the risk); the stale "prestige stars" / "0.2 for Varsity" / "a Path at 6 stars" copy is corrected. The coach says
+  two chaos stops of his own on the RINGS & CHAOS screen — how to open it while it is locked, then the dials, the pay
+  (live numbers) and the catch once it is open — once each, tour on or off. **Chaos is now a major Legacy bonus:**
+  +8% Legacy XP per chaos point up to ×5 (was +3% up to ×3 — a first capacity of 6 now pays ×1.48, not ×1.18);
+  `TU("v153F", 0)` restores it. The PP multiplier was already the largest in the game (×3 on the first point, ×1.16 a
+  point after: ×7.3 at 6, ×13 at 10) and is unchanged; the Chaos card now shows both (PP ×, Legacy XP +%, and a
+  "what it pays" line), the Legacy XP card's Chaos part reads `Chaos ×1.48 · +48% XP`, and the trophy case quotes it.
+  Menu files baked as `v153f`. `v153Fcheck`; `faqcheck` expects 11 sections, `honorcheck` the crest.
+
+- **v153 E — the kit reads, the sheet fits, the thumb fits, the unknown is black.** The profile card's player wore the
+  art's own navy torso and socks whatever the team or the equipped uniform was (the borrowed recolour skipped every
+  pixel darker than the navy's median) with blotchy grey-blue sleeves, on a near-black box: the card now recolours the
+  figure itself — navy is the jersey (the helmet shell inside the helmet only), gold the pants and arms, each re-shaded
+  around its own median so a black kit keeps its folds and a white one its creases, patterns painted before the scale —
+  on a lit studio wall with a rim light. The SKILLS sheet fits one phone screen: a one-line header (the points, the OVR),
+  the pricing paragraph behind HOW PRICES WORK, and PHYSICAL / BALL SKILLS / MENTAL as a segmented control, each group
+  with every row on screen — the live metric, the v67 cap readout over a soft-cap bar, KEY badges, 40px steppers. Every
+  career screen was measured at 400x860 and lifted to 11px type and 36px tap targets (the top bar's chips and buttons,
+  the section tabs, the bar, the dock's chips, the (i) cards, chips, selects, sliders; the wordmark squeezed to "R."
+  gives way to the screen's name on the ticker); the stats screen's leaders table gets its own tab instead of a
+  three-row box. Locked Legacy medals are solid black silhouettes — in the book, the detail panel, the trophy case's
+  next milestone and the milestone card. Looks and layout only: no gameplay number moves. `v153Echeck`.
+
+- **v153 G — the full locker: footprints, wings, crowns, and a 50-tier pass.** Five new things to wear, all drawn from
+  code at the broadcast's pixel scale: FOOTPRINTS behind him while he moves on the live field (flame, frost, gold
+  sparks, lightning, stardust, smoke, rainbow, 8-bit, petals, comet, an afterimage of himself), WINGS on his back
+  (angel, seraph, night/bat, ice crystal, phoenix, mech, 8-bit, monarch — they flap, fold at a sprint, and sit over his
+  back when he faces away), CROWNS on his head (gold, royal, halo, laurel, circlet, horns, fire, star — drawn over the
+  plumbob so it never hides them), AURAS (glow, pulse, heat haze, frost, void) and NUMBER FONTS for his jersey number.
+  All of them are worn on the profile card's figure too. The catalogue also gains 12 jerseys (chevron, stripes,
+  shoulders, check, sash, tiger), 9 helmets (satin and pearl finishes, twin and wide stripes), 10 card frames (neon,
+  hardwood, frostbite, circuit, emerald, royal, molten, holographic, heaven's gate, the void) and 7 touchdown
+  celebrations (shockwave, snow globe, 8-bit burst, meteor shower, over the rainbow, halo ring, angel descends). The
+  Career Pass grows from 30 to 50 tiers (800 XP each): a reward on 37 free tiers and all 50 premium ones, a highlight
+  every fifth tier, and a showcase at 50 (mythic seraph wings; a legendary crown on the free track), every jersey,
+  helmet and flair reward naming the style it draws. Still status, never power: nothing reads a sim value or spends
+  `Math.random`, `validateReward` refuses anything non-cosmetic, and with monetization OFF nothing is sold.
+  `src/28-cosmetics.js`, `src/29-seasons.js`, the `cosFxV153G` hook in `src/05`; `v153Gcheck`.
+
+- **v153 A — the pile goes down, the way out of it, forward progress, the stat gain lands, the 109% rule.** A gang
+  stop names the men in the heap (`downV153A`: supporters and closers within `gangDownPxV153A` of the carrier, at most
+  `gangDownMaxV153A`); contactV146 lays them onto the pile ring and the broadcast folds them with him instead of leaving
+  them standing. A forming group tackle can be escaped by GIVING GROUND: rolled once per grip on the carrier's agility,
+  strength and ball security against the tacklers (`escape*V153A`, `evadeRepeatK`), he backs out and spins away
+  (`escapeV153A` + a `cut` spin; the men who had hands on are beaten). FORWARD PROGRESS: a carrier the grip drove back
+  (v151 D's push) is spotted at the furthest point his progress reached — `endTackle` books the yards from it, the
+  tackle carries `fpX`/`fpYd`, the official spots it there ("FORWARD PROGRESS") — never for a QB taken down behind his
+  line, never for ground he gave. Kill switches `TU("v153A"|"gangDownV153A"|"escapeV153A"|"fwdProgV153A", 0)`; the
+  escape roll spends a `Math.random()` only when a group forms (compare seeds). In the live box a stat he earns is a
+  callout that rises off his marker (`__ribYouClientV153A`) and flies into its tile, which counts up with a pop, a blip
+  through `RIB_MUSIC.sfxOut` and a LIGHT haptic; a 100-yard / 300-yard game, double-digit tackles, a hat trick and a
+  new single-game CAREER HIGH (`gameHighsV153A`) get the gold banner, a chord and a MEDIUM haptic
+  (`TU("statGainV153A", 0)` is the old flash). The snap share: he and his named rival used to split a pool clamped to
+  65-115% of one position's snaps ("YOU 94% VS 15%"); the position now adds up to 100%, and only a SUPERHUMAN
+  (past the wall and far above the level's bar) with NO BACKUP plays 109% (`snapSplitV153A`, `TU("snapCapV153A", 0)`).
+  `scripts/v153Acheck.mjs`.
 
 - **v152 A.2 — the medal gets the spotlight, the book turns, the band plays on arrival.** The profile card wears the
   Legacy medal in its own framed, glowing box beside the name (tap: the trophy case). The collection book turns real

@@ -49,7 +49,8 @@
   var rnd = prng(Date.now() ^ 0x5eed);
 
   /* ---------------- the catalogue ---------------- */
-  var SLOTS = ["uniform", "helmet", "frame", "celebration", "stadium", "vault", "banner", "shelf", "recap", "title", "badge", "nameplate", "icon"];
+  var SLOTS = ["uniform", "helmet", "frame", "celebration", "stadium", "vault", "banner", "shelf", "recap", "title", "badge", "nameplate", "icon",
+    "trail", "wings", "crown", "aura", "numfont"];   // v153 G: the five flair slots (fieldFx below + the card's flair layers)
   var CATS = {
     uniform: { name: "UNIFORMS", icon: "👕", def: "uni_team" },
     helmet: { name: "HELMETS", icon: "🪖", def: "hel_team" },
@@ -64,7 +65,13 @@
     title: { name: "TITLES", icon: "🏷", def: "title_none" },
     badge: { name: "BADGES", icon: "🎖", def: "badge_none" },
     nameplate: { name: "NAMEPLATES", icon: "🔖", def: "plate_none" },
-    icon: { name: "PROFILE ICONS", icon: "👤", def: "icon_none" }
+    icon: { name: "PROFILE ICONS", icon: "👤", def: "icon_none" },
+    /* v153 G — worn on HIM on the live field (one bannered hook in src/05's placeMarker) and on the card figure */
+    trail: { name: "FOOTPRINTS", icon: "👣", def: "trail_none" },
+    wings: { name: "WINGS", icon: "🪶", def: "wings_none" },
+    crown: { name: "CROWNS", icon: "👑", def: "crown_none" },
+    aura: { name: "AURAS", icon: "✨", def: "aura_none" },
+    numfont: { name: "NUMBER FONTS", icon: "🔢", def: "nf_team" }
   };
   /* earned: the achievement that unlocks it (ACH below) · pass: the season-pass tier the pass worker grants */
   var ITEMS = [
@@ -162,6 +169,7 @@
     { id: "plate_none", cat: "nameplate", name: "Plain", rarity: "common", source: "free", plate: "" },
     { id: "icon_none", cat: "icon", name: "Initials", rarity: "common", source: "free", glyph: "" }
   ];
+  ITEMS.push.apply(ITEMS, itemsV153G());   // v153 G: the expanded catalogue (defined with the flair code below)
   var PACKS = [
     { id: "pack_uniforms1", name: "Uniform Pack", price: "$1.99", productId: "rib.cos.uniforms1", items: [] },
     { id: "pack_helmets1", name: "Helmet Pack", price: "$1.99", productId: "rib.cos.helmets1", items: [] },
@@ -190,7 +198,8 @@
    * track up front (locked until claimed, so the Locker says where they come from), any other season's the moment
    * one is granted or found in stored profile data. Their look is derived from the id alone (a hash), so every
    * device draws the same reward the same way. */
-  var PASS_CAT = { banner: "banner", frame: "frame", celebration: "celebration", kit: "uniform", title: "title", badge: "badge", nameplate: "nameplate", icon: "icon" };
+  var PASS_CAT = { banner: "banner", frame: "frame", celebration: "celebration", kit: "uniform", title: "title", badge: "badge", nameplate: "nameplate", icon: "icon",
+    jersey: "uniform", helmet: "helmet", trail: "trail", wings: "wings", crown: "crown", aura: "aura", numfont: "numfont" };   // v153 G
   function hsh(str) { var h = 2166136261 >>> 0; str = String(str); for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function hslHex(h, s2, l) { var a = s2 * Math.min(l, 1 - l), f = function (n) { var k = (n + h / 30) % 12, c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return Math.round(255 * c).toString(16).padStart(2, "0"); }; return "#" + f(0) + f(8) + f(4); }
   var ICON_GLYPHS = ["🦅", "🐺", "🦁", "🐻", "⚡", "🔥", "🛡️", "👑", "🐍", "🦈"];
@@ -199,7 +208,7 @@
       if (!rw || !/^pass\.[A-Za-z0-9_-]+\.(free|premium)\.\d+$/.test(String(rw.id || ""))) return null;
       if (BY[rw.id]) return BY[rw.id];
       var cat = PASS_CAT[rw.kind]; if (!cat) return null;
-      var h = hsh(rw.id), c1 = hslHex(h % 360, 0.62, 0.42), c2 = hslHex((h >>> 9) % 360, 0.72, 0.62), rr = /^(common|rare|epic|legendary)$/.test(rw.rarity) ? rw.rarity : "common";
+      var h = hsh(rw.id), c1 = hslHex(h % 360, 0.62, 0.42), c2 = hslHex((h >>> 9) % 360, 0.72, 0.62), rr = /^(common|rare|epic|legendary|mythic)$/.test(rw.rarity) ? rw.rarity : "common";
       var it = { id: rw.id, cat: cat, name: String(rw.name || "Pass reward").replace(/[<>]/g, "").slice(0, 40), rarity: rr, source: "pass", tier: rw.tier | 0, track: rw.track === "premium" ? "premium" : "free", season: String(rw.season || "").slice(0, 12), packs: [], passKind: rw.kind };
       if (cat === "banner") it.bg = "linear-gradient(135deg," + c1 + " 0%," + c2 + " 55%,#0b0f16 100%)";
       else if (cat === "frame") it.css = { common: "steel", rare: "carbon", epic: "diamond", legendary: "gold" }[rr];
@@ -209,6 +218,7 @@
       else if (cat === "badge") it.glyph = ["🎖", "🏅", "⭐", "🔰", "💠"][h % 5], it.col = c2;
       else if (cat === "nameplate") it.plate = "linear-gradient(90deg," + c1 + "cc," + c2 + "33 70%,transparent)";
       else if (cat === "icon") it.glyph = ICON_GLYPHS[h % ICON_GLYPHS.length], it.col = c1;
+      passLookV153G(it, rw, h, c1, c2, rr);   // v153 G: jerseys, helmets, flair, and more variety in frames / banners / celebrations
       it.preview = function (el) { return previewInto(el, it); };
       ITEMS.push(it); BY[it.id] = it; return it;
     } catch (e) { return null; }
@@ -430,12 +440,17 @@
               var f = H.f || "gloss", s2 = sc;
               if (f === "matte") s2 = 1 + (sc - 1) * 0.5;
               else if (f === "chrome") s2 = Math.max(0.3, 1 + (sc - 1) * 1.9);
+              else if (f === "satin") s2 = 1 + (sc - 1) * 0.7;
               out = HS.map(function (v) { return v * s2; });
-              if (f === "gloss" && yy <= head + 1) out = mix(out, [255, 255, 255], 0.28);
+              if ((f === "gloss" || f === "pearl") && yy <= head + 1) out = mix(out, [255, 255, 255], 0.28);
+              if (f === "satin" && yy === head) out = mix(out, [255, 255, 255], 0.14);
+              if (f === "pearl" && ((xx + yy) % 3 === 0)) out = mix(out, HST || [236, 230, 255], 0.2);   // v153 G: an iridescent fleck
               if (f === "chrome" && (yy <= head + 1 || ((xx + yy) % 5 === 0))) out = mix(out, [255, 255, 255], 0.42);
               if (f === "metal" && ((xx * 7 + yy * 13) % 11 === 0)) out = mix(out, [255, 255, 255], 0.5);
               var hr = hRows[yy];
-              if (HST && hr) { var cx = (hr[0] + hr[1]) / 2, wide = hr[1] - hr[0] > 11 ? 1.1 : 0.6; if (Math.abs(xx - cx) <= wide) out = HST.map(function (v) { return v * Math.min(1.2, Math.max(0.6, s2)); }); }
+              if (HST && hr) { var cx = (hr[0] + hr[1]) / 2, wide = hr[1] - hr[0] > 11 ? 1.1 : 0.6, dxs = Math.abs(xx - cx);
+                var onSt = H.sk === "twin" ? dxs >= wide + 0.4 && dxs <= wide + 1.6 : H.sk === "wide" ? dxs <= wide + 1 : dxs <= wide;   // v153 G: twin / wide stripes
+                if (onSt) out = HST.map(function (v) { return v * Math.min(1.2, Math.max(0.6, s2)); }); }
               if (HD && hr && Math.abs(yy - hMid) <= (H.dk === "star" ? 1 : 0) && xx >= hr[0] + 1 && xx <= hr[0] + (H.dk === "star" ? 3 : 2)) out = HD.slice();
             } else if (U && yy <= waist && cls === 1) {
               var t = (yy - top) / Math.max(1, waist - top), pat = U.pat || "solid";
@@ -447,6 +462,7 @@
               else if (pat === "chest" && Math.abs(t - 0.45) < 0.14) out = UT;
               else if (pat === "sleeves" && (yy - top === 3 || yy - top === 4)) out = UT;
               else if (pat === "camo") { var h = ((xx >> 1) * 73856093 ^ (yy >> 1) * 19349663) >>> 0, q = (h % 7); out = q < 2 ? UT : q < 3 ? mix(UJ, [20, 20, 20], 0.35) : null; }
+              else if (pat !== "solid") out = patV153G(pat, xx, yy, top, W / 2, UJ, UT);   // v153 G: chevron, stripes, shoulders, checker, sash, tiger
               if (out) out = out.map(function (v) { return v * sc; });
             } else if (UPS && yy > waist && cls === 2 && pr >= 0 && (xx === pl + 1 || xx === pr - 1)) {
               out = UPS.map(function (v) { return v * sc; });
@@ -493,6 +509,7 @@
   function kitFromData(k) {
     k = k || {};
     var U = { j: hexOk(k.j) || "#1f4fd0", p: hexOk(k.p) || "#e8c86a", t: hexOk(k.t) || null, pat: String(k.pat || "solid").replace(/[^a-z]/g, ""), ps: hexOk(k.ps) };
+    U.pat = PAT_CARD_V153G[U.pat] || U.pat;   // v153 G: the card's figure draws the nearest of its own patterns
     var H = hexOk(k.hs) ? { s: k.hs, st: hexOk(k.hst), f: String(k.hf || "gloss").replace(/[^a-z]/g, ""), d: hexOk(k.hd), dk: String(k.hdk || "").replace(/[^a-z]/g, "") } : null;
     return { U: U, H: H };
   }
@@ -530,6 +547,8 @@
       } else if (C.kind === "crown") {
         var cr = track(scene.add.text(x, y - 30, "👑", { fontSize: "30px" }).setOrigin(0.5).setDepth(D + 0.1)); made++; tw(cr, { y: y - 90, alpha: 0, duration: 1600, ease: "Cubic.easeOut" });
         var ring = track(scene.add.circle(x, y - 10, 10).setStrokeStyle(3, cn(0), 1).setDepth(D)); made++; tw(ring, { scale: 7, alpha: 0, duration: 900 });
+      } else if (CEL_V153G[C.kind]) {
+        made += CEL_V153G[C.kind]({ scene: scene, x: x, y: y, n: n, R: R, cn: cn, cols: cols, dot: dot, tw: tw, track: track, D: D, reduced: reduced });   // v153 G
       } else if (C.kind === "spot") {
         var sp = track(scene.add.ellipse(x, y, 90, 34, cn(0), 0.35).setDepth(D - 1)); made++; tw(sp, { alpha: 0, scaleX: 1.6, scaleY: 1.6, duration: 1400 });
       }
@@ -624,53 +643,140 @@
     else if (cat === "title") html = '<div class="cos-flair-v151b"><small>' + escHtml(it.text || "—") + "</small></div>";
     else if (cat === "badge" || cat === "icon") html = '<div class="cos-flair-v151b big"' + (it.col ? ' style="box-shadow:0 0 0 2px ' + it.col + ' inset"' : "") + ">" + escHtml(it.glyph || "·") + "</div>";
     else if (cat === "nameplate") html = '<div class="cos-flair-v151b plate" style="background:' + (it.plate || "#1a2230") + '"><small>NAME</small></div>';
+    else if (FLAIR_CATS_V153G[cat]) return previewFlairV153G(el, it);   // v153 G: trail, wings, crown, aura, number font
     el.innerHTML = html; return el;
   }
 
   /* ---------------- the character on the card ---------------- */
-  var SENT = "#00ff00";
-  function drawCharacter(cv, kd, age) {
-    var G = window.__GROW_V132; if (!cv || !G || !G.draw) return null;
-    var k = kitFromData(kd), res = null;
+  /* ===== v153 E THE KIT READS ON THE CARD =====
+   * The card used to borrow the growth screen's recolour (07's growHiCellV134), which skips every source pixel
+   * darker than L 38 — and the source jersey is navy at a MEDIAN L of 32, so the torso and the socks stayed the
+   * art's own navy whatever he wore: a teal-and-black team read as a navy man with teal arms, a white kit as navy
+   * with grey blotches (only the navy's highlights were scaled, `L / 95`, into flat patches). The pattern pass
+   * then shaded its trim off a sentinel's green (`l6 * 1.05`), the same broken ramp again.
+   *
+   * So the card recolours the native-size art itself, once per kit, at the SOURCE: every navy pixel (any
+   * lightness) is the jersey (above the neck, the helmet shell), every gold pixel the pants and arms (above the
+   * neck, the helmet stripe and mask); each is re-shaded on a ramp around its region's median — the median pixel
+   * IS the kit colour, darker folds run down to a shadow of it, highlights up towards white — so a black kit
+   * keeps its folds, a white kit its creases, and the team colour is the colour you see. The pattern is painted
+   * on the jersey rows in source coordinates before the scale, so it shades the same way. The figure is then
+   * drawn exactly as the growth screen draws him (the same age proportions, `__GROW_V132.stage`).
+   * Looks only: nothing here reads or writes a number the game uses. `window.__V153E.fig`. ===== */
+  var FIG = { img: null, tried: false, cache: {}, neck: 0.372, waiting: [], drawn: 0, last: null };
+  function figLoad() {
+    if (FIG.img || FIG.tried) return;
+    FIG.tried = true;
     try {
-      res = G.draw(cv, age || 22, [k.U.j, k.U.p]);
-      if (!res) return null;
-      var needH = !!k.H, needP = k.U.pat && k.U.pat !== "solid" && k.U.t;
-      if (!needH && !needP && !k.U.ps) return res;
-      var W = cv.width, H = cv.height, x = cv.getContext("2d"), A = x.getImageData(0, 0, W, H);
-      var tmp = document.createElement("canvas");
-      var diff = function (kit) { G.draw(tmp, age || 22, kit); var B = tmp.getContext("2d").getImageData(0, 0, W, H).data; return B; };
-      var a = A.data, top = -1, bot = -1;
-      for (var y = 0; y < H; y++) for (var xx = 0; xx < W; xx++) if (a[(y * W + xx) * 4 + 3] > 40) { if (top < 0) top = y; bot = y; }
-      var headCut = top + Math.round((bot - top) * 0.36);
-      if (needH) {
-        var B = diff([k.U.j, k.H.s]), cols = [];
-        for (var y2 = top; y2 < headCut; y2++) { var mn = 1e9, mx = -1; for (var x2 = 0; x2 < W; x2++) { var i = (y2 * W + x2) * 4; if (Math.abs(B[i] - a[i]) + Math.abs(B[i + 1] - a[i + 1]) + Math.abs(B[i + 2] - a[i + 2]) > 18) { a[i] = B[i]; a[i + 1] = B[i + 1]; a[i + 2] = B[i + 2]; if (x2 < mn) mn = x2; if (x2 > mx) mx = x2; } } cols.push([y2, mn, mx]); }
-        if (k.H.st) { var st = rgb(k.H.st); cols.forEach(function (r) { if (r[2] < 0) return; var c = (r[1] + r[2]) / 2, w = Math.max(1.5, (r[2] - r[1]) * 0.07); for (var x3 = Math.floor(c - w); x3 <= Math.ceil(c + w); x3++) { var i3 = (r[0] * W + x3) * 4; if (B[i3 + 3] > 40 && Math.abs(B[i3] - A.data[i3]) >= 0) { var l = (B[i3] + B[i3 + 1] + B[i3 + 2]) / 3 / 160; a[i3] = Math.min(255, st[0] * Math.max(0.55, l)); a[i3 + 1] = Math.min(255, st[1] * Math.max(0.55, l)); a[i3 + 2] = Math.min(255, st[2] * Math.max(0.55, l)); } } }); }
-        if (k.H.f === "gloss" || k.H.f === "chrome") for (var y4 = top; y4 < top + Math.max(2, (headCut - top) * 0.18); y4++) for (var x4 = 0; x4 < W; x4++) { var i4 = (y4 * W + x4) * 4; if (a[i4 + 3] > 40) { a[i4] += (255 - a[i4]) * 0.3; a[i4 + 1] += (255 - a[i4 + 1]) * 0.3; a[i4 + 2] += (255 - a[i4 + 2]) * 0.3; } }
-      }
-      if (needP) {
-        var P = diff([SENT, k.U.p]), T = rgb(k.U.t), J = rgb(k.U.j), pb = -1, pt = 1e9;
-        for (var y5 = headCut; y5 < H; y5++) for (var x5 = 0; x5 < W; x5++) { var i5 = (y5 * W + x5) * 4; if (P[i5 + 3] > 40 && P[i5 + 1] > P[i5] + 40 && P[i5 + 1] > P[i5 + 2] + 40) { if (y5 < pt) pt = y5; if (y5 > pb) pb = y5; } }
-        for (var y6 = pt; y6 <= pb; y6++) for (var x6 = 0; x6 < W; x6++) {
-          var i6 = (y6 * W + x6) * 4; if (!(P[i6 + 3] > 40 && P[i6 + 1] > P[i6] + 40 && P[i6 + 1] > P[i6 + 2] + 40)) continue;
-          var l6 = P[i6 + 1] / 255, t6 = (y6 - pt) / Math.max(1, pb - pt), o = null, sw = Math.max(2, Math.round(W / 60));
-          var pat = k.U.pat;
-          if (pat === "hoops" && Math.floor((y6 - pt) / (sw * 3)) % 2 === 1) o = T;
-          else if (pat === "pinstripe" && Math.floor(x6 / sw) % 3 === 0) o = mix(J, T, 0.55);
-          else if (pat === "split" && x6 >= W / 2) o = T;
-          else if (pat === "fade") o = mix(J, T, Math.min(1, t6 * 1.15));
-          else if (pat === "yoke" && t6 < 0.18) o = T;
-          else if (pat === "chest" && Math.abs(t6 - 0.45) < 0.12) o = T;
-          else if (pat === "sleeves" && Math.abs(t6 - 0.26) < 0.05) o = T;
-          else if (pat === "camo") { var hh = ((Math.floor(x6 / (sw * 2))) * 73856093 ^ (Math.floor(y6 / (sw * 2))) * 19349663) >>> 0; o = hh % 7 < 2 ? T : null; }
-          if (o) { a[i6] = Math.min(255, o[0] * Math.max(0.35, l6 * 1.05)); a[i6 + 1] = Math.min(255, o[1] * Math.max(0.35, l6 * 1.05)); a[i6 + 2] = Math.min(255, o[2] * Math.max(0.35, l6 * 1.05)); }
+      var im = new Image(); im.decoding = "async";
+      im.onload = function () { FIG.img = im; var w = FIG.waiting.splice(0); w.forEach(function (f) { try { f(); } catch (e) {} }); };
+      im.onerror = function () { FIG.tried = false; };
+      im.src = window.__RIB_ASSET ? window.__RIB_ASSET("grow/idle_dn_hi.png") : "./public/grow/idle_dn_hi.png";
+    } catch (e) {}
+  }
+  function lumOf(c) { return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]; }
+  /* one kit colour at one source shade: t = the pixel's lightness over its region's median */
+  function shadeKit(B, t) {
+    var L = lumOf(B), base = L < 48 ? mix(B, [255, 255, 255], ((48 - L) / 48) * 0.14) : B;   // a black kit keeps a fold to read
+    if (t <= 1) { var k = Math.max(0, Math.min(1, (t - 0.32) / 0.68)); return mix([base[0] * 0.24, base[1] * 0.24, base[2] * 0.3], base, k); }
+    var h = Math.min(1, (t - 1) * 0.5) * (L > 205 ? 0.25 : 0.55);
+    return mix(base, [255, 255, 255], h);
+  }
+  function srcClass(r, g, b) {
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = (mx + mn) / 2, sat = mx ? (mx - mn) / mx : 0, hue = 0;
+    if (mx !== mn) { if (mx === r) hue = (60 * ((g - b) / (mx - mn)) + 360) % 360; else if (mx === g) hue = 60 * ((b - r) / (mx - mn)) + 120; else hue = 60 * ((r - g) / (mx - mn)) + 240; }
+    if (hue >= 190 && hue <= 265 && sat > 0.25 && mx > 14) return [1, L];
+    if (hue >= 33 && hue <= 62 && sat > 0.3 && L > 18) return [2, L];
+    if (hue >= 12 && hue < 33 && sat > 0.35 && L > 14) return [3, L];     // the gold's warm rim (and his skin, which is kept)
+    return [0, L];
+  }
+  /* the source recoloured for one kit: { j, p, t, pat, hs, hst, hf } (hex strings; hs / hst / t optional) */
+  function figCell(K) {
+    var im = FIG.img; if (!im) return null;
+    var key = [K.j, K.p, K.t, K.pat, K.hs, K.hst, K.hf].join("|");
+    if (FIG.cache[key]) return FIG.cache[key];
+    var W = im.naturalWidth, H = im.naturalHeight, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    var x = cv.getContext("2d"); x.drawImage(im, 0, 0);
+    var img = x.getImageData(0, 0, W, H), d = img.data;
+    var top = 3, neck = Math.round(top + (H - 6) * FIG.neck);
+    // the jersey's rows: from the neck to the first row where the gold pants outweigh the navy
+    var waist = H;
+    for (var y0 = neck + 20; y0 < H; y0++) {
+      var nv = 0, gd = 0;
+      for (var x0 = 0; x0 < W; x0++) { var i0 = (y0 * W + x0) * 4; if (d[i0 + 3] < 20) continue; var c0 = srcClass(d[i0], d[i0 + 1], d[i0 + 2])[0]; if (c0 === 1) nv++; else if (c0 === 2) gd++; }
+      if (gd > 12 && gd > nv * 1.5) { waist = y0; break; }
+    }
+    var J = rgb(K.j), P = rgb(K.p), T = K.t ? rgb(K.t) : P, HS = K.hs ? rgb(K.hs) : J, HST = K.hst ? rgb(K.hst) : P, pat = K.pat || "solid";
+    var sw = 3, MED1 = 32.5, MED2 = 88;                 // the source's navy and gold medians (measured off idle_dn_hi.png)
+    var gloss = K.hf === "gloss" || K.hf === "chrome", chrome = K.hf === "chrome";
+    // the helmet is the dome (an ellipse over the art's own helmet), not everything above the neck: the
+    // shoulder pads ride those rows too. Its stripe is the gold above the visor; the mask stays the trim colour.
+    var hx0 = W * 0.515, hy0 = H * 0.15, hrx = W * 0.29, hry = H * 0.14, visor = H * 0.23;
+    for (var y = 0; y < H; y++) for (var xx = 0; xx < W; xx++) {
+      var i = (y * W + xx) * 4; if (d[i + 3] < 20) continue;
+      var c = srcClass(d[i], d[i + 1], d[i + 2]), cls = c[0], o = null, t = 1;
+      var ex = (xx - hx0) / hrx, ey = (y - hy0) / hry, helmet = y < neck && ex * ex + ey * ey <= 1;
+      var face = y >= H * 0.2 && y < neck + 6 && xx > W * 0.28 && xx < W * 0.75;
+      if (cls === 1) {
+        t = c[1] / MED1;
+        if (helmet) { o = HS; if (chrome) t = 0.55 + (t - 0.55) * 1.6; }
+        else {
+          o = J;
+          if (y < waist && pat !== "solid" && K.t) {
+            var ty = Math.max(0, (y - neck) / Math.max(1, waist - neck));
+            if (pat === "hoops" && Math.floor(Math.max(0, y - neck) / (sw * 3)) % 2 === 1) o = T;
+            else if (pat === "pinstripe" && Math.floor(xx / sw) % 3 === 0) o = mix(J, T, 0.55);
+            else if (pat === "split" && xx >= W / 2) o = T;
+            else if (pat === "fade") o = mix(J, T, Math.min(1, ty * 1.15));
+            else if (pat === "yoke" && ty < 0.2) o = T;
+            else if (pat === "chest" && Math.abs(ty - 0.45) < 0.12) o = T;
+            else if (pat === "sleeves" && Math.abs(ty - 0.26) < 0.06) o = T;
+            else if (pat === "camo") { var hh = ((Math.floor(xx / (sw * 2))) * 73856093 ^ (Math.floor(y / (sw * 2))) * 19349663) >>> 0; if (hh % 7 < 2) o = T; }
+          }
         }
-      }
-      x.putImageData(A, 0, 0);
+      } else if (cls === 2 || (cls === 3 && !face)) { t = c[1] / MED2; o = helmet && y < visor ? HST : P; }   // the warm rim follows its gold, never his face
+      if (!o) continue;
+      var out = shadeKit(o, t);
+      if (helmet && gloss && cls === 1 && y < hy0 - hry * 0.45) out = mix(out, [255, 255, 255], 0.3);
+      d[i] = Math.max(0, Math.min(255, out[0])); d[i + 1] = Math.max(0, Math.min(255, out[1])); d[i + 2] = Math.max(0, Math.min(255, out[2]));
+    }
+    x.putImageData(img, 0, 0);
+    FIG.cache[key] = cv;
+    return cv;
+  }
+  /* the growth screen's geometry (07 growDrawHiV134), on the card's own recolour */
+  function figDraw(cv, age, K) {
+    var c = figCell(K), G = window.__GROW_V132; if (!c || !cv || !cv.getContext) return null;
+    var stg = G && G.stage ? G.stage(age) : { head: 1, width: 1, name: "grown" };
+    var W = 128, H = 160, dpr = Math.min(3, window.devicePixelRatio || 1);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.classList.add("hi");
+    var x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+    x.clearRect(0, 0, W, H);
+    x.save(); x.fillStyle = "rgba(0,0,0,.45)"; x.beginPath(); x.ellipse(W / 2, H - 3, 25, 4.5, 0, 0, 6.283); x.fill(); x.restore();
+    var SW = c.width, SH = c.height, top = 3, bot = SH - 3, ink = bot - top, neck = Math.round(top + ink * FIG.neck), headRows = neck - top, bodyRows = bot - neck;
+    var k = Math.min((H - 4) / (bodyRows + headRows * stg.head), (W - 4) / Math.max(SW * 0.78 * stg.width, SW * 0.66 * stg.head * Math.sqrt(stg.width)));
+    var bw = SW * k * stg.width, bh = bodyRows * k, bx = (W - bw) / 2, by = H - 2 - bh;
+    x.drawImage(c, 0, neck, SW, bodyRows, bx, by, bw, bh);
+    var hk = k * stg.head, hw = SW * hk * Math.sqrt(stg.width), hh = headRows * hk;
+    x.drawImage(c, 0, top, SW, headRows, (W - hw) / 2, by + k * ink * 0.012 - hh, hw, hh);
+    return { mode: "hi", stage: stg, k: +k.toFixed(3), v153: true };
+  }
+  function drawCharacter(cv, kd, age) {
+    var k = kitFromData(kd), res = null;
+    var K = { j: k.U.j, p: k.U.p, t: k.U.t, pat: k.U.pat, hs: k.H ? k.H.s : null, hst: k.H ? k.H.st : null, hf: k.H ? k.H.f : null };
+    try {
+      figLoad();
+      res = figDraw(cv, age || 22, K);
+      if (res) { FIG.drawn++; FIG.last = K; return res; }
+      // the art is still on its way: the growth screen's figure now, the card's own the moment it lands
+      if (cv && !cv.__v153wait) { cv.__v153wait = 1; FIG.waiting.push(function () { cv.__v153wait = 0; if (cv.isConnected) drawCharacter(cv, kd, age); }); }
+      var G = window.__GROW_V132; if (!cv || !G || !G.draw) return null;
+      res = G.draw(cv, age || 22, [k.U.j, k.U.p]);
     } catch (e) { V.charErr = String(e && e.message || e); }
     return res;
   }
+  window.__V153E = Object.assign(window.__V153E || {}, { fig: FIG, shadeKit: shadeKit, figCell: figCell });
+  try { figLoad(); } catch (e) {}
 
   /* ---------------- the profile ---------------- */
   function levelName(i) { try { var L = window.__GRIDIRON_AUDIT__.LEVELS; return (L[i] && L[i].name) || ""; } catch (e) { return ""; } }
@@ -690,7 +796,8 @@
       titlesByLevel: A.byLevel, gen: A.gen, surname: String(A.surname || "").slice(0, 24), bestScore: A.bestScore, careerScore: A.careerScore || 0,
       teamStyle: { unlocked: ts.unlocked, total: ts.total, all: ts.all },
       achievements: Object.keys(load().ach),
-      cosmetics: { title: equipped("title"), badge: equipped("badge"), nameplate: equipped("nameplate"), icon: equipped("icon"), frame: equipped("frame"), banner: equipped("banner"), shelf: equipped("shelf"), uniform: equipped("uniform"), helmet: equipped("helmet"), recap: equipped("recap"), kit: kitData() }
+      cosmetics: { title: equipped("title"), badge: equipped("badge"), nameplate: equipped("nameplate"), icon: equipped("icon"), frame: equipped("frame"), banner: equipped("banner"), shelf: equipped("shelf"), uniform: equipped("uniform"), helmet: equipped("helmet"), recap: equipped("recap"), kit: kitData(),
+        trail: equipped("trail"), wings: equipped("wings"), crown: equipped("crown"), aura: equipped("aura"), numfont: equipped("numfont") }   // v153 G
     };
   }
   function num(n) { n = Number(n) || 0; return n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "M" : n >= 1e4 ? Math.round(n / 1e3) + "K" : n.toLocaleString("en-US"); }
@@ -731,6 +838,7 @@
       var cv = el.querySelector(".pc-cv-v151b");
       var draw = function () { var r = drawCharacter(cv, cz.kit || {}, d.age || 22); if (r && r.mode !== "hi" && !draw._again) { draw._again = 1; setTimeout(draw, 700); } };
       if (cv) draw();
+      if (cv) cardFlairV153G(cv, cz);   // v153 G: aura + wings behind the figure, the crown on his head (its own layers)
     }
     return html;
   }
@@ -860,8 +968,9 @@
       ".pc-gen-v151b{position:absolute;left:10px;top:8px;padding:2px 7px;border-radius:6px;background:rgba(0,0,0,.55);color:#ffd76f;font:700 10px Oswald,sans-serif;letter-spacing:1.5px}",
       ".pc-ovr-v151b{position:absolute;right:10px;top:7px;display:flex;flex-direction:column;align-items:center;padding:2px 8px;border-radius:8px;background:rgba(0,0,0,.55);font:700 8px Oswald,sans-serif;letter-spacing:1.5px;color:#c9d2de}.pc-ovr-v151b b{font-size:19px;line-height:1;color:#ffd76f}",
       ".pc-body-v151b{display:flex;gap:10px;padding:0 12px;margin-top:-34px;position:relative}",
-      ".pc-fig-v151b{flex:none;width:92px;height:116px;border-radius:12px;background:radial-gradient(ellipse at 50% 85%,rgba(240,187,69,.18),rgba(8,12,18,.85) 70%);border:1px solid rgba(255,255,255,.08);display:grid;place-items:end center;overflow:hidden}",
-      ".pc-cv-v151b{width:92px;height:115px;image-rendering:auto}",
+      /* v153 E: a lit studio wall behind him (a dark kit on the old near-black box vanished) and a thin rim light round the figure */
+      ".pc-fig-v151b{flex:none;width:92px;height:116px;border-radius:12px;background:radial-gradient(ellipse 80% 62% at 50% 40%,#6d7c93 0%,#435066 38%,#212a38 72%,#141a24 100%);border:1px solid rgba(255,255,255,.16);box-shadow:0 0 0 1px rgba(0,0,0,.5),0 4px 10px rgba(0,0,0,.45);display:grid;place-items:end center;overflow:hidden}",
+      ".pc-cv-v151b{width:92px;height:115px;image-rendering:auto;filter:drop-shadow(0 0 1px rgba(255,255,255,.55)) drop-shadow(0 2px 3px rgba(0,0,0,.55))}",
       ".pc-id-v151b{min-width:0;flex:1;padding-top:38px}",
       ".pc-name-v151b{font:700 19px Oswald,sans-serif;letter-spacing:1px;line-height:1.05;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
       ".pc-meta-v151b{font-size:11px;color:#9fb0c4;letter-spacing:1px;margin-top:3px}",
@@ -949,6 +1058,762 @@
     (document.head || document.documentElement).appendChild(st);
   })();
 
+  /* ===== v153 G THE FULL LOCKER — footprints, wings, crowns, auras, number fonts; more jerseys, helmets, frames, celebrations =====
+   * The owner asked for a major expansion of what a player can wear and earn: more kits and shells, more card frames and
+   * touchdown celebrations, and five NEW kinds worn on HIM —
+   *   trail    footprints behind him on the live field while he moves (flame, frost, gold sparks, lightning, stardust, smoke,
+   *            rainbow, 8-bit, petals, comet, afterimage) — one Graphics under the players (depth 3.9), drawn per frame
+   *   wings    a pair of procedurally drawn pixel-art wings (angel, seraph, bat, crystal, phoenix, mech, 8-bit, monarch) on
+   *            his back — two images in his marker's container, behind the body facing the camera, over it facing away
+   *   crown    on his head (crown, royal crown, halo, laurel, circlet, horns, crown of fire, star circlet)
+   *   aura     a soft glow he stands in (glow, pulse, heat haze, frost, void)
+   *   numfont  the face and colour of HIS jersey number on the field (varsity, block, stencil, gold, neon, chrome, retro)
+   * All five are drawn from code (canvas rasters registered as textures once per look) — no new art files — at one pixel per
+   * sprite pixel, so they scale with his sprite (age, perspective) exactly as the kit does.
+   *
+   * THE HOOK. src/05 `placeMarker` calls `cosFxV153G(scene, m, p)` for the you-marker (and once more for a marker that stops
+   * being him, to take his flair off): `fieldFx` below. With nothing equipped it returns at the first line and draws nothing.
+   * It reads only the marker's drawn state (position, scale, texture, facing) and writes only its own objects: no sim value,
+   * no TU() number the sim reads, and not one Math.random — the particles' jitter is an integer hash of the point's sequence
+   * number, the flap and the flicker are sines of the scene clock. v151Bcheck's seeded games stay identical with all of it on.
+   * The profile card wears wings / crown / aura as two extra canvases around the figure (`cardFlairV153G`), never inside
+   * drawCharacter. `window.__V153G` is what v153Gcheck reads. */
+  var FLAIR_CATS_V153G = { trail: 1, wings: 1, crown: 1, aura: 1, numfont: 1 };
+  var PAT_CARD_V153G = { chevron: "yoke", stripes: "pinstripe", shoulders: "yoke", checker: "camo", sash: "split", tiger: "hoops" };
+  var G153 = (window.__V153G = window.__V153G || { fx: { frames: 0, trail: 0, wings: 0, crown: 0, aura: 0, numfont: 0, ghosts: 0, cleared: 0 }, lastTrail: null, card: null, previews: 0, freeze: false, errs: [] });
+  function errV153G(e) { try { if (G153.errs.length < 8) G153.errs.push(String((e && e.message) || e)); } catch (x) {} }
+
+  /* ---- the catalogue (hoisted: ITEMS takes it before the packs are built) ---- */
+  function itemsV153G() {
+    return [
+      // JERSEYS — the new patterns (chevron, stripes, shoulders, checker, sash, tiger) and new palettes
+      { id: "uni_alt_charcoal", cat: "uniform", name: "Charcoal Alternate", rarity: "common", source: "free", k: { j: "#2b2f36", p: "#2b2f36", t: "#f0bb45", pat: "shoulders" } },
+      { id: "uni_cream_stripes", cat: "uniform", name: "Cream Throwback", rarity: "common", source: "free", k: { j: "#efe6cf", p: "#8a1c2b", t: "#8a1c2b", pat: "stripes" } },
+      { id: "uni_practice", cat: "uniform", name: "Practice Mesh", rarity: "common", source: "free", k: { j: "#d9dde3", p: "#2a2f38", t: "#9aa3ad", pat: "checker" } },
+      { id: "uni_teal_stripes", cat: "uniform", name: "Teal Stripes", rarity: "common", source: "free", k: { j: "#127a74", p: "#e8e8e8", t: "#e8e8e8", pat: "stripes" } },
+      { id: "uni_crimson_chev", cat: "uniform", name: "Crimson Chevron", rarity: "rare", source: "free", k: { j: "#9e1b25", p: "#f0f0f0", t: "#f0f0f0", pat: "chevron" } },
+      { id: "uni_glacier_sash", cat: "uniform", name: "Glacier Sash", rarity: "rare", source: "free", k: { j: "#bfe6ff", p: "#1f3a5c", t: "#1f5fbf", pat: "sash" } },
+      { id: "uni_tiger", cat: "uniform", name: "Tiger Stripe", rarity: "epic", source: "earned", ach: "td100", k: { j: "#e07a1f", p: "#1a1a1a", t: "#1a1a1a", pat: "tiger" } },
+      { id: "uni_royal_chev", cat: "uniform", name: "Royal Chevron", rarity: "legendary", source: "earned", ach: "ring", k: { j: "#3b1f7a", p: "#f2efe6", t: "#e6c46a", pat: "chevron", ps: "#e6c46a" } },
+      { id: "uni_mvp_white", cat: "uniform", name: "MVP White", rarity: "legendary", source: "earned", ach: "mvp", k: { j: "#f4f4f4", p: "#f4f4f4", t: "#d4af37", pat: "sash", ps: "#d4af37" } },
+      { id: "uni_heritage", cat: "uniform", name: "Heritage Plaid", rarity: "epic", source: "earned", ach: "gen3", k: { j: "#7a2a2a", p: "#d9cfb8", t: "#1f3a2c", pat: "checker" } },
+      { id: "uni_marble", cat: "uniform", name: "Marble Hall", rarity: "legendary", source: "earned", ach: "hof", k: { j: "#ece8df", p: "#1c1c1c", t: "#c9a13b", pat: "shoulders", ps: "#c9a13b" } },
+      { id: "uni_nebula", cat: "uniform", name: "Nebula Fade", rarity: "mythic", source: "earned", ach: "interstellar", k: { j: "#2a1650", p: "#0b0716", t: "#9a7bff", pat: "fade", ps: "#9a7bff" } },
+      // HELMETS — satin and pearl finishes, twin and wide stripes
+      { id: "hel_satin_navy", cat: "helmet", name: "Satin Navy", rarity: "common", source: "free", h: { s: "#1a2a4a", st: "#c7d0de", f: "satin" } },
+      { id: "hel_twin_red", cat: "helmet", name: "Twin Stripe Red", rarity: "common", source: "free", h: { s: "#b3121f", st: "#ffffff", sk: "twin", f: "gloss" } },
+      { id: "hel_wide_gold", cat: "helmet", name: "Wide Gold Stripe", rarity: "common", source: "free", h: { s: "#1b1d22", st: "#d4af37", sk: "wide", f: "matte" } },
+      { id: "hel_camo_matte", cat: "helmet", name: "Olive Drab", rarity: "common", source: "free", h: { s: "#4c5a3a", st: "#2a3122", f: "matte" } },
+      { id: "hel_pearl", cat: "helmet", name: "Pearl", rarity: "rare", source: "free", h: { s: "#e8e4f0", st: "#6a5acd", f: "pearl" } },
+      { id: "hel_emerald", cat: "helmet", name: "Emerald Metallic", rarity: "rare", source: "earned", ach: "ring", h: { s: "#0f6b45", st: "#e6e6e6", f: "metal" } },
+      { id: "hel_ruby", cat: "helmet", name: "Ruby Chrome", rarity: "epic", source: "earned", ach: "td100", h: { s: "#9e1b25", f: "chrome", d: "#ffffff", dk: "star" } },
+      { id: "hel_heritage", cat: "helmet", name: "Heritage Leather", rarity: "epic", source: "earned", ach: "gen3", h: { s: "#6b4226", st: "#e8dcc0", sk: "twin", f: "matte" } },
+      { id: "hel_marble", cat: "helmet", name: "Marble Pearl", rarity: "legendary", source: "earned", ach: "hof", h: { s: "#ece8df", st: "#c9a13b", f: "pearl", d: "#c9a13b", dk: "star" } },
+      // CARD FRAMES
+      { id: "frame_neon", cat: "frame", name: "Neon Sign", rarity: "common", source: "free", css: "neon" },
+      { id: "frame_wood", cat: "frame", name: "Hardwood", rarity: "common", source: "free", css: "wood" },
+      { id: "frame_frost", cat: "frame", name: "Frostbite", rarity: "rare", source: "free", css: "frost" },
+      { id: "frame_circuit", cat: "frame", name: "Circuit Board", rarity: "rare", source: "free", css: "circuit" },
+      { id: "frame_emerald", cat: "frame", name: "Emerald", rarity: "epic", source: "earned", ach: "ring", css: "emerald" },
+      { id: "frame_royal", cat: "frame", name: "Royal Purple", rarity: "epic", source: "earned", ach: "gen3", css: "royal" },
+      { id: "frame_lava", cat: "frame", name: "Molten", rarity: "epic", source: "earned", ach: "uff", css: "lava", anim: 1 },
+      { id: "frame_holo", cat: "frame", name: "Holographic", rarity: "legendary", source: "earned", ach: "mvp", css: "holo", anim: 1 },
+      { id: "frame_angel", cat: "frame", name: "Heaven's Gate", rarity: "legendary", source: "earned", ach: "td100", css: "angel", anim: 1 },
+      { id: "frame_void", cat: "frame", name: "The Void", rarity: "mythic", source: "earned", ach: "interstellar", css: "void" },
+      // TOUCHDOWN CELEBRATIONS — seven new kinds (CEL_V153G)
+      { id: "cel_shock", cat: "celebration", name: "Shockwave", rarity: "common", source: "free", c: { kind: "shock", col: ["#ffffff", "#8fe3ff", "#bfe6ff"], say: "BOOM" } },
+      { id: "cel_snow", cat: "celebration", name: "Snow Globe", rarity: "rare", source: "free", c: { kind: "snow", col: ["#ffffff", "#d6ecff", "#bfe6ff"], say: "ICE COLD" } },
+      { id: "cel_pixel", cat: "celebration", name: "8-Bit Burst", rarity: "rare", source: "free", c: { kind: "pixel", col: ["#ff3d7f", "#18c3b8", "#ffd76f", "#6fd3ff"], say: "1UP" } },
+      { id: "cel_meteor", cat: "celebration", name: "Meteor Shower", rarity: "epic", source: "earned", ach: "uff", c: { kind: "meteor", col: ["#ffb02e", "#fff3c4", "#ff5a1a"], say: "IMPACT" } },
+      { id: "cel_rainbow", cat: "celebration", name: "Over the Rainbow", rarity: "epic", source: "earned", ach: "gen3", c: { kind: "rainbow", col: ["#ff4d4d", "#ffa94d", "#ffe14d", "#4dd97a", "#4da6ff", "#9a6bff"], say: "FAMILY BUSINESS" } },
+      { id: "cel_halo", cat: "celebration", name: "Halo Ring", rarity: "legendary", source: "earned", ach: "mvp", c: { kind: "halo", col: ["#ffe98a", "#ffffff", "#ffd76f"], say: "HOLY" } },
+      { id: "cel_feathers", cat: "celebration", name: "Angel Descends", rarity: "legendary", source: "earned", ach: "hof", c: { kind: "feathers", col: ["#ffffff", "#fff3c4", "#ffd76f"], say: "HEAVEN SENT" } },
+      // FOOTPRINTS — the trail behind him on the live field
+      { id: "trail_none", cat: "trail", name: "Clean Cleats", rarity: "common", source: "free", tr: null, blurb: "No trail." },
+      { id: "trail_dust", cat: "trail", name: "Turf Dust", rarity: "common", source: "free", tr: { kind: "smoke", col: ["#b8a27a", "#8a7a5a"] } },
+      { id: "trail_sparks", cat: "trail", name: "Gold Sparks", rarity: "common", source: "free", tr: { kind: "sparks", col: ["#ffd76f", "#fff3c4", "#e6b53a"] } },
+      { id: "trail_pixel", cat: "trail", name: "8-Bit Steps", rarity: "rare", source: "free", tr: { kind: "pixels", col: ["#ff3d7f", "#18c3b8", "#ffd76f", "#6fd3ff"] } },
+      { id: "trail_frost", cat: "trail", name: "Frost Steps", rarity: "rare", source: "free", tr: { kind: "ice", col: ["#ffffff", "#bfe6ff", "#7fb2ff"] } },
+      { id: "trail_comet", cat: "trail", name: "Golden Comet", rarity: "rare", source: "earned", ach: "title", tr: { kind: "comet", col: ["#ffd76f", "#fff3c4"] } },
+      { id: "trail_petals", cat: "trail", name: "Petals", rarity: "rare", source: "earned", ach: "ring", tr: { kind: "petals", col: ["#ffb3c7", "#ff7aa2", "#fff0f5"] } },
+      { id: "trail_flame", cat: "trail", name: "Scorched Cleats", rarity: "epic", source: "earned", ach: "td100", tr: { kind: "flame", col: ["#fff3a0", "#ffb02e", "#ff5a1a", "#b8200f"] } },
+      { id: "trail_lightning", cat: "trail", name: "Storm Chaser", rarity: "epic", source: "earned", ach: "uff", tr: { kind: "lightning", col: ["#ffffff", "#bfe6ff", "#7fb2ff"] } },
+      { id: "trail_rainbow", cat: "trail", name: "Rainbow Road", rarity: "epic", source: "earned", ach: "gen3", tr: { kind: "rainbow", col: ["#ff4d4d", "#ffa94d", "#ffe14d", "#4dd97a", "#4da6ff", "#9a6bff"] } },
+      { id: "trail_ghost", cat: "trail", name: "Afterimage", rarity: "legendary", source: "earned", ach: "mvp", tr: { kind: "ghost", col: ["#8fe3ff"] } },
+      { id: "trail_stars", cat: "trail", name: "Stardust", rarity: "mythic", source: "earned", ach: "interstellar", tr: { kind: "stars", col: ["#ffffff", "#ffe98a", "#b9a6ff"] } },
+      { id: "trail_founder", cat: "trail", name: "Founder's Comet", rarity: "mythic", source: "founder", tr: { kind: "comet", col: ["#e6c46a", "#fff0c8"] } },
+      // WINGS
+      { id: "wings_none", cat: "wings", name: "No Wings", rarity: "common", source: "free", w: null },
+      { id: "wings_practice", cat: "wings", name: "Practice Wings", rarity: "common", source: "free", w: { kind: "pixel", col: ["#e8edf4", "#9aa3b2", "#2a3240"] } },
+      { id: "wings_monarch", cat: "wings", name: "Monarch", rarity: "rare", source: "free", w: { kind: "monarch", col: ["#ff9a1f", "#1a1a1a", "#ffffff"] } },
+      { id: "wings_crystal", cat: "wings", name: "Ice Crystal", rarity: "epic", source: "earned", ach: "ring", w: { kind: "crystal", col: ["#dff4ff", "#8fd0ff", "#2a5f8f"] } },
+      { id: "wings_bat", cat: "wings", name: "Night Wings", rarity: "epic", source: "earned", ach: "gen3", w: { kind: "bat", col: ["#2a1a2e", "#6a1f3a", "#0d0810"] } },
+      { id: "wings_mech", cat: "wings", name: "Mech Wings", rarity: "epic", source: "earned", ach: "uff", w: { kind: "mech", col: ["#b8c0cc", "#4a5260", "#6ff7ff"] } },
+      { id: "wings_angel", cat: "wings", name: "Angel Wings", rarity: "legendary", source: "earned", ach: "hof", w: { kind: "angel", col: ["#ffffff", "#d6dde8", "#6b7488"] } },
+      { id: "wings_phoenix", cat: "wings", name: "Phoenix", rarity: "legendary", source: "earned", ach: "mvp", w: { kind: "flame", col: ["#ffe14d", "#ff7a1a", "#a8180a"] } },
+      { id: "wings_seraph", cat: "wings", name: "Seraph", rarity: "mythic", source: "earned", ach: "interstellar", w: { kind: "seraph", col: ["#fff8e0", "#f0c850", "#8a6414"] } },
+      { id: "wings_founder", cat: "wings", name: "Founder's Wings", rarity: "mythic", source: "founder", w: { kind: "seraph", col: ["#23262e", "#e6c46a", "#0d0f14"] } },
+      // CROWNS
+      { id: "crown_none", cat: "crown", name: "Bare Helmet", rarity: "common", source: "free", cr: null },
+      { id: "crown_laurel", cat: "crown", name: "Laurel", rarity: "common", source: "free", cr: { kind: "laurel", col: ["#5fae4a", "#2f6b2a", "#1a3a14"] } },
+      { id: "crown_circlet", cat: "crown", name: "Silver Circlet", rarity: "common", source: "free", cr: { kind: "circlet", col: ["#d9dee6", "#6fd3ff", "#4a5260"] } },
+      { id: "crown_gold", cat: "crown", name: "Champion's Crown", rarity: "epic", source: "earned", ach: "title", cr: { kind: "crown", col: ["#f0bb45", "#c8102e", "#6b4a0e"] } },
+      { id: "crown_horns", cat: "crown", name: "Horns", rarity: "epic", source: "earned", ach: "gen3", cr: { kind: "horns", col: ["#e8dcc0", "#3a1016", "#12060a"] } },
+      { id: "crown_king", cat: "crown", name: "Crown of the League", rarity: "legendary", source: "earned", ach: "ring", cr: { kind: "king", col: ["#ffd76f", "#1f5fbf", "#6b4a0e"] } },
+      { id: "crown_halo", cat: "crown", name: "Halo", rarity: "legendary", source: "earned", ach: "hof", cr: { kind: "halo", col: ["#ffe98a", "#ffffff", "#c9951f"] } },
+      { id: "crown_flame", cat: "crown", name: "Crown of Fire", rarity: "legendary", source: "earned", ach: "td100", cr: { kind: "flame", col: ["#fff3a0", "#ffb02e", "#ff3b1a"] } },
+      { id: "crown_mvp", cat: "crown", name: "Golden Laurel", rarity: "legendary", source: "earned", ach: "mvp", cr: { kind: "laurel", col: ["#ffd76f", "#b8903a", "#5a4210"] } },
+      { id: "crown_star", cat: "crown", name: "Star Circlet", rarity: "mythic", source: "earned", ach: "interstellar", cr: { kind: "star", col: ["#b9a6ff", "#ffffff", "#2a1a5a"] } },
+      { id: "crown_founder", cat: "crown", name: "Founder's Crown", rarity: "mythic", source: "founder", cr: { kind: "king", col: ["#e6c46a", "#0d0f14", "#6b4a0e"] } },
+      // AURAS
+      { id: "aura_none", cat: "aura", name: "No Aura", rarity: "common", source: "free", au: null },
+      { id: "aura_glow", cat: "aura", name: "Soft Glow", rarity: "common", source: "free", au: { kind: "glow", col: "#fff3c4" } },
+      { id: "aura_team", cat: "aura", name: "Team Glow", rarity: "common", source: "free", au: { kind: "glow", col: "team" } },
+      { id: "aura_frost", cat: "aura", name: "Frost", rarity: "rare", source: "free", au: { kind: "frost", col: "#8fd0ff" } },
+      { id: "aura_gold", cat: "aura", name: "Golden Aura", rarity: "epic", source: "earned", ach: "title", au: { kind: "pulse", col: "#ffd76f" } },
+      { id: "aura_flame", cat: "aura", name: "Heat Haze", rarity: "epic", source: "earned", ach: "td100", au: { kind: "flicker", col: "#ff7a1a" } },
+      { id: "aura_holy", cat: "aura", name: "Holy Light", rarity: "legendary", source: "earned", ach: "hof", au: { kind: "pulse", col: "#ffffff" } },
+      { id: "aura_void", cat: "aura", name: "Void", rarity: "mythic", source: "earned", ach: "interstellar", au: { kind: "void", col: "#7a3aff" } },
+      { id: "aura_founder", cat: "aura", name: "Founder's Glow", rarity: "mythic", source: "founder", au: { kind: "pulse", col: "#e6c46a" } },
+      // NUMBER FONTS — his jersey number on the field
+      { id: "nf_team", cat: "numfont", name: "Team Numbers", rarity: "common", source: "free", nf: null, blurb: "The league's own numbers." },
+      { id: "nf_varsity", cat: "numfont", name: "Varsity Serif", rarity: "common", source: "free", nf: nfStyleV153G("varsity") },
+      { id: "nf_block", cat: "numfont", name: "Block", rarity: "common", source: "free", nf: nfStyleV153G("block") },
+      { id: "nf_stencil", cat: "numfont", name: "Stencil", rarity: "rare", source: "free", nf: nfStyleV153G("stencil") },
+      { id: "nf_gold", cat: "numfont", name: "Gold Foil", rarity: "epic", source: "earned", ach: "title", nf: nfStyleV153G("gold") },
+      { id: "nf_neon", cat: "numfont", name: "Neon", rarity: "epic", source: "earned", ach: "uff", nf: nfStyleV153G("neon") },
+      { id: "nf_chrome", cat: "numfont", name: "Chrome", rarity: "legendary", source: "earned", ach: "mvp", nf: nfStyleV153G("chrome") },
+      { id: "nf_founder", cat: "numfont", name: "Founder's Serif", rarity: "mythic", source: "founder", nf: { style: "founder", font: "Georgia, 'Times New Roman', serif", col: "#e6c46a", stroke: "#0d0f14" } }
+    ];
+  }
+  function nfStyleV153G(st) {
+    var S = {
+      varsity: { font: "Georgia, 'Times New Roman', serif", col: "#ffffff", stroke: "#1b1406" },
+      block: { font: "Impact, 'Arial Black', sans-serif", col: "#ffffff", stroke: "#0a0e14" },
+      stencil: { font: "'Courier New', Courier, monospace", col: "#f0e6c8", stroke: "#2a2a2a" },
+      gold: { font: "Georgia, 'Times New Roman', serif", col: "#ffd76f", stroke: "#5a3d08" },
+      neon: { font: "Oswald, sans-serif", col: "#6ff7ff", stroke: "#ff3df2" },
+      chrome: { font: "Impact, 'Arial Black', sans-serif", col: "#e6ecf5", stroke: "#4a5260" },
+      retro: { font: "'Trebuchet MS', Verdana, sans-serif", col: "#ff9a1f", stroke: "#3a1a08" }
+    };
+    return S[st] ? Object.assign({ style: st }, S[st]) : null;
+  }
+
+  /* ---- the Career Pass's looks: each reward's `style` (src/29 names it) or, failing that, a pick by rarity ---- */
+  var RIDX_V153G = { common: 0, rare: 1, epic: 2, legendary: 3, mythic: 3 };
+  var JPALS_V153G = [["#1b2a4a", "#e9e6dc", "#c7d0de"], ["#8a1c2b", "#f0f0f0", "#f0f0f0"], ["#0f5a3a", "#e8e2cf", "#e6c46a"], ["#2b1a4a", "#1a1030", "#ff9ad5"], ["#e0602b", "#1a1a1a", "#ffffff"],
+    ["#127a74", "#f0f0f0", "#ffb02e"], ["#16181c", "#16181c", "#57e07a"], ["#f4f4f4", "#1c2a44", "#c8102e"], ["#5c0f16", "#e8dcc0", "#e8dcc0"], ["#1e6fff", "#f5f5f5", "#ffd76f"],
+    ["#3b1f7a", "#e9e6dc", "#e6c46a"], ["#4c5a3a", "#2a3122", "#d9cfb8"], ["#c9a13b", "#1a1a1a", "#1a1a1a"], ["#18c3b8", "#10283a", "#ffffff"], ["#b3121f", "#0d0f14", "#ffffff"],
+    ["#2a2d33", "#2a2d33", "#ff5a1a"], ["#bfe6ff", "#0c1a33", "#1f5fbf"], ["#ff3d7f", "#12051f", "#6ff7ff"], ["#7a4b2a", "#e8dcc0", "#f0e6c8"], ["#0b2a3a", "#e8f6ff", "#6fd3ff"]];
+  var HPALS_V153G = [["#0f2d5c", "#ffffff", "#ffffff"], ["#16181c", "#d4af37", "#d4af37"], ["#f1f3f5", "#1c2a44", "#c8102e"], ["#9e1b25", "#f4f4f4", "#ffffff"], ["#0f5a3a", "#e6c46a", "#e6c46a"],
+    ["#3b2d7a", "#b9a6ff", "#ffffff"], ["#e0602b", "#1a1a1a", "#ffffff"], ["#18c3b8", "#10283a", "#ffffff"], ["#c9a13b", "#1a1a1a", "#1a1a1a"], ["#2a2d33", "#6ff7ff", "#6ff7ff"],
+    ["#e8e4f0", "#6a5acd", "#6a5acd"], ["#bfe6ff", "#1f5fbf", "#ffffff"]];
+  var POOLS_V153G = {
+    jersey: [["hoops", "sleeves", "yoke", "chest", "stripes"], ["pinstripe", "shoulders", "checker", "split"], ["chevron", "sash", "fade", "camo"], ["tiger", "chevron", "sash", "fade"]],
+    helmet: [["gloss", "matte"], ["satin", "gloss"], ["metal", "pearl"], ["chrome", "pearl"]],
+    trail: [["sparks", "smoke", "pixels"], ["ice", "petals", "stars"], ["flame", "rainbow", "comet"], ["lightning", "ghost", "comet", "flame"]],
+    wings: [["pixel", "monarch"], ["monarch", "crystal", "bat"], ["angel", "crystal", "mech", "flame"], ["seraph", "flame", "angel"]],
+    crown: [["laurel", "circlet"], ["circlet", "horns", "star"], ["crown", "flame", "halo"], ["king", "halo", "flame"]],
+    aura: [["glow"], ["glow", "frost"], ["pulse", "flicker"], ["pulse", "void"]],
+    numfont: [["varsity", "block"], ["stencil", "retro"], ["neon", "gold"], ["chrome", "gold"]],
+    frame: [["steel", "wood", "neon"], ["carbon", "frost", "circuit"], ["diamond", "emerald", "royal", "lava"], ["gold", "holo", "angel"]],
+    celebration: [["spot", "shock", "pixel"], ["stars", "snow", "shock"], ["fireworks", "meteor", "rainbow"], ["rain", "feathers", "halo"]]
+  };
+  var VARS_V153G = {
+    trail: { flame: [["#fff3a0", "#ffb02e", "#ff5a1a", "#b8200f"], ["#e0f7ff", "#6fd3ff", "#1f6fff", "#0c2a66"], ["#f0ffd0", "#9dff6f", "#2fbf4a", "#0f5a2a"]],
+      ice: [["#ffffff", "#bfe6ff", "#7fb2ff"], ["#ffffff", "#d7c9ff", "#9a7bff"]], sparks: [["#ffd76f", "#fff3c4", "#e6b53a"], ["#ffffff", "#c9d6ff", "#8fb4ff"], ["#ff9ad5", "#ffd6f0", "#ff3df2"]],
+      lightning: [["#ffffff", "#bfe6ff", "#7fb2ff"], ["#fff6c0", "#ffd76f", "#ff9a1f"], ["#ffffff", "#e0b8ff", "#9a4bff"]], stars: [["#ffffff", "#ffe98a", "#b9a6ff"], ["#ffffff", "#8fe3ff", "#ff9ad5"]],
+      smoke: [["#c9ced6", "#8a93a0"], ["team", "#ffffff"], ["#b99bff", "#6a4cc2"]], rainbow: [["#ff4d4d", "#ffa94d", "#ffe14d", "#4dd97a", "#4da6ff", "#9a6bff"]],
+      pixels: [["#ff3d7f", "#18c3b8", "#ffd76f", "#6fd3ff"], ["#57e07a", "#b8ff6f", "#1f8a4a", "#e8ffe0"]], petals: [["#ffb3c7", "#ff7aa2", "#fff0f5"], ["#fff3c4", "#ffd76f", "#ffffff"]],
+      ghost: [["#8fe3ff"], ["#ff9ad5"], ["#ffd76f"]], comet: [["#ffd76f", "#fff3c4"], ["#6ff7ff", "#ffffff"], ["#ff5a5a", "#ffd0c0"]] },
+    wings: { angel: [["#ffffff", "#d6dde8", "#6b7488"]], seraph: [["#fff8e0", "#f0c850", "#8a6414"], ["#ffffff", "#bfe6ff", "#3a6f9a"]],
+      bat: [["#2a1a2e", "#6a1f3a", "#0d0810"], ["#1a2430", "#2f6b5a", "#060a0e"]], crystal: [["#dff4ff", "#8fd0ff", "#2a5f8f"], ["#f0e0ff", "#b98bff", "#4a2a8a"], ["#e0ffe8", "#6fdf9a", "#1f6b3a"]],
+      flame: [["#ffe14d", "#ff7a1a", "#a8180a"], ["#e0f7ff", "#4da6ff", "#0c2a66"]], mech: [["#b8c0cc", "#4a5260", "#6ff7ff"], ["#d9b24a", "#5a4210", "#ff5a5a"]],
+      pixel: [["#e8edf4", "#9aa3b2", "#2a3240"], ["#ffd76f", "#c9951f", "#3a2a08"]], monarch: [["#ff9a1f", "#1a1a1a", "#ffffff"], ["#4da6ff", "#0c1a33", "#e8f6ff"], ["#ff5aa0", "#2a0a1a", "#ffe0f0"]] },
+    crown: { crown: [["#f0bb45", "#c8102e", "#6b4a0e"], ["#d9dee6", "#1f5fbf", "#4a5260"]], king: [["#ffd76f", "#1f5fbf", "#6b4a0e"], ["#ffd76f", "#c8102e", "#6b4a0e"]],
+      halo: [["#ffe98a", "#ffffff", "#c9951f"], ["#bfe6ff", "#ffffff", "#3a7fbf"]], laurel: [["#5fae4a", "#2f6b2a", "#1a3a14"], ["#ffd76f", "#b8903a", "#5a4210"]],
+      circlet: [["#d9dee6", "#6fd3ff", "#4a5260"], ["#f0bb45", "#3fbf7f", "#6b4a0e"]], horns: [["#e8dcc0", "#3a1016", "#12060a"], ["#ff5a1a", "#5c0f16", "#1a0508"]],
+      flame: [["#fff3a0", "#ffb02e", "#ff3b1a"], ["#e0f7ff", "#6fd3ff", "#1f6fff"]], star: [["#b9a6ff", "#ffffff", "#2a1a5a"], ["#ffd76f", "#ffffff", "#5a4210"]] },
+    aura: { glow: ["#fff3c4", "#bfe6ff", "team"], pulse: ["#ffd76f", "#ffffff", "#ff9ad5"], flicker: ["#ff7a1a", "#4da6ff"], frost: ["#8fd0ff", "#d7c9ff"], void: ["#7a3aff", "#3fbf7f"] }
+  };
+  function passLookV153G(it, rw, h, c1, c2, rr) {
+    try {
+      var ri = RIDX_V153G[rr] || 0, k = rw.kind, st = typeof rw.style === "string" ? rw.style : "";
+      var pick = function (kind, ok) { if (st && ok(st)) return st; var P = POOLS_V153G[kind][ri]; return P[(h >>> 3) % P.length]; };
+      var vari = function (list) { return list[(h >>> 11) % list.length]; };
+      if (k === "jersey") {
+        var J = JPALS_V153G[h % JPALS_V153G.length], pat = pick("jersey", function (s) { return /^(hoops|pinstripe|split|fade|yoke|chest|sleeves|camo|chevron|stripes|shoulders|checker|sash|tiger)$/.test(s); });
+        it.k = { j: J[0], p: J[1], t: J[2], pat: pat }; if (ri >= 2) it.k.ps = J[2];
+      } else if (k === "helmet") {
+        var Hp = HPALS_V153G[h % HPALS_V153G.length], fin = pick("helmet", function (s) { return /^(gloss|matte|satin|metal|pearl|chrome)$/.test(s); });
+        it.h = { s: Hp[0], st: Hp[1], f: fin }; var sk = ["", "twin", "wide"][(h >>> 7) % 3]; if (sk) it.h.sk = sk;
+        if (ri >= 1) { it.h.d = Hp[2]; it.h.dk = ri >= 2 ? "star" : "dot"; }
+      } else if (k === "trail") { var tk = pick("trail", function (s) { return !!VARS_V153G.trail[s]; }); it.tr = { kind: tk, col: vari(VARS_V153G.trail[tk]).slice() }; }
+      else if (k === "wings") { var wk = pick("wings", function (s) { return !!VARS_V153G.wings[s]; }); it.w = { kind: wk, col: vari(VARS_V153G.wings[wk]).slice() }; }
+      else if (k === "crown") { var ck = pick("crown", function (s) { return !!VARS_V153G.crown[s]; }); it.cr = { kind: ck, col: vari(VARS_V153G.crown[ck]).slice() }; }
+      else if (k === "aura") { var ak = pick("aura", function (s) { return !!VARS_V153G.aura[s]; }); it.au = { kind: ak, col: vari(VARS_V153G.aura[ak]) }; }
+      else if (k === "numfont") { it.nf = nfStyleV153G(pick("numfont", function (s) { return !!nfStyleV153G(s); })); }
+      else if (k === "frame") it.css = pick("frame", function (s) { return /^(steel|wood|neon|carbon|frost|circuit|diamond|emerald|royal|lava|gold|holo|angel)$/.test(s); });
+      else if (k === "celebration" && it.c) it.c.kind = pick("celebration", function (s) { return /^(spot|shock|pixel|stars|snow|fireworks|meteor|rainbow|rain|feathers|halo)$/.test(s); });
+      else if (k === "banner") {
+        var bv = (h >>> 13) % 4;
+        if (bv === 1) it.bg = "repeating-linear-gradient(135deg," + c1 + " 0 9px,#0b0f16 9px 18px)";
+        else if (bv === 2) it.bg = "radial-gradient(circle at 50% 0," + c2 + " 0,transparent 62%),linear-gradient(135deg," + c1 + ",#0b0f16)";
+        else if (bv === 3) it.bg = "linear-gradient(90deg," + c1 + " 0 50%," + c2 + " 50% 100%)";
+      }
+      if (it.cat === "celebration" && it.c && rr === "mythic") it.c.say = "SHOWCASE";
+    } catch (e) { errV153G(e); }
+  }
+
+  /* ---- the new jersey patterns on the field sprite (kitDeco): x, y in texture pixels, `top` the collar row ---- */
+  function patV153G(pat, xx, yy, top, cx, UJ, UT) {
+    var r = yy - top, dx = Math.abs(xx - cx);
+    if (pat === "chevron") return Math.abs(r - (5 - dx * 0.6)) < 0.75 ? UT : null;
+    if (pat === "stripes") return ((xx >> 1) % 2 === 0) ? UT : null;
+    if (pat === "shoulders") return r <= 3 && dx >= 3 ? UT : null;
+    if (pat === "checker") return (((xx >> 1) + (yy >> 1)) % 2 === 0) ? mix(UJ, UT, 0.5) : null;
+    if (pat === "sash") return Math.abs((xx - cx) - (r - 4) * 0.9) < 1.2 ? UT : null;
+    if (pat === "tiger") return ((yy + Math.round(Math.sin(xx * 1.3) * 1.5)) % 4 === 0) ? UT : null;
+    return null;
+  }
+
+  /* ---- a tiny raster (one pixel per sprite pixel, a 1px margin for the outline) ---- */
+  function colRgb(hx) { if (hx === "team") hx = teamCol(0); return rgb(hexOk(hx) || "#ffffff"); }
+  function colNum(hx) { if (hx === "team") hx = teamCol(0); hx = hexOk(hx) || "#ffffff"; return parseInt(hx.slice(1), 16); }
+  function light(c, t) { return mix(c, [255, 255, 255], t); }
+  function dark(c, t) { return mix(c, [0, 0, 0], t); }
+  function Raster(W, H) { this.W = W + 2; this.H = H + 2; this.d = new Uint8ClampedArray(this.W * this.H * 4); }
+  Raster.prototype.put = function (x, y, c, a) { x = Math.round(x) + 1; y = Math.round(y) + 1; if (x < 0 || y < 0 || x >= this.W || y >= this.H) return; var i = (y * this.W + x) * 4; this.d[i] = c[0]; this.d[i + 1] = c[1]; this.d[i + 2] = c[2]; this.d[i + 3] = Math.round(255 * (a == null ? 1 : a)); };
+  Raster.prototype.has = function (x, y) { x += 1; y += 1; if (x < 0 || y < 0 || x >= this.W || y >= this.H) return false; return this.d[(y * this.W + x) * 4 + 3] > 100; };
+  Raster.prototype.outline = function (c, a) {
+    var W = this.W, H = this.H, mark = [];
+    for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) { if (this.d[(y * W + x) * 4 + 3]) continue; var X = x - 1, Y = y - 1; if (this.has(X - 1, Y) || this.has(X + 1, Y) || this.has(X, Y - 1) || this.has(X, Y + 1)) mark.push([X, Y]); }
+    for (var i = 0; i < mark.length; i++) this.put(mark[i][0], mark[i][1], c, a == null ? 0.92 : a);
+  };
+  Raster.prototype.canvas = function () { var c = document.createElement("canvas"); c.width = this.W; c.height = this.H; var x = c.getContext("2d"), im = x.createImageData(this.W, this.H); im.data.set(this.d); x.putImageData(im, 0, 0); return c; };
+  function ihV153G(a) { a = (a ^ 61) ^ (a >>> 16); a = a + (a << 3); a = a ^ (a >>> 4); a = Math.imul(a, 0x27d4eb2d); a = a ^ (a >>> 15); return (a >>> 0) / 4294967296; }
+
+  /* ---- WINGS: the RIGHT wing, its shoulder at (ax, ay); the left one is the same image flipped ---- */
+  var ART_V153G = {};
+  /* a feathered wing: an arm rising from the shoulder to the wrist and drooping to the hand, the flight feathers hung
+   * from it (longer and swept further out toward the tip), the coverts a scalloped band along the arm */
+  function featherV153G(R, W, ay, o, cols) {
+    var main = colRgb(cols[0]), sh = colRgb(cols[1]), edge = colRgb(cols[2]), tipC = o.tip ? colRgb(o.tip) : null;
+    var arm = function (t) { return { x: t * (W - 2), y: ay - o.rise * Math.sin(Math.min(1, t / 0.62) * Math.PI / 2) + Math.max(0, t - 0.62) / 0.38 * o.rise * 0.3 }; };
+    var colAt = function (t, f) { if (!o.grad) return main; return t < 0.4 ? mix(main, sh, t * 2) : mix(sh, edge, Math.min(1, (t - 0.4) * 1.4 + f * 0.3)); };
+    var N = Math.max(4, Math.round(W / 2.2));
+    for (var i = N - 1; i >= 0; i--) {
+      var t = i / (N - 1), b = arm(t), L = o.len * (0.42 + 0.78 * Math.pow(t, 1.25)) + (o.ragged ? (ihV153G(i * 17 + o.ragged * 131) - 0.5) * 2.4 : 0);
+      var ang = -0.2 + 0.85 * Math.pow(t, 1.1), dx = Math.sin(ang), dy = Math.cos(ang), n = Math.ceil(L);
+      for (var k = 0; k <= n; k++) {
+        var f = k / Math.max(1, n), px = b.x + dx * k, py = b.y + dy * k, c = colAt(t, f);
+        if (k === n) c = tipC || (o.grad ? dark(c, 0.3) : sh);
+        R.put(px, py, c); R.put(px - 1, py, f > 0.15 ? (o.grad ? dark(c, 0.18) : sh) : c);   // the feather's shaded trailing edge
+        if (f < 0.35) R.put(px + 1, py, light(c, 0.12));
+      }
+    }
+    // the coverts: a band along the arm, light on top, scalloped underneath
+    for (var x = 0; x <= W - 2; x++) {
+      var tt = x / (W - 2), a = arm(tt), band = Math.round(2 + 2.5 * (1 - tt));
+      for (var y = Math.round(a.y); y <= Math.round(a.y) + band; y++) { var cc = colAt(tt, 0); R.put(x, y, y === Math.round(a.y) ? light(cc, o.grad ? 0.25 : 0.4) : cc); }
+      if (x % 3 !== 1) R.put(x, Math.round(a.y) + band + 1, o.grad ? dark(colAt(tt, 0), 0.2) : sh);
+    }
+  }
+  function wingArtV153G(w, frame) {
+    w = w || { kind: "angel", col: ["#ffffff", "#d6dde8", "#6b7488"] };
+    var key = "w|" + w.kind + "|" + (w.col || []).join(",") + "|" + (frame | 0);
+    if (ART_V153G[key]) return ART_V153G[key];
+    var cols = w.col || ["#ffffff", "#cccccc", "#555555"], K = w.kind, R, ay, x, y, W;
+    if (K === "seraph") {
+      W = 21; ay = 10; R = new Raster(W + 6, 27);
+      featherV153G(R, W, ay, { rise: 9, len: 14, droop: 16, tipPull: 55, tip: cols[1] }, cols);
+      R.outline(dark(colRgb(cols[2]), 0.35));
+    } else if (K === "flame") {
+      W = 18; ay = 8; R = new Raster(W + 5, 22);
+      featherV153G(R, W, ay, { rise: 7, len: 11, droop: 14, tipPull: 45, grad: 1, ragged: 1 + (frame | 0) }, cols);
+      R.outline(dark(colRgb(cols[2]), 0.5), 0.8);
+    } else if (K === "pixel") {
+      var S = new Raster(23, 22); featherV153G(S, 18, 8, { rise: 7, len: 11 }, cols);   // the angel, posterised to 2x2 blocks
+      W = 18; ay = 8; R = new Raster(W + 6, 22);
+      for (y = 0; y < 22; y += 2) for (x = 0; x < 23; x += 2) { var i0 = ((y + 1) * S.W + x + 1) * 4, i1 = ((y + 2) * S.W + x + 2) * 4, pick = S.d[i0 + 3] ? i0 : S.d[i1 + 3] ? i1 : -1;
+        if (pick >= 0) { var c0 = [S.d[pick], S.d[pick + 1], S.d[pick + 2]]; R.put(x, y, c0); R.put(x + 1, y, c0); R.put(x, y + 1, c0); R.put(x + 1, y + 1, c0); } }
+      R.outline(colRgb(cols[2]));
+    } else if (K === "bat") {
+      W = 20; ay = 6; R = new Raster(W, 18);
+      var tipsX = [0, 6, 11, 15, 19], tipsY = [ay + 3, 12, 15, 13, 8], mem = colRgb(cols[1]), bone = colRgb(cols[0]);
+      var topAt = function (x) { return x <= 8 ? ay - ay * (x / 8) : 2 * ((x - 8) / (W - 9)); };
+      for (x = 0; x < W; x++) {
+        var sg = 0; while (sg < tipsX.length - 2 && x > tipsX[sg + 1]) sg++;
+        var fr = (x - tipsX[sg]) / Math.max(1, tipsX[sg + 1] - tipsX[sg]), base = tipsY[sg] + (tipsY[sg + 1] - tipsY[sg]) * fr, bot2 = Math.round(base - 2.6 * Math.sin(Math.PI * fr)), t2 = Math.round(topAt(x));
+        for (y = t2; y <= bot2; y++) R.put(x, y, mix(mem, colRgb(cols[2]), Math.max(0, (y - t2) / Math.max(1, bot2 - t2)) * 0.45));
+      }
+      var line = function (x0, y0, x1, y1, c) { var n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) | 0; for (var k = 0; k <= n; k++) R.put(x0 + (x1 - x0) * k / Math.max(1, n), y0 + (y1 - y0) * k / Math.max(1, n), c); };
+      line(0, ay, 8, 0, bone); line(8, 0, W - 1, 2, bone);
+      for (var f = 1; f < tipsX.length; f++) line(8, 0, tipsX[f], tipsY[f] - 1, dark(bone, 0.1));
+      R.put(8, -1, light(bone, 0.5));
+      R.outline(colRgb(cols[2]));
+    } else if (K === "crystal") {
+      W = 20; ay = 9; R = new Raster(W, 22);
+      var shards = [[-55, 14, 2.3], [-25, 19, 2.7], [5, 17, 2.5], [35, 11, 2.1]], cl = colRgb(cols[0]), cm = colRgb(cols[1]);
+      for (y = -1; y < 22; y++) for (x = 0; x < W; x++) for (var q = 0; q < shards.length; q++) {
+        var an = shards[q][0] * Math.PI / 180, L = shards[q][1], dxs = x - 0.5, dys = y - ay, t = dxs * Math.cos(an) + dys * Math.sin(an), d = -dxs * Math.sin(an) + dys * Math.cos(an);
+        if (t < 0 || t > L) continue;
+        var wd = shards[q][2] * (1 - t / L) * Math.min(1, t / 2 + 0.4);
+        if (Math.abs(d) <= wd + 0.3) { var cc = d < 0 ? cl : cm; if (t > L - 2.5) cc = light(cc, 0.5); R.put(x, y, cc); break; }
+      }
+      R.outline(colRgb(cols[2]));
+    } else if (K === "mech") {
+      W = 20; ay = 7; R = new Raster(W, 18);
+      var ml = colRgb(cols[0]), md = colRgb(cols[1]), glow = colRgb(cols[2]);
+      for (var pk = 0; pk < 5; pk++) {
+        var L2 = W - 1 - pk * 3, y0 = 2 + pk * 3;
+        for (x = 0; x <= L2; x++) { var yy2 = y0 - Math.round((x / W) * 4) + (pk > 2 ? Math.round(x / W * 2) : 0); R.put(x, yy2, light(ml, 0.15)); R.put(x, yy2 + 1, x === L2 ? glow : md); }
+        R.put(L2, y0 - Math.round((L2 / W) * 4) + (pk > 2 ? Math.round(L2 / W * 2) : 0), glow);
+      }
+      for (y = 2; y < 15; y++) R.put(0, y, md);
+      R.outline([16, 20, 24]);
+    } else if (K === "monarch") {
+      W = 18; ay = 8; R = new Raster(W, 20);
+      var ob = colRgb(cols[0]), vein = colRgb(cols[1]), dotc = colRgb(cols[2]);
+      for (y = 0; y < 20; y++) for (x = 0; x < W; x++) {
+        var e1 = Math.pow((x - 9) / 8.5, 2) + Math.pow((y - 5) / 5.5, 2), e2 = Math.pow((x - 6) / 5.5, 2) + Math.pow((y - 13) / 5, 2), e = Math.min(e1, e2);
+        if (e > 1) continue;
+        var c3 = ob; if (e > 0.62) c3 = (e > 0.7 && (x * 3 + y) % 4 === 0) ? dotc : vein; else if ((x * 2 + y) % 6 === 0 && x > 1) c3 = vein;
+        R.put(x, y, c3);
+      }
+      R.outline(vein);
+    } else {   // angel
+      W = 18; ay = 8; R = new Raster(W + 5, 22);
+      featherV153G(R, W, ay, { rise: 7, len: 11, droop: 14, tipPull: 45 }, cols);
+      R.outline(colRgb(cols[2]));
+    }
+    var cv = R.canvas();
+    return (ART_V153G[key] = { key: key, cv: cv, ax: 1, ay: ay + 1, w: cv.width, h: cv.height });
+  }
+
+  /* ---- CROWNS: anchored at the bottom centre (the row that sits on his head) ---- */
+  function crownArtV153G(cr, frame) {
+    cr = cr || { kind: "crown", col: ["#f0bb45", "#c8102e", "#6b4a0e"] };
+    var key = "c|" + cr.kind + "|" + (cr.col || []).join(",") + "|" + (frame | 0);
+    if (ART_V153G[key]) return ART_V153G[key];
+    var cols = cr.col || ["#f0bb45", "#c8102e", "#6b4a0e"], K = cr.kind, a = colRgb(cols[0]), b = colRgb(cols[1]), e = colRgb(cols[2]), R, x, y, W, H;
+    var spike = function (cx, tip, base) { for (var r = tip; r <= base; r++) { var hw = Math.floor((r - tip) / 2); for (var q = cx - hw; q <= cx + hw; q++) R.put(q, r, r === tip ? light(a, 0.3) : a); } };
+    if (K === "king") {
+      W = 15; H = 11; R = new Raster(W, H);
+      [[1, 5], [4, 3], [7, 2], [10, 3], [13, 5]].forEach(function (s) { spike(s[0], s[1], 7); R.put(s[0], s[1] - 1, s[0] === 7 ? a : b); });
+      R.put(7, 0, a); R.put(6, 0, a); R.put(8, 0, a);
+      for (y = 8; y <= 10; y++) for (x = 0; x < W; x++) R.put(x, y, y === 8 ? light(a, 0.35) : y === 10 ? mix(a, e, 0.5) : a);
+      [2, 5, 9, 12].forEach(function (q) { R.put(q, 9, b); }); R.put(7, 9, [255, 255, 255]);
+      R.outline(dark(e, 0.4));
+    } else if (K === "halo") {
+      W = 15; H = 5; R = new Raster(W, H);
+      for (y = 0; y < H; y++) for (x = 0; x < W; x++) { var ev = Math.pow((x - 7) / 7.2, 2) + Math.pow((y - 2) / 2.2, 2); if (ev > 0.5 && ev <= 1.05) R.put(x, y, y <= 1 ? b : a); }
+      R.outline(e, 0.35);
+    } else if (K === "laurel") {
+      W = 15; H = 9; R = new Raster(W, H);
+      for (var i = 0; i < 6; i++) { var t = i / 5, lx = Math.round(1 + t * 4.5), ly = Math.round(8 - t * 6 + t * t * 1.5); R.put(lx, ly, a); R.put(lx - 1, ly - (i % 2), b); R.put(W - 1 - lx, ly, a); R.put(W - lx, ly - (i % 2), b); }
+      for (x = 3; x <= 11; x++) R.put(x, 8, b);
+      R.outline(e, 0.85);
+    } else if (K === "circlet") {
+      W = 13; H = 7; R = new Raster(W, H);
+      for (x = 1; x <= 11; x++) R.put(x, 6, x === 6 ? light(a, 0.4) : a);
+      R.put(6, 1, b); R.put(5, 2, b); R.put(6, 2, [255, 255, 255]); R.put(7, 2, b); R.put(5, 3, dark(b, 0.2)); R.put(6, 3, b); R.put(7, 3, dark(b, 0.2)); R.put(6, 4, b); R.put(6, 5, a);
+      R.put(3, 5, b); R.put(9, 5, b);
+      R.outline(e);
+    } else if (K === "horns") {
+      W = 15; H = 10; R = new Raster(W, H);
+      for (var s2 = 0; s2 <= 12; s2++) { var u = s2 / 12, hx = 3.2 - 3 * u + u * u * 0.8, hy = 9 - 9 * u, c = mix(b, a, u);
+        R.put(hx, hy, c); R.put(W - 1 - hx, hy, c); if (u < 0.55) { R.put(hx + 1, hy, c); R.put(W - 2 - hx, hy, c); } }
+      R.outline(e);
+    } else if (K === "flame") {
+      W = 13; H = 10; R = new Raster(W, H);
+      var hs = [5, 8, 7, 5], xs = [2, 5, 8, 11];
+      for (var tg = 0; tg < 4; tg++) { var hh = hs[tg] + (ihV153G(tg * 7 + (frame | 0) * 13) > 0.5 ? 1 : 0); for (var r2 = 9; r2 >= 9 - hh; r2--) { var rel = (9 - r2) / hh, hw2 = Math.max(0, Math.round((1 - rel) * 1.6)); for (var q2 = xs[tg] - hw2; q2 <= xs[tg] + hw2; q2++) R.put(q2, r2, rel < 0.35 ? a : rel < 0.7 ? b : e); } }
+      for (x = 1; x <= 12; x++) { R.put(x, 9, b); R.put(x, 8, a); }
+      R.outline([58, 10, 4], 0.75);
+    } else if (K === "star") {
+      W = 13; H = 8; R = new Raster(W, H);
+      for (x = 0; x < W; x++) { R.put(x, 6, light(a, 0.2)); R.put(x, 7, a); }
+      [2, 6, 10].forEach(function (cx) { R.put(cx, 1, b); R.put(cx, 2, [255, 255, 255]); R.put(cx, 3, b); R.put(cx - 1, 2, b); R.put(cx + 1, 2, b); R.put(cx, 4, a); R.put(cx, 5, a); });
+      R.outline(e);
+    } else {   // crown
+      W = 13; H = 9; R = new Raster(W, H);
+      [[2, 2], [6, 1], [10, 2]].forEach(function (s) { spike(s[0], s[1], 6); R.put(s[0], s[1] - 1, b); });
+      for (y = 6; y <= 8; y++) for (x = 1; x <= 11; x++) R.put(x, y, y === 6 ? light(a, 0.35) : y === 8 ? mix(a, e, 0.5) : a);
+      [3, 6, 9].forEach(function (q) { R.put(q, 7, b); });
+      R.outline(dark(e, 0.4));
+    }
+    var cv = R.canvas();
+    return (ART_V153G[key] = { key: key, cv: cv, ax: Math.floor(cv.width / 2), ay: cv.height - 1, w: cv.width, h: cv.height });
+  }
+  function auraArtV153G(au) {
+    au = au || { kind: "glow", col: "#fff3c4" };
+    var key = "a|" + au.kind + "|" + au.col + "|" + (au.col === "team" ? teamCol(0) : "");
+    if (ART_V153G[key]) return ART_V153G[key];
+    var W = 44, H = 60, c = document.createElement("canvas"); c.width = W; c.height = H;
+    var x = c.getContext("2d"), col = colRgb(au.col), rgba = function (a) { return "rgba(" + (col[0] | 0) + "," + (col[1] | 0) + "," + (col[2] | 0) + "," + a + ")"; };
+    x.save(); x.translate(W / 2, H / 2); x.scale(1, H / W);
+    var gr = x.createRadialGradient(0, 0, 0, 0, 0, W / 2);
+    if (au.kind === "void") { gr.addColorStop(0, "rgba(10,4,24,0.75)"); gr.addColorStop(0.55, rgba(0.55)); gr.addColorStop(1, rgba(0)); }
+    else { gr.addColorStop(0, rgba(0.85)); gr.addColorStop(0.45, rgba(0.4)); gr.addColorStop(1, rgba(0)); }
+    x.fillStyle = gr; x.beginPath(); x.arc(0, 0, W / 2, 0, 6.2832); x.fill(); x.restore();
+    if (au.kind === "frost" || au.kind === "void") { x.fillStyle = au.kind === "frost" ? "#ffffff" : "#d7c9ff"; for (var i = 0; i < 14; i++) { var px = 6 + ihV153G(i * 3 + 1) * (W - 12), py = 6 + ihV153G(i * 3 + 2) * (H - 12); x.fillRect(px | 0, py | 0, 1, 1); } }
+    return (ART_V153G[key] = { key: key, cv: c, ax: W / 2, ay: H / 2, w: W, h: H });
+  }
+
+  /* ---- FOOTPRINTS: one drawer for the field (a Phaser Graphics) and the previews (a 2D canvas) ---- */
+  function gAdapterV153G(g) { return {
+    rect: function (x, y, w, h, c, a) { g.fillStyle(c, a); g.fillRect(x, y, w, h); },
+    circ: function (x, y, r, c, a) { g.fillStyle(c, a); g.fillCircle(x, y, r); },
+    seg: function (x1, y1, x2, y2, w, c, a) { g.lineStyle(w, c, a); g.lineBetween(x1, y1, x2, y2); } }; }
+  function cAdapterV153G(ctx) { var hx = function (c) { return "#" + ("00000" + c.toString(16)).slice(-6); }; return {
+    rect: function (x, y, w, h, c, a) { ctx.globalAlpha = Math.max(0, Math.min(1, a)); ctx.fillStyle = hx(c); ctx.fillRect(x, y, w, h); },
+    circ: function (x, y, r, c, a) { ctx.globalAlpha = Math.max(0, Math.min(1, a)); ctx.fillStyle = hx(c); ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill(); },
+    seg: function (x1, y1, x2, y2, w, c, a) { ctx.globalAlpha = Math.max(0, Math.min(1, a)); ctx.strokeStyle = hx(c); ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); } }; }
+  function trailDrawV153G(A, pts, now, life, d, s) {
+    var cols = (d.col && d.col.length ? d.col : ["#ffffff"]).map(colNum), K = d.kind, n = pts.length, drawn = 0, C = function (i) { return cols[i % cols.length]; };
+    if (K === "lightning" || K === "comet" || K === "rainbow") {
+      var fl = (now / 70) | 0;
+      for (var i = 1; i < n; i++) {
+        var p0 = pts[i - 1], p1 = pts[i], f = 1 - Math.min(1, (now - p1.t) / life); if (f <= 0) continue;
+        if (K === "comet") { A.seg(p0.x, p0.y, p1.x, p1.y, (1.2 + 4.5 * f) * s, C(0), 0.55 * f); A.seg(p0.x, p0.y, p1.x, p1.y, (0.6 + 1.8 * f) * s, C(1), 0.95 * f); }
+        else if (K === "rainbow") { for (var bnd = 0; bnd < cols.length; bnd++) { var off = (bnd - (cols.length - 1) / 2) * 1.4 * s; A.seg(p0.x, p0.y + off, p1.x, p1.y + off, 1.5 * s, cols[bnd], 0.85 * f); } }
+        else { var j0 = (ihV153G(p0.i * 3 + fl) - 0.5) * 7 * s, j1 = (ihV153G(p1.i * 3 + fl) - 0.5) * 7 * s;
+          A.seg(p0.x, p0.y - 3 * s + j0, p1.x, p1.y - 3 * s + j1, 3.2 * s, C(2), 0.35 * f); A.seg(p0.x, p0.y - 3 * s + j0, p1.x, p1.y - 3 * s + j1, 1.2 * s, C(0), 0.95 * f);
+          if (ihV153G(p1.i * 5 + fl) > 0.8) A.rect(p1.x + j1 - s, p1.y - 3 * s - s, 2 * s, 2 * s, C(1), f); }
+        drawn++;
+      }
+      return drawn;
+    }
+    for (var k = 0; k < n; k++) {
+      var p = pts[k], a = (now - p.t) / life; if (a >= 1 || a < 0) continue;
+      var F = 1 - a, r1 = ihV153G(p.i * 13 + 1), r2 = ihV153G(p.i * 13 + 2), sz;
+      if (K === "flame") {
+        for (var q = 0; q < 2; q++) { var rq = ihV153G(p.i * 13 + 3 + q); sz = (1 + 4 * F * (0.6 + 0.4 * rq)) * s; var ci = a < 0.2 ? 0 : a < 0.45 ? 1 : a < 0.75 ? 2 : 3;
+          A.rect(p.x + (rq - 0.5) * 5 * s - sz / 2, p.y - a * 10 * s * (0.7 + rq * 0.6) - sz / 2, sz, sz, cols[Math.min(ci, cols.length - 1)], Math.min(1, F * 1.3)); }
+      } else if (K === "ice") {
+        sz = (1.5 + 2.5 * F) * s; var ic = C(p.i), ix = p.x + (r1 - 0.5) * 4 * s, iy = p.y + (r2 - 0.5) * 2 * s;
+        A.rect(ix - sz / 2, iy - sz * 0.15, sz, sz * 0.3, ic, 0.9 * F); A.rect(ix - sz * 0.15, iy - sz / 2, sz * 0.3, sz, ic, 0.9 * F);
+        if (p.i % 2 === 0) A.rect(p.x - 1.5 * s, p.y - 0.5 * s, 3 * s, s, C(1), 0.45 * F);
+      } else if (K === "sparks") {
+        for (var q2 = 0; q2 < 2; q2++) { var rs = ihV153G(p.i * 13 + 5 + q2), tw = 0.55 + 0.45 * Math.sin(now / 55 + p.i * 1.7 + q2);
+          A.rect(p.x + (rs - 0.5) * 8 * s - 0.8 * s, p.y - ihV153G(p.i * 13 + 7 + q2) * 6 * s * a - 0.8 * s, 1.6 * s, 1.6 * s, C(p.i + q2), F * tw); }
+      } else if (K === "stars") {
+        if (p.i % 2) continue; var st = 0.5 + 0.5 * Math.sin(now / 90 + p.i * 1.7), arm = (2 + 2 * F) * s, sx = p.x + (r1 - 0.5) * 6 * s, sy = p.y - r2 * 5 * s;
+        A.rect(sx - arm, sy - 0.45 * s, arm * 2, 0.9 * s, C(p.i), F * st); A.rect(sx - 0.45 * s, sy - arm, 0.9 * s, arm * 2, C(p.i), F * st);
+      } else if (K === "smoke") {
+        if (p.i % 2) continue; A.circ(p.x + (r1 - 0.5) * 3 * s, p.y - a * 4 * s, (1.2 + a * 4.5) * s, C(p.i), 0.45 * F);
+      } else if (K === "pixels") {
+        var gs = 3 * s; A.rect(Math.round(p.x / gs) * gs, Math.round((p.y - r1 * 3 * s) / gs) * gs, 2.6 * s, 2.6 * s, C(p.i), Math.ceil(F * 4) / 4);
+      } else if (K === "petals") {
+        A.rect(p.x + Math.sin(a * 6 + r1 * 6) * 3 * s, p.y - 2 * s + a * 3 * s, 2.2 * s, 1.4 * s, C(p.i), F);
+      } else continue;
+      drawn++;
+    }
+    return drawn;
+  }
+  /* the afterimage: three tinted copies of his own frame where he was ~90, ~210 and ~320ms ago */
+  function ghostFxV153G(scene, m, pts, now, life, d) {
+    var pool = scene._cosGhostV153G || (scene._cosGhostV153G = []), want = [0.18, 0.4, 0.62], used = 0, col = colNum((d.col || ["#8fe3ff"])[0]);
+    for (var k = 0; k < want.length; k++) {
+      var best = null, bd = 1e9;
+      for (var i = 0; i < pts.length; i++) { var dd = Math.abs((now - pts[i].t) - want[k] * life); if (dd < bd) { bd = dd; best = pts[i]; } }
+      var img = pool[k]; if (img && !img.scene) img = pool[k] = null;
+      if (!best || bd > life * 0.2 || !scene.textures.exists(best.key)) { if (img) img.setVisible(false); continue; }
+      if (!img) { img = pool[k] = scene.add.image(0, 0, best.key); }
+      img.setTexture(best.key).setPosition(best.rx, best.ry).setScale(best.s).setFlipX(!!best.fl).setVisible(true).setDepth((m.root.depth || 4) - 0.002 - k * 0.0005);
+      try { img.setTintFill(col); } catch (e) {}
+      img.setAlpha(0.42 * (1 - want[k])); used++;
+    }
+    G153.fx.ghosts += used; return used;
+  }
+
+  /* ---- on the field ---- */
+  var flairCache = { v: -1, F: null }, NO_FLAIR = { any: false };
+  function flairV153G() {
+    var ch = V.changes || 0; if (flairCache.v === ch && flairCache.F) return flairCache.F;
+    var get = function (slot, fld) { var it = item(slot); return it && it[fld] ? { id: it.id, d: it[fld] } : null; };
+    var F = { trail: get("trail", "tr"), wings: get("wings", "w"), crown: get("crown", "cr"), aura: get("aura", "au"), numfont: get("numfont", "nf") };
+    F.any = !!(F.trail || F.wings || F.crown || F.aura || F.numfont);
+    flairCache = { v: ch, F: F }; return F;
+  }
+  function texV153G(scene, art) {
+    var key = "cos153g_" + (hsh(art.key) >>> 0).toString(36);
+    if (!scene.textures.exists(key)) { try { scene.textures.addCanvas(key, art.cv); } catch (e) { errV153G(e); } }
+    return key;
+  }
+  var GEO_V153G = {};
+  function headGeoV153G(scene, m) {
+    var b = m.body, key = b && b.texture && b.texture.key, g = key && GEO_V153G[key];
+    if (!g && key) {
+      g = { top: 1, bot: 45, cx: 24, w: 48, h: 48 };
+      try {
+        var src = scene.textures.get(key).getSourceImage(), W = src.width, H = src.height, d = pix(src, W, H);
+        if (d && W <= 128 && H <= 128) {
+          var top = -1, bot = -1, sx = 0, n = 0;
+          for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 40) { if (top < 0) top = y; bot = y; if (y - top < 5) { sx += x; n++; } }
+          if (top >= 0) g = { top: top, bot: bot, cx: n ? sx / n : W / 2, w: W, h: H };
+        }
+      } catch (e) {}
+      if (Object.keys(GEO_V153G).length > 600) GEO_V153G = {};
+      GEO_V153G[key] = g;
+    }
+    g = g || { top: 1, bot: 45, cx: 24, w: 48, h: 48 };
+    var ox = b ? b.originX : 0.5, oy = b ? b.originY : 0.5, bsx = b ? Math.abs(b.scaleX) : 1, bsy = b ? b.scaleY : 1, flip = b && b.flipX;
+    return { top: (b ? b.y : 0) + (g.top - g.h * oy) * bsy, bot: (b ? b.y : 0) + (g.bot - g.h * oy) * bsy, cx: (b ? b.x : 0) + ((flip ? g.w - g.cx : g.cx) - g.w * ox) * bsx, h: (g.bot - g.top) * bsy };
+  }
+  function childV153G(scene, m, prop, key) {
+    var o = m[prop]; if (o && (!o.scene || !o.active)) o = m[prop] = null;
+    if (!o) { o = m[prop] = scene.add.image(0, 0, key); m.root.add(o); }
+    else if (o.texture.key !== key) o.setTexture(key);
+    return o;
+  }
+  function orderV153G(m, o, where) {
+    var R = m.root, L = R.list, cur = L.indexOf(o); if (cur < 0) return;
+    var bi = L.indexOf(m.body), li = L.indexOf(m.label), si = m.skin ? L.indexOf(m.skin) : bi;
+    var ok = where === "ground" ? cur === 0 : where === "back" ? cur < bi : (cur > Math.max(bi, si) && (li < 0 || cur < li));
+    if (ok) return;
+    var mv = function (idx) { try { R.moveTo(o, idx); } catch (e) { R.remove(o); R.addAt(o, idx); } };
+    if (where === "ground") mv(0);
+    else if (where === "back") mv(L.indexOf(m.body) - (cur < L.indexOf(m.body) ? 1 : 0));
+    else { var tgt = L.indexOf(m.label); mv(tgt < 0 ? L.length - 1 : tgt - (cur < tgt ? 1 : 0)); }
+  }
+  function dropV153G(m, prop) { var o = m[prop]; if (o) { try { o.destroy(); } catch (e) {} m[prop] = null; } }
+  function clearFxV153G(scene, m) {
+    ["_auV153G", "_wlV153G", "_wrV153G", "_crV153G"].forEach(function (p) { dropV153G(m, p); });
+    numfontFxV153G(m, null); m._trV153G = null; m._cosV153G = 0; G153.fx.cleared++;
+    try { (scene._cosGhostV153G || []).forEach(function (g) { if (g && g.scene) g.setVisible(false); }); var g = scene._cosTrailV153G; if (g && g.scene) g.clear(); } catch (e) {}
+  }
+  function numfontFxV153G(m, N) {
+    var L = m.label; if (!L || !L.setFontFamily || !L.style) return;
+    if (!N) { var o = m._nfOrigV153G; if (o) { try { L.setFontFamily(o.f); L.setColor(o.c); L.setStroke(o.s, o.w); } catch (e) {} m._nfOrigV153G = null; m._nfKeyV153G = null; } return; }
+    var st = L.style; if (m._nfKeyV153G === N.id && st.fontFamily === N.d.font && st.color === N.d.col) return;
+    if (!m._nfOrigV153G) m._nfOrigV153G = { f: st.fontFamily, c: st.color, s: st.stroke, w: st.strokeThickness };
+    L.setFontFamily(N.d.font); L.setColor(N.d.col); L.setStroke(N.d.stroke, Math.max(2, st.strokeThickness || 2.2));
+    m._nfKeyV153G = N.id; G153.fx.numfont++;
+  }
+  function hookSceneV153G(scene) {
+    if (scene._cosEvV153G) return; scene._cosEvV153G = 1;
+    try { scene.events.on("update", function () {   // footprints nobody is drawing any more fade out with the marker gone
+      if (G153.freeze) return;
+      var g = scene._cosTrailV153G, t = scene.time ? scene.time.now : 0;
+      if (g && g.scene && g._drawnAt != null && t - g._drawnAt > 150) { g.clear(); g._drawnAt = null; (scene._cosGhostV153G || []).forEach(function (o) { if (o && o.scene) o.setVisible(false); }); }
+    }); } catch (e) {}
+  }
+  function fieldFxV153G(scene, m, p) {
+    try {
+      if (!m || !m.root || !scene || !scene.add) return false;
+      var F = m.team === "you" ? flairV153G() : NO_FLAIR;
+      if (!F.any) { if (m._cosV153G) clearFxV153G(scene, m); return false; }
+      m._cosV153G = 1; G153.fx.frames++;
+      var now = scene.time ? scene.time.now : 0, s = m.root.scale || 1, b = m.body;
+      var down = /^(down|dive|tackleSeq|pancakeSeq|getup|grab)/.test(String(m.forceState || "")) || (b && Math.abs(b.rotation || 0) > 0.35) || (b && b.visible === false);
+      var geo = headGeoV153G(scene, m), dir = String(m.dirKey || "dn");
+      // the aura: a glow he stands in
+      if (F.aura) {
+        var aa = auraArtV153G(F.aura.d), ao = childV153G(scene, m, "_auV153G", texV153G(scene, aa)); orderV153G(m, ao, "ground");
+        var ak = F.aura.d.kind, pul = ak === "pulse" ? 0.72 + 0.28 * Math.sin(now / 300) : ak === "flicker" ? 0.62 + 0.38 * Math.abs(Math.sin(now / 47) * Math.sin(now / 131)) : 0.82;
+        if (ao._bmV153G !== ak) { ao.setBlendMode(ak === "void" ? 0 : 1); ao._bmV153G = ak; }
+        ao.setPosition(geo.cx, (geo.top + geo.bot) / 2 + 2).setAlpha(pul * (down ? 0.5 : 1)).setScale(ak === "pulse" ? 1 + 0.06 * Math.sin(now / 300) : 1);
+        G153.fx.aura++;
+      } else dropV153G(m, "_auV153G");
+      // the wings: behind him facing the camera, over his back facing away; they flap, and fold a little at a sprint
+      if (F.wings) {
+        var wd = F.wings.d, wa = wingArtV153G(wd, wd.kind === "flame" ? ((now / 110) | 0) % 2 : 0), wk = texV153G(scene, wa);
+        var wl = childV153G(scene, m, "_wlV153G", wk), wr = childV153G(scene, m, "_wrV153G", wk), away = /^u/.test(dir);
+        orderV153G(m, wl, away ? "front" : "back"); orderV153G(m, wr, away ? "front" : "back");
+        wr.setFlipX(false).setOrigin(wa.ax / wa.w, wa.ay / wa.h); wl.setFlipX(true).setOrigin(1 - wa.ax / wa.w, wa.ay / wa.h);
+        var run = Math.min(1, (m._spdPx || 0) / 160), flap = Math.sin(now / (run > 0.3 ? 90 : 260)) * (run > 0.3 ? 0.16 : 0.09);
+        var side = dir === "sd" ? 0.55 : (dir === "dr" || dir === "ur") ? 0.8 : 1, wsx = (1 - run * 0.3) * side * TUv("cosWingScaleV153G", 1), wsy = TUv("cosWingScaleV153G", 1);
+        var shY = geo.top + geo.h * 0.3, spread = TUv("cosWingSpreadV153G", 0.32), sh = 3.5 * side;   // raised and set out from the shoulder blades, so they read past his body
+        wr.setPosition(geo.cx + sh, shY).setScale(wsx, wsy).setRotation(-spread - flap).setVisible(!down);
+        wl.setPosition(geo.cx - sh, shY).setScale(wsx, wsy).setRotation(spread + flap).setVisible(!down);
+        if (wd.kind === "flame") { var fa = 0.8 + 0.2 * Math.sin(now / 60); wr.setAlpha(fa); wl.setAlpha(fa); }
+        G153.fx.wings++;
+      } else { dropV153G(m, "_wlV153G"); dropV153G(m, "_wrV153G"); }
+      // the crown: on his head (a halo floats over it)
+      if (F.crown) {
+        /* its own object over the plumbob's depth (the plumbob floats just above his head; a crown under it would vanish),
+         * placed in world space from his container and taken down with it */
+        var cd = F.crown.d, ca = crownArtV153G(cd, cd.kind === "flame" ? ((now / 120) | 0) % 2 : 0), ck = texV153G(scene, ca), co = m._crV153G;
+        if (co && (!co.scene || !co.active)) co = m._crV153G = null;
+        if (!co) { co = m._crV153G = scene.add.image(0, 0, ck); m.root.once("destroy", function () { try { co.destroy(); } catch (e) {} }); }
+        else if (co.texture.key !== ck) co.setTexture(ck);
+        co.setOrigin(ca.ax / ca.w, ca.ay / ca.h).setDepth(TUv("cosCrownDepthV153G", 23.05));
+        var cy = geo.top + (cd.kind === "halo" ? -2.5 + Math.sin(now / 420) * 0.8 : cd.kind === "horns" ? 4 : 2.5);
+        co.setPosition(m.root.x + geo.cx * s, m.root.y + cy * s).setScale(s).setVisible(!down && m.root.visible !== false);
+        G153.fx.crown++;
+      } else dropV153G(m, "_crV153G");
+      numfontFxV153G(m, F.numfont);
+      // the footprints: world space, under every player
+      if (F.trail && G153.freeze) { /* a check holds the drawn footprints still */ }
+      else if (F.trail) {
+        hookSceneV153G(scene);
+        var g = scene._cosTrailV153G; if (!g || !g.scene) g = scene._cosTrailV153G = scene.add.graphics().setDepth(TUv("cosTrailDepthV153G", 3.9));
+        var P = m._trV153G; if (!P || P.id !== F.trail.id) P = m._trV153G = { id: F.trail.id, pts: [], seq: 0, lx: null, ly: null };
+        var fx = m.root.x + geo.cx * s, fy = m.root.y + (geo.bot - 1) * s, mv = P.lx == null ? 1e9 : Math.hypot(fx - P.lx, fy - P.ly);
+        if (mv > 60 * s) { P.lx = fx; P.ly = fy; }   // a jump (a new snap, a re-spot): start again from here
+        else if (!down && mv >= TUv("cosTrailStepV153G", 2.2) * s) { P.pts.push({ x: fx, y: fy, t: now, i: P.seq++, rx: m.root.x, ry: m.root.y, s: s, key: b && b.texture ? b.texture.key : "", fl: !!(b && b.flipX) }); P.lx = fx; P.ly = fy; }
+        var td = F.trail.d, life = TUv("cosTrailMsV153G", 520) * (td.kind === "ice" || td.kind === "petals" ? 1.5 : 1);
+        while (P.pts.length && now - P.pts[0].t > life) P.pts.shift();
+        if (P.pts.length > 90) P.pts.splice(0, P.pts.length - 90);
+        g.clear();
+        var drawn = td.kind === "ghost" ? ghostFxV153G(scene, m, P.pts, now, life, td) : trailDrawV153G(gAdapterV153G(g), P.pts, now, life, td, Math.max(s, TUv("cosTrailMinScaleV153G", 0.5)) * TUv("cosTrailScaleV153G", 1.4));
+        g._drawnAt = now;
+        if (drawn) { G153.fx.trail++;
+          var n = P.pts.length, sxm = 0, sym = 0; P.pts.forEach(function (q) { sxm += q.x; sym += q.y; });
+          G153.lastTrail = { id: F.trail.id, kind: td.kind, n: n, drawn: drawn, cx: sxm / n, cy: sym / n, hx: fx, hy: fy, vx: n > 1 ? P.pts[n - 1].x - P.pts[0].x : 0, vy: n > 1 ? P.pts[n - 1].y - P.pts[0].y : 0 }; }
+      } else if (m._trV153G) { m._trV153G = null; try { var g0 = scene._cosTrailV153G; if (g0 && g0.scene) g0.clear(); (scene._cosGhostV153G || []).forEach(function (o) { if (o && o.scene) o.setVisible(false); }); } catch (e) {} }
+      return true;
+    } catch (e) { errV153G(e); return false; }
+  }
+
+  /* ---- the card and the previews: paint the flair around a figure whose ink is measured ---- */
+  function inkGeoV153G(cv, ox, oy) {
+    try {
+      var W = cv.width, H = cv.height, d = cv.getContext("2d").getImageData(0, 0, W, H).data, top = -1, bot = -1, sx = 0, n = 0;
+      for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 40) { if (top < 0) top = y; bot = y; }
+      if (top < 0) return null;
+      var band = Math.max(2, Math.round((bot - top) * 0.07));
+      for (var y2 = top; y2 <= top + band; y2++) for (var x2 = 0; x2 < W; x2++) if (d[(y2 * W + x2) * 4 + 3] > 40) { sx += x2; n++; }
+      return { top: top + (oy || 0), bot: bot + (oy || 0), cx: (n ? sx / n : W / 2) + (ox || 0), h: bot - top };
+    } catch (e) { return null; }
+  }
+  function paintBackV153G(ctx, geo, F, k, shf) {
+    ctx.imageSmoothingEnabled = false;
+    if (F.aura) { var aa = auraArtV153G(F.aura.d), sc = geo.h / 44 * 1.05; ctx.save(); ctx.globalAlpha = 0.6; if (F.aura.d.kind !== "void") ctx.globalCompositeOperation = "lighter"; ctx.imageSmoothingEnabled = true; ctx.drawImage(aa.cv, geo.cx - aa.w * sc / 2, (geo.top + geo.bot) / 2 - aa.h * sc / 2 + 2 * sc, aa.w * sc, aa.h * sc); ctx.restore(); }
+    if (F.wings) {
+      var wa = wingArtV153G(F.wings.d, 0), shY = geo.top + geo.h * (shf || 0.3), sp = TUv("cosWingSpreadV153G", 0.32);
+      [1, -1].forEach(function (sd) { ctx.save(); ctx.translate(geo.cx + sd * 3.5 * k, shY); ctx.scale(sd, 1); ctx.rotate(-sp); ctx.drawImage(wa.cv, -wa.ax * k, -wa.ay * k, wa.w * k, wa.h * k); ctx.restore(); });
+    }
+  }
+  function paintFrontV153G(ctx, geo, F, k) {
+    ctx.imageSmoothingEnabled = false;
+    if (F.crown) { var cd = F.crown.d, ca = crownArtV153G(cd, 0), off = cd.kind === "halo" ? -2.5 : cd.kind === "horns" ? 4 : 2.5; ctx.drawImage(ca.cv, geo.cx - ca.ax * k, geo.top + off * k - ca.ay * k, ca.w * k, ca.h * k); }
+  }
+  function flairFromIdsV153G(cz) {
+    var get = function (id, cat, fld) { var it = id ? findItem(id) : null; return it && it.cat === cat && it[fld] ? { id: it.id, d: it[fld] } : null; };
+    cz = cz || {};
+    return { wings: get(cz.wings, "wings", "w"), crown: get(cz.crown, "crown", "cr"), aura: get(cz.aura, "aura", "au"), trail: get(cz.trail, "trail", "tr"), numfont: get(cz.numfont, "numfont", "nf") };
+  }
+  function cardFlairV153G(cv, cz) {
+    try {
+      var host = cv && cv.parentNode; if (!host) return false;
+      Array.prototype.slice.call(host.querySelectorAll(".pc-fl-v153g")).forEach(function (o) { o.remove(); });
+      var F = flairFromIdsV153G(cz);
+      if (!F.wings && !F.crown && !F.aura) { G153.card = { none: true }; return false; }
+      host.classList.add("pc-fig-v153g"); host.classList.toggle("pc-shrink-v153g", !!(F.wings || F.crown));   // headroom for a crown: the figure and its layers step back a little
+      var back = document.createElement("canvas"), front = document.createElement("canvas");
+      var PAD = Math.round(cv.height / 4); back.width = front.width = cv.width; back.height = front.height = cv.height + PAD;
+      back.className = "pc-fl-v153g back"; front.className = "pc-fl-v153g front";
+      if (F.wings) back.setAttribute("data-wings", F.wings.id); if (F.crown) front.setAttribute("data-crown", F.crown.id); if (F.aura) back.setAttribute("data-aura", F.aura.id);
+      host.insertBefore(back, cv); host.appendChild(front);
+      var paint = function () {
+        if (!back.isConnected && !host.isConnected) return false;
+        var geo = inkGeoV153G(cv, 0, PAD); if (!geo || geo.h < 20) return false;
+        var k = geo.h / 44, bx = back.getContext("2d"), fx = front.getContext("2d");
+        bx.clearRect(0, 0, back.width, back.height); fx.clearRect(0, 0, front.width, front.height);
+        paintBackV153G(bx, geo, F, k * 0.75, 0.42); paintFrontV153G(fx, geo, F, k * 0.85);   // the card figure's big-helmet proportions put the shoulders lower
+        var inkOf = function (c) { var d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, n = 0; for (var i = 3; i < d.length; i += 4) if (d[i] > 40) n++; return n; };
+        G153.card = { wings: F.wings && F.wings.id, crown: F.crown && F.crown.id, aura: F.aura && F.aura.id, back: inkOf(back), front: inkOf(front), geo: geo };
+        return true;
+      };
+      paint(); setTimeout(paint, 750); setTimeout(paint, 1600);
+      return true;
+    } catch (e) { errV153G(e); return false; }
+  }
+  function figV153G(px) {
+    var C = window.__CHASE_V94, U = resolveU((item("uniform") || {}).k || null, null), tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"];
+    U = U || { j: tc[0], p: tc[1], pat: "solid" };
+    var out = document.createElement("canvas"); out.width = px; out.height = Math.round(px * 1.1); var x = out.getContext("2d"); x.imageSmoothingEnabled = false;
+    try {
+      if (C && C.cell) { var dyed = C.cell("idle_dn", [U.j, U.p]), raw = C.cell("idle_dn", "raw"); if (dyed) { var c = document.createElement("canvas"); c.width = 48; c.height = 48; c.getContext("2d").drawImage(dyed, 0, 0);
+        kitDeco(U.pat ? U : null, (item("helmet") || {}).h || null)(c, "idle_dn", null, raw); x.drawImage(c, 4, 0, 40, 44, 0, 0, px, px * 1.1); return out; } }
+    } catch (e) {}
+    // no sheet yet: a plain silhouette in his colours
+    var k = px / 40; x.fillStyle = U.p; x.fillRect(15 * k, 26 * k, 10 * k, 16 * k); x.fillStyle = U.j; x.fillRect(12 * k, 12 * k, 16 * k, 15 * k); x.fillStyle = "#c9cfd8"; x.fillRect(14 * k, 2 * k, 12 * k, 10 * k);
+    return out;
+  }
+  function previewFlairV153G(el, it) {
+    el.innerHTML = "";
+    var cv = document.createElement("canvas"); cv.width = 64; cv.height = 64; cv.className = "cos-fl-v153g"; var x = cv.getContext("2d");
+    try {
+      if (it.cat === "numfont") {
+        var tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"], nf = it.nf || { font: "Oswald, sans-serif", col: "#ffffff", stroke: "#0a0e14" };
+        x.fillStyle = hexOk(tc[0]) || "#1f4fd0"; x.beginPath(); x.moveTo(14, 12); x.lineTo(24, 8); x.lineTo(40, 8); x.lineTo(50, 12); x.lineTo(50, 58); x.lineTo(14, 58); x.closePath(); x.fill();
+        x.font = "bold 26px " + nf.font; x.textAlign = "center"; x.textBaseline = "middle"; x.lineWidth = 3; x.strokeStyle = nf.stroke; x.strokeText("23", 32, 35); x.fillStyle = nf.col; x.fillText("23", 32, 35);
+      } else {
+        var F = { trail: it.tr ? { id: it.id, d: it.tr } : null, wings: it.w ? { id: it.id, d: it.w } : null, crown: it.cr ? { id: it.id, d: it.cr } : null, aura: it.au ? { id: it.id, d: it.au } : null };
+        var fig = figV153G(34), fx0 = F.trail ? 26 : 15, fy0 = 64 - fig.height - 2, geo = inkGeoV153G(fig, fx0, fy0) || { top: fy0, bot: 62, cx: fx0 + 17, h: 36 }, k = geo.h / 44;
+        if (F.trail) { var pts = [], life = 520, now = 1000; for (var i = 0; i < 16; i++) pts.push({ x: 4 + i * 1.6, y: geo.bot - 1 - (F.trail.d.kind === "ghost" ? 0 : 0), t: now - life * (1 - i / 16) * 0.95, i: i });
+          if (F.trail.d.kind === "ghost") { x.globalAlpha = 0.35; for (var gi = 0; gi < 3; gi++) x.drawImage(fig, fx0 - 18 + gi * 6, fy0); x.globalAlpha = 1; x.globalCompositeOperation = "source-atop"; x.fillStyle = (it.tr.col || ["#8fe3ff"])[0]; x.fillRect(0, 0, fx0, 64); x.globalCompositeOperation = "source-over"; }
+          else trailDrawV153G(cAdapterV153G(x), pts, now, life, F.trail.d, 1.4); x.globalAlpha = 1; }
+        if (!F.trail && !F.wings && !F.crown && !F.aura) { x.globalAlpha = 0.45; }
+        paintBackV153G(x, geo, F, k); x.drawImage(fig, fx0, fy0); x.globalAlpha = 1; paintFrontV153G(x, geo, F, k);
+      }
+      G153.previews++;
+    } catch (e) { errV153G(e); }
+    el.appendChild(cv); return el;
+  }
+
+  /* ---- the touchdown: seven new celebrations (each returns what it made; its own PRNG, never Math.random) ---- */
+  var CEL_V153G = {
+    shock: function (o) { var S = o.scene, m = 0;
+      for (var i = 0; i < 3; i++) (function (i) { S.time.delayedCall(i * 160, function () { var r = o.track(S.add.ellipse(o.x, o.y, 20, 8).setStrokeStyle(3, o.cn(i), 1).setDepth(o.D)); o.tw(r, { scaleX: 9, scaleY: 9, alpha: 0, duration: 700 }); }); })(i);
+      for (var j = 0; j < 14 * o.n; j++) { var a = j / 14 * 6.283, d = o.dot(o.x, o.y, 2, o.cn(j)); o.tw(d, { x: o.x + Math.cos(a) * o.R(50, 90), y: o.y + Math.sin(a) * o.R(18, 34), alpha: 0, duration: o.R(500, 800) }); m++; }
+      return m + 3; },
+    snow: function (o) { var m = 0; for (var i = 0; i < 40 * o.n; i++) { var d = o.dot(o.x + o.R(-160, 160), o.y - o.R(120, 240), o.R(1.4, 2.6), o.cn(i), 0.95); o.tw(d, { y: d.y + o.R(180, 260), x: d.x + o.R(-30, 30), alpha: 0.15, duration: o.R(1400, 2200), delay: o.R(0, 400) }); m++; } return m; },
+    pixel: function (o) { var S = o.scene, m = 0; for (var i = 0; i < 24 * o.n; i++) { var a = i / 24 * 6.283 + o.R(-0.1, 0.1), r = o.track(S.add.rectangle(o.x, o.y - 10, 5, 5, o.cn(i)).setDepth(o.D)); m++;
+      try { S.tweens.add({ targets: r, x: o.x + Math.cos(a) * o.R(50, 100), y: o.y - 10 + Math.sin(a) * o.R(40, 80), alpha: 0, duration: o.R(700, 1000), ease: "Stepped", easeParams: [6], onComplete: function () { try { S.dropFx ? S.dropFx(this.targets[0]) : this.targets[0].destroy(); } catch (e) {} } }); } catch (e) {} } return m; },
+    meteor: function (o) { var S = o.scene, m = 0;
+      for (var i = 0; i < 6; i++) (function (i) { var sx = o.x + o.R(-220, -90), sy = o.y - o.R(220, 300), tx = o.x + o.R(-60, 60), ty = o.y + o.R(-20, 20);
+        var r = o.track(S.add.rectangle(sx, sy, 4, 16, o.cn(i)).setDepth(o.D).setAngle(-Math.atan2(tx - sx, ty - sy) * 57.3)); m++;
+        try { S.tweens.add({ targets: r, x: tx, y: ty, duration: 420, delay: i * 150, ease: "Quad.easeIn", onComplete: function () { try { S.dropFx ? S.dropFx(r) : r.destroy(); } catch (e) {}
+          for (var j = 0; j < 8; j++) { var a = j / 8 * 6.283, d = o.dot(tx, ty, 2, o.cn(j + 1)); o.tw(d, { x: tx + Math.cos(a) * 26, y: ty + Math.sin(a) * 14, alpha: 0, duration: 420 }); } } }); } catch (e) {} })(i);
+      return m + 48; },
+    rainbow: function (o) { var S = o.scene, g = o.track(S.add.graphics().setDepth(o.D - 0.5)); g.setAlpha(0);
+      o.cols.forEach(function (c, i) { g.lineStyle(5, o.cn(i), 0.9); g.beginPath(); g.arc(o.x, o.y + 10, 92 - i * 5, Math.PI, 2 * Math.PI); g.strokePath(); });
+      try { S.tweens.add({ targets: g, alpha: 1, duration: 350, yoyo: true, hold: 1100, onComplete: function () { try { S.dropFx ? S.dropFx(g) : g.destroy(); } catch (e) {} } }); } catch (e) {}
+      for (var j = 0; j < 10 * o.n; j++) { var d = o.dot(o.x + o.R(-90, 90), o.y - o.R(20, 80), 2, o.cn(j)); o.tw(d, { y: d.y - o.R(20, 50), alpha: 0, duration: o.R(700, 1100) }); }
+      return 1 + Math.round(10 * o.n); },
+    halo: function (o) { var S = o.scene, r = o.track(S.add.ellipse(o.x, o.y - 50, 28, 9).setStrokeStyle(3, o.cn(0), 1).setDepth(o.D + 0.1));
+      o.tw(r, { y: o.y - 74, scaleX: 3, scaleY: 3, alpha: 0, duration: 1400, ease: "Cubic.easeOut" });
+      for (var i = 0; i < 12 * o.n; i++) { var t = o.track(S.add.text(o.x + o.R(-40, 40), o.y - o.R(20, 60), "✦", { fontFamily: "Oswald, sans-serif", fontSize: Math.round(o.R(10, 18)) + "px", color: o.cols[i % o.cols.length] }).setOrigin(0.5).setDepth(o.D)); o.tw(t, { y: t.y - o.R(30, 70), alpha: 0, duration: o.R(800, 1300) }); }
+      return 1 + Math.round(12 * o.n); },
+    feathers: function (o) { var S = o.scene, m = 0;
+      for (var i = 0; i < 26 * o.n; i++) { var f = o.track(S.add.rectangle(o.x + o.R(-140, 140), o.y - o.R(140, 240), 3, 7, o.cn(i)).setDepth(o.D).setAngle(o.R(-40, 40))); m++;
+        o.tw(f, { y: f.y + o.R(170, 250), x: f.x + o.R(-40, 40), angle: o.R(-120, 120), alpha: 0.15, duration: o.R(1600, 2400), delay: o.R(0, 500), ease: "Sine.easeInOut" }); }
+      var r = o.track(S.add.ellipse(o.x, o.y - 48, 22, 7).setStrokeStyle(2, o.cn(2), 1).setDepth(o.D + 0.1)); o.tw(r, { y: o.y - 70, alpha: 0, duration: 1600 });
+      return m + 1; }
+  };
+
+  /* ---- the look: the new frames, the flair previews and the card's flair layers ---- */
+  (function () {
+    if (document.getElementById("cosV153Gcss")) return;
+    var st = document.createElement("style"); st.id = "cosV153Gcss";
+    st.textContent = [
+      ".fr-neon{border-color:#ff3df2;box-shadow:0 0 0 2px #2b0f4d,0 0 16px rgba(255,61,242,.55),0 0 30px rgba(111,247,255,.22),0 10px 26px rgba(0,0,0,.5)}",
+      ".fr-wood{border:3px solid #7a5230;box-shadow:0 0 0 2px #3b2414,0 10px 26px rgba(0,0,0,.5);background:linear-gradient(180deg,#1f1a14,#0f0c09)}",
+      ".fr-frost{border-color:#dff4ff;box-shadow:0 0 0 2px #3a7fbf,0 0 18px rgba(143,208,255,.55),0 10px 26px rgba(0,0,0,.5);background:linear-gradient(180deg,#14283a,#0a0f16)}",
+      ".fr-circuit{border-color:#18c3b8;box-shadow:0 0 0 2px #0b2a28,0 0 14px rgba(24,195,184,.35),0 10px 26px rgba(0,0,0,.5);background:repeating-linear-gradient(0deg,transparent 0 13px,rgba(24,195,184,.07) 13px 14px),repeating-linear-gradient(90deg,transparent 0 13px,rgba(24,195,184,.07) 13px 14px),linear-gradient(180deg,#0e1a1e,#070c0f)}",
+      ".fr-emerald{border-color:#3fbf7f;box-shadow:0 0 0 2px #0f3a26,0 0 20px rgba(63,191,127,.45),0 10px 26px rgba(0,0,0,.5)}",
+      ".fr-royal{border-color:#e6c46a;box-shadow:0 0 0 3px #3b1f7a,0 0 0 5px #e6c46a,0 0 22px rgba(123,74,220,.45),0 10px 26px rgba(0,0,0,.5);background:linear-gradient(180deg,#1c1230,#0b0816)}",
+      ".fr-lava{border-color:#ff5a1a;animation:cosLavaV153G 2s ease-in-out infinite;background:linear-gradient(180deg,#1f0d08,#0b0605)}",
+      "@keyframes cosLavaV153G{0%,100%{box-shadow:0 0 0 2px #5c0f16,0 0 14px rgba(255,90,26,.45),0 10px 26px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 2px #a8180a,0 0 28px rgba(255,140,40,.7),0 10px 26px rgba(0,0,0,.5)}}",
+      ".fr-holo{border-color:#b98bff;animation:cosHoloV153G 3.2s linear infinite}",
+      "@keyframes cosHoloV153G{0%,100%{border-color:#ff6b6b;box-shadow:0 0 0 2px #1a0f22,0 0 20px rgba(255,107,107,.5)}25%{border-color:#ffd76f;box-shadow:0 0 0 2px #1a0f22,0 0 20px rgba(255,215,111,.5)}50%{border-color:#6fffb0;box-shadow:0 0 0 2px #1a0f22,0 0 20px rgba(111,255,176,.5)}75%{border-color:#6fd3ff;box-shadow:0 0 0 2px #1a0f22,0 0 20px rgba(111,211,255,.5)}}",
+      ".fr-angel{border-color:#fff8e0;animation:cosAngelV153G 2.6s ease-in-out infinite;background:linear-gradient(180deg,#1d2230,#0b0f16)}",
+      "@keyframes cosAngelV153G{0%,100%{box-shadow:0 0 0 2px #8a6414,0 0 18px rgba(255,248,224,.45),0 -8px 26px rgba(255,233,138,.25)}50%{box-shadow:0 0 0 2px #c9951f,0 0 30px rgba(255,248,224,.75),0 -12px 34px rgba(255,233,138,.45)}}",
+      ".fr-void{border-color:#7a3aff;box-shadow:0 0 0 2px #0b0716,0 0 26px rgba(122,58,255,.6),inset 0 0 30px rgba(122,58,255,.25),0 10px 26px rgba(0,0,0,.5);background:radial-gradient(ellipse at 50% 30%,#1a0f33,#05030a 75%)}",
+      "@media(prefers-reduced-motion:reduce){.fr-lava,.fr-holo,.fr-angel{animation:none}}",
+      ".cos-pvbox-v151b canvas.cos-fl-v153g{width:60px;height:60px;image-rendering:pixelated}",
+      ".pc-fig-v153g{position:relative}.pc-fig-v153g .pc-cv-v151b{position:relative;z-index:1}",
+      ".pc-fl-v153g{position:absolute;left:0;bottom:0;width:92px;height:143.75px;pointer-events:none;transform-origin:50% 100%}.pc-shrink-v153g .pc-cv-v151b,.pc-shrink-v153g .pc-fl-v153g{transform:scale(.8);transform-origin:50% 100%}.pc-fl-v153g.back{z-index:0}.pc-fl-v153g.front{z-index:2}",
+      ".pcard-v151b.compact .pc-fl-v153g{width:70px;height:110px}"
+    ].join("\n");
+    (document.head || document.documentElement).appendChild(st);
+  })();
+
   /* ---------------- the API ---------------- */
   var API = {
     version: "v151b", slots: SLOTS.slice(), cats: CATS, achievements: ACH.map(function (a) { return { id: a.id, name: a.name, desc: a.desc }; }),
@@ -958,6 +1823,7 @@
     /* the renderer's and the vault's reads */
     fieldKit: fieldKit, menuColors: menuColors, celebrate: celebrate, stadiumTheme: stadiumTheme, vaultTheme: vaultTheme, vaultTint: vaultTint, vaultDress: vaultDress,
     refreshField: refreshField, stylePanel: stylePanel, paintPreviews: paintPreviews, kitDeco: kitDeco,
+    fieldFx: fieldFxV153G, flair: flairV153G, wingArt: wingArtV153G, crownArt: crownArtV153G, cardFlair: cardFlairV153G,   // v153 G
     _reset: function () { mem = null; try { localStorage.removeItem(KEY); } catch (e) {} fire({ reset: 1 }); }
   };
   window.RIB_COSMETICS = API;

@@ -27,6 +27,29 @@
   const VAULT_ART = ART.replace(/menu\/$/, 'vault/');
   const COIN_V147B = 'coin_gold_face.webp';
   const TROPHY_V147B = 'card_trophy_uff';
+  /* ===== v153 D THE GOAL ON THE WALL =====
+   * Four asks from the owner, on the menu:
+   *   - the milestones card holds up THE GOAL: the owner's UFF CHAMPIONS trophy (art/menu/trophy_uff_champions.png,
+   *     cut whole by scripts/build-goal-trophies.py) framed as a card until the account wins the UFF, then the
+   *     INTERSTELLAR CHAMPIONS trophy; once that is won too it stays up, marked WON. The feed's `state.goal`
+   *     (07 `menuGoalV153D`) says which — never `rings`, which are spent. A slow shine sweeps the frame.
+   *   - YOUR MEDAL under the logo: `.rib9-medalbox-v153d` is rendered EMPTY here and filled by src/31-legacy.js
+   *     (`RIB_LEGACY.menuBox`, the one owner — 31 loads after this block); it replaces the v152 header chip.
+   *   - a PROFILE tile (two columns wide, the last row) beside LEADERBOARDS.
+   *   - PRESTIGE wears the vault's gold coin (COIN_V147B), not the purple crystal.
+   * And the players breathe (rib9breathe / rib9breathe2 in the sheet: shoulders rise, anchored low).
+   * `window.__V153D` is what scripts/v153Dcheck.mjs reads. */
+  const GOAL_V153D = {
+    uff: { img: 'trophy_goal_uff', kicker: 'THE GOAL', title: 'UFF CHAMPIONS', sub: 'WIN THE UFF TITLE', alt: 'The UFF Champions trophy — the goal' },
+    isl: { img: 'trophy_goal_interstellar', kicker: 'NEXT', title: 'INTERSTELLAR CHAMPIONS', sub: 'UFF WON · NOW THE STARS', alt: 'The UFF Interstellar Champions trophy — the next goal' },
+    done: { img: 'trophy_goal_interstellar', kicker: 'WON', title: 'INTERSTELLAR CHAMPIONS', sub: 'THE LAST CROWN IS YOURS', alt: 'The UFF Interstellar Champions trophy — won' },
+  };
+  const goalV153D = (S) => { const g = (S && S.goal) || {}; const stage = GOAL_V153D[g.stage] ? g.stage : 'uff'; return { stage, ...GOAL_V153D[stage] }; };
+  const goalCardV153D = (S) => { const G = goalV153D(S);
+    return `<figure class="rib9-goal-v153d" data-stage="${G.stage}"><span class="rib9-goal-frame"><img class="rib9-goal-img" src="${ART}${G.img}.webp${ARTV}" alt="${esc(G.alt)}" decoding="async"><i class="rib9-goal-shine" aria-hidden="true"></i></span>
+      <figcaption><small>${G.kicker === 'WON' ? '✓ ' : ''}${G.kicker}</small><b>${G.title}</b><em>${G.sub}</em></figcaption></figure>`; };
+  const medalBoxV153D = () => `<section class="rib9-medalbox-v153d is-empty" data-rib-action="view:profile" role="button" tabindex="0" aria-label="Your Legacy Rank — open your profile"><span class="lgbox-stage"><i class="lgbox-ph" aria-hidden="true"></i></span><span class="lgbox-copy"><small>LEGACY RANK</small><b class="lgbox-rank">—</b></span><span class="lgbox-go" aria-hidden="true">PROFILE ›</span></section>`;
+  const fillMedalBoxV153D = (menu) => { try { const L = window.RIB_LEGACY; if (L && L.menuBox) menu.querySelectorAll('.rib9-medalbox-v153d').forEach((el) => L.menuBox(el)); } catch (e) { /* 31 not ready: its watch fills it */ } };
   // v104: the pictures and their masks keep their names from build to build, so a browser that
   // has seen the menu once keeps the OLD kit masks forever unless the URL moves. The baked build
   // stamp (`<meta name="rib-menu-build">`, set by scripts/bake-menu-into-index.mjs) rides every
@@ -154,7 +177,7 @@
     const name = (card?.querySelector('.pname')?.textContent || '').trim() || 'YOUR PLAYER';
     const ovr = numeric(card?.querySelector('.continue-ovr')?.textContent, 0);
     const pos = (cardText.match(/\b(QB|RB|WR|TE|OL|DL|LB|CB|S)\b/)?.[1] || 'QB');
-    return { hasCareer, state: { prestige: numeric((screenText.match(/\uD83C\uDF96\uFE0F?\s*(\d+)/) || screenText.match(/★\s*(\d+)/) || [])[1], 0), pp: 0, careers: 0, nflReached: 0, interstellar: 0, hallBest: 0, enshrined: 0, challenges: 0, challengesOf: 0 },
+    return { hasCareer, state: { prestige: numeric((screenText.match(/(?:\u269C|\uD83C\uDF96)\uFE0F?\s*(\d+)/) || screenText.match(/★\s*(\d+)/) || [])[1], 0), pp: 0, careers: 0, nflReached: 0, interstellar: 0, hallBest: 0, enshrined: 0, challenges: 0, challengesOf: 0 },
       player: hasCareer ? { name, pos, level: 0, levelName: (cardText.match(/(Pee Wee|Youth League|Middle School|JV|Varsity|College|UFF Combine|The UFF|Interstellar League)/) || [])[1] || 'Career', stars: (cardText.match(/★/g) || []).length, ovr, height: '', weight: '', traits: [], objectives: [], totalSeasons: 0 } : null,
       season: { games: 0, played: 0, weeks: [], inProgress: false, last: null }, team: { school: '', name: '', colors: null, logo: null, logoCss: '' } };
   }
@@ -241,7 +264,7 @@
 
   // the legacy panel: one tile per lifetime number, each with its own icon
   const LEGACY_TILES = [
-    ['gold rib9-lt-coin-v147', 'coin', 'prestige', 'PRESTIGE', (S) => S.prestige || 0],   // v147 B: the vault's coin, not a star
+    ['gold rib9-lt-crest-v153', 'crest', 'prestige', 'HONORS', (S) => S.prestige || 0],   // v153: Honors wear the crest (⚜); the coin is PP's alone
     ['blue', 'helmet', 'careers', 'CAREERS', (S) => S.careers || 0],
     ['green', 'crown', 'nflReached', 'UFF REACHED', (S) => S.nflReached || 0],
     ['purple', 'gem', 'interstellar', 'INTERSTELLAR', (S) => S.interstellar || 0],
@@ -252,7 +275,7 @@
   const legacyPanel = (S) => `<section class="rib9-card rib9-legacy">
             <div class="rib9-kicker">YOUR LEGACY<button class="rib9-prof-v151b" type="button" data-rib-action="view:profile">PROFILE ›</button></div>
             <div class="rib9-legacy-grid">
-              ${LEGACY_TILES.map(([cls, icon, field, label, read]) => `<div class="rib9-lt ${cls}"><i><img src="${icon === 'coin' ? VAULT_ART + COIN_V147B : ART + 'legacy_' + icon + '.webp'}${ARTV}" alt="" loading="lazy"></i><b data-rib-field="${field}">${esc(read(S))}</b><small>${label}</small></div>`).join('')}
+              ${LEGACY_TILES.map(([cls, icon, field, label, read]) => `<div class="rib9-lt ${cls}"><i>${icon === 'crest' ? '<span class="rib9-crest-v153" aria-hidden="true">⚜️</span>' : `<img src="${icon === 'coin' ? VAULT_ART + COIN_V147B : ART + 'legacy_' + icon + '.webp'}${ARTV}" alt="" loading="lazy">`}</i><b data-rib-field="${field}">${esc(read(S))}</b><small>${label}</small></div>`).join('')}
             </div>
           </section>`;
 
@@ -443,7 +466,7 @@
     const quote = has ? quoteFor(pl) : 'EVERY LEGEND HAS A FIRST SNAP.';
     const pk = has ? perks(data) : [];
     const stars = has ? Math.max(0, Math.min(5, pl.stars || 0)) : 0;
-    const tile = (action, icon, label, sub, cls = '') => `<button class="rib9-tile ${cls}" type="button" data-rib-action="${action}"><img src="${ART}${icon}.webp${ARTV}" alt="" loading="lazy"><b>${label}</b><small>${sub}</small><i class="rib9-gloss-v132" aria-hidden="true"></i>${/rib9-tile-hot/.test(cls) ? '<i class="rib9-ring-v132" aria-hidden="true"></i>' : ''}</button>`;
+    const tile = (action, icon, label, sub, cls = '') => `<button class="rib9-tile ${cls}" type="button" data-rib-action="${action}"><img src="${/\//.test(icon) ? icon : ART + icon + '.webp'}${ARTV}" alt="" loading="lazy"><b>${label}</b><small>${sub}</small><i class="rib9-gloss-v132" aria-hidden="true"></i>${/rib9-tile-hot/.test(cls) ? '<i class="rib9-ring-v132" aria-hidden="true"></i>' : ''}</button>`;
     const coachOn = !!(window.__RIB_COACH && window.__RIB_COACH.enabled);   // v119: read at every render, so a re-render keeps the switch honest
     const tilesNav = `<nav class="rib9-tiles" aria-label="Sections">
           ${tile(has ? 'view:' + careerView : 'new', 'icon_career', 'CAREER', has ? 'PLAY NEXT GAME' : 'START A CAREER', 'rib9-tile-hot')}
@@ -457,7 +480,7 @@
           ${/* v119: the coach's tour — a TOGGLE, not a door. ON plays the tour after the welcome cards (or the moment it is switched on); the tour switches it OFF when it ends. rib-menu-coach.js owns the state. */''}
           <button class="rib9-tile rib9-tile-coach ${coachOn ? 'on' : ''}" type="button" data-rib-action="coach" role="switch" aria-checked="${coachOn ? 'true' : 'false'}" aria-label="Coach's tour, ${coachOn ? 'on' : 'off'}"><img src="${COACH_ART}tile.webp${ARTV}" alt="" loading="lazy"><b>COACH'S TOUR</b><small><i class="rib9-sw"><i></i></i>${coachOn ? 'ON · HE WALKS YOUR FIRST WEEK' : 'OFF · TAP TO BRING HIM BACK'}</small></button>
           ${/* v139: the prestige tree is a door, and the only way in was the header chip — which is not where anyone looks. It sits beside the coach now, with what you have to spend on it. */''}
-          ${tile('prestige', 'legacy_gem', 'PRESTIGE', `${Number(S.pp || 0).toLocaleString()} PP TO SPEND`)}${seasonTilesV151C()}${storeTileV150C()}
+          ${tile('prestige', VAULT_ART + COIN_V147B, 'PRESTIGE', `${Number(S.pp || 0).toLocaleString()} PP TO SPEND`, 'rib9-tile-coin-v153d')}${seasonTilesV151C()}${tile('view:profile', ART + 'portrait_helmet.webp', 'PROFILE', 'LEGACY RANK · TROPHY CASE', 'rib9-tile-profile-v153d')}${storeTileV150C()}
         </nav>`;
     // v151 C: the season's two doors — the PASS (with the countdown: season, days left, tier) and the career LEADERBOARDS.
     // src/29-seasons.js is loaded before this file; without it the tiles are simply not drawn. rib-menu-navigation.js
@@ -488,7 +511,7 @@
           <nav class="rib9-nav" aria-label="Main">
             ${navLink('home', 'HOME', true)}${navLink(has ? 'continue' : 'new', 'CAREER')}${navLink('goals', 'GOALS')}${navLink('hall', 'HALL')}${navLink('view:leaderboard', 'LEADERBOARDS')}${navLink('howto', 'HOW TO PLAY')}${navLink('settings', 'SETTINGS')}
           </nav>
-          <button class="rib9-prestige" type="button" data-rib-action="prestige" title="Prestige tree"><img class="rib9-coin-v147" src="${VAULT_ART}${COIN_V147B}${ARTV}" alt="" width="18" height="18" decoding="async"><b data-rib-field="prestige">${esc(S.prestige || 0)}</b><small>PRESTIGE</small><i></i><b data-rib-field="pp">${esc(S.pp || 0)}</b><small>PP</small></button>
+          <button class="rib9-prestige" type="button" data-rib-action="prestige" title="Prestige tree — ⚜ Honors unlock it, 🪙 PP buy it"><span class="rib9-crest-v153" aria-hidden="true">⚜️</span><b data-rib-field="prestige">${esc(S.prestige || 0)}</b><small>HONORS</small><i></i><img class="rib9-coin-v147" src="${VAULT_ART}${COIN_V147B}${ARTV}" alt="" width="18" height="18" decoding="async"><b data-rib-field="pp">${esc(S.pp || 0)}</b><small>PP</small></button>
           <div class="rib9-motto">BUILD A PLAYER.<br>EARN EVERY REP.<br>CHASE THE LEAGUE.</div>
         </header>
         ${tickerV132(data, has, num, year, week)}
@@ -506,6 +529,7 @@
           <div class="rib9-hero-copy"><h1><img src="${ART}logo_wordmark.webp${ARTV}" alt="Running It Back"><i class="rib9-sheen" style="--wm:url('${artUrl('logo_wordmark.webp' + ARTV)}')"></i></h1>
             <img class="rib9-swash" src="${ART}swash_underline.webp${ARTV}" alt=""></div>
         </section>
+        ${medalBoxV153D()}
 
         ${has ? `
         <section class="rib9-card rib9-player">
@@ -540,9 +564,8 @@
           </section>
           ${legacyPanel(S)}
           <section class="rib9-card rib9-milestones" data-rib-action="goals" role="button" tabindex="0">
-            <img class="rib9-trophy" src="${ART}${TROPHY_V147B}.webp${ARTV}" alt="The UFF trophy">
             <div class="rib9-ms-copy"><div class="rib9-kicker">CAREER MILESTONES</div>${milestones(data)}</div>
-            <div class="rib9-ms-plate">A HIGHER<br>STANDARD</div>
+            ${goalCardV153D(S)}
           </section>
         </div>
         <section class="rib9-card rib9-archcard">
@@ -565,9 +588,8 @@
         <div class="rib9-grid">
           ${legacyPanel(S)}
           <section class="rib9-card rib9-milestones" data-rib-action="new" role="button" tabindex="0">
-            <img class="rib9-trophy" src="${ART}${TROPHY_V147B}.webp${ARTV}" alt="The UFF trophy">
             <div class="rib9-ms-copy"><div class="rib9-kicker">CAREER MILESTONES</div>${milestones(data)}</div>
-            <div class="rib9-ms-plate">A HIGHER<br>STANDARD</div>
+            ${goalCardV153D(S)}
           </section>
         </div>`}
 
@@ -649,9 +671,11 @@
     }
     return { overall, softMax, k1, k2, k, over, head, headDeg: head * 360, color, band: RING_BAND_V147B };
   }
-  window.__V147B = { ringArc: ringArcV147B, band: RING_BAND_V147B, coin: () => VAULT_ART + COIN_V147B, trophy: () => ART + TROPHY_V147B + '.webp' };
+  window.__V153D = { goal: goalV153D, goals: GOAL_V153D, art: (stage) => ART + (GOAL_V153D[stage] || GOAL_V153D.uff).img + '.webp', coin: () => VAULT_ART + COIN_V147B };
+  window.__V147B = { ringArc: ringArcV147B, band: RING_BAND_V147B, coin: () => VAULT_ART + COIN_V147B, trophy: () => ART + TROPHY_V147B + '.webp' };   // v153 D: the milestones card now holds the goal trophy (window.__V153D); the v147 B drawing stays built, unused by the menu
   function applyDynamic(menu, data, animateIn) {
     watchArt(menu);
+    fillMedalBoxV153D(menu);   // v153 D: 31 fills the medal box (and its watch refills it if 31 was not up yet)
     startHeroFx(menu);   // v102: the hero comes alive
     startMenuFxV132(menu);   // v132: and the rest of the page with it
     const ring = menu.querySelector('.rib9-ring');

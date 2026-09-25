@@ -2575,3 +2575,972 @@
 
   window.__RIB_VAULT_PHYS = { MAX_BODIES: MAX_BODIES, GRAV: GRAV };
 })();
+
+/* ===== v153 C PAYDAY — your run becomes wealth =====
+ *
+ * The career settle has ALREADY put the PP on `state.pp` (07's `screenGameOver`/`screenWin`);
+ * the bridge (`pending`, `rib.vaultPay.v153`) decides once whether the vault still owes the
+ * player the sight of it and hands `open()` a `payday: { from, to, gain, record }`. This block
+ * SHOWS it: the room goes dark on the old balance, "+N PRESTIGE" arrives, one coin drops, a
+ * pause, then a shower that builds like a jackpot, slows for its last few coins, goes quiet —
+ * and the last, largest coin lands with a heavy CLINK, the total locks, and a warm pulse runs
+ * across the floor and the door. Only then are RESTOCK / DETAILS / CHOOSE AN UPGRADE live.
+ *
+ *   MONEY TRUTH  `this.balance` is the game's `to` from the first frame; the sequence only
+ *                moves the DISPLAYED number and the hoard's drawn balance, from `from` up to
+ *                `to`. Nothing here reads or writes the save, and skipping, closing, reloading
+ *                or a crash mid-shower leaves exactly the PP the game already awarded.
+ *   SCALE        `paydayPlan(gain)` — the number of visual coins is LOGARITHMIC in the gain
+ *                (tiny 8-15 · small 20-35 · medium 40-70 · large 80-120 · huge 120-180 · a new
+ *                record or a 100M+ award is the ~200-coin "prestige storm"). One coin never
+ *                stands for one point.
+ *   PHYSICS      each coin: its own X, start height, delay, fall time, scale, spin speed and
+ *                direction, tumble, bounce height and landing scatter; a shadow that firms up
+ *                as it nears the floor; a squash on impact; one or two diminishing bounces; it
+ *                lies down and settles INTO the hoard, whose drawn balance rises with each
+ *                landing — mid-depth coins land on the very slots the grown hoard reveals.
+ *                Far coins are smaller and behind the pile; near ones larger, pre-blurred and
+ *                in front of it.
+ *   POOLED       `MAX_LIVE` coin objects and `MAX_PARTS` particles, allocated once and reused;
+ *                all drawing is drawImage on the scene's one canvas. Local PRNG (`M.rng`) — no
+ *                draw on the game's random stream.
+ *   INPUT        a tap during the sequence ACCELERATES it (x2.6), a second tap SKIPS to the
+ *                locked final state. The hoard cannot be poured into until it is over.
+ *   REDUCED      prefers-reduced-motion: no fall, no shake, no particles — a quick count-up,
+ *                six coins fading onto the pile, and the final pulse as a fade.
+ *
+ * Hooks: `window.__RIB_VAULT_MODEL.paydayPlan`, `window.__RIB_VAULT_DEV.payday()`,
+ * `__RIB_VAULT_DEV.payTap()`, `window.__V153C`. `docs/PRESTIGE-VAULT.md` has the whole of it. */
+(function () {
+  'use strict';
+  var M = window.__RIB_VAULT_MODEL, S = window.__RIB_VAULT_SCENE, C = window.__RIB_VAULT_CTRL;
+  if (!M || !S || !C || !window.__RIB_VAULT_DEV) return;
+  var Scene = S.Scene, PILE = S.PILE, Vault = C.Vault, V = window.__RIB_VAULT_DEV.v;
+
+  /* ---------- 1. how big the rain is: logarithmic in the gain ---------- */
+  var PAY_TIERS = [
+    { id: 'tiny',   hi: 1.4, coins: [8, 15],    shower: 300,  gap: 90,  fall: 0.60, hold: 200, tail: 1, lead: 60 },
+    { id: 'small',  hi: 2.4, coins: [20, 35],   shower: 900,  gap: 260, fall: 0.92, hold: 380 },
+    { id: 'medium', hi: 3.4, coins: [40, 70],   shower: 1300, gap: 320, fall: 1.00, hold: 400 },
+    { id: 'large',  hi: 4.7, coins: [80, 120],  shower: 1600, gap: 360, fall: 1.00, hold: 400 },
+    { id: 'huge',   hi: 9.0, coins: [120, 180], shower: 1900, gap: 400, fall: 1.04, hold: 420 }
+  ];
+  var STORM = { id: 'storm', coins: [200, 200], shower: 2400, gap: 520, fall: 1.06, hold: 460 };
+  var STORM_GAIN = 1e8;
+  function paydayPlan(gain, opt) {
+    opt = opt || {};
+    gain = Math.max(0, Math.round(+gain || 0));
+    var L = Math.log10(Math.max(1, gain)), lo = 0, t = PAY_TIERS[PAY_TIERS.length - 1], i;
+    for (i = 0; i < PAY_TIERS.length; i++) {
+      if (L < PAY_TIERS[i].hi) { t = PAY_TIERS[i]; break; }
+      lo = PAY_TIERS[i].hi;
+    }
+    if (L >= PAY_TIERS[PAY_TIERS.length - 1].hi) lo = PAY_TIERS[PAY_TIERS.length - 2].hi;
+    var f = Math.max(0, Math.min(1, (L - lo) / (t.hi - lo)));
+    var storm = !!opt.record || gain >= STORM_GAIN;
+    var T = storm ? STORM : t;
+    var coins = storm ? STORM.coins[0] : Math.round(t.coins[0] + (t.coins[1] - t.coins[0]) * f);
+    if (opt.reduced) coins = Math.min(6, coins);
+    return { tier: T.id, coins: coins, shower: T.shower, gap: T.gap, fall: T.fall, hold: T.hold,
+      tail: T.tail || 4, lead: T.lead || 140,
+      storm: storm, record: !!opt.record, riser: storm || t.id === 'large' || t.id === 'huge',
+      rank: storm ? PAY_TIERS.length : PAY_TIERS.indexOf(t), gain: gain };
+  }
+  M.paydayPlan = paydayPlan;
+  M.PAY_TIERS = PAY_TIERS;
+
+  var MAX_LIVE = 150;         // coins in the air or settling at once — the storm never needs more
+  var MAX_PARTS = 200;        // sparks, dust and glints
+  var ACCEL = 2.6;            // the first tap
+  var TAU = Math.PI * 2;
+
+  /* ---------- 2. the sprites the rain needs that the hoard does not ---------- */
+  /* A near coin is out of the lens's focus: a blurred copy, made the cheap way that works on
+   * every canvas (down to a quarter, back up), once per face and theme. */
+  Scene.prototype.blurImgV153 = function (den, kind) {
+    var th = this._tV151B ? this._tV151B.id : '';
+    var c = this._blurV153 || (this._blurV153 = {}), k = th + ':' + den + ':' + kind;
+    if (c[k] !== undefined) return c[k];
+    var src = this.coinImg(den, kind, 3);
+    if (!src || !src.width) return (c[k] = null);
+    var sw = Math.max(4, Math.round(src.width / 4)), sh = Math.max(4, Math.round(src.height / 4));
+    var a = document.createElement('canvas'); a.width = sw; a.height = sh;
+    var ax = a.getContext('2d'); ax.imageSmoothingQuality = 'high'; ax.drawImage(src, 0, 0, sw, sh);
+    var b = document.createElement('canvas'); b.width = src.width; b.height = src.height;
+    var bx = b.getContext('2d'); bx.imageSmoothingQuality = 'high'; bx.drawImage(a, 0, 0, b.width, b.height);
+    bx.globalAlpha = 0.45; bx.drawImage(src, 0, 0);                 // keep a little of the face
+    return (c[k] = b);
+  };
+  function softDot(r, rgb) {
+    var c = document.createElement('canvas'); c.width = c.height = r * 2;
+    var x = c.getContext('2d'), g = x.createRadialGradient(r, r, 0, r, r, r);
+    g.addColorStop(0, 'rgba(' + rgb + ',1)'); g.addColorStop(0.35, 'rgba(' + rgb + ',.45)'); g.addColorStop(1, 'rgba(' + rgb + ',0)');
+    x.fillStyle = g; x.fillRect(0, 0, r * 2, r * 2); return c;
+  }
+  function starImg(r) {
+    var c = document.createElement('canvas'); c.width = c.height = r * 2;
+    var x = c.getContext('2d');
+    x.translate(r, r);
+    [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4].forEach(function (a, i) {
+      x.save(); x.rotate(a);
+      var L = i < 2 ? r : r * 0.55, g = x.createLinearGradient(-L, 0, L, 0);
+      g.addColorStop(0, 'rgba(255,236,180,0)'); g.addColorStop(0.5, 'rgba(255,250,228,1)'); g.addColorStop(1, 'rgba(255,236,180,0)');
+      x.fillStyle = g; x.fillRect(-L, -r * 0.035 * (i < 2 ? 1.6 : 1), L * 2, r * 0.07 * (i < 2 ? 1.6 : 1));
+      x.restore();
+    });
+    var d = x.createRadialGradient(0, 0, 0, 0, 0, r * 0.28);
+    d.addColorStop(0, 'rgba(255,255,240,1)'); d.addColorStop(1, 'rgba(255,220,150,0)');
+    x.fillStyle = d; x.fillRect(-r, -r, r * 2, r * 2);
+    return c;
+  }
+  function ringImg(r) {                      // a soft ring of light, squashed onto the floor when drawn
+    var c = document.createElement('canvas'); c.width = c.height = r * 2;
+    var x = c.getContext('2d'), g = x.createRadialGradient(r, r, r * 0.55, r, r, r);
+    g.addColorStop(0, 'rgba(255,200,110,0)'); g.addColorStop(0.72, 'rgba(255,206,120,.85)'); g.addColorStop(1, 'rgba(255,200,110,0)');
+    x.fillStyle = g; x.fillRect(0, 0, r * 2, r * 2); return c;
+  }
+  var FX = null;
+  function fx() {
+    if (FX) return FX;
+    FX = { dust: softDot(24, '214,178,120'), spark: softDot(10, '255,222,150'), glow: softDot(64, '255,196,96'),
+      star: starImg(48), ring: ringImg(128) };
+    return FX;
+  }
+
+  /* ---------- 3. the sequence ---------- */
+  function Payday(vault, o) {
+    var s = vault.scene;
+    this.v = vault; this.s = s;
+    this.from = Math.max(0, Math.round(o.from || 0));
+    this.to = Math.max(this.from, Math.round(o.to || 0));
+    this.gain = this.to - this.from;
+    this.record = !!o.record; this.replay = !!o.replay;
+    this.reduced = !!s.reduced;
+    this.plan = paydayPlan(this.gain, { record: this.record, reduced: this.reduced });
+    this.R = M.rng(((this.from % 4294967296) * 2654435761 + (this.to % 4294967296) * 40503 + 0x153C) >>> 0);
+    this.mix = M.mixOf(Math.max(1, this.gain));
+    this.t = 0; this.k = 1; this.taps = 0;
+    this.credit = 0; this.shown = this.from; this.shownInt = -1;
+    this.locked = false; this.done = false; this.skipped = false; this.tLock = 0; this.tDone = 0;
+    this.spawned = 0; this.landed = 0; this.maxLive = 0; this.live = 0; this.rate = 0;
+    this.first = null; this.firstLandedAt = null; this.finalSpawned = false; this.finalWait = null;
+    this.toward = 0; this.hapticLog = []; this._hapAt = -1e9; this._hoardAt = -1e9;
+    this.nShower = Math.max(0, this.plan.coins - 2);
+    this.weightFirst = 0.02; this.weightFinal = 0.08;
+    this.weightEach = this.nShower > 0 ? (1 - this.weightFirst - this.weightFinal) / this.nShower : 0;
+    if (!this.nShower) this.weightFinal = 1 - this.weightFirst;
+    this.next = 0;
+    this.heroAt = this.plan.rank >= 2 && !this.reduced ? Math.round(this.nShower * (0.48 + this.R() * 0.12)) : -1;
+    this.schedule = this.buildSchedule();
+    this.T_LABEL = this.reduced ? 60 : this.plan.hold;
+    this.T_FIRST = this.reduced ? 120 : this.plan.hold + this.plan.lead;
+    this.pool = []; this.parts = [];
+    for (var i = 0; i < MAX_LIVE; i++) this.pool.push({ live: false });
+    for (i = 0; i < MAX_PARTS; i++) this.parts.push({ live: false });
+    this.prepTargets();
+    this.dark = 0; this.pulse = -1; this.flash = 0;
+  }
+  /* The shower's rate is a jackpot building: it starts sparse, climbs for ~70% of its length,
+   * then thins out, so the last few coins arrive on their own. Spawn times are the inverse of
+   * that rate's running total, sampled once. The last four also fall slower (see `spawn`). */
+  Payday.prototype.buildSchedule = function () {
+    var n = this.nShower, D = this.plan.shower, out = [];
+    if (!n) return out;
+    var K = 240, cum = [0], i, u, r;
+    for (i = 1; i <= K; i++) {
+      u = i / K;
+      r = u < 0.7 ? 0.10 + 0.90 * Math.pow(u / 0.7, 1.7) : 1 - 0.70 * Math.pow((u - 0.7) / 0.3, 0.8);
+      cum.push(cum[i - 1] + r);
+    }
+    var tot = cum[K], j = 0;
+    for (i = 0; i < n; i++) {
+      var want = (i + 0.5) / n * tot;
+      while (j < K - 1 && cum[j + 1] < want) j++;
+      var fr = (want - cum[j]) / Math.max(1e-9, cum[j + 1] - cum[j]);
+      out.push(((j + fr) / K) * D);
+    }
+    var tail = this.plan.tail, gapT = tail > 1 ? 70 : 40;
+    for (i = Math.max(0, n - tail); i < n; i++) out[i] += (i - (n - tail - 1)) * gapT;   // the final few, spaced out
+    return out;
+  };
+  /* Where the new wealth goes: the slots the hoard will grow into between `from` and `to`, in
+   * the order it will reveal them. A mid-depth coin lands on the top of one of those, so as it
+   * settles the hoard draws a coin exactly where it came to rest. If the hoard does not grow a
+   * visible coin (a small gain on a big pile) they land on the live surface instead. */
+  Payday.prototype.prepTargets = function () {
+    var s = this.s, sl = s.slots;
+    var nF = Math.min(sl.coins, M.coinsFor(this.from, sl.coins)), nT = Math.min(sl.coins, M.coinsFor(this.to, sl.coins));
+    this.slotFrom = M.slotsFor(sl, nF); this.slotTo = M.slotsFor(sl, nT);
+    this.bandLo = Math.max(0, this.slotTo - Math.max(12, Math.round(sl.slot.length * 0.10)));
+  };
+  Payday.prototype.slotTop = function (i) {
+    var s = this.s, q = s.slots.slot[i], p = s.cam.project(q.x * PILE.dx, q.y * PILE.dy, PILE.z + q.z * PILE.dz, {});
+    var size = p.s * q.size, rise = q.cnt > 1 ? (q.cnt - 1) * size * S.STACK_RISE : 0;
+    return { x: p.x, y: p.y - rise - size * 0.06, s: p.s, z: q.z };
+  };
+  Payday.prototype.target = function (depth, role, idx) {
+    var s = this.s, R = this.R, p;
+    if (role === 'first' || role === 'final') {
+      var n = role === 'final' ? this.slotTo : this.slotFrom;
+      if (n <= 0) {
+        p = s.cam.project(0, 0, PILE.z + (role === 'final' ? 0.02 : -0.03), {});
+        return { x: p.x, y: p.y, s: p.s };
+      }
+      // the top-centre of the pile the player will see at that moment
+      var best = -1, bs = -1e9, lo = Math.max(0, n - Math.max(24, Math.round(n * 0.3)));
+      for (var i = lo; i < n; i++) {
+        var q = s.slots.slot[i], sc = q.y * 2.2 - Math.abs(q.x) * 1.6 - Math.abs(q.z) * 0.8;
+        if (sc > bs) { bs = sc; best = i; }
+      }
+      if (best >= 0) return this.slotTop(best);
+      p = s.cam.project(0, 0, PILE.z, {}); return { x: p.x, y: p.y, s: p.s };
+    }
+    if (depth === 2) {                                  // in front of the pile, at its foot
+      var gx = (R() - 0.5) * 1.05, gz = PILE.z - 0.04 - R() * 0.07;
+      p = s.cam.project(gx, 0, gz, {});
+      // ...but never down among the controls: the foot of the frame is the interface's
+      return { x: p.x, y: Math.min(p.y, s.ch * 0.79 - R() * s.ch * 0.03), s: p.s };
+    }
+    var span = this.slotTo - this.slotFrom, k = 0;
+    if (depth === 1 && span > 0) {
+      k = this.slotFrom + Math.min(span - 1, Math.floor((idx + R() * 0.8) / Math.max(1, this.nShower) * span));
+      return this.slotTop(k);
+    }
+    if (this.slotTo > 0) {                              // the live surface; far coins prefer its back
+      for (var tries = 0; tries < 6; tries++) {
+        k = this.bandLo + Math.floor(R() * Math.max(1, this.slotTo - this.bandLo));
+        if (depth !== 0 || s.slots.slot[Math.min(this.slotTo - 1, k)].z > -0.02) break;
+      }
+      return this.slotTop(Math.min(this.slotTo - 1, k));
+    }
+    p = s.cam.project((R() - 0.5) * (depth === 0 ? 0.9 : 0.6), 0, PILE.z + (depth === 0 ? 0.08 + R() * 0.1 : (R() - 0.5) * 0.08), {});
+    return { x: p.x, y: p.y, s: p.s };
+  };
+  /* the last coin (and the one slow spinner) is the most valuable-looking face the award can
+   * justify: gold, or the billion-point blue when the award really holds one */
+  Payday.prototype.topDen = function () {
+    return this.gain >= 1e9 ? 'blue' : 'gold';
+  };
+  Payday.prototype.freeCoin = function () {
+    var i, c, old = null;
+    for (i = 0; i < this.pool.length; i++) { c = this.pool[i]; if (!c.live) return c; }
+    // full: the coin that has been lying still the longest merges early
+    for (i = 0; i < this.pool.length; i++) { c = this.pool[i]; if (c.state >= 2 && !c.final && (!old || c.restT > old.restT)) old = c; }
+    if (old) { old.live = false; return old; }
+    return null;
+  };
+  Payday.prototype.spawn = function (role, idx) {
+    var c = this.freeCoin(); if (!c) return null;
+    var s = this.s, R = this.R, pl = this.plan;
+    var depth = 1;
+    if (role === 'shower' && !this.reduced) { var u = R(); depth = u < 0.22 ? 0 : u < 0.88 ? 1 : 2; }
+    var hero = role === 'shower' && idx === this.heroAt;
+    if (hero) depth = 1;
+    var tg = this.target(depth, role, idx || 0);
+    var den = (role === 'final' || hero) ? this.topDen() : M.denOf({ mixU: R() }, this.mix);
+    var base = tg.s || s.cam.project(0, 0, PILE.z, {}).s;
+    var size = base * (depth === 0 ? 0.80 + R() * 0.14 : depth === 2 ? 1.28 + R() * 0.34 : 0.92 + R() * 0.2);
+    if (role === 'first') size = base * 1.12;
+    if (role === 'final') size = base * 1.62;
+    if (hero) size *= 1.28;
+    var fall = (depth === 0 ? 700 : depth === 2 ? 520 : 610) * pl.fall * (0.88 + R() * 0.26);
+    var slowTail = role === 'shower' && idx >= this.nShower - pl.tail;
+    if (slowTail) fall *= 1.32;
+    if (role === 'first') fall = 640 * pl.fall;
+    if (role === 'final') fall = 800 * pl.fall * (pl.rank === 0 ? 0.8 : 1);
+    if (hero) fall *= 1.3;
+    c.live = true; c.role = role; c.final = role === 'final'; c.hero = hero; c.depth = depth; c.den = den;
+    c.size = size; c.size0 = size; c.tx = tg.x; c.ty = tg.y;
+    c.y = -size * 0.7 - (role === 'shower' ? R() * s.ch * 0.14 : 0);
+    c.x = tg.x + (role === 'shower' ? (R() - 0.5) * s.cw * 0.12 : 0);
+    var vy0 = role === 'shower' ? R() * 0.14 : 0;
+    c.g = Math.max(0.0004, 2 * (c.ty - c.y - vy0 * fall) / (fall * fall));
+    c.vy = vy0; c.vx = (c.tx - c.x) / fall;
+    c.spin = R() * TAU;
+    c.spinV = (c.final || hero ? 0.0032 + R() * 0.0012 : 0.005 + R() * 0.016) * (R() < 0.5 ? -1 : 1);
+    c.rot = (R() - 0.5) * 1.1; c.rotV = (0.0005 + R() * 0.0026) * (R() < 0.5 ? -1 : 1);
+    c.state = 0; c.bounces = 0; c.maxB = c.final ? 1 : R() < 0.45 ? 1 : 2;
+    c.sq = 0; c.fl = 0; c.alpha = 1; c.restT = 0; c.tyV = 0; c.grow = 0; c.fadeIn = 0;
+    c.restMs = c.final ? 900 : 120 + R() * 170;
+    c.credited = false; c.mass = den === 'blue' ? 2.4 : den === 'gold' ? 1.75 : den === 'silver' ? 1.3 : 1;
+    c.weight = role === 'first' ? this.weightFirst : role === 'final' ? this.weightFinal : this.weightEach;
+    c.glint = c.final || hero || R() < 0.12;
+    c.blur = depth === 2 && !this.reduced;
+    c.shade = depth === 0 ? 2 : 3;
+    c.toward = false;
+    if (role === 'shower' && depth >= 1 && pl.rank >= 1 && this.toward < 3 && !this.reduced && R() < 0.035) { c.toward = true; this.toward++; }
+    if (this.reduced) { c.x = c.tx; c.y = c.ty; c.state = 2; c.fl = 1; c.alpha = 0; c.fadeIn = 1; c.restMs = 700; }
+    this.spawned++;
+    return c;
+  };
+
+  /* ---------- the clock ---------- */
+  Payday.prototype.tick = function (now, dtRaw) {
+    var s = this.s;
+    if (!s || this.dead) return;
+    if (s.doorT < 1) return;                           // the door opens first
+    /* the loop's first dt can be NEGATIVE (a rAF timestamp is the frame's start, which can
+     * precede the performance.now() the loop was started at) and a stalled tab hands back a
+     * long one; the sequence takes neither */
+    dtRaw = Math.max(0, Math.min(64, +dtRaw || 0));
+    var dt = dtRaw * this.k;
+    this.t += dt;
+    var t = this.t, A = window.__RIB_VAULT_AUDIO;
+    if (!this.labelUp && t >= this.T_LABEL) {
+      this.labelUp = true; this.v.showPayLabel(this);
+      if (this.plan.riser && A && A.riser && !this.reduced) A.riser(this.plan.shower + this.plan.gap + 2200);
+    }
+    if (!this.first && !this.locked && t >= this.T_FIRST) this.first = this.spawn('first', 0);
+    if (this.firstLandedAt != null && !this.locked) {
+      var t0 = this.firstLandedAt + (this.reduced ? 60 : this.plan.rank === 0 ? 60 : 220);
+      var spawnedNow = 0;
+      while (this.next < this.nShower && t >= t0 + (this.reduced ? this.next * 90 : this.schedule[this.next]) && spawnedNow < 14) {
+        if (!this.spawn('shower', this.next)) break;
+        this.next++; spawnedNow++;
+      }
+      if (this.next >= this.nShower && !this.finalSpawned) {
+        var allIn = this.landed >= this.nShower + 1;
+        if (allIn && this.finalWait == null) this.finalWait = t + (this.reduced ? 80 : this.plan.gap);
+        if (this.finalWait != null && t >= this.finalWait) { this.finalSpawned = true; this.spawn('final', 0); }
+      }
+    }
+    this.step(dt);
+    // the number follows the coins that have LANDED — rapidly, but it never runs ahead of them
+    var tgt = this.locked ? this.to : this.from + this.gain * Math.min(1, this.credit);
+    if (this.locked) this.shown = this.to;
+    else { this.shown += (tgt - this.shown) * (1 - Math.exp(-dt / 70)); if (Math.abs(tgt - this.shown) < 0.5) this.shown = tgt; }
+    var si = Math.min(this.to, Math.max(this.from, Math.round(this.shown)));
+    if (!this.locked && si >= this.to) si = this.to - 1;  // the total locks on the last coin, not before
+    if (si !== this.shownInt) { this.shownInt = si; if (!this.done) this.v.paintPayNum(si); }
+    // ...and so does the hoard, a few times a second rather than per coin (each is a re-bake)
+    if (!this.locked && now - this._hoardAt > 90) {
+      this._hoardAt = now;
+      var hb = Math.round(this.from + this.gain * Math.min(1, this.credit));
+      if (hb !== s.pp) s.setBalance(hb, true);
+    }
+    // the room: dark on the old balance, the light coming back as the wealth arrives
+    var dk = Math.min(1, t / 240) * (this.locked ? Math.max(0, 1 - (t - this.tLock) / 650) : (0.62 - 0.30 * Math.min(1, this.credit)));
+    this.dark = this.reduced ? dk * 0.5 : dk;
+    if (A && A.cascade && !this.reduced) {
+      this.rate = this.rate * Math.exp(-dt / 160);
+      if (!this.done) A.cascade(this.locked ? 0 : Math.max(0, Math.min(1, (this.rate - 3) / 9)));
+    }
+    if (this.pulse >= 0) this.pulse += dt;
+    this.flash *= Math.exp(-dt / 180);
+    if (this.locked && !this.done && t >= this.tDone) this.v.finishPayday(this);
+    if (this.done && !this.anyLive() && (this.pulse < 0 || this.pulse > 1600)) this.dead = true;
+  };
+  Payday.prototype.anyLive = function () {
+    for (var i = 0; i < this.pool.length; i++) if (this.pool[i].live) return true;
+    for (i = 0; i < this.parts.length; i++) if (this.parts[i].live) return true;
+    return false;
+  };
+
+  /* ---------- the physics of one coin ---------- */
+  Payday.prototype.step = function (dt) {
+    var i, c, n = 0, s = this.s;
+    for (i = 0; i < this.pool.length; i++) {
+      c = this.pool[i]; if (!c.live) continue; n++;
+      c.sq *= Math.exp(-dt / 55);
+      if (c.state === 0) {                                   // falling, tumbling
+        c.vy += c.g * dt; c.x += c.vx * dt; c.y += c.vy * dt;
+        c.spin += c.spinV * dt; c.rot += c.rotV * dt;
+        if (c.y >= c.ty) { c.y = c.ty; this.impact(c, c.vy); }
+      } else if (c.state === 1) {                            // a bounce, smaller each time
+        c.vy += c.g * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.ty += c.tyV * dt;
+        if (c.grow) c.size = Math.min(c.size0 * 1.5, c.size + c.grow * dt);
+        c.spin += c.spinV * dt; c.spinV *= Math.exp(-dt / 140);
+        c.rot += c.rotV * dt * 0.5;
+        c.fl = Math.min(1, c.fl + dt / 240);
+        if (c.y >= c.ty && c.vy > 0) { c.y = c.ty; this.impact(c, c.vy); }
+      } else if (c.state === 2) {                            // lying on the pile
+        c.vx *= Math.exp(-dt / 60); c.x += c.vx * dt;
+        c.fl = Math.min(1, c.fl + dt / 140);
+        if (c.fadeIn) c.alpha = Math.min(1, c.alpha + dt / 260);
+        c.restT += dt;
+        if (c.depth === 2) c.x += (s.cw * 0.5 - c.x) * (1 - Math.exp(-dt / 900)) * 0.25;   // near coins drift toward the pile
+        if (c.restT >= c.restMs && (!c.fadeIn || c.alpha >= 1)) { c.state = 3; if (!c.credited) this.credit1(c); }
+      } else {                                               // merging into the hoard
+        c.alpha -= dt / (c.final ? 420 : 170);
+        if (c.alpha <= 0) { c.live = false; n--; }
+      }
+    }
+    this.live = n; if (n > this.maxLive) this.maxLive = n;
+    for (i = 0; i < this.parts.length; i++) {
+      var p = this.parts[i]; if (!p.live) continue;
+      p.life -= dt / p.dur;
+      if (p.life <= 0) { p.live = false; continue; }
+      p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    }
+    // reduced motion: the handful of coins fade in on the pile and are counted as they arrive
+    if (this.reduced) for (i = 0; i < this.pool.length; i++) { c = this.pool[i]; if (c.live && !c.credited && c.alpha >= 0.6) this.credit1(c); }
+  };
+  Payday.prototype.credit1 = function (c) {
+    if (c.credited) return;
+    c.credited = true; this.landed++; this.credit += c.weight;
+    if (c.role === 'first') this.firstLandedAt = this.t;
+    if (c.final) this.lock(false);
+  };
+  Payday.prototype.impact = function (c, v) {
+    var R = this.R, A = window.__RIB_VAULT_AUDIO, first = !c.credited;
+    c.bounces++; c.sq = 1;
+    if (first) {
+      this.credit1(c);
+      this.rate += 1;
+      if (c.role !== 'final' && A && A.rain) A.rain(c.den, c.depth === 0 ? 0 : (c.depth === 2 || c.hero || c.toward || c.mass >= 1.75) ? 2 : 1);
+      var major = c.depth === 2 || c.hero || c.toward || c.role === 'first' || c.final || (c.mass >= 1.75 && R() < 0.4);
+      if (c.role === 'first') this.v.buzz('LIGHT', 'first');
+      else if (!c.final && (c.depth === 2 || c.hero || c.toward) && c.mass >= 1.3) this.v.buzz('LIGHT', 'impact', 320);
+      this.burstAt(c, c.final ? 3 : major ? 1 : 0);
+    }
+    var hmax = c.size * (c.bounces === 1 ? 0.55 : 0.18) * (c.toward ? 2.4 : 1) * (c.final ? 0.5 : 1);
+    var bv = Math.min(v * (0.30 + R() * 0.10) / Math.sqrt(c.mass), Math.sqrt(2 * c.g * Math.max(1, hmax)));
+    if (c.bounces > c.maxB || bv < 0.05) { c.state = 2; c.vy = 0; c.y = c.ty; c.tyV = 0; c.grow = 0; return; }
+    c.state = 1; c.vy = -bv;
+    if (c.bounces === 1) {
+      c.vx = (R() - 0.5) * (c.depth === 0 ? 0.06 : 0.14) * (c.final ? 0.2 : 1);
+      if (c.toward) {                                  // this one bounces at the camera
+        var air = 2 * bv / c.g;
+        c.tyV = (this.s.ch * 0.07) / air; c.grow = (c.size0 * 0.45) / air;
+        c.vx *= 0.3; c.maxB = 2;
+      }
+    } else { c.vx *= 0.4; c.tyV = 0; c.grow = 0; }
+  };
+  Payday.prototype.part = function () {
+    for (var i = 0; i < this.parts.length; i++) if (!this.parts[i].live) return this.parts[i];
+    return null;
+  };
+  /* dust off a major impact, sparks of reflected light, a glint — never on every coin */
+  Payday.prototype.burstAt = function (c, lvl) {
+    if (this.reduced || (this.s.lite && lvl < 2)) return;
+    var R = this.R, i, p, ns = lvl >= 3 ? 16 : lvl ? 4 + Math.floor(R() * 3) : (R() < 0.22 ? 1 + Math.floor(R() * 2) : 0);
+    for (i = 0; i < ns; i++) {
+      if (!(p = this.part())) return;
+      var a = -Math.PI * (0.12 + R() * 0.76), sp = 0.10 + R() * (lvl >= 3 ? 0.42 : 0.26);
+      p.live = true; p.kind = 1; p.x = c.x + (R() - 0.5) * c.size * 0.4; p.y = c.y;
+      p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; p.g = 0.0011; p.life = 1; p.dur = 240 + R() * 240; p.r = 2 + R() * 3.2;
+    }
+    var nd = lvl >= 3 ? 12 : lvl ? 3 + Math.floor(R() * 3) : 0;
+    for (i = 0; i < nd; i++) {
+      if (!(p = this.part())) return;
+      p.live = true; p.kind = 0; p.x = c.x + (R() - 0.5) * c.size * 0.8; p.y = c.y + c.size * 0.1;
+      p.vx = (R() - 0.5) * 0.06; p.vy = -0.012 - R() * 0.03; p.g = 0; p.life = 1; p.dur = 520 + R() * 480;
+      p.r = c.size * (0.22 + R() * 0.3);
+    }
+    if (lvl && (c.glint || R() < 0.3) && (p = this.part())) {
+      p.live = true; p.kind = 2; p.x = c.x - c.size * 0.18; p.y = c.y - c.size * 0.2; p.vx = p.vy = p.g = 0;
+      p.life = 1; p.dur = 300; p.r = c.size * (c.final ? 1.3 : 0.7);
+    }
+  };
+
+  /* ---------- the lock, the skip ---------- */
+  Payday.prototype.lock = function (skipped) {
+    if (this.locked) return;
+    var A = window.__RIB_VAULT_AUDIO;
+    this.locked = true; this.skipped = !!skipped; this.tLock = this.t;
+    this.credit = 1; this.shown = this.to;
+    this.s.setBalance(this.to, !skipped);
+    this.pulse = 0; this.flash = this.reduced ? 0 : (this.plan.storm ? 0.55 : 0.32);
+    if (A) { if (A.resolve) A.resolve(); if (A.finalClink) A.finalClink(this.plan.storm || this.record); }
+    this.v.buzz(this.record || this.plan.storm ? 'HEAVY' : 'MEDIUM', 'lock');
+    this.tDone = this.t + (skipped ? 260 : this.reduced ? 380 : this.plan.storm ? 1200 : this.plan.rank === 0 ? 420 : 720);
+    this.shownInt = this.to; this.v.paintPayNum(this.to);
+    this.v.lockPayLabel(this);
+  };
+  Payday.prototype.tap = function () {
+    if (this.done || this.locked) return;
+    this.taps++;
+    if (this.taps === 1 && !this.reduced) { this.k = ACCEL; this.v.bumpHint('TAP AGAIN TO SKIP'); return; }
+    this.skip();
+  };
+  Payday.prototype.skip = function () {
+    if (this.locked) return;
+    for (var i = 0; i < this.pool.length; i++) { var c = this.pool[i]; if (c.live && !c.final) { c.state = 3; if (c.alpha > 0.6) c.alpha = 0.6; } }
+    this.next = this.nShower; this.finalSpawned = true;
+    this.lock(true);
+    this.s.setBalance(this.to, false);
+  };
+
+  /* ---------- drawing ---------- */
+  Payday.prototype.drawCoin = function (x, c) {
+    var s = this.s, a = Math.max(0, Math.min(1, c.alpha));
+    if (a <= 0.01) return;
+    var size = c.size, h = c.ty - c.y;
+    if (c.y + size < 0 || c.x + size < 0 || c.x - size > s.cw) return;   // not in frame yet
+    // the shadow firms up as the coin nears the floor
+    var close = 1 - Math.min(1, Math.max(0, h) / (s.ch * 0.42));
+    if (close > 0.02 && c.state < 3) {
+      var sw = size * (0.45 + 0.75 * close);
+      x.globalAlpha = a * 0.55 * close * close;
+      x.drawImage(s.blob, c.x - sw * 0.5, c.ty - sw * 0.10, sw, sw * 0.34);
+    }
+    x.save();
+    x.translate(c.x, c.y);
+    if (c.sq > 0.02) {                                   // squash on impact, anchored at the contact
+      x.translate(0, size * 0.28); x.scale(1 + 0.12 * c.sq, 1 - 0.24 * c.sq); x.translate(0, -size * 0.28);
+    }
+    var fl = c.fl;
+    if (fl < 0.999) {
+      var cs = Math.cos(c.spin), sx = Math.abs(cs), kind = cs >= 0 ? 'face' : 'back';
+      var img = c.blur ? s.blurImgV153(c.den, kind) : s.coinImg(c.den, kind, c.shade);
+      if (img) {
+        var w = size, hh = size * (img.height / img.width);
+        x.save(); x.rotate(c.rot);
+        // a fast coin smears a little behind itself (near ones only — the budget is draws)
+        if (c.depth === 2 && c.state === 0 && c.vy > 0.7 && !s.lite) {
+          x.globalAlpha = a * (1 - fl) * 0.16;
+          x.drawImage(img, -w * Math.max(0.08, sx) / 2, -hh / 2 - c.vy * 14, w * Math.max(0.08, sx), hh);
+        }
+        // its edge: the silhouette again, darker, a coin's thickness below
+        if (!s.lite && size > 12) {
+          var rim = s.coinImg(c.den, kind, 0);
+          if (rim) { x.globalAlpha = a * (1 - fl) * 0.9; x.drawImage(rim, -w * Math.max(0.1, sx) / 2, -hh / 2 + size * 0.07, w * Math.max(0.1, sx), hh); }
+        }
+        x.globalAlpha = a * (1 - fl);
+        x.drawImage(img, -w * Math.max(0.06, sx) / 2, -hh / 2, w * Math.max(0.06, sx), hh);
+        if (sx < 0.3) {
+          var e = s.coinImg(c.den, 'edge', c.shade);
+          if (e) { x.globalAlpha = a * (1 - fl) * (1 - sx / 0.3); var ew = size * (e.width / e.height) * 0.9; x.drawImage(e, -ew / 2, -hh / 2, ew, hh); }
+        }
+        x.restore();
+      }
+    }
+    if (fl > 0.001) {                                    // lying down on the pile
+      var f = s.coinImg(c.den, 'flat', c.shade);
+      if (f) {
+        var fw = size, fh = size * (f.height / f.width);
+        x.rotate(c.rot * 0.15);
+        if (!s.lite) { var r0 = s.coinImg(c.den, 'flat', 0); if (r0) { x.globalAlpha = a * fl * 0.9; x.drawImage(r0, -fw / 2, -fh / 2 + size * 0.07, fw, fh); } }
+        x.globalAlpha = a * fl;
+        x.drawImage(f, -fw / 2, -fh / 2, fw, fh);
+      }
+    }
+    x.restore();
+    // a flash of reflected light as the face swings square to the camera
+    if (c.glint && c.state === 0 && Math.abs(Math.cos(c.spin)) > 0.965 && !this.reduced) {
+      var st = fx().star, r = size * (c.final ? 1.1 : 0.62);
+      x.save(); x.globalCompositeOperation = 'lighter'; x.globalAlpha = a * 0.85;
+      x.drawImage(st, c.x - size * 0.2 - r / 2, c.y - size * 0.22 - r / 2, r, r); x.restore();
+    }
+    x.globalAlpha = 1;
+  };
+  Payday.prototype.drawLayer = function (x, depth) {
+    for (var i = 0; i < this.pool.length; i++) {
+      var c = this.pool[i];
+      if (c.live && c.depth === depth) this.drawCoin(x, c);
+    }
+  };
+  Payday.prototype.drawDark = function (x) {
+    if (this.dark <= 0.01) return;
+    var s = this.s, w = s.cw, h = s.ch;
+    if (!this._vg || this._vgW !== w || this._vgH !== h) {
+      this._vgW = w; this._vgH = h;
+      var c = this._vg = document.createElement('canvas');
+      c.width = Math.max(2, Math.round(w / 3)); c.height = Math.max(2, Math.round(h / 3));
+      var v = c.getContext('2d'), p = s.cam.project(0, 0.25, PILE.z, {});
+      var g = v.createRadialGradient(p.x / 3, p.y / 3, 0, p.x / 3, p.y / 3, c.width * 0.95);
+      g.addColorStop(0, 'rgba(1,2,4,.30)'); g.addColorStop(0.45, 'rgba(1,2,4,.72)'); g.addColorStop(1, 'rgba(1,2,4,.96)');
+      v.fillStyle = g; v.fillRect(0, 0, c.width, c.height);
+    }
+    x.globalAlpha = this.dark; x.drawImage(this._vg, 0, 0, w, h); x.globalAlpha = 1;
+  };
+  Payday.prototype.drawParts = function (x) {
+    var F = fx(), i, p;
+    x.save(); x.globalCompositeOperation = 'lighter';
+    for (i = 0; i < this.parts.length; i++) {
+      p = this.parts[i]; if (!p.live) continue;
+      if (p.kind === 0) { x.globalAlpha = 0.30 * p.life; var r = p.r * (1.6 - p.life * 0.6); x.drawImage(F.dust, p.x - r, p.y - r, r * 2, r * 2); }
+      else if (p.kind === 1) { x.globalAlpha = Math.min(1, p.life * 1.4); x.drawImage(F.spark, p.x - p.r, p.y - p.r, p.r * 2, p.r * 2); }
+      else { var k = Math.sin(Math.PI * (1 - p.life)); x.globalAlpha = k; x.drawImage(F.star, p.x - p.r * k / 2, p.y - p.r * k / 2, p.r * k, p.r * k); }
+    }
+    x.restore();
+  };
+  /* the light: god-rays over a storm's peak; at the lock, a warm ring across the floor, a
+   * pulse on the far door, and a band of light sweeping the floor */
+  Payday.prototype.drawLight = function (x) {
+    var s = this.s, F = fx(), w = s.cw, h = s.ch;
+    x.save(); x.globalCompositeOperation = 'lighter';
+    if ((this.plan.storm || this.plan.tier === 'huge') && !this.reduced && !this.locked) {
+      var I = Math.max(0, Math.min(1, (this.rate - 3) / 10)) * (this.plan.storm ? 1 : 0.6);
+      if (I > 0.02) {
+        var p0 = s.cam.project(0, 0.3, PILE.z, {});
+        for (var j = -1; j <= 1; j++) {
+          var gx = w * (0.5 + j * 0.2), g = x.createLinearGradient(0, 0, 0, p0.y);
+          g.addColorStop(0, 'rgba(255,210,130,0)'); g.addColorStop(0.5, 'rgba(255,206,120,' + (0.10 * I).toFixed(3) + ')'); g.addColorStop(1, 'rgba(255,200,110,0)');
+          x.fillStyle = g; x.beginPath();
+          x.moveTo(gx - w * 0.03, 0); x.lineTo(gx + w * 0.03, 0);
+          x.lineTo(p0.x + (gx - w * 0.5) * 0.4 + w * 0.12, p0.y); x.lineTo(p0.x + (gx - w * 0.5) * 0.4 - w * 0.12, p0.y);
+          x.closePath(); x.fill();
+        }
+      }
+    }
+    if (this.pulse >= 0) {
+      var T = this.reduced ? 900 : (this.plan.storm ? 1500 : 1100), k = Math.min(1, this.pulse / T);
+      var fade = Math.sin(Math.PI * Math.min(1, k * 1.15));
+      var pc = s.cam.project(0, 0, PILE.z, {}), core = s.corePoint();
+      // the door on the far wall answers
+      x.globalAlpha = 0.55 * fade;
+      x.drawImage(F.glow, core.x - core.r * 2.6, core.y - core.r * 2.6, core.r * 5.2, core.r * 5.2);
+      if (!this.reduced) {
+        // a ring of warm light running out across the floor from the pile
+        var rr = w * (0.15 + 1.1 * k);
+        x.globalAlpha = 0.65 * (1 - k);
+        x.drawImage(F.ring, pc.x - rr, pc.y - rr * 0.22, rr * 2, rr * 0.44);
+        // ...and a band sweeping the floor left to right
+        var bx = -w * 0.3 + (w * 1.6) * k, fy = h * S.CAM.horizon;
+        var bg = x.createLinearGradient(bx - w * 0.22, 0, bx + w * 0.22, 0);
+        bg.addColorStop(0, 'rgba(255,196,96,0)'); bg.addColorStop(0.5, 'rgba(255,206,120,' + (0.16 * fade).toFixed(3) + ')'); bg.addColorStop(1, 'rgba(255,196,96,0)');
+        x.globalAlpha = 1; x.fillStyle = bg; x.fillRect(bx - w * 0.22, fy, w * 0.44, h - fy);
+      }
+      x.globalAlpha = 0.28 * fade;
+      x.drawImage(F.glow, pc.x - w * 0.55, pc.y - w * 0.30, w * 1.1, w * 0.5);
+    }
+    if (this.flash > 0.01) { x.globalAlpha = this.flash * 0.35; x.fillStyle = '#ffcf7a'; x.fillRect(0, 0, w, h); }
+    x.restore();
+  };
+
+  /* ---------- the scene's hooks: far coins behind the hoard, the rest in front ---------- */
+  var baseHoard = Scene.prototype.drawHoard;
+  Scene.prototype.drawHoard = function (x) {
+    if (this.drawReserveV153) this.drawReserveV153(x);
+    var P = this.paydayV153;
+    if (P) P.drawLayer(x, 0);
+    baseHoard.call(this, x);
+    if (P) { P.drawDark(x); P.drawLayer(x, 1); }
+  };
+  var baseFly = Scene.prototype.drawFlyers;
+  Scene.prototype.drawFlyers = function (x) {
+    baseFly.call(this, x);
+    var P = this.paydayV153;
+    if (P) { P.drawLayer(x, 2); P.drawParts(x); }
+  };
+  var baseAir = Scene.prototype.drawAir;
+  Scene.prototype.drawAir = function (x, now) {
+    baseAir.call(this, x, now);
+    if (this.paydayV153) this.paydayV153.drawLight(x);
+  };
+
+  /* ---------- 4. the controller: open, paint, tap, finish ---------- */
+  var baseBuild = Vault.prototype.build;
+  Vault.prototype.build = function () {
+    if (this.built) return;
+    baseBuild.call(this);
+    var self = this, r = this.root;
+    var lab = document.createElement('div');
+    lab.className = 'rv-pay'; lab.setAttribute('aria-live', 'polite'); lab.hidden = true;
+    lab.innerHTML = '<b class="rv-pay-n"></b><span class="rv-pay-u">PRESTIGE</span><em class="rv-rec">NEW PRESTIGE RECORD</em>';
+    r.appendChild(lab);
+    this.elPay = lab; this.elPayN = lab.querySelector('.rv-pay-n');
+    /* During the sequence a tap ANYWHERE on the room accelerates, a second skips. It is
+     * caught before the canvas's own handler, so it can never start a pour; the buttons
+     * (BACK, sound) keep working. */
+    r.addEventListener('pointerdown', function (e) {
+      var P = self.payday;
+      if (!P || P.done || P.locked) return;
+      if (e.target && e.target.closest && e.target.closest('button')) return;
+      e.stopPropagation(); e.preventDefault();
+      P.tap();
+    }, { capture: true, passive: false });
+  };
+  Vault.prototype.buzz = function (style, why, gap) {
+    var P = this.payday;
+    if (P) {
+      if (gap && P.t - P._hapAt < gap) return;
+      P._hapAt = P.t; P.hapticLog.push(style + ':' + why);
+    }
+    if (this.hapticOn === false) return;
+    try { if (window.ribHaptics && window.ribHaptics.impact) window.ribHaptics.impact(style); else if (navigator.vibrate) navigator.vibrate(style === 'HEAVY' ? 40 : style === 'MEDIUM' ? 20 : 10); } catch (e) {}
+  };
+  Vault.prototype.showPayLabel = function (P) {
+    if (!this.elPay) return;
+    this.elPayN.textContent = '+' + M.commas(P.gain);
+    this.elPay.hidden = false;
+    this.elPay.classList.remove('out', 'lock', 'rec');
+    void this.elPay.offsetWidth;
+    this.elPay.classList.add('in');
+  };
+  Vault.prototype.lockPayLabel = function (P) {
+    if (!this.elPay) return;
+    if (this.elPay.hidden) this.showPayLabel(P);
+    this.elPay.classList.add('lock');
+    if (P.record) this.elPay.classList.add('rec');
+    if (this.elNum) { this.elNum.classList.remove('rv-shine'); void this.elNum.offsetWidth; this.elNum.classList.add('rv-shine'); }
+    this.root.classList.add('rv-locked');
+  };
+  Vault.prototype.paintPayNum = function (n) {
+    if (!this.elNum) return;
+    this.elNum.innerHTML = M.commas(n) + '<span class="u">PP</span>';
+    if (this.elSub) {
+      var sub = [];
+      if (this.banked > 0) sub.push('&#127974; <b>' + M.commas(this.banked) + ' PP</b> banked &middot; paid when this career ends');
+      sub.push(M.tierName(n).toUpperCase());
+      this.elSub.innerHTML = sub.join(' &nbsp;&middot;&nbsp; ');
+    }
+  };
+  Vault.prototype.startPayday = function (p) {
+    this.endPayday();
+    if (!this.scene || !p || !(p.to > p.from)) return null;
+    var P = new Payday(this, p);
+    this.payday = P; this.scene.paydayV153 = P; this._lastPayday = P;
+    this.scene.setBalance(P.from, false);
+    this.root.classList.add('rv-paying');
+    this.root.classList.remove('rv-locked');
+    this.paint();
+    return P;
+  };
+  Vault.prototype.finishPayday = function (P) {
+    if (P.done) return;
+    P.done = true;
+    this.root.classList.remove('rv-paying');
+    this.scene.setBalance(this.balance - this.pending, true);
+    this.paint();
+    if (this.elNum) this.elNum.classList.add('rv-shine');
+    var self = this;
+    clearTimeout(this._payOut);
+    this._payOut = setTimeout(function () { if (self.elPay && self.payday === P) self.elPay.classList.add('out'); }, P.record ? 2600 : 1800);
+  };
+  Vault.prototype.endPayday = function () {
+    clearTimeout(this._payOut);
+    if (this.scene) this.scene.paydayV153 = null;
+    if (this.payday && window.__RIB_VAULT_AUDIO && window.__RIB_VAULT_AUDIO.paydayStop) window.__RIB_VAULT_AUDIO.paydayStop();
+    this.payday = null;
+    if (this.root) this.root.classList.remove('rv-paying', 'rv-locked');
+    if (this.elPay) { this.elPay.hidden = true; this.elPay.classList.remove('in', 'lock', 'rec', 'out'); }
+    if (this.elNum) this.elNum.classList.remove('rv-shine');
+  };
+  var basePaint = Vault.prototype.paint;
+  Vault.prototype.paint = function () {
+    basePaint.call(this);
+    var P = this.payday;
+    if (P && !P.done && this.built) this.paintPayNum(P.shownInt < 0 ? P.from : P.shownInt);
+  };
+  var baseIdle = Vault.prototype.idleHint;
+  Vault.prototype.idleHint = function () {
+    var P = this.payday;
+    if (P && !P.done) return P.reduced ? 'YOUR RUN BECOMES WEALTH' : P.taps ? 'TAP AGAIN TO SKIP' : 'YOUR RUN BECOMES WEALTH &middot; TAP TO SPEED UP';
+    return baseIdle.call(this);
+  };
+  var baseOpen = Vault.prototype.open;
+  Vault.prototype.open = function (opts) {
+    var self = this, pay = opts && opts.payday;
+    this.endPayday();
+    return baseOpen.call(this, opts).then(function (v) {
+      if (pay && self.open_) self.startPayday(pay);
+      return v;
+    });
+  };
+  var baseClose = Vault.prototype.close;
+  Vault.prototype.close = function (why) {
+    this.endPayday();
+    return baseClose.call(this, why);
+  };
+  var baseTick = Vault.prototype.tick;
+  Vault.prototype.tick = function (now, dt) {
+    baseTick.call(this, now, dt);
+    var P = this.payday;
+    if (P && (!this._payFreeze || this._payStepping)) { P.tick(now, dt); if (P.dead && this.scene && this.scene.paydayV153 === P) this.scene.paydayV153 = null; }
+  };
+  /* After it settles the money can be touched: a press on the pile already shakes its top
+   * layer (v137 F's hold), and now the metal answers, quietly. During the sequence a press is
+   * a tap on the sequence, never a pour. */
+  var basePress = Vault.prototype.press;
+  Vault.prototype.press = function (x, y) {
+    var P = this.payday;
+    if (P && !P.done) { if (!P.locked) P.tap(); return; }
+    basePress.call(this, x, y);
+    if (window.__RIB_VAULT_AUDIO && window.__RIB_VAULT_AUDIO.wiggle) window.__RIB_VAULT_AUDIO.wiggle();
+  };
+  var baseMove = Vault.prototype.moveDrag;
+  Vault.prototype.moveDrag = function (px, py, dx, dy) {
+    baseMove.call(this, px, py, dx, dy);
+    var now = performance.now();
+    if (this.dragging && now - (this._wigAt || 0) > 150 && Math.abs(dx) + Math.abs(dy) > 3) {
+      this._wigAt = now;
+      if (window.__RIB_VAULT_AUDIO && window.__RIB_VAULT_AUDIO.wiggle) window.__RIB_VAULT_AUDIO.wiggle();
+    }
+  };
+
+  /* ---------- 5. beyond a pile: the reserve ---------- */
+  /* At extreme totals the wealth outgrows one heap. Past 100M the vault stands columns of
+   * coin either side of it; past 1B, crates; 10B, sacks; 100B, the crates stack; a trillion
+   * is a treasury — a row of crates along the back wall. It is set dressing at the SIDES of
+   * the room, behind the hoard, so the pile, the number and the controls stay clear; each new
+   * layer fades in as the balance crosses it. Every piece is drawn once into its own small
+   * canvas and blitted. */
+  var RESERVE_AT = [1e8, 1e9, 1e10, 1e11, 1e12];
+  var RESERVE = [
+    { lv: 1, kind: 'tower', fx: 0.15, gz: 0.44, n: 10, den: 'gold' },
+    { lv: 1, kind: 'tower', fx: 0.85, gz: 0.44, n: 12, den: 'gold' },
+    { lv: 1, kind: 'tower', fx: 0.23, gz: 0.55, n: 7, den: 'silver' },
+    { lv: 1, kind: 'tower', fx: 0.77, gz: 0.55, n: 8, den: 'gold' },
+    { lv: 2, kind: 'crate', fx: 0.09, gz: 0.62 },
+    { lv: 2, kind: 'crate', fx: 0.91, gz: 0.62, flip: true },
+    { lv: 3, kind: 'bag', fx: 0.30, gz: 0.72 },
+    { lv: 3, kind: 'bag', fx: 0.70, gz: 0.70, flip: true },
+    { lv: 3, kind: 'bag', fx: 0.04, gz: 0.50 },
+    { lv: 4, kind: 'crate', fx: 0.09, gz: 0.62, stack: 1 },
+    { lv: 4, kind: 'crate', fx: 0.91, gz: 0.62, stack: 1, flip: true },
+    { lv: 4, kind: 'tower', fx: 0.96, gz: 0.34, n: 9, den: 'blue' },
+    { lv: 5, kind: 'crate', fx: 0.30, gz: 0.88 },
+    { lv: 5, kind: 'crate', fx: 0.70, gz: 0.88, flip: true },
+    { lv: 5, kind: 'bag', fx: 0.18, gz: 0.78, flip: true },
+    { lv: 5, kind: 'bag', fx: 0.82, gz: 0.78 }
+  ];
+  function reserveLevel(pp) { var l = 0; for (var i = 0; i < RESERVE_AT.length; i++) if (pp >= RESERVE_AT[i]) l = i + 1; return l; }
+  M.reserveLevel = reserveLevel; M.RESERVE_AT = RESERVE_AT;
+
+  function drawCrate(sc, W, H, flip) {
+    var c = document.createElement('canvas'); c.width = Math.ceil(W); c.height = Math.ceil(H);
+    var x = c.getContext('2d');
+    if (flip) { x.translate(W, 0); x.scale(-1, 1); }
+    var x0 = W * 0.03, x1 = W * 0.80, y0 = H * 0.36, y1 = H * 0.97, dx = W * 0.17, dy = H * 0.15;
+    // the side
+    x.beginPath(); x.moveTo(x1, y0); x.lineTo(x1 + dx, y0 - dy); x.lineTo(x1 + dx, y1 - dy); x.lineTo(x1, y1); x.closePath();
+    var gs = x.createLinearGradient(x1, 0, x1 + dx, 0); gs.addColorStop(0, '#2a1a0c'); gs.addColorStop(1, '#170e06');
+    x.fillStyle = gs; x.fill();
+    // the front: planks
+    var gf = x.createLinearGradient(0, y0, 0, y1); gf.addColorStop(0, '#6a4520'); gf.addColorStop(1, '#3a2410');
+    x.fillStyle = gf; x.fillRect(x0, y0, x1 - x0, y1 - y0);
+    x.strokeStyle = 'rgba(0,0,0,.42)'; x.lineWidth = Math.max(1, H * 0.012);
+    for (var i = 1; i < 4; i++) { var py = y0 + (y1 - y0) * i / 4; x.beginPath(); x.moveTo(x0, py); x.lineTo(x1, py); x.stroke(); }
+    // gold bands and corner irons
+    var band = function (yy) {
+      var gb = x.createLinearGradient(0, yy, 0, yy + H * 0.07); gb.addColorStop(0, '#f6d27a'); gb.addColorStop(0.5, '#b8862c'); gb.addColorStop(1, '#6d4b14');
+      x.fillStyle = gb; x.fillRect(x0, yy, x1 - x0, H * 0.065);
+      x.beginPath(); x.moveTo(x1, yy); x.lineTo(x1 + dx, yy - dy); x.lineTo(x1 + dx, yy - dy + H * 0.065); x.lineTo(x1, yy + H * 0.065); x.closePath();
+      x.fillStyle = '#7a5518'; x.fill();
+    };
+    band(y0 + (y1 - y0) * 0.16); band(y0 + (y1 - y0) * 0.72);
+    x.fillStyle = '#c99a3c';
+    [[x0, y0], [x1 - W * 0.06, y0], [x0, y1 - H * 0.08], [x1 - W * 0.06, y1 - H * 0.08]].forEach(function (q) { x.fillRect(q[0], q[1], W * 0.06, H * 0.08); });
+    // the open top, heaped with coin
+    x.beginPath(); x.moveTo(x0, y0); x.lineTo(x1, y0); x.lineTo(x1 + dx, y0 - dy); x.lineTo(x0 + dx, y0 - dy); x.closePath();
+    x.fillStyle = '#120b05'; x.fill();
+    var den = ['gold', 'gold', 'silver', 'gold', 'blue', 'gold', 'silver', 'gold', 'gold', 'gold', 'gold', 'silver'];
+    var R = M.rng(0xC7A7E + (flip ? 7 : 0)), cs = W * 0.23;
+    for (i = 0; i < 16; i++) {
+      var u = R(), v = R(), img = sc.coinImg(den[i % den.length], 'flat', 2 + (R() < 0.5 ? 1 : 0));
+      if (!img) continue;
+      var cx = x0 + dx * v + (x1 - x0 - cs * 0.3) * u + cs * 0.2, cy = y0 - dy * v - H * 0.06 * Math.sin(Math.PI * u) - R() * H * 0.03;
+      x.drawImage(img, cx - cs / 2, cy - cs * 0.3, cs, cs * (img.height / img.width));
+    }
+    x.strokeStyle = 'rgba(255,214,140,.35)'; x.lineWidth = Math.max(1, H * 0.01);
+    x.beginPath(); x.moveTo(x0, y0); x.lineTo(x1, y0); x.lineTo(x1 + dx, y0 - dy); x.stroke();
+    return c;
+  }
+  function drawBag(sc, W, H, flip) {
+    var c = document.createElement('canvas'); c.width = Math.ceil(W); c.height = Math.ceil(H);
+    var x = c.getContext('2d');
+    if (flip) { x.translate(W, 0); x.scale(-1, 1); }
+    var cx = W * 0.5;
+    x.beginPath();
+    x.moveTo(cx - W * 0.13, H * 0.26);
+    x.bezierCurveTo(cx - W * 0.52, H * 0.40, cx - W * 0.50, H * 0.98, cx - W * 0.06, H * 0.97);
+    x.lineTo(cx + W * 0.08, H * 0.97);
+    x.bezierCurveTo(cx + W * 0.50, H * 0.98, cx + W * 0.48, H * 0.40, cx + W * 0.13, H * 0.26);
+    x.closePath();
+    var g = x.createRadialGradient(cx - W * 0.12, H * 0.55, W * 0.05, cx, H * 0.65, W * 0.55);
+    g.addColorStop(0, '#9c7a45'); g.addColorStop(0.6, '#5f4421'); g.addColorStop(1, '#2c1d0c');
+    x.fillStyle = g; x.fill();
+    x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = Math.max(1, W * 0.012); x.stroke();
+    // the mouth, flared, with the money showing
+    x.beginPath(); x.ellipse(cx, H * 0.2, W * 0.22, H * 0.07, 0, 0, TAU);
+    x.fillStyle = '#6d5028'; x.fill();
+    x.beginPath(); x.ellipse(cx, H * 0.2, W * 0.16, H * 0.045, 0, 0, TAU); x.fillStyle = '#140c05'; x.fill();
+    var R = M.rng(0xBA6 + (flip ? 3 : 0)), cs = W * 0.22;
+    for (var i = 0; i < 5; i++) {
+      var img = sc.coinImg(i === 2 ? 'blue' : 'gold', i === 1 ? 'hero' : 'flat', 3);
+      if (img) x.drawImage(img, cx - W * 0.16 + R() * W * 0.2, H * 0.12 + R() * H * 0.05, cs, cs * (img.height / img.width));
+    }
+    // the gold cord at the neck
+    var gc = x.createLinearGradient(0, H * 0.25, 0, H * 0.31); gc.addColorStop(0, '#ffe19a'); gc.addColorStop(1, '#8a6118');
+    x.fillStyle = gc; x.beginPath(); x.ellipse(cx, H * 0.285, W * 0.15, H * 0.028, 0, 0, TAU); x.fill();
+    // a coin or two spilled at its foot
+    var fimg = sc.coinImg('gold', 'flat', 2);
+    if (fimg) { x.drawImage(fimg, cx + W * 0.18, H * 0.86, cs * 0.9, cs * 0.9 * (fimg.height / fimg.width)); x.drawImage(fimg, cx - W * 0.42, H * 0.9, cs * 0.8, cs * 0.8 * (fimg.height / fimg.width)); }
+    return c;
+  }
+  function drawTower(sc, W, H, den, n) {
+    var c = document.createElement('canvas'); c.width = Math.ceil(W); c.height = Math.ceil(H);
+    var x = c.getContext('2d'), size = W * 0.8, step = size * S.STACK_RISE, img, i;
+    for (i = 0; i < n; i++) {
+      var t = i / Math.max(1, n - 1), ix = Math.max(0, Math.min(3, Math.round(1.2 + t * 1.8)));
+      img = sc.coinImg(den, 'flat', ix); var rim = sc.coinImg(den, 'flat', 0);
+      if (!img) continue;
+      var hh = size * (img.height / img.width), px = W * 0.5 + (i & 1 ? size * 0.02 : -size * 0.015) + Math.sin(i * 1.7) * size * 0.03;
+      var py = H - hh * 0.6 - i * step;
+      if (rim) x.drawImage(rim, px - size / 2, py - hh / 2 + size * 0.07, size, hh);
+      x.drawImage(img, px - size / 2, py - hh / 2, size, hh);
+    }
+    return c;
+  }
+  Scene.prototype.drawReserveV153 = function (x) {
+    var lv = reserveLevel(this.pp);
+    if (lv !== this._resLv) {
+      if (lv > (this._resLv || 0)) this._resFade = performance.now();
+      this._resLv = lv;
+    }
+    if (!lv) return;
+    var key = this.cw + 'x' + this.ch + '@' + this.dpr + (this._tV151B ? this._tV151B.id : '');
+    if (this._resKey !== key) { this._resKey = key; this._resImg = {}; }
+    var fa = this._resFade ? Math.min(1, (performance.now() - this._resFade) / 520) : 1;
+    var items = [], i, it;
+    for (i = 0; i < RESERVE.length; i++) if (RESERVE[i].lv <= lv) items.push(RESERVE[i]);
+    items.sort(function (a, b) { return (b.gz - a.gz) || ((a.stack || 0) - (b.stack || 0)); });
+    var cam = this.cam, p = {}, dpr = this.dpr;
+    for (i = 0; i < items.length; i++) {
+      it = items[i];
+      var k = cam.k(it.gz), gx = (this.cw * (it.fx - 0.5)) / (k * S.CAM.spread * cam.span);
+      cam.project(gx, 0, it.gz, p);
+      var cs = p.s, W, H;
+      if (it.kind === 'crate') { W = cs * 2.5; H = W * 0.78; }
+      else if (it.kind === 'bag') { W = cs * 1.7; H = W * 1.15; }
+      else { W = cs * 1.25; H = cs * (0.9 + it.n * S.STACK_RISE * 0.8); }
+      var ck = RESERVE.indexOf(it) + ':' + Math.round(W);
+      var img = this._resImg[ck];
+      if (!img) {
+        img = this._resImg[ck] = it.kind === 'crate' ? drawCrate(this, W * dpr, H * dpr, it.flip)
+          : it.kind === 'bag' ? drawBag(this, W * dpr, H * dpr, it.flip) : drawTower(this, W * dpr, H * dpr, it.den, it.n);
+      }
+      var yb = p.y - (it.stack ? H * 0.60 : 0);
+      x.globalAlpha = (it.lv === lv ? fa : 1) * 0.92;
+      if (!it.stack) x.drawImage(this.blob, p.x - W * 0.55, yb - W * 0.10, W * 1.1, W * 0.30);
+      x.drawImage(img, p.x - W / 2, yb - H * 0.97, W, H);
+    }
+    x.globalAlpha = 1;
+  };
+
+  /* ---------- 6. the hooks ---------- */
+  var D = window.__RIB_VAULT_DEV;
+  D.payday = function () {
+    var P = V.payday || V._lastPayday;
+    if (!P) return null;
+    return { active: V.payday === P && !P.done, done: P.done, locked: P.locked, skipped: P.skipped,
+      from: P.from, to: P.to, gain: P.gain, shown: P.shownInt, credit: +P.credit.toFixed(4), t: Math.round(P.t),
+      plan: P.plan, spawned: P.spawned, landed: P.landed, live: P.live, maxLive: P.maxLive, cap: MAX_LIVE,
+      taps: P.taps, k: P.k, record: P.record, replay: P.replay, reduced: P.reduced,
+      haptics: P.hapticLog.slice(), parts: P.parts.filter(function (q) { return q.live; }).length,
+      label: V.elPay ? { hidden: V.elPay.hidden, text: V.elPay.textContent, rec: V.elPay.classList.contains('rec') } : null,
+      paying: V.root ? V.root.classList.contains('rv-paying') : false };
+  };
+  D.payTap = function () { if (V.payday) V.payday.tap(); };
+  /* drive the sequence's own clock in fixed 16ms steps, independent of the frame rate — the
+   * check's way to be exact on a loaded box. `draw` also renders each step. */
+  D.payStep = function (ms, draw) {
+    var P = V.payday; if (!P || !V.scene) return null;
+    var now = performance.now(), n = Math.ceil(Math.max(0, ms) / 16);
+    V._payStepping = true;
+    try {
+      for (var i = 0; i < n && V.payday === P; i++) {
+        now += 16; V.tick(now, 16);
+        if (draw) V.scene.frame(now, 16);
+      }
+    } finally { V._payStepping = false; }
+    return D.payday();
+  };
+  /* freeze the sequence's clock against the frame loop (it then moves only through payStep) */
+  D.payFreeze = function (on) { V._payFreeze = !!on; };
+  D.forgetPayday = function () { V._lastPayday = null; };
+  D.reserve = function () { var s = V.scene; return s ? { level: s._resLv || 0, pp: s.pp } : null; };
+  window.__V153C = { plan: paydayPlan, reserveLevel: reserveLevel, MAX_LIVE: MAX_LIVE, MAX_PARTS: MAX_PARTS };
+})();

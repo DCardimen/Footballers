@@ -219,8 +219,8 @@ const SEED = [
   ok(r.ownedByEnt && !r.ownedAfterRestore, 'RIB_MONETIZE.has("pass:<season>") opens the premium track')
   ok(r.grant && r.prem2.ok && r.all > 0, 'grantPremium(season) opens it; claim all collects the rest', { claimedAll: r.all })
   ok(r.granted.every((g) => /^pass\.s1\.(free|premium)\.\d+$/.test(g[0]) && g[1] === 'pass'), 'every grant is a pass cosmetic id, source "pass"', r.granted.length)
-  ok(r.bad.length === 0 && r.rewardN === 5 * (r.freeN + r.premN) && r.freeN === 11 && r.premN === 30, 'every reward of five seasons validates as cosmetic (11 free + 30 premium a season)', { n: r.rewardN, bad: r.bad })
-  ok(r.kinds.every((k) => ['badge', 'banner', 'celebration', 'frame', 'icon', 'kit', 'nameplate', 'title'].includes(k)), 'reward kinds are cosmetic kinds only', r.kinds)
+  ok(r.bad.length === 0 && r.rewardN === 5 * (r.freeN + r.premN) && r.freeN === 37 && r.premN === 50, 'every reward of five seasons validates as cosmetic (37 free + 50 premium a season — v153 G)', { n: r.rewardN, bad: r.bad })
+  ok(r.kinds.every((k) => ['badge', 'banner', 'celebration', 'frame', 'icon', 'kit', 'nameplate', 'title', 'jersey', 'helmet', 'trail', 'wings', 'crown', 'aura', 'numfont'].includes(k)), 'reward kinds are cosmetic kinds only', r.kinds)
   ok(!r.refusePP && !r.refuseField && !r.refuseGear, 'the validator refuses PP, a stat field and gear')
 }
 
@@ -263,7 +263,7 @@ const SEED = [
   }
   await E(() => seasonsOpenV151C('pass')); await page.waitForTimeout(300)
   const passUi2 = await E(() => ({ rows: document.querySelectorAll('.ss151-track .ss151-row').length, head: document.querySelector('.ss151-passhead').textContent }))
-  ok(passUi2.rows === 30 && /PREMIUM/.test(passUi2.head), 'the pass screen lists 30 tiers, free and premium side by side', passUi2.rows)
+  ok(passUi2.rows === 50 && /PREMIUM/.test(passUi2.head), 'the pass screen lists 50 tiers, free and premium side by side (v153 G)', passUi2.rows)
   await E(() => __seasonsUI.subtab('challenges')); await page.waitForTimeout(200)
   ok(await E(() => document.querySelectorAll('.ss151-chs .ss151-ch').length === 20), 'the challenges list shows the season\'s 20 with progress')
   await page.screenshot({ path: SHOTS + '/v151c-pass-challenges.png' })

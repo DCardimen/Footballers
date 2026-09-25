@@ -32,11 +32,34 @@ function seasonsOpenV151C(tab) {
   "use strict";
   var KEY = "rib.seasons.v1";
   var THEMES = ["Kickoff", "Two-Minute Drill", "Blitz", "Red Zone", "Hail Mary", "Iron Man", "Goal Line", "Overtime", "Audible", "Dynasty"];
-  var CFG = Object.assign({ epoch: Date.UTC(2026, 6, 1), months: 6, tiers: 30, xpPerTier: 1000, themes: THEMES }, window.RIB_SEASONS_CONFIG || {});
+  var CFG = Object.assign({ epoch: Date.UTC(2026, 6, 1), months: 6, tiers: 50, xpPerTier: 800, themes: THEMES }, window.RIB_SEASONS_CONFIG || {});
   var XP = { game: 50, live: 100, win: 50, season: 250, title: 600, award: 80, mvp: 200, promo: 400, career: 500, uff: 500, daily: 300, scoreAttack: 150, gen: 300 };
-  var FREE_TIERS = [1, 2, 4, 6, 8, 10, 13, 16, 20, 25, 30];
-  var COSMETIC_KINDS = { banner: "Banner", frame: "Card Frame", title: "Title", badge: "Badge", nameplate: "Nameplate", icon: "Profile Icon", celebration: "Celebration", kit: "Kit Trim" };
-  var KIND_ORDER = ["banner", "frame", "title", "badge", "nameplate", "icon", "celebration", "kit"];
+  /* ===== v153 G THE PASS GROWS — 50 tiers, a reward on most of them, a highlight every fifth, a showcase at the end =====
+   * 50 tiers × 800 XP (40,000 XP: a little more than the old 30 × 1,000, with more than twice the rewards). The free
+   * track pays on every tier except the multiples of 3 that are not multiples of 5 (37 rewards); the premium track pays on
+   * all 50. Every fifth tier is a HIGHLIGHT (footprints, wings, a crown, an aura, a jersey, a helmet — one rarity up), and
+   * the last tier is the SHOWCASE (premium: mythic wings; free: a legendary crown). Kinds between the highlights rotate.
+   * Each flair / kit reward names its STYLE (seraph wings, a crown of fire, frost footprints…) — src/28 draws that style.
+   * Still cosmetic by construction (validateReward below) and still no Math.random: the style pick is a hash of the id. */
+  var FREE_TIERS = [];
+  for (var ft = 1; ft <= CFG.tiers; ft++) if (ft % 3 !== 0 || ft % 5 === 0 || ft === CFG.tiers) FREE_TIERS.push(ft);
+  var COSMETIC_KINDS = { banner: "Banner", frame: "Card Frame", title: "Title", badge: "Badge", nameplate: "Nameplate", icon: "Profile Icon", celebration: "Celebration", kit: "Kit Trim",
+    jersey: "Jersey", helmet: "Helmet", trail: "Footprints", wings: "Wings", crown: "Crown", aura: "Aura", numfont: "Number Font" };
+  var FREE_ROT = ["banner", "title", "jersey", "badge", "numfont", "frame", "helmet", "icon", "trail", "nameplate", "celebration", "kit"];
+  var PREM_ROT = ["jersey", "frame", "trail", "helmet", "banner", "celebration", "title", "numfont", "aura", "badge", "crown", "nameplate", "wings", "icon", "kit"];
+  var FREE_HI = { 10: "trail", 20: "jersey", 25: "wings", 30: "helmet", 35: "aura", 40: "crown", 45: "trail" };
+  var PREM_HI = { 5: "trail", 10: "helmet", 15: "wings", 20: "jersey", 25: "crown", 30: "aura", 35: "trail", 40: "wings", 45: "crown" };
+  /* the styles src/28 can draw, each with the rarity it starts at (0 common … 3 legendary) */
+  var STYLES = {
+    trail: [["sparks", "Gold Spark", 0], ["smoke", "Smoke", 0], ["pixels", "8-Bit", 0], ["ice", "Frost", 1], ["petals", "Petal", 1], ["stars", "Stardust", 1], ["flame", "Flame", 2], ["rainbow", "Rainbow", 2], ["comet", "Comet", 2], ["lightning", "Lightning", 3], ["ghost", "Afterimage", 3]],
+    wings: [["pixel", "8-Bit", 0], ["monarch", "Monarch", 0], ["crystal", "Crystal", 1], ["bat", "Night", 1], ["angel", "Angel", 2], ["mech", "Mech", 2], ["flame", "Phoenix", 2], ["seraph", "Seraph", 3]],
+    crown: [["laurel", "Laurel", 0], ["circlet", "Circlet", 0], ["horns", "Horned", 1], ["star", "Star", 1], ["crown", "Gold", 2], ["halo", "Halo", 2], ["flame", "Fire", 2], ["king", "Royal", 3]],
+    aura: [["glow", "Glow", 0], ["frost", "Frost", 1], ["pulse", "Pulse", 2], ["flicker", "Heat", 2], ["void", "Void", 3]],
+    numfont: [["varsity", "Varsity", 0], ["block", "Block", 0], ["stencil", "Stencil", 1], ["retro", "Retro", 1], ["neon", "Neon", 2], ["gold", "Gold Foil", 2], ["chrome", "Chrome", 3]],
+    jersey: [["hoops", "Hoops", 0], ["sleeves", "Sleeve", 0], ["stripes", "Stripes", 0], ["pinstripe", "Pinstripe", 1], ["shoulders", "Shoulder", 1], ["checker", "Check", 1], ["chevron", "Chevron", 2], ["sash", "Sash", 2], ["fade", "Fade", 2], ["tiger", "Tiger", 3]],
+    helmet: [["gloss", "Gloss", 0], ["matte", "Matte", 0], ["satin", "Satin", 1], ["metal", "Metallic", 2], ["pearl", "Pearl", 2], ["chrome", "Chrome", 3]]
+  };
+  var RANKS = ["common", "rare", "epic", "legendary", "mythic"];
   var FORBIDDEN = /^(pp|xp|stat|stats|attr|attrs|attribute|gear|reroll|rerolls|boost|ovr|perf|prestige|honors|speed|roll|rolls|spin|spins|coins?)$/i;
 
   var esc = function (s) { var f = window.__escHtmlV151C; if (typeof f === "function") return f(s); return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); };
@@ -113,17 +136,42 @@ function seasonsOpenV151C(tab) {
   function weekChallenges(wk) { return pick(WEEK_POOL, 3, "week:" + wk).map(function (c) { return Object.assign(c, { id: "w" + c.id }); }); }
 
   /* ---- rewards: generated per season, cosmetic by construction and checked anyway ---- */
-  function rarity(t) { return t >= 25 ? "legendary" : t >= 15 ? "epic" : t >= 8 ? "rare" : "common"; }
+  function rarity(t) { var f = t / CFG.tiers; return f >= 0.8 ? "legendary" : f >= 0.5 ? "epic" : f >= 0.2 ? "rare" : "common"; }
   var RARE_ICON = { common: "▫️", rare: "🔹", epic: "🔸", legendary: "🌟" };
-  var KIND_ICON = { banner: "🚩", frame: "🖼", title: "🏷", badge: "🎖", nameplate: "🔖", icon: "👤", celebration: "🎉", kit: "🎽" };
+  RARE_ICON.mythic = "💎";
+  var KIND_ICON = { banner: "🚩", frame: "🖼", title: "🏷", badge: "🎖", nameplate: "🔖", icon: "👤", celebration: "🎉", kit: "🎽", jersey: "👕", helmet: "🪖", trail: "👣", wings: "🪶", crown: "👑", aura: "✨", numfont: "🔢" };
+  function styleFor(kind, id, rIdx) {
+    var L = STYLES[kind]; if (!L) return null;
+    var pool = L.filter(function (x) { return x[2] <= rIdx; }), top = pool.filter(function (x) { return x[2] >= Math.min(rIdx, 3) - 1; });
+    if (top.length) pool = top;
+    return pool[hash("style:" + id) % pool.length];
+  }
   function rewards(sid) {
     var m = /^s(\d+)$/.exec(sid || ""), n = m ? +m[1] : 0, th = n ? theme(n) : "Preseason";
-    var mk = function (track, tier, k) {
-      var kind = KIND_ORDER[k % KIND_ORDER.length], rr = rarity(tier);
-      var name = kind === "title" ? "“" + th + (tier >= 25 ? " Legend" : tier >= 15 ? " Star" : " Starter") + "”" : (rr === "legendary" ? "Gold " : rr === "epic" ? "Chrome " : track === "premium" ? "Elite " : "") + th + " " + COSMETIC_KINDS[kind];
-      return { id: "pass." + sid + "." + track + "." + tier, kind: kind, name: name, rarity: rr, track: track, tier: tier, season: sid, source: "pass", icon: KIND_ICON[kind] };
+    var mk = function (track, tier, kind, hi) {
+      var rr = rarity(tier), show = tier === CFG.tiers, ri = RANKS.indexOf(rr);
+      if (show) rr = track === "premium" ? "mythic" : "legendary"; else if (hi && ri < 3) rr = RANKS[ri + 1];
+      var id = "pass." + sid + "." + track + "." + tier, sty = styleFor(kind, id, Math.min(3, RANKS.indexOf(rr)));
+      if (show && STYLES[kind]) sty = STYLES[kind][STYLES[kind].length - 1];   // the showcase wears the top style (seraph wings, the royal crown)
+      if (sty) {
+        var nm = kind === "wings" ? (show ? "The " + th + " " + sty[1] : th + " " + sty[1] + " Wings") : kind === "crown" ? (show ? "Crown of the " + th : th + " " + sty[1] + " Crown")
+          : kind === "trail" ? th + " " + sty[1] + " Footprints" : kind === "aura" ? th + " " + sty[1] + " Aura" : kind === "numfont" ? sty[1] + " Numbers" : th + " " + sty[1] + " " + COSMETIC_KINDS[kind];
+        if (!show && track === "premium" && (kind === "jersey" || kind === "helmet")) nm = "Elite " + nm;
+        return { id: id, kind: kind, style: sty[0], name: nm, rarity: rr, track: track, tier: tier, season: sid, source: "pass", icon: KIND_ICON[kind], highlight: !!hi || show, showcase: show };
+      }
+      var name = kind === "title" ? "“" + th + (rr === "legendary" || rr === "mythic" ? " Legend" : rr === "epic" ? " Star" : " Starter") + "”" : (rr === "legendary" ? "Gold " : rr === "epic" ? "Chrome " : track === "premium" ? "Elite " : "") + th + " " + COSMETIC_KINDS[kind];
+      return { id: id, kind: kind, name: name, rarity: rr, track: track, tier: tier, season: sid, source: "pass", icon: KIND_ICON[kind], highlight: !!hi || show, showcase: show };
     };
-    return { free: FREE_TIERS.map(function (t, i) { return mk("free", t, i * 3); }), premium: Array.from({ length: CFG.tiers }, function (_, i) { return mk("premium", i + 1, i + 1); }) };
+    var lane = function (tr, tiers, HI, ROT, showKind) {
+      var j = 0;
+      return tiers.map(function (t) {
+        if (t === CFG.tiers) return mk(tr, t, showKind, true);
+        if (t % 5 === 0 && HI[t]) return mk(tr, t, HI[t], true);
+        return mk(tr, t, ROT[(j++ + (tr === "free" ? 0 : 1)) % ROT.length], false);
+      });
+    };
+    var all = []; for (var t = 1; t <= CFG.tiers; t++) all.push(t);
+    return { free: lane("free", FREE_TIERS, FREE_HI, FREE_ROT, "crown"), premium: lane("premium", all, PREM_HI, PREM_ROT, "wings") };
   }
   function validateReward(r) {
     if (!r || typeof r !== "object") return { ok: false, why: "no reward" };
@@ -411,10 +459,10 @@ function seasonsOpenV151C(tab) {
       var free = {}; P.tracks.free.forEach(function (r) { free[r.tier] = r; });
       body = '<div class="ss151-trackhead"><span></span><span>FREE</span><span>PREMIUM' + (P.owned ? "" : P.store ? " 🔒" : " · SOON") + "</span></div>" +
         '<div class="ss151-track">' + P.tracks.premium.map(function (pr) {
-          return '<div class="ss151-row' + (pr.unlocked ? " unlocked" : "") + (pr.tier === P.tier + 1 ? " next" : "") + '" data-tier="' + pr.tier + '"><b class="ss151-n">' + pr.tier + "</b>" + rewardCell(free[pr.tier], "free") + rewardCell(pr, "premium") + "</div>";
+          return '<div class="ss151-row' + (pr.unlocked ? " unlocked" : "") + (pr.tier === P.tier + 1 ? " next" : "") + (pr.showcase ? " show" : pr.highlight ? " hi" : "") + '" data-tier="' + pr.tier + '"><b class="ss151-n">' + pr.tier + "</b>" + rewardCell(free[pr.tier], "free") + rewardCell(pr, "premium") + "</div>";
         }).join("") + "</div>";
     } else body = '<div class="card tight ss151-chs">' + challengeRows(api.challenges()) + "</div>";
-    return passHead(P) + subs + body + '<div class="ss151-note">Every reward is cosmetic — a banner, a frame, a title, a badge. Nothing on the pass changes a snap, a stat or a payout.</div>';
+    return passHead(P) + subs + body + '<div class="ss151-note">Every reward is cosmetic — footprints, wings, crowns, auras, jerseys, helmets, frames, titles. Nothing on the pass changes a snap, a stat or a payout.</div>';
   }
   function profileCard() {
     try { var C = window.RIB_COSMETICS; if (C && typeof C.renderCard === "function" && typeof C.profile === "function") { var h = C.renderCard(C.profile() || {}, { full: true, context: "trophies" }); if (typeof h === "string" && h) return '<div class="ss151-profile">' + h + "</div>"; } } catch (e) {}
@@ -503,6 +551,8 @@ function seasonsOpenV151C(tab) {
       ".ss151-row{padding:3px 0;opacity:.72}.ss151-row.unlocked{opacity:1}.ss151-row.next .ss151-n{color:var(--gold,#e6b23a)}.ss151-n{display:grid;place-items:center;font:700 14px Oswald,sans-serif}",
       ".ss151-rw{display:flex;flex-wrap:wrap;align-items:center;gap:3px 5px;min-width:0;padding:5px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03)}.ss151-rw.none{justify-content:center;color:rgba(255,255,255,.2)}.ss151-rw>i{font-style:normal;font-size:16px}.ss151-rw>div{flex:1;min-width:0}.ss151-rw b{display:block;font:600 11px/1.15 Oswald,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ss151-rw small{display:block;font-size:9.5px;color:var(--chalk-dim,#9aa0aa);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
       ".ss151-rw.r-rare{border-color:rgba(90,160,255,.35)}.ss151-rw.r-epic{border-color:rgba(255,150,60,.4)}.ss151-rw.r-legendary{border-color:rgba(255,214,107,.6);background:rgba(240,187,69,.07)}.ss151-rw.got{opacity:.6}",
+      /* v153 G: the highlight every fifth tier and the showcase at the end */
+      ".ss151-rw.r-mythic{border-color:rgba(255,90,140,.7);background:linear-gradient(135deg,rgba(255,90,140,.12),rgba(185,166,255,.1))}.ss151-row.hi .ss151-n{color:#ffd76f}.ss151-row.hi .ss151-rw{box-shadow:0 0 0 1px rgba(240,187,69,.25) inset}.ss151-row.show{padding:6px 0}.ss151-row.show .ss151-n{color:#ff8ab0;font-size:16px}.ss151-row.show .ss151-rw{box-shadow:0 0 12px rgba(255,90,140,.3)}",
       ".ss151-claim{flex:1 0 100%;border:0;border-radius:6px;padding:4px;background:linear-gradient(90deg,#f0bb45,#e0a02f);color:#0b111b;font:700 10.5px Oswald,sans-serif;letter-spacing:1px;cursor:pointer}.ss151-lock,.ss151-got{flex:1 0 100%;font:600 9.5px Oswald,sans-serif;letter-spacing:1px;color:var(--chalk-dim,#9aa0aa);text-align:center}.ss151-got{color:#7fe0a0}",
       ".ss151-case{display:grid;grid-template-columns:1fr 1fr;gap:6px}.ss151-tro{padding:8px;border-radius:9px;border:1px solid rgba(230,178,58,.3);background:rgba(240,187,69,.05);min-width:0}.ss151-tro i{font-style:normal;font-size:20px}.ss151-tro b{display:block;font:600 11.5px/1.2 Oswald,sans-serif;overflow-wrap:anywhere}.ss151-tro small{display:block;font-size:10px;color:var(--chalk-dim,#9aa0aa)}",
       ".ss151-profile.plain b{display:block;font:700 17px Oswald,sans-serif}.ss151-profile.plain small{color:var(--chalk-dim,#9aa0aa);font-size:12px}",

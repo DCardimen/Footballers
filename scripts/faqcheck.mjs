@@ -7,7 +7,7 @@ import { CHROME, gameUrl } from './lib/env.mjs'
  * about it — the entry points, the accordions, the keyboard, and surviving the menu's own
  * re-render — lives in the menu files. This drives a real browser at a phone width and proves:
  *   * the tile and the nav link exist and open the guide;
- *   * all nine sections are there, and every one expands and collapses;
+ *   * all eleven sections are there (v153 F added STARS, HONORS, PP & LEGACY and CHAOS), and every one expands and collapses;
  *   * a keyboard user can open it (Enter on the tile) and close it (Escape), with focus landing
  *     inside the dialog and coming back to the tile afterwards;
  *   * the menu's data re-render (mountMenu rebuilds #rib-main-menu-v2.innerHTML) does not wipe
@@ -64,7 +64,7 @@ try {
     expanded: s.querySelector('.rib9-fq-head').getAttribute('aria-expanded') === 'true',
     bodyShown: !document.getElementById('fq-b-' + s.dataset.fqSec).hidden,
     words: document.getElementById('fq-b-' + s.dataset.fqSec).textContent.trim().split(/\s+/).length })))
-  ok(sec.length === want.length && want.length === 9 && sec.every((s, i) => s.id === want[i]), `the guide opened with all ${want.length} sections`, sec.map(s => s.title).join(' / '))
+  ok(sec.length === want.length && want.length === 11 && sec.every((s, i) => s.id === want[i]), `the guide opened with all ${want.length} sections`, sec.map(s => s.title).join(' / '))
   ok(sec.every(s => !s.expanded && !s.bodyShown), 'every section starts collapsed', `expanded=${sec.filter(s => s.expanded).length}`)
   ok(sec.every(s => s.words > 90), 'every section carries real copy', sec.map(s => s.id + ':' + s.words).join(' '))
 

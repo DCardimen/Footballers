@@ -55,9 +55,9 @@ async function menuWithCareer(opts = {}) {
     const items = ul ? [...ul.querySelectorAll('li')].map(li => li.textContent.replace(/\s+/g, ' ').trim()) : []
     const cv = M.querySelector('.rib9-ambient-v132'); let ink = 0
     try { const x = cv.getContext('2d'); const d = x.getImageData(0, 0, cv.width, Math.min(cv.height, 1200)).data; for (let i = 3; i < d.length; i += 4 * 7) if (d[i] > 8) ink++ } catch (e) { ink = -1 }
-    const pieces = ['.rib9-hero-grain-v132', '.rib9-hero-leak-v132', '.rib9-ring-spark-v132', '.rib9-ring-v132', '.rib9-dot.now', '.rib9-name', '.rib9-tile-hot img', '.rib9-level.rib9-cta', '.rib9-ms-plate', '.rib9-nextup-v132']
+    const pieces = ['.rib9-hero-grain-v132', '.rib9-hero-leak-v132', '.rib9-ring-spark-v132', '.rib9-ring-v132', '.rib9-dot.now', '.rib9-name', '.rib9-tile-hot img', '.rib9-level.rib9-cta', '.rib9-goal-shine', '.rib9-nextup-v132']
     const animOf = (sel, pseudo) => { const el = M.querySelector(sel); if (!el) return { sel, missing: true }; const s = getComputedStyle(el, pseudo || null); return { sel, name: s.animationName, dur: s.animationDuration } }
-    const pcs = [animOf('.rib9-topbar', '::after'), animOf('.rib9-hero-grain-v132'), animOf('.rib9-hero-leak-v132'), animOf('.rib9-ring-spark-v132', '::before'), animOf('.rib9-ring-v132'), animOf('.rib9-dot.now', '::after'), animOf('.rib9-name'), animOf('.rib9-tile-hot img'), animOf('.rib9-ms-plate'), animOf('.rib9-ticker-v132 ul')]
+    const pcs = [animOf('.rib9-topbar', '::after'), animOf('.rib9-hero-grain-v132'), animOf('.rib9-hero-leak-v132'), animOf('.rib9-ring-spark-v132', '::before'), animOf('.rib9-ring-v132'), animOf('.rib9-dot.now', '::after'), animOf('.rib9-name'), animOf('.rib9-tile-hot img'), animOf('.rib9-goal-shine'), animOf('.rib9-ticker-v132 ul')]
     const ring = M.querySelector('.rib9-ring'), spark = M.querySelector('.rib9-ring-spark-v132')
     /* v150 B: the arc is read from the INLINE target ringArcV147B wrote (and its gold lap `--rib-ovr2`), not from
      * getComputedStyle: `--rib-ovr` is a registered property with a 1.1s transition, so the computed value is
@@ -90,16 +90,16 @@ async function menuWithCareer(opts = {}) {
   ok(r.items.some(t => /PEE WEE|YEAR 1/.test(t)) && r.items.some(t => /NEXT UP/.test(t)) && r.items.some(t => /LAST WEEK/.test(t)), 'and they are built from the feed — the level, NEXT UP, last week', r.items.join(' | ').slice(0, 200))
   ok(r.tickerMoving === 'rib9ticker' && parseFloat(r.tickerDur) >= 26, 'the ticker is moving, at a pace set by its length', `${r.tickerMoving} ${r.tickerDur}`)
   const dead = r.pieces.filter(p => p.missing || !p.name || p.name === 'none')
-  ok(dead.length === 0, 'every piece exists and animates — wire, grain, leak, spark, ring, ping, name, float, plate, ticker (v134: the page sweep and the card streak are gone on purpose)', dead.length ? JSON.stringify(dead) : `${r.pieces.length} pieces`)
+  ok(dead.length === 0, 'every piece exists and animates — wire, grain, leak, spark, ring, ping, name, float, goal shine, ticker (v134: the page sweep and the card streak are gone on purpose)', dead.length ? JSON.stringify(dead) : `${r.pieces.length} pieces`)
   const headDeg = (r.arc2 > 0 ? r.arc2 : r.arc) * 360
   ok(r.arc > 0 && Math.abs(r.sparkDeg - headDeg) < 1 && r.wantDeg != null && Math.abs(r.sparkDeg - r.wantDeg) < 1 && Math.abs(r.arc - r.wantK) < 1e-6, 'the OVR spark sits at the head of the arc', `arc ${r.arc}/${r.arc2} -> ${r.sparkDeg}deg (ringArcV147B says ${r.wantDeg != null ? r.wantDeg.toFixed(2) : '?'}deg)`)
   ok(/text/.test(r.nameClip || '') && r.nameBg && !/rgba\(0, 0, 0, 0\)/.test(r.nameBg), 'the name is clipped to its metal with the flat chalk under the band (never transparent letters)', `${r.nameClip} on ${r.nameBg}`)
   ok(r.coachSwitchIn && r.coachOverflow === 'visible', 'the coach tile keeps its switch on screen', `switch in tile=${r.coachSwitchIn} overflow=${r.coachOverflow}`)
   ok(r.navFirstIn, 'the nav\'s first link (HOME) is not clipped at a tablet width', String(r.navFirstIn))
-  // v150 B: nine core tiles — v89's eight (CAREER, TRAINING, GOALS, HALL, LOCKER, SETTINGS, HOW TO PLAY, COACH'S TOUR since v119)
+  // v150 B: nine core tiles — v89's eight (CAREER, TRAINING, GOALS, HALL, LOCKER, SETTINGS, HOW TO PLAY, COACH'S TOUR since v119) v153 D adds PROFILE (ten); the milestones plate became the goal card's shine
   // plus v139's PRESTIGE door beside the coach (rib-menu.js `tilesNav`). The feature tiles that come and go with their switch
   // (v151 C's SEASON PASS / LEADERBOARDS, v150 C's STORE) are counted apart and not held to a number.
-  ok(r.tiles === 9 && r.navLinks === 7 && r.broken === 0, 'v89\'s contract holds — nine tiles (v139 PRESTIGE), seven links, every picture rendered', `${r.tiles} core tiles (+${r.extraTiles} feature) ${r.navLinks} links ${r.imgs} imgs`)
+  ok(r.tiles === 10 && r.navLinks === 7 && r.broken === 0, 'v89\'s contract holds — ten tiles (v139 PRESTIGE, v153 D PROFILE), seven links, every picture rendered', `${r.tiles} core tiles (+${r.extraTiles} feature) ${r.navLinks} links ${r.imgs} imgs`)
   // parallax: cross the hero with the pointer
   const hero = await page.locator('#rib-main-menu-v2 .rib9-hero').boundingBox()
   await page.mouse.move(hero.x + hero.width * 0.1, hero.y + hero.height * 0.2); await page.waitForTimeout(80)
@@ -120,7 +120,7 @@ async function menuWithCareer(opts = {}) {
 {
   const { page, ctx, errs } = await menuWithCareer({ reduced: true })
   const r = await page.evaluate(() => { const M = document.getElementById('rib-main-menu-v2'), FX = window.__RIB_MENU_FX_V132
-    const sels = ['.rib9-ticker-v132 ul', '.rib9-hero-grain-v132', '.rib9-name', '.rib9-tile-hot img', '.rib9-ms-plate']
+    const sels = ['.rib9-ticker-v132 ul', '.rib9-hero-grain-v132', '.rib9-name', '.rib9-tile-hot img', '.rib9-goal-shine']
     return { reduced: FX && FX.reduced, frames: FX && FX.frames, anims: sels.map(s => { const el = M.querySelector(s); return el ? getComputedStyle(el).animationName : 'missing' }) } })
   ok(r.reduced === true && r.frames === 0, 'prefers-reduced-motion: the ember loop never starts', JSON.stringify({ reduced: r.reduced, frames: r.frames }))
   ok(r.anims.every(a => a === 'none'), 'and nothing new animates', JSON.stringify(r.anims))

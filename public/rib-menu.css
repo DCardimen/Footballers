@@ -1,2 +1,6 @@
 /* global hooks for the menu overlay: hide the legacy app while the menu is open (the overlay itself is styled in rib-menu-v89.css) */
 body.rib-menu-open{overflow:hidden!important;background:#0b0c0f!important}body.rib-menu-open>#app{visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}
+
+/* v153: Honors wear the crest on the menu (the coin is PP's) */
+.rib9-crest-v153{display:inline-block;line-height:1;font-size:16px;filter:drop-shadow(0 0 3px rgba(240,187,69,.45))}
+.rib9-lt .rib9-crest-v153{font-size:26px}

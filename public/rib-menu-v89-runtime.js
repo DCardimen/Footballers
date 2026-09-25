@@ -8,9 +8,9 @@
   const ART = './public/menu/';
   const BUILD = (() => { try { return (document.querySelector('meta[name="rib-menu-build"]') || {}).content || ''; } catch (e) { return ''; } })();
   const ARTV = BUILD ? '?v=' + encodeURIComponent(BUILD) : '';   // v104: the art moves with the build, so a stale mask can never outlive it
-  const FIRST = ['hero_tunnel', 'hero_mask_p', 'hero_mask_s', 'logo_wordmark', 'portrait_helmet', 'portrait_helmet_mask_s', 'card_continue', 'card_continue_mask_p', 'card_continue_mask_s', 'card_trophy_uff'];   // v147 B: the UFF's trophy (scripts/build-uff-trophy.mjs), not the Lombardi look-alike
+  const FIRST = ['hero_tunnel', 'hero_mask_p', 'hero_mask_s', 'logo_wordmark', 'portrait_helmet', 'portrait_helmet_mask_s', 'card_continue', 'card_continue_mask_p', 'card_continue_mask_s', 'trophy_goal_uff'];   // v153 D: the goal trophy (scripts/build-goal-trophies.py); v147 B's card_trophy_uff before it
   const REST = ['swash_underline', 'icon_career', 'icon_training', 'icon_goals', 'icon_hall', 'icon_locker', 'icon_settings',
-    'legacy_helmet', 'legacy_crown', 'legacy_gem', 'legacy_laurel', 'legacy_target',
+    'trophy_goal_interstellar', 'legacy_helmet', 'legacy_crown', 'legacy_gem', 'legacy_laurel', 'legacy_target',
     'badge_crown', 'badge_shoe', 'badge_lightning', 'badge_shield', 'badge_brain', 'badge_eye', 'badge_fist', 'badge_clock', 'badge_target'];
   const state = { ready: false, loaded: [], failed: [], fallback: false };
   window.__RIB_MENU_ASSETS = state;

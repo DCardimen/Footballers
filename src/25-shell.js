@@ -56,6 +56,8 @@
     try { lv = pl && window.__GRIDIRON_AUDIT__.LEVELS[pl.level].name } catch (e) {}
     var txt = (TITLE[v] || String(v || "").toUpperCase()) + (lv ? " · " + String(lv).toUpperCase() : "");
     if (t.textContent !== txt) t.textContent = txt;
+    var tt = $("tickTitleV153"), short = TITLE[v] || String(v || "").toUpperCase();   // v153 E: the screen's name on the ticker's left end
+    if (tt && tt.textContent !== short) tt.textContent = short;
   }
   /* the menu's ticker, off the menu's own feed */
   var lastTick = "";
@@ -90,6 +92,7 @@
     var it = tickItems(); if (!it) return;
     var html = '<ul style="--dur:' + Math.max(26, it.length * 4.2) + 's">' + it.join("") + it.join("") + "</ul>";
     if (html !== lastTick) { lastTick = html; el.innerHTML = html; el.dataset.items = it.length }
+    if (!$("tickTitleV153")) { var lab = document.createElement("b"); lab.id = "tickTitleV153"; el.appendChild(lab); title(view()) }
   }
 
   /* the action slot: one primary, the rest chips */
@@ -222,6 +225,90 @@
   addEventListener("resize", function () { lastVars = ""; unfit(); measure(); fit() });
   setInterval(sync, 700);
   setInterval(function () { if (on()) ticker() }, 5000);
+  /* ===== v153 E THE THUMB — nothing on a career screen under 11px, nothing you tap under 36px =====
+   * The owner: "some menus are way too small for mobile." Measured at 400x860 on every career screen, the
+   * chrome the shell draws round each one was the worst of it: the section tabs and the bar's labels at 9-10px
+   * and 34px tall, the dock's chips 27px, the hamburger 18px wide, the PP chip's "+" 17px, the kit and mute
+   * buttons 30px, the ticker at 9.5px, and the wordmark squeezed by the chips to "R." (the screen's name under
+   * it unreadable). So: every one of those is at least 36px on both axes (a small glyph keeps its look and gets
+   * a padded hit area — negative margins, so no row moves), type is 11px at the floor, the wordmark gives its
+   * room to the chips on a phone and the screen's name moves to the left end of the ticker (`#tickTitleV153`),
+   * and the common in-panel labels (eyebrows, KEY tags, MORE, the (i) stat cards, the hub's attribute sheet,
+   * the leaders' sub-lines) are lifted to the floor. CSS only, over v146 E's inline rules; no handler moves.
+   * `v153Echeck` samples the screens for both floors. ===== */
+  (function () {
+    if ($("thumbV153css")) return;
+    var st = document.createElement("style"); st.id = "thumbV153css";
+    st.textContent = [
+      /* the top: 36px targets; on a phone the wordmark's room goes to them, the screen's name to the ticker */
+      "html.shell-v146 .topbar{gap:6px!important;padding-top:calc(env(safe-area-inset-top) + 5px)!important;padding-bottom:5px!important}",
+      "html.shell-v146 .topbar .hamb{flex:none!important;width:36px!important;height:36px!important;padding:0!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:4px!important;cursor:pointer!important}",
+      "html.shell-v146 .topbar .hamb i{margin:0!important}",
+      "@media (max-width:480px){html.shell-v146 .topbar .logo{flex:1 1 0!important;min-width:0!important;overflow:hidden!important}html.shell-v146 .topbar .logo>*{display:none!important}}",
+      "html.shell-v146 .legacy-chip-v152.top{min-height:36px!important;min-width:44px!important}",
+      "html.shell-v146 .prestige-chip{min-height:36px!important;padding:0 0 0 9px!important;font-size:12.5px!important}",
+      "html.shell-v146 .prestige-chip .chip-plus{width:36px!important;height:36px!important;margin-left:2px!important;padding:0!important;font-size:17px!important}",
+      "html.shell-v146 .topbar .mute-v151e,html.shell-v146 .topbar .team-creator-btn-v153{flex:none!important;width:36px!important;height:36px!important;min-width:36px!important}",
+      "html.shell-v146 #tickV146{padding:0!important;height:24px!important;display:flex!important;align-items:center!important}",
+      "html.shell-v146 #tickV146 li{font-size:11px!important;letter-spacing:1.4px!important}",
+      "#tickTitleV153{position:absolute!important;left:0!important;top:0!important;bottom:0!important;z-index:2!important;display:flex!important;align-items:center!important;padding:0 22px 0 12px!important;font:700 11px/1 Oswald,sans-serif!important;letter-spacing:1.6px!important;color:#ffd66b!important;white-space:nowrap!important;background:linear-gradient(90deg,#0b0c0f 76%,rgba(11,12,15,0))!important;pointer-events:none!important}",
+      "#tickTitleV153:empty{display:none!important}",
+      /* the bottom: the bar, the section tabs, the dock's chips */
+      "html.shell-v146 #navV139 button{min-height:44px!important;justify-content:center!important}",
+      "html.shell-v146 #navV139 button b{font-size:11px!important;letter-spacing:.9px!important}",
+      "html.shell-v146 .hubv75-tab{min-height:42px!important;font-size:11px!important;letter-spacing:.8px!important;padding:8px 2px!important}",
+      "html.shell-v146 .hubv75-tab i{font-size:13px!important}",
+      "html.shell-v146 .tp-sub-v153,html.shell-v146 .tp-sub-v153+.more-v139{display:none!important}",   // v153 integration: the training board's intro is the coach's job on a phone — the board itself must fit
+      "html.shell-v146 .dock .qa-chip-v146{min-height:36px!important;font-size:11.5px!important;padding:6px 10px!important;display:inline-flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important}",   // column: a chip's second line (v151 A's skips-left <small>) stacks under it, never beside it
+      "html.shell-v146 .dock>.small,html.shell-v146 .dock>.center:not(.btn){font-size:11.5px!important}",
+      /* in the panel: the labels every screen shares */
+      "html.shell-v146 #screen .eyebrow,html.shell-v146 #screen>.eyebrow{font-size:11px!important;letter-spacing:2px!important}",
+      "html.shell-v146 .weight-tag{font-size:11px!important}",
+      "html.shell-v146 .more-v139{font-size:11px!important;padding:11px 14px 11px 0!important;margin:-9px 0 -9px!important}",
+      /* the stat card's (i): the 15px dot is drawn, the 36px round it is the button */
+      "html.shell-v146 .si-b-v142{position:relative!important;width:36px!important;height:36px!important;margin:-11px -10px -11px -8px!important;background:transparent!important;border:0!important;box-shadow:none!important;color:transparent!important;font-size:0!important;flex:none!important}",
+      "html.shell-v146 .si-b-v142::before{content:'i';position:absolute!important;left:50%!important;top:50%!important;width:16px!important;height:16px!important;margin:-8px 0 0 -8px!important;border-radius:50%!important;display:grid!important;place-items:center!important;border:1px solid rgba(143,162,187,.6)!important;background:rgba(143,162,187,.12)!important;color:#c9d2de!important;font:italic 700 11px/1 Georgia,serif!important}",
+      /* the hub's attribute sheet: two columns that stay one line each, the personality cap tag on the metric line */
+      "html.shell-v146 .attrs{gap:9px 12px!important}",
+      "html.shell-v146 .attr{position:relative!important;min-width:0!important;gap:3px!important}",
+      "html.shell-v146 .attr .top{display:flex!important;flex-wrap:nowrap!important;align-items:center!important;gap:4px!important;min-width:0!important}",
+      "html.shell-v146 .attr .an{display:flex!important;align-items:center!important;min-width:0!important;overflow:hidden!important;white-space:nowrap!important;font-size:13.5px!important}",
+      "html.shell-v146 .attr .av{flex:none!important;display:flex!important;align-items:baseline!important;white-space:nowrap!important;font-size:16px!important}",
+      "html.shell-v146 .attr .eff{font-size:11px!important;margin-left:3px!important}html.shell-v146 .attr .projn{font-size:11px!important;margin-left:3px!important}",
+      "html.shell-v146 .attr .an>span[title*='MAX LEVEL']{position:absolute!important;right:0!important;bottom:0!important;margin:0!important;font-size:11px!important;line-height:1.3!important}",
+      "html.shell-v146 .attr:has(.an>span[title*='MAX LEVEL']) .attr-metric{padding-right:60px!important}",
+      "html.shell-v146 .attr .attr-metric{display:block!important;font-size:11px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}",
+      "html.shell-v146 .attrs-legend-v85{font-size:11px!important}",
+      /* the leaders' tables: the school line under each name, and the column heads */
+      "html.shell-v146 #screen .lb-hdr span,html.shell-v146 #screen .lbo,html.shell-v146 #screen .lbv{font-size:11px!important}",
+      /* every <small> in the panel reads at the floor (a sub-line, a stat's label, a card's caption) */
+      "html.shell-v146 #screen small{font-size:max(11px,.8em)!important}",
+      "html.shell-v146 #screen .chips .chip,html.shell-v146 #screen .advf-v151 .chip{min-height:36px!important;min-width:36px!important}",
+      "html.shell-v146 #screen select,html.shell-v146 #screen input[type=text],html.shell-v146 #screen input[type=search],html.shell-v146 #screen input:not([type]){min-height:36px!important;font-size:max(13px,1em)!important}",
+      /* the profile card's captions */
+      "html.shell-v146 #screen .pc-ovr-v151b{font-size:11px!important;letter-spacing:1px!important}",
+      "html.shell-v146 #screen .pc-team-v151b,html.shell-v146 #screen .pc-club-v151b,html.shell-v146 #screen .pc-legacy-v152{font-size:11px!important}",
+      "html.shell-v146 #screen .pc-shelf-v151b small,html.shell-v146 #screen .pc-grid-v151b small{letter-spacing:.6px!important}",
+      "html.shell-v146 #screen .pcm-slot~small,html.shell-v146 #screen .pcm-slot~em{font-size:11px!important;letter-spacing:.5px!important}",
+      /* the trophy case, the gear totals, the stat boxes, the Dynasty's position tags */
+      "html.shell-v146 #screen .lgk-head,html.shell-v146 #screen .lgc-head,html.shell-v146 #screen .lgk-xp,html.shell-v146 #screen .lgk-next{font-size:11px!important}",
+      "html.shell-v146 #screen .gs-h-v147,html.shell-v146 #screen .gm-none-v147,html.shell-v146 #screen .statbox .l,html.shell-v146 #screen .mr-pos{font-size:11px!important}",
+      /* the body ledger, the wear band, the card kickers, the role battle's name tags, a stat tile's label */
+      "html.shell-v146 #screen .impact-kicker,html.shell-v146 #screen .bodyv73-net span,html.shell-v146 #screen .bodyv73-row i,html.shell-v146 #screen .wearv111-band s,html.shell-v146 #screen .wearv111-sub,html.shell-v146 #screen .rival-versus-v11 span,html.shell-v146 #screen .l{font-size:11px!important}",
+      /* the collection book's captions and its page-turn corner (the medal grid itself is ten to a row: see the check) */
+      "html.shell-v146 #screen .lgb-tab em,html.shell-v146 #screen .lgb-rh b,html.shell-v146 #screen .lgb-pt span,html.shell-v146 #screen .lgb-hint,html.shell-v146 #screen .lgb-fh b,html.shell-v146 #screen .lgb-fh small,html.shell-v146 #screen .lgb-foot span{font-size:11px!important}",
+      "html.shell-v146 #screen .lgb-turn{min-width:36px!important;min-height:36px!important}html.shell-v146 #screen .lgb-cell{min-height:36px!important}",
+      /* the Locker's STYLE tab: the category strip and the item captions */
+      "html.shell-v146 #screen .cos-cat-v151b{min-height:38px!important;font-size:11px!important}",
+      "html.shell-v146 #screen .cos-src-v151b{font-size:11px!important;letter-spacing:.3px!important}",
+      "html.shell-v146 #screen .cos-h-v151b span{font-size:11px!important}",
+      /* the leaderboards' mode switch; a slider's thumb is a 36px strip, the track still drawn 5px */
+      "html.shell-v146 #screen .lb151-mode button{min-height:38px!important}",
+      "html.shell-v146 #screen .fx-slider{height:36px!important;background:linear-gradient(90deg,#3a4a5f,#1a2330) center/100% 5px no-repeat!important}"
+    ].join("");
+    (document.head || document.documentElement).appendChild(st);
+  })();
+
   sync(); ticker();
   window.__SHELL_V146 = { after: after, top: top, sync: sync, fit: fit, measure: measure, ticker: ticker, dock: dock, titles: TITLE, off: OFF };
 })();

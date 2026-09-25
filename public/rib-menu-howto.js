@@ -24,6 +24,8 @@
   const note = (title, body) => `<div class="rib9-fq-note"><b>${title}</b><span>${body}</span></div>`;
   const chips = (list) => `<ul class="rib9-fq-chips">${list.map(([k, v]) => `<li><b>${k}</b><i>${v}</i></li>`).join('')}</ul>`;
   const list = (items, cls = '') => `<ul class="rib9-fq-list ${cls}">${items.map((i) => `<li>${i}</li>`).join('')}</ul>`;
+  // v153 F: the four numbers — what each is, how it is earned, what it does (a list, not a table: the prose does not fit a phone row)
+  const cur = (rows) => `<dl class="rib9-fq-attrs rib9-fq-cur">${rows.map(([n, what, how, does]) => `<div><dt>${n}</dt><dd>${what}<br><i>Earned:</i> ${how}<br><i>Does:</i> ${does}</dd></div>`).join('')}</dl>`;
   const num = (items) => `<ol class="rib9-fq-num-list">${items.map((i) => `<li>${i}</li>`).join('')}</ol>`;
 
   // the nine positions: the weights the rating actually reads, then the handful of numbers that
@@ -88,12 +90,56 @@
       careers away. The Interstellar League — top 5 of 1,700, and gated behind winning an UFF
       championship — is a project beyond even that.</p>
       <h4>What actually carries over</h4>
-      <p>The tree's <b>node levels</b>, far more than the prestige stars themselves. Run 2 is barely
+      <p>The tree's <b>node levels</b>, far more than your Honors count itself. Run 2 is barely
       different from run 1. By run 5 you are a noticeably better <i>player</i> — a much higher
       per-season ceiling — but only an even <i>team</i>. Team-quality nodes are deliberately weak:
       the entire maxed set is worth about <b>1.4 points of margin a game</b>.</p>
       <p>So read the ladder as a staircase, not a wall. Each career is meant to end, and each one
       makes the next one taller.</p>` },
+
+    /* ===== v153 F STARS, HONORS, PP, LEGACY — four numbers, four jobs =====
+     * The owner: "stars vs medals, two different types of medals is confusing". Honors wore a medal (🎖️)
+     * and v152 A's Legacy Rank is 500 medals. Honors wear the crest (⚜️) now; the medal means the Legacy
+     * Rank and nothing else, and this section says which number does what. */
+    {
+      id: 'currency', title: 'STARS, HONORS, PP & LEGACY', sub: 'FOUR NUMBERS, FOUR JOBS — WHICH IS WHICH', body: `
+      <p>Four numbers follow you around this game and they do not mean the same thing. One belongs
+      to the <b>player</b>; three belong to the <b>family</b> — the account — and outlive every career.</p>
+      ${cur([
+        ['<b>★</b> STARS', 'The <b>recruit rating</b>, 1 to 5 — what the scouts think of <i>this</i> player.', 'Rolled with the player; raised by the tree, a Path, and holding your own in a tougher tier.', 'Sets his soft cap: 60% of the ceiling at 1★, 85% at 5★. Gone when his career ends.'],
+        ['<b>⚜️</b> HONORS', 'The family’s <b>rank</b>. Never spent as money.', 'Finishing a career: +1 for each of Varsity, College, the Combine and the UFF reached (never less than 1), +2 for a UFF ring, +1 for a 90 peak, +1 for three titles.', 'Unlocks the deeper nodes of the prestige tree (“Needs ⚜️ N HONORS”) and a Path at 6; each Honor adds 1% to every soft cap.'],
+        ['<b>🪙</b> PP', '<b>Prestige Points</b> — the gold coin, the only money.', 'Every career end, titles, challenges, objectives, the Legacy milestones. Chaos multiplies it.', 'Spent in the VAULT and on prestige-tree nodes. Every node you buy is kept by every son after.'],
+        ['<b>🎖️</b> LEGACY', 'The <b>Legacy Rank</b> — the permanent medal, and the only medal that is a rank.', 'Legacy XP, every season and at every career end. Chaos multiplies it.', 'Never resets, never spent. Every tenth rank pays a PP bounty.'],
+      ])}
+      ${note('THE STAR IS THE PLAYER. THE CREST, THE COIN AND THE MEDAL ARE THE FAMILY.', 'A four-star recruit is a player rating. “Needs ⚜️ 8 HONORS” is the account’s rank. Nothing in the game ever asks for an eight-star player, because there is no such thing.')}
+      <h4>The Legacy Rank</h4>
+      <p>The rank above every career: <b>500 medals</b> in one climb, from bronze through silver
+      (ranks 1–200) to gold and enamel — crowns, wings, gems, eagles, lions — ending on Rank 500,
+      <b>Ultimate Legacy</b>. Past 500 the climb keeps going as an endless <b>Legacy Level</b>.
+      Ranks come in ten tiers of fifty:</p>
+      ${tab(['RANKS', 'TIER', 'RANKS', 'TIER'], [
+        ['1–50', 'Rookie', '251–300', 'Hall of Fame'],
+        ['51–100', 'Established', '301–350', 'Icon'],
+        ['101–150', 'Elite', '351–400', 'All-Time Great'],
+        ['151–200', 'Superstar', '401–450', 'Immortal'],
+        ['201–250', 'Legendary', '451–500', 'Mythic'],
+      ], 'rib9-fq-two')}
+      <h4>Where Legacy XP comes from</h4>
+      ${list([
+        '<b>Every season:</b> the level’s base (40 at Pee Wee up to 450 in the UFF and 650 Interstellar) times your grade (F ×0.6 up to A+ ×1.6), plus a championship (×3 the base, and a UFF ring adds 2,500 — 4,000 Interstellar), plus half the base per playoff win and the base again per award.',
+        '<b>Every career end:</b> the stage you reached (100 at Pee Wee up to 3,500 for the UFF and 6,000 Interstellar), 25 per season you lasted, and 20 per point of peak OVR over 60. Walking away pays half.',
+        '<b>Chaos multiplies all of it</b> — +8% per chaos point, up to ×5. See CHAOS.',
+      ])}
+      <p>Ranks 1–20 fly by (a first career is about a dozen of them); Rank 100 is roughly ten good
+      careers; Rank 500 is a few hundred.</p>
+      ${note('EVERY TENTH RANK IS A MILESTONE.', 'It pays a PP bounty into the vault — 25 PP at Rank 10, about 790 at Rank 100, three times as much on every fiftieth (a new tier), and ten times at Rank 500 (about 88,000 PP).')}
+      <h4>Where to see it</h4>
+      <p>The medal sits by your name on the main menu, the top bar, career setup and the boards —
+      tap it for your <b>PROFILE</b>. There, <b>THE TROPHY CASE</b> shows the current medal, the bar
+      to the next rank and the next milestone, and <b>THE COLLECTION BOOK</b> has ten pages, one a
+      tier: every medal you have earned (when, and by which son), and the rest as silhouettes with
+      what they cost. The season report and the career-end screen pour the XP into the bar as it is
+      paid.</p>` },
 
     {
       id: 'attrs', title: 'THE ATTRIBUTES', sub: 'ALL 17, AND WHAT THEY REALLY DO', body: `
@@ -175,9 +221,9 @@
       season went, plus <b>awareness / 50</b>, plus perks, team and award bonuses.</p>
       <h4>The soft cap</h4>
       <p>Every attribute is priced against one line:</p>
-      <p class="rib9-fq-eq">(potential ceiling + 12) × (0.60 + (stars − 1) × 0.0625 + 0.01 × prestige)</p>
-      <p>At 1 star that is <b>60%</b> of your ceiling-plus-twelve; at 5 stars, <b>85%</b>; each
-      prestige star adds another 1%.</p>
+      <p class="rib9-fq-eq">(potential ceiling + 12) × (0.60 + (recruit stars − 1) × 0.0625 + 0.01 × Honors)</p>
+      <p>At 1 recruit star that is <b>60%</b> of your ceiling-plus-twelve; at 5 stars, <b>85%</b>; each
+      Honor ⚜️ on the account adds another 1%.</p>
       <h4>The price</h4>
       ${list([
         'Below the soft cap, +1 costs <b>1 point</b>.',
@@ -315,6 +361,43 @@
       trust is a ranking stat.</p>
       ${note('A DECLARE IS ONE SHOT.', 'Miss the roll and the career ends on the spot. There is no retry, no second window, no next week.')}` },
 
+    /* ===== v153 F CHAOS — the endgame dial, explained ===== */
+    {
+      id: 'chaos', title: 'CHAOS', sub: 'THE ENDGAME DIAL — HARDER WORLD, BIGGER LEGACY', body: `
+      <p>Chaos is the game’s hard mode, and it is the fastest way up the Legacy Rank. It lives on the
+      <b>RINGS &amp; CHAOS</b> screen (the 💍 DYNASTY button under the prestige tree) and it applies
+      to <b>every career</b> you play while it is on — from Pee Wee up.</p>
+      <h4>Unlocking it</h4>
+      ${list([
+        'Win a <b>UFF championship</b> with a player who peaked at <b>85+ OVR</b>, with <b>20 season objectives</b> completed across your careers.',
+        'It opens with a <b>capacity of 6</b> chaos points. Win a championship with chaos set to your <b>full</b> capacity and the capacity grows: +6 for a UFF title, +10 for an Interstellar one.',
+      ])}
+      <h4>What the dials do</h4>
+      <p>Every one of the 17 attributes has a dial from 0 to 10. Each point makes the world’s
+      players stronger at that stat, and the whole world gets harder with the total: every opponent
+      and every rival for your roster spot jumps about 22 OVR the moment the first point goes on,
+      and about one more per point after that. Every level’s call-up bar rises with it, and the
+      near-automatic promotions of the first three levels are gone. <b>MAXIMUM CHAOS</b> fills your
+      whole capacity at once.</p>
+      <p>The one gift on the way in: every chaos point raises the <b>attribute cap</b> by 3, so the
+      harder the world, the higher your man can climb.</p>
+      <h4>What it pays</h4>
+      ${tab(['CHAOS', 'PP', 'LEGACY XP'], [
+        ['0', '×1', '×1'],
+        ['1', '×3.5', '×1.08'],
+        ['6 (first capacity)', '×7.3', '×1.48'],
+        ['10', '×13', '×1.8'],
+        ['20', '×58', '×2.6'],
+        ['50+', 'more still', '<b>×5</b> (the cap)'],
+      ])}
+      ${list([
+        '<b>PP:</b> ×3 the moment one point is on, then ×1.16 more for every point — on career ends, titles, challenges and milestones. The prestige tree’s chaos nodes raise it further.',
+        '<b>Legacy XP:</b> +8% per chaos point on every season and every career end, up to ×5. The season report and career-end card show it as its own line.',
+        'Both are shown live on the Chaos card, and the Legacy multiplier in your trophy case.',
+      ])}
+      ${note('THE RISK IS REAL.', 'A career that flames out early under chaos banks only part of the PP multiplier — the full bonus is paid to careers that reach the UFF. Opponents are vastly better, so a first year that used to be automatic can end the run. Turn it up a few points at a time, and keep a build that can win at the level you are at.')}
+      <p>Any dial can be turned back down at any time on the same screen.</p>` },
+
     {
       id: 'first', title: 'YOUR FIRST CAREER', sub: 'HOW TO SPEND IT WELL', body: `
       <p>Run 1 starts with attributes around <b>8–12</b>, a potential ceiling of <b>30</b>, one
@@ -324,7 +407,7 @@
       ${list([
         '<b>Levels 0 through 4 are close to automatic.</b> The advancing shares are enormous (50%, 45%, 35%, 25%, 12% of huge fields), so anything short of a disaster leaves you far inside and your call-up reads around 98%. Expect to walk to Varsity.',
         '<b>College is where a first career usually ends.</b> It wants a rating a first-run player cannot reach. The <i>ceiling</i> is the wall, not the declare roll, and the two spare years generally cannot fix it.',
-        '<b>That is the design, not a failure.</b> Prestige pays 0.2 for a career ending at Varsity, 0.4 for College, about 0.8 for a first UFF run. A Path unlocks at 6 stars. You are farming the next man, and he starts taller.',
+        '<b>That is the design, not a failure.</b> A finished career pays PP for the vault, a little Legacy XP, and Honors ⚜️ — 1 for a career that ends at Varsity, 2 at College, 4 for a first UFF run. A Path unlocks at 6 Honors. You are farming the next man, and he starts taller.',
       ])}
       <h4>What the code actually rewards</h4>
       ${num([

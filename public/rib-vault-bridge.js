@@ -73,12 +73,73 @@
     return true;
   }
 
+  /* ===== v153 C PAYDAY — which award the vault still owes a reward sequence =====
+   *
+   * The career settle (`screenGameOver` / `screenWin` in 07) has ALREADY put the PP on
+   * `state.pp`, counted the career (`careersCompleted`) and saved — which also raises v151 A's
+   * lifetime-earned counter (`ppLifetimeV151A`, which only ever goes up). The vault's job is to
+   * SHOW it arriving, once. So an award is pending when a career has settled since the vault
+   * last played one, and its size is the lifetime PP earned since the vault last showed a
+   * balance: the whole run, bounties included, becomes wealth in one shower.
+   *
+   * What was already shown lives in `rib.vaultPay.v153` — presentation state, OUTSIDE the
+   * save, like `rib.legacy.v152`. It is written BEFORE the sequence starts, so leaving mid-way,
+   * reopening, or reloading can never replay it; and nothing here can mint a point, because
+   * the sequence animates FROM `pp - gain` UP TO the balance the game already holds. A
+   * different save (fewer careers, a lower lifetime) resets the record instead of replaying.
+   * `RIB_TUNE.v153C = 0` turns the sequence off. The bridge still writes nothing to the game. */
+  var PAY_KEY = 'rib.vaultPay.v153';
+  function payRec() { try { var r = JSON.parse(localStorage.getItem(PAY_KEY) || 'null'); return r && typeof r === 'object' ? r : null; } catch (e) { return null; } }
+  function payWrite(r) { try { localStorage.setItem(PAY_KEY, JSON.stringify(r)); } catch (e) {} }
+  function lifeNow(o) {
+    var L = o.ppLifetimeV151A;
+    if (L == null) {
+      /* never tracked yet: the same baseline 07 would start it from, read without writing */
+      L = Math.max(0, Math.round((o.pp || 0) + (o.ppBankV136 || 0)));
+      return L;
+    }
+    var d = (o.pp || 0) - (o.ppSeenV151A || 0);      // a rise not yet saved (ppTrackV151A runs on save)
+    return Math.max(0, Math.round(L + Math.max(0, d)));
+  }
+  function paydayOff() { try { return window.RIB_TUNE && window.RIB_TUNE.v153C === 0; } catch (e) { return false; } }
+  /* PEEK: what the vault owes, or null. Never writes. */
+  function pendingPayday() {
+    var o = G();
+    if (!o || paydayOff()) return null;
+    var cc = Math.max(0, o.careersCompleted || 0), L = lifeNow(o), pp = balance(), r = payRec();
+    var fresh = !r || !(r.careers >= 0) || cc < r.careers || L < (r.life || 0);
+    var gain = 0;
+    if (fresh) {
+      /* no record for this save: the one honest award we can see is the settled career on screen */
+      var p = o.player;
+      if (!r && cc > 0 && p && p._settled && p._vaultPayV137 > 0) gain = Math.round(p._vaultPayV137);
+    } else if (cc > r.careers) gain = L - (r.life || 0);
+    gain = Math.min(Math.max(0, Math.round(gain)), pp);
+    if (gain <= 0) return null;
+    var best = r && !fresh ? (r.best || 0) : 0, n = r && !fresh ? (r.n || 0) : 0;
+    return { from: pp - gain, to: pp, gain: gain, careers: cc, life: L,
+      record: n > 0 && gain > best, best: best, n: n };
+  }
+  /* mark it shown (before it plays), or just bring the record up to date */
+  function settleRecord(pay) {
+    var o = G(); if (!o) return;
+    var r = payRec(), cc = Math.max(0, o.careersCompleted || 0), L = lifeNow(o);
+    var fresh = !r || !(r.careers >= 0) || cc < r.careers || L < (r.life || 0);
+    var out = { v: 1, careers: cc, life: L, best: fresh ? 0 : (r.best || 0), n: fresh ? 0 : (r.n || 0),
+      last: r && !fresh ? r.last || null : null };
+    if (pay) { out.best = Math.max(out.best, pay.gain); out.n++; out.last = { from: pay.from, to: pay.to, gain: pay.gain, at: Date.now() }; }
+    payWrite(out);
+  }
+
   function openVault(opts) {
     opts = opts || {};
     var o = G();
     var tgt = opts.key ? describe(opts.key) : null;
     if (tgt && (tgt.locked || tgt.maxed)) tgt = null;
+    var pay = opts.noPayday ? null : (opts.payday || pendingPayday());
+    if (!opts.payday) settleRecord(pay);                // shown BEFORE it plays: it can never replay
     return window.__RIB_VAULT.open({
+      payday: pay ? { from: pay.from, to: pay.to, gain: pay.gain, record: !!pay.record, replay: !!pay.replay } : null,
       balance: balance(),
       banked: banked(),
       upgrade: tgt,
@@ -88,9 +149,12 @@
       onCommit: function (t) { return commit(t); },
       onClose: function (why, committed) {
         pending = null;
+        // v153 C: the career-end screen's button relabels once its award has been shown
+        try { document.querySelectorAll('[data-vaultpay-v153]').forEach(function (b) { if (!pendingPayday()) b.innerHTML = '&#127974; Open the Vault'; }); } catch (e) {}
         // back to the tree, and let it redraw against the balance the game now holds
+        // (v153 C: `stay` — opened from a career-end screen, which the player returns to)
         try {
-          if (window.go) window.go('shop');
+          if (window.go && !opts.stay) window.go('shop');
           if (window.__RIB_MENU_BRIDGE && window.__RIB_MENU_BRIDGE.sync) window.__RIB_MENU_BRIDGE.sync();
         } catch (e) {}
         if (committed && window.__RIB_VAULT_TOAST !== false) {
@@ -105,19 +169,18 @@
     balance: balance,
     banked: banked,
     describe: describe,
-    /* the career-settlement payout: the game has ALREADY awarded the PP (v136's
-     * flushBankV136 + the career-end credit). This only SHOWS it arriving. It reads the
-     * balance the game holds now and animates up to it, so replaying the presentation can
-     * never mint a point. */
+    /* the career-settlement payout. v153 C: an award the vault has not shown yet plays as the
+     * PAYDAY (once). Asked for again after that, it is a replay of `amount` — presentation
+     * only: it reads the balance the game holds and animates up to it, so it can never mint a
+     * point, and it does not touch the shown-record. */
     payout: function (amount, done) {
+      if (pendingPayday()) return openVault({ skipDoor: true, stay: true }).then(function (v) { done && done(); return v; });
       var to = balance();
       var from = Math.max(0, to - Math.max(0, Math.round(amount || 0)));
-      return window.__RIB_VAULT.open({
-        balance: from, banked: banked(), upgrade: null, skipDoor: true,
-        onClose: function () { try { window.__RIB_MENU_BRIDGE && window.__RIB_MENU_BRIDGE.sync(); } catch (e) {} }
-      }).then(function () {
-        window.__RIB_VAULT.deposit(to - from, done);
-      });
-    }
+      return openVault({ skipDoor: true, stay: true, payday: to > from ? { from: from, to: to, gain: to - from, replay: true } : null })
+        .then(function (v) { done && done(); return v; });
+    },
+    pending: pendingPayday,
+    paydayRecord: payRec
   };
 })();

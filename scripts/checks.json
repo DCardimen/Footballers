@@ -66,6 +66,32 @@
     "walk"
    ]
   },
+  "menu-goal": {
+   "desc": "v153 D — the menu's goal trophy (UFF → Interstellar), the Legacy medal box under the logo, the PROFILE tile, the prestige coin tile, the breathing players, 400 wide",
+   "anchors": [
+    "v153 D"
+   ],
+   "files": [
+    "scripts/build-goal-trophies.py",
+    "art/menu/trophy_*",
+    "public/menu/trophy_goal_*"
+   ],
+   "checks": [
+    "v153Dcheck",
+    "v147Bcheck",
+    "v152Acheck",
+    "menu-integration-check",
+    "heroflashcheck",
+    "menufxcheck"
+   ],
+   "steps": [
+    "`python3 scripts/build-goal-trophies.py` (if the trophy art changed), then `python3 scripts/art-provenance.py`",
+    "`RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-menu*` file)"
+   ],
+   "look": [
+    "`SHOTS=<dir> node scripts/v153Dcheck.mjs`"
+   ]
+  },
   "menu-coin": {
    "desc": "v147 B — the menu prestige coin, the OVR ring arc and spark, the milestones trophy",
    "anchors": [
@@ -157,7 +183,8 @@
    "desc": "v146 A — who is on him when he goes down, the fall together, the taken sack",
    "anchors": [
     "v146 A",
-    "v151 D"
+    "v151 D",
+    "v153 A"
    ],
    "files": [],
    "checks": [
@@ -173,7 +200,8 @@
     "renderpathcheck",
     "v86check",
     "v110check",
-    "v151Dcheck"
+    "v151Dcheck",
+    "v153Acheck"
    ]
   },
   "cuts": {
@@ -384,9 +412,10 @@
    ]
   },
   "vault": {
-   "desc": "v137 — the Prestige Vault: hoard, spend, door, payout, sprites",
+   "desc": "v137 — the Prestige Vault: hoard, spend, door, payout, sprites; v153 C — the payday (the reward sequence)",
    "anchors": [
-    "v137"
+    "v137",
+    "v153 C"
    ],
    "files": [
     "public/rib-vault*",
@@ -396,6 +425,7 @@
    ],
    "checks": [
     "vaultcheck",
+    "v153Ccheck",
     "honorcheck",
     "v134check",
     "coachcheck",
@@ -408,7 +438,8 @@
     "`RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-menu*` / `rib-vault*` file)"
    ],
    "look": [
-    "`vaultshot.mjs` / `WIDE=1 vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` / `vaultphys.mjs`"
+    "`vaultshot.mjs` / `WIDE=1 vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` / `vaultphys.mjs`",
+    "`v153Cshot.mjs` (the payday; `GAINS=12,1284,250000`, `RECORD=1`, `REDUCED=1`)"
    ]
   },
   "tackle": {
@@ -573,7 +604,8 @@
     "capcheck",
     "skillartcheck",
     "scrollcheck",
-    "coachcheck"
+    "coachcheck",
+    "v153Bcheck"
    ],
    "look": [
     "`BOARD=1 growshot.mjs`"
@@ -598,7 +630,8 @@
     "walk",
     "v85check",
     "postgamecheck",
-    "declarecheck"
+    "declarecheck",
+    "v153Fcheck"
    ],
    "steps": [
     "`python3 scripts/build-coach-art.py` (if a sheet changed)",
@@ -743,7 +776,8 @@
    "files": [],
    "checks": [
     "injurycheck",
-    "availabilitycheck"
+    "availabilitycheck",
+    "v153Bcheck"
    ]
   },
   "ovr": {
@@ -943,7 +977,8 @@
     "creditcheck",
     "simcheck",
     "scoreneutralcheck",
-    "faqcheck"
+    "faqcheck",
+    "v153Acheck"
    ]
   },
   "origin": {
@@ -1060,7 +1095,8 @@
     "creditcheck",
     "simcheck",
     "renderpathcheck",
-    "v86check"
+    "v86check",
+    "v153Acheck"
    ]
   },
   "plant": {
@@ -1142,7 +1178,8 @@
     "honorcheck",
     "menu-integration-check",
     "walk",
-    "shot"
+    "shot",
+    "v153Fcheck"
    ]
   },
   "emblems": {
@@ -1179,7 +1216,8 @@
     "coachcheck",
     "growthcheck",
     "walk",
-    "shot"
+    "shot",
+    "v153Bcheck"
    ]
   },
   "rivalry": {
@@ -1384,6 +1422,7 @@
    ],
    "checks": [
     "v151Ccheck",
+    "v153Gcheck",
     "lbcheck",
     "dailycheck",
     "bootviewcheck",
@@ -1398,7 +1437,8 @@
    "desc": "v151 B — cosmetics and the profile: RIB_COSMETICS, the kit / helmet / celebration / stadium / vault hooks, the Locker's STYLE tab, the PROFILE view, the Team Creator's gated crests and colours (src/28-cosmetics.js)",
    "anchors": [
     "v151 B",
-    "RIB_COSMETICS"
+    "RIB_COSMETICS",
+    "v153 G"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1406,6 +1446,7 @@
    ],
    "checks": [
     "v151Bcheck",
+    "v153Gcheck",
     "v151Ccheck",
     "kitsidecheck",
     "emblemcheck",
@@ -1446,7 +1487,8 @@
    "desc": "v152 A — the Legacy Rank: the 500 medals (src/31-legacy.js, the RIB_LEGACY_MEDALS_V152 block, scripts/build-legacy-medals.py), the ledger in 07 (legacy*V152), the pour and the medal swap, milestones, Rank 500, the profile's trophy case and collection book, the rank chips",
    "anchors": [
     "v152 A",
-    "RIB_LEGACY"
+    "RIB_LEGACY",
+    "v153 F"
    ],
    "files": [
     "src/31-legacy.js",
@@ -1460,7 +1502,48 @@
     "v151Bcheck",
     "bootviewcheck",
     "layoutcheck",
-    "menu-integration-check"
+    "menu-integration-check",
+    "v153Fcheck",
+    "v153Echeck"
+   ]
+  },
+  "v153b": {
+   "desc": "v153 B — the locker room, the team rating built by decisions, the training risk, the injury nerf, My Plays Only on by default",
+   "anchors": [
+    "v153 B"
+   ],
+   "files": [],
+   "checks": [
+    "v153Bcheck",
+    "traincheck",
+    "gradecheck",
+    "capcheck",
+    "teamqualcheck",
+    "injurycheck",
+    "v146Ccheck",
+    "v134check",
+    "v147Ccheck",
+    "v151Acheck",
+    "coachcheck"
+   ]
+  },
+  "thumb": {
+   "desc": "v153 E — phone fit: the profile figure's kit recolour (src/28-cosmetics.js drawCharacter), the one-page skill sheet (07 screenUpgrade), the 11px / 36px floors on the career screens (25-shell THE THUMB, 22's stats tabs), locked Legacy medals black (31)",
+   "anchors": [
+    "v153 E"
+   ],
+   "files": [],
+   "checks": [
+    "v153Echeck",
+    "v146Echeck",
+    "scrollcheck",
+    "traincheck",
+    "capcheck",
+    "v142check",
+    "v151Bcheck",
+    "v152Acheck",
+    "v150Acheck",
+    "layoutcheck"
    ]
   }
  },
@@ -3529,6 +3612,103 @@
     "legacy"
    ],
    "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v153Dcheck": {
+   "file": "scripts/v153Dcheck.mjs",
+   "desc": "v153 D — the goal trophy on the milestones card (UFF CHAMPIONS until a UFF title — from the Hall or the season log, not the spendable rings — then INTERSTELLAR CHAMPIONS, WON after an Interstellar title; framed 4:5, shine, <=150 KB), the Legacy medal box under the logo (rank, medal, tier, XP bar, hover, refresh, taps to profile; the header chip gone), the PROFILE tile routes, PRESTIGE wears the coin, the players breathe and stop under reduced motion, the menu fits 400x860 with equal tiles, no page errors.",
+   "areas": [
+    "menu-goal"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v153Ccheck": {
+   "file": "scripts/v153Ccheck.mjs",
+   "desc": "v153 C — the payday: the vault's reward sequence. The shower's size is logarithmic in the gain and in the owner's tiers (tiny 8-15 … huge 120-180, a record or 100M+ is the 200-coin storm); a REAL career end makes the award pending and the vault plays it once: the old balance first, +N PRESTIGE, one coin alone, the shower, the count climbing only as coins land and locking on the final coin, controls live only after; shown-state written before it plays and outside the save, so reopening / reloading / leaving mid-shower never replays it; PP truth untouched; a tap accelerates, a second skips; a record says so; pooled coins, capped rain voices, a handful of haptics; the settled pile wiggles; reduced motion is a quick count-up; the reserve at extreme totals; the kill switch; no Math.random; no page errors.",
+   "areas": [
+    "vault"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v153Fcheck": {
+   "file": "scripts/v153Fcheck.mjs",
+   "desc": "v153 F — one medal, four numbers, Chaos pays the rank: Honors wear the crest (HONOR_ICON_V130, no honors line draws 🎖️, the top-bar chip / tree / Path), How To Play has STARS, HONORS, PP & LEGACY and CHAOS (11 sections, no \"prestige star\", fits 400), the coach's two chaos stops (said once on the dynasty screen with the tour off, live numbers, SKIP spares the tour; STOPS still 17), Legacy XP +8%/chaos point up to ×5 (kill switch → .03/×3), PP ×3·1.16ⁿ, the Chaos card / XP card part / trophy case quote them, no page errors.",
+   "areas": [
+    "legacy",
+    "coach",
+    "honors"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v153Bcheck": {
+   "file": "scripts/v153Bcheck.mjs",
+   "desc": "v153 B — the locker room (a toxic personality drives named teammates off the roster, a team-first one lifts a named teammate; seeded per season; story swings and the wheel move chemistry), the team rating (prestige share halved, chemistry + roster moves + SACRIFICE FOR A TEAMMATE), training (one key stat or two with a once-a-season risk, prestige shaves never removes it, the suggestion moves season to season), injuries (the prestige levers at ~30%, the tree capped at 25%), My Plays Only free, on by default, your side of the ball.",
+   "areas": [
+    "career",
+    "training",
+    "prestige",
+    "injury",
+    "settings"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v153Echeck": {
+   "file": "scripts/v153Echeck.mjs",
+   "desc": "v153 E — at 400x860: the profile figure wears the kit's colours (pixel shares for four kits, no source navy left, a helmet shell on the helmet only, deterministic), on a lit backdrop; the skill sheet's three groups are a segmented control and each fits one page (every row on screen, no inner scroll), steppers and tabs >= 36px, KEY badges, v67 cap readouts + a soft-cap bar that moves on a spend, HOW PRICES WORK; 23 career screens/tabs with no text under 11px and no tap target under 36px, the screen's name on the ticker, the stats table in its own tab; locked Legacy medals solid black (screenshot pixels) in the book, the detail panel, the trophy case's next milestone and the milestone card; no page errors.",
+   "areas": [
+    "profile",
+    "upgrade",
+    "shell",
+    "legacy"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v153Gcheck": {
+   "file": "scripts/v153Gcheck.mjs",
+   "desc": "v153 G — the full locker: five new cosmetic kinds (footprints, wings, crowns, auras, number fonts) with >= 8 items, previews and slots; more jerseys/helmets/frames/celebrations; the 50-tier Career Pass (37 free + 50 premium, highlights every 5th tier, the tier-50 showcase, named styles drawn by src/28, pacing, validateReward refusals, a claimed flair equips); wings/crown/aura on the profile card; on the live field footprints behind him, wings and a crown on him, his number font, all off again on unequip; a new celebration; no Math.random from src/28; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics",
+    "seasons"
+   ],
+   "runtimeSec": 420,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v153Acheck": {
+   "file": "scripts/v153Acheck.mjs",
+   "desc": "v153 A — a gang stop names the heap and it goes down with him (defenders in reach, never the tackler; laid on the pile ring), a forming group tackle is sometimes escaped by giving ground (backward, the grabbers beaten), forward progress (the spot and the booked yards are the furthest point, never a QB behind his line), the kill switch, the run game in band; the live stat gain (exact gains, one callout per catch, milestones once, career highs, the callout flies, the tile counts up, sound + LIGHT/MEDIUM haptic); the snap share (him + rival <= 100%, 109% only superhuman with no backup); no page errors.",
+   "areas": [
+    "contact",
+    "pile",
+    "snaps"
+   ],
+   "runtimeSec": 240,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

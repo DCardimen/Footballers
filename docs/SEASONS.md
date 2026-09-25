@@ -84,9 +84,22 @@ lengths and depths capped, prototype keys dropped; team colours kept only when t
 
 ## 4. The Career Pass
 
-- **30 tiers × 1,000 XP.** Free track: 11 rewards (tiers 1, 2, 4, 6, 8, 10, 13, 16, 20, 25, 30). Premium track: one a
-  tier (30). Kinds: banner, card frame, title, badge, nameplate, profile icon, celebration, kit trim — rarity common /
-  rare (8+) / epic (15+) / legendary (25+). Ids `pass.<season>.<track>.<tier>`, generated per season from its theme.
+- **50 tiers × 800 XP (v153 G; was 30 × 1,000).** 40,000 XP for the whole track — a little more than the old 30,000,
+  for more than twice the rewards. Free track: every tier except the multiples of 3 that are not multiples of 5 —
+  **37 rewards**. Premium track: **one every tier (50)**. Every fifth tier is a **highlight** (one rarity up; premium:
+  5 footprints · 10 helmet · 15 wings · 20 jersey · 25 crown · 30 aura · 35 footprints · 40 wings · 45 crown; free: 10
+  footprints · 20 jersey · 25 wings · 30 helmet · 35 aura · 40 crown · 45 footprints), and tier 50 is the **showcase**
+  (premium: mythic Seraph wings, "The <Theme> Seraph"; free: a legendary crown, "Crown of the <Theme>"). The tiers
+  between rotate through every kind. Kinds: banner, card frame, title, badge, nameplate, profile icon, celebration,
+  kit trim, and (v153 G) **jersey, helmet, footprints (trail), wings, crown, aura, number font**. Rarity by the tier's
+  share of the track: common / rare (20%+) / epic (50%+) / legendary (80%+), mythic for the premium showcase.
+  Each jersey / helmet / flair reward names its **style** (`style`: e.g. `seraph`, `flame`, `halo`, `chevron`, `pearl`),
+  picked by a hash of its id from the styles its rarity allows, and src/28 `passItem` draws exactly that style
+  (colours from a per-kind palette, also by hash). Ids `pass.<season>.<track>.<tier>`, generated per season from its
+  theme. The pass screen marks the highlight rows (`.ss151-row.hi`) and the showcase (`.show`).
+- **Pacing.** A 10-game season books ~1,000 XP before challenges (a live win is 200); the 20 season challenges are worth
+  ~20,000 and the weekly ones ~800 a week, so an engaged player finishes the track in roughly two-thirds of a six-month
+  season, a casual one reaches the 30s.
 - **Cosmetic only.** `validateReward` refuses any kind outside that list and any field named pp, xp, stat, attr, gear,
   reroll, boost, ovr, perf, prestige, honors, speed, roll, spin, coin. Nothing is granted but through
   `RIB_COSMETICS.grant(id, "pass", descriptor)`; with no cosmetics module the claim is kept in `pending()` and flushed when

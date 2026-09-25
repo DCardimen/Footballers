@@ -4,7 +4,7 @@
 //
 // OFF (the default): no store, no ads, no prices, no storage write from the module — and the owner's PROGRESSION gates
 //   apply exactly as they do with the module blocked: 3× and 4× at the UFF (4× comes WITH 3× while the store is off),
-//   My Plays Only after the first finished career, season skips a day off lifetime PP (1 @ 1,000, 3 @ 100,000 …),
+//   My Plays Only free since v153 B (was: after the first finished career), season skips a day off lifetime PP (1 @ 1,000, 3 @ 100,000 …),
 //   Quick Play never counted, lifetime PP never lowered by spending, the advanced filters free.
 // ON (`?monetize=1`, dev host): the tier chain (No Ads ⊂ Pro ⊂ Founder, upgrades priced at the difference, restore
 //   brings the chain back), 4× is Pro's (the 20-minute ad lends it), Pro adds season skips, the ad cap (4 a day, never
@@ -108,7 +108,8 @@ const played = (page) => M(page, () => window.S.player.weekResults.filter((w) =>
     const before = S.settings.onlyInvolved; window.toggleSetting('onlyInvolved'); out.refused = S.settings.onlyInvolved === before
     S.careersCompleted = 1; out.after = window.__V151A.gates().playsOnly.ok; window.toggleSetting('onlyInvolved'); out.toggled = S.settings.onlyInvolved !== before
     return out })
-  ok(po.locked && /🔒/.test(po.row) && /Complete a career/.test(po.row) && po.refused && po.after && po.toggled, 'OFF: My Plays Only is locked ("Complete a career") until a career is finished, then toggles', po)
+  // v153 B: the owner made My Plays Only FREE and on by default — no gate, no lock, it toggles from the first career
+  ok(!po.locked && !/🔒/.test(po.row) && !po.refused && po.after, 'OFF: My Plays Only is free (v153 B) — never locked, it toggles for a fresh player', po)
   // season skips: the ladder, lifetime PP, the button, Quick Play, the day
   const lad = await M(a, () => [999, 1000, 99999, 100000, 1e7, 1e9].map((L) => window.__V151A.ladder(L).perDay))
   ok(lad.join(',') === '0,1,1,3,5,7', 'OFF: the skip ladder — 0 under 1,000 lifetime PP, 1 at 1,000, 3 at 100,000, 5 at 10M, 7 at 1B', lad)
