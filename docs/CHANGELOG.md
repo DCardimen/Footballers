@@ -11,6 +11,22 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v153 F — one medal, four numbers, and Chaos pays the rank.** The owner: "stars vs medals… two different types of
+  medals is confusing." Honors wore a medal (🎖️) and the Legacy Rank is 500 medals, so Honors now wear the crest
+  (⚜️ — `HONOR_ICON_V130`, the top-bar chip reads `⚜️ N HONORS · 🪙 M PP`, the career-end card, the tree, the Path), and
+  the few other 🎖️ icons in 07 / the pregame (Discipline, Veteran Presence, Born Leader, Team Captain, Ice In The
+  Veins) became 🧘 🧓 🦁 📣 🧊 — the medal means the Legacy Rank. How To Play gains **STARS, HONORS, PP & LEGACY** (what
+  each number is, how it is earned, what it does; the Legacy Rank's ten tiers, where its XP comes from, the milestone
+  bounties, the trophy case and the collection book) and **CHAOS** (how to unlock it, what the dials do, the pay table,
+  the risk); the stale "prestige stars" / "0.2 for Varsity" / "a Path at 6 stars" copy is corrected. The coach says
+  two chaos stops of his own on the RINGS & CHAOS screen — how to open it while it is locked, then the dials, the pay
+  (live numbers) and the catch once it is open — once each, tour on or off. **Chaos is now a major Legacy bonus:**
+  +8% Legacy XP per chaos point up to ×5 (was +3% up to ×3 — a first capacity of 6 now pays ×1.48, not ×1.18);
+  `TU("v153F", 0)` restores it. The PP multiplier was already the largest in the game (×3 on the first point, ×1.16 a
+  point after: ×7.3 at 6, ×13 at 10) and is unchanged; the Chaos card now shows both (PP ×, Legacy XP +%, and a
+  "what it pays" line), the Legacy XP card's Chaos part reads `Chaos ×1.48 · +48% XP`, and the trophy case quotes it.
+  Menu files baked as `v153f`. `v153Fcheck`; `faqcheck` expects 11 sections, `honorcheck` the crest.
+
 - **v152 A.2 — the medal gets the spotlight, the book turns, the band plays on arrival.** The profile card wears the
   Legacy medal in its own framed, glowing box beside the name (tap: the trophy case). The collection book turns real
   pages: a two-faced leaf lifts, curls and falls over the spine (or swings back in), with a paper swish, a landing thump,

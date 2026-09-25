@@ -217,7 +217,7 @@ const V111_FOCUS_BOOK={
   S:[["hammer","🛡️","tackling","The Hammer","Big hits over the middle."],
      ["deep","🧠","awareness","Center Field","See the quarterback's eyes and beat the throw."],
      ["range","💨","speed","Sideline Range","Speed to the far hash."]],
-  K:[["ice","🎖️","discipline","Ice In The Veins","No mental errors, no wasted swing."],
+  K:[["ice","🧊","discipline","Ice In The Veins","No mental errors, no wasted swing."],
      ["leg","💪","strength","More Leg","Power through the ball."],
      ["clutch","🔥","grit","Kick It Late","The one that matters comes late."]],
   ATH:[["fast","💨","speed","Pure Speed","Straight-line burst above everything else."],

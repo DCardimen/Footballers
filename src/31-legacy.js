@@ -540,6 +540,8 @@
       '<div class="lgc-bar lgk-bar"><i style="width:' + barPct(R).toFixed(1) + '%"></i></div>' +
       '<div class="lgk-xp"><span>' + fmt(R.into) + " / " + fmt(R.need) + " XP to rank " + (R.rank + 1) + "</span><span>" + fmt(L.xp) + " TOTAL</span></div>" +
       (R.rank < 500 ? '<div class="lgk-next">NEXT MILESTONE ' + medalHtml(nextMs, 26, { flat: true }) + " <b>LEGACY " + nextMs + "</b> · " + fmt(toMs) + " XP · +" + fmt(X.bounty(nextMs)) + " PP</div>" : "") +
+      /* v153 F: the Chaos he runs with is quoted where the rank lives */
+      (X.diff && X.diff() > 1 ? '<div class="lgk-next lgk-chaos-v153">🔥 CHAOS BONUS <b>×' + X.diff().toFixed(2) + "</b> LEGACY XP</div>" : "") +
       "</div></div>";
   }
   function tabsHtml(g, p) {

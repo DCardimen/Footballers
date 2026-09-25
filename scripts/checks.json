@@ -598,7 +598,8 @@
     "walk",
     "v85check",
     "postgamecheck",
-    "declarecheck"
+    "declarecheck",
+    "v153Fcheck"
    ],
    "steps": [
     "`python3 scripts/build-coach-art.py` (if a sheet changed)",
@@ -1142,7 +1143,8 @@
     "honorcheck",
     "menu-integration-check",
     "walk",
-    "shot"
+    "shot",
+    "v153Fcheck"
    ]
   },
   "emblems": {
@@ -1446,7 +1448,8 @@
    "desc": "v152 A — the Legacy Rank: the 500 medals (src/31-legacy.js, the RIB_LEGACY_MEDALS_V152 block, scripts/build-legacy-medals.py), the ledger in 07 (legacy*V152), the pour and the medal swap, milestones, Rank 500, the profile's trophy case and collection book, the rank chips",
    "anchors": [
     "v152 A",
-    "RIB_LEGACY"
+    "RIB_LEGACY",
+    "v153 F"
    ],
    "files": [
     "src/31-legacy.js",
@@ -1460,7 +1463,8 @@
     "v151Bcheck",
     "bootviewcheck",
     "layoutcheck",
-    "menu-integration-check"
+    "menu-integration-check",
+    "v153Fcheck"
    ]
   }
  },
@@ -3529,6 +3533,20 @@
     "legacy"
    ],
    "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v153Fcheck": {
+   "file": "scripts/v153Fcheck.mjs",
+   "desc": "v153 F — one medal, four numbers, Chaos pays the rank: Honors wear the crest (HONOR_ICON_V130, no honors line draws 🎖️, the top-bar chip / tree / Path), How To Play has STARS, HONORS, PP & LEGACY and CHAOS (11 sections, no \"prestige star\", fits 400), the coach's two chaos stops (said once on the dynasty screen with the tour off, live numbers, SKIP spares the tour; STOPS still 17), Legacy XP +8%/chaos point up to ×5 (kill switch → .03/×3), PP ×3·1.16ⁿ, the Chaos card / XP card part / trophy case quote them, no page errors.",
+   "areas": [
+    "legacy",
+    "coach",
+    "honors"
+   ],
+   "runtimeSec": 90,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

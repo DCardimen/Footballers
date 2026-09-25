@@ -22,6 +22,7 @@ await page.waitForTimeout(1400)
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + d : '')); c ? pass++ : fail++ }
 const MEDAL = '\u{1F396}'
+const CREST = '\u269C'   // v153 F: Honors wear the crest; the medal is the Legacy Rank's alone
 
 ok(await page.evaluate(() => !!window.__V130), 'window.__V130 is mounted')
 
@@ -35,7 +36,7 @@ const model = await page.evaluate(() => {
     have: V.have() }
 })
 console.log('model:', JSON.stringify(model))
-ok(model.icon === MEDAL + '️' || model.icon.startsWith(MEDAL), 'the account rank has its own mark, and it is not a star', JSON.stringify(model.icon))
+ok(model.icon.startsWith(CREST) && !model.icon.includes(MEDAL) && !model.icon.includes('★'), 'the account rank has its own mark — the crest, not a star and (v153 F) not the Legacy medal', JSON.stringify(model.icon))
 ok(model.name === 'Honors', 'and its own name', model.name)
 ok(model.reqHonors === model.reqStars, 'the requirement reads the new key and still accepts the old one', `${model.reqHonors} === ${model.reqStars}`)
 ok(model.hasHonors && model.hasStars && !model.hasNode, 'and it only claims a requirement it actually has', JSON.stringify([model.hasHonors, model.hasStars, model.hasNode]))

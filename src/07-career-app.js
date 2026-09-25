@@ -4819,7 +4819,7 @@
       discipline: {
         name: "Discipline",
         desc: "Avoid penalties & mental errors",
-        icon: "🎖️",
+        icon: "🧘",
         metric: {
           label: "Penalties/season",
           better: "low",
@@ -5709,7 +5709,7 @@
         {
           key: "vet",
           name: "Veteran Presence",
-          icon: "🎖️",
+          icon: "🧓",
           desc: "+2 upgrade points per season.",
           cost: 14,
           mult: 1.7,
@@ -7318,8 +7318,11 @@
    * the currency you spend — but every place that used to draw a ★ for it now draws a medal and
    * says Honors, and the ★ means the recruit rating and only that. The node requirement key is
    * `honors` too, with the old `stars` still read so a save or a patch layer written against it
-   * keeps working. `window.__V130`; `honorcheck.mjs` is the gate. ===== */
-  const HONOR_ICON_V130 = "🎖️";
+   * keeps working. `window.__V130`; `honorcheck.mjs` is the gate.
+   * v153 F: the mark was a medal (🎖️) and v152 A's Legacy Rank is 500 medals, so the account had two
+   * kinds of "medal" meaning unrelated things. Honors wear the crest (⚜️) now, and every medal on
+   * screen is a Legacy medal. `v153Fcheck`. ===== */
+  const HONOR_ICON_V130 = "\u269C\uFE0F";
   const honorsV130 = () => Math.max(0, Math.round((typeof state < "u" && state && state.prestige) || 0));
   const honorTagV130 = n => HONOR_ICON_V130 + Math.round(n || 0);
   const honorReqV130 = req =>
@@ -8130,7 +8133,7 @@
     ironFrame: { name: "Iron Frame", icon: "🦾", good: 1, desc: "Injury chance −30%" },
     bornLeader: {
       name: "Born Leader",
-      icon: "🎖️",
+      icon: "🦁",
       good: 1,
       desc: "Teammates rally around you — team plays +6% better"
     },
@@ -9214,7 +9217,14 @@
       ((state.chaos[e] = s),
         saveGame(),
         screenDynasty(),
-        s > a && showToast("🔥 Chaos +1 — enemies stronger, PP +" + Math.round((chaosPPMult() - 1) * 100) + "%"));
+        s > a &&
+          showToast(
+            "🔥 Chaos +1 — enemies stronger · PP ×" +
+              chaosPPMult().toFixed(1) +
+              " · Legacy XP +" +
+              Math.round((legacyDiffV152() - 1) * 100) +
+              "%"
+          ));
     }
   }
   function chaosMaxAll() {
@@ -9234,6 +9244,27 @@
       saveGame(),
       screenDynasty());
   }
+  /* ===== v153 F CHAOS PAYS THE RANK =====
+   * The Chaos card says what the risk buys, in the two numbers that outlive the career: the PP multiplier
+   * (chaosPPMult — ×3 the moment one point is on, ×1.16 per point after; a career that flames out early
+   * banks only part of it, chaosEarnedMult) and the Legacy XP multiplier (legacyDiffV152 — +8% per point,
+   * up to ×5). `window.__V153F`; `v153Fcheck`. */
+  function chaosRewardNoteV153F() {
+    const t = chaosTotal(),
+      on = TU("v153F", 1),
+      per = on ? TU("legacyDiffPerChaosV153F", 0.08) : TU("legacyDiffPerChaosV152", 0.03),
+      cap = on ? TU("legacyDiffCapV153F", 5) : TU("legacyDiffCapV152", 3);
+    return `<div class="threshold-note chaos-reward-v153" style="margin-top:4px;color:#f3d98a">💰 <b>What it pays:</b> every chaos point is <b>+${Math.round(per * 100)}% Legacy XP</b> on every season and career end (up to <b>×${cap}</b>), and it multiplies every PP you earn${t ? ` — right now <b>×${chaosPPMult().toFixed(1)} PP</b> and <b>×${legacyDiffV152().toFixed(2)} Legacy XP</b>` : ""}. A career that flames out early under chaos banks only part of the PP.</div>`;
+  }
+  window.__V153F = {
+    legacyMult: () => legacyDiffV152(),
+    ppMult: () => chaosPPMult(),
+    earned: lv => chaosEarnedMult(lv),
+    total: () => chaosTotal(),
+    per: () => (TU("v153F", 1) ? TU("legacyDiffPerChaosV153F", 0.08) : TU("legacyDiffPerChaosV152", 0.03)),
+    cap: () => (TU("v153F", 1) ? TU("legacyDiffCapV153F", 5) : TU("legacyDiffCapV152", 3)),
+    note: () => chaosRewardNoteV153F()
+  };
   function screenDynasty() {
     const e = !!state.chaosUnlocked,
       t = chaosTotal(),
@@ -9267,9 +9298,11 @@
           ? `
       <div class="chaos-summary">
         <div class="cs-box"><div class="n">${t}<span style="font-size:12px;color:var(--chalk-dim)">/${chaosCap()}</span></div><div class="l">Chaos / Capacity</div></div>
-        <div class="cs-box"><div class="n" style="color:var(--gold)">+${Math.round((a - 1) * 100)}%</div><div class="l">All PP Gains</div></div>
+        <div class="cs-box"><div class="n" style="color:var(--gold)">×${a.toFixed(a >= 100 ? 0 : 1)}</div><div class="l">PP Gains</div></div>
+        <div class="cs-box chaos-lxp-v153"><div class="n" style="color:#e8c86a">+${Math.round((legacyDiffV152() - 1) * 100)}%</div><div class="l">Legacy XP</div></div>
         <div class="cs-box"><div class="n" style="color:#57e07a">${attrCap()}</div><div class="l">Stat Cap</div></div>
       </div>
+      ${chaosRewardNoteV153F()}
       <div class="threshold-note" style="margin-top:4px;color:#ff9b93">⛓️ <b>Chaos Clearance:</b> win a championship at <b>FULL capacity</b> to raise it (+6 UFF · +10 Interstellar). Depth must be earned — flaming out early under chaos pays only a fraction.</div>
       <div class="small" style="margin:6px 0 10px;color:var(--chalk-dim)">Every chaos level also raises your <b>potential ceiling</b> — the harder the world, the higher you can climb.</div>
       ${ATTR_KEYS.map(n => {
@@ -12422,7 +12455,7 @@
             ? Te.push({ icon: "⭐", name: Ba ? "All-American" : "All-Conference" })
             : U >= 72
               ? Te.push({ icon: "✅", name: "All-District" })
-              : U >= 64 && Te.push({ icon: "🎖️", name: "Team Captain" }),
+              : U >= 64 && Te.push({ icon: "📣", name: "Team Captain" }),
       m >= 3
         ? Te.push({ icon: "🔥", name: `${m}× Player of the Week` })
         : c >= 95 && Te.push({ icon: "💥", name: "Game of the Week" }),
@@ -19578,8 +19611,15 @@
     for (let i = 1; i < r; i++) x += legacyReqV152(i);
     return x;
   }
+  /* v153 F: Chaos is the game's hard mode, and the rank now says so — +8% Legacy XP per chaos point, up
+   * to ×5 (was +3% to ×3: a full first capacity of 6 paid ×1.18, too little to notice). TU("v153F", 0)
+   * restores the old .03 / ×3. The Chaos screen and the XP card quote this function. */
   function legacyDiffV152() {
-    return Math.min(TU("legacyDiffCapV152", 3), 1 + chaosTotal() * TU("legacyDiffPerChaosV152", 0.03));
+    const on = TU("v153F", 1);
+    return Math.min(
+      on ? TU("legacyDiffCapV153F", 5) : TU("legacyDiffCapV152", 3),
+      1 + chaosTotal() * (on ? TU("legacyDiffPerChaosV153F", 0.08) : TU("legacyDiffPerChaosV152", 0.03))
+    );
   }
   function legacyBountyV152(m) {
     const k = m >= 500 && m % 500 === 0 ? 10 : m % 50 === 0 ? 3 : 1;
@@ -19600,7 +19640,7 @@
     pl.champion && parts.push([lv >= 7 ? "The ring" : "Championship", base * 3 + (pl.champion ? legacyRingXpV152(lv) : 0)]);
     (pl.roundsWon | 0) > 0 && parts.push(["Playoff wins ×" + (pl.roundsWon | 0), base * 0.5 * (pl.roundsWon | 0)]);
     aw > 0 && parts.push(["Awards ×" + aw, base * aw]);
-    d > 1 && parts.push(["Chaos ×" + d.toFixed(2), 0]);
+    d > 1 && parts.push(["Chaos ×" + d.toFixed(2) + " · +" + Math.round((d - 1) * 100) + "% XP", 0]);
     return { gain: Math.round(parts.reduce((a, p) => a + p[1], 0) * d), parts: parts.map(p => [p[0], Math.round(p[1] * d)]) };
   }
   function legacyEndXpV152(e, level, fate) {
@@ -19613,7 +19653,7 @@
         ["Peak OVR " + Math.round(e.peakOvr || playerOvr(e)), Math.max(0, Math.round(e.peakOvr || playerOvr(e)) - 60) * TU("legacyPeakXpV152", 20)]
       ];
     fate === "walked" && parts.push(["Walked away ×" + k, 0]);
-    d > 1 && parts.push(["Chaos ×" + d.toFixed(2), 0]);
+    d > 1 && parts.push(["Chaos ×" + d.toFixed(2) + " · +" + Math.round((d - 1) * 100) + "% XP", 0]);
     return { gain: Math.round(parts.reduce((a, p) => a + p[1], 0) * d * k), parts: parts.map(p => [p[0], Math.round(p[1] * d * k)]) };
   }
   /* The one place Legacy XP is added. Records every medal the gain crosses (`got[rank]`, the collection
@@ -22887,7 +22927,7 @@
     <div class="card end-pay-v150">
       <div class="statline">
         <div class="statbox"><div class="n">${LEVELS[a].name.split(" ")[0]}</div><div class="l">Reached</div></div>
-        <div class="statbox"><div class="n">+${l}</div><div class="l">Honors 🎖️</div></div>
+        <div class="statbox"><div class="n">+${l}</div><div class="l">Honors ${HONOR_ICON_V130}</div></div>
         <div class="statbox"><div class="n">+${r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0)}</div><div class="l">PP Earned</div></div>
       </div>
       ${u > 0 ? `<div class="threshold-note" style="margin-top:8px;text-align:center">💰 Your legacy bonuses boosted PP earnings by <b style="color:var(--gold)">+${u}%</b></div>` : ""}
