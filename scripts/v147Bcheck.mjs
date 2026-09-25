@@ -11,7 +11,7 @@ import { CHROME, gameUrl } from './lib/env.mjs'
  *    ring is shot with and without the spark, the spark's centre is the bright core of the
  *    difference, the arc's end is walked round the band's mid radius — and both are compared with
  *    the one number ringArcV147B returns (within 2px and 1.5 degrees).
- * 3. the trophy on the milestones card is card_trophy_uff.webp (loaded) and nothing the menu serves
+ * 3. the trophy on the milestones card is the UFF's own (v153 D: the owner's goal trophy, trophy_goal_*.webp — it was card_trophy_uff.webp) and nothing the menu serves
  *    still names card_trophy.webp.
  * 4. no page errors.
  *   node scripts/v147Bcheck.mjs                  (dev server on :5173; GAME_URL= to point elsewhere)
@@ -137,13 +137,13 @@ for (const [ovr, sm] of CASES) {
 // ---- 3. the trophy --------------------------------------------------------------------------
 const idxSrc = await page.evaluate(pageSource)
 const trophy = await page.evaluate(async (idx) => {
-  const imgs = [...document.querySelectorAll('#rib-main-menu-v2 img.rib9-trophy')]
+  const imgs = [...document.querySelectorAll('#rib-main-menu-v2 .rib9-milestones img.rib9-goal-img')]
   for (const i of imgs) if (!i.complete) await new Promise(r => { i.onload = i.onerror = r })
   const srcs = [...document.querySelectorAll('#rib-main-menu-v2 img')].map(i => i.getAttribute('src') || '')
   const served = await Promise.all(['./public/rib-menu.js', './public/rib-menu-v89-runtime.js', './public/rib-menu-v89.css'].map(u => fetch(u, { cache: 'no-store' }).then(r => r.text()).catch(() => '')))
   const oldRe = /card_trophy(?!_uff)(\.webp|['"])/
-  return { n: imgs.length, uff: imgs.every(i => /card_trophy_uff\.webp/.test(i.getAttribute('src'))), loaded: imgs.every(i => i.naturalWidth > 0), nat: imgs.map(i => i.naturalWidth + 'x' + i.naturalHeight),
-    oldInDom: srcs.some(s => oldRe.test(s)), oldServed: served.some(t => oldRe.test(t)) || oldRe.test(idx), warmed: (window.__RIB_MENU_ASSETS || {}).loaded?.includes('card_trophy_uff') }
+  return { n: imgs.length, uff: imgs.every(i => /trophy_goal_(uff|interstellar)\.webp/.test(i.getAttribute('src'))), loaded: imgs.every(i => i.naturalWidth > 0), nat: imgs.map(i => i.naturalWidth + 'x' + i.naturalHeight),
+    oldInDom: srcs.some(s => oldRe.test(s)), oldServed: served.some(t => oldRe.test(t)) || oldRe.test(idx), warmed: (window.__RIB_MENU_ASSETS || {}).loaded?.includes('trophy_goal_uff') }
 }, idxSrc)
 ok(trophy.n >= 1 && trophy.uff && trophy.loaded, 'milestones trophy is not the loaded UFF trophy: ' + JSON.stringify(trophy))
 ok(!trophy.oldInDom && !trophy.oldServed, 'card_trophy.webp is still referenced')

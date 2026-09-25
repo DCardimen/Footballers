@@ -34,7 +34,8 @@ const menuArt = [
   'menu/hero_tunnel.webp',
   'menu/portrait_helmet.webp',
   'menu/card_continue.webp',
-  'menu/card_trophy_uff.webp',   // v147 B
+  'menu/trophy_goal_uff.webp',   // v153 D (v147 B shipped card_trophy_uff.webp)
+  'menu/trophy_goal_interstellar.webp',
 ]
 
 function requireFile(filePath) {

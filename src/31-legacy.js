@@ -481,6 +481,34 @@
     else if (slot) slot.innerHTML = medalHtml(R.medal, 22, { title: false });
   }
   function openProfile() { try { window.go && window.go("profile"); } catch (e) {} }
+  /* ===== v153 D YOUR MEDAL UNDER THE LOGO =====
+   * The main menu renders an empty `.rib9-medalbox-v153d` (public/rib-menu.js — the menu is baked and loads before
+   * this file) and this is the ONE place that fills it: the medal at 84px riding a slow hover with its tier's glow,
+   * the rank, the medal's name, the tier, a thin bar of the XP into the next rank. The box is the menu's tap target
+   * (`data-rib-action="view:profile"`). A rank that climbed while the box was on screen swaps the medal. Refilled
+   * only when the rank moves (`data-rank`), so the 1.5s watch costs nothing. The menu calls it on every render. */
+  function menuBox(el, R) {
+    if (!el) return;
+    if (!R) { var g = ledger(); if (!g) return; R = g.R; }
+    var shown = +el.dataset.rank || 0;
+    if (shown === R.rank && el.querySelector(".lgbox-medal")) return;
+    var pct = R.need > 0 ? Math.max(0, Math.min(100, (R.into / R.need) * 100)) : 100;
+    var rankTxt = R.rank > 500 ? "LV " + fmt(R.rank) : String(R.rank);
+    var swap = shown && shown < R.rank && clampRank(shown) !== R.medal && !reduced() && el.querySelector(".lgbox-medal");
+    el.dataset.rank = R.rank; el.dataset.medal = R.medal; el.dataset.tier = tierIndex(R.medal);
+    el.style.setProperty("--lgbox-glow", glow(R.medal));
+    el.classList.remove("is-empty");
+    el.setAttribute("aria-label", "Legacy Rank " + rankTxt + ", " + name(R.medal) + " — open your profile");
+    el.innerHTML =
+      '<span class="lgbox-stage"><i class="lgbox-halo" aria-hidden="true"></i><span class="lgbox-medal">' + medalHtml(swap ? clampRank(shown) : R.medal, 84, { title: false }) + "</span><i class=\"lgbox-shadow\" aria-hidden=\"true\"></i></span>" +
+      '<span class="lgbox-copy"><small>LEGACY RANK</small><b class="lgbox-rank">' + rankTxt + "</b>" +
+      '<span class="lgbox-name">' + esc(name(R.medal)) + "</span>" +
+      '<em class="lgbox-tier">' + esc(tierName(R.medal)) + "</em>" +
+      '<i class="lgbox-bar" aria-hidden="true"><i style="width:' + pct.toFixed(1) + '%"></i></i>' +
+      '<u class="lgbox-xp">' + fmt(R.into) + " / " + fmt(R.need) + " XP TO " + (R.rank >= 500 ? "LV " : "RANK ") + fmt(R.rank + 1) + "</u></span>" +
+      '<span class="lgbox-go" aria-hidden="true">PROFILE ›</span>';
+    if (swap) { var slot = el.querySelector(".lgbox-medal"); setTimeout(function () { try { swapMedal(slot, R.medal); } catch (e) {} }, 300); }
+  }
   function identity() {
     var g = ledger(); if (!g) return;
     var R = g.R;
@@ -491,13 +519,8 @@
       if (!c) { c = document.createElement("button"); c.type = "button"; c.className = "legacy-chip-v152 top"; c.title = "Your Legacy Rank — tap for the trophy case"; c.innerHTML = chipHtml(R); c.dataset.rank = R.rank; c.onclick = openProfile; pc.parentNode.insertBefore(c, pc); }
       else syncChip(c, R);
     }
-    // the main menu's header, beside the prestige button
-    var mp = document.querySelector(".rib9-prestige");
-    if (mp && mp.parentNode) {
-      var m = mp.parentNode.querySelector(".legacy-chip-v152.menu");
-      if (!m) { m = document.createElement("button"); m.type = "button"; m.className = "legacy-chip-v152 menu"; m.title = "Your Legacy Rank — tap for the trophy case"; m.innerHTML = chipHtml(R); m.dataset.rank = R.rank; m.onclick = function (e) { e.stopPropagation(); openProfile(); }; mp.parentNode.insertBefore(m, mp); }
-      else syncChip(m, R);
-    }
+    // the main menu: v153 D moved the rank from a header chip to the medal box under the logo (menuBox, above)
+    document.querySelectorAll(".rib9-medalbox-v153d").forEach(function (el) { menuBox(el, R); });
     // career setup: the rank the new player carries in
     var st = gstate();
     if (st && st.view === "choosePos") {
@@ -797,7 +820,6 @@
       ".legacy-chip-v152{display:inline-flex;align-items:center;gap:4px;flex:none;border:1.5px solid rgba(240,187,69,.55);border-radius:20px;padding:2px 9px 2px 3px;background:linear-gradient(180deg,rgba(240,187,69,.18),rgba(240,187,69,.04));color:#ffd76f;cursor:pointer;font:700 13px Oswald,sans-serif;line-height:1;white-space:nowrap}",
       ".legacy-chip-v152 small{font:600 8.5px Oswald,sans-serif;letter-spacing:1.4px;color:rgba(255,231,168,.7)}.legacy-chip-v152:active{transform:scale(.95)}.legacy-chip-v152 .lg-chip-slot{width:24px;height:24px}",
       ".legacy-chip-v152.top{margin-right:6px}html.shell-v146 .legacy-chip-v152.top{font-size:12px;padding:1px 7px 1px 2px}html.shell-v146 .legacy-chip-v152.top small{display:none}",
-      ".legacy-chip-v152.menu{margin-right:8px;align-self:center}",
       ".lg-setup-v152{display:flex;align-items:center;gap:9px;margin:6px 0 8px;padding:7px 10px;border-radius:11px;background:rgba(240,187,69,.08);border:1px solid rgba(240,187,69,.3);font:600 12px Oswald,sans-serif;letter-spacing:1px;color:var(--chalk,#e8eef6)}.lg-setup-v152 b{color:#ffd76f}.lg-setup-v152 small{display:block;font-weight:400;font-size:10.5px;letter-spacing:.6px;color:var(--chalk-dim,#9fb0c4)}",
       ".lb151-who .lg-lb{vertical-align:-5px;margin-right:2px}",
       /* the trophy case */
@@ -904,7 +926,7 @@
     medalHtml: medalHtml, name: name, tierName: tierName, family: family, glow: glow,
     cardHtml: cardHtml, swapMedal: swapMedal, pour: pour, awarded: awarded,
     milestone: function (m) { milestone(m, [m], A() ? A().bounty(m) : 0); }, rank500: function () { rank500(A() ? A().bounty(500) : 0); },
-    ledger: ledger, decorateProfile: decorateProfile, refresh: identity,
+    ledger: ledger, decorateProfile: decorateProfile, refresh: identity, menuBox: menuBox,
     _resetSeen: function () { try { localStorage.removeItem(SEEN_KEY); } catch (e) {} }
   };
   var queued = 0;

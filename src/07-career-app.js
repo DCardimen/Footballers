@@ -14366,6 +14366,35 @@
    * hands it everything the new menu draws: the player, the season so far, the
    * objectives with their live checks, the team's custom identity and colors, and
    * the legacy totals — from the state, in one call. Returns null with no state. */
+  /* ===== v153 D THE GOAL ON THE WALL (the feed) =====
+   * Which championship the account has won, for the main menu's goal trophy: the UFF until one is won, then the
+   * Interstellar League. Read from the lifetime record, never from `state.rings` alone (rings are SPENT on mastery):
+   * the champion rows of the season log (this career) and of every Hall box, the Hall rows' rings, the position
+   * mastery's ring flag, and a player already in the Interstellar League (it only calls UFF champions). */
+  function menuGoalV153D() {
+    let uff = 0,
+      isl = 0;
+    const count = rows =>
+      (rows || []).forEach(r => {
+        if (!r || !r.champion) return;
+        if ((r.level | 0) >= 8) isl++;
+        else if ((r.level | 0) === 7) uff++;
+      });
+    try {
+      const e = state && state.player;
+      count(e && e.seasonLogV77);
+      ((state && state.hof) || []).forEach(h => {
+        if (!h) return;
+        count(h.box && h.box.log);
+        if ((h.rings | 0) > 0) uff = Math.max(uff, 1);
+      });
+      if (e && ((e.nflRings | 0) > 0 || (e.level | 0) >= 8)) uff = Math.max(uff, 1);
+      if (state && state.rings > 0) uff = Math.max(uff, 1);
+      Object.values((state && state.posMastery) || {}).forEach(m => m && m.ring && (uff = Math.max(uff, 1)));
+      if (isl) uff = Math.max(uff, 1);
+    } catch (_) {}
+    return { uff, isl, stage: isl ? "done" : uff ? "isl" : "uff" };
+  }
   window.__RIB_MENU_DATA_V89 = function () {
     try {
       const e = state && state.player;
@@ -14385,6 +14414,7 @@
         bestLevel: state && LEVELS[state.bestLevel || 0] ? LEVELS[state.bestLevel || 0].name : "",
         titles: (state && state.titlesWon) || 0,
         rings: (state && state.rings) || 0,
+        goal: menuGoalV153D() /* v153 D: the trophy the milestones card holds up */,
         recordOvr: (state && state.recordOvr) || 0,
         highScore: (state && state.highScore) || 0,
         lineage: (function () {

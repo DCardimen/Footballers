@@ -10,7 +10,7 @@
 //   6. Rank 500: the blackout sequence, the Ultimate Legacy medal, the Legacy Level beyond it
 //   7. the profile: the trophy case (current medal, plaque, bar), the collection book (10 tiers, 50 per page, earned
 //      vs locked, a page turn, a medal's detail), the chip on the card — all inside 400x860
-//   8. the identity: the rank chip on the career top bar and on the main menu, the career setup line, a board row's medal
+//   8. the identity: the rank chip on the career top bar, the main menu's medal box (v153 D), the career setup line, a board row's medal
 //   9. an old save's Hall of Fame is credited once at boot (not Rank 1); the kill switch pays nothing
 //  10. nothing here spends Math.random(); no page errors
 //
@@ -200,8 +200,9 @@ await boot()
   ok(top && top.rank === 137 && top.vis, 'the career top bar carries the rank chip', top)
   await shot('8_hub')
   await E(() => window.go('menu')); await page.waitForTimeout(1500)
-  const menu = await E(() => { const c = document.querySelector('.legacy-chip-v152.menu'); return c && { rank: +c.dataset.rank, w: c.getBoundingClientRect().width } })
-  ok(menu && menu.rank === 137 && menu.w > 20, 'the main menu carries the rank chip', menu)
+  // v153 D: the menu's rank moved from a header chip to the medal box under the logo (.rib9-medalbox-v153d)
+  const menu = await E(() => { const c = document.querySelector('#rib-main-menu-v2 .rib9-medalbox-v153d'); return c && { rank: +c.dataset.rank, w: c.getBoundingClientRect().width } })
+  ok(menu && menu.rank === 137 && menu.w > 20, 'the main menu carries the rank (the medal box)', menu)
   await shot('8_menu')
   const f = await fits(); ok(f.docW <= W, 'the menu still fits 400 wide', f)
   await E(() => { const S = __GRIDIRON_AUDIT__.getState(); S.view = 'choosePos'; window.go('choosePos') }); await page.waitForTimeout(900)
