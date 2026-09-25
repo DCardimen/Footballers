@@ -76,7 +76,7 @@ async function menuWithCareer(opts = {}) {
       items: items.slice(0, items.length / 2), doubled: ul ? items.length : 0, ink, cvSize: cv ? [cv.width, cv.height] : null,
       pieces: pcs, arc, arc2, sparkDeg, wantDeg: want && want.headDeg, wantK: want && want.k, nameBg: ns && ns.backgroundColor, nameClip: ns && (ns.webkitBackgroundClip || ns.backgroundClip), nameColor: ns && ns.color,
       coachSwitchIn: !!(sr && cr && sr.left >= cr.left - 1 && sr.right <= cr.right + 1 && sr.width > 0), coachOverflow: coach && getComputedStyle(coach).overflow,
-      navFirstIn: !!(fr && nr && fr.left >= nr.left - 1), tiles: M.querySelectorAll('.rib9-tile').length, navLinks: M.querySelectorAll('.rib9-navlink').length, imgs: M.querySelectorAll('img').length,
+      navFirstIn: !!(fr && nr && fr.left >= nr.left - 1), tiles: [...M.querySelectorAll('.rib9-tile')].filter(t => !/rib9-tile-(season-v151|boards-v151|store-v150)/.test(t.className)).length, extraTiles: M.querySelectorAll('.rib9-tile-season-v151,.rib9-tile-boards-v151,.rib9-tile-store-v150').length, navLinks: M.querySelectorAll('.rib9-navlink').length, imgs: M.querySelectorAll('img').length,
       broken: [...M.querySelectorAll('img')].filter(i => !i.complete || i.naturalWidth === 0).length }
   })
   console.log('v132:', JSON.stringify({ fx: r.fx, ink: r.ink, cv: r.cvSize, items: r.items }))
@@ -96,9 +96,10 @@ async function menuWithCareer(opts = {}) {
   ok(/text/.test(r.nameClip || '') && r.nameBg && !/rgba\(0, 0, 0, 0\)/.test(r.nameBg), 'the name is clipped to its metal with the flat chalk under the band (never transparent letters)', `${r.nameClip} on ${r.nameBg}`)
   ok(r.coachSwitchIn && r.coachOverflow === 'visible', 'the coach tile keeps its switch on screen', `switch in tile=${r.coachSwitchIn} overflow=${r.coachOverflow}`)
   ok(r.navFirstIn, 'the nav\'s first link (HOME) is not clipped at a tablet width', String(r.navFirstIn))
-  // v150 B: nine tiles — v89's eight (CAREER, TRAINING, GOALS, HALL, LOCKER, SETTINGS, HOW TO PLAY, COACH'S TOUR since v119)
-  // plus v139's PRESTIGE door beside the coach (rib-menu.js `tilesNav`)
-  ok(r.tiles === 9 && r.navLinks === 7 && r.broken === 0, 'v89\'s contract holds — nine tiles (v139 PRESTIGE), seven links, every picture rendered', `${r.tiles} tiles ${r.navLinks} links ${r.imgs} imgs`)
+  // v150 B: nine core tiles — v89's eight (CAREER, TRAINING, GOALS, HALL, LOCKER, SETTINGS, HOW TO PLAY, COACH'S TOUR since v119)
+  // plus v139's PRESTIGE door beside the coach (rib-menu.js `tilesNav`). The feature tiles that come and go with their switch
+  // (v151 C's SEASON PASS / LEADERBOARDS, v150 C's STORE) are counted apart and not held to a number.
+  ok(r.tiles === 9 && r.navLinks === 7 && r.broken === 0, 'v89\'s contract holds — nine tiles (v139 PRESTIGE), seven links, every picture rendered', `${r.tiles} core tiles (+${r.extraTiles} feature) ${r.navLinks} links ${r.imgs} imgs`)
   // parallax: cross the hero with the pointer
   const hero = await page.locator('#rib-main-menu-v2 .rib9-hero').boundingBox()
   await page.mouse.move(hero.x + hero.width * 0.1, hero.y + hero.height * 0.2); await page.waitForTimeout(80)
