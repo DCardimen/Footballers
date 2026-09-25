@@ -1388,6 +1388,29 @@
     "layoutcheck",
     "walk"
    ]
+  },
+  "cosmetics": {
+   "desc": "v151 B — cosmetics and the profile: RIB_COSMETICS, the kit / helmet / celebration / stadium / vault hooks, the Locker's STYLE tab, the PROFILE view, the Team Creator's gated crests and colours (src/28-cosmetics.js)",
+   "anchors": [
+    "v151 B",
+    "RIB_COSMETICS"
+   ],
+   "files": [
+    "src/28-cosmetics.js",
+    "docs/COSMETICS.md"
+   ],
+   "checks": [
+    "v151Bcheck",
+    "v151Ccheck",
+    "kitsidecheck",
+    "emblemcheck",
+    "vaultcheck",
+    "bootviewcheck",
+    "menu-integration-check",
+    "v146Echeck",
+    "layoutcheck",
+    "walk"
+   ]
   }
  },
  "checks": {
@@ -3397,6 +3420,18 @@
    ],
    "runtimeSec": 90,
    "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v151Bcheck": {
+   "file": "scripts/v151Bcheck.mjs",
+   "desc": "v151 B — cosmetics: catalogue (>=6 per category, previews, packs, OFF = no shop), grant/equip/persist across reload, a new career and a wiped save, earned unlocks, the Career Pass rewards, the Team Creator gate (5 free picks then 10 PP doubling), the you-player's kit/helmet on the live field (not the opponent's), a forced TD celebration, a home stadium theme, the vault theme, the STYLE tab and the profile card at 400x860, XSS, seeded games identical.",
+   "areas": [
+    "cosmetics"
+   ],
+   "runtimeSec": 480,
+   "slow": true,
    "needsServer": true,
    "pureNode": false,
    "flaky": []

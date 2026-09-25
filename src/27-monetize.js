@@ -313,6 +313,7 @@
   function COS() { var c = window.RIB_COSMETICS; return c && typeof c.catalog === "function" && typeof c.packs === "function" ? c : null }
   function SEA() { var s = window.RIB_SEASONS; return s && typeof s.current === "function" ? s : null }
   function sid(x) { return String(x || "").toLowerCase().replace(/[^a-z0-9_.]/g, "_") }
+  function ik(id) { return keyAllowed("cos:" + id) ? String(id) : sid(id) }   // an item's key as RIB_COSMETICS spells it
   function passProducts() {
     var S = SEA(); if (!CFG.features.pass || !S) return [];
     var c = null; try { c = S.current() } catch (e) {}
@@ -321,11 +322,13 @@
   }
   function packProducts() {
     var C = COS(); if (!CFG.features.cosmetics || !C) return [];
-    var packs = []; try { packs = C.packs() || [] } catch (e) {}
-    return packs.map(function (pk) {
-      var g = {}; g["pack:" + sid(pk.id)] = {};
-      (pk.items || []).forEach(function (it) { g["cos:" + sid(it)] = {} });
-      return { id: CFG.packPrefix + sid(pk.id), kind: "nonconsumable", title: pk.name || pk.id, price: pk.price || CFG.packPrices[pk.cat] || "$1.99", pack: pk.id, cat: pk.cat || "", items: (pk.items || []).slice(), cosmetic: true, grants: g };
+    var packs = [], cat = {}; try { packs = C.packs() || []; (C.catalog() || []).forEach(function (i) { cat[i.id] = i }) } catch (e) {}
+    var ck = function (id) { return keyAllowed("cos:" + id) ? "cos:" + id : "cos:" + sid(id) };   // the cosmetics worker reads cos:<its own id>
+    return packs.filter(function (pk) { return pk && pk.id && !pk.founder && pk.id !== "founder" && pk.price !== null }).map(function (pk) {   // the Founder bundle is never sold alone
+      var g = {}; g["pack:" + sid(pk.id)] = {}; g[ck(pk.id)] = {};
+      (pk.items || []).forEach(function (it) { g[ck(it)] = {} });
+      var c = pk.cat || ((cat[(pk.items || [])[0]] || {}).cat) || "";
+      return { id: pk.productId && /^[a-z][a-z0-9_.]{2,99}$/.test(pk.productId) ? pk.productId : CFG.packPrefix + sid(pk.id), kind: "nonconsumable", title: pk.name || pk.id, price: pk.price || CFG.packPrices[c] || "$1.99", pack: pk.id, cat: c, items: (pk.items || []).slice(), cosmetic: true, grants: g };
     }).filter(function (p) { return validateProduct(p).ok });
   }
   function allProducts() { return CFG.products.concat(passProducts(), packProducts()) }
@@ -345,7 +348,7 @@
     Object.keys(p.grants || {}).forEach(function (k) { var g = p.grants[k]; grant(k, { value: g.value, periodDays: g.periodDays, source: source + ":" + p.id }) });
     (p.items || []).forEach(function (it) { cosGrant(it, "shop") });
     if (p.season) { var S = SEA(); if (S && typeof S.grantPremium === "function") try { S.grantPremium(p.season) } catch (e) { console.warn("[RIB_MONETIZE] RIB_SEASONS.grantPremium", e) } }
-    if (p.tier === "founder") founderItems().forEach(function (it) { grant("cos:" + sid(it), { source: source + ":" + p.id }); cosGrant(it, "founder") });
+    if (p.tier === "founder") founderItems().forEach(function (it) { grant("cos:" + ik(it), { source: source + ":" + p.id }); cosGrant(it, "founder") });
   }
   // restore() may name a product this device cannot see right now (last season's pass, a pack no longer listed)
   function grantOwnedId(id, source) {
@@ -361,7 +364,7 @@
   }
   function cosmeticAccess(id) {
     if (!ON) return "off";
-    var k = sid(id);
+    var k = ik(id);
     if (has("cos:" + k)) return "owned";
     var t = until("try:" + k); return t ? "trial" : null;
   }
@@ -506,7 +509,7 @@
     if (!pl) return Promise.resolve({ rewarded: false, reason: "unknown-placement" });
     if (!placementOn(pl)) return Promise.resolve({ rewarded: false, reason: "feature-off" });
     opts = opts || {};
-    var rw = pl.reward, key = rw.key === "try:*" ? (opts.item ? "try:" + sid(opts.item) : "") : rw.key;
+    var rw = pl.reward, key = rw.key === "try:*" ? (opts.item ? "try:" + ik(opts.item) : "") : rw.key;
     if (!key) return Promise.resolve({ rewarded: false, reason: "no-item" });
     if (!keyAllowed(key)) return Promise.resolve({ rewarded: false, reason: "not-allowed" });
     if (until(key) === Infinity || (key.indexOf("try:") === 0 && has("cos:" + key.slice(4)))) return Promise.resolve({ rewarded: false, reason: "already-held" });
@@ -676,7 +679,7 @@
   // v151 A: a cosmetic tried for 24h (the cosmetics worker reads RIB_MONETIZE.cosmeticAccess(id) === "trial")
   function rewardTrial(id) {
     return showRewarded("cosTrial", { item: id }).then(function (r) {
-      if (r.rewarded) { toast("YOURS TO TRY FOR " + trialHours() + "H"); var C = COS(); if (C && typeof C.onTrial === "function") try { C.onTrial(id, until("try:" + sid(id))) } catch (e) {} }
+      if (r.rewarded) { toast("YOURS TO TRY FOR " + trialHours() + "H"); var C = COS(); if (C && typeof C.onTrial === "function") try { C.onTrial(id, until("try:" + ik(id))) } catch (e) {} }
       else if (r.reason === "daily-cap") toast("That's today's rewards — back tomorrow");
       ui.tick(); return r;
     });

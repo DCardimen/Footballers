@@ -553,6 +553,17 @@
     side.addColorStop(0.72, 'rgba(2,5,9,0)');
     side.addColorStop(1, 'rgba(2,5,9,.55)');
     x.fillStyle = side; x.fillRect(0, 0, w, h);
+    /* ===== v151 B THE VAULT WEARS A THEME =====
+     * An equipped vault theme (src/28-cosmetics.js) grades the room toward its colour, tints the coins
+     * (`Sprites.get` below hands out tinted copies, cached per theme) and hangs its motes over the stage
+     * (`vaultDress` on open). The classic hoard returns null and the room is exactly as it was. Looks only:
+     * nothing here touches a balance, a reservation or a purchase. */
+    var thV151B = null; try { thV151B = window.RIB_COSMETICS && window.RIB_COSMETICS.vaultTheme ? window.RIB_COSMETICS.vaultTheme() : null; } catch (e) {}
+    this._themeV151B = thV151B ? thV151B.id : '';
+    if (thV151B && thV151B.room) {
+      x.save(); x.globalCompositeOperation = 'color'; x.globalAlpha = Math.max(0, Math.min(1, thV151B.roomMix || 0.5));
+      x.fillStyle = thV151B.room; x.fillRect(0, 0, w, h); x.restore();
+    }
     /* v137 F: THE DOOR ON THE RIGHT IS GONE. A second leaf was parked half off the right
      * edge as set dressing, and it read as a mistake rather than as a door: cropped by the
      * frame, at a scale that fought the room's own perspective, and close enough to the
@@ -689,6 +700,13 @@
 
   Scene.prototype.coinImg = function (den, kind, shadeIx) {
     var n = 'coin_' + den + '_' + kind;
+    // v151 B: a vault theme's coins are the tinted sprite, shaded the same four ways (baked once per theme)
+    var T = this._tV151B;
+    if (T && this.sp.img && window.RIB_COSMETICS && window.RIB_COSMETICS.vaultTint) {
+      var cc = this._shadeV151B || (this._shadeV151B = {}), ck = T.id + ':' + n;
+      if (cc[ck] === undefined) { var raw = this.sp.img[n], tt = raw ? window.RIB_COSMETICS.vaultTint(raw, n) : null; cc[ck] = tt ? shadeBake(tt) : null; }
+      if (cc[ck]) return cc[ck][shadeIx];
+    }
     var v = this.shade[n];
     return v ? v[shadeIx] : this.sp.get(n);
   };
@@ -1273,6 +1291,10 @@
   /* ---------- the frame ---------- */
   Scene.prototype.frame = function (now, dt) {
     this.resize();
+    // v151 B: a theme equipped (or taken off) since the room was baked re-bakes the room and the deep layer once
+    try { var tV = window.RIB_COSMETICS && window.RIB_COSMETICS.vaultTheme ? window.RIB_COSMETICS.vaultTheme() : null;
+      this._tV151B = tV;
+      if ((tV ? tV.id : '') !== (this._themeV151B || '')) { this.bakeRoom(); this.deepKey = ''; } } catch (e) {}
     var x = this.ctx;
     x.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     if (this.room) {
@@ -1751,7 +1773,12 @@
       });
     })).then(function () { return self; });
   };
-  Sprites.prototype.get = function (n) { return this.img[n] || null; };
+  Sprites.prototype.get = function (n) {
+    var im = this.img[n] || null;
+    // v151 B: a vault theme's coins — a tinted copy, cached per theme; the classic hoard gets the sprite itself
+    if (im && n.indexOf('coin_') === 0 && window.RIB_COSMETICS && window.RIB_COSMETICS.vaultTint) { try { var t = window.RIB_COSMETICS.vaultTint(im, n); if (t) return t; } catch (e) {} }
+    return im;
+  };
 
   Vault.prototype.haptic = function (p) {
     try { if (navigator.vibrate && this.hapticOn !== false) navigator.vibrate(p); } catch (e) {}
@@ -1919,6 +1946,7 @@
     this.open_ = true;
     this.root.classList.add('up');
     document.documentElement.style.overflow = 'hidden';
+    try { if (window.RIB_COSMETICS && window.RIB_COSMETICS.vaultDress) window.RIB_COSMETICS.vaultDress(this.root); } catch (e) {}   // v151 B: the theme's motes
 
     var boot = this.sprites ? Promise.resolve(this.sprites)
       : new Sprites().load(M.SPRITE_NAMES).then(function (s) { self.sprites = s; return s; });
