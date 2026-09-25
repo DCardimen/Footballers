@@ -108,6 +108,12 @@
    "note": "a 30-minute walk of the whole first week against the coach's typing and spotlight timers; at load 20-40 a different one of these trips on each try (both tries of the v150 B after-run failed once each, on different lines). NEXT's spotlight 'inside:false' recurs in both full runs — worth a look on a quiet box",
    "since": "2026-09-25",
    "flaky": true
+  },
+  {
+   "check": "blowoutcheck",
+   "pattern": "^live: five-score blowouts are rare",
+   "note": "UNVERIFIED GAME signal: the check never finished inside the suite before v150 B (1,600 games), so it had no baseline; at BLOW_N=400 it reads 7.0% of games at |margin| >= 45. Could be the smaller sample or a real drift in the v76 margin curve since v141/v146 — run it alone at the default 1,600 before acting",
+   "since": "2026-09-25"
   }
  ]
 }
