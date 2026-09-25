@@ -1388,7 +1388,29 @@
     "walk"
    ]
   },
-<<<<<<< HEAD
+  "cosmetics": {
+   "desc": "v151 B — cosmetics and the profile: RIB_COSMETICS, the kit / helmet / celebration / stadium / vault hooks, the Locker's STYLE tab, the PROFILE view, the Team Creator's gated crests and colours (src/28-cosmetics.js)",
+   "anchors": [
+    "v151 B",
+    "RIB_COSMETICS"
+   ],
+   "files": [
+    "src/28-cosmetics.js",
+    "docs/COSMETICS.md"
+   ],
+   "checks": [
+    "v151Bcheck",
+    "v151Ccheck",
+    "kitsidecheck",
+    "emblemcheck",
+    "vaultcheck",
+    "bootviewcheck",
+    "menu-integration-check",
+    "v146Echeck",
+    "layoutcheck",
+    "walk"
+   ]
+  },
   "audio": {
    "desc": "v151 E — the music and every sound level: the anthem loop, the effects bus, the duck, the Settings › SOUND tab, the quick mute (src/30-music.js, soundCardV151E in 07)",
    "anchors": [
@@ -1410,27 +1432,6 @@
     "menu-integration-check",
     "coachcheck",
     "vaultcheck",
-=======
-  "cosmetics": {
-   "desc": "v151 B — cosmetics and the profile: RIB_COSMETICS, the kit / helmet / celebration / stadium / vault hooks, the Locker's STYLE tab, the PROFILE view, the Team Creator's gated crests and colours (src/28-cosmetics.js)",
-   "anchors": [
-    "v151 B",
-    "RIB_COSMETICS"
-   ],
-   "files": [
-    "src/28-cosmetics.js",
-    "docs/COSMETICS.md"
-   ],
-   "checks": [
-    "v151Bcheck",
-    "v151Ccheck",
-    "kitsidecheck",
-    "emblemcheck",
-    "vaultcheck",
-    "bootviewcheck",
-    "menu-integration-check",
-    "v146Echeck",
->>>>>>> claude/camera-follow-player-90d8o0
     "layoutcheck",
     "walk"
    ]
@@ -3435,10 +3436,21 @@
    "pureNode": false,
    "flaky": []
   },
-<<<<<<< HEAD
+  "v151Bcheck": {
+   "file": "scripts/v151Bcheck.mjs",
+   "desc": "v151 B — cosmetics: catalogue (>=6 per category, previews, packs, OFF = no shop), grant/equip/persist across reload, a new career and a wiped save, earned unlocks, the Career Pass rewards, the Team Creator gate (5 free picks then 10 PP doubling), the you-player's kit/helmet on the live field (not the opponent's), a forced TD celebration, a home stadium theme, the vault theme, the STYLE tab and the profile card at 400x860, XSS, seeded games identical.",
+   "areas": [
+    "cosmetics"
+   ],
+   "runtimeSec": 480,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
   "v151Echeck": {
    "file": "scripts/v151Echeck.mjs",
-   "desc": "v151 E — the music: the anthem is served and streamed (two crossfading decks, nothing decoded), the swap fires at the loop point with no hole on the music bus, nothing plays before a gesture, Settings › SOUND fits 400x860 and its switches/sliders act at once and persist, MUTE ALL (top bar + menu) silences music, effects and the coach, another sound ducks it, the coach opts into the effects bus, a hidden tab pauses and resumes, one instance across view changes.",
+   "desc": "v151 E — the music: the anthem is served and streamed (two crossfading decks, nothing decoded), the crossfade lands at the loop point with no hole on the music bus, nothing plays before a gesture, Settings › SOUND fits 400x860 and its switches/sliders act at once and persist, MUTE ALL (top bar + menu) silences music, effects and the coach, another sound ducks it, the coach opts into the effects bus, a hidden tab pauses and resumes, one instance across view changes.",
    "areas": [
     "v151e",
     "audio",
@@ -3448,16 +3460,6 @@
    ],
    "runtimeSec": 60,
    "slow": false,
-=======
-  "v151Bcheck": {
-   "file": "scripts/v151Bcheck.mjs",
-   "desc": "v151 B — cosmetics: catalogue (>=6 per category, previews, packs, OFF = no shop), grant/equip/persist across reload, a new career and a wiped save, earned unlocks, the Career Pass rewards, the Team Creator gate (5 free picks then 10 PP doubling), the you-player's kit/helmet on the live field (not the opponent's), a forced TD celebration, a home stadium theme, the vault theme, the STYLE tab and the profile card at 400x860, XSS, seeded games identical.",
-   "areas": [
-    "cosmetics"
-   ],
-   "runtimeSec": 480,
-   "slow": true,
->>>>>>> claude/camera-follow-player-90d8o0
    "needsServer": true,
    "pureNode": false,
    "flaky": []
