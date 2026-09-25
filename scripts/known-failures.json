@@ -2,18 +2,6 @@
  "about": "Assertions that fail on this branch for a reason that is NOT the change you are testing. run-checks.mjs marks a failure KNOWN when EVERY failing item of that check matches one of these patterns (a regex tested against the failing line's text); anything else is NEW. `flaky: true` = it fails on some runs only (a timing budget on a loaded box) — accepted when it fails, never reported FIXED? when it passes. v150 B took the 2026-09-24 baseline (46 entries, main at ca9db0a) down to these: every other entry was a stale or under-sampled CHECK and was fixed in the check (docs/CHECKS.md, 'The baseline'), and the v110 credit fall-through was closed in the engine. What is left is the GAME being wrong in a place this pass did not own (the declare screens — another worker's; the vault; the renderer's jersey numbers) or an assertion that is a wall-clock frame rate by nature. Delete an entry when you fix it; see docs/CHECKS.md.",
  "failures": [
   {
-   "check": "declarecheck",
-   "pattern": "^the season-result declare card states the one-shot stakes",
-   "note": "GAME (AUDIT §2.1): the only on-screen 'One shot' is inside a hidden report-card tab (.hubv75-sec display:none) and the result dock carries no stakes line — fixed by the v150 A worker with the declare warning",
-   "since": "2026-09-24"
-  },
-  {
-   "check": "declarecheck",
-   "pattern": "^the epitaph fits inside v75's scroll budget on a phone",
-   "note": "GAME (AUDIT §2.6): 2.15 screens — declineResult has no v75 sectioner config since v146 E made #screen the one panel; the v150 A worker owns the career-end tabs",
-   "since": "2026-09-24"
-  },
-  {
    "check": "vaultcheck",
    "pattern": "^(the vault holds a usable frame rate under a 16x pour|and then it goes to sleep, so a settled hoard costs nothing|RESTOCK puts the shed coins back in their columns)",
    "note": "a frames-per-second floor and a settle timer measured in wall time on a CPU-contended headless box; one run each in the baseline",

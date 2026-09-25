@@ -22,6 +22,19 @@ page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
 const dialogs = []
 page.on('dialog', d => { dialogs.push(d.message()); d.accept() })
+// v150 A: the game's confirms are the in-app ribDialog (#ribDlgV149) now, not window.confirm — log each one's
+// text and press its confirm button, the way a player would
+await page.addInitScript(() => {
+  window.__dlgLogV150 = []
+  setInterval(() => {
+    const d = document.getElementById('ribDlgV149')
+    if (!d || d.__seenV150) return
+    d.__seenV150 = 1
+    window.__dlgLogV150.push((d.querySelector('.msg-v149') || d).textContent || '')
+    setTimeout(() => { const b = d.querySelector('button.danger-v149, button.primary-v149') || d.querySelector('button'); if (b) b.click() }, 40)
+  }, 50)
+})
+const ribDlgs = async () => { const a = await page.evaluate(() => { const x = window.__dlgLogV150 || []; window.__dlgLogV150 = []; return x }); dialogs.push(...a); return dialogs }
 await page.addInitScript(() => { setInterval(() => { try { if (window.S) window.S.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
 await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1500)
 await page.waitForFunction(() => !!window.__V112_C, null, { timeout: 60000 })
@@ -154,7 +167,7 @@ ok((await page.evaluate(() => window.__V112_C.eff().mult)) === (await page.evalu
 /* ---------- 5. abandon and reroll: warn, then charge ---------- */
 const before = await page.evaluate(() => ({ mult: window.__condMultV54(window.S.player), careers: window.S.careers }))
 dialogs.length = 0
-await page.evaluate(() => window.confirmNew()); await page.waitForTimeout(800)
+await page.evaluate(() => window.confirmNew()); await page.waitForTimeout(800); await ribDlgs()
 ok(dialogs.length === 1 && /REROLL PENALTY/.test(dialogs[0]) && /5%/.test(dialogs[0]),
   'abandoning an unfinished career warns, by name, before the new one exists', (dialogs[0] || '').slice(0, 60))
 const after = await page.evaluate(() => {
@@ -201,7 +214,7 @@ ok((await page.evaluate(() => window.__V112_C.mul())) === 0.95, 'the penalty sur
 
 /* ---------- 7. rerolling again cannot erase it ---------- */
 dialogs.length = 0
-await page.evaluate(() => { window.S.view = 'hub'; window.confirmNew() }); await page.waitForTimeout(800)
+await page.evaluate(() => { window.S.view = 'hub'; window.confirmNew() }); await page.waitForTimeout(800); await ribDlgs()
 const again = await page.evaluate(() => ({ mul: window.__V112_C.mul(), ledger: window.__V112_C.ledger() }))
 ok(again.mul === 0.95 && again.ledger.count === 2, 'a second reroll re-arms the same −5% (it does not stack, and it does not clear)', again.ledger)
 
@@ -234,8 +247,9 @@ ok(ended.settled === true, 'ending a career settles it (the screen sets _settled
 ok(ended.abandoned === false, 'a settled (finished) career is NOT an abandonment')
 const afterReset = await page.evaluate(() => { window.prestigeReset(); return { player: window.S.player, abandoned: window.__V112_C.abandoned() } })
 ok(afterReset.player === null && afterReset.abandoned === false, 'and neither is the empty slot prestigeReset leaves behind')
-dialogs.length = 0
+dialogs.length = 0; await ribDlgs(); dialogs.length = 0
 const fresh = await page.evaluate(() => { window.startCareer(); const p = window.S.player; return { ledger: window.__V112_C.ledger(), mul: window.__V112_C.mul(), traits: p.traits.length, offer: (p.traitOfferV112 || []).length } })
+await page.waitForTimeout(300); await ribDlgs()
 ok(dialogs.length === 0, 'starting the next career after a natural ending asks for nothing', dialogs)
 ok(fresh.mul === 1 && !fresh.ledger, 'and it carries no penalty', fresh)
 ok(fresh.traits === 1 && fresh.offer === 2, 'and it is still one guaranteed trait plus two cards', fresh)

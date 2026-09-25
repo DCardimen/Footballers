@@ -263,6 +263,9 @@
       obj = JSON.parse(decodeURIComponent(escape(atob(text.replace(/\s+/g, '')))));   // the in-game backup code (exportSave)
     }
     if (!obj || typeof obj !== 'object' || !('prestige' in obj)) throw new Error('not a Running It Back save');
+    // v150 A: the career app's own shape check (a real prestige number, the right containers, no markup inside)
+    var V = window.__V150A, why = V && V.checkSave ? V.checkSave(obj) : '';
+    if (why) { var err = new Error(why); err.v150 = true; throw err; }
     return obj;
   }
   function fileName() { var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; }; return 'running-it-back-save-' + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes()) + '.json'; }
@@ -311,7 +314,7 @@
   }
   function importText(text, o) {
     o = o || {};
-    var obj; try { obj = parseSave(text); } catch (e) { toast('That is not a Running It Back save'); return Promise.resolve(false); }
+    var obj; try { obj = parseSave(text); } catch (e) { toast(e && e.v150 ? 'That save can\'t be imported: ' + e.message : 'That is not a Running It Back save'); return Promise.resolve(false); }
     var d = describe(obj);
     var go = o.confirm === false ? Promise.resolve(true) : ribDialog.confirm(
       'Replace the save on this device with ' + (d.name ? d.name + (d.pos ? ' (' + d.pos + ')' : '') : 'this save') + ' — ' + d.careers + ' careers, ' + (d.prestige || 0) + ' PP?\n\nYour current save is kept in the backups.',
@@ -456,6 +459,9 @@
   }
   function back() {
     var r = (function () {
+      // v150 C H11: the store's sheets (an ad, a checkout, an offer, the store itself) sit over everything — they go first.
+      // RIB_MONETIZE.back() is false (and touches nothing) while monetization is off.
+      try { var mz = window.RIB_MONETIZE; if (mz && mz.enabled && mz.back && mz.back()) return 'monetize'; } catch (e) {}
       if (ribDialog.isOpen) { ribDialog.close(); return 'dialog'; }
       try { if (window.__RIB_VAULT && window.__RIB_VAULT.isOpen()) { window.__RIB_VAULT.close('back'); return 'vault'; } } catch (e) {}
       try { if (window.__RIB_HOWTO && window.__RIB_HOWTO.isOpen) { window.__RIB_HOWTO.close(); return 'howto'; } } catch (e) {}

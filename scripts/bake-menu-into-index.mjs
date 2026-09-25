@@ -67,7 +67,10 @@ const bodyBlock = [
 ].join('')
 
 html = `${html.slice(0, headClose)}${headBlock}${html.slice(headClose)}`
-const updatedBodyClose = html.lastIndexOf('</body>')
+// v150 A: the platform layer (src/26-platform.js) is documented to load LAST — the menu block goes in front of it,
+// not after it (it used to land just before </body>, i.e. after the platform tag, on every bake)
+const platformTag = html.search(/<script\b[^>]*src="\.\/src\/26-platform\.js"[^>]*><\/script>\s*<\/body>/)
+const updatedBodyClose = platformTag >= 0 ? platformTag : html.lastIndexOf('</body>')
 html = `${html.slice(0, updatedBodyClose)}${bodyBlock}${html.slice(updatedBodyClose)}`
 
 for (const file of cssFiles) {

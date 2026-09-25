@@ -556,3 +556,5 @@ body.rib-howto-open{overflow:hidden!important}
 
 /* v136 D: the generation on the continue card */
 .rib9-meta .rib9-gen{color:#c9b8ff;font-weight:700}
+/* v151 B: the PROFILE door on the legacy card */
+.rib9-legacy .rib9-kicker{display:flex;align-items:center;justify-content:space-between;gap:8px}.rib9-prof-v151b{border:1px solid rgba(240,187,69,.45);background:rgba(240,187,69,.1);color:#ffd76f;font:700 9px Oswald,sans-serif;letter-spacing:1.6px;padding:3px 8px;border-radius:7px;cursor:pointer}.rib9-prof-v151b:hover{background:rgba(240,187,69,.2)}

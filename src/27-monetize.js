@@ -17,6 +17,12 @@
  *   - What is NEVER sold: gear or gear rolls, wheel spins, re-rolls, Prestige Points, prestige-tree power, or
  *     any setting that is free today (My plays only, skip opponent drives, fast sim). See the doc.
  *
+ * v150 C THE HOOKS ARE IN, THE SWITCH IS STILL OFF: the game now calls INTO this module at the places the doc's §8
+ * listed (H1–H11 — src/07-career-app.js `v150 C` banner, public/rib-menu.js, src/26-platform.js). Each of those
+ * hooks asks `RIB_MONETIZE.enabled` first, so OFF they are the identity. With the hooks in, this file no longer
+ * wraps window.setSpeed (H1/H3 are in the game) and no longer pays the career double itself (H4/H5 pay it through
+ * window.__V150C.payout); the only wrapper left is window.buy (analytics, no hook exists — see the doc).
+ *
  * Turning it on: set MONETIZE_ENABLED below (or `window.RIB_MONETIZE_CONFIG = {enabled:true, …}` in a script
  * that runs before this one — a store build can inject it). On a DEV host only (localhost / 127.0.0.1 / file:)
  * `?monetize=1` or localStorage `rib.monetize.dev.v149 = "1"` turns it on for testing; `?monetize=0` forces off.
@@ -37,6 +43,8 @@
       rewardedPP: true,                  // "▶ Watch an ad: double this payout" on the two career-end screens
       pro: true,                         // the one-time Pro unlock
       gateSpeed4: true,                  // 4× needs speed4 (ad, Pro or grandfathered). OWNER DECISION — 4× is free today
+      speed3: false,                     // v150 C H2: a 3× button on the live speed row. OFF: the row is exactly ½× / 1× / 2× / 4×
+      gateSpeed3: false,                 // v150 C: 3× needs speed3 (the "earned by playing" rung — no earn rule is built yet) or speed4
       grandfatherSpeed4: true,           // a device that already had a save when monetization first came on keeps 4× free
       proKeepsPPAd: false,               // Pro = no ads at all, so the optional PP-double ad is hidden too. OWNER DECISION
       cosmetics: false,                  // cosmetic packs are listed "coming soon" until content exists
@@ -164,7 +172,14 @@
   }
   function adsAllowed() { return ON && !has("noAds") }
   // the one question the speed row asks. Always true while OFF (every speed is free today).
-  function speedAllowed(s) { if (!ON || !CFG.features.gateSpeed4) return true; return !(+s >= 4) || has("speed4") }
+  function speedAllowed(s) {
+    if (!ON) return true; s = +s;
+    if (s >= 4) return !CFG.features.gateSpeed4 || has("speed4");
+    if (s >= 3) return !CFG.features.gateSpeed3 || has("speed3") || has("speed4");
+    return true;
+  }
+  // v150 C H3: a speed carried over from an earlier game (or a boost that ran out) steps down to the fastest one allowed
+  function clampSpeed(s) { if (!ON || speedAllowed(s)) return s; return [3, 2, 1].filter(function (x) { return x < +s && speedAllowed(x) && (x !== 3 || CFG.features.speed3) })[0] || 1 }
   // the in-game payout hook (docs/MONETIZATION.md: one line in ms()/no()). Returns the EXTRA PP to add, and spends
   // the ppDouble it pays with. 0 while OFF, 0 without a ppDouble. Capped (rewarded.ppDoubleMax).
   function claimPayoutBoost(amount, context) {
@@ -348,11 +363,15 @@
   // THE API. Everything above is reachable through it; nothing else is global.
   // =====================================================================================================
   var API = {
-    version: "v149E",
+    version: "v150C",
     get enabled() { return ON },
     config: CFG,
     has: has, until: until, value: value, grant: grant, revoke: revoke, consume: consume, list: list, onChange: onChange,
-    speedAllowed: speedAllowed, adsAllowed: adsAllowed, adsLeft: function () { return ON ? adsLeft() : 0 },
+    speedAllowed: speedAllowed, clampSpeed: clampSpeed, adsAllowed: adsAllowed, adsLeft: function () { return ON ? adsLeft() : 0 },
+    // v150 C: what the game's hooks call. Each one is inert while OFF (the game never calls them then anyway).
+    speedLocked: function (s) { if (ON) ui.locked(s); return false },          // H1: a tap on a speed this device may not use
+    back: function () { return ON ? ui.back() : false },                     // H11: Android back — close the top store / ad sheet
+    restoreUI: function () { if (ON) ui.restoreUI() },                         // H10: Settings › RESTORE PURCHASES
     claimPayoutBoost: claimPayoutBoost,
     showRewarded: showRewarded, purchase: purchase, restore: restore, owns: function (id) { return ON && owns(id) },
     track: track, addAnalyticsSink: addSink,
@@ -376,7 +395,7 @@
   // ON: the hooks (wrappers over window.* functions that exist — nothing inside the career block is touched)
   // and the UI. docs/MONETIZATION.md lists the hooks that CANNOT be reached from here, with the one line each.
   // =====================================================================================================
-  var ui = { tick: function () {}, store: function () {} };
+  var ui = { tick: function () {}, store: function () {}, locked: function () {}, back: function () { return false }, restoreUI: function () {} };
   API.ui = ui;
   try { provider().init && provider().init(API) } catch (e) { console.warn("[RIB_MONETIZE] provider init", e) }
 
@@ -397,17 +416,15 @@
   function fmtLeft(ms) { if (ms === Infinity) return "∞"; var s = Math.max(0, Math.ceil(ms / 1000)), m = Math.floor(s / 60); return m + ":" + ("0" + (s % 60)).slice(-2) }
   function toast(msg) { var t = document.createElement("div"); t.className = "mz149-toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(function () { t.remove() }, 2600) }
 
-  // ---- hook 1: the speed setter (window.setSpeed = ml; the buttons call setSpeed(r) by global name at click time)
-  var origSpeed = window.setSpeed;
-  if (typeof origSpeed === "function") {
-    window.setSpeed = function (s) {
-      if (!speedAllowed(s)) { track("speed_locked_tap", { speed: +s }); offerSpeed(); return }
-      return origSpeed.apply(this, arguments);
-    };
-    API.hooks.setSpeed = true;
-  }
+  // ---- hook 1: the speed setter. v150 C: the game's setSpeed() asks speedAllowed() itself (H1) and hands a locked tap
+  // to speedLocked(); startLivePlayback() clamps a carried-over speed (H3). Nothing is wrapped here any more.
+  var GAME = window.__V150C || null;                                   // the game's side of the hooks (src/07 v150 C)
+  function setSpeed(s) { try { typeof window.setSpeed === "function" && window.setSpeed(s) } catch (e) {} }
+  ui.locked = function (s) { track("speed_locked_tap", { speed: +s }); offerSpeed(+s) };
+  API.hooks.speed = GAME ? "game" : "missing";
   function liveSpeed() { try { return window.__getGridironLiveSpeed ? +window.__getGridironLiveSpeed() : 1 } catch (e) { return 1 } }
-  function offerSpeed() {
+  function offerSpeed(s) {
+    if (s && s < 4) { toast(s + "× UNLOCKS AS YOU PLAY"); return }        // the earned rung (gateSpeed3) is not sold
     if (!CFG.features.rewardedSpeed || !adsAllowed()) { API.openStore(); return }
     ui.sheet({
       title: "4× PLAY SPEED", lines: ["Watch a short ad for " + CFG.rewarded.speed4Minutes + " minutes of 4×.", CFG.features.pro ? "Or go PRO: 4× for good, and no ads." : ""],
@@ -417,7 +434,7 @@
   }
   function rewardSpeed() {
     return showRewarded("speed4").then(function (r) {
-      if (r.rewarded) { toast("4× UNLOCKED · " + CFG.rewarded.speed4Minutes + " MIN"); if (origSpeed && document.querySelector(".speed-btn[data-spd]")) origSpeed(4) }
+      if (r.rewarded) { toast("4× UNLOCKED · " + CFG.rewarded.speed4Minutes + " MIN"); if (document.querySelector(".speed-btn[data-spd]")) setSpeed(4) }
       else if (r.reason === "daily-cap") toast("That's today's ads — back tomorrow");
       ui.tick(); return r;
     });
@@ -432,24 +449,23 @@
     API.hooks.buy = true;
   }
 
-  // ---- hook 3: the career payout (ms()/no() settle inside the career block; from here we can only ADD after the
-  // fact, through the audit hook and the game's own storage). The chip doubles the SETTLE (not the banked season
-  // PP), once per career, capped. The in-game one-liner in the doc replaces this when the owner wants it inline.
+  // ---- hook 3: the career payout. v150 C: screenGameOver() / screenWin() settle through the game's payoutBoostV150C
+  // (H4/H5): a ppDouble already held is paid AT the settle, and one won on the career-end screen is paid by
+  // window.__V150C.payout(), which adds it to state.pp and the vault's payout, saves and redraws the card. It doubles
+  // the SETTLE (never the banked season PP — H6), once per career, capped (rewarded.ppDoubleMax).
   function payoutFacts() {
     var S = gameState(); if (!S || (S.view !== "gameover" && S.view !== "win")) return null;
     var e = S.player; if (!e || !e._settled || e._ppDoubledV149E) return null;
-    var settle = Math.max(0, Math.round((e._vaultPayV137 || 0) - (e._ppBankV136 || 0)));
+    var settle = e._payV150C != null ? e._payV150C : Math.max(0, Math.round((e._vaultPayV137 || 0) - (e._ppBankV136 || 0)));
     return settle > 0 ? { S: S, e: e, settle: settle } : null;
   }
   function applyPayoutDouble() {
-    var f = payoutFacts(); if (!f) return 0;
-    var extra = claimPayoutBoost(f.settle, f.S.view); if (!extra) return 0;
-    f.S.pp = (f.S.pp || 0) + extra; f.e._vaultPayV137 = (f.e._vaultPayV137 || 0) + extra; f.e._ppDoubledV149E = extra;
-    try { window.GridironStorage && window.GridironStorage.save(f.S) } catch (e) {}
+    var f = payoutFacts(); if (!f || !GAME || !GAME.payout) return 0;
+    var extra = GAME.payout(f.S.view, f.settle); if (!extra) return 0;
     toast("+" + extra.toLocaleString() + " PP · PAYOUT DOUBLED"); ui.tick(); return extra;
   }
   API.applyPayoutDouble = applyPayoutDouble;
-  API.hooks.payout = true;
+  API.hooks.payout = GAME && GAME.payout ? "game" : "missing";
 
   // =====================================================================================================
   // UI — only ever built while ON. The v146 E shell's look: charcoal, gold hairlines, Oswald.
@@ -465,6 +481,7 @@
     ".speed-btn.mz149-lock{position:relative;opacity:.72}",
     ".speed-btn.mz149-lock::after{content:'▶ AD';position:absolute;top:-6px;right:-4px;font:700 8px/1 Oswald,sans-serif;letter-spacing:.8px;color:#0d0e11;background:#f0bb45;border-radius:6px;padding:2px 4px}",
     ".speed-btn.mz149-lock.pro::after{content:'PRO'}",
+    ".speed-btn.mz149-lock3{opacity:.55}",
     ".mz149-pay{margin:8px 0;display:flex;justify-content:center}",
     ".mz149-veil{position:fixed;inset:0;z-index:2147483000;background:rgba(5,6,8,.86);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;font-family:Oswald,sans-serif;color:#e9e4d8}",
     ".mz149-card{width:100%;max-width:380px;max-height:100%;overflow:hidden;box-sizing:border-box;background:linear-gradient(180deg,#15161b,#0d0e11);border:1px solid rgba(230,178,58,.45);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.6);padding:14px 14px 12px;display:flex;flex-direction:column;gap:10px}",
@@ -566,6 +583,24 @@
     v.querySelector("[data-restore]").onclick = function () { restore().then(function (r) { toast(r.restored && r.restored.length ? "RESTORED · " + r.restored.length : "NOTHING TO RESTORE"); if (storeOpen) ui.store(true); ui.tick() }) };
   };
 
+  // v150 C H11: Android back closes the TOP sheet first — an ad forfeits its reward exactly as CLOSE does, a checkout
+  // cancels, an offer is dismissed, the store closes. Returns what it closed, or false (the platform layer goes on).
+  ui.back = function () {
+    var ad = document.getElementById("mz149Ad"); if (ad) { var c = ad.querySelector("[data-close]"); c ? c.click() : ad.remove(); return "ad" }
+    var buy = document.getElementById("mz149Buy"); if (buy) { var n = buy.querySelector("[data-no]"); n ? n.click() : buy.remove(); return "checkout" }
+    var sh = document.getElementById("mz149Sheet"); if (sh) { sh.remove(); return "sheet" }
+    if (document.getElementById("mz149Store")) { ui.store(false); return "store" }
+    return false;
+  };
+  // v150 C H10: Settings › RESTORE PURCHASES (the store screen has the same button)
+  ui.restoreUI = function () {
+    return restore().then(function (r) {
+      toast(r.restored && r.restored.length ? "RESTORED · " + r.restored.length : (r.ok ? "NOTHING TO RESTORE" : "RESTORE FAILED" + (r.reason ? " · " + r.reason : "")));
+      var S = gameState(); if (S && S.view === "settings" && typeof window.go === "function") try { window.go("settings") } catch (e) {}
+      ui.tick(); return r;
+    });
+  };
+
   // decorate what the game drew: the topbar chip, the speed row, the career-end payout. Idempotent; runs off a
   // MutationObserver (batched to a frame) and the 1s tick that also expires the timed boost.
   function decorate() {
@@ -576,8 +611,9 @@
     }
     var row = document.querySelector(".speed-row");
     if (row) {
-      var b4 = row.querySelector('.speed-btn[data-spd="4"]'), allowed = speedAllowed(4);
+      var b4 = row.querySelector('.speed-btn[data-spd="4"]'), allowed = speedAllowed(4), b3 = row.querySelector('.speed-btn[data-spd="3"]');
       if (b4) { b4.classList.toggle("mz149-lock", !allowed); b4.classList.toggle("pro", !allowed && !adsAllowed()) }
+      if (b3) b3.classList.toggle("mz149-lock3", !speedAllowed(3));
       var offer = row.nextElementSibling && row.nextElementSibling.classList.contains("mz149-offer-row") ? row.nextElementSibling : null;
       var want = CFG.features.gateSpeed4 && CFG.features.rewardedSpeed && adsAllowed() && !(until("speed4") === Infinity);
       if (want && !offer) { offer = el('<div class="mz149-offer-row"></div>'); row.parentNode.insertBefore(offer, row.nextSibling) }
@@ -603,7 +639,7 @@
   function queue() { if (queued) return; queued = true; requestAnimationFrame(function () { queued = false; try { decorate() } catch (e) { console.warn("[RIB_MONETIZE decorate]", e) } }) }
   ui.tick = function () {
     // the timed boost ran out mid-game: step the live speed down to 2× (the free ceiling) with the game's own setter
-    if (!speedAllowed(4) && liveSpeed() >= 4 && origSpeed) { try { origSpeed(2); if (document.querySelector(".speed-row")) toast("4× ENDED · BACK TO 2×") } catch (e) {} }
+    var ls = liveSpeed(); if (!speedAllowed(ls)) { var to = clampSpeed(ls); setSpeed(to); if (document.querySelector(".speed-row")) toast(ls + "× ENDED · BACK TO " + to + "×") }
     var st = document.querySelector("#mz149Store [data-left]"); if (st) { var l = until("speed4"); st.textContent = l ? "4× · " + fmtLeft(l - now()) + " LEFT" : "" }
     var tc = document.querySelector(".mz149-top"); if (tc) tc.textContent = has("pro") ? "PRO ✓" : "STORE";
     decorate();

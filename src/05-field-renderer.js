@@ -597,7 +597,7 @@ function liveAgeKV144() {
   let age = Number(forced);
   if (!isFinite(age)) {
     try {
-      const st = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState && window.__GRIDIRON_AUDIT__.getState()) || window.o;
+      const st = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState && window.__GRIDIRON_AUDIT__.getState()) || window.S;
       const lv = (st && st.player && st.player.level) || 0;
       const L = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.LEVELS) || null;
       age = (L && L[lv] && L[lv].age) || 0;
@@ -621,7 +621,7 @@ function crowdTier() {
   // is not always reachable as a window property, and reading only it silently
   // pinned every stadium to the high-school bleacher.
   try {
-    const st = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState && window.__GRIDIRON_AUDIT__.getState()) || window.o;
+    const st = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState && window.__GRIDIRON_AUDIT__.getState()) || window.S;
     lv = (st && st.player && st.player.level) || 0;
   } catch (e) {}
   return lv <= 2 ? "sparse" : lv <= 5 ? "mid" : "packed";
@@ -1327,7 +1327,7 @@ function ribRegisterTeam(scene, team, p1, p2, deco) {
     const cell0 = ribCellV91(srcName) || ribCellV22(srcName) || ribCell(srcName); if (!cell0) return;   // v91 > v22 > baked, by name
     RIB.numBandTex[key] = numBandV104(srcName, cell0);   // v104: where this pose wears its number
     let cv = ribRecolor(cell0, p1, p2);
-    if (deco) { try { cv = deco(cv) || cv; } catch (e) {} }
+    if (deco) { try { cv = deco(cv, srcName, RIB.numBandTex[key], cell0) || cv; } catch (e) {} }   // v151 B: a cosmetic deco reads the pose's own collar/waist and the raw art
     try { scene.textures.remove(key); } catch (e) {}
     scene.textures.addCanvas(key, cv);
   };
@@ -1500,11 +1500,33 @@ window.__ribPaintTimeoutsV109 = ribPaintTimeoutsV109;
 function ribSyncYouKitV96(scene, side) {
   try {
     const c = RIB.teamCols[side]; if (!c) return;
-    const key = side + ":" + c[0] + c[1];
+    const cos = cosKitV151B(c);
+    const key = side + ":" + c[0] + c[1] + (cos ? "|" + cos.stamp : "");
     if (RIB.youKitV96 === key && scene.textures && scene.textures.exists("spr_you_dn_idle")) return;
-    RIB.youKitV96 = key; ribRegisterTeam(scene, "you", c[0], c[1]);
+    (RIB.teamDeco || (RIB.teamDeco = {})).you = cos ? cos.deco : null;   // v151 B: an unequip must not leave the old deco standing
+    RIB.youKitV96 = key; ribRegisterTeam(scene, "you", cos ? cos.p1 : c[0], cos ? cos.p2 : c[1], cos ? cos.deco : null);
   } catch (e) {}
 }
+/* ===== v151 B HIS KIT, HIS HELMET — the equipped uniform and helmet dress the "you" textures =====
+ * Only HIS textures: the eleven around him keep the team's palette ("off") and the opponent keeps theirs
+ * ("def"), so readability is untouched — and a uniform whose jersey would read as the opponent's is left
+ * off for that game (src/28 `fieldKit`, `cosKitClashV151B`). With nothing equipped this returns null and
+ * the kit is exactly v96's. Purely a picture: no sim value is read or written. */
+function cosKitV151B(teamCols) {
+  try { const C = window.RIB_COSMETICS; return C && C.fieldKit ? C.fieldKit(teamCols, RIB.defPal || null) : null; } catch (e) { return null; }
+}
+// the module equips between plays: re-dress him now (RIB lives in this file's scope, not on window)
+window.__COS_FIELD_V151B = {
+  resync(scene) {
+    if (!scene || !scene.markers) return false;
+    RIB.youKitV96 = null;
+    const me = scene.markers.find((m) => m && m.team === "you");
+    ribSyncYouKitV96(scene, (me && me.kitSide) || "off");
+    // rebind at once: the old "you" textures are gone, and a frame drawn before the next update would read a dead frame
+    scene.markers.forEach((m) => { try { const k = m && m.body && m.body.texture && m.body.texture.key; if (k && /^spr_you_/.test(k)) m.body.setTexture(scene.textures.exists(k) ? k : "rib_player_fallback"); } catch (e) {} });
+    return true;
+  },
+};
 // the atlas decodes the moment the page loads — long before any game starts
 (function () {
   if (!window.__RIB_ATLAS) return;
@@ -5058,6 +5080,9 @@ class Ot extends mt.Scene {
         const S9 = this.side; if (S9) { S9.surge = { t: 0, ms: TU("sideSurgeMs", 1600), team: cm.kit || (off9 ? "off" : "def") }; V.surges++; }
       }
     } catch (e) {}
+    /* ===== v151 B HIS TOUCHDOWN, HIS WAY — the equipped celebration plays over the stadium's own, on HIS score only ===== */
+    try { const P = this.play, cm = P && P.carrierId != null ? this.markers[P.carrierId] : null, C = window.RIB_COSMETICS;
+      if (cm && cm.team === "you" && C && C.celebrate) { const cp0 = PJ(x, y); C.celebrate(this, cp0.x, cp0.y, cm); } } catch (e) {}
     { const P = this.play, pay = P && P.payload || {};   // v95: the badge is the TOUCHDOWN text, anchored on the crossing
       BADGE_V95.show("touchdown", { sub: pay.event === "run" || pay.event === "pass" ? badgeYdsV95(pay.yards).replace("+", "") : "", x, y, scene: this, token: "td:" + (P ? P.__ballTokenV1514 : Date.now()) }); }
     const cp = PJ(x, y); x = cp.x; y = cp.y;
@@ -6155,19 +6180,29 @@ class Ot extends mt.Scene {
     // just above both crowd poses (dep, dep+0.005): this is the wall in FRONT of the terrace
     g.setDepth(TU("crowdDepth", 3.45) + 0.012).setVisible(true);
     if (!TU("bowlTrimV112", 1)) { C.trim112 = null; return false; }
-    const RK = TU("crowdRake", 0.24), COL = TU("baseBandColV112", 0x1a4694);
+    /* ===== v151 B THE HOUSE WEARS HIS COLOURS — an equipped stadium theme, on home games only =====
+     * The band, its lip, the tunnels' frame and a wash of its colour over the stands. Presentation only: nothing
+     * here is read by the sim, and `__WX_V79` (the weather roll) is never touched. */
+    const thV151B = (() => { try { const C = window.RIB_COSMETICS; return C && C.stadiumTheme ? C.stadiumTheme() : null; } catch (e) { return null; } })();
+    // (a wash drawn over the stands below, not a sprite tint: in the canvas renderer a tint re-tints every crowd frame, every frame)
+    try { window.__V151B = window.__V151B || {}; window.__V151B.stadium = thV151B ? { id: thV151B.id, band: thV151B.band, lip: thV151B.lip, crowd: thV151B.crowd, home: window.__homeGameV93 !== false } : { id: null, home: window.__homeGameV93 !== false }; } catch (e) {}
+    const RK = TU("crowdRake", 0.24), COL = thV151B ? thV151B.band : TU("baseBandColV112", 0x1a4694);
     const FR = Math.max(0.01, TU("baseBandFracV112", 0.068));          // of the stand's own height
-    const dbg = { band: [], ent: null, col: COL, frac: FR };
+    const dbg = { band: [], ent: null, col: COL, frac: FR, wash: thV151B ? thV151B.crowd : null };
     const top = (p) => { const h = HH * p.k * FR; return { x: p.sx + (p.rk == null ? 0 : p.rk) * RK * h, y: p.sy - h, h }; };
     for (const B of built) {
       const P = B.pts; if (!P || P.length < 2) continue;
       const foot = [], cap = [];
       for (const p of P) { foot.push({ x: p.sx, y: p.sy }); cap.push(top(p)); }
+      if (thV151B) {   // v151 B: the theme's colour washed over the whole stand, foot to rim
+        const rim = P.map((p) => { const h = HH * p.k; return { x: p.sx + (p.rk == null ? 0 : p.rk) * RK * h, y: p.sy - h }; });
+        g.fillStyle(thV151B.crowd, TU("cosCrowdWashV151B", 0.2)); g.fillPoints(foot.concat(rim.slice().reverse()), true);
+      }
       g.fillStyle(COL, TU("baseBandAV112", 0.92));
       g.fillPoints(foot.concat(cap.slice().reverse()), true);
       // a paler lip along the top of the band — a painted wall has an edge, and it is what
       // stops the terrace above it from looking like it is standing in the grass
-      g.lineStyle(Math.max(1, TU("baseBandLipPx", 1.6) * (P[P.length >> 1].k / 0.43)), TU("baseBandLipCol", 0x6f9be6), TU("baseBandLipA", 0.85));
+      g.lineStyle(Math.max(1, TU("baseBandLipPx", 1.6) * (P[P.length >> 1].k / 0.43)), thV151B ? thV151B.lip : TU("baseBandLipCol", 0x6f9be6), TU("baseBandLipA", 0.85));
       g.strokePoints(cap, false);
       const m = P[P.length >> 1];
       dbg.band.push({ kind: B.wall.kind, n: P.length, k: +m.k.toFixed(3), h: +(HH * m.k * FR).toFixed(1),
@@ -6209,7 +6244,7 @@ class Ot extends mt.Scene {
           g.strokePoints(lint, false); }
         // the frame, in the trim the wall it interrupts is painted in. A square mouth gets its
         // jambs drawn too — an arch's frame closes itself, a rectangle's does not.
-        g.lineStyle(Math.max(1, TU("tunnelFramePx", 2) * (seg[M >> 1].k / 0.43)), TU("baseBandLipCol", 0x6f9be6), 0.95);
+        g.lineStyle(Math.max(1, TU("tunnelFramePx", 2) * (seg[M >> 1].k / 0.43)), thV151B ? thV151B.lip : TU("baseBandLipCol", 0x6f9be6), 0.95);
         g.strokePoints(arch, false);
         if (rect) { g.strokePoints([mouth[0], arch[0]], false); g.strokePoints([mouth[M], arch[M]], false); }
         return { i0, i1, n: seg.length, k: +seg[M >> 1].k.toFixed(3), rect: !!rect,

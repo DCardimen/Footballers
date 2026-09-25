@@ -23,6 +23,25 @@
     "v142check",
     "agecheck",
     "traincheck",
+    "layoutcheck",
+    "anchorcheck",
+    "v150Acheck"
+   ]
+  },
+  "docs": {
+   "desc": "v150 D — the agent docs: CLAUDE.md, docs/ANCHORS.md, the READMEs; anchors and paths still resolve",
+   "anchors": [
+    "v150 D"
+   ],
+   "files": [
+    "CLAUDE.md",
+    "README.md",
+    "docs/**",
+    "scripts/README.md",
+    "scripts/checks.json"
+   ],
+   "checks": [
+    "anchorcheck",
     "layoutcheck"
    ]
   },
@@ -64,6 +83,13 @@
     "honorcheck",
     "freshcheck",
     "menu-mask-check"
+   ],
+   "steps": [
+    "`node scripts/build-uff-trophy.mjs` (if the trophy art changed)",
+    "`RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-menu*` / `rib-vault*` file)"
+   ],
+   "look": [
+    "`CAREER=1 node scripts/menushot.mjs`"
    ]
   },
   "gear": {
@@ -107,6 +133,9 @@
     "sidelinecheck",
     "v144check",
     "v148check"
+   ],
+   "variants": [
+    "`READ_POS=WR MODES=0,1,4,5` for `v147Dcheck`"
    ]
   },
   "league": {
@@ -201,6 +230,9 @@
     "simcheck",
     "bootviewcheck",
     "walk"
+   ],
+   "variants": [
+    "`POS=QB,DL,S` for `v146Dcheck` (default RB,WR,LB)"
    ]
   },
   "shell": {
@@ -219,6 +251,9 @@
     "menu-integration-check",
     "vaultcheck",
     "walk"
+   ],
+   "look": [
+    "`node scripts/v146Eshot.mjs`"
    ]
   },
   "field": {
@@ -302,7 +337,8 @@
     "walk",
     "vaultcheck",
     "menu-integration-check",
-    "shot"
+    "shot",
+    "v150Acheck"
    ]
   },
   "combine": {
@@ -363,6 +399,13 @@
     "menu-integration-check",
     "v136check",
     "freshcheck"
+   ],
+   "steps": [
+    "`python3 scripts/build-vault-art.py --proof` (if a cell moved — then LOOK at `art/vault-proof/`)",
+    "`RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-menu*` / `rib-vault*` file)"
+   ],
+   "look": [
+    "`vaultshot.mjs` / `WIDE=1 vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` / `vaultphys.mjs`"
    ]
   },
   "tackle": {
@@ -383,6 +426,9 @@
     "v112Fcheck",
     "renderpathcheck",
     "v86check"
+   ],
+   "steps": [
+    "`scoreneutralcheck` over several seeds, against the OFF spread (the aim roll changes sample paths)"
    ]
   },
   "lineage": {
@@ -444,6 +490,9 @@
     "namecheck",
     "splashcheck",
     "shot"
+   ],
+   "variants": [
+    "`WHEEL=1` for `v112Dcheck`"
    ]
   },
   "wheel": {
@@ -499,6 +548,12 @@
     "coachcheck",
     "declarecheck",
     "walk"
+   ],
+   "steps": [
+    "`python3 scripts/build-grow-art.py` (if the figure's art changed)"
+   ],
+   "look": [
+    "`growshot.mjs` / `VET=42 growshot.mjs`"
    ]
   },
   "grades": {
@@ -514,6 +569,9 @@
     "skillartcheck",
     "scrollcheck",
     "coachcheck"
+   ],
+   "look": [
+    "`BOARD=1 growshot.mjs`"
    ]
   },
   "coach": {
@@ -536,6 +594,10 @@
     "v85check",
     "postgamecheck",
     "declarecheck"
+   ],
+   "steps": [
+    "`python3 scripts/build-coach-art.py` (if a sheet changed)",
+    "`RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-menu*` / `rib-vault*` file)"
    ]
   },
   "loader": {
@@ -562,7 +624,12 @@
     "v127check",
     "v112Acheck",
     "shot",
-    "walk"
+    "walk",
+    "v86check",
+    "renderpathcheck"
+   ],
+   "steps": [
+    "`node scripts/build-splash-film.mjs` (if the film changed; `+faststart`)"
    ]
   },
   "menu": {
@@ -591,6 +658,15 @@
     "freshcheck",
     "v102check",
     "honorcheck"
+   ],
+   "steps": [
+    "`RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs` (any `public/rib-menu*` / `rib-vault*` file)",
+    "`python3 scripts/build-menu-art.py` (or the one `menu-kit-*.py`) for the kit masks"
+   ],
+   "look": [
+    "`CAREER=1 node scripts/menushot.mjs`",
+    "`node scripts/menu-kit-shot.mjs`",
+    "`node scripts/menu-preview-shot.mjs`"
    ]
   },
   "reads": {
@@ -726,6 +802,9 @@
    "checks": [
     "badgecheck",
     "v86check"
+   ],
+   "steps": [
+    "`node scripts/build-badge-art.mjs` (if a badge changed)"
    ]
   },
   "kits": {
@@ -773,7 +852,11 @@
     "sidelinecheck",
     "crowdcheck",
     "postgamecheck",
-    "v112Bcheck"
+    "v112Bcheck",
+    "menu-integration-check"
+   ],
+   "steps": [
+    "`scripts/build-stadium-art.*` (if the stadium art changed)"
    ]
   },
   "playbook": {
@@ -823,6 +906,9 @@
     "renderpathcheck",
     "v86check",
     "kitsidecheck"
+   ],
+   "steps": [
+    "`node scripts/build-field-art.mjs` — read the printed `HAND_V108` / `BALL_DRAWN_V108` back into `src/05-field-renderer.js`"
    ]
   },
   "story": {
@@ -920,6 +1006,9 @@
     "v109C2check",
     "v109Dcheck",
     "v109Echeck"
+   ],
+   "steps": [
+    "run `scoreneutralcheck` FIRST and keep the before row; compare several seeds against the OFF spread"
    ]
   },
   "stride": {
@@ -1034,7 +1123,8 @@
     "namecheck",
     "emblemcheck",
     "menu-integration-check",
-    "walk"
+    "walk",
+    "v150Acheck"
    ]
   },
   "honors": {
@@ -1082,7 +1172,9 @@
     "v85check",
     "scrollcheck",
     "coachcheck",
-    "growthcheck"
+    "growthcheck",
+    "walk",
+    "shot"
    ]
   },
   "rivalry": {
@@ -1123,7 +1215,8 @@
    ],
    "files": [],
    "checks": [
-    "declarecheck"
+    "declarecheck",
+    "v150Acheck"
    ]
   },
   "modes": {
@@ -1149,6 +1242,9 @@
    "checks": [
     "shot",
     "walk"
+   ],
+   "look": [
+    "`node scripts/shot.mjs`"
    ]
   },
   "layout": {
@@ -1171,9 +1267,10 @@
    ]
   },
   "monetize": {
-   "desc": "v149 E — the monetization module (switched off by default)",
+   "desc": "v149 E / v150 C — the monetization module and its in-game hooks (switched off by default)",
    "anchors": [
     "v149 E",
+    "v150 C",
     "RIB_MONETIZE"
    ],
    "files": [
@@ -1181,11 +1278,13 @@
    ],
    "checks": [
     "v149Echeck",
+    "v150Ccheck",
     "bootviewcheck",
     "walk",
     "menu-integration-check",
     "layoutcheck",
-    "honorcheck"
+    "honorcheck",
+    "vaultcheck"
    ]
   },
   "pwa": {
@@ -1208,7 +1307,107 @@
     "splashcheck",
     "walk",
     "menu-integration-check",
-    "layoutcheck"
+    "layoutcheck",
+    "v150Acheck"
+   ]
+  },
+  "rows": {
+   "desc": "v148 — the row density, the squash near the end zone, the far-behind taper, what paint and overlays register to near either goal line",
+   "anchors": [
+    "v148",
+    "rowRefYdV148",
+    "rowKeepYdV148"
+   ],
+   "files": [],
+   "checks": [
+    "v148check",
+    "v144check",
+    "v112Bcheck",
+    "v93check",
+    "v99check",
+    "v92check",
+    "v145check",
+    "v112Echeck",
+    "v86check",
+    "sidelinecheck",
+    "renderpathcheck"
+   ],
+   "variants": [
+    "`KILL=1` for `v148check` shows the old failures"
+   ]
+  },
+  "v150a": {
+   "desc": "v150 A — the bugs the audit found: name escaping/sanitising, the growth dials, the declare stakes, import through boot, corrupt-save recovery, ribDialog at every confirm/prompt",
+   "anchors": [
+    "v150 A",
+    "cleanNameV150",
+    "cleanSaveV150",
+    "checkSaveV150",
+    "askV150",
+    "setGrowthDialV150",
+    "__saveRecoveredV150"
+   ],
+   "files": [
+    "scripts/v150Acheck.mjs"
+   ],
+   "checks": [
+    "v150Acheck",
+    "declarecheck",
+    "bootviewcheck",
+    "v146Echeck",
+    "v147Acheck",
+    "v112Ccheck",
+    "v149Dcheck",
+    "v149Echeck",
+    "honorcheck",
+    "walk",
+    "menu-integration-check"
+   ]
+  },
+  "seasons": {
+   "desc": "v151 C — competitive seasons, the Career Pass, the career leaderboards, the trophy case (src/29-seasons.js, src/20-leaderboards.js v151 C)",
+   "anchors": [
+    "v151 C",
+    "RIB_SEASONS"
+   ],
+   "files": [
+    "src/29-seasons.js",
+    "src/20-leaderboards.js",
+    "docs/SEASONS.md"
+   ],
+   "checks": [
+    "v151Ccheck",
+    "lbcheck",
+    "dailycheck",
+    "bootviewcheck",
+    "menu-integration-check",
+    "v146Echeck",
+    "v150Ccheck",
+    "layoutcheck",
+    "walk"
+   ]
+  },
+  "cosmetics": {
+   "desc": "v151 B — cosmetics and the profile: RIB_COSMETICS, the kit / helmet / celebration / stadium / vault hooks, the Locker's STYLE tab, the PROFILE view, the Team Creator's gated crests and colours (src/28-cosmetics.js)",
+   "anchors": [
+    "v151 B",
+    "RIB_COSMETICS"
+   ],
+   "files": [
+    "src/28-cosmetics.js",
+    "docs/COSMETICS.md"
+   ],
+   "checks": [
+    "v151Bcheck",
+    "v151Ccheck",
+    "kitsidecheck",
+    "emblemcheck",
+    "vaultcheck",
+    "bootviewcheck",
+    "menu-integration-check",
+    "v146Echeck",
+    "layoutcheck",
+    "walk"
    ]
   }
  },
@@ -1693,7 +1892,8 @@
     "menu",
     "origin",
     "names",
-    "honors"
+    "honors",
+    "lights"
    ],
    "runtimeSec": 65,
    "slow": false,
@@ -1869,7 +2069,9 @@
     "kits",
     "field-art",
     "launch",
-    "pile"
+    "pile",
+    "rows",
+    "loader"
    ],
    "runtimeSec": 65,
    "slow": false,
@@ -1972,7 +2174,8 @@
     "pregame",
     "loader",
     "honors",
-    "ui"
+    "ui",
+    "training"
    ],
    "runtimeSec": 10,
    "slow": false,
@@ -1992,7 +2195,8 @@
     "kits",
     "lights",
     "crew",
-    "crowd"
+    "crowd",
+    "rows"
    ],
    "runtimeSec": 90,
    "slow": false,
@@ -2467,7 +2671,8 @@
    "desc": "v112 B — the stadium. The masts are A/B'd against the dials put BACK to v98's values in the same page (height, width, foot row, face); every lamp pool is checked against the v103 turf quad and no mast",
    "areas": [
     "field",
-    "lights"
+    "lights",
+    "rows"
    ],
    "runtimeSec": 40,
    "slow": false,
@@ -2515,7 +2720,8 @@
    "file": "scripts/v112Echeck.mjs",
    "desc": "v112 E — the camera finds the ball",
    "areas": [
-    "camera"
+    "camera",
+    "rows"
    ],
    "runtimeSec": 375,
    "slow": true,
@@ -2692,7 +2898,8 @@
    "areas": [
     "smoke",
     "camera",
-    "field"
+    "field",
+    "rows"
    ],
    "runtimeSec": 75,
    "slow": false,
@@ -2706,7 +2913,8 @@
    "file": "scripts/v145check.mjs",
    "desc": "v145 — the camera follows him",
    "areas": [
-    "camera"
+    "camera",
+    "rows"
    ],
    "runtimeSec": 280,
    "slow": false,
@@ -2878,7 +3086,9 @@
     "field-art",
     "pile",
     "plant",
-    "crew"
+    "crew",
+    "rows",
+    "loader"
    ],
    "runtimeSec": 185,
    "slow": false,
@@ -2952,7 +3162,8 @@
    "areas": [
     "field",
     "kits",
-    "lights"
+    "lights",
+    "rows"
    ],
    "runtimeSec": 105,
    "slow": false,
@@ -2967,7 +3178,8 @@
    "desc": "v93 — the schedule alternates home weeks",
    "areas": [
     "field",
-    "endzones"
+    "endzones",
+    "rows"
    ],
    "runtimeSec": 55,
    "slow": false,
@@ -2999,7 +3211,8 @@
     "field",
     "kits",
     "lights",
-    "playbook"
+    "playbook",
+    "rows"
    ],
    "runtimeSec": 110,
    "slow": false,
@@ -3017,7 +3230,8 @@
     "impossible",
     "shell",
     "boot",
-    "vault"
+    "vault",
+    "monetize"
    ],
    "runtimeSec": 105,
    "slow": false,
@@ -3057,7 +3271,8 @@
     "names",
     "honors",
     "rivalry",
-    "ui"
+    "ui",
+    "training"
    ],
    "runtimeSec": 20,
    "slow": false,
@@ -3099,7 +3314,8 @@
    "desc": "v149 A — the src/ split: the page + src/ files put back together equal the old single file's structure, no code leaked into the markup, one script tag per block.",
    "areas": [
     "smoke",
-    "layout"
+    "layout",
+    "docs"
    ],
    "runtimeSec": 5,
    "slow": false,
@@ -3112,7 +3328,8 @@
    "desc": "v148 — the field keeps one vertical density all drive: yard spacing near both goal lines, overlays on the painted lines, every camera mode.",
    "areas": [
     "field",
-    "camera"
+    "camera",
+    "rows"
    ],
    "runtimeSec": 240,
    "slow": false,
@@ -3132,6 +3349,18 @@
    "pureNode": false,
    "flaky": []
   },
+  "v150Ccheck": {
+   "file": "scripts/v150Ccheck.mjs",
+   "desc": "v150 C — the monetization hooks H1–H11 in the game: OFF each is the identity against a boot with the module blocked (speed row, Settings, menu tiles, both payouts); ON the speed guard/clamp, the 3× flag, the payout boost once, the STORE tile, Restore Purchases, Android back over the sheets, a cosmetic gate.",
+   "areas": [
+    "monetize"
+   ],
+   "runtimeSec": 300,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
   "v149Dcheck": {
    "file": "scripts/v149Dcheck.mjs",
    "desc": "v149 D — PWA + platform: manifest/icons, the service worker precache and offline play on a built site, freshness with a worker, Capacitor stub (back button, haptics, no SW), dialogs, save file/backups.",
@@ -3141,6 +3370,59 @@
    "runtimeSec": 420,
    "slow": true,
    "needsServer": false,
+   "pureNode": false,
+   "flaky": []
+  },
+  "anchorcheck": {
+   "file": "scripts/anchorcheck.mjs",
+   "desc": "v150 D — every anchor in docs/ANCHORS.md occurs in the file it names, every src/ docs/ scripts/ public/ path the agent docs name exists, and CLAUDE.md stays about a page.",
+   "areas": [
+    "smoke",
+    "docs"
+   ],
+   "runtimeSec": 1,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": true,
+   "flaky": []
+  },
+  "v150Acheck": {
+   "file": "scripts/v150Acheck.mjs",
+   "desc": "v150 A — the audit's confirmed bugs: hostile names render inert (inputs cleaned, saves cleaned at boot, screens escape), the v42 growth dials save, the declare stakes are on screen, an import runs the boot migrations and refuses bad shapes/markup, a corrupt save boots from a backup, every confirm/prompt/pop-up is ribDialog.",
+   "areas": [
+    "v150a",
+    "boot",
+    "declare",
+    "names",
+    "pwa"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v151Ccheck": {
+   "file": "scripts/v151Ccheck.mjs",
+   "desc": "v151 C — the season calendar and rollover on a faked clock (archive to the trophy case, boards and pass reset, careers untouched, the event card), Career Score determinism, all 13 career boards populate and sort, a real career end restored at boot, pass XP from events and the observer, tier claims through the RIB_COSMETICS contract (stub + queue), premium gating, the cosmetic-only validator, XSS, 400x860 fit.",
+   "areas": [
+    "seasons"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v151Bcheck": {
+   "file": "scripts/v151Bcheck.mjs",
+   "desc": "v151 B — cosmetics: catalogue (>=6 per category, previews, packs, OFF = no shop), grant/equip/persist across reload, a new career and a wiped save, earned unlocks, the Career Pass rewards, the Team Creator gate (5 free picks then 10 PP doubling), the you-player's kit/helmet on the live field (not the opponent's), a forced TD celebration, a home stadium theme, the vault theme, the STYLE tab and the profile card at 400x860, XSS, seeded games identical.",
+   "areas": [
+    "cosmetics"
+   ],
+   "runtimeSec": 480,
+   "slow": true,
+   "needsServer": true,
    "pureNode": false,
    "flaky": []
   }
