@@ -1441,6 +1441,27 @@
     "layoutcheck",
     "walk"
    ]
+  },
+  "legacy": {
+   "desc": "v152 A — the Legacy Rank: the 500 medals (src/31-legacy.js, the RIB_LEGACY_MEDALS_V152 block, scripts/build-legacy-medals.py), the ledger in 07 (legacy*V152), the pour and the medal swap, milestones, Rank 500, the profile's trophy case and collection book, the rank chips",
+   "anchors": [
+    "v152 A",
+    "RIB_LEGACY"
+   ],
+   "files": [
+    "src/31-legacy.js",
+    "public/legacy/**",
+    "scripts/build-legacy-medals.py",
+    "art/legacy/**"
+   ],
+   "checks": [
+    "v152Acheck",
+    "v151Ccheck",
+    "v151Bcheck",
+    "bootviewcheck",
+    "layoutcheck",
+    "menu-integration-check"
+   ]
   }
  },
  "checks": {
@@ -3500,6 +3521,18 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "v152Acheck": {
+   "file": "scripts/v152Acheck.mjs",
+   "desc": "v152 A — the Legacy Rank: 500 medals in one climb (bronze/silver only in 1-200), the atlases load, the XP curve, a real career end pays once and pours (medal swap) and never replays, the season formula + hook, milestone bounties and cards (x50 = new tier), the Rank 500 sequence, the profile's trophy case and collection book at 400 wide, the rank chips (top bar, menu, setup, boards), an old Hall credited once, the kill switch, no Math.random, no page errors.",
+   "areas": [
+    "legacy"
+   ],
+   "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }

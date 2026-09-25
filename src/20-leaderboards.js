@@ -391,6 +391,7 @@
       wins: num(T.wins), games: num(T.games), playoffWins: num(T.playoffWins), awards: T.awards != null ? num(T.awards) : awardsN, mvps: mvps,
       awardKinds: (b.awards || []).length, gen: Math.max(1, num(h.gen)), traits: num(extra.traits), origin: String(extra.origin || (b.origin && b.origin.name) || ""),
       age: num(extra.age || b.age), avgSpread: avgs.length > 1 ? Math.max.apply(null, avgs) - Math.min.apply(null, avgs) : 0,
+      lr: Math.max(0, Math.min(1e5, num(h.legacyRank))) /* v152 A: the Legacy Rank when he was enshrined */,
       uffAge: uffRow ? num(uffRow.age) : null, toUff: toUff, nodes: num(extra.nodes), surname: String(extra.surname || ""),
       team: extra.team ? { school: String(extra.team.school || ""), name: String(extra.team.name || ""), colors: cleanColors(extra.team.colors), logo: extra.team.logo != null && isFinite(+extra.team.logo) ? +extra.team.logo | 0 : null } : null
     };
@@ -555,11 +556,13 @@
     return "";
   }
   function valueOf(e, c) { var v = c.val(e); if (v == null) return "—"; return fmt(v); }
+  /* v152 A: the account's medal beside the name (the Legacy Rank at the time the career was enshrined) */
+  function lgMedal(e) { try { return e.lr > 0 && window.RIB_LEGACY ? window.RIB_LEGACY.medalHtml(e.lr, 20, { cls: "lb" }) + " " : ""; } catch (x) { return ""; } }
   function rowHtml(e, i, c) {
     var card = cardFor(e);
     var hon = (e.titles ? "🏆" + e.titles + " " : "") + (e.rings ? "💍" + e.rings + " " : "") + (e.mvps ? "⭐" + e.mvps : "");
     var body = card ? '<div class="lb151-card">' + card + "</div>"
-      : crest(e) + '<div class="lb151-who"><b>' + esc(e.name) + "</b><small>" + esc(e.pos) + " · " + esc(e.levelName || "") + (e.team && e.team.name ? " · " + esc(e.team.name) : "") + "</small>" +
+      : crest(e) + '<div class="lb151-who"><b>' + lgMedal(e) + esc(e.name) + "</b><small>" + esc(e.pos) + " · " + esc(e.levelName || "") + (e.team && e.team.name ? " · " + esc(e.team.name) : "") + "</small>" +
         '<small class="lb151-hon">' + esc(hon) + trophyIcons(e) + "</small></div>";
     return '<div class="lb-row lb151-row' + (e.live ? " live" : "") + '" role="button" tabindex="0" data-id="' + esc(e.id) + '" onclick="__lbCareerUI.open(\'' + esc(e.id) + "')\">" +
       '<div class="lb-rank' + (i < 3 && !e.live ? " medal" : "") + '">' + (e.live ? "▶" : i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1) + "</div>" + body +

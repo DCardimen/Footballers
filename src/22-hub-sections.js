@@ -100,7 +100,7 @@
     result: {
       start: "grade",
       secs: [
-        { k: "grade",  name: "GRADE",  re: /coach-sum-v136/ },
+        { k: "grade",  name: "GRADE",  re: /coach-sum-v136|legacy-card-v152/ },   // v152 A: the Legacy XP line rides the grade
         { k: "season", name: "SEASON", re: /(^|\s)eyebrow(\s|$)/ },
         { k: "stats",  name: "STATS",  re: /\bnever-v146\b/ },
         { k: "growth", name: "GROWTH", re: /age-card|feedback-v12|legacy-progress-v11|depth-card/ },
@@ -112,6 +112,19 @@
       ],
       // the grade and the COACH'S SUMMARY button under it are the tab: never behind an accordion header
       nofold: ["grade"],
+    },
+    /* v152 A: the profile is the player card, THE TROPHY CASE (his current Legacy medal) and THE COLLECTION
+     * BOOK (src/31-legacy.js) — three screens tall stacked, so three tabs; each fits the panel on its own. */
+    profile: {
+      start: "card",
+      keep: /(^|\s)eyebrow(\s|$)/,
+      secs: [
+        { k: "card", name: "CARD",        re: /pcard-host-v151b|prof-more-v151b/ },
+        { k: "case", name: "TROPHY CASE", re: /lg-case-v152/ },
+        { k: "book", name: "COLLECTION",  re: /lg-book-v152/ },
+      ],
+      txt: [],
+      nofold: ["card", "case", "book"],
     },
     /* ===== v151 B THE LOCKER HAS A STYLE TAB =====
      * GEAR is the locker as it was (the slots, the totals, the inventory); STYLE is the cosmetics panel
@@ -149,7 +162,7 @@
     gameover: {
       start: "end",
       secs: [
-        { k: "end",    name: "THE END", re: /(^|\s)banner(\s|$)|legacy-summary-v11|end-pay-v150/ },
+        { k: "end",    name: "THE END", re: /(^|\s)banner(\s|$)|legacy-summary-v11|end-pay-v150|legacy-card-v152/ },
         { k: "life",   name: "LIFE",    re: /regret-card-v12|finance-legacy-v12/ },
         { k: "log",    name: "LOG",     re: /\bnever-v150\b/ },
         { k: "legacy", name: "HIS SON", re: /end-legacy-v150/ },
@@ -159,7 +172,7 @@
     win: {
       start: "end",
       secs: [
-        { k: "end",    name: "THE END", re: /(^|\s)banner(\s|$)|legacy-summary-v11|end-pay-v150/ },
+        { k: "end",    name: "THE END", re: /(^|\s)banner(\s|$)|legacy-summary-v11|end-pay-v150|legacy-card-v152/ },
         { k: "log",    name: "JOURNEY", re: /\bnever-v150\b/ },
         { k: "legacy", name: "HIS SON", re: /end-legacy-v150/ },
       ],
@@ -180,7 +193,7 @@
       nofold: ["nodes"],
     },
   };
-  const ICON = { gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
+  const ICON = { card: "🪪", case: "🏆", book: "📖", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
   const TAB = { locker: "gear", hub: "now", shop: "nodes", season: "sched", settings: "game", result: "grade", declineResult: "epitaph", gameover: "end", win: "end" };
 
   function cfg() { const s = window.S; return (s && VIEWS[s.view]) || null }
