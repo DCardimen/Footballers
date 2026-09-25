@@ -96,6 +96,40 @@ Screens: view **`profile`** (`screenProfileV151B` in 07 → `window.__profileRen
 legacy card (`view:profile`), the hub dock and the Locker; the Locker's **STYLE** tab (`cosStyleBlockV151B`, the v75
 sectioner's `locker` config); `cosOpenStyleV151B()` opens it.
 
+## v153 G — the full locker: footprints, wings, crowns, auras, number fonts
+
+Five more slots (`trail`, `wings`, `crown`, `aura`, `numfont`; defaults `trail_none`, `wings_none`, `crown_none`,
+`aura_none`, `nf_team` draw nothing) and a bigger catalogue: 12 more jerseys (new patterns `chevron`, `stripes`,
+`shoulders`, `checker`, `sash`, `tiger`), 9 more helmets (finishes `satin`, `pearl`; stripe kinds `sk: "twin" | "wide"`),
+10 more card frames (`neon`, `wood`, `frost`, `circuit`, `emerald`, `royal`, `lava`, `holo`, `angel`, `void`) and 7 more
+celebrations (`shock`, `snow`, `pixel`, `meteor`, `rainbow`, `halo`, `feathers` — `CEL_V153G`). Static items are free
+basics, earned unlocks on the existing achievements, and founder pieces (never listed while monetization is OFF); the
+Career Pass generates the rest every season (`passLookV153G` draws the reward's named `style`).
+
+| kind | field | styles |
+|---|---|---|
+| footprints | `tr: {kind, col[]}` | flame, ice, sparks, lightning, stars, smoke, rainbow, pixels, petals, comet, ghost (afterimage) |
+| wings | `w: {kind, col:[main, shade, edge]}` | angel, seraph, bat, crystal, flame (phoenix), mech, pixel, monarch |
+| crown | `cr: {kind, col:[metal, jewel, shade]}` | crown, king, halo, laurel, circlet, horns, flame, star |
+| aura | `au: {kind, col}` | glow, pulse, flicker, frost, void |
+| number font | `nf: {style, font, col, stroke}` | varsity, block, stencil, gold, neon, chrome, retro |
+
+**Drawn from code, no art files.** `wingArt(w, frame)` / `crownArt(cr, frame)` rasterise pixel art at one pixel per
+sprite pixel (a feathered wing is an arm with flight feathers hung from it and a covert band; bat, crystal, mech and
+monarch have their own shapes; everything gets a 1px outline) and are cached per look; the field registers each as a
+texture once (`cos153g_<hash>`). **On the field** (`fieldFx(scene, m, p)`, called by src/05's `cosFxV153G` from
+`placeMarker` for the you-marker): the aura is an additive glow at the bottom of his container, the wings two images in
+his container (behind the body facing the camera, over it facing away; flapping on the scene clock, folding a little at a
+sprint, hidden while he is down), the crown its own image at depth 23.05 so the plumbob floating over his head does not
+hide it, the number font his label's face/colour/stroke (restored on unequip), and the footprints one Graphics at depth
+3.9 fed a point per ~2 sprite pixels moved, each particle aging out over ~520 ms (the afterimage uses three tinted copies
+of his own frame). Geometry comes from the ink of his current frame (`headGeoV153G`), so everything follows the pose,
+the age scale and the perspective. **On the card** (`cardFlair`): two extra canvases around the figure (aura + wings
+behind, the crown in front), the figure and its layers stepping back to 80% for headroom — never inside
+`drawCharacter`. **Nothing here spends `Math.random`** (particle jitter is an integer hash of the point's sequence
+number) and nothing reads or writes a sim value; `window.__V153G` is what `v153Gcheck` reads (`fx` counters,
+`lastTrail`, `card`, `freeze` to hold the drawn footprints still for a screenshot).
+
 ## The Team Creator's crests and colours (`C.teamStyle`)
 
 Each crest and each palette is one unlock. **Five free picks, shared** between the two (`teamStyleFreeV151B`); after

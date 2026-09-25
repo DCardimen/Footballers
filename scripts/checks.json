@@ -1418,6 +1418,7 @@
    ],
    "checks": [
     "v151Ccheck",
+    "v153Gcheck",
     "lbcheck",
     "dailycheck",
     "bootviewcheck",
@@ -1432,7 +1433,8 @@
    "desc": "v151 B — cosmetics and the profile: RIB_COSMETICS, the kit / helmet / celebration / stadium / vault hooks, the Locker's STYLE tab, the PROFILE view, the Team Creator's gated crests and colours (src/28-cosmetics.js)",
    "anchors": [
     "v151 B",
-    "RIB_COSMETICS"
+    "RIB_COSMETICS",
+    "v153 G"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1440,6 +1442,7 @@
    ],
    "checks": [
     "v151Bcheck",
+    "v153Gcheck",
     "v151Ccheck",
     "kitsidecheck",
     "emblemcheck",
@@ -3679,6 +3682,19 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "v153Gcheck": {
+   "file": "scripts/v153Gcheck.mjs",
+   "desc": "v153 G — the full locker: five new cosmetic kinds (footprints, wings, crowns, auras, number fonts) with >= 8 items, previews and slots; more jerseys/helmets/frames/celebrations; the 50-tier Career Pass (37 free + 50 premium, highlights every 5th tier, the tier-50 showcase, named styles drawn by src/28, pacing, validateReward refusals, a claimed flair equips); wings/crown/aura on the profile card; on the live field footprints behind him, wings and a crown on him, his number font, all off again on unequip; a new celebration; no Math.random from src/28; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics",
+    "seasons"
+   ],
+   "runtimeSec": 420,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }
