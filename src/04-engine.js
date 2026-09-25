@@ -3284,7 +3284,7 @@ window.__visionRadiusV96 = visionRadiusV96;
           rushers.forEach(shedTick); rushers.forEach(swimTick);
           rushers.forEach(r=>{ if(!r.shed && r.engaging && !(r.stunned && t<r.stunned)){
             const wide = r.edge ? (r.y<MIDY?-1:1)*0.5 : 0;
-            r.engaging.lx -= Math.max(0,(r.str-r.engaging.str))*0.000027*TICK; r.engaging.y += wide; }});
+            r.engaging.lx -= Math.max(0,(r.str-r.engaging.str))*0.000027*TICK; r.engaging.y = clampY(r.engaging.y + wide); }});   // v153 A: the edge drift never carries a blocker over the sideline
           mv(qb, -58, qb.y, 0.8); mv(rb, rb.lx - 2, rb.y, 0.25);
           rushers.filter(r=>r.shed).forEach(r=>mv(r, qb.lx, qb.y, 1.0));
           if (!S.off[8]._drawAnn) { S.off[8]._drawAnn = 1; emit("playfake",{x:qb.lx,y:qb.y,draw:true}); }
@@ -3348,7 +3348,7 @@ window.__visionRadiusV96 = visionRadiusV96;
           // v82: a penetrator on a twist crashes the OUTSIDE gap before the loop
           const wide = r.edge ? (r.y<MIDY?-1:1)*0.4 : (r._stunt === "pen" && stunt && !stunt.resolved ? (r.y<MIDY?-1:1)*0.6 : 0);
           r.engaging.lx -= Math.max(0,(r.str-r.engaging.str))*0.000027*TICK;
-          r.engaging.y += wide; }});
+          r.engaging.y = clampY(r.engaging.y + wide); }});   // v153 A: clamped like every other move
         if (doubled && !doubled._ann) { doubled._ann=1; emit("doubleTeam",{on:doubled.id}); }
         if (blitzer && blitzer.blitzing && !blitzer._ann) { blitzer._ann=1; emit("blitz",{who:blitzer.id}); }
         if (blitzer && blitzer.blitzing && !blitzer.picked && !blitzer.freeRun) {
