@@ -1496,7 +1496,8 @@
     "bootviewcheck",
     "layoutcheck",
     "menu-integration-check",
-    "v153Fcheck"
+    "v153Fcheck",
+    "v153Echeck"
    ]
   },
   "v153b": {
@@ -1517,6 +1518,25 @@
     "v147Ccheck",
     "v151Acheck",
     "coachcheck"
+   ]
+  },
+  "thumb": {
+   "desc": "v153 E — phone fit: the profile figure's kit recolour (src/28-cosmetics.js drawCharacter), the one-page skill sheet (07 screenUpgrade), the 11px / 36px floors on the career screens (25-shell THE THUMB, 22's stats tabs), locked Legacy medals black (31)",
+   "anchors": [
+    "v153 E"
+   ],
+   "files": [],
+   "checks": [
+    "v153Echeck",
+    "v146Echeck",
+    "scrollcheck",
+    "traincheck",
+    "capcheck",
+    "v142check",
+    "v151Bcheck",
+    "v152Acheck",
+    "v150Acheck",
+    "layoutcheck"
    ]
   }
  },
@@ -3643,6 +3663,22 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v153Echeck": {
+   "file": "scripts/v153Echeck.mjs",
+   "desc": "v153 E — at 400x860: the profile figure wears the kit's colours (pixel shares for four kits, no source navy left, a helmet shell on the helmet only, deterministic), on a lit backdrop; the skill sheet's three groups are a segmented control and each fits one page (every row on screen, no inner scroll), steppers and tabs >= 36px, KEY badges, v67 cap readouts + a soft-cap bar that moves on a spend, HOW PRICES WORK; 23 career screens/tabs with no text under 11px and no tap target under 36px, the screen's name on the ticker, the stats table in its own tab; locked Legacy medals solid black (screenshot pixels) in the book, the detail panel, the trophy case's next milestone and the milestone card; no page errors.",
+   "areas": [
+    "profile",
+    "upgrade",
+    "shell",
+    "legacy"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   }
  }
 }

@@ -628,49 +628,135 @@
   }
 
   /* ---------------- the character on the card ---------------- */
-  var SENT = "#00ff00";
-  function drawCharacter(cv, kd, age) {
-    var G = window.__GROW_V132; if (!cv || !G || !G.draw) return null;
-    var k = kitFromData(kd), res = null;
+  /* ===== v153 E THE KIT READS ON THE CARD =====
+   * The card used to borrow the growth screen's recolour (07's growHiCellV134), which skips every source pixel
+   * darker than L 38 — and the source jersey is navy at a MEDIAN L of 32, so the torso and the socks stayed the
+   * art's own navy whatever he wore: a teal-and-black team read as a navy man with teal arms, a white kit as navy
+   * with grey blotches (only the navy's highlights were scaled, `L / 95`, into flat patches). The pattern pass
+   * then shaded its trim off a sentinel's green (`l6 * 1.05`), the same broken ramp again.
+   *
+   * So the card recolours the native-size art itself, once per kit, at the SOURCE: every navy pixel (any
+   * lightness) is the jersey (above the neck, the helmet shell), every gold pixel the pants and arms (above the
+   * neck, the helmet stripe and mask); each is re-shaded on a ramp around its region's median — the median pixel
+   * IS the kit colour, darker folds run down to a shadow of it, highlights up towards white — so a black kit
+   * keeps its folds, a white kit its creases, and the team colour is the colour you see. The pattern is painted
+   * on the jersey rows in source coordinates before the scale, so it shades the same way. The figure is then
+   * drawn exactly as the growth screen draws him (the same age proportions, `__GROW_V132.stage`).
+   * Looks only: nothing here reads or writes a number the game uses. `window.__V153E.fig`. ===== */
+  var FIG = { img: null, tried: false, cache: {}, neck: 0.372, waiting: [], drawn: 0, last: null };
+  function figLoad() {
+    if (FIG.img || FIG.tried) return;
+    FIG.tried = true;
     try {
-      res = G.draw(cv, age || 22, [k.U.j, k.U.p]);
-      if (!res) return null;
-      var needH = !!k.H, needP = k.U.pat && k.U.pat !== "solid" && k.U.t;
-      if (!needH && !needP && !k.U.ps) return res;
-      var W = cv.width, H = cv.height, x = cv.getContext("2d"), A = x.getImageData(0, 0, W, H);
-      var tmp = document.createElement("canvas");
-      var diff = function (kit) { G.draw(tmp, age || 22, kit); var B = tmp.getContext("2d").getImageData(0, 0, W, H).data; return B; };
-      var a = A.data, top = -1, bot = -1;
-      for (var y = 0; y < H; y++) for (var xx = 0; xx < W; xx++) if (a[(y * W + xx) * 4 + 3] > 40) { if (top < 0) top = y; bot = y; }
-      var headCut = top + Math.round((bot - top) * 0.36);
-      if (needH) {
-        var B = diff([k.U.j, k.H.s]), cols = [];
-        for (var y2 = top; y2 < headCut; y2++) { var mn = 1e9, mx = -1; for (var x2 = 0; x2 < W; x2++) { var i = (y2 * W + x2) * 4; if (Math.abs(B[i] - a[i]) + Math.abs(B[i + 1] - a[i + 1]) + Math.abs(B[i + 2] - a[i + 2]) > 18) { a[i] = B[i]; a[i + 1] = B[i + 1]; a[i + 2] = B[i + 2]; if (x2 < mn) mn = x2; if (x2 > mx) mx = x2; } } cols.push([y2, mn, mx]); }
-        if (k.H.st) { var st = rgb(k.H.st); cols.forEach(function (r) { if (r[2] < 0) return; var c = (r[1] + r[2]) / 2, w = Math.max(1.5, (r[2] - r[1]) * 0.07); for (var x3 = Math.floor(c - w); x3 <= Math.ceil(c + w); x3++) { var i3 = (r[0] * W + x3) * 4; if (B[i3 + 3] > 40 && Math.abs(B[i3] - A.data[i3]) >= 0) { var l = (B[i3] + B[i3 + 1] + B[i3 + 2]) / 3 / 160; a[i3] = Math.min(255, st[0] * Math.max(0.55, l)); a[i3 + 1] = Math.min(255, st[1] * Math.max(0.55, l)); a[i3 + 2] = Math.min(255, st[2] * Math.max(0.55, l)); } } }); }
-        if (k.H.f === "gloss" || k.H.f === "chrome") for (var y4 = top; y4 < top + Math.max(2, (headCut - top) * 0.18); y4++) for (var x4 = 0; x4 < W; x4++) { var i4 = (y4 * W + x4) * 4; if (a[i4 + 3] > 40) { a[i4] += (255 - a[i4]) * 0.3; a[i4 + 1] += (255 - a[i4 + 1]) * 0.3; a[i4 + 2] += (255 - a[i4 + 2]) * 0.3; } }
-      }
-      if (needP) {
-        var P = diff([SENT, k.U.p]), T = rgb(k.U.t), J = rgb(k.U.j), pb = -1, pt = 1e9;
-        for (var y5 = headCut; y5 < H; y5++) for (var x5 = 0; x5 < W; x5++) { var i5 = (y5 * W + x5) * 4; if (P[i5 + 3] > 40 && P[i5 + 1] > P[i5] + 40 && P[i5 + 1] > P[i5 + 2] + 40) { if (y5 < pt) pt = y5; if (y5 > pb) pb = y5; } }
-        for (var y6 = pt; y6 <= pb; y6++) for (var x6 = 0; x6 < W; x6++) {
-          var i6 = (y6 * W + x6) * 4; if (!(P[i6 + 3] > 40 && P[i6 + 1] > P[i6] + 40 && P[i6 + 1] > P[i6 + 2] + 40)) continue;
-          var l6 = P[i6 + 1] / 255, t6 = (y6 - pt) / Math.max(1, pb - pt), o = null, sw = Math.max(2, Math.round(W / 60));
-          var pat = k.U.pat;
-          if (pat === "hoops" && Math.floor((y6 - pt) / (sw * 3)) % 2 === 1) o = T;
-          else if (pat === "pinstripe" && Math.floor(x6 / sw) % 3 === 0) o = mix(J, T, 0.55);
-          else if (pat === "split" && x6 >= W / 2) o = T;
-          else if (pat === "fade") o = mix(J, T, Math.min(1, t6 * 1.15));
-          else if (pat === "yoke" && t6 < 0.18) o = T;
-          else if (pat === "chest" && Math.abs(t6 - 0.45) < 0.12) o = T;
-          else if (pat === "sleeves" && Math.abs(t6 - 0.26) < 0.05) o = T;
-          else if (pat === "camo") { var hh = ((Math.floor(x6 / (sw * 2))) * 73856093 ^ (Math.floor(y6 / (sw * 2))) * 19349663) >>> 0; o = hh % 7 < 2 ? T : null; }
-          if (o) { a[i6] = Math.min(255, o[0] * Math.max(0.35, l6 * 1.05)); a[i6 + 1] = Math.min(255, o[1] * Math.max(0.35, l6 * 1.05)); a[i6 + 2] = Math.min(255, o[2] * Math.max(0.35, l6 * 1.05)); }
+      var im = new Image(); im.decoding = "async";
+      im.onload = function () { FIG.img = im; var w = FIG.waiting.splice(0); w.forEach(function (f) { try { f(); } catch (e) {} }); };
+      im.onerror = function () { FIG.tried = false; };
+      im.src = window.__RIB_ASSET ? window.__RIB_ASSET("grow/idle_dn_hi.png") : "./public/grow/idle_dn_hi.png";
+    } catch (e) {}
+  }
+  function lumOf(c) { return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]; }
+  /* one kit colour at one source shade: t = the pixel's lightness over its region's median */
+  function shadeKit(B, t) {
+    var L = lumOf(B), base = L < 48 ? mix(B, [255, 255, 255], ((48 - L) / 48) * 0.14) : B;   // a black kit keeps a fold to read
+    if (t <= 1) { var k = Math.max(0, Math.min(1, (t - 0.32) / 0.68)); return mix([base[0] * 0.24, base[1] * 0.24, base[2] * 0.3], base, k); }
+    var h = Math.min(1, (t - 1) * 0.5) * (L > 205 ? 0.25 : 0.55);
+    return mix(base, [255, 255, 255], h);
+  }
+  function srcClass(r, g, b) {
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = (mx + mn) / 2, sat = mx ? (mx - mn) / mx : 0, hue = 0;
+    if (mx !== mn) { if (mx === r) hue = (60 * ((g - b) / (mx - mn)) + 360) % 360; else if (mx === g) hue = 60 * ((b - r) / (mx - mn)) + 120; else hue = 60 * ((r - g) / (mx - mn)) + 240; }
+    if (hue >= 190 && hue <= 265 && sat > 0.25 && mx > 14) return [1, L];
+    if (hue >= 33 && hue <= 62 && sat > 0.3 && L > 18) return [2, L];
+    if (hue >= 12 && hue < 33 && sat > 0.35 && L > 14) return [3, L];     // the gold's warm rim (and his skin, which is kept)
+    return [0, L];
+  }
+  /* the source recoloured for one kit: { j, p, t, pat, hs, hst, hf } (hex strings; hs / hst / t optional) */
+  function figCell(K) {
+    var im = FIG.img; if (!im) return null;
+    var key = [K.j, K.p, K.t, K.pat, K.hs, K.hst, K.hf].join("|");
+    if (FIG.cache[key]) return FIG.cache[key];
+    var W = im.naturalWidth, H = im.naturalHeight, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    var x = cv.getContext("2d"); x.drawImage(im, 0, 0);
+    var img = x.getImageData(0, 0, W, H), d = img.data;
+    var top = 3, neck = Math.round(top + (H - 6) * FIG.neck);
+    // the jersey's rows: from the neck to the first row where the gold pants outweigh the navy
+    var waist = H;
+    for (var y0 = neck + 20; y0 < H; y0++) {
+      var nv = 0, gd = 0;
+      for (var x0 = 0; x0 < W; x0++) { var i0 = (y0 * W + x0) * 4; if (d[i0 + 3] < 20) continue; var c0 = srcClass(d[i0], d[i0 + 1], d[i0 + 2])[0]; if (c0 === 1) nv++; else if (c0 === 2) gd++; }
+      if (gd > 12 && gd > nv * 1.5) { waist = y0; break; }
+    }
+    var J = rgb(K.j), P = rgb(K.p), T = K.t ? rgb(K.t) : P, HS = K.hs ? rgb(K.hs) : J, HST = K.hst ? rgb(K.hst) : P, pat = K.pat || "solid";
+    var sw = 3, MED1 = 32.5, MED2 = 88;                 // the source's navy and gold medians (measured off idle_dn_hi.png)
+    var gloss = K.hf === "gloss" || K.hf === "chrome", chrome = K.hf === "chrome";
+    // the helmet is the dome (an ellipse over the art's own helmet), not everything above the neck: the
+    // shoulder pads ride those rows too. Its stripe is the gold above the visor; the mask stays the trim colour.
+    var hx0 = W * 0.515, hy0 = H * 0.15, hrx = W * 0.29, hry = H * 0.14, visor = H * 0.23;
+    for (var y = 0; y < H; y++) for (var xx = 0; xx < W; xx++) {
+      var i = (y * W + xx) * 4; if (d[i + 3] < 20) continue;
+      var c = srcClass(d[i], d[i + 1], d[i + 2]), cls = c[0], o = null, t = 1;
+      var ex = (xx - hx0) / hrx, ey = (y - hy0) / hry, helmet = y < neck && ex * ex + ey * ey <= 1;
+      var face = y >= H * 0.2 && y < neck + 6 && xx > W * 0.28 && xx < W * 0.75;
+      if (cls === 1) {
+        t = c[1] / MED1;
+        if (helmet) { o = HS; if (chrome) t = 0.55 + (t - 0.55) * 1.6; }
+        else {
+          o = J;
+          if (y < waist && pat !== "solid" && K.t) {
+            var ty = Math.max(0, (y - neck) / Math.max(1, waist - neck));
+            if (pat === "hoops" && Math.floor(Math.max(0, y - neck) / (sw * 3)) % 2 === 1) o = T;
+            else if (pat === "pinstripe" && Math.floor(xx / sw) % 3 === 0) o = mix(J, T, 0.55);
+            else if (pat === "split" && xx >= W / 2) o = T;
+            else if (pat === "fade") o = mix(J, T, Math.min(1, ty * 1.15));
+            else if (pat === "yoke" && ty < 0.2) o = T;
+            else if (pat === "chest" && Math.abs(ty - 0.45) < 0.12) o = T;
+            else if (pat === "sleeves" && Math.abs(ty - 0.26) < 0.06) o = T;
+            else if (pat === "camo") { var hh = ((Math.floor(xx / (sw * 2))) * 73856093 ^ (Math.floor(y / (sw * 2))) * 19349663) >>> 0; if (hh % 7 < 2) o = T; }
+          }
         }
-      }
-      x.putImageData(A, 0, 0);
+      } else if (cls === 2 || (cls === 3 && !face)) { t = c[1] / MED2; o = helmet && y < visor ? HST : P; }   // the warm rim follows its gold, never his face
+      if (!o) continue;
+      var out = shadeKit(o, t);
+      if (helmet && gloss && cls === 1 && y < hy0 - hry * 0.45) out = mix(out, [255, 255, 255], 0.3);
+      d[i] = Math.max(0, Math.min(255, out[0])); d[i + 1] = Math.max(0, Math.min(255, out[1])); d[i + 2] = Math.max(0, Math.min(255, out[2]));
+    }
+    x.putImageData(img, 0, 0);
+    FIG.cache[key] = cv;
+    return cv;
+  }
+  /* the growth screen's geometry (07 growDrawHiV134), on the card's own recolour */
+  function figDraw(cv, age, K) {
+    var c = figCell(K), G = window.__GROW_V132; if (!c || !cv || !cv.getContext) return null;
+    var stg = G && G.stage ? G.stage(age) : { head: 1, width: 1, name: "grown" };
+    var W = 128, H = 160, dpr = Math.min(3, window.devicePixelRatio || 1);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.classList.add("hi");
+    var x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+    x.clearRect(0, 0, W, H);
+    x.save(); x.fillStyle = "rgba(0,0,0,.45)"; x.beginPath(); x.ellipse(W / 2, H - 3, 25, 4.5, 0, 0, 6.283); x.fill(); x.restore();
+    var SW = c.width, SH = c.height, top = 3, bot = SH - 3, ink = bot - top, neck = Math.round(top + ink * FIG.neck), headRows = neck - top, bodyRows = bot - neck;
+    var k = Math.min((H - 4) / (bodyRows + headRows * stg.head), (W - 4) / Math.max(SW * 0.78 * stg.width, SW * 0.66 * stg.head * Math.sqrt(stg.width)));
+    var bw = SW * k * stg.width, bh = bodyRows * k, bx = (W - bw) / 2, by = H - 2 - bh;
+    x.drawImage(c, 0, neck, SW, bodyRows, bx, by, bw, bh);
+    var hk = k * stg.head, hw = SW * hk * Math.sqrt(stg.width), hh = headRows * hk;
+    x.drawImage(c, 0, top, SW, headRows, (W - hw) / 2, by + k * ink * 0.012 - hh, hw, hh);
+    return { mode: "hi", stage: stg, k: +k.toFixed(3), v153: true };
+  }
+  function drawCharacter(cv, kd, age) {
+    var k = kitFromData(kd), res = null;
+    var K = { j: k.U.j, p: k.U.p, t: k.U.t, pat: k.U.pat, hs: k.H ? k.H.s : null, hst: k.H ? k.H.st : null, hf: k.H ? k.H.f : null };
+    try {
+      figLoad();
+      res = figDraw(cv, age || 22, K);
+      if (res) { FIG.drawn++; FIG.last = K; return res; }
+      // the art is still on its way: the growth screen's figure now, the card's own the moment it lands
+      if (cv && !cv.__v153wait) { cv.__v153wait = 1; FIG.waiting.push(function () { cv.__v153wait = 0; if (cv.isConnected) drawCharacter(cv, kd, age); }); }
+      var G = window.__GROW_V132; if (!cv || !G || !G.draw) return null;
+      res = G.draw(cv, age || 22, [k.U.j, k.U.p]);
     } catch (e) { V.charErr = String(e && e.message || e); }
     return res;
   }
+  window.__V153E = Object.assign(window.__V153E || {}, { fig: FIG, shadeKit: shadeKit, figCell: figCell });
+  try { figLoad(); } catch (e) {}
 
   /* ---------------- the profile ---------------- */
   function levelName(i) { try { var L = window.__GRIDIRON_AUDIT__.LEVELS; return (L[i] && L[i].name) || ""; } catch (e) { return ""; } }
@@ -860,8 +946,9 @@
       ".pc-gen-v151b{position:absolute;left:10px;top:8px;padding:2px 7px;border-radius:6px;background:rgba(0,0,0,.55);color:#ffd76f;font:700 10px Oswald,sans-serif;letter-spacing:1.5px}",
       ".pc-ovr-v151b{position:absolute;right:10px;top:7px;display:flex;flex-direction:column;align-items:center;padding:2px 8px;border-radius:8px;background:rgba(0,0,0,.55);font:700 8px Oswald,sans-serif;letter-spacing:1.5px;color:#c9d2de}.pc-ovr-v151b b{font-size:19px;line-height:1;color:#ffd76f}",
       ".pc-body-v151b{display:flex;gap:10px;padding:0 12px;margin-top:-34px;position:relative}",
-      ".pc-fig-v151b{flex:none;width:92px;height:116px;border-radius:12px;background:radial-gradient(ellipse at 50% 85%,rgba(240,187,69,.18),rgba(8,12,18,.85) 70%);border:1px solid rgba(255,255,255,.08);display:grid;place-items:end center;overflow:hidden}",
-      ".pc-cv-v151b{width:92px;height:115px;image-rendering:auto}",
+      /* v153 E: a lit studio wall behind him (a dark kit on the old near-black box vanished) and a thin rim light round the figure */
+      ".pc-fig-v151b{flex:none;width:92px;height:116px;border-radius:12px;background:radial-gradient(ellipse 80% 62% at 50% 40%,#6d7c93 0%,#435066 38%,#212a38 72%,#141a24 100%);border:1px solid rgba(255,255,255,.16);box-shadow:0 0 0 1px rgba(0,0,0,.5),0 4px 10px rgba(0,0,0,.45);display:grid;place-items:end center;overflow:hidden}",
+      ".pc-cv-v151b{width:92px;height:115px;image-rendering:auto;filter:drop-shadow(0 0 1px rgba(255,255,255,.55)) drop-shadow(0 2px 3px rgba(0,0,0,.55))}",
       ".pc-id-v151b{min-width:0;flex:1;padding-top:38px}",
       ".pc-name-v151b{font:700 19px Oswald,sans-serif;letter-spacing:1px;line-height:1.05;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
       ".pc-meta-v151b{font-size:11px;color:#9fb0c4;letter-spacing:1px;margin-top:3px}",

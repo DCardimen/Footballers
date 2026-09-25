@@ -398,7 +398,7 @@
       '<div class="lgm-name">' + esc(name(m)) + "</div>" +
       (newTier ? '<div class="lgm-tier">YOU ARE NOW <b>' + esc(newTier.name) + "</b></div>" : "") +
       '<div class="lgm-rw"><span>🎖️ New medal · <b class="lgm-mn">' + esc(name(m)) + "</b></span>" + '<span>🪙 <b>+' + fmt(bounty) + " PP</b> legacy bounty" + (list.length > 1 ? " (" + list.length + " milestones)" : "") + "</span>" +
-      (nxt ? '<span class="lgm-next">NEXT ' + medalHtml(nxt, 30, { flat: true }) + " <b>" + esc(name(nxt)) + "</b></span>" : "") + "</div>" +
+      (nxt ? '<span class="lgm-next">NEXT ' + medalHtml(nxt, 30, { flat: true, locked: true }) + " <b>" + esc(name(nxt)) + "</b></span>" : "") + "</div>" +
       '<button class="btn lgm-ok" type="button">' + (big ? "LEGENDARY" : "CONTINUE") + "</button></div>";
     var slot = o.querySelector(".lgm-slot");
     slot.innerHTML = medalHtml(Math.max(1, m - 1), 168);
@@ -562,7 +562,7 @@
       '<div class="lgk-name">' + esc(name(m)) + "</div>" + (R.rank > 500 ? '<div class="lgk-lvl">LEGACY LEVEL <b>' + fmt(R.rank) + "</b></div>" : "") +
       '<div class="lgc-bar lgk-bar"><i style="width:' + barPct(R).toFixed(1) + '%"></i></div>' +
       '<div class="lgk-xp"><span>' + fmt(R.into) + " / " + fmt(R.need) + " XP to rank " + (R.rank + 1) + "</span><span>" + fmt(L.xp) + " TOTAL</span></div>" +
-      (R.rank < 500 ? '<div class="lgk-next">NEXT MILESTONE ' + medalHtml(nextMs, 26, { flat: true }) + " <b>LEGACY " + nextMs + "</b> · " + fmt(toMs) + " XP · +" + fmt(X.bounty(nextMs)) + " PP</div>" : "") +
+      (R.rank < 500 ? '<div class="lgk-next">NEXT MILESTONE ' + medalHtml(nextMs, 26, { flat: true, locked: true }) + " <b>LEGACY " + nextMs + "</b> · " + fmt(toMs) + " XP · +" + fmt(X.bounty(nextMs)) + " PP</div>" : "") +
       /* v153 F: the Chaos he runs with is quoted where the rank lives */
       (X.diff && X.diff() > 1 ? '<div class="lgk-next lgk-chaos-v153">🔥 CHAOS BONUS <b>×' + X.diff().toFixed(2) + "</b> LEGACY XP</div>" : "") +
       "</div></div>";
@@ -794,7 +794,10 @@
       ".lg-500::before{inset:-30%!important;background:conic-gradient(from 0deg,#ffd76f,#ff9ce0,#b9a6ff,#8fe3ff,#fff3c4,#ffd76f)!important;-webkit-mask-image:radial-gradient(circle,#000 22%,transparent 66%)!important;mask-image:radial-gradient(circle,#000 22%,transparent 66%)!important;animation:lgSpinV152 6s linear infinite,lgPulseV152 2.4s ease-in-out infinite!important;filter:blur(calc(var(--lgs)*.03))}",
       "@keyframes lgSpinV152{to{transform:rotate(360deg)}}@keyframes lgPulseV152{0%,100%{opacity:.65}50%{opacity:1}}",
       ".lg-flat::before,.lg-flat::after{display:none!important}.lg-flat .lg-shine{display:none!important}",
-      ".lg-locked{filter:brightness(0) drop-shadow(0 0 1px rgba(255,255,255,.25))!important;opacity:.38}.lg-locked::before,.lg-locked::after,.lg-locked .lg-shine{display:none!important}",
+      /* v153 E: an unknown medal is a SOLID black silhouette (it was brightness(0) at 38% opacity — a grey-brown smudge
+       * on the parchment), with a faint warm rim so its shape reads on the dark cases too */
+      ".lg-locked{filter:brightness(0) drop-shadow(0 0 .6px rgba(255,236,190,.7)) drop-shadow(0 1px 1.5px rgba(0,0,0,.35))!important;opacity:1!important}.lg-locked::before,.lg-locked::after,.lg-locked .lg-shine{display:none!important}",
+      ".lg-locked .lg-art{filter:none!important;opacity:1!important}",
       "@media(prefers-reduced-motion:reduce){.lg-medal-v152::before,.lg-medal-v152::after,.lg-medal-v152 .lg-shine{animation:none!important}}",
       /* the swap */
       ".lgc-slot,.lgk-slot,.lgm-slot,.lg-chip-slot,.lgb-dslot,.lg5-stage{position:relative;display:inline-grid;place-items:center}",

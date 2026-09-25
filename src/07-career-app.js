@@ -22561,62 +22561,135 @@
     ["BALL SKILLS", ["catching", "throwing", "tackling", "blocking", "ballControl"]],
     ["MENTAL", ["awareness", "vision", "grit", "discipline"]]
   ];
-  window.toggleUpGroupV97 = function (g) {
-    const open = window.__upGroupV97 === g;
-    window.__upGroupV97 = open ? "" : g;
-    document.querySelectorAll(".up-group-v97").forEach(el => {
-      el.classList.toggle("on", !open && el.dataset.g === g);
+  /* ===== v153 E THE SKILL SHEET ON ONE PAGE =====
+   * The v97 sheet was three accordion cards under a two-paragraph header, so on a 400x860 phone the open
+   * group got a 212px window of its own inside the shell (`.fill-v146`) — two and a half rows at a time,
+   * steppers scrolling past under the thumb. Now the header is one line (the title, the points and the
+   * OVR), the pricing paragraph folds behind HOW PRICES WORK, and the three groups are a segmented control:
+   * one group on screen at a time, every row of it visible — the icon, the name, KEY, the stat card's (i),
+   * the live metric, the soft-cap readout (v67's words, unchanged) over a bar that fills to the soft cap and
+   * turns gold past it, and 40px steppers. Every group's rows stay in the DOM (hidden), so `alloc`,
+   * `refreshAllocButtons` and every check that reads `.up-cap` / `.uv` see all seventeen. Layout only:
+   * the prices, the caps and `alloc` are exactly v21 / v67 / v97's. `upSegV153`; `v153Echeck`. ===== */
+  function upSegV153(g) {
+    window.__upGroupV97 = g;
+    document.querySelectorAll(".up-group-v97").forEach(el => el.classList.toggle("on", el.dataset.g === g));
+    document.querySelectorAll(".up-seg-v153 button").forEach(el => {
+      const on = el.dataset.g === g;
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-selected", on ? "true" : "false");
     });
-    if (!open) {
-      const el = document.querySelector('.up-group-v97[data-g="' + g + '"]');
-      try {
-        el && el.scrollIntoView({ block: "start", behavior: "smooth" });
-      } catch (e) {}
-    }
+    try {
+      const sc = byId("screen");
+      if (sc) sc.scrollTop = 0;
+    } catch (e) {}
+  }
+  function upHowV153() {
+    const box = document.querySelector(".up-how-v153");
+    if (box) box.classList.toggle("open");
+  }
+  window.upSegV153 = upSegV153;
+  window.upHowV153 = upHowV153;
+  (function () {
+    if (document.getElementById("upV153css")) return;
+    const st = document.createElement("style");
+    st.id = "upV153css";
+    st.textContent = [
+      ".up-v153>.eyebrow{margin-bottom:0}",
+      ".up-top-v153{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 6px}",
+      ".up-top-v153 .h1{font-size:21px!important;margin:0!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}",
+      ".up-v153 .up-pts-v153{flex:none;display:flex;align-items:center;gap:10px;margin:0!important;padding:4px 10px!important;border-radius:10px}",
+      ".up-pts-v153 .n{font:700 20px Oswald,sans-serif!important;color:var(--gold)}.up-pts-v153 .l{font:600 11px Oswald,sans-serif;letter-spacing:1.5px;color:var(--chalk-dim);margin-left:4px}",
+      ".up-ovr-v153{font:700 16px Oswald,sans-serif;color:var(--gold);padding-left:10px;border-left:1px solid rgba(240,187,69,.35)}",
+      ".up-how-v153{position:relative;margin:0 0 8px}",
+      ".up-how-b-v153{width:100%;min-height:38px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.03);color:var(--chalk-dim);font:500 13px 'Barlow Condensed',sans-serif;text-align:left;cursor:pointer}",
+      ".up-how-b-v153>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.up-how-b-v153 b{color:var(--chalk)}.up-v153 b.gold{color:var(--gold)}",
+      ".up-how-b-v153 em{flex:none;font:700 11px Oswald,sans-serif;letter-spacing:1.2px;color:var(--gold);font-style:normal;white-space:nowrap}",
+      ".up-how-note-v153{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:8;padding:10px 12px;border:1px solid rgba(240,187,69,.45);border-radius:12px;background:#0f141c;box-shadow:0 10px 24px rgba(0,0,0,.6);font-size:13px;line-height:1.38;color:var(--chalk-dim)}",
+      ".up-how-note-v153 b{color:var(--chalk)}.up-how-v153.open .up-how-note-v153{display:block}.up-how-v153.open .up-how-b-v153 em{color:#fff}",
+      ".up-seg-v153{display:flex;gap:4px;padding:3px;margin:0 0 8px;border-radius:12px;background:rgba(0,0,0,.35);border:1px solid var(--line)}",
+      ".up-seg-v153 button{flex:1 1 0;min-width:0;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:0;border-radius:9px;background:transparent;color:#aab4c2;font:700 12.5px Oswald,sans-serif;letter-spacing:1.2px;cursor:pointer}",
+      ".up-seg-v153 small{font:600 11px Oswald,sans-serif;letter-spacing:.8px;color:var(--chalk-dim)}.up-seg-v153 small b{color:var(--good);font-weight:700}",
+      ".up-seg-v153 button.on{background:linear-gradient(180deg,rgba(240,187,69,.26),rgba(240,187,69,.1));color:#ffd76f;box-shadow:0 0 0 1px rgba(240,187,69,.5) inset}",
+      ".up-v153 .up-group-v97{display:none;padding:2px 10px!important;margin:0!important}.up-v153 .up-group-v97.on{display:block}",
+      ".up-v153 .up-group-body-v97{display:block!important;padding:0!important}",
+      ".up-v153 .up-attr{display:flex;align-items:center;gap:6px;padding:5px 0!important;min-height:52px;border-bottom:1px solid rgba(255,255,255,.06)}.up-v153 .up-attr:last-child{border-bottom:0}",
+      ".up-v153 .up-attr .info{flex:1;min-width:0}",
+      ".up-v153 .up-attr .un{display:flex;align-items:center;gap:5px;font:600 16px 'Barlow Condensed',sans-serif;line-height:1.15;white-space:nowrap;min-width:0}",
+      ".up-ic-v153{flex:none;width:18px;text-align:center}.up-nm-v153{overflow:hidden;text-overflow:ellipsis;min-width:0}",
+      ".up-v153 .up-attr .desc{display:none!important}",
+      ".up-line-v153{display:flex;gap:8px;align-items:baseline;white-space:nowrap;overflow:hidden;line-height:1.3;margin-top:1px}",
+      ".up-v153 .up-metric{display:flex!important;align-items:baseline;gap:4px;flex:0 1 auto;min-width:0;margin:0 0 0 auto!important;padding-left:6px;font-size:12px!important;white-space:nowrap}",
+      ".up-v153 .up-metric small{min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:11px;opacity:.8}.up-v153 .up-metric b{flex:none}",
+      ".up-v153 .up-nm-v153{flex:none}",
+      ".up-v153 .up-cap{display:block!important;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:11px!important;margin:0!important}",
+      ".up-bar-v153{height:4px;margin-top:3px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden}",
+      ".up-bar-v153 i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#3f9e5a,#7fe0a0);transition:width .25s}",
+      ".up-bar-v153.over i{background:linear-gradient(90deg,#c9962a,#f0bb45)}.up-bar-v153.deep i{background:linear-gradient(90deg,#c94a3a,#ff8a80)}",
+      ".up-v153 .up-attr .step{flex:none;width:40px;height:40px;font-size:22px;border-radius:10px}",
+      ".up-v153 .up-attr .uv{flex:none;width:36px;font-size:19px}",
+      ".up-v153 .weight-tag{flex:none;font-size:11px;margin-left:1px}",
+      "@media(prefers-reduced-motion:reduce){.up-bar-v153 i{transition:none}}"
+    ].join("");
+    (document.head || document.documentElement).appendChild(st);
+  })();
+  window.toggleUpGroupV97 = function (g) {
+    upSegV153(g); // v153 E: the groups are tabs now; the old accordion entry point selects one
   };
   function screenUpgrade() {
     const e = state.player,
       t = playerOvr(e);
+    const isKey = a => !!(POSITIONS[e.pos].w[a] && POSITIONS[e.pos].w[a] >= 0.14);
     ((byId("screen").innerHTML = `
+    <div class="up-v153">
     <div class="eyebrow">${e.pos} · Current OVR ${t}</div>
-    <div class="h1">Train Your Player</div>
-    <div class="sub">Invest points into attributes. Stats marked <span class="weight-tag">KEY</span> matter most for your position and raise your OVR the fastest.</div>
+    <div class="up-top-v153">
+      <div class="h1">Train Your Player</div>
+      <div class="pts-banner up-pts-v153">
+        <div><span class="n" id="ptsLeft">${e.points}</span><span class="l">PTS</span></div>
+        <div class="up-ovr-v153" id="liveOvr">OVR ${t}</div>
+      </div>
+    </div>
     ${(() => {
       const st = clamp99(Math.round(e.stars || 1), 1, 5),
         bp = Math.round((TU("drStarBase", 0.6) + (st - 1) * TU("drStarStep", 0.0625)) * 100),
         pp = Math.round((TU("drPrestigePct", 0.01) * (state.prestige || 0) + softPctV146()) * 100);
-      return `<div class="threshold-note" style="margin-top:8px">📉 <b>Diminishing returns — no hard cap.</b> Each stat costs <b>1 pt</b> up to its <b style="color:var(--gold)">soft cap</b>, then <b>2, 3, 4…</b> per band of ${bandWV146()} above it${bandTopV146() < 1 / 0 ? ` (never more than <b>${bandTopV146()}</b>)` : ""}, and <b>×${wallMultV146()}</b> from <b>${wallAtV146()}</b> on. ★${st} sets your soft caps at <b>${bp}%</b> of ceiling${pp ? ` · Honors add <b style="color:#7fe0a0">+${pp}%</b>` : ""} — more RECRUIT stars (the ★ above) and more HONORS push the cheap zone massively higher. Gold values are past their soft cap.</div>`;
+      return `<div class="up-how-v153"><button type="button" class="up-how-b-v153" onclick="upHowV153()"><span>📉 <b>1 pt</b> per +1 up to each <b class="gold">soft cap</b>, then more</span><em>HOW PRICES WORK</em></button>
+      <div class="up-how-note-v153">Stats marked <span class="weight-tag">KEY</span> matter most for your position and raise your OVR the fastest. <b>Diminishing returns — no hard cap.</b> Each stat costs <b>1 pt</b> up to its <b class="gold">soft cap</b>, then <b>2, 3, 4…</b> per band of ${bandWV146()} above it${bandTopV146() < 1 / 0 ? ` (never more than <b>${bandTopV146()}</b>)` : ""}, and <b>×${wallMultV146()}</b> from <b>${wallAtV146()}</b> on. ★${st} sets your soft caps at <b>${bp}%</b> of ceiling${pp ? ` · Honors add <b style="color:#7fe0a0">+${pp}%</b>` : ""} — more RECRUIT stars and more HONORS push the cheap zone massively higher. The bar under each stat fills to its soft cap; gold values are past it.</div></div>`;
     })()}
-    <div class="pts-banner mt" style="margin-top:14px">
-      <div><span class="n" id="ptsLeft">${e.points}</span> <span class="l">POINTS TO SPEND</span></div>
-      <div style="font-family:'Oswald';font-size:20px;color:var(--gold)" id="liveOvr">OVR ${t}</div>
-    </div>
     ${(() => {
       const row = a => {
-        const s = POSITIONS[e.pos].w[a] && POSITIONS[e.pos].w[a] >= 0.14,
-          n = ATTR_INFO[a].metric;
-        return `<div class="up-attr">
-          <div class="info"><div class="un">${ATTR_INFO[a].icon} ${ATTR_INFO[a].name}${statInfoBtnV142(a)}${s ? ' <span class="weight-tag">KEY</span>' : ""}</div>
+        const n = ATTR_INFO[a].metric;
+        return `<div class="up-attr${isKey(a) ? " key" : ""}" data-k="${a}">
+          <div class="info"><div class="un"><span class="up-ic-v153">${ATTR_INFO[a].icon}</span><span class="up-nm-v153">${ATTR_INFO[a].name}</span>${isKey(a) ? '<span class="weight-tag">KEY</span>' : ""}${statInfoBtnV142(a)}${n ? `<span class="up-metric" title="${n.label}"><small>${n.label}</small><b id="mtr-${a}">${n.fmt(e.attrs[a])}</b></span>` : ""}</div>
             <div class="desc">${ATTR_INFO[a].desc}</div>
-            ${n ? `<div class="up-metric">${n.label}: <b id="mtr-${a}">${n.fmt(e.attrs[a])}</b></div>` : ""}
-            <div class="up-cap" id="cap-${a}"></div></div>
-          <button class="step" onclick="alloc('${a}',-1)" id="minus-${a}">−</button>
+            <div class="up-line-v153"><span class="up-cap" id="cap-${a}"></span></div>
+            <div class="up-bar-v153" id="bar-${a}"><i></i></div></div>
+          <button class="step" onclick="alloc('${a}',-1)" id="minus-${a}" aria-label="Lower ${ATTR_INFO[a].name}">−</button>
           <div class="uv" id="uv-${a}">${Math.round(e.attrs[a])}</div>
-          <button class="step" onclick="alloc('${a}',1)" id="plus-${a}">+</button>
+          <button class="step" onclick="alloc('${a}',1)" id="plus-${a}" aria-label="Raise ${ATTR_INFO[a].name}">+</button>
         </div>`;
       };
-      /* v97: three folding groups instead of one seventeen-row wall; the group holding the most KEY stats opens first */
+      /* v97's three groups (the one holding the most KEY stats opens first), shown one at a time (v153 E) */
       const G = UP_GROUPS_V97.map(g => [g[0], g[1].filter(k => ATTR_KEYS.includes(k))])
           .concat([["OTHER", ATTR_KEYS.filter(k => !UP_GROUPS_V97.some(g => g[1].includes(k)))]])
           .filter(g => g[1].length),
-        keyN = g => g[1].filter(k => POSITIONS[e.pos].w[k] && POSITIONS[e.pos].w[k] >= 0.14).length;
+        keyN = g => g[1].filter(isKey).length;
       if (window.__upGroupV97 == null || !G.some(g => g[0] === window.__upGroupV97))
         window.__upGroupV97 = G.slice().sort((a, b) => keyN(b) - keyN(a))[0][0];
-      return G.map(
+      const seg = `<div class="up-seg-v153" role="tablist">${G.map(
         g =>
-          `<div class="card up-group-v97 ${g[0] === window.__upGroupV97 ? "on" : ""}" data-g="${g[0]}"><button type="button" class="up-group-head-v97" onclick="toggleUpGroupV97('${g[0]}')"><span>${g[0]}</span><small>${keyN(g) ? keyN(g) + " KEY · " : ""}${g[1].length} stats</small><i>▾</i></button><div class="up-group-body-v97">${g[1].map(row).join("")}</div></div>`
-      ).join("");
+          `<button type="button" role="tab" data-g="${g[0]}" class="${g[0] === window.__upGroupV97 ? "on" : ""}" aria-selected="${g[0] === window.__upGroupV97 ? "true" : "false"}" onclick="upSegV153('${g[0]}')"><span>${g[0]}</span><small>${keyN(g) ? `<b>${keyN(g)} KEY</b> · ` : ""}${g[1].length}</small></button>`
+      ).join("")}</div>`;
+      return (
+        seg +
+        G.map(
+          g =>
+            `<div class="card up-group-v97 ${g[0] === window.__upGroupV97 ? "on" : ""}" data-g="${g[0]}" role="tabpanel"><div class="up-group-body-v97">${g[1].map(row).join("")}</div></div>`
+        ).join("")
+      );
     })()}
+    </div>
   `),
       refreshAllocButtons(),
       (byId("dock").innerHTML = `
@@ -22782,6 +22855,14 @@
                 ' — <b style="color:#7fe0a0">1 pt per +1</b> for ' +
                 wholeNum(sc - (e.attrs[a] || 0)) +
                 " more");
+      /* v153 E: the soft-cap bar — fills to the cap (green), gold past it, red where a +1 costs 4 or more */
+      const bar = byId("bar-" + a);
+      if (bar) {
+        const fill = bar.firstElementChild,
+          v = e.attrs[a] || 0;
+        bar.className = "up-bar-v153" + ((v >= attrCap() || c >= 4) && over ? " deep" : over ? " over" : "");
+        if (fill) fill.style.width = Math.max(3, Math.min(100, (v / Math.max(1, sc)) * 100)).toFixed(1) + "%";
+      }
     });
   }
   function doneUpgrade() {
