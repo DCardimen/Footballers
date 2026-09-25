@@ -148,7 +148,7 @@ const apex2 = await page.evaluate(() => {
   const wk = { injured: true }
   // force the roll to a season-ender
   const keepRoll = window.__rollInjuryV18Keep; let downgraded = null
-  try { window.__forceSeasonEnderV134 = true; window.__GRIDIRON_AUDIT__.materializeInjuryV134(pl, wk); downgraded = c.injury && !c.injury.seasonEnding && c.injury.weeksRemaining === 3 && wk.trainerRoomV134 === true } catch (e) { downgraded = 'err:' + e.message }
+  try { window.__forceSeasonEnderV134 = true; window.__GRIDIRON_AUDIT__.materializeInjuryV134(pl, wk); downgraded = c.injury && !c.injury.seasonEnding && c.injury.weeksRemaining === 6 && wk.trainerRoomV134 === true } catch (e) { downgraded = 'err:' + e.message }
   window.__forceSeasonEnderV134 = false; c.injury = null; lvl('trainerRoom', 0)
   out.trainer = downgraded
   // compound interest at the season roll is exercised by the season checks; here the arithmetic
@@ -158,7 +158,7 @@ const apex2 = await page.evaluate(() => {
 console.log('apex2:', JSON.stringify(apex2))
 ok(apex2.inherit[1] > apex2.inherit[0] + 20, 'Bloodline: a new player inherits the last career\'s sheet', JSON.stringify(apex2.inherit))
 ok(apex2.longevity.noteHasSeasonsLeft, 'Borrowed Time: at 45 with two levels he still has two seasons before mandatory retirement', JSON.stringify(apex2.longevity))
-ok(apex2.trainer === true, "Trainer's Room: a season-ending injury is downgraded to three games, once", JSON.stringify(apex2.trainer))
+ok(apex2.trainer === true, "Trainer's Room: a season-ending injury is downgraded to six games (v153 B: was three), once", JSON.stringify(apex2.trainer))
 
 // ---- 5. the Hall keeps the box score ----
 const hall = await page.evaluate(() => {

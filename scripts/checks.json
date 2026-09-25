@@ -602,7 +602,8 @@
     "capcheck",
     "skillartcheck",
     "scrollcheck",
-    "coachcheck"
+    "coachcheck",
+    "v153Bcheck"
    ],
    "look": [
     "`BOARD=1 growshot.mjs`"
@@ -773,7 +774,8 @@
    "files": [],
    "checks": [
     "injurycheck",
-    "availabilitycheck"
+    "availabilitycheck",
+    "v153Bcheck"
    ]
   },
   "ovr": {
@@ -1210,7 +1212,8 @@
     "coachcheck",
     "growthcheck",
     "walk",
-    "shot"
+    "shot",
+    "v153Bcheck"
    ]
   },
   "rivalry": {
@@ -1494,6 +1497,26 @@
     "layoutcheck",
     "menu-integration-check",
     "v153Fcheck"
+   ]
+  },
+  "v153b": {
+   "desc": "v153 B — the locker room, the team rating built by decisions, the training risk, the injury nerf, My Plays Only on by default",
+   "anchors": [
+    "v153 B"
+   ],
+   "files": [],
+   "checks": [
+    "v153Bcheck",
+    "traincheck",
+    "gradecheck",
+    "capcheck",
+    "teamqualcheck",
+    "injurycheck",
+    "v146Ccheck",
+    "v134check",
+    "v147Ccheck",
+    "v151Acheck",
+    "coachcheck"
    ]
   }
  },
@@ -3600,6 +3623,22 @@
     "honors"
    ],
    "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v153Bcheck": {
+   "file": "scripts/v153Bcheck.mjs",
+   "desc": "v153 B — the locker room (a toxic personality drives named teammates off the roster, a team-first one lifts a named teammate; seeded per season; story swings and the wheel move chemistry), the team rating (prestige share halved, chemistry + roster moves + SACRIFICE FOR A TEAMMATE), training (one key stat or two with a once-a-season risk, prestige shaves never removes it, the suggestion moves season to season), injuries (the prestige levers at ~30%, the tree capped at 25%), My Plays Only free, on by default, your side of the ball.",
+   "areas": [
+    "career",
+    "training",
+    "prestige",
+    "injury",
+    "settings"
+   ],
+   "runtimeSec": 60,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

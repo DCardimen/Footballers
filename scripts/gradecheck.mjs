@@ -51,7 +51,7 @@ const sweep = await page.evaluate(() => {
     if (pick.tier === 'red') out.pickRed++
     const top = B.all.find(g => !g.balanced)
     const body = (pl.attrs.injuryResist || 0) < 14 + lv * 3
-    if (B.sug !== 'conditioning' && top && top.key !== B.sug && !body) out.pickNotBest++
+    if (B.sug !== 'conditioning' && B.sug !== 'lab' && top && top.key !== B.sug && !body) out.pickNotBest++
   }
   pl.pos = save.pos; pl.level = save.level; Object.assign(pl.attrs, save.attrs)
   return out
@@ -61,7 +61,7 @@ ok(sweep.boards >= 280 && sweep.tiers.green > 0 && sweep.tiers.blue > 0 && sweep
 ok(sweep.badGreen.length === 0, 'every GREEN program (the pick aside) pushes at least two key stats and sits near the best value', sweep.badGreen.slice(0, 3).join(' ') || 'all consistent')
 ok(sweep.badRed.length === 0, 'every RED program is minor, mostly capped, or hits nothing that matters', sweep.badRed.slice(0, 3).join(' ') || 'all consistent')
 ok(sweep.balancedNotBlue === 0, 'Balanced is BLUE by nature', String(sweep.balancedNotBlue))
-ok(sweep.pickRed === 0 && sweep.pickNotBest === 0, 'the pick is the best graded value on the board (or Conditioning for a breaking body), never red', `red=${sweep.pickRed} notBest=${sweep.pickNotBest}`)
+ok(sweep.pickRed === 0 && sweep.pickNotBest === 0, 'the pick is the best graded value on the board (or the body program — Conditioning, v153 B: the Recovery Lab — for a breaking body), never red', `red=${sweep.pickRed} notBest=${sweep.pickNotBest}`)
 ok(Object.keys(sweep.picks).length >= 4, 'and the picks are spread across programs', JSON.stringify(sweep.picks))
 
 // ---- 2. the board wears it

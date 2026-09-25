@@ -24,8 +24,8 @@ decisions only the owner can make.
 
 | Rung | What | Price |
 |---|---|---|
-| **FREE, always** | The whole career — every level, position, mode and screen. 1× and 2× play speed. Quick Play (sim any week, any time). Skip opponent drives, fast sim, the camera and weather pickers, the Team Creator (5 logos/colours free, the rest for PP — the cosmetics worker). | $0 |
-| **Progression gates** (live whatever the switch says — §1a) | **My Plays Only** after the first finished career · **3×** on reaching the UFF · **4×** with 3× while the store is OFF · **season skips** a day from lifetime PP | earned |
+| **FREE, always** | The whole career — every level, position, mode and screen. 1× and 2× play speed. Quick Play (sim any week, any time). Skip opponent drives, **My Plays Only** (v153 B: free and ON by default — your side of the ball), fast sim, the camera and weather pickers, the Team Creator (5 logos/colours free, the rest for PP — the cosmetics worker). | $0 |
+| **Progression gates** (live whatever the switch says — §1a) | **3×** on reaching the UFF · **4×** with 3× while the store is OFF · **season skips** a day from lifetime PP | earned |
 | **Rewarded ads** (opt-in, while ON) | 4× for 20 min · +1 season skip today · try a locked cosmetic for 24 h. `rewarded.dailyCap` = **4 a day** (TU `adsPerDayV151A`, clamped to ≤ 5), all placements together, local day. Granted only when the ad is watched to the end. Never inside a play. No interstitials, no banners. | free |
 | **Ad Free** | No ads — every rewarded convenience is claimed without watching one (still inside the daily cap). | **$3.99** |
 | **Pro Career** | Ad Free + **4× permanently** + **advanced sim** (+3 season skips a day, TU `skipProBonusV151A`) + **advanced filters** (Stats / Leaders / Standings / Hall of Fame here; the leaderboards' own filters in `src/20-leaderboards.js` ask `has("pro")`) + 3 save slots when slots ship. | **$8.99** |
@@ -46,13 +46,13 @@ and do not depend on this module. Each has a kill switch (`TU(name, 0)` restores
 
 | Gate | Rule | Grandfathering | Kill switch |
 |---|---|---|---|
-| My Plays Only | `onlyInvolved` works (and its Settings toggle unlocks) once `careersCompleted > 0` — any career that reached a career-end screen (cut or won); a Hall of Fame entry counts too | an old save with a finished career keeps it | `playsOnlyGateV151A` |
+| ~~My Plays Only~~ | **Retired in v153 B** — the owner made it free and ON by default for everyone (your side of the ball; Settings turns it off). `playsOnlyOkV151A()` answers yes; `TU("v153Bplays", 0)` restores this gate: `onlyInvolved` once `careersCompleted > 0` | — | `v153Bplays` (then `playsOnlyGateV151A`) |
 | 3× | on reaching the UFF (level `speed3LevelV151A` = 7) in any career — `state.bestLevel` is account-wide | a save that already reached the UFF keeps it | `speedGateV151A` |
 | 4× | store **OFF**: unlocks WITH 3× (nothing is unobtainable). Store **ON**: `has("speed4")` — Pro / Founder / the 20-minute ad / the v149 E grandfather grant | as 3× (OFF); the device grandfather (ON, D1) | `speedGateV151A` |
 | Season skips (⏭) | a day's skips from **lifetime PP earned**: 1 at 1,000; then +2 per ×100 (3 at 100,000, 5 at 10M, 7 at 1B, max 9) — `skipFirstPPV151A`, `skipStepMulV151A`, `skipFirstV151A`, `skipPerStepV151A`, `skipMaxV151A`. Pro +3 (`skipProBonusV151A`), a rewarded ad +1 today. Quick Play is never counted; `window.simRemainingWeeks` (the engine) is not gated — only the ⏭ button (`seasonSkipV151A`) | lifetime PP is seeded from what the save shows (§1b) | `seasonSkipGateV151A` |
 
 The locked speed buttons read **🔒 UFF** / **🔒 PRO** (title "Reach the UFF" / "Pro Career"), the My Plays Only row
-reads **🔒 … Complete a career to unlock**, and the ⏭ button carries a line: "N season skips left today", or how many
+is never locked since v153 B, and the ⏭ button carries a line: "N season skips left today", or how many
 PP the next rung needs and that Quick Play is free. The store's FREE rung shows all four with progress.
 
 ### 1b. Lifetime PP (what "prestige" means for skips)
@@ -314,7 +314,7 @@ storage write. The in-game helpers are hoisted `function` declarations beside `b
 |---|---|
 | `src/07-career-app.js` · `speedOkV151A(s)` / `speedWhyV151A` / `speedLockV151A` / `speedRowSyncV151A` | THE speed question (3× at the UFF; 4× Pro while ON, with 3× while OFF). `setSpeed` asks it first (H1 now), `speedClampV150C` steps down through it (H3), the speed row template labels a locked rung **🔒 UFF** / **🔒 PRO** |
 | `speed3V150C()` | shows the 3× rung to everyone (`TU("speed3RungV151A", 1)`) |
-| `settingOn` / `toggleSetting` / `toggleRow` | My Plays Only behind `playsOnlyOkV151A()` |
+| `settingOn` / `toggleSetting` / `toggleRow` | My Plays Only behind `playsOnlyOkV151A()` (always yes since v153 B; `playsDefaultV153B` switches it on once) |
 | `saveGame()` → `ppTrackV151A()` | lifetime PP (§1b) |
 | `seasonSkipV151A()` (the ⏭ buttons in `screenSeason` and `postV147`) / `seasonSkipsV151A()` / `skipLadderV151A` / `skipBtnV151A` | the season skips; `m.consume("simExtra")` and `m.simLocked()` are the only module calls, both ON-only |
 | `advfBarV151A` / `advfSetV151A` / `advfApplyV151A` | the advanced filters on the stat leaders, the standings and the Hall of Fame busts (search, position, sort by any stat, direction); free while OFF, a 🔒 Pro chip while ON without `filters`; kill switch `advFiltersV151A` |

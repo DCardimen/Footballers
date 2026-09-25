@@ -202,6 +202,7 @@
     (pl.growthHistV42=pl.growthHistV42||[]).push({card:out.card,sign:out.sign,week:pl.currentWeek||0});
     pl.growthHistV42=pl.growthHistV42.slice(-12);
     if(out.fatigue&&pl.conditionV11)pl.conditionV11.fatigue=cl((pl.conditionV11.fatigue||0)+out.fatigue,0,60);
+    try{window.__V153B&&window.__V153B.spin(pl,out)}catch(e){}   // v153 B: team cookouts / the captain's council warm the locker room
     try{window.I&&window.I()}catch(e){}
   }
   function compose(pl){

@@ -231,6 +231,7 @@
     { id: 'live', title: 'THE BROADCAST', sub: 'WATCH IT', when: (c) => c.live && !c.post, delay: 2600, lines: [
       { p: 'open', t: "Game time. Your guy has a ring under his feet. Watch him." },
       { p: 'listen', t: "These buttons set the speed. SKIP jumps to the whistle. Your stats show under the field.", s: 'speed' },
+      { p: 'tip', t: "My Plays Only is on by default. You watch your side of the ball — offense if you play offense, defense if you play defense. Want every snap? Settings." },   // v153 B
       { p: 'relaxed', t: "I'll see you after." },
     ] },
     { id: 'result', title: 'THE CARD', sub: 'AFTER THE WHISTLE', when: (c) => c.post, lines: [

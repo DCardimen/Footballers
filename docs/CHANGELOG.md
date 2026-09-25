@@ -10,6 +10,41 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v153 B — the locker room remembers who you are, the team is built by decisions, training is a gamble, injuries
+  stay on his mind, My Plays Only is free.** Five owner asks, one version (`src/07-career-app.js`, hooks in
+  `src/10`, `src/18`, the coach; `scripts/v153Bcheck.mjs`).
+  *The locker room* (`v153 B THE LOCKER ROOM REMEMBERS WHO YOU ARE`): at every season start the personality sliders
+  roll against the persistent roster — a TOXIC kid (me-first, brash, volatile, stubborn) drives 1-3 NAMED teammates to
+  the portal or off the team (P = 0.1 + 0.3 × toxicity, ≤ 0.8; replaced at 80% of their OVR; chemistry −3 each), a
+  TEAM-FIRST kid (loyal, even-keeled, coachable, humble) lifts a named teammate by 8% of the level's team rating.
+  Story swings of ±5 chemistry and the season wheel (Team Cookouts +4, Captain's Council +3, an underground 7-on-7
+  gone wrong −3) earn half-odds follow-up rolls. Seeded per season; a toast, a pop and a LOCKER ROOM card on the season
+  screen name every man.
+  *The team rating*: the prestige share (prestige count / the Roster Department / tree levels) is halved
+  (`v153BprestigeTeamK` 0.5: a fully prestiged save loses ~20 team OVR in the UFF from prestige alone), the seven
+  team-quality nodes' margin edge too (descriptions restated). What replaces it is what he did: locker-room chemistry
+  (±0.2 team quality — ±8.6 OVR in the UFF, ±1.8 at Pee Wee), this season's roster moves (exactly: a teammate's OVR
+  change / 22), the weekly plan (+1.5 chemistry a "Do the Dirty Work" week, −1 a "Demand the Spotlight" week, read at
+  the next season start), a 3-a-season personality drift, and the new **SACRIFICE FOR A TEAMMATE** on the offseason
+  board: give up 2 + level points off your three best stats, the weakest man in your unit gains 12% of the level's
+  rating (≈ +10 OVR in the UFF), chemistry +6 — once a season.
+  *Training* (`v153 B ONE KEY STAT, OR TWO AND A RISK`): Speed Academy / Explosion & Hops / Mobility & Yoga /
+  Conditioning / Recovery Lab train ONE key stat (priority ×2.6); Weight Room (STR+BLK), Full-Contact (TKL+GRIT),
+  Track Club (ACC+QCK), Film Study (AWR+VIS), Skills Clinic (CTH+THR) train TWO (×1.9 each) with a risk rolled once a
+  season at CONFIRM — a tweaked back ×1.35 injury odds (35%), camp dings ×1.45 (40%), a hamstring ×1.3 (30%), a step of
+  Speed lost (30%), +25 fatigue (30%). Weighted Coin / House Money / Quick Study shave ≤ 8 points, never below 15%.
+  The coach's suggestion moves: last season's program −35%, fatigue and last season's layoffs lift the body programs,
+  one-stat work early and the gamble later, a seeded ±10% a season; a breaking body goes to the Recovery Lab, not two
+  seasons running. v124's trades and rolls are untouched.
+  *Injuries* (`v153 B INJURIES STAY ON HIS MIND`): every prestige injury lever pays 30% of what it did and the tree can
+  never take more than 25% off the roll (a maxed tree took 52%); the Ironman path −70% → −21%; Iron Body +7 → +2
+  Durability; Miracle Hands 25% → 7.5% a level; Trainer's Room six games, not three; gear injury rolls at half. Nothing
+  became pointless, so nothing is refunded.
+  *My Plays Only* (`v153 B MY PLAYS ARE MY SIDE OF THE BALL`): free, ON by default (an old save is switched on once,
+  Settings still turns it off), and it means your side of the ball — a linebacker watches every defensive snap, a QB
+  every offensive one, special teams only when he is in them. The coach says so at the first broadcast; the v151 A gate
+  is retired (`docs/MONETIZATION.md`). Kill switches `v153Broster`, `v153Bteam`, `v153Btrain`, `v153Binj`, `v153Bplays`.
+
 
 - **v153 D — the goal on the wall.** The main menu's milestones card holds up THE GOAL: the owner's new UFF
   CHAMPIONS trophy art, framed whole as a gilt 4:5 card with a slow shine, until the account wins the UFF — then

@@ -126,7 +126,7 @@ ok(hooks.bandW.join() === '10,22' && hooks.band12[0] === 3 && hooks.band12[1] ==
 ok(hooks.top[0] > 8 && hooks.top[1] === 8 && hooks.top[2] === 4, 'The Price Ceiling: the band price stops at 8, then 4', hooks.top.join(' → '))
 ok(hooks.soft[1] > hooks.soft[0], 'Raise the Bar lifts the soft cap', hooks.soft.join(' → '))
 ok(Math.abs(hooks.fat[0] - .8) < 1e-9 && Math.abs(hooks.fat[1] - .84) < 1e-9 && Math.abs(hooks.fat[2] - .92) < 1e-9 && hooks.fat[3] === .9, 'Iron Lungs: 100 fatigue is −20% → −16% → −8%, and hurt still holds −10%', hooks.fat.join(' / '))
-ok(hooks.heal.join() === '4,3,2,1', 'Miracle Hands: a 4-game injury is 3, then 2; a 1-game knock stays 1', hooks.heal.join('/'))
+ok(hooks.heal.join() === '4,4,3,1', 'Miracle Hands (v153 B: 7.5% a level): a 4-game injury is 4, then 3; a 1-game knock stays 1', hooks.heal.join('/'))
 ok(hooks.injWeeks[0] != null && hooks.injWeeks[1] != null && hooks.injWeeks[1] <= hooks.injWeeks[0], 'and the real injury materializer hands out shorter layoffs', hooks.injWeeks.join(' → '))
 ok(hooks.points[1] - hooks.points[0] === 8, 'Endless Reps: +4 season points a level on the season roll\'s total', hooks.points.join(' → '))
 ok(hooks.pp[1] - hooks.pp[0] === 1, 'Dragon\'s Hoard: +100% to the settlement\'s ppMult', hooks.pp.join(' → '))
