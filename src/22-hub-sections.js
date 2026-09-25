@@ -162,21 +162,25 @@
     gameover: {
       start: "end",
       secs: [
-        { k: "end",    name: "THE END", re: /(^|\s)banner(\s|$)|legacy-summary-v11|end-pay-v150|legacy-card-v152/ },
+        { k: "end",    name: "THE END", re: /(^|\s)banner(\s|$)|legacy-summary-v11|end-pay-v150/ },
+        { k: "xp",     name: "LEGACY XP", re: /legacy-card-v152/ },   // v152 A: the pour gets its own tab — folded into THE END it played unseen
         { k: "life",   name: "LIFE",    re: /regret-card-v12|finance-legacy-v12/ },
         { k: "log",    name: "LOG",     re: /\bnever-v150\b/ },
         { k: "legacy", name: "HIS SON", re: /end-legacy-v150/ },
       ],
       txt: [{ k: "log", re: /^Career Log$/i }],
+      nofold: ["xp"],
     },
     win: {
       start: "end",
       secs: [
-        { k: "end",    name: "THE END", re: /(^|\s)banner(\s|$)|legacy-summary-v11|end-pay-v150|legacy-card-v152/ },
+        { k: "end",    name: "THE END", re: /(^|\s)banner(\s|$)|legacy-summary-v11|end-pay-v150/ },
+        { k: "xp",     name: "LEGACY XP", re: /legacy-card-v152/ },   // v152 A: the pour gets its own tab — folded into THE END it played unseen
         { k: "log",    name: "JOURNEY", re: /\bnever-v150\b/ },
         { k: "legacy", name: "HIS SON", re: /end-legacy-v150/ },
       ],
       txt: [{ k: "log", re: /^The Journey$/i }],
+      nofold: ["xp"],
     },
     // the prestige tree put 862px of specialization and rewards cards ABOVE the
     // branch row, so the shop you came for started a screen and a half down
@@ -193,7 +197,7 @@
       nofold: ["nodes"],
     },
   };
-  const ICON = { card: "🪪", case: "🏆", book: "📖", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
+  const ICON = { xp: "🎖️", card: "🪪", case: "🏆", book: "📖", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
   const TAB = { locker: "gear", hub: "now", shop: "nodes", season: "sched", settings: "game", result: "grade", declineResult: "epitaph", gameover: "end", win: "end" };
 
   function cfg() { const s = window.S; return (s && VIEWS[s.view]) || null }

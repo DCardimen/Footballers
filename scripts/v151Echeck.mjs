@@ -1,7 +1,8 @@
 // Dev check (v151 E THE BAND PLAYS) — the music, the sound settings, the quick mute.
 //
 //   1. the anthem is served and decodes; the loop is spliced (no hole at the wrap, where the raw file has one);
-//   2. nothing plays before a gesture (no running context, no source) — even after the idle fetch;
+//   2. where the browser refuses autoplay, nothing plays before a gesture (no running context, no source) — even
+//      after the idle fetch; v152 A.2: where it allows it (the native shell, a trusted site), the band starts on load;
 //   3. after a real key press the music is playing (a running context, one source, signal on its analyser),
 //      and it loops past the track's end without stopping;
 //   4. the Settings › SOUND tab fits 400x860 with no page scroll; its toggles and sliders take effect at once
@@ -48,7 +49,8 @@ ok(mp3.ok(), 'the mp3 fallback is served', { status: mp3.status() })
 await load()
 await wait(4200)   // past the idle fetch
 let s = await st()
-ok(s.state !== 'playing' && s.ctx == null && s.started === 0 && s.decks === 0, 'nothing plays before a gesture', { state: s.state, ctx: s.ctx, started: s.started, decks: s.decks })
+// v152 A.2: the context is made at load to ASK whether it may run; refused, it waits suspended and nothing sounds
+ok(s.state !== 'playing' && (s.ctx == null || s.ctx === 'suspended') && s.started === 0 && s.decks === 0 && s.auto === 'refused', 'the browser refused autoplay: nothing plays before a gesture (the context waits suspended)', { state: s.state, ctx: s.ctx, started: s.started, decks: s.decks, auto: s.auto })
 ok(s.fetched && s.blobBytes > 2e6 && !s.decoded, 'the file is fetched once the page is idle (compressed, not decoded)', { fetched: s.fetched, blobBytes: s.blobBytes, decoded: s.decoded })
 
 // ------------------------------------------------------------------------------ 3. a gesture starts it; it loops
@@ -199,6 +201,18 @@ await page.evaluate(() => window.go('menu'))
 const menuBtn = await until(() => { const b = document.querySelector('#rib-main-menu-v2 .rib9-topbar .mute-v151e'); return b && b.offsetWidth > 0 }, 5000)
 ok(menuBtn, 'the main menu carries the quick mute in its top bar')
 await page.screenshot({ path: 'scripts/_v151E_menu.png' })
+
+// ------------------------------------------------------------------------------ v152 A.2: the band plays on arrival
+// a browser that allows autoplay (as the native shell's web views do): no tap, and the anthem is playing
+{
+  const b2 = await chromium.launch({ executablePath: CHROME, args: ['--autoplay-policy=no-user-gesture-required'] })
+  const p2 = await (await b2.newContext({ viewport: { width: 400, height: 860 } })).newPage()
+  p2.on('pageerror', (e) => errs.push(String(e && e.message || e)))
+  await p2.goto(U, { waitUntil: 'domcontentloaded' })
+  const on = await p2.waitForFunction(() => { const s = window.RIB_MUSIC && window.RIB_MUSIC.state(); return s && s.state === 'playing' && s.ctx === 'running' && s.playingDecks === 1 && s.position > 0.3 && s }, null, { timeout: 20000 }).then((h) => h.jsonValue()).catch(() => null)
+  ok(!!on && on.auto === 'web' && on.gestured, 'where autoplay is allowed the anthem starts on load — no tap', on && { state: on.state, ctx: on.ctx, auto: on.auto, pos: on.position })
+  await b2.close()
+}
 
 ok(errs.length === 0, 'no page errors', errs.slice(0, 5))
 console.log(JSON.stringify({ pass, fail, pageErrors: errs.length }))

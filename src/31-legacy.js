@@ -136,12 +136,50 @@
         noise(o, t, 0.25, 0.3, 2400, 0.6);
         return;
       }
+      if (kind === "riser") {                       // the bar about to fill: a filtered saw sweeping up (pitch = seconds)
+        var dr = Math.max(0.15, Math.min(1.2, pitch || 0.5)), os = AC.createOscillator(), lp = AC.createBiquadFilter(), gg = AC.createGain();
+        os.type = "sawtooth"; os.frequency.setValueAtTime(220, t); os.frequency.exponentialRampToValueAtTime(880, t + dr);
+        lp.type = "lowpass"; lp.frequency.setValueAtTime(500, t); lp.frequency.exponentialRampToValueAtTime(3600, t + dr);
+        gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(0.045, t + dr * 0.9); gg.gain.exponentialRampToValueAtTime(0.0001, t + dr + 0.06);
+        os.connect(lp); lp.connect(gg); gg.connect(o); os.start(t); os.stop(t + dr + 0.1);
+        return;
+      }
+      if (kind === "flip") {                        // a page: a swish of paper, bright at the end
+        var n = Math.floor(AC.sampleRate * 0.22), b = AC.createBuffer(1, n, AC.sampleRate), dd = b.getChannelData(0), R = prng(n + 7);
+        for (var i = 0; i < n; i++) dd[i] = (R() * 2 - 1) * (0.6 + 0.4 * Math.sin(i / 90));
+        var sr = AC.createBufferSource(), bp = AC.createBiquadFilter(), g2 = AC.createGain();
+        sr.buffer = b; bp.type = "bandpass"; bp.Q.value = 0.9; bp.frequency.setValueAtTime(900 * p, t); bp.frequency.exponentialRampToValueAtTime(4200 * p, t + 0.2);
+        g2.gain.setValueAtTime(0.0001, t); g2.gain.exponentialRampToValueAtTime(0.2, t + 0.05); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+        sr.connect(bp); bp.connect(g2); g2.connect(o); sr.start(t); sr.stop(t + 0.25);
+        return;
+      }
+      if (kind === "thump") { tone(o, 92, t, 0.2, 0.2, "sine"); noise(o, t, 0.07, 0.07, 420, 0.8); return; }   // the page lands
+      if (kind === "fanfare") {                     // the pour is done: a bright major arpeggio over a root
+        [523.25, 659.25, 783.99, 1046.5].forEach(function (f, i) { tone(o, f * p, t + i * 0.075, 1.0 - i * 0.12, 0.085, "triangle"); });
+        tone(o, 261.63 * p, t + 0.22, 1.2, 0.07, "sine");
+        return;
+      }
+      if (kind === "whoosh") { noise(o, t, 0.28, 0.07, 1700, 0.5, true); return; }
       if (kind === "swell") { noise(o, t, 3.2, 0.18, 900, 0.4, true); noise(o, t + 0.4, 2.8, 0.1, 2600, 0.5, true); return; }   // the crowd
       if (kind === "rumble") { tone(o, 42, t, 2.2, 0.35, "sine"); noise(o, t, 2, 0.12, 160, 0.7, true); return; }
     } catch (e) {}
   }
 
+  function buzz(style) { try { window.ribHaptics && window.ribHaptics.impact(style || "MEDIUM"); } catch (e) {} }
+
   /* ---------------- the swap: the old medal breaks, the new one lands ---------------- */
+  function rays(host, color, big) {                 // god rays behind the new medal
+    if (!host || reduced()) return;
+    var r = document.createElement("i"); r.className = "lg-rays-v152"; r.style.setProperty("--c", color);
+    host.insertBefore(r, host.firstChild);
+    r.animate([{ transform: "translate(-50%,-50%) scale(.3) rotate(0deg)", opacity: 0.95 }, { transform: "translate(-50%,-50%) scale(" + (big ? 1.9 : 1.5) + ") rotate(" + (big ? 70 : 45) + "deg)", opacity: 0 }],
+      { duration: big ? 1100 : 760, easing: "cubic-bezier(.15,.7,.3,1)" }).onfinish = function () { r.remove(); };
+  }
+  function flash(host, strength) {                  // one white frame on the card the medal sits in
+    if (!host || reduced()) return;
+    var f = document.createElement("i"); f.className = "lg-flash-v152"; host.appendChild(f);
+    f.animate([{ opacity: strength || 0.45 }, { opacity: 0 }], { duration: 300, easing: "ease-out" }).onfinish = function () { f.remove(); };
+  }
   function burst(host, color, n, spread, life) {
     if (!host || reduced()) return;
     for (var i = 0; i < n; i++) {
@@ -189,6 +227,9 @@
                 { transform: "scale(1.09)", filter: "brightness(1.25)", offset: 0.78 }, { transform: "scale(1)", filter: "brightness(1)" }],
       { duration: big ? 620 : 460, easing: "cubic-bezier(.2,.7,.3,1)" }).onfinish = function () { nm.classList.remove("lg-new-v152"); holder.classList.remove("lg-swapping-v152"); };
     setTimeout(function () {
+      if (size >= 56) rays(holder, col, big);
+      var card = holder.closest(".lgc-v152, .lg-case-v152, .lgm-in, .pc-medal-v152"); if (card && size >= 56) flash(card, big ? 0.6 : 0.4);
+      buzz(big ? "HEAVY" : "MEDIUM");
       ring(holder, col, big ? 330 : 240, big ? 760 : 560);
       burst(holder, col, big ? 26 : 14, size * (big ? 1.5 : 1.1), big ? 900 : 650);
       var shake = opts.shake || holder.closest(".lgc-v152, .lg-case-v152");
@@ -224,6 +265,24 @@
     if (into) into.textContent = fmt(R.into);
     if (xp && xp.lastChild) xp.lastChild.textContent = " / " + fmt(R.need) + " XP";
   }
+  function flipNum(el, v) {                         // the rank number rolls over
+    if (!el) return; el.textContent = v;
+    if (el.animate && !reduced()) el.animate([{ transform: "translateY(70%) scale(1.6)", opacity: 0, color: "#ffffff", textShadow: "0 0 18px #fff" }, { transform: "translateY(-8%) scale(1.1)", opacity: 1, offset: 0.6 }, { transform: "none", opacity: 1 }], { duration: 360, easing: "cubic-bezier(.2,.8,.3,1)" });
+  }
+  function textIn(el, v) {                          // the medal's name slides in
+    if (!el) return; el.textContent = v;
+    if (el.animate && !reduced()) el.animate([{ opacity: 0, transform: "translateX(14px)", letterSpacing: "5px" }, { opacity: 1, transform: "none", letterSpacing: "normal" }], { duration: 380, easing: "cubic-bezier(.2,.8,.3,1)" });
+  }
+  function popText(host, txt, big) {                // "RANK UP" rising out of the medal
+    if (!host || reduced()) return;
+    var p = document.createElement("b"); p.className = "lgc-pop" + (big ? " big" : ""); p.textContent = txt; host.appendChild(p);
+    p.animate([{ transform: "translate(-50%,10px) scale(.6)", opacity: 0 }, { transform: "translate(-50%,-14px) scale(1.15)", opacity: 1, offset: 0.25 }, { transform: "translate(-50%,-34px) scale(1)", opacity: 0 }],
+      { duration: big ? 1200 : 900, easing: "cubic-bezier(.2,.7,.3,1)" }).onfinish = function () { p.remove(); };
+  }
+  /* The pour: one fill per rank the award crosses, then the remainder. The first fill takes its time, every
+   * rank after comes faster (a combo); near the top the bar CHARGES (a riser, the medal trembles), the hit
+   * stops time for a beat (flash, rays, the swap, the number rolls, RANK UP xN, a buzz), the bar drains with
+   * a whoosh and fills again. It ends on the total stamped in and a fanfare. Tap to skip to the end. */
   function pour(card) {
     if (!card || card.__lgPour) return;
     card.__lgPour = 1;
@@ -231,32 +290,83 @@
     if (!X || !g) return;
     var a = g.L.last && g.L.last.id === id ? g.L.last : null;
     if (!a) { card.removeAttribute("data-pending"); return; }
-    var from = X.rank(a.xpFrom), to = X.rank(a.xpTo), ranks = to.rank - from.rank;
-    var dur = Math.min(7000, 1300 + ranks * (ranks > 12 ? 170 : 330)), t0 = 0, shown = from.rank, gn = card.querySelector(".lgc-gn"), slot = card.querySelector(".lgc-slot"), done = false, tick = 0;
+    var from = X.rank(a.xpFrom), to = X.rank(a.xpTo), gn = card.querySelector(".lgc-gn"), slot = card.querySelector(".lgc-slot"), barEl = card.querySelector(".lgc-bar"), fill = barEl && barEl.querySelector("i");
+    var into = card.querySelector(".lgc-into"), done = false, raf = 0, timer = 0, combo = 0, shownMedal = from.medal;
     UI.pours.push({ id: id, from: from.rank, to: to.rank, gain: a.gain });
-    function finish() {
-      if (done) return; done = true;
-      paint(card, to); if (gn) gn.textContent = fmt(a.gain);
-      if (shown !== to.rank && slot) slot.innerHTML = medalHtml(to.medal, 76);
-      card.removeAttribute("data-pending"); var sk = card.querySelector(".lgc-skip"); if (sk) sk.remove();
-      markSeen("award", Math.max(seen().award | 0, id)); markSeen("chip", to.rank);
-      card.classList.add("lgc-done");
-      setTimeout(function () { milestoneCheck(); }, 450);
+    var spark = document.createElement("i"); spark.className = "lgc-spark"; if (barEl) barEl.appendChild(spark);
+    var segs = [], x = a.xpFrom;
+    while (segs.length < 800) { var R0 = X.rank(x), end = x + (R0.need - R0.into); if (end > a.xpTo) { segs.push([x, a.xpTo, false]); break; } segs.push([x, end, true]); x = end; if (x >= a.xpTo) break; }
+    var n = segs.length, si = 0;
+    function rawDur(k, sg) {
+      var base = Math.max(230, 900 * Math.pow(0.82, k));
+      if (!sg[2]) { var R = X.rank(sg[0]); base = Math.max(260, base * Math.min(1, (sg[1] - sg[0]) / Math.max(1, R.need - R.into) + 0.25)); }
+      return base;
     }
-    card.addEventListener("click", finish);
-    setTimeout(function () {
+    function rawHold(c) { return Math.max(150, 430 * Math.pow(0.86, c - 1)) + 130; }   // the beat on the hit + the drain
+    // a budget: a long climb speeds up as a whole (~6.5 s at most) instead of dragging — never below a readable floor
+    var total = 0; segs.forEach(function (sg, k) { total += rawDur(k, sg) + (sg[2] ? rawHold(k + 1) : 0); });
+    var pace = Math.min(1, 6500 / Math.max(1, total));
+    function durOf(k, sg) { return Math.max(90, rawDur(k, sg) * pace); }
+    function setBar(pct) { if (fill) fill.style.width = pct.toFixed(2) + "%"; spark.style.left = pct.toFixed(2) + "%"; }
+    function run() {
+      if (done) return;
+      if (si >= n) return finish();
+      var sg = segs[si], d = durOf(si, sg), R = X.rank(sg[0]), t0 = 0, charged = false, tick = 0;
       function frame(ts) {
         if (done) return;
         if (!t0) t0 = ts;
-        var k = Math.min(1, (ts - t0) / dur), e = 1 - Math.pow(1 - k, 2.2), x = a.xpFrom + (a.xpTo - a.xpFrom) * e, R = X.rank(x);
-        paint(card, R);
-        if (gn) gn.textContent = fmt(a.gain * e);
-        if (R.rank !== shown) { if (R.medal !== clampRank(shown)) swapMedal(slot, R.medal); shown = R.rank; }
-        else if (ts - tick > 90 && k < 1) { tick = ts; sfx("tick", 1 + e * 0.5); }
-        if (k < 1) requestAnimationFrame(frame); else finish();
+        var k = Math.min(1, (ts - t0) / d), e = sg[2] ? k * k * (3 - 2 * k) * 0.4 + k * 0.6 : 1 - Math.pow(1 - k, 2.4), xx = sg[0] + (sg[1] - sg[0]) * e;
+        var got = R.into + (xx - sg[0]), pct = Math.min(100, (got / Math.max(1, R.need)) * 100);
+        setBar(pct);
+        if (into) into.textContent = fmt(got);
+        if (gn) gn.textContent = fmt(xx - a.xpFrom);
+        if (sg[2] && !charged && pct > 72) { charged = true; card.classList.add("lgc-charging"); sfx("riser", Math.max(0.12, (d * (1 - k)) / 1000)); }
+        if (ts - tick > (n > 10 ? 110 : 75) && k < 1) { tick = ts; sfx("tick", 1 + pct / 220 + Math.min(0.5, combo * 0.04)); }
+        if (k < 1) raf = requestAnimationFrame(frame);
+        else if (sg[2]) rankUp(sg[1]);
+        else { si++; run(); }
       }
-      requestAnimationFrame(frame);
-    }, 550);
+      raf = requestAnimationFrame(frame);
+    }
+    function rankUp(xAt) {
+      combo++;
+      var R = X.rank(xAt), big = R.rank % 10 === 0;
+      card.classList.remove("lgc-charging");
+      if (barEl) { barEl.classList.remove("lgc-flash"); void barEl.offsetWidth; barEl.classList.add("lgc-flash"); }
+      flipNum(card.querySelector(".lgc-num"), R.rank);
+      textIn(card.querySelector(".lgc-name"), name(R.medal));
+      var tr = card.querySelector(".lgc-tier"); if (tr) tr.textContent = tierName(R.medal);
+      var xp = card.querySelector(".lgc-xp"); if (xp && xp.lastChild) xp.lastChild.textContent = " / " + fmt(R.need) + " XP";
+      if (R.medal !== shownMedal) { swapMedal(slot, R.medal); shownMedal = R.medal; }
+      else { buzz("LIGHT"); sfx("clink", 1.3); }
+      popText(slot, combo > 1 ? "RANK UP ×" + combo : "RANK UP", big);
+      si++;
+      var hold = Math.max(70, (rawHold(combo) - 130) * pace), drain = Math.max(60, 130 * pace);
+      timer = setTimeout(function () {
+        if (done) return;
+        if (si < n) sfx("whoosh");
+        if (fill) { fill.style.transition = "width " + (drain / 1000).toFixed(2) + "s ease-in"; setBar(0); setTimeout(function () { if (fill) fill.style.transition = ""; run(); }, drain); } else run();
+      }, hold);
+    }
+    function finish() {
+      if (done) return; done = true;
+      cancelAnimationFrame(raf); clearTimeout(timer);
+      card.classList.remove("lgc-charging");
+      if (fill) fill.style.transition = "";
+      paint(card, to); if (gn) gn.textContent = fmt(a.gain);
+      if (shownMedal !== to.medal && slot) slot.innerHTML = medalHtml(to.medal, 76);
+      spark.remove();
+      card.removeAttribute("data-pending"); var sk = card.querySelector(".lgc-skip"); if (sk) sk.remove();
+      markSeen("award", Math.max(seen().award | 0, id)); markSeen("chip", to.rank);
+      card.classList.add("lgc-done");
+      var gl = card.querySelector(".lgc-gain");
+      if (gl && to.rank > from.rank && !gl.querySelector(".lgc-sum")) gl.insertAdjacentHTML("beforeend", '<span class="lgc-sum">+' + (to.rank - from.rank) + " RANK" + (to.rank - from.rank === 1 ? "" : "S") + "</span>");
+      if (gl && gl.animate && !reduced()) gl.animate([{ transform: "scale(1.6)", opacity: 0, filter: "brightness(2.5)" }, { transform: "scale(.95)", opacity: 1, offset: 0.6 }, { transform: "scale(1)", filter: "brightness(1)" }], { duration: 520, easing: "cubic-bezier(.2,.8,.3,1)" });
+      sfx("fanfare", 1); buzz("LIGHT");
+      setTimeout(function () { milestoneCheck(); }, 700);
+    }
+    card.addEventListener("click", finish);
+    setTimeout(run, 600);
   }
 
   /* ---------------- the milestone and the big events ---------------- */
@@ -296,7 +406,12 @@
     o.addEventListener("click", function (ev) { if (ev.target === o) closeOverlay(o); });
     if (reduced()) { slot.innerHTML = medalHtml(m, 168); return; }
     o.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 });
-    setTimeout(function () { swapMedal(slot, m, { shake: o.querySelector(".lgm-in") }); sfx("hit", big ? 0.8 : 1); if (big) { sfx("swell"); confetti(o, 70); } }, 420);
+    // the old medal charges (it trembles, the light gathers, a riser climbs) — then the hit
+    setTimeout(function () { var om = slot.querySelector(".lg-medal-v152"); if (om) om.classList.add("lg-charge-v152"); sfx("riser", 0.75); }, 300);
+    setTimeout(function () {
+      swapMedal(slot, m, { shake: o.querySelector(".lgm-in") }); sfx("hit", big ? 0.8 : 1); if (big) { sfx("swell"); confetti(o, 70); }
+      var nm = o.querySelector(".lgm-name"); if (nm && nm.animate) nm.animate([{ opacity: 0, letterSpacing: "9px", filter: "blur(4px)" }, { opacity: 1, letterSpacing: "1.5px", filter: "blur(0)" }], { duration: 600, delay: 250, fill: "backwards", easing: "cubic-bezier(.2,.8,.3,1)" });
+    }, 1100);
   }
   function confetti(host, n) {
     if (reduced()) return;
@@ -391,13 +506,23 @@
     }
     // a card 07 printed before this file loaded (a restored career end draws at boot, v140) is the plain one: redraw it
     document.querySelectorAll(".legacy-card-v152:not(.lgc-v152)").forEach(function (el) { try { var h = A().card(el.dataset.where || "career"); if (h) el.outerHTML = h; } catch (e) {} });
-    // the pour cards
-    document.querySelectorAll(".legacy-card-v152[data-pending]").forEach(pour);
+    // the pour cards — only once they are on screen (the career end keeps the card on its own LEGACY XP tab,
+    // which pulses until it is opened)
+    document.querySelectorAll(".legacy-card-v152[data-pending]").forEach(function (c) {
+      // wait for 22 to split the screen into tabs (90 ms after the render settles), or a second if it never does
+      c.__lgAt || (c.__lgAt = Date.now());
+      var split = !!document.querySelector("#screen > .hubv75-tabs") || Date.now() - c.__lgAt > 1000;
+      if (!split) { setTimeout(soon, 250); return; }
+      var vis = c.getClientRects().length > 0 && !c.closest(".hubv97-fold:not(.on)");
+      if (vis) pour(c);
+      var t = document.querySelector('.hubv75-tab[data-sec="xp"]'); if (t) t.classList.toggle("lg-tab-pulse", !vis && !c.__lgPour);
+    });
+    if (!document.querySelector(".legacy-card-v152[data-pending]")) { var t2 = document.querySelector(".hubv75-tab.lg-tab-pulse"); if (t2) t2.classList.remove("lg-tab-pulse"); }
     // a milestone reached somewhere no card was shown (an autopiloted UFF season, a walk-away)
     if (st && (st.view === "hub" || st.view === "menu" || st.view === "profile")) milestoneCheck();
     if (st && st.view === "profile") {
       decorateProfile();
-      var ks = document.querySelector(".lgk-slot[data-swap-to]");
+      var ks = document.querySelector(".lg-swap-slot[data-swap-to]");
       if (ks && ks.getClientRects().length && !ks.__lgWait) { ks.__lgWait = 1; setTimeout(function () { var to = +ks.dataset.swapTo; ks.removeAttribute("data-swap-to"); swapMedal(ks, to); }, 450); }
     }
   }
@@ -417,15 +542,16 @@
       (R.rank < 500 ? '<div class="lgk-next">NEXT MILESTONE ' + medalHtml(nextMs, 26, { flat: true }) + " <b>LEGACY " + nextMs + "</b> · " + fmt(toMs) + " XP · +" + fmt(X.bounty(nextMs)) + " PP</div>" : "") +
       "</div></div>";
   }
-  function bookHtml(g) {
-    var R = g.R, L = g.L, have = Math.min(500, R.rank), cur = tierIndex(R.medal);
-    if (BOOK.page == null) BOOK.page = cur;
-    var p = BOOK.page, T = MEDALS.tiers[p];
-    var tabs = MEDALS.tiers.map(function (t, i) {
+  function tabsHtml(g, p) {
+    var have = Math.min(500, g.R.rank);
+    return MEDALS.tiers.map(function (t, i) {
       var got = Math.max(0, Math.min(50, have - (t.from - 1)));
       return '<button type="button" class="lgb-tab' + (i === p ? " on" : "") + (got === 50 ? " full" : "") + '" data-page="' + i + '">' + medalHtml(t.from + 9, 22, { flat: true, locked: got === 0, title: false }) + "<small>" + esc(t.name) + "</small><em>" + got + "/50</em></button>";
     }).join("");
-    var fams = [0, 1, 2, 3, 4].map(function (fi) {
+  }
+  function pageHtml(g, p) {
+    var R = g.R, have = Math.min(500, R.rank), T = MEDALS.tiers[p];
+    var rows = [0, 1, 2, 3, 4].map(function (fi) {
       var base = T.from + fi * 10, owned = Math.max(0, Math.min(10, have - base + 1));
       return '<div class="lgb-fam"><div class="lgb-fh"><b>RANKS ' + base + "–" + (base + 9) + "</b><small>" + (owned ? owned + "/10" : "LOCKED") + "</small></div><div class=\"lgb-row\">" +
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (k) {
@@ -433,9 +559,102 @@
           return '<button type="button" class="lgb-cell' + (on ? "" : " locked") + (r === R.medal ? " cur" : "") + (r === have + 1 ? " next" : "") + (r % 10 === 0 ? " ms" : "") + '" data-rank="' + r + '">' + medalHtml(r, 28, { flat: true, locked: !on, title: false }) + "</button>";
         }).join("") + "</div></div>";
     }).join("");
+    return '<div class="lgb-page" data-page="' + p + '"><div class="lgb-pt"><b>' + esc(T.name) + "</b><small>RANKS " + T.from + "–" + T.to + "</small></div>" + rows +
+      '<div class="lgb-foot">' + (p > 0 ? '<button type="button" class="lgb-turn prev" data-turn="-1" aria-label="Previous page">‹</button>' : "<i></i>") +
+      "<span>PAGE " + (p + 1) + " / 10</span>" + (p < 9 ? '<button type="button" class="lgb-turn next" data-turn="1" aria-label="Next page">›</button>' : "<i></i>") + "</div></div>";
+  }
+  function bookHtml(g) {
+    var have = Math.min(500, g.R.rank);
+    if (BOOK.page == null) BOOK.page = tierIndex(g.R.medal);
+    var p = BOOK.page;
     return '<div class="card lg-book-v152"><div class="lgk-head"><span>THE COLLECTION BOOK</span><b>' + have + " / 500</b></div>" +
-      '<div class="lgb-tabs">' + tabs + '</div><div class="lgb-page" data-page="' + p + '"><div class="lgb-pt"><b>' + esc(T.name) + "</b><small>RANKS " + T.from + "–" + T.to + "</small></div>" + fams + "</div>" +
-      '<div class="lgb-detail"></div></div>';
+      '<div class="lgb-tabs">' + tabsHtml(g, p) + '</div><div class="lgb-stage">' + pageHtml(g, p) + "</div>" +
+      '<div class="lgb-hint">SWIPE OR TAP A CORNER TO TURN THE PAGE</div><div class="lgb-detail"></div></div>';
+  }
+  /* ---- the page turn ----
+   * A leaf with two faces turns on the spine (the left edge) in 3D: FORWARD, the page you were on lifts, curls and
+   * falls to the left, darkening as it turns, while its shadow slides off the new page underneath; BACK, the
+   * previous page swings in from the left and settles on top. A paper swish as it lifts, a soft thump as it lands,
+   * a light buzz, and the medals on the new page pop in one after another, the earned ones catching the light.
+   * Jumping several tiers riffles: the pages in between flick past fast, the last one lands slow. The page can be
+   * DRAGGED: the leaf follows the finger and either completes (past a third, or flicked) or falls back. */
+  function leafOf(pageEl) {
+    var leaf = document.createElement("div"); leaf.className = "lgb-leaf";
+    var front = pageEl.cloneNode(true); front.classList.add("lgb-face"); front.classList.remove("lgb-page");
+    var back = document.createElement("div"); back.className = "lgb-face lgb-back";
+    var shade = document.createElement("i"); shade.className = "lgb-shade";
+    leaf.appendChild(front); leaf.appendChild(back); front.appendChild(shade);
+    return leaf;
+  }
+  function setTabs(book, g, p) {
+    var tb = book.querySelector(".lgb-tabs"); if (!tb) return;
+    tb.querySelectorAll(".lgb-tab").forEach(function (t) { t.classList.toggle("on", +t.dataset.page === p); });
+    var on = tb.querySelector(".lgb-tab.on");
+    if (on) try { tb.scrollTo({ left: Math.max(0, on.offsetLeft - tb.clientWidth / 2 + on.offsetWidth / 2), behavior: reduced() ? "auto" : "smooth" }); } catch (e) {}
+  }
+  /* prepare a turn to page p: returns {leaf, under, apply(progress 0..1), commit(ms, cb), cancel(ms, cb)} */
+  function prepTurn(book, p) {
+    var g = ledger(); if (!g) return null;
+    var stage = book.querySelector(".lgb-stage"), cur = stage && stage.querySelector(".lgb-page"); if (!cur) return null;
+    var fwd = p > BOOK.page, oldP = BOOK.page, tmp = document.createElement("div"); tmp.innerHTML = pageHtml(g, p);
+    var np = tmp.firstChild, leaf, under;
+    if (fwd) { leaf = leafOf(cur); cur.replaceWith(np); under = np; }        // the old page turns away, the new one waits beneath
+    else { leaf = leafOf(np); under = cur; }                                  // the new page swings in over the old
+    var shadow = document.createElement("i"); shadow.className = "lgb-under"; stage.appendChild(shadow);
+    stage.appendChild(leaf);
+    var sh = leaf.querySelector(".lgb-shade");
+    function angle(k) { return fwd ? -180 * k : -180 * (1 - k); }            // k: how far the turn has gone
+    function apply(k) {
+      k = Math.max(0, Math.min(1, k));
+      var a = angle(k), lift = Math.sin(k * Math.PI);
+      leaf.style.transform = "rotateY(" + a.toFixed(2) + "deg) translateZ(" + (lift * 26).toFixed(1) + "px) skewY(" + (lift * (fwd ? -2.2 : 2.2)).toFixed(2) + "deg)";
+      leaf.style.boxShadow = "0 " + (6 + lift * 16).toFixed(0) + "px " + (10 + lift * 30).toFixed(0) + "px rgba(40,20,5," + (0.25 + lift * 0.35).toFixed(2) + ")";
+      if (sh) sh.style.opacity = (fwd ? k : 1 - k) * 0.75;
+      shadow.style.opacity = (fwd ? 1 - k : k) * 0.6 * (0.4 + lift);
+      shadow.style.background = "linear-gradient(90deg, rgba(40,20,5,.55) 0, rgba(40,20,5,0) " + Math.max(8, (fwd ? 1 - k : k) * 100).toFixed(0) + "%)";
+    }
+    function end(landP, cb) {
+      leaf.remove(); shadow.remove();
+      if (landP !== p) { if (fwd) { var t2 = document.createElement("div"); t2.innerHTML = pageHtml(g, landP); under.replaceWith(t2.firstChild); } BOOK.page = landP; }
+      else { if (!fwd) under.replaceWith(np); BOOK.page = p; }
+      setTabs(book, g, BOOK.page);
+      cb && cb();
+    }
+    function tween(k0, k1, ms, landP, cb) {
+      var t0 = 0;
+      function fr(ts) { if (!t0) t0 = ts; var t = Math.min(1, (ts - t0) / ms), e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; apply(k0 + (k1 - k0) * e); if (t < 1) requestAnimationFrame(fr); else end(landP, cb); }
+      requestAnimationFrame(fr);
+    }
+    apply(0);
+    return { fwd: fwd, apply: apply, commit: function (k0, ms, cb) { tween(k0, 1, ms, p, cb); }, cancel: function (k0, ms, cb) { tween(k0, 0, ms, oldP, cb); } };
+  }
+  function landed(book, quiet) {
+    var pg = book.querySelector(".lgb-page"); if (!pg) return;
+    var dt = book.querySelector(".lgb-detail"); if (dt) { dt.classList.remove("on"); dt.innerHTML = ""; }
+    if (quiet || reduced()) return;
+    sfx("thump"); buzz("LIGHT");
+    var pt = pg.querySelector(".lgb-pt b");
+    if (pt && pt.animate) pt.animate([{ letterSpacing: "8px", opacity: 0 }, { letterSpacing: "2px", opacity: 1 }], { duration: 420, easing: "cubic-bezier(.2,.8,.3,1)" });
+    pg.querySelectorAll(".lgb-cell").forEach(function (c, i) {
+      if (!c.animate) return;
+      c.animate([{ transform: "scale(.3) rotate(-12deg)", opacity: 0 }, { transform: "scale(1.18) rotate(3deg)", opacity: 1, offset: 0.65 }, { transform: "none", opacity: 1 }], { duration: 320, delay: 60 + i * 13, easing: "cubic-bezier(.2,.8,.3,1)", fill: "backwards" });
+      if (!c.classList.contains("locked")) setTimeout(function () { c.classList.add("lgb-glint"); setTimeout(function () { c.classList.remove("lgb-glint"); }, 700); }, 260 + i * 13);
+    });
+  }
+  function turn(book, np) {
+    if (np < 0 || np > 9 || np === BOOK.page || book.__turning) return;
+    var dir = np > BOOK.page ? 1 : -1, seq = [];
+    for (var k = BOOK.page + dir; dir > 0 ? k <= np : k >= np; k += dir) seq.push(k);
+    if (seq.length > 4) seq = seq.slice(0, 2).concat(seq.slice(-2));       // a riffle, not a lecture
+    UI.turns = (UI.turns || 0) + 1;
+    if (reduced()) { var g = ledger(), st = book.querySelector(".lgb-stage"); BOOK.page = np; st.innerHTML = pageHtml(g, np); setTabs(book, g, np); landed(book, true); return; }
+    book.__turning = 1;
+    (function next(j) {
+      var last = j === seq.length - 1, T = prepTurn(book, seq[j]);
+      if (!T) { book.__turning = 0; return; }
+      sfx("flip", last ? 1 : 1.2 + j * 0.05);
+      T.commit(0, last ? 640 : 190, function () { if (last) { book.__turning = 0; landed(book); } else next(j + 1); });
+    })(0);
   }
   function detail(book, r) {
     var g = ledger(); if (!g) return;
@@ -450,28 +669,60 @@
   }
   function wireBook(book) {
     book.addEventListener("click", function (ev) {
-      var tab = ev.target.closest(".lgb-tab");
-      if (tab) {
-        var np = +tab.dataset.page; if (np === BOOK.page) return;
-        var dir = np > BOOK.page ? 1 : -1; BOOK.page = np;
-        var g = ledger(); if (!g) return;
-        var tmp = document.createElement("div"); tmp.innerHTML = bookHtml(g); var nb = tmp.firstChild;
-        book.replaceWith(nb); wireBook(nb);
-        var pg = nb.querySelector(".lgb-page");
-        if (pg && pg.animate && !reduced()) pg.animate([{ transform: "perspective(900px) rotateY(" + dir * -70 + "deg)", opacity: 0, transformOrigin: dir > 0 ? "left center" : "right center" }, { transform: "perspective(900px) rotateY(0)", opacity: 1, transformOrigin: dir > 0 ? "left center" : "right center" }], { duration: 380, easing: "cubic-bezier(.2,.7,.3,1)" });
-        return;
-      }
+      if (book.__dragged) { book.__dragged = 0; return; }
+      var tab = ev.target.closest(".lgb-tab"); if (tab) return turn(book, +tab.dataset.page);
+      var tn = ev.target.closest(".lgb-turn"); if (tn) return turn(book, BOOK.page + +tn.dataset.turn);
       var cell = ev.target.closest(".lgb-cell");
-      if (cell) { book.querySelectorAll(".lgb-cell.sel").forEach(function (c) { c.classList.remove("sel"); }); cell.classList.add("sel"); detail(book, +cell.dataset.rank); }
+      if (cell) {
+        book.querySelectorAll(".lgb-cell.sel").forEach(function (c) { c.classList.remove("sel"); }); cell.classList.add("sel"); detail(book, +cell.dataset.rank);
+        sfx("tick", 1.6);
+        var ds = book.querySelector(".lgb-dslot .lg-medal-v152"); if (ds && ds.animate && !reduced()) ds.animate([{ transform: "scale(.4) rotate(-20deg)", opacity: 0 }, { transform: "scale(1.12)", opacity: 1, offset: 0.7 }, { transform: "none" }], { duration: 380, easing: "cubic-bezier(.2,.8,.3,1)" });
+      }
     });
+    // the drag: the leaf follows the finger
+    var stage = book.querySelector(".lgb-stage"), D = null;
+    if (!stage) return;
+    stage.addEventListener("pointerdown", function (ev) { if (book.__turning || ev.button > 0) return; D = { x: ev.clientX, y: ev.clientY, t: performance.now(), id: ev.pointerId, T: null, w: stage.clientWidth || 300, k: 0 }; });
+    stage.addEventListener("pointermove", function (ev) {
+      if (!D || ev.pointerId !== D.id) return;
+      var dx = ev.clientX - D.x, dy = ev.clientY - D.y;
+      if (!D.T) {
+        if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+        var np = BOOK.page + (dx < 0 ? 1 : -1);
+        if (np < 0 || np > 9 || reduced()) { D = null; return; }
+        D.T = prepTurn(book, np); if (!D.T) { D = null; return; }
+        D.np = np; book.__turning = 1; book.__dragged = 1; sfx("flip", 1.1);
+        try { stage.setPointerCapture(ev.pointerId); } catch (e) {}
+      }
+      D.k = Math.max(0, Math.min(1, (D.T.fwd ? -dx : dx) / D.w));
+      D.T.apply(D.k); D.vx = dx / Math.max(1, performance.now() - D.t);
+    });
+    function release(ev) {
+      if (!D || (ev && ev.pointerId !== D.id)) return;
+      var d = D; D = null;
+      if (!d.T) return;
+      setTimeout(function () { book.__dragged = 0; }, 60);   // swallow only the click the drag itself makes
+      var flick = Math.abs(d.vx || 0) > 0.6 && ((d.T.fwd && d.vx < 0) || (!d.T.fwd && d.vx > 0));
+      if (d.k > 0.33 || flick) d.T.commit(d.k, Math.max(160, 520 * (1 - d.k)), function () { book.__turning = 0; landed(book); });
+      else d.T.cancel(d.k, Math.max(140, 380 * d.k), function () { book.__turning = 0; sfx("thump", 1.2); });
+    }
+    stage.addEventListener("pointerup", release); stage.addEventListener("pointercancel", release);
   }
   function decorateProfile() {
     var sc = document.getElementById("screen"), g = ledger();
     if (!sc || !g || !sc.querySelector(".pcard-host-v151b")) return;
-    var id = sc.querySelector(".pc-id-v151b");
+    var id = sc.querySelector(".pc-id-v151b"), body = sc.querySelector(".pc-body-v151b");
     if (id && !id.querySelector(".pc-legacy-v152")) {
       var nm = id.querySelector(".pc-name-v151b");
-      (nm || id).insertAdjacentHTML(nm ? "afterend" : "beforeend", '<div class="pc-legacy-v152">' + medalHtml(g.R.medal, 26) + "<span>LEGACY <b>" + g.R.rank + "</b> · " + esc(name(g.R.medal)) + "</span></div>");
+      (nm || id).insertAdjacentHTML(nm ? "afterend" : "beforeend", '<div class="pc-legacy-v152">' + esc(name(g.R.medal)) + "</div>");
+    }
+    // the medal, front and centre: its own framed box beside the name, lit in the medal's colour (tap: the trophy case)
+    if (body && !body.querySelector(".pc-medal-v152")) {
+      body.insertAdjacentHTML("beforeend", '<button type="button" class="pc-medal-v152 lgt-box-' + tierIndex(g.R.medal) + '" style="--lgg:' + glow(g.R.medal) + '" title="Legacy ' + g.R.rank + " · " + esc(name(g.R.medal)) + ' — open the trophy case">' +
+        '<span class="pcm-slot lg-swap-slot" data-size="60">' + medalHtml(g.R.medal, 60) + "</span><small>LEGACY</small><b>" + (g.R.rank > 500 ? "LV " + fmt(g.R.rank) : g.R.rank) + "</b><em>" + esc(tierName(g.R.medal)) + "</em></button>");
+      var bx = body.querySelector(".pc-medal-v152");
+      bx.onclick = function () { var t = document.querySelector('.hubv75-tab[data-sec="case"]'); if (t) t.click(); };
+      if (!reduced() && bx.animate) bx.animate([{ transform: "scale(.6) rotate(-6deg)", opacity: 0 }, { transform: "scale(1.06)", opacity: 1, offset: 0.7 }, { transform: "none" }], { duration: 480, easing: "cubic-bezier(.2,.8,.3,1)" });
     }
     if (sc.querySelector(".lg-case-v152")) return;
     var host = sc.querySelector(".pcard-host-v151b");
@@ -479,9 +730,9 @@
     wireBook(sc.querySelector(".lg-book-v152"));
     UI.profile++;
     // the medal in the case changed since the case last showed it: swap it in front of him
-    var S = seen(), slot = sc.querySelector(".lgk-slot");
-    // (on the TROPHY CASE tab: the swap waits until the case is on screen — identity() plays it)
-    if (S.chip && S.chip < g.R.rank && slot && !reduced()) { var was = clampRank(S.chip); markSeen("chip", g.R.rank); if (was !== g.R.medal) { slot.innerHTML = medalHtml(was, 140); slot.dataset.swapTo = g.R.medal; } }
+    var S = seen(), slot = sc.querySelector(".pcm-slot");
+    // (the box is on the CARD tab; the swap waits until it is on screen — identity() plays it)
+    if (S.chip && S.chip < g.R.rank && slot && !reduced()) { var was = clampRank(S.chip); markSeen("chip", g.R.rank); if (was !== g.R.medal) { slot.innerHTML = medalHtml(was, 60); slot.dataset.swapTo = g.R.medal; } }
   }
   // 28 draws the profile; the case and the book follow it
   (function wrapProfile() {
@@ -549,7 +800,6 @@
       ".legacy-chip-v152.menu{margin-right:8px;align-self:center}",
       ".lg-setup-v152{display:flex;align-items:center;gap:9px;margin:6px 0 8px;padding:7px 10px;border-radius:11px;background:rgba(240,187,69,.08);border:1px solid rgba(240,187,69,.3);font:600 12px Oswald,sans-serif;letter-spacing:1px;color:var(--chalk,#e8eef6)}.lg-setup-v152 b{color:#ffd76f}.lg-setup-v152 small{display:block;font-weight:400;font-size:10.5px;letter-spacing:.6px;color:var(--chalk-dim,#9fb0c4)}",
       ".lb151-who .lg-lb{vertical-align:-5px;margin-right:2px}",
-      ".pc-legacy-v152{display:flex;align-items:center;gap:5px;margin-top:3px;font:600 10.5px Oswald,sans-serif;letter-spacing:1px;color:#ffe7a8;white-space:nowrap;overflow:hidden}.pc-legacy-v152 b{color:#ffd76f}",
       /* the trophy case */
       ".lg-case-v152{overflow:hidden;background:linear-gradient(180deg,#1a1410,#0c0a08);border-color:rgba(240,187,69,.5)}",
       ".lgk-cab{position:relative;height:196px;margin:10px auto 0;max-width:260px;border-radius:14px 14px 4px 4px;background:radial-gradient(90% 70% at 50% 30%,#3a1620,#1b0a10 70%);border:3px solid #5a4020;box-shadow:inset 0 0 30px rgba(0,0,0,.8),0 0 0 1px #c9a13b inset,0 10px 24px rgba(0,0,0,.6);overflow:hidden;display:grid;place-items:center}",
@@ -568,7 +818,6 @@
       ".lgb-tab{flex:none;display:flex;flex-direction:column;align-items:center;gap:1px;width:62px;padding:5px 2px 4px;border-radius:9px;border:1px solid rgba(201,161,59,.25);background:rgba(0,0,0,.25);color:var(--chalk-dim,#9fb0c4);cursor:pointer}",
       ".lgb-tab small{font:600 7.5px Oswald,sans-serif;letter-spacing:.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58px}.lgb-tab em{font:700 9px Oswald,sans-serif;font-style:normal;color:#c9a13b}",
       ".lgb-tab.on{background:linear-gradient(180deg,rgba(240,187,69,.3),rgba(240,187,69,.08));border-color:#f0bb45;color:#ffe7a8}.lgb-tab.full em{color:#57e07a}",
-      ".lgb-page{background:linear-gradient(180deg,#efe3c6,#e2d2ab);border-radius:6px;padding:9px 8px 6px;box-shadow:inset 0 0 18px rgba(90,58,28,.45);color:#3a2610;backface-visibility:hidden}",
       ".lgb-pt{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1.5px solid rgba(90,58,28,.35);padding-bottom:4px;margin-bottom:6px}.lgb-pt b{font:700 15px Oswald,sans-serif;letter-spacing:2px}.lgb-pt small{font:600 10px Oswald,sans-serif;letter-spacing:1px;color:#7a5a30}",
       ".lgb-fam{margin-bottom:6px}.lgb-fh{display:flex;justify-content:space-between;font:600 10.5px Oswald,sans-serif;letter-spacing:1px}.lgb-fh small{color:#7a5a30}",
       ".lgb-row{display:grid;grid-template-columns:repeat(10,1fr);gap:1px;margin-top:2px}",
@@ -601,6 +850,49 @@
       ".lg5-k{font:600 13px Oswald,sans-serif;letter-spacing:8px;color:#ff9ce0}.lg5-t{font:700 38px Oswald,sans-serif;letter-spacing:4px;background:linear-gradient(90deg,#ffd76f,#fff3c4,#ff9ce0,#b9a6ff,#ffd76f);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:lg5TV152 4s linear infinite}@keyframes lg5TV152{to{background-position:200% 0}}",
       ".lg5-s{font:500 13px 'Barlow Condensed',sans-serif;color:#dfe6ef;margin:4px 0 12px}",
       ".r500 .lg5-stage{margin-bottom:18vh}.lg5-done .lg5-stage{transition:transform 1s cubic-bezier(.2,.7,.3,1);transform:translateY(-4vh) scale(.92)}",
+      /* v152 A.2: the hit — rays, the flash, the charge, the spark on the bar, RANK UP */
+      ".lg-rays-v152{position:absolute;left:50%;top:50%;width:260%;aspect-ratio:1;border-radius:50%;pointer-events:none;z-index:0;background:repeating-conic-gradient(from 0deg,color-mix(in srgb,var(--c) 75%,#fff) 0 7deg,transparent 7deg 20deg);-webkit-mask-image:radial-gradient(circle,#000 12%,transparent 62%);mask-image:radial-gradient(circle,#000 12%,transparent 62%)}",
+      ".lg-flash-v152{position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle at 30% 50%,#fff,rgba(255,246,216,.6) 45%,rgba(255,255,255,.15));pointer-events:none;z-index:6;mix-blend-mode:screen}",
+      ".lg-charge-v152{animation:lgChargeV152 .09s linear infinite;filter:brightness(1.5) drop-shadow(0 0 calc(var(--lgs)*.12) var(--lgg))!important;transition:filter .6s}",
+      "@keyframes lgChargeV152{0%{transform:translate(1px,0) rotate(.6deg)}25%{transform:translate(-1px,1px)}50%{transform:translate(1px,-1px) rotate(-.6deg)}75%{transform:translate(-1px,0)}100%{transform:none}}",
+      ".lgc-charging .lgc-slot>.lg-medal-v152:not(.lg-shard-v152){animation:lgChargeV152 .08s linear infinite;filter:brightness(1.45) drop-shadow(0 0 10px var(--lgg))}",
+      ".lgc-charging .lgc-bar{box-shadow:0 0 12px rgba(255,215,111,.75),0 0 0 1px rgba(255,240,190,.6) inset}.lgc-charging .lgc-bar i{background:linear-gradient(90deg,#ffd76f,#fff3c4 70%,#fff)}",
+      ".lgc-spark{position:absolute;top:50%;left:0;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;pointer-events:none;background:radial-gradient(circle,#fff 0,#fff3c4 25%,rgba(255,215,111,.55) 45%,transparent 70%);z-index:2}",
+      ".lgc-bar{overflow:visible!important}.lgc-bar i{border-radius:6px}",
+      ".lgc-flash{animation:lgBarFlashV152 .32s ease-out}@keyframes lgBarFlashV152{0%{background:#fff;box-shadow:0 0 22px #fff3c4,0 0 44px rgba(255,215,111,.8)}100%{background:rgba(0,0,0,.45)}}",
+      ".lgc-pop{position:absolute;left:50%;top:38%;z-index:7;white-space:nowrap;pointer-events:none;font:700 15px Oswald,sans-serif;letter-spacing:2px;color:#fff3c4;text-shadow:0 0 10px rgba(255,215,111,.9),0 2px 0 rgba(0,0,0,.6)}.lgc-pop.big{font-size:20px;color:#fff}",
+      ".lgc-slot{isolation:isolate}.lgc-sum{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:10px;background:rgba(87,224,122,.16);border:1px solid rgba(87,224,122,.6);color:#57e07a;font:700 11px Oswald,sans-serif;letter-spacing:1.5px;vertical-align:2px}",
+      ".lgc-gain{display:block}",
+      /* v152 A.2: the book turns its pages */
+      ".lgb-stage{position:relative;perspective:1500px;perspective-origin:50% 40%;touch-action:pan-y;user-select:none;-webkit-user-select:none}",
+      ".lgb-page,.lgb-face{background:linear-gradient(90deg,#d8c79f 0,#efe3c6 4%,#f3e9d0 60%,#e2d2ab 100%);border-radius:3px 6px 6px 3px;padding:9px 8px 6px;box-shadow:inset 6px 0 10px -6px rgba(90,58,28,.55),inset 0 0 18px rgba(90,58,28,.35);color:#3a2610}",
+      ".lgb-leaf{position:absolute;inset:0;z-index:3;transform-origin:0 50%;transform-style:preserve-3d;will-change:transform;border-radius:3px 6px 6px 3px;pointer-events:none}",
+      ".lgb-face{position:absolute;inset:0;-webkit-backface-visibility:hidden;backface-visibility:hidden;overflow:hidden}",
+      ".lgb-back{transform:rotateY(180deg);background:linear-gradient(270deg,#cdb98c 0,#e9dcbc 8%,#efe4c8 70%,#dccb9f 100%);box-shadow:inset -6px 0 12px -6px rgba(90,58,28,.5)}",
+      ".lgb-back::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(90,58,28,.05) 0 1px,transparent 1px 19px)}",
+      ".lgb-shade{position:absolute;inset:0;opacity:0;pointer-events:none;background:linear-gradient(90deg,rgba(40,20,5,0) 20%,rgba(40,20,5,.55) 100%)}",
+      ".lgb-under{position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:3px 6px 6px 3px;opacity:0}",
+      ".lgb-foot{display:flex;align-items:center;justify-content:space-between;margin-top:4px;font:600 9px Oswald,sans-serif;letter-spacing:2px;color:#7a5a30}.lgb-foot i{width:34px}",
+      ".lgb-turn{width:34px;height:26px;padding:0;border:0;cursor:pointer;font:700 17px Oswald,sans-serif;line-height:1;color:#5a3a1c;background:linear-gradient(135deg,transparent 45%,rgba(90,58,28,.28) 46%,#d9c596 60%,#efe1bd);border-radius:0 0 6px 0;box-shadow:-2px -2px 4px rgba(90,58,28,.18)}",
+      ".lgb-turn.prev{background:linear-gradient(225deg,transparent 45%,rgba(90,58,28,.28) 46%,#d9c596 60%,#efe1bd);border-radius:0 0 0 6px;box-shadow:2px -2px 4px rgba(90,58,28,.18)}",
+      ".lgb-turn:active{transform:scale(.92)}",
+      ".lgb-hint{text-align:center;font:600 8px Oswald,sans-serif;letter-spacing:2px;color:rgba(255,231,168,.4);margin-top:5px}",
+      ".lgb-cell.lgb-glint::after{content:'';position:absolute;inset:0;border-radius:6px;pointer-events:none;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.85) 48%,transparent 62%);background-size:260% 100%;animation:lgGlintCellV152 .6s ease-out;mix-blend-mode:screen}",
+      "@keyframes lgGlintCellV152{0%{background-position:160% 0}100%{background-position:-60% 0}}",
+      /* v152 A.2: the profile card's medal box */
+      ".pc-body-v151b{align-items:flex-start}",
+      ".pc-medal-v152{flex:none;position:relative;width:84px;margin-top:24px;padding:4px 2px 5px;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0;overflow:hidden;isolation:isolate;border:1.5px solid color-mix(in srgb,var(--lgg) 70%,#f0bb45);background:radial-gradient(90% 70% at 50% 35%,color-mix(in srgb,var(--lgg) 40%,transparent),rgba(8,12,18,.92) 75%);box-shadow:0 0 16px color-mix(in srgb,var(--lgg) 45%,transparent),0 1px 0 rgba(255,255,255,.12) inset}",
+      ".pc-medal-v152::before{content:'';position:absolute;inset:-40%;z-index:-1;background:conic-gradient(from 0deg,transparent 0 70%,color-mix(in srgb,var(--lgg) 55%,#fff) 80%,transparent 90%);animation:lgSpinV152 5s linear infinite;opacity:.55}",
+      ".pc-medal-v152::after{content:'';position:absolute;inset:1.5px;z-index:-1;border-radius:10px;background:radial-gradient(90% 70% at 50% 35%,color-mix(in srgb,var(--lgg) 32%,transparent),#0a0f16 78%)}",
+      ".pc-medal-v152 .pcm-slot{width:64px;height:64px}",
+      ".pc-medal-v152 small{font:600 7.5px Oswald,sans-serif;letter-spacing:2px;color:rgba(255,231,168,.75);margin-top:-2px}",
+      ".pc-medal-v152 b{font:700 22px Oswald,sans-serif;line-height:1;color:#ffd76f;text-shadow:0 0 10px color-mix(in srgb,var(--lgg) 70%,transparent)}",
+      ".pc-medal-v152 em{font:700 7px Oswald,sans-serif;font-style:normal;letter-spacing:1.2px;color:#fff;opacity:.8;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}",
+      ".pc-medal-v152:active{transform:scale(.96)}",
+      ".pc-legacy-v152{font:600 10.5px Oswald,sans-serif;letter-spacing:1px;color:#ffd76f;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+      "@media(prefers-reduced-motion:reduce){.pc-medal-v152::before{animation:none}.lg-charge-v152,.lgc-charging .lgc-slot>.lg-medal-v152{animation:none!important}}",
+      ".hubv75-tab.lg-tab-pulse{animation:lgTabV152 1.2s ease-in-out infinite;color:#ffd76f!important}",
+      "@keyframes lgTabV152{0%,100%{box-shadow:0 0 0 1px rgba(240,187,69,.35) inset}50%{box-shadow:0 0 0 1px #ffd76f inset,0 0 14px rgba(255,215,111,.65);background:rgba(240,187,69,.18)}}",
       "@media(max-width:380px){.lgm-title{font-size:32px}.lg5-t{font-size:30px}.lgk-cab{height:176px}}"
     ].join("\n");
     (document.head || document.documentElement).appendChild(st);
@@ -619,5 +911,6 @@
   function soon() { if (queued) return; queued = 1; setTimeout(function () { queued = 0; try { identity(); } catch (e) { UI.errors.push(String(e && e.message || e)); } }, 40); }
   try { new MutationObserver(soon).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
   setInterval(function () { try { identity(); } catch (e) {} }, 1500);
+  document.addEventListener("click", function (ev) { if (ev.target && ev.target.closest && ev.target.closest(".hubv75-tab")) setTimeout(soon, 30); }, true);   // a tab opened: its card may pour now
   setTimeout(identity, 0);
 })();

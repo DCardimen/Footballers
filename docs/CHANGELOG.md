@@ -11,6 +11,17 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 
 <!-- new entries go here, newest first -->
 
+- **v152 A.2 — the medal gets the spotlight, the book turns, the band plays on arrival.** The profile card wears the
+  Legacy medal in its own framed, glowing box beside the name (tap: the trophy case). The collection book turns real
+  pages: a two-faced leaf lifts, curls and falls over the spine (or swings back in), with a paper swish, a landing thump,
+  a buzz and the new page's medals popping in; drag it with a finger, tap the dog-eared corners, or jump tiers and it
+  riffles. The pour is rank by rank: a spark rides the bar, the bar charges near the top (a riser, the medal trembles),
+  the hit stops time (flash, rays, the swap, the number rolls, RANK UP ×N, haptics), the bar drains and refills, and it
+  ends on the total stamped in and a fanfare — inside a ~6.5 s budget however many ranks. The career-end pour has its
+  own LEGACY XP tab (folded into THE END it played unseen), pulsing until opened. The music now asks to start at load:
+  where autoplay is allowed (the native shell always) the anthem plays with no tap; where it is refused, the first tap
+  starts it as before — a faked click cannot unlock sound.
+
 - **v152 A — the Legacy Rank.** A permanent account rank above every career, from the owner's 500 medal sheets. The
   art is re-ordered, not shipped as drawn: each medal's metal is read off its pixels, every bronze and silver medal
   climbs ranks 1-200 by size, and ranks 201-500 are gold and enamel only — crowns, wings, gems, eagles and lions —
