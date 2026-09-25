@@ -110,6 +110,11 @@ const snap = (page) => page.evaluate(() => {
   await page.evaluate(() => window.go('season')); await page.waitForTimeout(900)
   const e = await snap(page)
   const vows = await page.evaluate(() => document.querySelectorAll('.end-vow-v154').length)
+  const lay = await page.evaluate(() => {
+    const v = [...document.querySelectorAll('.end-vow-v154')], in_ = r => r.bottom <= innerHeight + 1 && r.top >= -1 && r.right <= innerWidth + 1 && r.left >= -1 && r.height > 0
+    return { main: v[0] && v[0].classList.contains('qa-main-v146'), chipped: v.filter(x => x.closest('.qa-row-v146')).length, visible: v.filter(x => in_(x.getBoundingClientRect())).length }
+  })
+  ok(lay.main && lay.chipped === 0 && lay.visible === 4, 'every vow is on screen at once: the first is the big button, the rest a grid, none hidden in the chip row', lay)
   ok(e.view === 'gameover' && e.settled, 'and it reaches the career-end screen (a reopened career can end)', { view: e.view })
   ok(vows === 4 && e.dock.some(t => /Run It Back Now/i.test(t)) && e.dock.some(t => /Hall of Fame/i.test(t)), 'the end screen offers all four vows, a skip and the Hall — not two', { vows, dock: e.dock })
   ok(/Final Whistle/i.test(e.screen), 'the banner says the UFF career ended, not "cut before the UFF"', e.screen.replace(/\s+/g, ' ').slice(0, 90))

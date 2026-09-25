@@ -23534,10 +23534,13 @@
   }
   /* the career-end dock: every vow (not two), a skip, the vault, the Hall */
   function endDockV154(e) {
-    const vows = (regretScenario(e.level, e).vows || []).map(
-      v => `<button class="btn secondary end-vow-v154" onclick="chooseRegretVowV12('${v.id}')">${v.icon} ${escHtml(v.label)}</button>`
-    );
-    return `${vaultPayBtnV137(e)}<div class="small center" style="margin-bottom:6px">If you could do it over — pick a promise for his son, then spend Prestige.</div><div class="end-vows-v154">${vows.join("")}</div><div style="height:8px"></div><div class="btn-row"><button class="btn ghost" onclick="prestigeReset()">⏭ Run It Back Now</button><button class="btn ghost" onclick="go('hof')">🏛️ Hall of Fame</button></div>`;
+    /* the first vow is the screen's big button; the rest stay a grid the shell's chip row leaves alone
+     * (`.dock-keep-v154`, src/25) — one sideways-scrolling row of chips is how four read as two */
+    const all = regretScenario(e.level, e).vows || [],
+      vow = (v, cls, tail) => `<button class="btn ${cls} end-vow-v154" onclick="chooseRegretVowV12('${v.id}')">${v.icon} ${escHtml(v.label)}${tail || ""}</button>`,
+      first = all[0] ? vow(all[0], "", " & Open Prestige") : "",
+      rest = all.slice(1).map(v => vow(v, "secondary"));
+    return `<div class="small center" style="margin-bottom:6px">If you could do it over — pick a promise for his son, then spend Prestige.</div>${first}${rest.length ? `<div class="end-vows-v154 dock-keep-v154">${rest.join("")}</div>` : ""}${vaultPayBtnV137(e)}<div class="btn-row"><button class="btn ghost" onclick="prestigeReset()">⏭ Run It Back Now</button><button class="btn ghost" onclick="go('hof')">🏛️ Hall of Fame</button></div>`;
   }
   window.__V154A = {
     reopen: e => reopenCareerV154(e || state.player),
