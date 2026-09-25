@@ -8737,6 +8737,69 @@
     return b;
   }
   window.__V136_C = { bank: bankPPV136, banked: bankedV136, flush: flushBankV136, banking: bankingV136 };
+  /* ===== v151 B HE LOOKS THE PART (the career app's side) =====
+   * src/28-cosmetics.js is the cosmetics module (`window.RIB_COSMETICS`); these are its hooks in here, each a
+   * hoisted declaration because screens restored at boot call them by bare name (v140) and 28 loads AFTER
+   * this file — so every one of them works (as the identity) with the module absent.
+   *   screenProfileV151B   view "profile" → the module's screen (a placeholder until it loads)
+   *   cosStyleBlockV151B   the Locker's STYLE tab (the v75 sectioner splits GEAR / STYLE)
+   *   cosColorsV151B       the menu feed's team.colors → [jersey, pants, helmet] when he wears something
+   *   spendPPV151B         the Team Creator's paid unlocks: debits `state.pp`, saves, never below 0
+   *   teamStyleLockV151B / teamStyleBarV151B / teamStyleNeedV151B   the Team Creator's gate */
+  function screenProfileV151B() {
+    if (window.__profileRenderV151B) return window.__profileRenderV151B(state);
+    byId("screen").innerHTML = '<div class="card center"><div class="small">Loading your profile…</div></div>';
+    byId("dock").innerHTML = `<button class="btn secondary" onclick="go('menu')">Back</button>`;
+  }
+  function cosStyleBlockV151B() {
+    try {
+      const C = window.RIB_COSMETICS;
+      return C && C.stylePanel ? C.stylePanel() : "";
+    } catch (e) {
+      return "";
+    }
+  }
+  function cosColorsV151B(c) {
+    try {
+      const C = window.RIB_COSMETICS;
+      return C && C.menuColors ? C.menuColors(c) : c;
+    } catch (e) {
+      return c;
+    }
+  }
+  function spendPPV151B(n, why) {
+    n = Math.round(Number(n) || 0);
+    if (!(n > 0) || !state || (state.pp || 0) < n) return !1;
+    state.pp -= n;
+    try {
+      saveGame();
+    } catch (e) {}
+    return !0;
+  }
+  window.__spendPPV151B = spendPPV151B;
+  function teamStyleV151B() {
+    const C = window.RIB_COSMETICS;
+    return C && C.teamStyle ? C.teamStyle : null;
+  }
+  function teamStyleLockV151B(kind, i) {
+    const T = teamStyleV151B();
+    return T && !T.owned(kind, i) ? " lock-v151b" : "";
+  }
+  function teamStyleBarV151B() {
+    const T = teamStyleV151B();
+    return T ? T.barHTML() : "";
+  }
+  function teamStyleNeedV151B(palette, logo) {
+    const T = teamStyleV151B();
+    if (!T) return Promise.resolve(!0);
+    try {
+      T.grandfather(window.__GRIDIRON_TEAM_CUSTOM__);
+    } catch (e) {}
+    return T.acquire([
+      { kind: "logo", i: logo },
+      { kind: "pal", i: palette }
+    ]);
+  }
   /* ===== v150 C THE HOOKS ARE IN, THE SWITCH IS STILL OFF =====
    * The in-game ends of docs/MONETIZATION.md §8 (H1–H11). Every hook asks `mzV150C()` first, and that is null
    * unless `window.RIB_MONETIZE` exists AND says it is enabled — so while the master switch is off (the default)
@@ -9529,9 +9592,11 @@
         : '<div class="card tight"><div class="small center">No gear yet — finish a career for your first drop.</div></div>'
     }
     </div>
+    ${cosStyleBlockV151B()}
   `),
       (byId("dock").innerHTML = `
     <div class="btn-row">
+      <button class="btn ghost" onclick="go('profile')">🪪 Profile</button>
       <button class="btn ghost" onclick="go('hof')">🏛️ Hall of Fame</button>
       <button class="btn secondary" onclick="go(S.player&&S.player.pos?'hub':'menu')">Back</button>
     </div>`));
@@ -12726,6 +12791,7 @@
     if (e === "gameover") return screenGameOver();
     if (e === "win") return screenWin();
     if (e === "club") return clubV146B();
+    if (e === "profile") return screenProfileV151B(); /* v151 B */
     screenMenuLegacy();
   }
   function screenMenuLegacy() {
@@ -13634,6 +13700,7 @@
     <div class="btn-row">
       <button class="btn ghost" onclick="setStatsTab('leaders');go('stats')">📊 Stats</button>
       <button class="btn ghost" onclick="go('challenges')">🎯 Goals</button>
+      <button class="btn ghost" onclick="go('profile')">🪪 Profile</button>
     </div>
   `;
   } // v17: national standing → promotion floor. The rank on the declare screen IS
@@ -14201,7 +14268,7 @@
         team: {
           school: tc.schoolName || "",
           name: tc.teamName || "",
-          colors: tc.col || null,
+          colors: cosColorsV151B(tc.col || null) /* v151 B: his uniform / helmet on the menu's pictures */,
           logo: tc.logo != null ? tc.logo : null,
           logoCss: window.TEAM_LOGOS_V44 && tc.logo != null ? window.TEAM_LOGOS_V44.cssFull(tc.logo) : ""
         }
@@ -29895,7 +29962,7 @@
       function creatorHTML() {
         const c = getCustom(),
           mp = EMB ? EMB.palIdx(c.logo) : -1;
-        return `<div class="team-modal-v153" id="teamModalV153"><div class="team-panel-v153"><button class="team-close-v153" onclick="closeTeamCreatorV153()">×</button><div class="eyebrow">TEAM CREATOR</div><div class="h1">Build Your School</div><div class="team-form-v153"><label>School name<input id="schoolNameV153" maxlength="24" value="${escHtml(safeText(c.schoolName, 24))}"></label><label>Team name<input id="teamNameV153" maxlength="18" value="${escHtml(safeText(c.teamName, 18))}" oninput="teamNameLiveV44(this.value)"></label></div><div id="nameIdeasV139">${nameIdeasHTMLV139()}</div><div class="creator-preview-v44" id="creatorPreviewV44">${idPrevHTML(c.palette, c.logo)}</div><div class="h2">${palettes.length} Uniform Palettes <small class="pal-hint-v44">✓ marks the palette matched to your emblem</small></div><div class="palette-grid-v153">${palettes.map((p, i) => `<button class="palette-v153 ${i === c.palette ? "on" : ""} ${i === mp ? "match" : ""}" data-i="${i}" title="${palNameV97(p)}" onclick="pickPaletteV153(${i})"><i style="background:${p[0]}"></i><i style="background:${p[1]}"></i><small>${i + 1}</small><em class="pal-name-v97">${palNameV97(p)}</em></button>`).join("")}</div><div class="h2">${NLOGO} Team Emblems <small class="pal-hint-v44">picking one selects its matching palette</small></div><div class="logo-grid-v153">${Array.from({ length: NLOGO }, (_, i) => `<button class="logo-pick-v153 ${i === c.logo ? "on" : ""}" data-i="${i}" title="${EMB ? EMB.name(i) : i + 1}" onclick="pickLogoV153(${i})">${logoHTML(i)}</button>`).join("")}</div><div class="btn-row mt"><button class="btn secondary" onclick="previewUniformV153()">Open Uniform Preview</button><button class="btn" onclick="saveTeamCreatorV153()">Save Team</button></div></div></div>`;
+        return `<div class="team-modal-v153" id="teamModalV153"><div class="team-panel-v153"><button class="team-close-v153" onclick="closeTeamCreatorV153()">×</button><div class="eyebrow">TEAM CREATOR</div><div class="h1">Build Your School</div><div class="team-form-v153"><label>School name<input id="schoolNameV153" maxlength="24" value="${escHtml(safeText(c.schoolName, 24))}"></label><label>Team name<input id="teamNameV153" maxlength="18" value="${escHtml(safeText(c.teamName, 18))}" oninput="teamNameLiveV44(this.value)"></label></div><div id="nameIdeasV139">${nameIdeasHTMLV139()}</div><div class="creator-preview-v44" id="creatorPreviewV44">${idPrevHTML(c.palette, c.logo)}</div>${teamStyleBarV151B()}<div class="h2">${palettes.length} Uniform Palettes <small class="pal-hint-v44">✓ marks the palette matched to your emblem</small></div><div class="palette-grid-v153">${palettes.map((p, i) => `<button class="palette-v153 ${i === c.palette ? "on" : ""} ${i === mp ? "match" : ""}${teamStyleLockV151B("pal", i)}" data-i="${i}" title="${palNameV97(p)}" onclick="pickPaletteV153(${i})"><i style="background:${p[0]}"></i><i style="background:${p[1]}"></i><small>${i + 1}</small><em class="pal-name-v97">${palNameV97(p)}</em></button>`).join("")}</div><div class="h2">${NLOGO} Team Emblems <small class="pal-hint-v44">picking one selects its matching palette</small></div><div class="logo-grid-v153">${Array.from({ length: NLOGO }, (_, i) => `<button class="logo-pick-v153 ${i === c.logo ? "on" : ""}${teamStyleLockV151B("logo", i)}" data-i="${i}" title="${EMB ? EMB.name(i) : i + 1}" onclick="pickLogoV153(${i})">${logoHTML(i)}</button>`).join("")}</div><div class="btn-row mt"><button class="btn secondary" onclick="previewUniformV153()">Open Uniform Preview</button><button class="btn" onclick="saveTeamCreatorV153()">Save Team</button></div></div></div>`;
       }
       window.openTeamCreatorV153 = function () {
         window.__tempLogoV153 = null;
@@ -29989,7 +30056,14 @@
         }
         refreshIdPrevV44();
       };
+      /* v151 B: the save goes through the gate — a crest or colours not yet unlocked take a free pick or PP first */
       window.saveTeamCreatorV153 = function () {
+        const old = getCustom(),
+          pal = window.__tempPaletteV153 ?? old.palette,
+          lg = window.__tempLogoV153 ?? old.logo;
+        return teamStyleNeedV151B(pal, lg).then(ok => (ok ? (saveTeamCreatorCoreV151B(), !0) : !1));
+      };
+      const saveTeamCreatorCoreV151B = function () {
         const old = getCustom(),
           c = {
             schoolName: safeText(document.getElementById("schoolNameV153")?.value, 24) || old.schoolName,
