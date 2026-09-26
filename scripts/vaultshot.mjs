@@ -45,7 +45,7 @@ const pre = WIDE ? '_vault_wide_' : '_vault_'
 for (const [pp, key, name] of shots) {
   await page.evaluate(({ pp }) => {
     const A = window.__GRIDIRON_AUDIT__, o = A.getState()
-    o.pp = pp; o.prestige = Math.max(o.prestige || 0, 30); o.view = 'shop'
+    o.pp = pp; o.prestige = Math.max(o.prestige || 0, 30); window.__V156A && window.__V156A.seed(140) /* v156 A: the medals open the tree */; o.view = 'shop'
     window.render && window.render()
   }, { pp })
   await page.evaluate(() => { try { localStorage.setItem('rib.vaultDoor.v137', '1') } catch (e) {} })

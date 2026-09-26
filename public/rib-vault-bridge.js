@@ -7,7 +7,7 @@
  * docs/PRESTIGE-VAULT.md):
  *   __GRIDIRON_AUDIT__.getState()  -> the account state `o`
  *   o.pp                           -> the SPENDABLE balance. The only thing the vault spends.
- *   o.prestige                     -> the HONORS rank. Never spent, never shown as a balance.
+ *   o.prestige                     -> v156 A: a mirror of the medal rank (the Legacy Rank). Never spent, never shown.
  *   o.ppBankV136                   -> v136's bank. Shown as PENDING, never spendable.
  *   o.tree[key]                    -> the level a node is at
  *   window.buy(key)                -> `Yl`, the ONE authoritative purchase. Atomic.

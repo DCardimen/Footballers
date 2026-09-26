@@ -110,6 +110,8 @@ const apex = await page.evaluate(() => {
   // reputation: the Honors requirement drops
   const need0 = window.__V130.req({ honors: 10 }); lvl('reputation', 2); const need2 = window.__V130.req({ honors: 10 }); lvl('reputation', 0)
   out.reputation = [need0, need2]
+  // v156 A: the gate is medals now, and Reputation takes 5% a level off every medal requirement
+  const M = window.__V156A; if (M) { const m0 = M.req(10); lvl('reputation', 2); const m2 = M.req(10); lvl('reputation', 0); out.medals = [m0, m2] }
   // grudge: the rivalry multiplier
   const g0 = window.__V128.mult(); lvl('grudge', 2); const g2 = window.__V128.mult(); lvl('grudge', 0); out.grudge = [g0, g2]
   // throwOpen: the sim's tree read
@@ -124,7 +126,8 @@ const apex = await page.evaluate(() => {
 })
 console.log('apex:', JSON.stringify(apex))
 ok(apex.nodes.length >= 10 && apex.nodes.every(n => n.cost >= 40 && n.honors >= 8), 'the Apex branch is ten-plus high-cost, Honors-gated nodes', JSON.stringify(apex.nodes.map(n => n.key + ':' + n.cost + '/' + n.honors)))
-ok(apex.reputation[1] === apex.reputation[0] - 2, 'Reputation lowers every Honors requirement per level', JSON.stringify(apex.reputation))
+ok(apex.reputation[1] === apex.reputation[0] - 2, 'Reputation lowers every Honors requirement per level (the kill-switch path)', JSON.stringify(apex.reputation))
+ok(!apex.medals || (apex.medals[0] === 50 && apex.medals[1] === 45), 'v156 A: and every medal requirement by 5% a level (50 → 45 at Lv 2)', JSON.stringify(apex.medals))
 ok(apex.grudge[1] === apex.grudge[0] + 1, 'Grudge Match raises the rivalry multiplier ×0.5 per level', JSON.stringify(apex.grudge))
 ok(apex.throwOpen0 === 0 && apex.throwOpen3 === 3, 'the sim can read Throw Him Open through __treeLvlV134', JSON.stringify([apex.throwOpen0, apex.throwOpen3]))
 ok(apex.cleanSlate[0] < 1 && apex.cleanSlate[1] === 1, 'Clean Slate switches the reroll penalty off', JSON.stringify(apex.cleanSlate))

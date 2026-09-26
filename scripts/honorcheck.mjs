@@ -10,6 +10,11 @@
 // mean the recruit rating and only that; the node requirement reads `honors` (still accepting the
 // old `stars`); the gate itself is unchanged — the same thresholds through the same curve; and the
 // menu can still read the rank off the screen now that it is not a star.
+//
+// v156 A: the medals (the Legacy Rank) replaced Honors as the rank that gates the tree. The ★ rules
+// stand; the chip, the tree and the menu now name MEDALS; the v130 model (the `honors` key, the Li
+// curve) and the v139 pay are asserted under the kill switch TU("v156A", 0), which restores them.
+// The medal gate itself is v156Acheck.
 import { chromium } from 'playwright'
 import { CHROME, gameUrl } from './lib/env.mjs'
 const browser = await chromium.launch({ executablePath: CHROME })
@@ -57,13 +62,13 @@ const chip = await page.evaluate(() => {
   return c ? { txt: (c.textContent || '').replace(/\s+/g, ' ').trim(), title: c.getAttribute('title') || '' } : null
 })
 console.log('header chip:', JSON.stringify(chip))
-ok(chip && /HONORS/.test(chip.txt), 'the header chip names the currency', chip && chip.txt)
+ok(chip && /MEDALS/.test(chip.txt) && !/HONORS/.test(chip.txt), 'the header chip names the rank — MEDALS (v156 A)', chip && chip.txt)
 ok(chip && chip.txt.indexOf('★') < 0, 'and does not draw a star for it', chip && chip.txt)
 ok(chip && /not the 1-5 star recruit rating/i.test(chip.title), 'and says which one it is NOT, for the player who was confused', (chip && chip.title || '').slice(0, 80) + '…')
 
 // give the account some rank, then read the prestige tree
 const tree = await page.evaluate(() => {
-  window.S.prestige = 4; window.S.pp = 400
+  window.__V156A.seed(4); window.S.pp = 400
   try { window.go('shop') } catch (e) {}
   return null
 })
@@ -71,11 +76,11 @@ await page.waitForTimeout(700)
 const shop = await page.evaluate(() => {
   const t = document.getElementById('screen').textContent.replace(/\s+/g, ' ')
   const locks = [...document.querySelectorAll('.shop-item')].map(e => e.textContent.replace(/\s+/g, ' ')).filter(x => /Needs/.test(x))
-  return { honors: (t.match(/HONORS/g) || []).length, starLock: /Needs ★/.test(t), sample: locks[0] || '', locks: locks.length }
+  return { honors: (t.match(/HONORS/gi) || []).length, starLock: /Needs ★/.test(t), sample: locks[0] || '', locks: locks.length }
 })
 console.log('prestige tree:', JSON.stringify(shop))
 ok(!shop.starLock, 'the prestige tree never asks for a star', `"Needs ★" present: ${shop.starLock}`)
-ok(shop.locks === 0 || /HONORS/.test(shop.sample), 'a locked node asks for HONORS, and says how many you have', shop.sample.slice(0, 90))
+ok(shop.locks > 0 && /Needs 🎖️? ?\d+ medals — you have 4/.test(shop.sample) && shop.honors === 0, 'a locked node asks for medals (v156 A), and says how many you have', shop.sample.slice(0, 90))
 
 // the recruit rating is untouched wherever a player is drawn
 const recruit = await page.evaluate(() => {
@@ -103,10 +108,10 @@ ok(hub.pl >= 1 && hub.pl <= 5, 'and the recruit rating is still a 1-5', String(h
 
 // ---- 3. the menu can still read the rank off the screen ----
 const menuRead = await page.evaluate(() => {
-  window.S.prestige = 7
+  window.__V156A.seed(7)
   try { window.go('menu') } catch (e) {}
   const d = window.__RIB_MENU_DATA_V89 && window.__RIB_MENU_DATA_V89()
-  return d && d.state ? d.state.prestige : null
+  return d && d.state ? d.state.medals : null
 })
 console.log('menu reads rank:', JSON.stringify(menuRead))
 ok(menuRead === 7, 'the main menu still reads the account rank now that it is a medal, not a star', String(menuRead))
@@ -115,7 +120,9 @@ ok(menuRead === 7, 'the main menu still reads the account rank now that it is a 
 // Qs() counts a career's honors and the DFL card printed that count, but both settles credited
 // it through TU("prestigeGainMult"), which was .2 — so "+7 HONORS" moved the account by 1.4 and
 // a short career by 0.2, against a prestige tree whose gates run to 30.
+// v156 A: Honors are only paid under the kill switch now — assert the v139 contract there
 const settle = await page.evaluate(() => {
+  window.RIB_TUNE.v156A = 0
   const A = window.__GRIDIRON_AUDIT__, S = window.S
   const mk = (lvl) => { const p = A.newPlayer(S, 'RB'); p.level = lvl; p.totalSeasons = 6; p.career = p.career || []; return p }
   const run = (lvl, screen) => {
@@ -126,6 +133,7 @@ const settle = await page.evaluate(() => {
     return { raw, paid: p._starGain, moved: +(S.prestige - before).toFixed(1), settled: !!p._settled }
   }
   const win = run(7, 'screenWin'), cut = run(5, 'screenGameOver')
+  delete window.RIB_TUNE.v156A
   return { win, cut, pay: window.__honorPayV139 && [0, 1, 7].map(n => window.__honorPayV139(n)) }
 })
 console.log('settle:', JSON.stringify(settle))

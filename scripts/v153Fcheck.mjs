@@ -12,6 +12,10 @@
 //   4. the numbers: Legacy XP is +8% per chaos point up to ×5 (TU("v153F", 0) restores .03 / ×3), the PP
 //      multiplier is ×3·1.16^n, and the Chaos card, the XP card's part and the trophy case quote them.
 //
+//   v156 A: the medals replaced Honors as the rank. The glyph rule still holds (no line that draws Honors
+//   draws the medal); the rendered chip / tree / Path read MEDALS with the medal, and the crest + HONORS
+//   are asserted under the kill switch TU("v156A", 0). How To Play's section is STARS, PP & MEDALS.
+//
 //   GAME_URL=http://localhost:6600/index.html node scripts/v153Fcheck.mjs
 import fs from 'node:fs'
 import path from 'node:path'
@@ -37,7 +41,8 @@ const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undef
     fs.readFileSync(path.join(ROOT, f), 'utf8').split('\n').forEach((line, i) => {
       const t = line.trim()
       if (/^(\*|\/\/|\/\*)/.test(t)) return   // a comment that tells the history
-      if (/honou?rs?\b/i.test(line) && line.includes(MEDAL)) bad.push(f + ':' + (i + 1))
+      const l2 = line.replace(/honor-crest-v153/g, '')   // a class name, not a word the player reads
+      if (/honou?rs?\b/i.test(l2) && l2.includes(MEDAL)) bad.push(f + ':' + (i + 1))
     })
   }
   ok(bad.length === 0, 'no line that draws Honors draws the medal', bad.slice(0, 6))
@@ -76,8 +81,16 @@ await boot()
 {
   ok(await E(() => window.__V130.icon.startsWith('⚜')), 'window.__V130.icon is the crest')
   await fresh({ prestige: 7, pp: 500, view: 'hub' }); await boot()
+  // v156 A: the medals are the rank — the chip wears the medal
+  const chipM = await txt('.prestige-chip')
+  ok(chipM.includes(MEDAL) && !chipM.includes(CREST) && /MEDALS/.test(chipM) && !/HONORS/.test(chipM), 'v156 A: the top-bar chip reads 🎖️ N MEDALS · 🪙 M PP', chipM)
+  await E(() => { window.go('shop') }); await page.waitForTimeout(600)
+  const shopM = await txt('#screen')
+  ok(/MEDALS/.test(shopM) && !/honou?rs?\b/i.test(shopM) && !shopM.includes(CREST), 'v156 A: the prestige tree says MEDALS and never Honors', (shopM.match(/.{0,12}MEDALS/) || [''])[0])
+  // the rest of this section is the Honors look, which the kill switch restores
+  await E(() => { window.RIB_TUNE.v156A = 0; window.go('hub') }); await page.waitForTimeout(300)
   const chip = await txt('.prestige-chip')
-  ok(chip.includes(CREST) && !chip.includes(MEDAL) && /HONORS/.test(chip) && /PP/.test(chip), 'the top-bar chip reads ⚜️ N HONORS · 🪙 M PP', chip)
+  ok(chip.includes(CREST) && !chip.includes(MEDAL) && /HONORS/.test(chip) && /PP/.test(chip), '(kill switch) the top-bar chip reads ⚜️ N HONORS · 🪙 M PP', chip)
   const order = await E(() => { const c = document.querySelector('.prestige-chip'), cr = c.querySelector('.honor-crest-v153'), coin = c.querySelector('img.coin-v147'), pp = c.querySelector('#ppCount')
     return !!(cr && coin && pp && (cr.compareDocumentPosition(coin) & 4) && (coin.compareDocumentPosition(pp) & 4)) })
   ok(order, 'the crest stands by the Honors, the coin by the PP')
@@ -88,6 +101,7 @@ await boot()
   await E(() => { __GRIDIRON_AUDIT__.getState().prestige = 3; window.go('shop') }); await page.waitForTimeout(600)
   const dock = await txt('#dock')
   ok(/Path \(⚜️?6\)/.test(dock) && !dock.includes(MEDAL), 'the locked Path asks for ⚜️6, not a medal', (dock.match(/.{0,8}Path \(.{0,6}\)/) || [''])[0])
+  await E(() => { delete window.RIB_TUNE.v156A; window.go('hub') }); await page.waitForTimeout(300)
 }
 
 // ============================== 2. How To Play ==============================
@@ -99,12 +113,12 @@ await boot()
     return { ids: window.__RIB_HOWTO.sections, cur: secT('currency'), chaos: secT('chaos'), all: document.getElementById('rib-howto-v111').textContent.replace(/\s+/g, ' '),
       docW: document.documentElement.scrollWidth, guideW: document.getElementById('rib-howto-v111').scrollWidth }
   })
-  ok(g.ids.includes('currency') && g.ids.includes('chaos') && g.ids.length === 11, 'the guide has STARS, HONORS, PP & LEGACY and CHAOS (eleven sections)', g.ids)
+  ok(g.ids.includes('currency') && g.ids.includes('chaos') && g.ids.length === 11, 'the guide has STARS, PP & MEDALS (v156 A) and CHAOS (eleven sections)', g.ids)
   const c = g.cur
   ok(/STARS/.test(c) && /recruit rating/.test(c) && c.includes('★'), 'STARS: the recruit rating, the player\'s own')
-  ok(/HONORS/.test(c) && c.includes(CREST) && /prestige tree/.test(c) && /Path at 6/.test(c), 'HONORS: the crest, the rank that unlocks the tree and the Path')
+  ok(/MEDALS/.test(c) && c.includes(MEDAL) && /prestige tree/.test(c) && /Path at 12 medals/.test(c) && !/honou?rs?\b/i.test(c) && !c.includes(CREST), 'v156 A: MEDALS — the medal is the rank that unlocks the tree and the Path; no Honors, no crest')
   ok(/PP/.test(c) && /Prestige Points/.test(c) && /VAULT/.test(c), 'PP: the money, spent in the vault')
-  ok(/LEGACY/.test(c) && c.includes(MEDAL) && /500 medals/.test(c) && /Ultimate Legacy/.test(c) && /Legacy Level/.test(c), 'LEGACY: the medal, 500 ranks, Ultimate Legacy, the Legacy Level past it')
+  ok(/Legacy Rank/.test(c) && c.includes(MEDAL) && /500 medals/.test(c) && /Ultimate Legacy/.test(c) && /Legacy Level/.test(c), 'LEGACY: the medal, 500 ranks, Ultimate Legacy, the Legacy Level past it')
   ok(['Rookie', 'Established', 'Elite', 'Superstar', 'Legendary', 'Hall of Fame', 'Icon', 'All-Time Great', 'Immortal', 'Mythic'].every((t) => c.includes(t)), 'the ten tiers are listed')
   ok(/every season/i.test(c) && /career end/i.test(c) && /MILESTONE/.test(c) && /PP bounty/.test(c), 'XP every season and at the career end; milestones pay PP')
   ok(/TROPHY CASE/.test(c) && /COLLECTION BOOK/.test(c) && /PROFILE/.test(c), 'where to see it: the profile\'s trophy case and collection book')

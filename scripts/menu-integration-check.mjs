@@ -66,7 +66,7 @@ try {
   ok(fresh.tiles.length === 12 && fresh.tiles.includes('view:profile') && fresh.nav.length === 7 && fresh.tiles.includes('seasons') && fresh.tiles.includes('boards') && fresh.tiles.includes('howto') && fresh.tiles.includes('coach') && fresh.tiles.includes('prestige') && fresh.nav.includes('howto'), "twelve tiles (the guide, the coach's switch, the prestige door, v151 C's season pass and leaderboards and v153 D's profile among them) and seven nav links", `${fresh.tiles.join(' ')} | ${fresh.nav.join(' ')}`)
   // the drawn wordmark, the swash and the six legacy icons are art, not CSS: if any of them
   // falls back to type or an inline path the menu stops matching the reference
-  ok(fresh.wordmark && fresh.swash && fresh.legacyIcons === 5 /* v153: the Honors tile is the ⚜ crest, not an <img> */ && !fresh.heroSlogan,
+  ok(fresh.wordmark && fresh.swash && fresh.legacyIcons === 5 /* v153: the rank tile is a glyph (⚜, the 🎖 medal since v156 A), not an <img> */ && !fresh.heroSlogan,
     'the hero wears the drawn wordmark and swash, the legacy panel wears its six icons, and the wall slogan comes from the photograph',
     `wordmark=${fresh.wordmark} swash=${fresh.swash} icons=${fresh.legacyIcons} sloganInText=${fresh.heroSlogan}`)
   ok(!fresh.hasCareer && /START NEW CAREER/.test(fresh.text) && fresh.tiles[0] === 'new', 'without a save the card offers START NEW CAREER and the CAREER tile starts one')

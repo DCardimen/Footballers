@@ -90,7 +90,7 @@
       careers away. The Interstellar League — top 5 of 1,700, and gated behind winning an UFF
       championship — is a project beyond even that.</p>
       <h4>What actually carries over</h4>
-      <p>The tree's <b>node levels</b>, far more than your Honors count itself. Run 2 is barely
+      <p>The tree's <b>node levels</b>, far more than your medal count itself. Run 2 is barely
       different from run 1. By run 5 you are a noticeably better <i>player</i> — a much higher
       per-season ceiling — but only an even <i>team</i>. Team-quality nodes are deliberately weak:
       the entire maxed set is worth about <b>1.4 points of margin a game</b>.</p>
@@ -100,18 +100,24 @@
     /* ===== v153 F STARS, HONORS, PP, LEGACY — four numbers, four jobs =====
      * The owner: "stars vs medals, two different types of medals is confusing". Honors wore a medal (🎖️)
      * and v152 A's Legacy Rank is 500 medals. Honors wear the crest (⚜️) now; the medal means the Legacy
-     * Rank and nothing else, and this section says which number does what. */
+     * Rank and nothing else, and this section says which number does what.
+     * v156 A: Honors are gone — the medals (the Legacy Rank) are the family's rank and unlock the tree.
+     * Three numbers, three jobs. The section id stays 'currency' (faqcheck, deep links). */
     {
-      id: 'currency', title: 'STARS, HONORS, PP & LEGACY', sub: 'FOUR NUMBERS, FOUR JOBS — WHICH IS WHICH', body: `
-      <p>Four numbers follow you around this game and they do not mean the same thing. One belongs
-      to the <b>player</b>; three belong to the <b>family</b> — the account — and outlive every career.</p>
+      id: 'currency', title: 'STARS, PP & MEDALS', sub: 'THREE NUMBERS, THREE JOBS — WHICH IS WHICH', body: `
+      <p>Three numbers follow you around this game and they do not mean the same thing. One belongs
+      to the <b>player</b>; two belong to the <b>family</b> — the account — and outlive every career.</p>
       ${cur([
         ['<b>★</b> STARS', 'The <b>recruit rating</b>, 1 to 5 — what the scouts think of <i>this</i> player.', 'Rolled with the player; raised by the tree, a Path, and holding your own in a tougher tier.', 'Sets his soft cap: 60% of the ceiling at 1★, 85% at 5★. Gone when his career ends.'],
-        ['<b>⚜️</b> HONORS', 'The family’s <b>rank</b>. Never spent as money.', 'Finishing a career: +1 for each of Varsity, College, the Combine and the UFF reached (never less than 1), +2 for a UFF ring, +1 for a 90 peak, +1 for three titles.', 'Unlocks the deeper nodes of the prestige tree (“Needs ⚜️ N HONORS”) and a Path at 6; each Honor adds 1% to every soft cap.'],
         ['<b>🪙</b> PP', '<b>Prestige Points</b> — the gold coin, the only money.', 'Every career end, titles, challenges, objectives, the Legacy milestones. Chaos multiplies it.', 'Spent in the VAULT and on prestige-tree nodes. Every node you buy is kept by every son after.'],
-        ['<b>🎖️</b> LEGACY', 'The <b>Legacy Rank</b> — the permanent medal, and the only medal that is a rank.', 'Legacy XP, every season and at every career end. Chaos multiplies it.', 'Never resets, never spent. Every tenth rank pays a PP bounty.'],
+        ['<b>🎖️</b> MEDALS', 'The <b>Legacy Rank</b> — one medal per rank, and the family’s <b>rank</b>. Never spent.', 'Legacy XP, every season and at every career end (G.O.A.T. and Immortal add to it). Chaos multiplies it.', 'Your medal count unlocks the deeper nodes of the prestige tree (“Needs 🎖️ N medals”) and a Path at 12 medals; it lifts every soft cap, and every tenth rank pays a PP bounty. Never resets.'],
       ])}
-      ${note('THE STAR IS THE PLAYER. THE CREST, THE COIN AND THE MEDAL ARE THE FAMILY.', 'A four-star recruit is a player rating. “Needs ⚜️ 8 HONORS” is the account’s rank. Nothing in the game ever asks for an eight-star player, because there is no such thing.')}
+      ${note('THE STAR IS THE PLAYER. THE COIN AND THE MEDAL ARE THE FAMILY.', 'A four-star recruit is a player rating. “Needs 🎖️ 35 medals” is the account’s rank. Nothing in the game ever asks for a thirty-five-star player, because there is no such thing.')}
+      <h4>What the medals unlock</h4>
+      <p>The first gated nodes want <b>12 medals</b> — about one finished career. The middle of the tree
+      asks for 35 to 80 (a handful of careers, the bronze medals), the top of the Apex 200 to 260 (gold into
+      ruby, dozens of careers), and the Impossible branch 260 to 420 — a lifetime. <b>Reputation</b> takes 5%
+      off every medal requirement per level. A save from before medals kept every node it could already buy.</p>
       <h4>The Legacy Rank</h4>
       <p>The rank above every career: <b>500 medals</b> in one climb, from bronze through silver
       (ranks 1–200) to gold and enamel — crowns, wings, gems, eagles, lions — ending on Rank 500,
@@ -221,9 +227,10 @@
       season went, plus <b>awareness / 50</b>, plus perks, team and award bonuses.</p>
       <h4>The soft cap</h4>
       <p>Every attribute is priced against one line:</p>
-      <p class="rib9-fq-eq">(potential ceiling + 12) × (0.60 + (recruit stars − 1) × 0.0625 + 0.01 × Honors)</p>
-      <p>At 1 recruit star that is <b>60%</b> of your ceiling-plus-twelve; at 5 stars, <b>85%</b>; each
-      Honor ⚜️ on the account adds another 1%.</p>
+      <p class="rib9-fq-eq">(potential ceiling + 12) × (0.60 + (recruit stars − 1) × 0.0625 + 0.01 × medal level)</p>
+      <p>At 1 recruit star that is <b>60%</b> of your ceiling-plus-twelve; at 5 stars, <b>85%</b>. Your
+      medals add on top: the <b>medal level</b> is 6 at 12 medals, 16 at 50, 26 at 100, 40 at 200 and 64
+      at 420 — so +6%, +16%, +26%, +40%, +64%.</p>
       <h4>The price</h4>
       ${list([
         'Below the soft cap, +1 costs <b>1 point</b>.',
@@ -407,7 +414,7 @@
       ${list([
         '<b>Levels 0 through 4 are close to automatic.</b> The advancing shares are enormous (50%, 45%, 35%, 25%, 12% of huge fields), so anything short of a disaster leaves you far inside and your call-up reads around 98%. Expect to walk to Varsity.',
         '<b>College is where a first career usually ends.</b> It wants a rating a first-run player cannot reach. The <i>ceiling</i> is the wall, not the declare roll, and the two spare years generally cannot fix it.',
-        '<b>That is the design, not a failure.</b> A finished career pays PP for the vault, a little Legacy XP, and Honors ⚜️ — 1 for a career that ends at Varsity, 2 at College, 4 for a first UFF run. A Path unlocks at 6 Honors. You are farming the next man, and he starts taller.',
+        '<b>That is the design, not a failure.</b> A finished career pays PP for the vault and Legacy XP — the medals that unlock the tree. A first career is worth about a dozen medals, and a Path unlocks at 12. You are farming the next man, and he starts taller.',
       ])}
       <h4>What the code actually rewards</h4>
       ${num([

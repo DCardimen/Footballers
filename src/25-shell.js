@@ -79,7 +79,9 @@
       if (pl.ovr != null) add("OVR <b>" + esc(pl.ovr) + "</b>");
       if (pl.stars) add("<b>" + "★".repeat(Math.max(0, Math.min(5, pl.stars))) + "</b> RECRUIT");
     }
-    add("HONORS <b>" + esc(st.prestige || 0) + "</b> · PP <b>" + esc(st.pp || 0) + "</b>");
+    var MV = window.__V156A; /* v156 A: the medals are the rank */
+    if (MV && MV.on()) add("MEDALS <b>" + esc(MV.medals()) + "</b> · PP <b>" + esc(st.pp || 0) + "</b>");
+    else add("HONORS <b>" + esc(st.prestige || 0) + "</b> · PP <b>" + esc(st.pp || 0) + "</b>");
     if (st.lineage && st.lineage.gen && st.lineage.surname) add("THE " + esc(String(st.lineage.surname).toUpperCase()) + " LINE · <b>GEN " + esc(st.lineage.gen) + "</b>");
     if (st.careers) add("<b>" + esc(st.careers) + "</b> CAREER" + (st.careers === 1 ? "" : "S") + " PLAYED");
     add("<b>RUNNING IT BACK</b> · CAREER MODE");
