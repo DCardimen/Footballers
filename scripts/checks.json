@@ -1457,13 +1457,15 @@
     "v151 B",
     "RIB_COSMETICS",
     "v153 G",
-    "v156 C"
+    "v156 C",
+    "v157 A"
    ],
    "files": [
     "src/28-cosmetics.js",
     "docs/COSMETICS.md"
    ],
    "checks": [
+    "v157Acheck",
     "v156Ccheck",
     "v151Bcheck",
     "v153Gcheck",
@@ -3829,6 +3831,18 @@
    ],
    "runtimeSec": 90,
    "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v157Acheck": {
+   "file": "scripts/v157Acheck.mjs",
+   "desc": "v157 A — wings that flap, crowns that shine: >= 15 new wing kinds (unique art keys, every catalogue wing's pixels and every new silhouette distinct), the harder source split (a few free, some earned — three waaay later — the flashiest member), angel wings still super-only; every new wing listed in the Locker with a drawn preview and its source's lock text; the flap pose (a beat, then exactly still), a Locker preview and the profile card flap and rest, TU v157Aflap 0 and prefers-reduced-motion stop it; every crown (catalogue + pass styles) redrawn — no error, differs from the v153 G art (TU v157Acrown 0), >= 6 colours, symmetric, sprite-sized, the glint frame; on the live field his wings flap on the scene clock and the crown glints, no Math.random from src/28; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics"
+   ],
+   "runtimeSec": 240,
+   "slow": true,
    "needsServer": true,
    "pureNode": false,
    "flaky": []
