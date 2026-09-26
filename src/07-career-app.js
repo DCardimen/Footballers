@@ -9212,6 +9212,7 @@
     return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
   }
   function seasonSkipsV151A() {
+    if (TU("v156Bskips", 1)) return skipsV156B(); /* v156 B: a career's sims from the medal groups — no day, no PP ladder */
     const gated = gateOnV151A("seasonSkipGateV151A"),
       L = ppLifetimeV151A(),
       m = mzV150C(),
@@ -9236,6 +9237,7 @@
     };
   }
   function skipLineV151A() {
+    if (TU("v156Bskips", 1)) return skipLineV156B(); /* v156 B */
     const s = seasonSkipsV151A();
     if (!s.gated) return "";
     if (s.left > 0) return `${s.left} season skip${s.left === 1 ? "" : "s"} left today`;
@@ -9248,6 +9250,7 @@
   }
   // THE ⏭ button: one skip a call when there is a season left to sim; none left → the store's sheet (ON) or a line
   function seasonSkipV151A() {
+    if (TU("v156Bskips", 1) || TU("v156Bplayoffs", 1)) return seasonSimV156B(); /* v156 B: counted per career; never a playoff */
     const e = state && state.player;
     if (!e || !e.weekResults || !e.weekResults.some(w => !w.played) || !gateOnV151A("seasonSkipGateV151A"))
       return simRemainingWeeks();
@@ -20191,8 +20194,8 @@
         V = a.filter(P => !P.played).length;
       byId("dock").innerHTML = `
       <button class="btn" onclick="playWeek(true)">▶ Play ${C} Live</button>
-      <div style="height:8px"></div>
-      <button class="btn secondary" onclick="playWeek(false)">⏩ Quick Play ${C}</button>
+      ${playoffLockV156B(e, y) ? playoffNoteV156B() /* v156 B: the playoffs are played live — no Quick Play, no sim */ : `<div style="height:8px"></div>
+      <button class="btn secondary" onclick="playWeek(false)">⏩ Quick Play ${C}</button>`}
       ${V > 1 && !(y && y.playoff) ? '<div style="height:8px"></div><button class="btn ghost" onclick="seasonSkipV151A()">' + skipBtnV151A("⏭ Sim Remaining Regular Season") + "</button>" : ""}
       <div style="height:8px"></div>
       <div class="btn-row">
@@ -20559,7 +20562,7 @@
             `<button class="speed-btn ${r === "1" ? "active" : ""}${speedOkV151A(r) ? "" : " speed-lock-v151"}" data-spd="${r}" onclick="setSpeed(${r})"${speedOkV151A(r) ? "" : ` title="${speedWhyV151A(r)}"`}>${l}<small>${speedOkV151A(r) ? d : speedSmallV151A(r)}</small></button>`
         )
         .join("")}
-      <button class="speed-btn" onclick="skipLive()">SKIP<small>⏭</small></button>
+      ${liveSkipOkV156B() ? '<button class="speed-btn" onclick="skipLive()">SKIP<small>⏭</small></button>' : "" /* v156 B: a playoff game plays to the whistle */}
     </div>
     <div class="boxscore-head">
       <div class="h2">${escHtml(e.name)} — <span style="color:var(--chalk-dim)">Live Box Score</span></div>
@@ -21151,6 +21154,7 @@
         .forEach(t => t.classList.toggle("active", parseFloat(t.dataset.spd) === e)));
   }
   function skipLive() {
+    if (!liveSkipOkV156B()) return void showToast("🏆 Playoff games are played to the final whistle"); /* v156 B */
     (window.GridironPhaser && window.GridironPhaser.cancel(),
       liveCtl && ((liveCtl.playing = !1), liveCtl.anim && cancelAnimationFrame(liveCtl.anim)),
       endLive());
@@ -27659,6 +27663,7 @@
       return !0;
     }
     if (e.level >= 7 && e.nflStateV11 && e.nflStateV11.offers && e.nflStateV11.offers.length) return !1; // an offer on the table needs an answer first
+    if (playoffLockV156B(e, w)) return !1; /* v156 B: a playoff game is never booked unwatched (an injured DNP sat out above) */
     window.__silentSimV85 = !0;
     try {
       if (!w.generatedV11) {
@@ -29563,6 +29568,10 @@
       } catch (_) {}
       const w = (e.weekResults || []).find(z => !z.played);
       if (!w) break;
+      if (playoffLockV156B(e, w)) {
+        why = "playoffs"; /* v156 B: the regular season only — the playoffs are played live */
+        break;
+      }
       rolls.push(...autoStoryV90(e, w), ...autoLifeV147(e, w));
       if (!silentWeekV85(e, w)) {
         if (e.offersV146B || e.cutOutV146B) continue;
@@ -29605,7 +29614,11 @@
     goView("season");
     try {
       showToast(
-        why === "stuck" ? `⏸ The sim stopped after ${n} game${n === 1 ? "" : "s"} — play the next week to see why` : say
+        why === "stuck"
+          ? `⏸ The sim stopped after ${n} game${n === 1 ? "" : "s"} — play the next week to see why`
+          : why === "playoffs"
+            ? say + " — 🏆 the playoffs are played live"
+            : say
       );
     } catch (_) {}
   }
@@ -29627,10 +29640,12 @@
       d = byId("dock"),
       v = state && state.view;
     if (!e || !d || e._settled || !(e.level >= 7)) return;
-    if (v === "season" && TU("simSeasonEndV147", 1) && e.weekResults && e.weekResults.some(w => !w.played)) {
-      const lbl = "⏭ Sim the Rest of the Season";
+    if (v === "season" && playoffLockV156B(e, (e.weekResults || []).find(w => !w.played))) {
+      d.querySelectorAll('[onclick^="seasonSkipV151A"]').forEach(z => z.remove()); /* v156 B: no sim chip on a playoff week */
+    } else if (v === "season" && TU("simSeasonEndV147", 1) && e.weekResults && e.weekResults.some(w => !w.played)) {
+      const lbl = TU("v156Bplayoffs", 1) ? "⏭ Sim the Rest of the Regular Season" : "⏭ Sim the Rest of the Season";
       let b = d.querySelector('[onclick^="seasonSkipV151A"]');
-      const h = skipBtnV151A(lbl); /* v151 A: the skip button says how many are left today */
+      const h = skipBtnV151A(lbl); /* v151 A / v156 B: the skip button says how many are left this career */
       if (!b) {
         const qp = [...d.querySelectorAll("button")].find(z =>
           /playWeek\(false\)/.test(z.getAttribute("onclick") || "")
@@ -29780,6 +29795,246 @@
     )
       render();
   }, "v147 A: settle a story week or an old offer list");
+  /* ===== v156 B SEASON SIMS ARE EARNED, PLAYOFFS ARE PLAYED =====
+   * The owner's two rules for the ⏭ button (the one that sims the rest of the REGULAR season):
+   *   SIMS ARE A CAREER'S, EARNED WITH MEDALS. A career starts with `simBaseV156B` (1) season sim; every Legacy
+   *     medal GROUP he has completed adds more — bronze +1, silver/gold/ruby/sapphire/emerald/amethyst +2, diamond
+   *     and grand +3 (`simGroupsV156B`; the groups are src/31's `RIB_LEGACY.medals.cats`, read at call time because
+   *     31 loads after this file, with a copy of their ends as the fallback) — up to `skipsMaxV156B` (20) with all
+   *     nine. The medals are account-wide (the Legacy rank never resets), the COUNT USED lives on the player
+   *     (`player.simsUsedV156B`), so a new career starts with the whole allowance again. There is no day any more.
+   *     While the store is ON: Pro (`simPlus`) adds `skipProBonusV151A` (3) a career, a rewarded ad (`simUnlimited`)
+   *     makes every sim free for `simAdMinV156B` (30) minutes, and the Club membership makes them free for good.
+   *     Quick Play (one week) is never counted. `seasonSkipsV151A` / `skipLineV151A` / `seasonSkipV151A` hand over to
+   *     this block; TU("v156Bskips", 0) restores v151 A's day-by-lifetime-PP ladder.
+   *   THE PLAYOFFS ARE PLAYED LIVE, at every level. A playoff / championship week's dock offers only "▶ Play …
+   *     Live" (screenSeason, postV147 at 7+); the quick paths refuse it (`playWeek(false)`, `prepareWeek103(false)`,
+   *     `startWeek(false)` wrapped below, `silentWeekV85` guarded where it is declared); the UFF's season sim
+   *     (`simSeasonV147`) stops at the first playoff week and does not finish the season; the ⏭ never spends a sim
+   *     when only playoff weeks are left; the live SKIP is gone from a playoff game. An injured DNP week is still
+   *     sat out by itself (`mustSitV18`) — that is not a game he could play. TU("v156Bplayoffs", 0) restores it all.
+   * Hoisted declarations (v140: the season dock and the live screen call these while the boot draws). `v156Bcheck`. */
+  function playoffsLiveV156B() {
+    return !!TU("v156Bplayoffs", 1);
+  }
+  // a week that must be played live: a playoff week, not one an injury sits him out of
+  function playoffLockV156B(e, w) {
+    if (!w || !w.playoff || w.played || !playoffsLiveV156B()) return !1;
+    try {
+      if (e && mustSitV18(e)) return !1;
+    } catch (_) {}
+    return !0;
+  }
+  function nextWeekV156B(e) {
+    return (e && e.weekResults && e.weekResults.find(w => !w.played)) || null;
+  }
+  function regularLeftV156B(e) {
+    return !!(e && e.weekResults && e.weekResults.some(w => !w.played && !w.playoff));
+  }
+  function playoffNoteV156B() {
+    return '<div class="small center playoff-live-v156b" style="margin-top:8px;color:var(--gold)">🏆 Playoff games are played live — every snap</div>';
+  }
+  // the live SKIP: gone while the game on the field is an unplayed playoff week
+  function liveSkipOkV156B() {
+    const e = state && state.player,
+      w = e && e.weekResults && e.currentWeek != null ? e.weekResults[e.currentWeek] : null;
+    return !(w && w.playoff && !w.played && playoffsLiveV156B());
+  }
+  function playoffRefuseV156B() {
+    try {
+      showToast("🏆 Playoff games are played live — tap ▶ Play Live");
+    } catch (_) {}
+    window.__V156B && window.__V156B.refused++;
+  }
+  // ---- the allowance
+  function simMedalsV156B() {
+    try {
+      return legacyRankV152(legacyV152().xp).medal | 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+  function simGroupsV156B() {
+    const bonus = { bronze: 1, silver: 2, gold: 2, red: 2, blue: 2, green: 2, purple: 2, ice: 3, grand: 3 },
+      fallback = [
+        ["bronze", "BRONZE", 59],
+        ["silver", "SILVER", 120],
+        ["gold", "GOLD", 201],
+        ["red", "RUBY", 266],
+        ["blue", "SAPPHIRE", 284],
+        ["green", "EMERALD", 331],
+        ["purple", "AMETHYST", 377],
+        ["ice", "DIAMOND", 443],
+        ["grand", "GRAND", 500]
+      ].map(([key, name, to]) => ({ key, name, to }));
+    let cats = null;
+    try {
+      const L = window.RIB_LEGACY;
+      cats = L && L.medals && Array.isArray(L.medals.cats) && L.medals.cats.length ? L.medals.cats : null;
+    } catch (_) {}
+    const medals = simMedalsV156B();
+    return (cats || fallback).map(c => ({
+      key: c.key,
+      name: c.name,
+      tint: c.tint || "",
+      to: +c.to || 0,
+      bonus: bonus[c.key] != null ? bonus[c.key] : 2,
+      done: medals >= (+c.to || 0)
+    }));
+  }
+  function simNowV156B(m) {
+    try {
+      return m && m.dev && m.dev.now ? m.dev.now() : Date.now();
+    } catch (_) {
+      return Date.now();
+    }
+  }
+  function skipsV156B() {
+    const e = state && state.player,
+      m = mzV150C(),
+      groups = simGroupsV156B(),
+      medals = simMedalsV156B(),
+      base = Math.max(0, Math.round(TU("simBaseV156B", 1))),
+      max = Math.max(base, Math.round(TU("skipsMaxV156B", 20))),
+      earned = groups.reduce((t, g) => t + (g.done ? g.bonus : 0), 0),
+      proBonus = TU("skipProBonusV151A", 3),
+      pro = m && m.has("simPlus") ? proBonus : 0,
+      allowed = Math.min(max, base + earned) + pro,
+      used = (e && e.simsUsedV156B) | 0,
+      unlimited = !!(m && m.has("simUnlimited")),
+      club = !!(unlimited && m.has("member")) /* the Club: the ads' benefit for good */,
+      until = unlimited ? (club ? 1 / 0 : m.until("simUnlimited")) : 0,
+      gated = gateOnV151A("seasonSkipGateV151A"),
+      nx = groups.find(g => !g.done) || null;
+    return {
+      model: "career",
+      gated,
+      medals,
+      base,
+      earned,
+      max,
+      pro,
+      proBonus,
+      allowed,
+      used,
+      left: !gated || unlimited ? 1 / 0 : Math.max(0, allowed - used),
+      unlimited,
+      club,
+      unlimitedUntil: until,
+      minutesLeft: unlimited && until !== 1 / 0 ? Math.max(1, Math.ceil((until - simNowV156B(m)) / 6e4)) : unlimited ? 1 / 0 : 0,
+      groups,
+      next: nx ? { key: nx.key, name: nx.name, to: nx.to, bonus: nx.bonus, medals } : null,
+      perDay: 0 /* v151 A's field: there is no day any more */
+    };
+  }
+  function skipLineV156B() {
+    const s = skipsV156B();
+    if (!s.gated) return "";
+    if (s.unlimited) return s.minutesLeft === 1 / 0 ? "∞ season sims · Club" : `∞ for ${s.minutesLeft} min`;
+    if (s.left > 0) return `${s.left} left this career`;
+    return s.next ? `None left · complete the ${s.next.name} medals for +${s.next.bonus}` : "None left this career";
+  }
+  // the medal groups and what each adds — in the explanation a tap with none left opens
+  function simTableV156B(s) {
+    s = s || skipsV156B();
+    return `<div class="sim-table-v156b" style="display:grid;grid-template-columns:1fr auto auto;gap:3px 10px;font-size:12px;margin-top:8px">${s.groups
+      .map(
+        g =>
+          `<span style="color:${g.tint || "inherit"}">${g.name}</span><span style="opacity:.7">medal ${g.to}</span><b style="text-align:right">${g.done ? "✓ " : ""}+${g.bonus}</b>`
+      )
+      .join("")}</div>`;
+  }
+  function simLockedV156B() {
+    const s = skipsV156B(),
+      m = mzV150C();
+    window.__V156B && window.__V156B.locked++;
+    if (m && m.simLocked) return void m.simLocked();
+    const why = s.next
+        ? `Complete the <b>${s.next.name}</b> medals (reach Legacy medal ${s.next.to} — you have ${s.medals}) for <b>+${s.next.bonus}</b> season sim${s.next.bonus === 1 ? "" : "s"} every career.`
+        : "Every medal group is complete — this career's sims are spent.",
+      html = `<div>You have used this career's ${s.allowed} season sim${s.allowed === 1 ? "" : "s"}. ${why} Quick Play still sims any regular-season week, one at a time — free, always. Sims refill with every new career.</div>${simTableV156B(s)}`,
+      D = window.ribDialog;
+    D && D.show
+      ? D.show({ title: "No season sims left this career", html, buttons: [{ label: "OK", kind: "primary" }] })
+      : showToast("⏭ " + skipLineV156B());
+  }
+  // THE ⏭ button: one sim a career when there is a regular season left; never a playoff game
+  function seasonSimV156B() {
+    const e = state && state.player;
+    if (!e || !e.weekResults) return simRemainingWeeks();
+    if (playoffsLiveV156B() && !regularLeftV156B(e)) {
+      if (e.weekResults.some(w => !w.played)) return void playoffRefuseV156B();
+      return simRemainingWeeks();
+    }
+    if (!TU("v156Bskips", 1)) {
+      /* the playoffs rule alone: v151 A's day count, spent only on a regular season */
+      const s = seasonSkipsV151A(),
+        m = mzV150C();
+      if (!s.gated) return simRemainingWeeks();
+      if (s.perDay - s.used > 0) state.skipsV151A = { day: dayKeyV151A(), used: s.used + 1 };
+      else if (!(m && s.extra > 0 && m.consume("simExtra"))) {
+        m && m.simLocked ? m.simLocked() : showToast("⏭ " + skipLineV151A());
+        return;
+      }
+      saveGame();
+      return simRemainingWeeks();
+    }
+    if (!e.weekResults.some(w => !w.played)) return simRemainingWeeks();
+    const s = skipsV156B();
+    if (!s.gated) return simRemainingWeeks();
+    let spent = !1;
+    if (!s.unlimited) {
+      if (!(s.left > 0)) return void simLockedV156B();
+      e.simsUsedV156B = (e.simsUsedV156B | 0) + 1;
+      spent = !0;
+    }
+    const before = e.weekResults.filter(w => w.played).length;
+    saveGame();
+    const r = simRemainingWeeks();
+    try {
+      /* nothing simmed (an offer on the table, a stuck week): the sim is given back */
+      if (spent && state.player === e && !e._settled && e.weekResults.filter(w => w.played).length === before)
+        ((e.simsUsedV156B = Math.max(0, (e.simsUsedV156B | 0) - 1)), saveGame());
+      window.__V156B && (window.__V156B.sims++, spent || window.__V156B.free++);
+    } catch (_) {}
+    return r;
+  }
+  // ---- the quick paths refuse a playoff week (the last wrappers in the file: they run first)
+  const pw0V156B = playWeek;
+  playWeek = function (live) {
+    const e = state && state.player;
+    if (!live && playoffLockV156B(e, nextWeekV156B(e))) return void playoffRefuseV156B();
+    return pw0V156B.apply(this, arguments);
+  };
+  const pp0V156B = prepareWeek103;
+  prepareWeek103 = function (live) {
+    const e = state && state.player;
+    if (!live && playoffLockV156B(e, nextWeekV156B(e))) return void playoffRefuseV156B();
+    return pp0V156B.apply(this, arguments);
+  };
+  const sw0V156B = startWeek;
+  startWeek = function (live) {
+    const e = state && state.player;
+    if (!live && playoffLockV156B(e, nextWeekV156B(e))) return void playoffRefuseV156B();
+    return sw0V156B.apply(this, arguments);
+  };
+  window.playWeek = playWeek;
+  window.prepareWeek103 = prepareWeek103;
+  window.__V156B = {
+    skips: skipsV156B,
+    line: skipLineV156B,
+    groups: simGroupsV156B,
+    medals: simMedalsV156B,
+    table: simTableV156B,
+    sim: seasonSimV156B,
+    explain: simLockedV156B,
+    locked: 0,
+    refused: 0,
+    sims: 0,
+    free: 0,
+    playoffLock: w => playoffLockV156B(state && state.player, w || nextWeekV156B(state && state.player)),
+    liveSkipOk: liveSkipOkV156B
+  };
   window.__prestigeNodesV137 = () => ({
     node: k => TREE_NODES[k],
     level: k => nodeLvl(k),
