@@ -13,7 +13,7 @@ coming soon, and a catalogue guard (§3). `scripts/v151Acheck.mjs` proves it, OF
 
 This page is the model, the catalogue, the honesty about client-side limits, the provider steps per
 platform, the store-policy notes, the in-game hooks (H1–H11) and where they live, how to launch it (§9), and the
-decisions only the owner can make.
+decisions only the owner can make. §11 (v158 B) is the owner's EXPERIENCE toggle — a sandboxed preview of the F2P and Member games, with a 15 s ad placeholder.
 `docs/AUDIT.md` §3 is the analysis it grew out of.
 
 ---
@@ -458,3 +458,55 @@ Founder $14.99; D10 = 3× is earned at the UFF (not sold). Still open:
 | D16 | `unlock_all_team_style` price | $2.99 placeholder | the cosmetics worker gates the Team Creator (5 free, then PP doubling) |
 | D17 | Pass restore across seasons | a restored `rib.pass.<old>` grants `pass:<old>` (cosmetic history) | RevenueCat must report non-subscription transactions (`nonSubscriptionTransactions`) |
 | D18 | Web purchases | `verifyUrl` POST `{sessionId}` → `{ok, productIds}` from a server that read the Checkout Session with the secret key | the endpoint is not built; without it the web provider grants nothing, ever |
+
+---
+
+## 11. Try both sides of the store (v158 B — the owner's experience preview)
+
+The owner's ask: *"Add a toggle mode for f2p and membership experience. Include a 15 second pop up that has text saying
+an ad will be placed here, etc. Have this skippable for now."* It is a **preview** for the owner to feel the two
+monetized games before launch — nothing is charged, and the real switch (`MONETIZE_ENABLED`) stays `false`.
+
+**The toggle.** Settings › GAME › 🧪 **EXPERIENCE: Off (current build) · Free-to-play · Member** (src/07
+`experienceRowV158B`). *Off* is the default, and a player who never touches it gets exactly today's build. A switch asks
+(a `ribDialog` confirm), saves the career, deletes the preview's sandbox, writes (or removes) localStorage
+`rib.experience.v158` and reloads. The choice is **never in the save**; the row reads storage only, so the Settings
+screen is the same markup with the store module present-and-off or blocked (`v150Ccheck`).
+
+**What each mode is** (`src/27-monetize.js`, `v158 B` banner — the module reads the flag once, at boot):
+
+| | Free-to-play | Member |
+|---|---|---|
+| store | ON, a device with **nothing bought** (not grandfathered) | ON, with `member` held for good |
+| 4× | locked → "▶ Watch an ad: 4× for 20 min" (or win the UFF title) | yes (member ⇒ speed4) |
+| season sims | the medal allowance; out of sims → the sheet's "30 min unlimited" ad | never counted (member ⇒ simUnlimited) |
+| looks | member looks locked "🔒 Membership"; a shop look can be tried 24 h for an ad | member looks owned and equippable; premium Career Pass track |
+| ads | every rewarded placement shows the placeholder; plus one **break between seasons** | none — no placeholder, no break |
+
+**The sandbox.** While previewing, every entitlement and mock "purchase" lives under
+`rib.monetize.preview.v158.<mode>.*` — never the real `rib.monetize.ents.v1`, never the save — so a preview grant can
+never mix with a real purchase. Switching (to anything) deletes the whole sandbox; member looks then fall back to the
+slot's default the next time they are drawn (`equipped()` only returns what is owned). A pass bought in the preview is
+`pass:<id>` in the sandbox only (it never calls `RIB_SEASONS.grantPremium`). One thing is kept: Career Pass rewards
+*claimed* while previewing are the season store's own records, like any claim.
+
+**The ad placeholder** (`placeholderAd`, the `"preview"` provider's `showRewarded`). Full screen at 400x860: a big AD
+slot, *"An ad will be placed here · 15 s · (reward: 4× for 20 min)"* (or the placement's reward, or *break between
+seasons*), a countdown ring from 15 and **SKIP ▸ (FOR NOW)** — live at once and focused; Esc skips. Skip counts as
+watched *for now* and the reward is granted exactly as a watched ad (through `showRewarded`: the daily cap, the grant).
+Dials: TU `adSecsV158B` (15), `adSkipAfterV158B` (0 = skippable at once; > 0 = seconds before SKIP / Esc work). It
+draws no `Math.random()` and touches nothing in the sim.
+
+**The break between seasons** (F2P only; a member / Ad Free device never sees one): the placeholder opens over the
+season report card (the `result` view) at most **once a season**, keyed per career / season. TU `adBreakV158B` 1 (0 =
+never). This is the owner's request for the preview; a real interstitial needs its own SDK placement, frequency cap
+and store-policy review (§7) before it ships.
+
+**The chip.** "PREVIEW · F2P" / "PREVIEW · MEMBER" sits on screen (top right, under the ticker) the whole time; a tap
+opens Settings. The store's foot says PREVIEW and links back to the toggle.
+
+**Turning it off.** For a player: Settings › EXPERIENCE › *Off*. For a build: `RIB_MONETIZE_CONFIG = { features:
+{ experiencePreview: false } }` (a store build should inject it) or TU `experienceV158B` 0 — both ignore the flag and
+hide the row. A real ON store (`MONETIZE_ENABLED`, `?monetize=1`) is never overlaid by a preview, and the row hides.
+**Before launch:** replace the placeholder with the real provider (AdMob) — the preview provider exists only for this
+toggle. `scripts/v158Bcheck.mjs` proves it (OFF identical, F2P, MEMBER, back to OFF).

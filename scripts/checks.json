@@ -1323,13 +1323,14 @@
    ]
   },
   "monetize": {
-   "desc": "v149 E / v150 C / v151 A — the monetization module, its in-game hooks (switched off by default) and the v151 A progression gates",
+   "desc": "v149 E / v150 C / v151 A — the monetization module, its in-game hooks (switched off by default), the v151 A progression gates and the v158 B experience preview",
    "anchors": [
     "v149 E",
     "v150 C",
     "v151 A",
     "RIB_MONETIZE",
-    "v156 C"
+    "v156 C",
+    "v158 B"
    ],
    "files": [
     "src/27-monetize.js"
@@ -1345,7 +1346,8 @@
     "layoutcheck",
     "honorcheck",
     "vaultcheck",
-    "v156Ccheck"
+    "v156Ccheck",
+    "v158Bcheck"
    ]
   },
   "pwa": {
@@ -3889,6 +3891,20 @@
     "legacy"
    ],
    "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v158Bcheck": {
+   "file": "scripts/v158Bcheck.mjs",
+   "desc": "v158 B — the owner's EXPERIENCE toggle: OFF (default, bad value, TU experienceV158B 0) is the old build and Settings is the same markup with 27 blocked; the F2P preview runs the store ON in a sandbox (no member, not grandfathered, the PREVIEW chip → Settings), every rewarded placement (4×, the out-of-sims sheet, a cosmetic trial) opens the 15 s ad placeholder (countdown ring, SKIP focused and live at once, Esc, fits 400x860) and skip / the end grant the reward (4× 20 min, unlimited sims 30 min, a 24 h trial), TU adSkipAfterV158B holds SKIP, member looks locked, the break between seasons once a season on the report card (TU adBreakV158B), nothing in the save or the real entitlement store; MEMBER (switched through the ribDialog) holds member — no ad or break anywhere, 4×, uncounted sims, a member look equipped; back to OFF deletes the sandbox and the member look falls back to the default; no page errors.",
+   "areas": [
+    "monetize",
+    "settings",
+    "cosmetics"
+   ],
+   "runtimeSec": 120,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

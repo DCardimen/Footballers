@@ -190,6 +190,27 @@
     var qp = QS.get("monetizeProvider"); if (qp) CFG.provider = qp;
   }
   var ON = !!CFG.enabled;
+  /* ===== v158 B TRY BOTH SIDES OF THE STORE =====
+   * The owner's ask: "a toggle mode for f2p and membership experience" + "a 15 second pop up that has text saying an ad
+   * will be placed here … skippable for now". Settings › EXPERIENCE (src/07 `experienceRowV158B`) writes localStorage
+   * `rib.experience.v158` = "f2p" | "member" (NEVER the save) and reloads; this file reads it here, at boot, and turns
+   * the store ON inside a SANDBOX:
+   *   - every entitlement lives under `rib.monetize.preview.v158.<mode>.*` — never the real `rib.monetize.ents.v1`, so a
+   *     preview grant can never mix with (or leak into) a real purchase. Switching the toggle deletes the sandbox.
+   *   - "f2p": a device with no purchases (no grandfathered 4× either) — the rewarded offers show where they would.
+   *   - "member": the same, with `member` held for good (noAds + speed4 + simUnlimited, the member looks, the premium pass).
+   *   - the provider is "preview": every ad is the 15 s PLACEHOLDER (placeholderAd, skippable at once — TU
+   *     "adSkipAfterV158B"), and skip counts as watched "for now"; a checkout is the mock's (nothing is charged).
+   *   - F2P also gets a "break between seasons" placeholder on the season report card, once a season (TU "adBreakV158B").
+   *   - a chip "PREVIEW · F2P / MEMBER" sits on screen the whole time (tap → Settings).
+   * Absent / "off" (the default) nothing here runs: OFF is still the complete no-op v149Echeck proves. Never over a real
+   * store (ON already): a store build is the real thing. `features.experiencePreview: false` or TU "experienceV158B" 0
+   * turns the preview off entirely (and hides the Settings row). */
+  var EXP_KEY = "rib.experience.v158", PV_PREFIX = "rib.monetize.preview.v158.", PREVIEW = null;
+  if (!ON && CFG.features.experiencePreview !== false && T("experienceV158B", 1)) {
+    var pvx = lsGet(EXP_KEY);
+    if (pvx === "f2p" || pvx === "member") { PREVIEW = pvx; ON = true; CFG.enabled = true; CFG.provider = "preview" }
+  }
   // the catalogue guard runs on the configured products too: an injected power product is dropped, loudly
   var REFUSED = [];
   CFG.products = (CFG.products || []).filter(function (p) { var v = validateProduct(p); if (!v.ok) REFUSED.push({ id: p && p.id, errors: v.errors }); return v.ok });
@@ -206,7 +227,7 @@
   function now() { return Date.now() + devOffset }
 
   // ---- entitlement storage: OUTSIDE the save. {v, e:{key:{until,uses,value,source,at}}, caps, gf, prog?, tag}
-  var KEY = "rib.monetize.ents.v1", SALT = "rib-v149e|not-a-secret|";
+  var KEY = PREVIEW ? PV_PREFIX + PREVIEW + ".ents" : "rib.monetize.ents.v1", SALT = "rib-v149e|not-a-secret|";
   function fnv(s) { var h = 0x811c9dc5; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 } return ("0000000" + h.toString(16)).slice(-8) }
   // `prog` (v151 A: the earn progress) joins the body only when present, so every v149/v150 store keeps its tag
   function body(st) { var b = { v: st.v, e: st.e, caps: st.caps, gf: st.gf }; if (st.prog) b.prog = st.prog; return JSON.stringify(b) }
@@ -349,7 +370,7 @@
   function grantProduct(p, source) {
     Object.keys(p.grants || {}).forEach(function (k) { var g = p.grants[k]; grant(k, { value: g.value, periodDays: g.periodDays, source: source + ":" + p.id }) });
     (p.items || []).forEach(function (it) { cosGrant(it, "shop") });
-    if (p.season) { var S = SEA(); if (S && typeof S.grantPremium === "function") try { S.grantPremium(p.season) } catch (e) { console.warn("[RIB_MONETIZE] RIB_SEASONS.grantPremium", e) } }
+    if (p.season && !PREVIEW) { var S = SEA(); if (S && typeof S.grantPremium === "function") try { S.grantPremium(p.season) } catch (e) { console.warn("[RIB_MONETIZE] RIB_SEASONS.grantPremium", e) } }
     if (p.tier === "founder") founderItems().forEach(function (it) { grant("cos:" + ik(it), { source: source + ":" + p.id }); cosGrant(it, "founder") });
   }
   // restore() may name a product this device cannot see right now (last season's pass, a pack no longer listed)
@@ -394,7 +415,7 @@
 
   // mock: for dev and the checks. A countdown "ad" you can close early (no reward), a checkout dialog that
   // charges nothing, and its own record of "purchases" (standing in for the store's server) so restore() works.
-  var MOCK_KEY = "rib.monetize.mock.v1";
+  var MOCK_KEY = PREVIEW ? PV_PREFIX + PREVIEW + ".mock" : "rib.monetize.mock.v1";   // v158 B: the preview's own "store records"
   registerProvider("mock", {
     name: "mock", available: function () { return true }, init: function () {},
     showRewarded: function (placement) { return mockAd(placement) },
@@ -406,6 +427,13 @@
       });
     },
     restore: function () { return Promise.resolve({ ok: true, owned: mockOwned() }) }
+  });
+  // v158 B: the experience preview's provider — every ad is the 15 s placeholder, a checkout is the mock's (sandboxed)
+  registerProvider("preview", {
+    name: "preview", available: function () { return true }, init: function () {},
+    showRewarded: function (placement) { return placeholderAd(placement) },
+    purchase: function (p) { return PROVIDERS.mock.purchase(p) },
+    restore: function () { return PROVIDERS.mock.restore() }
   });
   function mockOwned() { try { return JSON.parse(lsGet(MOCK_KEY) || "[]") || [] } catch (e) { return [] } }
 
@@ -594,6 +622,8 @@
     openStore: function (focus) { if (ON && CFG.features.store) ui.store(true, focus) },
     closeStore: function () { if (ON) ui.store(false) },
     get tampered() { return tampered },
+    get preview() { return PREVIEW },                                          // v158 B: "f2p" | "member" | null (the real thing)
+    adBreak: function (force) { return ON && PREVIEW ? adBreak(force) : Promise.resolve({ shown: false, reason: "off" }) },   // v158 B
     hooks: {}                                   // which wrappers are installed (empty while OFF)
   };
   if (DEV_HOST) API.dev = {
@@ -616,6 +646,7 @@
   // does not become a paid one for someone who already had it). Decided ONCE, recorded in the entitlement store.
   (function () {
     var st = load();
+    if (st.gf == null && PREVIEW) { st.gf = false; save() }   // v158 B: the preview is a device with nothing bought — not grandfathered
     if (st.gf == null) {
       // "had a career": a save with a player on the field or any career behind it (a fresh boot writes an empty save)
       var sv = null; try { sv = JSON.parse(lsGet("gridiron_save_v1") || "null") } catch (e) {}
@@ -624,6 +655,8 @@
       if (st.gf && CFG.features.grandfatherSpeed4 && CFG.features.gateSpeed4) grant("speed4", { source: "grandfather" });
     }
   })();
+  // v158 B: the MEMBER preview holds `member` for good (in the sandbox) — noAds, speed4, simUnlimited, the member looks
+  if (PREVIEW === "member" && !held("member")) grant("member", { source: "preview" });
 
   function gameState() { try { return window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState() } catch (e) { return null } }
   function fmtLeft(ms) { if (ms === Infinity) return "∞"; var s = Math.max(0, Math.ceil(ms / 1000)), m = Math.floor(s / 60); return m + ":" + ("0" + (s % 60)).slice(-2) }
@@ -763,7 +796,20 @@
     ".mz151-soon{display:flex;justify-content:space-between;gap:8px;align-items:baseline;font:400 12px/1.35 system-ui,sans-serif;color:#8fa2bb}",
     ".mz151-soon b{font:600 13px Oswald,sans-serif;letter-spacing:.8px;color:#d9d3c4;text-transform:uppercase}",
     ".mz151-soon i{font:700 10px Oswald,sans-serif;font-style:normal;letter-spacing:1.2px;color:#7d8796;white-space:nowrap}",
-    ".advf-v151.locked .mz149-chip{font-size:10px}"
+    ".advf-v151.locked .mz149-chip{font-size:10px}",
+    // v158 B: the experience preview — the chip and the 15 s ad placeholder (full screen, fits 400x860)
+    ".mz158-chip{position:fixed;right:6px;top:calc(env(safe-area-inset-top) + 70px);z-index:2147482000;font:700 9px/1 Oswald,sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:#0d0e11;background:#8ec3ee;border:1px solid #cfe6fa;border-radius:999px;padding:4px 8px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.45);opacity:.9;white-space:nowrap}",
+    ".mz158-chip.member{background:linear-gradient(180deg,#f6cf6a,#e6b23a);border-color:#f6cf6a}",
+    ".mz158-veil{padding:max(10px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom));background:rgba(3,4,6,.96)}",
+    ".mz149-card.mz158-card{max-width:420px;height:100%;max-height:760px;justify-content:space-between;align-items:center;text-align:center;padding:14px 14px 12px;gap:8px}",
+    ".mz158-slot{flex:1;min-height:0;width:100%;max-height:360px;border:2px dashed rgba(142,195,238,.55);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:repeating-linear-gradient(135deg,rgba(142,195,238,.05) 0 14px,rgba(142,195,238,.1) 14px 28px)}",
+    ".mz158-slot b{font:700 84px/1 Oswald,sans-serif;letter-spacing:6px;color:#8ec3ee}",
+    ".mz158-slot small{font:600 10px Oswald,sans-serif;letter-spacing:1.6px;color:#7d8796;text-transform:uppercase}",
+    ".mz158-ring{position:relative;width:96px;height:96px;flex:none}",
+    ".mz158-ring svg{width:96px;height:96px;transform:rotate(-90deg)}",
+    ".mz158-ring span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 34px/1 Oswald,sans-serif;color:#f0bb45}",
+    ".mz158-why{font:600 13px/1.3 Oswald,sans-serif;letter-spacing:1px;color:#f0bb45;text-transform:uppercase;margin:0}",
+    ".mz158-card .mz149-btn{flex:none;width:100%}"
   ].join("\n");
   document.head.appendChild(css);
 
@@ -914,7 +960,8 @@
       '<p class="mz149-p">The whole game is free. These buy time and looks — never power.</p></div>' +
       '<div class="mz151-body">' + body + "</div>" +
       '<div class="mz151-foot"><div class="mz149-row"><button class="mz149-btn" data-restore>RESTORE PURCHASES</button></div>' +
-      '<div class="mz149-fine">Store: ' + provider().name.toUpperCase() + (CFG.provider === "mock" ? " (dev — nothing is charged)" : "") + " · your tier: " + ({ free: "FREE", noAds: "AD FREE", pro: "PRO CAREER", founder: "FOUNDER" })[tier()] + ".</div></div>";
+      '<div class="mz149-fine">Store: ' + provider().name.toUpperCase() + (CFG.provider === "mock" ? " (dev — nothing is charged)" : "") + " · your tier: " + (has("member") ? "MEMBER" : ({ free: "FREE", noAds: "AD FREE", pro: "PRO CAREER", founder: "FOUNDER" })[tier()]) + ".</div>" +
+      (PREVIEW ? '<div class="mz149-fine" data-sec="preview">PREVIEW · ' + (PREVIEW === "member" ? "MEMBER" : "FREE-TO-PLAY") + ' — nothing here is real or kept. <button class="mz149-chip" type="button" data-exp158>EXPERIENCE ›</button></div>' : "") + "</div>";
     var v = veil("mz149Store", h, "mz151-veil");
     v.querySelector(".mz149-card").classList.add("mz151-store");
     var sc = v.querySelector(".mz151-body");
@@ -928,6 +975,7 @@
     [].forEach.call(v.querySelectorAll("[data-ad]"), function (b) { b.onclick = function () { (b.getAttribute("data-ad") === "simUnlimited" ? rewardSim() : rewardSpeed()).then(again) } });
     [].forEach.call(v.querySelectorAll("[data-try]"), function (b) { b.onclick = function (ev) { ev.stopPropagation(); rewardTrial(b.getAttribute("data-try")).then(again) } });
     [].forEach.call(v.querySelectorAll("[data-cat]"), function (b) { b.onclick = function () { cosTab = b.getAttribute("data-cat"); again() } });
+    var xb = v.querySelector("[data-exp158]"); if (xb) xb.onclick = function () { ui.store(false); toSettings() };   // v158 B
     v.querySelector("[data-restore]").onclick = function () { restore().then(function (r) { toast(r.restored && r.restored.length ? "RESTORED · " + r.restored.length : "NOTHING TO RESTORE"); again(); ui.tick() }) };
     if (keep) sc.scrollTop = keep;
     else if (focus) { var t = sc.querySelector('[data-sec="' + focus + '"]'); if (t) sc.scrollTop = Math.max(0, t.offsetTop - sc.offsetTop - 8) }
@@ -954,6 +1002,7 @@
   // decorate what the game drew: the topbar chip, the speed row (4× offer, 3× earn), the season-sim buttons. Idempotent;
   // runs off a MutationObserver (batched to a frame) and the 1s tick that also expires the timed boost.
   function decorate() {
+    if (PREVIEW) previewDecorate();   // v158 B
     var tb = document.querySelector(".topbar");
     if (tb && CFG.features.store && !tb.querySelector(".mz149-top")) {
       var c = el('<button class="mz149-chip mz149-top" type="button" data-mz149="store">' + (has("pro") ? "PRO ✓" : "STORE") + "</button>");
@@ -998,8 +1047,88 @@
   if (CFG.provider === "web" && QS.get("session_id")) verifyWeb(QS.get("session_id")).then(function (r) { if (r.granted && r.granted.length) toast("THANK YOU · UNLOCKED"); try { var u = new URL(location.href); u.searchParams.delete("session_id"); history.replaceState(null, "", u.toString()) } catch (e) {} });
   // the entitlements a device holds reach the workers' stores (a pass bought on another launch, a restore)
   setTimeout(function () {
-    var S = SEA(); if (S && typeof S.grantPremium === "function") { var c = null; try { c = S.current() } catch (e) {} if (c && c.id && has("pass:" + c.id)) { var o = null; try { o = S.pass && S.pass() } catch (e) {} if (!o || !o.owned) try { S.grantPremium(c.id) } catch (e) {} } }
+    var S = SEA(); if (S && typeof S.grantPremium === "function" && !PREVIEW) { var c = null; try { c = S.current() } catch (e) {} if (c && c.id && has("pass:" + c.id)) { var o = null; try { o = S.pass && S.pass() } catch (e) {} if (!o || !o.owned) try { S.grantPremium(c.id) } catch (e) {} } }
     var C = COS(); if (C && typeof C.owned === "function") list().forEach(function (x) { if (x.key.indexOf("cos:") === 0) { var id = x.key.slice(4); try { if (!C.owned(id)) cosGrant(id, x.source && /founder/.test(x.source) ? "founder" : "shop") } catch (e) {} } });
   }, 0);
+  // =====================================================================================================
+  // v158 B TRY BOTH SIDES OF THE STORE — the preview's UI: the chip, the 15 s ad placeholder, the season break
+  // =====================================================================================================
+  function toSettings() { try { typeof window.go === "function" && window.go("settings") } catch (e) {} }
+  function previewDecorate() {
+    if (!document.body || document.getElementById("mz158Chip")) { breakCheck(); return }
+    var c = el('<button class="mz158-chip' + (PREVIEW === "member" ? " member" : "") + '" id="mz158Chip" type="button" aria-label="Experience preview — open Settings">PREVIEW · ' + (PREVIEW === "member" ? "MEMBER" : "F2P") + "</button>");
+    c.onclick = function (ev) { ev.stopPropagation(); toSettings() };
+    document.body.appendChild(c);
+    breakCheck();
+  }
+  // the placeholder: what the real ad provider (AdMob) will show. Full screen, a countdown ring from 15, SKIP at once
+  // ("for now" — TU adSkipAfterV158B > 0 makes it wait). Resolves {rewarded:true} on the end AND on skip (the owner's
+  // "skippable for now": skip counts as watched in the preview). Esc skips; the skip button takes focus.
+  var adOpen = false;
+  function placeholderAd(placement, why) {
+    return new Promise(function (res) {
+      var secs = Math.max(1, Math.round(+T("adSecsV158B", 15) || 15)), skipAfter = Math.max(0, +T("adSkipAfterV158B", 0) || 0);
+      var pl = CFG.placements[placement], what = why || (pl ? "reward: " + pl.label : String(placement || "ad"));
+      var R = 42, CIRC = 2 * Math.PI * R, t0 = Date.now(), done = false;
+      adOpen = true;
+      var v = veil("mz149Ad", '<div class="mz149-eyebrow">PREVIEW · ' + (PREVIEW === "member" ? "MEMBER" : "FREE-TO-PLAY") + " · AD PLACEHOLDER</div>" +
+        '<div class="mz158-slot" data-slot><b>AD</b><small>' + (why ? "interstitial · between seasons" : "rewarded video") + "</small></div>" +
+        '<h2 class="mz149-h" style="font-size:19px">An ad will be placed here</h2>' +
+        '<p class="mz158-why" data-why>' + secs + " s · (" + esc(what) + ")</p>" +
+        '<div class="mz158-ring" aria-hidden="true"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="' + R + '" fill="none" stroke="#23252c" stroke-width="8"/>' +
+        '<circle data-arc cx="50" cy="50" r="' + R + '" fill="none" stroke="#f0bb45" stroke-width="8" stroke-linecap="round" stroke-dasharray="' + CIRC.toFixed(2) + '" stroke-dashoffset="0"/></svg><span data-n>' + secs + "</span></div>" +
+        '<p class="mz149-p" aria-live="polite" data-live>' + secs + " seconds left</p>" +
+        '<button class="mz149-btn gold" type="button" data-skip data-close' + (skipAfter > 0 ? " disabled" : "") + ">" + (skipAfter > 0 ? "SKIP IN " + Math.ceil(skipAfter) : "SKIP ▸ (FOR NOW)") + "</button>" +
+        '<div class="mz149-fine">The owner\'s placeholder — a real ad provider fills this slot before launch. Skipping counts as watched for now. Esc skips.</div>', "mz158-veil");
+      v.setAttribute("aria-label", "Ad placeholder");
+      v.querySelector(".mz149-card").classList.add("mz158-card");
+      var n = v.querySelector("[data-n]"), arc = v.querySelector("[data-arc]"), live = v.querySelector("[data-live]"), sk = v.querySelector("[data-skip]");
+      function left() { return Math.max(0, secs - (Date.now() - t0) / 1000) }
+      function canSkip() { return (Date.now() - t0) / 1000 >= skipAfter }
+      function end(skipped) {
+        if (done) return; done = true; adOpen = false; clearInterval(iv); document.removeEventListener("keydown", onKey, true); v.remove();
+        track(skipped ? "ad_placeholder_skipped" : "ad_placeholder_done", { placement: placement || "break" });
+        res({ rewarded: true, skipped: !!skipped, placeholder: true });
+      }
+      function onKey(ev) { if (ev.key === "Escape" || ev.key === "Esc") { ev.preventDefault(); ev.stopPropagation(); if (canSkip()) end(true) } }
+      document.addEventListener("keydown", onKey, true);
+      sk.onclick = function () { if (canSkip()) end(true) };
+      v.onclick = function (ev) { ev.stopPropagation() };   // the veil is not a close target — SKIP (or Esc) is
+      var lastS = secs;
+      var iv = setInterval(function () {
+        var l = left(), s = Math.ceil(l);
+        arc.setAttribute("stroke-dashoffset", (CIRC * (1 - l / secs)).toFixed(2));
+        if (s !== lastS) { lastS = s; n.textContent = s; live.textContent = s + " second" + (s === 1 ? "" : "s") + " left" }
+        if (sk.disabled && canSkip()) { sk.disabled = false; sk.textContent = "SKIP ▸ (FOR NOW)" }
+        else if (sk.disabled) sk.textContent = "SKIP IN " + Math.ceil(skipAfter - (Date.now() - t0) / 1000);
+        if (l <= 0) end(false);
+      }, 100);
+      try { sk.disabled ? v.querySelector(".mz149-card").setAttribute("tabindex", "-1") : 0; (sk.disabled ? v.querySelector(".mz149-card") : sk).focus() } catch (e) {}
+    });
+  }
+  API.placeholderAd = function (placement) { return placeholderAd(placement) };
+  // the "break between seasons": F2P only (a member / Ad Free device never sees one), once a season, on the report card
+  var BREAK_KEY = PV_PREFIX + (PREVIEW || "x") + ".break";
+  function seasonKey() {
+    var S = gameState(), p = S && S.player; if (!S || !p) return "";
+    return [S.careers || 0, p.name || "", p.totalSeasons || 0, p.age || 0, p.level || 0].join("|");
+  }
+  function adBreak(force) {
+    if (PREVIEW !== "f2p" || !T("adBreakV158B", 1) || !adsAllowed()) return Promise.resolve({ shown: false, reason: "no-break" });
+    var k = seasonKey();
+    if (!force && (!k || lsGet(BREAK_KEY) === k)) return Promise.resolve({ shown: false, reason: "already" });
+    if (adOpen || busy || document.getElementById("mz149Ad")) return Promise.resolve({ shown: false, reason: "busy" });
+    if (k) lsSet(BREAK_KEY, k);
+    track("ad_break", {});
+    return placeholderAd(null, "break between seasons").then(function (r) { return { shown: true, skipped: r.skipped } });
+  }
+  function breakCheck() {
+    if (PREVIEW !== "f2p") return;
+    var S = gameState(); if (!S || S.view !== "result") return;
+    var k = seasonKey(); if (!k || lsGet(BREAK_KEY) === k) return;
+    adBreak();
+  }
+  API.hooks.preview = PREVIEW;
+
   track("monetize_on", { provider: CFG.provider });
 })();

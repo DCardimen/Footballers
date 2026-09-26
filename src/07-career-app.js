@@ -9088,6 +9088,81 @@
       <button class="btn ghost" data-mz150="store" onclick="RIB_MONETIZE.openStore()">Open the Store</button>
     </div>`;
   }
+  /* ===== v158 B TRY BOTH SIDES OF THE STORE =====
+   * The owner's ask: "a toggle mode for f2p and membership experience". Settings › EXPERIENCE: Off (current build) ·
+   * Free-to-play · Member. The choice is localStorage `rib.experience.v158` (never the save); src/27-monetize.js reads it
+   * at boot and runs the store ON in a sandbox (its own entitlement keys `rib.monetize.preview.v158.*`, `member` held in
+   * the Member preview, every ad the 15 s placeholder — docs/MONETIZATION.md §10). Switching asks (ribDialog), saves,
+   * deletes the preview's sandbox (so its grants never outlive it) and reloads. The row reads storage only — never
+   * RIB_MONETIZE's switch — so the Settings markup is the same with the module present-and-OFF or blocked (v150Ccheck).
+   * Hidden by TU "experienceV158B" 0, a store build's `RIB_MONETIZE_CONFIG.features.experiencePreview: false`, or a
+   * REAL store (ON, not a preview). Hoisted declarations (v140). */
+  function experienceV158B() {
+    try {
+      const x = localStorage.getItem("rib.experience.v158");
+      return x === "f2p" || x === "member" ? x : "off";
+    } catch {
+      return "off";
+    }
+  }
+  function experienceOnV158B() {
+    if (!TU("experienceV158B", 1)) return !1;
+    const cfg = typeof window < "u" && window.RIB_MONETIZE_CONFIG;
+    if (cfg && cfg.features && cfg.features.experiencePreview === !1) return !1;
+    const m = mzV150C();
+    return !(m && !m.preview);
+  }
+  function experienceRowV158B() {
+    if (!experienceOnV158B()) return "";
+    const cur = experienceV158B(),
+      modes = [
+        ["off", "Off", "current build"],
+        ["f2p", "Free-to-play", "ads + offers"],
+        ["member", "Member", "no ads, all in"]
+      ],
+      notes = {
+        off: "What every player gets today: the store is switched off.",
+        f2p: "PREVIEW — the store as a player with no purchases sees it: rewarded-ad offers (4× for 20 min, 30 min of unlimited season sims, a cosmetic trial), member looks locked, a break between seasons. Every ad is a 15-second placeholder you can skip.",
+        member: "PREVIEW — the membership: no ads, 4× speed, unlimited season sims, the member looks and the premium Career Pass."
+      };
+    return `<div class="card" id="experienceV158B">
+      <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px">🧪 EXPERIENCE</div>
+      <div role="radiogroup" aria-label="Experience" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px">${modes
+        .map(
+          ([k, label, sub]) =>
+            `<button type="button" role="radio" aria-checked="${cur === k}" data-exp158="${k}" class="chip${cur === k ? " on" : ""}" onclick="experienceSetV158B('${k}')" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;min-width:0;${cur === k ? "border-color:var(--gold);color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset" : ""}"><b style="font-size:12px;letter-spacing:.8px">${label}</b><small style="font-size:9px;opacity:.7;letter-spacing:.6px">${sub}</small></button>`
+        )
+        .join("")}</div>
+      <div class="small">${notes[cur]}</div>
+      <div class="small" style="margin-top:6px;opacity:.7">A preview of the monetized game for trying it out — nothing is charged, nothing is kept when you switch back, and your save is never touched. Switching reloads the game.</div>
+    </div>`;
+  }
+  function experienceSetV158B(mode) {
+    mode = mode === "f2p" || mode === "member" ? mode : "off";
+    if (mode === experienceV158B()) return Promise.resolve(!1);
+    const name = { off: "Off (current build)", f2p: "the Free-to-play preview", member: "the Member preview" }[mode],
+      apply = () => {
+        try {
+          saveGame();
+        } catch {}
+        try {
+          Object.keys(localStorage)
+            .filter(k => k.indexOf("rib.monetize.preview.v158.") === 0)
+            .forEach(k => localStorage.removeItem(k));
+          mode === "off" ? localStorage.removeItem("rib.experience.v158") : localStorage.setItem("rib.experience.v158", mode);
+        } catch {}
+        window.__noReloadV158B || location.reload();
+        return !0;
+      },
+      D = window.ribDialog;
+    return D && D.confirm
+      ? D.confirm(`Switch to ${name}? The game reloads; your career is saved first and is not changed.${mode === "off" ? " The preview's rewards and member looks go away." : ""}`, {
+          title: "Experience",
+          ok: "Switch"
+        }).then(y => (y ? apply() : !1))
+      : Promise.resolve(apply());
+  }
+  window.experienceSetV158B = experienceSetV158B;
   window.__V150C = {
     mz: mzV150C,
     clamp: speedClampV150C,
@@ -13593,6 +13668,7 @@
       ${toggleRow("fastSim", "Faster live sim", "Speed up the default play animation")}
       ${toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices")}
     </div>
+    ${experienceRowV158B() /* v158 B: EXPERIENCE — Off (current build) · Free-to-play · Member (a preview); the GAME tab */}
     ${soundCardV151E() /* v151 E: the SOUND tab (music, effects, the coach's voice, mute all) */}
     <div class="card">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:4px">📐 FIELD VIEW</div>
