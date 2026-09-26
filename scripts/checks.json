@@ -54,6 +54,7 @@
    ],
    "files": [],
    "checks": [
+    "v156Bcheck",
     "v154Acheck",
     "v147Acheck",
     "v146Bcheck",
@@ -1325,6 +1326,7 @@
     "src/27-monetize.js"
    ],
    "checks": [
+    "v156Bcheck",
     "v149Echeck",
     "v150Ccheck",
     "v151Acheck",
@@ -1548,6 +1550,30 @@
     "v152Acheck",
     "v150Acheck",
     "layoutcheck"
+   ]
+  },
+  "v156b": {
+   "desc": "v156 B — season sims earned with the Legacy medal groups (a career's, 1 → 20; the ad 30 min unlimited) and the playoffs always played live (07's v156 B block, simSeasonV147, postV147, screenSeason's dock, the live SKIP; 27's simUnlimited)",
+   "anchors": [
+    "v156 B"
+   ],
+   "files": [
+    "scripts/v156Bcheck.mjs"
+   ],
+   "checks": [
+    "v156Bcheck",
+    "v151Acheck",
+    "v147Acheck",
+    "v150Ccheck",
+    "v149Echeck",
+    "v85check",
+    "v90check",
+    "injurycheck",
+    "coachcheck",
+    "growcheck",
+    "v146Echeck",
+    "bootviewcheck",
+    "walk"
    ]
   }
  },
@@ -3503,7 +3529,7 @@
   },
   "v151Acheck": {
    "file": "scripts/v151Acheck.mjs",
-   "desc": "v151 A — the hybrid store and the progression gates: OFF no store/ads/prices but 3×/4× at the UFF, My Plays Only after a career, season skips from lifetime PP (the same with the module blocked), free filters; ON the tier chain and upgrades, restore, 4× Pro, ad cap + day rollover, convenience-only rewards, no PP double, the catalogue guard, the per-season pass, packs via RIB_COSMETICS, unlock_all_team_style, expansions not for sale, the store at 400x860.",
+   "desc": "v151 A — the hybrid store and the progression gates: OFF no store/ads/prices but 3×/4× at the UFF, My Plays Only free, season sims a career (v156 B; the same with the module blocked), free filters; ON the tier chain and upgrades, restore, 4× Pro, ad cap + day rollover, convenience-only rewards, no PP double, the catalogue guard, the per-season pass, packs via RIB_COSMETICS, unlock_all_team_style, expansions not for sale, the store at 400x860.",
    "areas": [
     "monetize"
    ],
@@ -3726,6 +3752,21 @@
     "cuts"
    ],
    "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v156Bcheck": {
+   "file": "scripts/v156Bcheck.mjs",
+   "desc": "v156 B — season sims are a career's, earned with the Legacy medal groups (1 on a fresh account, bronze → 2, all nine → 20 cap), spent one a ⏭, refused at 0 with the next group and the table, reset by a new career, no day, Quick Play free; the playoffs are always played live (dock, playWeek/prepareWeek103/⏭/simRemainingWeeks/__silentWeekV85 refuse, no live SKIP, the UFF sim stops at the playoffs, a missed-playoffs season finishes); kill switches; store ON: the 30-minute simUnlimited ad, Pro +3, the Club; OFF no-op.",
+   "areas": [
+    "skips",
+    "playoffs",
+    "monetize",
+    "career"
+   ],
+   "runtimeSec": 150,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

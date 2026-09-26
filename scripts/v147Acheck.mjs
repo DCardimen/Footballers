@@ -9,8 +9,9 @@
 //   3. story decisions interrupt the season (the season event screen, rivalry week, DFL life events).
 //
 // Asserts, for a DFL save AND an Interstellar save (400x860, touch):
-//   - one tap on "Sim the Rest of the Season" plays every regular-season and playoff game and lands on
-//     the season report card
+//   - one tap on "Sim the Rest of the (Regular) Season" plays every regular-season game; a team that misses
+//     the playoffs lands on the season report card, a playoff team stops at the playoffs (v156 B: they are
+//     always played live) with a dock that offers only the live game
 //   - a stale v11 offer list no longer stops the sim: it becomes the three-club screen, and signing
 //     resumes the sim to the report card; a real mid-sim cut says the sim is paused and resumes too
 //   - no story decision screen appears: a season event, Rivalry Week and a DFL life event are all
@@ -92,6 +93,16 @@ async function tap(page, re, where = 'button') {
   if (box && box.hit && box.onScreen) { await page.touchscreen.tap(box.cx, box.cy) }
   return box
 }
+// v156 B: the sim stops at the playoffs — wait for the report card OR the playoff stop
+const waitSim = (page, ms = 60000) => page.waitForFunction(() => window.S && (window.S.view === 'result' || (window.S.view === 'season' && window.__V147A.lastSim && window.__V147A.lastSim.why === 'playoffs')), null, { timeout: ms }).then(() => true).catch(() => false)
+// at the playoff stop: what the dock offers, then the playoffs booked the old way (v156Bplayoffs 0) so the report card follows
+const throughPlayoffs = (page) => page.evaluate(() => {
+  const L = window.__V147A.lastSim; if (!L || L.why !== 'playoffs' || window.S.view !== 'season') return null
+  const d = document.getElementById('dock'), txt = (d && d.innerText) || ''
+  const out = { live: /Play .*Live/i.test(txt), quick: /Quick Play/i.test(txt), sim: !!(d && d.querySelector('[onclick^="seasonSkipV151A"]')), view: window.S.view }
+  window.RIB_TUNE.v156Bplayoffs = 0; try { window.simRemainingWeeks() } finally { delete window.RIB_TUNE.v156Bplayoffs }
+  return out
+})
 const waitView = (page, v, ms = 20000) => page.waitForFunction((v) => window.S && window.S.view === v, v, { timeout: ms }).then(() => true).catch(() => false)
 
 for (const LV of [7, 8]) {
@@ -101,13 +112,18 @@ for (const LV of [7, 8]) {
     const { ctx, page } = await boot()
     const s0 = await seed(page, LV)
     await page.evaluate(() => window.go('season')); await page.waitForTimeout(700)
-    const t = await tap(page, /Sim the Rest of the Season/)
-    ok(t && t.hit && t.onScreen, `${tag}: the season screen shows a tappable "Sim the Rest of the Season" from week 1`, t)
+    const t = await tap(page, /Sim the Rest of the (Regular )?Season/)
+    ok(t && t.hit && t.onScreen, `${tag}: the season screen shows a tappable "Sim the Rest of the Regular Season" from week 1`, t)
+    await waitSim(page); await page.waitForTimeout(600)
+    const sim1 = await state(page)
+    const po1 = await throughPlayoffs(page)
+    if (po1) ok(po1.live && !po1.quick && !po1.sim && sim1.lastSim.po === 0, `${tag}: a playoff team's sim stops at the playoffs — the dock offers only the live game (v156 B)`, { po1, lastSim: sim1.lastSim })
     const landed = await waitView(page, 'result', 60000)
     await page.waitForTimeout(600)
     const st = await state(page)
+    st.lastSim = sim1.lastSim.why === 'playoffs' ? Object.assign({}, sim1.lastSim, { left: 0, why: null }) : st.lastSim
     const log = await page.evaluate(() => { const p = window.S.player, l = (p.seasonLogV77 || p.seasonLog || []); return { po: p.playoffState || null, season: p.totalSeasons } })
-    ok(landed && st.view === 'result', `${tag}: one tap sims the whole season and lands on the season report`, { view: st.view, lastSim: st.lastSim })
+    ok(landed && st.view === 'result', `${tag}: one tap sims the regular season and lands on the season report (after the playoffs, if he made them)`, { view: st.view, lastSim: st.lastSim })
     ok(st.lastSim && st.lastSim.left === 0 && !st.lastSim.why && st.lastSim.n >= s0.weeks, `${tag}: every game was played (${s0.weeks} regular${st.lastSim && st.lastSim.po ? ' + ' + st.lastSim.po + ' playoff' : ''})`, st.lastSim)
     ok(st.overlays.length === 0, `${tag}: no decision overlay left on the report card`, st.overlays)
 
@@ -119,16 +135,22 @@ for (const LV of [7, 8]) {
     ok(ra && ra.hit && st2.view === 'gameover' && st2.settled, `${tag}: RETIRE AT AGE on the report card ends the career`, { tap: ra, view: st2.view, settled: st2.settled })
     await ctx.close()
   }
-  // ------------------------------------------------------------ a playoff team: the sim plays the playoffs too
+  // ------------------------------------------------------------ a playoff team: the sim stops at the playoffs (v156 B)
   {
     const { ctx, page } = await boot()
     await seed(page, LV)
     const reg = await page.evaluate(() => { const p = window.S.player, r = p.weekResults.filter(w => !w.playoff); r.slice(0, -1).forEach(w => { w.played = true; w.won = true; w.us = 31; w.them = 10; w.perf = 80 }); window.go('season'); return r.length })
     await page.waitForTimeout(700)
-    const t = await tap(page, /Sim the Rest of the Season/)
-    const landed = await waitView(page, 'result', 60000)
+    const t = await tap(page, /Sim the Rest of the (Regular )?Season/)
+    await waitSim(page); await page.waitForTimeout(500)
     const st = await state(page)
-    ok(t && t.hit && landed && st.lastSim && st.lastSim.po >= 1 && st.lastSim.left === 0, `${tag}: with one week left and a playoff record, one tap plays the last week AND the playoffs, then the report`, st.lastSim)
+    const dock = await page.evaluate(() => { const d = document.getElementById('dock'); return { txt: d.innerText.replace(/\s+/g, ' '), sim: !!d.querySelector('[onclick^="seasonSkipV151A"]') } })
+    ok(t && t.hit && st.view === 'season' && st.lastSim && st.lastSim.why === 'playoffs' && st.lastSim.po === 0 && st.lastSim.n === 1 && /p$/.test(st.weeks) && /\.p$/.test(st.weeks), `${tag}: with one week left and a playoff record, one tap plays the last week and STOPS at the playoffs`, { lastSim: st.lastSim, weeks: st.weeks })
+    ok(/Play .*Live/i.test(dock.txt) && !/Quick Play/i.test(dock.txt) && !dock.sim, `${tag}: the playoff week's dock offers only "Play … Live" — no Quick Play, no sim`, dock)
+    const tries = await page.evaluate(() => { const p = window.S.player, n0 = p.weekResults.filter(w => w.played).length
+      window.playWeek(false); window.prepareWeek103(false); window.seasonSkipV151A(); window.simRemainingWeeks(); window.__V147A.sim()
+      return { n0, n1: p.weekResults.filter(w => w.played).length, view: window.S.view } })
+    ok(tries.n1 === tries.n0 && tries.view === 'season', `${tag}: Quick Play, the ⏭ and the season sim cannot play the playoff game unwatched`, tries)
     await ctx.close()
   }
   // ------------------------------------------------------------ stale v11 offers, a real cut
@@ -140,17 +162,17 @@ for (const LV of [7, 8]) {
     let st = await state(page)
     ok(st.view === 'club' && st.club, `${tag}: an old v11 offer list opens the three-club screen instead of stopping the sim silently`, { view: st.view })
     await page.click('.club-card-v146b >> nth=0'); await page.click('#clubSignV146B'); await page.waitForTimeout(700)
-    const t = await tap(page, /Sim the Rest of the Season/)
-    const landed = await waitView(page, 'result', 60000)
+    const t = await tap(page, /Sim the Rest of the (Regular )?Season/)
+    const landed = await waitSim(page)
     st = await state(page)
-    ok(t && landed && st.lastSim && st.lastSim.left === 0, `${tag}: after signing, the sim runs the season out`, st.lastSim)
+    ok(t && landed && st.lastSim && (st.lastSim.left === 0 || st.lastSim.why === 'playoffs'), `${tag}: after signing, the sim runs the regular season out`, st.lastSim)
     await ctx.close()
   }
   {
     const { ctx, page } = await boot()
     await seed(page, LV, { tree: { secondChance: 1 } })   // v154 A: one cut ends it by default — Free Agency makes this cut a club screen
     await page.evaluate(() => { const p = window.S.player; p.nflStateV11.security = 0; p.nflStateV11.status = 'practice-squad'; window.go('season') }); await page.waitForTimeout(700)
-    await tap(page, /Sim the Rest of the Season/)
+    await tap(page, /Sim the Rest of the (Regular )?Season/)
     await waitView(page, 'club', 30000); await page.waitForTimeout(500)
     let st = await state(page)
     const note = await page.evaluate(() => (document.querySelector('.sim-note-v147') || {}).innerText || '')
@@ -159,9 +181,9 @@ for (const LV of [7, 8]) {
     ok(/Retire Instead/i.test(chip || ''), `${tag}: the club screen offers RETIRE INSTEAD`, chip)
     await page.evaluate(() => { window.S.player.nflStateV11.security = 95 })
     await page.click('.club-card-v146b >> nth=2'); await page.click('#clubSignV146B')
-    const landed = await waitView(page, 'result', 60000)
+    const landed = await waitSim(page)
     st = await state(page)
-    ok(landed && st.lastSim && st.lastSim.left === 0, `${tag}: signing picks the sim back up and it runs to the report card`, st.lastSim)
+    ok(landed && st.lastSim && (st.lastSim.left === 0 || st.lastSim.why === 'playoffs'), `${tag}: signing picks the sim back up and it runs to the report card (or the playoffs)`, st.lastSim)
     await ctx.close()
   }
   // ------------------------------------------------------------ no story decisions mid-season
@@ -225,7 +247,8 @@ for (const LV of [7, 8]) {
     const { ctx, page } = await boot()
     await seed(page, LV)
     await page.evaluate(() => window.go('season')); await page.waitForTimeout(500)
-    await tap(page, /Sim the Rest of the Season/)
+    await tap(page, /Sim the Rest of the (Regular )?Season/)
+    await waitSim(page); await page.waitForTimeout(500); await throughPlayoffs(page)
     await waitView(page, 'result', 60000); await page.waitForTimeout(500)
     await page.evaluate(() => { window.S.player.nflCutPending = true; window.go('result') }); await page.waitForTimeout(700)
     const t = await tap(page, /Accept Release/)
