@@ -1458,7 +1458,8 @@
     "RIB_COSMETICS",
     "v153 G",
     "v156 C",
-    "v157 A"
+    "v157 A",
+    "v157 B"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1477,7 +1478,8 @@
     "menu-integration-check",
     "v146Echeck",
     "layoutcheck",
-    "walk"
+    "walk",
+    "v157Bcheck"
    ]
   },
   "audio": {
@@ -3856,6 +3858,19 @@
    ],
    "runtimeSec": 90,
    "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v157Bcheck": {
+   "file": "scripts/v157Bcheck.mjs",
+   "desc": "v157 B — auras alive, trails you can spot: 19 new auras + 15 new footprint trails (unique fx keys, rarities, the member / earned / free split, the Locker's lock line per source); every new look draws a distinct picture and moves (and every v153 G aura animates); the Locker previews animate; the profile card animates the equipped aura (a new one and a v153 G one) and draws one still frame under prefers-reduced-motion; on the live field every new trail draws behind him and looks different, under the per-frame cap, and a new aura adds its particle layers; no Math.random from src/28; a perf probe (the busiest trail + aura vs nothing); TU v157Baura / v157Btrail 0 restore the v153 G path; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics"
+   ],
+   "runtimeSec": 200,
+   "slow": true,
    "needsServer": true,
    "pureNode": false,
    "flaky": [],
