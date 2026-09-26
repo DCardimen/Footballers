@@ -19,6 +19,14 @@ So the art is re-organised here, not shipped as drawn:
     201-500 hold none (asserted). Inside each half the order is a prestige score (`score()`): the motif's
     grade, the rung on the metal ladder and the size of the silhouette;
   * the drawn 1 is Rank 1 and the drawn 500 is Rank 500 and nothing else.
+  * v155 A — COLOUR FIRST (the owner: "sort the medals bronze, silver, gold, etc. Larger medals are their own
+    category. Colour code them first"). Each medal's COLOUR is read off its pixels (`colour()`: the frame's
+    metal, then the gem or enamel on it) and the climb is one colour after another — bronze, silver, gold, ruby,
+    sapphire, emerald, amethyst, diamond (ice) — then THE GRAND MEDALS: every silhouette of `LARGE_AREA`+ opaque
+    pixels as its own category at the top (colour-ordered inside it too; a big bronze or silver one stays the
+    capstone of its own page, so ranks 201-500 still hold no bronze or silver). Inside a
+    category the medals grow: the motif's grade plus the silhouette's size. The book's pages are these
+    categories (`cats` in the manifest), and the medal's name says its colour ("Lion · Ruby").
 
 Each medal is cut from the dark ground (alpha from the distance to the sheet's ground colour, solid inside
 the silhouette, holes filled so an onyx face stays opaque, the drop shadow kept as a soft ramp), placed on
@@ -174,6 +182,38 @@ def metal(im):
     return 'bronze' if bronze > 0.3 else 'silver'
 
 
+# v155 A: the colours, in the order the climb takes them, as the book names and tints them
+COLOURS = [('bronze', 'Bronze', 'BRONZE', '#c07a45'), ('silver', 'Silver', 'SILVER', '#c9d1db'),
+           ('gold', 'Gold', 'GOLD', '#e8c24a'), ('red', 'Ruby', 'RUBY', '#e0434f'),
+           ('blue', 'Sapphire', 'SAPPHIRE', '#3f7fe0'), ('green', 'Emerald', 'EMERALD', '#2fbf6a'),
+           ('purple', 'Amethyst', 'AMETHYST', '#a05ae0'), ('ice', 'Diamond', 'DIAMOND', '#9fe6ff')]
+COLOUR_KEYS = [c[0] for c in COLOURS]
+LARGE_AREA = 8000          # opaque pixels at the sheet's scale: the biggest ~12%, 491-500 among them
+GEM_MIN = 0.04             # a gold frame whose gem/enamel covers this much of it is that gem's colour
+
+
+def colour(im, mt):
+    """The medal's colour: its frame metal, or the gem/enamel that colours it."""
+    a = np.asarray(im)
+    op = a[..., 3] > 200
+    hsv = np.asarray(im.convert('RGB').convert('HSV')).astype(float)
+    h, sat, v = hsv[..., 0] * 360 / 255, hsv[..., 1] / 255, hsv[..., 2] / 255
+    n = max(1, op.sum())
+    frac = lambda m: float((op & m).sum()) / n
+    gems = {'red': frac(((h < 12) | (h >= 340)) & (sat > 0.45) & (v > 0.3)),
+            'green': frac((h >= 75) & (h < 165) & (sat > 0.35) & (v > 0.25)),
+            'blue': frac((h >= 165) & (h < 250) & (sat > 0.35) & (v > 0.25)),
+            'purple': frac((h >= 250) & (h < 340) & (sat > 0.3) & (v > 0.2))}
+    if mt == 'bronze':
+        return 'bronze'
+    if mt == 'silver':
+        if gems['purple'] >= 0.06:
+            return 'purple'
+        return 'ice' if gems['blue'] >= 0.08 else 'silver'
+    g = max(gems, key=gems.get)
+    return g if gems[g] >= GEM_MIN else 'gold'
+
+
 def write_proof(cuts, order):
     pdir = os.path.join(ROOT, 'art/legacy-proof')
     os.makedirs(pdir, exist_ok=True)
@@ -212,7 +252,11 @@ def main():
                 elif mt == 'gold' and rung < 2:
                     word = 'Gold'
                 z = (area[d] - mu) / sd
-                meta[d] = {'motif': mi, 'rung': rung, 'word': word, 'metal': mt, 'score': score(ti, rung, z), 'low': ti + W_SIZE * z}
+                col = colour(cuts[d], mt)
+                meta[d] = {'motif': mi, 'rung': rung, 'word': word, 'metal': mt, 'score': score(ti, rung, z), 'low': ti + W_SIZE * z,
+                           'colour': col, 'large': area[d] >= LARGE_AREA and col not in ('bronze', 'silver')}   # a big bronze or silver crest caps its own page (no bronze/silver in the top 300)
+    if '--v152-order' not in sys.argv:
+        return build(cuts, motifs, meta, proof, colour_order(meta))
     pool = [d for d in meta if d not in (1, 500)]
     low = [d for d in pool if meta[d]['metal'] != 'gold']
     golds = sorted((d for d in pool if meta[d]['metal'] == 'gold'), key=lambda d: (meta[d]['score'], d))
@@ -225,8 +269,41 @@ def main():
     assert len(order) == 500 and sorted(order) == list(range(1, 501)), 'every drawn medal exactly once'
     assert all(meta[d]['metal'] == 'gold' for d in order[LOW_N:]), 'no bronze or silver medal above Rank 200'
     print('bronze %d, silver %d, gold in the low half %d' % tuple(sum(1 for d in order[:LOW_N] if meta[d]['metal'] == m) for m in ('bronze', 'silver', 'gold')))
+    return build(cuts, motifs, meta, proof, order)
+
+
+def colour_order(meta):
+    """v155 A: bronze, silver, gold, ruby, sapphire, emerald, amethyst, diamond — then the grand medals."""
+    pool = [d for d in meta if d not in (1, 500)]
+    small = [d for d in pool if not meta[d]['large']]
+    large = [d for d in pool if meta[d]['large']]
+    key = lambda d: (COLOUR_KEYS.index(meta[d]['colour']), meta[d]['low'], d)
+    order = [1] + sorted(small, key=key) + sorted(large, key=key) + [500]
+    assert len(order) == 500 and sorted(order) == list(range(1, 501)), 'every drawn medal exactly once'
+    assert meta[1]['colour'] == 'bronze' and not meta[1]['large'], 'Rank 1 opens the bronze page'
+    assert all(meta[d]['colour'] not in ('bronze', 'silver') for d in order[200:]), 'no bronze or silver medal above Rank 200'
+    return order
+
+
+def categories(meta, order):
+    """the book's pages: one a colour, the grand medals last (Rank 500 with them)"""
+    cats, k = [], 0
+    for key, word, name, tint in COLOURS:
+        n = sum(1 for d in order[:499] if meta[d]['colour'] == key and not meta[d]['large'])
+        if n:
+            cats.append({'key': key, 'name': name, 'tint': tint, 'from': k + 1, 'to': k + n})
+            k += n
+    cats.append({'key': 'grand', 'name': 'GRAND', 'tint': '#ffd86b', 'from': k + 1, 'to': 500})
+    assert cats[-1]['to'] - cats[-1]['from'] + 1 == 1 + sum(1 for d in order if d != 500 and meta[d]['large'])
+    for c in cats:
+        print('%-9s %3d-%3d  %d' % (c['name'], c['from'], c['to'], c['to'] - c['from'] + 1))
+    return cats
+
+
+def build(cuts, motifs, meta, proof, order):
     tiers = [{'name': t[0], 'from': i * 50 + 1, 'to': i * 50 + 50} for i, t in enumerate(TIERS)]
-    names = [motifs[meta[d]['motif']]['name'] + ' · ' + meta[d]['word'] for d in order]
+    word = {c[0]: c[1] for c in COLOURS}
+    names = [motifs[meta[d]['motif']]['name'] + ' · ' + word[meta[d]['colour']] for d in order]
     names[-1] = 'Ultimate Legacy'
     families = [{'name': m['name'], 'tier': m['grade'], 'drawn': m['drawn']} for m in motifs]
     if proof:
@@ -249,7 +326,7 @@ def main():
         mini.alpha_composite(cuts[order[k]].resize((MINI, MINI), Image.LANCZOS), ((k % 25) * MINI, (k // 25) * MINI))
     mini.save(os.path.join(OUT, 'medals_mini.webp'), 'WEBP', quality=78, method=4)
     data = {'cell': CELL, 'cols': 10, 'mini': MINI, 'miniCols': 25, 'sheets': sheets, 'miniSheet': 'legacy/medals_mini.webp',
-            'tiers': tiers, 'motifs': families, 'drawn': order, 'names': names,
+            'tiers': tiers, 'cats': categories(meta, order), 'motifs': families, 'drawn': order, 'names': names,
             'motif': [meta[d]['motif'] for d in order], 'glow': glows}
     json.dump(data, open(os.path.join(OUT, 'manifest.json'), 'w'), separators=(',', ':'))
     block = ('/* RIB_LEGACY_MEDALS_V152 — generated by scripts/build-legacy-medals.py (edit the script, not this block) */\n'

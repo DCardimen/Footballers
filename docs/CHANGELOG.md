@@ -10,6 +10,14 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v155 A — the medals by colour.** (`scripts/build-legacy-medals.py`, `src/31-legacy.js`, `public/legacy/`.) The
+  owner: "sort the medals bronze, silver, gold, etc. Larger medals are their own category. Colour code them first."
+  Each medal's colour is now read off its pixels (the frame's metal, then the gem or enamel on it) and the 500-rank
+  climb runs one colour after another: BRONZE 1-59, SILVER 60-120, GOLD 121-201, RUBY 202-266, SAPPHIRE 267-284,
+  EMERALD 285-331, AMETHYST 332-377, DIAMOND 378-443, then THE GRAND MEDALS 444-500 — the biggest crests, colour-
+  ordered too, Rank 500 last (a big bronze or silver crest stays the top of its own page, so ranks 201-500 still hold
+  no bronze or silver). Inside a colour the medals grow. Names say the colour ("Lion · Ruby"). The collection book
+  has a page a colour, each tab and page tinted in it, every page the same height; the rank tiers are unchanged.
 - **v154 A — the UFF is where the career goes on: retiring works, the end screen has every option, one cut by default,
   Free Agency buys the second.** (`src/07-career-app.js`, `scripts/v154Acheck.mjs`.) Reaching the UFF settled the
   career (paid, enshrined, `_settled`) and "Keep Playing UFF Seasons" left it settled, so every way out that checks
