@@ -29,7 +29,7 @@
 /* ===== v151 A THE FREE GAME IS THE GAME, AND THE STORE IS A LADDER =====
  * The owner's hybrid model (docs/MONETIZATION.md §1). The PROGRESSION GATES live in the game, not here, and apply
  * whatever this switch says (src/07-career-app.js `v151 A THE GATES ARE EARNED ON THE FIELD`): My Plays Only after the
- * first finished career, 3× on reaching the UFF, 4× with 3× while this module is OFF, season skips a day from lifetime
+ * first finished career, 3× after a full UFF season and 4× for winning the UFF title (v156 C), season skips a day from lifetime
  * PP. What THIS file adds, and only while ON:
  *   REWARDED  opt-in only, `rewarded.dailyCap` a day (TU "adsPerDayV151A", 4, never above 5), each one a CONVENIENCE:
  *             4× for 20 min, +1 season skip today, try a locked cosmetic for 24h. The PP double is GONE (it sold
@@ -65,7 +65,7 @@
       pass: true,                        // the Season Career Pass (needs window.RIB_SEASONS)
       cosmetics: true,                   // the cosmetic packs (need window.RIB_COSMETICS)
       expansions: true,                  // the expansions list — COMING SOON, never purchasable
-      gateSpeed4: true,                  // 4× needs speed4 (Pro / Founder / the 20-min ad / grandfathered). OFF, 4× comes with 3× (the UFF)
+      gateSpeed4: true,                  // 4× needs speed4 (member / Pro / Founder / the 20-min ad / grandfathered) — or the UFF title (v156 C, earned ON or OFF)
       speed3: true,                      // v150 C H2 (v151 A: the game shows 3× whatever this says; it is EARNED, never sold)
       gateFilters: true,                 // v151 A: the advanced filters on Stats / Leaders / Hall of Fame need `filters` (Pro)
       grandfatherSpeed4: true,           // a device that already had a save when monetization first came on keeps 4× free
@@ -640,11 +640,12 @@
   function gates() { var G = GATES(); try { return G && G.gates ? G.gates() : null } catch (e) { return null } }
   function offerSpeed(s) {
     var g = gates();
-    if (s && s < 4) { toast("3× UNLOCKS WHEN YOU REACH THE UFF"); return }   // the earned rung is never sold
+    var v156 = !!(g && g.uffTitle !== undefined);   // v156 C: the game's gates name the new rungs
+    if (s && s < 4) { toast(v156 ? "3× UNLOCKS AFTER A FULL UFF SEASON" : "3× UNLOCKS WHEN YOU REACH THE UFF"); return }   // the earned rung is never sold
     if (!CFG.features.rewardedSpeed || adsLeft() <= 0) { API.openStore("pro"); return }
     var free = has("noAds");
     ui.sheet({
-      title: "4× PLAY SPEED", lines: [(free ? "Ad Free: claim " : "Watch a short ad for ") + speed4Minutes() + " minutes of 4×. " + adsLeft() + " of " + dailyCap() + " left today.", CFG.features.pro ? "Or Pro Career: 4× for good." : ""],
+      title: "4× PLAY SPEED", lines: [(free ? "Ad Free: claim " : "Watch a short ad for ") + speed4Minutes() + " minutes of 4×. " + adsLeft() + " of " + dailyCap() + " left today.", (CFG.features.pro ? "Or Pro Career: 4× for good." : "") + (v156 ? " Win the UFF championship and 4× is yours for good, free." : "")],
       yes: free ? "✓ CLAIM 4×" : "▶ WATCH AN AD", no: CFG.features.pro ? "SEE PRO" : "NOT NOW",
       onYes: function () { rewardSpeed() }, onNo: function () { if (CFG.features.pro) API.openStore("pro") }
     });
@@ -825,7 +826,9 @@
   function freeRung() {
     var g = gates() || {}, s = simInfo(), ok = '<b class="mz151-ok">', G = function (x) { return x && x.ok };
     var po = G(g.playsOnly) ? ok + "My Plays Only — unlocked ✓</b>" : "My Plays Only — <b>complete your first career</b>";
-    var s3 = G(g.speed3) ? ok + "3× play speed — unlocked ✓</b>" : "3× play speed — <b>reach the UFF</b> (best so far: " + esc(g.bestName || "—") + ")";
+    var v156 = g.uffTitle !== undefined;   // v156 C: 3× after a full UFF season, 4× for the UFF title
+    var s3 = G(g.speed3) ? ok + "3× play speed — unlocked ✓</b>" : v156 ? "3× play speed — <b>survive a full UFF season</b>" : "3× play speed — <b>reach the UFF</b> (best so far: " + esc(g.bestName || "—") + ")";
+    if (v156) s3 += "<br>" + (g.speed4 && g.speed4.earned ? ok + "4× play speed — won with the UFF title ✓</b>" : "4× play speed — <b>win the UFF championship</b>");
     var sk = !s.gated ? "Season skips — no limit" : s.perDay ? "Season skips: <b>" + s.perDay + " a day</b> from your prestige (" + Math.max(0, s.left) + " left today)" + (s.next ? " — " + s.next.perDay + " a day at " + fmtN(s.next.at) + " PP" : "")
       : "Season skips — <b>earn " + fmtN(s.firstAt) + " lifetime PP</b> (" + fmtN(s.lifetime) + " so far)";
     var share = s.gated && !s.perDay && s.firstAt ? Math.min(1, (s.lifetime || 0) / s.firstAt) : null;
@@ -957,7 +960,8 @@
       if (b4) { b4.classList.toggle("mz149-lock", !allowed); b4.classList.toggle("pro", !allowed && !CFG.features.rewardedSpeed); b4.classList.toggle("free", !allowed && free && CFG.features.rewardedSpeed) }
       var G = GATES(); if (G && G.relabel) try { G.relabel() } catch (e) {}   // the game's own "🔒 UFF" / "🔒 PRO" labels follow a gate that opened
       var offer = row.nextElementSibling && row.nextElementSibling.classList.contains("mz149-offer-row") ? row.nextElementSibling : null;
-      var want4 = CFG.features.gateSpeed4 && CFG.features.rewardedSpeed && until("speed4") !== Infinity;
+      var g4 = gates(), won4 = !!(g4 && g4.speed4 && g4.speed4.earned);   // v156 C: a UFF champion has 4× for good — no ad chip
+      var want4 = CFG.features.gateSpeed4 && CFG.features.rewardedSpeed && until("speed4") !== Infinity && !won4;
       var want3 = false;                                     // v151 A: the game labels its own locked 3× ("🔒 UFF")
       if ((want4 || want3) && !offer) { offer = el('<div class="mz149-offer-row"></div>'); row.parentNode.insertBefore(offer, row.nextSibling) }
       if (!(want4 || want3) && offer) { offer.remove(); offer = null }

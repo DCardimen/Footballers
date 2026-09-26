@@ -54,7 +54,7 @@ const cat = await E(() => { const C = window.RIB_COSMETICS, all = C.catalog(), b
 const BASE = ['uniform', 'helmet', 'frame', 'celebration', 'stadium', 'vault', 'banner', 'shelf', 'recap']
 ok(BASE.every(s => cat.slots.includes(s) && (cat.counts[s] || 0) >= 6), 'the nine designed categories hold at least six items each', cat.counts)
 ok(cat.slots.every(s => cat.pv[s] === cat.counts[s]), 'every item draws a preview (the Career Pass kinds included)', cat.pv)
-ok(cat.ids === cat.uniq && ['free', 'earned', 'pass', 'shop', 'founder'].every(s => cat.sources.includes(s)), 'ids are unique and all five sources are used', cat.sources)
+ok(cat.ids === cat.uniq && ['free', 'earned', 'pass', 'shop', 'founder', 'member', 'super'].every(s => cat.sources.includes(s)), 'ids are unique and all seven sources are used (v156 C: member, super)', cat.sources)
 const price = Object.fromEntries(cat.packs.map(p => [p[0], p[1]]))
 ok(price.pack_uniforms1 === '$1.99' && price.pack_helmets1 === '$1.99' && price.pack_celebrations1 === '$2.99' && price.pack_stadium_neon === '$2.99' && price.pack_frames1 === '$1.99' && price.pack_vault_rose === '$2.99' && price.pack_historical === '$4.99' && cat.packs.every(p => p[2] > 0),
   'the packs carry the owner\'s price list, and every pack holds items', cat.packs)
@@ -80,9 +80,9 @@ const earned = await E(() => { const C = window.RIB_COSMETICS, st = window.__get
   const toast = (document.getElementById('toast') || {}).textContent || ''
   return { before, after: C.owned('frame_gold'), got, again, toast } })
 ok(!earned.before && earned.after && earned.got.includes('frame_gold') && earned.again.length === 0 && /Unlocked/.test(earned.toast), 'a forced achievement (a first title) unlocks its earned items once, with a toast', earned)
-const viaSave = await E(async () => { const C = window.RIB_COSMETICS, st = window.__getGridironState(); const b = C.owned('uni_blackout')
-  st.nflReached = Math.max(1, st.nflReached || 0); window.GridironStorage.save(st); await new Promise(r => setTimeout(r, 120)); return { b, a: C.owned('uni_blackout'), std: C.owned('std_blackgold') } })
-ok(!viaSave.b && viaSave.a && viaSave.std, 'the save hook checks achievements: reaching the UFF unlocks Blackout and the Black & Gold bowl', viaSave)
+const viaSave = await E(async () => { const C = window.RIB_COSMETICS, st = window.__getGridironState(); const b = C.owned('nf_neon')
+  st.nflReached = Math.max(1, st.nflReached || 0); window.GridironStorage.save(st); await new Promise(r => setTimeout(r, 120)); return { b, a: C.owned('nf_neon'), std: C.owned('std_blackgold') } })
+ok(!viaSave.b && viaSave.a && viaSave.std, 'the save hook checks achievements: reaching the UFF unlocks the Neon numbers and the Black & Gold bowl (v156 C: Blackout is a member look)', viaSave)
 
 // ================= 2b. the Career Pass's rewards (src/29-seasons.js) =================
 const pz = await E(() => { const C = window.RIB_COSMETICS, S = window.RIB_SEASONS

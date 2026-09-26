@@ -59,6 +59,9 @@ function seasonsOpenV151C(tab) {
     jersey: [["hoops", "Hoops", 0], ["sleeves", "Sleeve", 0], ["stripes", "Stripes", 0], ["pinstripe", "Pinstripe", 1], ["shoulders", "Shoulder", 1], ["checker", "Check", 1], ["chevron", "Chevron", 2], ["sash", "Sash", 2], ["fade", "Fade", 2], ["tiger", "Tiger", 3]],
     helmet: [["gloss", "Gloss", 0], ["matte", "Matte", 0], ["satin", "Satin", 1], ["metal", "Metallic", 2], ["pearl", "Pearl", 2], ["chrome", "Chrome", 3]]
   };
+  /* v156 C: angel wings are the super challenge's alone — the pass never draws the angel style (TU "v156Ccos" 0 restores it) */
+  var TU156 = function (k, d) { try { return typeof TU === "function" ? TU(k, d) : d; } catch (e) { return d; } };
+  if (TU156("v156Ccos", 1)) STYLES.wings = STYLES.wings.filter(function (x) { return x[0] !== "angel"; });
   var RANKS = ["common", "rare", "epic", "legendary", "mythic"];
   var FORBIDDEN = /^(pp|xp|stat|stats|attr|attrs|attribute|gear|reroll|rerolls|boost|ovr|perf|prestige|honors|speed|roll|rolls|spin|spins|coins?)$/i;
 
@@ -337,7 +340,12 @@ function seasonsOpenV151C(tab) {
   }
 
   /* ---- premium + claims ---- */
-  function premiumOwned(sid) { sid = sid || ST.cur; var r = ST.s[sid], M = window.RIB_MONETIZE; try { if (M && M.has && M.has("pass:" + sid)) return true; } catch (e) {} return !!(r && r.premium); }
+  function premiumOwned(sid) {
+    sid = sid || ST.cur; var r = ST.s[sid], M = window.RIB_MONETIZE;
+    try { if (M && M.has && M.has("pass:" + sid)) return true; } catch (e) {}
+    try { if (M && M.enabled && TU156("v156Ccos", 1) && M.has("member")) return true; } catch (e) {}   // v156 C: a member rides the premium track
+    return !!(r && r.premium);
+  }
   function grantPremium(sid) { sid = sid || ST.cur; if (!sid) return false; rec(sid).premium = true; changed(); return true; }
   function storeOn() { var M = window.RIB_MONETIZE; return !!(M && M.enabled); }
   function buyPremium() {
@@ -442,9 +450,26 @@ function seasonsOpenV151C(tab) {
       '<div class="ss151-dates">' + esc(dateStr(c.start)) + " – " + esc(dateStr(c.end)) + ' · <b class="ss151-left">' + c.daysLeft + " DAY" + (c.daysLeft === 1 ? "" : "S") + " LEFT</b></div>" + bar(p * 100, 100) +
       '<div class="ss151-mini"><span>🎟 Pass tier <b>' + P.tier + "</b></span><span>🏈 <b>" + mine.length + "</b> career" + (mine.length === 1 ? "" : "s") + " this season</span><span>🏆 best <b>" + (mine[0] ? fmt(mine[0].score) : "—") + "</b></span></div></div>" +
       '<div class="h2">🗓 This week <small class="ss151-dim">resets in ' + wkEnd + " day" + (wkEnd === 1 ? "" : "s") + "</small></div>" + '<div class="card tight">' + challengeRows(wk) + "</div>" +
+      superSectionV156C() +
       (h ? '<div class="h2">⏮ Last season</div><div class="card tight ss151-recap"><b>' + esc(h.name) + "</b><small>" + (h.best ? (h.medal ? esc(h.medal.icon + " " + h.medal.name + " finish · ") : "") + "best " + esc(h.best.name) + " " + fmt(h.best.score) + " pts" : "no career finished") + " · pass tier " + h.tier + " · " + h.careers + " career" + (h.careers === 1 ? "" : "s") + "</small></div>" : "") +
       (ST.hist.length > 1 ? '<div class="h2">📚 Past seasons</div><div class="card tight">' + ST.hist.slice(1).map(function (x) { return '<div class="ss151-hist"><b>' + esc(x.name) + "</b><small>" + (x.best ? esc(x.best.name) + " · " + fmt(x.best.score) : "—") + " · tier " + x.tier + "</small></div>"; }).join("") + "</div>" : "") +
       '<div class="ss151-note">Careers are never wiped. When a season ends its board and your finish go in the trophy case, and the pass starts again.</div>';
+  }
+  /* ===== v156 C SUPER CHALLENGES (the section) =====
+   * The tough, never-resetting challenges of src/28's `RIB_SUPER` (rib.super.v1, outside the save), each with its
+   * progress bar and the mythic look it pays (the preview box is painted by src/28's Locker painter). They sit on the
+   * SEASON tab under this week's challenges and on the PASS › CHALLENGES tab. Nothing is drawn with TU("v156Ccos", 0). */
+  function superSectionV156C() {
+    var R = window.RIB_SUPER;
+    if (!R || !R.on || !R.on()) return "";
+    var P = []; try { P = R.progress() || []; } catch (e) { return ""; }
+    if (!P.length) return "";
+    return '<div class="h2">🌟 Super challenges <small class="ss151-dim">never reset · mythic looks</small></div><div class="card tight ss156-super" id="ss156Super">' + P.map(function (c) {
+      var pos = c.positions ? '<div class="ss156-pos">' + c.positions.map(function (p) { return '<i class="' + (p.won ? "on" : "") + '">' + esc(p.pos) + "</i>"; }).join("") + "</div>" : "";
+      return '<div class="ss156-sup' + (c.done ? " done" : "") + '" data-sup="' + esc(c.id) + '"><div class="cos-pvbox-v151b ss156-pv" data-pv="' + esc(c.item) + '"></div>' +
+        "<div class=\"ss156-txt\"><b>" + (c.done ? "✅ " : esc(c.icon) + " ") + esc(c.name) + "</b><small>" + esc(c.desc) + "</small>" + pos + bar(c.have, c.goal) + "</div>" +
+        '<span class="ss156-rw"><b>' + fmt(c.have) + "/" + fmt(c.goal) + "</b><small>💎 " + esc(c.itemName) + "</small>" + (c.owned ? '<small class="ss156-own">OWNED</small>' : "") + "</span></div>";
+    }).join("") + "</div>";
   }
   function rewardCell(rw, tr) {
     if (!rw) return '<div class="ss151-rw none">—</div>';
@@ -461,7 +486,7 @@ function seasonsOpenV151C(tab) {
         '<div class="ss151-track">' + P.tracks.premium.map(function (pr) {
           return '<div class="ss151-row' + (pr.unlocked ? " unlocked" : "") + (pr.tier === P.tier + 1 ? " next" : "") + (pr.showcase ? " show" : pr.highlight ? " hi" : "") + '" data-tier="' + pr.tier + '"><b class="ss151-n">' + pr.tier + "</b>" + rewardCell(free[pr.tier], "free") + rewardCell(pr, "premium") + "</div>";
         }).join("") + "</div>";
-    } else body = '<div class="card tight ss151-chs">' + challengeRows(api.challenges()) + "</div>";
+    } else body = '<div class="card tight ss151-chs">' + challengeRows(api.challenges()) + "</div>" + superSectionV156C();
     return passHead(P) + subs + body + '<div class="ss151-note">Every reward is cosmetic — footprints, wings, crowns, auras, jerseys, helmets, frames, titles. Nothing on the pass changes a snap, a stat or a payout.</div>';
   }
   function profileCard() {
@@ -568,7 +593,12 @@ function seasonsOpenV151C(tab) {
       ".lb151-now{margin-bottom:6px}.lb151-sheet{position:fixed;inset:0;z-index:10050;display:flex;align-items:flex-end;justify-content:center;background:rgba(5,6,8,.72)}.lb151-sheet-in{width:100%;max-width:420px;max-height:88dvh;overflow:auto;padding:14px 14px calc(env(safe-area-inset-bottom) + 14px);border-radius:16px 16px 0 0;border-top:1px solid #e6b23a;background:#0e1013;color:#eef}",
       ".lb151-sheet-head{display:flex;gap:10px;align-items:center}.lb151-sheet-head b{display:block;font:700 18px Oswald,sans-serif}.lb151-sheet-head small{font-size:12px;color:#9aa0aa}.lb151-sheet-score{text-align:center;margin:10px 0}.lb151-sheet-score b{display:block;font:700 34px Oswald,sans-serif;color:#ffd66b}.lb151-sheet-score small{font:600 9.5px Oswald,sans-serif;letter-spacing:2px;color:#9aa0aa}",
       ".lb151-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;text-align:center}.lb151-stats b{display:block;font:700 15px Oswald,sans-serif}.lb151-stats small{font-size:8.5px;color:#9aa0aa}.lb151-tros{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}.lb151-tros span{font-size:11px;padding:3px 6px;border-radius:6px;background:rgba(240,187,69,.08)}",
-      ".lb151-parts{width:100%;margin:8px 0;font-size:12px;border-collapse:collapse}.lb151-parts td{padding:3px 2px;border-bottom:1px solid rgba(255,255,255,.06)}.lb151-parts td:last-child{text-align:right;color:#ffd66b}.lb151-sheet-btns{display:flex;gap:8px}.lb151-sheet-btns .btn{flex:1}"
+      ".lb151-parts{width:100%;margin:8px 0;font-size:12px;border-collapse:collapse}.lb151-parts td{padding:3px 2px;border-bottom:1px solid rgba(255,255,255,.06)}.lb151-parts td:last-child{text-align:right;color:#ffd66b}.lb151-sheet-btns{display:flex;gap:8px}.lb151-sheet-btns .btn{flex:1}",
+      /* v156 C: the super challenges */
+      ".ss156-sup{display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06)}.ss156-sup:last-child{border-bottom:0}.ss156-sup .ss156-pv{flex:none;width:52px;height:52px;border:1px solid rgba(255,90,140,.55);background:linear-gradient(135deg,rgba(255,90,140,.14),rgba(185,166,255,.1))}",
+      ".ss156-sup .ss156-pv canvas{max-width:48px;max-height:48px}.ss156-txt{flex:1;min-width:0}.ss156-txt b{font:600 13px Oswald,sans-serif}.ss156-txt small{display:block;font-size:11px;color:var(--chalk-dim,#9aa0aa)}",
+      ".ss156-rw{flex:none;text-align:right;max-width:34%}.ss156-rw b{display:block;font:700 13px Oswald,sans-serif;color:#ff9ad5}.ss156-rw small{display:block;font-size:10px;color:var(--chalk-dim,#9aa0aa)}.ss156-own{color:#7fe0a0!important;font-weight:700}",
+      ".ss156-sup.done .ss156-txt b{color:#7fe0a0}.ss156-pos{display:flex;flex-wrap:wrap;gap:3px;margin:3px 0}.ss156-pos i{font:600 9px Oswald,sans-serif;font-style:normal;padding:1px 4px;border-radius:4px;border:1px solid rgba(255,255,255,.15);color:#9aa0aa}.ss156-pos i.on{border-color:#b9a6ff;color:#fff;background:rgba(185,166,255,.25)}"
     ].join("\n");
     (document.head || document.documentElement).appendChild(s);
   }
@@ -577,7 +607,12 @@ function seasonsOpenV151C(tab) {
   try { css(); } catch (e) {}
   try { tick(); flush(); } catch (e) {}
   try { if (window.__SHELL_V146 && window.__SHELL_V146.titles) { window.__SHELL_V146.titles.seasons = "SEASON & PASS"; window.__SHELL_V146.titles.leaderboard = "LEADERBOARDS"; } } catch (e) {}
-  setInterval(function () { try { observe(); eventCard(); hubChip(); } catch (e) {} }, 1500);
+  setInterval(function () {
+    try { observe(); eventCard(); hubChip(); } catch (e) {}
+    // v156 C: the speed rungs a season-end or a sim found (07), and the super challenges (28)
+    try { window.__V156C && window.__V156C.sync && window.__V156C.sync(); } catch (e) {}
+    try { window.RIB_SUPER && window.RIB_SUPER.tick(); } catch (e) {}
+  }, 1500);
   try { new MutationObserver(function () { try { hubChip(); } catch (e) {} }).observe(document.getElementById("dock") || document.body, { childList: true }); } catch (e) {}
   /* the boot may have restored the saved view before this file existed (the 07 router draws the menu for it) */
   try { var st0 = stateOf(); if (st0 && st0.view === "seasons") setTimeout(function () { try { draw(); } catch (e) {} }, 0); } catch (e) {}

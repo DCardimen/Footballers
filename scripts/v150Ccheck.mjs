@@ -113,8 +113,8 @@ const endFacts = (page) => M(page, () => { const S = __GRIDIRON_AUDIT__.getState
   // v151 A: the row carries the earned 3× rung for everyone; with the module blocked it is the same markup
   ok(ra && ra === rb && btns === '0.5,1,2,3,4', 'OFF H2 (v151 A): the live speed row is byte-for-byte the row with the module blocked (½× / 1× / 2× / 3× / 4×)', btns)
   // v151 A: 3× and 4× are progression gates (the UFF) whatever the switch says; OFF 4× comes with 3×, and no offer is ever drawn
-  const sp = await M(a, () => { window.setSpeed(2); window.setSpeed(4); const locked = window.__getGridironLiveSpeed(); window.S.bestLevel = 7; window.__V151A.relabel(); window.setSpeed(4); const s4 = window.__getGridironLiveSpeed(); window.setSpeed(2); const s2 = window.__getGridironLiveSpeed(); window.setSpeed(4); return { locked, s4, s2, sheet: !!document.getElementById('mz149Sheet') } })
-  ok(sp.locked === 2 && sp.s4 === 4 && sp.s2 === 2 && !sp.sheet, 'OFF H1 (v151 A): setSpeed(4) is locked until the UFF, then free, with no offer', sp)
+  const sp = await M(a, () => { window.setSpeed(2); window.setSpeed(4); const locked = window.__getGridironLiveSpeed(); window.S.bestLevel = 7; window.S.uffTitleV156C = { at: 1 }; window.__V151A.relabel(); window.setSpeed(4); const s4 = window.__getGridironLiveSpeed(); window.setSpeed(2); const s2 = window.__getGridironLiveSpeed(); window.setSpeed(4); return { locked, s4, s2, sheet: !!document.getElementById('mz149Sheet') } })
+  ok(sp.locked === 2 && sp.s4 === 4 && sp.s2 === 2 && !sp.sheet, 'OFF H1 (v151 A · v156 C): setSpeed(4) is locked until the UFF title, then free, with no offer', sp)
   // the carried speed: the live screen re-drawn mid-game (a render while the game is on) restarts playback with the controller's speed
   const carried = await M(a, () => { window.setSpeed(4); window.go('live'); return window.__getGridironLiveSpeed() })
   ok(carried === 4, 'OFF H3: a 4× carried through a re-drawn live screen stays 4×', carried)
@@ -221,7 +221,7 @@ const endFacts = (page) => M(page, () => { const S = __GRIDIRON_AUDIT__.getState
   await toLive(p)
   const r3 = await M(p, () => { const b = [...document.querySelectorAll('.speed-row .speed-btn[data-spd]')]; const row = document.querySelector('.speed-row').getBoundingClientRect()
     window.setSpeed(2); window.setSpeed(3); const locked = window.__getGridironLiveSpeed(), label = (document.querySelector('.speed-btn[data-spd="3"] small') || {}).textContent
-    window.S.bestLevel = 7; window.__V151A.relabel(); window.setSpeed(3)
+    window.S.bestLevel = 7; window.S.uffSeasonV156C = { at: 1 }; window.__V151A.relabel(); window.setSpeed(3)
     return { btns: b.map((x) => x.dataset.spd).join(','), locked, label, speed: window.__getGridironLiveSpeed(), right: Math.round(row.right), active: (document.querySelector('.speed-btn.active[data-spd]') || {}).dataset?.spd, four: window.__V151A.speedOk(4), sheet: !!document.getElementById('mz149Sheet') } })
   ok(r3.btns === '0.5,1,2,3,4' && r3.locked === 2 && /UFF/.test(r3.label || '') && r3.speed === 3 && r3.active === '3' && r3.right <= W && !r3.four && !r3.sheet,
     'ON H2 (v151 A): 3× says 🔒 UFF and stays at 2× until the UFF is reached, then plays at 3× — never sold; 4× stays Pro\'s', r3)

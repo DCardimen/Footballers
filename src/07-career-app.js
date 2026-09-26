@@ -8903,6 +8903,7 @@
    * by design — and each has a kill switch (TU "<name>", 0 restores the old path):
    *   My Plays Only (`onlyInvolved`) after the FIRST finished career — any career that reached a career-end screen
    *     (`careersCompleted`, both settles count it; a Hall of Fame entry grandfathers an old save). `playsOnlyGateV151A`.
+   *   (v156 C replaces the speed rule below: 3× after a full UFF season, 4× for the UFF title — `speedGateOnV156C`.)
    *   3× on REACHING THE UFF (level `speed3LevelV151A`, 7) in any career — `state.bestLevel` is account-wide, so a man
    *     who already got there keeps it. 4×: with the store OFF it comes WITH 3× (nothing is unobtainable); with the store
    *     ON it is Pro's (`RIB_MONETIZE.has("speed4")` — Pro / Founder / the 20-minute ad / grandfathered). `speedGateV151A`.
@@ -8939,20 +8940,29 @@
     if (s < 3) return !0;
     const m = mzV150C();
     if (!gateOnV151A("speedGateV151A")) return s >= 4 && gate4V151A() ? m.has("speed4") : !0;
+    /* v156 C: 3× after a full UFF season, 4× for winning the UFF title — or, with the store ON, a paid speed4 */
+    if (speedGateOnV156C()) {
+      if (s >= 4) return uffTitleWonV156C() || !!(m && gate4V151A() && m.has("speed4"));
+      return uffSeasonDoneV156C() || !!(m && m.has("speed3"));
+    }
     if (s >= 4) return gate4V151A() ? m.has("speed4") : uffReachedV151A();
     return uffReachedV151A() || !!(m && m.has("speed3"));
   }
   function speedWhyV151A(s) {
+    if (speedGateOnV156C()) return +s >= 4 ? speedTextV156C("why", 4) : speedTextV156C("why", 3);
     return +s >= 4 && gate4V151A() ? "Pro Career" : "Reach the UFF";
   }
   const SPEED_GLYPH_V151A = { "0.5": "◀◀", 1: "▶ ❚❚", 2: "▶▶", 3: "▶▶▸", 4: "▶▶▶" };
   function speedSmallV151A(r) {
-    return speedOkV151A(r) ? SPEED_GLYPH_V151A[r] : "🔒 " + (speedWhyV151A(r) === "Pro Career" ? "PRO" : "UFF");
+    if (speedOkV151A(r)) return SPEED_GLYPH_V151A[r];
+    if (speedGateOnV156C()) return +r >= 4 ? "🔒 RING" : "🔒 UFF";
+    return "🔒 " + (speedWhyV151A(r) === "Pro Career" ? "PRO" : "UFF");
   }
   // a locked tap: the store's offer for a paid 4× (ON), a plain line for an earned one
   function speedLockV151A(s) {
     const m = mzV150C();
     if (m && +s >= 4 && gate4V151A()) return void (m.speedLocked && m.speedLocked(s));
+    if (speedGateOnV156C()) return void showToast("🔒 " + (+s >= 4 ? speedTextV156C("lock", 4) : speedTextV156C("lock", 3)));
     showToast(`🔒 ${s}× unlocks when you reach the UFF`);
   }
   // the live row's buttons follow a gate that opened mid-game (an ad watched, a purchase) — the module calls it too
@@ -9128,12 +9138,122 @@
     gates: () => ({
       playsOnly: { ok: playsOnlyOkV151A(), why: "Complete a career" },
       speed3: { ok: speedOkV151A(3), why: speedWhyV151A(3) },
-      speed4: { ok: speedOkV151A(4), why: speedWhyV151A(4) },
+      speed4: { ok: speedOkV151A(4), why: speedWhyV151A(4), earned: speedGateOnV156C() && uffTitleWonV156C() },
+      uffSeason: !!state.uffSeasonV156C /* v156 C: the account-wide flags */,
+      uffTitle: !!state.uffTitleV156C,
       bestLevel: state.bestLevel || 0,
       bestName: LEVELS[state.bestLevel || 0] ? LEVELS[state.bestLevel || 0].name : "",
       careers: state.careersCompleted || 0
     })
   };
+  /* ===== v156 C THE 4× IS WON IN THE TITLE GAME =====
+   * The owner's speed ladder (docs/MONETIZATION.md §1a), replacing v151 A's "3× and 4× at the UFF":
+   *   3× unlocks when he SURVIVES ONE WHOLE UFF SEASON — a level-7+ season that reached its season-end report
+   *      (a `seasonLogV77` row at level ≥ 7; being cut before the report logs nothing). `state.uffSeasonV156C`.
+   *   4× unlocks when he WINS THE UFF CHAMPIONSHIP — the LEAGUE CHAMPIONSHIP game (level 7; the Interstellar
+   *      title counts too, v147 A) — or, with the store ON, with a paid `speed4` (membership / Pro / Founder /
+   *      the 20-minute ad). `state.uffTitleV156C`. The live title game unlocks it on the spot (`finishWeekGame`
+   *      calls `uffTitleGameV156C`) with the moment "🏆 UFF CHAMPIONS — 4× UNLOCKED"; a title won any other way
+   *      (a ring minted at the season's end) is found by `uffGatesSyncV156C`, which src/29's 1.5 s observer calls.
+   * Both flags are ACCOUNT-WIDE progress in the save (like `bestLevel`) — not entitlements. Grandfathered on the
+   * first sync: a save whose record already shows a finished UFF season (a log row, a Hall box row) keeps 3×; one
+   * with a UFF ring (`menuGoalV153D`: log rows, Hall rows, `state.rings`, position mastery) or the
+   * `dflMvpTitle` challenge keeps 4×. Kill switch: TU("v156Cspeed", 0) restores v151 A's rule. Hoisted (v140). */
+  function speedGateOnV156C() {
+    return !!TU("v156Cspeed", 1);
+  }
+  function speedTextV156C(kind, s) {
+    if (kind === "why") return s >= 4 ? "Win the UFF championship" : "Finish a full UFF season";
+    return s >= 4
+      ? "4× unlocks by winning the UFF championship (or with membership)"
+      : "3× unlocks after a full UFF season";
+  }
+  // a finished UFF season anywhere in the record this save still holds
+  function uffSeasonInRecordV156C() {
+    const hit = rows => (rows || []).some(r => r && (r.level | 0) >= 7);
+    const e = state && state.player;
+    if (e && hit(e.seasonLogV77)) return !0;
+    return ((state && state.hof) || []).some(h => h && h.box && hit(h.box.log));
+  }
+  function uffTitleInRecordV156C() {
+    if (state && state.challenges && state.challenges.dflMvpTitle) return !0;
+    try {
+      return menuGoalV153D().uff > 0;
+    } catch (_) {
+      return !1;
+    }
+  }
+  function uffGatesSyncV156C(force) {
+    if (!state || typeof state !== "object") return;
+    const now = Date.now();
+    if (!force && uffGatesSyncV156C.st === state && now - (uffGatesSyncV156C.at || 0) < 400) return;
+    uffGatesSyncV156C.at = now;
+    uffGatesSyncV156C.st = state;
+    const first = !state.gatesV156C,
+      e = state.player;
+    if (!state.uffSeasonV156C && uffSeasonInRecordV156C()) {
+      state.uffSeasonV156C = { at: now, how: first ? "grandfather" : "season", season: e ? e.totalSeasons | 0 : 0 };
+      first || uffMomentV156C("🏈 A FULL UFF SEASON — 3× UNLOCKED", "You survived the league. 3× play speed is yours for good.");
+    }
+    if (!state.uffTitleV156C && uffTitleInRecordV156C()) {
+      state.uffTitleV156C = { at: now, how: first ? "grandfather" : "ring", season: e ? e.totalSeasons | 0 : 0 };
+      first || uffMomentV156C("🏆 UFF CHAMPIONS — 4× UNLOCKED", "You won the UFF championship. 4× play speed is yours for good.");
+    }
+    first && (state.gatesV156C = now);
+  }
+  function uffSeasonDoneV156C() {
+    state && !state.uffSeasonV156C && uffGatesSyncV156C();
+    return !!(state && state.uffSeasonV156C);
+  }
+  function uffTitleWonV156C() {
+    state && !state.uffTitleV156C && uffGatesSyncV156C();
+    return !!(state && state.uffTitleV156C);
+  }
+  // the week just booked: was it the UFF (or Interstellar) title game, and did he win it?
+  function uffTitleGameV156C(e, w) {
+    try {
+      if (!speedGateOnV156C() || !e || !w || !w.playoff || !w.won || (e.level | 0) < 7) return !1;
+      const rounds = playoffRoundNames(e.level);
+      if (!rounds.length || (w.roundIdx != null ? w.roundIdx !== rounds.length - 1 : w.round !== rounds[rounds.length - 1]))
+        return !1;
+      state.gatesV156C || (state.gatesV156C = Date.now());
+      if (state.uffTitleV156C) return !0;
+      state.uffTitleV156C = { at: Date.now(), how: "game", season: e.totalSeasons | 0, level: e.level | 0, grade: w.gameGrade || w._gameGrade || "" };
+      uffMomentV156C("🏆 UFF CHAMPIONS — 4× UNLOCKED", "You won the " + (rounds[rounds.length - 1] || "title game") + ". 4× play speed is yours for good.");
+      return !0;
+    } catch (_) {
+      return !1;
+    }
+  }
+  // the moment: a toast and a banner over whatever screen comes next (it never takes a tap)
+  function uffMomentV156C(title, line) {
+    try {
+      window.__V156C && (window.__V156C.lastMoment = title);
+      typeof document < "u" && byId("toast") && showToast(title);
+      if (typeof document === "undefined" || !document.body) return;
+      const old = document.getElementById("uffMomentV156C");
+      old && old.remove();
+      const d = document.createElement("div");
+      d.id = "uffMomentV156C";
+      d.setAttribute("role", "status");
+      d.style.cssText =
+        "position:fixed;left:50%;top:16%;transform:translateX(-50%);z-index:9000;pointer-events:none;max-width:min(92vw,380px);" +
+        "padding:14px 18px;border-radius:14px;border:2px solid var(--gold,#f0bb45);text-align:center;" +
+        "background:linear-gradient(180deg,rgba(240,187,69,.28),rgba(12,16,24,.96));box-shadow:0 12px 40px rgba(0,0,0,.6),0 0 30px rgba(240,187,69,.35)";
+      d.innerHTML =
+        `<div style="font-family:Oswald,sans-serif;font-weight:700;font-size:19px;letter-spacing:1px;color:var(--gold,#f0bb45)">${escHtml(title)}</div>` +
+        `<div style="font-size:12px;margin-top:4px;color:#e8edf4">${escHtml(line || "")}</div>`;
+      document.body.appendChild(d);
+      setTimeout(() => d.remove(), TU("uffMomentMsV156C", 6500));
+    } catch (_) {}
+  }
+  window.__V156C = Object.assign(window.__V156C || {}, {
+    sync: uffGatesSyncV156C,
+    titleGame: uffTitleGameV156C,
+    uffSeason: uffSeasonDoneV156C,
+    uffTitle: uffTitleWonV156C,
+    speedText: speedTextV156C
+  });
   function completeChallenges(e) {
     state.challenges || (state.challenges = {});
     let t = 0;
@@ -20219,6 +20339,7 @@
       w.played = !0;
       const g = state._liveGame;
       g && g.usScore != null && g.plays && bookLiveGameV85(e, w, g);
+      uffTitleGameV156C(e, w) /* v156 C: winning the UFF title game unlocks 4× */;
     }
     ((state._oppName = null), goView("season"));
   }
