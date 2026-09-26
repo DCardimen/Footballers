@@ -939,6 +939,143 @@
     (document.head || document.documentElement).appendChild(st);
   })();
 
+  /* ===== v157 C ONE FACE EVERYWHERE =====
+   * (the medal side) Two asks from the owner.
+   *   "Remove the circling light in the legacy box for the medal." The profile card's medal box ran a conic light round
+   *   and round behind the medal (`.pc-medal-v152::before`, lgSpinV152 5s) — gone; the box keeps its steady glow in
+   *   the medal's colour. The medal's own turning rays (tiers 9-10, `.lgt-8/.lgt-9::before`) hold still inside the two
+   *   medal BOXES (the profile card's and the main menu's) — the glow stays, the rotation goes. The trophy case, the
+   *   book and the milestone ceremony are untouched. TU("v157Cmedal", 0) brings both back.
+   *   "When you click on your medal, give a % you are." Tapping the medal — the profile card's medal box, the main
+   *   menu's medal, the trophy case's medal — opens a small card: the medal, its name, the rank, the tier, the colour,
+   *   and "Only ≈X% of players have reached this medal". There is no online backend yet (docs/LEADERBOARDS.md §5), so X
+   *   comes from a DOCUMENTED MODEL of the player population (`shareModelV157C`): a rank is turned into the number of
+   *   full careers it takes (the pacing the XP curve was tuned to — docs/LEADERBOARDS.md), and the share of players
+   *   who play that many careers follows a Pareto-type survival, S(c) = (1 + c / c0)^-α (c0 1, α 1.7 — TU). Rank 1 is
+   *   everyone; the curve falls monotonically to < 0.01% at rank 500 and keeps falling through the Legacy Levels. When
+   *   a real board is configured (`window.__LB_CONFIG.careerUrl`), `share(rank)` asks it
+   *   (GET <careerUrl>/legacy/share?rank=N → { players, reached }) and the card shows the live number instead
+   *   (`window.__LEGACY_SHARE_V157C(rank)` may also answer, a number or a promise of one). `RIB_LEGACY.share`. */
+  var SH157 = (window.__V157C_LG = window.__V157C_LG || { cards: 0, last: null, live: {} });
+  var TU31 = function (k, d) { try { return typeof TU === "function" ? TU(k, d) : d; } catch (e) { return d; } };
+  /* careers it takes to reach a rank (the pacing anchors: a first career ≈ rank 16, rank 50 ≈ 3 careers that reach the
+   * UFF, 100 ≈ 10, 200 ≈ 45, 300 ≈ 110, 500 ≈ 330), interpolated in log(XP) × log(careers) on the real XP curve */
+  var ANCH_V157C = [[16, 1], [50, 3], [100, 10], [200, 45], [300, 110], [500, 330]];
+  function xpAtV157C(r) { var X = A(); try { if (X && X.xpAt) return X.xpAt(r); } catch (e) {} var x = 0; for (var i = 1; i < r; i++) x += Math.round((50 + 12.5 * Math.pow(i, 1.2)) / 10) * 10; return x; }
+  function careersAtV157C(rank) {
+    rank = Math.max(1, Math.floor(+rank || 1));
+    if (rank <= 1) return 0;
+    var xp = xpAtV157C(rank), P = ANCH_V157C.map(function (a) { return [xpAtV157C(a[0]), a[1]]; });
+    if (xp <= P[0][0]) return P[0][1] * xp / P[0][0];            // the first career: straight up from nothing
+    for (var i = 1; i < P.length; i++) if (xp <= P[i][0]) {
+      var t = (Math.log(xp) - Math.log(P[i - 1][0])) / (Math.log(P[i][0]) - Math.log(P[i - 1][0]));
+      return Math.exp(Math.log(P[i - 1][1]) + t * (Math.log(P[i][1]) - Math.log(P[i - 1][1])));
+    }
+    var a = P[P.length - 2], b = P[P.length - 1], sl = (Math.log(b[1]) - Math.log(a[1])) / (Math.log(b[0]) - Math.log(a[0]));   // past 500: the last slope runs on
+    return Math.exp(Math.log(b[1]) + sl * (Math.log(xp) - Math.log(b[0])));
+  }
+  function shareModelV157C(rank) {
+    var c = careersAtV157C(rank), c0 = TU31("legacyShareC0V157C", 1), al = TU31("legacyShareAlphaV157C", 1.7);
+    return 100 * Math.pow(1 + c / c0, -al);
+  }
+  function fmtShareV157C(p) {
+    if (!(p >= 0)) return "—";
+    if (p >= 99.95) return "100%";
+    if (p >= 10) return Math.round(p) + "%";
+    if (p >= 1) return p.toFixed(1).replace(/\.0$/, "") + "%";
+    if (p >= 0.001) { var d = Math.max(2, 1 - Math.floor(Math.log10(p))); return p.toFixed(Math.min(4, d)).replace(/0+$/, "").replace(/\.$/, "") + "%"; }
+    return "<0.001%";
+  }
+  function shareV157C(rank) {
+    rank = Math.max(1, Math.floor(+rank || 1));
+    var model = shareModelV157C(rank), out = { rank: rank, pct: model, source: "model", approx: true, text: fmtShareV157C(model) };
+    var hit = SH157.live[rank]; if (hit != null) return { rank: rank, pct: hit, source: "live", approx: false, text: fmtShareV157C(hit) };
+    return out;
+  }
+  function shareLiveV157C(rank) {
+    try {
+      var hook = window.__LEGACY_SHARE_V157C;
+      if (typeof hook === "function") return Promise.resolve(hook(rank)).then(function (v) { v = +v; if (isFinite(v) && v >= 0) { SH157.live[rank] = Math.min(100, v); return shareV157C(rank); } return null; }).catch(function () { return null; });
+      var cfg = window.__LB_CONFIG; if (!cfg || !cfg.careerUrl || typeof fetch !== "function") return Promise.resolve(null);
+      return fetch(String(cfg.careerUrl).replace(/\/+$/, "") + "/legacy/share?rank=" + rank).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+        if (!j || !(+j.players > 0)) return null;
+        SH157.live[rank] = Math.max(0, Math.min(100, (100 * +j.reached) / +j.players)); return shareV157C(rank);
+      }).catch(function () { return null; });
+    } catch (e) { return Promise.resolve(null); }
+  }
+  function catOfV157C(r) { var C = MEDALS.cats || [], x = clampRank(r); for (var i = 0; i < C.length; i++) if (x >= C[i].from && x <= C[i].to) return C[i]; return C[C.length - 1] || null; }
+  function sentenceV157C(S) {
+    if (S.rank <= 1) return "Every player starts here — <b>100%</b> of players have this medal.";
+    return (S.pct >= 50 ? "" : "Only ") + (S.approx ? "≈" : "") + "<b>" + esc(S.text) + "</b> of players have reached this medal.";
+  }
+  function shareCardV157C(rank) {
+    try {
+      var g = ledger(), mine = g ? g.R.rank : 1;
+      rank = Math.max(1, Math.floor(+rank || mine)); var m = clampRank(rank), S = shareV157C(rank), cat = catOfV157C(m);
+      var old = document.querySelector(".lgs-v157c"); if (old) old.remove();
+      var o = document.createElement("div"); o.className = "lgs-v157c"; o.setAttribute("role", "dialog"); o.setAttribute("aria-modal", "true");
+      var onProfile = (function () { var st = gstate(); return !!(st && st.view === "profile"); })();
+      o.innerHTML = '<div class="lgs-in" style="--lgg:' + glow(m) + ";--tint:" + ((cat && cat.tint) || "#e8c86a") + '">' +
+        '<div class="lgs-slot">' + medalHtml(m, 112, { title: false }) + "</div>" +
+        '<div class="lgs-name">' + esc(name(m)) + "</div>" +
+        '<div class="lgs-meta"><span>LEGACY ' + (rank > 500 ? "LV " + fmt(rank) : "RANK " + rank) + "</span><span>" + esc(tierName(m)) + "</span>" + (cat ? '<span class="lgs-cat"><i></i>' + esc(cat.name) + "</span>" : "") + "</div>" +
+        '<div class="lgs-pct" data-src="' + S.source + '"><b class="lgs-top">' + (S.rank <= 1 ? "EVERY PLAYER" : "TOP " + (S.approx ? "≈" : "") + esc(S.text)) + '</b><div class="lgs-txt">' + sentenceV157C(S) + "</div>" +
+        '<small class="lgs-src">' + (S.source === "live" ? "Live from the league's boards" : "Estimated from how far players climb — live numbers arrive with the online boards") + "</small></div>" +
+        '<div class="lgs-btns">' + (onProfile && document.querySelector(".lgk-slot") && document.querySelector(".lgk-slot").getClientRects().length ? "" : '<button type="button" class="btn secondary lgs-case">TROPHY CASE</button>') + '<button type="button" class="btn lgs-ok">CLOSE</button></div></div>';
+      document.body.appendChild(o);
+      var close = function () { o.remove(); };
+      o.querySelector(".lgs-ok").onclick = close;
+      var cs = o.querySelector(".lgs-case"); if (cs) cs.onclick = function () { close(); var t = onProfile && document.querySelector('.hubv75-tab[data-sec="case"]'); if (t) t.click(); else openProfile(); };
+      o.addEventListener("click", function (ev) { if (ev.target === o) close(); });
+      SH157.cards++; SH157.last = { rank: rank, pct: S.pct, text: S.text, source: S.source, cat: cat && cat.key };
+      shareLiveV157C(rank).then(function (L) {
+        if (!L || !o.isConnected) return;
+        var p = o.querySelector(".lgs-pct"); if (!p) return;
+        p.dataset.src = "live"; p.querySelector(".lgs-top").textContent = rank <= 1 ? "EVERY PLAYER" : "TOP " + L.text;
+        p.querySelector(".lgs-txt").innerHTML = sentenceV157C(L); p.querySelector(".lgs-src").textContent = "Live from the league's boards";
+        SH157.last = { rank: rank, pct: L.pct, text: L.text, source: "live", cat: cat && cat.key };
+      });
+      if (!reduced() && o.animate) { var inr = o.querySelector(".lgs-in"); if (inr && inr.animate) inr.animate([{ transform: "scale(.85)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 240, easing: "cubic-bezier(.2,.8,.3,1)" }); }
+      sfx("clink", 1.2);
+      return o;
+    } catch (e) { UI.errors.push(String(e && e.message || e)); return null; }
+  }
+  /* the taps: the profile's medal box, the main menu's medal, the trophy case's medal (capture phase: the box's own
+   * tap — the trophy case tab / the menu's "open the profile" — does not also fire; window, not document: the baked menu
+   * routes its taps in the document's capture phase) */
+  window.addEventListener("click", function (ev) {   // window, capture: ahead of the baked menu's own document-capture router
+    try {
+      if (!TU31("v157Cmedal", 1) || !ev.target || !ev.target.closest) return;
+      var hit = ev.target.closest(".pc-medal-v152, .rib9-medalbox-v153d .lgbox-stage, .lgk-slot");
+      if (!hit) return;
+      var g = ledger(); if (!g) return;
+      ev.stopPropagation(); ev.preventDefault();
+      shareCardV157C(g.R.rank);
+    } catch (e) {}
+  }, true);
+  (function () {
+    if (document.getElementById("lgcss-v157c")) return;
+    var st = document.createElement("style"); st.id = "lgcss-v157c";
+    st.textContent = [
+      "html:not(.lg-spin-v157c) .pc-medal-v152::before{display:none!important;animation:none!important}",
+      "html:not(.lg-spin-v157c) .pc-medal-v152 .lg-medal-v152::before,html:not(.lg-spin-v157c) .rib9-medalbox-v153d .lg-medal-v152::before{animation:none!important}",
+      ".pc-medal-v152,.rib9-medalbox-v153d .lgbox-stage,.lgk-slot{cursor:pointer}",
+      ".lgs-v157c{position:fixed;inset:0;z-index:9100;display:grid;place-items:center;padding:16px;background:rgba(3,5,9,.78);backdrop-filter:blur(2px)}",
+      ".lgs-in{width:min(320px,100%);padding:16px 14px 14px;border-radius:16px;text-align:center;color:#e8eef6;font-family:Oswald,sans-serif;border:1.5px solid color-mix(in srgb,var(--tint) 70%,#f0bb45);background:radial-gradient(90% 60% at 50% 18%,color-mix(in srgb,var(--lgg) 30%,transparent),#0b1018 72%);box-shadow:0 0 26px color-mix(in srgb,var(--lgg) 35%,transparent),0 14px 30px rgba(0,0,0,.6)}",
+      ".lgs-slot{display:grid;place-items:center;height:120px}",
+      ".lgs-name{font:700 19px Oswald,sans-serif;letter-spacing:1px;color:#fff3c4;margin-top:4px}",
+      ".lgs-meta{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin-top:6px}.lgs-meta span{font:600 10px Oswald,sans-serif;letter-spacing:1.4px;padding:2px 7px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#c9d2de}",
+      ".lgs-cat i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px;background:var(--tint);box-shadow:0 0 6px var(--tint)}",
+      ".lgs-pct{margin-top:12px;padding:10px 8px;border-radius:12px;background:rgba(0,0,0,.35);border:1px solid color-mix(in srgb,var(--tint) 45%,transparent)}",
+      ".lgs-top{display:block;font:700 30px/1 Oswald,sans-serif;letter-spacing:1px;color:#ffd76f;text-shadow:0 0 14px color-mix(in srgb,var(--lgg) 60%,transparent)}",
+      ".lgs-txt{font:500 13px 'Barlow Condensed',sans-serif;color:#dfe6ef;margin-top:5px}.lgs-txt b{color:#fff}",
+      ".lgs-src{display:block;font:400 10px 'Barlow Condensed',sans-serif;color:#8fa2bb;margin-top:5px}",
+      ".lgs-btns{display:flex;gap:8px;margin-top:12px}.lgs-btns .btn{flex:1;margin:0}"
+    ].join("\n");
+    (document.head || document.documentElement).appendChild(st);
+    try { if (!TU31("v157Cmedal", 1)) document.documentElement.classList.add("lg-spin-v157c"); } catch (e) {}
+  })();
+
   /* ---------------- the API + the watch ---------------- */
   window.RIB_LEGACY = {
     version: "v152a", medals: MEDALS,
@@ -946,6 +1083,7 @@
     cardHtml: cardHtml, swapMedal: swapMedal, pour: pour, awarded: awarded,
     milestone: function (m) { milestone(m, [m], A() ? A().bounty(m) : 0); }, rank500: function () { rank500(A() ? A().bounty(500) : 0); },
     ledger: ledger, decorateProfile: decorateProfile, refresh: identity, menuBox: menuBox,
+    share: shareV157C, shareModel: shareModelV157C, careersAt: careersAtV157C, shareLive: shareLiveV157C, shareCard: shareCardV157C, fmtShare: fmtShareV157C,   // v157 C
     _resetSeen: function () { try { localStorage.removeItem(SEEN_KEY); } catch (e) {} }
   };
   var queued = 0;

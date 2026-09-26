@@ -210,6 +210,7 @@
     try {
       if (!rw || !/^pass\.[A-Za-z0-9_-]+\.(free|premium)\.\d+$/.test(String(rw.id || ""))) return null;
       if (BY[rw.id]) return BY[rw.id];
+      rw = gfIconV157C(rw);   // v157 C: a pass icon he already owned stays an icon
       var cat = PASS_CAT[rw.kind]; if (!cat) return null;
       var h = hsh(rw.id), c1 = hslHex(h % 360, 0.62, 0.42), c2 = hslHex((h >>> 9) % 360, 0.72, 0.62), rr = /^(common|rare|epic|legendary|mythic)$/.test(rw.rarity) ? rw.rarity : "common";
       var it = { id: rw.id, cat: cat, name: String(rw.name || "Pass reward").replace(/[<>]/g, "").slice(0, 40), rarity: rr, source: "pass", tier: rw.tier | 0, track: rw.track === "premium" ? "premium" : "free", season: String(rw.season || "").slice(0, 12), packs: [], passKind: rw.kind };
@@ -655,6 +656,7 @@
     else if (cat === "shelf") html = '<div class="cos-shelf-v151b sh-' + it.css + '"><span>🏆</span><span>🏅</span><span>💍</span></div>';
     else if (cat === "recap") html = '<div class="cos-rcp-v151b rc-' + (it.css || "none") + '"><b>A</b><i></i><i></i></div>';
     else if (cat === "title") html = '<div class="cos-flair-v151b"><small>' + escHtml(it.text || "—") + "</small></div>";
+    else if (cat === "icon" && it.v157) return previewIconV157C(el, it);   // v157 C
     else if (cat === "badge" || cat === "icon") html = '<div class="cos-flair-v151b big"' + (it.col ? ' style="box-shadow:0 0 0 2px ' + it.col + ' inset"' : "") + ">" + escHtml(it.glyph || "·") + "</div>";
     else if (cat === "nameplate") html = '<div class="cos-flair-v151b plate" style="background:' + (it.plate || "#1a2230") + '"><small>NAME</small></div>';
     else if (FLAIR_CATS_V153G[cat]) return previewFlairV153G(el, it);   // v153 G: trail, wings, crown, aura, number font
@@ -773,17 +775,17 @@
     x.drawImage(c, 0, neck, SW, bodyRows, bx, by, bw, bh);
     var hk = k * stg.head, hw = SW * hk * Math.sqrt(stg.width), hh = headRows * hk;
     x.drawImage(c, 0, top, SW, headRows, (W - hw) / 2, by + k * ink * 0.012 - hh, hw, hh);
-    return { mode: "hi", stage: stg, k: +k.toFixed(3), v153: true };
+    return { mode: "hi", stage: stg, k: +k.toFixed(3), v153: true, geo: { bx: bx, by: by, bw: bw, bh: bh, k: k, neck: neck, dpr: dpr } };   // v157 C: where the body went (the chest number)
   }
-  function drawCharacter(cv, kd, age) {
+  function drawCharacter(cv, kd, age, opts) {
     var k = kitFromData(kd), res = null;
     var K = { j: k.U.j, p: k.U.p, t: k.U.t, pat: k.U.pat, hs: k.H ? k.H.s : null, hst: k.H ? k.H.st : null, hf: k.H ? k.H.f : null };
     try {
       figLoad();
       res = figDraw(cv, age || 22, K);
-      if (res) { FIG.drawn++; FIG.last = K; return res; }
+      if (res) { FIG.drawn++; FIG.last = K; if (opts) res.num = chestNumberV157C(cv, res, opts.num, opts.numfont); return res; }   // v157 C: his number on the chest
       // the art is still on its way: the growth screen's figure now, the card's own the moment it lands
-      if (cv && !cv.__v153wait) { cv.__v153wait = 1; FIG.waiting.push(function () { cv.__v153wait = 0; if (cv.isConnected) drawCharacter(cv, kd, age); }); }
+      if (cv && !cv.__v153wait) { cv.__v153wait = 1; FIG.waiting.push(function () { cv.__v153wait = 0; if (cv.isConnected) drawCharacter(cv, kd, age, opts); }); }
       var G = window.__GROW_V132; if (!cv || !G || !G.draw) return null;
       res = G.draw(cv, age || 22, [k.U.j, k.U.p]);
     } catch (e) { V.charErr = String(e && e.message || e); }
@@ -802,7 +804,7 @@
     return {
       v: 1,
       name: String((e && e.name) || (A.surname ? "The " + A.surname + " line" : "Rookie")).slice(0, 40),
-      pos: e ? String(e.pos || "") : "", level: e ? e.level || 0 : null, levelName: e ? levelName(e.level || 0) : "", age: e ? e.age || null : null, ovr: ovr,
+      pos: e ? String(e.pos || "") : "", num: e ? jerseyNumV157C(e.pos) : null /* v157 C */, level: e ? e.level || 0 : null, levelName: e ? levelName(e.level || 0) : "", age: e ? e.age || null : null, ovr: ovr,
       team: { school: String(tc.schoolName || "").slice(0, 24), name: String(tc.teamName || "").slice(0, 18), colors: Array.isArray(tc.col) ? tc.col.slice(0, 2).filter(hexOk) : [], logo: tc.logo != null ? tc.logo | 0 : null },
       club: e && e.clubV146B ? String(e.clubV146B.name || e.clubV146B || "").slice(0, 40) : "",
       careers: A.careers, bank: { pp: A.pp, honors: A.honors, medals: A.medals },
@@ -832,7 +834,7 @@
     var team = [t.school, t.name].filter(Boolean).join(" ");
     var html = '<div class="pcard-v151b fr-' + escHtml(fr.css) + (compact ? " compact" : "") + '" data-frame="' + escHtml(fr.id) + '">' +
       '<div class="pc-ban-v151b" style="background:' + bn.bg + (bn.edge ? ";border-bottom:2px solid " + bn.edge : "") + '" data-banner="' + escHtml(bn.id) + '">' +
-      (ico && ico.glyph ? '<span class="pc-ico-v151b" style="box-shadow:0 0 0 2px ' + (ico.col || "#f0bb45") + ' inset" data-icon="' + escHtml(ico.id) + '">' + escHtml(ico.glyph) + "</span>" : "") +
+      (ico && ico.glyph ? '<span class="pc-ico-v151b' + (ico.v157 ? " ico157" : "") + '" style="' + iconStyleV157C(ico) + '" data-icon="' + escHtml(ico.id) + '">' + iconInnerV157C(ico) + "</span>" : "") +   // v157 C: an earned icon is its own badge
       (d.gen > 1 ? '<span class="pc-gen-v151b' + (ico && ico.glyph ? " shift" : "") + '">GEN ' + (d.gen | 0) + "</span>" : "") +
       (bdg && bdg.glyph ? '<span class="pc-bdg-v151b" data-badge="' + escHtml(bdg.id) + '">' + escHtml(bdg.glyph) + "</span>" : "") + (d.ovr != null ? '<span class="pc-ovr-v151b"><b>' + (d.ovr | 0) + "</b>OVR</span>" : "") + "</div>" +
       '<div class="pc-body-v151b"><div class="pc-fig-v151b"><canvas class="pc-cv-v151b" width="128" height="160"></canvas></div>' +
@@ -850,7 +852,7 @@
     if (el) {
       el.innerHTML = html;
       var cv = el.querySelector(".pc-cv-v151b");
-      var draw = function () { var r = drawCharacter(cv, cz.kit || {}, d.age || 22); if (r && r.mode !== "hi" && !draw._again) { draw._again = 1; setTimeout(draw, 700); } };
+      var draw = function () { var r = drawCharacter(cv, cz.kit || {}, d.age || 22, { num: d.num != null ? d.num : jerseyNumV157C(d.pos), numfont: cz.numfont }); if (r && r.mode !== "hi" && !draw._again) { draw._again = 1; setTimeout(draw, 700); } };
       if (cv) draw();
       if (cv) cardFlairV153G(cv, cz);   // v153 G: aura + wings behind the figure, the crown on his head (its own layers)
     }
@@ -1600,7 +1602,7 @@
     if (!N) { var o = m._nfOrigV153G; if (o) { try { L.setFontFamily(o.f); L.setColor(o.c); L.setStroke(o.s, o.w); } catch (e) {} m._nfOrigV153G = null; m._nfKeyV153G = null; } return; }
     var st = L.style; if (m._nfKeyV153G === N.id && st.fontFamily === N.d.font && st.color === N.d.col) return;
     if (!m._nfOrigV153G) m._nfOrigV153G = { f: st.fontFamily, c: st.color, s: st.stroke, w: st.strokeThickness };
-    L.setFontFamily(N.d.font); L.setColor(N.d.col); L.setStroke(N.d.stroke, Math.max(2, st.strokeThickness || 2.2));
+    L.setFontFamily(N.d.font); L.setColor(N.d.col); L.setStroke(N.d.stroke, Math.max(onV157C("v157Cfig") ? TUv("nfStrokeV157C", 3.6) : 2, st.strokeThickness || 2.2));   // v157 C: a heavier outline reads at broadcast size
     m._nfKeyV153G = N.id; G153.fx.numfont++;
   }
   function hookSceneV153G(scene) {
@@ -1615,6 +1617,7 @@
     try {
       if (!m || !m.root || !scene || !scene.add) return false;
       var F = m.team === "you" ? flairV153G() : NO_FLAIR;
+      if (!F.any && m.team === "you") fieldNumV157C(m, null);   // v157 C: learn the number he wears
       if (!F.any) { if (m._cosV153G) clearFxV153G(scene, m); return false; }
       m._cosV153G = 1; G153.fx.frames++;
       var now = scene.time ? scene.time.now : 0, s = m.root.scale || 1, b = m.body;
@@ -1658,6 +1661,7 @@
         G153.fx.crown++;
       } else dropV153G(m, "_crV153G");
       numfontFxV153G(m, F.numfont);
+      fieldNumV157C(m, F.numfont);   // v157 C: his number, bigger, in the font
       // the footprints: world space, under every player
       if (F.trail && G153.freeze) { /* a check holds the drawn footprints still */ }
       else if (F.trail) {
@@ -1757,7 +1761,7 @@
       if (it.cat === "numfont") {
         var tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"], nf = it.nf || { font: "Oswald, sans-serif", col: "#ffffff", stroke: "#0a0e14" };
         x.fillStyle = hexOk(tc[0]) || "#1f4fd0"; x.beginPath(); x.moveTo(14, 12); x.lineTo(24, 8); x.lineTo(40, 8); x.lineTo(50, 12); x.lineTo(50, 58); x.lineTo(14, 58); x.closePath(); x.fill();
-        x.font = "bold 26px " + nf.font; x.textAlign = "center"; x.textBaseline = "middle"; x.lineWidth = 3; x.strokeStyle = nf.stroke; x.strokeText("23", 32, 35); x.fillStyle = nf.col; x.fillText("23", 32, 35);
+        x.font = "bold 26px " + nf.font; x.textAlign = "center"; x.textBaseline = "middle"; x.lineWidth = 3; x.strokeStyle = nf.stroke; var nn = String(jerseyNumV157C((gstate() || {}).player && gstate().player.pos) || 23); x.strokeText(nn, 32, 35); x.fillStyle = nf.col; x.fillText(nn, 32, 35);   // v157 C: his own number
       } else {
         var F = { trail: it.tr ? { id: it.id, d: it.tr } : null, wings: it.w ? { id: it.id, d: it.w } : null, crown: it.cr ? { id: it.id, d: it.cr } : null, aura: it.au ? { id: it.id, d: it.au } : null };
         var fig = figV153G(34), fx0 = F.trail ? 26 : 15, fy0 = 64 - fig.height - 2, geo = inkGeoV153G(fig, fx0, fy0) || { top: fy0, bot: 62, cx: fx0 + 17, h: 36 }, k = geo.h / 44;
@@ -3152,6 +3156,311 @@
     st.textContent = [
       ".pc-au-v157b{position:absolute;left:0;bottom:0;width:92px;height:143.75px;pointer-events:none;transform-origin:50% 100%}.pc-au-v157b.back{z-index:0}.pc-au-v157b.front{z-index:2}",
       ".pcard-v151b.compact .pc-au-v157b{width:70px;height:110px}"
+  /* ===== v157 C ONE FACE EVERYWHERE =====
+   * The owner: "Number fonts, I currently don't see those in the profile or live player" · "ensure the colors of the
+   * live profile player make sense" · "anything like the helmets to transfer to the profile page" · "the growth
+   * post-season character looks funny, ensure it looks the same as the profile picture" · "profile icons should be
+   * unlocked via gameplay and season challenges only — add a ton". One figure, drawn one way, everywhere he appears:
+   *   THE FIGURE   `drawFigureV157C(cv, age, face)` = v153 E's drawCharacter (his kit — the team's palette or the equipped
+   *                uniform — and the equipped helmet) + HIS NUMBER on the chest in the equipped number font. The profile
+   *                card, the year-older (growth) screen and the live screen's badge all call it with `faceV157C()`, so the
+   *                growth man IS the profile man (same pixels at the same age) — 07 `growOneFaceV157C` routes the growth
+   *                canvas here (TU "v157Cfig" 0 → the old growth recolour, no number). The number on the chest is the
+   *                one he wears on the field (`jerseyNumV157C`: the you-marker's own number once a live game has shown it,
+   *                else the slot table the field uses). Wings / crown / aura follow the figure onto the growth screen
+   *                through the card's own flair layers (`cardFlairV153G`), so every look the card shows, the growth
+   *                screen shows. Footprints are a motion effect on the field and stay there.
+   *   THE LIVE BADGE  the live screen's round position badge (`.watch-badge`, 07) wears his head-and-shoulders from the
+   *                same figure, ringed in his kit colours, the position on a tab — it was a gold ring on navy whatever
+   *                he wore. On the field his number, with a number font equipped, is drawn larger (TU nfScaleV157C) with
+   *                a heavier outline in the font's own colours (TU nfStrokeV157C) so the face and the colour read at
+   *                broadcast size; the eleven around him are untouched.
+   *   ICONS        profile icons are EARNED only: ~80 gameplay icons (titles at every level ×1/3/5/10, UFF rings,
+   *                Interstellar titles, League MVPs, a Legacy medal of every colour, generations, the UFF at each
+   *                position, rings at 3 / 9 positions, career touchdown and yardage records, the Hall, each super
+   *                challenge) and season-challenge icons (1 / 5 / 10 / 25 / 50 completed, a 20/20 season, six named
+   *                challenges — read from src/29 `challengeTotals`, nothing appended to its seeded POOL). The Career
+   *                Pass draws no icons any more (src/29 `passKindV157C`); a pass icon a device already owned keeps its
+   *                slot (`gfIconV157C`). Each icon is its own badge: a glyph on a two-colour disc with a tag.
+   * Looks only: nothing here reads or writes a number the sim uses or spends a Math.random draw. `window.__V157C`. */
+  var V157 = (window.__V157C = window.__V157C || { figs: 0, growth: 0, badges: 0, nums: {}, icons: 0, grants: [], errs: [] });
+  function onV157C(k) { return !!TUv(k, 1); }
+  function errV157C(e) { try { if (V157.errs.length < 8) V157.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  /* ---- his number: what the field puts on him (src/05 OFF_NUMS / DEF_NUMS by slot), learned live ---- */
+  var NUM_BY_POS_V157C = { QB: 12, RB: 24, WR: 80, TE: 87, OL: 74, DL: 91, LB: 54, CB: 21, S: 31, K: 3, P: 4 };
+  function jerseyNumV157C(pos) {
+    pos = String(pos || "").toUpperCase(); if (!pos) return null;
+    var n = V157.nums[pos]; if (n != null) return n;
+    return NUM_BY_POS_V157C[pos] != null ? NUM_BY_POS_V157C[pos] : null;
+  }
+  function nfOfV157C(id) {
+    var it = id ? findItem(id) : null;
+    var nf = it && it.cat === "numfont" && it.nf ? it.nf : null;
+    return nf || { style: "team", font: "Oswald, Impact, 'Arial Black', sans-serif", col: "#ffffff", stroke: "#0a0e14" };
+  }
+  /* ---- the source art's chest (measured once off idle_dn_hi.png: the jersey rows between the neck and the waist) ---- */
+  var CHEST_V157C = null;
+  function chestV157C() {
+    if (CHEST_V157C) return CHEST_V157C;
+    var im = FIG.img; if (!im) return null;
+    try {
+      var W = im.naturalWidth, H = im.naturalHeight, c = document.createElement("canvas"); c.width = W; c.height = H;
+      var x = c.getContext("2d"); x.drawImage(im, 0, 0); var d = x.getImageData(0, 0, W, H).data;
+      var top = 3, neck = Math.round(top + (H - 6) * FIG.neck), waist = H;
+      for (var y0 = neck + 20; y0 < H; y0++) {
+        var nv = 0, gd = 0;
+        for (var x0 = 0; x0 < W; x0++) { var i0 = (y0 * W + x0) * 4; if (d[i0 + 3] < 20) continue; var c0 = srcClass(d[i0], d[i0 + 1], d[i0 + 2])[0]; if (c0 === 1) nv++; else if (c0 === 2) gd++; }
+        if (gd > 12 && gd > nv * 1.5) { waist = y0; break; }
+      }
+      // the torso's navy run on the chest row (the arms are gold): its centre and width bound the numerals
+      var row = Math.round(neck + (waist - neck) * TUv("nfChestRowV157C", 0.5)), a0 = -1, a1 = -1, mid = W * 0.5;
+      for (var xx = 0; xx < W; xx++) { var ii = (row * W + xx) * 4; if (d[ii + 3] >= 20 && srcClass(d[ii], d[ii + 1], d[ii + 2])[0] === 1) { if (a0 < 0) a0 = xx; a1 = xx; } }
+      if (a0 >= 0) mid = (a0 + a1) / 2;
+      CHEST_V157C = { neck: neck, waist: waist, row: row, cx: mid, w: a0 >= 0 ? a1 - a0 : W * 0.4, W: W, H: H };
+    } catch (e) { errV157C(e); return null; }
+    return CHEST_V157C;
+  }
+  /* the number painted on the chest of a figure figDraw just drew (res.geo is where the body went) */
+  function chestNumberV157C(cv, res, num, nfId) {
+    if (!res || !res.geo || num == null || num === "" || !onV157C("v157Cfig")) return null;
+    var C = chestV157C(); if (!C) return null;
+    try {
+      var g = res.geo, x = cv.getContext("2d"), nf = nfOfV157C(nfId), s = String(num | 0);
+      var sx = g.bw / C.W, cx = g.bx + C.cx * sx, cy = g.by + (C.row - g.neck) * g.k;
+      var px = Math.max(8, (C.waist - C.neck) * g.k * TUv("nfChestHV157C", 0.58));
+      x.save(); x.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+      x.font = "bold " + px.toFixed(1) + "px " + nf.font; x.textAlign = "center"; x.textBaseline = "middle";
+      var w = x.measureText(s).width, maxW = C.w * sx * TUv("nfChestWV157C", 0.92);
+      if (w > maxW) { px = px * maxW / w; x.font = "bold " + px.toFixed(1) + "px " + nf.font; }
+      x.lineJoin = "round"; x.lineWidth = Math.max(1.4, px * TUv("nfChestStrokeV157C", 0.2)); x.strokeStyle = nf.stroke || "#0a0e14"; x.strokeText(s, cx, cy);
+      x.fillStyle = nf.col || "#ffffff"; x.fillText(s, cx, cy);
+      if (nf.style === "chrome" || nf.style === "gold" || nf.style === "founder") { x.globalAlpha = 0.35; x.fillStyle = "#ffffff"; x.fillText(s, cx - px * 0.04, cy - px * 0.06); }
+      if (nf.style === "neon") { x.globalAlpha = 0.5; x.shadowColor = nf.col; x.shadowBlur = px * 0.5; x.fillText(s, cx, cy); }
+      x.restore();
+      return { num: s, nf: nf.style, px: +px.toFixed(1), cx: +cx.toFixed(1), cy: +cy.toFixed(1) };
+    } catch (e) { errV157C(e); return null; }
+  }
+  /* ---- the face: everything the figure wears, read once (the card's profile() carries the same fields) ---- */
+  function faceV157C(st) {
+    st = st || gstate() || {};
+    var e = st.player || null;
+    return { kit: kitData(), numfont: equipped("numfont"), num: e ? jerseyNumV157C(e.pos) : null, pos: e ? e.pos : "", age: e ? e.age || 22 : 22,
+      wings: equipped("wings"), crown: equipped("crown"), aura: equipped("aura"), trail: equipped("trail"), helmet: equipped("helmet"), uniform: equipped("uniform") };
+  }
+  /* the one figure: null until the art is in (a caller keeps its own fallback until then) */
+  function drawFigureV157C(cv, age, face) {
+    face = face || faceV157C();
+    if (!FIG.img) { figLoad(); return null; }
+    var r = drawCharacter(cv, face.kit || {}, age || face.age || 22, { num: face.num, numfont: face.numfont });
+    if (r && r.mode === "hi") V157.figs++;
+    return r && r.mode === "hi" ? r : null;
+  }
+  /* ---- the growth screen (07 growDrawV133 → growOneFaceV157C → here): the same figure, and the flair layers ---- */
+  function growFigureV157C(cv, age) {
+    try {
+      if (!onV157C("v157Cfig")) return null;
+      var face = faceV157C(), r = drawFigureV157C(cv, age, face); if (!r) return null;
+      V157.growth++; V157.lastGrowth = { age: age, num: face.num, numfont: face.numfont, helmet: face.helmet };
+      setTimeout(function () {
+        try {
+          if (!cv.isConnected || cv.closest(".gw-ghost")) return;
+          var host = cv.parentNode; if (!host || host.classList.contains("gw-one-v157c")) return;
+          var wrap = document.createElement("div"); wrap.className = "gw-one-v157c"; host.insertBefore(wrap, cv); wrap.appendChild(cv);
+          cardFlairV153G(cv, { wings: face.wings, crown: face.crown, aura: face.aura });
+        } catch (e) { errV157C(e); }
+      }, 0);
+      return r;
+    } catch (e) { errV157C(e); return null; }
+  }
+  /* ---- the live screen's badge: his head and shoulders, ringed in his kit ---- */
+  function paintBadgeV157C(el) {
+    try {
+      if (!el || !onV157C("v157Cfig")) return false;
+      var face = faceV157C(), key = JSON.stringify([face.kit, face.num, face.numfont, face.age]);
+      if (el.dataset.fig157 === key) return true;
+      var src = document.createElement("canvas"), r = drawFigureV157C(src, face.age, face); if (!r) return false;
+      var S = 68, out = document.createElement("canvas"); out.width = S; out.height = S; out.className = "wb-fig-v157c";
+      var x = out.getContext("2d"), sw = src.width, sh = src.height;
+      x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+      x.drawImage(src, sw * 0.14, sh * 0.02, sw * 0.72, sh * 0.5, 0, 2, S, S * (0.5 / 0.72) * (sh / sw) * 1.0);
+      var pos = (el.textContent || face.pos || "").replace(/\s+/g, "").slice(0, 3);
+      el.innerHTML = ""; el.appendChild(out);
+      var tag = document.createElement("b"); tag.className = "wb-pos-v157c"; tag.textContent = pos; el.appendChild(tag);
+      el.classList.add("wb-v157c"); el.style.setProperty("--wb-j", face.kit.j); el.style.setProperty("--wb-p", face.kit.p);
+      el.dataset.fig157 = key; V157.badges++;
+      return true;
+    } catch (e) { errV157C(e); return false; }
+  }
+  var badgeQ = 0;
+  function badgeScanV157C() {
+    if (badgeQ) return; badgeQ = 1;
+    setTimeout(function () { badgeQ = 0; try { document.querySelectorAll(".watch-badge:not(.wb-v157c)").forEach(paintBadgeV157C); } catch (e) {} }, 60);
+  }
+  try { new MutationObserver(function () { if (document.querySelector(".watch-badge:not(.wb-v157c)")) badgeScanV157C(); }).observe(document.getElementById("screen") || document.body, { childList: true, subtree: true }); } catch (e) {}
+  /* ---- the field: his number, bigger and outlined in the font's colours (called from fieldFxV153G) ---- */
+  function fieldNumV157C(m, N) {
+    try {
+      if (!m || !m.label) return;
+      if (m.num != null && m.team === "you") { var ps = ""; try { var st = gstate(); ps = st && st.player ? String(st.player.pos || "").toUpperCase() : ""; } catch (e) {} if (ps && V157.nums[ps] !== (m.num | 0)) V157.nums[ps] = m.num | 0; }
+      if (!N || !onV157C("v157Cfig") || !m.label.visible) return;
+      var L = m.label, sc = m._numScaleV104 || L.scaleX || 1, k = TUv("nfScaleV157C", 1.35), b = m._numBandV104;
+      var bw = b && m.body ? b.w * Math.abs(m.body.scaleX || 1) * TUv("nfWidthV157C", 0.82) : 1e9, want = sc * k;
+      if (L.width * want > bw) want = Math.max(sc, bw / Math.max(1, L.width));
+      if (Math.abs(L.scaleX - want) > 1e-4) L.setScale(want);
+      V157.fieldNum = { font: L.style.fontFamily, col: L.style.color, scale: +want.toFixed(3), base: +sc.toFixed(3) };
+    } catch (e) { errV157C(e); }
+  }
+
+  /* ---- ICONS: earned in play and in season challenges, never bought ---- */
+  var LV_V157C = [[0, "Pee Wee", "PW", "🏈", "#6fbf4a"], [1, "Youth League", "YL", "⭐", "#4da6ff"], [2, "Middle School", "MS", "🎒", "#e0603b"], [3, "JV", "JV", "🥉", "#c07a45"],
+    [4, "Varsity", "VAR", "🏫", "#b3121f"], [5, "College", "COL", "🎓", "#3b1f7a"], [7, "The UFF", "UFF", "💍", "#d4af37"], [8, "Interstellar League", "ISL", "🪐", "#7a3aff"]];
+  var CNT_V157C = [[1, "#c07a45", "common"], [3, "#c9d1db", "rare"], [5, "#e8c24a", "epic"], [10, "#9fe6ff", "legendary"]];
+  var UP_V157C = { common: "rare", rare: "epic", epic: "legendary", legendary: "mythic", mythic: "mythic" };
+  var POSG_V157C = { QB: "🎯", RB: "🏃", WR: "🙌", TE: "🧤", OL: "🛡️", DL: "🦏", LB: "🔨", CB: "🔒", S: "🦅" };
+  var ICON_RULES_V157C = [];
+  function iconV157C(id, name, glyph, c1, c2, tag, rarity, desc, test) {
+    ICON_RULES_V157C.push({ id: id, name: name, glyph: glyph, col: c1, col2: c2, tag: tag, rarity: rarity, desc: desc, test: test });
+  }
+  (function buildIconsV157C() {
+    LV_V157C.forEach(function (L) {
+      CNT_V157C.forEach(function (C) {
+        var n = C[0], big = L[0] >= 7, what = L[0] === 7 ? "UFF championship" : L[0] === 8 ? "Interstellar championship" : L[1] + " championship";
+        iconV157C("ico_t" + L[0] + "_" + n, (n > 1 ? n + "× " : "") + L[1] + " Champion", L[3], C[1], L[4], L[2] + (n > 1 ? "×" + n : ""), big ? UP_V157C[C[2]] : C[2],
+          "Win " + (n > 1 ? n + " " + what + "s" : "a " + what) + " (across your careers)", function (I) { return (I.titles[L[0]] | 0) >= n; });
+      });
+    });
+    [[1, "rare"], [3, "epic"], [5, "legendary"]].forEach(function (m) {
+      iconV157C("ico_mvp_" + m[0], (m[0] > 1 ? m[0] + "× " : "") + "League MVP", "⭐", "#ffd76f", "#8a6414", "MVP" + (m[0] > 1 ? "×" + m[0] : ""), m[1],
+        "Be named League MVP (college or higher)" + (m[0] > 1 ? " " + m[0] + " times" : ""), function (I) { return I.mvps >= m[0]; });
+    });
+    var CATS = [{ key: "bronze", name: "BRONZE", tint: "#c07a45", from: 10 }, { key: "silver", name: "SILVER", tint: "#c9d1db", from: 60 }, { key: "gold", name: "GOLD", tint: "#e8c24a", from: 121 },
+      { key: "red", name: "RUBY", tint: "#e0434f", from: 202 }, { key: "blue", name: "SAPPHIRE", tint: "#3f7fe0", from: 267 }, { key: "green", name: "EMERALD", tint: "#2fbf6a", from: 285 },
+      { key: "purple", name: "AMETHYST", tint: "#a05ae0", from: 332 }, { key: "ice", name: "DIAMOND", tint: "#9fe6ff", from: 378 }, { key: "grand", name: "GRAND", tint: "#ffd86b", from: 444 }];
+    try { var MC = window.RIB_LEGACY && window.RIB_LEGACY.medals && window.RIB_LEGACY.medals.cats; if (MC && MC.length === CATS.length) CATS.forEach(function (c, i) { if (i > 0) c.from = MC[i].from; c.tint = MC[i].tint || c.tint; c.name = MC[i].name || c.name; }); } catch (e) {}
+    CATS.forEach(function (c, i) {
+      var rr = ["common", "common", "rare", "rare", "epic", "epic", "legendary", "legendary", "mythic"][i];
+      iconV157C("ico_lg_" + c.key, c.name.charAt(0) + c.name.slice(1).toLowerCase() + " Legacy", "🎖", c.tint, "#141a24", c.name.slice(0, 3), rr,
+        i === 0 ? "Reach Legacy rank " + c.from : "Earn your first " + c.name.toLowerCase() + " Legacy medal (rank " + c.from + ")", function (I) { return I.legacy >= c.from; });
+    });
+    [[2, "rare"], [3, "epic"], [5, "legendary"]].forEach(function (g) {
+      iconV157C("ico_gen_" + g[0], "Generation " + g[0], "🌳", "#5fae4a", "#3a2a0e", "G" + g[0], g[1], "Play as generation " + g[0] + " of your family", function (I) { return I.gen >= g[0]; });
+    });
+    Object.keys(POSG_V157C).forEach(function (p) {
+      iconV157C("ico_pos_" + p.toLowerCase(), p + " in the UFF", POSG_V157C[p], "#1f5fbf", "#0f2d5c", p, "rare", "Reach the UFF as a " + p, function (I) { return !!I.uffPos[p]; });
+    });
+    iconV157C("ico_ringpos_3", "Ringed at Three", "💍", "#e6c46a", "#3b1f7a", "3 POS", "epic", "Win a UFF ring at 3 different positions", function (I) { return I.ringPos >= 3; });
+    iconV157C("ico_ringpos_9", "Ringed Everywhere", "💍", "#fff3c4", "#2a1650", "9 POS", "mythic", "Win a UFF ring at all 9 positions", function (I) { return I.ringPos >= 9; });
+    [[25, "common"], [50, "rare"], [100, "epic"], [200, "legendary"]].forEach(function (t) {
+      iconV157C("ico_td_" + t[0], t[0] + " Touchdowns", "🔥", "#ff7a1a", "#3a1008", t[0] + " TD", t[1], "Score " + t[0] + " touchdowns in one career", function (I) { return I.tds >= t[0]; });
+    });
+    [[5000, "rare"], [10000, "epic"], [20000, "legendary"]].forEach(function (t) {
+      iconV157C("ico_yd_" + t[0], (t[0] / 1000) + ",000 Yards", "📏", "#18c3b8", "#0b2a28", (t[0] / 1000) + "K YD", t[1], "Gain " + t[0].toLocaleString("en-US") + " yards in one career", function (I) { return I.yds >= t[0]; });
+    });
+    iconV157C("ico_hof_1", "Enshrined", "🏛️", "#ece8df", "#5a4a2a", "HALL", "epic", "Enshrine a career that made the UFF in the Hall of Fame", function (I) { return I.hofWon >= 1; });
+    iconV157C("ico_hof_5", "The Wing", "🏛️", "#ffd76f", "#2a1d08", "HALL×5", "legendary", "Enshrine 5 careers that made the UFF", function (I) { return I.hofWon >= 5; });
+    [["ladder10", "📈", "#6fd3ff"], ["allPositions", "🪐", "#b9a6ff"], ["mvpInterstellar", "🌠", "#ff9ad5"], ["goldRush", "💰", "#ffd76f"], ["ultimate", "👑", "#ffe98a"]].forEach(function (s) {
+      var c = SUPER_V156C.filter(function (x) { return x.id === s[0]; })[0];
+      iconV157C("ico_super_" + s[0], (c ? c.name : s[0]), s[1], s[2], "#12051f", "SUPER", "mythic", "Super challenge: " + (c ? c.desc() : s[0]), function (I) { return !!I.superDone[s[0]]; });
+    });
+    [[1, "common"], [5, "rare"], [10, "epic"], [25, "legendary"], [50, "mythic"]].forEach(function (n) {
+      iconV157C("ico_sc_" + n[0], n[0] === 1 ? "Challenger" : n[0] + " Challenges", "✅", "#57e07a", "#0f3a26", n[0] + " SC", n[1], "Complete " + (n[0] === 1 ? "a season challenge" : n[0] + " season challenges (across seasons)"), function (I) { return I.sc.total >= n[0]; });
+    });
+    iconV157C("ico_sc_full", "Perfect Season", "🏅", "#ffd76f", "#0f3a26", "20/20", "legendary", "Complete all 20 season challenges in one season", function (I) { return I.sc.full >= 1; });
+    [["The Show", "🏟️", "#d4af37", "rare"], ["Three-Peat Energy", "🏆", "#e8c24a", "epic"], ["Like Father", "👨‍👦", "#5fae4a", "rare"], ["Creature of Habit", "📅", "#6fd3ff", "epic"],
+      ["Wrecking Crew", "💥", "#ff5a5a", "epic"], ["Yardage Machine", "🚀", "#18c3b8", "epic"]].forEach(function (c) {
+      iconV157C("ico_sc_" + c[0].toLowerCase().replace(/[^a-z]+/g, "_"), c[0], c[1], c[2], "#0b1a14", "SZN", c[3], "Complete the season challenge “" + c[0] + "”", function (I) { return (I.sc.byTitle[c[0]] | 0) >= 1; });
+    });
+  })();
+  ICON_RULES_V157C.forEach(function (r) {
+    var it = { id: r.id, cat: "icon", name: r.name, rarity: r.rarity, source: "earned", ach: "icon:" + r.id, glyph: r.glyph, col: r.col, col2: r.col2, tag: r.tag, v157: 1, packs: [] };
+    it.preview = function (el) { return previewInto(el, it); };
+    ACH_BY["icon:" + r.id] = { id: "icon:" + r.id, name: r.name, desc: r.desc, test: r.test };
+    ITEMS.push(it); BY[it.id] = it;
+  });
+  /* what the icons read: the account, every career the record keeps (the Hall's boxes + the live career, once), the
+   * positions mastered, the super challenges and the season challenges */
+  function yardsOfV157C(line) { var n = 0; if (line) for (var k in line) if (/Yds$/.test(k) && !isNaN(+line[k])) n += +line[k]; return n; }
+  function iconAccountV157C(st) {
+    st = st || gstate() || {};
+    var A = account(st), e = st.player || null, hof = Array.isArray(st.hof) ? st.hof : [];
+    var I = { titles: {}, mvps: A.leagueMvps | 0, legacy: A.legacyMedal | 0, gen: A.gen | 0, uffPos: {}, ringPos: 0, tds: A.bestTds | 0, yds: 0, hofWon: A.hofWon | 0, superDone: {}, sc: { total: 0, full: 0, byTitle: {} } };
+    var tally = function (rows, isObj) { var y = 0; (rows || []).forEach(function (r) { if (!r) return; if (r.champion) { var lv = r.level | 0; I.titles[lv] = (I.titles[lv] | 0) + 1; } y += yardsOfV157C(isObj ? r.statLine : r.line); }); I.yds = Math.max(I.yds, y); };
+    var tags = {};
+    hof.forEach(function (h) { if (!h) return; if (h.tagV154) tags[h.tagV154] = 1; if (h.box && h.box.log) tally(h.box.log, false); });
+    if (e && !(e._hofTagV154 && tags[e._hofTagV154])) tally(e.seasonLogV77, true);
+    // a UFF ring is a level-7 title (the account's own count is the floor)
+    I.titles[7] = Math.max(I.titles[7] | 0, A.uffTitles | 0);
+    I.titles[8] = Math.max(I.titles[8] | 0, A.interstellarTitles | 0);
+    var PM = st.posMastery || {}; Object.keys(PM).forEach(function (p) { var m = PM[p] || {}; if (m.nfl) I.uffPos[String(p).toUpperCase()] = 1; if (m.ring) I.ringPos++; });
+    try { var S = sload(); Object.keys(S.done || {}).forEach(function (k) { I.superDone[k] = 1; }); } catch (x) {}
+    try { var T = window.RIB_SEASONS && window.RIB_SEASONS.challengeTotals && window.RIB_SEASONS.challengeTotals(); if (T) I.sc = T; } catch (x) {}
+    return I;
+  }
+  function iconTickV157C(st) {
+    var got = [];
+    try {
+      var I = iconAccountV157C(st), S = load();
+      ICON_RULES_V157C.forEach(function (r) {
+        var hit = false; try { hit = !!r.test(I); } catch (x) {}
+        if (hit && !S.owned[r.id]) { grant(r.id, "earned"); got.push(r.id); }
+      });
+      V157.icons = ICON_RULES_V157C.length; V157.lastIcons = got; if (got.length) V157.grants = V157.grants.concat(got).slice(-40);
+    } catch (e) { errV157C(e); }
+    return got;
+  }
+  // with the earned looks (boot, every save, the profile) and on src/29's 1.5s watch (throttled, and only when something moved)
+  (function () { var ce = checkEarned; checkEarned = function (st) { var got = ce(st); try { iconTickV157C(st); } catch (e) {} return got; }; })();
+  var iconSigV157C = "", iconAtV157C = 0;
+  (function () {
+    var t0 = window.RIB_SUPER && window.RIB_SUPER.tick; if (!t0) return;
+    window.RIB_SUPER.tick = function (st) {
+      var r = t0.apply(this, arguments);
+      try {
+        var s = gstate() || {}, p = s.player || {}, T = window.RIB_SEASONS && window.RIB_SEASONS.challengeTotals ? window.RIB_SEASONS.challengeTotals().total : 0;
+        var sig = [(s.hof || []).length, (p.seasonLogV77 || []).length, p.level | 0, T, s.legacyV152 ? s.legacyV152.xp | 0 : 0].join("|");
+        if (sig !== iconSigV157C && Date.now() - iconAtV157C > 4000) { iconSigV157C = sig; iconAtV157C = Date.now(); iconTickV157C(s); }
+      } catch (e) {}
+      return r;
+    };
+  })();
+  /* a pass icon a device owned before v157 C keeps its slot (the pass now draws a badge there) */
+  function gfIconV157C(rw) {
+    try {
+      if (!rw || rw.kind === "icon" || !load().owned[rw.id]) return rw;
+      var S = window.RIB_SEASONS; if (!S || !S.rawKind || S.rawKind(rw.id) !== "icon") return rw;
+      return Object.assign({}, rw, { kind: "icon" });
+    } catch (e) { return rw; }
+  }
+  /* the icon's art: a glyph on a two-colour disc with a tag (the card's round slot and the Locker's preview) */
+  function iconInnerV157C(it) {
+    if (!it || !it.v157) return escHtml(it && it.glyph || "");
+    return '<em class="ico157-g">' + escHtml(it.glyph) + "</em>" + (it.tag ? '<b class="ico157-t">' + escHtml(it.tag) + "</b>" : "");
+  }
+  function iconStyleV157C(it) {
+    if (!it || !it.v157) return "box-shadow:0 0 0 2px " + ((it && it.col) || "#f0bb45") + " inset";
+    return "--i1:" + it.col + ";--i2:" + it.col2;
+  }
+  function previewIconV157C(el, it) {
+    el.innerHTML = '<div class="ico157" style="' + iconStyleV157C(it) + '">' + iconInnerV157C(it) + "</div>";
+    return el;
+  }
+  (function () {
+    if (document.getElementById("cosV157Ccss")) return;
+    var st = document.createElement("style"); st.id = "cosV157Ccss";
+    st.textContent = [
+      /* the icon disc — the card's slot (.pc-ico-v151b.ico157) and the Locker preview */
+      ".ico157{position:relative;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 28%,color-mix(in srgb,var(--i1) 55%,#fff) 0,var(--i2) 72%);box-shadow:0 0 0 2px var(--i1) inset,0 0 0 1px rgba(0,0,0,.6),0 3px 8px rgba(0,0,0,.45)}",
+      ".ico157 .ico157-g{font-style:normal;font-size:20px;line-height:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.6));margin-top:-4px}",
+      ".ico157 .ico157-t,.pc-ico-v151b.ico157 .ico157-t{position:absolute;left:50%;bottom:-3px;transform:translateX(-50%);padding:0 4px;border-radius:5px;background:#0b0f16;border:1px solid var(--i1);font:700 7px/10px Oswald,sans-serif;letter-spacing:.4px;color:#fff;white-space:nowrap}",
+      ".pc-ico-v151b.ico157{width:30px;height:30px;top:6px;background:radial-gradient(circle at 35% 28%,color-mix(in srgb,var(--i1) 55%,#fff) 0,var(--i2) 72%);box-shadow:0 0 0 2px var(--i1) inset,0 0 0 1px rgba(0,0,0,.6)}",
+      ".pc-ico-v151b.ico157 .ico157-g{font-style:normal;font-size:15px;line-height:1;margin-top:-3px}.pc-ico-v151b.ico157 .ico157-t{font-size:6px;line-height:8px;bottom:-5px}",
+      /* the growth screen's figure wears the card's flair layers */
+      "#growV132 .gw-one-v157c{position:absolute;left:0;top:0;width:128px;height:160px}#growV132 .gw-one-v157c.pc-fig-v153g{position:absolute}",
+      "#growV132 .gw-one-v157c .pc-fl-v153g{left:0;top:-40px;bottom:auto;width:128px;height:200px}#growV132 .gw-one-v157c.pc-shrink-v153g .pc-fl-v153g{transform:none}#growV132 .gw-one-v157c .pc-fl-v153g.front{z-index:2}",
+      /* the live badge */
+      ".watch-badge.wb-v157c{position:relative;overflow:visible;padding:0;background:radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--wb-p) 30%,#2a3446),#0c1420 78%);border-color:var(--wb-p);box-shadow:0 0 0 2.5px #0a1017,0 0 0 4.5px color-mix(in srgb,var(--wb-j) 70%,transparent),0 0 12px color-mix(in srgb,var(--wb-j) 45%,transparent)}",
+      ".watch-badge.wb-v157c .wb-fig-v157c{width:100%;height:100%;border-radius:50%;display:block}",
+      ".watch-badge.wb-v157c .wb-pos-v157c{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);padding:0 4px;border-radius:5px;background:var(--wb-j);border:1px solid var(--wb-p);font:700 8px/11px Oswald,sans-serif;letter-spacing:.5px;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.8)}"
     ].join("\n");
     (document.head || document.documentElement).appendChild(st);
   })();
@@ -3167,6 +3476,8 @@
     fieldKit: fieldKit, menuColors: menuColors, celebrate: celebrate, stadiumTheme: stadiumTheme, vaultTheme: vaultTheme, vaultTint: vaultTint, vaultDress: vaultDress,
     refreshField: refreshField, stylePanel: stylePanel, paintPreviews: paintPreviews, kitDeco: kitDeco,
     fieldFx: fieldFxV153G, flair: flairV153G, wingArt: wingArtV153G, crownArt: crownArtV153G, cardFlair: cardFlairV153G,   // v153 G
+    face: faceV157C, drawFigure: drawFigureV157C, growFigure: growFigureV157C, jerseyNum: jerseyNumV157C, iconRules: function () { return ICON_RULES_V157C.map(function (r) { return { id: r.id, name: r.name, desc: r.desc, rarity: r.rarity }; }); },
+    iconAccount: iconAccountV157C, iconTick: iconTickV157C, paintBadge: paintBadgeV157C,   // v157 C
     _reset: function () { mem = null; try { localStorage.removeItem(KEY); } catch (e) {} fire({ reset: 1 }); }
   };
   window.RIB_COSMETICS = API;
