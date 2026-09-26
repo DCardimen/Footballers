@@ -1977,7 +1977,7 @@
   },
   "honorcheck": {
    "file": "scripts/honorcheck.mjs",
-   "desc": "v130 — two currencies, two symbols",
+   "desc": "v130 — two currencies, two symbols (v156 A: the rank is MEDALS on the chip / tree / menu; the Honors model and pay asserted under the kill switch)",
    "areas": [
     "smoke",
     "menu-coin",
@@ -3557,7 +3557,7 @@
   },
   "v151Acheck": {
    "file": "scripts/v151Acheck.mjs",
-   "desc": "v151 A — the hybrid store and the progression gates: OFF no store/ads/prices but 3×/4× at the UFF, My Plays Only after a career, season skips from lifetime PP (the same with the module blocked), free filters; ON the tier chain and upgrades, restore, 4× Pro, ad cap + day rollover, convenience-only rewards, no PP double, the catalogue guard, the per-season pass, packs via RIB_COSMETICS, unlock_all_team_style, expansions not for sale, the store at 400x860.",
+   "desc": "v151 A — the hybrid store and the progression gates: OFF no store/ads/prices but 3× after a full UFF season and 4× for the UFF title (v156 C), My Plays Only free, season sims a career (v156 B; the same with the module blocked), free filters; ON the tier chain and upgrades, restore, 4× Pro, ad cap + day rollover, convenience-only rewards, no PP double, the catalogue guard, the per-season pass, packs via RIB_COSMETICS, unlock_all_team_style, expansions not for sale, the store at 400x860.",
    "areas": [
     "monetize"
    ],
