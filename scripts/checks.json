@@ -3611,7 +3611,7 @@
   },
   "v152Acheck": {
    "file": "scripts/v152Acheck.mjs",
-   "desc": "v152 A — the Legacy Rank: 500 medals in one climb (bronze/silver only in 1-200), the atlases load, the XP curve, a real career end pays once and pours (medal swap) and never replays, the season formula + hook, milestone bounties and cards (x50 = new tier), the Rank 500 sequence, the profile's trophy case and collection book at 400 wide, the rank chips (top bar, menu, setup, boards), an old Hall credited once, the kill switch, no Math.random, no page errors.",
+   "desc": "v152 A — the Legacy Rank: 500 medals in one climb (bronze/silver only in 1-200), the atlases load, the XP curve, a real career end pays once and pours (medal swap) and never replays, the season formula + hook, milestone bounties and cards (x50 = new tier), the Rank 500 sequence, the profile's trophy case and collection book at 400 wide, the rank chips (top bar, menu, setup, boards), an old Hall credited once, the kill switch, no Math.random, no page errors; v155 A: the collection book is a page a colour (bronze … diamond, then the grand medals), opening on his colour's page.",
    "areas": [
     "legacy"
    ],

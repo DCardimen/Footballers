@@ -8,7 +8,8 @@
 //   4. a season: the formula (grade, title, awards, the ring) and the real hook in finishSeasonGames' chain
 //   5. a milestone pays its PP bounty once and shows its card on the hub; a big one (x00) says the new tier
 //   6. Rank 500: the blackout sequence, the Ultimate Legacy medal, the Legacy Level beyond it
-//   7. the profile: the trophy case (current medal, plaque, bar), the collection book (10 tiers, 50 per page, earned
+//   7. the profile: the trophy case (current medal, plaque, bar), the collection book (v155 A: a page a colour — bronze,
+//      silver, gold … diamond, then the grand medals — every medal of that colour on it, earned
 //      vs locked, a page turn, a medal's detail), the chip on the card — all inside 400x860
 //   8. the identity: the rank chip on the career top bar, the main menu's medal box (v153 D), the career setup line, a board row's medal
 //   9. an old save's Hall of Fame is credited once at boot (not Rank 1); the kill switch pays nothing
@@ -158,7 +159,8 @@ await boot()
     return { cse: !!c, caseMedal: c && +c.querySelector('.lgk-slot .lg-medal-v152').dataset.rank, plaque: c && c.querySelector('.lgk-name').textContent, book: !!b, tabs: b && b.querySelectorAll('.lgb-tab').length, cells: b && b.querySelectorAll('.lgb-cell').length,
       owned: b && b.querySelectorAll('.lgb-cell:not(.locked)').length, cur: b && +(b.querySelector('.lgb-cell.cur') || {}).dataset?.rank, chip: !!sc.querySelector('.pc-legacy-v152'), page: b && b.querySelector('.lgb-pt b').textContent, want: RIB_LEGACY.name(137) } })
   ok(p.cse && p.caseMedal === 137 && p.plaque === p.want, 'the trophy case holds the current medal and its plaque', p.plaque)
-  ok(p.book && p.tabs === 10 && p.cells === 50 && p.owned === 37 && p.cur === 137 && p.page === 'ELITE', 'the collection book opens on his tier: 50 medals, the earned ones in colour', { owned: p.owned, page: p.page })
+  const C = await E(() => RIB_LEGACY.medals.cats), home = C.findIndex((c) => 137 <= c.to), H = C[home]
+  ok(p.book && p.tabs === C.length && p.cells === H.to - H.from + 1 && p.owned === 137 - H.from + 1 && p.cur === 137 && p.page.includes(H.name), 'the collection book opens on his colour\'s page: every medal of it, the earned ones in colour', { owned: p.owned, page: p.page, cells: p.cells })
   ok(p.chip, 'the profile card wears the rank')
   const box = await E(() => { const b = document.querySelector('.pc-medal-v152'), n = document.querySelector('.pc-name-v151b'); if (!b) return null; const r = b.getBoundingClientRect(), nr = n.getBoundingClientRect(); return { rank: b.querySelector('b').textContent, medal: +b.querySelector('.lg-medal-v152').dataset.rank, size: b.querySelector('.lg-medal-v152').getBoundingClientRect().width, right: r.left > nr.left, sameRow: r.top < nr.bottom + 40, w: r.width } })
   ok(box && box.rank === '137' && box.medal === 137 && box.size >= 56 && box.right && box.sameRow, 'the medal sits in its own box beside the name, large', box)
@@ -177,17 +179,18 @@ await boot()
   const mid = await E(() => !!document.querySelector('.lgb-leaf'))
   await page.mouse.up(); await page.waitForTimeout(900)
   const dragged = await E(() => ({ page: document.querySelector('.lgb-pt b').textContent, leaf: !!document.querySelector('.lgb-leaf') }))
-  ok(mid && dragged.page === 'SUPERSTAR' && !dragged.leaf, 'dragging the page turns it (the leaf follows the finger, then lands)', { mid, ...dragged })
+  ok(mid && dragged.page.includes(C[home + 1].name) && !dragged.leaf, 'dragging the page turns it (the leaf follows the finger, then lands)', { mid, ...dragged })
   await tap('.lgb-turn.prev'); await page.waitForTimeout(1100)
   const back = await E(() => document.querySelector('.lgb-pt b').textContent)
-  ok(back === 'ELITE', 'the corner turns it back', back)
+  ok(back.includes(H.name), 'the corner turns it back', back)
   await tap('.lgb-tab[data-page="0"]'); await page.waitForTimeout(1400)
   const pg = await E(() => ({ page: document.querySelector('.lgb-pt b').textContent, owned: document.querySelectorAll('.lgb-cell:not(.locked)').length }))
-  ok(pg.page === 'ROOKIE' && pg.owned === 50, 'a page turn: the rookie page is complete', pg)
-  await tap('.lgb-tab[data-page="3"]'); await page.waitForTimeout(1500)
-  await tap('.lgb-cell[data-rank="160"]'); await page.waitForTimeout(300)
+  ok(pg.page.includes('BRONZE') && pg.owned === C[0].to, 'a page turn: the bronze page is complete', pg)
+  const lockMs = Math.ceil((H.to + 1) / 10) * 10, lockPg = C.findIndex((c) => lockMs <= c.to)
+  await tap(`.lgb-tab[data-page="${lockPg}"]`); await page.waitForTimeout(1800)
+  await tap(`.lgb-cell[data-rank="${lockMs}"]`); await page.waitForTimeout(300)
   const det = await E(() => document.querySelector('.lgb-detail.on') && document.querySelector('.lgb-detail').textContent)
-  ok(det && /RANK 160/.test(det) && /Unlocks at/.test(det) && /MILESTONE/.test(det), 'a locked medal says what it costs', det && det.slice(0, 90))
+  ok(det && new RegExp('RANK ' + lockMs).test(det) && /Unlocks at/.test(det) && /MILESTONE/.test(det), 'a locked medal says what it costs', det && det.slice(0, 90))
   await E(() => document.querySelector('.lgb-detail').scrollIntoView()); await shot('7_detail')
   const f = await fits()
   ok(f.docW <= W && f.overX <= 1, 'the profile fits 400 wide', f)
