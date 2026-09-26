@@ -3187,14 +3187,14 @@
    *                Pass draws no icons any more (src/29 `passKindV157C`); a pass icon a device already owned keeps its
    *                slot (`gfIconV157C`). Each icon is its own badge: a glyph on a two-colour disc with a tag.
    * Looks only: nothing here reads or writes a number the sim uses or spends a Math.random draw. `window.__V157C`. */
-  var V157 = (window.__V157C = window.__V157C || { figs: 0, growth: 0, badges: 0, nums: {}, icons: 0, grants: [], errs: [] });
+  var V157C = (window.__V157C = window.__V157C || { figs: 0, growth: 0, badges: 0, nums: {}, icons: 0, grants: [], errs: [] });
   function onV157C(k) { return !!TUv(k, 1); }
-  function errV157C(e) { try { if (V157.errs.length < 8) V157.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  function errV157C(e) { try { if (V157C.errs.length < 8) V157C.errs.push(String((e && e.message) || e)); } catch (x) {} }
   /* ---- his number: what the field puts on him (src/05 OFF_NUMS / DEF_NUMS by slot), learned live ---- */
   var NUM_BY_POS_V157C = { QB: 12, RB: 24, WR: 80, TE: 87, OL: 74, DL: 91, LB: 54, CB: 21, S: 31, K: 3, P: 4 };
   function jerseyNumV157C(pos) {
     pos = String(pos || "").toUpperCase(); if (!pos) return null;
-    var n = V157.nums[pos]; if (n != null) return n;
+    var n = V157C.nums[pos]; if (n != null) return n;
     return NUM_BY_POS_V157C[pos] != null ? NUM_BY_POS_V157C[pos] : null;
   }
   function nfOfV157C(id) {
@@ -3256,7 +3256,7 @@
     face = face || faceV157C();
     if (!FIG.img) { figLoad(); return null; }
     var r = drawCharacter(cv, face.kit || {}, age || face.age || 22, { num: face.num, numfont: face.numfont });
-    if (r && r.mode === "hi") V157.figs++;
+    if (r && r.mode === "hi") V157C.figs++;
     return r && r.mode === "hi" ? r : null;
   }
   /* ---- the growth screen (07 growDrawV133 → growOneFaceV157C → here): the same figure, and the flair layers ---- */
@@ -3264,7 +3264,7 @@
     try {
       if (!onV157C("v157Cfig")) return null;
       var face = faceV157C(), r = drawFigureV157C(cv, age, face); if (!r) return null;
-      V157.growth++; V157.lastGrowth = { age: age, num: face.num, numfont: face.numfont, helmet: face.helmet };
+      V157C.growth++; V157C.lastGrowth = { age: age, num: face.num, numfont: face.numfont, helmet: face.helmet };
       setTimeout(function () {
         try {
           if (!cv.isConnected || cv.closest(".gw-ghost")) return;
@@ -3291,7 +3291,7 @@
       el.innerHTML = ""; el.appendChild(out);
       var tag = document.createElement("b"); tag.className = "wb-pos-v157c"; tag.textContent = pos; el.appendChild(tag);
       el.classList.add("wb-v157c"); el.style.setProperty("--wb-j", face.kit.j); el.style.setProperty("--wb-p", face.kit.p);
-      el.dataset.fig157 = key; V157.badges++;
+      el.dataset.fig157 = key; V157C.badges++;
       return true;
     } catch (e) { errV157C(e); return false; }
   }
@@ -3305,13 +3305,13 @@
   function fieldNumV157C(m, N) {
     try {
       if (!m || !m.label) return;
-      if (m.num != null && m.team === "you") { var ps = ""; try { var st = gstate(); ps = st && st.player ? String(st.player.pos || "").toUpperCase() : ""; } catch (e) {} if (ps && V157.nums[ps] !== (m.num | 0)) V157.nums[ps] = m.num | 0; }
+      if (m.num != null && m.team === "you") { var ps = ""; try { var st = gstate(); ps = st && st.player ? String(st.player.pos || "").toUpperCase() : ""; } catch (e) {} if (ps && V157C.nums[ps] !== (m.num | 0)) V157C.nums[ps] = m.num | 0; }
       if (!N || !onV157C("v157Cfig") || !m.label.visible) return;
       var L = m.label, sc = m._numScaleV104 || L.scaleX || 1, k = TUv("nfScaleV157C", 1.35), b = m._numBandV104;
       var bw = b && m.body ? b.w * Math.abs(m.body.scaleX || 1) * TUv("nfWidthV157C", 0.82) : 1e9, want = sc * k;
       if (L.width * want > bw) want = Math.max(sc, bw / Math.max(1, L.width));
       if (Math.abs(L.scaleX - want) > 1e-4) L.setScale(want);
-      V157.fieldNum = { font: L.style.fontFamily, col: L.style.color, scale: +want.toFixed(3), base: +sc.toFixed(3) };
+      V157C.fieldNum = { font: L.style.fontFamily, col: L.style.color, scale: +want.toFixed(3), base: +sc.toFixed(3) };
     } catch (e) { errV157C(e); }
   }
 
@@ -3408,7 +3408,7 @@
         var hit = false; try { hit = !!r.test(I); } catch (x) {}
         if (hit && !S.owned[r.id]) { grant(r.id, "earned"); got.push(r.id); }
       });
-      V157.icons = ICON_RULES_V157C.length; V157.lastIcons = got; if (got.length) V157.grants = V157.grants.concat(got).slice(-40);
+      V157C.icons = ICON_RULES_V157C.length; V157C.lastIcons = got; if (got.length) V157C.grants = V157C.grants.concat(got).slice(-40);
     } catch (e) { errV157C(e); }
     return got;
   }
