@@ -96,7 +96,7 @@ const nodes = await E(() => {
   ok(open.length === 0, 'every medal-gated node is locked', open)
   await E(() => window.go('hub')); await page.waitForTimeout(400)
   const chip = await txt('.prestige-chip')
-  ok(chip.includes(MEDAL) && /1 MEDALS/.test(chip) && !/HONOR/i.test(chip) && !chip.includes(CREST), 'the top-bar chip reads 🎖️ 1 MEDALS · 🪙 PP', chip)
+  ok(chip.includes(MEDAL) && /1 MEDAL\b/.test(chip) && !/HONOR/i.test(chip) && !chip.includes(CREST), 'the top-bar chip reads 🎖️ 1 MEDAL · 🪙 PP', chip)
   const title = await E(() => document.querySelector('.prestige-chip').title)
   ok(/MEDALS/.test(title) && /NOT the 1-5 star recruit rating/.test(title) && !/HONORS/.test(title), 'and its title says what the medals are', title.slice(0, 80))
   await E(() => window.go('shop')); await page.waitForTimeout(700)
@@ -104,7 +104,7 @@ const nodes = await E(() => {
   const lock = (shop.match(/🔒 Needs 🎖️? ?\d+ medals — you have \d+/) || [''])[0]
   ok(/Needs 🎖️? ?\d+ medals — you have 1\b/.test(shop), 'a locked node says "🔒 Needs 🎖️ N medals — you have M"', lock)
   ok(!/honou?rs?/i.test(shop) && !shop.includes(CREST), 'the prestige tree never says Honors', (shop.match(/.{0,30}honou?rs?.{0,30}/i) || [''])[0])
-  ok(/1 MEDALS/.test(shop), 'the tree\'s banner shows the medal count', (shop.match(/.{0,10}MEDALS/) || [''])[0])
+  ok(/1 MEDAL\b/.test(shop), 'the tree\'s banner shows the medal count', (shop.match(/.{0,10}MEDALS?/) || [''])[0])
   const art = await E(() => document.querySelectorAll('#screen .medal-art-v156a .lg-medal-v152').length)
   ok(art > 0, 'a locked node draws the medal it needs', art)
   const dock = await txt('#dock')

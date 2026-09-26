@@ -7556,7 +7556,7 @@
     const crest = c.querySelector(".honor-crest-v153"),
       lbl = c.querySelector(".chip-lbl-v153");
     crest && (crest.textContent = on ? MEDAL_ICON_V156A : HONOR_ICON_V130);
-    lbl && (lbl.textContent = on ? " MEDALS" : " HONORS");
+    lbl && (lbl.textContent = on ? (medalsV156A() === 1 ? " MEDAL" : " MEDALS") : " HONORS");
     c.title = on
       ? "MEDALS are your Legacy Rank — every season and every career earns Legacy XP, and each rank is a medal. Your medal count unlocks the prestige tree. They are NOT the 1-5 star recruit rating on a player. PP is what you spend."
       : "HONORS are your account's rank — earned by finishing careers, and what unlocks the prestige tree. They are NOT the 1-5 star recruit rating on a player. PP is what you spend.";
@@ -23874,7 +23874,7 @@
     ${legacyCardV152("career")}
     <div class="h2">The Journey</div>
     <div class="card"><div class="career-log">${e.career.map(a => `<div><span class="lvl-done">✓</span> ${a.level} — OVR ${a.ovr} at ${a.age}</div>`).join("")}<div><span class="lvl-done" style="color:var(--gold)">★</span> The UFF — OVR ${t}, age ${e.age}</div></div></div>
-    <div class="card tight end-legacy-v150"><div class="center" style="font-family:'Oswald';color:var(--gold);font-size:16px">${medalsOnV156A() ? `${MEDAL_ICON_V156A} ${medalsV156A()} MEDALS` : `+${e._starGain} HONORS ${HONOR_ICON_V130}`} · His son starts with everything he learned</div></div>
+    <div class="card tight end-legacy-v150"><div class="center" style="font-family:'Oswald';color:var(--gold);font-size:16px">${medalsOnV156A() ? `${MEDAL_ICON_V156A} ${medalsV156A()} MEDAL${medalsV156A() === 1 ? "" : "S"}` : `+${e._starGain} HONORS ${HONOR_ICON_V130}`} · His son starts with everything he learned</div></div>
   `),
       (byId("dock").innerHTML = `
     ${vaultPayBtnV137(e)}
@@ -24049,7 +24049,7 @@
     <div class="h1">What the Family Learned</div>
     <div class="sub">Every finished career is a father's lesson to the son who comes next. Spend the family's Prestige Points here — every node is handed down to every ${escHtml(familyV136().surname || "player")} after this one, forever.</div>
     <div class="pts-banner mt" style="margin-top:14px"><div><span class="n">${(state.pp || 0).toLocaleString("en-US")}</span> <span class="l">PRESTIGE POINTS</span>${bankedV136() > 0 ? `<div class="bank-v136">🏦 +${bankedV136()} banked · paid when this career ends</div>` : ""}</div>
-      <div class="tree-rank-v156a" style="font-family:'Oswald';font-size:15px;color:var(--gold)">${medalsOnV156A() ? `${medalArtV156A(medalsV156A(), 22)}${medalsV156A()} MEDALS` : `${HONOR_ICON_V130} ${state.prestige} Honors`}</div></div>
+      <div class="tree-rank-v156a" style="font-family:'Oswald';font-size:15px;color:var(--gold)">${medalsOnV156A() ? `${medalArtV156A(medalsV156A(), 22)}${medalsV156A()} MEDAL${medalsV156A() === 1 ? "" : "S"}` : `${HONOR_ICON_V130} ${state.prestige} Honors`}</div></div>
 
     <div class="btn-row" style="margin-bottom:14px;flex-wrap:wrap;gap:6px">
       ${Object.entries(TREE)
