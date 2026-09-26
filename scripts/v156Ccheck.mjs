@@ -36,7 +36,7 @@ const boot = async () => {
   await page.waitForTimeout(900)
 }
 await boot(); await boot()   // warm past vite's one-time reload
-const shot = async (n) => { try { await page.screenshot({ path: SHOTS + 'v156C-' + n + '.png' }) } catch {} }
+const shot = async (n) => { try { await page.evaluate(() => document.querySelectorAll('#personaV13, .lgm-v152, #uffMomentV156C, .onboard').forEach((x) => x.remove())); await page.screenshot({ path: SHOTS + 'v156C-' + n + '.png' }) } catch {} }   // the shot is of the screen, not a first-week card over it
 const fits = () => E(() => { const se = document.scrollingElement; return { page: se.scrollHeight <= innerHeight + 2 && se.scrollWidth <= innerWidth + 2, w: se.scrollWidth, h: se.scrollHeight } })
 // a fresh account with a level-7 player and a season in hand; `extra` is merged into the state first
 const seed = (o = {}) => E((o) => { const A = window.__GRIDIRON_AUDIT__, S = A.freshState(); S.tutorialSeen = true
