@@ -342,7 +342,7 @@
   function account(st) {
     st = st || gstate() || {};
     var e = st.player || null, hof = Array.isArray(st.hof) ? st.hof : [];
-    var A = { careers: st.careers || 0, pp: Math.round(st.pp || 0), honors: st.prestige || 0, titles: st.titlesWon || 0, rings: st.rings || 0,
+    var A = { careers: st.careers || 0, pp: Math.round(st.pp || 0), honors: st.prestige || 0, medals: (window.__V156A && window.__V156A.on() ? window.__V156A.medals() : null) /* v156 A */, titles: st.titlesWon || 0, rings: st.rings || 0,
       mvps: 0, awards: 0, hof: hof.length, uffReached: st.nflReached || 0, interstellar: 0, uffTitles: 0, interstellarTitles: 0,
       gen: 1, surname: "", bestScore: 0, bestTds: 0, byLevel: {} };
     var levels = []; try { levels = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.LEVELS) || []; } catch (x) {}
@@ -791,7 +791,7 @@
       pos: e ? String(e.pos || "") : "", level: e ? e.level || 0 : null, levelName: e ? levelName(e.level || 0) : "", age: e ? e.age || null : null, ovr: ovr,
       team: { school: String(tc.schoolName || "").slice(0, 24), name: String(tc.teamName || "").slice(0, 18), colors: Array.isArray(tc.col) ? tc.col.slice(0, 2).filter(hexOk) : [], logo: tc.logo != null ? tc.logo | 0 : null },
       club: e && e.clubV146B ? String(e.clubV146B.name || e.clubV146B || "").slice(0, 40) : "",
-      careers: A.careers, bank: { pp: A.pp, honors: A.honors },
+      careers: A.careers, bank: { pp: A.pp, honors: A.honors, medals: A.medals },
       titles: A.titles, rings: A.rings, mvps: A.mvps, awards: A.awards, hof: A.hof, uffTitles: A.uffTitles, interstellarTitles: A.interstellarTitles,
       titlesByLevel: A.byLevel, gen: A.gen, surname: String(A.surname || "").slice(0, 24), bestScore: A.bestScore, careerScore: A.careerScore || 0,
       teamStyle: { unlocked: ts.unlocked, total: ts.total, all: ts.all },
@@ -829,7 +829,7 @@
       (d.club ? '<div class="pc-club-v151b">' + escHtml(d.club) + "</div>" : "") + "</div></div>" +
       '<div class="pc-shelf-v151b sh-' + escHtml(sh.css) + '" data-shelf="' + escHtml(sh.id) + '">' + trophies.map(function (q) { return "<span><em>" + q[0] + "</em><b>" + num(q[1]) + "</b><small>" + q[2] + "</small></span>"; }).join("") + "</div>" +
       (compact ? "" : '<div class="pc-grid-v151b">' + [
-        ["CAREERS", num(d.careers)], ["BANK", num(d.bank && d.bank.pp) + " PP"], ["HONORS", num(d.bank && d.bank.honors)],
+        ["CAREERS", num(d.careers)], ["BANK", num(d.bank && d.bank.pp) + " PP"], d.bank && d.bank.medals != null ? ["MEDALS", num(d.bank.medals)] : ["HONORS", num(d.bank && d.bank.honors)] /* v156 A */,
         ["LOGOS & COLOURS", d.teamStyle ? (d.teamStyle.all ? "ALL" : (d.teamStyle.unlocked | 0) + "/" + (d.teamStyle.total | 0)) : "—"], ["BEST SCORE", num(d.bestScore)], ["UFF · ISL", (d.uffTitles | 0) + " · " + (d.interstellarTitles | 0)]
       ].map(function (q) { return "<div><b>" + escHtml(q[1]) + "</b><small>" + q[0] + "</small></div>"; }).join("") + "</div>") +
       "</div>";

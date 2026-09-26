@@ -26,7 +26,8 @@
     "layoutcheck",
     "anchorcheck",
     "v150Acheck",
-    "v151Echeck"
+    "v151Echeck",
+    "v156Acheck"
    ]
   },
   "docs": {
@@ -111,7 +112,8 @@
     "sheencheck",
     "honorcheck",
     "freshcheck",
-    "menu-mask-check"
+    "menu-mask-check",
+    "v156Acheck"
    ],
    "steps": [
     "`node scripts/build-uff-trophy.mjs` (if the trophy art changed)",
@@ -242,7 +244,8 @@
     "v134check",
     "v136check",
     "bootviewcheck",
-    "walk"
+    "walk",
+    "v156Acheck"
    ]
   },
   "plan": {
@@ -435,7 +438,8 @@
     "coachcheck",
     "menu-integration-check",
     "v136check",
-    "freshcheck"
+    "freshcheck",
+    "v156Acheck"
    ],
    "steps": [
     "`python3 scripts/build-vault-art.py --proof` (if a cell moved — then LOOK at `art/vault-proof/`)",
@@ -568,7 +572,8 @@
     "rivalcheck",
     "v85check",
     "declarecheck",
-    "walk"
+    "walk",
+    "v156Acheck"
    ]
   },
   "grow": {
@@ -1173,9 +1178,11 @@
    ]
   },
   "honors": {
-   "desc": "v130 — the account rank, the prestige-tree gates, anything drawing a ★",
+   "desc": "v130 / v156 A — the account rank (the medals since v156 A), the prestige-tree gates, anything drawing a ★",
    "anchors": [
-    "v130"
+    "v130",
+    "v156 A",
+    "MEDALS ARE THE KEY"
    ],
    "files": [],
    "checks": [
@@ -1183,7 +1190,8 @@
     "menu-integration-check",
     "walk",
     "shot",
-    "v153Fcheck"
+    "v153Fcheck",
+    "v156Acheck"
    ]
   },
   "emblems": {
@@ -1508,7 +1516,8 @@
     "layoutcheck",
     "menu-integration-check",
     "v153Fcheck",
-    "v153Echeck"
+    "v153Echeck",
+    "v156Acheck"
    ]
   },
   "v153b": {
@@ -1923,7 +1932,7 @@
   },
   "honorcheck": {
    "file": "scripts/honorcheck.mjs",
-   "desc": "v130 — two currencies, two symbols",
+   "desc": "v130 — two currencies, two symbols (v156 A: the rank is MEDALS on the chip / tree / menu; the Honors model and pay asserted under the kill switch)",
    "areas": [
     "smoke",
     "menu-coin",
@@ -3724,6 +3733,24 @@
    "areas": [
     "career-uff",
     "cuts"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v156Acheck": {
+   "file": "scripts/v156Acheck.mjs",
+   "desc": "v156 A — the medals are the key: MEDAL_TABLE_V156A hits its anchors (6→12 … 40→200 … 64→420), friendly node reqs (12 first, Impossible 260-420), a fresh save has 1 medal and every gated node locked (\"Needs 🎖️ N medals — you have M\"), rank R opens exactly the nodes with req ≤ R, state.prestige mirrors honorsEquiv, Reputation −5%/level, G.O.A.T./Immortal pay Legacy XP, career ends pay no Honors, Path at 12 / switch costs PP, the grandfather floor, MEDALS on chip / tree / menu / How To Play, kill switch TU(\"v156A\",0) restores Honors, no page errors.",
+   "areas": [
+    "smoke",
+    "honors",
+    "legacy",
+    "vault",
+    "impossible",
+    "menu-coin",
+    "goals"
    ],
    "runtimeSec": 60,
    "slow": false,

@@ -157,7 +157,7 @@
   };
 
   function previewData() {
-    return { hasCareer: true, state: { prestige: 38, pp: 70, careers: 18, nflReached: 1, interstellar: 0, hallBest: 0, enshrined: 4, challenges: 0, challengesOf: 12 },
+    return { hasCareer: true, state: { prestige: 38, medals: 185, medalsOn: true, pp: 70, careers: 18, nflReached: 1, interstellar: 0, hallBest: 0, enshrined: 4, challenges: 0, challengesOf: 12 },
       player: { name: 'Amari Fox', pos: 'QB', level: 2, levelName: 'Middle School', age: 13, stars: 5, ovr: 72, height: `6'4"`, weight: '188 lb',
         archetype: { id: 'prodigy', name: 'Field General' }, traits: [{ id: 'bigGameHunter', name: 'Accuracy' }, { id: 'gymRat', name: 'Footwork' }, { id: 'bornLeader', name: 'Leadership' }],
         totalSeasons: 0, objectives: [
@@ -177,7 +177,8 @@
     const name = (card?.querySelector('.pname')?.textContent || '').trim() || 'YOUR PLAYER';
     const ovr = numeric(card?.querySelector('.continue-ovr')?.textContent, 0);
     const pos = (cardText.match(/\b(QB|RB|WR|TE|OL|DL|LB|CB|S)\b/)?.[1] || 'QB');
-    return { hasCareer, state: { prestige: numeric((screenText.match(/(?:\u269C|\uD83C\uDF96)\uFE0F?\s*(\d+)/) || screenText.match(/★\s*(\d+)/) || [])[1], 0), pp: 0, careers: 0, nflReached: 0, interstellar: 0, hallBest: 0, enshrined: 0, challenges: 0, challengesOf: 0 },
+    const rankN = numeric((screenText.match(/(?:\u269C|\uD83C\uDF96)\uFE0F?\s*(\d+)/) || screenText.match(/★\s*(\d+)/) || [])[1], 0);
+    return { hasCareer, state: { prestige: rankN, medals: rankN, medalsOn: /\uD83C\uDF96/.test(screenText), pp: 0, careers: 0, nflReached: 0, interstellar: 0, hallBest: 0, enshrined: 0, challenges: 0, challengesOf: 0 },
       player: hasCareer ? { name, pos, level: 0, levelName: (cardText.match(/(Pee Wee|Youth League|Middle School|JV|Varsity|College|UFF Combine|The UFF|Interstellar League)/) || [])[1] || 'Career', stars: (cardText.match(/★/g) || []).length, ovr, height: '', weight: '', traits: [], objectives: [], totalSeasons: 0 } : null,
       season: { games: 0, played: 0, weeks: [], inProgress: false, last: null }, team: { school: '', name: '', colors: null, logo: null, logoCss: '' } };
   }
@@ -262,9 +263,20 @@
     return out;
   }
 
+  /* v156 A: the medals are the rank (the Legacy Rank's medal count) — Honors only under the kill switch
+   * (RIB_TUNE.v156A = 0, which the career app reports as medalsOn: false). The field keeps its name. */
+  const medalsOnV156A = (S) => !!(S && S.medalsOn !== false && S.medals != null);
+  const rankV156A = (S) => medalsOnV156A(S) ? (S.medals || 0) : (S.prestige || 0);
+  const rankIconV156A = (S) => medalsOnV156A(S) ? '🎖️' : '⚜️';
+  const rankNameV156A = (S) => medalsOnV156A(S) ? 'MEDALS' : 'HONORS';
+  const RANK_MARK_V156A = {
+    on: '🎖 medals',
+    off: '⚜ Honors',
+  };
+  const rankMarkV156A = (S) => RANK_MARK_V156A[medalsOnV156A(S) ? 'on' : 'off'];
   // the legacy panel: one tile per lifetime number, each with its own icon
   const LEGACY_TILES = [
-    ['gold rib9-lt-crest-v153', 'crest', 'prestige', 'HONORS', (S) => S.prestige || 0],   // v153: Honors wear the crest (⚜); the coin is PP's alone
+    ['gold rib9-lt-crest-v153', 'crest', 'prestige', rankNameV156A, rankV156A],   // v153: the crest tile; v156 A: it carries the medals
     ['blue', 'helmet', 'careers', 'CAREERS', (S) => S.careers || 0],
     ['green', 'crown', 'nflReached', 'UFF REACHED', (S) => S.nflReached || 0],
     ['purple', 'gem', 'interstellar', 'INTERSTELLAR', (S) => S.interstellar || 0],
@@ -275,7 +287,7 @@
   const legacyPanel = (S) => `<section class="rib9-card rib9-legacy">
             <div class="rib9-kicker">YOUR LEGACY<button class="rib9-prof-v151b" type="button" data-rib-action="view:profile">PROFILE ›</button></div>
             <div class="rib9-legacy-grid">
-              ${LEGACY_TILES.map(([cls, icon, field, label, read]) => `<div class="rib9-lt ${cls}"><i>${icon === 'crest' ? '<span class="rib9-crest-v153" aria-hidden="true">⚜️</span>' : `<img src="${icon === 'coin' ? VAULT_ART + COIN_V147B : ART + 'legacy_' + icon + '.webp'}${ARTV}" alt="" loading="lazy">`}</i><b data-rib-field="${field}">${esc(read(S))}</b><small>${label}</small></div>`).join('')}
+              ${LEGACY_TILES.map(([cls, icon, field, label, read]) => `<div class="rib9-lt ${cls}"><i>${icon === 'crest' ? `<span class="rib9-crest-v153" aria-hidden="true">${rankIconV156A(S)}</span>` : `<img src="${icon === 'coin' ? VAULT_ART + COIN_V147B : ART + 'legacy_' + icon + '.webp'}${ARTV}" alt="" loading="lazy">`}</i><b data-rib-field="${field}">${esc(read(S))}</b><small>${typeof label === 'function' ? label(S) : label}</small></div>`).join('')}
             </div>
           </section>`;
 
@@ -364,7 +376,7 @@
       add(`PICK A POSITION · TRAIN · <b>PLAY LIVE</b>`);
       add(`SURVIVE EVERY CUT`);
     }
-    add(`HONORS <b>${esc(S.prestige || 0)}</b> · PP <b>${esc(S.pp || 0)}</b>`);
+    add(`${rankNameV156A(S)} <b>${esc(rankV156A(S))}</b> · PP <b>${esc(S.pp || 0)}</b>`);   // v156 A
     if (S.lineage && S.lineage.gen) add(`THE ${esc(String(S.lineage.surname || '').toUpperCase())} LINE · <b>GEN ${esc(S.lineage.gen)}</b> · ${esc(S.lineage.years || 0)} FAMILY YEAR${Number(S.lineage.years) === 1 ? '' : 'S'}`);   // v136 D
     if (S.careers) add(`<b>${esc(S.careers)}</b> CAREER${S.careers === 1 ? '' : 'S'} PLAYED`);
     if (S.nflReached) add(`<b>${esc(S.nflReached)}</b> REACHED THE UFF`);
@@ -511,7 +523,7 @@
           <nav class="rib9-nav" aria-label="Main">
             ${navLink('home', 'HOME', true)}${navLink(has ? 'continue' : 'new', 'CAREER')}${navLink('goals', 'GOALS')}${navLink('hall', 'HALL')}${navLink('view:leaderboard', 'LEADERBOARDS')}${navLink('howto', 'HOW TO PLAY')}${navLink('settings', 'SETTINGS')}
           </nav>
-          <button class="rib9-prestige" type="button" data-rib-action="prestige" title="Prestige tree — ⚜ Honors unlock it, 🪙 PP buy it"><span class="rib9-crest-v153" aria-hidden="true">⚜️</span><b data-rib-field="prestige">${esc(S.prestige || 0)}</b><small>HONORS</small><i></i><img class="rib9-coin-v147" src="${VAULT_ART}${COIN_V147B}${ARTV}" alt="" width="18" height="18" decoding="async"><b data-rib-field="pp">${esc(S.pp || 0)}</b><small>PP</small></button>
+          <button class="rib9-prestige" type="button" data-rib-action="prestige" title="Prestige tree — ${rankMarkV156A(S)} unlock it, 🪙 PP buy it"><span class="rib9-crest-v153" aria-hidden="true">${rankIconV156A(S)}</span><b data-rib-field="prestige">${esc(rankV156A(S))}</b><small>${rankNameV156A(S)}</small><i></i><img class="rib9-coin-v147" src="${VAULT_ART}${COIN_V147B}${ARTV}" alt="" width="18" height="18" decoding="async"><b data-rib-field="pp">${esc(S.pp || 0)}</b><small>PP</small></button>
           <div class="rib9-motto">BUILD A PLAYER.<br>EARN EVERY REP.<br>CHASE THE LEAGUE.</div>
         </header>
         ${tickerV132(data, has, num, year, week)}

@@ -198,7 +198,15 @@
   }
   function describe(s) {
     var p = (s && s.player) || {};
-    return { name: p.name || '', pos: p.pos || '', level: p.level == null ? null : p.level, seasons: p.totalSeasons || 0, careers: (s && s.careers) || 0, prestige: (s && s.prestige) || 0 };
+    return { name: p.name || '', pos: p.pos || '', level: p.level == null ? null : p.level, seasons: p.totalSeasons || 0, careers: (s && s.careers) || 0, prestige: (s && s.prestige) || 0, pp: Math.round((s && s.pp) || 0), medals: medalsOf(s) };
+  }
+  /* v156 A: the save's medal count (its Legacy Rank, never under the grandfather floor) — what the import asks about */
+  function medalsOf(s) {
+    try {
+      var A = window.__V152A, L = s && s.legacyV152, g = s && s.honorsV156A;
+      var m = A && A.rank ? A.rank((L && +L.xp) || 0).medal : null;
+      return m == null ? null : Math.max(m, (g && +g.floor) || 0);
+    } catch (e) { return null; }
   }
   function snapshot(reason, force) {
     var L = ls(); if (!L) return null;
@@ -317,7 +325,7 @@
     var obj; try { obj = parseSave(text); } catch (e) { toast(e && e.v150 ? 'That save can\'t be imported: ' + e.message : 'That is not a Running It Back save'); return Promise.resolve(false); }
     var d = describe(obj);
     var go = o.confirm === false ? Promise.resolve(true) : ribDialog.confirm(
-      'Replace the save on this device with ' + (d.name ? d.name + (d.pos ? ' (' + d.pos + ')' : '') : 'this save') + ' — ' + d.careers + ' careers, ' + (d.prestige || 0) + ' PP?\n\nYour current save is kept in the backups.',
+      'Replace the save on this device with ' + (d.name ? d.name + (d.pos ? ' (' + d.pos + ')' : '') : 'this save') + ' — ' + d.careers + ' careers, ' + (d.medals != null ? '\u{1F396}\uFE0F ' + d.medals + ' medals, ' : '') + (d.pp || 0) + ' PP?\n\nYour current save is kept in the backups.',
       { title: 'Import save', ok: 'Import', danger: true });
     return go.then(function (yes) { return yes ? applySave(obj, 'import') : false; });
   }
