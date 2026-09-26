@@ -3156,6 +3156,10 @@
     st.textContent = [
       ".pc-au-v157b{position:absolute;left:0;bottom:0;width:92px;height:143.75px;pointer-events:none;transform-origin:50% 100%}.pc-au-v157b.back{z-index:0}.pc-au-v157b.front{z-index:2}",
       ".pcard-v151b.compact .pc-au-v157b{width:70px;height:110px}"
+    ].join("\n");
+    (document.head || document.documentElement).appendChild(st);
+  })();
+
   /* ===== v157 C ONE FACE EVERYWHERE =====
    * The owner: "Number fonts, I currently don't see those in the profile or live player" · "ensure the colors of the
    * live profile player make sense" · "anything like the helmets to transfer to the profile page" · "the growth
