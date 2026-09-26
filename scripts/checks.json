@@ -3817,7 +3817,7 @@
   },
   "v156Bcheck": {
    "file": "scripts/v156Bcheck.mjs",
-   "desc": "v156 B — season sims are a career's, earned with the Legacy medal groups (1 on a fresh account, bronze → 2, all nine → 20 cap), spent one a ⏭, refused at 0 with the next group and the table, reset by a new career, no day, Quick Play free; the playoffs are always played live (dock, playWeek/prepareWeek103/⏭/simRemainingWeeks/__silentWeekV85 refuse, no live SKIP, the UFF sim stops at the playoffs, a missed-playoffs season finishes); kill switches; store ON: the 30-minute simUnlimited ad, Pro +3, the Club; OFF no-op.",
+   "desc": "v156 B — season sims are a career's, earned with the Legacy medal groups (1 on a fresh account, bronze → 2, all nine → 20 cap), spent one a ⏭, refused at 0 with the next group and the table, reset by a new career, no day, Quick Play free; the playoffs are always played live (dock, playWeek/prepareWeek103/⏭/simRemainingWeeks/__silentWeekV85 refuse, no live SKIP, the UFF sim stops at the playoffs, a missed-playoffs season finishes); kill switches; store ON: the 30-minute simUnlimited ad, Pro +3, the Club; OFF no-op. v158 B (ON): Quick Play needs game sims — locked \"🔒 AD\", the member-perk sheet, the 30-min ad, then it plays; season sims stay counted; the Club: Quick Play always and ×2 season sims (TU memberSimMultV158B); TU v158Bgames 0 restores v156 B.",
    "areas": [
     "skips",
     "playoffs",
