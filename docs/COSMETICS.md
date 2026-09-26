@@ -171,3 +171,32 @@ earned item whose old achievement was hit into `gf156` (`{v:1, …, v156C, gf156
 Achievements tightened: `hof` needs a Hall career that made the UFF (was any finished career); `mvp` needs a League MVP
 (college or higher — a high-school Player of the Year no longer counts). `account()` adds `hofWon`, `leagueMvps`,
 `uffRings`, `legacyMedal`. The Career Pass no longer draws angel-style wings. `scripts/v156Ccheck.mjs`.
+
+## v157 B — auras alive, trails you can spot
+
+The owner: "make 19 more [auras], up the coolness. Animated auras on the profile page … Add 15 SICK looking footprint
+trails. These help distinguish your character in a fast moving game." All of it is the `v157 B AURAS ALIVE, TRAILS YOU
+CAN SPOT` block in `src/28-cosmetics.js` plus a few one-line hooks in v153 G's code (the field fx, the card flair, the
+Locker preview, the trail drawer). Looks only; no `Math.random` (every particle is a function of the clock and an integer
+hash of its index), no sim value.
+
+| | items (source) |
+|---|---|
+| **auras** (19, `au.fx` → `AFX_V157B`) | free: Smoke & Embers, Sakura Drift · earned: Toxic Cloud (UFF), Code Rain (League MVP), Galaxy Swirl (Interstellar), Blood Moon (`rings3`), Heaven's Pillar (`legacy300`) · **member**: Crystal Orbit, Neon Grid, Shadow Tendrils, Inferno Pillar, Solar Corona, Money Shower, Aurora Borealis, Ghost Flames, Thunderhead, Void Rift, Plasma Ring, Prism |
+| **footprints** (15, `tr.fx` → `TFX_V157B`) | free: Confetti Pop, Pixel Hearts · earned: Toxic Slime (UFF), Lava Cracks (`rings3`), Rune Glyphs (`gen5`) · **member**: Neon Light Wall, Ice Shards, Shadow Smoke, Cherry Blossoms, Lightning Cleats, Gold Coins, Galaxy Dust, Prism Burst, **Inferno** and **Meteor Strike** (the two big statement trails, taller than Scorched Cleats) |
+
+- **Drawing.** One painter interface (`rect` / `circ` / `seg` / `tri` / `ring` / `ell` / `ellS`) over a Phaser Graphics
+  (`gAdapterV157B`) and a 2D canvas (`cAdapterV157B`); v153 G's adapters delegate to them. An aura draws two layers,
+  behind him and in front (orbits pass in front on their near half). Each item keeps a v153 G `kind` (the glow / trail it
+  falls back to).
+- **Profile card.** Every aura animates, the v153 G ones too (`LEGACY_V157B`): two canvases `.pc-au-v157b` beside
+  cardFlair's; the figure steps back (`pc-shrink-v153g`) and the aura's geometry is mapped onto it (TU `v157BcardU`).
+- **Locker.** Aura and footprint previews animate (the prints stream away behind him), drawn at 2× (TU `v157BpvRes`).
+- **One rAF loop** (`ANIM_V157B`, ~25 fps TU `v157Bfps`, at most TU `v157BcardMax` 6 cards) skips off-screen canvases and
+  stops when none is connected. `prefers-reduced-motion`: one still frame.
+- **Live field.** A new aura adds two Graphics children to his container (TU `v157BauraFieldQ` 0.6 of the particles, cap
+  TU `v157BauraCap` 90); a new trail draws through v153 G's one trail Graphics, newest first, capped at TU `v157BtrailCap`
+  160 primitives a frame, its tail `life` per trail.
+- **Kill switches.** TU `v157Baura` 0 → v153 G's static glow everywhere; TU `v157Btrail` 0 → the new trails draw their
+  base `kind`, the previews are still. `window.__V157B` (`ids`, `sample(id, t)`, `animating`, `field`, `card`);
+  `scripts/v157Bcheck.mjs`.
