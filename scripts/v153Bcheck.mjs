@@ -272,7 +272,7 @@ const plays = await M(async () => {
   S.player = A.newPlayer(); S.player.pos = 'LB'; S.player.level = 3; A.setState(S)
   out.gate = window.__V151A.gates().playsOnly.ok
   window.go('settings'); await new Promise(r => setTimeout(r, 400))
-  const row = [...document.querySelectorAll('.toggle-row')].find(r => /My plays only/i.test(r.textContent))
+  const row = [...document.querySelectorAll('.toggle-row')].find(r => /side of the ball/i.test(r.textContent)) // v156 D: the onlyInvolved row ("Your side of the ball"); the new My plays only row is the strict box
   out.row = row ? row.textContent.replace(/\s+/g, ' ').trim() : ''
   out.rowOn = !!(row && row.querySelector('.switch.on'))
   out.migrated = window.S.settings.onlyInvolved === true
@@ -304,7 +304,7 @@ const coach = await M(async () => {
   const src = [...document.scripts].map(s => s.src).find(s => /rib-menu-coach\.js/.test(s))
   if (!src) return false
   const t = await (await fetch(src)).text()
-  return /id: 'live'[^\n]*\n(?:[^\n]*\n){0,4}[^\n]*My Plays Only is on by default/.test(t)
+  return /id: 'live'[^\n]*\n(?:[^\n]*\n){0,4}[^\n]*(My Plays Only is on by default|You watch your side of the ball by default)/.test(t) // v156 D reworded it
 })
 ok(coach, 'the coach explains it at the first broadcast')
 

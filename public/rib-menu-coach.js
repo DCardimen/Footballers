@@ -77,7 +77,7 @@
   const S = {
     career: '#rib-main-menu-v2 .rib9-tiles .rib9-tile:nth-child(1)', coach: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="coach"]', howto: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="howto"]', prestige: 'text:^TRAINING\\b',   // the tile's action is view:upgrade with a career and new without one: find it by its face
     lockIn: 'text:Lock In Personality', posCards: '.pos-card', playSeason: 'text:Play \\d+-Game Season', confirm: 'text:CONFIRM TRAINING', playWeek: 'text:Play Week \\d+ Live',
-    cont: '#gv42go', next: 'text:^NEXT', speed: '.speed-btn',
+    cont: '#gv42go', next: 'text:^NEXT', speed: '.speed-btn', myPlays: '#myPlaysV156D',
     planTiles: '#v146Plan', proj: '#v146Proj',   // v146 D: the plan board on the pregame's fifth page, and the projection strip under every page
     /* v134: the prestige tree is the shop, reached off the MEDALS chip in the header (v156 A: the target key stays 'honors') (TRAINING on the
      * menu opens the SKILL-POINT sheet, view `upgrade` -- a different screen, with its own stop now) */
@@ -231,7 +231,8 @@
     { id: 'live', title: 'THE BROADCAST', sub: 'WATCH IT', when: (c) => c.live && !c.post, delay: 2600, lines: [
       { p: 'open', t: "Game time. Your guy has a ring under his feet. Watch him." },
       { p: 'listen', t: "These buttons set the speed. SKIP jumps to the whistle. Your stats show under the field.", s: 'speed' },
-      { p: 'tip', t: "My Plays Only is on by default. You watch your side of the ball — offense if you play offense, defense if you play defense. Want every snap? Settings." },   // v153 B
+      { p: 'tip', t: "You watch your side of the ball by default — offense if you play offense, defense if you play defense. Want every snap? Settings." },   // v153 B
+      { p: 'point', t: "See that MY PLAYS ONLY box up top? Tick it and you only watch the snaps you're in. Playoffs, it's off. You watch every snap on your side.", s: 'myPlays' },   // v156 D
       { p: 'relaxed', t: "I'll see you after." },
     ] },
     { id: 'result', title: 'THE CARD', sub: 'AFTER THE WHISTLE', when: (c) => c.post, lines: [

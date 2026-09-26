@@ -1590,6 +1590,19 @@
     "bootviewcheck",
     "walk"
    ]
+  },
+  "v156d": {
+   "desc": "v156 D — MY PLAYS ONLY on the live field (the ticked box, the playoffs' every-snap-on-your-side rule)",
+   "anchors": [
+    "v156 D"
+   ],
+   "files": [],
+   "checks": [
+    "v156Dcheck",
+    "v153Bcheck",
+    "v151Acheck",
+    "coachcheck"
+   ]
   }
  },
  "checks": {
@@ -3819,6 +3832,20 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v156Dcheck": {
+   "file": "scripts/v156Dcheck.mjs",
+   "desc": "v156 D — the MY PLAYS ONLY box on the live field: top-right right above the field, visible and clear of the scorebug / speed row / buff line at 400x860 and 1280x800; a click ticks it and saves it; ticked, a regular-season live game draws only plays that name the you-player (the playback log and the whole engine log), unticked his side of the ball; playoff and championship weeks lock it off, the filter is the side of the ball (skip-opponent cannot hide a defender's snap), a tap leaves the saved choice alone and the next regular-season week has it back; Settings row, the coach's pointer; no Math.random, seeded games identical, the kill switch; no page errors.",
+   "areas": [
+    "live",
+    "plays"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   }
  }
 }
