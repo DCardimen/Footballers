@@ -1,6 +1,6 @@
 // Dev check (v156 B SEASON SIMS ARE EARNED, PLAYOFFS ARE PLAYED) — src/07-career-app.js's v156 B block, the v151 A
 // skip functions it takes over, simSeasonV147 / postV147 / screenSeason / the live SKIP, and src/27-monetize.js's
-// `simUnlimited` placement. docs/MONETIZATION.md.
+// `gameSims` placement (v158 B; was `simUnlimited`). docs/MONETIZATION.md.
 //
 // OFF (the default):
 //   - the ⏭ allowance is a CAREER's: 1 on a fresh account; Legacy XP that completes the BRONZE medals makes it 2, every
@@ -12,8 +12,10 @@
 //   - the UFF's sim stops at the playoffs (spending one sim) and a missed-playoffs season still finishes
 //   - the kill switches (TU v156Bskips 0, v156Bplayoffs 0) bring the old paths back
 //   - the store module stays a no-op (no key, no node)
-// ON (`?monetize=1`, dev host): none left → the store's sheet; the rewarded ad makes every sim free for 30 minutes
-//   ("∞ for 30 min"), then it expires on the module's clock; Pro +3 a career; the Club (member) never counts a sim.
+// ON (`?monetize=1`, dev host): none left → the store's sheet; v158 B: Quick Play is locked ("🔒 AD") — a tap opens the
+//   member-perk sheet, the rewarded ad gives 30 minutes of unlimited GAME sims ("∞ 30 min") and the Quick Play goes on,
+//   season sims stay counted, it expires on the module's clock; Pro +3 a career; the Club (member) has Quick Play for good
+//   and twice the season sims (TU memberSimMultV158B); TU v158Bgames 0 restores v156 B.
 // No page errors.
 //   GAME_URL=http://localhost:5451/index.html node scripts/v156Bcheck.mjs
 import { gameUrl, launch } from './lib/env.mjs'
@@ -166,27 +168,50 @@ const leaveLive = (page) => M(page, async () => { const k = window.RIB_TUNE.v156
   await c.close()
 }
 
-// ============================== 4. ON: the ad, Pro, the Club ==============================
+// ============================== 4. ON: the ad buys GAME sims (v158 B), Pro, the Club ==============================
 {
   const c = await newCtx(), p = await open(c, 'on', ON)
   await seed(p)
-  const pl = await M(p, () => ({ place: Object.keys(window.RIB_MONETIZE.config.placements).join(','), allowed: window.RIB_MONETIZE.keyAllowed('simUnlimited'), extra: window.RIB_MONETIZE.keyAllowed('simExtra') }))
-  ok(pl.place === 'speed4,simUnlimited,cosTrial' && pl.allowed && !pl.extra, 'ON: the sim placement is simUnlimited (simExtra is gone)', pl)
+  const pl = await M(p, () => ({ place: Object.keys(window.RIB_MONETIZE.config.placements).join(','), games: window.RIB_MONETIZE.keyAllowed('gameSims'), alias: window.RIB_MONETIZE.keyAllowed('simUnlimited'), extra: window.RIB_MONETIZE.keyAllowed('simExtra') }))
+  ok(pl.place === 'speed4,gameSims,cosTrial' && pl.games && pl.alias && !pl.extra, 'ON: the sim placement is gameSims (v158 B; simUnlimited stays an allowed alias, simExtra is gone)', pl)
   const sh = await M(p, async () => { window.S.player.simsUsedV156B = 1; window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 300)); const s = document.getElementById('mz149Sheet'), t = s ? s.textContent : ''; s?.remove(); return t })
-  ok(/NO SEASON SIMS LEFT THIS CAREER/.test(sh) && /BRONZE medals/.test(sh) && /30 minutes/.test(sh) && /played live/.test(sh), 'ON: none left → the store\'s sheet explains the medals and offers 30 minutes of unlimited sims', sh)
-  const ad = await M(p, async () => { const r = await window.RIB_MONETIZE.rewardSim(), s = window.__V156B.skips(); window.go('season')
-    const b = document.querySelector('[onclick^="seasonSkipV151A"]'); const n0 = window.S.player.weekResults.filter((w) => w.played).length
+  ok(/NO SEASON SIMS LEFT THIS CAREER/.test(sh) && /BRONZE medals/.test(sh) && /played live/.test(sh) && /member perk/.test(sh) && /30 minutes of unlimited game sims/.test(sh), 'ON: none left → the store\'s sheet explains the medals; Quick Play is a member perk or 30 minutes of game sims for an ad', sh)
+  // Quick Play is locked → the sheet → the ad → the Quick Play goes on
+  const q = await M(p, async () => { window.S.player.simsUsedV156B = 0; window.go('season'); const d = document.getElementById('dock'), b = [...d.querySelectorAll('button')].find((x) => /Quick Play/.test(x.textContent))
+    const tag = b ? b.textContent.replace(/\s+/g, ' ') : '', n0 = window.S.player.weekResults.filter((w) => w.played).length
+    window.playWeek(false); await new Promise((r) => setTimeout(r, 500)); const s = document.getElementById('mz149Sheet')
+    return { ok0: window.__V158B.gameOk(), tag, n0, n1: window.S.player.weekResults.filter((w) => w.played).length, sheet: s ? s.textContent : '' } })
+  ok(!q.ok0 && /🔒 AD/.test(q.tag) && q.n1 === q.n0 && /QUICK PLAY IS A MEMBER PERK/.test(q.sheet) && /UNLIMITED GAME SIMS 30 MIN/.test(q.sheet), 'ON: Quick Play is locked ("🔒 AD") — a tap plays nothing and opens "Quick Play is a member perk" with the 30-minute ad', q)
+  await p.click('#mz149Sheet [data-yes]')
+  await p.waitForFunction(() => window.__V158B.gameOk() && !document.getElementById('mz149Ad'), null, { timeout: 8000 }).catch(() => null); await p.waitForTimeout(1800)
+  const qa = await M(p, () => { window.go('season'); const b = [...document.getElementById('dock').querySelectorAll('button')].find((x) => /Quick Play/.test(x.textContent)); const R = window.RIB_MONETIZE
+    return { ok: window.__V158B.gameOk(), min: Math.round((R.until('gameSims') - R.dev.now()) / 60e3), tag: b ? b.textContent.replace(/\s+/g, ' ') : '', n1: window.S.player.weekResults.filter((w) => w.played).length } })
+  ok(qa.ok && qa.min === 30 && /∞ 30 min/.test(qa.tag) && qa.n1 === q.n0 + 1, 'ON: the watched ad gives 30 minutes of game sims ("∞ 30 min") and the tapped Quick Play goes on', qa)
+  const q2 = await M(p, async () => { const n0 = window.S.player.weekResults.filter((w) => w.played).length; window.playWeek(false); await new Promise((r) => setTimeout(r, 1500)); return { n0, n1: window.S.player.weekResults.filter((w) => w.played).length, sheet: !!document.getElementById('mz149Sheet') } })
+  ok(q2.n1 === q2.n0 + 1 && !q2.sheet, 'ON: while boosted, Quick Play just plays', q2)
+  // season sims stay counted with the boost
+  const ad = await M(p, async () => { const s = window.__V156B.skips(); window.go('season'); const b = document.querySelector('[onclick^="seasonSkipV151A"]'); const n0 = window.S.player.weekResults.filter((w) => w.played).length
     window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 2500))
-    return { r: r.rewarded, min: r.reward && r.reward.minutes, unl: s.unlimited, left: s.left, ml: s.minutesLeft, btn: b ? b.textContent.replace(/\s+/g, ' ') : '', n0, n1: window.S.player.weekResults.filter((w) => w.played).length, used: window.S.player.simsUsedV156B } })
-  ok(ad.r && ad.min === 30 && ad.unl && ad.left === Infinity && ad.ml === 30 && /∞ for 30 min/.test(ad.btn), 'ON: the rewarded ad makes sims unlimited for 30 minutes — the button says "∞ for 30 min"', ad)
-  ok(ad.n1 > ad.n0 && ad.used === 1, 'ON: a sim while boosted runs and is not counted', { n0: ad.n0, n1: ad.n1, used: ad.used })
-  const ex = await M(p, () => { const R = window.RIB_MONETIZE; R.dev.advance(29 * 60e3); const mid = window.__V156B.skips().unlimited; R.dev.advance(2 * 60e3); const s = window.__V156B.skips(); R.dev.advance(-31 * 60e3); return { mid, after: s.unlimited, left: s.left } })
-  ok(ex.mid && !ex.after && ex.left === 0, 'ON: the boost expires after 30 minutes and the count is back to none left', ex)
-  const pro = await M(p, () => { const R = window.RIB_MONETIZE; R.grant('pro', { source: 'check' }); const a = window.__V156B.skips(); R.revoke('pro'); R.grant('member', { periodDays: 31, source: 'check' }); const b = window.__V156B.skips(); const line = window.__V156B.line(); R.revoke('member'); return { pro: a.pro, allowed: a.allowed, club: b.club, unl: b.unlimited, line } })
-  ok(pro.pro === 3 && pro.allowed === 4 && pro.club && pro.unl && /Club/.test(pro.line), 'ON: Pro adds 3 sims a career; the Club membership never counts a sim', pro)
+    return { unl: s.unlimited, left: s.left, btn: b ? b.textContent.replace(/\s+/g, ' ') : '', n0, n1: window.S.player.weekResults.filter((w) => w.played).length, used: window.S.player.simsUsedV156B } })
+  ok(!ad.unl && ad.left === 1 && /1 left this career/.test(ad.btn) && ad.n1 > ad.n0 && ad.used === 1, 'ON: the game-sims boost does not touch season sims — a season sim is still counted', ad)
+  const ex = await M(p, () => { const R = window.RIB_MONETIZE; R.dev.advance(29 * 60e3); const mid = window.__V158B.gameOk(); R.dev.advance(2 * 60e3); const after = window.__V158B.gameOk(); R.dev.advance(-31 * 60e3); return { mid, after } })
+  ok(ex.mid && !ex.after, 'ON: the game-sims boost expires after 30 minutes', ex)
+  const pro = await M(p, () => { const R = window.RIB_MONETIZE, V = window.__V152A, out = {}; R.revoke('gameSims')
+    R.grant('pro', { source: 'check' }); const a = window.__V156B.skips(); out.pro = a.pro; out.proAllowed = a.allowed; out.proGames = window.__V158B.gameOk(); R.revoke('pro')
+    R.grant('member', { periodDays: 31, source: 'check' }); let b = window.__V156B.skips(); out.mult = b.mult; out.memAllowed = b.allowed; out.club = b.club; out.unl = b.unlimited; out.memGames = window.__V158B.gameOk()
+    V.pay(null, Math.max(0, V.xpAt(59) - V.state().xp), 'check'); b = window.__V156B.skips(); out.memBronze = b.allowed; out.nextBonus = b.next && b.next.bonus
+    V.pay(null, Math.max(0, V.xpAt(500) - V.state().xp), 'check'); out.memAll = window.__V156B.skips().allowed
+    window.RIB_TUNE.memberSimMultV158B = 3; out.x3 = window.__V156B.skips().allowed; delete window.RIB_TUNE.memberSimMultV158B
+    window.RIB_TUNE.v158Bgames = 0; b = window.__V156B.skips(); out.killUnl = b.unlimited; out.killMult = b.mult; delete window.RIB_TUNE.v158Bgames
+    R.revoke('member'); window.S.legacyV152.xp = 0
+    window.RIB_TUNE.v158Bgames = 0; out.killGames = window.__V158B.gameOk(); delete window.RIB_TUNE.v158Bgames
+    return out })
+  ok(pro.pro === 3 && pro.proAllowed === 4 && !pro.proGames, 'ON: Pro adds 3 season sims a career (Quick Play is not Pro\'s — its Ad Free claims the 30 minutes without an ad)', pro)
+  ok(pro.memGames && !pro.club && !pro.unl && pro.mult === 2 && pro.memAllowed === 2 && pro.memBronze === 4 && pro.nextBonus === 4 && pro.memAll === 40 && pro.x3 === 60, 'ON: the Club has Quick Play for good and TWICE the season sims (1 → 2, BRONZE 4, all nine 40; TU memberSimMultV158B 3 → 60), never unlimited', pro)
+  ok(pro.killUnl && pro.killMult === 1 && pro.killGames, 'ON: TU v158Bgames 0 brings v156 B back (Quick Play free, the Club never counts a season sim)', pro)
   await M(p, () => window.RIB_MONETIZE.openStore()); await p.waitForTimeout(400)
-  const st = await M(p, () => { const s = document.getElementById('mz149Store'), t = s ? s.textContent : ''; const b = s && s.querySelector('[data-ad="simUnlimited"]'); window.RIB_MONETIZE.closeStore(); return { btn: !!b, sims: /a career/.test(t), pro: /\+3 season sims every career/.test(t) } })
-  ok(st.btn && st.sims && st.pro, 'ON: the store\'s free rung counts sims a career, the ad rung offers the 30-minute boost, Pro says +3 a career', st)
+  const st = await M(p, () => { const s = document.getElementById('mz149Store'), t = s ? s.textContent : ''; const b = s && s.querySelector('[data-ad="gameSims"]'); window.RIB_MONETIZE.closeStore(); return { btn: b ? b.textContent : '', sims: /a career/.test(t), pro: /\+3 season sims every career/.test(t), qp: /Quick Play \(one game at a time\): a member perk, or 30 min for an ad/.test(t) } })
+  ok(/UNLIMITED GAME SIMS 30 MIN/.test(st.btn) && st.sims && st.pro && st.qp, 'ON: the store: season sims a career, "▶ WATCH · UNLIMITED GAME SIMS 30 MIN", Quick Play a member perk, Pro +3 a career', st)
   await c.close()
 }
 
