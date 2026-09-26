@@ -3815,7 +3815,7 @@
   },
   "v156Bcheck": {
    "file": "scripts/v156Bcheck.mjs",
-   "desc": "v156 B — season sims are a career's, earned with the Legacy medal groups (1 on a fresh account, bronze → 2, all nine → 20 cap), spent one a ⏭, refused at 0 with the next group and the table, reset by a new career, no day, Quick Play free; the playoffs are always played live (dock, playWeek/prepareWeek103/⏭/simRemainingWeeks/__silentWeekV85 refuse, no live SKIP, the UFF sim stops at the playoffs, a missed-playoffs season finishes); kill switches; store ON: the 30-minute simUnlimited ad, Pro +3, the Club; OFF no-op.",
+   "desc": "v156 B — season sims are a career's, earned with the Legacy medal groups (1 on a fresh account, bronze → 2, all nine → 20 cap), spent one a ⏭, refused at 0 with the next group and the table, reset by a new career, no day, Quick Play free; the playoffs are always played live (dock, playWeek/prepareWeek103/⏭/simRemainingWeeks/__silentWeekV85 refuse, no live SKIP, the UFF sim stops at the playoffs, a missed-playoffs season finishes); kill switches; store ON: the 30-minute simUnlimited ad, Pro +3, the Club; OFF no-op. v158 B (ON): Quick Play needs game sims — locked \"🔒 AD\", the member-perk sheet, the 30-min ad, then it plays; season sims stay counted; the Club: Quick Play always and ×2 season sims (TU memberSimMultV158B); TU v158Bgames 0 restores v156 B.",
    "areas": [
     "skips",
     "playoffs",
@@ -3898,7 +3898,7 @@
   },
   "v158Bcheck": {
    "file": "scripts/v158Bcheck.mjs",
-   "desc": "v158 B — the owner's EXPERIENCE toggle: OFF (default, bad value, TU experienceV158B 0) is the old build and Settings is the same markup with 27 blocked; the F2P preview runs the store ON in a sandbox (no member, not grandfathered, the PREVIEW chip → Settings), every rewarded placement (4×, the out-of-sims sheet, a cosmetic trial) opens the 15 s ad placeholder (countdown ring, SKIP focused and live at once, Esc, fits 400x860) and skip / the end grant the reward (4× 20 min, unlimited sims 30 min, a 24 h trial), TU adSkipAfterV158B holds SKIP, member looks locked, the break between seasons once a season on the report card (TU adBreakV158B), nothing in the save or the real entitlement store; MEMBER (switched through the ribDialog) holds member — no ad or break anywhere, 4×, uncounted sims, a member look equipped; back to OFF deletes the sandbox and the member look falls back to the default; no page errors.",
+   "desc": "v158 B — the owner's EXPERIENCE toggle: OFF (default, bad value, TU experienceV158B 0) is the old build and Settings is the same markup with 27 blocked; the F2P preview runs the store ON in a sandbox (no member, not grandfathered, the PREVIEW chip → Settings), every rewarded placement (4×, a locked Quick Play tap, a cosmetic trial) opens the 15 s ad placeholder (countdown ring, SKIP focused and live at once, Esc, fits 400x860) and skip / the end grant the reward (4× 20 min, 30 min of game sims — the tapped Quick Play goes on; season sims stay counted, a 24 h trial), TU adSkipAfterV158B holds SKIP, member looks locked, the break between seasons once a season on the report card (TU adBreakV158B), nothing in the save or the real entitlement store; MEMBER (switched through the ribDialog) holds member — no ad or break anywhere, 4×, Quick Play free, twice the season sims (counted), a member look equipped; back to OFF deletes the sandbox and the member look falls back to the default; no page errors.",
    "areas": [
     "monetize",
     "settings",

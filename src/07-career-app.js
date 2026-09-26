@@ -9122,8 +9122,8 @@
       ],
       notes = {
         off: "What every player gets today: the store is switched off.",
-        f2p: "PREVIEW — the store as a player with no purchases sees it: rewarded-ad offers (4× for 20 min, 30 min of unlimited season sims, a cosmetic trial), member looks locked, a break between seasons. Every ad is a 15-second placeholder you can skip.",
-        member: "PREVIEW — the membership: no ads, 4× speed, unlimited season sims, the member looks and the premium Career Pass."
+        f2p: "PREVIEW — the store as a player with no purchases sees it: rewarded-ad offers (4× for 20 min, 30 min of unlimited game sims — Quick Play — a cosmetic trial), season sims from your medals, member looks locked, a break between seasons. Every ad is a 15-second placeholder you can skip.",
+        member: "PREVIEW — the membership: no ads, 4× speed, unlimited game sims (Quick Play), twice the season sims, the member looks and the premium Career Pass."
       };
     return `<div class="card" id="experienceV158B">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px">🧪 EXPERIENCE</div>
@@ -20393,7 +20393,7 @@
       byId("dock").innerHTML = `
       <button class="btn" onclick="playWeek(true)">▶ Play ${C} Live</button>
       ${playoffLockV156B(e, y) ? playoffNoteV156B() /* v156 B: the playoffs are played live — no Quick Play, no sim */ : `<div style="height:8px"></div>
-      <button class="btn secondary" onclick="playWeek(false)">⏩ Quick Play ${C}</button>`}
+      <button class="btn secondary" onclick="playWeek(false)">⏩ Quick Play ${C}${gameSimTagV158B() /* v158 B: "" while the store is off */}</button>`}
       ${V > 1 && !(y && y.playoff) ? '<div style="height:8px"></div><button class="btn ghost" onclick="seasonSkipV151A()">' + skipBtnV151A("⏭ Sim Remaining Regular Season") + "</button>" : ""}
       <div style="height:8px"></div>
       <div class="btn-row">
@@ -30212,11 +30212,13 @@
       earned = groups.reduce((t, g) => t + (g.done ? g.bonus : 0), 0),
       proBonus = TU("skipProBonusV151A", 3),
       pro = m && m.has("simPlus") ? proBonus : 0,
-      allowed = Math.min(max, base + earned) + pro,
+      mult = memberSimMultV158B(m) /* v158 B: a member's allowance is doubled — base, every group, the cap */,
+      allowed = Math.min(max * mult, (base + earned) * mult) + pro,
       used = (e && e.simsUsedV156B) | 0,
-      unlimited = !!(m && m.has("simUnlimited")),
+      /* v158 B: the ad (and the Club) buy GAME sims now — a season sim is always counted; TU v158Bgames 0 restores v156 B */
+      unlimited = !TU("v158Bgames", 1) && !!(m && (m.has("simUnlimited") || m.has("gameSims"))),
       club = !!(unlimited && m.has("member")) /* the Club: the ads' benefit for good */,
-      until = unlimited ? (club ? 1 / 0 : m.until("simUnlimited")) : 0,
+      until = unlimited ? (club ? 1 / 0 : Math.max(m.until("simUnlimited"), m.until("gameSims"))) : 0,
       gated = gateOnV151A("seasonSkipGateV151A"),
       nx = groups.find(g => !g.done) || null;
     return {
@@ -30228,6 +30230,7 @@
       max,
       pro,
       proBonus,
+      mult,
       allowed,
       used,
       left: !gated || unlimited ? 1 / 0 : Math.max(0, allowed - used),
@@ -30236,7 +30239,7 @@
       unlimitedUntil: until,
       minutesLeft: unlimited && until !== 1 / 0 ? Math.max(1, Math.ceil((until - simNowV156B(m)) / 6e4)) : unlimited ? 1 / 0 : 0,
       groups,
-      next: nx ? { key: nx.key, name: nx.name, to: nx.to, bonus: nx.bonus, medals } : null,
+      next: nx ? { key: nx.key, name: nx.name, to: nx.to, bonus: nx.bonus * mult, medals } : null,
       perDay: 0 /* v151 A's field: there is no day any more */
     };
   }
@@ -30317,22 +30320,65 @@
   playWeek = function (live) {
     const e = state && state.player;
     if (!live && playoffLockV156B(e, nextWeekV156B(e))) return void playoffRefuseV156B();
+    if (!live && !gameSimOkV158B()) return void gameSimLockedV158B(() => window.playWeek(!1));
     return pw0V156B.apply(this, arguments);
   };
   const pp0V156B = prepareWeek103;
   prepareWeek103 = function (live) {
     const e = state && state.player;
     if (!live && playoffLockV156B(e, nextWeekV156B(e))) return void playoffRefuseV156B();
+    if (!live && !gameSimOkV158B()) return void gameSimLockedV158B(() => window.prepareWeek103(!1));
     return pp0V156B.apply(this, arguments);
   };
   const sw0V156B = startWeek;
   startWeek = function (live) {
     const e = state && state.player;
     if (!live && playoffLockV156B(e, nextWeekV156B(e))) return void playoffRefuseV156B();
+    if (!live && !gameSimOkV158B()) return void gameSimLockedV158B(() => startWeek(!1));
     return sw0V156B.apply(this, arguments);
   };
   window.playWeek = playWeek;
   window.prepareWeek103 = prepareWeek103;
+  /* ===== v158 B GAME SIMS ARE THE MEMBER'S (the owner: "the member has unlimited individual game sims and twice the
+   * amount of season sims"; "free to play — watch ads for 30 mins of free game skips") =====
+   * Only while the store is ON (a real store, or the v158 B preview). A GAME sim is Quick Play of one regular-season
+   * week (`playWeek(false)` / `prepareWeek103(false)` / `startWeek(false)` — the wrappers above; a playoff week is
+   * live-only anyway). It needs `gameSims`: the Club (`member` implies it) for good, or the rewarded ad for 30 minutes
+   * (the module's `gameSims` placement; a stored v156 B `simUnlimited` grant is read as it). A locked tap opens the
+   * module's sheet (`RIB_MONETIZE.gameSimLocked(retry)`: the ad, then the Quick Play goes on). SEASON sims stay the
+   * v156 B medal allowance for everyone — the ad no longer makes them uncounted — and a member's is doubled
+   * (`memberSimMultV158B`, TU "memberSimMultV158B" 2: base, every group bonus and the cap). Store OFF: Quick Play is
+   * free and unlimited, the button is the old markup (`gameSimTagV158B` → ""). Kill switch TU "v158Bgames" 0 (the v156 B
+   * rules: Quick Play free, the ad / the Club make season sims uncounted). Hoisted declarations (v140). */
+  function memberSimMultV158B(m) {
+    if (!m || !TU("v158Bgames", 1) || !m.has("member")) return 1;
+    return Math.max(1, Math.round(TU("memberSimMultV158B", 2)));
+  }
+  function gameSimOkV158B() {
+    const m = mzV150C();
+    if (!m || !TU("v158Bgames", 1)) return !0;
+    return !!(m.has("gameSims") || m.has("simUnlimited"));
+  }
+  function gameSimLeftV158B() {
+    const m = mzV150C();
+    if (!m) return 0;
+    const u = Math.max(m.until("gameSims") || 0, m.until("simUnlimited") || 0);
+    return u === 1 / 0 ? 1 / 0 : u ? Math.max(0, u - simNowV156B(m)) : 0;
+  }
+  function gameSimTagV158B() {
+    const m = mzV150C();
+    if (!m || !TU("v158Bgames", 1)) return "";
+    const l = gameSimLeftV158B(),
+      t = l === 1 / 0 ? "" : l > 0 ? `∞ ${Math.max(1, Math.ceil(l / 6e4))} min` : "🔒 AD";
+    return t ? ` <small data-qp158="1" style="font-size:10px;letter-spacing:.8px;opacity:.8;margin-left:4px">${t}</small>` : "";
+  }
+  function gameSimLockedV158B(retry) {
+    const m = mzV150C();
+    window.__V156B && window.__V156B.gameLocked++;
+    if (m && m.gameSimLocked) return void m.gameSimLocked(retry);
+    showToast("⏩ Quick Play is a member perk — or watch an ad for 30 minutes of game sims");
+  }
+  window.__V158B = { gameOk: gameSimOkV158B, gameLeft: gameSimLeftV158B, tag: gameSimTagV158B, mult: () => memberSimMultV158B(mzV150C()) };
   window.__V156B = {
     skips: skipsV156B,
     line: skipLineV156B,
@@ -30342,6 +30388,7 @@
     sim: seasonSimV156B,
     explain: simLockedV156B,
     locked: 0,
+    gameLocked: 0,
     refused: 0,
     sims: 0,
     free: 0,

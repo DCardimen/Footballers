@@ -5,15 +5,15 @@
 //      store node; the Settings EXPERIENCE row is there with "Off" chosen and the Settings markup is the SAME as a boot
 //      with 27-monetize.js blocked (the v150 C identity). v149Echeck / v150Ccheck prove the rest of OFF.
 //   2. F2P preview: the store is ON with nothing bought (not grandfathered, no member), the provider is "preview", the
-//      chip reads "PREVIEW · F2P"; each rewarded placement (4×, unlimited sims from the out-of-sims sheet, a cosmetic
+//      chip reads "PREVIEW · F2P"; each rewarded placement (4×, game sims from a locked Quick Play tap, a cosmetic
 //      trial) opens the full-screen placeholder — "An ad will be placed here", 15 s, the reward named, a countdown ring,
-//      SKIP focused and live at once — and skip (button or Esc) grants the reward: 4× for 20 min, unlimited sims for
+//      SKIP focused and live at once — and skip (button or Esc) grants the reward: 4× for 20 min, unlimited GAME sims for
 //      30 min, a 24 h trial; a finished countdown grants it too; TU adSkipAfterV158B > 0 holds SKIP back; member looks
 //      stay locked; the season report card shows the "break between seasons" placeholder ONCE a season (TU
 //      adBreakV158B 0: never); every entitlement lives in the sandbox keys, never the save or the real store key; the
 //      placeholder fits 400x860.
 //   3. MEMBER preview (switched from Settings through the ribDialog confirm): the F2P sandbox is gone, `member` held,
-//      no ad anywhere (the 4× offer is not needed, no placeholder, no break), 4× allowed, season sims uncounted, a member
+//      no ad anywhere (the 4× offer is not needed, no placeholder, no break), 4× allowed, Quick Play free, season sims doubled (and counted), a member
 //      look owned and equipped; the chip reads "PREVIEW · MEMBER".
 //   4. Back to OFF: the store is off again, every preview key is deleted, the member look is not owned and the slot
 //      falls back to its default; no chip. No page errors throughout.
@@ -132,18 +132,24 @@ await confirmDlg(p)
   const g4 = await M(p, () => ({ r: window.__r4, s4: RIB_MONETIZE.speedAllowed(4), left: Math.round((RIB_MONETIZE.until('speed4') - RIB_MONETIZE.dev.now()) / 60000) }))
   ok(g4.r && g4.r.rewarded && g4.s4 && g4.left >= 19 && g4.left <= 20, 'F2P: skip counts as watched "for now" — 4× unlocked for 20 minutes', g4)
 
-  // (b) out of season sims → the sheet → the placeholder → skip → 30 min of unlimited sims
-  const sheet = await M(p, async () => { window.S.player.simsUsedV156B = 99; window.go('season'); window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 400))
-    const s = document.getElementById('mz149Sheet'); return s ? s.innerText.replace(/\s+/g, ' ') : null })
-  ok(!!sheet && /NO SEASON SIMS LEFT/.test(sheet) && /Watch a short ad for unlimited regular-season sims for 30 minutes/.test(sheet), 'F2P: no sims left → the store\'s sheet offers 30 min of unlimited sims for an ad', sheet && sheet.slice(0, 120))
+  // (b) v158 B: Quick Play is locked → the member-perk sheet → the placeholder → skip → 30 min of unlimited GAME sims
+  const qp = await M(p, async () => { window.go('season'); const b = [...document.getElementById('dock').querySelectorAll('button')].find((x) => /Quick Play/.test(x.textContent))
+    const tag = b ? b.textContent.replace(/\s+/g, ' ') : '', n0 = window.S.player.weekResults.filter((w) => w.played).length; window.__qpN0 = n0
+    window.playWeek(false); await new Promise((r) => setTimeout(r, 400)); const s = document.getElementById('mz149Sheet')
+    return { tag, n0, n1: window.S.player.weekResults.filter((w) => w.played).length, sheet: s ? s.textContent.replace(/\s+/g, ' ') : null } })
+  ok(/🔒 AD/.test(qp.tag) && qp.n1 === qp.n0 && /QUICK PLAY IS A MEMBER PERK/.test(qp.sheet || '') && /watch an ad for 30 minutes of game sims/.test(qp.sheet || ''), 'F2P: Quick Play is locked ("🔒 AD"); a tap opens "Quick Play is a member perk — or watch an ad for 30 minutes of game sims"', qp)
   await p.click('#mz149Sheet [data-yes]')
-  ok(await waitAd(p), 'F2P: the sim offer opens the placeholder')
+  ok(await waitAd(p), 'F2P: the game-sims offer opens the placeholder')
   const a2 = await adState(p)
-  ok(a2 && /unlimited regular-season sims for 30 min/.test(a2.text), 'F2P: it names the sim reward', a2 && a2.text.slice(0, 140))
-  await p.click('#mz149Ad [data-skip]'); await gone(p); await p.waitForTimeout(2500)
-  const gs = await M(p, () => { const s = window.__V156B.skips(); return { unl: s.unlimited, left: Math.round((RIB_MONETIZE.until('simUnlimited') - RIB_MONETIZE.dev.now()) / 60000), played: window.S.player.weekResults.filter((w) => w.played).length } })
-  ok(gs.unl && gs.left >= 29 && gs.left <= 30 && gs.played > 0, 'F2P: skip grants unlimited season sims for 30 min, and the season sims on', gs)
-
+  ok(a2 && /unlimited game sims for 30 min/.test(a2.text), 'F2P: it names the game-sims reward', a2 && a2.text.slice(0, 140))
+  await p.click('#mz149Ad [data-skip]'); await gone(p); await p.waitForTimeout(1800)
+  const gs = await M(p, async () => { const R = RIB_MONETIZE, n1 = window.S.player.weekResults.filter((w) => w.played).length; window.playWeek(false); await new Promise((r) => setTimeout(r, 1500))
+    const s = window.__V156B.skips(); window.go('season'); const b = [...document.getElementById('dock').querySelectorAll('button')].find((x) => /Quick Play/.test(x.textContent))
+    return { n0: window.__qpN0, n1, n2: window.S.player.weekResults.filter((w) => w.played).length, left: Math.round((R.until('gameSims') - R.dev.now()) / 60000), unl: s.unlimited, tag: b ? b.textContent.replace(/\s+/g, ' ') : '' } })
+  ok(gs.n1 === gs.n0 + 1 && gs.n2 === gs.n1 + 1 && gs.left >= 29 && gs.left <= 30 && /∞ (29|30) min/.test(gs.tag), 'F2P: skip grants 30 min of game sims — the tapped Quick Play goes on, the next one just plays, the button says "∞ 30 min"', gs)
+  const ss = await M(p, async () => { const p = window.S.player, n0 = p.weekResults.filter((w) => w.played).length; p.simsUsedV156B = 99; window.go('season'); window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 400))
+    const s = document.getElementById('mz149Sheet'), t = s ? s.textContent.replace(/\s+/g, ' ') : null; s?.remove(); return { unl: window.__V156B.skips().unlimited, n0, n1: p.weekResults.filter((w) => w.played).length, t } })
+  ok(!ss.unl && ss.n1 === ss.n0 && /NO SEASON SIMS LEFT/.test(ss.t || ''), 'F2P: season sims stay counted with the boost — none left → the medals sheet, nothing simmed', ss)
   // (c) a cosmetic trial (a shop look) — through the placeholder
   const shopId = await M(p, () => { const C = window.RIB_COSMETICS; const it = C.catalog().find((i) => i.source === 'shop' && !C.owned(i.id)); window.__rt = null; if (it) RIB_MONETIZE.rewardTrial(it.id).then((r) => { window.__rt = r }); return it && it.id })
   ok(!!shopId && await waitAd(p), 'F2P: a cosmetic trial opens the placeholder', shopId)
@@ -186,7 +192,7 @@ await confirmDlg(p)
   // (g) the store says it is a preview; the save and the real store hold nothing of it
   const st = await M(p, async () => { RIB_MONETIZE.openStore(); await new Promise((r) => setTimeout(r, 400)); const f = document.querySelector('#mz149Store [data-sec="preview"]'); const t = f ? f.innerText : ''; RIB_MONETIZE.closeStore()
     window.GridironStorage.save(window.S); const sv = localStorage.getItem('gridiron_save_v1') || ''
-    return { t, inSave: /simUnlimited|"speed4"|rib\.monetize|rib\.experience|"try:/.test(sv), real: localStorage.getItem('rib.monetize.ents.v1'), keys: Object.keys(localStorage).filter((k) => /^rib\.monetize\.preview\.v158\./.test(k) || /monetize/.test(k)) } })
+    return { t, inSave: /simUnlimited|gameSims|"speed4"|rib\.monetize|rib\.experience|"try:/.test(sv), real: localStorage.getItem('rib.monetize.ents.v1'), keys: Object.keys(localStorage).filter((k) => /^rib\.monetize\.preview\.v158\./.test(k) || /monetize/.test(k)) } })
   ok(/PREVIEW · FREE-TO-PLAY/.test(st.t) && /EXPERIENCE/.test(st.t), 'F2P: the store\'s foot says PREVIEW and links back to the toggle', st.t)
   ok(!st.inSave && st.real === null && st.keys.length >= 1 && st.keys.every((k) => PV.test(k)), 'F2P: the preview\'s entitlements are in the sandbox — never the save, never the real store', st)
 }
@@ -205,9 +211,11 @@ await confirmDlg(p)
   await seed(p); await p.waitForTimeout(400)
   const na = await M(p, async () => { const r4 = await RIB_MONETIZE.rewardSpeed(); const brk = await RIB_MONETIZE.adBreak(true); await new Promise((r) => setTimeout(r, 300)); return { r4: r4.reason, brk: brk.shown, ad: !!document.getElementById('mz149Ad') } })
   ok(na.r4 === 'already-held' && !na.brk && !na.ad, 'MEMBER: no placeholder anywhere — 4× is already held, no break between seasons', na)
-  const sim = await M(p, async () => { const p = window.S.player; p.simsUsedV156B = 99; const n0 = p.weekResults.filter((w) => w.played).length; window.go('season'); window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 2500))
-    const s = window.__V156B.skips(); return { n0, n1: p.weekResults.filter((w) => w.played).length, used: p.simsUsedV156B, club: s.club, left: s.left, sheet: !!document.getElementById('mz149Sheet') } })
-  ok(sim.n1 > sim.n0 && sim.used === 99 && sim.club && !sim.sheet, 'MEMBER: season sims are never counted (out of sims, it still sims)', sim)
+  const sim = await M(p, async () => { const p = window.S.player, R = RIB_MONETIZE; const n0 = p.weekResults.filter((w) => w.played).length; window.playWeek(false); await new Promise((r) => setTimeout(r, 1500))
+    const q = p.weekResults.filter((w) => w.played).length, s = window.__V156B.skips(); p.simsUsedV156B = 1; window.go('season'); window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 2500))
+    return { n0, q, n1: p.weekResults.filter((w) => w.played).length, used: p.simsUsedV156B, mult: s.mult, allowed: s.allowed, club: s.club, games: R.until('gameSims') === Infinity, sheet: !!document.getElementById('mz149Sheet') } })
+  ok(sim.games && sim.q === sim.n0 + 1, 'MEMBER: Quick Play is free for good (unlimited game sims)', sim)
+  ok(sim.mult === 2 && sim.allowed === 2 && !sim.club && sim.n1 > sim.q && sim.used === 2 && !sim.sheet, 'MEMBER: twice the season sims (a fresh account: 2) — counted, never unlimited', sim)
   const br = await M(p, async (src) => { const S = window.S; await eval('(' + src + ')')(); if (S.view !== 'result') return 'no result: ' + S.view; await new Promise((r) => setTimeout(r, 1200)); return !!document.getElementById('mz149Ad') }, toResultSrc)
   ok(br === false, 'MEMBER: the report card shows no break', br)
   const ml = await M(p, () => { const C = window.RIB_COSMETICS, it = C.catalog().find((i) => i.source === 'member' && i.cat === 'wings') || C.catalog().find((i) => i.source === 'member'); window.__ml = it.id
