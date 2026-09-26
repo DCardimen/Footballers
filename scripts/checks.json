@@ -1462,13 +1462,15 @@
     "v156 C",
     "v157 A",
     "v157 B",
-    "v157 C"
+    "v157 C",
+    "v158 A"
    ],
    "files": [
     "src/28-cosmetics.js",
     "docs/COSMETICS.md"
    ],
    "checks": [
+    "v158Acheck",
     "v157Acheck",
     "v156Ccheck",
     "v151Bcheck",
@@ -3815,7 +3817,7 @@
   },
   "v156Bcheck": {
    "file": "scripts/v156Bcheck.mjs",
-   "desc": "v156 B — season sims are a career's, earned with the Legacy medal groups (1 on a fresh account, bronze → 2, all nine → 20 cap), spent one a ⏭, refused at 0 with the next group and the table, reset by a new career, no day, Quick Play free; the playoffs are always played live (dock, playWeek/prepareWeek103/⏭/simRemainingWeeks/__silentWeekV85 refuse, no live SKIP, the UFF sim stops at the playoffs, a missed-playoffs season finishes); kill switches; store ON: the 30-minute simUnlimited ad, Pro +3, the Club; OFF no-op. v158 B (ON): Quick Play needs game sims — locked \"🔒 AD\", the member-perk sheet, the 30-min ad, then it plays; season sims stay counted; the Club: Quick Play always and ×2 season sims (TU memberSimMultV158B); TU v158Bgames 0 restores v156 B.",
+   "desc": "v156 B — season sims are a career's, earned with the Legacy medal groups (1 on a fresh account, bronze → 2, all nine → 20 cap), spent one a ⏭, refused at 0 with the next group and the table, reset by a new career, no day, Quick Play free; the playoffs are always played live (dock, playWeek/prepareWeek103/⏭/simRemainingWeeks/__silentWeekV85 refuse, no live SKIP, the UFF sim stops at the playoffs, a missed-playoffs season finishes); kill switches; store ON: the 30-minute simUnlimited ad, Pro +3, the Club; OFF no-op.",
    "areas": [
     "skips",
     "playoffs",
@@ -3905,6 +3907,19 @@
     "cosmetics"
    ],
    "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v158Acheck": {
+   "file": "scripts/v158Acheck.mjs",
+   "desc": "v158 A — the card, dressed: >= 20 new banners and >= 8 new titles, badges, nameplates, frames, shelves, recaps, vault themes, stadiums, celebrations and number fonts, each free / earned (a rule the Locker quotes, icon-earned ones granted) / member (listed \"🔒 Membership\", never owned with the store OFF), no legendary or mythic free; every banner a painter with its own art, animated, deterministic, no Math.random, still under prefers-reduced-motion; the card's rarity-styled title, drawn badge, material nameplate, animated frame ring, shelf; Locker previews for every new item; number fonts: distinct art and shapes, legible, drawn on the profile chest, the Locker and the live field (an image over the label); helmet stripes follow the facing (front / back down the middle, side along the top; the old centre column fails the side frames), twin stripes and decals, on the cells, the profile figure and the live textures; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics",
+    "profile"
+   ],
+   "runtimeSec": 150,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
