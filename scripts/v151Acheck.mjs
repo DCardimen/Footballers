@@ -3,11 +3,12 @@
 // src/07-career-app.js (the progression gates, live whatever the master switch says). docs/MONETIZATION.md.
 //
 // OFF (the default): no store, no ads, no prices, no storage write from the module — and the owner's PROGRESSION gates
-//   apply exactly as they do with the module blocked: 3× and 4× at the UFF (4× comes WITH 3× while the store is off),
-//   My Plays Only free since v153 B (was: after the first finished career), season skips a day off lifetime PP (1 @ 1,000, 3 @ 100,000 …),
+//   apply exactly as they do with the module blocked: 3× after a full UFF season, 4× for the UFF title (v156 C),
+//   My Plays Only free since v153 B (was: after the first finished career), season sims a CAREER off the Legacy medal
+//   groups since v156 B (1 on a fresh account; was a day off lifetime PP — the ladder is still the kill switch's path),
 //   Quick Play never counted, lifetime PP never lowered by spending, the advanced filters free.
 // ON (`?monetize=1`, dev host): the tier chain (No Ads ⊂ Pro ⊂ Founder, upgrades priced at the difference, restore
-//   brings the chain back), 4× is Pro's (the 20-minute ad lends it), Pro adds season skips, the ad cap (4 a day, never
+//   brings the chain back), 4× is Pro's (the 20-minute ad lends it), Pro adds 3 season sims a career, the ad cap (4 a day, never
 //   over 5) and its rollover on the fake clock, rewards are conveniences only, the PP double is gone, the catalogue
 //   guard refuses a power product (in the config and by hand), the pass is per season and calls RIB_SEASONS.grantPremium,
 //   a pack grants its items through RIB_COSMETICS (stubbed when absent), `unlock_all_team_style`, a 24h cosmetic trial,
@@ -95,40 +96,43 @@ const played = (page) => M(page, () => window.S.player.weekResults.filter((w) =>
   const ra = await row(a), rb = await row(b)
   const g = await M(a, () => { window.setSpeed(2); window.setSpeed(3); const s3 = window.__getGridironLiveSpeed(); window.setSpeed(4); const s4 = window.__getGridironLiveSpeed()
     const lab = [...document.querySelectorAll('.speed-btn[data-spd]')].map((x) => x.dataset.spd + ':' + (x.querySelector('small') || {}).textContent + ':' + (x.getAttribute('title') || '')).join('|')
-    window.S.bestLevel = 7; window.__V151A.relabel(); window.setSpeed(3); const u3 = window.__getGridironLiveSpeed(); window.setSpeed(4); const u4 = window.__getGridironLiveSpeed()
-    return { s3, s4, lab, u3, u4, sheet: !!document.getElementById('mz149Sheet'), locked: document.querySelectorAll('.speed-lock-v151').length } })
+    // v156 C: reaching the UFF is no longer enough — 3× after a full UFF season, 4× for the UFF title (account-wide flags)
+    window.S.bestLevel = 7; window.__V151A.relabel(); window.setSpeed(3); const r3 = window.__getGridironLiveSpeed()
+    window.S.uffSeasonV156C = { at: 1 }; window.__V151A.relabel(); window.setSpeed(3); const u3 = window.__getGridironLiveSpeed(); window.setSpeed(4); const r4 = window.__getGridironLiveSpeed()
+    window.S.uffTitleV156C = { at: 1 }; window.__V151A.relabel(); window.setSpeed(4); const u4 = window.__getGridironLiveSpeed()
+    return { s3, s4, lab, r3, u3, r4, u4, sheet: !!document.getElementById('mz149Sheet'), locked: document.querySelectorAll('.speed-lock-v151').length } })
   ok(ra && ra === rb && /data-spd="3"/.test(ra), 'OFF: the live speed row (with its 3× rung) is byte-for-byte the row with the module blocked')
-  ok(g.s3 === 2 && g.s4 === 2 && /3:🔒 UFF:Reach the UFF/.test(g.lab) && /4:🔒 UFF:Reach the UFF/.test(g.lab), 'OFF: a fresh player\'s 3× and 4× are locked — "🔒 UFF", "Reach the UFF" — and the tap keeps 2×', g)
-  ok(g.u3 === 3 && g.u4 === 4 && !g.sheet && g.locked === 0, 'OFF: once the UFF is reached (bestLevel 7, account-wide) 3× AND 4× unlock together — no offer anywhere', g)
+  ok(g.s3 === 2 && g.s4 === 2 && /3:🔒 UFF:Finish a full UFF season/.test(g.lab) && /4:🔒 RING:Win the UFF championship/.test(g.lab), 'OFF (v156 C): a fresh player\'s 3× and 4× are locked — "🔒 UFF" (a full UFF season) and "🔒 RING" (the UFF title) — and the tap keeps 2×', g)
+  ok(g.r3 === 2 && g.u3 === 3 && g.r4 === 3 && g.u4 === 4 && !g.sheet && g.locked === 0, 'OFF (v156 C): reaching the UFF opens nothing; a full UFF season opens 3×, the UFF title opens 4× — no offer anywhere', g)
   // My Plays Only
   const po = await M(a, async () => { const S = window.S; S.bestLevel = 0; S.settings.onlyInvolved = true; const out = { forced: window.__getGridironState ? null : null }
     out.locked = !window.__V151A.gates().playsOnly.ok; try { window.skipLive() } catch (e) {}
     window.go('settings'); await new Promise((r) => setTimeout(r, 500))
-    out.row = [...document.querySelectorAll('.toggle-row')].map((r) => r.textContent.replace(/\s+/g, ' ')).find((t) => /My plays only/i.test(t)) || ''
+    out.row = [...document.querySelectorAll('.toggle-row')].map((r) => r.textContent.replace(/\s+/g, ' ')).find((t) => /^\s*(My plays only|Your side of the ball)/i.test(t) && /side of the ball/i.test(t)) /* v156 D: the onlyInvolved row reads "Your side of the ball" */ || ''
     const before = S.settings.onlyInvolved; window.toggleSetting('onlyInvolved'); out.refused = S.settings.onlyInvolved === before
     S.careersCompleted = 1; out.after = window.__V151A.gates().playsOnly.ok; window.toggleSetting('onlyInvolved'); out.toggled = S.settings.onlyInvolved !== before
     return out })
   // v153 B: the owner made My Plays Only FREE and on by default — no gate, no lock, it toggles from the first career
   ok(!po.locked && !/🔒/.test(po.row) && !po.refused && po.after, 'OFF: My Plays Only is free (v153 B) — never locked, it toggles for a fresh player', po)
-  // season skips: the ladder, lifetime PP, the button, Quick Play, the day
+  // season sims (v156 B): a career's, off the medal groups — lifetime PP, the button, Quick Play, no day
   const lad = await M(a, () => [999, 1000, 99999, 100000, 1e7, 1e9].map((L) => window.__V151A.ladder(L).perDay))
-  ok(lad.join(',') === '0,1,1,3,5,7', 'OFF: the skip ladder — 0 under 1,000 lifetime PP, 1 at 1,000, 3 at 100,000, 5 at 10M, 7 at 1B', lad)
+  ok(lad.join(',') === '0,1,1,3,5,7', 'OFF: the old skip ladder (TU v156Bskips 0) — 0 under 1,000 lifetime PP, 1 at 1,000, 3 at 100,000, 5 at 10M, 7 at 1B', lad)
   ok(await freshCareer(a), 'OFF: a real first season is started through the menu')
-  const sk0 = await M(a, () => { const n0 = window.S.player.weekResults.filter((w) => w.played).length; window.seasonSkipV151A(); return { n0, n1: window.S.player.weekResults.filter((w) => w.played).length, s: window.__V151A.skips(), line: (document.querySelector('[onclick^="seasonSkipV151A"] .skip-left-v151') || {}).textContent || '' } })
-  ok(sk0.n1 === sk0.n0 && sk0.s.perDay === 0 && sk0.s.left === 0, 'OFF: with 0 lifetime PP the ⏭ skip refuses — nothing is simmed', sk0)
+  const sk0 = await M(a, () => window.__V151A.skips())
+  ok(sk0.model === 'career' && sk0.allowed === 1 && sk0.left === 1 && sk0.used === 0 && sk0.gated, 'OFF: a fresh account has 1 season sim this career (v156 B)', sk0)
   const qp = await M(a, async () => { const n0 = window.S.player.weekResults.filter((w) => w.played).length; window.playWeek(false); await new Promise((r) => setTimeout(r, 1500)); document.getElementById('growthV42')?.remove()
     return { n0, n1: window.S.player.weekResults.filter((w) => w.played).length, used: window.__V151A.skips().used } })
   ok(qp.n1 === qp.n0 + 1 && qp.used === 0, 'OFF: Quick Play sims one week, free, and is never counted as a skip', qp)
-  const lt = await M(a, () => { const S = window.S; S.pp = (S.pp || 0) + 1500; window.GridironStorage && window.__V151A.track(); const L1 = window.__V151A.lifetime(); S.pp -= 1200; window.__V151A.track(); return { L1, L2: window.__V151A.lifetime(), per: window.__V151A.skips().perDay } })
-  ok(lt.L1 >= 1500 && lt.L2 === lt.L1 && lt.per === 1, 'OFF: PP earned raises lifetime PP, spending never lowers it — 1,500 lifetime gives 1 skip a day', lt)
+  const lt = await M(a, () => { const S = window.S; S.pp = (S.pp || 0) + 1500; window.GridironStorage && window.__V151A.track(); const L1 = window.__V151A.lifetime(); S.pp -= 1200; window.__V151A.track(); return { L1, L2: window.__V151A.lifetime(), allowed: window.__V151A.skips().allowed } })
+  ok(lt.L1 >= 1500 && lt.L2 === lt.L1 && lt.allowed === 1, 'OFF: PP earned raises lifetime PP, spending never lowers it — and PP no longer buys season sims', lt)
   await M(a, () => { window.S.view = 'season'; window.go('season') }); await a.waitForTimeout(500)
   const btn = await M(a, () => { const b = document.querySelector('[onclick^="seasonSkipV151A"]'); return b ? { t: b.textContent.replace(/\s+/g, ' '), r: Math.round(b.getBoundingClientRect().right) } : null })
-  ok(btn && /1 season skip left today/.test(btn.t) && btn.r <= W, 'OFF: the ⏭ button says how many skips are left today', btn)
+  ok(btn && /1 left this career/.test(btn.t) && btn.r <= W, 'OFF: the ⏭ button says how many sims are left this career', btn)
   const sk1 = await M(a, async () => { const n0 = window.S.player.weekResults.filter((w) => w.played).length; window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 2500)); document.getElementById('growthV42')?.remove()
     return { n0, n1: window.S.player.weekResults.filter((w) => w.played).length, s: window.__V151A.skips() } })
-  ok(sk1.n1 > sk1.n0 + 1 && sk1.s.used === 1 && sk1.s.left === 0, 'OFF: the skip sims the rest of the season and spends today\'s one', { n0: sk1.n0, n1: sk1.n1, used: sk1.s.used, left: sk1.s.left })
-  const roll = await M(a, () => { window.S.skipsV151A.day = '1999-1-1'; return window.__V151A.skips().left })
-  ok(roll === 1, 'OFF: a new day brings the skip back', roll)
+  ok(sk1.n1 > sk1.n0 + 1 && sk1.s.used === 1 && sk1.s.left === 0, 'OFF: the sim runs the rest of the regular season and spends the career\'s one', { n0: sk1.n0, n1: sk1.n1, used: sk1.s.used, left: sk1.s.left })
+  const roll = await M(a, () => { window.S.skipsV151A = { day: '1999-1-1', used: 0 }; return window.__V151A.skips().left })
+  ok(roll === 0, 'OFF: there is no day any more — an old day record brings nothing back', roll)
   // the advanced filters: free while the store is off
   await M(a, () => { const S = window.S; S.hof = ['QB', 'RB', 'QB', 'LB'].map((pos, i) => ({ name: 'Bust ' + i, pos, goat: 100 + i * 10, peak: 60 + i, titles: i, seasons: 5 + i, reached: 5, won: false, power: 0 })); window.go('hof') }); await a.waitForTimeout(500)
   const hf = await M(a, () => { const bar = document.querySelector('[data-advf-bar="hof"]'); window.advfSetV151A('hof', 'pos', 'QB'); const vis = [...document.querySelectorAll('[data-advf="hof"] [data-advf-row]')].filter((r) => !r.hidden).map((r) => r.dataset.pos)
@@ -141,8 +145,10 @@ const played = (page) => M(page, () => window.S.player.weekResults.filter((w) =>
 // ============================== 2. OFF → the gates grandfather an existing save ==============================
 {
   const c = await newCtx(), p = await open(c, 'gf')
-  const gf = await M(p, () => { const A = window.__GRIDIRON_AUDIT__, S = A.freshState(); S.bestLevel = 7; S.careersCompleted = 2; S.pp = 50; S.tree = {}; A.setState(S); delete S.ppLifetimeV151A; return window.__V151A.gates() })
-  ok(gf.speed3.ok && gf.speed4.ok && gf.playsOnly.ok, 'OFF: a save that already reached the UFF and finished careers keeps 3×, 4× and My Plays Only', gf)
+  // v156 C: the record grandfathers the speed rungs — a Hall career with a finished UFF season and a ring
+  const gf = await M(p, () => { const A = window.__GRIDIRON_AUDIT__, S = A.freshState(); S.bestLevel = 7; S.careersCompleted = 2; S.pp = 50; S.tree = {}
+    S.hof = [{ name: 'Old Pro', pos: 'QB', rings: 1, won: true, reached: 7, goat: 100, box: { log: [{ n: 9, level: 7, champion: true, awards: [] }] } }]; A.setState(S); delete S.ppLifetimeV151A; return window.__V151A.gates() })
+  ok(gf.speed3.ok && gf.speed4.ok && gf.playsOnly.ok, 'OFF: a save whose record shows a UFF season and a UFF ring keeps 3×, 4× and My Plays Only', gf)
   await c.close()
 }
 
@@ -158,12 +164,12 @@ const played = (page) => M(page, () => window.S.player.weekResults.filter((w) =>
     place: Object.entries(R.config.placements).map(([k, v]) => k + ':' + v.reward.key).join(','), allOk: Object.values(R.config.placements).every((v) => R.keyAllowed(v.reward.key === 'try:*' ? 'try:x' : v.reward.key)) } })
   ok(!gd.pp.ok && /never sold/.test(gd.pp.errors.join()) && !gd.stat && !gd.reroll && gd.cos && gd.grant === false, 'ON: the catalogue guard refuses PP / stat / reroll products and grant() refuses power keys; a cosmetic passes', gd)
   ok(gd.cat === 'rib.noads=$3.99,rib.pro=$8.99,rib.founder=$14.99' && /rib\.upgrade\.noads_pro=\$5\.00/.test(gd.ups) && /rib\.upgrade\.pro_founder=\$6\.00/.test(gd.ups), 'ON: the three tiers at $3.99 / $8.99 / $14.99, upgrades at the difference', { cat: gd.cat, ups: gd.ups })
-  ok(gd.place === 'speed4:speed4,simExtra:simExtra,cosTrial:try:*' && gd.allOk, 'ON: every rewarded placement is a convenience (4× for 20 min, +1 skip, a 24h trial) — no PP double', gd.place)
+  ok(gd.place === 'speed4:speed4,simUnlimited:simUnlimited,cosTrial:try:*' && gd.allOk, 'ON: every rewarded placement is a convenience (4× for 20 min, 30 min of unlimited season sims, a 24h trial) — no PP double', gd.place)
   // 4× is Pro's; 3× is still the UFF's
   await goLive(p)
   const s4 = await M(p, async () => { window.setSpeed(2); window.setSpeed(4); await new Promise((r) => setTimeout(r, 200)); const o = { speed: window.__getGridironLiveSpeed(), sheet: !!document.getElementById('mz149Sheet'), lab: (document.querySelector('.speed-btn[data-spd="4"] small') || {}).textContent }
-    document.getElementById('mz149Sheet')?.remove(); window.S.bestLevel = 7; o.four = window.__V151A.speedOk(4); o.three = window.__V151A.speedOk(3); window.S.bestLevel = 0; return o })
-  ok(s4.speed === 2 && s4.sheet && /PRO/.test(s4.lab || '') && !s4.four && s4.three, 'ON: 4× says 🔒 PRO and opens the offer; reaching the UFF opens 3× but not 4×', s4)
+    document.getElementById('mz149Sheet')?.remove(); window.S.uffSeasonV156C = { at: 1 }; o.four = window.__V151A.speedOk(4); o.three = window.__V151A.speedOk(3); delete window.S.uffSeasonV156C; return o })
+  ok(s4.speed === 2 && s4.sheet && /RING/.test(s4.lab || '') && !s4.four && s4.three, 'ON: a locked 4× (🔒 RING) opens the offer; a full UFF season opens 3× but not 4×', s4)
   // No Ads → upgrade to Pro (the difference) → Founder
   const r1 = await buy('rib.noads'), h1 = await H()
   ok(r1.ok && h1.noAds && !h1.pro && !h1.speed4, 'ON: Ad Free grants noAds only', h1)
@@ -177,7 +183,7 @@ const played = (page) => M(page, () => window.S.player.weekResults.filter((w) =>
   const r2 = await buy('rib.upgrade.noads_pro'), h2 = await H()
   ok(r2.ok && h2.pro && h2.speed4 && h2.speed3 && h2.simPlus && h2.filters && h2.noAds && !h2.founder, 'ON: Pro implies Ad Free + permanent 4× + advanced sim + filters', h2)
   const sk = await M(p, () => window.__V151A.skips())
-  ok(sk.pro === 3 && sk.perDay === 3, 'ON: Pro adds 3 season skips a day on top of the prestige ladder', sk)
+  ok(sk.pro === 3 && sk.allowed === sk.base + sk.earned + 3, 'ON: Pro adds 3 season sims a career on top of the medals\'', sk)
   // cosmetics / seasons: the real workers, or stubs standing in for the contract
   const stub = await M(p, () => {
     const out = { cosReal: !!window.RIB_COSMETICS, seaReal: !!window.RIB_SEASONS }
@@ -219,11 +225,11 @@ const played = (page) => M(page, () => window.S.player.weekResults.filter((w) =>
   ok(await freshCareer(p, ON), 'ON: a real first season is started (free player)')
   const fl = await M(p, async () => { window.S.hof = [{ name: 'A', pos: 'QB', goat: 1, peak: 1, titles: 0, seasons: 1, reached: 1 }, { name: 'B', pos: 'RB', goat: 2, peak: 1, titles: 0, seasons: 1, reached: 1 }]; window.go('hof'); await new Promise((r) => setTimeout(r, 400)); const b = document.querySelector('[data-advf-bar="hof"]'); return { locked: !!b && b.classList.contains('locked'), text: b && b.textContent.trim() } })
   ok(fl.locked && /Pro/.test(fl.text), 'ON: a free player\'s advanced filters are a locked "Pro Career" chip', fl)
-  const skip = await M(p, async () => { window.go('season'); const n0 = window.S.player.weekResults.filter((w) => w.played).length; window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 300))
+  const skip = await M(p, async () => { window.go('season'); window.S.player.simsUsedV156B = 1; const n0 = window.S.player.weekResults.filter((w) => w.played).length; window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 300))
     const sheet = document.getElementById('mz149Sheet'), txt = sheet ? sheet.textContent : ''; sheet?.remove()
     const ad = await RIB_MONETIZE.rewardSim(); const left = window.__V151A.skips().left; window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 2500)); document.getElementById('growthV42')?.remove()
-    return { n0, txt, ad: ad.rewarded, left, n1: window.S.player.weekResults.filter((w) => w.played).length, extra: RIB_MONETIZE.value('simExtra') } })
-  ok(/1,000 lifetime PP/.test(skip.txt) && /Quick Play/.test(skip.txt) && skip.ad && skip.left === 1 && skip.n1 > skip.n0 + 1 && skip.extra === 0, 'ON: no skips → the sheet says how to earn them (and that Quick Play is free); a watched ad gives one skip, which sims the season and is spent', skip)
+    return { n0, txt, ad: ad.rewarded, left, n1: window.S.player.weekResults.filter((w) => w.played).length, used: window.S.player.simsUsedV156B, unl: RIB_MONETIZE.has('simUnlimited') } })
+  ok(/NO SEASON SIMS LEFT THIS CAREER/.test(skip.txt) && /BRONZE medals/.test(skip.txt) && /Quick Play/.test(skip.txt) && skip.ad && skip.left === Infinity && skip.n1 > skip.n0 + 1 && skip.used === 1 && skip.unl, 'ON: no sims → the sheet says how medals add them (and that Quick Play is free); a watched ad makes sims unlimited, the sim runs and nothing is counted', skip)
   const cap = await M(p, async () => { const R = RIB_MONETIZE, out = { left0: R.adsLeft() }
     out.t = (await R.showRewarded('cosTrial', { item: 'uni_z' })).rewarded; out.trial = R.cosmeticAccess('uni_z')
     out.a = (await R.showRewarded('speed4')).rewarded; out.b = (await R.showRewarded('speed4')).rewarded; out.c = await R.showRewarded('speed4'); out.leftEnd = R.adsLeft()

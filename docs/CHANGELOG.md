@@ -10,6 +10,32 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v156 — medals are the rank, sims are earned, playoffs are watched, the best looks are hard (or the Club's).**
+  Four owner asks, one version (`src/07-career-app.js`, `src/27`, `src/28`, `src/29`, `src/14`, `src/25`, `src/26`,
+  `public/rib-menu*`; checks `v156A`–`v156Dcheck`).
+  *A — the medals are the key* (`v156 A THE MEDALS ARE THE KEY`): Honors are removed. The Legacy medal count opens the
+  prestige tree — every `req:{honors:N}` maps through one table to a medal count (first nodes at 12-25 medals, the
+  middle of the tree 50-140, the Apex/Impossible tops 260-420); Reputation lowers every medal requirement 5% a level;
+  goat/immortal pay Legacy XP instead of Honors. `state.prestige` stays in the save as a mirror of the medals, so every
+  balance that read it (starting attributes, ceilings, team quality, the soft cap, respecs, personality points) keeps
+  its curve. A save's old Honors floor its gates, nothing bought is taken back. Paths open at 12 medals; switching costs
+  PP. Every chip, ticker, menu tile, How To Play and coach line says MEDALS.
+  *B — season sims are earned, playoffs are played* (`v156 B SEASON SIMS ARE EARNED, PLAYOFFS ARE PLAYED`): "⏭ Sim the
+  Rest of the Regular Season" is a CAREER's allowance — 1, plus each completed medal colour group (bronze +1 … diamond
+  and grand +3), up to 20; a new career starts full; no daily cap. Quick Play stays free. Store ON: a rewarded ad gives
+  30 minutes of unlimited sims, the Club (membership) has them for good (and no ads, 4×). Playoff and championship
+  games are always played live — no Quick Play, no sim, no live SKIP; the UFF season sim stops at the playoffs.
+  *C — the looks and the 4×* (`v156 C THE 4× IS WON IN THE TITLE GAME`, `v156 C EARNED LOOKS, MEMBER LOOKS, SUPER
+  LOOKS`): 3× after one full UFF season, 4× for winning the UFF championship (or with the membership); old saves that
+  already did either keep them. Most legendary/mythic looks (wings, crowns, auras, uniforms, helmets, trails…) are the
+  membership's — listed "🔒 Membership" while the store is off; a few nice ones stay free but much later (Legacy 300,
+  5 UFF titles, generation 5); weak achievements tightened; everything a player already owns is grandfathered. Angel
+  Wings come only from winning the Interstellar title at all nine positions. SUPER CHALLENGES on the Career Pass
+  screen (`rib.super.v1`, outside the save): top 10 on the career board for 10 days (local boards today), Interstellar
+  at every position, League MVP + the Interstellar title within 14 seasons, and more — each a unique mythic look.
+  *D — My Plays Only, on the field* (`v156 D MY PLAYS ONLY, ON THE FIELD`): a big ticked box top-right above the live
+  field shows only the snaps he is in, for anyone in the regular season; in playoff and championship games it locks
+  off and every snap on his side of the ball is shown (the saved choice is left alone).
 - **v155 A — the medals by colour.** (`scripts/build-legacy-medals.py`, `src/31-legacy.js`, `public/legacy/`.) The
   owner: "sort the medals bronze, silver, gold, etc. Larger medals are their own category. Colour code them first."
   Each medal's colour is now read off its pixels (the frame's metal, then the gem or enamel on it) and the 500-rank

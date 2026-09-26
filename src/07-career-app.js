@@ -6050,7 +6050,7 @@
           key: "goat",
           name: "The G.O.A.T.",
           icon: "🐐",
-          desc: "+50% PP AND start with +2 prestige each career.",
+          desc: "+50% PP, a stronger start every career, and +5% Legacy XP per level.",
           cost: 35,
           mult: 2.2,
           max: 3,
@@ -6060,7 +6060,7 @@
           key: "immortal",
           name: "Immortal",
           icon: "∞",
-          desc: "+2 permanent prestige stars per UFF career.",
+          desc: "+10% Legacy XP per level on every career that ends in the UFF or beyond.",
           cost: 40,
           mult: 2.4,
           max: 3,
@@ -6537,7 +6537,7 @@
           key: "reputation",
           name: "Reputation",
           icon: "📜",
-          desc: "Every Honors requirement on this tree is 1 lower per level.",
+          desc: "Every medal requirement on this tree is 5% lower per level.",
           cost: 70,
           mult: 2,
           max: 3,
@@ -7356,7 +7356,8 @@
   function nodeUnlocked(e) {
     return e.req
       ? !(
-          (honorHasReqV130(e.req) && state.prestige < honorReqV130(e.req)) ||
+          (honorHasReqV130(e.req) &&
+            (medalsOnV156A() ? medalsV156A() < medalNodeReqV156A(e.req) : state.prestige < honorReqV130(e.req))) /* v156 A */ ||
           (e.req.node && nodeLvl(e.req.node) < e.req.lvl)
         )
       : !0;
@@ -7386,6 +7387,209 @@
       Math.max(1, s)
     );
   }
+  /* ===== v156 A THE MEDALS ARE THE KEY =====
+   * The owner: "Remove the honor system and replace with the current in place medal system. Prestige
+   * upgrades will be allowed once you hit a certain medal count. Ensure scaling makes sense."
+   *
+   * The account had two ranks: v130's HONORS (⚜️, paid by `prestigeStarReward` at a career end) and v152 A's
+   * LEGACY RANK (500 medals, paid by every season and career end). They measured the same thing — how
+   * much football this family has played — on two scales, and the one that gated the prestige tree was the
+   * one nobody watched. So the medals are the key now:
+   *   medalsV156A()        the medals earned (`legacyRankV152(xp).medal`, 1-500), never under the
+   *                        grandfather floor (below).
+   *   medalReqV156A(n)     a node's `req: { honors: n }` read as medals: the honors it really asked for
+   *                        (`Li(n)`, 1.6x) through MEDAL_TABLE_V156A (piecewise linear, rounded to a
+   *                        multiple of 5 above 20), then REPUTATION takes 5% a level off.
+   *   The table against the Legacy pacing (a first career ~ rank 12-20, rank 50 ~ 3 UFF careers, 100 ~ 10,
+   *   200 ~ 45, 300 ~ 110, 420 ~ 250): the first gated nodes (12 medals) open at the end of the first
+   *   career; the mid tree (35-80) through the bronze medals of careers 2-6; the Apex's top (200-260) is
+   *   gold-to-ruby, a few dozen careers in; the Impossible branch (260-420) runs ruby to diamond, a
+   *   lifetime's work — which is where the 100k-10M PP it costs already put it. `TU("medalTableV156A", [...])`
+   *   retunes it live.
+   *   honorsEquivV156A(m)  the table read backwards: the Honors a player with m medals would have had.
+   *                        `state.prestige` is now a DERIVED MIRROR of it (`mirrorV156A`, at boot and on
+   *                        every Legacy XP payment), so every gameplay reader of the old number
+   *                        (`effectivePrestige`, the team-quality share, `drSoftCap`, respecs, the
+   *                        personality budget) keeps its balance with no per-site edit, and the save
+   *                        keeps a finite `prestige`.
+   *   Honors stop being paid (`honorGainV156A` is 0). G.O.A.T. and Immortal paid Honors; they pay Legacy
+   *   XP now (`legacyXpMultV156A`, inside `legacyPayV152`): +5% a G.O.A.T. level on every payment, +10%
+   *   an Immortal level on a career that ends in the UFF or beyond.
+   *   A Prestige Path opens at `pathMedalsV156A()` (12) and switching costs PP (`pathSwitchCostV156A`:
+   *   25% of the balance, at least 50), not Honors.
+   *   Grandfathering: the first boot records `state.honorsV156A = { old, rep, floor, at }` once — the
+   *   medals the old Honors (plus the Reputation levels that lowered every gate) were worth — and the
+   *   gate never reads fewer medals than that, so nothing a player could buy yesterday is locked today;
+   *   the mirror never drops under the old Honors either. Bought levels are never touched.
+   * Kill switch `TU("v156A", 0)` restores the Honors gate, pay and texts. `window.__V156A`; `v156Acheck`. */
+  const MEDAL_ICON_V156A = "\u{1F396}️";
+  /* effective Honors (the value `Li()` returns) → medals. Anchored at 0 Honors = the 1 medal a new save has. */
+  const MEDAL_TABLE_V156A = [
+    [0, 1],
+    [6, 12],
+    [8, 18],
+    [10, 25],
+    [13, 35],
+    [16, 50],
+    [19, 65],
+    [22, 80],
+    [26, 100],
+    [29, 120],
+    [32, 140],
+    [35, 165],
+    [38, 185],
+    [40, 200],
+    [48, 260],
+    [53, 300],
+    [58, 350],
+    [64, 420]
+  ];
+  function medalsOnV156A() {
+    return !!TU("v156A", 1);
+  }
+  function medalTableV156A() {
+    const t = TU("medalTableV156A", null);
+    return Array.isArray(t) && t.length > 1 ? t : MEDAL_TABLE_V156A;
+  }
+  function medalFriendlyV156A(m) {
+    return m <= 20 ? Math.round(m) : Math.round(m / 5) * 5;
+  }
+  /* piecewise-linear lookup; past the last point the last segment's slope runs on */
+  function medalLerpV156A(x, from, to) {
+    const T = medalTableV156A();
+    x = Math.max(T[0][from], +x || 0);
+    let i = 1;
+    while (i < T.length - 1 && x > T[i][from]) i++;
+    const a = T[i - 1],
+      b = T[i],
+      span = b[from] - a[from] || 1;
+    return a[to] + ((b[to] - a[to]) * (x - a[from])) / span;
+  }
+  function medalsForHonorsV156A(h) {
+    return medalLerpV156A(h, 0, 1);
+  }
+  function honorsEquivV156A(m) {
+    return Math.max(0, medalLerpV156A(m, 1, 0));
+  }
+  function reputationCutV156A() {
+    return Math.min(TU("reputationCapV156A", 0.5), nodeLvl("reputation") * TU("reputationCutV156A", 0.05));
+  }
+  /* n is the raw `req.honors` (or the old `req.stars`) on a node */
+  function medalBaseReqV156A(n) {
+    return Math.max(1, medalFriendlyV156A(medalsForHonorsV156A(Li(n || 0))));
+  }
+  function medalReqV156A(n) {
+    return Math.max(1, Math.round(medalBaseReqV156A(n) * (1 - reputationCutV156A())));
+  }
+  function medalNodeReqV156A(req) {
+    return medalReqV156A(req && (req.honors != null ? req.honors : req.stars));
+  }
+  function legacyMedalsV156A() {
+    try {
+      return legacyRankV152(legacyV152().xp).medal;
+    } catch (_) {
+      return 1;
+    }
+  }
+  function medalFloorV156A() {
+    const g = typeof state < "u" && state && state.honorsV156A;
+    return (g && +g.floor) || 0;
+  }
+  function medalsV156A() {
+    return Math.max(legacyMedalsV156A(), medalFloorV156A());
+  }
+  function pathMedalsV156A() {
+    return medalFriendlyV156A(medalsForHonorsV156A(PATH_HONORS));
+  }
+  function pathOpenV156A() {
+    return medalsOnV156A() ? medalsV156A() >= pathMedalsV156A() : state.prestige >= PATH_HONORS;
+  }
+  function pathSwitchCostV156A() {
+    return Math.max(TU("pathSwitchMinV156A", 50), Math.round((state.pp || 0) * TU("pathSwitchPctV156A", 0.25)));
+  }
+  /* the honors a career-end card used to pay: nothing now, the old amount under the kill switch */
+  function honorGainV156A(raw) {
+    return medalsOnV156A() ? 0 : honorPayV139(raw);
+  }
+  /* G.O.A.T. and Immortal used to pay Honors; they multiply Legacy XP now */
+  function legacyXpMultV156A(e, why) {
+    if (!medalsOnV156A()) return 1;
+    let k = 1 + nodeLvl("goat") * TU("goatLegacyXpV156A", 0.05);
+    why === "career" && e && (e.level | 0) >= 7 && (k += nodeLvl("immortal") * TU("immortalLegacyXpV156A", 0.1));
+    return k;
+  }
+  function migrateV156A() {
+    if (typeof state > "u" || !state || state.honorsV156A) return;
+    const old = Math.max(0, +state.prestige || 0),
+      rep = nodeLvl("reputation");
+    state.honorsV156A = {
+      old: isFinite(old) ? +old.toFixed(1) : 0,
+      rep: rep,
+      floor: old > 0 && isFinite(old) ? medalFriendlyV156A(medalsForHonorsV156A(old + rep)) : 0,
+      at: Date.now()
+    };
+  }
+  function mirrorV156A() {
+    try {
+      if (!medalsOnV156A() || typeof state > "u" || !state) return;
+      migrateV156A();
+      /* until the medals pass the grandfather floor, the old Honors stand exactly as they were */
+      const g = state.honorsV156A,
+        old = (g && +g.old) || 0,
+        m = legacyMedalsV156A(),
+        v = m > medalFloorV156A() ? Math.max(honorsEquivV156A(m), old) : old;
+      state.prestige = isFinite(v) ? Math.round(v * 10) / 10 : 0;
+    } catch (_) {}
+  }
+  function medalArtV156A(n, px, locked) {
+    try {
+      if (window.RIB_LEGACY && window.RIB_LEGACY.medalHtml)
+        return `<span class="medal-art-v156a" style="display:inline-block;vertical-align:middle;margin-right:4px">${window.RIB_LEGACY.medalHtml(Math.min(500, Math.max(1, n | 0)), px || 18, { flat: !0, locked: !!locked, title: !1 })}</span>`;
+    } catch (_) {}
+    return "";
+  }
+  /* the top-bar chip: the element and its classes stay (31, 10 and the coach select them) */
+  function chipSyncV156A() {
+    const on = medalsOnV156A(),
+      c = document.querySelector(".prestige-chip");
+    if (!c) return;
+    const crest = c.querySelector(".honor-crest-v153"),
+      lbl = c.querySelector(".chip-lbl-v153");
+    crest && (crest.textContent = on ? MEDAL_ICON_V156A : HONOR_ICON_V130);
+    lbl && (lbl.textContent = on ? (medalsV156A() === 1 ? " MEDAL" : " MEDALS") : " HONORS");
+    c.title = on
+      ? "MEDALS are your Legacy Rank — every season and every career earns Legacy XP, and each rank is a medal. Your medal count unlocks the prestige tree. They are NOT the 1-5 star recruit rating on a player. PP is what you spend."
+      : "HONORS are your account's rank — earned by finishing careers, and what unlocks the prestige tree. They are NOT the 1-5 star recruit rating on a player. PP is what you spend.";
+  }
+  window.__V156A = {
+    on: medalsOnV156A,
+    icon: MEDAL_ICON_V156A,
+    table: () => medalTableV156A().map(r => r.slice()),
+    medals: medalsV156A,
+    legacyMedals: legacyMedalsV156A,
+    floor: medalFloorV156A,
+    medalsFor: medalsForHonorsV156A,
+    honorsEquiv: honorsEquivV156A,
+    baseReq: medalBaseReqV156A,
+    req: medalReqV156A,
+    nodeReq: k => (TREE_NODES[k] && TREE_NODES[k].req ? medalNodeReqV156A(TREE_NODES[k].req) : 0),
+    open: k => (TREE_NODES[k] ? !!nodeUnlocked(TREE_NODES[k]) : !1),
+    pathReq: pathMedalsV156A,
+    paths: () => Object.keys(PATHS),
+    pathOpen: pathOpenV156A,
+    switchCost: pathSwitchCostV156A,
+    gain: honorGainV156A,
+    xpMult: legacyXpMultV156A,
+    mirror: () => (mirrorV156A(), state.prestige),
+    migrate: migrateV156A,
+    /* dev/checks: put the ledger at exactly `rank` (the medals it carries) and re-mirror */
+    seed: rank => {
+      const L = legacyV152();
+      L.xp = legacyXpAtRankV152(Math.max(1, rank | 0));
+      mirrorV156A();
+      return medalsV156A();
+    }
+  };
   function objectivesDone() {
     return state.objectivesCompleted || 0;
   }
@@ -8903,6 +9107,7 @@
    * by design — and each has a kill switch (TU "<name>", 0 restores the old path):
    *   My Plays Only (`onlyInvolved`) after the FIRST finished career — any career that reached a career-end screen
    *     (`careersCompleted`, both settles count it; a Hall of Fame entry grandfathers an old save). `playsOnlyGateV151A`.
+   *   (v156 C replaces the speed rule below: 3× after a full UFF season, 4× for the UFF title — `speedGateOnV156C`.)
    *   3× on REACHING THE UFF (level `speed3LevelV151A`, 7) in any career — `state.bestLevel` is account-wide, so a man
    *     who already got there keeps it. 4×: with the store OFF it comes WITH 3× (nothing is unobtainable); with the store
    *     ON it is Pro's (`RIB_MONETIZE.has("speed4")` — Pro / Founder / the 20-minute ad / grandfathered). `speedGateV151A`.
@@ -8939,20 +9144,29 @@
     if (s < 3) return !0;
     const m = mzV150C();
     if (!gateOnV151A("speedGateV151A")) return s >= 4 && gate4V151A() ? m.has("speed4") : !0;
+    /* v156 C: 3× after a full UFF season, 4× for winning the UFF title — or, with the store ON, a paid speed4 */
+    if (speedGateOnV156C()) {
+      if (s >= 4) return uffTitleWonV156C() || !!(m && gate4V151A() && m.has("speed4"));
+      return uffSeasonDoneV156C() || !!(m && m.has("speed3"));
+    }
     if (s >= 4) return gate4V151A() ? m.has("speed4") : uffReachedV151A();
     return uffReachedV151A() || !!(m && m.has("speed3"));
   }
   function speedWhyV151A(s) {
+    if (speedGateOnV156C()) return +s >= 4 ? speedTextV156C("why", 4) : speedTextV156C("why", 3);
     return +s >= 4 && gate4V151A() ? "Pro Career" : "Reach the UFF";
   }
   const SPEED_GLYPH_V151A = { "0.5": "◀◀", 1: "▶ ❚❚", 2: "▶▶", 3: "▶▶▸", 4: "▶▶▶" };
   function speedSmallV151A(r) {
-    return speedOkV151A(r) ? SPEED_GLYPH_V151A[r] : "🔒 " + (speedWhyV151A(r) === "Pro Career" ? "PRO" : "UFF");
+    if (speedOkV151A(r)) return SPEED_GLYPH_V151A[r];
+    if (speedGateOnV156C()) return +r >= 4 ? "🔒 RING" : "🔒 UFF";
+    return "🔒 " + (speedWhyV151A(r) === "Pro Career" ? "PRO" : "UFF");
   }
   // a locked tap: the store's offer for a paid 4× (ON), a plain line for an earned one
   function speedLockV151A(s) {
     const m = mzV150C();
     if (m && +s >= 4 && gate4V151A()) return void (m.speedLocked && m.speedLocked(s));
+    if (speedGateOnV156C()) return void showToast("🔒 " + (+s >= 4 ? speedTextV156C("lock", 4) : speedTextV156C("lock", 3)));
     showToast(`🔒 ${s}× unlocks when you reach the UFF`);
   }
   // the live row's buttons follow a gate that opened mid-game (an ad watched, a purchase) — the module calls it too
@@ -9008,6 +9222,7 @@
     return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
   }
   function seasonSkipsV151A() {
+    if (TU("v156Bskips", 1)) return skipsV156B(); /* v156 B: a career's sims from the medal groups — no day, no PP ladder */
     const gated = gateOnV151A("seasonSkipGateV151A"),
       L = ppLifetimeV151A(),
       m = mzV150C(),
@@ -9032,6 +9247,7 @@
     };
   }
   function skipLineV151A() {
+    if (TU("v156Bskips", 1)) return skipLineV156B(); /* v156 B */
     const s = seasonSkipsV151A();
     if (!s.gated) return "";
     if (s.left > 0) return `${s.left} season skip${s.left === 1 ? "" : "s"} left today`;
@@ -9044,6 +9260,7 @@
   }
   // THE ⏭ button: one skip a call when there is a season left to sim; none left → the store's sheet (ON) or a line
   function seasonSkipV151A() {
+    if (TU("v156Bskips", 1) || TU("v156Bplayoffs", 1)) return seasonSimV156B(); /* v156 B: counted per career; never a playoff */
     const e = state && state.player;
     if (!e || !e.weekResults || !e.weekResults.some(w => !w.played) || !gateOnV151A("seasonSkipGateV151A"))
       return simRemainingWeeks();
@@ -9128,12 +9345,123 @@
     gates: () => ({
       playsOnly: { ok: playsOnlyOkV151A(), why: "Complete a career" },
       speed3: { ok: speedOkV151A(3), why: speedWhyV151A(3) },
-      speed4: { ok: speedOkV151A(4), why: speedWhyV151A(4) },
+      speed4: { ok: speedOkV151A(4), why: speedWhyV151A(4), earned: speedGateOnV156C() && uffTitleWonV156C() },
+      uffSeason: !!state.uffSeasonV156C /* v156 C: the account-wide flags */,
+      uffTitle: !!state.uffTitleV156C,
       bestLevel: state.bestLevel || 0,
       bestName: LEVELS[state.bestLevel || 0] ? LEVELS[state.bestLevel || 0].name : "",
       careers: state.careersCompleted || 0
     })
   };
+  /* ===== v156 C THE 4× IS WON IN THE TITLE GAME =====
+   * The owner's speed ladder (docs/MONETIZATION.md §1a), replacing v151 A's "3× and 4× at the UFF":
+   *   3× unlocks when he SURVIVES ONE WHOLE UFF SEASON — a level-7+ season that reached its season-end report
+   *      (a `seasonLogV77` row at level ≥ 7; being cut before the report logs nothing). `state.uffSeasonV156C`.
+   *   4× unlocks when he WINS THE UFF CHAMPIONSHIP — the LEAGUE CHAMPIONSHIP game (level 7; the Interstellar
+   *      title counts too, v147 A) — or, with the store ON, with a paid `speed4` (membership / Pro / Founder /
+   *      the 20-minute ad). `state.uffTitleV156C`. The live title game unlocks it on the spot (`finishWeekGame`
+   *      calls `uffTitleGameV156C`) with the moment "🏆 UFF CHAMPIONS — 4× UNLOCKED"; a title won any other way
+   *      (a ring minted at the season's end) is found by `uffGatesSyncV156C`, which src/29's 1.5 s observer calls.
+   * Both flags are ACCOUNT-WIDE progress in the save (like `bestLevel`) — not entitlements. Grandfathered on the
+   * first sync: a save whose record already shows a finished UFF season (a log row, a Hall box row) keeps 3×; one
+   * with a UFF ring (`menuGoalV153D`: log rows, Hall rows, `state.rings`, position mastery) or the
+   * `dflMvpTitle` challenge keeps 4×. Kill switch: TU("v156Cspeed", 0) restores v151 A's rule. Hoisted (v140). */
+  function speedGateOnV156C() {
+    return !!TU("v156Cspeed", 1);
+  }
+  function speedTextV156C(kind, s) {
+    if (kind === "why") return s >= 4 ? "Win the UFF championship" : "Finish a full UFF season";
+    return s >= 4
+      ? "4× unlocks by winning the UFF championship (or with membership)"
+      : "3× unlocks after a full UFF season";
+  }
+  // a finished UFF season anywhere in the record this save still holds
+  function uffSeasonInRecordV156C() {
+    const hit = rows => (rows || []).some(r => r && (r.level | 0) >= 7);
+    const e = state && state.player;
+    if (e && hit(e.seasonLogV77)) return !0;
+    return ((state && state.hof) || []).some(h => h && h.box && hit(h.box.log));
+  }
+  function uffTitleInRecordV156C() {
+    if (state && state.challenges && state.challenges.dflMvpTitle) return !0;
+    try {
+      return menuGoalV153D().uff > 0;
+    } catch (_) {
+      return !1;
+    }
+  }
+  function uffGatesSyncV156C(force) {
+    if (!state || typeof state !== "object") return;
+    const now = Date.now();
+    if (!force && uffGatesSyncV156C.st === state && now - (uffGatesSyncV156C.at || 0) < 400) return;
+    uffGatesSyncV156C.at = now;
+    uffGatesSyncV156C.st = state;
+    const first = !state.gatesV156C,
+      e = state.player;
+    if (!state.uffSeasonV156C && uffSeasonInRecordV156C()) {
+      state.uffSeasonV156C = { at: now, how: first ? "grandfather" : "season", season: e ? e.totalSeasons | 0 : 0 };
+      first || uffMomentV156C("🏈 A FULL UFF SEASON — 3× UNLOCKED", "You survived the league. 3× play speed is yours for good.");
+    }
+    if (!state.uffTitleV156C && uffTitleInRecordV156C()) {
+      state.uffTitleV156C = { at: now, how: first ? "grandfather" : "ring", season: e ? e.totalSeasons | 0 : 0 };
+      first || uffMomentV156C("🏆 UFF CHAMPIONS — 4× UNLOCKED", "You won the UFF championship. 4× play speed is yours for good.");
+    }
+    first && (state.gatesV156C = now);
+  }
+  function uffSeasonDoneV156C() {
+    state && !state.uffSeasonV156C && uffGatesSyncV156C();
+    return !!(state && state.uffSeasonV156C);
+  }
+  function uffTitleWonV156C() {
+    state && !state.uffTitleV156C && uffGatesSyncV156C();
+    return !!(state && state.uffTitleV156C);
+  }
+  // the week just booked: was it the UFF (or Interstellar) title game, and did he win it?
+  function uffTitleGameV156C(e, w) {
+    try {
+      if (!speedGateOnV156C() || !e || !w || !w.playoff || !w.won || (e.level | 0) < 7) return !1;
+      const rounds = playoffRoundNames(e.level);
+      if (!rounds.length || (w.roundIdx != null ? w.roundIdx !== rounds.length - 1 : w.round !== rounds[rounds.length - 1]))
+        return !1;
+      state.gatesV156C || (state.gatesV156C = Date.now());
+      if (state.uffTitleV156C) return !0;
+      state.uffTitleV156C = { at: Date.now(), how: "game", season: e.totalSeasons | 0, level: e.level | 0, grade: w.gameGrade || w._gameGrade || "" };
+      const tg = String(rounds[rounds.length - 1] || "title game").replace(/^THE\s+/i, "");
+      uffMomentV156C((e.level | 0) >= 8 ? "🏆 INTERSTELLAR CHAMPIONS — 4× UNLOCKED" : "🏆 UFF CHAMPIONS — 4× UNLOCKED", "You won the " + tg + ". 4× play speed is yours for good.");
+      return !0;
+    } catch (_) {
+      return !1;
+    }
+  }
+  // the moment: a toast and a banner over whatever screen comes next (it never takes a tap)
+  function uffMomentV156C(title, line) {
+    try {
+      window.__V156C && (window.__V156C.lastMoment = title);
+      typeof document < "u" && byId("toast") && showToast(title);
+      if (typeof document === "undefined" || !document.body) return;
+      const old = document.getElementById("uffMomentV156C");
+      old && old.remove();
+      const d = document.createElement("div");
+      d.id = "uffMomentV156C";
+      d.setAttribute("role", "status");
+      d.style.cssText =
+        "position:fixed;left:50%;top:16%;transform:translateX(-50%);z-index:9000;pointer-events:none;max-width:min(92vw,380px);" +
+        "padding:14px 18px;border-radius:14px;border:2px solid var(--gold,#f0bb45);text-align:center;" +
+        "background:linear-gradient(180deg,rgba(240,187,69,.28),rgba(12,16,24,.96));box-shadow:0 12px 40px rgba(0,0,0,.6),0 0 30px rgba(240,187,69,.35)";
+      d.innerHTML =
+        `<div style="font-family:Oswald,sans-serif;font-weight:700;font-size:19px;letter-spacing:1px;color:var(--gold,#f0bb45)">${escHtml(title)}</div>` +
+        `<div style="font-size:12px;margin-top:4px;color:#e8edf4">${escHtml(line || "")}</div>`;
+      document.body.appendChild(d);
+      setTimeout(() => d.remove(), TU("uffMomentMsV156C", 6500));
+    } catch (_) {}
+  }
+  window.__V156C = Object.assign(window.__V156C || {}, {
+    sync: uffGatesSyncV156C,
+    titleGame: uffTitleGameV156C,
+    uffSeason: uffSeasonDoneV156C,
+    uffTitle: uffTitleWonV156C,
+    speedText: speedTextV156C
+  });
   function completeChallenges(e) {
     state.challenges || (state.challenges = {});
     let t = 0;
@@ -10487,7 +10815,8 @@
   } /* v139: what is BANKED rides the chip too — v136 C holds a live player's PP until the career
    * settles, and until now the only place that number appeared was the career-end card. */
   function syncCounters() {
-    ((byId("prestigeCount").textContent = Math.round((state.prestige || 0) * 10) / 10),
+    ((byId("prestigeCount").textContent = medalsOnV156A() ? medalsV156A() : Math.round((state.prestige || 0) * 10) / 10) /* v156 A */,
+      chipSyncV156A(),
       (byId("ppCount").textContent = state.pp));
     const b = byId("ppBankChipV139"),
       n = bankedV136();
@@ -13117,7 +13446,7 @@
     <div class="card mt" style="margin-top:14px;">
       <div class="l" style="font-size:10px;color:var(--chalk-dim);letter-spacing:2px;margin-bottom:10px">🏆 YOUR LEGACY${(state.era || 0) > 0 ? ` · <span style="color:#c9b8ff">🌌 ${eraName()}</span>` : ""}${state.path ? ` · <span style="color:${PATHS[state.path].color}">${PATHS[state.path].icon} ${PATHS[state.path].name.toUpperCase()}</span>` : ""}</div>
       <div class="statline">
-        <div class="statbox"><div class="n" style="color:var(--gold)">${HONOR_ICON_V130}${state.prestige}</div><div class="l">Honors</div></div>
+        ${medalsOnV156A() ? `<div class="statbox"><div class="n" style="color:var(--gold)">${MEDAL_ICON_V156A}${medalsV156A()}</div><div class="l">Medals</div></div>` : `<div class="statbox"><div class="n" style="color:var(--gold)">${HONOR_ICON_V130}${state.prestige}</div><div class="l">Honors</div></div>` /* v156 A */}
         <div class="statbox"><div class="n">${state.careers}</div><div class="l">Careers</div></div>
         <div class="statbox"><div class="n" style="color:${state.nflReached ? "var(--good)" : "var(--chalk)"}">${state.nflReached || 0}</div><div class="l">UFF Reached</div></div>
       </div>
@@ -13259,7 +13588,8 @@
     <div class="card">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:10px">🎮 LIVE GAME</div>
       ${toggleRow("skipOpp", "Skip opponent drives", "Only watch plays while your team has the ball")}
-      ${toggleRow("onlyInvolved", "My plays only", TU("v153Bplays", 1) ? "Watch your side of the ball — offense if you play offense, defense if you play defense (special teams only when you are in them). Off shows every snap." : "Jump straight to plays you're personally involved in")}
+      ${toggleRow("onlyInvolved", TU("v156D", 1) ? "Your side of the ball" : "My plays only", TU("v153Bplays", 1) ? "Watch your side of the ball — offense if you play offense, defense if you play defense (special teams only when you are in them). Off shows every snap." : "Jump straight to plays you're personally involved in")}
+      ${TU("v156D", 1) ? toggleRow("myPlaysV156D", "My plays only", "Only the snaps you are in — also the MY PLAYS ONLY box above the live field. Playoffs and championships switch it off: there you watch every snap on your side.") : "" /* v156 D */}
       ${toggleRow("fastSim", "Faster live sim", "Speed up the default play animation")}
       ${toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices")}
     </div>
@@ -14452,6 +14782,8 @@
       const hof = (state && state.hof) || [];
       const S = {
         prestige: (state && state.prestige) || 0,
+        medals: state ? medalsV156A() : 1 /* v156 A: the rank the menu shows */,
+        medalsOn: medalsOnV156A(),
         pp: (state && state.pp) || 0,
         careers: (state && state.careers) || 0,
         nflReached: (state && state.nflReached) || 0,
@@ -19722,6 +20054,11 @@
     if (!TU("legacyV152", 1)) return null;
     gain = Math.max(0, Math.round(+gain || 0));
     if (!gain) return null;
+    const xk = legacyXpMultV156A(e, why) /* v156 A: G.O.A.T. / Immortal pay Legacy XP */;
+    if (xk > 1) {
+      const add = Math.round(gain * (xk - 1));
+      ((gain += add), (parts = (parts || []).concat([["Legacy nodes +" + Math.round((xk - 1) * 100) + "% XP", add]])));
+    }
     const from = legacyRankV152(L.xp),
       at = Date.now(),
       who = (e && e.name) || "";
@@ -19738,6 +20075,7 @@
     L.log.push({ id: L.n, why: why, gain: gain, from: from.rank, to: to.rank, at: at, who: who });
     L.log.length > 40 && L.log.splice(0, L.log.length - 40);
     e && ((e.legacyXpV152 = (e.legacyXpV152 || 0) + gain), why === "season" && (e.legacySeasonV152 = L.n));
+    mirrorV156A(); /* v156 A: state.prestige follows the medals */
     try {
       window.RIB_LEGACY && window.RIB_LEGACY.awarded && window.RIB_LEGACY.awarded(L.last);
     } catch (_) {}
@@ -19978,8 +20316,8 @@
         V = a.filter(P => !P.played).length;
       byId("dock").innerHTML = `
       <button class="btn" onclick="playWeek(true)">▶ Play ${C} Live</button>
-      <div style="height:8px"></div>
-      <button class="btn secondary" onclick="playWeek(false)">⏩ Quick Play ${C}</button>
+      ${playoffLockV156B(e, y) ? playoffNoteV156B() /* v156 B: the playoffs are played live — no Quick Play, no sim */ : `<div style="height:8px"></div>
+      <button class="btn secondary" onclick="playWeek(false)">⏩ Quick Play ${C}</button>`}
       ${V > 1 && !(y && y.playoff) ? '<div style="height:8px"></div><button class="btn ghost" onclick="seasonSkipV151A()">' + skipBtnV151A("⏭ Sim Remaining Regular Season") + "</button>" : ""}
       <div style="height:8px"></div>
       <div class="btn-row">
@@ -20219,6 +20557,7 @@
       w.played = !0;
       const g = state._liveGame;
       g && g.usScore != null && g.plays && bookLiveGameV85(e, w, g);
+      uffTitleGameV156C(e, w) /* v156 C: winning the UFF title game unlocks 4× */;
     }
     ((state._oppName = null), goView("season"));
   }
@@ -20330,6 +20669,7 @@
         <span class="watch-info" id="featuredLabel"><b>${escHtml(e.name)} (${e.pos})</b><small>${s} ${i ? "DEFENSE" : "OFFENSE"}</small></span>
         <span id="playClock">● LIVE</span>
       </div>
+      ${myPlaysRowV156D() /* v156 D: MY PLAYS ONLY, top-right above the field */}
       <canvas id="field" width="360" height="230"></canvas>
       <div class="commentary" id="commentary"><span class="ev-ic">🏈</span><div class="ev-body">Kickoff! ${escHtml(e.name)} takes the field…</div><span class="chev">›</span></div>
     </div>
@@ -20346,7 +20686,7 @@
             `<button class="speed-btn ${r === "1" ? "active" : ""}${speedOkV151A(r) ? "" : " speed-lock-v151"}" data-spd="${r}" onclick="setSpeed(${r})"${speedOkV151A(r) ? "" : ` title="${speedWhyV151A(r)}"`}>${l}<small>${speedOkV151A(r) ? d : speedSmallV151A(r)}</small></button>`
         )
         .join("")}
-      <button class="speed-btn" onclick="skipLive()">SKIP<small>⏭</small></button>
+      ${liveSkipOkV156B() ? '<button class="speed-btn" onclick="skipLive()">SKIP<small>⏭</small></button>' : "" /* v156 B: a playoff game plays to the whistle */}
     </div>
     <div class="boxscore-head">
       <div class="h2">${escHtml(e.name)} — <span style="color:var(--chalk-dim)">Live Box Score</span></div>
@@ -20938,11 +21278,16 @@
         .forEach(t => t.classList.toggle("active", parseFloat(t.dataset.spd) === e)));
   }
   function skipLive() {
+    if (!liveSkipOkV156B()) return void showToast("🏆 Playoff games are played to the final whistle"); /* v156 B */
     (window.GridironPhaser && window.GridironPhaser.cancel(),
       liveCtl && ((liveCtl.playing = !1), liveCtl.anim && cancelAnimationFrame(liveCtl.anim)),
       endLive());
   }
   function vl(e) {
+    /* v156 D: the on-field MY PLAYS ONLY box, and the playoffs' every-snap-on-your-side rule */
+    return TU("v156D", 1) ? liveSkipV156D(e) : vlBaseV156D(e);
+  }
+  function vlBaseV156D(e) {
     if (e && TU("v153Bplays", 1) && settingOn("onlyInvolved"))
       return (
         playsSkipV153B(e) || !!(settingOn("skipOpp") && e.offense !== "us" && !e.involved)
@@ -20953,6 +21298,100 @@
         : !!((settingOn("onlyInvolved") && !e.involved) || (settingOn("skipOpp") && e.offense !== "us" && !e.involved))
       : !1;
   }
+
+  /* ===== v156 D MY PLAYS ONLY, ON THE FIELD =====
+   * The owner: "Add back my plays only — right now it's offence and defence option only." Since v153 B the
+   * Settings toggle `onlyInvolved` means YOUR SIDE OF THE BALL (every snap your unit is on the field for), so the
+   * strict mode — only the snaps whose resolved play names the you-player (`row.involved`, the v151 A filter) —
+   * was gone. It is back as a big ticked box on the live field, top-right, just above the field:
+   *   - MY PLAYS ONLY ticked: a regular-season game shows only his snaps (`!row.involved` is skipped — drive
+   *     headers too). It is read per play in `liveTick` → `vl`, so a tick lands on the next play. Free for everyone.
+   *     The choice is `settings.myPlaysV156D` in the save (Settings has the same row).
+   *   - unticked: the old filter (`vlBaseV156D` — side of the ball when `onlyInvolved`, skip-opponent, or every snap).
+   *   - PLAYOFFS and the CHAMPIONSHIP (`weekResults[currentWeek].playoff`, or `opponentV11.importance`
+   *     playoff/championship): the box is locked off, and no setting may skip a snap on his side — when any skip
+   *     setting is on (`onlyInvolved`, `skipOpp`, or this box) the filter is exactly the side of the ball
+   *     (`playsSkipV153B`), so skip-opponent can no longer hide a defender's own defense; with none on, every snap.
+   *     The saved choice is never written there, so the regular season picks it back up.
+   * Spends no Math.random() and never touches the sim — it only decides which rows of the log are drawn.
+   * Kill switch `TU("v156D", 0)`: no box, no settings row, the v153 B filter as it was. `v156Dcheck`. */
+  function playoffLiveV156D() {
+    const p = state && state.player;
+    if (!p || !p.weekResults || p.currentWeek == null) return !1;
+    const w = p.weekResults[p.currentWeek];
+    if (!w) return !1;
+    const imp = String((w.opponentV11 && w.opponentV11.importance) || "");
+    return !!w.playoff || imp === "playoff" || imp === "championship";
+  }
+  function myPlaysPrefV156D() {
+    return !!(state && state.settings && state.settings.myPlaysV156D);
+  }
+  function myPlaysActiveV156D() {
+    return TU("v156D", 1) && myPlaysPrefV156D() && !playoffLiveV156D();
+  }
+  function liveSkipDecideV156D(row) {
+    if (!row) return !1;
+    if (playoffLiveV156D()) {
+      const anySkip = settingOn("onlyInvolved") || settingOn("skipOpp") || myPlaysPrefV156D();
+      return anySkip ? playsSkipV153B(row) : !1;
+    }
+    if (myPlaysPrefV156D()) return !row.involved;
+    return vlBaseV156D(row);
+  }
+  function liveSkipV156D(row) {
+    const skip = liveSkipDecideV156D(row);
+    /* for checks: which rows this game drew and which it passed over, and under what rule */
+    if (row && liveCtl) {
+      const log = liveCtl.logV156D || (liveCtl.logV156D = []);
+      log.push({ i: liveCtl.idx, skip: skip, mine: myPlaysActiveV156D(), playoff: playoffLiveV156D() });
+    }
+    return skip;
+  }
+  function myPlaysNoteV156D() {
+    if (playoffLiveV156D()) return "🏆 PLAYOFFS · WATCH EVERY SNAP ON YOUR SIDE";
+    if (myPlaysPrefV156D()) return "SHOWING · ONLY THE SNAPS YOU'RE IN";
+    if (settingOn("onlyInvolved") && state.player && state.player.pos)
+      return "SHOWING · YOUR " + (sideV153B(state.player) === "us" ? "OFFENSE" : "DEFENSE") + " · EVERY SNAP ON YOUR SIDE";
+    return settingOn("skipOpp") ? "SHOWING · EVERY SNAP · OPPONENT DRIVES SKIPPED" : "SHOWING · EVERY SNAP";
+  }
+  /* the row the live screen (`ol`) draws right above the field; a hoisted declaration (bare name in a template) */
+  function myPlaysRowV156D() {
+    if (!TU("v156D", 1)) return "";
+    const locked = playoffLiveV156D(),
+      on = !locked && myPlaysPrefV156D();
+    return `<div class="mp156d-row${locked ? " locked" : ""}" id="myPlaysRowV156D">
+      <span class="mp156d-note" id="myPlaysNoteV156D">${myPlaysNoteV156D()}</span>
+      <label class="mp156d-box${on ? " on" : ""}${locked ? " locked" : ""}" id="myPlaysV156D" title="${locked ? "Playoffs: you watch every snap on your side of the ball" : "Only the snaps you are in — from the next play"}">
+        <input type="checkbox" id="myPlaysInputV156D"${on ? " checked" : ""}${locked ? " disabled" : ""} onchange="toggleMyPlaysV156D(this.checked)">
+        <span class="mp156d-sq" aria-hidden="true">${locked ? "🔒" : on ? "✓" : ""}</span>
+        <span class="mp156d-lbl">MY PLAYS ONLY</span>
+      </label>
+    </div>`;
+  }
+  function toggleMyPlaysV156D(checked) {
+    if (!TU("v156D", 1)) return;
+    if (playoffLiveV156D()) {
+      showToast("🏆 Playoffs — you watch every snap on your side of the ball");
+    } else {
+      state.settings || (state.settings = {});
+      state.settings.myPlaysV156D = checked == null ? !state.settings.myPlaysV156D : !!checked;
+      saveGame();
+      showToast(state.settings.myPlaysV156D ? "✓ My Plays Only — from the next play" : "My Plays Only off — your side of the ball");
+    }
+    const old = byId("myPlaysRowV156D");
+    if (old) old.outerHTML = myPlaysRowV156D();
+  }
+  window.toggleMyPlaysV156D = toggleMyPlaysV156D;
+  window.__V156D = {
+    playoff: playoffLiveV156D,
+    pref: myPlaysPrefV156D,
+    active: myPlaysActiveV156D,
+    skip: row => liveSkipDecideV156D(row),
+    note: myPlaysNoteV156D,
+    toggle: toggleMyPlaysV156D,
+    log: () => (liveCtl && liveCtl.logV156D ? liveCtl.logV156D.slice() : null)
+  };
+
   function liveTick() {
     if (!liveCtl || !liveCtl.playing) return;
     const e = state._liveGame;
@@ -22931,7 +23370,7 @@
         bp = Math.round((TU("drStarBase", 0.6) + (st - 1) * TU("drStarStep", 0.0625)) * 100),
         pp = Math.round((TU("drPrestigePct", 0.01) * (state.prestige || 0) + softPctV146()) * 100);
       return `<div class="up-how-v153"><button type="button" class="up-how-b-v153" onclick="upHowV153()"><span>📉 <b>1 pt</b> per +1 up to each <b class="gold">soft cap</b>, then more</span><em>HOW PRICES WORK</em></button>
-      <div class="up-how-note-v153">Stats marked <span class="weight-tag">KEY</span> matter most for your position and raise your OVR the fastest. <b>Diminishing returns — no hard cap.</b> Each stat costs <b>1 pt</b> up to its <b class="gold">soft cap</b>, then <b>2, 3, 4…</b> per band of ${bandWV146()} above it${bandTopV146() < 1 / 0 ? ` (never more than <b>${bandTopV146()}</b>)` : ""}, and <b>×${wallMultV146()}</b> from <b>${wallAtV146()}</b> on. ★${st} sets your soft caps at <b>${bp}%</b> of ceiling${pp ? ` · Honors add <b style="color:#7fe0a0">+${pp}%</b>` : ""} — more RECRUIT stars and more HONORS push the cheap zone massively higher. The bar under each stat fills to its soft cap; gold values are past it.</div></div>`;
+      <div class="up-how-note-v153">Stats marked <span class="weight-tag">KEY</span> matter most for your position and raise your OVR the fastest. <b>Diminishing returns — no hard cap.</b> Each stat costs <b>1 pt</b> up to its <b class="gold">soft cap</b>, then <b>2, 3, 4…</b> per band of ${bandWV146()} above it${bandTopV146() < 1 / 0 ? ` (never more than <b>${bandTopV146()}</b>)` : ""}, and <b>×${wallMultV146()}</b> from <b>${wallAtV146()}</b> on. ★${st} sets your soft caps at <b>${bp}%</b> of ceiling${pp ? ` · ${medalsOnV156A() ? "Medals" : "Honors"} add <b style="color:#7fe0a0">+${pp}%</b>` : ""} — more RECRUIT stars and more ${medalsOnV156A() ? "MEDALS" : "HONORS"} push the cheap zone massively higher. The bar under each stat fills to its soft cap; gold values are past it.</div></div>`;
     })()}
     ${(() => {
       const row = a => {
@@ -23322,9 +23761,9 @@
       (state.pp += r),
       (e._vaultPayV137 = r + (e._ppBankV136 || 0)),
       payoutBoostV150C(e, r, "gameover") /* v150 C H4 */,
-      (state.prestige = +(state.prestige + honorPayV139(l)).toFixed(1)),
+      (state.prestige = +(state.prestige + honorGainV156A(l)).toFixed(1)) /* v156 A: no Honors — the medals are the rank */,
       (state.careersCompleted = (state.careersCompleted || 0) + (arr ? 0 : 1)) /* counted once, at the arrival */,
-      (e._starGain = honorPayV139(l)),
+      (e._starGain = honorGainV156A(l)),
       (state.lastCareerAttrs = { ...e.attrs }),
       arr ? refreshHofV154(e, arr, a) : enshrineHof(e, a, !1),
       lineageEndV136(e, a, arr ? "won" : "cut"),
@@ -23350,7 +23789,7 @@
     <div class="card end-pay-v150">
       <div class="statline">
         <div class="statbox"><div class="n">${LEVELS[a].name.split(" ")[0]}</div><div class="l">Reached</div></div>
-        <div class="statbox"><div class="n">+${l}</div><div class="l">Honors ${HONOR_ICON_V130}</div></div>
+        ${medalsOnV156A() ? `<div class="statbox"><div class="n">${MEDAL_ICON_V156A}${medalsV156A()}</div><div class="l">Medals</div></div>` : `<div class="statbox"><div class="n">+${l}</div><div class="l">Honors ${HONOR_ICON_V130}</div></div>` /* v156 A */}
         <div class="statbox"><div class="n">+${r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0)}</div><div class="l">PP Earned</div></div>
       </div>
       ${u > 0 ? `<div class="threshold-note" style="margin-top:8px;text-align:center">💰 Your legacy bonuses boosted PP earnings by <b style="color:var(--gold)">+${u}%</b></div>` : ""}
@@ -23406,7 +23845,7 @@
         (state.pp += n),
         (e._vaultPayV137 = (e._vaultPayV137 || 0) + n + (e._ppBankV136 || 0)),
         payoutBoostV150C(e, n, "win") /* v150 C H5 */,
-        (state.prestige = +(state.prestige + honorPayV139(i)).toFixed(1)),
+        (state.prestige = +(state.prestige + honorGainV156A(i)).toFixed(1)) /* v156 A */,
         (state.bestLevel = 7),
         (state.nflReached = (state.nflReached || 0) + 1),
         (state.careersCompleted = (state.careersCompleted || 0) + 1),
@@ -23415,7 +23854,7 @@
         lineageEndV136(e, Math.max(7, e.level), "won"),
         dropGear(1, "UFF career drop"),
         (e._ppGain = n),
-        (e._starGain = honorPayV139(i)),
+        (e._starGain = honorGainV156A(i)),
         completeChallenges(),
         saveGame());
     }
@@ -23436,7 +23875,7 @@
     ${legacyCardV152("career")}
     <div class="h2">The Journey</div>
     <div class="card"><div class="career-log">${e.career.map(a => `<div><span class="lvl-done">✓</span> ${a.level} — OVR ${a.ovr} at ${a.age}</div>`).join("")}<div><span class="lvl-done" style="color:var(--gold)">★</span> The UFF — OVR ${t}, age ${e.age}</div></div></div>
-    <div class="card tight end-legacy-v150"><div class="center" style="font-family:'Oswald';color:var(--gold);font-size:16px">+${e._starGain} HONORS ${HONOR_ICON_V130} · His son starts with everything he learned</div></div>
+    <div class="card tight end-legacy-v150"><div class="center" style="font-family:'Oswald';color:var(--gold);font-size:16px">${medalsOnV156A() ? `${MEDAL_ICON_V156A} ${medalsV156A()} MEDAL${medalsV156A() === 1 ? "" : "S"}` : `+${e._starGain} HONORS ${HONOR_ICON_V130}`} · His son starts with everything he learned</div></div>
   `),
       (byId("dock").innerHTML = `
     ${vaultPayBtnV137(e)}
@@ -23550,12 +23989,12 @@
     refund: () => freeAgencyRefundV154()
   };
   function screenPath() {
-    const e = state.prestige >= PATH_HONORS,
+    const e = pathOpenV156A() /* v156 A */,
       t = state.path;
     ((byId("screen").innerHTML = `
     <div class="eyebrow">Prestige Path · Permanent Archetype</div>
     <div class="h1">Choose Your Legend</div>
-    <div class="sub">${e ? "Commit to a path that reshapes every future career. This is the deepest choice in the game — each path is a completely different way to reach the UFF. You can switch later for a Legacy Reset cost." : `Reach <b style="color:var(--gold)">${HONOR_ICON_V130} ${PATH_HONORS} Honors</b> to unlock a Prestige Path. You're at ${HONOR_ICON_V130} ${state.prestige}. Honors come from finishing careers — they are not recruit stars.`}</div>
+    <div class="sub">${e ? "Commit to a path that reshapes every future career. This is the deepest choice in the game — each path is a completely different way to reach the UFF. You can switch later" + (medalsOnV156A() ? " for " + pathSwitchCostV156A() + " PP (a quarter of your balance, at least 50)." : " for a Legacy Reset cost.") : medalsOnV156A() ? `Reach <b style="color:var(--gold)">${MEDAL_ICON_V156A} ${pathMedalsV156A()} medals</b> to unlock a Prestige Path. You have ${MEDAL_ICON_V156A} ${medalsV156A()}. Medals are your Legacy Rank — every season and every career earns them.` : `Reach <b style="color:var(--gold)">${HONOR_ICON_V130} ${PATH_HONORS} Honors</b> to unlock a Prestige Path. You're at ${HONOR_ICON_V130} ${state.prestige}. Honors come from finishing careers — they are not recruit stars.`}</div>
     <div class="mt" style="margin-top:14px">
       ${Object.entries(PATHS)
         .map(([a, s]) => {
@@ -23575,12 +24014,23 @@
       (byId("dock").innerHTML = `<button class="btn secondary" onclick="go('shop')">Back to Prestige Tree</button>`));
   }
   function choosePath(e) {
-    if (state.prestige < PATH_HONORS) {
-      showToast("Reach " + HONOR_ICON_V130 + " " + PATH_HONORS + " Honors first");
+    if (!pathOpenV156A()) {
+      showToast(medalsOnV156A() ? "Reach " + MEDAL_ICON_V156A + " " + pathMedalsV156A() + " medals first" : "Reach " + HONOR_ICON_V130 + " " + PATH_HONORS + " Honors first");
       return;
     }
     if (state.path !== e) {
-      if (state.path && state.path !== e) {
+      if (state.path && state.path !== e && medalsOnV156A()) {
+        /* v156 A: a switch costs PP, not Honors */
+        const cost = pathSwitchCostV156A();
+        if ((state.pp || 0) < cost) {
+          showToast("Need " + cost + " PP to switch paths");
+          return;
+        }
+        ((state.pp -= cost),
+          (state.pathResets = (state.pathResets || 0) + 1),
+          showToast("Switched paths (−" + cost + " PP)"),
+          syncCounters());
+      } else if (state.path && state.path !== e) {
         if (state.prestige < 2) {
           showToast("Need " + HONOR_ICON_V130 + " 2 Honors to switch paths");
           return;
@@ -23600,7 +24050,7 @@
     <div class="h1">What the Family Learned</div>
     <div class="sub">Every finished career is a father's lesson to the son who comes next. Spend the family's Prestige Points here — every node is handed down to every ${escHtml(familyV136().surname || "player")} after this one, forever.</div>
     <div class="pts-banner mt" style="margin-top:14px"><div><span class="n">${(state.pp || 0).toLocaleString("en-US")}</span> <span class="l">PRESTIGE POINTS</span>${bankedV136() > 0 ? `<div class="bank-v136">🏦 +${bankedV136()} banked · paid when this career ends</div>` : ""}</div>
-      <div style="font-family:'Oswald';font-size:15px;color:var(--gold)">${HONOR_ICON_V130} ${state.prestige} Honors</div></div>
+      <div class="tree-rank-v156a" style="font-family:'Oswald';font-size:15px;color:var(--gold)">${medalsOnV156A() ? `${medalArtV156A(medalsV156A(), 22)}${medalsV156A()} MEDAL${medalsV156A() === 1 ? "" : "S"}` : `${HONOR_ICON_V130} ${state.prestige} Honors`}</div></div>
 
     <div class="btn-row" style="margin-bottom:14px;flex-wrap:wrap;gap:6px">
       ${Object.entries(TREE)
@@ -23616,9 +24066,11 @@
     const t = Math.max(0, Math.max(1, state.prestige) - (state.respecUsed || 0)),
       a = state.path
         ? PATHS[state.path].icon + " " + PATHS[state.path].name
-        : state.prestige >= PATH_HONORS
+        : pathOpenV156A()
           ? "⚡ Choose Path"
-          : "🔒 Path (" + HONOR_ICON_V130 + PATH_HONORS + ")",
+          : medalsOnV156A()
+            ? "🔒 Path (" + MEDAL_ICON_V156A + pathMedalsV156A() + " medals)"
+            : "🔒 Path (" + HONOR_ICON_V130 + PATH_HONORS + ")",
       s = state.chaosUnlocked
         ? `💍 Dynasty · ${state.rings || 0} Rings · Chaos ${chaosTotal()}`
         : (state.rings || 0) > 0
@@ -23648,7 +24100,9 @@
           !i &&
             a.req &&
             (honorHasReqV130(a.req)
-              ? (d = `🔒 Needs ${HONOR_ICON_V130} ${honorReqV130(a.req)} HONORS — you have ${honorsV130()}`)
+              ? (d = medalsOnV156A()
+                  ? `${medalArtV156A(medalNodeReqV156A(a.req), 18, !0)}🔒 Needs ${MEDAL_ICON_V156A} ${medalNodeReqV156A(a.req)} medals — you have ${medalsV156A()}`
+                  : `🔒 Needs ${HONOR_ICON_V130} ${honorReqV130(a.req)} HONORS — you have ${honorsV130()}`) /* v156 A */
               : a.req.node && (d = `🔒 Needs ${TREE_NODES[a.req.node].name} Lv ${a.req.lvl}`)),
           `<div class="shop-item" style="${i ? "" : "opacity:.55"};border-color:${s > 0 ? t.color : "var(--line)"}">
       <div class="ic">${a.icon}</div>
@@ -23665,7 +24119,7 @@
   }
   function respecTree() {
     if (Math.max(1, state.prestige) - (state.respecUsed || 0) <= 0) {
-      showToast("No free respecs left — earn more prestige");
+      showToast(medalsOnV156A() ? "No free respecs left — earn more medals" : "No free respecs left — earn more prestige");
       return;
     }
     let t = 0;
@@ -25354,6 +25808,7 @@
     ((state.view === "sim" || state.view === "live" || state.view === "training" || state.view === "event") &&
       (state.view = "hub"),
       legacyBootV152() /* v152 A: a pre-v152 save's Hall is credited once */,
+      mirrorV156A() /* v156 A: record the old Honors once (the grandfather floor), then mirror the medals */,
       reopenBootV154() /* v154 A: a UFF career stuck settled after the arrival is reopened */,
       freeAgencyRefundV154() /* v154 A: Second Chances → Free Agency */,
       render(),
@@ -27430,6 +27885,7 @@
       return !0;
     }
     if (e.level >= 7 && e.nflStateV11 && e.nflStateV11.offers && e.nflStateV11.offers.length) return !1; // an offer on the table needs an answer first
+    if (playoffLockV156B(e, w)) return !1; /* v156 B: a playoff game is never booked unwatched (an injured DNP sat out above) */
     window.__silentSimV85 = !0;
     try {
       if (!w.generatedV11) {
@@ -29334,6 +29790,10 @@
       } catch (_) {}
       const w = (e.weekResults || []).find(z => !z.played);
       if (!w) break;
+      if (playoffLockV156B(e, w)) {
+        why = "playoffs"; /* v156 B: the regular season only — the playoffs are played live */
+        break;
+      }
       rolls.push(...autoStoryV90(e, w), ...autoLifeV147(e, w));
       if (!silentWeekV85(e, w)) {
         if (e.offersV146B || e.cutOutV146B) continue;
@@ -29376,7 +29836,11 @@
     goView("season");
     try {
       showToast(
-        why === "stuck" ? `⏸ The sim stopped after ${n} game${n === 1 ? "" : "s"} — play the next week to see why` : say
+        why === "stuck"
+          ? `⏸ The sim stopped after ${n} game${n === 1 ? "" : "s"} — play the next week to see why`
+          : why === "playoffs"
+            ? say + " — 🏆 the playoffs are played live"
+            : say
       );
     } catch (_) {}
   }
@@ -29398,10 +29862,12 @@
       d = byId("dock"),
       v = state && state.view;
     if (!e || !d || e._settled || !(e.level >= 7)) return;
-    if (v === "season" && TU("simSeasonEndV147", 1) && e.weekResults && e.weekResults.some(w => !w.played)) {
-      const lbl = "⏭ Sim the Rest of the Season";
+    if (v === "season" && playoffLockV156B(e, (e.weekResults || []).find(w => !w.played))) {
+      d.querySelectorAll('[onclick^="seasonSkipV151A"]').forEach(z => z.remove()); /* v156 B: no sim chip on a playoff week */
+    } else if (v === "season" && TU("simSeasonEndV147", 1) && e.weekResults && e.weekResults.some(w => !w.played)) {
+      const lbl = TU("v156Bplayoffs", 1) ? "⏭ Sim the Rest of the Regular Season" : "⏭ Sim the Rest of the Season";
       let b = d.querySelector('[onclick^="seasonSkipV151A"]');
-      const h = skipBtnV151A(lbl); /* v151 A: the skip button says how many are left today */
+      const h = skipBtnV151A(lbl); /* v151 A / v156 B: the skip button says how many are left this career */
       if (!b) {
         const qp = [...d.querySelectorAll("button")].find(z =>
           /playWeek\(false\)/.test(z.getAttribute("onclick") || "")
@@ -29551,6 +30017,246 @@
     )
       render();
   }, "v147 A: settle a story week or an old offer list");
+  /* ===== v156 B SEASON SIMS ARE EARNED, PLAYOFFS ARE PLAYED =====
+   * The owner's two rules for the ⏭ button (the one that sims the rest of the REGULAR season):
+   *   SIMS ARE A CAREER'S, EARNED WITH MEDALS. A career starts with `simBaseV156B` (1) season sim; every Legacy
+   *     medal GROUP he has completed adds more — bronze +1, silver/gold/ruby/sapphire/emerald/amethyst +2, diamond
+   *     and grand +3 (`simGroupsV156B`; the groups are src/31's `RIB_LEGACY.medals.cats`, read at call time because
+   *     31 loads after this file, with a copy of their ends as the fallback) — up to `skipsMaxV156B` (20) with all
+   *     nine. The medals are account-wide (the Legacy rank never resets), the COUNT USED lives on the player
+   *     (`player.simsUsedV156B`), so a new career starts with the whole allowance again. There is no day any more.
+   *     While the store is ON: Pro (`simPlus`) adds `skipProBonusV151A` (3) a career, a rewarded ad (`simUnlimited`)
+   *     makes every sim free for `simAdMinV156B` (30) minutes, and the Club membership makes them free for good.
+   *     Quick Play (one week) is never counted. `seasonSkipsV151A` / `skipLineV151A` / `seasonSkipV151A` hand over to
+   *     this block; TU("v156Bskips", 0) restores v151 A's day-by-lifetime-PP ladder.
+   *   THE PLAYOFFS ARE PLAYED LIVE, at every level. A playoff / championship week's dock offers only "▶ Play …
+   *     Live" (screenSeason, postV147 at 7+); the quick paths refuse it (`playWeek(false)`, `prepareWeek103(false)`,
+   *     `startWeek(false)` wrapped below, `silentWeekV85` guarded where it is declared); the UFF's season sim
+   *     (`simSeasonV147`) stops at the first playoff week and does not finish the season; the ⏭ never spends a sim
+   *     when only playoff weeks are left; the live SKIP is gone from a playoff game. An injured DNP week is still
+   *     sat out by itself (`mustSitV18`) — that is not a game he could play. TU("v156Bplayoffs", 0) restores it all.
+   * Hoisted declarations (v140: the season dock and the live screen call these while the boot draws). `v156Bcheck`. */
+  function playoffsLiveV156B() {
+    return !!TU("v156Bplayoffs", 1);
+  }
+  // a week that must be played live: a playoff week, not one an injury sits him out of
+  function playoffLockV156B(e, w) {
+    if (!w || !w.playoff || w.played || !playoffsLiveV156B()) return !1;
+    try {
+      if (e && mustSitV18(e)) return !1;
+    } catch (_) {}
+    return !0;
+  }
+  function nextWeekV156B(e) {
+    return (e && e.weekResults && e.weekResults.find(w => !w.played)) || null;
+  }
+  function regularLeftV156B(e) {
+    return !!(e && e.weekResults && e.weekResults.some(w => !w.played && !w.playoff));
+  }
+  function playoffNoteV156B() {
+    return '<div class="small center playoff-live-v156b" style="margin-top:8px;color:var(--gold)">🏆 Playoff games are played live — every snap</div>';
+  }
+  // the live SKIP: gone while the game on the field is an unplayed playoff week
+  function liveSkipOkV156B() {
+    const e = state && state.player,
+      w = e && e.weekResults && e.currentWeek != null ? e.weekResults[e.currentWeek] : null;
+    return !(w && w.playoff && !w.played && playoffsLiveV156B());
+  }
+  function playoffRefuseV156B() {
+    try {
+      showToast("🏆 Playoff games are played live — tap ▶ Play Live");
+    } catch (_) {}
+    window.__V156B && window.__V156B.refused++;
+  }
+  // ---- the allowance
+  function simMedalsV156B() {
+    try {
+      return legacyRankV152(legacyV152().xp).medal | 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+  function simGroupsV156B() {
+    const bonus = { bronze: 1, silver: 2, gold: 2, red: 2, blue: 2, green: 2, purple: 2, ice: 3, grand: 3 },
+      fallback = [
+        ["bronze", "BRONZE", 59],
+        ["silver", "SILVER", 120],
+        ["gold", "GOLD", 201],
+        ["red", "RUBY", 266],
+        ["blue", "SAPPHIRE", 284],
+        ["green", "EMERALD", 331],
+        ["purple", "AMETHYST", 377],
+        ["ice", "DIAMOND", 443],
+        ["grand", "GRAND", 500]
+      ].map(([key, name, to]) => ({ key, name, to }));
+    let cats = null;
+    try {
+      const L = window.RIB_LEGACY;
+      cats = L && L.medals && Array.isArray(L.medals.cats) && L.medals.cats.length ? L.medals.cats : null;
+    } catch (_) {}
+    const medals = simMedalsV156B();
+    return (cats || fallback).map(c => ({
+      key: c.key,
+      name: c.name,
+      tint: c.tint || "",
+      to: +c.to || 0,
+      bonus: bonus[c.key] != null ? bonus[c.key] : 2,
+      done: medals >= (+c.to || 0)
+    }));
+  }
+  function simNowV156B(m) {
+    try {
+      return m && m.dev && m.dev.now ? m.dev.now() : Date.now();
+    } catch (_) {
+      return Date.now();
+    }
+  }
+  function skipsV156B() {
+    const e = state && state.player,
+      m = mzV150C(),
+      groups = simGroupsV156B(),
+      medals = simMedalsV156B(),
+      base = Math.max(0, Math.round(TU("simBaseV156B", 1))),
+      max = Math.max(base, Math.round(TU("skipsMaxV156B", 20))),
+      earned = groups.reduce((t, g) => t + (g.done ? g.bonus : 0), 0),
+      proBonus = TU("skipProBonusV151A", 3),
+      pro = m && m.has("simPlus") ? proBonus : 0,
+      allowed = Math.min(max, base + earned) + pro,
+      used = (e && e.simsUsedV156B) | 0,
+      unlimited = !!(m && m.has("simUnlimited")),
+      club = !!(unlimited && m.has("member")) /* the Club: the ads' benefit for good */,
+      until = unlimited ? (club ? 1 / 0 : m.until("simUnlimited")) : 0,
+      gated = gateOnV151A("seasonSkipGateV151A"),
+      nx = groups.find(g => !g.done) || null;
+    return {
+      model: "career",
+      gated,
+      medals,
+      base,
+      earned,
+      max,
+      pro,
+      proBonus,
+      allowed,
+      used,
+      left: !gated || unlimited ? 1 / 0 : Math.max(0, allowed - used),
+      unlimited,
+      club,
+      unlimitedUntil: until,
+      minutesLeft: unlimited && until !== 1 / 0 ? Math.max(1, Math.ceil((until - simNowV156B(m)) / 6e4)) : unlimited ? 1 / 0 : 0,
+      groups,
+      next: nx ? { key: nx.key, name: nx.name, to: nx.to, bonus: nx.bonus, medals } : null,
+      perDay: 0 /* v151 A's field: there is no day any more */
+    };
+  }
+  function skipLineV156B() {
+    const s = skipsV156B();
+    if (!s.gated) return "";
+    if (s.unlimited) return s.minutesLeft === 1 / 0 ? "∞ season sims · Club" : `∞ for ${s.minutesLeft} min`;
+    if (s.left > 0) return `${s.left} left this career`;
+    return s.next ? `None left · complete the ${s.next.name} medals for +${s.next.bonus}` : "None left this career";
+  }
+  // the medal groups and what each adds — in the explanation a tap with none left opens
+  function simTableV156B(s) {
+    s = s || skipsV156B();
+    return `<div class="sim-table-v156b" style="display:grid;grid-template-columns:1fr auto auto;gap:3px 10px;font-size:12px;margin-top:8px">${s.groups
+      .map(
+        g =>
+          `<span style="color:${g.tint || "inherit"}">${g.name}</span><span style="opacity:.7">medal ${g.to}</span><b style="text-align:right">${g.done ? "✓ " : ""}+${g.bonus}</b>`
+      )
+      .join("")}</div>`;
+  }
+  function simLockedV156B() {
+    const s = skipsV156B(),
+      m = mzV150C();
+    window.__V156B && window.__V156B.locked++;
+    if (m && m.simLocked) return void m.simLocked();
+    const why = s.next
+        ? `Complete the <b>${s.next.name}</b> medals (reach Legacy medal ${s.next.to} — you have ${s.medals}) for <b>+${s.next.bonus}</b> season sim${s.next.bonus === 1 ? "" : "s"} every career.`
+        : "Every medal group is complete — this career's sims are spent.",
+      html = `<div>You have used this career's ${s.allowed} season sim${s.allowed === 1 ? "" : "s"}. ${why} Quick Play still sims any regular-season week, one at a time — free, always. Sims refill with every new career.</div>${simTableV156B(s)}`,
+      D = window.ribDialog;
+    D && D.show
+      ? D.show({ title: "No season sims left this career", html, buttons: [{ label: "OK", kind: "primary" }] })
+      : showToast("⏭ " + skipLineV156B());
+  }
+  // THE ⏭ button: one sim a career when there is a regular season left; never a playoff game
+  function seasonSimV156B() {
+    const e = state && state.player;
+    if (!e || !e.weekResults) return simRemainingWeeks();
+    if (playoffsLiveV156B() && !regularLeftV156B(e)) {
+      if (e.weekResults.some(w => !w.played)) return void playoffRefuseV156B();
+      return simRemainingWeeks();
+    }
+    if (!TU("v156Bskips", 1)) {
+      /* the playoffs rule alone: v151 A's day count, spent only on a regular season */
+      const s = seasonSkipsV151A(),
+        m = mzV150C();
+      if (!s.gated) return simRemainingWeeks();
+      if (s.perDay - s.used > 0) state.skipsV151A = { day: dayKeyV151A(), used: s.used + 1 };
+      else if (!(m && s.extra > 0 && m.consume("simExtra"))) {
+        m && m.simLocked ? m.simLocked() : showToast("⏭ " + skipLineV151A());
+        return;
+      }
+      saveGame();
+      return simRemainingWeeks();
+    }
+    if (!e.weekResults.some(w => !w.played)) return simRemainingWeeks();
+    const s = skipsV156B();
+    if (!s.gated) return simRemainingWeeks();
+    let spent = !1;
+    if (!s.unlimited) {
+      if (!(s.left > 0)) return void simLockedV156B();
+      e.simsUsedV156B = (e.simsUsedV156B | 0) + 1;
+      spent = !0;
+    }
+    const before = e.weekResults.filter(w => w.played).length;
+    saveGame();
+    const r = simRemainingWeeks();
+    try {
+      /* nothing simmed (an offer on the table, a stuck week): the sim is given back */
+      if (spent && state.player === e && !e._settled && e.weekResults.filter(w => w.played).length === before)
+        ((e.simsUsedV156B = Math.max(0, (e.simsUsedV156B | 0) - 1)), saveGame());
+      window.__V156B && (window.__V156B.sims++, spent || window.__V156B.free++);
+    } catch (_) {}
+    return r;
+  }
+  // ---- the quick paths refuse a playoff week (the last wrappers in the file: they run first)
+  const pw0V156B = playWeek;
+  playWeek = function (live) {
+    const e = state && state.player;
+    if (!live && playoffLockV156B(e, nextWeekV156B(e))) return void playoffRefuseV156B();
+    return pw0V156B.apply(this, arguments);
+  };
+  const pp0V156B = prepareWeek103;
+  prepareWeek103 = function (live) {
+    const e = state && state.player;
+    if (!live && playoffLockV156B(e, nextWeekV156B(e))) return void playoffRefuseV156B();
+    return pp0V156B.apply(this, arguments);
+  };
+  const sw0V156B = startWeek;
+  startWeek = function (live) {
+    const e = state && state.player;
+    if (!live && playoffLockV156B(e, nextWeekV156B(e))) return void playoffRefuseV156B();
+    return sw0V156B.apply(this, arguments);
+  };
+  window.playWeek = playWeek;
+  window.prepareWeek103 = prepareWeek103;
+  window.__V156B = {
+    skips: skipsV156B,
+    line: skipLineV156B,
+    groups: simGroupsV156B,
+    medals: simMedalsV156B,
+    table: simTableV156B,
+    sim: seasonSimV156B,
+    explain: simLockedV156B,
+    locked: 0,
+    refused: 0,
+    sims: 0,
+    free: 0,
+    playoffLock: w => playoffLockV156B(state && state.player, w || nextWeekV156B(state && state.player)),
+    liveSkipOk: liveSkipOkV156B
+  };
   window.__prestigeNodesV137 = () => ({
     node: k => TREE_NODES[k],
     level: k => nodeLvl(k),

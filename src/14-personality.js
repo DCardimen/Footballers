@@ -163,7 +163,7 @@
     const bud = budget();
     const ptsLine = bud>0
       ? `Adjustments left: <b>${bud-spent(persona)}</b> / ${bud}`
-      : `<span style="color:var(--chalk-dim)">No adjustment points — you are who you rolled. <b style="color:var(--gold)">+1 per prestige</b> (and Identity Coach) to customize future careers.</span>`;
+      : `<span style="color:var(--chalk-dim)">No adjustment points — you are who you rolled. <b style="color:var(--gold)">Earn Legacy medals</b> (and Identity Coach) for points to customize future careers.</span>`;
     foot.innerHTML = `<div class="pv13-pts">${ptsLine}</div>
       <div class="pv13-boosts">${bStr} ${clashTxt} ${sideChips}</div>
       <button class="pv13-lock" onclick="__personaConfirmV13()">Lock In Personality ›</button>`;

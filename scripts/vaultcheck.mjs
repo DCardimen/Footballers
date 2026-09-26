@@ -46,7 +46,7 @@ async function boot (url = gameUrl('?stayStale&noFilmV114')) {
 }
 const setPP = (pp, extra) => page.evaluate(({ pp, extra }) => {
   const o = window.__GRIDIRON_AUDIT__.getState()
-  o.pp = pp; o.prestige = 40; o.tree = {}
+  o.pp = pp; o.prestige = 40; window.__V156A && window.__V156A.seed(200) /* v156 A: the medals open the tree */; o.tree = {}
   if (extra) Object.assign(o, extra)
   window.go('shop')            // `te` saves: the reload case needs the state on disk
   return o.pp
@@ -626,7 +626,7 @@ await closeV()
 
 // a LOCKED node is never sellable through the vault
 const lockedProbe = await page.evaluate(() => {
-  const o = window.__GRIDIRON_AUDIT__.getState(); o.prestige = 0; o.pp = 100000; o.tree = {}
+  const o = window.__GRIDIRON_AUDIT__.getState(); o.prestige = 0; window.__V156A && window.__V156A.seed(1) /* v156 A: the medals open the tree */; o.pp = 100000; o.tree = {}
   const N = window.__prestigeNodesV137()
   const key = N.keys().find(k => !N.open(k))
   if (!key) return { skip: true }
@@ -648,7 +648,7 @@ else {
 
 // a MAXED node: the shop's BUY must fall through to the game, never open an empty vault
 const maxed = await page.evaluate(() => {
-  const o = window.__GRIDIRON_AUDIT__.getState(); o.prestige = 60; o.pp = 100000
+  const o = window.__GRIDIRON_AUDIT__.getState(); o.prestige = 60; window.__V156A && window.__V156A.seed(373) /* v156 A: the medals open the tree */; o.pp = 100000
   const N = window.__prestigeNodesV137()
   const key = N.keys().find(k => N.node(k).max >= 1 && N.open(k))
   o.tree = {}; o.tree[key] = N.node(key).max
@@ -784,7 +784,7 @@ ok(stopped.a === stopped.b && !stopped.raf, 'and the loop STOPS when the vault c
 // ---------- 8. the game underneath is unchanged ----------
 await boot()
 const shop = await page.evaluate(() => {
-  const o = window.__GRIDIRON_AUDIT__.getState(); o.pp = 5000; o.prestige = 40; o.tree = {}
+  const o = window.__GRIDIRON_AUDIT__.getState(); o.pp = 5000; o.prestige = 40; window.__V156A && window.__V156A.seed(200) /* v156 A: the medals open the tree */; o.tree = {}
   window.go('shop')
   const sc = document.getElementById('screen')
   return { items: sc.querySelectorAll('.shop-item').length,

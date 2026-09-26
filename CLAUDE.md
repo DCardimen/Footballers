@@ -72,7 +72,8 @@ node scripts/<name>check.mjs                       # one check by hand against :
   Code names keep their old spelling (`DFL_V123`, `dflClubV123`, `dflMvpTitle`, `nflStateV11`).
 - **Monetization:** `MONETIZE_ENABLED` ships `false` and OFF must stay a complete no-op (no wrapper, DOM, timer,
   listener or storage write — `v149Echeck` diffs it). Entitlements never live in the save. **Never sell gear,
-  rolls, wheel spins, PP, or a setting that is free today.** `docs/MONETIZATION.md`.
+  rolls, wheel spins, PP, or a setting that is free today** — except what the owner re-drew in v156 (the premium
+  looks are the membership's, season sims are earned / ad-boosted / member-unlimited). `docs/MONETIZATION.md`.
 - **Saves go through `GridironStorage.save`** (v149 D wraps it for backups). New confirms/prompts use `ribDialog`.
 - **The menu, coach and vault files** (`public/rib-menu*`, `public/rib-vault*`) are baked into `index.html`:
   after changing one, `RIB_MENU_VERSION=<stamp> node scripts/bake-menu-into-index.mjs`, or the old file stays cached.
@@ -88,6 +89,7 @@ node scripts/<name>check.mjs                       # one check by hand against :
 - **Randomness changes sample paths:** v143's aim roll and v146 A's sack spend extra `Math.random()` draws, so
   compare several seeds against the OFF spread, never one run against one run (`scoreneutralcheck`).
 - **Measure the camera in WALL time on PAIRED replays** — play-time normalisation hides lag; unpaired live runs differ 2× (v147 D).
+- **Honors are gone (v156 A):** `state.prestige` is a MIRROR of the Legacy medals (`medalsV156A`) — never add to it.
 - **Interstellar is level 8** — every `level >= 7` rule (cuts, offers, story-pro, retire) applies to it too (v147 A).
 - **Sprites are scaled by the level's age** (v144 A) — anything reading a screen distance as sim units must back `_ageKV144` out.
 - **Measure field density with `PJ` at the LOS**, not a screen spacing (v148).

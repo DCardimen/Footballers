@@ -88,6 +88,10 @@ ok(cl.t >= 5 && cl.locked === 'premium not owned' && cl.ok && cl.kind === 'trail
 await E(() => window.RIB_COSMETICS.equip('trail', null))
 
 // ================= 3. the card and the STYLE tab =================
+// v156 C made most of these looks member-only (never granted while the store is off) and angel wings a super look;
+// the drawing is what is tested from here on, so the v156 C sources are switched off (TU v156Ccos 0 — v156Ccheck
+// covers them). Sections 1–2 above ran with them on.
+await E(() => { (window.RIB_TUNE = window.RIB_TUNE || {}).v156Ccos = 0 })
 await E(() => { const C = window.RIB_COSMETICS; ['wings_angel', 'crown_halo', 'aura_gold', 'trail_flame', 'nf_neon', 'nf_gold', 'trail_lightning', 'wings_seraph', 'crown_star', 'wings_bat', 'crown_gold', 'cel_feathers', 'aura_void'].forEach(id => C.grant(id, 'earned')) })
 await E(() => { const C = window.RIB_COSMETICS; C.equip('wings', 'wings_angel'); C.equip('crown', 'crown_halo'); C.equip('aura', 'aura_gold') })
 await E(() => window.go('profile')); await page.waitForTimeout(1800)

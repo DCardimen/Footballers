@@ -61,18 +61,19 @@ ok(r3.pp === 1174 && r3.ev === undefined, 'a flagged save that still carries the
 const br = await page.evaluate(() => {
   const A = window.__GRIDIRON_AUDIT__, S = window.S; S.tree = {}
   const T = A.TREE.impossible
-  return T ? T.nodes.map(n => ({ k: n.key, cost: A.nodeCost(A.TREE_NODES[n.key]), top: Math.round(n.cost * Math.pow(n.mult, n.max - 1)), max: n.max, honors: n.req && n.req.honors, onTree: !!A.TREE_NODES[n.key] })) : null
+  return T ? T.nodes.map(n => ({ k: n.key, cost: A.nodeCost(A.TREE_NODES[n.key]), top: Math.round(n.cost * Math.pow(n.mult, n.max - 1)), max: n.max, honors: n.req && n.req.honors, medals: window.__V156A ? window.__V156A.nodeReq(n.key) : null, onTree: !!A.TREE_NODES[n.key] })) : null
 })
 console.log('nodes:', JSON.stringify(br))
 ok(br && br.length >= 10 && br.length <= 14, 'the Impossible branch has 10–14 nodes', br && br.length)
 ok(br && br.every(n => n.cost >= 100000 && n.onTree), 'every one of them starts at 100,000 PP or more and is on the tree', br && br.map(n => n.k + ':' + n.cost).join(' '))
 ok(br && br.every(n => n.honors >= 30), 'and every one is gated behind 30+ Honors')
+ok(br && br.every(n => n.medals == null || n.medals >= 260), 'v156 A: which is 260+ medals now (ruby and up)', br && br.map(n => n.medals).join(','))
 ok(br && br.some(n => n.cost >= 1e7), 'the top of it is eight figures', br && Math.max(...br.map(n => n.cost)))
 
 // ---- 4. CRACK THE WALL, bought and spent through the real functions ----
 const wall = await page.evaluate(() => {
   const A = window.__GRIDIRON_AUDIT__, S = window.S, V = window.__V146C
-  S.tree = {}; S.prestige = 100; S.pp = 5e6
+  S.tree = {}; window.__V156A && window.__V156A.seed(500) /* v156 A: the medals open the branch */; S.prestige = 100; S.pp = 5e6
   const p = A.newPlayer(S, 'RB'); p.pos = 'RB'; S.player = p; p.points = 5000
   const spend = () => { p.attrs.speed = 260; window.go('upgrade'); const b = p.points; window.alloc('speed', 1); return b - p.points }
   const mult0 = V.wallMult(), soft = V.softCap(p, 'speed'), c0 = spend(), cost0 = A.nodeCost(A.TREE_NODES.wallCrack)
@@ -137,7 +138,7 @@ ok(hooks.stars[1] > hooks.stars[0], 'Born Five-Star: new players are rated highe
 
 // ---- 6. the screen and the vault can carry millions ----
 const ui = await page.evaluate(() => {
-  const S = window.S; S.tree = {}; S.prestige = 100; S.pp = 12345678
+  const S = window.S; S.tree = {}; window.__V156A && window.__V156A.seed(500) /* v156 A: the medals open the branch */; S.prestige = 100; S.pp = 12345678
   window.go('shop'); window.setBranch('impossible')
   const sc = document.getElementById('screen')
   const items = [...sc.querySelectorAll('#branchNodes .shop-item')]

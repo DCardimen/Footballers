@@ -263,10 +263,10 @@ for (const [label, S] of [['dist', distSrv], ['_site', siteSrv]]) {
     out.stored = Object.keys(localStorage).filter((k) => k.startsWith('rib_backup_v149_')).length
     out.dataOk = JSON.parse(R.backups.data(L[0].id)).markV149 === 104
     window.__PLATFORM_V149.noReload = true
-    const imp = JSON.parse(text); imp.save.prestige = 999
+    const imp = JSON.parse(text); imp.save.pp = 999   // v156 A: prestige is a mirror of the medals now, recomputed at boot — PP is the marker
     out.imported = await R.importText(JSON.stringify(imp), { confirm: false })
-    out.onDisk = JSON.parse(localStorage.getItem('gridiron_save_v1')).prestige
-    st.prestige = 1; window.GridironStorage.save(st); out.locked = JSON.parse(localStorage.getItem('gridiron_save_v1')).prestige
+    out.onDisk = JSON.parse(localStorage.getItem('gridiron_save_v1')).pp
+    st.pp = 1; window.GridironStorage.save(st); out.locked = JSON.parse(localStorage.getItem('gridiron_save_v1')).pp
     out.beforeImport = R.backups.list()[0].reason
     return out
   })
@@ -279,9 +279,9 @@ for (const [label, S] of [['dist', distSrv], ['_site', siteSrv]]) {
     const b = document.getElementById('ribSaveBtnV149'); b && b.click(); await new Promise((r) => setTimeout(r, 200))
     const rows = document.querySelectorAll('#ribDlgV149 .row-v149 button[data-restore]').length
     window.ribDialog.close(null)
-    return { prestige: st.prestige, button: !!b, rows }
+    return { pp: st.pp, button: !!b, rows }
   })
-  ok(after.prestige === 999, 'after the reload the game is running the imported save (the boot migrations ran on it)', after.prestige)
+  ok(after.pp === 999, 'after the reload the game is running the imported save (the boot migrations ran on it)', after.pp)
   ok(after.button && after.rows >= 1, 'Settings shows "Save File & Backups" and it lists restorable backups', after)
   await ctx.close()
 }

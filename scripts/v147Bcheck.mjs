@@ -45,18 +45,18 @@ const coin = await page.evaluate(async () => {
   if (img && !img.complete) await new Promise(r => { img.onload = img.onerror = r })
   const r = img ? img.getBoundingClientRect() : null
   // v153: the YOUR LEGACY tile for Honors wears the crest (⚜), and the coin stays on PP in the chip
-  const tile = [...document.querySelectorAll('#rib-main-menu-v2 .rib9-lt')].find(t => /HONORS/.test(t.textContent))
+  const tile = [...document.querySelectorAll('#rib-main-menu-v2 .rib9-lt')].find(t => /HONORS|MEDALS/.test(t.textContent))   // v156 A: the rank tile says MEDALS
   const timg = null
   return { chip: !!chip, src: img && img.getAttribute('src'), natural: img ? img.naturalWidth : 0, w: r ? r.width : 0, h: r ? r.height : 0,
     svgInChip: chip ? chip.querySelectorAll('svg').length : -1, starInChip: chip ? /[★★]/.test(chip.textContent) : true,
-    tileCrest: !!(tile && /⚜/.test(tile.textContent) && !tile.querySelector('img')), chipCrest: !!(chip && /⚜/.test(chip.textContent)),
+    tileCrest: !!(tile && /⚜|\u{1F396}/u.test(tile.textContent) && !tile.querySelector('img')), chipCrest: !!(chip && /⚜|\u{1F396}/u.test(chip.textContent)),
     recruitStars: document.querySelectorAll('#rib-main-menu-v2 .rib9-player .rib9-stars b, #rib-main-menu-v2 .rib9-player .rib9-stars u').length }
 })
 ok(coin.chip, 'header prestige chip missing')
 ok(/vault\/coin_gold_face\.webp/.test(coin.src || ''), 'header prestige icon is not the vault gold coin: ' + coin.src)
 ok(coin.natural > 0 && coin.w >= 14 && coin.h >= 14, `coin not loaded / too small (${coin.natural} natural, ${coin.w}x${coin.h})`)
 ok(coin.svgInChip === 0 && !coin.starInChip, 'a star is still in the prestige chip')
-ok(coin.tileCrest && coin.chipCrest, 'v153: the Honors tile and the chip wear the crest (the coin is PP): tile=' + coin.tileCrest + ' chip=' + coin.chipCrest)
+ok(coin.tileCrest && coin.chipCrest, 'v153 / v156 A: the rank tile and the chip wear the rank mark — the medal since v156 A (the coin is PP): tile=' + coin.tileCrest + ' chip=' + coin.chipCrest)
 ok(coin.recruitStars === 5, 'recruit stars on the card changed: ' + coin.recruitStars)
 if (SHOTS) { const chip = page.locator('#rib-main-menu-v2 .rib9-prestige'); await chip.screenshot({ path: `${SHOTS}/v147b_chip.png` }) }
 

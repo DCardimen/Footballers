@@ -202,3 +202,19 @@
 @keyframes badgeRaysV95{to{transform:translate(-50%,-50%) rotate(360deg)}}
 @keyframes badgeSnapV95{0%{transform:translateX(-120%) rotate(-6deg);opacity:1}60%{transform:translateX(0) rotate(-6deg);opacity:1}to{transform:translateX(0) rotate(-6deg);opacity:0}}
 @media (prefers-reduced-motion:reduce){.rib-badge-rays-v95{animation:none}}
+/* ===== v156 D MY PLAYS ONLY, ON THE FIELD ===== the ticked box, top-right, right above the field */
+.field-wrap>.mp156d-row{order:5}
+.mp156d-row{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:7px 10px;background:linear-gradient(180deg,#0f1722,#0a1018);border-bottom:1px solid var(--line)}
+.mp156d-note{flex:1 1 auto;min-width:0;font:700 10px Oswald,sans-serif;letter-spacing:1px;color:var(--chalk-dim);line-height:1.2;text-align:right}
+.mp156d-row.locked .mp156d-note{color:var(--gold)}
+.mp156d-box{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 7px;border-radius:10px;border:2px solid var(--gold);background:#f0bb451a;cursor:pointer;user-select:none;-webkit-user-select:none;box-shadow:0 0 12px #f0bb4533}
+.mp156d-box input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.mp156d-sq{display:grid;place-items:center;width:24px;height:24px;border-radius:6px;border:2px solid var(--gold);background:#0a0f16;font:900 18px/1 Oswald,sans-serif;color:#0a0f16}
+.mp156d-box.on{background:linear-gradient(180deg,#f2c451,#c9962a);box-shadow:0 0 16px #f0bb4580}
+.mp156d-box.on .mp156d-sq{background:#fff4d0;border-color:#0a0f16}
+.mp156d-lbl{font:700 15px Oswald,sans-serif;letter-spacing:1.4px;color:var(--gold);white-space:nowrap}
+.mp156d-box.on .mp156d-lbl{color:#141a24}
+.mp156d-box.locked{border-color:#5a6678;background:#ffffff08;box-shadow:none;cursor:not-allowed;opacity:.8}
+.mp156d-box.locked .mp156d-sq{border-color:#5a6678;font-size:12px}
+.mp156d-box.locked .mp156d-lbl{color:#8a96a8;text-decoration:line-through}
+.mp156d-box:focus-within{outline:2px solid #fff4d0;outline-offset:2px}

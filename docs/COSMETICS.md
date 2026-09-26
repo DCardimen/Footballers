@@ -148,3 +148,26 @@ career's random look, a UFF club's colours) are never gated. The unlock count is
 2. A new pattern / finish / celebration kind / frame needs its drawing in `kitDeco` + `drawCharacter`, `celebrate`, or
    the CSS block — the catalogue alone does not draw anything new.
 3. Run `node scripts/v151Bcheck.mjs` (every item must draw a preview; nine categories, six each).
+
+## v156 C — earned looks, member looks, super looks (the owner's call)
+
+The owner made the nicer, appearance-changing looks harder to get: most behind the **membership**, a few free but
+"waaay later", angel wings incredibly hard, and mythic **super** looks for the season ladder's super challenges
+(`docs/SEASONS.md` §8). The tables above are the v151 B / v153 G sources; `RULES_V156C` in `src/28-cosmetics.js`
+re-sources through getters (`source`, `ach`, `rarity`), so TU `v156Ccos` 0 puts every item back.
+
+Two new sources: `member` (owned while the store is ON and `has("member")` / `has("founder")`; OFF: listed, locked
+"🔒 Membership", never owned / granted / equipped, no store call) and `super` (granted only by `grant(id, "super")` from
+a super challenge). **Grandfathered**: the first load of the store under v156 C snapshots every owned id and every
+earned item whose old achievement was hit into `gf156` (`{v:1, …, v156C, gf156:{id:1}}`); those stay owned.
+
+| new source | items |
+|---|---|
+| **member** (39) | uni_blackout, uni_gold_std, uni_tiger, uni_royal_chev, uni_mvp_white, uni_marble · hel_chrome_gold, hel_interstellar, hel_ruby, hel_marble · frame_platinum, frame_cosmic, frame_lava, frame_holo, frame_angel · cel_goldrain, cel_meteor, cel_halo, cel_feathers · vault_obsidian, vault_nebula · shelf_marble · trail_flame, trail_lightning, trail_ghost, trail_stars · wings_crystal, wings_bat, wings_mech, wings_seraph · crown_gold, crown_horns, crown_halo, crown_flame, crown_star · aura_gold, aura_flame, aura_void · nf_chrome |
+| **earned, waaay later** | uni_nebula, frame_void (`legacy300`: Legacy medal 300) · crown_mvp (`rings3`: 3 UFF titles across careers) · crown_king, wings_phoenix (`rings5`: 5 UFF titles) · ban_lineage, aura_holy (`gen5`: the fifth generation) |
+| **super** (mythic) | wings_angel (Interstellar title at all nine positions) · crown_ladder "Ladder Laurel" (top 10 for 10 days) · aura_supernova "Supernova" (League MVP + Interstellar title inside 14 seasons) · trail_goldrush "Gold Rush" (10 UFF titles) · frame_ultimate "The Ultimate" (Legacy medal 500) |
+| unchanged earned | frame_gold, ban_lights, recap_gold, trail_comet, nf_gold (title) · shelf_gold, hel_emerald, frame_emerald, trail_petals (ring) · std_blackgold, nf_neon (UFF) · uni_heritage, hel_heritage, frame_royal, cel_rainbow, trail_rainbow (gen 3) |
+
+Achievements tightened: `hof` needs a Hall career that made the UFF (was any finished career); `mvp` needs a League MVP
+(college or higher — a high-school Player of the Year no longer counts). `account()` adds `hofWon`, `leagueMvps`,
+`uffRings`, `legacyMedal`. The Career Pass no longer draws angel-style wings. `scripts/v156Ccheck.mjs`.

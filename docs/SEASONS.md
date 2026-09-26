@@ -165,3 +165,29 @@ The **remote** design (not deployed):
 clock, Career Score determinism, every board, a real career end restored at boot, pass XP, claims through a
 cosmetics stub, premium gating, the validator, XSS, 400×860 fit. Screenshots land in `$SHOTS` (default
 `/tmp/claude-0/shots`).
+
+## 8. Super challenges (v156 C — the owner's call)
+
+Tough, account-wide challenges that **never reset with a season**, each paying one MYTHIC look (`source:"super"` in
+`src/28-cosmetics.js` — never sold, never on the pass). The engine is `window.RIB_SUPER` in src/28 (`progress()`,
+`tick()`), ticked by `RIB_COSMETICS.checkEarned` (boot, every save) and this file's 1.5 s observer; progress lives in
+its own store **`rib.super.v1`** (`{v:1, days, pos, best, done}`) outside the save, so a season rollover (`archive()`),
+a new career or an imported save never takes it away. Each look is granted exactly once, through
+`RIB_COSMETICS.grant(id, "super")`. The section (`superSectionV156C`, `#ss156Super`) sits on the SEASON tab under this
+week's challenges and on PASS › CHALLENGES: a progress bar and the drawn reward for each; the positions row for the
+all-positions one. Kill switch TU `v156Ccos`.
+
+| challenge | rule | reward |
+|---|---|---|
+| Top 10 for 10 Days | once a UTC day, the best rank of this device's careers on the current season's career board; 10 distinct days at rank ≤ 10 (`superLadderDaysV156C`) | **Ladder Laurel** (crown) |
+| Interstellar at Every Position | an Interstellar (level 8) title at each of QB RB WR TE OL DL LB CB S — read off the career's season log and every Hall box, remembered in the store | **Angel Wings** (the only way to get them) |
+| MVP to the Stars | one career with a League MVP AND an Interstellar title, both inside its first 14 seasons (`superMvpSeasonsV156C`) | **Supernova** (aura) |
+| Gold Rush | 10 UFF championships across careers (`superRingsV156C`) | **Gold Rush** (footprints) |
+| The Ultimate | Legacy medal 500 | **The Ultimate** (card frame) |
+
+**Honesty about the ladder:** the career boards are LOCAL today (every row is one of this device's careers), so "top
+10" is met by any career on this season's board — the challenge becomes "a career on the season board on 10 days".
+With a remote board (`__LB_CONFIG.careerUrl`, §5) the rank is the real one and the challenge means what it says.
+
+The Career Pass no longer draws angel-style wings (they left `STYLES.wings` here and the pools in 28). A **member**
+(store ON, `has("member")`) rides the premium track. See docs/MONETIZATION.md §1c for the member looks.

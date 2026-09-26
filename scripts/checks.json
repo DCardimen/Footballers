@@ -26,7 +26,8 @@
     "layoutcheck",
     "anchorcheck",
     "v150Acheck",
-    "v151Echeck"
+    "v151Echeck",
+    "v156Acheck"
    ]
   },
   "docs": {
@@ -54,6 +55,7 @@
    ],
    "files": [],
    "checks": [
+    "v156Bcheck",
     "v154Acheck",
     "v147Acheck",
     "v146Bcheck",
@@ -111,7 +113,8 @@
     "sheencheck",
     "honorcheck",
     "freshcheck",
-    "menu-mask-check"
+    "menu-mask-check",
+    "v156Acheck"
    ],
    "steps": [
     "`node scripts/build-uff-trophy.mjs` (if the trophy art changed)",
@@ -242,7 +245,8 @@
     "v134check",
     "v136check",
     "bootviewcheck",
-    "walk"
+    "walk",
+    "v156Acheck"
    ]
   },
   "plan": {
@@ -435,7 +439,8 @@
     "coachcheck",
     "menu-integration-check",
     "v136check",
-    "freshcheck"
+    "freshcheck",
+    "v156Acheck"
    ],
    "steps": [
     "`python3 scripts/build-vault-art.py --proof` (if a cell moved — then LOOK at `art/vault-proof/`)",
@@ -568,7 +573,8 @@
     "rivalcheck",
     "v85check",
     "declarecheck",
-    "walk"
+    "walk",
+    "v156Acheck"
    ]
   },
   "grow": {
@@ -1173,9 +1179,11 @@
    ]
   },
   "honors": {
-   "desc": "v130 — the account rank, the prestige-tree gates, anything drawing a ★",
+   "desc": "v130 / v156 A — the account rank (the medals since v156 A), the prestige-tree gates, anything drawing a ★",
    "anchors": [
-    "v130"
+    "v130",
+    "v156 A",
+    "MEDALS ARE THE KEY"
    ],
    "files": [],
    "checks": [
@@ -1183,7 +1191,8 @@
     "menu-integration-check",
     "walk",
     "shot",
-    "v153Fcheck"
+    "v153Fcheck",
+    "v156Acheck"
    ]
   },
   "emblems": {
@@ -1319,12 +1328,14 @@
     "v149 E",
     "v150 C",
     "v151 A",
-    "RIB_MONETIZE"
+    "RIB_MONETIZE",
+    "v156 C"
    ],
    "files": [
     "src/27-monetize.js"
    ],
    "checks": [
+    "v156Bcheck",
     "v149Echeck",
     "v150Ccheck",
     "v151Acheck",
@@ -1333,7 +1344,8 @@
     "menu-integration-check",
     "layoutcheck",
     "honorcheck",
-    "vaultcheck"
+    "vaultcheck",
+    "v156Ccheck"
    ]
   },
   "pwa": {
@@ -1417,7 +1429,8 @@
    "desc": "v151 C — competitive seasons, the Career Pass, the career leaderboards, the trophy case (src/29-seasons.js, src/20-leaderboards.js v151 C)",
    "anchors": [
     "v151 C",
-    "RIB_SEASONS"
+    "RIB_SEASONS",
+    "v156 C"
    ],
    "files": [
     "src/29-seasons.js",
@@ -1425,6 +1438,7 @@
     "docs/SEASONS.md"
    ],
    "checks": [
+    "v156Ccheck",
     "v151Ccheck",
     "v153Gcheck",
     "lbcheck",
@@ -1442,13 +1456,15 @@
    "anchors": [
     "v151 B",
     "RIB_COSMETICS",
-    "v153 G"
+    "v153 G",
+    "v156 C"
    ],
    "files": [
     "src/28-cosmetics.js",
     "docs/COSMETICS.md"
    ],
    "checks": [
+    "v156Ccheck",
     "v151Bcheck",
     "v153Gcheck",
     "v151Ccheck",
@@ -1508,7 +1524,8 @@
     "layoutcheck",
     "menu-integration-check",
     "v153Fcheck",
-    "v153Echeck"
+    "v153Echeck",
+    "v156Acheck"
    ]
   },
   "v153b": {
@@ -1548,6 +1565,43 @@
     "v152Acheck",
     "v150Acheck",
     "layoutcheck"
+   ]
+  },
+  "v156b": {
+   "desc": "v156 B — season sims earned with the Legacy medal groups (a career's, 1 → 20; the ad 30 min unlimited) and the playoffs always played live (07's v156 B block, simSeasonV147, postV147, screenSeason's dock, the live SKIP; 27's simUnlimited)",
+   "anchors": [
+    "v156 B"
+   ],
+   "files": [
+    "scripts/v156Bcheck.mjs"
+   ],
+   "checks": [
+    "v156Bcheck",
+    "v151Acheck",
+    "v147Acheck",
+    "v150Ccheck",
+    "v149Echeck",
+    "v85check",
+    "v90check",
+    "injurycheck",
+    "coachcheck",
+    "growcheck",
+    "v146Echeck",
+    "bootviewcheck",
+    "walk"
+   ]
+  },
+  "v156d": {
+   "desc": "v156 D — MY PLAYS ONLY on the live field (the ticked box, the playoffs' every-snap-on-your-side rule)",
+   "anchors": [
+    "v156 D"
+   ],
+   "files": [],
+   "checks": [
+    "v156Dcheck",
+    "v153Bcheck",
+    "v151Acheck",
+    "coachcheck"
    ]
   }
  },
@@ -1923,7 +1977,7 @@
   },
   "honorcheck": {
    "file": "scripts/honorcheck.mjs",
-   "desc": "v130 — two currencies, two symbols",
+   "desc": "v130 — two currencies, two symbols (v156 A: the rank is MEDALS on the chip / tree / menu; the Honors model and pay asserted under the kill switch)",
    "areas": [
     "smoke",
     "menu-coin",
@@ -3503,7 +3557,7 @@
   },
   "v151Acheck": {
    "file": "scripts/v151Acheck.mjs",
-   "desc": "v151 A — the hybrid store and the progression gates: OFF no store/ads/prices but 3×/4× at the UFF, My Plays Only after a career, season skips from lifetime PP (the same with the module blocked), free filters; ON the tier chain and upgrades, restore, 4× Pro, ad cap + day rollover, convenience-only rewards, no PP double, the catalogue guard, the per-season pass, packs via RIB_COSMETICS, unlock_all_team_style, expansions not for sale, the store at 400x860.",
+   "desc": "v151 A — the hybrid store and the progression gates: OFF no store/ads/prices but 3× after a full UFF season and 4× for the UFF title (v156 C), My Plays Only free, season sims a career (v156 B; the same with the module blocked), free filters; ON the tier chain and upgrades, restore, 4× Pro, ad cap + day rollover, convenience-only rewards, no PP double, the catalogue guard, the per-season pass, packs via RIB_COSMETICS, unlock_all_team_style, expansions not for sale, the store at 400x860.",
    "areas": [
     "monetize"
    ],
@@ -3730,6 +3784,68 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v156Acheck": {
+   "file": "scripts/v156Acheck.mjs",
+   "desc": "v156 A — the medals are the key: MEDAL_TABLE_V156A hits its anchors (6→12 … 40→200 … 64→420), friendly node reqs (12 first, Impossible 260-420), a fresh save has 1 medal and every gated node locked (\"Needs 🎖️ N medals — you have M\"), rank R opens exactly the nodes with req ≤ R, state.prestige mirrors honorsEquiv, Reputation −5%/level, G.O.A.T./Immortal pay Legacy XP, career ends pay no Honors, Path at 12 / switch costs PP, the grandfather floor, MEDALS on chip / tree / menu / How To Play, kill switch TU(\"v156A\",0) restores Honors, no page errors.",
+   "areas": [
+    "smoke",
+    "honors",
+    "legacy",
+    "vault",
+    "impossible",
+    "menu-coin",
+    "goals"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v156Bcheck": {
+   "file": "scripts/v156Bcheck.mjs",
+   "desc": "v156 B — season sims are a career's, earned with the Legacy medal groups (1 on a fresh account, bronze → 2, all nine → 20 cap), spent one a ⏭, refused at 0 with the next group and the table, reset by a new career, no day, Quick Play free; the playoffs are always played live (dock, playWeek/prepareWeek103/⏭/simRemainingWeeks/__silentWeekV85 refuse, no live SKIP, the UFF sim stops at the playoffs, a missed-playoffs season finishes); kill switches; store ON: the 30-minute simUnlimited ad, Pro +3, the Club; OFF no-op.",
+   "areas": [
+    "skips",
+    "playoffs",
+    "monetize",
+    "career"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v156Ccheck": {
+   "file": "scripts/v156Ccheck.mjs",
+   "desc": "v156 C — the owner's speed ladder and harder looks: a UFF save has neither 3× nor 4×; a full UFF season opens 3×; a won Wild Card / Conference Final opens nothing, the won LEAGUE CHAMPIONSHIP (through finishWeekGame) opens 4× with its moment; old saves grandfather (a ring, dflMvpTitle, a UFF season); TU v156Cspeed 0 restores v151 A; OFF stays a no-op (member looks never call the store); member looks listed \"🔒 Membership\", never owned / granted / equipped; a pre-v156 C cosmetics store keeps what it owned; hof / mvp tightened, 5 rings open the waaay-later looks; angel wings never from hof / pass; each super challenge grants its mythic look once; the SUPER CHALLENGES section renders and fits 400x860; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics",
+    "seasons",
+    "speed",
+    "monetize"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v156Dcheck": {
+   "file": "scripts/v156Dcheck.mjs",
+   "desc": "v156 D — the MY PLAYS ONLY box on the live field: top-right right above the field, visible and clear of the scorebug / speed row / buff line at 400x860 and 1280x800; a click ticks it and saves it; ticked, a regular-season live game draws only plays that name the you-player (the playback log and the whole engine log), unticked his side of the ball; playoff and championship weeks lock it off, the filter is the side of the ball (skip-opponent cannot hide a defender's snap), a tap leaves the saved choice alone and the next regular-season week has it back; Settings row, the coach's pointer; no Math.random, seeded games identical, the kill switch; no page errors.",
+   "areas": [
+    "live",
+    "plays"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   }
  }
 }

@@ -14,7 +14,7 @@ await page.waitForFunction(() => { const s = document.getElementById('splash'); 
   const c = getComputedStyle(s); return c.display === 'none' || c.visibility === 'hidden' || +c.opacity === 0 }, null, { timeout: 25000 }).catch(() => {})
 for (let i = 0; i < 4; i++) { const h = await page.evaluate(() => { const b = [...document.querySelectorAll('.onboard button,.onboard [onclick]')].find(e => e.getBoundingClientRect().height > 0); if (b) { b.click(); return true } return false }); if (!h) break; await page.waitForTimeout(220) }
 await page.evaluate(() => { document.querySelectorAll('.onboard').forEach(e => e.remove())
-  const o = window.__GRIDIRON_AUDIT__.getState(); o.pp = Number(2400000); o.prestige = 40; window.go('shop')
+  const o = window.__GRIDIRON_AUDIT__.getState(); o.pp = Number(2400000); o.prestige = 40; window.__V156A && window.__V156A.seed(200) /* v156 A: the medals open the tree */; window.go('shop')
   try { localStorage.setItem('rib.vaultDoor.v137', '1'); localStorage.setItem('rib.coachTour.v119', '0') } catch (e) {} })
 await page.evaluate(() => window.__RIB_VAULT_BRIDGE.open({ skipDoor: true }))
 await page.waitForTimeout(1400)

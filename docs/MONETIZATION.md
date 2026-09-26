@@ -25,10 +25,10 @@ decisions only the owner can make.
 | Rung | What | Price |
 |---|---|---|
 | **FREE, always** | The whole career — every level, position, mode and screen. 1× and 2× play speed. Quick Play (sim any week, any time). Skip opponent drives, **My Plays Only** (v153 B: free and ON by default — your side of the ball), fast sim, the camera and weather pickers, the Team Creator (5 logos/colours free, the rest for PP — the cosmetics worker). | $0 |
-| **Progression gates** (live whatever the switch says — §1a) | **3×** on reaching the UFF · **4×** with 3× while the store is OFF · **season skips** a day from lifetime PP | earned |
-| **Rewarded ads** (opt-in, while ON) | 4× for 20 min · +1 season skip today · try a locked cosmetic for 24 h. `rewarded.dailyCap` = **4 a day** (TU `adsPerDayV151A`, clamped to ≤ 5), all placements together, local day. Granted only when the ad is watched to the end. Never inside a play. No interstitials, no banners. | free |
+| **Progression gates** (live whatever the switch says — §1a) | **3×** after one whole UFF season · **4×** for winning the UFF championship (v156 C — the owner's call) · **season sims** a career from the Legacy medal groups (1 → 20, v156 B) · the playoffs are always played live | earned |
+| **Rewarded ads** (opt-in, while ON) | 4× for 20 min · **unlimited regular-season sims for 30 min** (v156 B) · try a locked cosmetic for 24 h. `rewarded.dailyCap` = **4 a day** (TU `adsPerDayV151A`, clamped to ≤ 5), all placements together, local day. Granted only when the ad is watched to the end. Never inside a play. No interstitials, no banners. | free |
 | **Ad Free** | No ads — every rewarded convenience is claimed without watching one (still inside the daily cap). | **$3.99** |
-| **Pro Career** | Ad Free + **4× permanently** + **advanced sim** (+3 season skips a day, TU `skipProBonusV151A`) + **advanced filters** (Stats / Leaders / Standings / Hall of Fame here; the leaderboards' own filters in `src/20-leaderboards.js` ask `has("pro")`) + 3 save slots when slots ship. | **$8.99** |
+| **Pro Career** | Ad Free + **4× permanently** + **advanced sim** (+3 season sims every career, TU `skipProBonusV151A`) + **advanced filters** (Stats / Leaders / Standings / Hall of Fame here; the leaderboards' own filters in `src/20-leaderboards.js` ask `has("pro")`) + 3 save slots when slots ship. | **$8.99** |
 | **Founder / Ultimate** | Pro + the Founder cosmetic bundle (every `RIB_COSMETICS` item with `source:"founder"` — never sold alone) + bonus customization (`customPlus`, read by the cosmetics worker). | **$14.99** |
 | **Season Career Pass** | The premium track of the current competitive season (~6 months, `src/29-seasons.js`): cosmetic rewards and challenges. One product per season. | **$9.99** / season |
 | **Cosmetic packs** | Uniforms $1.99 · helmets $1.99 · touchdown celebrations $2.99 · stadium themes $2.99 · player-card frames $1.99 · vault themes $2.99 · historical uniform bundle $4.99 · **Unlock all team logos & colors $2.99** (placeholder). | $1.99–$4.99 |
@@ -36,7 +36,7 @@ decisions only the owner can make.
 | **Never sold** | PP, prestige-tree levels, stat boosts, gear or gear rolls, wheel spins, re-rolls, "fate" odds, anything random, the career payout (the v149 E PP double is **retired**). | — |
 
 Tiers nest: **Founder ⊃ Pro ⊃ Ad Free**. Each product grants ONE tier key; the module's `IMPLIES` table resolves the
-rest (`founder → pro, customPlus`; `pro → noAds, speed4, simPlus, filters`; `speed4 → speed3`), so a restore of the
+rest (`founder → pro, customPlus`; `pro → noAds, speed4, simPlus, filters`; `member → noAds, speed4, simUnlimited` — v156 B: the Club has the ads' benefit for good, its sims are never counted; `speed4 → speed3`), so a restore of the
 single top product brings back the whole chain.
 
 ### 1a. The progression gates (src/07-career-app.js, `v151 A THE GATES ARE EARNED ON THE FIELD`)
@@ -47,24 +47,52 @@ and do not depend on this module. Each has a kill switch (`TU(name, 0)` restores
 | Gate | Rule | Grandfathering | Kill switch |
 |---|---|---|---|
 | ~~My Plays Only~~ | **Retired in v153 B** — the owner made it free and ON by default for everyone (your side of the ball; Settings turns it off). `playsOnlyOkV151A()` answers yes; `TU("v153Bplays", 0)` restores this gate: `onlyInvolved` once `careersCompleted > 0` | — | `v153Bplays` (then `playsOnlyGateV151A`) |
-| 3× | on reaching the UFF (level `speed3LevelV151A` = 7) in any career — `state.bestLevel` is account-wide | a save that already reached the UFF keeps it | `speedGateV151A` |
-| 4× | store **OFF**: unlocks WITH 3× (nothing is unobtainable). Store **ON**: `has("speed4")` — Pro / Founder / the 20-minute ad / the v149 E grandfather grant | as 3× (OFF); the device grandfather (ON, D1) | `speedGateV151A` |
-| Season skips (⏭) | a day's skips from **lifetime PP earned**: 1 at 1,000; then +2 per ×100 (3 at 100,000, 5 at 10M, 7 at 1B, max 9) — `skipFirstPPV151A`, `skipStepMulV151A`, `skipFirstV151A`, `skipPerStepV151A`, `skipMaxV151A`. Pro +3 (`skipProBonusV151A`), a rewarded ad +1 today. Quick Play is never counted; `window.simRemainingWeeks` (the engine) is not gated — only the ⏭ button (`seasonSkipV151A`) | lifetime PP is seeded from what the save shows (§1b) | `seasonSkipGateV151A` |
+| 3× | **v156 C (the owner's call):** after he SURVIVES ONE WHOLE UFF SEASON — a level ≥ 7 season that reached its season-end report (a `seasonLogV77` row; a cut before the report logs nothing). Account-wide flag in the save, `state.uffSeasonV156C` (progress, like `bestLevel` — not an entitlement). *(v151 A: on reaching the UFF.)* | a save whose record already shows a finished UFF season (the career's log, a Hall box row) | `v156Cspeed` (then `speedGateV151A`) |
+| 4× | **v156 C (the owner's call):** for WINNING THE UFF CHAMPIONSHIP — the level-7 LEAGUE CHAMPIONSHIP game won (the Interstellar title counts too — level ≥ 7); the live title game unlocks it on the spot with "🏆 UFF CHAMPIONS — 4× UNLOCKED". `state.uffTitleV156C`. Store **ON**, a paid `speed4` also opens it — **membership** (`member` implies `speed4`), Pro / Founder, the 20-minute ad, the v149 E device grant. *(v151 A: with 3× while OFF; Pro's while ON.)* | a UFF ring anywhere in the record (log rows, Hall rows, `state.rings`, position mastery — `menuGoalV153D`) or the `dflMvpTitle` challenge; the device grandfather (ON, D1) | `v156Cspeed` (then `speedGateV151A`) |
+| Season sims (⏭, v156 B) | **a career's**, earned with Legacy medals: 1 to start (`simBaseV156B`), + each completed medal group — bronze +1, silver / gold / ruby / sapphire / emerald / amethyst +2, diamond / grand +3 — up to 20 (`skipsMaxV156B`). The count used lives on the player (`simsUsedV156B`), so every new career starts full; **no day, no per-day cap**. Pro +3 a career (`skipProBonusV151A`); the rewarded ad (`simUnlimited`) makes every sim free for 30 min (`simAdMinV156B`); the Club never counts one. Only the ⏭ "Sim the Rest of the Regular Season" button counts — Quick Play is free and unlimited; `window.simRemainingWeeks` (the engine) is not gated. **The playoffs are always played live** (no Quick Play, no sim, no live SKIP; `TU("v156Bplayoffs", 0)` restores). v151 A's lifetime-PP day ladder is the kill switch's path (`TU("v156Bskips", 0)`) | medals are account-wide (the Legacy rank never resets) | `v156Bskips` / `seasonSkipGateV151A` |
 
-The locked speed buttons read **🔒 UFF** / **🔒 PRO** (title "Reach the UFF" / "Pro Career"), the My Plays Only row
-is never locked since v153 B, and the ⏭ button carries a line: "N season skips left today", or how many
-PP the next rung needs and that Quick Play is free. The store's FREE rung shows all four with progress.
+The locked speed buttons read **🔒 UFF** (3×, "Finish a full UFF season") / **🔒 RING** (4×, "Win the UFF championship");
+a locked tap says "3× unlocks after a full UFF season" / "4× unlocks by winning the UFF championship (or with
+membership)" — or, store ON, opens the 4× offer (v151 A labelled them 🔒 UFF / 🔒 PRO). The My Plays Only row
+is never locked since v153 B, and the ⏭ button carries a line: "N left this career", "∞ for 29 min" while the ad's
+boost runs, or, with none left, the next medal group ("complete the SILVER medals for +2"); a tap then explains, with
+the per-group table (store OFF: a `ribDialog`; ON: the store's sheet with the ad). The store's FREE rung shows all four with progress.
 
-### 1b. Lifetime PP (what "prestige" means for skips)
+### 1b. Lifetime PP (what "prestige" meant for skips until v156 B)
 
-The game never kept a lifetime figure and honors are a separate rank, so v151 A defines prestige for skips as
+Since v156 B the season sims come from the Legacy medal groups; lifetime PP is still tracked (the store and the kill
+switch's path read it). The game never kept a lifetime figure and honors are a separate rank, so v151 A defines prestige for skips as
 **lifetime PP earned**: `state.ppLifetimeV151A`, which only rises. Every `saveGame()` adds any rise in `state.pp`
 since the last save (`ppTrackV151A`); spending (a tree node, the vault) lowers `state.pp` but not the lifetime. An
 existing save is seeded once with PP in hand + banked PP + the base price of every tree level it owns (the Path
 discount is ignored — it only rounds up in the player's favour). It lives in the save, so a hard reset starts it again.
 
 ### The speed ladder
-½× / 1× / 2× free · 3× at the UFF · 4× Pro (ON) or with 3× (OFF) · the rewarded ad lends 4× for 20 minutes.
+½× / 1× / 2× free · 3× after a full UFF season · 4× for the UFF title (ON or OFF), or with membership / Pro / Founder
+(ON) · the rewarded ad lends 4× for 20 minutes (v156 C).
+
+### 1c. Member looks (v156 C — the owner's call: the nicest looks are harder to get)
+
+The owner asked for the nicer, appearance-changing cosmetics to be harder to get, most of them behind the membership,
+with a few left free "waaay later", and angel wings incredibly hard (`src/28-cosmetics.js`, `v156 C EARNED LOOKS,
+MEMBER LOOKS, SUPER LOOKS`; kill switch TU `v156Ccos`):
+
+- **Member looks** (`source:"member"`, 39 items — the legendary / mythic looks and the flashiest epics: uniforms,
+  helmets, wings, crowns, auras, footprints, celebrations, frames, vault / shelf themes). Owned while the store is
+  **ON** and the device holds `member` (or `founder`). With the store **OFF** (shipping) they are **listed, locked,
+  "🔒 Membership"** — the visible incentive — never owned, never granted, never equipped, and no store call is made
+  (`RIB_COSMETICS.owned` asks `RIB_MONETIZE` only when it is enabled). This reverses D9's "hidden until owned" for
+  these items, by the owner's decision. A member also rides the Career Pass premium track (`premiumOwned`, ON only).
+- **Grandfathered**: anything the device already owned before v156 C (the stored items, and every earned item whose
+  old achievement it had hit) stays owned — a one-time snapshot, `gf156` in `rib.cosmetics.v1`. Entitlements still
+  never live in the save.
+- **Free, waaay later**: Nebula Fade + The Void (Legacy medal 300), Golden Laurel (3 UFF titles), Crown of the League
+  + Phoenix (5 UFF titles), The Family Name + Holy Light (the fifth generation).
+- **Super looks** (`source:"super"`): the season ladder's super challenges (docs/SEASONS.md §8) — Angel Wings among
+  them. Never sold, never on the pass.
+
+The membership product (`rib.member.monthly`, `features.membership` false) is unchanged: `member` implies `noAds` and
+`speed4`. Selling it still needs a server (D5).
 
 ---
 
@@ -117,7 +145,7 @@ holds both; nothing breaks.
 | Rewarded placement | Reward | Where |
 |---|---|---|
 | `speed4` | `speed4` for `rewarded.speed4Minutes` (20, TU `speed4AdMinV151A`) — a second ad extends | the live speed row's chip, the locked 4× sheet, the store |
-| `simExtra` | `simExtra`, 1 use, until the end of the local day | the ⏭ button's sheet when no skips are left, the store |
+| `simUnlimited` (v156 B; was `simExtra`, +1 today) | `simUnlimited` for `rewarded.simMinutes` (30, TU `simAdMinV156B`) — no regular-season sim is counted while it runs; a second ad extends. The Club (`member`) implies it for good | the ⏭ button's sheet when none are left this career, the store |
 | `cosTrial` | `try:<itemId>` for `rewarded.trialHours` (24, TU `trialHoursV151A`) | the ▶ 24H chip on an unowned item in the store's cosmetics grid; `cosmeticAccess(id) === "trial"` |
 
 Daily cap: **4** rewarded ads a local day, all placements together (TU `adsPerDayV151A`, clamped 0–5). An Ad Free
@@ -126,7 +154,7 @@ device claims them without the ad, inside the same cap. **The PP double (`ppDoub
 ### The guard
 `validateProduct(p)` refuses — at load (injected config included; `catalog().refused` lists them), in `purchase()`
 and for every generated pack — any product whose grants include a key outside the allow-list:
-`noAds`, `pro`, `founder`, `member`, `speed3`, `speed4`, `simPlus`, `simExtra`, `filters`, `customPlus`, `saveSlots`,
+`noAds`, `pro`, `founder`, `member`, `speed3`, `speed4`, `simPlus`, `simUnlimited`, `filters`, `customPlus`, `saveSlots`,
 and the prefixes `cos:` / `cos_` / `pack:` / `pass:` / `exp:` / `try:`. It also refuses consumables. `grant()` applies
 the same allow-list, so PP, prestige, stats, rolls, gear or wheels cannot be granted by a provider or a console either.
 
@@ -151,7 +179,7 @@ M.restoreUI()                     // v150 C (H10): RESTORE PURCHASES with a toas
 M.claimPayoutBoost(amount, ctx)   // v151 A: retired — always 0
 M.tier()                          // v151 A: "free" | "noAds" | "pro" | "founder"
 M.purchasePass(seasonId)          // v151 A: the current season's pass (rib.pass.<id>); purchase("pass:<id>") also works
-M.simInfo(), M.simLocked()        // v151 A: the game's season skips as the store shows them / the no-skips sheet
+M.simInfo(), M.simLocked()        // v151 A / v156 B: the game's season sims as the store shows them / the none-left sheet
 M.filtersLocked()                 // v151 A: true only ON without `filters` (Pro) — the game's advanced filters ask it
 M.validateProduct(p), M.keyAllowed(k), M.catalog()   // v151 A: the guard, and {tiers, upgrades, pass, packs, expansions, refused}
 M.cosmeticAccess(id)              // v151 A: "owned" | "trial" | null — "off" while OFF (the cosmetics worker decides then)
@@ -312,14 +340,15 @@ storage write. The in-game helpers are hoisted `function` declarations beside `b
 
 | File · function | What it does |
 |---|---|
-| `src/07-career-app.js` · `speedOkV151A(s)` / `speedWhyV151A` / `speedLockV151A` / `speedRowSyncV151A` | THE speed question (3× at the UFF; 4× Pro while ON, with 3× while OFF). `setSpeed` asks it first (H1 now), `speedClampV150C` steps down through it (H3), the speed row template labels a locked rung **🔒 UFF** / **🔒 PRO** |
+| `src/07-career-app.js` · `speedOkV151A(s)` / `speedWhyV151A` / `speedLockV151A` / `speedRowSyncV151A` | THE speed question (v156 C: 3× after a full UFF season; 4× for the UFF title, or a paid `speed4` while ON — `uffTitleGameV156C` / `uffGatesSyncV156C`). `setSpeed` asks it first (H1 now), `speedClampV150C` steps down through it (H3), the speed row template labels a locked rung **🔒 UFF** / **🔒 PRO** |
 | `speed3V150C()` | shows the 3× rung to everyone (`TU("speed3RungV151A", 1)`) |
 | `settingOn` / `toggleSetting` / `toggleRow` | My Plays Only behind `playsOnlyOkV151A()` (always yes since v153 B; `playsDefaultV153B` switches it on once) |
 | `saveGame()` → `ppTrackV151A()` | lifetime PP (§1b) |
-| `seasonSkipV151A()` (the ⏭ buttons in `screenSeason` and `postV147`) / `seasonSkipsV151A()` / `skipLadderV151A` / `skipBtnV151A` | the season skips; `m.consume("simExtra")` and `m.simLocked()` are the only module calls, both ON-only |
+| `seasonSkipV151A()` (the ⏭ buttons in `screenSeason` and `postV147`) → `seasonSimV156B` / `seasonSkipsV151A()` → `skipsV156B` / `skipBtnV151A` | the season sims (v156 B: a career's, from the medal groups; never a playoff); `m.has("simPlus")`, `m.has("simUnlimited")` / `m.until` and `m.simLocked()` are the only module calls, all ON-only (`mzV150C()` is null while OFF) |
 | `advfBarV151A` / `advfSetV151A` / `advfApplyV151A` | the advanced filters on the stat leaders, the standings and the Hall of Fame busts (search, position, sort by any stat, direction); free while OFF, a 🔒 Pro chip while ON without `filters`; kill switch `advFiltersV151A` |
 | `payoutBoostV150C` | identity unless `features.payoutBoost` (retired) |
-| `window.__V151A` | `speedOk`, `speedWhy`, `clamp`, `relabel`, `skips`, `skip`, `ladder`, `lifetime`, `track`, `filters`, `gates()` — the module reads it for `speedAllowed` / `clampSpeed` and the store's FREE rung |
+| `window.__V151A` | `speedOk`, `speedWhy`, `clamp`, `relabel`, `skips`, `skip`, `ladder`, `lifetime`, `track`, `filters`, `gates()` — the module reads it for `speedAllowed` / `clampSpeed` and the store's FREE rung (`skips()` answers the v156 B model: `model`, `gated`, `allowed`, `used`, `left`, `unlimited`, `unlimitedUntil`, `next`, `groups`) |
+| `window.__V156B` (v156 B SEASON SIMS ARE EARNED, PLAYOFFS ARE PLAYED) | `skips`, `line`, `groups`, `medals`, `table`, `sim`, `explain`, `playoffLock`, `liveSkipOk` — the career's sim allowance and the playoffs-live guards (`playWeek` / `prepareWeek103` / `startWeek` wrappers, `silentWeekV85`, `simSeasonV147`, the live SKIP) |
 
 ### Still installed by the module (only while ON), from outside the game's files
 
@@ -422,8 +451,8 @@ Founder $14.99; D10 = 3× is earned at the UFF (not sold). Still open:
 | # | Decision | Default in the code | Notes |
 |---|---|---|---|
 | D11 | What Ad Free means when every ad is opt-in | Ad Free claims the rewarded conveniences **without** the ad (same daily cap) | the alternative (Ad Free hides the offers) would make the $3.99 tier take something away |
-| D12 | Pro's "advanced sim" size | +3 season skips a day (`skipProBonusV151A`) | "unlimited" is one TU away (e.g. 99) |
-| D13 | The skip ladder | 1 @ 1,000 lifetime PP, +2 per ×100, max 9 | all TU dials; the ladder is shown on the ⏭ button and in the store |
+| D12 | Pro's "advanced sim" size | +3 season sims a career (`skipProBonusV151A`) | "unlimited" is one TU away (e.g. 99) |
+| D13 | The sim allowance (v156 B) | 1 a career + the medal groups (1/2/2/2/2/2/2/3/3), max 20; the ad: 30 min unlimited | TU `simBaseV156B`, `skipsMaxV156B`, `simAdMinV156B`; the owner's call — v151 A's PP ladder is the kill switch |
 | D14 | Grandfathering 4× when the store turns ON | the v149 E device grant stays (`grandfatherSpeed4`) | with the gates, 4× was already UFF-only on the web; decide whether a UFF veteran keeps 4× in the store build |
 | D15 | Lifetime PP for old saves | seeded from PP in hand + banked + tree levels at base price | a save never kept history, so this is the fairest reconstruction |
 | D16 | `unlock_all_team_style` price | $2.99 placeholder | the cosmetics worker gates the Team Creator (5 free, then PP doubling) |

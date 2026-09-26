@@ -29,10 +29,10 @@
 /* ===== v151 A THE FREE GAME IS THE GAME, AND THE STORE IS A LADDER =====
  * The owner's hybrid model (docs/MONETIZATION.md §1). The PROGRESSION GATES live in the game, not here, and apply
  * whatever this switch says (src/07-career-app.js `v151 A THE GATES ARE EARNED ON THE FIELD`): My Plays Only after the
- * first finished career, 3× on reaching the UFF, 4× with 3× while this module is OFF, season skips a day from lifetime
- * PP. What THIS file adds, and only while ON:
+ * first finished career, 3× after a full UFF season and 4× for winning the UFF title (v156 C), season sims a CAREER from the
+ * Legacy medal groups (v156 B: 1 → 20; the playoffs are always played live). What THIS file adds, and only while ON:
  *   REWARDED  opt-in only, `rewarded.dailyCap` a day (TU "adsPerDayV151A", 4, never above 5), each one a CONVENIENCE:
- *             4× for 20 min, +1 season skip today, try a locked cosmetic for 24h. The PP double is GONE (it sold
+ *             4× for 20 min, unlimited regular-season sims for 30 min (v156 B `simUnlimited`), try a locked cosmetic for 24h. The PP double is GONE (it sold
  *             prestige); `claimPayoutBoost` stays in the API and always answers 0.
  *   TIERS     No Ads $3.99 ⊂ Pro Career $8.99 ⊂ Founder $14.99 — one key each, the rest IMPLIED (`IMPLIES`), so a
  *             restore of one product id brings back the whole chain. Upgrade products carry the price difference.
@@ -58,14 +58,14 @@
     features: {
       store: true,                       // the Store screen and its topbar chip
       rewardedSpeed: true,               // "▶ 4× for 20 min"
-      rewardedSim: true,                 // "▶ +1 season skip today"
+      rewardedSim: true,                 // "▶ unlimited regular-season sims for 30 min" (v156 B)
       rewardedTrial: true,               // "▶ try a locked cosmetic for 24h"
       pro: true,                         // the three permanent tiers (No Ads / Pro Career / Founder)
       upgrades: true,                    // the upgrade products (the difference in price) for a lower-tier owner
       pass: true,                        // the Season Career Pass (needs window.RIB_SEASONS)
       cosmetics: true,                   // the cosmetic packs (need window.RIB_COSMETICS)
       expansions: true,                  // the expansions list — COMING SOON, never purchasable
-      gateSpeed4: true,                  // 4× needs speed4 (Pro / Founder / the 20-min ad / grandfathered). OFF, 4× comes with 3× (the UFF)
+      gateSpeed4: true,                  // 4× needs speed4 (member / Pro / Founder / the 20-min ad / grandfathered) — or the UFF title (v156 C, earned ON or OFF)
       speed3: true,                      // v150 C H2 (v151 A: the game shows 3× whatever this says; it is EARNED, never sold)
       gateFilters: true,                 // v151 A: the advanced filters on Stats / Leaders / Hall of Fame need `filters` (Pro)
       grandfatherSpeed4: true,           // a device that already had a save when monetization first came on keeps 4× free
@@ -74,6 +74,7 @@
     },
     rewarded: {
       speed4Minutes: 20,                 // what one speed ad buys (TU "speed4AdMinV151A")
+      simMinutes: 30,                    // v156 B: what one sim ad buys — every regular-season sim free (TU "simAdMinV156B")
       dailyCap: 4,                       // rewarded ads a local day, all placements (TU "adsPerDayV151A"; clamped 0..5)
       trialHours: 24                     // a cosmetic trial (TU "trialHoursV151A")
     },
@@ -83,7 +84,7 @@
         blurb: ["No ads — every rewarded convenience is yours without watching one", "Supports the developer"] },
       { id: "rib.pro", kind: "nonconsumable", tier: "pro", title: "Pro Career", price: "$8.99",
         grants: { pro: {}, saveSlots: { value: 3 } },
-        blurb: ["Everything in Ad Free", "4× play speed, permanently", "Advanced sim — +3 season skips a day on top of your prestige's", "Advanced filters — sort and filter Stats, Leaders and the Hall of Fame", "3 extra save slots (when slots ship)"] },
+        blurb: ["Everything in Ad Free", "4× play speed, permanently", "Advanced sim — +3 season sims every career on top of your medals'", "Advanced filters — sort and filter Stats, Leaders and the Hall of Fame", "3 extra save slots (when slots ship)"] },
       { id: "rib.founder", kind: "nonconsumable", tier: "founder", title: "Founder", price: "$14.99",
         grants: { founder: {}, saveSlots: { value: 3 } },
         blurb: ["Everything in Pro Career", "The Founder cosmetic bundle — never sold on its own", "Bonus customization slots", "Your name on the founders' wall of the game's thanks"] },
@@ -120,7 +121,7 @@
     // without the ad (still inside the daily cap).
     placements: {
       speed4: { feature: "rewardedSpeed", reward: { key: "speed4", minutes: "speed4Minutes" }, label: "4× for 20 min" },
-      simExtra: { feature: "rewardedSim", reward: { key: "simExtra", uses: 1, endOfDay: true }, label: "one more full-season sim today" },
+      simUnlimited: { feature: "rewardedSim", reward: { key: "simUnlimited", minutes: "simMinutes" }, label: "unlimited regular-season sims for 30 min" },   // v156 B (was simExtra, one more today)
       cosTrial: { feature: "rewardedTrial", reward: { key: "try:*", hours: "trialHours" }, label: "try a cosmetic for 24 hours" }
     },
     mock: { adMs: 5000 },
@@ -133,7 +134,7 @@
   };
 
   // ---- the guard: what a product may grant. Convenience and cosmetics only (docs/MONETIZATION.md §2).
-  var ALLOW_KEYS = ["noAds", "pro", "founder", "member", "speed3", "speed4", "simPlus", "simExtra", "filters", "customPlus", "saveSlots"];
+  var ALLOW_KEYS = ["noAds", "pro", "founder", "member", "speed3", "speed4", "simPlus", "simUnlimited", "filters", "customPlus", "saveSlots"];
   var ALLOW_PREFIX = ["cos:", "cos_", "pack:", "pass:", "exp:", "try:"];
   function keyAllowed(k) {
     k = String(k || "");
@@ -155,7 +156,7 @@
   var IMPLIES = {
     founder: ["pro", "customPlus"],
     pro: ["noAds", "speed4", "simPlus", "filters"],
-    member: ["noAds", "speed4"],
+    member: ["noAds", "speed4", "simUnlimited"],   // v156 B: the Club has the ads' benefit for good — its season sims are never counted
     speed4: ["speed3"],
     "exp:universe": ["exp:frontoffice", "exp:coach", "exp:gm", "exp:eras", "exp:dynasty"]
   };
@@ -198,6 +199,7 @@
   function dailyCap() { return Math.max(0, Math.min(5, Math.round(+T("adsPerDayV151A", CFG.rewarded.dailyCap)) || 0)) }
   function speed4Minutes() { return +T("speed4AdMinV151A", CFG.rewarded.speed4Minutes) || 20 }
   function trialHours() { return +T("trialHoursV151A", CFG.rewarded.trialHours) || 24 }
+  function simMinutes() { return +T("simAdMinV156B", CFG.rewarded.simMinutes) || 30 }
 
   // ---- the clock (a dev offset lets a check fast-forward a timed boost or a day without touching the page's timers)
   var devOffset = 0;
@@ -304,9 +306,9 @@
   function adsLeft() { var st = load(); if (st.caps.day !== today()) return dailyCap(); return Math.max(0, dailyCap() - (st.caps.ads || 0)) }
   function countAd() { day().ads++; save() }
 
-  // ---- v151 A: season skips. The game counts them (src/07 `seasonSkipsV151A`: a day's skips come from lifetime PP); this
-  // module only ADDS to them while ON: Pro's advanced sim (`simPlus` → the game's TU "skipProBonusV151A") and a rewarded
-  // `simExtra` (one more today, spent by the game with consume("simExtra")).
+  // ---- v151 A / v156 B: season sims. The game counts them (src/07 `skipsV156B`: a career's sims come from the Legacy
+  // medal groups, 1 → 20); this module only ADDS to them while ON: Pro's advanced sim (`simPlus` → +3 a career, the game's
+  // TU "skipProBonusV151A") and `simUnlimited` (the rewarded ad: no sim is counted for 30 min; the Club: for good).
   function simInfo() { var G = GATES(); try { return (G && G.skips && G.skips()) || { gated: false, left: Infinity } } catch (e) { return { gated: false, left: Infinity } } }
 
   // ---- v151 A: the contract with the parallel workers — absent at runtime means that part of the store hides
@@ -410,7 +412,7 @@
   // AdMob via Capacitor (@capacitor-community/admob). Stub: runs only inside a native build with the plugin.
   //   await AdMob.initialize(); consent first: AdMob.requestConsentInfo() / showConsentForm() (UMP, EU/UK),
   //   and on iOS AdMob.trackingAuthorizationStatus() → requestTrackingAuthorization() only if personalised ads are used.
-  //   One Rewarded ad unit serves all three placements (speed4 / simExtra / cosTrial); the placement is analytics only.
+  //   One Rewarded ad unit serves all three placements (speed4 / simUnlimited / cosTrial); the placement is analytics only.
   registerProvider("admob", {
     name: "admob",
     available: function () { return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob) },
@@ -521,7 +523,7 @@
       busy = false; r = r || {};
       if (!r.rewarded) { track("ad_not_rewarded", { placement: placement, reason: r.reason || "closed" }); return { rewarded: false, reason: r.reason || "closed" } }
       countAd();
-      var mins = rw.minutes != null ? (rw.minutes === "speed4Minutes" ? speed4Minutes() : +rw.minutes) : rw.hours != null ? (rw.hours === "trialHours" ? trialHours() : +rw.hours) * 60 : null;
+      var mins = rw.minutes != null ? (rw.minutes === "speed4Minutes" ? speed4Minutes() : rw.minutes === "simMinutes" ? simMinutes() : +rw.minutes) : rw.hours != null ? (rw.hours === "trialHours" ? trialHours() : +rw.hours) * 60 : null;
       grant(key, { minutes: mins, uses: rw.uses, until: rw.endOfDay ? endOfDay() : null, source: (adFree ? "adfree:" : "ad:") + placement });
       track("ad_rewarded", { placement: placement, adFree: adFree });
       return { rewarded: true, adFree: adFree, reward: { key: key, minutes: mins || null, uses: rw.uses || null } };
@@ -579,7 +581,7 @@
     claimPayoutBoost: claimPayoutBoost,                                        // v151 A: retired — always 0
     // v151 A: the free path and the guard
     simInfo: simInfo,                                                          // the game's season skips, as the store shows them
-    simLocked: function () { if (ON) ui.simLocked() },                         // the game's skip button with none left today
+    simLocked: function () { if (ON) ui.simLocked() },                         // the game's sim button with none left this career
     filtersLocked: function () { return ON && !!CFG.features.gateFilters && !has("filters") },
     validateProduct: validateProduct, keyAllowed: keyAllowed, catalog: catalog,
     cosmeticAccess: cosmeticAccess, expansions: expansions, expansionUnlocked: expansionUnlocked,
@@ -640,11 +642,12 @@
   function gates() { var G = GATES(); try { return G && G.gates ? G.gates() : null } catch (e) { return null } }
   function offerSpeed(s) {
     var g = gates();
-    if (s && s < 4) { toast("3× UNLOCKS WHEN YOU REACH THE UFF"); return }   // the earned rung is never sold
+    var v156 = !!(g && g.uffTitle !== undefined);   // v156 C: the game's gates name the new rungs
+    if (s && s < 4) { toast(v156 ? "3× UNLOCKS AFTER A FULL UFF SEASON" : "3× UNLOCKS WHEN YOU REACH THE UFF"); return }   // the earned rung is never sold
     if (!CFG.features.rewardedSpeed || adsLeft() <= 0) { API.openStore("pro"); return }
     var free = has("noAds");
     ui.sheet({
-      title: "4× PLAY SPEED", lines: [(free ? "Ad Free: claim " : "Watch a short ad for ") + speed4Minutes() + " minutes of 4×. " + adsLeft() + " of " + dailyCap() + " left today.", CFG.features.pro ? "Or Pro Career: 4× for good." : ""],
+      title: "4× PLAY SPEED", lines: [(free ? "Ad Free: claim " : "Watch a short ad for ") + speed4Minutes() + " minutes of 4×. " + adsLeft() + " of " + dailyCap() + " left today.", (CFG.features.pro ? "Or Pro Career: 4× for good." : "") + (v156 ? " Win the UFF championship and 4× is yours for good, free." : "")],
       yes: free ? "✓ CLAIM 4×" : "▶ WATCH AN AD", no: CFG.features.pro ? "SEE PRO" : "NOT NOW",
       onYes: function () { rewardSpeed() }, onNo: function () { if (CFG.features.pro) API.openStore("pro") }
     });
@@ -657,21 +660,23 @@
     });
   }
   API.rewardSpeed = rewardSpeed;
-  // v151 A: the sim cap's sheet — Quick Play is always the free way through a season
+  // v151 A / v156 B: the sim cap's sheet — Quick Play is always the free way through a regular season
   function rewardSim() {
-    return showRewarded("simExtra").then(function (r) {
-      if (r.rewarded) toast("+1 SEASON SKIP TODAY"); else if (r.reason === "daily-cap") toast("That's today's rewards — back tomorrow");
+    return showRewarded("simUnlimited").then(function (r) {
+      if (r.rewarded) toast("UNLIMITED SEASON SIMS · " + simMinutes() + " MIN"); else if (r.reason === "daily-cap") toast("That's today's rewards — back tomorrow");
       ui.tick(); return r;
     });
   }
   API.rewardSim = rewardSim;
   ui.simLocked = function () {
-    var s = simInfo(), canAd = CFG.features.rewardedSim && adsLeft() > 0, free = has("noAds"), pro = has("simPlus");
+    var s = simInfo(), canAd = CFG.features.rewardedSim && adsLeft() > 0, free = has("noAds"), pro = has("simPlus"), nx = s.next;
     ui.sheet({
-      title: s.perDay ? "TODAY'S SEASON SKIPS ARE USED" : "SEASON SKIPS COME WITH PRESTIGE",
-      lines: [(s.perDay ? "Your prestige gives you " + s.perDay + " season skip" + (s.perDay === 1 ? "" : "s") + " a day." : "Season skips unlock at " + fmtN(s.firstAt) + " lifetime PP.") + (s.next && s.perDay ? " More at " + fmtN(s.next.at) + " PP (" + s.next.perDay + " a day)." : "") + " Quick Play still sims any week, one at a time — free, always.",
-        canAd ? (free ? "Ad Free: claim one more skip today." : "Watch a short ad for one more skip today.") : "", CFG.features.pro && !pro ? "Pro Career: +" + (s.proBonus || 3) + " skips a day." : ""],
-      yes: canAd ? (free ? "✓ +1 SKIP" : "▶ +1 SKIP") : (CFG.features.pro && !pro ? "SEE PRO" : "OK"), no: "NOT NOW",
+      title: "NO SEASON SIMS LEFT THIS CAREER",
+      lines: ["You have used this career's " + (s.allowed || 0) + " season sim" + (s.allowed === 1 ? "" : "s") + ". " +
+        (nx ? "Complete the " + esc(nx.name) + " medals (Legacy medal " + fmtN(nx.to) + ") for +" + nx.bonus + " every career — each medal group adds more, up to " + (s.max || 20) + "." : "Every medal group is complete.") +
+        " Sims refill with every new career, and Quick Play still sims any regular-season week, one at a time — free, always. The playoffs are always played live.",
+        canAd ? (free ? "Ad Free: claim " : "Watch a short ad for ") + "unlimited regular-season sims for " + simMinutes() + " minutes." : "", CFG.features.pro && !pro ? "Pro Career: +" + (s.proBonus || 3) + " season sims every career." : ""],
+      yes: canAd ? (free ? "✓ " + simMinutes() + " MIN UNLIMITED" : "▶ " + simMinutes() + " MIN UNLIMITED") : (CFG.features.pro && !pro ? "SEE PRO" : "OK"), no: "NOT NOW",
       onYes: function () { if (canAd) rewardSim().then(function (r) { if (r.rewarded && typeof window.seasonSkipV151A === "function") window.seasonSkipV151A() }); else if (CFG.features.pro && !pro) API.openStore("pro") }
     });
   };
@@ -825,10 +830,12 @@
   function freeRung() {
     var g = gates() || {}, s = simInfo(), ok = '<b class="mz151-ok">', G = function (x) { return x && x.ok };
     var po = G(g.playsOnly) ? ok + "My Plays Only — unlocked ✓</b>" : "My Plays Only — <b>complete your first career</b>";
-    var s3 = G(g.speed3) ? ok + "3× play speed — unlocked ✓</b>" : "3× play speed — <b>reach the UFF</b> (best so far: " + esc(g.bestName || "—") + ")";
-    var sk = !s.gated ? "Season skips — no limit" : s.perDay ? "Season skips: <b>" + s.perDay + " a day</b> from your prestige (" + Math.max(0, s.left) + " left today)" + (s.next ? " — " + s.next.perDay + " a day at " + fmtN(s.next.at) + " PP" : "")
-      : "Season skips — <b>earn " + fmtN(s.firstAt) + " lifetime PP</b> (" + fmtN(s.lifetime) + " so far)";
-    var share = s.gated && !s.perDay && s.firstAt ? Math.min(1, (s.lifetime || 0) / s.firstAt) : null;
+    var v156 = g.uffTitle !== undefined;   // v156 C: 3× after a full UFF season, 4× for the UFF title
+    var s3 = G(g.speed3) ? ok + "3× play speed — unlocked ✓</b>" : v156 ? "3× play speed — <b>survive a full UFF season</b>" : "3× play speed — <b>reach the UFF</b> (best so far: " + esc(g.bestName || "—") + ")";
+    if (v156) s3 += "<br>" + (g.speed4 && g.speed4.earned ? ok + "4× play speed — won with the UFF title ✓</b>" : "4× play speed — <b>win the UFF championship</b>");
+    var sk = !s.gated ? "Season sims — no limit" : "Season sims: <b>" + (s.allowed || 0) + " a career</b> from your medals (" + (s.left === Infinity ? "∞" : Math.max(0, s.left)) + " left)" +
+      (s.next ? " — complete the " + esc(s.next.name) + " medals for +" + s.next.bonus : "") + ". The playoffs are always played live";
+    var share = s.gated && s.next && s.next.to ? Math.min(1, (s.medals || 0) / s.next.to) : null;
     return '<div class="mz151-rung owned" data-sec="free"><span class="mz151-step">FREE · ALWAYS</span>' +
       '<div class="mz149-prod"><b>The whole game</b><i class="mz151-ok">$0</i></div>' +
       li(["Every career, level, position and screen — the full sim", "1× and 2× play speed; Quick Play sims any week, any time", po, s3, sk + (share != null ? '<div class="mz151-prog" data-skipprog><i style="width:' + Math.round(share * 100) + '%"></i></div>' : ""), "Prestige is earned on the field — it is never for sale"]) + "</div>";
@@ -837,7 +844,8 @@
     var left = adsLeft(), cap = dailyCap(), free = has("noAds"), s4 = until("speed4"), perm = s4 === Infinity, s = simInfo();
     var b = [];
     if (CFG.features.rewardedSpeed && !perm) b.push('<button class="mz149-btn" data-ad="speed4"' + (left ? "" : " disabled") + ">" + (free ? "✓ CLAIM" : "▶ WATCH") + " · 4× FOR " + speed4Minutes() + " MIN</button>");
-    if (CFG.features.rewardedSim && s.gated) b.push('<button class="mz149-btn" data-ad="simExtra"' + (left ? "" : " disabled") + ">" + (free ? "✓ CLAIM" : "▶ WATCH") + " · +1 SEASON SKIP TODAY</button>");
+    var su = until("simUnlimited");
+    if (CFG.features.rewardedSim && s.gated && su !== Infinity) b.push('<button class="mz149-btn" data-ad="simUnlimited"' + (left ? "" : " disabled") + ">" + (su ? "∞ SIMS · " + fmtLeft(su - now()) + " LEFT · EXTEND" : (free ? "✓ CLAIM" : "▶ WATCH") + " · UNLIMITED SEASON SIMS " + simMinutes() + " MIN") + "</button>");
     if (!b.length && !CFG.features.rewardedTrial) return "";
     return '<div class="mz151-rung" data-sec="ad"><span class="mz151-step">REWARDED · OPTIONAL</span>' +
       '<div class="mz149-prod"><b>' + (free ? "Ad-free rewards" : "Watch an ad, if you like") + '</b><i data-left>' + (s4 && !perm ? "4× · " + fmtLeft(s4 - now()) + " LEFT" : left + " / " + cap + " TODAY") + "</i></div>" +
@@ -917,7 +925,7 @@
     v.onclick = function (ev) { if (ev.target === v) ui.store(false) };
     function again() { if (storeOpen) ui.store(true) }
     [].forEach.call(v.querySelectorAll("[data-buy]"), function (b) { b.onclick = function () { purchase(b.getAttribute("data-buy")).then(function (r) { if (r.ok) toast(r.already ? "ALREADY YOURS" : "THANK YOU · UNLOCKED"); else if (r.reason && r.reason !== "cancelled") toast("Purchase failed: " + r.reason); again(); ui.tick() }) } });
-    [].forEach.call(v.querySelectorAll("[data-ad]"), function (b) { b.onclick = function () { (b.getAttribute("data-ad") === "simExtra" ? rewardSim() : rewardSpeed()).then(again) } });
+    [].forEach.call(v.querySelectorAll("[data-ad]"), function (b) { b.onclick = function () { (b.getAttribute("data-ad") === "simUnlimited" ? rewardSim() : rewardSpeed()).then(again) } });
     [].forEach.call(v.querySelectorAll("[data-try]"), function (b) { b.onclick = function (ev) { ev.stopPropagation(); rewardTrial(b.getAttribute("data-try")).then(again) } });
     [].forEach.call(v.querySelectorAll("[data-cat]"), function (b) { b.onclick = function () { cosTab = b.getAttribute("data-cat"); again() } });
     v.querySelector("[data-restore]").onclick = function () { restore().then(function (r) { toast(r.restored && r.restored.length ? "RESTORED · " + r.restored.length : "NOTHING TO RESTORE"); again(); ui.tick() }) };
@@ -957,7 +965,8 @@
       if (b4) { b4.classList.toggle("mz149-lock", !allowed); b4.classList.toggle("pro", !allowed && !CFG.features.rewardedSpeed); b4.classList.toggle("free", !allowed && free && CFG.features.rewardedSpeed) }
       var G = GATES(); if (G && G.relabel) try { G.relabel() } catch (e) {}   // the game's own "🔒 UFF" / "🔒 PRO" labels follow a gate that opened
       var offer = row.nextElementSibling && row.nextElementSibling.classList.contains("mz149-offer-row") ? row.nextElementSibling : null;
-      var want4 = CFG.features.gateSpeed4 && CFG.features.rewardedSpeed && until("speed4") !== Infinity;
+      var g4 = gates(), won4 = !!(g4 && g4.speed4 && g4.speed4.earned);   // v156 C: a UFF champion has 4× for good — no ad chip
+      var want4 = CFG.features.gateSpeed4 && CFG.features.rewardedSpeed && until("speed4") !== Infinity && !won4;
       var want3 = false;                                     // v151 A: the game labels its own locked 3× ("🔒 UFF")
       if ((want4 || want3) && !offer) { offer = el('<div class="mz149-offer-row"></div>'); row.parentNode.insertBefore(offer, row.nextSibling) }
       if (!(want4 || want3) && offer) { offer.remove(); offer = null }

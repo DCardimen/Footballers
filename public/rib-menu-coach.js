@@ -77,9 +77,9 @@
   const S = {
     career: '#rib-main-menu-v2 .rib9-tiles .rib9-tile:nth-child(1)', coach: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="coach"]', howto: '#rib-main-menu-v2 .rib9-tiles [data-rib-action="howto"]', prestige: 'text:^TRAINING\\b',   // the tile's action is view:upgrade with a career and new without one: find it by its face
     lockIn: 'text:Lock In Personality', posCards: '.pos-card', playSeason: 'text:Play \\d+-Game Season', confirm: 'text:CONFIRM TRAINING', playWeek: 'text:Play Week \\d+ Live',
-    cont: '#gv42go', next: 'text:^NEXT', speed: '.speed-btn',
+    cont: '#gv42go', next: 'text:^NEXT', speed: '.speed-btn', myPlays: '#myPlaysV156D',
     planTiles: '#v146Plan', proj: '#v146Proj',   // v146 D: the plan board on the pregame's fifth page, and the projection strip under every page
-    /* v134: the prestige tree is the shop, reached off the HONORS chip in the header (TRAINING on the
+    /* v134: the prestige tree is the shop, reached off the MEDALS chip in the header (v156 A: the target key stays 'honors') (TRAINING on the
      * menu opens the SKILL-POINT sheet, view `upgrade` -- a different screen, with its own stop now) */
     honors: '#rib-main-menu-v2 [data-rib-action="prestige"], .prestige-chip', branches: '#screen .btn-row', back: 'text:^Back$', done: 'text:^DONE$',   // the menu overlay hides the game's topbar chip: on the menu the target is the menu's own PRESTIGE button
     /* v126: the season screen is four tabs now, so the body ledger is one tap away rather than on
@@ -161,7 +161,7 @@
      * popped up on a screen about skills and talked about prestige. That screen has its own stop now. */
     { id: 'prestige', title: 'PRESTIGE', sub: 'WHAT YOU KEEP', when: (c) => c.view === 'shop', lines: [
       { p: 'clipboard', t: "The inheritance — the prestige tree. Every finished career is a father's lesson to his son. This is where it's kept." },
-      { p: 'tip', t: "Two numbers up top. PP is what you spend here. HONORS is your rank — it unlocks the deeper nodes. Both come from finishing careers." },
+      { p: 'tip', t: "Two numbers up top. PP is what you spend here. MEDALS are your Legacy Rank — every season and every career earns them, and your medal count unlocks the deeper nodes." },
       { p: 'point', t: "Branches across the top. Tap one, buy a node, and it's yours forever — every son after this one starts with it.", s: 'branches' },
       { p: 'thumbsup', t: "The APEX branch is the top shelf of the prestige tree. Those nodes change the rules. Earn your way up there." },
       /* v139: the extra-season nodes are the answer to "I keep getting stuck", and nobody was telling him what they cost him */
@@ -231,7 +231,8 @@
     { id: 'live', title: 'THE BROADCAST', sub: 'WATCH IT', when: (c) => c.live && !c.post, delay: 2600, lines: [
       { p: 'open', t: "Game time. Your guy has a ring under his feet. Watch him." },
       { p: 'listen', t: "These buttons set the speed. SKIP jumps to the whistle. Your stats show under the field.", s: 'speed' },
-      { p: 'tip', t: "My Plays Only is on by default. You watch your side of the ball — offense if you play offense, defense if you play defense. Want every snap? Settings." },   // v153 B
+      { p: 'tip', t: "You watch your side of the ball by default — offense if you play offense, defense if you play defense. Want every snap? Settings." },   // v153 B
+      { p: 'point', t: "See that MY PLAYS ONLY box up top? Tick it and you only watch the snaps you're in. Playoffs, it's off. You watch every snap on your side.", s: 'myPlays' },   // v156 D
       { p: 'relaxed', t: "I'll see you after." },
     ] },
     { id: 'result', title: 'THE CARD', sub: 'AFTER THE WHISTLE', when: (c) => c.post, lines: [

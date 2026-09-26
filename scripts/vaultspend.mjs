@@ -23,7 +23,7 @@ await page.evaluate(() => { document.querySelectorAll('.onboard').forEach(e => e
 const KEY = process.env.KEY || 'gmEye'
 const setup = await page.evaluate(({ KEY }) => {
   const o = window.__GRIDIRON_AUDIT__.getState()
-  o.pp = 60000; o.prestige = 40; o.tree = {}; o.view = 'shop'
+  o.pp = 60000; o.prestige = 40; window.__V156A && window.__V156A.seed(200) /* v156 A: the medals open the tree */; o.tree = {}; o.view = 'shop'
   window.render()
   const N = window.__prestigeNodesV137()
   return { pp: o.pp, price: N.price(KEY), level: N.level(KEY), open: N.open(KEY), name: N.node(KEY).name }

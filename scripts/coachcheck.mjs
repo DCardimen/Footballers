@@ -157,7 +157,7 @@ const step = async (page, t, wait = 900) => {
   await page.waitForFunction(() => { const spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), t = document.querySelector('#rib-main-menu-v2 [data-rib-action="prestige"]'); if (!spot || spot.hidden || !t) return false; const s = spot.getBoundingClientRect(), r = t.getBoundingClientRect(); return s.left <= r.left + 2 && s.top <= r.top + 2 && s.right >= r.right - 2 && s.bottom >= r.bottom - 2 }, null, { timeout: 2500 }).catch(() => null)
   const spotPres = await page.evaluate(() => { const spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), target = document.querySelector('#rib-main-menu-v2 [data-rib-action="prestige"]'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, tr = target ? target.getBoundingClientRect() : null
     return { line: window.__RIB_COACH.line, key: window.__RIB_COACH.spot, shown: !!sr, inside: !!(sr && tr && sr.left <= tr.left + 2 && sr.top <= tr.top + 2 && sr.right >= tr.right - 2 && sr.bottom >= tr.bottom - 2), onScreen: !!(sr && sr.top >= 0 && sr.bottom <= innerHeight), sr: sr && [Math.round(sr.left), Math.round(sr.top), Math.round(sr.width), Math.round(sr.height)], tr: tr && [Math.round(tr.left), Math.round(tr.top), Math.round(tr.width), Math.round(tr.height)] } })
-  ok(spotPres.key === 'honors' && spotPres.shown && spotPres.inside && spotPres.onScreen, 'the PRESTIGE line lights the HONORS chip — where the tree lives (v134: not the TRAINING tile, which is the skill sheet)', JSON.stringify(spotPres))
+  ok(spotPres.key === 'honors' && spotPres.shown && spotPres.inside && spotPres.onScreen, 'the PRESTIGE line lights the MEDALS chip (v156 A; was HONORS) — where the tree lives (v134: not the TRAINING tile, which is the skill sheet)', JSON.stringify(spotPres))
   await page.evaluate(() => { const C = window.__RIB_COACH; let n = 0; while (C.line < 4 && n++ < 10) C.next() })
   await page.waitForTimeout(700)
   const spot = await page.evaluate(() => {
@@ -171,7 +171,7 @@ const step = async (page, t, wait = 900) => {
     return { stop: C.stop, line: C.line, spot: C.spot, shown: !!sr, dimHidden: !!dim && dim.hidden, inside: !!inside, onScreen: !!onScreen, next: nextBtn && nextBtn.textContent, tapShown: !!tapr, tapNear, tapPulse: !!spot && spot.classList.contains('tap'), sr: sr && [Math.round(sr.left), Math.round(sr.top), Math.round(sr.width), Math.round(sr.height)], tr: tr && [Math.round(tr.left), Math.round(tr.top), Math.round(tr.width), Math.round(tr.height)] }
   })
   ok(spot.tapShown && spot.tapNear && spot.tapPulse, 'a line that wants a tap puts the TAP HERE hand over the thing and pulses the cut-out gold', JSON.stringify({ tapShown: spot.tapShown, tapNear: spot.tapNear, pulse: spot.tapPulse }))
-  ok(spot.stop === 'menu' && spot.line === 4 && spot.shown && spot.dimHidden && spot.inside && spot.onScreen && /GOT IT/.test(spot.next || ''), "the menu stop's last line lights the HONORS chip — he sends you to the prestige tree first — and the button reads GOT IT", JSON.stringify(spot))
+  ok(spot.stop === 'menu' && spot.line === 4 && spot.shown && spot.dimHidden && spot.inside && spot.onScreen && /GOT IT/.test(spot.next || ''), "the menu stop's last line lights the MEDALS chip — he sends you to the prestige tree first — and the button reads GOT IT", JSON.stringify(spot))
   await shot(page, 'spotlight')
   const wide = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth))
   ok(wide <= 400, 'nothing scrolls sideways at 400px with the coach open', wide + 'px')
@@ -238,7 +238,7 @@ const step = async (page, t, wait = 900) => {
   await dismiss(page)
   // v134: the tree first. The chip opens the shop, the PRESTIGE stop walks it, BACK returns to the menu, and CAREER is its own stop
   await page.evaluate(() => { const c = document.querySelector('.prestige-chip'); c && c.click() }); await page.waitForTimeout(700)
-  await expect('prestige', 'the prestige tree, off the HONORS chip')
+  await expect('prestige', 'the prestige tree, off the MEDALS chip')
   await page.evaluate(() => { const C = window.__RIB_COACH; C.next(); C.next() }); await page.waitForTimeout(500)
   { const sp = await page.evaluate(() => { const spot = document.querySelector('#rib-coach-v119 [data-c-spot]'); const r = spot && !spot.hidden ? spot.getBoundingClientRect() : null; return { key: window.__RIB_COACH.spot, shown: !!r, onScreen: !!(r && r.bottom > 40 && r.top < innerHeight - 40 && r.width > 20) } }); ok(sp.key === 'branches' && sp.shown && sp.onScreen, '  …and its third line lights the branch strip', JSON.stringify(sp)) }
   await dismiss(page)
@@ -325,7 +325,7 @@ const step = async (page, t, wait = 900) => {
   await shot(page, 'stop-skills')
   await page.evaluate(() => { window.__RIB_COACH.close('check'); window.go('shop') })
   const pres = await waitStop(page, 'prestige')
-  ok(pres && pres.open && pres.stop === 'prestige' && pres.openedBy === 'page', 'the prestige tree (the HONORS chip, view shop) gets the PRESTIGE stop — PP vs Honors, the branches, the Apex shelf', JSON.stringify({ stop: pres && pres.stop, view: await page.evaluate(() => { try { return window.__GRIDIRON_AUDIT__.getState().view } catch (e) { return null } }) }))
+  ok(pres && pres.open && pres.stop === 'prestige' && pres.openedBy === 'page', 'the prestige tree (the MEDALS chip, view shop) gets the PRESTIGE stop — PP vs medals, the branches, the Apex shelf', JSON.stringify({ stop: pres && pres.stop, view: await page.evaluate(() => { try { return window.__GRIDIRON_AUDIT__.getState().view } catch (e) { return null } }) }))
   await shot(page, 'stop-prestige')
   await context.close()
 }

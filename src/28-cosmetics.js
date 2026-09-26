@@ -8,8 +8,8 @@
  *
  * `window.RIB_COSMETICS` is the contract other workers build against:
  *   catalog()            [{id, cat, name, rarity, price?, packs:[packId], source, preview(el), ...}]
- *   owned(id)            free: always · earned / pass: the cosmetics store · shop / founder: RIB_MONETIZE
- *   grant(id, source)    earned / pass → the store (once, toasted) · shop / founder → RIB_MONETIZE.grant("cos:<id>")
+ *   owned(id)            free: always · earned / pass: the cosmetics store · shop / founder: RIB_MONETIZE · member (v156 C): a membership, or grandfathered · super: a super challenge
+ *   grant(id, source)    earned / pass → the store (once, toasted) · shop / founder → RIB_MONETIZE.grant("cos:<id>") · member: never · super: only with source "super"
  *   grantPack(packId, source)
  *   equip(slot, id)      equipped(slot)      packs()      onChange(cb) → unsubscribe
  *   profile()            the compact JSON the leaderboard worker stores (no PII beyond the in-game name)
@@ -170,6 +170,7 @@
     { id: "icon_none", cat: "icon", name: "Initials", rarity: "common", source: "free", glyph: "" }
   ];
   ITEMS.push.apply(ITEMS, itemsV153G());   // v153 G: the expanded catalogue (defined with the flair code below)
+  ITEMS.push.apply(ITEMS, itemsV156C());   // v156 C: the SUPER looks (defined with the v156 C block below)
   var PACKS = [
     { id: "pack_uniforms1", name: "Uniform Pack", price: "$1.99", productId: "rib.cos.uniforms1", items: [] },
     { id: "pack_helmets1", name: "Helmet Pack", price: "$1.99", productId: "rib.cos.helmets1", items: [] },
@@ -263,11 +264,14 @@
     if (mem) return mem;
     var d = null;
     try { d = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { d = null; }
-    if (!d || d.v !== 1) d = { v: 1, owned: {}, equipped: {}, ach: {}, ts: null };
+    var fresh = !d || d.v !== 1;
+    if (fresh) d = { v: 1, owned: {}, equipped: {}, ach: {}, ts: null };
     d.owned = d.owned && typeof d.owned === "object" ? d.owned : {};
     d.equipped = d.equipped && typeof d.equipped === "object" ? d.equipped : {};
     d.ach = d.ach && typeof d.ach === "object" ? d.ach : {};
-    return (mem = d);
+    mem = d;
+    if (!d.v156C) migrateV156C(d, fresh);   // v156 C: what this device already owned stays owned
+    return d;
   }
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(load())); } catch (e) {} }
   var subs = [];
@@ -282,11 +286,15 @@
     if (it.source === "earned" || it.source === "pass") return !!load().owned[id];
     if (it.source === "shop") return mHas("cos:" + id) || it.packs.some(function (p) { return mHas("cos:" + p); });
     if (it.source === "founder") return mHas("founder") || mHas("cos:" + id) || mHas("cos:founder");
+    if (it.source === "member") return gfV156C(id) || memberV156C();   // v156 C
+    if (it.source === "super") return !!load().owned[id] || gfV156C(id);
     return false;
   }
   function grant(id, source, reward) {
     syncPass(); var it = findItem(id) || (reward ? passItem(Object.assign({}, reward, { id: id })) : null); if (!it) return false;
     if (it.source === "free") return true;
+    if (it.source === "member") return owned(id);   // v156 C: the membership is the only way in — never granted
+    if (it.source === "super" && source !== "super" && !owned(id)) return false;   // only a super challenge grants a super look
     if (it.source === "shop" || it.source === "founder") {
       var m = M(); if (!m) return false;
       try { m.grant("cos:" + id, { source: source || it.source }); } catch (e) { return false; }
@@ -296,6 +304,7 @@
     S.owned[id] = { source: source || it.source, at: Date.now() }; persist();
     V.grants.push({ id: id, source: source || it.source });
     if ((source || it.source) === "earned") toast("🎁 Unlocked: " + it.name + " (" + CATS[it.cat].name.toLowerCase() + ")");
+    if ((source || it.source) === "super") toast("🌟 SUPER LOOK UNLOCKED: " + it.name);
     fire({ grant: id }); return true;
   }
   function grantPack(pid, source) {
@@ -325,11 +334,13 @@
     if (it.source === "earned") { var a = ACH_BY[it.ach]; return "Earn it: " + (a ? a.desc : "an achievement"); }
     if (it.source === "pass") return (it.season ? "Career Pass " + it.season.toUpperCase() + " · " + (it.track === "premium" ? "premium " : "") : "Season Pass · ") + "tier " + (it.tier || 1);
     if (it.source === "founder") return "Founder Bundle";
+    if (it.source === "member") return "Membership";   // v156 C — the Locker shows "🔒 Membership"
+    if (it.source === "super") return "Super challenge: " + superDescV156C(it.id);
     var p = PACKS.find(function (q) { return q.id === it.packs[0]; });
     return (p ? p.name : "Store") + (p && p.price ? " · " + p.price : "");
   }
   /* shop / founder items are not shown as purchasable with monetization OFF (owned ones still show) */
-  function listed(it) { if (it.season && window.RIB_SEASONS && !owned(it.id)) { try { if (window.RIB_SEASONS.current().id !== it.season) return false; } catch (e) {} } return owned(it.id) || it.source === "free" || it.source === "earned" || it.source === "pass" || shopOn(); }
+  function listed(it) { if (it.season && window.RIB_SEASONS && !owned(it.id)) { try { if (window.RIB_SEASONS.current().id !== it.season) return false; } catch (e) {} } return owned(it.id) || it.source === "free" || it.source === "earned" || it.source === "pass" || it.source === "member" || (it.source === "super" && cosOnV156C()) || shopOn(); }
 
   function toast(msg) {
     try { var t = document.getElementById("toast"); if (!t) return; t.textContent = msg; t.classList.add("show"); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove("show"); }, 2600); } catch (e) {}
@@ -342,7 +353,7 @@
   function account(st) {
     st = st || gstate() || {};
     var e = st.player || null, hof = Array.isArray(st.hof) ? st.hof : [];
-    var A = { careers: st.careers || 0, pp: Math.round(st.pp || 0), honors: st.prestige || 0, titles: st.titlesWon || 0, rings: st.rings || 0,
+    var A = { careers: st.careers || 0, pp: Math.round(st.pp || 0), honors: st.prestige || 0, medals: (window.__V156A && window.__V156A.on() ? window.__V156A.medals() : null) /* v156 A */, titles: st.titlesWon || 0, rings: st.rings || 0,
       mvps: 0, awards: 0, hof: hof.length, uffReached: st.nflReached || 0, interstellar: 0, uffTitles: 0, interstellarTitles: 0,
       gen: 1, surname: "", bestScore: 0, bestTds: 0, byLevel: {} };
     var levels = []; try { levels = (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.LEVELS) || []; } catch (x) {}
@@ -372,6 +383,7 @@
     }
     var L = st.lineageV136; if (L && L.gen) { A.gen = L.gen; A.surname = L.surname || ""; }
     try { var F = window.__LINEAGE_V136 && window.__LINEAGE_V136.family && window.__LINEAGE_V136.family(); if (F && F.gen) { A.gen = F.gen; A.surname = F.surname || A.surname; } } catch (x) {}
+    accountV156C(A, st, hof, e);   // v156 C: the harder milestones (League MVPs, Hall careers that made it, rings, Legacy medal)
     return A;
   }
   /* the earned unlocks — checked at boot, on every save and when the profile opens */
@@ -791,7 +803,7 @@
       pos: e ? String(e.pos || "") : "", level: e ? e.level || 0 : null, levelName: e ? levelName(e.level || 0) : "", age: e ? e.age || null : null, ovr: ovr,
       team: { school: String(tc.schoolName || "").slice(0, 24), name: String(tc.teamName || "").slice(0, 18), colors: Array.isArray(tc.col) ? tc.col.slice(0, 2).filter(hexOk) : [], logo: tc.logo != null ? tc.logo | 0 : null },
       club: e && e.clubV146B ? String(e.clubV146B.name || e.clubV146B || "").slice(0, 40) : "",
-      careers: A.careers, bank: { pp: A.pp, honors: A.honors },
+      careers: A.careers, bank: { pp: A.pp, honors: A.honors, medals: A.medals },
       titles: A.titles, rings: A.rings, mvps: A.mvps, awards: A.awards, hof: A.hof, uffTitles: A.uffTitles, interstellarTitles: A.interstellarTitles,
       titlesByLevel: A.byLevel, gen: A.gen, surname: String(A.surname || "").slice(0, 24), bestScore: A.bestScore, careerScore: A.careerScore || 0,
       teamStyle: { unlocked: ts.unlocked, total: ts.total, all: ts.all },
@@ -829,7 +841,7 @@
       (d.club ? '<div class="pc-club-v151b">' + escHtml(d.club) + "</div>" : "") + "</div></div>" +
       '<div class="pc-shelf-v151b sh-' + escHtml(sh.css) + '" data-shelf="' + escHtml(sh.id) + '">' + trophies.map(function (q) { return "<span><em>" + q[0] + "</em><b>" + num(q[1]) + "</b><small>" + q[2] + "</small></span>"; }).join("") + "</div>" +
       (compact ? "" : '<div class="pc-grid-v151b">' + [
-        ["CAREERS", num(d.careers)], ["BANK", num(d.bank && d.bank.pp) + " PP"], ["HONORS", num(d.bank && d.bank.honors)],
+        ["CAREERS", num(d.careers)], ["BANK", num(d.bank && d.bank.pp) + " PP"], d.bank && d.bank.medals != null ? ["MEDALS", num(d.bank.medals)] : ["HONORS", num(d.bank && d.bank.honors)] /* v156 A */,
         ["LOGOS & COLOURS", d.teamStyle ? (d.teamStyle.all ? "ALL" : (d.teamStyle.unlocked | 0) + "/" + (d.teamStyle.total | 0)) : "—"], ["BEST SCORE", num(d.bestScore)], ["UFF · ISL", (d.uffTitles | 0) + " · " + (d.interstellarTitles | 0)]
       ].map(function (q) { return "<div><b>" + escHtml(q[1]) + "</b><small>" + q[0] + "</small></div>"; }).join("") + "</div>") +
       "</div>";
@@ -1814,9 +1826,224 @@
     (document.head || document.documentElement).appendChild(st);
   })();
 
+  /* ===== v156 C EARNED LOOKS, MEMBER LOOKS, SUPER LOOKS =====
+   * The owner's call (docs/MONETIZATION.md §1, docs/SEASONS.md §8): the nicer, appearance-changing looks are harder to
+   * get. Three moves, all behind TU("v156Ccos", 0) — off, every item wears its v151 B / v153 G source again:
+   *   MEMBER   most of the legendary / mythic looks and the flashiest epics (uniforms, helmets, wings, crowns, auras,
+   *            trails, celebrations, frames) take a new source, "member": owned while the store is ON and the device
+   *            holds `member` (or `founder`). With the store OFF they are LISTED — locked, "🔒 Membership", the visible
+   *            incentive — and never owned, never granted, and nothing calls the store (M() is null while OFF).
+   *   LATER    a few nice ones stay free but "waaay later" — new achievements: Legacy medal 300, 3 and 5 UFF titles
+   *            (rings across careers), the fifth generation. The weak ones are tightened: `hof` needs a Hall career
+   *            that made the UFF (was: any finished career), `mvp` a League MVP (college or higher — not a high-school
+   *            Player of the Year).
+   *   SUPER    mythic looks for the season ladder's tough, never-resetting SUPER CHALLENGES (below; the section is
+   *            drawn by src/29). Angel Wings are the hardest: an Interstellar title at all nine positions — and the
+   *            Career Pass no longer draws angel-style wings at all.
+   * GRANDFATHERED: the first time this version opens the cosmetics store (`migrateV156C`, from load()) it snapshots
+   * what the device already owned — every stored item, and every earned item whose OLD achievement it had hit — into
+   * `gf156`; those stay owned whatever their new source. Entitlements still never live in the save. */
+  function cosOnV156C() { return !!TUv("v156Ccos", 1); }
+  function memberV156C() { return !!M() && (mHas("member") || mHas("founder")); }
+  function gfV156C(id) { var S = load(); return !!(S.gf156 && S.gf156[id]); }
+  function migrateV156C(d, fresh) {
+    d.gf156 = {};
+    if (!fresh) {
+      Object.keys(d.owned).forEach(function (id) { d.gf156[id] = 1; });
+      ITEMS.forEach(function (it) { var src = it._src0 || it.source, ach = it._ach0 || it.ach; if (src === "earned" && ach && d.ach[ach]) d.gf156[it.id] = 1; });
+    }
+    d.v156C = Date.now();
+    if (!fresh) persist();   // a fresh device writes nothing until it owns something
+  }
+  /* the re-sourcing table: id → "member" | [source, ach, rarity?] */
+  var RULES_V156C = {
+    uni_blackout: "member", uni_gold_std: "member", uni_tiger: "member", uni_royal_chev: "member", uni_mvp_white: "member", uni_marble: "member",
+    hel_chrome_gold: "member", hel_interstellar: "member", hel_ruby: "member", hel_marble: "member",
+    frame_platinum: "member", frame_cosmic: "member", frame_lava: "member", frame_holo: "member", frame_angel: "member",
+    cel_goldrain: "member", cel_meteor: "member", cel_halo: "member", cel_feathers: "member",
+    vault_obsidian: "member", vault_nebula: "member", shelf_marble: "member",
+    trail_flame: "member", trail_lightning: "member", trail_ghost: "member", trail_stars: "member",
+    wings_crystal: "member", wings_bat: "member", wings_mech: "member", wings_seraph: "member",
+    crown_gold: "member", crown_horns: "member", crown_halo: "member", crown_flame: "member", crown_star: "member",
+    aura_gold: "member", aura_flame: "member", aura_void: "member", nf_chrome: "member",
+    // free, but waaay later
+    uni_nebula: ["earned", "legacy300"], frame_void: ["earned", "legacy300"],
+    crown_mvp: ["earned", "rings3"], crown_king: ["earned", "rings5"], wings_phoenix: ["earned", "rings5"],
+    ban_lineage: ["earned", "gen5"], aura_holy: ["earned", "gen5"],
+    // the hardest look in the game
+    wings_angel: ["super", null, "mythic"]
+  };
+  (function resourceV156C() {
+    Object.keys(RULES_V156C).forEach(function (id) {
+      var it = BY[id]; if (!it || it._src0) return;
+      var r = RULES_V156C[id], src = r === "member" ? "member" : r[0], ach = r === "member" ? null : r[1], rar = r === "member" ? null : r[2];
+      it._src0 = it.source; it._ach0 = it.ach; it._rar0 = it.rarity;
+      delete it.source; delete it.ach; delete it.rarity;
+      Object.defineProperty(it, "source", { enumerable: true, configurable: true, get: function () { return cosOnV156C() ? src : it._src0; } });
+      Object.defineProperty(it, "ach", { enumerable: true, configurable: true, get: function () { return cosOnV156C() ? ach || undefined : it._ach0; } });
+      Object.defineProperty(it, "rarity", { enumerable: true, configurable: true, get: function () { return cosOnV156C() && rar ? rar : it._rar0; } });
+    });
+  })();
+  /* the achievements: two tightened, four added (the "waaay later" rungs) */
+  (function () {
+    var set = function (id, test, desc) { var a = ACH_BY[id]; if (!a) return; var t0 = a.test, d0 = a.desc; a.test = function (A) { return cosOnV156C() ? test(A) : t0(A); }; if (cosOnV156C()) a.desc = desc; a._desc0 = d0; };
+    set("hof", function (A) { return A.hofWon >= 1; }, "Enshrine a career that made the UFF in the Hall of Fame");
+    set("mvp", function (A) { return A.leagueMvps >= 1; }, "Be named League MVP (college or higher)");
+    [{ id: "legacy300", name: "Legacy medal 300", desc: "Reach Legacy medal 300", test: function (A) { return A.legacyMedal >= TUv("cosLegacyMedalV156C", 300); } },
+      { id: "rings3", name: "Three UFF titles", desc: "Win 3 UFF championships (across your careers)", test: function (A) { return A.uffRings >= 3; } },
+      { id: "rings5", name: "Five UFF titles", desc: "Win 5 UFF championships (across your careers)", test: function (A) { return A.uffRings >= 5; } },
+      { id: "gen5", name: "Fifth generation", desc: "Play as the fifth generation of your family", test: function (A) { return A.gen >= 5; } }
+    ].forEach(function (a) { if (!ACH_BY[a.id]) { ACH.push(a); ACH_BY[a.id] = a; } });
+  })();
+  var LMVP_RE_V156C = /League MVP/i;
+  function accountV156C(A, st, hof, e) {
+    try {
+      A.hofWon = hof.filter(function (h) { return h && (h.won || (h.reached | 0) >= 7 || (h.level | 0) >= 7); }).length;
+      var mvps = 0, rings = 0;
+      var scan = function (log) { (log || []).forEach(function (r) { if (r && (r.level | 0) >= 5) (r.awards || []).forEach(function (a) { if (LMVP_RE_V156C.test(String((a && a.name) || a || ""))) mvps++; }); }); };
+      hof.forEach(function (h) { if (!h) return; rings += h.rings | 0; if (h.box) scan(h.box.log); });
+      if (e) { rings += e.nflRings | 0; scan(e.seasonLogV77); }
+      A.leagueMvps = mvps;
+      A.uffRings = Math.max(rings, (A.uffTitles | 0) + (A.interstellarTitles | 0));
+      var L = window.__V152A, xp = st && st.legacyV152 ? st.legacyV152.xp : null;
+      A.legacyMedal = L && L.rank && xp != null ? (L.rank(xp).medal | 0) : 0;
+    } catch (x) {}
+  }
+
+  /* ---- the SUPER looks (mythic, source "super"): only a super challenge grants one ---- */
+  function itemsV156C() {
+    return [
+      { id: "crown_ladder", cat: "crown", name: "Ladder Laurel", rarity: "mythic", source: "super", cr: { kind: "laurel", col: ["#e8f4ff", "#6fd3ff", "#1f3a8a"] } },
+      { id: "aura_supernova", cat: "aura", name: "Supernova", rarity: "mythic", source: "super", au: { kind: "void", col: "#ff5a1a" } },
+      { id: "trail_goldrush", cat: "trail", name: "Gold Rush", rarity: "mythic", source: "super", tr: { kind: "comet", col: ["#fff6c0", "#ffd76f", "#e6b53a"] } },
+      { id: "frame_ultimate", cat: "frame", name: "The Ultimate", rarity: "mythic", source: "super", css: "ultimate", anim: 1 }
+    ];
+  }
+  if (cosOnV156C()) {   // angel wings come from the super challenge alone — never from a Career Pass tier
+    POOLS_V153G.wings = POOLS_V153G.wings.map(function (p) { return p.filter(function (s) { return s !== "angel"; }); });
+    delete VARS_V153G.wings.angel;
+  }
+  /* ---- the SUPER CHALLENGES — tough, account-wide, never reset by a season: `rib.super.v1` (outside the save) ----
+   * ladder10         the best rank of your careers on this season's career board, once a UTC day; 10 days at rank ≤ 10.
+   *                  The boards are LOCAL today (every row is yours), so any career on the season board is rank ≤ 10 —
+   *                  with the remote board (`__LB_CONFIG.careerUrl`) it will mean the real top 10 (docs/SEASONS.md §8).
+   * allPositions     an Interstellar (level 8) title at each of QB RB WR TE OL DL LB CB S — the season log's champion
+   *                  rows and every Hall box, remembered here so a Hall that prunes a career loses nothing.
+   * mvpInterstellar  one career with a League MVP AND an Interstellar title, both inside its first X seasons (TU 14).
+   * goldRush         10 UFF championships across careers.   ultimate   Legacy medal 500. */
+  var SUPER_V156C = [
+    { id: "ladder10", item: "crown_ladder", name: "Top 10 for 10 Days", icon: "📈", goal: function () { return TUv("superLadderDaysV156C", 10); }, desc: function () { return "Hold a top-10 spot on the season's career leaderboard on " + TUv("superLadderDaysV156C", 10) + " different days"; } },
+    { id: "allPositions", item: "wings_angel", name: "Interstellar at Every Position", icon: "🪐", goal: function () { return 9; }, desc: function () { return "Win the Interstellar championship at all nine positions — QB RB WR TE OL DL LB CB S"; } },
+    { id: "mvpInterstellar", item: "aura_supernova", name: "MVP to the Stars", icon: "🌠", goal: function () { return 2; }, desc: function () { return "In one career, be League MVP and win the Interstellar championship — both within its first " + TUv("superMvpSeasonsV156C", 14) + " seasons"; } },
+    { id: "goldRush", item: "trail_goldrush", name: "Gold Rush", icon: "💍", goal: function () { return TUv("superRingsV156C", 10); }, desc: function () { return "Win " + TUv("superRingsV156C", 10) + " UFF championships across your careers"; } },
+    { id: "ultimate", item: "frame_ultimate", name: "The Ultimate", icon: "🎖", goal: function () { return 500; }, desc: function () { return "Reach Legacy medal 500 — the last medal there is"; } }
+  ];
+  var SUPER_IDS_V156C = SUPER_V156C.map(function (c) { return c.item; });
+  var POS9_V156C = ["QB", "RB", "WR", "TE", "OL", "DL", "LB", "CB", "S"];
+  function superDescV156C(itemId) { var c = SUPER_V156C.filter(function (x) { return x.item === itemId; })[0]; return c ? c.desc() : "a super challenge"; }
+  var SKEY_V156C = "rib.super.v1", smem = null;
+  function sload() {
+    if (smem) return smem;
+    var d = null; try { d = JSON.parse(localStorage.getItem(SKEY_V156C) || "null"); } catch (e) { d = null; }
+    if (!d || d.v !== 1) d = { v: 1, days: {}, pos: {}, best: {}, done: {} };
+    ["days", "pos", "best", "done"].forEach(function (k) { if (!d[k] || typeof d[k] !== "object") d[k] = {}; });
+    return (smem = d);
+  }
+  function ssave() { try { localStorage.setItem(SKEY_V156C, JSON.stringify(sload())); } catch (e) {} }
+  function dayV156C(ts) { var S = window.RIB_SEASONS, t = ts != null ? ts : S && S.now ? S.now() : Date.now(); return new Date(t).toISOString().slice(0, 10); }
+  // the best rank any of this device's careers holds on the current season's board (null: none on it)
+  function ladderRankV156C() {
+    try {
+      var C = window.__lb && window.__lb.career, S = window.RIB_SEASONS; if (!C || !S) return null;
+      var rows = C.rank(C.all(), "season", { seasonId: S.current().id, limit: 10 });
+      return rows.length ? 1 : null;   // LOCAL: every row is his; the first is his best
+    } catch (e) { return null; }
+  }
+  // the careers the record still holds, as {pos, rows:[{n, level, champion, awards}]}
+  function careersV156C(st) {
+    var out = [], e = st && st.player;
+    ((st && st.hof) || []).forEach(function (h) { if (h && h.box && h.box.log) out.push({ pos: h.pos, rows: h.box.log }); });
+    if (e && e.seasonLogV77) out.push({ pos: e.pos, rows: e.seasonLogV77, live: true });
+    return out;
+  }
+  function superScanV156C(st) {
+    var S = sload(), ch = false, X = TUv("superMvpSeasonsV156C", 14), A = account(st);
+    careersV156C(st).forEach(function (c) {
+      var mvp = false, isl = false;
+      c.rows.forEach(function (r) {
+        if (!r) return;
+        var pos = String(r.pos || c.pos || "").toUpperCase();
+        if ((r.level | 0) >= 8 && r.champion && POS9_V156C.indexOf(pos) >= 0 && !S.pos[pos]) { S.pos[pos] = Date.now(); ch = true; }
+        if ((r.n | 0) > 0 && (r.n | 0) <= X) {
+          if ((r.level | 0) >= 5 && (r.awards || []).some(function (a) { return LMVP_RE_V156C.test(String((a && a.name) || a || "")); })) mvp = true;
+          if ((r.level | 0) >= 8 && r.champion) isl = true;
+        }
+      });
+      var sc = (mvp ? 1 : 0) + (isl ? 1 : 0);
+      if (sc > (S.best.mvpInterstellar | 0)) { S.best.mvpInterstellar = sc; ch = true; }
+    });
+    if ((A.uffRings | 0) > (S.best.goldRush | 0)) { S.best.goldRush = A.uffRings | 0; ch = true; }
+    if ((A.legacyMedal | 0) > (S.best.ultimate | 0)) { S.best.ultimate = A.legacyMedal | 0; ch = true; }
+    return ch;
+  }
+  function superHaveV156C(id) {
+    var S = sload();
+    if (id === "ladder10") return Object.keys(S.days).length;
+    if (id === "allPositions") return POS9_V156C.filter(function (p) { return S.pos[p]; }).length;
+    return S.best[id] | 0;
+  }
+  function superProgressV156C() {
+    var S = sload();
+    return SUPER_V156C.map(function (c) {
+      var it = BY[c.item] || {}, g = c.goal(), have = Math.min(g, superHaveV156C(c.id));
+      return { id: c.id, name: c.name, icon: c.icon, desc: c.desc(), goal: g, have: have, done: !!S.done[c.id], at: S.done[c.id] || null, item: c.item, itemName: it.name || c.item, rarity: "mythic", cat: it.cat || "",
+        owned: owned(c.item), positions: c.id === "allPositions" ? POS9_V156C.map(function (p) { return { pos: p, won: !!S.pos[p] }; }) : null };
+    });
+  }
+  function superTickV156C(st) {
+    if (!cosOnV156C()) return [];
+    st = st || gstate();
+    var S = sload(), ch = false, got = [];
+    try {
+      var day = dayV156C();
+      if (!S.days[day]) { var rk = ladderRankV156C(); if (rk != null && rk <= 10) { S.days[day] = rk; ch = true; } }
+      if (st) ch = superScanV156C(st) || ch;
+      SUPER_V156C.forEach(function (c) {
+        if (S.done[c.id] || superHaveV156C(c.id) < c.goal()) return;
+        S.done[c.id] = Date.now(); ch = true;
+        grant(c.item, "super"); got.push(c.item);
+      });
+    } catch (e) {}
+    if (ch) ssave();
+    return got;
+  }
+  window.RIB_SUPER = { list: function () { return SUPER_V156C.map(function (c) { return { id: c.id, item: c.item, name: c.name }; }); }, progress: superProgressV156C, tick: superTickV156C, on: cosOnV156C };
+  window.__V156C = Object.assign(window.__V156C || {}, {
+    rules: function () { return JSON.parse(JSON.stringify(RULES_V156C)); },
+    member: memberV156C, grandfathered: function () { return Object.keys(load().gf156 || {}); },
+    reloadCosmetics: function () { mem = null; return load(); }, reloadSuper: function () { smem = null; return sload(); },
+    superProgress: superProgressV156C, superTick: superTickV156C, superStore: function () { return JSON.parse(JSON.stringify(sload())); },
+    recordDay: function (day, rank) { var S = sload(); S.days[String(day)] = rank == null ? 1 : rank; ssave(); return Object.keys(S.days).length; },
+    recordPos: function (pos) { var S = sload(); pos = String(pos).toUpperCase(); if (POS9_V156C.indexOf(pos) >= 0) { S.pos[pos] = Date.now(); ssave(); } return superHaveV156C("allPositions"); },
+    resetSuper: function () { smem = null; try { localStorage.removeItem(SKEY_V156C); } catch (e) {} }
+  });
+  // super challenges are checked with the earned ones (boot, every save) and on src/29's observer
+  (function () { var ce = checkEarned; checkEarned = function (st) { var got = ce(st); try { superTickV156C(st); } catch (e) {} return got; }; })();
+  (function () {
+    if (document.getElementById("cosV156Ccss")) return;
+    var st = document.createElement("style"); st.id = "cosV156Ccss";
+    st.textContent = [
+      ".fr-ultimate{border-color:#fff3c4;animation:cosUltV156C 3s linear infinite;background:radial-gradient(ellipse at 50% 0,rgba(255,215,111,.22),transparent 60%),linear-gradient(180deg,#1b1406,#07090e)}",
+      "@keyframes cosUltV156C{0%,100%{box-shadow:0 0 0 2px #8a6414,0 0 0 4px #ff5a1a,0 0 26px rgba(255,215,111,.6)}33%{box-shadow:0 0 0 2px #8a6414,0 0 0 4px #b98bff,0 0 30px rgba(185,139,255,.6)}66%{box-shadow:0 0 0 2px #8a6414,0 0 0 4px #6fd3ff,0 0 30px rgba(111,211,255,.6)}}",
+      "@media(prefers-reduced-motion:reduce){.fr-ultimate{animation:none;box-shadow:0 0 0 2px #8a6414,0 0 0 4px #ff5a1a,0 0 26px rgba(255,215,111,.6)}}"
+    ].join("\n");
+    (document.head || document.documentElement).appendChild(st);
+  })();
+
   /* ---------------- the API ---------------- */
   var API = {
     version: "v151b", slots: SLOTS.slice(), cats: CATS, achievements: ACH.map(function (a) { return { id: a.id, name: a.name, desc: a.desc }; }),
+    member: memberV156C, grandfathered: function (id) { return gfV156C(id); }, superItems: function () { return SUPER_IDS_V156C.slice(); },   // v156 C
     catalog: catalog, owned: owned, grant: grant, grantPack: grantPack, equip: equip, equipped: equipped, packs: packs, onChange: onChange,
     profile: profile, renderCard: renderCard, openProfile: openProfile, passItem: passItem, drawCharacter: drawCharacter, howTo: howTo, listed: listed,
     checkEarned: checkEarned, account: account, teamStyle: teamStyle,
