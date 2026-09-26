@@ -3,7 +3,7 @@
 // src/07-career-app.js (the progression gates, live whatever the master switch says). docs/MONETIZATION.md.
 //
 // OFF (the default): no store, no ads, no prices, no storage write from the module — and the owner's PROGRESSION gates
-//   apply exactly as they do with the module blocked: 3× and 4× at the UFF (4× comes WITH 3× while the store is off),
+//   apply exactly as they do with the module blocked: 3× after a full UFF season, 4× for the UFF title (v156 C),
 //   My Plays Only free since v153 B (was: after the first finished career), season sims a CAREER off the Legacy medal
 //   groups since v156 B (1 on a fresh account; was a day off lifetime PP — the ladder is still the kill switch's path),
 //   Quick Play never counted, lifetime PP never lowered by spending, the advanced filters free.
@@ -96,11 +96,14 @@ const played = (page) => M(page, () => window.S.player.weekResults.filter((w) =>
   const ra = await row(a), rb = await row(b)
   const g = await M(a, () => { window.setSpeed(2); window.setSpeed(3); const s3 = window.__getGridironLiveSpeed(); window.setSpeed(4); const s4 = window.__getGridironLiveSpeed()
     const lab = [...document.querySelectorAll('.speed-btn[data-spd]')].map((x) => x.dataset.spd + ':' + (x.querySelector('small') || {}).textContent + ':' + (x.getAttribute('title') || '')).join('|')
-    window.S.bestLevel = 7; window.__V151A.relabel(); window.setSpeed(3); const u3 = window.__getGridironLiveSpeed(); window.setSpeed(4); const u4 = window.__getGridironLiveSpeed()
-    return { s3, s4, lab, u3, u4, sheet: !!document.getElementById('mz149Sheet'), locked: document.querySelectorAll('.speed-lock-v151').length } })
+    // v156 C: reaching the UFF is no longer enough — 3× after a full UFF season, 4× for the UFF title (account-wide flags)
+    window.S.bestLevel = 7; window.__V151A.relabel(); window.setSpeed(3); const r3 = window.__getGridironLiveSpeed()
+    window.S.uffSeasonV156C = { at: 1 }; window.__V151A.relabel(); window.setSpeed(3); const u3 = window.__getGridironLiveSpeed(); window.setSpeed(4); const r4 = window.__getGridironLiveSpeed()
+    window.S.uffTitleV156C = { at: 1 }; window.__V151A.relabel(); window.setSpeed(4); const u4 = window.__getGridironLiveSpeed()
+    return { s3, s4, lab, r3, u3, r4, u4, sheet: !!document.getElementById('mz149Sheet'), locked: document.querySelectorAll('.speed-lock-v151').length } })
   ok(ra && ra === rb && /data-spd="3"/.test(ra), 'OFF: the live speed row (with its 3× rung) is byte-for-byte the row with the module blocked')
-  ok(g.s3 === 2 && g.s4 === 2 && /3:🔒 UFF:Reach the UFF/.test(g.lab) && /4:🔒 UFF:Reach the UFF/.test(g.lab), 'OFF: a fresh player\'s 3× and 4× are locked — "🔒 UFF", "Reach the UFF" — and the tap keeps 2×', g)
-  ok(g.u3 === 3 && g.u4 === 4 && !g.sheet && g.locked === 0, 'OFF: once the UFF is reached (bestLevel 7, account-wide) 3× AND 4× unlock together — no offer anywhere', g)
+  ok(g.s3 === 2 && g.s4 === 2 && /3:🔒 UFF:Finish a full UFF season/.test(g.lab) && /4:🔒 RING:Win the UFF championship/.test(g.lab), 'OFF (v156 C): a fresh player\'s 3× and 4× are locked — "🔒 UFF" (a full UFF season) and "🔒 RING" (the UFF title) — and the tap keeps 2×', g)
+  ok(g.r3 === 2 && g.u3 === 3 && g.r4 === 3 && g.u4 === 4 && !g.sheet && g.locked === 0, 'OFF (v156 C): reaching the UFF opens nothing; a full UFF season opens 3×, the UFF title opens 4× — no offer anywhere', g)
   // My Plays Only
   const po = await M(a, async () => { const S = window.S; S.bestLevel = 0; S.settings.onlyInvolved = true; const out = { forced: window.__getGridironState ? null : null }
     out.locked = !window.__V151A.gates().playsOnly.ok; try { window.skipLive() } catch (e) {}
@@ -142,8 +145,10 @@ const played = (page) => M(page, () => window.S.player.weekResults.filter((w) =>
 // ============================== 2. OFF → the gates grandfather an existing save ==============================
 {
   const c = await newCtx(), p = await open(c, 'gf')
-  const gf = await M(p, () => { const A = window.__GRIDIRON_AUDIT__, S = A.freshState(); S.bestLevel = 7; S.careersCompleted = 2; S.pp = 50; S.tree = {}; A.setState(S); delete S.ppLifetimeV151A; return window.__V151A.gates() })
-  ok(gf.speed3.ok && gf.speed4.ok && gf.playsOnly.ok, 'OFF: a save that already reached the UFF and finished careers keeps 3×, 4× and My Plays Only', gf)
+  // v156 C: the record grandfathers the speed rungs — a Hall career with a finished UFF season and a ring
+  const gf = await M(p, () => { const A = window.__GRIDIRON_AUDIT__, S = A.freshState(); S.bestLevel = 7; S.careersCompleted = 2; S.pp = 50; S.tree = {}
+    S.hof = [{ name: 'Old Pro', pos: 'QB', rings: 1, won: true, reached: 7, goat: 100, box: { log: [{ n: 9, level: 7, champion: true, awards: [] }] } }]; A.setState(S); delete S.ppLifetimeV151A; return window.__V151A.gates() })
+  ok(gf.speed3.ok && gf.speed4.ok && gf.playsOnly.ok, 'OFF: a save whose record shows a UFF season and a UFF ring keeps 3×, 4× and My Plays Only', gf)
   await c.close()
 }
 
@@ -163,8 +168,8 @@ const played = (page) => M(page, () => window.S.player.weekResults.filter((w) =>
   // 4× is Pro's; 3× is still the UFF's
   await goLive(p)
   const s4 = await M(p, async () => { window.setSpeed(2); window.setSpeed(4); await new Promise((r) => setTimeout(r, 200)); const o = { speed: window.__getGridironLiveSpeed(), sheet: !!document.getElementById('mz149Sheet'), lab: (document.querySelector('.speed-btn[data-spd="4"] small') || {}).textContent }
-    document.getElementById('mz149Sheet')?.remove(); window.S.bestLevel = 7; o.four = window.__V151A.speedOk(4); o.three = window.__V151A.speedOk(3); window.S.bestLevel = 0; return o })
-  ok(s4.speed === 2 && s4.sheet && /PRO/.test(s4.lab || '') && !s4.four && s4.three, 'ON: 4× says 🔒 PRO and opens the offer; reaching the UFF opens 3× but not 4×', s4)
+    document.getElementById('mz149Sheet')?.remove(); window.S.uffSeasonV156C = { at: 1 }; o.four = window.__V151A.speedOk(4); o.three = window.__V151A.speedOk(3); delete window.S.uffSeasonV156C; return o })
+  ok(s4.speed === 2 && s4.sheet && /RING/.test(s4.lab || '') && !s4.four && s4.three, 'ON: a locked 4× (🔒 RING) opens the offer; a full UFF season opens 3× but not 4×', s4)
   // No Ads → upgrade to Pro (the difference) → Founder
   const r1 = await buy('rib.noads'), h1 = await H()
   ok(r1.ok && h1.noAds && !h1.pro && !h1.speed4, 'ON: Ad Free grants noAds only', h1)

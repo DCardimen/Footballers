@@ -1328,7 +1328,8 @@
     "v149 E",
     "v150 C",
     "v151 A",
-    "RIB_MONETIZE"
+    "RIB_MONETIZE",
+    "v156 C"
    ],
    "files": [
     "src/27-monetize.js"
@@ -1343,7 +1344,8 @@
     "menu-integration-check",
     "layoutcheck",
     "honorcheck",
-    "vaultcheck"
+    "vaultcheck",
+    "v156Ccheck"
    ]
   },
   "pwa": {
@@ -1427,7 +1429,8 @@
    "desc": "v151 C — competitive seasons, the Career Pass, the career leaderboards, the trophy case (src/29-seasons.js, src/20-leaderboards.js v151 C)",
    "anchors": [
     "v151 C",
-    "RIB_SEASONS"
+    "RIB_SEASONS",
+    "v156 C"
    ],
    "files": [
     "src/29-seasons.js",
@@ -1435,6 +1438,7 @@
     "docs/SEASONS.md"
    ],
    "checks": [
+    "v156Ccheck",
     "v151Ccheck",
     "v153Gcheck",
     "lbcheck",
@@ -1452,13 +1456,15 @@
    "anchors": [
     "v151 B",
     "RIB_COSMETICS",
-    "v153 G"
+    "v153 G",
+    "v156 C"
    ],
    "files": [
     "src/28-cosmetics.js",
     "docs/COSMETICS.md"
    ],
    "checks": [
+    "v156Ccheck",
     "v151Bcheck",
     "v153Gcheck",
     "v151Ccheck",
@@ -3538,7 +3544,7 @@
   },
   "v151Acheck": {
    "file": "scripts/v151Acheck.mjs",
-   "desc": "v151 A — the hybrid store and the progression gates: OFF no store/ads/prices but 3×/4× at the UFF, My Plays Only free, season sims a career (v156 B; the same with the module blocked), free filters; ON the tier chain and upgrades, restore, 4× Pro, ad cap + day rollover, convenience-only rewards, no PP double, the catalogue guard, the per-season pass, packs via RIB_COSMETICS, unlock_all_team_style, expansions not for sale, the store at 400x860.",
+   "desc": "v151 A — the hybrid store and the progression gates: OFF no store/ads/prices but 3×/4× at the UFF, My Plays Only after a career, season skips from lifetime PP (the same with the module blocked), free filters; ON the tier chain and upgrades, restore, 4× Pro, ad cap + day rollover, convenience-only rewards, no PP double, the catalogue guard, the per-season pass, packs via RIB_COSMETICS, unlock_all_team_style, expansions not for sale, the store at 400x860.",
    "areas": [
     "monetize"
    ],
@@ -3794,6 +3800,21 @@
     "career"
    ],
    "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v156Ccheck": {
+   "file": "scripts/v156Ccheck.mjs",
+   "desc": "v156 C — the owner's speed ladder and harder looks: a UFF save has neither 3× nor 4×; a full UFF season opens 3×; a won Wild Card / Conference Final opens nothing, the won LEAGUE CHAMPIONSHIP (through finishWeekGame) opens 4× with its moment; old saves grandfather (a ring, dflMvpTitle, a UFF season); TU v156Cspeed 0 restores v151 A; OFF stays a no-op (member looks never call the store); member looks listed \"🔒 Membership\", never owned / granted / equipped; a pre-v156 C cosmetics store keeps what it owned; hof / mvp tightened, 5 rings open the waaay-later looks; angel wings never from hof / pass; each super challenge grants its mythic look once; the SUPER CHALLENGES section renders and fits 400x860; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics",
+    "seasons",
+    "speed",
+    "monetize"
+   ],
+   "runtimeSec": 90,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
