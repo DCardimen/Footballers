@@ -9426,7 +9426,8 @@
       state.gatesV156C || (state.gatesV156C = Date.now());
       if (state.uffTitleV156C) return !0;
       state.uffTitleV156C = { at: Date.now(), how: "game", season: e.totalSeasons | 0, level: e.level | 0, grade: w.gameGrade || w._gameGrade || "" };
-      uffMomentV156C("🏆 UFF CHAMPIONS — 4× UNLOCKED", "You won the " + (rounds[rounds.length - 1] || "title game") + ". 4× play speed is yours for good.");
+      const tg = String(rounds[rounds.length - 1] || "title game").replace(/^THE\s+/i, "");
+      uffMomentV156C((e.level | 0) >= 8 ? "🏆 INTERSTELLAR CHAMPIONS — 4× UNLOCKED" : "🏆 UFF CHAMPIONS — 4× UNLOCKED", "You won the " + tg + ". 4× play speed is yours for good.");
       return !0;
     } catch (_) {
       return !1;
