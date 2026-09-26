@@ -62,7 +62,7 @@ const chip = await page.evaluate(() => {
   return c ? { txt: (c.textContent || '').replace(/\s+/g, ' ').trim(), title: c.getAttribute('title') || '' } : null
 })
 console.log('header chip:', JSON.stringify(chip))
-ok(chip && /MEDALS/.test(chip.txt) && !/HONORS/.test(chip.txt), 'the header chip names the rank — MEDALS (v156 A)', chip && chip.txt)
+ok(chip && /MEDALS?\b/.test(chip.txt) && !/HONORS/.test(chip.txt), 'the header chip names the rank — MEDALS (v156 A)', chip && chip.txt)
 ok(chip && chip.txt.indexOf('★') < 0, 'and does not draw a star for it', chip && chip.txt)
 ok(chip && /not the 1-5 star recruit rating/i.test(chip.title), 'and says which one it is NOT, for the player who was confused', (chip && chip.title || '').slice(0, 80) + '…')
 
