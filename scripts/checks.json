@@ -1460,13 +1460,15 @@
     "v156 C",
     "v157 A",
     "v157 B",
-    "v157 C"
+    "v157 C",
+    "v158 A"
    ],
    "files": [
     "src/28-cosmetics.js",
     "docs/COSMETICS.md"
    ],
    "checks": [
+    "v158Acheck",
     "v157Acheck",
     "v156Ccheck",
     "v151Bcheck",
@@ -3887,6 +3889,19 @@
     "cosmetics",
     "profile",
     "legacy"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v158Acheck": {
+   "file": "scripts/v158Acheck.mjs",
+   "desc": "v158 A — the card, dressed: >= 20 new banners and >= 8 new titles, badges, nameplates, frames, shelves, recaps, vault themes, stadiums, celebrations and number fonts, each free / earned (a rule the Locker quotes, icon-earned ones granted) / member (listed \"🔒 Membership\", never owned with the store OFF), no legendary or mythic free; every banner a painter with its own art, animated, deterministic, no Math.random, still under prefers-reduced-motion; the card's rarity-styled title, drawn badge, material nameplate, animated frame ring, shelf; Locker previews for every new item; number fonts: distinct art and shapes, legible, drawn on the profile chest, the Locker and the live field (an image over the label); helmet stripes follow the facing (front / back down the middle, side along the top; the old centre column fails the side frames), twin stripes and decals, on the cells, the profile figure and the live textures; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics",
+    "profile"
    ],
    "runtimeSec": 150,
    "slow": false,
