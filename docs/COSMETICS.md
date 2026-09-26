@@ -171,3 +171,22 @@ earned item whose old achievement was hit into `gf156` (`{v:1, …, v156C, gf156
 Achievements tightened: `hof` needs a Hall career that made the UFF (was any finished career); `mvp` needs a League MVP
 (college or higher — a high-school Player of the Year no longer counts). `account()` adds `hofWon`, `leagueMvps`,
 `uffRings`, `legacyMedal`. The Career Pass no longer draws angel-style wings. `scripts/v156Ccheck.mjs`.
+
+## v157 C — one face everywhere, and earned profile icons
+
+- **One figure.** `drawFigureV157C(cv, age, face)` (= `drawCharacter` + his number on the chest in the equipped number
+  font) is what the profile card, the year-older (growth) screen and the live screen's position badge draw, from
+  `faceV157C()` (kit / uniform, helmet, number font, jersey number, wings / crown / aura). The growth man is the
+  profile man, pixel for pixel, at the same age (`v157Ccheck`). On the field a number font is drawn bigger with a
+  heavier outline (TU `nfScaleV157C`, `nfStrokeV157C`). Kill switch TU `v157Cfig`.
+- **Profile icons are earned — never sold, never free.** 84 icons (`ICON_RULES_V157C`): titles at every level
+  ×1/3/5/10 (UFF and Interstellar one rarity up), League MVPs, a Legacy medal of each colour, generations 2/3/5, the UFF
+  at each position, rings at 3 / 9 positions, 25–200 touchdowns and 5K–20K yards in a career, the Hall (1 / 5 UFF
+  careers), each super challenge, and the SEASON CHALLENGES (1 / 5 / 10 / 25 / 50 completed, a 20/20 season, six named
+  challenges). Each is `source: "earned"`; its rule lives in `ACH_BY["icon:<id>"]` (so the Locker says "Earn it: …")
+  but not in `ACH` (the profile's achievement chips are unchanged). The Career Pass draws no icons any more — its icon
+  tiers are badges (src/29 `passKindV157C`, TU `v157Cicons`); a pass icon a device already owned stays an icon
+  (`rawKind` + `gfIconV157C`). Art: a glyph on a two-colour disc with a tag (`.ico157`).
+- **Adding an icon:** one `iconV157C(id, name, glyph, ringColour, discColour, tag, rarity, desc, test)` line in
+  `buildIconsV157C`; `test(I)` reads `iconAccountV157C` (titles by level, MVPs, Legacy medal, gen, UFF positions,
+  ring positions, best-career TDs / yards, Hall careers, super challenges done, `RIB_SEASONS.challengeTotals()`).

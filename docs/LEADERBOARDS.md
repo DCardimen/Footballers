@@ -109,3 +109,50 @@ avoided for now).
   change persists, no JS errors.
 - The mock board seeds ~24 believable entries on first use so it looks alive in
   screenshots/demos. Clear it with `localStorage.removeItem('rib_lb_entries')`.
+
+## 5. The Legacy medal share — "Only X% of players have this medal" (v157 C)
+
+Tapping your Legacy medal (the profile card's medal box, the main menu's medal, the
+trophy case) opens a card with the medal, its rank, tier and colour, and the share
+of players who have reached it. `window.RIB_LEGACY.share(rank)` answers
+`{ rank, pct, text, source: "model" | "live", approx }`.
+
+**Today (no backend): a documented model**, shown with "≈" and the note
+"Estimated from how far players climb". `src/31-legacy.js` `shareModelV157C`:
+
+1. **Rank → careers.** The XP curve (`__V152A.xpAt`, `legacyReqV152`) was tuned to a
+   pacing: a first career ≈ rank 16, rank 50 ≈ 3 careers that reach the UFF, 100 ≈
+   10, 200 ≈ 45, 300 ≈ 110, 500 ≈ 330. `careersAtV157C(rank)` interpolates those
+   anchors in log(XP) × log(careers) on the real curve (below rank 16, straight up
+   from zero; past 500 — the Legacy Levels — the last slope runs on).
+2. **Careers → share of players.** Retention in games like this is heavy-tailed, so
+   the share who play at least `c` careers is a Pareto-type survival
+   `S(c) = (1 + c / c0)^-α`, `c0 = 1`, `α = 1.7` (TU `legacyShareC0V157C`,
+   `legacyShareAlphaV157C`).
+
+| rank | careers | share |
+|---|---|---|
+| 1 | 0 | 100% (every player) |
+| 16 | 1 | ≈ 31% |
+| 50 | 3 | ≈ 9.5% |
+| 100 | 10 | ≈ 1.7% |
+| 200 | 45 | ≈ 0.15% |
+| 300 | 110 | ≈ 0.033% |
+| 500 | 330 | ≈ 0.0052% |
+
+Monotone decreasing with rank; formatted "Top 9.5%" / "Only ≈0.15% of players have
+reached this medal" (`fmtShareV157C`: whole numbers above 10%, one decimal above 1%,
+two significant digits below, "<0.001%" at the far end).
+
+**With a backend: real numbers.** When `window.__LB_CONFIG.careerUrl` is set,
+`shareLiveV157C(rank)` asks
+
+```
+GET <careerUrl>/legacy/share?rank=<N>   →   { "players": 123456, "reached": 2345 }
+```
+
+(`reached` = players whose best Legacy XP ≥ `xpAt(N)`; compute it server-side from
+the career submissions, which already carry the Legacy rank), and the open card
+swaps to the live number ("Live from the league's boards", no "≈"). Answers are
+cached per rank for the session. A native shell or a test can also answer through
+`window.__LEGACY_SHARE_V157C = (rank) => pct` (a number or a promise of one).

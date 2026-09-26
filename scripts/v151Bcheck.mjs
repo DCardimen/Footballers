@@ -91,7 +91,7 @@ const pz = await E(() => { const C = window.RIB_COSMETICS, S = window.RIB_SEASON
   const inCat = all.filter(r => C.catalog().some(i => i.id === r.id)).length
   const kinds = {}; all.forEach(r => { kinds[r.kind] = (kinds[r.kind] || 0) + 1 })
   const pick = k => all.find(r => r.kind === k)
-  const t = pick('title'), ic = pick('icon'), bd = pick('badge'), np = pick('nameplate'), kt = pick('kit')
+  const t = pick('title'), ic = pick('icon') || { id: 'ico_t0_1' }, bd = pick('badge'), np = pick('nameplate'), kt = pick('kit')   // v157 C: the pass draws no icons — an earned icon stands in
   const before = C.owned(t.id)
   const got = [t, ic, bd, np, kt].map(r => C.grant(r.id, 'pass', r))
   const eq = [['title', t], ['icon', ic], ['badge', bd], ['nameplate', np]].map(([s, r]) => C.equip(s, r.id))
