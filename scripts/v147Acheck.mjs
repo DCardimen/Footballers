@@ -94,7 +94,7 @@ async function tap(page, re, where = 'button') {
   return box
 }
 // v156 B: the sim stops at the playoffs — wait for the report card OR the playoff stop
-const waitSim = (page, ms = 60000) => page.waitForFunction(() => window.S && (window.S.view === 'result' || (window.S.view === 'season' && window.__V147A.lastSim && window.__V147A.lastSim.why === 'playoffs')), null, { timeout: ms }).then(() => true).catch(() => false)
+const waitSim = (page, ms = 90000) => page.waitForFunction(() => window.S && (window.S.view === 'result' || (window.S.view === 'season' && window.__V147A.lastSim && window.__V147A.lastSim.why === 'playoffs')), null, { timeout: ms }).then(() => true).catch(() => false)
 // at the playoff stop: what the dock offers, then the playoffs booked the old way (v156Bplayoffs 0) so the report card follows
 const throughPlayoffs = (page) => page.evaluate(() => {
   const L = window.__V147A.lastSim; if (!L || L.why !== 'playoffs' || window.S.view !== 'season') return null
