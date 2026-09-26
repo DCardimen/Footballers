@@ -25401,16 +25401,16 @@
    * helmet, his number in the equipped number font, the card's wings / crown / aura) — the owner: "the growth
    * post-season character looks funny, ensure it looks the same as the profile picture". Null until the card's art
    * is in, or with TU("v157Cfig", 0): then this screen's own recolour below, as before. */
-  function growOneFaceV157C(cv, age) {
+  function growOneFaceV157C(cv, age, kit) {
     try {
       const C = window.RIB_COSMETICS;
-      return C && C.growFigure ? C.growFigure(cv, age) : null;
+      return C && C.growFigure ? C.growFigure(cv, age, kit) : null;
     } catch (_) {
       return null;
     }
   }
   function growDrawV133(cv, age, kit) {
-    const one = growOneFaceV157C(cv, age);
+    const one = growOneFaceV157C(cv, age, kit);
     if (one) return one; // v157 C: the profile's figure
     const hi = growDrawHiV134(cv, age, kit);
     if (hi) return hi; // v134: the native-resolution man when the file is in; the cell until then

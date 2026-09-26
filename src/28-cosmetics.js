@@ -3270,10 +3270,13 @@
     return r && r.mode === "hi" ? r : null;
   }
   /* ---- the growth screen (07 growDrawV133 → growOneFaceV157C → here): the same figure, and the flair layers ---- */
-  function growFigureV157C(cv, age) {
+  function growFigureV157C(cv, age, kit) {
     try {
       if (!onV157C("v157Cfig")) return null;
-      var face = faceV157C(), r = drawFigureV157C(cv, age, face); if (!r) return null;
+      var face = faceV157C();
+      // the palette the growth screen hands over is his TEAM kit; an equipped uniform still wins, as on the card
+      if (Array.isArray(kit) && hexOk(kit[0]) && hexOk(kit[1]) && !(item("uniform") || {}).k) face.kit = Object.assign({}, face.kit, { j: kit[0], p: kit[1] });
+      var r = drawFigureV157C(cv, age, face); if (!r) return null;
       V157C.growth++; V157C.lastGrowth = { age: age, num: face.num, numfont: face.numfont, helmet: face.helmet };
       setTimeout(function () {
         try {

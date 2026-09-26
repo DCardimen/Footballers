@@ -56,7 +56,7 @@ const goLive = (wk, imp) => E(async ({ wk, imp }) => { const S = window.S, t = S
   return !!document.querySelector('#myPlaysV156D') }, { wk, imp: imp || null })
 const layout = () => E(() => { const R = s => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height } }
   const box = document.getElementById('myPlaysV156D'), cs = box && getComputedStyle(box)
-  const o = { box: R('#myPlaysV156D'), field: R('.field-wrap canvas') || R('#field'), wrap: R('.field-wrap'), sb: R('.live-scoreboard'), buff: R('.live-buffline'), speed: R('.speed-row'), down: R('.live-down'),
+  const o = { box: R('#myPlaysV156D'), field: R('#field') || R('.field-wrap > canvas')   /* v157 C put the live badge's figure canvas inside .field-wrap */, wrap: R('.field-wrap'), sb: R('.live-scoreboard'), buff: R('.live-buffline'), speed: R('.speed-row'), down: R('.live-down'),
     visible: !!(box && cs.display !== 'none' && cs.visibility !== 'hidden' && +cs.opacity > 0.5), text: box ? box.textContent.replace(/\s+/g, ' ').trim() : '',
     fontPx: box ? parseFloat(getComputedStyle(box.querySelector('.mp156d-lbl')).fontSize) : 0, sw: document.scrollingElement.scrollWidth, iw: innerWidth }
   // what is actually on top at the box's centre (a veil or a loader over it would fail)
