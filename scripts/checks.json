@@ -1932,7 +1932,7 @@
   },
   "honorcheck": {
    "file": "scripts/honorcheck.mjs",
-   "desc": "v130 — two currencies, two symbols",
+   "desc": "v130 — two currencies, two symbols (v156 A: the rank is MEDALS on the chip / tree / menu; the Honors model and pay asserted under the kill switch)",
    "areas": [
     "smoke",
     "menu-coin",

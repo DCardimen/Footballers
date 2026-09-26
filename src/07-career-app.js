@@ -7548,13 +7548,6 @@
     } catch (_) {}
     return "";
   }
-  /* the rank the player reads: medals under v156 A, Honors under the kill switch */
-  function rankTagV156A(n) {
-    return medalsOnV156A() ? `${MEDAL_ICON_V156A} ${n} medal${n === 1 ? "" : "s"}` : `${HONOR_ICON_V130} ${n} Honors`;
-  }
-  function rankHaveV156A() {
-    return medalsOnV156A() ? medalsV156A() : state.prestige;
-  }
   /* the top-bar chip: the element and its classes stay (31, 10 and the coach select them) */
   function chipSyncV156A() {
     const on = medalsOnV156A(),
