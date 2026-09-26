@@ -171,6 +171,8 @@
   ];
   ITEMS.push.apply(ITEMS, itemsV153G());   // v153 G: the expanded catalogue (defined with the flair code below)
   ITEMS.push.apply(ITEMS, itemsV156C());   // v156 C: the SUPER looks (defined with the v156 C block below)
+  ITEMS.push.apply(ITEMS, itemsV157A());   // v157 A: seventeen more wings (defined with the v157 A block below)
+  ITEMS.push.apply(ITEMS, itemsV157B());   // v157 B: 19 animated auras, 15 footprint trails (the v157 B block below)
   var PACKS = [
     { id: "pack_uniforms1", name: "Uniform Pack", price: "$1.99", productId: "rib.cos.uniforms1", items: [] },
     { id: "pack_helmets1", name: "Helmet Pack", price: "$1.99", productId: "rib.cos.helmets1", items: [] },
@@ -208,6 +210,7 @@
     try {
       if (!rw || !/^pass\.[A-Za-z0-9_-]+\.(free|premium)\.\d+$/.test(String(rw.id || ""))) return null;
       if (BY[rw.id]) return BY[rw.id];
+      rw = gfIconV157C(rw);   // v157 C: a pass icon he already owned stays an icon
       var cat = PASS_CAT[rw.kind]; if (!cat) return null;
       var h = hsh(rw.id), c1 = hslHex(h % 360, 0.62, 0.42), c2 = hslHex((h >>> 9) % 360, 0.72, 0.62), rr = /^(common|rare|epic|legendary|mythic)$/.test(rw.rarity) ? rw.rarity : "common";
       var it = { id: rw.id, cat: cat, name: String(rw.name || "Pass reward").replace(/[<>]/g, "").slice(0, 40), rarity: rr, source: "pass", tier: rw.tier | 0, track: rw.track === "premium" ? "premium" : "free", season: String(rw.season || "").slice(0, 12), packs: [], passKind: rw.kind };
@@ -653,6 +656,7 @@
     else if (cat === "shelf") html = '<div class="cos-shelf-v151b sh-' + it.css + '"><span>🏆</span><span>🏅</span><span>💍</span></div>';
     else if (cat === "recap") html = '<div class="cos-rcp-v151b rc-' + (it.css || "none") + '"><b>A</b><i></i><i></i></div>';
     else if (cat === "title") html = '<div class="cos-flair-v151b"><small>' + escHtml(it.text || "—") + "</small></div>";
+    else if (cat === "icon" && it.v157) return previewIconV157C(el, it);   // v157 C
     else if (cat === "badge" || cat === "icon") html = '<div class="cos-flair-v151b big"' + (it.col ? ' style="box-shadow:0 0 0 2px ' + it.col + ' inset"' : "") + ">" + escHtml(it.glyph || "·") + "</div>";
     else if (cat === "nameplate") html = '<div class="cos-flair-v151b plate" style="background:' + (it.plate || "#1a2230") + '"><small>NAME</small></div>';
     else if (FLAIR_CATS_V153G[cat]) return previewFlairV153G(el, it);   // v153 G: trail, wings, crown, aura, number font
@@ -771,17 +775,17 @@
     x.drawImage(c, 0, neck, SW, bodyRows, bx, by, bw, bh);
     var hk = k * stg.head, hw = SW * hk * Math.sqrt(stg.width), hh = headRows * hk;
     x.drawImage(c, 0, top, SW, headRows, (W - hw) / 2, by + k * ink * 0.012 - hh, hw, hh);
-    return { mode: "hi", stage: stg, k: +k.toFixed(3), v153: true };
+    return { mode: "hi", stage: stg, k: +k.toFixed(3), v153: true, geo: { bx: bx, by: by, bw: bw, bh: bh, k: k, neck: neck, dpr: dpr } };   // v157 C: where the body went (the chest number)
   }
-  function drawCharacter(cv, kd, age) {
+  function drawCharacter(cv, kd, age, opts) {
     var k = kitFromData(kd), res = null;
     var K = { j: k.U.j, p: k.U.p, t: k.U.t, pat: k.U.pat, hs: k.H ? k.H.s : null, hst: k.H ? k.H.st : null, hf: k.H ? k.H.f : null };
     try {
       figLoad();
       res = figDraw(cv, age || 22, K);
-      if (res) { FIG.drawn++; FIG.last = K; return res; }
+      if (res) { FIG.drawn++; FIG.last = K; if (opts) res.num = chestNumberV157C(cv, res, opts.num, opts.numfont); return res; }   // v157 C: his number on the chest
       // the art is still on its way: the growth screen's figure now, the card's own the moment it lands
-      if (cv && !cv.__v153wait) { cv.__v153wait = 1; FIG.waiting.push(function () { cv.__v153wait = 0; if (cv.isConnected) drawCharacter(cv, kd, age); }); }
+      if (cv && !cv.__v153wait) { cv.__v153wait = 1; FIG.waiting.push(function () { cv.__v153wait = 0; if (cv.isConnected) drawCharacter(cv, kd, age, opts); }); }
       var G = window.__GROW_V132; if (!cv || !G || !G.draw) return null;
       res = G.draw(cv, age || 22, [k.U.j, k.U.p]);
     } catch (e) { V.charErr = String(e && e.message || e); }
@@ -800,7 +804,7 @@
     return {
       v: 1,
       name: String((e && e.name) || (A.surname ? "The " + A.surname + " line" : "Rookie")).slice(0, 40),
-      pos: e ? String(e.pos || "") : "", level: e ? e.level || 0 : null, levelName: e ? levelName(e.level || 0) : "", age: e ? e.age || null : null, ovr: ovr,
+      pos: e ? String(e.pos || "") : "", num: e ? jerseyNumV157C(e.pos) : null /* v157 C */, level: e ? e.level || 0 : null, levelName: e ? levelName(e.level || 0) : "", age: e ? e.age || null : null, ovr: ovr,
       team: { school: String(tc.schoolName || "").slice(0, 24), name: String(tc.teamName || "").slice(0, 18), colors: Array.isArray(tc.col) ? tc.col.slice(0, 2).filter(hexOk) : [], logo: tc.logo != null ? tc.logo | 0 : null },
       club: e && e.clubV146B ? String(e.clubV146B.name || e.clubV146B || "").slice(0, 40) : "",
       careers: A.careers, bank: { pp: A.pp, honors: A.honors, medals: A.medals },
@@ -830,7 +834,7 @@
     var team = [t.school, t.name].filter(Boolean).join(" ");
     var html = '<div class="pcard-v151b fr-' + escHtml(fr.css) + (compact ? " compact" : "") + '" data-frame="' + escHtml(fr.id) + '">' +
       '<div class="pc-ban-v151b" style="background:' + bn.bg + (bn.edge ? ";border-bottom:2px solid " + bn.edge : "") + '" data-banner="' + escHtml(bn.id) + '">' +
-      (ico && ico.glyph ? '<span class="pc-ico-v151b" style="box-shadow:0 0 0 2px ' + (ico.col || "#f0bb45") + ' inset" data-icon="' + escHtml(ico.id) + '">' + escHtml(ico.glyph) + "</span>" : "") +
+      (ico && ico.glyph ? '<span class="pc-ico-v151b' + (ico.v157 ? " ico157" : "") + '" style="' + iconStyleV157C(ico) + '" data-icon="' + escHtml(ico.id) + '">' + iconInnerV157C(ico) + "</span>" : "") +   // v157 C: an earned icon is its own badge
       (d.gen > 1 ? '<span class="pc-gen-v151b' + (ico && ico.glyph ? " shift" : "") + '">GEN ' + (d.gen | 0) + "</span>" : "") +
       (bdg && bdg.glyph ? '<span class="pc-bdg-v151b" data-badge="' + escHtml(bdg.id) + '">' + escHtml(bdg.glyph) + "</span>" : "") + (d.ovr != null ? '<span class="pc-ovr-v151b"><b>' + (d.ovr | 0) + "</b>OVR</span>" : "") + "</div>" +
       '<div class="pc-body-v151b"><div class="pc-fig-v151b"><canvas class="pc-cv-v151b" width="128" height="160"></canvas></div>' +
@@ -848,7 +852,7 @@
     if (el) {
       el.innerHTML = html;
       var cv = el.querySelector(".pc-cv-v151b");
-      var draw = function () { var r = drawCharacter(cv, cz.kit || {}, d.age || 22); if (r && r.mode !== "hi" && !draw._again) { draw._again = 1; setTimeout(draw, 700); } };
+      var draw = function () { var r = drawCharacter(cv, cz.kit || {}, d.age || 22, { num: d.num != null ? d.num : jerseyNumV157C(d.pos), numfont: cz.numfont }); if (r && r.mode !== "hi" && !draw._again) { draw._again = 1; setTimeout(draw, 700); } };
       if (cv) draw();
       if (cv) cardFlairV153G(cv, cz);   // v153 G: aura + wings behind the figure, the crown on his head (its own layers)
     }
@@ -1335,6 +1339,7 @@
     w = w || { kind: "angel", col: ["#ffffff", "#d6dde8", "#6b7488"] };
     var key = "w|" + w.kind + "|" + (w.col || []).join(",") + "|" + (frame | 0);
     if (ART_V153G[key]) return ART_V153G[key];
+    if (wingKindV157A(w.kind)) return wingArtV157A(w, frame, key);   // v157 A: the new wing kinds
     var cols = w.col || ["#ffffff", "#cccccc", "#555555"], K = w.kind, R, ay, x, y, W;
     if (K === "seraph") {
       W = 21; ay = 10; R = new Raster(W + 6, 27);
@@ -1406,6 +1411,7 @@
   /* ---- CROWNS: anchored at the bottom centre (the row that sits on his head) ---- */
   function crownArtV153G(cr, frame) {
     cr = cr || { kind: "crown", col: ["#f0bb45", "#c8102e", "#6b4a0e"] };
+    if (crownOnV157A()) { var c157 = crownArtV157A(cr, frame); if (c157) return c157; }   // v157 A: every crown redrawn (TU "v157Acrown" 0: the v153 G art)
     var key = "c|" + cr.kind + "|" + (cr.col || []).join(",") + "|" + (frame | 0);
     if (ART_V153G[key]) return ART_V153G[key];
     var cols = cr.col || ["#f0bb45", "#c8102e", "#6b4a0e"], K = cr.kind, a = colRgb(cols[0]), b = colRgb(cols[1]), e = colRgb(cols[2]), R, x, y, W, H;
@@ -1474,15 +1480,10 @@
   }
 
   /* ---- FOOTPRINTS: one drawer for the field (a Phaser Graphics) and the previews (a 2D canvas) ---- */
-  function gAdapterV153G(g) { return {
-    rect: function (x, y, w, h, c, a) { g.fillStyle(c, a); g.fillRect(x, y, w, h); },
-    circ: function (x, y, r, c, a) { g.fillStyle(c, a); g.fillCircle(x, y, r); },
-    seg: function (x1, y1, x2, y2, w, c, a) { g.lineStyle(w, c, a); g.lineBetween(x1, y1, x2, y2); } }; }
-  function cAdapterV153G(ctx) { var hx = function (c) { return "#" + ("00000" + c.toString(16)).slice(-6); }; return {
-    rect: function (x, y, w, h, c, a) { ctx.globalAlpha = Math.max(0, Math.min(1, a)); ctx.fillStyle = hx(c); ctx.fillRect(x, y, w, h); },
-    circ: function (x, y, r, c, a) { ctx.globalAlpha = Math.max(0, Math.min(1, a)); ctx.fillStyle = hx(c); ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill(); },
-    seg: function (x1, y1, x2, y2, w, c, a) { ctx.globalAlpha = Math.max(0, Math.min(1, a)); ctx.strokeStyle = hx(c); ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); } }; }
+  function gAdapterV153G(g) { return gAdapterV157B(g); }   // v157 B: the same rect / circ / seg, plus tri / ring / ell (the v157 B block)
+  function cAdapterV153G(ctx) { return cAdapterV157B(ctx); }
   function trailDrawV153G(A, pts, now, life, d, s) {
+    if (d.fx && trailOnV157B()) return trailDrawV157B(A, pts, now, life, d, s);   // v157 B: the new footprints draw themselves
     var cols = (d.col && d.col.length ? d.col : ["#ffffff"]).map(colNum), K = d.kind, n = pts.length, drawn = 0, C = function (i) { return cols[i % cols.length]; };
     if (K === "lightning" || K === "comet" || K === "rainbow") {
       var fl = (now / 70) | 0;
@@ -1592,7 +1593,7 @@
   }
   function dropV153G(m, prop) { var o = m[prop]; if (o) { try { o.destroy(); } catch (e) {} m[prop] = null; } }
   function clearFxV153G(scene, m) {
-    ["_auV153G", "_wlV153G", "_wrV153G", "_crV153G"].forEach(function (p) { dropV153G(m, p); });
+    ["_auV153G", "_wlV153G", "_wrV153G", "_crV153G", "_auBV157B", "_auFV157B"].forEach(function (p) { dropV153G(m, p); });   // v157 B: its two particle layers
     numfontFxV153G(m, null); m._trV153G = null; m._cosV153G = 0; G153.fx.cleared++;
     try { (scene._cosGhostV153G || []).forEach(function (g) { if (g && g.scene) g.setVisible(false); }); var g = scene._cosTrailV153G; if (g && g.scene) g.clear(); } catch (e) {}
   }
@@ -1601,7 +1602,7 @@
     if (!N) { var o = m._nfOrigV153G; if (o) { try { L.setFontFamily(o.f); L.setColor(o.c); L.setStroke(o.s, o.w); } catch (e) {} m._nfOrigV153G = null; m._nfKeyV153G = null; } return; }
     var st = L.style; if (m._nfKeyV153G === N.id && st.fontFamily === N.d.font && st.color === N.d.col) return;
     if (!m._nfOrigV153G) m._nfOrigV153G = { f: st.fontFamily, c: st.color, s: st.stroke, w: st.strokeThickness };
-    L.setFontFamily(N.d.font); L.setColor(N.d.col); L.setStroke(N.d.stroke, Math.max(2, st.strokeThickness || 2.2));
+    L.setFontFamily(N.d.font); L.setColor(N.d.col); L.setStroke(N.d.stroke, Math.max(onV157C("v157Cfig") ? TUv("nfStrokeV157C", 3.6) : 2, st.strokeThickness || 2.2));   // v157 C: a heavier outline reads at broadcast size
     m._nfKeyV153G = N.id; G153.fx.numfont++;
   }
   function hookSceneV153G(scene) {
@@ -1616,6 +1617,7 @@
     try {
       if (!m || !m.root || !scene || !scene.add) return false;
       var F = m.team === "you" ? flairV153G() : NO_FLAIR;
+      if (!F.any && m.team === "you") fieldNumV157C(m, null);   // v157 C: learn the number he wears
       if (!F.any) { if (m._cosV153G) clearFxV153G(scene, m); return false; }
       m._cosV153G = 1; G153.fx.frames++;
       var now = scene.time ? scene.time.now : 0, s = m.root.scale || 1, b = m.body;
@@ -1628,15 +1630,17 @@
         if (ao._bmV153G !== ak) { ao.setBlendMode(ak === "void" ? 0 : 1); ao._bmV153G = ak; }
         ao.setPosition(geo.cx, (geo.top + geo.bot) / 2 + 2).setAlpha(pul * (down ? 0.5 : 1)).setScale(ak === "pulse" ? 1 + 0.06 * Math.sin(now / 300) : 1);
         G153.fx.aura++;
-      } else dropV153G(m, "_auV153G");
+        auraFieldV157B(scene, m, F.aura, geo, now, down);   // v157 B: the animated aura's particles (behind him and in front)
+      } else { dropV153G(m, "_auV153G"); dropV153G(m, "_auBV157B"); dropV153G(m, "_auFV157B"); }
       // the wings: behind him facing the camera, over his back facing away; they flap, and fold a little at a sprint
       if (F.wings) {
-        var wd = F.wings.d, wa = wingArtV153G(wd, wd.kind === "flame" ? ((now / 110) | 0) % 2 : 0), wk = texV153G(scene, wa);
+        var wd = F.wings.d, wa = wingArtV153G(wd, wd.kind === "flame" ? ((now / 110) | 0) % 2 : wingFrameV157A(wd.kind, now)), wk = texV153G(scene, wa);
         var wl = childV153G(scene, m, "_wlV153G", wk), wr = childV153G(scene, m, "_wrV153G", wk), away = /^u/.test(dir);
         orderV153G(m, wl, away ? "front" : "back"); orderV153G(m, wr, away ? "front" : "back");
         wr.setFlipX(false).setOrigin(wa.ax / wa.w, wa.ay / wa.h); wl.setFlipX(true).setOrigin(1 - wa.ax / wa.w, wa.ay / wa.h);
         var run = Math.min(1, (m._spdPx || 0) / 160), flap = Math.sin(now / (run > 0.3 ? 90 : 260)) * (run > 0.3 ? 0.16 : 0.09);
         var side = dir === "sd" ? 0.55 : (dir === "dr" || dir === "ur") ? 0.8 : 1, wsx = (1 - run * 0.3) * side * TUv("cosWingScaleV153G", 1), wsy = TUv("cosWingScaleV153G", 1);
+        var fp157 = flapPoseV157A(now); if (fp157.on) { flap = fp157.rot; wsy *= fp157.sy; fieldPoseV157A(fp157, now, wd); }   // v157 A: a beat of the wings every few seconds, still between
         var shY = geo.top + geo.h * 0.3, spread = TUv("cosWingSpreadV153G", 0.32), sh = 3.5 * side;   // raised and set out from the shoulder blades, so they read past his body
         wr.setPosition(geo.cx + sh, shY).setScale(wsx, wsy).setRotation(-spread - flap).setVisible(!down);
         wl.setPosition(geo.cx - sh, shY).setScale(wsx, wsy).setRotation(spread + flap).setVisible(!down);
@@ -1647,7 +1651,7 @@
       if (F.crown) {
         /* its own object over the plumbob's depth (the plumbob floats just above his head; a crown under it would vanish),
          * placed in world space from his container and taken down with it */
-        var cd = F.crown.d, ca = crownArtV153G(cd, cd.kind === "flame" ? ((now / 120) | 0) % 2 : 0), ck = texV153G(scene, ca), co = m._crV153G;
+        var cd = F.crown.d, ca = crownArtV153G(cd, cd.kind === "flame" ? ((now / 120) | 0) % 2 : crownGlintV157A(now)), ck = texV153G(scene, ca), co = m._crV153G;
         if (co && (!co.scene || !co.active)) co = m._crV153G = null;
         if (!co) { co = m._crV153G = scene.add.image(0, 0, ck); m.root.once("destroy", function () { try { co.destroy(); } catch (e) {} }); }
         else if (co.texture.key !== ck) co.setTexture(ck);
@@ -1657,6 +1661,7 @@
         G153.fx.crown++;
       } else dropV153G(m, "_crV153G");
       numfontFxV153G(m, F.numfont);
+      fieldNumV157C(m, F.numfont);   // v157 C: his number, bigger, in the font
       // the footprints: world space, under every player
       if (F.trail && G153.freeze) { /* a check holds the drawn footprints still */ }
       else if (F.trail) {
@@ -1666,7 +1671,7 @@
         var fx = m.root.x + geo.cx * s, fy = m.root.y + (geo.bot - 1) * s, mv = P.lx == null ? 1e9 : Math.hypot(fx - P.lx, fy - P.ly);
         if (mv > 60 * s) { P.lx = fx; P.ly = fy; }   // a jump (a new snap, a re-spot): start again from here
         else if (!down && mv >= TUv("cosTrailStepV153G", 2.2) * s) { P.pts.push({ x: fx, y: fy, t: now, i: P.seq++, rx: m.root.x, ry: m.root.y, s: s, key: b && b.texture ? b.texture.key : "", fl: !!(b && b.flipX) }); P.lx = fx; P.ly = fy; }
-        var td = F.trail.d, life = TUv("cosTrailMsV153G", 520) * (td.kind === "ice" || td.kind === "petals" ? 1.5 : 1);
+        var td = F.trail.d, life = TUv("cosTrailMsV153G", 520) * (td.kind === "ice" || td.kind === "petals" ? 1.5 : 1) * trailLifeV157B(td);   // v157 B: each new trail's tail length
         while (P.pts.length && now - P.pts[0].t > life) P.pts.shift();
         if (P.pts.length > 90) P.pts.splice(0, P.pts.length - 90);
         g.clear();
@@ -1691,12 +1696,12 @@
       return { top: top + (oy || 0), bot: bot + (oy || 0), cx: (n ? sx / n : W / 2) + (ox || 0), h: bot - top };
     } catch (e) { return null; }
   }
-  function paintBackV153G(ctx, geo, F, k, shf) {
+  function paintBackV153G(ctx, geo, F, k, shf, pose) {   // v157 A: `pose` (optional) — the wings' flap
     ctx.imageSmoothingEnabled = false;
-    if (F.aura) { var aa = auraArtV153G(F.aura.d), sc = geo.h / 44 * 1.05; ctx.save(); ctx.globalAlpha = 0.6; if (F.aura.d.kind !== "void") ctx.globalCompositeOperation = "lighter"; ctx.imageSmoothingEnabled = true; ctx.drawImage(aa.cv, geo.cx - aa.w * sc / 2, (geo.top + geo.bot) / 2 - aa.h * sc / 2 + 2 * sc, aa.w * sc, aa.h * sc); ctx.restore(); }
+    if (F.aura && !auraOnV157B()) { var aa = auraArtV153G(F.aura.d), sc = geo.h / 44 * 1.05; ctx.save(); ctx.globalAlpha = 0.6; if (F.aura.d.kind !== "void") ctx.globalCompositeOperation = "lighter"; ctx.imageSmoothingEnabled = true; ctx.drawImage(aa.cv, geo.cx - aa.w * sc / 2, (geo.top + geo.bot) / 2 - aa.h * sc / 2 + 2 * sc, aa.w * sc, aa.h * sc); ctx.restore(); }   // v157 B: when on, cardAuraV157B draws (and animates) the aura on its own layer
     if (F.wings) {
       var wa = wingArtV153G(F.wings.d, 0), shY = geo.top + geo.h * (shf || 0.3), sp = TUv("cosWingSpreadV153G", 0.32);
-      [1, -1].forEach(function (sd) { ctx.save(); ctx.translate(geo.cx + sd * 3.5 * k, shY); ctx.scale(sd, 1); ctx.rotate(-sp); ctx.drawImage(wa.cv, -wa.ax * k, -wa.ay * k, wa.w * k, wa.h * k); ctx.restore(); });
+      [1, -1].forEach(function (sd) { ctx.save(); ctx.translate(geo.cx + sd * 3.5 * k, shY); ctx.scale(sd, 1); ctx.rotate(-sp - (pose ? pose.rot : 0)); if (pose) ctx.scale(1, pose.sy); ctx.drawImage(wa.cv, -wa.ax * k, -wa.ay * k, wa.w * k, wa.h * k); ctx.restore(); });
     }
   }
   function paintFrontV153G(ctx, geo, F, k) {
@@ -1711,7 +1716,7 @@
   function cardFlairV153G(cv, cz) {
     try {
       var host = cv && cv.parentNode; if (!host) return false;
-      Array.prototype.slice.call(host.querySelectorAll(".pc-fl-v153g")).forEach(function (o) { o.remove(); });
+      Array.prototype.slice.call(host.querySelectorAll(".pc-fl-v153g,.pc-au-v157b")).forEach(function (o) { o.remove(); });
       var F = flairFromIdsV153G(cz);
       if (!F.wings && !F.crown && !F.aura) { G153.card = { none: true }; return false; }
       host.classList.add("pc-fig-v153g"); host.classList.toggle("pc-shrink-v153g", !!(F.wings || F.crown));   // headroom for a crown: the figure and its layers step back a little
@@ -1726,11 +1731,13 @@
         var k = geo.h / 44, bx = back.getContext("2d"), fx = front.getContext("2d");
         bx.clearRect(0, 0, back.width, back.height); fx.clearRect(0, 0, front.width, front.height);
         paintBackV153G(bx, geo, F, k * 0.75, 0.42); paintFrontV153G(fx, geo, F, k * 0.85);   // the card figure's big-helmet proportions put the shoulders lower
+        if (F.wings) flapRegV157A(back, function (pose) { bx.clearRect(0, 0, back.width, back.height); paintBackV153G(bx, geo, F, k * 0.75, 0.42, pose); }, "card");   // v157 A
         var inkOf = function (c) { var d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, n = 0; for (var i = 3; i < d.length; i += 4) if (d[i] > 40) n++; return n; };
         G153.card = { wings: F.wings && F.wings.id, crown: F.crown && F.crown.id, aura: F.aura && F.aura.id, back: inkOf(back), front: inkOf(front), geo: geo };
         return true;
       };
       paint(); setTimeout(paint, 750); setTimeout(paint, 1600);
+      cardAuraV157B(host, cv, F, PAD);   // v157 B: the aura, animated, on its own two layers
       return true;
     } catch (e) { errV153G(e); return false; }
   }
@@ -1747,13 +1754,14 @@
     return out;
   }
   function previewFlairV153G(el, it) {
+    if (previewV157B(el, it)) return el;   // v157 B: auras and footprints preview animated
     el.innerHTML = "";
     var cv = document.createElement("canvas"); cv.width = 64; cv.height = 64; cv.className = "cos-fl-v153g"; var x = cv.getContext("2d");
     try {
       if (it.cat === "numfont") {
         var tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"], nf = it.nf || { font: "Oswald, sans-serif", col: "#ffffff", stroke: "#0a0e14" };
         x.fillStyle = hexOk(tc[0]) || "#1f4fd0"; x.beginPath(); x.moveTo(14, 12); x.lineTo(24, 8); x.lineTo(40, 8); x.lineTo(50, 12); x.lineTo(50, 58); x.lineTo(14, 58); x.closePath(); x.fill();
-        x.font = "bold 26px " + nf.font; x.textAlign = "center"; x.textBaseline = "middle"; x.lineWidth = 3; x.strokeStyle = nf.stroke; x.strokeText("23", 32, 35); x.fillStyle = nf.col; x.fillText("23", 32, 35);
+        x.font = "bold 26px " + nf.font; x.textAlign = "center"; x.textBaseline = "middle"; x.lineWidth = 3; x.strokeStyle = nf.stroke; var nn = String(jerseyNumV157C((gstate() || {}).player && gstate().player.pos) || 23); x.strokeText(nn, 32, 35); x.fillStyle = nf.col; x.fillText(nn, 32, 35);   // v157 C: his own number
       } else {
         var F = { trail: it.tr ? { id: it.id, d: it.tr } : null, wings: it.w ? { id: it.id, d: it.w } : null, crown: it.cr ? { id: it.id, d: it.cr } : null, aura: it.au ? { id: it.id, d: it.au } : null };
         var fig = figV153G(34), fx0 = F.trail ? 26 : 15, fy0 = 64 - fig.height - 2, geo = inkGeoV153G(fig, fx0, fy0) || { top: fy0, bot: 62, cx: fx0 + 17, h: 36 }, k = geo.h / 44;
@@ -1762,6 +1770,7 @@
           else trailDrawV153G(cAdapterV153G(x), pts, now, life, F.trail.d, 1.4); x.globalAlpha = 1; }
         if (!F.trail && !F.wings && !F.crown && !F.aura) { x.globalAlpha = 0.45; }
         paintBackV153G(x, geo, F, k); x.drawImage(fig, fx0, fy0); x.globalAlpha = 1; paintFrontV153G(x, geo, F, k);
+        if (F.wings && !F.trail) flapRegV157A(cv, function (pose) { x.clearRect(0, 0, 64, 64); paintBackV153G(x, geo, F, k, null, pose); x.drawImage(fig, fx0, fy0); paintFrontV153G(x, geo, F, k); }, "preview");   // v157 A
       }
       G153.previews++;
     } catch (e) { errV153G(e); }
@@ -2040,6 +2049,1426 @@
     (document.head || document.documentElement).appendChild(st);
   })();
 
+  /* ===== v157 A WINGS THAT FLAP, CROWNS THAT SHINE =====
+   * The owner: "Make crowns a little more detailed, some look sloppy. Add like 15 more wings, mech, demon, skeleton,
+   * football, dragon, etc. Have them flap up and down every few seconds."
+   *   WINGS    seventeen new kinds, each its own silhouette drawn from code (`WINGS_V157A`, the RIGHT wing, shoulder at
+   *            (0, ay) — `wingArtV153G` hands a new kind here): origami paper, thornvine, raven, pigskin (laced leather
+   *            footballs), skeleton (bone ribs), clockwork (a brass gear), stormcaller (lightning), cyber grid, shade
+   *            (smoke), demon (spiked, torn, ember-veined membrane), dragon (scaled, horned, gold-boned), jet (swept
+   *            plates, two thrusters), hellfire (flame tongues), cathedral (stained glass), prism (rainbow panes),
+   *            gilded aegis (gold armour plates), galaxy (a nebula sickle). The owner's "harder" rule: three plain ones
+   *            free, a few earned (a title, the third generation, 100 TDs, and — waaay later — 3 UFF rings, the fifth
+   *            generation, Legacy medal 300), and the flashiest eight are MEMBER looks (listed "🔒 Membership" while the
+   *            store is OFF, never granted). Angel Wings stay the super challenge's.
+   *   FLAP     every wing (old and new) beats `wingFlapBeatsV157A` times in `wingFlapMsV157A` ms, then rests still for
+   *            the rest of `wingFlapPeriodV157A` ms (3.4 s) — on the live field (the scene clock), the profile card and
+   *            the Locker previews (performance.now, one shared rAF ticker that repaints only while a beat is on).
+   *            A pure function of time: no Math.random, no sim read. prefers-reduced-motion: no flap.
+   *            Kill switch TU("v157Aflap", 0): the v153 G idle sway on the field, still wings on the card.
+   *   CROWNS   every crown kind redrawn as symmetric pixel maps (`crownArtV157A`): a metal ramp (highlight, light, mid,
+   *            dark, deep), jewels with a highlight and a white glint, engraved bands, pearls, velvet and ermine on the
+   *            royal crown, ridged horns, a three-tone crown of fire, pixel stars, a leafed laurel with a ribbon. On the
+   *            field a crown catches the light for a moment every few seconds (`crownGlintV157A`, frame 2).
+   *            Kill switch TU("v157Acrown", 0): the v153 G art.
+   * `window.__V157A` is what v157Acheck reads. */
+  function crownOnV157A() { return !!TUv("v157Acrown", 1); }
+  function flapOnV157A() { return !!TUv("v157Aflap", 1); }
+  var G157 = (window.__V157A = window.__V157A || { field: null, fieldN: 0, ticks: 0, paints: 0, regs: 0, errs: [] });
+  function errV157A(e) { try { if (G157.errs.length < 8) G157.errs.push(String((e && e.message) || e)); } catch (x) {} }
+
+  /* ---- the catalogue ---- */
+  function itemsV157A() {
+    var W = function (id, name, rarity, source, ach, kind, col) { var it = { id: id, cat: "wings", name: name, rarity: rarity, source: source, w: { kind: kind, col: col } }; if (ach) it.ach = ach; return it; };
+    return [
+      // free — the plain ones
+      W("wings_paper", "Origami", "common", "free", null, "paper", ["#f4f1e8", "#c9c2b0", "#6b6452"]),
+      W("wings_thorn", "Thornvine", "rare", "free", null, "thorn", ["#3f7a2a", "#6fbf4a", "#14240c"]),
+      W("wings_raven", "Raven", "rare", "free", null, "raven", ["#1c1f2b", "#4a5a9a", "#07080c"]),
+      // earned — early, then waaay later
+      W("wings_football", "Pigskin Wings", "rare", "earned", "title", "football", ["#8a4a22", "#5a2e14", "#ffffff"]),
+      W("wings_skeleton", "Bone Wings", "epic", "earned", "gen3", "skeleton", ["#ece6d2", "#b8ad8e", "#2a2418"]),
+      W("wings_clockwork", "Clockwork", "epic", "earned", "td100", "clockwork", ["#e0ac48", "#8a5a1a", "#2e1c06"]),
+      W("wings_dragon", "Dragon Wings", "legendary", "earned", "rings3", "dragon", ["#2f8a3a", "#e6b53a", "#0c220f"]),
+      W("wings_prism", "Prism", "legendary", "earned", "gen5", "prism", ["#eef8ff", "#bfe6ff", "#3a5a8a"]),
+      W("wings_gilded", "Gilded Aegis", "mythic", "earned", "legacy300", "gilded", ["#ffd76f", "#b8862a", "#3a2606"]),
+      // member — the flashiest
+      W("wings_storm", "Stormcaller", "epic", "earned", "uff", "lightning", ["#ffffff", "#8fd0ff", "#1f4fbf"]),
+      W("wings_cyber", "Cyber Grid", "epic", "earned", "uff", "cyber", ["#6ff7ff", "#ff3df2", "#0a0f24"]),
+      W("wings_shade", "Shade", "epic", "earned", "gen3", "shadow", ["#241a33", "#7a5ad2", "#050308"]),
+      W("wings_demon", "Demon Wings", "legendary", "earned", "td100", "demon", ["#8a1020", "#2a050c", "#ff7a1a"]),
+      W("wings_jet", "Jet Wings", "legendary", "earned", "uff", "jet", ["#c9ced6", "#5a6270", "#ff8a2a"]),
+      W("wings_hellfire", "Hellfire", "legendary", "earned", "mvp", "hellfire", ["#f0e0ff", "#9a4bff", "#2a0a5a"]),
+      W("wings_cathedral", "Cathedral", "legendary", "earned", "hof", "cathedral", ["#c8203a", "#1f5fbf", "#16161c"]),
+      W("wings_galaxy", "Galaxy", "mythic", "earned", "interstellar", "galaxy", ["#140c40", "#b04bff", "#ff7ad5"])
+    ];
+  }
+
+  /* ---- raster helpers (a Raster's own coordinates: 0..W-1, 0..H-1) ---- */
+  function lnV157A(R, x0, y0, x1, y1, c, a) { var n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) | 0; for (var k = 0; k <= n; k++) { var t = k / Math.max(1, n); R.put(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, c, a); } }
+  function inPolyV157A(P, x, y) { var ins = false; for (var i = 0, j = P.length - 1; i < P.length; j = i++) { var xi = P[i][0], yi = P[i][1], xj = P[j][0], yj = P[j][1]; if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) ins = !ins; } return ins; }
+  function edgeDistV157A(P, x, y) { var best = 1e9; for (var i = 0, j = P.length - 1; i < P.length; j = i++) { var ax = P[j][0], ay = P[j][1], bx = P[i][0], by = P[i][1], dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy, t = L ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L)) : 0; best = Math.min(best, Math.hypot(x - ax - dx * t, y - ay - dy * t)); } return best; }
+  function polyV157A(R, P, fn) {
+    var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; P.forEach(function (p) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); });
+    for (var y = Math.floor(y0); y <= Math.ceil(y1); y++) for (var x = Math.floor(x0); x <= Math.ceil(x1); x++) if (inPolyV157A(P, x + 0.5, y + 0.5)) { var c = fn(x, y); if (c) R.put(x, y, c.c || c, c.a); }
+  }
+  function hV157A(x, y, s) { return ihV153G(((x + 64) * 73856093) ^ ((y + 64) * 19349663) ^ ((s | 0) * 83492791)); }
+  // a smooth value noise on a coarse grid, for the nebula and the smoke
+  function vnV157A(x, y, g, s) { var gx = Math.floor(x / g), gy = Math.floor(y / g), fx = x / g - gx, fy = y / g - gy, q = function (a, b) { return hV157A(a, b, s); };
+    fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+    return (q(gx, gy) * (1 - fx) + q(gx + 1, gy) * fx) * (1 - fy) + (q(gx, gy + 1) * (1 - fx) + q(gx + 1, gy + 1) * fx) * fy; }
+  var WHITE_V157A = [255, 255, 255];
+
+  /* ---- the new wings: { W, H, ay, draw(R, a, b, e, frame) } ---- */
+  var WINGS_V157A = {
+    // ORIGAMI: four folded facets, alternately lit, crisp creases
+    paper: { W: 20, H: 17, ay: 6, draw: function (R, a, b, e) {
+      var S = [0, 6], T = [19, 0], P = [[16, 6], [12, 11], [7, 15], [2, 12]], tones = [light(a, 0.3), mix(a, b, 0.7), light(a, 0.05), dark(b, 0.12)];
+      var pts = [T].concat(P);
+      for (var i = 0; i < P.length; i++) polyV157A(R, [S, pts[i], pts[i + 1]], function () { return tones[i]; });
+      for (var j = 0; j < P.length - 1; j++) lnV157A(R, S[0], S[1], P[j][0], P[j][1], dark(b, 0.12));
+      lnV157A(R, S[0], S[1], T[0], T[1], light(a, 0.5));
+      R.outline(e); } },
+    // THORNVINE: a curling vine, three hanging tendrils, thorns, leaves and rosebuds
+    thorn: { W: 21, H: 20, ay: 7, draw: function (R, a, b, e) {
+      var vine = function (t) { return [t * 20, 7 - 6 * Math.sin(Math.min(1, t * 1.6) * Math.PI / 2) + Math.max(0, t - 0.62) * 3]; };
+      var rose = [200, 32, 58], roseL = [255, 111, 134], thornC = light(a, 0.55);
+      [[0.3, [7, 15]], [0.55, [13, 18]], [0.8, [19, 13]]].forEach(function (td, k) {
+        var s0 = vine(td[0]), n = 12;
+        for (var i = 0; i <= n; i++) { var t = i / n, x = s0[0] + (td[1][0] - s0[0]) * t + Math.sin(t * 5 + k) * 1.2, y = s0[1] + (td[1][1] - s0[1]) * t; R.put(x, y, dark(a, 0.1)); if (i % 4 === 2) R.put(x + 1, y, thornC); }
+        R.put(td[1][0], td[1][1], rose); R.put(td[1][0] + 1, td[1][1], rose); R.put(td[1][0], td[1][1] + 1, dark(rose, 0.3)); R.put(td[1][0] + 1, td[1][1] + 1, rose); R.put(td[1][0], td[1][1] - 1, roseL);
+      });
+      for (var i = 0; i <= 40; i++) { var p = vine(i / 40); R.put(p[0], p[1], a); R.put(p[0], p[1] + 1, dark(a, 0.25)); R.put(p[0], p[1] - 1, i % 6 === 3 ? thornC : light(a, 0.2)); if (i % 6 === 3) R.put(p[0], p[1] - 2, thornC); }
+      [[4, 8], [9, 4], [14, 3], [17, 5]].forEach(function (L, k) { var x = L[0], y = L[1] + (k % 2 ? 2 : -2); R.put(x, y, b); R.put(x + 1, y, light(b, 0.35)); R.put(x, y + (k % 2 ? 1 : -1), dark(b, 0.2)); });
+      R.put(20, 1, rose); R.put(20, 0, roseL);
+      R.outline(e, 0.85); } },
+    // RAVEN: a rounded inner wing and five separated, fingered primaries
+    raven: { W: 25, H: 21, ay: 7, draw: function (R, a, b, e) {
+      var arm = function (x) { return x <= 9 ? 7 - 5 * Math.sin(x / 9 * Math.PI / 2) : 2 + (x - 9) * 0.15; }, sheen = mix(a, b, 0.55);
+      // five fingered primaries, tapered and apart
+      [[0.08, 11], [0.34, 12], [0.6, 11.5], [0.86, 10.5], [1.12, 9]].forEach(function (f, k) {
+        var sx = 13.5 + k * 0.9, sy = 2.6 + k * 1.1, ca = Math.cos(f[0]), sa = Math.sin(f[0]), L = f[1];
+        polyV157A(R, [[sx - sa * 1.3, sy + ca * 1.3], [sx + sa * 0.2, sy - ca * 0.2], [sx + ca * L, sy + sa * L]], function (x, y) {
+          var dx = x + 0.5 - sx, dy = y + 0.5 - sy, v = -dx * sa + dy * ca; return v < -0.2 ? sheen : v > 0.7 ? dark(a, 0.35) : a; });
+      });
+      // the secondaries: rounded, a dark line between each
+      for (var x = 1; x <= 13; x++) { var y0 = Math.round(arm(x)) + 2, L = 5 + Math.round(3.5 * Math.sin(x / 13 * Math.PI * 0.9));
+        for (var y = y0; y <= y0 + L; y++) R.put(x, y, x % 2 === 0 ? dark(a, 0.3) : y === y0 + L ? dark(a, 0.2) : y - y0 < 2 ? mix(a, b, 0.2) : a); }
+      // the coverts along the arm: a blue-black sheen on top
+      for (var x2 = 0; x2 <= 16; x2++) { var ya = Math.round(arm(x2)); R.put(x2, ya, light(sheen, 0.2)); R.put(x2, ya + 1, sheen); R.put(x2, ya + 2, a); if (x2 % 3 === 1) R.put(x2, ya + 3, dark(a, 0.3)); }
+      R.outline(e); } },
+    // PIGSKIN: two leather footballs for lobes — pebbled grain, white stripes, the upper one laced
+    football: { W: 21, H: 19, ay: 7, draw: function (R, a, b, e) {
+      var ball = function (cx, cy, rx, ry, ang, laces) {
+        var ca = Math.cos(ang), sa = Math.sin(ang);
+        for (var y = 0; y < 19; y++) for (var x = 0; x < 21; x++) {
+          var dx = x + 0.5 - cx, dy = y + 0.5 - cy, u = dx * ca + dy * sa, v = -dx * sa + dy * ca, lim = ry * (1 - Math.pow(u / rx, 2));
+          if (Math.abs(u) > rx || Math.abs(v) > lim) continue;
+          var c = v < -lim * 0.4 ? light(a, 0.2) : v > lim * 0.5 ? b : a;
+          if (((x * 7 + y * 3) % 5) === 0) c = dark(c, 0.12);
+          var au = Math.abs(u) / rx; if (au > 0.58 && au < 0.7) c = e;
+          R.put(x, y, c);
+        }
+        if (laces) {   // the seam along the axis and five stitches across it
+          lnV157A(R, cx - ca * 3.6, cy - sa * 3.6, cx + ca * 3.6, cy + sa * 3.6, e);
+          [-3, -1.5, 0, 1.5, 3].forEach(function (u) { var px = cx + ca * u, py = cy + sa * u; lnV157A(R, px + sa * 1.4, py - ca * 1.4, px - sa * 1.4, py + ca * 1.4, e); });
+        }
+      };
+      ball(7.5, 14, 7, 3.1, 0.42, false);
+      ball(10.8, 5.6, 10.2, 4.4, -0.36, true);
+      R.outline(dark(b, 0.55)); } },
+    // BONE WINGS: an arm bone, a doubled forearm, four finger bones from the wrist and two ribs, knobs at every joint
+    skeleton: { W: 22, H: 20, ay: 6, draw: function (R, a, b, e) {
+      var knob = function (x, y) { R.put(x, y, light(a, 0.4)); R.put(x + 1, y, a); R.put(x, y + 1, a); R.put(x + 1, y + 1, b); };
+      var bone = function (x0, y0, x1, y1, bend) { var n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) | 0; for (var i = 0; i <= n; i++) { var t = i / Math.max(1, n), x = x0 + (x1 - x0) * t + Math.sin(t * Math.PI) * (bend || 0), y = y0 + (y1 - y0) * t; R.put(x, y, a); R.put(x + 1, y + (Math.abs(x1 - x0) > Math.abs(y1 - y0) ? 1 : 0), b); } };
+      bone(3, 6, 2, 14, -1.2); bone(6, 4, 7, 16, 1.4);   // the ribs
+      bone(15, 3, 21, 1); bone(15, 4, 21, 8, 0.6); bone(15, 5, 18, 14, 0.8); bone(15, 5, 12, 18, 0.9);   // the fingers
+      bone(0, 6, 7, 1); R.put(0, 7, b); R.put(1, 7, b);
+      lnV157A(R, 8, 1, 14, 2, a); lnV157A(R, 8, 3, 14, 4, a); lnV157A(R, 9, 4, 14, 5, b);   // radius and ulna, a gap between
+      knob(0, 5); knob(7, 1); knob(14, 3); knob(18, 4); knob(16, 9);
+      R.put(21, 0, light(a, 0.4)); R.put(22, 1, a); R.put(18, 15, a); R.put(11, 19, a);
+      R.outline(e); } },
+    // CLOCKWORK: a big toothed gear at the shoulder, a riveted brass bar, six brass blades tipped in copper
+    clockwork: { W: 22, H: 21, ay: 7, draw: function (R, a, b, e) {
+      var cu = [196, 106, 58], face = dark(b, 0.15);
+      var gear = function (cx, cy, r, teeth) { for (var y = Math.floor(cy - r - 2); y <= cy + r + 2; y++) for (var x = Math.floor(cx - r - 2); x <= cx + r + 2; x++) {
+        var dx = x + 0.5 - cx, dy = y + 0.5 - cy, d = Math.hypot(dx, dy), an = Math.atan2(dy, dx), tooth = Math.cos(an * teeth) > 0.3;
+        if (d > r + (tooth ? 1.2 : 0) || d < r * 0.28) continue;
+        R.put(x, y, d > r - 0.6 ? (dy < 0 ? light(a, 0.4) : a) : d < r * 0.55 ? light(a, 0.5) : (Math.abs(dx) < 0.6 || Math.abs(dy) < 0.6) ? a : face); } };
+      [[5, 7, 0.08], [8, 8, 0.16], [11, 9, 0.26], [14, 10, 0.36], [17, 11, 0.5], [19.5, 10, 0.66]].forEach(function (bl, k) {
+        var bx = bl[0], by = 7 - (bx - 3) * 6 / 18 + 1, L = bl[1], sa = Math.sin(bl[2]), ca = Math.cos(bl[2]);
+        for (var s = 0; s <= L; s++) for (var q = 0; q < 3; q++) { if (s === L && q !== 1) continue; var c = s >= L - 1 ? cu : a; R.put(bx + sa * s + q, by + ca * s, q === 0 ? light(c, 0.35) : q === 2 ? dark(c, 0.3) : c); }
+        R.put(bx + 1, by + 1, [255, 244, 214]);
+      });
+      lnV157A(R, 3, 6, 21, 0, light(a, 0.45)); lnV157A(R, 3, 7, 21, 1, a); lnV157A(R, 3, 8, 21, 2, b);
+      gear(4.5, 7, 4.4, 7); gear(18, 1.5, 2, 6); R.put(4, 6, [255, 244, 214]);
+      R.outline(e); } },
+    // STORMCALLER: five forked bolts from the shoulder, a white core in a blue glow (they jump every frame)
+    lightning: { W: 22, H: 22, ay: 8, draw: function (R, a, b, e, fr) {
+      var ends = [[21, 0], [21, 7], [18, 14], [13, 19], [6, 21]], cores = [];
+      ends.forEach(function (T, i) {
+        var n = 5, px = 0, py = 8;
+        for (var s = 1; s <= n; s++) { var t = s / n, nx = T[0] * t, ny = 8 + (T[1] - 8) * t, dx = T[0], dy = T[1] - 8, L = Math.hypot(dx, dy), off = s < n ? (hV157A(i, s, 7 + (fr | 0) * 13) - 0.5) * 4.4 : 0;
+          nx += -dy / L * off; ny += dx / L * off; cores.push([px, py, nx, ny, i]); px = nx; py = ny; }
+      });
+      cores.forEach(function (c) { var n = Math.max(Math.abs(c[2] - c[0]), Math.abs(c[3] - c[1])) | 0; for (var k = 0; k <= n; k++) { var t = k / Math.max(1, n), x = c[0] + (c[2] - c[0]) * t, y = c[1] + (c[3] - c[1]) * t;
+        for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) if ((ox || oy) && !R.has(Math.round(x + ox), Math.round(y + oy))) R.put(x + ox, y + oy, e, 0.55); } });
+      cores.forEach(function (c) { lnV157A(R, c[0], c[1], c[2], c[3], b); });
+      cores.forEach(function (c) { lnV157A(R, c[0], c[1], (c[0] + c[2]) / 2, (c[1] + c[3]) / 2, a); if (c[4] < 2) lnV157A(R, c[0], c[1], c[2], c[3], a); });
+      R.put(0, 7, a); R.put(1, 8, a); } },
+    // CYBER GRID: a faceted wireframe — neon grid over a dark glass, a hot-pink rim, bright nodes
+    cyber: { W: 21, H: 19, ay: 6, draw: function (R, a, b, e, fr) {
+      var P = [[0, 4], [8, 1], [20.5, 0], [17, 5], [20, 8.5], [13, 11], [14.5, 16], [7, 18.5], [0.5, 11]], scan = ((fr | 0) % 2) ? 9 : 4;
+      polyV157A(R, P, function (x, y) { var d = edgeDistV157A(P, x + 0.5, y + 0.5);
+        if (d < 1.05) return b;
+        var g = (x % 3 === 0) || ((y + (x >> 2)) % 3 === 0);
+        if ((x % 3 === 0) && ((y + (x >> 2)) % 3 === 0)) return WHITE_V157A;
+        if (g) return y === scan ? light(a, 0.6) : a;
+        return { c: y === scan ? mix(e, a, 0.35) : e, a: 0.78 }; });
+      R.outline(dark(b, 0.55), 0.9); } },
+    // SHADE: a wing of smoke — dark at the shoulder, violet at the edge, dissolving into dithered wisps
+    shadow: { W: 21, H: 22, ay: 7, draw: function (R, a, b, e, fr) {
+      var P = [[0, 5], [9, 0], [20.5, 2], [16, 8], [18.5, 13], [12, 14], [11, 19], [6, 15], [1, 12]], sd = (fr | 0) * 5;
+      polyV157A(R, P, function (x, y) { var d = edgeDistV157A(P, x + 0.5, y + 0.5), n = vnV157A(x, y, 4, 3 + sd), t = Math.min(1, Math.hypot(x, y - 7) / 20);
+        if (d < 2.2 && hV157A(x, y, 11 + sd) < 0.42 + (2.2 - d) * 0.18) return null;
+        var c = mix(a, b, Math.min(1, t * 0.8 + n * 0.35)); if (n > 0.72) c = light(c, 0.15);
+        return { c: c, a: d < 2.2 ? 0.55 + d * 0.2 : 0.96 }; });
+      [[4, 13], [9, 16], [15, 14], [18, 12]].forEach(function (w, k) { for (var i = 0; i < 6; i++) { var y = w[1] + i, x = w[0] + Math.round(Math.sin(i * 0.9 + k + (fr | 0) * 1.3) * 1.2); if (y < 22) R.put(x, y, b, 0.75 - i * 0.11); } });
+      [[7, 6], [13, 5], [10, 10]].forEach(function (s, k) { if (hV157A(k, 1, 20 + sd) > 0.3) R.put(s[0], s[1], light(b, 0.6)); });
+      R.outline(e, 0.45); } },
+    // DEMON: a hooked claw, spikes on the arm, a torn membrane between long spined fingers, ember veins
+    demon: { W: 24, H: 23, ay: 9, draw: function (R, a, b, e) {
+      var wr = [10, 3], tips = [[23, 5], [22, 13], [17, 19], [10, 22], [3, 17]];
+      for (var i = 0; i < tips.length; i++) {
+        var A = i === 0 ? wr : tips[i - 1], B = tips[i], mem;
+        if (i === 0) { mem = [[0, 9], wr, [23, 5]]; }
+        else { var mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2, px = mx - (mx - wr[0]) * 0.28, py = my - (my - wr[1]) * 0.28; mem = [wr, A, [(A[0] + px) / 2, (A[1] + py) / 2 + 0.5], [px, py], [(B[0] + px) / 2, (B[1] + py) / 2 + 0.5], B]; }
+        polyV157A(R, mem, function (x, y) { var dd = Math.hypot(x - wr[0], y - wr[1]) / 20; return mix(a, dark(a, 0.55), Math.min(1, dd * 0.9)); });
+      }
+      polyV157A(R, [[0, 9], wr, [3, 17]], function () { return a; });
+      [[5, 14], [15, 13], [18, 8]].forEach(function (h) { R.d[((h[1] + 1) * R.W + h[0] + 1) * 4 + 3] = 0; R.d[((h[1] + 1) * R.W + h[0] + 2) * 4 + 3] = 0; });
+      tips.forEach(function (T, k) { var mx = (wr[0] + T[0]) / 2 + (k - 2) * 0.6, my = (wr[1] + T[1]) / 2; lnV157A(R, wr[0], wr[1] + 2, mx, my + 2, e, 0.55); });
+      tips.forEach(function (T) { lnV157A(R, wr[0], wr[1], T[0], T[1], b); R.put(T[0] + (T[0] > wr[0] ? 1 : 0), T[1] + 1, b); });
+      lnV157A(R, 0, 9, wr[0], wr[1], b); lnV157A(R, 0, 8, wr[0], wr[1] - 1, light(b, 0.35));
+      R.put(9, 2, light(b, 0.3)); R.put(9, 1, light(b, 0.45)); R.put(10, 0, light(b, 0.6)); R.put(11, 0, [230, 220, 200]);
+      [[3, 6], [6, 4]].forEach(function (s) { R.put(s[0], s[1], light(b, 0.4)); R.put(s[0] + 1, s[1] - 1, [230, 220, 200]); });
+      R.outline([18, 2, 4]); } },
+    // DRAGON: a thick gold-boned arm with horn spikes, a big wrist horn, scaled green membrane, rounded scallops
+    dragon: { W: 24, H: 22, ay: 8, draw: function (R, a, b, e) {
+      var wr = [11, 3], tips = [[23, 5], [22, 12], [17, 17], [10, 20], [3, 16]], sc = light(a, 0.28), sd = dark(a, 0.3);
+      var memCol = function (x, y) { var dd = Math.hypot(x - wr[0], y - wr[1]) / 20, c = mix(a, sd, Math.min(1, dd * 0.7)); if (y % 2 === 0 && ((x + ((y >> 1) % 2) * 2) % 4) === 0) c = sc; else if (y % 2 === 1 && ((x + ((y >> 1) % 2) * 2) % 4) === 1) c = dark(c, 0.15); return c; };
+      for (var i = 0; i < tips.length; i++) {
+        var A = i === 0 ? [0, 8] : tips[i - 1], B = tips[i], mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2, ox = mx - wr[0], oy = my - wr[1], L = Math.hypot(ox, oy) || 1, bul = i === 0 ? 0 : 1.6;
+        polyV157A(R, i === 0 ? [[0, 8], wr, B] : [wr, A, [mx + ox / L * bul, my + oy / L * bul], B], memCol);
+      }
+      polyV157A(R, [[0, 8], wr, [3, 16], [0, 13]], memCol);
+      tips.forEach(function (T) { lnV157A(R, wr[0], wr[1], T[0], T[1], dark(b, 0.15)); R.put(T[0], T[1], light(b, 0.4)); });
+      lnV157A(R, 0, 8, wr[0], wr[1], b); lnV157A(R, 0, 9, wr[0], wr[1] + 1, dark(b, 0.2)); lnV157A(R, 0, 7, wr[0] - 1, wr[1] - 1, light(b, 0.4));
+      [[3, 5], [7, 3]].forEach(function (s) { R.put(s[0], s[1], light(b, 0.3)); R.put(s[0], s[1] - 1, light(b, 0.55)); });
+      R.put(11, 2, b); R.put(10, 1, light(b, 0.3)); R.put(10, 0, light(b, 0.55)); R.put(9, 0, light(b, 0.7)); R.put(12, 2, dark(b, 0.2));
+      R.outline(e); } },
+    // JET: a swept, panelled plate, a red stripe, two thruster pods firing downward (the exhaust flickers)
+    jet: { W: 23, H: 19, ay: 5, draw: function (R, a, b, e, fr) {
+      var P = [[0, 3], [20, 1], [22.5, 4], [7, 11], [0, 10]], stripe = [200, 40, 44];
+      polyV157A(R, P, function (x, y) { var d = edgeDistV157A(P, x + 0.5, y + 0.5);
+        if (x > 1 && x % 5 === 0) return dark(a, 0.25);
+        if (Math.abs(y - (3.6 - x * 0.1 + 1.6)) < 0.6 && x < 19) return stripe;
+        return d < 1 && y < 5 ? light(a, 0.35) : y > 7 ? mix(a, b, 0.5) : a; });
+      [5, 12].forEach(function (px, k) { var y0 = k ? 7 : 9, fl = 3 + ((fr | 0) % 2 ? 1 : 0) + k;
+        for (var y = y0; y <= y0 + 4; y++) { R.put(px, y, light(a, 0.35)); R.put(px + 1, y, a); R.put(px + 2, y, b); }
+        R.put(px, y0 + 5, dark(b, 0.4)); R.put(px + 1, y0 + 5, dark(b, 0.5)); R.put(px + 2, y0 + 5, dark(b, 0.4));
+        for (var f = 0; f < fl; f++) { var c = f === 0 ? [255, 250, 210] : f < 2 ? light(e, 0.3) : e; R.put(px + 1, y0 + 6 + f, c, 1 - f * 0.18); if (f < fl - 2) { R.put(px, y0 + 6 + f, e, 0.6); R.put(px + 2, y0 + 6 + f, e, 0.6); } } });
+      for (var q = 3; q < 19; q += 3) R.put(q, 3 - q * 0.1 + 0.4 | 0, light(a, 0.6));
+      R.put(21, 3, [255, 70, 70]);
+      R.outline([18, 22, 28]); } },
+    // HELLFIRE: a wing body of violet fire, tongues licking up off its top edge (they dance), embers inside
+    hellfire: { W: 21, H: 24, ay: 11, draw: function (R, a, b, e, fr) {
+      var P = [[0, 10], [8, 6], [20, 8], [15, 13], [17, 17], [10, 17], [9, 23], [5, 18], [1, 15]], f0 = fr | 0;
+      var topY = function (x) { return x <= 8 ? 10 - x * 0.5 : 6 + (x - 8) * 0.17; };
+      polyV157A(R, P, function (x, y) { var d = edgeDistV157A(P, x + 0.5, y + 0.5), t = (y - topY(x)) / 11, n = hV157A(x, y, 5 + f0);
+        if (d < 1.1) return mix(b, e, 0.6);
+        var c = t < 0.22 ? a : t < 0.45 ? light(b, 0.35) : t < 0.75 ? b : mix(b, e, 0.5);
+        if (n > 0.86) c = light(c, 0.35); else if (n < 0.1) c = dark(c, 0.2);
+        return c; });
+      [1, 4, 7, 10, 13, 16, 19].forEach(function (tx, k) {
+        var baseY = topY(tx) + 1, h = 3 + Math.round(hV157A(k, f0, 9) * 3) + (k === 3 || k === 5 ? 2 : 0), lean = (k % 2 ? 1 : -1) * (f0 ? 0.5 : -0.35) - 0.25;
+        for (var r = 0; r <= h; r++) { var rel = r / h, hw = (1 - rel) * 1.5, cx = tx + lean * rel * 2.2, y = Math.round(baseY) - r;
+          for (var q = Math.round(cx - hw); q <= Math.round(cx + hw); q++) { var dq = Math.abs(q - cx) / Math.max(0.6, hw); R.put(q, y, rel > 0.8 ? mix(b, e, 0.3) : dq < 0.45 && rel < 0.55 ? a : light(b, 0.3 * (1 - rel))); } }
+      });
+      R.outline(dark(e, 0.4), 0.75); } },
+    // CATHEDRAL: a lancet arch over a round lobe, leaded into cells of jewel glass, each with a glint
+    cathedral: { W: 20, H: 22, ay: 7, draw: function (R, a, b, e) {
+      var lead = e, pal = [a, b, [255, 199, 70], [63, 191, 127], [154, 75, 255], light(b, 0.35)];
+      var inside = function (x, y) { var up = y <= 13 && Math.hypot(x - 20, y - 13.5) <= 14.6 && Math.hypot(x - 3.5, y - 13.5) <= 14.6 && x >= 0; var lo = Math.hypot(x - 7, y - 16.5) <= 5.6; return up || lo; };
+      var cell = function (x, y) { var an = Math.atan2(y - 7, x + 1.5), r = Math.hypot(x + 1.5, y - 7); return [Math.floor((an + 1.6) / 0.4), r < 6.5 ? 0 : r < 12 ? 1 : 2]; };
+      for (var y = 0; y < 22; y++) for (var x = 0; x < 20; x++) {
+        if (!inside(x + 0.5, y + 0.5)) continue;
+        var c0 = cell(x + 0.5, y + 0.5), cR = cell(x + 1.5, y + 0.5), cD = cell(x + 0.5, y + 1.5), isLead = ((cR[0] !== c0[0] || cR[1] !== c0[1]) && inside(x + 1.5, y + 0.5)) || ((cD[0] !== c0[0] || cD[1] !== c0[1]) && inside(x + 0.5, y + 1.5));
+        if (Math.abs(y - 13.5) < 0.6 && x < 13) isLead = true;
+        if (isLead) { R.put(x, y, lead); continue; }
+        var col = pal[((c0[0] * 2 + c0[1] * 3) % pal.length + pal.length) % pal.length], cU = cell(x + 0.5, y - 0.5), cL = cell(x - 0.5, y + 0.5);
+        R.put(x, y, (cU[0] !== c0[0] || cU[1] !== c0[1]) && (cL[0] !== c0[0] || cL[1] !== c0[1]) ? light(col, 0.6) : (cU[1] !== c0[1] || cU[0] !== c0[0]) ? light(col, 0.25) : col);
+      }
+      R.outline(dark(lead, 0.3)); } },
+    // PRISM: three glass panes fanned from the shoulder, a rainbow refracting through each, sparkles on the edges
+    prism: { W: 21, H: 21, ay: 8, draw: function (R, a, b, e) {
+      var spec = [[255, 77, 77], [255, 169, 77], [255, 225, 77], [77, 217, 122], [77, 166, 255], [154, 107, 255]];
+      [[-0.55, 20, 5], [-0.05, 18, 5.5], [0.55, 15, 5]].forEach(function (pn, k) {
+        var ca = Math.cos(pn[0]), sa = Math.sin(pn[0]), L = pn[1], Wd = pn[2];
+        for (var y = 0; y < 21; y++) for (var x = 0; x < 21; x++) {
+          var dx = x + 0.5 - 0.5, dy = y + 0.5 - 8, t = dx * ca + dy * sa, v = -dx * sa + dy * ca; if (t < 0 || t > L) continue;
+          var hw = Wd / 2 * Math.min(1, t / L * 1.25) * (t > L * 0.8 ? (L - t) / (L * 0.2) : 1) + 0.3; if (Math.abs(v) > hw) continue;
+          var c = v < 0 ? a : b, rt = t / L;
+          if (rt > 0.5 && rt < 0.92) { var si = Math.min(5, Math.max(0, Math.floor((v / hw + 1) / 2 * 6))); c = mix(spec[si], c, 0.3); }
+          if (Math.abs(Math.abs(v) - hw) < 0.75) c = v < 0 ? WHITE_V157A : light(b, 0.3);
+          R.put(x, y, c, 0.92);
+        }
+      });
+      [[12, 2], [16, 9], [10, 15]].forEach(function (s) { R.put(s[0], s[1], WHITE_V157A); R.put(s[0] - 1, s[1], light(a, 0.5)); R.put(s[0] + 1, s[1], light(a, 0.5)); R.put(s[0], s[1] - 1, light(a, 0.5)); R.put(s[0], s[1] + 1, light(a, 0.5)); });
+      R.outline(e, 0.9); } },
+    // GILDED AEGIS: three rows of gold armour plates hung from a gem-set arm
+    gilded: { W: 23, H: 22, ay: 8, draw: function (R, a, b, e) {
+      var arm = function (x) { return 8 - 6 * Math.sin(Math.min(1, x / 13) * Math.PI / 2) + Math.max(0, x - 13) * 0.25; }, gem = [58, 127, 255], edge = dark(b, 0.3);
+      var plate = function (x0, y0, L, ang, w) { var sa = Math.sin(ang), ca = Math.cos(ang);
+        for (var s = 0; s <= L; s++) for (var q = 0; q < w; q++) { if (s === L && q !== 1) continue; var px = x0 + sa * s + q, py = y0 + ca * s;
+          R.put(px, py, s === L ? edge : q === 0 ? light(a, 0.45) : q === w - 1 ? edge : s <= 1 ? light(a, 0.2) : s >= L - 1 ? b : a); } };
+      [[12, 11, 0.4], [15, 12, 0.55], [18, 11, 0.7], [20.5, 9, 0.85]].forEach(function (p) { plate(p[0], arm(p[0]) + 1, p[1], p[2], 3); });   // the primaries
+      [[0.5, 7], [3.5, 8], [6.5, 8], [9.5, 8]].forEach(function (p) { plate(p[0], arm(p[0]) + 2, p[1], 0.08, 3); });   // the secondaries
+      for (var n = 0; n <= 15; n += 3) plate(n, arm(n), 3, 0, 3);   // the coverts
+      for (var x = 0; x <= 22; x++) { var y = Math.round(arm(x)); R.put(x, y - 1, light(a, 0.6)); R.put(x, y, light(a, 0.2)); }
+      [[1, 6], [13, 1]].forEach(function (g) { R.put(g[0], g[1], light(gem, 0.6)); R.put(g[0] + 1, g[1], gem); R.put(g[0], g[1] + 1, gem); R.put(g[0] + 1, g[1] + 1, dark(gem, 0.4)); });
+      R.outline(e); } },
+    // GALAXY: a long sickle of night sky — a nebula of violet and pink, stars that twinkle, a bright star at the tip
+    galaxy: { W: 22, H: 20, ay: 7, draw: function (R, a, b, e, fr) {
+      var top = function (x) { return 7 - 6.5 * Math.sin(Math.min(1, x / 16) * Math.PI / 2); }, bot = function (x) { return 7 + 10 * Math.sin(Math.PI * Math.min(1, x / 21)) * (1 - x / 30) + 1; };
+      for (var x = 0; x < 22; x++) for (var y = Math.round(top(x)); y <= Math.round(bot(x)); y++) {
+        if (x > 17 && y > top(x) + (21 - x) * 0.9 + 1) continue;
+        var n1 = vnV157A(x, y, 5, 21), n2 = vnV157A(x + 30, y, 4, 22), c = mix(a, b, Math.max(0, n1 - 0.25) * 1.2);
+        if (n2 > 0.62) c = mix(c, e, (n2 - 0.62) * 2);
+        var s = hV157A(x, y, 31); if (s > 0.94) c = (s > 0.975 && (fr | 0)) ? light(e, 0.6) : WHITE_V157A; else if (s > 0.9) c = light(c, 0.35);
+        R.put(x, y, c);
+      }
+      R.put(21, 0, WHITE_V157A); R.put(20, 0, light(e, 0.5)); R.put(21, 1, light(e, 0.5));
+      R.outline(light(b, 0.25), 0.8); } }
+  };
+  /* the member looks: "member" while v156 C is on (TU v156Ccos), their v153 G-style achievement with it off — the same
+   * getters v156 C's `resourceV156C` gives its own (listed in RULES_V156C, so `__V156C.rules()` names them) */
+  (function resourceV157A() {
+    ["wings_storm", "wings_cyber", "wings_shade", "wings_demon", "wings_jet", "wings_hellfire", "wings_cathedral", "wings_galaxy"].forEach(function (id) {
+      var it = BY[id]; if (!it || it._v157A) return;
+      var src0 = it.source, ach0 = it.ach;   // kept here, not in _src0: v156 C's grandfathering never hands a device a look it never had
+      RULES_V156C[id] = "member"; it._v157A = 1; delete it.source; delete it.ach;
+      Object.defineProperty(it, "source", { enumerable: true, configurable: true, get: function () { return cosOnV156C() ? "member" : src0; } });
+      Object.defineProperty(it, "ach", { enumerable: true, configurable: true, get: function () { return cosOnV156C() ? undefined : ach0; } });
+    });
+  })();
+  function wingKindV157A(k) { return !!(k && Object.prototype.hasOwnProperty.call(WINGS_V157A || {}, k)); }
+  function wingArtV157A(w, frame, key) {
+    var D = WINGS_V157A[w.kind], cols = w.col || ["#ffffff", "#cccccc", "#555555"], R = new Raster(D.W, D.H);
+    try { D.draw(R, colRgb(cols[0]), colRgb(cols[1]), colRgb(cols[2]), frame | 0); } catch (e) { errV157A(e); }
+    var cv = R.canvas();
+    return (ART_V153G[key] = { key: key, cv: cv, ax: 1, ay: D.ay + 1, w: cv.width, h: cv.height });
+  }
+  // the kinds that animate on the field (the flame's own flicker is v153 G's)
+  var ANIM_V157A = { lightning: 90, hellfire: 120, jet: 80, shadow: 260, galaxy: 420, cyber: 300 };
+  function wingFrameV157A(kind, now) { var ms = ANIM_V157A[kind]; return ms ? ((now / ms) | 0) % 2 : 0; }
+
+  /* ---- THE FLAP: a pure function of the time (ms) ---- */
+  var RM_V157A = null;
+  function reducedV157A() { try { if (!RM_V157A && window.matchMedia) RM_V157A = window.matchMedia("(prefers-reduced-motion: reduce)"); return !!(RM_V157A && RM_V157A.matches); } catch (e) { return false; } }
+  var REST_V157A = { on: false, f: 0, rot: 0, sy: 1, beat: false };
+  function flapPoseV157A(t) {
+    if (!flapOnV157A()) return REST_V157A;
+    if (reducedV157A()) return { on: true, f: 0, rot: 0, sy: 1, beat: false, reduced: true };
+    var P = Math.max(400, TUv("wingFlapPeriodV157A", 3400)), D = Math.min(P, Math.max(100, TUv("wingFlapMsV157A", 760))), beats = Math.max(1, TUv("wingFlapBeatsV157A", 2));
+    var ph = ((t % P) + P) % P;
+    if (ph >= D) return { on: true, f: 0, rot: 0, sy: 1, beat: false };
+    var u = ph / D, f = Math.sin(2 * Math.PI * beats * u) * Math.pow(Math.sin(Math.PI * u), 0.5);
+    return { on: true, f: f, rot: f * TUv("wingFlapAmpV157A", 0.42), sy: 1 - TUv("wingFlapSquashV157A", 0.16) * Math.max(0, -f), beat: true };
+  }
+  function fieldPoseV157A(p, now, wd) { G157.fieldN++; G157.field = { t: now, rot: p.rot, sy: p.sy, beat: p.beat, kind: wd && wd.kind }; }
+  /* the card and the Locker previews: one rAF ticker repaints each registered canvas while a beat is on (and once
+   * when it ends), and forgets a canvas the moment it leaves the page */
+  var FLAPS_V157A = [], rafV157A = 0;
+  function flapRegV157A(cv, paint, where) {
+    try {
+      if (!flapOnV157A()) return false;
+      for (var i = 0; i < FLAPS_V157A.length; i++) if (FLAPS_V157A[i].cv === cv) { FLAPS_V157A[i].paint = paint; FLAPS_V157A[i].last = null; return true; }
+      FLAPS_V157A.push({ cv: cv, paint: paint, where: where || "", last: null }); G157.regs++;
+      if (!rafV157A && window.requestAnimationFrame) rafV157A = requestAnimationFrame(flapTickV157A);
+      return true;
+    } catch (e) { errV157A(e); return false; }
+  }
+  function flapTickV157A() {
+    rafV157A = 0;
+    try {
+      var pose = flapPoseV157A(performance.now()), key = pose.beat ? pose.rot.toFixed(3) + "|" + pose.sy.toFixed(3) : "rest";
+      G157.ticks++;
+      for (var i = FLAPS_V157A.length - 1; i >= 0; i--) {
+        var r = FLAPS_V157A[i];
+        if (!r.cv.isConnected) { if ((r.miss = (r.miss | 0) + 1) > 120) FLAPS_V157A.splice(i, 1); continue; }
+        r.miss = 0;
+        if (r.last === key) continue;
+        r.last = key; try { r.paint(pose.beat ? pose : null); G157.paints++; } catch (e) { errV157A(e); }
+      }
+    } catch (e) { errV157A(e); }
+    if (FLAPS_V157A.length && window.requestAnimationFrame) rafV157A = requestAnimationFrame(flapTickV157A);
+  }
+
+  /* ---- THE CROWNS: symmetric pixel maps (the LEFT half + the centre column, mirrored) ----
+   * H highlight · L light · M metal · D dark · K deep   J jewel · j its shade · w its light · W white
+   * P pearl · p its shade   V velvet · v its light   E ermine · e its spot   T/U/X/B/Z the horn's ramp (tip → base, ridge) */
+  function crownMapsV157A() {
+    return {
+      crown: { h: 12, rows: [
+        ".......", "......J", ".....wJ", "..J..jJ", ".wJj..H", "..j..LM", "..L..LM", ".LMD.LM", "LMMMDLM", "LHHHHHH", "MwJMMwJ", "KDDDDDD"],
+        shine: [[5, 2, "W"], [1, 4, "W"], [1, 10, "W"]], glint: [6, 1] },
+      king: { h: 13, rows: [
+        ".......M", "......LM", ".......M", "......LH", "....P.DM", ".P..pvVL", ".p..MVVM", ".M.LMVvM", "LMDLMDVM", "HHHHHHHH", "MwJMPMwJ", "DDjDDDDj", "EeEEEeEE"],
+        shine: [[6, 1, "H"], [4, 4, "W"], [1, 5, "W"], [6, 10, "W"]], glint: [7, 0] },
+      circlet: { h: 8, rows: [
+        ".......", "......M", ".....wJ", "....MJJ", "....MjJ", ".J...Dj", "LHHHHLM", "DMMMMMD"],
+        shine: [[5, 2, "W"]], glint: [6, 2] },
+      star: { h: 9, rows: [
+        "......J", "......J", "..J.JJW", ".JWJ.JJ", "..J..J.", "..M...M", "LHHHHHH", "MMJMMPM", "DDDDDDD"],
+        shine: [], glint: [6, 0] },
+      horns: { h: 9, rows: [
+        "T.......", "TU......", "HU......", "UXZ.....", ".XU.....", ".ZXB....", "..XBZ...", "..ZBBB..", "...ZBBZ."],
+        shine: [[0, 0, "W"]], glint: [0, 0] }
+    };
+  }
+  function crownPalV157A(a, b, e) {
+    var W = WHITE_V157A;
+    return { H: light(a, 0.6), L: light(a, 0.28), M: a, D: mix(a, e, 0.4), K: mix(a, e, 0.75), J: b, j: dark(b, 0.38), w: light(b, 0.45), W: W,
+      P: [250, 244, 230], p: [196, 184, 160], V: dark(b, 0.5), v: dark(b, 0.28), E: [240, 236, 228], e: [34, 30, 36],
+      T: light(a, 0.2), U: a, X: mix(a, b, 0.55), B: b, Z: mix(b, e, 0.55) };
+  }
+  function drawMapV157A(R, rows, pal, W) {
+    rows.forEach(function (row, y) { for (var x = 0; x < W; x++) { var hx = x < row.length ? x : W - 1 - x, ch = row.charAt(hx); if (ch && ch !== "." && pal[ch]) R.put(x, y, pal[ch]); } });
+  }
+  function glintV157A(R, gx, gy) {   // a four-point sparkle over the top jewel
+    R.put(gx, gy, WHITE_V157A);
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) { R.put(gx + d[0], gy + d[1], WHITE_V157A, 0.85); });
+    [[2, 0], [-2, 0], [0, -2]].forEach(function (d) { R.put(gx + d[0], gy + d[1], WHITE_V157A, 0.4); });
+  }
+  function crownArtV157A(cr, frame) {
+    var key = "c157|" + cr.kind + "|" + (cr.col || []).join(",") + "|" + (frame | 0);
+    if (ART_V153G[key]) return ART_V153G[key];
+    var cols = cr.col || ["#f0bb45", "#c8102e", "#6b4a0e"], K = cr.kind, a = colRgb(cols[0]), b = colRgb(cols[1]), e = colRgb(cols[2]), R, W, H, gl = null, fr = frame | 0, glintOn = fr === 2;
+    try {
+      var maps = crownMapsV157A(), pal = crownPalV157A(a, b, e), m = maps[K];
+      if (m) {
+        W = m.rows[0].length * 2 - 1; H = m.h; R = new Raster(W, H);
+        drawMapV157A(R, m.rows, pal, W);
+        m.shine.forEach(function (s) { R.put(s[0], s[1], pal[s[2]]); });
+        R.outline(K === "horns" ? dark(e, 0.2) : dark(e, 0.45));
+        gl = m.glint;
+      } else if (K === "halo") {
+        W = 17; H = 6; R = new Raster(W, H);
+        for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) {
+          var ev = Math.pow((x + 0.5 - 8.5) / 8.5, 2) + Math.pow((y + 0.5 - 3) / 3, 2); if (ev > 1.02 || ev < 0.42) continue;
+          var front = y + 0.5 > 3, c = front ? (ev > 0.86 ? mix(a, e, 0.15) : ev > 0.68 ? a : light(b, 0.1)) : ev > 0.8 ? mix(a, e, 0.3) : mix(a, e, 0.55);
+          if (front && Math.abs(x - 8) > 5) c = mix(c, e, 0.2);
+          R.put(x, y, c);
+        }
+        R.put(3, 4, WHITE_V157A); R.put(4, 5, light(b, 0.3)); R.put(13, 4, light(a, 0.4));
+        R.outline(light(a, 0.2), 0.4);
+        gl = [4, 4];
+      } else if (K === "laurel") {
+        W = 15; H = 10; R = new Raster(W, H);
+        var lh = light(a, 0.45), ld = mix(a, b, 0.7), stem = mix(b, e, 0.5), rib = [200, 32, 58], ribL = [240, 90, 110];
+        var ids = {}, cols2 = {}, put2 = function (x, y, c, id) { x = Math.round(x); y = Math.round(y); if (x > 7 || x < 0 || y < 0 || y >= H) return; cols2[x + "," + y] = c; ids[x + "," + y] = id; };
+        var leaf = function (cx, cy, dx, dy, len, wid, id) {   // an oriented leaf: lit on its upper side, darker underneath
+          for (var y = Math.floor(cy - 3); y <= cy + 3; y++) for (var x = Math.floor(cx - 3); x <= Math.min(7, cx + 3); x++) {
+            var px = x + 0.5 - cx, py = y + 0.5 - cy, u = px * dx + py * dy, v = -px * dy + py * dx, sg = dx < 0 ? -1 : 1; if ((u * u) / (len * len) + (v * v) / (wid * wid) > 1) continue;
+            put2(x, y, v * sg < -0.2 ? lh : u > len * 0.4 ? lh : v * sg > 0.4 ? ld : a, id); } };
+        var stemAt = function (t) { return [6.4 - 6 * t, 8.2 - 4.8 * t]; };
+        [[0.1, 1], [0.27, -1], [0.44, 1], [0.61, -1], [0.78, 1], [0.93, -1]].forEach(function (Lf, k) {
+          var S = stemAt(Lf[0]), d = Lf[1] > 0 ? [-0.45, -0.89] : [-0.97, 0.22];
+          leaf(S[0] + d[0] * 1.7, S[1] + d[1] * 1.7, d[0], d[1], 1.8, 0.9, k + 1); });
+        leaf(0.5, 2.5, -0.62, -0.78, 1.9, 0.9, 9);
+        for (var i = 0; i <= 10; i++) { var S2 = stemAt(i / 10); put2(S2[0], S2[1], stem, 0); }
+        Object.keys(cols2).forEach(function (k) {   // a dark seam wherever one leaf meets another, so each reads on its own
+          var xy = k.split(","), x = +xy[0], y = +xy[1], id = ids[k], c = cols2[k];
+          if (id > 0 && [[1, 0], [0, 1], [-1, 0], [0, -1]].some(function (d) { var j = ids[(x + d[0]) + "," + (y + d[1])]; return j > 0 && j > id; })) c = mix(ld, e, 0.35);
+          R.put(x, y, c); if (x < 7) R.put(W - 1 - x, y, c); });
+        R.put(7, 9, rib); R.put(6, 9, rib); R.put(8, 9, rib); R.put(7, 8, ribL); R.put(5, 9, dark(rib, 0.3)); R.put(9, 9, dark(rib, 0.3));
+        R.outline(dark(e, 0.2), 0.9);
+        gl = [1, 1];
+      } else if (K === "flame") {
+        W = 13; H = 11; R = new Raster(W, H);
+        var band = mix(b, e, 0.25), core = a, mid = b, out = e;
+        [[1, 3], [3.8, 5], [6, 7], [8.2, 5], [11, 3]].forEach(function (tg, k) {
+          var h = tg[1] + (hV157A(k, fr & 1, 3) > 0.5 ? 1 : 0), lean = (k < 2 ? -0.4 : k > 2 ? 0.4 : 0) + ((fr & 1) ? 0.3 : -0.3) * (k % 2 ? 1 : -1);
+          for (var r = 0; r <= h; r++) { var rel = r / h, hw = (1 - rel) * (k === 2 ? 2.1 : 1.6), cx = tg[0] + lean * rel * 2, yy = 7 - r;
+            for (var q = Math.round(cx - hw); q <= Math.round(cx + hw); q++) { var dq = Math.abs(q - cx) / Math.max(0.6, hw); R.put(q, yy, rel > 0.85 ? out : dq < 0.4 && rel < 0.6 ? core : dq < 0.8 && rel < 0.8 ? mid : out); } }
+        });
+        for (var bx = 0; bx < W; bx++) { R.put(bx, 8, light(band, 0.4)); R.put(bx, 9, band); R.put(bx, 10, dark(band, 0.35)); }
+        [2, 6, 10].forEach(function (q) { R.put(q, 9, q === 6 ? [255, 255, 255] : light(e, 0.2)); });
+        R.outline([58, 10, 4], 0.8);
+        gl = [6, 0];
+      } else return null;
+      if (glintOn && gl) glintV157A(R, gl[0], gl[1]);
+    } catch (x) { errV157A(x); }
+    if (!R) return null;
+    var cv = R.canvas();
+    return (ART_V153G[key] = { key: key, cv: cv, ax: Math.floor(cv.width / 2), ay: cv.height - 1, w: cv.width, h: cv.height });
+  }
+  // on the field a crown catches the light for ~200ms every few seconds
+  function crownGlintV157A(now) { if (!crownOnV157A() || reducedV157A()) return 0; var P = Math.max(600, TUv("crownGlintPeriodV157A", 2900)); return ((now % P) + P) % P < TUv("crownGlintMsV157A", 200) ? 2 : 0; }
+
+  G157.pose = flapPoseV157A; G157.kinds = function () { return Object.keys(WINGS_V157A); }; G157.items = function () { return itemsV157A().map(function (i) { return i.id; }); };
+  G157.crownArt = crownArtV157A; G157.glint = crownGlintV157A; G157.frame = wingFrameV157A; G157.registered = function () { return FLAPS_V157A.map(function (r) { return { where: r.where, on: !!r.cv.isConnected, last: r.last }; }); };
+  G157.crownOn = crownOnV157A; G157.flapOn = flapOnV157A; G157.reduced = reducedV157A;
+  /* ===== v157 B AURAS ALIVE, TRAILS YOU CAN SPOT =====
+   * The owner: "The aura, make 19 more, up the coolness. Animated auras on the profile page. Footprints are amazing, love
+   * the big one, flames, etc. Add 15 SICK looking footprint trails. These help distinguish your character in a fast
+   * moving game."
+   *   AURAS   19 new ones, each a small particle program in `AFX_V157B` (its item's `au.fx`): storm, inferno, crystal, rift,
+   *           galaxy, corona, bloodmoon, toxic, neon, pillar, shadow, coins, plasma, sakura, borealis, matrix, embers,
+   *           ghostfire, prism. One painter interface draws them (rect / circ / seg / tri / ring / ell / ellS: a Phaser
+   *           Graphics on the field, a 2D canvas on the card and in the Locker) in two layers, behind him (0) and in front (1).
+   *           PROFILE CARD: every aura animates — the v153 G ones too (`LEGACY_V157B`: breathing motes, pulse rings, embers,
+   *           snow, a spiral) — on two canvases of its own (`cardAuraV157B`, beside cardFlair's). LOCKER: animated previews.
+   *           LIVE FIELD: the new ones add their particles over v153 G's glow image, two Graphics children of his container,
+   *           lighter (TU `v157BauraFieldQ` 0.6 of the count, `v157BauraCap` 90 primitives a frame).
+   *   TRAILS  15 new footprints in `TFX_V157B` (the item's `tr.fx`). Inferno and Meteor Strike are the two BIG ones (taller
+   *           than Scorched Cleats, the one the owner loves); then lightning cleats, a neon light wall, ice shards, lava
+   *           cracks, gold coins, confetti, galaxy dust, shadow smoke, toxic slime, cherry blossoms, pixel hearts, rune
+   *           glyphs, prism bursts. They go through v153 G's one trail Graphics (depth 3.9, under the players), newest
+   *           first under a per-frame primitive cap (TU `v157BtrailCap` 160). Every footprint previews ANIMATED in the
+   *           Locker (the prints stream away behind him).
+   * SOURCES (v156 C's call: the nicest looks are hard): 12 auras + 10 trails are `member` ("🔒 Membership" while the store
+   * is OFF — listed, never owned); earned late (League MVP, the Interstellar League, 3 UFF rings, Legacy medal 300, the
+   * fifth generation) or at the UFF; free: Sakura Drift, Smoke & Embers, Confetti Pop, Pixel Hearts.
+   * RANDOMNESS: none. Every particle is a function of the clock (the scene's on the field, the rAF clock on the card)
+   * and an integer hash of its index (`ihV153G`): seeded games stay identical and src/28 still spends no Math.random.
+   * prefers-reduced-motion: the card and the previews draw one still frame. ONE rAF loop drives every animated canvas
+   * (~25 fps, TU `v157Bfps`; at most TU `v157BcardMax` 6 cards), skips what is off screen, stops when none is left.
+   * Kill switches: TU `v157Baura` 0 → v153 G's static glow everywhere (a new aura wears its base `kind`); TU `v157Btrail`
+   * 0 → a new trail draws as its base v153 G `kind` and the previews are still. `window.__V157B`; v157Bcheck. */
+  function auraOnV157B() { return !!TUv("v157Baura", 1); }
+  function trailOnV157B() { return !!TUv("v157Btrail", 1); }
+  var V157 = (window.__V157B = window.__V157B || { field: { aura: 0, trail: 0 }, anim: { targets: 0, frames: 0, draws: 0 }, card: null, previews: 0, errs: [] });
+  function errV157B(e) { try { if (V157.errs.length < 8) V157.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  var MQ_V157B = null;
+  function reducedV157B() { try { if (!MQ_V157B && window.matchMedia) MQ_V157B = matchMedia("(prefers-reduced-motion: reduce)"); return !!(MQ_V157B && MQ_V157B.matches); } catch (e) { return false; } }
+  var TAU_V157B = 6.2832, STILL_T_V157B = 1000000;
+  function frV157B(x) { return x - Math.floor(x); }
+
+  /* ---- the catalogue (hoisted: ITEMS takes it at the top of the file) ---- */
+  function itemsV157B() {
+    var A = function (id, name, rarity, src, ach, kind, col, fx, pal) { var it = { id: id, cat: "aura", name: name, rarity: rarity, source: src, au: { kind: kind, col: col, fx: fx, pal: pal } }; if (ach) it.ach = ach; return it; };
+    var T = function (id, name, rarity, src, ach, kind, col, fx) { var it = { id: id, cat: "trail", name: name, rarity: rarity, source: src, tr: { kind: kind, col: col, fx: fx } }; if (ach) it.ach = ach; return it; };
+    return [
+      // AURAS — `kind` is the v153 G glow under the particles (and all that is drawn with TU v157Baura 0)
+      A("aura_embers", "Smoke & Embers", "common", "free", null, "flicker", "#ff9a3a", "embers", ["#6b6f78", "#ffb02e", "#ff5a1a", "#ffe7a0"]),
+      A("aura_sakura", "Sakura Drift", "rare", "free", null, "glow", "#ffb3c7", "sakura", ["#ffb3c7", "#ff7aa2", "#ffe14d"]),
+      A("aura_toxic", "Toxic Cloud", "rare", "earned", "uff", "glow", "#7dff3a", "toxic", ["#c8ff6f", "#7dff3a", "#2f8a1f", "#ffffff"]),
+      A("aura_matrix", "Code Rain", "epic", "earned", "mvp", "glow", "#39ff6a", "matrix", ["#e8ffe8", "#39ff6a", "#0f8a2a"]),
+      A("aura_galaxy", "Galaxy Swirl", "legendary", "earned", "interstellar", "void", "#6a4cff", "galaxy", ["#ffffff", "#b9a6ff", "#ff9ad5", "#6fd3ff", "#3a1f8a"]),
+      A("aura_bloodmoon", "Blood Moon", "legendary", "earned", "rings3", "glow", "#c8102e", "bloodmoon", ["#b3121f", "#6a0a12", "#ff6a5a", "#7a1a22", "#120608"]),
+      A("aura_pillar", "Heaven's Pillar", "legendary", "earned", "legacy300", "pulse", "#fff3c4", "pillar", ["#ffffff", "#fff3c4", "#ffd76f"]),
+      A("aura_crystal", "Crystal Orbit", "epic", "member", null, "frost", "#8fd0ff", "crystal", ["#ffffff", "#bfe6ff", "#5aa8ff", "#2a5f8f"]),
+      A("aura_neon", "Neon Grid", "epic", "member", null, "glow", "#ff3df2", "neon", ["#ff3df2", "#6ff7ff", "#ffffff"]),
+      A("aura_shadow", "Shadow Tendrils", "epic", "member", null, "void", "#5a1f8a", "shadow", ["#14081c", "#8a3aff", "#ff3b5a"]),
+      A("aura_inferno", "Inferno Pillar", "legendary", "member", null, "flicker", "#ff7a1a", "inferno", ["#fff3a0", "#ffb02e", "#ff5a1a", "#b8200f"]),
+      A("aura_corona", "Solar Corona", "legendary", "member", null, "pulse", "#ffb02e", "corona", ["#fff6c0", "#ffd76f", "#ff9a1f", "#ff5a1a"]),
+      A("aura_coins", "Money Shower", "legendary", "member", null, "glow", "#ffd76f", "coins", ["#fff6c0", "#ffd76f", "#8a5a08"]),
+      A("aura_borealis", "Aurora Borealis", "legendary", "member", null, "glow", "#3fffb0", "borealis", ["#3fffb0", "#2fd3ff", "#b06bff"]),
+      A("aura_ghostfire", "Ghost Flames", "legendary", "member", null, "flicker", "#4da6ff", "ghostfire", ["#e0f7ff", "#6fd3ff", "#1f6fff"]),
+      A("aura_storm", "Thunderhead", "mythic", "member", null, "pulse", "#8fb4ff", "storm", ["#2a3040", "#9fd4ff", "#ffffff", "#6f8cff", "#4a5468"]),
+      A("aura_rift", "Void Rift", "mythic", "member", null, "void", "#b04bff", "rift", ["#12051f", "#b04bff", "#ff5af0", "#e8d0ff"]),
+      A("aura_plasma", "Plasma Ring", "mythic", "member", null, "pulse", "#6ff7ff", "plasma", ["#ffffff", "#6ff7ff", "#b98bff"]),
+      A("aura_prism", "Prism", "mythic", "member", null, "pulse", "#ffffff", "prism", ["#ff4d4d", "#ffa94d", "#ffe14d", "#4dd97a", "#4da6ff", "#9a6bff", "#ffffff"]),
+      // FOOTPRINTS — `kind` is the v153 G trail drawn with TU v157Btrail 0
+      T("trail_confetti", "Confetti Pop", "common", "free", null, "pixels", ["#ff4d6d", "#ffd23f", "#3fd0ff", "#7dff6a", "#b06bff", "#ffffff"], "confetti"),
+      T("trail_hearts", "Pixel Hearts", "rare", "free", null, "pixels", ["#ff2d55", "#ff7aa2", "#ffffff"], "hearts"),
+      T("trail_slime", "Toxic Slime", "rare", "earned", "uff", "smoke", ["#e0ffc0", "#7dff3a", "#1f6a12"], "slime"),
+      T("trail_lava", "Lava Cracks", "legendary", "earned", "rings3", "flame", ["#fff3a0", "#ff9a1f", "#e0301a", "#2a0a05"], "lava"),
+      T("trail_runes", "Rune Glyphs", "legendary", "earned", "gen5", "sparks", ["#fff3a0", "#6ff7ff", "#ffd76f"], "runes"),
+      T("trail_tron", "Neon Light Wall", "epic", "member", null, "comet", ["#ffffff", "#6ff7ff", "#ff3df2"], "tron"),
+      T("trail_shards", "Ice Shards", "epic", "member", null, "ice", ["#ffffff", "#8fe3ff", "#bfe6ff"], "shards"),
+      T("trail_shadow", "Shadow Smoke", "epic", "member", null, "smoke", ["#14081c", "#8a3aff", "#ff3b5a"], "shadow"),
+      T("trail_sakura", "Cherry Blossoms", "epic", "member", null, "petals", ["#ffb3c7", "#ff7aa2", "#ffe14d"], "sakura"),
+      T("trail_bolts", "Lightning Cleats", "legendary", "member", null, "lightning", ["#ffffff", "#bfe6ff", "#6f8cff"], "bolts"),
+      T("trail_coins", "Gold Coins", "legendary", "member", null, "sparks", ["#fff6c0", "#ffd76f", "#8a5a08"], "coins"),
+      T("trail_galaxy", "Galaxy Dust", "legendary", "member", null, "stars", ["#ffffff", "#8a5cff", "#3f7bff", "#ff9ad5"], "galaxy"),
+      T("trail_prism", "Prism Burst", "legendary", "member", null, "rainbow", ["#ff4d4d", "#ffa94d", "#ffe14d", "#4dd97a", "#4da6ff", "#9a6bff", "#ffffff"], "prism"),
+      T("trail_inferno", "Inferno", "mythic", "member", null, "flame", ["#fff3a0", "#ffb02e", "#ff5a1a", "#b8200f"], "inferno"),
+      T("trail_meteor", "Meteor Strike", "mythic", "member", null, "comet", ["#fff6c0", "#ffb02e", "#ff4a1a"], "meteor")
+    ];
+  }
+
+  /* ---- the painter: the same seven calls on a Phaser Graphics and on a 2D canvas (v153 G's adapters delegate here) ---- */
+  function gAdapterV157B(g) { return {
+    rect: function (x, y, w, h, c, a) { g.fillStyle(c, a); g.fillRect(x, y, w, h); },
+    circ: function (x, y, r, c, a) { g.fillStyle(c, a); g.fillCircle(x, y, r); },
+    seg: function (x1, y1, x2, y2, w, c, a) { g.lineStyle(w, c, a); g.lineBetween(x1, y1, x2, y2); },
+    tri: function (x1, y1, x2, y2, x3, y3, c, a) { g.fillStyle(c, a); g.fillTriangle(x1, y1, x2, y2, x3, y3); },
+    ring: function (x, y, r, w, c, a) { g.lineStyle(w, c, a); g.strokeCircle(x, y, r); },
+    ell: function (x, y, rx, ry, c, a) { g.fillStyle(c, a); g.fillEllipse(x, y, rx * 2, ry * 2, 14); },
+    ellS: function (x, y, rx, ry, w, c, a) { g.lineStyle(w, c, a); g.strokeEllipse(x, y, rx * 2, ry * 2, 20); } }; }
+  var HEXC_V157B = {};
+  function hexV157B(c) { return HEXC_V157B[c] || (HEXC_V157B[c] = "#" + ("00000" + (c >>> 0).toString(16)).slice(-6)); }
+  function cAdapterV157B(ctx) {
+    var al = function (a) { ctx.globalAlpha = a > 1 ? 1 : a < 0 ? 0 : a; };
+    return {
+      rect: function (x, y, w, h, c, a) { al(a); ctx.fillStyle = hexV157B(c); ctx.fillRect(x, y, w, h); },
+      circ: function (x, y, r, c, a) { if (!(r > 0)) return; al(a); ctx.fillStyle = hexV157B(c); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU_V157B); ctx.fill(); },
+      seg: function (x1, y1, x2, y2, w, c, a) { al(a); ctx.strokeStyle = hexV157B(c); ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); },
+      tri: function (x1, y1, x2, y2, x3, y3, c, a) { al(a); ctx.fillStyle = hexV157B(c); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3); ctx.closePath(); ctx.fill(); },
+      ring: function (x, y, r, w, c, a) { if (!(r > 0)) return; al(a); ctx.strokeStyle = hexV157B(c); ctx.lineWidth = w; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU_V157B); ctx.stroke(); },
+      ell: function (x, y, rx, ry, c, a) { if (!(rx > 0 && ry > 0)) return; al(a); ctx.fillStyle = hexV157B(c); ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, TAU_V157B); ctx.fill(); },
+      ellS: function (x, y, rx, ry, w, c, a) { if (!(rx > 0 && ry > 0)) return; al(a); ctx.strokeStyle = hexV157B(c); ctx.lineWidth = w; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, TAU_V157B); ctx.stroke(); }
+    };
+  }
+  /* a budget over a painter: past `n` primitives every call is a no-op (the per-frame particle cap) */
+  var PAINT_V157B = ["rect", "circ", "seg", "tri", "ring", "ell", "ellS"];
+  function capV157B(A, n) {
+    var left = n, W = { used: 0, left: function () { return left; } };
+    PAINT_V157B.forEach(function (k) { var f = A[k]; W[k] = function () { if (left <= 0) return; left--; W.used++; f.apply(null, arguments); }; });
+    return W;
+  }
+
+  /* ---- AURAS: o = { t ms, cx, cy (his middle), top, fy (his feet), h, u (one sprite pixel), L (0 behind / 1 in front),
+   *      q (how many particles), c [colours], C(i), r(i) a hash in [0,1), n(k) a particle count scaled by q } ---- */
+  function auraCtxV157B(d, t, geo, L, q) {
+    var seed = d._seedV157B || (d._seedV157B = (hsh(d.fx || d.kind || "aura") % 9973) + 1);
+    var pal = d.col === "team" ? [colNum("team"), 0xffffff] : d._palV157B || (d._palV157B = (d.pal && d.pal.length ? d.pal : [d.col, "#ffffff"]).map(colNum));
+    var h = Math.max(8, geo.bot - geo.top);
+    return { t: t, cx: geo.cx, cy: (geo.top + geo.bot) / 2, top: geo.top, fy: geo.bot, h: h, u: h / 44 * (geo.uMul || 1), L: L, q: q, c: pal,
+      C: function (i) { return pal[((i % pal.length) + pal.length) % pal.length]; },
+      r: function (i) { return ihV153G((seed * 131 + i) | 0); },
+      n: function (k) { return Math.max(1, Math.round(k * q)); } };
+  }
+  var AFX_V157B = {
+    storm: { add: 0, draw: function (P, o) {   // a thunderhead over him, bolts cracking down around him, rain in front
+      var u = o.u, t = o.t, i;
+      if (o.L === 0) {
+        var fl = Math.floor(t / 70);
+        for (var b = 0; b < 2; b++) {
+          var tb = t + b * 190, cyc = Math.floor(tb / 380), ph = frV157B(tb / 380);
+          if (ph > 0.42 || o.r(cyc * 7 + b) < 0.12) continue;
+          var bx = o.cx + (o.r(cyc * 7 + b + 3) - 0.5) * 26 * u, y0 = o.top - 4 * u, px = bx, py = y0, N = 6, fade = 1 - ph / 0.42;
+          for (var k = 1; k <= N; k++) {
+            var nx = k === N ? bx + (o.r(cyc + 11) - 0.5) * 4 * u : bx + (o.r(cyc * 31 + k * 3 + b + fl) - 0.5) * 8 * u, ny = y0 + (o.fy - y0) * k / N;
+            P.seg(px, py, nx, ny, 3 * u, o.c[1], 0.4 * fade); P.seg(px, py, nx, ny, 1.1 * u, o.c[2], fade); px = nx; py = ny;
+          }
+          P.ell(px, o.fy, 5 * u, 1.6 * u, o.c[1], 0.55 * fade);
+        }
+        if (frV157B(t / 380) < 0.2) P.circ(o.cx, o.top - 5 * u, 8 * u, o.c[1], 0.3);   // the cloud lights up with a strike
+        for (i = 0; i < 7; i++) {
+          var dx = (i - 3) * 3.8 * u + Math.sin(t / 900 + i) * 1.1 * u, dy = o.top - 5 * u + Math.sin(t / 650 + i * 2) * 0.8 * u - (i % 2) * 1.6 * u;
+          P.circ(o.cx + dx, dy, (3 + o.r(i) * 2.2) * u, o.c[0], 0.9);
+        }
+        for (i = 0; i < 4; i++) P.circ(o.cx + (i - 1.5) * 4.4 * u + Math.sin(t / 900 + i) * u, o.top - 7.2 * u, 1.8 * u, o.c[4], 0.7);
+      } else {
+        for (i = 0; i < o.n(10); i++) { var pr = frV157B(t / 380 + o.r(i + 40)), rx = o.cx + (o.r(i + 60) - 0.5) * 30 * u - pr * 2 * u, ry = o.top - 5 * u + pr * (o.fy - o.top + 5 * u);
+          P.seg(rx, ry, rx - 0.8 * u, ry + 2.8 * u, 0.55 * u, o.c[3], 0.6); }
+      } } },
+    inferno: { add: 1, draw: function (P, o) {   // a column of flame tongues rising round him
+      var u = o.u, t = o.t, N = o.L === 0 ? o.n(16) : o.n(4);
+      if (o.L === 0) P.ell(o.cx, o.fy, 12 * u, 3 * u, o.c[2], 0.55 + 0.15 * Math.sin(t / 90));
+      for (var i = 0; i < N; i++) {
+        var k = i + o.L * 50, p = frV157B(t / (620 + o.r(k) * 300) + o.r(k + 7)), side = o.r(k + 3) - 0.5;
+        var x = o.cx + side * (o.L ? 18 : 24) * u + Math.sin(t / 110 + k) * 1.2 * u, y = o.fy - p * (o.L ? 22 : 44) * u, s = (1 - p) * (o.L ? 1.6 : 3.6) * u + 0.6 * u;
+        var col = o.c[p < 0.2 ? 0 : p < 0.45 ? 1 : p < 0.75 ? 2 : 3];
+        P.tri(x - s, y, x + s, y, x + Math.sin(t / 70 + k) * s * 0.6, y - s * 2.8, col, 0.85 * (1 - p * 0.6));
+        P.circ(x, y, s * 0.9, col, 0.7 * (1 - p));
+      } } },
+    crystal: { add: 0, draw: function (P, o) {   // ice crystals orbiting him — the near half passes in front
+      var u = o.u, t = o.t, N = 7, i;
+      if (o.L === 0) P.ellS(o.cx, o.cy + 3 * u, 15 * u, 5 * u, 0.6 * u, o.c[1], 0.35);
+      for (i = 0; i < N; i++) {
+        var a = t / 1300 * TAU_V157B + i * TAU_V157B / N, sn = Math.sin(a);
+        if ((sn > 0) !== (o.L === 1)) continue;
+        var x = o.cx + Math.cos(a) * 15 * u, y = o.cy + 3 * u + sn * 5 * u + Math.sin(t / 400 + i * 1.7) * 1.5 * u - (i % 3) * 3 * u;
+        var s = (1.8 + (i % 2) * 0.8) * u * (0.8 + 0.1 * (sn + 1));
+        P.tri(x, y - s * 1.8, x - s, y, x, y + s * 1.8, o.c[1], 0.95); P.tri(x, y - s * 1.8, x + s, y, x, y + s * 1.8, o.c[2], 0.95);
+        P.tri(x - s * 0.4, y - s * 0.6, x, y - s * 1.5, x, y - s * 0.2, o.c[0], 0.9);
+        if (o.r(i + Math.floor(t / 200) * 9) > 0.75) P.rect(x + s, y - s * 1.6, 0.8 * u, 0.8 * u, o.c[0], 1);   // a glint
+      }
+      if (o.L === 0) for (var k = 0; k < o.n(8); k++) { var pk = frV157B(t / 1600 + o.r(k + 30)); P.rect(o.cx + (o.r(k + 40) - 0.5) * 30 * u, o.top + pk * o.h, 0.8 * u, 0.8 * u, o.c[0], 0.8 * (1 - pk)); }
+    } },
+    rift: { add: 0, draw: function (P, o) {   // a tear in the air behind him, everything spiralling into it
+      var u = o.u, t = o.t, pu = 1 + 0.06 * Math.sin(t / 240), ry = o.cy - 2 * u;
+      if (o.L === 0) {
+        P.ell(o.cx, ry, 12 * u * pu, 25 * u * pu, o.c[1], 0.35);
+        P.ell(o.cx, ry, 9 * u * pu, 22 * u * pu, o.c[0], 0.92);
+        P.ellS(o.cx, ry, 9 * u * pu, 22 * u * pu, 1.2 * u, o.c[2], 0.7 + 0.3 * Math.sin(t / 90));
+        for (var k = 0; k < 3; k++) { var yy = ry + (frV157B(t / 900 + k / 3) - 0.5) * 40 * u; P.seg(o.cx - 2 * u, yy, o.cx + 2 * u, yy + 1.5 * u, 0.6 * u, o.c[3], 0.5); }
+      }
+      var N = o.L ? o.n(5) : o.n(16);
+      for (var i = 0; i < N; i++) {
+        var j = i + o.L * 40, p = frV157B(t / 1300 + o.r(j)), ang = o.r(j + 5) * TAU_V157B + p * 5, r = (1 - p) * 22 * u + 2 * u;
+        P.rect(o.cx + Math.cos(ang) * r - 0.7 * u, ry + Math.sin(ang) * r * 1.2 - 0.7 * u, 1.4 * u, 1.4 * u, i % 2 ? o.c[2] : o.c[3], 0.9 * Math.min(1, p * 3));
+      } } },
+    galaxy: { add: 1, draw: function (P, o) {   // a two-armed spiral galaxy turning at his feet
+      var u = o.u, t = o.t, rot = t / 2600 * TAU_V157B, gy = o.fy - 2 * u;
+      if (o.L === 0) { P.ell(o.cx, gy, 16 * u, 5.5 * u, o.c[4], 0.45); P.ell(o.cx, gy, 6 * u, 2.2 * u, o.c[2], 0.5); P.ell(o.cx, gy, 2.5 * u, 1 * u, o.c[0], 0.8); }
+      var N = o.n(26);
+      for (var i = 0; i < N; i++) {
+        var arm = i % 2, r = (2 + (i >> 1) * 1.15) * u, ang = rot + arm * Math.PI + r / u * 0.32, sn = Math.sin(ang);
+        if ((sn > 0) !== (o.L === 1)) continue;
+        var x = o.cx + Math.cos(ang) * r * 1.15, y = gy + sn * r * 0.36, tw = 0.5 + 0.5 * Math.sin(t / 160 + i * 2.1), s = (0.5 + 0.7 * tw) * u;
+        P.rect(x - s / 2, y - s / 2, s, s, o.c[i % 4], 0.6 + 0.4 * tw);
+      }
+      if (o.L === 0) for (var k = 0; k < o.n(6); k++) { var p = frV157B(t / 2000 + o.r(k + 70)), x2 = o.cx + (o.r(k + 80) - 0.5) * 26 * u, y2 = o.fy - p * o.h * 1.1, a2 = (1 - p) * (0.5 + 0.5 * Math.sin(t / 120 + k)), s2 = 1.6 * u;
+        P.rect(x2 - s2, y2 - 0.3 * u, s2 * 2, 0.6 * u, o.c[0], a2); P.rect(x2 - 0.3 * u, y2 - s2, 0.6 * u, s2 * 2, o.c[0], a2); }
+    } },
+    corona: { add: 1, draw: function (P, o) {   // a sun behind him: turning rays, a burning rim, flares
+      if (o.L === 1) return;
+      var u = o.u, t = o.t, cx = o.cx, cy = o.cy - 6 * u, rot = t / 4000 * TAU_V157B, N = 14, i;
+      for (i = 0; i < N; i++) {
+        var a = rot + i * TAU_V157B / N, len = (14 + 6 * Math.sin(t / 260 + i * 1.9)) * u * (i % 2 ? 0.8 : 1.1), w = 0.14, r0 = 8 * u;
+        P.tri(cx + Math.cos(a - w) * r0, cy + Math.sin(a - w) * r0, cx + Math.cos(a + w) * r0, cy + Math.sin(a + w) * r0, cx + Math.cos(a) * (r0 + len), cy + Math.sin(a) * (r0 + len), o.c[i % 2 ? 2 : 1], 0.6);
+      }
+      P.circ(cx, cy, 11 * u, o.c[3], 0.25); P.circ(cx, cy, 9 * u, o.c[1], 0.45); P.circ(cx, cy, 6.5 * u, o.c[0], 0.5);
+      P.ring(cx, cy, (9 + 1.5 * Math.sin(t / 200)) * u, 0.8 * u, o.c[0], 0.7);
+      for (var f = 0; f < 2; f++) { var fa = rot * 3 + f * Math.PI, p = frV157B(t / 900 + f * 0.5), rr = (9 + p * 10) * u; P.circ(cx + Math.cos(fa) * rr, cy + Math.sin(fa) * rr, (1.6 - p) * u + 0.3 * u, o.c[0], 1 - p); }
+    } },
+    bloodmoon: { add: 0, draw: function (P, o) {   // a red moon over his shoulder, a red mist, bats wheeling round him
+      var u = o.u, t = o.t;
+      if (o.L === 0) {
+        var mx = o.cx + 5 * u, my = o.top + 5 * u + Math.sin(t / 1400) * u;
+        P.circ(mx, my, 15 * u, o.c[0], 0.18 + 0.06 * Math.sin(t / 500)); P.circ(mx, my, 12 * u, o.c[0], 0.9);
+        P.circ(mx - 4 * u, my - 5 * u, 3 * u, o.c[2], 0.3);
+        P.circ(mx - 3 * u, my - 2 * u, 2.6 * u, o.c[1], 0.7); P.circ(mx + 4 * u, my + 3 * u, 1.8 * u, o.c[1], 0.7); P.circ(mx + 1 * u, my - 6 * u, 1.3 * u, o.c[1], 0.6);
+        for (var k = 0; k < o.n(10); k++) { var p = frV157B(t / 1800 + o.r(k)), x = o.cx + (o.r(k + 10) - 0.5) * 26 * u + Math.sin(t / 500 + k) * 2 * u, y = o.fy - p * 26 * u;
+          P.circ(x, y, (2 + p * 4) * u, o.c[3], 0.45 * (1 - p)); }
+      }
+      for (var b = 0; b < 3; b++) { var a = t / (1500 + b * 300) * TAU_V157B + b * 2.1, sn = Math.sin(a); if ((sn > 0) !== (o.L === 1)) continue;
+        var bx = o.cx + Math.cos(a) * (14 + b * 3) * u, by = o.top + (2 + b * 5) * u + sn * 3 * u, fl = Math.sin(t / 60 + b * 3) * 1.6 * u, w = 2.4 * u;
+        P.seg(bx - w, by - fl, bx, by, 0.9 * u, o.c[4], 1); P.seg(bx, by, bx + w, by - fl, 0.9 * u, o.c[4], 1); P.rect(bx - 0.5 * u, by - 0.5 * u, u, u, o.c[4], 1); }
+    } },
+    toxic: { add: 0, draw: function (P, o) {   // a green pool and bubbles that rise and pop
+      var u = o.u, t = o.t;
+      if (o.L === 0) { P.ell(o.cx, o.fy, 14 * u, 3.5 * u, o.c[2], 0.55); P.ell(o.cx + Math.sin(t / 600) * 2 * u, o.fy - 1 * u, 9 * u, 2.2 * u, o.c[1], 0.5); }
+      var N = o.L ? o.n(5) : o.n(14);
+      for (var i = 0; i < N; i++) {
+        var j = i + o.L * 30, p = frV157B(t / (1400 + o.r(j) * 900) + o.r(j + 3)), x = o.cx + (o.r(j + 6) - 0.5) * (o.L ? 16 : 26) * u + Math.sin(t / 300 + j) * 1.2 * u, y = o.fy - p * 34 * u, r = (0.8 + o.r(j + 9) * 1.6) * u * (0.6 + p * 0.6);
+        if (p > 0.88) { var q = (p - 0.88) / 0.12; P.ring(x, y, r * (1 + q * 1.5), 0.5 * u, o.c[0], 1 - q); continue; }
+        P.circ(x, y, r, o.c[1], 0.35); P.ring(x, y, r, 0.5 * u, o.c[0], 0.95); P.rect(x - r * 0.5, y - r * 0.6, 0.6 * u, 0.6 * u, o.c[3], 0.9);
+      } } },
+    neon: { add: 1, draw: function (P, o) {   // a scrolling neon grid under him, a scan ring, a scan line, brackets
+      if (o.L === 1) return;
+      var u = o.u, t = o.t, gy = o.fy, W = 18 * u, D = 6 * u, sc = frV157B(t / 700), k;
+      for (k = 0; k < 5; k++) { var f = (k + sc) / 5, y = gy - D + f * 2 * D, hw = W * (0.55 + 0.45 * f); P.seg(o.cx - hw, y, o.cx + hw, y, 0.7 * u, o.c[0], 0.3 + 0.6 * f); }
+      for (k = -3; k <= 3; k++) P.seg(o.cx + k * W * 0.18, gy - D, o.cx + k * W * 0.33, gy + D, 0.6 * u, o.c[0], 0.7);
+      var p = frV157B(t / 1200); P.ellS(o.cx, gy, (3 + p * 20) * u, (1 + p * 6.5) * u, 1 * u, o.c[1], 1 - p);
+      var sy = o.fy - frV157B(t / 1500) * o.h * 1.2; P.seg(o.cx - 11 * u, sy, o.cx + 11 * u, sy, 2.6 * u, o.c[1], 0.2); P.seg(o.cx - 11 * u, sy, o.cx + 11 * u, sy, 0.9 * u, o.c[1], 0.8);
+      var pu = 0.6 + 0.4 * Math.sin(t / 160);
+      for (var sd = -1; sd <= 1; sd += 2) { var bx = o.cx + sd * 11 * u;
+        P.seg(bx, o.top, bx, o.top + 4 * u, 0.8 * u, o.c[0], pu); P.seg(bx, o.top, bx - sd * 2 * u, o.top, 0.8 * u, o.c[0], pu); P.seg(bx, o.fy - 4 * u, bx, o.fy, 0.8 * u, o.c[1], pu); }
+    } },
+    pillar: { add: 1, draw: function (P, o) {   // a beam of light from above, motes drifting down it
+      var u = o.u, t = o.t, pu = 0.8 + 0.2 * Math.sin(t / 380), top = o.top - 60 * u;
+      if (o.L === 0) {
+        P.rect(o.cx - 10 * u, top, 20 * u, o.fy - top, o.c[2], 0.12 * pu); P.rect(o.cx - 6.5 * u, top, 13 * u, o.fy - top, o.c[1], 0.2 * pu); P.rect(o.cx - 3 * u, top, 6 * u, o.fy - top, o.c[0], 0.35 * pu);
+        var rp = frV157B(t / 900); P.ell(o.cx, o.fy, 12 * u, 3 * u, o.c[2], 0.45 * pu); P.ellS(o.cx, o.fy, (12 + 5 * rp) * u, (3 + 1.3 * rp) * u, 0.7 * u, o.c[0], 1 - rp);
+      }
+      var N = o.L ? o.n(5) : o.n(14);
+      for (var i = 0; i < N; i++) { var j = i + o.L * 30, p = frV157B(t / (1600 + o.r(j) * 700) + o.r(j + 2)), x = o.cx + (o.r(j + 4) - 0.5) * 18 * u + Math.sin(t / 500 + j) * u, y = o.top - 14 * u + p * (o.fy - o.top + 14 * u), s = (0.6 + o.r(j + 8) * 0.8) * u;
+        P.rect(x - s / 2, y - s / 2, s, s, o.c[i % 3], Math.sin(p * Math.PI)); }
+    } },
+    shadow: { add: 0, draw: function (P, o) {   // dark tendrils writhing up out of a pool round him
+      var u = o.u, t = o.t;
+      if (o.L === 0) P.ell(o.cx, o.fy, 13 * u, 3.4 * u, o.c[0], 0.7);
+      var N = o.L ? 2 : o.n(7);
+      for (var i = 0; i < N; i++) {
+        var j = i + o.L * 10, ang = (i + 0.5) / N * Math.PI, bx = o.cx + Math.cos(ang) * 11 * u * (o.L ? 0.7 : 1), H = (22 + o.r(j) * 14) * u, px = bx, py = o.fy;
+        for (var k = 1; k <= 7; k++) { var f = k / 7, nx = bx + Math.sin(t / 380 + j * 1.3 + f * 3.2) * (1.5 + f * 4.5) * u + (bx - o.cx) * f * 0.3, ny = o.fy - f * H, w = (3 - f * 2.3) * u;
+          P.seg(px, py, nx, ny, w + 1.2 * u, o.c[1], 0.35 * (1 - f * 0.5)); P.seg(px, py, nx, ny, w, o.c[0], 0.9); px = nx; py = ny; }
+        P.circ(px, py, 0.7 * u, o.c[2], 0.6 + 0.4 * Math.sin(t / 120 + j));
+      } } },
+    coins: { add: 0, draw: function (P, o) {   // gold coins raining round him, spinning as they fall
+      var u = o.u, t = o.t, N = o.n(12);
+      if (o.L === 0) P.ell(o.cx, o.fy, 11 * u, 2.6 * u, o.c[1], 0.35);
+      for (var i = 0; i < N; i++) {
+        if ((i % 3 === 0) !== (o.L === 1)) continue;
+        var p = frV157B(t / (1100 + o.r(i) * 500) + o.r(i + 3)), x = o.cx + (o.r(i + 6) - 0.5) * 30 * u, y = o.top - 12 * u + p * (o.h + 14 * u), sp = Math.abs(Math.cos(t / 140 + i * 1.3)), w = (0.35 + 1.9 * sp) * u, hh = 2.1 * u;
+        P.ell(x, y, w + 0.4 * u, hh + 0.4 * u, o.c[2], 0.95); P.ell(x, y, w, hh, o.c[1], 1); if (sp > 0.5) P.rect(x - w * 0.4, y - hh * 0.6, 0.6 * u, hh * 0.9, o.c[0], 0.9);
+      }
+      if (o.L === 1) for (var k = 0; k < 3; k++) { var q = frV157B(t / 700 + k / 3); P.rect(o.cx + (o.r(k + 50 + Math.floor(t / 700 + k / 3) * 5) - 0.5) * 20 * u, o.fy - 2 * u - q * 3 * u, 0.8 * u, 0.8 * u, o.c[0], 1 - q); }
+    } },
+    plasma: { add: 1, draw: function (P, o) {   // a crackling ring of plasma round his waist, arcs leaping to him
+      var u = o.u, t = o.t, cy = o.cy + 2 * u, RX = 14 * u, RY = 4.6 * u, N = Math.max(12, o.n(28)), fl = Math.floor(t / 55), px = null, py = null;
+      for (var i = 0; i <= N; i++) {
+        var a = i / N * TAU_V157B, sn = Math.sin(a), j = (o.r((i % N) + fl * 7) - 0.5) * 2.2 * u, x = o.cx + Math.cos(a) * (RX + j), y = cy + sn * (RY + j * 0.4);
+        if (px != null && (sn > 0) === (o.L === 1)) { P.seg(px, py, x, y, 2.6 * u, o.c[1], 0.3); P.seg(px, py, x, y, 0.9 * u, o.c[0], 0.95); }
+        px = x; py = y;
+      }
+      for (var k = 0; k < 3; k++) { var a2 = t / 1000 * TAU_V157B + k * TAU_V157B / 3, s2 = Math.sin(a2); if ((s2 > 0) !== (o.L === 1)) continue;
+        var nx = o.cx + Math.cos(a2) * RX, ny = cy + s2 * RY; P.circ(nx, ny, 2.2 * u, o.c[2], 0.5); P.circ(nx, ny, 1.1 * u, o.c[0], 1); }
+      if (o.L === 0 && o.r(fl + 99) > 0.55) {
+        var aa = o.r(fl + 3) * TAU_V157B, sx = o.cx + Math.cos(aa) * RX, sy = cy + Math.sin(aa) * RY, ex = o.cx + (o.r(fl + 5) - 0.5) * 6 * u, ey = o.cy - o.r(fl + 8) * 10 * u, mx = (sx + ex) / 2 + (o.r(fl + 9) - 0.5) * 6 * u, my = (sy + ey) / 2;
+        P.seg(sx, sy, mx, my, 0.8 * u, o.c[2], 0.9); P.seg(mx, my, ex, ey, 0.8 * u, o.c[2], 0.9);
+      } } },
+    sakura: { add: 0, draw: function (P, o) {   // blossoms spiralling down round him
+      var u = o.u, t = o.t, N = o.n(14);
+      for (var i = 0; i < N; i++) {
+        var a = t / 2200 * TAU_V157B + i * 2.4, sn = Math.sin(a); if ((sn > 0) !== (o.L === 1)) continue;
+        var p = frV157B(t / (2600 + o.r(i) * 800) + o.r(i + 1)), x = o.cx + Math.cos(a) * (10 + o.r(i + 2) * 6) * u, y = o.top - 6 * u + p * (o.h + 8 * u), sp = Math.cos(t / 200 + i), al = 0.95 * Math.min(1, (1 - p) * 4, p * 6);
+        P.ell(x, y, (1.1 + 0.4 * Math.abs(sp)) * u, 0.75 * u, o.c[i % 2], al); P.rect(x - 0.3 * u, y - 0.3 * u, 0.6 * u, 0.6 * u, o.c[2], al);
+      }
+      if (o.L === 0) P.ell(o.cx, o.fy, 10 * u, 2.4 * u, o.c[0], 0.3);
+    } },
+    borealis: { add: 1, draw: function (P, o) {   // three curtains of the northern lights waving over him
+      if (o.L === 1) return;
+      var u = o.u, t = o.t, step = 2 / Math.max(0.4, o.q);
+      for (var b = 0; b < 3; b++) {
+        var base = o.top - (4 + b * 4) * u, col = o.c[b];
+        for (var x = -18; x <= 18; x += step) {
+          var X = o.cx + x * u, y0 = base + Math.sin(x * 0.22 + t / 700 + b * 1.7) * 3 * u + Math.sin(x * 0.07 + t / 1300) * 2 * u, len = (12 + 6 * Math.sin(x * 0.3 + t / 450 + b)) * u, e = 1 - Math.abs(x) / 19;
+          P.seg(X, y0, X, y0 + len, step * 0.9 * u, col, 0.14 * e); P.seg(X, y0, X, y0 + len * 0.4, step * 0.9 * u, col, 0.32 * e);
+        }
+      } } },
+    matrix: { add: 1, draw: function (P, o) {   // columns of green ones and zeros falling behind him
+      if (o.L === 1) return;
+      var u = o.u, t = o.t, cols = o.n(7), rowH = 2.8 * u, rows = Math.ceil((o.h + 16 * u) / rowH);
+      for (var k = 0; k < cols; k++) {
+        var x = o.cx + (k - (cols - 1) / 2) * (26 / cols) * u, head = frV157B(t / (900 + o.r(k) * 700) + o.r(k + 3)) * (rows + 6), tail = 7;
+        for (var rr = 0; rr < rows; rr++) {
+          var d = head - rr; if (d < 0 || d > tail) continue;
+          var y = o.top - 12 * u + rr * rowH, one = o.r(k * 97 + rr * 13 + Math.floor(t / 260) * 7) > 0.5, a = d < 1 ? 1 : 0.85 * (1 - d / tail), col = d < 1 ? o.c[0] : o.c[1];
+          if (one) P.rect(x - 0.35 * u, y, 0.7 * u, 2 * u, col, a); else P.ellS(x, y + u, 0.7 * u, 0.95 * u, 0.45 * u, col, a);
+        }
+      }
+      P.ell(o.cx, o.fy, 12 * u, 2.8 * u, o.c[2], 0.4);
+    } },
+    embers: { add: 0, draw: function (P, o) {   // smoke rolling up, embers riding it
+      var u = o.u, t = o.t, i;
+      if (o.L === 0) for (i = 0; i < o.n(8); i++) { var p = frV157B(t / 2400 + i / 8), x = o.cx + (o.r(i) - 0.5) * 16 * u + Math.sin(t / 700 + i) * 3 * u * p, y = o.fy - p * 40 * u;
+        P.circ(x, y, (2.5 + p * 6) * u, o.c[0], 0.5 * (1 - p)); }
+      var N = o.L ? o.n(6) : o.n(16);
+      for (i = 0; i < N; i++) { var j = i + o.L * 40, q = frV157B(t / (900 + o.r(j) * 700) + o.r(j + 1)), ex = o.cx + (o.r(j + 2) - 0.5) * (o.L ? 18 : 26) * u + Math.sin(t / 150 + j * 2) * 1.5 * u, ey = o.fy - q * 36 * u, s = (0.9 + o.r(j + 3) * 0.9) * u * (1 - q * 0.5);
+        P.rect(ex - s / 2, ey - s / 2, s, s, o.c[q < 0.3 ? 3 : q < 0.65 ? 1 : 2], 1 - q); }
+    } },
+    ghostfire: { add: 1, draw: function (P, o) {   // blue will-o'-wisps circling him
+      var u = o.u, t = o.t, N = o.n(7);
+      for (var i = 0; i < N; i++) {
+        var a = t / 2400 * TAU_V157B + i * TAU_V157B / N, sn = Math.sin(a); if ((sn > 0) !== (o.L === 1)) continue;
+        var x = o.cx + Math.cos(a) * 14 * u, y = o.cy + sn * 4 * u + Math.sin(t / 300 + i * 2) * 3 * u - (i % 3) * 5 * u, fl = 0.8 + 0.2 * Math.sin(t / 60 + i * 5), s = 2.4 * u * fl * (0.8 + 0.1 * (sn + 1)), sw = Math.sin(t / 90 + i);
+        P.circ(x, y, s * 1.8, o.c[2], 0.25);
+        P.tri(x - s, y, x + s, y, x + sw * s * 0.8, y - s * 3.2, o.c[1], 0.8); P.circ(x, y, s, o.c[1], 0.85);
+        P.tri(x - s * 0.5, y, x + s * 0.5, y, x + sw * s * 0.5, y - s * 1.9, o.c[0], 0.95); P.circ(x, y + s * 0.1, s * 0.5, o.c[0], 1);
+      } } },
+    prism: { add: 1, draw: function (P, o) {   // rainbow rays wheeling behind him, a hexagon turning the other way, sparkles
+      var u = o.u, t = o.t, cx = o.cx, cy = o.cy - 3 * u, i;
+      if (o.L === 0) {
+        var rot = t / 3000 * TAU_V157B, N = 12, hr = 15 * u, hrot = -t / 2200 * TAU_V157B, sh = Math.floor(t / 150);
+        for (i = 0; i < N; i++) { var a = rot + i * TAU_V157B / N, r1 = (18 + 4 * Math.sin(t / 300 + i)) * u;
+          P.tri(cx, cy, cx + Math.cos(a - 0.1) * r1, cy + Math.sin(a - 0.1) * r1, cx + Math.cos(a + 0.1) * r1, cy + Math.sin(a + 0.1) * r1, o.c[i % 6], 0.42); }
+        for (i = 0; i < 6; i++) { var a1 = hrot + i * TAU_V157B / 6, a2 = a1 + TAU_V157B / 6; P.seg(cx + Math.cos(a1) * hr, cy + Math.sin(a1) * hr * 1.2, cx + Math.cos(a2) * hr, cy + Math.sin(a2) * hr * 1.2, 0.9 * u, o.c[(i + sh) % 6], 0.9); }
+      } else {
+        for (i = 0; i < o.n(6); i++) { var ph = t / 900 + o.r(i), p = frV157B(ph), cyc = Math.floor(ph), x = cx + (o.r(i * 5 + cyc * 11 + 10) - 0.5) * 26 * u, y = cy + (o.r(i * 5 + cyc * 11 + 20) - 0.5) * 34 * u, s = Math.sin(p * Math.PI) * 1.8 * u;
+          P.rect(x - s, y - 0.3 * u, s * 2, 0.6 * u, o.c[6], 0.9); P.rect(x - 0.3 * u, y - s, 0.6 * u, s * 2, o.c[6], 0.9); }
+      } } }
+  };
+  /* the v153 G auras, animated for the card and the Locker (the field keeps v153 G's own pulse / flicker) */
+  var LEGACY_V157B = {
+    glow: { add: 1, draw: function (P, o) { if (o.L) return; for (var i = 0; i < o.n(6); i++) { var p = frV157B(o.t / 2600 + i / 6), x = o.cx + (o.r(i) - 0.5) * 20 * o.u, y = o.fy - p * 40 * o.u; P.circ(x, y, 1.1 * o.u, o.c[0], 0.85 * Math.sin(p * Math.PI)); } } },
+    pulse: { add: 1, draw: function (P, o) { if (o.L) return; for (var k = 0; k < 2; k++) { var p = frV157B(o.t / 1300 + k / 2); P.ellS(o.cx, o.cy + 2 * o.u, (6 + p * 14) * o.u, (8 + p * 18) * o.u, 1.2 * o.u, o.c[0], 0.8 * (1 - p)); } } },
+    flicker: { add: 1, draw: function (P, o) { for (var i = 0; i < o.n(o.L ? 3 : 12); i++) { var j = i + o.L * 20, p = frV157B(o.t / 1000 + o.r(j)), x = o.cx + (o.r(j + 1) - 0.5) * 22 * o.u + Math.sin(o.t / 130 + j) * o.u, y = o.fy - p * 34 * o.u, s = (1 - p * 0.6) * 1.4 * o.u; P.rect(x - s / 2, y - s / 2, s, s, o.c[0], 1 - p); } } },
+    frost: { add: 0, draw: function (P, o) { for (var i = 0; i < o.n(o.L ? 3 : 8); i++) { var j = i + o.L * 20, p = frV157B(o.t / 2400 + o.r(j)), x = o.cx + (o.r(j + 1) - 0.5) * 26 * o.u + Math.sin(o.t / 500 + j) * 2 * o.u, y = o.top - 4 * o.u + p * (o.h + 6 * o.u), s = 1.3 * o.u, a = Math.sin(p * Math.PI);
+      P.rect(x - s, y - 0.25 * o.u, s * 2, 0.5 * o.u, o.c[1], a); P.rect(x - 0.25 * o.u, y - s, 0.5 * o.u, s * 2, o.c[1], a); } } },
+    void: { add: 0, draw: function (P, o) { for (var i = 0; i < o.n(o.L ? 3 : 10); i++) { var j = i + o.L * 20, p = frV157B(o.t / 1500 + o.r(j)), ang = o.r(j + 3) * TAU_V157B + p * 4, r = (1 - p) * 20 * o.u + o.u;
+      P.rect(o.cx + Math.cos(ang) * r - 0.6 * o.u, o.cy + Math.sin(ang) * r * 1.3 - 0.6 * o.u, 1.2 * o.u, 1.2 * o.u, o.c[1], Math.min(1, p * 3)); } } }
+  };
+  function auraFxV157B(d) { return (d && d.fx && AFX_V157B[d.fx]) || LEGACY_V157B[d && d.kind] || LEGACY_V157B.glow; }
+  function glowModV157B(kind, t) {
+    if (kind === "pulse") { var sp = Math.sin(t / 300); return { a: 0.72 + 0.28 * sp, s: 1 + 0.06 * sp }; }
+    if (kind === "flicker") return { a: 0.62 + 0.38 * Math.abs(Math.sin(t / 47) * Math.sin(t / 131)), s: 1 };
+    return { a: 0.85 + 0.15 * Math.sin(t / 900), s: 1 + 0.02 * Math.sin(t / 900) };
+  }
+  /* one frame of an aura on 2D canvases: the v153 G glow (breathing), the layer behind, `mid` (the figure), the layer in front */
+  function auraCanvasV157B(bx, fx, d, t, geo, q, mid) {
+    var aa = auraArtV153G(d), sc = geo.h / 44 * 1.05, m = glowModV157B(d.kind, t), F = auraFxV157B(d), w = aa.w * sc * m.s, hh = aa.h * sc * m.s, n = 0;
+    bx.save(); bx.globalAlpha = (d.fx ? 0.45 : 0.6) * m.a; if (d.kind !== "void") bx.globalCompositeOperation = "lighter"; bx.imageSmoothingEnabled = true;
+    bx.drawImage(aa.cv, geo.cx - w / 2, (geo.top + geo.bot) / 2 - hh / 2 + 2 * sc, w, hh); bx.restore();
+    var lay = function (ctx, L) { ctx.save(); if (F.add) ctx.globalCompositeOperation = "lighter"; var P = capV157B(cAdapterV157B(ctx), 400); F.draw(P, auraCtxV157B(d, t, geo, L, q)); n += P.used; ctx.restore(); };
+    lay(bx, 0); if (mid) mid(); lay(fx || bx, 1);
+    return n;
+  }
+  /* ON THE FIELD: two Graphics in his container, behind the body and in front of it, redrawn each frame */
+  function gfxChildV157B(scene, m, prop) {
+    var o = m[prop]; if (o && (!o.scene || !o.active)) o = m[prop] = null;
+    if (!o) { o = m[prop] = scene.add.graphics(); m.root.add(o); }
+    return o;
+  }
+  function auraFieldV157B(scene, m, A, geo, now, down) {
+    try {
+      var d = A && A.d, F = d && d.fx && auraOnV157B() ? AFX_V157B[d.fx] : null;
+      if (!F) { dropV153G(m, "_auBV157B"); dropV153G(m, "_auFV157B"); return 0; }
+      var gb = gfxChildV157B(scene, m, "_auBV157B"), gf = gfxChildV157B(scene, m, "_auFV157B");
+      orderV153G(m, gb, "back"); orderV153G(m, gf, "front");
+      var bm = F.add ? 1 : 0; if (gb._bmV157B !== bm) { gb.setBlendMode(bm); gf.setBlendMode(bm); gb._bmV157B = bm; }
+      gb.clear(); gf.clear(); gb.setAlpha(down ? 0.4 : 1); gf.setVisible(!down);
+      var q = TUv("v157BauraFieldQ", 0.6), cap = TUv("v157BauraCap", 90), g = { top: geo.top, bot: geo.bot, cx: geo.cx };
+      var Pb = capV157B(gAdapterV157B(gb), cap), Pf = capV157B(gAdapterV157B(gf), Math.round(cap / 2));
+      F.draw(Pb, auraCtxV157B(d, now, g, 0, q));
+      if (!down) F.draw(Pf, auraCtxV157B(d, now, g, 1, q));
+      V157.field.aura++; V157.field.auraId = A.id; V157.field.auraPrims = Pb.used + Pf.used;
+      return Pb.used + Pf.used;
+    } catch (e) { errV157B(e); return 0; }
+  }
+
+  /* ---- FOOTPRINTS: each draws ONE point p (q the point before it, a its age 0..1, F = 1 - a, s the scale) ---- */
+  var RUNES_V157B = [
+    [0, -1, 0, 1, 0, -0.6, 0.7, -1, 0, -0.1, 0.7, -0.5],                       // fehu
+    [-0.4, -1, -0.4, 1, -0.4, -1, 0.5, -0.5, 0.5, -0.5, -0.4, 0, -0.4, 0, 0.5, 1],   // raido
+    [0, -1, 0, 1, 0, -0.2, -0.7, -1, 0, -0.2, 0.7, -1],                         // algiz
+    [0, -1, -0.6, -0.2, 0, -1, 0.6, -0.2, -0.6, -0.2, 0.6, 0.8, 0.6, -0.2, -0.6, 0.8],   // othala
+    [0, -1, 0, 1, 0, -1, -0.6, -0.4, 0, -1, 0.6, -0.4]                          // tiwaz
+  ];
+  function nearV157B(p, q, s) { return q && Math.abs(p.x - q.x) + Math.abs(p.y - q.y) < 40 * s; }
+  var TFX_V157B = {
+    inferno: { life: 1.25, draw: function (P, p, q, a, F, s, now, c) {   // BIG: three tall tongues of fire on a burning bed, embers
+      var ci = a < 0.18 ? 0 : a < 0.4 ? 1 : a < 0.7 ? 2 : 3, al = Math.min(1, F * 1.5);
+      P.circ(p.x, p.y - a * 3 * s, (1.5 + 3.2 * F) * s, c[Math.min(3, ci + 1)], 0.55 * F);
+      for (var k = 0; k < 3; k++) {
+        var r = ihV153G(p.i * 13 + 3 + k), w = (1.2 + 2.6 * F * (0.6 + 0.4 * r)) * s, H = (5 + 9 * r) * s * (0.4 + 0.6 * Math.sqrt(F)), x = p.x + (r - 0.5) * 7 * s, y = p.y - a * 6 * s, sway = Math.sin(now / 70 + p.i * 1.7 + k * 2) * 1.8 * s;
+        P.tri(x - w, y, x + w, y, x + sway, y - H, c[Math.min(3, ci + (k === 1 ? 0 : 1))], al);
+        if (k === 1) P.tri(x - w * 0.45, y, x + w * 0.45, y, x + sway * 0.6, y - H * 0.55, c[0], al);
+      }
+      if (p.i % 3 === 0) P.rect(p.x + (ihV153G(p.i * 13 + 9) - 0.5) * 8 * s, p.y - 4 * s - a * 16 * s, 1.2 * s, 1.2 * s, c[1], F);
+    } },
+    meteor: { life: 1.1, draw: function (P, p, q, a, F, s, now, c, head) {   // BIG: a burning streak, a white-hot head, sparks thrown off
+      if (nearV157B(p, q, s)) {
+        P.seg(q.x, q.y - 2 * s, p.x, p.y - 2 * s, (2 + 9 * F) * s, c[2], 0.35 * F);
+        P.seg(q.x, q.y - 2 * s, p.x, p.y - 2 * s, (1 + 5 * F) * s, c[1], 0.8 * F);
+        P.seg(q.x, q.y - 2 * s, p.x, p.y - 2 * s, (0.5 + 2.2 * F) * s, c[0], F);
+      }
+      if (head) { P.circ(p.x, p.y - 2 * s, 7 * s, c[1], 0.35); P.circ(p.x, p.y - 2 * s, 4 * s, c[0], 0.9); }
+      var r = ihV153G(p.i * 13 + 5);
+      if (r > 0.55) { var ang = ihV153G(p.i * 13 + 6) * TAU_V157B, dd = a * 12 * s; P.rect(p.x + Math.cos(ang) * dd - 0.8 * s, p.y - 2 * s + Math.sin(ang) * dd * 0.6 - a * 6 * s, 1.6 * s, 1.6 * s, c[r > 0.8 ? 0 : 1], F); }
+    } },
+    bolts: { life: 1, draw: function (P, p, q, a, F, s, now, c) {   // every stride cracks three bolts out of the turf
+      if (p.i % 3) return false;
+      var fl = Math.floor(now / 60);
+      if (ihV153G(p.i * 7 + fl) < 0.12) return false;
+      P.ell(p.x, p.y, 3 * s, 1.1 * s, c[2], 0.45 * F);
+      for (var b = 0; b < 3; b++) {
+        var ang = -Math.PI / 2 + (b - 1) * 0.9 + (ihV153G(p.i * 7 + b + fl * 3) - 0.5) * 0.6, L = (3 + 4 * F) * s, px = p.x, py = p.y;
+        for (var k = 1; k <= 3; k++) { var nx = p.x + Math.cos(ang) * L * k / 3 + (ihV153G(p.i * 11 + b * 5 + k + fl) - 0.5) * 2.6 * s, ny = p.y + Math.sin(ang) * L * k / 3 * 1.1;
+          P.seg(px, py, nx, ny, 2.2 * s, c[2], 0.4 * F); P.seg(px, py, nx, ny, 0.8 * s, c[0], F); px = nx; py = ny; }
+      }
+    } },
+    tron: { life: 1.4, draw: function (P, p, q, a, F, s, now, c) {   // a light-cycle wall: a glowing base line, a top edge, magenta ribs
+      if (!nearV157B(p, q, s)) return false;
+      var H = 5 * s;
+      P.seg(q.x, q.y - H / 2, p.x, p.y - H / 2, H, c[1], 0.16 * F);
+      P.seg(q.x, q.y, p.x, p.y, 2.4 * s, c[1], 0.9 * F); P.seg(q.x, q.y, p.x, p.y, 0.8 * s, c[0], F);
+      P.seg(q.x, q.y - H, p.x, p.y - H, 0.9 * s, c[1], 0.75 * F);
+      if (p.i % 4 === 0) P.rect(p.x - 0.6 * s, p.y - H, 1.2 * s, H, c[2], 0.8 * F);
+    } },
+    shards: { life: 1.5, draw: function (P, p, q, a, F, s, now, c) {   // ice spikes shoot up out of each print, then melt
+      if (p.i % 2) return false;
+      var g = Math.min(1, a * 7);
+      P.ell(p.x, p.y, 3.2 * s, 1.1 * s, c[2], 0.45 * F);
+      for (var k = 0; k < 2; k++) { var r = ihV153G(p.i * 13 + k), x = p.x + (r - 0.5) * 5 * s, w = (1 + 0.8 * r) * s, H = (3 + 6 * r) * s * g * (0.5 + 0.5 * F), lean = (r - 0.5) * 3 * s;
+        P.tri(x - w, p.y, x, p.y, x + lean, p.y - H, c[0], 0.95 * F); P.tri(x, p.y, x + w, p.y, x + lean, p.y - H, c[1], 0.95 * F); }
+    } },
+    lava: { life: 1.6, draw: function (P, p, q, a, F, s, now, c) {   // a crust with glowing cracks that cool yellow → orange → red
+      if (p.i % 2) return false;
+      var hot = c[a < 0.3 ? 0 : a < 0.6 ? 1 : 2];
+      P.circ(p.x, p.y, 4 * s, c[1], 0.25 * F);
+      P.ell(p.x, p.y, 2.8 * s, 1.4 * s, c[3], 0.85 * Math.min(1, F * 1.6));
+      for (var k = 0; k < 3; k++) { var ang = ihV153G(p.i * 13 + k) * TAU_V157B, L = (2.5 + 3 * ihV153G(p.i * 13 + 4 + k)) * s, mx = p.x + Math.cos(ang + 0.5) * L * 0.5, my = p.y + Math.sin(ang + 0.5) * L * 0.25, ex = p.x + Math.cos(ang) * L, ey = p.y + Math.sin(ang) * L * 0.5;
+        P.seg(p.x, p.y, mx, my, 1.1 * s, hot, F); P.seg(mx, my, ex, ey, 0.8 * s, hot, F); }
+      if (ihV153G(p.i * 3 + Math.floor(now / 200)) > 0.8) P.circ(p.x + (ihV153G(p.i + 9) - 0.5) * 3 * s, p.y - s, 0.9 * s, c[0], F);
+    } },
+    coins: { life: 1.3, draw: function (P, p, q, a, F, s, now, c) {   // gold coins hop out of the prints, spinning
+      if (p.i % 2) return false;
+      var r = ihV153G(p.i * 13 + 1), hop = Math.sin(Math.min(1, a * 1.3) * Math.PI) * (6 + 4 * r) * s, x = p.x + (r - 0.5) * 6 * s * a, y = p.y - 1.5 * s - hop, sp = Math.abs(Math.cos(now / 90 + p.i)), w = (0.3 + 1.6 * sp) * s, h = 1.7 * s;
+      P.ell(x, y, w + 0.35 * s, h + 0.35 * s, c[2], F); P.ell(x, y, w, h, c[1], F); if (sp > 0.45) P.rect(x - w * 0.35, y - h * 0.6, 0.5 * s, h * 0.9, c[0], F);
+    } },
+    confetti: { life: 1.5, draw: function (P, p, q, a, F, s, now, c) {   // two flipping flakes burst from every print
+      for (var k = 0; k < 2; k++) { var r = ihV153G(p.i * 13 + k), r2 = ihV153G(p.i * 13 + 5 + k), up = Math.sin(Math.min(1, a * 2) * Math.PI / 2) * (5 + 6 * r) * s - Math.max(0, a - 0.5) * 8 * s,
+          x = p.x + (r2 - 0.5) * 10 * s * Math.min(1, a * 2) + Math.sin(now / 150 + p.i + k) * s * a, y = p.y - s - up, fl = Math.abs(Math.cos(now / 80 + p.i * 2 + k)), w = (0.4 + 1.4 * fl) * s, h = 1.3 * s;
+        P.rect(x - w / 2, y - h / 2, w, h, c[(p.i * 2 + k) % c.length], Math.min(1, F * 1.5)); }
+    } },
+    galaxy: { life: 1.5, draw: function (P, p, q, a, F, s, now, c) {   // nebula puffs and twinkling stars
+      var r = ihV153G(p.i * 13 + 1), x = p.x + (r - 0.5) * 4 * s, y = p.y - 1.5 * s - a * 3 * s;
+      P.circ(x, y, (1.5 + 3.5 * a) * s, c[1 + (p.i % 2)], 0.3 * F);
+      if (p.i % 2 === 0) { var tw = 0.5 + 0.5 * Math.sin(now / 90 + p.i * 1.3), arm = (1 + 1.6 * F) * s * (0.6 + 0.4 * tw), sx = p.x + (ihV153G(p.i * 13 + 2) - 0.5) * 7 * s, sy = p.y - 2 * s - ihV153G(p.i * 13 + 3) * 5 * s, al = F * (0.6 + 0.4 * tw);
+        P.rect(sx - arm, sy - 0.35 * s, arm * 2, 0.7 * s, c[0], al); P.rect(sx - 0.35 * s, sy - arm, 0.7 * s, arm * 2, c[0], al); }
+      else P.rect(x + 2 * s, y - s, 0.8 * s, 0.8 * s, c[3], F);
+    } },
+    shadow: { life: 1.4, draw: function (P, p, q, a, F, s, now, c) {   // black smoke with a violet rim, red embers
+      var r = ihV153G(p.i * 13 + 1), x = p.x + (r - 0.5) * 3 * s + Math.sin(now / 200 + p.i) * a * 2 * s, y = p.y - s - a * 6 * s, R = (1.8 + 3.8 * a) * s;
+      P.circ(x, y, R + 0.8 * s, c[1], 0.3 * F); P.circ(x, y, R, c[0], 0.75 * F);
+      if (p.i % 3 === 0) P.rect(x + (r - 0.5) * 4 * s, y - R - a * 4 * s, s, s, c[2], F);
+    } },
+    slime: { life: 1.6, draw: function (P, p, q, a, F, s, now, c) {   // neon puddles, a bubble that rises and pops, drips
+      if (p.i % 2) return false;
+      var r = ihV153G(p.i * 13 + 1), w = (2.4 + 1.6 * r) * s * (0.8 + 0.2 * F);
+      P.ell(p.x, p.y, w + 0.6 * s, 1.5 * s, c[2], 0.8 * F); P.ell(p.x, p.y, w, 1.1 * s, c[1], 0.9 * F);
+      P.rect(p.x - w * 0.4, p.y - 0.6 * s, s, 0.5 * s, c[0], F);
+      var bp = Math.min(1, a * 1.8); if (bp < 1) P.ring(p.x + (r - 0.5) * 3 * s, p.y - 1.5 * s - bp * 3 * s, (0.5 + 1.5 * bp) * s, 0.45 * s, c[1], 1 - bp);
+      if (p.i % 4 === 0) P.rect(p.x + w * 0.5, p.y, 0.8 * s, (1 + 3 * a) * s, c[1], F);
+    } },
+    sakura: { life: 1.6, draw: function (P, p, q, a, F, s, now, c) {   // five-petal blossoms, turning as they drift
+      if (p.i % 2) return false;
+      var r = ihV153G(p.i * 13 + 1), x = p.x + Math.sin(a * 5 + r * 6) * 4 * s * a, y = p.y - 2 * s - a * 4 * s + Math.sin(a * 3) * s, rot = now / 500 + p.i, R = (1.1 + 0.3 * F) * s;
+      for (var k = 0; k < 5; k++) { var ang = rot + k * TAU_V157B / 5; P.circ(x + Math.cos(ang) * R, y + Math.sin(ang) * R, 0.95 * s, c[k % 2], F); }
+      P.circ(x, y, 0.6 * s, c[2], F);
+    } },
+    hearts: { life: 1.5, draw: function (P, p, q, a, F, s, now, c) {   // 8-bit hearts floating up (a 5x4 pixel heart)
+      if (p.i % 2) return false;
+      var cs = 0.85 * s * (1 + 0.15 * Math.sin(now / 110 + p.i)), x0 = p.x + (ihV153G(p.i * 13 + 1) - 0.5) * 4 * s - 2.5 * cs, y0 = p.y - 2 * s - a * 9 * s - 2 * cs, col = c[p.i % 4 === 0 ? 1 : 0];
+      P.rect(x0 + cs, y0, cs, cs, col, F); P.rect(x0 + 3 * cs, y0, cs, cs, col, F); P.rect(x0, y0 + cs, 5 * cs, cs, col, F); P.rect(x0 + cs, y0 + 2 * cs, 3 * cs, cs, col, F); P.rect(x0 + 2 * cs, y0 + 3 * cs, cs, cs, col, F);
+      P.rect(x0 + cs, y0 + cs, cs * 0.6, cs * 0.6, c[2], 0.9 * F);
+    } },
+    runes: { life: 1.8, draw: function (P, p, q, a, F, s, now, c) {   // a glowing rune stands over a ring on every other stride
+      if (p.i % 4) return false;
+      var R = (3 + a * 1.2) * s, pu = 0.7 + 0.3 * Math.sin(now / 120 + p.i), g = RUNES_V157B[(p.i >> 2) % RUNES_V157B.length], col = c[(p.i >> 2) % 2 ? 1 : 0], lift = 2.5 * s * (0.3 + 0.7 * F), cy = p.y - 0.5 * s;
+      P.ell(p.x, cy, R * 1.3, R * 0.55, c[2], 0.22 * F);
+      P.ellS(p.x, cy, R, R * 0.45, 0.6 * s, col, 0.85 * F * pu);
+      for (var k = 0; k < g.length; k += 4) P.seg(p.x + g[k] * R * 0.6, cy - lift + g[k + 1] * R * 0.6, p.x + g[k + 2] * R * 0.6, cy - lift + g[k + 3] * R * 0.6, 0.7 * s, col, F * pu);
+    } },
+    prism: { life: 1.2, draw: function (P, p, q, a, F, s, now, c) {   // light through a crystal: a spectrum fan thrown back from the stride
+      if (p.i % 3 || !nearV157B(p, q, s)) return false;
+      var back = Math.atan2(q.y - p.y, q.x - p.x), len = (4 + 7 * F) * s, bx = p.x, by = p.y - 2 * s, wh = c[6] != null ? c[6] : 0xffffff;
+      for (var k = 0; k < 6; k++) { var ang = back + (k - 2.5) * 0.2; P.tri(bx, by, bx + Math.cos(ang - 0.08) * len, by + Math.sin(ang - 0.08) * len - len * 0.3, bx + Math.cos(ang + 0.08) * len, by + Math.sin(ang + 0.08) * len - len * 0.3, c[k], 0.75 * F); }
+      P.tri(bx, by - 2 * s, bx - 1.3 * s, by, bx + 1.3 * s, by, wh, F); P.tri(bx, by + 1.4 * s, bx - 1.3 * s, by, bx + 1.3 * s, by, wh, 0.8 * F);
+    } }
+  };
+  function trailLifeV157B(td) { var T = td && td.fx && trailOnV157B() ? TFX_V157B[td.fx] : null; return T ? T.life : 1; }
+  function trailDrawV157B(A, pts, now, life, d, s) {
+    var T = TFX_V157B[d.fx]; if (!T) return 0;
+    var cols = d._colsV157B || (d._colsV157B = (d.col && d.col.length ? d.col : ["#ffffff"]).map(colNum));
+    var P = capV157B(A, TUv("v157BtrailCap", 160)), drawn = 0, head = true;
+    for (var k = pts.length - 1; k >= 0 && P.left() > 0; k--) {   // newest first: the cap keeps the head of the trail
+      var p = pts[k], a = (now - p.t) / life; if (a >= 1 || a < 0) continue;
+      if (T.draw(P, p, k > 0 ? pts[k - 1] : null, a, 1 - a, s, now, cols, head) !== false) drawn++;
+      head = false;
+    }
+    V157.trailPrims = P.used; V157.trailId = d.fx;
+    return drawn;
+  }
+
+  /* ---- ONE animation loop for every canvas that moves (the card's aura, the Locker's previews) ---- */
+  var ANIM_V157B = { list: [], raf: 0, last: 0 };
+  function animateV157B(cv, draw, kind) {
+    var still = reducedV157B() || typeof requestAnimationFrame !== "function";
+    try { draw(still ? STILL_T_V157B : performance.now()); } catch (e) { errV157B(e); }
+    if (still) return false;
+    if (kind === "card") { var nc = 0; ANIM_V157B.list.forEach(function (e) { if (e.kind === "card" && e.cv.isConnected) nc++; }); if (nc >= TUv("v157BcardMax", 6)) return false; }
+    ANIM_V157B.list.push({ cv: cv, draw: draw, kind: kind });
+    if (!ANIM_V157B.raf) ANIM_V157B.raf = requestAnimationFrame(tickV157B);
+    return true;
+  }
+  function tickV157B(ts) {
+    ANIM_V157B.raf = 0;
+    ANIM_V157B.list = ANIM_V157B.list.filter(function (e) { return e.cv.isConnected; });
+    V157.anim.targets = ANIM_V157B.list.length;
+    if (!ANIM_V157B.list.length) return;
+    if (ts - ANIM_V157B.last >= 1000 / Math.max(5, TUv("v157Bfps", 25)) - 2 && !document.hidden && !reducedV157B()) {
+      ANIM_V157B.last = ts; V157.anim.frames++;
+      var vh = window.innerHeight || 900;
+      for (var i = 0; i < ANIM_V157B.list.length; i++) {
+        var e = ANIM_V157B.list[i];
+        try { var r = e.cv.getBoundingClientRect(); if (r.width === 0 || r.bottom < 0 || r.top > vh) continue; e.draw(ts); V157.anim.draws++; } catch (x) { errV157B(x); }
+      }
+    }
+    ANIM_V157B.raf = requestAnimationFrame(tickV157B);
+  }
+
+  /* ---- the profile card: the aura on two canvases of its own (behind the figure and wings, and in front of him) ---- */
+  function cardAuraV157B(host, cv, F, PAD) {
+    try {
+      if (!F || !F.aura || !auraOnV157B()) return false;
+      var d = F.aura.d, back = document.createElement("canvas"), front = document.createElement("canvas");
+      back.width = front.width = cv.width; back.height = front.height = cv.height + PAD;
+      back.className = "pc-au-v157b back"; front.className = "pc-au-v157b front"; back.setAttribute("data-aura", F.aura.id);
+      host.insertBefore(back, host.querySelector(".pc-fl-v153g.back") || cv);
+      host.insertBefore(front, host.querySelector(".pc-fl-v153g.front"));
+      host.classList.add("pc-shrink-v153g");   // the figure steps back (as for wings / a crown) and the aura gets the room round him
+      var bx = back.getContext("2d"), fx = front.getContext("2d"), geo = null, geoAt = -1e12, frames = 0, still = STILL_T_V157B;
+      var K = 0.8 /* the CSS's pc-shrink scale(.8) */, W2 = back.width / 2, HB = back.height;
+      var draw = function (t) {
+        var now = Date.now();
+        if (!geo || now - geoAt > 800) {   // the figure's art can land late: re-measured now and then
+          var g = inkGeoV153G(cv, 0, PAD); geoAt = now;
+          if (g && g.h >= 20) geo = { cx: W2 + (g.cx - W2) * K, top: HB + (g.top - HB) * K, bot: HB + (g.bot - HB) * K, h: g.h * K, uMul: TUv("v157BcardU", 1.3) };
+        }
+        if (!geo) return;
+        bx.clearRect(0, 0, back.width, back.height); fx.clearRect(0, 0, front.width, front.height);
+        var n = auraCanvasV157B(bx, fx, d, t, geo, 1, null);
+        V157.card = { id: F.aura.id, t: t, prims: n, frames: ++frames };
+      };
+      if (!animateV157B(back, draw, "card")) [750, 1600].forEach(function (ms) { setTimeout(function () { if (back.isConnected) { geo = null; draw(still); } }, ms); });
+      return true;
+    } catch (e) { errV157B(e); return false; }
+  }
+
+  /* ---- the Locker: an aura or footprints preview that moves (the prints stream away behind him) ---- */
+  function previewPtsV157B(t, life, x0, x1, y) {
+    var N = 18, step = life * 0.95 / N, base = t / step, sp = (x1 - x0) / N, pts = [];
+    for (var j = N - 1; j >= 0; j--) { var idx = Math.floor(base) - j, age = t - idx * step; pts.push({ x: x1 - age / step * sp, y: y, t: idx * step, i: idx, key: "" }); }
+    return pts;
+  }
+  function previewV157B(el, it) {
+    try {
+      var au = it.cat === "aura" && !!it.au && auraOnV157B(), tr = it.cat === "trail" && !!it.tr && it.tr.kind !== "ghost" && trailOnV157B();
+      if (!au && !tr) return false;
+      el.innerHTML = "";
+      // drawn at twice the Locker's resolution (TU v157BpvRes) and shown smoothed at its 60px: the particles stay crisp
+      var R = Math.max(1, Math.min(3, TUv("v157BpvRes", 2))), Z = 64 * R;
+      var cv = document.createElement("canvas"); cv.width = Z; cv.height = Z; cv.className = "cos-fl-v153g"; cv.setAttribute("data-v157b", it.id); cv.style.imageRendering = "auto";
+      var x = cv.getContext("2d"), fig = figV153G(34 * R), fx0 = (tr ? 26 : 15) * R, fy0 = Z - fig.height - 2 * R, geo = inkGeoV153G(fig, fx0, fy0) || { top: fy0, bot: Z - 2 * R, cx: fx0 + 17 * R, h: 36 * R };
+      var putFig = function () { x.globalAlpha = 1; x.globalCompositeOperation = "source-over"; x.imageSmoothingEnabled = false; x.drawImage(fig, fx0, fy0); };
+      var draw = function (t) {
+        x.globalAlpha = 1; x.globalCompositeOperation = "source-over"; x.clearRect(0, 0, Z, Z); x.imageSmoothingEnabled = false;
+        if (au) auraCanvasV157B(x, x, it.au, t, geo, 1, putFig);
+        else {
+          var life = 520 * (it.tr.kind === "ice" || it.tr.kind === "petals" ? 1.5 : 1) * trailLifeV157B(it.tr);
+          trailDrawV153G(cAdapterV153G(x), previewPtsV157B(t, life, R, geo.cx - 3 * R, geo.bot - R), t, life, it.tr, 1.4 * R);
+          putFig();
+        }
+      };
+      el.appendChild(cv); animateV157B(cv, draw, "preview");
+      G153.previews++; V157.previews++;
+      return true;
+    } catch (e) { errV157B(e); return false; }
+  }
+
+  /* ---- what the check reads: an item's look alone, drawn at a given time on a fresh canvas ---- */
+  function sampleV157B(id, t) {
+    var it = findItem(id); if (!it) return null;
+    var c = document.createElement("canvas"), x;
+    if (it.cat === "aura" && it.au) { c.width = 120; c.height = 160; x = c.getContext("2d"); auraCanvasV157B(x, x, it.au, t, { top: 50, bot: 140, cx: 60, h: 90 }, 1, null); return c; }
+    if (it.cat === "trail" && it.tr && it.tr.kind !== "ghost") { c.width = 180; c.height = 70; x = c.getContext("2d"); var life = 520 * (it.tr.kind === "ice" || it.tr.kind === "petals" ? 1.5 : 1) * trailLifeV157B(it.tr);
+      trailDrawV153G(cAdapterV153G(x), previewPtsV157B(t, life, 4, 170, 56), t, life, it.tr, 2.4); return c; }
+    return null;
+  }
+  Object.assign(V157, {
+    on: function () { return { aura: auraOnV157B(), trail: trailOnV157B() }; },
+    ids: function () { return itemsV157B().map(function (i) { return i.id; }); },
+    auraKinds: function () { return Object.keys(AFX_V157B); }, trailKinds: function () { return Object.keys(TFX_V157B); },
+    sample: sampleV157B, animating: function () { return ANIM_V157B.list.filter(function (e) { return e.cv.isConnected; }).map(function (e) { return e.kind; }); }
+  });
+  (function () {
+    if (document.getElementById("cosV157Bcss")) return;
+    var st = document.createElement("style"); st.id = "cosV157Bcss";
+    st.textContent = [
+      ".pc-au-v157b{position:absolute;left:0;bottom:0;width:92px;height:143.75px;pointer-events:none;transform-origin:50% 100%}.pc-au-v157b.back{z-index:0}.pc-au-v157b.front{z-index:2}",
+      ".pcard-v151b.compact .pc-au-v157b{width:70px;height:110px}"
+    ].join("\n");
+    (document.head || document.documentElement).appendChild(st);
+  })();
+
+  /* ===== v157 C ONE FACE EVERYWHERE =====
+   * The owner: "Number fonts, I currently don't see those in the profile or live player" · "ensure the colors of the
+   * live profile player make sense" · "anything like the helmets to transfer to the profile page" · "the growth
+   * post-season character looks funny, ensure it looks the same as the profile picture" · "profile icons should be
+   * unlocked via gameplay and season challenges only — add a ton". One figure, drawn one way, everywhere he appears:
+   *   THE FIGURE   `drawFigureV157C(cv, age, face)` = v153 E's drawCharacter (his kit — the team's palette or the equipped
+   *                uniform — and the equipped helmet) + HIS NUMBER on the chest in the equipped number font. The profile
+   *                card, the year-older (growth) screen and the live screen's badge all call it with `faceV157C()`, so the
+   *                growth man IS the profile man (same pixels at the same age) — 07 `growOneFaceV157C` routes the growth
+   *                canvas here (TU "v157Cfig" 0 → the old growth recolour, no number). The number on the chest is the
+   *                one he wears on the field (`jerseyNumV157C`: the you-marker's own number once a live game has shown it,
+   *                else the slot table the field uses). Wings / crown / aura follow the figure onto the growth screen
+   *                through the card's own flair layers (`cardFlairV153G`), so every look the card shows, the growth
+   *                screen shows. Footprints are a motion effect on the field and stay there.
+   *   THE LIVE BADGE  the live screen's round position badge (`.watch-badge`, 07) wears his head-and-shoulders from the
+   *                same figure, ringed in his kit colours, the position on a tab — it was a gold ring on navy whatever
+   *                he wore. On the field his number, with a number font equipped, is drawn larger (TU nfScaleV157C) with
+   *                a heavier outline in the font's own colours (TU nfStrokeV157C) so the face and the colour read at
+   *                broadcast size; the eleven around him are untouched.
+   *   ICONS        profile icons are EARNED only: ~80 gameplay icons (titles at every level ×1/3/5/10, UFF rings,
+   *                Interstellar titles, League MVPs, a Legacy medal of every colour, generations, the UFF at each
+   *                position, rings at 3 / 9 positions, career touchdown and yardage records, the Hall, each super
+   *                challenge) and season-challenge icons (1 / 5 / 10 / 25 / 50 completed, a 20/20 season, six named
+   *                challenges — read from src/29 `challengeTotals`, nothing appended to its seeded POOL). The Career
+   *                Pass draws no icons any more (src/29 `passKindV157C`); a pass icon a device already owned keeps its
+   *                slot (`gfIconV157C`). Each icon is its own badge: a glyph on a two-colour disc with a tag.
+   * Looks only: nothing here reads or writes a number the sim uses or spends a Math.random draw. `window.__V157C`. */
+  var V157C = (window.__V157C = window.__V157C || { figs: 0, growth: 0, badges: 0, nums: {}, icons: 0, grants: [], errs: [] });
+  function onV157C(k) { return !!TUv(k, 1); }
+  function errV157C(e) { try { if (V157C.errs.length < 8) V157C.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  /* ---- his number: what the field puts on him (src/05 OFF_NUMS / DEF_NUMS by slot), learned live ---- */
+  var NUM_BY_POS_V157C = { QB: 12, RB: 24, WR: 80, TE: 87, OL: 74, DL: 91, LB: 54, CB: 21, S: 31, K: 3, P: 4 };
+  function jerseyNumV157C(pos) {
+    pos = String(pos || "").toUpperCase(); if (!pos) return null;
+    var n = V157C.nums[pos]; if (n != null) return n;
+    return NUM_BY_POS_V157C[pos] != null ? NUM_BY_POS_V157C[pos] : null;
+  }
+  function nfOfV157C(id) {
+    var it = id ? findItem(id) : null;
+    var nf = it && it.cat === "numfont" && it.nf ? it.nf : null;
+    return nf || { style: "team", font: "Oswald, Impact, 'Arial Black', sans-serif", col: "#ffffff", stroke: "#0a0e14" };
+  }
+  /* ---- the source art's chest (measured once off idle_dn_hi.png: the jersey rows between the neck and the waist) ---- */
+  var CHEST_V157C = null;
+  function chestV157C() {
+    if (CHEST_V157C) return CHEST_V157C;
+    var im = FIG.img; if (!im) return null;
+    try {
+      var W = im.naturalWidth, H = im.naturalHeight, c = document.createElement("canvas"); c.width = W; c.height = H;
+      var x = c.getContext("2d"); x.drawImage(im, 0, 0); var d = x.getImageData(0, 0, W, H).data;
+      var top = 3, neck = Math.round(top + (H - 6) * FIG.neck), waist = H;
+      for (var y0 = neck + 20; y0 < H; y0++) {
+        var nv = 0, gd = 0;
+        for (var x0 = 0; x0 < W; x0++) { var i0 = (y0 * W + x0) * 4; if (d[i0 + 3] < 20) continue; var c0 = srcClass(d[i0], d[i0 + 1], d[i0 + 2])[0]; if (c0 === 1) nv++; else if (c0 === 2) gd++; }
+        if (gd > 12 && gd > nv * 1.5) { waist = y0; break; }
+      }
+      // the torso's navy run on the chest row (the arms are gold): its centre and width bound the numerals
+      var row = Math.round(neck + (waist - neck) * TUv("nfChestRowV157C", 0.5)), a0 = -1, a1 = -1, mid = W * 0.5;
+      for (var xx = 0; xx < W; xx++) { var ii = (row * W + xx) * 4; if (d[ii + 3] >= 20 && srcClass(d[ii], d[ii + 1], d[ii + 2])[0] === 1) { if (a0 < 0) a0 = xx; a1 = xx; } }
+      if (a0 >= 0) mid = (a0 + a1) / 2;
+      CHEST_V157C = { neck: neck, waist: waist, row: row, cx: mid, w: a0 >= 0 ? a1 - a0 : W * 0.4, W: W, H: H };
+    } catch (e) { errV157C(e); return null; }
+    return CHEST_V157C;
+  }
+  /* the number painted on the chest of a figure figDraw just drew (res.geo is where the body went) */
+  function chestNumberV157C(cv, res, num, nfId) {
+    if (!res || !res.geo || num == null || num === "" || !onV157C("v157Cfig")) return null;
+    var C = chestV157C(); if (!C) return null;
+    try {
+      var g = res.geo, x = cv.getContext("2d"), nf = nfOfV157C(nfId), s = String(num | 0);
+      var sx = g.bw / C.W, cx = g.bx + C.cx * sx, cy = g.by + (C.row - g.neck) * g.k;
+      var px = Math.max(8, (C.waist - C.neck) * g.k * TUv("nfChestHV157C", 0.58));
+      x.save(); x.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+      x.font = "bold " + px.toFixed(1) + "px " + nf.font; x.textAlign = "center"; x.textBaseline = "middle";
+      var w = x.measureText(s).width, maxW = C.w * sx * TUv("nfChestWV157C", 0.92);
+      if (w > maxW) { px = px * maxW / w; x.font = "bold " + px.toFixed(1) + "px " + nf.font; }
+      x.lineJoin = "round"; x.lineWidth = Math.max(1.4, px * TUv("nfChestStrokeV157C", 0.2)); x.strokeStyle = nf.stroke || "#0a0e14"; x.strokeText(s, cx, cy);
+      x.fillStyle = nf.col || "#ffffff"; x.fillText(s, cx, cy);
+      if (nf.style === "chrome" || nf.style === "gold" || nf.style === "founder") { x.globalAlpha = 0.35; x.fillStyle = "#ffffff"; x.fillText(s, cx - px * 0.04, cy - px * 0.06); }
+      if (nf.style === "neon") { x.globalAlpha = 0.5; x.shadowColor = nf.col; x.shadowBlur = px * 0.5; x.fillText(s, cx, cy); }
+      x.restore();
+      return { num: s, nf: nf.style, px: +px.toFixed(1), cx: +cx.toFixed(1), cy: +cy.toFixed(1) };
+    } catch (e) { errV157C(e); return null; }
+  }
+  /* ---- the face: everything the figure wears, read once (the card's profile() carries the same fields) ---- */
+  function faceV157C(st) {
+    st = st || gstate() || {};
+    var e = st.player || null;
+    return { kit: kitData(), numfont: equipped("numfont"), num: e ? jerseyNumV157C(e.pos) : null, pos: e ? e.pos : "", age: e ? e.age || 22 : 22,
+      wings: equipped("wings"), crown: equipped("crown"), aura: equipped("aura"), trail: equipped("trail"), helmet: equipped("helmet"), uniform: equipped("uniform") };
+  }
+  /* the one figure: null until the art is in (a caller keeps its own fallback until then) */
+  function drawFigureV157C(cv, age, face) {
+    face = face || faceV157C();
+    if (!FIG.img) { figLoad(); return null; }
+    var r = drawCharacter(cv, face.kit || {}, age || face.age || 22, { num: face.num, numfont: face.numfont });
+    if (r && r.mode === "hi") V157C.figs++;
+    return r && r.mode === "hi" ? r : null;
+  }
+  /* ---- the growth screen (07 growDrawV133 → growOneFaceV157C → here): the same figure, and the flair layers ---- */
+  function growFigureV157C(cv, age) {
+    try {
+      if (!onV157C("v157Cfig")) return null;
+      var face = faceV157C(), r = drawFigureV157C(cv, age, face); if (!r) return null;
+      V157C.growth++; V157C.lastGrowth = { age: age, num: face.num, numfont: face.numfont, helmet: face.helmet };
+      setTimeout(function () {
+        try {
+          if (!cv.isConnected || cv.closest(".gw-ghost")) return;
+          var host = cv.parentNode; if (!host || host.classList.contains("gw-one-v157c")) return;
+          var wrap = document.createElement("div"); wrap.className = "gw-one-v157c"; host.insertBefore(wrap, cv); wrap.appendChild(cv);
+          cardFlairV153G(cv, { wings: face.wings, crown: face.crown, aura: face.aura });
+        } catch (e) { errV157C(e); }
+      }, 0);
+      return r;
+    } catch (e) { errV157C(e); return null; }
+  }
+  /* ---- the live screen's badge: his head and shoulders, ringed in his kit ---- */
+  function paintBadgeV157C(el) {
+    try {
+      if (!el || !onV157C("v157Cfig")) return false;
+      var face = faceV157C(), key = JSON.stringify([face.kit, face.num, face.numfont, face.age]);
+      if (el.dataset.fig157 === key) return true;
+      var src = document.createElement("canvas"), r = drawFigureV157C(src, face.age, face); if (!r) return false;
+      var S = 68, out = document.createElement("canvas"); out.width = S; out.height = S; out.className = "wb-fig-v157c";
+      var x = out.getContext("2d"), sw = src.width, sh = src.height;
+      x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+      x.drawImage(src, sw * 0.14, sh * 0.02, sw * 0.72, sh * 0.5, 0, 2, S, S * (0.5 / 0.72) * (sh / sw) * 1.0);
+      var pos = (el.textContent || face.pos || "").replace(/\s+/g, "").slice(0, 3);
+      el.innerHTML = ""; el.appendChild(out);
+      var tag = document.createElement("b"); tag.className = "wb-pos-v157c"; tag.textContent = pos; el.appendChild(tag);
+      el.classList.add("wb-v157c"); el.style.setProperty("--wb-j", face.kit.j); el.style.setProperty("--wb-p", face.kit.p);
+      el.dataset.fig157 = key; V157C.badges++;
+      return true;
+    } catch (e) { errV157C(e); return false; }
+  }
+  var badgeQ = 0;
+  function badgeScanV157C() {
+    if (badgeQ) return; badgeQ = 1;
+    setTimeout(function () { badgeQ = 0; try { document.querySelectorAll(".watch-badge:not(.wb-v157c)").forEach(paintBadgeV157C); } catch (e) {} }, 60);
+  }
+  try { new MutationObserver(function () { if (document.querySelector(".watch-badge:not(.wb-v157c)")) badgeScanV157C(); }).observe(document.getElementById("screen") || document.body, { childList: true, subtree: true }); } catch (e) {}
+  /* ---- the field: his number, bigger and outlined in the font's colours (called from fieldFxV153G) ---- */
+  function fieldNumV157C(m, N) {
+    try {
+      if (!m || !m.label) return;
+      if (m.num != null && m.team === "you") { var ps = ""; try { var st = gstate(); ps = st && st.player ? String(st.player.pos || "").toUpperCase() : ""; } catch (e) {} if (ps && V157C.nums[ps] !== (m.num | 0)) V157C.nums[ps] = m.num | 0; }
+      if (!N || !onV157C("v157Cfig") || !m.label.visible) return;
+      var L = m.label, sc = m._numScaleV104 || L.scaleX || 1, k = TUv("nfScaleV157C", 1.35), b = m._numBandV104;
+      var bw = b && m.body ? b.w * Math.abs(m.body.scaleX || 1) * TUv("nfWidthV157C", 0.82) : 1e9, want = sc * k;
+      if (L.width * want > bw) want = Math.max(sc, bw / Math.max(1, L.width));
+      if (Math.abs(L.scaleX - want) > 1e-4) L.setScale(want);
+      V157C.fieldNum = { font: L.style.fontFamily, col: L.style.color, scale: +want.toFixed(3), base: +sc.toFixed(3) };
+    } catch (e) { errV157C(e); }
+  }
+
+  /* ---- ICONS: earned in play and in season challenges, never bought ---- */
+  var LV_V157C = [[0, "Pee Wee", "PW", "🏈", "#6fbf4a"], [1, "Youth League", "YL", "⭐", "#4da6ff"], [2, "Middle School", "MS", "🎒", "#e0603b"], [3, "JV", "JV", "🥉", "#c07a45"],
+    [4, "Varsity", "VAR", "🏫", "#b3121f"], [5, "College", "COL", "🎓", "#3b1f7a"], [7, "The UFF", "UFF", "💍", "#d4af37"], [8, "Interstellar League", "ISL", "🪐", "#7a3aff"]];
+  var CNT_V157C = [[1, "#c07a45", "common"], [3, "#c9d1db", "rare"], [5, "#e8c24a", "epic"], [10, "#9fe6ff", "legendary"]];
+  var UP_V157C = { common: "rare", rare: "epic", epic: "legendary", legendary: "mythic", mythic: "mythic" };
+  var POSG_V157C = { QB: "🎯", RB: "🏃", WR: "🙌", TE: "🧤", OL: "🛡️", DL: "🦏", LB: "🔨", CB: "🔒", S: "🦅" };
+  var ICON_RULES_V157C = [];
+  function iconV157C(id, name, glyph, c1, c2, tag, rarity, desc, test) {
+    ICON_RULES_V157C.push({ id: id, name: name, glyph: glyph, col: c1, col2: c2, tag: tag, rarity: rarity, desc: desc, test: test });
+  }
+  (function buildIconsV157C() {
+    LV_V157C.forEach(function (L) {
+      CNT_V157C.forEach(function (C) {
+        var n = C[0], big = L[0] >= 7, what = L[0] === 7 ? "UFF championship" : L[0] === 8 ? "Interstellar championship" : L[1] + " championship";
+        iconV157C("ico_t" + L[0] + "_" + n, (n > 1 ? n + "× " : "") + L[1] + " Champion", L[3], C[1], L[4], L[2] + (n > 1 ? "×" + n : ""), big ? UP_V157C[C[2]] : C[2],
+          "Win " + (n > 1 ? n + " " + what + "s" : "a " + what) + " (across your careers)", function (I) { return (I.titles[L[0]] | 0) >= n; });
+      });
+    });
+    [[1, "rare"], [3, "epic"], [5, "legendary"]].forEach(function (m) {
+      iconV157C("ico_mvp_" + m[0], (m[0] > 1 ? m[0] + "× " : "") + "League MVP", "⭐", "#ffd76f", "#8a6414", "MVP" + (m[0] > 1 ? "×" + m[0] : ""), m[1],
+        "Be named League MVP (college or higher)" + (m[0] > 1 ? " " + m[0] + " times" : ""), function (I) { return I.mvps >= m[0]; });
+    });
+    var CATS = [{ key: "bronze", name: "BRONZE", tint: "#c07a45", from: 10 }, { key: "silver", name: "SILVER", tint: "#c9d1db", from: 60 }, { key: "gold", name: "GOLD", tint: "#e8c24a", from: 121 },
+      { key: "red", name: "RUBY", tint: "#e0434f", from: 202 }, { key: "blue", name: "SAPPHIRE", tint: "#3f7fe0", from: 267 }, { key: "green", name: "EMERALD", tint: "#2fbf6a", from: 285 },
+      { key: "purple", name: "AMETHYST", tint: "#a05ae0", from: 332 }, { key: "ice", name: "DIAMOND", tint: "#9fe6ff", from: 378 }, { key: "grand", name: "GRAND", tint: "#ffd86b", from: 444 }];
+    try { var MC = window.RIB_LEGACY && window.RIB_LEGACY.medals && window.RIB_LEGACY.medals.cats; if (MC && MC.length === CATS.length) CATS.forEach(function (c, i) { if (i > 0) c.from = MC[i].from; c.tint = MC[i].tint || c.tint; c.name = MC[i].name || c.name; }); } catch (e) {}
+    CATS.forEach(function (c, i) {
+      var rr = ["common", "common", "rare", "rare", "epic", "epic", "legendary", "legendary", "mythic"][i];
+      iconV157C("ico_lg_" + c.key, c.name.charAt(0) + c.name.slice(1).toLowerCase() + " Legacy", "🎖", c.tint, "#141a24", c.name.slice(0, 3), rr,
+        i === 0 ? "Reach Legacy rank " + c.from : "Earn your first " + c.name.toLowerCase() + " Legacy medal (rank " + c.from + ")", function (I) { return I.legacy >= c.from; });
+    });
+    [[2, "rare"], [3, "epic"], [5, "legendary"]].forEach(function (g) {
+      iconV157C("ico_gen_" + g[0], "Generation " + g[0], "🌳", "#5fae4a", "#3a2a0e", "G" + g[0], g[1], "Play as generation " + g[0] + " of your family", function (I) { return I.gen >= g[0]; });
+    });
+    Object.keys(POSG_V157C).forEach(function (p) {
+      iconV157C("ico_pos_" + p.toLowerCase(), p + " in the UFF", POSG_V157C[p], "#1f5fbf", "#0f2d5c", p, "rare", "Reach the UFF as a " + p, function (I) { return !!I.uffPos[p]; });
+    });
+    iconV157C("ico_ringpos_3", "Ringed at Three", "💍", "#e6c46a", "#3b1f7a", "3 POS", "epic", "Win a UFF ring at 3 different positions", function (I) { return I.ringPos >= 3; });
+    iconV157C("ico_ringpos_9", "Ringed Everywhere", "💍", "#fff3c4", "#2a1650", "9 POS", "mythic", "Win a UFF ring at all 9 positions", function (I) { return I.ringPos >= 9; });
+    [[25, "common"], [50, "rare"], [100, "epic"], [200, "legendary"]].forEach(function (t) {
+      iconV157C("ico_td_" + t[0], t[0] + " Touchdowns", "🔥", "#ff7a1a", "#3a1008", t[0] + " TD", t[1], "Score " + t[0] + " touchdowns in one career", function (I) { return I.tds >= t[0]; });
+    });
+    [[5000, "rare"], [10000, "epic"], [20000, "legendary"]].forEach(function (t) {
+      iconV157C("ico_yd_" + t[0], (t[0] / 1000) + ",000 Yards", "📏", "#18c3b8", "#0b2a28", (t[0] / 1000) + "K YD", t[1], "Gain " + t[0].toLocaleString("en-US") + " yards in one career", function (I) { return I.yds >= t[0]; });
+    });
+    iconV157C("ico_hof_1", "Enshrined", "🏛️", "#ece8df", "#5a4a2a", "HALL", "epic", "Enshrine a career that made the UFF in the Hall of Fame", function (I) { return I.hofWon >= 1; });
+    iconV157C("ico_hof_5", "The Wing", "🏛️", "#ffd76f", "#2a1d08", "HALL×5", "legendary", "Enshrine 5 careers that made the UFF", function (I) { return I.hofWon >= 5; });
+    [["ladder10", "📈", "#6fd3ff"], ["allPositions", "🪐", "#b9a6ff"], ["mvpInterstellar", "🌠", "#ff9ad5"], ["goldRush", "💰", "#ffd76f"], ["ultimate", "👑", "#ffe98a"]].forEach(function (s) {
+      var c = SUPER_V156C.filter(function (x) { return x.id === s[0]; })[0];
+      iconV157C("ico_super_" + s[0], (c ? c.name : s[0]), s[1], s[2], "#12051f", "SUPER", "mythic", "Super challenge: " + (c ? c.desc() : s[0]), function (I) { return !!I.superDone[s[0]]; });
+    });
+    [[1, "common"], [5, "rare"], [10, "epic"], [25, "legendary"], [50, "mythic"]].forEach(function (n) {
+      iconV157C("ico_sc_" + n[0], n[0] === 1 ? "Challenger" : n[0] + " Challenges", "✅", "#57e07a", "#0f3a26", n[0] + " SC", n[1], "Complete " + (n[0] === 1 ? "a season challenge" : n[0] + " season challenges (across seasons)"), function (I) { return I.sc.total >= n[0]; });
+    });
+    iconV157C("ico_sc_full", "Perfect Season", "🏅", "#ffd76f", "#0f3a26", "20/20", "legendary", "Complete all 20 season challenges in one season", function (I) { return I.sc.full >= 1; });
+    [["The Show", "🏟️", "#d4af37", "rare"], ["Three-Peat Energy", "🏆", "#e8c24a", "epic"], ["Like Father", "👨‍👦", "#5fae4a", "rare"], ["Creature of Habit", "📅", "#6fd3ff", "epic"],
+      ["Wrecking Crew", "💥", "#ff5a5a", "epic"], ["Yardage Machine", "🚀", "#18c3b8", "epic"]].forEach(function (c) {
+      iconV157C("ico_sc_" + c[0].toLowerCase().replace(/[^a-z]+/g, "_"), c[0], c[1], c[2], "#0b1a14", "SZN", c[3], "Complete the season challenge “" + c[0] + "”", function (I) { return (I.sc.byTitle[c[0]] | 0) >= 1; });
+    });
+  })();
+  ICON_RULES_V157C.forEach(function (r) {
+    var it = { id: r.id, cat: "icon", name: r.name, rarity: r.rarity, source: "earned", ach: "icon:" + r.id, glyph: r.glyph, col: r.col, col2: r.col2, tag: r.tag, v157: 1, packs: [] };
+    it.preview = function (el) { return previewInto(el, it); };
+    ACH_BY["icon:" + r.id] = { id: "icon:" + r.id, name: r.name, desc: r.desc, test: r.test };
+    ITEMS.push(it); BY[it.id] = it;
+  });
+  /* what the icons read: the account, every career the record keeps (the Hall's boxes + the live career, once), the
+   * positions mastered, the super challenges and the season challenges */
+  function yardsOfV157C(line) { var n = 0; if (line) for (var k in line) if (/Yds$/.test(k) && !isNaN(+line[k])) n += +line[k]; return n; }
+  function iconAccountV157C(st) {
+    st = st || gstate() || {};
+    var A = account(st), e = st.player || null, hof = Array.isArray(st.hof) ? st.hof : [];
+    var I = { titles: {}, mvps: A.leagueMvps | 0, legacy: A.legacyMedal | 0, gen: A.gen | 0, uffPos: {}, ringPos: 0, tds: A.bestTds | 0, yds: 0, hofWon: A.hofWon | 0, superDone: {}, sc: { total: 0, full: 0, byTitle: {} } };
+    var tally = function (rows, isObj) { var y = 0; (rows || []).forEach(function (r) { if (!r) return; if (r.champion) { var lv = r.level | 0; I.titles[lv] = (I.titles[lv] | 0) + 1; } y += yardsOfV157C(isObj ? r.statLine : r.line); }); I.yds = Math.max(I.yds, y); };
+    var tags = {};
+    hof.forEach(function (h) { if (!h) return; if (h.tagV154) tags[h.tagV154] = 1; if (h.box && h.box.log) tally(h.box.log, false); });
+    if (e && !(e._hofTagV154 && tags[e._hofTagV154])) tally(e.seasonLogV77, true);
+    // a UFF ring is a level-7 title (the account's own count is the floor)
+    I.titles[7] = Math.max(I.titles[7] | 0, A.uffTitles | 0);
+    I.titles[8] = Math.max(I.titles[8] | 0, A.interstellarTitles | 0);
+    var PM = st.posMastery || {}; Object.keys(PM).forEach(function (p) { var m = PM[p] || {}; if (m.nfl) I.uffPos[String(p).toUpperCase()] = 1; if (m.ring) I.ringPos++; });
+    try { var S = sload(); Object.keys(S.done || {}).forEach(function (k) { I.superDone[k] = 1; }); } catch (x) {}
+    try { var T = window.RIB_SEASONS && window.RIB_SEASONS.challengeTotals && window.RIB_SEASONS.challengeTotals(); if (T) I.sc = T; } catch (x) {}
+    return I;
+  }
+  function iconTickV157C(st) {
+    var got = [];
+    try {
+      var I = iconAccountV157C(st), S = load();
+      ICON_RULES_V157C.forEach(function (r) {
+        var hit = false; try { hit = !!r.test(I); } catch (x) {}
+        if (hit && !S.owned[r.id]) { grant(r.id, "earned"); got.push(r.id); }
+      });
+      V157C.icons = ICON_RULES_V157C.length; V157C.lastIcons = got; if (got.length) V157C.grants = V157C.grants.concat(got).slice(-40);
+    } catch (e) { errV157C(e); }
+    return got;
+  }
+  // with the earned looks (boot, every save, the profile) and on src/29's 1.5s watch (throttled, and only when something moved)
+  (function () { var ce = checkEarned; checkEarned = function (st) { var got = ce(st); try { iconTickV157C(st); } catch (e) {} return got; }; })();
+  var iconSigV157C = "", iconAtV157C = 0;
+  (function () {
+    var t0 = window.RIB_SUPER && window.RIB_SUPER.tick; if (!t0) return;
+    window.RIB_SUPER.tick = function (st) {
+      var r = t0.apply(this, arguments);
+      try {
+        var s = gstate() || {}, p = s.player || {}, T = window.RIB_SEASONS && window.RIB_SEASONS.challengeTotals ? window.RIB_SEASONS.challengeTotals().total : 0;
+        var sig = [(s.hof || []).length, (p.seasonLogV77 || []).length, p.level | 0, T, s.legacyV152 ? s.legacyV152.xp | 0 : 0].join("|");
+        if (sig !== iconSigV157C && Date.now() - iconAtV157C > 4000) { iconSigV157C = sig; iconAtV157C = Date.now(); iconTickV157C(s); }
+      } catch (e) {}
+      return r;
+    };
+  })();
+  /* a pass icon a device owned before v157 C keeps its slot (the pass now draws a badge there) */
+  function gfIconV157C(rw) {
+    try {
+      if (!rw || rw.kind === "icon" || !load().owned[rw.id]) return rw;
+      var S = window.RIB_SEASONS; if (!S || !S.rawKind || S.rawKind(rw.id) !== "icon") return rw;
+      return Object.assign({}, rw, { kind: "icon" });
+    } catch (e) { return rw; }
+  }
+  /* the icon's art: a glyph on a two-colour disc with a tag (the card's round slot and the Locker's preview) */
+  function iconInnerV157C(it) {
+    if (!it || !it.v157) return escHtml(it && it.glyph || "");
+    return '<em class="ico157-g">' + escHtml(it.glyph) + "</em>" + (it.tag ? '<b class="ico157-t">' + escHtml(it.tag) + "</b>" : "");
+  }
+  function iconStyleV157C(it) {
+    if (!it || !it.v157) return "box-shadow:0 0 0 2px " + ((it && it.col) || "#f0bb45") + " inset";
+    return "--i1:" + it.col + ";--i2:" + it.col2;
+  }
+  function previewIconV157C(el, it) {
+    el.innerHTML = '<div class="ico157" style="' + iconStyleV157C(it) + '">' + iconInnerV157C(it) + "</div>";
+    return el;
+  }
+  (function () {
+    if (document.getElementById("cosV157Ccss")) return;
+    var st = document.createElement("style"); st.id = "cosV157Ccss";
+    st.textContent = [
+      /* the icon disc — the card's slot (.pc-ico-v151b.ico157) and the Locker preview */
+      ".ico157{position:relative;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 28%,color-mix(in srgb,var(--i1) 55%,#fff) 0,var(--i2) 72%);box-shadow:0 0 0 2px var(--i1) inset,0 0 0 1px rgba(0,0,0,.6),0 3px 8px rgba(0,0,0,.45)}",
+      ".ico157 .ico157-g{font-style:normal;font-size:20px;line-height:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.6));margin-top:-4px}",
+      ".ico157 .ico157-t,.pc-ico-v151b.ico157 .ico157-t{position:absolute;left:50%;bottom:-3px;transform:translateX(-50%);padding:0 4px;border-radius:5px;background:#0b0f16;border:1px solid var(--i1);font:700 7px/10px Oswald,sans-serif;letter-spacing:.4px;color:#fff;white-space:nowrap}",
+      ".pc-ico-v151b.ico157{width:30px;height:30px;top:6px;background:radial-gradient(circle at 35% 28%,color-mix(in srgb,var(--i1) 55%,#fff) 0,var(--i2) 72%);box-shadow:0 0 0 2px var(--i1) inset,0 0 0 1px rgba(0,0,0,.6)}",
+      ".pc-ico-v151b.ico157 .ico157-g{font-style:normal;font-size:15px;line-height:1;margin-top:-3px}.pc-ico-v151b.ico157 .ico157-t{font-size:6px;line-height:8px;bottom:-5px}",
+      /* the growth screen's figure wears the card's flair layers */
+      "#growV132 .gw-one-v157c{position:absolute;left:0;top:0;width:128px;height:160px}#growV132 .gw-one-v157c.pc-fig-v153g{position:absolute}",
+      "#growV132 .gw-one-v157c .pc-fl-v153g{left:0;top:-40px;bottom:auto;width:128px;height:200px}#growV132 .gw-one-v157c.pc-shrink-v153g .pc-fl-v153g{transform:none}#growV132 .gw-one-v157c .pc-fl-v153g.front{z-index:2}",
+      /* the live badge */
+      ".watch-badge.wb-v157c{position:relative;overflow:visible;padding:0;background:radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--wb-p) 30%,#2a3446),#0c1420 78%);border-color:var(--wb-p);box-shadow:0 0 0 2.5px #0a1017,0 0 0 4.5px color-mix(in srgb,var(--wb-j) 70%,transparent),0 0 12px color-mix(in srgb,var(--wb-j) 45%,transparent)}",
+      ".watch-badge.wb-v157c .wb-fig-v157c{width:100%;height:100%;border-radius:50%;display:block}",
+      ".watch-badge.wb-v157c .wb-pos-v157c{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);padding:0 4px;border-radius:5px;background:var(--wb-j);border:1px solid var(--wb-p);font:700 8px/11px Oswald,sans-serif;letter-spacing:.5px;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.8)}"
+    ].join("\n");
+    (document.head || document.documentElement).appendChild(st);
+  })();
+
   /* ---------------- the API ---------------- */
   var API = {
     version: "v151b", slots: SLOTS.slice(), cats: CATS, achievements: ACH.map(function (a) { return { id: a.id, name: a.name, desc: a.desc }; }),
@@ -2051,6 +3480,8 @@
     fieldKit: fieldKit, menuColors: menuColors, celebrate: celebrate, stadiumTheme: stadiumTheme, vaultTheme: vaultTheme, vaultTint: vaultTint, vaultDress: vaultDress,
     refreshField: refreshField, stylePanel: stylePanel, paintPreviews: paintPreviews, kitDeco: kitDeco,
     fieldFx: fieldFxV153G, flair: flairV153G, wingArt: wingArtV153G, crownArt: crownArtV153G, cardFlair: cardFlairV153G,   // v153 G
+    face: faceV157C, drawFigure: drawFigureV157C, growFigure: growFigureV157C, jerseyNum: jerseyNumV157C, iconRules: function () { return ICON_RULES_V157C.map(function (r) { return { id: r.id, name: r.name, desc: r.desc, rarity: r.rarity }; }); },
+    iconAccount: iconAccountV157C, iconTick: iconTickV157C, paintBadge: paintBadgeV157C,   // v157 C
     _reset: function () { mem = null; try { localStorage.removeItem(KEY); } catch (e) {} fire({ reset: 1 }); }
   };
   window.RIB_COSMETICS = API;

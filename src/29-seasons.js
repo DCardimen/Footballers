@@ -152,6 +152,7 @@ function seasonsOpenV151C(tab) {
   function rewards(sid) {
     var m = /^s(\d+)$/.exec(sid || ""), n = m ? +m[1] : 0, th = n ? theme(n) : "Preseason";
     var mk = function (track, tier, kind, hi) {
+      kind = passKindV157C(kind);   // v157 C: profile icons are earned in play, never drawn from the pass
       var rr = rarity(tier), show = tier === CFG.tiers, ri = RANKS.indexOf(rr);
       if (show) rr = track === "premium" ? "mythic" : "legendary"; else if (hi && ri < 3) rr = RANKS[ri + 1];
       var id = "pass." + sid + "." + track + "." + tier, sty = styleFor(kind, id, Math.min(3, RANKS.indexOf(rr)));
@@ -602,6 +603,34 @@ function seasonsOpenV151C(tab) {
     ].join("\n");
     (document.head || document.documentElement).appendChild(s);
   }
+
+  /* ===== v157 C ONE FACE EVERYWHERE =====
+   * (the season side) Profile icons come from gameplay and from SEASON CHALLENGES only — the owner: "Profile icons
+   * should be unlocked via gameplay and season challenges only." So the pass no longer draws an icon on either track
+   * (a premium tier is a purchase): every "icon" slot in the rotation becomes a badge (`passKindV157C`, TU("v157Cicons",
+   * 0) restores the icons). An icon a device already claimed stays an icon — `rawKind(id)` answers what a reward id WAS,
+   * and src/28 keeps a grandfathered one in the icon slot. `challengeTotals()` is what src/28's challenge icons read:
+   * how many season challenges were completed across every season kept here, how many seasons were finished 20/20, and
+   * how often each challenge (by its title) was completed. Nothing is appended to POOL: the seeded pick of 20 is unchanged. */
+  var RAW_V157C = false;
+  function passKindV157C(kind) { return kind === "icon" && !RAW_V157C && TU156("v157Cicons", 1) ? "badge" : kind; }
+  api.rawKind = function (id) {
+    var m = /^pass\.([A-Za-z0-9_-]+)\.(free|premium)\.(\d+)$/.exec(String(id || "")); if (!m) return null;
+    RAW_V157C = true;
+    try { var R = rewards(m[1])[m[2]] || []; for (var i = 0; i < R.length; i++) if (R[i].id === id) return R[i].kind; return null; } finally { RAW_V157C = false; }
+  };
+  api.challengeTotals = function () {
+    var out = { total: 0, full: 0, byTitle: {}, seasons: 0 };
+    Object.keys(ST.s || {}).forEach(function (sid) {
+      var r = ST.s[sid], done = (r && r.done) || {}, n = 0;
+      Object.keys(done).forEach(function (cid) {
+        var m = /^c(\d+)$/.exec(cid), c = m ? POOL[+m[1]] : null; if (!c) return;
+        n++; out.byTitle[c.t] = (out.byTitle[c.t] | 0) + 1;
+      });
+      out.total += n; if (n) out.seasons++; if (n >= 20) out.full++;
+    });
+    return out;
+  };
 
   /* ---- boot: the rollover, the queue, the watchers ---- */
   try { css(); } catch (e) {}

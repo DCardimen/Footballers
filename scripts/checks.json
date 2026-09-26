@@ -1457,13 +1457,17 @@
     "v151 B",
     "RIB_COSMETICS",
     "v153 G",
-    "v156 C"
+    "v156 C",
+    "v157 A",
+    "v157 B",
+    "v157 C"
    ],
    "files": [
     "src/28-cosmetics.js",
     "docs/COSMETICS.md"
    ],
    "checks": [
+    "v157Acheck",
     "v156Ccheck",
     "v151Bcheck",
     "v153Gcheck",
@@ -1475,7 +1479,9 @@
     "menu-integration-check",
     "v146Echeck",
     "layoutcheck",
-    "walk"
+    "walk",
+    "v157Bcheck",
+    "v157Ccheck"
    ]
   },
   "audio": {
@@ -1508,7 +1514,8 @@
    "anchors": [
     "v152 A",
     "RIB_LEGACY",
-    "v153 F"
+    "v153 F",
+    "v157 C"
    ],
    "files": [
     "src/31-legacy.js",
@@ -1517,6 +1524,7 @@
     "art/legacy/**"
    ],
    "checks": [
+    "v157Ccheck",
     "v152Acheck",
     "v151Ccheck",
     "v151Bcheck",
@@ -3833,6 +3841,18 @@
    "pureNode": false,
    "flaky": []
   },
+  "v157Acheck": {
+   "file": "scripts/v157Acheck.mjs",
+   "desc": "v157 A — wings that flap, crowns that shine: >= 15 new wing kinds (unique art keys, every catalogue wing's pixels and every new silhouette distinct), the harder source split (a few free, some earned — three waaay later — the flashiest member), angel wings still super-only; every new wing listed in the Locker with a drawn preview and its source's lock text; the flap pose (a beat, then exactly still), a Locker preview and the profile card flap and rest, TU v157Aflap 0 and prefers-reduced-motion stop it; every crown (catalogue + pass styles) redrawn — no error, differs from the v153 G art (TU v157Acrown 0), >= 6 colours, symmetric, sprite-sized, the glint frame; on the live field his wings flap on the scene clock and the crown glints, no Math.random from src/28; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics"
+   ],
+   "runtimeSec": 240,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
   "v156Dcheck": {
    "file": "scripts/v156Dcheck.mjs",
    "desc": "v156 D — the MY PLAYS ONLY box on the live field: top-right right above the field, visible and clear of the scorebug / speed row / buff line at 400x860 and 1280x800; a click ticks it and saves it; ticked, a regular-season live game draws only plays that name the you-player (the playback log and the whole engine log), unticked his side of the ball; playoff and championship weeks lock it off, the filter is the side of the ball (skip-opponent cannot hide a defender's snap), a tap leaves the saved choice alone and the next regular-season week has it back; Settings row, the coach's pointer; no Math.random, seeded games identical, the kill switch; no page errors.",
@@ -3846,6 +3866,33 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "v157Bcheck": {
+   "file": "scripts/v157Bcheck.mjs",
+   "desc": "v157 B — auras alive, trails you can spot: 19 new auras + 15 new footprint trails (unique fx keys, rarities, the member / earned / free split, the Locker's lock line per source); every new look draws a distinct picture and moves (and every v153 G aura animates); the Locker previews animate; the profile card animates the equipped aura (a new one and a v153 G one) and draws one still frame under prefers-reduced-motion; on the live field every new trail draws behind him and looks different, under the per-frame cap, and a new aura adds its particle layers; no Math.random from src/28; a perf probe (the busiest trail + aura vs nothing); TU v157Baura / v157Btrail 0 restore the v153 G path; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics"
+   ],
+   "runtimeSec": 200,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v157Ccheck": {
+   "file": "scripts/v157Ccheck.mjs",
+   "desc": "v157 C — one face everywhere: >= 40 profile icons, all EARNED (titles per level, rings, MVPs, a Legacy medal per colour, positions, records, super and season challenges), none free/shop/member/pass-bought, each with an earn rule; the pass draws no icons (rawKind), an owned pass icon stays an icon; a gameplay event and season challenges grant icons; the number font changes the number on the profile figure's chest and on the live sprite (bigger, in the font); the equipped helmet renders on the profile figure; the growth screen's figure is the profile's (identical pixels); the live badge wears his figure in his kit colours; the medal box's circling light is gone; tapping the medal (profile, menu, trophy case) opens the % card, monotone (1, 50, 200, 500), live hook; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics",
+    "profile",
+    "legacy"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }

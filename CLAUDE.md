@@ -90,6 +90,7 @@ node scripts/<name>check.mjs                       # one check by hand against :
   compare several seeds against the OFF spread, never one run against one run (`scoreneutralcheck`).
 - **Measure the camera in WALL time on PAIRED replays** — play-time normalisation hides lag; unpaired live runs differ 2× (v147 D).
 - **Honors are gone (v156 A):** `state.prestige` is a MIRROR of the Legacy medals (`medalsV156A`) — never add to it.
+- **`src/28-cosmetics.js`'s version blocks share ONE IIFE scope** — name every block's vars per version (`V157B`/`V157C`, v157: a shared `var V157` killed an animation loop).
 - **Interstellar is level 8** — every `level >= 7` rule (cuts, offers, story-pro, retire) applies to it too (v147 A).
 - **Sprites are scaled by the level's age** (v144 A) — anything reading a screen distance as sim units must back `_ageKV144` out.
 - **Measure field density with `PJ` at the LOS**, not a screen spacing (v148).

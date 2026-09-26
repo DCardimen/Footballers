@@ -10,6 +10,28 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v157 — the looks, expanded: flapping wings, living auras, trails you can spot, one face everywhere.**
+  (`src/28-cosmetics.js`, `src/29-seasons.js`, `src/31-legacy.js`, `src/07-career-app.js`; `v157A`–`v157Ccheck`.)
+  *A — wings that flap, crowns that shine* (`v157 A …`): 17 new wings, each its own silhouette (origami, thornvine,
+  raven, pigskin, bone, clockwork, dragon, prism, gilded aegis, stormcaller, cyber grid, shade, demon, jet, hellfire,
+  cathedral, galaxy) — a few free, some earned (a title, gen 3, 100 TDs; later 3 UFF rings, gen 5, Legacy 300), the
+  flashiest eight the membership's. EVERY wing now beats twice and rests every 3.4 s on the field, the card and the
+  Locker (a pure function of time; still under reduced motion). Every crown redrawn as clean symmetric pixel art —
+  metal ramps, glinting jewels, engraved bands, a leafed laurel, a real ring of a halo; on the field a crown glints.
+  *B — auras alive, trails you can spot* (`v157 B …`): 19 new animated auras (thunderhead, void rift, plasma ring,
+  prism, solar corona, aurora borealis, galaxy swirl, blood moon, code rain, money shower, ghost flames, …) and 15
+  new footprint trails (inferno and meteor strike — bigger than the flame trail — lightning cleats, neon light wall,
+  ice shards, lava cracks, gold coins, galaxy dust, runes, …); every aura, old and new, animates on the profile card
+  and in the Locker; the field draws a lighter, capped version. Membership for most of the flashiest; a few free,
+  a few earned late. Perf: busy trail + aura within noise of none.
+  *C — one face everywhere* (`v157 C ONE FACE EVERYWHERE`): his number, in the equipped number font, is on the
+  profile figure's chest and larger on his field sprite; the growth (year-older) screen draws the SAME figure as the
+  profile (helmet, kit, number, wings/crown/aura); the live screen's badge is his head in his kit colours. Profile
+  ICONS are earned only — the Career Pass no longer draws them — with 84 new ones (titles at every level ×1/3/5/10,
+  League MVPs, every medal colour, generations, the UFF at each position, rings, records, the Hall, the super
+  challenges, season-challenge counts). The circling light around the medal box is gone. Tapping your medal (profile,
+  menu, trophy case) shows its rarity: "Only ≈X% of players have reached this medal" — an estimate from the Legacy
+  pace model until the online boards answer with real numbers (docs/LEADERBOARDS.md §5).
 - **v156 — medals are the rank, sims are earned, playoffs are watched, the best looks are hard (or the Club's).**
   Four owner asks, one version (`src/07-career-app.js`, `src/27`, `src/28`, `src/29`, `src/14`, `src/25`, `src/26`,
   `public/rib-menu*`; checks `v156A`–`v156Dcheck`).
