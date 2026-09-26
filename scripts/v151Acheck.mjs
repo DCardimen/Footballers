@@ -104,7 +104,7 @@ const played = (page) => M(page, () => window.S.player.weekResults.filter((w) =>
   const po = await M(a, async () => { const S = window.S; S.bestLevel = 0; S.settings.onlyInvolved = true; const out = { forced: window.__getGridironState ? null : null }
     out.locked = !window.__V151A.gates().playsOnly.ok; try { window.skipLive() } catch (e) {}
     window.go('settings'); await new Promise((r) => setTimeout(r, 500))
-    out.row = [...document.querySelectorAll('.toggle-row')].map((r) => r.textContent.replace(/\s+/g, ' ')).find((t) => /My plays only/i.test(t)) || ''
+    out.row = [...document.querySelectorAll('.toggle-row')].map((r) => r.textContent.replace(/\s+/g, ' ')).find((t) => /^\s*(My plays only|Your side of the ball)/i.test(t) && /side of the ball/i.test(t)) /* v156 D: the onlyInvolved row reads "Your side of the ball" */ || ''
     const before = S.settings.onlyInvolved; window.toggleSetting('onlyInvolved'); out.refused = S.settings.onlyInvolved === before
     S.careersCompleted = 1; out.after = window.__V151A.gates().playsOnly.ok; window.toggleSetting('onlyInvolved'); out.toggled = S.settings.onlyInvolved !== before
     return out })

@@ -13259,7 +13259,8 @@
     <div class="card">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:10px">🎮 LIVE GAME</div>
       ${toggleRow("skipOpp", "Skip opponent drives", "Only watch plays while your team has the ball")}
-      ${toggleRow("onlyInvolved", "My plays only", TU("v153Bplays", 1) ? "Watch your side of the ball — offense if you play offense, defense if you play defense (special teams only when you are in them). Off shows every snap." : "Jump straight to plays you're personally involved in")}
+      ${toggleRow("onlyInvolved", TU("v156D", 1) ? "Your side of the ball" : "My plays only", TU("v153Bplays", 1) ? "Watch your side of the ball — offense if you play offense, defense if you play defense (special teams only when you are in them). Off shows every snap." : "Jump straight to plays you're personally involved in")}
+      ${TU("v156D", 1) ? toggleRow("myPlaysV156D", "My plays only", "Only the snaps you are in — also the MY PLAYS ONLY box above the live field. Playoffs and championships switch it off: there you watch every snap on your side.") : "" /* v156 D */}
       ${toggleRow("fastSim", "Faster live sim", "Speed up the default play animation")}
       ${toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices")}
     </div>
@@ -20330,6 +20331,7 @@
         <span class="watch-info" id="featuredLabel"><b>${escHtml(e.name)} (${e.pos})</b><small>${s} ${i ? "DEFENSE" : "OFFENSE"}</small></span>
         <span id="playClock">● LIVE</span>
       </div>
+      ${myPlaysRowV156D() /* v156 D: MY PLAYS ONLY, top-right above the field */}
       <canvas id="field" width="360" height="230"></canvas>
       <div class="commentary" id="commentary"><span class="ev-ic">🏈</span><div class="ev-body">Kickoff! ${escHtml(e.name)} takes the field…</div><span class="chev">›</span></div>
     </div>
@@ -20943,6 +20945,10 @@
       endLive());
   }
   function vl(e) {
+    /* v156 D: the on-field MY PLAYS ONLY box, and the playoffs' every-snap-on-your-side rule */
+    return TU("v156D", 1) ? liveSkipV156D(e) : vlBaseV156D(e);
+  }
+  function vlBaseV156D(e) {
     if (e && TU("v153Bplays", 1) && settingOn("onlyInvolved"))
       return (
         playsSkipV153B(e) || !!(settingOn("skipOpp") && e.offense !== "us" && !e.involved)
@@ -20953,6 +20959,100 @@
         : !!((settingOn("onlyInvolved") && !e.involved) || (settingOn("skipOpp") && e.offense !== "us" && !e.involved))
       : !1;
   }
+
+  /* ===== v156 D MY PLAYS ONLY, ON THE FIELD =====
+   * The owner: "Add back my plays only — right now it's offence and defence option only." Since v153 B the
+   * Settings toggle `onlyInvolved` means YOUR SIDE OF THE BALL (every snap your unit is on the field for), so the
+   * strict mode — only the snaps whose resolved play names the you-player (`row.involved`, the v151 A filter) —
+   * was gone. It is back as a big ticked box on the live field, top-right, just above the field:
+   *   - MY PLAYS ONLY ticked: a regular-season game shows only his snaps (`!row.involved` is skipped — drive
+   *     headers too). It is read per play in `liveTick` → `vl`, so a tick lands on the next play. Free for everyone.
+   *     The choice is `settings.myPlaysV156D` in the save (Settings has the same row).
+   *   - unticked: the old filter (`vlBaseV156D` — side of the ball when `onlyInvolved`, skip-opponent, or every snap).
+   *   - PLAYOFFS and the CHAMPIONSHIP (`weekResults[currentWeek].playoff`, or `opponentV11.importance`
+   *     playoff/championship): the box is locked off, and no setting may skip a snap on his side — when any skip
+   *     setting is on (`onlyInvolved`, `skipOpp`, or this box) the filter is exactly the side of the ball
+   *     (`playsSkipV153B`), so skip-opponent can no longer hide a defender's own defense; with none on, every snap.
+   *     The saved choice is never written there, so the regular season picks it back up.
+   * Spends no Math.random() and never touches the sim — it only decides which rows of the log are drawn.
+   * Kill switch `TU("v156D", 0)`: no box, no settings row, the v153 B filter as it was. `v156Dcheck`. */
+  function playoffLiveV156D() {
+    const p = state && state.player;
+    if (!p || !p.weekResults || p.currentWeek == null) return !1;
+    const w = p.weekResults[p.currentWeek];
+    if (!w) return !1;
+    const imp = String((w.opponentV11 && w.opponentV11.importance) || "");
+    return !!w.playoff || imp === "playoff" || imp === "championship";
+  }
+  function myPlaysPrefV156D() {
+    return !!(state && state.settings && state.settings.myPlaysV156D);
+  }
+  function myPlaysActiveV156D() {
+    return TU("v156D", 1) && myPlaysPrefV156D() && !playoffLiveV156D();
+  }
+  function liveSkipDecideV156D(row) {
+    if (!row) return !1;
+    if (playoffLiveV156D()) {
+      const anySkip = settingOn("onlyInvolved") || settingOn("skipOpp") || myPlaysPrefV156D();
+      return anySkip ? playsSkipV153B(row) : !1;
+    }
+    if (myPlaysPrefV156D()) return !row.involved;
+    return vlBaseV156D(row);
+  }
+  function liveSkipV156D(row) {
+    const skip = liveSkipDecideV156D(row);
+    /* for checks: which rows this game drew and which it passed over, and under what rule */
+    if (row && liveCtl) {
+      const log = liveCtl.logV156D || (liveCtl.logV156D = []);
+      log.push({ i: liveCtl.idx, skip: skip, mine: myPlaysActiveV156D(), playoff: playoffLiveV156D() });
+    }
+    return skip;
+  }
+  function myPlaysNoteV156D() {
+    if (playoffLiveV156D()) return "🏆 PLAYOFFS · WATCH EVERY SNAP ON YOUR SIDE";
+    if (myPlaysPrefV156D()) return "SHOWING · ONLY THE SNAPS YOU'RE IN";
+    if (settingOn("onlyInvolved") && state.player && state.player.pos)
+      return "SHOWING · YOUR " + (sideV153B(state.player) === "us" ? "OFFENSE" : "DEFENSE") + " · EVERY SNAP ON YOUR SIDE";
+    return settingOn("skipOpp") ? "SHOWING · EVERY SNAP · OPPONENT DRIVES SKIPPED" : "SHOWING · EVERY SNAP";
+  }
+  /* the row the live screen (`ol`) draws right above the field; a hoisted declaration (bare name in a template) */
+  function myPlaysRowV156D() {
+    if (!TU("v156D", 1)) return "";
+    const locked = playoffLiveV156D(),
+      on = !locked && myPlaysPrefV156D();
+    return `<div class="mp156d-row${locked ? " locked" : ""}" id="myPlaysRowV156D">
+      <span class="mp156d-note" id="myPlaysNoteV156D">${myPlaysNoteV156D()}</span>
+      <label class="mp156d-box${on ? " on" : ""}${locked ? " locked" : ""}" id="myPlaysV156D" title="${locked ? "Playoffs: you watch every snap on your side of the ball" : "Only the snaps you are in — from the next play"}">
+        <input type="checkbox" id="myPlaysInputV156D"${on ? " checked" : ""}${locked ? " disabled" : ""} onchange="toggleMyPlaysV156D(this.checked)">
+        <span class="mp156d-sq" aria-hidden="true">${locked ? "🔒" : on ? "✓" : ""}</span>
+        <span class="mp156d-lbl">MY PLAYS ONLY</span>
+      </label>
+    </div>`;
+  }
+  function toggleMyPlaysV156D(checked) {
+    if (!TU("v156D", 1)) return;
+    if (playoffLiveV156D()) {
+      showToast("🏆 Playoffs — you watch every snap on your side of the ball");
+    } else {
+      state.settings || (state.settings = {});
+      state.settings.myPlaysV156D = checked == null ? !state.settings.myPlaysV156D : !!checked;
+      saveGame();
+      showToast(state.settings.myPlaysV156D ? "✓ My Plays Only — from the next play" : "My Plays Only off — your side of the ball");
+    }
+    const old = byId("myPlaysRowV156D");
+    if (old) old.outerHTML = myPlaysRowV156D();
+  }
+  window.toggleMyPlaysV156D = toggleMyPlaysV156D;
+  window.__V156D = {
+    playoff: playoffLiveV156D,
+    pref: myPlaysPrefV156D,
+    active: myPlaysActiveV156D,
+    skip: row => liveSkipDecideV156D(row),
+    note: myPlaysNoteV156D,
+    toggle: toggleMyPlaysV156D,
+    log: () => (liveCtl && liveCtl.logV156D ? liveCtl.logV156D.slice() : null)
+  };
+
   function liveTick() {
     if (!liveCtl || !liveCtl.playing) return;
     const e = state._liveGame;
