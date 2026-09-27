@@ -589,7 +589,7 @@
       cells.push('<button type="button" class="lgb-cell' + (on ? "" : " locked") + (r === R.medal ? " cur" : "") + (r === have + 1 ? " next" : "") + (r % 10 === 0 ? " ms" : "") + '" data-rank="' + r + '">' + medalHtml(r, 28, { flat: true, locked: !on, title: false }) + "</button>");
     }
     var owned = Math.max(0, Math.min(T.to - T.from + 1, have - T.from + 1));
-    return '<div class="lgb-page" data-page="' + p + '" style="--tint:' + (T.tint || "#3a2610") + '"><div class="lgb-pt"><b><i class="lgb-sw"></i>' + esc(T.name) + "</b><small>RANKS " + T.from + "–" + T.to + " · " + owned + "/" + (T.to - T.from + 1) + "</small></div>" +
+    return '<div class="lgb-page" data-page="' + p + '" style="--tint:' + (T.tint || "#3a2610") + '"><div class="lgb-pt"><b><i class="lgb-sw"></i>' + esc(T.name) + "</b><small>RANKS " + T.from + "–" + T.to + " · " + owned + "/" + (T.to - T.from + 1) + simsPageV159B(T) + "</small></div>" +
       '<div class="lgb-row lgb-grid">' + cells.join("") + "</div>" +
       '<div class="lgb-foot">' + (p > 0 ? '<button type="button" class="lgb-turn prev" data-turn="-1" aria-label="Previous page">‹</button>' : "<i></i>") +
       "<span>PAGE " + (p + 1) + " / " + P.length + "</span>" + (p < last ? '<button type="button" class="lgb-turn next" data-turn="1" aria-label="Next page">›</button>' : "<i></i>") + "</div></div>";
@@ -758,7 +758,7 @@
     }
     if (sc.querySelector(".lg-case-v152")) return;
     var host = sc.querySelector(".pcard-host-v151b");
-    host.insertAdjacentHTML("afterend", caseHtml(g) + bookHtml(g));
+    host.insertAdjacentHTML("afterend", caseHtml(g) + bookHtml(g) + simsCardV159B());   // v159 B: the medals' season-sim reward — its own SIMS tab (src/22)
     wireBook(sc.querySelector(".lg-book-v152"));
     UI.profile++;
     // the medal in the case changed since the case last showed it: swap it in front of him
@@ -1018,7 +1018,7 @@
       o.innerHTML = '<div class="lgs-in" style="--lgg:' + glow(m) + ";--tint:" + ((cat && cat.tint) || "#e8c86a") + '">' +
         '<div class="lgs-slot">' + medalHtml(m, 112, { title: false }) + "</div>" +
         '<div class="lgs-name">' + esc(name(m)) + "</div>" +
-        '<div class="lgs-meta"><span>LEGACY ' + (rank > 500 ? "LV " + fmt(rank) : "RANK " + rank) + "</span><span>" + esc(tierName(m)) + "</span>" + (cat ? '<span class="lgs-cat"><i></i>' + esc(cat.name) + "</span>" : "") + "</div>" +
+        '<div class="lgs-meta"><span>LEGACY ' + (rank > 500 ? "LV " + fmt(rank) : "RANK " + rank) + "</span><span>" + esc(tierName(m)) + "</span>" + (cat ? '<span class="lgs-cat"><i></i>' + esc(cat.name) + "</span>" : "") + "</div>" + simsShareV159B(cat) +
         '<div class="lgs-pct" data-src="' + S.source + '"><b class="lgs-top">' + (S.rank <= 1 ? "EVERY PLAYER" : "TOP " + (S.approx ? "≈" : "") + esc(S.text)) + '</b><div class="lgs-txt">' + sentenceV157C(S) + "</div>" +
         '<small class="lgs-src">' + (S.source === "live" ? "Live from the league's boards" : "Estimated from how far players climb — live numbers arrive with the online boards") + "</small></div>" +
         '<div class="lgs-btns">' + (onProfile && document.querySelector(".lgk-slot") && document.querySelector(".lgk-slot").getClientRects().length ? "" : '<button type="button" class="btn secondary lgs-case">TROPHY CASE</button>') + '<button type="button" class="btn lgs-ok">CLOSE</button></div></div>';
@@ -1076,6 +1076,70 @@
     try { if (!TU31("v157Cmedal", 1)) document.documentElement.classList.add("lg-spin-v157c"); } catch (e) {}
   })();
 
+  /* ===== v159 B MY PLAYS ONLY IS THE MEMBER'S =====
+   * (the medals' side) The owner: "Have members get 50 percent more career simulations. Show the reward in the medals
+   * section." The profile's medals gain a fourth tab, ⏭ SIMS (src/22), with SEASON SIMS · THE MEDALS' REWARD (`simsCardV159B`):
+   * every colour group's reward — "COMPLETE SILVER → +2 season sims every career" — which groups are complete, the
+   * allowance this career (used / left) and the all-nine total. Only while the store is ON (a real store or the v158 B
+   * preview) it adds the member's column (×1.5, rounded half to even: +2 / +2 / +3 … / +4, 30 at all nine) and "Members
+   * get 50% more"; with the store OFF it is the free table alone (31 draws it either way — the store module is not
+   * asked for anything). Each Collection Book page's title line names its group's reward too ("⏭ +2", ✓ when done).
+   * The numbers are 07's (`window.__V159B.rewards()` → `simRewardsV159B`, the same `skipsV156B` the ⏭ button counts).
+   * TU "v159Bmedals" 0 hides both. `v159Bcheck`. */
+  function simsV159B() { try { var V = window.__V159B; return V && V.rewards && TU31("v159Bmedals", 1) ? V.rewards() : null; } catch (e) { return null; } }
+  function simsPageV159B(T) {
+    var R = simsV159B(); if (!R || !R.gated || !T) return "";
+    var row = R.rows.filter(function (r) { return r.key === T.key; })[0]; if (!row) return "";
+    return ' · <span class="lgb-sims-v159b' + (row.done ? " done" : "") + '" title="Complete ' + esc(row.name) + ": +" + row.bonus + ' season sims every career">⏭ ' + (row.done ? "✓ " : "") + "+" + row.bonus + "</span>";
+  }
+  // the medal card (v157 C): the colour's reward, one line
+  function simsShareV159B(cat) {
+    var R = cat && simsV159B(); if (!R || !R.gated) return "";
+    var row = R.rows.filter(function (r) { return r.key === cat.key; })[0]; if (!row) return "";
+    return '<div class="lgs-sims-v159b" style="margin-top:7px;font:600 11px Oswald,sans-serif;letter-spacing:1px;color:' + (row.done ? "#57e07a" : "#ffd76f") + '">⏭ ' + (row.done ? "✓ " : "") + "COMPLETE " + esc(row.name) + " → +" + row.bonus + " SEASON SIMS A CAREER" + (R.storeOn && R.rate > 1 ? " · MEMBERS +" + row.member : "") + "</div>";
+  }
+  function simsCardV159B() {
+    var R = simsV159B(); if (!R || !R.gated) return "";
+    var mem = !!(R.storeOn && R.rate > 1), pct = Math.round((R.rate - 1) * 100);
+    var rows = R.rows.map(function (r) {
+      var start = r.key === "start";
+      return '<div class="lgs9-row' + (r.done ? " done" : "") + (start ? " start" : "") + '" data-key="' + esc(r.key) + '" style="--tint:' + esc(r.tint || "#e8c86a") + '">' +
+        '<span class="lgs9-nm">' + (start ? "EVERY CAREER" : "<i></i>COMPLETE " + esc(r.name)) + "</span>" +
+        '<span class="lgs9-at">' + (start ? "TO START" : r.done ? "✓ DONE" : "MEDAL " + r.to) + "</span>" +
+        '<b class="lgs9-free">+' + r.bonus + "</b>" + (mem ? '<b class="lgs9-mem">+' + r.member + "</b>" : "") + "</div>";
+    }).join("");
+    var left = R.left === Infinity ? "∞" : Math.max(0, R.left | 0);
+    return '<div class="card lg-sims-v159b' + (mem ? " mem" : "") + '" id="legacySimsV159B">' +
+      '<div class="lgk-head"><span>SEASON SIMS · THE MEDALS\' REWARD</span><b>' + R.allowed + " A CAREER</b></div>" +
+      '<div class="lgs9-sub">Complete a colour\'s medals for more ⏭ season sims — every career, for good. <b>' + R.groupsDone + " of " + R.groupsAll + "</b> groups complete.</div>" +
+      '<div class="lgs9-tbl"><div class="lgs9-row lgs9-hd"><span></span><span></span><b class="lgs9-free">FREE</b>' + (mem ? '<b class="lgs9-mem">MEMBERS</b>' : "") + "</div>" + rows + "</div>" +
+      '<div class="lgs9-foot"><span>THIS CAREER <b>' + R.allowed + "</b> · USED " + (R.used | 0) + " · LEFT <b>" + left + "</b>" + (R.pro ? " · PRO +" + R.pro : "") + "</span>" +
+      "<span>ALL NINE <b>" + R.freeAll + "</b>" + (mem ? ' · MEMBERS <b class="lgs9-m">' + R.memberAll + "</b>" : "") + "</span></div>" +
+      (mem ? '<div class="lgs9-club">' + (R.member ? "✓ YOUR MEMBERSHIP: " + pct + "% MORE — " + R.memberNow + " A CAREER FROM YOUR MEDALS" : "MEMBERS GET " + pct + "% MORE SEASON SIMS · " + R.memberNow + " A CAREER AT YOUR MEDALS") + "</div>" : "") +
+      '<div class="lgs9-fine">One ⏭ sims the rest of the regular season. The playoffs are always played live.</div></div>';
+  }
+  (function () {
+    if (document.getElementById("lgcss-v159b")) return;
+    var st = document.createElement("style"); st.id = "lgcss-v159b";
+    st.textContent = [
+      ".lg-sims-v159b{background:linear-gradient(180deg,#171310,#0c0a08);border-color:rgba(240,187,69,.45)}",
+      ".lgs9-sub{font:500 12px 'Barlow Condensed',sans-serif;color:#c9d2de;margin:6px 0 8px}.lgs9-sub b{color:#ffd76f}",
+      ".lgs9-tbl{display:flex;flex-direction:column;gap:3px}",
+      ".lgs9-row{display:grid;grid-template-columns:minmax(0,1fr) auto 38px;align-items:center;gap:8px;padding:4px 8px;border-radius:8px;background:rgba(255,255,255,.035);border-left:3px solid var(--tint,#e8c86a)}",
+      ".lg-sims-v159b.mem .lgs9-row{grid-template-columns:minmax(0,1fr) auto 38px 56px}",
+      ".lgs9-row.lgs9-hd{background:none;border-left-color:transparent;padding-top:0;padding-bottom:0}.lgs9-hd b{font:600 9px Oswald,sans-serif!important;letter-spacing:1.2px;color:var(--chalk-dim,#9fb0c4)!important}",
+      ".lgs9-nm{font:700 12px Oswald,sans-serif;letter-spacing:1px;color:#e8eef6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lgs9-nm i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0;background:var(--tint);box-shadow:0 0 6px var(--tint)}",
+      ".lgs9-at{font:500 10px Oswald,sans-serif;letter-spacing:.8px;color:var(--chalk-dim,#9fb0c4);white-space:nowrap}.lgs9-row.done .lgs9-at{color:#57e07a}",
+      ".lgs9-free,.lgs9-mem{text-align:right;font:700 14px Oswald,sans-serif;color:#ffd76f}.lgs9-mem{color:#f6cf6a;text-shadow:0 0 8px rgba(240,187,69,.35)}",
+      ".lgs9-row:not(.done) .lgs9-free,.lgs9-row:not(.done) .lgs9-mem{opacity:.55}",
+      ".lgs9-foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 10px;margin-top:8px;font:500 10.5px Oswald,sans-serif;letter-spacing:.8px;color:var(--chalk-dim,#9fb0c4)}.lgs9-foot b{color:#ffd76f}",
+      ".lgs9-club{margin-top:7px;padding:6px 8px;border-radius:8px;text-align:center;font:700 10.5px Oswald,sans-serif;letter-spacing:1.2px;color:#141208;background:linear-gradient(180deg,#f6cf6a,#e0a92f)}",
+      ".lgs9-fine{margin-top:6px;font:400 10px 'Barlow Condensed',sans-serif;color:#7d8796}",
+      ".lgb-sims-v159b{color:#ffd76f}.lgb-sims-v159b.done{color:#57e07a}"
+    ].join("\n");
+    (document.head || document.documentElement).appendChild(st);
+  })();
+
   /* ---------------- the API + the watch ---------------- */
   window.RIB_LEGACY = {
     version: "v152a", medals: MEDALS,
@@ -1084,6 +1148,7 @@
     milestone: function (m) { milestone(m, [m], A() ? A().bounty(m) : 0); }, rank500: function () { rank500(A() ? A().bounty(500) : 0); },
     ledger: ledger, decorateProfile: decorateProfile, refresh: identity, menuBox: menuBox,
     share: shareV157C, shareModel: shareModelV157C, careersAt: careersAtV157C, shareLive: shareLiveV157C, shareCard: shareCardV157C, fmtShare: fmtShareV157C,   // v157 C
+    simsCard: simsCardV159B, sims: simsV159B,   // v159 B: the medals' season-sim reward
     _resetSeen: function () { try { localStorage.removeItem(SEEN_KEY); } catch (e) {} }
   };
   var queued = 0;

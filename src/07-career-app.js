@@ -8740,6 +8740,7 @@
   }
   function toggleSetting(e) {
     if (e === "onlyInvolved" && !playsOnlyOkV151A()) return void showToast("🔒 My Plays Only unlocks when you complete a career");
+    if (e === "myPlaysV156D" && !myPlaysOkV159B()) return void myPlaysLockedV159B(); /* v159 B: store ON only */
     (state.settings || (state.settings = {}),
       (state.settings[e] = !state.settings[e]),
       saveGame(),
@@ -13664,7 +13665,7 @@
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:10px">🎮 LIVE GAME</div>
       ${toggleRow("skipOpp", "Skip opponent drives", "Only watch plays while your team has the ball")}
       ${toggleRow("onlyInvolved", TU("v156D", 1) ? "Your side of the ball" : "My plays only", TU("v153Bplays", 1) ? "Watch your side of the ball — offense if you play offense, defense if you play defense (special teams only when you are in them). Off shows every snap." : "Jump straight to plays you're personally involved in")}
-      ${TU("v156D", 1) ? toggleRow("myPlaysV156D", "My plays only", "Only the snaps you are in — also the MY PLAYS ONLY box above the live field. Playoffs and championships switch it off: there you watch every snap on your side.") : "" /* v156 D */}
+      ${TU("v156D", 1) ? myPlaysSettingV159B() : "" /* v156 D; v159 B: a member perk / the ad while the store is ON */}
       ${toggleRow("fastSim", "Faster live sim", "Speed up the default play animation")}
       ${toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices")}
     </div>
@@ -21400,7 +21401,8 @@
     return !!w.playoff || imp === "playoff" || imp === "championship";
   }
   function myPlaysPrefV156D() {
-    return !!(state && state.settings && state.settings.myPlaysV156D);
+    /* v159 B: with the store ON the choice counts only while the perk is held (member, or the ad's 30 minutes) */
+    return !!(state && state.settings && state.settings.myPlaysV156D) && myPlaysOkV159B();
   }
   function myPlaysActiveV156D() {
     return TU("v156D", 1) && myPlaysPrefV156D() && !playoffLiveV156D();
@@ -21415,6 +21417,7 @@
     return vlBaseV156D(row);
   }
   function liveSkipV156D(row) {
+    myPlaysWatchV159B(); /* v159 B: the ad's 30 minutes ran out → off from this play (nothing while the store is off) */
     const skip = liveSkipDecideV156D(row);
     /* for checks: which rows this game drew and which it passed over, and under what rule */
     if (row && liveCtl) {
@@ -21434,13 +21437,15 @@
   function myPlaysRowV156D() {
     if (!TU("v156D", 1)) return "";
     const locked = playoffLiveV156D(),
-      on = !locked && myPlaysPrefV156D();
+      on = !locked && myPlaysPrefV156D(),
+      gate = locked ? null : myPlaysGateV159B() /* v159 B: null while the store is off — the markup is v156 D's */,
+      gated = !!(gate && gate.locked);
     return `<div class="mp156d-row${locked ? " locked" : ""}" id="myPlaysRowV156D">
       <span class="mp156d-note" id="myPlaysNoteV156D">${myPlaysNoteV156D()}</span>
-      <label class="mp156d-box${on ? " on" : ""}${locked ? " locked" : ""}" id="myPlaysV156D" title="${locked ? "Playoffs: you watch every snap on your side of the ball" : "Only the snaps you are in — from the next play"}">
+      <label class="mp156d-box${on ? " on" : ""}${locked ? " locked" : ""}${gated ? " gated-v159b" : ""}" id="myPlaysV156D" title="${locked ? "Playoffs: you watch every snap on your side of the ball" : gated ? "A member perk — or watch an ad for 30 minutes" : "Only the snaps you are in — from the next play"}">
         <input type="checkbox" id="myPlaysInputV156D"${on ? " checked" : ""}${locked ? " disabled" : ""} onchange="toggleMyPlaysV156D(this.checked)">
-        <span class="mp156d-sq" aria-hidden="true">${locked ? "🔒" : on ? "✓" : ""}</span>
-        <span class="mp156d-lbl">MY PLAYS ONLY</span>
+        <span class="mp156d-sq" aria-hidden="true">${locked || gated ? "🔒" : on ? "✓" : ""}</span>
+        <span class="mp156d-lbl">MY PLAYS ONLY${gate && gate.tag ? `<small class="mp159b-tag" data-mp159="1"> · ${gate.tag}</small>` : ""}</span>
       </label>
     </div>`;
   }
@@ -21448,6 +21453,8 @@
     if (!TU("v156D", 1)) return;
     if (playoffLiveV156D()) {
       showToast("🏆 Playoffs — you watch every snap on your side of the ball");
+    } else if (!myPlaysOkV159B()) {
+      myPlaysLockedV159B(); /* v159 B: store ON — a member perk, or the ad's 30 minutes */
     } else {
       state.settings || (state.settings = {});
       state.settings.myPlaysV156D = checked == null ? !state.settings.myPlaysV156D : !!checked;
@@ -30212,8 +30219,10 @@
       earned = groups.reduce((t, g) => t + (g.done ? g.bonus : 0), 0),
       proBonus = TU("skipProBonusV151A", 3),
       pro = m && m.has("simPlus") ? proBonus : 0,
-      mult = memberSimMultV158B(m) /* v158 B: a member's allowance is doubled — base, every group, the cap */,
-      allowed = Math.min(max * mult, (base + earned) * mult) + pro,
+      mult = memberSimMultV158B(m) /* v158 B: a member's allowance is multiplied — base, every group, the cap (v159 B: ×1.5) */,
+      /* v159 B: each piece is scaled and rounded half-to-even (simScaleV159B) — 1 → 2, all nine groups 20 → 30 at ×1.5 */
+      cap = simScaleV159B(max, mult),
+      allowed = Math.min(cap, simScaleV159B(base, mult) + groups.reduce((t, g) => t + (g.done ? simScaleV159B(g.bonus, mult) : 0), 0)) + pro,
       used = (e && e.simsUsedV156B) | 0,
       /* v158 B: the ad (and the Club) buy GAME sims now — a season sim is always counted; TU v158Bgames 0 restores v156 B */
       unlimited = !TU("v158Bgames", 1) && !!(m && (m.has("simUnlimited") || m.has("gameSims"))),
@@ -30228,6 +30237,7 @@
       base,
       earned,
       max,
+      cap,
       pro,
       proBonus,
       mult,
@@ -30239,7 +30249,7 @@
       unlimitedUntil: until,
       minutesLeft: unlimited && until !== 1 / 0 ? Math.max(1, Math.ceil((until - simNowV156B(m)) / 6e4)) : unlimited ? 1 / 0 : 0,
       groups,
-      next: nx ? { key: nx.key, name: nx.name, to: nx.to, bonus: nx.bonus * mult, medals } : null,
+      next: nx ? { key: nx.key, name: nx.name, to: nx.to, bonus: simScaleV159B(nx.bonus, mult), medals } : null,
       perDay: 0 /* v151 A's field: there is no day any more */
     };
   }
@@ -30346,13 +30356,13 @@
    * live-only anyway). It needs `gameSims`: the Club (`member` implies it) for good, or the rewarded ad for 30 minutes
    * (the module's `gameSims` placement; a stored v156 B `simUnlimited` grant is read as it). A locked tap opens the
    * module's sheet (`RIB_MONETIZE.gameSimLocked(retry)`: the ad, then the Quick Play goes on). SEASON sims stay the
-   * v156 B medal allowance for everyone — the ad no longer makes them uncounted — and a member's is doubled
-   * (`memberSimMultV158B`, TU "memberSimMultV158B" 2: base, every group bonus and the cap). Store OFF: Quick Play is
+   * v156 B medal allowance for everyone — the ad no longer makes them uncounted — and a member's is multiplied
+   * (`memberSimMultV158B`, TU "memberSimMultV158B": base, every group bonus and the cap — v159 B made it 1.5, was 2). Store OFF: Quick Play is
    * free and unlimited, the button is the old markup (`gameSimTagV158B` → ""). Kill switch TU "v158Bgames" 0 (the v156 B
    * rules: Quick Play free, the ad / the Club make season sims uncounted). Hoisted declarations (v140). */
   function memberSimMultV158B(m) {
     if (!m || !TU("v158Bgames", 1) || !m.has("member")) return 1;
-    return Math.max(1, Math.round(TU("memberSimMultV158B", 2)));
+    return memberSimRateV159B();
   }
   function gameSimOkV158B() {
     const m = mzV150C();
@@ -30379,6 +30389,149 @@
     showToast("⏩ Quick Play is a member perk — or watch an ad for 30 minutes of game sims");
   }
   window.__V158B = { gameOk: gameSimOkV158B, gameLeft: gameSimLeftV158B, tag: gameSimTagV158B, mult: () => memberSimMultV158B(mzV150C()) };
+  /* ===== v159 B MY PLAYS ONLY IS THE MEMBER'S =====
+   * The owner: "Add the My Plays Only for the membership and f2p ads." and "Have members get 50 percent more career
+   * simulations. Show the reward in the medals section."
+   *   MY PLAYS ONLY — only while the store is ON (a real ON store, or the v158 B EXPERIENCE preview). The v156 D box on the
+   *   live field and its Settings row become a MEMBER perk (`playsOnly`, implied by `member` in src/27): a free player
+   *   gets it for 30 minutes from a rewarded ad (placement `playsOnly`, "MY PLAYS ONLY FOR 30 MIN"; the 15-s placeholder
+   *   in the F2P preview; Ad Free claims it without the ad). Locked, the box reads "🔒 MY PLAYS ONLY · AD / MEMBER" and a
+   *   tap opens the module's member-perk sheet (`RIB_MONETIZE.playsLocked(then)`); after the reward it ticks on and
+   *   applies from the next play. The saved choice (`settings.myPlaysV156D`) is kept; what counts is the choice AND the
+   *   perk (`myPlaysPrefV156D`), read per play in `liveTick` → `vl`, so when the 30 minutes run out mid-game the current
+   *   play finishes and the filter turns off at the next play boundary, with a toast (`myPlaysWatchV159B`). Members:
+   *   always. Playoffs: still forced OFF for everyone (the v156 D rule runs first). Store OFF (shipping): nothing here
+   *   runs — free for everyone, the same markup (`playsGateOnV159B` is false without `mzV150C()`).
+   *   SEASON SIMS — the member multiplier (`memberSimMultV158B`, TU "memberSimMultV158B") is 1.5 (was 2). The base,
+   *   each medal group's bonus and the cap are scaled one by one and rounded HALF TO EVEN (`simScaleV159B`: 1 → 2,
+   *   2 → 3, 3 → 4, 20 → 30), so a fresh member has 2 and all nine groups land on exactly 30 (2 + 2 + 6×3 + 2×4) —
+   *   every group shows a member gain and the pieces add up to the total. TU 2 restores v158 B's doubling exactly.
+   *   `simRewardsV159B()` is the per-group table the medals section draws (src/31 `simsCardV159B`): the free reward of
+   *   each group, done or not, the allowance now, and — store ON only — the member's column.
+   * Hoisted declarations (v140). Kill switch TU "v159Bplays" 0: My Plays Only free again with the store ON (v158 B).
+   * `v159Bcheck`. */
+  function memberSimRateV159B() {
+    const r = +TU("memberSimMultV158B", 1.5);
+    return r > 1 ? r : 1;
+  }
+  function simScaleV159B(n, mult) {
+    n = +n || 0;
+    if (!(mult > 1)) return n;
+    const x = n * mult,
+      f = Math.floor(x + 1e-9);
+    if (Math.abs(x - f - 0.5) < 1e-9) return f % 2 === 0 ? f : f + 1; /* half to even: 1.5 → 2, 4.5 → 4 */
+    return Math.round(x);
+  }
+  // the medals' season-sim reward, group by group (the medals section: src/31 `simsCardV159B`)
+  function simRewardsV159B() {
+    const s = skipsV156B(),
+      m = mzV150C(),
+      storeOn = !!(m && TU("v158Bgames", 1)),
+      rate = storeOn ? memberSimRateV159B() : 1,
+      rows = [{ key: "start", name: "EVERY CAREER", tint: "", to: 0, bonus: s.base, member: simScaleV159B(s.base, rate), done: !0 }].concat(
+        s.groups.map(g => ({ key: g.key, name: g.name, tint: g.tint, to: g.to, bonus: g.bonus, member: simScaleV159B(g.bonus, rate), done: g.done }))
+      ),
+      sum = (key, onlyDone) => rows.reduce((t, r) => t + (!onlyDone || r.done ? r[key] : 0), 0);
+    return {
+      gated: s.gated,
+      storeOn,
+      member: !!(m && m.has("member")),
+      rate,
+      medals: s.medals,
+      rows,
+      groupsDone: s.groups.filter(g => g.done).length,
+      groupsAll: s.groups.length,
+      freeNow: Math.min(s.max, sum("bonus", !0)),
+      freeAll: Math.min(s.max, sum("bonus")),
+      memberNow: Math.min(simScaleV159B(s.max, rate), sum("member", !0)),
+      memberAll: Math.min(simScaleV159B(s.max, rate), sum("member")),
+      allowed: s.allowed,
+      used: s.used,
+      left: s.left,
+      pro: s.pro,
+      next: s.next
+    };
+  }
+  function playsGateOnV159B() {
+    return !!(TU("v159Bplays", 1) && TU("v156D", 1) && mzV150C());
+  }
+  function myPlaysOkV159B() {
+    if (!playsGateOnV159B()) return !0;
+    return !!mzV150C().has("playsOnly");
+  }
+  function myPlaysLeftV159B() {
+    const m = mzV150C();
+    if (!m) return 0;
+    const u = m.until("playsOnly") || 0;
+    return u === 1 / 0 ? 1 / 0 : u ? Math.max(0, u - simNowV156B(m)) : 0;
+  }
+  // what the box and the Settings row add while the store is ON: null (OFF), locked, or the ad's minutes left
+  function myPlaysGateV159B() {
+    if (!playsGateOnV159B()) return null;
+    const ok = myPlaysOkV159B(),
+      l = ok ? myPlaysLeftV159B() : 0;
+    return { locked: !ok, member: l === 1 / 0, tag: !ok ? "AD / MEMBER" : l === 1 / 0 ? "" : Math.max(1, Math.ceil(l / 6e4)) + " MIN" };
+  }
+  function myPlaysLockedV159B() {
+    const m = mzV150C();
+    window.__V159B && window.__V159B.locked++;
+    if (m && m.playsLocked) return void m.playsLocked(myPlaysUnlockedV159B);
+    showToast("🔒 My Plays Only is a member perk — or watch an ad for 30 minutes");
+  }
+  // the reward came in: tick it on — it applies from the next play
+  function myPlaysUnlockedV159B() {
+    if (!myPlaysOkV159B()) return;
+    state.settings || (state.settings = {});
+    state.settings.myPlaysV156D = !0;
+    saveGame();
+    liveCtl && (liveCtl.mpOkV159B = !0);
+    const old = byId("myPlaysRowV156D");
+    if (old) old.outerHTML = myPlaysRowV156D();
+    if (state.view === "settings") screenSettings();
+    showToast("✓ My Plays Only — from the next play");
+  }
+  // the play boundary (every row `vl` asks about): the ad's 30 minutes ran out → off from this play, with a toast
+  function myPlaysWatchV159B() {
+    if (!liveCtl || !playsGateOnV159B()) return;
+    const g = myPlaysGateV159B(),
+      ok = !g.locked,
+      was = liveCtl.mpOkV159B;
+    if (was === !0 && !ok && state.settings && state.settings.myPlaysV156D && !playoffLiveV156D()) {
+      showToast("⏱ My Plays Only's 30 minutes are up — back to your side of the ball");
+      window.__V159B && window.__V159B.expired++;
+    }
+    liveCtl.mpOkV159B = ok;
+    if (liveCtl.mpTagV159B !== g.tag) {
+      liveCtl.mpTagV159B = g.tag;
+      const old = byId("myPlaysRowV156D");
+      if (old) old.outerHTML = myPlaysRowV156D();
+    }
+  }
+  // Settings › MY PLAYS ONLY: exactly the v156 D row while the store is off
+  function myPlaysSettingV159B() {
+    const label = "My plays only",
+      desc = "Only the snaps you are in — also the MY PLAYS ONLY box above the live field. Playoffs and championships switch it off: there you watch every snap on your side.",
+      g = myPlaysGateV159B();
+    if (!g) return toggleRow("myPlaysV156D", label, desc);
+    if (g.locked)
+      return `<div class="toggle-row locked-v151 locked-v159b" id="myPlaysSettingV159B" onclick="toggleSetting('myPlaysV156D')" title="A member perk — or watch an ad for 30 minutes">
+    <div class="toggle-info"><div class="toggle-label">🔒 ${label} · AD / MEMBER</div><div class="toggle-desc">A member perk — or watch an ad for 30 minutes of it. Your side of the ball (above) stays free. ${desc}</div></div>
+    <div class="switch" style="opacity:.4"><i></i></div>
+  </div>`;
+    return toggleRow("myPlaysV156D", label + (g.tag ? " · " + g.tag.toLowerCase() : g.member ? " · member" : ""), desc);
+  }
+  window.__V159B = {
+    locked: 0,
+    expired: 0,
+    gateOn: playsGateOnV159B,
+    ok: myPlaysOkV159B,
+    left: myPlaysLeftV159B,
+    gate: myPlaysGateV159B,
+    unlocked: myPlaysUnlockedV159B,
+    rate: memberSimRateV159B,
+    scale: simScaleV159B,
+    rewards: simRewardsV159B
+  };
   window.__V156B = {
     skips: skipsV156B,
     line: skipLineV156B,

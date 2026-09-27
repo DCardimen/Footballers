@@ -23,10 +23,10 @@
  * they are simply not offered. Earned, pass and free items are a live, free feature whatever the switch.
  *
  * RENDERING HOOKS (each a small bannered call in its own file, each the identity with nothing equipped):
- *   uniform / helmet  src/05 `ribSyncYouKitV96` → fieldKit(): the "you" textures only (never "off"/"def"),
+ *   uniform / helmet  src/05 `ribSyncYouKitV96` → fieldKit(): the "you" textures (v159 A: and his team's "off"; never "def"),
  *                     a deco on ribRegisterTeam's put (patterns, helmet shell / stripe / decal / finish);
  *                     the menu feed's team.colors (07) → the hero, portrait and continue-card masks
- *   celebration       src/05 `celebrate()` → celebrate(): extra particles + a callout on HIS touchdown
+ *   celebration       src/05 `celebrate()` → celebrate(): extra particles + a callout on HIS touchdown (v159 C: fieldPlayV159C)
  *   stadium           src/05 `bowlTrimV112` → stadiumTheme(): band, lip, tunnel frame, a wash over the stands (home only)
  *   vault             public/rib-vault.js → vaultTheme() / vaultTint(): room grade, coin tint, motes
  *   frame / banner / shelf   renderCard()                recap   html[data-cos-recap] on the report / career end
@@ -173,6 +173,7 @@
   ITEMS.push.apply(ITEMS, itemsV156C());   // v156 C: the SUPER looks (defined with the v156 C block below)
   ITEMS.push.apply(ITEMS, itemsV157A());   // v157 A: seventeen more wings (defined with the v157 A block below)
   ITEMS.push.apply(ITEMS, itemsV157B());   // v157 B: 19 animated auras, 15 footprint trails (the v157 B block below)
+  ITEMS.push.apply(ITEMS, itemsV159D());   // v159 D: 16 animated crowns, 16 more auras (the v159 D block below)
   var PACKS = [
     { id: "pack_uniforms1", name: "Uniform Pack", price: "$1.99", productId: "rib.cos.uniforms1", items: [] },
     { id: "pack_helmets1", name: "Helmet Pack", price: "$1.99", productId: "rib.cos.helmets1", items: [] },
@@ -246,7 +247,7 @@
   }
   /* "team" in a kit means the team's own colour (the pass's Kit Trim keeps the team's jersey and adds a trim) */
   function teamCol(i) { var t = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col; return (Array.isArray(t) && hexOk(t[i])) || (i ? "#e8c86a" : "#1f4fd0"); }
-  function resolveU(U, tc) { if (!U) return null; if (U.j !== "team" && U.p !== "team") return U; var o = Object.assign({}, U); if (o.j === "team") o.j = (tc && hexOk(tc[0])) || teamCol(0); if (o.p === "team") o.p = (tc && hexOk(tc[1])) || teamCol(1); return o; }
+  function resolveU(U, tc) { if (!U) return null; U = uniModeV159A(U, tc); /* v159 A: the team palette */ if (U.j !== "team" && U.p !== "team") return U; var o = Object.assign({}, U); if (o.j === "team") o.j = (tc && hexOk(tc[0])) || teamCol(0); if (o.p === "team") o.p = (tc && hexOk(tc[1])) || teamCol(1); return o; }
 
   /* ACHIEVEMENTS — read off the account's own state; each grants its items once, with a toast */
   var ACH = [
@@ -501,7 +502,7 @@
     var U = resolveU((item("uniform") || {}).k || null, teamCols), H = (item("helmet") || {}).h || null;
     if (!U && !H) { V.kit = null; return null; }
     var clash = false;
-    if (U && oppCols && hexOk(oppCols[0]) && cdist(U.j, oppCols[0]) < TUv("cosKitClashV151B", 90)) { clash = true; U = null; }
+    if (U && !U.v159 /* v159 A: in the team palette the jersey IS the team's own — no new clash */ && oppCols && hexOk(oppCols[0]) && cdist(U.j, oppCols[0]) < TUv("cosKitClashV151B", 90)) { clash = true; U = null; }
     if (!U && !H) { V.kit = { clash: clash }; return null; }
     var p1 = U ? U.j : teamCols[0], p2 = U ? U.p : teamCols[1];
     var stamp = "u:" + (U ? equipped("uniform") + ":" + U.j + U.p : "-") + "|h:" + (H ? equipped("helmet") : "-");
@@ -534,7 +535,12 @@
 
   /* ---------------- the touchdown ---------------- */
   function celebrate(scene, x, y, cm) {
-    var it = item("celebration"), C = it && it.c; if (!C || !scene || !scene.add) return false;
+    var it = item("celebration"), C = it && it.c;
+    if (it && scene && scene.add && scene.events && onV159C()) {   // v159 C: the animation system (TU v159C 0 → the tweens below)
+      try { var r159 = fieldPlayV159C(scene, x, y, cm, it); V.celebrations.push({ id: it.id, kind: celKindV159C(it), say: (C && C.say) || "", made: r159.made, t: Date.now(), v159c: true }); return true; }
+      catch (e) { V.celebrateErr = String(e && e.message || e); errV159C(e); }
+    }
+    if (!C || !scene || !scene.add) return false;
     var reduced = false; try { reduced = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
     var cols = C.col.map(function (h) { if (h === "team") { var t = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#f0bb45", "#1f4fd0"]; return t[0]; } return h; });
     var cn = function (i) { return parseInt(String(cols[i % cols.length]).slice(1), 16); };
@@ -639,6 +645,7 @@
     var cat = it.cat, html = "";
     el.classList.add("cos-pv-v151b", "cat-" + cat);
     if (previewV158A(el, it)) return el;   // v158 A: animated banners, styled titles, drawn badges, material nameplates
+    if (previewV159C(el, it)) return el;   // v159 C: a celebration's looping mini-stage, a shelf that catches the light
     if (cat === "uniform" || cat === "helmet") {
       var tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"];
       var U = resolveU(it.k || (cat === "helmet" ? (item("uniform") || {}).k : null), tc) || { j: tc[0], p: tc[1], pat: "solid" };
@@ -863,6 +870,7 @@
       if (cv) draw();
       if (cv) cardFlairV153G(cv, cz);   // v153 G: aura + wings behind the figure, the crown on his head (its own layers)
       dressCardV158A(el);   // v158 A: the banner's painter
+      shelfV159C(el, d, !data || !!opts.self || !!(el.closest && el.closest(".pcard-host-v151b")));   // v159 C: the shelf catches the light, the numbers count up
     }
     return html;
   }
@@ -891,6 +899,7 @@
     var h = '<div class="cos-style-v151b" data-cat="' + cat + '">' +
       '<div class="h2 cos-h-v151b">Style <span>looks only · never changes a number</span></div>' +
       '<div class="cos-cats-v151b">' + SLOTS.map(function (s) { return '<button type="button" class="cos-cat-v151b' + (s === cat ? " on" : "") + '" onclick="cosCatV151B(\'' + s + '\')"><i>' + CATS[s].icon + "</i>" + CATS[s].name + "</button>"; }).join("") + "</div>" +
+      (cat === "uniform" ? uniColRowV159A() : "") +   // v159 A: Colours — the uniform's own, or the team palette
       '<div class="cos-grid-v151b">' + list.map(function (it) {
         var own = owned(it.id), on = it.id === eq;
         return '<div class="cos-item-v151b r-' + it.rarity + (own ? "" : " locked") + (on ? " on" : "") + '" data-cos="' + it.id + '"' + (own && !on ? ' onclick="cosEquipV151B(\'' + cat + "','" + it.id + '\')"' : "") + '>' +
@@ -1648,7 +1657,7 @@
         wr.setFlipX(false).setOrigin(wa.ax / wa.w, wa.ay / wa.h); wl.setFlipX(true).setOrigin(1 - wa.ax / wa.w, wa.ay / wa.h);
         var run = Math.min(1, (m._spdPx || 0) / 160), flap = Math.sin(now / (run > 0.3 ? 90 : 260)) * (run > 0.3 ? 0.16 : 0.09);
         var side = dir === "sd" ? 0.55 : (dir === "dr" || dir === "ur") ? 0.8 : 1, wsx = (1 - run * 0.3) * side * TUv("cosWingScaleV153G", 1), wsy = TUv("cosWingScaleV153G", 1);
-        var fp157 = flapPoseV157A(now); if (fp157.on) { flap = fp157.rot; wsy *= fp157.sy; fieldPoseV157A(fp157, now, wd); }   // v157 A: a beat of the wings every few seconds, still between
+        var fp157 = wingPoseV159D(now, wd.kind); if (fp157.on) { flap = fp157.rot; wsy *= fp157.sy; wsx *= fp157.sx || 1; fieldPoseV157A(fp157, now, wd); }   // v157 A: a beat of the wings every few seconds — v159 D: never still between (the flutter), the tips stretch as they lag
         var shY = geo.top + geo.h * 0.3, spread = TUv("cosWingSpreadV153G", 0.32), sh = 3.5 * side;   // raised and set out from the shoulder blades, so they read past his body
         wr.setPosition(geo.cx + sh, shY).setScale(wsx, wsy).setRotation(-spread - flap).setVisible(!down);
         wl.setPosition(geo.cx - sh, shY).setScale(wsx, wsy).setRotation(spread + flap).setVisible(!down);
@@ -1659,12 +1668,12 @@
       if (F.crown) {
         /* its own object over the plumbob's depth (the plumbob floats just above his head; a crown under it would vanish),
          * placed in world space from his container and taken down with it */
-        var cd = F.crown.d, ca = crownArtV153G(cd, cd.kind === "flame" ? ((now / 120) | 0) % 2 : crownGlintV157A(now)), ck = texV153G(scene, ca), co = m._crV153G;
+        var cd = F.crown.d, ca = crownAnimOnV159D() ? crownAnimV159D(cd, now) : crownArtV153G(cd, cd.kind === "flame" ? ((now / 120) | 0) % 2 : crownGlintV157A(now)), ck = texV153G(scene, ca), co = m._crV153G;   // v159 D: every crown animates
         if (co && (!co.scene || !co.active)) co = m._crV153G = null;
         if (!co) { co = m._crV153G = scene.add.image(0, 0, ck); m.root.once("destroy", function () { try { co.destroy(); } catch (e) {} }); }
         else if (co.texture.key !== ck) co.setTexture(ck);
         co.setOrigin(ca.ax / ca.w, ca.ay / ca.h).setDepth(TUv("cosCrownDepthV153G", 23.05));
-        var cy = geo.top + (cd.kind === "halo" ? -2.5 + Math.sin(now / 420) * 0.8 : cd.kind === "horns" ? 4 : 2.5);
+        var cy = geo.top + (cd.kind === "halo" ? -2.5 + Math.sin(now / 420) * 0.8 : cd.kind === "horns" ? 4 : 2.5) + crownBobV159D(now);   // v159 D: a gentle bob
         co.setPosition(m.root.x + geo.cx * s, m.root.y + cy * s).setScale(s).setVisible(!down && m.root.visible !== false);
         G153.fx.crown++;
       } else dropV153G(m, "_crV153G");
@@ -1708,13 +1717,14 @@
     ctx.imageSmoothingEnabled = false;
     if (F.aura && !auraOnV157B()) { var aa = auraArtV153G(F.aura.d), sc = geo.h / 44 * 1.05; ctx.save(); ctx.globalAlpha = 0.6; if (F.aura.d.kind !== "void") ctx.globalCompositeOperation = "lighter"; ctx.imageSmoothingEnabled = true; ctx.drawImage(aa.cv, geo.cx - aa.w * sc / 2, (geo.top + geo.bot) / 2 - aa.h * sc / 2 + 2 * sc, aa.w * sc, aa.h * sc); ctx.restore(); }   // v157 B: when on, cardAuraV157B draws (and animates) the aura on its own layer
     if (F.wings) {
-      var wa = wingArtV153G(F.wings.d, 0), shY = geo.top + geo.h * (shf || 0.3), sp = TUv("cosWingSpreadV153G", 0.32);
-      [1, -1].forEach(function (sd) { ctx.save(); ctx.translate(geo.cx + sd * 3.5 * k, shY); ctx.scale(sd, 1); ctx.rotate(-sp - (pose ? pose.rot : 0)); if (pose) ctx.scale(1, pose.sy); ctx.drawImage(wa.cv, -wa.ax * k, -wa.ay * k, wa.w * k, wa.h * k); ctx.restore(); });
+      var wa = wingArtV153G(F.wings.d, pose && pose.flutter && pose.t != null ? wingFrameV159D(F.wings.d.kind, pose.t) : 0), shY = geo.top + geo.h * (shf || 0.3), sp = TUv("cosWingSpreadV153G", 0.32);
+      [1, -1].forEach(function (sd) { ctx.save(); ctx.translate(geo.cx + sd * 3.5 * k, shY); ctx.scale(sd, 1); ctx.rotate(-sp - (pose ? pose.rot : 0)); if (pose) ctx.scale(1, pose.sy);
+        if (pose && pose.flutter) wingDrawV159D(ctx, wa, k, pose.tip); else ctx.drawImage(wa.cv, -wa.ax * k, -wa.ay * k, wa.w * k, wa.h * k); ctx.restore(); });   // v159 D: the outer half lags (the flutter)
     }
   }
-  function paintFrontV153G(ctx, geo, F, k) {
+  function paintFrontV153G(ctx, geo, F, k, t) {   // v159 D: `t` (optional) — the crown's animation frame and bob
     ctx.imageSmoothingEnabled = false;
-    if (F.crown) { var cd = F.crown.d, ca = crownArtV153G(cd, 0), off = cd.kind === "halo" ? -2.5 : cd.kind === "horns" ? 4 : 2.5; ctx.drawImage(ca.cv, geo.cx - ca.ax * k, geo.top + off * k - ca.ay * k, ca.w * k, ca.h * k); }
+    if (F.crown) { var cd = F.crown.d, ca = t != null ? crownAnimV159D(cd, t) : crownArtV153G(cd, 0), off = (cd.kind === "halo" ? -2.5 : cd.kind === "horns" ? 4 : 2.5) + crownBobV159D(t); ctx.drawImage(ca.cv, geo.cx - ca.ax * k, geo.top + off * k - ca.ay * k, ca.w * k, ca.h * k); }
   }
   function flairFromIdsV153G(cz) {
     var get = function (id, cat, fld) { var it = id ? findItem(id) : null; return it && it.cat === cat && it[fld] ? { id: it.id, d: it[fld] } : null; };
@@ -1739,7 +1749,8 @@
         var k = geo.h / 44, bx = back.getContext("2d"), fx = front.getContext("2d");
         bx.clearRect(0, 0, back.width, back.height); fx.clearRect(0, 0, front.width, front.height);
         paintBackV153G(bx, geo, F, k * 0.75, 0.42); paintFrontV153G(fx, geo, F, k * 0.85);   // the card figure's big-helmet proportions put the shoulders lower
-        if (F.wings) flapRegV157A(back, function (pose) { bx.clearRect(0, 0, back.width, back.height); paintBackV153G(bx, geo, F, k * 0.75, 0.42, pose); }, "card");   // v157 A
+        if (F.wings) flapRegV157A(back, function (pose) { bx.clearRect(0, 0, back.width, back.height); paintBackV153G(bx, geo, F, k * 0.75, 0.42, pose); }, "card", F.wings.d.kind);   // v157 A
+        if (F.crown) crownRegV159D(front, function (t) { fx.clearRect(0, 0, front.width, front.height); paintFrontV153G(fx, geo, F, k * 0.85, t); }, "card");   // v159 D: the crown animates
         var inkOf = function (c) { var d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, n = 0; for (var i = 3; i < d.length; i += 4) if (d[i] > 40) n++; return n; };
         G153.card = { wings: F.wings && F.wings.id, crown: F.crown && F.crown.id, aura: F.aura && F.aura.id, back: inkOf(back), front: inkOf(front), geo: geo };
         return true;
@@ -1767,10 +1778,11 @@
     var cv = document.createElement("canvas"); cv.width = 64; cv.height = 64; cv.className = "cos-fl-v153g"; var x = cv.getContext("2d");
     try {
       if (it.cat === "numfont") {
-        var tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"], nf = it.nf || { font: "Oswald, sans-serif", col: "#ffffff", stroke: "#0a0e14" };
+        var tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"], nf = it.nf || (onV159A("v159Anum") ? inkNfV159A(tc) : { font: "Oswald, sans-serif", col: "#ffffff", stroke: "#0a0e14" });   // v159 A: the kit's contrast
         x.fillStyle = hexOk(tc[0]) || "#1f4fd0"; x.beginPath(); x.moveTo(14, 12); x.lineTo(24, 8); x.lineTo(40, 8); x.lineTo(50, 12); x.lineTo(50, 58); x.lineTo(14, 58); x.closePath(); x.fill();
         var nn = String(jerseyNumV157C((gstate() || {}).player && gstate().player.pos) || 23);   // v157 C: his own number
         if (!nfPreviewV158A(x, it, nn)) { x.font = "bold 26px " + nf.font; x.textAlign = "center"; x.textBaseline = "middle"; x.lineWidth = 3; x.strokeStyle = nf.stroke; x.strokeText(nn, 32, 35); x.fillStyle = nf.col; x.fillText(nn, 32, 35); }   // v158 A: the drawn face
+        previewPrintV159A(x);   // v159 A: the jersey's light over the print
       } else {
         var F = { trail: it.tr ? { id: it.id, d: it.tr } : null, wings: it.w ? { id: it.id, d: it.w } : null, crown: it.cr ? { id: it.id, d: it.cr } : null, aura: it.au ? { id: it.id, d: it.au } : null };
         var fig = figV153G(34), fx0 = F.trail ? 26 : 15, fy0 = 64 - fig.height - 2, geo = inkGeoV153G(fig, fx0, fy0) || { top: fy0, bot: 62, cx: fx0 + 17, h: 36 }, k = geo.h / 44;
@@ -1779,7 +1791,8 @@
           else trailDrawV153G(cAdapterV153G(x), pts, now, life, F.trail.d, 1.4); x.globalAlpha = 1; }
         if (!F.trail && !F.wings && !F.crown && !F.aura) { x.globalAlpha = 0.45; }
         paintBackV153G(x, geo, F, k); x.drawImage(fig, fx0, fy0); x.globalAlpha = 1; paintFrontV153G(x, geo, F, k);
-        if (F.wings && !F.trail) flapRegV157A(cv, function (pose) { x.clearRect(0, 0, 64, 64); paintBackV153G(x, geo, F, k, null, pose); x.drawImage(fig, fx0, fy0); paintFrontV153G(x, geo, F, k); }, "preview");   // v157 A
+        if (F.wings && !F.trail) flapRegV157A(cv, function (pose) { x.clearRect(0, 0, 64, 64); paintBackV153G(x, geo, F, k, null, pose); x.drawImage(fig, fx0, fy0); paintFrontV153G(x, geo, F, k); }, "preview", F.wings.d.kind);   // v157 A
+        if (F.crown && !F.wings && !F.trail) crownRegV159D(cv, function (t) { x.clearRect(0, 0, 64, 64); paintBackV153G(x, geo, F, k); x.drawImage(fig, fx0, fy0); paintFrontV153G(x, geo, F, k, t); }, "preview");   // v159 D
       }
       G153.previews++;
     } catch (e) { errV153G(e); }
@@ -2399,17 +2412,18 @@
   /* the card and the Locker previews: one rAF ticker repaints each registered canvas while a beat is on (and once
    * when it ends), and forgets a canvas the moment it leaves the page */
   var FLAPS_V157A = [], rafV157A = 0;
-  function flapRegV157A(cv, paint, where) {
+  function flapRegV157A(cv, paint, where, kind) {   // v159 D: `kind` — the wing's family picks its flutter
     try {
       if (!flapOnV157A()) return false;
-      for (var i = 0; i < FLAPS_V157A.length; i++) if (FLAPS_V157A[i].cv === cv) { FLAPS_V157A[i].paint = paint; FLAPS_V157A[i].last = null; return true; }
-      FLAPS_V157A.push({ cv: cv, paint: paint, where: where || "", last: null }); G157.regs++;
+      for (var i = 0; i < FLAPS_V157A.length; i++) if (FLAPS_V157A[i].cv === cv) { FLAPS_V157A[i].paint = paint; FLAPS_V157A[i].kind = kind; FLAPS_V157A[i].last = null; return true; }
+      FLAPS_V157A.push({ cv: cv, paint: paint, where: where || "", kind: kind, last: null }); G157.regs++;
       if (!rafV157A && window.requestAnimationFrame) rafV157A = requestAnimationFrame(flapTickV157A);
       return true;
     } catch (e) { errV157A(e); return false; }
   }
   function flapTickV157A() {
     rafV157A = 0;
+    if (flutterOnV159D()) return flapTickV159D();   // v159 D: never still — every frame (throttled), off-screen canvases wait
     try {
       var pose = flapPoseV157A(performance.now()), key = pose.beat ? pose.rot.toFixed(3) + "|" + pose.sy.toFixed(3) : "rest";
       G157.ticks++;
@@ -2516,6 +2530,7 @@
         [2, 6, 10].forEach(function (q) { R.put(q, 9, q === 6 ? [255, 255, 255] : light(e, 0.2)); });
         R.outline([58, 10, 4], 0.8);
         gl = [6, 0];
+      } else if (crownKindV159D(K)) { var o159 = crownDrawV159D(K, a, b, e, fr); R = o159.R; gl = o159.gl;   // v159 D: the sixteen new crowns
       } else return null;
       if (glintOn && gl) glintV157A(R, gl[0], gl[1]);
     } catch (x) { errV157A(x); }
@@ -2885,7 +2900,7 @@
     void: { add: 0, draw: function (P, o) { for (var i = 0; i < o.n(o.L ? 3 : 10); i++) { var j = i + o.L * 20, p = frV157B(o.t / 1500 + o.r(j)), ang = o.r(j + 3) * TAU_V157B + p * 4, r = (1 - p) * 20 * o.u + o.u;
       P.rect(o.cx + Math.cos(ang) * r - 0.6 * o.u, o.cy + Math.sin(ang) * r * 1.3 - 0.6 * o.u, 1.2 * o.u, 1.2 * o.u, o.c[1], Math.min(1, p * 3)); } } }
   };
-  function auraFxV157B(d) { return (d && d.fx && AFX_V157B[d.fx]) || LEGACY_V157B[d && d.kind] || LEGACY_V157B.glow; }
+  function auraFxV157B(d) { return (d && d.fx && AFX_V157B[d.fx]) || afxV159D(d && d.fx) || LEGACY_V157B[d && d.kind] || LEGACY_V157B.glow; }   // v159 D: its registry after this one
   function glowModV157B(kind, t) {
     if (kind === "pulse") { var sp = Math.sin(t / 300); return { a: 0.72 + 0.28 * sp, s: 1 + 0.06 * sp }; }
     if (kind === "flicker") return { a: 0.62 + 0.38 * Math.abs(Math.sin(t / 47) * Math.sin(t / 131)), s: 1 };
@@ -2908,7 +2923,7 @@
   }
   function auraFieldV157B(scene, m, A, geo, now, down) {
     try {
-      var d = A && A.d, F = d && d.fx && auraOnV157B() ? AFX_V157B[d.fx] : null;
+      var d = A && A.d, F = d && d.fx && auraOnV157B() ? AFX_V157B[d.fx] || afxV159D(d.fx) : null;   // v159 D: its auras too
       if (!F) { dropV153G(m, "_auBV157B"); dropV153G(m, "_auFV157B"); return 0; }
       var gb = gfxChildV157B(scene, m, "_auBV157B"), gf = gfxChildV157B(scene, m, "_auFV157B");
       orderV153G(m, gb, "back"); orderV153G(m, gf, "front");
@@ -3169,6 +3184,718 @@
     (document.head || document.documentElement).appendChild(st);
   })();
 
+  /* ===== v159 D FLUTTER, CROWNS, MORE LIGHT =====
+   * The owner: "Update the flutter animation for the wings, constantly moving, then a flap." · "Add crowns and animations
+   * to crowns." · "Add more auras."
+   *   FLUTTER  the wings are never still (`wingPoseV159D(t, kind)`, which replaces v157 A's beat-then-rest pose everywhere
+   *            the wings are drawn): an always-on IDLE — a small fast tremble on a slow breathing sway — then, every
+   *            `wingFlapPeriodV157A` ms, the STRONG FLAP: a raise (the anticipation, TU `wingRaiseMsV159D`), v157 A's
+   *            beats (`wingFlapMsV157A`, `wingFlapBeatsV157A`, `wingFlapAmpV157A`, the squash on the downstroke), then an
+   *            overshoot that settles back into the idle (TU `wingSettleMsV159D`). SECONDARY MOTION: the outer half of each
+   *            wing (`tip`) lags the arm by the family's delay and ripples, drawn as a second piece hinged at the wing's
+   *            middle on the card, the Locker and the growth screen (`wingDrawV159D`), and as a stretch of the wing on the
+   *            field (TU `wingTipStretchV159D`). Each kind has a FAMILY (`FAM_V159D` / `FEEL_V159D`): feathers ripple,
+   *            membranes (bat, demon, dragon, monarch) shiver, mechanical ones (mech, jet, clockwork, cyber) have a stepped
+   *            thruster jitter and no lag at all, bone wings rattle, the ethereal ones float. A pure function of the clock
+   *            (integer hashes, never Math.random): the scene clock on the field, performance.now on the card / Locker /
+   *            growth screen — v157 A's one ticker, which now repaints at TU `v159DwingFps` (30) and skips canvases off
+   *            screen (`flapTickV159D`). prefers-reduced-motion: still. Kill switch TU `v159Dflutter` 0: v157 A's pose.
+   *   CROWNS   sixteen new kinds (`CROWNS_V159D`, drawn through v157 A's `crownArtV157A` so frame 0 is the same symmetric
+   *            sprite, metal ramp and jewels): crown of thorns, 8-bit, jester, viking, ice tiara, kabuto crest, laurel of
+   *            gold, antlers, pharaoh's uraeus, crystal diadem, neon halo-crown, flaming skull, dragon, storm, imperial
+   *            (cross and orb), crown of stars (the stars orbit). EVERY crown (old and new) animates (`crownAnimV159D`):
+   *            a light sweep across the metal, the jewels twinkling in turn, v157 A's four-point glint, and each new kind's
+   *            own motion (flames flicker, bolts crack, stars orbit, bells swing, the neon hums) — `TU crownFramesV159D` (24)
+   *            frames of `crownFrameMsV159D` (110) ms, cached per frame; a gentle bob on the card and the field. On the
+   *            field (scene clock), the card and the growth screen (`crownRegV159D` on v157 B's one rAF loop) and the
+   *            Locker. Kill switch TU `v159Dcrown` 0: v157 A's still crown and its glint.
+   *   AURAS    sixteen more particle programs in their own registry (`AFX_V159D`, found after `AFX_V157B` by
+   *            `afxV159D` in v157 B's two lookups): dragon spirit, phoenix rebirth, black hole, tesla coils, blossom storm,
+   *            sandstorm, abyss (bioluminescence), glitch, royal banners, spirit wolves, hellgate runes, divine feathers,
+   *            liquid chrome, fireflies, meteor shower, crystal cavern — v157 B's painter, caps and loop. Kill switch
+   *            TU `v159Daura` 0 (or v157 B's `v157Baura` 0): their base glow.
+   * SOURCES (the owner's rule): a few free, some earned (the v153 G achievements and the v156 C late rungs), the flashiest
+   * are MEMBER looks ("🔒 Membership" while the store is OFF — listed, never owned; `resourceV159D` adds them to
+   * `RULES_V156C`, and with TU v156Ccos 0 they fall back to an earned rule, as v157 A's wings do). The Career Pass pools are
+   * untouched (a new style would reshuffle every hashed pick). `window.__V159D`; v159Dcheck. */
+  function flutterOnV159D() { return flapOnV157A() && !!TUv("v159Dflutter", 1); }
+  function crownAnimOnV159D() { return crownOnV157A() && !!TUv("v159Dcrown", 1); }
+  function auraOnV159D() { return auraOnV157B() && !!TUv("v159Daura", 1); }
+  var G_V159D = (window.__V159D = window.__V159D || { ticks: 0, paints: 0, skipped: 0, crownArt: 0, crownRegs: 0, field: null, errs: [] });
+  function errV159D(e) { try { if (G_V159D.errs.length < 10) G_V159D.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  var TAU_V159D = 6.283185307179586;
+
+  /* ---- the catalogue (hoisted: ITEMS takes it at the top of the file) ---- */
+  function itemsV159D() {
+    var C = function (id, name, rarity, source, ach, kind, col) { var it = { id: id, cat: "crown", name: name, rarity: rarity, source: source, cr: { kind: kind, col: col } }; if (ach) it.ach = ach; return it; };
+    var A = function (id, name, rarity, source, ach, kind, col, fx, pal) { var it = { id: id, cat: "aura", name: name, rarity: rarity, source: source, au: { kind: kind, col: col, fx: fx, pal: pal } }; if (ach) it.ach = ach; return it; };
+    return [
+      // CROWNS — free, the plain ones
+      C("crown_thorns", "Crown of Thorns", "common", "free", null, "thorns", ["#8a5a2e", "#c8102e", "#24140a"]),
+      C("crown_pixel", "8-Bit Crown", "common", "free", null, "pixel", ["#ffd23f", "#ff2d55", "#5a3a00"]),
+      C("crown_jester", "Jester's Cap", "rare", "free", null, "jester", ["#ffd23f", "#7a3ad2", "#1a0a2a"]),
+      // earned — early, then waaay later
+      C("crown_viking", "Viking Horns", "rare", "earned", "title", "viking", ["#efe4c8", "#8f99a6", "#2a2418"]),
+      C("crown_tiara", "Ice Tiara", "epic", "earned", "gen3", "tiara", ["#e8f4ff", "#6fd3ff", "#3a5a8a"]),
+      C("crown_kabuto", "Kabuto Crest", "epic", "earned", "td100", "kabuto", ["#e6c46a", "#c8102e", "#1a1410"]),
+      C("crown_goldleaf", "Laurel of Gold", "legendary", "earned", "mvp", "goldleaf", ["#ffd76f", "#3fbf7f", "#5a4210"]),
+      C("crown_antler", "Antler Crown", "legendary", "earned", "rings3", "antler", ["#d8bf92", "#3fbf7f", "#3a2410"]),
+      C("crown_pharaoh", "Pharaoh's Uraeus", "legendary", "earned", "hof", "pharaoh", ["#ffd76f", "#1f5fbf", "#3a2606"]),
+      C("crown_diadem", "Crystal Diadem", "mythic", "earned", "legacy300", "diadem", ["#dfe6ee", "#b98bff", "#2a1a5a"]),
+      // member — the flashiest (an earned fallback with TU v156Ccos 0, like v157 A's wings)
+      C("crown_neon", "Neon Halo-Crown", "epic", "earned", "uff", "neon", ["#ff3df2", "#6ff7ff", "#1a0a2a"]),
+      C("crown_skull", "Flaming Skull Crown", "legendary", "earned", "td100", "skull", ["#efe6cf", "#ff7a1a", "#2a0a05"]),
+      C("crown_dragon", "Dragon Crown", "legendary", "earned", "mvp", "dragon", ["#2f9a4a", "#e6b53a", "#0c220f"]),
+      C("crown_storm", "Storm Crown", "legendary", "earned", "uff", "storm", ["#8fb4ff", "#fff27a", "#141826"]),
+      C("crown_imperial", "Imperial Crown", "mythic", "earned", "hof", "imperial", ["#ffd76f", "#b3121f", "#6b4a0e"]),
+      C("crown_orbit", "Crown of Stars", "mythic", "earned", "interstellar", "orbit", ["#ffd76f", "#fff6c0", "#2a1a5a"]),
+      // AURAS — `kind` is the v153 G glow under the particles (all that is drawn with TU v159Daura 0)
+      A("aura_fireflies", "Fireflies", "common", "free", null, "glow", "#e8ff7a", "fireflies", ["#fff7a0", "#c8ff5a", "#ffd23f"]),
+      A("aura_sandstorm", "Sandstorm", "rare", "free", null, "glow", "#e8c890", "sandstorm", ["#f2d8a8", "#c8a060", "#8a6a3a", "#fff0d0"]),
+      A("aura_blossom", "Blossom Storm", "rare", "earned", "uff", "glow", "#ffb3c7", "blossom", ["#ffc2d4", "#ff7aa2", "#ffffff", "#b83b5e"]),
+      A("aura_glitch", "Pixel Glitch", "epic", "earned", "mvp", "glow", "#00e5ff", "glitch", ["#ff2d55", "#00e5ff", "#39ff6a", "#ffffff", "#1a1a2a"]),
+      A("aura_banners", "Royal Banners", "epic", "earned", "hof", "glow", "#ffd76f", "banners", ["#8a1a2a", "#ffd76f", "#3a1f7a", "#fff3c4", "#2a0a10"]),
+      A("aura_abyss", "Abyss Glow", "legendary", "earned", "interstellar", "glow", "#3fffe0", "abyss", ["#0a1a3a", "#3fffe0", "#ff6ad5", "#9ad8ff", "#ffffff"]),
+      A("aura_cavern", "Crystal Cavern", "legendary", "earned", "gen5", "frost", "#b98bff", "cavern", ["#f0e0ff", "#b98bff", "#6a3aff", "#6ff7ff", "#2a1a5a"]),
+      A("aura_feathers", "Divine Feathers", "epic", "earned", "title", "pulse", "#fff3c4", "feathers", ["#ffffff", "#fff3c4", "#ffd76f", "#e8e0ff"]),
+      A("aura_wolves", "Spirit Wolves", "epic", "earned", "gen3", "glow", "#9fd4ff", "wolves", ["#d6f0ff", "#6fb0ff", "#ffffff", "#2a4a8a"]),
+      A("aura_chrome", "Liquid Chrome", "legendary", "earned", "rings3", "glow", "#d9dee6", "chrome", ["#f4f7fb", "#b8c2cf", "#6a7686", "#2a3240", "#ffffff"]),
+      A("aura_tesla", "Tesla Coils", "legendary", "earned", "uff", "pulse", "#9fd4ff", "tesla", ["#ffffff", "#9fd4ff", "#6f8cff", "#7a808c", "#c9ced6"]),
+      A("aura_meteors", "Meteor Shower", "legendary", "earned", "mvp", "glow", "#ffb02e", "meteors", ["#ffffff", "#ffd76f", "#ff7a1a", "#8a5cff", "#bfe6ff"]),
+      A("aura_hellgate", "Hellgate Runes", "legendary", "earned", "hof", "flicker", "#ff3b1a", "hellgate", ["#ff3b1a", "#ffb02e", "#6a0a0a", "#ffe0a0", "#1a0505"]),
+      A("aura_phoenix", "Phoenix Rebirth", "mythic", "earned", "interstellar", "flicker", "#ff9a3a", "phoenix", ["#fff3a0", "#ffb02e", "#ff5a1a", "#c81e1e", "#ffe7c0"]),
+      A("aura_dragon", "Dragon Spirit", "mythic", "earned", "legacy300", "glow", "#3fdc8a", "dragon", ["#3fdc8a", "#c8ffe0", "#ffd76f", "#ff3b3b", "#0f5a3a"]),
+      A("aura_blackhole", "Event Horizon", "mythic", "earned", "gen5", "void", "#7a2aff", "blackhole", ["#050208", "#ffffff", "#ffb02e", "#ff5a1a", "#7a2aff"])
+    ];
+  }
+  // the member looks (v156 C's getters, as `resourceV157A` gives v157 A's wings)
+  var MEMBER_V159D = ["crown_neon", "crown_skull", "crown_dragon", "crown_storm", "crown_imperial", "crown_orbit",
+    "aura_feathers", "aura_wolves", "aura_chrome", "aura_tesla", "aura_meteors", "aura_hellgate", "aura_phoenix", "aura_dragon", "aura_blackhole"];
+  (function resourceV159D() {
+    MEMBER_V159D.forEach(function (id) {
+      var it = BY[id]; if (!it || it._v159D) return;
+      var src0 = it.source, ach0 = it.ach;   // kept here, not in _src0: v156 C's grandfathering never hands a device a look it never had
+      RULES_V156C[id] = "member"; it._v159D = 1; delete it.source; delete it.ach;
+      Object.defineProperty(it, "source", { enumerable: true, configurable: true, get: function () { return cosOnV156C() ? "member" : src0; } });
+      Object.defineProperty(it, "ach", { enumerable: true, configurable: true, get: function () { return cosOnV156C() ? undefined : ach0; } });
+    });
+  })();
+
+  /* ================= FLUTTER ================= */
+  var FAM_V159D = {
+    angel: "feather", seraph: "feather", flame: "feather", pixel: "feather", raven: "feather", paper: "feather", gilded: "feather", phoenix: "feather",
+    bat: "membrane", demon: "membrane", dragon: "membrane", monarch: "membrane",
+    mech: "mech", jet: "mech", clockwork: "mech", cyber: "mech",
+    skeleton: "bone",
+    crystal: "ether", lightning: "ether", shadow: "ether", galaxy: "ether", prism: "ether", thorn: "ether", football: "ether", hellfire: "ether", cathedral: "ether"
+  };
+  /* tr/trMs a tremble · br/brMs the breathing sway · jit/jitMs a stepped twitch of the whole wing · lag/lagK how far the
+   * outer half trails the arm · rip a ripple along the feathers · shv a membrane's shiver · rat a skeleton's rattle ·
+   * over the settle's overshoot */
+  var FEEL_V159D = {
+    feather: { tr: 0.03, trMs: 210, br: 0.06, brMs: 2600, jit: 0, lag: 95, lagK: 0.55, rip: 0.05, ripMs: 330, shv: 0, rat: 0, over: 1 },
+    membrane: { tr: 0.022, trMs: 150, br: 0.05, brMs: 2300, jit: 0, lag: 120, lagK: 0.6, rip: 0, shv: 0.045, shvMs: 62, rat: 0, over: 1.15 },
+    mech: { tr: 0, trMs: 1, br: 0.035, brMs: 1900, jit: 0.03, jitMs: 55, lag: 0, lagK: 0, rip: 0, shv: 0, rat: 0, over: 0.4 },
+    bone: { tr: 0.012, trMs: 260, br: 0.05, brMs: 2800, jit: 0, lag: 70, lagK: 0.45, rip: 0, shv: 0, rat: 0.05, ratMs: 85, over: 0.9 },
+    ether: { tr: 0.02, trMs: 300, br: 0.075, brMs: 3200, jit: 0, lag: 150, lagK: 0.5, rip: 0.03, ripMs: 520, shv: 0, rat: 0, over: 0.8 }
+  };
+  function famV159D(kind) { return FAM_V159D[kind] || "feather"; }
+  function stepV159D(t, ms, seed) { return ihV153G(((Math.floor(t / ms) * 2654435761) ^ (seed * 97531)) >>> 0) - 0.5; }   // one value per step
+  function idleV159D(t, F) {
+    var v = F.br * Math.sin(t / F.brMs * TAU_V159D + 0.7);
+    if (F.tr) v += F.tr * Math.sin(t / F.trMs * TAU_V159D);
+    if (F.jit) v += F.jit * 2 * stepV159D(t, F.jitMs, 3);
+    return v;
+  }
+  // the strong flap by phase: the raise (anticipation) at the end of a period, the beats at its start, the settle after
+  function strongV159D(t, F) {
+    var P = Math.max(1200, TUv("wingFlapPeriodV157A", 3400)), D = Math.min(P * 0.5, Math.max(200, TUv("wingFlapMsV157A", 760))), beats = Math.max(1, TUv("wingFlapBeatsV157A", 2)), amp = TUv("wingFlapAmpV157A", 0.42);
+    var A = Math.max(60, Math.min(P * 0.2, TUv("wingRaiseMsV159D", 300))), S = Math.max(100, Math.min(P - D - A - 100, TUv("wingSettleMsV159D", 560)));
+    var ph = ((t % P) + P) % P, r1 = amp * 0.68;
+    if (ph < D) { var u = ph / D; return { r: amp * Math.cos(TAU_V159D * beats * u) * (1 - 0.32 * u), w: 1, beat: true, amp: amp, ph: "beat" }; }
+    if (ph < D + S) { var v = (ph - D) / S; return { r: r1 * (1 - v) * Math.cos(Math.PI * (1 + F.over) * v), w: 1 - v, beat: false, amp: amp, ph: "settle" }; }
+    if (ph >= P - A) { var a = (ph - (P - A)) / A, e = a * a * (3 - 2 * a); return { r: amp * e, w: e, beat: false, amp: amp, ph: "raise" }; }
+    return { r: 0, w: 0, beat: false, amp: amp, ph: "flutter" };
+  }
+  function rawV159D(t, F) { var s = strongV159D(t, F); return s.r + idleV159D(t, F) * (1 - 0.65 * s.w); }
+  var STILL_V159D = { on: true, f: 0, rot: 0, sy: 1, sx: 1, tip: 0, beat: false, flutter: false, reduced: true };
+  function wingPoseV159D(t, kind) {
+    if (!flutterOnV159D()) return flapPoseV157A(t);
+    if (reducedV157A()) return STILL_V159D;
+    var fam = famV159D(kind), F = FEEL_V159D[fam], s = strongV159D(t, F), rot = s.r + idleV159D(t, F) * (1 - 0.65 * s.w);
+    var tip = F.lagK ? F.lagK * (rawV159D(t - F.lag, F) - rot) : 0;
+    if (F.rip) tip += F.rip * Math.sin(t / F.ripMs * TAU_V159D + 1.3);
+    if (F.shv) tip += F.shv * Math.sin(t / F.shvMs * TAU_V159D) * (0.6 + 0.4 * Math.sin(t / 900));
+    if (F.rat) tip += F.rat * 2 * stepV159D(t, F.ratMs, 11);
+    var tmax = TUv("wingTipMaxV159D", 0.17); tip = Math.max(-tmax, Math.min(tmax, tip));
+    var f = s.beat ? s.r / s.amp : 0, sy = (1 - TUv("wingFlapSquashV157A", 0.16) * Math.max(0, -f)) * (1 + 0.025 * Math.sin(t / F.brMs * TAU_V159D + 0.7));
+    if (F.shv) sy *= 1 + 0.012 * Math.sin(t / F.shvMs * Math.PI);
+    return { on: true, f: f, rot: rot, sy: sy, sx: 1 + TUv("wingTipStretchV159D", 0.4) * tip, tip: tip, beat: s.beat, strong: s.w > 0 || s.beat, phase: s.ph, flutter: true, fam: fam, t: t };
+  }
+  // the wing's frame for a kind (the animated kinds' flicker), as the field picks it
+  function wingFrameV159D(kind, t) { return kind === "flame" ? ((t / 110) | 0) % 2 : wingFrameV157A(kind, t); }
+  /* one wing on a 2D canvas (already translated to the shoulder, rotated and squashed): the inner half, then the outer
+   * half hinged at the wing's middle and turned by the pose's `tip` (it trails the arm) */
+  function wingDrawV159D(ctx, wa, k, tip) {
+    if (!tip || Math.abs(tip) < 0.004) { ctx.drawImage(wa.cv, -wa.ax * k, -wa.ay * k, wa.w * k, wa.h * k); return; }
+    var sp = Math.max(wa.ax + 2, Math.min(wa.w - 2, Math.round(wa.w * TUv("wingJointV159D", 0.5))));
+    ctx.drawImage(wa.cv, 0, 0, sp, wa.h, -wa.ax * k, -wa.ay * k, sp * k, wa.h * k);
+    ctx.save(); ctx.translate((sp - wa.ax) * k, 0); ctx.rotate(-tip);
+    ctx.drawImage(wa.cv, sp - 2, 0, wa.w - sp + 2, wa.h, -2 * k, -wa.ay * k, (wa.w - sp + 2) * k, wa.h * k);   // two columns of overlap hide the hinge
+    ctx.restore();
+  }
+  /* v157 A's ticker, when the flutter is on: every registered canvas repaints at TU v159DwingFps, off-screen ones wait */
+  function flapTickV159D() {
+    try {
+      var now = performance.now(), gap = 1000 / Math.max(5, TUv("v159DwingFps", 30)) - 2;
+      if (!document.hidden && now - (G_V159D.lastTick == null ? -1e9 : G_V159D.lastTick) >= gap) {
+        G_V159D.lastTick = now; G157.ticks++; G_V159D.ticks++;
+        var vh = window.innerHeight || 900;
+        for (var i = FLAPS_V157A.length - 1; i >= 0; i--) {
+          var r = FLAPS_V157A[i];
+          if (!r.cv.isConnected) { if ((r.miss = (r.miss | 0) + 1) > 120) FLAPS_V157A.splice(i, 1); continue; }
+          r.miss = 0;
+          var pose = wingPoseV159D(now, r.kind), mv = !!(pose.flutter || pose.beat);
+          var key = mv ? pose.rot.toFixed(3) + "|" + pose.sy.toFixed(3) + "|" + (pose.tip || 0).toFixed(3) + "|" + wingFrameV159D(r.kind, now) : "rest";
+          if (r.last === key) continue;
+          if (mv && r.last != null) { var rc = r.cv.getBoundingClientRect(); if (rc.width === 0 || rc.bottom < 0 || rc.top > vh) { G_V159D.skipped++; continue; } }
+          r.last = key;
+          try { r.paint(mv ? Object.assign({}, pose, { t: now }) : null); G157.paints++; G_V159D.paints++; } catch (e) { errV157A(e); }
+        }
+      }
+    } catch (e) { errV159D(e); }
+    if (FLAPS_V157A.length && window.requestAnimationFrame) rafV157A = requestAnimationFrame(flapTickV157A);
+  }
+
+  /* ================= CROWNS ================= */
+  function crownPalV159D(a, b, e) {
+    var P = crownPalV157A(a, b, e);
+    var X = {
+      R: [214, 32, 52], r: [122, 12, 26], F: [255, 246, 176], f: [255, 176, 46], g: [236, 76, 26], h: [150, 26, 10],
+      G: [128, 214, 96], n: [52, 142, 62], N: [22, 74, 32], S: [90, 156, 255], s: [30, 72, 172], O: [70, 212, 132], o: [22, 112, 62],
+      Q: mix(e, [255, 255, 255], 0.3), q: e, A: light(b, 0.72), C: [132, 140, 168], c: [84, 90, 116], k: [44, 48, 66], Y: [255, 240, 120],
+      B: [244, 236, 214], b: [200, 188, 160], z: [124, 110, 86], x: [52, 44, 34], U: light(b, 0.35), u: dark(b, 0.4), I: light(a, 0.8), i: mix(a, b, 0.5)
+    };
+    for (var k in X) P[k] = X[k];
+    return P;
+  }
+  /* a crown's drawing kit: `p` puts a pixel AND its mirror (the crowns are symmetric), `q` one pixel (the animated bits),
+   * `map` draws the left half (+ centre column) of rows mirrored; a 'J' in a map is a jewel (it twinkles) */
+  function kitV159D(W, H, pal) {
+    var R = new Raster(W, H), jw = [];
+    var col = function (ch) { return typeof ch === "string" ? pal[ch] : ch; };
+    var K = {
+      R: R, W: W, H: H, c: (W - 1) / 2, jw: jw, pal: pal,
+      p: function (x, y, ch, a) { var cc = col(ch); if (!cc) return; x = Math.round(x); y = Math.round(y); R.put(x, y, cc, a); if (x !== W - 1 - x) R.put(W - 1 - x, y, cc, a); },
+      q: function (x, y, ch, a) { var cc = col(ch); if (cc) R.put(x, y, cc, a); },
+      map: function (rows, y0, x0) { rows.forEach(function (row, y) { for (var x = 0; x < row.length; x++) { var ch = row.charAt(x); if (ch === "." || ch === " ") continue; K.p((x0 || 0) + x, (y0 || 0) + y, ch); if (ch === "J") K.jewel((x0 || 0) + x, (y0 || 0) + y); } }); },
+      line: function (x0, y0, x1, y1, ch, a) { var n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) | 0; for (var i = 0; i <= n; i++) { var t = i / Math.max(1, n); K.p(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, ch, a); } },
+      jewel: function (x, y) { jw.push([x, y]); if (x !== W - 1 - x) jw.push([W - 1 - x, y]); },
+      has: function (x, y) { return R.has(x, y); }
+    };
+    return K;
+  }
+  // a flame tongue (base at y0, `h` tall, `hw` half-wide), `lean` bends its tip; put = K.p (symmetric) or K.q
+  function tongueV159D(put, cx, y0, h, hw, lean) {
+    for (var r = 0; r <= h; r++) { var rel = r / Math.max(1, h), w = (1 - rel) * hw, x = cx + lean * rel * rel * 2, y = y0 - r;
+      for (var q = Math.round(x - w); q <= Math.round(x + w); q++) { var d = Math.abs(q - x) / Math.max(0.6, w); put(q, y, rel > 0.82 ? "h" : d < 0.4 && rel < 0.55 ? "F" : d < 0.8 && rel < 0.8 ? "f" : "g"); } }
+  }
+  /* each: { W, H, gl (the glint's pixel), ol (the outline: "e" dark or a colour), draw(K, ph) } — ph -1 is the still
+   * frame (symmetric), 0..N-1 an animation frame */
+  var CROWNS_V159D = {
+    // CROWN OF THORNS: two braided briar strands, thorns out of them, a drop of blood
+    thorns: { W: 17, H: 12, gl: [8, 0], draw: function (K) {
+      var y = function (x, s) { return 7 + s * 1.5 * Math.sin(x * 0.95 + 0.35); };
+      var strand = function (s, front) { for (var x = 0; x <= 8; x++) { var up = Math.sin(x * 0.95 + 0.35) * s > 0; if (front !== up) continue; var yy = Math.round(y(x, s)); K.p(x, yy - 1, front ? "L" : "M"); K.p(x, yy, front ? "M" : "D"); K.p(x, yy + 1, front ? "D" : "K"); } };
+      strand(1, false); strand(-1, false); strand(1, true); strand(-1, true);
+      [[1, -1, 3, -0.5], [2, 1, 2, -0.4], [4, -1, 4, -0.35], [5, 1, 2, 0.2], [6, -1, 3, 0.25], [8, -1, 6, 0]].forEach(function (T) {
+        var x0 = T[0], sgn = T[1], L = T[2], yy = sgn < 0 ? Math.min(Math.round(y(x0, 1)), Math.round(y(x0, -1))) - 2 : Math.max(Math.round(y(x0, 1)), Math.round(y(x0, -1))) + 2;
+        for (var k = 0; k < L; k++) K.p(x0 + T[3] * k, yy + sgn * k, k === L - 1 ? "H" : k === 0 ? "D" : "M");
+      });
+      K.p(2, 11, "j"); K.p(2, 10, "J"); K.p(2, 9, "w"); K.jewel(2, 10);
+      K.p(4, 9, "G"); K.p(3, 9, "n"); K.p(7, 4, "G"); K.p(6, 4, "n");
+    } },
+    // 8-BIT: 2x2 blocks, three points, two gems and a white pixel glint (W 16: no centre column)
+    pixel: { W: 16, H: 12, gl: [7, 0], draw: function (K) {
+      var rows = ["H..w", "LH.J", "MLLL", "MJMM", "MMMM", "DDDD"];
+      rows.forEach(function (row, by) { for (var bx = 0; bx < 4; bx++) { var ch = row.charAt(bx); if (ch === ".") continue;
+        var jewel = ch === "J" || ch === "w", t = jewel ? ["w", "J", "J", "j"] : [ch, ch, ch, ch];
+        K.p(bx * 2, by * 2, t[0]); K.p(bx * 2 + 1, by * 2, t[1]); K.p(bx * 2, by * 2 + 1, t[2]); K.p(bx * 2 + 1, by * 2 + 1, t[3]);
+        if (jewel) K.jewel(bx * 2 + 1, by * 2); } });
+      K.p(3, 6, "W"); K.p(7, 0, "W");
+    } },
+    // JESTER: three floppy points — the side ones droop out to bells — a diamond trim band
+    jester: { W: 17, H: 14, gl: [8, 1], draw: function (K, ph) {
+      var sw = ph < 0 ? 0 : Math.round(Math.sin(ph / 24 * TAU_V159D * 2));   // the bells swing
+      // the side lobes (velvet in the second colour): a curl from the band out to the tip at (1, 6)
+      for (var s = 0; s <= 12; s++) { var t = s / 12, cx = 7 - 6 * t, cy = 10 - 6 * Math.sin(t * Math.PI * 0.62) + t * t * 1.5, w = 2.6 * (1 - t) + 0.6;
+        for (var yy = Math.floor(cy - w); yy <= cy + w; yy++) K.p(cx, yy, yy < cy - w * 0.4 ? "U" : yy > cy + w * 0.4 ? "u" : "V"); }
+      // the centre lobe, red, standing up
+      for (var y = 2; y <= 10; y++) { var hw = Math.max(0, Math.round((y - 2) * 0.33)); for (var x = 8 - hw; x <= 8; x++) K.p(x, y, x === 8 - hw ? "R" : "r"); }
+      K.p(8, 2, "R");
+      // the bells: gold, a slit, a glint
+      var bell = function (bx, by) { K.p(bx, by, "L"); K.p(bx + 1, by, "M"); K.p(bx, by + 1, "M"); K.p(bx + 1, by + 1, "D"); K.p(bx, by - 1, "H"); K.jewel(bx, by - 1); };
+      bell(0, 7 + (ph < 0 ? 0 : sw)); K.p(8, 0, "H"); K.p(8, 1, "M"); K.p(7, 1, "L"); K.jewel(8, 0);
+      // the band: gold and red diamonds
+      for (var bx2 = 2; bx2 <= 8; bx2++) { K.p(bx2, 11, bx2 % 2 ? "M" : "R"); K.p(bx2, 12, bx2 % 2 ? "R" : "D"); K.p(bx2, 13, "K"); }
+    } },
+    // VIKING: two ivory horns sweeping out and up off an iron cap, rings round the horns, a nose ridge, rivets
+    viking: { W: 17, H: 13, gl: [0, 0], draw: function (K) {
+      for (var s = 0; s <= 16; s++) { var t = s / 16, x = 3.2 - 3 * Math.sin(t * Math.PI * 0.55) + t * t * 0.9, y = 8.5 - 8.5 * t, w = 1.6 * (1 - t) + 0.4;
+        for (var q = Math.round(x - w); q <= Math.round(x + w); q++) { var ring = s % 4 === 2; K.p(q, y, t > 0.86 ? "D" : ring ? "b" : q <= x - w * 0.3 ? "B" : q >= x + w * 0.4 ? "z" : "b"); } }
+      K.p(1, 0, "B");
+      // the iron cap: a dome over a riveted band (the jewel ramp holds the iron: w light, J iron, j dark)
+      for (var y = 6; y <= 12; y++) for (var x = 3; x <= 8; x++) { var dx = 8 - x, dome = y >= 6 + Math.max(0, dx - 2) * 0.8; if (!dome) continue;
+        K.p(x, y, y >= 10 ? (y === 10 ? "L" : y === 12 ? "D" : "M") : dx <= 1 ? "w" : y === Math.ceil(6 + Math.max(0, dx - 2) * 0.8) ? "w" : "i"); }
+      K.p(8, 6, "W"); K.line(8, 7, 8, 9, "w");
+      [4, 6].forEach(function (x) { K.p(x, 11, "H"); });
+      K.p(8, 11, "J"); K.jewel(8, 11);
+    } },
+    // ICE TIARA: a slim silver arc, icicle spikes (the tall one in the middle), filigree loops, an ice jewel
+    tiara: { W: 17, H: 13, gl: [8, 0], draw: function (K) {
+      var band = function (x) { return 11 - Math.round(Math.pow((8 - x) / 8, 2) * 3); };
+      for (var x = 0; x <= 8; x++) { var by = band(x); K.p(x, by, "L"); K.p(x, by + 1, "D"); }
+      [[8, 0, 1.6], [5, 4, 1.1], [2, 6, 0.8]].forEach(function (S) { var sx = S[0], top = S[1], by = band(sx) - 1;
+        for (var y = top; y <= by; y++) { var rel = (y - top) / Math.max(1, by - top), hw = Math.round(rel * S[2]); for (var q = sx - hw; q <= sx + hw; q++) K.p(q, y, q < sx ? "I" : q > sx ? "J" : y === top ? "W" : "w"); } });
+      // filigree loops between the spikes
+      [[6.5, 8.5], [3.5, 9]].forEach(function (L) { for (var a = 0; a < 12; a++) { var an = a / 12 * TAU_V159D; K.p(L[0] + Math.cos(an) * 1.3, L[1] + Math.sin(an) * 1.3, "M"); } });
+      K.p(8, 7, "w"); K.p(7, 8, "J"); K.p(8, 8, "J"); K.p(8, 9, "j"); K.jewel(8, 8);
+    } },
+    // KABUTO CREST: a gilded crescent (kuwagata) rising from a black-lacquer brow, a red sun disc between the horns
+    kabuto: { W: 17, H: 13, gl: [1, 0], draw: function (K) {
+      for (var s = 0; s <= 18; s++) { var t = s / 18, x = 7.2 - 6 * Math.sin(t * Math.PI / 2) + t * t * 0.6, y = 8.5 - 8.5 * t, w = 1.3 * (1 - t) + 0.45;
+        for (var q = Math.round(x - w); q <= Math.round(x + w); q++) K.p(q, y, q < x - w * 0.2 ? "H" : q > x + w * 0.3 ? "D" : "M"); }
+      for (var y = 5; y <= 9; y++) for (var x = 6; x <= 8; x++) { var d = Math.hypot(x - 8, y - 7); if (d <= 2.2) K.p(x, y, d > 1.6 ? "r" : y < 7 && x < 8 ? "R" : "J"); }
+      K.p(7, 6, "W"); K.jewel(8, 7);
+      for (var x2 = 1; x2 <= 8; x2++) { K.p(x2, 10, "L"); K.p(x2, 11, x2 % 3 === 1 ? "M" : "Q"); K.p(x2, 12, "q"); }
+    } },
+    // LAUREL OF GOLD: a wreath of gold leaves in three tiers meeting at a medallion with an emerald, ribbon tails
+    goldleaf: { W: 17, H: 13, gl: [8, 6], draw: function (K) {
+      var stem = function (t) { return [1 + 5.6 * t, 10.5 - 8 * t + t * t * 1.8]; };
+      for (var i = 0; i <= 12; i++) { var S = stem(i / 12); K.p(S[0], S[1], "D"); }
+      [[0.08, 1], [0.24, -1], [0.4, 1], [0.56, -1], [0.72, 1], [0.88, -1]].forEach(function (L) {
+        var S = stem(L[0]), dx = L[1] > 0 ? -0.55 : 0.55, dy = -0.84;
+        for (var k = 1; k <= 3; k++) { var x = S[0] + dx * k, y = S[1] + dy * k; K.p(x, y, k === 3 ? "H" : "M"); K.p(x + (L[1] > 0 ? 1 : -1), y, k === 1 ? "D" : "L"); }
+      });
+      for (var y = 7; y <= 11; y++) for (var x = 6; x <= 8; x++) { var d = Math.hypot(x - 8, y - 9); if (d <= 2.4) K.p(x, y, d > 1.7 ? (y < 9 ? "L" : "D") : "J"); }
+      K.p(7, 8, "w"); K.p(8, 10, "j"); K.jewel(8, 9);
+      K.p(6, 12, "R"); K.p(5, 12, "r"); K.p(7, 12, "R");
+    } },
+    // ANTLER CROWN: two branching antlers (a beam and three tines) off a band of leaves with a green gem
+    antler: { W: 17, H: 14, gl: [1, 0], draw: function (K) {
+      var beam = function (t) { return [5 - 4 * t - Math.sin(t * Math.PI) * 0.6, 10 - 9.5 * t]; };
+      for (var i = 0; i <= 14; i++) { var t = i / 14, P = beam(t); K.p(P[0], P[1], t > 0.85 ? "B" : "b"); K.p(P[0] + 1, P[1], t > 0.85 ? "b" : "z"); }
+      [[0.35, 2.6], [0.6, 2.2], [0.82, 1.6]].forEach(function (T) { var P = beam(T[0]); for (var k = 1; k <= 3; k++) K.p(P[0] + k * 0.75, P[1] - k * (T[1] / 3), k === 3 ? "B" : "b"); });
+      for (var x = 2; x <= 8; x++) { K.p(x, 11, x % 2 ? "G" : "n"); K.p(x, 12, x % 2 ? "n" : "N"); K.p(x, 13, "D"); }
+      K.p(4, 10, "G"); K.p(7, 10, "G"); K.p(8, 10, "w"); K.p(8, 11, "J"); K.p(8, 12, "j"); K.jewel(8, 11);
+    } },
+    // PHARAOH'S URAEUS: a rearing cobra on a gold-and-lapis striped band, a sun disc, vulture wings along the band
+    pharaoh: { W: 17, H: 14, gl: [8, 0], draw: function (K) {
+      K.map([
+        ".......rR",
+        ".......RR",
+        "........M",
+        "......LMH",
+        "......MJM",
+        ".....LMJM",
+        "......DMD",
+        "LL.....MH",
+        "vMLL...DM",
+        "LvvMLL.MM",
+        "HHHHHHHHH",
+        "MvMvMvMvM",
+        "MvMvMvMvM",
+        "DVDVDVDVD"
+      ]);
+      K.p(7, 3, "K");
+    } },
+    // CRYSTAL DIADEM: five faceted amethyst crystals rising from a silver circlet, the tallest in the middle
+    diadem: { W: 17, H: 13, gl: [8, 0], draw: function (K) {
+      for (var x = 1; x <= 8; x++) { K.p(x, 11, "L"); K.p(x, 12, x % 2 ? "M" : "D"); }
+      [[8, 0, 1.6], [5, 4, 1.3], [2, 7, 1.1]].forEach(function (S) { var cx = S[0], top = S[1];
+        for (var y = top; y <= 10; y++) { var rel = (y - top) / (10 - top), hw = Math.max(0, Math.round(S[2] * Math.min(1, rel * 2.2))); for (var q = cx - hw; q <= cx + hw; q++) K.p(q, y, y === top ? "W" : q < cx ? "w" : q > cx ? "j" : rel > 0.55 ? "J" : "A"); } });
+      K.p(8, 5, "S"); K.p(5, 8, "R"); K.jewel(8, 3); K.jewel(5, 6); K.jewel(2, 9);
+    } },
+    // NEON HALO-CROWN: a crown drawn in neon tube (a hot core, a glow round it), cyan tips, a ring floating over it
+    neon: { W: 17, H: 14, gl: [8, 1], draw: function (K, ph) {
+      var hum = ph < 0 ? 1 : 0.72 + 0.28 * Math.abs(Math.sin(ph * 1.7));
+      var tube = [[1, 12], [8, 12], [1, 12], [0, 5], [0, 5], [4, 10], [4, 10], [8, 3]];
+      for (var i = 0; i < tube.length; i += 2) { var A = tube[i], B = tube[i + 1]; K.line(A[0], A[1], B[0], B[1], "U"); }
+      var tubeAt = []; for (var y = 0; y < K.H; y++) for (var x = 0; x <= 8; x++) if (K.has(x, y)) tubeAt.push([x, y]);
+      tubeAt.forEach(function (P) { [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) { if (!K.has(P[0] + d[0], P[1] + d[1])) K.p(P[0] + d[0], P[1] + d[1], "i", 0.45 * hum); }); });   // the glow: one pixel round the tube
+      for (var j = 0; j < tube.length; j += 2) { var A2 = tube[j], B2 = tube[j + 1]; K.line(A2[0], A2[1], B2[0], B2[1], "I", hum); }
+      K.line(1, 12, 8, 12, "M", hum);
+      [[0, 4], [8, 2]].forEach(function (T) { K.p(T[0], T[1], "w"); K.jewel(T[0], T[1]); });
+      K.p(4, 12, "J"); K.p(8, 12, "J");
+      for (var a = 0; a < 20; a++) { var an = a / 20 * TAU_V159D, x2 = 8 + Math.cos(an) * 5, y2 = 1 + Math.sin(an) * 1.1; if (x2 <= 8.01) K.p(x2, y2 - 0.4, Math.sin(an) > 0 ? "J" : "j"); }
+      K.p(3, 1, "W");
+    } },
+    // FLAMING SKULL: a bone skull on an iron band, sockets burning, flames licking up behind it and off the band
+    skull: { W: 17, H: 14, gl: [6, 5], draw: function (K, ph) {
+      var put = ph < 0 ? K.p : K.q, fl = function (i) { return ph < 0 ? 0 : Math.round((ihV153G(i * 131 + ph * 977) - 0.5) * 2); };
+      var flames = [[8, 6, 6, 1.9], [4, 9, 4, 1.4], [1, 10, 3, 1.1]];
+      if (ph < 0) flames.forEach(function (T) { tongueV159D(K.p, T[0], T[1], T[2], T[3], 0); });
+      else flames.forEach(function (T, i) { tongueV159D(put, T[0], T[1], T[2] + fl(i), T[3], (ihV153G(i * 7 + ph * 31) - 0.5) * 1.4); if (T[0] !== 8) tongueV159D(put, 16 - T[0], T[1], T[2] + fl(i + 5), T[3], (ihV153G(i * 11 + ph * 37) - 0.5) * 1.4); });
+      K.map([
+        ".....BBBB",
+        "....BBBBB",
+        "....BxxBb",
+        "....bxgBb",
+        ".....bbbx",
+        ".....BzBz"
+      ], 5, 0);
+      for (var x = 1; x <= 8; x++) { K.p(x, 11, "L"); K.p(x, 12, x % 3 === 2 ? "H" : "M"); K.p(x, 13, "D"); }
+      K.jewel(5, 8);
+    } },
+    // DRAGON CROWN: a horned dragon's head at the front, gold eyes, scaled green band with gold spines
+    dragon: { W: 17, H: 14, gl: [3, 0], draw: function (K) {
+      K.map([
+        "...U.....",
+        "...uU....",
+        "....uU...",
+        ".....uU..",
+        ".....nGGG",
+        ".....GGGG",
+        ".....nRGG",
+        "......nGG",
+        "......nGn",
+        "U.U.U.NKN",
+        "UuUuUunnG",
+        "nGnGnGnGn",
+        "GnGnGnGnG",
+        "NNNNNNNNN"
+      ]);
+      K.jewel(6, 6);
+    } },
+    // STORM CROWN: a band of storm cloud, lightning bolts for points (they crack and jump), sparks
+    storm: { W: 17, H: 14, gl: [8, 0], draw: function (K, ph) {
+      var ZIG = [0, 0, 1, 1, 0, -1, -1, 0, 1, 1];
+      var bolt = function (put, x0, top, jig) { for (var y = top; y <= 9; y++) { var x = x0 + (jig ? ZIG[(y - top) % ZIG.length] * jig : 0); put(x, y, y === top ? "W" : y === top + 1 ? "A" : "Y"); if (jig && y > top + 1) put(x + jig, y, "J", 0.5); } };
+      if (ph < 0) { bolt(K.p, 8, 0, 0); bolt(K.p, 4, 3, -1); bolt(K.p, 1, 6, 1); }
+      else { var on = function (i) { return ihV153G(i * 17 + ph * 101) > 0.22; };
+        [[8, 0, 0], [4, 3, -1], [1, 6, 1]].forEach(function (B, i) { if (on(i)) bolt(K.q, B[0], B[1], B[2] + (ihV153G(i + ph * 3) > 0.5 ? 1 : 0)); if (B[0] !== 8 && on(i + 3)) bolt(K.q, 16 - B[0], B[1], -B[2]); });
+        if (ihV153G(ph * 53) > 0.6) { var sx = 2 + Math.round(ihV153G(ph * 59) * 12); K.q(sx, 5, "W"); K.q(sx + 1, 4, "Y"); } }
+      K.map([
+        "..CCC..CC",
+        ".CCccCCCc",
+        "CcccckcCc",
+        "ckkkkkkck",
+        ".k.k.k.kk"
+      ], 9, 0);
+      K.jewel(8, 0);
+    } },
+    // IMPERIAL: two jewelled arches over red velvet, the orb and the cross on top, an ermine brim
+    imperial: { W: 17, H: 14, gl: [8, 0], draw: function (K) {
+      K.map([
+        "........H",
+        ".......LM",
+        "........M",
+        ".......LH",
+        "......LMM",
+        ".......DD",
+        ".......PM",
+        ".....PMVv",
+        "...PMVVvv",
+        ".PMVVVVvV",
+        "HHHHHHHHH",
+        "MJMSMJMSM",
+        "DjDsDjDsD",
+        "EEeEEEeEE"
+      ]);
+      K.p(6, 4, "W");
+    } },
+    // CROWN OF STARS: a slim gold circlet with three points and a star gem; four stars orbit round it
+    orbit: { W: 17, H: 14, gl: [8, 7], draw: function (K, ph) {
+      K.map([
+        "..M.....L",
+        "..M....MH",
+        ".LM...LMM",
+        "LHHHHHHHH",
+        "MMJMMMMMJ",
+        "DDDDDDDDD"
+      ], 8, 0);
+      var star = function (put, x, y, back) { var c = back ? "i" : "A"; put(x, y, back ? "A" : "W"); put(x - 1, y, c, back ? 0.6 : 1); put(x + 1, y, c, back ? 0.6 : 1); put(x, y - 1, c, back ? 0.6 : 1); put(x, y + 1, c, back ? 0.6 : 1); };
+      for (var a = 0; a < 28; a++) { var an = a / 28 * TAU_V159D; if (a % 2) continue; var px = 8 + Math.cos(an) * 7.2, py = 6 + Math.sin(an) * 2.2; if (px <= 8.01) K.p(px, py, "i", 0.4); }
+      if (ph < 0) { star(K.p, 1, 6, false); star(K.q, 8, 3.8, true); star(K.q, 8, 8.2, false); }
+      else for (var s = 0; s < 4; s++) { var an2 = (ph / 24 + s / 4) * TAU_V159D; star(K.q, 8 + Math.cos(an2) * 7.2, 6 + Math.sin(an2) * 2.2, Math.sin(an2) < 0); }
+    } }
+  };
+  function crownKindV159D(k) { return !!(k && Object.prototype.hasOwnProperty.call(CROWNS_V159D, k)); }
+  var JW_V159D = {};   // the jewels each kind's frame 0 recorded (they twinkle in turn)
+  /* v157 A's crownArtV157A hands a new kind here: frame 0 (and 2, v157 A's glint) the still, symmetric sprite; frames
+   * 16+ the animation's (16 + phase) */
+  function crownDrawV159D(K0, a, b, e, fr) {
+    var D = CROWNS_V159D[K0], pal = crownPalV159D(a, b, e), K = kitV159D(D.W, D.H, pal), ph = fr >= 16 ? fr - 16 : -1;
+    D.draw(K, ph);
+    K.R.outline(D.ol ? pal[D.ol] || D.ol : dark(e, 0.45), 0.92);
+    if (ph < 0) JW_V159D[K0] = K.jw.slice();
+    return { R: K.R, gl: D.gl };
+  }
+  // the jewel pixels of an old (v157 A) crown: the 'J's of its map, mirrored
+  var OLDJW_V159D = null;
+  function oldJewelsV159D(kind) {
+    if (!OLDJW_V159D) { OLDJW_V159D = {}; var maps = crownMapsV157A();
+      Object.keys(maps).forEach(function (k) { var m = maps[k], W = m.rows[0].length * 2 - 1, out = [];
+        m.rows.forEach(function (row, y) { for (var x = 0; x < row.length; x++) if (row.charAt(x) === "J" || row.charAt(x) === "P") { out.push([x, y]); if (x !== W - 1 - x) out.push([W - 1 - x, y]); } });
+        OLDJW_V159D[k] = out; }); }
+    return OLDJW_V159D[kind] || [];
+  }
+  var GLINT_V159D = { crown: [6, 1], king: [7, 0], circlet: [6, 2], star: [6, 0], horns: [0, 0], halo: [4, 4], laurel: [1, 1], flame: [6, 0] };
+  function crownFramesV159D() { return Math.max(8, Math.min(48, TUv("crownFramesV159D", 24) | 0)); }
+  function crownPhaseV159D(t) { var N = crownFramesV159D(); return ((Math.floor(t / Math.max(40, TUv("crownFrameMsV159D", 110))) % N) + N) % N; }
+  /* one animation frame of any crown: its base (a new kind's own motion; the flame's flicker) under a light sweep across
+   * the metal, one jewel twinkling in turn, and v157 A's four-point glint once a cycle */
+  function crownFrameArtV159D(cr, ph) {
+    cr = cr || { kind: "crown", col: ["#f0bb45", "#c8102e", "#6b4a0e"] };
+    var key = "c159|" + cr.kind + "|" + (cr.col || []).join(",") + "|" + ph;
+    if (ART_V153G[key]) return ART_V153G[key];
+    if (crownKindV159D(cr.kind) && !JW_V159D[cr.kind]) crownArtV157A(cr, 0);
+    var base = crownKindV159D(cr.kind) ? crownArtV157A(cr, 16 + ph) : crownArtV157A(cr, cr.kind === "flame" ? ph & 1 : 0);
+    if (!base) return crownArtV153G(cr, 0);
+    var cv = document.createElement("canvas"); cv.width = base.w; cv.height = base.h;
+    try {
+      var x = cv.getContext("2d"); x.drawImage(base.cv, 0, 0);
+      var im = x.getImageData(0, 0, cv.width, cv.height), d = im.data, W = cv.width, H = cv.height, N = crownFramesV159D();
+      var lit = function (px, py, t) { if (px < 0 || py < 0 || px >= W || py >= H) return; var i = (py * W + px) * 4; if (d[i + 3] < 120) return; d[i] += (255 - d[i]) * t; d[i + 1] += (255 - d[i + 1]) * t; d[i + 2] += (255 - d[i + 2]) * t; };
+      var dot = function (px, py, a) { if (px < 0 || py < 0 || px >= W || py >= H) return; var i = (py * W + px) * 4; d[i] = 255; d[i + 1] = 255; d[i + 2] = 255; d[i + 3] = Math.max(d[i + 3], Math.round(255 * a)); };
+      // the sweep: a diagonal band of light crosses the crown in the first third of the cycle
+      var SW = Math.max(3, Math.round(N / 3));
+      if (ph < SW) { var pos = -3 + (ph / (SW - 1)) * (W + H * 0.6 + 6); for (var py = 0; py < H; py++) for (var px = 0; px < W; px++) { var dd = Math.abs(px + py * 0.6 - pos); if (dd < 1.6) lit(px, py, dd < 0.8 ? 0.62 : 0.3); } }
+      // the jewels, one at a time
+      var jw = crownKindV159D(cr.kind) ? (JW_V159D[cr.kind] || []) : oldJewelsV159D(cr.kind);
+      if (jw.length) { var j = jw[Math.floor(ph / 2) % jw.length], on = ph % 2 === 0; if (j && on) { var jx = j[0] + 1, jy = j[1] + 1; dot(jx, jy, 1); lit(jx - 1, jy, 0.5); lit(jx + 1, jy, 0.5); lit(jx, jy - 1, 0.5); lit(jx, jy + 1, 0.5); } }
+      // v157 A's glint, a four-point star over the top, in the middle of the cycle
+      var gp = Math.floor(N / 2), gl = crownKindV159D(cr.kind) ? CROWNS_V159D[cr.kind].gl : GLINT_V159D[cr.kind];
+      if (gl && (ph === gp || ph === gp + 1)) { var gx = gl[0] + 1, gy = gl[1] + 1, s = ph === gp ? 1 : 0.6; dot(gx, gy, s); [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (o) { dot(gx + o[0], gy + o[1], 0.8 * s); }); if (ph === gp) [[2, 0], [-2, 0], [0, -2]].forEach(function (o) { dot(gx + o[0], gy + o[1], 0.4); }); }
+      x.putImageData(im, 0, 0);
+    } catch (err) { errV159D(err); }
+    G_V159D.crownArt++;
+    return (ART_V153G[key] = { key: key, cv: cv, ax: base.ax, ay: base.ay, w: base.w, h: base.h });
+  }
+  // the crown for a moment of the clock (still when reduced motion or the switch is off)
+  function crownAnimV159D(cr, t) {
+    if (t == null || !crownAnimOnV159D() || reducedV157A()) return crownArtV153G(cr, 0);
+    return crownFrameArtV159D(cr, crownPhaseV159D(t));
+  }
+  // the gentle bob (in sprite pixels), on the breathing of the wings
+  function crownBobV159D(t) { if (t == null || !crownAnimOnV159D() || reducedV157A()) return 0; return Math.sin(t / Math.max(300, TUv("crownBobMsV159D", 1500)) * TAU_V159D) * TUv("crownBobPxV159D", 0.6); }
+  /* the card's and the Locker's crown: on v157 B's one rAF loop (its fps, its off-screen skip, its still frame under
+   * reduced motion) — once per canvas; a repaint just swaps the drawing */
+  function crownRegV159D(cv, draw, where) {
+    try {
+      if (!crownAnimOnV159D()) return false;
+      cv._crDrawV159D = draw;
+      if (cv._crRegV159D) return true;
+      var kind = where === "card" ? "crown" : "crownpv", live = 0;
+      if (kind === "crown") { ANIM_V157B.list.forEach(function (e) { if (e.kind === "crown" && e.cv.isConnected) live++; }); if (live >= TUv("v159DcrownMax", 8)) return false; }   // a board full of cards: the first few animate, the rest stay still
+      cv._crRegV159D = where || "crown"; G_V159D.crownRegs++;
+      return animateV157B(cv, function (t) { if (cv._crDrawV159D) cv._crDrawV159D(t >= STILL_T_V157B ? null : t); }, kind);
+    } catch (e) { errV159D(e); return false; }
+  }
+
+  /* ================= AURAS ================= */
+  function afxV159D(fx) { return fx && auraOnV159D() && Object.prototype.hasOwnProperty.call(AFX_V159D, fx) ? AFX_V159D[fx] : null; }
+  var AFX_V159D = {
+    dragon: { add: 1, draw: function (P, o) {   // a jade dragon spirit coiling up round him, head first
+      var u = o.u, t = o.t, N = Math.max(10, o.n(24)), rot = t / 2600 * TAU_V159D;
+      if (o.L === 0) P.ell(o.cx, o.fy, 13 * u, 3.2 * u, o.c[4], 0.5);
+      for (var i = N - 1; i >= 0; i--) {
+        var s = i / N, an = rot + s * TAU_V159D * 1.5, sn = Math.sin(an); if ((sn > 0) !== (o.L === 1)) continue;
+        var x = o.cx + Math.cos(an) * (13 - s * 3) * u, y = o.top - 6 * u + s * (o.h + 4 * u) + sn * 3.5 * u + Math.sin(t / 300 + i * 0.6) * 0.8 * u, r = (2.6 - s * 1.5) * u;
+        P.circ(x, y, r * 1.5, o.c[0], 0.22); P.circ(x, y, r, o.c[0], 0.9); P.circ(x - r * 0.3, y - r * 0.35, r * 0.45, o.c[1], 0.85);
+        if (i % 3 === 1) P.tri(x - r * 0.6, y - r * 0.6, x + r * 0.6, y - r * 0.6, x, y - r * 2.1, o.c[2], 0.9);
+        if (i === 0) { P.circ(x, y, r * 1.35, o.c[0], 1); P.seg(x - r, y - r, x - r * 1.8, y - r * 2.6, 0.6 * u, o.c[2], 1); P.seg(x + r, y - r, x + r * 1.8, y - r * 2.6, 0.6 * u, o.c[2], 1);
+          P.rect(x - r * 0.7, y - r * 0.4, 0.8 * u, 0.8 * u, o.c[3], 1); P.rect(x + r * 0.2, y - r * 0.4, 0.8 * u, 0.8 * u, o.c[3], 1);
+          P.seg(x, y + r * 0.5, x - 4 * u, y + r + Math.sin(t / 200) * 2 * u, 0.4 * u, o.c[1], 0.8); P.seg(x, y + r * 0.5, x + 4 * u, y + r + Math.cos(t / 200) * 2 * u, 0.4 * u, o.c[1], 0.8); }
+      }
+    } },
+    phoenix: { add: 1, draw: function (P, o) {   // flame wings flaring behind him; every few seconds he burns and is reborn in a burst
+      var u = o.u, t = o.t, cyc = 3200, p = ((t % cyc) + cyc) % cyc / cyc, burst = p < 0.25 ? p / 0.25 : 0, sy = o.top + 9 * u;
+      if (o.L === 0) {
+        var fl = 0.12 * Math.sin(t / 420);
+        for (var sd = -1; sd <= 1; sd += 2) for (var k = 0; k < 7; k++) {
+          var an = -Math.PI / 2 + sd * (0.35 + k * 0.2 + fl), len = (15 + k * 1.6 + 2 * Math.sin(t / 150 + k)) * u * (1 + burst * 0.4), bx = o.cx + sd * 2.5 * u, w = 0.13;
+          P.tri(bx, sy, bx + Math.cos(an - w) * len * 0.6, sy + Math.sin(an - w) * len * 0.6, bx + Math.cos(an) * len, sy + Math.sin(an) * len, o.c[k < 2 ? 0 : k < 4 ? 1 : k < 6 ? 2 : 3], 0.55);
+        }
+        P.ell(o.cx, o.fy, 12 * u, 3 * u, o.c[2], 0.45 + 0.2 * Math.sin(t / 90));
+        if (burst > 0) { P.ellS(o.cx, o.cy, (4 + burst * 22) * u, (5 + burst * 26) * u, 1.6 * u, o.c[0], 1 - burst); P.circ(o.cx, o.cy, 10 * u * (1 - burst), o.c[4], 0.5 * (1 - burst)); }
+      }
+      var N = o.L ? o.n(5) : o.n(12);
+      for (var i = 0; i < N; i++) { var j = i + o.L * 30, q = frV157B(t / (1000 + o.r(j) * 600) + o.r(j + 1)), x = o.cx + (o.r(j + 2) - 0.5) * 24 * u + Math.sin(t / 160 + j) * 1.4 * u, y = o.fy - q * 38 * u, s = (1.2 - q * 0.6) * u;
+        P.tri(x - s, y, x + s, y, x, y - s * 3, o.c[q < 0.3 ? 0 : q < 0.6 ? 1 : 2], 1 - q); }
+    } },
+    blackhole: { add: 0, draw: function (P, o) {   // an event horizon behind him, a turning accretion disk round his waist, lensing
+      var u = o.u, t = o.t, cy = o.cy + 1 * u, RX = 20 * u, RY = 5.5 * u;
+      if (o.L === 0) {
+        P.circ(o.cx, o.cy - 8 * u, 13 * u, o.c[4], 0.25); P.circ(o.cx, o.cy - 8 * u, 10 * u, o.c[0], 0.95);
+        P.ring(o.cx, o.cy - 8 * u, 10.6 * u, 0.9 * u, o.c[2], 0.7 + 0.3 * Math.sin(t / 180)); P.ring(o.cx, o.cy - 8 * u, 12 * u, 0.5 * u, o.c[1], 0.45);
+      }
+      var N = o.n(36);
+      for (var i = 0; i < N; i++) {
+        var rr = 0.35 + 0.65 * o.r(i), sp = 1 / Math.pow(rr, 1.5), an = t / 2200 * TAU_V159D * sp + o.r(i + 50) * TAU_V159D, sn = Math.sin(an);
+        if ((sn > 0) !== (o.L === 1)) continue;
+        var x = o.cx + Math.cos(an) * RX * rr, y = cy + sn * RY * rr, s = (1.4 - rr * 0.6) * u;
+        P.rect(x - s / 2, y - s / 2, s * 1.6, s, rr < 0.5 ? o.c[1] : rr < 0.75 ? o.c[2] : o.c[3], 0.95);
+      }
+      if (o.L === 0) P.ellS(o.cx, cy, RX * 0.35, RY * 0.35, 0.7 * u, o.c[1], 0.8);
+    } },
+    tesla: { add: 1, draw: function (P, o) {   // two coils at his sides throwing arcs at each other through him
+      var u = o.u, t = o.t, fl = Math.floor(t / 60), i;
+      if (o.L === 0) for (var sd = -1; sd <= 1; sd += 2) { var x = o.cx + sd * 14 * u;
+        P.rect(x - 1.5 * u, o.fy - 16 * u, 3 * u, 16 * u, o.c[3], 1);
+        for (var k = 0; k < 6; k++) P.ellS(x, o.fy - 3 * u - k * 2.2 * u, 2.4 * u, 0.8 * u, 0.6 * u, o.c[4], 1);
+        P.ell(x, o.fy - 17.5 * u, 3.4 * u, 1.6 * u, o.c[4], 1); P.ell(x, o.fy - 18 * u, 2.2 * u, 0.8 * u, o.c[0], 0.8);
+        P.circ(x, o.fy - 18 * u, 4 * u, o.c[1], 0.25 + 0.2 * Math.sin(t / 70 + sd)); }
+      var arcs = o.L ? 1 : 2;
+      for (var a = 0; a < arcs; a++) {
+        if (o.r(fl * 5 + a) < 0.25) continue;
+        var x0 = o.cx - 14 * u, x1 = o.cx + 14 * u, y0 = o.fy - 18 * u, px = x0, py = y0, M = 7;
+        for (i = 1; i <= M; i++) { var nx = x0 + (x1 - x0) * i / M, ny = y0 + (i < M ? (o.r(fl * 13 + i * 3 + a * 50) - 0.5) * 10 * u + Math.sin(i / M * Math.PI) * (a ? 6 : -3) * u : 0);
+          P.seg(px, py, nx, ny, 2.2 * u, o.c[2], 0.35); P.seg(px, py, nx, ny, 0.7 * u, o.c[0], 1); px = nx; py = ny; }
+      }
+      for (i = 0; i < o.n(o.L ? 4 : 6); i++) { var q = frV157B(t / 500 + o.r(i + 70)), sx = o.cx + (o.r(i + 80 + Math.floor(t / 500 + o.r(i + 70)) * 7) - 0.5) * 30 * u, sy2 = o.fy - 18 * u + q * 18 * u; P.rect(sx, sy2, 0.8 * u, 0.8 * u, o.c[1], 1 - q); }
+    } },
+    blossom: { add: 0, draw: function (P, o) {   // a whirlwind of petals: a tornado of them, wider the higher, gusts
+      var u = o.u, t = o.t, N = o.n(26);
+      for (var i = 0; i < N; i++) {
+        var h = frV157B(t / (1900 + o.r(i) * 700) + o.r(i + 1)), an = t / 700 * TAU_V159D * (1.2 - h * 0.5) + i * 2.4, sn = Math.sin(an); if ((sn > 0) !== (o.L === 1)) continue;
+        var rad = (5 + h * 13) * u, x = o.cx + Math.cos(an) * rad, y = o.fy - h * (o.h + 10 * u) + sn * 2 * u, spn = Math.cos(t / 120 + i * 1.3), a = 0.95 * Math.min(1, (1 - h) * 5, h * 8), s = (1 + o.r(i + 2) * 0.6) * u;
+        P.tri(x - s * spn, y - s * 0.5, x + s * spn, y + s * 0.5, x + s * 0.4, y - s, o.c[i % 2], a); P.rect(x - 0.3 * u, y - 0.3 * u, 0.6 * u, 0.6 * u, o.c[2], a * 0.8);
+      }
+      if (o.L === 0) { for (var g = 0; g < 3; g++) { var gp = frV157B(t / 900 + g / 3), gy = o.fy - (0.2 + g * 0.3) * o.h; P.seg(o.cx - 18 * u + gp * 30 * u, gy, o.cx - 12 * u + gp * 30 * u, gy - 1.5 * u, 0.5 * u, o.c[0], 0.5 * Math.sin(gp * Math.PI)); }
+        P.ell(o.cx, o.fy, 11 * u, 2.6 * u, o.c[3], 0.35); }
+    } },
+    sandstorm: { add: 0, draw: function (P, o) {   // dust streaming sideways past him in bands, clouds rolling, grit
+      var u = o.u, t = o.t, i;
+      if (o.L === 0) for (i = 0; i < o.n(7); i++) { var p = frV157B(t / 2600 + o.r(i)), x = o.cx - 22 * u + p * 44 * u, y = o.fy - o.r(i + 5) * o.h * 0.9;
+        P.circ(x, y, (4 + o.r(i + 9) * 4) * u, o.c[i % 2 ? 1 : 2], 0.28 * Math.sin(p * Math.PI)); }
+      var N = o.L ? o.n(7) : o.n(16);
+      for (i = 0; i < N; i++) { var j = i + o.L * 40, q = frV157B(t / (700 + o.r(j) * 500) + o.r(j + 1)), yy = o.fy - o.r(j + 2) * (o.h + 6 * u), xx = o.cx - 20 * u + q * 40 * u + Math.sin(t / 200 + j) * u, L = (3 + o.r(j + 3) * 5) * u;
+        P.seg(xx, yy, xx + L, yy - 0.4 * u, 0.6 * u, o.c[j % 3 === 0 ? 3 : 0], 0.75 * Math.sin(q * Math.PI)); if (j % 2) P.rect(xx + L + u, yy, 0.7 * u, 0.7 * u, o.c[2], 0.9 * Math.sin(q * Math.PI)); }
+      if (o.L === 0) P.ell(o.cx, o.fy, 13 * u, 2.8 * u, o.c[1], 0.4);
+    } },
+    abyss: { add: 1, draw: function (P, o) {   // the deep: glowing jellyfish drifting up past him, plankton, bubbles
+      var u = o.u, t = o.t, i;
+      if (o.L === 0) { P.ell(o.cx, o.cy, 18 * u, 26 * u, o.c[0], 0.35); for (i = 0; i < o.n(12); i++) { var tw = 0.5 + 0.5 * Math.sin(t / 260 + i * 2.3); P.rect(o.cx + (o.r(i) - 0.5) * 32 * u, o.top - 8 * u + o.r(i + 20) * (o.h + 12 * u), 0.8 * u, 0.8 * u, o.c[i % 2 ? 1 : 3], tw); } }
+      var J = o.L ? 1 : 3;
+      for (i = 0; i < J; i++) { var j = i + o.L * 3, p = frV157B(t / (5200 + o.r(j) * 1600) + o.r(j + 7)), x = o.cx + (o.r(j + 3) - 0.5) * 28 * u + Math.sin(t / 900 + j) * 2 * u, y = o.fy + 6 * u - p * (o.h + 20 * u), pul = 1 + 0.18 * Math.sin(t / 240 + j), col = o.c[j % 2 ? 2 : 1], al = Math.min(1, Math.sin(p * Math.PI) * 2);
+        P.circ(x, y, 4.5 * u * pul, col, 0.2 * al); P.ell(x, y, 2.8 * u * pul, 1.9 * u / pul, col, 0.75 * al); P.ell(x, y - 0.5 * u, 1.4 * u, 0.8 * u, o.c[4], 0.6 * al);
+        for (var k = -1; k <= 1; k++) { var tx = x + k * 1.4 * u; P.seg(tx, y + 1.2 * u, tx + Math.sin(t / 200 + k + j) * 1.3 * u, y + 5.5 * u, 0.5 * u, col, 0.7 * al); } }
+      for (i = 0; i < o.n(o.L ? 2 : 4); i++) { var b = frV157B(t / 1800 + o.r(i + 40)); P.ring(o.cx + (o.r(i + 41) - 0.5) * 22 * u + Math.sin(t / 300 + i) * u, o.fy - b * o.h * 1.1, (0.6 + b * 0.8) * u, 0.4 * u, o.c[3], 0.8 * (1 - b)); }
+    } },
+    glitch: { add: 1, draw: function (P, o) {   // his signal breaking up: RGB-split slices, a scanline, dead pixels (a stepped clock)
+      var u = o.u, t = o.t, st = Math.floor(t / 90), i;
+      if (o.L === 0) { var sl = frV157B(t / 1400); P.rect(o.cx - 16 * u, o.top - 8 * u + sl * (o.h + 14 * u), 32 * u, 0.8 * u, o.c[3], 0.35); }
+      var N = o.L ? o.n(4) : o.n(9);
+      for (i = 0; i < N; i++) { var j = i + o.L * 20; if (o.r(st * 7 + j) < 0.35) continue;
+        var y = o.top - 6 * u + o.r(st * 13 + j) * (o.h + 10 * u), x = o.cx + (o.r(st * 17 + j) - 0.5) * 30 * u, w = (3 + o.r(st * 19 + j) * 9) * u, hh = (0.8 + o.r(j + 3) * 1.6) * u;
+        P.rect(x - w / 2 - u, y, w, hh, o.c[0], 0.75); P.rect(x - w / 2 + u, y, w, hh, o.c[1], 0.75); if (o.r(st + j * 5) > 0.6) P.rect(x - w / 2, y, w, hh * 0.5, o.c[2], 0.6); }
+      for (i = 0; i < o.n(o.L ? 2 : 5); i++) { var q = st + i * 31; P.rect(o.cx + (o.r(q) - 0.5) * 30 * u, o.top + o.r(q + 1) * o.h, 1.6 * u, 1.6 * u, o.c[3], o.r(q + 2) > 0.5 ? 1 : 0.4); }
+      if (o.L === 0) P.ell(o.cx, o.fy, 12 * u, 2.6 * u, o.c[4], 0.5);
+    } },
+    banners: { add: 0, draw: function (P, o) {   // two royal banners on gold poles at his sides, flying; gold dust
+      var u = o.u, t = o.t, i;
+      if (o.L === 0) for (var sd = -1; sd <= 1; sd += 2) {
+        var px = o.cx + sd * 14 * u, top = o.top - 10 * u, H = 13 * u, W = 7 * u, prev = null;
+        P.rect(px - 0.5 * u, top - 1 * u, 1 * u, o.fy - top + u, o.c[1], 1); P.circ(px, top - 1.5 * u, 1.2 * u, o.c[3], 1);
+        for (var k = 0; k <= 6; k++) { var f = k / 6, wx = px + sd * f * W, wy = top + Math.sin(t / 260 - f * 3 + sd) * 1.6 * u * f, cur = [wx, wy, wy + H * (1 - f * 0.18)];
+          if (prev) { P.tri(prev[0], prev[1], cur[0], cur[1], prev[0], prev[2], k % 2 ? o.c[0] : o.c[2], 0.95); P.tri(cur[0], cur[1], cur[0], cur[2], prev[0], prev[2], k % 2 ? o.c[0] : o.c[2], 0.95); }
+          prev = cur; }
+        var ex = px + sd * W * 0.5, ey = top + H * 0.45 + Math.sin(t / 260 - 1.5 + sd) * 0.8 * u; P.tri(ex, ey - 2.4 * u, ex - 1.6 * u, ey, ex + 1.6 * u, ey, o.c[1], 1); P.tri(ex, ey + 2.4 * u, ex - 1.6 * u, ey, ex + 1.6 * u, ey, o.c[1], 1); P.rect(ex - 0.4 * u, ey - 0.4 * u, 0.8 * u, 0.8 * u, o.c[3], 1);
+        P.tri(px + sd * W * 0.2, top + H, px + sd * W * 0.55, top + H - 2.5 * u, px + sd * W * 0.9, top + H, o.c[4], 0.9);
+      }
+      for (i = 0; i < o.n(o.L ? 4 : 8); i++) { var j = i + o.L * 30, q = frV157B(t / 2000 + o.r(j)); P.rect(o.cx + (o.r(j + 1) - 0.5) * 22 * u, o.top - 4 * u + q * (o.h + 6 * u), 0.8 * u, 0.8 * u, o.c[1], Math.sin(q * Math.PI)); }
+    } },
+    wolves: { add: 1, draw: function (P, o) {   // two spirit wolves running round him, legs in stride, wisps trailing
+      var u = o.u, t = o.t;
+      for (var w = 0; w < 2; w++) {
+        var an = t / 2800 * TAU_V159D + w * Math.PI, sn = Math.sin(an); if ((sn > 0) !== (o.L === 1)) continue;
+        var x = o.cx + Math.cos(an) * 16 * u, y = o.fy - 5 * u + sn * 4 * u, dir = -Math.sin(an) >= 0 ? 1 : -1, sc = 0.85 + 0.15 * (sn + 1) / 2, s = u * sc, run = t / 90 + w * 3, al = 0.8;
+        for (var k = 1; k <= 4; k++) P.circ(x - dir * (5 + k * 2.2) * s, y - 2 * s + Math.sin(t / 150 + k) * 0.6 * s, (1.6 - k * 0.3) * s, o.c[1], 0.35 - k * 0.07);
+        P.ell(x, y - 2 * s, 4.2 * s, 2 * s, o.c[0], al);
+        P.circ(x + dir * 4.4 * s, y - 3.4 * s, 1.8 * s, o.c[0], al); P.tri(x + dir * 5.4 * s, y - 3.6 * s, x + dir * 7.6 * s, y - 2.8 * s, x + dir * 5.4 * s, y - 2.4 * s, o.c[0], al);
+        P.tri(x + dir * 3.6 * s, y - 4.6 * s, x + dir * 4.6 * s, y - 4.8 * s, x + dir * 3.8 * s, y - 6.6 * s, o.c[2], al);
+        P.rect(x + dir * 5 * s - 0.35 * s, y - 3.9 * s, 0.7 * s, 0.7 * s, o.c[3], 1);
+        [[-3, 0], [-1.6, Math.PI], [2, Math.PI * 0.5], [3.2, Math.PI * 1.5]].forEach(function (L) { var sw = Math.sin(run + L[1]) * 1.6 * s; P.seg(x + dir * L[0] * s, y - 1 * s, x + dir * L[0] * s + sw, y + 1.8 * s, 0.8 * s, o.c[0], al); });
+        P.tri(x - dir * 3.8 * s, y - 2.8 * s, x - dir * 7.2 * s, y - 4.4 * s + Math.sin(run) * s, x - dir * 3.8 * s, y - 1.6 * s, o.c[2], 0.7);
+      }
+      if (o.L === 0) P.ellS(o.cx, o.fy - 5 * u, 16 * u, 4 * u, 0.5 * u, o.c[1], 0.3);
+    } },
+    hellgate: { add: 1, draw: function (P, o) {   // a burning rune circle under him, a pentagram, flame pillars at its points
+      var u = o.u, t = o.t, RX = 16 * u, RY = 4.6 * u, rot = t / 5200 * TAU_V159D, gy = o.fy, i;
+      if (o.L === 0) {
+        P.ell(o.cx, gy, RX, RY, o.c[4], 0.55);
+        P.ellS(o.cx, gy, RX, RY, 1 * u, o.c[0], 0.9); P.ellS(o.cx, gy, RX * 0.82, RY * 0.82, 0.6 * u, o.c[1], 0.75);
+        for (i = 0; i < 5; i++) { var a1 = rot + i * TAU_V159D / 5, a2 = rot + (i + 2) * TAU_V159D / 5; P.seg(o.cx + Math.cos(a1) * RX * 0.8, gy + Math.sin(a1) * RY * 0.8, o.cx + Math.cos(a2) * RX * 0.8, gy + Math.sin(a2) * RY * 0.8, 0.6 * u, o.c[0], 0.8); }
+        for (i = 0; i < 12; i++) { var ar = -rot * 1.5 + i * TAU_V159D / 12, rx = o.cx + Math.cos(ar) * RX * 0.91, ry = gy + Math.sin(ar) * RY * 0.91, gl = o.r(i * 3 + Math.floor(t / 400)) > 0.5; P.seg(rx - 0.6 * u, ry - 0.6 * u, rx + 0.6 * u, ry + 0.4 * u, 0.45 * u, gl ? o.c[3] : o.c[1], 0.9); }
+      }
+      for (i = 0; i < 5; i++) { var ap = rot + i * TAU_V159D / 5, sp = Math.sin(ap); if ((sp > 0) !== (o.L === 1)) continue;
+        var fx = o.cx + Math.cos(ap) * RX * 0.8, fy = gy + sp * RY * 0.8, H = (7 + 3 * Math.sin(t / 110 + i * 2)) * u, sw = Math.sin(t / 80 + i) * 0.8 * u;
+        P.tri(fx - 1.8 * u, fy, fx + 1.8 * u, fy, fx + sw, fy - H, o.c[0], 0.85); P.tri(fx - 0.9 * u, fy, fx + 0.9 * u, fy, fx + sw * 0.6, fy - H * 0.6, o.c[3], 0.95); }
+      for (i = 0; i < o.n(o.L ? 3 : 6); i++) { var q = frV157B(t / 1300 + o.r(i + 60)); P.rect(o.cx + (o.r(i + 61) - 0.5) * 26 * u, gy - q * 30 * u, 0.9 * u, 0.9 * u, o.c[1], 1 - q); }
+    } },
+    feathers: { add: 1, draw: function (P, o) {   // white and gold feathers drifting down round him, rocking; a shaft of light
+      var u = o.u, t = o.t, i;
+      if (o.L === 0) { var pu = 0.8 + 0.2 * Math.sin(t / 700); P.tri(o.cx - 5 * u, o.top - 30 * u, o.cx + 5 * u, o.top - 30 * u, o.cx + 14 * u, o.fy, o.c[1], 0.12 * pu); P.tri(o.cx - 5 * u, o.top - 30 * u, o.cx - 14 * u, o.fy, o.cx + 14 * u, o.fy, o.c[1], 0.12 * pu); P.ell(o.cx, o.fy, 12 * u, 2.8 * u, o.c[2], 0.35 * pu); }
+      var N = o.L ? o.n(4) : o.n(8);
+      for (i = 0; i < N; i++) { var j = i + o.L * 20, p = frV157B(t / (3600 + o.r(j) * 1400) + o.r(j + 1)), rock = Math.sin(t / 420 + j * 2), x = o.cx + (o.r(j + 2) - 0.5) * 28 * u + rock * 3 * u, y = o.top - 14 * u + p * (o.h + 16 * u), ang = rock * 0.6 + 0.5, L = (3.2 + o.r(j + 3)) * u, dx = Math.sin(ang) * L, dy = -Math.cos(ang) * L, al = Math.min(1, (1 - p) * 5, p * 6), col = o.c[j % 3 === 0 ? 2 : 0];
+        P.tri(x - dx, y - dy, x + dx, y + dy, x + dy * 0.35 + dx * 0.2, y - dx * 0.35 + dy * 0.2, col, 0.95 * al); P.tri(x - dx, y - dy, x + dx, y + dy, x - dy * 0.3, y + dx * 0.3, o.c[3], 0.85 * al); P.seg(x - dx * 1.2, y - dy * 1.2, x + dx, y + dy, 0.35 * u, o.c[2], al); }
+      for (i = 0; i < o.n(o.L ? 2 : 6); i++) { var m = frV157B(t / 2600 + o.r(i + 70)); P.rect(o.cx + (o.r(i + 71) - 0.5) * 20 * u, o.fy - m * o.h, 0.7 * u, 0.7 * u, o.c[2], Math.sin(m * Math.PI)); }
+    } },
+    chrome: { add: 0, draw: function (P, o) {   // mercury: blobs orbiting and swelling, a rippling pool, droplets leaping from it
+      var u = o.u, t = o.t, i;
+      if (o.L === 0) { P.ell(o.cx, o.fy, 13 * u, 3.2 * u, o.c[3], 0.85); P.ell(o.cx, o.fy - 0.4 * u, 11 * u, 2.3 * u, o.c[2], 0.9); P.ell(o.cx - 3 * u, o.fy - 0.9 * u, 5 * u, 0.9 * u, o.c[0], 0.8);
+        for (var k = 0; k < 2; k++) { var rp = frV157B(t / 1100 + k / 2); P.ellS(o.cx, o.fy, (4 + rp * 12) * u, (1 + rp * 3) * u, 0.5 * u, o.c[4], 0.8 * (1 - rp)); } }
+      var N = 5;
+      for (i = 0; i < N; i++) { var an = t / 2300 * TAU_V159D + i * TAU_V159D / N, sn = Math.sin(an); if ((sn > 0) !== (o.L === 1)) continue;
+        var x = o.cx + Math.cos(an) * 14 * u, y = o.cy + sn * 4 * u + Math.sin(t / 500 + i * 1.7) * 3 * u - (i % 2) * 6 * u, r = (2 + 0.7 * Math.sin(t / 330 + i * 2.1)) * u;
+        P.circ(x, y, r, o.c[3], 1); P.circ(x - r * 0.12, y - r * 0.12, r * 0.84, o.c[2], 1); P.circ(x - r * 0.3, y - r * 0.3, r * 0.5, o.c[1], 1); P.circ(x - r * 0.42, y - r * 0.45, r * 0.2, o.c[4], 1);
+        P.circ(x + r * 0.9 * Math.cos(an + 1.2), y + r * 0.9, r * 0.45, o.c[2], 0.9); }
+      if (o.L === 1) for (i = 0; i < o.n(3); i++) { var p = frV157B(t / 900 + i / 3), dx = (o.r(i + Math.floor(t / 900 + i / 3) * 5) - 0.5) * 20 * u, dy = Math.sin(p * Math.PI) * 10 * u; P.circ(o.cx + dx, o.fy - dy, 0.8 * u, o.c[1], 1); P.rect(o.cx + dx - 0.3 * u, o.fy - dy - 0.4 * u, 0.4 * u, 0.4 * u, o.c[4], 1); }
+    } },
+    fireflies: { add: 1, draw: function (P, o) {   // fireflies wandering lazy loops round him, each blinking on its own clock
+      var u = o.u, t = o.t, N = o.n(14);
+      for (var i = 0; i < N; i++) { var j = i + o.L * 40, sx = t / (2600 + o.r(j) * 1800) * TAU_V159D + o.r(j + 1) * 7, sy = t / (1900 + o.r(j + 2) * 1400) * TAU_V159D + o.r(j + 3) * 7;
+        var x = o.cx + Math.sin(sx) * (10 + o.r(j + 4) * 8) * u, y = o.cy - 4 * u + Math.sin(sy) * (o.h * 0.55), front = Math.cos(sx) > 0; if (front !== (o.L === 1)) continue;
+        var bl = Math.max(0, Math.sin(t / (500 + o.r(j + 5) * 500) * TAU_V159D + j)), a = 0.25 + 0.75 * bl * bl;
+        P.circ(x, y, 2.4 * u, o.c[1], 0.22 * a); P.circ(x, y, 1 * u, o.c[0], a); P.rect(x - 0.3 * u, y - 0.3 * u, 0.6 * u, 0.6 * u, o.c[2], a); }
+      if (o.L === 0) P.ell(o.cx, o.fy, 10 * u, 2.2 * u, o.c[1], 0.2);
+    } },
+    meteors: { add: 1, draw: function (P, o) {   // a meteor shower streaking down behind him, flashes where they land, stars
+      var u = o.u, t = o.t, i;
+      if (o.L === 1) { for (i = 0; i < 2; i++) { var q2 = frV157B(t / 1300 + i / 2), cyc = Math.floor(t / 1300 + i / 2), lx = o.cx + (o.r(cyc * 7 + i) - 0.5) * 30 * u; if (q2 > 0.72) { var f = (q2 - 0.72) / 0.28; P.ellS(lx, o.fy, (1 + f * 6) * u, (0.4 + f * 1.8) * u, 0.6 * u, o.c[1], 1 - f); } } return; }
+      for (i = 0; i < o.n(8); i++) { var tw = 0.5 + 0.5 * Math.sin(t / 200 + i * 2.7); P.rect(o.cx + (o.r(i + 90) - 0.5) * 36 * u, o.top - 16 * u + o.r(i + 91) * 20 * u, 0.7 * u, 0.7 * u, o.c[4], tw); }
+      var N = o.n(6);
+      for (i = 0; i < N; i++) { var cy2 = Math.floor(t / 1300 + i / N), p = frV157B(t / 1300 + i / N); if (p > 0.72) continue;
+        var k = p / 0.72, sx = o.cx + (o.r(cy2 * 7 + i) - 0.5) * 30 * u + 14 * u, ex = sx - 16 * u, sy = o.top - 24 * u, ey = o.fy, hx = sx + (ex - sx) * k, hy = sy + (ey - sy) * k, L = 0.3;
+        var tx = hx - (ex - sx) * L, ty = hy - (ey - sy) * L;
+        P.seg(tx, ty, hx, hy, 2.4 * u, o.c[3], 0.25); P.seg(tx + (hx - tx) * 0.4, ty + (hy - ty) * 0.4, hx, hy, 1.4 * u, o.c[2], 0.7); P.seg(tx + (hx - tx) * 0.75, ty + (hy - ty) * 0.75, hx, hy, 0.8 * u, o.c[1], 0.95);
+        P.circ(hx, hy, 1.1 * u, o.c[0], 1); }
+    } },
+    cavern: { add: 0, draw: function (P, o) {   // crystal clusters grown up round him, light pulsing up them, crystal dust
+      var u = o.u, t = o.t, i;
+      var shard = function (x, y, h, w, lean, k) { var pu = 0.5 + 0.5 * Math.sin(t / 380 - k * 0.9); P.tri(x - w, y, x, y, x + lean, y - h, o.c[1], 0.95); P.tri(x, y, x + w, y, x + lean, y - h, o.c[2], 0.95); P.tri(x - w * 0.4, y - h * 0.1, x, y - h * 0.1, x + lean * 0.9, y - h * 0.85, o.c[0], 0.55 + 0.4 * pu); P.circ(x + lean, y - h, 1.2 * u, o.c[3], 0.5 * pu); };
+      var S = [[-14, 11, 2.6, -2], [-10, 7, 1.8, -1], [-17, 6, 1.6, -2.5], [12, 12, 2.8, 2], [16, 7, 1.8, 2.5], [9, 6, 1.6, 1], [-4, 5, 1.4, -1], [4, 6, 1.5, 1]];
+      if (o.L === 0) { P.ell(o.cx, o.fy, 16 * u, 3.4 * u, o.c[4], 0.6); S.slice(0, 6).forEach(function (s, k) { shard(o.cx + s[0] * u, o.fy - 1.5 * u, s[1] * u, s[2] * u, s[3] * u, k); }); }
+      else S.slice(6).forEach(function (s, k) { shard(o.cx + s[0] * u, o.fy + 1.5 * u, s[1] * u, s[2] * u, s[3] * u, k + 6); });
+      for (i = 0; i < o.n(o.L ? 3 : 8); i++) { var j = i + o.L * 30, q = frV157B(t / 2400 + o.r(j)), s2 = (0.6 + o.r(j + 2) * 0.6) * u; P.rect(o.cx + (o.r(j + 1) - 0.5) * 30 * u + Math.sin(t / 700 + j) * u, o.fy - q * (o.h + 10 * u), s2, s2, o.c[j % 2 ? 3 : 0], Math.sin(q * Math.PI)); }
+    } }
+  };
+
+  /* ---- what the check reads ---- */
+  Object.assign(G_V159D, {
+    on: function () { return { flutter: flutterOnV159D(), crown: crownAnimOnV159D(), aura: auraOnV159D() }; },
+    items: function () { return itemsV159D().map(function (i) { return i.id; }); },
+    crownKinds: function () { return Object.keys(CROWNS_V159D); }, auraKinds: function () { return Object.keys(AFX_V159D); },
+    member: function () { return MEMBER_V159D.slice(); },
+    pose: wingPoseV159D, fam: famV159D, crownFrame: crownFrameArtV159D, crownAt: crownAnimV159D, crownPhase: crownPhaseV159D, bob: crownBobV159D,
+    sampleAura: function (id, t) { return sampleV157B(id, t); },
+    paintWings: function (ctx, wd, geo, k, pose) { paintBackV153G(ctx, geo, { wings: { id: "wings", d: wd } }, k, null, pose); },
+    paintCrown: function (ctx, cd, geo, k, t) { paintFrontV153G(ctx, geo, { crown: { id: "crown", d: cd } }, k, t); },
+    registered: function () { return FLAPS_V157A.map(function (r) { return { where: r.where, kind: r.kind || null, on: !!r.cv.isConnected }; }); }
+  });
+  G157.pose = function (t, kind) { return wingPoseV159D(t, kind); };   // v159 D: the pose the wings are drawn with
+
   /* ===== v157 C ONE FACE EVERYWHERE =====
    * The owner: "Number fonts, I currently don't see those in the profile or live player" · "ensure the colors of the
    * live profile player make sense" · "anything like the helmets to transfer to the profile page" · "the growth
@@ -3237,6 +3964,7 @@
   function chestNumberV157C(cv, res, num, nfId) {
     if (!res || !res.geo || num == null || num === "" || !onV157C("v157Cfig")) return null;
     var C = chestV157C(); if (!C) return null;
+    var r159 = chestNumV159A(cv, res, num, nfId, C); if (r159) return r159;   // v159 A: printed on the fabric
     var r158 = chestNumV158A(cv, res, num, nfId, C); if (r158) return r158;   // v158 A: the number font's own drawn art
     try {
       var g = res.geo, x = cv.getContext("2d"), nf = nfOfV157C(nfId), s = String(num | 0);
@@ -4067,6 +4795,7 @@
       var b = m._numBandV104, maxW = b ? b.w * Math.abs(m.body.scaleX || 1) * TUv("nfWidthV157C", 0.82) : 1e9; if (R.iw * k > maxW) k = maxW / R.iw;
       var inkY = m._numRowV104 != null ? (m._numRowV104 + 0.5 - 24) * Hs : L.y;
       img.setOrigin((R.ix + R.iw / 2) / R.w, (R.iy + R.ih / 2) / R.h).setPosition(L.x, inkY).setScale(k).setVisible(!!L.visible);
+      if (onV159A("v159Anum")) { if (m._quarterV159A && m._quarterV159A !== 1) img.scaleX = img.scaleX * m._quarterV159A; if (img.alpha !== TUv("v159AnumA", 0.9)) img.setAlpha(TUv("v159AnumA", 0.9)); } else if (img.alpha !== 1) img.setAlpha(1);   // v159 A
       var list = m.root.list; if (list[list.length - 1] !== img) { try { m.root.bringToTop(img); } catch (e) {} }
       if (L.alpha !== 0) { L.setAlpha(0); m._nfLblV158A = 1; }
       V158A.field = { key: key, style: style, txt: txt, k: +k.toFixed(4), vis: !!L.visible, ih: R.ih, cap: +cap.toFixed(2) };
@@ -4625,6 +5354,918 @@
     helmMask: helmMaskV158A, iconEarnedTick: iconEarnedTickV158A, dressCard: dressCardV158A, loop: LOOP_V158A, reduced: reducedV158A
   });
 
+
+  /* ===== v159 C THE END ZONE AND THE SHELF, ALIVE =====
+   * The owner: "Update and improve the TD celebrations for much better animation quality" and "add animations to the
+   * trophy shelf". Two moves, both looks — nothing here is a number the sim reads, and nothing draws from Math.random.
+   *   THE TOUCHDOWN  one animation SYSTEM replaces the per-kind tween piles of v151 B / v153 G. A celebration is a PLAN
+   *                built once from a seed (the play's ball token + the item id, `prng`): a list of particles, each a
+   *                closed-form body — position = f(t) under gravity and linear drag (`posV159C`: v(t) = g/k + (v0 − g/k)e^−kt),
+   *                spin, flutter, a colour ramp, a size curve, a trail sampled back along its own path, an additive glow —
+   *                plus per-kind layers (`KINDS_V159C[kind].back / front`: shockwave rings in the field's perspective, light
+   *                rays, a light column, a drawn bolt with a stepped leader and a strobe, a self-drawing rainbow, a crown that
+   *                drops on his head, orbiting stars, a snow globe, stepped 8-bit rings, meteors that land in turn). Every
+   *                frame is a pure function of (plan, t): the same frame for the same t, whatever the frame rate. Four
+   *                STAGES on one timeline (`tlV159C`, TU v159CantMs / burstMs / lingerMs / fadeMs → 280 / 480 / 960 / 480 =
+   *                2.2 s): ANTICIPATION (light gathers, sparks converge, he crouches) → BURST (the hit, the flash, the ring,
+   *                the hop) → LINGER (drift, twinkle, the callout shimmers) → FADE (everything eases out). The callout is
+   *                kinetic type: each letter drops in on a staggered back-ease with a settling tilt, waves through the linger
+   *                under a swoosh underline and a glint sweep, and leaves letter by letter. HE moves too: the marker's
+   *                container is squashed / stretched about his feet and hopped (jump / stomp / float per kind; his
+   *                shadow stays on the grass and shrinks while he is up), on top of the sheet's own celebrate frames.
+   *                Two painters draw the same plan: Phaser Graphics on the field (one normal + one ADD-blended layer, ≤ TU
+   *                v159Ccap 160 particles, redrawn in the scene's postupdate) and a 2D canvas in the Locker, where every
+   *                celebration is a LOOPING mini-stage (his celebrate frames from the sheet, the same particles, the same
+   *                type) on one shared rAF loop. prefers-reduced-motion: a short calm version (TU v159CcalmK 0.42 of the
+   *                time, v159CcalmN 0.28 of the particles, no shake / flash / hop / kinetic type) and a still Locker frame.
+   *                Kill switch TU v159C (0: the v151 B / v153 G tweens).
+   *   THE SHELF      the card's trophy shelf (`.pc-shelf-v151b`, and the Locker's shelf previews) catches the light: a glint
+   *                sweeps it on a cycle (phase-locked to the wall clock, so every card agrees), each trophy flashes as it
+   *                passes, cups bob, rings turn, stars tilt; the material moves (glass / ice / diamond reflections and
+   *                sparkle, neon flicker, velvet sheen, hologram scanlines, drifting starfield, carbon weave, brushed steel);
+   *                the numbers count up when the card opens; a trophy he did not have the last time his own card was shown
+   *                pops and shines (`rib.cos.shelfSeen.v159c`, a per-device memory, never the save). Reduced motion: still.
+   *                Kill switch TU v159Cshelf. `window.__V159C` is what v159Ccheck reads. */
+  var V159C = (window.__V159C = window.__V159C || { plays: [], last: null, active: null, previews: 0, prevFrames: 0, shelves: 0, countUps: 0, pops: [], errs: [] });
+  function errV159C(e) { try { if (V159C.errs.length < 12) V159C.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  function onV159C(k) { return !!TUv(k || "v159C", 1); }
+  var EZ_V159C = {
+    inQ: function (t) { return t * t; },
+    outQ: function (t) { return 1 - (1 - t) * (1 - t); },
+    outC: function (t) { var u = 1 - t; return 1 - u * u * u; },
+    inOutS: function (t) { return 0.5 - 0.5 * Math.cos(Math.PI * t); },
+    outX: function (t) { return t >= 1 ? 1 : 1 - Math.pow(2, -10 * t); },
+    outB: function (t) { var s = 1.70158, u = t - 1; return 1 + (s + 1) * u * u * u + s * u * u; },
+    outEl: function (t) { if (t <= 0) return 0; if (t >= 1) return 1; return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * 2.0944) + 1; },
+    outBn: function (t) { var n = 7.5625, d = 2.75; if (t < 1 / d) return n * t * t; if (t < 2 / d) { t -= 1.5 / d; return n * t * t + 0.75; } if (t < 2.5 / d) { t -= 2.25 / d; return n * t * t + 0.9375; } t -= 2.625 / d; return n * t * t + 0.984375; }
+  };
+  function c01V159C(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+  function segV159C(t, a, b) { return c01V159C((t - a) / Math.max(1, b - a)); }
+  function hexIntV159C(h) { var v = parseInt(String(h || "").slice(1), 16); return isFinite(v) ? v : 0xffffff; }
+  function mixV159C(a, b, k) {
+    var r = (a >> 16) & 255, g = (a >> 8) & 255, bl = a & 255;
+    return ((r + (((b >> 16) & 255) - r) * k) << 16) | ((g + (((b >> 8) & 255) - g) * k) << 8) | ((bl + ((b & 255) - bl) * k) | 0);
+  }
+  function strHashV159C(s) { s = String(s); var h = 2166136261; for (var i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }
+  function noiseV159C(a, b, c) { return ihV153G(((a | 0) * 73856093 ^ (b | 0) * 19349663 ^ (c | 0) * 83492791) >>> 0); }
+
+  /* ---- the timeline: four stages ---- */
+  var STAGES_V159C = ["anticipation", "burst", "linger", "fade"];
+  function tlV159C(calm) {
+    var k = calm ? TUv("v159CcalmK", 0.42) : 1;
+    var A = TUv("v159CantMs", 280) * k, B = TUv("v159CburstMs", 480) * k, L = TUv("v159ClingerMs", 960) * k, F = TUv("v159CfadeMs", 480) * k;
+    return { a: A, b: A + B, l: A + B + L, end: A + B + L + F, calm: !!calm };
+  }
+  function stageV159C(t, T) { return t < T.a ? 0 : t < T.b ? 1 : t < T.l ? 2 : t < T.end ? 3 : 4; }
+
+  /* ---- the plan: particles (closed-form bodies) + the kind's layers ---- */
+  var PDEF_V159C = { b: 0, l: 1000, x: 0, y: 0, vx: 0, vy: 0, g: 0, k: 0, a: 0, w: 0, s: 2, s1: 1, c: 0xffffff, c2: -1, sh: "dot", add: 0, glow: 0, tr: 0, fl: 0, fw: 1, ph: 0, fa: 70, al: 1, tw: 0, fp: 0 };
+  function buildV159C(kind, cols, seed, calm) {
+    var rnd0 = prng(seed >>> 0), T = tlV159C(calm), K = KINDS_V159C[kind] || KINDS_V159C.confetti;
+    var S = { kind: KINDS_V159C[kind] ? kind : "confetti", seed: seed >>> 0, T: T, calm: !!calm, n: calm ? TUv("v159CcalmN", 0.28) : 1,
+      cap: Math.max(16, TUv("v159Ccap", 160)), parts: [], dropped: 0, k: {}, gy: 22, hy: -24, K: K, q: 0,
+      cols: cols && cols.length ? cols : ["#ffffff"] };
+    S.cn = S.cols.map(hexIntV159C);
+    S.R = function (a, b) { return a + (b - a) * rnd0(); };
+    S.c = function (i) { return S.cn[((i % S.cn.length) + S.cn.length) % S.cn.length]; };
+    S.N = function (n) { return Math.max(1, Math.round(n * S.n)); };
+    S.add = function (o) {
+      if (S.parts.length >= S.cap) { S.dropped++; return null; }
+      var p = {}; for (var k in PDEF_V159C) p[k] = o[k] != null ? o[k] : PDEF_V159C[k];
+      if (p.b < 0) { p.l += p.b; p.b = 0; } if (p.l <= 0) return null;
+      S.parts.push(p); return p;
+    };
+    /* light converging on a point through the anticipation (the "gather") */
+    S.gather = function (n, cx, cy, r, ci) {
+      if (S.calm) return;
+      for (var i = 0; i < S.N(n); i++) { var th = S.R(0, 6.283), rr = r * S.R(0.7, 1.1), d = S.R(160, Math.max(170, T.a - 10)) / 1000;
+        S.add({ b: T.a - d * 1000, l: d * 1000, x: cx + Math.cos(th) * rr, y: cy + Math.sin(th) * rr * 0.7, vx: -Math.cos(th) * rr / d, vy: -Math.sin(th) * rr * 0.7 / d,
+          s: S.R(0.9, 1.6), c: S.c(ci + i), add: 1, glow: 1, tr: 60, fa: 90 }); }
+    };
+    try { K.build(S); } catch (e) { errV159C(e); }
+    return S;
+  }
+  var P0_V159C = { x: 0, y: 0 }, P1_V159C = { x: 0, y: 0 }, P2_V159C = { x: 0, y: 0 };
+  function posV159C(p, tau, out) {
+    var s = tau / 1000, E;
+    if (p.k > 0.001) { var e = Math.exp(-p.k * s); E = (1 - e) / p.k; out.x = p.x + p.vx * E; out.y = p.y + p.vy * E + p.g * (s - E) / p.k; }
+    else { out.x = p.x + p.vx * s; out.y = p.y + p.vy * s + 0.5 * p.g * s * s; }
+    if (p.fl) out.x += Math.sin(s * p.fw * 6.2832 + p.ph) * p.fl * Math.min(1, s * 2.5);
+    return out;
+  }
+  function partsV159C(S, V, t, env) {
+    var live = 0, L = S.parts, q = S.q;
+    for (var i = 0; i < L.length; i++) {
+      var p = L[i], tau = t - p.b; if (tau < 0 || tau > p.l) continue;
+      if (q) tau = Math.floor(tau / 83) * 83;
+      live++;
+      var P = posV159C(p, tau, P0_V159C), f = tau / p.l;
+      var a = p.al * env * c01V159C(tau / p.fa) * (1 - EZ_V159C.inQ(segV159C(f, 0.6, 1)));
+      if (p.tw) a *= 0.5 + 0.5 * Math.sin(tau / 55 + p.ph);
+      if (a < 0.01) continue;
+      var s = p.s * (1 + (p.s1 - 1) * f), c = p.c2 >= 0 ? mixV159C(p.c, p.c2, f) : p.c, ang = p.a + p.w * tau / 1000, x = P.x, y = P.y;
+      if (q) { x = Math.round(x / q) * q; y = Math.round(y / q) * q; }
+      if (p.tr) {
+        var A1 = posV159C(p, Math.max(0, tau - p.tr), P1_V159C), A2 = posV159C(p, Math.max(0, tau - p.tr * 0.45), P2_V159C);
+        V.line(A1.x, A1.y, A2.x, A2.y, s * 0.45, c, a * 0.3, 1); V.line(A2.x, A2.y, x, y, s * 0.85, c, a * 0.65, 1);
+      }
+      var sh = p.sh;
+      if (sh === "dot") { if (p.glow) V.circ(x, y, s * 2.6, c, a * 0.2, 1); V.circ(x, y, s, c, a, p.add); }
+      else if (sh === "quad") { var fl = p.fp ? 0.2 + 0.8 * Math.abs(Math.cos(ang * 1.3 + p.ph)) : 1; V.rquad(x, y, s * fl, s * 0.6, ang, c, a, p.add);
+        if (p.fp && fl > 0.93) V.circ(x, y, s * 0.5, 0xffffff, a * 0.7, 1); }
+      else if (sh === "star") { if (p.glow) V.circ(x, y, s * 2.1, c, a * 0.18, 1); V.star(x, y, s, s * 0.45, 5, ang, c, a, p.add); }
+      else if (sh === "glint") { V.star(x, y, s, s * 0.16, 4, ang, c, a, 1); V.circ(x, y, s * 0.35, 0xffffff, a, 1); }
+      else if (sh === "flake") { var w = Math.max(0.35, s * 0.28); for (var j = 0; j < 3; j++) { var th = ang + j * 1.0472; V.line(x - Math.cos(th) * s, y - Math.sin(th) * s, x + Math.cos(th) * s, y + Math.sin(th) * s, w, c, a, p.add); } if (p.glow) V.circ(x, y, s * 1.4, c, a * 0.18, 1); }
+      else if (sh === "pix") V.rquad(x, y, s, s, 0, c, a, p.add);
+      else if (sh === "feather") V.leaf(x, y, s * 0.36, s, ang + Math.sin(tau / 1000 * p.fw * 6.2832 + p.ph) * 0.75, c, a, p.add);
+      else if (sh === "puff") V.circ(x, y, s, c, a, 0);
+      else if (sh === "streak") { var B = posV159C(p, Math.max(0, tau - 30), P1_V159C), dx = x - B.x, dy = y - B.y, dl = Math.hypot(dx, dy) || 1; V.line(x - dx / dl * s * 3, y - dy / dl * s * 3, x, y, s * 0.7, c, a, p.add); }
+    }
+    return live;
+  }
+
+  /* ---- the shared layers ---- */
+  function raysV159C(V, cx, cy, n, len, c, a, rot) {
+    if (a < 0.01) return;
+    for (var i = 0; i < n; i++) { var th = rot + i * 6.2832 / n, w = 0.075 + 0.03 * Math.sin(i * 2.3), L = len * (0.75 + 0.25 * Math.sin(i * 1.7 + rot * 3));
+      V.poly([cx, cy, cx + Math.cos(th - w) * L, cy + Math.sin(th - w) * L * 0.85, cx + Math.cos(th + w) * L, cy + Math.sin(th + w) * L * 0.85], c, a, 1); }
+  }
+  function commonBackV159C(S, V, t, env) {
+    var T = S.T, G = S.K.g || {}, hx = V.hx, hy = V.hy;
+    if (G.pool != null && G.pool >= 0) { var pk = 0.55 + 0.45 * Math.sin(Math.PI * segV159C(t, T.a, T.b)); var ia = c01V159C(t / Math.max(1, T.a));
+      V.ell(hx, S.gy, 50, 14, 0, S.c(G.pool), 0.16 * env * ia * (0.7 + pk * 0.6), 1); V.ell(hx, S.gy, 26, 7, 0, S.c(G.pool), 0.22 * env * ia, 1); }
+    if (G.rays && !S.calm) { var I = EZ_V159C.outC(segV159C(t, T.a - 80, T.a + 200)) * env; raysV159C(V, hx, hy - 4, G.rays, G.rayLen || 150, S.c(G.rayCol || 0), 0.13 * I, t / 1000 * 0.35); }
+    if (!S.calm && G.antRing !== 0) { var ap = segV159C(t, T.a * 0.25, T.a); if (ap > 0 && ap < 1) { var r = 8 + 62 * (1 - EZ_V159C.inQ(ap)); V.ell(hx, S.gy, r, r * 0.34, 1.6, S.c(0), 0.55 * ap, 1); } }
+  }
+  function commonFrontV159C(S, V, t, env) {
+    var T = S.T, G = S.K.g || {}, hx = V.hx, hy = V.hy, nR = S.calm ? Math.min(1, G.ring || 0) : G.ring || 0;
+    for (var k = 0; k < nR; k++) { var t0 = T.a + k * 110, p = segV159C(t, t0, t0 + (S.calm ? 380 : 640));
+      if (p > 0 && p < 1) { var e = EZ_V159C.outC(p), r = 10 + (G.ringR || 118) * e; V.ell(hx, S.gy, r, r * 0.34, (S.calm ? 1.5 : 5) * (1 - p) + 0.8, S.c(G.ringCol || 0), (1 - p) * (S.calm ? 0.45 : 0.9) * env, 1);
+        if (!S.calm) V.ell(hx, S.gy, r * 0.92, r * 0.3, 2.2 * (1 - p) + 0.4, 0xffffff, (1 - p) * 0.45, 1); } }
+    if (G.flash && !S.calm) { var fp = segV159C(t, T.a, T.a + 210); if (fp > 0 && fp < 1) { V.circ(hx, hy + 10, G.flash * (0.6 + 0.8 * fp), 0xffffff, (1 - fp) * 0.5, 1); V.circ(hx, hy + 10, G.flash * (1.3 + 1.2 * fp), S.c(0), (1 - fp) * 0.22, 1); } }
+    if (S.say) calloutFxV159C(S, V, t, env);
+  }
+  /* the callout's underline swoosh and the glint across the letters (the letters themselves are type — see letterPoseV159C) */
+  function calloutFxV159C(S, V, t, env) {
+    var T = S.T, W = S.sayW || 60, cy = V.hy + S.sayDy, hx = V.hx;
+    var p = EZ_V159C.outX(segV159C(t, T.a, T.a + 300)), xp = segV159C(t, T.l, T.end), hw = (W / 2 + 6) * p * (1 - EZ_V159C.inQ(xp));
+    if (hw > 0.5) { V.line(hx - hw, cy + 13, hx + hw, cy + 13, 2.4, S.c(1), 0.9 * env, 0); V.line(hx - hw * 0.8, cy + 13, hx + hw * 0.8, cy + 13, 1.2, 0xffffff, 0.8 * env, 1); }
+    if (S.calm) return;
+    var gp = segV159C(t, T.b + 60, T.b + 620);
+    if (gp > 0 && gp < 1) { var xg = hx - W / 2 - 12 + (W + 24) * EZ_V159C.inOutS(gp), ga = Math.sin(Math.PI * gp) * 0.6;
+      V.poly([xg - 3, cy - 13, xg + 4, cy - 13, xg - 2, cy + 11, xg - 9, cy + 11], 0xffffff, ga, 1); }
+  }
+  /* each letter of the callout: drop in (back-ease + a settling tilt), wave through the linger, leave in turn */
+  function letterPoseV159C(S, i, n, t) {
+    var T = S.T, calm = S.calm, pix = S.kind === "pixel", st = T.a * 0.55 + i * (calm ? 0 : TUv("v159CletterMs", 38)), dur = calm ? 240 : 380;
+    var p = segV159C(t, st, st + dur); if (p <= 0) return null;
+    var r = { dx: 0, dy: 0, sc: 1, rot: 0, a: 1 };
+    if (calm) r.a = EZ_V159C.outQ(p);
+    else if (pix) { var qp = Math.floor(p * 4) / 4; r.sc = qp < 1 ? 0.6 + qp * 0.6 : 1; r.dy = (1 - qp) * -10; r.a = qp > 0 ? 1 : 0.4; }
+    else { var e = EZ_V159C.outB(p); r.sc = 2.2 - 1.2 * e; r.dy = -24 * (1 - EZ_V159C.outC(p)); r.rot = (i % 2 ? 1 : -1) * 16 * (1 - EZ_V159C.outEl(p)); r.a = c01V159C(p * 3); }
+    if (!calm && t > T.a) { var bp = segV159C(t, T.a, T.a + 240); r.sc *= 1 + 0.14 * Math.sin(Math.PI * bp); }
+    if (!calm && t > T.b) { var w = (t - T.b) / 1000; r.dy += Math.sin(w * 7 - i * 0.6) * 1.7 * (1 - segV159C(t, T.l, T.end)); }
+    var xs = T.l + i * (calm ? 0 : 24), xp = segV159C(t, xs, xs + (T.end - T.l) * 0.75);
+    if (xp > 0) { if (pix) r.a *= (Math.floor(xp * 10) % 2 ? 0.15 : 1) * (1 - xp); else { r.a *= 1 - EZ_V159C.inQ(xp); if (!calm) { r.dy -= 16 * EZ_V159C.inQ(xp); r.sc *= 1 + 0.18 * xp; } } }
+    return r;
+  }
+  /* his body: squash / stretch about the feet and a hop (body px, before the marker's own scale) */
+  function poseV159C(S, t) {
+    if (S.calm || !TUv("v159Cpose", 1)) return null;
+    var T = S.T, kind = S.K.pose || "jump", o = { sx: 1, sy: 1, hop: 0, sh: 1 };
+    var ant = EZ_V159C.inOutS(segV159C(t, T.a * 0.2, T.a)), deep = kind === "stomp" ? 0.17 : kind === "float" ? 0.07 : 0.12;
+    if (t < T.a) { o.sx = 1 + deep * 0.65 * ant; o.sy = 1 - deep * ant; return o; }
+    var up = T.a + (T.b - T.a) * (kind === "float" ? 0.8 : 0.55);
+    if (kind === "float") {
+      var fp = segV159C(t, T.a, up), rise = 7 * EZ_V159C.outC(fp), dn = EZ_V159C.inOutS(segV159C(t, T.l, T.end));
+      o.hop = (rise + (t > up ? Math.sin((t - up) / 260) * 1.6 : 0)) * (1 - dn); o.sy = 1 + 0.08 * Math.sin(Math.PI * c01V159C(fp * 1.4)); o.sx = 2 - o.sy;
+    } else {
+      if (t < up) { var jp = segV159C(t, T.a, up); o.hop = (kind === "stomp" ? 7 : 10) * Math.sin(Math.PI * jp); var st = 1 - jp; o.sy = 1 + 0.12 * st; o.sx = 1 - 0.07 * st; }
+      else if (t < T.b) { var lp = segV159C(t, up, T.b), sq = Math.sin(Math.PI * lp) * (1 - lp * 0.5), land = kind === "stomp" ? 0.16 : 0.1; o.sy = 1 - land * sq; o.sx = 1 + land * 0.7 * sq; }
+      else { var w = (t - T.b) / 1000, dec = 1 - segV159C(t, T.b, T.l); o.hop = Math.abs(Math.sin(w * 9.5)) * 3.2 * dec; }
+      if (kind === "jump8") { o.hop = Math.round(o.hop / 3) * 3; o.sy = Math.round(o.sy * 10) / 10; o.sx = Math.round(o.sx * 10) / 10; }
+    }
+    o.sh = 1 - Math.min(0.45, o.hop / 22);
+    return o;
+  }
+
+  /* ---- the kinds: build(S) makes the particles; back / front draw the layers (unit space: 0,0 = his centre,
+   *      S.gy the grass under him, V.hx / V.hy his centre as he moves) ---- */
+  function haloDrawV159C(S, V, t, env, scale, dropFrom) {
+    var T = S.T, p = segV159C(t, T.a, T.a + 380), e = S.calm ? EZ_V159C.outQ(p) : EZ_V159C.outB(p); if (p <= 0) return;
+    var xp = segV159C(t, T.l, T.end), yh = V.hy - 22 + (dropFrom || -90) * (1 - e) + (t > T.b ? Math.sin((t - T.b) / 260) * 1.4 : 0) - 12 * EZ_V159C.inQ(xp);
+    var rx = 15 * scale * (0.6 + 0.4 * e), ry = rx * 0.32, a = env * c01V159C(p * 2);
+    V.ell(V.hx, yh, rx, ry, 6, S.c(0), 0.22 * a, 1); V.ell(V.hx, yh, rx, ry, 2.8, S.c(0), 0.85 * a, 1); V.ell(V.hx, yh, rx, ry, 1.1, 0xffffff, a, 1);
+    if (!S.calm) { var th = t / 1000 * 5.5; V.star(V.hx + Math.cos(th) * rx, yh + Math.sin(th) * ry, 5, 0.8, 4, th, 0xffffff, 0.9 * a, 1); }
+  }
+  function columnV159C(S, V, t, env) {
+    var T = S.T, I = c01V159C(t / Math.max(1, T.a * 0.6)) * (1 - segV159C(t, T.a + 100, T.b + 240)) * env; if (I < 0.01) return;
+    var w = 60 - 46 * EZ_V159C.inOutS(segV159C(t, 0, T.a)) + 30 * segV159C(t, T.a, T.b + 240), hx = V.hx;
+    V.poly([hx - w * 0.3, -380, hx + w * 0.3, -380, hx + w * 0.8, S.gy, hx - w * 0.8, S.gy], S.c(0), 0.2 * I, 1);
+    V.poly([hx - w * 0.1, -380, hx + w * 0.1, -380, hx + w * 0.3, S.gy, hx - w * 0.3, S.gy], 0xffffff, 0.22 * I, 1);
+  }
+  function jagV159C(S, x0, y0, x1, y1, depth, disp) {
+    var pts = [x0, y0, x1, y1];
+    for (var d = 0; d < depth; d++) { var out = []; for (var i = 0; i < pts.length - 2; i += 2) { var mx = (pts[i] + pts[i + 2]) / 2 + S.R(-disp, disp), my = (pts[i + 1] + pts[i + 3]) / 2 + S.R(-disp, disp) * 0.3; out.push(pts[i], pts[i + 1], mx, my); } out.push(pts[pts.length - 2], pts[pts.length - 1]); pts = out; disp *= 0.55; }
+    return pts;
+  }
+  var KINDS_V159C = {
+    /* the stadium's own confetti, from two cannons either side of him */
+    confetti: { pose: "jump", g: { pool: 1, ring: 1, flash: 26 },
+      build: function (S) { var T = S.T; S.gather(10, 0, S.hy, 60, 0);
+        for (var side = -1; side <= 1; side += 2) for (var i = 0; i < S.N(62); i++)
+          S.add({ b: T.a + S.R(0, 110), l: S.R(1300, 1950), x: side * 34, y: S.gy - 4, vx: -side * S.R(30, 150), vy: -S.R(250, 430), g: 300, k: 1.9, a: S.R(0, 6.28), w: S.R(-9, 9), s: S.R(3, 5), sh: "quad", fp: 1, fl: S.R(3, 8), fw: S.R(1.1, 2.1), ph: S.R(0, 6.28), c: S.c(i + (side > 0 ? 3 : 0)) });
+        for (var j = 0; j < S.N(12); j++) S.add({ b: T.a + S.R(0, 60), l: S.R(500, 800), x: (j % 2 ? 1 : -1) * 34, y: S.gy - 6, vx: (j % 2 ? -1 : 1) * S.R(20, 80), vy: -S.R(300, 420), g: 200, k: 2.2, s: 1.6, sh: "dot", add: 1, glow: 1, tr: 110, c: 0xffffff }); },
+      front: function (S, V, t) { var p = segV159C(t, S.T.a, S.T.a + 160); if (p > 0 && p < 1 && !S.calm) for (var s = -1; s <= 1; s += 2) V.circ(V.hx + s * 34, S.gy - 6, 12 * (0.6 + p), 0xfff3c4, (1 - p) * 0.7, 1); } },
+    /* a follow spot: the cone flickers on, motes drift up it, a glint at his helmet */
+    spot: { pose: "jump", g: { ring: 1, flash: 22, antRing: 0 },
+      build: function (S) { var T = S.T;
+        for (var i = 0; i < S.N(46); i++) S.add({ b: S.R(T.a - 120, T.l - 300), l: S.R(700, 1300), x: S.R(-38, 38), y: S.R(-30, S.gy), vy: -S.R(18, 50), s: S.R(0.7, 1.5), add: 1, glow: 1, tw: 1, ph: S.R(0, 6.28), c: S.c(i) });
+        S.add({ b: T.a, l: 520, x: 6, y: S.hy - 4, s: 13, sh: "glint", w: 2, c: 0xffffff }); },
+      back: function (S, V, t, env) { var T = S.T, fk = [0, 0.7, 0.1, 0.9, 0.25, 1][Math.min(5, Math.floor(segV159C(t, 0, T.a) * 6))], I = (t < T.a && !S.calm ? fk : 1) * env * (S.calm ? c01V159C(t / T.a) : 1);
+        var tx = V.hx * 0.4 + Math.sin(t / 700) * 8, hx = V.hx;
+        V.poly([tx - 9, -360, tx + 9, -360, hx + 54, S.gy, hx - 54, S.gy], S.c(0), 0.2 * I, 1);
+        V.poly([tx - 4, -360, tx + 4, -360, hx + 30, S.gy, hx - 30, S.gy], 0xffffff, 0.14 * I, 1);
+        V.ell(hx, S.gy, 54, 15, 0, S.c(1), 0.32 * I, 1); V.ell(hx, S.gy, 30, 8, 0, 0xffffff, 0.2 * I, 1); } },
+    /* coins / rings rain from a gathering glint and ring on the grass */
+    rain: { pose: "jump", g: { pool: 0, rays: 12, ring: 1, flash: 28 },
+      build: function (S) { var T = S.T; S.gather(14, 0, -230, 90, 0);
+        for (var i = 0; i < S.N(56); i++) { var b = S.R(T.a - 40, T.l - 650), x = S.R(-140, 140), y0 = S.R(-300, -220), vy = S.R(20, 90), ly = S.gy + S.R(-18, 14), tau = 0, yy = y0;
+          while (yy < ly && tau < 2000) { tau += 10; var s1 = tau / 1000, E = (1 - Math.exp(-0.3 * s1)) / 0.3; yy = y0 + vy * E + 560 * (s1 - E) / 0.3; }
+          if (!S.add({ b: b, l: tau, x: x, y: y0, vy: vy, g: 560, k: 0.3, a: S.R(0, 6.28), w: S.R(8, 16), s: S.R(4.5, 6.5), sh: "quad", fp: 1, ph: S.R(0, 6.28), c: S.c(i), fa: 40 })) break;
+          S.add({ b: b + tau, l: 260, x: x, y: ly, s: 7, sh: "glint", w: 3, c: S.c(i + 1), fa: 10 }); } } },
+    /* three shells: a rocket up with its trail, the break, the crackle */
+    fireworks: { pose: "jump", g: { ring: 0, flash: 0, antRing: 0 },
+      build: function (S) { var T = S.T, shells = S.calm ? 1 : 3; S.k.shells = [];
+        for (var i = 0; i < shells; i++) { var te = T.a + i * (S.calm ? 0 : 230), fly = Math.min(300, te), lx = -50 + 50 * i + S.R(-10, 10), ax = lx * 1.6 + S.R(-15, 15), ay = S.R(-215, -160);
+          S.k.shells.push({ t: te, x: ax, y: ay, c: S.c(i) });
+          S.add({ b: te - fly, l: fly, x: lx, y: S.gy, vx: (ax - lx) / (fly / 1000), vy: (ay - S.gy) / (fly / 1000), s: 2, add: 1, glow: 1, tr: 120, c: 0xfff3c4, fa: 20 });
+          var nn = S.N(34);
+          for (var j = 0; j < nn; j++) { var th = j / nn * 6.2832 + S.R(-0.08, 0.08), sp = (j % 3 === 0 ? 0.6 : 1) * S.R(150, 220);
+            S.add({ b: te, l: S.R(800, 1150), x: ax, y: ay, vx: Math.cos(th) * sp, vy: Math.sin(th) * sp, k: 2.4, g: 110, s: S.R(1.4, 2.2), add: 1, glow: 1, tr: 95, c: S.c(i + (j % 2)), c2: S.c(i + 2), fa: 10 }); }
+          for (var k = 0; k < S.N(8); k++) S.add({ b: te + S.R(450, 800), l: 240, x: ax + S.R(-60, 60), y: ay + S.R(-40, 50), s: S.R(3, 5), sh: "glint", w: 4, c: 0xffffff, tw: 1, fa: 10 }); } },
+      front: function (S, V, t) { (S.k.shells || []).forEach(function (sh) { var p = segV159C(t, sh.t, sh.t + 200); if (p > 0 && p < 1) { V.circ(sh.x, sh.y, 20 * (0.5 + p), 0xffffff, (1 - p) * 0.38, 1); V.circ(sh.x, sh.y, 44 * (0.5 + p), sh.c, (1 - p) * 0.16, 1); } }); } },
+    /* the stepped leader, the strike (a strobe), the scorch, sparks and arcs crawling over him */
+    bolt: { pose: "stomp", shake: 1, flashCam: 1, g: { pool: 2, ring: 2, flash: 0 },
+      build: function (S) { var T = S.T, x0 = S.R(-50, 50);
+        S.k.main = jagV159C(S, x0, -360, 0, S.gy - 2, 5, 60);
+        S.k.br = [8, 15].map(function (ix) { var bx = S.k.main[ix * 2], by = S.k.main[ix * 2 + 1], dir = S.R(0, 1) < 0.5 ? -1 : 1; return jagV159C(S, bx, by, bx + dir * S.R(40, 80), by + S.R(60, 110), 3, 20); });
+        for (var i = 0; i < S.N(40); i++) { var th = S.R(-3.1, -0.05), sp = S.R(120, 280); S.add({ b: T.a + S.R(0, 40), l: S.R(400, 800), x: 0, y: S.gy - 3, vx: Math.cos(th) * sp, vy: Math.sin(th) * sp, k: 1.6, g: 420, s: 1.4, add: 1, glow: 1, tr: 70, c: i % 3 ? S.c(0) : 0xffffff, fa: 10 }); }
+        S.gather(12, 0, S.gy, 46, 1); },
+      back: function (S, V, t, env) { var T = S.T, sc = segV159C(t, T.a, T.a + 80); if (sc > 0) V.ell(0, S.gy, 28, 8, 0, 0x0c1220, 0.4 * env * sc, 0); },
+      front: function (S, V, t, env) { var T = S.T, M = S.k.main, n = M.length / 2;
+        if (t < T.a && !S.calm) { var lp = segV159C(t, T.a * 0.3, T.a), cut = Math.max(2, Math.floor(n * lp)) * 2; if (lp > 0) { var sub = M.slice(0, cut); V.path(sub, 3, S.c(2), 0.3, 1); V.path(sub, 1, 0xffffff, 0.55 * (0.5 + 0.5 * noiseV159C(S.seed, Math.floor(t / 40), 1)), 1); } }
+        var fk = S.calm ? 1 : [1, 0.25, 1, 0.8, 0.2, 0.95, 0.6, 1][Math.floor(Math.max(0, t - T.a) / 45) % 8], I = (t >= T.a ? fk * (1 - segV159C(t, T.a, T.b + 120)) : 0) * env;
+        if (I > 0.01) { var all = [M].concat(S.k.br);
+          all.forEach(function (P, k) { var wm = k ? 0.55 : 1; V.path(P, 10 * wm, S.c(2), 0.18 * I, 1); V.path(P, 4 * wm, S.c(0), 0.55 * I, 1); V.path(P, 1.6 * wm, 0xffffff, I, 1); });
+          V.circ(0, S.gy - 16, 70, S.c(0), 0.25 * I, 1); }
+        if (!S.calm && t > T.b - 100 && t < T.l) { var wi = Math.floor((t - T.b) / 70), ia = (1 - segV159C(t, T.b, T.l)) * 0.85 * env;
+          for (var j = 0; j < 3; j++) { var a0 = noiseV159C(S.seed, wi, j) * 6.2832, pts = [];
+            for (var q = 0; q < 5; q++) { var aa = a0 + q * 0.32, rr = 17 + noiseV159C(S.seed, wi * 7 + q, j + 9) * 9; pts.push(V.hx + Math.cos(aa) * rr, V.hy + 6 + Math.sin(aa) * rr * 1.2); }
+            V.path(pts, 1.1, 0xffffff, ia, 1); V.path(pts, 3, S.c(0), ia * 0.35, 1); } } } },
+    /* ignition: embers gather, then flame tongues (hot white → the kind's red), a ring of fire, rising embers */
+    flame: { pose: "stomp", shake: 0.5, g: { ring: 1, flash: 28, ringCol: 1 },
+      build: function (S) { var T = S.T, hot = mixV159C(S.c(1), 0xffffff, 0.45); S.gather(18, 0, S.gy, 50, 0);
+        for (var i = 0; i < S.N(92); i++) S.add({ b: S.R(T.a - 30, T.l - 320), l: S.R(520, 900), x: S.R(-26, 26), y: S.gy - S.R(0, 6), vx: S.R(-12, 12), vy: -S.R(40, 90), g: -170, k: 0.8, s: S.R(4.5, 7.5), s1: 0.18, add: 1, fl: S.R(2, 5), fw: S.R(2, 4), ph: S.R(0, 6.28), c: hot, c2: S.c(2), fa: 50 });
+        for (var j = 0; j < S.N(24); j++) S.add({ b: S.R(T.a, T.l - 300), l: S.R(900, 1500), x: S.R(-30, 30), y: S.gy - 10, vx: S.R(-30, 30), vy: -S.R(90, 160), g: -20, k: 0.9, tr: 90, s: 1.1, add: 1, glow: 1, fl: S.R(5, 10), fw: S.R(0.8, 1.6), ph: S.R(0, 6.28), c: S.c(0) }); },
+      back: function (S, V, t, env) { var T = S.T, I = env * c01V159C(t / Math.max(1, T.a)), fk = 0.7 + 0.3 * Math.sin(t / 37) * Math.sin(t / 53), r = 30 + 14 * EZ_V159C.outC(segV159C(t, T.a, T.b));
+        V.ell(V.hx, S.gy, r * 1.5, r * 0.45, 0, S.c(0), 0.18 * I, 1); if (t > T.a) V.ell(V.hx, S.gy, r, r * 0.3, 3.2, S.c(1), 0.7 * I * fk, 1); } },
+    /* a burst of spinning stars, then five circle his helmet (cartoon-dizzy), the near ones larger */
+    stars: { pose: "jump", g: { rays: 8, ring: 1, flash: 22 },
+      build: function (S) { var T = S.T; S.gather(12, 0, S.hy, 50, 0);
+        for (var i = 0; i < S.N(34); i++) { var th = S.R(0, 6.2832), sp = S.R(110, 210); S.add({ b: T.a + S.R(0, 60), l: S.R(700, 1100), x: 0, y: S.hy, vx: Math.cos(th) * sp, vy: Math.sin(th) * sp * 0.85 - 30, k: 2.6, g: 60, a: S.R(0, 6.28), w: S.R(-6, 6), s: S.R(3, 6), sh: "star", add: 1, glow: 1, c: S.c(i), fa: 20 }); }
+        for (var j = 0; j < S.N(12); j++) S.add({ b: S.R(T.b, T.l), l: 300, x: S.R(-50, 50), y: S.hy + S.R(-50, 20), s: S.R(3, 5), sh: "glint", c: 0xffffff, tw: 1, fa: 10 }); },
+      front: function (S, V, t, env) { var T = S.T, ap = segV159C(t, T.a, T.a + 320); if (ap <= 0 || S.calm && ap <= 0) return;
+        var app = S.calm ? EZ_V159C.outQ(ap) : EZ_V159C.outB(ap), cx = V.hx, cy = V.hy - 30, sp = S.calm ? 1.5 : 4.2;
+        for (var i = 0; i < 5; i++) { for (var k = 3; k >= 0; k--) { var th = (t - k * 28) / 1000 * sp + i * 1.2566, fr = Math.sin(th), sc = (0.8 + 0.3 * fr) * app * (1 - k * 0.22), a = (0.62 + 0.38 * fr) * env * (k ? 0.3 : 1);
+          V.star(cx + Math.cos(th) * 24, cy + fr * 7, 5 * sc, 2.2 * sc, 5, th * 1.5, k ? S.c(i) : S.c(i), a, 1); if (!k) V.circ(cx + Math.cos(th) * 24, cy + fr * 7, 7 * sc, S.c(i), 0.18 * a, 1); } } } },
+    /* smoke cannons either side (team colour, soft puffs that swell), a low roll along the grass, pyro sparks */
+    smoke: { pose: "jump", g: { ring: 1, flash: 0, antRing: 0 },
+      build: function (S) { var T = S.T;
+        for (var side = -1; side <= 1; side += 2) for (var i = 0; i < S.N(28); i++) S.add({ b: T.a + S.R(0, 280), l: S.R(1300, 1900), x: side * 46 + S.R(-4, 4), y: S.gy - 4, vx: side * S.R(10, 40), vy: -S.R(180, 300), k: 2.1, g: -8, s: S.R(5, 8), s1: S.R(3, 4.2), al: 0.5, sh: "puff", c: i % 3 ? S.c(0) : mixV159C(S.c(0), 0x000000, 0.3), fa: 120 });
+        for (var j = 0; j < S.N(20); j++) S.add({ b: T.a + S.R(0, 120), l: S.R(1100, 1600), x: S.R(-10, 10), y: S.gy, vx: S.R(-170, 170), vy: S.R(-10, 4), k: 2.6, s: 6, s1: 3.2, al: 0.34, sh: "puff", c: mixV159C(S.c(0), 0xffffff, 0.25), fa: 150 });
+        for (var k = 0; k < S.N(18); k++) { var sd = k % 2 ? 1 : -1; S.add({ b: T.a + S.R(0, 90), l: S.R(500, 800), x: sd * 46, y: S.gy - 6, vx: sd * S.R(0, 50), vy: -S.R(260, 380), k: 1.8, g: 260, s: 1.3, add: 1, glow: 1, tr: 90, c: k % 3 ? 0xffd76f : 0xffffff }); } },
+      front: function (S, V, t) { var p = segV159C(t, S.T.a, S.T.a + 180); if (p > 0 && p < 1 && !S.calm) for (var s = -1; s <= 1; s += 2) V.circ(V.hx + s * 46, S.gy - 8, 14 * (0.6 + p), 0xfff3c4, (1 - p) * 0.7, 1); } },
+    /* light gathers over him, a crown drops onto his helmet (bounce), rays turn behind, gold dust falls */
+    crown: { pose: "float", g: { rays: 14, ring: 1, flash: 30 },
+      build: function (S) { var T = S.T; S.gather(18, 0, S.hy - 50, 60, 0);
+        for (var i = 0; i < S.N(40); i++) S.add({ b: S.R(T.a + 100, T.l), l: S.R(800, 1300), x: S.R(-40, 40), y: S.hy - S.R(20, 60), vy: S.R(10, 40), g: 30, k: 1, s: S.R(0.9, 1.6), add: 1, glow: 1, tw: 1, fl: 3, ph: S.R(0, 6.28), c: S.c(i) }); },
+      front: function (S, V, t, env) { var T = S.T, p = segV159C(t, T.a, T.a + 460); if (p <= 0) return;
+        var e = S.calm ? EZ_V159C.outQ(p) : EZ_V159C.outBn(p), xp = segV159C(t, T.l, T.end), cx = V.hx, cy = V.hy - 30 - 90 * (1 - e) + (t > T.b ? Math.sin((t - T.b) / 300) * 1.3 : 0) - 14 * EZ_V159C.inQ(xp), a = env * c01V159C(p * 3), w = 15, h = 11;
+        var dark = mixV159C(S.c(0), 0x000000, 0.45), pts = [cx - w, cy + h * 0.5, cx - w, cy - h * 0.5, cx - w * 0.5, cy, cx, cy - h, cx + w * 0.5, cy, cx + w, cy - h * 0.5, cx + w, cy + h * 0.5];
+        V.circ(cx, cy - 2, 22, S.c(0), 0.2 * a, 1); V.poly(pts, dark, a, 0);
+        var inn = [cx - w + 1.5, cy + h * 0.5 - 1.5, cx - w + 1.5, cy - h * 0.5 + 2, cx - w * 0.5, cy + 1.6, cx, cy - h + 2.2, cx + w * 0.5, cy + 1.6, cx + w - 1.5, cy - h * 0.5 + 2, cx + w - 1.5, cy + h * 0.5 - 1.5];
+        V.poly(inn, S.c(0), a, 0); V.rquad(cx, cy + h * 0.5 - 2.5, w * 2 - 3, 3, 0, S.c(1), a, 0);
+        V.circ(cx, cy + h * 0.5 - 2.5, 1.6, 0xff4d6d, a, 0); V.circ(cx - 8, cy + h * 0.5 - 2.5, 1.3, 0x6fd3ff, a, 0); V.circ(cx + 8, cy + h * 0.5 - 2.5, 1.3, 0x7cff9b, a, 0);
+        [[-w, -h * 0.5], [0, -h], [w, -h * 0.5]].forEach(function (q) { V.circ(cx + q[0], cy + q[1], 1.6, 0xffffff, a, 0); });
+        if (!S.calm) { var gp = ((t - T.a) % 900) / 900; V.star(cx - w + 2 * w * gp, cy - h * 0.2, 6 * Math.sin(Math.PI * gp), 0.9, 4, 0, 0xffffff, 0.9 * a, 1); } } },
+    /* the ring contracts into his feet, three shockwaves in the field's perspective, dust, cracks, an air ripple */
+    shock: { pose: "stomp", shake: 1, g: { ring: 3, flash: 36, ringR: 130 },
+      build: function (S) { var T = S.T; S.gather(20, 0, S.gy, 70, 1);
+        for (var i = 0; i < S.N(46); i++) { var th = S.R(0, 6.2832), sp = S.R(90, 230), dust = i % 3 === 0;
+          S.add({ b: T.a + S.R(0, 50), l: S.R(450, 800), x: Math.cos(th) * 8, y: S.gy, vx: Math.cos(th) * sp, vy: Math.sin(th) * sp * 0.35 - S.R(60, 160), g: 520, k: 1.2, s: S.R(1.2, 2.4), c: dust ? 0x9a8a6a : S.c(i), add: dust ? 0 : 1, glow: dust ? 0 : 1, tr: dust ? 0 : 60 }); }
+        S.k.cracks = []; for (var c = 0; c < 8; c++) { var a0 = c / 8 * 6.2832 + S.R(-0.2, 0.2), L = S.R(40, 70); S.k.cracks.push(jagV159C(S, 0, S.gy, Math.cos(a0) * L, S.gy + Math.sin(a0) * L * 0.34, 3, 8)); } },
+      back: function (S, V, t, env) { var T = S.T, p = EZ_V159C.outC(segV159C(t, T.a, T.a + 200)); if (p <= 0) return;
+        S.k.cracks.forEach(function (P) { var n = Math.max(2, Math.round(P.length / 2 * p)) * 2, sub = P.slice(0, n); V.path(sub, 1.8, 0x14110c, 0.5 * env, 0); V.path(sub, 0.8, S.c(0), 0.6 * env * (1 - segV159C(t, T.b, T.l)), 1); }); },
+      front: function (S, V, t, env) { var p = segV159C(t, S.T.a, S.T.a + 460); if (p > 0 && p < 1 && !S.calm) { var r = 12 + 70 * EZ_V159C.outC(p); V.ell(V.hx, V.hy + 6, r, r, 2.5 * (1 - p) + 0.5, 0xffffff, (1 - p) * 0.45, 1); } } },
+    /* a snow globe: a dome of light over him, a swirl of flakes up and a slow fall, frost at his feet */
+    snow: { pose: "jump", g: { ring: 1, flash: 24, ringCol: 1 },
+      build: function (S) { var T = S.T;
+        for (var i = 0; i < S.N(12); i++) { var th = i / 12 * 6.2832; S.add({ b: S.R(0, T.a), l: T.a + 200, x: Math.cos(th) * 40, y: S.gy + Math.sin(th) * 12, s: S.R(3, 5), sh: "glint", c: S.c(i), fa: 60 }); }
+        for (var j = 0; j < S.N(90); j++) { var a0 = S.R(-2.83, -0.31), sp = S.R(160, 300);
+          S.add({ b: T.a + S.R(0, 220), l: S.R(1500, 2000), x: S.R(-30, 30), y: S.gy - S.R(0, 10), vx: Math.cos(a0) * sp, vy: Math.sin(a0) * sp, k: 2.3, g: 60, fl: S.R(4, 10), fw: S.R(0.6, 1.4), ph: S.R(0, 6.28), sh: "flake", s: S.R(1.6, 3.2), a: S.R(0, 3), w: S.R(-3, 3), c: S.c(j), al: 0.95, glow: j % 4 ? 0 : 1, add: 1 }); } },
+      back: function (S, V, t, env) { var T = S.T, I = EZ_V159C.outC(segV159C(t, T.a, T.b)) * env; if (I < 0.01) return;
+        var pts = [], hi = []; for (var i = 0; i <= 20; i++) { var th = Math.PI + i / 20 * Math.PI; pts.push(V.hx + Math.cos(th) * 86, S.gy + Math.sin(th) * 100); if (i >= 3 && i <= 8) hi.push(V.hx + Math.cos(th) * 78, S.gy + Math.sin(th) * 91); }
+        V.ell(V.hx, S.gy - 40, 80, 70, 0, S.c(2), 0.07 * I, 1); V.path(pts, 1.6, S.c(1), 0.5 * I, 1); V.path(hi, 2.6, 0xffffff, 0.6 * I, 1); V.ell(V.hx, S.gy, 86, 20, 1.4, S.c(1), 0.45 * I, 1); V.ell(V.hx, S.gy, 60, 14, 0, 0xffffff, 0.12 * I, 1); } },
+    /* 8-bit: everything on a grid and at 12 frames a second — eight-way burst, a stepped diamond ring */
+    pixel: { pose: "jump8", g: { ring: 0, flash: 0, antRing: 0 },
+      build: function (S) { var T = S.T; S.q = 3;
+        for (var d = 0; d < 8; d++) for (var k = 0; k < (S.calm ? 2 : 6); k++) { var th = d * 0.7854, sp = 60 + k * 36; S.add({ b: T.a + (k % 2) * 83, l: 720, x: 0, y: S.hy + 8, vx: Math.cos(th) * sp, vy: Math.sin(th) * sp, g: 60, s: k >= 3 ? 3 : 4, sh: "pix", c: S.c(k + d), fa: 1 }); }
+        for (var j = 0; j < S.N(24); j++) { var a0 = S.R(0, 6.2832), r0 = S.R(20, 70); S.add({ b: T.a + S.R(80, 700), l: 330, x: Math.cos(a0) * r0, y: S.hy + Math.sin(a0) * r0 * 0.8, s: 3, sh: "pix", c: S.c(j), tw: 1, fa: 1 }); } },
+      back: function (S, V, t, env) { var T = S.T, p = Math.floor(segV159C(t, T.a, T.a + 500) * 6) / 6; if (p <= 0 || p >= 1) return; var r = 12 + 84 * p, cy = V.hy + 8, sq = function (v) { return Math.round(v / 3) * 3; };
+        V.path([sq(V.hx), sq(cy - r), sq(V.hx + r), sq(cy), sq(V.hx), sq(cy + r), sq(V.hx - r), sq(cy), sq(V.hx), sq(cy - r)], 3, S.c(0), (1 - p) * env, 0); } },
+    /* meteors streak in from the upper left and land in turn: a flash, a ring, hot debris, a crater */
+    meteor: { pose: "stomp", shake: 1, g: { ring: 0, flash: 0, antRing: 0 },
+      build: function (S) { var T = S.T, when = [0, 130, 270, 430, 610], n = S.calm ? 2 : 5; S.k.hits = [];
+        for (var i = 0; i < n; i++) { var ti = T.a + when[i] * (S.calm ? 0.5 : 1), ix = i ? S.R(-85, 85) : 0, iy = S.gy + (i ? S.R(-14, 12) : 2), fly = Math.min(360, ti), sx = ix - S.R(230, 290), sy = iy - 300;
+          S.k.hits.push({ t: ti, x: ix, y: iy });
+          S.add({ b: ti - fly, l: fly, x: sx, y: sy, vx: (ix - sx) / (fly / 1000), vy: (iy - sy) / (fly / 1000), s: 3.6, add: 1, glow: 1, tr: 170, c: mixV159C(S.c(1), 0xffffff, 0.5), c2: S.c(0), fa: 30 });
+          for (var j = 0; j < S.N(12); j++) { var th = S.R(-3.0, -0.15), sp = S.R(80, 200); S.add({ b: ti, l: S.R(400, 700), x: ix, y: iy, vx: Math.cos(th) * sp, vy: Math.sin(th) * sp, k: 1.6, g: 480, tr: 50, s: S.R(1.2, 2.2), add: 1, glow: 1, c: S.c(1), c2: S.c(2), fa: 10 }); }
+          for (var q = 0; q < S.N(3); q++) S.add({ b: ti + 40, l: S.R(900, 1300), x: ix + S.R(-6, 6), y: iy - 4, vx: S.R(-20, 20), vy: -S.R(20, 50), k: 1.5, s: 4, s1: 3, al: 0.35, sh: "puff", c: 0x5a5048, fa: 120 }); } },
+      back: function (S, V, t, env) { S.k.hits.forEach(function (h) { var p = segV159C(t, h.t, h.t + 60); if (p > 0) V.ell(h.x, h.y, 11, 3.6, 0, 0x140c06, 0.45 * env * p, 0); }); },
+      front: function (S, V, t, env) { S.k.hits.forEach(function (h) { var p = segV159C(t, h.t, h.t + 380); if (p > 0 && p < 1) { var r = 6 + 40 * EZ_V159C.outC(p); V.ell(h.x, h.y, r, r * 0.34, 2 * (1 - p) + 0.5, S.c(0), (1 - p) * 0.9 * env, 1);
+        var fp = segV159C(t, h.t, h.t + 160); if (fp < 1) { V.circ(h.x, h.y - 6, 26 * (0.5 + fp), 0xffffff, (1 - fp) * 0.55, 1); V.circ(h.x, h.y - 6, 44 * (0.5 + fp), S.c(0), (1 - fp) * 0.25, 1); } } }); } },
+    /* the arc draws itself band by band, a star at its tip; a highlight travels it; it dissolves from the ends */
+    rainbow: { pose: "float", g: { ring: 1, flash: 20 },
+      build: function (S) { var T = S.T;
+        for (var i = 0; i < S.N(30); i++) { var th = S.R(3.3, 6.1), bi = i % Math.max(1, S.cols.length), r = 96 - bi * 5.2;
+          S.add({ b: S.R(T.a + 200, T.l - 200), l: S.R(600, 900), x: Math.cos(th) * r, y: S.gy + 6 + Math.sin(th) * r, vy: S.R(10, 40), g: 40, s: S.R(2.5, 4), sh: i % 2 ? "glint" : "dot", add: 1, glow: 1, tw: 1, ph: S.R(0, 6.28), c: S.c(bi) }); } },
+      back: function (S, V, t, env) { var T = S.T, pr = EZ_V159C.inOutS(segV159C(t, T.a - 60, T.b)), fp = segV159C(t, T.l, T.end); if (pr <= 0) return;
+        var a0 = Math.PI + Math.PI * fp * 0.5, a1 = Math.PI + Math.PI * pr - Math.PI * fp * 0.5, cy = S.gy + 6;
+        for (var i = 0; i < S.cols.length; i++) V.arc(V.hx * 0.3, cy, 96 - i * 5.2, a0, Math.max(a0 + 0.01, a1), 5.4, S.c(i), 0.85 * env, 0);
+        if (t > T.b && !S.calm) { var ht = Math.PI + Math.PI * segV159C(t, T.b, T.l); V.arc(V.hx * 0.3, cy, 96 - 13, ht - 0.12, ht + 0.12, 30, 0xffffff, 0.22 * env, 1); }
+        if (pr < 1) { var tp = Math.PI + Math.PI * pr; V.star(V.hx * 0.3 + Math.cos(tp) * 83, cy + Math.sin(tp) * 83, 10, 1.4, 4, t / 200, 0xffffff, 0.95, 1); } } },
+    /* a light column narrows onto him, the halo drops onto his helmet (back-ease), holy rays, sparkles rise */
+    halo: { pose: "float", g: { rays: 10, ring: 1, flash: 26 },
+      build: function (S) { var T = S.T;
+        for (var i = 0; i < S.N(34); i++) S.add({ b: S.R(T.a, T.l - 300), l: S.R(700, 1200), x: S.R(-26, 26), y: S.hy + S.R(-10, 30), vy: -S.R(20, 60), s: S.R(1, 1.8), sh: i % 3 ? "dot" : "glint", add: 1, glow: 1, tw: 1, ph: S.R(0, 6.28), c: S.c(i) });
+        if (!S.calm) for (var j = 0; j < S.N(14); j++) { var d = S.R(0.16, 0.26); S.add({ b: T.a - d * 1000, l: d * 1000, x: S.R(-20, 20), y: -260, vy: (S.hy + 260) / d, s: 1.4, add: 1, glow: 1, tr: 80, c: S.c(1) }); } },
+      back: function (S, V, t, env) { columnV159C(S, V, t, env); },
+      front: function (S, V, t, env) { haloDrawV159C(S, V, t, env, 1, -100); } },
+    /* the angel: light from above, two fans of feathers spread like wings then drift down swaying, a small halo */
+    feathers: { pose: "float", g: { rays: 8, ring: 1, flash: 26 },
+      build: function (S) { var T = S.T;
+        for (var side = -1; side <= 1; side += 2) for (var i = 0; i < S.N(36); i++) { var a0 = side < 0 ? S.R(3.29, 4.34) : S.R(5.08, 6.13), sp = S.R(170, 280);
+          S.add({ b: T.a + S.R(0, 120), l: S.R(1500, 2000), x: side * 6, y: S.hy + 8, vx: Math.cos(a0) * sp, vy: Math.sin(a0) * sp, k: 3.2, g: 34, fl: S.R(6, 12), fw: S.R(0.5, 1.0), ph: S.R(0, 6.28), sh: "feather", s: S.R(4, 6.5), a: a0 + 1.57, c: S.c(i), al: 0.95 }); }
+        for (var j = 0; j < S.N(14); j++) S.add({ b: S.R(T.a, T.b), l: S.R(1200, 1600), x: S.R(-90, 90), y: -240, vy: 30, g: 20, k: 0.5, fl: S.R(6, 10), fw: S.R(0.5, 0.9), ph: S.R(0, 6.28), sh: "feather", s: S.R(4, 6), c: S.c(j + 1), al: 0.9 }); },
+      back: function (S, V, t, env) { columnV159C(S, V, t, env); },
+      front: function (S, V, t, env) { haloDrawV159C(S, V, t, env, 0.8, -60); } }
+  };
+  function drawV159C(S, V, t) {
+    var T = S.T; if (t >= T.end || t < 0) return 0;
+    var env = 1 - EZ_V159C.inOutS(segV159C(t, T.l, T.end)), K = S.K;
+    commonBackV159C(S, V, t, env); if (K.back) K.back(S, V, t, env);
+    var live = partsV159C(S, V, t, env);
+    if (K.front) K.front(S, V, t, env); commonFrontV159C(S, V, t, env);
+    return live;
+  }
+
+  /* ---- two painters: Phaser Graphics (the field) and a 2D canvas (the Locker), behind one view (unit → pixels) ---- */
+  function viewV159C(B, ox, oy, u, su) {
+    var X = function (v) { return ox + v * u; }, Y = function (v) { return oy + v * u; }, S1 = function (v) { return Math.max(0.35, v * su); }, pts = [];
+    var map = function (p) { pts.length = p.length; for (var i = 0; i < p.length; i += 2) { pts[i] = X(p[i]); pts[i + 1] = Y(p[i + 1]); } return pts; };
+    return { hx: 0, hy: -24, u: u, su: su,
+      circ: function (x, y, r, c, a, add) { if (a > 0.004) B.circ(X(x), Y(y), S1(r), c, Math.min(1, a), add); },
+      ell: function (x, y, rx, ry, w, c, a, add) { if (a > 0.004) B.ell(X(x), Y(y), Math.max(0.5, rx * u), Math.max(0.3, ry * u), w > 0 ? S1(w) : 0, c, Math.min(1, a), add); },
+      line: function (x1, y1, x2, y2, w, c, a, add) { if (a > 0.004) B.line(X(x1), Y(y1), X(x2), Y(y2), S1(w), c, Math.min(1, a), add); },
+      poly: function (p, c, a, add) { if (a > 0.004) B.poly(map(p), c, Math.min(1, a), add); },
+      path: function (p, w, c, a, add) { if (a > 0.004 && p.length >= 4) B.path(map(p), S1(w), c, Math.min(1, a), add); },
+      arc: function (x, y, r, a0, a1, w, c, a, add) { if (a > 0.004) B.arc(X(x), Y(y), r * u, a0, a1, S1(w), c, Math.min(1, a), add); },
+      rquad: function (x, y, w, h, ang, c, a, add) { if (a <= 0.004) return; var cs = Math.cos(ang), sn = Math.sin(ang), hw = S1(w) / 2, hh = S1(h) / 2, cx = X(x), cy = Y(y);
+        B.poly([cx - cs * hw + sn * hh, cy - sn * hw - cs * hh, cx + cs * hw + sn * hh, cy + sn * hw - cs * hh, cx + cs * hw - sn * hh, cy + sn * hw + cs * hh, cx - cs * hw - sn * hh, cy - sn * hw + cs * hh], c, Math.min(1, a), add); },
+      star: function (x, y, ro, ri, n, ang, c, a, add) { if (a <= 0.004) return; var cx = X(x), cy = Y(y), R0 = S1(ro), R1 = S1(ri), p = [];
+        for (var i = 0; i < n * 2; i++) { var th = ang + i * Math.PI / n - Math.PI / 2, r = i % 2 ? R1 : R0; p.push(cx + Math.cos(th) * r, cy + Math.sin(th) * r); } B.poly(p, c, Math.min(1, a), add); },
+      leaf: function (x, y, w, l, ang, c, a, add) { if (a <= 0.004) return; var cx = X(x), cy = Y(y), W = S1(w), L = S1(l), cs = Math.cos(ang), sn = Math.sin(ang),
+        q = [0, -L, W, -L * 0.3, W * 0.7, L * 0.6, 0, L, -W * 0.7, L * 0.6, -W, -L * 0.3], p = [];
+        for (var i = 0; i < q.length; i += 2) p.push(cx + q[i] * cs - q[i + 1] * sn, cy + q[i] * sn + q[i + 1] * cs); B.poly(p, c, Math.min(1, a), add); } };
+  }
+  function phaserPainterV159C(gN, gA) {
+    var G = function (add) { return add ? gA : gN; };
+    return {
+      circ: function (x, y, r, c, a, add) { var g = G(add); g.fillStyle(c, a); g.fillCircle(x, y, r); },
+      ell: function (x, y, rx, ry, w, c, a, add) { var g = G(add); if (w > 0) { g.lineStyle(w, c, a); g.strokeEllipse(x, y, rx * 2, ry * 2, 28); } else { g.fillStyle(c, a); g.fillEllipse(x, y, rx * 2, ry * 2, 28); } },
+      line: function (x1, y1, x2, y2, w, c, a, add) { var g = G(add); g.lineStyle(w, c, a); g.lineBetween(x1, y1, x2, y2); },
+      poly: function (p, c, a, add) { var g = G(add); g.fillStyle(c, a); g.beginPath(); g.moveTo(p[0], p[1]); for (var i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]); g.closePath(); g.fillPath(); },
+      path: function (p, w, c, a, add) { var g = G(add); g.lineStyle(w, c, a); g.beginPath(); g.moveTo(p[0], p[1]); for (var i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]); g.strokePath(); },
+      arc: function (x, y, r, a0, a1, w, c, a, add) { var g = G(add); g.lineStyle(w, c, a); g.beginPath(); g.arc(x, y, r, a0, a1, false); g.strokePath(); }
+    };
+  }
+  var CSS_COL_V159C = {};
+  function cssColV159C(c) { return CSS_COL_V159C[c] || (CSS_COL_V159C[c] = "rgb(" + ((c >> 16) & 255) + "," + ((c >> 8) & 255) + "," + (c & 255) + ")"); }
+  function canvasPainterV159C(x) {
+    var set = function (c, a, add) { x.globalAlpha = a; x.globalCompositeOperation = add ? "lighter" : "source-over"; return cssColV159C(c); };
+    return {
+      circ: function (px, py, r, c, a, add) { x.fillStyle = set(c, a, add); x.beginPath(); x.arc(px, py, r, 0, 6.2832); x.fill(); },
+      ell: function (px, py, rx, ry, w, c, a, add) { var s = set(c, a, add); x.beginPath(); x.ellipse(px, py, rx, ry, 0, 0, 6.2832); if (w > 0) { x.lineWidth = w; x.lineCap = "round"; x.lineJoin = "round"; x.strokeStyle = s; x.stroke(); } else { x.fillStyle = s; x.fill(); } },
+      line: function (x1, y1, x2, y2, w, c, a, add) { x.strokeStyle = set(c, a, add); x.lineWidth = w; x.lineCap = "round"; x.lineJoin = "round"; x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2, y2); x.stroke(); },
+      poly: function (p, c, a, add) { x.fillStyle = set(c, a, add); x.beginPath(); x.moveTo(p[0], p[1]); for (var i = 2; i < p.length; i += 2) x.lineTo(p[i], p[i + 1]); x.closePath(); x.fill(); },
+      path: function (p, w, c, a, add) { x.strokeStyle = set(c, a, add); x.lineWidth = w; x.lineCap = "round"; x.lineJoin = "round"; x.beginPath(); x.moveTo(p[0], p[1]); for (var i = 2; i < p.length; i += 2) x.lineTo(p[i], p[i + 1]); x.stroke(); },
+      arc: function (px, py, r, a0, a1, w, c, a, add) { x.strokeStyle = set(c, a, add); x.lineWidth = w; x.lineCap = "round"; x.lineJoin = "round"; x.beginPath(); x.arc(px, py, r, a0, a1); x.stroke(); }
+    };
+  }
+
+  /* ---- the item → the plan ---- */
+  function celColsV159C(it) {
+    var C = it && it.c, raw = C && C.col ? C.col : ["#ff5a5a", "#ffd76f", "#6fd3ff", "#7cff9b", "#ff9ad5", "#ffffff"];
+    return raw.map(function (h) { return h === "team" ? teamCol(0) : hexOk(h) || "#ffffff"; });
+  }
+  function celKindV159C(it) { return it && it.c && KINDS_V159C[it.c.kind] ? it.c.kind : "confetti"; }
+  function planV159C(it, seed, calm) {
+    var S = buildV159C(celKindV159C(it), celColsV159C(it), seed, calm);
+    S.say = it && it.c && it.c.say ? String(it.c.say).toUpperCase().slice(0, 18) : "";
+    S.sayDy = -36; S.id = it ? it.id : "";
+    return S;
+  }
+  var FONT_V159C = "Oswald, Impact, sans-serif";
+  function letterColV159C(S, i) { return S.kind === "rainbow" || S.kind === "pixel" || S.kind === "confetti" ? S.cols[i % S.cols.length] : S.cols[0]; }
+
+  /* ---- the field: plays the plan over the stadium's own celebration, on HIS touchdown ---- */
+  function fieldPlayV159C(scene, x, y, cm, it, opts) {
+    opts = opts || {};
+    var calm = opts.calm != null ? !!opts.calm : reducedV158A();
+    var P = scene.play, tok = P && P.__ballTokenV1514 != null ? String(P.__ballTokenV1514) : String(Math.round((scene.time && scene.time.now) || 0));
+    var seed = (strHashV159C(it.id + "|" + tok) ^ (opts.seed | 0)) >>> 0;
+    var S = planV159C(it, seed, calm);
+    try { if (scene.__celV159C) scene.__celV159C.stop("replaced"); } catch (e) {}
+    var cam = scene.cameras && scene.cameras.main, z = (cam && cam.zoom) || 1, root = cm && cm.root && cm.root.active !== false ? cm.root : null;
+    var rs = root ? Math.abs(root.scaleY || 1) : 0.7, u = TUv("v159Cscale", 1) * rs;
+    u = Math.max(TUv("v159CminPx", 0.5) / z, Math.min(TUv("v159CmaxPx", 1.5) / z, u));
+    var D = 20.5, track = function (o) { try { return scene.trackFx ? scene.trackFx(o) : o; } catch (e) { return o; } };
+    var gN = track(scene.add.graphics().setDepth(D)), gA = track(scene.add.graphics().setDepth(D + 0.05));
+    try { gA.setBlendMode(1); } catch (e) {}   // Phaser.BlendModes.ADD → "lighter" on the canvas renderer
+    var B = phaserPainterV159C(gN, gA), V = viewV159C(B, x, y, u, u);
+    S.gy = root ? 24 * rs / u : 22; S.hy = root ? -24 * rs / u : -24;
+    var letters = [], mathRnd = Math.random;
+    /* Phaser names every Text's canvas texture with a UUID drawn from Math.random: the letters are made while
+     * Math.random is this file's own PRNG, so the game's stream never pays for a celebration */
+    if (S.say) try { Math.random = rnd;
+      var fs = Math.max(10, Math.round(24 * u)), cx = 0, st = { fontFamily: S.kind === "pixel" ? "'Courier New', monospace" : FONT_V159C, fontSize: fs + "px", fontStyle: "bold", stroke: "#0b0f16", strokeThickness: Math.max(3, Math.round(fs * 0.24)) };
+      for (var i = 0; i < S.say.length; i++) { var ch = S.say[i]; if (ch === " ") { cx += fs * 0.32; continue; }
+        var tx = track(scene.add.text(0, 0, ch, Object.assign({ color: letterColV159C(S, letters.length) }, st)).setOrigin(0.5).setDepth(D + 0.2).setAlpha(0));
+        try { tx.setShadow(0, 0, S.cols[1 % S.cols.length], Math.round(fs * 0.45), true, true); } catch (e) {}
+        var lw = tx.width - st.strokeThickness * 0.6; letters.push({ o: tx, x: cx + lw / 2 }); cx += lw + fs * 0.04; }
+      letters.forEach(function (L) { L.x = (L.x - cx / 2) / u; }); S.sayW = cx / u;
+    } finally { Math.random = mathRnd; }
+    var run = { id: it.id, kind: S.kind, calm: calm, t0: performance.now(), end: S.T.end, T: S.T, parts: S.parts.length, cap: S.cap, dropped: S.dropped, stages: [], frames: 0, maxLive: 0, ms: [],
+      drawMs: 0, drawMax: 0, u: u, zoom: z, hold: null, alive: true, pose: 0, shake: 0, stage: -1, ended: null, say: S.say, letters: letters.length };
+    var shadow = cm && cm.shadow, fill = cm && cm.fill, sh0 = shadow ? shadow.y : 24, fl0 = fill ? fill.y : 24, last = null;
+    /* the pose writes the marker's container after placeMarker has placed it this frame; when the scene's update
+     * did not run (the base still carries last frame's pose) the stored base is used, so nothing compounds */
+    var applyPose = function (t) {
+      if (!root || !root.active) return;
+      var bx = root.x, by = root.y, bs = root.scaleY;
+      if (last && root.x === last.ax && root.y === last.ay && root.scaleY === last.as) { bx = last.bx; by = last.by; bs = last.bs; }
+      var o = poseV159C(S, t);
+      if (!o) { if (last) { root.setPosition(bx, by); root.setScale(bs); last = null; } return; }
+      var sx = o.sx * bs, sy = o.sy * bs, ny = by + 24 * bs * (1 - o.sy) - o.hop * bs;
+      root.setPosition(bx, ny); root.setScale(sx, sy);
+      if (shadow) { shadow.y = sh0 + o.hop / o.sy; shadow.setScale(o.sh, o.sh); } if (fill) { fill.y = fl0 + o.hop / o.sy; fill.setScale(o.sh, o.sh); }
+      last = { ax: root.x, ay: root.y, as: root.scaleY, bx: bx, by: by, bs: bs }; run.pose++;
+      V.hx = (bx - x) / u; V.hy = (by - y) / u;
+    };
+    var tick = function () {
+      if (!run.alive) return;
+      if (!gN.scene || !gA.scene) { stop("cleared"); return; }
+      var t = run.hold != null ? run.hold : performance.now() - run.t0;
+      if (t >= S.T.end) { for (var sk0 = run.stage + 1; sk0 < 4; sk0++) run.stages.push({ s: STAGES_V159C[sk0], at: Math.round(t), prev: run.lastT == null ? -1 : Math.floor(run.lastT), skipped: 1 }); stop("done"); return; }
+      var c0 = performance.now();
+      try {
+        applyPose(t);
+        if (!root) { V.hx = 0; V.hy = S.hy; }
+        var sg = stageV159C(t, S.T); if (sg !== run.stage) { for (var sk = run.stage + 1; sk < sg; sk++) run.stages.push({ s: STAGES_V159C[sk], at: Math.round(t), prev: run.lastT == null ? -1 : Math.floor(run.lastT), skipped: 1 });   // a frame longer than a stage (a loaded box) still passes through it
+          run.stage = sg; run.stages.push({ s: STAGES_V159C[sg], at: Math.round(t), prev: run.lastT == null ? -1 : Math.floor(run.lastT) });
+          if (sg === 1 && !calm && cam && S.K.shake && TUv("v159Cshake", 1)) { try { cam.shake(TUv("v159CshakeMs", 140), 0.0032 * S.K.shake * TUv("v159Cshake", 1)); run.shake++; } catch (e) {} }
+          if (sg === 1 && !calm && cam && S.K.flashCam && TUv("v159CcamFlash", 1)) { try { cam.flash(110, 190, 220, 255); } catch (e) {} } }
+        run.lastT = t; gN.clear(); gA.clear();
+        var live = drawV159C(S, V, t); run.maxLive = Math.max(run.maxLive, live);
+        for (var i = 0; i < letters.length; i++) { var L = letters[i], lp = letterPoseV159C(S, i, letters.length, t);
+          if (!lp) { L.o.setAlpha(0); continue; }
+          L.o.setPosition(x + (V.hx + L.x + lp.dx) * u, y + (V.hy + S.sayDy + lp.dy) * u).setScale(lp.sc).setAngle(lp.rot).setAlpha(lp.a); }
+      } catch (e) { errV159C(e); }
+      var dt = performance.now() - c0; run.frames++; run.drawMs += dt; run.drawMax = Math.max(run.drawMax, dt); if (run.ms.length < 400) run.ms.push(dt);
+    };
+    var stop = function (why) {
+      if (!run.alive) return; run.alive = false; run.ended = why || "done";
+      try { scene.events.off("postupdate", tick); } catch (e) {}
+      try { if (root && root.active && last) { root.setPosition(last.bx, last.by); root.setScale(last.bs); } if (shadow && shadow.active !== false) { shadow.y = sh0; shadow.setScale(1); } if (fill && fill.active !== false) { fill.y = fl0; fill.setScale(1); } } catch (e) {}
+      [gN, gA].concat(letters.map(function (L) { return L.o; })).forEach(function (o) { try { scene.dropFx ? scene.dropFx(o) : o.destroy(); } catch (e) {} });
+      if (scene.__celV159C === run) scene.__celV159C = null;
+      if (V159C.active === run) V159C.active = null;
+    };
+    run.stop = stop;
+    run.setHold = function (t) { run.hold = t == null ? null : +t; };
+    scene.__celV159C = run; V159C.active = run; V159C.last = run; V159C.plays.push(run); if (V159C.plays.length > 20) V159C.plays.shift();
+    scene.events.on("postupdate", tick);
+    try { scene.events.once("shutdown", function () { stop("shutdown"); }); } catch (e) {}
+    tick();
+    return { made: S.parts.length + letters.length + 2, run: run };
+  }
+
+  /* ---- the Locker: a looping mini-stage (his celebrate frames, the same plan, the same type) ---- */
+  var PV_V159C = { list: [], raf: 0, last: 0 };
+  function pvFigV159C(frame) {
+    try { var C = window.__CHASE_V94; if (!C || !C.cell) return null; var U = resolveU((item("uniform") || {}).k || null, null) || { j: teamCol(0), p: teamCol(1) };
+      return C.cell("celebrate_dn" + frame, [U.j, U.p]) || C.cell("idle_dn", [U.j, U.p]); } catch (e) { return null; }
+  }
+  function pvDrawV159C(rec, t) {
+    var cv = rec.cv, x = cv.getContext("2d"), W = cv.__w, H = cv.__h, dpr = cv.__dpr || 1, S = rec.S; if (!x) return;
+    x.setTransform(dpr, 0, 0, dpr, 0, 0); x.globalAlpha = 1; x.globalCompositeOperation = "source-over"; x.clearRect(0, 0, W, H);
+    var u = W / 230, ox = W / 2, oy = H * 0.66, B = canvasPainterV159C(x), V = viewV159C(B, ox, oy, u, 0.5);
+    S.gy = 22; S.hy = -24; V.hx = 0; V.hy = S.hy;
+    x.globalAlpha = 0.5; x.fillStyle = "#1d5a2c"; x.beginPath(); x.ellipse(ox, oy + 22 * u, W * 0.46, 6, 0, 0, 6.2832); x.fill();
+    var o = poseV159C(S, t) || { sx: 1, sy: 1, hop: 0, sh: 1 }, fig = pvFigV159C(Math.floor(Math.max(0, t) / TUv("celebrateFrameMs", 170)) % 4), fh = 22;
+    x.globalAlpha = 0.35; x.globalCompositeOperation = "source-over"; x.fillStyle = "#000"; x.beginPath(); x.ellipse(ox, oy + 22 * u, 7 * o.sh, 2 * o.sh, 0, 0, 6.2832); x.fill();
+    drawV159C(S, V, t);
+    x.globalAlpha = 1; x.globalCompositeOperation = "source-over";
+    if (fig) { x.imageSmoothingEnabled = false; var fw = fh * o.sx, fhh = fh * o.sy, fy = oy + 22 * u - fhh - o.hop * 0.5; x.drawImage(fig, 4, 2, 40, 44, ox - fw / 2, fy, fw, fhh); }
+    if (S.say) {
+      var fs = 9, n = S.say.length; x.font = "700 " + fs + "px " + (S.kind === "pixel" ? "'Courier New', monospace" : FONT_V159C); x.textAlign = "center"; x.textBaseline = "middle";
+      var ws = [], tw = 0; for (var i = 0; i < n; i++) { var w = S.say[i] === " " ? fs * 0.3 : x.measureText(S.say[i]).width; ws.push(w); tw += w; }
+      var k = Math.min(1, (W - 6) / tw), cx = ox - tw * k / 2, li = 0; S.sayW = tw * k / u;
+      for (var j = 0; j < n; j++) { var ch = S.say[j], cw = ws[j] * k; if (ch !== " ") { var lp = letterPoseV159C(S, li, n, t);
+        if (lp && lp.a > 0.01) { x.save(); x.globalAlpha = c01V159C(lp.a); x.translate(cx + cw / 2 + lp.dx * 0.4, 9 + lp.dy * 0.4); x.rotate(lp.rot * Math.PI / 180); x.scale(lp.sc * k, lp.sc * k);
+          x.lineWidth = 2.6; x.strokeStyle = "#0b0f16"; x.strokeText(ch, 0, 0); x.fillStyle = letterColV159C(S, li); x.fillText(ch, 0, 0); x.restore(); }
+        li++; } cx += cw; }
+    }
+    rec.frames = (rec.frames || 0) + 1; V159C.prevFrames++;
+  }
+  function pvTickV159C(ts) {
+    PV_V159C.raf = 0;
+    try {
+      if (ts - PV_V159C.last >= 1000 / Math.max(6, TUv("v159CpvFps", 30)) - 2 && !document.hidden && !reducedV158A()) {
+        PV_V159C.last = ts;
+        for (var i = PV_V159C.list.length - 1; i >= 0; i--) { var r = PV_V159C.list[i];
+          if (!r.cv.isConnected) { if (++r.miss > 90) PV_V159C.list.splice(i, 1); continue; }
+          r.miss = 0; var period = r.S.T.end + TUv("v159CpvGapMs", 500); r.t = (performance.now() - r.t0) % period; r.loops = Math.floor((performance.now() - r.t0) / period); pvDrawV159C(r, r.t); }
+      }
+    } catch (e) { errV159C(e); }
+    if (PV_V159C.list.length && typeof requestAnimationFrame === "function") PV_V159C.raf = requestAnimationFrame(pvTickV159C);
+  }
+  function previewCelV159C(el, it) {
+    var calm = reducedV158A(), cv = document.createElement("canvas"); cv.className = "cos-cel-v159c"; cv.setAttribute("aria-hidden", "true");
+    sizeCvV158A(cv, 64, 60); el.innerHTML = ""; el.appendChild(cv);
+    var rec = { cv: cv, it: it, S: planV159C(it, strHashV159C(it.id), calm), t0: performance.now() - (strHashV159C(it.id) % 700), miss: 0, frames: 0, t: 0, loops: 0 };
+    cv.__v159c = rec; V159C.previews++;
+    if (calm || typeof requestAnimationFrame !== "function") { pvDrawV159C(rec, rec.S.T.b + (rec.S.T.l - rec.S.T.b) * 0.4); return true; }
+    pvDrawV159C(rec, rec.S.T.b);
+    if (PV_V159C.list.length >= TUv("v159CpvMax", 40)) PV_V159C.list.shift();
+    PV_V159C.list.push(rec); if (!PV_V159C.raf) PV_V159C.raf = requestAnimationFrame(pvTickV159C);
+    return true;
+  }
+  function previewV159C(el, it) {
+    try {
+      if (it.cat === "celebration" && onV159C()) return previewCelV159C(el, it);
+      if (it.cat === "shelf" && onV159C("v159Cshelf")) { el.innerHTML = '<div class="cos-shelf-v151b s159c sh-' + escHtml(it.css) + '" style="' + phaseV159C() + '"><span style="--i:0"><em data-k="cup">🏆</em></span><span style="--i:1"><em data-k="star">🏅</em></span><span style="--i:2"><em data-k="ring">💍</em></span></div>'; return true; }
+    } catch (e) { errV159C(e); }
+    return false;
+  }
+
+  /* ---------------- the shelf ---------------- */
+  var SHELF_CYCLE_V159C = 6.4;
+  function phaseV159C() { return "--s159p:" + (-((performance.now() / 1000) % SHELF_CYCLE_V159C)).toFixed(2) + "s"; }
+  var SEEN_KEY_V159C = "rib.cos.shelfSeen.v159c";
+  function shelfV159C(root, d, self) {
+    try {
+      if (!onV159C("v159Cshelf")) return false;
+      var sh = root && (root.classList && root.classList.contains("pc-shelf-v151b") ? root : root.querySelector(".pc-shelf-v151b")); if (!sh || sh.classList.contains("s159c")) return false;
+      var calm = reducedV158A(), kinds = ["cup", "ring", "star", "hall"], vals = d ? [d.titles, d.rings, d.mvps, d.hof].map(function (v) { return Number(v) || 0; }) : null;
+      sh.classList.add("s159c"); sh.setAttribute("style", phaseV159C());
+      var spans = sh.querySelectorAll(":scope > span"), fresh = [];
+      var seen = null; if (self && vals) { try { seen = JSON.parse(localStorage.getItem(SEEN_KEY_V159C) || "null"); } catch (e) {} try { localStorage.setItem(SEEN_KEY_V159C, JSON.stringify(vals)); } catch (e) {} }
+      spans.forEach(function (sp, i) {
+        sp.style.setProperty("--i", i); var em = sp.querySelector("em"), b = sp.querySelector("b"); if (em) em.setAttribute("data-k", kinds[i] || "cup");
+        var v = vals ? vals[i] : parseInt(String(b && b.textContent || "").replace(/,/g, ""), 10);
+        if (b && isFinite(v) && v > 0 && !/[KM]$/.test(b.textContent || "") && !calm) countUpV159C(b, v, i);
+        if (seen && Array.isArray(seen) && vals && vals[i] > (Number(seen[i]) || 0)) fresh.push(i);
+      });
+      fresh.forEach(function (i) { var sp = spans[i]; if (!sp) return; setTimeout(function () { sp.classList.add("pop159c"); }, calm ? 0 : TUv("v159CcountMs", 900) + i * 90); V159C.pops.push({ i: i, k: kinds[i], at: Date.now() }); });
+      V159C.shelves++;
+      return true;
+    } catch (e) { errV159C(e); return false; }
+  }
+  function countUpV159C(b, v, i) {
+    var dur = TUv("v159CcountMs", 900), t0 = performance.now() + i * 80, fin = num(v); b.setAttribute("data-final", fin); b.textContent = "0"; V159C.countUps++;
+    var step = function () { if (!b.isConnected) return; var p = c01V159C((performance.now() - t0) / dur); b.textContent = p >= 1 ? fin : num(Math.round(v * EZ_V159C.outC(p)));
+      if (p < 1) requestAnimationFrame(step); };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(step); else b.textContent = fin;
+  }
+  setInterval(function () { try { if (onV159C("v159Cshelf")) document.querySelectorAll(".pc-shelf-v151b:not(.s159c)").forEach(function (sh) { shelfV159C(sh, null, false); }); } catch (e) {} }, 700);
+  (function () {
+    if (document.getElementById("cosV159Ccss")) return;
+    var C = SHELF_CYCLE_V159C + "s", L = [];
+    /* the glint (::before, one sweep per cycle, phase-locked to the wall clock through --s159p) */
+    L.push(".s159c{position:relative;overflow:hidden;isolation:isolate}");
+    L.push(".s159c::before{content:'';position:absolute;inset:-10% auto -10% 0;width:34%;z-index:3;pointer-events:none;background:linear-gradient(100deg,transparent 0,rgba(255,255,255,0) 20%,rgba(255,250,230,.55) 48%,rgba(255,255,255,.85) 50%,rgba(255,250,230,.5) 52%,rgba(255,255,255,0) 80%,transparent);mix-blend-mode:screen;transform:translateX(-120%) skewX(-18deg);animation:s159cGlint " + C + " cubic-bezier(.45,.05,.3,1) infinite;animation-delay:var(--s159p,0s)}");
+    L.push("@keyframes s159cGlint{0%,62%{transform:translateX(-120%) skewX(-18deg)}88%,100%{transform:translateX(420%) skewX(-18deg)}}");
+    /* the trophies: bob, turn, tilt; a sparkle as the glint passes each */
+    L.push(".s159c em{display:inline-block;position:relative;transform-origin:50% 90%;will-change:transform}");
+    L.push(".s159c em[data-k=cup]{animation:s159cBob 3.4s ease-in-out infinite;animation-delay:calc(var(--i,0)*-.7s)}");
+    L.push(".s159c em[data-k=ring]{animation:s159cTurn 4.2s ease-in-out infinite;animation-delay:calc(var(--i,0)*-.5s)}");
+    L.push(".s159c em[data-k=star]{animation:s159cTilt 3.8s ease-in-out infinite;animation-delay:calc(var(--i,0)*-.9s)}");
+    L.push(".s159c em[data-k=hall]{animation:s159cBob 5s ease-in-out infinite;animation-delay:-1.3s}");
+    L.push("@keyframes s159cBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}");
+    L.push("@keyframes s159cTurn{0%,100%{transform:translateY(0) scaleX(1)}25%{transform:translateY(-1.5px) scaleX(.7)}50%{transform:translateY(-2px) scaleX(-.9)}75%{transform:translateY(-1px) scaleX(.72)}}");
+    L.push("@keyframes s159cTilt{0%,100%{transform:rotate(-7deg) translateY(0)}50%{transform:rotate(7deg) translateY(-1.5px)}}");
+    L.push(".s159c em::after{content:'';position:absolute;right:-3px;top:-2px;width:9px;height:9px;pointer-events:none;background:radial-gradient(circle,#fff 0 1px,rgba(255,255,255,.7) 1.4px,transparent 2.6px),linear-gradient(0deg,transparent 42%,rgba(255,255,255,.95) 50%,transparent 58%),linear-gradient(90deg,transparent 42%,rgba(255,255,255,.95) 50%,transparent 58%);opacity:0;transform:scale(.2) rotate(0);animation:s159cSpark " + C + " ease-out infinite;animation-delay:calc(var(--s159p,0s) + var(--i,0)*.34s)}");
+    L.push("@keyframes s159cSpark{0%,70%{opacity:0;transform:scale(.2) rotate(0)}75%{opacity:1;transform:scale(1.15) rotate(45deg)}84%,100%{opacity:0;transform:scale(.3) rotate(90deg)}}");
+    /* the materials (::after under the trophies) */
+    var M = {
+      glass: "background:linear-gradient(115deg,transparent 0 18%,rgba(255,255,255,.22) 18% 24%,transparent 24% 58%,rgba(255,255,255,.12) 58% 61%,transparent 61%);animation:s159cDrift 9s ease-in-out infinite alternate",
+      ice158: "background:linear-gradient(115deg,transparent 0 20%,rgba(255,255,255,.25) 20% 25%,transparent 25%),radial-gradient(circle,rgba(255,255,255,.9) 0 .8px,transparent 1.4px) 0 0/19px 13px;animation:s159cTwinkle 2.8s ease-in-out infinite,s159cDrift 11s ease-in-out infinite alternate",
+      diamond158: "background:radial-gradient(circle,#fff 0 .9px,transparent 1.6px) 3px 2px/23px 15px,radial-gradient(circle,#bfefff 0 .8px,transparent 1.5px) 11px 8px/29px 17px;animation:s159cTwinkle 1.7s steps(4) infinite",
+      neon158: "background:linear-gradient(0deg,#ff3df2 0 2px,transparent 2px);box-shadow:0 0 10px #ff3df2;animation:s159cFlicker 4.6s linear infinite",
+      velvet158: "background:radial-gradient(ellipse 40% 90% at 50% 0,rgba(255,220,230,.28),transparent 70%) 0 0/200% 100% no-repeat;animation:s159cSheen 6.5s ease-in-out infinite alternate",
+      holo158: "background:repeating-linear-gradient(0deg,rgba(157,255,244,.16) 0 1px,transparent 1px 3px);animation:s159cScan 1.8s linear infinite;mix-blend-mode:screen",
+      galaxy158: "background:radial-gradient(circle,#fff 0 .7px,transparent 1.2px) 0 0/15px 11px,radial-gradient(circle,#ffb8e6 0 .6px,transparent 1.1px) 7px 5px/21px 14px;animation:s159cStars 24s linear infinite",
+      carbon158: "background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.1) 45%,transparent 60%) 0 0/250% 100%;animation:s159cSheen 5s linear infinite",
+      steel: "background:repeating-linear-gradient(90deg,rgba(255,255,255,.05) 0 1px,transparent 1px 3px),linear-gradient(110deg,transparent 35%,rgba(255,255,255,.14) 50%,transparent 65%) 0 0/250% 100%;animation:s159cSheen 7s ease-in-out infinite alternate",
+      marble: "background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.3) 50%,transparent 65%) 0 0/250% 100%;animation:s159cSheen 8s ease-in-out infinite alternate",
+      stone158: "background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.12) 50%,transparent 65%) 0 0/250% 100%;animation:s159cSheen 9s ease-in-out infinite alternate",
+      gold: "background:linear-gradient(110deg,transparent 38%,rgba(255,236,170,.3) 50%,transparent 62%) 0 0/250% 100%;animation:s159cSheen 4.5s ease-in-out infinite alternate",
+      walnut158: "background:linear-gradient(0deg,rgba(255,215,111,.0) 0,rgba(255,215,111,0) 100%),linear-gradient(110deg,transparent 40%,rgba(255,215,111,.22) 50%,transparent 60%) 0 0/250% 100%;animation:s159cSheen 5.5s ease-in-out infinite alternate",
+      founder: "background:linear-gradient(110deg,transparent 40%,rgba(230,196,106,.28) 50%,transparent 60%) 0 0/250% 100%;animation:s159cSheen 4s ease-in-out infinite alternate",
+      oak: "background:radial-gradient(ellipse 50% 120% at 50% -20%,rgba(255,214,150,.2),transparent 70%);animation:s159cLamp 6s ease-in-out infinite alternate",
+      locker158: "background:radial-gradient(ellipse 50% 120% at 50% -20%,rgba(220,235,255,.18),transparent 70%);animation:s159cLamp 5s ease-in-out infinite alternate"
+    };
+    L.push(".s159c::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit}.s159c>span{position:relative;z-index:1}");
+    Object.keys(M).forEach(function (k) { L.push(".s159c.sh-" + k + "::after{" + M[k] + "}"); });
+    L.push("@keyframes s159cDrift{from{transform:translateX(-8%)}to{transform:translateX(8%)}}");
+    L.push("@keyframes s159cTwinkle{0%,100%{opacity:.45}50%{opacity:1}}");
+    L.push("@keyframes s159cFlicker{0%,100%{opacity:1}6%{opacity:.35}7%{opacity:1}8%{opacity:.5}9%,61%{opacity:1}62%{opacity:.4}64%{opacity:1}}");
+    L.push("@keyframes s159cSheen{from{background-position:0 0}to{background-position:100% 0}}");
+    L.push("@keyframes s159cScan{from{background-position:0 0}to{background-position:0 6px}}");
+    L.push("@keyframes s159cStars{from{background-position:0 0,7px 5px}to{background-position:-150px 0,-203px 5px}}");
+    L.push("@keyframes s159cLamp{from{opacity:.55}to{opacity:1}}");
+    /* a trophy that is new since his card was last shown: a pop, a ring of light, a shine */
+    L.push(".s159c>span.pop159c em{animation:s159cPop 1.1s cubic-bezier(.2,1.6,.4,1) 1 both!important}");
+    L.push(".s159c>span.pop159c::before{content:'';position:absolute;left:50%;top:12px;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(255,244,200,.95) 0 18%,rgba(255,215,111,.55) 34%,transparent 62%);animation:s159cBurst 1.1s ease-out 1 both;z-index:-1}");
+    L.push(".s159c>span.pop159c b{animation:s159cNum 1.1s ease-out 1 both}");
+    L.push("@keyframes s159cPop{0%{transform:scale(1)}30%{transform:scale(1.55) rotate(-8deg)}55%{transform:scale(.92) rotate(4deg)}100%{transform:scale(1) rotate(0)}}");
+    L.push("@keyframes s159cBurst{0%{transform:scale(.2);opacity:0}25%{opacity:1}100%{transform:scale(2.3);opacity:0}}");
+    L.push("@keyframes s159cNum{0%,100%{color:inherit;text-shadow:none}30%{color:#fff3c4;text-shadow:0 0 8px #ffd76f}}");
+    L.push(".cos-cel-v159c{width:64px;height:60px;display:block}");
+    L.push("@media(prefers-reduced-motion:reduce){.s159c::before,.s159c::after,.s159c em,.s159c em::after,.s159c>span.pop159c::before,.s159c>span.pop159c b{animation:none!important}.s159c::before,.s159c em::after{opacity:0}}");
+    var st = document.createElement("style"); st.id = "cosV159Ccss"; st.textContent = L.join("\n");
+    (document.head || document.documentElement).appendChild(st);
+  })();
+
+  /* what the check reads */
+  Object.assign(V159C, {
+    kinds: function () { return Object.keys(KINDS_V159C); },
+    timeline: function (calm) { var T = tlV159C(calm); return { a: T.a, b: T.b, l: T.l, end: T.end }; },
+    plan: function (id, seed, calm) { var it = findItem(id); if (!it || it.cat !== "celebration") return null; var S = planV159C(it, seed == null ? strHashV159C(id) : seed, !!calm);
+      return { id: id, kind: S.kind, parts: S.parts.length, cap: S.cap, dropped: S.dropped, say: S.say, T: { a: S.T.a, b: S.T.b, l: S.T.l, end: S.T.end }, pose: S.K.pose || "jump" }; },
+    /* one frame of item `id` at t into a 2D canvas (the Locker's painter); returns the live particle count */
+    renderAt: function (cv, id, t, seed, calm) { var it = findItem(id); if (!it || it.cat !== "celebration") return -1; if (!cv.__w) sizeCvV158A(cv, cv.width, cv.height);
+      var rec = { cv: cv, S: planV159C(it, seed == null ? strHashV159C(id) : seed, !!calm) }; var live = 0;
+      var x = cv.getContext("2d"), W = cv.__w, H = cv.__h, dpr = cv.__dpr || 1; x.setTransform(dpr, 0, 0, dpr, 0, 0); x.globalAlpha = 1; x.globalCompositeOperation = "source-over"; x.clearRect(0, 0, W, H);
+      var u = W / 330, V = viewV159C(canvasPainterV159C(x), W / 2, H * 0.68, u, Math.max(0.5, u)); V.hy = rec.S.hy; live = drawV159C(rec.S, V, t); x.globalAlpha = 1; x.globalCompositeOperation = "source-over"; return live; },
+    pose: function (id, t, calm) { var it = findItem(id); return it ? poseV159C(planV159C(it, 1, !!calm), t) : null; },
+    letter: function (id, i, t, calm) { var it = findItem(id); return it ? letterPoseV159C(planV159C(it, 1, !!calm), i, 8, t) : null; },
+    play: function (scene, x, y, cm, id, opts) { var it = findItem(id); if (!it || it.cat !== "celebration") return null; return fieldPlayV159C(scene, x, y, cm, it, opts).run; },
+    previewList: function () { return PV_V159C.list.map(function (r) { return { id: r.it.id, frames: r.frames, t: Math.round(r.t), loops: r.loops, connected: r.cv.isConnected }; }); },
+    shelf: shelfV159C
+  });
+
+  /* ===== v159 A THE WHOLE TEAM WEARS IT =====
+   * The owner: "make those [uniforms] apply to all the players on your team, along with the helmets" · "make all the
+   * uniforms apply and be usable with the 2 colour palettes" · "ensure the number fonts blend properly into the jersey".
+   *   THE TEAM     src/05 `ribTeamKitV159A` dresses the "off" textures (his eleven on both sides of the ball, and our
+   *                sideline's backups) with `fieldKit` — the same kit, deco and clash rule he wore alone since v151 B; the
+   *                "you" textures become a pixel copy of them. The opponent's "def" textures are never touched.
+   *   TEAM PALETTE a per-player choice next to the uniforms in the Locker's Style panel — "Colours: Uniform's own · Team
+   *                palette" — stored in the cosmetics store (`uniColV159A`, outside the save). In "Team palette" every
+   *                uniform keeps its DESIGN (hoops, pinstripe, split, fade, yoke, chest band, sleeves, camo, chevrons, sash,
+   *                stripes, checker, tiger…) and takes the team's two colours: jersey = primary, pants = secondary, the
+   *                pattern's trim and the pant stripe = the secondary (or, when the two would blur, a shade of the primary —
+   *                `uniModeV159A`, hooked at `resolveU`, the one door every kit reader goes through: the field, the card
+   *                figure, the growth screen, the live badge, the menu hero and the Locker's previews).
+   *   PRINTED NUMBERS  the profile figure's chest number (`chestNumberV157C` → `chestNumV159A`) is drawn on its own layer,
+   *                wrapped round the chest (a cylinder the chest's width, `v159AcurveR`, the sides sagging and narrowing),
+   *                clipped to the jersey's own pixels (the source art's torso, drawn where the body went — never an arm,
+   *                the helmet or the pants; soft at the mask's edge), then the jersey's shading is multiplied into it (the
+   *                source's lightness over its median: folds darken the digits, highlights lift them) and the drawn fold
+   *                lines soften its alpha. It scales with the body at every age (the figure's own geometry). The team face
+   *                picks its colours from the kit (`inkForV159A`: white on a dark jersey, the kit's own dark — or ink — on a
+   *                light one, the outline a shadow of the jersey); a number font keeps its colours and takes the shading.
+   *                On the field (every man's number: src/05 `numPlaceV104` → `numInkV159A`) the number already rides the
+   *                chest/back band per frame and hides on a side view; now it takes the kit's contrast colour, a jersey-
+   *                shadow outline instead of a black sticker edge, lets the fabric show through (TU v159AnumA), and turns
+   *                with a quarter view (squeezed, shifted toward the side of the shirt the camera sees). The Locker's number
+   *                preview gets the same ink and a fabric shade.
+   * Kill switches: TU v159Ateam (src/05: his textures only), v159Apal (the Locker choice and the palette mapping),
+   * v159Anum (the old sticker numbers). Looks only: nothing here reads or writes a number the sim uses or draws Math.random.
+   * `window.__V159A` is what v159Acheck reads. */
+  var V159A = (window.__V159A = window.__V159A || { chest: null, prints: 0, inks: 0, toggles: 0, errs: [] });
+  function errV159A(e) { try { if (V159A.errs.length < 10) V159A.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  function onV159A(k) { return !!TUv(k, 1); }
+  function hexOfV159A(c) { return "#" + c.map(function (v) { var s = Math.max(0, Math.min(255, Math.round(v))).toString(16); return s.length < 2 ? "0" + s : s; }).join(""); }
+  function lumHexV159A(h) { return lumOf(rgb(hexOk(h) || "#000000")); }
+
+  /* ---- 2. the uniform's colours: its own, or the team's two ---- */
+  function uniColV159A() { try { return onV159A("v159Apal") && load().uniColV159A === "team" ? "team" : "own"; } catch (e) { return "own"; } }
+  function setUniColV159A(mode) {
+    mode = mode === "team" ? "team" : "own";
+    var S = load(); if ((S.uniColV159A === "team" ? "team" : "own") === mode) return false;
+    S.uniColV159A = mode; persist(); V159A.toggles++;
+    fire({ equip: "uniform", id: equipped("uniform"), colours: mode });   // the field re-dresses (apply → refreshField), the card redraws
+    return true;
+  }
+  function uniModeV159A(U, tc) {
+    if (!U || uniColV159A() !== "team") return U;
+    var a = (tc && hexOk(tc[0])) || teamCol(0), b = (tc && hexOk(tc[1])) || teamCol(1);
+    var o = Object.assign({}, U); o.j = a; o.p = b;
+    // the pattern's trim: the secondary — unless it would vanish on the primary, then a shade of the primary
+    o.t = cdist(a, b) >= TUv("v159AtrimDist", 90) ? b : hexOfV159A(mix(rgb(a), lumHexV159A(a) > 128 ? [0, 0, 0] : [255, 255, 255], 0.45));
+    if (U.ps) o.ps = o.t;
+    o.v159 = "team";
+    return o;
+  }
+  function uniColRowV159A() {
+    if (!onV159A("v159Apal")) return "";
+    var m = uniColV159A(), c0 = teamCol(0), c1 = teamCol(1);
+    return '<div class="cos-unicol-v159a" role="group" aria-label="Uniform colours" data-mode="' + m + '"><span>Colours</span>' +
+      '<button type="button" class="' + (m === "own" ? "on" : "") + '" aria-pressed="' + (m === "own") + '" onclick="cosUniColV159A(\'own\')">Uniform\'s own</button>' +
+      '<button type="button" class="' + (m === "team" ? "on" : "") + '" aria-pressed="' + (m === "team") + '" onclick="cosUniColV159A(\'team\')"><i style="background:' + c0 + '"></i><i style="background:' + c1 + '"></i>Team palette</button></div>';
+  }
+  window.cosUniColV159A = function (mode) {
+    var changed = setUniColV159A(mode);
+    var el = document.querySelector(".cos-style-v151b"); if (el) { el.outerHTML = stylePanel(); paintPreviews(); }
+    if (changed) toast(mode === "team" ? "Uniforms wear the team palette" : "Uniforms wear their own colours");
+    return uniColV159A();
+  };
+  (function () {
+    if (document.getElementById("cosV159Acss")) return;
+    var st = document.createElement("style"); st.id = "cosV159Acss";
+    st.textContent = ".cos-unicol-v159a{display:flex;align-items:center;gap:6px;margin:2px 0 8px;flex-wrap:wrap;font:600 11px/1 Oswald,sans-serif;letter-spacing:.6px}" +
+      ".cos-unicol-v159a>span{color:#9fb0c6;text-transform:uppercase;margin-right:2px}" +
+      ".cos-unicol-v159a>button{display:inline-flex;align-items:center;gap:4px;min-height:36px;padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);color:#dfe7f2;font:inherit;cursor:pointer}" +
+      ".cos-unicol-v159a>button.on{background:#f0bb45;border-color:#f0bb45;color:#1b1406}" +
+      ".cos-unicol-v159a>button>i{display:inline-block;width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.45)}";
+    (document.head || document.documentElement).appendChild(st);
+  })();
+
+  /* ---- 3. the ink: a number that reads on its kit ---- */
+  function inkForV159A(j, alt, trim) {
+    j = hexOk(j) || "#1f4fd0";
+    var Lj = lumHexV159A(j), light = Lj > TUv("v159AinkLum", 168), fill;
+    if (!light) fill = "#ffffff";
+    else { var c = [trim, alt].filter(function (h) { return hexOk(h) && Lj - lumHexV159A(h) > TUv("v159AinkGap", 105); }); fill = c[0] || "#141a24"; }
+    var stroke = light ? hexOfV159A(mix(rgb(j), rgb(fill), 0.4)) : hexOfV159A(mix(rgb(j), [0, 0, 0], TUv("v159AinkShadow", 0.62)));
+    return { fill: fill, stroke: stroke, light: light };
+  }
+  /* the field: every man's number (src/05 numPlaceV104, after it has placed and scaled the label for this frame) */
+  function numInkV159A(m, rear, cols) {
+    try {
+      var L = m && m.label; if (!L) return;
+      if (!onV159A("v159Anum")) {   // the switch off: the v104 sticker exactly (white, the ink outline, opaque, centred)
+        if (m._inkKeyV159A != null) { m._inkKeyV159A = null; if (!m._nfOrigV153G) { L.setColor("#ffffff"); L.setStroke("#0a0e14", L.style.strokeThickness || 2.2); } }
+        if (!m._nfLblV158A && L.alpha !== 0 && L.alpha !== 1) L.setAlpha(1);
+        if (L.x !== 0) L.x = 0; m._quarterV159A = 1; return;
+      }
+      if (!m._nfOrigV153G && cols && cols[0]) {   // an equipped number font keeps its own colours (v153 G)
+        var key = cols[0] + "|" + cols[1];
+        if (m._inkKeyV159A !== key) {
+          m._inkKeyV159A = key; var ink = inkForV159A(cols[0], cols[1], null);
+          if (L.style.color !== ink.fill) L.setColor(ink.fill);
+          L.setStroke(ink.stroke, L.style.strokeThickness || 2.2); V159A.inks++;
+        }
+      }
+      var A = TUv("v159AnumA", 0.9);   // the fabric shows through the print
+      if (!m._nfLblV158A && L.alpha !== 0 && Math.abs(L.alpha - A) > 1e-3) L.setAlpha(A);
+      var q = m.dirKey === "dr" || m.dirKey === "ur" ? TUv("v159Aquarter", 0.8) : 1;
+      m._quarterV159A = q;
+      if (q !== 1) {
+        // a quarter view: the shirt turns — narrower, and its middle slides toward the side the camera sees
+        var b = m._numBandV104, Hs = (m.body && m.body.scaleY) || 1, side = (m.dirKey === "dr" ? 1 : -1) * (m.flip ? -1 : 1);
+        L.scaleX = L.scaleX * q; L.x = side * (b ? b.w : 22) * TUv("v159AquarterDx", 0.07) * Hs;
+      } else if (L.x !== 0) L.x = 0;
+    } catch (e) { errV159A(e); }
+  }
+
+  /* ---- 3. the profile chest: printed, not stuck on ---- */
+  var BUSY_V159A = 0, MAPS_V159A = null;
+  /* the source art's torso — the jersey's own pixels between the neck and the waist, the helmet's dome cut out — with
+   * each pixel's shade (lightness over the navy's median, x100) in its red channel: kit-independent, measured once */
+  function mapsV159A() {
+    if (MAPS_V159A) return MAPS_V159A;
+    var im = FIG.img, C = chestV157C(); if (!im || !C) return null;
+    var W = C.W, H = C.H, c = document.createElement("canvas"); c.width = W; c.height = H;
+    var x = c.getContext("2d"); x.drawImage(im, 0, 0); var d = x.getImageData(0, 0, W, H).data;
+    var mc = document.createElement("canvas"); mc.width = W; mc.height = H; var mx = mc.getContext("2d"), md = mx.createImageData(W, H), o = md.data;
+    var hx0 = W * 0.515, hy0 = H * 0.15, hrx = W * 0.29, hry = H * 0.14, n = 0;
+    for (var y = C.neck; y < C.waist; y++) for (var xx = 0; xx < W; xx++) {
+      var i = (y * W + xx) * 4; if (d[i + 3] < 20) continue;
+      var k = srcClass(d[i], d[i + 1], d[i + 2]); if (k[0] !== 1) continue;
+      var ex = (xx - hx0) / hrx, ey = (y - hy0) / hry; if (ex * ex + ey * ey <= 1) continue;
+      o[i] = o[i + 1] = o[i + 2] = Math.max(1, Math.min(255, Math.round(k[1] / 32.5 * 100))); o[i + 3] = 255; n++;
+    }
+    mx.putImageData(md, 0, 0);
+    MAPS_V159A = { cv: mc, W: W, H: H, neck: C.neck, waist: C.waist, n: n, last: null };
+    return MAPS_V159A;
+  }
+  /* that map drawn exactly where figDraw drew the body: RGBA at the canvas's device size */
+  function maskOutV159A(res, W, H) {
+    var M = mapsV159A(), g = res && res.geo; if (!M || !g) return null;
+    var key = [W, H, g.bx, g.by, g.bw, g.bh, g.dpr].join("|");
+    if (M.last && M.last.key === key) return M.last;
+    var c = document.createElement("canvas"); c.width = W; c.height = H; var x = c.getContext("2d");
+    x.setTransform(g.dpr || 1, 0, 0, g.dpr || 1, 0, 0); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+    x.drawImage(M.cv, 0, M.neck, M.W, M.H - 3 - M.neck, g.bx, g.by, g.bw, g.bh);
+    M.last = { key: key, d: x.getImageData(0, 0, W, H).data, W: W, H: H };
+    return M.last;
+  }
+  /* the team face in the kit's own contrast (the v157 C text, with inkForV159A's colours) */
+  function textNumV159A(cv, res, num, nf, C, K) {
+    var g = res.geo, x = cv.getContext("2d"), s = String(num | 0);
+    var sx = g.bw / C.W, cx = g.bx + C.cx * sx, cy = g.by + (C.row - g.neck) * g.k;
+    var px = Math.max(8, (C.waist - C.neck) * g.k * TUv("nfChestHV157C", 0.58));
+    var ink = nf.style === "team" ? inkForV159A(K && K.j, K && K.p, K && K.t) : { fill: nf.col || "#ffffff", stroke: nf.stroke || "#0a0e14" };
+    x.save(); x.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+    x.font = "bold " + px.toFixed(1) + "px " + nf.font; x.textAlign = "center"; x.textBaseline = "middle";
+    var w = x.measureText(s).width, maxW = C.w * sx * TUv("nfChestWV157C", 0.92);
+    if (w > maxW) { px = px * maxW / w; x.font = "bold " + px.toFixed(1) + "px " + nf.font; }
+    x.lineJoin = "round"; x.lineWidth = Math.max(1.4, px * TUv("nfChestStrokeV157C", 0.2)); x.strokeStyle = ink.stroke; x.strokeText(s, cx, cy);
+    x.fillStyle = ink.fill; x.fillText(s, cx, cy);
+    x.restore();
+    return { num: s, nf: nf.style, px: +px.toFixed(1), cx: +cx.toFixed(1), cy: +cy.toFixed(1), ink: ink.fill };
+  }
+  /* the layer printed onto the figure: wrapped, clipped, shaded */
+  function printV159A(cv, lay, res, C) {
+    var W = cv.width, H = cv.height, g = res.geo, dpr = g.dpr || 1;
+    var ld = lay.getContext("2d").getImageData(0, 0, W, H).data, x0 = W, y0 = H, x1 = -1, y1 = -1;
+    for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) if (ld[(y * W + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) return null;
+    var M = maskOutV159A(res, W, H); if (!M) return null;
+    var sxk = g.bw / C.W, cxD = (g.bx + C.cx * sxk) * dpr, cyD = (g.by + (C.row - g.neck) * g.k) * dpr;
+    // 1. round the chest: each target column samples the flat print at its arc length (a cylinder of the chest's width)
+    var R = Math.max(4, C.w * sxk * dpr * 0.5 * TUv("v159AcurveR", 1.25)), sag = TUv("v159Asag", 0.1), shrink = TUv("v159Ashrink", 0.08);
+    var wv = document.createElement("canvas"); wv.width = W; wv.height = H; var wx = wv.getContext("2d"); wx.imageSmoothingEnabled = true;
+    for (var X = x0 - 1; X <= x1 + 1; X++) {
+      var u = (X + 0.5 - cxD) / R; if (Math.abs(u) >= 0.985) continue;
+      var th = Math.asin(u), srcX = cxD + th * R - 0.5; if (srcX < x0 - 1 || srcX > x1 + 1) continue;
+      var cz = 1 - Math.cos(th), hs = 1 - shrink * cz, dy = sag * R * cz;
+      wx.drawImage(lay, Math.max(0, srcX), 0, 1, H, X, cyD * (1 - hs) + dy, 1, H * hs);
+    }
+    // 2. the fabric: clipped to the jersey, its shading multiplied in, the fold lines softening the edge
+    var bx0 = Math.max(1, x0 - 6), bx1 = Math.min(W - 2, x1 + 6), by0 = Math.max(1, y0 - 6), by1 = Math.min(H - 2, y1 + Math.ceil(sag * R) + 6);
+    var wd = wx.getImageData(0, 0, W, H), d = wd.data, md = M.d;
+    var base = TUv("v159Ashade0", 0.4), gain = 1 - base, foldK = TUv("v159Afold", 0.9), foldMax = TUv("v159AfoldMax", 0.45), alphaK = TUv("v159Aink", 0.97);
+    var tAt = function (j) { return md[j * 4 + 3] > 8 ? md[j * 4] / 100 : 1; }, kept = 0, cut = 0;
+    for (y = by0; y <= by1; y++) for (x = bx0; x <= bx1; x++) {
+      var j = y * W + x, i = j * 4; if (!d[i + 3]) continue;
+      var cov = md[i + 3] / 255; if (cov < 0.04) { d[i + 3] = 0; cut++; continue; }
+      var t = md[i] / 100, fold = Math.min(foldMax, (Math.abs(tAt(j + 1) - tAt(j - 1)) + Math.abs(tAt(j + W) - tAt(j - W))) * foldK * 0.5);
+      var mlt = Math.max(0.3, Math.min(1.35, base + gain * t));
+      if (mlt <= 1) { d[i] *= mlt; d[i + 1] *= mlt; d[i + 2] *= mlt; }
+      else { var h = (mlt - 1) * 0.6; d[i] += (255 - d[i]) * h; d[i + 1] += (255 - d[i + 1]) * h; d[i + 2] += (255 - d[i + 2]) * h; }
+      d[i + 3] = d[i + 3] * cov * (1 - fold) * alphaK; kept++;
+    }
+    for (y = 0; y < H; y++) for (x = 0; x < W; x++) if ((y < by0 || y > by1 || x < bx0 || x > bx1) && d[(y * W + x) * 4 + 3]) d[(y * W + x) * 4 + 3] = 0;
+    wx.putImageData(wd, 0, 0);
+    var cx2 = cv.getContext("2d"); cx2.save(); cx2.setTransform(1, 0, 0, 1, 0, 0); cx2.drawImage(wv, 0, 0); cx2.restore();
+    V159A.prints++;
+    return { box: [x0, y0, x1, y1], kept: kept, cut: cut, R: +R.toFixed(1) };
+  }
+  function chestNumV159A(cv, res, num, nfId, C) {
+    if (BUSY_V159A || !onV159A("v159Anum") || !cv || !cv.getContext) return null;
+    try {
+      var nf = nfOfV157C(nfId), style = nfFaceOfV158A(nf), lay = document.createElement("canvas"), r = null;
+      lay.width = cv.width; lay.height = cv.height;
+      BUSY_V159A = 1;
+      try { r = style ? chestNumV158A(lay, res, num, nfId, C) : textNumV159A(lay, res, num, nf, C, FIG.last); } finally { BUSY_V159A = 0; }
+      if (!r) return null;
+      var P = printV159A(cv, lay, res, C); if (!P) return null;
+      r.v159 = true; r.print = P;
+      V159A.chest = { num: r.num, nf: r.nf, ink: r.ink || null, box: P.box, kept: P.kept, cut: P.cut, R: P.R };
+      return r;
+    } catch (e) { errV159A(e); BUSY_V159A = 0; return null; }
+  }
+  /* the Locker's number preview: the team face in the kit's contrast, and the jersey's roll of light over both */
+  function inkNfV159A(tc) { var k = inkForV159A(tc && tc[0], tc && tc[1], null); return { font: "Oswald, sans-serif", col: k.fill, stroke: k.stroke }; }
+  function previewPrintV159A(x) {
+    if (!onV159A("v159Anum")) return;
+    try {
+      var g = x.createLinearGradient(14, 0, 50, 0);
+      g.addColorStop(0, "rgba(0,0,0,.38)"); g.addColorStop(0.3, "rgba(0,0,0,.04)"); g.addColorStop(0.55, "rgba(255,255,255,.1)"); g.addColorStop(1, "rgba(0,0,0,.42)");
+      x.save(); x.globalCompositeOperation = "source-atop"; x.fillStyle = g; x.fillRect(0, 0, 64, 64); x.restore();
+    } catch (e) { errV159A(e); }
+  }
+  Object.assign(V159A, {
+    uniColour: uniColV159A, setUniColour: setUniColV159A, uniMode: uniModeV159A, ink: inkForV159A, numInk: numInkV159A,
+    maps: mapsV159A, jerseyMask: function (res, W, H) { var M = maskOutV159A(res, W, H); return M ? M.d : null; }, row: uniColRowV159A
+  });
+
   /* ---------------- the API ---------------- */
   var API = {
     version: "v151b", slots: SLOTS.slice(), cats: CATS, achievements: ACH.map(function (a) { return { id: a.id, name: a.name, desc: a.desc }; }),
@@ -4639,6 +6280,8 @@
     face: faceV157C, drawFigure: drawFigureV157C, growFigure: growFigureV157C, jerseyNum: jerseyNumV157C, iconRules: function () { return ICON_RULES_V157C.map(function (r) { return { id: r.id, name: r.name, desc: r.desc, rarity: r.rarity }; }); },
     iconAccount: iconAccountV157C, iconTick: iconTickV157C, paintBadge: paintBadgeV157C,   // v157 C
     numRender: nfRenderV158A, paintBanner: V158A.paintBanner, dressCard: dressCardV158A,   // v158 A
+    celebratePlay: V159C.play, shelfAlive: shelfV159C,   // v159 C
+    numInk: numInkV159A, uniColour: uniColV159A, setUniColour: setUniColV159A,   // v159 A
     _reset: function () { mem = null; try { localStorage.removeItem(KEY); } catch (e) {} fire({ reset: 1 }); }
   };
   window.RIB_COSMETICS = API;

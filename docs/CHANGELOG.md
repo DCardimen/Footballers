@@ -10,6 +10,27 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v159 — the whole team wears it; My Plays Only is the member's; the end zone, the shelf, the wings, the crowns alive.**
+  (`src/05`, `src/07`, `src/22`, `src/27`, `src/28`, `src/31`; `v159A`–`v159Dcheck`.)
+  *A — the whole team wears it* (`v159 A THE WHOLE TEAM WEARS IT`): the equipped uniform and helmet dress all of his
+  team on the live field (both sides of the ball, the sideline too), recoloured once per kit and cached; the opponent
+  keeps its kit. Every uniform can be worn in the TEAM PALETTE (Locker: "Colours: Uniform's own · Team palette") —
+  its pattern in the team's two colours, everywhere he is drawn. Numbers are printed on the fabric: wrapped around the
+  chest, clipped to the jersey, shaded by its light and folds, a contrast colour picked from the kit; on the field every
+  number takes its kit's contrast colour and turns with the shirt.
+  *B — My Plays Only is the member's* (`v159 B MY PLAYS ONLY IS THE MEMBER'S`): while the store is ON, My Plays Only
+  is a member perk — a free player gets 30 minutes from an ad (the F2P preview plays the 15-s placeholder); playoffs
+  still force it off; store OFF unchanged. Members now get 50% more season sims (×1.5, per group, rounded half-even:
+  2 to start, 30 with every group). A new profile tab, ⏭ SIMS, shows each medal colour's season-sim reward.
+  *C — the end zone and the shelf, alive* (`v159 C …`): one celebration system — anticipation, burst, linger, fade —
+  with physics particles, shockwave, kinetic callout type and a hop, themed per celebration (lightning with a stepped
+  leader, cannons of confetti, meteors, a self-drawing rainbow, a snow globe, an 8-bit grid…), the same animation
+  looping in the Locker. The trophy shelf glints, bobs, shimmers per material and counts up.
+  *D — flutter, crowns, more light* (`v159 D FLUTTER, CROWNS, MORE LIGHT`): wings are never still — a flutter with
+  per-family feel (feathers ripple, membranes shiver, jets jitter, bones rattle), then a strong flap with a raise and a
+  settle. 16 new crowns (thorns, jester, viking, ice tiara, kabuto, pharaoh, crystal diadem, neon, flaming skull,
+  dragon, storm, imperial, crown of stars…) and every crown animates. 16 new auras (fireflies, sandstorm, pixel glitch,
+  spirit wolves, tesla coils, phoenix rebirth, dragon spirit, event horizon…).
 - **v158 — the card, dressed; try both sides of the store.** (`src/28-cosmetics.js`, `src/27-monetize.js`,
   `src/07-career-app.js`; `v158Acheck`, `v158Bcheck`.)
   *A — the card, dressed* (`v158 A THE CARD, DRESSED`): 26 new animated BANNERS (the old ones redrawn), and every

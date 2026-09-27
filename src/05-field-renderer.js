@@ -1594,12 +1594,16 @@ window.__ribPaintTimeoutsV109 = ribPaintTimeoutsV109;
  * side), re-registered only when that palette changes. The plumbob still says which one he is. */
 function ribSyncYouKitV96(scene, side) {
   try {
-    const c = RIB.teamCols[side]; if (!c) return;
+    const c = (side === "off" && RIB.baseOffV159A) || RIB.teamCols[side]; if (!c) return;   // v159 A: "off" may wear the kit now — his base is the team's palette
+    const team159 = side === "off" && TU("v159Ateam", 1) && RIB.baseOffV159A;
+    if (team159) ribTeamKitV159A(scene);   // v159 A: the whole team first; he is a copy of it
     const cos = cosKitV151B(c);
-    const key = side + ":" + c[0] + c[1] + (cos ? "|" + cos.stamp : "");
+    const key = side + ":" + c[0] + c[1] + (cos ? "|" + cos.stamp + "|" + cos.p1 + cos.p2 : "") + (team159 ? "|t" + RIB.offKitV159A : "");
     if (RIB.youKitV96 === key && scene.textures && scene.textures.exists("spr_you_dn_idle")) return;
     (RIB.teamDeco || (RIB.teamDeco = {})).you = cos ? cos.deco : null;   // v151 B: an unequip must not leave the old deco standing
-    RIB.youKitV96 = key; ribRegisterTeam(scene, "you", cos ? cos.p1 : c[0], cos ? cos.p2 : c[1], cos ? cos.deco : null);
+    RIB.youKitV96 = key;
+    if (team159 && ribCloneTeamV159A(scene, "off", "you")) return;   // v159 A: the same pixels, copied — not recoloured twice
+    ribRegisterTeam(scene, "you", cos ? cos.p1 : c[0], cos ? cos.p2 : c[1], cos ? cos.deco : null);
   } catch (e) {}
 }
 /* ===== v151 B HIS KIT, HIS HELMET — the equipped uniform and helmet dress the "you" textures =====
@@ -1622,14 +1626,70 @@ function cosFxV153G(scene, m, p) {
 window.__COS_FIELD_V151B = {
   resync(scene) {
     if (!scene || !scene.markers) return false;
-    RIB.youKitV96 = null;
+    RIB.youKitV96 = null;   // v159 A: the team's key is NOT cleared — it carries the kit's stamp, so the same kit again is free
     const me = scene.markers.find((m) => m && m.team === "you");
     ribSyncYouKitV96(scene, (me && me.kitSide) || "off");
+    ribTeamKitV159A(scene);   // v159 A: a no-op when his sync already dressed the team (the key is set); else the team dresses now
     // rebind at once: the old "you" textures are gone, and a frame drawn before the next update would read a dead frame
-    scene.markers.forEach((m) => { try { const k = m && m.body && m.body.texture && m.body.texture.key; if (k && /^spr_you_/.test(k)) m.body.setTexture(scene.textures.exists(k) ? k : "rib_player_fallback"); } catch (e) {} });
+    scene.markers.forEach((m) => { try { const k = m && m.body && m.body.texture && m.body.texture.key; if (k && /^spr_(you|off)_/.test(k)) m.body.setTexture(scene.textures.exists(k) ? k : "rib_player_fallback"); } catch (e) {} });
+    ribRebindSideV159A(scene);   // v159 A: the backups on our sideline wear it too
     return true;
   },
 };
+/* ===== v159 A THE WHOLE TEAM WEARS IT (renderer) =====
+ * The owner: "make the uniforms apply to all the players on your team, along with the helmets". The equipped uniform
+ * and helmet now dress the "off" textures — the palette the user's eleven wear whichever side of the ball they are on
+ * (v105.2 `kitForV105_2`), and the backups on our sideline (`sidePlayer`) — not only "you". The opponent's "def"
+ * textures are never touched. Recoloured ONCE per kit key (`RIB.offKitV159A`: the team's base palette + the cosmetic
+ * stamp, which carries the clash with the opponent's jersey); the "you" textures are then a pixel copy of "off"
+ * (`ribCloneTeamV159A`, a drawImage per texture) instead of a second recolour. `RIB.baseOffV159A` keeps the team's own
+ * palette (the you-kit key and the clash test read it). Kill switch TU v159Ateam 0: v151 B exactly (his textures only).
+ * The field's numbers (printed on the shirt, src/28 `numInkV159A`) hook `numPlaceV104`. `window.__V159A_FIELD` is what
+ * v159Acheck reads. Looks only: no sim value is read or written, no Math.random is drawn. */
+function ribTeamKitV159A(scene) {
+  try {
+    const base = RIB.baseOffV159A; if (!base || !scene || !scene.textures) return false;
+    const cos = TU("v159Ateam", 1) ? cosKitV151B(base) : null;
+    const key = base[0] + base[1] + (cos ? "|" + cos.stamp + "|" + cos.p1 + cos.p2 : "");
+    if (RIB.offKitV159A === key && scene.textures.exists("spr_off_dn_idle")) return false;
+    (RIB.teamDeco || (RIB.teamDeco = {})).off = cos ? cos.deco : null;   // an unequip must not leave the old deco standing
+    RIB.offKitV159A = key;
+    const t0 = performance.now();
+    ribRegisterTeam(scene, "off", cos ? cos.p1 : base[0], cos ? cos.p2 : base[1], cos ? cos.deco : null);
+    const F = window.__V159A_FIELD; F.regs++; F.lastMs = +(performance.now() - t0).toFixed(1); F.key = key; F.kit = !!cos;
+    return true;
+  } catch (e) { return false; }
+}
+function ribCloneTeamV159A(scene, from, to) {
+  try {
+    const pre = "spr_" + from + "_", keys = scene.textures.getTextureKeys().filter((k) => k.indexOf(pre) === 0);
+    if (keys.length < 50) return false;
+    const t0 = performance.now();
+    RIB.teams[to] = RIB.teams[from]; RIB.teamCols[to] = (RIB.teamCols[from] || []).slice();
+    (RIB.teamDeco || (RIB.teamDeco = {}))[to] = RIB.teamDeco[from] || null;
+    if (RIB.regScenes.indexOf(scene) < 0) RIB.regScenes.push(scene);
+    for (const k of keys) {
+      const nk = "spr_" + to + "_" + k.slice(pre.length), src = scene.textures.get(k).getSourceImage();
+      const cv = document.createElement("canvas"); cv.width = src.width; cv.height = src.height; cv.getContext("2d").drawImage(src, 0, 0);
+      RIB.numBandTex[nk] = RIB.numBandTex[k];
+      if (RIB.skinOfTexV151D) RIB.skinOfTexV151D[nk] = RIB.skinOfTexV151D[k];
+      try { scene.textures.remove(nk); } catch (e) {}
+      scene.textures.addCanvas(nk, cv);
+    }
+    try { if (scene.markers) scene.markers.forEach((m) => { m.tex = null; }); } catch (e) {}
+    const F = window.__V159A_FIELD; F.clones++; F.cloneMs = +(performance.now() - t0).toFixed(1); F.cloned = keys.length;
+    return true;
+  } catch (e) { return false; }
+}
+function ribRebindSideV159A(scene) {
+  try {
+    const S = scene && scene.side; if (!S || !S.items) return 0;
+    let n = 0;
+    S.items.forEach((im) => { const k = im && im.texture && im.texture.key; if (k && /^spr_off_/.test(k) && im.setTexture) { im.setTexture(scene.textures.exists(k) ? k : "rib_player_fallback"); n++; } });
+    window.__V159A_FIELD.side = n; return n;
+  } catch (e) { return 0; }
+}
+window.__V159A_FIELD = { regs: 0, clones: 0, lastMs: 0, cloneMs: 0, cloned: 0, key: null, kit: false, side: 0, base: () => RIB.baseOffV159A && RIB.baseOffV159A.slice(), teams: () => Object.assign({}, RIB.teamCols) };
 // the atlas decodes the moment the page loads — long before any game starts
 (function () {
   if (!window.__RIB_ATLAS) return;
@@ -1742,8 +1802,10 @@ function ribActivate(scene) {
   scene.textures.addCanvas("spr_ball", ribCell("ball"));   // fix: the ball texture lives in the atlas now
   try { ribRegisterBallV91(scene); } catch (e) {}          // v91: the spiral and the tumble, when the sheet is in
   { const _tc = window.__GRIDIRON_TEAM_CUSTOM__, _p = (_tc && TEAM_PALETTES[_tc.palette]) || TEAM_PALETTES[0];
-    ribRegisterTeam(scene, "off", _p[0], _p[1]); try{window.__usJerseyV25=parseInt(String(_p[0]).replace("#",""),16);}catch(_e){} }
-  ribRegisterTeam(scene, "you", "#f0bb45", "#20304a");
+    RIB.baseOffV159A = [_p[0], _p[1]]; RIB.offKitV159A = null;   // v159 A: the team's own palette, kept apart from what "off" wears
+    if (!ribTeamKitV159A(scene)) ribRegisterTeam(scene, "off", _p[0], _p[1]); try{window.__usJerseyV25=parseInt(String(_p[0]).replace("#",""),16);}catch(_e){} }
+  // v159 A: nobody wears "you" until his first highlight re-dresses it — a copy of the team's textures, not a third recolour
+  if (!(TU("v159Ateam", 1) && RIB.offKitV159A && ribCloneTeamV159A(scene, "off", "you"))) ribRegisterTeam(scene, "you", "#f0bb45", "#20304a");
   // v45 OFFICIALS: a seventh "team" — the referee crew. White base kit recolored
   // then zebra-striped across the chest. v49 replaces this with the real officials
   // sheet the moment it decodes; the recolor only survives as the never-decoded fallback.
@@ -5713,6 +5775,9 @@ class Ot extends mt.Scene {
     L.setY((row + 0.5 - NUM_CELL_V104 / 2) * H - met.mid * sc);
     m._numRowV104 = row; m._numScaleV104 = sc; m._numCapV104 = cap; m._numRearV104 = !!rear; m._numBandV104 = b;
     RIB.numLast = m; RIB.numPlaced = (RIB.numPlaced || 0) + 1;   // the hook below reads these; no per-frame garbage
+    // v159 A: printed on the shirt — the kit's contrast, a jersey-shadow outline, the fabric through it, a quarter view's turn (src/28)
+    const inkV159A = window.RIB_COSMETICS && window.RIB_COSMETICS.numInk;
+    if (inkV159A) inkV159A(m, rear, RIB.teamCols[m.kit || m.team]);
   }
   /* ===== v112 THE HIT HAS WEIGHT (renderer) =====
    * `_launchUntil` / `_launchH` is a LIFT, not a flight: a fixed height, on a fixed sin() hump,

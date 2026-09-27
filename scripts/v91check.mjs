@@ -69,10 +69,18 @@ const rec = await page.evaluate(() => {
     if (hue >= 190 && hue <= 265 && (mx-mn)/Math.max(1,mx) > 0.15) navy++
     const dh = Math.min(Math.abs(hue - ph), 360 - Math.abs(hue - ph)); const neutralPx = (mx - mn) < 40
     if ((neutralP && neutralPx) || (!neutralP && dh < 28)) near++ }
-  return { primary: hex, n, near, navy, primaryIsNavy: ph >= 190 && ph <= 265, usedV91: ((window.__V91 && window.__V91.cacheKeys) ? window.__V91.cacheKeys() : []).filter(k => /^run_/.test(k)).length }
+  // v159 A: the hue rule above skips every pixel darker than L 38, so a DARK primary (navy #003594, forest #0b6623,
+  // near-black #15151c…) leaves only the arms and the skin to count and fails whatever the recolour did — 20 of the 53
+  // palettes, on main too, whenever the career rolls one. The recolour multiplies the primary by the drawn shade, so a
+  // jersey pixel is the primary SCALED: its RGB direction matches (cos > 0.985) at any lightness. Either rule passes.
+  let dn = 0, dnear = 0; const PL = Math.hypot(P[0], P[1], P[2]) || 1
+  for (let y = 13; y < 27; y++) for (let x = 12; x < 36; x++) { const i = (y * 48 + x) * 4; if (d[i+3] < 40) continue
+    const r = d[i], g = d[i+1], b = d[i+2]; if (Math.max(r, g, b) < 12) continue; dn++
+    if ((r * P[0] + g * P[1] + b * P[2]) / ((Math.hypot(r, g, b) || 1) * PL) > 0.985) dnear++ }
+  return { dn, dnear, primary: hex, n, near, navy, primaryIsNavy: ph >= 190 && ph <= 265, usedV91: ((window.__V91 && window.__V91.cacheKeys) ? window.__V91.cacheKeys() : []).filter(k => /^run_/.test(k)).length }
 })
 console.log('recolour:', JSON.stringify(rec))
-ok(rec && rec.n > 40 && rec.near >= rec.n * 0.5 && (rec.primaryIsNavy || rec.navy < rec.n * 0.15), 'the recolour reached the new art: the run frame\'s jersey wears the you-player\'s team primary', rec && `primary=${rec.primary} near=${rec.near}/${rec.n} navy=${rec.navy}`)
+ok(rec && ((rec.n > 40 && rec.near >= rec.n * 0.5 && (rec.primaryIsNavy || rec.navy < rec.n * 0.15)) || (rec.dn > 60 && rec.dnear >= rec.dn * 0.35)), 'the recolour reached the new art: the run frame\'s jersey wears the you-player\'s team primary', rec && `primary=${rec.primary} near=${rec.near}/${rec.n} navy=${rec.navy} scaled=${rec.dnear}/${rec.dn}`)
 ok(rec.usedV91 >= 40, 'the run frames came from the v91 cells, not the older atlases', `v91 run cells cut=${rec.usedV91}`)
 
 // ---- 2b. the defence too: its jersey carries the defence primary, whatever palette the opponent drew
@@ -93,10 +101,18 @@ const defRec = await page.evaluate(() => {
     if (hue >= 190 && hue <= 265 && (mx-mn)/Math.max(1,mx) > 0.15 && (mx+mn)/2 >= 38) navy++
     const dh = Math.min(Math.abs(hue - ph), 360 - Math.abs(hue - ph)); const neutralPx = (mx - mn) < 40
     if ((neutralP && neutralPx) || (!neutralP && dh < 28)) near++ }
-  return { primary: hex, n, near, navy, primaryIsNavy: ph >= 190 && ph <= 265 }
+  // v159 A: the hue rule above skips every pixel darker than L 38, so a DARK primary (navy #003594, forest #0b6623,
+  // near-black #15151c…) leaves only the arms and the skin to count and fails whatever the recolour did — 20 of the 53
+  // palettes, on main too, whenever the career rolls one. The recolour multiplies the primary by the drawn shade, so a
+  // jersey pixel is the primary SCALED: its RGB direction matches (cos > 0.985) at any lightness. Either rule passes.
+  let dn = 0, dnear = 0; const PL = Math.hypot(P[0], P[1], P[2]) || 1
+  for (let y = 13; y < 27; y++) for (let x = 12; x < 36; x++) { const i = (y * 48 + x) * 4; if (d[i+3] < 40) continue
+    const r = d[i], g = d[i+1], b = d[i+2]; if (Math.max(r, g, b) < 12) continue; dn++
+    if ((r * P[0] + g * P[1] + b * P[2]) / ((Math.hypot(r, g, b) || 1) * PL) > 0.985) dnear++ }
+  return { dn, dnear, primary: hex, n, near, navy, primaryIsNavy: ph >= 190 && ph <= 265 }
 })
 console.log('defence recolour:', JSON.stringify(defRec))
-ok(defRec && defRec.n > 40 && defRec.near >= defRec.n * 0.5 && (defRec.primaryIsNavy || defRec.navy < defRec.n * 0.15), 'the defence jersey wears the defence primary (torso pixels match its hue family)', defRec && `primary=${defRec.primary} near=${defRec.near}/${defRec.n} navy=${defRec.navy}`)
+ok(defRec && ((defRec.n > 40 && defRec.near >= defRec.n * 0.5 && (defRec.primaryIsNavy || defRec.navy < defRec.n * 0.15)) || (defRec.dn > 60 && defRec.dnear >= defRec.dn * 0.35)), 'the defence jersey wears the defence primary (torso pixels match its hue family)', defRec && `primary=${defRec.primary} near=${defRec.near}/${defRec.n} navy=${defRec.navy} scaled=${defRec.dnear}/${defRec.dn}`)
 
 // ---- 3. watch the field: the renderer uses the new states
 const MS = +(process.env.V91_MS || 70000), SHOTS = !!process.env.V91_SHOTS

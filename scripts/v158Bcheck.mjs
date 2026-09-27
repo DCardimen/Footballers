@@ -13,7 +13,7 @@
 //      adBreakV158B 0: never); every entitlement lives in the sandbox keys, never the save or the real store key; the
 //      placeholder fits 400x860.
 //   3. MEMBER preview (switched from Settings through the ribDialog confirm): the F2P sandbox is gone, `member` held,
-//      no ad anywhere (the 4× offer is not needed, no placeholder, no break), 4× allowed, Quick Play free, season sims doubled (and counted), a member
+//      no ad anywhere (the 4× offer is not needed, no placeholder, no break), 4× allowed, Quick Play free, season sims ×1.5 (v159 B; counted), a member
 //      look owned and equipped; the chip reads "PREVIEW · MEMBER".
 //   4. Back to OFF: the store is off again, every preview key is deleted, the member look is not owned and the slot
 //      falls back to its default; no chip. No page errors throughout.
@@ -215,7 +215,7 @@ await confirmDlg(p)
     const q = p.weekResults.filter((w) => w.played).length, s = window.__V156B.skips(); p.simsUsedV156B = 1; window.go('season'); window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 2500))
     return { n0, q, n1: p.weekResults.filter((w) => w.played).length, used: p.simsUsedV156B, mult: s.mult, allowed: s.allowed, club: s.club, games: R.until('gameSims') === Infinity, sheet: !!document.getElementById('mz149Sheet') } })
   ok(sim.games && sim.q === sim.n0 + 1, 'MEMBER: Quick Play is free for good (unlimited game sims)', sim)
-  ok(sim.mult === 2 && sim.allowed === 2 && !sim.club && sim.n1 > sim.q && sim.used === 2 && !sim.sheet, 'MEMBER: twice the season sims (a fresh account: 2) — counted, never unlimited', sim)
+  ok(sim.mult === 1.5 && sim.allowed === 2 && !sim.club && sim.n1 > sim.q && sim.used === 2 && !sim.sheet, 'MEMBER: 50% more season sims (v159 B ×1.5 — a fresh account: 1.5 → 2) — counted, never unlimited', sim)
   const br = await M(p, async (src) => { const S = window.S; await eval('(' + src + ')')(); if (S.view !== 'result') return 'no result: ' + S.view; await new Promise((r) => setTimeout(r, 1200)); return !!document.getElementById('mz149Ad') }, toResultSrc)
   ok(br === false, 'MEMBER: the report card shows no break', br)
   const ml = await M(p, () => { const C = window.RIB_COSMETICS, it = C.catalog().find((i) => i.source === 'member' && i.cat === 'wings') || C.catalog().find((i) => i.source === 'member'); window.__ml = it.id
