@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v162 — the handover is smooth; the helmet is the helmet.** A change of possession no longer re-bakes the field three
+  times or recolours his kit twice (a bake on screen is reused, the stands' cheer layers repaint after the snap); the
+  profile figure's helmet is read off the art, so its jaw flaps no longer take the jersey's colour. `v162Acheck`, `v162Bcheck`.
 - **v161 A — they celebrate like they mean it.** Three drawn touchdown celebrations — the flex, the backflip, the ball
   spike — picked at random on his touchdowns, in his kit, with real arcs, a smooth spin and a bouncing ball.
   `scripts/build-celebration-sheets.py`; `v161Acheck`.

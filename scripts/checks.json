@@ -861,10 +861,12 @@
    "anchors": [
     "v96",
     "v104",
-    "v105"
+    "v105",
+    "v162 A"
    ],
    "files": [],
    "checks": [
+    "v162Acheck",
     "kitsidecheck",
     "v104check",
     "v105check",
@@ -1262,7 +1264,8 @@
    "checks": [
     "crowdcheck",
     "sidelinecheck",
-    "refcheck"
+    "refcheck",
+    "v162Acheck"
    ]
   },
   "declare": {
@@ -1471,7 +1474,8 @@
     "v159 D",
     "v159 A",
     "v160 A",
-    "v161 A"
+    "v161 A",
+    "v162 B"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1480,6 +1484,7 @@
     "public/celebrations/cel_v161a.json"
    ],
    "checks": [
+    "v162Bcheck",
     "v161Acheck",
     "v160Acheck",
     "v159Ccheck",
@@ -4023,6 +4028,35 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "v162Acheck": {
+   "file": "scripts/v162Acheck.mjs",
+   "desc": "v162 A — the handover is smooth: with a linebacker and the live loop held, a drive header that hands the ball to the opponent bakes the field once (not twice), dresses the eleven by possession (their offense def, his defense off) and keeps him in his own palette with no kit recolour; the drive's first snap at the same spot does not bake again; a new spot, a flipped direction, a Settings change and refreshPersp do bake; the stands' quiet cheer layers queue their repaint, drain within 40 frames, a heating section paints at once, and the drained canvases match a non-deferred bake; kill switch TU v162A 0 restores the double bake and the side-dressed header; no page errors.",
+   "areas": [
+    "field",
+    "kits",
+    "crowd",
+    "live"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": false,
+   "note": "waits for the live field on game state (scripts/lib/live.mjs waitLive), then stubs GridironPhaser.animate/drawStatic so the log stops advancing."
+  },
+  "v162Bcheck": {
+   "file": "scripts/v162Bcheck.mjs",
+   "desc": "v162 B — the helmet is the helmet: the profile figure's helmet shell is read off idle_dn_hi.png (a helmet-sized mask, never below the neck, off both shoulder pads); recoloured red jersey / white helmet, the jaw flap beside the face mask is helmet-coloured with no red, the shoulder pads stay red, no shell pixel takes the jersey colour; kill switch TU v162Bhelm 0 paints the flap jersey red again; the profile figure still draws; no page errors.",
+   "areas": [
+    "cosmetics"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }

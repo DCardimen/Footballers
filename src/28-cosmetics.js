@@ -741,10 +741,11 @@
     // the helmet is the dome (an ellipse over the art's own helmet), not everything above the neck: the
     // shoulder pads ride those rows too. Its stripe is the gold above the visor; the mask stays the trim colour.
     var hx0 = W * 0.515, hy0 = H * 0.15, hrx = W * 0.29, hry = H * 0.14, visor = H * 0.23;
+    var shell162 = helmShellV162B(d, W, H, neck);   // v162 B: the art's own shell, down to the jaw flaps
     for (var y = 0; y < H; y++) for (var xx = 0; xx < W; xx++) {
       var i = (y * W + xx) * 4; if (d[i + 3] < 20) continue;
       var c = srcClass(d[i], d[i + 1], d[i + 2]), cls = c[0], o = null, t = 1;
-      var ex = (xx - hx0) / hrx, ey = (y - hy0) / hry, helmet = y < neck && ex * ex + ey * ey <= 1;
+      var ex = (xx - hx0) / hrx, ey = (y - hy0) / hry, helmet = (y < neck && ex * ex + ey * ey <= 1) || !!(shell162 && shell162[y * W + xx]);
       var face = y >= H * 0.2 && y < neck + 6 && xx > W * 0.28 && xx < W * 0.75;
       if (cls === 1) {
         t = c[1] / MED1;
@@ -774,6 +775,47 @@
     x.putImageData(img, 0, 0);
     FIG.cache[key] = cv;
     return cv;
+  }
+  /* ===== v162 B THE HELMET IS THE HELMET =====
+   * The owner: "the profile character sprite's lower helmet bleeds into the jersey — make the colours of the jersey and
+   * helmet separate". `figCell` called a navy pixel helmet only inside a hand-measured ELLIPSE over the dome, and the
+   * shell does not stop there: its jaw flaps run down beside the face mask to the chin, so they were painted the JERSEY
+   * colour and the helmet looked like it melted into the shirt. The shell is now read off the art: the navy connected
+   * to the dome (a seed either side of the stripe), walked only through pixels at least `v162BerodeR` (1) px clear of the
+   * dark ink — which is what closes the one-pixel gap where the shell touches the left shoulder pad — then grown back
+   * out to the ink, and never below the neck. Measured once per art (`FIG.shellV162B`); the ellipse still counts, so
+   * nothing that was helmet stops being helmet. Looks only. Kill switch TU("v162Bhelm", 0). `window.__V162B`; `v162Bcheck`. */
+  function helmShellV162B(d, W, H, neck) {
+    if (!TUv("v162Bhelm", 1)) return null;
+    var R = Math.max(0, Math.round(TUv("v162BerodeR", 1))), key = W + "x" + H + ":" + neck + ":" + R;
+    if (FIG.shellV162B && FIG.shellV162B.key === key && FIG.shellV162B.img === FIG.img) return FIG.shellV162B.m;
+    var N = W * H, navy = new Uint8Array(N), ink = new Uint8Array(N), j, xx, y;
+    for (j = 0; j < N; j++) {
+      var i = j * 4; if (d[i + 3] < 20) { ink[j] = 1; continue; }
+      var c = srcClass(d[i], d[i + 1], d[i + 2])[0]; if (c === 1) navy[j] = 1;
+      else if (Math.max(d[i], d[i + 1], d[i + 2]) < 48) ink[j] = 1;
+    }
+    var clear = function (x0, y0) {
+      for (var dy = -R; dy <= R; dy++) for (var dx = -R; dx <= R; dx++) { var X = x0 + dx, Y = y0 + dy; if (X < 0 || Y < 0 || X >= W || Y >= H || ink[Y * W + X]) return false; }
+      return true;
+    };
+    var m = new Uint8Array(N), q = [[Math.round(W * 0.4), Math.round(H * 0.1)], [Math.round(W * 0.68), Math.round(H * 0.13)]];
+    while (q.length) {
+      var p = q.pop(); xx = p[0]; y = p[1];
+      if (xx < 0 || y < 0 || xx >= W || y >= neck) continue;
+      j = y * W + xx; if (m[j] || !navy[j] || !clear(xx, y)) continue;
+      m[j] = 1; q.push([xx + 1, y], [xx - 1, y], [xx, y + 1], [xx, y - 1]);
+    }
+    for (var it = 0; it <= R; it++) {   // back out to the ink the erosion kept it off
+      var add = [];
+      for (y = 0; y < neck; y++) for (xx = 0; xx < W; xx++) { j = y * W + xx; if (m[j] || !navy[j]) continue;
+        if ((xx > 0 && m[j - 1]) || (xx < W - 1 && m[j + 1]) || (y > 0 && m[j - W]) || (y < H - 1 && m[j + W])) add.push(j); }
+      add.forEach(function (k) { m[k] = 1; });
+    }
+    var n = 0, lo = 0; for (j = 0; j < N; j++) if (m[j]) { n++; lo = Math.max(lo, (j / W) | 0); }
+    FIG.shellV162B = { key: key, img: FIG.img, m: m };
+    window.__V162B = { px: n, lowest: lo, neck: neck, erode: R, mask: function () { return m; } };
+    return m;
   }
   /* the growth screen's geometry (07 growDrawHiV134), on the card's own recolour */
   function figDraw(cv, age, K) {
