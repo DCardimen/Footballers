@@ -10,6 +10,14 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v163 A — the game never stops.** (`src/05-field-renderer.js`, `src/06-phaser-launcher.js`, `src/07-career-app.js`,
+  `scripts/v163Acheck.mjs`.) Live games sometimes froze for good. The broadcast's frame loop asks for its next frame only
+  after the current one finishes, so a single error in one frame — most often a sprite still holding a texture that
+  had just been re-registered under it (a kit, a crowd section, a number font) — stopped the field, the play never
+  finished, and the game waited on it forever. Now a bad frame is caught and the next one drawn; a texture swapped
+  under a sprite is rebound before it is drawn; every play has a wall-clock watch that restarts a stopped loop and, as
+  a last resort, hands the play back so the game moves on; and the live loop's own ticks can no longer break the chain.
+  Kill switch `v163A`.
 - **v162 — the handover is smooth; the helmet is the helmet.** (`src/05-field-renderer.js`, `src/28-cosmetics.js`,
   `scripts/v162Acheck.mjs`, `scripts/v162Bcheck.mjs`.)
   *A — the handover is smooth* (`v162 A THE HANDOVER IS SMOOTH`): the live game lagged at every change of possession. The

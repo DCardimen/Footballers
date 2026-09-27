@@ -1017,10 +1017,12 @@
   "launch": {
    "desc": "v112 F — a big hit taking a man off his feet",
    "anchors": [
-    "v112 F"
+    "v112 F",
+    "v163 A"
    ],
    "files": [],
    "checks": [
+    "v163Acheck",
     "v112Fcheck",
     "v103check",
     "v109C1check",
@@ -4057,6 +4059,21 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v163Acheck": {
+   "file": "scripts/v163Acheck.mjs",
+   "desc": "v163 A — the game never stops: on a live game (every snap, 2x) one exception thrown inside a frame is caught and the loop keeps drawing and the log keeps moving; a dead texture under a sprite keeps the loop running; a texture swapped under a live sprite (remove + re-add under the same key) is rebound before it is drawn with no error; a stopped loop is restarted by the play's wall-clock watch; an orphaned play is handed back; a throw in a live tick is retried; the watch spends no Math.random; kill switch TU v163A 0 (a fresh page): one bad frame stops the loop for good; no page errors besides the injected ones.",
+   "areas": [
+    "live",
+    "field"
+   ],
+   "runtimeSec": 240,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true,
+   "note": "two walks into a live game (the second for the kill switch); waits on game state (scripts/lib/live.mjs waitLive)."
   }
  }
 }

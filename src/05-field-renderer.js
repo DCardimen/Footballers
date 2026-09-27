@@ -9248,6 +9248,99 @@ window.__ribYouClientV153A = function () {
 };
 // the badge's caption for a yardage
 function badgeYdsV95(yd) { yd = Number(yd || 0); return yd > 0 ? "+" + yd + " YARDS" : yd < 0 ? "LOSS OF " + Math.abs(yd) : ""; }
+/* ===== v163 A THE GAME NEVER STOPS (renderer) =====
+ * The owner: "sometimes the game fails to load the sim and it stalls out". Phaser 3.90's frame loop asks for the next
+ * animation frame only AFTER the frame's callback returns (`step(){ callback(); if (isRunning) requestAnimationFrame(step) }`),
+ * so ONE exception thrown anywhere in a frame — an update, a tween, a renderer drawing a texture whose canvas was just
+ * swapped out — ended the loop for good: the play froze at whatever t it had, the v144 watchdog (a Phaser timer on the
+ * same dead clock) never fired, the play's completion never came back and the career app waited on it forever.
+ * `guardLoopV163A` wraps the TimeStep's callback (and every callback `start` is handed later, so a restart keeps it):
+ * a thrown frame is caught and recorded, the canvas state it left half-done is unwound (`ctx.restore()` past any
+ * camera's save and clip — extra restores are no-ops — and the renderer pointed back at the game's context), anything
+ * on the display list whose texture source is gone is re-dressed or hidden (`sweepV163A`), and the next frame is
+ * scheduled as always. The Phaser clock keeps running, so a play whose own update keeps throwing still ends on its
+ * v144 watchdog. The career-side half (a wall-clock watch on every play, the live loop's own ticks) is in
+ * src/06-phaser-launcher.js and src/07-career-app.js under the same banner. Kill switch `TU("v163A", 0)` (read at mount).
+ * `window.__V163A` (`caught`, `swept`, `errors`, …); `v163Acheck`. Looks and flow only: no sim value, no Math.random. */
+window.__V163A = window.__V163A || { caught: 0, swept: 0, restarts: 0, released: 0, tickErrors: 0, errors: [] };
+function noteErrV163A(where, e) {
+  const V = window.__V163A, msg = String((e && e.message) || e).slice(0, 160);
+  const last = V.errors[V.errors.length - 1];
+  if (last && last.where === where && last.msg === msg) { last.n++; last.at = Date.now(); return false; }
+  V.errors.push({ where, msg, n: 1, at: Date.now() }); if (V.errors.length > 12) V.errors.shift();
+  try { console.warn("[v163 A] " + where + " — kept going:", e); } catch (er) {}
+  return true;
+}
+function sweepV163A(scene) {
+  let n = 0;
+  try {
+    const tex = scene.textures, fb = tex.exists("rib_player_fallback") ? "rib_player_fallback" : null;
+    const dead = (o) => { const f = o && o.frame; if (!f || !o.texture) return false;
+      const k = o.texture.key; if (k === "__MISSING" || k === "__DEFAULT" || k === "__WHITE") return false;
+      return !tex.exists(k) || !f.source || !f.source.image; };
+    const walk = (list) => { for (const o of list || []) {
+      if (dead(o)) { try { if (fb && o.setTexture && /^spr_/.test(o.texture.key)) o.setTexture(fb); else o.setVisible(false); } catch (e) { try { o.setVisible(false); } catch (er) {} } n++; }
+      if (o && o.list) walk(o.list); } };
+    walk(scene.sys.displayList.list);
+  } catch (e) {}
+  window.__V163A.swept += n;
+  return n;
+}
+function frameErrorV163A(game, e) {
+  const V = window.__V163A; V.caught++;
+  noteErrV163A("frame", e);
+  try {
+    const R = game.renderer, ctx = R && R.gameContext;
+    if (ctx) { for (let i = 0; i < 32; i++) ctx.restore(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; }
+    if (R && R.gameContext && "currentContext" in R) R.currentContext = R.gameContext;
+  } catch (er) {}
+  try { (game.scene.scenes || []).forEach((sc) => { if (sc && sc.sys && sc.sys.displayList) sweepV163A(sc); }); } catch (er) {}
+}
+/* v163 A: a texture swapped under a live sprite. Many systems re-register a texture under the SAME key (the kits, the
+ * crowd's grow-only canvases, the number fonts, the celebrations): `textures.remove(key)` destroys the old texture —
+ * its source image goes null — and `addCanvas(key, …)` makes a new one, but a sprite still holds the OLD texture object
+ * until something calls setTexture on it. The canvas renderer then reads `frame.source.image` = null and throws
+ * ("Cannot read properties of null (reading 'drawImage')"), which before this banner was the end of the loop. The
+ * texture manager says when a key is added; the sprites still on a dead texture of that key are rebound (same frame
+ * name when the new texture has it) in a microtask — before the next frame is drawn — whoever swapped it. */
+function rebindOnSwapV163A(game) {
+  try {
+    const TM = game && game.textures; if (!TM || !TM.on || TM.__rebindV163A || !TU("v163A", 1)) return false;
+    TM.__rebindV163A = true;
+    let keys = null;
+    const flush = () => {
+      const ks = keys; keys = null; if (!ks) return;
+      let n = 0;
+      const walk = (list) => { for (const o of list || []) {
+        const t = o && o.texture, f = o && o.frame;
+        if (t && ks.has(t.key) && TM.exists(t.key) && TM.get(t.key) !== t && o.setTexture) {
+          const nt = TM.get(t.key), fn = f && f.name != null && nt.has && nt.has(f.name) ? f.name : undefined;
+          try { o.setTexture(t.key, fn); n++; } catch (e) {}
+        }
+        if (o && o.list) walk(o.list);
+      } };
+      try { (game.scene.scenes || []).forEach((sc) => { if (sc && sc.sys && sc.sys.displayList) walk(sc.sys.displayList.list); }); } catch (e) {}
+      window.__V163A.rebound = (window.__V163A.rebound || 0) + n;
+    };
+    TM.on("addtexture", (key) => { if (!keys) { keys = new Set(); Promise.resolve().then(flush); } keys.add(key); });
+    return true;
+  } catch (e) { return false; }
+}
+function guardLoopV163A(game) {
+  try {
+    if (!TU("v163A", 1) || !game || !game.loop || game.loop.__guardV163A) return false;
+    const loop = game.loop; loop.__guardV163A = true;
+    const wrap = (cb) => {
+      if (typeof cb !== "function" || cb.__v163A) return cb;
+      const g = function (time, delta) { try { return cb.call(this, time, delta); } catch (e) { frameErrorV163A(game, e); } };
+      g.__v163A = true; return g;
+    };
+    const start0 = loop.start;
+    loop.start = function (cb) { return start0.apply(this, [wrap(cb)].concat([].slice.call(arguments, 1))); };
+    if (loop.callback) loop.callback = wrap(loop.callback);
+    return true;
+  } catch (e) { return false; }
+}
 class Dt {
   game; scene; canvas; pending = [];
   drawStatic(et) { const rt = document.querySelector("#field"); return rt ? (this.withScene(rt, (it) => it.renderStatic(et)), !0) : !1; }
@@ -9266,6 +9359,8 @@ class Dt {
       type: mt.CANVAS, width: 720, height: CH, canvas: et, transparent: !1, backgroundColor: "#0a1018",
       render: { antialias: !0, pixelArt: !1, roundPixels: !0 }, audio: { noAudio: !0 }, scene: it,
     });
+    guardLoopV163A(this.game);   // v163 A: one thrown frame must never end the loop
+    rebindOnSwapV163A(this.game);   // v163 A: and a texture swapped under a sprite is rebound before it is drawn
   }
 }
 window.PhaserFieldBridge = Dt;
