@@ -84,7 +84,8 @@ for (const { name, k } of kits) {
 }
 // an equipped helmet: the shell colour is on the helmet, not on the shoulders
 const hel = await E(() => { const cv = document.createElement('canvas'); document.body.appendChild(cv)
-  window.RIB_COSMETICS.drawCharacter(cv, { j: '#c8102e', p: '#ffffff', hs: '#1e8a3a', hst: '#ffd76f', hf: 'matte' }, 22)
+  const T = window.RIB_TUNE || (window.RIB_TUNE = {}); T.v160Alogo = 0   // v160 A: the team emblem sits on the shell — this sample is about the shell colour alone
+  window.RIB_COSMETICS.drawCharacter(cv, { j: '#c8102e', p: '#ffffff', hs: '#1e8a3a', hst: '#ffd76f', hf: 'matte' }, 22); delete T.v160Alogo
   const out = { helmet: window.__figShare(cv, '#1e8a3a', 0.02, 0.2, 0.3, 0.7), shoulders: window.__figShare(cv, '#1e8a3a', 0.3, 0.42, 0, 0.22) + window.__figShare(cv, '#1e8a3a', 0.3, 0.42, 0.78, 1) }; cv.remove(); return out })
 ok(hel.helmet > 0.15 && hel.shoulders < 0.05, 'an equipped helmet shell colours the helmet, never the shoulder pads', hel)
 // the same kit twice draws the same pixels (no randomness in the recolour)

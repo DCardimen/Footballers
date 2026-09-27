@@ -1469,13 +1469,15 @@
     "v158 A",
     "v159 C",
     "v159 D",
-    "v159 A"
+    "v159 A",
+    "v160 A"
    ],
    "files": [
     "src/28-cosmetics.js",
     "docs/COSMETICS.md"
    ],
    "checks": [
+    "v160Acheck",
     "v159Ccheck",
     "v158Acheck",
     "v157Acheck",
@@ -3989,6 +3991,19 @@
    "needsServer": true,
    "pureNode": false,
    "loadSensitive": true,
+   "flaky": []
+  },
+  "v160Acheck": {
+   "file": "scripts/v160Acheck.mjs",
+   "desc": "v160 A — the profile figure wears his team's emblem on the side of the helmet: painted into the shell (only helmet pixels change), a different logo paints a different emblem, a sizeable stamp off the stripe, the growth figure still the card's figure, kill switch TU v160Alogo; no errors.",
+   "areas": [
+    "cosmetics",
+    "profile"
+   ],
+   "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
    "flaky": []
   }
  }

@@ -10,6 +10,10 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v160 A — the team on the helmet.** (`src/28-cosmetics.js`, `scripts/v160Acheck.mjs`.) The profile character wears his
+  team's logo on the side of the helmet — painted into the shell, curved with the dome, shaded by its light, off the
+  stripe — and so does every screen that draws the same figure (the growth screen, the live badge). A helmet with its own
+  decal keeps its decal. Kill switch `v160Alogo`.
 - **v159 — the whole team wears it; My Plays Only is the member's; the end zone, the shelf, the wings, the crowns alive.**
   (`src/05`, `src/07`, `src/22`, `src/27`, `src/28`, `src/31`; `v159A`–`v159Dcheck`.)
   *A — the whole team wears it* (`v159 A THE WHOLE TEAM WEARS IT`): the equipped uniform and helmet dress all of his
