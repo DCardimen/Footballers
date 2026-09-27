@@ -257,7 +257,7 @@ if (scene) {
     return r }, nf)
   const w0 = await walk(null), w1 = await walk('nf_pro'), w2 = await walk('nf_digital'), w3 = await walk(null)
   ok(!w0.img && w1.img && w1.vis && w1.labelA === 0 && w1.onChest && w2.key !== w1.key && w2.field.style === 'digital', 'on the field his number is the drawn face (an image on his chest over the label, which goes clear), one texture per face', { w0: w0.img, w1: { vis: w1.vis, a: w1.labelA, chest: w1.onChest, h: w1.h, body: w1.bh }, keys: [w1.key, w2.key] })
-  ok(!w3.img && w3.labelA === 1, 'taking the number font off restores the league\'s label', { img: w3.img, a: w3.labelA })
+  ok(!w3.img && w3.labelA >= 0.85, 'taking the number font off restores the league\'s label (v159 A prints it at TU v159AnumA, the fabric showing through)', { img: w3.img, a: w3.labelA })
   for (const nfId of ['nf_pro', 'nf_digital', 'nf_gold']) {
     const url = await E(async (nfId) => { const sc = window.__gridironScene, C = window.RIB_COSMETICS; C.grant(nfId, 'earned'); C.equip('numfont', nfId); const m = sc.markers.find(q => q && q.team === 'you'); if (!m) return null
       m.dirKey = 'dn'; sc.placeMarker(m, window.__home158.sx + 27 * 0.9, window.__home158.sy + 27 * 0.15, 16)
