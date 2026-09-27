@@ -875,7 +875,8 @@
     "v99check",
     "crowdcheck",
     "renderpathcheck",
-    "bobcheck"
+    "bobcheck",
+    "v159Acheck"
    ]
   },
   "lights": {
@@ -1463,13 +1464,15 @@
     "v157 A",
     "v157 B",
     "v157 C",
-    "v158 A"
+    "v158 A",
+    "v159 A"
    ],
    "files": [
     "src/28-cosmetics.js",
     "docs/COSMETICS.md"
    ],
    "checks": [
+    "v159Acheck",
     "v158Acheck",
     "v157Acheck",
     "v156Ccheck",
@@ -3920,6 +3923,19 @@
     "profile"
    ],
    "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v159Acheck": {
+   "file": "scripts/v159Acheck.mjs",
+   "desc": "v159 A — the whole team wears it: the Locker's \"Colours: Uniform's own · Team palette\" choice (stored in the cosmetics store, not the save; previews repaint); a patterned uniform in the team's two colours on the profile figure (hue sampling) and on the field (the pattern along the secondary); with a uniform + helmet equipped every team-mate's live texture changes and no opponent's does, on a possession of ours and one of theirs, the sideline rebinds, one recolour per kit and \"you\" a copy; printed numbers: the chest number clipped to the jersey and carrying its shading (luminance correlation), the kit's contrast ink, no number on side views, a quarter-view turn, TU v159Anum 0 restores the sticker; frame time bounded; seeded games identical; no Math.random from src/28; no page errors.",
+   "areas": [
+    "cosmetics",
+    "live"
+   ],
+   "runtimeSec": 200,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

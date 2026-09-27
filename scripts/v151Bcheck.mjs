@@ -206,7 +206,7 @@ await E(() => { const C = window.RIB_COSMETICS; C.equip('uniform', 'uni_electric
 const k1 = await sample(); await youShot('field-kit-after'); await shot('field-after')
 const dist = (a, b) => a && b ? Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) : -1
 ok(k0.you && k1.you && dist(k0.you, k1.you) > 30 && dist(k0.youRun, k1.youRun) > 30 && k1.kit && k1.kit.uniform === 'uni_electric' && k1.kit.helmet === 'hel_star', 'the equipped uniform + helmet change the you-player\'s drawn textures (pixel average)', { before: k0.you, after: k1.you, run: [k0.youRun, k1.youRun], kit: k1.kit })
-ok(dist(k0.def, k1.def) === 0 && dist(k0.off, k1.off) === 0, 'and NOT the opponent\'s kit or his team-mates\'', { def: [k0.def, k1.def], off: [k0.off, k1.off] })
+ok(dist(k0.def, k1.def) === 0 && dist(k1.off, k1.you) === 0 && dist(k0.off, k1.off) > 30, 'and NOT the opponent\'s kit — his team-mates wear it with him (v159 A: the owner asked for the whole team)', { def: [k0.def, k1.def], off: [k0.off, k1.off], you: k1.you })
 const deco = await E(() => ({ runs: window.__V151B.decoRuns || 0, err: window.__V151B.decoErr || null }))
 ok(deco.runs > 100 && !deco.err, 'the kit decoration ran over every one of his poses without an error', deco)
 

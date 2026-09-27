@@ -23,7 +23,7 @@
  * they are simply not offered. Earned, pass and free items are a live, free feature whatever the switch.
  *
  * RENDERING HOOKS (each a small bannered call in its own file, each the identity with nothing equipped):
- *   uniform / helmet  src/05 `ribSyncYouKitV96` → fieldKit(): the "you" textures only (never "off"/"def"),
+ *   uniform / helmet  src/05 `ribSyncYouKitV96` → fieldKit(): the "you" textures (v159 A: and his team's "off"; never "def"),
  *                     a deco on ribRegisterTeam's put (patterns, helmet shell / stripe / decal / finish);
  *                     the menu feed's team.colors (07) → the hero, portrait and continue-card masks
  *   celebration       src/05 `celebrate()` → celebrate(): extra particles + a callout on HIS touchdown
@@ -246,7 +246,7 @@
   }
   /* "team" in a kit means the team's own colour (the pass's Kit Trim keeps the team's jersey and adds a trim) */
   function teamCol(i) { var t = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col; return (Array.isArray(t) && hexOk(t[i])) || (i ? "#e8c86a" : "#1f4fd0"); }
-  function resolveU(U, tc) { if (!U) return null; if (U.j !== "team" && U.p !== "team") return U; var o = Object.assign({}, U); if (o.j === "team") o.j = (tc && hexOk(tc[0])) || teamCol(0); if (o.p === "team") o.p = (tc && hexOk(tc[1])) || teamCol(1); return o; }
+  function resolveU(U, tc) { if (!U) return null; U = uniModeV159A(U, tc); /* v159 A: the team palette */ if (U.j !== "team" && U.p !== "team") return U; var o = Object.assign({}, U); if (o.j === "team") o.j = (tc && hexOk(tc[0])) || teamCol(0); if (o.p === "team") o.p = (tc && hexOk(tc[1])) || teamCol(1); return o; }
 
   /* ACHIEVEMENTS — read off the account's own state; each grants its items once, with a toast */
   var ACH = [
@@ -501,7 +501,7 @@
     var U = resolveU((item("uniform") || {}).k || null, teamCols), H = (item("helmet") || {}).h || null;
     if (!U && !H) { V.kit = null; return null; }
     var clash = false;
-    if (U && oppCols && hexOk(oppCols[0]) && cdist(U.j, oppCols[0]) < TUv("cosKitClashV151B", 90)) { clash = true; U = null; }
+    if (U && !U.v159 /* v159 A: in the team palette the jersey IS the team's own — no new clash */ && oppCols && hexOk(oppCols[0]) && cdist(U.j, oppCols[0]) < TUv("cosKitClashV151B", 90)) { clash = true; U = null; }
     if (!U && !H) { V.kit = { clash: clash }; return null; }
     var p1 = U ? U.j : teamCols[0], p2 = U ? U.p : teamCols[1];
     var stamp = "u:" + (U ? equipped("uniform") + ":" + U.j + U.p : "-") + "|h:" + (H ? equipped("helmet") : "-");
@@ -891,6 +891,7 @@
     var h = '<div class="cos-style-v151b" data-cat="' + cat + '">' +
       '<div class="h2 cos-h-v151b">Style <span>looks only · never changes a number</span></div>' +
       '<div class="cos-cats-v151b">' + SLOTS.map(function (s) { return '<button type="button" class="cos-cat-v151b' + (s === cat ? " on" : "") + '" onclick="cosCatV151B(\'' + s + '\')"><i>' + CATS[s].icon + "</i>" + CATS[s].name + "</button>"; }).join("") + "</div>" +
+      (cat === "uniform" ? uniColRowV159A() : "") +   // v159 A: Colours — the uniform's own, or the team palette
       '<div class="cos-grid-v151b">' + list.map(function (it) {
         var own = owned(it.id), on = it.id === eq;
         return '<div class="cos-item-v151b r-' + it.rarity + (own ? "" : " locked") + (on ? " on" : "") + '" data-cos="' + it.id + '"' + (own && !on ? ' onclick="cosEquipV151B(\'' + cat + "','" + it.id + '\')"' : "") + '>' +
@@ -1767,10 +1768,11 @@
     var cv = document.createElement("canvas"); cv.width = 64; cv.height = 64; cv.className = "cos-fl-v153g"; var x = cv.getContext("2d");
     try {
       if (it.cat === "numfont") {
-        var tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"], nf = it.nf || { font: "Oswald, sans-serif", col: "#ffffff", stroke: "#0a0e14" };
+        var tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"], nf = it.nf || (onV159A("v159Anum") ? inkNfV159A(tc) : { font: "Oswald, sans-serif", col: "#ffffff", stroke: "#0a0e14" });   // v159 A: the kit's contrast
         x.fillStyle = hexOk(tc[0]) || "#1f4fd0"; x.beginPath(); x.moveTo(14, 12); x.lineTo(24, 8); x.lineTo(40, 8); x.lineTo(50, 12); x.lineTo(50, 58); x.lineTo(14, 58); x.closePath(); x.fill();
         var nn = String(jerseyNumV157C((gstate() || {}).player && gstate().player.pos) || 23);   // v157 C: his own number
         if (!nfPreviewV158A(x, it, nn)) { x.font = "bold 26px " + nf.font; x.textAlign = "center"; x.textBaseline = "middle"; x.lineWidth = 3; x.strokeStyle = nf.stroke; x.strokeText(nn, 32, 35); x.fillStyle = nf.col; x.fillText(nn, 32, 35); }   // v158 A: the drawn face
+        previewPrintV159A(x);   // v159 A: the jersey's light over the print
       } else {
         var F = { trail: it.tr ? { id: it.id, d: it.tr } : null, wings: it.w ? { id: it.id, d: it.w } : null, crown: it.cr ? { id: it.id, d: it.cr } : null, aura: it.au ? { id: it.id, d: it.au } : null };
         var fig = figV153G(34), fx0 = F.trail ? 26 : 15, fy0 = 64 - fig.height - 2, geo = inkGeoV153G(fig, fx0, fy0) || { top: fy0, bot: 62, cx: fx0 + 17, h: 36 }, k = geo.h / 44;
@@ -3237,6 +3239,7 @@
   function chestNumberV157C(cv, res, num, nfId) {
     if (!res || !res.geo || num == null || num === "" || !onV157C("v157Cfig")) return null;
     var C = chestV157C(); if (!C) return null;
+    var r159 = chestNumV159A(cv, res, num, nfId, C); if (r159) return r159;   // v159 A: printed on the fabric
     var r158 = chestNumV158A(cv, res, num, nfId, C); if (r158) return r158;   // v158 A: the number font's own drawn art
     try {
       var g = res.geo, x = cv.getContext("2d"), nf = nfOfV157C(nfId), s = String(num | 0);
@@ -4067,6 +4070,7 @@
       var b = m._numBandV104, maxW = b ? b.w * Math.abs(m.body.scaleX || 1) * TUv("nfWidthV157C", 0.82) : 1e9; if (R.iw * k > maxW) k = maxW / R.iw;
       var inkY = m._numRowV104 != null ? (m._numRowV104 + 0.5 - 24) * Hs : L.y;
       img.setOrigin((R.ix + R.iw / 2) / R.w, (R.iy + R.ih / 2) / R.h).setPosition(L.x, inkY).setScale(k).setVisible(!!L.visible);
+      if (onV159A("v159Anum")) { if (m._quarterV159A && m._quarterV159A !== 1) img.scaleX = img.scaleX * m._quarterV159A; if (img.alpha !== TUv("v159AnumA", 0.9)) img.setAlpha(TUv("v159AnumA", 0.9)); } else if (img.alpha !== 1) img.setAlpha(1);   // v159 A
       var list = m.root.list; if (list[list.length - 1] !== img) { try { m.root.bringToTop(img); } catch (e) {} }
       if (L.alpha !== 0) { L.setAlpha(0); m._nfLblV158A = 1; }
       V158A.field = { key: key, style: style, txt: txt, k: +k.toFixed(4), vis: !!L.visible, ih: R.ih, cap: +cap.toFixed(2) };
@@ -4625,6 +4629,235 @@
     helmMask: helmMaskV158A, iconEarnedTick: iconEarnedTickV158A, dressCard: dressCardV158A, loop: LOOP_V158A, reduced: reducedV158A
   });
 
+  /* ===== v159 A THE WHOLE TEAM WEARS IT =====
+   * The owner: "make those [uniforms] apply to all the players on your team, along with the helmets" · "make all the
+   * uniforms apply and be usable with the 2 colour palettes" · "ensure the number fonts blend properly into the jersey".
+   *   THE TEAM     src/05 `ribTeamKitV159A` dresses the "off" textures (his eleven on both sides of the ball, and our
+   *                sideline's backups) with `fieldKit` — the same kit, deco and clash rule he wore alone since v151 B; the
+   *                "you" textures become a pixel copy of them. The opponent's "def" textures are never touched.
+   *   TEAM PALETTE a per-player choice next to the uniforms in the Locker's Style panel — "Colours: Uniform's own · Team
+   *                palette" — stored in the cosmetics store (`uniColV159A`, outside the save). In "Team palette" every
+   *                uniform keeps its DESIGN (hoops, pinstripe, split, fade, yoke, chest band, sleeves, camo, chevrons, sash,
+   *                stripes, checker, tiger…) and takes the team's two colours: jersey = primary, pants = secondary, the
+   *                pattern's trim and the pant stripe = the secondary (or, when the two would blur, a shade of the primary —
+   *                `uniModeV159A`, hooked at `resolveU`, the one door every kit reader goes through: the field, the card
+   *                figure, the growth screen, the live badge, the menu hero and the Locker's previews).
+   *   PRINTED NUMBERS  the profile figure's chest number (`chestNumberV157C` → `chestNumV159A`) is drawn on its own layer,
+   *                wrapped round the chest (a cylinder the chest's width, `v159AcurveR`, the sides sagging and narrowing),
+   *                clipped to the jersey's own pixels (the source art's torso, drawn where the body went — never an arm,
+   *                the helmet or the pants; soft at the mask's edge), then the jersey's shading is multiplied into it (the
+   *                source's lightness over its median: folds darken the digits, highlights lift them) and the drawn fold
+   *                lines soften its alpha. It scales with the body at every age (the figure's own geometry). The team face
+   *                picks its colours from the kit (`inkForV159A`: white on a dark jersey, the kit's own dark — or ink — on a
+   *                light one, the outline a shadow of the jersey); a number font keeps its colours and takes the shading.
+   *                On the field (every man's number: src/05 `numPlaceV104` → `numInkV159A`) the number already rides the
+   *                chest/back band per frame and hides on a side view; now it takes the kit's contrast colour, a jersey-
+   *                shadow outline instead of a black sticker edge, lets the fabric show through (TU v159AnumA), and turns
+   *                with a quarter view (squeezed, shifted toward the side of the shirt the camera sees). The Locker's number
+   *                preview gets the same ink and a fabric shade.
+   * Kill switches: TU v159Ateam (src/05: his textures only), v159Apal (the Locker choice and the palette mapping),
+   * v159Anum (the old sticker numbers). Looks only: nothing here reads or writes a number the sim uses or draws Math.random.
+   * `window.__V159A` is what v159Acheck reads. */
+  var V159A = (window.__V159A = window.__V159A || { chest: null, prints: 0, inks: 0, toggles: 0, errs: [] });
+  function errV159A(e) { try { if (V159A.errs.length < 10) V159A.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  function onV159A(k) { return !!TUv(k, 1); }
+  function hexOfV159A(c) { return "#" + c.map(function (v) { var s = Math.max(0, Math.min(255, Math.round(v))).toString(16); return s.length < 2 ? "0" + s : s; }).join(""); }
+  function lumHexV159A(h) { return lumOf(rgb(hexOk(h) || "#000000")); }
+
+  /* ---- 2. the uniform's colours: its own, or the team's two ---- */
+  function uniColV159A() { try { return onV159A("v159Apal") && load().uniColV159A === "team" ? "team" : "own"; } catch (e) { return "own"; } }
+  function setUniColV159A(mode) {
+    mode = mode === "team" ? "team" : "own";
+    var S = load(); if ((S.uniColV159A === "team" ? "team" : "own") === mode) return false;
+    S.uniColV159A = mode; persist(); V159A.toggles++;
+    fire({ equip: "uniform", id: equipped("uniform"), colours: mode });   // the field re-dresses (apply → refreshField), the card redraws
+    return true;
+  }
+  function uniModeV159A(U, tc) {
+    if (!U || uniColV159A() !== "team") return U;
+    var a = (tc && hexOk(tc[0])) || teamCol(0), b = (tc && hexOk(tc[1])) || teamCol(1);
+    var o = Object.assign({}, U); o.j = a; o.p = b;
+    // the pattern's trim: the secondary — unless it would vanish on the primary, then a shade of the primary
+    o.t = cdist(a, b) >= TUv("v159AtrimDist", 90) ? b : hexOfV159A(mix(rgb(a), lumHexV159A(a) > 128 ? [0, 0, 0] : [255, 255, 255], 0.45));
+    if (U.ps) o.ps = o.t;
+    o.v159 = "team";
+    return o;
+  }
+  function uniColRowV159A() {
+    if (!onV159A("v159Apal")) return "";
+    var m = uniColV159A(), c0 = teamCol(0), c1 = teamCol(1);
+    return '<div class="cos-unicol-v159a" role="group" aria-label="Uniform colours" data-mode="' + m + '"><span>Colours</span>' +
+      '<button type="button" class="' + (m === "own" ? "on" : "") + '" aria-pressed="' + (m === "own") + '" onclick="cosUniColV159A(\'own\')">Uniform\'s own</button>' +
+      '<button type="button" class="' + (m === "team" ? "on" : "") + '" aria-pressed="' + (m === "team") + '" onclick="cosUniColV159A(\'team\')"><i style="background:' + c0 + '"></i><i style="background:' + c1 + '"></i>Team palette</button></div>';
+  }
+  window.cosUniColV159A = function (mode) {
+    var changed = setUniColV159A(mode);
+    var el = document.querySelector(".cos-style-v151b"); if (el) { el.outerHTML = stylePanel(); paintPreviews(); }
+    if (changed) toast(mode === "team" ? "Uniforms wear the team palette" : "Uniforms wear their own colours");
+    return uniColV159A();
+  };
+  (function () {
+    if (document.getElementById("cosV159Acss")) return;
+    var st = document.createElement("style"); st.id = "cosV159Acss";
+    st.textContent = ".cos-unicol-v159a{display:flex;align-items:center;gap:6px;margin:2px 0 8px;flex-wrap:wrap;font:600 11px/1 Oswald,sans-serif;letter-spacing:.6px}" +
+      ".cos-unicol-v159a>span{color:#9fb0c6;text-transform:uppercase;margin-right:2px}" +
+      ".cos-unicol-v159a>button{display:inline-flex;align-items:center;gap:4px;min-height:30px;padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);color:#dfe7f2;font:inherit;cursor:pointer}" +
+      ".cos-unicol-v159a>button.on{background:#f0bb45;border-color:#f0bb45;color:#1b1406}" +
+      ".cos-unicol-v159a>button>i{display:inline-block;width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.45)}";
+    (document.head || document.documentElement).appendChild(st);
+  })();
+
+  /* ---- 3. the ink: a number that reads on its kit ---- */
+  function inkForV159A(j, alt, trim) {
+    j = hexOk(j) || "#1f4fd0";
+    var Lj = lumHexV159A(j), light = Lj > TUv("v159AinkLum", 168), fill;
+    if (!light) fill = "#ffffff";
+    else { var c = [trim, alt].filter(function (h) { return hexOk(h) && Lj - lumHexV159A(h) > TUv("v159AinkGap", 105); }); fill = c[0] || "#141a24"; }
+    var stroke = light ? hexOfV159A(mix(rgb(j), rgb(fill), 0.4)) : hexOfV159A(mix(rgb(j), [0, 0, 0], TUv("v159AinkShadow", 0.62)));
+    return { fill: fill, stroke: stroke, light: light };
+  }
+  /* the field: every man's number (src/05 numPlaceV104, after it has placed and scaled the label for this frame) */
+  function numInkV159A(m, rear, cols) {
+    try {
+      var L = m && m.label; if (!L) return;
+      if (!onV159A("v159Anum")) {   // the switch off: the v104 sticker exactly (white, the ink outline, opaque, centred)
+        if (m._inkKeyV159A != null) { m._inkKeyV159A = null; if (!m._nfOrigV153G) { L.setColor("#ffffff"); L.setStroke("#0a0e14", L.style.strokeThickness || 2.2); } }
+        if (!m._nfLblV158A && L.alpha !== 0 && L.alpha !== 1) L.setAlpha(1);
+        if (L.x !== 0) L.x = 0; m._quarterV159A = 1; return;
+      }
+      if (!m._nfOrigV153G && cols && cols[0]) {   // an equipped number font keeps its own colours (v153 G)
+        var key = cols[0] + "|" + cols[1];
+        if (m._inkKeyV159A !== key) {
+          m._inkKeyV159A = key; var ink = inkForV159A(cols[0], cols[1], null);
+          if (L.style.color !== ink.fill) L.setColor(ink.fill);
+          L.setStroke(ink.stroke, L.style.strokeThickness || 2.2); V159A.inks++;
+        }
+      }
+      var A = TUv("v159AnumA", 0.9);   // the fabric shows through the print
+      if (!m._nfLblV158A && L.alpha !== 0 && Math.abs(L.alpha - A) > 1e-3) L.setAlpha(A);
+      var q = m.dirKey === "dr" || m.dirKey === "ur" ? TUv("v159Aquarter", 0.8) : 1;
+      m._quarterV159A = q;
+      if (q !== 1) {
+        // a quarter view: the shirt turns — narrower, and its middle slides toward the side the camera sees
+        var b = m._numBandV104, Hs = (m.body && m.body.scaleY) || 1, side = (m.dirKey === "dr" ? 1 : -1) * (m.flip ? -1 : 1);
+        L.scaleX = L.scaleX * q; L.x = side * (b ? b.w : 22) * TUv("v159AquarterDx", 0.07) * Hs;
+      } else if (L.x !== 0) L.x = 0;
+    } catch (e) { errV159A(e); }
+  }
+
+  /* ---- 3. the profile chest: printed, not stuck on ---- */
+  var BUSY_V159A = 0, MAPS_V159A = null;
+  /* the source art's torso — the jersey's own pixels between the neck and the waist, the helmet's dome cut out — with
+   * each pixel's shade (lightness over the navy's median, x100) in its red channel: kit-independent, measured once */
+  function mapsV159A() {
+    if (MAPS_V159A) return MAPS_V159A;
+    var im = FIG.img, C = chestV157C(); if (!im || !C) return null;
+    var W = C.W, H = C.H, c = document.createElement("canvas"); c.width = W; c.height = H;
+    var x = c.getContext("2d"); x.drawImage(im, 0, 0); var d = x.getImageData(0, 0, W, H).data;
+    var mc = document.createElement("canvas"); mc.width = W; mc.height = H; var mx = mc.getContext("2d"), md = mx.createImageData(W, H), o = md.data;
+    var hx0 = W * 0.515, hy0 = H * 0.15, hrx = W * 0.29, hry = H * 0.14, n = 0;
+    for (var y = C.neck; y < C.waist; y++) for (var xx = 0; xx < W; xx++) {
+      var i = (y * W + xx) * 4; if (d[i + 3] < 20) continue;
+      var k = srcClass(d[i], d[i + 1], d[i + 2]); if (k[0] !== 1) continue;
+      var ex = (xx - hx0) / hrx, ey = (y - hy0) / hry; if (ex * ex + ey * ey <= 1) continue;
+      o[i] = o[i + 1] = o[i + 2] = Math.max(1, Math.min(255, Math.round(k[1] / 32.5 * 100))); o[i + 3] = 255; n++;
+    }
+    mx.putImageData(md, 0, 0);
+    MAPS_V159A = { cv: mc, W: W, H: H, neck: C.neck, waist: C.waist, n: n, last: null };
+    return MAPS_V159A;
+  }
+  /* that map drawn exactly where figDraw drew the body: RGBA at the canvas's device size */
+  function maskOutV159A(res, W, H) {
+    var M = mapsV159A(), g = res && res.geo; if (!M || !g) return null;
+    var key = [W, H, g.bx, g.by, g.bw, g.bh, g.dpr].join("|");
+    if (M.last && M.last.key === key) return M.last;
+    var c = document.createElement("canvas"); c.width = W; c.height = H; var x = c.getContext("2d");
+    x.setTransform(g.dpr || 1, 0, 0, g.dpr || 1, 0, 0); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+    x.drawImage(M.cv, 0, M.neck, M.W, M.H - 3 - M.neck, g.bx, g.by, g.bw, g.bh);
+    M.last = { key: key, d: x.getImageData(0, 0, W, H).data, W: W, H: H };
+    return M.last;
+  }
+  /* the team face in the kit's own contrast (the v157 C text, with inkForV159A's colours) */
+  function textNumV159A(cv, res, num, nf, C, K) {
+    var g = res.geo, x = cv.getContext("2d"), s = String(num | 0);
+    var sx = g.bw / C.W, cx = g.bx + C.cx * sx, cy = g.by + (C.row - g.neck) * g.k;
+    var px = Math.max(8, (C.waist - C.neck) * g.k * TUv("nfChestHV157C", 0.58));
+    var ink = nf.style === "team" ? inkForV159A(K && K.j, K && K.p, K && K.t) : { fill: nf.col || "#ffffff", stroke: nf.stroke || "#0a0e14" };
+    x.save(); x.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+    x.font = "bold " + px.toFixed(1) + "px " + nf.font; x.textAlign = "center"; x.textBaseline = "middle";
+    var w = x.measureText(s).width, maxW = C.w * sx * TUv("nfChestWV157C", 0.92);
+    if (w > maxW) { px = px * maxW / w; x.font = "bold " + px.toFixed(1) + "px " + nf.font; }
+    x.lineJoin = "round"; x.lineWidth = Math.max(1.4, px * TUv("nfChestStrokeV157C", 0.2)); x.strokeStyle = ink.stroke; x.strokeText(s, cx, cy);
+    x.fillStyle = ink.fill; x.fillText(s, cx, cy);
+    x.restore();
+    return { num: s, nf: nf.style, px: +px.toFixed(1), cx: +cx.toFixed(1), cy: +cy.toFixed(1), ink: ink.fill };
+  }
+  /* the layer printed onto the figure: wrapped, clipped, shaded */
+  function printV159A(cv, lay, res, C) {
+    var W = cv.width, H = cv.height, g = res.geo, dpr = g.dpr || 1;
+    var ld = lay.getContext("2d").getImageData(0, 0, W, H).data, x0 = W, y0 = H, x1 = -1, y1 = -1;
+    for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) if (ld[(y * W + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) return null;
+    var M = maskOutV159A(res, W, H); if (!M) return null;
+    var sxk = g.bw / C.W, cxD = (g.bx + C.cx * sxk) * dpr, cyD = (g.by + (C.row - g.neck) * g.k) * dpr;
+    // 1. round the chest: each target column samples the flat print at its arc length (a cylinder of the chest's width)
+    var R = Math.max(4, C.w * sxk * dpr * 0.5 * TUv("v159AcurveR", 1.25)), sag = TUv("v159Asag", 0.1), shrink = TUv("v159Ashrink", 0.08);
+    var wv = document.createElement("canvas"); wv.width = W; wv.height = H; var wx = wv.getContext("2d"); wx.imageSmoothingEnabled = true;
+    for (var X = x0 - 1; X <= x1 + 1; X++) {
+      var u = (X + 0.5 - cxD) / R; if (Math.abs(u) >= 0.985) continue;
+      var th = Math.asin(u), srcX = cxD + th * R - 0.5; if (srcX < x0 - 1 || srcX > x1 + 1) continue;
+      var cz = 1 - Math.cos(th), hs = 1 - shrink * cz, dy = sag * R * cz;
+      wx.drawImage(lay, Math.max(0, srcX), 0, 1, H, X, cyD * (1 - hs) + dy, 1, H * hs);
+    }
+    // 2. the fabric: clipped to the jersey, its shading multiplied in, the fold lines softening the edge
+    var bx0 = Math.max(1, x0 - 6), bx1 = Math.min(W - 2, x1 + 6), by0 = Math.max(1, y0 - 6), by1 = Math.min(H - 2, y1 + Math.ceil(sag * R) + 6);
+    var wd = wx.getImageData(0, 0, W, H), d = wd.data, md = M.d;
+    var base = TUv("v159Ashade0", 0.4), gain = 1 - base, foldK = TUv("v159Afold", 0.9), foldMax = TUv("v159AfoldMax", 0.45), alphaK = TUv("v159Aink", 0.97);
+    var tAt = function (j) { return md[j * 4 + 3] > 8 ? md[j * 4] / 100 : 1; }, kept = 0, cut = 0;
+    for (y = by0; y <= by1; y++) for (x = bx0; x <= bx1; x++) {
+      var j = y * W + x, i = j * 4; if (!d[i + 3]) continue;
+      var cov = md[i + 3] / 255; if (cov < 0.04) { d[i + 3] = 0; cut++; continue; }
+      var t = md[i] / 100, fold = Math.min(foldMax, (Math.abs(tAt(j + 1) - tAt(j - 1)) + Math.abs(tAt(j + W) - tAt(j - W))) * foldK * 0.5);
+      var mlt = Math.max(0.3, Math.min(1.35, base + gain * t));
+      if (mlt <= 1) { d[i] *= mlt; d[i + 1] *= mlt; d[i + 2] *= mlt; }
+      else { var h = (mlt - 1) * 0.6; d[i] += (255 - d[i]) * h; d[i + 1] += (255 - d[i + 1]) * h; d[i + 2] += (255 - d[i + 2]) * h; }
+      d[i + 3] = d[i + 3] * cov * (1 - fold) * alphaK; kept++;
+    }
+    for (y = 0; y < H; y++) for (x = 0; x < W; x++) if ((y < by0 || y > by1 || x < bx0 || x > bx1) && d[(y * W + x) * 4 + 3]) d[(y * W + x) * 4 + 3] = 0;
+    wx.putImageData(wd, 0, 0);
+    var cx2 = cv.getContext("2d"); cx2.save(); cx2.setTransform(1, 0, 0, 1, 0, 0); cx2.drawImage(wv, 0, 0); cx2.restore();
+    V159A.prints++;
+    return { box: [x0, y0, x1, y1], kept: kept, cut: cut, R: +R.toFixed(1) };
+  }
+  function chestNumV159A(cv, res, num, nfId, C) {
+    if (BUSY_V159A || !onV159A("v159Anum") || !cv || !cv.getContext) return null;
+    try {
+      var nf = nfOfV157C(nfId), style = nfFaceOfV158A(nf), lay = document.createElement("canvas"), r = null;
+      lay.width = cv.width; lay.height = cv.height;
+      BUSY_V159A = 1;
+      try { r = style ? chestNumV158A(lay, res, num, nfId, C) : textNumV159A(lay, res, num, nf, C, FIG.last); } finally { BUSY_V159A = 0; }
+      if (!r) return null;
+      var P = printV159A(cv, lay, res, C); if (!P) return null;
+      r.v159 = true; r.print = P;
+      V159A.chest = { num: r.num, nf: r.nf, ink: r.ink || null, box: P.box, kept: P.kept, cut: P.cut, R: P.R };
+      return r;
+    } catch (e) { errV159A(e); BUSY_V159A = 0; return null; }
+  }
+  /* the Locker's number preview: the team face in the kit's contrast, and the jersey's roll of light over both */
+  function inkNfV159A(tc) { var k = inkForV159A(tc && tc[0], tc && tc[1], null); return { font: "Oswald, sans-serif", col: k.fill, stroke: k.stroke }; }
+  function previewPrintV159A(x) {
+    if (!onV159A("v159Anum")) return;
+    try {
+      var g = x.createLinearGradient(14, 0, 50, 0);
+      g.addColorStop(0, "rgba(0,0,0,.38)"); g.addColorStop(0.3, "rgba(0,0,0,.04)"); g.addColorStop(0.55, "rgba(255,255,255,.1)"); g.addColorStop(1, "rgba(0,0,0,.42)");
+      x.save(); x.globalCompositeOperation = "source-atop"; x.fillStyle = g; x.fillRect(0, 0, 64, 64); x.restore();
+    } catch (e) { errV159A(e); }
+  }
+  Object.assign(V159A, {
+    uniColour: uniColV159A, setUniColour: setUniColV159A, uniMode: uniModeV159A, ink: inkForV159A, numInk: numInkV159A,
+    maps: mapsV159A, jerseyMask: function (res, W, H) { var M = maskOutV159A(res, W, H); return M ? M.d : null; }, row: uniColRowV159A
+  });
+
   /* ---------------- the API ---------------- */
   var API = {
     version: "v151b", slots: SLOTS.slice(), cats: CATS, achievements: ACH.map(function (a) { return { id: a.id, name: a.name, desc: a.desc }; }),
@@ -4639,6 +4872,7 @@
     face: faceV157C, drawFigure: drawFigureV157C, growFigure: growFigureV157C, jerseyNum: jerseyNumV157C, iconRules: function () { return ICON_RULES_V157C.map(function (r) { return { id: r.id, name: r.name, desc: r.desc, rarity: r.rarity }; }); },
     iconAccount: iconAccountV157C, iconTick: iconTickV157C, paintBadge: paintBadgeV157C,   // v157 C
     numRender: nfRenderV158A, paintBanner: V158A.paintBanner, dressCard: dressCardV158A,   // v158 A
+    numInk: numInkV159A, uniColour: uniColV159A, setUniColour: setUniColV159A,   // v159 A
     _reset: function () { mem = null; try { localStorage.removeItem(KEY); } catch (e) {} fire({ reset: 1 }); }
   };
   window.RIB_COSMETICS = API;

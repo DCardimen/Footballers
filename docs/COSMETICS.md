@@ -84,7 +84,7 @@ once with a toast.
 
 | Category | Where | What |
 |---|---|---|
-| uniform / helmet | `src/05` `ribSyncYouKitV96` → `cosKitV151B` → `fieldKit(teamCols, oppCols)` | the "you" textures only, re-registered with the uniform's palette and `kitDeco` as `ribRegisterTeam`'s deco (it now receives the pose, v104's measured collar/waist and the raw cell): jersey pattern, pant stripe, helmet shell/stripe/decal/finish. A jersey too close to the opponent's (`cosKitClashV151B`, 90) is not worn that game. `window.__COS_FIELD_V151B.resync(scene)` re-dresses him mid-game |
+| uniform / helmet | `src/05` `ribSyncYouKitV96` → `cosKitV151B` → `fieldKit(teamCols, oppCols)` | the "you" textures — and since v159 A his whole team's "off" textures (below) — re-registered with the uniform's palette and `kitDeco` as `ribRegisterTeam`'s deco (it now receives the pose, v104's measured collar/waist and the raw cell): jersey pattern, pant stripe, helmet shell/stripe/decal/finish. A jersey too close to the opponent's (`cosKitClashV151B`, 90) is not worn that game. `window.__COS_FIELD_V151B.resync(scene)` re-dresses him mid-game |
 | uniform / helmet (menu) | `src/07` feed `team.colors` → `cosColorsV151B` → `menuColors` | `[jersey, pants, helmet]`; `public/rib-menu.js` gives the portrait's helmet mask `colors[2]`; the growth figure reads the same feed |
 | celebration | `src/05` `celebrate()` | on HIS touchdown only: particles + a callout (`celebrate(scene, x, y)`) |
 | stadium | `src/05` `bowlTrimV112` → `stadiumTheme()` | on home games (`__homeGameV93 !== false`): the base band, its lip, the tunnels' frame, a wash of the theme colour over the stands (`cosCrowdWashV151B`, .2 — a Graphics fill, not a sprite tint: the canvas renderer re-tints tinted sprites every frame). `__WX_V79` is never touched |
@@ -218,3 +218,21 @@ hash of its index), no sim value.
 - **Adding an icon:** one `iconV157C(id, name, glyph, ringColour, discColour, tag, rarity, desc, test)` line in
   `buildIconsV157C`; `test(I)` reads `iconAccountV157C` (titles by level, MVPs, Legacy medal, gen, UFF positions,
   ring positions, best-career TDs / yards, Hall careers, super challenges done, `RIB_SEASONS.challengeTotals()`).
+
+## v159 A — the whole team wears it, in its own colours or the team's, numbers printed on the shirt
+
+- **The whole team.** `src/05` `ribTeamKitV159A` registers the "off" textures — what the user's eleven wear on both
+  sides of the ball (v105.2) and our sideline's backups — with `fieldKit`'s kit and deco, once per kit key
+  (`RIB.offKitV159A`, the team's base palette `RIB.baseOffV159A` + the cosmetic stamp). "you" is then a pixel copy
+  (`ribCloneTeamV159A`), not a second recolour. The opponent's "def" textures are never touched. TU `v159Ateam` 0: his
+  textures only (v151 B).
+- **Colours: Uniform's own · Team palette.** A choice next to the uniforms in the Locker's Style panel, stored as
+  `uniColV159A` in `rib.cosmetics.v1` (outside the save). In "Team palette" `uniModeV159A` (the first thing `resolveU`
+  does, so the field, the card figure, growth, the live badge, the menu hero and the previews all follow) keeps the
+  uniform's pattern and maps jersey = primary, pants / trim / pant stripe = secondary (a shade of the primary when the
+  two would blur). The clash rule does not apply: the jersey is the team's own. TU `v159Apal` 0 hides the choice.
+- **Printed numbers.** The profile chest number is drawn on its own layer, wrapped round the chest, clipped to the source
+  art's torso where the body was drawn, multiplied by the jersey's shading and softened at the fold lines
+  (`chestNumV159A` / `printV159A`); the team face picks its ink from the kit (`inkForV159A`). On the field every man's
+  number (`numPlaceV104` → `RIB_COSMETICS.numInk`) takes the kit's contrast, a jersey-shadow outline, alpha TU
+  `v159AnumA` and a quarter-view turn; side views still hide it. TU `v159Anum` 0: the old sticker. `v159Acheck`.
