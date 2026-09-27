@@ -10,6 +10,20 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v162 — the handover is smooth; the helmet is the helmet.** (`src/05-field-renderer.js`, `src/28-cosmetics.js`,
+  `scripts/v162Acheck.mjs`, `scripts/v162Bcheck.mjs`.)
+  *A — the handover is smooth* (`v162 A THE HANDOVER IS SMOOTH`): the live game lagged at every change of possession. The
+  drive header re-baked the field twice (its own draw, then `applyFieldFx` → `refreshPersp` drawing the same field again),
+  the drive's first snap baked it a third time, and on a defensive drive the header dressed his team in the opponent's
+  kit and recoloured his sprites into it — and back at the snap. Now a bake that is already on screen is reused (the
+  field, the stands and the team area are rebuilt only when the spot, the direction or a setting changes), the header
+  bakes once and dresses by possession, and the stands' cheer layers repaint over the frames after the snap instead of
+  inside it. Measured headless at 4× over whole games: the stall around a change of possession ~520–620 ms → ~220–260 ms,
+  an ordinary snap ~300–355 ms → ~170–210 ms. Kill switches `v162A`, `v162Acheer`.
+  *B — the helmet is the helmet* (`v162 B THE HELMET IS THE HELMET`): the profile figure's helmet was a hand-measured
+  ellipse over the dome, so the shell's lower jaw flaps beside the face mask were painted the jersey colour. The shell is
+  now read off the art itself, down to the chin and stopping at its outline, so the helmet and the jersey keep their
+  own colours. Kill switch `v162Bhelm`.
 - **v161 A — they celebrate like they mean it.** (`src/28-cosmetics.js`, `src/05-field-renderer.js`,
   `scripts/build-celebration-sheets.py`, `art/celebrations/`, `public/celebrations/`, `scripts/v161Acheck.mjs`.) The owner's
   three drawn celebrations — the FLEX, the BACKFLIP and the BALL SPIKE — play on his touchdowns, one picked at random

@@ -1698,6 +1698,7 @@ function ribRebindSideV159A(scene) {
  * registered with — after the cosmetics' uniform / team palette (v151 B, v159 A) — and `recolor` is ribRecolor itself.
  * Looks only: nothing here reads or writes a sim value or draws Math.random. */
 window.__V161A_FIELD = { kit: (k) => (RIB.teamCols[k] ? RIB.teamCols[k].slice() : null), recolor: (c, p1, p2) => ribRecolor(c, p1, p2), tones: SKIN_TONES_V151D };
+window.__V162A = { bakes: 0, skips: 0, cheers: 0, key: () => { const sc = window.__gridironScene; return sc ? sc._fieldKeyV162A || null : null; } };
 window.__V159A_FIELD = { regs: 0, clones: 0, lastMs: 0, cloneMs: 0, cloned: 0, key: null, kit: false, side: 0, base: () => RIB.baseOffV159A && RIB.baseOffV159A.slice(), teams: () => Object.assign({}, RIB.teamCols) };
 // the atlas decodes the moment the page loads — long before any game starts
 (function () {
@@ -1907,13 +1908,16 @@ class Ot extends mt.Scene {
     ribSyncOpp(this);
     const it = rt ? (et.startBall ?? 50) : 100 - (et.startBall ?? 50),
       ht = mt.Math.Clamp(it + (rt ? 1 : -1) * (et.preToGo ?? 10), 0, 100);
+    const on162 = TU("v162A", 1);
+    if (on162) this._wxV144 = null;   // v162 A: what refreshPersp did below — the sky is read fresh for this bake
     this.drawField(it, ht);
     this.drawWearV86(et);   // v86: the static view keeps the game's wear (a new game wipes it when the quarter goes back to 1)
     this.drawGoalpostsV87();
     this.staticFormation(it, rt);
     const f = pickFeaturedIndex(et, this.offLabels, this.defLabels);
     this.highlight(this.markers[f.index], f.isMe);
-    try { window.applyFieldFx && window.applyFieldFx(); } catch (e) {}
+    if (on162) { const cv = document.querySelector("#field"); if (cv) cv.style.transform = ""; }   // v162 A: applyFieldFx's CSS half only; the field was just baked with these settings
+    else try { window.applyFieldFx && window.applyFieldFx(); } catch (e) {}
   }
 
   softStop() {   // between plays: clear FX/tweens but keep markers for gliding
@@ -5446,10 +5450,12 @@ class Ot extends mt.Scene {
   staticFormation(losAbs, usOff) {
     this.clearActors();
     const it = usOff ? 1 : -1, ht = PLAY_L + (losAbs / 100) * PLAY_W;
+    // v162 A: the header's men wear the v105.2 kit too — possession, not side (undefined = the old side-coloured kit)
+    const et162 = { offense: usOff ? "us" : "them" }, kitOff = TU("v162A", 1) ? this.kitForV105_2("off", et162) : void 0, kitDef = TU("v162A", 1) ? this.kitForV105_2("def", et162) : void 0;
     const d = [78,372,306,158,190,222,254,286,222,262,120], c = [78,372,140,306,172,222,276,150,206,242,295];
     this.offLabels.forEach((h, r) => {
       const n = h === "QB" ? -38 : h === "RB" ? -54 : h === "WR" && r === 10 ? -10 : 0;
-      const m = this.marker(ht + it * n, d[r] ?? 222, "off", OFF_NUMS[r], 0, -1);
+      const m = this.marker(ht + it * n, d[r] ?? 222, "off", OFF_NUMS[r], 0, -1, kitOff);
       m.homeDir = "up"; m.posLabel = h; m.actorId = "off" + r;
       if (window.__RIB20_applyAppearance) window.__RIB20_applyAppearance(this, m, h, r);
       if (h === "OL") { m.isLine = true; m.forceState = "stance"; }
@@ -5458,7 +5464,7 @@ class Ot extends mt.Scene {
     });
     this.defLabels.forEach((h, r) => {
       const n = h === "S" ? 88 : h === "LB" ? 52 : h === "CB" ? 25 : 15;
-      const m = this.marker(ht + it * n, c[r] ?? 222, "def", DEF_NUMS[r], 0, 1);
+      const m = this.marker(ht + it * n, c[r] ?? 222, "def", DEF_NUMS[r], 0, 1, kitDef);
       m.homeDir = "dn"; m.posLabel = h; m.actorId = "def" + r;
       if (window.__RIB20_applyAppearance) window.__RIB20_applyAppearance(this, m, h, r + 11);
       if (h === "DE" || h === "DT" || h === "DL") { m.isLine = true; m.forceState = "stance"; }
@@ -6265,6 +6271,7 @@ class Ot extends mt.Scene {
     if (!this.crowd || this.crowd.sec !== SEC) { this.clearCrowd(); this.crowd = { secs: [], t: 0, excite: 0, sec: SEC, tier }; }
     const C = this.crowd; C.tier = tier;
     C.decks = decks; C.tiles = tiles;
+    C.deferV162A = !!TU("v162A", 1) && !!TU("v162Acheer", 1);   // v162 A: quiet sections' cheer layers repaint after the snap's frame
     const strips = { idle: ribCrowdStrip(tier, "idle", tiles, decks), cheer: ribCrowdStrip(tier, "cheer", tiles, decks) };
     if (!strips.idle || !strips.cheer) return false;
     C.strips = strips;                       // kept for the dev check to scan for deck seams
@@ -6445,7 +6452,7 @@ class Ot extends mt.Scene {
         this.crowdSection(n++, side, side, seg, strips, stripW, stripH, HH);
       }
     }
-    for (let i = n; i < C.secs.length; i++) { const s = C.secs[i]; try { s.spr.idle.setVisible(false); s.spr.cheer.setVisible(false); } catch (e) {} }
+    for (let i = n; i < C.secs.length; i++) { const s = C.secs[i]; if (s.cheerJobV162A) { s.cheerJobV162A = null; C.jobsV162A--; } try { s.spr.idle.setVisible(false); s.spr.cheer.setVisible(false); } catch (e) {} }
     C.built = n;
     this.bowlTrimV112(built, HH);   // v112: the blue band round the foot of the bowl, and the way out of it
     try { ribRegisterLightsV92(this); this.buildStadiumV92(); } catch (e) {}   // v92: the sky behind the bowl
@@ -6722,7 +6729,7 @@ class Ot extends mt.Scene {
     // sit on the playing surface the stands never reach.
     const dep = TU("crowdDepth", 3.45);
 
-    for (const pose of ["idle", "cheer"]) {
+    const paint = (pose) => {
       const key = "crowd_" + idx + "_" + pose;
       let cv = s.cv[pose];
       // grow-only: a canvas swap costs a texture re-upload, so round up and reuse
@@ -6781,6 +6788,18 @@ class Ot extends mt.Scene {
       }
       try { this.textures.get(key).refresh(); } catch (e) {}
       s.spr[pose].setPosition(x0, y0).setDepth(pose === "idle" ? dep : dep + 0.005).setVisible(true);
+    };
+    paint("idle");
+    /* v162 A: a section that is not cheering shows its cheer layer at alpha 0, so its repaint need not land in the snap's
+     * frame — `updateCrowd` runs it a few a frame (`cheerPumpV162A`), or at once if the section heats up first. Until then the
+     * sprite already stands on the new box (the checks read its geometry), drawn invisible. */
+    if (C.deferV162A && s.heat <= 0 && !(s.pendAmt > 0)) {
+      if (!s.cheerJobV162A) C.jobsV162A = (C.jobsV162A || 0) + 1;
+      s.cheerJobV162A = () => paint("cheer");
+      s.spr.cheer.setPosition(x0, y0).setDepth(dep + 0.005).setVisible(true);
+    } else {
+      if (s.cheerJobV162A) { s.cheerJobV162A = null; C.jobsV162A--; }
+      paint("cheer");
     }
     s.spr.idle.setAlpha(1);
     s.spr.cheer.setAlpha(s.heat);
@@ -7022,6 +7041,7 @@ class Ot extends mt.Scene {
     C.excite = Math.max(0, C.excite - dt / TU("crowdCalmMs", 2800));
     const bobMs = TU("crowdBobMs", 780), bobPx = TU("crowdBobPx", 1.7), swayPx = TU("crowdSwayPx", 0.9);
     const decay = TU("crowdDecayMs", 1600), ambient = TU("crowdAmbientMs", 7000);
+    let pump162 = C.jobsV162A > 0 ? Math.max(1, TU("cheerPumpV162A", 2)) : 0;   // v162 A: the deferred cheer repaints, a few a frame
     for (let i = 0; i < C.built; i++) {
       const s = C.secs[i];
       if (s.pendAmt > 0 && C.t >= s.pendAt) { s.heat = Math.min(1, s.heat + s.pendAmt); s.pendAmt = 0; }
@@ -7029,6 +7049,7 @@ class Ot extends mt.Scene {
       // baseline rises with how excited the stadium already is
       if (Math.random() < dt / ambient * (0.5 + C.excite * 2.2)) s.heat = Math.min(1, s.heat + 0.3 + Math.random() * 0.35);
       s.heat = Math.max(0, s.heat - dt / decay);
+      if (s.cheerJobV162A && (s.heat > 0 || pump162-- > 0)) { const job = s.cheerJobV162A; s.cheerJobV162A = null; C.jobsV162A--; window.__V162A.cheers++; try { job(); } catch (e) {} }
       // Only the CHEER layer moves. Both cells carry the same bleachers, so bobbing
       // the idle layer too would visibly wobble the concrete; bouncing just the
       // overlay reads as people rising and settling while the stand stays put.
@@ -8475,6 +8496,7 @@ class Ot extends mt.Scene {
   }
   refreshPersp() {   // re-project + re-warp after a slider change or late art decode
     this._wxV144 = null;   // v144 H: the sky is cached per FRAME, and a Settings click lands between two of them
+    this._fieldKeyV162A = null;   // v162 A: an explicit re-bake is never answered from the cache
     if (this._lastField) this.drawField(this._lastField[0], this._lastField[1]);
   }
   /* ===== v72 END-ZONE MAPPING — the painted field and the simulated one are the
@@ -8799,10 +8821,17 @@ class Ot extends mt.Scene {
     // and the WHOLE scene (art + sprites + lines) recedes with one consistent curve.
     { const lxw = fx(losYd), losU = VDIR > 0 ? lxw : FW - lxw; ANCHOR_U = losU - PERSP_AB; }
     buildPersp();
-    this._klV99 = null; this._lgV101 = null;   // v99: the masts moved with the projection — re-read the key light (v101: and the rig)
-    this.warpField();
-    this.buildCrowd();          // v57: the stands ride the same rebuilt perspective
-    this.buildSideline();       // v78: and the team area is rebuilt on it too
+    const key162 = this.fieldKeyV162A(losYd), V162 = window.__V162A;
+    if (key162 && key162 === this._fieldKeyV162A) V162.skips++;   // v162 A: the same bake is already on screen
+    else {
+      this._klV99 = null; this._lgV101 = null;   // v99: the masts moved with the projection — re-read the key light (v101: and the rig)
+      this.warpField();
+      const okC = this.buildCrowd();          // v57: the stands ride the same rebuilt perspective
+      const okS = this.buildSideline();       // v78: and the team area is rebuilt on it too
+      // only a COMPLETE bake is reusable: art still decoding means the next call must build again
+      this._fieldKeyV162A = key162 && okC && okS && this.fieldSpr && this.textures.exists("rib_field_warp") ? key162 : null;
+      V162.bakes++;
+    }
     if (this.fieldSpr) { try { this.fieldSpr.setVisible(true); } catch (e) {} }
     else { g.fillStyle(0x2f5f2c, 1).fillRect(0, 0, FW, WORLD_H + 20); }   // fallback until the field image decodes
     const yline = (yd, w, col, al) => {
@@ -8821,6 +8850,34 @@ class Ot extends mt.Scene {
     }
     this.focusPt = PJ(fx(losYd), (F_TOP + F_BOT) / 2);
     this.drawFieldText(fxr);
+  }
+  /* ===== v162 A THE HANDOVER IS SMOOTH =====
+   * The owner: "the live games are lagging now when switching from offence to defence". Measured on a live game (every
+   * snap on, 2x): a normal snap re-bakes the field once — warpField, the stands (`buildCrowd` redraws ~40 section
+   * canvases) and the team area — and the FRAME after it pays for the raster (~5x a normal frame headless). A change
+   * of possession paid it three times and a recolour twice:
+   *   - the drive header runs `renderStatic`: one `drawField`, then `applyFieldFx` -> `refreshPersp` -> the SAME
+   *     `drawField` again (same spot, same settings);
+   *   - the drive's first snap (`animatePlay`) then bakes the same spot a third time;
+   *   - `staticFormation` dressed the header's men by SIDE, not by v105.2's possession kit, so when HIS team went on
+   *     defense the defense wore the opponent's colours for the header and `highlight` recoloured all his textures into
+   *     the opponent's palette (`ribSyncYouKitV96(scene, "def")`, ~170 ms) — and the snap recoloured them straight back.
+   * Now: `drawField` keeps the key of the bake on screen (`fieldKeyV162A`: the spot, the direction, the field / weather
+   * / light settings, the tuning, the stadium, the opponent's palette, the art) and a call with the same key redraws
+   * only the LOS and first-down lines; `refreshPersp` (a slider, the crest, late art) always re-bakes. `renderStatic`
+   * clears the CSS transform itself instead of calling `applyFieldFx`. `staticFormation` dresses by `kitForV105_2`.
+   * A change of possession is one bake (on the still header) and no recolour; the drive's first snap starts clean.
+   * Looks only: no sim value, no Math.random. Kill switch `TU("v162A", 0)`: every call bakes, the old header.
+   * `window.__V162A` (`bakes`, `skips`, `key()`); `v162Acheck`. */
+  fieldKeyV162A(losYd) {
+    if (!TU("v162A", 1)) return null;
+    try {
+      const FX = window.__FIELD_FX || {}, wx = this.wxV144();
+      let lv = 0; try { const st = window.S || (window.__getGridironState && window.__getGridironState()); const pl = st && st.player; lv = pl ? [pl.level, pl.currentWeek, pl.totalSeasons].join(".") : 0; } catch (e) {}
+      return JSON.stringify([losYd, VDIR, FX, wx.day, wx.precip, window.__WX_V79 || "", window.__WX_DAY_V144 ? 1 : 0, window.__CROWD_TIER || "", lv,
+        this.lightMulV100(), window.RIB_TUNE || null, RIB.defPal || null, window.__GRIDIRON_TEAM_CUSTOM__ && window.__GRIDIRON_TEAM_CUSTOM__.palette,
+        !!RIB.fieldImg, !!RIB.crowdImg, !!RIB.sideImg, RIB._fieldLogoDrawn == null ? "" : RIB._fieldLogoDrawn]);
+    } catch (e) { return null; }
   }
   drawFieldText(fxr) {
     // Field numbers/words come from the baked field image now — nothing to draw here.
