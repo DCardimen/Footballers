@@ -93,7 +93,7 @@ const pose = await E(() => { const V = window.__V157A, T = window.RIB_TUNE || {}
 ok(pose.on && pose.P >= 2500 && pose.P <= 5000 && pose.bMax > 0.25 && pose.bMin < -0.15 && pose.sy < 0.95 && pose.restSmall && pose.restMoves && pose.sgn >= 3, 'the pose: every few seconds a quick beat (the wings swing up and down, squash on the downstroke); between beats a small flutter, never still (v159 D)', pose)
 // a Locker preview, sampled against the clock through a beat and a rest
 const sample = (sel, ms) => E(async ({ sel, ms }) => { const H = window.__hash157, V = window.__V157A, T = window.RIB_TUNE || {}, P = T.wingFlapPeriodV157A || 3400, D = T.wingFlapMsV157A || 760
-  const cv = document.querySelector(sel); if (!cv) return null; const beat = new Set(), rest = new Set(); const t0 = performance.now()
+  const cv = document.querySelector(sel); if (!cv) return null; cv.scrollIntoView({ block: 'center' }); await new Promise(r => setTimeout(r, 120)); const beat = new Set(), rest = new Set(); const t0 = performance.now()   // v159 D: scrolled into view (an off-screen canvas is not repainted)
   await new Promise(r => { const f = () => { const t = performance.now(), ph = t % P; if (ph > 40 && ph < D - 40) beat.add(H(cv)); else if (ph > D + 120 && ph < P - 40) rest.add(H(cv)); if (t - t0 < ms) requestAnimationFrame(f); else r() }; requestAnimationFrame(f) })
   return { beat: beat.size, rest: rest.size } }, { sel, ms })
 const pv = await sample('.cos-item-v151b[data-cos="wings_paper"] canvas.cos-fl-v153g', 7500)
