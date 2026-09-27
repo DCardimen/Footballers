@@ -164,7 +164,7 @@ const played = (page) => M(page, () => window.S.player.weekResults.filter((w) =>
     place: Object.entries(R.config.placements).map(([k, v]) => k + ':' + v.reward.key).join(','), allOk: Object.values(R.config.placements).every((v) => R.keyAllowed(v.reward.key === 'try:*' ? 'try:x' : v.reward.key)) } })
   ok(!gd.pp.ok && /never sold/.test(gd.pp.errors.join()) && !gd.stat && !gd.reroll && gd.cos && gd.grant === false, 'ON: the catalogue guard refuses PP / stat / reroll products and grant() refuses power keys; a cosmetic passes', gd)
   ok(gd.cat === 'rib.noads=$3.99,rib.pro=$8.99,rib.founder=$14.99' && /rib\.upgrade\.noads_pro=\$5\.00/.test(gd.ups) && /rib\.upgrade\.pro_founder=\$6\.00/.test(gd.ups), 'ON: the three tiers at $3.99 / $8.99 / $14.99, upgrades at the difference', { cat: gd.cat, ups: gd.ups })
-  ok(gd.place === 'speed4:speed4,gameSims:gameSims,cosTrial:try:*' && gd.allOk, 'ON: every rewarded placement is a convenience (4× for 20 min, 30 min of unlimited game sims — v158 B, a 24h trial) — no PP double', gd.place)
+  ok(gd.place === 'speed4:speed4,gameSims:gameSims,playsOnly:playsOnly,cosTrial:try:*' && gd.allOk, 'ON: every rewarded placement is a convenience (4× for 20 min, 30 min of unlimited game sims — v158 B, 30 min of My Plays Only — v159 B, a 24h trial) — no PP double', gd.place)
   // 4× is Pro's; 3× is still the UFF's
   await goLive(p)
   const s4 = await M(p, async () => { window.setSpeed(2); window.setSpeed(4); await new Promise((r) => setTimeout(r, 200)); const o = { speed: window.__getGridironLiveSpeed(), sheet: !!document.getElementById('mz149Sheet'), lab: (document.querySelector('.speed-btn[data-spd="4"] small') || {}).textContent }

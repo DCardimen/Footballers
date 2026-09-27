@@ -15,7 +15,7 @@
 // ON (`?monetize=1`, dev host): none left → the store's sheet; v158 B: Quick Play is locked ("🔒 AD") — a tap opens the
 //   member-perk sheet, the rewarded ad gives 30 minutes of unlimited GAME sims ("∞ 30 min") and the Quick Play goes on,
 //   season sims stay counted, it expires on the module's clock; Pro +3 a career; the Club (member) has Quick Play for good
-//   and twice the season sims (TU memberSimMultV158B); TU v158Bgames 0 restores v156 B.
+//   and 50% more season sims (TU memberSimMultV158B 1.5 since v159 B; was 2); TU v158Bgames 0 restores v156 B.
 // No page errors.
 //   GAME_URL=http://localhost:5451/index.html node scripts/v156Bcheck.mjs
 import { gameUrl, launch } from './lib/env.mjs'
@@ -173,7 +173,7 @@ const leaveLive = (page) => M(page, async () => { const k = window.RIB_TUNE.v156
   const c = await newCtx(), p = await open(c, 'on', ON)
   await seed(p)
   const pl = await M(p, () => ({ place: Object.keys(window.RIB_MONETIZE.config.placements).join(','), games: window.RIB_MONETIZE.keyAllowed('gameSims'), alias: window.RIB_MONETIZE.keyAllowed('simUnlimited'), extra: window.RIB_MONETIZE.keyAllowed('simExtra') }))
-  ok(pl.place === 'speed4,gameSims,cosTrial' && pl.games && pl.alias && !pl.extra, 'ON: the sim placement is gameSims (v158 B; simUnlimited stays an allowed alias, simExtra is gone)', pl)
+  ok(pl.place === 'speed4,gameSims,playsOnly,cosTrial' && pl.games && pl.alias && !pl.extra, 'ON: the sim placement is gameSims (v158 B; simUnlimited stays an allowed alias, simExtra is gone; v159 B adds playsOnly)', pl)
   const sh = await M(p, async () => { window.S.player.simsUsedV156B = 1; window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 300)); const s = document.getElementById('mz149Sheet'), t = s ? s.textContent : ''; s?.remove(); return t })
   ok(/NO SEASON SIMS LEFT THIS CAREER/.test(sh) && /BRONZE medals/.test(sh) && /played live/.test(sh) && /member perk/.test(sh) && /30 minutes of unlimited game sims/.test(sh), 'ON: none left → the store\'s sheet explains the medals; Quick Play is a member perk or 30 minutes of game sims for an ad', sh)
   // Quick Play is locked → the sheet → the ad → the Quick Play goes on
@@ -207,7 +207,7 @@ const leaveLive = (page) => M(page, async () => { const k = window.RIB_TUNE.v156
     window.RIB_TUNE.v158Bgames = 0; out.killGames = window.__V158B.gameOk(); delete window.RIB_TUNE.v158Bgames
     return out })
   ok(pro.pro === 3 && pro.proAllowed === 4 && !pro.proGames, 'ON: Pro adds 3 season sims a career (Quick Play is not Pro\'s — its Ad Free claims the 30 minutes without an ad)', pro)
-  ok(pro.memGames && !pro.club && !pro.unl && pro.mult === 2 && pro.memAllowed === 2 && pro.memBronze === 4 && pro.nextBonus === 4 && pro.memAll === 40 && pro.x3 === 60, 'ON: the Club has Quick Play for good and TWICE the season sims (1 → 2, BRONZE 4, all nine 40; TU memberSimMultV158B 3 → 60), never unlimited', pro)
+  ok(pro.memGames && !pro.club && !pro.unl && pro.mult === 1.5 && pro.memAllowed === 2 && pro.memBronze === 4 && pro.nextBonus === 3 && pro.memAll === 30 && pro.x3 === 60, 'ON: the Club has Quick Play for good and 50% MORE season sims (v159 B ×1.5, each piece rounded half to even: 1 → 2, BRONZE 4, next SILVER +3, all nine 30; TU memberSimMultV158B 3 → 60), never unlimited', pro)
   ok(pro.killUnl && pro.killMult === 1 && pro.killGames, 'ON: TU v158Bgames 0 brings v156 B back (Quick Play free, the Club never counts a season sim)', pro)
   await M(p, () => window.RIB_MONETIZE.openStore()); await p.waitForTimeout(400)
   const st = await M(p, () => { const s = document.getElementById('mz149Store'), t = s ? s.textContent : ''; const b = s && s.querySelector('[data-ad="gameSims"]'); window.RIB_MONETIZE.closeStore(); return { btn: b ? b.textContent : '', sims: /a career/.test(t), pro: /\+3 season sims every career/.test(t), qp: /Quick Play \(one game at a time\): a member perk, or 30 min for an ad/.test(t) } })

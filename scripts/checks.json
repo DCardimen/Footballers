@@ -1323,14 +1323,15 @@
    ]
   },
   "monetize": {
-   "desc": "v149 E / v150 C / v151 A — the monetization module, its in-game hooks (switched off by default), the v151 A progression gates and the v158 B experience preview",
+   "desc": "v149 E / v150 C / v151 A — the monetization module, its in-game hooks (switched off by default), the v151 A progression gates the v158 B experience preview and v159 B (My Plays Only and ×1.5 season sims are the member's)",
    "anchors": [
     "v149 E",
     "v150 C",
     "v151 A",
     "RIB_MONETIZE",
     "v156 C",
-    "v158 B"
+    "v158 B",
+    "v159 B"
    ],
    "files": [
     "src/27-monetize.js"
@@ -1347,7 +1348,8 @@
     "honorcheck",
     "vaultcheck",
     "v156Ccheck",
-    "v158Bcheck"
+    "v158Bcheck",
+    "v159Bcheck"
    ]
   },
   "pwa": {
@@ -1539,7 +1541,8 @@
     "menu-integration-check",
     "v153Fcheck",
     "v153Echeck",
-    "v156Acheck"
+    "v156Acheck",
+    "v159Bcheck"
    ]
   },
   "v153b": {
@@ -1615,7 +1618,8 @@
     "v156Dcheck",
     "v153Bcheck",
     "v151Acheck",
-    "coachcheck"
+    "coachcheck",
+    "v159Bcheck"
    ]
   }
  },
@@ -3900,9 +3904,23 @@
    "pureNode": false,
    "flaky": []
   },
+  "v159Bcheck": {
+   "file": "scripts/v159Bcheck.mjs",
+   "desc": "v159 B — My Plays Only is the member's and members get 50% more season sims: OFF the live field's MY PLAYS ONLY row, the Settings LIVE GAME card and the profile's ⏭ SIMS tab are the same markup with 27 blocked, the box ticks for free, playoffs force it off; the F2P preview locks the box (\"🔒 MY PLAYS ONLY · AD / MEMBER\"), a tap opens the member-perk sheet → the 15 s placeholder → ticked for 30 min (only his snaps drawn), the fake clock's 31 min turn it off at the next play boundary with a toast, the Settings row is locked and opens the sheet, the store offers it, playoffs force it off, TU v159Bplays 0 frees it; MEMBER: always free, season sims ×1.5 rounded half to even (fresh 2, BRONZE 4 then +3, all nine 30; TU 2 → 40); the medals' reward table (every group's free reward, completion, the allowance; store ON: the MEMBERS column and \"50% more\") and the medal card's colour reward; no page errors.",
+   "areas": [
+    "monetize",
+    "plays",
+    "legacy"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
   "v158Bcheck": {
    "file": "scripts/v158Bcheck.mjs",
-   "desc": "v158 B — the owner's EXPERIENCE toggle: OFF (default, bad value, TU experienceV158B 0) is the old build and Settings is the same markup with 27 blocked; the F2P preview runs the store ON in a sandbox (no member, not grandfathered, the PREVIEW chip → Settings), every rewarded placement (4×, a locked Quick Play tap, a cosmetic trial) opens the 15 s ad placeholder (countdown ring, SKIP focused and live at once, Esc, fits 400x860) and skip / the end grant the reward (4× 20 min, 30 min of game sims — the tapped Quick Play goes on; season sims stay counted, a 24 h trial), TU adSkipAfterV158B holds SKIP, member looks locked, the break between seasons once a season on the report card (TU adBreakV158B), nothing in the save or the real entitlement store; MEMBER (switched through the ribDialog) holds member — no ad or break anywhere, 4×, Quick Play free, twice the season sims (counted), a member look equipped; back to OFF deletes the sandbox and the member look falls back to the default; no page errors.",
+   "desc": "v158 B — the owner's EXPERIENCE toggle: OFF (default, bad value, TU experienceV158B 0) is the old build and Settings is the same markup with 27 blocked; the F2P preview runs the store ON in a sandbox (no member, not grandfathered, the PREVIEW chip → Settings), every rewarded placement (4×, a locked Quick Play tap, a cosmetic trial) opens the 15 s ad placeholder (countdown ring, SKIP focused and live at once, Esc, fits 400x860) and skip / the end grant the reward (4× 20 min, 30 min of game sims — the tapped Quick Play goes on; season sims stay counted, a 24 h trial), TU adSkipAfterV158B holds SKIP, member looks locked, the break between seasons once a season on the report card (TU adBreakV158B), nothing in the save or the real entitlement store; MEMBER (switched through the ribDialog) holds member — no ad or break anywhere, 4×, Quick Play free, 50% more season sims (v159 B ×1.5, counted), a member look equipped; back to OFF deletes the sandbox and the member look falls back to the default; no page errors.",
    "areas": [
     "monetize",
     "settings",
