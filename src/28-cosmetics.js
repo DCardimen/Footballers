@@ -720,11 +720,12 @@
   /* the source recoloured for one kit: { j, p, t, pat, hs, hst, hf } (hex strings; hs / hst / t optional) */
   function figCell(K) {
     var im = FIG.img; if (!im) return null;
-    var key = [K.j, K.p, K.t, K.pat, K.hs, K.hst, K.hf, K.hsk, K.hd, K.hdk].join("|");   // v158 A: twin / wide stripes and the decal
+    var key = [K.j, K.p, K.t, K.pat, K.hs, K.hst, K.hf, K.hsk, K.hd, K.hdk, helmLogoKeyV160A(K)].join("|");   // v158 A: twin / wide stripes and the decal · v160 A: the team logo
     if (FIG.cache[key]) return FIG.cache[key];
     var W = im.naturalWidth, H = im.naturalHeight, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
     var x = cv.getContext("2d"); x.drawImage(im, 0, 0);
     var img = x.getImageData(0, 0, W, H), d = img.data, src158 = K.hs && (K.hsk || K.hd) ? new Uint8ClampedArray(d) : null;
+    var src160 = helmLogoV160A(K) ? src158 || new Uint8ClampedArray(d) : null;   // v160 A: the shell, read before the recolour
     var top = 3, neck = Math.round(top + (H - 6) * FIG.neck);
     // the jersey's rows: from the neck to the first row where the gold pants outweigh the navy
     var waist = H;
@@ -768,6 +769,7 @@
       d[i] = Math.max(0, Math.min(255, out[0])); d[i + 1] = Math.max(0, Math.min(255, out[1])); d[i + 2] = Math.max(0, Math.min(255, out[2]));
     }
     if (src158) figHelmV158A(d, src158, W, H, K, { hx0: hx0, hy0: hy0, hrx: hrx, hry: hry, visor: visor, neck: neck });   // v158 A
+    if (src160) helmLogoPaintV160A(d, src160, W, H, K, { hx0: hx0, hy0: hy0, hrx: hrx, hry: hry, visor: visor, neck: neck });   // v160 A
     x.putImageData(img, 0, 0);
     FIG.cache[key] = cv;
     return cv;
@@ -6265,6 +6267,87 @@
     uniColour: uniColV159A, setUniColour: setUniColV159A, uniMode: uniModeV159A, ink: inkForV159A, numInk: numInkV159A,
     maps: mapsV159A, jerseyMask: function (res, W, H) { var M = maskOutV159A(res, W, H); return M ? M.d : null; }, row: uniColRowV159A
   });
+
+  /* ===== v160 A THE TEAM ON THE HELMET =====
+   * The owner: "Add the team's logo on the side of the helmet for the profile character." The card's figure (and so
+   * the growth screen and the live badge, which draw the same figure) wears his team's emblem (`__GRIDIRON_TEAM_CUSTOM__
+   * .logo`, the v44 sheet `RIB.logoImg` / `TEAM_LOGOS_V44`) on the side of the helmet the viewer sees — the dome's side
+   * away from the stripe, where v158 A puts a helmet's decal. It is painted INTO the shell: only shell pixels take it,
+   * squeezed across the curve of the dome, shaded by the shell's own light, with a thin dark keyline so it reads at card
+   * size. A helmet with its own decal keeps its decal. The figure's cache key carries the logo (and whether the sheet has
+   * decoded), so the figure redraws once the emblem is in. Kill switch TU("v160Alogo", 0). `window.__V160A`. */
+  var V160A = (window.__V160A = window.__V160A || { paints: 0, last: null, errs: [] });
+  function helmLogoIdxV160A() {
+    try { var tc = window.__GRIDIRON_TEAM_CUSTOM__; var i = tc && tc.logo; return i == null || isNaN(+i) ? null : ((+i % 90) + 90) % 90; } catch (e) { return null; }
+  }
+  // the v44 emblem sheet, decoded here once (the field renderer keeps its own copy); on arrival the figure cache is
+  // dropped and a screen that shows the figure redraws, so the helmet picks the emblem up
+  var LOGO_IMG_V160A = null, LOGO_TRY_V160A = 0;
+  function helmLogoImgV160A() {
+    if (LOGO_IMG_V160A && LOGO_IMG_V160A.naturalWidth) return LOGO_IMG_V160A;
+    if (!LOGO_TRY_V160A && typeof Image !== "undefined") {
+      LOGO_TRY_V160A = 1;
+      try {
+        var im = new Image(), T = window.TEAM_LOGOS_V44;
+        im.onload = function () {
+          LOGO_IMG_V160A = im; FIG.cache = {};
+          try { var v = window.S && window.S.view; if (window.go && /^(profile|locker|hub|menu)$/.test(v || "")) window.go(v); } catch (e) {}
+        };
+        im.onerror = function () { LOGO_TRY_V160A = 0; };
+        im.src = (T && T.url) || window.__RIB_LOGOS_V44 || "/rib_logos_v44.png";
+      } catch (e) { LOGO_TRY_V160A = 0; }
+    }
+    return null;
+  }
+  function helmLogoV160A(K) { return !!TUv("v160Alogo", 1) && !(K && K.hd) && helmLogoIdxV160A() != null && !!helmLogoImgV160A(); }
+  function helmLogoKeyV160A(K) { return helmLogoV160A(K) ? "L" + helmLogoIdxV160A() : "L-"; }
+  function helmLogoPaintV160A(d, src, W, H, K, geo) {
+    try {
+      var li = helmLogoIdxV160A(), im = helmLogoImgV160A(); if (li == null || !im) return;
+      var N = W * H, shell = new Uint8Array(N), tone = new Float32Array(N), x, y, j, sn = 0, sx = 0;
+      for (y = 0; y < geo.neck; y++) for (x = 0; x < W; x++) {
+        j = y * W + x; var i = j * 4; if (src[i + 3] < 20) continue;
+        var ex = (x - geo.hx0) / geo.hrx, ey = (y - geo.hy0) / geo.hry; if (ex * ex + ey * ey > 1) continue;
+        var c = srcClass(src[i], src[i + 1], src[i + 2]);
+        if (c[0] === 1) { shell[j] = 1; tone[j] = c[1]; }
+        else if (c[0] === 2 && y < geo.visor) { sn++; sx += x; }   // the stripe
+      }
+      // the side the viewer sees: the larger run of shell on either side of the stripe, in the dome's middle band
+      var mid = sn ? sx / sn : geo.hx0, L = [], R = [];
+      for (y = Math.round(geo.hy0 - geo.hry * 0.35); y <= Math.round(geo.hy0 + geo.hry * 0.35); y++) for (x = 0; x < W; x++) {
+        j = y * W + x; if (!shell[j]) continue; (x < mid ? L : R).push(x, y);
+      }
+      var side = L.length >= R.length ? L : R, n = side.length / 2; if (n < 12) return;
+      var cx = 0, cy = 0, x0 = 1e9, x1 = -1e9; for (var k = 0; k < side.length; k += 2) { cx += side[k]; cy += side[k + 1]; x0 = Math.min(x0, side[k]); x1 = Math.max(x1, side[k]); }
+      cx /= n; cy /= n;
+      var span = Math.max(4, x1 - x0), size = Math.max(8, Math.min(span * 1.05, geo.hry * 1.15) * TUv("v160AlogoK", 1)), sq = TUv("v160AlogoSquash", 0.78);
+      var lw = Math.max(6, Math.round(size * sq)), lh = Math.max(6, Math.round(size));
+      // the emblem cell, scaled once to the stamp's size
+      var cv = document.createElement("canvas"); cv.width = lw; cv.height = lh;
+      var lx = cv.getContext("2d"); lx.imageSmoothingEnabled = true; lx.imageSmoothingQuality = "high";
+      var CELL = 128, COLS = 10, sw0 = im.naturalWidth / COLS, sh0 = im.naturalHeight / 9;
+      lx.drawImage(im, (li % COLS) * sw0, Math.floor(li / COLS) * sh0, sw0, sh0, 0, 0, lw, lh);
+      var ld = lx.getImageData(0, 0, lw, lh).data;
+      // the shell's median light, so the emblem takes the dome's shading around it
+      var ts = []; for (k = 0; k < side.length; k += 2) ts.push(tone[side[k + 1] * W + side[k]]); ts.sort(function (a, b) { return a - b; });
+      var tMed = ts[ts.length >> 1] || 1, ox = Math.round(cx - lw / 2), oy = Math.round(cy - lh / 2), painted = 0;
+      for (var ly = 0; ly < lh; ly++) for (var lxp = 0; lxp < lw; lxp++) {
+        x = ox + lxp; y = oy + ly; if (x < 0 || y < 0 || x >= W || y >= H) continue;
+        j = y * W + x; if (!shell[j]) continue;
+        var li4 = (ly * lw + lxp) * 4, a = ld[li4 + 3] / 255; if (a < 0.08) continue;
+        var sh = Math.max(0.62, Math.min(1.25, 0.35 + 0.65 * tone[j] / tMed)), ii = j * 4;
+        // a thin keyline: an emblem pixel on the edge of the emblem darkens
+        var edge = 0; for (var q = 0; q < 4; q++) { var qx = lxp + [1, -1, 0, 0][q], qy = ly + [0, 0, 1, -1][q];
+          if (qx < 0 || qy < 0 || qx >= lw || qy >= lh || ld[(qy * lw + qx) * 4 + 3] < 20) edge++; }
+        var r = ld[li4] * sh, g = ld[li4 + 1] * sh, b = ld[li4 + 2] * sh; if (edge) { r *= 0.45; g *= 0.45; b *= 0.45; }
+        a = Math.min(1, a * TUv("v160AlogoAlpha", 0.95));
+        d[ii] = Math.round(d[ii] * (1 - a) + Math.min(255, r) * a); d[ii + 1] = Math.round(d[ii + 1] * (1 - a) + Math.min(255, g) * a); d[ii + 2] = Math.round(d[ii + 2] * (1 - a) + Math.min(255, b) * a);
+        painted++;
+      }
+      V160A.paints++; V160A.last = { logo: li, cx: +cx.toFixed(1), cy: +cy.toFixed(1), w: lw, h: lh, px: painted, side: side === L ? "left" : "right" };
+    } catch (e) { if (V160A.errs.length < 6) V160A.errs.push(String(e && e.message || e)); }
+  }
+  if (TUv("v160Alogo", 1)) helmLogoImgV160A();   // start the decode now, so the first card usually has it
 
   /* ---------------- the API ---------------- */
   var API = {
