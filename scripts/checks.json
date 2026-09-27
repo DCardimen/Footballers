@@ -1466,7 +1466,8 @@
     "v157 B",
     "v157 C",
     "v158 A",
-    "v159 C"
+    "v159 C",
+    "v159 D"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1489,7 +1490,8 @@
     "layoutcheck",
     "walk",
     "v157Bcheck",
-    "v157Ccheck"
+    "v157Ccheck",
+    "v159Dcheck"
    ]
   },
   "audio": {
@@ -3853,7 +3855,7 @@
   },
   "v157Acheck": {
    "file": "scripts/v157Acheck.mjs",
-   "desc": "v157 A — wings that flap, crowns that shine: >= 15 new wing kinds (unique art keys, every catalogue wing's pixels and every new silhouette distinct), the harder source split (a few free, some earned — three waaay later — the flashiest member), angel wings still super-only; every new wing listed in the Locker with a drawn preview and its source's lock text; the flap pose (a beat, then exactly still), a Locker preview and the profile card flap and rest, TU v157Aflap 0 and prefers-reduced-motion stop it; every crown (catalogue + pass styles) redrawn — no error, differs from the v153 G art (TU v157Acrown 0), >= 6 colours, symmetric, sprite-sized, the glint frame; on the live field his wings flap on the scene clock and the crown glints, no Math.random from src/28; seeded games identical; no page errors.",
+   "desc": "v157 A — wings that flap, crowns that shine: >= 15 new wing kinds (unique art keys, every catalogue wing's pixels and every new silhouette distinct), the harder source split (a few free, some earned — three waaay later — the flashiest member), angel wings still super-only; every new wing listed in the Locker with a drawn preview and its source's lock text; the flap pose (a beat, then v159 D's small never-still flutter), a Locker preview and the profile card flap and keep fluttering, TU v157Aflap 0 and prefers-reduced-motion stop it; every crown (catalogue + pass styles) redrawn — no error, differs from the v153 G art (TU v157Acrown 0), >= 6 colours, symmetric, sprite-sized, the glint frame; on the live field his wings flap on the scene clock (a small flutter between beats) and the crown glints, no Math.random from src/28; seeded games identical; no page errors.",
    "areas": [
     "cosmetics"
    ],
@@ -3920,7 +3922,7 @@
   },
   "v158Bcheck": {
    "file": "scripts/v158Bcheck.mjs",
-   "desc": "v158 B — the owner's EXPERIENCE toggle: OFF (default, bad value, TU experienceV158B 0) is the old build and Settings is the same markup with 27 blocked; the F2P preview runs the store ON in a sandbox (no member, not grandfathered, the PREVIEW chip → Settings), every rewarded placement (4×, a locked Quick Play tap, a cosmetic trial) opens the 15 s ad placeholder (countdown ring, SKIP focused and live at once, Esc, fits 400x860) and skip / the end grant the reward (4× 20 min, 30 min of game sims — the tapped Quick Play goes on; season sims stay counted, a 24 h trial), TU adSkipAfterV158B holds SKIP, member looks locked, the break between seasons once a season on the report card (TU adBreakV158B), nothing in the save or the real entitlement store; MEMBER (switched through the ribDialog) holds member — no ad or break anywhere, 4×, Quick Play free, 50% more season sims (v159 B ×1.5, counted), a member look equipped; back to OFF deletes the sandbox and the member look falls back to the default; no page errors.",
+   "desc": "v158 B — the owner's EXPERIENCE toggle: OFF (default, bad value, TU experienceV158B 0) is the old build and Settings is the same markup with 27 blocked; the F2P preview runs the store ON in a sandbox (no member, not grandfathered, the PREVIEW chip → Settings), every rewarded placement (4×, a locked Quick Play tap, a cosmetic trial) opens the 15 s ad placeholder (countdown ring, SKIP focused and live at once, Esc, fits 400x860) and skip / the end grant the reward (4× 20 min, 30 min of game sims — the tapped Quick Play goes on; season sims stay counted, a 24 h trial), TU adSkipAfterV158B holds SKIP, member looks locked, the break between seasons once a season on the report card (TU adBreakV158B), nothing in the save or the real entitlement store; MEMBER (switched through the ribDialog) holds member — no ad or break anywhere, 4×, Quick Play free, twice the season sims (counted), a member look equipped; back to OFF deletes the sandbox and the member look falls back to the default; no page errors.",
    "areas": [
     "monetize",
     "settings",
@@ -3954,6 +3956,19 @@
    ],
    "runtimeSec": 200,
    "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v159Dcheck": {
+   "file": "scripts/v159Dcheck.mjs",
+   "desc": "v159 D — flutter, crowns, more light: the wing pose is never still (every 100 ms window of a 5 s sample moves, all five families) yet each period holds one strong flap (an amplitude spike over the flutter), the outer half lags for feathers / membranes / bones / ethereal wings and never for mechanical ones, each family moves its own way, deterministic, reduced motion still, TU v159Dflutter 0 restores v157 A; a Locker preview and the card keep fluttering between flaps; >= 15 new crowns (unique pixel hashes, symmetric, >= 6 colours, sprite-sized), every crown animates (frames differ) on the card, the Locker and the field; >= 15 new auras (own fx, unique pictures, all animate, Locker previews move); the source split and member looks listed-locked; on the live field wings never still with a flap each period, the crown's frames change, the new aura's layers under the cap, no Math.random from src/28, the perf probe (busy vs none); seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics"
+   ],
+   "runtimeSec": 300,
+   "slow": true,
    "needsServer": true,
    "pureNode": false,
    "flaky": [],
