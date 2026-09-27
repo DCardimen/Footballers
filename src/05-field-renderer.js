@@ -967,9 +967,11 @@ function ribCrowdArchitecture(cx, W, H, pitch, decks, tiles) {
   cx.restore();
 }
 function ribRecolor(src, p1hex, p2hex) {
-  const cv = document.createElement("canvas"); cv.width = 48; cv.height = 48;
+  // v161 A: the cell's own size (every field cell is 48x48; the celebration frames are not)
+  const W = (src && src.width) || 48, H = (src && src.height) || 48;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const c = cv.getContext("2d"); c.drawImage(src, 0, 0);
-  const img = c.getImageData(0, 0, 48, 48), d = img.data;
+  const img = c.getImageData(0, 0, W, H), d = img.data;
   const hx = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const P = hx(p1hex), S = hx(p2hex);
   for (let i = 0; i < d.length; i += 4) {
@@ -1689,6 +1691,13 @@ function ribRebindSideV159A(scene) {
     window.__V159A_FIELD.side = n; return n;
   } catch (e) { return 0; }
 }
+/* ===== v161 A THEY CELEBRATE LIKE THEY MEAN IT (renderer) =====
+ * The three drawn touchdown celebrations (flex / backflip / ball spike — src/28 `v161 A`) wear HIS kit through the same
+ * `ribRecolor` the field's cells go through (it now takes any cell size). This file keeps the palettes (`RIB` is its own
+ * scope), so the renderer hands them over: `kit(k)` is the [primary, secondary] a kit key ("you", "off") was last
+ * registered with — after the cosmetics' uniform / team palette (v151 B, v159 A) — and `recolor` is ribRecolor itself.
+ * Looks only: nothing here reads or writes a sim value or draws Math.random. */
+window.__V161A_FIELD = { kit: (k) => (RIB.teamCols[k] ? RIB.teamCols[k].slice() : null), recolor: (c, p1, p2) => ribRecolor(c, p1, p2), tones: SKIN_TONES_V151D };
 window.__V159A_FIELD = { regs: 0, clones: 0, lastMs: 0, cloneMs: 0, cloned: 0, key: null, kit: false, side: 0, base: () => RIB.baseOffV159A && RIB.baseOffV159A.slice(), teams: () => Object.assign({}, RIB.teamCols) };
 // the atlas decodes the moment the page loads — long before any game starts
 (function () {

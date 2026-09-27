@@ -1,6 +1,6 @@
 # Art provenance (generated — `python3 scripts/art-provenance.py`)
 
-139 of 344 tracked image/video files carry an embedded AI-generation record or a tool name. A C2PA manifest with `trainedAlgorithmicMedia` is the generator itself stating the picture was produced by a generative model; OpenAI embeds one in every ChatGPT / DALL·E image. Files in `public/` are re-encoded cuts (the build scripts strip metadata), so they carry no record of their own — they inherit it from their source.
+142 of 353 tracked image/video files carry an embedded AI-generation record or a tool name. A C2PA manifest with `trainedAlgorithmicMedia` is the generator itself stating the picture was produced by a generative model; OpenAI embeds one in every ChatGPT / DALL·E image. Files in `public/` are re-encoded cuts (the build scripts strip metadata), so they carry no record of their own — they inherit it from their source.
 
 **docs/COMMERCIAL.md says "all art produced by the owner". The owner must confirm, per group below, how the art was made and that they hold the rights to ship it** (docs/APP-STORE.md §7).
 
@@ -11,6 +11,7 @@
 | `(repo root)` | 8 |
 | `art` | 36 |
 | `art/badges` | 3 |
+| `art/celebrations` | 3 |
 | `art/coach` | 3 |
 | `art/field` | 23 |
 | `art/legacy` | 5 |
@@ -31,6 +32,7 @@
 | `public/rib_logos_v44.png` | `art/football-logo-sheet-*.png` | the v44 emblem bake |
 | `public/vault/*.webp` | `art/Prestige/*` | scripts/build-vault-art.py |
 | `public/legacy/*.webp` | `art/legacy/sheet-*.png` | scripts/build-legacy-medals.py |
+| `public/celebrations/*.png` | `art/celebrations/{flex,backflip,spike}.png` | scripts/build-celebration-sheets.py |
 | `public/rib_film_v116.{mp4,webm,jpg} and the app icons` | `art/splash/rib_loop_master_v116.mp4` | scripts/build-splash-film.mjs, scripts/build-app-icons.py |
 
 ## Every file
@@ -43,6 +45,9 @@
 | `art/badges/sheet-downs.png` | 1836 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
 | `art/badges/sheet-plays.png` | 2393 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
 | `art/badges/sheet-scores.png` | 2370 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
+| `art/celebrations/backflip.png` | 1299 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
+| `art/celebrations/flex.png` | 1410 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
+| `art/celebrations/spike.png` | 1481 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
 | `art/coach/coach_sheet_1_v119.png` | 1462 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
 | `art/coach/coach_sheet_2_v119.png` | 1521 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |
 | `art/coach/coach_sheet_3_v119.png` | 1389 KB | C2PA manifest, IPTC: trainedAlgorithmicMedia, "OpenAI" in the manifest |

@@ -1470,13 +1470,17 @@
     "v159 C",
     "v159 D",
     "v159 A",
-    "v160 A"
+    "v160 A",
+    "v161 A"
    ],
    "files": [
     "src/28-cosmetics.js",
-    "docs/COSMETICS.md"
+    "docs/COSMETICS.md",
+    "scripts/build-celebration-sheets.py",
+    "public/celebrations/cel_v161a.json"
    ],
    "checks": [
+    "v161Acheck",
     "v160Acheck",
     "v159Ccheck",
     "v158Acheck",
@@ -4005,6 +4009,20 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v161Acheck": {
+   "file": "scripts/v161Acheck.mjs",
+   "desc": "v161 A — they celebrate like they mean it: the three drawn touchdown bodies (flex, backflip, ball spike) cut by scripts/build-celebration-sheets.py load (36 frames with foot anchors, centres of mass, helmets; grounded frames stand on the ground line within 1 px and the stances register frame to frame); a frame recoloured to a kit has the kit's jersey and pants and keeps its skin and ball; the pick is deterministic from the play's token, all three appear, no Math.random; the backflip's height is one parabola and its spin rises monotonically to a full turn through the drawn frames in order, a landing squash, a shrinking shadow; the spike's hop lands on the slam, a dirt burst and a flash, its ball bounces lower each time; timings sum to 2.2-3.0 s; reduced motion is one calm pose; the Locker previews play the bodies with the random note; a forced touchdown by him on the live field plays the picked body in his (red) kit while v159 C's effect plays around him, lifts and spins on the flip, shakes on the slam, hands the marker back, inside a draw-cost bound; seeded games identical with TU v161A off / on; no page errors.",
+   "areas": [
+    "cosmetics",
+    "live"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   }
  }
 }

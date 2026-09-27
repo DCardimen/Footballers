@@ -536,6 +536,7 @@
   /* ---------------- the touchdown ---------------- */
   function celebrate(scene, x, y, cm) {
     var it = item("celebration"), C = it && it.c;
+    try { fieldBodyV161A(scene, cm); } catch (e) { errV161A(e); }   // v161 A: his body plays one of the three drawn celebrations
     if (it && scene && scene.add && scene.events && onV159C()) {   // v159 C: the animation system (TU v159C 0 → the tweens below)
       try { var r159 = fieldPlayV159C(scene, x, y, cm, it); V.celebrations.push({ id: it.id, kind: celKindV159C(it), say: (C && C.say) || "", made: r159.made, t: Date.now(), v159c: true }); return true; }
       catch (e) { V.celebrateErr = String(e && e.message || e); errV159C(e); }
@@ -902,6 +903,7 @@
       '<div class="h2 cos-h-v151b">Style <span>looks only · never changes a number</span></div>' +
       '<div class="cos-cats-v151b">' + SLOTS.map(function (s) { return '<button type="button" class="cos-cat-v151b' + (s === cat ? " on" : "") + '" onclick="cosCatV151B(\'' + s + '\')"><i>' + CATS[s].icon + "</i>" + CATS[s].name + "</button>"; }).join("") + "</div>" +
       (cat === "uniform" ? uniColRowV159A() : "") +   // v159 A: Colours — the uniform's own, or the team palette
+      (cat === "celebration" && onV161A() ? '<div class="cos-note-v161a">🎲 On every touchdown he picks one of three moves at random — the flex, the backflip or the ball spike. The effect you equip plays around him.</div>' : "") +   // v161 A
       '<div class="cos-grid-v151b">' + list.map(function (it) {
         var own = owned(it.id), on = it.id === eq;
         return '<div class="cos-item-v151b r-' + it.rarity + (own ? "" : " locked") + (on ? " on" : "") + '" data-cos="' + it.id + '"' + (own && !on ? ' onclick="cosEquipV151B(\'' + cat + "','" + it.id + '\')"' : "") + '>' +
@@ -5825,6 +5827,7 @@
      * did not run (the base still carries last frame's pose) the stored base is used, so nothing compounds */
     var applyPose = function (t) {
       if (!root || !root.active) return;
+      if (cm && cm.__v161a && cm.__v161a.alive) { run.body161 = (run.body161 || 0) + 1; cm.__v161a.v159Skipped++; return; }   // v161 A: the drawn body owns him
       var bx = root.x, by = root.y, bs = root.scaleY;
       if (last && root.x === last.ax && root.y === last.ay && root.scaleY === last.as) { bx = last.bx; by = last.by; bs = last.bs; }
       var o = poseV159C(S, t);
@@ -5885,11 +5888,13 @@
     var u = W / 230, ox = W / 2, oy = H * 0.66, B = canvasPainterV159C(x), V = viewV159C(B, ox, oy, u, 0.5);
     S.gy = 22; S.hy = -24; V.hx = 0; V.hy = S.hy;
     x.globalAlpha = 0.5; x.fillStyle = "#1d5a2c"; x.beginPath(); x.ellipse(ox, oy + 22 * u, W * 0.46, 6, 0, 0, 6.2832); x.fill();
-    var o = poseV159C(S, t) || { sx: 1, sy: 1, hop: 0, sh: 1 }, fig = pvFigV159C(Math.floor(Math.max(0, t) / TUv("celebrateFrameMs", 170)) % 4), fh = 22;
+    var b161 = onV161A() && readyV161A();   // v161 A: the drawn bodies (the old celebrate cells when off / not decoded yet)
+    var o = b161 ? { sx: 1, sy: 1, hop: 0, sh: poseV161A(pvNameV161A(rec), t, !!rec.calm161).sh } : poseV159C(S, t) || { sx: 1, sy: 1, hop: 0, sh: 1 }, fig = b161 ? null : pvFigV159C(Math.floor(Math.max(0, t) / TUv("celebrateFrameMs", 170)) % 4), fh = 22;
     x.globalAlpha = 0.35; x.globalCompositeOperation = "source-over"; x.fillStyle = "#000"; x.beginPath(); x.ellipse(ox, oy + 22 * u, 7 * o.sh, 2 * o.sh, 0, 0, 6.2832); x.fill();
     drawV159C(S, V, t);
     x.globalAlpha = 1; x.globalCompositeOperation = "source-over";
-    if (fig) { x.imageSmoothingEnabled = false; var fw = fh * o.sx, fhh = fh * o.sy, fy = oy + 22 * u - fhh - o.hop * 0.5; x.drawImage(fig, 4, 2, 40, 44, ox - fw / 2, fy, fw, fhh); }
+    if (b161) pvDrawBodyV161A(rec, x, t, ox, oy + 22 * u, !!rec.calm161);
+    else if (fig) { x.imageSmoothingEnabled = false; var fw = fh * o.sx, fhh = fh * o.sy, fy = oy + 22 * u - fhh - o.hop * 0.5; x.drawImage(fig, 4, 2, 40, 44, ox - fw / 2, fy, fw, fhh); }
     if (S.say) {
       var fs = 9, n = S.say.length; x.font = "700 " + fs + "px " + (S.kind === "pixel" ? "'Courier New', monospace" : FONT_V159C); x.textAlign = "center"; x.textBaseline = "middle";
       var ws = [], tw = 0; for (var i = 0; i < n; i++) { var w = S.say[i] === " " ? fs * 0.3 : x.measureText(S.say[i]).width; ws.push(w); tw += w; }
@@ -5908,7 +5913,7 @@
         PV_V159C.last = ts;
         for (var i = PV_V159C.list.length - 1; i >= 0; i--) { var r = PV_V159C.list[i];
           if (!r.cv.isConnected) { if (++r.miss > 90) PV_V159C.list.splice(i, 1); continue; }
-          r.miss = 0; var period = r.S.T.end + TUv("v159CpvGapMs", 500); r.t = (performance.now() - r.t0) % period; r.loops = Math.floor((performance.now() - r.t0) / period); pvDrawV159C(r, r.t); }
+          r.miss = 0; var period = Math.max(r.S.T.end, pvBodyLenV161A()) + TUv("v159CpvGapMs", 500); /* v161 A: the whole body plays */ r.t = (performance.now() - r.t0) % period; r.loops = Math.floor((performance.now() - r.t0) / period); pvDrawV159C(r, r.t); }
       }
     } catch (e) { errV159C(e); }
     if (PV_V159C.list.length && typeof requestAnimationFrame === "function") PV_V159C.raf = requestAnimationFrame(pvTickV159C);
@@ -5916,8 +5921,10 @@
   function previewCelV159C(el, it) {
     var calm = reducedV158A(), cv = document.createElement("canvas"); cv.className = "cos-cel-v159c"; cv.setAttribute("aria-hidden", "true");
     sizeCvV158A(cv, 64, 60); el.innerHTML = ""; el.appendChild(cv);
-    var rec = { cv: cv, it: it, S: planV159C(it, strHashV159C(it.id), calm), t0: performance.now() - (strHashV159C(it.id) % 700), miss: 0, frames: 0, t: 0, loops: 0 };
-    cv.__v159c = rec; V159C.previews++;
+    var rec = { cv: cv, it: it, S: planV159C(it, strHashV159C(it.id), calm), t0: performance.now() - (strHashV159C(it.id) % 700), miss: 0, frames: 0, t: 0, loops: 0,
+      calm161: calm, bodyOff: strHashV159C(it.id) % 3 };   // v161 A: each tile starts on a different body
+    cv.__v159c = rec; V159C.previews++; V161A.previews++;
+    if (onV161A() && !readyV161A()) loadV161A(function () { if (calm && cv.isConnected) pvDrawV159C(rec, rec.S.T.b + (rec.S.T.l - rec.S.T.b) * 0.4); });
     if (calm || typeof requestAnimationFrame !== "function") { pvDrawV159C(rec, rec.S.T.b + (rec.S.T.l - rec.S.T.b) * 0.4); return true; }
     pvDrawV159C(rec, rec.S.T.b);
     if (PV_V159C.list.length >= TUv("v159CpvMax", 40)) PV_V159C.list.shift();
@@ -6349,6 +6356,411 @@
   }
   if (TUv("v160Alogo", 1)) helmLogoImgV160A();   // start the decode now, so the first card usually has it
 
+  /* ===== v161 A THEY CELEBRATE LIKE THEY MEAN IT =====
+   * The owner: "I uploaded new celebration artwork, can you implement this as 3 separate celebrations chosen at random and
+   * ensure the motions make sense and are visually appealing? For example the backflipping in the air, the ball spike looks
+   * fluid." Three drawn twelve-frame bodies — FLEX, BACKFLIP, BALL SPIKE — cut by scripts/build-celebration-sheets.py into
+   * public/celebrations/ (a 1x atlas at the field cells' scale, a 2x atlas, the skin masks and a manifest: per frame the
+   * FOOT anchor on the ground line, the centre of mass, the drawn height over the ground, the drawn rotation, the helmet).
+   *   WHICH ONE     HIS touchdown (`celebrate()`, the v151 B / v159 C door) picks one of the three from the play's ball token
+   *                through this file's `prng` (`pickV161A`) — the same play always gets the same one, and the game's
+   *                Math.random is never drawn.
+   *   THE MOTION    every frame is a pure function of (animation, t) — `poseV161A`: hand-timed segments (`PLAN_V161A`: holds
+   *                on the key poses, quick in-betweens), ONE gravity for everything that leaves the ground (TU v161Ag, in 1x
+   *                px/ms²; the arcs' durations follow from their heights, so the flip, the hop and the ball fall alike):
+   *                BACKFLIP — an anticipation crouch that loads (squash), then the air: his centre of mass rides a parabola
+   *                (peak TU v161AflipPeak body heights over the line between the launch's and the landing's drawn centres),
+   *                the spin φ(u) = 360·(u − A·sin 2πu / 2π) (slow off the ground, fastest tucked, opening for the landing;
+   *                TU v161AflipEase A), the drawn frame is the one whose drawn angle is nearest φ and the sprite is turned
+   *                by the rest (≤ TU v161AflipSmear°) about its centre of mass, so the spin reads continuous; a damped squash
+   *                on landing, dust at take-off and landing, the shadow shrinking with height. SPIKE — the wind-up loads,
+   *                a hop on the same gravity, the slam lands on the spike frame: a flash, a dirt burst, a camera shake
+   *                (TU v161Ashake, never under reduced motion); the ball leaves the art on the frame it leaves his hand and
+   *                is its own sprite from where it lay: real bounces (restitution TU v161AballBounce, friction, spin that
+   *                follows the roll) with a dirt puff on the first landings. FLEX — weighty holds (a settle on arrival, a
+   *                slow breath), a stomp with dust and a small shake, a fist-pump hop. FLEX / BACKFLIP toss the game ball
+   *                aside first (TU v161Atoss), so it does not vanish from his hand.
+   *   ON THE FIELD  `fieldBodyV161A` owns HIS marker for the run: in the scene's postupdate (after placeMarker) the body
+   *                wears the frame (his kit: `ribRecolor` through `__V161A_FIELD`, his skin tone painted on the generator's
+   *                skin mask, an equipped helmet's shell and stripe inside the frame's helmet ellipse; cached per kit),
+   *                anchored at its feet — or its centre of mass in the air — and the container rides the arc (the shadow
+   *                stays on the grass). v159 C's squash / hop stands down for him while it runs; its particles, callout and
+   *                stages play around him as before. The 2x atlas is drawn at half scale (TU v161Ahd). ~2.3-2.8 s, never
+   *                blocks the game; a new play or a cleared field ends it and hands the marker back.
+   *   REDUCED MOTION  one calm pose (the last frame) for TU v161AcalmMs, no arc, spin, shake or particles.
+   *   THE LOCKER    the celebration previews (v159 C mini-stages) play the three bodies in turn, one a loop, from the 2x
+   *                atlas in his kit; a note says they are picked at random.
+   * Kill switch TU v161A 0: the v159 C pose and the sheet's celebrate cells. Looks only — no sim value is read or written.
+   * `window.__V161A` is what v161Acheck reads. */
+  var V161A = (window.__V161A = window.__V161A || { runs: [], active: null, last: null, loads: 0, builds: 0, buildMs: 0, previews: 0, prevFrames: 0, errs: [] });
+  function errV161A(e) { try { if (V161A.errs.length < 12) V161A.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  function onV161A(k) { return !!TUv(k || "v161A", 1); }
+  var ANIMS_V161A = ["flex", "backflip", "spike"];
+  var DATA_V161A = { M: null, img: {}, skin: {}, sw: {}, state: 0, cbs: [] };
+  function assetV161A(p) { try { return window.__RIB_ASSET ? window.__RIB_ASSET(p) : "./public/" + p; } catch (e) { return "./public/" + p; } }
+  /* the manifest, both atlases and both skin masks (read to bytes once) */
+  function loadV161A(cb) {
+    if (DATA_V161A.state === 2) { if (cb) cb(); return true; }
+    if (cb) DATA_V161A.cbs.push(cb);
+    if (DATA_V161A.state !== 0) return false;
+    DATA_V161A.state = 1; V161A.loads++;
+    var need = 5;
+    var done = function () { if (--need) return; DATA_V161A.state = 2; DATA_V161A.cbs.splice(0).forEach(function (f) { try { f(); } catch (e) { errV161A(e); } }); };
+    var fail = function (e) { DATA_V161A.state = -1; errV161A("load: " + ((e && e.message) || e)); };
+    try {
+      fetch(assetV161A("celebrations/cel_v161a.json")).then(function (r) { return r.json(); }).then(function (m) { DATA_V161A.M = m; done(); }, fail);
+      [1, 2].forEach(function (s) {
+        var im = new Image(); im.onload = function () { DATA_V161A.img[s] = im; done(); }; im.onerror = fail; im.src = assetV161A("celebrations/cel_v161a_" + s + "x.png");
+        var sk = new Image(); sk.onload = function () {
+          try { var c = document.createElement("canvas"); c.width = sk.width; c.height = sk.height; var x = c.getContext("2d"); x.drawImage(sk, 0, 0);
+            var d = x.getImageData(0, 0, sk.width, sk.height).data, m = new Uint8Array(sk.width * sk.height); for (var i = 0; i < m.length; i++) m[i] = d[i * 4] > 127 ? 1 : 0;
+            DATA_V161A.skin[s] = m; DATA_V161A.sw[s] = sk.width; } catch (e) { errV161A(e); }
+          done(); };
+        sk.onerror = fail; sk.src = assetV161A("celebrations/cel_v161a_skin_" + s + "x.png");
+      });
+    } catch (e) { fail(e); }
+    return false;
+  }
+  function readyV161A() { return DATA_V161A.state === 2 && !!DATA_V161A.M; }
+
+  /* ---- which one: the play's ball token, this file's PRNG ---- */
+  function pickV161A(tok) { var r = prng(strHashV159C("v161A|" + String(tok))); r(); return ANIMS_V161A[Math.floor(r() * 3) % 3]; }
+
+  /* ---- the timeline: [frame, ms, tag] — holds on the key poses, quick in-betweens. "air" is the backflip's flight
+   *      (frames 3-8, driven by the spin), "leap" the spike's hop; both last as long as their arc takes under TU v161Ag ---- */
+  var PLAN_V161A = {
+    flex: [[0, 150], [1, 110, "hit"], [2, 290, "hold"], [3, 360, "hold"], [4, 200, "stomp"], [5, 230, "hold"], [6, 290, "hold"], [7, 220, "hit"],
+      [8, 220, "pump"], [9, 160, "hit"], [10, 330, "hold"], [11, 210, "hold"]],
+    backflip: [[0, 170], [1, 120], [2, 250, "load"], ["air", 0, "air"], [9, 210, "land"], [10, 180], [11, 600, "hold"]],
+    spike: [[0, 170], [1, 120, "hit"], [2, 250, "load"], [3, 0, "leap"], [4, 240, "spike"], [5, 160], [6, 150, "release"], [7, 360, "hold"],
+      [8, 220, "pound"], [9, 260, "hold"], [10, 200], [11, 250, "hold"]]
+  };
+  var AIR_V161A = [3, 4, 5, 6, 7, 8];
+  function gV161A() { return Math.max(1e-5, TUv("v161Ag", 0.0009)); }
+  function standV161A() { return (DATA_V161A.M && DATA_V161A.M.stand) || 44; }
+  function arcMsV161A(h) { return Math.sqrt(8 * Math.max(0.5, h) / gV161A()); }   // up and back down under g
+  function flipPeakV161A() { return TUv("v161AflipPeak", 1.25) * standV161A(); }
+  function hopV161A() { return TUv("v161AspikeHop", 0.25) * standV161A(); }
+  var TLC_V161A = {};
+  function tlV161A(name, calm) {
+    var key = name + (calm ? "|c" : "") + "|" + gV161A() + "|" + TUv("v161Apace", 1) + "|" + flipPeakV161A() + "|" + hopV161A() + "|" + TUv("v161AcalmMs", 1200);
+    if (TLC_V161A[key]) return TLC_V161A[key];
+    var segs = [], t = 0, pace = Math.max(0.3, TUv("v161Apace", 1));
+    if (calm) segs.push({ k: 11, t0: 0, ms: TUv("v161AcalmMs", 1200), tag: "calm", i: 0 });
+    else (PLAN_V161A[name] || PLAN_V161A.flex).forEach(function (s, i) {
+      var ms = s[2] === "air" ? arcMsV161A(flipPeakV161A()) : s[2] === "leap" ? arcMsV161A(hopV161A()) : s[1] * pace;
+      segs.push({ k: s[0] === "air" ? AIR_V161A[0] : s[0], air: s[0] === "air", t0: t, ms: ms, tag: s[2] || "", i: i }); t += ms;
+    });
+    var T = { name: name, calm: !!calm, segs: segs, total: segs.reduce(function (a, s) { return a + s.ms; }, 0) };
+    T.release = 0; segs.forEach(function (s) { if (s.tag === "release") T.release = s.t0; if (s.tag === "spike") T.impact = s.t0; if (s.tag === "air") { T.takeoff = s.t0; T.land = s.t0 + s.ms; } if (s.tag === "stomp") T.stomp = s.t0; });
+    return (TLC_V161A[key] = T);
+  }
+  function segAtV161A(T, t) { var s = T.segs[0]; for (var i = 0; i < T.segs.length; i++) if (t >= T.segs[i].t0) s = T.segs[i]; return s; }
+  function spinV161A(u) { var A = Math.min(0.95, Math.max(0, TUv("v161AflipEase", 0.7))); return 360 * (u - A * Math.sin(2 * Math.PI * u) / (2 * Math.PI)); }
+  function springV161A(amp, tau) { return tau < 0 ? 0 : amp * Math.exp(-tau / TUv("v161AspringMs", 95)) * Math.cos(tau * 2 * Math.PI / 300); }
+  /* one frame of the body: which drawn frame, the arc (`lift`, 1x px over the grass), the turn (deg), the squash, the pivot */
+  function poseV161A(name, t, calm) {
+    var T = tlV161A(name, calm), sg = segAtV161A(T, t), u = c01V159C((t - sg.t0) / Math.max(1, sg.ms)), tau = t - sg.t0;
+    var o = { name: name, t: t, k: sg.k, seg: sg.i, tag: sg.tag, u: u, lift: 0, rot: 0, phi: 0, pivot: "foot", cx: 0, cy: 0, sx: 1, sy: 1, sh: 1, air: 0 };
+    if (calm || !readyV161A()) return o;
+    var A = DATA_V161A.M.anims[name], F = A && A.frames, stand = standV161A();
+    if (!F) return o;
+    if (sg.air) {
+      var phi = spinV161A(u), best = AIR_V161A[0];
+      AIR_V161A.forEach(function (k) { if (Math.abs(phi - F[k].rot) < Math.abs(phi - F[best].rot)) best = k; });
+      var f0 = F[AIR_V161A[0]], f1 = F[AIR_V161A[AIR_V161A.length - 1]], sm = TUv("v161AflipSmear", 40);
+      o.k = best; o.phi = phi; o.air = 1; o.pivot = "com";
+      o.rot = Math.max(-sm, Math.min(sm, phi - F[best].rot));
+      var h0 = f0.ay - f0.cy, h1 = f1.ay - f1.cy, d0 = f0.cx - f0.ax, d1 = f1.cx - f1.ax;
+      o.cx = d0 + (d1 - d0) * u; o.cy = -(h0 + (h1 - h0) * u);   // his centre of mass over the ground point, before the arc
+      o.lift = flipPeakV161A() * 4 * u * (1 - u);
+    } else if (sg.tag === "leap") {
+      o.lift = hopV161A() * 4 * u * (1 - u);
+      var st = 0.07 * Math.cos(Math.PI * u); o.sy = 1 + st; o.sx = 1 - st * 0.6;   // stretched going up, gathering into the slam
+    } else if (sg.tag === "load") {
+      var e = EZ_V159C.inOutS(u); o.sy = 1 - 0.06 * e; o.sx = 1 + 0.035 * e;
+    } else if (sg.tag === "pump") {
+      var tp = arcMsV161A(TUv("v161ApumpHop", 2.5)), up = c01V159C(tau / tp); o.lift = tau < tp ? TUv("v161ApumpHop", 2.5) * 4 * up * (1 - up) : 0;
+    }
+    var amp = { land: TUv("v161AlandSquash", 0.14), spike: 0.1, stomp: 0.08, pound: 0.05, hold: 0.03, hit: 0.025 }[sg.tag] || 0;
+    if (amp) { var s = springV161A(amp, tau); o.sy *= 1 - s; o.sx *= 1 + s * 0.6; }
+    if (sg.tag === "hold" && tau > 140) { var br = Math.min(1, (tau - 140) / 200); o.sy *= 1 + 0.016 * br * Math.sin((tau - 140) * 2 * Math.PI / TUv("v161AbreathMs", 620)); }
+    o.sh = 1 - 0.55 * Math.min(1, o.lift / (0.9 * stand));
+    return o;
+  }
+  /* ---- the ball: the spike's from the frame it leaves his hand; flex / backflip toss the game ball aside. Real bounces:
+   *      one g, restitution e = √(height ratio), friction on each landing, then a roll that stops. 1x px from the ground point ---- */
+  function ballSchedV161A(name) {
+    var T = tlV161A(name, false), M = DATA_V161A.M, A = M && M.anims.spike, g = gV161A(), stand = standV161A();
+    if (!A || !A.ball) return null;
+    var S = { t0: 0, x0: 0, y0: 0, h0: 0, v0: 0, vx: 0, flights: [] };
+    if (name === "spike") {
+      var s0 = A.ballStart, dr = A.ballDrawn || [s0[0] + 6, s0[1] - 10], hA = Math.max(TUv("v161AballH", 0.3) * stand, s0[1] - dr[1]);
+      S.t0 = T.release; S.x0 = s0[0]; S.y0 = s0[1]; S.h0 = 0; S.v0 = Math.sqrt(2 * g * hA);
+      S.vx = Math.max(0.035, (dr[0] - s0[0]) / (S.v0 / g));   // the drawn ball is at the top of its first arc
+    } else {
+      if (!TUv("v161Atoss", 1)) return null;
+      S.t0 = 0; S.x0 = 7; S.y0 = -4.5; S.h0 = 16; S.v0 = Math.sqrt(2 * g * 5); S.vx = 0.045;   // from his hand at the hip, a flick up and aside
+    }
+    var e = Math.sqrt(Math.max(0.05, Math.min(0.9, TUv("v161AballBounce", 0.42)))), fr = TUv("v161AballFric", 0.72), n = TUv("v161AballN", 5);
+    var v = S.v0, h0 = S.h0, x = S.x0, vx = S.vx, t = S.t0;
+    for (var k = 0; k < n; k++) {
+      var T1 = (v + Math.sqrt(v * v + 2 * g * h0)) / g;   // up from h0 at v, down to the grass
+      S.flights.push({ t0: t, T: T1, v: v, h0: h0, x0: x, vx: vx }); t += T1; x += vx * T1;
+      var vland = Math.sqrt(v * v + 2 * g * h0); v = vland * e; h0 = 0; vx *= fr;
+      if (v < 0.02) break;
+    }
+    S.rollT = t; S.rollX = x; S.rollV = vx; S.end = T.total;
+    return S;
+  }
+  var BS_V161A = {};
+  function ballV161A(name, t, calm) {
+    if (calm || !readyV161A()) return null;
+    var key = name + "|" + gV161A() + "|" + TUv("v161AballBounce", 0.42) + "|" + TUv("v161Atoss", 1) + "|" + TUv("v161Apace", 1);
+    var S = BS_V161A[key] || (BS_V161A[key] = ballSchedV161A(name) || { none: 1 });
+    if (S.none || t < S.t0) return null;
+    var g = gV161A(), x, h, k = -1;
+    for (var i = 0; i < S.flights.length; i++) { var F = S.flights[i]; if (t < F.t0 + F.T) { var tau = t - F.t0; x = F.x0 + F.vx * tau; h = Math.max(0, F.h0 + F.v * tau - 0.5 * g * tau * tau); k = i; break; } }
+    if (k < 0) { var rt = Math.min(t - S.rollT, 420); x = S.rollX + S.rollV * (rt - rt * rt / 840); h = 0; k = S.flights.length; }
+    var fade = TUv("v161AballFadeMs", 280), a = c01V159C((S.end - t) / fade);
+    return { x: x, y: S.y0 - h, h: h, rot: (x - S.x0) / 4.5 + (name === "spike" ? 0 : -0.6), a: a, k: k, S: S };
+  }
+  /* ---- the particles: seeded, closed-form (the dust of a take-off, a landing, a stomp; the spike's dirt and flash; a
+   *      puff where the ball lands) — 1x px from the ground point, t in ms ---- */
+  var DIRT_V161A = [0x7a5a36, 0x9a7446, 0x5e4428, 0xb89468, 0x6b4f30];
+  function partsV161A(name, seed, calm) {
+    var P = []; if (calm || !readyV161A()) return P;
+    var r = prng((seed >>> 0) ^ 0x161a), R = function (a, b) { return a + (b - a) * r(); }, T = tlV161A(name, false), n = TUv("v161Aparts", 1);
+    var dust = function (t0, x, cnt, spread, strong) { for (var i = 0; i < Math.round(cnt * n); i++) { var sd = i % 2 ? 1 : -1;
+      P.push({ kind: "dust", t0: t0 + R(0, 50), x: x + sd * R(2, spread), y: R(-1.5, 0.5), vx: sd * R(0.008, 0.03) * strong, vy: -R(0.004, 0.012) * strong, r0: R(1.2, 2.2), r1: R(4, 7) * strong, life: R(380, 560), c: 0xb8a684, a: R(0.35, 0.55) }); } };
+    var dirt = function (t0, x, cnt, sp) { for (var i = 0; i < Math.round(cnt * n); i++) { var ang = -Math.PI / 2 + R(-1.25, 1.25), v = R(0.05, 0.13) * sp;
+      P.push({ kind: "dirt", t0: t0 + R(0, 25), x: x + R(-3, 3), y: R(-2, 0), vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, g: gV161A() * 0.9, life: R(360, 620), s: R(0.8, 1.9), c: DIRT_V161A[i % DIRT_V161A.length], a: 1 }); } };
+    if (name === "backflip") { dust(T.takeoff, 0, 10, 7, 1.2); dust(T.land, 0, 12, 8, 1.4); }
+    if (name === "flex") dust(T.stomp, 0, 10, 9, 1.1);
+    if (name === "spike") {
+      var A = DATA_V161A.M.anims.spike, bx = A.ballStart ? A.ballStart[0] : 0;
+      dirt(T.impact, bx, 18, 1); dust(T.impact, bx, 8, 6, 1.1);
+      P.push({ kind: "flash", t0: T.impact, x: bx, y: -3, life: 170 }); P.push({ kind: "ring", t0: T.impact, x: bx, y: 0, life: 360 });
+    }
+    var bs = ballV161A(name, (T.release || 0) + 1, false), S = bs && bs.S;
+    if (S) S.flights.slice(0, 2).forEach(function (F, i) { var xl = F.x0 + F.vx * F.T; dust(F.t0 + F.T, xl, i ? 3 : 5, 2.5, 0.7); if (name === "spike") dirt(F.t0 + F.T, xl, i ? 3 : 6, 0.55); });
+    return P;
+  }
+  /* draws the particles at t with a painter { circ(x, y, r, c, a), rect(x, y, w, h, c, a), ell(x, y, rx, ry, w, c, a) } in 1x px */
+  function drawPartsV161A(P, t, D) {
+    var live = 0;
+    for (var i = 0; i < P.length; i++) { var p = P[i], tau = t - p.t0; if (tau < 0 || tau > p.life) continue; var f = tau / p.life; live++;
+      if (p.kind === "dust") { var r = p.r0 + (p.r1 - p.r0) * EZ_V159C.outC(f); D.circ(p.x + p.vx * tau, p.y + p.vy * tau - r * 0.35, r, p.c, p.a * Math.pow(1 - f, 1.6)); }
+      else if (p.kind === "dirt") { var y = p.y + p.vy * tau + 0.5 * p.g * tau * tau, x = p.x + p.vx * tau; if (y > 0) { y = 0; x = p.x + p.vx * Math.min(tau, 60); } D.rect(x - p.s / 2, y - p.s / 2, p.s, p.s, p.c, 1 - EZ_V159C.inQ(c01V159C((f - 0.55) / 0.45))); }
+      else if (p.kind === "flash") { D.circ(p.x, p.y, 3 + 11 * EZ_V159C.outC(f), 0xfff6dc, 0.85 * (1 - f)); }
+      else if (p.kind === "ring") { var rr = 4 + 20 * EZ_V159C.outC(f); D.ell(p.x, p.y, rr, rr * 0.32, 1.4 * (1 - f) + 0.4, 0xe9dcc0, 0.7 * (1 - f)); } }
+    return live;
+  }
+
+  /* ---- his kit on a frame: ribRecolor (the field's own), his skin tone on the skin mask, the equipped helmet in the
+   *      frame's helmet ellipse ---- */
+  function kitV161A(kitKey, tone) {
+    var F = window.__V161A_FIELD, cols = F && F.kit ? F.kit(kitKey || "you") : null;
+    if (!cols) { var U = resolveU((item("uniform") || {}).k || null, null); cols = U ? [U.j, U.p] : [teamCol(0), teamCol(1)]; }
+    var H = V.kit && V.kit.helmet ? ((item("helmet") || {}).h || null) : null;   // the helmet the field dressed him in (fieldKit)
+    var tones = (F && F.tones) || ["#bf8a62"], tn = tones[tone != null && tones[tone] ? tone : Math.min(3, tones.length - 1)];
+    return { p1: cols[0], p2: cols[1], H: H, tone: tn, key: cols[0] + cols[1] + "|" + (H ? [H.s, H.st, H.f].join(",") : "-") + "|" + tn };
+  }
+  function frameCanvasV161A(name, k, scale, kit) {
+    var M = DATA_V161A.M, A = M.anims[k === "ball" ? "spike" : name], fr = k === "ball" ? null : A.frames[k];
+    var r = k === "ball" ? (scale === 2 ? A.ball2 : A.ball) : (scale === 2 ? fr.r2 : fr.r), w = r[2], h = r[3];
+    var cv = document.createElement("canvas"); cv.width = w; cv.height = h; var x = cv.getContext("2d"); x.drawImage(DATA_V161A.img[scale], r[0], r[1], w, h, 0, 0, w, h);
+    if (k === "ball" || !kit) return cv;
+    var src = x.getImageData(0, 0, w, h).data, F = window.__V161A_FIELD, out = F && F.recolor ? F.recolor(cv, kit.p1, kit.p2) : cv;
+    var ox = out.getContext("2d"), img = ox.getImageData(0, 0, w, h), d = img.data, sk = DATA_V161A.skin[scale], sw = DATA_V161A.sw[scale];
+    // skin: v151 D's grey luminance, times his tone
+    if (sk) { var ls = 0, ln = 0, j, i4, L;
+      for (j = 0; j < w * h; j++) { if (!sk[(r[1] + ((j / w) | 0)) * sw + r[0] + (j % w)]) continue; i4 = j * 4; if (src[i4 + 3] < 20) continue;
+        ls += (Math.max(src[i4], src[i4 + 1], src[i4 + 2]) + Math.min(src[i4], src[i4 + 1], src[i4 + 2])) / 2; ln++; }
+      var ref = Math.max(30, ln ? ls / ln : 120), tn = rgb(kit.tone);
+      for (j = 0; j < w * h; j++) { if (!sk[(r[1] + ((j / w) | 0)) * sw + r[0] + (j % w)]) continue; i4 = j * 4; if (src[i4 + 3] < 20) continue;
+        L = (Math.max(src[i4], src[i4 + 1], src[i4 + 2]) + Math.min(src[i4], src[i4 + 1], src[i4 + 2])) / 2;
+        var v = Math.max(40, Math.min(255, 214 * Math.pow(L / ref, 0.8)));
+        d[i4] = Math.min(255, tn[0] * v / 255); d[i4 + 1] = Math.min(255, tn[1] * v / 255); d[i4 + 2] = Math.min(255, tn[2] * v / 255); } }
+    // the helmet: the shell and the stripe the art drew, in the equipped helmet's colours
+    if (kit.H && hexOk(kit.H.s) && fr.helm) {
+      var an = scale === 2 ? fr.a2 : [fr.ax, fr.ay], hx = an[0] + fr.helm[0] * scale, hy = an[1] + fr.helm[1] * scale, rx = fr.helm[2] * scale * 1.06, ry = fr.helm[3] * scale * 1.06;
+      var HS = rgb(kit.H.s), HST = hexOk(kit.H.st) ? rgb(kit.H.st) : null;
+      for (var yy = Math.max(0, Math.floor(hy - ry)); yy <= Math.min(h - 1, Math.ceil(hy + ry)); yy++) for (var xx = Math.max(0, Math.floor(hx - rx)); xx <= Math.min(w - 1, Math.ceil(hx + rx)); xx++) {
+        var ex = (xx + 0.5 - hx) / rx, ey = (yy + 0.5 - hy) / ry; if (ex * ex + ey * ey > 1) continue;
+        var q = (yy * w + xx) * 4; if (src[q + 3] < 20) continue;
+        var cl = classify(src[q], src[q + 1], src[q + 2]); if (!cl[0]) continue;
+        var s2 = Math.min(1.75, Math.max(0.25, cl[1] / (cl[0] === 1 ? 95 : 165))), base = cl[0] === 2 && HST ? HST : HS;
+        if (cl[0] === 2 && !HST) s2 = Math.min(1.3, s2);
+        d[q] = Math.min(255, base[0] * s2); d[q + 1] = Math.min(255, base[1] * s2); d[q + 2] = Math.min(255, base[2] * s2); }
+    }
+    ox.putImageData(img, 0, 0);
+    return out;
+  }
+  /* the field's textures for one animation in one kit (built at the touchdown: twelve frames and the ball, a few ms) */
+  var TEX_V161A = { n: 0, kits: {}, order: [] };
+  function texV161A(scene, name, kit, scale) {
+    var id = kit.key + "|" + scale + "|" + name, rec = TEX_V161A.kits[id];
+    if (rec && rec.scene === scene && scene.textures.exists(rec.keys[0])) return rec;
+    var t0 = performance.now(), pre = "cel161_" + (++TEX_V161A.n) + "_", keys = [];
+    for (var k = 0; k < 12; k++) { var key = pre + name + k; try { if (scene.textures.exists(key)) scene.textures.remove(key); scene.textures.addCanvas(key, frameCanvasV161A(name, k, scale, kit)); } catch (e) { errV161A(e); } keys.push(key); }
+    var bkey = "cel161_ball" + scale; if (!scene.textures.exists(bkey)) try { scene.textures.addCanvas(bkey, frameCanvasV161A("spike", "ball", scale, null)); } catch (e) { errV161A(e); }
+    rec = TEX_V161A.kits[id] = { scene: scene, keys: keys, ball: bkey, scale: scale };
+    TEX_V161A.order.push(id);
+    while (TEX_V161A.order.length > TUv("v161AtexKeep", 6)) { var old = TEX_V161A.kits[TEX_V161A.order.shift()]; if (old) old.keys.forEach(function (kk) { try { if (old.scene.textures.exists(kk)) old.scene.textures.remove(kk); } catch (e) {} }); }
+    V161A.builds++; V161A.buildMs = +(performance.now() - t0).toFixed(1);
+    return rec;
+  }
+  /* the other two bodies in the same kit, when the page is idle (the next touchdown then builds nothing) */
+  function warmV161A(scene, kit, scale) {
+    var idle = window.requestIdleCallback || function (f) { return setTimeout(f, 1200); };
+    ANIMS_V161A.forEach(function (n, i) { idle(function () { try { if (scene.sys && scene.sys.isActive && !scene.sys.isActive()) return; texV161A(scene, n, kit, scale); V161A.warm = (V161A.warm || 0) + 1; } catch (e) {} }, { timeout: 4000 + i * 500 }); });
+  }
+
+  /* ---- the field: HIS marker plays the body; v159 C's layer plays around him ---- */
+  function fieldBodyV161A(scene, cm, opts) {
+    opts = opts || {};
+    if (!onV161A() || !scene || !scene.add || !scene.events || !cm || !cm.root || !cm.body) return null;
+    if (!readyV161A()) { loadV161A(); V161A.notReady = (V161A.notReady || 0) + 1; return null; }   // not decoded yet: the old pose plays this once
+    var calm = opts.calm != null ? !!opts.calm : reducedV158A();
+    var P = scene.play, tok = opts.tok != null ? String(opts.tok) : P && P.__ballTokenV1514 != null ? String(P.__ballTokenV1514) : String(Math.round((scene.time && scene.time.now) || 0));
+    var name = opts.name && DATA_V161A.M.anims[opts.name] ? opts.name : pickV161A(tok), seed = strHashV159C("v161A|parts|" + tok);
+    try { if (cm.__v161a && cm.__v161a.alive) cm.__v161a.stop("replaced"); } catch (e) {}
+    var scale = TUv("v161Ahd", 1) ? 2 : 1, ks = 1 / scale, kit = kitV161A(cm.kit || cm.team, cm.skinTone), tex = texV161A(scene, name, kit, scale);
+    warmV161A(scene, kit, scale);
+    var T = tlV161A(name, calm), A = DATA_V161A.M.anims[name], parts = partsV161A(name, seed, calm);
+    var ex = cm.dirKey === "sd" || cm.dirKey === "dr" || cm.dirKey === "ur", mir = ex && !cm.flip ? -1 : 1;   // the art turns to his right; running left, it is mirrored
+    var root = cm.root, body = cm.body, shadow = cm.shadow, fill = cm.fill, sh0 = shadow ? shadow.y : 24, fl0 = fill ? fill.y : 24, last = null;
+    var track = function (o) { try { return scene.trackFx ? scene.trackFx(o) : o; } catch (e) { return o; } };
+    var g = track(scene.add.graphics()), ball = track(scene.add.image(0, 0, tex.ball).setVisible(false)), gb = scene.ballSpr;
+    var nf = cm._nfImgV158A, nfVis = nf ? nf.visible : null, gbVis = gb ? gb.visible : null, cam = scene.cameras && scene.cameras.main;
+    var run = { name: name, tok: tok, calm: calm, mir: mir, scale: scale, total: T.total, T: T, t0: performance.now(), hold: null, alive: true, ended: null, play: P,
+      frames: 0, seq: [], lifts: [], rots: [], balls: [], parts: parts.length, maxLive: 0, shake: 0, drawMs: 0, drawMax: 0, ms: [], kit: kit.key, tex: tex.keys[0], v159Skipped: 0 };
+    var D = { circ: null, rect: null, ell: null }, gx = 0, gy = 0, gs = 1;
+    D.circ = function (x, y, r, c, a) { if (a > 0.01) { g.fillStyle(c, Math.min(1, a)); g.fillCircle(gx + mir * x * gs, gy + y * gs, Math.max(0.4, r * gs)); } };
+    D.rect = function (x, y, w, h, c, a) { if (a > 0.01) { g.fillStyle(c, Math.min(1, a)); g.fillRect(gx + mir * x * gs - (mir < 0 ? w * gs : 0), gy + y * gs, Math.max(0.6, w * gs), Math.max(0.6, h * gs)); } };
+    D.ell = function (x, y, rx, ry, w, c, a) { if (a > 0.01) { g.lineStyle(Math.max(0.5, w * gs), c, Math.min(1, a)); g.strokeEllipse(gx + mir * x * gs, gy + y * gs, rx * 2 * gs, ry * 2 * gs, 24); } };
+    var tick = function () {
+      if (!run.alive) return;
+      if (!g.scene || !root.active || !body.active) { stop("cleared"); return; }
+      if (scene.play && run.play && scene.play !== run.play) { stop("next play"); return; }
+      var t = run.hold != null ? run.hold : performance.now() - run.t0;
+      if (t >= T.total) { stop("done"); return; }
+      var c0 = performance.now();
+      try {
+        var bx = root.x, by = root.y, bs = root.scaleY, bob = cm.bob && cm.bob.active ? cm.bob : null, boby = bob ? bob.y : 0;
+        if (last && root.x === last.ax && root.y === last.ay && root.scaleY === last.as) { bx = last.bx; by = last.by; bs = last.bs; }
+        if (last && bob && bob.y === last.bobAy) boby = last.boby;   // the plumbob rides up with him (placeMarker re-places it when it runs)
+        var o = poseV161A(name, t, calm), fr = A.frames[o.k], key = tex.keys[o.k], r = scale === 2 ? fr.r2 : fr.r, an = scale === 2 ? fr.a2 : [fr.ax, fr.ay, fr.cx, fr.cy];
+        if (body.texture.key !== key) body.setTexture(key);
+        cm.tex = key;
+        if (o.pivot === "com") { body.setOrigin(an[2] / r[2], an[3] / r[3]); body.setPosition(mir * o.cx, 22 + o.cy); }
+        else { body.setOrigin(an[0] / r[2], an[1] / r[3]); body.setPosition(0, 22); }
+        body.setScale(mir * ks * o.sx, ks * o.sy); body.setRotation(mir * o.rot * Math.PI / 180); body.setFlipX(false); body.setAlpha(1); body.setVisible(true);
+        root.setPosition(bx, by - o.lift * bs);
+        if (shadow) { shadow.y = sh0 + o.lift; shadow.setScale(o.sh); } if (fill) { fill.y = fl0 + o.lift; fill.setScale(o.sh); }
+        if (cm.label) cm.label.setVisible(false); if (cm.skin) cm.skin.setVisible(false); if (nf) nf.setVisible(false); if (gb && gb.active !== false) gb.setVisible(false);
+        if (bob) bob.y = boby - o.lift * bs;
+        last = { ax: root.x, ay: root.y, as: root.scaleY, bx: bx, by: by, bs: bs, boby: boby, bobAy: bob ? bob.y : null };
+        // the ground point in the world, the particles and the loose ball
+        gx = bx; gy = by + 22 * bs; gs = bs; g.clear(); g.setDepth((root.depth || 4) + 0.02);
+        var live = drawPartsV161A(parts, t, D); run.maxLive = Math.max(run.maxLive, live);
+        var b = ballV161A(name, t, calm);
+        if (b && b.a > 0.01) { ball.setVisible(true).setPosition(gx + mir * b.x * bs, gy + b.y * bs).setScale(bs * ks).setRotation(mir * b.rot).setAlpha(b.a).setDepth((root.depth || 4) + 0.03);
+          g.fillStyle(0x000000, 0.28 * b.a * (1 - Math.min(0.7, b.h / 30))); g.fillEllipse(gx + mir * b.x * bs, gy + 0.5 * bs, 7 * bs * (1 - Math.min(0.5, b.h / 40)), 2.4 * bs, 16);
+          if (run.balls.length < 400) run.balls.push({ t: Math.round(t), x: +b.x.toFixed(2), h: +b.h.toFixed(2), k: b.k }); }
+        else ball.setVisible(false);
+        // the camera: the slam, the stomp (never under reduced motion)
+        var sg = segAtV161A(T, t);
+        if (!calm && cam && sg.i !== run.lastSeg && (sg.tag === "spike" || sg.tag === "stomp" || sg.tag === "land") && TUv("v161Ashake", 1)) {
+          var k2 = sg.tag === "spike" ? 1 : sg.tag === "land" ? 0.45 : 0.35;
+          try { cam.shake(TUv("v161AshakeMs", 130), 0.0042 * k2 * TUv("v161Ashake", 1)); run.shake++; } catch (e) {} }
+        run.lastSeg = sg.i;
+        if (run.seq.length < 600) { run.seq.push({ t: Math.round(t), k: o.k, seg: sg.i }); run.lifts.push(+o.lift.toFixed(2)); run.rots.push(+(o.air ? o.phi : 0).toFixed(1)); }
+      } catch (e) { errV161A(e); }
+      var dt = performance.now() - c0; run.frames++; run.drawMs += dt; run.drawMax = Math.max(run.drawMax, dt); if (run.ms.length < 400) run.ms.push(dt);
+    };
+    var stop = function (why) {
+      if (!run.alive) return; run.alive = false; run.ended = why || "done";
+      try { scene.events.off("postupdate", tick); } catch (e) {}
+      try {
+        if (root.active && last) root.setPosition(last.bx, last.by);
+        if (last && cm.bob && cm.bob.active && last.bobAy != null && cm.bob.y === last.bobAy) cm.bob.y = last.boby;
+        if (body.active) { body.setOrigin(0.5, 0.5); body.setPosition(0, 0); body.setScale(1); body.setRotation(0); }
+        cm.tex = null;   // placeMarker sets his own texture back on its next frame
+        if (why === "done" && cm.forceState === "celebrateSeq") cm.forceState = null;   // the sheet's own celebrate cells would pop in after the rest pose
+        if (shadow && shadow.active !== false) { shadow.y = sh0; shadow.setScale(1); } if (fill && fill.active !== false) { fill.y = fl0; fill.setScale(1); }
+        if (nf && nf.active !== false && nfVis != null) nf.setVisible(nfVis);
+        if (gb && gb.active !== false && gbVis != null) gb.setVisible(gbVis);
+      } catch (e) {}
+      [g, ball].forEach(function (o) { try { scene.dropFx ? scene.dropFx(o) : o.destroy(); } catch (e) {} });
+      if (cm.__v161a === run) cm.__v161a = null;
+      if (V161A.active === run) V161A.active = null;
+    };
+    run.stop = stop; run.setHold = function (t) { run.hold = t == null ? null : +t; };
+    cm.__v161a = run; V161A.active = run; V161A.last = run; V161A.runs.push(run); if (V161A.runs.length > 20) V161A.runs.shift();
+    scene.events.on("postupdate", tick);
+    try { scene.events.once("shutdown", function () { stop("shutdown"); }); } catch (e) {}
+    tick();
+    return run;
+  }
+  /* what the check reads */
+  Object.assign(V161A, {
+    anims: ANIMS_V161A.slice(), load: loadV161A, ready: readyV161A, manifest: function () { return DATA_V161A.M; }, pick: pickV161A,
+    timeline: function (name, calm) { var T = tlV161A(name, !!calm); return { total: T.total, takeoff: T.takeoff, land: T.land, impact: T.impact, release: T.release, stomp: T.stomp,
+      segs: T.segs.map(function (s) { return { k: s.air ? "air" : s.k, t0: Math.round(s.t0), ms: Math.round(s.ms), tag: s.tag }; }) }; },
+    pose: poseV161A, ball: function (name, t, calm) { var b = ballV161A(name, t, calm); return b && { x: b.x, y: b.y, h: b.h, rot: b.rot, a: b.a, k: b.k }; },
+    flights: function (name) { var b = ballSchedV161A(name); return b && b.flights.map(function (F) { return { t0: Math.round(F.t0), T: Math.round(F.T), apex: +(F.h0 + F.v * F.v / (2 * gV161A())).toFixed(2), x0: +F.x0.toFixed(2) }; }); },
+    parts: function (name, seed, calm) { return partsV161A(name, seed == null ? 1 : seed, !!calm).map(function (p) { return { kind: p.kind, t0: Math.round(p.t0), life: Math.round(p.life) }; }); },
+    frameCanvas: function (name, k, scale, kit) { return frameCanvasV161A(name, k, scale || 1, kit ? Object.assign({ H: null, tone: "#bf8a62", key: "chk" }, kit) : null); },
+    play: fieldBodyV161A, spin: spinV161A,
+    previewList: function () { return PV_V159C.list.map(function (r) { return { id: r.it.id, loops: r.loops, body: r.v161 || null, connected: r.cv.isConnected }; }); }
+  });
+  if (onV161A()) setTimeout(function () { try { loadV161A(); } catch (e) {} }, 2500);   // decode before the first touchdown
+  (function () {
+    if (document.getElementById("cosV161Acss")) return;
+    var st = document.createElement("style"); st.id = "cosV161Acss";
+    st.textContent = ".cos-note-v161a{margin:4px 2px 10px;padding:7px 10px;border-radius:10px;font-size:11.5px;line-height:1.35;color:#d7deeb;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}";
+    (document.head || document.documentElement).appendChild(st);
+  })();
+
+  /* ---- the Locker: the v159 C mini-stage plays the three bodies in turn, from the 2x atlas in his kit ---- */
+  var PVC_V161A = {};
+  function pvFrameV161A(name, k, kit) {
+    var id = kit.key + "|" + name + "|" + k;
+    if (!PVC_V161A[id]) { if (Object.keys(PVC_V161A).length > 160) PVC_V161A = {}; PVC_V161A[id] = frameCanvasV161A(name, k, 2, k === "ball" ? null : kit); }
+    return PVC_V161A[id];
+  }
+  function pvKitV161A() {
+    var U = resolveU((item("uniform") || {}).k || null, null), H = (item("helmet") || {}).h || null, tone = 3;
+    try { var st = gstate(), pl = st && st.player; if (pl && window.__skinToneV151D) tone = window.__skinToneV151D({ skinTone: pl.skinTone, name: pl.name || "you" }); } catch (e) {}
+    var tones = (window.__V161A_FIELD && window.__V161A_FIELD.tones) || ["#bf8a62", "#bf8a62", "#bf8a62", "#bf8a62"], tn = tones[tone] || tones[3];
+    var p1 = U ? U.j : teamCol(0), p2 = U ? U.p : teamCol(1);
+    return { p1: p1, p2: p2, H: H, tone: tn, key: p1 + p2 + "|" + (H ? [H.s, H.st, H.f].join(",") : "-") + "|" + tn };
+  }
+  function pvBodyLenV161A() { return readyV161A() && onV161A() ? Math.max.apply(null, ANIMS_V161A.map(function (n) { return tlV161A(n, false).total; })) : 0; }
+  function pvNameV161A(rec) { return ANIMS_V161A[((rec.loops || 0) + (rec.bodyOff || 0)) % 3]; }
+  /* draws his body at t on the preview canvas; returns the shadow scale, or null when it did not draw (the old figure then) */
+  function pvDrawBodyV161A(rec, x, t, ox, gyc, calm) {
+    if (!onV161A() || !readyV161A()) { loadV161A(); return null; }
+    var name = pvNameV161A(rec), kit = pvKitV161A(), o = poseV161A(name, t, calm), A = DATA_V161A.M.anims[name], fr = A.frames[o.k];
+    var z = TUv("v161ApvPx", 25) / standV161A(), lk = TUv("v161ApvLift", 0.42), cv = pvFrameV161A(name, o.k, kit), an = fr.a2, ks = 0.5 * z;
+    rec.v161 = { name: name, k: o.k, t: Math.round(t) }; V161A.prevFrames++;
+    x.save(); x.globalAlpha = 1; x.globalCompositeOperation = "source-over"; x.imageSmoothingEnabled = true; try { x.imageSmoothingQuality = "high"; } catch (e) {}
+    if (!calm) { var P = rec.p161 && rec.p161.name === name ? rec.p161.P : (rec.p161 = { name: name, P: partsV161A(name, strHashV159C("pv|" + name), false) }).P;
+      drawPartsV161A(P, t, { circ: function (px, py, r, c, a) { if (a > 0.01) { x.globalAlpha = Math.min(1, a); x.fillStyle = cssColV159C(c); x.beginPath(); x.arc(ox + px * z, gyc + py * z, Math.max(0.4, r * z), 0, 6.2832); x.fill(); } },
+        rect: function (px, py, w, h, c, a) { if (a > 0.01) { x.globalAlpha = Math.min(1, a); x.fillStyle = cssColV159C(c); x.fillRect(ox + px * z, gyc + py * z, Math.max(0.6, w * z), Math.max(0.6, h * z)); } },
+        ell: function (px, py, rx, ry, w, c, a) { if (a > 0.01) { x.globalAlpha = Math.min(1, a); x.strokeStyle = cssColV159C(c); x.lineWidth = Math.max(0.5, w * z); x.beginPath(); x.ellipse(ox + px * z, gyc + py * z, rx * z, ry * z, 0, 0, 6.2832); x.stroke(); } } });
+      var b = ballV161A(name, t, false);
+      if (b && b.a > 0.01) { var bc = pvFrameV161A("spike", "ball", kit); x.globalAlpha = b.a; x.save(); x.translate(ox + b.x * z, gyc + (b.y + (b.h * (lk - 1))) * z); x.rotate(b.rot); x.drawImage(bc, -bc.width * ks / 2, -bc.height * ks / 2, bc.width * ks, bc.height * ks); x.restore(); } }
+    x.globalAlpha = 1;
+    x.translate(ox, gyc - o.lift * lk * z);
+    if (o.pivot === "com") { x.translate(o.cx * z, o.cy * z); x.rotate(o.rot * Math.PI / 180); x.scale(ks * o.sx, ks * o.sy); x.drawImage(cv, -an[2], -an[3]); }
+    else { x.scale(ks * o.sx, ks * o.sy); x.drawImage(cv, -an[0], -an[1]); }
+    x.restore();
+    return o.sh;
+  }
+
   /* ---------------- the API ---------------- */
   var API = {
     version: "v151b", slots: SLOTS.slice(), cats: CATS, achievements: ACH.map(function (a) { return { id: a.id, name: a.name, desc: a.desc }; }),
@@ -6365,6 +6777,7 @@
     numRender: nfRenderV158A, paintBanner: V158A.paintBanner, dressCard: dressCardV158A,   // v158 A
     celebratePlay: V159C.play, shelfAlive: shelfV159C,   // v159 C
     numInk: numInkV159A, uniColour: uniColV159A, setUniColour: setUniColV159A,   // v159 A
+    celebrateBody: function (scene, cm, opts) { return fieldBodyV161A(scene, cm, opts); },   // v161 A
     _reset: function () { mem = null; try { localStorage.removeItem(KEY); } catch (e) {} fire({ reset: 1 }); }
   };
   window.RIB_COSMETICS = API;
