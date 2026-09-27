@@ -3935,10 +3935,11 @@
     "cosmetics",
     "live"
    ],
-   "runtimeSec": 200,
+   "runtimeSec": 290,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
+   "loadSensitive": true,
    "flaky": []
   }
  }
