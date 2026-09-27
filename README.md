@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v163 A — the game never stops.** One bad frame no longer freezes a live game: the frame loop survives it, a
+  texture swapped under a sprite is rebound, and a wall-clock watch on every play restarts a stopped field or moves the
+  game on. `v163Acheck`.
 - **v162 — the handover is smooth; the helmet is the helmet.** A change of possession no longer re-bakes the field three
   times or recolours his kit twice (a bake on screen is reused, the stands' cheer layers repaint after the snap); the
   profile figure's helmet is read off the art, so its jaw flaps no longer take the jersey's colour. `v162Acheck`, `v162Bcheck`.

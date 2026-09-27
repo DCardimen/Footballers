@@ -21475,7 +21475,45 @@
     log: () => (liveCtl && liveCtl.logV156D ? liveCtl.logV156D.slice() : null)
   };
 
+  /* ===== v163 A THE GAME NEVER STOPS (the live loop) =====
+   * The live game is a chain: every tick schedules the next one (a frame for a skipped row, a timeout after a header,
+   * the play's completion after a drawn play). A throw anywhere in a tick before its continuation was scheduled — the
+   * commentary, the stat tiles, the box score, a renderer call — broke the chain and the game sat still for good. Now
+   * the tick and the completion's scoreboard work run inside a guard: the error is recorded (`window.__V163A.errors`,
+   * `tickErrors`), and if the tick had not yet scheduled what comes next, the next tick is scheduled here (250 ms); the
+   * completion always schedules its tick. Twenty errors in a row stop the retries (a loop that cannot move is left as
+   * it was, rather than spun). Kill switch `TU("v163A", 0)`: a throw propagates as before. The renderer's and the
+   * launcher's halves are in src/05-field-renderer.js / src/06-phaser-launcher.js. `v163Acheck`. */
+  function noteTickErrV163A(where, err) {
+    const V = (window.__V163A = window.__V163A || { caught: 0, swept: 0, restarts: 0, released: 0, tickErrors: 0, errors: [] });
+    V.tickErrors++;
+    const msg = String((err && err.message) || err).slice(0, 160),
+      last = V.errors[V.errors.length - 1];
+    if (last && last.where === where && last.msg === msg) {
+      last.n++;
+      last.at = Date.now();
+    } else {
+      V.errors.push({ where: where, msg: msg, n: 1, at: Date.now() });
+      V.errors.length > 12 && V.errors.shift();
+      try {
+        console.warn("[v163 A] " + where + " — kept going:", err);
+      } catch (_e) {}
+    }
+  }
   function liveTick() {
+    if (!TU("v163A", 1)) return liveTickBodyV163A();
+    const ctl = liveCtl;
+    ctl && (ctl.contV163A = !1);
+    try {
+      liveTickBodyV163A();
+      ctl && (ctl.errRunV163A = 0);
+    } catch (err) {
+      noteTickErrV163A("liveTick", err);
+      if (ctl && ctl === liveCtl && ctl.playing && !ctl.contV163A && (ctl.errRunV163A = (ctl.errRunV163A || 0) + 1) <= 20)
+        setTimeout(liveTick, 250);
+    }
+  }
+  function liveTickBodyV163A() {
     if (!liveCtl || !liveCtl.playing) return;
     const e = state._liveGame;
     if ((liveCtl.idx++, liveCtl.idx >= e.plays.length)) {
@@ -21488,8 +21526,9 @@
         r = byId("themScore");
       (i && (i.textContent = t.usScore),
         r && (r.textContent = t.themScore),
-        liveCtl.idx % 4 === 0 && renderLiveRoster(),
-        (liveCtl.anim = requestAnimationFrame(() => liveTick())));
+        (liveCtl.contV163A = !0) /* v163 A: the next tick is on its way */,
+        (liveCtl.anim = requestAnimationFrame(() => liveTick())),
+        liveCtl.idx % 4 === 0 && renderLiveRoster());
       return;
     }
     const a = byId("qtr");
@@ -21568,40 +21607,48 @@
         r = byId("themScore");
       (i && (i.textContent = t.usScore),
         r && (r.textContent = t.themScore),
-        yl(t),
-        setTimeout(liveTick, Math.max(150, 600 / liveCtl.speed)));
+        (liveCtl.contV163A = !0) /* v163 A */,
+        setTimeout(liveTick, Math.max(150, 600 / liveCtl.speed)),
+        yl(t));
       return;
     }
     kl(t, () => {
       if (!liveCtl || !state.player) return;
-      /* v146: a play can finish after the career it belonged to is gone */ const i = byId("usScore"),
-        r = byId("themScore");
-      (i && (i.textContent = t.usScore),
-        r && (r.textContent = t.themScore),
-        (() => {
-          /* v153 A THE STAT GAIN LANDS: a tile his gain is flying into keeps its old number until the
-           * callout lands and counts it up; every other tile is written as before */
-          const on153 = TU("statGainV153A", 1) && liveCtl._gainV153A,
-            res153 = on153 ? statGainPlayV153A(t) : null,
-            flying = new Set(res153 ? res153.gains.filter(g => g.tile).map(g => g.k) : []);
-          liveStatCols(state.player.pos).forEach(([c]) => {
-            const u = byId("ls-" + c);
-            if (!u) return;
-            const h = t.stat[c] || 0,
-              shown = u.dataset.v153t != null ? Number(u.dataset.v153t) : parseInt(u.textContent);
-            if (flying.has(c)) return void (u.dataset.v153t = String(h));
-            shown !== h &&
-              (setLiveTileV153A(u, h), u.classList.add("flash"), setTimeout(() => u.classList.remove("flash"), 400));
-          });
-          res153 && statGainShowV153A(res153);
-        })(),
-        flMinorV96(t.stat),
-        renderLiveBox(qi(state.player.pos, t.stat, state._liveGame.stat)),
-        t.team && ul(t.team, t.oppStat),
-        liveCtl.idx % 3 === 0 && renderLiveRoster());
+      /* v146: a play can finish after the career it belonged to is gone */
+      try {
+        const i = byId("usScore"),
+          r = byId("themScore");
+        (i && (i.textContent = t.usScore),
+          r && (r.textContent = t.themScore),
+          (() => {
+            /* v153 A THE STAT GAIN LANDS: a tile his gain is flying into keeps its old number until the
+             * callout lands and counts it up; every other tile is written as before */
+            const on153 = TU("statGainV153A", 1) && liveCtl._gainV153A,
+              res153 = on153 ? statGainPlayV153A(t) : null,
+              flying = new Set(res153 ? res153.gains.filter(g => g.tile).map(g => g.k) : []);
+            liveStatCols(state.player.pos).forEach(([c]) => {
+              const u = byId("ls-" + c);
+              if (!u) return;
+              const h = t.stat[c] || 0,
+                shown = u.dataset.v153t != null ? Number(u.dataset.v153t) : parseInt(u.textContent);
+              if (flying.has(c)) return void (u.dataset.v153t = String(h));
+              shown !== h &&
+                (setLiveTileV153A(u, h), u.classList.add("flash"), setTimeout(() => u.classList.remove("flash"), 400));
+            });
+            res153 && statGainShowV153A(res153);
+          })(),
+          flMinorV96(t.stat),
+          renderLiveBox(qi(state.player.pos, t.stat, state._liveGame.stat)),
+          t.team && ul(t.team, t.oppStat),
+          liveCtl.idx % 3 === 0 && renderLiveRoster());
+      } catch (err) {
+        if (!TU("v163A", 1)) throw err;
+        noteTickErrV163A("play result", err); /* v163 A: the scoreboard missed one update; the game goes on */
+      }
       const d = Math.max(90, 520 / liveCtl.speed);
       setTimeout(liveTick, d);
     });
+    liveCtl && (liveCtl.contV163A = !0); /* v163 A: the play has the next tick now */
   }
   function yl(e) {
     if (
