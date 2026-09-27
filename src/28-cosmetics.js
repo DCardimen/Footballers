@@ -6109,7 +6109,7 @@
     var st = document.createElement("style"); st.id = "cosV159Acss";
     st.textContent = ".cos-unicol-v159a{display:flex;align-items:center;gap:6px;margin:2px 0 8px;flex-wrap:wrap;font:600 11px/1 Oswald,sans-serif;letter-spacing:.6px}" +
       ".cos-unicol-v159a>span{color:#9fb0c6;text-transform:uppercase;margin-right:2px}" +
-      ".cos-unicol-v159a>button{display:inline-flex;align-items:center;gap:4px;min-height:30px;padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);color:#dfe7f2;font:inherit;cursor:pointer}" +
+      ".cos-unicol-v159a>button{display:inline-flex;align-items:center;gap:4px;min-height:36px;padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);color:#dfe7f2;font:inherit;cursor:pointer}" +
       ".cos-unicol-v159a>button.on{background:#f0bb45;border-color:#f0bb45;color:#1b1406}" +
       ".cos-unicol-v159a>button>i{display:inline-block;width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.45)}";
     (document.head || document.documentElement).appendChild(st);
