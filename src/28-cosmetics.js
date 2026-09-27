@@ -444,14 +444,16 @@
         var HS = H ? rgb(H.s) : null, HST = H && H.st ? rgb(H.st) : null, HD = H && H.d ? rgb(H.d) : null;
         var UT = U ? rgb(U.t || U.j) : null, UJ = U ? rgb(U.j) : null, UPS = U && U.ps ? rgb(U.ps) : null;
         var hMid = top - head > 2 ? Math.round((head + top) / 2) : head + 1, rr = prng(seed);
+        var HM = H ? helmMaskV158A(s, W, Hh, head, top, srcName, H) : null;   // v158 A: the helmet, its stripe where the art drew it
         for (var yy = 0; yy < Hh; yy++) {
           var pl = 1e9, pr = -1;
           if (UPS && yy > waist) for (var xq = 0; xq < W; xq++) { var iq = (yy * W + xq) * 4; if (s[iq + 3] >= 20 && classify(s[iq], s[iq + 1], s[iq + 2])[0] === 2) { if (xq < pl) pl = xq; if (xq > pr) pr = xq; } }
           for (var xx = 0; xx < W; xx++) {
             var i = (yy * W + xx) * 4; if (s[i + 3] < 20) continue;
-            var inHelm = yy < top && H, k = inHelm ? shellClass(s[i], s[i + 1], s[i + 2]) : classify(s[i], s[i + 1], s[i + 2]), cls = k[0]; if (!cls) continue;
+            var hm = HM ? HM.m[yy * W + xx] : 0, inHelm = HM ? hm > 0 : yy < top && H;   // v158 A
+            var k = HM ? (hm ? helmClassV158A(s, i) : classify(s[i], s[i + 1], s[i + 2])) : inHelm ? shellClass(s[i], s[i + 1], s[i + 2]) : classify(s[i], s[i + 1], s[i + 2]), cls = k[0]; if (!cls) continue;
             var sc = Math.min(1.75, Math.max(0.25, inHelm ? k[1] : k[1] / (cls === 1 ? 95 : 165))), out = null;
-            if (yy < top && H) {
+            if (inHelm) {
               var f = H.f || "gloss", s2 = sc;
               if (f === "matte") s2 = 1 + (sc - 1) * 0.5;
               else if (f === "chrome") s2 = Math.max(0.3, 1 + (sc - 1) * 1.9);
@@ -462,7 +464,8 @@
               if (f === "pearl" && ((xx + yy) % 3 === 0)) out = mix(out, HST || [236, 230, 255], 0.2);   // v153 G: an iridescent fleck
               if (f === "chrome" && (yy <= head + 1 || ((xx + yy) % 5 === 0))) out = mix(out, [255, 255, 255], 0.42);
               if (f === "metal" && ((xx * 7 + yy * 13) % 11 === 0)) out = mix(out, [255, 255, 255], 0.5);
-              var hr = hRows[yy];
+              var hr = HM ? null : hRows[yy];
+              if (HM) out = helmPaintV158A(out, hm, HST, HD, s2);   // v158 A: stripe / mask trim / decal off the art's own gold
               if (HST && hr) { var cx = (hr[0] + hr[1]) / 2, wide = hr[1] - hr[0] > 11 ? 1.1 : 0.6, dxs = Math.abs(xx - cx);
                 var onSt = H.sk === "twin" ? dxs >= wide + 0.4 && dxs <= wide + 1.6 : H.sk === "wide" ? dxs <= wide + 1 : dxs <= wide;   // v153 G: twin / wide stripes
                 if (onSt) out = HST.map(function (v) { return v * Math.min(1.2, Math.max(0.6, s2)); }); }
@@ -519,13 +522,13 @@
     var U = resolveU((item("uniform") || {}).k || null, null), H = (item("helmet") || {}).h || null;
     var tc = window.__GRIDIRON_TEAM_CUSTOM__ || {}, col = Array.isArray(tc.col) ? tc.col : ["#1f4fd0", "#e8c86a"];
     return { j: U ? U.j : col[0], p: U ? U.p : col[1], t: U ? U.t || null : null, pat: U ? U.pat || "solid" : "solid", ps: U ? U.ps || null : null,
-      hs: H ? H.s : null, hst: H ? H.st || null : null, hf: H ? H.f || null : null, hd: H ? H.d || null : null, hdk: H ? H.dk || null : null };
+      hs: H ? H.s : null, hst: H ? H.st || null : null, hf: H ? H.f || null : null, hd: H ? H.d || null : null, hdk: H ? H.dk || null : null, hsk: H ? H.sk || null : null /* v158 A */ };
   }
   function kitFromData(k) {
     k = k || {};
     var U = { j: hexOk(k.j) || "#1f4fd0", p: hexOk(k.p) || "#e8c86a", t: hexOk(k.t) || null, pat: String(k.pat || "solid").replace(/[^a-z]/g, ""), ps: hexOk(k.ps) };
     U.pat = PAT_CARD_V153G[U.pat] || U.pat;   // v153 G: the card's figure draws the nearest of its own patterns
-    var H = hexOk(k.hs) ? { s: k.hs, st: hexOk(k.hst), f: String(k.hf || "gloss").replace(/[^a-z]/g, ""), d: hexOk(k.hd), dk: String(k.hdk || "").replace(/[^a-z]/g, "") } : null;
+    var H = hexOk(k.hs) ? { s: k.hs, st: hexOk(k.hst), f: String(k.hf || "gloss").replace(/[^a-z]/g, ""), d: hexOk(k.hd), dk: String(k.hdk || "").replace(/[^a-z]/g, ""), sk: String(k.hsk || "").replace(/[^a-z]/g, "") } : null;
     return { U: U, H: H };
   }
 
@@ -635,6 +638,7 @@
     if (!el) return null;
     var cat = it.cat, html = "";
     el.classList.add("cos-pv-v151b", "cat-" + cat);
+    if (previewV158A(el, it)) return el;   // v158 A: animated banners, styled titles, drawn badges, material nameplates
     if (cat === "uniform" || cat === "helmet") {
       var tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"];
       var U = resolveU(it.k || (cat === "helmet" ? (item("uniform") || {}).k : null), tc) || { j: tc[0], p: tc[1], pat: "solid" };
@@ -709,11 +713,11 @@
   /* the source recoloured for one kit: { j, p, t, pat, hs, hst, hf } (hex strings; hs / hst / t optional) */
   function figCell(K) {
     var im = FIG.img; if (!im) return null;
-    var key = [K.j, K.p, K.t, K.pat, K.hs, K.hst, K.hf].join("|");
+    var key = [K.j, K.p, K.t, K.pat, K.hs, K.hst, K.hf, K.hsk, K.hd, K.hdk].join("|");   // v158 A: twin / wide stripes and the decal
     if (FIG.cache[key]) return FIG.cache[key];
     var W = im.naturalWidth, H = im.naturalHeight, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
     var x = cv.getContext("2d"); x.drawImage(im, 0, 0);
-    var img = x.getImageData(0, 0, W, H), d = img.data;
+    var img = x.getImageData(0, 0, W, H), d = img.data, src158 = K.hs && (K.hsk || K.hd) ? new Uint8ClampedArray(d) : null;
     var top = 3, neck = Math.round(top + (H - 6) * FIG.neck);
     // the jersey's rows: from the neck to the first row where the gold pants outweigh the navy
     var waist = H;
@@ -756,6 +760,7 @@
       if (helmet && gloss && cls === 1 && y < hy0 - hry * 0.45) out = mix(out, [255, 255, 255], 0.3);
       d[i] = Math.max(0, Math.min(255, out[0])); d[i + 1] = Math.max(0, Math.min(255, out[1])); d[i + 2] = Math.max(0, Math.min(255, out[2]));
     }
+    if (src158) figHelmV158A(d, src158, W, H, K, { hx0: hx0, hy0: hy0, hrx: hrx, hry: hry, visor: visor, neck: neck });   // v158 A
     x.putImageData(img, 0, 0);
     FIG.cache[key] = cv;
     return cv;
@@ -779,7 +784,8 @@
   }
   function drawCharacter(cv, kd, age, opts) {
     var k = kitFromData(kd), res = null;
-    var K = { j: k.U.j, p: k.U.p, t: k.U.t, pat: k.U.pat, hs: k.H ? k.H.s : null, hst: k.H ? k.H.st : null, hf: k.H ? k.H.f : null };
+    var K = { j: k.U.j, p: k.U.p, t: k.U.t, pat: k.U.pat, hs: k.H ? k.H.s : null, hst: k.H ? k.H.st : null, hf: k.H ? k.H.f : null,
+      hsk: k.H ? k.H.sk || null : null, hd: k.H ? k.H.d || null : null, hdk: k.H ? k.H.dk || null : null };   // v158 A
     try {
       figLoad();
       res = figDraw(cv, age || 22, K);
@@ -832,14 +838,15 @@
     var trophies = [["🏆", d.titles, "TITLES"], ["💍", d.rings, "RINGS"], ["⭐", d.mvps, "MVPS"], ["🏛️", d.hof, "HALL"]];
     var meta = [d.pos, d.levelName, d.age ? "AGE " + (d.age | 0) : ""].filter(Boolean).map(escHtml).join(" · ");
     var team = [t.school, t.name].filter(Boolean).join(" ");
-    var html = '<div class="pcard-v151b fr-' + escHtml(fr.css) + (compact ? " compact" : "") + '" data-frame="' + escHtml(fr.id) + '">' +
+    var bdA = badgeAttrsV158A(bdg);   // v158 A: a drawn badge, the team's colours for the team frame / plate
+    var html = '<div class="pcard-v151b fr-' + escHtml(fr.css) + (compact ? " compact" : "") + '" data-frame="' + escHtml(fr.id) + '"' + teamVarsV158A(cols) + '>' +
       '<div class="pc-ban-v151b" style="background:' + bn.bg + (bn.edge ? ";border-bottom:2px solid " + bn.edge : "") + '" data-banner="' + escHtml(bn.id) + '">' +
       (ico && ico.glyph ? '<span class="pc-ico-v151b' + (ico.v157 ? " ico157" : "") + '" style="' + iconStyleV157C(ico) + '" data-icon="' + escHtml(ico.id) + '">' + iconInnerV157C(ico) + "</span>" : "") +   // v157 C: an earned icon is its own badge
       (d.gen > 1 ? '<span class="pc-gen-v151b' + (ico && ico.glyph ? " shift" : "") + '">GEN ' + (d.gen | 0) + "</span>" : "") +
-      (bdg && bdg.glyph ? '<span class="pc-bdg-v151b" data-badge="' + escHtml(bdg.id) + '">' + escHtml(bdg.glyph) + "</span>" : "") + (d.ovr != null ? '<span class="pc-ovr-v151b"><b>' + (d.ovr | 0) + "</b>OVR</span>" : "") + "</div>" +
+      (bdg && bdg.glyph ? '<span class="pc-bdg-v151b' + bdA.cls + '"' + bdA.style + ' data-badge="' + escHtml(bdg.id) + '">' + escHtml(bdg.glyph) + "</span>" : "") + (d.ovr != null ? '<span class="pc-ovr-v151b"><b>' + (d.ovr | 0) + "</b>OVR</span>" : "") + "</div>" +
       '<div class="pc-body-v151b"><div class="pc-fig-v151b"><canvas class="pc-cv-v151b" width="128" height="160"></canvas></div>' +
-      '<div class="pc-id-v151b"><div class="pc-name-v151b"' + (npl && npl.plate ? ' style="background:' + npl.plate + ';padding:1px 6px;border-radius:5px" data-plate="' + escHtml(npl.id) + '"' : "") + ">" + escHtml(String(d.name || "").toUpperCase()) + "</div>" +
-      (ttl && ttl.text ? '<div class="pc-title-v151b" data-title="' + escHtml(ttl.id) + '">' + escHtml(ttl.text) + "</div>" : "") +
+      '<div class="pc-id-v151b"><div class="pc-name-v151b' + plateClsV158A(npl) + '"' + plateAttrsV158A(npl) /* v158 A */ + ">" + escHtml(String(d.name || "").toUpperCase()) + "</div>" +
+      (ttl && ttl.text ? '<div class="pc-title-v151b' + titleClsV158A(ttl) + '" data-title="' + escHtml(ttl.id) + '">' + escHtml(ttl.text) + "</div>" : "") +
       '<div class="pc-meta-v151b">' + meta + "</div>" +
       (team || cols.length ? '<div class="pc-team-v151b">' + logo + cols.map(function (c) { return '<i class="pc-sw-v151b" style="background:' + c + '"></i>'; }).join("") + "<span>" + escHtml(team.toUpperCase()) + "</span></div>" : "") +
       (d.club ? '<div class="pc-club-v151b">' + escHtml(d.club) + "</div>" : "") + "</div></div>" +
@@ -855,6 +862,7 @@
       var draw = function () { var r = drawCharacter(cv, cz.kit || {}, d.age || 22, { num: d.num != null ? d.num : jerseyNumV157C(d.pos), numfont: cz.numfont }); if (r && r.mode !== "hi" && !draw._again) { draw._again = 1; setTimeout(draw, 700); } };
       if (cv) draw();
       if (cv) cardFlairV153G(cv, cz);   // v153 G: aura + wings behind the figure, the crown on his head (its own layers)
+      dressCardV158A(el);   // v158 A: the banner's painter
     }
     return html;
   }
@@ -1599,7 +1607,7 @@
   }
   function numfontFxV153G(m, N) {
     var L = m.label; if (!L || !L.setFontFamily || !L.style) return;
-    if (!N) { var o = m._nfOrigV153G; if (o) { try { L.setFontFamily(o.f); L.setColor(o.c); L.setStroke(o.s, o.w); } catch (e) {} m._nfOrigV153G = null; m._nfKeyV153G = null; } return; }
+    if (!N) { dropNumV158A(m, null); var o = m._nfOrigV153G; if (o) { try { L.setFontFamily(o.f); L.setColor(o.c); L.setStroke(o.s, o.w); } catch (e) {} m._nfOrigV153G = null; m._nfKeyV153G = null; } return; }
     var st = L.style; if (m._nfKeyV153G === N.id && st.fontFamily === N.d.font && st.color === N.d.col) return;
     if (!m._nfOrigV153G) m._nfOrigV153G = { f: st.fontFamily, c: st.color, s: st.stroke, w: st.strokeThickness };
     L.setFontFamily(N.d.font); L.setColor(N.d.col); L.setStroke(N.d.stroke, Math.max(onV157C("v157Cfig") ? TUv("nfStrokeV157C", 3.6) : 2, st.strokeThickness || 2.2));   // v157 C: a heavier outline reads at broadcast size
@@ -1761,7 +1769,8 @@
       if (it.cat === "numfont") {
         var tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"], nf = it.nf || { font: "Oswald, sans-serif", col: "#ffffff", stroke: "#0a0e14" };
         x.fillStyle = hexOk(tc[0]) || "#1f4fd0"; x.beginPath(); x.moveTo(14, 12); x.lineTo(24, 8); x.lineTo(40, 8); x.lineTo(50, 12); x.lineTo(50, 58); x.lineTo(14, 58); x.closePath(); x.fill();
-        x.font = "bold 26px " + nf.font; x.textAlign = "center"; x.textBaseline = "middle"; x.lineWidth = 3; x.strokeStyle = nf.stroke; var nn = String(jerseyNumV157C((gstate() || {}).player && gstate().player.pos) || 23); x.strokeText(nn, 32, 35); x.fillStyle = nf.col; x.fillText(nn, 32, 35);   // v157 C: his own number
+        var nn = String(jerseyNumV157C((gstate() || {}).player && gstate().player.pos) || 23);   // v157 C: his own number
+        if (!nfPreviewV158A(x, it, nn)) { x.font = "bold 26px " + nf.font; x.textAlign = "center"; x.textBaseline = "middle"; x.lineWidth = 3; x.strokeStyle = nf.stroke; x.strokeText(nn, 32, 35); x.fillStyle = nf.col; x.fillText(nn, 32, 35); }   // v158 A: the drawn face
       } else {
         var F = { trail: it.tr ? { id: it.id, d: it.tr } : null, wings: it.w ? { id: it.id, d: it.w } : null, crown: it.cr ? { id: it.id, d: it.cr } : null, aura: it.au ? { id: it.id, d: it.au } : null };
         var fig = figV153G(34), fx0 = F.trail ? 26 : 15, fy0 = 64 - fig.height - 2, geo = inkGeoV153G(fig, fx0, fy0) || { top: fy0, bot: 62, cx: fx0 + 17, h: 36 }, k = geo.h / 44;
@@ -3228,6 +3237,7 @@
   function chestNumberV157C(cv, res, num, nfId) {
     if (!res || !res.geo || num == null || num === "" || !onV157C("v157Cfig")) return null;
     var C = chestV157C(); if (!C) return null;
+    var r158 = chestNumV158A(cv, res, num, nfId, C); if (r158) return r158;   // v158 A: the number font's own drawn art
     try {
       var g = res.geo, x = cv.getContext("2d"), nf = nfOfV157C(nfId), s = String(num | 0);
       var sx = g.bw / C.W, cx = g.bx + C.cx * sx, cy = g.by + (C.row - g.neck) * g.k;
@@ -3260,10 +3270,13 @@
     return r && r.mode === "hi" ? r : null;
   }
   /* ---- the growth screen (07 growDrawV133 → growOneFaceV157C → here): the same figure, and the flair layers ---- */
-  function growFigureV157C(cv, age) {
+  function growFigureV157C(cv, age, kit) {
     try {
       if (!onV157C("v157Cfig")) return null;
-      var face = faceV157C(), r = drawFigureV157C(cv, age, face); if (!r) return null;
+      var face = faceV157C();
+      // the palette the growth screen hands over is his TEAM kit; an equipped uniform still wins, as on the card
+      if (Array.isArray(kit) && hexOk(kit[0]) && hexOk(kit[1]) && !(item("uniform") || {}).k) face.kit = Object.assign({}, face.kit, { j: kit[0], p: kit[1] });
+      var r = drawFigureV157C(cv, age, face); if (!r) return null;
       V157C.growth++; V157C.lastGrowth = { age: age, num: face.num, numfont: face.numfont, helmet: face.helmet };
       setTimeout(function () {
         try {
@@ -3306,12 +3319,13 @@
     try {
       if (!m || !m.label) return;
       if (m.num != null && m.team === "you") { var ps = ""; try { var st = gstate(); ps = st && st.player ? String(st.player.pos || "").toUpperCase() : ""; } catch (e) {} if (ps && V157C.nums[ps] !== (m.num | 0)) V157C.nums[ps] = m.num | 0; }
-      if (!N || !onV157C("v157Cfig") || !m.label.visible) return;
+      if (!N || !onV157C("v157Cfig") || !m.label.visible) { dropNumV158A(m, N && onV157C("v157Cfig") ? N : null); return; }   // v158 A
       var L = m.label, sc = m._numScaleV104 || L.scaleX || 1, k = TUv("nfScaleV157C", 1.35), b = m._numBandV104;
       var bw = b && m.body ? b.w * Math.abs(m.body.scaleX || 1) * TUv("nfWidthV157C", 0.82) : 1e9, want = sc * k;
       if (L.width * want > bw) want = Math.max(sc, bw / Math.max(1, L.width));
       if (Math.abs(L.scaleX - want) > 1e-4) L.setScale(want);
       V157C.fieldNum = { font: L.style.fontFamily, col: L.style.color, scale: +want.toFixed(3), base: +sc.toFixed(3) };
+      fieldNumV158A(m, N);   // v158 A: the font's drawn art over the label
     } catch (e) { errV157C(e); }
   }
 
@@ -3469,6 +3483,1148 @@
     (document.head || document.documentElement).appendChild(st);
   })();
 
+  /* ===== v158 A THE CARD, DRESSED =====
+   * The owner: "greatly enhance the profile options … the banners. Make the jersey number fonts better. Ensure the helmet
+   * stripes are accurate in relation to how the player is looking." Four moves, all looks, none of it a number the sim reads:
+   *   BANNERS      every banner is a PAINTER now (`BAN_V158A[kind](ctx, w, h, t, P)`): a canvas behind the card's band, animated
+   *                off the wall clock alone (deterministic from t: an integer hash, never Math.random), one still frame under
+   *                prefers-reduced-motion. 26 new banners (stadium nights, flames, galaxy, lightning, skyline, trophy room,
+   *                confetti, hologram, marble & gold, aurora, synthwave, event horizon…) and the seven old ones redrawn; a Career
+   *                Pass banner keeps its gradient under a moving sheen. The card dresses itself (`dressCardV158A`, also on a 600 ms
+   *                scan for cards drawn from a string — a leaderboard row, the trophy case); the Locker previews animate too.
+   *                ONE rAF loop (`LOOP_V158A`, TU v158Afps / v158Amax). Kill switch TU v158Aban (0: the CSS gradient, still).
+   *   THE CARD'S OTHER SLOTS  titles styled by rarity (every title, the pass's too), drawn badges (a shaped enamel pin),
+   *                nameplates with a material (gold leaf, chrome, neon, engraved stone, carved oak, varsity felt, holo, magma,
+   *                marble, starfield, diamond…), animated frame rings (`::after` masked to the border), shelves, recaps, vault
+   *                themes, stadiums and celebrations — ≥ 8 new each. Sources keep the owner's rule: the plain ones free, the nice
+   *                ones earned late (ACH ids, the v156 C rungs, or an earned ICON — `icon:<id>` — held), the flashiest member.
+   *   NUMBER FONTS a real typeface engine: each face is a stroke SKELETON (square block, round, seven-segment, 3x5 bitmap), a PEN
+   *                (square, round, broad nib, butt) and a finish (outline rings, drop / stacked shadows, gradients, chrome,
+   *                gold foil, bevel, neon core + glow, LED segments, icicles, camo, starfield), rasterised at the exact pixel
+   *                height it is shown at and thresholded — crisp edges at 12 px or 60. The profile chest (`chestNumberV157C`),
+   *                the field sprite (an image over his label, `fieldNumV158A`) and the Locker all draw the same art. The old
+   *                nf_* items are redrawn (keyed by style), 15 new faces. Kill switch TU v158Anf (0: the v157 C text).
+   *   HELMET STRIPES  the root cause: kitDeco painted every helmet row's CENTRE column as the stripe, whatever the frame —
+   *                right for a head seen from the front or behind, wrong for the side and 3/4 views (a vertical bar down the
+   *                side of his head), and it painted the art's own drawn stripe (the gold arcing over the crown, placed by the
+   *                artist for each facing) as SHELL. Now the stripe IS the art's stripe: `helmMaskV158A` finds the helmet (an
+   *                ellipse fitted to the head's first rows, so the shoulder pads beside it stay jersey), follows the gold from
+   *                the crown through the shell (8-connected, touching shell), and paints it — front and back down the middle,
+   *                the side view along the top, 3/4 offset — twin / wide stripes are rings / dilations of it, the decal sits on
+   *                the side the viewer sees. The profile figure (`figHelmV158A`) gets twin / wide / decals the same way. Kill
+   *                switch TU v158Ahelm. `window.__V158A` is what v158Acheck reads. */
+  var V158A = (window.__V158A = window.__V158A || { paints: 0, ticks: 0, dressed: 0, nums: 0, field: null, helm: 0, errs: [] });
+  function errV158A(e) { try { if (V158A.errs.length < 10) V158A.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  function onV158A(k) { return !!TUv(k, 1); }
+  var MQ_V158A = null;
+  function reducedV158A() { try { if (!MQ_V158A && window.matchMedia) MQ_V158A = matchMedia("(prefers-reduced-motion: reduce)"); return !!(MQ_V158A && MQ_V158A.matches); } catch (e) { return false; } }
+  function rV158A(i, s) { return ihV153G((((i | 0) * 73856093) ^ (((s | 0) + 7) * 19349663)) >>> 0); }
+  function colV158A(c) { if (c === "T1" || c === "team") return teamCol(0); if (c === "T2") return teamCol(1); return hexOk(c) || "#ffffff"; }
+  function rgbaV158A(hx, a) { var c = rgb(colV158A(hx)); return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + a + ")"; }
+
+  /* ---------------- the catalogue ---------------- */
+  var ITEMS_V158A = [
+    // BANNERS — b158 is the painter, col its palette, bg the still fallback (a leaderboard row with the switch off)
+    { id: "ban_team_sweep", cat: "banner", name: "Team Colours", rarity: "common", source: "free", b158: "sweep", col: ["T1", "T2"], bg: "linear-gradient(135deg,var(--t1,#1f4fd0),var(--t2,#e8c86a))" },
+    { id: "ban_chalk", cat: "banner", name: "X's and O's", rarity: "common", source: "free", b158: "chalk", col: ["#1f3a2c", "#f2f2e8"], bg: "linear-gradient(180deg,#24432f,#15291d)" },
+    { id: "ban_camo", cat: "banner", name: "Digital Camo", rarity: "common", source: "free", b158: "camo", col: ["#4c5a3a", "#6b7a4a", "#2a3122", "#8a8a5a"], bg: "linear-gradient(135deg,#4c5a3a,#2a3122)" },
+    { id: "ban_rainy", cat: "banner", name: "Rain Game", rarity: "common", source: "free", b158: "rain", col: ["#0d1624", "#243a55", "#9fc3e8"], bg: "linear-gradient(180deg,#243a55,#0d1624)" },
+    { id: "ban_sunrise", cat: "banner", name: "Two-a-Days", rarity: "rare", source: "free", b158: "sunrise", col: ["#ff9a3d", "#ff5e7a", "#2a2350"], bg: "linear-gradient(180deg,#2a2350,#ff5e7a 60%,#ff9a3d)" },
+    { id: "ban_honeycomb", cat: "banner", name: "Hex Grid", rarity: "rare", source: "free", b158: "hex", col: ["T2", "#0b0f16"], bg: "linear-gradient(135deg,#141b26,#0b0f16)" },
+    { id: "ban_skyline", cat: "banner", name: "City Skyline", rarity: "rare", source: "earned", ach: "icon:ico_t2_1", b158: "skyline", col: ["#ff8a3d", "#6a2c70", "#1b1b3a"], bg: "linear-gradient(180deg,#1b1b3a,#6a2c70 55%,#ff8a3d)" },
+    { id: "ban_snowfall", cat: "banner", name: "Snow Bowl", rarity: "rare", source: "earned", ach: "icon:ico_t3_1", b158: "snow", col: ["#0c1a33", "#2a4a7a", "#ffffff"], bg: "linear-gradient(180deg,#0c1a33,#2a4a7a)" },
+    { id: "ban_waves", cat: "banner", name: "Tidal", rarity: "rare", source: "earned", ach: "icon:ico_sc_5", b158: "waves", col: ["#0b2a3a", "#127a9a", "#8fe3ff"], bg: "linear-gradient(180deg,#8fe3ff,#127a9a 50%,#0b2a3a)" },
+    { id: "ban_scoreboard", cat: "banner", name: "Scoreboard", rarity: "rare", source: "earned", ach: "icon:ico_t4_1", b158: "board", col: ["#ffb02e", "#3a2408"], bg: "linear-gradient(180deg,#141008,#050403)" },
+    { id: "ban_lavalamp", cat: "banner", name: "Lava Lamp", rarity: "rare", source: "earned", ach: "icon:ico_td_50", b158: "lava", col: ["#2a0a3a", "#ff5a8a", "#ffb02e"], bg: "linear-gradient(180deg,#2a0a3a,#5a1a4a)" },
+    { id: "ban_confetti", cat: "banner", name: "Ticker Tape", rarity: "epic", source: "earned", ach: "title", b158: "confetti", col: ["#ff5a5a", "#ffd76f", "#6fd3ff", "#7cff9b", "#ff9ad5"], bg: "linear-gradient(180deg,#1a2436,#0a0e15)" },
+    { id: "ban_trophy_room", cat: "banner", name: "Trophy Room", rarity: "epic", source: "earned", ach: "ring", b158: "trophy", col: ["#5a3a1e", "#2a1a0c", "#ffd76f"], bg: "linear-gradient(180deg,#5a3a1e,#2a1a0c)" },
+    { id: "ban_stadium_nights", cat: "banner", name: "Stadium Nights", rarity: "epic", source: "earned", ach: "uff", b158: "stadium", col: ["#050814", "#1a2436", "#fff6d8"], bg: "linear-gradient(180deg,#050814,#1a2436)" },
+    { id: "ban_synthwave", cat: "banner", name: "Retro Wave", rarity: "epic", source: "earned", ach: "icon:ico_sc_10", b158: "synth", col: ["#12051f", "#ff3df2", "#ffd76f"], bg: "linear-gradient(180deg,#12051f,#5a1a6a 60%,#ff3df2)" },
+    { id: "ban_paparazzi", cat: "banner", name: "Paparazzi", rarity: "legendary", source: "earned", ach: "mvp", b158: "flash", col: ["#0a0c12", "#2a3446", "#ffffff"], bg: "linear-gradient(180deg,#2a3446,#0a0c12)" },
+    { id: "ban_marble", cat: "banner", name: "Marble & Gold", rarity: "legendary", source: "earned", ach: "hof", b158: "marble", col: ["#ece8df", "#b8b2a6", "#d4af37"], bg: "linear-gradient(135deg,#ece8df,#c9c4ba 50%,#f3f0ea)" },
+    { id: "ban_northern", cat: "banner", name: "Northern Lights", rarity: "legendary", source: "earned", ach: "rings3", b158: "aurora", col: ["#3fffb0", "#3fb6ff", "#9a6bff"], bg: "linear-gradient(120deg,#06121c,#0f3a3a 45%,#1a1040)" },
+    { id: "ban_dynasty", cat: "banner", name: "Dynasty", rarity: "legendary", source: "earned", ach: "rings5", b158: "dynasty", col: ["#0d0f14", "#8a1c2b", "#e6c46a"], bg: "linear-gradient(180deg,#1a1c24,#0d0f14)" },
+    { id: "ban_legacy_rays", cat: "banner", name: "Legacy Rays", rarity: "mythic", source: "earned", ach: "legacy300", b158: "rays", col: ["#3a2408", "#ffd76f", "#fff3c4"], bg: "radial-gradient(circle at 30% 50%,#ffd76f,#3a2408 70%)" },
+    { id: "ban_event_horizon", cat: "banner", name: "Event Horizon", rarity: "mythic", source: "earned", ach: "interstellar", b158: "hole", col: ["#000000", "#ff9a3d", "#fff3c4"], bg: "radial-gradient(ellipse at 60% 50%,#ff9a3d 0,#3a1408 30%,#000 60%)" },
+    { id: "ban_galaxy", cat: "banner", name: "Galaxy", rarity: "mythic", source: "member", b158: "galaxy", col: ["#05030f", "#7a3aff", "#ff5ab4", "#3fb6ff"], bg: "radial-gradient(ellipse at 65% 50%,#3a1a6a,#05030f 70%)" },
+    { id: "ban_storm", cat: "banner", name: "Thunderstruck", rarity: "legendary", source: "member", b158: "storm", col: ["#10141c", "#3a4252", "#bfe6ff"], bg: "linear-gradient(180deg,#3a4252,#10141c)" },
+    { id: "ban_hologram", cat: "banner", name: "Hologram", rarity: "legendary", source: "member", b158: "holo", col: ["#021418", "#18f0e0", "#b9fff8"], bg: "linear-gradient(180deg,#021418,#063a3a)" },
+    { id: "ban_gold_rush", cat: "banner", name: "Gold Rush", rarity: "mythic", source: "member", b158: "coins", col: ["#1a1004", "#ffd76f", "#b8861f"], bg: "radial-gradient(ellipse at 50% 100%,#6a4a10,#1a1004 70%)" },
+    { id: "ban_inferno", cat: "banner", name: "Inferno", rarity: "legendary", source: "member", b158: "fire", col: ["#0a0202", "#ff5a1a", "#ffe14d"], bg: "linear-gradient(0deg,#ff5a1a,#5c0f08 55%,#0a0202)" },
+    // TITLES — styled by rarity on the card
+    { id: "title_rookie", cat: "title", name: "Rookie", rarity: "common", source: "free", text: "Rookie" },
+    { id: "title_grinder", cat: "title", name: "Gridiron Grinder", rarity: "common", source: "free", text: "Gridiron Grinder" },
+    { id: "title_filmroom", cat: "title", name: "Film Room Junkie", rarity: "common", source: "free", text: "Film Room Junkie" },
+    { id: "title_twoway", cat: "title", name: "Two-Way Threat", rarity: "rare", source: "free", text: "Two-Way Threat" },
+    { id: "title_friday", cat: "title", name: "Friday Night Legend", rarity: "rare", source: "earned", ach: "title", text: "Friday Night Legend" },
+    { id: "title_pro", cat: "title", name: "Made the UFF", rarity: "rare", source: "earned", ach: "uff", text: "Made the UFF" },
+    { id: "title_ringbearer", cat: "title", name: "Ring Bearer", rarity: "epic", source: "earned", ach: "ring", text: "Ring Bearer" },
+    { id: "title_century", cat: "title", name: "Century Club", rarity: "epic", source: "earned", ach: "td100", text: "Century Club" },
+    { id: "title_family", cat: "title", name: "Family Business", rarity: "epic", source: "earned", ach: "gen3", text: "Family Business" },
+    { id: "title_mvp", cat: "title", name: "League MVP", rarity: "legendary", source: "earned", ach: "mvp", text: "League MVP" },
+    { id: "title_hof", cat: "title", name: "Hall of Famer", rarity: "legendary", source: "earned", ach: "hof", text: "Hall of Famer" },
+    { id: "title_dynasty", cat: "title", name: "Dynasty", rarity: "legendary", source: "earned", ach: "rings3", text: "Dynasty" },
+    { id: "title_immortal", cat: "title", name: "Immortal", rarity: "mythic", source: "earned", ach: "rings5", text: "Immortal" },
+    { id: "title_starborn", cat: "title", name: "Starborn", rarity: "mythic", source: "earned", ach: "interstellar", text: "Starborn" },
+    { id: "title_patriarch", cat: "title", name: "The Patriarch", rarity: "mythic", source: "earned", ach: "gen5", text: "The Patriarch" },
+    { id: "title_legend", cat: "title", name: "Living Legend", rarity: "mythic", source: "earned", ach: "legacy300", text: "Living Legend" },
+    { id: "title_showtime", cat: "title", name: "Showtime", rarity: "epic", source: "member", text: "Showtime" },
+    { id: "title_main", cat: "title", name: "Main Character", rarity: "legendary", source: "member", text: "Main Character" },
+    { id: "title_built", cat: "title", name: "Built Different", rarity: "legendary", source: "member", text: "Built Different" },
+    // BADGES — an enamel pin: a glyph on a shape (b158), in two colours
+    { id: "badge_captain", cat: "badge", name: "Captain", rarity: "common", source: "free", glyph: "C", b158: "shield", col: "#c8102e", col2: "#5a0610" },
+    { id: "badge_iron", cat: "badge", name: "Iron Man", rarity: "common", source: "free", glyph: "🛡️", b158: "round", col: "#9aa3b2", col2: "#3a4252" },
+    { id: "badge_playmaker", cat: "badge", name: "Playmaker", rarity: "rare", source: "free", glyph: "🎯", b158: "hex", col: "#18c3b8", col2: "#0b3a36" },
+    { id: "badge_champ", cat: "badge", name: "Champion", rarity: "rare", source: "earned", ach: "title", glyph: "🏆", b158: "star", col: "#f0bb45", col2: "#6b4a0e" },
+    { id: "badge_league", cat: "badge", name: "The League", rarity: "rare", source: "earned", ach: "uff", glyph: "🏈", b158: "shield", col: "#1f5fbf", col2: "#0c1a33" },
+    { id: "badge_ringed", cat: "badge", name: "Ringed", rarity: "epic", source: "earned", ach: "ring", glyph: "💍", b158: "diamond", col: "#e6c46a", col2: "#3b1f7a" },
+    { id: "badge_century", cat: "badge", name: "Century", rarity: "epic", source: "earned", ach: "td100", glyph: "💯", b158: "shield", col: "#ff7a1a", col2: "#3a1008" },
+    { id: "badge_bloodline", cat: "badge", name: "Bloodline", rarity: "epic", source: "earned", ach: "gen3", glyph: "🌳", b158: "round", col: "#5fae4a", col2: "#1a3a14" },
+    { id: "badge_mvp", cat: "badge", name: "MVP", rarity: "legendary", source: "earned", ach: "mvp", glyph: "⭐", b158: "star", col: "#ffd76f", col2: "#8a6414", fx: 1 },
+    { id: "badge_enshrined", cat: "badge", name: "Enshrined", rarity: "legendary", source: "earned", ach: "hof", glyph: "🏛️", b158: "hex", col: "#ece8df", col2: "#5a4a2a", fx: 1 },
+    { id: "badge_starbound", cat: "badge", name: "Starbound", rarity: "mythic", source: "earned", ach: "interstellar", glyph: "🪐", b158: "round", col: "#b9a6ff", col2: "#2a1650", fx: 1 },
+    { id: "badge_diamond", cat: "badge", name: "Diamond", rarity: "legendary", source: "member", glyph: "💎", b158: "diamond", col: "#bfefff", col2: "#1f5f8a", fx: 1 },
+    { id: "badge_phoenix", cat: "badge", name: "Phoenix", rarity: "mythic", source: "member", glyph: "🔥", b158: "star", col: "#ffb02e", col2: "#8a180a", fx: 1 },
+    // NAMEPLATES — a material under his name (np is the class; plate stays the still fallback)
+    { id: "plate_team", cat: "nameplate", name: "Team Plate", rarity: "common", source: "free", np: "team", plate: "linear-gradient(90deg,#1f4fd0,#e8c86a)" },
+    { id: "plate_stone", cat: "nameplate", name: "Engraved Stone", rarity: "common", source: "free", np: "stone", plate: "linear-gradient(180deg,#9a968e,#6e6a62)" },
+    { id: "plate_oak", cat: "nameplate", name: "Carved Oak", rarity: "common", source: "free", np: "oak", plate: "linear-gradient(180deg,#8a5a2e,#5a3a1e)" },
+    { id: "plate_carbon", cat: "nameplate", name: "Carbon Fibre", rarity: "common", source: "free", np: "carbon", plate: "repeating-linear-gradient(45deg,#15181d 0 3px,#23272e 3px 6px)" },
+    { id: "plate_neon", cat: "nameplate", name: "Neon", rarity: "rare", source: "free", np: "neon", plate: "#12051f" },
+    { id: "plate_chrome", cat: "nameplate", name: "Chrome", rarity: "rare", source: "earned", ach: "uff", np: "chrome", plate: "linear-gradient(180deg,#f4f7fb,#9aa6b8 50%,#e6ecf5)" },
+    { id: "plate_varsity", cat: "nameplate", name: "Varsity Felt", rarity: "rare", source: "earned", ach: "icon:ico_t4_1", np: "varsity", plate: "#8a1c2b" },
+    { id: "plate_frost", cat: "nameplate", name: "Frosted", rarity: "rare", source: "earned", ach: "icon:ico_t3_1", np: "frost", plate: "linear-gradient(180deg,#eaf7ff,#9fd4ff)" },
+    { id: "plate_gold", cat: "nameplate", name: "Gold Leaf", rarity: "epic", source: "earned", ach: "title", np: "gold", plate: "linear-gradient(180deg,#fff3c4,#e6b53a 45%,#8a6414)" },
+    { id: "plate_marble", cat: "nameplate", name: "Marble", rarity: "legendary", source: "earned", ach: "hof", np: "marble", plate: "linear-gradient(135deg,#f3f0ea,#c9c4ba)" },
+    { id: "plate_diamond", cat: "nameplate", name: "Diamond", rarity: "mythic", source: "earned", ach: "interstellar", np: "diamond", plate: "linear-gradient(135deg,#ffffff,#bfefff)" },
+    { id: "plate_magma", cat: "nameplate", name: "Magma", rarity: "epic", source: "member", np: "magma", plate: "linear-gradient(180deg,#3a0a04,#0a0202)" },
+    { id: "plate_holo", cat: "nameplate", name: "Holographic", rarity: "legendary", source: "member", np: "holo", plate: "linear-gradient(90deg,#ffd6f0,#d6f0ff,#e0ffd6)" },
+    { id: "plate_galaxy", cat: "nameplate", name: "Starfield", rarity: "mythic", source: "member", np: "galaxy", plate: "linear-gradient(90deg,#1a0f33,#05030f)" },
+    // CARD FRAMES — an animated ring round the card (FRAMES_V158A draws each)
+    { id: "frame_team", cat: "frame", name: "Team Stripe", rarity: "common", source: "free", css: "team158", anim: 1 },
+    { id: "frame_pixel", cat: "frame", name: "8-Bit Border", rarity: "common", source: "free", css: "pixel158", anim: 1 },
+    { id: "frame_sakura", cat: "frame", name: "Blossom", rarity: "rare", source: "free", css: "sakura158", anim: 1 },
+    { id: "frame_toxic", cat: "frame", name: "Toxic", rarity: "rare", source: "free", css: "toxic158", anim: 1 },
+    { id: "frame_glacier", cat: "frame", name: "Glacier Glass", rarity: "rare", source: "earned", ach: "title", css: "glacier158", anim: 1 },
+    { id: "frame_marquee", cat: "frame", name: "Marquee Lights", rarity: "epic", source: "earned", ach: "uff", css: "marquee158", anim: 1 },
+    { id: "frame_ember", cat: "frame", name: "Ember", rarity: "epic", source: "earned", ach: "td100", css: "ember158", anim: 1 },
+    { id: "frame_aurora", cat: "frame", name: "Aurora Ring", rarity: "legendary", source: "earned", ach: "rings3", css: "aurora158", anim: 1 },
+    { id: "frame_laurel", cat: "frame", name: "Laurel Wreath", rarity: "legendary", source: "earned", ach: "hof", css: "laurel158", anim: 1 },
+    { id: "frame_obsidian", cat: "frame", name: "Obsidian Edge", rarity: "legendary", source: "earned", ach: "legacy300", css: "obsidian158", anim: 1 },
+    { id: "frame_filigree", cat: "frame", name: "Gilded Filigree", rarity: "legendary", source: "earned", ach: "rings5", css: "filigree158", anim: 1 },
+    { id: "frame_starlight", cat: "frame", name: "Starlight", rarity: "mythic", source: "earned", ach: "interstellar", css: "starlight158", anim: 1 },
+    { id: "frame_livewire", cat: "frame", name: "Live Wire", rarity: "legendary", source: "member", css: "livewire158", anim: 1 },
+    { id: "frame_prism", cat: "frame", name: "Prism", rarity: "mythic", source: "member", css: "prism158", anim: 1 },
+    // TROPHY SHELVES
+    { id: "shelf_carbon", cat: "shelf", name: "Carbon Rack", rarity: "common", source: "free", css: "carbon158" },
+    { id: "shelf_locker", cat: "shelf", name: "Locker Room", rarity: "common", source: "free", css: "locker158" },
+    { id: "shelf_stone", cat: "shelf", name: "Stone Plinth", rarity: "common", source: "free", css: "stone158" },
+    { id: "shelf_neon", cat: "shelf", name: "Neon Bar", rarity: "rare", source: "earned", ach: "uff", css: "neon158" },
+    { id: "shelf_ice", cat: "shelf", name: "Ice Case", rarity: "rare", source: "earned", ach: "icon:ico_t3_1", css: "ice158" },
+    { id: "shelf_walnut", cat: "shelf", name: "Walnut & Brass", rarity: "epic", source: "earned", ach: "mvp", css: "walnut158" },
+    { id: "shelf_velvet", cat: "shelf", name: "Velvet Rope", rarity: "epic", source: "earned", ach: "rings3", css: "velvet158" },
+    { id: "shelf_diamond", cat: "shelf", name: "Diamond Case", rarity: "mythic", source: "earned", ach: "interstellar", css: "diamond158" },
+    { id: "shelf_holo", cat: "shelf", name: "Hologram Dock", rarity: "legendary", source: "member", css: "holo158" },
+    { id: "shelf_galaxy", cat: "shelf", name: "Starfield Case", rarity: "mythic", source: "member", css: "galaxy158" },
+    // RECAP THEMES
+    { id: "recap_vhs", cat: "recap", name: "VHS Tape", rarity: "common", source: "free", css: "vhs" },
+    { id: "recap_blueprint", cat: "recap", name: "Blueprint", rarity: "common", source: "free", css: "blueprint" },
+    { id: "recap_stone", cat: "recap", name: "Chiselled", rarity: "common", source: "free", css: "stone" },
+    { id: "recap_comic", cat: "recap", name: "Comic Book", rarity: "rare", source: "free", css: "comic" },
+    { id: "recap_ticker", cat: "recap", name: "Bottom Line", rarity: "rare", source: "earned", ach: "uff", css: "ticker" },
+    { id: "recap_arcade", cat: "recap", name: "Arcade", rarity: "rare", source: "earned", ach: "icon:ico_sc_5", css: "arcade" },
+    { id: "recap_cover", cat: "recap", name: "Cover Story", rarity: "epic", source: "earned", ach: "mvp", css: "cover" },
+    { id: "recap_cosmic", cat: "recap", name: "Cosmic Edition", rarity: "mythic", source: "member", css: "cosmic" },
+    // VAULT THEMES
+    { id: "vault_sapphire", cat: "vault", name: "Sapphire", rarity: "common", source: "free", vt: { coin: "#3f7fe0", coinMix: 0.5, room: "#0c1a33", roomMix: 0.5, mote: "#9fc3ff" } },
+    { id: "vault_bronze", cat: "vault", name: "Bronze Age", rarity: "common", source: "free", vt: { coin: "#c07a45", coinMix: 0.55, room: "#2a1a0c", roomMix: 0.5, mote: "#ffcfa0" } },
+    { id: "vault_jade", cat: "vault", name: "Jade", rarity: "rare", source: "free", vt: { coin: "#2fbf8a", coinMix: 0.5, room: "#0c2a22", roomMix: 0.5, mote: "#b8ffe0" } },
+    { id: "vault_ruby", cat: "vault", name: "Ruby", rarity: "rare", source: "earned", ach: "title", vt: { coin: "#e0434f", coinMix: 0.5, room: "#2a0a10", roomMix: 0.55, mote: "#ffb8c0" } },
+    { id: "vault_amethyst", cat: "vault", name: "Amethyst", rarity: "epic", source: "earned", ach: "ring", vt: { coin: "#a05ae0", coinMix: 0.5, room: "#1c0f33", roomMix: 0.55, mote: "#e0c8ff" } },
+    { id: "vault_sunset", cat: "vault", name: "Sunset Hoard", rarity: "epic", source: "earned", ach: "uff", vt: { coin: "#ff8a3d", coinMix: 0.45, room: "#3a1430", roomMix: 0.5, mote: "#ffd0a0" } },
+    { id: "vault_midnight", cat: "vault", name: "Midnight", rarity: "legendary", source: "earned", ach: "hof", vt: { coin: "#6f86b8", coinMix: 0.5, room: "#05070d", roomMix: 0.65, mote: "#c9d6ff" } },
+    { id: "vault_aurora", cat: "vault", name: "Aurora", rarity: "legendary", source: "member", vt: { coin: "#3fffb0", coinMix: 0.4, room: "#06121c", roomMix: 0.6, mote: "#9dffe0" } },
+    { id: "vault_solar", cat: "vault", name: "Solar Flare", rarity: "mythic", source: "member", vt: { coin: "#ffb02e", coinMix: 0.35, room: "#2a0a02", roomMix: 0.6, mote: "#fff3a0" } },
+    // STADIUMS (home games)
+    { id: "std_dusk", cat: "stadium", name: "Dusk", rarity: "common", source: "free", st: { band: "#3a2350", lip: "#ff9a3d", crowd: "#ffd0b0", ez: "dusk" } },
+    { id: "std_forest", cat: "stadium", name: "Forest Bowl", rarity: "common", source: "free", st: { band: "#1f3a24", lip: "#9dcf6a", crowd: "#d8f0c0", ez: "forest" } },
+    { id: "std_sunset", cat: "stadium", name: "Sunset Strip", rarity: "rare", source: "free", st: { band: "#5c1a3a", lip: "#ffb02e", crowd: "#ffd8e8", ez: "sunset" } },
+    { id: "std_steel", cat: "stadium", name: "Steel City", rarity: "rare", source: "earned", ach: "title", st: { band: "#2e343d", lip: "#d9dee6", crowd: "#e6ecf5", ez: "steel" } },
+    { id: "std_royal", cat: "stadium", name: "Royal Purple", rarity: "epic", source: "earned", ach: "ring", st: { band: "#2b1a5a", lip: "#e6c46a", crowd: "#e8d8ff", ez: "royal" } },
+    { id: "std_emerald", cat: "stadium", name: "Emerald City", rarity: "epic", source: "earned", ach: "mvp", st: { band: "#0f3a26", lip: "#3fbf7f", crowd: "#c8ffe0", ez: "emerald" } },
+    { id: "std_arctic", cat: "stadium", name: "Arctic Night", rarity: "legendary", source: "earned", ach: "rings3", st: { band: "#0c2238", lip: "#bfe6ff", crowd: "#e8f6ff", ez: "ice" } },
+    { id: "std_inferno", cat: "stadium", name: "Inferno Pit", rarity: "legendary", source: "member", st: { band: "#3a0804", lip: "#ff7a1a", crowd: "#ffc890", ez: "fire" } },
+    { id: "std_galaxy", cat: "stadium", name: "Galactic", rarity: "mythic", source: "member", st: { band: "#150a2e", lip: "#b98bff", crowd: "#e0d0ff", ez: "galaxy" } },
+    // TOUCHDOWN CELEBRATIONS
+    { id: "cel_team_fireworks", cat: "celebration", name: "Team Fireworks", rarity: "common", source: "free", c: { kind: "fireworks", col: ["team", "#ffffff", "#ffd76f"], say: "FOR THE SCHOOL" } },
+    { id: "cel_snowday", cat: "celebration", name: "Snow Day", rarity: "common", source: "free", c: { kind: "snow", col: ["#ffffff", "#e8f6ff", "#cfe8ff"], say: "SNOW DAY" } },
+    { id: "cel_arcade", cat: "celebration", name: "Arcade Burst", rarity: "rare", source: "free", c: { kind: "pixel", col: ["#57e07a", "#b8ff6f", "#ffffff", "#1f8a4a"], say: "HIGH SCORE" } },
+    { id: "cel_thunder", cat: "celebration", name: "Thunder Clap", rarity: "epic", source: "earned", ach: "uff", c: { kind: "bolt", col: ["#e0b8ff", "#ffffff", "#9a4bff"], say: "THUNDER" } },
+    { id: "cel_supernova", cat: "celebration", name: "Supernova", rarity: "epic", source: "earned", ach: "interstellar", c: { kind: "shock", col: ["#fff3c4", "#ff9a3d", "#ff5ab4"], say: "SUPERNOVA" } },
+    { id: "cel_goldwings", cat: "celebration", name: "Golden Wings", rarity: "legendary", source: "earned", ach: "hof", c: { kind: "feathers", col: ["#ffd76f", "#fff3c4", "#e6b53a"], say: "HALL BOUND" } },
+    { id: "cel_ringrain", cat: "celebration", name: "Ring Rain", rarity: "legendary", source: "earned", ach: "rings3", c: { kind: "rain", col: ["#e6ecf5", "#ffd76f", "#ffffff"], say: "RINGS" } },
+    { id: "cel_dragonfire", cat: "celebration", name: "Dragon Fire", rarity: "legendary", source: "member", c: { kind: "flame", col: ["#b8ff6f", "#3fbf4a", "#0f5a2a"], say: "DRAGON FIRE" } },
+    { id: "cel_blackhole", cat: "celebration", name: "Black Hole", rarity: "mythic", source: "member", c: { kind: "halo", col: ["#b98bff", "#ffffff", "#2a1650"], say: "GONE" } },
+    // NUMBER FONTS — the new faces (FACES_V158A draws each; the old nf_* are redrawn by style)
+    { id: "nf_pro", cat: "numfont", name: "Pro Block", rarity: "common", source: "free", nf: { style: "pro", font: "Impact, 'Arial Black', sans-serif", col: "#ffffff", stroke: "#0a0e14" } },
+    { id: "nf_condensed", cat: "numfont", name: "Tall Condensed", rarity: "common", source: "free", nf: { style: "condensed", font: "'Arial Narrow', Oswald, sans-serif", col: "#ffffff", stroke: "#0a0e14" } },
+    { id: "nf_camo", cat: "numfont", name: "Field Camo", rarity: "common", source: "free", nf: { style: "camo", font: "Impact, sans-serif", col: "#6b7a4a", stroke: "#0e120a" } },
+    { id: "nf_collegiate", cat: "numfont", name: "Collegiate Serif", rarity: "rare", source: "free", nf: { style: "collegiate", font: "Georgia, serif", col: "#e8c86a", stroke: "#0a0e14" } },
+    { id: "nf_pixel", cat: "numfont", name: "8-Bit", rarity: "rare", source: "free", nf: { style: "pixel", font: "'Courier New', monospace", col: "#ffffff", stroke: "#0a0e14" } },
+    { id: "nf_bubble", cat: "numfont", name: "Bubble", rarity: "rare", source: "free", nf: { style: "bubble", font: "'Trebuchet MS', sans-serif", col: "#ff9ad5", stroke: "#3a0a2a" } },
+    { id: "nf_hollow", cat: "numfont", name: "Hollow Outline", rarity: "rare", source: "earned", ach: "title", nf: { style: "hollow", font: "Impact, sans-serif", col: "#e8c86a", stroke: "#0a0e14" } },
+    { id: "nf_italic", cat: "numfont", name: "Speed Italic", rarity: "rare", source: "earned", ach: "icon:ico_t4_1", nf: { style: "italic", font: "Impact, sans-serif", col: "#ffffff", stroke: "#0a0e14" } },
+    { id: "nf_script", cat: "numfont", name: "Script", rarity: "epic", source: "earned", ach: "ring", nf: { style: "script", font: "'Brush Script MT', cursive", col: "#ffffff", stroke: "#0a0e14" } },
+    { id: "nf_digital", cat: "numfont", name: "Scoreboard LED", rarity: "epic", source: "earned", ach: "icon:ico_sc_5", nf: { style: "digital", font: "'Courier New', monospace", col: "#ffb02e", stroke: "#1a1004" } },
+    { id: "nf_retro", cat: "numfont", name: "Retro '70s", rarity: "epic", source: "earned", ach: "gen3", nf: nfStyleV153G("retro") },
+    { id: "nf_gothic", cat: "numfont", name: "Gothic", rarity: "legendary", source: "earned", ach: "hof", nf: { style: "gothic", font: "'Old English Text MT', Georgia, serif", col: "#f0e6d0", stroke: "#1a0f08" } },
+    { id: "nf_frost", cat: "numfont", name: "Frostbite", rarity: "legendary", source: "earned", ach: "rings3", nf: { style: "frost", font: "Impact, sans-serif", col: "#bfe6ff", stroke: "#0c2a4a" } },
+    { id: "nf_molten", cat: "numfont", name: "Molten", rarity: "legendary", source: "member", nf: { style: "molten", font: "Impact, sans-serif", col: "#ff7a1a", stroke: "#2a0500" } },
+    { id: "nf_galaxy", cat: "numfont", name: "Galaxy", rarity: "mythic", source: "member", nf: { style: "galaxy", font: "Oswald, sans-serif", col: "#b98bff", stroke: "#2a0f4a" } }
+  ];
+  /* the old banners' painters (their ids keep working: saves equip them) */
+  var OLD_BAN_V158A = { ban_charcoal: ["brushed", ["#1b2230", "#0b0f16"]], ban_gridiron: ["turf", ["#1f5a2e", "#236633", "#ffffff"]], ban_lights: ["friday", ["#1a2436", "#0a0e15", "#fff6d8", "#f0bb45"]],
+    ban_lineage: ["lineage", ["#3a2a0e", "#6b4e1a", "#e6c46a"]], ban_sunset: ["drive", ["#ff8a3d", "#b83b5e", "#3b1f4a"]], ban_aurora: ["borealis", ["#1e8c7a", "#6a4cc2", "#3fb6ff"]],
+    ban_founder: ["founder", ["#0d0f14", "#15181f", "#e6c46a"]] };
+  (function addV158A() {
+    ITEMS_V158A.forEach(function (it) {
+      if (BY[it.id]) return;
+      it.packs = []; it.v158 = 1;
+      it.preview = function (el) { return previewInto(el, it); };
+      ITEMS.push(it); BY[it.id] = it;
+    });
+    Object.keys(OLD_BAN_V158A).forEach(function (id) { var it = BY[id]; if (it && !it.b158) { it.b158 = OLD_BAN_V158A[id][0]; it.col = OLD_BAN_V158A[id][1]; } });
+  })();
+  /* an item earned by holding an earned ICON (`ach: "icon:<id>"`): v157 C's rules live in ACH_BY, not ACH, so checkEarned
+   * never visits them — this does, after every earned check (boot, every save, the profile) */
+  function iconEarnedTickV158A() {
+    var got = [];
+    try {
+      var S = load();
+      ITEMS_V158A.forEach(function (it) {
+        if (it.source !== "earned" || !/^icon:/.test(it.ach || "") || S.owned[it.id]) return;
+        if (S.owned[it.ach.slice(5)]) { grant(it.id, "earned"); got.push(it.id); }
+      });
+    } catch (e) { errV158A(e); }
+    V158A.lastIconEarned = got; return got;
+  }
+  (function () { var ce = checkEarned; checkEarned = function (st) { var got = ce(st); try { iconEarnedTickV158A(); } catch (e) {} return got; }; })();
+
+  /* ---------------- HELMET STRIPES: the art's own stripe, whatever way he faces ---------------- */
+  function helmOnV158A() { return onV158A("v158Ahelm"); }
+  function helmKindV158A(r, g, b) {
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = (mx + mn) / 2, sat = mx ? (mx - mn) / mx : 0, hue = 0;
+    if (mx !== mn) { if (mx === r) hue = (60 * ((g - b) / (mx - mn)) + 360) % 360; else if (mx === g) hue = 60 * ((b - r) / (mx - mn)) + 120; else hue = 60 * ((r - g) / (mx - mn)) + 240; }
+    if (hue >= 190 && hue <= 265 && sat > 0.15 && mx > 14) return 1;     // the navy shell (its dark folds too)
+    if (hue >= 33 && hue <= 62 && sat > 0.3 && L > 18) return 2;          // the gold the artist drew: stripe and mask frame
+    return 3;                                                             // outline, skin, the white mask bars
+  }
+  /* the helmet of one cell, from the RAW art `s`: m[y*W+x] = 0 not helmet · 1 shell · 2 stripe · 3 mask trim · 4 decal */
+  function helmMaskV158A(s, W, Hh, head, top, srcName, H) {
+    try {
+      if (!H || !helmOnV158A()) return null;
+      var N = W * Hh, m = new Uint8Array(N), kind = new Uint8Array(N), bot = head, x0 = 1e9, x1 = -1, y, x, j;
+      for (y = 0; y < Hh; y++) for (x = 0; x < W; x++) { var i = (y * W + x) * 4; if (s[i + 3] < 20) continue; kind[y * W + x] = helmKindV158A(s[i], s[i + 1], s[i + 2]); if (y > bot) bot = y; if (x < x0) x0 = x; if (x > x1) x1 = x; }
+      var lying = /^(dive|down|pancake|fall|getup|tackle|grab)/.test(String(srcName || "")) || (x1 - x0 + 1) > 1.3 * (bot - head + 1);
+      if (lying) {   // a man on the ground: his head is not at the top of the cell — the old rows, shell only, no stripe to misplace
+        for (y = head; y < top; y++) for (x = 0; x < W; x++) { j = y * W + x; if (kind[j] === 1 || kind[j] === 2) m[j] = 1; }
+        V158A.helmLying = (V158A.helmLying | 0) + 1; return { m: m, lying: true };
+      }
+      // the dome: an ellipse fitted to the head's first rows (the shoulder pads beside the helmet's lower rows stay jersey)
+      var U = Math.max(4, Math.round((top - head) * 0.55)), X0 = 1e9, X1 = -1;
+      for (y = head; y <= Math.min(Hh - 1, head + U); y++) for (x = 0; x < W; x++) if (kind[y * W + x]) { if (x < X0) X0 = x; if (x > X1) X1 = x; }
+      if (X1 < 0) return null;
+      var cx = (X0 + X1) / 2, rx = (X1 - X0) / 2 + 0.5, ry = Math.max(4.5, rx * TUv("helmAspectV158A", 0.78)), cy = head + ry - 0.5, tol = TUv("helmTolV158A", 1.12);
+      var yEnd = Math.min(top - 1, Math.floor(cy + ry * Math.sqrt(tol)));
+      for (y = head; y <= yEnd; y++) for (x = 0; x < W; x++) {
+        j = y * W + x; if (kind[j] !== 1 && kind[j] !== 2) continue;
+        var ex = (x - cx) / rx, ey = (y - cy) / ry; if (ex * ex + ey * ey > tol) continue;
+        m[j] = kind[j] === 1 ? 1 : 5;
+      }
+      // the stripe: the gold from the crown of the helmet down through the shell (8-connected, always touching shell)
+      var shellNear = function (xx, yy) { for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) { var a = xx + dx, b = yy + dy; if (a >= 0 && b >= 0 && a < W && b < Hh && m[b * W + a] === 1) return true; } return false; };
+      var q = [];
+      for (y = head; y <= Math.min(yEnd, head + 3); y++) for (x = 0; x < W; x++) { j = y * W + x; if (m[j] === 5 && shellNear(x, y)) { m[j] = 2; q.push(j); } }
+      while (q.length) {
+        j = q.pop(); var qx = j % W, qy = (j / W) | 0;
+        for (var dy2 = -1; dy2 <= 1; dy2++) for (var dx2 = -1; dx2 <= 1; dx2++) {
+          var a2 = qx + dx2, b2 = qy + dy2; if (a2 < 0 || b2 < 0 || a2 >= W || b2 >= Hh) continue;
+          var j2 = b2 * W + a2; if (m[j2] === 5 && shellNear(a2, b2)) { m[j2] = 2; q.push(j2); }
+        }
+      }
+      for (j = 0; j < N; j++) if (m[j] === 5) m[j] = 3;   // the rest of the gold is the mask's frame
+      // twin: two thin stripes either side of where the one ran · wide: the stripe and a pixel of shell each side
+      if (H.sk === "wide" || H.sk === "twin") {
+        var add = [];
+        for (j = 0; j < N; j++) if (m[j] === 1) { var ax = j % W, ay = (j / W) | 0; if ((ax > 0 && m[j - 1] === 2) || (ax < W - 1 && m[j + 1] === 2) || (ay > 0 && m[j - W] === 2) || (ay < Hh - 1 && m[j + W] === 2)) add.push(j); }
+        if (H.sk === "twin") for (j = 0; j < N; j++) if (m[j] === 2) m[j] = 1;
+        add.forEach(function (k2) { m[k2] = 2; });
+      }
+      if (H.d) decalV158A(m, W, Hh, cy);
+      var sn = 0, sx = 0, sy = 0; for (j = 0; j < N; j++) if (m[j] === 2) { sn++; sx += j % W; sy += (j / W) | 0; }
+      V158A.helm++; V158A.lastHelm = { src: srcName, cx: +cx.toFixed(1), cy: +cy.toFixed(1), rx: +rx.toFixed(1), ry: +ry.toFixed(1), stripe: sn, scx: sn ? +(sx / sn).toFixed(1) : null, scy: sn ? +(sy / sn).toFixed(1) : null };
+      return { m: m, cx: cx, cy: cy, rx: rx, ry: ry, dk: H.dk };
+    } catch (e) { errV158A(e); return null; }
+  }
+  /* the decal on the side of the shell the viewer sees: a head seen from the front or behind shows both sides (one each),
+   * a profile or a 3/4 view shows the side away from the stripe */
+  function decalV158A(m, W, Hh, cy) {
+    var st = 0, sx = 0, cand = [], y0 = Math.round(cy), x, y, j;
+    for (j = 0; j < m.length; j++) if (m[j] === 2) { st++; sx += j % W; }
+    for (y = y0 - 1; y <= y0 + 1; y++) for (x = 0; x < W; x++) {
+      if (y < 0 || y >= Hh || m[y * W + x] !== 1) continue;
+      var far = true; for (var dy = -2; dy <= 2 && far; dy++) for (var dx = -2; dx <= 2; dx++) { var a = x + dx, b = y + dy; if (a >= 0 && b >= 0 && a < W && b < Hh && m[b * W + a] === 2) { far = false; break; } }
+      if (far) cand.push([x, y]);
+    }
+    if (!cand.length) return;
+    var mid = st ? sx / st : cand.reduce(function (s, p) { return s + p[0]; }, 0) / cand.length;
+    var L = cand.filter(function (p) { return p[0] < mid; }).sort(function (a, b) { return a[0] - b[0]; }), R = cand.filter(function (p) { return p[0] > mid; }).sort(function (a, b) { return a[0] - b[0]; });
+    var put = function (p) { [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (o) { var a = p[0] + o[0], b = p[1] + o[1]; if (a >= 0 && b >= 0 && a < W && b < Hh && m[b * W + a] === 1) m[b * W + a] = 4; }); };
+    var ctr = function (A) { var s1 = 0, s2 = 0; A.forEach(function (p) { s1 += p[0]; s2 += p[1]; }); return [Math.round(s1 / A.length), Math.round(s2 / A.length)]; };
+    if (L.length >= 3 && R.length >= 3 && L.length <= R.length * 2 && R.length <= L.length * 2) { put(L[Math.floor(L.length * 0.3)]); put(R[Math.floor(R.length * 0.7)]); }
+    else put(ctr(L.length >= R.length ? L : R));
+  }
+  /* kitDeco's pixel for a helmet code (the shell `out` is already shaded and finished) */
+  function helmPaintV158A(out, code, HST, HD, s2) {
+    var k = Math.min(1.2, Math.max(0.6, s2));
+    if (code === 2) return HST ? HST.map(function (v) { return v * k; }) : out;
+    if (code === 3) return HST ? mix(HST.map(function (v) { return v * k; }), [0, 0, 0], 0.12) : mix(out, [214, 218, 226], 0.55);
+    if (code === 4) return HD ? HD.slice() : out;
+    return out;
+  }
+  function helmClassV158A(s, i) {
+    var r = s[i], g = s[i + 1], b = s[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = (mx + mn) / 2, k = helmKindV158A(r, g, b);
+    return [1, k === 2 ? L / 165 : L / 95];
+  }
+  /* the profile figure (idle_dn_hi.png): twin / wide stripes and the decal, on the pixels figCell already recoloured */
+  function figHelmV158A(d, src, W, H, K, geo) {
+    try {
+      if (!helmOnV158A() || !(K.hsk || K.hd)) return;
+      var N = W * H, cls = new Uint8Array(N), tv = new Float32Array(N), x, y, j;
+      for (y = 0; y < geo.neck; y++) for (x = 0; x < W; x++) {
+        j = y * W + x; var i = j * 4; if (src[i + 3] < 20) continue;
+        var ex = (x - geo.hx0) / geo.hrx, ey = (y - geo.hy0) / geo.hry; if (ex * ex + ey * ey > 1) continue;
+        var c = srcClass(src[i], src[i + 1], src[i + 2]), face = y >= H * 0.2 && y < geo.neck + 6 && x > W * 0.28 && x < W * 0.75;
+        if (c[0] === 1) { cls[j] = 1; tv[j] = c[1] / 32.5; }
+        else if ((c[0] === 2 || (c[0] === 3 && !face)) && y < geo.visor) { cls[j] = 2; tv[j] = c[1] / 88; }
+      }
+      var HS = K.hs ? rgb(K.hs) : rgb(K.j), HST = K.hst ? rgb(K.hst) : rgb(K.p), R = Math.max(2, Math.round(W / 128 * 3));
+      var paint = function (jj, col, t) { var o = shadeKit(col, t), ii = jj * 4; d[ii] = Math.max(0, Math.min(255, o[0])); d[ii + 1] = Math.max(0, Math.min(255, o[1])); d[ii + 2] = Math.max(0, Math.min(255, o[2])); };
+      var dist = function (jj, lim) { var qx = jj % W, qy = (jj / W) | 0, best = 99; for (var dy = -lim; dy <= lim; dy++) for (var dx = -lim; dx <= lim; dx++) { var a = qx + dx, b = qy + dy; if (a < 0 || b < 0 || a >= W || b >= H) continue; if (cls[b * W + a] === 2) { var dd = Math.max(Math.abs(dx), Math.abs(dy)); if (dd < best) best = dd; } } return best; };
+      if (K.hsk === "wide" || K.hsk === "twin") {
+        var rim = [];
+        for (j = 0; j < N; j++) if (cls[j] === 1) { var dd = dist(j, R + 2); if (K.hsk === "wide" ? dd <= R : (dd >= 1 && dd <= R + 1)) rim.push(j); }
+        if (K.hsk === "twin") for (j = 0; j < N; j++) if (cls[j] === 2) paint(j, HS, Math.max(0.5, tv[j] * 0.9));
+        rim.forEach(function (jj) { paint(jj, HST, tv[jj]); });
+      }
+      if (K.hd) {   // the decal: on the dome's side away from the stripe (the art's head turns to his left: the mask is on the right)
+        var sn = 0, sx = 0; for (j = 0; j < N; j++) if (cls[j] === 2) { sn++; sx += j % W; }
+        var mid = sn ? sx / sn : geo.hx0, pts = [];
+        for (y = Math.round(geo.hy0 - geo.hry * 0.1); y <= Math.round(geo.hy0 + geo.hry * 0.25); y++) for (x = 0; x < W; x++) { j = y * W + x; if (cls[j] === 1 && dist(j, R * 2) > R * 2) pts.push([x, y]); }
+        var L = pts.filter(function (p) { return p[0] < mid; }), Rt = pts.filter(function (p) { return p[0] > mid; }), side = L.length >= Rt.length ? L : Rt;
+        if (side.length) {
+          var cx = 0, cy = 0; side.forEach(function (p) { cx += p[0]; cy += p[1]; }); cx /= side.length; cy /= side.length;
+          var rr = Math.max(3, W / 128 * 5.5), HD = rgb(K.hd), star = K.hdk === "star";
+          for (y = Math.floor(cy - rr); y <= cy + rr; y++) for (x = Math.floor(cx - rr); x <= cx + rr; x++) {
+            if (x < 0 || y < 0 || x >= W || y >= H) continue; j = y * W + x; if (cls[j] !== 1) continue;
+            var ddx = x - cx, ddy = y - cy, r0 = Math.hypot(ddx, ddy);
+            var inside = star ? r0 <= rr * (0.55 + 0.45 * Math.pow(Math.abs(Math.cos(2.5 * Math.atan2(ddy, ddx) + Math.PI / 2)), 3)) : r0 <= rr * 0.7;
+            if (inside) { var ii = j * 4; var o = mix(HD, [255, 255, 255], r0 < rr * 0.3 ? 0.15 : 0); d[ii] = o[0]; d[ii + 1] = o[1]; d[ii + 2] = o[2]; }
+          }
+          V158A.figDecal = { x: +cx.toFixed(1), y: +cy.toFixed(1), star: star };
+        }
+      }
+      V158A.figHelm = (V158A.figHelm | 0) + 1;
+    } catch (e) { errV158A(e); }
+  }
+
+  /* ---------------- NUMBER FONTS: skeleton + pen + finish, rasterised at the height it is shown ---------------- */
+  function nfOnV158A() { return onV158A("v158Anf"); }
+  /* sk: sq (pro block) · rd (round) · seg (seven segments) · bit (3x5) — pen: square · round · nib (broad, angle na) · butt —
+   * pw pen width in grid units (a digit is 4 x 6) · xs x-scale · slant · serif · chamfer · hollow · stencil · swash · speed ·
+   * drip — finish: fill, ol outline rings [colour, k·H] innermost first, sh shadows [dx, dy, colour, alpha], bev, core, glow,
+   * unlit, spark, gloss, plate. "T1" / "T2" are his team's colours. */
+  var FACES_V158A = {
+    varsity: { sk: "sq", pen: "square", pw: 1.35, serif: 1, fill: { t: "flat", c: "#ffffff" }, ol: [["T1", 0.07], ["#0a0e14", 0.05]], bev: 1 },
+    block: { sk: "sq", pen: "square", pw: 1.5, fill: { t: "flat", c: "#ffffff" }, ol: [["#0a0e14", 0.08]] },
+    stencil: { sk: "sq", pen: "square", pw: 1.45, stencil: 1, fill: { t: "flat", c: "#f0e6c8" }, ol: [["#2a2a2a", 0.07]] },
+    gold: { sk: "rd", pen: "nib", na: 0, pw: 1.55, serif: 1, fill: { t: "gold" }, ol: [["#5a3d08", 0.07]], bev: 1, spark: 1 },
+    neon: { sk: "rd", pen: "round", pw: 0.8, fill: { t: "flat", c: "#6ff7ff" }, core: "#ffffff", ol: [["#ff3df2", 0.05]], glow: "#ff3df2" },
+    chrome: { sk: "sq", pen: "square", pw: 1.4, xs: 0.9, fill: { t: "chrome" }, ol: [["#2a3140", 0.07]], bev: 1 },
+    retro: { sk: "rd", pen: "round", pw: 1.75, fill: { t: "flat", c: "#ff9a1f" }, ol: [["#fff3c4", 0.05]], sh: [[0.14, 0.14, "#3a1a08"], [0.07, 0.07, "#e0402b"]] },
+    founder: { sk: "rd", pen: "nib", na: 0, pw: 1.45, serif: 1, fill: { t: "gold" }, ol: [["#0d0f14", 0.09]], bev: 1 },
+    pro: { sk: "sq", pen: "square", pw: 1.4, gap: 1.1, fill: { t: "flat", c: "#ffffff" }, ol: [["T1", 0.05], ["#ffffff", 0.03], ["#0a0e14", 0.04]], sh: [[0.08, 0.08, "#000000", 0.55]] },
+    condensed: { sk: "sq", pen: "square", pw: 1.05, xs: 0.62, gap: 0.7, fill: { t: "flat", c: "#ffffff" }, ol: [["#0a0e14", 0.06]] },
+    camo: { sk: "sq", pen: "square", pw: 1.65, chamfer: 0.35, fill: { t: "camo" }, ol: [["#0e120a", 0.07]] },
+    collegiate: { sk: "rd", pen: "nib", na: 0, pw: 1.65, serif: 1, fill: { t: "flat", c: "T2" }, ol: [["#ffffff", 0.06], ["#0a0e14", 0.045]] },
+    pixel: { sk: "bit", fill: { t: "flat", c: "#ffffff" }, ol: [["#0a0e14", 0.07]], sh: [[0.08, 0.08, "#000000", 0.5]] },
+    bubble: { sk: "rd", pen: "round", pw: 2.15, fill: { t: "flat", c: "#ff9ad5" }, ol: [["#3a0a2a", 0.08]], gloss: 1 },
+    hollow: { sk: "sq", pen: "square", pw: 1.75, hollow: 0.42, fill: { t: "flat", c: "T2" }, ol: [["#0a0e14", 0.06]] },
+    italic: { sk: "sq", pen: "square", pw: 1.4, slant: 0.24, speed: 1, fill: { t: "v", stops: [[0, "#ffffff"], [1, "#c9d6ff"]] }, ol: [["T1", 0.07], ["#0a0e14", 0.04]] },
+    script: { sk: "rd", pen: "nib", na: -0.8, pw: 1.5, slant: 0.3, swash: 1, fill: { t: "flat", c: "#ffffff" }, ol: [["#0a0e14", 0.07]] },
+    digital: { sk: "seg", pen: "butt", pw: 0.95, fill: { t: "flat", c: "#ffb02e" }, unlit: "#3a2a10", glow: "#ff8a1f", plate: "#0b0b0b" },
+    gothic: { sk: "sq", pen: "nib", na: -0.8, pw: 1.7, chamfer: 0.9, serif: 1, fill: { t: "flat", c: "#f0e6d0" }, ol: [["#1a0f08", 0.08]], bev: 1 },
+    frost: { sk: "sq", pen: "square", pw: 1.45, drip: 1, fill: { t: "v", stops: [[0, "#ffffff"], [0.5, "#bfe6ff"], [1, "#6fb6ff"]] }, ol: [["#0c2a4a", 0.07]], bev: 1 },
+    molten: { sk: "sq", pen: "square", pw: 1.55, chamfer: 0.25, fill: { t: "fire" }, ol: [["#2a0500", 0.08]], glow: "#ff5a1a" },
+    galaxy: { sk: "rd", pen: "round", pw: 1.65, fill: { t: "stars" }, ol: [["#1a0a3a", 0.05]], glow: "#b98bff" }
+  };
+  function arcV158A(cx, cy, rx, ry, a0, a1) { var pts = [], n = Math.max(4, Math.ceil(Math.abs(a1 - a0) / 12)); for (var i = 0; i <= n; i++) { var a = (a0 + (a1 - a0) * i / n) * Math.PI / 180; pts.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]); } return pts; }
+  var SK_V158A = null;
+  function skelV158A() {
+    if (SK_V158A) return SK_V158A;
+    var A = arcV158A;
+    var sq = { 0: [[[0, 0], [4, 0], [4, 6], [0, 6], [0, 0]]], 1: [[[1, 1], [2.2, 0], [2.2, 6]]], 2: [[[0, 0], [4, 0], [4, 3], [0, 3], [0, 6], [4, 6]]], 3: [[[0, 0], [4, 0], [4, 6], [0, 6]], [[1.2, 3], [4, 3]]],
+      4: [[[0, 0], [0, 3.6], [4, 3.6]], [[3, 0], [3, 6]]], 5: [[[4, 0], [0, 0], [0, 3], [4, 3], [4, 6], [0, 6]]], 6: [[[4, 0], [0, 0], [0, 6], [4, 6], [4, 3], [0, 3]]], 7: [[[0, 0], [4, 0], [4, 1.2], [1.6, 6]]],
+      8: [[[0, 0], [4, 0], [4, 6], [0, 6], [0, 0]], [[0, 3], [4, 3]]], 9: [[[4, 3], [0, 3], [0, 0], [4, 0], [4, 6], [0, 6]]] };
+    var sqSerif = { 1: [[[0.9, 6], [3.5, 6]]], 2: [[[0, 0], [0, 0.9]]], 3: [[[0, 0], [0, 0.9]], [[0, 6], [0, 5.1]]], 4: [[[2, 6], [4, 6]]], 5: [[[4, 0], [4, 0.9]]], 6: [[[4, 0], [4, 0.9]]], 7: [[[0, 0], [0, 1]]], 9: [[[0, 6], [0, 5.1]]] };
+    var six = [A(2, 4.1, 1.95, 1.9, 0, 360), A(4, 4.1, 3.95, 4.1, 265, 180)];
+    var rd = { 0: [A(2, 3, 2, 3, 0, 360)], 1: [[[0.9, 1.1], [2.2, 0], [2.2, 6]]], 2: [A(2, 1.9, 1.95, 1.9, 200, 380).concat([[0, 6], [4, 6]])],
+      3: [A(2, 1.55, 1.85, 1.55, 205, 450), A(2, 4.45, 1.95, 1.55, 270, 520)], 4: [[[3, 6], [3, 0], [0, 4.1], [4, 4.1]]],
+      5: [[[3.8, 0], [0.5, 0], [0.3, 2.7]], A(2, 4.1, 1.95, 1.9, 225, 520)], 6: six, 7: [[[0, 0], [4, 0], [1.5, 6]]],
+      8: [A(2, 1.45, 1.65, 1.45, 0, 360), A(2, 4.45, 1.95, 1.55, 0, 360)], 9: six.map(function (p) { return p.map(function (q) { return [4 - q[0], 6 - q[1]]; }); }) };
+    var rdSerif = { 1: [[[0.9, 6], [3.5, 6]]], 4: [[[2, 6], [4, 6]]], 7: [[[0, 0], [0, 0.9]]], 5: [[[3.8, 0], [3.8, 0.8]]] };
+    var SEG = { a: [[0.45, 0], [3.55, 0]], b: [[4, 0.45], [4, 2.6]], c: [[4, 3.4], [4, 5.55]], d: [[0.45, 6], [3.55, 6]], e: [[0, 3.4], [0, 5.55]], f: [[0, 0.45], [0, 2.6]], g: [[0.45, 3], [3.55, 3]] };
+    var seg = {}; ["abcdef", "bc", "abged", "abgcd", "fgbc", "afgcd", "afgedc", "abc", "abcdefg", "abcdfg"].forEach(function (s, i) { seg[i] = s.split("").map(function (c) { return SEG[c]; }); });
+    var bit = ["111101101101111", "010110010010111", "111001111100111", "111001111001111", "101101111001001", "111100111001111", "111100111101111", "111001010010010", "111101111101111", "111101111001111"];
+    return (SK_V158A = { sq: sq, sqSerif: sqSerif, rd: rd, rdSerif: rdSerif, seg: seg, bit: bit });
+  }
+  function chamferV158A(paths, c) {
+    return paths.map(function (p) {
+      if (p.length < 3) return p;
+      var n = p.length, closed = Math.abs(p[0][0] - p[n - 1][0]) < 1e-6 && Math.abs(p[0][1] - p[n - 1][1]) < 1e-6, out = [];
+      var cut = function (a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, k = Math.min(c, L * 0.45) / L; return [a[0] + dx * k, a[1] + dy * k]; };
+      for (var i = 0; i < n; i++) {
+        if (closed && i === n - 1) break;
+        var P = p[i], prev = i > 0 ? p[i - 1] : closed ? p[n - 2] : null, next = i < n - 1 ? p[i + 1] : null;
+        if (!prev || !next) { out.push(P); continue; }
+        out.push(cut(P, prev)); out.push(cut(P, next));
+      }
+      if (closed) out.push(out[0]);
+      return out;
+    });
+  }
+  /* the glyph ink: a 0/1 mask at pixel height IH (+ margins), with its ink box */
+  function nfMaskV158A(F, txt, IH) {
+    var S = skelV158A(), n = txt.length, W, H, M, i, x, y;
+    if (F.sk === "bit") {
+      var b = Math.max(1, Math.round(IH / 5)), gw = 3 * b, mg0 = 2;
+      W = n * gw + (n - 1) * b + 2 * mg0; H = 5 * b + 2 * mg0; M = new Uint8Array(W * H);
+      for (i = 0; i < n; i++) { var g = S.bit[+txt[i]] || S.bit[8]; for (var r = 0; r < 5; r++) for (var c = 0; c < 3; c++) if (g[r * 3 + c] === "1") for (y = 0; y < b; y++) for (x = 0; x < b; x++) M[(mg0 + r * b + y) * W + mg0 + i * (gw + b) + c * b + x] = 1; }
+      return { m: M, w: W, h: H, bb: [mg0, mg0, W - mg0 - 1, H - mg0 - 1] };
+    }
+    var pw = F.pw || 1.4, xs = F.xs || 1, sl = F.slant || 0, k = IH / (6 + pw), P = pw * k, gwid = 4 * xs * k + P, gap = (F.gap != null ? F.gap : 0.9) * k;
+    var mg = Math.ceil(P * 0.6) + 2, lm = F.speed ? Math.ceil(2.6 * k) : 0, extra = F.swash ? Math.ceil(k * 1.6) : 0, sw = Math.ceil(sl * 6 * k);
+    W = Math.ceil(n * gwid + (n - 1) * gap + sw + 2 * mg + lm + (F.swash ? k * 1.5 : 0)); H = Math.ceil(IH + 2 * mg + extra);
+    var cv = document.createElement("canvas"); cv.width = W; cv.height = H; var cx = cv.getContext("2d");
+    var X = function (gi, p) { return mg + lm + gi * (gwid + gap) + p[0] * xs * k + P / 2 + sl * (6 - p[1]) * k; }, Y = function (p) { return mg + p[1] * k + P / 2; };
+    var paths = function (d) {
+      var set = F.sk === "rd" ? S.rd : F.sk === "seg" ? S.seg : S.sq, base = (set[d] || []).slice();
+      if (F.serif && F.sk !== "seg") base = base.concat((F.sk === "rd" ? S.rdSerif : S.sqSerif)[d] || []);
+      return F.chamfer ? chamferV158A(base, F.chamfer) : base;
+    };
+    var strokeAll = function (lw, off) {
+      for (var gi = 0; gi < n; gi++) { var d = +txt[gi]; if (isNaN(d)) continue;
+        paths(d).forEach(function (p) { cx.beginPath(); p.forEach(function (q, j) { var px = X(gi, q) + (off ? off[0] : 0), py = Y(q) + (off ? off[1] : 0); if (j) cx.lineTo(px, py); else cx.moveTo(px, py); }); cx.lineWidth = lw; cx.stroke(); }); }
+    };
+    cx.strokeStyle = "#000"; cx.fillStyle = "#000"; cx.miterLimit = 3;
+    cx.lineCap = F.pen === "round" ? "round" : F.pen === "butt" ? "butt" : "square"; cx.lineJoin = F.pen === "round" ? "round" : "miter";
+    if (F.pen === "nib") {   // a broad nib: many thin strokes along the nib's edge — thick one way, thin the other
+      cx.lineCap = "round"; cx.lineJoin = "round";
+      var a = F.na || 0, half = P * 0.5, step = Math.max(0.4, P / 12);
+      for (var o = -half; o <= half + 1e-6; o += step) strokeAll(Math.max(1, P * 0.26), [Math.cos(a) * o, Math.sin(a) * o]);
+    } else strokeAll(P);
+    if (F.hollow) { cx.globalCompositeOperation = "destination-out"; cx.lineCap = "round"; strokeAll(P * F.hollow); cx.globalCompositeOperation = "source-over"; }
+    if (F.stencil) { cx.globalCompositeOperation = "destination-out"; [1.9, 4.1].forEach(function (gy) { var t = Math.max(1, Math.round(k * 0.34)); cx.fillRect(0, Math.round(mg + gy * k + P / 2 - t / 2), W, t); }); cx.globalCompositeOperation = "source-over"; }
+    if (F.swash) {   // the script's tail: a swoosh under the numbers
+      cx.lineCap = "round"; cx.lineWidth = Math.max(1.5, P * 0.5); cx.beginPath();
+      var yb = mg + 6.9 * k + P / 2; cx.moveTo(X(0, [-0.4, 6.4]) - sl * 0.4 * k, yb - k * 0.2);
+      cx.quadraticCurveTo((X(0, [0, 6]) + X(n - 1, [4, 6])) / 2, yb + k * 0.9, X(n - 1, [5.2, 5.6]) + k * 0.6, yb - k * 1.3); cx.stroke();
+    }
+    if (F.speed) { cx.lineCap = "butt"; cx.lineWidth = Math.max(1, P * 0.34); [1.2, 3, 4.8].forEach(function (gy, j) { cx.beginPath(); var yy = Y([0, gy]); cx.moveTo(mg + j * k * 0.5, yy); cx.lineTo(mg + lm - k * 0.5 + sl * (6 - gy) * k, yy); cx.stroke(); }); }
+    var id = cx.getImageData(0, 0, W, H).data; M = new Uint8Array(W * H);
+    for (i = 0; i < W * H; i++) M[i] = id[i * 4 + 3] >= 128 ? 1 : 0;
+    if (F.drip) {   // icicles: every third column whose ink ends at the bottom of a bar grows a short taper
+      for (x = 0; x < W; x++) { var lo = -1; for (y = H - 1; y >= 0; y--) if (M[y * W + x]) { lo = y; break; } if (lo < 0 || lo < mg + IH * 0.72) continue;
+        var len = Math.round(IH * (0.06 + 0.1 * rV158A(x, 3))); if (x % 3 !== 1 || len < 1) continue;
+        for (y = 1; y <= len && lo + y < H; y++) M[(lo + y) * W + x] = 1; }
+    }
+    var x0 = W, y0 = H, x1 = -1, y1 = -1;
+    for (y = 0; y < H; y++) for (x = 0; x < W; x++) if (M[y * W + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) { x0 = y0 = 0; x1 = W - 1; y1 = H - 1; }
+    return { m: M, w: W, h: H, bb: [x0, y0, x1, y1] };
+  }
+  function dilateV158A(A, W, H, r) {
+    var B = new Uint8Array(W * H), r2 = r * r + r * 0.8;
+    for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) {
+      if (A[y * W + x]) { B[y * W + x] = 1; continue; }
+      var hit = 0; for (var dy = -r; dy <= r && !hit; dy++) { var yy = y + dy; if (yy < 0 || yy >= H) continue; for (var dx = -r; dx <= r; dx++) { var xx = x + dx; if (xx < 0 || xx >= W || dx * dx + dy * dy > r2) continue; if (A[yy * W + xx]) { hit = 1; break; } } }
+      B[y * W + x] = hit;
+    }
+    return B;
+  }
+  function lerpStopsV158A(stops, t) {
+    t = Math.max(0, Math.min(1, t));
+    for (var i = 1; i < stops.length; i++) if (t <= stops[i][0]) { var a = stops[i - 1], b = stops[i], u = (t - a[0]) / Math.max(1e-6, b[0] - a[0]); return mix(rgb(colV158A(a[1])), rgb(colV158A(b[1])), u); }
+    return rgb(colV158A(stops[stops.length - 1][1]));
+  }
+  function nfFillV158A(f, t, x, y) {
+    var ty = f.t;
+    if (ty === "flat") return rgb(colV158A(f.c));
+    if (ty === "v") return lerpStopsV158A(f.stops, t);
+    if (ty === "gold") { var g = lerpStopsV158A([[0, "#fff6d0"], [0.42, "#ffd76f"], [0.58, "#c9951f"], [1, "#f0c850"]], t); return ((x + y) % 9 === 0) ? mix(g, [255, 255, 255], 0.3) : g; }
+    if (ty === "chrome") return lerpStopsV158A([[0, "#ffffff"], [0.44, "#a9b4c6"], [0.5, "#4a5260"], [0.56, "#dfe6f0"], [1, "#7a8494"]], t);
+    if (ty === "stars") { var h = rV158A(x * 31 + y, 11); var base = lerpStopsV158A([[0, "#b98bff"], [0.45, "#6a4cff"], [1, "#3a2a9a"]], t); return h > 0.93 ? [255, 255, 255] : h > 0.88 ? [255, 190, 235] : base; }
+    if (ty === "fire") { var fh = rV158A((x >> 1) * 17 + (y >> 1), 5); var fc = lerpStopsV158A([[0, "#fff3a0"], [0.3, "#ffb02e"], [0.65, "#ff5a1a"], [1, "#a8180a"]], t); return fh > 0.9 ? mix(fc, [40, 6, 0], 0.6) : fc; }
+    if (ty === "camo") { var ch = rV158A((x >> 1) * 7 + (y >> 1) * 131, 9); return rgb(["#4c5a3a", "#6b7a4a", "#2a3122", "#8a8a5a"][Math.floor(ch * 4)]); }
+    return [255, 255, 255];
+  }
+  var NFC_V158A = {}, NFC_N_V158A = 0;
+  /* the rendered number: {cv, w, h, ix, iy, iw, ih} — ix..iw the glyph ink box inside the canvas (outline and effects around it) */
+  function nfRenderV158A(style, txt, IH) {
+    var F = FACES_V158A[style]; if (!F) return null;
+    txt = String(txt == null ? "" : txt).replace(/[^0-9]/g, "").slice(0, 2); if (!txt) return null;
+    IH = Math.max(6, Math.round(IH));
+    var key = style + "|" + txt + "|" + IH + "|" + teamCol(0) + teamCol(1); if (NFC_V158A[key]) return NFC_V158A[key];
+    try {
+      var mk = nfMaskV158A(F, txt, IH), rK = function (k) { return Math.max(1, Math.round(IH * k)); };
+      var ols = (F.ol || []).map(function (o) { return { c: rgb(colV158A(o[0])), r: rK(o[1]) }; }), rOut = ols.reduce(function (s, o) { return s + o.r; }, 0);
+      var shs = (F.sh || []).map(function (q) { return { dx: rK(q[0]), dy: rK(q[1]), c: rgb(colV158A(q[2])), a: q[3] == null ? 1 : q[3] }; });
+      var shMax = shs.reduce(function (s, q) { return Math.max(s, q.dx, q.dy); }, 0), gl = F.glow ? Math.max(2, Math.round(IH * 0.2)) : 0, pl = F.plate ? Math.max(2, Math.round(IH * 0.16)) : 0;
+      var pad = rOut + shMax + gl + pl + 1, W = mk.w + 2 * pad, H = mk.h + 2 * pad, N = W * H, j, x, y;
+      var base = new Uint8Array(N); for (y = 0; y < mk.h; y++) for (x = 0; x < mk.w; x++) if (mk.m[y * mk.w + x]) base[(y + pad) * W + x + pad] = 1;
+      var masks = [base]; ols.forEach(function (o) { masks.push(dilateV158A(masks[masks.length - 1], W, H, o.r)); });
+      var outer = masks[masks.length - 1];
+      var cv = document.createElement("canvas"); cv.width = W; cv.height = H; var cx = cv.getContext("2d"), im = cx.createImageData(W, H), d = im.data;
+      var put = function (jj, c, a) { var i = jj * 4, A = a == null ? 1 : a, B = d[i + 3] / 255, O = A + B * (1 - A); if (O <= 0) return; for (var q = 0; q < 3; q++) d[i + q] = (c[q] * A + d[i + q] * B * (1 - A)) / O; d[i + 3] = O * 255; };
+      var bx0 = mk.bb[0] + pad, by0 = mk.bb[1] + pad, bx1 = mk.bb[2] + pad, by1 = mk.bb[3] + pad;
+      if (pl) {   // the LED panel behind a scoreboard number
+        var pc = rgb(colV158A(F.plate)); for (y = by0 - pl; y <= by1 + pl; y++) for (x = bx0 - pl; x <= bx1 + pl; x++) { if (x < 0 || y < 0 || x >= W || y >= H) continue; var cor = (x - bx0 < 0 ? bx0 - x : x - bx1 > 0 ? x - bx1 : 0) + (y - by0 < 0 ? by0 - y : y - by1 > 0 ? y - by1 : 0); if (cor <= pl * 1.2) put(y * W + x, pc, 0.92); }
+      }
+      shs.forEach(function (q) { for (var jj = 0; jj < N; jj++) if (outer[jj]) { var sx = (jj % W) + q.dx, sy = ((jj / W) | 0) + q.dy; if (sx < W && sy < H) put(sy * W + sx, q.c, q.a); } });
+      for (var r = ols.length - 1; r >= 0; r--) { var mm = masks[r + 1]; for (j = 0; j < N; j++) if (mm[j]) put(j, ols[r].c); }
+      if (F.unlit) {   // the LED segments that are off, dim
+        var um = nfMaskV158A(F, txt.replace(/\d/g, "8"), IH), uc = rgb(colV158A(F.unlit));
+        for (y = 0; y < um.h; y++) for (x = 0; x < um.w; x++) if (um.m[y * um.w + x] && !base[(y + pad) * W + x + pad]) put((y + pad) * W + x + pad, uc);
+      }
+      for (j = 0; j < N; j++) {
+        if (!base[j]) continue;
+        x = j % W; y = (j / W) | 0;
+        var c = nfFillV158A(F.fill || { t: "flat", c: "#ffffff" }, (y - by0) / Math.max(1, by1 - by0), x, y);
+        if (F.bev) { if (y > 0 && !base[j - W]) c = mix(c, [255, 255, 255], 0.45); else if (y < H - 1 && !base[j + W]) c = mix(c, [0, 0, 0], 0.3); }
+        if (F.gloss && y > 1 && !base[j - 2 * W] && (y - by0) < (by1 - by0) * 0.5) c = mix(c, [255, 255, 255], 0.55);
+        if (F.core && base[j - 1] && base[j + 1] && base[j - W] && base[j + W]) c = mix(c, rgb(colV158A(F.core)), 0.75);
+        put(j, c);
+      }
+      if (F.spark) for (j = 0; j < N; j++) if (base[j] && rV158A(j, 23) > 0.985) put(j, [255, 255, 255]);
+      cx.putImageData(im, 0, 0);
+      if (gl) {   // the glow: the outline's silhouette in the glow colour, blurred, under the art
+        var gcv = document.createElement("canvas"); gcv.width = W; gcv.height = H; var gx = gcv.getContext("2d"), gim = gx.createImageData(W, H), gc = rgb(colV158A(F.glow));
+        for (j = 0; j < N; j++) if (outer[j]) { gim.data[j * 4] = gc[0]; gim.data[j * 4 + 1] = gc[1]; gim.data[j * 4 + 2] = gc[2]; gim.data[j * 4 + 3] = 255; }
+        gx.putImageData(gim, 0, 0);
+        var out = document.createElement("canvas"); out.width = W; out.height = H; var ox = out.getContext("2d");
+        try { ox.filter = "blur(" + Math.max(1, gl * 0.55).toFixed(1) + "px)"; } catch (e) {}
+        ox.globalAlpha = 0.85; ox.drawImage(gcv, 0, 0); ox.filter = "none"; ox.globalAlpha = 1; ox.drawImage(cv, 0, 0); cv = out;
+      }
+      var res = { cv: cv, w: W, h: H, ix: bx0, iy: by0, iw: bx1 - bx0 + 1, ih: by1 - by0 + 1, style: style, txt: txt, IH: IH };
+      if (++NFC_N_V158A > 400) { NFC_V158A = {}; NFC_N_V158A = 0; }
+      NFC_V158A[key] = res; V158A.nums++;
+      return res;
+    } catch (e) { errV158A(e); return null; }
+  }
+  function nfFaceOfV158A(nf) { return nf && nfOnV158A() && FACES_V158A[nf.style] ? nf.style : null; }
+  /* the profile chest (chestNumberV157C calls this first): the art at the device pixel height, pixel-snapped */
+  function chestNumV158A(cv, res, num, nfId, C) {
+    try {
+      var style = nfFaceOfV158A(nfOfV157C(nfId)); if (!style) return null;
+      var g = res.geo, x = cv.getContext("2d"), s = String(num | 0), dpr = g.dpr || 1;
+      var sx = g.bw / C.W, cx = g.bx + C.cx * sx, cy = g.by + (C.row - g.neck) * g.k;
+      var px = Math.max(8, (C.waist - C.neck) * g.k * TUv("nfChestHV157C", 0.58)), maxW = C.w * sx * TUv("nfChestWV157C", 0.92);
+      var IH = Math.round(px * TUv("nfChestInkV158A", 0.74) * dpr), r = nfRenderV158A(style, s, IH); if (!r) return null;
+      if (r.iw > maxW * dpr) { r = nfRenderV158A(style, s, Math.max(6, Math.floor(IH * maxW * dpr / r.iw))); if (!r) return null; }
+      x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.imageSmoothingEnabled = false;
+      x.drawImage(r.cv, Math.round(cx * dpr - r.ix - r.iw / 2), Math.round(cy * dpr - r.iy - r.ih / 2));
+      x.restore();
+      V158A.chest = { style: style, num: s, IH: r.IH, iw: r.iw, ih: r.ih };
+      return { num: s, nf: style, px: +px.toFixed(1), cx: +cx.toFixed(1), cy: +cy.toFixed(1), v158: true, ih: r.ih };
+    } catch (e) { errV158A(e); return null; }
+  }
+  /* the field: an image over his label (which goes transparent), sized to the ink height the v157 C label has */
+  var NFMETA_V158A = {};
+  function fieldNumV158A(m, N) {
+    try {
+      var L = m && m.label, style = N && N.d ? nfFaceOfV158A(N.d) : null;
+      if (!style || !L || !m.root || !m.body) { dropNumV158A(m, null); return false; }
+      var scene = m.root.scene; if (!scene || !scene.textures) return false;
+      var txt = String(L.text != null ? L.text : m.num != null ? m.num : "").replace(/[^0-9]/g, ""); if (!txt) { dropNumV158A(m, null); return false; }
+      var IH = TUv("nfFieldPxV158A", 18), key = "nf158_" + (hsh(style + "|" + txt + "|" + IH + "|" + teamCol(0) + teamCol(1)) >>> 0).toString(36);
+      var R = NFMETA_V158A[key];
+      if (!R || !scene.textures.exists(key)) { R = nfRenderV158A(style, txt, IH); if (!R) return false; try { if (scene.textures.exists(key)) scene.textures.remove(key); scene.textures.addCanvas(key, R.cv); } catch (e) { return false; } NFMETA_V158A[key] = R; }
+      var img = m._nfImgV158A;
+      if (img && (!img.scene || !img.active)) img = m._nfImgV158A = null;
+      if (!img) { img = m._nfImgV158A = scene.add.image(0, 0, key); m.root.add(img); }
+      else if (img.texture.key !== key) img.setTexture(key);
+      var Hs = m.body.scaleY || 1, sc0 = m._numScaleV104 || L.scaleX || 1, cap = (m._numCapV104 || 6) * Hs * (L.scaleX / Math.max(1e-4, sc0)), k = cap / R.ih;
+      var b = m._numBandV104, maxW = b ? b.w * Math.abs(m.body.scaleX || 1) * TUv("nfWidthV157C", 0.82) : 1e9; if (R.iw * k > maxW) k = maxW / R.iw;
+      var inkY = m._numRowV104 != null ? (m._numRowV104 + 0.5 - 24) * Hs : L.y;
+      img.setOrigin((R.ix + R.iw / 2) / R.w, (R.iy + R.ih / 2) / R.h).setPosition(L.x, inkY).setScale(k).setVisible(!!L.visible);
+      var list = m.root.list; if (list[list.length - 1] !== img) { try { m.root.bringToTop(img); } catch (e) {} }
+      if (L.alpha !== 0) { L.setAlpha(0); m._nfLblV158A = 1; }
+      V158A.field = { key: key, style: style, txt: txt, k: +k.toFixed(4), vis: !!L.visible, ih: R.ih, cap: +cap.toFixed(2) };
+      return true;
+    } catch (e) { errV158A(e); return false; }
+  }
+  function dropNumV158A(m, N) {
+    try {
+      if (!m) return;
+      var img = m._nfImgV158A;
+      if (img) { if (N) { img.setVisible(false); return; } try { img.destroy(); } catch (e) {} m._nfImgV158A = null; }
+      if (m._nfLblV158A && m.label) { m.label.setAlpha(1); m._nfLblV158A = 0; }
+    } catch (e) { errV158A(e); }
+  }
+  /* the Locker's preview: his number on a jersey in his team's colour */
+  function nfPreviewV158A(x, it, nn) {
+    var style = nfFaceOfV158A(it.nf); if (!style) return false;
+    var r = nfRenderV158A(style, nn, 24); if (!r) return false;
+    if (r.iw > 40) r = nfRenderV158A(style, nn, Math.floor(24 * 40 / r.iw)) || r;
+    x.save(); x.imageSmoothingEnabled = false; x.drawImage(r.cv, Math.round(32 - r.ix - r.iw / 2), Math.round(35 - r.iy - r.ih / 2)); x.restore();
+    return true;
+  }
+
+  /* ---------------- BANNERS: one painter per kind, a pure function of (w, h, t, palette) ---------------- */
+  function banOnV158A() { return onV158A("v158Aban"); }
+  function vgV158A(x, y0, y1, stops) { var g = x.createLinearGradient(0, y0, 0, y1); stops.forEach(function (s) { g.addColorStop(s[0], colV158A(s[1])); }); return g; }
+  function fillV158A(x, w, h, style) { x.fillStyle = style; x.fillRect(0, 0, w, h); }
+  function glowV158A(x, cx, cy, r, col, a) { var g = x.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, rgbaV158A(col, a)); g.addColorStop(1, rgbaV158A(col, 0)); x.fillStyle = g; x.fillRect(cx - r, cy - r, r * 2, r * 2); }
+  function starsV158A(x, w, h, t, n, seed, tw) { for (var i = 0; i < n; i++) { var a = 0.35 + 0.65 * Math.abs(Math.sin(t * (tw || 1.3) + i * 1.7)); x.fillStyle = "rgba(255,255,255," + (a * (0.4 + 0.6 * rV158A(i, seed + 2))).toFixed(3) + ")"; var s = rV158A(i, seed + 3) > 0.85 ? 1.6 : 1; x.fillRect(Math.floor(rV158A(i, seed) * w), Math.floor(rV158A(i, seed + 1) * h), s, s); } }
+  function sheenV158A(x, w, h, t, period, a) { var p = ((t % period) + period) % period / period, cx = -w * 0.3 + p * w * 1.6, g = x.createLinearGradient(cx - 40, 0, cx + 40, h); g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.5, "rgba(255,255,255," + a + ")"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, w, h); }
+  function vignetteV158A(x, w, h, a) { var g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0," + a + ")"); x.fillStyle = g; x.fillRect(0, 0, w, h); }
+  var BAN_V158A = {
+    /* ---- the new banners ---- */
+    sweep: function (x, w, h, t, C) {
+      fillV158A(x, w, h, C[0]); x.fillStyle = C[1];
+      var sp = 46, off = (t * 14) % sp;
+      for (var bx = -h - sp + off; bx < w + h; bx += sp) { x.beginPath(); x.moveTo(bx, h); x.lineTo(bx + 16, h); x.lineTo(bx + 16 + h, 0); x.lineTo(bx + h, 0); x.closePath(); x.globalAlpha = 0.85; x.fill(); }
+      x.globalAlpha = 1; vignetteV158A(x, w, h, 0.45); sheenV158A(x, w, h, t, 5, 0.18);
+    },
+    chalk: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, "#26462f"], [1, C[0]]]));
+      for (var i = 0; i < 26; i++) { x.fillStyle = "rgba(255,255,255," + (0.03 + 0.04 * rV158A(i, 41)).toFixed(3) + ")"; x.fillRect(rV158A(i, 42) * w, rV158A(i, 43) * h, 14 + rV158A(i, 44) * 30, 2); }
+      x.strokeStyle = C[1]; x.fillStyle = C[1]; x.lineWidth = 1.6; x.globalAlpha = 0.9;
+      var los = h * 0.62; x.setLineDash([4, 4]); x.beginPath(); x.moveTo(0, los); x.lineTo(w, los); x.stroke(); x.setLineDash([]);
+      for (var o = 0; o < 5; o++) { x.beginPath(); x.arc(w * 0.46 + o * 12, los + 7, 4, 0, 6.283); x.stroke(); }
+      [[0.3, 0.3], [0.62, 0.22], [0.74, 0.4], [0.52, 0.18]].forEach(function (p) { var px = w * p[0], py = h * p[1]; x.beginPath(); x.moveTo(px - 4, py - 4); x.lineTo(px + 4, py + 4); x.moveTo(px + 4, py - 4); x.lineTo(px - 4, py + 4); x.stroke(); });
+      // the route draws itself, then rubs out
+      var ph = (t % 4.5) / 3.2, pts = [[w * 0.2, los + 7], [w * 0.2, h * 0.28], [w * 0.42, h * 0.12], [w * 0.84, h * 0.12]], segs = pts.length - 1, want = Math.min(1, ph) * segs;
+      x.lineWidth = 2; x.beginPath(); x.moveTo(pts[0][0], pts[0][1]);
+      for (var s = 0; s < segs && s < want; s++) { var u = Math.min(1, want - s), a = pts[s], b = pts[s + 1]; x.lineTo(a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u); }
+      x.globalAlpha = ph > 1.25 ? Math.max(0, 1 - (ph - 1.25) * 3) : 0.95; x.stroke();
+      if (ph >= 1) { var e = pts[segs]; x.beginPath(); x.moveTo(e[0], e[1] - 5); x.lineTo(e[0] + 7, e[1]); x.lineTo(e[0], e[1] + 5); x.fill(); }
+      x.globalAlpha = 1;
+    },
+    camo: function (x, w, h, t, C) {
+      var s = 6, ox = Math.floor(t * 5);
+      for (var gy = 0; gy * s < h; gy++) for (var gx = -1; gx * s < w + s; gx++) { var u = gx + ox, v = rV158A((u >> 1) * 31 + (gy >> 1), 1) * 0.6 + rV158A(u * 17 + gy * 7, 2) * 0.4; x.fillStyle = C[Math.min(C.length - 1, Math.floor(v * C.length))]; x.fillRect(gx * s - (t * 5 % 1) * s, gy * s, s, s); }
+      vignetteV158A(x, w, h, 0.4);
+    },
+    rain: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[1]], [0.75, C[0]], [1, "#0f2a1a"]]));
+      glowV158A(x, w * 0.18, 4, 46, "#fff6d8", 0.35); glowV158A(x, w * 0.82, 4, 46, "#fff6d8", 0.35);
+      x.strokeStyle = rgbaV158A(C[2], 0.4); x.lineWidth = 1;
+      for (var i = 0; i < 70; i++) { var sp = 160 + rV158A(i, 8) * 120, y = ((rV158A(i, 9) * (h + 20) + t * sp) % (h + 20)) - 10, xx = ((rV158A(i, 10) * (w + 40) - y * 0.3) % (w + 40)); x.beginPath(); x.moveTo(xx, y); x.lineTo(xx - 2.4, y + 8); x.stroke(); }
+      x.fillStyle = "rgba(191,230,255,.12)"; for (var p = 0; p < 6; p++) { var r = ((t * 0.8 + p * 0.37) % 1) * 9; x.beginPath(); x.ellipse(w * (0.1 + p * 0.16), h - 5, r * 1.8, r * 0.5, 0, 0, 6.283); x.fill(); }
+    },
+    sunrise: function (x, w, h, t, C) {
+      var hz = h * 0.74, sx = w * 0.7;
+      fillV158A(x, w, h, vgV158A(x, 0, hz, [[0, C[2]], [0.6, C[1]], [1, C[0]]]));
+      x.save(); x.translate(sx, hz); x.rotate(t * 0.05);
+      for (var i = 0; i < 12; i++) { x.fillStyle = "rgba(255,240,200,.1)"; x.beginPath(); x.moveTo(0, 0); x.arc(0, 0, w, i * 0.5236, i * 0.5236 + 0.2); x.closePath(); x.fill(); }
+      x.restore(); glowV158A(x, sx, hz, 40, "#fff3c4", 0.8);
+      x.fillStyle = "#ffe08a"; x.beginPath(); x.arc(sx, hz, 13, Math.PI, 0); x.fill();
+      x.fillStyle = "#1f5a2e"; x.fillRect(0, hz, w, h - hz); x.fillStyle = "#236633"; for (var s = 0; s < w; s += 36) x.fillRect(s, hz, 18, h - hz);
+      x.strokeStyle = "#1b1b24"; x.lineWidth = 2.5; var gx = w * 0.16; x.beginPath(); x.moveTo(gx, hz); x.lineTo(gx, hz - 14); x.moveTo(gx - 12, hz - 14); x.lineTo(gx + 12, hz - 14); x.moveTo(gx - 12, hz - 14); x.lineTo(gx - 12, hz - 32); x.moveTo(gx + 12, hz - 14); x.lineTo(gx + 12, hz - 32); x.stroke();
+    },
+    hex: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, "#141b26"], [1, C[1]]]));
+      var r = 9, hw = r * 1.732, c = rgb(colV158A(C[0]));
+      for (var row = -1; row * r * 1.5 < h + r; row++) for (var col = -1; col * hw < w + hw; col++) {
+        var cx = col * hw + (row % 2 ? hw / 2 : 0), cy = row * r * 1.5, dd = Math.hypot(cx - w * 0.3, cy - h * 0.5), a = 0.22 + 0.7 * Math.max(0, Math.sin(dd * 0.06 - t * 2.2));
+        x.beginPath(); for (var k = 0; k < 6; k++) { var an = Math.PI / 6 + k * Math.PI / 3; x.lineTo(cx + (r - 1) * Math.cos(an), cy + (r - 1) * Math.sin(an)); } x.closePath();
+        x.fillStyle = "rgba(" + c.join(",") + "," + (a * 0.35).toFixed(3) + ")"; x.fill(); x.strokeStyle = "rgba(" + c.join(",") + "," + a.toFixed(3) + ")"; x.lineWidth = 1; x.stroke();
+      }
+    },
+    skyline: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[2]], [0.55, C[1]], [1, C[0]]]));
+      glowV158A(x, w * 0.3, h * 0.95, 34, "#ffd08a", 0.7);
+      [[0.35, "#3a1f4a", 9, 0.9], [0.62, "#1a1030", 16, 1]].forEach(function (L, li) {
+        var off = (t * L[2]) % 400;
+        for (var i = -1; i < 40; i++) { var bw = 14 + rV158A(i, 30 + li) * 22, bh = h * (0.3 + rV158A(i, 32 + li) * L[0]), bx = i * 22 - off;
+          x.fillStyle = L[1]; x.fillRect(bx, h - bh, bw, bh);
+          if (li) for (var wy = h - bh + 4; wy < h - 3; wy += 5) for (var wx = bx + 3; wx < bx + bw - 3; wx += 5) { var q = rV158A(Math.floor(wx * 3 + wy * 7 + i), 36); if (q > 0.55) { x.fillStyle = q > 0.9 + 0.08 * Math.sin(t * 2 + i) ? "rgba(255,240,180,.25)" : "rgba(255,220,140,.85)"; x.fillRect(wx, wy, 2, 2); } } }
+      });
+    },
+    snow: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[0]], [1, C[1]]]));
+      glowV158A(x, w * 0.75, 0, 60, "#d6ecff", 0.35);
+      x.fillStyle = "rgba(240,248,255,.85)"; x.fillRect(0, h - 6, w, 6);
+      for (var i = 0; i < 70; i++) { var z = rV158A(i, 51), sp = 10 + z * 22, y = (rV158A(i, 52) * h + t * sp) % h, xx = (rV158A(i, 53) * w + Math.sin(t * 0.9 + i) * 6 + w) % w, s = 0.8 + z * 1.8; x.globalAlpha = 0.45 + z * 0.55; x.beginPath(); x.arc(xx, y, s, 0, 6.283); x.fillStyle = C[2]; x.fill(); }
+      x.globalAlpha = 1;
+    },
+    waves: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[2]], [0.4, C[1]], [1, C[0]]]));
+      glowV158A(x, w * 0.8, h * 0.18, 26, "#fff6d8", 0.8);
+      [[0.42, 0.9, "#1a8ab0", 0.05], [0.58, 1.3, "#0f6a8a", 0.07], [0.74, 1.8, "#0b4a66", 0.09]].forEach(function (L, i) {
+        x.beginPath(); x.moveTo(0, h);
+        for (var xx = 0; xx <= w; xx += 4) x.lineTo(xx, h * L[0] + Math.sin(xx * L[3] + t * L[1] + i) * 4 + Math.sin(xx * 0.021 - t * 0.7) * 3);
+        x.lineTo(w, h); x.closePath(); x.fillStyle = L[2]; x.fill();
+        x.strokeStyle = "rgba(255,255,255,.35)"; x.lineWidth = 1; x.beginPath();
+        for (var x2 = 0; x2 <= w; x2 += 4) { var yy = h * L[0] + Math.sin(x2 * L[3] + t * L[1] + i) * 4 + Math.sin(x2 * 0.021 - t * 0.7) * 3; if (x2) x.lineTo(x2, yy); else x.moveTo(x2, yy); } x.stroke();
+      });
+    },
+    board: function (x, w, h, t, C) {
+      fillV158A(x, w, h, "#07060a");
+      var TXT = "TOUCHDOWN   GAME TIME   ", F5 = FONT5_V158A, sp = 3.2, cols = Math.ceil(w / sp), rows = 7, oy = (h - rows * sp) / 2, lit = rgb(colV158A(C[0])), dim = rgb(colV158A(C[1]));
+      var bits = []; TXT.split("").forEach(function (ch) { var g = F5[ch] || F5[" "]; for (var c = 0; c < 5; c++) bits.push(g.map(function (row) { return row[c] === "1"; })); bits.push([0, 0, 0, 0, 0, 0, 0].map(function () { return false; })); });
+      var shift = Math.floor(t * 9);
+      for (var cx = 0; cx < cols; cx++) { var col = bits[(cx + shift) % bits.length]; for (var ry = 0; ry < rows; ry++) { var on = col[ry]; x.fillStyle = on ? "rgb(" + lit.join(",") + ")" : "rgb(" + dim.join(",") + ")"; x.beginPath(); x.arc(cx * sp + sp / 2, oy + ry * sp + sp / 2, on ? 1.25 : 0.9, 0, 6.283); x.fill(); } }
+      glowV158A(x, w / 2, h / 2, w * 0.5, C[0], 0.08);
+    },
+    lava: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[0]], [1, "#5a1a4a"]]));
+      x.globalCompositeOperation = "lighter";
+      for (var i = 0; i < 7; i++) { var bx = w * (0.08 + i * 0.14) + Math.sin(t * 0.3 + i) * 10, by = h * 0.5 + Math.sin(t * (0.35 + i * 0.07) + i * 2) * h * 0.42, r = 12 + rV158A(i, 61) * 12; glowV158A(x, bx, by, r * 1.5, i % 2 ? C[1] : C[2], 0.55); }
+      x.globalCompositeOperation = "source-over";
+    },
+    confetti: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, "#1a2436"], [1, "#0a0e15"]]));
+      glowV158A(x, w * 0.5, 0, 70, "#fff6d8", 0.25);
+      for (var i = 0; i < 60; i++) { var sp = 22 + rV158A(i, 71) * 30, y = (rV158A(i, 72) * (h + 10) + t * sp) % (h + 10) - 5, xx = (rV158A(i, 73) * w + Math.sin(t * 2 + i) * 5 + w) % w, fl = Math.cos(t * 5 + i);
+        x.save(); x.translate(xx, y); x.rotate(i + t); x.scale(1, Math.abs(fl) * 0.9 + 0.1); x.fillStyle = C[i % C.length]; x.fillRect(-2.5, -1.2, 5, 2.4); x.restore(); }
+    },
+    trophy: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[0]], [1, C[1]]]));
+      for (var p = 0; p < w; p += 24) { x.fillStyle = "rgba(0,0,0,.18)"; x.fillRect(p, 0, 1, h); x.fillStyle = "rgba(255,220,170,.05)"; x.fillRect(p + 1, 0, 1, h); }
+      var sy = h * 0.8; x.fillStyle = "#2a1608"; x.fillRect(0, sy, w, 4); x.fillStyle = "rgba(255,220,170,.25)"; x.fillRect(0, sy, w, 1);
+      for (var i = 0; i < 9; i++) {
+        var cx = w * (0.06 + i * 0.11), kind = i % 3, g = x.createLinearGradient(cx - 6, 0, cx + 6, 0); g.addColorStop(0, "#8a6414"); g.addColorStop(0.45, "#ffe9a0"); g.addColorStop(1, "#b8861f"); x.fillStyle = g;
+        if (kind === 0) { x.beginPath(); x.moveTo(cx - 7, sy - 22); x.lineTo(cx + 7, sy - 22); x.lineTo(cx + 4, sy - 12); x.lineTo(cx - 4, sy - 12); x.fill(); x.fillRect(cx - 1, sy - 12, 2, 6); x.fillRect(cx - 5, sy - 6, 10, 6); }
+        else if (kind === 1) { x.beginPath(); x.ellipse(cx, sy - 12, 7, 5, -0.4, 0, 6.283); x.fill(); x.fillRect(cx - 4, sy - 5, 8, 5); }
+        else { x.beginPath(); x.arc(cx, sy - 11, 6, 0, 6.283); x.lineWidth = 2.5; x.strokeStyle = g; x.stroke(); x.fillStyle = "#bfefff"; x.fillRect(cx - 2, sy - 20, 4, 3); }
+        var ph = ((t * 0.9 - i * 0.37) % 3 + 3) % 3; if (ph < 0.35) { var a = 1 - Math.abs(ph - 0.17) / 0.17; x.fillStyle = "rgba(255,255,255," + a.toFixed(2) + ")"; x.fillRect(cx + 2, sy - 24, 1, 5); x.fillRect(cx, sy - 22, 5, 1); }
+      }
+      glowV158A(x, w * 0.5, -10, 80, "#fff3c4", 0.18);
+    },
+    stadium: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[0]], [1, C[1]]])); starsV158A(x, w, h * 0.5, t, 30, 80);
+      [[0.55, 4, 0.5], [0.8, 8, 0.8], [1, 13, 1]].forEach(function (L, li) {
+        var dx = Math.sin(t * 0.25) * L[1];
+        for (var i = 0; i < 3; i++) { var px = w * (0.15 + i * 0.35) + dx + li * 17, top = h * (0.08 + (1 - L[0]) * 0.4), fl = 0.85 + 0.15 * Math.sin(t * 7 + i * 3 + li);
+          x.fillStyle = "rgba(20,26,38," + L[2] + ")"; x.fillRect(px - 1, top + 6, 2, h - top);
+          x.fillStyle = "rgba(255,246,216," + (0.07 * L[0] * fl).toFixed(3) + ")"; x.beginPath(); x.moveTo(px - 8, top + 4); x.lineTo(px + 8, top + 4); x.lineTo(px + 40 * L[0], h); x.lineTo(px - 40 * L[0], h); x.fill();
+          glowV158A(x, px, top + 3, 16 * L[0], C[2], 0.5 * fl);
+          x.fillStyle = C[2]; for (var b = 0; b < 4; b++) x.fillRect(px - 6 + b * 3.4, top, 2.2, 2.2 * L[0] + 1); }
+      });
+      x.fillStyle = "#070a10"; x.beginPath(); x.moveTo(0, h); for (var cx = 0; cx <= w; cx += 5) x.lineTo(cx, h - 7 - Math.abs(Math.sin(cx * 1.7)) * 3); x.lineTo(w, h); x.fill();
+      for (var f = 0; f < 4; f++) { var q = Math.floor(t * 3) * 4 + f; if (rV158A(q, 91) > 0.6) glowV158A(x, rV158A(q, 92) * w, h - 7, 5, "#ffffff", 0.9); }
+    },
+    synth: function (x, w, h, t, C) {
+      var hz = h * 0.58; fillV158A(x, w, h, vgV158A(x, 0, hz, [[0, C[0]], [0.7, "#5a1a6a"], [1, C[1]]])); starsV158A(x, w, hz * 0.7, t, 20, 100);
+      var sx = w * 0.62, sr = 20, g = x.createLinearGradient(0, hz - sr, 0, hz); g.addColorStop(0, C[2]); g.addColorStop(1, C[1]);
+      x.save(); x.beginPath(); x.arc(sx, hz, sr, Math.PI, 0); x.clip(); x.fillStyle = g; x.fillRect(sx - sr, hz - sr, sr * 2, sr);
+      x.fillStyle = C[0]; for (var k = 0; k < 5; k++) { var yy = hz - 3 - k * 3.6 + (t * 4 % 3.6); x.fillRect(sx - sr, yy, sr * 2, 1 + k * 0.25); } x.restore();
+      x.fillStyle = "#12051f"; x.fillRect(0, hz, w, h - hz); x.strokeStyle = C[1]; x.lineWidth = 1; x.globalAlpha = 0.8;
+      for (var i = -12; i <= 12; i++) { x.beginPath(); x.moveTo(w / 2 + i * 8, hz); x.lineTo(w / 2 + i * 60, h); x.stroke(); }
+      for (var r = 0; r < 7; r++) { var p = ((r + t * 0.9) % 7) / 7, yy2 = hz + (h - hz) * p * p; x.globalAlpha = 0.25 + p * 0.7; x.beginPath(); x.moveTo(0, yy2); x.lineTo(w, yy2); x.stroke(); }
+      x.globalAlpha = 1;
+    },
+    flash: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[1]], [1, C[0]]])); glowV158A(x, w * 0.5, h * 0.3, 90, "#fff6d8", 0.12);
+      for (var row = 0; row < 3; row++) for (var i = 0; i < 40; i++) { var cx = i * 11 + (row % 2) * 5.5 - 5, cy = h * 0.58 + row * 9; x.fillStyle = "rgba(6,8,12," + (0.7 + row * 0.1) + ")"; x.beginPath(); x.arc(cx, cy, 4.2, 0, 6.283); x.fill(); x.fillRect(cx - 5, cy + 3, 10, 10); }
+      var slot = Math.floor(t * 7);
+      for (var f = 0; f < 7; f++) { var q = slot * 7 + f, u = (t * 7) % 1; if (rV158A(q, 97) > 0.55) { var fx = rV158A(q, 98) * w, fy = h * 0.5 + rV158A(q, 99) * h * 0.35, a = Math.max(0, 1 - u * 1.6); glowV158A(x, fx, fy, 12, C[2], a); x.fillStyle = "rgba(255,255,255," + a.toFixed(2) + ")"; x.fillRect(fx - 6, fy, 12, 1); x.fillRect(fx, fy - 6, 1, 12); } }
+    },
+    marble: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, "#f3f0ea"], [0.5, C[0]], [1, "#d8d2c6"]]));
+      x.lineWidth = 1;
+      for (var i = 0; i < 9; i++) { x.strokeStyle = "rgba(120,112,100," + (0.18 + rV158A(i, 111) * 0.25).toFixed(2) + ")"; x.beginPath(); var sx = rV158A(i, 112) * w, sy = -5; x.moveTo(sx, sy);
+        x.bezierCurveTo(sx + (rV158A(i, 113) - 0.5) * 120, h * 0.3, sx + (rV158A(i, 114) - 0.5) * 160, h * 0.7, sx + (rV158A(i, 115) - 0.5) * 90, h + 5); x.stroke(); }
+      [[0, 4], [h - 5, 5]].forEach(function (b) { var g = x.createLinearGradient(0, b[0], 0, b[0] + b[1]); g.addColorStop(0, "#fff3c4"); g.addColorStop(0.5, C[2]); g.addColorStop(1, "#8a6414"); x.fillStyle = g; x.fillRect(0, b[0], w, b[1]); });
+      sheenV158A(x, w, h, t, 4.5, 0.45);
+    },
+    aurora: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, "#040a14"], [1, "#0b1a24"]])); starsV158A(x, w, h, t, 34, 120);
+      x.globalCompositeOperation = "lighter";
+      for (var k = 0; k < 3; k++) { var c = rgb(colV158A(C[k % C.length]));
+        for (var xx = 0; xx < w; xx += 3) { var top = h * 0.12 + Math.sin(xx * 0.018 + t * 0.55 + k * 2) * 8 + Math.sin(xx * 0.05 - t * 0.9 + k) * 4, len = h * (0.35 + 0.2 * Math.sin(xx * 0.03 + t * 0.4 + k * 1.3)), a = 0.16 + 0.12 * Math.sin(xx * 0.04 + t * 1.1 + k);
+          var g = x.createLinearGradient(0, top, 0, top + len); g.addColorStop(0, "rgba(" + c.join(",") + ",0)"); g.addColorStop(0.25, "rgba(" + c.join(",") + "," + a.toFixed(3) + ")"); g.addColorStop(1, "rgba(" + c.join(",") + ",0)"); x.fillStyle = g; x.fillRect(xx, top, 3, len); } }
+      x.globalCompositeOperation = "source-over";
+      x.fillStyle = "#03060a"; x.beginPath(); x.moveTo(0, h); for (var m = 0; m <= w; m += 12) x.lineTo(m, h - 5 - Math.abs(Math.sin(m * 0.07)) * 8); x.lineTo(w, h); x.fill();
+    },
+    dynasty: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, "#1a1c24"], [1, C[0]]]));
+      glowV158A(x, w * 0.5, 0, 80, "#fff3c4", 0.15);
+      for (var i = 0; i < 7; i++) { var px = w * (0.09 + i * 0.137), sw = Math.sin(t * 0.8 + i) * 0.05;
+        x.save(); x.translate(px, 2); x.rotate(sw); x.fillStyle = i % 2 ? C[1] : "#1f2a4a"; x.beginPath(); x.moveTo(-10, 0); x.lineTo(10, 0); x.lineTo(10, h * 0.62); x.lineTo(0, h * 0.78); x.lineTo(-10, h * 0.62); x.closePath(); x.fill();
+        x.strokeStyle = C[2]; x.lineWidth = 1; x.stroke(); x.fillStyle = C[2]; x.font = "700 7px Oswald, sans-serif"; x.textAlign = "center"; x.fillText(["I", "II", "III", "IV", "V", "VI", "VII"][i], 0, h * 0.52);
+        var ph = ((t * 0.7 - i * 0.4) % 3 + 3) % 3; x.beginPath(); x.arc(0, h * 0.25, 4, 0, 6.283); x.lineWidth = 1.6; x.strokeStyle = ph < 0.3 ? "#ffffff" : C[2]; x.stroke(); x.restore(); }
+    },
+    rays: function (x, w, h, t, C) {
+      fillV158A(x, w, h, C[0]); var cx = w * 0.3, cy = h * 0.5;
+      x.save(); x.translate(cx, cy); x.rotate(t * 0.12);
+      for (var i = 0; i < 18; i++) { x.fillStyle = i % 2 ? "rgba(255,215,111,.22)" : "rgba(255,243,196,.1)"; x.beginPath(); x.moveTo(0, 0); x.arc(0, 0, w, i * 0.349, i * 0.349 + 0.349); x.closePath(); x.fill(); }
+      x.restore(); glowV158A(x, cx, cy, 44, C[1], 0.7); glowV158A(x, cx, cy, 16, C[2], 0.9);
+      for (var s = 0; s < 14; s++) { var a = Math.abs(Math.sin(t * 1.4 + s * 1.9)); x.fillStyle = "rgba(255,243,196," + a.toFixed(2) + ")"; x.fillRect(rV158A(s, 131) * w, rV158A(s, 132) * h, 1.5, 1.5); }
+    },
+    hole: function (x, w, h, t, C) {
+      fillV158A(x, w, h, "#000000"); starsV158A(x, w, h, t, 50, 140, 0.8);
+      var cx = w * 0.6, cy = h * 0.5;
+      glowV158A(x, cx, cy, 60, C[1], 0.45);
+      x.save(); x.translate(cx, cy); x.scale(1, 0.28);
+      for (var k = 0; k < 26; k++) { var r = 20 + k * 1.6, a0 = t * (2.2 - k * 0.05) + k * 0.7; x.strokeStyle = k < 8 ? "rgba(255,243,196,.7)" : "rgba(255,154,61," + (0.55 - k * 0.018).toFixed(3) + ")"; x.lineWidth = 1.2; x.beginPath(); x.arc(0, 0, r, a0, a0 + 2.2); x.stroke(); x.beginPath(); x.arc(0, 0, r, a0 + 3.3, a0 + 4.6); x.stroke(); }
+      x.restore();
+      x.fillStyle = "#000"; x.beginPath(); x.arc(cx, cy, 13, 0, 6.283); x.fill(); x.strokeStyle = "rgba(255,230,180,.85)"; x.lineWidth = 1.4; x.beginPath(); x.arc(cx, cy, 14, 0, 6.283); x.stroke();
+    },
+    galaxy: function (x, w, h, t, C) {
+      fillV158A(x, w, h, C[0]);
+      x.globalCompositeOperation = "lighter";
+      glowV158A(x, w * 0.25 + Math.sin(t * 0.1) * 10, h * 0.4, 70, C[1], 0.35); glowV158A(x, w * 0.55, h * 0.7, 60, C[2], 0.25); glowV158A(x, w * 0.85, h * 0.3, 55, C[3], 0.3);
+      var cx = w * 0.66, cy = h * 0.5;
+      for (var i = 0; i < 160; i++) { var arm = i % 2, rr = 3 + (i / 160) * 70, an = rr * 0.09 + arm * Math.PI + t * 0.25, jit = (rV158A(i, 151) - 0.5) * 6; x.fillStyle = i % 5 ? "rgba(220,210,255,.7)" : "rgba(255,180,230,.9)"; x.fillRect(cx + Math.cos(an) * rr + jit, cy + Math.sin(an) * rr * 0.4 + jit * 0.4, 1.3, 1.3); }
+      glowV158A(x, cx, cy, 12, "#ffffff", 0.8);
+      x.globalCompositeOperation = "source-over"; starsV158A(x, w, h, t, 60, 160, 1.8);
+    },
+    storm: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[1]], [1, C[0]]]));
+      var P = 3.4, k = Math.floor(t / P), ph = (t % P) / P, flash = ph < 0.08 ? 1 - ph / 0.08 : ph > 0.12 && ph < 0.16 ? 0.6 : 0;
+      if (flash) { x.fillStyle = "rgba(220,235,255," + (0.35 * flash).toFixed(3) + ")"; x.fillRect(0, 0, w, h); }
+      for (var c = 0; c < 22; c++) { var cx = ((rV158A(c, 171) * (w + 80) + t * (6 + rV158A(c, 172) * 8)) % (w + 80)) - 40, cy = h * (0.05 + rV158A(c, 173) * 0.4), r = 12 + rV158A(c, 174) * 16; x.fillStyle = "rgba(" + (40 + flash * 90 | 0) + "," + (46 + flash * 90 | 0) + "," + (58 + flash * 90 | 0) + ",.8)"; x.beginPath(); x.arc(cx, cy, r, 0, 6.283); x.fill(); }
+      if (flash) {
+        var bx = w * (0.15 + rV158A(k, 175) * 0.7), by = 0; x.strokeStyle = "rgba(255,255,255," + flash.toFixed(2) + ")"; x.lineWidth = 2; x.shadowColor = C[2]; x.shadowBlur = 8; x.beginPath(); x.moveTo(bx, by);
+        for (var s = 0; s < 6; s++) { bx += (rV158A(k * 9 + s, 176) - 0.5) * 22; by += h / 6; x.lineTo(bx, by); } x.stroke(); x.shadowBlur = 0;
+      }
+      x.strokeStyle = "rgba(191,230,255,.2)"; x.lineWidth = 1; for (var i = 0; i < 40; i++) { var y = (rV158A(i, 177) * h + t * 200) % h, xx = rV158A(i, 178) * w; x.beginPath(); x.moveTo(xx, y); x.lineTo(xx - 2, y + 7); x.stroke(); }
+    },
+    holo: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[0]], [1, "#063a3a"]]));
+      var hz = h * 0.45, c = rgb(colV158A(C[1])); x.strokeStyle = "rgba(" + c.join(",") + ",.45)"; x.lineWidth = 1;
+      for (var i = -16; i <= 16; i++) { x.beginPath(); x.moveTo(w / 2 + i * 10, hz); x.lineTo(w / 2 + i * 70, h); x.stroke(); }
+      for (var r = 0; r < 8; r++) { var p = ((r + t * 0.8) % 8) / 8, yy = hz + (h - hz) * p * p; x.beginPath(); x.moveTo(0, yy); x.lineTo(w, yy); x.stroke(); }
+      // a wireframe football turning over the floor
+      var fx = w * 0.72, fy = h * 0.34, rx = 22, ry = 11; x.strokeStyle = "rgba(" + c.join(",") + ",.9)"; x.beginPath(); x.ellipse(fx, fy, rx, ry, 0, 0, 6.283); x.stroke();
+      for (var m = 0; m < 4; m++) { var a = t * 1.2 + m * Math.PI / 4, k = Math.cos(a); x.beginPath(); x.ellipse(fx, fy, Math.abs(k) * rx, ry, 0, 0, 6.283); x.stroke(); }
+      var sy = (t * 30) % (h + 20) - 10; var g = x.createLinearGradient(0, sy - 6, 0, sy + 6); g.addColorStop(0, "rgba(185,255,248,0)"); g.addColorStop(0.5, "rgba(185,255,248,.35)"); g.addColorStop(1, "rgba(185,255,248,0)"); x.fillStyle = g; x.fillRect(0, sy - 6, w, 12);
+      if ((t % 2.6) < 0.12) { var gy = rV158A(Math.floor(t / 2.6), 181) * h; try { x.drawImage(x.canvas, 0, gy * (x.canvas.height / h), x.canvas.width, 6 * x.canvas.height / h, 6, gy, w, 6); } catch (e) {} }
+    },
+    coins: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[0]], [1, "#3a2408"]])); glowV158A(x, w * 0.5, h, 90, C[1], 0.3);
+      for (var p = 0; p < 26; p++) { x.fillStyle = p % 2 ? C[2] : C[1]; x.beginPath(); x.ellipse(rV158A(p, 191) * w, h - 3 - rV158A(p, 192) * 6, 6, 2.4, 0, 0, 6.283); x.fill(); }
+      for (var i = 0; i < 24; i++) { var sp = 26 + rV158A(i, 193) * 30, y = (rV158A(i, 194) * (h + 20) + t * sp) % (h + 20) - 10, xx = rV158A(i, 195) * w, sw = Math.cos(t * 3.5 + i * 1.3), r = 4.2;
+        var g = x.createLinearGradient(xx - r, y, xx + r, y); g.addColorStop(0, C[2]); g.addColorStop(0.5, "#fff3c4"); g.addColorStop(1, C[2]); x.fillStyle = g;
+        x.beginPath(); x.ellipse(xx, y, Math.max(0.6, Math.abs(sw) * r), r, 0, 0, 6.283); x.fill(); x.strokeStyle = "rgba(90,60,8,.8)"; x.lineWidth = 0.7; x.stroke(); }
+      sheenV158A(x, w, h, t, 3.8, 0.12);
+    },
+    fire: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[0]], [1, "#3a0804"]]));
+      [[0.85, 0.9, "#8a180a", 0.9], [0.62, 1.4, C[1], 0.85], [0.4, 2.0, C[2], 0.8]].forEach(function (L, li) {
+        var g = x.createLinearGradient(0, h * (1 - L[0]), 0, h); g.addColorStop(0, rgbaV158A(L[2], 0)); g.addColorStop(0.35, rgbaV158A(L[2], L[3])); g.addColorStop(1, rgbaV158A(L[2], 1));
+        x.fillStyle = g; x.beginPath(); x.moveTo(0, h);
+        for (var xx = 0; xx <= w; xx += 3) { var n = Math.sin(xx * 0.09 + t * 3 * L[1] + li) * 0.5 + Math.sin(xx * 0.23 - t * 5 + li * 2) * 0.3 + Math.sin(xx * 0.04 + t * 1.3) * 0.2; x.lineTo(xx, h - h * L[0] * (0.55 + 0.45 * n)); }
+        x.lineTo(w, h); x.closePath(); x.fill();
+      });
+      for (var e = 0; e < 26; e++) { var sp = 18 + rV158A(e, 201) * 26, y = h - ((rV158A(e, 202) * h + t * sp) % h), xx = rV158A(e, 203) * w + Math.sin(t * 2 + e) * 4, a = y / h; x.fillStyle = "rgba(255," + (180 + (a * 60 | 0)) + ",80," + a.toFixed(2) + ")"; x.fillRect(xx, y, 1.5, 1.5); }
+    },
+    /* ---- the old banners, redrawn ---- */
+    brushed: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[0]], [1, C[1]]]));
+      for (var y = 0; y < h; y += 2) { x.fillStyle = "rgba(255,255,255," + (0.012 + 0.03 * rV158A(y, 211)).toFixed(3) + ")"; x.fillRect(0, y, w, 1); }
+      glowV158A(x, w * (0.5 + 0.4 * Math.sin(t * 0.35)), h * 0.2, 60, "#8fa2bb", 0.12);
+      sheenV158A(x, w, h, t, 7, 0.14); vignetteV158A(x, w, h, 0.3);
+    },
+    borealis: function (x, w, h, t, C) {   // the old Aurora: the lights over a still lake that gives them back
+      var hz = h * 0.66; x.save(); x.beginPath(); x.rect(0, 0, w, hz); x.clip(); BAN_V158A.aurora(x, w, hz, t * 0.8, C); x.restore();
+      x.fillStyle = "#040a12"; x.fillRect(0, hz, w, h - hz);
+      x.save(); x.globalAlpha = 0.45; x.translate(0, hz * 2); x.scale(1, -1); x.beginPath(); x.rect(0, hz, w, hz); x.clip(); try { x.drawImage(x.canvas, 0, 0, x.canvas.width, x.canvas.height * hz / h, 0, 0, w, hz); } catch (e) {} x.restore();
+      x.fillStyle = "rgba(255,255,255,.12)"; for (var i = 0; i < 5; i++) { var yy = hz + 3 + i * 3.5, ph = Math.sin(t * 1.3 + i); x.fillRect(w * 0.1 + ph * 6, yy, w * 0.8, 0.8); }
+    },
+    turf: function (x, w, h, t, C) {
+      for (var s = 0; s < w; s += 22) { x.fillStyle = (s / 22) % 2 ? C[1] : C[0]; x.fillRect(s, 0, 22, h); }
+      x.fillStyle = "rgba(255,255,255,.85)"; for (var yl = 44; yl < w; yl += 88) { x.fillRect(yl, 0, 2, h); for (var hm = 6; hm < h; hm += 9) { x.fillRect(yl - 22, hm, 5, 1); x.fillRect(yl + 22, hm, 5, 1); } }
+      x.font = "700 12px Oswald, sans-serif"; x.fillStyle = "rgba(255,255,255,.55)"; x.textAlign = "center"; [10, 20, 30, 40, 50].forEach(function (n, i) { var px = 44 + i * 88; if (px < w) x.fillText(String(n), px, h - 6); });
+      sheenV158A(x, w, h, t, 6, 0.1); vignetteV158A(x, w, h, 0.35);
+    },
+    friday: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[0]], [1, C[1]]]));
+      [0.18, 0.82].forEach(function (p, i) { var px = w * p, fl = 0.85 + 0.15 * Math.sin(t * 6 + i * 2);
+        x.fillStyle = "rgba(255,246,216," + (0.08 * fl).toFixed(3) + ")"; x.beginPath(); x.moveTo(px - 14, 6); x.lineTo(px + 14, 6); x.lineTo(px + 70, h); x.lineTo(px - 70, h); x.fill();
+        glowV158A(x, px, 4, 34, C[3], 0.55 * fl); glowV158A(x, px, 4, 16, C[2], 0.9 * fl);
+        x.fillStyle = C[2]; for (var b = 0; b < 5; b++) for (var r = 0; r < 2; r++) x.fillRect(px - 9 + b * 4, 1 + r * 3.5, 2.6, 2.6); });
+      for (var i = 0; i < 18; i++) { var a = 0.2 + 0.2 * Math.sin(t * 1.5 + i); glowV158A(x, rV158A(i, 221) * w, h * 0.5 + rV158A(i, 222) * h * 0.5, 4 + rV158A(i, 223) * 4, C[3], a); }
+    },
+    lineage: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[0]], [0.5, C[1]], [1, "#2a1d08"]]));
+      for (var y = 0; y < h; y += 3) { x.fillStyle = "rgba(0,0,0," + (0.05 + 0.06 * rV158A(y, 231)).toFixed(3) + ")"; x.fillRect(0, y, w, 1); }
+      x.strokeStyle = rgbaV158A(C[2], 0.45); x.lineWidth = 1.2;
+      var tree = function (px, py, len, an, d) { if (d > 4) return; var ex = px + Math.cos(an) * len, ey = py + Math.sin(an) * len; x.beginPath(); x.moveTo(px, py); x.lineTo(ex, ey); x.stroke(); tree(ex, ey, len * 0.7, an - 0.5, d + 1); tree(ex, ey, len * 0.7, an + 0.5, d + 1); };
+      tree(w * 0.78, h, 16, -Math.PI / 2, 0);
+      x.strokeStyle = rgbaV158A(C[2], 0.8); x.strokeRect(3.5, 3.5, w - 7, h - 7);
+      sheenV158A(x, w, h, t, 6, 0.2);
+    },
+    drive: function (x, w, h, t, C) {
+      var hz = h * 0.62; fillV158A(x, w, h, vgV158A(x, 0, hz, [[0, C[2]], [0.6, C[1]], [1, C[0]]]));
+      glowV158A(x, w * 0.5, hz, 50, "#fff3c4", 0.6); x.fillStyle = "#ffe08a"; x.beginPath(); x.arc(w * 0.5, hz, 12, Math.PI, 0); x.fill();
+      x.fillStyle = "#1a0f24"; x.fillRect(0, hz, w, h - hz); x.fillStyle = "#2a1a34"; x.beginPath(); x.moveTo(w * 0.47, hz); x.lineTo(w * 0.53, hz); x.lineTo(w * 0.8, h); x.lineTo(w * 0.2, h); x.fill();
+      x.fillStyle = "#ffd76f"; for (var i = 0; i < 6; i++) { var p = ((i + t * 1.2) % 6) / 6, yy = hz + (h - hz) * p * p, ww = 1 + p * 3; x.fillRect(w * 0.5 - ww / 2, yy, ww, 1 + p * 3); }
+    },
+    founder: function (x, w, h, t, C) {
+      for (var s = -h; s < w + h; s += 20) { x.fillStyle = C[0]; x.beginPath(); x.moveTo(s, 0); x.lineTo(s + 10, 0); x.lineTo(s + 10 + h, h); x.lineTo(s + h, h); x.fill(); x.fillStyle = C[1]; x.beginPath(); x.moveTo(s + 10, 0); x.lineTo(s + 20, 0); x.lineTo(s + 20 + h, h); x.lineTo(s + 10 + h, h); x.fill(); }
+      x.fillStyle = C[2]; x.fillRect(0, h - 2, w, 2); sheenV158A(x, w, h, t, 5, 0.12);
+      var ph = (t % 4) / 4; glowV158A(x, ph * w, h - 1, 14, C[2], 0.8);
+    },
+    /* a Career Pass banner (or anything else): its own CSS gradient under a moving sheen */
+    sheen: function (x, w, h, t) { x.clearRect(0, 0, w, h); sheenV158A(x, w, h, t, 5.5, 0.16); vignetteV158A(x, w, h, 0.25); }
+  };
+  /* the scoreboard's dot-matrix letters (5 wide, 7 tall) */
+  var FONT5_V158A = (function () {
+    var R = { T: ["11111", "00100", "00100", "00100", "00100", "00100", "00100"], O: ["01110", "10001", "10001", "10001", "10001", "10001", "01110"], U: ["10001", "10001", "10001", "10001", "10001", "10001", "01110"],
+      C: ["01111", "10000", "10000", "10000", "10000", "10000", "01111"], H: ["10001", "10001", "10001", "11111", "10001", "10001", "10001"], D: ["11110", "10001", "10001", "10001", "10001", "10001", "11110"],
+      W: ["10001", "10001", "10001", "10101", "10101", "11011", "10001"], N: ["10001", "11001", "10101", "10011", "10001", "10001", "10001"], G: ["01111", "10000", "10000", "10111", "10001", "10001", "01111"],
+      A: ["01110", "10001", "10001", "11111", "10001", "10001", "10001"], M: ["10001", "11011", "10101", "10101", "10001", "10001", "10001"], E: ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+      I: ["11111", "00100", "00100", "00100", "00100", "00100", "11111"], " ": ["00000", "00000", "00000", "00000", "00000", "00000", "00000"] };
+    var out = {}; Object.keys(R).forEach(function (k) { out[k] = R[k]; }); return out;
+  })();
+  /* one frame of one banner onto a canvas of css size w x h */
+  function banFrameV158A(cv, it, t) {
+    try {
+      var kind = it && it.b158 && BAN_V158A[it.b158] ? it.b158 : "sheen", w = cv.__w || cv.width, h = cv.__h || cv.height, dpr = cv.__dpr || 1, x = cv.getContext("2d");
+      x.setTransform(dpr, 0, 0, dpr, 0, 0); x.globalAlpha = 1; x.globalCompositeOperation = "source-over"; x.shadowBlur = 0; x.setLineDash([]);
+      if (kind !== "sheen") x.clearRect(0, 0, w, h);
+      var C = (it && it.col ? it.col : ["#1b2230", "#0b0f16"]).map(colV158A);
+      BAN_V158A[kind](x, w, h, t, C);
+      x.setTransform(1, 0, 0, 1, 0, 0); V158A.paints++;
+      return kind;
+    } catch (e) { errV158A(e); return null; }
+  }
+  /* ONE rAF loop for every animated banner on screen (the card's, the Locker's previews) */
+  var LOOP_V158A = { list: [], raf: 0, last: 0 };
+  function banRegV158A(cv, it) {
+    if (!cv) return false;
+    var still = reducedV158A() || typeof requestAnimationFrame !== "function";
+    banFrameV158A(cv, it, still ? TUv("v158AstillT", 2.4) : performance.now() / 1000);
+    if (still) return false;
+    for (var i = 0; i < LOOP_V158A.list.length; i++) if (LOOP_V158A.list[i].cv === cv) { LOOP_V158A.list[i].it = it; return true; }
+    if (LOOP_V158A.list.length >= TUv("v158Amax", 60)) LOOP_V158A.list.shift();
+    LOOP_V158A.list.push({ cv: cv, it: it, miss: 0 });
+    if (!LOOP_V158A.raf) LOOP_V158A.raf = requestAnimationFrame(banTickV158A);
+    return true;
+  }
+  function banTickV158A(ts) {
+    LOOP_V158A.raf = 0;
+    try {
+      if (ts - LOOP_V158A.last >= 1000 / Math.max(4, TUv("v158Afps", 24)) - 2 && !document.hidden && !reducedV158A()) {
+        LOOP_V158A.last = ts; V158A.ticks++;
+        var t = performance.now() / 1000;
+        for (var i = LOOP_V158A.list.length - 1; i >= 0; i--) { var r = LOOP_V158A.list[i];
+          if (!r.cv.isConnected) { if (++r.miss > 90) LOOP_V158A.list.splice(i, 1); continue; }
+          r.miss = 0; banFrameV158A(r.cv, r.it, t); }
+      }
+    } catch (e) { errV158A(e); }
+    if (LOOP_V158A.list.length && typeof requestAnimationFrame === "function") LOOP_V158A.raf = requestAnimationFrame(banTickV158A);
+  }
+  function sizeCvV158A(cv, w, h) { var dpr = Math.min(2, window.devicePixelRatio || 1); cv.__w = w; cv.__h = h; cv.__dpr = dpr; cv.width = Math.max(1, Math.round(w * dpr)); cv.height = Math.max(1, Math.round(h * dpr)); }
+  /* a card's band: a canvas behind its badges, sized to the band */
+  function dressBannerV158A(band) {
+    try {
+      if (!band || !banOnV158A()) return false;
+      var it = findItem(band.getAttribute("data-banner")); if (!it || it.cat !== "banner") return false;
+      var cv = band.querySelector(":scope > canvas.pc-bcv-v158a");
+      var w = band.clientWidth || 340, h = band.clientHeight || 58;
+      if (!cv) { cv = document.createElement("canvas"); cv.className = "pc-bcv-v158a"; cv.setAttribute("aria-hidden", "true"); band.insertBefore(cv, band.firstChild); }
+      if (cv.__w !== w || cv.__h !== h) sizeCvV158A(cv, w, h);
+      band.setAttribute("data-b158", it.b158 || "sheen"); band.classList.add("b158");
+      banRegV158A(cv, it); V158A.dressed++;
+      return true;
+    } catch (e) { errV158A(e); return false; }
+  }
+  function dressCardV158A(root) { try { (root || document).querySelectorAll(".pc-ban-v151b[data-banner]:not(.b158)").forEach(dressBannerV158A); } catch (e) {} }
+  setInterval(function () { if (banOnV158A() && document.querySelector(".pc-ban-v151b[data-banner]:not(.b158)")) dressCardV158A(document); }, 600);
+
+  /* ---------------- the card's classes (renderCard calls these) ---------------- */
+  var RAR_V158A = { common: 1, rare: 1, epic: 1, legendary: 1, mythic: 1 };
+  function cardOnV158A() { return onV158A("v158Acard"); }
+  function teamVarsV158A(cols) { if (!cardOnV158A()) return ""; var c = (cols || []).filter(hexOk); return c.length ? ' style="--t1:' + c[0] + ";--t2:" + (c[1] || c[0]) + '"' : ""; }
+  function titleClsV158A(ttl) { return ttl && cardOnV158A() && RAR_V158A[ttl.rarity] ? " t158 t158-" + ttl.rarity : ""; }
+  function badgeAttrsV158A(bdg) {
+    if (!bdg || !bdg.b158 || !cardOnV158A()) return { cls: "", style: "" };
+    return { cls: " b158 b158-" + bdg.b158 + (bdg.fx ? " b158-fx" : "") + " b158r-" + bdg.rarity, style: ' style="--b1:' + (hexOk(bdg.col) || "#f0bb45") + ";--b2:" + (hexOk(bdg.col2) || "#3a2a08") + '"' };
+  }
+  /* the nameplate's attributes on .pc-name-v151b (the old inline plate, or a material class) */
+  function plateAttrsV158A(npl) {
+    if (!npl) return "";
+    if (npl.np && cardOnV158A()) return ' data-plate="' + escHtml(npl.id) + '" data-np="' + escHtml(npl.np) + '"';
+    return npl.plate ? ' style="background:' + npl.plate + ';padding:1px 6px;border-radius:5px" data-plate="' + escHtml(npl.id) + '"' : "";
+  }
+  function plateClsV158A(npl) { return npl && npl.np && cardOnV158A() ? " np158 np158-" + npl.np : ""; }
+
+  /* ---------------- the Locker's previews ---------------- */
+  function previewV158A(el, it) {
+    try {
+      var cat = it.cat;
+      if (cat === "banner" && banOnV158A()) {
+        el.innerHTML = ""; var cv = document.createElement("canvas"); cv.className = "cos-ban-v158a"; sizeCvV158A(cv, 64, 40); el.appendChild(cv);
+        if (!it.b158) { cv.style.background = it.bg; }
+        banRegV158A(cv, it); return true;
+      }
+      if (!cardOnV158A()) return false;
+      if (cat === "title" && it.text) { el.innerHTML = '<div class="cos-flair-v151b t158p"><small class="t158' + titleClsV158A(it) + '">' + escHtml(it.text) + "</small></div>"; return true; }
+      if (cat === "badge" && it.b158) { var b = badgeAttrsV158A(it); el.innerHTML = '<div class="b158w"><span class="pc-bdg-v151b b158p' + b.cls + '"' + b.style + ">" + escHtml(it.glyph) + "</span></div>"; return true; }
+      if (cat === "nameplate" && it.np) {
+        var nm = "NAME"; try { var st = gstate(); nm = String((st && st.player && st.player.name) || "NAME").split(" ").pop().toUpperCase().slice(0, 9); } catch (e) {}
+        el.innerHTML = '<div class="np158p"><div class="pc-name-v151b' + plateClsV158A(it) + '" data-np="' + escHtml(it.np) + '">' + escHtml(nm) + "</div></div>"; return true;
+      }
+    } catch (e) { errV158A(e); }
+    return false;
+  }
+
+  /* ---------------- the look ---------------- */
+  /* the frames: a ring masked to the card's border (::after), its gradient panned / flickered / chased */
+  var FRAMES_V158A = {
+    team158: { bd: "var(--t1,#1f4fd0)", ring: "repeating-linear-gradient(135deg,var(--t1,#1f4fd0) 0 7px,var(--t2,#e8c86a) 7px 14px)", size: "200% 200%", anim: "pan 6s linear", glow: "rgba(0,0,0,0)" },
+    pixel158: { bd: "#ff3d7f", ring: "repeating-linear-gradient(90deg,#ff3d7f 0 6px,#18c3b8 6px 12px,#ffd76f 12px 18px,#6fd3ff 18px 24px)", size: "96px 96px", anim: "chase 1.6s steps(8)", glow: "rgba(255,61,127,.25)" },
+    sakura158: { bd: "#ffb3c7", ring: "linear-gradient(90deg,#ffd6e2,#ff7aa2,#fff0f5,#ff9ac0,#ffd6e2)", size: "300% 100%", anim: "pan 7s ease-in-out", glow: "rgba(255,122,162,.35)" },
+    toxic158: { bd: "#9dff2f", ring: "repeating-linear-gradient(45deg,#9dff2f 0 6px,#0b0f06 6px 12px)", size: "200% 200%", anim: "pan 3s linear", glow: "rgba(157,255,47,.45)", pulse: 1 },
+    glacier158: { bd: "#dff4ff", ring: "linear-gradient(120deg,#ffffff,#8fd0ff,#dff4ff,#3a7fbf,#ffffff)", size: "300% 300%", anim: "pan 6s ease-in-out", glow: "rgba(143,208,255,.45)" },
+    marquee158: { bd: "#3a2a08", ring: "radial-gradient(circle,#fff3a0 0 1.8px,rgba(255,176,46,.35) 2.4px,transparent 3px) 0 0/9px 9px,#3a2a08", size: "9px 9px", anim: "bulbs 0.9s steps(3)", glow: "rgba(255,215,111,.4)", w: 5 },
+    ember158: { bd: "#ff5a1a", ring: "linear-gradient(0deg,#ffe14d,#ff7a1a,#a8180a,#ff7a1a,#ffe14d)", size: "100% 300%", anim: "rise 2.2s linear", glow: "rgba(255,90,26,.5)", pulse: 1 },
+    aurora158: { bd: "#3fffb0", ring: "linear-gradient(90deg,#3fffb0,#3fb6ff,#9a6bff,#ff6bd6,#3fffb0)", size: "300% 100%", anim: "pan 5s linear", glow: "rgba(63,182,255,.5)" },
+    laurel158: { bd: "#e6c46a", ring: "repeating-linear-gradient(60deg,#e6c46a 0 5px,#3f7a2a 5px 8px,#8fcf5a 8px 11px,#e6c46a 11px 16px)", size: "200% 200%", anim: "pan 9s linear", glow: "rgba(230,196,106,.45)", w: 4 },
+    obsidian158: { bd: "#1a1a22", ring: "linear-gradient(100deg,#0b0b10 0%,#2a2a36 40%,#ffffff 50%,#2a2a36 60%,#0b0b10 100%)", size: "300% 100%", anim: "pan 3.6s ease-in-out", glow: "rgba(160,160,200,.35)" },
+    filigree158: { bd: "#ffd76f", ring: "linear-gradient(90deg,#8a6414,#fff3c4,#e6b53a,#8a6414,#fff3c4,#e6b53a)", size: "300% 100%", anim: "pan 4s linear", glow: "rgba(255,215,111,.6)", w: 4, dbl: "#8a6414" },
+    starlight158: { bd: "#b9a6ff", ring: "radial-gradient(circle,#ffffff 0 0.9px,transparent 1.4px) 0 0/11px 13px,radial-gradient(circle,#ffe98a 0 0.8px,transparent 1.3px) 5px 6px/17px 11px,linear-gradient(90deg,#2a1650,#7a3aff,#2a1650)", size: "11px 13px,17px 11px,200% 100%", anim: "twinkle 3s linear", glow: "rgba(122,58,255,.6)", w: 4 },
+    livewire158: { bd: "#8fe3ff", ring: "repeating-linear-gradient(90deg,#ffffff 0 3px,#6fd3ff 3px 9px,#1f5fbf 9px 14px)", size: "200% 100%", anim: "flicker 0.9s steps(4)", glow: "rgba(111,211,255,.7)" },
+    prism158: { bd: "#ff6b6b", ring: "linear-gradient(90deg,#ff6b6b,#ffd76f,#6fffb0,#6fd3ff,#b98bff,#ff6bd6,#ff6b6b)", size: "400% 100%", anim: "pan 3s linear", glow: "rgba(255,255,255,.35)", w: 4 }
+  };
+  (function () {
+    if (document.getElementById("cosV158Acss")) return;
+    var L = [];
+    /* the card's banner canvas sits behind the band's badges */
+    L.push(".pc-ban-v151b.b158{overflow:hidden}.pc-ban-v151b>.pc-bcv-v158a{position:absolute;left:0;top:0;width:100%;height:100%;display:block;pointer-events:none;z-index:0}.pc-ban-v151b.b158>span{z-index:1}");
+    L.push(".cos-ban-v158a,.cos-pvbox-v151b canvas.cos-ban-v158a{width:64px;height:40px;border-radius:6px;display:block;image-rendering:auto;box-shadow:0 0 0 1px rgba(255,255,255,.12)}");
+    /* frames */
+    var sel = [], rm = [];
+    Object.keys(FRAMES_V158A).forEach(function (k) {
+      var F = FRAMES_V158A[k], w = F.w || 3;
+      L.push(".pcard-v151b.fr-" + k + "{border-color:" + F.bd + ";box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 18px " + F.glow + ",0 10px 26px rgba(0,0,0,.5)" + (F.dbl ? ",0 0 0 4px " + F.dbl : "") + (F.pulse ? ";animation:fr158Pulse 2.4s ease-in-out infinite" : "") + "}");
+      L.push(".pcard-v151b.fr-" + k + "::after{content:'';position:absolute;inset:0;border-radius:inherit;padding:" + w + "px;pointer-events:none;z-index:4;background:" + F.ring + ";background-size:" + F.size + ";-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:fr158" + F.anim.split(" ")[0].replace(/^./, function (c) { return c.toUpperCase(); }) + " " + F.anim.split(" ").slice(1).join(" ") + " infinite}");
+      sel.push(".pcard-v151b.fr-" + k + "::after"); rm.push(".pcard-v151b.fr-" + k);
+    });
+    L.push("@keyframes fr158Pan{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}");
+    L.push("@keyframes fr158Chase{from{background-position:0 0}to{background-position:96px 0}}");
+    L.push("@keyframes fr158Bulbs{from{background-position:0 0}to{background-position:9px 0}}");
+    L.push("@keyframes fr158Rise{from{background-position:50% 0%}to{background-position:50% 100%}}");
+    L.push("@keyframes fr158Twinkle{0%{background-position:0 0,5px 6px,0% 50%;filter:brightness(1)}50%{background-position:0 13px,-12px 6px,100% 50%;filter:brightness(1.35)}100%{background-position:0 26px,-29px 6px,0% 50%;filter:brightness(1)}}");
+    L.push("@keyframes fr158Flicker{0%{opacity:1;background-position:0 0}30%{opacity:.55}45%{opacity:1;background-position:40% 0}70%{opacity:.8}100%{opacity:1;background-position:100% 0}}");
+    L.push("@keyframes fr158Pulse{0%,100%{filter:none}50%{filter:brightness(1.12)}}");
+    L.push("@media(prefers-reduced-motion:reduce){" + sel.join(",") + "{animation:none}" + rm.join(",") + "{animation:none}}");
+    L.push(".cos-mini-v151b.pcard-v151b::after{padding:2px}");
+    /* titles: the rarity is the style */
+    L.push(".t158{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:top}");
+    L.push(".pc-title-v151b.t158{display:block}");
+    L.push(".t158-common{color:#c9d2de!important}");
+    L.push(".t158-rare{color:#8fc3ff!important;text-shadow:0 0 6px rgba(90,160,255,.55)}");
+    L.push(".t158-epic{background:linear-gradient(90deg,#e0b8ff,#9a6bff,#ff9ad5,#e0b8ff);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;animation:t158Pan 5s linear infinite;filter:drop-shadow(0 0 3px rgba(154,107,255,.5))}");
+    L.push(".t158-legendary{background:linear-gradient(100deg,#b8861f 0%,#ffd76f 30%,#fff9e0 45%,#ffd76f 60%,#b8861f 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;animation:t158Pan 3.2s linear infinite;filter:drop-shadow(0 0 3px rgba(255,215,111,.55));letter-spacing:1.6px!important}");
+    L.push(".t158-mythic{background:linear-gradient(90deg,#ff6b6b,#ffd76f,#6fffb0,#6fd3ff,#b98bff,#ff6bd6,#ff6b6b);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;animation:t158Pan 4s linear infinite;filter:drop-shadow(0 0 4px rgba(255,255,255,.45));letter-spacing:2px!important;font-weight:700!important}");
+    L.push(".t158-mythic::before,.t158-legendary::before{content:'✦ ';-webkit-text-fill-color:currentColor}");
+    L.push("@keyframes t158Pan{from{background-position:0% 50%}to{background-position:250% 50%}}");
+    L.push(".t158p small{font-size:10px;letter-spacing:1px}");
+    L.push("@media(prefers-reduced-motion:reduce){.t158{animation:none!important}}");
+    /* badges: an enamel pin */
+    var CLIP = { shield: "polygon(50% 0,100% 16%,94% 66%,50% 100%,6% 66%,0 16%)", star: "polygon(50% 0,63% 34%,100% 36%,71% 58%,81% 96%,50% 75%,19% 96%,29% 58%,0 36%,37% 34%)", hex: "polygon(25% 3%,75% 3%,100% 50%,75% 97%,25% 97%,0 50%)", diamond: "polygon(50% 0,100% 50%,50% 100%,0 50%)", round: "circle(50% at 50% 50%)" };
+    L.push(".pc-bdg-v151b.b158{position:absolute;display:grid;place-items:center;width:28px;height:28px;right:60px;top:8px;font:700 14px/1 Oswald,sans-serif;color:#fff;background:radial-gradient(circle at 38% 30%,color-mix(in srgb,var(--b1) 55%,#fff) 0,var(--b1) 45%,var(--b2) 100%);filter:drop-shadow(0 2px 2px rgba(0,0,0,.7)) drop-shadow(0 0 1px var(--b2));overflow:hidden;text-shadow:0 1px 1px rgba(0,0,0,.6)}");
+    Object.keys(CLIP).forEach(function (k) { L.push(".b158-" + k + "{clip-path:" + CLIP[k] + "}"); });
+    L.push(".b158-star{font-size:11px}.b158-star::first-line{line-height:1.4}");
+    L.push(".b158-fx::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.75) 48%,transparent 62%);background-size:300% 100%;animation:b158Shine 2.8s ease-in-out infinite}");
+    L.push("@keyframes b158Shine{0%{background-position:120% 0}60%,100%{background-position:-60% 0}}");
+    L.push(".b158p.pc-bdg-v151b{position:relative;right:auto;top:auto;width:42px;height:42px;font-size:21px}");
+    L.push("@media(prefers-reduced-motion:reduce){.b158-fx::after{animation:none;opacity:0}}");
+    /* nameplates: a material */
+    var NP = {
+      team: "background:linear-gradient(90deg,var(--t1,#1f4fd0),var(--t2,#e8c86a));color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.8)",
+      stone: "background:radial-gradient(circle at 20% 30%,rgba(255,255,255,.12) 0 1px,transparent 2px) 0 0/7px 7px,linear-gradient(180deg,#a9a59c,#6e6a62);color:#3a3834;text-shadow:0 1px 0 rgba(255,255,255,.4),0 -1px 0 rgba(0,0,0,.55);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),inset 0 -2px 0 rgba(0,0,0,.25)",
+      oak: "background:repeating-linear-gradient(90deg,rgba(0,0,0,.12) 0 1px,transparent 1px 9px),linear-gradient(180deg,#9a6a3a,#5a3a1e);color:#2a1608;text-shadow:0 1px 0 rgba(255,220,170,.35),0 -1px 0 rgba(0,0,0,.4);box-shadow:inset 0 0 0 1px rgba(40,20,8,.6)",
+      carbon: "background:repeating-linear-gradient(45deg,#15181d 0 3px,#262b33 3px 6px),repeating-linear-gradient(-45deg,rgba(255,255,255,.04) 0 3px,transparent 3px 6px);color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)",
+      neon: "background:#12051f;color:#fff;text-shadow:0 0 3px #ff3df2,0 0 8px #ff3df2,0 0 14px #ff3df2;box-shadow:inset 0 0 0 1px #ff3df2,0 0 8px rgba(255,61,242,.5);animation:np158Flicker 4s steps(1) infinite",
+      chrome: "background:linear-gradient(180deg,#ffffff,#b9c3d2 45%,#6a7484 52%,#dfe6f0 100%);color:#1b2230;text-shadow:0 1px 0 rgba(255,255,255,.6);box-shadow:inset 0 0 0 1px rgba(40,50,70,.45)",
+      varsity: "background:var(--t1,#8a1c2b);color:#fff;text-shadow:-1px 0 var(--t2,#e8c86a),1px 0 var(--t2,#e8c86a),0 1px var(--t2,#e8c86a),0 -1px var(--t2,#e8c86a);outline:1.5px dashed var(--t2,#e8c86a);outline-offset:-3px",
+      frost: "background:linear-gradient(180deg,#f4fbff,#a8dbff);color:#0c2a4a;text-shadow:0 1px 0 rgba(255,255,255,.7);box-shadow:inset 0 0 0 1px rgba(255,255,255,.8),0 0 8px rgba(143,208,255,.45)",
+      gold: "background:linear-gradient(180deg,#fff3c4,#e6b53a 45%,#b8861f 55%,#f0c850);color:#2a1a04;text-shadow:0 1px 0 rgba(255,255,255,.5);box-shadow:inset 0 0 0 1px rgba(90,60,8,.55),0 0 8px rgba(255,215,111,.35)",
+      marble: "background:linear-gradient(135deg,rgba(120,112,100,.25) 0 1px,transparent 1px 30%) 0 0/60px 30px,linear-gradient(135deg,#f6f3ee,#d6d0c4 50%,#f3f0ea);color:#1b1b1b;border-bottom:2px solid #d4af37",
+      diamond: "background:linear-gradient(135deg,#ffffff 0 20%,#dff6ff 20% 40%,#bfefff 40% 60%,#ffffff 60% 80%,#cfeeff 80%);color:#0c1a33;text-shadow:0 1px 0 #fff;box-shadow:inset 0 0 0 1px rgba(111,211,255,.8),0 0 12px rgba(191,239,255,.7)",
+      magma: "background:linear-gradient(90deg,transparent 0 30%,rgba(255,122,26,.55) 32%,transparent 34% 70%,rgba(255,176,46,.5) 72%,transparent 74%) 0 0/200% 100%,linear-gradient(180deg,#3a0a04,#0a0202);color:#ffd08a;text-shadow:0 0 6px #ff5a1a;animation:np158Pan 6s linear infinite",
+      holo: "background:linear-gradient(90deg,#ffd6f0,#d6f0ff,#e0ffd6,#fff6c0,#ffd6f0);background-size:300% 100%;color:#1a1030;text-shadow:0 1px 0 rgba(255,255,255,.7);animation:np158Pan 4s linear infinite",
+      galaxy: "background:radial-gradient(circle,#fff 0 .6px,transparent 1px) 0 0/9px 7px,radial-gradient(circle,#ffb8e6 0 .6px,transparent 1px) 4px 3px/13px 9px,linear-gradient(90deg,#1a0f33,#3a1a6a,#05030f);color:#fff;text-shadow:0 0 6px #9a7bff;animation:np158Stars 8s linear infinite"
+    };
+    Object.keys(NP).forEach(function (k) { L.push(".pc-name-v151b.np158-" + k + "{" + NP[k] + "}"); });
+    L.push(".pc-name-v151b.np158{position:relative;display:inline-block;max-width:100%;padding:1px 8px;border-radius:5px;vertical-align:top}");
+    L.push(".np158-gold::after,.np158-chrome::after,.np158-diamond::after,.np158-marble::after{content:'';position:absolute;top:0;bottom:0;left:-40%;width:30%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.75),transparent);animation:np158Shine 3.4s ease-in-out infinite;pointer-events:none}");
+    L.push("@keyframes np158Shine{0%{left:-40%}55%,100%{left:120%}}@keyframes np158Pan{from{background-position:0 0}to{background-position:300% 0}}@keyframes np158Stars{from{background-position:0 0,4px 3px,0 0}to{background-position:90px 0,-126px 3px,0 0}}");
+    L.push("@keyframes np158Flicker{0%,100%{opacity:1}91%{opacity:1}92%{opacity:.55}93%{opacity:1}96%{opacity:.7}97%{opacity:1}}");
+    L.push("@media(prefers-reduced-motion:reduce){.np158,.np158::after{animation:none!important}.np158::after{opacity:0}}");
+    L.push(".np158p{width:100%;display:grid;place-items:center;height:40px}.np158p .pc-name-v151b{font-size:13px}");
+    /* shelves */
+    var SH = {
+      carbon158: "background:repeating-linear-gradient(45deg,#15181d 0 4px,#23272e 4px 8px)!important;border-bottom-color:#0b0d10!important",
+      locker158: "background:repeating-linear-gradient(90deg,transparent 0 8px,rgba(0,0,0,.25) 8px 10px) 0 4px/100% 6px no-repeat,linear-gradient(180deg,#4a6a8a,#2a3a4e)!important;border-bottom-color:#1a2432!important",
+      stone158: "background:radial-gradient(circle at 30% 40%,rgba(255,255,255,.1) 0 1px,transparent 2px) 0 0/8px 8px,linear-gradient(180deg,#8a867e,#5a564e)!important;border-bottom-color:#3a3630!important",
+      neon158: "background:#0e0618!important;border-bottom-color:#ff3df2!important;box-shadow:0 0 0 1px #ff3df2 inset,0 0 14px rgba(255,61,242,.45),0 4px 8px rgba(0,0,0,.4)!important;animation:sh158Glow 2.6s ease-in-out infinite",
+      ice158: "background:linear-gradient(180deg,rgba(223,244,255,.3),rgba(111,182,255,.12))!important;border:1px solid rgba(223,244,255,.7)!important;border-bottom:3px solid #bfe6ff!important;box-shadow:0 0 12px rgba(143,208,255,.35)!important",
+      walnut158: "background:repeating-linear-gradient(90deg,rgba(0,0,0,.12) 0 1px,transparent 1px 11px),linear-gradient(180deg,#5a3a22,#2e1c10)!important;border-bottom:4px solid #b8861f!important;box-shadow:0 0 0 1px rgba(184,134,31,.6) inset!important",
+      velvet158: "background:radial-gradient(ellipse at 50% 0,rgba(255,255,255,.15),transparent 70%),linear-gradient(180deg,#8a1020,#4a0610)!important;border-bottom:4px solid #e6c46a!important",
+      diamond158: "background:linear-gradient(135deg,rgba(255,255,255,.35) 0 20%,rgba(191,239,255,.2) 20% 40%,rgba(255,255,255,.3) 40% 60%,rgba(191,239,255,.15) 60%),linear-gradient(180deg,#1f3a5a,#0c1a33)!important;border-bottom:3px solid #bfefff!important;box-shadow:0 0 16px rgba(191,239,255,.5)!important",
+      holo158: "background:linear-gradient(90deg,rgba(24,240,224,.25),rgba(185,139,255,.25),rgba(24,240,224,.25)) 0 0/300% 100%,linear-gradient(180deg,#062a2e,#021418)!important;border-bottom:3px solid #18f0e0!important;animation:sh158Pan 4s linear infinite",
+      galaxy158: "background:radial-gradient(circle,#fff 0 .7px,transparent 1.2px) 0 0/12px 9px,radial-gradient(circle,#ffb8e6 0 .6px,transparent 1.1px) 5px 4px/17px 13px,linear-gradient(180deg,#2a1650,#05030f)!important;border-bottom:3px solid #b98bff!important;box-shadow:0 0 16px rgba(122,58,255,.45)!important"
+    };
+    Object.keys(SH).forEach(function (k) { L.push(".sh-" + k + "{" + SH[k] + "}"); });
+    L.push(".sh-stone158 small,.sh-locker158 small{color:#e6ecf5!important}.sh-neon158 small{color:#ff9af0!important}.sh-ice158 small{color:#dff4ff!important}.sh-walnut158 small,.sh-velvet158 small{color:#ffe7a8!important}.sh-holo158 small{color:#9dfff4!important}.sh-galaxy158 small,.sh-diamond158 small{color:#e8e0ff!important}");
+    L.push("@keyframes sh158Glow{0%,100%{filter:none}50%{filter:brightness(1.25)}}@keyframes sh158Pan{from{background-position:0 0,0 0}to{background-position:300% 0,0 0}}");
+    L.push("@media(prefers-reduced-motion:reduce){.sh-neon158,.sh-holo158{animation:none!important}}");
+    /* recaps: the Locker's thumbnail and the skin over the real report */
+    var RC = {
+      vhs: ["background:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px),#141414!important;border-color:#ff3b3b!important", "color:#ff3b3b!important;font-family:'Courier New',monospace!important"],
+      blueprint: ["background:repeating-linear-gradient(0deg,rgba(255,255,255,.12) 0 1px,transparent 1px 8px),repeating-linear-gradient(90deg,rgba(255,255,255,.12) 0 1px,transparent 1px 8px),#1f4f8a!important;border-color:#dfefff!important", "color:#ffffff!important;font-family:'Courier New',monospace!important"],
+      stone: ["background:linear-gradient(180deg,#a9a59c,#6e6a62)!important;border-color:#3a3834!important", "color:#2a2824!important;text-shadow:0 1px 0 rgba(255,255,255,.4)"],
+      comic: ["background:radial-gradient(circle,#ffd23f 0 1.4px,transparent 1.8px) 0 0/6px 6px,#fff6d0!important;border:2px solid #111!important", "color:#e0202a!important;font-family:Impact,sans-serif!important;text-shadow:1px 1px 0 #111"],
+      ticker: ["background:linear-gradient(180deg,#0c1a33 70%,#c8102e 70%)!important;border-color:#e6ecf5!important", "color:#ffffff!important"],
+      arcade: ["background:#050510!important;border-color:#57e07a!important;box-shadow:0 0 10px rgba(87,224,122,.45)", "color:#57e07a!important;font-family:'Courier New',monospace!important"],
+      cover: ["background:linear-gradient(160deg,#ffffff,#e8e8e8)!important;border-color:#c8102e!important;border-top:6px solid #c8102e!important", "color:#111!important;font-family:Georgia,serif!important"],
+      cosmic: ["background:radial-gradient(circle,#fff 0 .6px,transparent 1px) 0 0/7px 6px,linear-gradient(160deg,#2a1650,#05030f)!important;border-color:#b98bff!important;box-shadow:0 0 12px rgba(122,58,255,.5)", "color:#e0d0ff!important;text-shadow:0 0 6px #9a7bff"]
+    };
+    var SKIN = {
+      vhs: "#screen .card{background:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px),#121212!important;border-color:#ff3b3b!important}#screen .card .h1{color:#ff3b3b!important;font-family:'Courier New',monospace;letter-spacing:2px}",
+      blueprint: "#screen .card{background:repeating-linear-gradient(0deg,rgba(255,255,255,.07) 0 1px,transparent 1px 14px),repeating-linear-gradient(90deg,rgba(255,255,255,.07) 0 1px,transparent 1px 14px),#1f4f8a!important;border-color:#dfefff!important}#screen .card .h1{color:#fff!important;font-family:'Courier New',monospace}",
+      stone: "#screen .card{background:linear-gradient(180deg,#8a867e,#5a564e)!important;border-color:#3a3630!important}#screen .card .h1{color:#f3f0ea!important;text-shadow:0 -1px 0 rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.25)}",
+      comic: "#screen .card{background:radial-gradient(circle,rgba(255,210,63,.35) 0 1.4px,transparent 1.8px) 0 0/7px 7px,#fff6d0!important;border:3px solid #111!important;color:#111!important}#screen .card .h1{color:#e0202a!important;font-family:Impact,sans-serif;text-shadow:2px 2px 0 #111}#screen .card .sub,#screen .card .small{color:#111!important}",
+      ticker: "#screen .card{background:linear-gradient(180deg,#0c1a33,#08101f)!important;border-color:#c8102e!important;border-bottom:5px solid #c8102e!important}#screen .card .h1{color:#fff!important}",
+      arcade: "#screen .card{background:#050510!important;border-color:#57e07a!important;box-shadow:0 0 14px rgba(87,224,122,.35)!important}#screen .card .h1{color:#57e07a!important;font-family:'Courier New',monospace;letter-spacing:2px}",
+      cover: "#screen .card{background:linear-gradient(160deg,#ffffff,#ececec)!important;border-color:#c8102e!important;border-top:6px solid #c8102e!important;color:#111!important}#screen .card .h1{color:#111!important;font-family:Georgia,serif}#screen .card .sub,#screen .card .small{color:#333!important}",
+      cosmic: "#screen .card{background:radial-gradient(circle,rgba(255,255,255,.6) 0 .6px,transparent 1px) 0 0/11px 9px,linear-gradient(160deg,#2a1650,#05030f)!important;border-color:#b98bff!important;box-shadow:0 0 16px rgba(122,58,255,.4)!important}#screen .card .h1{color:#e0d0ff!important;text-shadow:0 0 8px #9a7bff}"
+    };
+    Object.keys(RC).forEach(function (k) {
+      L.push(".rc-" + k + "{" + RC[k][0] + "}.rc-" + k + " b{" + RC[k][1] + "}");
+      L.push(SKIN[k].split("}").filter(Boolean).map(function (r) { return "html[data-cos-recap=" + k + "] " + r + "}"; }).join(""));
+    });
+    var st = document.createElement("style"); st.id = "cosV158Acss"; st.textContent = L.join("\n");
+    (document.head || document.documentElement).appendChild(st);
+  })();
+
+  /* what the check and the other files read */
+  Object.assign(V158A, {
+    items: function () { return ITEMS_V158A.map(function (it) { return { id: it.id, cat: it.cat, name: it.name, rarity: it.rarity, source: it.source, ach: it.ach || null }; }); },
+    faces: function () { return Object.keys(FACES_V158A); }, painters: function () { return Object.keys(BAN_V158A); }, frames: function () { return Object.keys(FRAMES_V158A); },
+    paintBanner: function (cv, id, t) { var it = findItem(id); if (!it) return null; if (!cv.__w) sizeCvV158A(cv, cv.width, cv.height); return banFrameV158A(cv, it, t); },
+    numRender: nfRenderV158A, numMask: function (style, txt, IH) { var F = FACES_V158A[style]; return F ? nfMaskV158A(F, String(txt), IH) : null; },
+    helmMask: helmMaskV158A, iconEarnedTick: iconEarnedTickV158A, dressCard: dressCardV158A, loop: LOOP_V158A, reduced: reducedV158A
+  });
+
   /* ---------------- the API ---------------- */
   var API = {
     version: "v151b", slots: SLOTS.slice(), cats: CATS, achievements: ACH.map(function (a) { return { id: a.id, name: a.name, desc: a.desc }; }),
@@ -3482,6 +4638,7 @@
     fieldFx: fieldFxV153G, flair: flairV153G, wingArt: wingArtV153G, crownArt: crownArtV153G, cardFlair: cardFlairV153G,   // v153 G
     face: faceV157C, drawFigure: drawFigureV157C, growFigure: growFigureV157C, jerseyNum: jerseyNumV157C, iconRules: function () { return ICON_RULES_V157C.map(function (r) { return { id: r.id, name: r.name, desc: r.desc, rarity: r.rarity }; }); },
     iconAccount: iconAccountV157C, iconTick: iconTickV157C, paintBadge: paintBadgeV157C,   // v157 C
+    numRender: nfRenderV158A, paintBanner: V158A.paintBanner, dressCard: dressCardV158A,   // v158 A
     _reset: function () { mem = null; try { localStorage.removeItem(KEY); } catch (e) {} fire({ reset: 1 }); }
   };
   window.RIB_COSMETICS = API;

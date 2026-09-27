@@ -164,7 +164,7 @@ const played = (page) => M(page, () => window.S.player.weekResults.filter((w) =>
     place: Object.entries(R.config.placements).map(([k, v]) => k + ':' + v.reward.key).join(','), allOk: Object.values(R.config.placements).every((v) => R.keyAllowed(v.reward.key === 'try:*' ? 'try:x' : v.reward.key)) } })
   ok(!gd.pp.ok && /never sold/.test(gd.pp.errors.join()) && !gd.stat && !gd.reroll && gd.cos && gd.grant === false, 'ON: the catalogue guard refuses PP / stat / reroll products and grant() refuses power keys; a cosmetic passes', gd)
   ok(gd.cat === 'rib.noads=$3.99,rib.pro=$8.99,rib.founder=$14.99' && /rib\.upgrade\.noads_pro=\$5\.00/.test(gd.ups) && /rib\.upgrade\.pro_founder=\$6\.00/.test(gd.ups), 'ON: the three tiers at $3.99 / $8.99 / $14.99, upgrades at the difference', { cat: gd.cat, ups: gd.ups })
-  ok(gd.place === 'speed4:speed4,simUnlimited:simUnlimited,cosTrial:try:*' && gd.allOk, 'ON: every rewarded placement is a convenience (4× for 20 min, 30 min of unlimited season sims, a 24h trial) — no PP double', gd.place)
+  ok(gd.place === 'speed4:speed4,gameSims:gameSims,cosTrial:try:*' && gd.allOk, 'ON: every rewarded placement is a convenience (4× for 20 min, 30 min of unlimited game sims — v158 B, a 24h trial) — no PP double', gd.place)
   // 4× is Pro's; 3× is still the UFF's
   await goLive(p)
   const s4 = await M(p, async () => { window.setSpeed(2); window.setSpeed(4); await new Promise((r) => setTimeout(r, 200)); const o = { speed: window.__getGridironLiveSpeed(), sheet: !!document.getElementById('mz149Sheet'), lab: (document.querySelector('.speed-btn[data-spd="4"] small') || {}).textContent }
@@ -227,9 +227,9 @@ const played = (page) => M(page, () => window.S.player.weekResults.filter((w) =>
   ok(fl.locked && /Pro/.test(fl.text), 'ON: a free player\'s advanced filters are a locked "Pro Career" chip', fl)
   const skip = await M(p, async () => { window.go('season'); window.S.player.simsUsedV156B = 1; const n0 = window.S.player.weekResults.filter((w) => w.played).length; window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 300))
     const sheet = document.getElementById('mz149Sheet'), txt = sheet ? sheet.textContent : ''; sheet?.remove()
-    const ad = await RIB_MONETIZE.rewardSim(); const left = window.__V151A.skips().left; window.seasonSkipV151A(); await new Promise((r) => setTimeout(r, 2500)); document.getElementById('growthV42')?.remove()
-    return { n0, txt, ad: ad.rewarded, left, n1: window.S.player.weekResults.filter((w) => w.played).length, used: window.S.player.simsUsedV156B, unl: RIB_MONETIZE.has('simUnlimited') } })
-  ok(/NO SEASON SIMS LEFT THIS CAREER/.test(skip.txt) && /BRONZE medals/.test(skip.txt) && /Quick Play/.test(skip.txt) && skip.ad && skip.left === Infinity && skip.n1 > skip.n0 + 1 && skip.used === 1 && skip.unl, 'ON: no sims → the sheet says how medals add them (and that Quick Play is free); a watched ad makes sims unlimited, the sim runs and nothing is counted', skip)
+    const ad = await RIB_MONETIZE.rewardSim(); const left = window.__V151A.skips().left; window.playWeek(false); await new Promise((r) => setTimeout(r, 1500)); document.getElementById('growthV42')?.remove()
+    return { n0, txt, ad: ad.rewarded, left, n1: window.S.player.weekResults.filter((w) => w.played).length, used: window.S.player.simsUsedV156B, games: RIB_MONETIZE.has('gameSims') } })
+  ok(/NO SEASON SIMS LEFT THIS CAREER/.test(skip.txt) && /BRONZE medals/.test(skip.txt) && /Quick Play/.test(skip.txt) && skip.ad && skip.left === 0 && skip.n1 === skip.n0 + 1 && skip.used === 1 && skip.games, 'ON: no sims → the sheet says how medals add them (and that Quick Play is a member perk or an ad); a watched ad gives 30 min of game sims — Quick Play runs, season sims stay counted (v158 B)', skip)
   const cap = await M(p, async () => { const R = RIB_MONETIZE, out = { left0: R.adsLeft() }
     out.t = (await R.showRewarded('cosTrial', { item: 'uni_z' })).rewarded; out.trial = R.cosmeticAccess('uni_z')
     out.a = (await R.showRewarded('speed4')).rewarded; out.b = (await R.showRewarded('speed4')).rewarded; out.c = await R.showRewarded('speed4'); out.leftEnd = R.adsLeft()

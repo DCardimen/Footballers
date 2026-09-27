@@ -10,6 +10,24 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v158 — the card, dressed; try both sides of the store.** (`src/28-cosmetics.js`, `src/27-monetize.js`,
+  `src/07-career-app.js`; `v158Acheck`, `v158Bcheck`.)
+  *A — the card, dressed* (`v158 A THE CARD, DRESSED`): 26 new animated BANNERS (the old ones redrawn), and every
+  other card slot deepened — 19 titles (all titles styled by rarity), 13 enamel badges, 14 material nameplates, 14
+  animated frames, 10 shelves, 8 recap skins, 9 vault themes, 9 stadiums, 9 celebrations; no legendary/mythic look is
+  free, the flashiest are the membership's, several are earned by holding a profile icon. NUMBER FONTS rebuilt as
+  pixel-exact stroke faces with real finishes (outline, drop shadow, chrome, gold foil, neon, LED, icicles, …) —
+  15 new, the old ones redrawn — on the chest, the Locker and the field. HELMET STRIPES follow the head: the field
+  sprite's recolour used to paint the centre column on every frame (a bar down the side of a side view); it now
+  traces the art's own stripe — down the middle from the front and back, along the top in profile, offset at 3/4 —
+  and the profile figure draws twin/wide stripes and decals too.
+  *B — try both sides of the store* (`v158 B TRY BOTH SIDES OF THE STORE`, `v158 B GAME SIMS ARE THE MEMBER'S`):
+  Settings › GAME › EXPERIENCE: Off (the build as it ships) · Free-to-play · Member — a preview that turns the store ON
+  in a sandbox (its own entitlement keys, never the save), with a PREVIEW chip. In F2P every ad is a full-screen 15-s
+  placeholder ("An ad will be placed here", the reward named, a countdown, SKIP for now), plus one break between
+  seasons. The owner's sim rules while the store is ON: Quick Play (one game) is the member's — a free player gets 30
+  minutes of unlimited game sims from an ad; season sims stay the medal allowance, and members get twice it (2 → 40).
+  Store OFF: unchanged.
 - **v157 — the looks, expanded: flapping wings, living auras, trails you can spot, one face everywhere.**
   (`src/28-cosmetics.js`, `src/29-seasons.js`, `src/31-legacy.js`, `src/07-career-app.js`; `v157A`–`v157Ccheck`.)
   *A — wings that flap, crowns that shine* (`v157 A …`): 17 new wings, each its own silhouette (origami, thornvine,

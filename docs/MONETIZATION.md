@@ -13,7 +13,7 @@ coming soon, and a catalogue guard (§3). `scripts/v151Acheck.mjs` proves it, OF
 
 This page is the model, the catalogue, the honesty about client-side limits, the provider steps per
 platform, the store-policy notes, the in-game hooks (H1–H11) and where they live, how to launch it (§9), and the
-decisions only the owner can make.
+decisions only the owner can make. §11 (v158 B) is the owner's EXPERIENCE toggle — a sandboxed preview of the F2P and Member games, with a 15 s ad placeholder.
 `docs/AUDIT.md` §3 is the analysis it grew out of.
 
 ---
@@ -24,19 +24,20 @@ decisions only the owner can make.
 
 | Rung | What | Price |
 |---|---|---|
-| **FREE, always** | The whole career — every level, position, mode and screen. 1× and 2× play speed. Quick Play (sim any week, any time). Skip opponent drives, **My Plays Only** (v153 B: free and ON by default — your side of the ball), fast sim, the camera and weather pickers, the Team Creator (5 logos/colours free, the rest for PP — the cosmetics worker). | $0 |
+| **FREE, always** | The whole career — every level, position, mode and screen. 1× and 2× play speed. Quick Play (sim any week, any time) — **with the store OFF**; ON it is the member's (v158 B, below). Skip opponent drives, **My Plays Only** (v153 B: free and ON by default — your side of the ball), fast sim, the camera and weather pickers, the Team Creator (5 logos/colours free, the rest for PP — the cosmetics worker). | $0 |
 | **Progression gates** (live whatever the switch says — §1a) | **3×** after one whole UFF season · **4×** for winning the UFF championship (v156 C — the owner's call) · **season sims** a career from the Legacy medal groups (1 → 20, v156 B) · the playoffs are always played live | earned |
-| **Rewarded ads** (opt-in, while ON) | 4× for 20 min · **unlimited regular-season sims for 30 min** (v156 B) · try a locked cosmetic for 24 h. `rewarded.dailyCap` = **4 a day** (TU `adsPerDayV151A`, clamped to ≤ 5), all placements together, local day. Granted only when the ad is watched to the end. Never inside a play. No interstitials, no banners. | free |
+| **Rewarded ads** (opt-in, while ON) | 4× for 20 min · **unlimited GAME sims (Quick Play) for 30 min** (v158 B; v156 B's ad made season sims uncounted) · try a locked cosmetic for 24 h. `rewarded.dailyCap` = **4 a day** (TU `adsPerDayV151A`, clamped to ≤ 5), all placements together, local day. Granted only when the ad is watched to the end. Never inside a play. No interstitials, no banners. | free |
 | **Ad Free** | No ads — every rewarded convenience is claimed without watching one (still inside the daily cap). | **$3.99** |
 | **Pro Career** | Ad Free + **4× permanently** + **advanced sim** (+3 season sims every career, TU `skipProBonusV151A`) + **advanced filters** (Stats / Leaders / Standings / Hall of Fame here; the leaderboards' own filters in `src/20-leaderboards.js` ask `has("pro")`) + 3 save slots when slots ship. | **$8.99** |
 | **Founder / Ultimate** | Pro + the Founder cosmetic bundle (every `RIB_COSMETICS` item with `source:"founder"` — never sold alone) + bonus customization (`customPlus`, read by the cosmetics worker). | **$14.99** |
+| **Running It Back Club** (`member`, listed with `features.membership`) | Ad Free + 4× while subscribed + **unlimited game sims** (Quick Play, `gameSims`) + **twice the season sims** (TU `memberSimMultV158B` 2: 1 → 2, all nine groups 40) + the member looks + the premium pass track (v156 C, v158 B). | **$1.99 / month** |
 | **Season Career Pass** | The premium track of the current competitive season (~6 months, `src/29-seasons.js`): cosmetic rewards and challenges. One product per season. | **$9.99** / season |
 | **Cosmetic packs** | Uniforms $1.99 · helmets $1.99 · touchdown celebrations $2.99 · stadium themes $2.99 · player-card frames $1.99 · vault themes $2.99 · historical uniform bundle $4.99 · **Unlock all team logos & colors $2.99** (placeholder). | $1.99–$4.99 |
 | **Expansions — COMING SOON** | Fantasy Front Office $4.99 · Coach Mode $4.99 · GM Mode $4.99 · Historic Eras $2.99 · College Dynasty $4.99 · Football Universe Pack $14.99 (all five). **Listed, never purchasable** until the content exists. | — |
 | **Never sold** | PP, prestige-tree levels, stat boosts, gear or gear rolls, wheel spins, re-rolls, "fate" odds, anything random, the career payout (the v149 E PP double is **retired**). | — |
 
 Tiers nest: **Founder ⊃ Pro ⊃ Ad Free**. Each product grants ONE tier key; the module's `IMPLIES` table resolves the
-rest (`founder → pro, customPlus`; `pro → noAds, speed4, simPlus, filters`; `member → noAds, speed4, simUnlimited` — v156 B: the Club has the ads' benefit for good, its sims are never counted; `speed4 → speed3`), so a restore of the
+rest (`founder → pro, customPlus`; `pro → noAds, speed4, simPlus, filters`; `member → noAds, speed4, gameSims` — v158 B: the Club has Quick Play for good and twice the season sims (the game doubles it); `simUnlimited → gameSims` (a stored v156 B grant still works); `speed4 → speed3`), so a restore of the
 single top product brings back the whole chain.
 
 ### 1a. The progression gates (src/07-career-app.js, `v151 A THE GATES ARE EARNED ON THE FIELD`)
@@ -145,7 +146,7 @@ holds both; nothing breaks.
 | Rewarded placement | Reward | Where |
 |---|---|---|
 | `speed4` | `speed4` for `rewarded.speed4Minutes` (20, TU `speed4AdMinV151A`) — a second ad extends | the live speed row's chip, the locked 4× sheet, the store |
-| `simUnlimited` (v156 B; was `simExtra`, +1 today) | `simUnlimited` for `rewarded.simMinutes` (30, TU `simAdMinV156B`) — no regular-season sim is counted while it runs; a second ad extends. The Club (`member`) implies it for good | the ⏭ button's sheet when none are left this career, the store |
+| `gameSims` (v158 B; v156 B `simUnlimited` — the old name is an alias; v151 A `simExtra`) | `gameSims` for `rewarded.simMinutes` (30, TU `simAdMinV156B`) — Quick Play (one regular-season game) is unlocked while it runs; a second ad extends. Season sims stay counted. The Club (`member`) implies it for good | a locked Quick Play tap (`RIB_MONETIZE.gameSimLocked(retry)` — the tapped week plays after the ad), the ⏭ sheet when none are left, the store |
 | `cosTrial` | `try:<itemId>` for `rewarded.trialHours` (24, TU `trialHoursV151A`) | the ▶ 24H chip on an unowned item in the store's cosmetics grid; `cosmeticAccess(id) === "trial"` |
 
 Daily cap: **4** rewarded ads a local day, all placements together (TU `adsPerDayV151A`, clamped 0–5). An Ad Free
@@ -154,7 +155,7 @@ device claims them without the ad, inside the same cap. **The PP double (`ppDoub
 ### The guard
 `validateProduct(p)` refuses — at load (injected config included; `catalog().refused` lists them), in `purchase()`
 and for every generated pack — any product whose grants include a key outside the allow-list:
-`noAds`, `pro`, `founder`, `member`, `speed3`, `speed4`, `simPlus`, `simUnlimited`, `filters`, `customPlus`, `saveSlots`,
+`noAds`, `pro`, `founder`, `member`, `speed3`, `speed4`, `simPlus`, `simUnlimited`, `gameSims`, `filters`, `customPlus`, `saveSlots`,
 and the prefixes `cos:` / `cos_` / `pack:` / `pass:` / `exp:` / `try:`. It also refuses consumables. `grant()` applies
 the same allow-list, so PP, prestige, stats, rolls, gear or wheels cannot be granted by a provider or a console either.
 
@@ -344,7 +345,7 @@ storage write. The in-game helpers are hoisted `function` declarations beside `b
 | `speed3V150C()` | shows the 3× rung to everyone (`TU("speed3RungV151A", 1)`) |
 | `settingOn` / `toggleSetting` / `toggleRow` | My Plays Only behind `playsOnlyOkV151A()` (always yes since v153 B; `playsDefaultV153B` switches it on once) |
 | `saveGame()` → `ppTrackV151A()` | lifetime PP (§1b) |
-| `seasonSkipV151A()` (the ⏭ buttons in `screenSeason` and `postV147`) → `seasonSimV156B` / `seasonSkipsV151A()` → `skipsV156B` / `skipBtnV151A` | the season sims (v156 B: a career's, from the medal groups; never a playoff); `m.has("simPlus")`, `m.has("simUnlimited")` / `m.until` and `m.simLocked()` are the only module calls, all ON-only (`mzV150C()` is null while OFF) |
+| `seasonSkipV151A()` (the ⏭ buttons in `screenSeason` and `postV147`) → `seasonSimV156B` / `seasonSkipsV151A()` → `skipsV156B` / `skipBtnV151A` | the season sims (v156 B: a career's, from the medal groups; never a playoff); `m.has("simPlus")`, `m.has("member")` (v158 B ×2), `m.has("gameSims")` / `m.until`, `m.simLocked()` and `m.gameSimLocked()` (v158 B, the Quick Play wrappers) are the only module calls, all ON-only (`mzV150C()` is null while OFF) |
 | `advfBarV151A` / `advfSetV151A` / `advfApplyV151A` | the advanced filters on the stat leaders, the standings and the Hall of Fame busts (search, position, sort by any stat, direction); free while OFF, a 🔒 Pro chip while ON without `filters`; kill switch `advFiltersV151A` |
 | `payoutBoostV150C` | identity unless `features.payoutBoost` (retired) |
 | `window.__V151A` | `speedOk`, `speedWhy`, `clamp`, `relabel`, `skips`, `skip`, `ladder`, `lifetime`, `track`, `filters`, `gates()` — the module reads it for `speedAllowed` / `clampSpeed` and the store's FREE rung (`skips()` answers the v156 B model: `model`, `gated`, `allowed`, `used`, `left`, `unlimited`, `unlimitedUntil`, `next`, `groups`) |
@@ -452,9 +453,82 @@ Founder $14.99; D10 = 3× is earned at the UFF (not sold). Still open:
 |---|---|---|---|
 | D11 | What Ad Free means when every ad is opt-in | Ad Free claims the rewarded conveniences **without** the ad (same daily cap) | the alternative (Ad Free hides the offers) would make the $3.99 tier take something away |
 | D12 | Pro's "advanced sim" size | +3 season sims a career (`skipProBonusV151A`) | "unlimited" is one TU away (e.g. 99) |
-| D13 | The sim allowance (v156 B) | 1 a career + the medal groups (1/2/2/2/2/2/2/3/3), max 20; the ad: 30 min unlimited | TU `simBaseV156B`, `skipsMaxV156B`, `simAdMinV156B`; the owner's call — v151 A's PP ladder is the kill switch |
+| D13 | The sim allowance (v156 B, v158 B) | 1 a career + the medal groups (1/2/2/2/2/2/2/3/3), max 20; a member ×2 (max 40); the ad: 30 min of Quick Play (game sims), never season sims | TU `simBaseV156B`, `skipsMaxV156B`, `simAdMinV156B`; the owner's call — v151 A's PP ladder is the kill switch |
 | D14 | Grandfathering 4× when the store turns ON | the v149 E device grant stays (`grandfatherSpeed4`) | with the gates, 4× was already UFF-only on the web; decide whether a UFF veteran keeps 4× in the store build |
 | D15 | Lifetime PP for old saves | seeded from PP in hand + banked + tree levels at base price | a save never kept history, so this is the fairest reconstruction |
 | D16 | `unlock_all_team_style` price | $2.99 placeholder | the cosmetics worker gates the Team Creator (5 free, then PP doubling) |
 | D17 | Pass restore across seasons | a restored `rib.pass.<old>` grants `pass:<old>` (cosmetic history) | RevenueCat must report non-subscription transactions (`nonSubscriptionTransactions`) |
 | D18 | Web purchases | `verifyUrl` POST `{sessionId}` → `{ok, productIds}` from a server that read the Checkout Session with the secret key | the endpoint is not built; without it the web provider grants nothing, ever |
+
+---
+
+## 11. Try both sides of the store (v158 B — the owner's experience preview)
+
+The owner's ask: *"Add a toggle mode for f2p and membership experience. Include a 15 second pop up that has text saying
+an ad will be placed here, etc. Have this skippable for now."* It is a **preview** for the owner to feel the two
+monetized games before launch — nothing is charged, and the real switch (`MONETIZE_ENABLED`) stays `false`.
+
+**The toggle.** Settings › GAME › 🧪 **EXPERIENCE: Off (current build) · Free-to-play · Member** (src/07
+`experienceRowV158B`). *Off* is the default, and a player who never touches it gets exactly today's build. A switch asks
+(a `ribDialog` confirm), saves the career, deletes the preview's sandbox, writes (or removes) localStorage
+`rib.experience.v158` and reloads. The choice is **never in the save**; the row reads storage only, so the Settings
+screen is the same markup with the store module present-and-off or blocked (`v150Ccheck`).
+
+**What each mode is** (`src/27-monetize.js`, `v158 B` banner — the module reads the flag once, at boot):
+
+| | Free-to-play | Member |
+|---|---|---|
+| store | ON, a device with **nothing bought** (not grandfathered) | ON, with `member` held for good |
+| 4× | locked → "▶ Watch an ad: 4× for 20 min" (or win the UFF title) | yes (member ⇒ speed4) |
+| Quick Play (game sims) | locked "🔒 AD" → the member-perk sheet → the ad (the placeholder) → 30 min "∞ 30 min" | free for good (member ⇒ gameSims) |
+| season sims | the medal allowance, always counted | **twice** the medal allowance, counted |
+| looks | member looks locked "🔒 Membership"; a shop look can be tried 24 h for an ad | member looks owned and equippable; premium Career Pass track |
+| ads | every rewarded placement shows the placeholder; plus one **break between seasons** | none — no placeholder, no break |
+
+**The sandbox.** While previewing, every entitlement and mock "purchase" lives under
+`rib.monetize.preview.v158.<mode>.*` — never the real `rib.monetize.ents.v1`, never the save — so a preview grant can
+never mix with a real purchase. Switching (to anything) deletes the whole sandbox; member looks then fall back to the
+slot's default the next time they are drawn (`equipped()` only returns what is owned). A pass bought in the preview is
+`pass:<id>` in the sandbox only (it never calls `RIB_SEASONS.grantPremium`). One thing is kept: Career Pass rewards
+*claimed* while previewing are the season store's own records, like any claim.
+
+**The ad placeholder** (`placeholderAd`, the `"preview"` provider's `showRewarded`). Full screen at 400x860: a big AD
+slot, *"An ad will be placed here · 15 s · (reward: 4× for 20 min)"* (or the placement's reward, or *break between
+seasons*), a countdown ring from 15 and **SKIP ▸ (FOR NOW)** — live at once and focused; Esc skips. Skip counts as
+watched *for now* and the reward is granted exactly as a watched ad (through `showRewarded`: the daily cap, the grant).
+Dials: TU `adSecsV158B` (15), `adSkipAfterV158B` (0 = skippable at once; > 0 = seconds before SKIP / Esc work). It
+draws no `Math.random()` and touches nothing in the sim.
+
+**The break between seasons** (F2P only; a member / Ad Free device never sees one): the placeholder opens over the
+season report card (the `result` view) at most **once a season**, keyed per career / season. TU `adBreakV158B` 1 (0 =
+never). This is the owner's request for the preview; a real interstitial needs its own SDK placement, frequency cap
+and store-policy review (§7) before it ships.
+
+**The chip.** "PREVIEW · F2P" / "PREVIEW · MEMBER" sits on screen (top right, under the ticker) the whole time; a tap
+opens Settings. The store's foot says PREVIEW and links back to the toggle.
+
+**Turning it off.** For a player: Settings › EXPERIENCE › *Off*. For a build: `RIB_MONETIZE_CONFIG = { features:
+{ experiencePreview: false } }` (a store build should inject it) or TU `experienceV158B` 0 — both ignore the flag and
+hide the row. A real ON store (`MONETIZE_ENABLED`, `?monetize=1`) is never overlaid by a preview, and the row hides.
+**Before launch:** replace the placeholder with the real provider (AdMob) — the preview provider exists only for this
+toggle. `scripts/v158Bcheck.mjs` proves it (OFF identical, F2P, MEMBER, back to OFF).
+
+### v158 B — game sims are the member's (the owner's update)
+
+*"The member has unlimited individual game sims and they get twice the amount of season sims."* · *"Free to play — watch
+ads for 30 mins of free game skips. Season skips depend on medal achievements."* While the store is ON (a real store or
+this preview) — src/07 `v158 B GAME SIMS ARE THE MEMBER'S`:
+
+- **Game sims** = Quick Play of one regular-season week (`playWeek(false)` / `prepareWeek103(false)` / `startWeek(false)`;
+  playoff weeks are live-only since v156 B). They need `gameSims`: the Club for good, or the rewarded ad for 30 minutes
+  (placement `gameSims`, "▶ WATCH · UNLIMITED GAME SIMS 30 MIN"). A locked tap opens *"Quick Play is a member perk — or
+  watch an ad for 30 minutes of game sims"*; after the ad the tapped week plays. The dock's button wears "🔒 AD" or
+  "∞ 29 min" (`gameSimTagV158B`; the module's tick keeps the minutes current).
+- **Season sims** (⏭) stay the v156 B medal allowance for everyone; the ad no longer makes them uncounted.
+- **Members**: Quick Play always, and twice the season sims — base, every group bonus and the cap ×2 (TU
+  `memberSimMultV158B` 2: 1 → 2, all nine groups 40); never unlimited season sims.
+- **Pro** keeps its +3 season sims a career; Quick Play is not Pro's — Pro includes Ad Free, which claims the 30 minutes of
+  game sims without watching an ad (inside the daily cap).
+- **Store OFF** (the shipping build): unchanged — Quick Play free and unlimited, season sims by the medals, the button
+  is the old markup. Kill switch TU `v158Bgames` 0 restores v156 B (Quick Play free; the ad / the Club make season sims
+  uncounted). `v156Bcheck`, `v151Acheck`, `v158Bcheck`.
