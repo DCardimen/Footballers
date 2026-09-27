@@ -18,6 +18,9 @@
 //      stands down, the backflip lifts him and spins, the spike spawns the ball and shakes the camera, the marker is
 //      handed back at the end; reduced motion → the calm pose, no shake; no Math.random; a draw-cost bound; frame
 //      strips of the three bodies in a red kit go to $SHOTS
+//   6b. a REAL touchdown in the live game (the app's next play turned into his TD run), one per body: the body plays to
+//      its end, the camera holds on him (his marker inside the central 60% of the broadcast once the hold has arrived,
+//      the backflip's peak on screen) and lets go when he is done; camera-relative strips go to $SHOTS
 //   7. seeded simGameV2 box scores identical with TU v161A off and on; no page errors
 //   node scripts/v161Acheck.mjs        (GAME_URL=http://localhost:5173/)
 import { chromium } from 'playwright'
@@ -182,7 +185,7 @@ const yi = await E(() => { const sc = window.__gridironScene; let i = sc.markers
 // dress him in a red uniform and a white helmet with a red stripe (the recolour has to show)
 await E(() => { const C = window.RIB_COSMETICS, T = (window.RIB_TUNE = window.RIB_TUNE || {}); T.cosKitClashV151B = 0
   C.grant('uni_crimson_chev', 'pass'); C.equip('uniform', 'uni_crimson_chev'); C.grant('hel_gloss_white', 'pass'); C.equip('helmet', 'hel_gloss_white'); window.__COS_FIELD_V151B.resync(window.__gridironScene) })
-await E(() => { const sc = window.__gridironScene; if (!window.__updV161A) { window.__updV161A = [sc.update, sc.killAllFx, sc.animatePlay]; sc.update = function () {}; sc.killAllFx = function () {}; sc.animatePlay = function () {} } })   // hold the broadcast: no next play clears it or starts
+await E(() => { const sc = window.__gridironScene; if (!window.__updV161A) { window.__updV161A = [sc.update, sc.killAllFx, sc.animatePlay]; sc.update = function () {}; sc.killAllFx = function () {}; sc.animatePlay = function (et, rt) { window.__swallowV161A = [et, rt] } } })   // hold the broadcast: no next play clears it or starts (one the app sends meanwhile is handed on at the end)
 const live = await E(async (yi) => {
   const sc = window.__gridironScene, m = sc.markers[yi], V = window.__V161A, P = sc.play || (sc.play = { payload: {}, t: 0 }), keep = P.carrierId, tokKeep = P.__ballTokenV1514
   P.carrierId = yi; P.__ballTokenV1514 = 4242
@@ -215,26 +218,71 @@ const each = await E(async (yi) => { const sc = window.__gridironScene, m = sc.m
     shakes.length = 0; const run = V.play(sc, m, { name, tok: 'strip' })
     await new Promise(r => { const w = () => (!run.alive ? r() : setTimeout(w, 60)); setTimeout(w, 200) })
     const res = { maxLift: Math.max(...run.lifts), maxRot: Math.max(...run.rots), balls: run.balls.length, ballKs: [...new Set(run.balls.map(b => b.k))].length, shake: shakes.length, ended: run.ended, maxLive: run.maxLive }
-    // the strip: twelve times through the body, held
-    const T = V.timeline(name), ts = []; T.segs.forEach(s => { if (s.k === 'air') { for (let i = 0; i < 6; i++) ts.push(s.t0 + s.ms * (i + 0.5) / 6) } else ts.push(s.t0 + Math.min(s.ms * 0.5, 90)) })
-    const z0 = cam.zoom, sc0 = [cam.scrollX, cam.scrollY], fx = m.root.x, fy = m.root.y - 34 * m.root.scaleY; cam.setZoom(z0 * 3.2); cam.centerOn(fx, fy)   // a close-up on his spot (the ground stays put, he leaves it)
-    const run2 = V.play(sc, m, { name, tok: 'strip' }), W = 170, H = 230, Z = 1, c = document.createElement('canvas'); c.width = W * Z * ts.length; c.height = H * Z; const x = c.getContext('2d'); x.imageSmoothingEnabled = false
-    x.fillStyle = '#000'; for (let k = 0; k < ts.length; k++) { run2.setHold(ts[k]); cam.setZoom(z0 * 3.2); cam.centerOn(fx, fy); await new Promise(r => setTimeout(r, 70)); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
-      const z = cam.zoom, sx = (fx - cam.worldView.x) * z, sy = (fy + 34 * m.root.scaleY - cam.worldView.y) * z
-      const kx = cv.width / (sc.scale ? sc.scale.width : cv.width); x.drawImage(cv, (sx - W / 2) * kx, (sy - H * 0.78) * kx, W * kx, H * kx, k * W * Z, 0, W * Z, H * Z); x.fillStyle = '#fff'; x.font = '15px monospace'; x.fillText(Math.round(ts[k]) + 'ms', k * W * Z + 4, 16) }
-    run2.setHold(null); run2.stop('strip'); cam.setZoom(z0); cam.setScroll(sc0[0], sc0[1]); res.strip = c.toDataURL(); out[name] = res }
+    out[name] = res }
   cam.shake = sh0
   // reduced motion on the field
   const rc = V.play(sc, m, { name: 'spike', tok: 'calm', calm: true }); shakes.length = 0; cam.shake = function () { shakes.push(1); return sh0.apply(this, arguments) }
   await new Promise(r => { const w = () => (!rc.alive ? r() : setTimeout(w, 60)); setTimeout(w, 200) }); cam.shake = sh0
   out.calm = { ks: [...new Set(rc.seq.map(s => s.k))], maxLift: Math.max(...rc.lifts), shake: rc.shake, camShakes: shakes.length, balls: rc.balls.length, maxLive: rc.maxLive, total: rc.total }
   return out }, yi)
-for (const n of ['flex', 'backflip', 'spike']) { savePng('field-strip-' + n, each[n].strip); delete each[n].strip }
 ok(each.backflip.maxLift > 40 && each.backflip.maxRot > 330, 'on the field the backflip lifts him (' + each.backflip.maxLift.toFixed(0) + ' px) and turns him a full circle', each.backflip)
 ok(each.spike.balls > 20 && each.spike.ballKs >= 3 && each.spike.shake >= 1 && each.spike.maxLive >= 10, 'the spike throws the ball (it bounces on) and the slam shakes the camera', each.spike)
 ok(each.flex.ended === 'done' && each.flex.shake >= 1 && each.flex.balls > 5, 'the flex stomps (a small shake) and tosses the ball aside', each.flex)
 ok(each.calm.ks.join() === '11' && each.calm.maxLift === 0 && each.calm.shake === 0 && each.calm.balls === 0 && each.calm.maxLive === 0, 'reduced motion on the field: the calm pose, no arc, no shake, no ball', each.calm)
-await E(() => { const sc = window.__gridironScene; if (window.__updV161A) { sc.update = window.__updV161A[0]; sc.killAllFx = window.__updV161A[1]; sc.animatePlay = window.__updV161A[2]; delete window.__updV161A } })
+await E(() => { const sc = window.__gridironScene; if (window.__updV161A) { sc.update = window.__updV161A[0]; sc.killAllFx = window.__updV161A[1]; sc.animatePlay = window.__updV161A[2]; delete window.__updV161A
+  const sw = window.__swallowV161A; window.__swallowV161A = null; if (sw) sc.animatePlay(sw[0], sw[1]) } })
+
+// ================= 6b. a real touchdown in the live game: the camera holds on him =================
+/* the app's own next play is turned into a touchdown run by him (the scene's animatePlay, the app's own completion),
+ * one per body (TU v161Aforce), and he is measured THROUGH THE CAMERA (world → screen) every frame; a strip is cut
+ * from the broadcast canvas around his screen position as it goes */
+const liveTD = async (force) => {
+  await E((force) => {
+    const sc = window.__gridironScene, T = (window.RIB_TUNE = window.RIB_TUNE || {}); T.v161Aforce = force
+    const rec = window.__tdV161A = { frames: [], shots: [], name: null, done: false, calls: 0, t0: performance.now(), holds0: window.__V161A_CAM.frames }, orig = sc.animatePlay, celOrig = sc.celebrate
+    let armed = true, tCel = null, run = null
+    sc.animatePlay = function (et, rt) { rec.calls++
+      if (armed && et) { armed = false   // whatever the app sends next (a try, a kickoff, their drive) is drawn as his touchdown run
+        et = Object.assign({}, et, { offense: 'us', startBall: 88, endBall: 100, yards: 12, event: 'run', desc: 'TOUCHDOWN', scored: true, involved: true, playerPos: 'RB', preToGo: 10 }) }
+      return orig.call(this, et, rt) }
+    sc.celebrate = function () { const r = celOrig.apply(this, arguments); if (tCel == null && window.__V161A.active) { tCel = performance.now(); run = rec.run = window.__V161A.active; rec.name = run.name } return r }
+    const cv = sc.game.canvas, W = 120, H = 200; let nextShot = 0
+    const fin = () => { sc.animatePlay = orig; sc.celebrate = celOrig; T.v161Aforce = 0; rec.done = true
+      const strip = document.createElement('canvas'); strip.width = W * 2 * Math.max(1, rec.shots.length); strip.height = H * 2; const x = strip.getContext('2d'); x.imageSmoothingEnabled = false
+      rec.shots.forEach((q, k) => { x.drawImage(q.c, k * W * 2, 0, W * 2, H * 2); x.fillStyle = '#fff'; x.font = '15px monospace'; x.fillText(q.t + 'ms', k * W * 2 + 5, 17) })
+      rec.strip = rec.shots.length ? strip.toDataURL() : null }
+    const tick = () => { const now = performance.now()
+      if (tCel != null) { const t = now - tCel, cam = sc.cameras.main, me = sc.markers.find(m => m && m.team === 'you')
+        if (me && me.root && t <= 3700) { const kx = cv.width / cam.width, vw = cam.width, vh = cam.height
+          const sx = (me.root.x - cam.worldView.x) * cam.zoom, sy = (me.root.y - cam.worldView.y) * cam.zoom, s = me.root.scaleY * cam.zoom, lift = run.lifts.length ? run.lifts[run.lifts.length - 1] : 0
+          rec.frames.push({ t: Math.round(t), x: sx / vw, y: sy / vh, top: (sy - 30 * s) / vh, feet: (sy + 22 * s) / vh, alive: !!run.alive, lift, z: cam.zoom, h: window.__V161A_CAM.frames })
+          if (run.alive && t >= nextShot && rec.shots.length < 12) { nextShot += Math.max(150, run.total / 11.5); const c = document.createElement('canvas'); c.width = W; c.height = H
+            const gy = sy + 22 * s + lift * s   // the ground under him, so the arc shows
+            c.getContext('2d').drawImage(cv, (sx - W / 2) * kx, (gy - H * 0.9) * kx, W * kx, H * kx, 0, 0, W, H); rec.shots.push({ t: Math.round(t), c }) } }
+        if (t > 3800) return fin() }
+      if (now - rec.t0 > 170000) return fin()
+      requestAnimationFrame(tick) }
+    requestAnimationFrame(tick) }, force)
+  // the app between plays: tap on through anything that waits for the player
+  for (let i = 0; i < 360; i++) { const st = await E(() => ({ done: window.__tdV161A.done, name: window.__tdV161A.name }))
+    if (st.done) break
+    if (!st.name && i % 4 === 3) await E(() => { const g = document.getElementById('gv42go'); if (g && g.offsetParent) g.click() })
+    await page.waitForTimeout(500) }
+  return E(() => { const r = window.__tdV161A, run = r.run; return { name: r.name, ended: run && run.ended, frames: r.frames, holds: window.__V161A_CAM.frames - r.holds0, strip: r.strip, total: run && Math.round(run.total), calls: r.calls } })
+}
+for (const [force, name] of [[2, 'backflip'], [3, 'spike'], [1, 'flex']]) {
+  const L = await liveTD(force)
+  if (!L.name) { ok(false, 'a real touchdown by him in the live game played the ' + name, L); continue }
+  if (L.strip) savePng('field-strip-' + name, L.strip)
+  const al = L.frames.filter(f => f.alive), settled = al.filter(f => f.t >= 250), inC = f => f.x >= 0.2 && f.x <= 0.8 && f.y >= 0.2 && f.y <= 0.8
+  const peak = al.reduce((a, f) => (f.lift > a.lift ? f : a), { lift: -1 }), after = L.frames.filter(f => !f.alive)
+  const box = { x: [Math.min(...al.map(f => f.x)), Math.max(...al.map(f => f.x))].map(v => +v.toFixed(3)), y: [Math.min(...al.map(f => f.y)), Math.max(...al.map(f => f.y))].map(v => +v.toFixed(3)) }
+  ok(L.name === name && L.ended === 'done' && al.length > 30 && L.holds > 20, 'a real touchdown by him in the live game plays the ' + name + ' to its end (' + L.total + ' ms), the camera holding on him for ' + L.holds + ' frames', { ended: L.ended, frames: al.length })
+  ok(settled.every(inC) && al.every(f => f.x >= 0.15 && f.x <= 0.85 && f.y >= 0.15 && f.y <= 0.85), 'his marker stays inside the central 60% of the broadcast through the ' + name + ' (after the first 250 ms the hold takes to arrive; never past 15% of an edge)', box)
+  if (name === 'backflip') ok(peak.lift > 40 && peak.top > 0.02 && peak.feet < 0.98, 'the backflip\'s peak is on screen (his head at ' + (peak.top * 100).toFixed(0) + '% of the frame, ' + peak.lift.toFixed(0) + ' px up)', peak)
+  ok(after.length >= 2 && after[after.length - 1].h === after[0].h, 'the camera is released when he is done (no held frame after the body ends)', { afterFrames: after.length, held: after.length ? after[after.length - 1].h - after[0].h : null })
+}
+await E(() => { const T = window.RIB_TUNE || {}; T.v161Aforce = 0 })
 
 // ================= 7. no gameplay change =================
 const neutral = await E(() => { const st = window.__getGridironState(), keep = JSON.stringify(st.player || null)

@@ -17,7 +17,7 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
   about his centre of mass through the drawn frames, lands with a squash and dust; the spike winds up, hops, slams the
   ball into the turf (flash, dirt, a camera shake) and the ball bounces away on its own, lower every time; the flex holds
   every pose with weight, stomps and pumps. He wears his kit, his skin tone and his helmet; the equipped effect still
-  plays around him. The Locker previews play all three. Reduced motion: one calm pose. Kill switch `v161A`.
+  plays around him. The broadcast camera holds on him for the whole celebration (centred, pushed in until the arc fills the frame, the flip's peak and the ball's bounces in view) and lets go when he is done; the next snap still cancels it. Team-mates who run in give him room. The Locker previews play all three. Reduced motion: one calm pose. Kill switches `v161A`, `v161AcamHold`.
 - **v160 A — the team on the helmet.** (`src/28-cosmetics.js`, `scripts/v160Acheck.mjs`.) The profile character wears his
   team's logo on the side of the helmet — painted into the shell, curved with the dome, shaded by its light, off the
   stripe — and so does every screen that draws the same figure (the growth screen, the live badge). A helmet with its own

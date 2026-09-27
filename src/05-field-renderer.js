@@ -1697,6 +1697,7 @@ function ribRebindSideV159A(scene) {
  * scope), so the renderer hands them over: `kit(k)` is the [primary, secondary] a kit key ("you", "off") was last
  * registered with — after the cosmetics' uniform / team palette (v151 B, v159 A) — and `recolor` is ribRecolor itself.
  * Looks only: nothing here reads or writes a sim value or draws Math.random. */
+window.__V161A_CAM = { frames: 0, idle: 0, last: null };
 window.__V161A_FIELD = { kit: (k) => (RIB.teamCols[k] ? RIB.teamCols[k].slice() : null), recolor: (c, p1, p2) => ribRecolor(c, p1, p2), tones: SKIN_TONES_V151D };
 window.__V159A_FIELD = { regs: 0, clones: 0, lastMs: 0, cloneMs: 0, cloned: 0, key: null, kit: false, side: 0, base: () => RIB.baseOffV159A && RIB.baseOffV159A.slice(), teams: () => Object.assign({}, RIB.teamCols) };
 // the atlas decodes the moment the page loads — long before any game starts
@@ -1917,6 +1918,7 @@ class Ot extends mt.Scene {
   }
 
   softStop() {   // between plays: clear FX/tweens but keep markers for gliding
+    this.camHoldEndV161A("next play");   // v161 A: the next play (or a torn-down field) ends his celebration and its camera hold
     this.play = null; this.tweens.killAll(); this.time.removeAllEvents();
     this.completion = void 0; this.killAllFx(); this.clearRefs();
     if (this.trail) this.trail.clear();
@@ -1927,6 +1929,7 @@ class Ot extends mt.Scene {
     this.resetCamera();
   }
   resetCamera() {
+    if (this.camHoldV161A()) { this._camResetV161A = true; return; }   // v161 A: the whistle's re-frame waits for his celebration
     try { const c = this.cameras.main;
       const z0 = (((window.__FIELD_FX && window.__FIELD_FX.zoom) || 1.16)) * TU("perspZoomK", 0.78);
       this._pcam = null; this._cvx = 0; this._cvy = 0;     // v27: clear the predictive lead between plays
@@ -1949,6 +1952,38 @@ class Ot extends mt.Scene {
       this._camSoftV109 = 0; this._camSpr = null;
       c.setZoom(z0); c.centerOn(f.x, f.y - 80); } catch (e) {}
   }
+  /* ===== v161 A THEY CELEBRATE LIKE THEY MEAN IT (the camera) =====
+   * The broadcast camera follows the ball, and after a touchdown the whistle re-frames (resetCamera) and the next snap
+   * cuts away — a backflip that peaks a body height above him, or a ball bouncing a body width away, could leave the
+   * frame or sit on its edge. While HIS celebration runs (src/28 `fieldBodyV161A`, `window.__V161A.active`, its `cam` =
+   * the ground point's world frame: a centre that puts the arc's middle mid-screen, and the width / height the arc and
+   * the ball's bounces need) every camera move is aimed at it: `camSpringV109` swaps its target for the hold's (the
+   * same spring — no cut; the zoom only ever pulls OUT, to fit the arc in TU v161AcamFit of the view), the whistle's
+   * and the between-plays branches step the spring toward it (`camHoldStepV161A`), and resetCamera waits and runs
+   * when the celebration ends. The next play (softStop) ends the celebration first, so a snap is never held; a fixed
+   * camera mode (camOffV112) is never moved. TU v161AcamHold 0: off. `window.__V161A_CAM`. */
+  camHoldV161A() {
+    if (!TU("v161AcamHold", 1) || this.camOffV112()) return null;
+    const r = window.__V161A && window.__V161A.active;
+    return r && r.alive && r.scene === this && r.cam && !r.calm ? r : null;
+  }
+  camHoldTargetV161A(cam, tz) {
+    const r = this.camHoldV161A(); if (!r) return null;
+    const C = r.cam, k = TU("v161AcamFit", 0.6), fit = Math.min(cam.width * k / Math.max(1, C.w), cam.height * k / Math.max(1, C.h));
+    // the broadcast's own zoom, pushed IN until the arc fills TU v161AcamFill of the frame (a far end zone draws him small),
+    // never past the fit and never past the camera's own ceiling / floor (camZoomFitV112)
+    const fill = TU("v161AcamFill", 0.42), want = fill > 0 ? Math.max(tz, cam.height * fill / Math.max(1, C.h)) : tz;
+    const z = this.camZoomFitV112(Math.min(want, fit));
+    const H = window.__V161A_CAM; H.frames++; H.last = { x: Math.round(C.x), y: Math.round(C.y), z: +z.toFixed(3), fit: +fit.toFixed(3), tz: +tz.toFixed(3) };
+    return { x: C.x, y: C.y, z: z };
+  }
+  camHoldStepV161A(delta) {
+    try { if (!this.camHoldV161A()) return; const cam = this.cameras.main; this.camSpringV109(cam, cam.midPoint.x, cam.midPoint.y, cam.zoom, delta, 1); window.__V161A_CAM.idle++; } catch (e) {}
+  }
+  camHoldEndV161A(why) {
+    try { const r = window.__V161A && window.__V161A.active; if (r && r.alive && r.scene === this && r.stop) r.stop(why || "next play"); } catch (e) {}
+    this._camResetV161A = false;
+  }
   /* ===== v109 THE BROADCAST (agent E) — the hook every v109 E check reads ===== */
   v109E() {
     const V = window.__V109_E = window.__V109_E || { cam: { maxJerk: 0, cuts: 0, whistleWide: 0, softResets: 0, frames: 0, leadFrames: 0, wideFrames: 0 }, cases: {},
@@ -1964,6 +1999,7 @@ class Ot extends mt.Scene {
    * its acceleration is capped (`camAccelMax`, px/s²), which is the number the hook reports as
    * `maxJerk` — the worst per-frame change of pan velocity a viewer would have felt. */
   camSpringV109(cam, cx, cy, tz, delta, stiffK, tv) {
+    const HV = this.camHoldTargetV161A(cam, tz); if (HV) { cx = HV.x; cy = HV.y; tz = HV.z; tv = null; stiffK = Math.max(stiffK || 1, TU("v161AcamStiffK", 1.8)); }   // v161 A: his celebration holds the frame
     // v147 D: `tv` = the target's own velocity and how much of it to damp against (0 = the v109 spring)
     const ff = tv && tv.ff > 0 ? tv.ff : 0, tvx = ff ? tv.vx * ff : 0, tvy = ff ? tv.vy * ff : 0;
     const dt = Math.min(0.05, Math.max(0.004, (delta || 16) / 1000)), sk = stiffK || 1;
@@ -1975,7 +2011,9 @@ class Ot extends mt.Scene {
     if (Math.abs(cam.midPoint.x - S.px) > TU("camBreakPx", 24) || Math.abs(cam.midPoint.y - S.py) > TU("camBreakPx", 24) || (S.t0 && nowMs - S.t0 > dt * 1000 * 2.2 + 10)) { S.n = 0; const KB = this.v109E().cam; KB.breaks = (KB.breaks || 0) + 1; }
     S.t0 = nowMs;
     const k = TU("camStiff", 40) * sk, c = 2 * Math.sqrt(k) * TU("camDamp", 1), aMax = TU("camAccelMax", 9000) * Math.sqrt(sk);
-    const x = cam.midPoint.x, y = cam.midPoint.y;
+    // v161 A: a held frame integrates from its own sub-pixel state — the read-back midPoint is rounded (roundPixels), and a
+    // slow final approach of < ½ px a frame would otherwise never move and park the hold ~10 px short of him
+    const x = HV && Math.abs(cam.midPoint.x - S.px) < 1.01 ? S.px : cam.midPoint.x, y = HV && Math.abs(cam.midPoint.y - S.py) < 1.01 ? S.py : cam.midPoint.y;
     const kz = TU("camZoomStiff", 45) * sk, cz = 2 * Math.sqrt(kz) * TU("camDamp", 1);
     const lz0 = Math.log(Math.max(0.05, cam.zoom)), ltz = Math.log(Math.max(0.05, tz));
     /* v147 D: one frame is several SUB-STEPS when the spring is stiff for the frame it is given —
@@ -1997,7 +2035,7 @@ class Ot extends mt.Scene {
     const jerk = Math.hypot(S.vx - v0x, S.vy - v0y) / dt, step = Math.hypot(nx - x, ny - y);
     cam.setZoom(Math.exp(lz)); cam.centerOn(nx, ny);
     // v147 D: a pan the bounds stopped keeps no velocity into the wall, or the feed-forward winds it up
-    if (ff) { if (Math.abs(cam.midPoint.x - nx) > 0.5) S.vx = 0; if (Math.abs(cam.midPoint.y - ny) > 0.5) S.vy = 0; }
+    if (ff || HV) { if (Math.abs(cam.midPoint.x - nx) > 0.5) S.vx = 0; if (Math.abs(cam.midPoint.y - ny) > 0.5) S.vy = 0; }   // v161 A: nor does a held one
     { const V = this.v109E().cam;
       if (jerk > V.maxJerk) V.maxJerk = Math.round(jerk);
       if (step > (V.maxStepPx || 0)) V.maxStepPx = +step.toFixed(2);
@@ -2379,8 +2417,8 @@ class Ot extends mt.Scene {
      * exact frame the whistle caught them. Then the next play's glide started and they all
      * sprinted off together. They breathe and shuffle through the gap now, so the restart is a
      * continuation rather than a cut. */
-    if (!P) { this.idleBetweenV144(delta); return; }
-    if (P.done) { if (P.post) this.updatePostV86(P, delta); return; }   // v86: the whistle is not the end of the picture
+    if (!P) { this.idleBetweenV144(delta); this.camHoldStepV161A(delta); return; }
+    if (P.done) { if (P.post) this.updatePostV86(P, delta); this.camHoldStepV161A(delta); return; }   // v86: the whistle is not the end of the picture
     if (this.hitStop > 0) { this.hitStop -= delta; return; }   // freeze-frame on big moments
     // v24: base movement runs 30% slower for everyone — a more deliberate, readable
     // pace where cuts, jukes and pursuit angles land as real moves instead of a blur.

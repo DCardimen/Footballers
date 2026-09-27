@@ -6624,7 +6624,8 @@
     if (!readyV161A()) { loadV161A(); V161A.notReady = (V161A.notReady || 0) + 1; return null; }   // not decoded yet: the old pose plays this once
     var calm = opts.calm != null ? !!opts.calm : reducedV158A();
     var P = scene.play, tok = opts.tok != null ? String(opts.tok) : P && P.__ballTokenV1514 != null ? String(P.__ballTokenV1514) : String(Math.round((scene.time && scene.time.now) || 0));
-    var name = opts.name && DATA_V161A.M.anims[opts.name] ? opts.name : pickV161A(tok), seed = strHashV159C("v161A|parts|" + tok);
+    var force = TUv("v161Aforce", 0) | 0;   // 1 flex · 2 backflip · 3 spike: one body every time (a preview / a check), 0 the pick
+    var name = opts.name && DATA_V161A.M.anims[opts.name] ? opts.name : force >= 1 && force <= 3 ? ANIMS_V161A[force - 1] : pickV161A(tok), seed = strHashV159C("v161A|parts|" + tok);
     try { if (cm.__v161a && cm.__v161a.alive) cm.__v161a.stop("replaced"); } catch (e) {}
     var scale = TUv("v161Ahd", 1) ? 2 : 1, ks = 1 / scale, kit = kitV161A(cm.kit || cm.team, cm.skinTone), tex = texV161A(scene, name, kit, scale);
     warmV161A(scene, kit, scale);
@@ -6635,11 +6636,29 @@
     var g = track(scene.add.graphics()), ball = track(scene.add.image(0, 0, tex.ball).setVisible(false)), gb = scene.ballSpr;
     var nf = cm._nfImgV158A, nfVis = nf ? nf.visible : null, gbVis = gb ? gb.visible : null, cam = scene.cameras && scene.cameras.main;
     var run = { name: name, tok: tok, calm: calm, mir: mir, scale: scale, total: T.total, T: T, t0: performance.now(), hold: null, alive: true, ended: null, play: P,
-      frames: 0, seq: [], lifts: [], rots: [], balls: [], parts: parts.length, maxLive: 0, shake: 0, drawMs: 0, drawMax: 0, ms: [], kit: kit.key, tex: tex.keys[0], v159Skipped: 0 };
+      scene: scene, cam: null, frames: 0, seq: [], lifts: [], rots: [], balls: [], parts: parts.length, maxLive: 0, shake: 0, drawMs: 0, drawMax: 0, ms: [], kit: kit.key, tex: tex.keys[0], v159Skipped: 0 };
     var D = { circ: null, rect: null, ell: null }, gx = 0, gy = 0, gs = 1;
+    /* the frame the camera holds (src/05 camHoldTargetV161A): the arc's middle mid-screen, room for its peak and the ball */
+    var stand = standV161A(), peak = calm ? 0 : name === "backflip" ? flipPeakV161A() : name === "spike" ? hopV161A() : TUv("v161ApumpHop", 2.5);
+    var bs0 = calm ? null : ballSchedV161A(name), reach = bs0 ? Math.max(20, bs0.rollX + bs0.rollV * 210) : 20;
     D.circ = function (x, y, r, c, a) { if (a > 0.01) { g.fillStyle(c, Math.min(1, a)); g.fillCircle(gx + mir * x * gs, gy + y * gs, Math.max(0.4, r * gs)); } };
     D.rect = function (x, y, w, h, c, a) { if (a > 0.01) { g.fillStyle(c, Math.min(1, a)); g.fillRect(gx + mir * x * gs - (mir < 0 ? w * gs : 0), gy + y * gs, Math.max(0.6, w * gs), Math.max(0.6, h * gs)); } };
     D.ell = function (x, y, rx, ry, w, c, a) { if (a > 0.01) { g.lineStyle(Math.max(0.5, w * gs), c, Math.min(1, a)); g.strokeEllipse(gx + mir * x * gs, gy + y * gs, rx * 2 * gs, ry * 2 * gs, 24); } };
+    /* room to celebrate: the team-mates who run in (v109) and anyone else on his spot are drawn back to a ring around
+     * him (TU v161AclearPx, 1x px — the flip's width) while the body plays, eased in and out; only where they are
+     * DRAWN (their containers, after placeMarker), never where the sim has them */
+    var others = (scene.markers || []).filter(function (q) { return q && q !== cm && q.root; }), clr = [];
+    var clearV161A = function (t) {
+      var R = TUv("v161AclearPx", 54) * gs, ease = calm ? 0 : Math.min(1, t / 260, Math.max(0, (T.total - t) / 260)); run.cleared = run.cleared || 0;
+      others.forEach(function (q, i) {
+        var rt = q.root; if (!rt || !rt.active) return; var L = clr[i];
+        var qx = rt.x, qy = rt.y; if (L && qx === L.ax && qy === L.ay) { qx = L.bx; qy = L.by; }
+        var dx = qx - gx, dy = (qy + 22 * rt.scaleY) - gy, d = Math.hypot(dx, dy * 1.6);
+        if (!ease || d >= R) { if (L && rt.x === L.ax && rt.y === L.ay) rt.setPosition(qx, qy); clr[i] = null; return; }
+        var ux = d > 0.5 ? dx / d : (i % 2 ? 1 : -1), uy = d > 0.5 ? dy * 1.6 / d : 0, push = (R - d) * ease;
+        rt.setPosition(qx + ux * push, qy + uy * push / 1.6); clr[i] = { ax: rt.x, ay: rt.y, bx: qx, by: qy }; run.cleared++;
+      });
+    };
     var tick = function () {
       if (!run.alive) return;
       if (!g.scene || !root.active || !body.active) { stop("cleared"); return; }
@@ -6664,6 +6683,8 @@
         last = { ax: root.x, ay: root.y, as: root.scaleY, bx: bx, by: by, bs: bs, boby: boby, bobAy: bob ? bob.y : null };
         // the ground point in the world, the particles and the loose ball
         gx = bx; gy = by + 22 * bs; gs = bs; g.clear(); g.setDepth((root.depth || 4) + 0.02);
+        clearV161A(t);
+        run.cam = { x: gx + mir * reach * 0.35 * bs, y: gy - (peak + stand) * 0.5 * bs, w: (stand * 1.6 + reach) * bs, h: (peak + stand * 1.35 + 14) * bs };
         var live = drawPartsV161A(parts, t, D); run.maxLive = Math.max(run.maxLive, live);
         var b = ballV161A(name, t, calm);
         if (b && b.a > 0.01) { ball.setVisible(true).setPosition(gx + mir * b.x * bs, gy + b.y * bs).setScale(bs * ks).setRotation(mir * b.rot).setAlpha(b.a).setDepth((root.depth || 4) + 0.03);
@@ -6686,6 +6707,7 @@
       try {
         if (root.active && last) root.setPosition(last.bx, last.by);
         if (last && cm.bob && cm.bob.active && last.bobAy != null && cm.bob.y === last.bobAy) cm.bob.y = last.boby;
+        others.forEach(function (q, i) { var L = clr[i]; if (L && q.root && q.root.active && q.root.x === L.ax && q.root.y === L.ay) q.root.setPosition(L.bx, L.by); });
         if (body.active) { body.setOrigin(0.5, 0.5); body.setPosition(0, 0); body.setScale(1); body.setRotation(0); }
         cm.tex = null;   // placeMarker sets his own texture back on its next frame
         if (why === "done" && cm.forceState === "celebrateSeq") cm.forceState = null;   // the sheet's own celebrate cells would pop in after the rest pose
@@ -6696,6 +6718,7 @@
       [g, ball].forEach(function (o) { try { scene.dropFx ? scene.dropFx(o) : o.destroy(); } catch (e) {} });
       if (cm.__v161a === run) cm.__v161a = null;
       if (V161A.active === run) V161A.active = null;
+      try { if (scene._camResetV161A && scene.resetCamera) { scene._camResetV161A = false; if (!scene.play || scene.play.done) scene.resetCamera(); } } catch (e) {}   // the whistle's re-frame, now
     };
     run.stop = stop; run.setHold = function (t) { run.hold = t == null ? null : +t; };
     cm.__v161a = run; V161A.active = run; V161A.last = run; V161A.runs.push(run); if (V161A.runs.length > 20) V161A.runs.shift();
