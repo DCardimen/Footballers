@@ -1463,13 +1463,15 @@
     "v157 A",
     "v157 B",
     "v157 C",
-    "v158 A"
+    "v158 A",
+    "v159 C"
    ],
    "files": [
     "src/28-cosmetics.js",
     "docs/COSMETICS.md"
    ],
    "checks": [
+    "v159Ccheck",
     "v158Acheck",
     "v157Acheck",
     "v156Ccheck",
@@ -3924,6 +3926,20 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v159Ccheck": {
+   "file": "scripts/v159Ccheck.mjs",
+   "desc": "v159 C — the end zone and the shelf, alive: every celebration item on the new animation system (a seeded plan of closed-form particles under the cap, four stages — anticipation / burst / linger / fade — in 1.5-2.5 s, frames that change over time and are identical for the same seed and t, no Math.random, a hop and kinetic type; a calm reduced-motion plan); the Locker previews loop as mini-stages (still under reduced motion); the shelf glints, its trophies idle, its material moves, its numbers count up, a new trophy on his card pops (still under reduced motion); a forced touchdown by him on the live field plays the equipped celebration with its stages observed on time, under the cap and inside a draw-cost bound, a team-mate's does not; every item plays on the field; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics",
+    "live"
+   ],
+   "runtimeSec": 200,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   }
  }
 }
