@@ -5,13 +5,14 @@
 //      stay the super challenge's and the Career Pass still never draws them
 //   2. the Locker's WINGS: every new wing is listed with a drawn preview and the right lock text for its source
 //      (free: equips; earned: "🔒 Earn it: …"; member: "🔒 Membership")
-//   3. the flap: the pose is a beat then a rest (the angle / squash move inside the beat and are exactly still outside
-//      it); a Locker preview's pixels change during a beat and hold still at rest; TU v157Aflap 0 turns it off; with
-//      prefers-reduced-motion nothing flaps
+//   3. the flap: the pose is a beat every few seconds (the angle / squash swing inside it); between beats v159 D's
+//      flutter (small, never still — v159 D replaced v157 A's exact rest, v159Dcheck tests it in depth); a Locker
+//      preview's pixels change through a beat and keep changing between; TU v157Aflap 0 turns it off; with
+//      prefers-reduced-motion nothing moves
 //   4. the crowns: every crown (the catalogue's and each pass style) renders without an error, differs from its v153 G
 //      art (TU v157Acrown 0), is left-right symmetric (flame excepted), and holds more colours than before
-//   5. the profile card: equipped wings flap on the card (its back layer's pixels change in a beat, hold at rest)
-//   6. the live field: his wings are on him and flap (their rotation / scale move in a beat, rest between), the crown
+//   5. the profile card: equipped wings flap on the card (its back layer's pixels change in a beat, and flutter between)
+//   6. the live field: his wings are on him and flap (their rotation / scale swing in a beat, a small flutter between), the crown
 //      catches the light (glint frame) on the scene clock, no Math.random from src/28
 //   7. seeded games identical with nothing / every look equipped; no page errors
 // Screenshots go to $SHOTS (default /tmp/claude-0/shots/).
@@ -86,17 +87,17 @@ await shot('locker-wings')
 
 // ================= 3. the flap =================
 const pose = await E(() => { const V = window.__V157A, T = window.RIB_TUNE || {}, P = T.wingFlapPeriodV157A || 3400, D = T.wingFlapMsV157A || 760, beat = [], rest = []
-  for (let t = 0; t < P * 2; t += 10) { const p = V.pose(t), ph = t % P; (ph < D ? beat : rest).push(p) }
+  for (let t = 0; t < P * 2; t += 10) { const p = V.pose(t), ph = t % P; if (ph < D) beat.push(p); else if (ph > D + 700 && ph < P - 400) rest.push(p) }   // v159 D: the flutter window (after the settle, before the raise)
   const rots = beat.map(p => p.rot), sgn = rots.slice(1).filter((r, i) => (r > 0.02) !== (rots[i] > 0.02)).length
-  return { P, D, bMax: Math.max(...rots), bMin: Math.min(...rots), sy: Math.min(...beat.map(p => p.sy)), restStill: rest.every(p => p.rot === 0 && p.sy === 1 && !p.beat), beatOn: beat.filter(p => p.beat).length, sgn, on: V.flapOn() } })
-ok(pose.on && pose.P >= 2500 && pose.P <= 5000 && pose.bMax > 0.25 && pose.bMin < -0.15 && pose.sy < 0.95 && pose.restStill && pose.sgn >= 3, 'the pose: every few seconds a quick beat (the wings swing up and down, squash on the downstroke), exactly still between', pose)
+  return { P, D, bMax: Math.max(...rots), bMin: Math.min(...rots), sy: Math.min(...beat.map(p => p.sy)), restSmall: rest.every(p => Math.abs(p.rot) < 0.15 && !p.beat), restMoves: new Set(rest.map(p => p.rot.toFixed(4))).size > rest.length * 0.5, beatOn: beat.filter(p => p.beat).length, sgn, on: V.flapOn() } })
+ok(pose.on && pose.P >= 2500 && pose.P <= 5000 && pose.bMax > 0.25 && pose.bMin < -0.15 && pose.sy < 0.95 && pose.restSmall && pose.restMoves && pose.sgn >= 3, 'the pose: every few seconds a quick beat (the wings swing up and down, squash on the downstroke); between beats a small flutter, never still (v159 D)', pose)
 // a Locker preview, sampled against the clock through a beat and a rest
 const sample = (sel, ms) => E(async ({ sel, ms }) => { const H = window.__hash157, V = window.__V157A, T = window.RIB_TUNE || {}, P = T.wingFlapPeriodV157A || 3400, D = T.wingFlapMsV157A || 760
   const cv = document.querySelector(sel); if (!cv) return null; const beat = new Set(), rest = new Set(); const t0 = performance.now()
   await new Promise(r => { const f = () => { const t = performance.now(), ph = t % P; if (ph > 40 && ph < D - 40) beat.add(H(cv)); else if (ph > D + 120 && ph < P - 40) rest.add(H(cv)); if (t - t0 < ms) requestAnimationFrame(f); else r() }; requestAnimationFrame(f) })
   return { beat: beat.size, rest: rest.size } }, { sel, ms })
 const pv = await sample('.cos-item-v151b[data-cos="wings_paper"] canvas.cos-fl-v153g', 7500)
-ok(pv && pv.beat >= 3 && pv.rest === 1, 'a Locker preview flaps: its pixels change through a beat and hold still at rest', pv)
+ok(pv && pv.beat >= 3 && pv.rest >= 3, 'a Locker preview flaps: its pixels change through a beat, and keep changing between beats (v159 D\'s flutter)', pv)
 await E(() => { (window.RIB_TUNE = window.RIB_TUNE || {}).v157Aflap = 0; window.cosCatV151B('crown'); window.cosCatV151B('wings') }); await page.waitForTimeout(700)
 const pvOff = await sample('.cos-item-v151b[data-cos="wings_paper"] canvas.cos-fl-v153g', 3800)
 const offPose = await E(() => window.__V157A.pose(200))
@@ -140,7 +141,7 @@ await E(() => { window.RIB_TUNE.v156Ccos = 0; const C = window.RIB_COSMETICS; ['
 await E(() => window.go('profile')); await page.waitForTimeout(1900)
 const cd = await sample('#screen .pcard-v151b .pc-fl-v153g.back', 7500)
 const cardReg = await E(() => window.__V157A.registered().filter(r => r.where === 'card' && r.on).length)
-ok(cd && cd.beat >= 3 && cd.rest === 1 && cardReg >= 1, 'the profile card: his wings flap (the back layer changes through a beat, holds still at rest)', { cd, cardReg })
+ok(cd && cd.beat >= 3 && cd.rest >= 3 && cardReg >= 1, 'the profile card: his wings flap (the back layer changes through a beat, and flutters between — v159 D)', { cd, cardReg })
 await shot('profile-wings')
 
 // ================= 6. the live field =================
@@ -176,13 +177,13 @@ const field = await E(async () => {
   let rnd = 0; const orig = Math.random; Math.random = function () { if (/28-cosmetics/.test(String(new Error().stack))) rnd++; return orig() }
   const at = (t) => { sc.time.now = t; m._spdPx = 0; sc.placeMarker(m, m.sx, m.sy, 16); return { rot: +m._wrV153G.rotation.toFixed(4), sy: +m._wrV153G.scaleY.toFixed(4), vis: m._wrV153G.visible && m._wlV153G.visible, ck: m._crV153G && m._crV153G.texture.key } }
   const base = P * 400, beat = [], rest = []
-  try { for (let t = 0; t < P; t += 20) (t % P < D ? beat : rest).push(at(base + t)) } finally { Math.random = orig }
+  try { for (let t = 0; t < P; t += 20) (t % P < D ? beat : rest).push(Object.assign(at(base + t), { ph: t % P })) } finally { Math.random = orig }
   const GP = T.crownGlintPeriodV157A || 2900, gl = [at(GP * 600 + 50), at(GP * 600 + 1500)]
-  const bR = beat.map(s => s.rot), rR = new Set(rest.map(s => s.rot + '|' + s.sy))
-  return { beatSpan: Math.max(...bR) - Math.min(...bR), sy: Math.min(...beat.map(s => s.sy)), restStates: rR.size, vis: beat.concat(rest).every(s => s.vis), rnd, glint: gl[0].ck !== gl[1].ck, kind: V.field && V.field.kind, n: V.fieldN, errs: window.__V153G.errs.slice().concat(V.errs) }
+  const bR = beat.map(s => s.rot), flut = rest.filter(s => s.ph > D + 700 && s.ph < P - 400), fR = flut.map(s => s.rot), rR = new Set(flut.map(s => s.rot + '|' + s.sy))   // v159 D: the flutter window
+  return { beatSpan: Math.max(...bR) - Math.min(...bR), sy: Math.min(...beat.map(s => s.sy)), restStates: rR.size, restSpan: Math.max(...fR) - Math.min(...fR), vis: beat.concat(rest).every(s => s.vis), rnd, glint: gl[0].ck !== gl[1].ck, kind: V.field && V.field.kind, n: V.fieldN, errs: window.__V153G.errs.slice().concat(V.errs) }
 })
 ok(field.vis && field.kind === 'demon' && field.n > 50, 'the live field: his equipped wings (Demon Wings) are on his marker', { vis: field.vis, kind: field.kind, n: field.n })
-ok(field.beatSpan > 0.4 && field.sy < 0.95 && field.restStates === 1, 'and they flap on the scene clock: the angle and squash swing through a beat, one still pose between beats', { span: +field.beatSpan.toFixed(3), sy: field.sy, rest: field.restStates })
+ok(field.beatSpan > 0.4 && field.sy < 0.95 && field.restStates > 10 && field.restSpan < 0.3 && field.beatSpan > 2 * field.restSpan, 'and they flap on the scene clock: the angle and squash swing through a beat; between beats a small flutter, never one still pose (v159 D)', { span: +field.beatSpan.toFixed(3), sy: field.sy, rest: field.restStates, restSpan: +field.restSpan.toFixed(3) })
 ok(field.glint && field.rnd === 0 && field.errs.length === 0, 'the crown catches the light (the glint frame) on the scene clock; not one Math.random from src/28; no fx error', { glint: field.glint, rnd: field.rnd, errs: field.errs })
 const snap = await E(async () => { const sc = window.__gridironScene, m = sc.markers.find(q => q && q.team === 'you'), c = sc.cameras.main, T = window.RIB_TUNE, P = T.wingFlapPeriodV157A || 3400
   sc.time.now = P * 500 + 190; sc.placeMarker(m, m.sx, m.sy, 16)
