@@ -218,3 +218,7 @@
 .mp156d-box.locked .mp156d-sq{border-color:#5a6678;font-size:12px}
 .mp156d-box.locked .mp156d-lbl{color:#8a96a8;text-decoration:line-through}
 .mp156d-box:focus-within{outline:2px solid #fff4d0;outline-offset:2px}
+/* ===== v159 B MY PLAYS ONLY IS THE MEMBER'S ===== store ON: locked "🔒 MY PLAYS ONLY · AD / MEMBER", or the ad's minutes */
+.mp156d-box.gated-v159b{border-style:dashed;background:#f0bb450d;box-shadow:none}
+.mp156d-box.gated-v159b .mp156d-sq{font-size:12px}
+.mp159b-tag{font:700 10px Oswald,sans-serif;letter-spacing:1px;opacity:.85}

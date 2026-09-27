@@ -122,9 +122,10 @@
         { k: "card", name: "CARD",        re: /pcard-host-v151b|prof-more-v151b/ },
         { k: "case", name: "TROPHY CASE", re: /lg-case-v152/ },
         { k: "book", name: "COLLECTION",  re: /lg-book-v152/ },
+        { k: "sims", name: "SIMS",        re: /lg-sims-v159b/ },   // v159 B: the medals' season-sim reward (src/31 simsCardV159B)
       ],
       txt: [],
-      nofold: ["card", "case", "book"],
+      nofold: ["card", "case", "book", "sims"],
     },
     /* ===== v151 B THE LOCKER HAS A STYLE TAB =====
      * GEAR is the locker as it was (the slots, the totals, the inventory); STYLE is the cosmetics panel
@@ -210,7 +211,7 @@
       nofold: ["nodes"],
     },
   };
-  const ICON = { lead: "🏅", odds: "🎯", xp: "🎖️", card: "🪪", case: "🏆", book: "📖", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
+  const ICON = { lead: "🏅", odds: "🎯", xp: "🎖️", card: "🪪", case: "🏆", book: "📖", sims: "⏭", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
   const TAB = { locker: "gear", hub: "now", shop: "nodes", season: "sched", settings: "game", result: "grade", declineResult: "epitaph", gameover: "end", win: "end" };
 
   function cfg() { const s = window.S; return (s && VIEWS[s.view]) || null }

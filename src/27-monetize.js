@@ -15,7 +15,8 @@
  *     `none`, and documented stubs for AdMob (Capacitor), RevenueCat / Play Billing / StoreKit (Capacitor),
  *     and the web (a Stripe Payment Link + a verification endpoint — never granted on the redirect alone).
  *   - What is NEVER sold: gear or gear rolls, wheel spins, re-rolls, Prestige Points, prestige-tree power, stat
- *     boosts, or any setting that is free today (My plays only, skip opponent drives, fast sim). See the doc.
+ *     boosts, or any setting that is free today (skip opponent drives, your side of the ball, fast sim). See the doc.
+ *     (v159 B, the owner's call: with the store ON the strict MY PLAYS ONLY box is the member's, or 30 min for an ad.)
  *
  * v150 C THE HOOKS ARE IN, THE SWITCH IS STILL OFF: the game now calls INTO this module at the places the doc's §8
  * listed (H1–H11 — src/07-career-app.js `v150 C` banner, public/rib-menu.js, src/26-platform.js). Each of those
@@ -32,7 +33,7 @@
  * first finished career, 3× after a full UFF season and 4× for winning the UFF title (v156 C), season sims a CAREER from the
  * Legacy medal groups (v156 B: 1 → 20; the playoffs are always played live). What THIS file adds, and only while ON:
  *   REWARDED  opt-in only, `rewarded.dailyCap` a day (TU "adsPerDayV151A", 4, never above 5), each one a CONVENIENCE:
- *             4× for 20 min, unlimited GAME sims (Quick Play) for 30 min (v158 B `gameSims`; was v156 B `simUnlimited`), try a locked cosmetic for 24h. The PP double is GONE (it sold
+ *             4× for 20 min, unlimited GAME sims (Quick Play) for 30 min (v158 B `gameSims`; was v156 B `simUnlimited`), My Plays Only for 30 min (v159 B `playsOnly`), try a locked cosmetic for 24h. The PP double is GONE (it sold
  *             prestige); `claimPayoutBoost` stays in the API and always answers 0.
  *   TIERS     No Ads $3.99 ⊂ Pro Career $8.99 ⊂ Founder $14.99 — one key each, the rest IMPLIED (`IMPLIES`), so a
  *             restore of one product id brings back the whole chain. Upgrade products carry the price difference.
@@ -59,6 +60,7 @@
       store: true,                       // the Store screen and its topbar chip
       rewardedSpeed: true,               // "▶ 4× for 20 min"
       rewardedSim: true,                 // "▶ unlimited game sims for 30 min" (v158 B: Quick Play; v156 B: season sims)
+      rewardedPlays: true,               // v159 B: "▶ My Plays Only for 30 min" (the member's perk, lent by an ad)
       rewardedTrial: true,               // "▶ try a locked cosmetic for 24h"
       pro: true,                         // the three permanent tiers (No Ads / Pro Career / Founder)
       upgrades: true,                    // the upgrade products (the difference in price) for a lower-tier owner
@@ -75,6 +77,7 @@
     rewarded: {
       speed4Minutes: 20,                 // what one speed ad buys (TU "speed4AdMinV151A")
       simMinutes: 30,                    // what one sim ad buys — v158 B: unlimited GAME sims (Quick Play) (TU "simAdMinV156B")
+      playsMinutes: 30,                  // v159 B: what one My Plays Only ad buys (TU "playsAdMinV159B")
       dailyCap: 4,                       // rewarded ads a local day, all placements (TU "adsPerDayV151A"; clamped 0..5)
       trialHours: 24                     // a cosmetic trial (TU "trialHoursV151A")
     },
@@ -101,7 +104,7 @@
         grants: { "cos:team_style_all": {} }, blurb: ["Every logo and every colour in the Team Creator", "Cosmetic only — changes nothing on the field"] },
       { id: "rib.member.monthly", kind: "subscription", title: "Running It Back Club", price: "$1.99 / month", membership: true,
         grants: { member: { periodDays: 31 } },
-        blurb: ["Everything in Ad Free and 4× while subscribed", "Unlimited game sims (Quick Play) and twice the season sims", "The member looks and the premium Career Pass", "Cloud save + seasonal cosmetics (needs a server)"] }
+        blurb: ["Everything in Ad Free and 4× while subscribed", "Unlimited game sims (Quick Play) and My Plays Only, always", "50% more season sims from your medals (all nine groups: 30, not 20)", "The member looks and the premium Career Pass", "Cloud save + seasonal cosmetics (needs a server)"] }
     ],
     pass: { price: "$9.99", prefix: "rib.pass." },
     // the price of a cosmetic pack by its category when RIB_COSMETICS does not name one
@@ -122,6 +125,7 @@
     placements: {
       speed4: { feature: "rewardedSpeed", reward: { key: "speed4", minutes: "speed4Minutes" }, label: "4× for 20 min" },
       gameSims: { feature: "rewardedSim", reward: { key: "gameSims", minutes: "simMinutes" }, label: "unlimited game sims for 30 min" },   // v158 B (v156 B: simUnlimited — season sims; v151 A: simExtra)
+      playsOnly: { feature: "rewardedPlays", reward: { key: "playsOnly", minutes: "playsMinutes" }, label: "MY PLAYS ONLY FOR 30 MIN" },   // v159 B: the live field's MY PLAYS ONLY box
       cosTrial: { feature: "rewardedTrial", reward: { key: "try:*", hours: "trialHours" }, label: "try a cosmetic for 24 hours" }
     },
     mock: { adMs: 5000 },
@@ -134,7 +138,7 @@
   };
 
   // ---- the guard: what a product may grant. Convenience and cosmetics only (docs/MONETIZATION.md §2).
-  var ALLOW_KEYS = ["noAds", "pro", "founder", "member", "speed3", "speed4", "simPlus", "simUnlimited", "gameSims", "filters", "customPlus", "saveSlots"];
+  var ALLOW_KEYS = ["noAds", "pro", "founder", "member", "speed3", "speed4", "simPlus", "simUnlimited", "gameSims", "playsOnly", "filters", "customPlus", "saveSlots"];   // v159 B: playsOnly
   var ALLOW_PREFIX = ["cos:", "cos_", "pack:", "pass:", "exp:", "try:"];
   function keyAllowed(k) {
     k = String(k || "");
@@ -156,7 +160,7 @@
   var IMPLIES = {
     founder: ["pro", "customPlus"],
     pro: ["noAds", "speed4", "simPlus", "filters"],
-    member: ["noAds", "speed4", "gameSims"],   // v158 B: the Club has the ad's benefit for good — unlimited GAME sims (Quick Play); its season sims are doubled by the game (src/07 memberSimMultV158B)
+    member: ["noAds", "speed4", "gameSims", "playsOnly"],   // v158 B: the Club has the ads' benefits for good — unlimited GAME sims (Quick Play), v159 B My Plays Only; its season sims are ×1.5 (the game: src/07 memberSimMultV158B)
     simUnlimited: ["gameSims"],                // v158 B: a stored v156 B sim-ad grant is read as the game-sims one
     speed4: ["speed3"],
     "exp:universe": ["exp:frontoffice", "exp:coach", "exp:gm", "exp:eras", "exp:dynasty"]
@@ -222,6 +226,7 @@
   function speed4Minutes() { return +T("speed4AdMinV151A", CFG.rewarded.speed4Minutes) || 20 }
   function trialHours() { return +T("trialHoursV151A", CFG.rewarded.trialHours) || 24 }
   function simMinutes() { return +T("simAdMinV156B", CFG.rewarded.simMinutes) || 30 }
+  function playsMinutes() { return +T("playsAdMinV159B", CFG.rewarded.playsMinutes) || 30 }   // v159 B
 
   // ---- the clock (a dev offset lets a check fast-forward a timed boost or a day without touching the page's timers)
   var devOffset = 0;
@@ -553,7 +558,7 @@
       busy = false; r = r || {};
       if (!r.rewarded) { track("ad_not_rewarded", { placement: placement, reason: r.reason || "closed" }); return { rewarded: false, reason: r.reason || "closed" } }
       countAd();
-      var mins = rw.minutes != null ? (rw.minutes === "speed4Minutes" ? speed4Minutes() : rw.minutes === "simMinutes" ? simMinutes() : +rw.minutes) : rw.hours != null ? (rw.hours === "trialHours" ? trialHours() : +rw.hours) * 60 : null;
+      var mins = rw.minutes != null ? (rw.minutes === "speed4Minutes" ? speed4Minutes() : rw.minutes === "simMinutes" ? simMinutes() : rw.minutes === "playsMinutes" ? playsMinutes() : +rw.minutes) : rw.hours != null ? (rw.hours === "trialHours" ? trialHours() : +rw.hours) * 60 : null;
       grant(key, { minutes: mins, uses: rw.uses, until: rw.endOfDay ? endOfDay() : null, source: (adFree ? "adfree:" : "ad:") + placement });
       track("ad_rewarded", { placement: placement, adFree: adFree });
       return { rewarded: true, adFree: adFree, reward: { key: key, minutes: mins || null, uses: rw.uses || null } };
@@ -613,6 +618,7 @@
     simInfo: simInfo,                                                          // the game's season skips, as the store shows them
     simLocked: function () { if (ON) ui.simLocked() },                         // the game's sim button with none left this career
     gameSimLocked: function (retry) { if (ON) ui.gameSimLocked(retry) },       // v158 B: a Quick Play tap without game sims
+    playsLocked: function (then) { if (ON) ui.playsLocked(then) },             // v159 B: a MY PLAYS ONLY tap without the perk
     filtersLocked: function () { return ON && !!CFG.features.gateFilters && !has("filters") },
     validateProduct: validateProduct, keyAllowed: keyAllowed, catalog: catalog,
     cosmeticAccess: cosmeticAccess, expansions: expansions, expansionUnlocked: expansionUnlocked,
@@ -658,7 +664,7 @@
       if (st.gf && CFG.features.grandfatherSpeed4 && CFG.features.gateSpeed4) grant("speed4", { source: "grandfather" });
     }
   })();
-  // v158 B: the MEMBER preview holds `member` for good (in the sandbox) — noAds, speed4, gameSims (Quick Play), ×2 season sims, the member looks
+  // v158 B: the MEMBER preview holds `member` for good (in the sandbox) — noAds, speed4, gameSims (Quick Play), My Plays Only (v159 B), ×1.5 season sims, the member looks
   if (PREVIEW === "member" && !held("member")) grant("member", { source: "preview" });
 
   function gameState() { try { return window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState() } catch (e) { return null } }
@@ -710,8 +716,8 @@
     var s = simInfo(), canAd = CFG.features.rewardedSim && adsLeft() > 0 && !gameSimsHeld(), free = has("noAds"), pro = has("simPlus"), nx = s.next, mem = has("member");
     ui.sheet({
       title: "NO SEASON SIMS LEFT THIS CAREER",
-      lines: ["You have used this career's " + (s.allowed || 0) + " season sim" + (s.allowed === 1 ? "" : "s") + (mem ? " (a member's: twice the medals')" : "") + ". " +
-        (nx ? "Complete the " + esc(nx.name) + " medals (Legacy medal " + fmtN(nx.to) + ") for +" + nx.bonus + " every career — each medal group adds more, up to " + (s.max || 20) * (s.mult || 1) + "." : "Every medal group is complete.") +
+      lines: ["You have used this career's " + (s.allowed || 0) + " season sim" + (s.allowed === 1 ? "" : "s") + (mem ? " (a member's: 50% more than the medals')" : "") + ". " +
+        (nx ? "Complete the " + esc(nx.name) + " medals (Legacy medal " + fmtN(nx.to) + ") for +" + nx.bonus + " every career — each medal group adds more, up to " + (s.cap || (s.max || 20) * (s.mult || 1)) + "." : "Every medal group is complete.") +
         " Sims refill with every new career. The playoffs are always played live.",
         mem || gameSimsHeld() ? "Quick Play still sims any regular-season week, one game at a time." : canAd ? "Quick Play (one game at a time) is a member perk — or " + (free ? "claim " : "watch a short ad for ") + simMinutes() + " minutes of unlimited game sims." : "",
         CFG.features.pro && !pro ? "Pro Career: +" + (s.proBonus || 3) + " season sims every career." : ""],
@@ -729,6 +735,29 @@
         canAd ? adsLeft() + " of " + dailyCap() + " rewards left today." : "That's today's rewards — back tomorrow.", "Play the week live any time — free, always."],
       yes: canAd ? (free ? "✓ CLAIM · " : "▶ WATCH · ") + "UNLIMITED GAME SIMS " + simMinutes() + " MIN" : "OK", no: "NOT NOW",
       onYes: function () { if (canAd) rewardSim().then(function (r) { if (r.rewarded && typeof retry === "function") try { retry() } catch (e) { console.warn("[RIB_MONETIZE] quick play", e) } }) }
+    });
+  };
+  /* ===== v159 B MY PLAYS ONLY IS THE MEMBER'S =====
+   * The owner: "Add the My Plays Only for the membership and f2p ads." A MY PLAYS ONLY tap (the live field's box, the
+   * Settings row) without `playsOnly` opens this sheet: a member perk, or the rewarded ad (placement `playsOnly`, 30 min,
+   * TU "playsAdMinV159B"; the 15 s placeholder in the F2P preview; Ad Free claims it). After the reward the game's `then`
+   * ticks the box on (src/07 `myPlaysUnlockedV159B`) — it applies from the next play. Only ever built while ON. */
+  function rewardPlays() {
+    return showRewarded("playsOnly").then(function (r) {
+      if (r.rewarded) toast("MY PLAYS ONLY · " + playsMinutes() + " MIN"); else if (r.reason === "daily-cap") toast("That's today's rewards — back tomorrow");
+      ui.tick(); return r;
+    });
+  }
+  API.rewardPlays = rewardPlays;
+  ui.playsLocked = function (then) {
+    var canAd = CFG.features.rewardedPlays && adsLeft() > 0, free = has("noAds");
+    track("plays_locked_tap", {});
+    ui.sheet({
+      title: "MY PLAYS ONLY IS A MEMBER PERK",
+      lines: ["Only the snaps you're in — every other play is skipped. It is a member perk — or " + (free ? "claim " : "watch an ad for ") + playsMinutes() + " minutes of it. It starts on the next play.",
+        canAd ? adsLeft() + " of " + dailyCap() + " rewards left today." : "That's today's rewards — back tomorrow.", "Your side of the ball and every snap stay free, always. The playoffs are watched snap by snap."],
+      yes: canAd ? (free ? "✓ CLAIM · " : "▶ WATCH · ") + "MY PLAYS ONLY " + playsMinutes() + " MIN" : "OK", no: "NOT NOW",
+      onYes: function () { if (canAd) rewardPlays().then(function (r) { if (r.rewarded && typeof then === "function") try { then() } catch (e) { console.warn("[RIB_MONETIZE] my plays only", e) } }) }
     });
   };
   function fmtN(n) { return n == null ? "—" : Number(n).toLocaleString("en-US") }
@@ -894,6 +923,8 @@
   function freeRung() {
     var g = gates() || {}, s = simInfo(), ok = '<b class="mz151-ok">', G = function (x) { return x && x.ok };
     var po = G(g.playsOnly) ? ok + "My Plays Only — unlocked ✓</b>" : "My Plays Only — <b>complete your first career</b>";
+    var V9 = window.__V159B, pg = V9 && V9.gate ? V9.gate() : null;   // v159 B: store ON — the box above the live field is the member's (or 30 min for an ad)
+    if (pg) po = "Your side of the ball — free ✓ · My Plays Only (only your snaps): " + (pg.locked ? "a member perk, or " + playsMinutes() + " min for an ad" : '<b class="mz151-ok">yours' + (pg.member ? " — member ✓" : " · " + pg.tag) + "</b>");
     var v156 = g.uffTitle !== undefined;   // v156 C: 3× after a full UFF season, 4× for the UFF title
     var s3 = G(g.speed3) ? ok + "3× play speed — unlocked ✓</b>" : v156 ? "3× play speed — <b>survive a full UFF season</b>" : "3× play speed — <b>reach the UFF</b> (best so far: " + esc(g.bestName || "—") + ")";
     if (v156) s3 += "<br>" + (g.speed4 && g.speed4.earned ? ok + "4× play speed — won with the UFF title ✓</b>" : "4× play speed — <b>win the UFF championship</b>");
@@ -911,6 +942,8 @@
     if (CFG.features.rewardedSpeed && !perm) b.push('<button class="mz149-btn" data-ad="speed4"' + (left ? "" : " disabled") + ">" + (free ? "✓ CLAIM" : "▶ WATCH") + " · 4× FOR " + speed4Minutes() + " MIN</button>");
     var su = until("gameSims");   // v158 B: the sim ad buys game sims (Quick Play)
     if (CFG.features.rewardedSim && su !== Infinity) b.push('<button class="mz149-btn" data-ad="gameSims"' + (left ? "" : " disabled") + ">" + (su ? "∞ GAME SIMS · " + fmtLeft(su - now()) + " LEFT · EXTEND" : (free ? "✓ CLAIM" : "▶ WATCH") + " · UNLIMITED GAME SIMS " + simMinutes() + " MIN") + "</button>");
+    var pu = until("playsOnly");   // v159 B: My Plays Only for 30 min
+    if (CFG.features.rewardedPlays && pu !== Infinity && window.__V159B && window.__V159B.gateOn()) b.push('<button class="mz149-btn" data-ad="playsOnly"' + (left ? "" : " disabled") + ">" + (pu ? "MY PLAYS ONLY · " + fmtLeft(pu - now()) + " LEFT · EXTEND" : (free ? "✓ CLAIM" : "▶ WATCH") + " · MY PLAYS ONLY " + playsMinutes() + " MIN") + "</button>");
     if (!b.length && !CFG.features.rewardedTrial) return "";
     return '<div class="mz151-rung" data-sec="ad"><span class="mz151-step">REWARDED · OPTIONAL</span>' +
       '<div class="mz149-prod"><b>' + (free ? "Ad-free rewards" : "Watch an ad, if you like") + '</b><i data-left>' + (s4 && !perm ? "4× · " + fmtLeft(s4 - now()) + " LEFT" : left + " / " + cap + " TODAY") + "</i></div>" +
@@ -991,7 +1024,7 @@
     v.onclick = function (ev) { if (ev.target === v) ui.store(false) };
     function again() { if (storeOpen) ui.store(true) }
     [].forEach.call(v.querySelectorAll("[data-buy]"), function (b) { b.onclick = function () { purchase(b.getAttribute("data-buy")).then(function (r) { if (r.ok) toast(r.already ? "ALREADY YOURS" : "THANK YOU · UNLOCKED"); else if (r.reason && r.reason !== "cancelled") toast("Purchase failed: " + r.reason); again(); ui.tick() }) } });
-    [].forEach.call(v.querySelectorAll("[data-ad]"), function (b) { b.onclick = function () { (b.getAttribute("data-ad") === "gameSims" ? rewardSim() : rewardSpeed()).then(again) } });
+    [].forEach.call(v.querySelectorAll("[data-ad]"), function (b) { b.onclick = function () { var k = b.getAttribute("data-ad"); (k === "gameSims" ? rewardSim() : k === "playsOnly" ? rewardPlays() : rewardSpeed()).then(again) } });   // v159 B: playsOnly
     [].forEach.call(v.querySelectorAll("[data-try]"), function (b) { b.onclick = function (ev) { ev.stopPropagation(); rewardTrial(b.getAttribute("data-try")).then(again) } });
     [].forEach.call(v.querySelectorAll("[data-cat]"), function (b) { b.onclick = function () { cosTab = b.getAttribute("data-cat"); again() } });
     var xb = v.querySelector("[data-exp158]"); if (xb) xb.onclick = function () { ui.store(false); toSettings() };   // v158 B
