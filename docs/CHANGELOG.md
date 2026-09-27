@@ -10,6 +10,14 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v161 A — they celebrate like they mean it.** (`src/28-cosmetics.js`, `src/05-field-renderer.js`,
+  `scripts/build-celebration-sheets.py`, `art/celebrations/`, `public/celebrations/`, `scripts/v161Acheck.mjs`.) The owner's
+  three drawn celebrations — the FLEX, the BACKFLIP and the BALL SPIKE — play on his touchdowns, one picked at random
+  (the same play always picks the same one). The backflip loads in a crouch, flies a real arc and spins a smooth full turn
+  about his centre of mass through the drawn frames, lands with a squash and dust; the spike winds up, hops, slams the
+  ball into the turf (flash, dirt, a camera shake) and the ball bounces away on its own, lower every time; the flex holds
+  every pose with weight, stomps and pumps. He wears his kit, his skin tone and his helmet; the equipped effect still
+  plays around him. The Locker previews play all three. Reduced motion: one calm pose. Kill switch `v161A`.
 - **v160 A — the team on the helmet.** (`src/28-cosmetics.js`, `scripts/v160Acheck.mjs`.) The profile character wears his
   team's logo on the side of the helmet — painted into the shell, curved with the dome, shaded by its light, off the
   stripe — and so does every screen that draws the same figure (the growth screen, the live badge). A helmet with its own

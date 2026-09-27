@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v161 A — they celebrate like they mean it.** Three drawn touchdown celebrations — the flex, the backflip, the ball
+  spike — picked at random on his touchdowns, in his kit, with real arcs, a smooth spin and a bouncing ball.
+  `scripts/build-celebration-sheets.py`; `v161Acheck`.
 - **v153 D — the goal on the wall.** The menu holds up the UFF CHAMPIONS trophy until it is won, then INTERSTELLAR
   CHAMPIONS; the Legacy medal hovers in its own box under the logo; a PROFILE tile; PRESTIGE is the gold coin; the
   players breathe. `v153Dcheck`.
