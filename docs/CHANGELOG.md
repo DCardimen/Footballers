@@ -10,6 +10,12 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v164 I — the start is earned.** (`src/04-engine.js`, `scripts/accelcheck.mjs`.) The acceleration check found every
+  player reached 90% of top speed in 0.4–0.6 real seconds, so the acceleration rating barely mattered. A standing
+  start now takes 1.1 s (rating 90) to 1.5 s (rating 25), and the 0-10 yard split runs 1.5–2.0 s; moving players,
+  braking and cuts are unchanged. The back takes the handoff moving; under center he waits at the mesh for the
+  quarterback. Game balance held: `movementcheck` inside its band, `equaltalentcheck` 59.3 points a game (base 57).
+  Kill switch `accelV164`.
 - **v164 F–H, P — the jumbotron says it; the slow dial; the big play has a dance; the moves read; the offense has
   formations.** (`src/05-field-renderer.js`, `src/04-engine.js`, `src/07-career-app.js`, `src/styles/02-live-sim.css`,
   `scripts/v164Fcheck.mjs`, `scripts/formcheck.mjs`.)

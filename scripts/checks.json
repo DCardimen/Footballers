@@ -29,7 +29,8 @@
     "v151Echeck",
     "v156Acheck",
     "v164Echeck",
-    "formcheck"
+    "formcheck",
+    "accelcheck"
    ]
   },
   "docs": {
@@ -724,12 +725,14 @@
   "reads": {
    "desc": "v81 / v82 — defender reads, blocking, pursuit, the point of attack",
    "anchors": [
+    "v164 I",
     "v81",
     "v82",
     "GRIDIRON FieldSim"
    ],
    "files": [],
    "checks": [
+    "accelcheck",
     "readcheck",
     "movementcheck",
     "simcheck",
@@ -4159,6 +4162,18 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "accelcheck": {
+   "file": "scripts/accelcheck.mjs",
+   "desc": "v164 I — the start is earned (pure Node): time to 50/80/90% of top speed, yards at 0.5/1.0/1.5 s, yards to 90% and the 0-10 yard split per rating 25..90; a better rating is sooner on every measure, 90% of top speed takes 0.8-2.2 real seconds, the 0-10 split spreads >= 0.15 s, braking untouched, TU accelV164 0 is the old near-instant ramp.",
+   "areas": [
+    "reads"
+   ],
+   "runtimeSec": 3,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": true,
+   "flaky": []
   }
  }
 }
