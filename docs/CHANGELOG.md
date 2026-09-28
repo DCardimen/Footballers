@@ -15,7 +15,9 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
   start now takes 1.1 s (rating 90) to 1.5 s (rating 25), and the 0-10 yard split runs 1.5–2.0 s; moving players,
   braking and cuts are unchanged. The back takes the handoff moving; under center he waits at the mesh for the
   quarterback. Game balance held: `movementcheck` inside its band, `equaltalentcheck` 59.3 points a game (base 57).
-  Kill switch `accelV164`.
+  Past the wall: every stat past ~235 on the sheet used to clamp to the same 99 on the field, so 250 and 600 moved
+  alike. HIS speed, acceleration, burst and agility now keep paying on a diminishing tail (sheet 250 → 102.6, 400 →
+  112.7, 600 → 117.9; 0-10 split 1.45 → 1.42 → 1.41 s). Kill switches `accelV164`, `hiTailV164I`.
 - **v164 F–H, P — the jumbotron says it; the slow dial; the big play has a dance; the moves read; the offense has
   formations.** (`src/05-field-renderer.js`, `src/04-engine.js`, `src/07-career-app.js`, `src/styles/02-live-sim.css`,
   `scripts/v164Fcheck.mjs`, `scripts/formcheck.mjs`.)

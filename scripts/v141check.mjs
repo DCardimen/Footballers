@@ -11,7 +11,7 @@
 import fs from 'node:fs'
 import { chromium } from 'playwright'
 import { gameScripts } from './lib/layout.mjs'   // v149 A: the game's scripts by file (docs/LAYOUT.md)
-const needle = 'return { off, def, all: off.concat(def) };'
+const needle = 'return { off, def, all: off.concat(def), formV164P };'   // v164 P added the formation to the return
 const patch = 'if(root.__AP){root.__AP.push(off.concat(def).map(a=>({lb:a.lb,you:!!(a.player&&a.player.you),spdA:a.spdA,burst:a.burst,accel:a.accel,quick:a.quick,agi:a.agi,str:a.str,cat:a.cat,thr:a.thr,tkl:a.tkl,blk:a.blk,aware:a.aware,vis:a.vis,grit:a.grit,stam:a.stam,dur:a.dur,jump:a.jump,bc:a.bc,disc:a.disc,cov:a.cov})))}' + needle
 let hit = 0
 const runtime = gameScripts(['inline:0', 'inline:1', 'inline:2', 'src/03-splash.js', 'src/04-engine.js', 'src/07-career-app.js']).map(s=>{ let l=s.replace(/data:image\/[^;"']+;base64,[A-Za-z0-9+/=]+/g,'data:image/png;base64,'); if(l.includes(needle)){l=l.replace(needle,patch);hit++} return l })

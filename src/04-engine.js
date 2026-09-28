@@ -1634,7 +1634,8 @@ window.__visionRadiusV96 = visionRadiusV96;
   // request a target gear; ratings determine how quickly the player launches,
   // brakes, survives a cut, and rebuilds speed afterward.
   function evolveSpeed(a,targetFrac,dt,now,turn=0,brakeScale=1) {
-    const accel=cl(a.accel||a.quick||a.spdA||55,1,99), agility=cl(a.agi||55,1,99), burst=cl(a.burst||accel,1,99);
+    const hiV164I=TU("accelV164",1)&&TU("hiTailV164I",1)?TU("hiCapV164I",130):99;   // v164 I: his tail past 99 reaches the ramp
+    const accel=cl(a.accel||a.quick||a.spdA||55,1,hiV164I), agility=cl(a.agi||55,1,hiV164I), burst=cl(a.burst||accel,1,hiV164I);
     let frac=Math.max(0,a.vel||0);
     const hardTurn=turn>TU("accelRestartTurn",.34), wantsMove=targetFrac>.12;
     if(!wantsMove&&frac<TU("accelResetFrac",.08))a._launchReady=true;
@@ -1719,8 +1720,15 @@ window.__visionRadiusV96 = visionRadiusV96;
     const A = (p, side, i, lb) => {
       // per-agent variability: talent jitter (who they are) + daily form (how they show up)
       const jit = () => (Math.random()*10 - 5) + (Math.random()*6 - 3);
-      const g = n => Math.max(20, Math.min(99, (p ? att(p,n) : avg(side==="off"?kOff:tDef, n)) + jit()));
-      const speed=g("speed"), accel=g("acceleration")||g("burst")||speed;
+      /* v164 I PAST THE WALL: HIS movement ratings (speed, acceleration, burst, agility) keep paying past 99 on a
+       * diminishing tail — `hiTailMaxV164I` at most, half of it `hiTailHalfV164I` sim points past 99 — so a sheet of
+       * 400 moves better than one of 250 (both used to clamp to the same 99). Every other rating, and every AI man,
+       * clamps at 99 as before. The same one jitter draw per call: no extra Math.random. Kill switch hiTailV164I 0. */
+      const g = (n, tail) => { const v = Math.max(20, (p ? att(p,n) : avg(side==="off"?kOff:tDef, n)) + jit());
+        if (v <= 99) return v;
+        if (!(tail && p && p.you && TU("accelV164", 1) && TU("hiTailV164I", 1))) return 99;
+        const x = v - 99, M = TU("hiTailMaxV164I", 30), T = TU("hiTailHalfV164I", 120); return 99 + M * x / (x + T); };
+      const speed=g("speed",1), accel=g("acceleration",1)||g("burst",1)||speed;
        /* ===== v56 REACTION RATING =====
         * `a.quick` drives first-step latency, DL shed contests and play recognition.
         * The roster does carry a quickness value, but it is the TEAM AVERAGE plus
@@ -1741,8 +1749,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       return { id:(side==="off"?"off":"def")+i, side, lb, ht,
         lx: side==="off"?OFF_LX(lb,i):DEF_LX(lb), y: side==="off"?OFF_Y[i]:DEF_Y[i],
         spd: 92 + speed*0.85, spdA: speed, str:g("strength"), blk:g("blocking"),
-        tkl:g("tackling"), cov:g("coverage"), agi:g("agility"),
-        burst:g("burst")||accel, accel, quick, aware:g("awareness"), cat:g("catching"),
+        tkl:g("tackling"), cov:g("coverage"), agi:g("agility",1),
+        burst:g("burst",1)||accel, accel, quick, aware:g("awareness"), cat:g("catching"),
         jump:g("jumping"), thr:g("throwing")||g("awareness"), vis:g("vision")||g("awareness"),
         stam:g("stamina"), grit:g("grit")||50, disc:g("discipline")||50, bc:g("ballControl")||50,
         dur:g("injuryResist")||50,                              // v141 durability: how much of his speed a carrier keeps through a hit
