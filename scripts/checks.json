@@ -28,7 +28,8 @@
     "v150Acheck",
     "v151Echeck",
     "v156Acheck",
-    "v164Echeck"
+    "v164Echeck",
+    "formcheck"
    ]
   },
   "docs": {
@@ -771,6 +772,7 @@
    ],
    "files": [],
    "checks": [
+    "formcheck",
     "simcheck",
     "renderpathcheck",
     "scoreneutralcheck",
@@ -845,6 +847,9 @@
   "badges": {
    "desc": "v95 — the callout badges",
    "anchors": [
+    "v164 F",
+    "v164 G",
+    "v164 H",
     "v95"
    ],
    "files": [
@@ -852,6 +857,7 @@
     "scripts/build-badge-art.*"
    ],
    "checks": [
+    "v164Fcheck",
     "badgecheck",
     "v86check"
    ],
@@ -919,10 +925,12 @@
   "playbook": {
    "desc": "v101 — asset paths, the playbook, the throw, shading, prebuild, crowd emoji",
    "anchors": [
+    "v164 P",
     "v101"
    ],
    "files": [],
    "checks": [
+    "formcheck",
     "v101check",
     "simcheck",
     "readcheck",
@@ -1150,6 +1158,7 @@
    "anchors": [],
    "files": [],
    "checks": [
+    "v164Fcheck",
     "v109Echeck",
     "v86check",
     "v98check",
@@ -4122,6 +4131,34 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "formcheck": {
+   "file": "scripts/formcheck.mjs",
+   "desc": "v164 P — the offense has formations (pure Node, seeded): every log opens with a `formation` event; the QB / back / tight end stand where the table puts them (−38 gun, −8 under center, −26 pistol; the back behind the QB, the I's fullback); from under center the QB reverses to the mesh (within reach at the handoff) and a pass is a real drop; every look's yards and completions stay inside a band of the gun's; the engine counts the looks; TU v164Pform 0 lines everyone up in the gun.",
+   "areas": [
+    "reads",
+    "sim"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": true,
+   "flaky": []
+  },
+  "v164Fcheck": {
+   "file": "scripts/v164Fcheck.mjs",
+   "desc": "v164 F / G / H — on a live game: a message is said on the stadium's big screen (mode msg, the feed camera down, the tag 📣, back to the feed after its time), a v95 badge and a live-view toast go there instead of over the field, the slim ribbon when the screen is out of frame, the Settings row turns it off; the 🐢 slider runs the loop at 0.30× and a speed button snaps it back; his sack dance fires once a play by position (an LB backflips), a man on the ground does not dance; a swim / shed plays the arm-over and staggers the blocker, paired linemen in the block pose rock into each other, the juke sequence runs at its TU frame time; kill switches; no page errors.",
+   "areas": [
+    "live",
+    "field",
+    "badges"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   }
  }
 }

@@ -2361,7 +2361,7 @@ class Ot extends mt.Scene {
        * The budget now covers the whole timeline and is always computed at the SLOWEST rate the
        * user can select, so switching speed mid-play cannot truncate it either.
        * `TU("watchdogSlackMs")` is the headroom for slow-mo and hit-stop. */
-      const wdRate144 = Math.max(.05, TU("watchdogSlowestSpeed", .5) * TU("basePlayRate", 0.7));
+      const wdRate144 = Math.max(.05, Math.min(TU("watchdogSlowestSpeed", .5), slowFloorV164F()) * TU("basePlayRate", 0.7));   // v164 F: budgeted at the slow dial's floor
       const wdSpan144 = script.duration + ((this.play && this.play.delay) || 0) + TU("postPlayMs", 1450);
       const wdMs144 = wdSpan144 / wdRate144 + TU("watchdogSlackMs", 6000);
       try { (window.__V144 = window.__V144 || {}).watchdog = { ms: Math.round(wdMs144), span: Math.round(wdSpan144), rate: +wdRate144.toFixed(3), dur: Math.round(script.duration), delay: Math.round((this.play && this.play.delay) || 0) }; } catch (e) {}
@@ -2397,7 +2397,7 @@ class Ot extends mt.Scene {
     // when the catch, the juke, the truck is going to land and eases the clock down INTO it
     // rather than reacting a frame after it has happened.
     const antic = this.slomoV102(P, delta);
-    const spd = Math.max(0.5, window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7) * Math.min(cineScale, antic);
+    const spd = Math.max(slowFloorV164F(), window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7) * Math.min(cineScale, antic);   // v164 F: the slow dial goes below ½×
     P.t += delta * spd;
     const S = P.script, T = Math.min(Math.max(0, P.t - (P.delay || 0)), S.duration);
     // Madden-style follow camera: track the ball with look-ahead, wider on big plays
@@ -2925,7 +2925,7 @@ class Ot extends mt.Scene {
       let rt = this.resultText(P.payload);
       if (P.payload.penalty) rt = "FLAG ON THE PLAY · " + (Number(P.payload.yards ?? 0) < 0 ? "OFFENSE" : "DEFENSE");
       else if (P.fdConverted && !P.payload.scored) rt += " · FIRST DOWN";
-      if (!this.badgesWhistleV95(P)) this.ribbon(rt, 900);   // v95: the wall tells the result when it has a badge for it
+      if (!this.badgesWhistleV95(P) && !this.jumboSayV164F(rt, { kind: "result", ms: TU("jumboResultMsV164F", 1400) })) this.ribbon(rt, 900);   // v95: the wall tells the result when it has a badge for it (v164 F: on the jumbotron)
       const postMs = this.postPlayMsV86(P);
       if (postMs > 0) this.startPostV86(P, postMs);
       else this.time.delayedCall(P.payload.scored ? 430 : 260, () => { this.resetCamera(); this.complete(); });
@@ -3266,7 +3266,7 @@ class Ot extends mt.Scene {
     try { (window.__V86 = window.__V86 || {}).posts = ((window.__V86 || {}).posts || 0) + 1; } catch (e) {}
   }
   updatePostV86(P, delta) {
-    const spd = Math.max(0.5, window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7);
+    const spd = Math.max(slowFloorV164F(), window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7);   // v164 F
     const dt = delta * spd; P.post.t += dt;
     const k = P.post.t;
     /* v103: the first second is still contact. The pile churns on its own phase, the men
@@ -3904,6 +3904,7 @@ class Ot extends mt.Scene {
         if (pm) { pm._preCatch=false; pm.forceState = "catchSeq"; pm.seqT=pm.tms; pm._launchT0 = pm.tms; pm._launchUntil = pm.tms + 270; pm._launchH = 10; }
         P.awaitCatch = null;
         BADGE_V95.show("intercepted", { x: e.x, y: e.y, scene: this, token: "int:" + P.__ballTokenV1514 });   // v95
+        if (pm) this.danceV164G(pm, "pick", { ms: TU("dancePickMsV164G", 1800) });   // v164 G: after the return
         this.hitStop = Math.max(this.hitStop, 70);
         this.slowMoment(P);
         REDUCED_MOTION || this.cameras.main.shake(140, 0.005); break;
@@ -4055,10 +4056,11 @@ class Ot extends mt.Scene {
       }
       case "swim": {
         // a defensive end beats the tackle with a quick finesse move
-        const m = this.markers[this.actorIdx(e.who)];
+        const m = this.markers[this.actorIdx(e.who)], bmS = m && m._pair != null ? this.markers[m._pair] : null;
         this.unpair(this.actorIdx(e.who));   // v83
         if (m) { m.forceState = null; m.cutUntil = m.tms + 200; m.body && m.body.setTint(0xbfe0ff);
           this.time.delayedCall(360, () => { m.body && m.body.clearTint(); }); }
+        this.moveV164H(m, bmS, "swim", e);   // v164 H: the arm over the top, the hop past him, the blocker turned
         this.popText(e.x, e.y - 20, "SWIM MOVE!", "#8fe7ff", 13);
         this.puffFx(e.x, e.y, 2);
         break;
@@ -4509,6 +4511,12 @@ class Ot extends mt.Scene {
         if (e.sack) BADGE_V95.show("sack", { sub: badgeYdsV95(pay.yards), x: e.x, y: e.y, scene: this, token: "sack:" + P.__ballTokenV1514 });   // v95
         else if (e.oob) this.popText(e.x, e.y - 26, "PUSHED OUT OF BOUNDS", "#8fe7ff", 13);
         else if (e.gang) this.popText(e.x, e.y - 40, e.handsOn >= 2 ? "GANG TACKLE ×" + (e.handsOn + 1) : "GANG TACKLE", "#93a0b1", 12);
+        /* v164 G: the big play's dance — a sack or a loss for the tackler; a long run or catch for the carrier (and the passer) */
+        try { const ydG = Number(pay.yards ?? 0), tkG = this.markers[this.actorIdx(e.tackler)];
+          if (e.sack && tkG) this.danceV164G(tkG, "sack");
+          else if (ydG < 0 && tkG && !e.oob) this.danceV164G(tkG, "tfl");
+          else if (m && pay.event === "run" && ydG >= TU("danceRunYdV164G", 20)) this.danceV164G(m, "run", { off: true });
+          else if (m && pay.event === "pass" && ydG >= TU("danceCatchYdV164G", 30)) { this.danceV164G(m, "catch", { off: true }); const qbG = this.markers[8]; if (qbG && qbG !== m && qbG.team === "you") this.danceV164G(qbG, "throw", { off: true, ms: TU("danceDelayOffMsV164G", 1500) + 200 }); } } catch (er) {}
         if (!(P.ydDone && Number(pay.yards ?? 0) > 0)) this.impact(e.x, e.y, Number(pay.yards ?? 0));
         break;
       }
@@ -4564,9 +4572,10 @@ class Ot extends mt.Scene {
         break;
       }
       case "shed": {
-        const m = this.markers[this.actorIdx(e.who)];
+        const m = this.markers[this.actorIdx(e.who)], bmS = m && m._pair != null ? this.markers[m._pair] : null;
         this.unpair(this.actorIdx(e.who));   // v83
         if (m) { this.flash(m.sx, m.sy, 0xff8a5c); m.body.setTint(0xffc9a8); }
+        this.moveV164H(m, bmS, "shed", e);   // v164 H: the rip and the shove — the blocker is thrown off him
         this.popText(e.x, e.y - 20, "SHEDS THE BLOCK!", "#ffb08a", 12); break;
       }
       case "contact": {
@@ -4584,6 +4593,7 @@ class Ot extends mt.Scene {
         this.popText(e.x, e.y - 24, "PANCAKE!", "#ffd97a", 16);
         REDUCED_MOTION || this.cameras.main.shake(130, 0.005);
         vib(25);
+        { const bm = this.markers[this.actorIdx(e.by)]; if (bm && bm.team === "you") this.danceV164G(bm, "pancake", { ms: TU("dancePancakeMsV164G", 700) }); }   // v164 G
         break;
       }
       case "getup": {
@@ -5325,6 +5335,40 @@ class Ot extends mt.Scene {
     const V = (window.__V91 = window.__V91 || {}); V.ballFrames = (V.ballFrames || 0) + (this.ballSpr._lastV91 !== key ? 1 : 0); this.ballSpr._lastV91 = key;
     return kind === "spin" ? ((RIB_META_V91._ballAngles || [])[i] || 0) : 0;
   }
+  /* ===== v164 G THE BIG PLAY HAS A DANCE =====
+   * The owner: "add a celebration dance for strong plays depending on position — a sack or TFL, a strong run, a
+   * long throw…". Only a touchdown celebrated. Now a BIG PLAY does: a sack or a tackle for loss (the tackler), an
+   * interception (the man who made it), a pancake (the blocker), a run of `danceRunYdV164G` yards, a catch of
+   * `danceCatchYdV164G` yards (the carrier — and the passer, for a throw that long), a truck. HIS marker plays one of the
+   * owner's drawn bodies (v161 A: flex / backflip / spike) chosen by the play and his POSITION (`DANCE_V164G`; a
+   * deterministic pick off the play's token, never Math.random); any other man plays the drawn celebrate cycle for
+   * `danceAiMsV164G`. It fires `danceDelayMsV164G` after the moment (offense `danceDelayOffMsV164G`, once he is back on
+   * his feet), only if the play is still the same one and he is not on the ground, never twice on a play, and never
+   * on a play that already has a touchdown. Kill switch TU "v164Gdance" 0. `window.__V164G` (`fired`, `skipped`,
+   * `last`); `v164Gcheck`. */
+  danceV164G(m, kind, o) {
+    o = o || {};
+    const G = (window.__V164G = window.__V164G || { fired: 0, skipped: 0, ai: 0, last: null, log: [] });
+    if (!TU("v164Gdance", 1) || !m || !m.root) return false;
+    const P = this.play; if (!P || P._danceV164G) { G.skipped++; return false; }
+    P._danceV164G = kind;
+    const me = m.team === "you", delay = o.ms != null ? o.ms : (o.off ? TU("danceDelayOffMsV164G", 1500) : TU("danceDelayMsV164G", 850));
+    let pos = m.posLabel || "";
+    try { if (me) { const st = window.__getGridironState && window.__getGridironState(); if (st && st.player && st.player.pos) pos = st.player.pos; } } catch (e) {}
+    const tbl = DANCE_V164G[kind] || DANCE_V164G.sack, name = tbl[pos] || tbl.default || "flex";
+    setTimeout(() => {   // wall time: the scene's timers are cleared at the next snap (softStop), and the play check below is the guard
+      try {
+        if (this.play !== P || !m.root || m.active === false || !this.add) { G.skipped++; return; }
+        if (/^(down|dive|tackleSeq|pancakeSeq|getup|grab)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 500)) { G.skipped++; G.last = { kind, pos, name, why: "down" }; return; }
+        G.last = { kind, pos, name, me, at: Date.now() }; G.log.push(G.last); if (G.log.length > 30) G.log.shift();
+        if (me && window.RIB_COSMETICS && window.RIB_COSMETICS.celebrateBody && window.RIB_COSMETICS.celebrateBody(this, m, { name, tok: "dance:" + kind + ":" + (P.__ballTokenV1514 != null ? P.__ballTokenV1514 : G.fired) })) { G.fired++; return; }
+        // the drawn celebrate cycle, briefly (the cosmetics module's body is his alone)
+        if (RIB.v91img && this.textures.exists("spr_" + (m.kit || m.team) + "_dn_celebrate0")) { m.forceState = "celebrateSeq"; m.seqT = m.tms; m._celMsV164G = TU("danceAiMsV164G", 1300); G.ai++; G.fired++; }
+        else G.skipped++;
+      } catch (e) { G.skipped++; }
+    });
+    return true;
+  }
   celebrate(x, y) {
     try { this.refSignalTD(x, y); } catch (e) {}          // v45: nearest official signals the score, both arms up
     try { const P = this.play, cm = P && P.carrierId != null ? this.markers[P.carrierId] : null;   // v91: the scorer plays the drawn celebration
@@ -5504,6 +5548,50 @@ class Ot extends mt.Scene {
    * the block frames cycling faster while the pair is moving (a drive) than while it
    * is a stalemate. Paired sprites are also NUDGED apart laterally on screen, and the
    * offensive man lifts a hair in depth, so both bodies read (2.5D), not one. */
+  /* ===== v164 H THE MOVES READ =====
+   * The owner: "I'm still not noticing visible jukes, shed tackles, swim moves, physical blocking and pushing." The
+   * sim emits them and the atlas has the cells, but the drawn sequences were over in a blink (a juke 4 x 65 ms), a swim
+   * or a shed was a tint and a caption, and two engaged linemen stood on their squares. Now: the juke / stiff-arm /
+   * hurdle frames get their time (`jukeFrameMsV164H` …); a SWIM plays the arm-over cells (the stiff-arm row, the
+   * only drawn arm the atlas has) with a hop past the blocker, who is turned and staggered; a SHED is the same rip
+   * with the blocker SHOVED back along the line between them (`shedPushPxV164H`) and left leaning; and every engaged
+   * pair GRINDS — `shoveV164H` rocks both bodies into each other on the pair's own phase (`shovePxV164H`, `shoveMsV164H`,
+   * a lean into the drive) so a block is two men pushing, not two men standing. `pushV151D` (a tackle's drive) is
+   * untouched. Kill switch TU "v164Hmoves" 0 (and "shoveV164H" 0 for the grind alone). `window.__V164H` (`swims`,
+   * `sheds`, `shoves`); `v164Hcheck`. */
+  moveV164H(m, bm, kind, e) {
+    const H = (window.__V164H = window.__V164H || { swims: 0, sheds: 0, shoves: 0, last: null });
+    if (!TU("v164Hmoves", 1) || !m || !m.root) return false;
+    H[kind === "swim" ? "swims" : "sheds"]++; H.last = { kind, who: e && e.who, at: Date.now() };
+    // the arm over the top — the stiff-arm row is the atlas's one drawn arm
+    if (this.textures.exists("spr_" + (m.kit || m.team) + "_" + m.dirKey + "_stiff0") || this.textures.exists("spr_" + (m.kit || m.team) + "_sd_stiff0")) { m.forceState = "stiffSeq"; m.seqT = m.tms; }
+    const side = bm ? (m.root.x >= bm.root.x ? 1 : -1) : (Math.sin((e && e.y) || 0) >= 0 ? 1 : -1);
+    if (kind === "swim") { this.tweens.add({ targets: m.body, y: -TU("swimHopPxV164H", 5), duration: 120, yoyo: true, ease: "Quad.Out" }); }
+    if (bm && bm.root && !bm.forceState) {
+      // the beaten man: turned toward where he went, staggered (a shed throws him back along the line between them)
+      const dx = m.root.x - bm.root.x, dy = m.root.y - bm.root.y;
+      try { this.faceMarker(bm, dx, dy); } catch (er) {}
+      if (kind === "shed") { const d = Math.hypot(dx, dy) || 1, px = TU("shedPushPxV164H", 7);
+        this.tweens.add({ targets: bm.body, x: -dx / d * px, y: -dy / d * px * 0.4, duration: 160, yoyo: true, ease: "Quad.Out" });
+        bm._lean = -side * TU("shedLeanV164H", 0.2); bm._leanSrc = "shed"; this.time.delayedCall(420, () => { if (bm._leanSrc === "shed") { bm._leanSrc = null; bm._lean = 0; } }); }
+      try { this.stumbleV109(bm, kind === "shed" ? -side : side, TU("shedStumbleMsV164H", 240)); } catch (er) {}
+    }
+    return true;
+  }
+  // every engaged pair grinds: both bodies rock into each other on the pair's phase, leaning into the drive
+  shoveV164H(m, engaged) {
+    if (!engaged || !TU("v164Hmoves", 1) || !TU("shoveV164H", 1)) { if (m._shoveV164H) { m._shoveV164H = 0; if (m.body) m.body.x = 0; if (m._leanSrc === "shove") { m._leanSrc = null; m._lean = 0; } } return; }
+    if (!m.body || !engaged.root) return;
+    const H = (window.__V164H = window.__V164H || { swims: 0, sheds: 0, shoves: 0, last: null });
+    const dx = engaged.root.x - m.root.x, d = Math.abs(dx) || 1, toward = dx / d;
+    const lo = Math.min(m.num, engaged.num), hi = Math.max(m.num, engaged.num), phase = ((lo * 7 + hi * 13) % 17) / 17 * Math.PI * 2;
+    const t = (m.tms || 0) / Math.max(80, TU("shoveMsV164H", 260)), w = Math.sin(t * Math.PI * 2 + phase);
+    const drive = (engaged.sSm || 0) + (m.sSm || 0) > TU("driveSpd", 22) ? TU("shoveDriveKV164H", 1.5) : 1;
+    m.body.x = toward * (TU("shovePxV164H", 1.6) * drive) * (0.5 + 0.5 * w);
+    if (!m._leanSrc || m._leanSrc === "shove") { m._lean = toward * TU("shoveLeanV164H", 0.09) * (0.6 + 0.4 * w); m._leanSrc = "shove"; }
+    if (!m._shoveV164H) H.shoves++;
+    m._shoveV164H = 1;
+  }
   pairUp(i, j) {
     const a = this.markers[i], b = this.markers[j];
     if (!a || !b || a === b) return;
@@ -5917,14 +6005,14 @@ class Ot extends mt.Scene {
       const actionSeq = {
         catchSeq:["catch",3,90], diveCatchSeq:["divecatch",3,95],
         catchseqSeq:["catchseq" + (m._csVarV109 || 0) + "_", 4, TU("catchSeqFrameMs", 75)],   // v109: the sheet's own catch, variant by the KIND of the reach
-        jukeSeq:["juke",4,65], stiffSeq:["stiff",4,70], hurdleSeq:["hurdle",3,105],
+        jukeSeq:["juke",4,TU("jukeFrameMsV164H",95)], stiffSeq:["stiff",4,TU("stiffFrameMsV164H",100)], hurdleSeq:["hurdle",3,TU("hurdleFrameMsV164H",130)],   // v164 H: the drawn moves get their time on screen
         pancakeSeq:["pancake",3,90], getupSeq: RIB.v91img ? ["getup",8,TU("getupFrameMs",85)] : ["getup",4,105],
         celebrateSeq:["celebrate",4,TU("celebrateFrameMs",170)]   // v91: loops for celebrateMs, then stands
       }[st];
       if (actionSeq) {
         const af = Math.floor((m.tms - (m.seqT || 0)) / actionSeq[2]);
         if (st === "celebrateSeq") {
-          if (m.tms - (m.seqT || 0) > TU("celebrateMs", 2400)) { m.forceState = null; st = "idle"; }
+          if (m.tms - (m.seqT || 0) > (m._celMsV164G || TU("celebrateMs", 2400))) { m.forceState = null; m._celMsV164G = 0; st = "idle"; }   // v164 G: a big-play dance is shorter than a touchdown's
           else st = "celebrate" + (af % 4);
         } else if (af >= actionSeq[1]) {
           if (st === "pancakeSeq") { m.forceState = "down"; st = "down"; }
@@ -5955,7 +6043,9 @@ class Ot extends mt.Scene {
     if (engaged && !m.forceState && m.sSm < TU("blockBand",78) && (st === "idle" || st.indexOf("run") === 0 || st === "cut")) st = "block";
     if (st === "block") { const pairSpd = engaged ? Math.max(m.sSm, engaged.sSm || 0) : m.sSm;
       const frameMs = pairSpd > TU("driveSpd", 22) ? TU("blockDriveFrameMs", 105) : TU("blockFrameMs",170);
-      m.bt = (m.bt || 0) + (dtms || 16); st = "block" + (Math.floor(m.bt / frameMs) % (window.__RIB_BLOCKF || 1)); }
+      m.bt = (m.bt || 0) + (dtms || 16); st = "block" + (Math.floor(m.bt / frameMs) % (window.__RIB_BLOCKF || 1));
+      this.shoveV164H(m, engaged); }
+    else if (m._shoveV164H) this.shoveV164H(m, null);
     // v21.2 GET-UP RECOVERY: a downed player no longer teleports upright. Track the
     // last frame he was on the turf; the moment he's free and roughly stationary,
     // play a brief crouch (stance) → stand (idle) recovery before normal states
@@ -7738,8 +7828,72 @@ class Ot extends mt.Scene {
     try { ST.frame && ST.frame.setVisible(false); ST.tag && ST.tag.setVisible(false); ST.score && ST.score.setVisible(false); ST.still && ST.still.setVisible(false); ST.cam && ST.cam.setVisible(false); } catch (e) {}
     try { if (window.__V92) window.__V92.on = false; } catch (e) {}
   }
+  /* ===== v164 F THE JUMBOTRON SAYS IT =====
+   * The owner: "put the message notifications in the live sim on the jumbotron instead so you can actually see what
+   * happens." The callout wall's badges (v95 — the TOUCHDOWN / SACK / INTERCEPTED takeovers drawn over the field), the
+   * whistle's result ribbon and the career app's toasts during a live game all went over the play. Now they go on the
+   * stadium's BIG SCREEN: `jumboSayV164F(text, o)` hides the feed for a moment (`ST.mode = "msg"`, the feed camera and
+   * the replay still stand down), prints the line — and its sub-line — inside the panel in the kind's colour, sized
+   * to the panel, and hands the screen back after `o.ms`; the tag on the strip says 📣. A tier-1 badge keeps its
+   * gameplay feel (the freeze, the punch, the beat of slow motion) — only the picture moves. When the screen is not in
+   * the frame (a tight camera near the near end) the line falls back to the old slim top ribbon, never a takeover.
+   * `BADGE_V95.show` routes here first (`jumboOnV164F`: TU "v164Fjumbo" and Settings › FIELD VIEW › "Messages on the
+   * jumbotron"); 07's `showToast` does the same on the live view (`window.__jumboSayV164F`). `window.__V164F`
+   * (`said`, `fell`, `last`); `v164Fcheck`.
+   * THE SLOW DIAL (the same ask, "enable a slider for slow mode plays"): the speed row's 🐢 slider hands the live
+   * loop any speed from `slowMinV164F` (0.25×) to 1×; the renderer's clock floor (`Math.max(0.5, …)` in `update` and
+   * `updatePostV86`) is `slowMinV164F` now, and the stall watchdog is budgeted at the slowest speed the dial allows.
+   * Kill switch TU "v164Fslow" 0 (the 0.5× floor). ===== */
+  jumboOnV164F() {
+    if (!TU("v164Fjumbo", 1)) return false;
+    try { const st = window.__getGridironState && window.__getGridironState(); if (st && st.settings && st.settings.jumboMsgV164F === false) return false; } catch (e) {}
+    const ST = this.stadium; return !!(ST && ST.on && ST.rect && this.add);
+  }
+  jumboSayV164F(text, o) {
+    o = o || {};
+    const F = (window.__V164F = window.__V164F || { said: 0, fell: 0, last: null, log: [] });
+    if (!this.jumboOnV164F() || !text) return false;
+    const ST = this.stadium, R = ST.rect;
+    // is the screen in the frame? otherwise the slim ribbon at the top of the picture (never over the play)
+    let on = false;
+    try { const cm = this.cameras.main, wv = cm.worldView; on = R.x + R.w > wv.x && R.x < wv.x + wv.width && R.y + R.h > wv.y && R.y < wv.y + wv.height && R.w * cm.zoom >= TU("jumboMinPxV164F", 60); } catch (e) {}
+    F.last = { text: String(text), sub: o.sub || "", kind: o.kind || "", on, at: Date.now() }; F.log.push(F.last); if (F.log.length > 40) F.log.shift();
+    if (!on) { F.fell++; try { this.ribbon(String(text) + (o.sub ? "  " + o.sub : ""), o.ms || TU("jumboMsV164F", 1500)); } catch (e) {} return true; }
+    F.said++;
+    const depS = ST.frame ? ST.frame.depth : TU("crowdDepth", 3.45) - 0.15, col = o.color || (o.kind && JUMBO_COL_V164F[o.kind]) || "#fff2c4";
+    if (!ST.msgT || !ST.msgT.scene) {
+      ST.msgT = this.add.text(0, 0, "", { fontFamily: "Oswald, sans-serif", fontStyle: "bold", fontSize: "40px", color: "#fff2c4", align: "center" }).setOrigin(0.5);
+      ST.msgS = this.add.text(0, 0, "", { fontFamily: "Oswald, sans-serif", fontStyle: "bold", fontSize: "22px", color: "#e8f0ff", align: "center" }).setOrigin(0.5);
+      ST.msgBg = this.add.rectangle(0, 0, 10, 10, 0x05070c, 1);
+      try { ST.cam && ST.cam.ignore([ST.msgT, ST.msgS, ST.msgBg]); } catch (e) {}
+    }
+    const sub = o.sub ? String(o.sub) : "";
+    ST.msgBg.setPosition(R.x + R.w / 2, R.y + R.h / 2).setSize(R.w, R.h).setDepth(depS + 0.025).setVisible(true);
+    // the title fills the panel: a fraction of its height, shrunk until it fits its width
+    const fit = (tx, str, hFrac, maxW) => { tx.setText(str); let px = Math.max(6, R.h * hFrac); tx.setFontSize(px); tx.setScale(1);
+      for (let i = 0; i < 8 && tx.width > maxW && px > 6; i++) { px *= 0.86; tx.setFontSize(px); } };
+    fit(ST.msgT, String(text).toUpperCase(), sub ? TU("jumboTitleHV164F", 0.44) : TU("jumboTitleSoloHV164F", 0.5), R.w * 0.92);
+    ST.msgT.setColor(col).setPosition(R.x + R.w / 2, R.y + R.h * (sub ? 0.38 : 0.5)).setDepth(depS + 0.03).setVisible(true);
+    if (sub) { fit(ST.msgS, sub.toUpperCase(), TU("jumboSubHV164F", 0.24), R.w * 0.9); ST.msgS.setPosition(R.x + R.w / 2, R.y + R.h * 0.76).setDepth(depS + 0.03).setVisible(true); }
+    else ST.msgS.setVisible(false);
+    if (ST.still && ST.still.scene) ST.still.setVisible(false);
+    if (ST.mode !== "msg") ST._modeBeforeMsgV164F = ST.mode;
+    ST.mode = "msg";
+    try { ST.tag && ST.tag.setText("📣 " + (o.kind ? String(o.kind).toUpperCase() : "MESSAGE")).setColor(col); } catch (e) {}
+    if (ST._msgTimerV164F) { try { clearTimeout(ST._msgTimerV164F); } catch (e) {} }
+    // wall time, not the scene's clock: `softStop` clears the scene's timers at the next snap and the message would never end
+    ST._msgTimerV164F = setTimeout(() => { ST._msgTimerV164F = null; try { this.jumboClearV164F(); } catch (e) {} }, o.ms || TU("jumboMsV164F", 1500));
+    return true;
+  }
+  jumboClearV164F() {
+    const ST = this.stadium; if (!ST) return;
+    try { ST.msgT && ST.msgT.setVisible(false); ST.msgS && ST.msgS.setVisible(false); ST.msgBg && ST.msgBg.setVisible(false); } catch (e) {}
+    if (ST.mode === "msg") this.stadiumModeV92(ST._modeBeforeMsgV164F === "replay" && ST.still && ST.still.scene ? "replay" : "live");
+  }
   stadiumModeV92(mode) {
-    const ST = this.stadium; if (!ST) return; ST.mode = mode;
+    const ST = this.stadium; if (!ST) return;
+    if (ST.mode === "msg" && mode !== "msg") { ST._modeBeforeMsgV164F = mode; if (ST._msgTimerV164F) return; }   // v164 F: the message finishes first; the screen then goes to the mode asked for
+    ST.mode = mode;
     const replay = mode === "replay" && ST.still && ST.still.scene;
     try { if (ST.still && ST.still.scene) ST.still.setVisible(!!replay && ST.on); } catch (e) {}
     try { ST.tag && ST.tag.setText(replay ? "▶ REPLAY" : "● LIVE").setColor(replay ? "#ffd75e" : "#ff5a5a"); } catch (e) {}
@@ -7814,7 +7968,7 @@ class Ot extends mt.Scene {
       const cm = this.cameras.main, R = ST.rect, wv = cm.worldView, z = cm.zoom;
       const sx = (R.x - wv.x) * z, sy = (R.y - wv.y) * z, sw = R.w * z, sh = R.h * z;
       const onScreen = sw >= 8 && sh >= 6 && sx + sw > 0 && sx < FW && sy + sh > 0 && sy < FVH;
-      const live = onScreen && ST.mode !== "replay";
+      const live = onScreen && ST.mode !== "replay" && ST.mode !== "msg";   // v164 F: a message owns the panel
       if (!live) { if (ST.cam.visible) ST.cam.setVisible(false); return; }
       const cx = Math.max(0, sx), cy = Math.max(0, sy), cw = Math.min(FW, sx + sw) - cx, ch = Math.min(FVH, sy + sh) - cy;   // clipped to the canvas
       if (cw < 8 || ch < 6) { if (ST.cam.visible) ST.cam.setVisible(false); return; }
@@ -9128,6 +9282,22 @@ const BADGE_PROMO_V95 = {
   "intercepted>turnover": "INTERCEPTION", "fumble>turnover": "DEFENSE RECOVERS", "sack>turnover": "STRIP SACK", "bigplay>breakaway": "",
   "touchdown>gamechanger": "", "turnover>gamechanger": "", "fieldgoal>gamechanger": "",
 };
+/* v164 F: the slow dial's floor (the renderer's clock never runs slower than this fraction of 1x) and the colour a
+ * jumbotron message wears per kind */
+function slowFloorV164F() { return TU("v164Fslow", 1) ? Math.max(0.1, Math.min(0.5, TU("slowMinV164F", 0.25))) : 0.5; }
+const JUMBO_COL_V164F = { touchdown: "#ffd76a", gamechanger: "#8fd3ff", turnover: "#ff6b52", fieldgoal: "#8fe7a5", intercepted: "#59b6ff", fumble: "#ffb08a", flag: "#ffe27a", bigplay: "#ffd76a", sack: "#ff9fa5", bighit: "#ff9fa5", breakaway: "#8fe7a5", result: "#eef2f7", toast: "#f0bb45" };
+/* v164 G: which drawn body a big play gets, by the play and his position (v161 A: flex / backflip / spike) */
+const DANCE_V164G = {
+  sack: { default: "flex", LB: "backflip", CB: "backflip", S: "backflip" },
+  tfl: { default: "flex", CB: "backflip", S: "backflip" },
+  pick: { default: "backflip", LB: "flex", DL: "flex" },
+  pancake: { default: "flex" },
+  run: { default: "spike", QB: "flex", WR: "backflip" },
+  catch: { default: "backflip", TE: "flex", RB: "spike" },
+  throw: { default: "flex" },
+  truck: { default: "flex" }
+};
+const JUMBO_LABEL_V164F = { touchdown: "TOUCHDOWN!", gamechanger: "GAME CHANGER!", turnover: "TURNOVER!", fieldgoal: "FIELD GOAL!", intercepted: "INTERCEPTED!", fumble: "FUMBLE!", flag: "FLAG", bigplay: "BIG PLAY!", sack: "SACK!", bighit: "BIG HIT!", breakaway: "BREAKAWAY!", firstdown: "FIRST DOWN", safety: "SAFETY!", stop: "STOP!", pancake: "PANCAKE!" };
 const BADGE_V95 = (() => {
   const lanes = { stage: { cur: null, q: [], timer: null }, hud: { cur: null, q: [], timer: null } };
   const log = [], seen = {}; let host = null, preloaded = false, dimEl = null;
@@ -9173,6 +9343,13 @@ const BADGE_V95 = (() => {
     const item = { kind, cfg, prio: cfg.prio, tier: cfg.tier, sub: opts.sub || "", hold: opts.hold || cfg.hold, at: now,
       x: opts.x, y: opts.y, scene: opts.scene || window.__gridironScene || null };
     log.push({ kind, sub: item.sub, at: now, tier: cfg.tier }); if (log.length > 80) log.shift();
+    /* v164 F: the badge is said on the JUMBOTRON, not drawn over the play — its gameplay feel (the freeze, the punch,
+     * the beat of slow motion) is kept for a takeover, the picture stays clear */
+    try { const sc = item.scene; if (sc && sc.jumboOnV164F && sc.jumboOnV164F()) {
+      if (!RM() && item.tier === 1) gameplayFx(item);
+      shake(item);
+      sc.jumboSayV164F(JUMBO_LABEL_V164F[kind] || (String(kind).toUpperCase() + "!"), { kind, sub: item.sub, ms: Math.max(900, item.hold) });
+      log[log.length - 1].jumbo = true; return true; } } catch (e) {}
     const L = lanes[cfg.tier === 3 ? "hud" : "stage"];
     if (L.cur) {
       const promo = BADGE_PROMO_V95[L.cur.kind + ">" + kind];
@@ -9404,6 +9581,7 @@ const BADGE_V95 = (() => {
   return { show, preload, clear, log, lanes, meta: RIB_BADGES_V95, book: BADGE_BOOK_V95, promo: BADGE_PROMO_V95, get queue() { return lanes.stage.q; }, get current() { return lanes.stage.cur; }, get hudCurrent() { return lanes.hud.cur; } };
 })();
 window.__BADGE_V95 = BADGE_V95;
+window.__jumboSayV164F = (text, o) => { try { const sc = window.__gridironScene; return !!(sc && sc.jumboSayV164F && sc.jumboSayV164F(text, o)); } catch (e) { return false; } };
 /* ===== v153 A THE STAT GAIN LANDS (the broadcast end) =====
  * Where HIS marker is on the page right now, in client pixels — the point a stat callout rises from
  * (07's `statGainShowV153A`). The featured you-marker, projected through PJ and the scene camera's

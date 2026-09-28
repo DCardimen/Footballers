@@ -1648,7 +1648,34 @@ window.__visionRadiusV96 = visionRadiusV96;
     const F = root.__V141F = root.__V141F || { hits: 0, keepSum: 0, youHits: 0, youKeep: 0 }; F.hits++; F.keepSum += k;
     if (c && c.player && c.player.you) { F.youHits++; F.youKeep += k; } return k; };
   const RX_POS_V56={CB:1.14,S:1.08,LB:1.00,DE:.94,DT:.86,WR:1.10,RB:1.06,TE:.98,QB:1.00,OL:.84};
-  function makeAgents(kOff, tDef, att, picks) {
+  /* ===== v164 P THE OFFENSE HAS FORMATIONS =====
+   * The owner: "all start is shotgun — what about I formation, etc?" Every snap lined the offense up the one way:
+   * the quarterback at −38 (shotgun), the back at −54 off his hip, the slot at −10. `FORM_V164P` names five looks and
+   * where the QB (slot 8), the back (9), the tight end (2, the fullback of the I) and the slot (10) stand in each; the
+   * career app picks one per call (`formationV164P` in 07: the play's family, the down and distance, the field position)
+   * and hands it down as `opts.formation`; `applyFormationV164P` moves the men after the slots are filled (v117), so
+   * who plays is untouched. UNDER CENTER the play changes shape the way it should: the drop is a real backpedal (the
+   * pass drop's target is unchanged, so from −8 it is a five-step drop instead of a step up), and on a run the
+   * quarterback REVERSES to the mesh before the handoff (`ucMeshDxV164P`, `ucQbPaceV164P`) while the back takes his
+   * first step to it (`ucRbStepV164P`) — a draw keeps its own choreography. A `formation` event opens every log so the
+   * broadcast and the checks can see it. Spends no extra Math.random(). Kill switch TU "v164Pform" 0 (shotgun only).
+   * `root.__V164P` (the counts); `formcheck`. */
+  const FORM_V164P = {
+    shotgun:    { under: false },                                                          // the v81 look: QB −38, RB −54 off the hip, slot −10
+    singleback: { under: true,  8: { lx: -8 }, 9: { lx: -58, y: MIDY + 8 } },              // QB under center, one back behind him
+    iform:      { under: true,  8: { lx: -8 }, 9: { lx: -60, y: MIDY }, 2: { lx: -34, y: MIDY } },   // the tight end is the fullback of the I
+    pistol:     { under: false, 8: { lx: -26 }, 9: { lx: -50, y: MIDY } },                 // a short gun, the back behind the QB
+    strong:     { under: true,  8: { lx: -8 }, 9: { lx: -62, y: MIDY + 18 }, 2: { lx: -34, y: MIDY + 30 } }   // the I offset to the tight end's side
+  };
+  function applyFormationV164P(off, name) {
+    const F = TU("v164Pform", 1) && name && FORM_V164P[name] ? FORM_V164P[name] : null;
+    const V = root.__V164P = root.__V164P || { counts: {}, last: null };
+    const key = F ? name : "shotgun"; V.counts[key] = (V.counts[key] || 0) + 1; V.last = key;
+    if (!F) return { name: "shotgun", under: false };
+    for (const i of [2, 8, 9, 10]) { const o = F[i], a = off[i]; if (!o || !a) continue; if (o.lx != null) a.lx = o.lx; if (o.y != null) a.y = clampY(o.y); a._formV164P = key; }
+    return { name: key, under: !!F.under, qb0: off[8] ? { lx: off[8].lx, y: off[8].y } : null, rb0: off[9] ? { lx: off[9].lx, y: off[9].y } : null };
+  }
+  function makeAgents(kOff, tDef, att, picks, formation) {
     const byPos = (arr,pos)=>arr.filter(p=>p&&p.pos===pos);
     const avg = (arr,name)=>{ const v=arr.map(p=>att(p,name)).filter(Number.isFinite);
       return v.length? v.reduce((a,b)=>a+b,0)/v.length : 45; };
@@ -1760,13 +1787,15 @@ window.__visionRadiusV96 = visionRadiusV96;
       const pick=spare[Math.floor(Math.random()*spare.length)]; drop(side,pick); return pick; };
     const off = OFF_L.map((lb,i)=>A(take("off",lb, i, picks.off&&picks.off[i]), "off", i, lb));
     const def = DEF_L.map((lb,i)=>A(take("def",lb, i, picks.def&&picks.def[i]), "def", i, lb));
-    return { off, def, all: off.concat(def) };
+    const formV164P = applyFormationV164P(off, formation);   // v164 P: the look, after the men are chosen
+    return { off, def, all: off.concat(def), formV164P };
   }
 
   function sim(kind, kOff, tDef, att, picks, opts) {
-    const S = makeAgents(kOff, tDef, att, picks);
+    const S = makeAgents(kOff, tDef, att, picks, opts && opts.formation);
     const A_all = Object.fromEntries(S.all.map(a=>[a.id,a]));   // id → agent lookup
     const events = [], ballFrames = [];
+    if (S.formV164P) events.push({ t: 0, type: "formation", name: S.formV164P.name, under: !!S.formV164P.under });   // v164 P
     // ---- v16.3 short sprint: a ~0.5s burst worth up to +20% speed, its length
     // extended by intelligence (awareness) + acceleration + stamina, then a
     // recovery before it can fire again. Only the ballcarrier and his nearest
@@ -3276,6 +3305,12 @@ window.__visionRadiusV96 = visionRadiusV96;
         }
       }
       else if (phase === "handoff") {
+        /* v164 P: from under center the quarterback reverses to the mesh and the back steps to it — the ball changes
+         * hands at the same tick it always did, between two men who are now within an arm of each other */
+        const ucV164P = !isDraw && t < HANDOFF_T && S.formV164P && S.formV164P.under && S.formV164P.rb0;
+        if (ucV164P) { const qb = S.off[8], rb = S.off[9], R0 = S.formV164P.rb0;
+          mv(qb, R0.lx + TU("ucMeshDxV164P", 10), R0.y + (qb.y - R0.y) * 0.5, TU("ucQbPaceV164P", 1.2));
+          mv(rb, R0.lx + TU("ucRbStepV164P", 14), R0.y, TU("ucRbPaceV164P", 0.5)); }
         if (isDraw && t < HANDOFF_T) {
           // v81 DRAW: the QB drops and the line pass-sets — to a man reading his
           // keys this IS a pass until the late mesh. Edge rushers bend upfield,

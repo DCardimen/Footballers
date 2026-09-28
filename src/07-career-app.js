@@ -10869,6 +10869,8 @@
       } catch {}
   }
   function showToast(e) {
+    /* v164 F: on the live view the toast is said on the jumbotron, off the play */
+    try { if (state && state.view === "live" && window.__jumboSayV164F && window.__jumboSayV164F(String(e), { kind: "toast", ms: TU("jumboToastMsV164F", 1700) })) return; } catch (_) {}
     const t = byId("toast");
     ((t.textContent = e),
       t.classList.add("show"),
@@ -13718,6 +13720,7 @@
       ${toggleRow("onlyInvolved", TU("v156D", 1) ? "Your side of the ball" : "My plays only", TU("v153Bplays", 1) ? "Watch your side of the ball — offense if you play offense, defense if you play defense (special teams only when you are in them). Off shows every snap." : "Jump straight to plays you're personally involved in")}
       ${TU("v156D", 1) ? myPlaysSettingV159B() : "" /* v156 D; v159 B: a member perk / the ad while the store is ON */}
       ${toggleRow("fastSim", "Faster live sim", "Speed up the default play animation")}
+      ${jumboRowV164F() /* v164 F: the messages on the big screen */}
       ${toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices")}
     </div>
     ${experienceRowV158B() /* v158 B: EXPERIENCE — Off (current build) · Free-to-play · Member (a preview); the GAME tab */}
@@ -16417,6 +16420,31 @@
     return pool[pool.length - 1];
   }
   window.__pickPlayV101 = pickPlayV101;
+  /* ===== v164 P THE OFFENSE HAS FORMATIONS (the call) =====
+   * `formationV164P(play, fam, down, toGo, pos)` names the look the engine lines up in (src/04 `FORM_V164P`): a run's
+   * family leans the I / singleback / pistol, a pass leans the gun, third-and-long is the gun, the goal line is the I,
+   * the hurry-up is the gun. One weighted draw off the same Math.random the call already spends? No — it spends ONE
+   * extra draw per play (compare seeds against the OFF spread, never one run against one run). Kill switch
+   * TU "v164Pform" 0 (shotgun, no draw). `window.__V164P` (the table, the counts). */
+  const FORM_W_V164P = {
+    run:   { inside: { iform: 4, singleback: 3, strong: 2, pistol: 1, shotgun: 1 }, power: { iform: 5, strong: 3, singleback: 2, pistol: 0, shotgun: 0 }, sweep: { singleback: 3, pistol: 2, strong: 2, shotgun: 2, iform: 1 }, draw: { shotgun: 6, pistol: 2, singleback: 1 }, other: { singleback: 3, iform: 2, pistol: 2, shotgun: 2 } },
+    pass:  { dropback: { shotgun: 5, singleback: 2, pistol: 1, iform: 0 }, shot: { shotgun: 4, singleback: 2, pistol: 1 }, screen: { shotgun: 5, pistol: 1 }, other: { shotgun: 4, singleback: 2, pistol: 1 } }
+  };
+  function formationV164P(play, fam, down, toGo, pos) {
+    if (!TU("v164Pform", 1)) return "shotgun";
+    const W = window.__V164P || (window.__V164P = { counts: {}, draws: 0 });
+    const base = (play && play.base) || "other", fams = FORM_W_V164P[fam === "pass" ? "pass" : "run"], tbl = Object.assign({}, fams[base] || fams.other);
+    if (play && play.pa) { tbl.iform = (tbl.iform || 0) + 2; tbl.singleback = (tbl.singleback || 0) + 2; }   // play action sells the run look
+    if (fam === "pass" && down >= 3 && toGo >= 7) { tbl.shotgun = (tbl.shotgun || 0) + 6; }                       // third and long: the gun
+    if (pos >= TU("formGoalLineV164P", 95)) { tbl.iform = (tbl.iform || 0) + 5; tbl.strong = (tbl.strong || 0) + 3; tbl.shotgun = 0; }   // the goal line: the I
+    if (pos <= 5 && fam === "run") { tbl.iform = (tbl.iform || 0) + 2; }
+    let tot = 0; for (const k in tbl) tot += Math.max(0, tbl[k] || 0);
+    if (!(tot > 0)) return "shotgun";
+    let r = Math.random() * tot; W.draws++;
+    for (const k in tbl) { r -= Math.max(0, tbl[k] || 0); if (r <= 0) { W.counts[k] = (W.counts[k] || 0) + 1; return k; } }
+    return "shotgun";
+  }
+  window.__formationV164P = formationV164P;
   function simGameV2(e, t) {
     /* ===== v16 EMERGENT GAME ENGINE ==========================================
      * The game is no longer scripted outcome-first. Every drive is resolved
@@ -16995,7 +17023,8 @@
           Object.assign(play && play.gap ? { gap: play.gap, play: play.id } : {}, {
             fieldPos: typeof pos !== "undefined" ? pos : 50,
             down: typeof down !== "undefined" ? down : 1,
-            toGo: typeof toGo !== "undefined" ? toGo : 10
+            toGo: typeof toGo !== "undefined" ? toGo : 10,
+            formation: formationV164P(play, "run", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */
           })
         );
       /* v101: the call names the gap. v103: and the sticks, so a back can strain for them */ let base;
@@ -17088,7 +17117,8 @@
           down: typeof down !== "undefined" ? down : 1,
           toGo: typeof toGo !== "undefined" ? toGo : 10,
           routes: (ctx.play && ctx.play.routes) || null,
-          play: (ctx.play && ctx.play.id) || null
+          play: (ctx.play && ctx.play.id) || null,
+          formation: formationV164P(ctx.play, "pass", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */
         }); /* v101: the call names the routes */
       if (__r) {
         if (__r.complete && __r.yards > 0) {
@@ -20823,6 +20853,7 @@
         .join("")}
       ${liveSkipOkV156B() ? '<button class="speed-btn" onclick="skipLive()">SKIP<small>⏭</small></button>' : "" /* v156 B: a playoff game plays to the whistle */}
     </div>
+    ${slowDialV164F()}
     <div class="boxscore-head">
       <div class="h2">${escHtml(e.name)} — <span style="color:var(--chalk-dim)">Live Box Score</span></div>
       <a onclick="document.getElementById('fullBoxCard').scrollIntoView({behavior:'smooth'})">VIEW FULL STATS ›</a>
@@ -21404,6 +21435,41 @@
         .forEach(e => e.classList.toggle("active", parseFloat(e.dataset.spd) === liveCtl.speed)),
       liveTick());
   }
+  /* ===== v164 F THE SLOW DIAL (the row) =====
+   * The owner: "enable a slider for slow mode plays." A 🐢 slider under the speed buttons hands the live loop any
+   * speed from `slowMinV164F` (0.25×) to 1× (`setSlowV164F`; the renderer's clock floor follows — src/05 v164 F). The
+   * buttons still work; a button tap snaps the slider back. Kill switch TU "v164Fslow" 0 (no slider). Hoisted. */
+  // v164 F: the Settings › LIVE GAME row — ON by default (the setting stores only an explicit OFF)
+  function jumboOnV164F() {
+    return !!TU("v164Fjumbo", 1) && !(state && state.settings && state.settings.jumboMsgV164F === false);
+  }
+  function jumboRowV164F() {
+    if (!TU("v164Fjumbo", 1)) return "";
+    const on = jumboOnV164F();
+    return `<div class="toggle-row" onclick="toggleJumboV164F()">
+    <div class="toggle-info"><div class="toggle-label">📣 Messages on the jumbotron</div><div class="toggle-desc">The touchdown, sack and turnover callouts, the play's result and every toast are said on the stadium's big screen instead of over the field, so you can see what happens. Off: over the field, as before.</div></div>
+    <div class="switch ${on ? "on" : ""}"><i></i></div>
+  </div>`;
+  }
+  function toggleJumboV164F() {
+    state.settings || (state.settings = {});
+    state.settings.jumboMsgV164F = !jumboOnV164F();
+    saveGame();
+    state.view === "settings" && screenSettings();
+  }
+  window.toggleJumboV164F = toggleJumboV164F;
+  function slowDialV164F() {
+    if (!TU("v164Fslow", 1)) return "";
+    const cur = Math.min(1, Math.max(0.25, (liveCtl && liveCtl.speed) || 1)), pct = Math.round(cur * 100);
+    return `<div class="slow-dial-v164f"><span title="Slow motion">🐢</span><input type="range" min="${Math.round(TU("slowMinV164F", 0.25) * 100)}" max="100" step="5" value="${pct}" aria-label="Slow motion speed" oninput="setSlowV164F(this.value)"><b id="slowValV164F">${cur < 1 ? cur.toFixed(2) + "×" : "off"}</b></div>`;
+  }
+  function setSlowV164F(v) {
+    const s = Math.round(Math.max(TU("slowMinV164F", 0.25), Math.min(1, (+v || 100) / 100)) * 100) / 100;
+    setSpeed(s);
+    const b = byId("slowValV164F"); b && (b.textContent = s < 1 ? s.toFixed(2) + "×" : "off");
+    window.__V164F_SLOW = s;
+  }
+  window.setSlowV164F = setSlowV164F;
   function setSpeed(e) {
     /* v150 C H1 / v151 A: a speed this player has not earned (the UFF) or bought (Pro, while the store is on) stays locked */
     if (!speedOkV151A(e)) return void speedLockV151A(e);
@@ -21411,6 +21477,7 @@
       document
         .querySelectorAll(".speed-btn[data-spd]")
         .forEach(t => t.classList.toggle("active", parseFloat(t.dataset.spd) === e)));
+    try { const r = document.querySelector(".slow-dial-v164f input"), b = byId("slowValV164F"); if (r && e >= 1) { r.value = 100; b && (b.textContent = "off"); } else if (r && e < 1 && Math.abs(r.value / 100 - e) > 0.03) { r.value = Math.round(e * 100); b && (b.textContent = e.toFixed(2) + "×"); } } catch (_) {}   // v164 F: the dial follows a button
   }
   function skipLive() {
     if (!liveSkipOkV156B()) return void showToast(liveOnlyV164D(state && state.player) ? "📺 Live Sim Only — every game is played to the final whistle" : TU("v164Bsim", 1) ? "🏆 The championship is played to the final whistle" : "🏆 Playoff games are played to the final whistle"); /* v156 B / v164 B / v164 D */

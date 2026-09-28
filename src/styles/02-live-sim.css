@@ -222,3 +222,7 @@
 .mp156d-box.gated-v159b{border-style:dashed;background:#f0bb450d;box-shadow:none}
 .mp156d-box.gated-v159b .mp156d-sq{font-size:12px}
 .mp159b-tag{font:700 10px Oswald,sans-serif;letter-spacing:1px;opacity:.85}
+/* v164 F THE SLOW DIAL — the 🐢 slider under the speed buttons */
+.slow-dial-v164f{display:flex;align-items:center;gap:8px;padding:2px 4px 6px;font:600 12px Oswald,sans-serif;color:var(--chalk-dim)}
+.slow-dial-v164f input[type=range]{flex:1;min-width:0;height:22px;accent-color:var(--gold)}
+.slow-dial-v164f b{min-width:44px;text-align:right;color:var(--gold);font-variant-numeric:tabular-nums}
