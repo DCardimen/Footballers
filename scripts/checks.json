@@ -27,7 +27,8 @@
     "anchorcheck",
     "v150Acheck",
     "v151Echeck",
-    "v156Acheck"
+    "v156Acheck",
+    "v164Echeck"
    ]
   },
   "docs": {
@@ -334,10 +335,12 @@
   "statinfo": {
    "desc": "v142 — the ⓘ beside a stat, the stat cards, adding an attribute",
    "anchors": [
+    "v164 E",
     "v142"
    ],
    "files": [],
    "checks": [
+    "v164Echeck",
     "v142check",
     "bootviewcheck",
     "walk",
@@ -884,6 +887,7 @@
   "lights": {
    "desc": "v92 / v98 / v99 / v100 / v102 / v112 B — the lights, shadows, lighting dial, stadium, masts",
    "anchors": [
+    "v164 A",
     "v92",
     "v98",
     "v99",
@@ -895,6 +899,7 @@
     "scripts/build-stadium-art.*"
    ],
    "checks": [
+    "v164Acheck",
     "v102check",
     "v98check",
     "v99check",
@@ -1448,6 +1453,7 @@
     "docs/SEASONS.md"
    ],
    "checks": [
+    "v164Bcheck",
     "v156Ccheck",
     "v151Ccheck",
     "v153Gcheck",
@@ -1605,12 +1611,14 @@
   "v156b": {
    "desc": "v156 B — season sims earned with the Legacy medal groups (a career's, 1 → 20; the ad 30 min unlimited) and the playoffs always played live (07's v156 B block, simSeasonV147, postV147, screenSeason's dock, the live SKIP; 27's simUnlimited)",
    "anchors": [
+    "v164 B",
     "v156 B"
    ],
    "files": [
     "scripts/v156Bcheck.mjs"
    ],
    "checks": [
+    "v164Bcheck",
     "v156Bcheck",
     "v151Acheck",
     "v147Acheck",
@@ -4074,6 +4082,46 @@
    "flaky": [],
    "loadSensitive": true,
    "note": "two walks into a live game (the second for the kill switch); waits on game state (scripts/lib/live.mjs waitLive)."
+  },
+  "v164Acheck": {
+   "file": "scripts/v164Acheck.mjs",
+   "desc": "v164 A — the lights stand where they stand, the shadow is the man: on a live game the eight masts are field objects (re-projected at three lines of scrimmage the far four keep their lateral fraction of the end line, feet tucked above the bowl's foot, size following the bowl, pools on the field); the key light is one physical mast on both possessions (drawn and far on our drive, behind the camera on theirs, the same field spot's shadow falling the other way); every man's shadow is his own silhouette (a black canvas of the body's frame, flipped over the feet, laid along the shadow vector, the second lamp fainter, none on the ground, the officials too); kill switches v164Alights / v164Asil restore the screen-planted masts and the ellipses; no page errors.",
+   "areas": [
+    "lights",
+    "field"
+   ],
+   "runtimeSec": 300,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true,
+   "note": "two walks into a live game (the second for the kill switches); waits on game state (scripts/lib/live.mjs waitLive) and for a change of possession at 4x."
+  },
+  "v164Bcheck": {
+   "file": "scripts/v164Bcheck.mjs",
+   "desc": "v164 B / C / D — the season sims to the title game (the Semifinal keeps Quick Play and the ⏭, is simmed, the championship alone is locked; the UFF sim plays the rounds and stops at the title game; TU v164Bsim 0 = v156 B), watching pays (the watched share → ×1.25..×0.85 on the season's Legacy XP, points and half the growth; the championship pays double; the cut roll grows with the simmed share; the report-card badge), and Live Sim Only (the position screen's box, the flag on the career, the refusals, no SKIP, the LIVE ONLY board category and its 📺 rows; TU v164Dlive 0). No page errors.",
+   "areas": [
+    "season",
+    "boards"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v164Echeck": {
+   "file": "scripts/v164Echeck.mjs",
+   "desc": "v164 E — every attribute bar (the hub sheet, the skill sheet, the training board, the pregame helper) is drawn against the 250 scale and laps past it (the finished lap on the track, a ×N tag); TU v164Ebars 0 restores the old scales. No page errors.",
+   "areas": [
+    "ui"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }

@@ -5485,8 +5485,10 @@ class Ot extends mt.Scene {
     const label = this.add.text(0, -3, String(num), numStyleV104(team)).setOrigin(0.5);
     { const sw = TU("numStroke", 2.2); if (sw > 0) label.setStroke("#0a0e14", sw); }
     const skin = this.add.image(0, 0, initialKey).setVisible(false);   // v151 D: his own skin, a layer over the kit
-    const root = this.add.container(0, 0, [fill, shadow, body, skin, label]).setDepth(4);
-    const m = { root, body, skin, label, shadow, fill, team, kit, num, sx, sy, dirKey: "dn", flip: false, ft: 0, hd: null, cutUntil: 0, tms: 0 };
+    const sil = this.add.image(0, 24, initialKey).setOrigin(0.5, 1).setVisible(false);    // v164 A: his own silhouette on the grass
+    const sil2 = this.add.image(0, 24, initialKey).setOrigin(0.5, 1).setVisible(false);   // v164 A: ...and the fainter one the second lamp throws
+    const root = this.add.container(0, 0, [fill, sil2, sil, shadow, body, skin, label]).setDepth(4);
+    const m = { root, body, skin, label, shadow, fill, sil, sil2, team, kit, num, sx, sy, dirKey: "dn", flip: false, ft: 0, hd: null, cutUntil: 0, tms: 0 };
     if (faceDx != null) this.faceMarker(m, faceDx, faceDy || 0);
     this.placeMarker(m, sx, sy, 16);
     return m;
@@ -6096,8 +6098,11 @@ class Ot extends mt.Scene {
     // v99: cast from the one light post — it swings around him as he crosses the field and
     // stays on the grass under a man in the air. A man ON the ground has almost no height
     // left to cast, so his shadow collapses to the patch he is lying in.
-    if (m.shadow) { const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
+    if (m.shadow && this.silOnV164()) { const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
+      this.castSilV164(m, p.x, p.y + liftV99 * p.s, liftV99, spdPx, down); }   // v164 A: the shadow is the man
+    else if (m.shadow) { const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
       const h = TU("shadowManH", 21) * (down ? TU("shadowDownK", 0.45) : 1);
+      if (m.sil) m.sil.setVisible(false); if (m.sil2) m.sil2.setVisible(false);
       this.castShadowV99(m.shadow, p.x, p.y + liftV99 * p.s, h, { lift: liftV99 });
       // v101: at a sprint the cast smears along its own axis and thins — motion, not a taller man
       const smear = Math.max(0, Math.min(1, (spdPx - TU("smearFromV101", 120)) / TU("smearSpanV101", 130))) * TU("smearKV101", 0.34);
@@ -6121,7 +6126,18 @@ class Ot extends mt.Scene {
     } else m.bob = null;
     if (m.tag && m.tag.active) m.tag.setPosition(p.x, p.y + 27 * p.s).setScale(p.s); else m.tag = null;
     if (m.team === "you" || m._cosV153G) cosFxV153G(this, m, p);   // v153 G: his footprints, wings, crown, aura, number font
+    this.silBindV164(m);   // v164 A: the silhouette wears the frame the body ENDED the frame on
     return p;
+  }
+  // v164 A: the body's texture can change after the shadow was cast (the run cycle, a pose) — bind the
+  // silhouettes to the frame he is actually showing, once, at the end of his placement
+  silBindV164(m) {
+    if (!m.sil || !m.sil.visible || !m.body) return;
+    const key = m.tex || (m.body.texture && m.body.texture.key), want = key ? "sil164_" + key : null;
+    if (!want || m.sil._texV164 === want) return;
+    const tex = this.silTexV164(key); if (!tex) return;
+    m.sil._texV164 = tex; m.sil.setTexture(tex);
+    if (m.sil2 && m.sil2.scene) { m.sil2._texV164 = tex; m.sil2.setTexture(tex); }
   }
   resolveOverlaps() {
     // render-side separation: sprites never stack, no matter how tight the sim pile is
@@ -6157,7 +6173,10 @@ class Ot extends mt.Scene {
       m._nudgeV109 = nd > 0.01 ? { dx: ndx, dy: ndy } : null;
       if (nd > 0.01 && TU("shadowFollowV109", 1)) { V9.nudged++;
         let lift = 0; if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms)); lift = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11); }
-        if (m.shadow && TU("shadowsV99", 1)) {
+        if (m.shadow && this.silOnV164()) {
+          const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
+          this.castSilV164(m, m.root.x, m.root.y + lift * m.root.scale, lift, m._spdPx || 0, down); V9.recast++; }
+        else if (m.shadow && TU("shadowsV99", 1)) {
           const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
           const h = TU("shadowManH", 21) * (down ? TU("shadowDownK", 0.45) : 1), gy = m.root.y + lift * m.root.scale;
           this.castShadowV99(m.shadow, m.root.x, gy, h, { lift });
@@ -7112,7 +7131,37 @@ class Ot extends mt.Scene {
       const flip = !!TU("lightFlipV112", 1);                                            // v112: the mirrored fixture
       const hasArt = !!(RIB.lightsImg && this.textures.exists("rib_lights_v92"));
       ST.lights = ST.lights || [];
-      xs.forEach((x, i) => {
+      /* v164 A: the masts stand on the FIELD. The far four are drawn from their projected feet, scaled by
+       * the bowl's own perspective; every mast keeps its physical index for the key light. */
+      const M164 = this.mastsV164(); ST.mastsV164 = M164 || null;
+      if (M164) {
+        const farM = M164.filter((sp) => sp.far).sort((a, b) => a.x - b.x);
+        farM.forEach((sp, i) => { sp.ti = i; });
+        // the foot: just behind the end line, tucked above the bowl's own foot so it never shows on the grass;
+        // a near mast (behind the camera) is not drawn, so its foot is simply where the field puts it
+        for (const sp of M164) { sp.h = H * sp.sk; sp.footY = sp.far ? Math.min(sp.y + TU("mastFootDropV164", 6) * sp.sk, bot - TU("lightSink", 4) * KS) : sp.y + TU("mastFootDropV164", 6) * sp.sk; }
+        farM.forEach((sp, i) => {
+          let tw = ST.towers[i];
+          if (hasArt && (!tw || !tw.scene)) { tw = ST.towers[i] = this.add.image(0, 0, "rib_lights_v92", 0).setOrigin(0.5, 1); tw._phase = i * 1.7; }
+          if (!tw || !tw.scene) return;
+          const inward = sp.x < FW / 2, side = flip ? !inward : inward;
+          const face = side ? RIB_META_V92.faces.right : RIB_META_V92.faces.left;
+          tw._face = face; tw.setFrame(face * RIB_META_V92.frames);
+          tw._bx = sp.x; tw._by = sp.footY; tw._sway = [0, 1, 0, 0.7][i] || 0; tw._mastV164 = sp.i; tw._k = sp.k;
+          tw._aimX = sp.aim.x; tw._aimY = sp.aim.y; tw._poolX = sp.pool.x; tw._poolY = sp.pool.y;
+          tw.setPosition(sp.x, sp.footY).setScale(sp.h / RIB_META_V92.cell[1]).setDepth(depT).setVisible(true);
+          { const lm = this.lightMulV100() * this.dayMulV144(), g = Math.max(0, Math.min(255, Math.round(255 * Math.min(1, 0.28 + 0.72 * lm))));
+            tw.setTint((g << 16) | (g << 8) | g); }
+          tw._poolK = TU("lightPoolKV112", 1) * sp.pool.k;
+          this.lightRigV98(i, tw, side ? 1 : -1, depT);
+        });
+        try { window.__V164A = Object.assign(window.__V164A || {}, { masts: () => (ST.mastsV164 || []).map((q) => ({ i: q.i, end: q.end, lat: q.lat, far: q.far, ti: q.ti, x: Math.round(q.x), y: Math.round(q.footY), k: +q.k.toFixed(3), sk: +q.sk.toFixed(3), pool: { x: Math.round(q.pool.x), y: Math.round(q.pool.y) } })),
+          key: () => { const K = this.keyLightV99(); return { x: Math.round(K.x), y: Math.round(K.y), i: K.i, phys: K.phys, far: K.far, on: K.on }; },
+          sil: () => { const RS = RIB.silV164 || {}; return { made: RS.made || 0, miss: RS.miss || 0, on: this.silOnV164(), men: this.markers.filter((m) => m && m.sil && m.sil.visible).length }; },
+          man: (i) => { const m = this.markers[i]; return m && m._silV164 ? Object.assign({ vis: !!(m.sil && m.sil.visible), tex: m.sil && m.sil._texV164 }, m._silV164) : null; },
+          vdir: () => VDIR }); } catch (e) {}
+      }
+      else xs.forEach((x, i) => {
         let tw = ST.towers[i];
         if (hasArt && (!tw || !tw.scene)) { tw = ST.towers[i] = this.add.image(0, 0, "rib_lights_v92", 0).setOrigin(0.5, 1); tw._phase = i * 1.7; }
         if (!tw || !tw.scene) return;
@@ -7181,8 +7230,8 @@ class Ot extends mt.Scene {
           field: near }; }; } catch (e) {}
       try { window.__V99 = { key: () => this.keyLightV99(), posts: () => this._postShadDbgV99 || null,
         cast: (x, y) => { const V = this.shadowVecV99(x, y); return { ux: +V.ux.toFixed(3), uy: +V.uy.toFixed(3), slope: +V.slope.toFixed(3), reach: +V.reach.toFixed(3) }; },
-        man: (i) => { const m = this.markers[i]; if (!m || !m.shadow) return null; const sh = m.shadow;
-          return { x: +sh.x.toFixed(2), y: +sh.y.toFixed(2), rot: +sh.rotation.toFixed(3), sx: +sh.scaleX.toFixed(3), sy: +sh.scaleY.toFixed(3), a: +sh.alpha.toFixed(3), root: { x: Math.round(m.root.x), y: Math.round(m.root.y), s: +m.root.scale.toFixed(3) } }; },
+        man: (i) => { const m = this.markers[i]; if (!m || !m.shadow) return null; const sh = m.shadow, S4 = this.silOnV164() && m._silV164;   // v164 A: the silhouette, in the ellipse's terms
+          return { x: +sh.x.toFixed(2), y: +sh.y.toFixed(2), rot: +(S4 ? S4.rot : sh.rotation).toFixed(3), sx: +(S4 ? S4.sx : sh.scaleX).toFixed(3), sy: +sh.scaleY.toFixed(3), a: +(S4 && m.sil && m.sil.visible ? m.sil.alpha : sh.alpha).toFixed(3), root: { x: Math.round(m.root.x), y: Math.round(m.root.y), s: +m.root.scale.toFixed(3) } }; },
         dial: () => ({ light: +this.lightMulV100().toFixed(3), shadow: +this.shadowMulV100().toFixed(3), setting: (window.__FIELD_FX || {}).light }),
         ball: () => this.ballShad && this.ballShad.scene ? { x: Math.round(this.ballShad.x), y: Math.round(this.ballShad.y), a: +this.ballShad.alpha.toFixed(3), vis: this.ballShad.visible } : null }; } catch (e) {}
       try { window.__V92 = Object.assign(window.__V92 || {}, { on: true, towers: ST.towers.filter((t) => t && t.scene && t.visible).length, bowl: { top: Math.round(top), bot: Math.round(bot), k: +k.toFixed(3) },
@@ -7439,8 +7488,125 @@ class Ot extends mt.Scene {
   // the turf takes the whole dial on the way DOWN and only part of it on the way up: the baked
   // wash is broad enough that a linear top end clips the far end zone to white paper
   bakedMulV100() { const m = this.lightMulV100(); return m <= 1 ? m : 1 + (m - 1) * TU("lightBakedTopK", 0.6); }
+  /* ===== v164 A THE LIGHTS STAND WHERE THEY STAND =====
+   * The masts used to be planted at fixed fractions of the SCREEN (x = 0.02 / 0.2 / 0.8 / 0.98 of the
+   * world width, feet a fixed 4 px below whichever end line was being attacked), so the same stadium
+   * had its lights somewhere else every time the field was looked at from the other end (possession
+   * flips VDIR and the whole bank jumped ends) or from another line of scrimmage (the bowl rescales
+   * with the projection while the masts stood still and slid against it). The key light — the one
+   * every shadow is cast from — was "tower 2", the mast on the right of the SCREEN, so the shadows
+   * raked the other way relative to the stadium on every change of possession.
+   * Now EIGHT masts stand at fixed FIELD positions: `mastBackPxV164` behind each end line, at the
+   * lateral fractions `mastWideV164` / `mastInnerV164` of the half-width (the same picture as before
+   * at the perspective it was tuned at, `mastKRefV164`), projected through `crowdProject` on every bake
+   * so they scale and sit with the bowl; only the far four are drawn (the near four stand behind the
+   * camera, as a light only). Each mast's beam aims at, and its pool lies on, ITS OWN patch of the
+   * field (`mastPoolInYdV164` yards in from its end line, `mastPoolLatV164` of the half-width to its
+   * side), and the pools baked into the turf (`lightFieldV98`) are the same points. The key light is a
+   * PHYSICAL mast (`keyMastV164`: index = end slot × 4 + lateral slot, the east end first; 2 is the east
+   * end's inner mast on the bottom touchline — the one the shadows were tuned to on an offensive drive); on a
+   * defensive drive it stands behind the camera and the shadows fall AWAY from it, up the screen and
+   * shorter (`shadowUpKV164`). Kill switch `TU("v164Alights", 0)` restores the screen-planted masts.
+   * `window.__V164A` (`masts`, `key`, `sil`); `v164Acheck`. ===== */
+  mastsV164() {
+    if (!TU("v164Alights", 1) || !PERSP || !this.crowdProject) return null;
+    const MIDY = (F_TOP + F_BOT) / 2, HALF = (F_BOT - F_TOP) / 2;
+    const back = TU("mastBackPxV164", 8), wide = TU("mastWideV164", 2.3), inner = TU("mastInnerV164", 1.75);
+    const kRef = Math.max(0.05, TU("mastKRefV164", 0.25)), lo = TU("mastScaleMinV164", 0.6), hi = TU("mastScaleMaxV164", 2.0);
+    const inPx = TU("mastPoolInYdV164", 22) / 100 * PLAY_W, aimPx = TU("mastAimInYdV164", 42) / 100 * PLAY_W, latP = TU("mastPoolLatV164", 0.45);
+    const adj = (x, v) => ({ u: VDIR > 0 ? x : FW - x, vv: VDIR > 0 ? v : F_TOP + F_BOT - v });   // the field, seen from the camera's end
+    const out = [];
+    [1, -1].forEach((end, ei) => [-wide, -inner, inner, wide].forEach((lf, li) => {
+      const x = end > 0 ? FW + back : -back, v = MIDY + lf * HALF, a = adj(x, v), p = this.crowdProject(a.u, a.vv);
+      const pool = adj(end > 0 ? PLAY_R - inPx : PLAY_L + inPx, MIDY + Math.sign(lf) * HALF * latP), pp = this.crowdProject(pool.u, pool.vv);
+      const aim = adj(end > 0 ? PLAY_R - aimPx : PLAY_L + aimPx, MIDY + Math.sign(lf) * HALF * latP * 0.6), ap = this.crowdProject(aim.u, aim.vv);
+      out.push({ i: ei * 4 + li, end, lat: lf, far: a.u > FW / 2, x: p.x, y: p.y, k: p.k, sk: Math.max(lo, Math.min(hi, p.k / kRef)),
+        pool: { x: pp.x, y: pp.y, k: Math.max(lo, Math.min(hi, pp.k / kRef)) }, aim: { x: ap.x, y: ap.y }, ti: -1 });
+    }));
+    return out;
+  }
+  /* ===== v164 A THE SHADOW IS THE MAN =====
+   * A player's shadow was a black ellipse, stretched along the line from the key light. Now it is HIS
+   * OWN SILHOUETTE: the frame his body is showing, blacked out (`silTexV164`, one canvas a texture,
+   * cached), flipped over his feet, laid along the ground away from the key light and foreshortened by
+   * its rake (`castSilV164`) — so a man running, cutting, diving or throwing throws the shape of the
+   * man running, cutting, diving or throwing. The ellipse stays as the soft contact blob under his
+   * feet (`silBlobA`); the v101 fill ellipse is gone (a second silhouette from the second lamp is
+   * `silFillV164`). A man on the ground throws no silhouette — his blob widens over the patch he is
+   * lying in. Officials cast the same way. Nothing in the sim changes; `__V99.man(i)` keeps reporting
+   * the shadow's direction and stretch in the old ellipse's terms so v99check still reads it.
+   * Kill switch `TU("v164Asil", 0)` restores the ellipses. ===== */
+  silOnV164() { return !!TU("v164Asil", 1) && !!TU("shadowsV99", 1); }
+  silTexV164(key) {
+    const RS = RIB.silV164 || (RIB.silV164 = { made: 0, miss: 0, keys: {} });
+    if (!key || key === "rib_player_fallback") return null;
+    const have = RS.keys[key];
+    if (have && this.textures.exists(have)) return have;
+    try {
+      const t = this.textures.get(key), src = t && t.getSourceImage && t.getSourceImage();
+      if (!src || !src.width || !src.height) { RS.miss++; return null; }
+      const cv = document.createElement("canvas"); cv.width = src.width; cv.height = src.height;
+      const cx = cv.getContext("2d"); cx.drawImage(src, 0, 0);
+      cx.globalCompositeOperation = "source-in"; cx.fillStyle = "#000"; cx.fillRect(0, 0, cv.width, cv.height);
+      const sk = "sil164_" + key;
+      if (this.textures.exists(sk)) this.textures.remove(sk);
+      this.textures.addCanvas(sk, cv); RS.made++;
+      return (RS.keys[key] = sk);
+    } catch (e) { RS.miss++; return null; }
+  }
+  // gx/gy: the man's ground point in world px; lift: how far above it he is; down: lying on it
+  castSilV164(m, gx, gy, lift, spdPx, down, o) {
+    o = o || {};
+    const sh = m.shadow; if (!sh || !sh.scene) return null;
+    if (!TU("shadowsV99", 1)) { sh.setVisible(false); if (m.sil) m.sil.setVisible(false); if (m.sil2) m.sil2.setVisible(false); if (m.fill) m.fill.setVisible(false); return null; }
+    sh.setVisible(true);
+    const V = this.shadowVecV99(gx, gy), mul = this.shadowMulV100(), fade = 1 - V.reach * TU("shadowFade", 0.22);
+    lift = Math.max(0, lift || 0);
+    const air = lift > 0 ? Math.max(TU("shadowAirMin", 0.45), 1 - lift / TU("shadowAirFade", 30)) : 1;
+    const y0 = o.y0 == null ? 24 : o.y0, bw = o.blobW || 1, bh = o.blobH || 1;
+    // the contact blob: a soft pool under the feet, wider over a man on the ground
+    sh.setRotation(0).setPosition(0, y0 + lift)
+      .setScale(TU("silBlobW", 0.78) * bw * (down ? TU("silBlobDownW", 1.8) : 1) * air, TU("silBlobH", 0.72) * bh * (down ? TU("silBlobDownH", 0.85) : 1) * air)
+      .setAlpha(TU("silBlobA", 0.2) * (down ? 1.3 : 1) * fade * air * mul);
+    if (m.fill) m.fill.setVisible(false);
+    const sil = m.sil; if (!sil || !sil.scene) return V;
+    const smear = Math.max(0, Math.min(1, ((spdPx || 0) - TU("smearFromV101", 120)) / TU("smearSpanV101", 130))) * TU("smearKV101", 0.34);
+    const tex = down || m.__v161a ? null : this.silTexV164(m.tex || (m.body && m.body.texture && m.body.texture.key));
+    if (!tex) { sil.setVisible(false); if (m.sil2) m.sil2.setVisible(false); m._silV164 = { rot: Math.atan2(V.uy, V.ux), sx: 1, len: 0, ux: V.ux, uy: V.uy }; return V; }
+    if (sil._texV164 !== tex) { sil._texV164 = tex; sil.setTexture(tex); }
+    if (m.body) sil.setFlipX(!!m.body.flipX);
+    const up = V.uy < 0 ? TU("shadowUpKV164", 0.6) : 1;                              // away from the camera: foreshortened
+    const len = V.slope * TU("silLenKV164", 0.95) * up * air * (1 + smear);
+    const bsx = m.body ? Math.abs(m.body.scaleX || 1) : 1, bsy = m.body ? Math.abs(m.body.scaleY || 1) : 1;
+    sil.setVisible(true).setPosition(0, y0 + lift).setRotation(Math.atan2(-V.ux, V.uy))
+      .setScale(bsx * (1 + smear * 0.25), -bsy * len)
+      .setAlpha(TU("silAV164", 0.34) * fade * air * mul * (1 - smear * 0.3));
+    m._silV164 = { rot: Math.atan2(V.uy, V.ux), sx: 1 + len * TU("shadowManH", 21) / 26, len, ux: V.ux, uy: V.uy };
+    // the second lamp: a fainter silhouette from the nearest OTHER mast — the one that keeps a shadow on
+    // the grass in front of him when the key mast stands behind the camera
+    const s2 = m.sil2;
+    if (s2 && s2.scene) {
+      const F = TU("silFillV164", 1) && TU("fillShadowV101", 1) ? this.fillVecV101(gx, gy) : null;
+      if (!F) s2.setVisible(false);
+      else {
+        if (s2._texV164 !== tex) { s2._texV164 = tex; s2.setTexture(tex); }
+        if (m.body) s2.setFlipX(!!m.body.flipX);
+        const len2 = F.slope * TU("silLenKV164", 0.95) * (F.uy < 0 ? TU("shadowUpKV164", 0.6) : 1) * air * (1 + smear);
+        s2.setVisible(true).setPosition(0, y0 + lift).setRotation(Math.atan2(-F.ux, F.uy))
+          .setScale(bsx * (1 + smear * 0.25), -bsy * len2)
+          .setAlpha(TU("silFillAV164", 0.17) * (1 - F.reach * TU("shadowFade", 0.22)) * air * Math.max(0, Math.min(1.4, this.lightMulV100())) * (1 - smear * 0.3));
+      }
+    }
+    return V;
+  }
   keyLightV99() {
     const ST = this.stadium, i = Math.max(0, Math.min(3, Math.round(TU("keyLightIdx", 2))));
+    if (TU("v164Alights", 1) && ST && ST.on && ST.mastsV164 && ST.mastsV164.length) {
+      const M = ST.mastsV164, km = M[Math.max(0, Math.min(M.length - 1, Math.round(TU("keyMastV164", 2))))];
+      const tw = km.ti >= 0 && ST.towers ? ST.towers[km.ti] : null;
+      if (tw && tw.scene && tw._bx != null) return { x: tw._bx, y: tw._by - tw.displayHeight * TU("lightHeadFrac", 0.76), i: km.ti, on: true, phys: km.i, far: true };
+      return { x: km.x, y: km.footY - km.h * TU("lightHeadFrac", 0.76), i: -1, on: true, phys: km.i, far: false };   // behind the camera: a light, not a fixture
+    }
     const tw = ST && ST.on && ST.towers && ST.towers[i];
     if (tw && tw.scene && tw.visible && tw._bx != null)
       return { x: tw._bx, y: tw._by - tw.displayHeight * TU("lightHeadFrac", 0.76), i, on: true };
@@ -7448,10 +7614,11 @@ class Ot extends mt.Scene {
   }
   shadowVecV99(gx, gy) {
     const L = this._klV99 || (this._klV99 = this.keyLightV99());
-    const vx = gx - L.x, vy = Math.max(30, gy - L.y), d = Math.hypot(vx, vy) || 1;
+    const vx = gx - L.x, vy = L.phys != null && !L.far ? Math.min(-30, gy - L.y) : Math.max(30, gy - L.y), d = Math.hypot(vx, vy) || 1;   // v164 A: a key behind the camera throws the shadow up the screen
     const reach = Math.max(0, Math.min(1, (gy - NSTOP) / Math.max(1, WORLD_H - NSTOP)));
     const q = (this.play && this.play.payload && this.play.payload.quarter) || 1;
-    const slope = TU("shadowSlope", 0.7) * (0.45 + reach * 1.35) * (1 + (q - 1) * TU("shadowStretchQ", 0.16));
+    const rr = L.phys != null && !L.far ? 1 - reach : reach;   // v164 A: a key behind the camera rakes hardest at the FAR end
+    const slope = TU("shadowSlope", 0.7) * (0.45 + rr * 1.35) * (1 + (q - 1) * TU("shadowStretchQ", 0.16));
     return { ux: vx / d, uy: vy / d, slope, reach, L };
   }
   // sh: an ellipse parented to the sprite's container, so its coordinates are the
@@ -8172,8 +8339,10 @@ class Ot extends mt.Scene {
     const key = this.textures.exists("spr_ref_dn_idle") ? "spr_ref_dn_idle" : "rib_player_fallback";
     const body = this.add.image(0, 0, key);
     if (key === "rib_player_fallback") body.setTint(0xf2f4f7);
-    const root = this.add.container(0, 0, [shadow, body]).setDepth(4);
-    return { root, body, shadow, team: "ref", sx, sy, dirKey: "dn", flip: false, ft: 0, it: 0, tms: 0, sSm: 0, hd: null, forceState: null };
+    const sil = this.add.image(0, 23, key).setOrigin(0.5, 1).setVisible(false);   // v164 A: the official's own silhouette
+    const sil2 = this.add.image(0, 23, key).setOrigin(0.5, 1).setVisible(false);
+    const root = this.add.container(0, 0, [sil2, sil, shadow, body]).setDepth(4);
+    return { root, body, shadow, sil, sil2, team: "ref", sx, sy, dirKey: "dn", flip: false, ft: 0, it: 0, tms: 0, sSm: 0, hd: null, forceState: null };
   }
   // Resolve a ref pose to a texture, degrading through the keys the zebra
   // fallback registers so a sheet that never decodes still animates.
@@ -8246,9 +8415,11 @@ class Ot extends mt.Scene {
     m.root.setPosition(p.x, p.y + hop * p.s); m.root.setScale(p.s * emph);
     // v99: the crew casts too — the flag heave lifts an official off the grass, and his
     // shadow stays where he left it
-    if (m.shadow) this.castShadowV99(m.shadow, p.x, p.y, TU("shadowRefH", 19), { lift: Math.max(0, -hop), base: 20, y0: 23, a: 0.3 });
+    if (m.shadow && this.silOnV164()) this.castSilV164(m, p.x, p.y, Math.max(0, -hop), spdPx, false, { y0: 23, blobW: 0.8, blobH: 0.8 });   // v164 A
+    else if (m.shadow) this.castShadowV99(m.shadow, p.x, p.y, TU("shadowRefH", 19), { lift: Math.max(0, -hop), base: 20, y0: 23, a: 0.3 });
     m.root.setDepth(4 + sy * 0.02 + 0.006 + (m.emphMs ? 18 : 0));
     m._spdPx = spdPx;
+    this.silBindV164(m);   // v164 A
     return p;
   }
   spawnRefs(losX, dir) {
@@ -8786,11 +8957,15 @@ class Ot extends mt.Scene {
       wash.addColorStop(0, "rgba(255,238,196," + (TU("fieldWashA", 0.15) * LM).toFixed(3) + ")"); wash.addColorStop(1, "rgba(255,238,196,0)");
       ctx.fillStyle = wash; ctx.fillRect(0, NSTOP, CW, H);
       // the pools: one under each mast, pulled in toward the field it aims at
-      const R = TU("fieldPoolR", 430), py = NSTOP + TU("fieldPoolDown", 150), pa = TU("fieldPoolA", 0.12) * LM;
-      for (const f of [0.02, 0.2, 0.8, 0.98]) {
-        const px = x0 + FW / 2 + (f - 0.5) * FW * 0.88;
+      const R0 = TU("fieldPoolR", 430), py0 = NSTOP + TU("fieldPoolDown", 150), pa = TU("fieldPoolA", 0.12) * LM;
+      // v164 A: a pool lies where its mast's beam lands on the FIELD — the same projected points the rigs use
+      const M164 = this.mastsV164();
+      const pools = M164 ? M164.map((sp) => ({ px: x0 + sp.pool.x, py: sp.pool.y, R: R0 * sp.pool.k, a: sp.far ? 1 : TU("nearPoolAV164", 0.6) }))
+        : [0.02, 0.2, 0.8, 0.98].map((f) => ({ px: x0 + FW / 2 + (f - 0.5) * FW * 0.88, py: py0, R: R0, a: 1 }));
+      for (const pl of pools) {
+        const px = pl.px, py = pl.py, R = pl.R;
         const g = ctx.createRadialGradient(px, py, 0, px, py, R);
-        g.addColorStop(0, "rgba(255,244,214," + pa.toFixed(3) + ")"); g.addColorStop(0.55, "rgba(255,244,214," + (pa * 0.35).toFixed(3) + ")"); g.addColorStop(1, "rgba(255,244,214,0)");
+        g.addColorStop(0, "rgba(255,244,214," + (pa * pl.a).toFixed(3) + ")"); g.addColorStop(0.55, "rgba(255,244,214," + (pa * pl.a * 0.35).toFixed(3) + ")"); g.addColorStop(1, "rgba(255,244,214,0)");
         ctx.fillStyle = g; ctx.fillRect(px - R, Math.max(NSTOP, py - R), 2 * R, 2 * R);
       }
       // the falloff: the light thins out past the touchlines and down toward the near corners

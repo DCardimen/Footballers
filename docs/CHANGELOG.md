@@ -10,6 +10,35 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v164 B–E — the season sims to the title game; watching pays; Live Sim Only; the bar is 250 and it laps.**
+  (`src/07-career-app.js`, `src/20-leaderboards.js`, `scripts/v164Bcheck.mjs`, `scripts/v164Echeck.mjs`.)
+  *B — the season sims to the title game* (`v164 B THE SEASON SIMS TO THE TITLE GAME`): only the CHAMPIONSHIP must be
+  watched. The earlier playoff rounds take Quick Play, the ⏭ ("Sim to the Championship"), the live SKIP and both season
+  sims, round by round as the bracket books them; a lost round still ends the run. Kill switch `v164Bsim`.
+  *C — watching pays* (`v164 C WATCHING PAYS`): the share of the season you watched live is one multiplier on the
+  season's Legacy XP, its upgrade points and half its growth — ×1.25 with every game watched, ×0.85 with none (the
+  championship counts double); a quick-played week costs a little standing with the club and a simmed season raises
+  the cut roll (×1.3 at none watched). The championship's XP and points are doubled. The season dock says the deal under
+  Quick Play; the report card wears a "📺 N% watched · XP ×k" badge. Kill switch `v164Cwatch`.
+  *D — Live Sim Only* (`v164 D LIVE SIM ONLY`): a box on the position screen starts a career where every game is
+  watched — no Quick Play, no season sims, no SKIP — and such a career is recorded on its own LIVE ONLY board
+  (the fourteenth category), its rows marked 📺. Kill switch `v164Dlive`.
+  *E — the bar is 250, and it laps* (`v164 E THE BAR IS 250, AND IT LAPS`): every attribute bar (the hub sheet, the
+  skill sheet, the pregame sheet, the training board) is drawn against 250 by default; a stat past 250 fills the bar
+  again — the finished lap stays on the track in its colour, the fill starts round in the next colour (green → gold →
+  red), with a ×N tag beside the number. Kill switch `v164Ebars`.
+- **v164 A — the lights stand where they stand; the shadow is the man.** (`src/05-field-renderer.js`, `scripts/v164Acheck.mjs`,
+  `scripts/v99check.mjs`.) The stadium's masts were planted at fixed fractions of the SCREEN, and the key light every
+  shadow is cast from was "the mast on the right of the screen" — so the lights jumped ends on every change of
+  possession, slid against the bowl as the line of scrimmage moved, and the shadows raked the other way each time the
+  camera turned round. Now eight masts stand at fixed FIELD positions behind each end line and are projected with the
+  bowl on every bake (the far four drawn at its corners, scaled with it; the near four behind the camera as a light
+  only); each beam and pool lands on its own patch of the field, baked and live alike; the key light is one PHYSICAL
+  mast, so on a defensive drive the shadows fall away from it, up the screen. And a player's shadow is no longer a
+  black ellipse: it is his own silhouette — the frame his body is showing, blacked out, flipped over his feet and laid
+  along the ground away from the light, foreshortened by its rake, with the second lamp's fainter one beside it and a
+  soft contact blob under the feet; a man on the ground throws none. Officials too. Kill switches `v164Alights`,
+  `v164Asil`.
 - **v163 A — the game never stops.** (`src/05-field-renderer.js`, `src/06-phaser-launcher.js`, `src/07-career-app.js`,
   `scripts/v163Acheck.mjs`.) Live games sometimes froze for good. The broadcast's frame loop asks for its next frame only
   after the current one finishes, so a single error in one frame — most often a sprite still holding a texture that
