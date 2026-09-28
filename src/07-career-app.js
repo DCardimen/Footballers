@@ -2542,7 +2542,8 @@
     const n = s.expectation || 55,
       i = s.status === "starter" ? 4 : s.status === "franchise" ? 7 : 0,
       r = Math.max(0, (e.age || 23) - 30) * 0.7,
-      l = (t.perf - n) * 0.22 + (e.coachTrust - 50) * 0.035 + (s.schemeFit - 50) * 0.025 - i - r - (t.injured ? 8 : 0);
+      l = (t.perf - n) * 0.22 + (e.coachTrust - 50) * 0.035 + (s.schemeFit - 50) * 0.025 - i - r - (t.injured ? 8 : 0)
+        - (t.wheelV85 && !t.liveBookedV85 ? TU("simWeekSecurityV164C", 1.2) : 0) /* v164 C: a quick-played week costs a little standing */;
     ((s.security = clamp(s.security + l, 0, 100)), (s.evaluationWeeks = Math.max(0, s.evaluationWeeks - 1)));
     const d = s.status;
     s.security >= 82
@@ -8708,6 +8709,55 @@
   function ovrGradeClass(e) {
     return e >= 200 ? "g-elite" : e >= 140 ? "g-hi" : e >= 80 ? "g-mid" : "g-lo";
   }
+  /* ===== v164 E THE BAR IS 250, AND IT LAPS =====
+   * The owner: "show bars to the soft cap of 250 by default, filling multiple times if they go above." Every attribute
+   * bar (the hub sheet `attrRow`, the skill sheet's `refreshAllocButtons`, the pregame sheet `pregamePlayerStatsV25`,
+   * the training board `tpRowV113`) is drawn against ONE scale, `barCapV164E` (250), instead of the player's own soft
+   * cap or the absolute wall — so a 12 is a sliver everywhere and a 240 is nearly full everywhere. A stat past 250 LAPS:
+   * the track itself takes the finished lap's colour and the fill starts round again in the next lap's colour (green →
+   * gold → red), with a ×N tag beside the number. `barLapV164E(v)` is the one read (`scale`, `laps`, `pct` of the
+   * current lap); the soft-cap tick and the buff / gain overlays are placed on the same scale. Kill switch
+   * TU "v164Ebars" 0 (the v126 / v153 E scales). Hoisted (v140). `window.__V164E`; `v164Echeck`. */
+  function barScaleV164E() {
+    return TU("v164Ebars", 1) ? Math.max(50, Math.round(TU("barCapV164E", 250))) : 0;
+  }
+  function barLapV164E(v) {
+    const S = barScaleV164E();
+    if (!S) return null;
+    v = Math.max(0, +v || 0);
+    const laps = Math.floor(v / S);
+    return { scale: S, laps, rem: v - laps * S, pct: clamp99(((v - laps * S) / S) * 100, 0, 100), full: laps > 0 };
+  }
+  // where a value lands on the CURRENT lap of the bar drawn for `ref` (a value on a later lap pins to the end)
+  function barPctV164E(v, ref) {
+    const L = barLapV164E(ref == null ? v : ref);
+    if (!L) return null;
+    return clamp99(((Math.max(0, +v || 0) - L.laps * L.scale) / L.scale) * 100, 0, 100);
+  }
+  function barLapClassV164E(v) {
+    const L = barLapV164E(v);
+    return L && L.full ? " lap-v164e lap" + Math.min(4, L.laps) : "";
+  }
+  function barLapTagV164E(v) {
+    const L = barLapV164E(v);
+    return L && L.full ? `<em class="lapn-v164e" title="Past ${L.scale * L.laps} — the bar has filled ${L.laps} time${L.laps > 1 ? "s" : ""} and is on its way round again">×${L.laps + 1}</em>` : "";
+  }
+  window.__V164E = { scale: barScaleV164E, lap: barLapV164E, pct: barPctV164E, cls: barLapClassV164E, tag: barLapTagV164E };
+  try {
+    if (typeof document !== "undefined" && !document.getElementById("barsV164Ecss")) {
+      const st = document.createElement("style");
+      st.id = "barsV164Ecss";
+      st.textContent =
+        ".track.lap-v164e,.up-bar-v153.lap-v164e{background:linear-gradient(90deg,#3f9e5a,#7fe0a0)}" +
+        ".track.lap-v164e>i,.up-bar-v153.lap-v164e>i{background:linear-gradient(90deg,#c9962a,#f0bb45)!important}" +
+        ".track.lap2,.up-bar-v153.lap2{background:linear-gradient(90deg,#c9962a,#f0bb45)}" +
+        ".track.lap2>i,.up-bar-v153.lap2>i{background:linear-gradient(90deg,#c94a3a,#ff8a80)!important}" +
+        ".track.lap3,.up-bar-v153.lap3,.track.lap4,.up-bar-v153.lap4{background:linear-gradient(90deg,#c94a3a,#ff8a80)}" +
+        ".track.lap3>i,.up-bar-v153.lap3>i,.track.lap4>i,.up-bar-v153.lap4>i{background:linear-gradient(90deg,#7a5cff,#c9b8ff)!important}" +
+        ".lapn-v164e{display:inline-block;font:700 10px Oswald,sans-serif;color:var(--gold);margin-left:4px;letter-spacing:.5px;vertical-align:middle;-webkit-text-stroke:0}";
+      (document.head || document.documentElement).appendChild(st);
+    }
+  } catch (_) {}
   let state = null;
   function freshState() {
     return {
@@ -10819,6 +10869,8 @@
       } catch {}
   }
   function showToast(e) {
+    /* v164 F: on the live view the toast is said on the jumbotron, off the play */
+    try { if (state && state.view === "live" && window.__jumboSayV164F && window.__jumboSayV164F(String(e), { kind: "toast", ms: TU("jumboToastMsV164F", 1700) })) return; } catch (_) {}
     const t = byId("toast");
     ((t.textContent = e),
       t.classList.add("show"),
@@ -12726,6 +12778,8 @@
     let xt = 1;
     (hasTrait(e, "lateBloomer") && (xt *= e.age >= 16 ? 1.07 : 0.95),
       hasTrait(e, "slowStarter") && (xt *= e.seasonsSinceStart < 3 ? 0.94 : 1.05));
+    const _wv164 = watchV164C(e); /* v164 C: watched games grow him more, simmed games less (half the XP swing) */
+    xt *= 1 + (_wv164.mult - 1) * TU("watchGrowthKV164C", 0.5);
     const ua =
         treeFx("eGrowth") +
         gearFx("growth") +
@@ -12802,7 +12856,7 @@
     let oe = Math.round(y * 0.5);
     (Y >= 0.9 ? (oe += 4) : Y >= 0.7 ? (oe += 2) : Y < 0.35 && (oe -= 1),
       (oe += b * 2),
-      B && (oe += 4 + Math.round(e.level * 0.8)),
+      B && (oe += Math.round((4 + Math.round(e.level * 0.8)) * titleXpMultV164C()) /* v164 C: the title's points, doubled */),
       (oe = Math.max(0, oe)));
     let be = 0,
       ke = !1;
@@ -12844,11 +12898,9 @@
     }
     const ge = 4 + e.level * 3,
       $e =
-        Math.round((U / 94) * ge + ge * 0.6 + e.attrs.awareness * 0.02) +
-        g +
-        N +
-        H +
-        oe +
+        Math.round(
+          (Math.round((U / 94) * ge + ge * 0.6 + e.attrs.awareness * 0.02) + g + N + H + oe) * _wv164.mult
+        ) /* v164 C: the season's points ride the watched share */ +
         Math.floor(treeFx("pointsFlat") + gearFx("pointsFlat") + seasonModFx("pointsFlat") + gearV147("points")) +
         repsV146(),
       de = prodStats(e.pos, U, e.level),
@@ -12975,6 +13027,7 @@
       injuries: u,
       newOvr: se,
       pointsEarned: $e,
+      watchV164C: _wv164 /* v164 C: the watched share and its multiplier, for the report card */,
       contractResults: To,
       salary: X,
       beatNemesis: Ke,
@@ -13667,6 +13720,7 @@
       ${toggleRow("onlyInvolved", TU("v156D", 1) ? "Your side of the ball" : "My plays only", TU("v153Bplays", 1) ? "Watch your side of the ball — offense if you play offense, defense if you play defense (special teams only when you are in them). Off shows every snap." : "Jump straight to plays you're personally involved in")}
       ${TU("v156D", 1) ? myPlaysSettingV159B() : "" /* v156 D; v159 B: a member perk / the ad while the store is ON */}
       ${toggleRow("fastSim", "Faster live sim", "Speed up the default play animation")}
+      ${jumboRowV164F() /* v164 F: the messages on the big screen */}
       ${toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices")}
     </div>
     ${experienceRowV158B() /* v158 B: EXPERIENCE — Off (current build) · Free-to-play · Member (a preview); the GAME tab */}
@@ -14545,8 +14599,9 @@
         eff = EF.eff[k] != null ? EF.eff[k] : b ? base + (b.max ? 10 : b.amt) : base,
         amt = eff - base;
       const sc = clamp99(typeof drSoftCap === "function" ? drSoftCap(pl, k) : cap, 1, cap);
-      const scale = Math.min(cap, Math.max(sc, base, eff)),
-        pc = v => clamp99((v / scale) * 100, 0, 100);
+      const L164 = barLapV164E(Math.min(base, eff)); /* v164 E: the 250 scale, drawn on the lap the lower value is on */
+      const scale = L164 ? L164.scale : Math.min(cap, Math.max(sc, base, eff)),
+        pc = v => (L164 ? clamp99(((v - L164.laps * L164.scale) / L164.scale) * 100, 0, 100) : clamp99((v / scale) * 100, 0, 100));
       const lo = Math.min(base, eff),
         bp = pc(base),
         ep = pc(eff),
@@ -14554,11 +14609,11 @@
         dn = amt < 0;
       const under = pc(Math.min(lo, sc)),
         over = lo > sc ? Math.max(0, pc(lo) - pc(sc)) : 0,
-        capT = scale > sc + 0.5 ? pc(sc) : 0;
+        capT = L164 ? (sc > L164.laps * L164.scale && sc < (L164.laps + 1) * L164.scale ? pc(sc) : 0) : scale > sc + 0.5 ? pc(sc) : 0;
       return (
         `<div style="display:flex;align-items:center;gap:8px;margin:3px 0">` +
         `<span style="flex:0 0 106px;font:600 11px Barlow Condensed,sans-serif;color:var(--chalk-dim)">${ATTR_INFO[k].name}${statInfoBtnV142(k)}</span>` +
-        `<div style="flex:1;height:8px;border-radius:5px;background:#1a2330;position:relative;overflow:hidden">` +
+        `<div class="track${barLapClassV164E(lo)}" style="flex:1;height:8px;border-radius:5px;background:${L164 && L164.full ? "" : "#1a2330"};position:relative;overflow:hidden">` +
         `<i style="position:absolute;left:0;top:0;bottom:0;width:${under}%;background:linear-gradient(90deg,#3a6cff,#6b9bff)"></i>` +
         (over
           ? `<i style="position:absolute;left:${pc(sc)}%;top:0;bottom:0;width:${over}%;background:linear-gradient(90deg,#f0bb45,#ffd77a)"></i>`
@@ -15036,18 +15091,19 @@
     const a = wholeNum(t.attrs[e]),
       s = wholeNum(t.lastGains[e] || 0),
       n = t.pos && POSITIONS[t.pos].w[e],
-      i = clamp99((a / attrCap()) * 100, 0, 100),
+      _L164 = barLapV164E(a) /* v164 E: one 250 scale, lapping */,
+      i = _L164 ? _L164.pct : clamp99((a / attrCap()) * 100, 0, 100),
       r = ATTR_INFO[e].metric,
       l = r ? `<span class="attr-metric" title="${r.label}">${r.label}: <b>${r.fmt(a)}</b></span>` : "";
     // v85: the body's cut (or lift) for the next game, and the season's expected gain
     const X = sheetCtxV85(t),
       ev = wholeNum(X.ef.eff[e] != null ? X.ef.eff[e] : a),
       d = ev - a,
-      ie = clamp99((ev / attrCap()) * 100, 0, 100),
+      ie = _L164 ? barPctV164E(ev, a) : clamp99((ev / attrCap()) * 100, 0, 100),
       pj = X.pj[e] || 0,
       pn = Math.round(pj),
       pStart = Math.max(i, ie),
-      pw = pn > 0 ? Math.min(100 - pStart, Math.max(TU("projMinPct", 2.4), (pj / attrCap()) * 100)) : 0;
+      pw = pn > 0 ? Math.min(100 - pStart, Math.max(TU("projMinPct", 2.4), (pj / (_L164 ? _L164.scale : attrCap())) * 100)) : 0;
     const effTag = d
       ? `<span class="eff ${d < 0 ? "dn" : "up"}" title="What you take onto the field next game: your body ${d < 0 ? "takes " + -d + " off" : "adds " + d + " to"} this attribute${X.ef.buffs[e] ? " (includes this game's wheel swing " + (X.ef.buffs[e] > 0 ? "+" : "") + wholeNum(X.ef.buffs[e]) + ")" : ""}">→ ${ev}</span>`
       : "";
@@ -15059,8 +15115,8 @@
           : "";
     return `<div class="attr ${s ? "up" : ""}${d < 0 ? " worn" : d > 0 ? " fresh" : ""}">
     <div class="top"><span class="an">${ATTR_INFO[e].icon} ${ATTR_INFO[e].name}${statInfoBtnV142(e)}${n ? " •" : ""}${t.statCeilV17 && t.statCeilV17[e] > 1 ? ` <span style="color:#f0bb45;font:700 9px Oswald,sans-serif;margin-left:3px;letter-spacing:.5px" title="Personality raised this stat's MAX LEVEL by ${Math.round((t.statCeilV17[e] - 1) * 100)}%">▲${Math.round((t.statCeilV17[e] - 1) * 100)}% CAP</span>` : ""}</span>
-      <span class="av">${a}${s ? `<span class="plus">+${s}</span>` : ""}${effTag}${projTag}</span></div>
-    <div class="track ${ovrGradeClass(a)}"><i style="width:${i}%"></i>${d < 0 ? `<b class="loss" style="left:${ie}%;width:${Math.max(0, i - ie)}%"></b>` : d > 0 ? `<b class="gain" style="left:${i}%;width:${Math.max(0, ie - i)}%"></b>` : ""}${pw > 0 ? `<b class="proj" style="left:${pStart}%;width:${pw}%"></b>` : ""}</div>
+      <span class="av">${a}${barLapTagV164E(a)}${s ? `<span class="plus">+${s}</span>` : ""}${effTag}${projTag}</span></div>
+    <div class="track ${ovrGradeClass(a)}${barLapClassV164E(a)}"><i style="width:${i}%"></i>${d < 0 ? `<b class="loss" style="left:${ie}%;width:${Math.max(0, i - ie)}%"></b>` : d > 0 ? `<b class="gain" style="left:${i}%;width:${Math.max(0, ie - i)}%"></b>` : ""}${pw > 0 ? `<b class="proj" style="left:${pStart}%;width:${pw}%"></b>` : ""}</div>
     ${l}
   </div>`;
   }
@@ -16364,6 +16420,31 @@
     return pool[pool.length - 1];
   }
   window.__pickPlayV101 = pickPlayV101;
+  /* ===== v164 P THE OFFENSE HAS FORMATIONS (the call) =====
+   * `formationV164P(play, fam, down, toGo, pos)` names the look the engine lines up in (src/04 `FORM_V164P`): a run's
+   * family leans the I / singleback / pistol, a pass leans the gun, third-and-long is the gun, the goal line is the I,
+   * the hurry-up is the gun. One weighted draw off the same Math.random the call already spends? No — it spends ONE
+   * extra draw per play (compare seeds against the OFF spread, never one run against one run). Kill switch
+   * TU "v164Pform" 0 (shotgun, no draw). `window.__V164P` (the table, the counts). */
+  const FORM_W_V164P = {
+    run:   { inside: { iform: 4, singleback: 3, strong: 2, pistol: 1, shotgun: 1 }, power: { iform: 5, strong: 3, singleback: 2, pistol: 0, shotgun: 0 }, sweep: { singleback: 3, pistol: 2, strong: 2, shotgun: 2, iform: 1 }, draw: { shotgun: 6, pistol: 2, singleback: 1 }, other: { singleback: 3, iform: 2, pistol: 2, shotgun: 2 } },
+    pass:  { dropback: { shotgun: 5, singleback: 2, pistol: 1, iform: 0 }, shot: { shotgun: 4, singleback: 2, pistol: 1 }, screen: { shotgun: 5, pistol: 1 }, other: { shotgun: 4, singleback: 2, pistol: 1 } }
+  };
+  function formationV164P(play, fam, down, toGo, pos) {
+    if (!TU("v164Pform", 1)) return "shotgun";
+    const W = window.__V164P || (window.__V164P = { counts: {}, draws: 0 });
+    const base = (play && play.base) || "other", fams = FORM_W_V164P[fam === "pass" ? "pass" : "run"], tbl = Object.assign({}, fams[base] || fams.other);
+    if (play && play.pa) { tbl.iform = (tbl.iform || 0) + 2; tbl.singleback = (tbl.singleback || 0) + 2; }   // play action sells the run look
+    if (fam === "pass" && down >= 3 && toGo >= 7) { tbl.shotgun = (tbl.shotgun || 0) + 6; }                       // third and long: the gun
+    if (pos >= TU("formGoalLineV164P", 95)) { tbl.iform = (tbl.iform || 0) + 5; tbl.strong = (tbl.strong || 0) + 3; tbl.shotgun = 0; }   // the goal line: the I
+    if (pos <= 5 && fam === "run") { tbl.iform = (tbl.iform || 0) + 2; }
+    let tot = 0; for (const k in tbl) tot += Math.max(0, tbl[k] || 0);
+    if (!(tot > 0)) return "shotgun";
+    let r = Math.random() * tot; W.draws++;
+    for (const k in tbl) { r -= Math.max(0, tbl[k] || 0); if (r <= 0) { W.counts[k] = (W.counts[k] || 0) + 1; return k; } }
+    return "shotgun";
+  }
+  window.__formationV164P = formationV164P;
   function simGameV2(e, t) {
     /* ===== v16 EMERGENT GAME ENGINE ==========================================
      * The game is no longer scripted outcome-first. Every drive is resolved
@@ -16942,7 +17023,8 @@
           Object.assign(play && play.gap ? { gap: play.gap, play: play.id } : {}, {
             fieldPos: typeof pos !== "undefined" ? pos : 50,
             down: typeof down !== "undefined" ? down : 1,
-            toGo: typeof toGo !== "undefined" ? toGo : 10
+            toGo: typeof toGo !== "undefined" ? toGo : 10,
+            formation: formationV164P(play, "run", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */
           })
         );
       /* v101: the call names the gap. v103: and the sticks, so a back can strain for them */ let base;
@@ -17035,7 +17117,8 @@
           down: typeof down !== "undefined" ? down : 1,
           toGo: typeof toGo !== "undefined" ? toGo : 10,
           routes: (ctx.play && ctx.play.routes) || null,
-          play: (ctx.play && ctx.play.id) || null
+          play: (ctx.play && ctx.play.id) || null,
+          formation: formationV164P(ctx.play, "pass", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */
         }); /* v101: the call names the routes */
       if (__r) {
         if (__r.complete && __r.yards > 0) {
@@ -20018,6 +20101,7 @@
         nodes: Object.values(state.tree || {}).reduce((a, n) => a + (n | 0), 0),
         surname: F.surname || "",
         careerNo: state.careers | 0,
+        liveOnly: liveOnlyV164D(e) /* v164 D: a Live Sim Only career has its own board */,
         team: (() => {
           try {
             const d = window.__RIB_MENU_DATA_V89 && window.__RIB_MENU_DATA_V89();
@@ -20104,12 +20188,16 @@
       pl = (t && t.playoffs) || {},
       aw = ((t && t.awards) || []).length,
       d = legacyDiffV152(),
-      parts = [["Season · " + ((LEVELS[lv] || {}).name || "") + " · " + g, base * perf]];
-    pl.champion && parts.push([lv >= 7 ? "The ring" : "Championship", base * 3 + (pl.champion ? legacyRingXpV152(lv) : 0)]);
+      parts = [["Season · " + ((LEVELS[lv] || {}).name || "") + " · " + g, base * perf]],
+      tk = titleXpMultV164C() /* v164 C: the championship is worth double */,
+      wv = watchV164C(e, t) /* v164 C: what was watched pays more, what was simmed pays less */;
+    pl.champion && parts.push([lv >= 7 ? "The ring" + (tk > 1 ? " ×" + tk : "") : "Championship" + (tk > 1 ? " ×" + tk : ""), (base * 3 + (pl.champion ? legacyRingXpV152(lv) : 0)) * tk]);
     (pl.roundsWon | 0) > 0 && parts.push(["Playoff wins ×" + (pl.roundsWon | 0), base * 0.5 * (pl.roundsWon | 0)]);
     aw > 0 && parts.push(["Awards ×" + aw, base * aw]);
+    wv.mult !== 1 && parts.push([wv.label, 0]);
     d > 1 && parts.push(["Chaos +" + Math.round((d - 1) * 100) + "% XP", 0]);
-    return { gain: Math.round(parts.reduce((a, p) => a + p[1], 0) * d), parts: parts.map(p => [p[0], Math.round(p[1] * d)]) };
+    const k = d * wv.mult;
+    return { gain: Math.round(parts.reduce((a, p) => a + p[1], 0) * k), parts: parts.map(p => [p[0], Math.round(p[1] * k)]) };
   }
   function legacyEndXpV152(e, level, fate) {
     const lv = clamp99(Math.max(level | 0, e.level | 0), 0, 8),
@@ -20393,9 +20481,9 @@
         V = a.filter(P => !P.played).length;
       byId("dock").innerHTML = `
       <button class="btn" onclick="playWeek(true)">▶ Play ${C} Live</button>
-      ${playoffLockV156B(e, y) ? playoffNoteV156B() /* v156 B: the playoffs are played live — no Quick Play, no sim */ : `<div style="height:8px"></div>
-      <button class="btn secondary" onclick="playWeek(false)">⏩ Quick Play ${C}${gameSimTagV158B() /* v158 B: "" while the store is off */}</button>`}
-      ${V > 1 && !(y && y.playoff) ? '<div style="height:8px"></div><button class="btn ghost" onclick="seasonSkipV151A()">' + skipBtnV151A("⏭ Sim Remaining Regular Season") + "</button>" : ""}
+      ${liveOnlyV164D(e) ? liveOnlyNoteV164D() /* v164 D: a Live Sim Only career — no Quick Play, no sim */ : playoffLockV156B(e, y) ? playoffNoteV156B() /* v156 B: the playoffs are played live — no Quick Play, no sim */ : `<div style="height:8px"></div>
+      <button class="btn secondary" onclick="playWeek(false)">⏩ Quick Play ${C}${gameSimTagV158B() /* v158 B: "" while the store is off */}</button>${watchNoteV164C()}`}
+      ${!liveOnlyV164D(e) && simDockV164B(e, y, V) ? '<div style="height:8px"></div><button class="btn ghost" onclick="seasonSkipV151A()">' + skipBtnV151A(TU("v164Bsim", 1) ? "⏭ Sim to the Championship" : "⏭ Sim Remaining Regular Season") + "</button>" : ""}
       <div style="height:8px"></div>
       <div class="btn-row">
         <button class="btn ghost" onclick="go('stats')">📊 Leaders</button>
@@ -20765,6 +20853,7 @@
         .join("")}
       ${liveSkipOkV156B() ? '<button class="speed-btn" onclick="skipLive()">SKIP<small>⏭</small></button>' : "" /* v156 B: a playoff game plays to the whistle */}
     </div>
+    ${slowDialV164F()}
     <div class="boxscore-head">
       <div class="h2">${escHtml(e.name)} — <span style="color:var(--chalk-dim)">Live Box Score</span></div>
       <a onclick="document.getElementById('fullBoxCard').scrollIntoView({behavior:'smooth'})">VIEW FULL STATS ›</a>
@@ -21346,6 +21435,41 @@
         .forEach(e => e.classList.toggle("active", parseFloat(e.dataset.spd) === liveCtl.speed)),
       liveTick());
   }
+  /* ===== v164 F THE SLOW DIAL (the row) =====
+   * The owner: "enable a slider for slow mode plays." A 🐢 slider under the speed buttons hands the live loop any
+   * speed from `slowMinV164F` (0.25×) to 1× (`setSlowV164F`; the renderer's clock floor follows — src/05 v164 F). The
+   * buttons still work; a button tap snaps the slider back. Kill switch TU "v164Fslow" 0 (no slider). Hoisted. */
+  // v164 F: the Settings › LIVE GAME row — ON by default (the setting stores only an explicit OFF)
+  function jumboOnV164F() {
+    return !!TU("v164Fjumbo", 1) && !(state && state.settings && state.settings.jumboMsgV164F === false);
+  }
+  function jumboRowV164F() {
+    if (!TU("v164Fjumbo", 1)) return "";
+    const on = jumboOnV164F();
+    return `<div class="toggle-row" onclick="toggleJumboV164F()">
+    <div class="toggle-info"><div class="toggle-label">📣 Messages on the jumbotron</div><div class="toggle-desc">The touchdown, sack and turnover callouts, the play's result and every toast are said on the stadium's big screen instead of over the field, so you can see what happens. Off: over the field, as before.</div></div>
+    <div class="switch ${on ? "on" : ""}"><i></i></div>
+  </div>`;
+  }
+  function toggleJumboV164F() {
+    state.settings || (state.settings = {});
+    state.settings.jumboMsgV164F = !jumboOnV164F();
+    saveGame();
+    state.view === "settings" && screenSettings();
+  }
+  window.toggleJumboV164F = toggleJumboV164F;
+  function slowDialV164F() {
+    if (!TU("v164Fslow", 1)) return "";
+    const cur = Math.min(1, Math.max(0.25, (liveCtl && liveCtl.speed) || 1)), pct = Math.round(cur * 100);
+    return `<div class="slow-dial-v164f"><span title="Slow motion">🐢</span><input type="range" min="${Math.round(TU("slowMinV164F", 0.25) * 100)}" max="100" step="5" value="${pct}" aria-label="Slow motion speed" oninput="setSlowV164F(this.value)"><b id="slowValV164F">${cur < 1 ? cur.toFixed(2) + "×" : "off"}</b></div>`;
+  }
+  function setSlowV164F(v) {
+    const s = Math.round(Math.max(TU("slowMinV164F", 0.25), Math.min(1, (+v || 100) / 100)) * 100) / 100;
+    setSpeed(s);
+    const b = byId("slowValV164F"); b && (b.textContent = s < 1 ? s.toFixed(2) + "×" : "off");
+    window.__V164F_SLOW = s;
+  }
+  window.setSlowV164F = setSlowV164F;
   function setSpeed(e) {
     /* v150 C H1 / v151 A: a speed this player has not earned (the UFF) or bought (Pro, while the store is on) stays locked */
     if (!speedOkV151A(e)) return void speedLockV151A(e);
@@ -21353,9 +21477,10 @@
       document
         .querySelectorAll(".speed-btn[data-spd]")
         .forEach(t => t.classList.toggle("active", parseFloat(t.dataset.spd) === e)));
+    try { const r = document.querySelector(".slow-dial-v164f input"), b = byId("slowValV164F"); if (r && e >= 1) { r.value = 100; b && (b.textContent = "off"); } else if (r && e < 1 && Math.abs(r.value / 100 - e) > 0.03) { r.value = Math.round(e * 100); b && (b.textContent = e.toFixed(2) + "×"); } } catch (_) {}   // v164 F: the dial follows a button
   }
   function skipLive() {
-    if (!liveSkipOkV156B()) return void showToast("🏆 Playoff games are played to the final whistle"); /* v156 B */
+    if (!liveSkipOkV156B()) return void showToast(liveOnlyV164D(state && state.player) ? "📺 Live Sim Only — every game is played to the final whistle" : TU("v164Bsim", 1) ? "🏆 The championship is played to the final whistle" : "🏆 Playoff games are played to the final whistle"); /* v156 B / v164 B / v164 D */
     (window.GridironPhaser && window.GridironPhaser.cancel(),
       liveCtl && ((liveCtl.playing = !1), liveCtl.anim && cancelAnimationFrame(liveCtl.anim)),
       endLive());
@@ -22751,7 +22876,7 @@
     <div class="eyebrow">${a.name} · ${t.training ? PROGRAMS[t.training].name : "Season"} Complete</div>
     <div class="h1">${t.record} Record</div>
     <div class="meta-row" style="margin-bottom:4px">
-      <span class="injury-badge" style="background:${u === "var(--blood)" ? "rgba(178,59,59,.18)" : "rgba(107,191,89,.15)"};border-color:${u};color:${u}">SEASON GRADE ${t.grade}</span>
+      <span class="injury-badge" style="background:${u === "var(--blood)" ? "rgba(178,59,59,.18)" : "rgba(107,191,89,.15)"};border-color:${u};color:${u}">SEASON GRADE ${t.grade}</span>${watchBadgeV164C(t)}
       ${t.injuries > 0 ? `<span class="injury-badge">🩹 ${t.injuries} injury${t.injuries > 1 ? "ies" : ""}</span>` : '<span class="injury-badge" style="background:rgba(107,191,89,.15);border-color:var(--good);color:var(--good)">🩹 Healthy season</span>'}
     </div>
 
@@ -23705,8 +23830,11 @@
       if (bar) {
         const fill = bar.firstElementChild,
           v = e.attrs[a] || 0;
-        bar.className = "up-bar-v153" + ((v >= attrCap() || c >= 4) && over ? " deep" : over ? " over" : "");
-        if (fill) fill.style.width = Math.max(3, Math.min(100, (v / Math.max(1, sc)) * 100)).toFixed(1) + "%";
+        const L164 = barLapV164E(v); /* v164 E: the 250 scale, lapping */
+        bar.className = "up-bar-v153" + ((v >= attrCap() || c >= 4) && over ? " deep" : over ? " over" : "") + barLapClassV164E(v);
+        if (fill) fill.style.width = (L164 ? Math.max(3, L164.pct) : Math.max(3, Math.min(100, (v / Math.max(1, sc)) * 100))).toFixed(1) + "%";
+        const uvEl = byId("uv-" + a);
+        if (uvEl && L164) { const tag = uvEl.parentElement && uvEl.parentElement.querySelector(".lapn-v164e"); const want = barLapTagV164E(v); if (tag) { if (want) tag.outerHTML = want; else tag.remove(); } else if (want) uvEl.insertAdjacentHTML("afterend", want); }
       }
     });
   }
@@ -24745,7 +24873,8 @@
           0,
           0.94
         )),
-        (i *= Math.max(0.35, 1 - treeFx("cutSave")))),
+        (i *= Math.max(0.35, 1 - treeFx("cutSave"))),
+        (i *= simCutRiskV164C(e)) /* v164 C: a season simmed from the sofa is a season the club noticed less of */),
         Math.random() < i && ((e.nflCutPending = !0), (t.nflCut = !0), (t.cutChance = Math.round(i * 100))));
     }
     return t;
@@ -29122,26 +29251,47 @@
   simRemainingWeeks = function () {
     const e = state.player;
     if (!e?.weekResults) return;
-    const t = e.weekResults.filter(a => !a.playoff && !a.played);
+    /* v164 B: the sim runs through the playoffs too — round by round, as `ensurePlayoffs` books them — and stops at
+     * the championship, which is watched. TU v164Bsim 0: the regular season only, as before. */
+    const v164 = !!TU("v164Bsim", 1);
     let n = 0,
+      po = 0,
+      why = null,
+      g = 0,
       rolls = [];
-    for (const a of t) {
+    for (; g++ < 60;) {
       if (e.offersV146B || e.cutOutV146B) break;
-      /* v146 B: a cut stops the sim — he signs somewhere, or it is over */ rolls.push(
-        ...autoStoryV90(e, a),
-        ...autoLifeV90(e, a)
-      );
+      /* v146 B: a cut stops the sim — he signs somewhere, or it is over */
+      if (v164)
+        try {
+          ensurePlayoffs(e);
+        } catch (_) {}
+      const a = e.weekResults.find(z => !z.played && (v164 || !z.playoff));
+      if (!a) break;
+      if (v164 && playoffLockV156B(e, a)) {
+        why = "title";
+        break;
+      }
+      rolls.push(...autoStoryV90(e, a), ...autoLifeV90(e, a));
       /* v90: story stages and life events are answered here, not on screen */ if (!silentWeekV85(e, a)) break;
       /* v85: same silent chain as quick play, week after week */ n++;
+      a.playoff && po++;
       processWeek95(a, e);
     }
+    if (v164)
+      try {
+        ensurePlayoffs(e);
+      } catch (_) {}
     rolls.push(...autoStoryV90(e, null), ...autoLifeV90(e, null));
     window.__V90.last = rolls;
+    try {
+      window.__V164B && (window.__V164B.lastSim = { n, po, why });
+    } catch (_) {}
     (saveGame(),
       goView("season"),
       n &&
         showToast(
-          `⏭ Simmed ${n} week${n === 1 ? "" : "s"}${rolls.length ? ` · ${rolls.length} decision${rolls.length === 1 ? "" : "s"} made in the background (${rolls.filter(r => r.success).length} rolled up, ${rolls.filter(r => r.success === !1).length} down)` : ""} — every week on the plan you last chose, every game played by the engine`
+          `⏭ Simmed ${n} week${n === 1 ? "" : "s"}${po ? ` (${po} in the playoffs)` : ""}${rolls.length ? ` · ${rolls.length} decision${rolls.length === 1 ? "" : "s"} made in the background (${rolls.filter(r => r.success).length} rolled up, ${rolls.filter(r => r.success === !1).length} down)` : ""} — every week on the plan you last chose, every game played by the engine${why === "title" ? " · 🏆 the championship is played live" : ""}`
         ));
   };
   gamePlanOverlayV11 = function (e) {
@@ -29984,7 +30134,7 @@
         why === "stuck"
           ? `⏸ The sim stopped after ${n} game${n === 1 ? "" : "s"} — play the next week to see why`
           : why === "playoffs"
-            ? say + " — 🏆 the playoffs are played live"
+            ? say + (TU("v164Bsim", 1) ? " — 🏆 the championship is played live" : " — 🏆 the playoffs are played live")
             : say
       );
     } catch (_) {}
@@ -30007,10 +30157,10 @@
       d = byId("dock"),
       v = state && state.view;
     if (!e || !d || e._settled || !(e.level >= 7)) return;
-    if (v === "season" && playoffLockV156B(e, (e.weekResults || []).find(w => !w.played))) {
-      d.querySelectorAll('[onclick^="seasonSkipV151A"]').forEach(z => z.remove()); /* v156 B: no sim chip on a playoff week */
+    if (v === "season" && (liveOnlyV164D(e) || playoffLockV156B(e, (e.weekResults || []).find(w => !w.played)))) {
+      d.querySelectorAll('[onclick^="seasonSkipV151A"]').forEach(z => z.remove()); /* v156 B: no sim chip on a playoff week (v164 D: nor in a Live Sim Only career) */
     } else if (v === "season" && TU("simSeasonEndV147", 1) && e.weekResults && e.weekResults.some(w => !w.played)) {
-      const lbl = TU("v156Bplayoffs", 1) ? "⏭ Sim the Rest of the Regular Season" : "⏭ Sim the Rest of the Season";
+      const lbl = TU("v156Bplayoffs", 1) ? (TU("v164Bsim", 1) ? "⏭ Sim to the Championship" : "⏭ Sim the Rest of the Regular Season") : "⏭ Sim the Rest of the Season";
       let b = d.querySelector('[onclick^="seasonSkipV151A"]');
       const h = skipBtnV151A(lbl); /* v151 A / v156 B: the skip button says how many are left this career */
       if (!b) {
@@ -30187,6 +30337,7 @@
   // a week that must be played live: a playoff week, not one an injury sits him out of
   function playoffLockV156B(e, w) {
     if (!w || !w.playoff || w.played || !playoffsLiveV156B()) return !1;
+    if (TU("v164Bsim", 1) && !titleWeekV164B(e, w)) return !1; /* v164 B: only the championship must be watched */
     try {
       if (e && mustSitV18(e)) return !1;
     } catch (_) {}
@@ -30199,12 +30350,16 @@
     return !!(e && e.weekResults && e.weekResults.some(w => !w.played && !w.playoff));
   }
   function playoffNoteV156B() {
-    return '<div class="small center playoff-live-v156b" style="margin-top:8px;color:var(--gold)">🏆 Playoff games are played live — every snap</div>';
+    return TU("v164Bsim", 1)
+      ? '<div class="small center playoff-live-v156b" style="margin-top:8px;color:var(--gold)">🏆 The championship is played live — every snap</div>'
+      : '<div class="small center playoff-live-v156b" style="margin-top:8px;color:var(--gold)">🏆 Playoff games are played live — every snap</div>';
   }
   // the live SKIP: gone while the game on the field is an unplayed playoff week
   function liveSkipOkV156B() {
     const e = state && state.player,
       w = e && e.weekResults && e.currentWeek != null ? e.weekResults[e.currentWeek] : null;
+    if (liveOnlyV164D(e)) return !1; /* v164 D: a Live Sim Only career watches every snap */
+    if (TU("v164Bsim", 1)) return !(w && w.playoff && !w.played && playoffsLiveV156B() && titleWeekV164B(e, w));
     return !(w && w.playoff && !w.played && playoffsLiveV156B());
   }
   function playoffRefuseV156B() {
@@ -30335,7 +30490,8 @@
   function seasonSimV156B() {
     const e = state && state.player;
     if (!e || !e.weekResults) return simRemainingWeeks();
-    if (playoffsLiveV156B() && !regularLeftV156B(e)) {
+    if (liveOnlyV164D(e)) return void liveOnlyRefuseV164D(); /* v164 D */
+    if (playoffsLiveV156B() && !simLeftV164B(e)) {
       if (e.weekResults.some(w => !w.played)) return void playoffRefuseV156B();
       return simRemainingWeeks();
     }
@@ -30595,6 +30751,181 @@
     playoffLock: w => playoffLockV156B(state && state.player, w || nextWeekV156B(state && state.player)),
     liveSkipOk: liveSkipOkV156B
   };
+  /* ===== v164 B THE SEASON SIMS TO THE TITLE GAME =====
+   * The owner: "ensure the sim season does every game except the championship, that still needs to be viewed."
+   * v156 B locked EVERY playoff round to live play and stopped the ⏭ at the first one. Now only the CHAMPIONSHIP
+   * (`titleWeekV164B`: the playoffs' last round — `playoffRoundNames(level)`'s tail, or the opponent's importance
+   * "championship") is the game that must be watched: `playoffLockV156B` locks that week alone, so Quick Play, the
+   * ⏭ (`seasonSimV156B` → `simLeftV164B`), the live SKIP and the silent week all run through the earlier rounds,
+   * booking each round as `ensurePlayoffs` creates it (the level-7+ loop `simSeasonV147` already did; the sub-UFF
+   * `simRemainingWeeks` now does too, and stops with `why: "title"`). A lost round ends the run as it always did.
+   * Kill switch TU "v164Bsim" 0 (every playoff game live, as v156 B). Hoisted (v140). `window.__V164B`; `v164Bcheck`. */
+  function titleWeekV164B(e, w) {
+    if (!w || !w.playoff) return !1;
+    try {
+      const rounds = playoffRoundNames(((e && e.level) | 0));
+      if (rounds.length && w.roundIdx != null) return w.roundIdx >= rounds.length - 1;
+      if (rounds.length && w.round) return w.round === rounds[rounds.length - 1];
+    } catch (_) {}
+    return String((w.opponentV11 && w.opponentV11.importance) || "") === "championship";
+  }
+  // is there anything left the ⏭ may sim? (a next playoff round may not exist yet — `ensurePlayoffs` books it)
+  function simLeftV164B(e) {
+    if (!TU("v164Bsim", 1)) return regularLeftV156B(e);
+    const w = nextWeekV156B(e);
+    if (!w) return !!(e && e.playoffState && !e.playoffState.done) || regularLeftV156B(e);
+    return !playoffLockV156B(e, w);
+  }
+  // the season dock's ⏭ button: shown while a sim could still book a game before the championship
+  function simDockV164B(e, y, unplayed) {
+    if (!y) return !1;
+    if (!TU("v164Bsim", 1)) return unplayed > 1 && !y.playoff;
+    if (playoffLockV156B(e, y)) return !1;
+    return unplayed > 1 || !!y.playoff;
+  }
+  window.__V164B = { title: w => titleWeekV164B(state && state.player, w || nextWeekV156B(state && state.player)), simLeft: () => simLeftV164B(state && state.player), lastSim: null };
+  /* ===== v164 C WATCHING PAYS =====
+   * The owner: "viewing the live sims should be worth doing, but not mandatory — an XP multiplier for watching, so you
+   * choose: quicker games but less XP and more chance to be cut later." And: "championship XP worth double."
+   * `watchV164C(e, t)` reads the season's week rows (`liveBookedV85` = watched, `wheelV85` = quick-played / simmed,
+   * `satOut` skipped; the championship counts `watchTitleWV164C` games) and turns the WATCHED SHARE into one
+   * multiplier: ×(1 + `watchXpBonusV164C`) at every game watched down to ×(1 − `simXpCutV164C`) at none. It rides the
+   * season's Legacy XP (`legacySeasonXpV152`, a labelled part), the season's upgrade points (`$e`) and half of it the
+   * growth curve (`xt`, `watchGrowthKV164C`). Sim more and the club notices less: a quick-played week costs
+   * `simWeekSecurityV164C` standing in `evaluateNflWeek`, and the season cut roll is × `simCutRiskV164C(e)`
+   * (1 + `simCutRiskKV164C` × the simmed share). The championship: its Legacy XP and its points × `titleXpMultV164C`
+   * (2). The season dock says the deal under Quick Play (`watchNoteV164C`). The watched share is read only from flags
+   * the game already wrote — no Math.random. Kill switch TU "v164Cwatch" 0 (every multiplier 1). `window.__V164C`. */
+  function watchV164C(e, t) {
+    const off = { share: 1, watched: 0, simmed: 0, games: 0, mult: 1, label: "" };
+    if (!TU("v164Cwatch", 1) || !e || !e.weekResults) return off;
+    let watched = 0,
+      simmed = 0;
+    const tw = Math.max(1, TU("watchTitleWV164C", 2));
+    for (const w of e.weekResults) {
+      if (!w || !w.played || w.satOut) continue;
+      const k = titleWeekV164B(e, w) ? tw : 1;
+      if (w.liveBookedV85) watched += k;
+      else simmed += k;
+    }
+    const games = watched + simmed;
+    if (!games) return off;
+    const share = watched / games,
+      bonus = TU("watchXpBonusV164C", 0.25),
+      cut = TU("simXpCutV164C", 0.15),
+      mult = Math.round((1 + bonus * share - cut * (1 - share)) * 100) / 100;
+    return { share, watched, simmed, games, mult, label: (mult >= 1 ? "Watched live ×" : "Simmed ×") + mult.toFixed(2) + " (" + Math.round(share * 100) + "% watched)" };
+  }
+  function titleXpMultV164C() {
+    return TU("v164Cwatch", 1) ? Math.max(1, TU("titleXpMultV164C", 2)) : 1;
+  }
+  function simCutRiskV164C(e) {
+    const w = watchV164C(e);
+    return 1 + TU("simCutRiskKV164C", 0.3) * (1 - w.share);
+  }
+  function watchNoteV164C() {
+    if (!TU("v164Cwatch", 1)) return "";
+    const b = Math.round(TU("watchXpBonusV164C", 0.25) * 100),
+      c = Math.round(TU("simXpCutV164C", 0.15) * 100);
+    return `<div class="small center watch-note-v164c" style="margin-top:6px;opacity:.8">📺 Watch live: +${b}% season XP &amp; points · Quick Play: −${c}%, and the club notices less of you</div>`;
+  }
+  // the report card's badge: how much of the season he watched, and what it paid
+  function watchBadgeV164C(t) {
+    const w = t && t.watchV164C;
+    if (!w || !w.games || !TU("v164Cwatch", 1)) return "";
+    const up = w.mult >= 1;
+    return `<span class="injury-badge watch-badge-v164c" style="background:${up ? "rgba(107,191,89,.15)" : "rgba(178,59,59,.18)"};border-color:${up ? "var(--good)" : "var(--blood)"};color:${up ? "var(--good)" : "var(--blood)"}">📺 ${Math.round(w.share * 100)}% watched · XP ×${w.mult.toFixed(2)}</span>`;
+  }
+  window.__V164C = { watch: () => watchV164C(state && state.player), titleMult: titleXpMultV164C, cutRisk: () => simCutRiskV164C(state && state.player), seasonXp: (e, t) => legacySeasonXpV152(e || (state && state.player), t || {}), badge: watchBadgeV164C };
+  /* ===== v164 D LIVE SIM ONLY =====
+   * The owner: "a live sim only career mode with its own place on the leaderboard." A career started with the LIVE SIM
+   * ONLY box ticked (the position screen, `liveOnlyCardV164D`; `state.liveOnlyNextV164D` → `player.liveOnlyV164D`)
+   * watches every game: no Quick Play, no ⏭, no live SKIP, no season sim — the quick paths refuse with a toast
+   * (`liveOnlyRefuseV164D`), the season dock says so (`liveOnlyNoteV164D`), and the v164 C bonus is his by
+   * construction. When the career ends it is recorded with `liveOnly: true` (the hand-off to src/29 → src/20's
+   * `fromHof`), and the career boards have a LIVE ONLY category that lists nothing else. Kill switch TU "v164Dlive" 0
+   * (the flag is kept on the save but nothing refuses). Hoisted (v140). `window.__V164D`; `v164Dcheck`. */
+  function liveOnlyV164D(e) {
+    return !!(TU("v164Dlive", 1) && e && e.liveOnlyV164D);
+  }
+  function liveOnlyRefuseV164D() {
+    try {
+      showToast("📺 Live Sim Only — every game is watched. Tap ▶ Play Live");
+    } catch (_) {}
+    window.__V164D && window.__V164D.refused++;
+  }
+  function liveOnlyNoteV164D() {
+    return '<div class="small center live-only-v164d" style="margin-top:8px;color:var(--gold)">📺 LIVE SIM ONLY career — every game is watched, and it has its own leaderboard</div>';
+  }
+  function liveOnlyCardV164D() {
+    const on = !!(state && state.liveOnlyNextV164D);
+    return `<div class="card tight live-only-card-v164d" style="border-color:${on ? "var(--gold)" : "rgba(255,255,255,.18)"}">
+      <button class="btn ${on ? "" : "ghost"}" style="width:100%" onclick="toggleLiveOnlyV164D()" aria-pressed="${on ? "true" : "false"}">📺 LIVE SIM ONLY ${on ? "· ON" : "· OFF"}</button>
+      <div class="small" style="margin-top:6px">Every game of this career is watched live — no Quick Play, no season sims, no skipping. Full watched-game XP, and its own leaderboard. Decide now: it is set for the whole career.</div>
+    </div>`;
+  }
+  function toggleLiveOnlyV164D() {
+    if (!state) return;
+    state.liveOnlyNextV164D = !state.liveOnlyNextV164D;
+    const e = state.player;
+    e && !e.totalSeasons && !e._settled && (e.liveOnlyV164D = !!state.liveOnlyNextV164D);
+    saveGame();
+    state.view === "choosePos" ? screenChoosePos() : render();
+  }
+  window.toggleLiveOnlyV164D = toggleLiveOnlyV164D;
+  window.__V164D = { on: () => liveOnlyV164D(state && state.player), refused: 0, next: () => !!(state && state.liveOnlyNextV164D) };
+  // the position screen carries the box (a wrapper: the boot draws this screen from the top level — the card is appended after)
+  const cp0V164D = screenChoosePos;
+  screenChoosePos = function () {
+    const r = cp0V164D.apply(this, arguments);
+    try {
+      const e = state && state.player,
+        sc = byId("screen");
+      if (TU("v164Dlive", 1) && e && !e.totalSeasons && sc && !sc.querySelector(".live-only-card-v164d")) {
+        const anchor = sc.querySelector(".card");
+        anchor ? anchor.insertAdjacentHTML("beforebegin", liveOnlyCardV164D()) : sc.insertAdjacentHTML("beforeend", liveOnlyCardV164D());
+      }
+    } catch (_) {}
+    return r;
+  };
+  // the career takes the box's answer when it is started (and keeps it if the box is toggled on the position screen)
+  const sc0V164D = startCareer;
+  startCareer = function (passed) {
+    const before = state && state.player;
+    const r = sc0V164D.apply(this, arguments);
+    try {
+      const e = state && state.player;
+      if (e && e !== before && TU("v164Dlive", 1)) {
+        e.liveOnlyV164D = !!state.liveOnlyNextV164D;
+        saveGame();
+      }
+    } catch (_) {}
+    return r;
+  };
+  window.startCareer = startCareer;
+  const pwLive0V164D = playWeek;
+  playWeek = function (live) {
+    if (!live && liveOnlyV164D(state && state.player)) return void liveOnlyRefuseV164D();
+    return pwLive0V164D.apply(this, arguments);
+  };
+  const ppLive0V164D = prepareWeek103;
+  prepareWeek103 = function (live) {
+    if (!live && liveOnlyV164D(state && state.player)) return void liveOnlyRefuseV164D();
+    return ppLive0V164D.apply(this, arguments);
+  };
+  const swLive0V164D = startWeek;
+  startWeek = function (live) {
+    if (!live && liveOnlyV164D(state && state.player)) return void liveOnlyRefuseV164D();
+    return swLive0V164D.apply(this, arguments);
+  };
+  const srwLive0V164D = simRemainingWeeks;
+  simRemainingWeeks = function () {
+    if (liveOnlyV164D(state && state.player)) return void liveOnlyRefuseV164D();
+    return srwLive0V164D.apply(this, arguments);
+  };
+  window.playWeek = playWeek;
+  window.prepareWeek103 = prepareWeek103;
+  window.simRemainingWeeks = simRemainingWeeks;
   window.__prestigeNodesV137 = () => ({
     node: k => TREE_NODES[k],
     level: k => nodeLvl(k),
@@ -32402,16 +32733,17 @@
     const cur = wholeNum(e.attrs[k] || 0),
       abs = attrCap(),
       cap = clamp99(drSoftCap(e, k), 1, abs);
-    const scale = Math.min(abs, Math.max(cap, cur + Math.max(0, g))),
-      pct = clamp99((cur / scale) * 100, 0, 100),
+    const L164 = barLapV164E(cur); /* v164 E: the 250 scale, lapping */
+    const scale = L164 ? L164.scale : Math.min(abs, Math.max(cap, cur + Math.max(0, g))),
+      pct = L164 ? L164.pct : clamp99((cur / scale) * 100, 0, 100),
       gn = Math.round(g);
     const up = g > 0 ? Math.min(100 - pct, Math.max(TP_SEG_MIN_V113, (g / scale) * 100)) : 0;
     const dn = g < 0 ? Math.min(pct, Math.max(TP_SEG_MIN_V113, (-g / scale) * 100)) : 0;
-    const capPct = scale > cap + 0.5 ? clamp99((cap / scale) * 100, 0, 100) : 0;
+    const capPct = L164 ? (cap > L164.laps * L164.scale && cap < (L164.laps + 1) * L164.scale ? clamp99(((cap - L164.laps * L164.scale) / L164.scale) * 100, 0, 100) : 0) : scale > cap + 0.5 ? clamp99((cap / scale) * 100, 0, 100) : 0;
     const tier = attrTierV133(e, k, g, gmax); // v133: the colour of the season it would add
     return `<div class="tp-row-v113${pri ? " pri" : ""}${g < 0 ? " neg" : ""} tier-${tier}" data-tier="${tier}">
       <div class="tp-rt-v113"><span class="tp-rn-v113">${ATTR_INFO[k].icon} ${ATTR_INFO[k].name}${statInfoBtnV142(k)}</span><span class="tp-rv-v113">${cur}${gn !== 0 ? `<em>→ ${wholeNum(cur + g)}</em>` : ""}<span class="tp-capn-v113">/ ${wholeNum(cap)} cap</span></span></div>
-      <div class="track ${ovrGradeClass(cur)} tp-bar-v113"><i style="width:${pct}%"></i>${up ? `<b class="tp-up-v113${pri ? " flash" : ""} tier-${tier}" style="left:${pct}%;width:${up}%"></b>` : ""}${dn ? `<b class="tp-dn-v113" style="left:${pct - dn}%;width:${dn}%"></b>` : ""}${capPct ? `<b class="tp-capt-v113" style="left:${capPct}%"></b>` : ""}</div>
+      <div class="track ${ovrGradeClass(cur)} tp-bar-v113${barLapClassV164E(cur)}"><i style="width:${pct}%"></i>${up ? `<b class="tp-up-v113${pri ? " flash" : ""} tier-${tier}" style="left:${pct}%;width:${up}%"></b>` : ""}${dn ? `<b class="tp-dn-v113" style="left:${pct - dn}%;width:${dn}%"></b>` : ""}${capPct ? `<b class="tp-capt-v113" style="left:${capPct}%"></b>` : ""}</div>
     </div>`;
   }
   // the sheet under the grid: what a season of ONE program does to all seventeen stats

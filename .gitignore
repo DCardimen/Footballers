@@ -27,3 +27,4 @@ art/legacy-proof/
 
 # v161 A: the celebration proof sheet (scripts/build-celebration-sheets.py --proof)
 art/celebrations-proof/
+scripts/_scratch/

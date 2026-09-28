@@ -27,7 +27,10 @@
     "anchorcheck",
     "v150Acheck",
     "v151Echeck",
-    "v156Acheck"
+    "v156Acheck",
+    "v164Echeck",
+    "formcheck",
+    "accelcheck"
    ]
   },
   "docs": {
@@ -334,10 +337,12 @@
   "statinfo": {
    "desc": "v142 — the ⓘ beside a stat, the stat cards, adding an attribute",
    "anchors": [
+    "v164 E",
     "v142"
    ],
    "files": [],
    "checks": [
+    "v164Echeck",
     "v142check",
     "bootviewcheck",
     "walk",
@@ -720,12 +725,14 @@
   "reads": {
    "desc": "v81 / v82 — defender reads, blocking, pursuit, the point of attack",
    "anchors": [
+    "v164 I",
     "v81",
     "v82",
     "GRIDIRON FieldSim"
    ],
    "files": [],
    "checks": [
+    "accelcheck",
     "readcheck",
     "movementcheck",
     "simcheck",
@@ -768,6 +775,7 @@
    ],
    "files": [],
    "checks": [
+    "formcheck",
     "simcheck",
     "renderpathcheck",
     "scoreneutralcheck",
@@ -842,6 +850,9 @@
   "badges": {
    "desc": "v95 — the callout badges",
    "anchors": [
+    "v164 F",
+    "v164 G",
+    "v164 H",
     "v95"
    ],
    "files": [
@@ -849,6 +860,7 @@
     "scripts/build-badge-art.*"
    ],
    "checks": [
+    "v164Fcheck",
     "badgecheck",
     "v86check"
    ],
@@ -884,6 +896,7 @@
   "lights": {
    "desc": "v92 / v98 / v99 / v100 / v102 / v112 B — the lights, shadows, lighting dial, stadium, masts",
    "anchors": [
+    "v164 A",
     "v92",
     "v98",
     "v99",
@@ -895,6 +908,7 @@
     "scripts/build-stadium-art.*"
    ],
    "checks": [
+    "v164Acheck",
     "v102check",
     "v98check",
     "v99check",
@@ -914,10 +928,12 @@
   "playbook": {
    "desc": "v101 — asset paths, the playbook, the throw, shading, prebuild, crowd emoji",
    "anchors": [
+    "v164 P",
     "v101"
    ],
    "files": [],
    "checks": [
+    "formcheck",
     "v101check",
     "simcheck",
     "readcheck",
@@ -1145,6 +1161,7 @@
    "anchors": [],
    "files": [],
    "checks": [
+    "v164Fcheck",
     "v109Echeck",
     "v86check",
     "v98check",
@@ -1448,6 +1465,7 @@
     "docs/SEASONS.md"
    ],
    "checks": [
+    "v164Bcheck",
     "v156Ccheck",
     "v151Ccheck",
     "v153Gcheck",
@@ -1605,12 +1623,14 @@
   "v156b": {
    "desc": "v156 B — season sims earned with the Legacy medal groups (a career's, 1 → 20; the ad 30 min unlimited) and the playoffs always played live (07's v156 B block, simSeasonV147, postV147, screenSeason's dock, the live SKIP; 27's simUnlimited)",
    "anchors": [
+    "v164 B",
     "v156 B"
    ],
    "files": [
     "scripts/v156Bcheck.mjs"
    ],
    "checks": [
+    "v164Bcheck",
     "v156Bcheck",
     "v151Acheck",
     "v147Acheck",
@@ -4074,6 +4094,86 @@
    "flaky": [],
    "loadSensitive": true,
    "note": "two walks into a live game (the second for the kill switch); waits on game state (scripts/lib/live.mjs waitLive)."
+  },
+  "v164Acheck": {
+   "file": "scripts/v164Acheck.mjs",
+   "desc": "v164 A — the lights stand where they stand, the shadow is the man: on a live game the eight masts are field objects (re-projected at three lines of scrimmage the far four keep their lateral fraction of the end line, feet tucked above the bowl's foot, size following the bowl, pools on the field); the key light is one physical mast on both possessions (drawn and far on our drive, behind the camera on theirs, the same field spot's shadow falling the other way); every man's shadow is his own silhouette (a black canvas of the body's frame, flipped over the feet, laid along the shadow vector, the second lamp fainter, none on the ground, the officials too); kill switches v164Alights / v164Asil restore the screen-planted masts and the ellipses; no page errors.",
+   "areas": [
+    "lights",
+    "field"
+   ],
+   "runtimeSec": 300,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true,
+   "note": "two walks into a live game (the second for the kill switches); waits on game state (scripts/lib/live.mjs waitLive) and for a change of possession at 4x."
+  },
+  "v164Bcheck": {
+   "file": "scripts/v164Bcheck.mjs",
+   "desc": "v164 B / C / D — the season sims to the title game (the Semifinal keeps Quick Play and the ⏭, is simmed, the championship alone is locked; the UFF sim plays the rounds and stops at the title game; TU v164Bsim 0 = v156 B), watching pays (the watched share → ×1.25..×0.85 on the season's Legacy XP, points and half the growth; the championship pays double; the cut roll grows with the simmed share; the report-card badge), and Live Sim Only (the position screen's box, the flag on the career, the refusals, no SKIP, the LIVE ONLY board category and its 📺 rows; TU v164Dlive 0). No page errors.",
+   "areas": [
+    "season",
+    "boards"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v164Echeck": {
+   "file": "scripts/v164Echeck.mjs",
+   "desc": "v164 E — every attribute bar (the hub sheet, the skill sheet, the training board, the pregame helper) is drawn against the 250 scale and laps past it (the finished lap on the track, a ×N tag); TU v164Ebars 0 restores the old scales. No page errors.",
+   "areas": [
+    "ui"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "formcheck": {
+   "file": "scripts/formcheck.mjs",
+   "desc": "v164 P — the offense has formations (pure Node, seeded): every log opens with a `formation` event; the QB / back / tight end stand where the table puts them (−38 gun, −8 under center, −26 pistol; the back behind the QB, the I's fullback); from under center the QB reverses to the mesh (within reach at the handoff) and a pass is a real drop; every look's yards and completions stay inside a band of the gun's; the engine counts the looks; TU v164Pform 0 lines everyone up in the gun.",
+   "areas": [
+    "reads",
+    "sim"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": true,
+   "flaky": []
+  },
+  "v164Fcheck": {
+   "file": "scripts/v164Fcheck.mjs",
+   "desc": "v164 F / G / H — on a live game: a message is said on the stadium's big screen (mode msg, the feed camera down, the tag 📣, back to the feed after its time), a v95 badge and a live-view toast go there instead of over the field, the slim ribbon when the screen is out of frame, the Settings row turns it off; the 🐢 slider runs the loop at 0.30× and a speed button snaps it back; his sack dance fires once a play by position (an LB backflips), a man on the ground does not dance; a swim / shed plays the arm-over and staggers the blocker, paired linemen in the block pose rock into each other, the juke sequence runs at its TU frame time; kill switches; no page errors.",
+   "areas": [
+    "live",
+    "field",
+    "badges"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "accelcheck": {
+   "file": "scripts/accelcheck.mjs",
+   "desc": "v164 I — the start is earned (pure Node): time to 50/80/90% of top speed, yards at 0.5/1.0/1.5 s, yards to 90% and the 0-10 yard split per rating 25..90; a better rating is sooner on every measure, 90% of top speed takes 0.8-2.2 real seconds, the 0-10 split spreads >= 0.15 s, braking untouched, TU accelV164 0 is the old near-instant ramp.",
+   "areas": [
+    "reads"
+   ],
+   "runtimeSec": 3,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": true,
+   "flaky": []
   }
  }
 }

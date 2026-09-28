@@ -2361,7 +2361,7 @@ class Ot extends mt.Scene {
        * The budget now covers the whole timeline and is always computed at the SLOWEST rate the
        * user can select, so switching speed mid-play cannot truncate it either.
        * `TU("watchdogSlackMs")` is the headroom for slow-mo and hit-stop. */
-      const wdRate144 = Math.max(.05, TU("watchdogSlowestSpeed", .5) * TU("basePlayRate", 0.7));
+      const wdRate144 = Math.max(.05, Math.min(TU("watchdogSlowestSpeed", .5), slowFloorV164F()) * TU("basePlayRate", 0.7));   // v164 F: budgeted at the slow dial's floor
       const wdSpan144 = script.duration + ((this.play && this.play.delay) || 0) + TU("postPlayMs", 1450);
       const wdMs144 = wdSpan144 / wdRate144 + TU("watchdogSlackMs", 6000);
       try { (window.__V144 = window.__V144 || {}).watchdog = { ms: Math.round(wdMs144), span: Math.round(wdSpan144), rate: +wdRate144.toFixed(3), dur: Math.round(script.duration), delay: Math.round((this.play && this.play.delay) || 0) }; } catch (e) {}
@@ -2397,7 +2397,7 @@ class Ot extends mt.Scene {
     // when the catch, the juke, the truck is going to land and eases the clock down INTO it
     // rather than reacting a frame after it has happened.
     const antic = this.slomoV102(P, delta);
-    const spd = Math.max(0.5, window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7) * Math.min(cineScale, antic);
+    const spd = Math.max(slowFloorV164F(), window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7) * Math.min(cineScale, antic);   // v164 F: the slow dial goes below ½×
     P.t += delta * spd;
     const S = P.script, T = Math.min(Math.max(0, P.t - (P.delay || 0)), S.duration);
     // Madden-style follow camera: track the ball with look-ahead, wider on big plays
@@ -2925,7 +2925,7 @@ class Ot extends mt.Scene {
       let rt = this.resultText(P.payload);
       if (P.payload.penalty) rt = "FLAG ON THE PLAY · " + (Number(P.payload.yards ?? 0) < 0 ? "OFFENSE" : "DEFENSE");
       else if (P.fdConverted && !P.payload.scored) rt += " · FIRST DOWN";
-      if (!this.badgesWhistleV95(P)) this.ribbon(rt, 900);   // v95: the wall tells the result when it has a badge for it
+      if (!this.badgesWhistleV95(P) && !this.jumboSayV164F(rt, { kind: "result", ms: TU("jumboResultMsV164F", 1400) })) this.ribbon(rt, 900);   // v95: the wall tells the result when it has a badge for it (v164 F: on the jumbotron)
       const postMs = this.postPlayMsV86(P);
       if (postMs > 0) this.startPostV86(P, postMs);
       else this.time.delayedCall(P.payload.scored ? 430 : 260, () => { this.resetCamera(); this.complete(); });
@@ -3266,7 +3266,7 @@ class Ot extends mt.Scene {
     try { (window.__V86 = window.__V86 || {}).posts = ((window.__V86 || {}).posts || 0) + 1; } catch (e) {}
   }
   updatePostV86(P, delta) {
-    const spd = Math.max(0.5, window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7);
+    const spd = Math.max(slowFloorV164F(), window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7);   // v164 F
     const dt = delta * spd; P.post.t += dt;
     const k = P.post.t;
     /* v103: the first second is still contact. The pile churns on its own phase, the men
@@ -3904,6 +3904,7 @@ class Ot extends mt.Scene {
         if (pm) { pm._preCatch=false; pm.forceState = "catchSeq"; pm.seqT=pm.tms; pm._launchT0 = pm.tms; pm._launchUntil = pm.tms + 270; pm._launchH = 10; }
         P.awaitCatch = null;
         BADGE_V95.show("intercepted", { x: e.x, y: e.y, scene: this, token: "int:" + P.__ballTokenV1514 });   // v95
+        if (pm) this.danceV164G(pm, "pick", { ms: TU("dancePickMsV164G", 1800) });   // v164 G: after the return
         this.hitStop = Math.max(this.hitStop, 70);
         this.slowMoment(P);
         REDUCED_MOTION || this.cameras.main.shake(140, 0.005); break;
@@ -4055,10 +4056,11 @@ class Ot extends mt.Scene {
       }
       case "swim": {
         // a defensive end beats the tackle with a quick finesse move
-        const m = this.markers[this.actorIdx(e.who)];
+        const m = this.markers[this.actorIdx(e.who)], bmS = m && m._pair != null ? this.markers[m._pair] : null;
         this.unpair(this.actorIdx(e.who));   // v83
         if (m) { m.forceState = null; m.cutUntil = m.tms + 200; m.body && m.body.setTint(0xbfe0ff);
           this.time.delayedCall(360, () => { m.body && m.body.clearTint(); }); }
+        this.moveV164H(m, bmS, "swim", e);   // v164 H: the arm over the top, the hop past him, the blocker turned
         this.popText(e.x, e.y - 20, "SWIM MOVE!", "#8fe7ff", 13);
         this.puffFx(e.x, e.y, 2);
         break;
@@ -4509,6 +4511,12 @@ class Ot extends mt.Scene {
         if (e.sack) BADGE_V95.show("sack", { sub: badgeYdsV95(pay.yards), x: e.x, y: e.y, scene: this, token: "sack:" + P.__ballTokenV1514 });   // v95
         else if (e.oob) this.popText(e.x, e.y - 26, "PUSHED OUT OF BOUNDS", "#8fe7ff", 13);
         else if (e.gang) this.popText(e.x, e.y - 40, e.handsOn >= 2 ? "GANG TACKLE ×" + (e.handsOn + 1) : "GANG TACKLE", "#93a0b1", 12);
+        /* v164 G: the big play's dance — a sack or a loss for the tackler; a long run or catch for the carrier (and the passer) */
+        try { const ydG = Number(pay.yards ?? 0), tkG = this.markers[this.actorIdx(e.tackler)];
+          if (e.sack && tkG) this.danceV164G(tkG, "sack");
+          else if (ydG < 0 && tkG && !e.oob) this.danceV164G(tkG, "tfl");
+          else if (m && pay.event === "run" && ydG >= TU("danceRunYdV164G", 20)) this.danceV164G(m, "run", { off: true });
+          else if (m && pay.event === "pass" && ydG >= TU("danceCatchYdV164G", 30)) { this.danceV164G(m, "catch", { off: true }); const qbG = this.markers[8]; if (qbG && qbG !== m && qbG.team === "you") this.danceV164G(qbG, "throw", { off: true, ms: TU("danceDelayOffMsV164G", 1500) + 200 }); } } catch (er) {}
         if (!(P.ydDone && Number(pay.yards ?? 0) > 0)) this.impact(e.x, e.y, Number(pay.yards ?? 0));
         break;
       }
@@ -4564,9 +4572,10 @@ class Ot extends mt.Scene {
         break;
       }
       case "shed": {
-        const m = this.markers[this.actorIdx(e.who)];
+        const m = this.markers[this.actorIdx(e.who)], bmS = m && m._pair != null ? this.markers[m._pair] : null;
         this.unpair(this.actorIdx(e.who));   // v83
         if (m) { this.flash(m.sx, m.sy, 0xff8a5c); m.body.setTint(0xffc9a8); }
+        this.moveV164H(m, bmS, "shed", e);   // v164 H: the rip and the shove — the blocker is thrown off him
         this.popText(e.x, e.y - 20, "SHEDS THE BLOCK!", "#ffb08a", 12); break;
       }
       case "contact": {
@@ -4584,6 +4593,7 @@ class Ot extends mt.Scene {
         this.popText(e.x, e.y - 24, "PANCAKE!", "#ffd97a", 16);
         REDUCED_MOTION || this.cameras.main.shake(130, 0.005);
         vib(25);
+        { const bm = this.markers[this.actorIdx(e.by)]; if (bm && bm.team === "you") this.danceV164G(bm, "pancake", { ms: TU("dancePancakeMsV164G", 700) }); }   // v164 G
         break;
       }
       case "getup": {
@@ -5325,6 +5335,40 @@ class Ot extends mt.Scene {
     const V = (window.__V91 = window.__V91 || {}); V.ballFrames = (V.ballFrames || 0) + (this.ballSpr._lastV91 !== key ? 1 : 0); this.ballSpr._lastV91 = key;
     return kind === "spin" ? ((RIB_META_V91._ballAngles || [])[i] || 0) : 0;
   }
+  /* ===== v164 G THE BIG PLAY HAS A DANCE =====
+   * The owner: "add a celebration dance for strong plays depending on position — a sack or TFL, a strong run, a
+   * long throw…". Only a touchdown celebrated. Now a BIG PLAY does: a sack or a tackle for loss (the tackler), an
+   * interception (the man who made it), a pancake (the blocker), a run of `danceRunYdV164G` yards, a catch of
+   * `danceCatchYdV164G` yards (the carrier — and the passer, for a throw that long), a truck. HIS marker plays one of the
+   * owner's drawn bodies (v161 A: flex / backflip / spike) chosen by the play and his POSITION (`DANCE_V164G`; a
+   * deterministic pick off the play's token, never Math.random); any other man plays the drawn celebrate cycle for
+   * `danceAiMsV164G`. It fires `danceDelayMsV164G` after the moment (offense `danceDelayOffMsV164G`, once he is back on
+   * his feet), only if the play is still the same one and he is not on the ground, never twice on a play, and never
+   * on a play that already has a touchdown. Kill switch TU "v164Gdance" 0. `window.__V164G` (`fired`, `skipped`,
+   * `last`); `v164Gcheck`. */
+  danceV164G(m, kind, o) {
+    o = o || {};
+    const G = (window.__V164G = window.__V164G || { fired: 0, skipped: 0, ai: 0, last: null, log: [] });
+    if (!TU("v164Gdance", 1) || !m || !m.root) return false;
+    const P = this.play; if (!P || P._danceV164G) { G.skipped++; return false; }
+    P._danceV164G = kind;
+    const me = m.team === "you", delay = o.ms != null ? o.ms : (o.off ? TU("danceDelayOffMsV164G", 1500) : TU("danceDelayMsV164G", 850));
+    let pos = m.posLabel || "";
+    try { if (me) { const st = window.__getGridironState && window.__getGridironState(); if (st && st.player && st.player.pos) pos = st.player.pos; } } catch (e) {}
+    const tbl = DANCE_V164G[kind] || DANCE_V164G.sack, name = tbl[pos] || tbl.default || "flex";
+    setTimeout(() => {   // wall time: the scene's timers are cleared at the next snap (softStop), and the play check below is the guard
+      try {
+        if (this.play !== P || !m.root || m.active === false || !this.add) { G.skipped++; return; }
+        if (/^(down|dive|tackleSeq|pancakeSeq|getup|grab)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 500)) { G.skipped++; G.last = { kind, pos, name, why: "down" }; return; }
+        G.last = { kind, pos, name, me, at: Date.now() }; G.log.push(G.last); if (G.log.length > 30) G.log.shift();
+        if (me && window.RIB_COSMETICS && window.RIB_COSMETICS.celebrateBody && window.RIB_COSMETICS.celebrateBody(this, m, { name, tok: "dance:" + kind + ":" + (P.__ballTokenV1514 != null ? P.__ballTokenV1514 : G.fired) })) { G.fired++; return; }
+        // the drawn celebrate cycle, briefly (the cosmetics module's body is his alone)
+        if (RIB.v91img && this.textures.exists("spr_" + (m.kit || m.team) + "_dn_celebrate0")) { m.forceState = "celebrateSeq"; m.seqT = m.tms; m._celMsV164G = TU("danceAiMsV164G", 1300); G.ai++; G.fired++; }
+        else G.skipped++;
+      } catch (e) { G.skipped++; }
+    });
+    return true;
+  }
   celebrate(x, y) {
     try { this.refSignalTD(x, y); } catch (e) {}          // v45: nearest official signals the score, both arms up
     try { const P = this.play, cm = P && P.carrierId != null ? this.markers[P.carrierId] : null;   // v91: the scorer plays the drawn celebration
@@ -5485,8 +5529,10 @@ class Ot extends mt.Scene {
     const label = this.add.text(0, -3, String(num), numStyleV104(team)).setOrigin(0.5);
     { const sw = TU("numStroke", 2.2); if (sw > 0) label.setStroke("#0a0e14", sw); }
     const skin = this.add.image(0, 0, initialKey).setVisible(false);   // v151 D: his own skin, a layer over the kit
-    const root = this.add.container(0, 0, [fill, shadow, body, skin, label]).setDepth(4);
-    const m = { root, body, skin, label, shadow, fill, team, kit, num, sx, sy, dirKey: "dn", flip: false, ft: 0, hd: null, cutUntil: 0, tms: 0 };
+    const sil = this.add.image(0, 24, initialKey).setOrigin(0.5, 1).setVisible(false);    // v164 A: his own silhouette on the grass
+    const sil2 = this.add.image(0, 24, initialKey).setOrigin(0.5, 1).setVisible(false);   // v164 A: ...and the fainter one the second lamp throws
+    const root = this.add.container(0, 0, [fill, sil2, sil, shadow, body, skin, label]).setDepth(4);
+    const m = { root, body, skin, label, shadow, fill, sil, sil2, team, kit, num, sx, sy, dirKey: "dn", flip: false, ft: 0, hd: null, cutUntil: 0, tms: 0 };
     if (faceDx != null) this.faceMarker(m, faceDx, faceDy || 0);
     this.placeMarker(m, sx, sy, 16);
     return m;
@@ -5502,6 +5548,50 @@ class Ot extends mt.Scene {
    * the block frames cycling faster while the pair is moving (a drive) than while it
    * is a stalemate. Paired sprites are also NUDGED apart laterally on screen, and the
    * offensive man lifts a hair in depth, so both bodies read (2.5D), not one. */
+  /* ===== v164 H THE MOVES READ =====
+   * The owner: "I'm still not noticing visible jukes, shed tackles, swim moves, physical blocking and pushing." The
+   * sim emits them and the atlas has the cells, but the drawn sequences were over in a blink (a juke 4 x 65 ms), a swim
+   * or a shed was a tint and a caption, and two engaged linemen stood on their squares. Now: the juke / stiff-arm /
+   * hurdle frames get their time (`jukeFrameMsV164H` …); a SWIM plays the arm-over cells (the stiff-arm row, the
+   * only drawn arm the atlas has) with a hop past the blocker, who is turned and staggered; a SHED is the same rip
+   * with the blocker SHOVED back along the line between them (`shedPushPxV164H`) and left leaning; and every engaged
+   * pair GRINDS — `shoveV164H` rocks both bodies into each other on the pair's own phase (`shovePxV164H`, `shoveMsV164H`,
+   * a lean into the drive) so a block is two men pushing, not two men standing. `pushV151D` (a tackle's drive) is
+   * untouched. Kill switch TU "v164Hmoves" 0 (and "shoveV164H" 0 for the grind alone). `window.__V164H` (`swims`,
+   * `sheds`, `shoves`); `v164Hcheck`. */
+  moveV164H(m, bm, kind, e) {
+    const H = (window.__V164H = window.__V164H || { swims: 0, sheds: 0, shoves: 0, last: null });
+    if (!TU("v164Hmoves", 1) || !m || !m.root) return false;
+    H[kind === "swim" ? "swims" : "sheds"]++; H.last = { kind, who: e && e.who, at: Date.now() };
+    // the arm over the top — the stiff-arm row is the atlas's one drawn arm
+    if (this.textures.exists("spr_" + (m.kit || m.team) + "_" + m.dirKey + "_stiff0") || this.textures.exists("spr_" + (m.kit || m.team) + "_sd_stiff0")) { m.forceState = "stiffSeq"; m.seqT = m.tms; }
+    const side = bm ? (m.root.x >= bm.root.x ? 1 : -1) : (Math.sin((e && e.y) || 0) >= 0 ? 1 : -1);
+    if (kind === "swim") { this.tweens.add({ targets: m.body, y: -TU("swimHopPxV164H", 5), duration: 120, yoyo: true, ease: "Quad.Out" }); }
+    if (bm && bm.root && !bm.forceState) {
+      // the beaten man: turned toward where he went, staggered (a shed throws him back along the line between them)
+      const dx = m.root.x - bm.root.x, dy = m.root.y - bm.root.y;
+      try { this.faceMarker(bm, dx, dy); } catch (er) {}
+      if (kind === "shed") { const d = Math.hypot(dx, dy) || 1, px = TU("shedPushPxV164H", 7);
+        this.tweens.add({ targets: bm.body, x: -dx / d * px, y: -dy / d * px * 0.4, duration: 160, yoyo: true, ease: "Quad.Out" });
+        bm._lean = -side * TU("shedLeanV164H", 0.2); bm._leanSrc = "shed"; this.time.delayedCall(420, () => { if (bm._leanSrc === "shed") { bm._leanSrc = null; bm._lean = 0; } }); }
+      try { this.stumbleV109(bm, kind === "shed" ? -side : side, TU("shedStumbleMsV164H", 240)); } catch (er) {}
+    }
+    return true;
+  }
+  // every engaged pair grinds: both bodies rock into each other on the pair's phase, leaning into the drive
+  shoveV164H(m, engaged) {
+    if (!engaged || !TU("v164Hmoves", 1) || !TU("shoveV164H", 1)) { if (m._shoveV164H) { m._shoveV164H = 0; if (m.body) m.body.x = 0; if (m._leanSrc === "shove") { m._leanSrc = null; m._lean = 0; } } return; }
+    if (!m.body || !engaged.root) return;
+    const H = (window.__V164H = window.__V164H || { swims: 0, sheds: 0, shoves: 0, last: null });
+    const dx = engaged.root.x - m.root.x, d = Math.abs(dx) || 1, toward = dx / d;
+    const lo = Math.min(m.num, engaged.num), hi = Math.max(m.num, engaged.num), phase = ((lo * 7 + hi * 13) % 17) / 17 * Math.PI * 2;
+    const t = (m.tms || 0) / Math.max(80, TU("shoveMsV164H", 260)), w = Math.sin(t * Math.PI * 2 + phase);
+    const drive = (engaged.sSm || 0) + (m.sSm || 0) > TU("driveSpd", 22) ? TU("shoveDriveKV164H", 1.5) : 1;
+    m.body.x = toward * (TU("shovePxV164H", 1.6) * drive) * (0.5 + 0.5 * w);
+    if (!m._leanSrc || m._leanSrc === "shove") { m._lean = toward * TU("shoveLeanV164H", 0.09) * (0.6 + 0.4 * w); m._leanSrc = "shove"; }
+    if (!m._shoveV164H) H.shoves++;
+    m._shoveV164H = 1;
+  }
   pairUp(i, j) {
     const a = this.markers[i], b = this.markers[j];
     if (!a || !b || a === b) return;
@@ -5915,14 +6005,14 @@ class Ot extends mt.Scene {
       const actionSeq = {
         catchSeq:["catch",3,90], diveCatchSeq:["divecatch",3,95],
         catchseqSeq:["catchseq" + (m._csVarV109 || 0) + "_", 4, TU("catchSeqFrameMs", 75)],   // v109: the sheet's own catch, variant by the KIND of the reach
-        jukeSeq:["juke",4,65], stiffSeq:["stiff",4,70], hurdleSeq:["hurdle",3,105],
+        jukeSeq:["juke",4,TU("jukeFrameMsV164H",95)], stiffSeq:["stiff",4,TU("stiffFrameMsV164H",100)], hurdleSeq:["hurdle",3,TU("hurdleFrameMsV164H",130)],   // v164 H: the drawn moves get their time on screen
         pancakeSeq:["pancake",3,90], getupSeq: RIB.v91img ? ["getup",8,TU("getupFrameMs",85)] : ["getup",4,105],
         celebrateSeq:["celebrate",4,TU("celebrateFrameMs",170)]   // v91: loops for celebrateMs, then stands
       }[st];
       if (actionSeq) {
         const af = Math.floor((m.tms - (m.seqT || 0)) / actionSeq[2]);
         if (st === "celebrateSeq") {
-          if (m.tms - (m.seqT || 0) > TU("celebrateMs", 2400)) { m.forceState = null; st = "idle"; }
+          if (m.tms - (m.seqT || 0) > (m._celMsV164G || TU("celebrateMs", 2400))) { m.forceState = null; m._celMsV164G = 0; st = "idle"; }   // v164 G: a big-play dance is shorter than a touchdown's
           else st = "celebrate" + (af % 4);
         } else if (af >= actionSeq[1]) {
           if (st === "pancakeSeq") { m.forceState = "down"; st = "down"; }
@@ -5953,7 +6043,9 @@ class Ot extends mt.Scene {
     if (engaged && !m.forceState && m.sSm < TU("blockBand",78) && (st === "idle" || st.indexOf("run") === 0 || st === "cut")) st = "block";
     if (st === "block") { const pairSpd = engaged ? Math.max(m.sSm, engaged.sSm || 0) : m.sSm;
       const frameMs = pairSpd > TU("driveSpd", 22) ? TU("blockDriveFrameMs", 105) : TU("blockFrameMs",170);
-      m.bt = (m.bt || 0) + (dtms || 16); st = "block" + (Math.floor(m.bt / frameMs) % (window.__RIB_BLOCKF || 1)); }
+      m.bt = (m.bt || 0) + (dtms || 16); st = "block" + (Math.floor(m.bt / frameMs) % (window.__RIB_BLOCKF || 1));
+      this.shoveV164H(m, engaged); }
+    else if (m._shoveV164H) this.shoveV164H(m, null);
     // v21.2 GET-UP RECOVERY: a downed player no longer teleports upright. Track the
     // last frame he was on the turf; the moment he's free and roughly stationary,
     // play a brief crouch (stance) → stand (idle) recovery before normal states
@@ -6096,8 +6188,11 @@ class Ot extends mt.Scene {
     // v99: cast from the one light post — it swings around him as he crosses the field and
     // stays on the grass under a man in the air. A man ON the ground has almost no height
     // left to cast, so his shadow collapses to the patch he is lying in.
-    if (m.shadow) { const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
+    if (m.shadow && this.silOnV164()) { const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
+      this.castSilV164(m, p.x, p.y + liftV99 * p.s, liftV99, spdPx, down); }   // v164 A: the shadow is the man
+    else if (m.shadow) { const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
       const h = TU("shadowManH", 21) * (down ? TU("shadowDownK", 0.45) : 1);
+      if (m.sil) m.sil.setVisible(false); if (m.sil2) m.sil2.setVisible(false);
       this.castShadowV99(m.shadow, p.x, p.y + liftV99 * p.s, h, { lift: liftV99 });
       // v101: at a sprint the cast smears along its own axis and thins — motion, not a taller man
       const smear = Math.max(0, Math.min(1, (spdPx - TU("smearFromV101", 120)) / TU("smearSpanV101", 130))) * TU("smearKV101", 0.34);
@@ -6121,7 +6216,18 @@ class Ot extends mt.Scene {
     } else m.bob = null;
     if (m.tag && m.tag.active) m.tag.setPosition(p.x, p.y + 27 * p.s).setScale(p.s); else m.tag = null;
     if (m.team === "you" || m._cosV153G) cosFxV153G(this, m, p);   // v153 G: his footprints, wings, crown, aura, number font
+    this.silBindV164(m);   // v164 A: the silhouette wears the frame the body ENDED the frame on
     return p;
+  }
+  // v164 A: the body's texture can change after the shadow was cast (the run cycle, a pose) — bind the
+  // silhouettes to the frame he is actually showing, once, at the end of his placement
+  silBindV164(m) {
+    if (!m.sil || !m.sil.visible || !m.body) return;
+    const key = m.tex || (m.body.texture && m.body.texture.key), want = key ? "sil164_" + key : null;
+    if (!want || m.sil._texV164 === want) return;
+    const tex = this.silTexV164(key); if (!tex) return;
+    m.sil._texV164 = tex; m.sil.setTexture(tex);
+    if (m.sil2 && m.sil2.scene) { m.sil2._texV164 = tex; m.sil2.setTexture(tex); }
   }
   resolveOverlaps() {
     // render-side separation: sprites never stack, no matter how tight the sim pile is
@@ -6157,7 +6263,10 @@ class Ot extends mt.Scene {
       m._nudgeV109 = nd > 0.01 ? { dx: ndx, dy: ndy } : null;
       if (nd > 0.01 && TU("shadowFollowV109", 1)) { V9.nudged++;
         let lift = 0; if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms)); lift = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11); }
-        if (m.shadow && TU("shadowsV99", 1)) {
+        if (m.shadow && this.silOnV164()) {
+          const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
+          this.castSilV164(m, m.root.x, m.root.y + lift * m.root.scale, lift, m._spdPx || 0, down); V9.recast++; }
+        else if (m.shadow && TU("shadowsV99", 1)) {
           const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
           const h = TU("shadowManH", 21) * (down ? TU("shadowDownK", 0.45) : 1), gy = m.root.y + lift * m.root.scale;
           this.castShadowV99(m.shadow, m.root.x, gy, h, { lift });
@@ -7112,7 +7221,37 @@ class Ot extends mt.Scene {
       const flip = !!TU("lightFlipV112", 1);                                            // v112: the mirrored fixture
       const hasArt = !!(RIB.lightsImg && this.textures.exists("rib_lights_v92"));
       ST.lights = ST.lights || [];
-      xs.forEach((x, i) => {
+      /* v164 A: the masts stand on the FIELD. The far four are drawn from their projected feet, scaled by
+       * the bowl's own perspective; every mast keeps its physical index for the key light. */
+      const M164 = this.mastsV164(); ST.mastsV164 = M164 || null;
+      if (M164) {
+        const farM = M164.filter((sp) => sp.far).sort((a, b) => a.x - b.x);
+        farM.forEach((sp, i) => { sp.ti = i; });
+        // the foot: just behind the end line, tucked above the bowl's own foot so it never shows on the grass;
+        // a near mast (behind the camera) is not drawn, so its foot is simply where the field puts it
+        for (const sp of M164) { sp.h = H * sp.sk; sp.footY = sp.far ? Math.min(sp.y + TU("mastFootDropV164", 6) * sp.sk, bot - TU("lightSink", 4) * KS) : sp.y + TU("mastFootDropV164", 6) * sp.sk; }
+        farM.forEach((sp, i) => {
+          let tw = ST.towers[i];
+          if (hasArt && (!tw || !tw.scene)) { tw = ST.towers[i] = this.add.image(0, 0, "rib_lights_v92", 0).setOrigin(0.5, 1); tw._phase = i * 1.7; }
+          if (!tw || !tw.scene) return;
+          const inward = sp.x < FW / 2, side = flip ? !inward : inward;
+          const face = side ? RIB_META_V92.faces.right : RIB_META_V92.faces.left;
+          tw._face = face; tw.setFrame(face * RIB_META_V92.frames);
+          tw._bx = sp.x; tw._by = sp.footY; tw._sway = [0, 1, 0, 0.7][i] || 0; tw._mastV164 = sp.i; tw._k = sp.k;
+          tw._aimX = sp.aim.x; tw._aimY = sp.aim.y; tw._poolX = sp.pool.x; tw._poolY = sp.pool.y;
+          tw.setPosition(sp.x, sp.footY).setScale(sp.h / RIB_META_V92.cell[1]).setDepth(depT).setVisible(true);
+          { const lm = this.lightMulV100() * this.dayMulV144(), g = Math.max(0, Math.min(255, Math.round(255 * Math.min(1, 0.28 + 0.72 * lm))));
+            tw.setTint((g << 16) | (g << 8) | g); }
+          tw._poolK = TU("lightPoolKV112", 1) * sp.pool.k;
+          this.lightRigV98(i, tw, side ? 1 : -1, depT);
+        });
+        try { window.__V164A = Object.assign(window.__V164A || {}, { masts: () => (ST.mastsV164 || []).map((q) => ({ i: q.i, end: q.end, lat: q.lat, far: q.far, ti: q.ti, x: Math.round(q.x), y: Math.round(q.footY), k: +q.k.toFixed(3), sk: +q.sk.toFixed(3), pool: { x: Math.round(q.pool.x), y: Math.round(q.pool.y) } })),
+          key: () => { const K = this.keyLightV99(); return { x: Math.round(K.x), y: Math.round(K.y), i: K.i, phys: K.phys, far: K.far, on: K.on }; },
+          sil: () => { const RS = RIB.silV164 || {}; return { made: RS.made || 0, miss: RS.miss || 0, on: this.silOnV164(), men: this.markers.filter((m) => m && m.sil && m.sil.visible).length }; },
+          man: (i) => { const m = this.markers[i]; return m && m._silV164 ? Object.assign({ vis: !!(m.sil && m.sil.visible), tex: m.sil && m.sil._texV164 }, m._silV164) : null; },
+          vdir: () => VDIR }); } catch (e) {}
+      }
+      else xs.forEach((x, i) => {
         let tw = ST.towers[i];
         if (hasArt && (!tw || !tw.scene)) { tw = ST.towers[i] = this.add.image(0, 0, "rib_lights_v92", 0).setOrigin(0.5, 1); tw._phase = i * 1.7; }
         if (!tw || !tw.scene) return;
@@ -7181,8 +7320,8 @@ class Ot extends mt.Scene {
           field: near }; }; } catch (e) {}
       try { window.__V99 = { key: () => this.keyLightV99(), posts: () => this._postShadDbgV99 || null,
         cast: (x, y) => { const V = this.shadowVecV99(x, y); return { ux: +V.ux.toFixed(3), uy: +V.uy.toFixed(3), slope: +V.slope.toFixed(3), reach: +V.reach.toFixed(3) }; },
-        man: (i) => { const m = this.markers[i]; if (!m || !m.shadow) return null; const sh = m.shadow;
-          return { x: +sh.x.toFixed(2), y: +sh.y.toFixed(2), rot: +sh.rotation.toFixed(3), sx: +sh.scaleX.toFixed(3), sy: +sh.scaleY.toFixed(3), a: +sh.alpha.toFixed(3), root: { x: Math.round(m.root.x), y: Math.round(m.root.y), s: +m.root.scale.toFixed(3) } }; },
+        man: (i) => { const m = this.markers[i]; if (!m || !m.shadow) return null; const sh = m.shadow, S4 = this.silOnV164() && m._silV164;   // v164 A: the silhouette, in the ellipse's terms
+          return { x: +sh.x.toFixed(2), y: +sh.y.toFixed(2), rot: +(S4 ? S4.rot : sh.rotation).toFixed(3), sx: +(S4 ? S4.sx : sh.scaleX).toFixed(3), sy: +sh.scaleY.toFixed(3), a: +(S4 && m.sil && m.sil.visible ? m.sil.alpha : sh.alpha).toFixed(3), root: { x: Math.round(m.root.x), y: Math.round(m.root.y), s: +m.root.scale.toFixed(3) } }; },
         dial: () => ({ light: +this.lightMulV100().toFixed(3), shadow: +this.shadowMulV100().toFixed(3), setting: (window.__FIELD_FX || {}).light }),
         ball: () => this.ballShad && this.ballShad.scene ? { x: Math.round(this.ballShad.x), y: Math.round(this.ballShad.y), a: +this.ballShad.alpha.toFixed(3), vis: this.ballShad.visible } : null }; } catch (e) {}
       try { window.__V92 = Object.assign(window.__V92 || {}, { on: true, towers: ST.towers.filter((t) => t && t.scene && t.visible).length, bowl: { top: Math.round(top), bot: Math.round(bot), k: +k.toFixed(3) },
@@ -7439,8 +7578,125 @@ class Ot extends mt.Scene {
   // the turf takes the whole dial on the way DOWN and only part of it on the way up: the baked
   // wash is broad enough that a linear top end clips the far end zone to white paper
   bakedMulV100() { const m = this.lightMulV100(); return m <= 1 ? m : 1 + (m - 1) * TU("lightBakedTopK", 0.6); }
+  /* ===== v164 A THE LIGHTS STAND WHERE THEY STAND =====
+   * The masts used to be planted at fixed fractions of the SCREEN (x = 0.02 / 0.2 / 0.8 / 0.98 of the
+   * world width, feet a fixed 4 px below whichever end line was being attacked), so the same stadium
+   * had its lights somewhere else every time the field was looked at from the other end (possession
+   * flips VDIR and the whole bank jumped ends) or from another line of scrimmage (the bowl rescales
+   * with the projection while the masts stood still and slid against it). The key light — the one
+   * every shadow is cast from — was "tower 2", the mast on the right of the SCREEN, so the shadows
+   * raked the other way relative to the stadium on every change of possession.
+   * Now EIGHT masts stand at fixed FIELD positions: `mastBackPxV164` behind each end line, at the
+   * lateral fractions `mastWideV164` / `mastInnerV164` of the half-width (the same picture as before
+   * at the perspective it was tuned at, `mastKRefV164`), projected through `crowdProject` on every bake
+   * so they scale and sit with the bowl; only the far four are drawn (the near four stand behind the
+   * camera, as a light only). Each mast's beam aims at, and its pool lies on, ITS OWN patch of the
+   * field (`mastPoolInYdV164` yards in from its end line, `mastPoolLatV164` of the half-width to its
+   * side), and the pools baked into the turf (`lightFieldV98`) are the same points. The key light is a
+   * PHYSICAL mast (`keyMastV164`: index = end slot × 4 + lateral slot, the east end first; 2 is the east
+   * end's inner mast on the bottom touchline — the one the shadows were tuned to on an offensive drive); on a
+   * defensive drive it stands behind the camera and the shadows fall AWAY from it, up the screen and
+   * shorter (`shadowUpKV164`). Kill switch `TU("v164Alights", 0)` restores the screen-planted masts.
+   * `window.__V164A` (`masts`, `key`, `sil`); `v164Acheck`. ===== */
+  mastsV164() {
+    if (!TU("v164Alights", 1) || !PERSP || !this.crowdProject) return null;
+    const MIDY = (F_TOP + F_BOT) / 2, HALF = (F_BOT - F_TOP) / 2;
+    const back = TU("mastBackPxV164", 8), wide = TU("mastWideV164", 2.3), inner = TU("mastInnerV164", 1.75);
+    const kRef = Math.max(0.05, TU("mastKRefV164", 0.25)), lo = TU("mastScaleMinV164", 0.6), hi = TU("mastScaleMaxV164", 2.0);
+    const inPx = TU("mastPoolInYdV164", 22) / 100 * PLAY_W, aimPx = TU("mastAimInYdV164", 42) / 100 * PLAY_W, latP = TU("mastPoolLatV164", 0.45);
+    const adj = (x, v) => ({ u: VDIR > 0 ? x : FW - x, vv: VDIR > 0 ? v : F_TOP + F_BOT - v });   // the field, seen from the camera's end
+    const out = [];
+    [1, -1].forEach((end, ei) => [-wide, -inner, inner, wide].forEach((lf, li) => {
+      const x = end > 0 ? FW + back : -back, v = MIDY + lf * HALF, a = adj(x, v), p = this.crowdProject(a.u, a.vv);
+      const pool = adj(end > 0 ? PLAY_R - inPx : PLAY_L + inPx, MIDY + Math.sign(lf) * HALF * latP), pp = this.crowdProject(pool.u, pool.vv);
+      const aim = adj(end > 0 ? PLAY_R - aimPx : PLAY_L + aimPx, MIDY + Math.sign(lf) * HALF * latP * 0.6), ap = this.crowdProject(aim.u, aim.vv);
+      out.push({ i: ei * 4 + li, end, lat: lf, far: a.u > FW / 2, x: p.x, y: p.y, k: p.k, sk: Math.max(lo, Math.min(hi, p.k / kRef)),
+        pool: { x: pp.x, y: pp.y, k: Math.max(lo, Math.min(hi, pp.k / kRef)) }, aim: { x: ap.x, y: ap.y }, ti: -1 });
+    }));
+    return out;
+  }
+  /* ===== v164 A THE SHADOW IS THE MAN =====
+   * A player's shadow was a black ellipse, stretched along the line from the key light. Now it is HIS
+   * OWN SILHOUETTE: the frame his body is showing, blacked out (`silTexV164`, one canvas a texture,
+   * cached), flipped over his feet, laid along the ground away from the key light and foreshortened by
+   * its rake (`castSilV164`) — so a man running, cutting, diving or throwing throws the shape of the
+   * man running, cutting, diving or throwing. The ellipse stays as the soft contact blob under his
+   * feet (`silBlobA`); the v101 fill ellipse is gone (a second silhouette from the second lamp is
+   * `silFillV164`). A man on the ground throws no silhouette — his blob widens over the patch he is
+   * lying in. Officials cast the same way. Nothing in the sim changes; `__V99.man(i)` keeps reporting
+   * the shadow's direction and stretch in the old ellipse's terms so v99check still reads it.
+   * Kill switch `TU("v164Asil", 0)` restores the ellipses. ===== */
+  silOnV164() { return !!TU("v164Asil", 1) && !!TU("shadowsV99", 1); }
+  silTexV164(key) {
+    const RS = RIB.silV164 || (RIB.silV164 = { made: 0, miss: 0, keys: {} });
+    if (!key || key === "rib_player_fallback") return null;
+    const have = RS.keys[key];
+    if (have && this.textures.exists(have)) return have;
+    try {
+      const t = this.textures.get(key), src = t && t.getSourceImage && t.getSourceImage();
+      if (!src || !src.width || !src.height) { RS.miss++; return null; }
+      const cv = document.createElement("canvas"); cv.width = src.width; cv.height = src.height;
+      const cx = cv.getContext("2d"); cx.drawImage(src, 0, 0);
+      cx.globalCompositeOperation = "source-in"; cx.fillStyle = "#000"; cx.fillRect(0, 0, cv.width, cv.height);
+      const sk = "sil164_" + key;
+      if (this.textures.exists(sk)) this.textures.remove(sk);
+      this.textures.addCanvas(sk, cv); RS.made++;
+      return (RS.keys[key] = sk);
+    } catch (e) { RS.miss++; return null; }
+  }
+  // gx/gy: the man's ground point in world px; lift: how far above it he is; down: lying on it
+  castSilV164(m, gx, gy, lift, spdPx, down, o) {
+    o = o || {};
+    const sh = m.shadow; if (!sh || !sh.scene) return null;
+    if (!TU("shadowsV99", 1)) { sh.setVisible(false); if (m.sil) m.sil.setVisible(false); if (m.sil2) m.sil2.setVisible(false); if (m.fill) m.fill.setVisible(false); return null; }
+    sh.setVisible(true);
+    const V = this.shadowVecV99(gx, gy), mul = this.shadowMulV100(), fade = 1 - V.reach * TU("shadowFade", 0.22);
+    lift = Math.max(0, lift || 0);
+    const air = lift > 0 ? Math.max(TU("shadowAirMin", 0.45), 1 - lift / TU("shadowAirFade", 30)) : 1;
+    const y0 = o.y0 == null ? 24 : o.y0, bw = o.blobW || 1, bh = o.blobH || 1;
+    // the contact blob: a soft pool under the feet, wider over a man on the ground
+    sh.setRotation(0).setPosition(0, y0 + lift)
+      .setScale(TU("silBlobW", 0.78) * bw * (down ? TU("silBlobDownW", 1.8) : 1) * air, TU("silBlobH", 0.72) * bh * (down ? TU("silBlobDownH", 0.85) : 1) * air)
+      .setAlpha(TU("silBlobA", 0.2) * (down ? 1.3 : 1) * fade * air * mul);
+    if (m.fill) m.fill.setVisible(false);
+    const sil = m.sil; if (!sil || !sil.scene) return V;
+    const smear = Math.max(0, Math.min(1, ((spdPx || 0) - TU("smearFromV101", 120)) / TU("smearSpanV101", 130))) * TU("smearKV101", 0.34);
+    const tex = down || m.__v161a ? null : this.silTexV164(m.tex || (m.body && m.body.texture && m.body.texture.key));
+    if (!tex) { sil.setVisible(false); if (m.sil2) m.sil2.setVisible(false); m._silV164 = { rot: Math.atan2(V.uy, V.ux), sx: 1, len: 0, ux: V.ux, uy: V.uy }; return V; }
+    if (sil._texV164 !== tex) { sil._texV164 = tex; sil.setTexture(tex); }
+    if (m.body) sil.setFlipX(!!m.body.flipX);
+    const up = V.uy < 0 ? TU("shadowUpKV164", 0.6) : 1;                              // away from the camera: foreshortened
+    const len = V.slope * TU("silLenKV164", 0.95) * up * air * (1 + smear);
+    const bsx = m.body ? Math.abs(m.body.scaleX || 1) : 1, bsy = m.body ? Math.abs(m.body.scaleY || 1) : 1;
+    sil.setVisible(true).setPosition(0, y0 + lift).setRotation(Math.atan2(-V.ux, V.uy))
+      .setScale(bsx * (1 + smear * 0.25), -bsy * len)
+      .setAlpha(TU("silAV164", 0.34) * fade * air * mul * (1 - smear * 0.3));
+    m._silV164 = { rot: Math.atan2(V.uy, V.ux), sx: 1 + len * TU("shadowManH", 21) / 26, len, ux: V.ux, uy: V.uy };
+    // the second lamp: a fainter silhouette from the nearest OTHER mast — the one that keeps a shadow on
+    // the grass in front of him when the key mast stands behind the camera
+    const s2 = m.sil2;
+    if (s2 && s2.scene) {
+      const F = TU("silFillV164", 1) && TU("fillShadowV101", 1) ? this.fillVecV101(gx, gy) : null;
+      if (!F) s2.setVisible(false);
+      else {
+        if (s2._texV164 !== tex) { s2._texV164 = tex; s2.setTexture(tex); }
+        if (m.body) s2.setFlipX(!!m.body.flipX);
+        const len2 = F.slope * TU("silLenKV164", 0.95) * (F.uy < 0 ? TU("shadowUpKV164", 0.6) : 1) * air * (1 + smear);
+        s2.setVisible(true).setPosition(0, y0 + lift).setRotation(Math.atan2(-F.ux, F.uy))
+          .setScale(bsx * (1 + smear * 0.25), -bsy * len2)
+          .setAlpha(TU("silFillAV164", 0.17) * (1 - F.reach * TU("shadowFade", 0.22)) * air * Math.max(0, Math.min(1.4, this.lightMulV100())) * (1 - smear * 0.3));
+      }
+    }
+    return V;
+  }
   keyLightV99() {
     const ST = this.stadium, i = Math.max(0, Math.min(3, Math.round(TU("keyLightIdx", 2))));
+    if (TU("v164Alights", 1) && ST && ST.on && ST.mastsV164 && ST.mastsV164.length) {
+      const M = ST.mastsV164, km = M[Math.max(0, Math.min(M.length - 1, Math.round(TU("keyMastV164", 2))))];
+      const tw = km.ti >= 0 && ST.towers ? ST.towers[km.ti] : null;
+      if (tw && tw.scene && tw._bx != null) return { x: tw._bx, y: tw._by - tw.displayHeight * TU("lightHeadFrac", 0.76), i: km.ti, on: true, phys: km.i, far: true };
+      return { x: km.x, y: km.footY - km.h * TU("lightHeadFrac", 0.76), i: -1, on: true, phys: km.i, far: false };   // behind the camera: a light, not a fixture
+    }
     const tw = ST && ST.on && ST.towers && ST.towers[i];
     if (tw && tw.scene && tw.visible && tw._bx != null)
       return { x: tw._bx, y: tw._by - tw.displayHeight * TU("lightHeadFrac", 0.76), i, on: true };
@@ -7448,10 +7704,11 @@ class Ot extends mt.Scene {
   }
   shadowVecV99(gx, gy) {
     const L = this._klV99 || (this._klV99 = this.keyLightV99());
-    const vx = gx - L.x, vy = Math.max(30, gy - L.y), d = Math.hypot(vx, vy) || 1;
+    const vx = gx - L.x, vy = L.phys != null && !L.far ? Math.min(-30, gy - L.y) : Math.max(30, gy - L.y), d = Math.hypot(vx, vy) || 1;   // v164 A: a key behind the camera throws the shadow up the screen
     const reach = Math.max(0, Math.min(1, (gy - NSTOP) / Math.max(1, WORLD_H - NSTOP)));
     const q = (this.play && this.play.payload && this.play.payload.quarter) || 1;
-    const slope = TU("shadowSlope", 0.7) * (0.45 + reach * 1.35) * (1 + (q - 1) * TU("shadowStretchQ", 0.16));
+    const rr = L.phys != null && !L.far ? 1 - reach : reach;   // v164 A: a key behind the camera rakes hardest at the FAR end
+    const slope = TU("shadowSlope", 0.7) * (0.45 + rr * 1.35) * (1 + (q - 1) * TU("shadowStretchQ", 0.16));
     return { ux: vx / d, uy: vy / d, slope, reach, L };
   }
   // sh: an ellipse parented to the sprite's container, so its coordinates are the
@@ -7571,8 +7828,72 @@ class Ot extends mt.Scene {
     try { ST.frame && ST.frame.setVisible(false); ST.tag && ST.tag.setVisible(false); ST.score && ST.score.setVisible(false); ST.still && ST.still.setVisible(false); ST.cam && ST.cam.setVisible(false); } catch (e) {}
     try { if (window.__V92) window.__V92.on = false; } catch (e) {}
   }
+  /* ===== v164 F THE JUMBOTRON SAYS IT =====
+   * The owner: "put the message notifications in the live sim on the jumbotron instead so you can actually see what
+   * happens." The callout wall's badges (v95 — the TOUCHDOWN / SACK / INTERCEPTED takeovers drawn over the field), the
+   * whistle's result ribbon and the career app's toasts during a live game all went over the play. Now they go on the
+   * stadium's BIG SCREEN: `jumboSayV164F(text, o)` hides the feed for a moment (`ST.mode = "msg"`, the feed camera and
+   * the replay still stand down), prints the line — and its sub-line — inside the panel in the kind's colour, sized
+   * to the panel, and hands the screen back after `o.ms`; the tag on the strip says 📣. A tier-1 badge keeps its
+   * gameplay feel (the freeze, the punch, the beat of slow motion) — only the picture moves. When the screen is not in
+   * the frame (a tight camera near the near end) the line falls back to the old slim top ribbon, never a takeover.
+   * `BADGE_V95.show` routes here first (`jumboOnV164F`: TU "v164Fjumbo" and Settings › FIELD VIEW › "Messages on the
+   * jumbotron"); 07's `showToast` does the same on the live view (`window.__jumboSayV164F`). `window.__V164F`
+   * (`said`, `fell`, `last`); `v164Fcheck`.
+   * THE SLOW DIAL (the same ask, "enable a slider for slow mode plays"): the speed row's 🐢 slider hands the live
+   * loop any speed from `slowMinV164F` (0.25×) to 1×; the renderer's clock floor (`Math.max(0.5, …)` in `update` and
+   * `updatePostV86`) is `slowMinV164F` now, and the stall watchdog is budgeted at the slowest speed the dial allows.
+   * Kill switch TU "v164Fslow" 0 (the 0.5× floor). ===== */
+  jumboOnV164F() {
+    if (!TU("v164Fjumbo", 1)) return false;
+    try { const st = window.__getGridironState && window.__getGridironState(); if (st && st.settings && st.settings.jumboMsgV164F === false) return false; } catch (e) {}
+    const ST = this.stadium; return !!(ST && ST.on && ST.rect && this.add);
+  }
+  jumboSayV164F(text, o) {
+    o = o || {};
+    const F = (window.__V164F = window.__V164F || { said: 0, fell: 0, last: null, log: [] });
+    if (!this.jumboOnV164F() || !text) return false;
+    const ST = this.stadium, R = ST.rect;
+    // is the screen in the frame? otherwise the slim ribbon at the top of the picture (never over the play)
+    let on = false;
+    try { const cm = this.cameras.main, wv = cm.worldView; on = R.x + R.w > wv.x && R.x < wv.x + wv.width && R.y + R.h > wv.y && R.y < wv.y + wv.height && R.w * cm.zoom >= TU("jumboMinPxV164F", 60); } catch (e) {}
+    F.last = { text: String(text), sub: o.sub || "", kind: o.kind || "", on, at: Date.now() }; F.log.push(F.last); if (F.log.length > 40) F.log.shift();
+    if (!on) { F.fell++; try { this.ribbon(String(text) + (o.sub ? "  " + o.sub : ""), o.ms || TU("jumboMsV164F", 1500)); } catch (e) {} return true; }
+    F.said++;
+    const depS = ST.frame ? ST.frame.depth : TU("crowdDepth", 3.45) - 0.15, col = o.color || (o.kind && JUMBO_COL_V164F[o.kind]) || "#fff2c4";
+    if (!ST.msgT || !ST.msgT.scene) {
+      ST.msgT = this.add.text(0, 0, "", { fontFamily: "Oswald, sans-serif", fontStyle: "bold", fontSize: "40px", color: "#fff2c4", align: "center" }).setOrigin(0.5);
+      ST.msgS = this.add.text(0, 0, "", { fontFamily: "Oswald, sans-serif", fontStyle: "bold", fontSize: "22px", color: "#e8f0ff", align: "center" }).setOrigin(0.5);
+      ST.msgBg = this.add.rectangle(0, 0, 10, 10, 0x05070c, 1);
+      try { ST.cam && ST.cam.ignore([ST.msgT, ST.msgS, ST.msgBg]); } catch (e) {}
+    }
+    const sub = o.sub ? String(o.sub) : "";
+    ST.msgBg.setPosition(R.x + R.w / 2, R.y + R.h / 2).setSize(R.w, R.h).setDepth(depS + 0.025).setVisible(true);
+    // the title fills the panel: a fraction of its height, shrunk until it fits its width
+    const fit = (tx, str, hFrac, maxW) => { tx.setText(str); let px = Math.max(6, R.h * hFrac); tx.setFontSize(px); tx.setScale(1);
+      for (let i = 0; i < 8 && tx.width > maxW && px > 6; i++) { px *= 0.86; tx.setFontSize(px); } };
+    fit(ST.msgT, String(text).toUpperCase(), sub ? TU("jumboTitleHV164F", 0.44) : TU("jumboTitleSoloHV164F", 0.5), R.w * 0.92);
+    ST.msgT.setColor(col).setPosition(R.x + R.w / 2, R.y + R.h * (sub ? 0.38 : 0.5)).setDepth(depS + 0.03).setVisible(true);
+    if (sub) { fit(ST.msgS, sub.toUpperCase(), TU("jumboSubHV164F", 0.24), R.w * 0.9); ST.msgS.setPosition(R.x + R.w / 2, R.y + R.h * 0.76).setDepth(depS + 0.03).setVisible(true); }
+    else ST.msgS.setVisible(false);
+    if (ST.still && ST.still.scene) ST.still.setVisible(false);
+    if (ST.mode !== "msg") ST._modeBeforeMsgV164F = ST.mode;
+    ST.mode = "msg";
+    try { ST.tag && ST.tag.setText("📣 " + (o.kind ? String(o.kind).toUpperCase() : "MESSAGE")).setColor(col); } catch (e) {}
+    if (ST._msgTimerV164F) { try { clearTimeout(ST._msgTimerV164F); } catch (e) {} }
+    // wall time, not the scene's clock: `softStop` clears the scene's timers at the next snap and the message would never end
+    ST._msgTimerV164F = setTimeout(() => { ST._msgTimerV164F = null; try { this.jumboClearV164F(); } catch (e) {} }, o.ms || TU("jumboMsV164F", 1500));
+    return true;
+  }
+  jumboClearV164F() {
+    const ST = this.stadium; if (!ST) return;
+    try { ST.msgT && ST.msgT.setVisible(false); ST.msgS && ST.msgS.setVisible(false); ST.msgBg && ST.msgBg.setVisible(false); } catch (e) {}
+    if (ST.mode === "msg") this.stadiumModeV92(ST._modeBeforeMsgV164F === "replay" && ST.still && ST.still.scene ? "replay" : "live");
+  }
   stadiumModeV92(mode) {
-    const ST = this.stadium; if (!ST) return; ST.mode = mode;
+    const ST = this.stadium; if (!ST) return;
+    if (ST.mode === "msg" && mode !== "msg") { ST._modeBeforeMsgV164F = mode; if (ST._msgTimerV164F) return; }   // v164 F: the message finishes first; the screen then goes to the mode asked for
+    ST.mode = mode;
     const replay = mode === "replay" && ST.still && ST.still.scene;
     try { if (ST.still && ST.still.scene) ST.still.setVisible(!!replay && ST.on); } catch (e) {}
     try { ST.tag && ST.tag.setText(replay ? "▶ REPLAY" : "● LIVE").setColor(replay ? "#ffd75e" : "#ff5a5a"); } catch (e) {}
@@ -7647,7 +7968,7 @@ class Ot extends mt.Scene {
       const cm = this.cameras.main, R = ST.rect, wv = cm.worldView, z = cm.zoom;
       const sx = (R.x - wv.x) * z, sy = (R.y - wv.y) * z, sw = R.w * z, sh = R.h * z;
       const onScreen = sw >= 8 && sh >= 6 && sx + sw > 0 && sx < FW && sy + sh > 0 && sy < FVH;
-      const live = onScreen && ST.mode !== "replay";
+      const live = onScreen && ST.mode !== "replay" && ST.mode !== "msg";   // v164 F: a message owns the panel
       if (!live) { if (ST.cam.visible) ST.cam.setVisible(false); return; }
       const cx = Math.max(0, sx), cy = Math.max(0, sy), cw = Math.min(FW, sx + sw) - cx, ch = Math.min(FVH, sy + sh) - cy;   // clipped to the canvas
       if (cw < 8 || ch < 6) { if (ST.cam.visible) ST.cam.setVisible(false); return; }
@@ -8172,8 +8493,10 @@ class Ot extends mt.Scene {
     const key = this.textures.exists("spr_ref_dn_idle") ? "spr_ref_dn_idle" : "rib_player_fallback";
     const body = this.add.image(0, 0, key);
     if (key === "rib_player_fallback") body.setTint(0xf2f4f7);
-    const root = this.add.container(0, 0, [shadow, body]).setDepth(4);
-    return { root, body, shadow, team: "ref", sx, sy, dirKey: "dn", flip: false, ft: 0, it: 0, tms: 0, sSm: 0, hd: null, forceState: null };
+    const sil = this.add.image(0, 23, key).setOrigin(0.5, 1).setVisible(false);   // v164 A: the official's own silhouette
+    const sil2 = this.add.image(0, 23, key).setOrigin(0.5, 1).setVisible(false);
+    const root = this.add.container(0, 0, [sil2, sil, shadow, body]).setDepth(4);
+    return { root, body, shadow, sil, sil2, team: "ref", sx, sy, dirKey: "dn", flip: false, ft: 0, it: 0, tms: 0, sSm: 0, hd: null, forceState: null };
   }
   // Resolve a ref pose to a texture, degrading through the keys the zebra
   // fallback registers so a sheet that never decodes still animates.
@@ -8246,9 +8569,11 @@ class Ot extends mt.Scene {
     m.root.setPosition(p.x, p.y + hop * p.s); m.root.setScale(p.s * emph);
     // v99: the crew casts too — the flag heave lifts an official off the grass, and his
     // shadow stays where he left it
-    if (m.shadow) this.castShadowV99(m.shadow, p.x, p.y, TU("shadowRefH", 19), { lift: Math.max(0, -hop), base: 20, y0: 23, a: 0.3 });
+    if (m.shadow && this.silOnV164()) this.castSilV164(m, p.x, p.y, Math.max(0, -hop), spdPx, false, { y0: 23, blobW: 0.8, blobH: 0.8 });   // v164 A
+    else if (m.shadow) this.castShadowV99(m.shadow, p.x, p.y, TU("shadowRefH", 19), { lift: Math.max(0, -hop), base: 20, y0: 23, a: 0.3 });
     m.root.setDepth(4 + sy * 0.02 + 0.006 + (m.emphMs ? 18 : 0));
     m._spdPx = spdPx;
+    this.silBindV164(m);   // v164 A
     return p;
   }
   spawnRefs(losX, dir) {
@@ -8786,11 +9111,15 @@ class Ot extends mt.Scene {
       wash.addColorStop(0, "rgba(255,238,196," + (TU("fieldWashA", 0.15) * LM).toFixed(3) + ")"); wash.addColorStop(1, "rgba(255,238,196,0)");
       ctx.fillStyle = wash; ctx.fillRect(0, NSTOP, CW, H);
       // the pools: one under each mast, pulled in toward the field it aims at
-      const R = TU("fieldPoolR", 430), py = NSTOP + TU("fieldPoolDown", 150), pa = TU("fieldPoolA", 0.12) * LM;
-      for (const f of [0.02, 0.2, 0.8, 0.98]) {
-        const px = x0 + FW / 2 + (f - 0.5) * FW * 0.88;
+      const R0 = TU("fieldPoolR", 430), py0 = NSTOP + TU("fieldPoolDown", 150), pa = TU("fieldPoolA", 0.12) * LM;
+      // v164 A: a pool lies where its mast's beam lands on the FIELD — the same projected points the rigs use
+      const M164 = this.mastsV164();
+      const pools = M164 ? M164.map((sp) => ({ px: x0 + sp.pool.x, py: sp.pool.y, R: R0 * sp.pool.k, a: sp.far ? 1 : TU("nearPoolAV164", 0.6) }))
+        : [0.02, 0.2, 0.8, 0.98].map((f) => ({ px: x0 + FW / 2 + (f - 0.5) * FW * 0.88, py: py0, R: R0, a: 1 }));
+      for (const pl of pools) {
+        const px = pl.px, py = pl.py, R = pl.R;
         const g = ctx.createRadialGradient(px, py, 0, px, py, R);
-        g.addColorStop(0, "rgba(255,244,214," + pa.toFixed(3) + ")"); g.addColorStop(0.55, "rgba(255,244,214," + (pa * 0.35).toFixed(3) + ")"); g.addColorStop(1, "rgba(255,244,214,0)");
+        g.addColorStop(0, "rgba(255,244,214," + (pa * pl.a).toFixed(3) + ")"); g.addColorStop(0.55, "rgba(255,244,214," + (pa * pl.a * 0.35).toFixed(3) + ")"); g.addColorStop(1, "rgba(255,244,214,0)");
         ctx.fillStyle = g; ctx.fillRect(px - R, Math.max(NSTOP, py - R), 2 * R, 2 * R);
       }
       // the falloff: the light thins out past the touchlines and down toward the near corners
@@ -8953,6 +9282,22 @@ const BADGE_PROMO_V95 = {
   "intercepted>turnover": "INTERCEPTION", "fumble>turnover": "DEFENSE RECOVERS", "sack>turnover": "STRIP SACK", "bigplay>breakaway": "",
   "touchdown>gamechanger": "", "turnover>gamechanger": "", "fieldgoal>gamechanger": "",
 };
+/* v164 F: the slow dial's floor (the renderer's clock never runs slower than this fraction of 1x) and the colour a
+ * jumbotron message wears per kind */
+function slowFloorV164F() { return TU("v164Fslow", 1) ? Math.max(0.1, Math.min(0.5, TU("slowMinV164F", 0.25))) : 0.5; }
+const JUMBO_COL_V164F = { touchdown: "#ffd76a", gamechanger: "#8fd3ff", turnover: "#ff6b52", fieldgoal: "#8fe7a5", intercepted: "#59b6ff", fumble: "#ffb08a", flag: "#ffe27a", bigplay: "#ffd76a", sack: "#ff9fa5", bighit: "#ff9fa5", breakaway: "#8fe7a5", result: "#eef2f7", toast: "#f0bb45" };
+/* v164 G: which drawn body a big play gets, by the play and his position (v161 A: flex / backflip / spike) */
+const DANCE_V164G = {
+  sack: { default: "flex", LB: "backflip", CB: "backflip", S: "backflip" },
+  tfl: { default: "flex", CB: "backflip", S: "backflip" },
+  pick: { default: "backflip", LB: "flex", DL: "flex" },
+  pancake: { default: "flex" },
+  run: { default: "spike", QB: "flex", WR: "backflip" },
+  catch: { default: "backflip", TE: "flex", RB: "spike" },
+  throw: { default: "flex" },
+  truck: { default: "flex" }
+};
+const JUMBO_LABEL_V164F = { touchdown: "TOUCHDOWN!", gamechanger: "GAME CHANGER!", turnover: "TURNOVER!", fieldgoal: "FIELD GOAL!", intercepted: "INTERCEPTED!", fumble: "FUMBLE!", flag: "FLAG", bigplay: "BIG PLAY!", sack: "SACK!", bighit: "BIG HIT!", breakaway: "BREAKAWAY!", firstdown: "FIRST DOWN", safety: "SAFETY!", stop: "STOP!", pancake: "PANCAKE!" };
 const BADGE_V95 = (() => {
   const lanes = { stage: { cur: null, q: [], timer: null }, hud: { cur: null, q: [], timer: null } };
   const log = [], seen = {}; let host = null, preloaded = false, dimEl = null;
@@ -8998,6 +9343,13 @@ const BADGE_V95 = (() => {
     const item = { kind, cfg, prio: cfg.prio, tier: cfg.tier, sub: opts.sub || "", hold: opts.hold || cfg.hold, at: now,
       x: opts.x, y: opts.y, scene: opts.scene || window.__gridironScene || null };
     log.push({ kind, sub: item.sub, at: now, tier: cfg.tier }); if (log.length > 80) log.shift();
+    /* v164 F: the badge is said on the JUMBOTRON, not drawn over the play — its gameplay feel (the freeze, the punch,
+     * the beat of slow motion) is kept for a takeover, the picture stays clear */
+    try { const sc = item.scene; if (sc && sc.jumboOnV164F && sc.jumboOnV164F()) {
+      if (!RM() && item.tier === 1) gameplayFx(item);
+      shake(item);
+      sc.jumboSayV164F(JUMBO_LABEL_V164F[kind] || (String(kind).toUpperCase() + "!"), { kind, sub: item.sub, ms: Math.max(900, item.hold) });
+      log[log.length - 1].jumbo = true; return true; } } catch (e) {}
     const L = lanes[cfg.tier === 3 ? "hud" : "stage"];
     if (L.cur) {
       const promo = BADGE_PROMO_V95[L.cur.kind + ">" + kind];
@@ -9229,6 +9581,7 @@ const BADGE_V95 = (() => {
   return { show, preload, clear, log, lanes, meta: RIB_BADGES_V95, book: BADGE_BOOK_V95, promo: BADGE_PROMO_V95, get queue() { return lanes.stage.q; }, get current() { return lanes.stage.cur; }, get hudCurrent() { return lanes.hud.cur; } };
 })();
 window.__BADGE_V95 = BADGE_V95;
+window.__jumboSayV164F = (text, o) => { try { const sc = window.__gridironScene; return !!(sc && sc.jumboSayV164F && sc.jumboSayV164F(text, o)); } catch (e) { return false; } };
 /* ===== v153 A THE STAT GAIN LANDS (the broadcast end) =====
  * Where HIS marker is on the page right now, in client pixels — the point a stat callout rises from
  * (07's `statGainShowV153A`). The featured you-marker, projected through PJ and the scene camera's

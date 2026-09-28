@@ -1614,28 +1614,66 @@ window.__visionRadiusV96 = visionRadiusV96;
   const clampY = y=>Math.max(SIDELINE_TOP,Math.min(SIDELINE_BOT,y));
   const cl = (v,a,b)=>Math.min(b,Math.max(a,v));
 
+  /* ===== v164 I THE START IS EARNED =====
+   * The v38 ramp took a man from a standing start to 90% of top speed in 154 ms (rating 90) to 256 ms
+   * (rating 25) of sim time — 0.4 to 0.6 real seconds, since the sim clock runs ~2.5x real
+   * (`simClockReal`). Everyone hit top speed in a stride, so acceleration as a RATING barely mattered
+   * over a play. Real football: ~90% of top speed comes around 1.2-1.8 real seconds / 10-15 yards,
+   * and the 0-10 yard split separates elite from average by 0.2-0.3 s.
+   *
+   * With `accelV164` on, the standing start is a real ramp: a lower base rate (`accelBaseV164I`), a
+   * wider rating spread (`accelRatingKV164I`), a taper that eases the last stretch to top speed
+   * (`accelTaperKV164I` — a sprint gains its first half fast and its last tenth slowly), a longer
+   * launch window in which burst counts (`accelLaunchMsV164I`, `burstAccelKV164I`) and a smaller
+   * rolling-start multiplier (`rollingAccelScaleV164I`, so a man who slowed for a cut still rebuilds
+   * faster than he launched, but no longer in a blink). Braking and turns are untouched. Every
+   * standing start in the sim goes through here — the snap, the handoff, the pursuit — so the
+   * offense and the defense are slowed together; `movementcheck` holds the sandbox's balance.
+   * `TU("accelV164", 0)` is the exact v38 path. Measured by `accelerationTest` / `accelcheck`. */
   // v38: one acceleration model for every FieldSim movement command. Callers
   // request a target gear; ratings determine how quickly the player launches,
   // brakes, survives a cut, and rebuilds speed afterward.
   function evolveSpeed(a,targetFrac,dt,now,turn=0,brakeScale=1) {
-    const accel=cl(a.accel||a.quick||a.spdA||55,1,99), agility=cl(a.agi||55,1,99), burst=cl(a.burst||accel,1,99);
+    const hiV164I=TU("accelV164",1)&&TU("hiTailV164I",1)?TU("hiCapV164I",130):99;   // v164 I: his tail past 99 reaches the ramp
+    const accel=cl(a.accel||a.quick||a.spdA||55,1,hiV164I), agility=cl(a.agi||55,1,hiV164I), burst=cl(a.burst||accel,1,hiV164I);
     let frac=Math.max(0,a.vel||0);
     const hardTurn=turn>TU("accelRestartTurn",.34), wantsMove=targetFrac>.12;
     if(!wantsMove&&frac<TU("accelResetFrac",.08))a._launchReady=true;
     const turnEdge=hardTurn&&!a._hardTurning;
-    if(a._launchAt==null||(wantsMove&&a._launchReady)||turnEdge){a._launchAt=now;a._launchReady=false;}
+    const earnedV164I=TU("accelV164",1);
+    if(a._launchAt==null||(wantsMove&&a._launchReady)||turnEdge){
+      // v164 I: a launch from a stop (the first call, a restart after `_launchReady`, or a hard turn
+      // taken at a standstill) is a STANDING start; a hard turn at speed keeps the man rolling.
+      if(earnedV164I)a._standingV164I=(a._launchAt==null||(wantsMove&&a._launchReady)||frac<TU("accelResetFrac",.08))?now:null;
+      a._launchAt=now;a._launchReady=false;
+    }
     a._hardTurning=hardTurn;
     if(turn>.04){
       const loss=Math.max(.08,TU("turnLossBase",.30)-(agility-50)*TU("turnLossAgilityK",.0024));
       frac*=Math.max(TU("turnRetentionFloor",.54),1-turn*loss);
     }
     const launchAge=Math.max(0,now-(a._launchAt==null?now:a._launchAt));
-    const launch=launchAge<TU("accelLaunchMs",260)
-      ? cl(1+(burst-50)*TU("burstAccelK",.0042),.80,1.22):1;
-    const accelRate=Math.max(.75,TU("accelBasePerSec",3.0)+(accel-50)*TU("accelRatingK",.040))*launch;
+    let accelRate,rollingScale;
+    const standingAge=earnedV164I&&a._standingV164I!=null?now-a._standingV164I:Infinity;
+    if(earnedV164I&&standingAge<TU("accelLaunchMsV164I",500)&&frac<TU("accelEarnedFracV164I",.9)){
+      // v164 I: the earned start — see the banner above. For the first `accelLaunchMsV164I` after a
+      // standing start (or until he has 90% of his top speed) the man climbs the taper's ramp with
+      // no rolling multiplier; after that he is rolling and the v38 model below takes over, so a
+      // cut, a catch or a stagger at speed rebuilds exactly as it did.
+      const launch=cl(1+(burst-50)*TU("burstAccelKV164I",.005),.75,1.25);
+      const taper=Math.max(TU("accelTaperFloorV164I",.25),1-frac*TU("accelTaperKV164I",.8));
+      accelRate=Math.max(TU("accelFloorV164I",.45),TU("accelBaseV164I",2.1)+(accel-50)*TU("accelRatingKV164I",.020))*launch*taper;
+      rollingScale=1;
+    } else {
+      if(earnedV164I)a._standingV164I=null;
+      const launch=launchAge<TU("accelLaunchMs",260)
+        ? cl(1+(burst-50)*TU("burstAccelK",.0042),.80,1.22):1;
+      accelRate=Math.max(.75,TU("accelBasePerSec",3.0)+(accel-50)*TU("accelRatingK",.040))*launch;
+      rollingScale=TU("rollingAccelScale",3.0);
+    }
     const brakeRate=Math.max(1.1,TU("brakeBasePerSec",3.0)+(agility-50)*TU("brakeAgilityK",.020)+(accel-50)*TU("brakeAccelK",.006))*brakeScale;
     const target=cl(targetFrac,0,TU("fieldSpeedCap",1.35));
-    const rolling=target>frac&&frac>.18&&launchAge>=TU("rollingReadyMs",132)?TU("rollingAccelScale",3.0):1;
+    const rolling=target>frac&&frac>.18&&launchAge>=TU("rollingReadyMs",132)?rollingScale:1;
     const rate=target>=frac?accelRate*rolling:brakeRate;
     frac+=Math.sign(target-frac)*Math.min(Math.abs(target-frac),rate*dt/1000);
     a.vel=Math.max(0,frac);
@@ -1648,15 +1686,49 @@ window.__visionRadiusV96 = visionRadiusV96;
     const F = root.__V141F = root.__V141F || { hits: 0, keepSum: 0, youHits: 0, youKeep: 0 }; F.hits++; F.keepSum += k;
     if (c && c.player && c.player.you) { F.youHits++; F.youKeep += k; } return k; };
   const RX_POS_V56={CB:1.14,S:1.08,LB:1.00,DE:.94,DT:.86,WR:1.10,RB:1.06,TE:.98,QB:1.00,OL:.84};
-  function makeAgents(kOff, tDef, att, picks) {
+  /* ===== v164 P THE OFFENSE HAS FORMATIONS =====
+   * The owner: "all start is shotgun — what about I formation, etc?" Every snap lined the offense up the one way:
+   * the quarterback at −38 (shotgun), the back at −54 off his hip, the slot at −10. `FORM_V164P` names five looks and
+   * where the QB (slot 8), the back (9), the tight end (2, the fullback of the I) and the slot (10) stand in each; the
+   * career app picks one per call (`formationV164P` in 07: the play's family, the down and distance, the field position)
+   * and hands it down as `opts.formation`; `applyFormationV164P` moves the men after the slots are filled (v117), so
+   * who plays is untouched. UNDER CENTER the play changes shape the way it should: the drop is a real backpedal (the
+   * pass drop's target is unchanged, so from −8 it is a five-step drop instead of a step up), and on a run the
+   * quarterback REVERSES to the mesh before the handoff (`ucMeshDxV164P`, `ucQbPaceV164P`) while the back takes his
+   * first step to it (`ucRbStepV164P`) — a draw keeps its own choreography. A `formation` event opens every log so the
+   * broadcast and the checks can see it. Spends no extra Math.random(). Kill switch TU "v164Pform" 0 (shotgun only).
+   * `root.__V164P` (the counts); `formcheck`. */
+  const FORM_V164P = {
+    shotgun:    { under: false },                                                          // the v81 look: QB −38, RB −54 off the hip, slot −10
+    singleback: { under: true,  8: { lx: -8 }, 9: { lx: -58, y: MIDY + 8 } },              // QB under center, one back behind him
+    iform:      { under: true,  8: { lx: -8 }, 9: { lx: -60, y: MIDY }, 2: { lx: -34, y: MIDY } },   // the tight end is the fullback of the I
+    pistol:     { under: false, 8: { lx: -26 }, 9: { lx: -50, y: MIDY } },                 // a short gun, the back behind the QB
+    strong:     { under: true,  8: { lx: -8 }, 9: { lx: -58, y: MIDY + 18 }, 2: { lx: -34, y: MIDY + 30 } }   // the I offset to the tight end's side
+  };
+  function applyFormationV164P(off, name) {
+    const F = TU("v164Pform", 1) && name && FORM_V164P[name] ? FORM_V164P[name] : null;
+    const V = root.__V164P = root.__V164P || { counts: {}, last: null };
+    const key = F ? name : "shotgun"; V.counts[key] = (V.counts[key] || 0) + 1; V.last = key;
+    if (!F) return { name: "shotgun", under: false };
+    for (const i of [2, 8, 9, 10]) { const o = F[i], a = off[i]; if (!o || !a) continue; if (o.lx != null) a.lx = o.lx; if (o.y != null) a.y = clampY(o.y); a._formV164P = key; }
+    return { name: key, under: !!F.under, qb0: off[8] ? { lx: off[8].lx, y: off[8].y } : null, rb0: off[9] ? { lx: off[9].lx, y: off[9].y } : null };
+  }
+  function makeAgents(kOff, tDef, att, picks, formation) {
     const byPos = (arr,pos)=>arr.filter(p=>p&&p.pos===pos);
     const avg = (arr,name)=>{ const v=arr.map(p=>att(p,name)).filter(Number.isFinite);
       return v.length? v.reduce((a,b)=>a+b,0)/v.length : 45; };
     const A = (p, side, i, lb) => {
       // per-agent variability: talent jitter (who they are) + daily form (how they show up)
       const jit = () => (Math.random()*10 - 5) + (Math.random()*6 - 3);
-      const g = n => Math.max(20, Math.min(99, (p ? att(p,n) : avg(side==="off"?kOff:tDef, n)) + jit()));
-      const speed=g("speed"), accel=g("acceleration")||g("burst")||speed;
+      /* v164 I PAST THE WALL: HIS movement ratings (speed, acceleration, burst, agility) keep paying past 99 on a
+       * diminishing tail — `hiTailMaxV164I` at most, half of it `hiTailHalfV164I` sim points past 99 — so a sheet of
+       * 400 moves better than one of 250 (both used to clamp to the same 99). Every other rating, and every AI man,
+       * clamps at 99 as before. The same one jitter draw per call: no extra Math.random. Kill switch hiTailV164I 0. */
+      const g = (n, tail) => { const v = Math.max(20, (p ? att(p,n) : avg(side==="off"?kOff:tDef, n)) + jit());
+        if (v <= 99) return v;
+        if (!(tail && p && p.you && TU("accelV164", 1) && TU("hiTailV164I", 1))) return 99;
+        const x = v - 99, M = TU("hiTailMaxV164I", 30), T = TU("hiTailHalfV164I", 120); return 99 + M * x / (x + T); };
+      const speed=g("speed",1), accel=g("acceleration",1)||g("burst",1)||speed;
        /* ===== v56 REACTION RATING =====
         * `a.quick` drives first-step latency, DL shed contests and play recognition.
         * The roster does carry a quickness value, but it is the TEAM AVERAGE plus
@@ -1677,8 +1749,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       return { id:(side==="off"?"off":"def")+i, side, lb, ht,
         lx: side==="off"?OFF_LX(lb,i):DEF_LX(lb), y: side==="off"?OFF_Y[i]:DEF_Y[i],
         spd: 92 + speed*0.85, spdA: speed, str:g("strength"), blk:g("blocking"),
-        tkl:g("tackling"), cov:g("coverage"), agi:g("agility"),
-        burst:g("burst")||accel, accel, quick, aware:g("awareness"), cat:g("catching"),
+        tkl:g("tackling"), cov:g("coverage"), agi:g("agility",1),
+        burst:g("burst",1)||accel, accel, quick, aware:g("awareness"), cat:g("catching"),
         jump:g("jumping"), thr:g("throwing")||g("awareness"), vis:g("vision")||g("awareness"),
         stam:g("stamina"), grit:g("grit")||50, disc:g("discipline")||50, bc:g("ballControl")||50,
         dur:g("injuryResist")||50,                              // v141 durability: how much of his speed a carrier keeps through a hit
@@ -1760,13 +1832,15 @@ window.__visionRadiusV96 = visionRadiusV96;
       const pick=spare[Math.floor(Math.random()*spare.length)]; drop(side,pick); return pick; };
     const off = OFF_L.map((lb,i)=>A(take("off",lb, i, picks.off&&picks.off[i]), "off", i, lb));
     const def = DEF_L.map((lb,i)=>A(take("def",lb, i, picks.def&&picks.def[i]), "def", i, lb));
-    return { off, def, all: off.concat(def) };
+    const formV164P = applyFormationV164P(off, formation);   // v164 P: the look, after the men are chosen
+    return { off, def, all: off.concat(def), formV164P };
   }
 
   function sim(kind, kOff, tDef, att, picks, opts) {
-    const S = makeAgents(kOff, tDef, att, picks);
+    const S = makeAgents(kOff, tDef, att, picks, opts && opts.formation);
     const A_all = Object.fromEntries(S.all.map(a=>[a.id,a]));   // id → agent lookup
     const events = [], ballFrames = [];
+    if (S.formV164P) events.push({ t: 0, type: "formation", name: S.formV164P.name, under: !!S.formV164P.under });   // v164 P
     // ---- v16.3 short sprint: a ~0.5s burst worth up to +20% speed, its length
     // extended by intelligence (awareness) + acceleration + stamina, then a
     // recovery before it can fire again. Only the ballcarrier and his nearest
@@ -3276,6 +3350,13 @@ window.__visionRadiusV96 = visionRadiusV96;
         }
       }
       else if (phase === "handoff") {
+        /* v164 P: from under center the quarterback reverses to the mesh and the back steps to it — the ball changes
+         * hands at the same tick it always did, between two men who are now within an arm of each other */
+        const ucV164P = TU("ucMeshV164P", 1) && !isDraw && t < HANDOFF_T && S.formV164P && S.formV164P.under && S.formV164P.rb0;
+        if (ucV164P) { const qb = S.off[8], rb = S.off[9], R0 = S.formV164P.rb0;
+          mv(qb, R0.lx + TU("ucMeshDxV164P", 10), R0.y + (qb.y - R0.y) * 0.5, TU("ucQbPaceV164P", 1.2));
+          if (TU("ucRbPaceV164P", 0) > 0) mv(rb, R0.lx + TU("ucRbStepV164P", 8), R0.y, TU("ucRbPaceV164P", 0));   // the back waits for him (a running start at the mesh outran the defense: +8 points a game) }
+        }
         if (isDraw && t < HANDOFF_T) {
           // v81 DRAW: the QB drops and the line pass-sets — to a man reading his
           // keys this IS a pass until the late mesh. Edge rushers bend upfield,
@@ -3290,6 +3371,7 @@ window.__visionRadiusV96 = visionRadiusV96;
           if (!S.off[8]._drawAnn) { S.off[8]._drawAnn = 1; emit("playfake",{x:qb.lx,y:qb.y,draw:true}); }
         }
         else if (t >= HANDOFF_T) { carrier = S.off[9]; emit("handoff",{}); phase = "carry";
+          if (TU("accelV164", 1) && TU("meshRollV164I", 1)) { carrier._standingV164I = null; carrier.vel = Math.max(carrier.vel || 0, TU("meshVelV164I", .35)); }   // v164 I: the back takes the ball moving through the mesh — never from a standstill
           // v81: every block at the point of attack is rolled at the mesh
           blockers.forEach(o=>{ const r=o.engagedBy; if(!r||r.shed||(r.stunned&&t<r.stunned)) return;
             o._blk = rollBlockV81(o, r);
@@ -5092,20 +5174,28 @@ window.__visionRadiusV96 = visionRadiusV96;
     const a = { spd:140, spdA:60, agi, accel:60, burst:60, vel:1, _launchAt:0 };
     return evolveSpeed(a,1,TICK,500,1,1);
   }
-  // Unit hook: compare ratings without sim noise. Times are milliseconds and
-  // distance is pixels covered in the first 330ms from a standing start.
+  // Unit hook: compare ratings without sim noise. Times are sim milliseconds (x `simClockReal` for
+  // real seconds) and distance330 is pixels covered in the first 330ms from a standing start.
+  // v164 I adds the yards covered at 0.5 / 1.0 / 1.5 sim-seconds (`yd05`/`yd10`/`yd15`), the yards
+  // at which 90% of top speed arrived (`ydTo90`) and the 0-10 yard split (`split10Ms`); the top speed
+  // is held at 140 px/s for every rating so the ramp is compared on its own.
   function accelerationTest(accel,burst=accel,agi=accel) {
     const a={spd:140,spdA:60,accel,burst,agi,vel:0},dt=33;
-    let now=0,dist=0,t50=null,t80=null,t90=null;
-    for(let i=0;i<90;i++){
-      const prev=a.vel;now+=dt;evolveSpeed(a,1,dt,now,0,1);if(now<=330)dist+=a.spd*a.vel*dt/1000;
+    let now=0,dist=0,px=0,t50=null,t80=null,t90=null,ydTo90=null,split10=null,yd05=null,yd10=null,yd15=null;
+    for(let i=0;i<180;i++){
+      const prev=a.vel,pxPrev=px;now+=dt;evolveSpeed(a,1,dt,now,0,1);
+      const stride=a.spd*a.vel*dt/1000;px+=stride;if(now<=330)dist+=stride;
       const crossing=threshold=>+(now-dt+dt*cl((threshold-prev)/Math.max(.0001,a.vel-prev),0,1)).toFixed(1);
-      if(t50==null&&a.vel>=.5)t50=crossing(.5);if(t80==null&&a.vel>=.8)t80=crossing(.8);if(t90==null&&a.vel>=.9)t90=crossing(.9);
-      if(now>=330&&t90!=null)break;
+      if(t50==null&&a.vel>=.5)t50=crossing(.5);if(t80==null&&a.vel>=.8)t80=crossing(.8);
+      if(t90==null&&a.vel>=.9){t90=crossing(.9);ydTo90=+(px/YD).toFixed(2);}
+      if(split10==null&&px>=10*YD)split10=+(now-dt+dt*cl((10*YD-pxPrev)/Math.max(.0001,stride),0,1)).toFixed(1);
+      if(now===495)yd05=+(px/YD).toFixed(2);if(now===990)yd10=+(px/YD).toFixed(2);if(now===1485)yd15=+(px/YD).toFixed(2);
+      if(now>=1485&&t90!=null&&split10!=null)break;
     }
     const startBrake=a.vel;let brake50=null;
     for(let i=0;i<90&&brake50==null;i++){now+=dt;evolveSpeed(a,0,dt,now,0,1);if(a.vel<=startBrake*.5)brake50=(i+1)*dt;}
-    return {accel,burst,agility:agi,t50:t50||2970,t80:t80||2970,t90:t90||2970,distance330:+dist.toFixed(2),brake50:brake50||2970};
+    return {accel,burst,agility:agi,t50:t50||2970,t80:t80||2970,t90:t90||2970,distance330:+dist.toFixed(2),brake50:brake50||2970,
+      yd05,yd10,yd15,ydTo90,split10Ms:split10||5940};
   }
   const Q = [];
   function pushLog(sig, log) { Q.push({ sig, log }); if (Q.length > 120) Q.shift(); }

@@ -39,7 +39,7 @@ for (let i = 0; i < 24; i++) {
   S.push(await page.evaluate(() => { const V = window.__V92 || {}, W = window.__V99 || {}
     const men = []; for (let i = 0; i < 22; i++) { const m = W.man && W.man(i); if (m) men.push(m) }
     const sc = window.__gridironScene
-    return { key: W.key ? (k => ({ x: Math.round(k.x), y: Math.round(k.y), i: k.i, on: k.on }))(W.key()) : null,
+    return { key: W.key ? (k => ({ x: Math.round(k.x), y: Math.round(k.y), i: k.i, on: k.on }))(W.key()) : null, bake: (window.__V162A && window.__V162A.bakes) || 0,
       towers: V.towerBoxes ? V.towerBoxes().map(t => [t.x, t.frame, t.sway]) : [],
       glow: V.lights ? V.lights().map(l => l.glow.a) : [], men, posts: W.posts ? W.posts() : null,
       ball: W.ball ? W.ball() : null, ballSpr: sc && sc.ballSpr && sc.ballSpr.scene ? { x: Math.round(sc.ballSpr.x), y: Math.round(sc.ballSpr.y) } : null }
@@ -48,8 +48,14 @@ for (let i = 0; i < 24; i++) {
 const K = S[0].key
 console.log('key light:', JSON.stringify(K), ' towers:', JSON.stringify(S[0].towers))
 ok(K && K.on, 'the key light is a real mast on the stadium', JSON.stringify(K))
-ok(new Set(S.map(s => s.key && s.key.x + ',' + s.key.y)).size === 1, 'the key light never moves', [...new Set(S.map(s => s.key && s.key.x + ',' + s.key.y))].join(' | '))
-ok(S[0].towers[K.i] && !S[0].towers[K.i][2], 'the key light is one of the masts that does not sway', `mast ${K.i} sway=${S[0].towers[K.i] && S[0].towers[K.i][2]}`)
+/* v164 A: the masts stand on the FIELD and are re-projected on every bake (a new line of scrimmage moves the
+ * whole stadium on screen, the masts with it), so the key light holds still WITHIN a bake and may move only
+ * when the bake count does. Before v164 A it was planted in screen pixels and never moved at all. */
+const keysByBake = new Map(); S.forEach(s => { if (!s.key) return; const set = keysByBake.get(s.bake) || new Set(); set.add(s.key.x + ',' + s.key.y); keysByBake.set(s.bake, set) })
+ok([...keysByBake.values()].every(set => set.size === 1), 'the key light never moves within a bake of the field', [...keysByBake].map(([b, set]) => 'bake ' + b + ': ' + [...set].join(' | ')).join('; '))
+/* v164 A: on a defensive drive the key mast stands behind the camera (i = -1: a light, not a drawn fixture), and a
+ * mast nobody draws does not sway either */
+ok(K.i < 0 || (S[0].towers[K.i] && !S[0].towers[K.i][2]), 'the key light is one of the masts that does not sway', `mast ${K.i} sway=${K.i < 0 ? 'behind the camera' : S[0].towers[K.i] && S[0].towers[K.i][2]}`)
 
 // ---- the lamps hold instead of cycling
 // v102: a mast holds its frame except for a sputter — one bulb dipping for a tenth of a second,
@@ -73,7 +79,7 @@ const depth = (s) => s.men.length < 20 ? -1 : Math.max(...s.men.map(m => m.root.
 const frame = S.reduce((best, s) => depth(s) > depth(best) ? s : best, S[0])
 console.log('frame depth:', Math.round(depth(frame)), 'of', S.map(s => Math.round(depth(s))).join(','))
 const dirs = frame.men.map(m => {
-  const wantX = m.root.x - K.x, wantY = Math.max(30, m.root.y - K.y), d = Math.hypot(wantX, wantY)
+  const wantX = m.root.x - K.x, wantY = K.i < 0 ? Math.min(-30, m.root.y - K.y) : Math.max(30, m.root.y - K.y), d = Math.hypot(wantX, wantY)   // v164 A: a key behind the camera throws the shadow up the screen
   const gotX = Math.cos(m.rot), gotY = Math.sin(m.rot)
   return { dot: (wantX / d) * gotX + (wantY / d) * gotY, rot: m.rot, x: m.root.x, y: m.root.y, sx: m.sx, sy: m.sy, a: m.a }
 })
@@ -104,14 +110,14 @@ ok(geo.off === null, 'shadowsV99=0 switches the whole cast off', String(geo.off)
 // ---- the ball climbs away from its shadow (burst-sampled: an arc is over in a heartbeat)
 const burst = await page.evaluate(async () => { const out = [], sc = window.__gridironScene
   for (let i = 0; i < 260; i++) { const b = window.__V99.ball(), sp = sc.ballSpr && sc.ballSpr.scene ? { x: sc.ballSpr.x, y: sc.ballSpr.y } : null
-    if (b && b.vis && sp) out.push({ bx: Math.round(b.x - sp.x), by: Math.round(b.y - sp.y), d: Math.hypot(b.x - sp.x, b.y - sp.y) })
+    if (b && b.vis && sp) out.push({ bx: Math.round(b.x - sp.x), by: Math.round(b.y - sp.y), d: Math.hypot(b.x - sp.x, b.y - sp.y), up: window.__V99.key().i < 0 })   // v164 A: `up` = the key mast is behind the camera
     await new Promise(r => setTimeout(r, 80)) }
   return out })
-const flights = burst.concat(S.filter(s => s.ball && s.ballSpr && s.ball.vis).map(s => ({ d: Math.hypot(s.ball.x - s.ballSpr.x, s.ball.y - s.ballSpr.y), bx: s.ball.x - s.ballSpr.x, by: s.ball.y - s.ballSpr.y })))
+const flights = burst.concat(S.filter(s => s.ball && s.ballSpr && s.ball.vis).map(s => ({ d: Math.hypot(s.ball.x - s.ballSpr.x, s.ball.y - s.ballSpr.y), bx: s.ball.x - s.ballSpr.x, by: s.ball.y - s.ballSpr.y, up: s.key && s.key.i < 0 })))
 const maxFlight = flights.length ? flights.reduce((a, b) => a.d > b.d ? a : b) : null
 console.log('ball frames:', flights.length, 'max separation:', maxFlight && maxFlight.d.toFixed(1))
 ok(maxFlight && maxFlight.d > 6, 'the ball in the air is separated from its own shadow', maxFlight && `${maxFlight.d.toFixed(1)}px`)
-ok(maxFlight && maxFlight.by > 0, 'and the shadow runs out to the camera side, away from the light', maxFlight && `dx=${maxFlight.bx} dy=${maxFlight.by}`)
+ok(maxFlight && (maxFlight.up ? maxFlight.by < 0 : maxFlight.by > 0), 'and the shadow runs out away from the light — to the camera side, or up the field when the key mast is behind the camera (v164 A)', maxFlight && `dx=${maxFlight.bx} dy=${maxFlight.by} keyBehindCamera=${!!maxFlight.up}`)
 
 // ---- the goalposts lay a frame on the grass
 const posts = S.map(s => s.posts).filter(Boolean).pop()

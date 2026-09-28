@@ -10,6 +10,63 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v164 I — the start is earned.** (`src/04-engine.js`, `scripts/accelcheck.mjs`.) The acceleration check found every
+  player reached 90% of top speed in 0.4–0.6 real seconds, so the acceleration rating barely mattered. A standing
+  start now takes 1.1 s (rating 90) to 1.5 s (rating 25), and the 0-10 yard split runs 1.5–2.0 s; moving players,
+  braking and cuts are unchanged. The back takes the handoff moving; under center he waits at the mesh for the
+  quarterback. Game balance held: `movementcheck` inside its band, `equaltalentcheck` 59.3 points a game (base 57).
+  Past the wall: every stat past ~235 on the sheet used to clamp to the same 99 on the field, so 250 and 600 moved
+  alike. HIS speed, acceleration, burst and agility now keep paying on a diminishing tail (sheet 250 → 102.6, 400 →
+  112.7, 600 → 117.9; 0-10 split 1.45 → 1.42 → 1.41 s). Kill switches `accelV164`, `hiTailV164I`.
+- **v164 F–H, P — the jumbotron says it; the slow dial; the big play has a dance; the moves read; the offense has
+  formations.** (`src/05-field-renderer.js`, `src/04-engine.js`, `src/07-career-app.js`, `src/styles/02-live-sim.css`,
+  `scripts/v164Fcheck.mjs`, `scripts/formcheck.mjs`.)
+  *F — the jumbotron says it* (`v164 F THE JUMBOTRON SAYS IT`): the live game's callouts — the TOUCHDOWN / SACK /
+  INTERCEPTED badges, the play's result, every toast — are said on the stadium's big screen instead of drawn over the
+  play (the feed stands down for the line, the tag says 📣; out of frame, a slim top ribbon); Settings › LIVE GAME ›
+  "Messages on the jumbotron" turns it off. *The slow dial*: a 🐢 slider under the speed buttons runs any play from
+  0.25× to 1× — the renderer's clock floor and the stall watchdog follow. Kill switches `v164Fjumbo`, `v164Fslow`.
+  *G — the big play has a dance* (`v164 G THE BIG PLAY HAS A DANCE`): a sack or a tackle for loss, an interception, a
+  pancake, a 20-yard run, a 30-yard catch (and the throw) get a celebration by POSITION — his marker plays one of the
+  owner's drawn bodies (flex / backflip / spike), anyone else the drawn celebrate cycle — once a play, never on a man on
+  the ground. Kill switch `v164Gdance`.
+  *H — the moves read* (`v164 H THE MOVES READ`): the juke, stiff-arm and hurdle sequences get their time on screen; a
+  swim move is the arm over the top with a hop past the blocker, a shed the same rip with the blocker shoved back and
+  staggered; and every engaged pair GRINDS — both bodies rock into each other, leaning into the drive — so a block is
+  two men pushing. Kill switches `v164Hmoves`, `shoveV164H`.
+  *P — the offense has formations* (`v164 P THE OFFENSE HAS FORMATIONS`): five looks (shotgun, singleback, I with the
+  tight end as the fullback, pistol, strong) picked per call by the play's family, play action, down and distance and
+  the goal line; under center the quarterback reverses to the mesh on a run and takes a real drop on a pass. Kill
+  switch `v164Pform`.
+- **v164 B–E — the season sims to the title game; watching pays; Live Sim Only; the bar is 250 and it laps.**
+  (`src/07-career-app.js`, `src/20-leaderboards.js`, `scripts/v164Bcheck.mjs`, `scripts/v164Echeck.mjs`.)
+  *B — the season sims to the title game* (`v164 B THE SEASON SIMS TO THE TITLE GAME`): only the CHAMPIONSHIP must be
+  watched. The earlier playoff rounds take Quick Play, the ⏭ ("Sim to the Championship"), the live SKIP and both season
+  sims, round by round as the bracket books them; a lost round still ends the run. Kill switch `v164Bsim`.
+  *C — watching pays* (`v164 C WATCHING PAYS`): the share of the season you watched live is one multiplier on the
+  season's Legacy XP, its upgrade points and half its growth — ×1.25 with every game watched, ×0.85 with none (the
+  championship counts double); a quick-played week costs a little standing with the club and a simmed season raises
+  the cut roll (×1.3 at none watched). The championship's XP and points are doubled. The season dock says the deal under
+  Quick Play; the report card wears a "📺 N% watched · XP ×k" badge. Kill switch `v164Cwatch`.
+  *D — Live Sim Only* (`v164 D LIVE SIM ONLY`): a box on the position screen starts a career where every game is
+  watched — no Quick Play, no season sims, no SKIP — and such a career is recorded on its own LIVE ONLY board
+  (the fourteenth category), its rows marked 📺. Kill switch `v164Dlive`.
+  *E — the bar is 250, and it laps* (`v164 E THE BAR IS 250, AND IT LAPS`): every attribute bar (the hub sheet, the
+  skill sheet, the pregame sheet, the training board) is drawn against 250 by default; a stat past 250 fills the bar
+  again — the finished lap stays on the track in its colour, the fill starts round in the next colour (green → gold →
+  red), with a ×N tag beside the number. Kill switch `v164Ebars`.
+- **v164 A — the lights stand where they stand; the shadow is the man.** (`src/05-field-renderer.js`, `scripts/v164Acheck.mjs`,
+  `scripts/v99check.mjs`.) The stadium's masts were planted at fixed fractions of the SCREEN, and the key light every
+  shadow is cast from was "the mast on the right of the screen" — so the lights jumped ends on every change of
+  possession, slid against the bowl as the line of scrimmage moved, and the shadows raked the other way each time the
+  camera turned round. Now eight masts stand at fixed FIELD positions behind each end line and are projected with the
+  bowl on every bake (the far four drawn at its corners, scaled with it; the near four behind the camera as a light
+  only); each beam and pool lands on its own patch of the field, baked and live alike; the key light is one PHYSICAL
+  mast, so on a defensive drive the shadows fall away from it, up the screen. And a player's shadow is no longer a
+  black ellipse: it is his own silhouette — the frame his body is showing, blacked out, flipped over his feet and laid
+  along the ground away from the light, foreshortened by its rake, with the second lamp's fainter one beside it and a
+  soft contact blob under the feet; a man on the ground throws none. Officials too. Kill switches `v164Alights`,
+  `v164Asil`.
 - **v163 A — the game never stops.** (`src/05-field-renderer.js`, `src/06-phaser-launcher.js`, `src/07-career-app.js`,
   `scripts/v163Acheck.mjs`.) Live games sometimes froze for good. The broadcast's frame loop asks for its next frame only
   after the current one finishes, so a single error in one frame — most often a sprite still holding a texture that

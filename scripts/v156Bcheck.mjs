@@ -16,7 +16,7 @@
 //   member-perk sheet, the rewarded ad gives 30 minutes of unlimited GAME sims ("∞ 30 min") and the Quick Play goes on,
 //   season sims stay counted, it expires on the module's clock; Pro +3 a career; the Club (member) has Quick Play for good
 //   and 50% more season sims (TU memberSimMultV158B 1.5 since v159 B; was 2); TU v158Bgames 0 restores v156 B.
-// No page errors.
+// Runs with TU v164Bsim 0 (v164 B sims the earlier playoff rounds; v164Bcheck covers that). No page errors.
 //   GAME_URL=http://localhost:5451/index.html node scripts/v156Bcheck.mjs
 import { gameUrl, launch } from './lib/env.mjs'
 const url = gameUrl('index.html')
@@ -29,7 +29,9 @@ const errors = []
 const newCtx = async () => {
   const context = await browser.newContext({ viewport: { width: 400, height: 860 } })
   await context.addInitScript(() => {
-    window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, {})
+    /* v164 B: the sim now runs through the playoffs to the championship, so this check pins the v156 B rule it was
+     * written for (every playoff game live) with v164 B's kill switch; the new rule is v164Bcheck's */
+    window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v164Bsim: 0 })
     try { localStorage.setItem('rib.coachTour.v119', 'off'); localStorage.setItem('rib.debriefOff.v122', 'off') } catch {}
     setInterval(() => { try { if (window.S) window.S.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove(); document.getElementById('personaV13')?.remove(); document.getElementById('growthV42')?.remove(); document.getElementById('gv139gate')?.remove() }, 60)
   })

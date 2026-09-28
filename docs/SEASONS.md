@@ -66,6 +66,7 @@ it); UFF careers only, ascending.
 | Craziest Career | chaos | — |
 | Fastest to the League | seasons to the UFF, ascending | reached the UFF |
 | Best Career Without Prestige | score | zero prestige nodes owned when it ended |
+| Live Sim Only Careers (v164 D) | score | started with LIVE SIM ONLY ticked — every game watched |
 
 A career is recorded **once, when it ends** (`enshrineHof` in both settles → `seasonsCareerEndV151C` → the queue →
 `RIB_SEASONS.flush()` → `__lb.career.record`). The career being played shows as a "NOW PLAYING · WOULD RANK #n" line

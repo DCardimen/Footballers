@@ -26,6 +26,8 @@ page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text().slice(0, 200)) })
 page.on('response', r => { if (r.status() >= 400) bad.push(r.status() + ' ' + r.url()) })
 page.on('requestfailed', r => bad.push('FAILED ' + r.url()))
+// v164 A replaced the ellipse shadows with silhouettes; this check measures the ellipse cast, still there behind v164Asil 0
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v164Asil: 0 }) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
 /* v150 B: a recorder for door two's life — when it mounted, whether it ever reached READY (field standing + the first play
  * built behind it), and when it closed. The prebuild can only be asserted when the door had the chance to see it: the

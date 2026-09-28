@@ -96,7 +96,8 @@ const SEED = [
   { name: 'Edge DL', pos: 'DL', level: 8, won: true, seasons: 14, peak: 95, titles: 4, rings: 2, nodes: 9, pre: 8 },
   { name: 'Fort OL', pos: 'OL', level: 5, won: false, seasons: 8, peak: 75, titles: 0, rings: 0, nodes: 0, pre: 8 },
   { name: 'Gap LB', pos: 'LB', level: 7, won: true, seasons: 11, peak: 86, titles: 1, rings: 0, nodes: 1, pre: 5 },
-  { name: 'Hawk CB', pos: 'CB', level: 3, won: false, seasons: 4, peak: 66, titles: 0, rings: 0, nodes: 0, pre: 4, old: true }
+  { name: 'Hawk CB', pos: 'CB', level: 3, won: false, seasons: 4, peak: 66, titles: 0, rings: 0, nodes: 0, pre: 4, old: true },
+  { name: 'Iron S', pos: 'S', level: 6, won: false, seasons: 8, peak: 78, titles: 1, rings: 0, nodes: 1, pre: 8, liveOnly: true }   // v164 D: a Live Sim Only career
 ]
 {
   const r = await E(({ SEED, T0 }) => {
@@ -106,7 +107,7 @@ const SEED = [
       for (let n = 1; n <= s.seasons; n++) log.push({ n, level: n <= s.pre ? Math.min(6, 1 + (n >> 1)) : 7, age: 12 + n, avg: 50 + n, awards: n % 4 === 0 ? ['🏅 All-Conference'] : [] })
       q.push({ hof: { name: s.name, pos: s.pos, peak: s.peak, titles: s.titles, rings: s.rings, reached: s.level, seasons: s.seasons, won: s.won, gen: 1 + (i % 3),
         box: { totals: { wins: s.seasons * 6, games: s.seasons * 10, playoffWins: s.titles * 2, awards: Math.floor(s.seasons / 4) }, awards: [], log } },
-        level: s.level, traits: i % 3, age: 12 + s.seasons, nodes: s.nodes, surname: 'Seed', careerNo: 10 + i, at: s.old ? T0 - 30 * 864e5 : T0 - i * 1000, team: { name: 'Seeds', colors: ['#224488'] } })
+        level: s.level, traits: i % 3, age: 12 + s.seasons, nodes: s.nodes, surname: 'Seed', careerNo: 10 + i, at: s.old ? T0 - 30 * 864e5 : T0 - i * 1000, team: { name: 'Seeds', colors: ['#224488'] }, liveOnly: !!s.liveOnly })
     })
     RIB_SEASONS.flush()
     const C = __lb.career, o = { seasonId: 's1', week: C.isoWeek(T0) }, out = {}
@@ -115,7 +116,7 @@ const SEED = [
   }, { SEED, T0 })
   const { out } = r
   const sorted = (a, asc) => a.every((e, i) => i === 0 || (asc ? a[i - 1].v <= e.v : a[i - 1].v >= e.v))
-  ok(r.cats.join() === 'alltime,season,weekly,qb,rb,wr,te,ol,def,titles,crazy,fastest,noprestige', 'thirteen categories', r.cats)
+  ok(r.cats.join() === 'alltime,season,weekly,qb,rb,wr,te,ol,def,titles,crazy,fastest,noprestige,liveonly', 'fourteen categories (v164 D added Live Only)', r.cats)
   for (const id of r.cats) ok(out[id].length > 0 && sorted(out[id], id === 'fastest'), `board "${id}" populates and sorts ${id === 'fastest' ? 'ascending' : 'descending'}`, out[id].map((e) => e.name + ':' + e.v).slice(0, 4))
   ok(out.alltime.length === SEED.length, 'all-time holds every career', out.alltime.length)
   ok(out.noprestige.every((e) => e.nodes === 0) && !out.noprestige.some((e) => e.name === 'Bolt RB'), '"without prestige" excludes a career with a node', out.noprestige.map((e) => e.name))
@@ -232,7 +233,7 @@ const SEED = [
   ok(tiles.some((t) => /^seasons\|S1 · \d+ DAYS LEFT · TIER \d+/.test(t)) && tiles.some((t) => /^boards\|/.test(t)), 'the main menu has the SEASON PASS tile (with the countdown) and the LEADERBOARDS tile', tiles.filter((t) => /seasons|boards/.test(t)))
   await page.click('#rib-main-menu-v2 .rib9-tile[data-rib-action="boards"]'); await page.waitForTimeout(900)
   const lb = await E(() => ({ view: __GRIDIRON_AUDIT__.getState().view, mode: __lbUI.getMode(), local: !!document.querySelector('#screen .lb151-local'), cats: document.querySelectorAll('#screen .lb151-cat').length, rows: document.querySelectorAll('#screen .lb151-row').length, xss: window.__xss151 || 0, img: document.querySelectorAll('#screen img[src="x"]').length, evilText: /onerror/.test(document.getElementById('screen').textContent) }))
-  ok(lb.view === 'leaderboard' && lb.mode === 'career' && lb.local && lb.cats === 13 && lb.rows > 0, 'the LEADERBOARDS tile opens the career boards: 13 category tabs, rows, labelled LOCAL', lb)
+  ok(lb.view === 'leaderboard' && lb.mode === 'career' && lb.local && lb.cats === 14 && lb.rows > 0, 'the LEADERBOARDS tile opens the career boards: 14 category tabs, rows, labelled LOCAL', lb)
   ok(lb.xss === 0 && lb.img === 0 && lb.evilText, 'a hostile career name renders as text, never markup', lb)
   let f = await fits(); ok(fitOk(f), 'the career boards fit 400x860 in the shell (no sideways scroll, dock in view)', f)
   await page.screenshot({ path: SHOTS + '/v151c-leaderboards.png' })
@@ -247,7 +248,7 @@ const SEED = [
   await E(() => __lbCareerUI.close())
   // Pro gating of the advanced filters (only when the store is on)
   const g = await E(() => { const M0 = window.RIB_MONETIZE; const off = __lb.career.advancedUnlocked()
-    window.RIB_MONETIZE = { enabled: true, has: () => false }; __lbCareerUI.redraw(); const locked = !__lb.career.advancedUnlocked() && document.querySelectorAll('#screen .lb151-adv select[disabled]').length > 0 && document.querySelectorAll('#screen .lb151-cat').length === 13
+    window.RIB_MONETIZE = { enabled: true, has: () => false }; __lbCareerUI.redraw(); const locked = !__lb.career.advancedUnlocked() && document.querySelectorAll('#screen .lb151-adv select[disabled]').length > 0 && document.querySelectorAll('#screen .lb151-cat').length === 14
     window.RIB_MONETIZE = { enabled: true, has: (k) => k === 'pro' }; const pro = __lb.career.advancedUnlocked(); window.RIB_MONETIZE = M0; __lbCareerUI.redraw(); return { off, locked, pro } })
   ok(g && g.off && g.locked && g.pro, 'advanced filters: free while the store is off; Pro-gated when it is on (the categories stay free)', g)
   // the Score Attack mode still works in the same view

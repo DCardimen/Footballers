@@ -393,6 +393,7 @@
       age: num(extra.age || b.age), avgSpread: avgs.length > 1 ? Math.max.apply(null, avgs) - Math.min.apply(null, avgs) : 0,
       lr: Math.max(0, Math.min(1e5, num(h.legacyRank))) /* v152 A: the Legacy Rank when he was enshrined */,
       uffAge: uffRow ? num(uffRow.age) : null, toUff: toUff, nodes: num(extra.nodes), surname: String(extra.surname || ""),
+      liveOnly: !!extra.liveOnly /* v164 D: a Live Sim Only career — every game watched */,
       team: extra.team ? { school: String(extra.team.school || ""), name: String(extra.team.name || ""), colors: cleanColors(extra.team.colors), logo: extra.team.logo != null && isFinite(+extra.team.logo) ? +extra.team.logo | 0 : null } : null
     };
     x.score = careerScore(x); x.crazy = crazyScore(x);
@@ -429,7 +430,7 @@
       try { fam = window.__LINEAGE_V136.family(); } catch (e) {}
       var h = { name: pl.name, pos: pl.pos, peak: pl.peakOvr || 0, titles: pl.titles || 0, rings: pl.nflRings || 0, reached: pl.level | 0, seasons: pl.totalSeasons | 0, won: false,
         box: window.__HOF_V134.snap(pl), gen: fam ? fam.gen : 1 };
-      var x = fromHof(h, { level: pl.level | 0, traits: (pl.traits || []).length, age: pl.age, nodes: nodes, surname: fam ? fam.surname : "", team: team, fate: "live" });
+      var x = fromHof(h, { level: pl.level | 0, traits: (pl.traits || []).length, age: pl.age, nodes: nodes, surname: fam ? fam.surname : "", team: team, fate: "live", liveOnly: !!pl.liveOnlyV164D });
       var S = window.RIB_SEASONS;
       x.id = "live"; x.live = true; x.at = Date.now(); x.seasonId = S && S.current ? S.current().id : "s0"; x.week = isoWeek(S && S.now ? S.now() : Date.now());
       x.profile = profileFor(x);
@@ -452,7 +453,9 @@
     { id: "titles", icon: "💍", name: "Titles", long: "Most Championships", val: function (e) { return num(e.titles) + num(e.rings); }, unit: "titles", tie: byScore },
     { id: "crazy", icon: "🌀", name: "Craziest", long: "Craziest Career", val: function (e) { return e.crazy; }, unit: "chaos" },
     { id: "fastest", icon: "⏱", name: "Fastest", long: "Fastest to the League", val: function (e) { return e.toUff; }, asc: true, unit: "seasons", filter: function (e) { return e.toUff != null && (e.level | 0) >= 7; }, tie: byScore },
-    { id: "noprestige", icon: "🌱", name: "No Prestige", long: "Best Career Without Prestige", val: byScore, unit: "pts", filter: function (e) { return num(e.nodes) === 0; } }
+    { id: "noprestige", icon: "🌱", name: "No Prestige", long: "Best Career Without Prestige", val: byScore, unit: "pts", filter: function (e) { return num(e.nodes) === 0; } },
+    /* v164 D: the Live Sim Only careers — every game of them watched; nothing else is listed here */
+    { id: "liveonly", icon: "📺", name: "Live Only", long: "Live Sim Only Careers", val: byScore, unit: "pts", filter: function (e) { return !!e.liveOnly; } }
   ];
   var CAT = {};
   CATS.forEach(function (c) { CAT[c.id] = c; });
@@ -560,8 +563,8 @@
   function lgMedal(e) { try { return e.lr > 0 && window.RIB_LEGACY ? window.RIB_LEGACY.medalHtml(e.lr, 20, { cls: "lb" }) + " " : ""; } catch (x) { return ""; } }
   function rowHtml(e, i, c) {
     var card = cardFor(e);
-    var hon = (e.titles ? "🏆" + e.titles + " " : "") + (e.rings ? "💍" + e.rings + " " : "") + (e.mvps ? "⭐" + e.mvps : "");
-    var body = card ? '<div class="lb151-card">' + card + "</div>"
+    var hon = (e.titles ? "🏆" + e.titles + " " : "") + (e.rings ? "💍" + e.rings + " " : "") + (e.mvps ? "⭐" + e.mvps + " " : "") + (e.liveOnly ? "📺" : "");   // v164 D: the Live Sim Only mark
+    var body = card ? '<div class="lb151-card">' + card + (e.liveOnly ? '<span class="lb151-liveonly" title="Live Sim Only — every game watched">📺 LIVE ONLY</span>' : "") + "</div>"
       : crest(e) + '<div class="lb151-who"><b>' + lgMedal(e) + esc(e.name) + "</b><small>" + esc(e.pos) + " · " + esc(e.levelName || "") + (e.team && e.team.name ? " · " + esc(e.team.name) : "") + "</small>" +
         '<small class="lb151-hon">' + esc(hon) + trophyIcons(e) + "</small></div>";
     return '<div class="lb-row lb151-row' + (e.live ? " live" : "") + '" role="button" tabindex="0" data-id="' + esc(e.id) + '" onclick="__lbCareerUI.open(\'' + esc(e.id) + "')\">" +
@@ -591,7 +594,7 @@
       if (at >= 0) liveRow = '<div class="lb151-now"><div class="lb151-kick">NOW PLAYING · WOULD RANK #' + (at + 1) + "</div>" + rowHtml(live, at, c) + "</div>";
     }
     var body = rows.length ? rows.map(function (e, i) { return rowHtml(e, i, c); }).join("")
-      : '<div class="lb-empty">No careers on this board yet.<br><span style="font-size:12px">' + (c.id === "fastest" ? "Reach the UFF to post a time." : c.id === "noprestige" ? "Finish a career before buying any prestige node." : "Finish a career — it is recorded the moment it ends.") + "</span></div>";
+      : '<div class="lb-empty">No careers on this board yet.<br><span style="font-size:12px">' + (c.id === "fastest" ? "Reach the UFF to post a time." : c.id === "noprestige" ? "Finish a career before buying any prestige node." : c.id === "liveonly" ? "Start a career with LIVE SIM ONLY ticked and finish it — every game watched." : "Finish a career — it is recorded the moment it ends.") + "</span></div>";
     screen.innerHTML =
       '<div class="lb151-head"><div><div class="eyebrow">Career boards · ' + esc(c.long) + '</div><div class="h1">🏆 Leaderboards</div></div><span class="lb151-local" title="There is no server yet: these are your own careers on this device">LOCAL</span></div>' +
       modeBar("career") +

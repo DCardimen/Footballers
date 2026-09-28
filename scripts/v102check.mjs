@@ -100,11 +100,14 @@ const L = await page.evaluate(() => { const V = window.__V92, sc = window.__grid
 // key light reads — but the row is v98's less `lightDropV112`, because the rig was asked to sit
 // lower. Assert the invariant (one row, the same for all four, derived from the dials) rather than
 // the literal 300 the row happened to be at. (Was: y === 300.)
+/* v164 A: the masts stand on the FIELD now — the far four on one row just behind the end line, projected with the
+ * bowl (so the row moves with the line of scrimmage, inside the band v98/v112 kept it in: never above the old fixed
+ * row and never below the bowl's foot). With TU v164Alights 0 the row is the old literal one. */
 { const wantRow = L.NSTOP - L.footUp + L.drop
-  ok(L.far.length === 4 && new Set(L.far.map(t => t.y)).size === 1 && L.far[0].y === wantRow,
-    'the far four stand on the one fixed row v98 plants them on, lowered by lightDropV112',
-    JSON.stringify(L.far.map(t => [t.x, t.y])) + ' want ' + wantRow) }
-ok(L.key && L.key.on && L.key.i === 2, 'the key light is still the fixed far mast', JSON.stringify(L.key))
+  ok(L.far.length === 4 && new Set(L.far.map(t => t.y)).size === 1 && (L.far[0].y === wantRow || (L.far[0].y >= L.NSTOP - L.footUp && L.far[0].y <= wantRow + 2)),
+    'the far four stand on one row just behind the end line (v164 A: the field\'s row, inside the band v98 / v112 planted them in)',
+    JSON.stringify(L.far.map(t => [t.x, t.y])) + ' band ' + (L.NSTOP - L.footUp) + '..' + (wantRow + 2)) }
+ok(L.key && L.key.on && (L.key.i === 2 || L.key.i === -1), 'the key light is still one fixed mast (v164 A: physical mast 2, behind the camera on a defensive drive)', JSON.stringify(L.key))
 /* v103: the lights are on the NORTH side of the ground and nowhere else. v102's mirrored bank
  * (four at the near corners, two behind the touchline stands) is off at its dial's default —
  * the touchline pair stood on the grass outright, and the near pair's art was drawn across the
