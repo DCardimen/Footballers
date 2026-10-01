@@ -955,7 +955,8 @@
     "readcheck",
     "routecheck",
     "v99check",
-    "occheck"
+    "occheck",
+    "gmcheck"
    ]
   },
   "endzones": {
@@ -3119,6 +3120,19 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "gmcheck": {
+   "file": "scripts/gmcheck.mjs",
+   "desc": "v166 I — fourth down by the numbers",
+   "areas": [
+    "playbook"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Seeded simGameV2 games at the UFF and Pee Wee."
   },
   "occheck": {
    "file": "scripts/occheck.mjs",

@@ -10,6 +10,12 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v166 I — fourth down by the numbers.** (`src/07-career-app.js`, `scripts/gmcheck.mjs`.) The call was a rule of
+  thumb with a coin flip in it. A staff with the sense for it (College up) now prices going, punting and kicking in
+  expected points — conversion odds from the distance and the line against the front, the punt's net, the make odds by
+  distance — with a coach's risk premium and the late-game situation: at the UFF it goes on 30% of fourth downs, 90% of
+  short ones in plus territory, never on long yardage in its own end, 79% trailing late against 44% leading. Younger
+  staffs keep the instinct. Kill switch `v166Igm`.
 - **v166 H — the offense has a coordinator.** (`src/07-career-app.js`, `scripts/occheck.mjs`.) v165 D gave the defense a
   memory; the offense called its concepts off fixed rolls. Now each offense remembers what it has faced this game and
   its coordinator answers it as hard as his level's sense: screens and quick game against the blitz, shots against man,

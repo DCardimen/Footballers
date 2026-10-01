@@ -18009,12 +18009,40 @@
         const desperate = quarter >= 4 && margin < 0 && clock <= 240,
           short = toGo <= 2,
           midfield = pos >= 45,
-          edge = (profiles[T0].line + profiles[T0].rbSkill - profiles[other(T0)].front * 2) / 100,
+          edge = (profiles[T0].line + profiles[T0].rbSkill - profiles[other(T0)].front * 2) / 100;
+        /* ===== v166 I FOURTH DOWN BY THE NUMBERS =====
+         * The call was a rule of thumb (desperate, or short at midfield on a coin flip, or way behind late). A staff with
+         * the sense for it (`dcIqV165D` past `gmIqV166I` — College up) now prices the three options in expected points
+         * (`epV166I`: a field position's worth, `epBaseV166I` + `epPerYdV166I` a yard): GO — the conversion odds from the
+         * distance and the line-against-front edge, a first down's worth against handing the ball over here; PUNT — the
+         * other side's ball at the net of a punt; KICK — the make odds by distance against a miss's spot, both less the
+         * kickoff's worth to the other side, and a staff's risk premium on going (`gmRiskV166I`). The clock and the score
+         * lean on it (`gmLateGoV166I` trailing late, `gmLateSafeV166I` ahead late). A younger staff keeps the old instinct. One fewer draw on the model's snaps (the old
+         * coin is not flipped). Kill switch `v166Igm` 0. `window.__V166I` (`decisions`, `go`); `gmcheck.mjs`. */
+        const gmOn = TU("v166Igm", 1) && dcOnV165D && dcIqV165D >= TU("gmIqV166I", 0.5);
+        let go;
+        if (gmOn) {
+          const ep = y => TU("epBaseV166I", -1.0) + clamp99(y, 0, 100) * TU("epPerYdV166I", 0.06),
+            pConv = clamp99(0.72 - 0.055 * (toGo - 1) + edge * 0.5, 0.08, 0.85),
+            epGo = pConv * (ep(pos + toGo) + 0.3) - (1 - pConv) * ep(100 - pos),
+            net = 38 * (0.6 + kf * 0.4),
+            epPunt = -ep(100 - Math.min(pos + net, 80)),
+            mk = kickDist <= 32 ? 0.97 : kickDist <= 39 ? 0.9 : kickDist <= 45 ? 0.82 : kickDist <= 49 ? 0.72 : kickDist <= 52 ? 0.6 : 0.45,
+            epFg = kickDist <= fgMax ? mk * (3 - ep(25)) - (1 - mk) * ep(100 - (pos - 7)) : -99,
+            lean = quarter >= 4 && clock <= 300 ? (margin < 0 ? TU("gmLateGoV166I", 1.5) * (margin < -3 ? 1.5 : 1) : margin > 0 ? -TU("gmLateSafeV166I", 1.5) : 0) : 0;
+          // a staff is risk-averse: a failed fourth down costs the coach more than the points say (`gmRiskV166I`)
+          go = epGo + lean - TU("gmRiskV166I", 0.6) > Math.max(epPunt, epFg) || (desperate && kickDist > fgMax);
+          if (!go) kicking = epFg >= epPunt ? "fg" : "punt";
+          const W = (window.__V166I = window.__V166I || { decisions: 0, go: 0, log: null });
+          W.decisions++; go && W.go++;
+          W.log && W.log.push({ pos, toGo, quarter, margin, go, kick: kicking, epGo: +epGo.toFixed(2), epPunt: +epPunt.toFixed(2), epFg: +epFg.toFixed(2) });
+        } else {
           go =
             (desperate && (kickDist > fgMax || (margin < -3 && toGo <= 6))) ||
             (short && midfield && Math.random() < clamp99(0.44 + pos * 0.003 + edge, 0.3, 0.82)) ||
             (quarter >= 4 && margin <= -9 && clock <= 480 && pos >= 40);
-        if (!go) kicking = kickDist <= fgMax + (desperate ? 5 : 0) ? "fg" : "punt";
+          if (!go) kicking = kickDist <= fgMax + (desperate ? 5 : 0) ? "fg" : "punt";
+        }
       }
       if (kicking === "fg") {
         // v82: the kick is an agent play — the rush decides the block, the leg decides the make
