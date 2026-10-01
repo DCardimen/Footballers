@@ -4859,7 +4859,7 @@
     acceleration: {
       short: "How quickly you go from standing still to full speed.",
       f: [
-        "Your burst out of the stance and off every cut — it runs for about a quarter-second, then top speed takes over.",
+        "Your burst out of the stance and off every cut. From a standing start the climb to top speed takes about 1.1 seconds at a 90 and 1.5 at a 25.",
         "Feeds the broken-tackle roll and your balance through contact, so a burst runner slips more arm tackles.",
         "Also how fast you rebuild speed after a hard turn, which is most of what separates two men with the same top end."
       ],
@@ -4905,10 +4905,12 @@
         "How fast a defender diagnoses a play. A high-awareness man reads run or pass early; a low one is still watching while the ball is gone.",
         "Resistance to play-action and fakes, and to a disguised coverage rotating late.",
         "For a passer: how well you lead a receiver, how tight your accuracy is, whether you see the blitz and slide the protection, and whether you take the sack instead of forcing it.",
-        "Finding the ball in the air as a receiver, which is the difference between a catch and a ball off the helmet."
+        "Finding the ball in the air as a receiver, which is the difference between a catch and a ball off the helmet.",
+        "For a quarterback: how many reads you get through, how often you come off a covered primary to the open man, and whether you see a blitz or a stacked box at the line and audible — to the hot read, or to play action.",
+        "Consistency: the sharper you are, the less your play swings from snap to snap."
       ],
       s: ["The Wonderlic number on your sheet.", "Heavy OVR weight at quarterback, safety and linebacker."],
-      n: "Your coverage ability is built from this and speed, half each — there is no separate coverage stat on your sheet."
+      n: "Your coverage ability is built from this and speed, half each — there is no separate coverage stat on your sheet. Awareness, vision and discipline have no ceiling on the field: past where your body tops out, a sharper mind keeps reading faster."
     },
     catching: {
       short: "Whether you hold onto the ball when it arrives.",
@@ -4968,13 +4970,14 @@
         "Your read radius — from 75 up, every point lets you see a yard further down the field.",
         "Finding the cutback when the called lane is shut, which is where long runs actually come from.",
         "How far ahead a back projects defenders as he picks his lane, so he runs to space instead of into a filling gap.",
-        "Helps a back spot and pick up a blitzer."
+        "Helps a back spot and pick up a blitzer.",
+        "Past the line, reading the open field: a carrier with vision steers for the lane with the most room instead of weaving into the pursuit."
       ],
       s: [
         "The read-radius number on your sheet, quoted in yards.",
         "Heavy OVR weight at running back, quarterback, linebacker and safety."
       ],
-      n: "Under 75 it reads as it always did; the gain starts above that line."
+      n: "Under 75 it reads as it always did; the gain starts above that line. The read radius stops at 25 yards, but the open-field read keeps sharpening past it."
     },
     jumping: {
       short: "How high you get off the ground to go up for a ball.",
@@ -18354,6 +18357,15 @@
       if (gtV76() < 1) passP = Math.min(passP, TU("gtPassCap", 0.32));
       margin <= -14 && quarter >= 3 && (passP += 0.12);
       usDrive && (passP += ((nodeLvl("callPass") || 0) - (nodeLvl("callRun") || 0)) * 0.07);
+      // v165 E: the staff goes with what is working — the other side's coordinator sees the same tape (v165 D)
+      if (dcOnV165D && TU("v165Eoc", 1)) {
+        const M = dcMemV165D[usDrive ? "them" : "us"];
+        if (M.n >= TU("ocWarmPlaysV165E", 6)) {
+          const ypc = M.runs ? M.runY / M.runs : 4,
+            ypa = M.passes ? M.passY / M.passes : 6;
+          passP += dcIqV165D * clamp99((ypa * 0.7 - ypc) * TU("ocLeanKV165E", 0.03), -0.1, 0.1);
+        }
+      }
       // v23: your adopted PREGAME game-plan bends your play-mix toward the pass rate
       // the coach agreed to run. Blended (not forced) so down/distance still matters.
       if (usDrive && window.__gameScriptBiasV23 != null) {
@@ -18381,7 +18393,7 @@
       }
       // v101: the chain above still names the FAMILY; the playbook names the actual call inside
       // it, and the call is what the sim and the commentary get.
-      const playV101 = pickPlayV101(isPassCall ? "pass" : "run", concept, {
+      let playV101 = pickPlayV101(isPassCall ? "pass" : "run", concept, {
         down,
         toGo,
         pos,
@@ -18390,7 +18402,7 @@
         hurry: !!hurry
       });
       if (playV101) concept = playV101.base;
-      const paV81 =
+      let paV81 =
         isPassCall &&
         (concept === "dropback" || concept === "shot") &&
         down <= 2 &&
@@ -18407,7 +18419,36 @@
         window.__V165D.calls++;
         dcSnapV165D.blitz && window.__V165D.blitzes++;
       }
+      /* ===== v165 E THE AUDIBLE =====
+       * The quarterback reads the look before the snap. A called blitz shows; a box that keyed the run shows. A QB
+       * whose awareness (the accessor's value — his own mind keys for the you-player, v165 A) clears
+       * `audPivotV165E` sees it with a chance that climbs over `audSpanV165E` to `audMaxV165E`, and checks:
+       *   - into a blitz on a dropback or a shot → the hot read: a quick call off the playbook (the quick game is
+       *     out before the pressure, v165 D's blitz pressure skips it);
+       *   - into a run key (`audRunKeyV165E`) on an early-down dropback → play action, which a keyed box bites on.
+       * One Math.random a snap, only when a coordinator called the snap and the QB can see anything. The row says
+       * "Audible". Kill switch `v165Eaud` 0. `window.__V165D.audibles`; `dccheck.mjs`. */
+      let audV165E = null;
+      if (dcSnapV165D && TU("v165Eaud", 1) && isPassCall && (concept === "dropback" || concept === "shot")) {
+        const seeP = clamp99((_(qb2, "awareness") - TU("audPivotV165E", 60)) / TU("audSpanV165E", 35), 0, TU("audMaxV165E", 0.85));
+        if (seeP > 0) {
+          const roll = Math.random();
+          if (dcSnapV165D.blitz && roll < seeP) {
+            const hot = pickPlayV101("pass", "quick", { down, toGo, pos, quarter, margin, hurry: !!hurry });
+            concept = "quick";
+            if (hot) ((playV101 = hot), (concept = hot.base));
+            paV81 = !1;
+            audV165E = "hot";
+          } else if (!paV81 && down <= 2 && dcSnapV165D.runKey >= TU("audRunKeyV165E", 0.3) && roll < seeP) {
+            paV81 = !0;
+            audV165E = "pa";
+          }
+          if (audV165E) window.__V165D.audibles = (window.__V165D.audibles || 0) + 1;
+          if (audV165E && window.__V165Dlog) window.__V165Dlog.push({ audible: audV165E, qbAware: _(qb2, "awareness"), us: usDrive });
+        }
+      }
       const cTag =
+        (audV165E ? (audV165E === "hot" ? "Audible — hot read off the blitz — " : "Audible — play action into the stacked box — ") : "") +
         (paV81 ? "Play action — " : "") +
         (playV101
           ? playV101.tag

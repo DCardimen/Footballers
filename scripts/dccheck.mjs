@@ -10,7 +10,9 @@
 //     5. a run-heavy offense gets keyed: the defense's run key in the second half sits well above zero at the UFF,
 //        and a Pee Wee coordinator keys it far less;
 //     6. a you-back who carries the offense gets keyed (keyYou > 0 late);
-//     7. the kill switch (v165Ddc 0) makes no calls.
+//     7. the kill switch (v165Ddc 0) makes no calls;
+//     8. v165 E: a sharp you-QB audibles at the line (the hot read off a blitz, play action into a run key) and a dull one
+//        barely does; v165Eaud 0 makes none.
 // Usage: node scripts/dccheck.mjs   (snaps per FieldSim cell via DC_N, default 220; games per career cell via GAMES, default 4)
 import { gameScripts } from './lib/layout.mjs'
 import { launch } from './lib/env.mjs'
@@ -93,6 +95,14 @@ const out = await page.evaluate(({ N, GAMES }) => {
     snaps: uff.log.length + kid.log.length,
     offCalls: games(7, 'RB', flat(320), 0.12, 0).calls
   }
+  // v165 E: the audible — a you-QB at the UFF with a 120 mind against a 600 mind, and the switch off
+  const qbMind = m => Object.assign(flat(300), { awareness: m, vision: m, discipline: m })
+  const aud = (log) => log.filter(e => e.audible && e.us)
+  const dullQ = games(7, 'QB', qbMind(120), null, 1), sharpQ = games(7, 'QB', qbMind(600), null, 1)
+  window.RIB_TUNE.v165Eaud = 0; const offQ = games(7, 'QB', qbMind(600), null, 1); delete window.RIB_TUNE.v165Eaud
+  res.game.audDull = aud(dullQ.log).length; res.game.audSharp = aud(sharpQ.log).length
+  res.game.audHot = aud(sharpQ.log).filter(e => e.audible === 'hot').length; res.game.audPa = aud(sharpQ.log).filter(e => e.audible === 'pa').length
+  res.game.audOff = aud(offQ.log).length
   return res
 }, { N, GAMES })
 await browser.close()
@@ -108,6 +118,8 @@ ok(`a run-heavy offense gets keyed at the UFF (second-half run key ${G.keyUff})`
 ok(`a Pee Wee coordinator keys it far less (${G.keyKid} vs ${G.keyUff})`, G.keyKid < G.keyUff * 0.5)
 ok(`a back who carries the offense gets keyed (keyYou ${G.youUff})`, G.youUff > 0.05)
 ok(`kill switch: no calls (${G.offCalls})`, G.offCalls === 0)
+ok(`a sharp you-QB audibles at the line and a dull one barely does (${G.audSharp} vs ${G.audDull} in ${GAMES} games; ${G.audHot} hot reads, ${G.audPa} play actions)`, G.audSharp >= 4 && G.audSharp >= 3 * Math.max(1, G.audDull) && G.audHot > 0)
+ok(`the audible's kill switch (v165Eaud 0): none (${G.audOff})`, G.audOff === 0)
 ok('no page errors', errs.length === 0)
 for (const c of checks) console.log((c.pass ? 'ok   ' : 'FAIL ') + c.name)
 const fails = checks.filter(c => !c.pass).length

@@ -10,6 +10,13 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v165 E — the audible.** (`src/07-career-app.js`, `scripts/dccheck.mjs`.) The quarterback reads the look before the
+  snap: a sharp one who sees a called blitz checks to the hot read (a quick call), and into a box keyed on the run he
+  checks to play action — your quarterback's awareness now changes the call itself (a 600-mind UFF QB audibled 5 times
+  in 4 games, a 120-mind one never). The staff's play mix leans toward what is working, as hard as its level's sense —
+  against v165 D's coordinator, who keys whatever it leans on. The stat cards for awareness, vision and acceleration say
+  what they do now (the audible and consistency; the open-field read; v164 I's 1.1–1.5 s standing start). Kill switches
+  `v165Eaud`, `v165Eoc`.
 - **v165 D — the defense has a coordinator.** (`src/07-career-app.js`, `src/04-engine.js`, `scripts/dccheck.mjs`.) The
   defense never called anything: a flat 18% blitz that only came on passes, no answer to a run game gashing it, and a
   200-yard back defended like a rookie. Each defense now remembers the game and calls every snap blind: it keys the run
