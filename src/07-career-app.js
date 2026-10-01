@@ -17037,6 +17037,25 @@
         us: { n: 0, runs: 0, runY: 0, passes: 0, passY: 0, youY: 0, totY: 0 },
         them: { n: 0, runs: 0, runY: 0, passes: 0, passY: 0, youY: 0, totY: 0 }
       },
+      /* ===== v166 J THE FILM ROOM =====
+       * The coordinator learned the you-player only from THIS game's snaps, so a star was defended like a stranger for a
+       * quarter every week. Now the defense facing him has watched his film: his reputation (`repV166J`) is the mean
+       * `perf` of his last four played weeks (`player.weekResults` — read at kickoff, never written, so a projection that
+       * samples games changes nothing) from `repFloorV166J` over `repSpanV166J`, and his key starts there
+       * (× `repKeyKV166J` × the coordinator's sense) instead of at zero — the bracket and the early read on his carries
+       * (v165 D) come from the first snap. Kill switch `v166Jfilm` 0. `window.__V166J` (`rep`); `repcheck.mjs`. */
+      repV166J = (() => {
+        try {
+          if (!TU("v166Jfilm", 1)) return 0;
+          const played = ((state.player && state.player.weekResults) || []).filter(w => w && w.played && !w.satOut && w.perf != null).slice(-4);
+          if (!played.length) return 0;
+          const m = played.reduce((t, w) => t + Number(w.perf || 0), 0) / played.length;
+          return clamp99((m - TU("repFloorV166J", 62)) / TU("repSpanV166J", 30), 0, 1);
+        } catch (_e) {
+          return 0;
+        }
+      })(),
+      __repExportV166J = (window.__V166J = { rep: repV166J }),
       dcPlanV165D = (defSide, down, toGo, qbAware) => {
         const M = dcMemV165D[defSide],
           iq = dcIqV165D,
@@ -17050,7 +17069,10 @@
         blitzP -= iq * (qbAware - 55) * TU("dcQbRespectKV165D", 0.004);
         return {
           runKey: clamp99(lean * iq * seen, -1, 1),
-          keyYou: clamp99((youShare - TU("dcYouShareV165D", 0.3)) * 2.5 * iq * seen, 0, 1),
+          keyYou: Math.max(
+            clamp99((youShare - TU("dcYouShareV165D", 0.3)) * 2.5 * iq * seen, 0, 1),
+            defSide === "them" ? repV166J * iq * TU("repKeyKV166J", 0.8) : 0
+          ) /* v166 J: he has watched the film */,
           blitzP: clamp99(blitzP * TU("dcBlitzMulV165D", 1), 0.04, 0.45),
           iq,
           blitz: false

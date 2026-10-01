@@ -956,7 +956,8 @@
     "routecheck",
     "v99check",
     "occheck",
-    "gmcheck"
+    "gmcheck",
+    "repcheck"
    ]
   },
   "endzones": {
@@ -3120,6 +3121,19 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "repcheck": {
+   "file": "scripts/repcheck.mjs",
+   "desc": "v166 J — the film room",
+   "areas": [
+    "playbook"
+   ],
+   "runtimeSec": 30,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Seeded simGameV2 games for a UFF back with a hot and a cold last four weeks."
   },
   "gmcheck": {
    "file": "scripts/gmcheck.mjs",

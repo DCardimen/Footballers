@@ -10,6 +10,11 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v166 J — the film room.** (`src/07-career-app.js`, `scripts/repcheck.mjs`.) The coordinator learned the you-player
+  only from this game's snaps, so a star was defended like a stranger for a quarter every week. Now the defense has
+  watched his film: his reputation is his last four weeks' performance, and a hot UFF back is keyed from the first snap
+  (0.72) where a cold one is not (0). It is read at kickoff and never written, so nothing that samples games can move
+  it. Kill switch `v166Jfilm`.
 - **v166 I — fourth down by the numbers.** (`src/07-career-app.js`, `scripts/gmcheck.mjs`.) The call was a rule of
   thumb with a coin flip in it. A staff with the sense for it (College up) now prices going, punting and kicking in
   expected points — conversion odds from the distance and the line against the front, the punt's net, the make odds by
