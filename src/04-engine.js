@@ -3572,7 +3572,21 @@ window.__visionRadiusV96 = visionRadiusV96;
             ballFlight = { t0: t, style: "kick", dur, x0: kp.x, y0: kp.y, x1, y1, arc, done: () => {
               const catchable = Math.hypot(ret.lx - x1, ret.y - y1) < TU("returnCatchPx", 26);
               const near = S.off.filter(a => a !== kicker).map(a => Math.hypot(a.lx - ret.lx, a.y - ret.y)).sort((a2,b2)=>a2-b2)[0] || 999;
-              if (kind === "punt" && (!catchable || (near < TU("fairCatchPx", 52) && Math.random() < TU("fairCatchP", .7)))) {
+              /* ===== v166 K SPECIAL TEAMS THINK =====
+               * The fair catch was one flat roll (70%) whenever a cover man was inside 52 px. A returner with the head for it
+               * (`awE` from 45 over 40) READS the coverage: a gunner on top of him (`fcGunnerPxV166K`) is a fair catch nearly
+               * always, room is a return, and between the two he decides on the distance — reading a little further out
+               * (`fcReadPxV166K`). A dull returner keeps the flat roll. (07 adds the fake punt: v166 K there.) Kill switch
+               * `v166Kst` 0. `root.__V166K` (`reads`); `stcheck.mjs`. */
+              const smartFc = TU("v166Kst", 1) && iqOnV165B() ? cl((awE(ret) - 45) / 40, 0, 1) : 0;
+              const fcPx = TU("fairCatchPx", 52) + smartFc * TU("fcReadPxV166K", 18), gun = TU("fcGunnerPxV166K", 34);
+              const pFc = smartFc ? (near < gun ? .97 : cl(TU("fairCatchP", .7) - smartFc * .55 * (near - gun) / Math.max(1, fcPx - gun), .05, .97)) : TU("fairCatchP", .7);
+              const fcDec = kind === "punt" && (!catchable || (near < fcPx && Math.random() < pFc));
+              if (kind === "punt" && catchable) { const K9 = root.__V166K = root.__V166K || { reads: 0 }; if (smartFc) K9.reads++;
+                const tag = smartFc ? "s" : "d";   // what he did with a gunner on him, and with room
+                if (near < gun) { K9[tag + "Close"] = (K9[tag + "Close"] || 0) + 1; if (fcDec) K9[tag + "CloseFc"] = (K9[tag + "CloseFc"] || 0) + 1; }
+                else if (near >= TU("fairCatchPx", 52)) { K9[tag + "Room"] = (K9[tag + "Room"] || 0) + 1; if (!fcDec) K9[tag + "RoomRet"] = (K9[tag + "RoomRet"] || 0) + 1; } }
+              if (fcDec) {
                 emit(catchable ? "faircatch" : "land", { x: x1, y: y1 }); out = { kind, yards: 0, ret: 0, fair: true, spotLx: x1 }; done = true; return; }
               if (!catchable) { ret.lx = x1; ret.y = y1; }
               ret._catchLx = ret.lx; carrier = ret; phase = "carry";

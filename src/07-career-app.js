@@ -17028,7 +17028,8 @@
      * the backer, adds `dcBlitzPressV165D` to the pass pressure here (not on a quick or a screen) and opens
      * the hot read for a QB who sees it; `keyYou` brackets him and reads his carries early. Mixing it up
      * beats a coordinator; tendencies feed him. Kill switch `v165Ddc` 0. `window.__V165D`; `dccheck.mjs`. */
-    let dcSnapV165D = null,
+    let fakeNextV166K = !1, /* v166 K: the next snap is a fake punt */
+      dcSnapV165D = null,
       dcBoothQV165G = 0; /* v165 G: the quarter the keyed-you note last ran */
     const dcOnV165D = !!TU("v165Ddc", 1),
       dcLvlV165D = Math.max(0, Math.min(8, Math.round((state.player && state.player.level) || 0))),
@@ -18055,6 +18056,12 @@
           // a staff is risk-averse: a failed fourth down costs the coach more than the points say (`gmRiskV166I`)
           go = epGo + lean - TU("gmRiskV166I", 0.6) > Math.max(epPunt, epFg) || (desperate && kickDist > fgMax);
           if (!go) kicking = epFg >= epPunt ? "fg" : "punt";
+          /* v166 K: the fake punt — a staff with the sense for it, on a short fourth near midfield, now and then runs a play
+           * out of punt formation (`fakeRateV166K` × its sense; one draw, only in this spot). The row says so. */
+          if (kicking === "punt" && TU("v166Kst", 1) && toGo <= 3 && pos >= 30 && pos <= 60 && Math.random() < TU("fakeRateV166K", 0.08) * dcIqV165D) {
+            kicking = null; go = !0; fakeNextV166K = !0;
+            const W2 = (window.__V166K = window.__V166K || { fakes: 0 }); W2.fakes = (W2.fakes || 0) + 1;
+          }
           const W = (window.__V166I = window.__V166I || { decisions: 0, go: 0, log: null });
           W.decisions++; go && W.go++;
           W.log && W.log.push({ pos, toGo, quarter, margin, go, kick: kicking, epGo: +epGo.toFixed(2), epPunt: +epPunt.toFixed(2), epFg: +epFg.toFixed(2) });
@@ -18532,7 +18539,10 @@
           if (audV165E && window.__V165Dlog) window.__V165Dlog.push({ audible: audV165E, qbAware: _(qb2, "awareness"), us: usDrive });
         }
       }
+      const fakeTagV166K = fakeNextV166K ? "Fake punt! — " : "";
+      fakeNextV166K = !1;
       const cTag =
+        fakeTagV166K +
         (audV165E ? (audV165E === "hot" ? "Audible — hot read off the blitz — " : "Audible — play action into the stacked box — ") : "") +
         (paV81 ? "Play action — " : "") +
         (playV101

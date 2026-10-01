@@ -10,6 +10,11 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v166 K — special teams think.** (`src/04-engine.js`, `src/07-career-app.js`, `scripts/stcheck.mjs`.) The fair
+  catch was one flat 70% roll whenever a cover man was close. A returner with the head for it now reads the coverage:
+  a gunner on top of him is a fair catch (100% against a dull returner's 67%), room is a return (80%). The yards after
+  the catch stay the coverage's (2.97 against 3.11), so the decision is what changed. And a staff with the sense for it
+  sometimes fakes a punt on a short fourth near midfield, and the row says so. Kill switch `v166Kst`.
 - **v166 J — the film room.** (`src/07-career-app.js`, `scripts/repcheck.mjs`.) The coordinator learned the you-player
   only from this game's snaps, so a star was defended like a stranger for a quarter every week. Now the defense has
   watched his film: his reputation is his last four weeks' performance, and a hot UFF back is keyed from the first snap

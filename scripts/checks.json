@@ -957,7 +957,8 @@
     "v99check",
     "occheck",
     "gmcheck",
-    "repcheck"
+    "repcheck",
+    "stcheck"
    ]
   },
   "endzones": {
@@ -3121,6 +3122,20 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "stcheck": {
+   "file": "scripts/stcheck.mjs",
+   "desc": "v166 K — special teams think",
+   "areas": [
+    "reads",
+    "playbook"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded punt streams per returner, and forced fake punts in seeded UFF games."
   },
   "repcheck": {
    "file": "scripts/repcheck.mjs",
