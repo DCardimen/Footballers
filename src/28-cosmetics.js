@@ -5385,7 +5385,9 @@
     };
     Object.keys(RC).forEach(function (k) {
       L.push(".rc-" + k + "{" + RC[k][0] + "}.rc-" + k + " b{" + RC[k][1] + "}");
-      L.push(SKIN[k].split("}").filter(Boolean).map(function (r) { return "html[data-cos-recap=" + k + "] " + r + "}"; }).join(""));
+      /* v168: EVERY selector of a rule is scoped to its skin. Only the first of a comma list was, so the "cover" skin's
+       * `#screen .card .small{color:#333}` (and comic's #111) painted every card's small print near-black on every screen */
+      L.push(SKIN[k].split("}").filter(Boolean).map(function (r) { var i = r.indexOf("{"); return r.slice(0, i).split(",").map(function (q) { return "html[data-cos-recap=" + k + "] " + q.trim(); }).join(",") + r.slice(i) + "}"; }).join(""));
     });
     var st = document.createElement("style"); st.id = "cosV158Acss"; st.textContent = L.join("\n");
     (document.head || document.documentElement).appendChild(st);

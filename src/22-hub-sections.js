@@ -57,7 +57,8 @@
       start: "sched",
       keep: /(^|\s)(eyebrow|h1)(\s|$)/,
       secs: [
-        { k: "sched", name: "SCHEDULE", re: /sched-list|press-strip/ },
+        { k: "sched", name: "SCHEDULE", re: /sched-list|press-strip|sx-hero-v168/ },
+        { k: "league", name: "LEAGUE",  re: /league-card-v168/ },   // v168: the standings live in the season
         { k: "opp",   name: "OPPONENT", re: /opponent-card-v11/ },
         { k: "body",  name: "BODY",     re: /condition-card-v11|age-card/ },
         { k: "role",  name: "ROLE",     re: /rival-card-v11|weekly-loop-card|depth-card|objective-card|mission-card|arc-card-v11|identity-card-v11/ },
@@ -65,7 +66,7 @@
       txt: [{ k: "sched", re: /^\s*Record:/i }],
       // the schedule IS the tab: folding it puts the press strip on screen and the fixtures
       // behind a closed accordion header, which is the opposite of the point
-      nofold: ["sched"],
+      nofold: ["sched", "league"],
     },
     /* v139: Settings is nearly two full screens on a phone — the longest page in the game, and
      * every one of its cards is a thing you came for ON PURPOSE, so it tabs rather than folds.
@@ -211,7 +212,7 @@
       nofold: ["nodes"],
     },
   };
-  const ICON = { lead: "🏅", odds: "🎯", xp: "🎖️", card: "🪪", case: "🏆", book: "📖", sims: "⏭", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
+  const ICON = { lead: "🏅", odds: "🎯", xp: "🎖️", card: "🪪", case: "🏆", book: "📖", sims: "⏭", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", league: "🏆", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
   const TAB = { locker: "gear", hub: "now", shop: "nodes", season: "sched", settings: "game", result: "grade", declineResult: "epitaph", gameover: "end", win: "end" };
 
   function cfg() { const s = window.S; return (s && VIEWS[s.view]) || null }
