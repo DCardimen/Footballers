@@ -746,7 +746,8 @@
     "simcheck",
     "reactioncheck",
     "iqcheck",
-    "dccheck"
+    "dccheck",
+    "rushcheck"
    ]
   },
   "credit": {
@@ -3114,6 +3115,19 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "rushcheck": {
+   "file": "scripts/rushcheck.mjs",
+   "desc": "v166 D — the rush has moves",
+   "areas": [
+    "reads"
+   ],
+   "runtimeSec": 50,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster per cell."
   },
   "zonecheck": {
    "file": "scripts/zonecheck.mjs",

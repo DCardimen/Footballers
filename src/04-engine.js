@@ -2225,10 +2225,37 @@ window.__visionRadiusV96 = visionRadiusV96;
         blitzer = S.def.filter(a=>a.lb==="LB")[Math.floor(Math.random()*3)];
         if (blitzer) blitzer.blitzing = true;
       } }
+    /* ===== v166 D THE RUSH HAS MOVES =====
+     * A rusher used to win with one blend (strength and quickness against the blocker's blocking) and an edge got a
+     * generic swim roll. On a pass now every rusher picks a MOVE at the snap against the man in front of him
+     * (`rushPlanV166D`): BULL (strength against his anchor), SPEED (edge only: burst against his feet), SWIM (hands
+     * against hands), SPIN (agility against his balance). A rusher past `rushIqV166D` (his `awE`) reads his man and picks
+     * the move that attacks his weakness; a dull one runs his go-to move whatever is in front of him. A smart tackle
+     * (`awE` past 50) SETS for the edge speed rush (`rushSetKV166D` a point). The move's matchup replaces the old blend in
+     * the shed roll (`rushAdvKV166D`) and is the swim roll's for a finesse move. Emits `rushMove`. Deterministic: no
+     * draws. Kill switch `v166Drush` 0. `root.__V166D` (`moves`, `sheds`); `rushcheck.mjs`. */
+    const V166D = root.__V166D = root.__V166D || { moves: {}, sheds: 0, plans: 0 };
+    const rushMovesV166D = (r, o) => ({
+      bull: r.str - (o.str * .5 + o.blk * .5),
+      speed: r.edge ? (r.spdA * .5 + r.quick * .5) - (o.quick * .5 + o.agi * .5) - Math.max(0, awE(o) - 50) * TU("rushSetKV166D", .25) : -99,
+      swim: (r.agi * .6 + r.quick * .4) - (o.blk * .6 + o.agi * .4),
+      spin: (r.agi * .5 + r.quick * .3 + r.str * .2) - (o.agi * .5 + o.blk * .5) });
+    const rushPlanV166D = r => {
+      if (!TU("v166Drush", 1) || kind !== "pass" || !r.engaging) return null;
+      const M = rushMovesV166D(r, r.engaging), names = Object.keys(M).filter(k => M[k] > -99);
+      let move;
+      if (awE(r) >= TU("rushIqV166D", 60)) move = names.reduce((a, b) => (M[b] > M[a] ? b : a));
+      else { const own = { bull: r.str, speed: r.edge ? (r.spdA + r.quick) / 2 : -1, swim: (r.agi + r.quick) / 2, spin: r.agi * .8 + r.str * .2 };
+        move = names.reduce((a, b) => (own[b] > own[a] ? b : a)); }
+      r._rushV166D = { move, adv: M[move] }; V166D.plans++; V166D.moves[move] = (V166D.moves[move] || 0) + 1;
+      emit("rushMove", { who: r.id, move, vs: r.engaging.id, adv: +M[move].toFixed(1) });
+      return r._rushV166D; };
     const shedTick = (r) => { if (r.shed || (r.stunned && t<r.stunned)) return;
-      const p = cl(((r.str*0.55 + r.quick*0.45) - r.engaging.blk) * 0.00042 + 0.0035, 0.0008, 0.028) * (kind==="run"?0.55:1) * (r.doubled?0.32:1)
+      if (r._rushV166D === undefined) r._rushV166D = rushPlanV166D(r);
+      const _plan = r._rushV166D, _adv = _plan ? _plan.adv * TU("rushAdvKV166D", 1) : (r.str*0.55 + r.quick*0.45) - r.engaging.blk;
+      const p = cl(_adv * 0.00042 + 0.0035, 0.0008, 0.028) * (kind==="run"?0.55:1) * (r.doubled?0.32:1)
         * (playAction && t < declareT + 150 ? TU("paShedK", .5) : 1);   // v81: the front plays the run fake too
-      if (Math.random() < p) { r.shed = true; r.releaseT = t; emit("shed",{who:r.id});
+      if (Math.random() < p) { r.shed = true; r.releaseT = t; emit("shed",{who:r.id, move: _plan ? _plan.move : null}); if (_plan) V166D.sheds++;
         // v30: beaten this fast, a real lineman grabs cloth — holding candidate
         if (t < TU("holdFlagMs",900) && r.engaging && r.engaging.player) flagCand.hold = r.engaging.player; } };
     // ---- v16.3 line play: the two widest D-linemen are edge rushers (DEs). They
@@ -2340,7 +2367,10 @@ window.__visionRadiusV96 = visionRadiusV96;
         if (Math.random() < cl(TU("pressRate", .4) + (cb.cov-55)*.004, .15, .7)) { cb._press = true; cb.lx = TU("pressLx", 6); disguise.press.push(cb.id); } });
     }
     const swimTick = (r) => { if (r.shed || !r.edge || !r.engaging || (r.stunned && t<r.stunned)) return;
-      const p = cl(((r.quick*0.5 + r.agi*0.5) - r.engaging.blk*0.9) * 0.0006 + 0.004, 0.001, 0.03) * (kind==="run"?0.6:1) * (r.doubled?0.4:1);
+      const _pl = r._rushV166D;   // v166 D: a finesse move's own matchup; a bull rusher is not swimming
+      if (_pl && _pl.move === "bull") return;
+      const _sa = _pl ? _pl.adv + r.engaging.blk * .1 : (r.quick*0.5 + r.agi*0.5) - r.engaging.blk*0.9;
+      const p = cl(_sa * 0.0006 + 0.004, 0.001, 0.03) * (kind==="run"?0.6:1) * (r.doubled?0.4:1);
       if (Math.random() < p) { r.shed = true; r.swim = true; r.releaseT = t; emit("swim",{who:r.id, x:r.lx, y:r.y}); } };
     const pancakeTick = (o) => { if (o._free || o.pancaked) return;
       const r = o.engagedBy; if (!r || r.shed || (r.stunned && t<r.stunned)) return;

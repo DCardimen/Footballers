@@ -10,6 +10,12 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v166 D — the rush has moves.** (`src/04-engine.js`, `scripts/rushcheck.mjs`.) A rusher won with one blend of
+  strength and quickness. Now he picks a move at the snap against the man in front of him — bull, speed (edge), swim,
+  spin — and a smart one attacks the weakness (88% bull against a weak anchor, all finesse against heavy feet) while a
+  dull one runs his go-to move; reading the man wins 1.48 a snap against 0.98 with the same bodies, and a smart tackle
+  sets for the speed rush (50% → 2% speed moves). The rush as a whole holds (0.82 → 0.85 wins a snap). Kill switch
+  `v166Drush`.
 - **v166 C — the zone is a place.** (`src/04-engine.js`, `scripts/zonecheck.mjs`.) v165 J's shell lived only in the
   quarterback's grades; on the field every corner chased the nearest receiver. With a zone called, every defender who is
   not on the target takes a landmark — cover 2: corners squat in the flats, safeties split the deep halves, backers take
