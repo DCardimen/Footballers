@@ -362,6 +362,7 @@
     "v141check",
     "iqcheck",
     "dccheck",
+    "blockcheck",
     "scoreneutralcheck",
     "equaltalentcheck",
     "creditcheck",
@@ -478,7 +479,8 @@
     "v112Fcheck",
     "renderpathcheck",
     "v86check",
-    "v151Dcheck"
+    "v151Dcheck",
+    "blockcheck"
    ],
    "steps": [
     "`scoreneutralcheck` over several seeds, against the OFF spread (the aim roll changes sample paths)"
@@ -3110,6 +3112,20 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "blockcheck": {
+   "file": "scripts/blockcheck.mjs",
+   "desc": "v166 A — the block holds: leverage, the seal, blocking on every carry",
+   "areas": [
+    "reads",
+    "tackle"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster with the blockers at 40 / 65 / 90."
   },
   "dccheck": {
    "file": "scripts/dccheck.mjs",

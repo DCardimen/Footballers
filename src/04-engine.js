@@ -2085,6 +2085,46 @@ window.__visionRadiusV96 = visionRadiusV96;
         a._sidelineCross={x:x0+(x1-x0)*q,y:plane};}
       a.lx=x1; a.y=clampY(y1); };
 
+    /* ===== v166 A THE BLOCK HOLDS =====
+     * A block used to be a coin a tick: a stalk block held 150 ms at most (`stalkHoldMax`) and shed at the 8% cap
+     * whatever the ratings, a blocked man still closed on the carrier and made a full tackle from 17 px, and on a
+     * catch-and-run nobody blocked at all (the held branch only ran on a called run). Now a block is LEVERAGE and
+     * RATINGS: `levV166A` is how squarely the blocker sits between his man and the ball (the cosine at the defender of
+     * blocker vs carrier, from `blkLevMinCosV166A`); the shed odds a tick are `blkShedBaseV166A`, scaled by the
+     * rating edge (the defender's strength, agility and IQ against the blocker's blocking and strength,
+     * `blkEdgeKV166A`), multiplied up by bad leverage (`blkLevKV166A`) and by how long he has been held
+     * (`blkTireMsV166A`). A man held with leverage is SEALED: he drifts at a fraction of the pace (`blkSealPaceV166A`),
+     * his reach for a runner going past shrinks (`blkSealReachV166A`), and the blocker drives him off the lane
+     * (`blkDriveV166A`). Blockers pick the man who THREATENS the ball (a smarter blocker weighs it harder), and on
+     * every carry — catch-and-run and screens too — the receivers, tight ends and backs block. The same one draw a
+     * contact tick as before. Kill switch `v166Ablock` 0. `root.__V166A` (blocks, sheds, sealed ticks); `blockcheck.mjs`. */
+    const blkOnV166A = () => !!TU("v166Ablock", 1);
+    const V166A = root.__V166A = root.__V166A || { blocks: 0, sheds: 0, sealed: 0, heldTackles: 0 };
+    const levV166A = (o, a, c) => {
+      const bx = o.lx - a.lx, by = o.y - a.y, cx = c.lx - a.lx, cy = c.y - a.y, nb = Math.hypot(bx, by) || 1, nc = Math.hypot(cx, cy) || 1;
+      const m = TU("blkLevMinCosV166A", .2); return cl(((bx * cx + by * cy) / (nb * nc) - m) / (1 - m), 0, 1); };
+    // one contact tick of a sustained block; true while it holds
+    const blockHoldV166A = (o, a, c) => {
+      const L = levV166A(o, a, c), held = a._heldMsV166A = (a._heldMsV166A || 0) + TICK;
+      const edge = (a.str * .4 + a.agi * .3 + awE(a) * .3) - (o.blk * .6 + o.str * .4);
+      const p = cl(TU("blkShedBaseV166A", .009) * Math.exp(edge * TU("blkEdgeKV166A", .045)) * (1 + (1 - L) * TU("blkLevKV166A", 4))
+        * (1 + held / TU("blkTireMsV166A", 1500)), .001, .25);
+      if (Math.random() < p) { V166A.sheds++; a._levV166A = 0; return false; }
+      a._levV166A = L; a.held = t + 60; if (L > .5) V166A.sealed++;
+      // he drives him off the ball: away from the carrier, harder with leverage
+      const dx = a.lx - c.lx, dy = a.y - c.y, dn = Math.hypot(dx, dy) || 1;
+      mv(a, a.lx + dx / dn * 8, a.y + dy / dn * 8, TU("blkDriveV166A", .35) * L);
+      mv(o, a.lx - dx / dn * 6, a.y - dy / dn * 6, .5);
+      return true; };
+    // the man to block: who threatens the ball, weighed harder by a smarter blocker
+    const blockTargetV166A = (o, c, reach, ok) => {
+      const iq = cl((awE(o) - 40) / 50, 0, 1.2), wBall = 1 + iq * TU("blkIqThreatV166A", 1.2);
+      let tgt = null, best = 1e9;
+      for (const a of S.def) { if (!ok(a)) continue;
+        const toMe = Math.hypot(a.lx - o.lx, a.y - o.y); if (toMe > reach) continue;
+        const toBall = Math.hypot(a.lx - c.lx, a.y - c.y) / Math.max(60, a.spd || 120) * 120;
+        const sc = toBall * wBall + toMe; if (sc < best) { best = sc; tgt = a; } }
+      return tgt; };
     // v82: one blocker on one man — used by return-team wedges and the kick teams'
     // jammers. Reaches, holds him for a stretch, sheds off strength/agility against
     // blocking; a shed man is free of everyone for a beat rather than forever.
@@ -4178,6 +4218,10 @@ window.__visionRadiusV96 = visionRadiusV96;
       }
       else if (phase === "carry") {
         const c = carrier;
+        // v166 A: a man with a blocker on him gets an ARM on the runner, not a wrap — his tackling counts for less, by the seal
+        const armTackleV166A = (dfd, cc) => { const tk = dfd.tkl, L = dfd._levV166A || 0;
+          dfd.tkl = tk * (1 - TU("blkArmTackleV166A", .4) - L * TU("blkSealTklV166A", .35));
+          try { return contact(dfd, cc); } finally { dfd.tkl = tk; } };
         const endTackle = (dfd) => {
           // grit: falls forward. v103: unless he was GRIPPED — the drag just played that out
           // for real, and paying the old blind fudge on top of it counts the yard twice.
@@ -4577,8 +4621,12 @@ window.__visionRadiusV96 = visionRadiusV96;
           else {
             if (c._ofUntil == null || t >= c._ofUntil) {
               const ahead = TU("ofAheadPxV165C", 70), cs = Math.max(60, c.spd || 120), step = TU("ofStepPxV165C", 36);
-              const foes = S.all.filter(a => a.side !== c.side && !(a.stunned && t < a.stunned) && t > (a.beaten||0) && !(t < (a.held||0))
+              // v166 A: a BLOCKED man is still on the field — he is a slow threat (late by his seal), so the carrier cuts off his
+              // blocker's hip instead of brushing past him (before, a held man vanished from the read and the back ran into him)
+              const sealRead = blkOnV166A();
+              const foes = S.all.filter(a => a.side !== c.side && !(a.stunned && t < a.stunned) && t > (a.beaten||0) && (sealRead || !(t < (a.held||0)))
                 && !(a.lb === "DL" && !a.shed) && (a.lx - c.lx) * dirSign > -30);
+              const lateS = a => sealRead && t < (a.held||0) ? TU("blkSealReadSV166A", .25) + (a._levV166A || 0) * TU("blkSealReadLevSV166A", .5) : 0;
               /* ===== v165 I THE CONVOY =====
                * A carrier with vision runs behind his blockers: a lane with a blocker leading up it (ahead of the carrier,
                * within `convoyLanePxV165I` of the line to the spot) earns `convoyLeadSV165I` seconds of room. (Discounting
@@ -4590,7 +4638,7 @@ window.__visionRadiusV96 = visionRadiusV96;
               for (let k = -3; k <= 3; k++) {
                 const y = clampY(c.y + k * step), px = c.lx + dirSign * ahead, mine = Math.hypot(ahead, y - c.y) / cs;
                 let room = 3;
-                for (const a of foes) room = Math.min(room, Math.hypot(a.lx - px, a.y - y) / Math.max(60, a.spd || 120) - mine);
+                for (const a of foes) room = Math.min(room, Math.hypot(a.lx - px, a.y - y) / Math.max(60, a.spd || 120) + lateS(a) - mine);
                 // a blocker leading up this lane: ahead of him, near the line from him to the spot
                 const led = convoyOn && mates.some(o => { const ax = (o.lx - c.lx) * dirSign; if (ax < 4 || ax > ahead) return false;
                   const ly = c.y + (y - c.y) * (ax / ahead); return Math.abs(o.y - ly) < TU("convoyLanePxV165I", 16); });
@@ -4728,6 +4776,11 @@ window.__visionRadiusV96 = visionRadiusV96;
             const bx = o.climb.lx - Math.sign(o.climb.lx - c.lx || 1) * 7, by = o.climb.y + Math.sign(o.climb.y - c.y || 1) * 2;
             mv(o, bx, by, TU("climbPace", .72));
             if (Math.hypot(o.lx-o.climb.lx, o.y-o.climb.y) < 16) {
+              if (blkOnV166A()) {   // v166 A: leverage and ratings decide it
+                if (!o.climb.held) { emit("block", { by: o.id, on: o.climb.id, x: o.lx, y: o.y }); V166A.blocks++; }
+                if (!blockHoldV166A(o, o.climb, c)) { o.climb.shed2 = true; o.climb.engagedBy = null; o.climb._climbedBy = null; emit("disengage", { who: o.climb.id, by: o.id, x: o.lx, y: o.y }); }
+                else if (t > (o._blkSay || 0)) { o._blkSay = t + TU("blockSayMs", 260); emit("block", { by: o.id, on: o.climb.id, x: o.lx, y: o.y, sustain: true }); }
+              } else {
               const pshed = cl(((o.climb.str*0.6+o.climb.agi*0.4) - o.blk) * 0.0005 + 0.006, 0.001, 0.05);
               if (Math.random() < pshed) { o.climb.shed2 = true; o.climb.engagedBy = null; o.climb._climbedBy = null; emit("disengage", { who: o.climb.id, by: o.id, x: o.lx, y: o.y }); }
               else {
@@ -4736,6 +4789,7 @@ window.__visionRadiusV96 = visionRadiusV96;
                 o.climb.held = t + 60;
                 // he is driving him off the ball: the pair walks away from the carrier's lane
                 mv(o.climb, o.climb.lx + (o.climb.lx - c.lx > 0 ? 6 : -6), o.climb.y + (o.climb.y - c.y > 0 ? 5 : -5), .3);
+              }
               }
             }
           }
@@ -4804,15 +4858,26 @@ window.__visionRadiusV96 = visionRadiusV96;
           }
           if (!isKick && dfd.lb==="DL" && !dfd.shed) { mv(dfd, dfd.engaging.lx+6, dfd.engaging.y, 0.18); continue; }   // still blocked: fight, don't fly
           if (isKick && t < (dfd.held||0)) { mv(dfd, c.lx, c.y, 0.16); continue; }                                   // v82: a return blocker has him
+          // v166 A: a blocked man on a catch-and-run is held too (the v81 branch below only ever ran on a called run)
+          if (kind !== "run" && !isKick && blkOnV166A() && t < (dfd.held||0)) {
+            const sealP = dfd._levV166A || 0;
+            mv(dfd, c.lx, c.y, 0.16 * (1 - sealP * TU("blkSealPaceV166A", .9)));
+            const gapP = Math.hypot(dfd.lx-c.lx, dfd.y-c.y);
+            if (gapP < TU("heldReachPx", 17) * (1 - sealP * TU("blkSealReachV166A", .8)) && (!committerId || committerId === dfd.id)) {
+              V166A.heldTackles++; committerId = dfd.id; const r = armTackleV166A(dfd, c); if (r === "grip") break; if (r === "tackle") { endTackle(dfd); break; } }
+            continue; }
           if (kind==="run") {
             // v81: a blocker with his hands on him — walled off until he sheds
-            if (t < (dfd.held||0)) { mv(dfd, c.lx, c.y, 0.16);
+            // v166 A: and SEALED when the blocker has leverage — he barely drifts and cannot reach a runner going by
+            const sealL = blkOnV166A() ? (dfd._levV166A || 0) : 0;
+            if (t < (dfd.held||0)) { mv(dfd, c.lx, c.y, 0.16 * (1 - sealL * TU("blkSealPaceV166A", .9)));
               // a blocked man can still fall off the block onto a runner who comes THROUGH him
               const _heldGapV110 = Math.hypot(dfd.lx-c.lx, dfd.y-c.y);
               const _heldCmGapV110 = (committerId && committerId !== dfd.id && A_all[committerId])
                 ? Math.hypot(A_all[committerId].lx-c.lx, A_all[committerId].y-c.y) : 1e9;   // v110: a held man who is CLOSER than the committer still gets his hands on him
-              if (_heldGapV110 < TU("heldReachPx", 17) && (!committerId || committerId===dfd.id || _heldGapV110 < _heldCmGapV110 - TU("commitTakePx", 3))) {
-                committerId = dfd.id; const r = contact(dfd, c); if (r === "grip") break; if (r === "tackle") { endTackle(dfd); break; } }   // v103: a grip hands the carrier to the grip tick
+              if (_heldGapV110 < TU("heldReachPx", 17) * (1 - sealL * TU("blkSealReachV166A", .8)) && (!committerId || committerId===dfd.id || _heldGapV110 < _heldCmGapV110 - TU("commitTakePx", 3))) {
+                if (blkOnV166A()) V166A.heldTackles++;
+                committerId = dfd.id; const r = blkOnV166A() ? armTackleV166A(dfd, c) : contact(dfd, c); if (r === "grip") break; if (r === "tackle") { endTackle(dfd); break; } }   // v103: a grip hands the carrier to the grip tick
               continue; }
             // v81: until he has FOUND the ball he plays his assignment, not the carrier.
             // A linebacker holds his gap with a read step (a bitten one on a draw is
@@ -5045,6 +5110,24 @@ window.__visionRadiusV96 = visionRadiusV96;
         S.off.forEach(o=>{ if(o===c || o.lb==="OL" || c.side!=="off") return;
           if (kind === "run" && ["WR","TE"].includes(o.lb) && o.lb === "WR" && Math.sign(o.y - MIDY) !== Math.sign(holeY - MIDY) && c.lx < 20) {
             mv(o, o.lx + 40, o.y, 0.8); return; }                                    // backside: run the corner off
+          if (blkOnV166A() && ["WR","TE","RB"].includes(o.lb) && !(o.engagedBy && !o.engagedBy.shed)) {
+            // v166 A: on every carry the skill players block the man who threatens the ball, and the block holds on leverage
+            let tgt = o._stalk && !o._stalk.shed2 && !(o._stalk.stunned && t < o._stalk.stunned) ? o._stalk : null;
+            if (!tgt) { tgt = blockTargetV166A(o, c, TU("stalkReachV166A", 110), a => !(a.lb === "DL" && !a.shed) && !a.shed2 && !(a.stunned && t < a.stunned)
+                && !a._climbedBy && (a.lx - c.lx) * dirSign > -10);
+              if (tgt) { o._stalk = tgt; tgt._climbedBy = o.id; } }
+            if (tgt) {
+              // the block is on once he has found the ball (v81's condition kept: a man still running his assignment is shadowed, not blocked)
+              if (Math.hypot(o.lx - tgt.lx, o.y - tgt.y) < 15 && seesBall(tgt)) {
+                if (!tgt.held) { emit("block", { by: o.id, on: tgt.id, x: o.lx, y: o.y }); V166A.blocks++; }
+                if (!blockHoldV166A(o, tgt, c)) { tgt.shed2 = true; tgt._climbedBy = null; o._stalk = null; }
+              } else {
+                // get between him and the ball, not merely to him
+                const dx = tgt.lx - c.lx, dy = tgt.y - c.y, dn = Math.hypot(dx, dy) || 1;
+                mv(o, tgt.lx - dx / dn * 7, tgt.y - dy / dn * 7, .9);
+              }
+              return; }
+          }
           if (kind === "run" && ["WR","TE"].includes(o.lb)) {
             let tgt = o._stalk && !o._stalk.shed2 && !(o._stalk.stunned && t < o._stalk.stunned) ? o._stalk : null;
             if (!tgt) { let td = TU("stalkReachPx", 60);

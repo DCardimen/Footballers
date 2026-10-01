@@ -10,6 +10,18 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v166 A — the block holds.** (`src/04-engine.js`, `src/07-career-app.js`, `scripts/blockcheck.mjs`.) A downfield
+  block held 150 ms at most and shed at the 8% cap whatever the ratings, a blocked man still made a full tackle from
+  17 px, and on a catch-and-run nobody blocked. Now a block is leverage and ratings: a blocker squarely between his man
+  and the ball, with the better of the matchup, SEALS him — he barely drifts, can only get an arm on a runner going by,
+  and is driven off the lane; a blocker out of position leaks. Blockers take the man who threatens the ball, the
+  receivers block on every carry, and the carrier reads a sealed man as a slow one and cuts off the blocker's hip. On
+  the readcheck roster: poor blockers 6.2 YPC, average 9.7, elite 11.3 (elite was 9.2 — blocking past 65 used to
+  saturate); a run with a seal gains 10.9 against 4.1 without; a catch-and-run with a seal 28.6 yards a catch against
+  5.7. A block engages once its man has found the ball (v81's condition). The v16.1 rewrite of stuffed runs (58% of
+  them turned into 4-8 yards with the sim's picture thrown away) runs at a quarter of its rate, so real blocking
+  replaces fake gains. Scoring rises with it: paired-seed game totals 38.5 → 47.3 points, `scoreneutralcheck` 25.2
+  (main 22.0), equal talent 56.8 (band 30-60) — `blkShedBaseV166A` is the dial. Kill switch `v166Ablock`. `iqcheck`'s best-read row now pools three streams.
 - **v165 K — the progression.** (`src/04-engine.js`, `scripts/iqcheck.mjs`.) The target used to be picked before
   the snap and the ball came out on a timer; the scan on the broadcast was a show. Now, at the throw, a sharp passer
   in a clean pocket whose man is blanketed works the reads he scanned off the live field and comes off to one that is

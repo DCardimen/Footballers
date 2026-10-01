@@ -17133,8 +17133,12 @@
         const cMul =
           concept === "draw" ? TU("drawGashMul", 1.15) : concept === "power" ? 0.55 : concept === "sweep" ? 1.05 : 1; // v81: the sim sells the draw itself now
         const edge = (_(K, "burst") + _(K, "speed")) / 2 - N,
-          gashP = clamp99((0.05 + edge * 0.0025) * cMul, 0.02, 0.14),
-          sustainP = clamp99(0.58 + (oe - N) * 0.006, 0.38, 0.75);
+          /* v166 A: blocks that hold make real gains on the field, so the v16.1 rewrite of stuffed runs — the gash and the
+           * 4-8 "sustain" that replaced 58% of them and threw the sim's own picture away — runs at `blkGashKV166A` /
+           * `blkSustainKV166A` of its old rate while v166 A is on: more of what the broadcast shows is what the sim played */
+          realK = TU("v166Ablock", 1) ? 1 : 0,
+          gashP = clamp99((0.05 + edge * 0.0025) * cMul, 0.02, 0.14) * (realK ? TU("blkGashKV166A", 0.25) : 1),
+          sustainP = clamp99(0.58 + (oe - N) * 0.006, 0.38, 0.75) * (realK ? TU("blkSustainKV166A", 0.25) : 1);
         if (Math.random() < gashP) {
           const r3 = Math.random(),
             big = concept === "draw",
