@@ -354,11 +354,14 @@
   "sim-keys": {
    "desc": "v141 — which sheet stats reach the sim, attribute scale past 250, star floor, durability",
    "anchors": [
-    "v141"
+    "v141",
+    "v165 A"
    ],
    "files": [],
    "checks": [
     "v141check",
+    "iqcheck",
+    "dccheck",
     "scoreneutralcheck",
     "equaltalentcheck",
     "creditcheck",
@@ -725,6 +728,9 @@
   "reads": {
    "desc": "v81 / v82 — defender reads, blocking, pursuit, the point of attack",
    "anchors": [
+    "v165 D",
+    "v165 B",
+    "v165 C",
     "v164 I",
     "v81",
     "v82",
@@ -736,7 +742,9 @@
     "readcheck",
     "movementcheck",
     "simcheck",
-    "reactioncheck"
+    "reactioncheck",
+    "iqcheck",
+    "dccheck"
    ]
   },
   "credit": {
@@ -3102,6 +3110,34 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "dccheck": {
+   "file": "scripts/dccheck.mjs",
+   "desc": "v165 D — the defense has a coordinator",
+   "areas": [
+    "sim-keys",
+    "reads"
+   ],
+   "runtimeSec": 115,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Paired seeds: the FieldSim cells pool three streams."
+  },
+  "iqcheck": {
+   "file": "scripts/iqcheck.mjs",
+   "desc": "v165 A-C — the mind has no ceiling, football IQ, open-field eyes",
+   "areas": [
+    "sim-keys",
+    "reads"
+   ],
+   "runtimeSec": 50,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Paired seeds: the outcome rows are deterministic for a given engine."
   },
   "v141check": {
    "file": "scripts/v141check.mjs",

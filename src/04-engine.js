@@ -1713,20 +1713,82 @@ window.__visionRadiusV96 = visionRadiusV96;
     for (const i of [2, 8, 9, 10]) { const o = F[i], a = off[i]; if (!o || !a) continue; if (o.lx != null) a.lx = o.lx; if (o.y != null) a.y = clampY(o.y); a._formV164P = key; }
     return { name: key, under: !!F.under, qb0: off[8] ? { lx: off[8].lx, y: off[8].y } : null, rb0: off[9] ? { lx: off[9].lx, y: off[9].y } : null };
   }
+  /* ===== v165 B FOOTBALL IQ =====
+   * The decisions that make a player look smart — the quarterback's scan, the back's lane and his
+   * cutback, the defender's read clock, the fake, the pursuit angle, the corner's leverage, the
+   * linebacker's drop — read an EFFECTIVE IQ (`awareE` / `visE` / `discE`) instead of the bare 20–99
+   * rating. It is the rating, plus the you-player's headroom past 99 (v165 A: his sheet past the
+   * ceiling keeps buying sense, `iqHeadKV165B` points a point), plus the level's football sense
+   * (`iqLvlPtsV165B`, Pee Wee → Interstellar: kids misread, pros diagnose — the league normalise had
+   * erased every level difference). The roll caps that used to stop a 99 where a 70 stood
+   * (`iqMoveOnCapV165B`, `iqBadReadMinV165B`, `iqNoiseMinV165B`, `iqSeesCapV165B`, `iqBiteMinV165B`,
+   * `iqMaxReadsV165B`) open up so the top of the scale is a different player, and a sharp man's
+   * per-snap swing shrinks (`iqCalmV165B` in makeAgents) — he is the same player every snap. No extra
+   * Math.random draws. Kill switch `v165Biq` 0 (also turns off v165 A's headroom request).
+   * `root.__V165B`; `iqcheck.mjs`. */
+  const IQ_LVL_V165B = [-8, -6, -4, -3, -1, 0, 1, 3, 4];   // Pee Wee, Youth, Middle School, JV, Varsity, College, Combine, UFF, Interstellar
+  const iqOnV165B = () => !!TU("v165Biq", 1);
+  const iqLvlV165B = () => { try { const s = root.__getGridironState && root.__getGridironState(); const l = Number(s && s.player && s.player.level);
+    return Number.isFinite(l) ? Math.max(0, Math.min(8, Math.round(l))) : 5; } catch (e) { return 5; } };
+  const iqLvlPtsV165B = () => iqOnV165B() ? (TU("iqLvlPtsV165B", IQ_LVL_V165B)[iqLvlV165B()] || 0) : 0;
+  const awE = a => iqOnV165B() && a && a.awareE != null ? a.awareE : a.aware;
+  const visE = a => iqOnV165B() && a && a.visE != null ? a.visE : a.vis;
+  const discE = a => iqOnV165B() && a && a.discE != null ? a.discE : a.disc;
+  root.__V165B = { lvlPts: IQ_LVL_V165B, lvl: iqLvlV165B, awE, visE, discE };
+  /* ===== v165 J THE SHELL =====
+   * The defense plays a coverage now, not just "the corner follows the nearest man": v165 D's coordinator calls MAN,
+   * COVER 2 or COVER 3 every snap (07, `opts.dcV165D.shell`), and every route has a matchup against each
+   * (`SHELL_FIT_V165J`, in the scan's separation units): quick breaks, crossers and double moves beat man; seams, posts,
+   * corners and daggers split cover 2 (flats and outs into a squatting corner die); curls, flats, seams and floods eat
+   * cover 3 (go routes into a deep third die). The window a route really gets carries its fit (`shellFitKV165J` × fit);
+   * what the QUARTERBACK sees of it is his recognition — his IQ (`awE`) from `shellRecogPivotV165J` over
+   * `shellRecogSpanV165J` — so a sharp passer reads the shell pre-snap and throws to the route that beats it, and a dull
+   * one grades every route as if nobody were covering it a particular way. No extra draws (the shell is drawn in 07).
+   * Kill switch `v165Jshell` 0 (and `v165Ddc` 0: no call, no shell). `root.__V165B.shellN` / `shellFit` (the mean fit
+   * of the chosen route, every passer); `dccheck.mjs`. */
+  const SHELL_FIT_V165J = (() => {
+    const T = { man: {}, cover2: {}, cover3: {} }, put = (sh, v, names) => names.split(" ").forEach(n => { T[sh][n] = v; });
+    put("man", .45, "whip jerk choice stutter_go hitch_go out_up"); put("man", .5, "sluggo post_corner corner_post");
+    put("man", .4, "slant pivot angle wheel"); put("man", .35, "cross drag shallow"); put("man", .3, "comeback over");
+    put("man", .25, "out speed_out"); put("man", .1, "go fade dig"); put("man", -.1, "stick flat"); put("man", -.2, "curl hitch snag spot");
+    put("cover2", .5, "seam"); put("cover2", .45, "skinny_post corner dagger"); put("cover2", .4, "post sail bender");
+    put("cover2", .35, "deep_post deep_corner dig"); put("cover2", .3, "deep_dig"); put("cover2", .2, "fade curl");
+    put("cover2", -.1, "go"); put("cover2", -.2, "hitch wheel comeback"); put("cover2", -.3, "out speed_out"); put("cover2", -.35, "flat");
+    put("cover3", .45, "seam"); put("cover3", .4, "curl sail"); put("cover3", .35, "flat stick snag spot dagger");
+    put("cover3", .3, "comeback dig hitch"); put("cover3", .25, "out speed_out"); put("cover3", .2, "cross deep_cross");
+    put("cover3", -.1, "slant skinny_post sluggo"); put("cover3", -.15, "corner"); put("cover3", -.2, "post deep_corner");
+    put("cover3", -.25, "deep_post"); put("cover3", -.3, "stutter_go"); put("cover3", -.35, "go fade");
+    // centred: across the route tree each shell's fits average zero, so a shell reshuffles WHICH route is open without
+    // opening the passing game as a whole (uncentred, every shell paid ~+0.1 a throw and scoring rose 9%)
+    const ALL = ("go fade seam post deep_post skinny_post corner deep_corner bender deep_cross sluggo post_corner corner_post out_up stutter_go " +
+      "wheel dagger out dig curl cross comeback sail speed_out over stick whip hitch_go deep_dig spot slant flat hitch drag shallow snag " +
+      "pivot angle swing checkdown jerk choice bubble tunnel").split(" ");
+    for (const sh of Object.keys(T)) { const m = ALL.reduce((sum, n) => sum + (T[sh][n] || 0), 0) / ALL.length; for (const n of ALL) T[sh][n] = +((T[sh][n] || 0) - m).toFixed(3); }
+    return T;
+  })();
+  const shellFitV165J = (shell, route) => (shell && SHELL_FIT_V165J[shell] && SHELL_FIT_V165J[shell][route]) || 0;
+  root.__V165B.shellFit = shellFitV165J;
   function makeAgents(kOff, tDef, att, picks, formation) {
     const byPos = (arr,pos)=>arr.filter(p=>p&&p.pos===pos);
     const avg = (arr,name)=>{ const v=arr.map(p=>att(p,name)).filter(Number.isFinite);
       return v.length? v.reduce((a,b)=>a+b,0)/v.length : 45; };
     const A = (p, side, i, lb) => {
       // per-agent variability: talent jitter (who they are) + daily form (how they show up)
-      const jit = () => (Math.random()*10 - 5) + (Math.random()*6 - 3);
+      // v165 B: a sharp man shows up the same every snap — awareness narrows the swing (`iqCalmV165B`).
+      // The same two draws per call; only their size changes, so no sample path moves.
+      const calmV165B = iqOnV165B() ? 1 - TU("iqCalmV165B", .45) * Math.max(0, Math.min(1,
+        ((p ? att(p, "awareness") : avg(side==="off"?kOff:tDef, "awareness")) - 50) / 49)) : 1;
+      const jit = () => ((Math.random()*10 - 5) + (Math.random()*6 - 3)) * calmV165B;
+      const headV165A = {};   // v165 A: his mind keys past 99, in rating points (FieldSim's IQ headroom)
       /* v164 I PAST THE WALL: HIS movement ratings (speed, acceleration, burst, agility) keep paying past 99 on a
        * diminishing tail — `hiTailMaxV164I` at most, half of it `hiTailHalfV164I` sim points past 99 — so a sheet of
        * 400 moves better than one of 250 (both used to clamp to the same 99). Every other rating, and every AI man,
        * clamps at 99 as before. The same one jitter draw per call: no extra Math.random. Kill switch hiTailV164I 0. */
-      const g = (n, tail) => { const v = Math.max(20, (p ? att(p,n) : avg(side==="off"?kOff:tDef, n)) + jit());
+      const g = (n, tail) => { const mind = tail === "mind" && p && p.you && iqOnV165B();
+        const v = Math.max(20, (p ? (mind ? att(p,n,1) : att(p,n)) : avg(side==="off"?kOff:tDef, n)) + jit());
         if (v <= 99) return v;
-        if (!(tail && p && p.you && TU("accelV164", 1) && TU("hiTailV164I", 1))) return 99;
+        if (mind) { headV165A[n] = v - 99; return 99; }
+        if (!(tail === 1 && p && p.you && TU("accelV164", 1) && TU("hiTailV164I", 1))) return 99;
         const x = v - 99, M = TU("hiTailMaxV164I", 30), T = TU("hiTailHalfV164I", 120); return 99 + M * x / (x + T); };
       const speed=g("speed",1), accel=g("acceleration",1)||g("burst",1)||speed;
        /* ===== v56 REACTION RATING =====
@@ -1746,13 +1808,13 @@ window.__visionRadiusV96 = visionRadiusV96;
       // it's on the roster, otherwise the role base with a couple inches of jitter.
       const ht = (p && p.body && p.body.height >= 64 && p.body.height <= 84)
         ? p.body.height : Math.round((HT_BY_POS[lb] || 73) + (Math.random()*5 - 2.5));
-      return { id:(side==="off"?"off":"def")+i, side, lb, ht,
+      const ag = { id:(side==="off"?"off":"def")+i, side, lb, ht,
         lx: side==="off"?OFF_LX(lb,i):DEF_LX(lb), y: side==="off"?OFF_Y[i]:DEF_Y[i],
         spd: 92 + speed*0.85, spdA: speed, str:g("strength"), blk:g("blocking"),
         tkl:g("tackling"), cov:g("coverage"), agi:g("agility",1),
-        burst:g("burst",1)||accel, accel, quick, aware:g("awareness"), cat:g("catching"),
-        jump:g("jumping"), thr:g("throwing")||g("awareness"), vis:g("vision")||g("awareness"),
-        stam:g("stamina"), grit:g("grit")||50, disc:g("discipline")||50, bc:g("ballControl")||50,
+        burst:g("burst",1)||accel, accel, quick, aware:g("awareness","mind"), cat:g("catching"),
+        jump:g("jumping"), thr:g("throwing")||g("awareness"), vis:g("vision","mind")||g("awareness"),
+        stam:g("stamina"), grit:g("grit")||50, disc:g("discipline","mind")||50, bc:g("ballControl")||50,
         dur:g("injuryResist")||50,                              // v141 durability: how much of his speed a carrier keeps through a hit
         reactMs: Math.max(100, TU("reactBaseMs", 295) - (quick-50)*2.4),   // quickness: first-step latency (v141: the base is a dial)
         vel: 0,                                                 // acceleration: ramps toward top speed
@@ -1766,6 +1828,12 @@ window.__visionRadiusV96 = visionRadiusV96;
         _gasBurnMul: (p && p.you && window.__youPersonaFxV20 && window.__youPersonaFxV20.gasBurn) || 1,
         _sprintIQV20: (p && p.you && window.__youPersonaFxV20 && window.__youPersonaFxV20.sprintIQ) || 0,
         engagedBy:null, engaging:null, shed:false, releaseT:0, cool:0, frames:[], player:p||null };
+      // v165 B: the IQ the decisions read — the rating, his headroom past 99, and the level's football sense
+      const lvlPts = iqLvlPtsV165B(), hk = TU("iqHeadKV165B", 1);
+      ag.awareE = ag.aware + (headV165A.awareness || 0) * hk + lvlPts;
+      ag.visE   = ag.vis   + (headV165A.vision    || 0) * hk + lvlPts;
+      ag.discE  = ag.disc  + (headV165A.discipline|| 0) * hk + lvlPts;
+      return ag;
     };
     const pools = { off:{}, def:{} };
     ["QB","RB","WR","TE","OL"].forEach(p=>pools.off[p]=byPos(kOff,p).slice());
@@ -2042,10 +2110,14 @@ window.__visionRadiusV96 = visionRadiusV96;
     const best = rushers.slice().sort((a2,b2)=>(b2.str+b2.quick)-(a2.str+a2.quick))[0];
     let doubled = null, blitzer = null;
     if (freeOL && best) { doubled = best; best.doubled = true; freeOL.doubling = best; }
-    if (kind === "pass" && Math.random() < 0.18) {
-      blitzer = S.def.filter(a=>a.lb==="LB")[Math.floor(Math.random()*3)];
-      if (blitzer) blitzer.blitzing = true;
-    }
+    // v165 D: with a coordinator the blitz is HIS call (`opts.dcV165D.blitz`, made blind in 07); the old 18% draw
+    // is still spent so the sample path does not move. On a run his call is a run blitz (the read clock below).
+    const dcV165D = iqOnV165B() && opts && opts.dcV165D ? opts.dcV165D : null;
+    if (kind === "pass") { const blitzRoll = Math.random();
+      if (dcV165D ? dcV165D.blitz : blitzRoll < 0.18) {
+        blitzer = S.def.filter(a=>a.lb==="LB")[Math.floor(Math.random()*3)];
+        if (blitzer) blitzer.blitzing = true;
+      } }
     const shedTick = (r) => { if (r.shed || (r.stunned && t<r.stunned)) return;
       const p = cl(((r.str*0.55 + r.quick*0.45) - r.engaging.blk) * 0.00042 + 0.0035, 0.0008, 0.028) * (kind==="run"?0.55:1) * (r.doubled?0.32:1)
         * (playAction && t < declareT + 150 ? TU("paShedK", .5) : 1);   // v81: the front plays the run fake too
@@ -2748,19 +2820,30 @@ window.__visionRadiusV96 = visionRadiusV96;
     const HANDOFF_T = isDraw ? TU("drawHandoffMs", 760) : 420;
     const declareT = kind === "run" ? (isDraw ? HANDOFF_T : TU("runDeclareMs", 300))
       : (playAction ? TU("paRevealMs", 720) : 180);
+    // v165 D: the coordinator's call moves the read clock — a run key reads a straight run early (and a pass
+    // key late), a run blitz sends the backers downhill, and a keyed you-player's carry is diagnosed early
+    const dcYouRunV165D = kind === "run" && S.off.some(o => o.player && o.player.you && o.lb === "RB");
+    const dcReadKV165D = a => {
+      if (!dcV165D || kind !== "run" || isDraw || (a.lb !== "LB" && a.lb !== "S")) return 1;
+      let k = 1 - TU("dcRunKeyReadV165D", .4) * Math.max(0, dcV165D.runKey) + TU("dcPassKeyReadV165D", .25) * Math.max(0, -dcV165D.runKey);
+      if (dcV165D.blitz && a.lb === "LB") k *= TU("dcRunBlitzReadV165D", .6);
+      if (dcYouRunV165D) k *= 1 - TU("dcKeyYouReadV165D", .2) * dcV165D.keyYou;
+      return Math.max(.35, k);
+    };
     const readDelayV81 = a => {
       const posK = { LB: 1, S: TU("readPosS", 1.3), CB: TU("readPosCB", 1.4), DL: .8 }[a.lb] || 1;
-      const iq = a.aware * .62 + a.quick * .22 + a.disc * .16;
+      const iq = awE(a) * .62 + a.quick * .22 + discE(a) * .16;   // v165 B: the IQ, not the bare ratings
       const base = TU("readBaseMs", 480) - (iq - 50) * TU("readIqK", 5.0);
       const fakeK = (isDraw || playAction) ? TU("readFakeK", 1.3) : 1;
-      return Math.round(cl(base, 110, 900) * posK * fakeK * (.85 + Math.random() * .3));
+      return Math.round(cl(base, 110, 900) * posK * fakeK * dcReadKV165D(a) * (.85 + Math.random() * .3));
     };
     S.def.forEach(a => {
       a._readMs = readDelayV81(a); a._seenAt = null; a._bite = false;
       // the fake: does he step the wrong way first? Discipline holds the key,
       // awareness sees through it. A bitten man finds the ball LATER, not never.
       if ((isDraw || playAction) && (a.lb === "LB" || a.lb === "S")) {
-        const biteP = cl(TU("fakeBiteBase", .5) - (a.aware - 50) * TU("fakeBiteAwareK", .007) - (a.disc - 50) * TU("fakeBiteDiscK", .006), .06, .88);
+        const biteP = cl(TU("fakeBiteBase", .5) - (awE(a) - 50) * TU("fakeBiteAwareK", .007) - (discE(a) - 50) * TU("fakeBiteDiscK", .006)
+          + (dcV165D ? TU("dcBiteV165D", .22) * Math.max(0, dcV165D.runKey) : 0), iqOnV165B() ? TU("iqBiteMinV165B", .03) : .06, .88);   // v165 D: a run key bites on the fake
         if (Math.random() < biteP) { a._bite = true; a._readMs += TU("biteExtraMs", 240); }
       }
     });
@@ -2963,7 +3046,7 @@ window.__visionRadiusV96 = visionRadiusV96;
     };
     // how much of that lead he can actually put on it
     const leadSkillV101 = (qb, panic, moving) =>
-      cl(TU("leadBase", .46) + (qb.thr - 40) * TU("leadThrK", .0062) + (qb.aware - 40) * TU("leadAwareK", .0040)
+      cl(TU("leadBase", .46) + (qb.thr - 40) * TU("leadThrK", .0062) + (awE(qb) - 40) * TU("leadAwareK", .0040)
         - panic * TU("leadPanicK", .30) - (moving ? TU("leadMoveK", .09) : 0)
         + (Math.random() - .5) * TU("leadNoise", .16), TU("leadMin", .28), TU("leadMax", 1.08));
     // the pocket, as one number: 1 is a chair, 0 is a collapse
@@ -3199,6 +3282,13 @@ window.__visionRadiusV96 = visionRadiusV96;
       // noise contaminates the grade; young/raw QBs can still lock onto a bad read.
       // The called primary receives a small preference, not a guaranteed target.
       const _window = v => v > -0.25 ? "green" : v > -1.75 ? "yellow" : "red";
+      const shellOnV165J = !!(dcV165D && dcV165D.shell && TU("v165Jshell", 1));
+      const shellRecogV165J = shellOnV165J ? cl((awE(S.off[8]) - TU("shellRecogPivotV165J", 45)) / TU("shellRecogSpanV165J", 45), 0, 1.15) : 0;
+      if (shellOnV165J) emit("shell", { name: dcV165D.shell });
+      // v165 D: the call shows up in the windows — a blitz leaves a hot read for a QB who sees it, a pass key sits on routes
+      const dcSepV165D = !dcV165D ? 0 : (blitzer ? TU("dcHotSepV165D", .5) * cl((awE(S.off[8]) - 55) / 40, -1, 1.2) : 0)   // a QB who never saw it is late to his read
+        - TU("dcPassKeySepV165D", .35) * Math.max(0, -dcV165D.runKey)
+        + (playAction ? TU("dcPaSepV165D", .6) * Math.max(0, dcV165D.runKey) : 0);   // a keyed second level came up for the fake
       const _elig = S.off.filter(a=>["WR","TE","RB"].includes(a.lb) && a.route);
       const _grade = a => {
         const e=a.route[a.route.length-1], nearest=S.def.filter(x=>["CB","S","LB"].includes(x.lb))
@@ -3210,31 +3300,51 @@ window.__visionRadiusV96 = visionRadiusV96;
         // three-color read: clean releases create green/yellow space; lost ones
         // remain red instead of every route collapsing toward an average window.
         const releaseWin=Math.random()<cl(.5+(a.agi-d.cov)*.006,.22,.78);
-        const est=cl((releaseWin?-.25:-2.4)+matchup*.024+leverage+(Math.random()-.5)*.7,-3.4,1.8);
+        const raw=(releaseWin?-.25:-2.4)+matchup*.024+leverage+(Math.random()-.5)*.7+dcSepV165D;
+        // v165 J: the route's fit against the called shell is in the real window; the QB sees as much of it as he recognises
+        const fit=shellOnV165J?shellFitV165J(dcV165D.shell,a._routeName)*TU("shellFitKV165J",1):0;
+        const est=cl(raw+fit,-3.4,1.8), seen=cl(raw+fit*shellRecogV165J,-3.4,1.8);
         const depth=Math.max(-2,e.lx/YD), situ=(opts?.toGo&&depth>=opts.toGo?0.35:0)+(a===target?0.3:0);
-        return {a,d,sep:est,window:_window(est),score:est*10+a.cat*.055+situ};
+        return {a,d,sep:est,fit,window:_window(est),score:seen*10+a.cat*.055+situ};
       };
-      const _grades=_elig.map(_grade), _awr=S.off[8].aware; _gradesV87=_grades;
+      const _grades=_elig.map(_grade), _awr=awE(S.off[8]), _iqV165=iqOnV165B(); _gradesV87=_grades;   // v165 B: the scan reads his IQ, not the bare rating
+      // v165 J: the pre-snap read — a passer who recognises the shell (`shellPreReadV165J`) knows where he is going with the
+      // ball: when a route beats the coverage by `shellPreGapV165J` more than the called one (and is not a red window), it
+      // is his primary. Deterministic; `root.__V165B.preReads`.
+      if (shellOnV165J && shellRecogV165J >= TU("shellPreReadV165J", .6) && _cc !== "screen") {
+        const pr = _grades.find(r => r.a === target), bf = _grades.reduce((m, r) => (r.fit > m.fit ? r : m), _grades[0]);
+        if (pr && bf && bf !== pr && bf.fit - pr.fit >= TU("shellPreGapV165J", .3) && bf.sep > -1.75) {
+          target = bf.a; coverA = bf.d; const V = root.__V165B; V.preReads = (V.preReads || 0) + 1; }
+      }
       for(let i=_grades.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[_grades[i],_grades[j]]=[_grades[j],_grades[i]];}
       _grades.sort((a,b)=>(a.a===target?-1:b.a===target?1:0));
-      const _readN=(_cc==="screen"||_cc==="quick")?1:cl(1+Math.floor((_awr-32)/15),1,Math.min(4,_grades.length));
-      const _seen=_grades.slice(0,_readN), _noise=Math.max(1.2,(88-_awr)*.16);
+      const _readN=(_cc==="screen"||_cc==="quick")?1:cl(1+Math.floor((_awr-32)/15),1,Math.min(_iqV165?TU("iqMaxReadsV165B",5):4,_grades.length));
+      const _seen=_grades.slice(0,_readN), _noise=Math.max(_iqV165?TU("iqNoiseMinV165B",.45):1.2,(88-_awr)*.16);
       const _primary=_seen.find(r=>r.a===target)||_grades.find(r=>r.a===target)||_seen[0];
       const _best=_seen.slice().sort((a,b)=>(b.score+(Math.random()-.5)*_noise)-(a.score+(Math.random()-.5)*_noise))[0]||_primary;
       let _choice=_primary;
-      const _moveOnP=cl(.08+(_awr-45)*.004,.05,.28);
-      if(_best&&_primary&&_best.score>_primary.score+2.4&&Math.random()<_moveOnP)_choice=_best;
-      const _badReadP=cl(.14-(_awr-35)*.0018,.025,.15);
+      // v165 B: past 70 every IQ point buys more willingness to come off the primary (`iqMoveOnKV165B`)
+      const _moveOnP=_iqV165?cl(.08+(_awr-45)*.004+Math.max(0,_awr-70)*TU("iqMoveOnKV165B",.007),.05,TU("iqMoveOnCapV165B",.82)):cl(.08+(_awr-45)*.004,.05,.28);
+      // v165 B: a sharp passer needs less of an edge to come off the primary (the 2.4 margin shrinks past 70)
+      const _moveMargin=_iqV165?Math.max(TU("iqMoveMarginMinV165B",1.2),2.4-Math.max(0,_awr-70)*TU("iqMoveMarginKV165B",.04)):2.4;
+      if(_best&&_primary&&_best.score>_primary.score+_moveMargin&&Math.random()<_moveOnP)_choice=_best;
+      const _badReadP=cl(.14-(_awr-35)*.0018,_iqV165?TU("iqBadReadMinV165B",.008):.025,.15);
       if(_seen.length>1&&Math.random()<_badReadP)_choice=_seen[Math.floor(Math.random()*_seen.length)];
+      if(S.off[8].player&&S.off[8].player.you&&_seen.length>1){ const V=root.__V165B; V.qbReads=(V.qbReads||0)+1;   // v165 B: did HE throw to the best read he saw
+        const _top=_seen.reduce((m,r)=>r.score>m.score?r:m,_seen[0]); if(_choice===_top) V.qbBest=(V.qbBest||0)+1; }
+      if(_choice&&shellOnV165J){ const V=root.__V165B; V.shellN=(V.shellN||0)+1; V.shellFit=(V.shellFit||0)+(_choice.fit||0); }   // v165 J: the fit of the route he threw to
+      if(_choice&&dcV165D){ const V=root.__V165B, k=blitzer?"B":"N"; V["dcSep"+k]=(V["dcSep"+k]||0)+_choice.sep; V["dcSepN"+k]=(V["dcSepN"+k]||0)+1; }   // v165 D: the window he threw into, by call
       if(_choice){ target=_choice.a; coverA=_choice.d; sep=_choice.sep; throwWindow=_choice.window;
         const e=target.route[target.route.length-1]; target._throwLX=e.lx; target._throwY=e.y; routeDepth=Math.max(-2,e.lx/YD); }
       const relWin = sep > -1.05;
       const secondLevel=S.def.filter(a=>a!==coverA&&["S","LB"].includes(a.lb))
         .sort((p,q)=>(q.aware+q.cov)-(p.aware+p.cov));
       const threat=(target.spdA+target.agi+target.cat)/3, defenseIQ=(coverA.aware+coverA.cov)/2;
-      const bracketP=cl(.10+(threat-defenseIQ)*.012+defenseIQ*.004,.08,.78);
+      const bracketP=cl(.10+(threat-defenseIQ)*.012+defenseIQ*.004
+        +(dcV165D&&target.player&&target.player.you?TU("dcBracketYouV165D",.3)*dcV165D.keyYou:0),.08,.78);   // v165 D: help over the man who is beating them
       if(secondLevel.length&&Math.random()<bracketP){coverHelp=secondLevel[0];bracketed=true;emit("doubleCoverage",{target:target.id,helper:coverHelp.id});}
-      lbDrops=S.def.filter(a=>a.lb==="LB"&&a!==blitzer).map(a=>({a,readAt:220+(100-a.aware)*5+Math.random()*260,ann:false}));
+      lbDrops=S.def.filter(a=>a.lb==="LB"&&a!==blitzer).map(a=>({a,readAt:Math.max(120,220+(100-awE(a))*5)+Math.random()*260
+        +(dcV165D?TU("dcDropLateMsV165D",160)*(playAction?1.5:1)*Math.max(0,dcV165D.runKey):0),ann:false}));   // v165 D: a run key drops late (later still off a fake)   // v165 B: awE
       readProg = _seen.filter(r=>r.a!==target).map(r=>({id:r.a.id,window:r.window,sep:r.sep}));
       readProg.push({id:target.id,window:null,sep:null});
       readStart = 300;
@@ -3494,7 +3604,7 @@ window.__visionRadiusV96 = visionRadiusV96;
          *     (discipline, grit, awareness) sets both how fast it rises and how high it goes,
          *     so a veteran with a rusher in his face is calmer than a rookie with a clean one. */
         qb._nearFreeV101 = nearest === undefined ? 999 : nearest; qb._freeNV101 = free.length;
-        { const compo = cl((qb.disc * .42 + qb.grit * .34 + qb.aware * .24 - TU("composurePivotV141", 30)) / 60, 0, 1);   // v141: the pivot is a dial (the keys under it are real now)
+        { const compo = cl((discE(qb) * .42 + qb.grit * .34 + awE(qb) * .24 - TU("composurePivotV141", 30)) / 60, 0, 1);   // v165 B: awE / discE   // v141: the pivot is a dial (the keys under it are real now)
           const heat = (free.length ? cl(1 - qb._nearFreeV101 / TU("panicRangePx", 130), 0, 1) : 0)
             + (hurried ? TU("panicHitK", .45) : 0)
             + (t > throwAt + 200 ? TU("panicHoldK", .3) : 0);
@@ -3577,10 +3687,20 @@ window.__visionRadiusV96 = visionRadiusV96;
         }
         if (t >= throwAt - 400 && !target._broke) { target._broke = true;
           sep += (target.agi - coverA.cov) * 0.04;
+          /* ===== v165 F THE ROUTE HAS A BRAIN =====
+           * The break is where a receiver's head wins: he sets the corner up, sells the stem, sits in the soft spot.
+           * His IQ against his cover man's (v165 B `awE`, his headroom past 99 included) buys separation at the break
+           * (`routeIqKV165F`, capped at `routeIqCapV165F` either way), and a sharp man's double move gets more bites
+           * (`routeFakeKV165F` a point past 60). No extra draws. Kill switch `v165Froute` 0 (and `v165Biq` 0).
+           * `root.__V165B.wrSep` / `wrSepN` (his separation after the break); `iqcheck.mjs`. */
+          const iqF = iqOnV165B() && TU("v165Froute", 1);
+          if (iqF) sep += cl((awE(target) - awE(coverA)) * TU("routeIqKV165F", .012), -TU("routeIqCapV165F", 1), TU("routeIqCapV165F", 1));
           if (routeDepth > 13 && Math.random() < 0.5) {
             emit("doubleMove",{});
-            if (Math.random() < 0.3 + Math.max(0,(50-coverA.disc))*0.012) { sep += 2.2; coverA.beaten = t + 380; }
-          } }
+            const biteP = iqF ? 0.3 + Math.max(0,(50-discE(coverA)))*0.012 + Math.max(0, awE(target)-60)*TU("routeFakeKV165F", .004) : 0.3 + Math.max(0,(50-coverA.disc))*0.012;
+            if (Math.random() < biteP) { sep += 2.2; coverA.beaten = t + 380; }
+          }
+          if (target.player && target.player.you) { const V = root.__V165B; V.wrSep = (V.wrSep||0) + sep; V.wrSepN = (V.wrSepN||0) + 1; } }
         /* ===== v146 A THE SACK HE TAKES IS TAKEN BY SOMEBODY =====
          * v82 resolved the eaten sack on the tick the quarterback decided, with the free rusher
          * wherever he was — measured ~20px (3+ yards) off on average, so the broadcast folded a
@@ -3612,6 +3732,33 @@ window.__visionRadiusV96 = visionRadiusV96;
           }
           // still closing: the rest of the field plays on this tick (routes, coverage), the ball stays in his arms
         }
+        /* ===== v165 K THE PROGRESSION =====
+         * The target was picked before the snap and the ball came out on a timer: the scan the broadcast drew was a show.
+         * Now, at the moment he would throw, a passer whose man is blanketed (`sep` under `progRedV165K`) works the
+         * reads he scanned (from a clean pocket — never hurried, never pressured): each one's LIVE window off the field — the nearest free defender's distance to him now,
+         * `progOpenPxV165K` px being even (0), `progPxPerSepV165K` px a separation unit. A passer past `progIqV165K` (his
+         * `awE`) who finds one OPEN (a green window, `progOpenSepV165K`) and `progGainV165K` better comes off his man to it: the target, the cover man and the window
+         * are the new read's (less `progLateSepV165K`: the beat it takes to come off is a beat the defense closes), his feet
+         * re-set for `progResetMsV165K`, and he throws from there. A dull passer forces it,
+         * eats it or throws it away, as he did. Once a play, no random draws. Kill switch `v165Kprog` 0.
+         * `root.__V165B.prog` / `progYou` (the you-player's comebacks as the passer); `iqcheck.mjs`. */
+        if (TU("v165Kprog", 1) && iqOnV165B() && !qb._progV165K && !qb._eatV146 && !ballFlight && readProg && readProg.length > 1
+            && t >= throwAt && !hurried && !opts?.pressured && sep < TU("progRedV165K", -1.2) && awE(qb) >= TU("progIqV165K", 65)) {   // a clean pocket only: there is no time to work reads with a man on him
+          qb._progV165K = true;
+          const liveD = S.def.filter(d => !d.engaging && !d.blitzing && d.lb !== "DL" && !(d.stunned && t < d.stunned));
+          const liveSep = a => { let near = null, nd = 1e9; for (const d of liveD) { const dd = Math.hypot(d.lx - a.lx, d.y - a.y); if (dd < nd) { nd = dd; near = d; } }
+            return { a, d: near, sep: cl((nd - TU("progOpenPxV165K", 16)) / TU("progPxPerSepV165K", 8), -3.4, 1.8) }; };
+          const alt = readProg.map(r => S.off.find(o => o.id === r.id)).filter(a => a && a !== target && a.route && a.lx > qb.lx - 4).map(liveSep)
+            .sort((p, q) => q.sep - p.sep)[0];
+          if (alt && alt.d && alt.sep > sep + TU("progGainV165K", 1.6) && alt.sep >= TU("progOpenSepV165K", -0.25)) {   // only to a man who is OPEN (a green window)
+            emit("progression", { from: target.id, to: alt.a.id, sep0: +sep.toFixed(2), sep1: +alt.sep.toFixed(2) });
+            const V = root.__V165B; V.prog = (V.prog || 0) + 1; if (qb.player && qb.player.you) V.progYou = (V.progYou || 0) + 1;
+            target = alt.a; coverA = alt.d; sep = alt.sep - TU("progLateSepV165K", .6); target._broke = true;   // the beat it takes to come off is a beat the defense closes bracketed = false; coverHelp = null;
+            const e = target.route[target.route.length - 1]; target._throwLX = e.lx; target._throwY = e.y; routeDepth = Math.max(-2, e.lx / YD);
+            curFocus = target.id; throwAt = t + TU("progResetMsV165K", 140);
+            if (readProg) readProg.push({ id: target.id, window: null, sep: null });
+          }
+        }
         if (!qb._eatV146 && (t >= throwAt || (hurried && t >= 680))) {
           const underPressure = hurried || !!opts?.pressured;
           const movingThrow = !!opts?.moving || (underPressure && !!qb._slid) || !!qb._roll;
@@ -3632,7 +3779,7 @@ window.__visionRadiusV96 = visionRadiusV96;
             S.off[8]._scrambleDone = true; qb._scrambling = true; carrier = qb; phase = "carry"; out = null; sep = 0;
             rec(); continue;
           }
-          if (sep < -1.6 && underPressure && S.off[8].aware >= TU("sackSmartAware", 60) && Math.random() < TU("takeSackP", .32)) {
+          if (sep < -1.6 && underPressure && awE(S.off[8]) >= TU("sackSmartAware", 60) && Math.random() < TU("takeSackP", .32)) {
             const th = free.slice().sort((a2,b2)=>Math.hypot(a2.lx-qb.lx,a2.y-qb.y)-Math.hypot(b2.lx-qb.lx,b2.y-qb.y))[0];
             if (th && TU("sackCloseV146", 1)) {
               /* v146 A: he gives himself up — but the sack is not in until the man GETS there. The
@@ -3868,7 +4015,15 @@ window.__visionRadiusV96 = visionRadiusV96;
                   x: cx, y: cyIn, gap: Math.round(ballManGap), covGap: Math.round(covGapV110) });
               }
               const contested = sep < TU("contestSep", .2) && ballManGap < 22;
-              const swatP = contested ? cl((ballMan.cov - 50) * .004 + (ballMan.jump - 50) * .002 + TU("swatBase", .04), 0, .3) * (ballMan.cov >= target.cat ? 1 : .6) : 0;
+              /* ===== v165 H THE EYES =====
+               * The duel in the air is a duel of reads too. A defender who reads the quarterback's eyes jumps the route a
+               * dull passer stares down; a sharp passer looks him off. The pick odds take the ball man's IQ against the
+               * QB's (`eyesIntKV165H` a point, both through v165 B's `awE`, headroom included); the swat takes the ball
+               * man's IQ from 50 (`eyesSwatKV165H`). No extra draws; inside the v76 cap and damper as before. Kill switch
+               * `v165Heyes` 0 (and `v165Biq`). `root.__V165B.youIntP` / `youIntN` (his mean pick odds as the ball man). */
+              const eyesOnV165H = iqOnV165B() && TU("v165Heyes", 1);
+              const swatP = contested ? cl((ballMan.cov - 50) * .004 + (ballMan.jump - 50) * .002 + TU("swatBase", .04)
+                + (eyesOnV165H ? (awE(ballMan) - 50) * TU("eyesSwatKV165H", .001) : 0), 0, .3) * (ballMan.cov >= target.cat ? 1 : .6) : 0;
               if (shortBall) emit("comeback", { who: target.id, x: cx, y: cyy, smart: comebackK > 0 });
               if (boxOut && boxK > .04) emit("boxOut", { who: target.id, on: coverA.id, x: cx, y: cyy });
               // jumping decides the high-point on deep shots; ballControl secures contested grabs
@@ -3924,14 +4079,17 @@ window.__visionRadiusV96 = visionRadiusV96;
                 } else phase = "carry";
               } else {
                 const absSpot=(Number(opts?.fieldPos)||50)+cx/YD, sideline=Math.abs(cyy-MIDY)>165;
+                const eyesIntV165H = bm => eyesOnV165H ? cl((awE(bm) - awE(S.off[8])) * TU("eyesIntKV165H", .0006), -.03, .06) : 0;   // v165 H
                 const fieldRisk=(absSpot>=90?.012:0)+(absSpot<=12?.006:0)+(routeDepth>12&&!sideline?.008:0)-(sideline?.012:0);
                 const earlyRisk=cl((arrivalEdgeMs-70)/1700,0,.05), badLocation=(1-locationQuality)*.02;
                 const intP = cl((ballMan.cov - target.spdA*0.5 - target.agi*0.5) * 0.004
                   + (routeDepth>13 ? (ballMan.jump-target.jump)*0.002 : 0)
                   + (bracketed&&coverHelp?(coverHelp.cov-45)*.0012:0)
                   - (S.off[8].aware-50)*0.0007 + (sep < -2 ? 0.028 : 0.012)
+                  + eyesIntV165H(ballMan)
                   + earlyRisk + badLocation + fieldRisk + (underPressure?.008:0), 0.004, 0.18)
                   * (window.__toMultV76 || 1);      // v76: takeaway swing, damped by mismatch
+                if (ballMan.player && ballMan.player.you) { const V = root.__V165B; V.youIntP = (V.youIntP||0) + intP; V.youIntN = (V.youIntN||0) + 1; }
                 if (Math.random() < intP) {
                   emit("pick",{by:ballMan.id,x:cx,y:cyy});
                   carrier = ballMan; phase = "carry";           // v110: the man who picked it is the man who returns it
@@ -3984,7 +4142,7 @@ window.__visionRadiusV96 = visionRadiusV96;
             const hx = target._dx == null ? 1 : target._dx, hy = target._dy == null ? 0 : target._dy;      // his heading (downfield if he has not moved)
             const bx = ballFlight.x0 - target.lx, by = ballFlight.y0 - target.y, bn = Math.hypot(bx, by) || 1;
             const shoulder = cl((1 - (hx * bx + hy * by) / bn) / 2, 0, 1);   // 0: running at the passer, 1: back square to him
-            const findMs = TU("ballFindBaseMs", 110) + cl(70 - target.aware, -30, 40) * TU("ballFindAwareK", 2.0) + shoulder * TU("ballFindShoulderMs", 150);
+            const findMs = TU("ballFindBaseMs", 110) + cl(70 - awE(target), -30, 40) * TU("ballFindAwareK", 2.0) + shoulder * TU("ballFindShoulderMs", 150);
             const latest = Math.max(40, ballFlight.dur - TU("reachLeadMs", 180) - 60);   // he always finds it before his hands have to go up
             target._ballFindMs = Math.round(cl(findMs, 40, latest)); target._ballShoulder = +shoulder.toFixed(2);
             target._ballFoundAt = ballFlight.t0 + target._ballFindMs;
@@ -4382,7 +4540,7 @@ window.__visionRadiusV96 = visionRadiusV96;
             // v82 THE BACK HAS EYES: a gap is judged by where the defenders WILL be — each
             // man's committed line projected a step ahead — not where they stand, and a
             // gap behind a blocker who has his man is the one to press
-            const ahead = TU("lookaheadS", .1) + visionRadiusV96(c.vis) * TU("lookaheadPerYdV96", 0.012);   // v96: the read radius — every vision point from 75 reads a yard further down the line
+            const ahead = TU("lookaheadS", .1) + visionRadiusV96(visE(c)) * TU("lookaheadPerYdV96", 0.012);   // v96: the read radius — every vision point from 75 reads a yard further down the line
             const liveIn = gy => S.def.some(a => { if ((a.stunned && t < a.stunned) || t <= (a.beaten||0) || (a.lb === "DL" && !a.shed) || t < (a.held||0)) return false;
               const px = a.lx + (a._dx||0) * (a.spd||120) * (a.vel||0) * ahead, py = a.y + (a._dy||0) * (a.spd||120) * (a.vel||0) * ahead;
               return px > -6 && px < 26 && Math.abs(py - gy) < TU("gapCloseY", 13); });
@@ -4391,8 +4549,9 @@ window.__visionRadiusV96 = visionRadiusV96;
             const sorted = gaps.slice().sort((p,q) => (q.open - p.open) || (q.home - p.home) || (q.seal - p.seal) || (Math.abs(p.ly-c.y) - Math.abs(q.ly-c.y)));
             const home = gaps.find(g => g.home) || sorted[0];
             // vision: does he actually SEE the open lane, or guess?
-            const sees = Math.random() < 0.38 + (c.vis-50)*0.008;
+            const sees = Math.random() < (iqOnV165B() ? Math.min(TU("iqSeesCapV165B", .97), 0.38 + (visE(c)-50)*0.008) : 0.38 + (c.vis-50)*0.008);   // v165 B
             const best = home.open ? home : (sees ? sorted[0] : gaps[Math.floor(Math.random()*gaps.length)]);
+            if (!home.open && c.player && c.player.you) { const V = root.__V165B; V.laneReads = (V.laneReads||0) + 1; if (best.open) V.laneOpen = (V.laneOpen||0) + 1; }   // v165 B: did HE find the open lane
             if (!home.open && best !== home && sees && c._laneY != null && Math.abs(best.ly - c._laneY) > 20 && !c._pressed) {
               c._pressed = t; emit("press", { x: c.lx, y: c.y, from: home.ly, to: best.ly, direction: best.ly > home.ly ? 1 : -1 }); }
             c._laneY = best.ly + (Math.random()*8-4); c._laneUntil = t + TU("laneHoldMs", 200);
@@ -4401,15 +4560,65 @@ window.__visionRadiusV96 = visionRadiusV96;
             if (!holeShown && openNow && c.lx > -30) { holeShown = true; emit("holeOpen", { x: 6, y: holeY, gap: holeGapKey, concept: runConcept }); }
           }
           laneY = c._laneY;
-        } else laneY = clampY(c.y + Math.sin(t/300)*14);
+        } else {
+          /* ===== v165 C OPEN-FIELD EYES =====
+           * Past the line the carrier used to run a sine weave (`c.y + sin(t/300)*14`) — the same
+           * for a Pee Wee and a pro, the same with a man closing from the left as from the right.
+           * Now he READS the field: every `ofReadMsV165C` he projects seven lanes `ofAheadPxV165C`
+           * ahead and keeps the one with the most ROOM — the least time any live defender (not
+           * blocked, not beaten, not a lineman still in his block) needs to reach that spot, less
+           * his own time — with a small price for veering (`ofStraightKV165C`) and the sideline.
+           * How much of the read he trusts is his vision IQ (v165 B `visE`): under `ofVisPivotV165C`
+           * he runs the old weave; `ofVisSpanV165C` above it he runs the read outright. No random
+           * draws. Kill switch `v165Cof` 0. `root.__V165B.of` counts the reads; `iqcheck.mjs`. */
+          const sway = clampY(c.y + Math.sin(t/300)*14);
+          const w = iqOnV165B() && TU("v165Cof", 1) ? cl((visE(c) - TU("ofVisPivotV165C", 55)) / TU("ofVisSpanV165C", 45), 0, 1) : 0;
+          if (w <= 0) laneY = sway;
+          else {
+            if (c._ofUntil == null || t >= c._ofUntil) {
+              const ahead = TU("ofAheadPxV165C", 70), cs = Math.max(60, c.spd || 120), step = TU("ofStepPxV165C", 36);
+              const foes = S.all.filter(a => a.side !== c.side && !(a.stunned && t < a.stunned) && t > (a.beaten||0) && !(t < (a.held||0))
+                && !(a.lb === "DL" && !a.shed) && (a.lx - c.lx) * dirSign > -30);
+              /* ===== v165 I THE CONVOY =====
+               * A carrier with vision runs behind his blockers: a lane with a blocker leading up it (ahead of the carrier,
+               * within `convoyLanePxV165I` of the line to the spot) earns `convoyLeadSV165I` seconds of room. (Discounting
+               * the defenders a blocker stands near was measured and dropped: a man merely near him shields nothing, and an
+               * engaged one is already out of the read.) Same read cadence, no draws.
+               * Kill switch `v165Iconvoy` 0. `root.__V165B.convoy` counts his reads that took a led lane; `iqcheck`. */
+              const convoyOn = TU("v165Iconvoy", 1), mates = convoyOn ? S.all.filter(o => o.side === c.side && o !== c && !(o.stunned && t < o.stunned)) : [];
+              let bestY = c.y, bestS = -1e9, keepS = -1e9, bestLed = false;
+              for (let k = -3; k <= 3; k++) {
+                const y = clampY(c.y + k * step), px = c.lx + dirSign * ahead, mine = Math.hypot(ahead, y - c.y) / cs;
+                let room = 3;
+                for (const a of foes) room = Math.min(room, Math.hypot(a.lx - px, a.y - y) / Math.max(60, a.spd || 120) - mine);
+                // a blocker leading up this lane: ahead of him, near the line from him to the spot
+                const led = convoyOn && mates.some(o => { const ax = (o.lx - c.lx) * dirSign; if (ax < 4 || ax > ahead) return false;
+                  const ly = c.y + (y - c.y) * (ax / ahead); return Math.abs(o.y - ly) < TU("convoyLanePxV165I", 16); });
+                if (led) room += TU("convoyLeadSV165I", .12);
+                const edge = Math.min(y - SIDELINE_TOP, SIDELINE_BOT - y);
+                const s = room - Math.abs(k) * TU("ofStraightKV165C", .03) - (edge < 24 ? (24 - edge) * TU("ofEdgeKV165C", .01) : 0);
+                if (s > bestS) { bestS = s; bestY = y; bestLed = led; }
+                if (c._ofY != null && Math.abs(y - c._ofY) <= step / 2) keepS = Math.max(keepS, s);
+              }
+              if (bestLed && c.player && c.player.you) { const V = root.__V165B; V.convoy = (V.convoy || 0) + 1; }
+              // he commits: a new lane has to be clearly better than the one he is in (`ofSwitchSV165C` seconds of room)
+              if (c._ofY == null || bestS > keepS + TU("ofSwitchSV165C", .08)) c._ofY = bestY;
+              c._ofUntil = t + TU("ofReadMsV165C", 160);
+              if (c.player && c.player.you) { const V = root.__V165B; V.of = (V.of || 0) + 1; }
+            }
+            // and he leans into it — the aim eases toward the read (`ofEaseV165C` a tick) instead of snapping a lane over
+            c._ofAim = c._ofAim == null ? c.y : c._ofAim + (c._ofY - c._ofAim) * TU("ofEaseV165C", .25);
+            laneY = clampY(sway + (c._ofAim - sway) * w);
+          }
+        }
         if (kind==="run" && !c._cut && c.lx > 4 && c.lx < 50) {
           const near = chasersNear(c);
           const above = near.filter(a=>a.y<c.y).length, below = near.filter(a=>a.y>=c.y).length;
-          if (Math.abs(above-below) >= 2 && Math.random() < 0.3 + (c.vis-50)*0.005) {
+          if (Math.abs(above-below) >= 2 && Math.random() < 0.3 + (visE(c)-50)*0.005) {   // v165 B: visE
             c._cut = true; laneY = clampY(c.y + (above>below?70:-70)); emit("cutback",{x:c.lx,y:c.y,direction:above>below?1:-1});
             // v29: defenders who bite on the cutback overshoot along their old pursuit line
             near.sort((p,q)=>Math.hypot(p.lx-c.lx,p.y-c.y)-Math.hypot(q.lx-c.lx,q.y-c.y)).slice(0,3).forEach((a,rank)=>{
-              const moveIQ=c.agi*.45+c.quick*.55, defendIQ=a.aware*.55+a.disc*.45;
+              const moveIQ=c.agi*.45+c.quick*.55, defendIQ=awE(a)*.55+discE(a)*.45;   // v165 B
               const biteP=cl(.14+(moveIQ-defendIQ)*.008-rank*.045,.035,.62);
               if(Math.random()<biteP){const delay=Math.round(cl(260+(moveIQ-defendIQ)*3.2,180,540));
                 a.beaten=t+delay; a._osUntil=t+Math.min(delay,TU("overshootMs",420)); a._osdx=a._dx||0; a._osdy=a._dy||0;
@@ -4660,7 +4869,7 @@ window.__visionRadiusV96 = visionRadiusV96;
           // (aim at where the carrier WAS), plus a lateral misjudgment that fades as the
           // gap closes so a bad angle costs ground without looking like blindness.
           if (dfd._angErr == null) {
-            const iq = dfd.aware*0.55 + dfd.disc*0.45;
+            const iq = awE(dfd)*0.55 + discE(dfd)*0.45;   // v165 B
             const mag = Math.max(0, 58 - iq) * TU("angleErrK",0.017);
             dfd._angErr = (Math.random()*2-1) * mag;
             dfd._angLat = (Math.random()*2-1) * mag * TU("angleLatPx",26);
@@ -4864,7 +5073,7 @@ window.__visionRadiusV96 = visionRadiusV96;
             if (a._press && t < 200) { mv(a, a.lx, a.y, .2); return; }
             const receivers=S.off.filter(w=>["WR","TE"].includes(w.lb));
             const w=receivers.slice().sort((p,q)=>Math.hypot(p.lx-a.lx,p.y-a.y)-Math.hypot(q.lx-a.lx,q.y-a.y))[0];
-            const error=Math.max(0,55-a.aware)/55;
+            const error=Math.max(0,55-awE(a))/55;   // v165 B
             const wrong=error>.2&&Math.random()<error*.035;
             const aim=coverageAim(a,w), wy=wrong?clampY(aim.y+(Math.random()<.5?-55:55)):aim.y;
             mv(a,aim.lx+6+(55-a.cov)*.12,wy,.76+a.cov*.0028+a.quick*.0012);

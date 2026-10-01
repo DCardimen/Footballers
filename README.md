@@ -51,6 +51,14 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v165 — the smarter you are, the smarter you play.** Awareness, vision and discipline no longer stop at a ceiling
+  on the field: past it they become football IQ, and every decision reads it — the quarterback's scan and audible,
+  the back's lane and his open-field read, the receiver's break, a defender's read, angle and fake, and the
+  duel of eyes at the catch point. Passers work their progressions off the live field, defenses play man, cover 2
+  and cover 3 that a sharp passer reads before the snap, and backs run behind their blockers. Each level's game
+  is smarter than the one below. Each defense has a coordinator who blitzes by situation, keys what is beating it
+  (and you), and gets burned by play action and the hot read; the play-by-play says when the call decided it.
+  `iqcheck`, `dccheck`.
 - **v163 A — the game never stops.** One bad frame no longer freezes a live game: the frame loop survives it, a
   texture swapped under a sprite is rebound, and a wall-clock watch on every play restarts a stopped field or moves the
   game on. `v163Acheck`.

@@ -4859,7 +4859,7 @@
     acceleration: {
       short: "How quickly you go from standing still to full speed.",
       f: [
-        "Your burst out of the stance and off every cut — it runs for about a quarter-second, then top speed takes over.",
+        "Your burst out of the stance and off every cut. From a standing start the climb to top speed takes about 1.1 seconds at a 90 and 1.5 at a 25.",
         "Feeds the broken-tackle roll and your balance through contact, so a burst runner slips more arm tackles.",
         "Also how fast you rebuild speed after a hard turn, which is most of what separates two men with the same top end."
       ],
@@ -4905,10 +4905,12 @@
         "How fast a defender diagnoses a play. A high-awareness man reads run or pass early; a low one is still watching while the ball is gone.",
         "Resistance to play-action and fakes, and to a disguised coverage rotating late.",
         "For a passer: how well you lead a receiver, how tight your accuracy is, whether you see the blitz and slide the protection, and whether you take the sack instead of forcing it.",
-        "Finding the ball in the air as a receiver, which is the difference between a catch and a ball off the helmet."
+        "Finding the ball in the air as a receiver, which is the difference between a catch and a ball off the helmet.",
+        "For a quarterback: how many reads you get through, how often you come off a covered primary to the open man, and whether you see a blitz or a stacked box at the line and audible — to the hot read, or to play action.",
+        "Consistency: the sharper you are, the less your play swings from snap to snap."
       ],
       s: ["The Wonderlic number on your sheet.", "Heavy OVR weight at quarterback, safety and linebacker."],
-      n: "Your coverage ability is built from this and speed, half each — there is no separate coverage stat on your sheet."
+      n: "Your coverage ability is built from this and speed, half each — there is no separate coverage stat on your sheet. Awareness, vision and discipline have no ceiling on the field: past where your body tops out, a sharper mind keeps reading faster."
     },
     catching: {
       short: "Whether you hold onto the ball when it arrives.",
@@ -4968,13 +4970,14 @@
         "Your read radius — from 75 up, every point lets you see a yard further down the field.",
         "Finding the cutback when the called lane is shut, which is where long runs actually come from.",
         "How far ahead a back projects defenders as he picks his lane, so he runs to space instead of into a filling gap.",
-        "Helps a back spot and pick up a blitzer."
+        "Helps a back spot and pick up a blitzer.",
+        "Past the line, reading the open field: a carrier with vision steers for the lane with the most room instead of weaving into the pursuit."
       ],
       s: [
         "The read-radius number on your sheet, quoted in yards.",
         "Heavy OVR weight at running back, quarterback, linebacker and safety."
       ],
-      n: "Under 75 it reads as it always did; the gain starts above that line."
+      n: "Under 75 it reads as it always did; the gain starts above that line. The read radius stops at 25 yards, but the open-field read keeps sharpening past it."
     },
     jumping: {
       short: "How high you get off the ground to go up for a ball.",
@@ -15683,6 +15686,16 @@
     const w = TU("simWallV141", 215);
     return v <= w ? 99 * (1 - Math.exp(-v / 78)) : 99 * (1 - Math.exp(-w / 78)) + Math.pow(v - w, 0.93) * 0.83;
   }
+  /* v165 A: the mind keys and their headroom curve (the banner is at simGameV2's accessor `_`) */
+  var MIND_KEYS_V165A = ["awareness", "vision", "discipline"];
+  function mindHeadV165A(x) {
+    const A = 99 + TU("iqHeadV165A", 36),
+      T = TU("iqHeadTailV165A", 60),
+      K = TU("simKneeV141", 80);
+    if (x > K) x = K + ((A - K) * (x - K)) / (x - K + T);
+    return Math.max(20, Math.min(A, Math.round(x)));
+  }
+  window.__V165A = { mindKeys: MIND_KEYS_V165A, head: mindHeadV165A };
   function youSimAttrs(e, t) {
     const a = state.player;
     if (!a || !a.attrs) return null;
@@ -16706,12 +16719,26 @@
             : rating;
         }, base);
       },
-      _ = (w, k) => {
-        const raw = _raw(w, k),
-          scale = _starScale(w, k),
+      /* ===== v165 A THE MIND HAS NO CEILING =====
+       * The carrier ceiling (simKneeTopPosV141) and the star dampener exist because a body that
+       * out-rates every tackler by twenty points saturates the whiff / hurdle / truck rolls and they
+       * stack. A MIND does not stack that way: awareness, vision and discipline decide reads, lanes,
+       * angles and fakes. So for the you-player those three keys (`MIND_KEYS_V165A`) skip both — a
+       * running back's vision used to stop at 72, which is under the 75 where the read radius starts.
+       * And when FieldSim asks with `head` (its third argument, v165 B), his mind keys ease toward
+       * 99 + `iqHeadV165A` instead of 99: the points past the 5x wall stop being dead sheet and become
+       * FieldSim's IQ headroom. Every other key, every AI man and every 07 roll is unchanged.
+       * Kill switch `v165Amind` 0. `window.__V165A`; `iqcheck.mjs`. */
+      _mindV165A = (w, k) => !!(w && w.you && TU("v165Amind", 1) && MIND_KEYS_V165A.includes(k)),
+      _ = (w, k, head) => {
+        const mind = _mindV165A(w, k),
+          raw = _raw(w, k),
+          scale = mind ? 1 : _starScale(w, k),
           peer = scale < 0.999 ? _starPeerRaw(w, k) : raw,
-          adjusted = peer + (raw - peer) * scale;
-        return kneeV141(51 + (adjusted - _lgAvg) * 1.15, w && w.you ? w.pos : null);
+          adjusted = peer + (raw - peer) * scale,
+          x = 51 + (adjusted - _lgAvg) * 1.15;
+        if (mind) return head ? mindHeadV165A(x) : kneeV141(x, null);
+        return kneeV141(x, w && w.you ? w.pos : null);
       } /* v141: the carrier ceiling is for the you-player — an AI back at Pee Wee sits at 85 by the normalise, and the game was tuned on that */,
       Y = (w, k) => {
         const g = w.filter(N => k.includes(N.pos));
@@ -16984,6 +17011,61 @@
         lateP = over > a2 ? ((over - a2) / (b2 - a2)) * mx : 0;
       return Math.random() < clamp99(gapP + lateP, 0, mx);
     }
+    /* ===== v165 D THE DEFENSE HAS A COORDINATOR =====
+     * The defense never called anything: the blitz was a flat 18% that only ever came on passes (it knew),
+     * nobody keyed on a run game that was gashing them, and a back with 200 yards was defended like a
+     * rookie. Each defense now has a coordinator with a memory of THIS game (`dcMemV165D`, by the side that
+     * defends) and a football sense by level (`dcIqLvlV165D`, Pee Wee 0.15 → Interstellar 1). Before every
+     * snap he calls (`dcPlanV165D`):
+     *   - `runKey` (−1 keyed on the pass … +1 keyed on the run): how much they run and how well it works
+     *     against how the passing game is doing, scaled by his sense and by how much he has seen;
+     *   - `keyYou` (0…1): when the you-player carries more than `dcYouShareV165D` of the offense's yards;
+     *   - `blitz`: a CALLED pressure — by down and distance, less of it against a sharp quarterback — one
+     *     Math.random draw a snap (compare seeds against the OFF spread). It is called blind: on a run it
+     *     is a run blitz.
+     * FieldSim plays the call (`opts.dcV165D`, see its v165 D lines): a run key reads runs faster and bites
+     * on play action, drops late and leaves the seams; a pass key sits on routes; the called blitz sends
+     * the backer, adds `dcBlitzPressV165D` to the pass pressure here (not on a quick or a screen) and opens
+     * the hot read for a QB who sees it; `keyYou` brackets him and reads his carries early. Mixing it up
+     * beats a coordinator; tendencies feed him. Kill switch `v165Ddc` 0. `window.__V165D`; `dccheck.mjs`. */
+    let dcSnapV165D = null,
+      dcBoothQV165G = 0; /* v165 G: the quarter the keyed-you note last ran */
+    const dcOnV165D = !!TU("v165Ddc", 1),
+      dcLvlV165D = Math.max(0, Math.min(8, Math.round((state.player && state.player.level) || 0))),
+      dcIqV165D = (TU("dcIqLvlV165D", [0.15, 0.25, 0.35, 0.45, 0.55, 0.7, 0.8, 0.9, 1])[dcLvlV165D] ?? 0.6),
+      dcMemV165D = {
+        us: { n: 0, runs: 0, runY: 0, passes: 0, passY: 0, youY: 0, totY: 0 },
+        them: { n: 0, runs: 0, runY: 0, passes: 0, passY: 0, youY: 0, totY: 0 }
+      },
+      dcPlanV165D = (defSide, down, toGo, qbAware) => {
+        const M = dcMemV165D[defSide],
+          iq = dcIqV165D,
+          seen = Math.min(1, M.n / TU("dcWarmPlaysV165D", 8)),
+          share = M.n ? M.runs / M.n : 0.5,
+          ypc = M.runs ? M.runY / M.runs : 4,
+          ypa = M.passes ? M.passY / M.passes : 6,
+          lean = (share - 0.5) * TU("dcShareKV165D", 1.4) + (ypc - ypa * 0.7) * TU("dcGainKV165D", 0.08),
+          youShare = M.totY >= TU("dcYouMinYdsV165D", 25) ? M.youY / M.totY : 0;
+        let blitzP = down >= 3 ? (toGo >= 7 ? 0.3 : toGo <= 3 ? 0.18 : 0.24) : down === 2 && toGo >= 8 ? 0.22 : 0.14;
+        blitzP -= iq * (qbAware - 55) * TU("dcQbRespectKV165D", 0.004);
+        return {
+          runKey: clamp99(lean * iq * seen, -1, 1),
+          keyYou: clamp99((youShare - TU("dcYouShareV165D", 0.3)) * 2.5 * iq * seen, 0, 1),
+          blitzP: clamp99(blitzP * TU("dcBlitzMulV165D", 1), 0.04, 0.45),
+          iq,
+          blitz: false
+        };
+      },
+      dcRecordV165D = (defSide, pass, yards, youOnBall) => {
+        const M = dcMemV165D[defSide],
+          y = Number(yards) || 0;
+        M.n++;
+        if (pass) (M.passes++, (M.passY += y));
+        else (M.runs++, (M.runY += y));
+        M.totY += Math.max(0, y);
+        if (youOnBall) M.youY += Math.max(0, y);
+      };
+    window.__V165D = { mem: dcMemV165D, plan: dcPlanV165D, iq: dcIqV165D, last: null, calls: 0, blitzes: 0 };
     function B(w, concept, play) {
       const { O: k, D: T } = ie(w),
         K = (() => {
@@ -17024,7 +17106,8 @@
             fieldPos: typeof pos !== "undefined" ? pos : 50,
             down: typeof down !== "undefined" ? down : 1,
             toGo: typeof toGo !== "undefined" ? toGo : 10,
-            formation: formationV164P(play, "run", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */
+            formation: formationV164P(play, "run", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */,
+            dcV165D: dcSnapV165D /* v165 D: the defense's call */
           })
         );
       /* v101: the call names the gap. v103: and the sticks, so a back can strain for them */ let base;
@@ -17118,7 +17201,8 @@
           toGo: typeof toGo !== "undefined" ? toGo : 10,
           routes: (ctx.play && ctx.play.routes) || null,
           play: (ctx.play && ctx.play.id) || null,
-          formation: formationV164P(ctx.play, "pass", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */
+          formation: formationV164P(ctx.play, "pass", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */,
+          dcV165D: dcSnapV165D /* v165 D: the defense's call */
         }); /* v101: the call names the routes */
       if (__r) {
         if (__r.complete && __r.yards > 0) {
@@ -18274,6 +18358,15 @@
       if (gtV76() < 1) passP = Math.min(passP, TU("gtPassCap", 0.32));
       margin <= -14 && quarter >= 3 && (passP += 0.12);
       usDrive && (passP += ((nodeLvl("callPass") || 0) - (nodeLvl("callRun") || 0)) * 0.07);
+      // v165 E: the staff goes with what is working — the other side's coordinator sees the same tape (v165 D)
+      if (dcOnV165D && TU("v165Eoc", 1)) {
+        const M = dcMemV165D[usDrive ? "them" : "us"];
+        if (M.n >= TU("ocWarmPlaysV165E", 6)) {
+          const ypc = M.runs ? M.runY / M.runs : 4,
+            ypa = M.passes ? M.passY / M.passes : 6;
+          passP += dcIqV165D * clamp99((ypa * 0.7 - ypc) * TU("ocLeanKV165E", 0.03), -0.1, 0.1);
+        }
+      }
       // v23: your adopted PREGAME game-plan bends your play-mix toward the pass rate
       // the coach agreed to run. Blended (not forced) so down/distance still matters.
       if (usDrive && window.__gameScriptBiasV23 != null) {
@@ -18301,7 +18394,7 @@
       }
       // v101: the chain above still names the FAMILY; the playbook names the actual call inside
       // it, and the call is what the sim and the commentary get.
-      const playV101 = pickPlayV101(isPassCall ? "pass" : "run", concept, {
+      let playV101 = pickPlayV101(isPassCall ? "pass" : "run", concept, {
         down,
         toGo,
         pos,
@@ -18310,14 +18403,60 @@
         hurry: !!hurry
       });
       if (playV101) concept = playV101.base;
-      const paV81 =
+      let paV81 =
         isPassCall &&
         (concept === "dropback" || concept === "shot") &&
         down <= 2 &&
         (playV101 && playV101.pa
           ? Math.random() < TU("paCalledRate", 0.72)
           : Math.random() < TU("paRate", 0.24)); /* v81: play action sells the run first */
+      dcSnapV165D = null;
+      if (dcOnV165D) {
+        /* v165 D: the coordinator's call, made blind to the offense's */
+        dcSnapV165D = dcPlanV165D(usDrive ? "them" : "us", down, toGo, _(qb2, "awareness"));
+        dcSnapV165D.blitz = Math.random() < dcSnapV165D.blitzP;
+        /* v165 J: the shell behind it — man under a blitz and on short yardage, more zone on third-and-long; one draw */
+        if (TU("v165Jshell", 1)) {
+          const wMan = dcSnapV165D.blitz ? 0.7 : toGo <= 3 ? 0.55 : down >= 3 && toGo >= 7 ? 0.25 : 0.4,
+            wC2 = (1 - wMan) * (down >= 3 && toGo >= 7 ? 0.45 : 0.5),
+            rs = Math.random();
+          dcSnapV165D.shell = rs < wMan ? "man" : rs < wMan + wC2 ? "cover2" : "cover3";
+        }
+        window.__V165D.last = dcSnapV165D;
+        if (window.__V165Dlog) window.__V165Dlog.push({ def: usDrive ? "them" : "us", n: dcMemV165D[usDrive ? "them" : "us"].n, down, toGo, runKey: dcSnapV165D.runKey, keyYou: dcSnapV165D.keyYou, blitz: dcSnapV165D.blitz, shell: dcSnapV165D.shell || null });
+        window.__V165D.calls++;
+        dcSnapV165D.blitz && window.__V165D.blitzes++;
+      }
+      /* ===== v165 E THE AUDIBLE =====
+       * The quarterback reads the look before the snap. A called blitz shows; a box that keyed the run shows. A QB
+       * whose awareness (the accessor's value — his own mind keys for the you-player, v165 A) clears
+       * `audPivotV165E` sees it with a chance that climbs over `audSpanV165E` to `audMaxV165E`, and checks:
+       *   - into a blitz on a dropback or a shot → the hot read: a quick call off the playbook (the quick game is
+       *     out before the pressure, v165 D's blitz pressure skips it);
+       *   - into a run key (`audRunKeyV165E`) on an early-down dropback → play action, which a keyed box bites on.
+       * One Math.random a snap, only when a coordinator called the snap and the QB can see anything. The row says
+       * "Audible". Kill switch `v165Eaud` 0. `window.__V165D.audibles`; `dccheck.mjs`. */
+      let audV165E = null;
+      if (dcSnapV165D && TU("v165Eaud", 1) && isPassCall && (concept === "dropback" || concept === "shot")) {
+        const seeP = clamp99((_(qb2, "awareness") - TU("audPivotV165E", 60)) / TU("audSpanV165E", 35), 0, TU("audMaxV165E", 0.85));
+        if (seeP > 0) {
+          const roll = Math.random();
+          if (dcSnapV165D.blitz && roll < seeP) {
+            const hot = pickPlayV101("pass", "quick", { down, toGo, pos, quarter, margin, hurry: !!hurry });
+            concept = "quick";
+            if (hot) ((playV101 = hot), (concept = hot.base));
+            paV81 = !1;
+            audV165E = "hot";
+          } else if (!paV81 && down <= 2 && dcSnapV165D.runKey >= TU("audRunKeyV165E", 0.3) && roll < seeP) {
+            paV81 = !0;
+            audV165E = "pa";
+          }
+          if (audV165E) window.__V165D.audibles = (window.__V165D.audibles || 0) + 1;
+          if (audV165E && window.__V165Dlog) window.__V165Dlog.push({ audible: audV165E, qbAware: _(qb2, "awareness"), us: usDrive });
+        }
+      }
       const cTag =
+        (audV165E ? (audV165E === "hot" ? "Audible — hot read off the blitz — " : "Audible — play action into the stacked box — ") : "") +
         (paV81 ? "Play action — " : "") +
         (playV101
           ? playV101.tag
@@ -18366,9 +18505,14 @@
               : base;
           })(Dk.def.filter(w => w.pos === "DL")),
           pressureBase = clamp99(
-            0.15 + (dlR - olB) * 0.004 + (concept === "shot" ? 0.055 : concept === "quick" ? -0.05 : 0),
+            0.15 +
+              (dlR - olB) * 0.004 +
+              (concept === "shot" ? 0.055 : concept === "quick" ? -0.05 : 0) +
+              (dcSnapV165D && dcSnapV165D.blitz && concept !== "quick" && concept !== "screen"
+                ? TU("dcBlitzPressV165D", 0.06)
+                : 0) /* v165 D: the called blitz gets home more often — unless the ball is out quick */,
             0.06,
-            0.34
+            dcSnapV165D && dcSnapV165D.blitz ? 0.38 : 0.34
           ),
           sackP = clamp99(
             pressureBase * (0.48 - (_(qb2, "awareness") - 50) * 0.003 - (_(qb2, "speed") - 50) * 0.0015),
@@ -19099,6 +19243,33 @@
                 : oob
                   ? "oob"
                   : null;
+      if (dcOnV165D && (ne === "run" || ne === "pass" || ne === "incomplete" || ne === "sack" || ne === "scramble"))
+        dcRecordV165D(usDrive ? "them" : "us", isPassCall, de, usDrive && me); /* v165 D: the coordinator remembers */
+      /* ===== v165 G THE BOOTH SEES IT =====
+       * The coordinator's call is invisible unless it decides the play, and then the booth says so: the blitz that got
+       * home, the stuffed run into a keyed box, the play fake that burned it, the man they are keying. One note a play,
+       * only when the call MATTERED, the keyed-you note once a quarter. No random draws. Kill switch `v165Gbooth` 0.
+       * `window.__V165D.notes`; `dccheck.mjs`. */
+      if (dcSnapV165D && TU("v165Gbooth", 1) && !_e && !pickSix && !flip) {
+        const D = dcSnapV165D,
+          note =
+            ne === "sack" && D.blitz
+              ? " The blitz got home."
+              : ne === "run" && de <= 0 && D.runKey >= TU("boothRunKeyV165G", 0.5)
+                ? " They were sitting on the run."
+                : (ne === "pass" || ne === "run") && paV81 && de >= 15 && D.runKey >= TU("boothPaKeyV165G", 0.3)
+                  ? " The play fake burned a defense keyed on the run."
+                  : ne === "pass" && D.blitz && audV165E === "hot" && de >= 6
+                    ? " Hot read beats the blitz."
+                    : usDrive && me && de <= 2 && D.keyYou >= TU("boothKeyYouV165G", 0.45) && dcBoothQV165G !== quarter
+                      ? " They're keying on YOU."
+                      : "";
+        if (note) {
+          if (note === " They're keying on YOU.") dcBoothQV165G = quarter;
+          ue += note;
+          window.__V165D.notes = (window.__V165D.notes || 0) + 1;
+        }
+      }
       mkPlay({
         T0,
         pre,

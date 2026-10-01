@@ -10,6 +10,70 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v165 K — the progression.** (`src/04-engine.js`, `scripts/iqcheck.mjs`.) The target used to be picked before
+  the snap and the ball came out on a timer; the scan on the broadcast was a show. Now, at the throw, a sharp passer
+  in a clean pocket whose man is blanketed works the reads he scanned off the live field and comes off to one that is
+  open — late, so the defense closes a beat (a 600-mind UFF QB does it about 8 times a game, a 120-mind one never).
+  A first cut (any read better, under pressure too) made it a free completion — equal-talent scoring 55 → 62, 75%
+  completions — and was cut back to this. Kill switch `v165Kprog`. `iqcheck`'s yards-a-carry row now pools three
+  streams.
+- **v165 J — the shell.** (`src/04-engine.js`, `src/07-career-app.js`, `scripts/dccheck.mjs`.) The defense plays a
+  coverage now: the coordinator calls man, cover 2 or cover 3 every snap (man behind 74% of blitzes, zone on most
+  third-and-longs), and every route has a matchup against each — crossers and double moves beat man, seams and posts
+  split cover 2, curls and flats eat cover 3. The window a route gets carries it; what the quarterback sees of it is
+  his recognition, and a sharp one reads the shell before the snap and makes the route that beats it his primary (the
+  route a 95-awareness passer throws to fits man +0.09 / cover 2 +0.12 where a 35's fits −0.03 / −0.02; cover 3 is a
+  near-tie, its soft spots are short and a passer still prices the sticks). Each shell's fits average zero across the
+  route tree, so a shell reshuffles which route is open without opening the passing game (uncentred, scoring rose 9%;
+  centred it is 21.3 a game against main's 22.0). The coordinator also calls less pressure against a sharp passer.
+  Kill switch `v165Jshell`.
+- **v165 I — the convoy.** (`src/04-engine.js`, `scripts/iqcheck.mjs`.) A carrier with vision runs behind his
+  blockers: past the line, a lane with a blocker leading up it counts as roomier (a 600-mind UFF back takes one on about
+  one read in seven; 7.40 → 7.56 a carry over two seeded streams). Discounting the defenders a blocker merely stood near
+  was tried and dropped — it cost yards. Kill switch `v165Iconvoy`.
+- **v165 H — the eyes.** (`src/04-engine.js`, `scripts/iqcheck.mjs`.) The duel at the catch point is a duel of reads:
+  a defender who reads the quarterback's eyes jumps the route a dull passer stares down, and a sharp passer looks him
+  off — the pick odds take the ball man's IQ against the QB's, the swat the ball man's IQ. A mid UFF corner's pick odds
+  as the ball man go 6.6% → 9.1% with it on (same seeds). Kill switch `v165Heyes`.
+- **v165 G — the booth sees it.** (`src/07-career-app.js`, `scripts/dccheck.mjs`.) The coordinator's thinking is
+  invisible unless it decides a play, and then the play-by-play says so: "The blitz got home.", "They were sitting on
+  the run.", "The play fake burned a defense keyed on the run.", "Hot read beats the blitz.", "They're keying on YOU."
+  (once a quarter). Kill switch `v165Gbooth`.
+- **v165 F — the route has a brain.** (`src/04-engine.js`, `scripts/iqcheck.mjs`.) A receiver's separation used to
+  be speed and agility against coverage. At the break his awareness against his cover man's now buys room, and a sharp
+  receiver's double move gets more bites: a 600-mind UFF receiver's separation after the break is +0.09 where a
+  120-mind one's is −1.00 (a yellow window against a red one); over 12 games he catches 9.5 a game where the v165-off
+  build caught 7.3, for about the same yards. Kill switch `v165Froute`.
+- **v165 E — the audible.** (`src/07-career-app.js`, `scripts/dccheck.mjs`.) The quarterback reads the look before the
+  snap: a sharp one who sees a called blitz checks to the hot read (a quick call), and into a box keyed on the run he
+  checks to play action — your quarterback's awareness now changes the call itself (a 600-mind UFF QB audibled 5 times
+  in 4 games, a 120-mind one never). The staff's play mix leans toward what is working, as hard as its level's sense —
+  against v165 D's coordinator, who keys whatever it leans on. The stat cards for awareness, vision and acceleration say
+  what they do now (the audible and consistency; the open-field read; v164 I's 1.1–1.5 s standing start). Kill switches
+  `v165Eaud`, `v165Eoc`.
+- **v165 D — the defense has a coordinator.** (`src/07-career-app.js`, `src/04-engine.js`, `scripts/dccheck.mjs`.) The
+  defense never called anything: a flat 18% blitz that only came on passes, no answer to a run game gashing it, and a
+  200-yard back defended like a rookie. Each defense now remembers the game and calls every snap blind: it keys the run
+  or the pass from what is working, keys the you-player when he carries the offense, and calls pressure by down and
+  distance (third-and-long blitzes twice as often as first down; less of it against a sharp quarterback). How hard it
+  adapts is its football sense by level — a UFF coordinator keys a run-heavy offense three times as hard as a Pee Wee
+  one. Every call has its counter: a run key stuffs the straight run (8.5 → 6.9 YPC on the readcheck roster) and is
+  burned by play action (10.4 → 12.2 YPA); a blitz is a hot read for a quarterback who sees it — the window a sharp one
+  throws into opens (separation −0.61 → −0.13) and a dull one's closes (−1.08 → −1.30). Kill switch `v165Ddc`.
+- **v165 A–C — the mind has no ceiling; football IQ; open-field eyes.** (`src/04-engine.js`, `src/07-career-app.js`,
+  `scripts/iqcheck.mjs`.) Ratings past ~250 used to buy almost nothing on the field: a back's or receiver's every key
+  stopped at the 72/76 carrier ceiling (vision 72 is under the 75 where the read radius starts), and the decisions that
+  make a player look smart were rolls whose caps stopped a 99 where a 70 stood. *A — the mind has no ceiling*: his
+  awareness, vision and discipline skip the carrier ceiling and the star dampener, and past 99 they become FieldSim
+  headroom (UFF sheet 400 → IQ ~116, 999 → ~131); his body keeps the ceiling. *B — football IQ*: the QB scan, lead,
+  composure, smart sack, ball-find, the read clock, the fake, pursuit angles, corner leverage, LB drops and the back's
+  lane/cutback read an effective IQ (rating + his headroom + the level's sense, Pee Wee −8 → Interstellar +4), with
+  the caps opened; a sharp man's per-snap swing narrows. A 600-mind QB throws to the best read he saw 84% of the time
+  (120: 31%). *C — open-field eyes*: past the line a carrier with vision reads seven lanes ahead and takes the one with the
+  most room instead of a sine weave (committing to a lane and easing into it); a 600-mind back gains 8.1 a carry on the
+  same seeds a 120-mind one gains 6.6. `formcheck`'s YPC band now pools three streams (one stream moved with the draws).
+  `scripts/known-failures.json` records the seven checks v165's baseline run found failing on main.
+  Kill switches `v165Amind`, `v165Biq`, `v165Cof`.
 - **v164 I — the start is earned.** (`src/04-engine.js`, `scripts/accelcheck.mjs`.) The acceleration check found every
   player reached 90% of top speed in 0.4–0.6 real seconds, so the acceleration rating barely mattered. A standing
   start now takes 1.1 s (rating 90) to 1.5 s (rating 25), and the 0-10 yard split runs 1.5–2.0 s; moving players,
