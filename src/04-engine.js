@@ -3940,7 +3940,15 @@ window.__visionRadiusV96 = visionRadiusV96;
                   x: cx, y: cyIn, gap: Math.round(ballManGap), covGap: Math.round(covGapV110) });
               }
               const contested = sep < TU("contestSep", .2) && ballManGap < 22;
-              const swatP = contested ? cl((ballMan.cov - 50) * .004 + (ballMan.jump - 50) * .002 + TU("swatBase", .04), 0, .3) * (ballMan.cov >= target.cat ? 1 : .6) : 0;
+              /* ===== v165 H THE EYES =====
+               * The duel in the air is a duel of reads too. A defender who reads the quarterback's eyes jumps the route a
+               * dull passer stares down; a sharp passer looks him off. The pick odds take the ball man's IQ against the
+               * QB's (`eyesIntKV165H` a point, both through v165 B's `awE`, headroom included); the swat takes the ball
+               * man's IQ from 50 (`eyesSwatKV165H`). No extra draws; inside the v76 cap and damper as before. Kill switch
+               * `v165Heyes` 0 (and `v165Biq`). `root.__V165B.youIntP` / `youIntN` (his mean pick odds as the ball man). */
+              const eyesOnV165H = iqOnV165B() && TU("v165Heyes", 1);
+              const swatP = contested ? cl((ballMan.cov - 50) * .004 + (ballMan.jump - 50) * .002 + TU("swatBase", .04)
+                + (eyesOnV165H ? (awE(ballMan) - 50) * TU("eyesSwatKV165H", .001) : 0), 0, .3) * (ballMan.cov >= target.cat ? 1 : .6) : 0;
               if (shortBall) emit("comeback", { who: target.id, x: cx, y: cyy, smart: comebackK > 0 });
               if (boxOut && boxK > .04) emit("boxOut", { who: target.id, on: coverA.id, x: cx, y: cyy });
               // jumping decides the high-point on deep shots; ballControl secures contested grabs
@@ -3996,14 +4004,17 @@ window.__visionRadiusV96 = visionRadiusV96;
                 } else phase = "carry";
               } else {
                 const absSpot=(Number(opts?.fieldPos)||50)+cx/YD, sideline=Math.abs(cyy-MIDY)>165;
+                const eyesIntV165H = bm => eyesOnV165H ? cl((awE(bm) - awE(S.off[8])) * TU("eyesIntKV165H", .0006), -.03, .06) : 0;   // v165 H
                 const fieldRisk=(absSpot>=90?.012:0)+(absSpot<=12?.006:0)+(routeDepth>12&&!sideline?.008:0)-(sideline?.012:0);
                 const earlyRisk=cl((arrivalEdgeMs-70)/1700,0,.05), badLocation=(1-locationQuality)*.02;
                 const intP = cl((ballMan.cov - target.spdA*0.5 - target.agi*0.5) * 0.004
                   + (routeDepth>13 ? (ballMan.jump-target.jump)*0.002 : 0)
                   + (bracketed&&coverHelp?(coverHelp.cov-45)*.0012:0)
                   - (S.off[8].aware-50)*0.0007 + (sep < -2 ? 0.028 : 0.012)
+                  + eyesIntV165H(ballMan)
                   + earlyRisk + badLocation + fieldRisk + (underPressure?.008:0), 0.004, 0.18)
                   * (window.__toMultV76 || 1);      // v76: takeaway swing, damped by mismatch
+                if (ballMan.player && ballMan.player.you) { const V = root.__V165B; V.youIntP = (V.youIntP||0) + intP; V.youIntN = (V.youIntN||0) + 1; }
                 if (Math.random() < intP) {
                   emit("pick",{by:ballMan.id,x:cx,y:cyy});
                   carrier = ballMan; phase = "carry";           // v110: the man who picked it is the man who returns it

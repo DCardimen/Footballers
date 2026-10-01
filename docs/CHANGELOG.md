@@ -10,6 +10,10 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v165 H — the eyes.** (`src/04-engine.js`, `scripts/iqcheck.mjs`.) The duel at the catch point is a duel of reads:
+  a defender who reads the quarterback's eyes jumps the route a dull passer stares down, and a sharp passer looks him
+  off — the pick odds take the ball man's IQ against the QB's, the swat the ball man's IQ. A mid UFF corner's pick odds
+  as the ball man go 6.6% → 9.1% with it on (same seeds). Kill switch `v165Heyes`.
 - **v165 G — the booth sees it.** (`src/07-career-app.js`, `scripts/dccheck.mjs`.) The coordinator's thinking is
   invisible unless it decides a play, and then the play-by-play says so: "The blitz got home.", "They were sitting on
   the run.", "The play fake burned a defense keyed on the run.", "Hot read beats the blitz.", "They're keying on YOU."

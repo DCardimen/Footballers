@@ -8,6 +8,7 @@
 //      than a 120-mind one; a 600-mind back reads the open field past the line (v165 C) where a 120-mind
 //      one weaves, and gains more a carry for it — but not 1.4x (the carrier ceiling's reason stands);
 //   4b. v165 F: a 600-mind receiver's separation after the break beats a 120-mind one's;
+//   4c. v165 H: a sharp corner's pick odds as the ball man rise with the eyes on (same seeds, under the cap);
 //   5. the kill switch (v165Biq 0, v165Amind 0) gives back the bare ratings everywhere.
 // Usage: node scripts/iqcheck.mjs   (GAMES per outcome cell via GAMES, default 10)
 import { gameScripts } from './lib/layout.mjs'
@@ -41,11 +42,11 @@ const out = await page.evaluate((GAMES) => {
   const sd = (a, k) => { const m = mean(a, k); return Math.sqrt(a.reduce((s, x) => s + (x[k] - m) ** 2, 0) / Math.max(1, a.length - 1)) }
   const run = (level, pos, attrs, n, s0) => {
     st.player = { level, pos, name: 'P', attrs }; window.__AP = []
-    const V = window.__V165B; V.qbReads = V.qbBest = V.laneReads = V.laneOpen = V.of = V.wrSep = V.wrSepN = 0
+    const V = window.__V165B; V.qbReads = V.qbBest = V.laneReads = V.laneOpen = V.of = V.wrSep = V.wrSepN = V.youIntP = V.youIntN = 0
     let yds = 0, car = 0
     for (let g = 0; g < n; g++) { reseed((s0 || 7000) + g); const r = window.__simGameV2(9 + g, pos); yds += (r.stat && r.stat.rush) || 0; car += (r.stat && r.stat.carries) || 0 }
     const you = [], ai = []; window.__AP.forEach(sn => sn.forEach(a => { (a.you ? you : ai).push(a) }))
-    return { you, ai, qbReads: V.qbReads, qbBest: V.qbBest, laneReads: V.laneReads, laneOpen: V.laneOpen, of: V.of, wrSep: V.wrSepN ? V.wrSep / V.wrSepN : null, wrSepN: V.wrSepN, ypc: car ? yds / car : 0 }
+    return { you, ai, qbReads: V.qbReads, qbBest: V.qbBest, laneReads: V.laneReads, laneOpen: V.laneOpen, of: V.of, wrSep: V.wrSepN ? V.wrSep / V.wrSepN : null, wrSepN: V.wrSepN, intP: V.youIntN ? V.youIntP / V.youIntN : null, intN: V.youIntN, ypc: car ? yds / car : 0 }
   }
   const r1 = x => +(+x).toFixed(1), r3 = x => +(+x).toFixed(3)
   const res = { mind: {}, level: [], calm: {}, decide: {}, off: {} }
@@ -57,8 +58,12 @@ const out = await page.evaluate((GAMES) => {
   const qbLo = run(7, 'QB', mind(250, 120), GAMES), qbHi = run(7, 'QB', mind(250, 600), GAMES)
   const rbLo = run(7, 'RB', mind(250, 120), GAMES), rbHi = run(7, 'RB', mind(250, 600), GAMES)
   const wrLo = run(7, 'WR', mind(250, 120), GAMES), wrHi = run(7, 'WR', mind(250, 600), GAMES)
+  // v165 H: the same mid corner (sheet 200, mind 300 — under the v76 cap) with the eyes off and on, on the same seeds
+  window.RIB_TUNE.v165Heyes = 0; const cbLo = run(7, 'CB', mind(200, 300), GAMES); window.RIB_TUNE.v165Heyes = 1
+  const cbHi = run(7, 'CB', mind(200, 300), GAMES)
   res.decide = {
     wrLo: r3(wrLo.wrSep), wrHi: r3(wrHi.wrSep), wrN: wrLo.wrSepN + wrHi.wrSepN,
+    intLo: r3(cbLo.intP), intHi: r3(cbHi.intP), intN: cbLo.intN + cbHi.intN,
     qbLo: r3(qbLo.qbBest / Math.max(1, qbLo.qbReads)), qbHi: r3(qbHi.qbBest / Math.max(1, qbHi.qbReads)), qbN: qbLo.qbReads + qbHi.qbReads,
     laneLo: r3(rbLo.laneOpen / Math.max(1, rbLo.laneReads)), laneHi: r3(rbHi.laneOpen / Math.max(1, rbHi.laneReads)), laneN: rbLo.laneReads + rbHi.laneReads,
     ofLo: rbLo.of, ofHi: rbHi.of,
@@ -88,6 +93,7 @@ ok(`past the line the 600-mind back reads the open field and the 120-mind one we
 ok(`and the reads pay: more a carry on the same seeds (ypc ${D.ypcLo} -> ${D.ypcHi})`, D.ypcHi > D.ypcLo)
 ok(`but not a cheat code: under 1.4x a carry (${D.ypcLo} -> ${D.ypcHi})`, D.ypcHi < D.ypcLo * 1.4)
 ok(`v165 F: a 600-mind receiver wins more at the break (separation ${D.wrLo} -> ${D.wrHi}, ${D.wrN} breaks)`, D.wrN >= 30 && D.wrHi >= D.wrLo + 0.4)
+ok(`v165 H: a sharp corner reads the quarterback's eyes — his pick odds as the ball man rise with the eyes on (${D.intLo} -> ${D.intHi}, ${D.intN} balls)`, D.intN >= 20 && D.intHi >= D.intLo + 0.01 && D.intHi < 0.18)
 ok(`kill switch: the bare ratings everywhere (visMax ${out.off.visMax}, E == bare: ${out.off.same})`, out.off.same && out.off.visMax <= 80)
 ok('no page errors', errs.length === 0, errs.slice(0, 3))
 for (const c of checks) console.log((c.pass ? 'ok   ' : 'FAIL ') + c.name)
