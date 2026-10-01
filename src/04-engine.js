@@ -2675,11 +2675,35 @@ window.__visionRadiusV96 = visionRadiusV96;
       // hits finishes the game on heavier legs than one who ran untouched.
       if (d.gas !== undefined) d.gas = Math.max(0, d.gas - TU("gasHitCostD", 4));
       if (c.gas !== undefined) c.gas = Math.max(0, c.gas - TU("gasHitCostC", 6));
+      /* ===== v166 F THE MOVE IS A CHOICE =====
+       * The cascade below rolled every move against every tackler — a back never decided anything. Now, before the first
+       * roll, the carrier picks ONE move for this man (`cmPlanV166F`): the CUT where there is room or the tackler did not
+       * square up, the HURDLE over a man going low, the STIFF-ARM when he is stronger or the tackler is on a bad line, the
+       * TRUCK when his momentum wins or the sticks are close. A carrier past `cmIqV166F` (his vision IQ) picks the move
+       * that fits THIS tackler; a dull one runs his best move every time. The chosen move's odds rise `cmBoostV166F` and
+       * the moves he did not try fall to `cmCutV166F` — the same rolls, so no extra draws. Emits `carrierMove`. Kill
+       * switch `v166Fmove` 0. `root.__V166F` (`plans`, `fit`, `moves`); `movecheckV166.mjs`. */
+      const V166F = root.__V166F = root.__V166F || { plans: 0, fit: 0, moves: {} };
+      const cmOn = !behind && TU("v166Fmove", 1) && iqOnV165B();
+      let cmMove = null;
+      if (cmOn) {
+        const armE = (cStr - dStr) + (c.str - 50) * .45, powE = (cMom - dMom) * .85 + (cStr - dStr) * .5;
+        const fit = { cut: (elus - d.tkl) + (openField ? 12 : 0) + angX * 20 - (setQ > 0 ? 6 : 0),
+          hurdle: ((c.jump * .6 + c.agi * .4) - d.tkl) + (aim === "low" ? 18 : -14),
+          stiff: armE + angX * 15 + (aim === "high" ? 6 : 0),
+          truck: powE * .5 + (opts && opts.toGo != null && opts.toGo <= 2 ? 10 : 0) + (aim === "high" ? 4 : -2) };
+        const own = { cut: elus, hurdle: c.jump * .6 + c.agi * .4, stiff: c.str, truck: c.str * .5 + (c.spdA || 50) * .5 };
+        const pick = (m) => Object.keys(m).reduce((a, b) => (m[b] > m[a] ? b : a));
+        cmMove = visE(c) >= TU("cmIqV166F", 62) ? pick(fit) : pick(own);
+        V166F.plans++; V166F.moves[cmMove] = (V166F.moves[cmMove] || 0) + 1; if (cmMove === pick(fit)) V166F.fit++;
+        emit("carrierMove", { who: c.id, vs: d.id, move: cmMove });
+      }
+      const cmK = m => !cmMove ? 1 : m === cmMove ? TU("cmBoostV166F", 1.35) : TU("cmCutV166F", 0.8);
       // 1) WHIFF — an elusive back makes him miss in space (never from behind).
       // Steeper gap term + a high (never-100%) ceiling so a huge mismatch shows:
       // even ≈26% open, star-vs-weak ≈70%, generational-vs-scrub ≈78%, floor ≈2%.
       const whiffP = cl(TU("whiffBaseV139", .12) + (elus - d.tkl)*0.008 + (openField?0.10:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006
-        + afx.whiff * TU("aimFxV143", 1) - angX * TU("angleWhiffKV143", .07) - setQ * TU("windupWhiffKV143", .10), 0.02, 0.72) * (1 - swarmChoke) * soloK;
+        + afx.whiff * TU("aimFxV143", 1) - angX * TU("angleWhiffKV143", .07) - setQ * TU("windupWhiffKV143", .10), 0.02, 0.72) * (1 - swarmChoke) * soloK * cmK("cut");
       /* v139: the rate is a dial now but its default is exactly what it always was. Raising it
        * lengthens plays, which grows v109C1check's sample, and that check asserts PERFECTION over
        * a stochastic sample (it fails 1-of-N on main too). The visible answer to "more whiffed
@@ -2725,7 +2749,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       // Driven by jumping + agility vs the tackler's wrap skill; open field helps,
       // never works from behind. The carrier sails over and keeps his momentum.
       const hurdleP = (behind ? 0 : cl(0.03 + ((c.jump*0.6 + c.agi*0.4) - d.tkl)*0.006 + (openField?0.07:0) + Math.max(0,-lev)*0.005
-        + afx.hurdle * TU("aimFxV143", 1), 0.02, 0.38)) * (1 - swarmChoke) * soloK;
+        + afx.hurdle * TU("aimFxV143", 1), 0.02, 0.38)) * (1 - swarmChoke) * soloK * cmK("hurdle");
       if (Math.random() < hurdleP) {
         d.beaten = t + 560; d.cool = t + 480; c.burstUntil = t + 380; kickSprint(c);
         c.vel = Math.max(0,(c.vel||0)*0.98);
@@ -2740,7 +2764,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       // defender is shoved off and stumbles; the runner is slowed a touch, keeps going.
       const armEdge = (cStr - dStr) + (c.str - 50)*0.45;
       const stiffP = (behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005
-        + afx.stiff * TU("aimFxV143", 1) - (angMovV151 ? (angX - TU("angleMeanV151D", .15)) * TU("angleStiffKV151D", .03) : 0), 0, 0.5)) * (1 - swarmChoke) * soloK;
+        + afx.stiff * TU("aimFxV143", 1) - (angMovV151 ? (angX - TU("angleMeanV151D", .15)) * TU("angleStiffKV151D", .03) : 0), 0, 0.5)) * (1 - swarmChoke) * soloK * cmK("stiff");
       if (Math.random() < stiffP) {
         d.beaten = t + 520; d.stagger = t; c.vel = Math.max(0,(c.vel||0)*0.95); c.burstUntil = t + 300; kickSprint(c);
         c._evades = (c._evades||0) + 1; emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y, ...hit, armEdge: Math.round(armEdge)});   // v109: which arm, and how far he shoved him
@@ -2759,7 +2783,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       let truckP = cl(0.16 + powerEdge*0.011 + (behind?-0.09:0) + Math.max(0,lev)*0.006
         + afx.truck * TU("aimFxV143", 1) - (angMovV151 ? (angX - TU("angleMeanV151D", .15)) * TU("angleTruckKV151D", .06) : 0), 0.02, 0.72);
       if (bothWin) truckP = cl(truckP + 0.22 + (cSpd - dSpd)*0.006, 0.05, 0.90);
-      truckP *= (1 - swarmChoke) * soloK;                          // v25: you don't truck THROUGH a gang
+      truckP *= (1 - swarmChoke) * soloK * cmK("truck");          // v25: you don't truck THROUGH a gang; v166 F: his choice
       if (Math.random() < truckP) {
         d.beaten = t + 600; c.burstUntil = t + 500; kickSprint(c);
         if ((powerEdge > 20 || bothWin) && !behind) d.trucked = t;   // flattened — he stays down

@@ -480,7 +480,8 @@
     "renderpathcheck",
     "v86check",
     "v151Dcheck",
-    "blockcheck"
+    "blockcheck",
+    "cmovecheck"
    ],
    "steps": [
     "`scoreneutralcheck` over several seeds, against the OFF spread (the aim roll changes sample paths)"
@@ -3116,6 +3117,19 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "cmovecheck": {
+   "file": "scripts/cmovecheck.mjs",
+   "desc": "v166 F — the move is a choice",
+   "areas": [
+    "tackle"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster, the back's vision at 35 / 90."
   },
   "pocketcheck": {
    "file": "scripts/pocketcheck.mjs",
