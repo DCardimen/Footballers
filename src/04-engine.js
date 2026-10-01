@@ -2077,10 +2077,14 @@ window.__visionRadiusV96 = visionRadiusV96;
     const best = rushers.slice().sort((a2,b2)=>(b2.str+b2.quick)-(a2.str+a2.quick))[0];
     let doubled = null, blitzer = null;
     if (freeOL && best) { doubled = best; best.doubled = true; freeOL.doubling = best; }
-    if (kind === "pass" && Math.random() < 0.18) {
-      blitzer = S.def.filter(a=>a.lb==="LB")[Math.floor(Math.random()*3)];
-      if (blitzer) blitzer.blitzing = true;
-    }
+    // v165 D: with a coordinator the blitz is HIS call (`opts.dcV165D.blitz`, made blind in 07); the old 18% draw
+    // is still spent so the sample path does not move. On a run his call is a run blitz (the read clock below).
+    const dcV165D = iqOnV165B() && opts && opts.dcV165D ? opts.dcV165D : null;
+    if (kind === "pass") { const blitzRoll = Math.random();
+      if (dcV165D ? dcV165D.blitz : blitzRoll < 0.18) {
+        blitzer = S.def.filter(a=>a.lb==="LB")[Math.floor(Math.random()*3)];
+        if (blitzer) blitzer.blitzing = true;
+      } }
     const shedTick = (r) => { if (r.shed || (r.stunned && t<r.stunned)) return;
       const p = cl(((r.str*0.55 + r.quick*0.45) - r.engaging.blk) * 0.00042 + 0.0035, 0.0008, 0.028) * (kind==="run"?0.55:1) * (r.doubled?0.32:1)
         * (playAction && t < declareT + 150 ? TU("paShedK", .5) : 1);   // v81: the front plays the run fake too
@@ -2783,19 +2787,30 @@ window.__visionRadiusV96 = visionRadiusV96;
     const HANDOFF_T = isDraw ? TU("drawHandoffMs", 760) : 420;
     const declareT = kind === "run" ? (isDraw ? HANDOFF_T : TU("runDeclareMs", 300))
       : (playAction ? TU("paRevealMs", 720) : 180);
+    // v165 D: the coordinator's call moves the read clock — a run key reads a straight run early (and a pass
+    // key late), a run blitz sends the backers downhill, and a keyed you-player's carry is diagnosed early
+    const dcYouRunV165D = kind === "run" && S.off.some(o => o.player && o.player.you && o.lb === "RB");
+    const dcReadKV165D = a => {
+      if (!dcV165D || kind !== "run" || isDraw || (a.lb !== "LB" && a.lb !== "S")) return 1;
+      let k = 1 - TU("dcRunKeyReadV165D", .4) * Math.max(0, dcV165D.runKey) + TU("dcPassKeyReadV165D", .25) * Math.max(0, -dcV165D.runKey);
+      if (dcV165D.blitz && a.lb === "LB") k *= TU("dcRunBlitzReadV165D", .6);
+      if (dcYouRunV165D) k *= 1 - TU("dcKeyYouReadV165D", .2) * dcV165D.keyYou;
+      return Math.max(.35, k);
+    };
     const readDelayV81 = a => {
       const posK = { LB: 1, S: TU("readPosS", 1.3), CB: TU("readPosCB", 1.4), DL: .8 }[a.lb] || 1;
       const iq = awE(a) * .62 + a.quick * .22 + discE(a) * .16;   // v165 B: the IQ, not the bare ratings
       const base = TU("readBaseMs", 480) - (iq - 50) * TU("readIqK", 5.0);
       const fakeK = (isDraw || playAction) ? TU("readFakeK", 1.3) : 1;
-      return Math.round(cl(base, 110, 900) * posK * fakeK * (.85 + Math.random() * .3));
+      return Math.round(cl(base, 110, 900) * posK * fakeK * dcReadKV165D(a) * (.85 + Math.random() * .3));
     };
     S.def.forEach(a => {
       a._readMs = readDelayV81(a); a._seenAt = null; a._bite = false;
       // the fake: does he step the wrong way first? Discipline holds the key,
       // awareness sees through it. A bitten man finds the ball LATER, not never.
       if ((isDraw || playAction) && (a.lb === "LB" || a.lb === "S")) {
-        const biteP = cl(TU("fakeBiteBase", .5) - (awE(a) - 50) * TU("fakeBiteAwareK", .007) - (discE(a) - 50) * TU("fakeBiteDiscK", .006), iqOnV165B() ? TU("iqBiteMinV165B", .03) : .06, .88);
+        const biteP = cl(TU("fakeBiteBase", .5) - (awE(a) - 50) * TU("fakeBiteAwareK", .007) - (discE(a) - 50) * TU("fakeBiteDiscK", .006)
+          + (dcV165D ? TU("dcBiteV165D", .22) * Math.max(0, dcV165D.runKey) : 0), iqOnV165B() ? TU("iqBiteMinV165B", .03) : .06, .88);   // v165 D: a run key bites on the fake
         if (Math.random() < biteP) { a._bite = true; a._readMs += TU("biteExtraMs", 240); }
       }
     });
@@ -3234,6 +3249,10 @@ window.__visionRadiusV96 = visionRadiusV96;
       // noise contaminates the grade; young/raw QBs can still lock onto a bad read.
       // The called primary receives a small preference, not a guaranteed target.
       const _window = v => v > -0.25 ? "green" : v > -1.75 ? "yellow" : "red";
+      // v165 D: the call shows up in the windows — a blitz leaves a hot read for a QB who sees it, a pass key sits on routes
+      const dcSepV165D = !dcV165D ? 0 : (blitzer ? TU("dcHotSepV165D", .45) * cl((awE(S.off[8]) - 40) / 50, 0, 1.4) : 0)
+        - TU("dcPassKeySepV165D", .35) * Math.max(0, -dcV165D.runKey)
+        + (playAction ? TU("dcPaSepV165D", .6) * Math.max(0, dcV165D.runKey) : 0);   // a keyed second level came up for the fake
       const _elig = S.off.filter(a=>["WR","TE","RB"].includes(a.lb) && a.route);
       const _grade = a => {
         const e=a.route[a.route.length-1], nearest=S.def.filter(x=>["CB","S","LB"].includes(x.lb))
@@ -3245,7 +3264,7 @@ window.__visionRadiusV96 = visionRadiusV96;
         // three-color read: clean releases create green/yellow space; lost ones
         // remain red instead of every route collapsing toward an average window.
         const releaseWin=Math.random()<cl(.5+(a.agi-d.cov)*.006,.22,.78);
-        const est=cl((releaseWin?-.25:-2.4)+matchup*.024+leverage+(Math.random()-.5)*.7,-3.4,1.8);
+        const est=cl((releaseWin?-.25:-2.4)+matchup*.024+leverage+(Math.random()-.5)*.7+dcSepV165D,-3.4,1.8);
         const depth=Math.max(-2,e.lx/YD), situ=(opts?.toGo&&depth>=opts.toGo?0.35:0)+(a===target?0.3:0);
         return {a,d,sep:est,window:_window(est),score:est*10+a.cat*.055+situ};
       };
@@ -3272,9 +3291,11 @@ window.__visionRadiusV96 = visionRadiusV96;
       const secondLevel=S.def.filter(a=>a!==coverA&&["S","LB"].includes(a.lb))
         .sort((p,q)=>(q.aware+q.cov)-(p.aware+p.cov));
       const threat=(target.spdA+target.agi+target.cat)/3, defenseIQ=(coverA.aware+coverA.cov)/2;
-      const bracketP=cl(.10+(threat-defenseIQ)*.012+defenseIQ*.004,.08,.78);
+      const bracketP=cl(.10+(threat-defenseIQ)*.012+defenseIQ*.004
+        +(dcV165D&&target.player&&target.player.you?TU("dcBracketYouV165D",.3)*dcV165D.keyYou:0),.08,.78);   // v165 D: help over the man who is beating them
       if(secondLevel.length&&Math.random()<bracketP){coverHelp=secondLevel[0];bracketed=true;emit("doubleCoverage",{target:target.id,helper:coverHelp.id});}
-      lbDrops=S.def.filter(a=>a.lb==="LB"&&a!==blitzer).map(a=>({a,readAt:Math.max(120,220+(100-awE(a))*5)+Math.random()*260,ann:false}));   // v165 B: awE
+      lbDrops=S.def.filter(a=>a.lb==="LB"&&a!==blitzer).map(a=>({a,readAt:Math.max(120,220+(100-awE(a))*5)+Math.random()*260
+        +(dcV165D?TU("dcDropLateMsV165D",160)*(playAction?1.5:1)*Math.max(0,dcV165D.runKey):0),ann:false}));   // v165 D: a run key drops late (later still off a fake)   // v165 B: awE
       readProg = _seen.filter(r=>r.a!==target).map(r=>({id:r.a.id,window:r.window,sep:r.sep}));
       readProg.push({id:target.id,window:null,sep:null});
       readStart = 300;

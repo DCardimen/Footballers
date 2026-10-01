@@ -17008,6 +17008,60 @@
         lateP = over > a2 ? ((over - a2) / (b2 - a2)) * mx : 0;
       return Math.random() < clamp99(gapP + lateP, 0, mx);
     }
+    /* ===== v165 D THE DEFENSE HAS A COORDINATOR =====
+     * The defense never called anything: the blitz was a flat 18% that only ever came on passes (it knew),
+     * nobody keyed on a run game that was gashing them, and a back with 200 yards was defended like a
+     * rookie. Each defense now has a coordinator with a memory of THIS game (`dcMemV165D`, by the side that
+     * defends) and a football sense by level (`dcIqLvlV165D`, Pee Wee 0.15 → Interstellar 1). Before every
+     * snap he calls (`dcPlanV165D`):
+     *   - `runKey` (−1 keyed on the pass … +1 keyed on the run): how much they run and how well it works
+     *     against how the passing game is doing, scaled by his sense and by how much he has seen;
+     *   - `keyYou` (0…1): when the you-player carries more than `dcYouShareV165D` of the offense's yards;
+     *   - `blitz`: a CALLED pressure — by down and distance, less of it against a sharp quarterback — one
+     *     Math.random draw a snap (compare seeds against the OFF spread). It is called blind: on a run it
+     *     is a run blitz.
+     * FieldSim plays the call (`opts.dcV165D`, see its v165 D lines): a run key reads runs faster and bites
+     * on play action, drops late and leaves the seams; a pass key sits on routes; the called blitz sends
+     * the backer, adds `dcBlitzPressV165D` to the pass pressure here (not on a quick or a screen) and opens
+     * the hot read for a QB who sees it; `keyYou` brackets him and reads his carries early. Mixing it up
+     * beats a coordinator; tendencies feed him. Kill switch `v165Ddc` 0. `window.__V165D`; `dccheck.mjs`. */
+    let dcSnapV165D = null;
+    const dcOnV165D = !!TU("v165Ddc", 1),
+      dcLvlV165D = Math.max(0, Math.min(8, Math.round((state.player && state.player.level) || 0))),
+      dcIqV165D = (TU("dcIqLvlV165D", [0.15, 0.25, 0.35, 0.45, 0.55, 0.7, 0.8, 0.9, 1])[dcLvlV165D] ?? 0.6),
+      dcMemV165D = {
+        us: { n: 0, runs: 0, runY: 0, passes: 0, passY: 0, youY: 0, totY: 0 },
+        them: { n: 0, runs: 0, runY: 0, passes: 0, passY: 0, youY: 0, totY: 0 }
+      },
+      dcPlanV165D = (defSide, down, toGo, qbAware) => {
+        const M = dcMemV165D[defSide],
+          iq = dcIqV165D,
+          seen = Math.min(1, M.n / TU("dcWarmPlaysV165D", 8)),
+          share = M.n ? M.runs / M.n : 0.5,
+          ypc = M.runs ? M.runY / M.runs : 4,
+          ypa = M.passes ? M.passY / M.passes : 6,
+          lean = (share - 0.5) * TU("dcShareKV165D", 1.4) + (ypc - ypa * 0.7) * TU("dcGainKV165D", 0.08),
+          youShare = M.totY >= TU("dcYouMinYdsV165D", 25) ? M.youY / M.totY : 0;
+        let blitzP = down >= 3 ? (toGo >= 7 ? 0.3 : toGo <= 3 ? 0.18 : 0.24) : down === 2 && toGo >= 8 ? 0.22 : 0.14;
+        blitzP -= iq * (qbAware - 55) * TU("dcQbRespectKV165D", 0.004);
+        return {
+          runKey: clamp99(lean * iq * seen, -1, 1),
+          keyYou: clamp99((youShare - TU("dcYouShareV165D", 0.3)) * 2.5 * iq * seen, 0, 1),
+          blitzP: clamp99(blitzP * TU("dcBlitzMulV165D", 1), 0.04, 0.45),
+          iq,
+          blitz: false
+        };
+      },
+      dcRecordV165D = (defSide, pass, yards, youOnBall) => {
+        const M = dcMemV165D[defSide],
+          y = Number(yards) || 0;
+        M.n++;
+        if (pass) (M.passes++, (M.passY += y));
+        else (M.runs++, (M.runY += y));
+        M.totY += Math.max(0, y);
+        if (youOnBall) M.youY += Math.max(0, y);
+      };
+    window.__V165D = { mem: dcMemV165D, plan: dcPlanV165D, iq: dcIqV165D, last: null, calls: 0, blitzes: 0 };
     function B(w, concept, play) {
       const { O: k, D: T } = ie(w),
         K = (() => {
@@ -17048,7 +17102,8 @@
             fieldPos: typeof pos !== "undefined" ? pos : 50,
             down: typeof down !== "undefined" ? down : 1,
             toGo: typeof toGo !== "undefined" ? toGo : 10,
-            formation: formationV164P(play, "run", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */
+            formation: formationV164P(play, "run", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */,
+            dcV165D: dcSnapV165D /* v165 D: the defense's call */
           })
         );
       /* v101: the call names the gap. v103: and the sticks, so a back can strain for them */ let base;
@@ -17142,7 +17197,8 @@
           toGo: typeof toGo !== "undefined" ? toGo : 10,
           routes: (ctx.play && ctx.play.routes) || null,
           play: (ctx.play && ctx.play.id) || null,
-          formation: formationV164P(ctx.play, "pass", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */
+          formation: formationV164P(ctx.play, "pass", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */,
+          dcV165D: dcSnapV165D /* v165 D: the defense's call */
         }); /* v101: the call names the routes */
       if (__r) {
         if (__r.complete && __r.yards > 0) {
@@ -18341,6 +18397,16 @@
         (playV101 && playV101.pa
           ? Math.random() < TU("paCalledRate", 0.72)
           : Math.random() < TU("paRate", 0.24)); /* v81: play action sells the run first */
+      dcSnapV165D = null;
+      if (dcOnV165D) {
+        /* v165 D: the coordinator's call, made blind to the offense's */
+        dcSnapV165D = dcPlanV165D(usDrive ? "them" : "us", down, toGo, _(qb2, "awareness"));
+        dcSnapV165D.blitz = Math.random() < dcSnapV165D.blitzP;
+        window.__V165D.last = dcSnapV165D;
+        if (window.__V165Dlog) window.__V165Dlog.push({ def: usDrive ? "them" : "us", n: dcMemV165D[usDrive ? "them" : "us"].n, down, toGo, runKey: dcSnapV165D.runKey, keyYou: dcSnapV165D.keyYou, blitz: dcSnapV165D.blitz });
+        window.__V165D.calls++;
+        dcSnapV165D.blitz && window.__V165D.blitzes++;
+      }
       const cTag =
         (paV81 ? "Play action — " : "") +
         (playV101
@@ -18390,9 +18456,14 @@
               : base;
           })(Dk.def.filter(w => w.pos === "DL")),
           pressureBase = clamp99(
-            0.15 + (dlR - olB) * 0.004 + (concept === "shot" ? 0.055 : concept === "quick" ? -0.05 : 0),
+            0.15 +
+              (dlR - olB) * 0.004 +
+              (concept === "shot" ? 0.055 : concept === "quick" ? -0.05 : 0) +
+              (dcSnapV165D && dcSnapV165D.blitz && concept !== "quick" && concept !== "screen"
+                ? TU("dcBlitzPressV165D", 0.06)
+                : 0) /* v165 D: the called blitz gets home more often — unless the ball is out quick */,
             0.06,
-            0.34
+            dcSnapV165D && dcSnapV165D.blitz ? 0.38 : 0.34
           ),
           sackP = clamp99(
             pressureBase * (0.48 - (_(qb2, "awareness") - 50) * 0.003 - (_(qb2, "speed") - 50) * 0.0015),
@@ -19123,6 +19194,8 @@
                 : oob
                   ? "oob"
                   : null;
+      if (dcOnV165D && (ne === "run" || ne === "pass" || ne === "incomplete" || ne === "sack" || ne === "scramble"))
+        dcRecordV165D(usDrive ? "them" : "us", isPassCall, de, usDrive && me); /* v165 D: the coordinator remembers */
       mkPlay({
         T0,
         pre,

@@ -10,6 +10,15 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v165 D — the defense has a coordinator.** (`src/07-career-app.js`, `src/04-engine.js`, `scripts/dccheck.mjs`.) The
+  defense never called anything: a flat 18% blitz that only came on passes, no answer to a run game gashing it, and a
+  200-yard back defended like a rookie. Each defense now remembers the game and calls every snap blind: it keys the run
+  or the pass from what is working, keys the you-player when he carries the offense, and calls pressure by down and
+  distance (third-and-long blitzes twice as often as first down; less of it against a sharp quarterback). How hard it
+  adapts is its football sense by level — a UFF coordinator keys a run-heavy offense three times as hard as a Pee Wee
+  one. Every call has its counter: a run key stuffs the straight run (8.4 → 6.8 YPC on the readcheck roster) and is
+  burned by play action (12.0 → 13.4 YPA); a blitz is a hot read for a quarterback who sees it (+3.6 YPA for a sharp
+  one, +0.6 for a dull one). Kill switch `v165Ddc`.
 - **v165 A–C — the mind has no ceiling; football IQ; open-field eyes.** (`src/04-engine.js`, `src/07-career-app.js`,
   `scripts/iqcheck.mjs`.) Ratings past ~250 used to buy almost nothing on the field: a back's or receiver's every key
   stopped at the 72/76 carrier ceiling (vision 72 is under the 75 where the read radius starts), and the decisions that

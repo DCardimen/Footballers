@@ -361,6 +361,7 @@
    "checks": [
     "v141check",
     "iqcheck",
+    "dccheck",
     "scoreneutralcheck",
     "equaltalentcheck",
     "creditcheck",
@@ -727,6 +728,7 @@
   "reads": {
    "desc": "v81 / v82 — defender reads, blocking, pursuit, the point of attack",
    "anchors": [
+    "v165 D",
     "v165 B",
     "v165 C",
     "v164 I",
@@ -741,7 +743,8 @@
     "movementcheck",
     "simcheck",
     "reactioncheck",
-    "iqcheck"
+    "iqcheck",
+    "dccheck"
    ]
   },
   "credit": {
@@ -3107,6 +3110,20 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "dccheck": {
+   "file": "scripts/dccheck.mjs",
+   "desc": "v165 D — the defense has a coordinator",
+   "areas": [
+    "sim-keys",
+    "reads"
+   ],
+   "runtimeSec": 115,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Paired seeds: the FieldSim cells pool three streams."
   },
   "iqcheck": {
    "file": "scripts/iqcheck.mjs",
