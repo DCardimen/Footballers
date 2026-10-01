@@ -19,8 +19,8 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
   so the strong teams rise (rating vs final rank: Spearman 0.69 over 160 leagues). The standings are that table, with
   each team's OVR and the playoff line under the field; the playoff field is the top of the table, seeded and reseeded,
   the other side of the bracket played by rating — the title-game opponent is the #1 or #2 AI team in a semifinal field
-  (mean rating percentile 0.81, mean record .706, never below .500 in 160 leagues). The schedule shows each opponent's
-  record and place, the scorebug shows real regular-season records, a team's live roster strength ranks with its league
+  (mean rating percentile 0.81, mean record .706, never below .500 in 160 leagues). The schedule and the next-opponent card
+  show each opponent's record and place, the scorebug shows real regular-season records, a team's live roster strength ranks with its league
   rating, and the season screen's standings button opens the standings. Kill switch `v167league`.
 - **v166 — the final pass.** The full regression found the systems interacting: the you-player was keyed whenever he
   carried 30% of his offense's yards, which an ordinary featured back does, and equal teams tilted (37.5% wins for his

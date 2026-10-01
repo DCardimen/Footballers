@@ -27579,6 +27579,16 @@
     const r = leagueTableV167(e).teams.find(x => x.idx === idx);
     return r ? r.w + "-" + r.l : null;
   }
+  // the next-opponent card's line: "8-1 · 2nd of 10" (empty without a league)
+  function leagueLineV167(e, w) {
+    if (!leagueOnV167(e) || !w || w.leagueIdxV167 == null) return "";
+    const T = leagueTableV167(e).teams,
+      k = T.findIndex(x => x.idx === w.leagueIdxV167);
+    if (k < 0) return "";
+    const n = k + 1,
+      ord = n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+    return `<div class="league-line-v167 small" style="opacity:.8;margin-top:2px">${T[k].w}-${T[k].l} · ${ord} of ${T.length} · ${Math.round(w.opponentV11 && w.opponentV11.rating != null ? w.opponentV11.rating : e.leagueV167.teams[w.leagueIdxV167].rating)} OVR</div>`; // the rating he plays at (playoff and rivalry lifts in)
+  }
   window.__V167 = {
     on: () => leagueOnV167(state.player),
     table: p => (leagueOnV167(p || state.player) ? leagueTableV167(p || state.player) : null),
@@ -28177,7 +28187,7 @@
       ));
     const a = t.opponentV11.scouted || scoutOpponent(t.opponentV11, e, state.specializationV11),
       s = String(t.opponentV11.importance || "routine").toUpperCase();
-    return `<div class="card opponent-card-v11" style="border-color:${["playoff", "championship"].includes(t.opponentV11.importance) ? "var(--gold)" : t.opponentV11.importance === "evaluation" ? "var(--blood)" : "var(--cyan)"}"><div class="impact-head"><div><div class="impact-kicker">NEXT OPPONENT · ${s}</div><div class="h2" style="margin:2px 0 0">${escHtml(t.opp)}</div></div><div class="scout-confidence-v11">${a.confidence}<small>SCOUT CONF.</small></div></div><div class="matchup-badge-v11">${escHtml(a.matchupLabel)} matchup · ${a.hiddenCount} detail${a.hiddenCount === 1 ? "" : "s"} hidden</div>${(() => {
+    return `<div class="card opponent-card-v11" style="border-color:${["playoff", "championship"].includes(t.opponentV11.importance) ? "var(--gold)" : t.opponentV11.importance === "evaluation" ? "var(--blood)" : "var(--cyan)"}"><div class="impact-head"><div><div class="impact-kicker">NEXT OPPONENT · ${s}</div><div class="h2" style="margin:2px 0 0">${escHtml(t.opp)}</div>${leagueLineV167(e, t)}</div><div class="scout-confidence-v11">${a.confidence}<small>SCOUT CONF.</small></div></div><div class="matchup-badge-v11">${escHtml(a.matchupLabel)} matchup · ${a.hiddenCount} detail${a.hiddenCount === 1 ? "" : "s"} hidden</div>${(() => {
       /* v126: who they actually are. The RECOMMENDED COUNTER used to sit here — a game plan the player has not chosen himself since the pregame wizard took the call, so the one concrete line on the card was the one thing it could not act on. */
       const r = oppReadV126(t.opponentV11, e);
       if (!r) return "";

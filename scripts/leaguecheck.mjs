@@ -122,6 +122,7 @@ const C = await M(a, async () => {
   window.go('season'); await new Promise((r) => setTimeout(r, 200))
   const row = p.weekResults.find((w) => w.playoff && !w.played) || {}
   const tags = document.querySelectorAll('#screen .sched-rec167').length
+  const card = ((document.querySelector('#screen .opponent-card-v11 .league-line-v167') || {}).textContent || '').trim()
   const T = window.__V167.table(p), others = T.teams.filter((r) => !r.me)
   const L = window.__V167.league(p), want = L && row.leagueIdxV167 != null ? L.teams[row.leagueIdxV167].rating : null
   const semi = row.leagueIdxV167 != null ? T.teams.find((r) => r.idx === row.leagueIdxV167) : null
@@ -135,11 +136,12 @@ const C = await M(a, async () => {
   for (let i = 0; i < 40 && !document.querySelector('.sb-side.them .rec'); i++) await new Promise((r) => setTimeout(r, 150))
   const rec = (document.querySelector('.sb-side.them .rec') || {}).textContent || ''
   const usRec = (document.querySelector('.sb-meta .rec') || {}).textContent || ''
-  return { round: row.round, idx: row.leagueIdxV167, rating: row.opponentV11 && row.opponentV11.rating, want, tags, regs: reg.length, named, semi: semi && semi.w + '-' + semi.l, rec, usRec, top: others.slice(0, 4).map((r) => r.name) }
+  return { round: row.round, idx: row.leagueIdxV167, rating: row.opponentV11 && row.opponentV11.rating, want, tags, card, regs: reg.length, named, semi: semi && semi.w + '-' + semi.l, rec, usRec, top: others.slice(0, 4).map((r) => r.name) }
 })
 console.log('season C:', JSON.stringify(C))
 ok(C.idx != null && C.rating >= Math.round(C.want), 'the Semifinal opponent is a league team at its league rating plus the playoff lift', { round: C.round, rating: C.rating, league: C.want })
 ok(C.tags >= C.regs, 'every league row on the schedule shows the opponent\'s record and place', { tags: C.tags, regs: C.regs })
+ok(C.semi && C.card.startsWith(C.semi + ' · ') && /of \d+ · \d+ OVR$/.test(C.card), 'the next-opponent card says his league record, place and the OVR he plays at', C.card)
 ok(C.named >= 3, 'the standings screen lists the league\'s top teams', { named: C.named, top: C.top })
 ok(C.rec === C.semi && /^\d+-\d+$/.test(C.rec), 'the scorebug shows the playoff opponent\'s league record', { scorebug: C.rec, league: C.semi })
 ok(C.usRec === C.regs + '-0', 'the scorebug shows YOUR regular-season record (the playoffs are not the record)', C.usRec)
