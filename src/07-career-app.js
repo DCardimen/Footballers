@@ -17028,7 +17028,8 @@
      * the backer, adds `dcBlitzPressV165D` to the pass pressure here (not on a quick or a screen) and opens
      * the hot read for a QB who sees it; `keyYou` brackets him and reads his carries early. Mixing it up
      * beats a coordinator; tendencies feed him. Kill switch `v165Ddc` 0. `window.__V165D`; `dccheck.mjs`. */
-    let dcSnapV165D = null,
+    let fakeNextV166K = !1, /* v166 K: the next snap is a fake punt */
+      dcSnapV165D = null,
       dcBoothQV165G = 0; /* v165 G: the quarter the keyed-you note last ran */
     const dcOnV165D = !!TU("v165Ddc", 1),
       dcLvlV165D = Math.max(0, Math.min(8, Math.round((state.player && state.player.level) || 0))),
@@ -17037,6 +17038,25 @@
         us: { n: 0, runs: 0, runY: 0, passes: 0, passY: 0, youY: 0, totY: 0 },
         them: { n: 0, runs: 0, runY: 0, passes: 0, passY: 0, youY: 0, totY: 0 }
       },
+      /* ===== v166 J THE FILM ROOM =====
+       * The coordinator learned the you-player only from THIS game's snaps, so a star was defended like a stranger for a
+       * quarter every week. Now the defense facing him has watched his film: his reputation (`repV166J`) is the mean
+       * `perf` of his last four played weeks (`player.weekResults` — read at kickoff, never written, so a projection that
+       * samples games changes nothing) from `repFloorV166J` over `repSpanV166J`, and his key starts there
+       * (× `repKeyKV166J` × the coordinator's sense) instead of at zero — the bracket and the early read on his carries
+       * (v165 D) come from the first snap. Kill switch `v166Jfilm` 0. `window.__V166J` (`rep`); `repcheck.mjs`. */
+      repV166J = (() => {
+        try {
+          if (!TU("v166Jfilm", 1)) return 0;
+          const played = ((state.player && state.player.weekResults) || []).filter(w => w && w.played && !w.satOut && w.perf != null).slice(-4);
+          if (!played.length) return 0;
+          const m = played.reduce((t, w) => t + Number(w.perf || 0), 0) / played.length;
+          return clamp99((m - TU("repFloorV166J", 62)) / TU("repSpanV166J", 30), 0, 1);
+        } catch (_e) {
+          return 0;
+        }
+      })(),
+      __repExportV166J = (window.__V166J = { rep: repV166J }),
       dcPlanV165D = (defSide, down, toGo, qbAware) => {
         const M = dcMemV165D[defSide],
           iq = dcIqV165D,
@@ -17050,7 +17070,10 @@
         blitzP -= iq * (qbAware - 55) * TU("dcQbRespectKV165D", 0.004);
         return {
           runKey: clamp99(lean * iq * seen, -1, 1),
-          keyYou: clamp99((youShare - TU("dcYouShareV165D", 0.3)) * 2.5 * iq * seen, 0, 1),
+          keyYou: Math.max(
+            clamp99((youShare - TU("dcYouShareV165D", 0.4)) * 2.5 * iq * seen, 0, 1),
+            defSide === "them" ? repV166J * iq * TU("repKeyKV166J", 0.8) : 0
+          ) /* v166 J: he has watched the film */,
           blitzP: clamp99(blitzP * TU("dcBlitzMulV165D", 1), 0.04, 0.45),
           iq,
           blitz: false
@@ -17066,6 +17089,21 @@
         if (youOnBall) M.youY += Math.max(0, y);
       };
     window.__V165D = { mem: dcMemV165D, plan: dcPlanV165D, iq: dcIqV165D, last: null, calls: 0, blitzes: 0 };
+    /* ===== v166 H THE OFFENSE HAS A COORDINATOR =====
+     * v165 D gave the defense a memory; the offense called its concepts off fixed rolls whatever the other side kept doing.
+     * Now each offense remembers the calls it has FACED this game (`ocMemV166H`, by the side with the ball: blitzes, zone
+     * shells, man, the run key) and its coordinator (the level's sense, `dcIqV165D`) answers them — more screens and quick
+     * game against a defense that keeps coming (`ocBlitzKV166H`), more shots against man (`ocManShotKV166H`), more play
+     * action and more passing into a box keyed on the run (`ocPaKeyV166H`, `ocPassKeyV166H`), more draws against a pass
+     * key (`ocDrawKV166H`) — once he has seen `ocWarmV166H` snaps. Every answer moves an existing roll's odds: no extra
+     * draws. Kill switch `v166Hoc` 0. `window.__V166H` (the memory), opt-in `window.__V166Hlog`; `occheck.mjs`. */
+    const ocOnV166H = dcOnV165D && !!TU("v166Hoc", 1),
+      ocMemV166H = { us: { n: 0, blitz: 0, zone: 0, man: 0, runKey: 0 }, them: { n: 0, blitz: 0, zone: 0, man: 0, runKey: 0 } },
+      ocReadV166H = off => {
+        const M = ocMemV166H[off], on = ocOnV166H && M.n >= TU("ocWarmV166H", 6), n = Math.max(1, M.n);
+        return { on, iq: on ? dcIqV165D : 0, blitz: M.blitz / n, zone: M.zone / n, man: M.man / n, runKey: M.runKey / n };
+      };
+    window.__V166H = { mem: ocMemV166H };
     function B(w, concept, play) {
       const { O: k, D: T } = ie(w),
         K = (() => {
@@ -17133,8 +17171,12 @@
         const cMul =
           concept === "draw" ? TU("drawGashMul", 1.15) : concept === "power" ? 0.55 : concept === "sweep" ? 1.05 : 1; // v81: the sim sells the draw itself now
         const edge = (_(K, "burst") + _(K, "speed")) / 2 - N,
-          gashP = clamp99((0.05 + edge * 0.0025) * cMul, 0.02, 0.14),
-          sustainP = clamp99(0.58 + (oe - N) * 0.006, 0.38, 0.75);
+          /* v166 A: blocks that hold make real gains on the field, so the v16.1 rewrite of stuffed runs — the gash and the
+           * 4-8 "sustain" that replaced 58% of them and threw the sim's own picture away — runs at `blkGashKV166A` /
+           * `blkSustainKV166A` of its old rate while v166 A is on: more of what the broadcast shows is what the sim played */
+          realK = TU("v166Ablock", 1) ? 1 : 0,
+          gashP = clamp99((0.05 + edge * 0.0025) * cMul, 0.02, 0.14) * (realK ? TU("blkGashKV166A", 0.25) : 1),
+          sustainP = clamp99(0.58 + (oe - N) * 0.006, 0.38, 0.75) * (realK ? TU("blkSustainKV166A", 0.25) : 1);
         if (Math.random() < gashP) {
           const r3 = Math.random(),
             big = concept === "draw",
@@ -17990,12 +18032,46 @@
         const desperate = quarter >= 4 && margin < 0 && clock <= 240,
           short = toGo <= 2,
           midfield = pos >= 45,
-          edge = (profiles[T0].line + profiles[T0].rbSkill - profiles[other(T0)].front * 2) / 100,
+          edge = (profiles[T0].line + profiles[T0].rbSkill - profiles[other(T0)].front * 2) / 100;
+        /* ===== v166 I FOURTH DOWN BY THE NUMBERS =====
+         * The call was a rule of thumb (desperate, or short at midfield on a coin flip, or way behind late). A staff with
+         * the sense for it (`dcIqV165D` past `gmIqV166I` — College up) now prices the three options in expected points
+         * (`epV166I`: a field position's worth, `epBaseV166I` + `epPerYdV166I` a yard): GO — the conversion odds from the
+         * distance and the line-against-front edge, a first down's worth against handing the ball over here; PUNT — the
+         * other side's ball at the net of a punt; KICK — the make odds by distance against a miss's spot, both less the
+         * kickoff's worth to the other side, and a staff's risk premium on going (`gmRiskV166I`). The clock and the score
+         * lean on it (`gmLateGoV166I` trailing late, `gmLateSafeV166I` ahead late). A younger staff keeps the old instinct. One fewer draw on the model's snaps (the old
+         * coin is not flipped). Kill switch `v166Igm` 0. `window.__V166I` (`decisions`, `go`); `gmcheck.mjs`. */
+        const gmOn = TU("v166Igm", 1) && dcOnV165D && dcIqV165D >= TU("gmIqV166I", 0.5);
+        let go;
+        if (gmOn) {
+          const ep = y => TU("epBaseV166I", -1.0) + clamp99(y, 0, 100) * TU("epPerYdV166I", 0.06),
+            pConv = clamp99(0.72 - 0.055 * (toGo - 1) + edge * 0.5, 0.08, 0.85),
+            epGo = pConv * (ep(pos + toGo) + 0.3) - (1 - pConv) * ep(100 - pos),
+            net = 38 * (0.6 + kf * 0.4),
+            epPunt = -ep(100 - Math.min(pos + net, 80)),
+            mk = kickDist <= 32 ? 0.97 : kickDist <= 39 ? 0.9 : kickDist <= 45 ? 0.82 : kickDist <= 49 ? 0.72 : kickDist <= 52 ? 0.6 : 0.45,
+            epFg = kickDist <= fgMax ? mk * (3 - ep(25)) - (1 - mk) * ep(100 - (pos - 7)) : -99,
+            lean = quarter >= 4 && clock <= 300 ? (margin < 0 ? TU("gmLateGoV166I", 1.5) * (margin < -3 ? 1.5 : 1) : margin > 0 ? -TU("gmLateSafeV166I", 1.5) : 0) : 0;
+          // a staff is risk-averse: a failed fourth down costs the coach more than the points say (`gmRiskV166I`)
+          go = epGo + lean - TU("gmRiskV166I", 0.6) > Math.max(epPunt, epFg) || (desperate && kickDist > fgMax);
+          if (!go) kicking = epFg >= epPunt ? "fg" : "punt";
+          /* v166 K: the fake punt — a staff with the sense for it, on a short fourth near midfield, now and then runs a play
+           * out of punt formation (`fakeRateV166K` × its sense; one draw, only in this spot). The row says so. */
+          if (kicking === "punt" && TU("v166Kst", 1) && toGo <= 3 && pos >= 30 && pos <= 60 && Math.random() < TU("fakeRateV166K", 0.08) * dcIqV165D) {
+            kicking = null; go = !0; fakeNextV166K = !0;
+            const W2 = (window.__V166K = window.__V166K || { fakes: 0 }); W2.fakes = (W2.fakes || 0) + 1;
+          }
+          const W = (window.__V166I = window.__V166I || { decisions: 0, go: 0, log: null });
+          W.decisions++; go && W.go++;
+          W.log && W.log.push({ pos, toGo, quarter, margin, go, kick: kicking, epGo: +epGo.toFixed(2), epPunt: +epPunt.toFixed(2), epFg: +epFg.toFixed(2) });
+        } else {
           go =
             (desperate && (kickDist > fgMax || (margin < -3 && toGo <= 6))) ||
             (short && midfield && Math.random() < clamp99(0.44 + pos * 0.003 + edge, 0.3, 0.82)) ||
             (quarter >= 4 && margin <= -9 && clock <= 480 && pos >= 40);
-        if (!go) kicking = kickDist <= fgMax + (desperate ? 5 : 0) ? "fg" : "punt";
+          if (!go) kicking = kickDist <= fgMax + (desperate ? 5 : 0) ? "fg" : "punt";
+        }
       }
       if (kicking === "fg") {
         // v82: the kick is an agent play — the rush decides the block, the leg decides the make
@@ -18366,6 +18442,8 @@
             ypa = M.passes ? M.passY / M.passes : 6;
           passP += dcIqV165D * clamp99((ypa * 0.7 - ypc) * TU("ocLeanKV165E", 0.03), -0.1, 0.1);
         }
+        const ocP = ocReadV166H(usDrive ? "us" : "them");   // v166 H: throw into a box keyed on the run, run against a pass key
+        if (ocP.on) passP += ocP.iq * clamp99(ocP.runKey, -1, 1) * TU("ocPassKeyV166H", 0.08);
       }
       // v23: your adopted PREGAME game-plan bends your play-mix toward the pass rate
       // the coach agreed to run. Blended (not forced) so down/distance still matters.
@@ -18379,19 +18457,23 @@
       // pick a concept from the situation — surfaced in commentary and fed to the
       // resolver so a "deep shot" actually throws deep and a "screen" stays short.
       let concept;
+      const ocV166H = ocReadV166H(usDrive ? "us" : "them"),
+        ocBlitz = ocV166H.iq * clamp99((ocV166H.blitz - 0.18) * TU("ocBlitzKV166H", 1.5), 0, 0.3),
+        ocShot = ocV166H.iq * clamp99((ocV166H.man - 0.4) * TU("ocManShotKV166H", 0.3), -0.06, 0.12);
       if (isPassCall) {
         const goalToGo = pos >= 90;
         if (goalToGo) concept = "fade";
-        else if (down >= 3 && toGo >= 8 && Math.random() < 0.28) concept = "screen";
+        else if (down >= 3 && toGo >= 8 && Math.random() < 0.28 + ocBlitz) concept = "screen";
         else if (margin <= -9 && quarter >= 4) concept = "shot";
-        else if (down <= 2 && toGo <= 4 && Math.random() < 0.16) concept = "shot";
-        else if (toGo <= 4 || hurry) concept = Math.random() < 0.5 ? "quick" : "dropback";
-        else concept = Math.random() < 0.12 ? "shot" : "dropback";
+        else if (down <= 2 && toGo <= 4 && Math.random() < 0.16 + ocShot) concept = "shot";
+        else if (toGo <= 4 || hurry) concept = Math.random() < 0.5 + ocBlitz ? "quick" : "dropback";
+        else { const r9 = Math.random(); concept = r9 < 0.12 + ocShot ? "shot" : r9 > 1 - ocBlitz ? "quick" : "dropback"; }   // v166 H: against the blitz the ball comes out quick
       } else {
         if (pos >= 97 || toGo <= 1) concept = "power";
-        else if (down >= 3 && toGo >= 7 && Math.random() < 0.4) concept = "draw";
+        else if (down >= 3 && toGo >= 7 && Math.random() < 0.4 + ocV166H.iq * Math.max(0, -ocV166H.runKey) * TU("ocDrawKV166H", 0.5)) concept = "draw";
         else concept = Math.random() < 0.3 ? "sweep" : "inside";
       }
+      if (window.__V166Hlog) window.__V166Hlog.push({ us: usDrive, concept, pass: isPassCall, n: ocMemV166H[usDrive ? "us" : "them"].n, blitzSeen: +ocV166H.blitz.toFixed(3), runKey: +ocV166H.runKey.toFixed(3) });
       // v101: the chain above still names the FAMILY; the playbook names the actual call inside
       // it, and the call is what the sim and the commentary get.
       let playV101 = pickPlayV101(isPassCall ? "pass" : "run", concept, {
@@ -18409,7 +18491,7 @@
         down <= 2 &&
         (playV101 && playV101.pa
           ? Math.random() < TU("paCalledRate", 0.72)
-          : Math.random() < TU("paRate", 0.24)); /* v81: play action sells the run first */
+          : Math.random() < TU("paRate", 0.24) + ocReadV166H(usDrive ? "us" : "them").iq * Math.max(0, ocReadV166H(usDrive ? "us" : "them").runKey) * TU("ocPaKeyV166H", 0.4)); /* v81: play action sells the run first; v166 H: more of it into a keyed box */
       dcSnapV165D = null;
       if (dcOnV165D) {
         /* v165 D: the coordinator's call, made blind to the offense's */
@@ -18426,6 +18508,8 @@
         if (window.__V165Dlog) window.__V165Dlog.push({ def: usDrive ? "them" : "us", n: dcMemV165D[usDrive ? "them" : "us"].n, down, toGo, runKey: dcSnapV165D.runKey, keyYou: dcSnapV165D.keyYou, blitz: dcSnapV165D.blitz, shell: dcSnapV165D.shell || null });
         window.__V165D.calls++;
         dcSnapV165D.blitz && window.__V165D.blitzes++;
+        { const M = ocMemV166H[usDrive ? "us" : "them"]; M.n++; M.blitz += dcSnapV165D.blitz ? 1 : 0; M.runKey += dcSnapV165D.runKey;   // v166 H: the offense saw it
+          if (dcSnapV165D.shell === "man") M.man++; else if (dcSnapV165D.shell) M.zone++; }
       }
       /* ===== v165 E THE AUDIBLE =====
        * The quarterback reads the look before the snap. A called blitz shows; a box that keyed the run shows. A QB
@@ -18455,7 +18539,10 @@
           if (audV165E && window.__V165Dlog) window.__V165Dlog.push({ audible: audV165E, qbAware: _(qb2, "awareness"), us: usDrive });
         }
       }
+      const fakeTagV166K = fakeNextV166K ? "Fake punt! — " : "";
+      fakeNextV166K = !1;
       const cTag =
+        fakeTagV166K +
         (audV165E ? (audV165E === "hot" ? "Audible — hot read off the blitz — " : "Audible — play action into the stacked box — ") : "") +
         (paV81 ? "Play action — " : "") +
         (playV101

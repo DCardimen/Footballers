@@ -362,6 +362,7 @@
     "v141check",
     "iqcheck",
     "dccheck",
+    "blockcheck",
     "scoreneutralcheck",
     "equaltalentcheck",
     "creditcheck",
@@ -478,7 +479,10 @@
     "v112Fcheck",
     "renderpathcheck",
     "v86check",
-    "v151Dcheck"
+    "v151Dcheck",
+    "blockcheck",
+    "cmovecheck",
+    "teamdefcheck"
    ],
    "steps": [
     "`scoreneutralcheck` over several seeds, against the OFF spread (the aim roll changes sample paths)"
@@ -744,7 +748,9 @@
     "simcheck",
     "reactioncheck",
     "iqcheck",
-    "dccheck"
+    "dccheck",
+    "rushcheck",
+    "pocketcheck"
    ]
   },
   "credit": {
@@ -837,7 +843,9 @@
    "checks": [
     "v87check",
     "creditcheck",
-    "simcheck"
+    "simcheck",
+    "livecheck",
+    "zonecheck"
    ]
   },
   "rank": {
@@ -946,7 +954,11 @@
     "simcheck",
     "readcheck",
     "routecheck",
-    "v99check"
+    "v99check",
+    "occheck",
+    "gmcheck",
+    "repcheck",
+    "stcheck"
    ]
   },
   "endzones": {
@@ -3110,6 +3122,153 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "stcheck": {
+   "file": "scripts/stcheck.mjs",
+   "desc": "v166 K — special teams think",
+   "areas": [
+    "reads",
+    "playbook"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded punt streams per returner, and forced fake punts in seeded UFF games."
+  },
+  "repcheck": {
+   "file": "scripts/repcheck.mjs",
+   "desc": "v166 J — the film room",
+   "areas": [
+    "playbook"
+   ],
+   "runtimeSec": 30,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Seeded simGameV2 games for a UFF back with a hot and a cold last four weeks."
+  },
+  "gmcheck": {
+   "file": "scripts/gmcheck.mjs",
+   "desc": "v166 I — fourth down by the numbers",
+   "areas": [
+    "playbook"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Seeded simGameV2 games at the UFF and Pee Wee."
+  },
+  "occheck": {
+   "file": "scripts/occheck.mjs",
+   "desc": "v166 H — the offense has a coordinator",
+   "areas": [
+    "playbook"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Seeded simGameV2 games, the defenses' blitz dial up and down, UFF and Pee Wee."
+  },
+  "teamdefcheck": {
+   "file": "scripts/teamdefcheck.mjs",
+   "desc": "v166 G — the defense pursues as one",
+   "areas": [
+    "tackle",
+    "reads"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster, the defense's awareness and discipline at 35 / 90."
+  },
+  "cmovecheck": {
+   "file": "scripts/cmovecheck.mjs",
+   "desc": "v166 F — the move is a choice",
+   "areas": [
+    "tackle"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster, the back's vision at 35 / 90."
+  },
+  "pocketcheck": {
+   "file": "scripts/pocketcheck.mjs",
+   "desc": "v166 E — pocket presence",
+   "areas": [
+    "reads"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster against a strong front."
+  },
+  "rushcheck": {
+   "file": "scripts/rushcheck.mjs",
+   "desc": "v166 D — the rush has moves",
+   "areas": [
+    "reads"
+   ],
+   "runtimeSec": 50,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster per cell."
+  },
+  "zonecheck": {
+   "file": "scripts/zonecheck.mjs",
+   "desc": "v166 C — the zone is a place",
+   "areas": [
+    "coverage"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster per shell."
+  },
+  "livecheck": {
+   "file": "scripts/livecheck.mjs",
+   "desc": "v166 B — every route is live",
+   "areas": [
+    "reads",
+    "coverage"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster, on against off."
+  },
+  "blockcheck": {
+   "file": "scripts/blockcheck.mjs",
+   "desc": "v166 A — the block holds: leverage, the seal, blocking on every carry",
+   "areas": [
+    "reads",
+    "tackle"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster with the blockers at 40 / 65 / 90."
   },
   "dccheck": {
    "file": "scripts/dccheck.mjs",

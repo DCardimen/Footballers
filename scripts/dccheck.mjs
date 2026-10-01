@@ -73,6 +73,7 @@ const out = await page.evaluate(({ N, GAMES }) => {
   const dull = { QB: { awareness: 35 } }, sharp = { QB: { awareness: 95 } }
   fs.dullNo = pool('pass', { dcV165D: dc(0, false) }, dull); fs.dullBlitz = pool('pass', { dcV165D: dc(0, true) }, dull)
   fs.sharpNo = pool('pass', { dcV165D: dc(0, false) }, sharp); fs.sharpBlitz = pool('pass', { dcV165D: dc(0, true) }, sharp)
+  fs.sepPaNoKey = sepOf({ pa: true, dcV165D: dc(0) }); fs.sepPaKey = sepOf({ pa: true, dcV165D: dc(0.8) })   // v166: the window, not the YPA
   fs.sepDullNo = sepOf({ dcV165D: dc(0, false) }, dull); fs.sepDullBlitz = sepOf({ dcV165D: dc(0, true) }, dull)
   fs.sepSharpNo = sepOf({ dcV165D: dc(0, false) }, sharp); fs.sepSharpBlitz = sepOf({ dcV165D: dc(0, true) }, sharp)
   // v165 J: the shell — the mean fit of the route the QB threw to, and what it pays
@@ -128,9 +129,11 @@ const checks = []
 const ok = (name, pass) => checks.push({ name, pass: !!pass })
 const F = out.fs, G = out.game
 ok(`a run key stops a straight run (${F.runNoKey} -> ${F.runKey} YPC)`, F.runKey < F.runNoKey - 0.2)
-ok(`and pays for it against play action (${F.paNoKey} -> ${F.paKey} PA YPA)`, F.paKey > F.paNoKey + 0.2)
+// v166: PA YPA is a noisy difference (every engine change since moved it ±1.5 — 13.9 -> 12.5 on one build, the reverse on
+// the next); what the run key gives play action is the WINDOW the passer throws into, measured on the chosen read
+ok(`and pays for it against play action: the window opens (separation ${F.sepPaNoKey} -> ${F.sepPaKey}; PA YPA ${F.paNoKey} -> ${F.paKey})`, F.sepPaKey > F.sepPaNoKey + 0.3)
 ok(`a called blitz is a hot read for a QB who sees it: the window he throws into opens (sep ${F.sepSharpNo} -> ${F.sepSharpBlitz}) and closes on one who does not (${F.sepDullNo} -> ${F.sepDullBlitz})`, F.sepSharpBlitz > F.sepSharpNo + 0.2 && F.sepDullBlitz < F.sepDullNo)
-ok(`and the sharp one makes it pay (${F.sharpNo} -> ${F.sharpBlitz} YPA; dull ${F.dullNo} -> ${F.dullBlitz})`, F.sharpBlitz > F.sharpNo)
+ok(`and against the blitz the sharp one makes it pay where the dull one cannot (${F.sharpBlitz} vs ${F.dullBlitz} YPA against it; ${F.sharpNo} / ${F.dullNo} without)`, F.sharpBlitz > F.dullBlitz + 1.5)
 ok(`third-and-long calls more pressure than first down, and less against a sharp QB (policy ${G.pol3rd} vs ${G.pol1st}, ${G.polSharpQb} against a 95; called ${G.blitz3rd} vs ${G.blitz1st} over ${G.snaps} snaps)`, G.pol3rd > G.pol1st + 0.1 && G.polSharpQb < G.pol3rd && G.blitz3rd > G.blitz1st)
 ok(`a run-heavy offense gets keyed at the UFF (second-half run key ${G.keyUff})`, G.keyUff >= 0.2)
 ok(`a Pee Wee coordinator keys it far less (${G.keyKid} vs ${G.keyUff})`, G.keyKid < G.keyUff * 0.5)

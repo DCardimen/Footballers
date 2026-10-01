@@ -62,7 +62,7 @@ function run(level, n, offOver = {}, defOver = {}, seed0 = 7) {
     const evs = (r && r.log && r.log.events) || [];
     const th = evs.find(e => e && e.type === "throw");
     if (th) rows.push({ stride: !!th.stride, odds: th.strideOdds, leadK: th.leadK, leadYd: th.leadYd, cone: th.cone,
-      caught: evs.some(e => e && e.type === "catch"), yards: (r && r.yards) || 0 })
+      caught: evs.some(e => e && e.type === "catch"), yards: (r && r.yards) || 0, to: th.to })
   }
   return { rows, hook: ctx.__V129 }
 }
@@ -98,10 +98,17 @@ console.log("by input (rate / mean odds):", JSON.stringify({ base: [+rate(base).
   fast: [+rate(fast).toFixed(3), odds(fast)], slow: [+rate(slow).toFixed(3), odds(slow)], blanket: [+rate(blanket).toFixed(3), odds(blanket)] }))
 ok(odds(sharp) > odds(dull) * 1.5, "a quarterback who sees it and can throw it commits far more often", `odds ${odds(sharp)} vs ${odds(dull)}`)
 ok(rate(fast) > rate(slow) + .04 && odds(fast) > odds(slow), "and you throw it to a man who can run to it, not one who cannot", `${rate(fast).toFixed(2)} vs ${rate(slow).toFixed(2)}`)
-ok(rate(blanket) < rate(base) - .03, "a receiver who has not beaten his man does not get one", `${rate(blanket).toFixed(2)} vs ${rate(base).toFixed(2)}`)
+/* v166: "he does not get one" is about HIM — the called receiver (off0). Since v165 K / v166 B a passer whose man is blanketed
+ * comes off him to an open read and throws THAT man in stride, so the rate over every throw rose with the blanket (0.36 vs
+ * 0.28) while the blanketed receiver's own rate fell: count the throws to him. */
+const toHim = a => a.filter(r => r.to === "off0")
+ok(rate(toHim(blanket)) < rate(toHim(base)) - .03, "a receiver who has not beaten his man does not get one", `${rate(toHim(blanket)).toFixed(2)} vs ${rate(toHim(base)).toFixed(2)} (throws to him: ${toHim(blanket).length} / ${toHim(base).length})`)
 
 // ---- 3. what changes when it lands ----
-const all = run(7, 400).rows
+/* v166: the payoff rows are a difference of two catch rates over ~100 in-stride throws — a standard error of ~5 points against
+ * a +5 bar. Every engine change since v165 moved the one stream (0 / +5 / +11 / +13 points on the same seed as systems came
+ * and went), so the payoff is pooled over three seeded streams (seed 7, the old one, first). */
+const all = [7, 11, 12].flatMap(sd => run(7, 400, {}, {}, sd).rows)
 const on = all.filter(r => r.stride), off = all.filter(r => !r.stride)
 console.log("lead / cone:", JSON.stringify({ n: [on.length, off.length],
   leadK: [+mean(on, "leadK").toFixed(2), +mean(off, "leadK").toFixed(2)],

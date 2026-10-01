@@ -2085,6 +2085,112 @@ window.__visionRadiusV96 = visionRadiusV96;
         a._sidelineCross={x:x0+(x1-x0)*q,y:plane};}
       a.lx=x1; a.y=clampY(y1); };
 
+    /* ===== v166 A THE BLOCK HOLDS =====
+     * A block used to be a coin a tick: a stalk block held 150 ms at most (`stalkHoldMax`) and shed at the 8% cap
+     * whatever the ratings, a blocked man still closed on the carrier and made a full tackle from 17 px, and on a
+     * catch-and-run nobody blocked at all (the held branch only ran on a called run). Now a block is LEVERAGE and
+     * RATINGS: `levV166A` is how squarely the blocker sits between his man and the ball (the cosine at the defender of
+     * blocker vs carrier, from `blkLevMinCosV166A`); the shed odds a tick are `blkShedBaseV166A`, scaled by the
+     * rating edge (the defender's strength, agility and IQ against the blocker's blocking and strength,
+     * `blkEdgeKV166A`), multiplied up by bad leverage (`blkLevKV166A`) and by how long he has been held
+     * (`blkTireMsV166A`). A man held with leverage is SEALED: he drifts at a fraction of the pace (`blkSealPaceV166A`),
+     * his reach for a runner going past shrinks (`blkSealReachV166A`), and the blocker drives him off the lane
+     * (`blkDriveV166A`). Blockers pick the man who THREATENS the ball (a smarter blocker weighs it harder), and on
+     * every carry — catch-and-run and screens too — the receivers, tight ends and backs block. The same one draw a
+     * contact tick as before. Kill switch `v166Ablock` 0. `root.__V166A` (blocks, sheds, sealed ticks); `blockcheck.mjs`. */
+    const blkOnV166A = () => !!TU("v166Ablock", 1);
+    const V166A = root.__V166A = root.__V166A || { blocks: 0, sheds: 0, sealed: 0, heldTackles: 0 };
+    const levV166A = (o, a, c) => {
+      const bx = o.lx - a.lx, by = o.y - a.y, cx = c.lx - a.lx, cy = c.y - a.y, nb = Math.hypot(bx, by) || 1, nc = Math.hypot(cx, cy) || 1;
+      const m = TU("blkLevMinCosV166A", .2); return cl(((bx * cx + by * cy) / (nb * nc) - m) / (1 - m), 0, 1); };
+    // one contact tick of a sustained block; true while it holds
+    const blockHoldV166A = (o, a, c) => {
+      const L = levV166A(o, a, c), held = a._heldMsV166A = (a._heldMsV166A || 0) + TICK;
+      const edge = (a.str * .4 + a.agi * .3 + awE(a) * .3) - (o.blk * .6 + o.str * .4);
+      const p = cl(TU("blkShedBaseV166A", .009) * Math.exp(edge * TU("blkEdgeKV166A", .045)) * (1 + (1 - L) * TU("blkLevKV166A", 4))
+        * (1 + held / TU("blkTireMsV166A", 1500)), .001, .25);
+      if (Math.random() < p) { V166A.sheds++; a._levV166A = 0; return false; }
+      a._levV166A = L; a.held = t + 60; if (L > .5) V166A.sealed++;
+      // he drives him off the ball: away from the carrier, harder with leverage
+      const dx = a.lx - c.lx, dy = a.y - c.y, dn = Math.hypot(dx, dy) || 1;
+      mv(a, a.lx + dx / dn * 8, a.y + dy / dn * 8, TU("blkDriveV166A", .35) * L);
+      mv(o, a.lx - dx / dn * 6, a.y - dy / dn * 6, .5);
+      return true; };
+    // the man to block: who threatens the ball, weighed harder by a smarter blocker
+    const blockTargetV166A = (o, c, reach, ok) => {
+      const iq = cl((awE(o) - 40) / 50, 0, 1.2), wBall = 1 + iq * TU("blkIqThreatV166A", 1.2);
+      let tgt = null, best = 1e9;
+      for (const a of S.def) { if (!ok(a)) continue;
+        const toMe = Math.hypot(a.lx - o.lx, a.y - o.y); if (toMe > reach) continue;
+        const toBall = Math.hypot(a.lx - c.lx, a.y - c.y) / Math.max(60, a.spd || 120) * 120;
+        const sc = toBall * wBall + toMe; if (sc < best) { best = sc; tgt = a; } }
+      return tgt; };
+    /* ===== v166 B EVERY ROUTE IS LIVE =====
+     * Only the target had a live separation: every other route was graded ONCE at the snap (`_gradesV87`), so the
+     * check-down, the throw-ahead fallback and the scan the broadcast drew all read a picture from before the snap.
+     * `liveSepV166B(a, skip)` is a receiver's window off the field NOW — the nearest free defender (not blocking, not
+     * rushing, not a lineman, not stunned; `skip` leaves out one man), `progOpenPxV165K` px even, `progPxPerSepV165K` px a
+     * unit — and every route on the scan carries `_sepLive`, refreshed every `liveEveryTicksV166B` ticks. The look the
+     * broadcast draws is the live window of the man he is looking at; the check-down and the throw-ahead fallback take
+     * the most OPEN read now; and a second defender sitting on the target (`liveHelpPxV166B`, and closer to him than his own
+     * man) squeezes his window (`liveHelpPullV166B` a tick) — the target's own man is still the v33 battle. No draws. Kill switch `v166Blive` 0.
+     * `root.__V166B` (`helpTicks`, `liveCheckdowns`); `livecheck.mjs`. */
+    const liveOnV166B = () => !!TU("v166Blive", 1);
+    const V166B = root.__V166B = root.__V166B || { helpTicks: 0, liveCheckdowns: 0 };
+    const liveSepV166B = (a, skip) => { let near = null, nd = 1e9;
+      for (const d of S.def) { if (d === skip || d.engaging || d.blitzing || d.lb === "DL" || (d.stunned && t < d.stunned)) continue;
+        const dd = Math.hypot(d.lx - a.lx, d.y - a.y); if (dd < nd) { nd = dd; near = d; } }
+      return { a, d: near, px: nd, sep: cl((nd - TU("progOpenPxV165K", 16)) / TU("progPxPerSepV165K", 8), -3.4, 1.8) }; };
+    /* ===== v166 C THE ZONE IS A PLACE =====
+     * v165 J's shell lived only in the QB's grades: on the field every corner still chased the nearest receiver. With a
+     * zone called (cover 2 / cover 3, `opts.dcV165D.shell`), every defender who is not the target's cover man, the
+     * bracket help, a rusher, a spy, a press corner at the line, a bitten man or the robber takes a LANDMARK at the snap
+     * (`zoneSpotV166C`: cover 2 — corners squat in the flats, safeties split the deep halves, backers take the hooks;
+     * cover 3 — corners and the deep safety take thirds, the other safety the curl-flat, backers the hooks), sits in it
+     * and matches the most dangerous receiver who enters it (`zoneRadV166C` px) — over the top in a deep zone, under him in
+     * a short one (`zoneMatchV166C`) — and once the ball is in the air a zone man near the catch point breaks on it after
+     * his reaction (`zoneBreakPxV166C`, his `reactMs` and IQ). A linebacker still waits for his read (`lbDrops`). Man
+     * coverage is the old movement. No draws in the zone path (it skips the corner's wrong-way roll). Kill switch
+     * `v166Czone` 0. `root.__V166C` (`zoneTicks`, `breaks`); `zonecheck.mjs`. */
+    const V166C = root.__V166C = root.__V166C || { zoneTicks: 0, breaks: 0 };
+    const zoneSpotV166C = (a, shell) => {
+      const side = Math.sign(a.y - MIDY) || 1, Y = YD;
+      const lbs = S.def.filter(d => d.lb === "LB").sort((p, q) => p.y - q.y), li = lbs.indexOf(a), hookY = [MIDY - 60, MIDY, MIDY + 60];
+      const saf = S.def.filter(d => d.lb === "S").sort((p, q) => q.lx - p.lx);
+      if (shell === "cover2") {
+        if (a.lb === "CB") return { lx: 6 * Y, y: MIDY + side * 150, deep: false };
+        if (a.lb === "S") return { lx: 18 * Y, y: MIDY + side * 85, deep: true };
+        if (a.lb === "LB") return { lx: 9 * Y, y: hookY[Math.max(0, li)] || MIDY, deep: false };
+      } else {
+        if (a.lb === "CB") return { lx: 15 * Y, y: MIDY + side * 135, deep: true };
+        if (a.lb === "S") return a === saf[0] ? { lx: 19 * Y, y: MIDY, deep: true } : { lx: 7 * Y, y: MIDY + side * 115, deep: false };
+        if (a.lb === "LB") return { lx: 9 * Y, y: [MIDY - 45, MIDY, MIDY + 45][Math.max(0, li)] || MIDY, deep: false };
+      }
+      return null; };
+    // false = the old movement plays this man (not a zone defender, or not yet)
+    const zoneMoveV166C = a => {
+      if (a.lb === "DL" || a.blitzing || a._spy || (a._press && t < 200) || (a._robber && disguise && t >= disguise.rotateAt)) return false;
+      if (playAction && a._bite && !seesBall(a)) return false;
+      if (a.lb === "LB") { const plan = lbDrops.find(x => x.a === a); if (!plan || t < plan.readAt) return false;
+        if (!plan.ann) { plan.ann = true; emit("linebackerDrop", { who: a.id, delay: Math.round(plan.readAt), zone: zoneV166C }); } }   // the broadcast still hears the drop
+      if (!a._zoneV166C) a._zoneV166C = zoneSpotV166C(a, zoneV166C);
+      const Z = a._zoneV166C; if (!Z) return false;
+      V166C.zoneTicks++;
+      // the ball is in the air: break on the catch point if it is his to play
+      if (ballFlight && !ballFlight.away && ballFlight.x1 != null) {
+        const dB = Math.hypot(a.lx - ballFlight.x1, a.y - ballFlight.y1), react = (a.reactMs || 250) + Math.max(0, 80 - awE(a)) * 3;
+        if (dB < TU("zoneBreakPxV166C", 110) && t - ballFlight.t0 >= react) { if (!a._brokeV166C) { a._brokeV166C = 1; V166C.breaks++; }
+          mv(a, ballFlight.x1, ballFlight.y1, .95); return true; }
+      }
+      const R = TU("zoneRadV166C", 70), k = TU("zoneMatchV166C", .65);
+      let thr = null, best = 1e9;
+      for (const w of S.off) { if (!w.route || !["WR", "TE", "RB"].includes(w.lb)) continue;
+        const d = Math.hypot(w.lx - Z.lx, w.y - Z.y); if (d > R) continue;
+        const sc = d - (Z.deep ? w.lx * .3 : 0); if (sc < best) { best = sc; thr = w; } }
+      let ax = Z.lx, ay = Z.y;
+      if (thr) { ax = Z.lx + (thr.lx - Z.lx) * k + (Z.deep ? 10 : -6); ay = Z.y + (thr.y - Z.y) * k; if (Z.deep) ax = Math.max(ax, thr.lx + 8); }
+      mv(a, ax, clampY(ay), .7 + a.cov * .002 + a.quick * .001);
+      return true; };
     // v82: one blocker on one man — used by return-team wedges and the kick teams'
     // jammers. Reaches, holds him for a stretch, sheds off strength/agility against
     // blocking; a shed man is free of everyone for a beat rather than forever.
@@ -2113,15 +2219,43 @@ window.__visionRadiusV96 = visionRadiusV96;
     // v165 D: with a coordinator the blitz is HIS call (`opts.dcV165D.blitz`, made blind in 07); the old 18% draw
     // is still spent so the sample path does not move. On a run his call is a run blitz (the read clock below).
     const dcV165D = iqOnV165B() && opts && opts.dcV165D ? opts.dcV165D : null;
+    const zoneV166C = kind === "pass" && TU("v166Czone", 1) && dcV165D && (dcV165D.shell === "cover2" || dcV165D.shell === "cover3") ? dcV165D.shell : null;   // v166 C
     if (kind === "pass") { const blitzRoll = Math.random();
       if (dcV165D ? dcV165D.blitz : blitzRoll < 0.18) {
         blitzer = S.def.filter(a=>a.lb==="LB")[Math.floor(Math.random()*3)];
         if (blitzer) blitzer.blitzing = true;
       } }
+    /* ===== v166 D THE RUSH HAS MOVES =====
+     * A rusher used to win with one blend (strength and quickness against the blocker's blocking) and an edge got a
+     * generic swim roll. On a pass now every rusher picks a MOVE at the snap against the man in front of him
+     * (`rushPlanV166D`): BULL (strength against his anchor), SPEED (edge only: burst against his feet), SWIM (hands
+     * against hands), SPIN (agility against his balance). A rusher past `rushIqV166D` (his `awE`) reads his man and picks
+     * the move that attacks his weakness; a dull one runs his go-to move whatever is in front of him. A smart tackle
+     * (`awE` past 50) SETS for the edge speed rush (`rushSetKV166D` a point). The move's matchup replaces the old blend in
+     * the shed roll (`rushAdvKV166D`) and is the swim roll's for a finesse move. Emits `rushMove`. Deterministic: no
+     * draws. Kill switch `v166Drush` 0. `root.__V166D` (`moves`, `sheds`); `rushcheck.mjs`. */
+    const V166D = root.__V166D = root.__V166D || { moves: {}, sheds: 0, plans: 0 };
+    const rushMovesV166D = (r, o) => ({
+      bull: r.str - (o.str * .5 + o.blk * .5),
+      speed: r.edge ? (r.spdA * .5 + r.quick * .5) - (o.quick * .5 + o.agi * .5) - Math.max(0, awE(o) - 50) * TU("rushSetKV166D", .25) : -99,
+      swim: (r.agi * .6 + r.quick * .4) - (o.blk * .6 + o.agi * .4),
+      spin: (r.agi * .5 + r.quick * .3 + r.str * .2) - (o.agi * .5 + o.blk * .5) });
+    const rushPlanV166D = r => {
+      if (!TU("v166Drush", 1) || kind !== "pass" || !r.engaging) return null;
+      const M = rushMovesV166D(r, r.engaging), names = Object.keys(M).filter(k => M[k] > -99);
+      let move;
+      if (awE(r) >= TU("rushIqV166D", 60)) move = names.reduce((a, b) => (M[b] > M[a] ? b : a));
+      else { const own = { bull: r.str, speed: r.edge ? (r.spdA + r.quick) / 2 : -1, swim: (r.agi + r.quick) / 2, spin: r.agi * .8 + r.str * .2 };
+        move = names.reduce((a, b) => (own[b] > own[a] ? b : a)); }
+      r._rushV166D = { move, adv: M[move] }; V166D.plans++; V166D.moves[move] = (V166D.moves[move] || 0) + 1;
+      emit("rushMove", { who: r.id, move, vs: r.engaging.id, adv: +M[move].toFixed(1) });
+      return r._rushV166D; };
     const shedTick = (r) => { if (r.shed || (r.stunned && t<r.stunned)) return;
-      const p = cl(((r.str*0.55 + r.quick*0.45) - r.engaging.blk) * 0.00042 + 0.0035, 0.0008, 0.028) * (kind==="run"?0.55:1) * (r.doubled?0.32:1)
+      if (r._rushV166D === undefined) r._rushV166D = rushPlanV166D(r);
+      const _plan = r._rushV166D, _adv = _plan ? _plan.adv * TU("rushAdvKV166D", 1) : (r.str*0.55 + r.quick*0.45) - r.engaging.blk;
+      const p = cl(_adv * 0.00042 + 0.0035, 0.0008, 0.028) * (kind==="run"?0.55:1) * (r.doubled?0.32:1)
         * (playAction && t < declareT + 150 ? TU("paShedK", .5) : 1);   // v81: the front plays the run fake too
-      if (Math.random() < p) { r.shed = true; r.releaseT = t; emit("shed",{who:r.id});
+      if (Math.random() < p) { r.shed = true; r.releaseT = t; emit("shed",{who:r.id, move: _plan ? _plan.move : null}); if (_plan) V166D.sheds++;
         // v30: beaten this fast, a real lineman grabs cloth — holding candidate
         if (t < TU("holdFlagMs",900) && r.engaging && r.engaging.player) flagCand.hold = r.engaging.player; } };
     // ---- v16.3 line play: the two widest D-linemen are edge rushers (DEs). They
@@ -2233,7 +2367,10 @@ window.__visionRadiusV96 = visionRadiusV96;
         if (Math.random() < cl(TU("pressRate", .4) + (cb.cov-55)*.004, .15, .7)) { cb._press = true; cb.lx = TU("pressLx", 6); disguise.press.push(cb.id); } });
     }
     const swimTick = (r) => { if (r.shed || !r.edge || !r.engaging || (r.stunned && t<r.stunned)) return;
-      const p = cl(((r.quick*0.5 + r.agi*0.5) - r.engaging.blk*0.9) * 0.0006 + 0.004, 0.001, 0.03) * (kind==="run"?0.6:1) * (r.doubled?0.4:1);
+      const _pl = r._rushV166D;   // v166 D: a finesse move's own matchup; a bull rusher is not swimming
+      if (_pl && _pl.move === "bull") return;
+      const _sa = _pl ? _pl.adv + r.engaging.blk * .1 : (r.quick*0.5 + r.agi*0.5) - r.engaging.blk*0.9;
+      const p = cl(_sa * 0.0006 + 0.004, 0.001, 0.03) * (kind==="run"?0.6:1) * (r.doubled?0.4:1);
       if (Math.random() < p) { r.shed = true; r.swim = true; r.releaseT = t; emit("swim",{who:r.id, x:r.lx, y:r.y}); } };
     const pancakeTick = (o) => { if (o._free || o.pancaked) return;
       const r = o.engagedBy; if (!r || r.shed || (r.stunned && t<r.stunned)) return;
@@ -2538,11 +2675,38 @@ window.__visionRadiusV96 = visionRadiusV96;
       // hits finishes the game on heavier legs than one who ran untouched.
       if (d.gas !== undefined) d.gas = Math.max(0, d.gas - TU("gasHitCostD", 4));
       if (c.gas !== undefined) c.gas = Math.max(0, c.gas - TU("gasHitCostC", 6));
+      /* ===== v166 F THE MOVE IS A CHOICE =====
+       * The cascade below rolled every move against every tackler — a back never decided anything. Now, before the first
+       * roll, the carrier picks ONE move for this man (`cmPlanV166F`): the CUT where there is room or the tackler did not
+       * square up, the HURDLE over a man going low, the STIFF-ARM when he is stronger or the tackler is on a bad line, the
+       * TRUCK when his momentum wins or the sticks are close. A carrier past `cmIqV166F` (his vision IQ) picks the move
+       * that fits THIS tackler; a dull one runs his best move every time. The chosen move's odds rise toward `cmBoostV166F`
+       * by how well it fits (its fit over `cmFitSpanV166F`; a forced misfit falls below 1), and the moves he did not try fall
+       * to `cmCutV166F` — the same rolls, so no extra draws. Emits `carrierMove`. Kill
+       * switch `v166Fmove` 0. `root.__V166F` (`plans`, `fit`, `moves`); `movecheckV166.mjs`. */
+      const V166F = root.__V166F = root.__V166F || { plans: 0, fit: 0, moves: {} };
+      const cmOn = !behind && TU("v166Fmove", 1) && iqOnV165B();
+      let cmMove = null, cmFit = 0;
+      if (cmOn) {
+        const armE = (cStr - dStr) + (c.str - 50) * .45, powE = (cMom - dMom) * .85 + (cStr - dStr) * .5;
+        const fit = { cut: (elus - d.tkl) + (openField ? 12 : 0) + angX * 20 - (setQ > 0 ? 6 : 0),
+          hurdle: ((c.jump * .6 + c.agi * .4) - d.tkl) + (aim === "low" ? 18 : -14),
+          stiff: armE + angX * 15 + (aim === "high" ? 6 : 0),
+          truck: powE * .5 + (opts && opts.toGo != null && opts.toGo <= 2 ? 10 : 0) + (aim === "high" ? 4 : -2) };
+        const own = { cut: elus, hurdle: c.jump * .6 + c.agi * .4, stiff: c.str, truck: c.str * .5 + (c.spdA || 50) * .5 };
+        const pick = (m) => Object.keys(m).reduce((a, b) => (m[b] > m[a] ? b : a));
+        cmMove = visE(c) >= TU("cmIqV166F", 62) ? pick(fit) : pick(own);
+        cmFit = fit[cmMove];
+        V166F.plans++; V166F.moves[cmMove] = (V166F.moves[cmMove] || 0) + 1; if (cmMove === pick(fit)) V166F.fit++;
+        emit("carrierMove", { who: c.id, vs: d.id, move: cmMove });
+      }
+      // the chosen move pays by how well it FITS this tackler (a forced misfit — a hurdle into a high tackle — is worse than none)
+      const cmK = m => !cmMove ? 1 : m === cmMove ? 1 + (TU("cmBoostV166F", 1.8) - 1) * cl(cmFit / TU("cmFitSpanV166F", 15), -1, 1) : TU("cmCutV166F", 0.85);
       // 1) WHIFF — an elusive back makes him miss in space (never from behind).
       // Steeper gap term + a high (never-100%) ceiling so a huge mismatch shows:
       // even ≈26% open, star-vs-weak ≈70%, generational-vs-scrub ≈78%, floor ≈2%.
       const whiffP = cl(TU("whiffBaseV139", .12) + (elus - d.tkl)*0.008 + (openField?0.10:0) - (behind?0.26:0) - (dMom>cMom+40?0.05:0) + lev*0.006
-        + afx.whiff * TU("aimFxV143", 1) - angX * TU("angleWhiffKV143", .07) - setQ * TU("windupWhiffKV143", .10), 0.02, 0.72) * (1 - swarmChoke) * soloK;
+        + afx.whiff * TU("aimFxV143", 1) - angX * TU("angleWhiffKV143", .07) - setQ * TU("windupWhiffKV143", .10), 0.02, 0.72) * (1 - swarmChoke) * soloK * cmK("cut");
       /* v139: the rate is a dial now but its default is exactly what it always was. Raising it
        * lengthens plays, which grows v109C1check's sample, and that check asserts PERFECTION over
        * a stochastic sample (it fails 1-of-N on main too). The visible answer to "more whiffed
@@ -2588,7 +2752,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       // Driven by jumping + agility vs the tackler's wrap skill; open field helps,
       // never works from behind. The carrier sails over and keeps his momentum.
       const hurdleP = (behind ? 0 : cl(0.03 + ((c.jump*0.6 + c.agi*0.4) - d.tkl)*0.006 + (openField?0.07:0) + Math.max(0,-lev)*0.005
-        + afx.hurdle * TU("aimFxV143", 1), 0.02, 0.38)) * (1 - swarmChoke) * soloK;
+        + afx.hurdle * TU("aimFxV143", 1), 0.02, 0.38)) * (1 - swarmChoke) * soloK * cmK("hurdle");
       if (Math.random() < hurdleP) {
         d.beaten = t + 560; d.cool = t + 480; c.burstUntil = t + 380; kickSprint(c);
         c.vel = Math.max(0,(c.vel||0)*0.98);
@@ -2603,7 +2767,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       // defender is shoved off and stumbles; the runner is slowed a touch, keeps going.
       const armEdge = (cStr - dStr) + (c.str - 50)*0.45;
       const stiffP = (behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005
-        + afx.stiff * TU("aimFxV143", 1) - (angMovV151 ? (angX - TU("angleMeanV151D", .15)) * TU("angleStiffKV151D", .03) : 0), 0, 0.5)) * (1 - swarmChoke) * soloK;
+        + afx.stiff * TU("aimFxV143", 1) - (angMovV151 ? (angX - TU("angleMeanV151D", .15)) * TU("angleStiffKV151D", .03) : 0), 0, 0.5)) * (1 - swarmChoke) * soloK * cmK("stiff");
       if (Math.random() < stiffP) {
         d.beaten = t + 520; d.stagger = t; c.vel = Math.max(0,(c.vel||0)*0.95); c.burstUntil = t + 300; kickSprint(c);
         c._evades = (c._evades||0) + 1; emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y, ...hit, armEdge: Math.round(armEdge)});   // v109: which arm, and how far he shoved him
@@ -2622,7 +2786,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       let truckP = cl(0.16 + powerEdge*0.011 + (behind?-0.09:0) + Math.max(0,lev)*0.006
         + afx.truck * TU("aimFxV143", 1) - (angMovV151 ? (angX - TU("angleMeanV151D", .15)) * TU("angleTruckKV151D", .06) : 0), 0.02, 0.72);
       if (bothWin) truckP = cl(truckP + 0.22 + (cSpd - dSpd)*0.006, 0.05, 0.90);
-      truckP *= (1 - swarmChoke) * soloK;                          // v25: you don't truck THROUGH a gang
+      truckP *= (1 - swarmChoke) * soloK * cmK("truck");          // v25: you don't truck THROUGH a gang; v166 F: his choice
       if (Math.random() < truckP) {
         d.beaten = t + 600; c.burstUntil = t + 500; kickSprint(c);
         if ((powerEdge > 20 || bothWin) && !behind) d.trucked = t;   // flattened — he stays down
@@ -3411,7 +3575,21 @@ window.__visionRadiusV96 = visionRadiusV96;
             ballFlight = { t0: t, style: "kick", dur, x0: kp.x, y0: kp.y, x1, y1, arc, done: () => {
               const catchable = Math.hypot(ret.lx - x1, ret.y - y1) < TU("returnCatchPx", 26);
               const near = S.off.filter(a => a !== kicker).map(a => Math.hypot(a.lx - ret.lx, a.y - ret.y)).sort((a2,b2)=>a2-b2)[0] || 999;
-              if (kind === "punt" && (!catchable || (near < TU("fairCatchPx", 52) && Math.random() < TU("fairCatchP", .7)))) {
+              /* ===== v166 K SPECIAL TEAMS THINK =====
+               * The fair catch was one flat roll (70%) whenever a cover man was inside 52 px. A returner with the head for it
+               * (`awE` from 45 over 40) READS the coverage: a gunner on top of him (`fcGunnerPxV166K`) is a fair catch nearly
+               * always, room is a return, and between the two he decides on the distance — reading a little further out
+               * (`fcReadPxV166K`). A dull returner keeps the flat roll. (07 adds the fake punt: v166 K there.) Kill switch
+               * `v166Kst` 0. `root.__V166K` (`reads`); `stcheck.mjs`. */
+              const smartFc = TU("v166Kst", 1) && iqOnV165B() ? cl((awE(ret) - 45) / 40, 0, 1) : 0;
+              const fcPx = TU("fairCatchPx", 52) + smartFc * TU("fcReadPxV166K", 18), gun = TU("fcGunnerPxV166K", 34);
+              const pFc = smartFc ? (near < gun ? .97 : cl(TU("fairCatchP", .7) - smartFc * .55 * (near - gun) / Math.max(1, fcPx - gun), .05, .97)) : TU("fairCatchP", .7);
+              const fcDec = kind === "punt" && (!catchable || (near < fcPx && Math.random() < pFc));
+              if (kind === "punt" && catchable) { const K9 = root.__V166K = root.__V166K || { reads: 0 }; if (smartFc) K9.reads++;
+                const tag = smartFc ? "s" : "d";   // what he did with a gunner on him, and with room
+                if (near < gun) { K9[tag + "Close"] = (K9[tag + "Close"] || 0) + 1; if (fcDec) K9[tag + "CloseFc"] = (K9[tag + "CloseFc"] || 0) + 1; }
+                else if (near >= TU("fairCatchPx", 52)) { K9[tag + "Room"] = (K9[tag + "Room"] || 0) + 1; if (!fcDec) K9[tag + "RoomRet"] = (K9[tag + "RoomRet"] || 0) + 1; } }
+              if (fcDec) {
                 emit(catchable ? "faircatch" : "land", { x: x1, y: y1 }); out = { kind, yards: 0, ret: 0, fair: true, spotLx: x1 }; done = true; return; }
               if (!catchable) { ret.lx = x1; ret.y = y1; }
               ret._catchLx = ret.lx; carrier = ret; phase = "carry";
@@ -3573,12 +3751,34 @@ window.__visionRadiusV96 = visionRadiusV96;
         const free = rushers.filter(r=>r.shed).concat(blitzer&&blitzer.freeRun?[blitzer]:[]).concat(spy && spy._attack ? [spy] : []);
         free.forEach(r=>{ if (r._loopVia && t < (r._loopUntil||0)) mv(r, r._loopVia.x, r._loopVia.y, .95); else mv(r, qb.lx, qb.y, 1.0); });
         let slideY = 0, climb = 0;
-        if (free.length) {
-          const th = free.slice().sort((a2,b2)=>Math.hypot(a2.lx-qb.lx,a2.y-qb.y)-Math.hypot(b2.lx-qb.lx,b2.y-qb.y))[0];
+        /* ===== v166 E POCKET PRESENCE =====
+         * Every quarterback used to move the same way the moment ANY rusher came free, wherever he was: slide 14 px from
+         * the nearest, climb 18 off the edge. Now he moves on what he FEELS — a free man inside his feel radius
+         * (`feelBasePxV166E` + `feelIqPxV166E` a point of `awE`), so a dull passer is still standing there when the hit
+         * comes and a sharp one has moved before it. He slides to the side with fewer men on it, climbs as far as his head
+         * lets him (`stepUpPx` × his IQ), a dull one (`awE` under `bailIqV166E`) drifts BACK into the rush
+         * (`bailPxV166E`), and a sharp, mobile one whose pocket caves (two men inside `escapePxV166E`) escapes it and throws
+         * on the move (the v82 rollout). No draws. Kill switch `v166Epocket` 0. `root.__V166E` (`felt`, `escapes`, `bails`);
+         * `pocketcheck.mjs`. */
+        const pocketOn = TU("v166Epocket", 1) && iqOnV165B();
+        const V166E = root.__V166E = root.__V166E || { felt: 0, escapes: 0, bails: 0 };
+        const feelPx = pocketOn ? TU("feelBasePxV166E", 60) + awE(qb) * TU("feelIqPxV166E", 1.0) : 1e9;
+        const felt = free.filter(r => Math.hypot(r.lx - qb.lx, r.y - qb.y) < feelPx);
+        if (felt.length) {
+          const th = felt.slice().sort((a2,b2)=>Math.hypot(a2.lx-qb.lx,a2.y-qb.y)-Math.hypot(b2.lx-qb.lx,b2.y-qb.y))[0];
           slideY = th.y > qb.y ? -14 : 14;
+          if (pocketOn) { const above = felt.filter(r => r.y < qb.y).length, below = felt.length - above;
+            if (above !== below) slideY = (above > below ? 1 : -1) * 14 * cl(.6 + (awE(qb) - 40) / 100, .6, 1.4);   // to the side with fewer men on it
+            if (!qb._feltV166E) { qb._feltV166E = 1; V166E.felt++; } }
           // v82 STEP UP: pressure off the EDGE is answered by climbing the pocket, not
           // sliding into the other edge — a real quarterback steps into the lane
-          if (Math.abs(th.y - qb.y) > 26) { climb = TU("stepUpPx", 18); slideY *= .4; if (!qb._climbing) { qb._climbing = true; emit("stepUp", { x: qb.lx, y: qb.y }); } }
+          if (Math.abs(th.y - qb.y) > 26) { climb = TU("stepUpPx", 18) * (pocketOn ? cl((awE(qb) - 30) / 50, .2, 1.3) : 1); slideY *= .4; if (!qb._climbing) { qb._climbing = true; emit("stepUp", { x: qb.lx, y: qb.y }); } }
+          if (pocketOn && awE(qb) < TU("bailIqV166E", 45)) { climb = -TU("bailPxV166E", 8); if (!qb._bailV166E) { qb._bailV166E = 1; V166E.bails++; emit("bail", { x: qb.lx, y: qb.y }); } }
+          // he escapes a caving pocket and throws on the move
+          if (pocketOn && !qb._roll && !playAction && awE(qb) >= TU("escapeIqV166E", 60) && (qb.agi || 50) >= TU("escapeAgiV166E", 52)
+              && felt.filter(r => Math.hypot(r.lx - qb.lx, r.y - qb.y) < TU("escapePxV166E", 55)).length >= 2
+              && !free.some(r => Math.sign(r.y - qb.y) === (slideY >= 0 ? 1 : -1) && Math.hypot(r.lx - qb.lx, r.y - qb.y) < TU("escapePxV166E", 55) * 1.6)) {   // only toward daylight
+            qb._roll = slideY >= 0 ? 1 : -1; V166E.escapes++; emit("escape", { side: qb._roll, x: qb.lx, y: qb.y }); }
           if (!qb._slid) { qb._slid = true; emit("pocketSlide",{}); }
           // v23: a defender has broken the line and is closing on the QB — flag him
           // early (before the hit) so the broadcast can warn "scramble incoming".
@@ -3649,6 +3849,14 @@ window.__visionRadiusV96 = visionRadiusV96;
         // the final entry is always the target, so the cone is on the thrown-to
         // receiver at release. Decoys read covered (red); the target's verdict is
         // the live separation truth (green when he actually wins).
+        // v166 B: every route on the scan carries its live window; a second man on the target squeezes his
+        if (liveOnV166B() && readProg && !ballFlight && (t / TICK) % TU("liveEveryTicksV166B", 3) < 1) {
+          for (const r of readProg) { const a = S.off.find(o => o.id === r.id); if (a && a !== target) a._sepLive = liveSepV166B(a).sep; }
+          if (target && coverA) { const h = liveSepV166B(target, coverA);
+            // help counts only when he is really there: closer to the receiver than the receiver's own man
+            if (h.d && h.d !== coverHelp && h.px < TU("liveHelpPxV166B", 26) && h.px < Math.hypot(coverA.lx - target.lx, coverA.y - target.y)) {
+              sep -= TU("liveHelpPullV166B", .03) * (1 - h.px / TU("liveHelpPxV166B", 26)); V166B.helpTicks++; } }
+        }
         if ((t / TICK) % 6 < 1 && readProg && readProg.length) {
           const _span = Math.max(1, throwAt - readStart), _seg = _span / readProg.length;
           const _ri = Math.max(0, Math.min(readProg.length - 1, Math.floor((t - readStart) / _seg)));
@@ -3657,10 +3865,11 @@ window.__visionRadiusV96 = visionRadiusV96;
           // v101: the cone the broadcast draws IS the accuracy cone the throw will use — read
           // live, so it visibly opens as the pocket goes and closes back down when it holds
           const _lp = protV101(qb, hurried), _lpan = qb._panicV101 || 0;
-          const _lsep = _r.sep == null ? sep : _r.sep;
+          const _rA = liveOnV166B() && _r.sep != null ? S.off.find(o => o.id === _r.id) : null;   // v166 B: the decoy's window is live
+          const _lsep = _r.sep == null ? sep : (_rA && _rA._sepLive != null ? _rA._sepLive : _r.sep);
           const _lcone = coneYdV101(qb, routeDepth, _lp, _lpan, !!qb._roll || !!qb._slid, _lsep);
           const _liveWindow = windowV101(_lsep, _lcone, _lp);
-          const _lookWindow = _r.window == null ? _liveWindow : _r.window;
+          const _lookWindow = _r.window == null || _rA ? _liveWindow : _r.window;
           emit("look", { to: _r.id, window:_lookWindow, sep:_lsep, open:_lookWindow==="green",
             cone:+_lcone.toFixed(2), prot:+_lp.toFixed(2), panic:+_lpan.toFixed(2) });
           /* ===== v109 THE PUMP FAKE =====
@@ -3745,10 +3954,7 @@ window.__visionRadiusV96 = visionRadiusV96;
         if (TU("v165Kprog", 1) && iqOnV165B() && !qb._progV165K && !qb._eatV146 && !ballFlight && readProg && readProg.length > 1
             && t >= throwAt && !hurried && !opts?.pressured && sep < TU("progRedV165K", -1.2) && awE(qb) >= TU("progIqV165K", 65)) {   // a clean pocket only: there is no time to work reads with a man on him
           qb._progV165K = true;
-          const liveD = S.def.filter(d => !d.engaging && !d.blitzing && d.lb !== "DL" && !(d.stunned && t < d.stunned));
-          const liveSep = a => { let near = null, nd = 1e9; for (const d of liveD) { const dd = Math.hypot(d.lx - a.lx, d.y - a.y); if (dd < nd) { nd = dd; near = d; } }
-            return { a, d: near, sep: cl((nd - TU("progOpenPxV165K", 16)) / TU("progPxPerSepV165K", 8), -3.4, 1.8) }; };
-          const alt = readProg.map(r => S.off.find(o => o.id === r.id)).filter(a => a && a !== target && a.route && a.lx > qb.lx - 4).map(liveSep)
+          const alt = readProg.map(r => S.off.find(o => o.id === r.id)).filter(a => a && a !== target && a.route && a.lx > qb.lx - 4).map(a => liveSepV166B(a))
             .sort((p, q) => q.sep - p.sep)[0];
           if (alt && alt.d && alt.sep > sep + TU("progGainV165K", 1.6) && alt.sep >= TU("progOpenSepV165K", -0.25)) {   // only to a man who is OPEN (a green window)
             emit("progression", { from: target.id, to: alt.a.id, sep0: +sep.toFixed(2), sep1: +alt.sep.toFixed(2) });
@@ -3836,13 +4042,18 @@ window.__visionRadiusV96 = visionRadiusV96;
             // v87: the check-down is a receiver AHEAD of the quarterback, never a back still in protection behind him
             const rb9 = S.off[9], rbOut = rb9 && rb9.route && rb9.lx > qb.lx + TU("checkdownAheadYd", 1) * YD;
             if (rbOut) { emit("read",{to:"off9"}); target = rb9; coverA = S.def.find(a=>a.lb==="LB")||coverA; sep = 0.4; routeDepth = 3; }
+            else if (liveOnV166B()) {   // v166 B: the most OPEN read now, off the field
+              const alt = (_gradesV87||[]).filter(r=>r.a!==target && r.a.lx > qb.lx + YD).map(r => liveSepV166B(r.a)).sort((p2,q2)=>q2.sep-p2.sep)[0];
+              if (alt && alt.d) { emit("read",{to:alt.a.id}); target = alt.a; coverA = alt.d; sep = Math.max(sep, alt.sep); V166B.liveCheckdowns++; } }
             else { const alt = (_gradesV87||[]).filter(r=>r.a!==target && r.a.lx > qb.lx + YD).sort((p2,q2)=>q2.score-p2.score)[0];
               if (alt) { emit("read",{to:alt.a.id}); target = alt.a; coverA = alt.d || coverA; sep = Math.max(sep, alt.sep); } }
           }
           if (target.lx < qb.lx + TU("throwAheadYd", .5) * YD) {
             // v87: a target behind the passer is not a throw
-            const alt = (_gradesV87||[]).filter(r=>r.a.lx > qb.lx + YD).sort((p2,q2)=>q2.score-p2.score)[0];
-            if (alt) { emit("read",{to:alt.a.id}); target = alt.a; coverA = alt.d || coverA; sep = alt.sep; }
+            const alt = liveOnV166B()
+              ? (_gradesV87||[]).filter(r=>r.a.lx > qb.lx + YD).map(r => liveSepV166B(r.a)).filter(r => r.d).sort((p2,q2)=>q2.sep-p2.sep)[0]   // v166 B: live
+              : (_gradesV87||[]).filter(r=>r.a.lx > qb.lx + YD).sort((p2,q2)=>q2.score-p2.score)[0];
+            if (alt) { emit("read",{to:alt.a.id}); target = alt.a; coverA = alt.d || coverA; sep = alt.sep; if (liveOnV166B()) V166B.liveCheckdowns++; }
             else { emit("throwaway",{x:qb.lx,y:qb.y,behind:true});
               out = { kind:"pass", complete:false, intercepted:false, yards:0, behindFix:true };
               if (throwAwayV109(Math.max(2*YD, qb.lx+6*YD), { behind: true })) { phase = "fly"; rec(); continue; }   // v109: a real ball, past the near sideline
@@ -4178,6 +4389,10 @@ window.__visionRadiusV96 = visionRadiusV96;
       }
       else if (phase === "carry") {
         const c = carrier;
+        // v166 A: a man with a blocker on him gets an ARM on the runner, not a wrap — his tackling counts for less, by the seal
+        const armTackleV166A = (dfd, cc) => { const tk = dfd.tkl, L = dfd._levV166A || 0;
+          dfd.tkl = tk * (1 - TU("blkArmTackleV166A", .4) - L * TU("blkSealTklV166A", .35));
+          try { return contact(dfd, cc); } finally { dfd.tkl = tk; } };
         const endTackle = (dfd) => {
           // grit: falls forward. v103: unless he was GRIPPED — the drag just played that out
           // for real, and paying the old blind fudge on top of it counts the yard twice.
@@ -4323,7 +4538,8 @@ window.__visionRadiusV96 = visionRadiusV96;
                 const exposure = (G.behind ? TU("stripBehindK", 1) : 0) + G.joined.length * TU("stripHandsK", 1.1);
                 /* v143: hands at the ball or hands at the ankles — a low tackle has no strip in it */
                 const aimStripK = (TU("v143", 1) && c._grip && AIM_FX_V143[c._grip.aim] ? AIM_FX_V143[c._grip.aim].strip : 1);
-                const skill = ((puncher.str * .45 + puncher.tkl * .55) - (c.bc * .72 + c.str * .28)) * TU("stripSkillK", .00055) * aimStripK;
+                const skill = ((puncher.str * .45 + puncher.tkl * .55) - (c.bc * .72 + c.str * .28)) * TU("stripSkillK", .00055) * aimStripK
+                  + (TU("v166Gteam", 1) && iqOnV165B() ? (awE(puncher) - 50) * TU("stripIqKV166G", .00012) : 0);   // v166 G: a sharp man goes for the ball
                 const pPerTick = cl((TU("stripBase", .024) + exposure * TU("stripExposeK", .006) + skill), 0, TU("stripCap", .05)) * (TICK / 100);
                 if (Math.random() < pPerTick) {
                   G.strip = true;
@@ -4577,8 +4793,12 @@ window.__visionRadiusV96 = visionRadiusV96;
           else {
             if (c._ofUntil == null || t >= c._ofUntil) {
               const ahead = TU("ofAheadPxV165C", 70), cs = Math.max(60, c.spd || 120), step = TU("ofStepPxV165C", 36);
-              const foes = S.all.filter(a => a.side !== c.side && !(a.stunned && t < a.stunned) && t > (a.beaten||0) && !(t < (a.held||0))
+              // v166 A: a BLOCKED man is still on the field — he is a slow threat (late by his seal), so the carrier cuts off his
+              // blocker's hip instead of brushing past him (before, a held man vanished from the read and the back ran into him)
+              const sealRead = blkOnV166A();
+              const foes = S.all.filter(a => a.side !== c.side && !(a.stunned && t < a.stunned) && t > (a.beaten||0) && (sealRead || !(t < (a.held||0)))
                 && !(a.lb === "DL" && !a.shed) && (a.lx - c.lx) * dirSign > -30);
+              const lateS = a => sealRead && t < (a.held||0) ? TU("blkSealReadSV166A", .25) + (a._levV166A || 0) * TU("blkSealReadLevSV166A", .5) : 0;
               /* ===== v165 I THE CONVOY =====
                * A carrier with vision runs behind his blockers: a lane with a blocker leading up it (ahead of the carrier,
                * within `convoyLanePxV165I` of the line to the spot) earns `convoyLeadSV165I` seconds of room. (Discounting
@@ -4590,7 +4810,7 @@ window.__visionRadiusV96 = visionRadiusV96;
               for (let k = -3; k <= 3; k++) {
                 const y = clampY(c.y + k * step), px = c.lx + dirSign * ahead, mine = Math.hypot(ahead, y - c.y) / cs;
                 let room = 3;
-                for (const a of foes) room = Math.min(room, Math.hypot(a.lx - px, a.y - y) / Math.max(60, a.spd || 120) - mine);
+                for (const a of foes) room = Math.min(room, Math.hypot(a.lx - px, a.y - y) / Math.max(60, a.spd || 120) + lateS(a) - mine);
                 // a blocker leading up this lane: ahead of him, near the line from him to the spot
                 const led = convoyOn && mates.some(o => { const ax = (o.lx - c.lx) * dirSign; if (ax < 4 || ax > ahead) return false;
                   const ly = c.y + (y - c.y) * (ax / ahead); return Math.abs(o.y - ly) < TU("convoyLanePxV165I", 16); });
@@ -4728,6 +4948,11 @@ window.__visionRadiusV96 = visionRadiusV96;
             const bx = o.climb.lx - Math.sign(o.climb.lx - c.lx || 1) * 7, by = o.climb.y + Math.sign(o.climb.y - c.y || 1) * 2;
             mv(o, bx, by, TU("climbPace", .72));
             if (Math.hypot(o.lx-o.climb.lx, o.y-o.climb.y) < 16) {
+              if (blkOnV166A()) {   // v166 A: leverage and ratings decide it
+                if (!o.climb.held) { emit("block", { by: o.id, on: o.climb.id, x: o.lx, y: o.y }); V166A.blocks++; }
+                if (!blockHoldV166A(o, o.climb, c)) { o.climb.shed2 = true; o.climb.engagedBy = null; o.climb._climbedBy = null; emit("disengage", { who: o.climb.id, by: o.id, x: o.lx, y: o.y }); }
+                else if (t > (o._blkSay || 0)) { o._blkSay = t + TU("blockSayMs", 260); emit("block", { by: o.id, on: o.climb.id, x: o.lx, y: o.y, sustain: true }); }
+              } else {
               const pshed = cl(((o.climb.str*0.6+o.climb.agi*0.4) - o.blk) * 0.0005 + 0.006, 0.001, 0.05);
               if (Math.random() < pshed) { o.climb.shed2 = true; o.climb.engagedBy = null; o.climb._climbedBy = null; emit("disengage", { who: o.climb.id, by: o.id, x: o.lx, y: o.y }); }
               else {
@@ -4736,6 +4961,7 @@ window.__visionRadiusV96 = visionRadiusV96;
                 o.climb.held = t + 60;
                 // he is driving him off the ball: the pair walks away from the carrier's lane
                 mv(o.climb, o.climb.lx + (o.climb.lx - c.lx > 0 ? 6 : -6), o.climb.y + (o.climb.y - c.y > 0 ? 5 : -5), .3);
+              }
               }
             }
           }
@@ -4804,15 +5030,26 @@ window.__visionRadiusV96 = visionRadiusV96;
           }
           if (!isKick && dfd.lb==="DL" && !dfd.shed) { mv(dfd, dfd.engaging.lx+6, dfd.engaging.y, 0.18); continue; }   // still blocked: fight, don't fly
           if (isKick && t < (dfd.held||0)) { mv(dfd, c.lx, c.y, 0.16); continue; }                                   // v82: a return blocker has him
+          // v166 A: a blocked man on a catch-and-run is held too (the v81 branch below only ever ran on a called run)
+          if (kind !== "run" && !isKick && blkOnV166A() && t < (dfd.held||0)) {
+            const sealP = dfd._levV166A || 0;
+            mv(dfd, c.lx, c.y, 0.16 * (1 - sealP * TU("blkSealPaceV166A", .9)));
+            const gapP = Math.hypot(dfd.lx-c.lx, dfd.y-c.y);
+            if (gapP < TU("heldReachPx", 17) * (1 - sealP * TU("blkSealReachV166A", .8)) && (!committerId || committerId === dfd.id)) {
+              V166A.heldTackles++; committerId = dfd.id; const r = armTackleV166A(dfd, c); if (r === "grip") break; if (r === "tackle") { endTackle(dfd); break; } }
+            continue; }
           if (kind==="run") {
             // v81: a blocker with his hands on him — walled off until he sheds
-            if (t < (dfd.held||0)) { mv(dfd, c.lx, c.y, 0.16);
+            // v166 A: and SEALED when the blocker has leverage — he barely drifts and cannot reach a runner going by
+            const sealL = blkOnV166A() ? (dfd._levV166A || 0) : 0;
+            if (t < (dfd.held||0)) { mv(dfd, c.lx, c.y, 0.16 * (1 - sealL * TU("blkSealPaceV166A", .9)));
               // a blocked man can still fall off the block onto a runner who comes THROUGH him
               const _heldGapV110 = Math.hypot(dfd.lx-c.lx, dfd.y-c.y);
               const _heldCmGapV110 = (committerId && committerId !== dfd.id && A_all[committerId])
                 ? Math.hypot(A_all[committerId].lx-c.lx, A_all[committerId].y-c.y) : 1e9;   // v110: a held man who is CLOSER than the committer still gets his hands on him
-              if (_heldGapV110 < TU("heldReachPx", 17) && (!committerId || committerId===dfd.id || _heldGapV110 < _heldCmGapV110 - TU("commitTakePx", 3))) {
-                committerId = dfd.id; const r = contact(dfd, c); if (r === "grip") break; if (r === "tackle") { endTackle(dfd); break; } }   // v103: a grip hands the carrier to the grip tick
+              if (_heldGapV110 < TU("heldReachPx", 17) * (1 - sealL * TU("blkSealReachV166A", .8)) && (!committerId || committerId===dfd.id || _heldGapV110 < _heldCmGapV110 - TU("commitTakePx", 3))) {
+                if (blkOnV166A()) V166A.heldTackles++;
+                committerId = dfd.id; const r = blkOnV166A() ? armTackleV166A(dfd, c) : contact(dfd, c); if (r === "grip") break; if (r === "tackle") { endTackle(dfd); break; } }   // v103: a grip hands the carrier to the grip tick
               continue; }
             // v81: until he has FOUND the ball he plays his assignment, not the carrier.
             // A linebacker holds his gap with a read step (a bitten one on a draw is
@@ -4877,7 +5114,19 @@ window.__visionRadiusV96 = visionRadiusV96;
           // v30 LAST-MAN RULE: the deepest defender keeps everything in front of him —
           // he runs the textbook angle no matter his ratings, so a busted pursuit
           // upfield doesn't automatically become a walk-in touchdown.
-          const isLastMan = dfd === lastMan;
+          /* ===== v166 G THE DEFENSE PURSUES AS ONE =====
+           * Two rules made pursuit a crowd of individuals. The LAST MAN ran the textbook angle whatever his ratings (v30) —
+           * now only a last man with the head for it (`awE`·.55 + `discE`·.45 past `lastManIqV166G`) is exempt from his
+           * angle error, so a dull safety gives up the house call a sharp one never does. And every pursuer aimed at the
+           * ball: now a sharp one (`pursuitIqV166G`) coming from INSIDE the carrier keeps inside leverage — his aim point
+           * holds `insideLevPxV166G` px to the inside of the ball, so the cutback runs into him instead of past him. The
+           * strip (v103) reads the puncher's IQ too (`stripIqKV166G`). No draws. Kill switch `v166Gteam` 0. `root.__V166G`
+           * (`levTicks`, `dullLastMen`); `teamdefcheck.mjs`. */
+          const tdOn = TU("v166Gteam", 1) && iqOnV165B();
+          const V166G = root.__V166G = root.__V166G || { levTicks: 0, dullLastMen: 0 };
+          const dfdIq = awE(dfd)*0.55 + discE(dfd)*0.45;
+          const isLastMan = dfd === lastMan && !(tdOn && dfdIq < TU("lastManIqV166G", 54));
+          if (tdOn && dfd === lastMan && !isLastMan && !dfd._dullLastV166G) { dfd._dullLastV166G = 1; V166G.dullLastMen++; }
           if (!isLastMan) {
             if (dfd._angErr >= 0) lead *= 1 + dfd._angErr;                     // overruns the intercept
             else lead *= Math.max(0.2, 1 + dfd._angErr);                        // late read: chases the body
@@ -4978,6 +5227,10 @@ window.__visionRadiusV96 = visionRadiusV96;
           const refresh = cl(TU("angleRefreshMs", 220) - (dfd.aware-50)*3 - (dfd.quick-50)*1.2, 90, 520);
           if (dfd._aimUntil == null || t >= dfd._aimUntil || gap < TU("angleLockGap", 28) || isLastMan) {
             dfd._aimX = c.lx + (c._dx||0)*c.spd*lead; dfd._aimY = clampY(c.y + (c._dy||0)*c.spd*lead + latErr);
+            // v166 G: a sharp man from inside the carrier keeps his inside hip — the cutback lane is his
+            if (tdOn && !isLastMan && committerId !== dfd.id && dfdIq >= TU("pursuitIqV166G", 60) && gap > TU("angleLockGap", 28)
+                && Math.abs(dfd.y - MIDY) < Math.abs(c.y - MIDY)) {
+              dfd._aimY = clampY(dfd._aimY + Math.sign(MIDY - c.y) * TU("insideLevPxV166G", 14) * cl((dfdIq - 50) / 40, 0, 1.2)); V166G.levTicks++; }
             dfd._aimUntil = t + refresh;
           }
           mv(dfd, dfd._aimX, dfd._aimY, beatenPace);
@@ -5045,6 +5298,26 @@ window.__visionRadiusV96 = visionRadiusV96;
         S.off.forEach(o=>{ if(o===c || o.lb==="OL" || c.side!=="off") return;
           if (kind === "run" && ["WR","TE"].includes(o.lb) && o.lb === "WR" && Math.sign(o.y - MIDY) !== Math.sign(holeY - MIDY) && c.lx < 20) {
             mv(o, o.lx + 40, o.y, 0.8); return; }                                    // backside: run the corner off
+          if (blkOnV166A() && ["WR","TE","RB"].includes(o.lb) && !(o.engagedBy && !o.engagedBy.shed)) {
+            // v166 A: on every carry the skill players block the man who threatens the ball, and the block holds on leverage
+            let tgt = o._stalk && !o._stalk.shed2 && !(o._stalk.stunned && t < o._stalk.stunned) ? o._stalk : null;
+            // after a catch only the men already near him get a block in (`stalkReachPassV166A`) — a receiver across the field
+            // does not arrive in time; on a run they have the whole play to find a man (`stalkReachV166A`)
+            if (!tgt && (kind === "run" || Math.hypot(o.lx - c.lx, o.y - c.y) < TU("passBlockNearPxV166A", 70))) { tgt = blockTargetV166A(o, c, kind === "run" ? TU("stalkReachV166A", 110) : TU("stalkReachPassV166A", 50), a => !(a.lb === "DL" && !a.shed) && !a.shed2 && !(a.stunned && t < a.stunned)
+                && !a._climbedBy && (a.lx - c.lx) * dirSign > -10);
+              if (tgt) { o._stalk = tgt; tgt._climbedBy = o.id; } }
+            if (tgt) {
+              // the block is on once he has found the ball (v81's condition kept: a man still running his assignment is shadowed, not blocked)
+              if (Math.hypot(o.lx - tgt.lx, o.y - tgt.y) < 15 && seesBall(tgt)) {
+                if (!tgt.held) { emit("block", { by: o.id, on: tgt.id, x: o.lx, y: o.y }); V166A.blocks++; }
+                if (!blockHoldV166A(o, tgt, c)) { tgt.shed2 = true; tgt._climbedBy = null; o._stalk = null; }
+              } else {
+                // get between him and the ball, not merely to him
+                const dx = tgt.lx - c.lx, dy = tgt.y - c.y, dn = Math.hypot(dx, dy) || 1;
+                mv(o, tgt.lx - dx / dn * 7, tgt.y - dy / dn * 7, .9);
+              }
+              return; }
+          }
           if (kind === "run" && ["WR","TE"].includes(o.lb)) {
             let tgt = o._stalk && !o._stalk.shed2 && !(o._stalk.stunned && t < o._stalk.stunned) ? o._stalk : null;
             if (!tgt) { let td = TU("stalkReachPx", 60);
@@ -5068,6 +5341,7 @@ window.__visionRadiusV96 = visionRadiusV96;
         S.def.forEach(a=>{
           if(a===coverA){ const aim=coverageAim(a,target); mv(a,aim.lx-sep*2.4,aim.y,.90+a.cov*.0016); }
           else if(a===coverHelp&&bracketed){ const aim=coverageAim(a,target); mv(a,aim.lx+7,aim.y+(a.y<MIDY?-10:10),.78+a.aware*.0018); }
+          else if (zoneV166C && zoneMoveV166C(a)) return;   // v166 C: a zone defender plays his landmark
           else if(a.lb==="CB"){
             // v82: a press corner stays in the receiver's face until the jam resolves
             if (a._press && t < 200) { mv(a, a.lx, a.y, .2); return; }

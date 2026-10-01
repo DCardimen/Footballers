@@ -56,6 +56,9 @@ const out = await page.evaluate((GAMES) => {
   { const lo = run(7, 'LB', Object.assign(flat(200), { awareness: 40 }), 2, 300), hi = run(7, 'LB', Object.assign(flat(200), { awareness: 400 }), 2, 300)
     res.calm = { sdLo: r1(sd(lo.you, 'spdA')), sdHi: r1(sd(hi.you, 'spdA')) } }
   const qbLo = run(7, 'QB', mind(250, 120), GAMES), qbHi = run(7, 'QB', mind(250, 600), GAMES)
+  // the best-read rate is a statistic over the stream too: pooled over three (every engine change moves the paths)
+  const bestPool = m => { let r = 0, b = 0; for (const s0 of [7000, 8100, 9200]) { const x = run(7, 'QB', mind(250, m), GAMES, s0); r += x.qbReads; b += x.qbBest } return { r, b } }
+  const bpLo = bestPool(120), bpHi = bestPool(600)
   const rbLo = run(7, 'RB', mind(250, 120), GAMES), rbHi = run(7, 'RB', mind(250, 600), GAMES)
   // the yards a carry are a statistic over the game's stream: pooled over three streams (v165 K moved every path once already)
   const ypcPool = m => [7000, 8100, 9200].reduce((sum, s0) => sum + run(7, 'RB', mind(250, m), GAMES, s0).ypc, 0) / 3
@@ -68,7 +71,7 @@ const out = await page.evaluate((GAMES) => {
     wrLo: r3(wrLo.wrSep), wrHi: r3(wrHi.wrSep), wrN: wrLo.wrSepN + wrHi.wrSepN,
     intLo: r3(cbLo.intP), intHi: r3(cbHi.intP), intN: cbLo.intN + cbHi.intN,
     progLo: qbLo.progYou, progHi: qbHi.progYou,
-    qbLo: r3(qbLo.qbBest / Math.max(1, qbLo.qbReads)), qbHi: r3(qbHi.qbBest / Math.max(1, qbHi.qbReads)), qbN: qbLo.qbReads + qbHi.qbReads,
+    qbLo: r3(bpLo.b / Math.max(1, bpLo.r)), qbHi: r3(bpHi.b / Math.max(1, bpHi.r)), qbN: bpLo.r + bpHi.r,
     laneLo: r3(rbLo.laneOpen / Math.max(1, rbLo.laneReads)), laneHi: r3(rbHi.laneOpen / Math.max(1, rbHi.laneReads)), laneN: rbLo.laneReads + rbHi.laneReads,
     ofLo: rbLo.of, ofHi: rbHi.of, convoyHi: rbHi.convoy,
     ypcLo: r1(ypcLo3), ypcHi: r1(ypcHi3)

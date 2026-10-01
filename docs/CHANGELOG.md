@@ -10,6 +10,85 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v166 — the final pass.** The full regression found the systems interacting: the you-player was keyed whenever he
+  carried 30% of his offense's yards, which an ordinary featured back does, and equal teams tilted (37.5% wins for his
+  side) — the coordinator now keys a man past 40% (`dcYouShareV165D`), and equal talent is back at 52.5%; a sharp passer
+  escaped into rushers — he escapes toward daylight now; and several checks' outcome rows were path noise as later
+  systems landed, so they measure the mechanism (dccheck's play-action window, cmovecheck's paired back) or pool streams
+  (stridecheck's payoff), and readcheck's run-curve ceiling moves to 12 for v166 A.
+- **v166 K — special teams think.** (`src/04-engine.js`, `src/07-career-app.js`, `scripts/stcheck.mjs`.) The fair
+  catch was one flat 70% roll whenever a cover man was close. A returner with the head for it now reads the coverage:
+  a gunner on top of him is a fair catch (100% against a dull returner's 67%), room is a return (80%). The yards after
+  the catch stay the coverage's (2.97 against 3.11), so the decision is what changed. And a staff with the sense for it
+  sometimes fakes a punt on a short fourth near midfield, and the row says so. Kill switch `v166Kst`.
+- **v166 J — the film room.** (`src/07-career-app.js`, `scripts/repcheck.mjs`.) The coordinator learned the you-player
+  only from this game's snaps, so a star was defended like a stranger for a quarter every week. Now the defense has
+  watched his film: his reputation is his last four weeks' performance, and a hot UFF back is keyed from the first snap
+  (0.72) where a cold one is not (0). It is read at kickoff and never written, so nothing that samples games can move
+  it. Kill switch `v166Jfilm`.
+- **v166 I — fourth down by the numbers.** (`src/07-career-app.js`, `scripts/gmcheck.mjs`.) The call was a rule of
+  thumb with a coin flip in it. A staff with the sense for it (College up) now prices going, punting and kicking in
+  expected points — conversion odds from the distance and the line against the front, the punt's net, the make odds by
+  distance — with a coach's risk premium and the late-game situation: at the UFF it goes on 30% of fourth downs, 90% of
+  short ones in plus territory, never on long yardage in its own end, 79% trailing late against 44% leading. Younger
+  staffs keep the instinct. Kill switch `v166Igm`.
+- **v166 H — the offense has a coordinator.** (`src/07-career-app.js`, `scripts/occheck.mjs`.) v165 D gave the defense a
+  memory; the offense called its concepts off fixed rolls. Now each offense remembers what it has faced this game and
+  its coordinator answers it as hard as his level's sense: screens and quick game against the blitz, shots against man,
+  play action and more passing into a run key, draws against a pass key. A UFF offense facing a blitz-heavy defense goes
+  from 9% to 30% quick game and screens late in the game; a Pee Wee one from 12% to 24% (small samples). Kill switch
+  `v166Hoc`.
+- **v166 G — the defense pursues as one.** (`src/04-engine.js`, `scripts/teamdefcheck.mjs`.) The last man ran the
+  textbook angle whatever his ratings, and every pursuer aimed at the ball. Now only a last man with the head for it is
+  exempt from his angle error, a sharp pursuer from inside the carrier keeps inside leverage so the cutback runs into him,
+  and a sharp man goes for the ball on the strip. With the same bodies a 90-IQ defense gives up 10.6 YPC and 6.2% house
+  calls, a 35 gives up 17.6 and 13.2%; an ordinary defense holds (12.2 → 12.5). Kill switch `v166Gteam`.
+- **v166 F — the move is a choice.** (`src/04-engine.js`, `scripts/cmovecheck.mjs`.) The contact cascade rolled every
+  move against every tackler. Now the carrier picks one for the man in front of him — the cut with room or against a bad
+  angle, the hurdle over a low tackle, the stiff-arm when he is stronger, the truck on momentum or near the sticks — a
+  sharp back the move that fits (100%), a dull one his best move every time (42% fit). A move pays by how well it fits
+  the tackler, so a forced misfit (a hurdle into a high tackle) is worse than none: the same sharp back wins 58.3% of his
+  contacts choosing against 56.6% under the old cascade, a dull one gains less (54.4% → 55.0%), and an ordinary back's run
+  game holds (10.5 → 10.6 YPC). Kill switch `v166Fmove`.
+- **v166 E — pocket presence.** (`src/04-engine.js`, `scripts/pocketcheck.mjs`.) Every quarterback moved the same way
+  the moment any rusher came free anywhere. Now he moves on what he feels (a radius that grows with his IQ): he slides
+  to the side with fewer men, climbs as far as his head lets him, a dull one drifts back into the rush, and a sharp,
+  mobile one escapes a caving pocket and throws on the move. Under a strong rush a 95-awareness passer completes 61%,
+  a 30 completes 35%; an ordinary passer's pocket holds (hit 59% → 54%, sacked 5.8% → 5.1%). Kill switch `v166Epocket`.
+- **v166 D — the rush has moves.** (`src/04-engine.js`, `scripts/rushcheck.mjs`.) A rusher won with one blend of
+  strength and quickness. Now he picks a move at the snap against the man in front of him — bull, speed (edge), swim,
+  spin — and a smart one attacks the weakness (88% bull against a weak anchor, all finesse against heavy feet) while a
+  dull one runs his go-to move; reading the man wins 1.48 a snap against 0.98 with the same bodies, and a smart tackle
+  sets for the speed rush (50% → 2% speed moves). The rush as a whole holds (0.82 → 0.85 wins a snap). Kill switch
+  `v166Drush`.
+- **v166 C — the zone is a place.** (`src/04-engine.js`, `scripts/zonecheck.mjs`.) v165 J's shell lived only in the
+  quarterback's grades; on the field every corner chased the nearest receiver. With a zone called, every defender who is
+  not on the target takes a landmark — cover 2: corners squat in the flats, safeties split the deep halves, backers take
+  the hooks; cover 3: corners and the deep safety take thirds — matches the receiver who enters it (over the top deep,
+  under him short) and breaks on the ball once it is thrown. At the throw corners stand 46 px deep in man, 40 in cover 2,
+  66 in cover 3; go routes against cover 3 complete 53% for 8.9 yards an attempt (man: 56% / 11.0), curls 56%. Kill
+  switch `v166Czone`. Also: v166 A's catch-and-run blocking is only for the men already near the catch (an in-stride
+  catch with every receiver sprinting to block made 20-yard completions), v166 B's help squeezes only when he is closer
+  than the receiver's own man, `stridecheck`'s blanket row counts the throws to the blanketed man (since v165 K the
+  passer leaves him: 38 throws of 160 against 103), and `dccheck`'s blitz row compares the sharp passer to the dull one.
+- **v166 B — every route is live.** (`src/04-engine.js`, `scripts/livecheck.mjs`.) Only the target had a live
+  separation; every other route was graded once at the snap, so the check-down, the throw-ahead fallback and the scan the
+  broadcast drew all read a picture from before the snap. Now every scanned route carries its window off the field as
+  the play runs (a read looked at twice shows two windows 67% of the time, 33% before), the check-down and the fallback
+  take the most open read now, and a second defender sitting on the target squeezes his window. The passing game holds:
+  66% completions and ~10 yards an attempt on and off. Kill switch `v166Blive`.
+- **v166 A — the block holds.** (`src/04-engine.js`, `src/07-career-app.js`, `scripts/blockcheck.mjs`.) A downfield
+  block held 150 ms at most and shed at the 8% cap whatever the ratings, a blocked man still made a full tackle from
+  17 px, and on a catch-and-run nobody blocked. Now a block is leverage and ratings: a blocker squarely between his man
+  and the ball, with the better of the matchup, SEALS him — he barely drifts, can only get an arm on a runner going by,
+  and is driven off the lane; a blocker out of position leaks. Blockers take the man who threatens the ball, the
+  receivers block on every carry, and the carrier reads a sealed man as a slow one and cuts off the blocker's hip. On
+  the readcheck roster: poor blockers 6.2 YPC, average 9.7, elite 11.3 (elite was 9.2 — blocking past 65 used to
+  saturate); a run with a seal gains 10.9 against 4.1 without; a catch-and-run with a seal 28.6 yards a catch against
+  5.7. A block engages once its man has found the ball (v81's condition). The v16.1 rewrite of stuffed runs (58% of
+  them turned into 4-8 yards with the sim's picture thrown away) runs at a quarter of its rate, so real blocking
+  replaces fake gains. Scoring rises with it: paired-seed game totals 38.5 → 47.3 points, `scoreneutralcheck` 25.2
+  (main 22.0), equal talent 56.8 (band 30-60) — `blkShedBaseV166A` is the dial. Kill switch `v166Ablock`. `iqcheck`'s best-read row now pools three streams.
 - **v165 K — the progression.** (`src/04-engine.js`, `scripts/iqcheck.mjs`.) The target used to be picked before
   the snap and the ball came out on a timer; the scan on the broadcast was a show. Now, at the throw, a sharp passer
   in a clean pocket whose man is blanketed works the reads he scanned off the live field and comes off to one that is
