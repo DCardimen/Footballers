@@ -3710,12 +3710,33 @@ window.__visionRadiusV96 = visionRadiusV96;
         const free = rushers.filter(r=>r.shed).concat(blitzer&&blitzer.freeRun?[blitzer]:[]).concat(spy && spy._attack ? [spy] : []);
         free.forEach(r=>{ if (r._loopVia && t < (r._loopUntil||0)) mv(r, r._loopVia.x, r._loopVia.y, .95); else mv(r, qb.lx, qb.y, 1.0); });
         let slideY = 0, climb = 0;
-        if (free.length) {
-          const th = free.slice().sort((a2,b2)=>Math.hypot(a2.lx-qb.lx,a2.y-qb.y)-Math.hypot(b2.lx-qb.lx,b2.y-qb.y))[0];
+        /* ===== v166 E POCKET PRESENCE =====
+         * Every quarterback used to move the same way the moment ANY rusher came free, wherever he was: slide 14 px from
+         * the nearest, climb 18 off the edge. Now he moves on what he FEELS — a free man inside his feel radius
+         * (`feelBasePxV166E` + `feelIqPxV166E` a point of `awE`), so a dull passer is still standing there when the hit
+         * comes and a sharp one has moved before it. He slides to the side with fewer men on it, climbs as far as his head
+         * lets him (`stepUpPx` × his IQ), a dull one (`awE` under `bailIqV166E`) drifts BACK into the rush
+         * (`bailPxV166E`), and a sharp, mobile one whose pocket caves (two men inside `escapePxV166E`) escapes it and throws
+         * on the move (the v82 rollout). No draws. Kill switch `v166Epocket` 0. `root.__V166E` (`felt`, `escapes`, `bails`);
+         * `pocketcheck.mjs`. */
+        const pocketOn = TU("v166Epocket", 1) && iqOnV165B();
+        const V166E = root.__V166E = root.__V166E || { felt: 0, escapes: 0, bails: 0 };
+        const feelPx = pocketOn ? TU("feelBasePxV166E", 60) + awE(qb) * TU("feelIqPxV166E", 1.0) : 1e9;
+        const felt = free.filter(r => Math.hypot(r.lx - qb.lx, r.y - qb.y) < feelPx);
+        if (felt.length) {
+          const th = felt.slice().sort((a2,b2)=>Math.hypot(a2.lx-qb.lx,a2.y-qb.y)-Math.hypot(b2.lx-qb.lx,b2.y-qb.y))[0];
           slideY = th.y > qb.y ? -14 : 14;
+          if (pocketOn) { const above = felt.filter(r => r.y < qb.y).length, below = felt.length - above;
+            if (above !== below) slideY = (above > below ? 1 : -1) * 14 * cl(.6 + (awE(qb) - 40) / 100, .6, 1.4);   // to the side with fewer men on it
+            if (!qb._feltV166E) { qb._feltV166E = 1; V166E.felt++; } }
           // v82 STEP UP: pressure off the EDGE is answered by climbing the pocket, not
           // sliding into the other edge — a real quarterback steps into the lane
-          if (Math.abs(th.y - qb.y) > 26) { climb = TU("stepUpPx", 18); slideY *= .4; if (!qb._climbing) { qb._climbing = true; emit("stepUp", { x: qb.lx, y: qb.y }); } }
+          if (Math.abs(th.y - qb.y) > 26) { climb = TU("stepUpPx", 18) * (pocketOn ? cl((awE(qb) - 30) / 50, .2, 1.3) : 1); slideY *= .4; if (!qb._climbing) { qb._climbing = true; emit("stepUp", { x: qb.lx, y: qb.y }); } }
+          if (pocketOn && awE(qb) < TU("bailIqV166E", 45)) { climb = -TU("bailPxV166E", 8); if (!qb._bailV166E) { qb._bailV166E = 1; V166E.bails++; emit("bail", { x: qb.lx, y: qb.y }); } }
+          // he escapes a caving pocket and throws on the move
+          if (pocketOn && !qb._roll && !playAction && awE(qb) >= TU("escapeIqV166E", 60) && (qb.agi || 50) >= TU("escapeAgiV166E", 52)
+              && felt.filter(r => Math.hypot(r.lx - qb.lx, r.y - qb.y) < TU("escapePxV166E", 55)).length >= 2) {
+            qb._roll = slideY >= 0 ? 1 : -1; V166E.escapes++; emit("escape", { side: qb._roll, x: qb.lx, y: qb.y }); }
           if (!qb._slid) { qb._slid = true; emit("pocketSlide",{}); }
           // v23: a defender has broken the line and is closing on the QB — flag him
           // early (before the hit) so the broadcast can warn "scramble incoming".

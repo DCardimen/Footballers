@@ -10,6 +10,11 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v166 E — pocket presence.** (`src/04-engine.js`, `scripts/pocketcheck.mjs`.) Every quarterback moved the same way
+  the moment any rusher came free anywhere. Now he moves on what he feels (a radius that grows with his IQ): he slides
+  to the side with fewer men, climbs as far as his head lets him, a dull one drifts back into the rush, and a sharp,
+  mobile one escapes a caving pocket and throws on the move. Under a strong rush a 95-awareness passer completes 61%,
+  a 30 completes 35%; an ordinary passer's pocket holds (hit 59% → 54%, sacked 5.8% → 5.1%). Kill switch `v166Epocket`.
 - **v166 D — the rush has moves.** (`src/04-engine.js`, `scripts/rushcheck.mjs`.) A rusher won with one blend of
   strength and quickness. Now he picks a move at the snap against the man in front of him — bull, speed (edge), swim,
   spin — and a smart one attacks the weakness (88% bull against a weak anchor, all finesse against heavy feet) while a

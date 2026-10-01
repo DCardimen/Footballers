@@ -747,7 +747,8 @@
     "reactioncheck",
     "iqcheck",
     "dccheck",
-    "rushcheck"
+    "rushcheck",
+    "pocketcheck"
    ]
   },
   "credit": {
@@ -3115,6 +3116,19 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "pocketcheck": {
+   "file": "scripts/pocketcheck.mjs",
+   "desc": "v166 E — pocket presence",
+   "areas": [
+    "reads"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster against a strong front."
   },
   "rushcheck": {
    "file": "scripts/rushcheck.mjs",
