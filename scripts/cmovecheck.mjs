@@ -35,12 +35,14 @@ const out = await page.evaluate(() => {
     const V1=window.__V166F||{}
     return { n, ypc:+(y/Math.max(1,n)).toFixed(2), winPct:+(100*wins/Math.max(1,contacts)).toFixed(1), contacts, plans:(V1.plans||0)-(V0.plans||0), fitPct:+(100*((V1.fit||0)-(V0.fit||0))/Math.max(1,(V1.plans||0)-(V0.plans||0))).toFixed(1) } }
   const R={}
-  R.sharp=cell({RB:{vision:90}}); R.dull=cell({RB:{vision:35}}); R.base=cell({}); R.off=cell({},{v166Fmove:0})
+  R.sharp=cell({RB:{vision:90}}); R.sharpOff=cell({RB:{vision:90}},{v166Fmove:0}); R.dull=cell({RB:{vision:35}}); R.dullOff=cell({RB:{vision:35}},{v166Fmove:0}); R.base=cell({}); R.off=cell({},{v166Fmove:0})
   window.RIB_TUNE={}; return R })
 await browser.close()
 const checks=[], ok=(n,p)=>checks.push({n,p:!!p}), R=out
 ok(`a sharp back picks the move that fits the tackler (${R.sharp.fitPct}% fit) and a dull one runs his best move (${R.dull.fitPct}%)`, R.sharp.fitPct >= 99 && R.dull.fitPct < 80)
-ok(`choosing pays: the sharp back wins ${R.sharp.winPct}% of his contacts, the dull one ${R.dull.winPct}% (same body)`, R.sharp.winPct > R.dull.winPct + 2)
+// v166: sharp against dull is two different streams (±2 points); the paired comparison is the same sharp back with the choice
+// and without it
+ok(`choosing pays the back who reads: the same sharp back wins ${R.sharp.winPct}% of his contacts choosing against ${R.sharpOff.winPct}% under the old cascade; a dull one forcing his favourite gains less (${R.dullOff.winPct}% -> ${R.dull.winPct}%)`, R.sharp.winPct > R.sharpOff.winPct + 1 && (R.sharp.winPct - R.sharpOff.winPct) > (R.dull.winPct - R.dullOff.winPct))
 ok(`the run game holds for an ordinary back: ${R.off.ypc} -> ${R.base.ypc} YPC`, Math.abs(R.base.ypc - R.off.ypc) <= 1.2)
 ok(`kill switch v166Fmove 0: no plans (${R.off.plans})`, R.off.plans === 0)
 ok('no page errors', errs.length===0)

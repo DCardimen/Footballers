@@ -40,9 +40,10 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 - **v166 F — the move is a choice.** (`src/04-engine.js`, `scripts/cmovecheck.mjs`.) The contact cascade rolled every
   move against every tackler. Now the carrier picks one for the man in front of him — the cut with room or against a bad
   angle, the hurdle over a low tackle, the stiff-arm when he is stronger, the truck on momentum or near the sticks — a
-  sharp back the move that fits (100%), a dull one his best move every time (42% fit). The sharp back wins 54.9% of his
-  contacts against 52.7% with the same body; an ordinary back's run game holds (10.5 → 9.9 YPC on the readcheck roster).
-  Kill switch `v166Fmove`.
+  sharp back the move that fits (100%), a dull one his best move every time (42% fit). A move pays by how well it fits
+  the tackler, so a forced misfit (a hurdle into a high tackle) is worse than none: the same sharp back wins 58.3% of his
+  contacts choosing against 56.6% under the old cascade, a dull one gains less (54.4% → 55.0%), and an ordinary back's run
+  game holds (10.5 → 10.6 YPC). Kill switch `v166Fmove`.
 - **v166 E — pocket presence.** (`src/04-engine.js`, `scripts/pocketcheck.mjs`.) Every quarterback moved the same way
   the moment any rusher came free anywhere. Now he moves on what he feels (a radius that grows with his IQ): he slides
   to the side with fewer men, climbs as far as his head lets him, a dull one drifts back into the rush, and a sharp,

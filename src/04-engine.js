@@ -2680,12 +2680,13 @@ window.__visionRadiusV96 = visionRadiusV96;
        * roll, the carrier picks ONE move for this man (`cmPlanV166F`): the CUT where there is room or the tackler did not
        * square up, the HURDLE over a man going low, the STIFF-ARM when he is stronger or the tackler is on a bad line, the
        * TRUCK when his momentum wins or the sticks are close. A carrier past `cmIqV166F` (his vision IQ) picks the move
-       * that fits THIS tackler; a dull one runs his best move every time. The chosen move's odds rise `cmBoostV166F` and
-       * the moves he did not try fall to `cmCutV166F` — the same rolls, so no extra draws. Emits `carrierMove`. Kill
+       * that fits THIS tackler; a dull one runs his best move every time. The chosen move's odds rise toward `cmBoostV166F`
+       * by how well it fits (its fit over `cmFitSpanV166F`; a forced misfit falls below 1), and the moves he did not try fall
+       * to `cmCutV166F` — the same rolls, so no extra draws. Emits `carrierMove`. Kill
        * switch `v166Fmove` 0. `root.__V166F` (`plans`, `fit`, `moves`); `movecheckV166.mjs`. */
       const V166F = root.__V166F = root.__V166F || { plans: 0, fit: 0, moves: {} };
       const cmOn = !behind && TU("v166Fmove", 1) && iqOnV165B();
-      let cmMove = null;
+      let cmMove = null, cmFit = 0;
       if (cmOn) {
         const armE = (cStr - dStr) + (c.str - 50) * .45, powE = (cMom - dMom) * .85 + (cStr - dStr) * .5;
         const fit = { cut: (elus - d.tkl) + (openField ? 12 : 0) + angX * 20 - (setQ > 0 ? 6 : 0),
@@ -2695,10 +2696,12 @@ window.__visionRadiusV96 = visionRadiusV96;
         const own = { cut: elus, hurdle: c.jump * .6 + c.agi * .4, stiff: c.str, truck: c.str * .5 + (c.spdA || 50) * .5 };
         const pick = (m) => Object.keys(m).reduce((a, b) => (m[b] > m[a] ? b : a));
         cmMove = visE(c) >= TU("cmIqV166F", 62) ? pick(fit) : pick(own);
+        cmFit = fit[cmMove];
         V166F.plans++; V166F.moves[cmMove] = (V166F.moves[cmMove] || 0) + 1; if (cmMove === pick(fit)) V166F.fit++;
         emit("carrierMove", { who: c.id, vs: d.id, move: cmMove });
       }
-      const cmK = m => !cmMove ? 1 : m === cmMove ? TU("cmBoostV166F", 1.35) : TU("cmCutV166F", 0.8);
+      // the chosen move pays by how well it FITS this tackler (a forced misfit — a hurdle into a high tackle — is worse than none)
+      const cmK = m => !cmMove ? 1 : m === cmMove ? 1 + (TU("cmBoostV166F", 1.8) - 1) * cl(cmFit / TU("cmFitSpanV166F", 15), -1, 1) : TU("cmCutV166F", 0.85);
       // 1) WHIFF — an elusive back makes him miss in space (never from behind).
       // Steeper gap term + a high (never-100%) ceiling so a huge mismatch shows:
       // even ≈26% open, star-vs-weak ≈70%, generational-vs-scrub ≈78%, floor ≈2%.
