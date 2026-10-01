@@ -10,6 +10,11 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v165 F — the route has a brain.** (`src/04-engine.js`, `scripts/iqcheck.mjs`.) A receiver's separation used to
+  be speed and agility against coverage. At the break his awareness against his cover man's now buys room, and a sharp
+  receiver's double move gets more bites: a 600-mind UFF receiver's separation after the break is +0.09 where a
+  120-mind one's is −1.00 (a yellow window against a red one); over 12 games he catches 9.5 a game where the v165-off
+  build caught 7.3, for about the same yards. Kill switch `v165Froute`.
 - **v165 E — the audible.** (`src/07-career-app.js`, `scripts/dccheck.mjs`.) The quarterback reads the look before the
   snap: a sharp one who sees a called blitz checks to the hot read (a quick call), and into a box keyed on the run he
   checks to play action — your quarterback's awareness now changes the call itself (a 600-mind UFF QB audibled 5 times

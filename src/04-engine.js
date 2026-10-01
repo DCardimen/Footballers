@@ -3639,10 +3639,20 @@ window.__visionRadiusV96 = visionRadiusV96;
         }
         if (t >= throwAt - 400 && !target._broke) { target._broke = true;
           sep += (target.agi - coverA.cov) * 0.04;
+          /* ===== v165 F THE ROUTE HAS A BRAIN =====
+           * The break is where a receiver's head wins: he sets the corner up, sells the stem, sits in the soft spot.
+           * His IQ against his cover man's (v165 B `awE`, his headroom past 99 included) buys separation at the break
+           * (`routeIqKV165F`, capped at `routeIqCapV165F` either way), and a sharp man's double move gets more bites
+           * (`routeFakeKV165F` a point past 60). No extra draws. Kill switch `v165Froute` 0 (and `v165Biq` 0).
+           * `root.__V165B.wrSep` / `wrSepN` (his separation after the break); `iqcheck.mjs`. */
+          const iqF = iqOnV165B() && TU("v165Froute", 1);
+          if (iqF) sep += cl((awE(target) - awE(coverA)) * TU("routeIqKV165F", .012), -TU("routeIqCapV165F", 1), TU("routeIqCapV165F", 1));
           if (routeDepth > 13 && Math.random() < 0.5) {
             emit("doubleMove",{});
-            if (Math.random() < 0.3 + Math.max(0,(50-coverA.disc))*0.012) { sep += 2.2; coverA.beaten = t + 380; }
-          } }
+            const biteP = iqF ? 0.3 + Math.max(0,(50-discE(coverA)))*0.012 + Math.max(0, awE(target)-60)*TU("routeFakeKV165F", .004) : 0.3 + Math.max(0,(50-coverA.disc))*0.012;
+            if (Math.random() < biteP) { sep += 2.2; coverA.beaten = t + 380; }
+          }
+          if (target.player && target.player.you) { const V = root.__V165B; V.wrSep = (V.wrSep||0) + sep; V.wrSepN = (V.wrSepN||0) + 1; } }
         /* ===== v146 A THE SACK HE TAKES IS TAKEN BY SOMEBODY =====
          * v82 resolved the eaten sack on the tick the quarterback decided, with the free rusher
          * wherever he was — measured ~20px (3+ yards) off on average, so the broadcast folded a
