@@ -57,7 +57,8 @@
       start: "sched",
       keep: /(^|\s)(eyebrow|h1)(\s|$)/,
       secs: [
-        { k: "sched", name: "SCHEDULE", re: /sched-list|press-strip/ },
+        { k: "sched", name: "SCHEDULE", re: /sched-list|press-strip|sx-hero-v168/ },
+        { k: "league", name: "LEAGUE",  re: /league-card-v168/ },   // v168: the standings live in the season
         { k: "opp",   name: "OPPONENT", re: /opponent-card-v11/ },
         { k: "body",  name: "BODY",     re: /condition-card-v11|age-card/ },
         { k: "role",  name: "ROLE",     re: /rival-card-v11|weekly-loop-card|depth-card|objective-card|mission-card|arc-card-v11|identity-card-v11/ },
@@ -65,7 +66,7 @@
       txt: [{ k: "sched", re: /^\s*Record:/i }],
       // the schedule IS the tab: folding it puts the press strip on screen and the fixtures
       // behind a closed accordion header, which is the opposite of the point
-      nofold: ["sched"],
+      nofold: ["sched", "league"],
     },
     /* v139: Settings is nearly two full screens on a phone — the longest page in the game, and
      * every one of its cards is a thing you came for ON PURPOSE, so it tabs rather than folds.
@@ -100,7 +101,7 @@
     result: {
       start: "grade",
       secs: [
-        { k: "grade",  name: "GRADE",  re: /coach-sum-v136|legacy-card-v152/ },   // v152 A: the Legacy XP line rides the grade
+        { k: "grade",  name: "GRADE",  re: /coach-sum-v136|legacy-card-v152|final-table-v168/ },   // v168: the final standings ride the grade   // v152 A: the Legacy XP line rides the grade
         { k: "season", name: "SEASON", re: /(^|\s)eyebrow(\s|$)/ },
         { k: "stats",  name: "STATS",  re: /\bnever-v146\b/ },
         { k: "growth", name: "GROWTH", re: /age-card|feedback-v12|legacy-progress-v11|depth-card/ },
@@ -211,7 +212,7 @@
       nofold: ["nodes"],
     },
   };
-  const ICON = { lead: "🏅", odds: "🎯", xp: "🎖️", card: "🪪", case: "🏆", book: "📖", sims: "⏭", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
+  const ICON = { lead: "🏅", odds: "🎯", xp: "🎖️", card: "🪪", case: "🏆", book: "📖", sims: "⏭", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", league: "🏆", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
   const TAB = { locker: "gear", hub: "now", shop: "nodes", season: "sched", settings: "game", result: "grade", declineResult: "epitaph", gameover: "end", win: "end" };
 
   function cfg() { const s = window.S; return (s && VIEWS[s.view]) || null }
@@ -288,9 +289,18 @@
   const FOLD = {};
   function headingOf(el) {   // the block's own heading: a title element with letters in it, never a bold number
     const clean = (x) => (x || "").replace(/\s+/g, " ").trim().replace(/^[^A-Za-z0-9]+/, "");
-    const cands = [...el.querySelectorAll(".h1,.h2,h2,h3,.card-title,.sec-title,.eyebrow,.kicker,b,strong")].map(h => clean(h.textContent)).filter(t => /[A-Za-z]{3}/.test(t));
-    let t = cands[0] || clean(el.textContent).split(/[.!?·]/)[0];
-    return (t || "MORE").slice(0, 34);
+    // v168: the heading's first rendered LINE — textContent ran a kicker into its sub ("CAREER PULSEYOUR PERFORMANCE")
+    const line = (h) => String(h.innerText || h.textContent || "").split(/\n/).map(x => x.trim()).filter(x => /[A-Za-z]{3}/.test(x))[0] || "";
+    const cands = [...el.querySelectorAll(".h1,.h2,h2,h3,.card-title,.sec-title,.eyebrow,.kicker,b,strong")].map(h => clean(line(h))).filter(t => /[A-Za-z]{3}/.test(t));
+    let t = cands[0] || clean(line(el)).split(/[.!?·]/)[0];
+    return clipV168(t || "MORE");
+  }
+  // v168: a long heading ends on a whole word and an ellipsis, never mid-word ("…WIN A PLAYOFF G")
+  function clipV168(t) {
+    t = String(t || "").trim();
+    if (t.length <= 34) return t;
+    const cut = t.slice(0, 33), sp = cut.lastIndexOf(" ");
+    return (sp > 16 ? cut.slice(0, sp) : cut).replace(/[\s·—:,-]+$/, "") + "…";
   }
   function isTitle(el) {   // a heading on its own line, no card of its own: it names the block after it
     const t = (el.textContent || "").replace(/\s+/g, " ").trim();
@@ -313,7 +323,7 @@
     groups.forEach((g, i) => {
       const wrap = document.createElement("div"); wrap.className = "hubv97-fold" + (i === FOLD[key] ? " on" : "");
       const head = document.createElement("button"); head.type = "button"; head.className = "hubv97-head";
-      const title = g.title ? (g.title.textContent || "").replace(/\s+/g, " ").trim().slice(0, 34) : headingOf(g.els[0]);
+      const title = g.title ? clipV168((String(g.title.innerText || g.title.textContent || "").split(/\n/).map(x => x.trim()).filter(Boolean)[0] || "").replace(/\s+/g, " ")) : headingOf(g.els[0]);
       head.innerHTML = "<span>" + title.replace(/</g, "&lt;") + "</span><i>▾</i>";
       const body = document.createElement("div"); body.className = "hubv97-body";
       box.insertBefore(wrap, g.els[0]); wrap.appendChild(head); wrap.appendChild(body); g.els.forEach(el => body.appendChild(el));
