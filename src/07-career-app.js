@@ -17066,6 +17066,21 @@
         if (youOnBall) M.youY += Math.max(0, y);
       };
     window.__V165D = { mem: dcMemV165D, plan: dcPlanV165D, iq: dcIqV165D, last: null, calls: 0, blitzes: 0 };
+    /* ===== v166 H THE OFFENSE HAS A COORDINATOR =====
+     * v165 D gave the defense a memory; the offense called its concepts off fixed rolls whatever the other side kept doing.
+     * Now each offense remembers the calls it has FACED this game (`ocMemV166H`, by the side with the ball: blitzes, zone
+     * shells, man, the run key) and its coordinator (the level's sense, `dcIqV165D`) answers them — more screens and quick
+     * game against a defense that keeps coming (`ocBlitzKV166H`), more shots against man (`ocManShotKV166H`), more play
+     * action and more passing into a box keyed on the run (`ocPaKeyV166H`, `ocPassKeyV166H`), more draws against a pass
+     * key (`ocDrawKV166H`) — once he has seen `ocWarmV166H` snaps. Every answer moves an existing roll's odds: no extra
+     * draws. Kill switch `v166Hoc` 0. `window.__V166H` (the memory), opt-in `window.__V166Hlog`; `occheck.mjs`. */
+    const ocOnV166H = dcOnV165D && !!TU("v166Hoc", 1),
+      ocMemV166H = { us: { n: 0, blitz: 0, zone: 0, man: 0, runKey: 0 }, them: { n: 0, blitz: 0, zone: 0, man: 0, runKey: 0 } },
+      ocReadV166H = off => {
+        const M = ocMemV166H[off], on = ocOnV166H && M.n >= TU("ocWarmV166H", 6), n = Math.max(1, M.n);
+        return { on, iq: on ? dcIqV165D : 0, blitz: M.blitz / n, zone: M.zone / n, man: M.man / n, runKey: M.runKey / n };
+      };
+    window.__V166H = { mem: ocMemV166H };
     function B(w, concept, play) {
       const { O: k, D: T } = ie(w),
         K = (() => {
@@ -18370,6 +18385,8 @@
             ypa = M.passes ? M.passY / M.passes : 6;
           passP += dcIqV165D * clamp99((ypa * 0.7 - ypc) * TU("ocLeanKV165E", 0.03), -0.1, 0.1);
         }
+        const ocP = ocReadV166H(usDrive ? "us" : "them");   // v166 H: throw into a box keyed on the run, run against a pass key
+        if (ocP.on) passP += ocP.iq * clamp99(ocP.runKey, -1, 1) * TU("ocPassKeyV166H", 0.08);
       }
       // v23: your adopted PREGAME game-plan bends your play-mix toward the pass rate
       // the coach agreed to run. Blended (not forced) so down/distance still matters.
@@ -18383,19 +18400,23 @@
       // pick a concept from the situation — surfaced in commentary and fed to the
       // resolver so a "deep shot" actually throws deep and a "screen" stays short.
       let concept;
+      const ocV166H = ocReadV166H(usDrive ? "us" : "them"),
+        ocBlitz = ocV166H.iq * clamp99((ocV166H.blitz - 0.18) * TU("ocBlitzKV166H", 1.5), 0, 0.3),
+        ocShot = ocV166H.iq * clamp99((ocV166H.man - 0.4) * TU("ocManShotKV166H", 0.3), -0.06, 0.12);
       if (isPassCall) {
         const goalToGo = pos >= 90;
         if (goalToGo) concept = "fade";
-        else if (down >= 3 && toGo >= 8 && Math.random() < 0.28) concept = "screen";
+        else if (down >= 3 && toGo >= 8 && Math.random() < 0.28 + ocBlitz) concept = "screen";
         else if (margin <= -9 && quarter >= 4) concept = "shot";
-        else if (down <= 2 && toGo <= 4 && Math.random() < 0.16) concept = "shot";
-        else if (toGo <= 4 || hurry) concept = Math.random() < 0.5 ? "quick" : "dropback";
-        else concept = Math.random() < 0.12 ? "shot" : "dropback";
+        else if (down <= 2 && toGo <= 4 && Math.random() < 0.16 + ocShot) concept = "shot";
+        else if (toGo <= 4 || hurry) concept = Math.random() < 0.5 + ocBlitz ? "quick" : "dropback";
+        else { const r9 = Math.random(); concept = r9 < 0.12 + ocShot ? "shot" : r9 > 1 - ocBlitz ? "quick" : "dropback"; }   // v166 H: against the blitz the ball comes out quick
       } else {
         if (pos >= 97 || toGo <= 1) concept = "power";
-        else if (down >= 3 && toGo >= 7 && Math.random() < 0.4) concept = "draw";
+        else if (down >= 3 && toGo >= 7 && Math.random() < 0.4 + ocV166H.iq * Math.max(0, -ocV166H.runKey) * TU("ocDrawKV166H", 0.5)) concept = "draw";
         else concept = Math.random() < 0.3 ? "sweep" : "inside";
       }
+      if (window.__V166Hlog) window.__V166Hlog.push({ us: usDrive, concept, pass: isPassCall, n: ocMemV166H[usDrive ? "us" : "them"].n, blitzSeen: +ocV166H.blitz.toFixed(3), runKey: +ocV166H.runKey.toFixed(3) });
       // v101: the chain above still names the FAMILY; the playbook names the actual call inside
       // it, and the call is what the sim and the commentary get.
       let playV101 = pickPlayV101(isPassCall ? "pass" : "run", concept, {
@@ -18413,7 +18434,7 @@
         down <= 2 &&
         (playV101 && playV101.pa
           ? Math.random() < TU("paCalledRate", 0.72)
-          : Math.random() < TU("paRate", 0.24)); /* v81: play action sells the run first */
+          : Math.random() < TU("paRate", 0.24) + ocReadV166H(usDrive ? "us" : "them").iq * Math.max(0, ocReadV166H(usDrive ? "us" : "them").runKey) * TU("ocPaKeyV166H", 0.4)); /* v81: play action sells the run first; v166 H: more of it into a keyed box */
       dcSnapV165D = null;
       if (dcOnV165D) {
         /* v165 D: the coordinator's call, made blind to the offense's */
@@ -18430,6 +18451,8 @@
         if (window.__V165Dlog) window.__V165Dlog.push({ def: usDrive ? "them" : "us", n: dcMemV165D[usDrive ? "them" : "us"].n, down, toGo, runKey: dcSnapV165D.runKey, keyYou: dcSnapV165D.keyYou, blitz: dcSnapV165D.blitz, shell: dcSnapV165D.shell || null });
         window.__V165D.calls++;
         dcSnapV165D.blitz && window.__V165D.blitzes++;
+        { const M = ocMemV166H[usDrive ? "us" : "them"]; M.n++; M.blitz += dcSnapV165D.blitz ? 1 : 0; M.runKey += dcSnapV165D.runKey;   // v166 H: the offense saw it
+          if (dcSnapV165D.shell === "man") M.man++; else if (dcSnapV165D.shell) M.zone++; }
       }
       /* ===== v165 E THE AUDIBLE =====
        * The quarterback reads the look before the snap. A called blitz shows; a box that keyed the run shows. A QB

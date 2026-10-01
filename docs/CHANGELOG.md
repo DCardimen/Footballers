@@ -10,6 +10,12 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v166 H — the offense has a coordinator.** (`src/07-career-app.js`, `scripts/occheck.mjs`.) v165 D gave the defense a
+  memory; the offense called its concepts off fixed rolls. Now each offense remembers what it has faced this game and
+  its coordinator answers it as hard as his level's sense: screens and quick game against the blitz, shots against man,
+  play action and more passing into a run key, draws against a pass key. A UFF offense facing a blitz-heavy defense goes
+  from 9% to 30% quick game and screens late in the game; a Pee Wee one from 12% to 24% (small samples). Kill switch
+  `v166Hoc`.
 - **v166 G — the defense pursues as one.** (`src/04-engine.js`, `scripts/teamdefcheck.mjs`.) The last man ran the
   textbook angle whatever his ratings, and every pursuer aimed at the ball. Now only a last man with the head for it is
   exempt from his angle error, a sharp pursuer from inside the carrier keeps inside leverage so the cutback runs into him,

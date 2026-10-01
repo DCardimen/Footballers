@@ -954,7 +954,8 @@
     "simcheck",
     "readcheck",
     "routecheck",
-    "v99check"
+    "v99check",
+    "occheck"
    ]
   },
   "endzones": {
@@ -3118,6 +3119,19 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "occheck": {
+   "file": "scripts/occheck.mjs",
+   "desc": "v166 H — the offense has a coordinator",
+   "areas": [
+    "playbook"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Seeded simGameV2 games, the defenses' blitz dial up and down, UFF and Pee Wee."
   },
   "teamdefcheck": {
    "file": "scripts/teamdefcheck.mjs",
