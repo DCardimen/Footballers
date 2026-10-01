@@ -10,6 +10,13 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v165 K — the progression.** (`src/04-engine.js`, `scripts/iqcheck.mjs`.) The target used to be picked before
+  the snap and the ball came out on a timer; the scan on the broadcast was a show. Now, at the throw, a sharp passer
+  in a clean pocket whose man is blanketed works the reads he scanned off the live field and comes off to one that is
+  open — late, so the defense closes a beat (a 600-mind UFF QB does it about 8 times a game, a 120-mind one never).
+  A first cut (any read better, under pressure too) made it a free completion — equal-talent scoring 55 → 62, 75%
+  completions — and was cut back to this. Kill switch `v165Kprog`. `iqcheck`'s yards-a-carry row now pools three
+  streams.
 - **v165 J — the shell.** (`src/04-engine.js`, `src/07-career-app.js`, `scripts/dccheck.mjs`.) The defense plays a
   coverage now: the coordinator calls man, cover 2 or cover 3 every snap (man behind 74% of blitzes, zone on most
   third-and-longs), and every route has a matchup against each — crossers and double moves beat man, seams and posts

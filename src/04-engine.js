@@ -3732,6 +3732,33 @@ window.__visionRadiusV96 = visionRadiusV96;
           }
           // still closing: the rest of the field plays on this tick (routes, coverage), the ball stays in his arms
         }
+        /* ===== v165 K THE PROGRESSION =====
+         * The target was picked before the snap and the ball came out on a timer: the scan the broadcast drew was a show.
+         * Now, at the moment he would throw, a passer whose man is blanketed (`sep` under `progRedV165K`) works the
+         * reads he scanned (from a clean pocket — never hurried, never pressured): each one's LIVE window off the field — the nearest free defender's distance to him now,
+         * `progOpenPxV165K` px being even (0), `progPxPerSepV165K` px a separation unit. A passer past `progIqV165K` (his
+         * `awE`) who finds one OPEN (a green window, `progOpenSepV165K`) and `progGainV165K` better comes off his man to it: the target, the cover man and the window
+         * are the new read's (less `progLateSepV165K`: the beat it takes to come off is a beat the defense closes), his feet
+         * re-set for `progResetMsV165K`, and he throws from there. A dull passer forces it,
+         * eats it or throws it away, as he did. Once a play, no random draws. Kill switch `v165Kprog` 0.
+         * `root.__V165B.prog` / `progYou` (the you-player's comebacks as the passer); `iqcheck.mjs`. */
+        if (TU("v165Kprog", 1) && iqOnV165B() && !qb._progV165K && !qb._eatV146 && !ballFlight && readProg && readProg.length > 1
+            && t >= throwAt && !hurried && !opts?.pressured && sep < TU("progRedV165K", -1.2) && awE(qb) >= TU("progIqV165K", 65)) {   // a clean pocket only: there is no time to work reads with a man on him
+          qb._progV165K = true;
+          const liveD = S.def.filter(d => !d.engaging && !d.blitzing && d.lb !== "DL" && !(d.stunned && t < d.stunned));
+          const liveSep = a => { let near = null, nd = 1e9; for (const d of liveD) { const dd = Math.hypot(d.lx - a.lx, d.y - a.y); if (dd < nd) { nd = dd; near = d; } }
+            return { a, d: near, sep: cl((nd - TU("progOpenPxV165K", 16)) / TU("progPxPerSepV165K", 8), -3.4, 1.8) }; };
+          const alt = readProg.map(r => S.off.find(o => o.id === r.id)).filter(a => a && a !== target && a.route && a.lx > qb.lx - 4).map(liveSep)
+            .sort((p, q) => q.sep - p.sep)[0];
+          if (alt && alt.d && alt.sep > sep + TU("progGainV165K", 1.6) && alt.sep >= TU("progOpenSepV165K", -0.25)) {   // only to a man who is OPEN (a green window)
+            emit("progression", { from: target.id, to: alt.a.id, sep0: +sep.toFixed(2), sep1: +alt.sep.toFixed(2) });
+            const V = root.__V165B; V.prog = (V.prog || 0) + 1; if (qb.player && qb.player.you) V.progYou = (V.progYou || 0) + 1;
+            target = alt.a; coverA = alt.d; sep = alt.sep - TU("progLateSepV165K", .6); target._broke = true;   // the beat it takes to come off is a beat the defense closes bracketed = false; coverHelp = null;
+            const e = target.route[target.route.length - 1]; target._throwLX = e.lx; target._throwY = e.y; routeDepth = Math.max(-2, e.lx / YD);
+            curFocus = target.id; throwAt = t + TU("progResetMsV165K", 140);
+            if (readProg) readProg.push({ id: target.id, window: null, sep: null });
+          }
+        }
         if (!qb._eatV146 && (t >= throwAt || (hurried && t >= 680))) {
           const underPressure = hurried || !!opts?.pressured;
           const movingThrow = !!opts?.moving || (underPressure && !!qb._slid) || !!qb._roll;

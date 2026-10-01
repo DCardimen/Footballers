@@ -42,11 +42,11 @@ const out = await page.evaluate((GAMES) => {
   const sd = (a, k) => { const m = mean(a, k); return Math.sqrt(a.reduce((s, x) => s + (x[k] - m) ** 2, 0) / Math.max(1, a.length - 1)) }
   const run = (level, pos, attrs, n, s0) => {
     st.player = { level, pos, name: 'P', attrs }; window.__AP = []
-    const V = window.__V165B; V.qbReads = V.qbBest = V.laneReads = V.laneOpen = V.of = V.wrSep = V.wrSepN = V.youIntP = V.youIntN = V.convoy = 0
+    const V = window.__V165B; V.qbReads = V.qbBest = V.laneReads = V.laneOpen = V.of = V.wrSep = V.wrSepN = V.youIntP = V.youIntN = V.convoy = V.progYou = 0
     let yds = 0, car = 0
     for (let g = 0; g < n; g++) { reseed((s0 || 7000) + g); const r = window.__simGameV2(9 + g, pos); yds += (r.stat && r.stat.rush) || 0; car += (r.stat && r.stat.carries) || 0 }
     const you = [], ai = []; window.__AP.forEach(sn => sn.forEach(a => { (a.you ? you : ai).push(a) }))
-    return { you, ai, qbReads: V.qbReads, qbBest: V.qbBest, laneReads: V.laneReads, laneOpen: V.laneOpen, of: V.of, wrSep: V.wrSepN ? V.wrSep / V.wrSepN : null, wrSepN: V.wrSepN, intP: V.youIntN ? V.youIntP / V.youIntN : null, intN: V.youIntN, convoy: V.convoy, ypc: car ? yds / car : 0 }
+    return { you, ai, qbReads: V.qbReads, qbBest: V.qbBest, laneReads: V.laneReads, laneOpen: V.laneOpen, of: V.of, wrSep: V.wrSepN ? V.wrSep / V.wrSepN : null, wrSepN: V.wrSepN, intP: V.youIntN ? V.youIntP / V.youIntN : null, intN: V.youIntN, convoy: V.convoy, progYou: V.progYou, ypc: car ? yds / car : 0 }
   }
   const r1 = x => +(+x).toFixed(1), r3 = x => +(+x).toFixed(3)
   const res = { mind: {}, level: [], calm: {}, decide: {}, off: {} }
@@ -57,6 +57,9 @@ const out = await page.evaluate((GAMES) => {
     res.calm = { sdLo: r1(sd(lo.you, 'spdA')), sdHi: r1(sd(hi.you, 'spdA')) } }
   const qbLo = run(7, 'QB', mind(250, 120), GAMES), qbHi = run(7, 'QB', mind(250, 600), GAMES)
   const rbLo = run(7, 'RB', mind(250, 120), GAMES), rbHi = run(7, 'RB', mind(250, 600), GAMES)
+  // the yards a carry are a statistic over the game's stream: pooled over three streams (v165 K moved every path once already)
+  const ypcPool = m => [7000, 8100, 9200].reduce((sum, s0) => sum + run(7, 'RB', mind(250, m), GAMES, s0).ypc, 0) / 3
+  const ypcLo3 = ypcPool(120), ypcHi3 = ypcPool(600)
   const wrLo = run(7, 'WR', mind(250, 120), GAMES), wrHi = run(7, 'WR', mind(250, 600), GAMES)
   // v165 H: the same mid corner (sheet 200, mind 300 — under the v76 cap) with the eyes off and on, on the same seeds
   window.RIB_TUNE.v165Heyes = 0; const cbLo = run(7, 'CB', mind(200, 300), GAMES * 2); window.RIB_TUNE.v165Heyes = 1
@@ -64,10 +67,11 @@ const out = await page.evaluate((GAMES) => {
   res.decide = {
     wrLo: r3(wrLo.wrSep), wrHi: r3(wrHi.wrSep), wrN: wrLo.wrSepN + wrHi.wrSepN,
     intLo: r3(cbLo.intP), intHi: r3(cbHi.intP), intN: cbLo.intN + cbHi.intN,
+    progLo: qbLo.progYou, progHi: qbHi.progYou,
     qbLo: r3(qbLo.qbBest / Math.max(1, qbLo.qbReads)), qbHi: r3(qbHi.qbBest / Math.max(1, qbHi.qbReads)), qbN: qbLo.qbReads + qbHi.qbReads,
     laneLo: r3(rbLo.laneOpen / Math.max(1, rbLo.laneReads)), laneHi: r3(rbHi.laneOpen / Math.max(1, rbHi.laneReads)), laneN: rbLo.laneReads + rbHi.laneReads,
     ofLo: rbLo.of, ofHi: rbHi.of, convoyHi: rbHi.convoy,
-    ypcLo: r1(rbLo.ypc), ypcHi: r1(rbHi.ypc)
+    ypcLo: r1(ypcLo3), ypcHi: r1(ypcHi3)
   }
   tune(0)
   { const x = run(7, 'RB', mind(250, 999), 1), y = run(0, 'LB', flat(200), 1)
@@ -87,11 +91,12 @@ ok(`his body keeps the carrier ceiling (strength ${M[999].str} <= 76)`, M[999].s
 for (const l of out.level) ok(`level ${l.L}: every AI man's IQ moves by the level's sense (${l.shift} vs ${l.want})`, Math.abs(l.shift - l.want) < 0.05)
 ok(`a sharp man is consistent: his speed swing narrows (sd ${out.calm.sdLo} at 40 aware -> ${out.calm.sdHi} at 400)`, out.calm.sdHi < out.calm.sdLo * 0.8)
 const D = out.decide
+ok(`v165 K: a 600-mind QB comes off a blanketed man to an open read at the throw; a 120-mind one never does (${D.progHi} vs ${D.progLo} in ${GAMES} games)`, D.progHi >= 3 && D.progLo === 0)
 ok(`a 600-mind QB throws to the best read he saw more often (${D.qbLo} -> ${D.qbHi}, ${D.qbN} reads)`, D.qbN >= 60 && D.qbHi >= D.qbLo + 0.06)
 ok(`a 600-mind back finds the open lane at least as often (${D.laneLo} -> ${D.laneHi}, ${D.laneN} reads)`, D.laneN >= 40 && D.laneHi >= D.laneLo)
 ok(`past the line the 600-mind back reads the open field and the 120-mind one weaves (${D.ofHi} reads vs ${D.ofLo})`, D.ofHi >= 100 && D.ofLo === 0)
 ok(`v165 I: he runs behind his blockers — some of his reads take a lane a blocker is leading up (${D.convoyHi} of ${D.ofHi})`, D.convoyHi >= 5 && D.convoyHi < D.ofHi)
-ok(`and the reads pay: more a carry on the same seeds (ypc ${D.ypcLo} -> ${D.ypcHi})`, D.ypcHi > D.ypcLo)
+ok(`and the reads pay: more a carry on the same seeds (ypc ${D.ypcLo} -> ${D.ypcHi}, three streams)`, D.ypcHi > D.ypcLo)
 ok(`but not a cheat code: under 1.4x a carry (${D.ypcLo} -> ${D.ypcHi})`, D.ypcHi < D.ypcLo * 1.4)
 ok(`v165 F: a 600-mind receiver wins more at the break (separation ${D.wrLo} -> ${D.wrHi}, ${D.wrN} breaks)`, D.wrN >= 30 && D.wrHi >= D.wrLo + 0.4)
 ok(`v165 H: a sharp corner reads the quarterback's eyes — his pick odds as the ball man rise with the eyes on (${D.intLo} -> ${D.intHi}, ${D.intN} balls)`, D.intN >= 20 && D.intHi >= D.intLo + 0.01 && D.intHi < 0.18)
