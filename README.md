@@ -51,6 +51,12 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v166 — the AI plays football.** Blocks hold on leverage and ratings (a sealed defender is out of the play), every
+  route is live, zones are places on the field, rushers pick moves and tackles set for them, passers feel the pocket,
+  backs choose their moves, the defense pursues as one, both coordinators adapt (the offense answers the blitz and the
+  key), fourth downs are priced in expected points, a star is keyed off his film, and special teams think. `blockcheck`,
+  `livecheck`, `zonecheck`, `rushcheck`, `pocketcheck`, `cmovecheck`, `teamdefcheck`, `occheck`, `gmcheck`, `repcheck`,
+  `stcheck`.
 - **v165 — the smarter you are, the smarter you play.** Awareness, vision and discipline no longer stop at a ceiling
   on the field: past it they become football IQ, and every decision reads it — the quarterback's scan and audible,
   the back's lane and his open-field read, the receiver's break, a defender's read, angle and fake, and the
