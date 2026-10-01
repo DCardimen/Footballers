@@ -10,6 +10,18 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v165 A–C — the mind has no ceiling; football IQ; open-field eyes.** (`src/04-engine.js`, `src/07-career-app.js`,
+  `scripts/iqcheck.mjs`.) Ratings past ~250 used to buy almost nothing on the field: a back's or receiver's every key
+  stopped at the 72/76 carrier ceiling (vision 72 is under the 75 where the read radius starts), and the decisions that
+  make a player look smart were rolls whose caps stopped a 99 where a 70 stood. *A — the mind has no ceiling*: his
+  awareness, vision and discipline skip the carrier ceiling and the star dampener, and past 99 they become FieldSim
+  headroom (UFF sheet 400 → IQ ~116, 999 → ~131); his body keeps the ceiling. *B — football IQ*: the QB scan, lead,
+  composure, smart sack, ball-find, the read clock, the fake, pursuit angles, corner leverage, LB drops and the back's
+  lane/cutback read an effective IQ (rating + his headroom + the level's sense, Pee Wee −8 → Interstellar +4), with
+  the caps opened; a sharp man's per-snap swing narrows. A 600-mind QB throws to his best read 79% of the time (120:
+  64%). *C — open-field eyes*: past the line a carrier with vision reads seven lanes ahead and takes the one with the
+  most room instead of a sine weave; a 600-mind back gains 7.6 a carry on the same seeds a 120-mind one gains 6.8.
+  Kill switches `v165Amind`, `v165Biq`, `v165Cof`.
 - **v164 I — the start is earned.** (`src/04-engine.js`, `scripts/accelcheck.mjs`.) The acceleration check found every
   player reached 90% of top speed in 0.4–0.6 real seconds, so the acceleration rating barely mattered. A standing
   start now takes 1.1 s (rating 90) to 1.5 s (rating 25), and the 0-10 yard split runs 1.5–2.0 s; moving players,

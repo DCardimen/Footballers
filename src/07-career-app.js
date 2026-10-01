@@ -15683,6 +15683,16 @@
     const w = TU("simWallV141", 215);
     return v <= w ? 99 * (1 - Math.exp(-v / 78)) : 99 * (1 - Math.exp(-w / 78)) + Math.pow(v - w, 0.93) * 0.83;
   }
+  /* v165 A: the mind keys and their headroom curve (the banner is at simGameV2's accessor `_`) */
+  var MIND_KEYS_V165A = ["awareness", "vision", "discipline"];
+  function mindHeadV165A(x) {
+    const A = 99 + TU("iqHeadV165A", 36),
+      T = TU("iqHeadTailV165A", 60),
+      K = TU("simKneeV141", 80);
+    if (x > K) x = K + ((A - K) * (x - K)) / (x - K + T);
+    return Math.max(20, Math.min(A, Math.round(x)));
+  }
+  window.__V165A = { mindKeys: MIND_KEYS_V165A, head: mindHeadV165A };
   function youSimAttrs(e, t) {
     const a = state.player;
     if (!a || !a.attrs) return null;
@@ -16706,12 +16716,26 @@
             : rating;
         }, base);
       },
-      _ = (w, k) => {
-        const raw = _raw(w, k),
-          scale = _starScale(w, k),
+      /* ===== v165 A THE MIND HAS NO CEILING =====
+       * The carrier ceiling (simKneeTopPosV141) and the star dampener exist because a body that
+       * out-rates every tackler by twenty points saturates the whiff / hurdle / truck rolls and they
+       * stack. A MIND does not stack that way: awareness, vision and discipline decide reads, lanes,
+       * angles and fakes. So for the you-player those three keys (`MIND_KEYS_V165A`) skip both — a
+       * running back's vision used to stop at 72, which is under the 75 where the read radius starts.
+       * And when FieldSim asks with `head` (its third argument, v165 B), his mind keys ease toward
+       * 99 + `iqHeadV165A` instead of 99: the points past the 5x wall stop being dead sheet and become
+       * FieldSim's IQ headroom. Every other key, every AI man and every 07 roll is unchanged.
+       * Kill switch `v165Amind` 0. `window.__V165A`; `iqcheck.mjs`. */
+      _mindV165A = (w, k) => !!(w && w.you && TU("v165Amind", 1) && MIND_KEYS_V165A.includes(k)),
+      _ = (w, k, head) => {
+        const mind = _mindV165A(w, k),
+          raw = _raw(w, k),
+          scale = mind ? 1 : _starScale(w, k),
           peer = scale < 0.999 ? _starPeerRaw(w, k) : raw,
-          adjusted = peer + (raw - peer) * scale;
-        return kneeV141(51 + (adjusted - _lgAvg) * 1.15, w && w.you ? w.pos : null);
+          adjusted = peer + (raw - peer) * scale,
+          x = 51 + (adjusted - _lgAvg) * 1.15;
+        if (mind) return head ? mindHeadV165A(x) : kneeV141(x, null);
+        return kneeV141(x, w && w.you ? w.pos : null);
       } /* v141: the carrier ceiling is for the you-player — an AI back at Pee Wee sits at 85 by the normalise, and the game was tuned on that */,
       Y = (w, k) => {
         const g = w.filter(N => k.includes(N.pos));
