@@ -174,17 +174,20 @@
    ]
   },
   "league": {
-   "desc": "any league name a player reads (the UFF)",
+   "desc": "v167 — the league: named rated teams, the round-robin, AI-vs-AI results by rating, the standings, the playoff field from the top of the table, the scorebug's records",
    "anchors": [
-    "UFF",
-    "DFL_V123"
+    "v167"
    ],
    "files": [],
    "checks": [
-    "coachcheck",
-    "v146Bcheck",
-    "menu-integration-check",
-    "walk"
+    "leaguecheck",
+    "rivalcheck",
+    "v164Bcheck",
+    "v156Bcheck",
+    "v85check",
+    "combinecheck",
+    "tiercheck",
+    "scrollcheck"
    ]
   },
   "contact": {
@@ -1286,7 +1289,8 @@
     "simcheck",
     "v85check",
     "injurycheck",
-    "walk"
+    "walk",
+    "leaguecheck"
    ]
   },
   "crowd": {
@@ -4368,6 +4372,18 @@
    "slow": false,
    "needsServer": false,
    "pureNode": true,
+   "flaky": []
+  },
+  "leaguecheck": {
+   "file": "scripts/leaguecheck.mjs",
+   "desc": "v167 — the league is real: a season's league of named, rated teams (16 at the Interstellar level) and its round-robin; every week's opponent is that week's league team at its rating; the AI games go by rating on a seeded stream (stable table; rating vs final rank Spearman ≥ .55 over 160 leagues); the title-game opponent comes from the top of the table (rating percentile ≥ .7, winning record, the #1/#2 AI team in a semifinal field); the schedule rows' records, the standings screen, the scorebug's records; TU v167league 0 = the old weekly draws. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
    "flaky": []
   }
  }
