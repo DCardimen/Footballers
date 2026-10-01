@@ -4504,16 +4504,28 @@ window.__visionRadiusV96 = visionRadiusV96;
               const ahead = TU("ofAheadPxV165C", 70), cs = Math.max(60, c.spd || 120), step = TU("ofStepPxV165C", 36);
               const foes = S.all.filter(a => a.side !== c.side && !(a.stunned && t < a.stunned) && t > (a.beaten||0) && !(t < (a.held||0))
                 && !(a.lb === "DL" && !a.shed) && (a.lx - c.lx) * dirSign > -30);
-              let bestY = c.y, bestS = -1e9, keepS = -1e9;
+              /* ===== v165 I THE CONVOY =====
+               * A carrier with vision runs behind his blockers: a lane with a blocker leading up it (ahead of the carrier,
+               * within `convoyLanePxV165I` of the line to the spot) earns `convoyLeadSV165I` seconds of room. (Discounting
+               * the defenders a blocker stands near was measured and dropped: a man merely near him shields nothing, and an
+               * engaged one is already out of the read.) Same read cadence, no draws.
+               * Kill switch `v165Iconvoy` 0. `root.__V165B.convoy` counts his reads that took a led lane; `iqcheck`. */
+              const convoyOn = TU("v165Iconvoy", 1), mates = convoyOn ? S.all.filter(o => o.side === c.side && o !== c && !(o.stunned && t < o.stunned)) : [];
+              let bestY = c.y, bestS = -1e9, keepS = -1e9, bestLed = false;
               for (let k = -3; k <= 3; k++) {
                 const y = clampY(c.y + k * step), px = c.lx + dirSign * ahead, mine = Math.hypot(ahead, y - c.y) / cs;
                 let room = 3;
                 for (const a of foes) room = Math.min(room, Math.hypot(a.lx - px, a.y - y) / Math.max(60, a.spd || 120) - mine);
+                // a blocker leading up this lane: ahead of him, near the line from him to the spot
+                const led = convoyOn && mates.some(o => { const ax = (o.lx - c.lx) * dirSign; if (ax < 4 || ax > ahead) return false;
+                  const ly = c.y + (y - c.y) * (ax / ahead); return Math.abs(o.y - ly) < TU("convoyLanePxV165I", 16); });
+                if (led) room += TU("convoyLeadSV165I", .12);
                 const edge = Math.min(y - SIDELINE_TOP, SIDELINE_BOT - y);
                 const s = room - Math.abs(k) * TU("ofStraightKV165C", .03) - (edge < 24 ? (24 - edge) * TU("ofEdgeKV165C", .01) : 0);
-                if (s > bestS) { bestS = s; bestY = y; }
+                if (s > bestS) { bestS = s; bestY = y; bestLed = led; }
                 if (c._ofY != null && Math.abs(y - c._ofY) <= step / 2) keepS = Math.max(keepS, s);
               }
+              if (bestLed && c.player && c.player.you) { const V = root.__V165B; V.convoy = (V.convoy || 0) + 1; }
               // he commits: a new lane has to be clearly better than the one he is in (`ofSwitchSV165C` seconds of room)
               if (c._ofY == null || bestS > keepS + TU("ofSwitchSV165C", .08)) c._ofY = bestY;
               c._ofUntil = t + TU("ofReadMsV165C", 160);

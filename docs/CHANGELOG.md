@@ -10,6 +10,10 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v165 I — the convoy.** (`src/04-engine.js`, `scripts/iqcheck.mjs`.) A carrier with vision runs behind his
+  blockers: past the line, a lane with a blocker leading up it counts as roomier (a 600-mind UFF back takes one on about
+  one read in seven; 7.40 → 7.56 a carry over two seeded streams). Discounting the defenders a blocker merely stood near
+  was tried and dropped — it cost yards. Kill switch `v165Iconvoy`.
 - **v165 H — the eyes.** (`src/04-engine.js`, `scripts/iqcheck.mjs`.) The duel at the catch point is a duel of reads:
   a defender who reads the quarterback's eyes jumps the route a dull passer stares down, and a sharp passer looks him
   off — the pick odds take the ball man's IQ against the QB's, the swat the ball man's IQ. A mid UFF corner's pick odds
