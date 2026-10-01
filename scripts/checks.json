@@ -1683,6 +1683,29 @@
     "coachcheck",
     "v159Bcheck"
    ]
+  },
+  "season-ui": {
+   "desc": "v168 — the season, redrawn: the season hero and LEAGUE tab, the ⓘ sheets that fold every card's explanations, the section pager, the post-game season strip, the hub's season strip, the report's final standings (src/32-season-ui.js, 07's v168 block, 22's fold titles, 28's skin scoping)",
+   "anchors": [
+    "v168"
+   ],
+   "files": [
+    "src/32-season-ui.js"
+   ],
+   "checks": [
+    "v168check",
+    "leaguecheck",
+    "postgamecheck",
+    "bodycheck",
+    "v111Bcheck",
+    "v111Ccheck",
+    "v164Bcheck",
+    "v146Echeck",
+    "scrollcheck",
+    "v158Bcheck",
+    "v156Ccheck",
+    "combinecheck"
+   ]
   }
  },
  "checks": {
@@ -4381,6 +4404,19 @@
     "season"
    ],
    "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v168check": {
+   "file": "scripts/v168check.mjs",
+   "desc": "v168 — the season screen's hero (record, league place, one pip a game with the playoff line, the next matchup; the eyebrow and H1 step aside) and LEAGUE tab (every team, you, the bracket line); ⓘ folds a card's paragraphs (hidden, kept in the DOM) behind one button whose sheet carries them all; the dock's watch-live ⓘ up front; the pager on a long tab; the post-game strip counts the unbooked game; the hub's season strip opens the season; the report's final standings on the GRADE tab; accordion titles end on a word; recap skins scoped per selector; TU v168info / v168season 0. No page errors.",
+   "areas": [
+    "season",
+    "ui"
+   ],
+   "runtimeSec": 60,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

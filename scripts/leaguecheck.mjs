@@ -51,9 +51,10 @@ for (const level of [0, 2, 4]) {
     const rows = reg.map((w, k) => { const pr = L.sched[k].find((q) => q[0] === 0 || q[1] === 0), li = pr[0] === 0 ? pr[1] : pr[0]
       return { opp: w.opp, li, idx: w.leagueIdxV167, name: L.teams[li].name, rating: w.opponentV11.rating, want: L.teams[li].rating, rival: !!w.rivalV128 } })
     return { on: window.__V167.on(), n: L.teams.length, names: new Set(L.teams.map((t) => t.name)).size, me: L.teams[0].me, mine: L.teams[0].name, team: window.S.player.teamIdentity && window.S.player.teamIdentity.name,
-      rounds: L.sched.length, games: reg.length, rows, rated: L.teams.slice(1).every((t) => Number.isFinite(t.rating)) }
+      rounds: L.sched.length, games: reg.length, rows, rated: L.teams.slice(1).every((t) => Number.isFinite(t.rating)), clash: L.teams.slice(1).some((t) => String(L.teams[0].name).toUpperCase().endsWith(' ' + String(t.name).toUpperCase())) }
   })
   const bad = L.rows.filter((r) => r.opp !== r.name || r.idx !== r.li || (!r.rival && r.rating !== Math.round(r.want)))
+  ok(!L.clash, `level ${level}: no league team carries your own mascot`, { mine: L.mine })
   ok(L.on && L.n >= 10 && L.names === L.n && L.me && L.rated, `level ${level}: a league of ${L.n} distinct, rated teams with you at index 0`, { n: L.n, names: L.names })
   ok(L.rounds === L.games && bad.length === 0, `level ${level}: every regular-season week is that week's league opponent, at its league rating`, bad.slice(0, 3))
 }

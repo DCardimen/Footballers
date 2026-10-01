@@ -27,7 +27,11 @@
     { sel: ".opponent-card-v11 > .small", group: ".opponent-card-v11", t: "Scouting" },
     { sel: ".gs-head > small", group: ".gs-wrap-v23", anchor: ".gs-head", title: function (el) { var h = el.parentNode; return h ? (h.firstChild && h.firstChild.textContent || "").replace(/^[^A-Za-z]+/, "").trim() : "" } },
     { sel: ".v112-imp-note", group: "*", t: "How to read this" },
+    { sel: ".coach-sum-v136 > .small", group: ".coach-sum-v136", t: "The coach's summary" },
     { sel: ".lg-note-v168", group: ".league-card-v168", anchor: ".lg-head-v168", t: "How the league works" },
+    { sel: "#screen > .tp-note-v133", group: "#screen", anchor: "#screen > .h1", sheet: "Choosing your training", t: "The coach's suggestion" },
+    { sel: "#screen > .tp-tierkey-v133", group: "#screen", anchor: "#screen > .h1", sheet: "Choosing your training", t: "Reading the cards" },
+    { sel: "#screen > .st-note-v168", group: "#screen", anchor: "#screen > .h1", sheet: "The standings", t: "Making the playoffs" },
     { sel: "#dock .watch-note-v164c", group: "#dock", dock: true, t: "Watch live or Quick Play" }
   ];
   var ANCHORS = ".impact-kicker,.gs-head,.lg-head-v168,.decision-kicker,.eyebrow,.h2";
@@ -64,6 +68,7 @@
         if (el.classList.contains("ribi-f-v168") || !(el.textContent || "").trim()) continue;
         var g = groupOf(el, r); if (!g) continue;
         el.dataset.ribiT = (r.title ? r.title(el) : r.t) || "More";
+        if (r.sheet) g.__ribiSheetV168 = r.sheet;
         el.classList.add("ribi-f-v168");
         btnFor(g, r);
       }
@@ -75,9 +80,9 @@
   function openFor(g) {
     var parts = [].slice.call(g.querySelectorAll(".ribi-f-v168"));
     if (!parts.length) return;
-    var head = g.querySelector(".impact-kicker,.gs-head,.lg-head-v168 .k,.decision-kicker");
+    var head = g.__ribiSheetV168 ? null : g.querySelector(".impact-kicker,.gs-head,.lg-head-v168 .k,.decision-kicker");
     var title = head ? (head.firstChild && head.firstChild.textContent || head.textContent || "") : "";
-    title = title.replace(/^[^A-Za-z0-9]+/, "").replace(/\s+/g, " ").trim() || parts[0].dataset.ribiT;
+    title = g.__ribiSheetV168 || title.replace(/^[^A-Za-z0-9]+/, "").replace(/\s+/g, " ").trim() || parts[0].dataset.ribiT;
     var body = parts.map(function (p) {
       var c = p.cloneNode(true); c.classList.remove("ribi-f-v168", "clamp-v139");
       c.querySelectorAll(".ribi-btn-v168,.more-v139,[onclick]").forEach(function (n) { if (n.classList.contains("ribi-btn-v168") || n.classList.contains("more-v139")) n.remove() });
@@ -120,6 +125,17 @@
       var t = scr.querySelector('.hubv75-tab[data-sec="' + b.dataset.go + '"]'); t && t.click();
     });
     box.appendChild(p);
+  }
+
+  /* the hub's NOW tab carries the season strip (07 seasonStripV168) under the player card */
+  function hubStrip() {
+    if (!on()) return;
+    var v = ""; try { v = window.S && window.S.view } catch (e) {}
+    if (v !== "hub") return;
+    var scr = document.getElementById("screen"); if (!scr || scr.querySelector(".season-strip-v168")) return;
+    var hero = scr.querySelector(".player-hero"); if (!hero || !window.__V168 || !window.__V168.strip) return;
+    var html = ""; try { html = window.__V168.strip() } catch (e) {}
+    if (html) hero.insertAdjacentHTML("beforeend", html);   // INSIDE the player card: the hub's accordions keep it with him
   }
 
   var CSS = [
@@ -234,6 +250,26 @@
     ".opponent-card-v11 .oppv126{border-radius:12px!important;background:rgba(255,255,255,.03)!important;border-color:rgba(255,255,255,.07)!important}",
     ".opponent-card-v11 .oppv126-grid b{font-family:Oswald,sans-serif!important;font-size:24px!important}",
     ".opponent-card-v11 .oppv126-say{font:400 14.5px/1.4 'Barlow Condensed',system-ui,sans-serif!important;color:#cfd5de!important}",
+    /* the accordion headers (22's hubv97 folds) end in an ellipsis, not a cut word */
+    ".hubv97-fold > .hubv97-head,.hubv97-head{min-width:0}",
+    ".hubv97-head > *:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    /* the hub's season strip */
+    ".season-strip-v168{display:block;width:100%;margin:10px 0 2px;padding:10px 12px;border-radius:14px;border:1px solid rgba(230,178,58,.45);text-align:left;cursor:pointer;color:#f2f3f5;" +
+      "background:radial-gradient(120% 90% at 0 0,rgba(230,178,58,.15),transparent 55%),linear-gradient(180deg,#1d2026,#121418);box-shadow:0 10px 24px rgba(0,0,0,.4);font-family:inherit}",
+    ".season-strip-v168 .ss-top{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin-bottom:8px}",
+    ".season-strip-v168 .crest-v168{border-radius:7px}",
+    ".season-strip-v168 .ss-top b{font:700 22px/1 Oswald,sans-serif;color:#fff}",
+    ".season-strip-v168 .ss-top span{font:600 10.5px Oswald,sans-serif;letter-spacing:1.6px;color:#9aa0aa}",
+    ".season-strip-v168 .ss-top em{margin-left:auto;font:700 11px Oswald,sans-serif;font-style:normal;letter-spacing:1.2px;color:#ffd66b;white-space:nowrap}",
+    ".season-strip-v168.in .ss-top em,.season-strip-v168.champ .ss-top em{color:#7ddc6e}.season-strip-v168.out .ss-top em{color:#ff8a80}",
+    ".season-strip-v168 .ss-next{display:flex;align-items:center;justify-content:flex-start;gap:7px;margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07);min-width:0}",
+    ".season-strip-v168 .ss-next span{font:600 10px Oswald,sans-serif;letter-spacing:1.8px;color:#e6b23a}",
+    ".season-strip-v168 .ss-next .crest-v168{border-radius:5px}",
+    ".season-strip-v168 .ss-next b{font:700 14px Oswald,sans-serif;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}",
+    ".season-strip-v168 .ss-next small{font:500 12px 'Barlow Condensed',sans-serif;color:#9aa0aa;white-space:nowrap}",
+    ".season-strip-v168 .ss-next em.po{font:700 10px Oswald,sans-serif;font-style:normal;color:#ffd66b;letter-spacing:1px;white-space:nowrap}",
+    ".season-strip-v168 .ss-next i{margin-left:auto;font:700 20px/1 Oswald,sans-serif;font-style:normal;color:#e6b23a}",
+    "#screen > .sac-v153{margin-top:8px!important}",
     /* the post-game card (07's v13 pgOverlayV13) */
     "#pgOverlayV13 .decision-panel{border-color:rgba(230,178,58,.55)!important;border-radius:16px!important;background:radial-gradient(120% 60% at 50% 0,rgba(230,178,58,.16),transparent 60%),linear-gradient(180deg,#1d2026,#111317)!important;box-shadow:0 20px 50px rgba(0,0,0,.6)!important}",
     "#pgOverlayV13 .decision-kicker{text-align:center;color:#e6b23a!important;letter-spacing:2.4px}",
@@ -244,6 +280,7 @@
     ".pip-v168.now{animation:pipNowV168 1.2s ease-out 1}",
     "@keyframes pipNowV168{0%{transform:scaleY(.2);opacity:.2}60%{transform:scaleY(1.4)}100%{transform:none;opacity:1}}",
     "#pgOverlayV13 .stat-sec-label{color:#e6b23a!important}",
+    ".lb2-row .lbn .crest-v168{display:inline-block;vertical-align:-6px;margin-right:7px;border-radius:5px}",
     /* the standings screen's OVR tag (v167) was near-invisible */
     ".standings-ovr-v167,.st-ovr-v167{color:#9aa0aa!important;opacity:1!important}"
   ].join("\n");
@@ -253,7 +290,7 @@
   }
 
   var queued = false;
-  function run() { queued = false; try { css(); fold(); pager() } catch (e) {} }
+  function run() { queued = false; try { css(); fold(); hubStrip(); pager() } catch (e) {} }
   function queue() { if (queued) return; queued = true; requestAnimationFrame(run) }
   try { new MutationObserver(queue).observe(document.body, { childList: true, subtree: true }) } catch (e) {}
   setInterval(queue, 700);

@@ -101,7 +101,7 @@
     result: {
       start: "grade",
       secs: [
-        { k: "grade",  name: "GRADE",  re: /coach-sum-v136|legacy-card-v152/ },   // v152 A: the Legacy XP line rides the grade
+        { k: "grade",  name: "GRADE",  re: /coach-sum-v136|legacy-card-v152|final-table-v168/ },   // v168: the final standings ride the grade   // v152 A: the Legacy XP line rides the grade
         { k: "season", name: "SEASON", re: /(^|\s)eyebrow(\s|$)/ },
         { k: "stats",  name: "STATS",  re: /\bnever-v146\b/ },
         { k: "growth", name: "GROWTH", re: /age-card|feedback-v12|legacy-progress-v11|depth-card/ },
@@ -289,9 +289,18 @@
   const FOLD = {};
   function headingOf(el) {   // the block's own heading: a title element with letters in it, never a bold number
     const clean = (x) => (x || "").replace(/\s+/g, " ").trim().replace(/^[^A-Za-z0-9]+/, "");
-    const cands = [...el.querySelectorAll(".h1,.h2,h2,h3,.card-title,.sec-title,.eyebrow,.kicker,b,strong")].map(h => clean(h.textContent)).filter(t => /[A-Za-z]{3}/.test(t));
-    let t = cands[0] || clean(el.textContent).split(/[.!?·]/)[0];
-    return (t || "MORE").slice(0, 34);
+    // v168: the heading's first rendered LINE — textContent ran a kicker into its sub ("CAREER PULSEYOUR PERFORMANCE")
+    const line = (h) => String(h.innerText || h.textContent || "").split(/\n/).map(x => x.trim()).filter(x => /[A-Za-z]{3}/.test(x))[0] || "";
+    const cands = [...el.querySelectorAll(".h1,.h2,h2,h3,.card-title,.sec-title,.eyebrow,.kicker,b,strong")].map(h => clean(line(h))).filter(t => /[A-Za-z]{3}/.test(t));
+    let t = cands[0] || clean(line(el)).split(/[.!?·]/)[0];
+    return clipV168(t || "MORE");
+  }
+  // v168: a long heading ends on a whole word and an ellipsis, never mid-word ("…WIN A PLAYOFF G")
+  function clipV168(t) {
+    t = String(t || "").trim();
+    if (t.length <= 34) return t;
+    const cut = t.slice(0, 33), sp = cut.lastIndexOf(" ");
+    return (sp > 16 ? cut.slice(0, sp) : cut).replace(/[\s·—:,-]+$/, "") + "…";
   }
   function isTitle(el) {   // a heading on its own line, no card of its own: it names the block after it
     const t = (el.textContent || "").replace(/\s+/g, " ").trim();
@@ -314,7 +323,7 @@
     groups.forEach((g, i) => {
       const wrap = document.createElement("div"); wrap.className = "hubv97-fold" + (i === FOLD[key] ? " on" : "");
       const head = document.createElement("button"); head.type = "button"; head.className = "hubv97-head";
-      const title = g.title ? (g.title.textContent || "").replace(/\s+/g, " ").trim().slice(0, 34) : headingOf(g.els[0]);
+      const title = g.title ? clipV168((String(g.title.innerText || g.title.textContent || "").split(/\n/).map(x => x.trim()).filter(Boolean)[0] || "").replace(/\s+/g, " ")) : headingOf(g.els[0]);
       head.innerHTML = "<span>" + title.replace(/</g, "&lt;") + "</span><i>▾</i>";
       const body = document.createElement("div"); body.className = "hubv97-body";
       box.insertBefore(wrap, g.els[0]); wrap.appendChild(head); wrap.appendChild(body); g.els.forEach(el => body.appendChild(el));

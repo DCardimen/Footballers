@@ -13480,7 +13480,7 @@
       const n = $r(e, a),
         i = n.leagueV167 ? n.field : 4 /* v167: the line sits under the playoff field */;
       s = `
-      <div class="small" style="margin:4px 0 8px">Your league this season. Finish with a <b style="color:var(--gold)">60%+ win rate</b> to make the playoffs — win it all for a ring.</div>
+      <div class="small st-note-v168" style="margin:4px 0 8px">Your league this season. Finish with a <b style="color:var(--gold)">60%+ win rate</b> to make the playoffs — win it all for a ring.${n.leagueV167 ? " The top of the table fills the bracket; the line marks the field." : ""}</div>
       ${advfBarV151A("standings", [["rank", "RANK", "asc"], ["w", "WINS", "desc"], ["pf", "PF", "desc"], ["pa", "PA", "asc"], ["diff", "DIFF", "desc"]], null) /* v151 A */}
       <div class="card" style="padding:10px">
         <div class="lb-hdr"><span class="lbr">#</span><span class="lbn">Team</span><span class="lbv">W-L</span><span class="lbo">PF · PA · DIFF</span></div>
@@ -13490,7 +13490,7 @@
             return `${l === i ? '<div class="cutline" data-advf-head>— PLAYOFF CUT —</div>' : ""}
           <div class="lb2-row ${r.me ? "me" : ""}" data-advf-row data-q="${escHtml(r.name.toLowerCase())}" data-s-rank="${l + 1}" data-s-w="${r.w}" data-s-pf="${r.pf}" data-s-pa="${r.pa}" data-s-diff="${d}">
             <span class="lbr">${l + 1}</span>
-            <span class="lbn">${r.me ? "<b>" + escHtml(r.name) + " (You)</b>" : escHtml(r.name)}${n.leagueV167 && !r.me && r.rating != null ? ' <span class="small st-ovr-v167" style="color:#9aa0aa;font-weight:600">' + r.rating + " OVR</span>" : ""}</span>
+            <span class="lbn">${n.leagueV167 && TU("v168season", 1) ? (r.me ? myCrestV168(e, 22) : crestV168(r.name, 22)) : ""}${r.me ? "<b>" + escHtml(r.name) + " (You)</b>" : escHtml(r.name)}${n.leagueV167 && !r.me && r.rating != null ? ' <span class="small st-ovr-v167" style="color:#9aa0aa;font-weight:600">' + r.rating + " OVR</span>" : ""}</span>
             <span class="lbv">${r.w}-${r.l}</span>
             <span class="lbo">${r.pf} · ${r.pa} · <b style="color:${d >= 0 ? "var(--good)" : "#e08a8a"}">${d >= 0 ? "+" : ""}${d}</b></span>
           </div>`;
@@ -20800,7 +20800,39 @@
         .join("");
     return `<div class="pg-season-v168 ${k}"><div class="sx-race-k"><span>SEASON · ${wins}-${losses}</span><b>${say}</b></div><div class="pips-v168" style="--n:${reg.length}">${pips}</div></div>`;
   }
-  window.__V168 = { postSeason: (wr, us, them) => postGameSeasonV168(state.player, wr, us, them), hero: () => seasonHeroV168(state.player), race: () => seasonRaceV168(state.player), league: () => leagueCardV168(state.player) };
+  // the season report's final table: where you finished, the top of the league, your row
+  function finalTableV168(e) {
+    if (!TU("v168season", 1) || !leagueOnV167(e)) return "";
+    const T = leagueTableV167(e).teams,
+      me = T.findIndex(r => r.me),
+      n = me + 1,
+      ord = n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"),
+      show = T.map((r, i) => i).filter(i => i < 5 || i === me),
+      row = i => {
+        const r = T[i], d = r.pf - r.pa;
+        return `<div class="lg-row-v168${r.me ? " me" : ""}"><span class="lg-rk">${i + 1}</span>${r.me ? myCrestV168(e, 26) : crestV168(r.name, 26)}<span class="lg-nm">${escHtml(r.me ? teamName(e) : r.name)}${r.me ? " <em>YOU</em>" : ""}<small>${r.me ? "YOUR TEAM" : Math.round(r.rating || 0) + " OVR"}</small></span><b class="lg-wl">${r.w}-${r.l}</b><span class="lg-df ${d > 0 ? "up" : d < 0 ? "dn" : ""}">${d > 0 ? "+" : ""}${d}</span></div>`;
+      };
+    return `<div class="league-card-v168 final-table-v168"><div class="lg-head-v168"><span class="k">FINAL STANDINGS</span><b>FINISHED ${ord.toUpperCase()}</b><span class="sub">OF ${T.length} · REGULAR SEASON</span></div><div class="lg-rows-v168">${show.map((i, k) => (k && i !== show[k - 1] + 1 ? '<div class="lg-cut-v168"><span>· · ·</span></div>' : "") + row(i)).join("")}</div></div>`;
+  }
+  // the hub's season strip: the year at a glance on the NOW tab, a tap from the season screen
+  function seasonStripV168(e) {
+    if (!TU("v168season", 1) || !e || combineYearV139(e) || !(e.weekResults || []).length) return "";
+    const R = seasonRaceV168(e),
+      all = e.weekResults,
+      next = all.find(w => !w.played),
+      lt = leagueOnV167(e) ? leagueTableV167(e).teams : null,
+      place = lt ? lt.findIndex(x => x.me) + 1 : 0,
+      ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"),
+      nextIdx = R.reg.findIndex(w => !w.played),
+      pips = R.reg.map((w, i) => `<i class="pip-v168 ${w.played ? (w.satOut ? "dnp" : w.won ? "w" : "l") : i === nextIdx ? "next" : "up"}${i === R.need - 1 ? " line" : ""}"></i>`).join(""),
+      row = next && lt && next.leagueIdxV167 != null ? lt.find(x => x.idx === next.leagueIdxV167) : null;
+    return `<button type="button" class="season-strip-v168 ${R.k}" onclick="go('season')">
+      <div class="ss-top">${myCrestV168(e, 30)}<b>${R.wins}-${R.losses}</b><span>${place ? ord(place).toUpperCase() + " OF " + lt.length : "THIS SEASON"}</span><em>${R.say}</em></div>
+      <div class="pips-v168" style="--n:${R.reg.length}">${pips}</div>
+      ${next ? `<div class="ss-next"><span>NEXT</span>${crestV168(String(next.opp).replace(/^.*'s /, ""), 20)}<b>${homeWeekV93(next, all.indexOf(next)) ? "vs" : "@"} ${escHtml(next.opp)}</b>${row ? `<small>${row.w}-${row.l} · ${ord(lt.indexOf(row) + 1)}</small>` : ""}${next.playoff ? `<em class="po">${escHtml(next.round)}</em>` : ""}<i>›</i></div>` : ""}
+    </button>`;
+  }
+  window.__V168 = { strip: () => seasonStripV168(state.player), postSeason: (wr, us, them) => postGameSeasonV168(state.player, wr, us, them), hero: () => seasonHeroV168(state.player), race: () => seasonRaceV168(state.player), league: () => leagueCardV168(state.player) };
   function screenSeason() {
     const e = state.player,
       t = LEVELS[e.level];
@@ -23399,6 +23431,7 @@
     </div>
 
     ${n ? "" : `<div class="small center" style="margin-top:4px">${d ? (c ? '<span class="miss">⚠ Final season at this level — you must declare now. Miss the roll and your career ends here.</span>' : `You have <b>${r}</b> season${r > 1 ? "s" : ""} left to raise your stats before you're forced to declare.`) : `<span style="color:var(--gold)">📚 You're still in ${a.grade.toLowerCase()} — play <b>${l - e.seasonsAtLevel}</b> more season${l - e.seasonsAtLevel > 1 ? "s" : ""} here before you can move up.</span>`}</div>`}
+    ${finalTableV168(e) /* v168: where the year finished in the league — on the GRADE tab, beside the grade */}
     ${legacyCardV152("season")}
   `),
       n)
@@ -27584,9 +27617,12 @@
       mine = teamName(e),
       seen = new Set([mine]),
       teams = [{ name: mine, me: !0, rating: null }];
+    // v168: never your own mascot ("BEACONS" in a league with the Hollow Rock Beacons)
+    const mineU = String(mine).toUpperCase(),
+      ownMascot = n => mineU === String(n).toUpperCase() || mineU.endsWith(" " + String(n).toUpperCase());
     for (let g = 0; teams.length < N && g < 600; g++) {
       const n = randOppName(e.level);
-      if (seen.has(n)) continue;
+      if (seen.has(n) || ownMascot(n)) continue;
       seen.add(n);
       teams.push({ name: n, rating: createOpponentProfile(n, e.level, 100 + teams.length, seed).rating });
     }
