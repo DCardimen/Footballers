@@ -4461,7 +4461,7 @@ window.__visionRadiusV96 = visionRadiusV96;
               const ahead = TU("ofAheadPxV165C", 70), cs = Math.max(60, c.spd || 120), step = TU("ofStepPxV165C", 36);
               const foes = S.all.filter(a => a.side !== c.side && !(a.stunned && t < a.stunned) && t > (a.beaten||0) && !(t < (a.held||0))
                 && !(a.lb === "DL" && !a.shed) && (a.lx - c.lx) * dirSign > -30);
-              let bestY = c.y, bestS = -1e9;
+              let bestY = c.y, bestS = -1e9, keepS = -1e9;
               for (let k = -3; k <= 3; k++) {
                 const y = clampY(c.y + k * step), px = c.lx + dirSign * ahead, mine = Math.hypot(ahead, y - c.y) / cs;
                 let room = 3;
@@ -4469,11 +4469,16 @@ window.__visionRadiusV96 = visionRadiusV96;
                 const edge = Math.min(y - SIDELINE_TOP, SIDELINE_BOT - y);
                 const s = room - Math.abs(k) * TU("ofStraightKV165C", .03) - (edge < 24 ? (24 - edge) * TU("ofEdgeKV165C", .01) : 0);
                 if (s > bestS) { bestS = s; bestY = y; }
+                if (c._ofY != null && Math.abs(y - c._ofY) <= step / 2) keepS = Math.max(keepS, s);
               }
-              c._ofY = bestY; c._ofUntil = t + TU("ofReadMsV165C", 160);
+              // he commits: a new lane has to be clearly better than the one he is in (`ofSwitchSV165C` seconds of room)
+              if (c._ofY == null || bestS > keepS + TU("ofSwitchSV165C", .08)) c._ofY = bestY;
+              c._ofUntil = t + TU("ofReadMsV165C", 160);
               if (c.player && c.player.you) { const V = root.__V165B; V.of = (V.of || 0) + 1; }
             }
-            laneY = clampY(sway + (c._ofY - sway) * w);
+            // and he leans into it — the aim eases toward the read (`ofEaseV165C` a tick) instead of snapping a lane over
+            c._ofAim = c._ofAim == null ? c.y : c._ofAim + (c._ofY - c._ofAim) * TU("ofEaseV165C", .25);
+            laneY = clampY(sway + (c._ofAim - sway) * w);
           }
         }
         if (kind==="run" && !c._cut && c.lx > 4 && c.lx < 50) {

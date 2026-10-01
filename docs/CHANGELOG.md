@@ -18,9 +18,11 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
   headroom (UFF sheet 400 → IQ ~116, 999 → ~131); his body keeps the ceiling. *B — football IQ*: the QB scan, lead,
   composure, smart sack, ball-find, the read clock, the fake, pursuit angles, corner leverage, LB drops and the back's
   lane/cutback read an effective IQ (rating + his headroom + the level's sense, Pee Wee −8 → Interstellar +4), with
-  the caps opened; a sharp man's per-snap swing narrows. A 600-mind QB throws to his best read 79% of the time (120:
-  64%). *C — open-field eyes*: past the line a carrier with vision reads seven lanes ahead and takes the one with the
-  most room instead of a sine weave; a 600-mind back gains 7.6 a carry on the same seeds a 120-mind one gains 6.8.
+  the caps opened; a sharp man's per-snap swing narrows. A 600-mind QB throws to the best read he saw 84% of the time
+  (120: 31%). *C — open-field eyes*: past the line a carrier with vision reads seven lanes ahead and takes the one with the
+  most room instead of a sine weave (committing to a lane and easing into it); a 600-mind back gains 8.1 a carry on the
+  same seeds a 120-mind one gains 6.6. `formcheck`'s YPC band now pools three streams (one stream moved with the draws).
+  `scripts/known-failures.json` records the seven checks v165's baseline run found failing on main.
   Kill switches `v165Amind`, `v165Biq`, `v165Cof`.
 - **v164 I — the start is earned.** (`src/04-engine.js`, `scripts/accelcheck.mjs`.) The acceleration check found every
   player reached 90% of top speed in 0.4–0.6 real seconds, so the acceleration rating barely mattered. A standing

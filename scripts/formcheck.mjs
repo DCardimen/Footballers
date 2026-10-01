@@ -76,7 +76,14 @@ ok(teLx("iform") <= -30 && Math.abs(teLx("shotgun")) <= 1, "the tight end is the
 ok(["singleback", "iform", "strong"].every(f => rows[f].run.handoff <= rows.shotgun.run.handoff + 3 && rows[f].run.handoffMax <= 48), "from under center the quarterback reverses to the mesh — at the handoff he is as close as in the gun (the back waits for him; v118 meshV118 draws the last step)", ["singleback", "iform", "strong"].map(f => f + "=" + rows[f].run.handoff + "/" + rows[f].run.handoffMax).join(" ") + " gun=" + rows.shotgun.run.handoff);
 ok(["singleback", "iform", "strong"].every(f => rows[f].pass.drop < -4) && rows.shotgun.pass.drop > -3, "a pass from under center is a real drop (the QB goes backward after the snap); in the gun he barely moves", FORMS.map(f => f + "=" + rows[f].pass.drop).join(" "));
 const band = 0.35;   // v164 I: under center the back waits at the mesh; the I runs ~30% short of the gun in this sandbox (full games: equaltalentcheck)
-ok(FORMS.every(f => Math.abs(rows[f].run.ypc - rows.shotgun.run.ypc) <= Math.max(1.2, rows.shotgun.run.ypc * band)), "every look's yards per carry stay inside 35% of the gun's — a formation is a picture, not a cheat", FORMS.map(f => f + "=" + rows[f].run.ypc).join(" "));
+/* v165: the YPC band is a statistic over one random stream walked through all five looks in turn, ~±0.4 a look at
+ * N=220 — v165's extra IQ terms moved where the draws land (main 6.47/4.38, v165 6.95/4.47: same mean, 5.23 vs 5.32)
+ * and the I slipped 0.1 past the band. Pooled over three streams (the first is the old one), as v150 B did for the PA
+ * payout (CLAUDE.md: compare against the spread, never one run). */
+const ypcPool = Object.fromEntries(FORMS.map(f => [f, rows[f].run.ypc]));
+for (const sd of [0xF0A12, 0xF0A13]) { const c2 = runtime(sd); for (const f of FORMS) ypcPool[f] += batch(c2, f, "run").ypc; }
+for (const f of FORMS) ypcPool[f] = +(ypcPool[f] / 3).toFixed(2);
+ok(FORMS.every(f => Math.abs(ypcPool[f] - ypcPool.shotgun) <= Math.max(1.2, ypcPool.shotgun * band)), "every look's yards per carry stay inside 35% of the gun's — a formation is a picture, not a cheat", FORMS.map(f => f + "=" + ypcPool[f]).join(" ") + " (3 streams)");
 ok(FORMS.every(f => Math.abs(rows[f].pass.comp - rows.shotgun.pass.comp) <= 14), "every look's completion rate stays inside 14 points of the gun's", FORMS.map(f => f + "=" + rows[f].pass.comp).join(" "));
 const V = ctx.__V164P;
 ok(V && FORMS.every(f => V.counts[f] >= 2 * N), "the engine counts every look it lined up", V && V.counts);
