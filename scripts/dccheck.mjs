@@ -12,7 +12,8 @@
 //     6. a you-back who carries the offense gets keyed (keyYou > 0 late);
 //     7. the kill switch (v165Ddc 0) makes no calls;
 //     8. v165 E: a sharp you-QB audibles at the line (the hot read off a blitz, play action into a run key) and a dull one
-//        barely does; v165Eaud 0 makes none.
+//        barely does; v165Eaud 0 makes none;
+//     9. v165 G: the play-by-play says when the coordinator's call decided a play.
 // Usage: node scripts/dccheck.mjs   (snaps per FieldSim cell via DC_N, default 220; games per career cell via GAMES, default 4)
 import { gameScripts } from './lib/layout.mjs'
 import { launch } from './lib/env.mjs'
@@ -77,10 +78,12 @@ const out = await page.evaluate(({ N, GAMES }) => {
   const flat = v => Object.fromEntries(names.map(k => [k, v]))
   const games = (level, pos, attrs, bias, on) => {
     window.RIB_TUNE.v165Ddc = on; st.player = { level, pos, name: 'P', attrs }; window.__gameScriptBiasV23 = bias; window.__V165Dlog = []
-    let calls = 0
-    for (let g = 0; g < GAMES; g++) { reseed(4000 + g); window.__simGameV2(9 + g, pos); calls += window.__V165D.calls }
+    let calls = 0, notes = 0
+    const NOTE = /The blitz got home\.|They were sitting on the run\.|The play fake burned a defense keyed on the run\.|Hot read beats the blitz\.|They're keying on YOU\./
+    for (let g = 0; g < GAMES; g++) { reseed(4000 + g); const r = window.__simGameV2(9 + g, pos); calls += window.__V165D.calls
+      notes += (r.plays || []).filter(p => NOTE.test(String(p.desc || ''))).length }
     const log = window.__V165Dlog; window.__V165Dlog = null; window.__gameScriptBiasV23 = null; window.RIB_TUNE.v165Ddc = 1
-    return { log, calls }
+    return { log, calls, notes }
   }
   const mean = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0
   const late = (log, def) => log.filter(e => e.def === def && e.n >= 16)
@@ -93,7 +96,8 @@ const out = await page.evaluate(({ N, GAMES }) => {
     keyKid: +mean(late(kid.log, 'them').map(e => e.runKey)).toFixed(3),
     youUff: +mean(late(uff.log, 'them').map(e => e.keyYou)).toFixed(3),
     snaps: uff.log.length + kid.log.length,
-    offCalls: games(7, 'RB', flat(320), 0.12, 0).calls
+    offCalls: games(7, 'RB', flat(320), 0.12, 0).calls,
+    notes: uff.notes, notesKid: kid.notes
   }
   // v165 E: the audible — a you-QB at the UFF with a 120 mind against a 600 mind, and the switch off
   const qbMind = m => Object.assign(flat(300), { awareness: m, vision: m, discipline: m })
@@ -119,6 +123,7 @@ ok(`a Pee Wee coordinator keys it far less (${G.keyKid} vs ${G.keyUff})`, G.keyK
 ok(`a back who carries the offense gets keyed (keyYou ${G.youUff})`, G.youUff > 0.05)
 ok(`kill switch: no calls (${G.offCalls})`, G.offCalls === 0)
 ok(`a sharp you-QB audibles at the line and a dull one barely does (${G.audSharp} vs ${G.audDull} in ${GAMES} games; ${G.audHot} hot reads, ${G.audPa} play actions)`, G.audSharp >= 4 && G.audSharp >= 3 * Math.max(1, G.audDull) && G.audHot > 0)
+ok(`v165 G: the booth says when the call decided the play (${G.notes} notes in ${GAMES} UFF games, ${G.notesKid} at Pee Wee)`, G.notes >= 4 && G.notes <= GAMES * 25)
 ok(`the audible's kill switch (v165Eaud 0): none (${G.audOff})`, G.audOff === 0)
 ok('no page errors', errs.length === 0)
 for (const c of checks) console.log((c.pass ? 'ok   ' : 'FAIL ') + c.name)

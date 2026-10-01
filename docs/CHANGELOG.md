@@ -10,6 +10,10 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v165 G — the booth sees it.** (`src/07-career-app.js`, `scripts/dccheck.mjs`.) The coordinator's thinking is
+  invisible unless it decides a play, and then the play-by-play says so: "The blitz got home.", "They were sitting on
+  the run.", "The play fake burned a defense keyed on the run.", "Hot read beats the blitz.", "They're keying on YOU."
+  (once a quarter). Kill switch `v165Gbooth`.
 - **v165 F — the route has a brain.** (`src/04-engine.js`, `scripts/iqcheck.mjs`.) A receiver's separation used to
   be speed and agility against coverage. At the break his awareness against his cover man's now buys room, and a sharp
   receiver's double move gets more bites: a 600-mind UFF receiver's separation after the break is +0.09 where a

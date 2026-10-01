@@ -17028,7 +17028,8 @@
      * the backer, adds `dcBlitzPressV165D` to the pass pressure here (not on a quick or a screen) and opens
      * the hot read for a QB who sees it; `keyYou` brackets him and reads his carries early. Mixing it up
      * beats a coordinator; tendencies feed him. Kill switch `v165Ddc` 0. `window.__V165D`; `dccheck.mjs`. */
-    let dcSnapV165D = null;
+    let dcSnapV165D = null,
+      dcBoothQV165G = 0; /* v165 G: the quarter the keyed-you note last ran */
     const dcOnV165D = !!TU("v165Ddc", 1),
       dcLvlV165D = Math.max(0, Math.min(8, Math.round((state.player && state.player.level) || 0))),
       dcIqV165D = (TU("dcIqLvlV165D", [0.15, 0.25, 0.35, 0.45, 0.55, 0.7, 0.8, 0.9, 1])[dcLvlV165D] ?? 0.6),
@@ -19237,6 +19238,31 @@
                   : null;
       if (dcOnV165D && (ne === "run" || ne === "pass" || ne === "incomplete" || ne === "sack" || ne === "scramble"))
         dcRecordV165D(usDrive ? "them" : "us", isPassCall, de, usDrive && me); /* v165 D: the coordinator remembers */
+      /* ===== v165 G THE BOOTH SEES IT =====
+       * The coordinator's call is invisible unless it decides the play, and then the booth says so: the blitz that got
+       * home, the stuffed run into a keyed box, the play fake that burned it, the man they are keying. One note a play,
+       * only when the call MATTERED, the keyed-you note once a quarter. No random draws. Kill switch `v165Gbooth` 0.
+       * `window.__V165D.notes`; `dccheck.mjs`. */
+      if (dcSnapV165D && TU("v165Gbooth", 1) && !_e && !pickSix && !flip) {
+        const D = dcSnapV165D,
+          note =
+            ne === "sack" && D.blitz
+              ? " The blitz got home."
+              : ne === "run" && de <= 0 && D.runKey >= TU("boothRunKeyV165G", 0.5)
+                ? " They were sitting on the run."
+                : (ne === "pass" || ne === "run") && paV81 && de >= 15 && D.runKey >= TU("boothPaKeyV165G", 0.3)
+                  ? " The play fake burned a defense keyed on the run."
+                  : ne === "pass" && D.blitz && audV165E === "hot" && de >= 6
+                    ? " Hot read beats the blitz."
+                    : usDrive && me && de <= 2 && D.keyYou >= TU("boothKeyYouV165G", 0.45) && dcBoothQV165G !== quarter
+                      ? " They're keying on YOU."
+                      : "";
+        if (note) {
+          if (note === " They're keying on YOU.") dcBoothQV165G = quarter;
+          ue += note;
+          window.__V165D.notes = (window.__V165D.notes || 0) + 1;
+        }
+      }
       mkPlay({
         T0,
         pre,
