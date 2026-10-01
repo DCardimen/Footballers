@@ -13324,6 +13324,12 @@
       : null;
   }
   function $r(e, t) {
+    if (leagueOnV167(e)) {
+      /* v167: the standings ARE the league */
+      const T = leagueTableV167(e);
+      return { teams: T.teams, haveMine: T.played > 0, gamesPlayed: Math.max(1, T.played), totalGames: LEVELS[e.level].games, leagueV167: !0,
+        field: Math.min(1 << playoffRoundNames(e.level).length, e.leagueV167.teams.length) };
+    }
     const a = mulberry32(t + e.level * 7907 + 13),
       s = LEVELS[e.level].games,
       n = MASCOTS /* v123: the standings draw from the same crest-matched pool */,
@@ -13472,7 +13478,7 @@
     `;
     } else {
       const n = $r(e, a),
-        i = 4;
+        i = n.leagueV167 ? n.field : 4 /* v167: the line sits under the playoff field */;
       s = `
       <div class="small" style="margin:4px 0 8px">Your league this season. Finish with a <b style="color:var(--gold)">60%+ win rate</b> to make the playoffs — win it all for a ring.</div>
       ${advfBarV151A("standings", [["rank", "RANK", "asc"], ["w", "WINS", "desc"], ["pf", "PF", "desc"], ["pa", "PA", "asc"], ["diff", "DIFF", "desc"]], null) /* v151 A */}
@@ -13484,7 +13490,7 @@
             return `${l === i ? '<div class="cutline" data-advf-head>— PLAYOFF CUT —</div>' : ""}
           <div class="lb2-row ${r.me ? "me" : ""}" data-advf-row data-q="${escHtml(r.name.toLowerCase())}" data-s-rank="${l + 1}" data-s-w="${r.w}" data-s-pf="${r.pf}" data-s-pa="${r.pa}" data-s-diff="${d}">
             <span class="lbr">${l + 1}</span>
-            <span class="lbn">${r.me ? "<b>" + escHtml(r.name) + " (You)</b>" : escHtml(r.name)}</span>
+            <span class="lbn">${r.me ? "<b>" + escHtml(r.name) + " (You)</b>" : escHtml(r.name)}${n.leagueV167 && !r.me && r.rating != null ? ' <span class="small" style="opacity:.7">' + r.rating + " OVR</span>" : ""}</span>
             <span class="lbv">${r.w}-${r.l}</span>
             <span class="lbo">${r.pf} · ${r.pa} · <b style="color:${d >= 0 ? "var(--good)" : "#e08a8a"}">${d >= 0 ? "+" : ""}${d}</b></span>
           </div>`;
@@ -19565,6 +19571,20 @@
   // level base). Keyed on opponent name + season so the SAME opponent gets the
   // SAME strength in the pregame preview and the live game — varied week to week.
   function __oppMulForV22(name) {
+    /* v167: a league team's roster strength ranks with its league rating — the same 0.94-1.14 band, by rank */
+    try {
+      const pl = state.player;
+      if (leagueOnV167(pl) && name) {
+        const L = pl.leagueV167,
+          row = (pl.weekResults || []).find(w => w.opp === name && w.leagueIdxV167 != null),
+          idx = row ? row.leagueIdxV167 : L.teams.findIndex(tm => tm.name === name);
+        if (idx > 0) {
+          const others = L.teams.filter((_, i) => i > 0).map(tm => tm.rating).sort((x, y) => x - y),
+            rank = others.indexOf(L.teams[idx].rating);
+          return 0.94 + (rank / Math.max(1, others.length - 1)) * 0.2;
+        }
+      }
+    } catch (_e) {}
     let h = 0;
     const s = String(name || "") + "|" + ((state.player && state.player.seasonSeed) || 0);
     for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
@@ -20679,7 +20699,12 @@
       d = r >= a.length && (!i || (l && l.done)),
       c = a.filter(y => y.played && y.won).length,
       u = a.filter(y => y.played && !y.won).length,
-      h = Math.ceil(s.length * 0.6);
+      h = Math.ceil(s.length * 0.6),
+      lt167 = leagueOnV167(e) ? leagueTableV167(e).teams : null /* v167: each league opponent's record and place */,
+      tag167 = y => {
+        const k = lt167 && y.leagueIdxV167 != null ? lt167.findIndex(x => x.idx === y.leagueIdxV167) : -1;
+        return k < 0 ? "" : `<span class="sched-rec167" style="opacity:.72;font-size:11px"> · ${lt167[k].w}-${lt167[k].l} · #${k + 1}</span>`;
+      };
     let p = "";
     if (i && l)
       l.champion
@@ -20717,7 +20742,7 @@
               : `<span class="sched-wk">WK ${++m}</span>`;
           return `<div class="sched-row ${P}" ${y.playoff ? 'style="border-color:rgba(240,187,69,.5)"' : ""}>
           ${v}
-          <span class="sched-opp">${y.playoff ? `<b style="color:var(--gold)">${y.round}</b> · ` : ""}${homeWeekV93(y, C) ? "vs" : "@"} ${y.opp}</span>
+          <span class="sched-opp">${y.playoff ? `<b style="color:var(--gold)">${y.round}</b> · ` : ""}${homeWeekV93(y, C) ? "vs" : "@"} ${y.opp}${tag167(y)}</span>
           ${y.played ? `<span class="sched-score">${y.us}–${y.them} ${y.won ? "W" : "L"}</span><span class="sched-perf">${y.perf} rtg</span>` : V ? '<span class="sched-status" style="color:var(--gold)">▶ NEXT UP</span>' : '<span class="sched-status">—</span>'}
         </div>`;
         })
@@ -20731,7 +20756,7 @@
       <div style="height:8px"></div>
       <div class="btn-row">
         <button class="btn ghost" onclick="go('stats')">📊 Nat'l Leaders</button>
-        <button class="btn ghost" onclick="STATS_TAB='standings';go('stats')">🏟 Standings</button>
+        <button class="btn ghost" onclick="go('stats');setStatsTab('standings')">🏟 Standings</button>
       </div>`;
     else {
       const y = a.find(P => !P.played),
@@ -20745,7 +20770,7 @@
       <div style="height:8px"></div>
       <div class="btn-row">
         <button class="btn ghost" onclick="go('stats')">📊 Leaders</button>
-        <button class="btn ghost" onclick="STATS_TAB='standings';go('stats')">🏟 Standings</button>
+        <button class="btn ghost" onclick="go('stats');setStatsTab('standings')">🏟 Standings</button>
       </div>
     `;
     }
@@ -21032,12 +21057,17 @@
       s = e.name.split(" ")[1].slice(0, 8).toUpperCase(),
       n = a.split(" ").pop().slice(0, 8).toUpperCase(),
       i = ["DL", "LB", "CB", "S"].includes(e.pos);
-    const _pl = (e.weekResults || []).filter(w => w.played),
+    /* v167: real regular-season records — yours and the opponent's own, off the league table (the old opponent record was a
+     * hash of his name modulo YOUR games played, playoffs included: a title-game opponent could read 0-11) */
+    const _lg167 = leagueOnV167(e),
+      _pl = (e.weekResults || []).filter(w => w.played && (!_lg167 || !w.playoff)),
       _uw = _pl.filter(w => w.won).length,
       usRec = _pl.length ? _uw + "-" + (_pl.length - _uw) : t.roster.us.ovr + " OVR",
+      _owk = _lg167 ? (e.weekResults || []).find(w => !w.played && w.opp === a) || (e.weekResults || []).slice().reverse().find(w => w.opp === a) : null,
+      _orec = _lg167 && _owk ? leagueRecordV167(e, _owk.leagueIdxV167) : null,
       _os = Array.from(a || "").reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7),
       _ow = _pl.length ? _os % (_pl.length + 1) : 0,
-      oppRec = _pl.length ? _ow + "-" + (_pl.length - _ow) : t.roster.opp.ovr + " OVR";
+      oppRec = _orec || (_pl.length ? _ow + "-" + (_pl.length - _ow) : t.roster.opp.ovr + " OVR");
     const TL44 = window.TEAM_LOGOS_V44,
       _tc44 = window.__GRIDIRON_TEAM_CUSTOM__ || {},
       usLogo44 = _tc44.logo != null ? _tc44.logo : TL44 ? TL44.forName(_tc44.teamName || s) : 0,
@@ -27406,6 +27436,166 @@
    * row: the side is lifted (rating, both units, and how hard they hit, which is what oppMulV111
    * prices), the row carries the flag, and the "showboat" bench roll is made ONCE for the season
    * rather than per game. With no rivalry stage chosen, `riv` is -1 and nothing below changes. */
+  /* ===== v167 THE LEAGUE IS REAL =====
+   * There was no league. Every week's opponent was a fresh random name with a random rating, the standings were nine
+   * invented teams you never played, the playoff opponent was another fresh name, and the record on the title game's
+   * scorebug was a HASH of that name modulo the games played — which is how a strong championship opponent read "0-11".
+   * Now a season has a LEAGUE (`player.leagueV167`, built once per season and level): you and `leagueTeamsV167` named,
+   * rated teams (the ratings are drawn exactly as the weekly opponents were, so the schedule is as hard as it was) and a
+   * round-robin schedule. Every week you play a league team at its rating; the other teams play each other, decided by
+   * their ratings (`leagueSlopeV167` rating points an e-fold of the odds) on a seeded stream, so the table is the same
+   * whenever it is read and the strong teams RISE. The standings are that table (your results are your games). The
+   * playoff field is the top of it: `2^rounds` teams seeded by record, you in it once you qualify (the 60% rule is
+   * unchanged); the other side of the bracket is played by rating (reseeded each round), so the title game is you
+   * against whoever survived — usually a top seed, now and then an upset — at its own rating plus `poLiftV167` and
+   * `poRoundLiftV167` a round. The scorebug shows real regular-season records, the live roster's strength ranks with the
+   * league rating (the v22.3 0.94-1.14 band, by rank instead of a name hash), the standings button opens the standings,
+   * and the playoff line sits under the field. Kill switch `v167league` 0 (the old weekly draws). `window.__V167`;
+   * `leaguecheck.mjs`. */
+  function leagueOnV167(e) {
+    return !!(TU("v167league", 1) && e && e.leagueV167 && e.leagueV167.level === e.level && e.leagueV167.seed === e.seasonSeed);
+  }
+  function leagueSizeV167(e) {
+    const rounds = playoffRoundNames(e.level).length;
+    let n = Math.max(TU("leagueTeamsV167", 10), 1 << rounds);
+    return n % 2 ? n + 1 : n;
+  }
+  function makeLeagueV167(e) {
+    const N = leagueSizeV167(e),
+      seed = e.seasonSeed,
+      mine = teamName(e),
+      seen = new Set([mine]),
+      teams = [{ name: mine, me: !0, rating: null }];
+    for (let g = 0; teams.length < N && g < 600; g++) {
+      const n = randOppName(e.level);
+      if (seen.has(n)) continue;
+      seen.add(n);
+      teams.push({ name: n, rating: createOpponentProfile(n, e.level, 100 + teams.length, seed).rating });
+    }
+    // a thin name pool (or a stubbed Math.random) still ends: the suffix counts up, so every name is new in the end
+    for (let k = 2; teams.length < N; k++) {
+      const n = randOppName(e.level) + " " + (["II", "III", "IV", "V", "VI"][k - 2] || k);
+      if (seen.has(n)) continue;
+      seen.add(n);
+      teams.push({ name: n, rating: createOpponentProfile(n, e.level, 100 + teams.length, seed).rating });
+    }
+    const idx = teams.map((_, i) => i),
+      rounds = [];
+    for (let r = 0; r < N - 1; r++) {
+      const pairs = [];
+      for (let k = 0; k < N / 2; k++) pairs.push([idx[k], idx[N - 1 - k]]);
+      rounds.push(pairs);
+      idx.splice(1, 0, idx.pop());
+    }
+    const rng = mulberry32((seed + 167) >>> 0);
+    for (let i = rounds.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [rounds[i], rounds[j]] = [rounds[j], rounds[i]];
+    }
+    const sched = [];
+    for (let w = 0; w < LEVELS[e.level].games; w++) sched.push(rounds[w % rounds.length]);
+    return { level: e.level, seed, teams, sched };
+  }
+  function leagueOppIdxV167(L, w) {
+    const p = L.sched[w] && L.sched[w].find(q => q[0] === 0 || q[1] === 0);
+    return p ? (p[0] === 0 ? p[1] : p[0]) : -1;
+  }
+  // an AI-vs-AI game: the ratings decide it, on a stream seeded by the season, the week and the pair
+  function leagueGameV167(L, w, i, j) {
+    const a = L.teams[i].rating,
+      b = L.teams[j].rating,
+      rng = mulberry32((L.seed ^ (w * 977 + i * 131 + j * 17 + 5)) >>> 0),
+      pI = 1 / (1 + Math.exp(-(a - b) / TU("leagueSlopeV167", 6))),
+      iWins = rng() < pI,
+      win = Math.round(17 + rng() * 21),
+      lose = Math.max(0, win - Math.round(1 + rng() * 20));
+    return iWins ? [win, lose] : [lose, win];
+  }
+  function leagueTableV167(e) {
+    const L = e.leagueV167,
+      rows = L.teams.map((tm, i) => ({ name: tm.name, me: i === 0, rating: tm.rating, w: 0, l: 0, pf: 0, pa: 0, idx: i })),
+      reg = (e.weekResults || []).filter(w => !w.playoff),
+      lr = e.lastTeamRecord && e.lastTeamRecord.level === e.level ? e.lastTeamRecord : null;
+    let played = reg.filter(w => w.played).length;
+    const fromLast = !played && lr && !reg.length;
+    if (fromLast) played = Math.min(L.sched.length, (lr.wins || 0) + (lr.losses || 0));
+    for (let w = 0; w < played; w++) {
+      for (const [i, j] of L.sched[w] || []) {
+        let si, sj;
+        if (i === 0 || j === 0) {
+          const g = reg[w];
+          let us, them;
+          if (g && g.played) ((us = Number(g.us) || 0), (them = Number(g.them) || 0), g.won && us <= them && (us = them + 1), !g.won && us >= them && (them = us + 1));
+          else if (fromLast) {
+            const won = w < (lr.wins || 0), avgF = Math.round((lr.pf || 0) / Math.max(1, played)), avgA = Math.round((lr.pa || 0) / Math.max(1, played));
+            ((us = won ? Math.max(avgF, avgA + 1) : Math.min(avgF, Math.max(0, avgA - 1))), (them = won ? Math.min(avgA, us - 1) : Math.max(avgA, us + 1)));
+          } else continue;
+          i === 0 ? ((si = us), (sj = them)) : ((si = them), (sj = us));
+        } else [si, sj] = leagueGameV167(L, w, i, j);
+        const A = rows[i], B = rows[j];
+        ((A.pf += si), (A.pa += sj), (B.pf += sj), (B.pa += si));
+        si > sj ? (A.w++, B.l++) : (B.w++, A.l++);
+      }
+    }
+    const order = rows.slice().sort((m, y) => y.w - m.w || y.pf - y.pa - (m.pf - m.pa) || (y.rating || 0) - (m.rating || 0));
+    return { teams: order, played };
+  }
+  // who you meet in round t: the field is the top of the table, the bracket reseeds, the other games go by rating
+  function leaguePlayoffOppV167(e, t) {
+    const L = e.leagueV167,
+      rounds = playoffRoundNames(e.level).length,
+      table = leagueTableV167(e).teams,
+      K = Math.min(1 << rounds, L.teams.length),
+      field = [table.find(r => r.me)].concat(table.filter(r => !r.me).slice(0, K - 1)).sort((m, y) => table.indexOf(m) - table.indexOf(y));
+    let alive = field.map(r => r.idx);
+    for (let r = 0; r <= t; r++) {
+      const pairs = [];
+      for (let k = 0; k < alive.length / 2; k++) pairs.push([alive[k], alive[alive.length - 1 - k]]);
+      if (r === t) {
+        const mine = pairs.find(q => q[0] === 0 || q[1] === 0);
+        return mine ? (mine[0] === 0 ? mine[1] : mine[0]) : -1;
+      }
+      const next = [];
+      for (const [a, b] of pairs) {
+        if (a === 0 || b === 0) { next.push(0); continue; }
+        const [x, y] = leagueGameV167(L, 900 + r, a, b);
+        next.push(x > y ? a : b);
+      }
+      alive = next.sort((m, y) => field.findIndex(f => f.idx === m) - field.findIndex(f => f.idx === y));
+    }
+    return -1;
+  }
+  // a league team's profile for this game: the weekly draw's colour, at the team's own rating
+  function leagueProfileV167(e, idx, week, roundIdx) {
+    const L = e.leagueV167,
+      tm = L.teams[idx],
+      i = createOpponentProfile(tm.name, e.level, week, e.seasonSeed, roundIdx),
+      want = roundIdx != null ? tm.rating + TU("poLiftV167", 3) + roundIdx * TU("poRoundLiftV167", 1.5) : tm.rating,
+      d = Math.round(want) - i.rating;
+    return Object.assign(i, { rating: i.rating + d, offense: i.offense + d, defense: i.defense + d, leagueIdxV167: idx });
+  }
+  function leagueRecordV167(e, idx) {
+    if (!leagueOnV167(e) || idx == null || idx < 0) return null;
+    const r = leagueTableV167(e).teams.find(x => x.idx === idx);
+    return r ? r.w + "-" + r.l : null;
+  }
+  // the next-opponent card's line: "8-1 · 2nd of 10" (empty without a league)
+  function leagueLineV167(e, w) {
+    if (!leagueOnV167(e) || !w || w.leagueIdxV167 == null) return "";
+    const T = leagueTableV167(e).teams,
+      k = T.findIndex(x => x.idx === w.leagueIdxV167);
+    if (k < 0) return "";
+    const n = k + 1,
+      ord = n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+    return `<div class="league-line-v167 small" style="opacity:.8;margin-top:2px">${T[k].w}-${T[k].l} · ${ord} of ${T.length} · ${Math.round(w.opponentV11 && w.opponentV11.rating != null ? w.opponentV11.rating : e.leagueV167.teams[w.leagueIdxV167].rating)} OVR</div>`; // the rating he plays at (playoff and rivalry lifts in)
+  }
+  window.__V167 = {
+    on: () => leagueOnV167(state.player),
+    table: p => (leagueOnV167(p || state.player) ? leagueTableV167(p || state.player) : null),
+    playoffOpp: (t, p) => (leagueOnV167(p || state.player) ? leaguePlayoffOppV167(p || state.player, t) : -1),
+    league: p => (p || state.player).leagueV167 || null,
+    make: p => makeLeagueV167(p || state.player)
+  };
   buildSeasonSchedule = function (e) {
     ((e._seasonPerfBoost = 0), (e._nextGameBoost = 0));
     const t = LEVELS[e.level],
@@ -27418,10 +27608,14 @@
      * the drill, so the schedule reads like a combine instead of four more football games against
      * "COMBINE FIELD" — and `A[6].games` is six, one week per drill. */
     const cmb = combineYearV139(e) ? COMBINE_V139 : null;
+    // v167: a league for the season (built once per season and level), and the schedule is its round-robin
+    if (!cmb && TU("v167league", 1) && !leagueOnV167(e)) e.leagueV167 = makeLeagueV167(e);
+    const lg = !cmb && leagueOnV167(e) ? e.leagueV167 : null;
     for (let s = 0; s < t.games; s++) {
       const dr = cmb && cmb[s % cmb.length],
-        n = dr ? dr.name.toUpperCase() : randOppName(e.level),
-        i = createOpponentProfile(n, e.level, s + 1, e.seasonSeed),
+        li = lg ? leagueOppIdxV167(lg, s) : -1,
+        n = dr ? dr.name.toUpperCase() : li >= 0 ? lg.teams[li].name : randOppName(e.level),
+        i = li >= 0 ? leagueProfileV167(e, li, s + 1) : createOpponentProfile(n, e.level, s + 1, e.seasonSeed),
         isR = s === riv;
       if (isR) {
         i.rating = Math.round(i.rating * lift);
@@ -27448,7 +27642,8 @@
         won: null,
         injured: !1,
         rivalV128: isR,
-        combineV139: dr ? dr.k : void 0
+        combineV139: dr ? dr.k : void 0,
+        leagueIdxV167: li >= 0 ? li : void 0
       });
     }
     return a;
@@ -27456,8 +27651,10 @@
   cn = function (e, t) {
     const a = playoffRoundNames(e.level),
       s = t === a.length - 1,
-      n = s && e.nemesis ? e.nemesis.name + "'s " + randOppName(e.level) : randOppName(e.level),
-      i = createOpponentProfile(n, e.level, (e.weekResults || []).length + 1, e.seasonSeed, t);
+      li = leagueOnV167(e) ? leaguePlayoffOppV167(e, t) : -1 /* v167: the bracket's survivor, from the top of the table */,
+      base = li >= 0 ? e.leagueV167.teams[li].name : randOppName(e.level),
+      n = s && e.nemesis ? e.nemesis.name + "'s " + base : base,
+      i = li >= 0 ? Object.assign(leagueProfileV167(e, li, (e.weekResults || []).length + 1, t), { name: n }) : createOpponentProfile(n, e.level, (e.weekResults || []).length + 1, e.seasonSeed, t);
     return (
       (i.importance = s ? "championship" : "playoff"),
       {
@@ -27470,6 +27667,7 @@
         playoff: !0,
         round: a[t],
         roundIdx: t,
+        leagueIdxV167: li >= 0 ? li : void 0,
         perf: null,
         us: null,
         them: null,
@@ -27989,7 +28187,7 @@
       ));
     const a = t.opponentV11.scouted || scoutOpponent(t.opponentV11, e, state.specializationV11),
       s = String(t.opponentV11.importance || "routine").toUpperCase();
-    return `<div class="card opponent-card-v11" style="border-color:${["playoff", "championship"].includes(t.opponentV11.importance) ? "var(--gold)" : t.opponentV11.importance === "evaluation" ? "var(--blood)" : "var(--cyan)"}"><div class="impact-head"><div><div class="impact-kicker">NEXT OPPONENT · ${s}</div><div class="h2" style="margin:2px 0 0">${escHtml(t.opp)}</div></div><div class="scout-confidence-v11">${a.confidence}<small>SCOUT CONF.</small></div></div><div class="matchup-badge-v11">${escHtml(a.matchupLabel)} matchup · ${a.hiddenCount} detail${a.hiddenCount === 1 ? "" : "s"} hidden</div>${(() => {
+    return `<div class="card opponent-card-v11" style="border-color:${["playoff", "championship"].includes(t.opponentV11.importance) ? "var(--gold)" : t.opponentV11.importance === "evaluation" ? "var(--blood)" : "var(--cyan)"}"><div class="impact-head"><div><div class="impact-kicker">NEXT OPPONENT · ${s}</div><div class="h2" style="margin:2px 0 0">${escHtml(t.opp)}</div>${leagueLineV167(e, t)}</div><div class="scout-confidence-v11">${a.confidence}<small>SCOUT CONF.</small></div></div><div class="matchup-badge-v11">${escHtml(a.matchupLabel)} matchup · ${a.hiddenCount} detail${a.hiddenCount === 1 ? "" : "s"} hidden</div>${(() => {
       /* v126: who they actually are. The RECOMMENDED COUNTER used to sit here — a game plan the player has not chosen himself since the pregame wizard took the call, so the one concrete line on the card was the one thing it could not act on. */
       const r = oppReadV126(t.opponentV11, e);
       if (!r) return "";

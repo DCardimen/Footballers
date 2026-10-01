@@ -10,6 +10,18 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v167 — the league is real.** (`src/07-career-app.js`, `scripts/leaguecheck.mjs`.) There was no league: every week's
+  opponent was a fresh random name and rating, the standings were nine invented teams you never played, the playoff
+  opponent was another fresh name, and the scorebug's opponent record was a hash of his name modulo your games played,
+  playoffs included — which is how a championship opponent read "0-11". A season now has a league (`player.leagueV167`):
+  you and nine named, rated teams (the Interstellar bracket's 16 at level 8), drawn exactly as the weekly opponents were,
+  on a round-robin. You play each league team at its rating; the AI teams play each other by rating on a seeded stream,
+  so the strong teams rise (rating vs final rank: Spearman 0.69 over 160 leagues). The standings are that table, with
+  each team's OVR and the playoff line under the field; the playoff field is the top of the table, seeded and reseeded,
+  the other side of the bracket played by rating — the title-game opponent is the #1 or #2 AI team in a semifinal field
+  (mean rating percentile 0.81, mean record .706, never below .500 in 160 leagues). The schedule and the next-opponent card
+  show each opponent's record and place, the scorebug shows real regular-season records, a team's live roster strength ranks with its league
+  rating, and the season screen's standings button opens the standings. Kill switch `v167league`.
 - **v166 — the final pass.** The full regression found the systems interacting: the you-player was keyed whenever he
   carried 30% of his offense's yards, which an ordinary featured back does, and equal teams tilted (37.5% wins for his
   side) — the coordinator now keys a man past 40% (`dcYouShareV165D`), and equal talent is back at 52.5%; a sharp passer

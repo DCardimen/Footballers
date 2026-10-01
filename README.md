@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v167 — the league is real.** A season is a league of named, rated teams on a round-robin: the strong teams rise
+  up the standings, the playoff field is the top of the table, and the title game is against one of the best teams with
+  its real record on the scorebug (no more 0-11 champions-elect). `leaguecheck`.
 - **v166 — the AI plays football.** Blocks hold on leverage and ratings (a sealed defender is out of the play), every
   route is live, zones are places on the field, rushers pick moves and tackles set for them, passers feel the pocket,
   backs choose their moves, the defense pursues as one, both coordinators adapt (the offense answers the blitz and the
