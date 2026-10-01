@@ -3250,7 +3250,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       // The called primary receives a small preference, not a guaranteed target.
       const _window = v => v > -0.25 ? "green" : v > -1.75 ? "yellow" : "red";
       // v165 D: the call shows up in the windows — a blitz leaves a hot read for a QB who sees it, a pass key sits on routes
-      const dcSepV165D = !dcV165D ? 0 : (blitzer ? TU("dcHotSepV165D", .45) * cl((awE(S.off[8]) - 40) / 50, 0, 1.4) : 0)
+      const dcSepV165D = !dcV165D ? 0 : (blitzer ? TU("dcHotSepV165D", .5) * cl((awE(S.off[8]) - 55) / 40, -1, 1.2) : 0)   // a QB who never saw it is late to his read
         - TU("dcPassKeySepV165D", .35) * Math.max(0, -dcV165D.runKey)
         + (playAction ? TU("dcPaSepV165D", .6) * Math.max(0, dcV165D.runKey) : 0);   // a keyed second level came up for the fake
       const _elig = S.off.filter(a=>["WR","TE","RB"].includes(a.lb) && a.route);
@@ -3285,6 +3285,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       if(_seen.length>1&&Math.random()<_badReadP)_choice=_seen[Math.floor(Math.random()*_seen.length)];
       if(S.off[8].player&&S.off[8].player.you&&_seen.length>1){ const V=root.__V165B; V.qbReads=(V.qbReads||0)+1;   // v165 B: did HE throw to the best read he saw
         const _top=_seen.reduce((m,r)=>r.score>m.score?r:m,_seen[0]); if(_choice===_top) V.qbBest=(V.qbBest||0)+1; }
+      if(_choice&&dcV165D){ const V=root.__V165B, k=blitzer?"B":"N"; V["dcSep"+k]=(V["dcSep"+k]||0)+_choice.sep; V["dcSepN"+k]=(V["dcSepN"+k]||0)+1; }   // v165 D: the window he threw into, by call
       if(_choice){ target=_choice.a; coverA=_choice.d; sep=_choice.sep; throwWindow=_choice.window;
         const e=target.route[target.route.length-1]; target._throwLX=e.lx; target._throwY=e.y; routeDepth=Math.max(-2,e.lx/YD); }
       const relWin = sep > -1.05;

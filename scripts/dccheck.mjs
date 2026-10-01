@@ -2,8 +2,9 @@
 //   FieldSim plays the call, on paired seeds (the readcheck roster, `__FieldSim.run` / `.pass` with `opts.dcV165D`):
 //     1. a run key stops a straight run (lower YPC than no key);
 //     2. and pays for it against play action (higher PA YPA than no key) — tendencies feed the coordinator, mixing beats him;
-//     3. a called blitz is a hot read for a QB who sees it: a sharp QB's YPA against the blitz beats a dull one's by more
-//        than it does against no blitz;
+//     3. a called blitz is a hot read for a QB who sees it: the window a sharp QB throws into opens against it and a dull
+//        one's closes (the scan's separation, by call — YPA is too noisy for a difference of differences), and the sharp
+//        one gains on it;
 //   simGameV2 calls it (`window.__V165Dlog`):
 //     4. third-and-long draws more blitzes than first down;
 //     5. a run-heavy offense gets keyed: the defense's run key in the second half sits well above zero at the UFF,
@@ -60,11 +61,15 @@ const out = await page.evaluate(({ N, GAMES }) => {
   const res = { fs: {}, game: {} }
   const fs = res.fs, SEEDS = [0xC0FFEE, 0xBEEF, 0xD00D]
   const pool = (kind, opts, over) => +(SEEDS.reduce((s, sd) => s + cell(kind, sd, opts, over), 0) / SEEDS.length).toFixed(2)
+  const sepOf = (opts, over) => { const V = window.__V165B; V.dcSepB = V.dcSepN = V.dcSepNB = V.dcSepNN = 0; pool('pass', opts, over)
+    return +((opts.dcV165D.blitz ? V.dcSepB / Math.max(1, V.dcSepNB) : V.dcSepN / Math.max(1, V.dcSepNN))).toFixed(3) }
   fs.runNoKey = pool('run', { dcV165D: dc(0) }); fs.runKey = pool('run', { dcV165D: dc(0.8) })
   fs.paNoKey = pool('pass', { pa: true, dcV165D: dc(0) }); fs.paKey = pool('pass', { pa: true, dcV165D: dc(0.8) })
   const dull = { QB: { awareness: 35 } }, sharp = { QB: { awareness: 95 } }
   fs.dullNo = pool('pass', { dcV165D: dc(0, false) }, dull); fs.dullBlitz = pool('pass', { dcV165D: dc(0, true) }, dull)
   fs.sharpNo = pool('pass', { dcV165D: dc(0, false) }, sharp); fs.sharpBlitz = pool('pass', { dcV165D: dc(0, true) }, sharp)
+  fs.sepDullNo = sepOf({ dcV165D: dc(0, false) }, dull); fs.sepDullBlitz = sepOf({ dcV165D: dc(0, true) }, dull)
+  fs.sepSharpNo = sepOf({ dcV165D: dc(0, false) }, sharp); fs.sepSharpBlitz = sepOf({ dcV165D: dc(0, true) }, sharp)
   // ---- simGameV2 cells ----
   const names = ['speed', 'acceleration', 'quickness', 'agility', 'strength', 'catching', 'throwing', 'tackling', 'blocking', 'awareness', 'vision', 'grit', 'stamina', 'jumping', 'ballControl', 'discipline', 'injuryResist']
   const flat = v => Object.fromEntries(names.map(k => [k, v]))
@@ -96,7 +101,8 @@ const ok = (name, pass) => checks.push({ name, pass: !!pass })
 const F = out.fs, G = out.game
 ok(`a run key stops a straight run (${F.runNoKey} -> ${F.runKey} YPC)`, F.runKey < F.runNoKey - 0.2)
 ok(`and pays for it against play action (${F.paNoKey} -> ${F.paKey} PA YPA)`, F.paKey > F.paNoKey + 0.2)
-ok(`a called blitz is a hot read for a QB who sees it (sharp ${F.sharpNo} -> ${F.sharpBlitz}, dull ${F.dullNo} -> ${F.dullBlitz} YPA)`, (F.sharpBlitz - F.sharpNo) > (F.dullBlitz - F.dullNo) + 0.3)
+ok(`a called blitz is a hot read for a QB who sees it: the window he throws into opens (sep ${F.sepSharpNo} -> ${F.sepSharpBlitz}) and closes on one who does not (${F.sepDullNo} -> ${F.sepDullBlitz})`, F.sepSharpBlitz > F.sepSharpNo + 0.2 && F.sepDullBlitz < F.sepDullNo)
+ok(`and the sharp one makes it pay (${F.sharpNo} -> ${F.sharpBlitz} YPA; dull ${F.dullNo} -> ${F.dullBlitz})`, F.sharpBlitz > F.sharpNo)
 ok(`third-and-long draws more blitzes than first down (${G.blitz3rd} vs ${G.blitz1st}, ${G.snaps} snaps)`, G.blitz3rd > G.blitz1st + 0.06)
 ok(`a run-heavy offense gets keyed at the UFF (second-half run key ${G.keyUff})`, G.keyUff >= 0.2)
 ok(`a Pee Wee coordinator keys it far less (${G.keyKid} vs ${G.keyUff})`, G.keyKid < G.keyUff * 0.5)
