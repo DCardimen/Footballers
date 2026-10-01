@@ -59,8 +59,8 @@ const out = await page.evaluate((GAMES) => {
   const rbLo = run(7, 'RB', mind(250, 120), GAMES), rbHi = run(7, 'RB', mind(250, 600), GAMES)
   const wrLo = run(7, 'WR', mind(250, 120), GAMES), wrHi = run(7, 'WR', mind(250, 600), GAMES)
   // v165 H: the same mid corner (sheet 200, mind 300 — under the v76 cap) with the eyes off and on, on the same seeds
-  window.RIB_TUNE.v165Heyes = 0; const cbLo = run(7, 'CB', mind(200, 300), GAMES); window.RIB_TUNE.v165Heyes = 1
-  const cbHi = run(7, 'CB', mind(200, 300), GAMES)
+  window.RIB_TUNE.v165Heyes = 0; const cbLo = run(7, 'CB', mind(200, 300), GAMES * 2); window.RIB_TUNE.v165Heyes = 1
+  const cbHi = run(7, 'CB', mind(200, 300), GAMES * 2)   // a corner sees few balls: twice the games
   res.decide = {
     wrLo: r3(wrLo.wrSep), wrHi: r3(wrHi.wrSep), wrN: wrLo.wrSepN + wrHi.wrSepN,
     intLo: r3(cbLo.intP), intHi: r3(cbHi.intP), intN: cbLo.intN + cbHi.intN,
