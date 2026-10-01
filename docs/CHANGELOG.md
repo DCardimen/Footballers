@@ -10,6 +10,19 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v168 — the season, redrawn.** (`src/32-season-ui.js` new, `src/07-career-app.js`, `src/22-hub-sections.js`,
+  `src/25-shell.js`, `src/28-cosmetics.js`, `scripts/v168check.mjs`.) The career screens explained themselves in
+  paragraphs; the main menu says almost nothing and looks better for it. Every card's explanations now fold behind one ⓘ
+  that opens a bottom sheet with the same words (the body card, the opponent card, every pregame step, the league, the
+  coach summary, training, the board / path / goals / tree / dynasty intros, the standings, the dock's watch-live note),
+  and a tab that runs long ends on a ‹ previous · next › pager. The season screen opens on a HERO in the menu's
+  language — your crest, the record, your league place, the season as pips with the playoff line, the next game as a
+  matchup — and gains a LEAGUE tab (the table with crests and the bracket line). The opponent and post-game cards wear
+  crests and the gold frame; the post-game card shows what the game did to the season; the hub's player card carries a
+  season strip that opens the season; the season report's GRADE tab says where the year finished. Accordion titles end
+  on a whole word (no more "CAREER PULSEYOUR PERFORMANCE"). Fixes: the recap skins scoped only the first selector of a
+  rule, so the cover skin greyed every card's small print on every screen; the v167 league could draw your own mascot.
+  Kill switches `v168info`, `v168season`.
 - **v167 — the league is real.** (`src/07-career-app.js`, `scripts/leaguecheck.mjs`.) There was no league: every week's
   opponent was a fresh random name and rating, the standings were nine invented teams you never played, the playoff
   opponent was another fresh name, and the scorebug's opponent record was a hash of his name modulo your games played,

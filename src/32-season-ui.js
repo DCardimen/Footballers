@@ -26,12 +26,16 @@
     { sel: ".condition-card-v11 > .small", group: ".condition-card-v11", t: "The fatigue dial" },
     { sel: ".opponent-card-v11 > .small", group: ".opponent-card-v11", t: "Scouting" },
     { sel: ".gs-head > small", group: ".gs-wrap-v23", anchor: ".gs-head", title: function (el) { var h = el.parentNode; return h ? (h.firstChild && h.firstChild.textContent || "").replace(/^[^A-Za-z]+/, "").trim() : "" } },
-    { sel: ".v112-imp-note", group: "*", t: "How to read this" },
+    { sel: ".v112-imp-note", skip: ".v136-imp", group: "*", t: "How to read this" },   // the rivalry approach's note says when it counts: it stays
     { sel: ".coach-sum-v136 > .small", group: ".coach-sum-v136", t: "The coach's summary" },
     { sel: ".lg-note-v168", group: ".league-card-v168", anchor: ".lg-head-v168", t: "How the league works" },
     { sel: "#screen > .tp-note-v133", group: "#screen", anchor: "#screen > .h1", sheet: "Choosing your training", t: "The coach's suggestion" },
     { sel: "#screen > .tp-tierkey-v133", group: "#screen", anchor: "#screen > .h1", sheet: "Choosing your training", t: "Reading the cards" },
     { sel: "#screen > .st-note-v168", group: "#screen", anchor: "#screen > .h1", sheet: "The standings", t: "Making the playoffs" },
+    { sel: ".tp-panel-v113 > .threshold-note", group: ".tp-panel-v113", t: function (el) { return /TRADES/.test(el.textContent) ? "The trade" : /ROLL/.test(el.textContent) ? "The roll" : /RISK/.test(el.textContent) ? "The risk" : "The program" }, sheet: "This program" },
+    /* a screen's long intro under its title (the board, the path, goals, the tree, the dynasty) */
+    { sel: "#screen > .sub", views: { rank: 1, path: 1, challenges: 1, shop: 1, dynasty: 1 }, minLen: 100, group: "#screen", anchor: "#screen > .h1", t: "About this screen" },
+    { sel: "#screen > .card > .small, #screen > .small.center", views: { rank: 1 }, minLen: 90, group: "#screen", anchor: "#screen > .h1", t: "How you climb" },
     { sel: "#dock .watch-note-v164c", group: "#dock", dock: true, t: "Watch live or Quick Play" }
   ];
   var ANCHORS = ".impact-kicker,.gs-head,.lg-head-v168,.decision-kicker,.eyebrow,.h2";
@@ -44,7 +48,7 @@
     var b = g.__ribiV168;
     if (b && b.isConnected) return b;
     b = document.createElement("button");
-    b.type = "button"; b.className = "ribi-btn-v168"; b.setAttribute("aria-label", "More information"); b.textContent = "i";
+    b.type = "button"; b.className = "ribi-btn-v168"; b.setAttribute("aria-label", "More information");
     b.addEventListener("click", function (ev) { ev.preventDefault(); ev.stopPropagation(); openFor(g) });
     if (r.dock) {
       b.className += " ribi-dock-v168 btn ghost"; b.textContent = "ⓘ";
@@ -59,15 +63,19 @@
   }
   function fold() {
     if (!on()) return;
+    var view = ""; try { view = (window.S && window.S.view) || "" } catch (e) {}
     var d = document.querySelector("#dock .ribi-dock-v168"), row = d && d.parentNode && d.parentNode.classList.contains("qa-row-v146") ? d.parentNode : document.querySelector("#dock .qa-row-v146");
     if (d && row && row.firstChild !== d) row.insertBefore(d, row.firstChild);   // the shell files chips in DOM order: keep the ⓘ up front
     for (var i = 0; i < RULES.length; i++) {
-      var r = RULES[i], list = document.querySelectorAll(r.sel);
+      var r = RULES[i]; if (r.views && !r.views[view]) continue;
+      var list = document.querySelectorAll(r.sel);
       for (var j = 0; j < list.length; j++) {
         var el = list[j];
         if (el.classList.contains("ribi-f-v168") || !(el.textContent || "").trim()) continue;
+        if (r.minLen && (el.textContent || "").trim().length < r.minLen) continue;
+        if (r.skip && el.closest(r.skip)) continue;
         var g = groupOf(el, r); if (!g) continue;
-        el.dataset.ribiT = (r.title ? r.title(el) : r.t) || "More";
+        el.dataset.ribiT = (r.title ? r.title(el) : typeof r.t === "function" ? r.t(el) : r.t) || "More";
         if (r.sheet) g.__ribiSheetV168 = r.sheet;
         el.classList.add("ribi-f-v168");
         btnFor(g, r);
@@ -101,7 +109,7 @@
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSheet() });
 
   /* the pager: a tabbed section that runs past the panel ends on its neighbours */
-  var PAGER_VIEWS = { season: 1, hub: 1, result: 1, profile: 1, settings: 1 };
+  var PAGER_VIEWS = { season: 1, hub: 1, result: 1 };
   function pager() {
     if (!on()) return;
     var v = ""; try { v = window.S && window.S.view } catch (e) {}
@@ -124,7 +132,7 @@
       var b = e.target.closest("[data-go]"); if (!b) return;
       var t = scr.querySelector('.hubv75-tab[data-sec="' + b.dataset.go + '"]'); t && t.click();
     });
-    box.appendChild(p);
+    sec.appendChild(p);   // after the section's own blocks — never inside a card
   }
 
   /* the hub's NOW tab carries the season strip (07 seasonStripV168) under the player card */
@@ -142,12 +150,14 @@
     /* ⓘ */
     ".ribi-f-v168,.ribi-f-v168+.more-v139{display:none!important}",
     ".ribi-host-v168{display:flex!important;align-items:center;gap:8px;white-space:nowrap}",
-    ".ribi-host-v168 > .ribi-btn-v168{margin-left:6px}",
-    ".ribi-btn-v168{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;min-width:22px;padding:0;margin-left:auto;border-radius:50%;border:1px solid rgba(230,178,58,.6);background:rgba(230,178,58,.1);color:#ffd66b;font:italic 700 13px Georgia,serif;line-height:1;cursor:pointer;box-shadow:0 0 0 3px rgba(230,178,58,.06);-webkit-tap-highlight-color:transparent}",
-    ".ribi-btn-v168:hover{background:rgba(230,178,58,.22)}",
-    ".ribi-btn-v168:before{content:'';position:absolute;inset:-9px}", /* a 40px thumb target around a 22px dot */
-    ".ribi-btn-v168{position:relative}",
-    ".ribi-abs-v168{position:relative}.ribi-btn-v168.abs{position:absolute;top:10px;right:10px;z-index:2}",
+    ".ribi-host-v168 > .ribi-btn-v168{margin-left:0}",
+    /* a 36px thumb target (v153 E) around a 22px dot; the "i" is drawn, so the heading's text never gains a letter */
+    ".ribi-btn-v168{position:relative;flex:0 0 auto;display:inline-block;width:36px;height:36px;min-width:36px;padding:0;margin:-7px -7px -7px auto;border:0;border-radius:50%;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent;vertical-align:middle}",
+    ".ribi-btn-v168:before{content:'';position:absolute;left:7px;top:7px;width:20px;height:20px;border-radius:50%;border:1px solid rgba(230,178,58,.6);background:rgba(230,178,58,.1);box-shadow:0 0 0 3px rgba(230,178,58,.06)}",
+    ".ribi-btn-v168:after{content:'i';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ffd66b;font:italic 700 13px/1 Georgia,serif}",
+    ".ribi-btn-v168:hover:before{background:rgba(230,178,58,.22)}",
+    ".ribi-abs-v168{position:relative}.ribi-btn-v168.abs{position:absolute;top:4px;right:4px;margin:0;z-index:2}",
+    "#dock .ribi-dock-v168.btn:before,#dock .ribi-dock-v168.btn:after{content:none!important}",
     "#dock .ribi-dock-v168.btn{flex:0 0 auto!important;width:44px!important;min-width:44px!important;height:auto;padding:0!important;font:400 20px/1 system-ui,sans-serif!important;color:#ffd66b!important;border-radius:12px!important;border-color:rgba(230,178,58,.55)!important;font-style:normal!important;box-shadow:none}",
     "#ribiSheetV168{position:fixed;inset:0;z-index:2147480000;display:flex;align-items:flex-end;justify-content:center;pointer-events:auto}",
     "#ribiSheetV168 .ribi-back{position:absolute;inset:0;background:rgba(4,5,8,.62);opacity:0;transition:opacity .2s ease;backdrop-filter:blur(2px)}",
@@ -172,7 +182,7 @@
     ".sx-old-v168{display:none!important}",
     "#screen:has(.sx-hero-v168) > .eyebrow,#screen:has(.sx-hero-v168) > .h1{display:none!important}",
     "#screen:has(.sx-hero-v168) .press-strip{gap:5px!important;margin:2px 0 0!important;flex-wrap:nowrap!important;overflow:hidden}",
-    "#screen:has(.sx-hero-v168) .press-strip .press-chip{padding:3px 9px!important;font-size:10.5px!important;white-space:nowrap}",
+    "#screen:has(.sx-hero-v168) .press-strip .press-chip{padding:3px 9px!important;font-size:11px!important;white-space:nowrap}",
     "#screen:has(.sx-hero-v168) .press-strip .press-chip:nth-child(n+4){display:none!important}",
     ".sx-hero-v168{position:relative;margin:8px 0 12px;padding:12px 12px 12px;border:1px solid rgba(230,178,58,.45);border-radius:14px;overflow:hidden;" +
       "background:radial-gradient(120% 90% at 0 0,rgba(230,178,58,.17),transparent 55%),linear-gradient(180deg,#1d2026,#121418);box-shadow:0 12px 30px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.6)}",
@@ -180,13 +190,13 @@
     ".sx-hero-v168 .sx-top{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px}",
     ".sx-hero-v168 .crest-v168{display:block;border-radius:10px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.6))}",
     ".crest-v168.letter{display:inline-flex;align-items:center;justify-content:center;background:#2a2f38;color:#ffd66b;font:700 14px Oswald,sans-serif;font-style:normal}",
-    ".sx-team{min-width:0}.sx-team small{display:block;font:600 10.5px Oswald,sans-serif;letter-spacing:1.6px;color:#e6b23a;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    ".sx-team{min-width:0}.sx-team small{display:block;font:600 11px Oswald,sans-serif;letter-spacing:1.6px;color:#e6b23a;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
     ".sx-team b{display:block;font:700 20px/1.1 Oswald,sans-serif;letter-spacing:.5px;color:#fff;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
     ".sx-rec{text-align:right}.sx-rec b{display:block;font:700 34px/1 Oswald,sans-serif;color:#fff;letter-spacing:.5px}",
-    ".sx-rec small{display:block;margin-top:2px;font:600 10px Oswald,sans-serif;letter-spacing:1.8px;color:#9aa0aa}",
+    ".sx-rec small{display:block;margin-top:2px;font:600 11px Oswald,sans-serif;letter-spacing:1.8px;color:#9aa0aa}",
     ".sx-race{margin-top:12px}",
     ".sx-race-k{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}",
-    ".sx-race-k span{font:600 10.5px Oswald,sans-serif;letter-spacing:2px;color:#9aa0aa}",
+    ".sx-race-k span{font:600 11px Oswald,sans-serif;letter-spacing:2px;color:#9aa0aa}",
     ".sx-race-k b{font:700 12.5px Oswald,sans-serif;letter-spacing:1.4px;color:#ffd66b}",
     ".sx-hero-v168.in .sx-race-k b,.sx-hero-v168.champ .sx-race-k b{color:#7ddc6e}.sx-hero-v168.out .sx-race-k b{color:#ff8a80}",
     ".pips-v168{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:5px}",
@@ -198,8 +208,8 @@
     ".pip-v168.line:after{content:'';position:absolute;right:-4px;top:-5px;bottom:-5px;width:2px;border-radius:2px;background:#ffd66b;box-shadow:0 0 6px rgba(255,214,107,.6)}",
     ".sx-race-foot{display:flex;justify-content:space-between;margin-top:5px;font:500 11px 'Barlow Condensed',sans-serif;color:#9aa0aa;letter-spacing:.4px}",
     ".sx-next-v168{margin-top:12px;padding-top:11px;border-top:1px solid rgba(255,255,255,.08)}",
-    ".sx-next-k{display:flex;align-items:center;gap:8px;font:600 10.5px Oswald,sans-serif;letter-spacing:2px;color:#9aa0aa}",
-    ".stake-v168{margin-left:auto;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.14);font:700 10.5px Oswald,sans-serif;letter-spacing:1.4px;color:#cfd5de}",
+    ".sx-next-k{display:flex;align-items:center;gap:8px;font:600 11px Oswald,sans-serif;letter-spacing:2px;color:#9aa0aa}",
+    ".stake-v168{margin-left:auto;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.14);font:700 11px Oswald,sans-serif;letter-spacing:1.4px;color:#cfd5de}",
     ".stake-v168.riv{color:#ff8a80;border-color:rgba(255,122,122,.55);background:rgba(255,90,90,.08)}",
     ".stake-v168.po{color:#ffd66b;border-color:rgba(230,178,58,.6);background:rgba(230,178,58,.1)}",
     ".sx-mu{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;margin-top:8px}",
@@ -218,10 +228,10 @@
     /* the league tab (07 leagueCardV168) */
     ".league-card-v168{margin:4px 0 8px;padding:12px;border:1px solid rgba(230,178,58,.35);border-radius:14px;background:linear-gradient(180deg,#1b1e24,#14161a);box-shadow:0 12px 30px rgba(0,0,0,.4)}",
     ".lg-head-v168{display:flex!important;flex-wrap:wrap;align-items:center;gap:2px 8px;margin-bottom:10px}",
-    ".lg-head-v168 .k{flex:0 0 100%;font:600 10.5px Oswald,sans-serif;letter-spacing:2.4px;color:#e6b23a}",
+    ".lg-head-v168 .k{flex:0 0 100%;font:600 11px Oswald,sans-serif;letter-spacing:2.4px;color:#e6b23a}",
     ".lg-head-v168 b{font:700 17px Oswald,sans-serif;letter-spacing:.6px;color:#fff;text-transform:uppercase}",
-    ".lg-head-v168 .sub{margin-left:auto;font:600 10px Oswald,sans-serif;letter-spacing:1.4px;color:#9aa0aa}",
-    ".lg-head-v168 .ribi-btn-v168{margin-left:6px}",
+    ".lg-head-v168 .sub{margin-left:auto;font:600 11px Oswald,sans-serif;letter-spacing:1.4px;color:#9aa0aa}",
+    ".lg-head-v168 .ribi-btn-v168{margin-left:0}",
     ".lg-rows-v168{display:flex;flex-direction:column;gap:4px}",
     ".lg-row-v168{display:grid;grid-template-columns:20px 26px 1fr 42px 40px;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.04)}",
     ".lg-row-v168 .crest-v168{border-radius:6px}",
@@ -229,11 +239,11 @@
     ".lg-row-v168.me{background:linear-gradient(90deg,rgba(240,187,69,.2),rgba(240,187,69,.05));border-color:rgba(230,178,58,.65)}",
     ".lg-rk{font:700 14px Oswald,sans-serif;color:#9aa0aa;text-align:center}",
     ".lg-nm{min-width:0;font:700 14px Oswald,sans-serif;letter-spacing:.5px;color:#f2f3f5;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-    ".lg-nm em{font:700 9.5px Oswald,sans-serif;font-style:normal;letter-spacing:1.2px;color:#1a1205;background:#ffd66b;border-radius:4px;padding:1px 4px;vertical-align:2px}",
+    ".lg-nm em{font:700 11px Oswald,sans-serif;font-style:normal;letter-spacing:1.2px;color:#1a1205;background:#ffd66b;border-radius:4px;padding:1px 4px;vertical-align:2px}",
     ".lg-nm small{display:block;font:500 11px 'Barlow Condensed',sans-serif;letter-spacing:.4px;color:#9aa0aa;text-transform:none}",
     ".lg-wl{font:700 16px Oswald,sans-serif;color:#fff;text-align:right}",
     ".lg-df{font:600 13px Oswald,sans-serif;text-align:right;color:#9aa0aa}.lg-df.up{color:#7ddc6e}.lg-df.dn{color:#ff8a80}",
-    ".lg-cut-v168{display:flex;align-items:center;gap:8px;margin:4px 0;font:600 9.5px Oswald,sans-serif;letter-spacing:2px;color:#e6b23a}",
+    ".lg-cut-v168{display:flex;align-items:center;gap:8px;margin:4px 0;font:600 11px Oswald,sans-serif;letter-spacing:2px;color:#e6b23a}",
     ".lg-cut-v168:before,.lg-cut-v168:after{content:'';flex:1;height:1px;background:repeating-linear-gradient(90deg,rgba(230,178,58,.7) 0 6px,transparent 6px 10px)}",
 
     /* the opponent card (07 Kc) */
@@ -259,15 +269,15 @@
     ".season-strip-v168 .ss-top{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin-bottom:8px}",
     ".season-strip-v168 .crest-v168{border-radius:7px}",
     ".season-strip-v168 .ss-top b{font:700 22px/1 Oswald,sans-serif;color:#fff}",
-    ".season-strip-v168 .ss-top span{font:600 10.5px Oswald,sans-serif;letter-spacing:1.6px;color:#9aa0aa}",
+    ".season-strip-v168 .ss-top span{font:600 11px Oswald,sans-serif;letter-spacing:1.6px;color:#9aa0aa}",
     ".season-strip-v168 .ss-top em{margin-left:auto;font:700 11px Oswald,sans-serif;font-style:normal;letter-spacing:1.2px;color:#ffd66b;white-space:nowrap}",
     ".season-strip-v168.in .ss-top em,.season-strip-v168.champ .ss-top em{color:#7ddc6e}.season-strip-v168.out .ss-top em{color:#ff8a80}",
     ".season-strip-v168 .ss-next{display:flex;align-items:center;justify-content:flex-start;gap:7px;margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07);min-width:0}",
-    ".season-strip-v168 .ss-next span{font:600 10px Oswald,sans-serif;letter-spacing:1.8px;color:#e6b23a}",
+    ".season-strip-v168 .ss-next span{font:600 11px Oswald,sans-serif;letter-spacing:1.8px;color:#e6b23a}",
     ".season-strip-v168 .ss-next .crest-v168{border-radius:5px}",
     ".season-strip-v168 .ss-next b{font:700 14px Oswald,sans-serif;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}",
     ".season-strip-v168 .ss-next small{font:500 12px 'Barlow Condensed',sans-serif;color:#9aa0aa;white-space:nowrap}",
-    ".season-strip-v168 .ss-next em.po{font:700 10px Oswald,sans-serif;font-style:normal;color:#ffd66b;letter-spacing:1px;white-space:nowrap}",
+    ".season-strip-v168 .ss-next em.po{font:700 11px Oswald,sans-serif;font-style:normal;color:#ffd66b;letter-spacing:1px;white-space:nowrap}",
     ".season-strip-v168 .ss-next i{margin-left:auto;font:700 20px/1 Oswald,sans-serif;font-style:normal;color:#e6b23a}",
     "#screen > .sac-v153{margin-top:8px!important}",
     /* the post-game card (07's v13 pgOverlayV13) */

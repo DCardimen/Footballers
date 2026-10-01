@@ -51,6 +51,10 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v168 — the season, redrawn.** Explanations live behind ⓘ buttons (a bottom sheet with the same words), long tabs
+  end on a ‹ previous · next › pager, and the season screen opens on a hero in the main menu's style — crest, record,
+  league place, the playoff race as pips, the next matchup — with a LEAGUE tab, crests on every fixture, a post-game
+  season strip, the hub's season strip and the report's final standings. `src/32-season-ui.js`; `v168check`.
 - **v167 — the league is real.** A season is a league of named, rated teams on a round-robin: the strong teams rise
   up the standings, the playoff field is the top of the table, and the title game is against one of the best teams with
   its real record on the scorebug (no more 0-11 champions-elect). `leaguecheck`.
