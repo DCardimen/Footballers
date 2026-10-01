@@ -10,6 +10,11 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v166 G — the defense pursues as one.** (`src/04-engine.js`, `scripts/teamdefcheck.mjs`.) The last man ran the
+  textbook angle whatever his ratings, and every pursuer aimed at the ball. Now only a last man with the head for it is
+  exempt from his angle error, a sharp pursuer from inside the carrier keeps inside leverage so the cutback runs into him,
+  and a sharp man goes for the ball on the strip. With the same bodies a 90-IQ defense gives up 10.6 YPC and 6.2% house
+  calls, a 35 gives up 17.6 and 13.2%; an ordinary defense holds (12.2 → 12.5). Kill switch `v166Gteam`.
 - **v166 F — the move is a choice.** (`src/04-engine.js`, `scripts/cmovecheck.mjs`.) The contact cascade rolled every
   move against every tackler. Now the carrier picks one for the man in front of him — the cut with room or against a bad
   angle, the hurdle over a low tackle, the stiff-arm when he is stronger, the truck on momentum or near the sticks — a

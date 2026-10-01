@@ -481,7 +481,8 @@
     "v86check",
     "v151Dcheck",
     "blockcheck",
-    "cmovecheck"
+    "cmovecheck",
+    "teamdefcheck"
    ],
    "steps": [
     "`scoreneutralcheck` over several seeds, against the OFF spread (the aim roll changes sample paths)"
@@ -3117,6 +3118,20 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "teamdefcheck": {
+   "file": "scripts/teamdefcheck.mjs",
+   "desc": "v166 G — the defense pursues as one",
+   "areas": [
+    "tackle",
+    "reads"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster, the defense's awareness and discipline at 35 / 90."
   },
   "cmovecheck": {
    "file": "scripts/cmovecheck.mjs",

@@ -4520,7 +4520,8 @@ window.__visionRadiusV96 = visionRadiusV96;
                 const exposure = (G.behind ? TU("stripBehindK", 1) : 0) + G.joined.length * TU("stripHandsK", 1.1);
                 /* v143: hands at the ball or hands at the ankles — a low tackle has no strip in it */
                 const aimStripK = (TU("v143", 1) && c._grip && AIM_FX_V143[c._grip.aim] ? AIM_FX_V143[c._grip.aim].strip : 1);
-                const skill = ((puncher.str * .45 + puncher.tkl * .55) - (c.bc * .72 + c.str * .28)) * TU("stripSkillK", .00055) * aimStripK;
+                const skill = ((puncher.str * .45 + puncher.tkl * .55) - (c.bc * .72 + c.str * .28)) * TU("stripSkillK", .00055) * aimStripK
+                  + (TU("v166Gteam", 1) && iqOnV165B() ? (awE(puncher) - 50) * TU("stripIqKV166G", .00012) : 0);   // v166 G: a sharp man goes for the ball
                 const pPerTick = cl((TU("stripBase", .024) + exposure * TU("stripExposeK", .006) + skill), 0, TU("stripCap", .05)) * (TICK / 100);
                 if (Math.random() < pPerTick) {
                   G.strip = true;
@@ -5095,7 +5096,19 @@ window.__visionRadiusV96 = visionRadiusV96;
           // v30 LAST-MAN RULE: the deepest defender keeps everything in front of him —
           // he runs the textbook angle no matter his ratings, so a busted pursuit
           // upfield doesn't automatically become a walk-in touchdown.
-          const isLastMan = dfd === lastMan;
+          /* ===== v166 G THE DEFENSE PURSUES AS ONE =====
+           * Two rules made pursuit a crowd of individuals. The LAST MAN ran the textbook angle whatever his ratings (v30) —
+           * now only a last man with the head for it (`awE`·.55 + `discE`·.45 past `lastManIqV166G`) is exempt from his
+           * angle error, so a dull safety gives up the house call a sharp one never does. And every pursuer aimed at the
+           * ball: now a sharp one (`pursuitIqV166G`) coming from INSIDE the carrier keeps inside leverage — his aim point
+           * holds `insideLevPxV166G` px to the inside of the ball, so the cutback runs into him instead of past him. The
+           * strip (v103) reads the puncher's IQ too (`stripIqKV166G`). No draws. Kill switch `v166Gteam` 0. `root.__V166G`
+           * (`levTicks`, `dullLastMen`); `teamdefcheck.mjs`. */
+          const tdOn = TU("v166Gteam", 1) && iqOnV165B();
+          const V166G = root.__V166G = root.__V166G || { levTicks: 0, dullLastMen: 0 };
+          const dfdIq = awE(dfd)*0.55 + discE(dfd)*0.45;
+          const isLastMan = dfd === lastMan && !(tdOn && dfdIq < TU("lastManIqV166G", 54));
+          if (tdOn && dfd === lastMan && !isLastMan && !dfd._dullLastV166G) { dfd._dullLastV166G = 1; V166G.dullLastMen++; }
           if (!isLastMan) {
             if (dfd._angErr >= 0) lead *= 1 + dfd._angErr;                     // overruns the intercept
             else lead *= Math.max(0.2, 1 + dfd._angErr);                        // late read: chases the body
@@ -5196,6 +5209,10 @@ window.__visionRadiusV96 = visionRadiusV96;
           const refresh = cl(TU("angleRefreshMs", 220) - (dfd.aware-50)*3 - (dfd.quick-50)*1.2, 90, 520);
           if (dfd._aimUntil == null || t >= dfd._aimUntil || gap < TU("angleLockGap", 28) || isLastMan) {
             dfd._aimX = c.lx + (c._dx||0)*c.spd*lead; dfd._aimY = clampY(c.y + (c._dy||0)*c.spd*lead + latErr);
+            // v166 G: a sharp man from inside the carrier keeps his inside hip — the cutback lane is his
+            if (tdOn && !isLastMan && committerId !== dfd.id && dfdIq >= TU("pursuitIqV166G", 60) && gap > TU("angleLockGap", 28)
+                && Math.abs(dfd.y - MIDY) < Math.abs(c.y - MIDY)) {
+              dfd._aimY = clampY(dfd._aimY + Math.sign(MIDY - c.y) * TU("insideLevPxV166G", 14) * cl((dfdIq - 50) / 40, 0, 1.2)); V166G.levTicks++; }
             dfd._aimUntil = t + refresh;
           }
           mv(dfd, dfd._aimX, dfd._aimY, beatenPace);
