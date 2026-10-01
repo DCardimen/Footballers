@@ -2132,8 +2132,8 @@ window.__visionRadiusV96 = visionRadiusV96;
      * rushing, not a lineman, not stunned; `skip` leaves out one man), `progOpenPxV165K` px even, `progPxPerSepV165K` px a
      * unit — and every route on the scan carries `_sepLive`, refreshed every `liveEveryTicksV166B` ticks. The look the
      * broadcast draws is the live window of the man he is looking at; the check-down and the throw-ahead fallback take
-     * the most OPEN read now; and a second defender sitting on the target (`liveHelpPxV166B`) squeezes his window
-     * (`liveHelpPullV166B` a tick) — the target's own man is still the v33 battle. No draws. Kill switch `v166Blive` 0.
+     * the most OPEN read now; and a second defender sitting on the target (`liveHelpPxV166B`, and closer to him than his own
+     * man) squeezes his window (`liveHelpPullV166B` a tick) — the target's own man is still the v33 battle. No draws. Kill switch `v166Blive` 0.
      * `root.__V166B` (`helpTicks`, `liveCheckdowns`); `livecheck.mjs`. */
     const liveOnV166B = () => !!TU("v166Blive", 1);
     const V166B = root.__V166B = root.__V166B || { helpTicks: 0, liveCheckdowns: 0 };
@@ -2141,6 +2141,56 @@ window.__visionRadiusV96 = visionRadiusV96;
       for (const d of S.def) { if (d === skip || d.engaging || d.blitzing || d.lb === "DL" || (d.stunned && t < d.stunned)) continue;
         const dd = Math.hypot(d.lx - a.lx, d.y - a.y); if (dd < nd) { nd = dd; near = d; } }
       return { a, d: near, px: nd, sep: cl((nd - TU("progOpenPxV165K", 16)) / TU("progPxPerSepV165K", 8), -3.4, 1.8) }; };
+    /* ===== v166 C THE ZONE IS A PLACE =====
+     * v165 J's shell lived only in the QB's grades: on the field every corner still chased the nearest receiver. With a
+     * zone called (cover 2 / cover 3, `opts.dcV165D.shell`), every defender who is not the target's cover man, the
+     * bracket help, a rusher, a spy, a press corner at the line, a bitten man or the robber takes a LANDMARK at the snap
+     * (`zoneSpotV166C`: cover 2 — corners squat in the flats, safeties split the deep halves, backers take the hooks;
+     * cover 3 — corners and the deep safety take thirds, the other safety the curl-flat, backers the hooks), sits in it
+     * and matches the most dangerous receiver who enters it (`zoneRadV166C` px) — over the top in a deep zone, under him in
+     * a short one (`zoneMatchV166C`) — and once the ball is in the air a zone man near the catch point breaks on it after
+     * his reaction (`zoneBreakPxV166C`, his `reactMs` and IQ). A linebacker still waits for his read (`lbDrops`). Man
+     * coverage is the old movement. No draws in the zone path (it skips the corner's wrong-way roll). Kill switch
+     * `v166Czone` 0. `root.__V166C` (`zoneTicks`, `breaks`); `zonecheck.mjs`. */
+    const V166C = root.__V166C = root.__V166C || { zoneTicks: 0, breaks: 0 };
+    const zoneSpotV166C = (a, shell) => {
+      const side = Math.sign(a.y - MIDY) || 1, Y = YD;
+      const lbs = S.def.filter(d => d.lb === "LB").sort((p, q) => p.y - q.y), li = lbs.indexOf(a), hookY = [MIDY - 60, MIDY, MIDY + 60];
+      const saf = S.def.filter(d => d.lb === "S").sort((p, q) => q.lx - p.lx);
+      if (shell === "cover2") {
+        if (a.lb === "CB") return { lx: 6 * Y, y: MIDY + side * 150, deep: false };
+        if (a.lb === "S") return { lx: 18 * Y, y: MIDY + side * 85, deep: true };
+        if (a.lb === "LB") return { lx: 9 * Y, y: hookY[Math.max(0, li)] || MIDY, deep: false };
+      } else {
+        if (a.lb === "CB") return { lx: 15 * Y, y: MIDY + side * 135, deep: true };
+        if (a.lb === "S") return a === saf[0] ? { lx: 19 * Y, y: MIDY, deep: true } : { lx: 7 * Y, y: MIDY + side * 115, deep: false };
+        if (a.lb === "LB") return { lx: 9 * Y, y: [MIDY - 45, MIDY, MIDY + 45][Math.max(0, li)] || MIDY, deep: false };
+      }
+      return null; };
+    // false = the old movement plays this man (not a zone defender, or not yet)
+    const zoneMoveV166C = a => {
+      if (a.lb === "DL" || a.blitzing || a._spy || (a._press && t < 200) || (a._robber && disguise && t >= disguise.rotateAt)) return false;
+      if (playAction && a._bite && !seesBall(a)) return false;
+      if (a.lb === "LB") { const plan = lbDrops.find(x => x.a === a); if (!plan || t < plan.readAt) return false;
+        if (!plan.ann) { plan.ann = true; emit("linebackerDrop", { who: a.id, delay: Math.round(plan.readAt), zone: zoneV166C }); } }   // the broadcast still hears the drop
+      if (!a._zoneV166C) a._zoneV166C = zoneSpotV166C(a, zoneV166C);
+      const Z = a._zoneV166C; if (!Z) return false;
+      V166C.zoneTicks++;
+      // the ball is in the air: break on the catch point if it is his to play
+      if (ballFlight && !ballFlight.away && ballFlight.x1 != null) {
+        const dB = Math.hypot(a.lx - ballFlight.x1, a.y - ballFlight.y1), react = (a.reactMs || 250) + Math.max(0, 80 - awE(a)) * 3;
+        if (dB < TU("zoneBreakPxV166C", 110) && t - ballFlight.t0 >= react) { if (!a._brokeV166C) { a._brokeV166C = 1; V166C.breaks++; }
+          mv(a, ballFlight.x1, ballFlight.y1, .95); return true; }
+      }
+      const R = TU("zoneRadV166C", 70), k = TU("zoneMatchV166C", .65);
+      let thr = null, best = 1e9;
+      for (const w of S.off) { if (!w.route || !["WR", "TE", "RB"].includes(w.lb)) continue;
+        const d = Math.hypot(w.lx - Z.lx, w.y - Z.y); if (d > R) continue;
+        const sc = d - (Z.deep ? w.lx * .3 : 0); if (sc < best) { best = sc; thr = w; } }
+      let ax = Z.lx, ay = Z.y;
+      if (thr) { ax = Z.lx + (thr.lx - Z.lx) * k + (Z.deep ? 10 : -6); ay = Z.y + (thr.y - Z.y) * k; if (Z.deep) ax = Math.max(ax, thr.lx + 8); }
+      mv(a, ax, clampY(ay), .7 + a.cov * .002 + a.quick * .001);
+      return true; };
     // v82: one blocker on one man — used by return-team wedges and the kick teams'
     // jammers. Reaches, holds him for a stretch, sheds off strength/agility against
     // blocking; a shed man is free of everyone for a beat rather than forever.
@@ -2169,6 +2219,7 @@ window.__visionRadiusV96 = visionRadiusV96;
     // v165 D: with a coordinator the blitz is HIS call (`opts.dcV165D.blitz`, made blind in 07); the old 18% draw
     // is still spent so the sample path does not move. On a run his call is a run blitz (the read clock below).
     const dcV165D = iqOnV165B() && opts && opts.dcV165D ? opts.dcV165D : null;
+    const zoneV166C = kind === "pass" && TU("v166Czone", 1) && dcV165D && (dcV165D.shell === "cover2" || dcV165D.shell === "cover3") ? dcV165D.shell : null;   // v166 C
     if (kind === "pass") { const blitzRoll = Math.random();
       if (dcV165D ? dcV165D.blitz : blitzRoll < 0.18) {
         blitzer = S.def.filter(a=>a.lb==="LB")[Math.floor(Math.random()*3)];
@@ -3709,7 +3760,9 @@ window.__visionRadiusV96 = visionRadiusV96;
         if (liveOnV166B() && readProg && !ballFlight && (t / TICK) % TU("liveEveryTicksV166B", 3) < 1) {
           for (const r of readProg) { const a = S.off.find(o => o.id === r.id); if (a && a !== target) a._sepLive = liveSepV166B(a).sep; }
           if (target && coverA) { const h = liveSepV166B(target, coverA);
-            if (h.d && h.d !== coverHelp && h.px < TU("liveHelpPxV166B", 26)) { sep -= TU("liveHelpPullV166B", .05) * (1 - h.px / TU("liveHelpPxV166B", 26)); V166B.helpTicks++; } }
+            // help counts only when he is really there: closer to the receiver than the receiver's own man
+            if (h.d && h.d !== coverHelp && h.px < TU("liveHelpPxV166B", 26) && h.px < Math.hypot(coverA.lx - target.lx, coverA.y - target.y)) {
+              sep -= TU("liveHelpPullV166B", .03) * (1 - h.px / TU("liveHelpPxV166B", 26)); V166B.helpTicks++; } }
         }
         if ((t / TICK) % 6 < 1 && readProg && readProg.length) {
           const _span = Math.max(1, throwAt - readStart), _seg = _span / readProg.length;
@@ -5138,7 +5191,9 @@ window.__visionRadiusV96 = visionRadiusV96;
           if (blkOnV166A() && ["WR","TE","RB"].includes(o.lb) && !(o.engagedBy && !o.engagedBy.shed)) {
             // v166 A: on every carry the skill players block the man who threatens the ball, and the block holds on leverage
             let tgt = o._stalk && !o._stalk.shed2 && !(o._stalk.stunned && t < o._stalk.stunned) ? o._stalk : null;
-            if (!tgt) { tgt = blockTargetV166A(o, c, TU("stalkReachV166A", 110), a => !(a.lb === "DL" && !a.shed) && !a.shed2 && !(a.stunned && t < a.stunned)
+            // after a catch only the men already near him get a block in (`stalkReachPassV166A`) — a receiver across the field
+            // does not arrive in time; on a run they have the whole play to find a man (`stalkReachV166A`)
+            if (!tgt && (kind === "run" || Math.hypot(o.lx - c.lx, o.y - c.y) < TU("passBlockNearPxV166A", 70))) { tgt = blockTargetV166A(o, c, kind === "run" ? TU("stalkReachV166A", 110) : TU("stalkReachPassV166A", 50), a => !(a.lb === "DL" && !a.shed) && !a.shed2 && !(a.stunned && t < a.stunned)
                 && !a._climbedBy && (a.lx - c.lx) * dirSign > -10);
               if (tgt) { o._stalk = tgt; tgt._climbedBy = o.id; } }
             if (tgt) {
@@ -5176,6 +5231,7 @@ window.__visionRadiusV96 = visionRadiusV96;
         S.def.forEach(a=>{
           if(a===coverA){ const aim=coverageAim(a,target); mv(a,aim.lx-sep*2.4,aim.y,.90+a.cov*.0016); }
           else if(a===coverHelp&&bracketed){ const aim=coverageAim(a,target); mv(a,aim.lx+7,aim.y+(a.y<MIDY?-10:10),.78+a.aware*.0018); }
+          else if (zoneV166C && zoneMoveV166C(a)) return;   // v166 C: a zone defender plays his landmark
           else if(a.lb==="CB"){
             // v82: a press corner stays in the receiver's face until the jam resolves
             if (a._press && t < 200) { mv(a, a.lx, a.y, .2); return; }

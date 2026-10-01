@@ -10,6 +10,16 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v166 C — the zone is a place.** (`src/04-engine.js`, `scripts/zonecheck.mjs`.) v165 J's shell lived only in the
+  quarterback's grades; on the field every corner chased the nearest receiver. With a zone called, every defender who is
+  not on the target takes a landmark — cover 2: corners squat in the flats, safeties split the deep halves, backers take
+  the hooks; cover 3: corners and the deep safety take thirds — matches the receiver who enters it (over the top deep,
+  under him short) and breaks on the ball once it is thrown. At the throw corners stand 46 px deep in man, 40 in cover 2,
+  66 in cover 3; go routes against cover 3 complete 53% for 8.9 yards an attempt (man: 56% / 11.0), curls 56%. Kill
+  switch `v166Czone`. Also: v166 A's catch-and-run blocking is only for the men already near the catch (an in-stride
+  catch with every receiver sprinting to block made 20-yard completions), v166 B's help squeezes only when he is closer
+  than the receiver's own man, `stridecheck`'s blanket row counts the throws to the blanketed man (since v165 K the
+  passer leaves him: 38 throws of 160 against 103), and `dccheck`'s blitz row compares the sharp passer to the dull one.
 - **v166 B — every route is live.** (`src/04-engine.js`, `scripts/livecheck.mjs`.) Only the target had a live
   separation; every other route was graded once at the snap, so the check-down, the throw-ahead fallback and the scan the
   broadcast drew all read a picture from before the snap. Now every scanned route carries its window off the field as

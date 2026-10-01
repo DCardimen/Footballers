@@ -130,7 +130,7 @@ const F = out.fs, G = out.game
 ok(`a run key stops a straight run (${F.runNoKey} -> ${F.runKey} YPC)`, F.runKey < F.runNoKey - 0.2)
 ok(`and pays for it against play action (${F.paNoKey} -> ${F.paKey} PA YPA)`, F.paKey > F.paNoKey + 0.2)
 ok(`a called blitz is a hot read for a QB who sees it: the window he throws into opens (sep ${F.sepSharpNo} -> ${F.sepSharpBlitz}) and closes on one who does not (${F.sepDullNo} -> ${F.sepDullBlitz})`, F.sepSharpBlitz > F.sepSharpNo + 0.2 && F.sepDullBlitz < F.sepDullNo)
-ok(`and the sharp one makes it pay (${F.sharpNo} -> ${F.sharpBlitz} YPA; dull ${F.dullNo} -> ${F.dullBlitz})`, F.sharpBlitz > F.sharpNo)
+ok(`and against the blitz the sharp one makes it pay where the dull one cannot (${F.sharpBlitz} vs ${F.dullBlitz} YPA against it; ${F.sharpNo} / ${F.dullNo} without)`, F.sharpBlitz > F.dullBlitz + 1.5)
 ok(`third-and-long calls more pressure than first down, and less against a sharp QB (policy ${G.pol3rd} vs ${G.pol1st}, ${G.polSharpQb} against a 95; called ${G.blitz3rd} vs ${G.blitz1st} over ${G.snaps} snaps)`, G.pol3rd > G.pol1st + 0.1 && G.polSharpQb < G.pol3rd && G.blitz3rd > G.blitz1st)
 ok(`a run-heavy offense gets keyed at the UFF (second-half run key ${G.keyUff})`, G.keyUff >= 0.2)
 ok(`a Pee Wee coordinator keys it far less (${G.keyKid} vs ${G.keyUff})`, G.keyKid < G.keyUff * 0.5)

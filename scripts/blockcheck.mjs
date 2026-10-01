@@ -42,7 +42,7 @@ ok(`elite blockers against poor ones: a different run game (${R40.avg} -> ${R90.
 ok(`elite blockers beat average ones (${R65.avg} -> ${R90.avg})`, R90.avg >= R65.avg + 0.4)
 ok(`blocking past 65 pays now — it used to saturate (elite ${O90.avg} before -> ${R90.avg})`, R90.avg >= O90.avg + 0.8)
 ok(`a sealed man is out of the play: runs with a seal gain far more (${R65.sealedAvg} sealed vs ${R65.unsealedAvg} not, average blockers)`, R65.sealedAvg >= R65.unsealedAvg + 3)
-ok(`on a catch-and-run they block too (${P.blocks} blocks over ${P.n} catches), and a seal springs him (${P.sealedAvg} vs ${P.unsealedAvg} a catch)`, P.blocks > P.n && P.sealedAvg >= 2 * P.unsealedAvg)
+ok(`on a catch-and-run the men near him block (${P.blocks} blocks over ${P.n} catches), and a seal springs him (${P.sealedAvg} vs ${P.unsealedAvg} a catch)`, P.blocks > 0.3 * P.n && P.sealedAvg >= 2 * P.unsealedAvg)
 ok(`ratings decide the block: elite blockers are shed far less (${(R90.sheds / R90.blocks).toFixed(2)} vs ${(R40.sheds / R40.blocks).toFixed(2)} a block)`, R90.sheds / R90.blocks < 0.5 * R40.sheds / R40.blocks)
 ok(`kill switch v166Ablock 0: no v166 blocks (${O90.blocks})`, O90.blocks === 0)
 ok('no page errors', errs.length === 0)

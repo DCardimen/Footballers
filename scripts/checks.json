@@ -840,7 +840,8 @@
     "v87check",
     "creditcheck",
     "simcheck",
-    "livecheck"
+    "livecheck",
+    "zonecheck"
    ]
   },
   "rank": {
@@ -3113,6 +3114,19 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "zonecheck": {
+   "file": "scripts/zonecheck.mjs",
+   "desc": "v166 C — the zone is a place",
+   "areas": [
+    "coverage"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster per shell."
   },
   "livecheck": {
    "file": "scripts/livecheck.mjs",
