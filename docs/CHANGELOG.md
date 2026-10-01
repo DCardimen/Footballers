@@ -10,6 +10,12 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v166 — the final pass.** The full regression found the systems interacting: the you-player was keyed whenever he
+  carried 30% of his offense's yards, which an ordinary featured back does, and equal teams tilted (37.5% wins for his
+  side) — the coordinator now keys a man past 40% (`dcYouShareV165D`), and equal talent is back at 52.5%; a sharp passer
+  escaped into rushers — he escapes toward daylight now; and several checks' outcome rows were path noise as later
+  systems landed, so they measure the mechanism (dccheck's play-action window, cmovecheck's paired back) or pool streams
+  (stridecheck's payoff), and readcheck's run-curve ceiling moves to 12 for v166 A.
 - **v166 K — special teams think.** (`src/04-engine.js`, `src/07-career-app.js`, `scripts/stcheck.mjs`.) The fair
   catch was one flat 70% roll whenever a cover man was close. A returner with the head for it now reads the coverage:
   a gunner on top of him is a fair catch (100% against a dull returner's 67%), room is a return (80%). The yards after

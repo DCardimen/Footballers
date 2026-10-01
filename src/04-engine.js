@@ -3776,7 +3776,8 @@ window.__visionRadiusV96 = visionRadiusV96;
           if (pocketOn && awE(qb) < TU("bailIqV166E", 45)) { climb = -TU("bailPxV166E", 8); if (!qb._bailV166E) { qb._bailV166E = 1; V166E.bails++; emit("bail", { x: qb.lx, y: qb.y }); } }
           // he escapes a caving pocket and throws on the move
           if (pocketOn && !qb._roll && !playAction && awE(qb) >= TU("escapeIqV166E", 60) && (qb.agi || 50) >= TU("escapeAgiV166E", 52)
-              && felt.filter(r => Math.hypot(r.lx - qb.lx, r.y - qb.y) < TU("escapePxV166E", 55)).length >= 2) {
+              && felt.filter(r => Math.hypot(r.lx - qb.lx, r.y - qb.y) < TU("escapePxV166E", 55)).length >= 2
+              && !free.some(r => Math.sign(r.y - qb.y) === (slideY >= 0 ? 1 : -1) && Math.hypot(r.lx - qb.lx, r.y - qb.y) < TU("escapePxV166E", 55) * 1.6)) {   // only toward daylight
             qb._roll = slideY >= 0 ? 1 : -1; V166E.escapes++; emit("escape", { side: qb._roll, x: qb.lx, y: qb.y }); }
           if (!qb._slid) { qb._slid = true; emit("pocketSlide",{}); }
           // v23: a defender has broken the line and is closing on the QB — flag him

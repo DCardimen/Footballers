@@ -17071,7 +17071,7 @@
         return {
           runKey: clamp99(lean * iq * seen, -1, 1),
           keyYou: Math.max(
-            clamp99((youShare - TU("dcYouShareV165D", 0.3)) * 2.5 * iq * seen, 0, 1),
+            clamp99((youShare - TU("dcYouShareV165D", 0.4)) * 2.5 * iq * seen, 0, 1),
             defSide === "them" ? repV166J * iq * TU("repKeyKV166J", 0.8) : 0
           ) /* v166 J: he has watched the film */,
           blitzP: clamp99(blitzP * TU("dcBlitzMulV165D", 1), 0.04, 0.45),
