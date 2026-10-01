@@ -10,6 +10,12 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v166 B — every route is live.** (`src/04-engine.js`, `scripts/livecheck.mjs`.) Only the target had a live
+  separation; every other route was graded once at the snap, so the check-down, the throw-ahead fallback and the scan the
+  broadcast drew all read a picture from before the snap. Now every scanned route carries its window off the field as
+  the play runs (a read looked at twice shows two windows 67% of the time, 33% before), the check-down and the fallback
+  take the most open read now, and a second defender sitting on the target squeezes his window. The passing game holds:
+  66% completions and ~10 yards an attempt on and off. Kill switch `v166Blive`.
 - **v166 A — the block holds.** (`src/04-engine.js`, `src/07-career-app.js`, `scripts/blockcheck.mjs`.) A downfield
   block held 150 ms at most and shed at the 8% cap whatever the ratings, a blocked man still made a full tackle from
   17 px, and on a catch-and-run nobody blocked. Now a block is leverage and ratings: a blocker squarely between his man

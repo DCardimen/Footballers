@@ -839,7 +839,8 @@
    "checks": [
     "v87check",
     "creditcheck",
-    "simcheck"
+    "simcheck",
+    "livecheck"
    ]
   },
   "rank": {
@@ -3112,6 +3113,20 @@
    "loadSensitive": true,
    "flaky": [],
    "note": "v150 B: waits for the coach's line to finish typing."
+  },
+  "livecheck": {
+   "file": "scripts/livecheck.mjs",
+   "desc": "v166 B — every route is live",
+   "areas": [
+    "reads",
+    "coverage"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": false,
+   "pureNode": false,
+   "flaky": [],
+   "note": "Three seeded streams of the readcheck roster, on against off."
   },
   "blockcheck": {
    "file": "scripts/blockcheck.mjs",

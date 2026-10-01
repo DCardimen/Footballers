@@ -2125,6 +2125,22 @@ window.__visionRadiusV96 = visionRadiusV96;
         const toBall = Math.hypot(a.lx - c.lx, a.y - c.y) / Math.max(60, a.spd || 120) * 120;
         const sc = toBall * wBall + toMe; if (sc < best) { best = sc; tgt = a; } }
       return tgt; };
+    /* ===== v166 B EVERY ROUTE IS LIVE =====
+     * Only the target had a live separation: every other route was graded ONCE at the snap (`_gradesV87`), so the
+     * check-down, the throw-ahead fallback and the scan the broadcast drew all read a picture from before the snap.
+     * `liveSepV166B(a, skip)` is a receiver's window off the field NOW — the nearest free defender (not blocking, not
+     * rushing, not a lineman, not stunned; `skip` leaves out one man), `progOpenPxV165K` px even, `progPxPerSepV165K` px a
+     * unit — and every route on the scan carries `_sepLive`, refreshed every `liveEveryTicksV166B` ticks. The look the
+     * broadcast draws is the live window of the man he is looking at; the check-down and the throw-ahead fallback take
+     * the most OPEN read now; and a second defender sitting on the target (`liveHelpPxV166B`) squeezes his window
+     * (`liveHelpPullV166B` a tick) — the target's own man is still the v33 battle. No draws. Kill switch `v166Blive` 0.
+     * `root.__V166B` (`helpTicks`, `liveCheckdowns`); `livecheck.mjs`. */
+    const liveOnV166B = () => !!TU("v166Blive", 1);
+    const V166B = root.__V166B = root.__V166B || { helpTicks: 0, liveCheckdowns: 0 };
+    const liveSepV166B = (a, skip) => { let near = null, nd = 1e9;
+      for (const d of S.def) { if (d === skip || d.engaging || d.blitzing || d.lb === "DL" || (d.stunned && t < d.stunned)) continue;
+        const dd = Math.hypot(d.lx - a.lx, d.y - a.y); if (dd < nd) { nd = dd; near = d; } }
+      return { a, d: near, px: nd, sep: cl((nd - TU("progOpenPxV165K", 16)) / TU("progPxPerSepV165K", 8), -3.4, 1.8) }; };
     // v82: one blocker on one man — used by return-team wedges and the kick teams'
     // jammers. Reaches, holds him for a stretch, sheds off strength/agility against
     // blocking; a shed man is free of everyone for a beat rather than forever.
@@ -3689,6 +3705,12 @@ window.__visionRadiusV96 = visionRadiusV96;
         // the final entry is always the target, so the cone is on the thrown-to
         // receiver at release. Decoys read covered (red); the target's verdict is
         // the live separation truth (green when he actually wins).
+        // v166 B: every route on the scan carries its live window; a second man on the target squeezes his
+        if (liveOnV166B() && readProg && !ballFlight && (t / TICK) % TU("liveEveryTicksV166B", 3) < 1) {
+          for (const r of readProg) { const a = S.off.find(o => o.id === r.id); if (a && a !== target) a._sepLive = liveSepV166B(a).sep; }
+          if (target && coverA) { const h = liveSepV166B(target, coverA);
+            if (h.d && h.d !== coverHelp && h.px < TU("liveHelpPxV166B", 26)) { sep -= TU("liveHelpPullV166B", .05) * (1 - h.px / TU("liveHelpPxV166B", 26)); V166B.helpTicks++; } }
+        }
         if ((t / TICK) % 6 < 1 && readProg && readProg.length) {
           const _span = Math.max(1, throwAt - readStart), _seg = _span / readProg.length;
           const _ri = Math.max(0, Math.min(readProg.length - 1, Math.floor((t - readStart) / _seg)));
@@ -3697,10 +3719,11 @@ window.__visionRadiusV96 = visionRadiusV96;
           // v101: the cone the broadcast draws IS the accuracy cone the throw will use — read
           // live, so it visibly opens as the pocket goes and closes back down when it holds
           const _lp = protV101(qb, hurried), _lpan = qb._panicV101 || 0;
-          const _lsep = _r.sep == null ? sep : _r.sep;
+          const _rA = liveOnV166B() && _r.sep != null ? S.off.find(o => o.id === _r.id) : null;   // v166 B: the decoy's window is live
+          const _lsep = _r.sep == null ? sep : (_rA && _rA._sepLive != null ? _rA._sepLive : _r.sep);
           const _lcone = coneYdV101(qb, routeDepth, _lp, _lpan, !!qb._roll || !!qb._slid, _lsep);
           const _liveWindow = windowV101(_lsep, _lcone, _lp);
-          const _lookWindow = _r.window == null ? _liveWindow : _r.window;
+          const _lookWindow = _r.window == null || _rA ? _liveWindow : _r.window;
           emit("look", { to: _r.id, window:_lookWindow, sep:_lsep, open:_lookWindow==="green",
             cone:+_lcone.toFixed(2), prot:+_lp.toFixed(2), panic:+_lpan.toFixed(2) });
           /* ===== v109 THE PUMP FAKE =====
@@ -3785,10 +3808,7 @@ window.__visionRadiusV96 = visionRadiusV96;
         if (TU("v165Kprog", 1) && iqOnV165B() && !qb._progV165K && !qb._eatV146 && !ballFlight && readProg && readProg.length > 1
             && t >= throwAt && !hurried && !opts?.pressured && sep < TU("progRedV165K", -1.2) && awE(qb) >= TU("progIqV165K", 65)) {   // a clean pocket only: there is no time to work reads with a man on him
           qb._progV165K = true;
-          const liveD = S.def.filter(d => !d.engaging && !d.blitzing && d.lb !== "DL" && !(d.stunned && t < d.stunned));
-          const liveSep = a => { let near = null, nd = 1e9; for (const d of liveD) { const dd = Math.hypot(d.lx - a.lx, d.y - a.y); if (dd < nd) { nd = dd; near = d; } }
-            return { a, d: near, sep: cl((nd - TU("progOpenPxV165K", 16)) / TU("progPxPerSepV165K", 8), -3.4, 1.8) }; };
-          const alt = readProg.map(r => S.off.find(o => o.id === r.id)).filter(a => a && a !== target && a.route && a.lx > qb.lx - 4).map(liveSep)
+          const alt = readProg.map(r => S.off.find(o => o.id === r.id)).filter(a => a && a !== target && a.route && a.lx > qb.lx - 4).map(a => liveSepV166B(a))
             .sort((p, q) => q.sep - p.sep)[0];
           if (alt && alt.d && alt.sep > sep + TU("progGainV165K", 1.6) && alt.sep >= TU("progOpenSepV165K", -0.25)) {   // only to a man who is OPEN (a green window)
             emit("progression", { from: target.id, to: alt.a.id, sep0: +sep.toFixed(2), sep1: +alt.sep.toFixed(2) });
@@ -3876,13 +3896,18 @@ window.__visionRadiusV96 = visionRadiusV96;
             // v87: the check-down is a receiver AHEAD of the quarterback, never a back still in protection behind him
             const rb9 = S.off[9], rbOut = rb9 && rb9.route && rb9.lx > qb.lx + TU("checkdownAheadYd", 1) * YD;
             if (rbOut) { emit("read",{to:"off9"}); target = rb9; coverA = S.def.find(a=>a.lb==="LB")||coverA; sep = 0.4; routeDepth = 3; }
+            else if (liveOnV166B()) {   // v166 B: the most OPEN read now, off the field
+              const alt = (_gradesV87||[]).filter(r=>r.a!==target && r.a.lx > qb.lx + YD).map(r => liveSepV166B(r.a)).sort((p2,q2)=>q2.sep-p2.sep)[0];
+              if (alt && alt.d) { emit("read",{to:alt.a.id}); target = alt.a; coverA = alt.d; sep = Math.max(sep, alt.sep); V166B.liveCheckdowns++; } }
             else { const alt = (_gradesV87||[]).filter(r=>r.a!==target && r.a.lx > qb.lx + YD).sort((p2,q2)=>q2.score-p2.score)[0];
               if (alt) { emit("read",{to:alt.a.id}); target = alt.a; coverA = alt.d || coverA; sep = Math.max(sep, alt.sep); } }
           }
           if (target.lx < qb.lx + TU("throwAheadYd", .5) * YD) {
             // v87: a target behind the passer is not a throw
-            const alt = (_gradesV87||[]).filter(r=>r.a.lx > qb.lx + YD).sort((p2,q2)=>q2.score-p2.score)[0];
-            if (alt) { emit("read",{to:alt.a.id}); target = alt.a; coverA = alt.d || coverA; sep = alt.sep; }
+            const alt = liveOnV166B()
+              ? (_gradesV87||[]).filter(r=>r.a.lx > qb.lx + YD).map(r => liveSepV166B(r.a)).filter(r => r.d).sort((p2,q2)=>q2.sep-p2.sep)[0]   // v166 B: live
+              : (_gradesV87||[]).filter(r=>r.a.lx > qb.lx + YD).sort((p2,q2)=>q2.score-p2.score)[0];
+            if (alt) { emit("read",{to:alt.a.id}); target = alt.a; coverA = alt.d || coverA; sep = alt.sep; if (liveOnV166B()) V166B.liveCheckdowns++; }
             else { emit("throwaway",{x:qb.lx,y:qb.y,behind:true});
               out = { kind:"pass", complete:false, intercepted:false, yards:0, behindFix:true };
               if (throwAwayV109(Math.max(2*YD, qb.lx+6*YD), { behind: true })) { phase = "fly"; rec(); continue; }   // v109: a real ball, past the near sideline
