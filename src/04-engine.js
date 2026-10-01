@@ -1758,6 +1758,12 @@ window.__visionRadiusV96 = visionRadiusV96;
     put("cover3", .3, "comeback dig hitch"); put("cover3", .25, "out speed_out"); put("cover3", .2, "cross deep_cross");
     put("cover3", -.1, "slant skinny_post sluggo"); put("cover3", -.15, "corner"); put("cover3", -.2, "post deep_corner");
     put("cover3", -.25, "deep_post"); put("cover3", -.3, "stutter_go"); put("cover3", -.35, "go fade");
+    // centred: across the route tree each shell's fits average zero, so a shell reshuffles WHICH route is open without
+    // opening the passing game as a whole (uncentred, every shell paid ~+0.1 a throw and scoring rose 9%)
+    const ALL = ("go fade seam post deep_post skinny_post corner deep_corner bender deep_cross sluggo post_corner corner_post out_up stutter_go " +
+      "wheel dagger out dig curl cross comeback sail speed_out over stick whip hitch_go deep_dig spot slant flat hitch drag shallow snag " +
+      "pivot angle swing checkdown jerk choice bubble tunnel").split(" ");
+    for (const sh of Object.keys(T)) { const m = ALL.reduce((sum, n) => sum + (T[sh][n] || 0), 0) / ALL.length; for (const n of ALL) T[sh][n] = +((T[sh][n] || 0) - m).toFixed(3); }
     return T;
   })();
   const shellFitV165J = (shell, route) => (shell && SHELL_FIT_V165J[shell] && SHELL_FIT_V165J[shell][route]) || 0;
