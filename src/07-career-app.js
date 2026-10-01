@@ -18415,8 +18415,15 @@
         /* v165 D: the coordinator's call, made blind to the offense's */
         dcSnapV165D = dcPlanV165D(usDrive ? "them" : "us", down, toGo, _(qb2, "awareness"));
         dcSnapV165D.blitz = Math.random() < dcSnapV165D.blitzP;
+        /* v165 J: the shell behind it — man under a blitz and on short yardage, more zone on third-and-long; one draw */
+        if (TU("v165Jshell", 1)) {
+          const wMan = dcSnapV165D.blitz ? 0.7 : toGo <= 3 ? 0.55 : down >= 3 && toGo >= 7 ? 0.25 : 0.4,
+            wC2 = (1 - wMan) * (down >= 3 && toGo >= 7 ? 0.45 : 0.5),
+            rs = Math.random();
+          dcSnapV165D.shell = rs < wMan ? "man" : rs < wMan + wC2 ? "cover2" : "cover3";
+        }
         window.__V165D.last = dcSnapV165D;
-        if (window.__V165Dlog) window.__V165Dlog.push({ def: usDrive ? "them" : "us", n: dcMemV165D[usDrive ? "them" : "us"].n, down, toGo, runKey: dcSnapV165D.runKey, keyYou: dcSnapV165D.keyYou, blitz: dcSnapV165D.blitz });
+        if (window.__V165Dlog) window.__V165Dlog.push({ def: usDrive ? "them" : "us", n: dcMemV165D[usDrive ? "them" : "us"].n, down, toGo, runKey: dcSnapV165D.runKey, keyYou: dcSnapV165D.keyYou, blitz: dcSnapV165D.blitz, shell: dcSnapV165D.shell || null });
         window.__V165D.calls++;
         dcSnapV165D.blitz && window.__V165D.blitzes++;
       }

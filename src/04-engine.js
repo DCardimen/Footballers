@@ -1735,6 +1735,33 @@ window.__visionRadiusV96 = visionRadiusV96;
   const visE = a => iqOnV165B() && a && a.visE != null ? a.visE : a.vis;
   const discE = a => iqOnV165B() && a && a.discE != null ? a.discE : a.disc;
   root.__V165B = { lvlPts: IQ_LVL_V165B, lvl: iqLvlV165B, awE, visE, discE };
+  /* ===== v165 J THE SHELL =====
+   * The defense plays a coverage now, not just "the corner follows the nearest man": v165 D's coordinator calls MAN,
+   * COVER 2 or COVER 3 every snap (07, `opts.dcV165D.shell`), and every route has a matchup against each
+   * (`SHELL_FIT_V165J`, in the scan's separation units): quick breaks, crossers and double moves beat man; seams, posts,
+   * corners and daggers split cover 2 (flats and outs into a squatting corner die); curls, flats, seams and floods eat
+   * cover 3 (go routes into a deep third die). The window a route really gets carries its fit (`shellFitKV165J` × fit);
+   * what the QUARTERBACK sees of it is his recognition — his IQ (`awE`) from `shellRecogPivotV165J` over
+   * `shellRecogSpanV165J` — so a sharp passer reads the shell pre-snap and throws to the route that beats it, and a dull
+   * one grades every route as if nobody were covering it a particular way. No extra draws (the shell is drawn in 07).
+   * Kill switch `v165Jshell` 0 (and `v165Ddc` 0: no call, no shell). `root.__V165B.shellN` / `shellFit` (the mean fit
+   * of the chosen route, every passer); `dccheck.mjs`. */
+  const SHELL_FIT_V165J = (() => {
+    const T = { man: {}, cover2: {}, cover3: {} }, put = (sh, v, names) => names.split(" ").forEach(n => { T[sh][n] = v; });
+    put("man", .45, "whip jerk choice stutter_go hitch_go out_up"); put("man", .5, "sluggo post_corner corner_post");
+    put("man", .4, "slant pivot angle wheel"); put("man", .35, "cross drag shallow"); put("man", .3, "comeback over");
+    put("man", .25, "out speed_out"); put("man", .1, "go fade dig"); put("man", -.1, "stick flat"); put("man", -.2, "curl hitch snag spot");
+    put("cover2", .5, "seam"); put("cover2", .45, "skinny_post corner dagger"); put("cover2", .4, "post sail bender");
+    put("cover2", .35, "deep_post deep_corner dig"); put("cover2", .3, "deep_dig"); put("cover2", .2, "fade curl");
+    put("cover2", -.1, "go"); put("cover2", -.2, "hitch wheel comeback"); put("cover2", -.3, "out speed_out"); put("cover2", -.35, "flat");
+    put("cover3", .45, "seam"); put("cover3", .4, "curl sail"); put("cover3", .35, "flat stick snag spot dagger");
+    put("cover3", .3, "comeback dig hitch"); put("cover3", .25, "out speed_out"); put("cover3", .2, "cross deep_cross");
+    put("cover3", -.1, "slant skinny_post sluggo"); put("cover3", -.15, "corner"); put("cover3", -.2, "post deep_corner");
+    put("cover3", -.25, "deep_post"); put("cover3", -.3, "stutter_go"); put("cover3", -.35, "go fade");
+    return T;
+  })();
+  const shellFitV165J = (shell, route) => (shell && SHELL_FIT_V165J[shell] && SHELL_FIT_V165J[shell][route]) || 0;
+  root.__V165B.shellFit = shellFitV165J;
   function makeAgents(kOff, tDef, att, picks, formation) {
     const byPos = (arr,pos)=>arr.filter(p=>p&&p.pos===pos);
     const avg = (arr,name)=>{ const v=arr.map(p=>att(p,name)).filter(Number.isFinite);
@@ -3249,6 +3276,9 @@ window.__visionRadiusV96 = visionRadiusV96;
       // noise contaminates the grade; young/raw QBs can still lock onto a bad read.
       // The called primary receives a small preference, not a guaranteed target.
       const _window = v => v > -0.25 ? "green" : v > -1.75 ? "yellow" : "red";
+      const shellOnV165J = !!(dcV165D && dcV165D.shell && TU("v165Jshell", 1));
+      const shellRecogV165J = shellOnV165J ? cl((awE(S.off[8]) - TU("shellRecogPivotV165J", 45)) / TU("shellRecogSpanV165J", 45), 0, 1.15) : 0;
+      if (shellOnV165J) emit("shell", { name: dcV165D.shell });
       // v165 D: the call shows up in the windows — a blitz leaves a hot read for a QB who sees it, a pass key sits on routes
       const dcSepV165D = !dcV165D ? 0 : (blitzer ? TU("dcHotSepV165D", .5) * cl((awE(S.off[8]) - 55) / 40, -1, 1.2) : 0)   // a QB who never saw it is late to his read
         - TU("dcPassKeySepV165D", .35) * Math.max(0, -dcV165D.runKey)
@@ -3264,11 +3294,22 @@ window.__visionRadiusV96 = visionRadiusV96;
         // three-color read: clean releases create green/yellow space; lost ones
         // remain red instead of every route collapsing toward an average window.
         const releaseWin=Math.random()<cl(.5+(a.agi-d.cov)*.006,.22,.78);
-        const est=cl((releaseWin?-.25:-2.4)+matchup*.024+leverage+(Math.random()-.5)*.7+dcSepV165D,-3.4,1.8);
+        const raw=(releaseWin?-.25:-2.4)+matchup*.024+leverage+(Math.random()-.5)*.7+dcSepV165D;
+        // v165 J: the route's fit against the called shell is in the real window; the QB sees as much of it as he recognises
+        const fit=shellOnV165J?shellFitV165J(dcV165D.shell,a._routeName)*TU("shellFitKV165J",1):0;
+        const est=cl(raw+fit,-3.4,1.8), seen=cl(raw+fit*shellRecogV165J,-3.4,1.8);
         const depth=Math.max(-2,e.lx/YD), situ=(opts?.toGo&&depth>=opts.toGo?0.35:0)+(a===target?0.3:0);
-        return {a,d,sep:est,window:_window(est),score:est*10+a.cat*.055+situ};
+        return {a,d,sep:est,fit,window:_window(est),score:seen*10+a.cat*.055+situ};
       };
       const _grades=_elig.map(_grade), _awr=awE(S.off[8]), _iqV165=iqOnV165B(); _gradesV87=_grades;   // v165 B: the scan reads his IQ, not the bare rating
+      // v165 J: the pre-snap read — a passer who recognises the shell (`shellPreReadV165J`) knows where he is going with the
+      // ball: when a route beats the coverage by `shellPreGapV165J` more than the called one (and is not a red window), it
+      // is his primary. Deterministic; `root.__V165B.preReads`.
+      if (shellOnV165J && shellRecogV165J >= TU("shellPreReadV165J", .6) && _cc !== "screen") {
+        const pr = _grades.find(r => r.a === target), bf = _grades.reduce((m, r) => (r.fit > m.fit ? r : m), _grades[0]);
+        if (pr && bf && bf !== pr && bf.fit - pr.fit >= TU("shellPreGapV165J", .3) && bf.sep > -1.75) {
+          target = bf.a; coverA = bf.d; const V = root.__V165B; V.preReads = (V.preReads || 0) + 1; }
+      }
       for(let i=_grades.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[_grades[i],_grades[j]]=[_grades[j],_grades[i]];}
       _grades.sort((a,b)=>(a.a===target?-1:b.a===target?1:0));
       const _readN=(_cc==="screen"||_cc==="quick")?1:cl(1+Math.floor((_awr-32)/15),1,Math.min(_iqV165?TU("iqMaxReadsV165B",5):4,_grades.length));
@@ -3285,6 +3326,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       if(_seen.length>1&&Math.random()<_badReadP)_choice=_seen[Math.floor(Math.random()*_seen.length)];
       if(S.off[8].player&&S.off[8].player.you&&_seen.length>1){ const V=root.__V165B; V.qbReads=(V.qbReads||0)+1;   // v165 B: did HE throw to the best read he saw
         const _top=_seen.reduce((m,r)=>r.score>m.score?r:m,_seen[0]); if(_choice===_top) V.qbBest=(V.qbBest||0)+1; }
+      if(_choice&&shellOnV165J){ const V=root.__V165B; V.shellN=(V.shellN||0)+1; V.shellFit=(V.shellFit||0)+(_choice.fit||0); }   // v165 J: the fit of the route he threw to
       if(_choice&&dcV165D){ const V=root.__V165B, k=blitzer?"B":"N"; V["dcSep"+k]=(V["dcSep"+k]||0)+_choice.sep; V["dcSepN"+k]=(V["dcSepN"+k]||0)+1; }   // v165 D: the window he threw into, by call
       if(_choice){ target=_choice.a; coverA=_choice.d; sep=_choice.sep; throwWindow=_choice.window;
         const e=target.route[target.route.length-1]; target._throwLX=e.lx; target._throwY=e.y; routeDepth=Math.max(-2,e.lx/YD); }

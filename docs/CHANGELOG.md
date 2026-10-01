@@ -10,6 +10,13 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v165 J — the shell.** (`src/04-engine.js`, `src/07-career-app.js`, `scripts/dccheck.mjs`.) The defense plays a
+  coverage now: the coordinator calls man, cover 2 or cover 3 every snap (man behind 74% of blitzes, zone on most
+  third-and-longs), and every route has a matchup against each — crossers and double moves beat man, seams and posts
+  split cover 2, curls and flats eat cover 3. The window a route gets carries it; what the quarterback sees of it is
+  his recognition, and a sharp one reads the shell before the snap and makes the route that beats it his primary (the
+  route a 95-awareness passer throws to fits man 0.26 / cover 2 0.19 where a 35's fits 0.15 / 0.07). The coordinator
+  also calls less pressure against a sharp passer. Kill switch `v165Jshell`.
 - **v165 I — the convoy.** (`src/04-engine.js`, `scripts/iqcheck.mjs`.) A carrier with vision runs behind his
   blockers: past the line, a lane with a blocker leading up it counts as roomier (a 600-mind UFF back takes one on about
   one read in seven; 7.40 → 7.56 a carry over two seeded streams). Discounting the defenders a blocker merely stood near
