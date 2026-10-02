@@ -895,12 +895,13 @@
    ]
   },
   "kits": {
-   "desc": "v96 / v104 / v105 / v105.2 — kits, jersey numbers, the ball between hands, the heat book",
+   "desc": "v96 / v104 / v105 / v105.2 / v176 — kits, jersey numbers (sewn on), the ball between hands, the heat book",
    "anchors": [
     "v96",
     "v104",
     "v105",
-    "v162 A"
+    "v162 A",
+    "v176"
    ],
    "files": [],
    "checks": [
@@ -916,7 +917,8 @@
     "crowdcheck",
     "renderpathcheck",
     "bobcheck",
-    "v159Acheck"
+    "v159Acheck",
+    "numsewcheck"
    ]
   },
   "lights": {
@@ -1559,7 +1561,8 @@
     "v157Ccheck",
     "v159Dcheck",
     "v159Acheck",
-    "palettecheck"
+    "palettecheck",
+    "numsewcheck"
    ]
   },
   "audio": {
@@ -4585,6 +4588,20 @@
     "lights"
    ],
    "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "numsewcheck": {
+   "file": "scripts/numsewcheck.mjs",
+   "desc": "v176 — the field's numbers printed into the shirt on the art's pixel grid: re-derived from the source art, every printed pixel on a jersey pixel, a back number under the helmet's stripe and centred within a pixel, a chest number under the facemask, one face per drawn cycle, a mirrored quarter view not printed backwards, the fabric's shading in the print, kit-contrast ink (white + trim on dark, dark on light); live: prints front and back with the label hidden, the layer cap; Gold Foil prints in the foil; the profile chest on the figure's own pixels, centred, under the chin; TU v176sew 0 / v176chest 0 restore the label and the v159 A chest. No page errors.",
+   "areas": [
+    "kits",
+    "cosmetics"
+   ],
+   "runtimeSec": 110,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

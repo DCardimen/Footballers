@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v176 — the number is sewn on.** Jersey numbers are printed into the shirt on the sprite's own pixels: centred on
+  the back under the helmet, on the chest under the facemask, covered by an arm or the ball, shaded with the fabric, in
+  the kit's colours (and his number font's); the profile figure's chest the same way. `numsewcheck`.
 - **v175 — the camera finds the screen.** The stadium screen stays in its spot; the badge art (TOUCHDOWN, TURNOVER,
   BIG PLAY …) plays on it, and after a big moment the camera slowly pans up to it while the players settle, then back
   for the snap. `screenpancheck`.

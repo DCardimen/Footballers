@@ -27,7 +27,7 @@ page.on('response', r => { if (r.status() >= 400) bad.push(r.status() + ' ' + r.
 /* v144 A: the number is measured on the DRAWN sprite, and this check plays week 1 — Pee Wee, where every
  * man is drawn at 52%. The age scale is v144check's subject; here it only halves the margins
  * this check reads. Pin the men to adult size. */
-await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { liveAgeV144: 0 }) })
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { liveAgeV144: 0, v176sew: 0 }) })   // v176: this guards the label path (the printed number is numsewcheck)
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
 await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(1200)
 await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 }); await page.waitForTimeout(2500)   // warm: vite's one-time reload after an edit
