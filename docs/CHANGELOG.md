@@ -10,6 +10,22 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v177 I/J/K — ten new celebrations, ten new uniforms, ten new banners, all super.** (`src/28-cosmetics.js`,
+  `scripts/build-celebration-moves.py`, `public/celebrations/cel_v177i*`, `scripts/v177IJKcheck.mjs`.)
+  *I — celebrations* (`v177 I TEN NEW CELEBRATIONS`): Moonwalk, The Worm, Crowd Leap, Earthquake Spike, Griddy, Bow &
+  Arrow, The Robot, Nap Time, Phone Call, Laser Duel — each a drawn body of its own (the owner's v161 A art re-posed by a
+  generator: mirrored, turned, a foot lifted, the worm's wave, the ball as a pillow), a timeline of travel, hops, stepped
+  tilts and squash, props off his gloves (a laser blade, a bow and a flying arrow to a target that bursts, the phone's
+  rings and a speech bubble, Z's and a bubble) and a new v159 C effect (disco floor, crowd hands, the quake's cracks and
+  shockwaves, notes on the beat, a holo box, a night sky…). They play on his touchdown and in the Locker through the
+  same doors as every celebration (`celebrate`, `celebrateBody`, `celebratePlay`). *J — uniforms* (`v177 J TEN NEW
+  UNIFORMS`): Liquid Chrome, Lava Crackle, Galaxy, Carbon Fibre, Urban Digital, Bengal, Neon Grid, Ice Crystal, Royal
+  Black & Gold, Throwback '79 — one design in field pixels drawn on the field sprite (his, his team's, the Locker's) and
+  on the card figure; the number's ink reads on each. *K — banners* (`v177 K TEN NEW BANNERS`): Code Rain, Under the
+  Lights, Light Speed, Grand Finale, Cherry Blossom, Total Eclipse, Overclocked, The Abyss, Comet Shower, Prism Foil —
+  animated v158 A painters. All thirty are SUPER looks (mythic, never sold): three never-resetting super ladders pay them
+  a rung at a time — The Showman (every 60 touchdowns across careers), The Dynasty Closet (every 5 titles), The Long Haul
+  (every 15 seasons). Kill switches `v177I`, `v177J` (banners: `v158Aban`).
 - **v176 — the number is sewn on.** (`src/05-field-renderer.js`, `src/28-cosmetics.js`, `scripts/numsewcheck.mjs`.) The
   owner said the jersey numbers looked pasted on, sat on the helmet, and were not centred. They were a vector label
   (Oswald with a dark stroke) scaled down over a soft 48-pixel body; a rear helmet is drawn in the jersey's colour, so the

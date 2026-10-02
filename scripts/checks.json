@@ -1530,15 +1530,21 @@
     "v159 A",
     "v160 A",
     "v161 A",
-    "v162 B"
+    "v162 B",
+    "v177 I",
+    "v177 J",
+    "v177 K"
    ],
    "files": [
     "src/28-cosmetics.js",
     "docs/COSMETICS.md",
     "scripts/build-celebration-sheets.py",
-    "public/celebrations/cel_v161a.json"
+    "public/celebrations/cel_v161a.json",
+    "scripts/build-celebration-moves.py",
+    "public/celebrations/cel_v177i.json"
    ],
    "checks": [
+    "v177IJKcheck",
     "v162Bcheck",
     "v161Acheck",
     "v160Acheck",
@@ -4603,6 +4609,20 @@
    ],
    "runtimeSec": 110,
    "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v177IJKcheck": {
+   "file": "scripts/v177IJKcheck.mjs",
+   "desc": "v177 I/J/K — ten new celebrations, ten uniforms, ten banners, all SUPER (mythic, source super, never sold; earned / pass / shop grants refused; the Locker names each one's super ladder rung): the generator's ten drawn bodies load (rects, foot anchors, centres, helmets, gloves), each timeline runs 1.9-2.9 s through >= 4 frames (the moonwalk glides back, the worm forward, the leap leaves the ground, the robot's tilts are stepped), the props draw, a frame recolours to a red kit, reduced motion is one pose, each effect is a v159 C plan with ink; the Locker previews play each item's own body; each uniform changes the field sprite (kitDeco) and the card figure (figCell) and the number's ink reads on it (>= 2.6:1); each banner painter draws a full varied band and animates; the three super ladders pay their rungs once from super and nothing lands in the save; a forced touchdown by him plays each new body on his marker in his kit with its effect and hands the marker back; seeded games identical with v177 I/J off / on; screenshots to $SHOTS (v177I_/v177J_/v177K_); no page errors.",
+   "areas": [
+    "cosmetics",
+    "live"
+   ],
+   "runtimeSec": 240,
+   "slow": true,
    "needsServer": true,
    "pureNode": false,
    "flaky": [],

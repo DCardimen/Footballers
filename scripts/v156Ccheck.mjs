@@ -181,7 +181,7 @@ const sec = await E(() => { const s = document.getElementById('ss156Super'); if 
   const rows = [...s.querySelectorAll('.ss156-sup')]
   return { n: rows.length, ids: rows.map((r) => r.dataset.sup).join(','), bars: s.querySelectorAll('.ss151-bar').length, pv: s.querySelectorAll('.cos-pvbox-v151b canvas, .cos-pvbox-v151b div').length, pos: s.querySelectorAll('.ss156-pos i').length,
     text: s.textContent.replace(/\s+/g, ' ').slice(0, 900), vis: s.getBoundingClientRect().height > 100 } })
-ok(sec && sec.n === 5 && sec.bars === 5 && sec.pv >= 5 && sec.pos === 9 && sec.vis && /Angel Wings/.test(sec.text || '') && /1\/10/.test(sec.text || ''), 'the SEASON tab shows SUPER CHALLENGES: five rows with progress bars, drawn reward previews and the nine positions', sec)
+ok(sec && sec.n === 8 && sec.bars === 8 && sec.pv >= 8 /* v177 I: the five challenges + three super ladders */ && sec.pos === 9 && sec.vis && /Angel Wings/.test(sec.text || '') && /1\/10/.test(sec.text || ''), 'the SEASON tab shows SUPER CHALLENGES: the five challenges and the three v177 ladders, rows with progress bars, drawn reward previews and the nine positions', sec)
 await E(() => { const s = document.getElementById('ss156Super'); s && s.scrollIntoView({ block: 'start' }) }); await page.waitForTimeout(300)
 await shot('super-section')
 const sf = await fits(); ok(sf.page, 'the SEASON tab with the super section fits 400x860 with no page scroll', sf)

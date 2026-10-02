@@ -248,3 +248,28 @@ palette, TEAM CREST every emblem — a tap there is the Team Creator's save thro
 other half kept as he wears it. Doors: `cosOpenStyleV151B(sec)` (the profile's "🎨 The Palette", the spray's STYLE),
 `cosCatV151B(c)`, the top bar's 🎨 on the career screens (at TEAM COLOURS), a link in the Team Creator. Entitlements
 are untouched. TU `v174palette` 0: the tabbed panel and the 🎨 Team Creator. `palettecheck`.
+
+## v177 I/J/K — ten celebrations, ten uniforms, ten banners (super)
+
+All thirty are **super** looks (mythic, source `super`): never sold, never on a pass, granted only by `grant(id, "super")`
+from a **super ladder** (rows in the super challenges section, `RIB_SUPER.progress()`; stored in `rib.super.v1` → `l177`,
+never the save). Each ladder pays its next look every step of an account-wide count across careers (the Hall's boxes and
+the live career, monotonic):
+
+| ladder | counts | step (TU) | pays, in order |
+|---|---|---|---|
+| The Showman | touchdowns | 60 (`superTdStepV177I`) | cel_moonwalk, cel_griddy, cel_robot, cel_phone, cel_worm, cel_nap, cel_archer, cel_saber, cel_leap, cel_quake |
+| The Dynasty Closet | championships, any level | 5 (`superTitleStepV177I`) | uni_throwback, uni_carbon, uni_digicamo, uni_bengal, uni_ice, uni_tron, uni_lava, uni_chrome, uni_galaxy, uni_royal |
+| The Long Haul | seasons played | 15 (`superSeasonStepV177I`) | ban_sakura, ban_coderain, ban_circuit, ban_abyss, ban_comets, ban_floodlights, ban_prism, ban_hyperspace, ban_eclipse, ban_finale |
+
+- **Celebrations** — `c.body` names a drawn body (`public/celebrations/cel_v177i*`, built by
+  `scripts/build-celebration-moves.py` from the owner's three sheets; regenerate, never hand-edit), `c.kind` a v159 C
+  effect (`v177moon`, `v177worm`, `v177leap`, `v177quake`, `v177griddy`, `v177arrow`, `v177robot`, `v177nap`,
+  `v177phone`, `v177saber`). `celebrateBody(scene, cm, { name: "moonwalk" })` plays a body by name;
+  `API.celebrateMoves` lists them, `API.celebrateBodyOf(id)` maps an item.
+- **Uniforms** — `k.pat` is a v177 J design (`chrome`, `lava`, `galaxy`, `carbon`, `digicamo`, `bengal`, `grid`,
+  `crystal`, `royal`, `throwback`), drawn in field pixels on the sprite and the card; they take the team palette like
+  every uniform.
+- **Banners** — `b158` is a v177 K painter (`coderain`, `floodlights`, `hyperspace`, `finale`, `sakura`, `eclipse`,
+  `circuit`, `abyss`, `comets`, `prism`), `bg` the still fallback.
+
