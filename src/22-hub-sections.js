@@ -291,7 +291,7 @@
     const clean = (x) => (x || "").replace(/\s+/g, " ").trim().replace(/^[^A-Za-z0-9]+/, "");
     // v168: the heading's first rendered LINE — textContent ran a kicker into its sub ("CAREER PULSEYOUR PERFORMANCE")
     const line = (h) => String(h.innerText || h.textContent || "").split(/\n/).map(x => x.trim()).filter(x => /[A-Za-z]{3}/.test(x))[0] || "";
-    const cands = [...el.querySelectorAll(".h1,.h2,h2,h3,.card-title,.sec-title,.eyebrow,.kicker,b,strong")].map(h => clean(line(h))).filter(t => /[A-Za-z]{3}/.test(t));
+    const cands = [...el.querySelectorAll(".impact-kicker,.h1,.h2,h2,h3,.card-title,.sec-title,.eyebrow,.kicker,b,strong")].map(h => clean(line(h))).filter(t => /[A-Za-z]{3}/.test(t));
     let t = cands[0] || clean(line(el)).split(/[.!?·]/)[0];
     return clipV168(t || "MORE");
   }

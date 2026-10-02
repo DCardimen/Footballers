@@ -13403,7 +13403,7 @@
         .map(m => `<button class="chip ${m === leadPos ? "on" : ""}" onclick="setLeadPos('${m}')">${m}</button>`)
         .join("")}</div>
       <div class="chips" style="margin-top:6px">${n.stats.map(m => `<button class="chip gold ${m.key === leadStat ? "on" : ""}" onclick="setLeadSort('${m.key}')">${m.name}${m.lowerBetter ? " ▼" : ""}</button>`).join("")}</div>
-      ${l && l.pace ? `<div class="threshold-note" style="margin-top:8px">📈 Mid-season: your row shows your <b>full-season pace</b> through ${l.games} game${l.games > 1 ? "s" : ""}.</div>` : ""}
+      ${l && l.pace ? `<div class="threshold-note pace-note-v169" style="margin-top:8px">📈 Mid-season: your row shows your <b>full-season pace</b> through ${l.games} game${l.games > 1 ? "s" : ""}.</div>` : ""}
       ${advfBarV151A("leaders", [["rank", "RANK", "asc"]].concat(n.stats.map(m => [m.key, m.name.toUpperCase(), m.lowerBetter ? "asc" : "desc"])), null) /* v151 A */}
       <div class="card" style="margin-top:10px;padding:10px 10px">
         <div class="lb-hdr"><span class="lbr">#</span><span class="lbn">Player</span><span class="lbv">${i.name}</span><span class="lbo">${p.map(m => m.name).join(" · ")}</span></div>
