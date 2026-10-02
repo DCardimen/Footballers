@@ -10,6 +10,15 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v170 — the spray menu: hold, slide, slide.** (`src/34-spray.js` new, `src/22-hub-sections.js`, `src/25-shell.js`,
+  `scripts/spraycheck.mjs`, `scripts/v146Echeck.mjs`, `scripts/phonecheck.mjs`.) Pages were split in half on a phone,
+  each half scrolling on its own (training had four scroll boxes). Now holding any button on the bottom bar sprays its
+  pages out in a rainbow above your thumb; sliding onto one with more (STATS, LIFE, PROFILE, LOCKER, BOARDS, SETTINGS)
+  sprays its pages; letting go lands there — 43 destinations (the life sim joins at the UFF), two slides from anywhere.
+  Let go in place and the spray stays to tap. On a phone every page is one page with one scroll: no inner scroll boxes,
+  no accordions, the tab strip replaced by a section bar (‹ name ›, tap for the page's spray, swipe the page to turn
+  it), and training is two pages (the board, and THE PICK a tap turns to). `v146Echeck` asserts the new phone contract
+  (nothing inside the panel scrolls on its own); the desktop keeps the fitted panel. Kill switches `v170spray`, `v170one`.
 - **v169 — big on a phone.** (`src/33-phone.js` new, `src/32-season-ui.js`, `src/22-hub-sections.js`,
   `src/07-career-app.js`, `scripts/phonecheck.mjs`.) Measured at 360x740, 375x667 and 390x844, the career screens were
   too small to read: 50-90% of the visible text sat under 13px (the body card and the training board went to 8px) and

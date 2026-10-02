@@ -15,7 +15,8 @@ const LIMIT = +(process.env.SCROLL_LIMIT || 1.35)   // screens of overflow we ac
 // Its real complaint ("I can't see the bottom options") was the dock covering the foot of the page
 // at full scroll, which `--dockH-v139` fixed; the length itself is the list. Everything else holds
 // to LIMIT.
-const BUDGET = { 'prestige tree': +(process.env.SCROLL_LIMIT_SHOP || 1.7) }
+// v170: on a phone a long list is the page's one scroll (no inner box), so the national leaders get the shop list's budget
+const BUDGET = { 'prestige tree': +(process.env.SCROLL_LIMIT_SHOP || 1.7), leaders: +(process.env.SCROLL_LIMIT_SHOP || 1.7) }
 
 const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: W, height: H } })
@@ -115,7 +116,7 @@ const worst = rows[0]
 console.log('worst:', worst ? `${worst.tag} at ${worst.over} screens` : 'none')
 const over = rows.filter(r => r.over > (BUDGET[r.tag] || LIMIT))
 console.log((over.length ? 'FAIL ' : 'ok   ') +
-  `every screen stays inside ${LIMIT} screens of scroll (the prestige tree, a shop list, inside ${BUDGET['prestige tree']})` +
+  `every screen stays inside ${LIMIT} screens of scroll (the prestige tree and the leaders, long lists, inside ${BUDGET['prestige tree']})` +
   (over.length ? '  — over: ' + over.map(r => `${r.tag} ${r.over}`).join(', ') : ''))
 console.log('page errors:', errs.length ? '\n' + errs.join('\n') : 'NONE')
 console.log('VERDICT: ' + (!over.length && !errs.length ? 'PASS' : 'FAIL'))

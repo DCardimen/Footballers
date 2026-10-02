@@ -137,7 +137,7 @@ await wait(500)
 const fit = await page.evaluate(() => {
   const card = document.getElementById('soundCardV151E'), r = card && card.getBoundingClientRect()
   const dock = document.getElementById('dock'), tabs = document.querySelector('.hubv75-tabs')
-  const bottomLimit = Math.min(innerHeight, tabs && getComputedStyle(tabs).position === 'fixed' ? tabs.getBoundingClientRect().top : innerHeight, dock && dock.offsetHeight ? dock.getBoundingClientRect().top : innerHeight)
+  const bottomLimit = Math.min(innerHeight, tabs && getComputedStyle(tabs).position === 'fixed' && getComputedStyle(tabs).display !== 'none' ? tabs.getBoundingClientRect().top : innerHeight   /* v170: a phone hides the strip (the section bar replaces it) */, dock && dock.offsetHeight ? dock.getBoundingClientRect().top : innerHeight)
   const se = document.scrollingElement
   const tabsTxt = tabs ? [...tabs.children].map(x => x.textContent.trim()).join('|') : ''
   const tabsOver = tabs ? tabs.scrollWidth > tabs.clientWidth + 1 : null

@@ -1725,7 +1725,28 @@
     "postgamecheck",
     "v111Bcheck",
     "v136check",
-    "v164Bcheck"
+    "v164Bcheck",
+    "spraycheck"
+   ]
+  },
+  "spray": {
+   "desc": "v170 — the spray menu (hold a bottom-bar button, slide, slide) and one page, one scroll on a phone: the section bar, the swipe, training's two pages (src/34-spray.js, 22's training config and fold, 25's fit)",
+   "anchors": [
+    "v170"
+   ],
+   "files": [
+    "src/34-spray.js"
+   ],
+   "checks": [
+    "spraycheck",
+    "phonecheck",
+    "v146Echeck",
+    "v153Echeck",
+    "v168check",
+    "scrollcheck",
+    "traincheck",
+    "v164Bcheck",
+    "bodycheck"
    ]
   }
  },
@@ -4451,6 +4472,19 @@
     "season"
    ],
    "runtimeSec": 70,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "spraycheck": {
+   "file": "scripts/spraycheck.mjs",
+   "desc": "v170 — at 375x667: holding SEASON sprays six pages, sliding onto STATS sprays its four, letting go on STANDINGS lands there; a hold let go in place stays open to tap; a plain tap still navigates; every page in every bar button's spray lands where it says (43, + the life sim at the UFF); one scroller on every main screen and tab; the section bar names / turns / sprays / follows a swipe; a desktop-width screen keeps its tabs and the spray; TU v170spray / v170one 0. No page errors.",
+   "areas": [
+    "ui",
+    "season"
+   ],
+   "runtimeSec": 90,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

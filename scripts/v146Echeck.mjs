@@ -73,6 +73,9 @@ const probe = () => page.evaluate(() => {
     view: (window.S || {}).view, shell: document.documentElement.classList.contains('shell-v146'),
     pageScroll: document.scrollingElement.scrollHeight - innerHeight, appScroll: a.scrollHeight - a.clientHeight,
     panelOver: s.scrollHeight - s.clientHeight, headerTop: top ? Math.round(top.getBoundingClientRect().top) : null,
+    // v170: on a phone (html.one-v170) the panel IS the one scroller — count anything inside it that scrolls on its own
+    one: document.documentElement.classList.contains('one-v170'),
+    innerScroll: [...s.querySelectorAll('*')].filter(e => { const cs = getComputedStyle(e); return e.getBoundingClientRect().height > 30 && /auto|scroll/.test(cs.overflowY) && e.scrollHeight > e.clientHeight + 6 && !e.closest('.chips') }).length,
     ticker: !!document.querySelector('#tickV146 li'),
     tabsTop: shown(tabs) ? Math.round(tabs.getBoundingClientRect().top) : null,
     tabsBottom: shown(tabs) ? Math.round(tabs.getBoundingClientRect().bottom) : null,
@@ -149,7 +152,13 @@ for (const r of results) {
   const tag = r.name
   const good = r.shell && r.pageScroll <= 2 && r.appScroll <= 2 && r.pageAfter <= 2
   ok(good, `${tag}: in the shell, and the page does not scroll`, { page: r.pageScroll, app: r.appScroll, after: r.pageAfter })
-  if (MAIN.test(tag)) ok(r.panelOver <= 2, `${tag}: the screen fits its panel (a long list scrolls inside its own box)`, { over: r.panelOver })
+  /* v170 changed the phone contract: a phone's page is ONE page with ONE scroll (the panel), never a fitted panel with
+   * inner scroll boxes — which split pages in half, each half scrolling. Off a phone (or under TU v170one 0) the
+   * v146 E rule stands: the screen fits its panel and a long list scrolls inside its own box. */
+  if (MAIN.test(tag)) {
+    if (r.one) ok(r.innerScroll === 0, `${tag}: one page, one scroll — nothing inside the panel scrolls on its own (v170)`, { inner: r.innerScroll, over: r.panelOver })
+    else ok(r.panelOver <= 2, `${tag}: the screen fits its panel (a long list scrolls inside its own box)`, { over: r.panelOver })
+  }
   ok(r.headerTop === 0 && r.headerTopAfter === 0 && r.ticker, `${tag}: the header is at y=0 with the ticker under it, before and after scrolling every inner panel`, { before: r.headerTop, after: r.headerTopAfter, inner: r.innerScrollers })
   if (r.tabsTop != null) ok(r.tabsTop > H * 0.6 && (r.navTop == null || Math.abs(r.tabsBottom - r.navTop) <= 2), `${tag}: the section tabs are at the bottom, directly above the bar`, { tabsTop: r.tabsTop, tabsBottom: r.tabsBottom, navTop: r.navTop })
 }

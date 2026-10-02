@@ -197,6 +197,18 @@
       txt: [{ k: "odds", re: /WHAT RANK REACHES|RANK REACHES/i }],
       nofold: ["lead", "odds"],
     },
+    /* v170: on a phone training is two pages — the board, and the program you picked (one scroll each) */
+    training: {
+      when: () => document.documentElement.classList.contains("one-v170"),
+      start: "progs",
+      keep: /(^|\s)(eyebrow|h1)(\s|$)/,
+      secs: [
+        { k: "progs", name: "PROGRAMS", re: /tp-grid-v113/ },
+        { k: "pick",  name: "THE PICK", re: /tp-panel-v113|tp-rows-v113|sac-v153/ },
+      ],
+      txt: [],
+      nofold: ["progs", "pick"],
+    },
     // the prestige tree put 862px of specialization and rewards cards ABOVE the
     // branch row, so the shop you came for started a screen and a half down
     shop: {
@@ -212,10 +224,10 @@
       nofold: ["nodes"],
     },
   };
-  const ICON = { lead: "🏅", odds: "🎯", xp: "🎖️", card: "🪪", case: "🏆", book: "📖", sims: "⏭", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", league: "🏆", opp: "🎯", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
+  const ICON = { lead: "🏅", odds: "🎯", xp: "🎖️", card: "🪪", case: "🏆", book: "📖", sims: "⏭", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", league: "🏆", opp: "🎯", progs: "🏋️", pick: "✅", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
   const TAB = { locker: "gear", hub: "now", shop: "nodes", season: "sched", settings: "game", result: "grade", declineResult: "epitaph", gameover: "end", win: "end" };
 
-  function cfg() { const s = window.S; return (s && VIEWS[s.view]) || null }
+  function cfg() { const s = window.S, C = (s && VIEWS[s.view]) || null; return C && C.when && !C.when() ? null : C }
   function classify(el, C) {
     const cls = el.className || "";
     for (const s of C.secs) if (s.re.test(cls)) return s.k;
@@ -308,6 +320,7 @@
   }
   function fold(box, view) {
     if (!box || box.__foldedV97 || !box.classList.contains("on")) return;
+    if (document.documentElement.classList.contains("one-v170")) return;   // v170: on a phone a tab is one page that scrolls
     const raw = [...box.children].filter(e => e.nodeType === 1);
     const dock = document.getElementById("dock"), avail = (window.innerHeight || 844) - (dock ? dock.offsetHeight : 0);
     // v146 E: in the shell the room is the panel's own, measured from the panel's top
@@ -389,7 +402,7 @@
   // left floating above the tab strip
   function adopt(screen, C) {
     const strays = [...screen.children].filter(e =>
-      !e.classList.contains("hubv75-tabs") && !e.classList.contains("hubv75-sec")
+      !e.classList.contains("hubv75-tabs") && !e.classList.contains("hubv75-sec") && !e.classList.contains("secbar-v170")
       && !(C.keep && C.keep.test(e.className || "")));
     if (!strays.length) return;
     for (const el of strays) {

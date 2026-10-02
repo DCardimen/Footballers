@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v170 — the spray menu.** Hold any bottom-bar button and its pages spray out; slide onto one, slide onto its page,
+  let go — 43 destinations two slides away. On a phone every page is one page with one scroll, with a section bar you
+  can tap or swipe. `src/34-spray.js`; `spraycheck`.
 - **v169 — big on a phone.** No text under 12px on a phone (prose at 14-15px), a short phone folds the ticker,
   bigger tabs, buttons and rows, training three a row with its details in view, and a post-game card that scrolls with
   Continue always reachable. `src/33-phone.js`; `phonecheck`.
