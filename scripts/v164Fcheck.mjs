@@ -12,6 +12,7 @@
 //   H: the juke / stiff-arm / hurdle sequences take their TU frame times; a synthetic `swim` / `shed` event plays the
 //      arm-over on the rusher and staggers the blocker (`__V164H` counts); two paired linemen in the block pose rock
 //      into each other (`body.x` ≠ 0, `_shoveV164H`); TU v164Hmoves 0 leaves both still
+//   v172: pins TU v172jumbo 0 — this measures the BOWL's screen; the hung big board is jumbocheck's
 //   node scripts/v164Fcheck.mjs        (GAME_URL=http://localhost:5173/)
 import { chromium } from 'playwright'
 import { CHROME, GAME_URL } from './lib/env.mjs'
@@ -23,7 +24,7 @@ const vis = `el => { const r = el.getBoundingClientRect(); const s = getComputed
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message)); page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) errs.push('CONSOLE: ' + m.text().slice(0, 200)) })
-await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0, speedGateV151A: 0 }); setInterval(() => { document.querySelector('.onboard')?.remove() }, 60) })
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0, speedGateV151A: 0, v172jumbo: 0 }); setInterval(() => { document.querySelector('.onboard')?.remove() }, 60) })
 await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 45000 }); await page.waitForTimeout(1200)
 await page.waitForFunction(() => typeof window.__simGameV2 === 'function', null, { timeout: 60000 })
 await page.evaluate(() => { window.__readPos = 'LB' })

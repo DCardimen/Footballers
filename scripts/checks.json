@@ -872,6 +872,7 @@
   "badges": {
    "desc": "v95 — the callout badges",
    "anchors": [
+    "v172",
     "v164 F",
     "v164 G",
     "v164 H",
@@ -882,6 +883,7 @@
     "scripts/build-badge-art.*"
    ],
    "checks": [
+    "jumbocheck",
     "v164Fcheck",
     "badgecheck",
     "v86check"
@@ -931,6 +933,7 @@
    ],
    "checks": [
     "v164Acheck",
+    "jumbocheck",
     "v102check",
     "v98check",
     "v99check",
@@ -4435,6 +4438,21 @@
    "needsServer": false,
    "pureNode": true,
    "flaky": []
+  },
+  "jumbocheck": {
+   "file": "scripts/jumbocheck.mjs",
+   "desc": "v172 THE BIG BOARD — on a live game at 400x860 and 1280x800: the stadium's screen hangs at the top centre of the broadcast frame on (nearly) every sample whatever the camera does, fully on the canvas, at a readable CSS size, behind the men (depth between the crowd and the players), the bowl's own screen and feed camera stood down; between moments it is the scoreboard (teams, score, clock, down); a TOUCHDOWN, a TURNOVER (an interception at the whistle) and a BIG PLAY (+25 at the whistle) each take it over in the right team's colours with the man / yards, grown, still up 2.5 s later; a weaker moment rides the ticker, INTERCEPTED → TOUCHDOWN reads PICK SIX; a moment up at the snap holds 3 s into the play (live too); a result line takes the panel then the ticker; TU v172jumbo 0 brings back the v164 F screen; no page errors.",
+   "areas": [
+    "live",
+    "field",
+    "badges"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   },
   "v164Fcheck": {
    "file": "scripts/v164Fcheck.mjs",

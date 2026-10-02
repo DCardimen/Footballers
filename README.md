@@ -57,6 +57,9 @@ The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — 
 - **v173 — the pile is the button.** In the Prestige Vault you tap the pile itself: it lights up, real coins jump off
   it and clink back down, "+N PP" pops, the quarter marks chime and shake the room; holding is still the pour, and the
   money is exactly what it was. `public/rib-vault*`; `v173check`.
+- **v172 — the big board.** The stadium's screen hangs at the top of the broadcast on every snap, behind the players:
+  the scoreboard between plays, and a touchdown, turnover or big play takes it over in the team's colours (the man, the
+  yards) and stays up into the next snap. `src/05-field-renderer.js`; `jumbocheck`.
 - **v171 — the matchup call.** Every opponent has a face (a named star, a weak link, a unit to fear and one to
   attack) and the pregame's plan page opens on the calls against it — shut down their star, load the box, send the
   house, pick on their weak corner — each with real engine effects, its own line to beat, risk, reward and swing. Your
