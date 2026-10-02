@@ -3719,7 +3719,8 @@ class Ot extends mt.Scene {
       if (qb.body) this.tweens.add({ targets: qb.body, scaleY: 0.9, y: 2, yoyo: true, duration: TU("hitchMs", 95) });
       try { (window.__V86 = window.__V86 || {}).hitches = ((window.__V86 || {}).hitches || 0) + 1; } catch (e) {} }
     // the tuck: a scrambling QB leans into his run
-    qb._lean = (P.carrierId === 8 && P.scrambling && !qb.forceState && (qb._spdPx || 0) > 40) ? (qb.flip ? 1 : -1) * TU("tuckLean", 0.16) * (qb.dirKey === "sd" ? 1 : 0.4) : 0;
+    // (v177 A: not while he is in a scrum — the scrum pose owns his lean, and this line zeroed it every frame)
+    if (qb._leanSrc !== "scrum") qb._lean = (P.carrierId === 8 && P.scrambling && !qb.forceState && (qb._spdPx || 0) > 40) ? (qb.flip ? 1 : -1) * TU("tuckLean", 0.16) * (qb.dirKey === "sd" ? 1 : 0.4) : 0;
     // v109 THE QUARTERBACK'S EYES: the quarter-turn to a read (qbEyeV109) comes back square to the
     // line on its own clock, and the moment he moves, is forced, or the ball is out — always before
     // the v107 wind-up, which runs right after this tick and needs him on `up`
