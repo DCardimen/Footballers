@@ -2614,14 +2614,34 @@ window.__visionRadiusV96 = visionRadiusV96;
     /* everybody who is not in the pile keeps playing: pursuit closes, the offence drifts in, men already
      * there hold a ring round it. In a scrum (`join`) the near men run in and latch on. Blocks in progress
      * and men on the turf are left as they are. */
+    /* v177 A THE TRENCHES KEEP FIGHTING: a block still locked when the carrier is wrapped up does not
+     * freeze for the grip. The pair heaves on its own phase (`trenchAmpPxV177A` a tick each way,
+     * `trenchPerMsV177A`) and gives a little ground AWAY from the pile (`trenchDriftPxV177A`), so the
+     * fight is visible and can never bring either man into the tackle. Kill switch `gripTrenchV177A`. */
+    const trenchFightV177A = (a, c, inPile, fought) => {
+      if (!TU("gripTrenchV177A", 1)) return;
+      const foe = a.engagedBy && !a.engagedBy.shed ? a.engagedBy : (a.engaging && a.engaging.engagedBy === a ? a.engaging : null);
+      if (fought.has(a.id) || (foe && (fought.has(foe.id) || inPile.has(foe.id)))) return;
+      fought.add(a.id); if (foe) fought.add(foe.id);
+      const mx = foe ? (a.lx + foe.lx) / 2 : a.lx, my = foe ? (a.y + foe.y) / 2 : a.y;
+      const d = Math.hypot(mx - c.lx, my - c.y) || 1, ux = (mx - c.lx) / d, uy = (my - c.y) / d;
+      const step = TU("trenchAmpPxV177A", .6) * Math.sin(t / TU("trenchPerMsV177A", 260) + S.all.indexOf(a) * 1.7) + TU("trenchDriftPxV177A", .12);
+      for (const m of foe ? [a, foe] : [a]) { m.lx += ux * step; m.y = clampY(m.y + uy * step); }
+      V177A.trench = (V177A.trench || 0) + 1;
+    };
     const scrumCrowdV177A = (c, G, dfd, dsg, join) => {
       const Q = G.scrum, inPile = new Set([c.id, dfd.id].concat(G.joined, Q ? Q.off : [], Q ? Q.def : []));
       const ring = TU("scrumRingPxV177A", 30), pull = TU("scrumPullPxV177A", 60), latch = TU("scrumJoinPxV177A", 14);
       if (!join && c.lb === "QB" && c.lx * dsg <= 0) return;                    // a sack in the pocket is the old grip, untouched (the rush is already there)
       V177A.crowdTicks++;
+      const fought = new Set();
       for (const a of S.all) {
         if (inPile.has(a.id)) continue;
-        if ((a.stunned && t < a.stunned) || (a.trucked && t < a.trucked + 900) || (a.lb === "DL" && !a.shed) || (a.engagedBy && !a.engagedBy.shed)) continue;
+        if ((a.stunned && t < a.stunned) || (a.trucked && t < a.trucked + 900)) continue;
+        if ((a.lb === "DL" && !a.shed) || (a.engagedBy && !a.engagedBy.shed)) {
+          trenchFightV177A(a, c, inPile, fought);
+          continue;
+        }
         const mine = a.side === c.side, d = Math.hypot(a.lx - c.lx, a.y - c.y) || .01;
         const live = mine ? a.lb !== "QB" || a === c : t > (a.beaten || 0);
         const room = Q && (mine ? Q.off.length < TU("scrumMaxOffV177A", 3) : 1 + G.joined.length + Q.def.length < TU("scrumMaxDefV177A", 4));

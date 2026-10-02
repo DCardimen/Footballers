@@ -87,7 +87,10 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
   the seed spread (`scrumBiasV177A` .15 is the zero point). A sack in the pocket keeps the old grip (letting the rush pile in there added a tenth of a sack).
   Kill switches `TU("v177Ascrum", 0)` (the old grip, frozen bystanders and all) and `TU("v177Bbreak", 0)`; hooks
   `window.__V177A`, `window.__V177B`, `window.__V177A_R`. `v110check` counts a `scrumJoinV177A` man as in the play
-  (the tackler is the man squared up on the carrier, the nearest; the pushers fan out beside and behind him).
+  (the tackler is the man squared up on the carrier, the nearest; the pushers fan out beside and behind him). After merging onto v166's blocking (blocks hold longer), a quarter of the field still froze through a grip: the men
+  locked in a block. They now keep fighting (`trenchFightV177A`): each pair heaves on its own phase and gives a little ground
+  away from the pile, so it can never join the tackle. Kill switch `gripTrenchV177A`. The QB's tuck line no longer zeroes
+  his lean while he is in a scrum.
 - **v176 — the number is sewn on.** (`src/05-field-renderer.js`, `src/28-cosmetics.js`, `scripts/numsewcheck.mjs`.) The
   owner said the jersey numbers looked pasted on, sat on the helmet, and were not centred. They were a vector label
   (Oswald with a dark stroke) scaled down over a soft 48-pixel body; a rear helmet is drawn in the jersey's colour, so the
