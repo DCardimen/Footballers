@@ -416,6 +416,68 @@ neither needs a thousand taps. `throwCoin` picks a **real surface slot** near th
 launches a coin from its screen point, wearing **the face of the coin that was there** — a
 bronze coin rising out of a silver hoard is the tell that a flight is decorative.
 
+## v173 · the pile is the button
+
+The owner's note: *"instead of clicking and holding a box, can you click on the pile itself,
+which lights up, coins fall and clink."* It was a fair description of what v137 felt like. The
+press was gated by a **rectangle** (`hoardBox` plus 24 / 16 px), the funding card sat **on top
+of the money**, and the only answer a tap got was one coin flying off to the core. The money
+rules did not change by one point; everything below is what the pile now does when you touch it.
+It is one banner block at the end of `public/rib-vault.js` (`v173 THE PILE IS THE BUTTON`),
+a sound block in `rib-vault-audio.js` and a sheet block in `rib-vault.css`.
+
+- **The target is the pile's shape.** `Scene.onPileV173(x, y)`: an ellipse fitted to the drawn
+  hoard (`pileShapeV173`, `hoardBox` + `PAD` 18 px), never smaller than 220 × 160 px
+  (`MIN_RX` 110 / `MIN_RY` 80) so a seven-coin hoard is still a thumb's worth on a 400 px phone,
+  plus any coin `pickSurface` finds actually drawn in the box's corners (the spill at the foot).
+  An empty corner of the old box is no longer part of it. The one edit to v137 is a hook at the
+  top of `bindPointer`'s `inHoard` (`pileHitV173`, null when v173 is off → the box, unchanged).
+- **The card comes off the money.** `.rv-tgt` hangs under the core it fills
+  (`layoutV173`: `corePoint().y + r·1.16`), compact; the ×2…×16 badge sits on the core. On a
+  40M PP hoard (the tallest pile below the reserve) the card still clears the pile's top.
+- **It lights up.** A warm additive light the shape of the mound (`drawGlowV173`, drawn right
+  after the hoard): it **breathes** while an upgrade is waiting to be funded, brightens under a
+  mouse (`pointermove`, with a pointer cursor) or keyboard focus, and is brightest under the
+  finger — a hot spot at the touch, a ring of light running out across the heap, and glints on
+  the top coins. The two soft lights are pre-rendered once (`lights()`) and blitted.
+- **Coins fall and clink.** Each tap knocks 3–5 **real coins of the hoard** into the air
+  (`kickV173`): the coins `pickSurface` finds under the finger (jittered), live surface band
+  only (a deep coin would cost a re-bake per kick), **loose coins before column tops** (always
+  taking the top off a stack would whittle every column to the floor over forty taps). They are
+  v137 B's bodies — up to v137's own `MAX_VY` ceiling (a 40–70 px hop on a phone), back down
+  under the heap's gravity, bouncing by weight, ringing as they land (`land`) with sparks. A
+  kick's landings **do not** start an avalanche: v137 B's `landed` stirs the heap by up to
+  0.75 — right for a thrown coin; measured, seven taps' worth of kick landings at even a
+  quarter of that slid and shed every column of a 2,500 PP hoard flat. A hold keeps kicking.
+- **And the rest of the feedback.** A two-strike clink per tap (`tapV173`), pitched up a
+  little by each quick tap after it (the combo, taps under 480 ms apart); "+N PP" pops off the
+  finger (a hold pops its pour a few times a second); a short rising chime at 25 / 50 / 75 % of
+  the price (`milestoneV173`) with a small shake of the ROOM (the canvas — never the numbers
+  over it) and a haptic; a bigger shake and "UNLOCKED" when the upgrade lands.
+- **Keyboard and screen readers.** The pile is a real, transparent `<button class="rv-pile">`
+  over the hoard with `pointer-events: none` (the canvas keeps every pointer). Tab to it; Enter
+  or Space is a tap (its synthetic click is suppressed, so one keypress is one chunk); holding
+  the key is the hold; a screen reader's activation is one tap. Its label names the upgrade and
+  the progress ("Tap the pile to invest in The Oracle, 6 of 300 PP. Hold to pour.").
+- **Reduced motion** keeps the light and the pops (as fades) and drops the thrown coins, the
+  rings, the glints and the shake. A tap still reserves its chunk.
+- **Sound** goes through the vault's own pool, mute switch, bus and `RIB_MUSIC.sfxOut` — the
+  game's effects volume, MUTE ALL and the duck all apply. The manifest gains `pile_tap`,
+  `pile_milestone`.
+
+**Money: identical.** A tap is still `press` → `pour(tapChunk)` (2 % of the price, at least 1),
+a hold is still `STAGES`, `commit()` still calls the game's handler once, the payday still
+swallows a tap as its own. Nothing in the block reads or writes a balance or the save, and
+`v173check` asserts a tap on the pile reserves exactly the chunk v137's press did, that eight
+taps fund an 8 PP node with one debit and one level, and that a press off the pile reserves
+nothing.
+
+**Kill switch:** `RIB_TUNE.v173pile = 0`, read at each open — no class, no button, no light, no
+kicks, the card back in its v137 place and the box the target again. Hooks:
+`__RIB_VAULT_DEV.v173()` (taps, kicked, airborne, landed, pops / `popLog`, milestones, shakes,
+glow, the shape, the button), `__RIB_VAULT_DEV.pileHit(x, y)`, `window.__V173`. Check
+`v173check`; camera `v173shot.mjs` (`OFF=1`, `WIDE=1`, `PP=`, `KEY=`).
+
 ## Transactions
 
 The game's upgrades are **atomic**: `Yl(key)` debits the price and adds one level in one
@@ -557,7 +619,8 @@ a second is static. Voices are pooled with a hard ceiling and a minimum gap; mut
 `window.__RIB_VAULT_AUDIO.manifest()` names the fourteen categories a real recording session
 would replace one for one: `vault_mechanism`, `door_move`, `coin_bronze`, `coin_silver`,
 `coin_gold`, `coin_blue`, `coin_detach`, `coin_flight`, `coin_stream`, `coin_land`,
-`pile_settle`, `upgrade_receive`, `upgrade_complete`, `career_payout`.
+`pile_settle`, `upgrade_receive`, `upgrade_complete`, `career_payout` (v153 C and v173 add the
+payday's and the pile tap's: `pile_tap`, `pile_milestone`).
 
 ## The door
 
@@ -624,6 +687,8 @@ node scripts/vaultdoor.mjs                   # the opening and the payout
 node scripts/vaultphys.mjs                   # a coin in hand, the shake, the furrow, the restock
 node scripts/v153Ccheck.mjs                  # the payday (v153 C)
 node scripts/v153Cshot.mjs                   # ...photographed: GAINS=12,1284,250000 RECORD=1 REDUCED=1
+node scripts/v173check.mjs                   # the pile is the button (v173)
+OUT=/tmp node scripts/v173shot.mjs           # ...photographed: a tap frozen mid-air, a hold at x4 (OFF=1 for v137's box)
 ```
 
 Hooks: `window.__RIB_VAULT`, `__RIB_VAULT_BRIDGE`, `__RIB_VAULT_MODEL`, `__RIB_VAULT_SCENE`,

@@ -330,5 +330,55 @@
   var baseManifest = api.manifest;
   api.manifest = function () { return baseManifest().concat(['payday_tick', 'payday_clink', 'payday_impact', 'payday_cascade', 'payday_riser', 'payday_final', 'pile_wiggle']); };
 
+  /* ===== v173 THE PILE IS THE BUTTON — the sound of a tap on the money =====
+   *
+   * A tap on the hoard is a two-strike CLINK — a bright scrape and the coin's own ring, then
+   * a second, quieter strike a breath later (two coins knocking) — and it climbs a little
+   * with every quick tap after it (`combo`, up to about a fifth), so a run of taps sounds like
+   * it is getting somewhere. A quarter of the price poured is a short rising chime; the
+   * coins the tap knocks loose ring again when they land, through v137's `land`. Everything
+   * goes through the same pool, mute switch, bus and `RIB_MUSIC.sfxOut` as the rest of the
+   * vault, so the game's own effects volume and mute apply. */
+  var tapStats = { taps: 0, chimes: 0, played: 0 };
+  /* the tap's own voice: it lands on the same instant as the pour's `coin` (which has just
+   * taken `slot`'s minimum gap), so it skips the gap — never the voice ceiling or the mute */
+  function tapSlot() {
+    if (muted || !ctx() || voices > 14) return false;
+    voices++;
+    setTimeout(function () { voices = Math.max(0, voices - 1); }, 340);
+    return true;
+  }
+  api.tapV173 = function (den, combo) {
+    tapStats.taps++;
+    if (!tapSlot()) return;
+    tapStats.played++;
+    var v = VOICE[den] || VOICE.silver, c = Math.max(0, Math.min(8, combo || 0));
+    var pitch = Math.pow(2, (c * 0.9) / 12) * (0.97 + Math.random() * 0.06);
+    noise(0.022, 4200 * pitch, 1.8, 0.075);                          // the scrape
+    partials(v, pitch * 1.12, 0.13, v.d * 0.9);                      // the strike
+    setTimeout(function () {                                         // ...and the knock back
+      if (muted || !A) return;
+      noise(0.016, 5200 * pitch, 2.2, 0.035);
+      partials(v, pitch * 1.31, 0.06, v.d * 0.6);
+    }, 42 + Math.random() * 18);
+  };
+  api.milestoneV173 = function (step) {
+    tapStats.chimes++;
+    if (muted || !ctx()) return;
+    var t = now(), base = 523.25 * Math.pow(2, ((step || 1) - 1) * 2 / 12);
+    [0, 4, 7].forEach(function (s, i) {
+      var o = A.createOscillator(), g = A.createGain();
+      o.type = 'triangle'; o.frequency.value = base * Math.pow(2, s / 12);
+      g.gain.setValueAtTime(0.0001, t + i * 0.055);
+      g.gain.exponentialRampToValueAtTime(0.075, t + i * 0.055 + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.055 + 0.55);
+      o.connect(g); g.connect(bus); o.start(t + i * 0.055); o.stop(t + i * 0.055 + 0.6);
+    });
+    noise(0.35, 6200, 0.9, 0.03);                                    // a shimmer over it
+  };
+  api.tapStatsV173 = function () { return { taps: tapStats.taps, chimes: tapStats.chimes, played: tapStats.played }; };
+  var manifest153 = api.manifest;
+  api.manifest = function () { return manifest153().concat(['pile_tap', 'pile_milestone']); };
+
   window.__RIB_VAULT_AUDIO = api;
 })();
