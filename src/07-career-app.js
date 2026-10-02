@@ -11930,6 +11930,7 @@
         if (rnd() < TU("focusOffPV171", 0.2)) {
           const O = OFF_STAT_V171[pos] || OFF_STAT_V171.ATH,
             st = O[Math.floor(rnd() * O.length)];
+          out.baseStat = out.stat; /* what the card trains on any other week */
           out.stat = st;
           out.statName = (ATTR_INFO[st] && ATTR_INFO[st].name) || st;
           out.also = [];

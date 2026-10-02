@@ -201,7 +201,8 @@ const VF = await readUI()
 ok(VF.focus.length === 3 && VF.focus.every(f => f.vis), 'exactly three focus cards, all of them on screen', VF.focus.map(f => f.name).join(' | '))
 ok(VF.focus.every(f => /×1\.\d\d/.test(f.mul || '')), 'each shows the stat and the multiplier', VF.focus.map(f => f.mul).join(' | '))
 const want = POS_STATS[V.pos] || []
-ok(!want.length || modelFocus.every(f => want.indexOf(f.stat) >= 0), `they are ${V.pos}-appropriate`, modelFocus.map(f => f.stat).join('/') + ' vs ' + want.join('/'))
+// v171 C: a card whose drill went sideways this week (`off`) trains a stat the position barely uses — the card's own stat is `baseStat`
+ok(!want.length || modelFocus.every(f => want.indexOf(f.off ? f.baseStat : f.stat) >= 0), `they are ${V.pos}-appropriate (a sideways drill named as such)`, modelFocus.map(f => (f.off ? f.baseStat + '→' : '') + f.stat).join('/') + ' vs ' + want.join('/'))
 await tapFocus(VF.focus[0].key)
 const F1 = await readUI()
 ok(F1.focusV111 === VF.focus[0].key, 'picking one writes week.focusV111', 'week.focusV111=' + F1.focusV111)
