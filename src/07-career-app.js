@@ -27528,7 +27528,7 @@
       pitch: I => `Bracket #${I.star.num} ${I.star.name} every snap — a safety over the top, a corner in his face. The run fits get thinner for it.`,
       fit: I => (I.star.pos === "WR" || I.star.pos === "TE" ? 1.2 : 0),
       knobs: { keyStar: 0.45, starCut: 0.2, runKey: -0.25 }, edge: ["SEC"],
-      metric: { key: "star", dir: "le", k: 0.8 }
+      metric: { key: "star", dir: "le", k: 0.45 }
     },
     {
       id: "spy", side: "D", icon: "🎯", risk: 2, varMult: 1.15,
@@ -27536,7 +27536,7 @@
       pitch: I => `A linebacker on #${I.star.num} ${I.star.name} wherever he lines up and the box keyed to him. Play action will bite.`,
       fit: I => (I.star.pos === "RB" ? 1.2 : 0),
       knobs: { runKey: 0.9, starCut: 0.22, blitzMul: 0.8 }, edge: ["LB"],
-      metric: { key: "star", dir: "le", k: 1 }
+      metric: { key: "star", dir: "le", k: 0.45 }
     },
     {
       id: "rattle", side: "D", icon: "💥", risk: 3, varMult: 1.35,
@@ -27544,7 +27544,7 @@
       pitch: I => `Hit #${I.star.num} ${I.star.name} early and often — pressure from everywhere, man behind it. If he beats it, it goes the distance.`,
       fit: I => (I.star.pos === "QB" ? 1.2 : 0),
       knobs: { blitzMul: 1.9, starCut: 0.18, manAdd: 0.15 }, edge: ["DL"],
-      metric: { key: "star", dir: "le", k: 0.9 }
+      metric: { key: "star", dir: "le", k: 0.78 }
     },
     {
       id: "chip", side: "O", icon: "🧲", risk: 1, varMult: 0.9,
@@ -27592,7 +27592,7 @@
       pitch: I => `Run the ball${I.soft.unit === "DL" || I.soft.unit === "LB" ? ` at that ${UNIT_NAME_V171[I.soft.unit]}` : ""} until they stop it. Shorten the game, keep their offense on the bench.`,
       fit: I => (I.soft.unit === "DL" || I.soft.unit === "LB" ? 1 : I.strong.unit === "SEC" ? 0.8 : 0.45),
       knobs: { passAdd: -0.2 }, edge: ["OL", "RB"],
-      metric: { key: "usRush", dir: "ge", k: 1.25 }
+      metric: { key: "usRush", dir: "ge", k: 1.15 }
     },
     {
       id: "air", side: "O", icon: "🚀", risk: 3, varMult: 1.35,
@@ -27608,7 +27608,7 @@
       pitch: I => `#${I.weak.num} ${I.weak.name} is their weak ${I.weak.pos === "S" ? "safety" : I.weak.pos === "LB" ? "linebacker" : "corner"}. Every route goes at him until they take him off.`,
       fit: I => (I.weak.pos === "CB" || I.weak.pos === "S" || I.weak.pos === "LB" ? 0.95 : 0),
       knobs: { passAdd: 0.1, weakCut: 0.25 }, edge: ["REC"],
-      metric: { key: "usPass", dir: "ge", k: 1.3 }
+      metric: { key: "usPass", dir: "ge", k: 1.35 }
     },
     {
       id: "attack", side: "D", icon: "⚔️", risk: 2, varMult: 1.15,
