@@ -278,6 +278,8 @@ const step = async (page, t, wait = 900) => {
   const plan = await expect('plan', 'the weekly-plan board, on the fifth page')
   ok(await page.evaluate(() => !!document.querySelector('#v112Page5 #v146Plan') && !document.getElementById('growthV42')), '  …and what he talks over is the plan board inside the wizard, not a wheel')
   await page.evaluate(() => { const C = window.__RIB_COACH, S = C.stops.find((x) => x.id === C.stop), last = (S ? S.lines : 1) - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(700)
+  // v171: page 5 opens on the matchup call, so the strip is a scroll away — let the coach's scroll land first
+  await page.waitForFunction(() => { const spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), g = document.getElementById('v146Proj'); if (!spot || spot.hidden || !g) return false; const sr = spot.getBoundingClientRect(), gr = g.getBoundingClientRect(); return sr.top <= gr.top + 1 && sr.bottom >= gr.bottom - 1 }, null, { timeout: 4000 }).catch(() => {})
   const planSpot = await page.evaluate(() => { const C = window.__RIB_COACH, spot = document.querySelector('#rib-coach-v119 [data-c-spot]'), g = document.getElementById('v146Proj'); const sr = spot && !spot.hidden ? spot.getBoundingClientRect() : null, gr = g ? g.getBoundingClientRect() : null
     return { line: C.line, key: C.spot, shown: !!sr, over: !!(sr && gr && sr.left <= gr.left + 1 && sr.right >= gr.right - 1 && sr.top <= gr.top + 1 && sr.bottom >= gr.bottom - 1) } })
   ok(plan && plan.stop === 'plan' && planSpot.key === 'proj' && planSpot.shown && planSpot.over, "the plan stop's last line lights the projection the pick is priced in", JSON.stringify(planSpot))
