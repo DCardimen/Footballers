@@ -14731,7 +14731,7 @@
         : "") /* v131: the price of starting over belongs where you read the sheet it changed */ +
       bodyBadgeV85(pl) +
       (FOC
-        ? `<div id="preFocusV111" style="display:flex;align-items:center;gap:6px;margin:0 0 7px;font:600 11px Barlow Condensed,sans-serif;color:#8fe0a0"><span>🎯 GAME FOCUS · ${FOC.name || FOC.key}</span><b style="font:700 11px Oswald,sans-serif">×${(Math.round((Number(FOC.mul) || 1.2) * 100) / 100).toFixed(1)} ${(ATTR_INFO[FOC.stat] && ATTR_INFO[FOC.stat].name) || FOC.stat}</b><span style="color:var(--chalk-dim);font-weight:400">this game only</span></div>`
+        ? `<div id="preFocusV111" style="display:flex;align-items:center;gap:6px;margin:0 0 7px;font:600 11px Barlow Condensed,sans-serif;color:#8fe0a0"><span>🎯 GAME FOCUS · ${FOC.name || FOC.key}</span><b style="font:700 11px Oswald,sans-serif">×${(Math.round((Number(FOC.mul) || 1.2) * 100) / 100).toFixed(2)} ${(ATTR_INFO[FOC.stat] && ATTR_INFO[FOC.stat].name) || FOC.stat}</b><span style="color:var(--chalk-dim);font-weight:400">this game only</span></div>`
         : ``) +
       list.map(row).join("") +
       `</div>`
