@@ -195,7 +195,9 @@
    "anchors": [
     "v146 A",
     "v151 D",
-    "v153 A"
+    "v153 A",
+    "v177 A",
+    "v177 B"
    ],
    "files": [],
    "checks": [
@@ -212,7 +214,8 @@
     "v86check",
     "v110check",
     "v151Dcheck",
-    "v153Acheck"
+    "v153Acheck",
+    "scrumcheck"
    ]
   },
   "cuts": {
@@ -1163,7 +1166,8 @@
     "simcheck",
     "renderpathcheck",
     "v86check",
-    "v153Acheck"
+    "v153Acheck",
+    "scrumcheck"
    ]
   },
   "plant": {
@@ -4686,6 +4690,19 @@
     "camera"
    ],
    "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "scrumcheck": {
+   "file": "scripts/scrumcheck.mjs",
+   "desc": "v177 A/B — a gang grip becomes a scrum that goes back and forth (the carrier's frames reverse several times), the men in it never stand still, team-mates and defenders join it, the stronger-pushing side wins more ground, the swing stays a few yards, pushers are never credited; the field keeps moving through a grip; a few scrums end with a break-free that goes backward first and then sideways, the men he left are beaten, some are run down behind it; both kill switches (OFF freezes the bystanders exactly as before); the run game in band; the broadcast draws the lean, the churn and the rock, and the break-free stagger; no page errors.",
+   "areas": [
+    "contact",
+    "pile"
+   ],
+   "runtimeSec": 120,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

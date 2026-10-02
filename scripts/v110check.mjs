@@ -39,7 +39,8 @@ const R = await page.evaluate((GAMES) => {
     near2: 0, near2Idle: 0, near3: 0, near3Idle: 0,
     arrivals: 0, ballManEvents: 0, ballManCloser: 0, ballManPlays: 0,
     picks: 0, pickByBallMan: 0, swats: 0, swatByBallMan: 0, creditFollows: 0, creditWrong: 0, wrongRows: [], bmCredit: 0 }
-  const INVOLVED = /^(tackleLunge|tackleHit|tackleWhiff|grab|tackle|hurdle|stiffarm|brokenTackle|bounce|stagger|pileOn|wrapIn|drag|block|swat|pick)$/
+  // v177 A: a man who latched onto a scrum to push it is in the play (never credited — the involvement is the picture's)
+  const INVOLVED = /^(tackleLunge|tackleHit|tackleWhiff|grab|tackle|hurdle|stiffarm|brokenTackle|bounce|stagger|pileOn|wrapIn|drag|block|swat|pick|scrumJoinV177A)$/
   const scan = (entry, out) => {
     const log = entry && entry.log ? entry.log : entry
     if (!log || !log.events || !log.actors) return

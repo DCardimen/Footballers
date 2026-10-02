@@ -4436,6 +4436,59 @@ class Ot extends mt.Scene {
         try { const R = window.__V153A_R = window.__V153A_R || { gangs: 0, fell: 0, maxN: 0 }; R.escapes = (R.escapes || 0) + 1; } catch (er) {}
         break;
       }
+      /* ===== v177 A THE SCRUM SHOVES (renderer) =====
+       * The sim moves the pile (it surges back and forth and settles where the stronger side put it); this
+       * makes the MEN in it fight: every man in the scrum leans into it, his legs churn in place, and the
+       * cluster rocks on its own phase (`scrumPoseV177A`, read by placeMarker). `scrumJoinV177A` adds a man
+       * as he latches on, `scrumSurgeV177A` kicks up turf when the pile changes direction, `scrumEndV177A`
+       * lets go. `window.__V177A_R` (`scrums`, `joins`, `surges`, `frames`, `rock`). */
+      case "scrumV177A": case "scrumJoinV177A": {
+        const cmI = this.actorIdx(e.carrier), cm = this.markers[cmI], H = this.hookV177A();
+        const ids = e.type === "scrumV177A" ? [e.carrier].concat(e.def || [], e.off || []) : [e.who];
+        const ms = e.type === "scrumV177A" ? Math.max(200, Number(e.ms) || 600) : Math.max(120, (cm && cm._scrumV177A ? cm._scrumV177A.until - cm.tms : 400));
+        ids.forEach((id, i) => { const m = this.markers[this.actorIdx(id)]; if (!m || !cm) return;
+          m._scrumV177A = { t0: m.tms, until: m.tms + ms + TU("scrumHoldMsV177A", 80), cm, role: id === e.carrier ? "carrier" : (e.side || (i === 0 ? "carrier" : "pile")),
+            dir: Number(e.dir) || (cm._scrumV177A ? cm._scrumV177A.dir : 1), ph: (((m.num || i) * 37) % 17) / 17 * Math.PI * 2, rt: 0,
+            foe: id === e.carrier && e.by != null ? this.markers[this.actorIdx(e.by)] : null };   // the carrier drives INTO the man who has him
+          if (m.forceState === "grab") m.forceState = null;
+          if (m !== cm) { m._pair = cmI; m._pairT = m.tms; } });
+        if (cm) cm._dragging = true;
+        if (e.type === "scrumV177A") { H.scrums++; this.puffFx(e.x, e.y + 3, 3, 0x8a7a55, 0.45); if (Math.abs(Number(e.drift) || 0) > 1.8) this.popText(e.x, e.y - 30, "PILE DRIVE!", "#ffd97a", 12); }
+        else { H.joins++; this.puffFx(e.x, e.y, 1, 0xc8d6cb, 0.34); }
+        break;
+      }
+      case "scrumSurgeV177A": {
+        const H = this.hookV177A(); H.surges++;
+        this.puffFx(e.x, e.y + 4, 1 + (e.n % 2), 0x8a7a55, 0.4);
+        const cm = this.markers[this.actorIdx(e.carrier)]; if (cm && cm._scrumV177A) cm._scrumV177A.surge = { t0: cm.tms, dir: e.dir };
+        break;
+      }
+      case "scrumEndV177A": {
+        const cm = this.markers[this.actorIdx(e.carrier)];
+        if (cm && !e.broke && Math.abs(Number(e.yd) || 0) >= TU("scrumCallYdV177A", 1.5)) this.popText(e.x, e.y - 28, e.yd > 0 ? "PUSHED THE PILE!" : "DRIVEN BACK!", e.yd > 0 ? "#57e07a" : "#ffd97a", 12);
+        // the pile has settled: everybody in it stops driving a beat later (the tackle on this tick folds them)
+        if (cm) this.markers.forEach(m => { if (m && m._scrumV177A && m._scrumV177A.cm === cm) m._scrumV177A.until = Math.min(m._scrumV177A.until, m.tms + TU("scrumLetGoMsV177A", 120)); });
+        this.hookV177A().ends++;
+        break;
+      }
+      /* v177 B HE SPINS OUT AND RESETS (renderer): the men who had him grab air and stumble, the carrier spins
+       * off the front of it (the `cut` that follows on the same tick draws the spin) and the frames take him
+       * back and round */
+      case "breakFreeV177B": {
+        const cm = this.markers[this.actorIdx(e.carrier)];
+        (Array.isArray(e.from) ? e.from : []).forEach(id => { const a = this.markers[this.actorIdx(id)]; if (!a || a === cm) return;
+          a._scrumV177A = null; a.forceState = "stagger"; a._lean = 0; a._pair = null; a._wrapInV109 = 0; if (a.body) a.body.x = 0;
+          this.time.delayedCall(TU("brkStumbleMsV177B", 420), () => { if (a.forceState === "stagger") a.forceState = null; }); });
+        this.markers.forEach(m => { if (m && m._scrumV177A && m._scrumV177A.cm === cm) { m._scrumV177A = null; if (m.body) m.body.x = 0; if (m._leanSrc === "scrum") { m._lean = 0; m._leanSrc = null; } } });
+        if (cm) { cm._dragging = false; cm._lean = 0; cm.forceState = null; }
+        P.gripPair = null;
+        this.popText(e.x, e.y - 30, "BROKE FREE!", "#8fe7ff", 14);
+        this.puffFx(e.x, e.y, 4, 0xffe9ad, 0.5); vib(24);
+        this.slowMoment(P, TU("brkSlowV177B", 0.5), 650);
+        try { this.crowdReact({ type: "brokenTackle", x: e.x }, P); } catch (er) {}
+        this.hookV177A().breaks++;
+        break;
+      }
       case "secondEffort": {
         // a yard from the marker, still on his feet, still driving
         this.popText(e.x, e.y - 34, "SECOND EFFORT", "#f0bb45", 12);
@@ -5879,6 +5932,34 @@ class Ot extends mt.Scene {
     }
     return true;
   }
+  /* v177 A THE SCRUM SHOVES (renderer): a man in a scrum never stands still. He faces the pile (the carrier
+   * faces the man who has him), leans into it, his legs churn in place on the run cycle at `scrumFrameMsV177A`,
+   * and his body rocks toward the pile on his own phase (`scrumRockPxV177A`, `scrumRockMsV177A`) — harder for a beat
+   * after the pile changes direction. Returns the cell to draw, or null when he is not (or no longer) in one. */
+  hookV177A() { return (window.__V177A_R = window.__V177A_R || { scrums: 0, joins: 0, surges: 0, ends: 0, breaks: 0, frames: 0, rock: 0, cells: {} }); }
+  scrumPoseV177A(m, dtms) {
+    const Q = m._scrumV177A; if (!Q) return null;
+    const off = () => { m._scrumV177A = null; if (m.body) m.body.x = 0; if (m._leanSrc === "scrum") { m._lean = 0; m._leanSrc = null; } return null; };
+    if (!TU("v177Ascrum", 1) || m.tms > Q.until || (this.play && this.play.done) || /^(tackleSeq|down|dive|pancakeSeq|getupSeq|stagger|fall|hurdleSeq|jukeSeq|stiffSeq)$/.test(String(m.forceState || ""))) return off();
+    if (m.forceState && m.forceState !== "grab") return null;
+    if (m.forceState === "grab") m.forceState = null;
+    const H = this.hookV177A(), cm = Q.cm;
+    let fx, fy;
+    const to = cm && cm !== m ? cm : Q.foe;
+    if (to && to.root) { const p0 = PJ(m.sx, m.sy), p1 = PJ(to.sx, to.sy); fx = p1.x - p0.x; fy = p1.y - p0.y; }
+    else { const p0 = PJ(m.sx, m.sy), p1 = PJ(m.sx + (Q.dir || 1) * 10, m.sy); fx = p1.x - p0.x; fy = p1.y - p0.y; }
+    if (Math.hypot(fx, fy) > .5) this.faceMarker(m, fx, fy);
+    const toward = (fx >= 0 ? 1 : -1);
+    Q.rt = (Q.rt || 0) + (dtms || 16);
+    const w = Math.sin(Q.rt / Math.max(60, TU("scrumRockMsV177A", 210)) * Math.PI * 2 + Q.ph);
+    const S = cm && cm._scrumV177A && cm._scrumV177A.surge, surgeK = S && cm.tms - S.t0 < 160 ? TU("scrumSurgeKV177A", 1.6) : 1;
+    if (m.body && !REDUCED_MOTION) { m.body.x = toward * TU("scrumRockPxV177A", 1.6) * surgeK * (.55 + .45 * w); H.rock++; }
+    m._lean = toward * TU("scrumLeanV177A", .24) * (.75 + .25 * w); m._leanSrc = "scrum"; m._leanV109 = 0;
+    H.frames++;
+    const st = "run" + (Math.floor(Q.rt / Math.max(40, TU("scrumFrameMsV177A", 80))) % (window.__RIB_FRAMES || 4));
+    H.cells[st] = (H.cells[st] || 0) + 1;
+    return st;
+  }
   // every engaged pair grinds: both bodies rock into each other on the pair's phase, leaning into the drive
   shoveV164H(m, engaged) {
     if (!engaged || !TU("v164Hmoves", 1) || !TU("shoveV164H", 1)) { if (m._shoveV164H) { m._shoveV164H = 0; if (m.body) m.body.x = 0; if (m._leanSrc === "shove") { m._leanSrc = null; m._lean = 0; } } return; }
@@ -6359,6 +6440,8 @@ class Ot extends mt.Scene {
     else if (m.sSm < 8) st = "idle";
     else if (m._walk && this.textures.exists("spr_" + (m.kit || m.team) + "_" + m.dirKey + "_walk0")) { m.wt = (m.wt || 0) + (dtms || 16); st = "walk" + (Math.floor(m.wt / TU("walkFrameMs", 170)) % 2); this.v109E().walkFrames++; }   // v109 WALK: a man told to walk (m._walk — the huddle break, the helper, the walk-off, the LB drop) uses the drawn walk cycle
     else { st = this.runFrameV151D(m, dtms); }   // v151 D: the stride is paced by the ground his own body covers
+    const scrum7 = m._scrumV177A ? this.scrumPoseV177A(m, dtms) : null;   // v177 A: a man in a scrum drives his legs and leans into it
+    if (scrum7) st = scrum7;
     // v107: a dropback is a BACKPEDAL, not the run cycle played facing the line. Paced by the
     // ground he covers, the same way the run frames are, so a hurried seven-step churns.
     if (!m.forceState && m._dropback && m.dirKey === "up" && st !== "idle"
@@ -6368,10 +6451,10 @@ class Ot extends mt.Scene {
       const V7 = (window.__V107 = window.__V107 || { throws: [] }); V7.backpedalFrames = (V7.backpedalFrames || 0) + 1;
     }
     // v11: engaged linemen BLOCK across the whole grind band — one stable state, no flapping
-    if (!m.forceState && m.isLine && m.sSm > 3 && m.sSm < TU("blockBand",78) && (st === "idle" || st.indexOf("run") === 0)) st = "block";
+    if (!scrum7 && !m.forceState && m.isLine && m.sSm > 3 && m.sSm < TU("blockBand",78) && (st === "idle" || st.indexOf("run") === 0)) st = "block";
     // v83: anyone squared up on a partner is blocking (or being blocked) — and the pair's own
     // motion sets the tempo: a stalemate churns slowly, a drive or a wash cycles fast
-    if (engaged && !m.forceState && m.sSm < TU("blockBand",78) && (st === "idle" || st.indexOf("run") === 0 || st === "cut")) st = "block";
+    if (engaged && !scrum7 && !m.forceState && m.sSm < TU("blockBand",78) && (st === "idle" || st.indexOf("run") === 0 || st === "cut")) st = "block";
     if (st === "block") { const pairSpd = engaged ? Math.max(m.sSm, engaged.sSm || 0) : m.sSm;
       const frameMs = pairSpd > TU("driveSpd", 22) ? TU("blockDriveFrameMs", 105) : TU("blockFrameMs",170);
       m.bt = (m.bt || 0) + (dtms || 16); st = "block" + (Math.floor(m.bt / frameMs) % (window.__RIB_BLOCKF || 1));

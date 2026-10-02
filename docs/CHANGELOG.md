@@ -64,6 +64,30 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
   animated v158 A painters. All thirty are SUPER looks (mythic, never sold): three never-resetting super ladders pay them
   a rung at a time — The Showman (every 60 touchdowns across careers), The Dynasty Closet (every 5 titles), The Long Haul
   (every 15 seasons). Kill switches `v177I`, `v177J` (banners: `v158Aban`).
+- **v177 A/B — the scrum shoves; he spins out and resets.** (`src/04-engine.js`, `src/05-field-renderer.js`,
+  `scripts/scrumcheck.mjs`.) The owner: "group tackles where everyone just stands around — I want real pushing and
+  shoving back and forth; stronger teams might get a few more yards; add the possibility to break free, run backwards
+  and try to get around another way." *A — the scrum shoves* (`v177 A THE SCRUM SHOVES`): while the v103 grip ran,
+  the carry loop skipped every other man, so the whole field froze; now everybody carries on along his line, easing
+  off (`scrumCrowdV177A` — a pursuit that kept chasing through the grip cost a quarter of the yards after the catch
+  in `movementcheck`, so the grip's outcome stays the old one). A grip that would land with two or more defenders in it becomes a SCRUM for
+  0.7–1.2 s of sim time: men within ~10 yards run in and join (team-mates behind the carrier, defenders in front),
+  each side's push is a diminishing sum of its men's strength (grit/burst for the carrier, blocking for a pusher,
+  tackling for a defender — so a stronger roster pushes harder), and the pile surges back and forth around a net
+  drift of up to ±3 yards before it goes down (`scrumPowYdV177A`, `scrumBiasV177A`, `scrumSwayYdV177A`…). The
+  scrum moves the forward-progress spot by exactly its drift; nothing is stripped inside it; a man who only joined
+  to push is never credited. On the broadcast every man in it leans in, churns the run cycle in place and rocks
+  (`scrumPoseV177A`), with turf on each reversal and "PUSHED THE PILE!" / "DRIVEN BACK!" on a big one.
+  *B — he spins out and resets* (`v177 B HE SPINS OUT AND RESETS`): once per scrum, on his agility, quickness,
+  strength and ball security against the wrap, he can break free (~6% of scrums): the men on him are beaten, he
+  backs out 2–3 yards, bounces to the emptier side and reads a new lane — and about half the time somebody runs him
+  down behind where he broke free. Measured (`scrumcheck`, 36 games): ~27 scrums a game, median 5 reversals each,
+  the strongest-pushing third of scrums +0.6 yd vs the weakest −0.4 yd, mean |drift| 0.5 yd. Neutral (`scoreneutralcheck`, seeds 11–14 × 150 games, ON vs OFF): 22.3 vs 21.9 points,
+  5.12 vs 5.19 ypc, 8.76 vs 8.62 ypa, 72.9 vs 73.1% completions, 0.43 vs 0.45 turnovers, 0.72 vs 0.72 sacks — all inside
+  the seed spread (`scrumBiasV177A` .15 is the zero point). A sack in the pocket keeps the old grip (letting the rush pile in there added a tenth of a sack).
+  Kill switches `TU("v177Ascrum", 0)` (the old grip, frozen bystanders and all) and `TU("v177Bbreak", 0)`; hooks
+  `window.__V177A`, `window.__V177B`, `window.__V177A_R`. `v110check` counts a `scrumJoinV177A` man as in the play
+  (the tackler is the man squared up on the carrier, the nearest; the pushers fan out beside and behind him).
 - **v176 — the number is sewn on.** (`src/05-field-renderer.js`, `src/28-cosmetics.js`, `scripts/numsewcheck.mjs`.) The
   owner said the jersey numbers looked pasted on, sat on the helmet, and were not centred. They were a vector label
   (Oswald with a dark stroke) scaled down over a soft 48-pixel body; a rear helmet is drawn in the jersey's colour, so the
