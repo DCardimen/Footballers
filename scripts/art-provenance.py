@@ -27,6 +27,7 @@ DERIVED = [
     ('public/vault/*.webp', 'art/Prestige/*', 'scripts/build-vault-art.py'),
     ('public/legacy/*.webp', 'art/legacy/sheet-*.png', 'scripts/build-legacy-medals.py'),
     ('public/celebrations/*.png', 'art/celebrations/{flex,backflip,spike}.png', 'scripts/build-celebration-sheets.py'),
+    ('public/celebrations/cel_v177i*.png', 'art/celebrations/{flex,backflip,spike}.png (re-posed)', 'scripts/build-celebration-moves.py'),
     ('public/rib_film_v116.{mp4,webm,jpg} and the app icons', 'art/splash/rib_loop_master_v116.mp4', 'scripts/build-splash-film.mjs, scripts/build-app-icons.py'),
 ]
 

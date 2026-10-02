@@ -2562,6 +2562,219 @@ window.__visionRadiusV96 = visionRadiusV96;
       const out = rows.slice(0, Math.max(0, Math.round(TU("gangDownMaxV153A", 4)))).map(r => r.id);
       return out.length ? out : undefined;
     };
+    /* ===== v177 A THE SCRUM SHOVES =====
+     * The owner: "There's a weird thing with group tackles where everyone just stands around. I want real
+     * pushing and shoving back and forth. Stronger teams might get a few more yards." Two things were wrong.
+     * (1) While the v103 grip ran, the carry loop `continue`d past everything else, so every man not in the
+     * grip froze on his pixel; (2) a pile with two or more defenders on the carrier landed the moment the
+     * grip's clock ran out — one short drag forward, then down, with no contest in it.
+     * Now:
+     *   - THE CROWD MOVES (`scrumCrowdV177A`). Through the grip everybody else carries on the way he was going,
+     *     easing off (`gripCoastBrakeV177A` — a receiver keeps his route, a pursuer his line); nobody stands on a
+     *     pixel. Measured and rejected: letting the pursuit keep CHASING through the grip piled men onto grips the
+     *     carrier used to break (`movementcheck`: yards after the catch −28%), and in the pocket it added a tenth
+     *     of a sack a game — so the grip's outcome is the old one, and a sack in the pocket keeps the old grip.
+     *   - THE SCRUM (`scrumStartV177A` / `scrumTickV177A`). When the grip would land with two or more
+     *     defenders in it (the tackler + v103 joiners, or a booked gang with support at hand) the pile stays
+     *     UP for `scrumMsV177A` and is fought over: men within `scrumPullPxV177A` run in and join it
+     *     (`scrumJoinV177A`) — team-mates behind the carrier to push him on, defenders in front to drive him
+     *     back, at most `scrumMaxOffV177A` / `scrumMaxDefV177A` a side. Each side's push is a diminishing sum
+     *     (`scrumManKV177A`) of its men's strength (the carrier's grit and burst, a blocker's blocking, a
+     *     tackler's tackling — all scaled by the rosters, so a stronger TEAM pushes harder); the net drift is
+     *     `scrumPowYdV177A` yards per man-of-push of difference, plus `scrumBiasV177A` (the zero point: the
+     *     league-average pile nets nothing) and a little noise, clamped to `scrumMaxYdV177A`. The pile's
+     *     position is that drift eased in, plus SURGES — a swing of `scrumSwayYdV177A` at `scrumPerMsV177A`,
+     *     enveloped so it starts and ends at rest — so it really goes back and forth (`scrumSurgeV177A` on
+     *     every change of direction) and settles where the stronger side put it.
+     *   - THE SPOT. A contested pile is spotted where it settles: ground the scrum wins counts, ground it loses
+     *     counts too (v153 A's forward progress still gives back what the v151 D push took before the scrum;
+     *     the scrum's own net drift moves that spot by exactly the drift). No strip, horse collar or grip
+     *     break is rolled inside the scrum, so turnovers do not move.
+     *   - CREDIT is untouched: a man who joins to push is not in `sup` / `joined` and never gets a tackle or
+     *     an assist (stat-credit truth; `gangDownV153A` may still lay him on the heap — pure geometry).
+     * Kill switch `TU("v177Ascrum", 0)` (the old grip, frozen bystanders and all). Spends draws only when a
+     * scrum starts, so ON and OFF are different sample paths — compare seeds. `root.__V177A`; `scrumcheck`. */
+    const V177A = root.__V177A = root.__V177A || { scrums: 0, ticks: 0, flips: 0, joinOff: 0, joinDef: 0, yd: 0, ydAbs: 0,
+      offWon: 0, defWon: 0, crowdTicks: 0, last: null };
+    const V177B = root.__V177B = root.__V177B || { rolls: 0, breaks: 0, pSum: 0, back: 0, last: null };
+    const scrumPowV177A = (men, c) => {
+      const k = TU("scrumManKV177A", .7);
+      return men.filter(Boolean).map(a => a === c ? (a.str || 50) * .6 + (a.grit || 50) * .25 + (a.burst || 50) * .15
+        : a.side === c.side ? (a.str || 50) * .6 + (a.blk || 50) * .4 : (a.str || 50) * .6 + (a.tkl || 50) * .4)
+        .sort((p, q) => q - p).reduce((s, v, i) => s + v * Math.pow(k, i), 0);
+    };
+    const scrumDefMenV177A = (G, dfd) => [dfd].concat(G.joined.map(id => A_all[id]), G.scrum ? G.scrum.def.map(id => A_all[id]) : []).filter(Boolean);
+    const scrumOffMenV177A = (G, c) => [c].concat(G.scrum ? G.scrum.off.map(id => A_all[id]) : []).filter(Boolean);
+    const scrumDriftYdV177A = (G, c, dfd) => {
+      const ref = Math.max(1, TU("scrumPowRefV177A", 60));
+      const net = (scrumPowV177A(scrumOffMenV177A(G, c), c) - scrumPowV177A(scrumDefMenV177A(G, dfd), c)) / ref;
+      const mx = TU("scrumMaxYdV177A", 3);
+      return cl(TU("scrumBiasV177A", .15) + net * TU("scrumPowYdV177A", 1.2) + (G.scrum ? G.scrum.noise : 0), -mx, mx);
+    };
+    /* everybody who is not in the pile keeps playing: pursuit closes, the offence drifts in, men already
+     * there hold a ring round it. In a scrum (`join`) the near men run in and latch on. Blocks in progress
+     * and men on the turf are left as they are. */
+    /* v177 A THE TRENCHES KEEP FIGHTING: a block still locked when the carrier is wrapped up does not
+     * freeze for the grip. The pair heaves on its own phase (`trenchAmpPxV177A` a tick each way,
+     * `trenchPerMsV177A`) and gives a little ground AWAY from the pile (`trenchDriftPxV177A`), so the
+     * fight is visible and can never bring either man into the tackle. Kill switch `gripTrenchV177A`. */
+    const trenchFightV177A = (a, c, inPile, fought) => {
+      if (!TU("gripTrenchV177A", 1)) return;
+      const foe = a.engagedBy && !a.engagedBy.shed ? a.engagedBy : (a.engaging && a.engaging.engagedBy === a ? a.engaging : null);
+      if (fought.has(a.id) || (foe && (fought.has(foe.id) || inPile.has(foe.id)))) return;
+      fought.add(a.id); if (foe) fought.add(foe.id);
+      const mx = foe ? (a.lx + foe.lx) / 2 : a.lx, my = foe ? (a.y + foe.y) / 2 : a.y;
+      const d = Math.hypot(mx - c.lx, my - c.y) || 1, ux = (mx - c.lx) / d, uy = (my - c.y) / d;
+      const step = TU("trenchAmpPxV177A", .6) * Math.sin(t / TU("trenchPerMsV177A", 260) + S.all.indexOf(a) * 1.7) + TU("trenchDriftPxV177A", .12);
+      for (const m of foe ? [a, foe] : [a]) { m.lx += ux * step; m.y = clampY(m.y + uy * step); }
+      V177A.trench = (V177A.trench || 0) + 1;
+    };
+    const scrumCrowdV177A = (c, G, dfd, dsg, join) => {
+      const Q = G.scrum, inPile = new Set([c.id, dfd.id].concat(G.joined, Q ? Q.off : [], Q ? Q.def : []));
+      const ring = TU("scrumRingPxV177A", 30), pull = TU("scrumPullPxV177A", 60), latch = TU("scrumJoinPxV177A", 14);
+      if (!join && c.lb === "QB" && c.lx * dsg <= 0) return;                    // a sack in the pocket is the old grip, untouched (the rush is already there)
+      V177A.crowdTicks++;
+      const fought = new Set();
+      for (const a of S.all) {
+        if (inPile.has(a.id)) continue;
+        if ((a.stunned && t < a.stunned) || (a.trucked && t < a.trucked + 900)) continue;
+        if ((a.lb === "DL" && !a.shed) || (a.engagedBy && !a.engagedBy.shed)) {
+          trenchFightV177A(a, c, inPile, fought);
+          continue;
+        }
+        const mine = a.side === c.side, d = Math.hypot(a.lx - c.lx, a.y - c.y) || .01;
+        const live = mine ? a.lb !== "QB" || a === c : t > (a.beaten || 0);
+        const room = Q && (mine ? Q.off.length < TU("scrumMaxOffV177A", 3) : 1 + G.joined.length + Q.def.length < TU("scrumMaxDefV177A", 4));
+        if (join && Q && live && room && d < pull) {
+          if (d < latch) {
+            (mine ? Q.off : Q.def).push(a.id); inPile.add(a.id);
+            Q.slot[a.id] = { dx: a.lx - c.lx, dy: a.y - c.y, t0: t };
+            V177A[mine ? "joinOff" : "joinDef"]++;
+            emit("scrumJoinV177A", { who: a.id, carrier: c.id, side: mine ? "off" : "def", x: a.lx, y: a.y, n: 2 + G.joined.length + Q.off.length + Q.def.length, cid: G.hit.cid });
+          } else mv(a, c.lx + (mine ? -dsg : dsg) * TU("scrumFrontPxV177A", 8), c.y + (a.y - c.y) * .3, TU("scrumPullPaceV177A", .85));
+          continue;
+        }
+        // the grip is live: everybody carries on the way he was going, easing off (a receiver keeps his route, a
+        // pursuer his line) — nobody freezes, and nobody arrives sooner than he would have (a pursuit that kept
+        // coming piled onto grips the carrier used to break, and cost a quarter of the yards after the catch)
+        if (!join) {
+          evolveSpeed(a, 0, TICK, t, 0, TU("gripCoastBrakeV177A", 1));
+          const v = Math.max(0, a.vel || 0) * (a.spd || 120) * TICK / 1000;
+          if (v > .05) { a.lx += (a._dx || 0) * v; a.y = clampY(a.y + (a._dy || 0) * v); }
+          continue;
+        }
+        // not joining the scrum: close to the ring at a jog, then hold there
+        const pace = TU("scrumJogPaceV177A", .35);
+        if (d > ring) mv(a, c.lx + (a.lx - c.lx) / d * ring, c.y + (a.y - c.y) / d * ring, pace);
+        else mv(a, a.lx, a.y, 0);                                              // there: brake to a stand at the pile
+      }
+    };
+    const scrumStartV177A = (c, G, dfd, dsg, isKickV) => {
+      if (!TU("v177Ascrum", 1) || G.scrum || G.bigStick || G.strip || isKickV) return false;
+      if (c.lb === "QB" && c.lx * dsg <= 0) return false;                       // a quarterback taken down behind his line is a sack, not a scrum
+      const nDef = 1 + G.joined.length + (G.gang ? Math.min(1, G.nSupport) : 0);
+      if (nDef < TU("scrumMinDefV177A", 2)) return false;
+      const room = HARD - t - TU("scrumRoomMsV177A", 400);
+      if (room < TU("scrumMinMsV177A", 300)) return false;
+      const pS = TU("scrumPV177A", 1);
+      if (pS < 1 && !(Math.random() < pS)) return false;
+      const ms = Math.min(room, TU("scrumMsV177A", 700) + Math.random() * TU("scrumMsRandV177A", 500));
+      const Q = G.scrum = { t0: t, ms, x0: c.lx, y0: c.y, off: [], def: [], slot: {}, D: 0, flips: 0, lastDir: 0,
+        noise: (Math.random() * 2 - 1) * TU("scrumNoiseYdV177A", .5),
+        per: TU("scrumPerMsV177A", 380) * (.8 + Math.random() * .4), ph: Math.random() * Math.PI * 2,
+        amp: TU("scrumSwayYdV177A", .75) * YD, ampY: TU("scrumSwayYPxV177A", 2.5),
+        fpPre: G.fpLxV153A != null ? G.fpLxV153A : c.lx, brkAt: 0, brkR: 1 };
+      // the men already on him keep the spots they have, then settle into the pile's shape
+      [dfd].concat(G.joined.map(id => A_all[id])).forEach(a => { if (a) Q.slot[a.id] = { dx: a.lx - c.lx, dy: a.y - c.y, t0: t }; });
+      // v177 B: whether — and when — he gets out of it is decided as it starts (no draws with B off)
+      if (TU("v177Bbreak", 1)) { Q.brkAt = t + ms * (TU("brkFromV177B", .25) + Math.random() * TU("brkSpanV177B", .45)); Q.brkR = Math.random(); }
+      Q.D = 0; Q.Dt0 = scrumDriftYdV177A(G, c, dfd);
+      V177A.scrums++;
+      emit("scrumV177A", { carrier: c.id, by: dfd.id, def: [dfd.id].concat(G.joined), off: [], sup: G.sup.slice(), ms: Math.round(ms), dir: dsg,
+        drift: +Q.Dt0.toFixed(2), x: c.lx, y: c.y, cid: G.hit.cid });
+      return true;
+    };
+    /* one tick of the scrum: "live", "end" (it settled — land it), or "break" (v177 B: he got out) */
+    const scrumTickV177A = (c, G, dfd, dsg) => {
+      const Q = G.scrum, age = t - Q.t0, u = cl(age / Q.ms, 0, 1);
+      V177A.ticks++;
+      scrumCrowdV177A(c, G, dfd, dsg, true);
+      const Dt = scrumDriftYdV177A(G, c, dfd);
+      Q.D += (Dt - Q.D) * TU("scrumSettleKV177A", .25);
+      const ease = u * u * (3 - 2 * u), env = Math.sin(Math.PI * u), w = 2 * Math.PI * age / Q.per + Q.ph;
+      const p = Q.D * YD * ease + Q.amp * Math.sin(w) * env;
+      const prev = c.lx;
+      c.lx = Q.x0 + dsg * p; c.y = clampY(Q.y0 + Q.ampY * Math.sin(w * .5 + Q.ph) * env);
+      const dp = (c.lx - prev) * dsg, eps = TU("scrumFlipEpsPxV177A", .15);
+      const dir = dp > eps ? 1 : dp < -eps ? -1 : 0;
+      if (dir && Q.lastDir && dir !== Q.lastDir) { Q.flips++; V177A.flips++;
+        emit("scrumSurgeV177A", { carrier: c.id, dir, x: c.lx, y: c.y, n: Q.flips, cid: G.hit.cid }); }
+      if (dir) Q.lastDir = dir;
+      c.vel = cl(Math.abs(dp) / Math.max(1, (c.spd || 120) * TICK / 1000), .05, .4); c._dx = dsg; c._dy = 0;
+      // the men: defenders square in front of him, team-mates behind him, everybody's legs churning
+      const front = TU("scrumFrontPxV177A", 8), settle = Math.max(1, TU("scrumSettleMsV177A", 200)), churn = TU("scrumChurnPxV177A", 1.2);
+      const DY = [0, 6, -6, 11, -11, 16, -16];   // the tackler square on him (nearest), the rest fanned either side and behind
+      const place = (a, sx, sy, j) => { const s = Q.slot[a.id] || (Q.slot[a.id] = { dx: a.lx - c.lx, dy: a.y - c.y, t0: t });
+        const k = cl((t - s.t0) / settle, 0, 1), jx = Math.sin(w * 2 + j * 1.7) * churn;
+        a.lx = c.lx + s.dx + (sx - s.dx) * k + jx * dsg; a.y = clampY(c.y + s.dy + (sy - s.dy) * k);
+        const hx = c.lx - a.lx, hy = c.y - a.y, hl = Math.hypot(hx, hy) || 1; a._dx = hx / hl; a._dy = hy / hl; a.vel = c.vel; };
+      scrumDefMenV177A(G, dfd).forEach((a, i) => place(a, dsg * (i === 0 ? front - 2 : front + (i >= 3 ? 5 : 0)), DY[i % DY.length], i));
+      Q.off.forEach((id, i) => { const a = A_all[id]; if (a) place(a, -dsg * (front + 1 + (i >= 2 ? 5 : 0)), DY[(i + 1) % DY.length], i + 3); });
+      if (G.lastSay == null || t - G.lastSay >= TU("dragSayMs", 99)) { G.lastSay = t;
+        emit("drag", { carrier: c.id, by: dfd.id, x: c.lx, y: c.y, pull: +Math.min(.82, Math.abs(dp) / 2 + .1).toFixed(2), n: 1 + G.joined.length + Q.def.length,
+          strain: !!G.strain, vel: +(c.vel || 0).toFixed(2), cid: G.hit.cid, scrumV177A: true }); }
+      /* ===== v177 B HE SPINS OUT AND RESETS =====
+       * A pile is not always the end of it: a back who keeps his legs and his balance can spin off the
+       * front of a scrum, give ground and go round it. Rolled ONCE per scrum, at `brkAt` (between
+       * `brkFromV177B` and +`brkSpanV177B` of it), on his agility, quickness, strength and ball security
+       * against the wrap of the men on him (`brkBaseV177B` + edge × `brkEdgeKV177B`), less for every
+       * defender past two and more for every team-mate pushing, cut by every move he already made
+       * (`evadeRepeatK`), capped at `brkCapV177B`. On a make the scrum ends with no tackle, the men who had
+       * him are beaten for `brkBeatenMsV177B`, and the carry code takes him BACK (`brkBackMsV177B`,
+       * `brkBackPxV177B` — retreating from the pile) and then OUT (`brkBounceMsV177B`, the side with fewer
+       * live defenders — v82's bounce read) before the lane read takes over. It is a real risk: anyone not in
+       * the pile can run him down behind where he broke free. No forward progress is kept for ground he
+       * gives. Kill switch `TU("v177Bbreak", 0)` (spends no draws). `root.__V177B`; `scrumcheck`. */
+      if (Q.brkAt && t >= Q.brkAt && !Q.brkDone) {
+        Q.brkDone = true; V177B.rolls++;
+        const men = scrumDefMenV177A(G, dfd);
+        const wrap = men.reduce((s, a) => s + (a.tkl || 50) * .6 + (a.str || 50) * .4, 0) / Math.max(1, men.length);
+        const elus = (c.agi || 50) * .35 + (c.quick || 50) * .2 + (c.str || 50) * .25 + (c.bc || 50) * .2;
+        const pB = cl((TU("brkBaseV177B", .08) + (elus - wrap) * TU("brkEdgeKV177B", .003)
+          - Math.max(0, men.length - 2) * TU("brkManKV177B", .012) + Q.off.length * TU("brkHelpKV177B", .01))
+          * Math.pow(TU("evadeRepeatK", .6), Math.max(0, c._evades || 0)), 0, TU("brkCapV177B", .14));
+        V177B.pSum += pB;
+        if (Q.brkR < pB) {
+          // the side with fewer live men on it, and away from the sideline he is pinned to
+          let up = 0, dn = 0;
+          for (const a of S.all) { if (a.side === c.side || men.indexOf(a) >= 0 || t <= (a.beaten || 0)) continue;
+            if (Math.hypot(a.lx - c.lx, a.y - c.y) > TU("brkReadPxV177B", 110)) continue; if (a.y < c.y) up++; else dn++; }
+          let side = up === dn ? (c.y < MIDY ? 1 : -1) : (up < dn ? -1 : 1);
+          if (c.y + side * 40 < SIDELINE_TOP + 6 || c.y + side * 40 > SIDELINE_BOT - 6) side = -side;
+          men.forEach(a => { a.beaten = Math.max(a.beaten || 0, t + TU("brkBeatenMsV177B", 460)); a.cool = t + 420; a._gripOn = null; });
+          const bMs = TU("brkBackMsV177B", 200), oMs = TU("brkBounceMsV177B", 280);
+          c._brkV177B = { t0: t, backUntil: t + bMs, until: t + bMs + oMs, side, x0: c.lx, y0: c.y };
+          c.vel = Math.max(c.vel || 0, TU("brkVelV177B", .35)); c.burstUntil = t + bMs + oMs + 200; c._evades = (c._evades || 0) + 1;
+          c._laneY = clampY(c.y + side * TU("brkLaneOutPxV177B", 50)); c._laneUntil = t + bMs + oMs + TU("laneHoldMs", 200);
+          V177B.breaks++; V177B.last = { p: +pB.toFixed(3), men: men.length, off: Q.off.length, side, t };
+          emit("scrumEndV177A", { carrier: c.id, yd: +((c.lx - Q.x0) * dsg / YD).toFixed(2), flips: Q.flips, nOff: 1 + Q.off.length, nDef: men.length,
+            ms: Math.round(age), broke: true, x: c.lx, y: c.y, cid: G.hit.cid });
+          emit("breakFreeV177B", { carrier: c.id, from: men.map(a => a.id), x: c.lx, y: c.y, side, p: +pB.toFixed(3), cid: G.hit.cid });
+          emit("cut", { kind: "spin", x: c.lx, y: c.y, carrier: c.id, elus: Math.round(elus), direction: side,
+            targetY: clampY(c.y + side * TU("brkLaneOutPxV177B", 50)), breakV177B: true });
+          return "break";
+        }
+      }
+      if (u < 1) return "live";
+      const yd = (c.lx - Q.x0) * dsg / YD;
+      V177A.yd += yd; V177A.ydAbs += Math.abs(yd); if (yd > .25) V177A.offWon++; else if (yd < -.25) V177A.defWon++;
+      V177A.last = { yd: +yd.toFixed(2), flips: Q.flips, off: 1 + Q.off.length, def: 1 + G.joined.length + Q.def.length, ms: Math.round(Q.ms) };
+      G.fpLxV153A = Q.fpPre + (c.lx - Q.x0);                                   // the scrum moves the spot by exactly its drift
+      const pOff = scrumPowV177A(scrumOffMenV177A(G, c), c), pDef = scrumPowV177A(scrumDefMenV177A(G, dfd), c);
+      emit("scrumEndV177A", { carrier: c.id, yd: +yd.toFixed(2), flips: Q.flips, nOff: 1 + Q.off.length, nDef: 1 + G.joined.length + Q.def.length,
+        pOff: Math.round(pOff), pDef: Math.round(pDef), ms: Math.round(age), x: c.lx, y: c.y, cid: G.hit.cid });
+      return "end";
+    };
     /* ===== v112 THE HIT HAS WEIGHT =====
      * A violent collision ended with a man sliding to a stop on the turf: the sim booked the
      * knock-back, the renderer lifted him a fixed few pixels along a fixed hump for a fixed number
@@ -4464,6 +4677,61 @@ window.__visionRadiusV96 = visionRadiusV96;
           const G = c._grip, dfd = A_all[G.by], dsg = c.side === "off" ? 1 : -1, age = t - G.t0;
           if (!dfd || (dfd.stunned && t < dfd.stunned) || (dfd.trucked && t < dfd.trucked + 900)) { c._grip = null; }
           else {
+            /* the landing (v103), as a step both the grip and v177 A's scrum end on */
+            const landGripV177A = () => {
+              const dragYd = (c.lx - G.x0) * dsg / YD;
+              /* stat-credit truth: an assist is only real when the stop was actually ASSISTED and
+               * YOU were one of the men with hands on. `joined` is hands-on by construction (he
+               * reached the pile and latched); `sup` is merely "nearby when the wrap landed", so
+               * it only counts when the collision was resolved as a gang stop — which is exactly
+               * the gate the instantaneous path has always used. Standing near a pile is not
+               * participation, and creditcheck fails the build if this drifts. */
+              const _assisted = !!G.gang;
+              const youIn = (_assisted && S.all.some(a => a.player && a.player.you && a.side !== c.side && a !== dfd
+                && (G.joined.indexOf(a.id) >= 0 || (G.gang && G.sup.indexOf(a.id) >= 0)))) || undefined;
+              // v109: the men who were merely near the wrap close into the landing too (credit untouched)
+              wrapInV109(c, G.sup.filter(id => G.joined.indexOf(id) < 0 && id !== dfd.id), G.hit.cid);
+              /* ===== v153 A THE BALL IS SPOTTED WHERE HE GOT TO (forward progress) =====
+               * A carrier the tackle drove BACKWARDS (v151 D's push, a pile that won the shove) used
+               * to be spotted where he ended up — he lost the ground he had been driven through. The
+               * rule is forward progress: the ball goes down at the furthest point his progress
+               * reached, and where the pile carried him after that does not count. `G.fpLxV153A` is
+               * that point (the grab, or further if he dragged them); when he lands more than
+               * `fwdProgMinPxV153A` behind it, `endTackle` books the yards from it
+               * (`c._fpSpotV153A`), the tackle carries `fpX` / `fpYd` for the official's spot, and
+               * the picture keeps the real landing. Not for a quarterback taken down behind his own
+               * line (a sack — he was going backwards anyway), and not for ground he GAVE (v153 A
+               * GIVE GROUND ends the grip first). No roll. `TU("fwdProgV153A", 0)` / `TU("v153A", 0)`. */
+              let fpV153A = null;
+              if (TU("v153A", 1) && TU("fwdProgV153A", 1) && G.fpLxV153A != null) {
+                const lostPx = (G.fpLxV153A - c.lx) * dsg, qbBehind = c.lb === "QB" && G.fpLxV153A * dsg <= TU("fwdProgQbLosPxV153A", 0);
+                const Vfp = root.__V153A = root.__V153A || { rolls: 0, escapes: 0, fp: 0, fpYd: 0, fpSkipQB: 0, gangDown: 0, last: null };
+                if (lostPx > TU("fwdProgMinPxV153A", 2)) {
+                  if (qbBehind) Vfp.fpSkipQB++;
+                  else { fpV153A = { fpX: G.fpLxV153A, fpYd: +(lostPx / YD).toFixed(2) }; c._fpSpotV153A = G.fpLxV153A; Vfp.fp++; Vfp.fpYd += lostPx / YD; }
+                }
+              }
+              const downV153A = G.bigStick ? undefined : gangDownV153A(c, dfd.id, G.sup.concat(G.joined), !!G.gang, G.handsOn + G.joined.length);
+              emit("tackle", { tackler: dfd.id, carrier: c.id, x: c.lx, y: c.y, ...(fpV153A || null), ...(downV153A ? { downV153A } : null),
+                gang: !!G.gang, bigHit: G.bigStick || G.kb > 11, bothFall: G.bothFall,
+                stayUp: G.stayUp && !G.joined.length, kb: Math.round(G.kb), drive: Math.round(G.drive),
+                sup: G.sup.concat(G.joined), youIn, style: G.style, hitStick: G.bigStick,
+                handsOn: G.handsOn + G.joined.length,
+                dragged: true, dragMs: Math.round(age), dragYd: +dragYd.toFixed(2), strain: !!G.strain, horseCollar: !!G.hc,
+                ...G.hit, ix: Math.round((c.lx + dfd.lx) * 5) / 10, iy: Math.round((c.y + dfd.y) * 5) / 10 });   // v109: the hit's id and normal, the landing's point
+              c._grip = null; dfd._gripOn = null; c._wasGripped = true;
+              endTackle(dfd);
+              if (out) { out.dragYd = +dragYd.toFixed(2); out.strain = !!G.strain; out.dragMs = Math.round(age); }
+            };
+            /* v177 A THE SCRUM SHOVES: once the pile is a scrum, the scrum owns the tick — no pile-on, strip,
+             * collar, grip break or drag; it ends by settling (the landing) or by v177 B's break-free */
+            if (G.scrum) {
+              const how = scrumTickV177A(c, G, dfd, dsg);
+              if (how === "break") { c._grip = null; dfd._gripOn = null; rec(); continue; }
+              if (how === "end") { landGripV177A(); rec(); continue; }
+              rec(); continue;
+            }
+            if (TU("v177Ascrum", 1) && TU("gripCrowdV177A", 1)) scrumCrowdV177A(c, G, dfd, dsg, false);   // v177 A: the grip is live — nobody else stands on his pixel
             // ---- men pile on: hands on, riding along, and the clock runs out faster
             if (TU("pileOnV103", 1) && G.joined.length < TU("gripJoinMax", 3)) {
               for (const a of S.all) {
@@ -4661,50 +4929,9 @@ window.__visionRadiusV96 = visionRadiusV96;
                 strain: !!G.strain, vel: +(c.vel || 0).toFixed(2), cid: G.hit.cid }); }
             // ---- the landing: the tackle is booked on the ground they actually covered
             if (age >= G.ms) {
-              const dragYd = (c.lx - G.x0) * dsg / YD;
-              /* stat-credit truth: an assist is only real when the stop was actually ASSISTED and
-               * YOU were one of the men with hands on. `joined` is hands-on by construction (he
-               * reached the pile and latched); `sup` is merely "nearby when the wrap landed", so
-               * it only counts when the collision was resolved as a gang stop — which is exactly
-               * the gate the instantaneous path has always used. Standing near a pile is not
-               * participation, and creditcheck fails the build if this drifts. */
-              const _assisted = !!G.gang;
-              const youIn = (_assisted && S.all.some(a => a.player && a.player.you && a.side !== c.side && a !== dfd
-                && (G.joined.indexOf(a.id) >= 0 || (G.gang && G.sup.indexOf(a.id) >= 0)))) || undefined;
-              // v109: the men who were merely near the wrap close into the landing too (credit untouched)
-              wrapInV109(c, G.sup.filter(id => G.joined.indexOf(id) < 0 && id !== dfd.id), G.hit.cid);
-              /* ===== v153 A THE BALL IS SPOTTED WHERE HE GOT TO (forward progress) =====
-               * A carrier the tackle drove BACKWARDS (v151 D's push, a pile that won the shove) used
-               * to be spotted where he ended up — he lost the ground he had been driven through. The
-               * rule is forward progress: the ball goes down at the furthest point his progress
-               * reached, and where the pile carried him after that does not count. `G.fpLxV153A` is
-               * that point (the grab, or further if he dragged them); when he lands more than
-               * `fwdProgMinPxV153A` behind it, `endTackle` books the yards from it
-               * (`c._fpSpotV153A`), the tackle carries `fpX` / `fpYd` for the official's spot, and
-               * the picture keeps the real landing. Not for a quarterback taken down behind his own
-               * line (a sack — he was going backwards anyway), and not for ground he GAVE (v153 A
-               * GIVE GROUND ends the grip first). No roll. `TU("fwdProgV153A", 0)` / `TU("v153A", 0)`. */
-              let fpV153A = null;
-              if (TU("v153A", 1) && TU("fwdProgV153A", 1) && G.fpLxV153A != null) {
-                const lostPx = (G.fpLxV153A - c.lx) * dsg, qbBehind = c.lb === "QB" && G.fpLxV153A * dsg <= TU("fwdProgQbLosPxV153A", 0);
-                const Vfp = root.__V153A = root.__V153A || { rolls: 0, escapes: 0, fp: 0, fpYd: 0, fpSkipQB: 0, gangDown: 0, last: null };
-                if (lostPx > TU("fwdProgMinPxV153A", 2)) {
-                  if (qbBehind) Vfp.fpSkipQB++;
-                  else { fpV153A = { fpX: G.fpLxV153A, fpYd: +(lostPx / YD).toFixed(2) }; c._fpSpotV153A = G.fpLxV153A; Vfp.fp++; Vfp.fpYd += lostPx / YD; }
-                }
-              }
-              const downV153A = G.bigStick ? undefined : gangDownV153A(c, dfd.id, G.sup.concat(G.joined), !!G.gang, G.handsOn + G.joined.length);
-              emit("tackle", { tackler: dfd.id, carrier: c.id, x: c.lx, y: c.y, ...(fpV153A || null), ...(downV153A ? { downV153A } : null),
-                gang: !!G.gang, bigHit: G.bigStick || G.kb > 11, bothFall: G.bothFall,
-                stayUp: G.stayUp && !G.joined.length, kb: Math.round(G.kb), drive: Math.round(G.drive),
-                sup: G.sup.concat(G.joined), youIn, style: G.style, hitStick: G.bigStick,
-                handsOn: G.handsOn + G.joined.length,
-                dragged: true, dragMs: Math.round(age), dragYd: +dragYd.toFixed(2), strain: !!G.strain, horseCollar: !!G.hc,
-                ...G.hit, ix: Math.round((c.lx + dfd.lx) * 5) / 10, iy: Math.round((c.y + dfd.y) * 5) / 10 });   // v109: the hit's id and normal, the landing's point
-              c._grip = null; dfd._gripOn = null; c._wasGripped = true;
-              endTackle(dfd);
-              if (out) { out.dragYd = +dragYd.toFixed(2); out.strain = !!G.strain; out.dragMs = Math.round(age); }
-              rec(); continue;
+              // v177 A: a pile with two or more defenders in it does not land yet — it is fought over first
+              if (scrumStartV177A(c, G, dfd, dsg, isKick)) { rec(); continue; }
+              landGripV177A(); rec(); continue;
             }
             rec(); continue;
           }
@@ -4915,7 +5142,10 @@ window.__visionRadiusV96 = visionRadiusV96;
         if (c._gatherUntil && t < c._gatherUntil) gear9 *= TU("plantGatherMult", .8);
         const carrot9 = TU("carryAimAhead", 56) * cl(TU("carrotBase", .55) + TU("carrotVelK", .75)*(c.vel||0), TU("carrotMin", .55), 1);
         const esc153 = c._escV153A && t < c._escV153A.until ? c._escV153A : null;   // v153 A GIVE GROUND: he backs out of the pile, then turns it up
+        const brk177 = c._brkV177B && t < c._brkV177B.until ? c._brkV177B : null;   // v177 B HE SPINS OUT AND RESETS: back out of the scrum, then round it
         if (esc153) mv(c, c.lx - dirSign * TU("escapeBackPxV153A", 30), clampY(c.y + esc153.side * TU("escapeLatPxV153A", 22)), TU("escapePaceV153A", .75));
+        else if (brk177 && t < brk177.backUntil) mv(c, c.lx - dirSign * TU("brkBackPxV177B", 40), clampY(c.y + brk177.side * TU("brkBackLatPxV177B", 24)), TU("brkBackPaceV177B", .8));
+        else if (brk177) mv(c, c.lx + dirSign * TU("brkBounceFwdPxV177B", 8), clampY(c.y + brk177.side * TU("brkBounceLatPxV177B", 60)), TU("brkBouncePaceV177B", 1.05));
         else mv(c, c.lx + dirSign*carrot9, laneY, gear9);
         // A catch/return secured on the boundary is dead at that possession
         // point. It has no incoming carry segment this tick, so preserve the

@@ -10,6 +10,87 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v177 C/D/E — the board throws a party, the rim is a clean line, the far end holds its shape.**
+  (`src/05-field-renderer.js`, `src/28-cosmetics.js`, `scripts/jumboPartycheck.mjs`, `scripts/rimcheck.mjs`,
+  `scripts/perspcheck.mjs`.) **C** — the owner: "Add TD celebrations after a key play (defense) or touchdown. Have it play
+  on the jumbotron, when it zooms in on it after the graphic. Add explosives and fireworks behind it." When v175's pan goes
+  to the screen for a touchdown, a turnover, a pick, a sack or a big hit, the post holds a little longer and, once the
+  camera has landed and the badge has had its beat, the panel throws a party: the man who made the play (the scorer, the
+  man with the pick or the recovery, the sacker, the hitter) does one of the three drawn celebrations ON the board in his
+  kit — HIS moments use his kit, his helmet and his equipped celebration (its routine — a v177 I body like the moonwalk —
+  its effect round him, its callout as the caption), anyone else's a stock routine in his team's colours — with a turning sunburst, the floor, his dust and the
+  loose ball, an LED grid, the bezel's lamps chasing; and behind the screen the sky goes up: rockets on sparkling trails
+  bursting in the team's colours (peony, ring, willow, crossette, palm, crackle that dies in white pops), a finale, flame
+  jets off the board's top corners and fireballs beside it. Reduced motion: one calm pose, three slow bursts, no pyro.
+  Kill switch `v177Cparty`. **D** — "make the top of the stadium not look jagged": the stands' skyline was the crowd
+  strip's ragged top rows sheared slice by slice — a sawtooth up the sidelines, notches across the far bowl. One parapet
+  now caps the whole bowl (a fascia band with a lit coping and a ribbon, one chain round both sidelines and the far end),
+  anti-aliased, covering the ragged rows. Kill switch `v177Drim`. **E** — "make sure the bottom of the field is always
+  adequate perspective. It usually distorts the higher north you go on the field": v148 fitted the warp canvas by making
+  the ground far behind the line RECEDE toward the viewer, which only bit once the drive was past midfield and then got
+  worse every yard — a frame looking back down the field (a return, a wide shot) had the touchlines pinching in at the
+  bottom (on the opponent's 10, 40 yards back: the bottom of the frame 0.69 of the middle's width, ten yards 0.47 of the
+  height). The world now grows instead (up to 5,100 rows on the goal line), so the perspective is the same at every line
+  of scrimmage and nothing in front of the line moved. Kill switch `v177E`.
+
+- **v177 F/G/H — ten new footsteps, ten new wings, every hat floats.** (`src/28-cosmetics.js`, `scripts/v177FGHcheck.mjs`.)
+  The owner loved the Afterimage and asked for ten more footsteps with that kind of ingenuity, ten more wings at super
+  status, and every hat hovering like the halo. FOOTSTEPS (v177 F): Datamosh (RGB-split tear bars that jump, a smeared
+  block), Sumi Ink (a pressure brushstroke that bleeds, splatter, a red seal), Frostbite (prints freeze, cracks race out),
+  Film Reel (a strip unspools with a tiny runner in each frame), Wildbloom (a vine grows, flowers open and drop petals),
+  Gravity Well (each print collapses into a black hole that bends the turf's grid), Paper Cranes (a square folds into a
+  crane and flies off), Sands of Time (sand piles that blow away, a flipping hourglass), Constellation (stars at his steps,
+  the lines drawing between them) and Liquid Chrome (mercury beads that splash, wobble and bridge). WINGS (v177 G): Koi
+  Pond (two koi swim a loop), Aurora Veil, Peacock Train, Art Deco Sunburst, Neon Sign (it buzzes, a tube flickers),
+  Thousand Blades, Autumn Maple (a leaf falls), Quetzal, Magma Glass (lava pulses through the cracks) and Bass Drop (an
+  equalizer that bounces). All twenty are mythic SUPER looks: ten new super challenges (200 TDs in a career, 5 League
+  MVPs, 5 Interstellar titles, 10 UFF Hall careers, 100 season challenges, the 8th generation, 40 titles, 150 awards,
+  Legacy medal 400, 30 careers) each pay a wing and a footprint — nothing sold, nothing that was free changes. HATS
+  (v177 H): every crown hovers over the helmet with a bob, a soft shadow and a glow under it, on the card, the growth
+  screen, the Locker and the field (his plumbob rises over it). Kill switches TU `v177Ftrail`, `v177Gwings`, `v177Hfloat`.
+- **v177 I/J/K — ten new celebrations, ten new uniforms, ten new banners, all super.** (`src/28-cosmetics.js`,
+  `scripts/build-celebration-moves.py`, `public/celebrations/cel_v177i*`, `scripts/v177IJKcheck.mjs`.)
+  *I — celebrations* (`v177 I TEN NEW CELEBRATIONS`): Moonwalk, The Worm, Crowd Leap, Earthquake Spike, Griddy, Bow &
+  Arrow, The Robot, Nap Time, Phone Call, Laser Duel — each a drawn body of its own (the owner's v161 A art re-posed by a
+  generator: mirrored, turned, a foot lifted, the worm's wave, the ball as a pillow), a timeline of travel, hops, stepped
+  tilts and squash, props off his gloves (a laser blade, a bow and a flying arrow to a target that bursts, the phone's
+  rings and a speech bubble, Z's and a bubble) and a new v159 C effect (disco floor, crowd hands, the quake's cracks and
+  shockwaves, notes on the beat, a holo box, a night sky…). They play on his touchdown and in the Locker through the
+  same doors as every celebration (`celebrate`, `celebrateBody`, `celebratePlay`). *J — uniforms* (`v177 J TEN NEW
+  UNIFORMS`): Liquid Chrome, Lava Crackle, Galaxy, Carbon Fibre, Urban Digital, Bengal, Neon Grid, Ice Crystal, Royal
+  Black & Gold, Throwback '79 — one design in field pixels drawn on the field sprite (his, his team's, the Locker's) and
+  on the card figure; the number's ink reads on each. *K — banners* (`v177 K TEN NEW BANNERS`): Code Rain, Under the
+  Lights, Light Speed, Grand Finale, Cherry Blossom, Total Eclipse, Overclocked, The Abyss, Comet Shower, Prism Foil —
+  animated v158 A painters. All thirty are SUPER looks (mythic, never sold): three never-resetting super ladders pay them
+  a rung at a time — The Showman (every 60 touchdowns across careers), The Dynasty Closet (every 5 titles), The Long Haul
+  (every 15 seasons). Kill switches `v177I`, `v177J` (banners: `v158Aban`).
+- **v177 A/B — the scrum shoves; he spins out and resets.** (`src/04-engine.js`, `src/05-field-renderer.js`,
+  `scripts/scrumcheck.mjs`.) The owner: "group tackles where everyone just stands around — I want real pushing and
+  shoving back and forth; stronger teams might get a few more yards; add the possibility to break free, run backwards
+  and try to get around another way." *A — the scrum shoves* (`v177 A THE SCRUM SHOVES`): while the v103 grip ran,
+  the carry loop skipped every other man, so the whole field froze; now everybody carries on along his line, easing
+  off (`scrumCrowdV177A` — a pursuit that kept chasing through the grip cost a quarter of the yards after the catch
+  in `movementcheck`, so the grip's outcome stays the old one). A grip that would land with two or more defenders in it becomes a SCRUM for
+  0.7–1.2 s of sim time: men within ~10 yards run in and join (team-mates behind the carrier, defenders in front),
+  each side's push is a diminishing sum of its men's strength (grit/burst for the carrier, blocking for a pusher,
+  tackling for a defender — so a stronger roster pushes harder), and the pile surges back and forth around a net
+  drift of up to ±3 yards before it goes down (`scrumPowYdV177A`, `scrumBiasV177A`, `scrumSwayYdV177A`…). The
+  scrum moves the forward-progress spot by exactly its drift; nothing is stripped inside it; a man who only joined
+  to push is never credited. On the broadcast every man in it leans in, churns the run cycle in place and rocks
+  (`scrumPoseV177A`), with turf on each reversal and "PUSHED THE PILE!" / "DRIVEN BACK!" on a big one.
+  *B — he spins out and resets* (`v177 B HE SPINS OUT AND RESETS`): once per scrum, on his agility, quickness,
+  strength and ball security against the wrap, he can break free (~6% of scrums): the men on him are beaten, he
+  backs out 2–3 yards, bounces to the emptier side and reads a new lane — and about half the time somebody runs him
+  down behind where he broke free. Measured (`scrumcheck`, 36 games): ~27 scrums a game, median 5 reversals each,
+  the strongest-pushing third of scrums +0.6 yd vs the weakest −0.4 yd, mean |drift| 0.5 yd. Neutral (`scoreneutralcheck`, seeds 11–14 × 150 games, ON vs OFF): 22.3 vs 21.9 points,
+  5.12 vs 5.19 ypc, 8.76 vs 8.62 ypa, 72.9 vs 73.1% completions, 0.43 vs 0.45 turnovers, 0.72 vs 0.72 sacks — all inside
+  the seed spread (`scrumBiasV177A` .15 is the zero point). A sack in the pocket keeps the old grip (letting the rush pile in there added a tenth of a sack).
+  Kill switches `TU("v177Ascrum", 0)` (the old grip, frozen bystanders and all) and `TU("v177Bbreak", 0)`; hooks
+  `window.__V177A`, `window.__V177B`, `window.__V177A_R`. `v110check` counts a `scrumJoinV177A` man as in the play
+  (the tackler is the man squared up on the carrier, the nearest; the pushers fan out beside and behind him). After merging onto v166's blocking (blocks hold longer), a quarter of the field still froze through a grip: the men
+  locked in a block. They now keep fighting (`trenchFightV177A`): each pair heaves on its own phase and gives a little ground
+  away from the pile, so it can never join the tackle. Kill switch `gripTrenchV177A`. The QB's tuck line no longer zeroes
+  his lean while he is in a scrum.
 - **v176 — the number is sewn on.** (`src/05-field-renderer.js`, `src/28-cosmetics.js`, `scripts/numsewcheck.mjs`.) The
   owner said the jersey numbers looked pasted on, sat on the helmet, and were not centred. They were a vector label
   (Oswald with a dark stroke) scaled down over a soft 48-pixel body; a rear helmet is drawn in the jersey's colour, so the

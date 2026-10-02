@@ -1656,7 +1656,7 @@
   }
   function dropV153G(m, prop) { var o = m[prop]; if (o) { try { o.destroy(); } catch (e) {} m[prop] = null; } }
   function clearFxV153G(scene, m) {
-    ["_auV153G", "_wlV153G", "_wrV153G", "_crV153G", "_auBV157B", "_auFV157B"].forEach(function (p) { dropV153G(m, p); });   // v157 B: its two particle layers
+    ["_auV153G", "_wlV153G", "_wrV153G", "_crV153G", "_auBV157B", "_auFV157B", "_crShV177H"].forEach(function (p) { dropV153G(m, p); });   // v157 B: its two particle layers
     numfontFxV153G(m, null); m._trV153G = null; m._cosV153G = 0; G153.fx.cleared++;
     try { (scene._cosGhostV153G || []).forEach(function (g) { if (g && g.scene) g.setVisible(false); }); var g = scene._cosTrailV153G; if (g && g.scene) g.clear(); } catch (e) {}
   }
@@ -1720,10 +1720,11 @@
         if (!co) { co = m._crV153G = scene.add.image(0, 0, ck); m.root.once("destroy", function () { try { co.destroy(); } catch (e) {} }); }
         else if (co.texture.key !== ck) co.setTexture(ck);
         co.setOrigin(ca.ax / ca.w, ca.ay / ca.h).setDepth(TUv("cosCrownDepthV153G", 23.05));
-        var cy = geo.top + (cd.kind === "halo" ? -2.5 + Math.sin(now / 420) * 0.8 : cd.kind === "horns" ? 4 : 2.5) + crownBobV159D(now);   // v159 D: a gentle bob
+        var hov = hatOffV177H(cd.kind, now), cy = geo.top + (hov != null ? hov : (cd.kind === "halo" ? -2.5 + Math.sin(now / 420) * 0.8 : cd.kind === "horns" ? 4 : 2.5) + crownBobV159D(now));   // v159 D: a gentle bob — v177 H: every hat hovers
         co.setPosition(m.root.x + geo.cx * s, m.root.y + cy * s).setScale(s).setVisible(!down && m.root.visible !== false);
+        hatFieldV177H(scene, m, co, ca, cd, geo, now, s, !down && m.root.visible !== false);   // v177 H: its shadow and glow on the helmet
         G153.fx.crown++;
-      } else dropV153G(m, "_crV153G");
+      } else { dropV153G(m, "_crV153G"); dropV153G(m, "_crShV177H"); }
       numfontFxV153G(m, F.numfont);
       fieldNumV157C(m, F.numfont);   // v157 C: his number, bigger, in the font
       // the footprints: world space, under every player
@@ -1771,7 +1772,9 @@
   }
   function paintFrontV153G(ctx, geo, F, k, t) {   // v159 D: `t` (optional) — the crown's animation frame and bob
     ctx.imageSmoothingEnabled = false;
-    if (F.crown) { var cd = F.crown.d, ca = t != null ? crownAnimV159D(cd, t) : crownArtV153G(cd, 0), off = (cd.kind === "halo" ? -2.5 : cd.kind === "horns" ? 4 : 2.5) + crownBobV159D(t); ctx.drawImage(ca.cv, geo.cx - ca.ax * k, geo.top + off * k - ca.ay * k, ca.w * k, ca.h * k); }
+    if (F.crown) { var cd = F.crown.d, ca = t != null ? crownAnimV159D(cd, t) : crownArtV153G(cd, 0), hov = hatOffV177H(cd.kind, t), off = hov != null ? hov : (cd.kind === "halo" ? -2.5 : cd.kind === "horns" ? 4 : 2.5) + crownBobV159D(t);
+      if (hov != null) { hatShadowV177H(ctx, geo.cx, geo.top, ca.w, k, hatBobV177H(t), cd); if (G177H) G177H.card++; }   // v177 H: every hat hovers, its shadow and glow on the helmet
+      ctx.imageSmoothingEnabled = false; ctx.drawImage(ca.cv, geo.cx - ca.ax * k, geo.top + off * k - ca.ay * k, ca.w * k, ca.h * k); }
   }
   function flairFromIdsV153G(cz) {
     var get = function (id, cat, fld) { var it = id ? findItem(id) : null; return it && it.cat === cat && it[fld] ? { id: it.id, d: it[fld] } : null; };
@@ -3942,6 +3945,523 @@
     registered: function () { return FLAPS_V157A.map(function (r) { return { where: r.where, kind: r.kind || null, on: !!r.cv.isConnected }; }); }
   });
   G157.pose = function (t, kind) { return wingPoseV159D(t, kind); };   // v159 D: the pose the wings are drawn with
+
+  /* ===== v177 F TEN NEW FOOTSTEPS =====
+   * The owner: "Add 10 more footsteps animations. I LOVED the look of the afterimage. Creativity like that is going to
+   * get people interested. Don't copy that, but the same level of ingenuity."
+   * Ten footprint programs in `FX_V177F`, each its own idea (v157 B's painter, its newest-first primitive cap, its
+   * animated Locker preview and its `sample`; registered into `TFX_V157B` so every path that draws a trail finds them):
+   *   datamosh       the stride glitches: RGB-split tear bars that jump, dead scanlines, a smeared block dragged behind
+   *   ink            sumi brushwork: a pressure-varying black stroke, the wash bleeding out under it, splatter, a red seal
+   *   frostbite      every print freezes: a frost ring, cracks that race out and branch, a glint, then thaw
+   *   film           a strip of film unspools behind him — sprockets, flickering frames with a tiny runner in each, curling up
+   *   bloom          a vine sprouts from a print, unfurls two leaves, opens a flower, drops its petals
+   *   gravity        each print collapses into a tiny black hole: the turf's grid bends into it, matter spirals in, a flash
+   *   cranes         a paper square on the turf folds itself into a crane and flaps away
+   *   sands          sand pours into a pile at each print and the wind blows it away; an hourglass flips over the trail
+   *   constellation  stars light at his steps and the lines of a constellation draw between them
+   *   chrome         liquid mercury: beads that wobble, splash when they land and pull a bridge to the last one
+   * All ten are SUPER looks (mythic, source "super": only a super challenge grants one — v156 C's mechanics, listed "Super
+   * challenge: …" while locked, never sold, never member). Ten new super challenges (`SUPER_V177F`), each paying a pair:
+   * one of these footprints and one of v177 G's wings. They join v156 C's list (the SEASON tab's section, `rib.super.v1`,
+   * outside the save) through wrappers on its scan / tick / progress / desc — v156 C's own code is untouched.
+   * No Math.random: every particle is a function of the clock and an integer hash of the print's index.
+   * Kill switch TU("v177Ftrail", 0): each new trail draws as its base v153 G `kind`. `window.__V177F`; v177FGHcheck. */
+  function onV177F() { return !!TUv("v177Ftrail", 1); }
+  var G177F = (window.__V177F = window.__V177F || { errs: [] });
+  function errV177F(e) { try { if (G177F.errs.length < 8) G177F.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  function itemsV177F() {
+    var T = function (id, name, kind, col, fx) { return { id: id, cat: "trail", name: name, rarity: "mythic", source: "super", tr: { kind: kind, col: col, fx: fx } }; };
+    return [
+      T("trail_datamosh", "Datamosh", "pixels", ["#ff2d55", "#00e5ff", "#ffffff", "#120a1c", "#7a2aff"], "datamosh"),
+      T("trail_ink", "Sumi Ink", "smoke", ["#07070b", "#3a4458", "#c8102e", "#f4efe6"], "ink"),
+      T("trail_frostbite", "Frostbite", "ice", ["#ffffff", "#bfe9ff", "#5ab4ff", "#1f4f8f"], "frostbite"),
+      T("trail_film", "Film Reel", "comet", ["#141110", "#f2d9a0", "#fff6dc", "#7a5a2a", "#3a2a1a"], "film"),
+      T("trail_bloom", "Wildbloom", "petals", ["#ff5fa2", "#b06bff", "#ffe14d", "#2f7a32", "#6fdc5a"], "bloom"),
+      T("trail_gravity", "Gravity Well", "stars", ["#050208", "#ffffff", "#ffb02e", "#8a5cff", "#6fd3ff"], "gravity"),
+      T("trail_cranes", "Paper Cranes", "petals", ["#fffaf0", "#ffc8d4", "#c8b0ff", "#8a8070"], "cranes"),
+      T("trail_sands", "Sands of Time", "sparks", ["#f6deb0", "#d4a860", "#8a6a3a", "#fff4d6", "#4a3018"], "sands"),
+      T("trail_constellation", "Constellation", "stars", ["#ffffff", "#9fc8ff", "#ffe9a0", "#5a48c8"], "constellation"),
+      T("trail_chrome", "Liquid Chrome", "comet", ["#ffffff", "#dfe6ee", "#8a96a8", "#2a3240", "#9fe0ff"], "chrome")
+    ];
+  }
+  var TAU_V177F = 6.283185307179586;
+  function hV177F(i, k) { return ihV153G(((i | 0) * 131 + (k | 0) * 7919 + 17) >>> 0); }
+  var STAR_V177F = { last: null };   // the constellation's previous star, within one frame (reset at the head)
+  var FX_V177F = {
+    // DATAMOSH: the stride glitches — RGB-split tear bars that jump on a step clock, a dead scanline, a smeared block
+    datamosh: { life: 1.3, k: 1.5, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 2) return false;
+      var st = Math.floor(now / 85), r = hV177F(p.i, 1), jump = hV177F(p.i, st) > 0.68 ? (hV177F(p.i * 3, st) - 0.5) * 7 * s : 0;
+      var w = (4 + 7 * r) * s * (0.45 + 0.55 * F), h = (1.2 + 2 * hV177F(p.i, 2)) * s, x = p.x - w / 2 + jump, y = p.y - 1.5 * s - hV177F(p.i, 3) * 8 * s * (0.3 + a), sp = (0.8 + 1.4 * a) * s;
+      P.rect(x - sp, y, w, h, c[0], 0.8 * F); P.rect(x + sp, y, w, h, c[1], 0.8 * F); P.rect(x, y, w, h, c[2], 0.95 * F);
+      P.rect(x - sp, y + h * 0.45, w + 2 * sp, 0.4 * s, c[3], 0.9 * F);   // the dead scanline
+      if (q && r > 0.5) { var dx = p.x - q.x, dy = p.y - q.y; P.rect(x - dx * (2 + 5 * a), y - 2.5 * s - dy * 3 * a, w * 0.7, h * 1.9, c[4], 0.5 * F); }   // the smear
+      if (a > 0.3) for (var k = 0; k < 3; k++) { var g = 1.6 * s, px = Math.round((p.x + (hV177F(p.i, 5 + k) - 0.5) * 9 * s) / g) * g, py = Math.round((y - (1 + k * 2) * s - a * 4 * s) / g) * g; P.rect(px, py, g, g, c[(p.i + k) % 3], F); }
+    } },
+    // SUMI INK: a brushstroke that swells and thins with the stride, the wash bleeding out under it, splatter, a seal
+    ink: { life: 1.7, k: 1.5, draw: function (P, p, q, a, F, s, now, c) {
+      if (!nearV157B(p, q, s)) return false;
+      var pr = 0.5 + 0.5 * Math.sin(p.i * 0.55), w = (1.4 + 3.8 * pr) * s * (0.5 + 0.5 * Math.min(1, F * 1.3)), y0 = p.y - 0.6 * s, y1 = q.y - 0.6 * s;
+      P.circ(p.x, y0, (1 + 3.4 * Math.sqrt(a)) * s * (0.6 + pr * 0.6), c[1], 0.22 * F);   // the bleed spreads as it dries
+      P.seg(q.x, y1, p.x, y0, w, c[0], 0.94 * Math.min(1, F * 1.5));
+      if (w > 2.2 * s) P.seg(q.x, y1 - w * 0.28, p.x, y0 - w * 0.28, 0.35 * s, c[3], 0.4 * F);   // dry-brush bristle streak
+      if (hV177F(p.i, 4) > 0.8) { var an = hV177F(p.i, 5) * TAU_V177F, d = (2.5 + 5 * hV177F(p.i, 6)) * s * Math.min(1, a * 4); P.circ(p.x + Math.cos(an) * d, y0 + Math.sin(an) * d * 0.5, (0.35 + 0.6 * hV177F(p.i, 7)) * s, c[0], F); }
+      if (p.i % 16 === 8) {   // the artist's seal: a red square with a white glyph
+        var S2 = 3.4 * s, sx = p.x - S2 / 2, sy = p.y - 6.5 * s - S2 / 2;
+        P.rect(sx, sy, S2, S2, c[2], F); P.rect(sx + 0.5 * s, sy + 0.5 * s, S2 - s, 0.35 * s, c[3], F); P.rect(sx + S2 / 2 - 0.18 * s, sy + 0.5 * s, 0.36 * s, S2 - s, c[3], F); P.rect(sx + 0.5 * s, sy + S2 - 0.85 * s, S2 - s, 0.35 * s, c[3], F);
+      }
+    } },
+    // FROSTBITE: every print freezes — a frost ring, cracks racing out and branching, a glint, then the thaw
+    frostbite: { life: 1.8, k: 1.6, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 3) return false;
+      var g = Math.min(1, a * 4), cx = p.x, cy = p.y;
+      P.ell(cx, cy, 4.6 * s, 1.8 * s, c[1], 0.4 * F); P.ellS(cx, cy, (2.4 + 3 * g) * s, (1 + 1.1 * g) * s, 0.5 * s, c[0], 0.75 * F);
+      for (var sp = 0; sp < 3; sp++) { var sx = cx + (sp - 1) * 2.2 * s + (hV177F(p.i, 30 + sp) - 0.5) * s, sh = (1.5 + 2.5 * hV177F(p.i, 33 + sp)) * s * g * (0.5 + 0.5 * F);   // frost spikes stand up out of it
+        P.tri(sx - 0.7 * s, cy, sx, cy, sx + 0.2 * s, cy - sh, c[0], 0.9 * F); P.tri(sx, cy, sx + 0.7 * s, cy, sx + 0.2 * s, cy - sh, c[1], 0.9 * F); }
+      for (var k = 0; k < 5; k++) {
+        var an = (k / 5 + hV177F(p.i, k) * 0.15) * TAU_V177F, L = (4 + 5 * hV177F(p.i, 10 + k)) * s * g, mx = cx + Math.cos(an) * L * 0.55, my = cy + Math.sin(an) * L * 0.28, ex = cx + Math.cos(an + 0.18) * L, ey = cy + Math.sin(an + 0.18) * L * 0.5;
+        P.seg(cx, cy, mx, my, 0.75 * s, c[2], 0.9 * F); P.seg(mx, my, ex, ey, 0.5 * s, c[0], F);
+        if (g > 0.6) { var bn = an + (k % 2 ? 0.7 : -0.7); P.seg(mx, my, mx + Math.cos(bn) * L * 0.35, my + Math.sin(bn) * L * 0.18, 0.4 * s, c[1], 0.9 * F); }
+      }
+      P.ell(cx, cy, 1.2 * s, 0.6 * s, c[3], 0.55 * F);
+      if (hV177F(p.i, Math.floor(now / 140)) > 0.72) { var gx = cx + (hV177F(p.i, 20) - 0.5) * 5 * s, gy = cy - 1.2 * s; P.rect(gx - 1.4 * s, gy - 0.2 * s, 2.8 * s, 0.4 * s, c[0], F); P.rect(gx - 0.2 * s, gy - 1.4 * s, 0.4 * s, 2.8 * s, c[0], F); }
+    } },
+    // FILM REEL: a strip unspools behind him — sprockets, flickering frames each holding a tiny runner, curling as it ages
+    film: { life: 1.4, k: 1.5, draw: function (P, p, q, a, F, s, now, c) {
+      if (!nearV157B(p, q, s)) return false;
+      var lift = function (pt, ag) { return pt.y - 3 * s - ag * ag * 7 * s - Math.sin(pt.i * 0.7 + now / 260) * ag * 2 * s; };
+      var aq = Math.min(1, a + 0.04), y0 = lift(p, a), y1 = lift(q, aq), H = 4.6 * s;
+      P.seg(q.x, y1, p.x, y0, H, c[0], 0.92 * F);
+      var hy = H * 0.36; P.rect(p.x - 0.35 * s, y0 - hy - 0.35 * s, 0.7 * s, 0.7 * s, c[2], 0.8 * F); P.rect(p.x - 0.35 * s, y0 + hy - 0.35 * s, 0.7 * s, 0.7 * s, c[2], 0.8 * F);   // sprockets
+      if (p.i % 3 === 0) {
+        var fl = 0.75 + 0.25 * hV177F(p.i, Math.floor(now / 70)), fw = 2.6 * s, fh = 2.3 * s;
+        P.rect(p.x - fw / 2, y0 - fh / 2, fw, fh, c[1], fl * F);
+        var leg = ((p.i / 3) | 0) % 2 ? 1 : -1, bx = p.x, by = y0 + 0.75 * s;   // the runner: a head, a body, two legs in stride
+        P.circ(bx + 0.25 * s, by - 1.45 * s, 0.32 * s, c[4], F); P.seg(bx + 0.15 * s, by - 1.1 * s, bx - 0.1 * s, by - 0.25 * s, 0.35 * s, c[4], F);
+        P.seg(bx - 0.1 * s, by - 0.25 * s, bx + leg * 0.6 * s, by + 0.35 * s, 0.3 * s, c[4], F); P.seg(bx - 0.1 * s, by - 0.25 * s, bx - leg * 0.55 * s, by + 0.3 * s, 0.3 * s, c[4], F);
+        P.rect(p.x - fw / 2, y0 - fh / 2, fw, 0.3 * s, c[2], 0.5 * F * fl);
+      }
+    } },
+    // WILDBLOOM: a vine sprouts from a print, unfurls two leaves, opens a flower, and drops its petals
+    bloom: { life: 1.9, k: 1.5, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 3) return false;
+      var g = Math.min(1, a * 3.2), H = (8 + 5 * hV177F(p.i, 1)) * s, sway = Math.sin(now / 420 + p.i) * 0.6 * s, lean = (hV177F(p.i, 2) - 0.5) * 2 * s, x0 = p.x, y0 = p.y;
+      var pt = function (t) { return [x0 + lean * t + Math.sin(t * 3.2 + p.i) * 1.1 * s * t + sway * t * t, y0 - H * t]; };
+      var N = 4, px = x0, py = y0;
+      for (var k = 1; k <= N; k++) { var t = k / N * g, Q = pt(t); P.seg(px, py, Q[0], Q[1], (1 - 0.12 * k) * s, c[3], F); px = Q[0]; py = Q[1]; }
+      if (g > 0.45) [0.38, 0.62].forEach(function (lt, j) { var L0 = pt(lt), dir = j ? 1 : -1, ls = Math.min(1, (g - 0.45) * 3) * 2.6 * s; P.tri(L0[0], L0[1], L0[0] + dir * ls * 1.4, L0[1] - ls * 0.9, L0[0] + dir * ls * 0.3, L0[1] - ls * 0.2, c[4], F); });
+      if (g >= 1) {
+        var T = pt(1), open = Math.min(1, (a - 0.31) * 3), fall = Math.max(0, (a - 0.7) / 0.3), col = c[(p.i / 3 | 0) % 2], R2 = (0.7 + 1.6 * open) * s;
+        for (var k2 = 0; k2 < 5; k2++) { var an = k2 * TAU_V177F / 5 + now / 1600 + p.i, dropx = fall * Math.cos(an) * 3 * s, dropy = fall * (4 + k2) * s;
+          P.circ(T[0] + Math.cos(an) * R2 + dropx, T[1] + Math.sin(an) * R2 * 0.8 + dropy, (0.8 + 0.8 * open) * s, col, F * (1 - fall * 0.5)); }
+        if (fall < 0.6) { P.circ(T[0], T[1], 0.9 * s, c[2], F); P.rect(T[0] - 0.3 * s, T[1] - 0.5 * s, 0.4 * s, 0.4 * s, 0xffffff, 0.8 * F); }
+      } else P.circ(px, py, 0.8 * s, c[4], F);   // the bud
+    } },
+    // GRAVITY WELL: each print collapses into a tiny black hole — the turf grid bends into it, matter spirals in, a flash
+    gravity: { life: 1.6, k: 1.6, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 4) return false;
+      var cx = p.x, cy = p.y - 0.5 * s, life2 = a < 0.82 ? 1 : Math.max(0, 1 - (a - 0.82) / 0.18), R = 2.2 * s * life2;
+      for (var ln = -1; ln <= 1; ln++) {   // the warped grid: three lines dipping toward the core
+        var yL = cy + ln * 2.2 * s, prx = cx - 6 * s, pry = yL;
+        for (var k = 1; k <= 6; k++) { var xx = cx - 6 * s + k * 2 * s, dx = (xx - cx) / (2.6 * s), dip = 2.4 * s * Math.exp(-dx * dx) * life2 * (ln === 0 ? 0.4 : 1) * (ln < 0 ? 1 : -1) * -1, yy = yL + dip;
+          P.seg(prx, pry, xx, yy, 0.35 * s, c[3], 0.55 * F); prx = xx; pry = yy; }
+      }
+      if (R > 0.2) {
+        P.ell(cx, cy, R * 2.6, R * 1.1, c[2], 0.35 * F);   // the accretion disc
+        for (var j = 0; j < 4; j++) { var an = now / 170 + j * TAU_V177F / 4 + p.i, ox = Math.cos(an) * R * 2.3, oy = Math.sin(an) * R * 0.9; P.circ(cx + ox, cy + oy, 0.45 * s, j % 2 ? c[2] : c[4], (Math.sin(an) > 0 ? 1 : 0.55) * F); }
+        P.ellS(cx, cy, R * 1.35, R * 1.35, 0.45 * s, c[1], 0.8 * F);   // the photon ring
+        P.circ(cx, cy, R, c[0], F);
+        for (var m = 0; m < 2; m++) { var ph = (now / 900 + hV177F(p.i, m)) % 1, rr = (1 - ph) * 6 * s + R, aa = hV177F(p.i, 5 + m) * TAU_V177F + ph * 6; P.rect(cx + Math.cos(aa) * rr - 0.35 * s, cy + Math.sin(aa) * rr * 0.45 - 0.35 * s, 0.7 * s, 0.7 * s, c[4], F * ph); }
+      } else { var fl = (a - 0.82) / 0.18; P.ring(cx, cy, (1 + fl * 5) * s, 0.5 * s, c[1], 1 - fl); }
+    } },
+    // PAPER CRANES: a paper square on the turf folds itself into a crane, which flaps up and away
+    cranes: { life: 1.8, k: 1.8, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 3) return false;
+      var g = Math.min(1, a * 3.5), col = c[(p.i / 3 | 0) % 3], shade = c[3];
+      if (g < 1) {   // the square, folding: its corners pull in as the folds form
+        var S2 = 3.4 * s * (1 - 0.35 * g), x = p.x, y = p.y - 0.6 * s;
+        P.tri(x - S2, y, x, y - S2 * 0.5 * (1 + g), x + S2, y, col, F); P.tri(x - S2, y, x, y + S2 * 0.5 * (1 - g * 0.6), x + S2, y, col, F);
+        P.seg(x - S2, y, x + S2, y, 0.3 * s, shade, 0.7 * F); P.seg(x, y - S2 * 0.5 * (1 + g), x, y + S2 * 0.5, 0.25 * s, shade, 0.5 * F);
+        return;
+      }
+      var up = (a - 0.29) / 0.71, x2 = p.x + Math.sin(up * 3 + p.i) * 2 * s - up * 3 * s, y2 = p.y - 2 * s - up * up * 16 * s, k = 1.35 * s, flap = Math.sin(now / 85 + p.i * 1.3);
+      P.ell(p.x, p.y, 2.2 * s * (1 - up * 0.6), 0.6 * s, shade, 0.25 * F);   // its shadow on the turf
+      P.tri(x2 - 1 * k, y2 - 0.4 * k, x2 + 0.8 * k, y2 - 0.4 * k, x2 - 0.5 * k + flap * 0.3 * k, y2 - (2.9 + 1.3 * flap) * k, shade, F);   // the far wing
+      P.tri(x2 - 1.2 * k, y2 - 0.4 * k, x2 - 0.2 * k, y2 + 0.3 * k, x2 - 3.7 * k, y2 - 2.7 * k, col, F);   // the tail
+      P.tri(x2 + 1.2 * k, y2 - 0.4 * k, x2 + 0.3 * k, y2 + 0.3 * k, x2 + 3.3 * k, y2 - 3.1 * k, col, F);   // the neck
+      P.tri(x2 + 3.3 * k, y2 - 3.1 * k, x2 + 2.8 * k, y2 - 2.6 * k, x2 + 4.2 * k, y2 - 2.3 * k, shade, F);   // the head
+      P.tri(x2 - 1.5 * k, y2 - 0.4 * k, x2 + 1.5 * k, y2 - 0.4 * k, x2 + 0.1 * k, y2 + 1.1 * k, col, F);   // the body
+      P.seg(x2 - 1.5 * k, y2 - 0.4 * k, x2 + 0.1 * k, y2 + 1.1 * k, 0.25 * k, shade, 0.6 * F);   // its fold
+      P.tri(x2 - 0.7 * k, y2 - 0.4 * k, x2 + 1.2 * k, y2 - 0.4 * k, x2 + 0.5 * k + flap * 0.3 * k, y2 - (2.5 + 1.2 * flap) * k, c[0], F);   // the near wing, in the light
+    } },
+    // SANDS OF TIME: sand pours into a pile at each print and the wind takes it; an hourglass flips over the trail
+    sands: { life: 1.8, k: 1.6, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 2) return false;
+      var pile = Math.min(1, a * 2.4), blow = Math.max(0, (a - 0.55) / 0.45), x = p.x, y = p.y, bx = q ? (q.x - p.x) : -1, by = q ? (q.y - p.y) : 0, bl = Math.hypot(bx, by) || 1;
+      bx /= bl; by /= bl;
+      if (blow < 1) { var hw = (1.6 + 2.8 * pile) * s * (1 - blow), hh = (0.8 + 2.2 * pile) * s * (1 - blow);
+        P.tri(x - hw, y, x + hw, y, x + bx * blow * 2 * s, y - hh, c[1], F); P.tri(x - hw * 0.4, y - hh * 0.2, x + hw * 0.3, y - hh * 0.2, x + bx * blow * 2 * s, y - hh, c[0], F); }
+      if (pile < 1) for (var k = 0; k < 3; k++) { var ph = (now / 380 + k / 3 + hV177F(p.i, k)) % 1, gy = y - 8 * s * (1 - ph); P.rect(x + (hV177F(p.i, 9 + k) - 0.5) * 0.8 * s, gy, 0.55 * s, 0.55 * s, c[k % 2 ? 0 : 3], F); }
+      if (blow > 0) for (var j = 0; j < 4; j++) { var t = blow + hV177F(p.i, 20 + j) * 0.3, d = t * (5 + 4 * hV177F(p.i, 30 + j)) * s; P.rect(x + bx * d + Math.sin(now / 200 + j) * 0.6 * s, y - (0.6 + 2.2 * hV177F(p.i, 40 + j)) * s * (1 - t * 0.4) + by * d, 0.55 * s, 0.55 * s, c[j % 3], F * (1 - blow)); }
+      if (p.i % 10 === 4) {   // the hourglass: two glass cones in a frame, the sand moving between them; it flips
+        var hx = x, hy = y - 8.5 * s - Math.sin(now / 500 + p.i) * 0.8 * s, u = 1.5 * s, flip = Math.floor(now / 1400 + p.i) % 2, lvl = (now % 1400) / 1400;
+        P.rect(hx - 1.6 * u, hy - 2.4 * u, 3.2 * u, 0.5 * u, c[4], F); P.rect(hx - 1.6 * u, hy + 1.9 * u, 3.2 * u, 0.5 * u, c[4], F);
+        P.tri(hx - 1.2 * u, hy - 1.9 * u, hx + 1.2 * u, hy - 1.9 * u, hx, hy, c[3], 0.55 * F); P.tri(hx - 1.2 * u, hy + 1.9 * u, hx + 1.2 * u, hy + 1.9 * u, hx, hy, c[3], 0.55 * F);
+        var top = flip ? 1 - lvl : lvl, f1 = 1 - top, f2 = top;   // how much sand is up, how much down
+        if (f1 > 0.05) P.tri(hx - 1.1 * u * f1, hy - 0.2 * u - 1.6 * u * f1, hx + 1.1 * u * f1, hy - 0.2 * u - 1.6 * u * f1, hx, hy - 0.1 * u, c[1], F);
+        if (f2 > 0.05) P.tri(hx - 1.1 * u, hy + 1.85 * u, hx + 1.1 * u, hy + 1.85 * u, hx, hy + 1.85 * u - 1.5 * u * f2, c[1], F);
+        P.rect(hx - 0.15 * u, hy - 0.1 * u, 0.3 * u, 1.9 * u * (f1 > 0.05 ? 1 : 0), c[0], 0.9 * F);
+      }
+    } },
+    // CONSTELLATION: stars light at his steps and the lines of a constellation draw between them
+    constellation: { life: 2.1, k: 1.6, draw: function (P, p, q, a, F, s, now, c, head) {
+      if (head) STAR_V177F.last = null;
+      if (p.i % 3) return false;
+      var big = p.i % 9 === 0, tw = 0.6 + 0.4 * Math.sin(now / 110 + p.i * 1.9), x = p.x + (hV177F(p.i, 1) - 0.5) * 6 * s, y = p.y - (2.5 + hV177F(p.i, 2) * 9) * s - a * 3 * s, L = STAR_V177F.last;
+      if (L && Math.abs(L.x - x) + Math.abs(L.y - y) < 30 * s) {   // the line draws itself from the older star toward the newer one
+        var dr = Math.min(1, a * 3.5 + 0.15), ex = x + (L.x - x) * dr, ey = y + (L.y - y) * dr;
+        P.seg(x, y, ex, ey, 0.9 * s, c[3], 0.35 * F); P.seg(x, y, ex, ey, 0.45 * s, c[1], 0.8 * F);
+        var mx = (x + ex) / 2, my = (y + ey) / 2; P.rect(mx - 0.25 * s, my - 0.25 * s, 0.5 * s, 0.5 * s, c[0], 0.6 * F);
+      }
+      P.circ(x, y, (big ? 3.2 : 2) * s, c[3], 0.3 * F * tw);
+      var arm = (big ? 3 : 1.9) * s * (0.7 + 0.3 * tw);
+      P.rect(x - arm, y - 0.22 * s, arm * 2, 0.44 * s, c[big ? 2 : 0], F * tw); P.rect(x - 0.22 * s, y - arm, 0.44 * s, arm * 2, c[big ? 2 : 0], F * tw);
+      P.circ(x, y, (big ? 0.9 : 0.65) * s, c[0], F);
+      STAR_V177F.last = { x: x, y: y };
+    } },
+    // LIQUID CHROME: mercury beads that splash when they land, wobble as they settle, and pull a bridge to the last bead
+    chrome: { life: 1.5, k: 1.5, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 2) return false;
+      var x = p.x, y = p.y - 0.6 * s, wob = Math.sin(now / 60 + p.i) * Math.max(0, 0.5 - a) * 0.9, R = (2 + 1.2 * hV177F(p.i, 1)) * s * (a > 0.8 ? (1 - a) / 0.2 : 1), rx = R * (1.25 + wob * 0.4), ry = R * (0.75 - wob * 0.3);
+      if (q && a < 0.5 && nearV157B(p, q, s)) { var qq = q; P.seg(qq.x, qq.y - 0.6 * s, x, y, R * (1 - a * 2) * 0.9, c[2], 0.9 * F); P.seg(qq.x, qq.y - 0.9 * s, x, y - 0.3 * s, R * (1 - a * 2) * 0.35, c[1], 0.8 * F); }
+      if (a < 0.16) { var sp = a / 0.16; P.ellS(x, y + 0.2 * s, (1 + sp * 4) * s, (0.5 + sp * 1.6) * s, 0.45 * s, c[1], 1 - sp);   // the splash
+        for (var k = 0; k < 4; k++) { var an = Math.PI + (k + 0.5) * Math.PI / 4, d = sp * 4 * s; P.circ(x + Math.cos(an) * d * 1.3, y + Math.sin(an) * d * 1.2, 0.5 * s * (1 - sp * 0.5), c[1], 1 - sp); } }
+      if (R < 0.1) return;
+      P.ell(x, y + ry * 0.35, rx, ry * 0.8, c[3], F);   // the shadowed underside
+      P.ell(x, y, rx, ry, c[2], F);
+      P.ell(x, y - ry * 0.2, rx * 0.8, ry * 0.6, c[1], F);
+      P.ell(x, y + ry * 0.55, rx * 0.65, ry * 0.22, c[4], 0.7 * F);   // the turf's reflection
+      P.ell(x - rx * 0.35, y - ry * 0.45, rx * 0.32, ry * 0.22, c[0], F);   // the highlight
+    } }
+  };
+  /* registered with v157 B's trails, drawn `k` × bigger (TU v177FtrailScale): a footprint has to read at broadcast size */
+  Object.keys(FX_V177F).forEach(function (k) { var D = FX_V177F[k];
+    TFX_V157B[k] = { life: D.life, draw: function (P, p, q, a, F, s, now, c, head) { try { return D.draw(P, p, q, a, F, s * D.k * TUv("v177FtrailScale", 1), now, c, head); } catch (e) { errV177F(e); return false; } } }; });
+  // the kill switch: a v177 F footprint draws as its base v153 G kind (v157 B's own switch already does this for all)
+  var trailDraw0V177F = trailDrawV153G, trailLife0V177F = trailLifeV157B;
+  trailDrawV153G = function (A, pts, now, life, d, s) {
+    if (d && d.fx && FX_V177F[d.fx] && !onV177F()) d = d._baseV177F || (d._baseV177F = { kind: d.kind, col: d.col });
+    return trailDraw0V177F(A, pts, now, life, d, s);
+  };
+  trailLifeV157B = function (td) { return td && td.fx && FX_V177F[td.fx] && !onV177F() ? 1 : trailLife0V177F(td); };
+
+  /* ---- the ten new SUPER CHALLENGES (each pays a v177 G wing + a v177 F footprint) ---- */
+  var SUPER_V177F = [
+    { id: "tds200", item: "wings_koi", also: "trail_ink", name: "Two Hundred", icon: "💯", goal: function () { return TUv("superTdsV177F", 200); }, desc: function () { return "Score " + TUv("superTdsV177F", 200) + " touchdowns in one career"; }, acct: function (A) { return A.bestTds; } },
+    { id: "mvp5", item: "wings_aurora", also: "trail_constellation", name: "Five-Time MVP", icon: "🌌", goal: function () { return TUv("superMvpsV177F", 5); }, desc: function () { return "Be named League MVP (college or higher) " + TUv("superMvpsV177F", 5) + " times across your careers"; }, acct: function (A) { return A.leagueMvps; } },
+    { id: "isl5", item: "wings_peacock", also: "trail_bloom", name: "Interstellar Dynasty", icon: "🚀", goal: function () { return TUv("superIslV177F", 5); }, desc: function () { return "Win " + TUv("superIslV177F", 5) + " Interstellar championships across your careers"; }, acct: function (A) { return A.interstellarTitles; } },
+    { id: "hof10", item: "wings_sunburst", also: "trail_film", name: "Hall of Ten", icon: "🏛", goal: function () { return TUv("superHofV177F", 10); }, desc: function () { return "Enshrine " + TUv("superHofV177F", 10) + " careers that made the UFF in the Hall of Fame"; }, acct: function (A) { return A.hofWon; } },
+    { id: "chal100", item: "wings_neon", also: "trail_datamosh", name: "Hundred Challenges", icon: "✅", goal: function () { return TUv("superChalV177F", 100); }, desc: function () { return "Complete " + TUv("superChalV177F", 100) + " season challenges"; }, acct: function () { try { var T = window.RIB_SEASONS && window.RIB_SEASONS.challengeTotals && window.RIB_SEASONS.challengeTotals(); return T ? T.total : 0; } catch (e) { return 0; } } },
+    { id: "gen8", item: "wings_blades", also: "trail_cranes", name: "Eighth Generation", icon: "🌳", goal: function () { return TUv("superGenV177F", 8); }, desc: function () { return "Play as the " + TUv("superGenV177F", 8) + "th generation of your family"; }, acct: function (A) { return A.gen; } },
+    { id: "titles40", item: "wings_maple", also: "trail_frostbite", name: "Forty Titles", icon: "🍂", goal: function () { return TUv("superTitlesV177F", 40); }, desc: function () { return "Win " + TUv("superTitlesV177F", 40) + " championships at any level"; }, acct: function (A) { return A.titles; } },
+    { id: "awards150", item: "wings_quetzal", also: "trail_sands", name: "Trophy Room", icon: "🎖", goal: function () { return TUv("superAwardsV177F", 150); }, desc: function () { return "Collect " + TUv("superAwardsV177F", 150) + " season awards across your careers"; }, acct: function (A) { return A.awards; } },
+    { id: "legacy400", item: "wings_magma", also: "trail_chrome", name: "Forged in Legacy", icon: "🔥", goal: function () { return TUv("superLegacyV177F", 400); }, desc: function () { return "Reach Legacy medal " + TUv("superLegacyV177F", 400); }, acct: function (A) { return A.legacyMedal; } },
+    { id: "careers30", item: "wings_bass", also: "trail_gravity", name: "Thirty Careers", icon: "🔁", goal: function () { return TUv("superCareersV177F", 30); }, desc: function () { return "Finish " + TUv("superCareersV177F", 30) + " careers"; }, acct: function (A, st) { return st ? st.careersCompleted | 0 : 0; } }
+  ];
+  /* the catalogue: added here (not at the top of the file) — the same packs / preview wiring ITEMS.forEach gives */
+  itemsV177F().concat(itemsV177G()).forEach(function (it) { if (BY[it.id]) return; it.packs = []; it.preview = function (el) { return previewInto(el, it); }; ITEMS.push(it); BY[it.id] = it; });
+  SUPER_V177F.forEach(function (c) { if (!SUPER_V156C.some(function (x) { return x.id === c.id; })) { SUPER_V156C.push(c); SUPER_IDS_V156C.push(c.item, c.also); } });
+  // v156 C's wrappers: the scan learns the account-wide counts, a finished challenge pays its pair, the rows name both
+  var superScan0V177F = superScanV156C;
+  superScanV156C = function (st) {
+    var ch = superScan0V177F(st);
+    try { var S = sload(), A = account(st); SUPER_V177F.forEach(function (c) { var v = Math.floor(+c.acct(A, st) || 0); if (v > (S.best[c.id] | 0)) { S.best[c.id] = v; ch = true; } }); } catch (e) { errV177F(e); }
+    return ch;
+  };
+  var superTick0V177F = superTickV156C;
+  superTickV156C = function (st) {
+    var got = superTick0V177F(st);
+    try { if (cosOnV156C()) { var S = sload(); SUPER_V177F.forEach(function (c) { if (S.done[c.id] && !owned(c.also)) { grant(c.also, "super"); got.push(c.also); } }); } } catch (e) { errV177F(e); }
+    return got;
+  };
+  var superProg0V177F = superProgressV156C;
+  superProgressV156C = function () {
+    return superProg0V177F().map(function (r) {
+      var c = SUPER_V177F.filter(function (x) { return x.id === r.id; })[0]; if (!c) return r;
+      var b = BY[c.also] || {}; r.itemName = r.itemName + " + " + (b.name || c.also); r.items = [c.item, c.also]; r.owned = owned(c.item) && owned(c.also); return r;
+    });
+  };
+  var superDesc0V177F = superDescV156C;
+  superDescV156C = function (itemId) { var c = SUPER_V177F.filter(function (x) { return x.also === itemId; })[0]; return c ? c.desc() : superDesc0V177F(itemId); };
+  window.RIB_SUPER.tick = superTickV156C; window.RIB_SUPER.progress = superProgressV156C;
+  window.__V156C.superTick = superTickV156C; window.__V156C.superProgress = superProgressV156C;
+  Object.assign(G177F, {
+    on: onV177F, ids: function () { return itemsV177F().map(function (i) { return i.id; }); }, kinds: function () { return Object.keys(FX_V177F); },
+    challenges: function () { return SUPER_V177F.map(function (c) { return { id: c.id, wings: c.item, trail: c.also, name: c.name, goal: c.goal() }; }); },
+    sample: function (id, t) { return sampleV157B(id, t); }
+  });
+
+  /* ===== v177 G TEN NEW WINGS =====
+   * The owner: "Add 10 more wings, super status."
+   * Ten new kinds drawn from code (`WINGS_V177G`, registered into v157 A's `WINGS_V157A`: the RIGHT wing, shoulder at
+   * (0, ay), mirrored for the left), each its own silhouette and its own motion — a koi pond (two koi swim a loop through
+   * the rippling water), an aurora veil (curtains of light that ripple), a peacock train (eyespot feathers that shimmer),
+   * an art deco sunburst (a glint runs the rays), a neon sign (tubes with a glow that buzz and flicker), a fan of
+   * katanas (a glint runs each blade), an autumn maple branch (a leaf falls), a quetzal's jade train with a gold
+   * step-fret band (a sheen), magma glass (obsidian shards, the lava in the cracks pulsing out from the shoulder) and a
+   * bass-drop equalizer (LED bars that bounce, peak caps). Up to six frames each (`frames` × `ms`, a pure function of the
+   * clock via v157 A's `wingFrameV157A`, which the field, the card and the Locker all ask); v159 D's flutter family per
+   * kind (`FAM_V159D`). All mythic SUPER looks, paid by v177 F's super challenges (each pays one wing + one footprint).
+   * Kill switch TU("v177Gwings", 0): the new wings hold their first frame (no motion of their own; the flap stays). */
+  function onV177G() { return !!TUv("v177Gwings", 1); }
+  var G177G = (window.__V177G = window.__V177G || { errs: [] });
+  function itemsV177G() {
+    var W = function (id, name, kind, col) { return { id: id, cat: "wings", name: name, rarity: "mythic", source: "super", w: { kind: kind, col: col } }; };
+    return [
+      W("wings_koi", "Koi Pond", "koi", ["#174f9a", "#6fd3ff", "#ff7a1a"]),
+      W("wings_aurora", "Aurora Veil", "aurora", ["#3fffb0", "#2fd3ff", "#b06bff"]),
+      W("wings_peacock", "Peacock Train", "peacock", ["#1fa38a", "#1f5fd8", "#e6b53a"]),
+      W("wings_sunburst", "Art Deco Sunburst", "sunburst", ["#ffd76f", "#15171d", "#a8761e"]),
+      W("wings_neon", "Neon Sign", "neon", ["#ff3df2", "#6ff7ff", "#ffffff"]),
+      W("wings_blades", "Thousand Blades", "blades", ["#eef2f8", "#8a96a8", "#e6b53a"]),
+      W("wings_maple", "Autumn Maple", "maple", ["#e8401a", "#ffb02e", "#4a2a14"]),
+      W("wings_quetzal", "Quetzal", "quetzal", ["#18b45e", "#2fd3ff", "#ffd76f"]),
+      W("wings_magma", "Magma Glass", "magma", ["#1c1626", "#ff6a1a", "#ffe14d"]),
+      W("wings_bass", "Bass Drop", "bass", ["#39ff6a", "#ffe14d", "#ff3df2"])
+    ];
+  }
+  // a maple leaf from a 9x9 pixel map (pointing up), turned by `rot` and scaled to radius r: vein down the middle, lit left
+  var MAPLE_V177G = ["....X....", "...XXX...", "X..XXX..X", "XX.XXX.XX", ".XXXXXXX.", "..XXXXX..", ".XXXXXXX.", "....X....", "....X...."];
+  function mapleLeafV177G(R, cx, cy, r, rot, col, vein) {
+    var sc = r / 4.5, ca = Math.cos(rot), sa = Math.sin(rot);
+    for (var y = Math.floor(cy - r - 1); y <= cy + r + 1; y++) for (var x = Math.floor(cx - r - 1); x <= cx + r + 1; x++) {
+      var dx = (x + 0.5 - cx) / sc, dy = (y + 0.5 - cy) / sc, u = dx * ca + dy * sa + 4.5, v = -dx * sa + dy * ca + 4.5, mx = Math.floor(u), my = Math.floor(v);
+      if (mx < 0 || my < 0 || mx > 8 || my > 8 || MAPLE_V177G[my].charAt(mx) !== "X") continue;
+      R.put(x, y, mx === 4 && my > 1 ? vein : mx < 4 ? light(col, 0.14) : my > 5 ? dark(col, 0.15) : col);
+    }
+  }
+  var WINGS_V177G = {
+    // KOI POND: a flowing fin of water — ripples spread from the shoulder, two koi swim a loop through it
+    koi: { W: 22, H: 20, ay: 7, frames: 4, ms: 260, fam: "ether", draw: function (R, a, b, e, fr) {
+      var P = [[0, 5], [6, 1.5], [14, 0], [21.5, 1.5], [19, 6], [21.5, 10], [16, 12], [17.5, 17], [11.5, 15], [8.5, 19.5], [5, 14], [0, 11]], foam = [236, 250, 255];
+      polyV157A(R, P, function (x, y) { var d = edgeDistV157A(P, x + 0.5, y + 0.5), r = Math.hypot(x - 1, y - 8), t = Math.min(1, r / 19), c = mix(a, b, t * 0.8);
+        if (((r - fr * 1.1) % 4.4 + 4.4) % 4.4 < 0.75 && d > 1.3) c = light(c, 0.28);
+        if (d < 1.05) c = mix(b, foam, 0.6); else if (d < 2) c = light(c, 0.12);
+        return c; });
+      var fish = function (u, body, spot, len) {
+        var cx = 11 + Math.cos(u) * 5.2, cy = 8.5 + Math.sin(u) * 3.6, vx = -Math.sin(u) * 5.2, vy = Math.cos(u) * 3.6, L = Math.hypot(vx, vy); vx /= L; vy /= L;
+        for (var k = -len; k <= 2; k++) { var px = cx + vx * k, py = cy + vy * k, w = k >= 1 ? 0.4 : k <= -len + 1 ? 0 : 0.9;
+          R.put(px, py, (k + len) % 3 === 1 ? spot : body); if (w > 0.5) { R.put(px - vy, py + vx, body); R.put(px + vy, py - vx, (k % 2) ? spot : body); } }
+        var tx = cx - vx * (len + 1), ty = cy - vy * (len + 1), fl = (fr % 2) ? 1 : -1;   // the tail, flicking
+        R.put(tx - vy * fl, ty + vx * fl, body, 0.9); R.put(tx + vy * 1.2 * fl, ty - vx * 1.2 * fl, light(body, 0.3), 0.8);
+        R.put(cx + vx * 2 + vy * 0.5, cy + vy * 2 - vx * 0.5, [20, 20, 30]);   // the eye
+      };
+      fish(fr / 4 * TAU_V177F, e, [255, 250, 240], 3);
+      fish(fr / 4 * TAU_V177F + Math.PI, [255, 250, 240], e, 2);
+      R.put(19, 3, foam); R.put(14, 13, foam, 0.8);
+      R.outline(dark(a, 0.45), 0.85); } },
+    // AURORA VEIL: curtains of light hung from a glowing arm — green at the hem, violet at the top, rippling
+    aurora: { W: 22, H: 22, ay: 6, frames: 4, ms: 210, fam: "ether", draw: function (R, a, b, e, fr) {
+      var top = function (x) { return 6 - 5.5 * Math.sin(Math.min(1, x / 14) * Math.PI / 2) + Math.max(0, x - 14) * 0.3; };
+      for (var x = 0; x < 22; x++) {
+        var y0 = Math.round(top(x)), L = Math.round(8 + 8 * Math.sin(x / 21 * Math.PI * 0.95 + 0.25) + 1.8 * Math.sin(x * 1.1 + fr * TAU_V177F / 4)), br = 0.5 + 0.5 * Math.sin(x * 0.85 - fr * TAU_V177F / 4);
+        for (var y = y0; y <= y0 + L; y++) {
+          var t = (y - y0) / Math.max(1, L), c = t < 0.25 ? mix(e, b, t / 0.25) : t < 0.6 ? mix(b, a, (t - 0.25) / 0.35) : a;
+          c = light(c, br * 0.3); if ((x + fr) % 3 === 0) c = light(c, 0.22);
+          R.put(x, y, c, t > 0.68 ? 0.25 + 0.7 * (1 - t) / 0.32 : 0.95);
+        }
+        R.put(x, y0 - 1, light(e, 0.55), 0.9);
+      }
+      [[6, 0], [17, 0], [11, 1]].forEach(function (st, k) { if ((fr + k) % 2 === 0) R.put(st[0], st[1], WHITE_V157A); });
+    } },
+    // PEACOCK TRAIN: a fan of long feathers, each a fine shaft with a fringe of barbs and an eyespot that shimmers
+    peacock: { W: 24, H: 25, ay: 12, frames: 2, ms: 320, fam: "feather", draw: function (R, a, b, e, fr) {
+      var navy = [14, 20, 66], bronze = mix(e, [120, 60, 20], 0.45), sh = fr ? 0.2 : 0;
+      var eye = function (ex, ey, ca, sa, rr, lit) {
+        for (var yy = Math.floor(ey - rr - 1); yy <= ey + rr + 1; yy++) for (var xx = Math.floor(ex - rr - 1); xx <= ex + rr + 1; xx++) {
+          var dx = xx + 0.5 - ex, dy = yy + 0.5 - ey, u = dx * ca + dy * sa, vv = -dx * sa + dy * ca, r = Math.hypot(u / 1.3, vv) / rr;
+          if (r > 1) continue;
+          R.put(xx, yy, r < 0.3 ? navy : r < 0.55 ? light(b, sh * 1.5) : r < 0.78 ? bronze : light(a, 0.22 + sh));
+        }
+        if (lit) R.put(ex - 0.5, ey - 0.8, light(b, 0.7));
+      };
+      var feather = function (ang, L, rr, k, under) {
+        var ca = Math.cos(ang), sa = Math.sin(ang);
+        for (var t = 1; t <= L - rr; t += 0.5) { var x = ca * t * 1.2, y = 12 + sa * t * 0.72, w = 0.35 + t / L * 1.25;
+          R.put(x, y, light(e, 0.1));
+          for (var v = 0.5; v <= w; v += 0.5) { var c = mix(light(a, sh * 0.6), dark(a, under ? 0.45 : 0.2), v / 1.6); if ((((t * 2) | 0) + k) % 3 === 0) c = light(c, 0.18); R.put(x - sa * v, y + ca * v, c, 0.9); R.put(x + sa * v, y - ca * v, c, 0.9); } }
+        eye(ca * (L - rr * 0.8) * 1.2, 12 + sa * (L - rr * 0.8) * 0.72, ca, sa, rr, (k + fr) % 2 === 0);
+      };
+      [-0.85, -0.45, -0.05, 0.35, 0.75].forEach(function (an, k) { feather(an, 11, 1.9, k, true); });   // the short under-row, between
+      [-1.05, -0.65, -0.25, 0.15, 0.55, 0.95].forEach(function (an, k) { feather(an, 17.5 - Math.abs(an + 0.05) * 2, 2.6, k, false); });
+      R.outline(dark(a, 0.62), 0.85); } },
+    // ART DECO SUNBURST: a stepped ziggurat of gold and black rays round a sunrise disc — a glint runs out along them
+    sunburst: { W: 23, H: 23, ay: 11, frames: 6, ms: 140, fam: "mech", draw: function (R, a, b, e, fr) {
+      var N = 11, A0 = -1.4, A1 = 1.15, step = (A1 - A0) / N, glintRay = (fr * 2) % N;
+      var rayLen = function (ri) { var mid = A0 + (ri + 0.5) * step, d = Math.abs(mid + 0.62) / 1.8; return Math.round((21.5 - 10 * d * d) * 2) / 2; };
+      for (var y = 0; y < 23; y++) for (var x = 0; x < 23; x++) {
+        var dx = x + 0.5, dy = y + 0.5 - 11, r = Math.hypot(dx, dy), an = Math.atan2(dy, dx); if (an < A0 || an > A1) continue;
+        var ri = Math.min(N - 1, Math.floor((an - A0) / step)), L = rayLen(ri), c;
+        if (r > L) continue;
+        if (r < 2.4) c = light(a, 0.6); else if (r < 3.5) c = a; else if (r < 4.4) c = b; else if (r < 5.3) c = e;
+        else if (ri % 2) c = r > L - 1.6 ? e : b;
+        else { c = ri === glintRay && r > 6 ? light(a, 0.55) : r > L - 1.6 ? e : r > L - 3.2 ? light(a, 0.18) : a; if (Math.abs(r - 8.5) < 0.5 || Math.abs(r - 13) < 0.5) c = dark(a, 0.25); }   // the engraved bands
+        R.put(x, y, c);
+      }
+      R.outline(dark(b, 0.3)); } },
+    // NEON SIGN: a wing in glass tubing — a pink outline, cyan feather lines, a glow, a buzz; one line flickers out
+    neon: { W: 23, H: 21, ay: 7, frames: 4, ms: 150, fam: "ether", draw: function (R, a, b, e, fr) {
+      var outer = [[0, 7], [8, 2], [21, 0], [19, 6], [15, 7], [16.5, 12], [11, 12], [10.5, 17.5], [5, 14], [0, 11]], inner = [[[5, 6], [15, 6.5]], [[4, 9], [11, 11.5]], [[3, 11], [5.5, 14]]];
+      var tube = function (x0, y0, x1, y1, col, alpha, glow) { var n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2 | 0;
+        for (var k = 0; k <= n; k++) { var t = k / Math.max(1, n), x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
+          if (glow) { for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) if ((ox || oy) && !R.has(Math.round(x + ox), Math.round(y + oy))) R.put(x + ox, y + oy, col, 0.3 * alpha); }
+          else R.put(x, y, light(col, 0.45), alpha); } };
+      var lines = []; for (var i = 0; i < outer.length - 1; i++) lines.push([outer[i], outer[i + 1], a]);
+      inner.forEach(function (l, k) { lines.push([l[0], l[1], b, k === 1 && fr === 2 ? 0.18 : fr === 3 ? 0.7 : 1]); });
+      lines.forEach(function (l) { tube(l[0][0], l[0][1], l[1][0], l[1][1], l[2], l[3] == null ? 1 : l[3], true); });
+      lines.forEach(function (l) { tube(l[0][0], l[0][1], l[1][0], l[1][1], l[2], l[3] == null ? (fr === 1 ? 0.85 : 1) : l[3], false); });
+      [[8, 2], [21, 0], [10.5, 17.5]].forEach(function (p) { R.put(p[0], p[1] + 1, [140, 148, 160]); });   // the mounting clips
+    } },
+    // THOUSAND BLADES: six katanas fanned from the shoulder — wrapped hilts, gold guards, curved steel; a glint runs each
+    blades: { W: 24, H: 22, ay: 8, frames: 6, ms: 130, fam: "mech", draw: function (R, a, b, e, fr) {
+      var wrap = [36, 26, 30], wrapL = [120, 30, 44];
+      [[1.0, 13], [0.68, 16], [0.36, 18.5], [0.04, 20.5], [-0.28, 19.5], [-0.6, 16]].forEach(function (f, k) {
+        var ca = Math.cos(f[0]), sa = Math.sin(f[0]), L = f[1], gl = (fr + k) % 6;
+        for (var t = 0; t <= L; t += 0.5) {
+          var cur = t > 4 ? 0.016 * (t - 4) * (t - 4) : 0, x = ca * t + sa * cur, y = 8 + sa * t - ca * cur;
+          if (t < 3.5) { R.put(x, y, ((t * 2) | 0) % 2 ? wrapL : wrap); continue; }
+          if (t < 4.5) { R.put(x - sa, y + ca, e); R.put(x, y, light(e, 0.3)); R.put(x + sa, y - ca, dark(e, 0.25)); continue; }   // the tsuba
+          var near = Math.abs(t - (5 + gl * (L - 5) / 5)) < 1.2;
+          R.put(x, y, near ? WHITE_V157A : a); R.put(x + sa * 0.9, y - ca * 0.9, near ? light(b, 0.5) : b);
+          if (((t * 2) | 0) % 5 === 2) R.put(x, y, light(a, 0.6));   // the hamon's wave catches the light
+        }
+      });
+      R.outline([14, 16, 22]); } },
+    // AUTUMN MAPLE: a fine branch along the arm, six maple leaves in fall colours; one has come loose and falls
+    maple: { W: 24, H: 27, ay: 7, frames: 6, ms: 200, fam: "feather", draw: function (R, a, b, e, fr) {
+      var br = function (x) { return 7 - 5 * Math.sin(Math.min(1, x / 16) * Math.PI / 2) + Math.max(0, x - 16) * 0.2; };
+      for (var x = 0; x <= 21; x++) R.put(x, br(x), x < 7 ? e : light(e, 0.12));
+      [[19.5, 4, 4.2, 0.9, 0.85], [15.5, 9.5, 4.6, 1.3, 0.6], [9.5, 2.8, 3.8, 0.5, 1], [10.5, 12.5, 4.8, 2.2, 0.3], [4.5, 12.5, 4.2, 2.9, 0.0], [16.5, 16, 3.8, 1.9, 0.15]].forEach(function (L) {
+        var sx = Math.min(20, L[0] - 1), sy = br(sx); lnV157A(R, sx, sy, L[0], L[1], dark(e, 0.1));
+        mapleLeafV177G(R, L[0], L[1], L[2], L[3], mix(a, b, L[4]), dark(mix(a, b, L[4]), 0.4));
+      });
+      var fx = 12 + Math.sin(fr * 1.1) * 2.4, fy = 19 + fr * 0.9;
+      mapleLeafV177G(R, fx, fy, 2.8, fr * 0.9 + 0.4, mix(a, b, 0.5), dark(a, 0.3));
+      R.outline(dark(e, 0.45), 0.85); } },
+    // QUETZAL: a sweeping train of jade feathers tipped in turquoise, a gold band of step-fret at the shoulder
+    quetzal: { W: 24, H: 23, ay: 8, frames: 2, ms: 360, fam: "feather", draw: function (R, a, b, e, fr) {
+      var red = [200, 32, 58];
+      [[-0.55, 19], [-0.22, 21], [0.12, 22], [0.45, 20], [0.8, 16]].forEach(function (f, k) {
+        for (var t = 0; t <= f[1]; t += 0.5) { var rt = t / f[1], an = f[0] + rt * rt * 0.55, x = Math.cos(f[0]) * t + Math.cos(an) * 0, y = 8 + Math.sin(f[0]) * t + rt * rt * 3.5, w = (1 - rt * 0.7) * 1.7;
+          var base = rt < 0.55 ? a : mix(a, b, (rt - 0.55) / 0.45);
+          for (var v = -w; v <= w; v += 0.5) { var c = Math.abs(v) < 0.45 ? light(base, 0.35) : (fr && Math.abs(v - 0.5) < 0.5 && rt > 0.25 + k * 0.1 && rt < 0.45 + k * 0.1) ? light(base, 0.45) : v > 0 ? dark(base, 0.22) : base;
+            R.put(x - Math.sin(f[0]) * v, y + Math.cos(f[0]) * v, c); } }
+      });
+      for (var y2 = 2; y2 <= 14; y2++) for (var x2 = 0; x2 <= 6; x2++) {   // the band: a curved gold collar with the step-fret
+        var r = Math.hypot(x2 + 0.5, y2 + 0.5 - 8); if (r < 3.5 || r > 6.2) continue;
+        var g = ((x2 + y2) % 4 < 2) !== (((r * 1.6) | 0) % 2 === 0); R.put(x2, y2, r > 5.5 || r < 4 ? dark(e, 0.35) : g ? e : dark(e, 0.45));
+      }
+      R.put(1, 8, red); R.put(1, 9, red); R.put(2, 8, light(red, 0.3));
+      R.outline(dark(a, 0.6), 0.9); } },
+    // MAGMA GLASS: obsidian shards with a purple sheen, set in cracks of lava that pulse out from the shoulder
+    magma: { W: 22, H: 21, ay: 8, frames: 4, ms: 190, fam: "bone", draw: function (R, a, b, e, fr) {
+      var P = [[0, 6], [7, 1], [12, 2.5], [21.5, 0], [18, 6], [21.5, 9.5], [15, 12], [17.5, 17.5], [11, 15], [8.5, 20.5], [5, 14], [0, 11]];
+      var seeds = [[3, 8], [8, 4], [14, 3], [19, 2], [10, 9], [17, 8], [6, 13], [13, 13], [9, 18], [16, 15], [2, 11]], sheen = mix(a, [150, 110, 220], 0.45);
+      polyV157A(R, P, function (x, y) {
+        var d1 = 1e9, d2 = 1e9, idx = 0; seeds.forEach(function (s0, i) { var d = Math.hypot(x + 0.5 - s0[0], y + 0.5 - s0[1]); if (d < d1) { d2 = d1; d1 = d; idx = i; } else if (d < d2) d2 = d; });
+        var crack = d2 - d1 < 0.95, ed = edgeDistV157A(P, x + 0.5, y + 0.5);
+        if (crack) { var pu = 0.5 + 0.5 * Math.sin(Math.hypot(x, y - 8) * 0.75 - fr * TAU_V177F / 4); return mix(b, e, pu * 0.85); }
+        if (ed < 1) return dark(a, 0.2);
+        var s0 = seeds[idx], toward = (s0[0] - x) + (s0[1] - y);
+        return toward > 1.8 && toward < 3 ? sheen : ((x - y + idx) % 7 === 0 ? light(a, 0.12) : a);
+      });
+      R.outline(mix(b, [40, 8, 4], 0.6), 0.85); } },
+    // BASS DROP: an equalizer hung from a chrome arm — LED columns drop and bounce to the beat, white peak caps hold
+    bass: { W: 22, H: 22, ay: 6, frames: 6, ms: 110, fam: "mech", draw: function (R, a, b, e, fr) {
+      var arm = function (x) { return 6 - 5 * Math.sin(Math.min(1, x / 15) * Math.PI / 2) + Math.max(0, x - 15) * 0.25; };
+      var lvl = function (k, f) { var j = ihV153G(((k + 1) * 977 + (f + 6) * 131) >>> 0); return Math.max(0.25, Math.min(1, 0.35 + j * 0.75)); };
+      for (var k = 0; k < 7; k++) {
+        var x0 = 1 + k * 3, top = Math.round(arm(x0 + 0.5)) + 2, nb = Math.round(4 + 5.5 * Math.sin((k + 0.9) / 7.6 * Math.PI)), on = Math.max(1, Math.round(lvl(k, fr) * nb)), peak = Math.min(nb - 1, Math.max(on, Math.round(lvl(k, (fr + 5) % 6) * nb)));
+        for (var bk = 0; bk < nb; bk++) {
+          var y = top + bk * 2, f = bk / Math.max(1, nb - 1), col = f < 0.45 ? a : f < 0.75 ? b : e;
+          if (bk < on) { R.put(x0, y, light(col, 0.35)); R.put(x0 + 1, y, col); }
+          else if (bk === peak) { R.put(x0, y, WHITE_V157A); R.put(x0 + 1, y, WHITE_V157A); }
+          else { R.put(x0, y, dark(col, 0.72), 0.55); R.put(x0 + 1, y, dark(col, 0.72), 0.55); }
+        }
+      }
+      for (var x = 0; x <= 21; x++) { var ya = Math.round(arm(x)); R.put(x, ya, [226, 232, 242]); R.put(x, ya + 1, [118, 126, 140]); }
+      for (var y2 = 3; y2 <= 10; y2++) for (var x2 = 0; x2 <= 4; x2++) { var r = Math.hypot(x2 + 0.5, y2 + 0.5 - 6.5); if (r > 3.6) continue; R.put(x2, y2, r < 1.1 ? [210, 216, 226] : r < 2.4 ? ((fr % 2) ? [60, 64, 74] : [34, 38, 46]) : [96, 102, 116]); }   // the speaker cone, thumping
+      R.outline([10, 10, 16], 0.6); } }
+  };
+  Object.keys(WINGS_V177G).forEach(function (k) { WINGS_V157A[k] = WINGS_V177G[k]; FAM_V159D[k] = WINGS_V177G[k].fam; });
+  // their frames: the field, the card and the Locker all ask v157 A's `wingFrameV157A` (v159 D's asks it too)
+  var wingFrame0V177G = wingFrameV157A;
+  wingFrameV157A = function (kind, now) {
+    var D = WINGS_V177G[kind];
+    if (D) return D.frames > 1 && onV177G() && !reducedV157A() ? Math.floor(Math.abs(now) / D.ms) % D.frames : 0;
+    return wingFrame0V177G(kind, now);
+  };
+  Object.assign(G177G, {
+    on: onV177G, ids: function () { return itemsV177G().map(function (i) { return i.id; }); }, kinds: function () { return Object.keys(WINGS_V177G); },
+    frames: function (kind) { var D = WINGS_V177G[kind]; return D ? D.frames : 0; }, frame: function (kind, t) { return wingFrameV157A(kind, t); },
+    art: function (id, fr) { var it = BY[id]; return it && it.w ? wingArtV153G(it.w, fr | 0) : null; }
+  });
+
+  /* ===== v177 H EVERY HAT FLOATS =====
+   * The owner: "Make all hats hover over the helmet, like the halos."
+   * Every crown (the headwear slot — crowns, horns, tiaras, caps, the halo) now hovers over the helmet the way the halo
+   * always did: its base `hatLiftPxV177H` (3.2) sprite px above the top of the helmet, bobbing on a slow sine
+   * (`hatBobPxV177H` 0.9 px, `hatBobMsV177H` 1700 ms — v159 D's own crown bob is folded into it, not added), with a soft
+   * shadow on the helmet under it and a faint glow of the hat's own colour between the two (smaller and fainter as it
+   * rises). On the profile card, the growth screen and the Locker (`paintFrontV153G`), and on the live field
+   * (`fieldFxV153G`: the crown's world-space image, plus `_crShV177H` under it — and his plumbob rises to float over
+   * the hat instead of hiding behind it, TU `hatPlumbV177H`). prefers-reduced-motion: it hovers, still. Kill switch TU("v177Hfloat", 0): v153 G's seating (the halo floats, the rest sit on the helmet).
+   * `window.__V177H`; v177FGHcheck. */
+  function onV177H() { return !!TUv("v177Hfloat", 1); }
+  var G177H = (window.__V177H = window.__V177H || { field: null, card: 0, errs: [] });
+  function errV177H(e) { try { if (G177H.errs.length < 8) G177H.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  function hatBobV177H(t) { if (t == null || reducedV157A()) return 0; return Math.sin(t / Math.max(300, TUv("hatBobMsV177H", 1700)) * TAU_V177F) * TUv("hatBobPxV177H", 0.9); }
+  /* the crown art's baseline, in sprite px from the top of the helmet (negative: above it); null with the switch off */
+  function hatOffV177H(kind, t) { if (!onV177H()) return null; return -TUv("hatLiftPxV177H", 3.2) - (kind === "halo" ? 0.4 : 0) + hatBobV177H(t); }
+  // the shadow on the helmet and the glow under the hat, on a 2D canvas (k: sprite px → canvas px)
+  function hatShadowV177H(ctx, cx, topY, w, k, bob, cd) {
+    try {
+      var lift = Math.max(0, -bob) / Math.max(0.1, TUv("hatBobPxV177H", 0.9)), rx = Math.max(2, w * 0.36) * k * (1 - 0.12 * lift), ry = Math.max(0.7, 1.15 * k);
+      ctx.save(); ctx.imageSmoothingEnabled = true;
+      ctx.globalAlpha = TUv("hatShadowV177H", 0.3) * (1 - 0.3 * lift); ctx.fillStyle = "#05070c";
+      ctx.beginPath(); ctx.ellipse(cx, topY + 1.3 * k, rx, ry, 0, 0, TAU_V177F); ctx.fill();
+      var col = colRgb(((cd && cd.col) || ["#fff3c4"])[0]), g = ctx.createRadialGradient(cx, topY - 0.6 * k, 0, cx, topY - 0.6 * k, rx * 1.2);
+      g.addColorStop(0, "rgba(" + (col[0] | 0) + "," + (col[1] | 0) + "," + (col[2] | 0) + "," + (TUv("hatGlowV177H", 0.42) * (1 - 0.25 * lift)).toFixed(3) + ")"); g.addColorStop(1, "rgba(" + (col[0] | 0) + "," + (col[1] | 0) + "," + (col[2] | 0) + ",0)");
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(cx, topY - 0.6 * k, rx * 1.2, ry * 1.5, 0, 0, TAU_V177F); ctx.fill();
+      ctx.restore();
+    } catch (e) { errV177H(e); }
+  }
+  // on the field: one soft-shadow-and-glow texture per hat colour, an image under the crown (world space, as the crown is)
+  function hatShadowArtV177H(cd) {
+    var col = ((cd && cd.col) || ["#fff3c4"])[0], key = "hatsh177|" + col;
+    if (ART_V153G[key]) return ART_V153G[key];
+    var c = document.createElement("canvas"); c.width = 24; c.height = 10; var x = c.getContext("2d");
+    hatShadowV177H(x, 12, 5.2, 20, 1, 0, cd);
+    return (ART_V153G[key] = { key: key, cv: c, ax: 12, ay: 5.2, w: 24, h: 10 });
+  }
+  function hatFieldV177H(scene, m, co, ca, cd, geo, now, s, show) {
+    try {
+      if (!onV177H()) { dropV153G(m, "_crShV177H"); return; }
+      var art = hatShadowArtV177H(cd), key = texV153G(scene, art), o = m._crShV177H;
+      if (o && (!o.scene || !o.active)) o = m._crShV177H = null;
+      if (!o) { o = m._crShV177H = scene.add.image(0, 0, key); m.root.once("destroy", function () { try { o.destroy(); } catch (e) {} }); }
+      else if (o.texture.key !== key) o.setTexture(key);
+      var bob = hatBobV177H(now), lift = Math.max(0, -bob) / Math.max(0.1, TUv("hatBobPxV177H", 0.9)), sc = s * Math.max(0.5, ca.w / 20);
+      o.setOrigin(art.ax / art.w, art.ay / art.h).setDepth(TUv("cosCrownDepthV153G", 23.05) - 0.01).setPosition(m.root.x + geo.cx * s, m.root.y + geo.top * s).setScale(sc * (1 - 0.1 * lift), s).setAlpha(1 - 0.25 * lift).setVisible(show);
+      // the plumbob floats over the hovering hat, never behind it (src/05 places it each frame, just before this)
+      var bob0 = m.bob && m.bob.active ? m.bob.y : null;
+      if (bob0 != null && TUv("hatPlumbV177H", 1)) { var want = co.y - ca.h * s - (TUv("bobH", 9.6) + 1.5) * s; if (m.bob.y > want) m.bob.y = want; }
+      G177H.field = { t: now, crownY: co.y, crownTop: co.y - ca.h * s, shY: o.y, top: m.root.y + geo.top * s, bottom: co.y, s: s, kind: cd.kind, bob0: bob0, bob: m.bob ? m.bob.y : null };
+    } catch (e) { errV177H(e); }
+  }
+  G177H.on = onV177H; G177H.off = hatOffV177H; G177H.bob = hatBobV177H;
+  G177H.paint = function (ctx, cd, geo, k, t) { paintFrontV153G(ctx, geo, { crown: { id: "crown", d: cd } }, k, t); };
 
   /* ===== v157 C ONE FACE EVERYWHERE =====
    * The owner: "Number fonts, I currently don't see those in the profile or live player" · "ensure the colors of the
@@ -7249,6 +7769,53 @@
     } catch (e) { return null; }
   }
 
+  /* ===== v177 C THE BOARD THROWS A PARTY (cosmetics) =====
+   * What the renderer's jumbotron party (src/05 `v177 C`) borrows from this file: the three drawn bodies (v161 A — their
+   * frames in a kit, the pose at t, the loose ball, the dust) and the equipped celebration's plan (v159 C — the item's
+   * kind, colours and callout, drawn through the same closed-form painter at any position and scale). HIS moment gets his
+   * kit, his helmet and his equipped celebration; anyone else's gets that man's kit with no helmet dressing and a stock
+   * plan in the team's colours. Looks only — nothing here reads or writes a sim value, and the seeds are this file's PRNG. */
+  var BOARD_V177C = {
+    ready: function () { return readyV161A(); },
+    load: function () { try { return loadV161A(); } catch (e) { errV161A(e); return false; } },
+    anims: function () { return ANIMS_V161A.slice(); },
+    pick: function (tok) { return pickV161A(tok); },
+    stand: function () { return standV161A(); },
+    total: function (name, calm) { return tlV161A(name, !!calm).total; },
+    frame: function (name, k) { var M = DATA_V161A.M, A = M && M.anims[name]; return A ? A.frames[k] : null; },
+    pose: function (name, t, calm) { return poseV161A(name, t, !!calm); },
+    ball: function (name, t, calm) { return ballV161A(name, t, !!calm); },
+    parts: function (name, seed, calm) { return partsV161A(name, seed >>> 0, !!calm); },
+    drawParts: function (P, t, D) { return drawPartsV161A(P, t, D); },
+    // the frames in a kit: HIS (helmet and all), or another man's kit with no helmet of his
+    tex: function (scene, name, kitKey, you, tone) {
+      var kit = kitV161A(kitKey || "you", tone);
+      if (!you) kit = { p1: kit.p1, p2: kit.p2, H: null, tone: kit.tone, key: kit.p1 + kit.p2 + "|-|" + kit.tone };
+      return texV161A(scene, name, kit, TUv("v161Ahd", 1) ? 2 : 1);
+    },
+    // the equipped celebration (his moments only): what the board plays round him
+    item: function () { var it = item("celebration"); if (!it) return null; return { id: it.id, name: it.name, kind: celKindV159C(it), cols: celColsV159C(it), say: it.c && it.c.say ? String(it.c.say).toUpperCase().slice(0, 18) : "" }; },
+    // a plan: the equipped item's, or a stock kind in the given colours
+    plan: function (o) {
+      o = o || {}; var it = o.you ? item("celebration") : null, seed = strHashV159C("v177C|" + String(o.tok || "") + "|" + (it ? it.id : o.kind || "stock")) >>> 0;
+      var S = it ? planV159C(it, seed, !!o.calm) : buildV159C(o.kind || "confetti", (o.cols && o.cols.length ? o.cols : ["#ffffff"]), seed, !!o.calm);
+      if (!it) S.say = "";
+      return S;
+    },
+    // one frame of a plan, centred on (x, y) at u px per plan unit, into a normal and an additive Graphics
+    drawPlan: function (S, gN, gA, x, y, u, t) { var V = viewV159C(phaserPainterV159C(gN, gA), x, y, u, u); return drawV159C(S, V, t); },
+    rnd: function (seed) { return prng(seed >>> 0); },
+    hash: function (s) { return strHashV159C(s); },
+    /* v177 I's drawn bodies (moonwalk, the worm, griddy …): HIS equipped one plays on the board too — its frames in his kit,
+     * its pose (foot-anchored, with its own travel), its props (the blade, the bow, the phone …) */
+    body177: function () { try { if (!onV177I()) return null; var b = bodyOfV177I(item("celebration")); if (!b) return null; if (!readyV177I()) { loadV177I(); return null; } return b; } catch (e) { return null; } },
+    total177: function (name, calm) { return tlV177I(name, !!calm).total; },
+    pose177: function (name, t, calm) { return poseV177I(name, t, !!calm); },
+    frame177: function (name, k) { var A = DATA_V177I.M && DATA_V177I.M.anims[name]; return A ? A.frames[k] : null; },
+    tex177: function (scene, name, kitKey, tone) { return texV177I(scene, name, kitV161A(kitKey || "you", tone), TUv("v161Ahd", 1) ? 2 : 1); },
+    props177: function (name, t, o, D, calm) { var A = DATA_V177I.M && DATA_V177I.M.anims[name]; if (!A) return 0; return propsV177I(name, t, o, A.frames[o.k], D, !!calm, colsV177I(item("celebration"), name)); }
+  };
+
   var API = {
     version: "v151b", slots: SLOTS.slice(), cats: CATS, achievements: ACH.map(function (a) { return { id: a.id, name: a.name, desc: a.desc }; }),
     member: memberV156C, grandfathered: function (id) { return gfV156C(id); }, superItems: function () { return SUPER_IDS_V156C.slice(); },   // v156 C
@@ -7265,6 +7832,7 @@
     celebratePlay: V159C.play, shelfAlive: shelfV159C,   // v159 C
     numInk: numInkV159A, uniColour: uniColV159A, setUniColour: setUniColV159A,   // v159 A
     celebrateBody: function (scene, cm, opts) { return fieldBodyV161A(scene, cm, opts); },   // v161 A
+    boardCel: BOARD_V177C,   // v177 C
     _reset: function () { mem = null; try { localStorage.removeItem(KEY); } catch (e) {} fire({ reset: 1 }); }
   };
   window.RIB_COSMETICS = API;
@@ -7281,4 +7849,862 @@
   setTimeout(function () { try { checkEarned(); teamStyle.grandfather(); } catch (e) {} }, 1500);
   /* a save restored on the profile view drew before this file loaded (v140): draw it now */
   try { var st0 = gstate(); if (st0 && st0.view === "profile") setTimeout(function () { try { screenProfile(gstate()); } catch (e) {} }, 0); } catch (e) {}
+  /* ===== v177 I TEN NEW CELEBRATIONS =====
+   * The owner: "Add 10 more touchdown celebrations, super status." Ten SUPER (mythic, source "super") celebrations, each
+   * a drawn BODY of its own plus its own effect, on the same doors as every other celebration:
+   *   THE BODIES    MOONWALK (a backward glide on alternating heels, the point, up on his toes), THE WORM (down on the
+   *                 grass, a hump that travels him forward, a pop back up), CROWD LEAP (a launch into the stands — the
+   *                 crowd's hands come up to catch him), EARTHQUAKE SPIKE (the hop and the slam: the ground splits, three
+   *                 shockwaves, rocks, a heavy shake, the ball left planted), GRIDDY (heel kicks on the beat, the arm swing,
+   *                 music notes), BOW & ARROW (nock, draw, the arrow flies to a target in the sky that bursts), THE ROBOT
+   *                 (stepped poses and tilts on a holo grid, sparks, the visor powers up), NAP TIME (lies down with his head
+   *                 on the ball, the Z's and a bubble, wakes with a pop), PHONE CALL (the ball buzzes, he takes the call on
+   *                 the ball, a speech bubble, hangs up, takes a bow), LASER DUEL (a blade ignites in his fist: guard, the
+   *                 overhead strike with a trail, a clash with a red blade in a shower of sparks, held high).
+   *                 Every frame is the owner's drawn art re-posed by scripts/build-celebration-moves.py (cut by v161 A's own
+   *                 code — mirror, turn, a lifted foot, the worm's wave, the ball as a pillow — and taken down the same way;
+   *                 public/celebrations/cel_v177i*), so on the field it takes his kit (`ribRecolor`), his skin tone and his
+   *                 helmet exactly as v161 A's bodies do (`kitV161A`). Each body is a timeline (`PLAN_V177I`: frames, ms,
+   *                 travel, arcs under one hop curve, stepped tilts, squash springs, tagged beats) — a pure function of t.
+   *   THE PROPS     what he holds and what comes off him (`propsV177I`: the blade, the bow and the arrow's flight and the
+   *                 target, the phone's rings and the bubble, the Z's, the glints, the beat rings) are drawn off the
+   *                 generator's glove positions, by one painter on the field (Phaser Graphics) and one in the Locker.
+   *   THE EFFECTS   ten new v159 C kinds (`KINDS_V159C.v177*`): the disco floor, crowd hands, the quake's cracks and rings,
+   *                 notes on the beat, the holo box, the night sky… so `celebrate`, `celebratePlay`, `renderAt`, the Locker
+   *                 preview and the callout all take them as they take every other celebration.
+   *   THE DOORS     `fieldBodyV161A` — the one door `celebrate()` and `RIB_COSMETICS.celebrateBody` go through — plays the
+   *                 equipped v177 I body (or a named one: `celebrateBody(scene, cm, {name: "moonwalk"})`); anything else
+   *                 is v161 A's three, untouched. The Locker's mini-stage (`pvDrawBodyV161A`) plays the item's own body.
+   *   SUPER         three never-resetting SUPER LADDERS (v156 C's section, rib.super.v1, outside the save) pay the thirty
+   *                 v177 looks one rung at a time: THE SHOWMAN (touchdowns across his careers → celebrations), THE DYNASTY
+   *                 CLOSET (championships at any level → uniforms), THE LONG HAUL (seasons played → banners). Never sold.
+   * Reduced motion: one calm pose, the props still, no shake. Kill switch TU v177I 0 (the celebrations play v161 A's
+   * bodies and their effects stay). Looks only: nothing here is read by the sim, nothing draws from Math.random.
+   * `window.__V177I` is what v177IJKcheck reads. */
+  var V177I = (window.__V177I = window.__V177I || { runs: [], active: null, last: null, loads: 0, builds: 0, buildMs: 0, previews: 0, prevFrames: 0, errs: [] });
+  function errV177I(e) { try { if (V177I.errs.length < 12) V177I.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  function onV177I() { return !!TUv("v177I", 1); }
+  var ANIMS_V177I = ["moonwalk", "worm", "leap", "quake", "griddy", "archer", "robot", "nap", "phone", "saber"];
+  var STAND_V177I = 44;
+  var ITEMS_V177I = [
+    { id: "cel_moonwalk", cat: "celebration", name: "Moonwalk", rarity: "mythic", source: "super", blurb: "Glides back on his heels, then the point.", c: { kind: "v177moon", body: "moonwalk", col: ["#e8f4ff", "#b98bff", "#ff5ab4", "#6fd3ff"], say: "SMOOTH" } },
+    { id: "cel_worm", cat: "celebration", name: "The Worm", rarity: "mythic", source: "super", blurb: "Down on the grass and wave across it.", c: { kind: "v177worm", body: "worm", col: ["#7cff9b", "#ffd76f", "#ffffff"], say: "GET LOW" } },
+    { id: "cel_leap", cat: "celebration", name: "Crowd Leap", rarity: "mythic", source: "super", blurb: "Into the stands — the crowd catches him.", c: { kind: "v177leap", body: "leap", col: ["#ffd76f", "#ff5a5a", "#6fd3ff", "#ffffff"], say: "INTO THE STANDS" } },
+    { id: "cel_quake", cat: "celebration", name: "Earthquake Spike", rarity: "mythic", source: "super", blurb: "The slam splits the field.", c: { kind: "v177quake", body: "quake", col: ["#ff7a1a", "#ffd76f", "#5a2a0e"], say: "SEISMIC" } },
+    { id: "cel_griddy", cat: "celebration", name: "Griddy", rarity: "mythic", source: "super", blurb: "Heel kicks on the beat.", c: { kind: "v177griddy", body: "griddy", col: ["#ff5ab4", "#6fd3ff", "#ffd76f", "#7cff9b"], say: "HIT THE GRIDDY" } },
+    { id: "cel_archer", cat: "celebration", name: "Bow & Arrow", rarity: "mythic", source: "super", blurb: "Draws, aims, and the target in the sky bursts.", c: { kind: "v177arrow", body: "archer", col: ["#ffd76f", "#ff4d6d", "#ffffff"], say: "BULLSEYE" } },
+    { id: "cel_robot", cat: "celebration", name: "The Robot", rarity: "mythic", source: "super", blurb: "Stepped, stiff, powered up.", c: { kind: "v177robot", body: "robot", col: ["#18f0ff", "#b9fff8", "#ff3df2"], say: "BEEP BOOP" } },
+    { id: "cel_nap", cat: "celebration", name: "Nap Time", rarity: "mythic", source: "super", blurb: "Head on the ball, out like a light.", c: { kind: "v177nap", body: "nap", col: ["#fff3c4", "#9fb8ff", "#ffffff"], say: "NAP TIME" } },
+    { id: "cel_phone", cat: "celebration", name: "Phone Call", rarity: "mythic", source: "super", blurb: "Takes the call on the ball.", c: { kind: "v177phone", body: "phone", col: ["#7cff9b", "#ffffff", "#6fd3ff"], say: "WHO'S NEXT?" } },
+    { id: "cel_saber", cat: "celebration", name: "Laser Duel", rarity: "mythic", source: "super", blurb: "A blade ignites — guard, strike, clash.", c: { kind: "v177saber", body: "saber", col: ["#5ff3ff", "#ff3b3b", "#ffffff"], say: "EN GARDE" } }
+  ];
+  function addItemsV177(list, tag) {
+    list.forEach(function (it) {
+      if (BY[it.id]) return;
+      it.packs = []; it[tag] = 1;
+      it.preview = function (el) { return previewInto(el, it); };
+      ITEMS.push(it); BY[it.id] = it;
+    });
+  }
+  addItemsV177(ITEMS_V177I, "v177");
+  function bodyOfV177I(it) { return it && it.c && it.c.body && ANIMS_V177I.indexOf(it.c.body) >= 0 ? it.c.body : null; }
+
+  /* ---- the art: the generator's manifest, both atlases, both skin masks ---- */
+  var DATA_V177I = { M: null, img: {}, skin: {}, sw: {}, state: 0, cbs: [] };
+  function loadV177I(cb) {
+    if (DATA_V177I.state === 2) { if (cb) cb(); return true; }
+    if (cb) DATA_V177I.cbs.push(cb);
+    if (DATA_V177I.state !== 0) return false;
+    DATA_V177I.state = 1; V177I.loads++;
+    var need = 5;
+    var done = function () { if (--need) return; DATA_V177I.state = 2; DATA_V177I.cbs.splice(0).forEach(function (f) { try { f(); } catch (e) { errV177I(e); } }); };
+    var fail = function (e) { DATA_V177I.state = -1; errV177I("load: " + ((e && e.message) || e)); };
+    try {
+      fetch(assetV161A("celebrations/cel_v177i.json")).then(function (r) { return r.json(); }).then(function (m) { DATA_V177I.M = m; done(); }, fail);
+      [1, 2].forEach(function (s) {
+        var im = new Image(); im.onload = function () { DATA_V177I.img[s] = im; done(); }; im.onerror = fail; im.src = assetV161A("celebrations/cel_v177i_" + s + "x.png");
+        var sk = new Image(); sk.onload = function () {
+          try { var c = document.createElement("canvas"); c.width = sk.width; c.height = sk.height; var x = c.getContext("2d"); x.drawImage(sk, 0, 0);
+            var d = x.getImageData(0, 0, sk.width, sk.height).data, m = new Uint8Array(sk.width * sk.height); for (var i = 0; i < m.length; i++) m[i] = d[i * 4] > 127 ? 1 : 0;
+            DATA_V177I.skin[s] = m; DATA_V177I.sw[s] = sk.width; } catch (e) { errV177I(e); }
+          done(); };
+        sk.onerror = fail; sk.src = assetV161A("celebrations/cel_v177i_skin_" + s + "x.png");
+      });
+    } catch (e) { fail(e); }
+    return false;
+  }
+  function readyV177I() { return DATA_V177I.state === 2 && !!DATA_V177I.M; }
+
+  /* ---- the timelines: [frame (or frames spread over the segment), ms, {dx travel in body heights (linear; `ez` eased;
+   *      `step` all at once), arc (a hop, body heights, one parabola over the segment), rot (deg, held; eased in unless
+   *      `step`), sq (a squash spring on entry), tag}] ---- */
+  var PLAN_V177I = {
+    moonwalk: [[0, 200], [1, 190, { dx: -0.35, tag: "step" }], [2, 190, { dx: -0.35, tag: "step" }], [3, 190, { dx: -0.35, tag: "step", rot: -2 }], [4, 190, { dx: -0.35, tag: "step", rot: -2 }],
+      [1, 190, { dx: -0.35, tag: "step" }], [2, 190, { dx: -0.35, tag: "step" }], [5, 260, { tag: "point", sq: 0.06 }], [6, 620, { tag: "toes", arc: 0.05 }], [5, 300, { tag: "hold" }]],
+    worm: [[0, 180], [1, 200, { tag: "drop", sq: 0.08 }], [2, 110, { dx: 0.18, tag: "hump" }], [3, 110, { dx: 0.18 }], [4, 110, { dx: 0.18 }], [5, 110, { dx: 0.18 }], [6, 110, { dx: 0.18 }], [7, 110, { dx: 0.18 }],
+      [2, 110, { dx: 0.18, tag: "hump" }], [3, 110, { dx: 0.18 }], [4, 110, { dx: 0.18 }], [5, 110, { dx: 0.18 }], [6, 110, { dx: 0.18 }], [7, 110, { dx: 0.18 }], [8, 220, { tag: "push" }], [9, 520, { tag: "pop", arc: 0.14, sq: 0.08 }]],
+    leap: [[0, 160], [1, 200, { tag: "load", sq: 0.05 }], [[2, 2, 3, 3, 3, 4, 4, 4, 4, 5], 900, { arc: 1.5, dx: 0.25, ez: 1, tag: "air" }], [5, 220, { tag: "land", sq: 0.14 }], [6, 700, { tag: "hold", sq: 0.04 }]],
+    quake: [[0, 160], [1, 140], [2, 260, { tag: "load", sq: 0.05 }], [3, 300, { arc: 0.35, tag: "leap" }], [4, 320, { tag: "impact", sq: 0.12 }], [5, 240, { tag: "ball" }], [6, 300, { tag: "hold" }], [7, 260, { tag: "pound", sq: 0.05 }], [8, 500, { tag: "hold" }]],
+    griddy: [[0, 160], [1, 160, { arc: 0.06, tag: "kick" }], [2, 160, { arc: 0.06, tag: "kick" }], [3, 160, { arc: 0.06, tag: "kick" }], [4, 160, { arc: 0.06, tag: "kick" }],
+      [1, 160, { arc: 0.06, tag: "kick", dx: 0.06 }], [2, 160, { arc: 0.06, tag: "kick", dx: 0.06 }], [3, 160, { arc: 0.06, tag: "kick", dx: 0.06 }], [4, 160, { arc: 0.06, tag: "kick", dx: 0.06 }],
+      [1, 160, { arc: 0.06, tag: "kick", dx: -0.06 }], [2, 160, { arc: 0.06, tag: "kick", dx: -0.06 }], [3, 160, { arc: 0.06, tag: "kick", dx: -0.06 }], [4, 160, { arc: 0.06, tag: "kick", dx: -0.06 }], [5, 520, { tag: "flex", sq: 0.06 }]],
+    archer: [[0, 200], [1, 300, { tag: "nock" }], [2, 330, { tag: "draw" }], [3, 420, { tag: "aim" }], [4, 240, { tag: "release", sq: 0.05 }], [4, 500, { tag: "watch" }], [5, 500, { tag: "flex", sq: 0.04 }]],
+    robot: [[0, 220, { step: 1 }], [1, 180, { rot: -6, step: 1, tag: "tick" }], [2, 180, { rot: -6, step: 1, tag: "tick" }], [3, 200, { rot: 4, step: 1, tag: "tick" }], [4, 200, { rot: -4, step: 1, tag: "tick" }],
+      [5, 180, { dx: 0.15, step: 1, tag: "tick" }], [1, 180, { rot: 8, step: 1, tag: "tick" }], [3, 200, { step: 1, tag: "tick" }], [4, 200, { dx: -0.15, step: 1, tag: "tick" }], [2, 220, { rot: -3, step: 1, tag: "tick" }], [6, 560, { step: 1, tag: "power" }]],
+    nap: [[0, 200], [1, 180], [2, 220, { tag: "lie", sq: 0.06 }], [3, 380, { tag: "snore" }], [4, 380], [3, 380], [4, 260], [5, 240, { tag: "wake", sq: 0.06 }], [6, 330, { tag: "pop", arc: 0.15 }]],
+    phone: [[0, 200], [0, 260, { tag: "ring" }], [1, 300, { tag: "pickup", sq: 0.04 }], [2, 400, { tag: "chat" }], [3, 380, { tag: "laugh" }], [2, 360, { tag: "chat2" }], [4, 240, { tag: "hangup", sq: 0.04 }], [5, 500, { tag: "bow" }]],
+    saber: [[0, 180], [1, 300, { tag: "ignite" }], [3, 320, { tag: "guard" }], [2, 280, { tag: "raise" }], [4, 240, { tag: "strike", sq: 0.08, dx: 0.2, ez: 1 }], [3, 300, { tag: "clash" }],
+      [4, 220, { tag: "strike2", dx: 0.1, ez: 1 }], [5, 600, { tag: "victory", sq: 0.04 }]]
+  };
+  var TLC_V177I = {};
+  function tlV177I(name, calm) {
+    var key = name + (calm ? "|c" : "") + "|" + TUv("v177Ipace", 1) + "|" + TUv("v161AcalmMs", 1200);
+    if (TLC_V177I[key]) return TLC_V177I[key];
+    var plan = PLAN_V177I[name] || PLAN_V177I.moonwalk, segs = [], t = 0, x = 0, rot = 0, pace = Math.max(0.3, TUv("v177Ipace", 1)), last = plan[plan.length - 1];
+    if (calm) segs.push({ fr: [Array.isArray(last[0]) ? last[0][last[0].length - 1] : last[0]], t0: 0, ms: TUv("v161AcalmMs", 1200), o: { tag: "calm" }, i: 0, x0: 0, x1: 0, r0: 0, r1: 0 });
+    else plan.forEach(function (s, i) {
+      var o = s[2] || {}, ms = s[1] * pace, x1 = x + (o.dx || 0) * STAND_V177I, r1 = o.rot != null ? o.rot : 0;
+      segs.push({ fr: Array.isArray(s[0]) ? s[0] : [s[0]], t0: t, ms: ms, o: o, i: i, x0: x, x1: x1, r0: rot, r1: r1 });
+      t += ms; x = x1; rot = r1;
+    });
+    var T = { name: name, calm: !!calm, segs: segs, total: segs.reduce(function (a, s) { return a + s.ms; }, 0), ev: {}, evs: {}, travel: x, lo: 0, hi: 0 };
+    segs.forEach(function (s) { var tg = s.o.tag; if (tg) { if (T.ev[tg] == null) T.ev[tg] = s.t0; (T.evs[tg] = T.evs[tg] || []).push(s.t0); } T.lo = Math.min(T.lo, s.x1); T.hi = Math.max(T.hi, s.x1); });
+    return (TLC_V177I[key] = T);
+  }
+  function segAtV177I(T, t) { var s = T.segs[0]; for (var i = 0; i < T.segs.length; i++) if (t >= T.segs[i].t0) s = T.segs[i]; return s; }
+  /* one frame of the body at t: the drawn frame k, travel x and lift (1x px), turn (deg), squash */
+  function poseV177I(name, t, calm) {
+    var T = tlV177I(name, calm), tt = Math.max(0, Math.min(T.total - 0.01, t)), sg = segAtV177I(T, tt), u = c01V159C((tt - sg.t0) / Math.max(1, sg.ms)), tau = tt - sg.t0, o = sg.o;
+    var k = sg.fr[Math.min(sg.fr.length - 1, Math.floor(u * sg.fr.length))];
+    var r = { name: name, t: t, k: k, seg: sg.i, tag: o.tag || "", u: u, x: 0, lift: 0, rot: 0, sx: 1, sy: 1, sh: 1 };
+    if (calm) return r;
+    r.x = o.step ? sg.x1 : sg.x0 + (sg.x1 - sg.x0) * (o.ez ? EZ_V159C.inOutS(u) : u);
+    r.rot = o.step ? sg.r1 : sg.r0 + (sg.r1 - sg.r0) * EZ_V159C.inOutS(c01V159C(u * 3));
+    if (o.arc) { r.lift = o.arc * STAND_V177I * 4 * u * (1 - u); var st = 0.06 * Math.cos(Math.PI * u) * Math.min(1, o.arc * 2); r.sy = 1 + st; r.sx = 1 - st * 0.6; }
+    if (o.sq) { var s = springV161A(o.sq, tau); r.sy *= 1 - s; r.sx *= 1 + s * 0.6; }
+    if (!o.step && (o.tag === "hold" || o.tag === "snore" || !o.tag) && tau > 140) r.sy *= 1 + 0.014 * Math.sin((tau - 140) * 2 * Math.PI / 620);
+    r.sh = 1 - 0.55 * Math.min(1, r.lift / (0.9 * STAND_V177I));
+    return r;
+  }
+  function framesOfV177I(name) { return readyV177I() && DATA_V177I.M.anims[name] ? DATA_V177I.M.anims[name].frames : null; }
+
+  /* ---- the props: a painter in 1x px about the ground point (x forward, y down; the painter mirrors) ---- */
+  function hpV177I(o, hx, hy) {   // a point on the frame (anchor-relative) through the body's squash, turn, travel and lift
+    var a = o.rot * Math.PI / 180, x = hx * o.sx, y = hy * o.sy;
+    return [o.x + x * Math.cos(a) - y * Math.sin(a), -o.lift + x * Math.sin(a) + y * Math.cos(a)];
+  }
+  function handV177I(fr, which) {   // "top" the highest glove, "front" the furthest forward, "back" the furthest back, "low"
+    var H = fr && fr.hands && fr.hands.length ? fr.hands : [[fr ? (fr.cx - fr.ax) + 8 : 8, fr ? (fr.cy - fr.ay) - 4 : -24]];
+    var best = H[0];
+    H.forEach(function (h) { if (which === "top" ? h[1] < best[1] : which === "low" ? h[1] > best[1] : which === "back" ? h[0] < best[0] : h[0] > best[0]) best = h; });
+    return best;
+  }
+  function starPtsV177I(x, y, ro, ri, n, ang) { var p = []; for (var i = 0; i < n * 2; i++) { var th = ang + i * Math.PI / n - Math.PI / 2, r = i % 2 ? ri : ro; p.push(x + Math.cos(th) * r, y + Math.sin(th) * r); } return p; }
+  function hashV177I(a, b) { return noiseV159C(a | 0, b | 0, 177); }
+  function propsV177I(name, t, o, fr, P, calm, C) {
+    var T = tlV177I(name, false), ev = T.ev, n = 0, c0 = C[0], c1 = C[1 % C.length], c2 = C[2 % C.length];
+    var line = function (x1, y1, x2, y2, w, c, a, add) { if (a > 0.01) { P.line(x1, y1, x2, y2, w, c, Math.min(1, a), add); n++; } };
+    var circ = function (x, y, r, c, a, add) { if (a > 0.01 && r > 0.05) { P.circ(x, y, r, c, Math.min(1, a), add); n++; } };
+    var poly = function (p, c, a, add) { if (a > 0.01) { P.poly(p, c, Math.min(1, a), add); n++; } };
+    var path = function (p, w, c, a, add) { if (a > 0.01) { for (var i = 0; i + 3 < p.length; i += 2) P.line(p[i], p[i + 1], p[i + 2], p[i + 3], w, c, Math.min(1, a), add); n++; } };
+    var glint = function (x, y, s, a, c) { poly(starPtsV177I(x, y, s, s * 0.18, 4, 0), c == null ? 0xffffff : c, a, 1); circ(x, y, s * 0.3, 0xffffff, a, 1); };
+    var ring = function (x, y, r, w, c, a, add) { var p = []; for (var i = 0; i <= 20; i++) { var th = i / 20 * 6.2832; p.push(x + Math.cos(th) * r, y + Math.sin(th) * r * 0.34); } path(p, w, c, a, add); };
+    var since = function (tg) { return ev[tg] == null ? -1 : t - ev[tg]; };
+    if (calm) t = T.total - 1;
+    var hp = function (h) { return hpV177I(o, h[0], h[1]); };
+    if (name === "saber") {
+      var tg = o.tag, H = hp(handV177I(fr, "top")), D2R = Math.PI / 180, ang, u = o.u;
+      var A = { ignite: -80, guard: -40, raise: -115, clash: -35, victory: -95 + 4 * Math.sin(t / 160) };
+      if (tg === "strike") ang = -115 + 140 * EZ_V159C.outX(c01V159C(u / 0.45)); else if (tg === "strike2") ang = -60 + 95 * EZ_V159C.outX(c01V159C(u / 0.45)); else ang = A[tg];
+      if (ang == null || t < (ev.ignite || 0)) return n;
+      var grow = calm ? 1 : EZ_V159C.outC(c01V159C(since("ignite") / 180)), L = 30 * grow, th = ang * D2R, dx = Math.cos(th), dy = Math.sin(th), fl = 0.88 + 0.12 * Math.sin(t / 23);
+      var tip = [H[0] + dx * L, H[1] + dy * L];
+      if (!calm && (tg === "strike" || tg === "strike2")) for (var j = 5; j >= 1; j--) { var u2 = c01V159C((u * o.ms - j * 22) / o.ms), a2 = (tg === "strike" ? -115 + 140 * EZ_V159C.outX(c01V159C(u2 / 0.45)) : -60 + 95 * EZ_V159C.outX(c01V159C(u2 / 0.45))) * D2R;
+        line(H[0], H[1], H[0] + Math.cos(a2) * L, H[1] + Math.sin(a2) * L, 3.2, c0, 0.13 * (6 - j) / 5, 1); }
+      line(H[0], H[1], tip[0], tip[1], 6, c0, 0.22 * fl, 1); line(H[0], H[1], tip[0], tip[1], 3, c0, 0.6 * fl, 1); line(H[0], H[1], tip[0], tip[1], 1.3, 0xffffff, 0.95, 1);
+      line(H[0] - dx * 4, H[1] - dy * 4, H[0] + dx * 1.2, H[1] + dy * 1.2, 2.4, 0x3a3f4a, 1, 0); line(H[0] - dx * 3, H[1] - dy * 3, H[0] - dx * 1.5, H[1] - dy * 1.5, 2.6, 0xc9ccd6, 1, 0);
+      if (tg === "clash" && !calm) {   // a red blade from the front meets his near the tip: sparks where they cross
+        var X = [H[0] + dx * L * 0.82, H[1] + dy * L * 0.82], e0 = [X[0] + 24, X[1] - 16], e1 = [X[0] - 9, X[1] + 6];
+        line(e0[0], e0[1], e1[0], e1[1], 6, c1, 0.22, 1); line(e0[0], e0[1], e1[0], e1[1], 3, c1, 0.6, 1); line(e0[0], e0[1], e1[0], e1[1], 1.2, 0xffffff, 0.9, 1);
+        var wi = Math.floor(t / 45); circ(X[0], X[1], 5 + 2 * hashV177I(wi, 1), 0xffffff, 0.55, 1);
+        for (var q = 0; q < 8; q++) { var aa = hashV177I(wi, q + 3) * 6.2832, ll = 4 + 8 * hashV177I(wi, q + 13); line(X[0], X[1], X[0] + Math.cos(aa) * ll, X[1] + Math.sin(aa) * ll, 0.9, q % 2 ? 0xfff3c4 : c0, 0.9, 1); }
+      }
+    } else if (name === "archer") {
+      var tg2 = o.tag, aim = -32 * Math.PI / 180, ax = Math.cos(aim), ay = Math.sin(aim), nx = Math.cos(aim + Math.PI / 2), ny = Math.sin(aim + Math.PI / 2);
+      var F = hp(handV177I(fr, "front")), B = hp(handV177I(fr, "back")), has = tg2 === "nock" || tg2 === "draw" || tg2 === "aim" || tg2 === "release" || tg2 === "watch";
+      if (has) {
+        var drawn = tg2 === "draw" || tg2 === "aim", bow = [];
+        for (var s = -1; s <= 1.001; s += 1 / 3) bow.push(F[0] + nx * s * 13 + ax * (1 - s * s) * 4, F[1] + ny * s * 13 + ay * (1 - s * s) * 4);
+        path(bow, 2.2, 0x3a2410, 1, 0); path(bow, 1.2, 0x9a6a32, 1, 0);
+        var t1 = [bow[0], bow[1]], t2 = [bow[bow.length - 2], bow[bow.length - 1]], N = drawn ? B : [F[0] - ax * 1, F[1] - ay * 1];
+        line(t1[0], t1[1], N[0], N[1], 0.6, 0xf0f0f0, 0.9, 0); line(N[0], N[1], t2[0], t2[1], 0.6, 0xf0f0f0, 0.9, 0);
+        if (tg2 !== "release" && tg2 !== "watch") {   // the arrow, nocked
+          var e = [N[0] + ax * 22, N[1] + ay * 22];
+          line(N[0], N[1], e[0], e[1], 1, 0xe8d8b0, 1, 0); poly([e[0] + ax * 3, e[1] + ay * 3, e[0] - nx * 1.6, e[1] - ny * 1.6, e[0] + nx * 1.6, e[1] + ny * 1.6], 0xc9ccd6, 1, 0);
+          line(N[0], N[1], N[0] - ax * 3 + nx * 1.8, N[1] - ay * 3 + ny * 1.8, 0.9, c1, 1, 0); line(N[0], N[1], N[0] - ax * 3 - nx * 1.8, N[1] - ay * 3 - ny * 1.8, 0.9, c1, 1, 0);
+          if (tg2 === "aim" && !calm) glint(e[0] + ax * 3, e[1] + ay * 3, 3 + Math.sin(t / 60), 0.7, c0);
+        }
+      }
+      var tr = since("release"), FL = 520, S0 = [F[0] + ax * 16, F[1] + ay * 16], v = 0.42;
+      if (!calm && tr >= 0 && tr < FL) { var p = [S0[0] + ax * v * tr, S0[1] + ay * v * tr]; line(p[0] - ax * 18, p[1] - ay * 18, p[0], p[1], 2.2, c0, 0.5, 1); line(p[0] - ax * 9, p[1] - ay * 9, p[0], p[1], 1, 0xffffff, 1, 1); }
+      var tgt = [S0[0] + ax * v * FL, S0[1] + ay * v * FL], ta = since("nock");   // the target in the sky: it pops in, is hit, bursts
+      if (!calm && ta >= 0) {
+        var pin = EZ_V159C.outB(c01V159C(ta / 300)), hit = tr - FL, gone = hit > 0 ? c01V159C(hit / 380) : 0, sc = pin * (1 + 0.5 * gone), al = 1 - gone;
+        [[9, 0xffffff], [7, c1], [5, 0xffffff], [3, c1], [1.4, c0]].forEach(function (rg) { circ(tgt[0], tgt[1], rg[0] * sc, rg[1], 0.95 * al, 0); });
+        if (hit >= 0 && hit < 520) { var hp2 = hit / 520; circ(tgt[0], tgt[1], 8 + 26 * EZ_V159C.outC(hp2), c0, 0.4 * (1 - hp2), 1);
+          for (var r2 = 0; r2 < 10; r2++) { var th2 = r2 * 0.6283, l1 = 6 + 30 * EZ_V159C.outC(hp2); line(tgt[0] + Math.cos(th2) * l1 * 0.5, tgt[1] + Math.sin(th2) * l1 * 0.5, tgt[0] + Math.cos(th2) * l1, tgt[1] + Math.sin(th2) * l1, 1.4, r2 % 2 ? 0xffffff : c0, 1 - hp2, 1); }
+          ring(tgt[0], tgt[1], 10 + 40 * EZ_V159C.outC(hp2), 1.6, 0xffffff, 0.8 * (1 - hp2), 1); }
+      }
+    } else if (name === "phone") {
+      var tg3 = o.tag, lo = hp(handV177I(fr, "low")), hi = hp(handV177I(fr, "top")), hm = hp([fr.helm[0], fr.helm[1]]);
+      if (tg3 === "ring" && !calm) { var bz = Math.floor(t / 70) % 2 ? 1 : -1; for (var s3 = -1; s3 <= 1; s3 += 2) { var cx = lo[0] + s3 * 7; path([cx, lo[1] - 4, cx + s3 * 2 * bz, lo[1] - 1, cx, lo[1] + 2, cx + s3 * 2 * bz, lo[1] + 5], 1, 0xffffff, 0.95, 0); } }
+      if ((tg3 === "pickup" || tg3 === "chat" || tg3 === "laugh" || tg3 === "chat2") && !calm) {
+        for (var w = 0; w < 3; w++) { var rr = 5 + ((t / 9 + w * 7) % 21), aw = 1 - rr / 26, pts = []; for (var i2 = 0; i2 <= 8; i2++) { var th3 = (-160 + i2 * 12) * Math.PI / 180; pts.push(hi[0] + Math.cos(th3) * rr, hi[1] + Math.sin(th3) * rr); } path(pts, 1.1, c0, 0.9 * aw, 1); }
+      }
+      if (tg3 === "chat" || tg3 === "laugh" || tg3 === "chat2") {
+        var bx = hm[0] + 15, by = hm[1] - 16, pop = calm ? 1 : EZ_V159C.outB(c01V159C(o.u * o.ms / 160));
+        P.ell(bx, by, 11 * pop, 7 * pop, 0, 0x0b0f16, 0.9, 0); P.ell(bx, by, 10 * pop, 6 * pop, 0, 0xffffff, 0.97, 0); poly([bx - 6 * pop, by + 4 * pop, bx - 2 * pop, by + 5 * pop, hm[0] + 6, hm[1] - 7], 0xffffff, 0.97, 0); n += 2;
+        if (tg3 === "laugh") { var sx = bx - 5, sy = by - 2.5; [[sx, sy, sx, sy + 5], [sx + 3, sy, sx + 3, sy + 5], [sx, sy + 2.5, sx + 3, sy + 2.5], [sx + 5, sy + 5, sx + 6.5, sy], [sx + 6.5, sy, sx + 8, sy + 5], [sx + 5.6, sy + 3, sx + 7.4, sy + 3]].forEach(function (L) { line(L[0], L[1], L[2], L[3], 1, 0x141a24, 1, 0); }); }
+        else for (var d3 = 0; d3 < 3; d3++) circ(bx - 4 + d3 * 4, by - 1.5 * Math.max(0, Math.sin(t / 110 - d3 * 0.9)), 1.3, 0x141a24, 1, 0);
+      }
+      if (tg3 === "hangup" && !calm) glint(lo[0], lo[1] - 2, 5 * (1 - o.u), 1, c0);
+    } else if (name === "nap") {
+      var hz = hp([fr.helm[0], fr.helm[1]]), tsn = ev.snore, twk = ev.wake;
+      if (t >= tsn && t < twk) {
+        for (var z = 0; z < 3; z++) { var pz = calm ? 0.35 + z * 0.25 : ((t - tsn) / 1000 + z / 3) % 1, s4 = 2.2 + pz * 4, zx = hz[0] + 5 + pz * 14 + Math.sin(pz * 6) * 2, zy = hz[1] - 8 - pz * 28, az = calm ? 0.9 : Math.sin(Math.PI * pz);
+          var zp = [zx - s4, zy - s4, zx + s4, zy - s4, zx - s4, zy + s4, zx + s4, zy + s4]; path(zp, 2.4, 0x0b0f16, 0.5 * az, 0); path(zp, 1.1, 0xffffff, az, 0); }
+        var br = calm ? 3 : 2 + 3.2 * (0.5 + 0.5 * Math.sin((t - tsn) / 260));
+        circ(hz[0] + 9, hz[1] + 1 - br, br, 0x9fd8ff, 0.35, 0); P.ell(hz[0] + 9, hz[1] + 1 - br, br, br, 0.7, 0xffffff, 0.85, 0); n++;
+      }
+      var pw = t - twk; if (!calm && pw >= 0 && pw < 260) { var pp = pw / 260; ring(hz[0] + 9, hz[1] - 4, 3 + 9 * pp, 1, 0xffffff, 1 - pp, 1); for (var dd = 0; dd < 5; dd++) { var th4 = dd * 1.2566; circ(hz[0] + 9 + Math.cos(th4) * 10 * pp, hz[1] - 4 + Math.sin(th4) * 8 * pp, 0.9, 0x9fd8ff, 1 - pp, 0); } }
+    } else if (name === "moonwalk") {
+      if (!calm) (T.evs.step || []).forEach(function (ts, i) { var d = t - ts; if (d < 0 || d > 260) return; var pp = d / 260, fx = o.x + (i % 2 ? -6 : 6);
+        glint(fx, -1, 4.5 * Math.sin(Math.PI * pp), 1, c0); circ(fx, 0, 3 + 5 * pp, c1, 0.25 * (1 - pp), 1); });
+      if (o.tag === "point" || o.tag === "toes" || o.tag === "hold" || calm) { var tp = hp(handV177I(fr, "top")), sp = calm ? 4 : 3.5 + 2 * Math.sin(t / 120); poly(starPtsV177I(tp[0], tp[1] - 2, sp, sp * 0.22, 4, t / 300), 0xffffff, 0.95, 1); circ(tp[0], tp[1] - 2, sp * 1.6, c1, 0.25, 1); }
+      if (!calm && o.x < 0) for (var g = 1; g <= 3; g++) circ(o.x + g * 9, -22, 1.2, c0, 0.25 * (4 - g) / 3 * (0.6 + 0.4 * Math.sin(t / 50 + g)), 1);
+    } else if (name === "griddy") {
+      if (!calm) (T.evs.kick || []).forEach(function (ts, i) { var d = t - ts; if (d < 0 || d > 280) return; var pp = d / 280, fx = o.x + (i % 2 ? 5 : -5);
+        ring(fx, 0, 3 + 12 * EZ_V159C.outC(pp), 1.4, C[i % C.length], 1 - pp, 1); circ(fx, -1, 2.2 * (1 - pp), 0xffffff, 0.8 * (1 - pp), 1); });
+    } else if (name === "robot") {
+      var tk = o.tag === "tick" ? t - T.segs[o.seg != null ? o.seg : 0].t0 : -1;
+      var since0 = t - T.segs.filter(function (s) { return s.t0 <= t; }).slice(-1)[0].t0;
+      if (!calm && o.tag === "tick" && since0 < 120) [handV177I(fr, "front"), handV177I(fr, "back")].forEach(function (h, i) { var pz = hp(h), wi2 = Math.floor(t / 40);
+        var zz = [pz[0], pz[1]]; for (var q2 = 0; q2 < 3; q2++) zz.push(pz[0] + (i ? -1 : 1) * (3 + q2 * 3), pz[1] - 2 + (hashV177I(wi2, q2 + i * 5) - 0.5) * 6); path(zz, 0.9, c0, 0.9, 1); });
+      if (o.tag === "power" || calm) { var hv = hp([fr.helm[0], fr.helm[1] + 2]), fk = calm ? 1 : [1, 0.2, 1, 0.6, 1, 1][Math.min(5, Math.floor(c01V159C(o.u * 3) * 6))];
+        line(hv[0] - 6, hv[1], hv[0] + 6, hv[1], 2.6, c0, 0.4 * fk, 1); line(hv[0] - 5, hv[1], hv[0] + 5, hv[1], 1, 0xffffff, 0.95 * fk, 1);
+        for (var bp = 0; bp < 3; bp++) if (calm || Math.floor(t / 160 + bp) % 2) P.rect(hv[0] - 5 + bp * 4, hv[1] - 20, 2, 2, C[bp % C.length], 0.9, 1); }
+      void tk;
+    } else if (name === "quake") {
+      var ti = since("ball");
+      if (ti >= 0 && P.img) { var fade = c01V159C((T.total - t) / 400); P.img("ball", 3, -2.5, -0.5, fade); n++; }
+      if (!calm && ti >= 0) { var gl = 0.5 + 0.5 * Math.sin(t / 90); circ(3, 0, 9, c0, 0.25 * gl * c01V159C((T.total - t) / 400), 1); }
+    } else if (name === "worm") {
+      if (!calm) T.segs.filter(function (s) { return s.fr[0] === 2 || s.fr[0] === 5; }).forEach(function (s) { var d = t - s.t0; if (d < 0 || d > 420) return; var pp = d / 420;
+        for (var q3 = 0; q3 < 3; q3++) circ(o.x + 14 - q3 * 6 - 10 * pp, -1 - 4 * pp, 1.5 + 3 * pp, 0xb8a684, 0.45 * (1 - pp), 0); });
+    } else if (name === "leap") {
+      var ta2 = since("air");
+      if (!calm && ta2 >= 0 && ta2 < 900 && o.lift > 4) for (var sl = 0; sl < 4; sl++) { var lx = o.x - 9 + sl * 6; line(lx, -o.lift + 8 + sl % 2 * 3, lx, -o.lift + 18 + sl % 2 * 3, 1, 0xffffff, 0.35, 1); }
+    }
+    return n;
+  }
+
+  /* ---- his kit on a frame (v161 A's recolour, skin and helmet, on this atlas) ---- */
+  function frameCanvasV177I(name, k, scale, kit) {
+    var M = DATA_V177I.M, fr = k === "ball" ? null : M.anims[name].frames[k];
+    var r = k === "ball" ? (scale === 2 ? M.ball2 : M.ball) : (scale === 2 ? fr.r2 : fr.r), w = r[2], h = r[3];
+    var cv = document.createElement("canvas"); cv.width = w; cv.height = h; var x = cv.getContext("2d"); x.drawImage(DATA_V177I.img[scale], r[0], r[1], w, h, 0, 0, w, h);
+    if (k === "ball" || !kit) return cv;
+    var src = x.getImageData(0, 0, w, h).data, F = window.__V161A_FIELD, out = F && F.recolor ? F.recolor(cv, kit.p1, kit.p2) : cv;
+    var ox = out.getContext("2d"), img = ox.getImageData(0, 0, w, h), d = img.data, sk = DATA_V177I.skin[scale], sw = DATA_V177I.sw[scale], j, i4, L;
+    if (sk) { var ls = 0, ln = 0;
+      for (j = 0; j < w * h; j++) { if (!sk[(r[1] + ((j / w) | 0)) * sw + r[0] + (j % w)]) continue; i4 = j * 4; if (src[i4 + 3] < 20) continue;
+        ls += (Math.max(src[i4], src[i4 + 1], src[i4 + 2]) + Math.min(src[i4], src[i4 + 1], src[i4 + 2])) / 2; ln++; }
+      var ref = Math.max(30, ln ? ls / ln : 120), tn = rgb(kit.tone);
+      for (j = 0; j < w * h; j++) { if (!sk[(r[1] + ((j / w) | 0)) * sw + r[0] + (j % w)]) continue; i4 = j * 4; if (src[i4 + 3] < 20) continue;
+        L = (Math.max(src[i4], src[i4 + 1], src[i4 + 2]) + Math.min(src[i4], src[i4 + 1], src[i4 + 2])) / 2;
+        var v = Math.max(40, Math.min(255, 214 * Math.pow(L / ref, 0.8)));
+        d[i4] = Math.min(255, tn[0] * v / 255); d[i4 + 1] = Math.min(255, tn[1] * v / 255); d[i4 + 2] = Math.min(255, tn[2] * v / 255); } }
+    if (kit.H && hexOk(kit.H.s) && fr.helm) {
+      var an = scale === 2 ? fr.a2 : [fr.ax, fr.ay], hx = an[0] + fr.helm[0] * scale, hy = an[1] + fr.helm[1] * scale, rx = fr.helm[2] * scale * 1.06, ry = fr.helm[3] * scale * 1.06;
+      var HS = rgb(kit.H.s), HST = hexOk(kit.H.st) ? rgb(kit.H.st) : null;
+      for (var yy = Math.max(0, Math.floor(hy - ry)); yy <= Math.min(h - 1, Math.ceil(hy + ry)); yy++) for (var xx = Math.max(0, Math.floor(hx - rx)); xx <= Math.min(w - 1, Math.ceil(hx + rx)); xx++) {
+        var ex = (xx + 0.5 - hx) / rx, ey = (yy + 0.5 - hy) / ry; if (ex * ex + ey * ey > 1) continue;
+        var q = (yy * w + xx) * 4; if (src[q + 3] < 20) continue;
+        var cl = classify(src[q], src[q + 1], src[q + 2]); if (!cl[0]) continue;
+        var s2 = Math.min(1.75, Math.max(0.25, cl[1] / (cl[0] === 1 ? 95 : 165))), base = cl[0] === 2 && HST ? HST : HS;
+        if (cl[0] === 2 && !HST) s2 = Math.min(1.3, s2);
+        d[q] = Math.min(255, base[0] * s2); d[q + 1] = Math.min(255, base[1] * s2); d[q + 2] = Math.min(255, base[2] * s2); }
+    }
+    ox.putImageData(img, 0, 0);
+    return out;
+  }
+  var TEX_V177I = { n: 0, kits: {}, order: [] };
+  function texV177I(scene, name, kit, scale) {
+    var id = kit.key + "|" + scale + "|" + name, rec = TEX_V177I.kits[id];
+    if (rec && rec.scene === scene && scene.textures.exists(rec.keys[0])) return rec;
+    var t0 = performance.now(), pre = "cel177_" + (++TEX_V177I.n) + "_", keys = [], N = DATA_V177I.M.anims[name].frames.length;
+    for (var k = 0; k < N; k++) { var key = pre + name + k; try { if (scene.textures.exists(key)) scene.textures.remove(key); scene.textures.addCanvas(key, frameCanvasV177I(name, k, scale, kit)); } catch (e) { errV177I(e); } keys.push(key); }
+    var bkey = "cel177_ball" + scale; if (!scene.textures.exists(bkey)) try { scene.textures.addCanvas(bkey, frameCanvasV177I(name, "ball", scale, null)); } catch (e) { errV177I(e); }
+    rec = TEX_V177I.kits[id] = { scene: scene, keys: keys, ball: bkey, scale: scale };
+    TEX_V177I.order.push(id);
+    while (TEX_V177I.order.length > TUv("v177ItexKeep", 4)) { var old = TEX_V177I.kits[TEX_V177I.order.shift()]; if (old) old.keys.forEach(function (kk) { try { if (old.scene.textures.exists(kk)) old.scene.textures.remove(kk); } catch (e) {} }); }
+    V177I.builds++; V177I.buildMs = +(performance.now() - t0).toFixed(1);
+    return rec;
+  }
+  function colsV177I(it, name) {
+    var c = it && it.c && it.c.body === name ? it.c.col : null;
+    if (!c) { var m = ITEMS_V177I.filter(function (x) { return x.c.body === name; })[0]; c = m ? m.c.col : ["#ffffff"]; }
+    return c.map(function (h) { return hexIntV159C(hexOk(h) || "#ffffff"); });
+  }
+
+  /* ---- the field: HIS marker plays the body (v161 A's run, with this atlas, these timelines and the props) ---- */
+  function fieldBodyV177I(scene, cm, opts) {
+    opts = opts || {};
+    if (!onV177I() || !scene || !scene.add || !scene.events || !cm || !cm.root || !cm.body) return null;
+    if (!readyV177I()) { loadV177I(); V177I.notReady = (V177I.notReady || 0) + 1; return null; }
+    var name = opts.name; if (!DATA_V177I.M.anims[name]) return null;
+    var calm = opts.calm != null ? !!opts.calm : reducedV158A();
+    var P = scene.play, tok = opts.tok != null ? String(opts.tok) : P && P.__ballTokenV1514 != null ? String(P.__ballTokenV1514) : String(Math.round((scene.time && scene.time.now) || 0));
+    try { if (cm.__v161a && cm.__v161a.alive) cm.__v161a.stop("replaced"); } catch (e) {}
+    var scale = TUv("v161Ahd", 1) ? 2 : 1, ks = 1 / scale, kit = kitV161A(cm.kit || cm.team, cm.skinTone), tex = texV177I(scene, name, kit, scale);
+    var T = tlV177I(name, calm), A = DATA_V177I.M.anims[name], C = colsV177I(opts.it || item("celebration"), name);
+    var ex = cm.dirKey === "sd" || cm.dirKey === "dr" || cm.dirKey === "ur", mir = ex && !cm.flip ? -1 : 1;
+    var root = cm.root, body = cm.body, shadow = cm.shadow, fill = cm.fill, sh0 = shadow ? shadow.y : 24, fl0 = fill ? fill.y : 24, shx0 = shadow ? shadow.x : 0, flx0 = fill ? fill.x : 0, last = null;
+    var track = function (o) { try { return scene.trackFx ? scene.trackFx(o) : o; } catch (e) { return o; } };
+    var g = track(scene.add.graphics()), gA = track(scene.add.graphics()), ball = track(scene.add.image(0, 0, tex.ball).setVisible(false)), gb = scene.ballSpr;
+    try { gA.setBlendMode(1); } catch (e) {}
+    var nf = cm._nfImgV158A, nfVis = nf ? nf.visible : null, gbVis = gb ? gb.visible : null, cam = scene.cameras && scene.cameras.main;
+    var run = { name: name, tok: tok, calm: calm, mir: mir, scale: scale, total: T.total, T: T, t0: performance.now(), hold: null, alive: true, ended: null, play: P, v177: 1,
+      frames: 0, seq: [], lifts: [], xs: [], rots: [], props: 0, shake: 0, drawMs: 0, drawMax: 0, ms: [], kit: kit.key, tex: tex.keys[0], v159Skipped: 0, ballShown: 0 };
+    var gx = 0, gy = 0, gs = 1, X = function (x) { return gx + mir * x * gs; }, Y = function (y) { return gy + y * gs; }, G = function (add) { return add ? gA : g; };
+    var D = {
+      line: function (x1, y1, x2, y2, w, c, a, add) { var q = G(add); q.lineStyle(Math.max(0.5, w * gs), c, a); q.lineBetween(X(x1), Y(y1), X(x2), Y(y2)); },
+      circ: function (x, y, r, c, a, add) { var q = G(add); q.fillStyle(c, a); q.fillCircle(X(x), Y(y), Math.max(0.4, r * gs)); },
+      ell: function (x, y, rx, ry, w, c, a, add) { var q = G(add); if (w > 0) { q.lineStyle(Math.max(0.5, w * gs), c, a); q.strokeEllipse(X(x), Y(y), rx * 2 * gs, ry * 2 * gs, 24); } else { q.fillStyle(c, a); q.fillEllipse(X(x), Y(y), rx * 2 * gs, ry * 2 * gs, 24); } },
+      poly: function (p, c, a, add) { var q = G(add); q.fillStyle(c, a); q.beginPath(); q.moveTo(X(p[0]), Y(p[1])); for (var i = 2; i < p.length; i += 2) q.lineTo(X(p[i]), Y(p[i + 1])); q.closePath(); q.fillPath(); },
+      rect: function (x, y, w, h, c, a, add) { var q = G(add); q.fillStyle(c, a); q.fillRect(X(x) - (mir < 0 ? w * gs : 0), Y(y), w * gs, h * gs); },
+      img: function (key, x, y, rot, a) { ball.setVisible(a > 0.01).setPosition(X(x), Y(y)).setScale(gs * ks).setRotation(mir * rot).setAlpha(a).setDepth((root.depth || 4) + 0.015); run.ballShown++; }
+    };
+    var tick = function () {
+      if (!run.alive) return;
+      if (!g.scene || !root.active || !body.active) { stop("cleared"); return; }
+      if (scene.play && run.play && scene.play !== run.play) { stop("next play"); return; }
+      var t = run.hold != null ? run.hold : performance.now() - run.t0;
+      if (t >= T.total) { stop("done"); return; }
+      var c0 = performance.now();
+      try {
+        var bx = root.x, by = root.y, bs = root.scaleY, bob = cm.bob && cm.bob.active ? cm.bob : null, boby = bob ? bob.y : 0;
+        if (last && root.x === last.ax && root.y === last.ay && root.scaleY === last.as) { bx = last.bx; by = last.by; bs = last.bs; }
+        if (last && bob && bob.y === last.bobAy) boby = last.boby;
+        var o = poseV177I(name, t, calm), fr = A.frames[o.k], key = tex.keys[o.k], r = scale === 2 ? fr.r2 : fr.r, an = scale === 2 ? fr.a2 : [fr.ax, fr.ay];
+        if (body.texture.key !== key) body.setTexture(key);
+        cm.tex = key;
+        body.setOrigin(an[0] / r[2], an[1] / r[3]); body.setPosition(mir * o.x, 22);
+        body.setScale(mir * ks * o.sx, ks * o.sy); body.setRotation(mir * o.rot * Math.PI / 180); body.setFlipX(false); body.setAlpha(1); body.setVisible(true);
+        root.setPosition(bx, by - o.lift * bs);
+        if (shadow) { shadow.y = sh0 + o.lift; shadow.x = shx0 + mir * o.x; shadow.setScale(o.sh); } if (fill) { fill.y = fl0 + o.lift; fill.x = flx0 + mir * o.x; fill.setScale(o.sh); }
+        if (cm.label) cm.label.setVisible(false); if (cm.skin) cm.skin.setVisible(false); if (nf) nf.setVisible(false); if (gb && gb.active !== false) gb.setVisible(false);
+        if (cm.sew && cm.sew.visible) cm.sew.setVisible(false);   // v176's printed number belongs to his own cells, not to these frames (src/05 re-prints it next placeMarker)
+        if (bob) bob.y = boby - o.lift * bs;
+        last = { ax: root.x, ay: root.y, as: root.scaleY, bx: bx, by: by, bs: bs, boby: boby, bobAy: bob ? bob.y : null };
+        gx = bx; gy = by + 22 * bs; gs = bs; g.clear(); gA.clear(); g.setDepth((root.depth || 4) + 0.02); gA.setDepth((root.depth || 4) + 0.04);
+        var drew = propsV177I(name, t, o, fr, D, calm, C); run.props = Math.max(run.props, drew);
+        if (!(name === "quake" && t >= (T.ev.ball || 1e9))) ball.setVisible(false);
+        var sg = segAtV177I(T, t);
+        if (!calm && cam && sg.i !== run.lastSeg && TUv("v161Ashake", 1)) {
+          var k2 = sg.o.tag === "impact" ? 1.5 : sg.o.tag === "land" ? 0.5 : sg.o.tag === "drop" ? 0.25 : 0;
+          if (k2) try { cam.shake(TUv("v161AshakeMs", 130) * (k2 > 1 ? 1.8 : 1), 0.0042 * k2 * TUv("v161Ashake", 1)); run.shake++; } catch (e) {} }
+        run.lastSeg = sg.i;
+        if (run.seq.length < 600) { run.seq.push({ t: Math.round(t), k: o.k, seg: sg.i }); run.lifts.push(+o.lift.toFixed(2)); run.xs.push(+o.x.toFixed(2)); run.rots.push(+o.rot.toFixed(1)); }
+      } catch (e) { errV177I(e); }
+      var dt = performance.now() - c0; run.frames++; run.drawMs += dt; run.drawMax = Math.max(run.drawMax, dt); if (run.ms.length < 400) run.ms.push(dt);
+    };
+    var stop = function (why) {
+      if (!run.alive) return; run.alive = false; run.ended = why || "done";
+      try { scene.events.off("postupdate", tick); } catch (e) {}
+      try {
+        if (root.active && last) root.setPosition(last.bx, last.by);
+        if (last && cm.bob && cm.bob.active && last.bobAy != null && cm.bob.y === last.bobAy) cm.bob.y = last.boby;
+        if (body.active) { body.setOrigin(0.5, 0.5); body.setPosition(0, 0); body.setScale(1); body.setRotation(0); }
+        cm.tex = null;
+        if (why === "done" && cm.forceState === "celebrateSeq") cm.forceState = null;
+        if (shadow && shadow.active !== false) { shadow.y = sh0; shadow.x = shx0; shadow.setScale(1); } if (fill && fill.active !== false) { fill.y = fl0; fill.x = flx0; fill.setScale(1); }
+        if (nf && nf.active !== false && nfVis != null) nf.setVisible(nfVis);
+        if (gb && gb.active !== false && gbVis != null) gb.setVisible(gbVis);
+      } catch (e) {}
+      [g, gA, ball].forEach(function (o) { try { scene.dropFx ? scene.dropFx(o) : o.destroy(); } catch (e) {} });
+      if (cm.__v161a === run) cm.__v161a = null;
+      if (V177I.active === run) V177I.active = null;
+    };
+    run.stop = stop; run.setHold = function (t) { run.hold = t == null ? null : +t; };
+    cm.__v161a = run; V177I.active = run; V177I.last = run; V177I.runs.push(run); if (V177I.runs.length > 20) V177I.runs.shift();   // cm.__v161a: v159 C's pose stands down for him, as for v161 A
+    scene.events.on("postupdate", tick);
+    try { scene.events.once("shutdown", function () { stop("shutdown"); }); } catch (e) {}
+    tick();
+    return run;
+  }
+  /* the one door: the equipped v177 I body (or a named one); anything else is v161 A's */
+  var fieldBody0V177I = fieldBodyV161A;
+  fieldBodyV161A = function (scene, cm, opts) {
+    try {
+      var nm = opts && opts.name, eq = item("celebration"), want = nm ? (ANIMS_V177I.indexOf(nm) >= 0 ? nm : null) : bodyOfV177I(eq);
+      if (want && onV177I()) { var r = fieldBodyV177I(scene, cm, Object.assign({}, opts || {}, { name: want, it: opts && opts.it ? opts.it : bodyOfV177I(eq) === want ? eq : null })); if (r) return r; }
+    } catch (e) { errV177I(e); }
+    return fieldBody0V177I.apply(this, arguments);
+  };
+
+  /* ---- the Locker: the item's own body on the v159 C mini-stage ---- */
+  var PVC_V177I = {};
+  function pvFrameV177I(name, k, kit) {
+    var id = kit.key + "|" + name + "|" + k;
+    if (!PVC_V177I[id]) { if (Object.keys(PVC_V177I).length > 200) PVC_V177I = {}; PVC_V177I[id] = frameCanvasV177I(name, k, 2, k === "ball" ? null : kit); }
+    return PVC_V177I[id];
+  }
+  function pvDrawBodyV177I(rec, x, t, ox, gyc, calm) {
+    var name = bodyOfV177I(rec && rec.it); if (!name || !onV177I()) return null;
+    if (!readyV177I()) { loadV177I(); return null; }
+    var T = tlV177I(name, calm), o = poseV177I(name, t, calm), A = DATA_V177I.M.anims[name], fr = A.frames[o.k], kit = pvKitV161A(), cv = pvFrameV177I(name, o.k, kit), an = fr.a2;
+    var z = TUv("v161ApvPx", 25) / STAND_V177I, ks = 0.5 * z, lk = TUv("v161ApvLift", 0.42), trav = TUv("v177IpvTravel", 0.32), xo = calm ? 0 : (o.x - (T.lo + T.hi) / 2) * trav;
+    rec.v177 = { name: name, k: o.k, t: Math.round(t) }; V177I.prevFrames++;
+    x.save(); x.globalAlpha = 1; x.globalCompositeOperation = "source-over"; x.imageSmoothingEnabled = true; try { x.imageSmoothingQuality = "high"; } catch (e) {}
+    x.translate(ox + xo * z, gyc - o.lift * lk * z); x.rotate(o.rot * Math.PI / 180); x.scale(ks * o.sx, ks * o.sy); x.drawImage(cv, -an[0], -an[1]);
+    x.restore();
+    var set = function (c, a, add) { x.globalAlpha = a; x.globalCompositeOperation = add ? "lighter" : "source-over"; return cssColV159C(c); };
+    var PX = function (v) { return ox + v * z; }, PY = function (v) { return gyc + v * z; };
+    var Pc = {
+      line: function (x1, y1, x2, y2, w, c, a, add) { x.strokeStyle = set(c, a, add); x.lineWidth = Math.max(0.5, w * z); x.lineCap = "round"; x.beginPath(); x.moveTo(PX(x1), PY(y1)); x.lineTo(PX(x2), PY(y2)); x.stroke(); },
+      circ: function (px, py, r, c, a, add) { x.fillStyle = set(c, a, add); x.beginPath(); x.arc(PX(px), PY(py), Math.max(0.4, r * z), 0, 6.2832); x.fill(); },
+      ell: function (px, py, rx, ry, w, c, a, add) { var s = set(c, a, add); x.beginPath(); x.ellipse(PX(px), PY(py), Math.max(0.3, rx * z), Math.max(0.3, ry * z), 0, 0, 6.2832); if (w > 0) { x.lineWidth = Math.max(0.5, w * z); x.strokeStyle = s; x.stroke(); } else { x.fillStyle = s; x.fill(); } },
+      poly: function (p, c, a, add) { x.fillStyle = set(c, a, add); x.beginPath(); x.moveTo(PX(p[0]), PY(p[1])); for (var i = 2; i < p.length; i += 2) x.lineTo(PX(p[i]), PY(p[i + 1])); x.closePath(); x.fill(); },
+      rect: function (px, py, w, h, c, a, add) { x.fillStyle = set(c, a, add); x.fillRect(PX(px), PY(py), w * z, h * z); },
+      img: function (key, px, py, rot, a) { var bc = pvFrameV177I(name, "ball", kit); x.save(); x.globalAlpha = a; x.globalCompositeOperation = "source-over"; x.translate(PX(px), PY(py)); x.rotate(rot); x.drawImage(bc, -bc.width * ks / 2, -bc.height * ks / 2, bc.width * ks, bc.height * ks); x.restore(); }
+    };
+    try { propsV177I(name, t, Object.assign({}, o, { x: xo, lift: o.lift * lk }), fr, Pc, calm, colsV177I(rec.it, name)); } catch (e) { errV177I(e); }
+    x.globalAlpha = 1; x.globalCompositeOperation = "source-over";
+    return o.sh;
+  }
+  var pvDrawBody0V177I = pvDrawBodyV161A;
+  pvDrawBodyV161A = function (rec, x, t, ox, gyc, calm) {
+    if (rec && rec.it && bodyOfV177I(rec.it)) { try { var r = pvDrawBodyV177I(rec, x, t, ox, gyc, calm); if (r != null) return r; } catch (e) { errV177I(e); } }
+    return pvDrawBody0V177I.apply(this, arguments);
+  };
+  // the art loads when he wears one (and on the Locker's first v177 preview)
+  setTimeout(function () { try { if (onV177I() && bodyOfV177I(item("celebration"))) loadV177I(); } catch (e) {} }, 3000);
+  onChange(function (w) { try { if (w && w.equip === "celebration" && onV177I() && bodyOfV177I(BY[w.id])) loadV177I(); } catch (e) {} });
+
+  /* ---- the effects: ten v159 C kinds (unit space: 0,0 his centre, S.gy the grass; times on the body's own beats) ---- */
+  function evV177I(body, tag, S, fb) { if (S && S.calm) return S.T.a; var T = tlV177I(body, false); return T.ev[tag] != null ? T.ev[tag] : fb; }
+  KINDS_V159C.v177moon = { pose: "float", g: { ring: 1, flash: 0, antRing: 0 },
+    build: function (S) { var T = S.T; S.gather(10, 0, S.hy, 60, 0);
+      for (var i = 0; i < S.N(44); i++) S.add({ b: S.R(T.a - 100, T.l - 200), l: S.R(700, 1200), x: S.R(-100, 100), y: S.R(-130, S.gy), vy: -S.R(5, 26), s: S.R(1.6, 3.4), sh: i % 3 ? "glint" : "dot", w: S.R(-2, 2), add: 1, glow: 1, tw: 1, ph: S.R(0, 6.28), c: S.c(i) }); },
+    back: function (S, V, t, env) { var I = env * EZ_V159C.outC(c01V159C(t / Math.max(1, S.T.a)));
+      V.poly([-10, -340, 10, -340, 62, S.gy, -62, S.gy], S.c(0), 0.1 * I, 1);
+      for (var i = -5; i <= 5; i++) for (var j = -1; j <= 1; j++) { var cx = i * 15 + (j & 1 ? 7.5 : 0), cy = S.gy + j * 6, lit = noiseV159C(i + 9, j + 3, Math.floor(t / 220)) > 0.45;
+        V.poly([cx - 7, cy, cx, cy - 2.6, cx + 7, cy, cx, cy + 2.6], S.c(i + j + Math.floor(t / 220)), (lit ? 0.55 : 0.16) * I * (1 - Math.abs(i) / 7), 1); } } };
+  KINDS_V159C.v177worm = { pose: "jump", g: { ring: 1, flash: 18 },
+    build: function (S) { var T = S.T, h0 = evV177I("worm", "hump", S, T.a);
+      for (var i = 0; i < S.N(16); i++) S.add({ b: h0 + i * 80, l: S.R(600, 900), x: S.R(-10, 80), y: S.gy, vx: -S.R(10, 40), vy: -S.R(4, 16), k: 1.5, s: S.R(2.5, 4), s1: 2.6, al: 0.45, sh: "puff", c: 0xb8a684, fa: 80 });
+      for (var j = 0; j < S.N(24); j++) S.add({ b: h0 + S.R(0, 1200), l: S.R(500, 800), x: S.R(0, 80), y: S.gy - 1, vx: S.R(-60, 40), vy: -S.R(80, 170), g: 420, k: 0.8, a: S.R(0, 6), w: S.R(-10, 10), s: S.R(1.6, 2.6), sh: "quad", c: j % 3 ? 0x3f8a3a : 0x6fbf4a, fa: 30 });
+      for (var k = 0; k < S.N(10); k++) S.add({ b: S.R(T.a, T.l), l: 360, x: S.R(-60, 90), y: S.R(-80, 0), s: S.R(3, 5), sh: "glint", c: S.c(k), tw: 1, fa: 20 }); },
+    back: function (S, V, t, env) { var I = env * c01V159C(t / Math.max(1, S.T.a)); V.ell(30, S.gy, 90, 16, 0, S.c(0), 0.12 * I, 1); V.ell(30, S.gy, 90, 16, 1.4, S.c(0), 0.4 * I, 1);
+      for (var i = 0; i < 4; i++) { var p = ((t / 700) + i / 4) % 1; V.line(-60 + p * 40, S.gy - 10 - i * 5, -40 + p * 40, S.gy - 10 - i * 5, 1.4, 0xffffff, 0.3 * I * Math.sin(Math.PI * p), 1); } } };
+  KINDS_V159C.v177leap = { pose: "jump", g: { rays: 10, ring: 1, flash: 24 },
+    build: function (S) { var T = S.T, a0 = evV177I("leap", "air", S, T.a);
+      for (var i = 0; i < S.N(46); i++) S.add({ b: a0 + S.R(0, 700), l: S.R(1100, 1600), x: S.R(-130, 130), y: -S.R(220, 300), vx: S.R(-20, 20), vy: S.R(40, 90), g: 60, k: 1, a: S.R(0, 6.28), w: S.R(-8, 8), s: S.R(2.5, 4), sh: "quad", fp: 1, fl: S.R(3, 8), fw: S.R(1, 2), ph: S.R(0, 6.28), c: S.c(i) });
+      for (var j = 0; j < S.N(20); j++) S.add({ b: S.R(T.a - 100, T.l), l: S.R(120, 220), x: S.R(-150, 150), y: S.R(-200, -60), s: S.R(4, 7), sh: "glint", c: 0xffffff, fa: 10 }); },
+    front: function (S, V, t, env) { var a0 = evV177I("leap", "air", S, S.T.a), up = (S.calm ? 1 : EZ_V159C.outB(segV159C(t, a0, a0 + 360))) * env;
+      if (up <= 0.01) return;
+      for (var i = 0; i < 13; i++) { var bx = -120 + i * 20 + (i % 2 ? 4 : -3), base = S.gy + 34, sw = Math.sin(t / 170 + i * 1.7) * 3, h = (26 + (i % 3) * 7) * up, tx = bx + sw, ty = base - h, dk = i % 3 ? 0x101622 : 0x1c2433;
+        V.poly([bx - 3, base, bx + 3, base, tx + 2.2, ty + 2, tx - 2.2, ty + 2], dk, 0.95 * env, 0); V.circ(tx, ty, 3.4, dk, 0.95 * env, 0);
+        V.circ(bx, base + 6, 8, dk, 0.95 * env, 0); } } };
+  KINDS_V159C.v177quake = { pose: "stomp", g: { ring: 0, flash: 0, antRing: 0 },
+    build: function (S) { var T = S.T, im = evV177I("quake", "impact", S, T.a); S.k.im = im;
+      for (var i = 0; i < S.N(30); i++) { var th = S.R(-3.0, -0.15), sp = S.R(100, 260); S.add({ b: im + S.R(0, 40), l: S.R(500, 900), x: S.R(-6, 6), y: S.gy - 2, vx: Math.cos(th) * sp, vy: Math.sin(th) * sp, g: 600, k: 0.6, a: S.R(0, 6), w: S.R(-12, 12), s: S.R(2, 4), sh: "quad", c: i % 3 ? 0x4a3420 : 0x6a5038, fa: 10 }); }
+      for (var j = 0; j < S.N(14); j++) S.add({ b: im + S.R(0, 80), l: S.R(900, 1300), x: S.R(-40, 40), y: S.gy - 2, vx: S.R(-40, 40), vy: -S.R(20, 60), k: 1.4, s: S.R(4, 6), s1: 3, al: 0.4, sh: "puff", c: 0x8a7a5e, fa: 100 });
+      for (var k = 0; k < S.N(18); k++) S.add({ b: im + S.R(60, 600), l: S.R(700, 1100), x: S.R(-60, 60), y: S.gy, vx: S.R(-10, 10), vy: -S.R(30, 80), g: -20, s: 1.2, add: 1, glow: 1, tr: 60, c: S.c(k), fa: 20 });
+      S.k.cracks = []; for (var c = 0; c < 11; c++) { var a0 = c / 11 * 6.2832 + S.R(-0.2, 0.2), L = S.R(50, 120); S.k.cracks.push(jagV159C(S, 0, S.gy, Math.cos(a0) * L, S.gy + Math.sin(a0) * L * 0.34, 3, 9)); } },
+    back: function (S, V, t, env) { var p = EZ_V159C.outC(segV159C(t, S.k.im, S.k.im + 260)); if (p <= 0) return; var gl = 0.6 + 0.4 * Math.sin(t / 70);
+      V.ell(0, S.gy, 26 * p, 8 * p, 0, S.c(0), 0.3 * env * gl, 1);
+      S.k.cracks.forEach(function (P) { var n = Math.max(2, Math.round(P.length / 2 * p)) * 2, sub = P.slice(0, n); V.path(sub, 2.6, 0x14100a, 0.65 * env, 0); V.path(sub, 1.2, S.c(0), 0.85 * env * gl, 1); V.path(sub, 0.5, S.c(1), 0.7 * env, 1); }); },
+    front: function (S, V, t, env) { for (var k = 0; k < 3; k++) { var t0 = S.k.im + k * 130, p = segV159C(t, t0, t0 + 700); if (p > 0 && p < 1) { var r = 10 + 150 * EZ_V159C.outC(p); V.ell(0, S.gy, r, r * 0.34, 5 * (1 - p) + 0.6, k ? 0xe9dcc0 : S.c(1), (1 - p) * 0.85 * env, 1); } }
+      var fp = segV159C(t, S.k.im, S.k.im + 200); if (fp > 0 && fp < 1 && !S.calm) { V.circ(0, S.gy - 8, 30 * (0.5 + fp), 0xffffff, (1 - fp) * 0.6, 1); V.circ(0, S.gy - 8, 60 * (0.5 + fp), S.c(0), (1 - fp) * 0.25, 1); } } };
+  KINDS_V159C.v177griddy = { pose: "jump", g: { ring: 0, flash: 0, antRing: 0 },
+    build: function (S) { var T = S.T;
+      for (var i = 0; i < S.N(26); i++) S.add({ b: T.a + S.R(0, 900), l: S.R(900, 1300), x: S.R(-80, 80), y: -S.R(150, 220), vx: S.R(-15, 15), vy: S.R(30, 70), g: 50, k: 1, a: S.R(0, 6), w: S.R(-8, 8), s: S.R(2.4, 3.6), sh: "quad", fp: 1, fl: S.R(3, 7), fw: 1.5, ph: S.R(0, 6.28), c: S.c(i) });
+      for (var j = 0; j < S.N(10); j++) S.add({ b: S.R(T.a, T.l), l: 300, x: S.R(-70, 70), y: S.R(-90, 0), s: S.R(3, 5), sh: "glint", c: S.c(j), tw: 1, fa: 20 }); },
+    back: function (S, V, t, env) { var ks = S.calm ? [S.T.a] : tlV177I("griddy", false).evs.kick || [];
+      ks.forEach(function (tk, i) { var p = segV159C(t, tk, tk + 320); if (p > 0 && p < 1) V.ell(0, S.gy, 8 + 34 * EZ_V159C.outC(p), (8 + 34 * EZ_V159C.outC(p)) * 0.32, 2 * (1 - p) + 0.4, S.c(i), (1 - p) * 0.8 * env, 1); });
+      V.ell(0, S.gy, 46, 14, 0, S.c(Math.floor(t / 160)), 0.12 * env, 1); },
+    front: function (S, V, t, env) { var ks = S.calm ? [S.T.a] : tlV177I("griddy", false).evs.kick || [];
+      ks.forEach(function (tk, i) { var p = segV159C(t, tk, tk + 1100); if (p <= 0 || p >= 1) return; var x = (i % 2 ? 26 : -26) + Math.sin(p * 9 + i) * 5, y = V.hy - 14 - 46 * p, a = Math.sin(Math.PI * p) * env, c = S.c(i);
+        V.ell(x, y, 3, 2.2, 0, c, a, 0); V.line(x + 2.6, y, x + 2.6, y - 9, 1.1, c, a, 0); V.line(x + 2.6, y - 9, x + 6, y - 6, 1.1, c, a, 0);
+        if (i % 3 === 0) { V.ell(x + 8, y + 1, 3, 2.2, 0, c, a, 0); V.line(x + 10.6, y + 1, x + 10.6, y - 8, 1.1, c, a, 0); V.line(x + 2.6, y - 9, x + 10.6, y - 8, 1.6, c, a, 0); } }); } };
+  KINDS_V159C.v177arrow = { pose: "jump", g: { rays: 8, ring: 1, flash: 0, antRing: 0 },
+    build: function (S) { var T = S.T, rl = evV177I("archer", "release", S, T.b);
+      for (var i = 0; i < S.N(28); i++) { var th = S.R(0, 6.2832), sp = S.R(60, 150); S.add({ b: rl + 520 + S.R(0, 60), l: S.R(600, 900), x: S.R(-40, 40), y: -S.R(150, 190), vx: Math.cos(th) * sp, vy: Math.sin(th) * sp, k: 2.2, g: 80, a: S.R(0, 6), w: S.R(-6, 6), s: S.R(2.5, 4.5), sh: "star", add: 1, glow: 1, c: S.c(i), fa: 10 }); }
+      for (var j = 0; j < S.N(14); j++) S.add({ b: S.R(T.a, rl), l: S.R(500, 800), x: S.R(-60, 60), y: S.R(-60, S.gy), vy: -S.R(20, 50), s: S.R(0.9, 1.6), add: 1, glow: 1, tw: 1, c: S.c(j), ph: S.R(0, 6.28) }); },
+    back: function (S, V, t, env) { var rl = evV177I("archer", "release", S, S.T.b), p = segV159C(t, rl - 400, rl), I = env * (0.4 + 0.6 * p);
+      V.ell(0, S.gy, 40, 12, 0, S.c(0), 0.14 * I, 1); V.ell(0, S.gy, 40, 12, 1.2, S.c(0), 0.5 * I, 1);
+      for (var i = 0; i < 6; i++) { var th = -Math.PI / 2 + (i - 2.5) * 0.22; V.line(Math.cos(th) * 30, S.gy - 30 + Math.sin(th) * 30, Math.cos(th) * 60, S.gy - 30 + Math.sin(th) * 60, 1, S.c(0), 0.18 * I * p, 1); } } };
+  KINDS_V159C.v177robot = { pose: "jump8", g: { ring: 0, flash: 0, antRing: 0 },
+    build: function (S) { var T = S.T; S.q = 2;
+      for (var d = 0; d < 8; d++) for (var k = 0; k < (S.calm ? 1 : 3); k++) { var th = d * 0.7854, sp = 70 + k * 40; S.add({ b: T.a + k * 120, l: 640, x: 0, y: S.hy, vx: Math.cos(th) * sp, vy: Math.sin(th) * sp, g: 40, s: 3, sh: "pix", c: S.c(d + k), fa: 1 }); }
+      for (var j = 0; j < S.N(16); j++) S.add({ b: S.R(T.a, T.l), l: 330, x: S.R(-36, 36), y: S.R(-70, S.gy), s: 2, sh: "pix", c: S.c(j), tw: 1, fa: 1 }); },
+    back: function (S, V, t, env) { var I = env * EZ_V159C.outC(c01V159C(t / Math.max(1, S.T.a))), x0 = -30, x1 = 30, y0 = V.hy - 34, y1 = S.gy + 2, c = S.c(0);
+      V.poly([x0, y0, x1, y0, x1, y1, x0, y1], c, 0.07 * I, 1);
+      [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]].forEach(function (q) { V.path([q[0] + q[2] * 9, q[1], q[0], q[1], q[0], q[1] + q[3] * 9], 1.6, c, 0.85 * I, 1); });
+      var sy = y0 + ((t / 900) % 1) * (y1 - y0); V.line(x0, sy, x1, sy, 1.2, S.c(1), 0.6 * I, 1);
+      for (var g = -3; g <= 3; g++) V.line(g * 14, S.gy - 1, g * 22, S.gy + 12, 0.7, c, 0.25 * I, 1); } };
+  KINDS_V159C.v177nap = { pose: "float", g: { ring: 0, flash: 0, antRing: 0 },
+    build: function (S) { var T = S.T;
+      for (var i = 0; i < S.N(34); i++) S.add({ b: S.R(0, T.a + 300), l: T.end, x: S.R(-140, 140), y: S.R(-230, -40), s: S.R(2, 4), sh: i % 4 ? "dot" : "glint", tw: 1, add: 1, glow: i % 4 ? 0 : 1, ph: S.R(0, 6.28), c: i % 3 ? 0xffffff : S.c(1), fa: 200 });
+      for (var j = 0; j < S.N(3); j++) { var d = 0.3; S.add({ b: T.a + 300 + j * 420, l: d * 1000, x: S.R(-120, 40), y: S.R(-220, -170), vx: 260, vy: 90, s: 1.3, add: 1, glow: 1, tr: 120, c: 0xffffff }); } },
+    back: function (S, V, t, env) { var I = env * EZ_V159C.outC(c01V159C(t / Math.max(1, S.T.a)));
+      V.ell(0, S.gy - 70, 170, 120, 0, 0x0a1030, 0.42 * I, 0); V.ell(0, S.gy, 70, 16, 0, S.c(1), 0.12 * I, 1);
+      var mx = -70, my = -150; V.circ(mx, my, 26, S.c(0), 0.16 * I, 1); V.circ(mx, my, 13, S.c(0), 0.95 * I, 0); V.circ(mx + 6, my - 4, 11.5, 0x0d1438, 0.92 * I, 0); } };
+  KINDS_V159C.v177phone = { pose: "jump", g: { ring: 1, flash: 16 },
+    build: function (S) { var T = S.T, pk = evV177I("phone", "pickup", S, T.a);
+      for (var i = 0; i < S.N(24); i++) { var th = S.R(-2.8, -0.3), sp = S.R(60, 140); S.add({ b: pk + S.R(0, 900), l: S.R(500, 800), x: S.R(-10, 10), y: S.hy - 20, vx: Math.cos(th) * sp, vy: Math.sin(th) * sp, k: 2, s: S.R(2.5, 4), sh: i % 2 ? "glint" : "star", add: 1, glow: 1, c: S.c(i), fa: 20 }); }
+      for (var j = 0; j < S.N(14); j++) S.add({ b: S.R(T.a, T.l), l: S.R(600, 900), x: S.R(-60, 60), y: S.R(-40, S.gy), vy: -S.R(20, 40), s: 2, sh: "pix", c: S.c(j), tw: 1, fa: 30 }); },
+    back: function (S, V, t, env) { var I = env * c01V159C(t / Math.max(1, S.T.a)), cy = V.hy - 40;
+      for (var i = 0; i < 3; i++) { var on = S.calm || Math.floor(t / 220) % 4 > i; V.arc(0, cy, 8 + i * 8, -2.45, -0.69, 2.2, S.c(0), (on ? 0.85 : 0.18) * I, 1); }
+      V.circ(0, cy, 2.4, S.c(0), 0.9 * I, 1); V.ell(0, S.gy, 40, 11, 1.2, S.c(0), 0.4 * I, 1); } };
+  KINDS_V159C.v177saber = { pose: "stomp", g: { ring: 1, flash: 0, ringCol: 0 },
+    build: function (S) { var T = S.T, cl = evV177I("saber", "clash", S, T.b), s2 = evV177I("saber", "strike", S, T.a);
+      [s2 + 100, cl, cl + 200].forEach(function (t0, k) { for (var i = 0; i < S.N(14); i++) { var th = S.R(0, 6.2832), sp = S.R(90, 220); S.add({ b: t0 + S.R(0, 40), l: S.R(250, 450), x: S.R(-8, 8), y: S.hy - 26, vx: Math.cos(th) * sp, vy: Math.sin(th) * sp, k: 2, g: 260, s: S.R(1.2, 2), sh: "streak", add: 1, c: i % 2 ? 0xfff3c4 : S.c(k % 2), fa: 5 }); } });
+      for (var j = 0; j < S.N(12); j++) S.add({ b: S.R(T.a, T.l), l: S.R(500, 800), x: S.R(-50, 50), y: S.R(-80, S.gy), vy: -S.R(10, 30), s: S.R(0.9, 1.5), add: 1, glow: 1, tw: 1, c: S.c(0), ph: S.R(0, 6.28) }); },
+    back: function (S, V, t, env) { var ig = evV177I("saber", "ignite", S, S.T.a * 0.5), I = env * c01V159C((t - ig) / 200), hum = 0.75 + 0.25 * Math.sin(t / 37);
+      V.circ(0, V.hy - 6, 70, 0x05070d, 0.28 * env, 0); V.ell(0, S.gy, 50, 13, 0, S.c(0), 0.2 * I * hum, 1); V.ell(0, S.gy, 26, 7, 0, 0xffffff, 0.1 * I * hum, 1); } };
+
+  /* ---- what the check reads ---- */
+  Object.assign(V177I, {
+    anims: ANIMS_V177I.slice(), items: function () { return ITEMS_V177I.map(function (it) { return it.id; }); }, load: loadV177I, ready: readyV177I, manifest: function () { return DATA_V177I.M; },
+    timeline: function (name, calm) { var T = tlV177I(name, !!calm); return { total: T.total, ev: T.ev, travel: T.travel, segs: T.segs.map(function (s) { return { fr: s.fr.slice(), t0: Math.round(s.t0), ms: Math.round(s.ms), tag: s.o.tag || "" }; }) }; },
+    pose: poseV177I, bodyOf: function (id) { return bodyOfV177I(findItem(id)); },
+    frameCanvas: function (name, k, scale, kit) { return frameCanvasV177I(name, k, scale || 1, kit ? Object.assign({ H: null, tone: "#bf8a62", key: "chk" }, kit) : null); },
+    props: function (name, t, cv) {   // the props of `name` at t onto a canvas (1x px about its centre-bottom): returns how many marks
+      var x = cv.getContext("2d"), A = DATA_V177I.M.anims[name], o = poseV177I(name, t, false), fr = A.frames[o.k], z = 2, ox = cv.width / 2, gy = cv.height * 0.8, n = 0;
+      var P = { line: function (x1, y1, x2, y2, w, c) { x.strokeStyle = cssColV159C(c); x.lineWidth = w * z; x.beginPath(); x.moveTo(ox + x1 * z, gy + y1 * z); x.lineTo(ox + x2 * z, gy + y2 * z); x.stroke(); },
+        circ: function (px, py, r, c) { x.fillStyle = cssColV159C(c); x.beginPath(); x.arc(ox + px * z, gy + py * z, r * z, 0, 6.3); x.fill(); },
+        ell: function (px, py, rx, ry, w, c) { x.fillStyle = cssColV159C(c); x.beginPath(); x.ellipse(ox + px * z, gy + py * z, Math.max(0.3, rx * z), Math.max(0.3, ry * z), 0, 0, 6.3); x.fill(); },
+        poly: function (p, c) { x.fillStyle = cssColV159C(c); x.beginPath(); x.moveTo(ox + p[0] * z, gy + p[1] * z); for (var i = 2; i < p.length; i += 2) x.lineTo(ox + p[i] * z, gy + p[i + 1] * z); x.fill(); },
+        rect: function (px, py, w, h, c) { x.fillStyle = cssColV159C(c); x.fillRect(ox + px * z, gy + py * z, w * z, h * z); }, img: function () { n++; } };
+      n += propsV177I(name, t, o, fr, P, false, colsV177I(null, name)); return n; },
+    play: function (scene, cm, opts) { return fieldBodyV177I(scene, cm, opts); },
+    previewList: function () { return PV_V159C.list.filter(function (r) { return bodyOfV177I(r.it); }).map(function (r) { return { id: r.it.id, body: r.v177 || null, connected: r.cv.isConnected }; }); }
+  });
+  try { API.celebrateMoves = ANIMS_V177I.slice(); API.celebrateBodyOf = function (id) { return bodyOfV177I(findItem(id)); }; } catch (e) {}
+
+  /* ---- the SUPER LADDERS: the thirty v177 looks, one rung at a time (v156 C's super store, outside the save) ---- */
+  var LADDERS_V177I = [
+    { id: "showman177", name: "The Showman", icon: "🕺", cat: "celebration", metric: "tds", step: function () { return TUv("superTdStepV177I", 60); },
+      items: ["cel_moonwalk", "cel_griddy", "cel_robot", "cel_phone", "cel_worm", "cel_nap", "cel_archer", "cel_saber", "cel_leap", "cel_quake"],
+      desc: function (g) { return "Score " + g + " touchdowns across your careers"; } },
+    { id: "closet177", name: "The Dynasty Closet", icon: "👕", cat: "uniform", metric: "titles", step: function () { return TUv("superTitleStepV177I", 5); },
+      items: ["uni_throwback", "uni_carbon", "uni_digicamo", "uni_bengal", "uni_ice", "uni_tron", "uni_lava", "uni_chrome", "uni_galaxy", "uni_royal"],
+      desc: function (g) { return "Win " + g + " championships (any level) across your careers"; } },
+    { id: "longhaul177", name: "The Long Haul", icon: "🎌", cat: "banner", metric: "seasons", step: function () { return TUv("superSeasonStepV177I", 15); },
+      items: ["ban_sakura", "ban_coderain", "ban_circuit", "ban_abyss", "ban_comets", "ban_floodlights", "ban_prism", "ban_hyperspace", "ban_eclipse", "ban_finale"],
+      desc: function (g) { return "Play " + g + " seasons across your careers"; } }
+  ];
+  function ladderOfV177I(id) { for (var i = 0; i < LADDERS_V177I.length; i++) { var k = LADDERS_V177I[i].items.indexOf(id); if (k >= 0) return { L: LADDERS_V177I[i], k: k, goal: LADDERS_V177I[i].step() * (k + 1) }; } return null; }
+  function l177V177I() { var S = sload(); if (!S.l177 || typeof S.l177 !== "object") S.l177 = { best: {}, got: {} }; S.l177.best = S.l177.best || {}; S.l177.got = S.l177.got || {}; return S.l177; }
+  function metricsV177I(st) {
+    var m = { tds: 0, titles: 0, seasons: 0 };
+    try { careersV156C(st).forEach(function (c) { c.rows.forEach(function (r) { if (!r) return; m.seasons++; if (r.champion) m.titles++; m.tds += tdsOf(r.line || r.statLine); }); }); } catch (e) { errV177I(e); }
+    return m;
+  }
+  function ladderTickV177I(st) {
+    if (!cosOnV156C()) return [];
+    var got = [], ch = false;
+    try {
+      st = st || gstate(); var L = l177V177I(), m = st ? metricsV177I(st) : null;
+      if (m) Object.keys(m).forEach(function (k) { if ((m[k] | 0) > (L.best[k] | 0)) { L.best[k] = m[k] | 0; ch = true; } });
+      LADDERS_V177I.forEach(function (lad) { var have = L.best[lad.metric] | 0;
+        lad.items.forEach(function (id, k) { if (L.got[id] || have < lad.step() * (k + 1) || !BY[id]) return; L.got[id] = Date.now(); ch = true; grant(id, "super"); got.push(id); }); });
+    } catch (e) { errV177I(e); }
+    if (ch) ssave();
+    V177I.lastLadder = got; return got;
+  }
+  function ladderRowsV177I() {
+    var L = l177V177I();
+    return LADDERS_V177I.map(function (lad) {
+      var k = 0; while (k < lad.items.length && (L.got[lad.items[k]] || owned(lad.items[k]))) k++;
+      var done = k >= lad.items.length, ki = Math.min(k, lad.items.length - 1), id = lad.items[ki], it = BY[id] || {}, g = lad.step() * (ki + 1);
+      return { id: lad.id, name: lad.name, icon: lad.icon, desc: lad.desc(g) + " — rung " + (ki + 1) + " of " + lad.items.length + " (a new look every " + lad.step() + ")", goal: g, have: Math.min(g, L.best[lad.metric] | 0),
+        done: done, at: done ? L.got[id] || null : null, item: id, itemName: it.name || id, rarity: "mythic", cat: lad.cat, owned: owned(id), positions: null, ladder: true, rung: ki + 1 };
+    });
+  }
+  (function () { var ce = checkEarned; checkEarned = function (st) { var got = ce(st); try { ladderTickV177I(st); } catch (e) {} return got; }; })();
+  (function () {
+    var R = window.RIB_SUPER; if (!R) return;
+    var t0 = R.tick, p0 = R.progress, l0 = R.list;
+    R.tick = function (st) { var r = t0.apply(this, arguments); try { var g = ladderTickV177I(st); if (g.length && Array.isArray(r)) r = r.concat(g); } catch (e) {} return r; };
+    R.progress = function () { var P = p0.apply(this, arguments) || []; try { if (cosOnV156C()) P = P.concat(ladderRowsV177I()); } catch (e) { errV177I(e); } return P; };
+    R.list = function () { var P = l0.apply(this, arguments) || []; try { LADDERS_V177I.forEach(function (lad) { lad.items.forEach(function (id) { P.push({ id: lad.id, item: id, name: lad.name }); }); }); } catch (e) {} return P; };
+  })();
+  var superDesc0V177I = superDescV156C;
+  superDescV156C = function (itemId) { var l = ladderOfV177I(itemId); return l ? l.L.name + " — " + l.L.desc(l.goal) : superDesc0V177I(itemId); };
+  Object.assign(V177I, { ladders: function () { return ladderRowsV177I(); }, ladderTick: ladderTickV177I, metrics: metricsV177I, ladderOf: function (id) { var l = ladderOfV177I(id); return l ? { ladder: l.L.id, rung: l.k + 1, goal: l.goal } : null; } });
+
+  /* ===== v177 J TEN NEW UNIFORMS =====
+   * The owner: "Add 10 more uniforms, super cool status." Ten SUPER (mythic, source "super") uniforms, each a DESIGN that
+   * is drawn wherever the kit is: Liquid Chrome (banded reflections), Lava Crackle (a glowing crack network), Galaxy (a
+   * nebula with stars), Carbon Fibre (a twill weave, a red pant stripe), Urban Digital (pixel camo), Bengal (tiger
+   * stripes), Neon Grid (cyan circuit seams on black), Ice Crystal (faceted frost), Royal Black & Gold (gold yoke and
+   * panels, pinstripes) and Throwback '79 (cream, maroon sleeve stripes and collar).
+   *   ONE PATTERN, TWO SCALES  `PAT_V177J[pat](X, Y, s, J, T)` in FIELD PIXELS (X from the chest's middle, Y down from the
+   *                 collar): the field sprite (kitDeco → `patV153G`, so his textures, his eleven teammates' "off" textures —
+   *                 v159 A — and the Locker's sprite preview) and the profile card's figure (`figCell`: the card's art is
+   *                 ~3x the field's, the same design laid on the jersey's own pixels and shaded by them, `shadeKit`).
+   *   THE NUMBER    every design keeps the chest's middle calm (or a contrast the ink reads on): the jersey's base colour
+   *                 decides the ink (v159 A `inkForV159A`: white on the dark ones, the kit's own dark / trim on chrome, ice,
+   *                 throwback), and the v176 print sews over the pattern — v177IJKcheck measures the ink against each one.
+   *   TEAM PALETTE  v159 A's "Team palette" keeps each design and takes the team's two colours, as every uniform does.
+   * Kill switch TU v177J 0 (the designs draw as a plain jersey). Looks only. `window.__V177J`. */
+  var V177J = (window.__V177J = window.__V177J || { field: 0, card: 0, errs: [] });
+  function errV177J(e) { try { if (V177J.errs.length < 12) V177J.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  function onV177J() { return !!TUv("v177J", 1); }
+  var ITEMS_V177J = [
+    { id: "uni_chrome", cat: "uniform", name: "Liquid Chrome", rarity: "mythic", source: "super", blurb: "Poured metal.", k: { j: "#c3ccd8", p: "#7d8796", t: "#ffffff", pat: "chrome" } },
+    { id: "uni_lava", cat: "uniform", name: "Lava Crackle", rarity: "mythic", source: "super", blurb: "Cooling rock, still glowing.", k: { j: "#221714", p: "#2e1c16", t: "#ff6a1a", pat: "lava", ps: "#ff6a1a" } },
+    { id: "uni_galaxy", cat: "uniform", name: "Galaxy", rarity: "mythic", source: "super", blurb: "A nebula and its stars.", k: { j: "#1b1446", p: "#0e0b2a", t: "#b06bff", pat: "galaxy" } },
+    { id: "uni_carbon", cat: "uniform", name: "Carbon Fibre", rarity: "mythic", source: "super", blurb: "A twill weave, a red stripe.", k: { j: "#26292f", p: "#17191d", t: "#4f5662", pat: "carbon", ps: "#e8202a" } },
+    { id: "uni_digicamo", cat: "uniform", name: "Urban Digital", rarity: "mythic", source: "super", blurb: "Pixel camo in city blues.", k: { j: "#4a5a78", p: "#323d52", t: "#232c44", pat: "digicamo" } },
+    { id: "uni_bengal", cat: "uniform", name: "Bengal", rarity: "mythic", source: "super", blurb: "Tiger stripes.", k: { j: "#ee7514", p: "#161210", t: "#141010", pat: "bengal" } },
+    { id: "uni_tron", cat: "uniform", name: "Neon Grid", rarity: "mythic", source: "super", blurb: "Cyan seams on black.", k: { j: "#070a12", p: "#070a12", t: "#18f0ff", pat: "grid", ps: "#18f0ff" } },
+    { id: "uni_ice", cat: "uniform", name: "Ice Crystal", rarity: "mythic", source: "super", blurb: "Faceted frost.", k: { j: "#bfe3fb", p: "#eaf6ff", t: "#2a6fb0", pat: "crystal" } },
+    { id: "uni_royal", cat: "uniform", name: "Royal Black & Gold", rarity: "mythic", source: "super", blurb: "Gold yoke, gold panels, pinstripes.", k: { j: "#0e0e12", p: "#d4af37", t: "#d4af37", pat: "royal", ps: "#0e0e12" } },
+    { id: "uni_throwback", cat: "uniform", name: "Throwback '79", rarity: "mythic", source: "super", blurb: "Cream, maroon stripes.", k: { j: "#f1e8d2", p: "#c79b3e", t: "#7a1f2b", pat: "throwback", ps: "#7a1f2b" } }
+  ];
+  addItemsV177(ITEMS_V177J, "v177");
+  function hV177J(a, b, c) { return noiseV159C(a | 0, b | 0, (c | 0) + 1770); }
+  var WHITE_V177J = [255, 255, 255];
+  /* X, Y in field pixels (X from the chest's middle, Y down from the collar); s = screen pixels per field pixel */
+  var PAT_V177J = {
+    chrome: function (X, Y, s, J, T) { var b = 0.5 + 0.5 * Math.sin(X * 0.85 + Y * 0.32 + 0.6), k = b * b;
+      return b > 0.82 ? mix(J, WHITE_V177J, 0.5 + 0.3 * (b - 0.82) / 0.18) : b < 0.22 ? mix(J, [52, 58, 70], 0.5 * (1 - b / 0.22)) : mix(J, T, 0.12 * k); },
+    lava: function (X, Y, s, J, T) {   // a Voronoi of cells 4 px across: their edges are the cracks
+      var cx = Math.floor(X / 4), cy = Math.floor(Y / 4), d1 = 99, d2 = 99;
+      for (var i = -1; i <= 1; i++) for (var j = -1; j <= 1; j++) { var px = (cx + i) * 4 + hV177J(cx + i, cy + j, 1) * 4, py = (cy + j) * 4 + hV177J(cx + i, cy + j, 2) * 4, d = Math.hypot(X - px, Y - py); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; }
+      var e = d2 - d1; if (e < 0.55) return mix(T, [255, 230, 140], 0.35 * (1 - e / 0.55)); if (e < 1.3) return mix(J, T, 0.35 * (1 - (e - 0.55) / 0.75)); return mix(J, [0, 0, 0], 0.15 * hV177J(cx, cy, 3)); },
+    galaxy: function (X, Y, s, J, T) { var n = Math.sin(X * 0.45 + Y * 0.28) + Math.sin(X * 0.21 - Y * 0.55 + 1.7) + 0.6 * Math.sin((X + Y) * 0.9), k = c01V159C((n + 0.7) * 0.3);
+      var fx = Math.floor(X), fy = Math.floor(Y), st = hV177J(fx, fy, 4);
+      if (st > 0.955 && Math.abs(X) > 2.5) return mix(WHITE_V177J, T, 0.15);
+      return mix(J, T, 0.62 * k * k); },
+    carbon: function (X, Y, s, J, T) { var fx = Math.floor(X), fy = Math.floor(Y), tw = ((fx >> 1) + (fy >> 1)) % 2 === 0, sh = 0.5 + 0.5 * Math.sin((X - Y) * 0.5);
+      return tw ? mix(J, T, 0.55 + 0.25 * sh) : mix(J, [0, 0, 0], 0.15 - 0.1 * sh); },
+    digicamo: function (X, Y, s, J, T) { var a = hV177J(Math.floor(X / 2), Math.floor(Y / 2), 5) * 0.55 + hV177J(Math.floor(X / 5), Math.floor(Y / 4), 6) * 0.45;
+      return a < 0.34 ? T : a > 0.7 ? mix(J, WHITE_V177J, 0.24) : null; },
+    bengal: function (X, Y, s, J, T) { var ax = Math.abs(X), v = Y * 0.75 + ax * 0.5 + Math.sin(X * 0.9) * 0.6, m = ((v % 3.6) + 3.6) % 3.6, wdt = 1.15 - 0.09 * Math.max(0, 4 - ax) * 0.25;
+      return m < wdt && ax > 1.2 ? T : null; },
+    grid: function (X, Y, s, J, T) { var ax = Math.abs(X), d = Math.min(Math.abs(ax - 4.5), Math.abs(Y - 1.5), Y > 4 ? Math.abs(ax - 7.5) : 9, Math.abs(Y - 9.5) + (ax < 3 ? 9 : 0));
+      return d < 0.5 ? T : d < 1.3 ? mix(J, T, 0.28 * (1 - (d - 0.5) / 0.8)) : null; },
+    crystal: function (X, Y, s, J, T) { var a = X * 0.55, b = Y * 0.55, u = a + b, v = a - b, iu = Math.floor(u), iv = Math.floor(v), k = hV177J(iu, iv, 7), fu = u - iu, fv = v - iv;
+      if (fu < 0.09 || fv < 0.09) return mix(J, WHITE_V177J, 0.55);
+      return k > 0.62 ? mix(J, WHITE_V177J, 0.12 + 0.3 * (k - 0.62) / 0.38) : k < 0.25 ? mix(J, T, 0.28 * (1 - k / 0.25)) : null; },
+    royal: function (X, Y, s, J, T) { var ax = Math.abs(X);
+      if (Y < 1.6 || ax > 6.6) return T;
+      if (Y < 2.3 || (ax > 5.9 && ax <= 6.6)) return mix(J, T, 0.3);
+      if (ax > 2.6 && Math.floor(ax) % 2 === 1 && ax - Math.floor(ax) < 0.4) return mix(J, T, 0.55);
+      return null; },
+    throwback: function (X, Y, s, J, T) { var ax = Math.abs(X);
+      if (Y < 1) return T;
+      if (ax > 5.4 && ((Y >= 2 && Y < 3) || (Y >= 4 && Y < 5) || (Y >= 6 && Y < 7))) return T;
+      if (ax > 5.4 && Y >= 3 && Y < 4) return mix(J, WHITE_V177J, 0.4);
+      return null; }
+  };
+  /* the field (and the Locker's sprite): kitDeco hands every pattern it does not draw itself to patV153G */
+  var patV153G0_V177J = patV153G;
+  patV153G = function (pat, xx, yy, top, cx, UJ, UT) {
+    var f = PAT_V177J[pat];
+    if (f) { if (!onV177J() || yy < top) return null; try { V177J.field++; return f(xx + 0.5 - cx, yy - top, 1, UJ, UT); } catch (e) { errV177J(e); return null; } }
+    return patV153G0_V177J.apply(this, arguments);
+  };
+  /* the card's figure: the plain jersey (figCell with "solid"), then the design on the jersey's own source pixels */
+  var SRC_V177J = { d: null };
+  function figCellV177J(K) {
+    var im = FIG.img; if (!im) return null;
+    var key = "v177J|" + [K.j, K.p, K.t, K.pat, K.hs, K.hst, K.hf, K.hsk, K.hd, K.hdk, helmLogoKeyV160A(K)].join("|");
+    if (FIG.cache[key]) return FIG.cache[key];
+    var base = figCell0V177J(Object.assign({}, K, { pat: "solid" })); if (!base) return null;
+    var W = base.width, H = base.height, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    var x = cv.getContext("2d"); x.drawImage(base, 0, 0);
+    if (!SRC_V177J.d) { var c0 = document.createElement("canvas"); c0.width = W; c0.height = H; var x0 = c0.getContext("2d"); x0.drawImage(im, 0, 0); SRC_V177J.d = x0.getImageData(0, 0, W, H).data; }
+    var s = SRC_V177J.d, img = x.getImageData(0, 0, W, H), d = img.data, top = 3, neck = Math.round(top + (H - 6) * FIG.neck), waist = H;
+    for (var y0 = neck + 20; y0 < H; y0++) { var nv = 0, gd = 0;
+      for (var q = 0; q < W; q++) { var i0 = (y0 * W + q) * 4; if (s[i0 + 3] < 20) continue; var c = srcClass(s[i0], s[i0 + 1], s[i0 + 2])[0]; if (c === 1) nv++; else if (c === 2) gd++; }
+      if (gd > 12 && gd > nv * 1.5) { waist = y0; break; } }
+    var hx0 = W * 0.515, hy0 = H * 0.15, hrx = W * 0.29, hry = H * 0.14, shell = helmShellV162B(s, W, H, neck), J = rgb(K.j), T = rgb(hexOk(K.t) || K.p), f = PAT_V177J[K.pat], sc = W / 44;
+    for (var y = neck; y < waist; y++) for (var xx = 0; xx < W; xx++) {
+      var i = (y * W + xx) * 4; if (s[i + 3] < 20) continue;
+      var cl = srcClass(s[i], s[i + 1], s[i + 2]); if (cl[0] !== 1) continue;
+      var ex = (xx - hx0) / hrx, ey = (y - hy0) / hry; if ((y < neck && ex * ex + ey * ey <= 1) || (shell && shell[y * W + xx])) continue;
+      var o = f((xx + 0.5 - W * 0.515) / sc, (y - neck) / sc, sc, J, T); if (!o) continue;
+      var out = shadeKit(o, cl[1] / 32.5);
+      d[i] = Math.max(0, Math.min(255, out[0])); d[i + 1] = Math.max(0, Math.min(255, out[1])); d[i + 2] = Math.max(0, Math.min(255, out[2]));
+    }
+    x.putImageData(img, 0, 0); V177J.card++;
+    FIG.cache[key] = cv;
+    return cv;
+  }
+  var figCell0V177J = figCell;
+  figCell = function (K) {
+    try { if (K && PAT_V177J[K.pat] && onV177J()) { var c = figCellV177J(K); if (c) return c; } } catch (e) { errV177J(e); }
+    return figCell0V177J.apply(this, arguments);
+  };
+  Object.assign(V177J, { items: function () { return ITEMS_V177J.map(function (it) { return it.id; }); }, patterns: function () { return Object.keys(PAT_V177J); },
+    pat: function (name, X, Y, j, t) { var f = PAT_V177J[name]; return f ? f(X, Y, 1, rgb(j), rgb(t)) : null; }, ink: function (id) { var it = BY[id]; return it ? inkForV159A(it.k.j, it.k.p, it.k.t) : null; } });
+
+  /* ===== v177 K TEN NEW BANNERS =====
+   * The owner: "Add 10 more banners, super cool status." Ten SUPER (mythic, source "super") banners, each a v158 A PAINTER
+   * (`BAN_V158A[kind](ctx, w, h, t, palette)`, a pure function of the wall clock, one still frame under reduced motion, on
+   * v158 A's one rAF loop for the card and the Locker): CODE RAIN (glyph columns falling), UNDER THE LIGHTS (two searchlights
+   * sweeping a night stadium over a bobbing crowd, camera flashes), LIGHT SPEED (stars streaking out of the centre), GRAND
+   * FINALE (shells rising and bursting over the bowl), CHERRY BLOSSOM (a branch in bloom, petals spinning down), TOTAL
+   * ECLIPSE (the corona turning, a diamond-ring flare), OVERCLOCKED (a circuit board with pulses running its traces), THE
+   * ABYSS (jellyfish pulsing in the deep, bubbles, light from above), COMET SHOWER (comets over a ridge, twinkling stars),
+   * PRISM FOIL (an iridescent holo foil, embossed diamonds and a moving sheen). Nothing here draws from Math.random (the
+   * integer hash `rV158A`). Kill switch: v158 A's TU v158Aban (the still `bg`). `window.__V177K`. */
+  var V177K = (window.__V177K = window.__V177K || { errs: [] });
+  var ITEMS_V177K = [
+    { id: "ban_coderain", cat: "banner", name: "Code Rain", rarity: "mythic", source: "super", b158: "coderain", col: ["#3dff7a", "#02140a", "#c8ffd8"], bg: "linear-gradient(180deg,#02140a,#000)" },
+    { id: "ban_floodlights", cat: "banner", name: "Under the Lights", rarity: "mythic", source: "super", b158: "floodlights", col: ["#0a1430", "#fff6d8", "#05070d"], bg: "linear-gradient(180deg,#0a1430,#05070d)" },
+    { id: "ban_hyperspace", cat: "banner", name: "Light Speed", rarity: "mythic", source: "super", b158: "hyperspace", col: ["#9fd8ff", "#ffffff", "#3a5cff"], bg: "radial-gradient(circle,#1a2a6a,#000)" },
+    { id: "ban_finale", cat: "banner", name: "Grand Finale", rarity: "mythic", source: "super", b158: "finale", col: ["#ff5a5a", "#ffd76f", "#6fd3ff", "#b98bff", "#7cff9b"], bg: "linear-gradient(180deg,#0b0820,#1a1030)" },
+    { id: "ban_sakura", cat: "banner", name: "Cherry Blossom", rarity: "mythic", source: "super", b158: "sakura", col: ["#ffb7d0", "#ffe6ef", "#5a2a3a"], bg: "linear-gradient(180deg,#ffd6e6,#b9a6e8)" },
+    { id: "ban_eclipse", cat: "banner", name: "Total Eclipse", rarity: "mythic", source: "super", b158: "eclipse", col: ["#fff3c4", "#ffb84d", "#02030a"], bg: "radial-gradient(circle at 70% 50%,#000 18%,#ffb84d 22%,#02030a 40%)" },
+    { id: "ban_circuit", cat: "banner", name: "Overclocked", rarity: "mythic", source: "super", b158: "circuit", col: ["#04140e", "#18c38a", "#b9ffe4"], bg: "linear-gradient(180deg,#062a1c,#04140e)" },
+    { id: "ban_abyss", cat: "banner", name: "The Abyss", rarity: "mythic", source: "super", b158: "abyss", col: ["#03203a", "#ff7ad9", "#5ff3ff"], bg: "linear-gradient(180deg,#0a3a5a,#000510)" },
+    { id: "ban_comets", cat: "banner", name: "Comet Shower", rarity: "mythic", source: "super", b158: "comets", col: ["#0b1030", "#bfe6ff", "#ffd9a0"], bg: "linear-gradient(180deg,#0b1030,#1d1440)" },
+    { id: "ban_prism", cat: "banner", name: "Prism Foil", rarity: "mythic", source: "super", b158: "prism", col: ["#ff9ad5", "#9ad5ff", "#d5ff9a", "#ffe29a"], bg: "linear-gradient(120deg,#ff9ad5,#9ad5ff,#d5ff9a,#ffe29a)" }
+  ];
+  addItemsV177(ITEMS_V177K, "v177");
+  var GLY_V177K = "01アイウカキクサシスタチツナニハヒフマミ<>=+*#";
+  var CIRC_V177K = {};
+  function circuitV177K(w, h) {   // the board's traces for a w x h banner (built once): manhattan runs with pads
+    var key = Math.round(w) + "x" + Math.round(h); if (CIRC_V177K[key]) return CIRC_V177K[key];
+    var T = [];
+    for (var i = 0; i < 16; i++) {
+      var x = Math.floor(rV158A(i, 701) * w), y = Math.floor(rV158A(i, 702) * h), pts = [x, y], len = 0;
+      for (var s = 0; s < 4; s++) { var horiz = (s + i) % 2 === 0, d = (rV158A(i * 7 + s, 703) - 0.5) * (horiz ? w * 0.5 : h * 0.9);
+        var nx = horiz ? Math.max(4, Math.min(w - 4, x + d)) : x, ny = horiz ? y : Math.max(4, Math.min(h - 4, y + d)); len += Math.abs(nx - x) + Math.abs(ny - y); x = nx; y = ny; pts.push(x, y); }
+      T.push({ pts: pts, len: Math.max(1, len), sp: 40 + rV158A(i, 704) * 70, ph: rV158A(i, 705) });
+    }
+    return (CIRC_V177K[key] = T);
+  }
+  function alongV177K(pts, d) { for (var i = 0; i + 3 < pts.length; i += 2) { var L = Math.abs(pts[i + 2] - pts[i]) + Math.abs(pts[i + 3] - pts[i + 1]); if (d <= L) { var u = L ? d / L : 0; return [pts[i] + (pts[i + 2] - pts[i]) * u, pts[i + 1] + (pts[i + 3] - pts[i + 1]) * u]; } d -= L; } return [pts[pts.length - 2], pts[pts.length - 1]]; }
+  var PAINT_V177K = {
+    coderain: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[1]], [1, "#000000"]]));
+      x.font = "700 7px 'Courier New', monospace"; x.textAlign = "center"; x.textBaseline = "middle";
+      for (var col = 0; col * 7 < w + 7; col++) {
+        var sp = 26 + rV158A(col, 711) * 40, len = 6 + Math.floor(rV158A(col, 712) * 8), head = ((t * sp + rV158A(col, 713) * (h + 80)) % (h + 80)) - 10, cx = col * 7 + 3.5;
+        for (var j = 0; j < len; j++) { var y = head - j * 7.5; if (y < -6 || y > h + 6) continue; var g = GLY_V177K[Math.floor(rV158A(col * 31 + j, Math.floor(t * 9) + 714) * GLY_V177K.length)];
+          x.globalAlpha = j ? Math.max(0.08, 0.85 * (1 - j / len)) : 1; x.fillStyle = j ? C[0] : C[2]; x.fillText(g, cx, y); }
+      }
+      x.globalAlpha = 1; glowV158A(x, w * 0.5, h * 0.5, w * 0.5, C[0], 0.06); vignetteV158A(x, w, h, 0.45);
+    },
+    floodlights: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[0]], [1, C[2]]]));
+      starsV158A(x, w, h * 0.5, t, 18, 721, 1.1);
+      [[0.08, 1], [0.92, -1]].forEach(function (L, i) { var px = w * L[0], py = h + 6, a = -Math.PI / 2 + L[1] * (0.35 + 0.38 * Math.sin(t * 0.55 + i * 2.1)), spr = 0.12, R = w * 0.9;
+        var g = x.createLinearGradient(px, py, px + Math.cos(a) * R, py + Math.sin(a) * R); g.addColorStop(0, rgbaV158A(C[1], 0.55)); g.addColorStop(1, rgbaV158A(C[1], 0));
+        x.fillStyle = g; x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a - spr) * R, py + Math.sin(a - spr) * R); x.lineTo(px + Math.cos(a + spr) * R, py + Math.sin(a + spr) * R); x.closePath(); x.fill();
+        glowV158A(x, px, h - 4, 16, C[1], 0.7); });
+      for (var i = 0; i < 6; i++) { var fl = rV158A(i, Math.floor(t * 3) + 722); if (fl > 0.6) glowV158A(x, rV158A(i, 723 + Math.floor(t * 3)) * w, h - 14 - rV158A(i, 724) * 8, 5, "#ffffff", fl); }
+      var hg = x.createLinearGradient(0, h * 0.45, 0, h); hg.addColorStop(0, rgbaV158A(C[1], 0)); hg.addColorStop(1, rgbaV158A(C[1], 0.55)); x.fillStyle = hg; x.fillRect(0, h * 0.45, w, h * 0.55);
+      for (var lr = 0; lr < 9; lr++) { var lx = w * (0.06 + lr * 0.11); glowV158A(x, lx, h * 0.52, 7, C[1], 0.55 + 0.25 * Math.sin(t * 4 + lr)); x.fillStyle = "#fffbe8"; x.fillRect(lx - 2, h * 0.52 - 1, 4, 2); }
+      x.fillStyle = C[2];
+      for (var c = -1; c * 7 < w + 7; c++) { var bob = Math.abs(Math.sin(t * 3.2 + c * 1.3)) * 2.2, hy = h - 9 - (c % 2) * 3 - bob; x.beginPath(); x.arc(c * 7 + 3.5, hy, 3.1, 0, 6.283); x.fill(); x.fillRect(c * 7 + 0.5, hy + 2, 6, h - hy); }
+      x.fillRect(0, h - 4, w, 4);
+    },
+    hyperspace: function (x, w, h, t, C) {
+      fillV158A(x, w, h, "#000000"); var cx = w * 0.5, cy = h * 0.5, R = Math.hypot(w, h) * 0.55;
+      glowV158A(x, cx, cy, h * 0.9, C[2], 0.35);
+      x.lineCap = "round";
+      for (var i = 0; i < 110; i++) { var a = rV158A(i, 731) * 6.2832, p = (t * (0.45 + rV158A(i, 732) * 0.5) + rV158A(i, 733)) % 1, d = p * p * R, d0 = Math.max(2, d * 0.62);
+        x.strokeStyle = i % 4 ? rgbaV158A(C[1], (0.25 + 0.75 * p).toFixed(3)) : rgbaV158A(C[0], (0.3 + 0.7 * p).toFixed(3)); x.lineWidth = 0.5 + p * 1.6;
+        x.beginPath(); x.moveTo(cx + Math.cos(a) * d0, cy + Math.sin(a) * d0 * 0.6); x.lineTo(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.6); x.stroke(); }
+      glowV158A(x, cx, cy, 14, "#ffffff", 0.8);
+    },
+    finale: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, "#06041a"], [1, "#1a1030"]]));
+      starsV158A(x, w, h * 0.6, t, 14, 741, 1.2);
+      for (var k = 0; k < 5; k++) { var per = 2.6, p = ((t + k * 0.53) % per) / per, n = Math.floor((t + k * 0.53) / per), bx = w * (0.12 + 0.76 * rV158A(k * 17 + n, 742)), by = h * (0.2 + 0.25 * rV158A(k * 13 + n, 743)), col = C[(k + n) % C.length];
+        if (p < 0.24) { var q = p / 0.24, yy = h - (h - by) * EZ_V159C.outC(q); x.strokeStyle = rgbaV158A("#fff3c4", 0.7); x.lineWidth = 1.2; x.beginPath(); x.moveTo(bx, Math.min(h, yy + 10)); x.lineTo(bx, yy); x.stroke(); }
+        else { var e = (p - 0.24) / 0.76, r = 28 * EZ_V159C.outC(e), a = 1 - e;
+          glowV158A(x, bx, by, 34 * (0.5 + e), col, e < 0.15 ? 0.6 : 0.22 * a);
+          for (var j = 0; j < 22; j++) { var th = j / 22 * 6.2832, px = bx + Math.cos(th) * r, py = by + Math.sin(th) * r + 10 * e * e; x.fillStyle = rgbaV158A(j % 3 ? col : "#ffffff", a.toFixed(3)); x.fillRect(px - 1.3, py - 1.3, 2.6, 2.6);
+            x.strokeStyle = rgbaV158A(col, (a * 0.35).toFixed(3)); x.lineWidth = 0.8; x.beginPath(); x.moveTo(bx + Math.cos(th) * r * 0.6, by + Math.sin(th) * r * 0.6 + 6 * e * e); x.lineTo(px, py); x.stroke(); } } }
+      x.fillStyle = "#05030c"; x.beginPath(); x.moveTo(0, h); x.lineTo(0, h - 8); x.quadraticCurveTo(w * 0.5, h - 22, w, h - 8); x.lineTo(w, h); x.fill();
+      for (var l = 0; l < 7; l++) glowV158A(x, w * (0.1 + l * 0.133), h - 10 - Math.sin(l / 6 * Math.PI) * 9, 4, "#fff6d8", 0.6);
+    },
+    sakura: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, "#ffd6e6"], [0.6, "#d9c2f0"], [1, "#a996d8"]]));
+      glowV158A(x, w * 0.78, h * 0.3, 28, "#fff6f0", 0.7);
+      x.fillStyle = "rgba(120,90,150,.35)"; x.beginPath(); x.moveTo(0, h); x.lineTo(w * 0.25, h * 0.55); x.lineTo(w * 0.45, h * 0.8); x.lineTo(w * 0.7, h * 0.5); x.lineTo(w, h * 0.85); x.lineTo(w, h); x.fill();
+      x.strokeStyle = C[2]; x.lineCap = "round"; var br = function (px, py, len, an, d) { if (d > 4) return; var ex = px + Math.cos(an) * len, ey = py + Math.sin(an) * len; x.lineWidth = Math.max(0.8, 4 - d); x.beginPath(); x.moveTo(px, py); x.lineTo(ex, ey); x.stroke();
+        if (d >= 2) for (var b = 0; b < 3; b++) { x.fillStyle = b % 2 ? C[0] : C[1]; x.beginPath(); x.arc(ex + (rV158A(d * 9 + b, 751) - 0.5) * 7, ey + (rV158A(d * 7 + b, 752) - 0.5) * 6, 2.1, 0, 6.283); x.fill(); }
+        br(ex, ey, len * 0.72, an - 0.45, d + 1); br(ex, ey, len * 0.68, an + 0.4, d + 1); };
+      br(-4, 4, 26, 0.35, 0);
+      for (var i = 0; i < 34; i++) { var sp = 10 + rV158A(i, 753) * 14, y = (rV158A(i, 754) * (h + 10) + t * sp) % (h + 10) - 5, xx = (rV158A(i, 755) * w + t * (8 + 6 * rV158A(i, 756)) + Math.sin(t * 1.6 + i) * 6) % (w + 10) - 5, rot = t * (1 + rV158A(i, 757) * 2) + i;
+        x.save(); x.translate(xx, y); x.rotate(rot); x.scale(1, 0.45 + 0.55 * Math.abs(Math.sin(t * 2 + i))); x.fillStyle = i % 3 ? C[0] : C[1]; x.beginPath(); x.ellipse(0, 0, 2.6, 1.5, 0, 0, 6.283); x.fill(); x.restore(); }
+    },
+    eclipse: function (x, w, h, t, C) {
+      fillV158A(x, w, h, C[2]); starsV158A(x, w, h, t, 30, 761, 1.4);
+      var cx = w * 0.7, cy = h * 0.5, R = h * 0.3;
+      glowV158A(x, cx, cy, R * 3.2, C[1], 0.28); glowV158A(x, cx, cy, R * 1.7, C[0], 0.7);
+      x.save(); x.translate(cx, cy); x.rotate(t * 0.12);
+      for (var i = 0; i < 28; i++) { var a = i / 28 * 6.2832, L = R * (1.5 + 0.9 * rV158A(i, 762) * (0.7 + 0.3 * Math.sin(t * 1.3 + i))), wd = 0.05 + 0.04 * rV158A(i, 763);
+        x.fillStyle = rgbaV158A(i % 2 ? C[0] : C[1], 0.22); x.beginPath(); x.moveTo(Math.cos(a - wd) * R, Math.sin(a - wd) * R); x.lineTo(Math.cos(a) * L, Math.sin(a) * L); x.lineTo(Math.cos(a + wd) * R, Math.sin(a + wd) * R); x.fill(); }
+      x.restore();
+      x.fillStyle = "#000000"; x.beginPath(); x.arc(cx, cy, R, 0, 6.283); x.fill();
+      var fp = (t % 5) / 5, fa = Math.max(0, Math.sin(fp * Math.PI)) ;
+      if (fa > 0.02) { var a2 = -0.8 + fp * 0.5, fx = cx + Math.cos(a2) * R, fy = cy + Math.sin(a2) * R; glowV158A(x, fx, fy, 16, "#ffffff", 0.9 * fa);
+        x.strokeStyle = "rgba(255,255,255," + (0.8 * fa).toFixed(3) + ")"; x.lineWidth = 1; x.beginPath(); x.moveTo(fx - 14 * fa, fy); x.lineTo(fx + 14 * fa, fy); x.moveTo(fx, fy - 9 * fa); x.lineTo(fx, fy + 9 * fa); x.stroke(); }
+    },
+    circuit: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, "#062a1c"], [1, C[0]]]));
+      for (var g = 0; g < w; g += 6) { x.fillStyle = "rgba(255,255,255,.025)"; x.fillRect(g, 0, 1, h); }
+      var T = circuitV177K(w, h); x.lineCap = "round"; x.lineJoin = "round";
+      T.forEach(function (tr, i) { var p = tr.pts; x.strokeStyle = rgbaV158A(C[1], 0.35); x.lineWidth = 1.3; x.beginPath(); x.moveTo(p[0], p[1]); for (var k = 2; k < p.length; k += 2) x.lineTo(p[k], p[k + 1]); x.stroke();
+        x.fillStyle = rgbaV158A(C[1], 0.8); x.beginPath(); x.arc(p[0], p[1], 2, 0, 6.283); x.arc(p[p.length - 2], p[p.length - 1], 2, 0, 6.283); x.fill();
+        var d = ((t * tr.sp + tr.ph * tr.len) % (tr.len + 40)); if (d <= tr.len) { for (var s = 0; s < 5; s++) { var q = alongV177K(p, Math.max(0, d - s * 3)); x.fillStyle = rgbaV158A(C[2], (0.9 - s * 0.17).toFixed(3)); x.fillRect(q[0] - 1.1, q[1] - 1.1, 2.2, 2.2); }
+          var hd = alongV177K(p, d); glowV158A(x, hd[0], hd[1], 7, C[2], 0.6); } });
+      for (var c = 0; c < 3; c++) { var cx = w * (0.2 + c * 0.3), cy = h * (0.3 + 0.4 * rV158A(c, 771)); x.fillStyle = "#0b1a14"; x.fillRect(cx - 9, cy - 6, 18, 12); x.strokeStyle = rgbaV158A(C[1], 0.7); x.lineWidth = 1; x.strokeRect(cx - 9, cy - 6, 18, 12);
+        x.fillStyle = rgbaV158A(C[1], 0.6); for (var pn = -2; pn <= 2; pn++) { x.fillRect(cx + pn * 3.4 - 0.6, cy - 8, 1.2, 2); x.fillRect(cx + pn * 3.4 - 0.6, cy + 6, 1.2, 2); } if (Math.floor(t * 2 + c) % 3 === 0) glowV158A(x, cx + 5, cy - 2, 3, C[2], 0.9); }
+    },
+    abyss: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, "#0a3a5a"], [0.5, C[0]], [1, "#000510"]]));
+      for (var r = 0; r < 5; r++) { var rx = w * (0.1 + r * 0.22) + Math.sin(t * 0.3 + r) * 12; var g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, "rgba(190,240,255,.16)"); g.addColorStop(1, "rgba(190,240,255,0)");
+        x.fillStyle = g; x.beginPath(); x.moveTo(rx - 6, 0); x.lineTo(rx + 8, 0); x.lineTo(rx + 30, h); x.lineTo(rx + 12, h); x.fill(); }
+      for (var j = 0; j < 3; j++) { var col = j % 2 ? C[2] : C[1], jx = w * (0.22 + j * 0.3) + Math.sin(t * 0.5 + j * 2) * 10, jy = h * 0.45 + Math.sin(t * 0.8 + j) * 6 + (j - 1) * 3, pul = 0.85 + 0.15 * Math.sin(t * 3 + j * 1.7), bw = 9 * pul, bh = 7 / pul;
+        glowV158A(x, jx, jy, 22, col, 0.35 + 0.15 * Math.sin(t * 3 + j));
+        x.strokeStyle = rgbaV158A(col, 0.6); x.lineWidth = 0.9; for (var k = 0; k < 5; k++) { var tx = jx - bw * 0.7 + k * bw * 0.35; x.beginPath(); x.moveTo(tx, jy); for (var s = 1; s <= 6; s++) x.lineTo(tx + Math.sin(t * 2.4 + s * 0.8 + k + j) * 2, jy + s * 3); x.stroke(); }
+        x.fillStyle = rgbaV158A(col, 0.75); x.beginPath(); x.ellipse(jx, jy, bw, bh, 0, Math.PI, 0); x.fill(); x.fillStyle = "rgba(255,255,255,.5)"; x.beginPath(); x.ellipse(jx - 2, jy - bh * 0.5, bw * 0.35, bh * 0.25, 0, 0, 6.283); x.fill(); }
+      for (var b = 0; b < 22; b++) { var sp = 10 + rV158A(b, 781) * 18, y = h - ((rV158A(b, 782) * h + t * sp) % (h + 6)), bx = rV158A(b, 783) * w + Math.sin(t * 2 + b) * 2, br = 0.6 + rV158A(b, 784) * 1.4;
+        x.strokeStyle = "rgba(200,240,255,.55)"; x.lineWidth = 0.7; x.beginPath(); x.arc(bx, y, br, 0, 6.283); x.stroke(); }
+    },
+    comets: function (x, w, h, t, C) {
+      fillV158A(x, w, h, vgV158A(x, 0, h, [[0, C[0]], [1, "#2a1a4a"]])); starsV158A(x, w, h, t, 40, 791, 1.8);
+      for (var k = 0; k < 5; k++) { var per = 3.2 + k * 0.4, p = ((t + k * 0.9) % per) / per, n = Math.floor((t + k * 0.9) / per), sx = w * (0.15 + 0.9 * rV158A(k + n * 5, 792)), sy = -10, L = w * 0.55, a = 2.45 + 0.25 * rV158A(k + n * 5, 793);
+        var hx = sx + Math.cos(a) * L * p * 1.4, hy = sy - Math.sin(a) * -L * p * 0.9; if (p > 0.85) continue;
+        var tx = hx - Math.cos(a) * 34, ty = hy + Math.sin(a) * -34 * 0.65, g = x.createLinearGradient(tx, ty, hx, hy); g.addColorStop(0, rgbaV158A(C[2], 0)); g.addColorStop(1, rgbaV158A(C[2], 0.85));
+        x.strokeStyle = g; x.lineWidth = 2; x.lineCap = "round"; x.beginPath(); x.moveTo(tx, ty); x.lineTo(hx, hy); x.stroke(); glowV158A(x, hx, hy, 6, C[1], 0.9); x.fillStyle = "#ffffff"; x.fillRect(hx - 0.8, hy - 0.8, 1.6, 1.6); }
+      x.fillStyle = "#080616"; x.beginPath(); x.moveTo(0, h); x.lineTo(0, h * 0.78); for (var m = 0; m <= 10; m++) x.lineTo(w * m / 10, h * (0.7 + 0.18 * rV158A(m, 794))); x.lineTo(w, h); x.fill();
+    },
+    prism: function (x, w, h, t, C) {
+      var g = x.createLinearGradient(0, 0, w, h), sh = (t * 0.12) % 1;
+      for (var i = 0; i <= 6; i++) g.addColorStop(i / 6, hslHex(((i / 6 + sh) * 360) % 360, 0.9, 0.68)); fillV158A(x, w, h, g);
+      x.globalCompositeOperation = "overlay"; fillV158A(x, w, h, vgV158A(x, 0, h, [[0, "#ffffff"], [1, "#6a6a8a"]])); x.globalCompositeOperation = "source-over";
+      x.strokeStyle = "rgba(255,255,255,.35)"; x.lineWidth = 0.8;
+      for (var d = -h; d < w + h; d += 9) { x.beginPath(); x.moveTo(d, 0); x.lineTo(d + h, h); x.stroke(); x.beginPath(); x.moveTo(d + h, 0); x.lineTo(d, h); x.stroke(); }
+      sheenV158A(x, w, h, t, 3.2, 0.55); sheenV158A(x, w, h, t + 1.6, 3.2, 0.25);
+      for (var s = 0; s < 8; s++) { var a = Math.max(0, Math.sin(t * 2.2 + s * 1.9)); if (a > 0.6) { var px = rV158A(s, 801) * w, py = rV158A(s, 802) * h, r = 4 * a; x.strokeStyle = "rgba(255,255,255," + a.toFixed(2) + ")"; x.lineWidth = 1; x.beginPath(); x.moveTo(px - r, py); x.lineTo(px + r, py); x.moveTo(px, py - r); x.lineTo(px, py + r); x.stroke(); } }
+      x.strokeStyle = "rgba(255,255,255,.6)"; x.lineWidth = 1; x.strokeRect(1.5, 1.5, w - 3, h - 3);
+    }
+  };
+  Object.keys(PAINT_V177K).forEach(function (k) { if (!BAN_V158A[k]) BAN_V158A[k] = PAINT_V177K[k]; });
+  Object.assign(V177K, { items: function () { return ITEMS_V177K.map(function (it) { return it.id; }); }, painters: function () { return Object.keys(PAINT_V177K); } });
 })();

@@ -56,7 +56,7 @@ const cat = await E(() => {
     counts: { aura: all.filter(i => i.cat === 'aura').length, trail: all.filter(i => i.cat === 'trail').length } }
 })
 ok(cat.n === 34 && cat.au === 19 && cat.tr === 15 && cat.uniq, '19 new auras and 15 new footprint trails, every id unique', { au: cat.au, tr: cat.tr, all: cat.counts })
-ok(cat.auFx === 19 && cat.trFx === 15 && cat.kinds[0] === 19 && cat.kinds[1] === 15 && cat.known, 'each has its own art program (unique fx keys, each one drawn)', { auFx: cat.auFx, trFx: cat.trFx, kinds: cat.kinds })
+ok(cat.auFx === 19 && cat.trFx === 15 && cat.kinds[0] === 19 && cat.kinds[1] >= 15 /* v177 F registers its footprints here too */ && cat.known, 'each has its own art program (unique fx keys, each one drawn)', { auFx: cat.auFx, trFx: cat.trFx, kinds: cat.kinds })
 ok(cat.rar && cat.src.member >= 18 && cat.src.earned >= 6 && cat.src.free >= 3 && cat.memberHard, 'the owner\'s split: most flashy ones member (epic or better), a few earned late, a couple free', cat.src)
 ok(cat.howOk, 'the Locker\'s line per source: member "Membership" (listed, not owned with the store OFF), earned "Earn it: …", free owned', cat.bad)
 await E(() => window.go('locker')); await page.waitForTimeout(900)

@@ -195,7 +195,9 @@
    "anchors": [
     "v146 A",
     "v151 D",
-    "v153 A"
+    "v153 A",
+    "v177 A",
+    "v177 B"
    ],
    "files": [],
    "checks": [
@@ -212,7 +214,8 @@
     "v86check",
     "v110check",
     "v151Dcheck",
-    "v153Acheck"
+    "v153Acheck",
+    "scrumcheck"
    ]
   },
   "cuts": {
@@ -877,7 +880,8 @@
     "v164 G",
     "v164 H",
     "v95",
-    "v175"
+    "v175",
+    "v177 C"
    ],
    "files": [
     "public/badges/**",
@@ -888,7 +892,8 @@
     "v164Fcheck",
     "badgecheck",
     "v86check",
-    "screenpancheck"
+    "screenpancheck",
+    "jumboPartycheck"
    ],
    "steps": [
     "`node scripts/build-badge-art.mjs` (if a badge changed)"
@@ -1161,7 +1166,8 @@
     "simcheck",
     "renderpathcheck",
     "v86check",
-    "v153Acheck"
+    "v153Acheck",
+    "scrumcheck"
    ]
   },
   "plant": {
@@ -1309,7 +1315,8 @@
    "anchors": [
     "v57",
     "v78",
-    "SIDELINE"
+    "SIDELINE",
+    "v177 D"
    ],
    "files": [
     "public/rib_crowd*",
@@ -1319,7 +1326,8 @@
     "crowdcheck",
     "sidelinecheck",
     "refcheck",
-    "v162Acheck"
+    "v162Acheck",
+    "rimcheck"
    ]
   },
   "declare": {
@@ -1439,7 +1447,8 @@
    "anchors": [
     "v148",
     "rowRefYdV148",
-    "rowKeepYdV148"
+    "rowKeepYdV148",
+    "v177 E"
    ],
    "files": [],
    "checks": [
@@ -1453,7 +1462,8 @@
     "v112Echeck",
     "v86check",
     "sidelinecheck",
-    "renderpathcheck"
+    "renderpathcheck",
+    "perspcheck"
    ],
    "variants": [
     "`KILL=1` for `v148check` shows the old failures"
@@ -1530,15 +1540,24 @@
     "v159 A",
     "v160 A",
     "v161 A",
-    "v162 B"
+    "v162 B",
+    "v177 I",
+    "v177 J",
+    "v177 K",
+    "v177 F",
+    "v177 G",
+    "v177 H"
    ],
    "files": [
     "src/28-cosmetics.js",
     "docs/COSMETICS.md",
     "scripts/build-celebration-sheets.py",
-    "public/celebrations/cel_v161a.json"
+    "public/celebrations/cel_v161a.json",
+    "scripts/build-celebration-moves.py",
+    "public/celebrations/cel_v177i.json"
    ],
    "checks": [
+    "v177IJKcheck",
     "v162Bcheck",
     "v161Acheck",
     "v160Acheck",
@@ -1562,7 +1581,8 @@
     "v159Dcheck",
     "v159Acheck",
     "palettecheck",
-    "numsewcheck"
+    "numsewcheck",
+    "v177FGHcheck"
    ]
   },
   "audio": {
@@ -4607,6 +4627,86 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "v177IJKcheck": {
+   "file": "scripts/v177IJKcheck.mjs",
+   "desc": "v177 I/J/K — ten new celebrations, ten uniforms, ten banners, all SUPER (mythic, source super, never sold; earned / pass / shop grants refused; the Locker names each one's super ladder rung): the generator's ten drawn bodies load (rects, foot anchors, centres, helmets, gloves), each timeline runs 1.9-2.9 s through >= 4 frames (the moonwalk glides back, the worm forward, the leap leaves the ground, the robot's tilts are stepped), the props draw, a frame recolours to a red kit, reduced motion is one pose, each effect is a v159 C plan with ink; the Locker previews play each item's own body; each uniform changes the field sprite (kitDeco) and the card figure (figCell) and the number's ink reads on it (>= 2.6:1); each banner painter draws a full varied band and animates; the three super ladders pay their rungs once from super and nothing lands in the save; a forced touchdown by him plays each new body on his marker in his kit with its effect and hands the marker back; seeded games identical with v177 I/J off / on; screenshots to $SHOTS (v177I_/v177J_/v177K_); no page errors.",
+   "areas": [
+    "cosmetics",
+    "live"
+   ],
+   "runtimeSec": 240,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v177FGHcheck": {
+   "file": "scripts/v177FGHcheck.mjs",
+   "desc": "v177 F / G / H — ten new footsteps, ten new wings, every hat floats: 10 new footprints and 10 new wings, all mythic SUPER looks (locked, listed \"Super challenge\", an earned / pass grant refused), each its own fx / kind; every footprint draws its own picture and animates (TU v177Ftrail 0 → its base kind); every wing is inked, unique among catalogue wings, animates through its frames (TU v177Gwings 0 → frame 0); ten new super challenges join v156 C's five, each paying a wing + a footprint once (Thirty Careers granted at 30, outside the save); the Locker lists them with previews; every catalogue crown hovers above the helmet (opaque ink ends over the helmet top), bobs, a shadow / glow under it, still under reduced motion, seated again with TU v177Hfloat 0; the profile card draws it; on the live field every new footprint draws behind him, every new wing is worn, the crown hovers with its shadow and the plumbob above it; no Math.random from src/28; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics"
+   ],
+   "runtimeSec": 240,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "jumboPartycheck": {
+   "file": "scripts/jumboPartycheck.mjs",
+   "desc": "v177 C THE BOARD THROWS A PARTY — on a live game: with every play panning to the screen and the party allowed on a plain pan, a whistle arms it and it starts only once the camera is on the screen after the badge's beat; the celebrating body is drawn inside the panel (masked), the badge gives way, the feed is off; rockets, bursts, flame jets and fireballs fire; the sky layer is behind the screen and the bowl; it ends and puts its layers away; HIS touchdown plays his equipped celebration (its callout the caption); another man's SACK a stock body with his name; calm (reduced motion): one pose, no pyro or flashes, three bursts; TU v177Cparty 0: pans, no party. No page errors.",
+   "areas": [
+    "badges",
+    "lights"
+   ],
+   "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "rimcheck": {
+   "file": "scripts/rimcheck.mjs",
+   "desc": "v177 D THE RIM IS A CLEAN LINE — at three lines of scrimmage: one parapet chain round the whole bowl with no gap, its top edge turning smoothly (no step or notch), its slope wandering a fraction of the raw crowd skyline's, the crowd sections' own topmost pixels lying inside the band (the jag is under it), drawn over the crowd and under the base band; TU v177Drim 0 draws nothing. No page errors.",
+   "areas": [
+    "crowd",
+    "lights"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "perspcheck": {
+   "file": "scripts/perspcheck.mjs",
+   "desc": "v177 E THE FAR END HOLDS ITS SHAPE — the field re-laid with the LOS from the own 10 to the opponent's 1, a wide frame on the line and 20/40/60 yards behind it: no taper anywhere, the world (bounds, warp canvas) holds the field, the bottom/middle width and ten-yard ratios match the own-30 reference within 3% at every line, the LOS row unchanged (and identical to TU v177E 0 on the line); TU v177E 0 shows the old pinch (bottom 0.69 of the middle's width 40 yards back on the opponent 10). No page errors.",
+   "areas": [
+    "rows",
+    "camera"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "scrumcheck": {
+   "file": "scripts/scrumcheck.mjs",
+   "desc": "v177 A/B — a gang grip becomes a scrum that goes back and forth (the carrier's frames reverse several times), the men in it never stand still, team-mates and defenders join it, the stronger-pushing side wins more ground, the swing stays a few yards, pushers are never credited; the field keeps moving through a grip; a few scrums end with a break-free that goes backward first and then sideways, the men he left are beaten, some are run down behind it; both kill switches (OFF freezes the bystanders exactly as before); the run game in band; the broadcast draws the lean, the churn and the rock, and the break-free stagger; no page errors.",
+   "areas": [
+    "contact",
+    "pile"
+   ],
+   "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }

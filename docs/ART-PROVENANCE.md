@@ -1,6 +1,6 @@
 # Art provenance (generated — `python3 scripts/art-provenance.py`)
 
-142 of 353 tracked image/video files carry an embedded AI-generation record or a tool name. A C2PA manifest with `trainedAlgorithmicMedia` is the generator itself stating the picture was produced by a generative model; OpenAI embeds one in every ChatGPT / DALL·E image. Files in `public/` are re-encoded cuts (the build scripts strip metadata), so they carry no record of their own — they inherit it from their source.
+142 of 357 tracked image/video files carry an embedded AI-generation record or a tool name. A C2PA manifest with `trainedAlgorithmicMedia` is the generator itself stating the picture was produced by a generative model; OpenAI embeds one in every ChatGPT / DALL·E image. Files in `public/` are re-encoded cuts (the build scripts strip metadata), so they carry no record of their own — they inherit it from their source.
 
 **docs/COMMERCIAL.md says "all art produced by the owner". The owner must confirm, per group below, how the art was made and that they hold the rights to ship it** (docs/APP-STORE.md §7).
 
@@ -33,6 +33,7 @@
 | `public/vault/*.webp` | `art/Prestige/*` | scripts/build-vault-art.py |
 | `public/legacy/*.webp` | `art/legacy/sheet-*.png` | scripts/build-legacy-medals.py |
 | `public/celebrations/*.png` | `art/celebrations/{flex,backflip,spike}.png` | scripts/build-celebration-sheets.py |
+| `public/celebrations/cel_v177i*.png` | `art/celebrations/{flex,backflip,spike}.png (re-posed)` | scripts/build-celebration-moves.py |
 | `public/rib_film_v116.{mp4,webm,jpg} and the app icons` | `art/splash/rib_loop_master_v116.mp4` | scripts/build-splash-film.mjs, scripts/build-app-icons.py |
 
 ## Every file
