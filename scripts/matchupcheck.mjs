@@ -91,12 +91,12 @@ const open = async (tune, tag, w = 400, h = 860) => {
       }
       return { n, call: Math.round(a / n), none: Math.round(b / n), blitzCall: blitzA, blitzNone: blitzB }
     }
-    return { box: run('box', 'oppRush', 10), blitz: run('blitz', 'pressure', 10), air: run('air', 'usPass', 10), shut: run('shut', 'starLooks', 14) }
+    return { box: run('box', 'oppRush', 10), blitz: run('blitz', 'pressure', 10), air: run('air', 'usPass', 10), shut: run('shut', 'star', 16) }
   })
   ok(ENG.box.call < ENG.box.none, '"Load the Box" takes rushing yards off them (paired games)', ENG.box)
   ok(ENG.blitz.blitzCall > ENG.blitz.blitzNone * 1.5, '"Send the House" blitzes far more often', ENG.blitz)
   ok(ENG.air.call > ENG.air.none, '"Take the Top Off" throws for more', ENG.air)
-  ok(ENG.shut.call < ENG.shut.none, '"Shut Down" takes looks away from their star receiver (targets, paired games)', ENG.shut)
+  ok(ENG.shut.call < ENG.shut.none, '"Shut Down" holds their star receiver to fewer yards (bracketed: a smaller window, fewer looks; paired games)', ENG.shut)
 
   const LIFT = await p.evaluate(() => {
     const pl = window.S.player, w = pl.weekResults.find((x) => { delete x.idV171; const I = window.__V171.identity(x); return window.__V171.calls.find((c) => c.id === 'box').fit(I) > 0 })

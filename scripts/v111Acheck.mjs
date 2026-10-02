@@ -290,6 +290,7 @@ const res = await page.evaluate(({ N, POS }) => {
   // One game per pick, reading back what that accessor returned for him.
   const bite = []
   const savedPos = pl.pos
+  const tune171 = window.RIB_TUNE; window.RIB_TUNE = Object.assign({}, tune171 || {}, { v171Cfocus: 0 })   // v171 C: the mechanism is tested on the classic ×1.2 card (the roll can be ×1.04)
   for (const p of ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S']) {
     pl.pos = p
     for (const pk of V.focusFor(p)) {
@@ -302,6 +303,7 @@ const res = await page.evaluate(({ N, POS }) => {
         lands: rows.every(r => r.raw > r.base * 1.1) } : { pos: p, key: pk.key, stat: pk.stat, lands: false, rows: null })
     }
   }
+  window.RIB_TUNE = tune171
   pl.pos = savedPos
   R.bite = bite
   R.biteVerdict = { all: bite.every(b => b.lands), dead: bite.filter(b => !b.lands).map(b => b.pos + ':' + b.key + ' ' + (b.keys || [b.stat]).join('+')) }
@@ -438,7 +440,7 @@ console.log(JSON.stringify({ identity, api: res.api, dial: res.dial, dialVerdict
   recovery: res.recovery, focus: res.focus, focusVerdict: res.focusVerdict, bite: res.bite, biteVerdict: res.biteVerdict, resolve: res.resolve,
   arc: res.arc, arcVerdict: res.arcVerdict,
   fails: fails.length, pageErrors: pageErrors.length }, null, 1))
-if (fails.length) console.log('FAILURES:\n' + fails.join('\n'))
+if (fails.length) console.log(fails.map(f => 'FAIL ' + f).join('\n'))   // v171: one FAIL line each, so run-checks can tell a known failure from a new one
 if (pageErrors.length) console.log('PAGE ERRORS:\n' + pageErrors.slice(0, 6).join('\n'))
 console.log(fails.length || pageErrors.length ? 'v111A: FAIL' : 'v111A: PASS')
 await browser.close()

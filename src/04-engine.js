@@ -3464,7 +3464,8 @@ window.__visionRadiusV96 = visionRadiusV96;
         // three-color read: clean releases create green/yellow space; lost ones
         // remain red instead of every route collapsing toward an average window.
         const releaseWin=Math.random()<cl(.5+(a.agi-d.cov)*.006,.22,.78);
-        const raw=(releaseWin?-.25:-2.4)+matchup*.024+leverage+(Math.random()-.5)*.7+dcSepV165D;
+        const raw=(releaseWin?-.25:-2.4)+matchup*.024+leverage+(Math.random()-.5)*.7+dcSepV165D
+          -(dcV165D&&dcV165D.keyStar&&a.player&&a.player._starV171?dcV165D.keyStar*TU("shutSepV171",1.6):0);   // v171 A: a bracketed star's window shrinks, so the read comes off him
         // v165 J: the route's fit against the called shell is in the real window; the QB sees as much of it as he recognises
         const fit=shellOnV165J?shellFitV165J(dcV165D.shell,a._routeName)*TU("shellFitKV165J",1):0;
         const est=cl(raw+fit,-3.4,1.8), seen=cl(raw+fit*shellRecogV165J,-3.4,1.8);

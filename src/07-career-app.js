@@ -16657,6 +16657,10 @@
       applyMatchupV171(c, mu171);
     } catch (_) {}
     window.__V171.last = mu171;
+    /* v171 A: their star's REAL line. The roster's AI stat lines are pre-rolled at the build and never credited from
+     * the plays, so a call judged on the star is judged on this ledger, credited from the resolved actors below. */
+    const st171 = { rec: 0, rush: 0, pass: 0, imp: 0, tgt: 0 },
+      isSt171 = pl => !!(pl && pl._starV171);
     let h = 0,
       p = 0;
     // clear stale FieldSim choreography logs (e.g. from a skipped previous game)
@@ -16742,7 +16746,9 @@
             ((window.__youPersonaFxV20 && window.__youPersonaFxV20.perfFlat) || 0) +
             gearAttrV147(k); /* v147 C: the gear on him */
         }
-        if (w && w._mulV171) _v *= w._mulV171; /* v171 A: their face, the call's cuts and lifts, the plan's team lift */
+        /* v171 A: their face, the call's cuts and lifts, the plan's team lift — as rating POINTS (the fraction × `mulPtsV171`),
+         * so a +20% star is the same edge at Pee Wee as in the UFF: as a multiplier it was +5 on a 25 sheet and +16 on an 80 */
+        if (w && w._mulV171) _v += (w._mulV171 - 1) * TU("mulPtsV171", 45);
         return _v;
       },
       // league-normalized attribute accessor: every league plays real football —
@@ -17308,8 +17314,12 @@
           /* v171 A: their star receiver is THEIR first look — and a Shut Down call takes him away */
           const st171 = !w && mu171 && mu171.I && concept !== "screen" ? k.off.find(z => z._starV171 && (z.pos === "WR" || z.pos === "TE")) : null;
           if (st171 && st171 !== g0) {
-            const fp = TU("starFeatureV171", 0.3) * (K171 && K171.keyStar ? Math.max(0, 1 - TU("shutTgtCutV171", 1.2) * K171.keyStar) : 1);
+            const fp = TU("starFeatureV171", 0.22) * (K171 && K171.keyStar ? Math.max(0, 1 - TU("shutTgtCutV171", 1.2) * K171.keyStar) : 1);
             if (fp > 0 && Math.random() < fp) return st171;
+          } else if (st171 && K171 && K171.keyStar && Math.random() < K171.keyStar * TU("shutAwayV171", 1.2)) {
+            /* bracketed: the read comes off him to whoever else is out there */
+            const alt = k.off.filter(z => z !== st171 && (z.pos === "WR" || z.pos === "TE" || z.pos === "RB"));
+            if (alt.length) return alt[Math.floor(Math.random() * alt.length)];
           }
           const yu = k.off.find(z => z.you);
           if (yu && yu !== g0) {
@@ -18761,6 +18771,7 @@
             usDrive && t === "QB" && (me = !0);
           }
           !usDrive ? v.sacks++ : j.sacks++;
+          usDrive && isSt171(skr) && (st171.imp += 2); /* v171 A */
           pos = clamp99(pos + de, 1, 99);
           endB = pos;
           usDrive ? ((v.pass += de), (v.yds += de)) : ((j.pass += de), (j.yds += de));
@@ -18780,6 +18791,7 @@
           pos = clamp99(pos + de, 1, 99);
           endB = _e ? 100 : pos;
           usDrive ? ((v.rush += de), (v.yds += de)) : ((j.rush += de), (j.yds += de));
+          !usDrive && isSt171(qb2) && (st171.rush += de); /* v171 A */
           me = usDrive && t === "QB";
           me && ((P.rush += Math.max(0, de)), _e && P.td++);
           ue = _e
@@ -18918,6 +18930,7 @@
               (me = !0),
               (ue = `🪖 SACK — YOU get home and ${nm(qb2)} has nowhere to go: loss of ${-de}!`));
             usDrive && t === "QB" && (me = !0);
+            usDrive && isSt171(skr) && (st171.imp += 2); /* v171 A */
             !usDrive ? v.sacks++ : j.sacks++;
             pos = clamp99(pos + de, 1, 99);
             endB = pos;
@@ -18937,6 +18950,7 @@
             pos = clamp99(pos + de, 1, 99);
             endB = _e ? 100 : pos;
             usDrive ? ((v.rush += de), (v.yds += de)) : ((j.rush += de), (j.yds += de));
+            !usDrive && isSt171(qb2) && (st171.rush += de); /* v171 A */
             me = usDrive && t === "QB";
             me && ((P.rush += Math.max(0, de)), _e && P.td++);
             ue = _e
@@ -18978,6 +18992,9 @@
             usDrive
               ? ((v.pass += de), (v.yds += de), (v.air += airY), (v.yac += yacY))
               : ((j.pass += de), (j.yds += de), (j.air += airY), (j.yac += yacY));
+            /* v171 A: the star's line, from the resolved actors */
+            !usDrive && (isSt171(X.rec) && (st171.rec += de), isSt171(X.qb) && (st171.pass += de));
+            usDrive && (isSt171(X.tackler) && (st171.imp += 1), isSt171(X.assist) && (st171.imp += 0.5));
             {
               const _r = Math.random();
               oobSim = simOobV109(_q0);
@@ -19226,6 +19243,8 @@
           endB = _e ? 100 : pos;
           Pt = !!X.breakaway;
           usDrive ? ((v.rush += de), (v.yds += de)) : ((j.rush += de), (j.yds += de));
+          !usDrive && isSt171(X.carrier) && (st171.rush += de); /* v171 A */
+          usDrive && (isSt171(X.tackler) && (st171.imp += de <= 0 ? 2 : 1), isSt171(X.assist) && (st171.imp += 0.5));
           {
             const _r = Math.random();
             oobSim = simOobV109(_q0);
@@ -19660,19 +19679,20 @@
       focusV111: _fx111,
       callV171: (() => {
         try {
-          return evalCallV171(mu171, { team: xt, oppTeam: ua, roster: c, themScore: p, usScore: h });
+          return evalCallV171(mu171, { team: xt, oppTeam: ua, roster: c, themScore: p, usScore: h, starV171: st171 });
         } catch (_e) {
           return null;
         }
       })() /* v171 A: did the matchup call come off */,
       boxV171: (() => {
         try {
-          return boxV171({ team: xt, oppTeam: ua, roster: c, themScore: p, usScore: h });
+          return boxV171({ team: xt, oppTeam: ua, roster: c, themScore: p, usScore: h, starV171: st171 });
         } catch (_e) {
           return null;
         }
       })() /* v171 A: the team's own line, the baseline next week's offensive calls are judged on */,
       idV171: mu171 && mu171.I ? { star: mu171.I.star.name, weak: mu171.I.weak.name } : null,
+      starV171: mu171 && mu171.I ? st171 : null,
       /* v111: what he ACTUALLY did, which is what the body is billed from */
       snapsV111: {
         on: _slot111 ? _snapOn111 : null,
@@ -27416,7 +27436,7 @@
   }
   function oppIdentityV171(pl, w) {
     if (!v171On() || !pl || !w || !w.opp) return null;
-    if (w.idV171 && w.idV171.opp === w.opp && w.idV171.lv === (pl.level | 0)) return w.idV171;
+    if (w.idV171 && w.idV171.opp === w.opp && w.idV171.lv === (pl.level | 0) && w.idV171.v === 2) return w.idV171;
     const prof =
         w.opponentV11 ||
         createOpponentProfile(w.opp, pl.level, w.week || 1, pl.seasonSeed, w.playoff ? w.roundIdx : void 0),
@@ -27439,11 +27459,12 @@
         const r = NUMS_V171[p] || [1, 99];
         return r[0] + Math.floor(rnd() * (r[1] - r[0] + 1));
       },
-      star = { pos: starPos, name: randNameV153B(rnd), num: num(starPos), bump: Math.round((0.14 + rnd() * 0.1) * 100) / 100 },
+      star = { pos: starPos, name: randNameV153B(rnd), num: num(starPos), bump: Math.round((TU("starBumpV171", 0.08) + rnd() * 0.07) * 100) / 100 },
       weak = { pos: weakPos, name: randNameV153B(rnd), num: num(weakPos), drop: Math.round((0.1 + rnd() * 0.06) * 100) / 100 };
-    star.tier = star.bump >= 0.21 ? "ELITE" : "STAR";
+    star.tier = star.bump >= 0.13 ? "ELITE" : "STAR";
     if (weak.name === star.name) weak.name = randNameV153B(rnd);
     return (w.idV171 = {
+      v: 2,
       opp: w.opp,
       lv: pl.level | 0,
       strong: { unit: strong, pct: Math.round((0.07 + rnd() * 0.05) * 100) / 100, why: prof.strength },
@@ -27470,21 +27491,20 @@
   /* the level's no-call means, measured in the engine with every opponent's face on (`matchupcheck --calib`) */
   const BASE_V171 = {
       star: {
-        WR: [42, 43, 45, 45, 46, 48, 50, 51, 52],
-        TE: [30, 30, 30, 30, 30, 30, 31, 32, 32],
-        RB: [63, 66, 68, 70, 72, 72, 72, 72, 72],
-        QB: [155, 155, 160, 160, 163, 165, 166, 170, 170],
-        DL: [5, 5.4, 5.6, 6, 6, 7, 7, 7.2, 7.2],
-        LB: [10, 10, 10, 10, 10, 10, 10, 10, 10],
-        CB: [6, 6, 6, 6, 6, 6, 6, 6, 6]
+        WR: [35, 60, 85, 85, 95, 115, 130, 130, 110],
+        TE: [40, 60, 60, 60, 90, 100, 100, 90, 85],
+        RB: [85, 90, 115, 120, 150, 150, 155, 145, 110],
+        QB: [105, 120, 130, 145, 175, 190, 240, 255, 205],
+        DL: [1, 1, 1, 1, 1.6, 2.4, 3.5, 4.5, 2.6],
+        LB: [8, 8, 9, 9, 12, 14, 15, 15, 13],
+        CB: [3, 3, 3, 3, 3.8, 4, 5, 4.5, 4.5]
       },
-      oppRush: [110, 118, 118, 144, 161, 172, 185, 185, 190],
-      oppPts: [15, 16, 19, 22, 26, 28, 30, 31, 32],
-      pressure: [1.3, 1.3, 1.7, 1.7, 2.1, 3, 3.2, 3.7, 3.8],
-      usRush: [115, 110, 105, 100, 95, 90, 85, 85, 85],
-      usPass: [99, 114, 142, 170, 198, 227, 236, 263, 270],
-      usWR: [56, 58, 58, 58, 58, 58, 59, 60, 60],
-      sacked: [0.7, 1.2, 1.3, 1.6, 2.1, 2.8, 3.9, 4.2, 4.4]
+      oppRush: [107, 109, 124, 142, 168, 164, 178, 156, 139],
+      oppPts: [14, 15, 20, 20, 25, 25, 26, 25, 22],
+      pressure: [1.2, 1.5, 1.4, 1.9, 1.7, 2.7, 3.7, 4, 2.1],
+      usRush: [120, 102, 97, 93, 80, 74, 62, 55, 120],
+      usPass: [89, 116, 150, 165, 196, 218, 268, 233, 153],
+      sacked: [0.8, 1, 1.3, 1.7, 1.9, 2.9, 3.6, 4.3, 1.6]
     },
     METRIC_V171 = {
       star: { lab: (I) => `${lastNameV171(I.star.name)}'s ${["DL", "LB", "CB"].includes(I.star.pos) ? "impact plays" : I.star.pos === "QB" ? "passing yards" : "yards"}`, unit: (I) => (["DL", "LB", "CB"].includes(I.star.pos) ? "" : " yds") },
@@ -27493,7 +27513,6 @@
       pressure: { lab: () => "sacks + takeaways", unit: () => "" },
       usRush: { lab: () => "your team's rushing yards", unit: () => " yds" },
       usPass: { lab: () => "your team's passing yards", unit: () => " yds" },
-      usWR: { lab: () => "your top receiver's yards", unit: () => " yds" },
       sacked: { lab: () => "sacks allowed", unit: () => "" }
     },
     PAY_V171 = {
@@ -27780,28 +27799,26 @@
     if (key === "star") {
       const s = R && [...R.opp.off, ...R.opp.def].find(x => x._starV171);
       if (!s) return null;
-      const t = s.stat || {};
+      const t = g.starV171 || {}; /* the ledger the game credited — never the roster's pre-rolled line */
       return s.pos === "QB"
         ? t.pass || 0
         : s.pos === "RB"
           ? (t.rush || 0) + (t.rec || 0)
           : s.pos === "WR" || s.pos === "TE"
             ? t.rec || 0
-            : (t.tackle || 0) + 2 * (t.sack || 0) + 2 * (t.tfl || 0) + 3 * (t.int || 0) + 2 * (t.pd || 0) + 2 * (t.ff || 0);
+            : t.imp || 0;
     }
     if (key === "oppRush") return O.rush || 0;
     if (key === "oppPts") return g.themScore || 0;
     if (key === "pressure") return (T.sacks || 0) + (O.turn || 0);
     if (key === "usRush") return T.rush || 0;
     if (key === "usPass") return T.pass || 0;
-    if (key === "usWR")
-      return R ? Math.max(0, ...R.us.off.filter(x => x.pos === "WR" || x.pos === "TE").map(x => (x.stat && x.stat.rec) || 0)) : 0;
     if (key === "sacked") return O.sacks || 0;
     return null;
   }
   function boxV171(g) {
     const o = {};
-    ["oppRush", "oppPts", "pressure", "usRush", "usPass", "usWR", "sacked"].forEach(k => (o[k] = Math.round(metricV171(k, g) || 0)));
+    ["oppRush", "oppPts", "pressure", "usRush", "usPass", "sacked"].forEach(k => (o[k] = Math.round(metricV171(k, g) || 0)));
     return o;
   }
   function evalCallV171(mu, g) {
