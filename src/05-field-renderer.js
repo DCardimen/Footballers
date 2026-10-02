@@ -1332,6 +1332,276 @@ window.__V104 = Object.assign(window.__V104 || {}, {
       cap: m._numCapV104, inkTop: m._numRowV104 - half, inkBot: m._numRowV104 + half, scale: m._numScaleV104,
       onScreenH: m._numCapV104 * (m.body.scaleY || 1) * (m.root ? m.root.scale : 1) }; }
 });
+/* ===== v176 THE NUMBER IS SEWN ON =====
+ * v104 put the number in the right band, but it was still a sticker. Oswald, rasterized at 20 px and scaled down onto
+ * a 48 px pixel-art body, with a dark stroke: a crisp vector label floating over a soft pixel shirt. Its band came off
+ * the silhouette's width, and a rear helmet is drawn in the jersey's own colour, so on a back view the "collar" sat
+ * inside the helmet and the number climbed onto it. A front block or a run at the camera put it on the facemask.
+ *
+ * Now the number is part of the shirt. Every drawn cell is read once (`torsoV176`): the jersey's own pixels
+ * (the navy the recolour turns into the team's primary), the helmet found from its markings (the stripe, the
+ * facemask, the face) and cut off with a collar row under it, the waistband from v104, and the torso's middle and
+ * width row by row. A pixel numeral (`NUM_GLYPHS_V176`: a bold 5x7 varsity face for a back, 4x6, 3x5, 3x4 for a
+ * chest) is laid on that torso on the SAME pixel grid as the art, and only on jersey pixels: an arm, a glove, the
+ * ball or the facemask in front of the shirt covers the number, exactly as it would cover a sewn one. Each pixel
+ * carries the fabric's shade (its lightness over the torso's median), so the folds and the lamp run through it.
+ * Its colours come off the recoloured texture itself (`inkV176`): white with the kit's second colour as trim on a
+ * dark jersey, dark on a light one. A drawn cycle (a run, a block, a throw) wears ONE face across all its frames,
+ * the biggest every frame can carry, so it never pulses; a pose with no clean shirt to print on (running straight
+ * at the camera, a lineman's hands on his chest) shows no number rather than a broken one.
+ * The print is baked per (texture, number, mirror) into a 48x48 layer (`sewKeyV176`, kept to `sewCapV176`) and
+ * rides between the body and the skin in his container with the body's own transform and light (`sewSyncV176`).
+ * The v104 label still places itself every frame (the hooks read it) but is hidden while the print is on.
+ * Off switch: TU v176sew 0 (the v104 / v159 A label exactly). `window.__V176` is what the checks read. */
+const NUM_GLYPHS_V176 = {
+  L: [[".###.", "##.##", "##.##", "##.##", "##.##", "##.##", ".###."], [".##", "###", ".##", ".##", ".##", ".##", ".##"],
+    ["####.", "...##", "...##", ".###.", "##...", "##...", "#####"], ["####.", "...##", "...##", ".###.", "...##", "...##", "####."],
+    ["##.##", "##.##", "##.##", "#####", "...##", "...##", "...##"], ["#####", "##...", "##...", "####.", "...##", "...##", "####."],
+    [".###.", "##...", "##...", "####.", "##.##", "##.##", ".###."], ["#####", "...##", "...##", "..##.", "..##.", ".##..", ".##.."],
+    [".###.", "##.##", "##.##", ".###.", "##.##", "##.##", ".###."], [".###.", "##.##", "##.##", ".####", "...##", "...##", ".###."]],
+  M: [[".##.", "#..#", "#..#", "#..#", "#..#", ".##."], [".#", "##", ".#", ".#", ".#", ".#"], ["###.", "...#", "...#", ".##.", "#...", "####"],
+    ["###.", "...#", ".##.", "...#", "...#", "###."], ["#..#", "#..#", "#..#", "####", "...#", "...#"], ["####", "#...", "###.", "...#", "...#", "###."],
+    [".##.", "#...", "###.", "#..#", "#..#", ".##."], ["####", "...#", "..#.", ".#..", ".#..", ".#.."], [".##.", "#..#", ".##.", "#..#", "#..#", ".##."],
+    [".##.", "#..#", "#..#", ".###", "...#", ".##."]],
+  S: [["###", "#.#", "#.#", "#.#", "###"], [".#", "##", ".#", ".#", ".#"], ["##.", "..#", ".#.", "#..", "###"], ["##.", "..#", ".#.", "..#", "##."],
+    ["#.#", "#.#", "###", "..#", "..#"], ["###", "#..", "##.", "..#", "##."], [".##", "#..", "###", "#.#", "###"], ["###", "..#", ".#.", ".#.", ".#."],
+    ["###", "#.#", "###", "#.#", "###"], ["###", "#.#", "###", "..#", "##."]],
+  X: [["###", "#.#", "#.#", "###"], ["##", ".#", ".#", ".#"], ["##.", "..#", ".#.", "###"], ["###", ".##", "..#", "###"], ["#.#", "###", "..#", "..#"],
+    ["###", "##.", "..#", "##."], ["#..", "###", "#.#", "###"], ["###", "..#", ".#.", ".#."], ["###", "###", "#.#", "###"], ["###", "#.#", "###", "..#"]]
+};
+// the faces a facing may wear, biggest first: [face, trimmed]
+const NUM_FACES_V176 = { up: [["L", 1], ["M", 1], ["M", 0], ["S", 0]], ur: [["S", 0], ["X", 0]], dn: [["M", 1], ["M", 0], ["S", 0], ["X", 0]], dr: [["S", 0], ["X", 0]] };
+const NUM_RANK_V176 = { Lt: 0, Mt: 1, M: 2, S: 3, X: 4 };
+function facingV176(srcName, dir) {
+  const m = /(?:^|_)(up|dn|dr|ur|sd)(?=\d|_|$)/.exec(srcName) || /(up|dn|dr|ur|sd)\d*$/.exec(srcName);
+  const f = m ? m[1] : dir || "dn";
+  return f === "sd" ? null : f;
+}
+// the drawn cell, classed: 0 empty, 1 jersey, 2 the second colour, 3 outline, 4 skin, 5 anything else (facemask, gloves, ball)
+function torsoClassV176(srcName, cell) {
+  const C = RIB.torsoV176 || (RIB.torsoV176 = {});
+  if (C[srcName] !== undefined) return C[srcName];
+  let out = null;
+  try {
+    const N = 48, d = cell.getContext("2d").getImageData(0, 0, N, N).data, sk = skinMaskV151D(cell);
+    const cls = new Uint8Array(N * N), lum = new Float32Array(N * N);
+    for (let i = 0; i < N * N; i++) {
+      if (d[i * 4 + 3] < 40) continue;
+      const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = (mx + mn) / 2;
+      lum[i] = L;
+      if (sk && sk.mask[i]) { cls[i] = 4; continue; }
+      if (L < 38) { cls[i] = 3; continue; }
+      const sat = mx ? (mx - mn) / mx : 0;
+      let hue = 0;
+      if (mx !== mn) { if (mx === r) hue = (60 * ((g - b) / (mx - mn)) + 360) % 360; else if (mx === g) hue = 60 * ((b - r) / (mx - mn)) + 120; else hue = 60 * ((r - g) / (mx - mn)) + 240; }
+      cls[i] = hue >= 190 && hue <= 265 && sat > 0.15 ? 1 : hue >= 33 && hue <= 62 && sat > 0.3 && L > 60 ? 2 : 5;
+    }
+    out = { cls, lum };
+  } catch (e) {}
+  C[srcName] = out; return out;
+}
+// the torso of one drawn cell seen one way (mirrored or not): where the helmet ends, the shirt's rows, middle and width
+function torsoV176(srcName, F, flip) {
+  const K = srcName + "|" + F + (flip ? "|f" : ""), C = RIB.torsoBoxV176 || (RIB.torsoBoxV176 = {});
+  if (C[K] !== undefined) return C[K];
+  let out = null;
+  const cell = ribCellV91(srcName) || ribCellV22(srcName) || ribCell(srcName), T = cell ? torsoClassV176(srcName, cell) : null;
+  if (T) {
+    const N = 48, at = (x, y) => (x < 0 || y < 0 || x >= N || y >= N) ? 0 : T.cls[y * N + (flip ? N - 1 - x : x)];
+    const lumAt = (x, y) => T.lum[y * N + (flip ? N - 1 - x : x)];
+    const rear = F === "up" || F === "ur";
+    // the helmet's crown: the first row wide enough to be a dome, not a raised hand
+    let HT = -1, hc = 24;
+    for (let y = 0; y < N && HT < 0; y++) { let run = 0, best = 0, be = 0; for (let x = 0; x <= N; x++) { if (x < N && at(x, y)) { run++; if (run > best) { best = run; be = x; } } else run = 0; } if (best >= 5) { HT = y; hc = be - (best - 1) / 2; } }
+    if (HT >= 0) {
+      let hx0 = Math.round(hc), hx1 = Math.round(hc);
+      for (let y = HT; y < HT + 6; y++) { let x0 = Math.round(hc), x1 = x0; while (x0 > 0 && at(x0 - 1, y)) x0--; while (x1 < N - 1 && at(x1 + 1, y)) x1++; if (x1 - x0 > hx1 - hx0) { hx0 = x0; hx1 = x1; } }
+      hc = (hx0 + hx1) / 2;
+      // the helmet ends where its markings do: the stripe, the facemask and the face, read down the helmet's width
+      // until two rows in a row carry none of them (a back view's helmet is the jersey's own colour; its stripe is not)
+      let HB = HT + 8, clear = 0;
+      const hmax = rear ? TU("sewHelmRearV176", 14) : TU("sewHelmFrontV176", 21);
+      for (let y = HT + 1; y <= Math.min(N - 1, HT + hmax); y++) {
+        let mark = 0;
+        for (let x = hx0 + 1; x <= hx1 - 1; x++) { const c = at(x, y); if (c === 2 || c === 4 || c === 5) mark++; }
+        if (mark && clear < 2) { HB = y; clear = 0; } else if (!mark) { clear++; if (y >= HT + 8 && clear >= 2) break; }
+      }
+      const band = RIB.numBandSrc[srcName];
+      const y0 = HB + 1 + (rear ? TU("sewCollarV176", 1) : 0), y1 = (band ? band.waist : HT + 27) - 1;
+      const cs = [], ws = [], ls = [];
+      for (let y = y0; y <= y1; y++) {
+        let bx = -1, bd = 1e9;
+        for (let x = 0; x < N; x++) if (at(x, y) === 1 && Math.abs(x - hc) < bd) { bd = Math.abs(x - hc); bx = x; }
+        if (bx < 0 || bd > 6) continue;
+        let a = bx, z = bx; while (a > 0 && (at(a - 1, y) === 1 || at(a - 1, y) === 2)) a--; while (z < N - 1 && (at(z + 1, y) === 1 || at(z + 1, y) === 2)) z++;
+        cs.push((a + z) / 2); ws.push(z - a + 1);
+        for (let x = a; x <= z; x++) if (at(x, y) === 1) ls.push(lumAt(x, y));
+      }
+      const med = (v) => { const q = v.slice().sort((p, r) => p - r); return q.length ? q[q.length >> 1] : null; };
+      if (cs.length && y1 >= y0) out = { F, flip: !!flip, HT, HB, y0, y1, cx: med(cs), w: med(ws), med: med(ls) || 60, at, lumAt };
+    }
+  }
+  C[K] = out; return out;
+}
+function glyphsV176(str, face) {
+  const G = NUM_GLYPHS_V176[face]; let w = 0; const parts = [];
+  for (const ch of str) { const g = G[+ch]; if (!g) return null; parts.push({ g, x: w }); w += g[0].length + 1; }
+  return { w: w - 1, h: G[0].length, parts };
+}
+// the number on one cell: the biggest face (from `minRank` down) that sits on the shirt, nearest the torso's middle
+function fitV176(srcName, F, flip, str, minRank) {
+  const T = torsoV176(srcName, F, flip); if (!T) return null;
+  const rows = T.y1 - T.y0 + 1, rear = F === "up" || F === "ur", need = TU("sewCoverV176", 0.9);
+  for (const [face, trim] of NUM_FACES_V176[F] || []) {
+    const rank = NUM_RANK_V176[face + (trim ? "t" : "")]; if (rank < (minRank || 0)) continue;
+    const Lo = glyphsV176(str, face); if (!Lo) return null;
+    const th = Lo.h + (trim ? 2 : 0); if (th > rows + (trim ? 1 : 0)) continue;
+    const nomX = Math.round(T.cx + 0.5 - Lo.w / 2), slack = rows - th;
+    const nomY = T.y0 + (trim ? 1 : 0) + Math.max(0, Math.floor(slack * (rear ? TU("sewRiseRearV176", 0.3) : TU("sewRiseFrontV176", 0.25))));
+    const tries = [];
+    const dxm = F === "ur" || F === "dr" ? TU("sewQuarterDxV176", 4) : 2;   // a turned back shows its middle off the helmet's line
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -dxm; dx <= dxm; dx++) { const y = nomY + dy; if (y < T.y0 + (trim ? 1 : 0) || y + Lo.h - 1 > T.y1) continue; tries.push([Math.abs(dy) + Math.abs(dx) * 1.5, nomX + dx, y]); }
+    tries.sort((p, q) => p[0] - q[0]);
+    for (const [, x0, y0] of tries) {
+      // a hand, a glove or the ball in front of the shirt may cover some of it (it would cover a sewn number too), but
+      // a numeral's top and bottom rows must be on the shirt: cut by the collar, the chin or the belt it reads as another digit
+      let on = 0, tot = 0, edge = 0;
+      for (const p of Lo.parts) for (let gy = 0; gy < p.g.length; gy++) { const row = p.g[gy]; for (let gx = 0; gx < row.length; gx++) if (row[gx] === "#") {
+        tot++; const c = T.at(x0 + p.x + gx, y0 + gy);
+        if (c === 1) on++; else if ((gy === 0 || gy === p.g.length - 1) && c !== 4 && c !== 5) edge++;
+      } }
+      if (!edge && on / tot >= need) return { face, trim, rank, x0, y0, Lo, T, cover: on / tot };
+    }
+  }
+  return null;
+}
+// a drawn cycle wears one face: the biggest every frame of it can carry (a run never pulses between sizes)
+function stemOfV176(srcName) { return srcName.replace(/\d+$/, ""); }
+function stemMembersV176(srcName) {
+  const S = RIB.numSrcV176 || {}, n = Object.keys(S).length;
+  if (!RIB.stemsV176 || RIB.stemsV176.n !== n) {
+    const by = {}; for (const k in S) { const src = S[k], st = stemOfV176(src); (by[st] || (by[st] = [])).indexOf(src) < 0 && by[st].push(src); }
+    RIB.stemsV176 = { n, by };
+  }
+  return RIB.stemsV176.by[stemOfV176(srcName)] || [srcName];
+}
+function placeV176(srcName, F, flip, str, narrow) {
+  const K = srcName + "|" + F + (flip ? "|f" : "") + "|" + str + (narrow ? "|n" : ""), C = RIB.placeV176 || (RIB.placeV176 = {});
+  if (C[K] !== undefined) return C[K];
+  let pick = null;
+  const all = (src) => { const out = []; let r = narrow ? NUM_RANK_V176.Mt : 0; for (;;) { const f = fitV176(src, F, flip, str, r); if (!f) break; out.push(f); r = f.rank + 1; } return out; };
+  const mine = all(srcName);
+  if (TU("sewCycleV176", 1)) {
+    const others = stemMembersV176(srcName).filter((s) => s !== srcName).map((s) => all(s).map((f) => f.rank));
+    for (const f of mine) if (others.every((rs) => rs.indexOf(f.rank) >= 0)) { pick = f; break; }
+  } else pick = mine[0] || null;
+  C[K] = pick; return pick;
+}
+const hexRgbV176 = (h) => { const v = parseInt(String(h).replace("#", ""), 16) || 0; return [v >> 16, (v >> 8) & 255, v & 255]; };
+const lumRgbV176 = (c) => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+// the ink, read off the recoloured texture: the jersey's own median and the second colour's
+function inkV176(scene, tex, srcName) {
+  const C = RIB.inkV176 || (RIB.inkV176 = {}), src = scene.textures.get(tex).getSourceImage(), hit = C[tex];
+  if (hit && hit.src === src) return hit.ink;
+  let ink = null;
+  try {
+    const cell = ribCellV91(srcName) || ribCellV22(srcName) || ribCell(srcName), T = cell && torsoClassV176(srcName, cell);
+    const d = src.getContext ? src.getContext("2d").getImageData(0, 0, 48, 48).data : null;
+    if (T && d) {
+      const J = [[], [], []], S2 = [[], [], []];
+      for (let i = 0; i < 48 * 48; i++) { const k = T.cls[i] === 1 ? J : T.cls[i] === 2 ? S2 : null; if (k && d[i * 4 + 3] > 200) { k[0].push(d[i * 4]); k[1].push(d[i * 4 + 1]); k[2].push(d[i * 4 + 2]); } }
+      const med = (a) => { a.sort((p, q) => p - q); return a.length ? a[a.length >> 1] : 0; };
+      if (J[0].length) {
+        // light or dark is the KIT's call (the drawn shading darkens a white jersey's median to a mid grey); the pixels
+        // themselves are the colours as drawn, so the trim matches the stripe and the pants beside it
+        const j = J.map(med), alt = S2[0].length ? S2.map(med) : null, Lj = lumRgbV176(j);
+        const cols = RIB.teamCols[(/^spr_([^_]+)_/.exec(tex) || [])[1]], nom = cols && cols[0] ? hexRgbV176(cols[0]) : null, nom2 = cols && cols[1] ? hexRgbV176(cols[1]) : null;
+        const Ln = nom ? lumRgbV176(nom) : Lj * 1.45, La = nom2 ? lumRgbV176(nom2) : alt ? lumRgbV176(alt) * 1.45 : -1e3;
+        const light = Ln > TU("sewLightV176", 160);
+        let fill, trim;
+        if (light) {
+          fill = alt && Ln - La > TU("sewInkGapV176", 80) ? alt : (nom || j).map((v) => Math.round(v * 0.18));
+          trim = null;   // a dark number on a light shirt reads clean on its own; a darker-shirt outline only muddies it
+        } else {
+          fill = [255, 255, 255];
+          trim = alt && 255 - La > TU("sewTrimGapV176", 45) && Math.abs(La - Ln) > 30 ? alt : j.map((v) => Math.round(v * 0.5));
+        }
+        ink = { fill, trim, jersey: j, light };
+      }
+    }
+  } catch (e) {}
+  C[tex] = { src, ink }; return ink;
+}
+// the printed layer for one (texture, number, mirror) — "" when this pose has no shirt to print on
+function sewKeyV176(scene, tex, srcName, F, flip, str, spec, noBudget) {
+  const key = "sew176_" + tex + "_" + str + (flip ? "_f" : "") + (spec ? "_" + spec.id : ""), L = RIB.sewV176 || (RIB.sewV176 = new Map()), frame = RIB.sewFrameV176 || 0;
+  const src = scene.textures.exists(tex) ? scene.textures.get(tex).getSourceImage() : null;
+  let e = L.get(key);
+  if (e && e.src === src && (!e.key || scene.textures.exists(e.key))) { e.at = frame; L.delete(key); L.set(key, e); return e.key; }
+  // a budget per frame: the first frame of a game meets every man's poses at once — what does not fit waits a frame or
+  // two (no number for those frames), never a hitch
+  { const V = window.__V176; if (!noBudget && V._fr === frame && V._frMs > TU("sewFrameMsV176", 4)) { V.deferred++; return ""; } }
+  if (e && e.key) { try { if (scene.textures.exists(e.key)) scene.textures.remove(e.key); } catch (er) {} }
+  let out = "";
+  const t0 = performance.now();
+  const P = src ? placeV176(srcName, F, flip, str, spec && spec.narrow) : null, ink0 = P ? inkV176(scene, tex, srcName) : null;
+  const ink = ink0 && spec ? { fill: hexRgbV176(spec.fill), trim: hexRgbV176(spec.trim), grad: spec.grad ? spec.grad.map(hexRgbV176) : null, stencil: spec.stencil } : ink0;
+  if (P && ink) {
+    try {
+      const N = 48, cv = document.createElement("canvas"); cv.width = N; cv.height = N;
+      const cx = cv.getContext("2d"), im = cx.createImageData(N, N), T = P.T;
+      const lo = TU("sewShadeLoV176", 0.62), hi = TU("sewShadeHiV176", 1.1);
+      const set = (x, y, c) => {
+        if (y < T.y0 || T.at(x, y) !== 1) return;   // only on the shirt: a hand, the ball, the facemask covers it
+        const i = y * N + x, f = Math.max(lo, Math.min(hi, T.lumAt(x, y) / T.med));
+        im.data[i * 4] = Math.min(255, c[0] * f); im.data[i * 4 + 1] = Math.min(255, c[1] * f); im.data[i * 4 + 2] = Math.min(255, c[2] * f); im.data[i * 4 + 3] = 255;
+      };
+      const fillPx = [], isFill = new Set();
+      for (const p of P.Lo.parts) for (let gy = 0; gy < p.g.length; gy++) { const row = p.g[gy]; for (let gx = 0; gx < row.length; gx++) if (row[gx] === "#") { const x = P.x0 + p.x + gx, y = P.y0 + gy; fillPx.push(x, y); isFill.add(y * N + x); } }
+      if (P.trim && ink.trim) {
+        // the trim runs round the OUTSIDE of the numerals: a 0's or an 8's one-pixel counter stays shirt, so it still reads
+        const bx0 = P.x0 - 2, by0 = P.y0 - 2, bw = P.Lo.w + 4, bh = P.Lo.h + 4, out = new Uint8Array(bw * bh), q = [0];
+        out[0] = 1;
+        while (q.length) { const j = q.pop(), qx = j % bw, qy = (j / bw) | 0;
+          for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = qx + ddx, ny = qy + ddy; if (nx < 0 || ny < 0 || nx >= bw || ny >= bh) continue; const nj = ny * bw + nx; if (out[nj] || isFill.has((by0 + ny) * N + bx0 + nx)) continue; out[nj] = 1; q.push(nj); } }
+        for (let k = 0; k < fillPx.length; k += 2) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const x = fillPx[k] + dx, y = fillPx[k + 1] + dy; if (isFill.has(y * N + x) || !out[(y - by0) * bw + (x - bx0)]) continue; set(x, y, ink.trim);
+        }
+      }
+      const h = P.Lo.h, mid = h >> 1;
+      for (let k = 0; k < fillPx.length; k += 2) {
+        const x = fillPx[k], y = fillPx[k + 1], gy = y - P.y0;
+        // a stencil's bridges: the middle row of every upright stroke is left as shirt
+        if (ink.stencil && gy === mid && isFill.has((y - 1) * N + x) && isFill.has((y + 1) * N + x)) continue;
+        const g = ink.grad, t = h > 1 ? gy / (h - 1) : 0;
+        set(x, y, g ? [g[0][0] + (g[1][0] - g[0][0]) * t, g[0][1] + (g[1][1] - g[0][1]) * t, g[0][2] + (g[1][2] - g[0][2]) * t] : ink.fill);
+      }
+      cx.putImageData(im, 0, 0);
+      if (scene.textures.exists(key)) scene.textures.remove(key);
+      scene.textures.addCanvas(key, cv); out = key;
+      const V = window.__V176; V.baked++; V.faces[P.face + (P.trim ? "t" : "")] = (V.faces[P.face + (P.trim ? "t" : "")] || 0) + 1;
+    } catch (er) { out = ""; }
+  } else window.__V176.bare++;
+  { const V = window.__V176, dt = performance.now() - t0; V.ms += dt; if (V._fr !== frame) { V._fr = frame; V._frMs = 0; } V._frMs += dt; if (V._frMs > V.maxFrameMs) V.maxFrameMs = V._frMs; }
+  L.set(key, { key: out, src, at: frame });
+  // keep the layer count bounded: drop the longest-unused prints no marker has worn for a couple of frames
+  const cap = TU("sewCapV176", 1200);
+  if (L.size > cap) for (const [k, v] of L) { if (L.size <= cap * 0.85) break; if (v.at >= frame - 2) continue; if (v.key) { try { scene.textures.remove(v.key); } catch (er) {} } L.delete(k); window.__V176.evicted++; }
+  return out;
+}
+window.__V176 = Object.assign(window.__V176 || {}, {
+  baked: 0, bare: 0, evicted: 0, frames: 0, shown: 0, faces: {}, ms: 0, maxFrameMs: 0, deferred: 0,
+  src: () => RIB.numSrcV176 || {},
+  cell: (n) => ribCellV91(n) || ribCellV22(n) || ribCell(n),
+  torso: (n, F, flip) => { const T = torsoV176(n, F || facingV176(n), flip); return T ? { F: T.F, HT: T.HT, HB: T.HB, y0: T.y0, y1: T.y1, cx: T.cx, w: T.w } : null; },
+  place: (n, str, F, flip) => { const P = placeV176(n, F || facingV176(n), flip, String(str)); return P ? { face: P.face, trim: P.trim, x0: P.x0, y0: P.y0, w: P.Lo.w, h: P.Lo.h, cover: +P.cover.toFixed(3) } : null; },
+  facing: (n, dir) => facingV176(n, dir),
+  ink: (sc, tex) => { const n = (RIB.numSrcV176 || {})[String(tex).replace(/^spr_[^_]+_/, "")]; return n ? inkV176(sc, tex, n) : null; },
+  size: () => (RIB.sewV176 ? RIB.sewV176.size : 0),
+  // a check prints a number on any registered texture, and dresses a throwaway kit to read its ink
+  bake: (sc, tex, num, flip, dir) => { const n = (RIB.numSrcV176 || {})[String(tex).replace(/^spr_[^_]+_/, "")], F = n ? facingV176(n, dir) : null; return n && F ? sewKeyV176(sc, tex, n, F, !!flip, String(num), null, true) : ""; },
+  dress: (sc, team, p1, p2) => { ribRegisterTeam(sc, team, p1, p2); return Object.keys(RIB.numSrcV176 || {}).length; }
+});
 /* ===== v108 THE EXCHANGE, AND WHICH WAY HE THROWS =====
  * v107 gave the throw a facing; it could not give it a SIDE. `faceMarker` never flips an `up`
  * man (there is one rear drawing and a mirror of it would put the ball in the wrong hand), so a
@@ -1412,6 +1682,7 @@ function ribRegisterTeam(scene, team, p1, p2, deco) {
   const put = (key, srcName) => {
     const cell0 = ribCellV91(srcName) || ribCellV22(srcName) || ribCell(srcName); if (!cell0) return;   // v91 > v22 > baked, by name
     RIB.numBandTex[key] = numBandV104(srcName, cell0);   // v104: where this pose wears its number
+    (RIB.numSrcV176 || (RIB.numSrcV176 = {}))[key.replace(/^spr_[^_]+_/, "")] = srcName;   // v176: which drawn cell this pose is
     let cv = ribRecolor(cell0, p1, p2);
     // v151 D: the kit never touches skin — the skin pixels come back from the drawn cell, and the
     // texture remembers which grey skin cell its layer wears
@@ -2285,7 +2556,7 @@ class Ot extends mt.Scene {
         script.actors.forEach((a, i) => {
           const m = this.markers[i], f0 = a.frames[0];
           this.setTeam(m, a.side === "off" ? "off" : "def", this.kitForV105_2(a.side, et));   // v105.2: side AND kit
-          m.body.clearTint(); m.body.setScale(1); m.body.setAlpha(1); m.body.setRotation(0); m.label.setAlpha(1); m.label.setVisible(true);
+          m.body.clearTint(); m.body.setScale(1); m.body.setAlpha(1); m.body.setRotation(0); m.label.setAlpha(1); m.label.setVisible(!(m.sew && m.sew.visible && TU("v176sew", 1)));   // v176: a printed number is not doubled by the label
           m.isLine = (a.label === "OL" || a.label === "DE" || a.label === "DT" || a.label === "DL");
           m.homeDir = i < 11 ? "up" : "dn";
           m.forceState = null;
@@ -5533,11 +5804,12 @@ class Ot extends mt.Scene {
     // direction) — the old path re-set the font size on every marker on every frame.
     const label = this.add.text(0, -3, String(num), numStyleV104(team)).setOrigin(0.5);
     { const sw = TU("numStroke", 2.2); if (sw > 0) label.setStroke("#0a0e14", sw); }
+    const sew = this.add.image(0, 0, initialKey).setVisible(false);    // v176: his number, printed on the shirt
     const skin = this.add.image(0, 0, initialKey).setVisible(false);   // v151 D: his own skin, a layer over the kit
     const sil = this.add.image(0, 24, initialKey).setOrigin(0.5, 1).setVisible(false);    // v164 A: his own silhouette on the grass
     const sil2 = this.add.image(0, 24, initialKey).setOrigin(0.5, 1).setVisible(false);   // v164 A: ...and the fainter one the second lamp throws
-    const root = this.add.container(0, 0, [fill, sil2, sil, shadow, body, skin, label]).setDepth(4);
-    const m = { root, body, skin, label, shadow, fill, sil, sil2, team, kit, num, sx, sy, dirKey: "dn", flip: false, ft: 0, hd: null, cutUntil: 0, tms: 0 };
+    const root = this.add.container(0, 0, [fill, sil2, sil, shadow, body, sew, skin, label]).setDepth(4);
+    const m = { root, body, sew, skin, label, shadow, fill, sil, sil2, team, kit, num, sx, sy, dirKey: "dn", flip: false, ft: 0, hd: null, cutUntil: 0, tms: 0 };
     if (faceDx != null) this.faceMarker(m, faceDx, faceDy || 0);
     this.placeMarker(m, sx, sy, 16);
     return m;
@@ -5714,6 +5986,36 @@ class Ot extends mt.Scene {
     if (!this._skinHookV151) { this._skinHookV151 = true; this.events.on("postupdate", () => { for (const mm of this.markers || []) if (mm && mm.skin) this.skinFollowV151D(mm); }); }
     this.skinFollowV151D(m);
     const V = window.__V151D_SKIN; if (V) { V.frames++; V.tones[m.skinTone] = (V.tones[m.skinTone] || 0) + 1; }
+  }
+  /* v176: the printed number — the layer for this cell and this number, worn with the body's own transform and light.
+   * A man wearing a number-font cosmetic is printed in that font's colours and cut (src/28 `sewSpecV176`). */
+  sewSyncV176(m, tex, allowed) {
+    const sw = m.sew; if (!sw) return;
+    const on = TU("v176sew", 1) && tex !== "rib_player_fallback";
+    let key = "";
+    if (on && allowed && m.body.visible !== false) {
+      const src = (RIB.numSrcV176 || {})[tex.replace(/^spr_[^_]+_/, "")], str = String(m.label ? m.label.text : m.num != null ? m.num : "").replace(/[^0-9]/g, "").slice(0, 2);
+      const F = src ? facingV176(src, m.dirKey) : null;
+      const fr = this.game && this.game.loop ? this.game.loop.frame : 0;
+      if (RIB.sewFrameV176 !== fr) { RIB.sewFrameV176 = fr; window.__V176.frames++; }
+      if (src && F && str) key = sewKeyV176(this, tex, src, F, !!m.body.flipX, str, m._nfKeyV153G ? m._sewNfV176 : null);
+    }
+    if (on && m.label && m.label.visible) m.label.setVisible(false);   // the print IS the number now (or there is no shirt to print it on)
+    m._sewKeyV176 = key;
+    if (!key) { if (sw.visible) sw.setVisible(false); return; }
+    if (sw.texture.key !== key) sw.setTexture(key);
+    if (!sw.visible) sw.setVisible(true);
+    const b = m.body, lt = b.isTinted ? b.tintTopLeft : 0xffffff;
+    if (sw._tintV176 !== lt) { if (lt === 0xffffff) sw.clearTint(); else sw.setTint(lt); sw._tintV176 = lt; }
+    if (!this._sewHookV176) { this._sewHookV176 = true; this.events.on("postupdate", () => { for (const mm of this.markers || []) if (mm && mm.sew && mm.sew.visible) this.sewFollowV176(mm); }); }
+    this.sewFollowV176(m);
+    window.__V176.shown++;
+  }
+  sewFollowV176(m) {
+    const sw = m.sew, b = m.body; if (!sw || !b) return;
+    if (b.visible === false) { sw.setVisible(false); return; }
+    if (m.label && m.label.visible) m.label.setVisible(false);   // a path that re-shows the label between syncs (the formation reset) never doubles the number
+    sw.setFlipX(false); sw.setOrigin(b.originX, b.originY); sw.setRotation(b.rotation); sw.setPosition(b.x, b.y); sw.setScale(b.scaleX, b.scaleY); sw.setAlpha(b.alpha);
   }
   skinFollowV151D(m) {
     const sk = m.skin, b = m.body; if (!sk || !sk.visible) return;
@@ -6133,6 +6435,7 @@ class Ot extends mt.Scene {
     const numberAllowed = st !== "down" && st !== "dive" && (!ribStance || m.isLine) && st.indexOf("tackle") !== 0 && !detailedAction && !ribSideProfile;
     m.label.setVisible(numberAllowed);
     if (numberAllowed) this.numPlaceV104(m, ribRearFacing);
+    this.sewSyncV176(m, tex, numberAllowed);   // v176: the number printed on the shirt (the label stands down)
     m._ribRearFacing=ribRearFacing;
     if (window.__RIB20_updateAppearance) window.__RIB20_updateAppearance(this, m, st, spdPx);
     // turf spray at speed, skid streaks on hard cuts

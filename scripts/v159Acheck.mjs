@@ -26,6 +26,7 @@ const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message + ' @ ' + String(e.stack || '').split('\n').slice(1, 4).join(' | ')))
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) errs.push('CONSOLE: ' + m.text().slice(0, 200)) })
 await page.addInitScript(() => { setInterval(() => { document.querySelector('.onboard')?.remove() }, 60) })
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v176sew: 0, v176chest: 0 }) })   // v176: this guards the label / v158 A / v159 A paths (the printed number is numsewcheck)
 let pass = 0, fail = 0
 const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undefined ? '  ' + (typeof d === 'string' ? d : JSON.stringify(d)) : '')); c ? pass++ : fail++ }
 const E = (fn, arg) => page.evaluate(fn, arg)

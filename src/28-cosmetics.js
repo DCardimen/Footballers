@@ -1661,6 +1661,7 @@
     try { (scene._cosGhostV153G || []).forEach(function (g) { if (g && g.scene) g.setVisible(false); }); var g = scene._cosTrailV153G; if (g && g.scene) g.clear(); } catch (e) {}
   }
   function numfontFxV153G(m, N) {
+    m._sewNfV176 = N ? sewSpecV176(N) : null;   // v176: the field prints the number into the shirt (src/05) in this font's colours
     var L = m.label; if (!L || !L.setFontFamily || !L.style) return;
     if (!N) { dropNumV158A(m, null); var o = m._nfOrigV153G; if (o) { try { L.setFontFamily(o.f); L.setColor(o.c); L.setStroke(o.s, o.w); } catch (e) {} m._nfOrigV153G = null; m._nfKeyV153G = null; } return; }
     var st = L.style; if (m._nfKeyV153G === N.id && st.fontFamily === N.d.font && st.color === N.d.col) return;
@@ -4010,6 +4011,7 @@
   function chestNumberV157C(cv, res, num, nfId) {
     if (!res || !res.geo || num == null || num === "" || !onV157C("v157Cfig")) return null;
     var C = chestV157C(); if (!C) return null;
+    var r176 = chestPixelV176(cv, res, num, nfId, C); if (r176) return r176;   // v176: on the figure's own pixel grid, sewn into the shirt
     var r159 = chestNumV159A(cv, res, num, nfId, C); if (r159) return r159;   // v159 A: printed on the fabric
     var r158 = chestNumV158A(cv, res, num, nfId, C); if (r158) return r158;   // v158 A: the number font's own drawn art
     try {
@@ -7160,6 +7162,93 @@
   window.__V174 = { on: onV174, stats: V174, groups: groupsV174, sections: secsV174, open: function () { return SEL.cat; }, openSec: function (k) { return isSecV174(k) || k === null ? openSecV174(k, true) : false; }, jump: jumpV174, team: function (kind, i) { return window.palTeamV174(kind, i); } };
 
   /* ---------------- the API ---------------- */
+  /* ===== v176 THE NUMBER IS SEWN ON (cosmetics) =====
+   * On the field every number is printed into the shirt by src/05 (`sewKeyV176`), on the art's own pixel grid — about
+   * one screen pixel per pixel of the drawn man, where a drawn face has no room to be a face. So a number font comes
+   * through there as what still reads at that size: its colours (fill and trim), gold and chrome as a foil running
+   * light to dark down the numeral, neon as cyan on its magenta glow, a stencil's bridges, a condensed face's narrower
+   * numerals. `sewSpecV176(N)` is that spec, set on his marker each frame by `numfontFxV153G`; while the print is on
+   * the label is hidden, so `fieldNumV157C` drops the v158 A drawn art on the field by itself. The profile figure, the
+   * card and the Locker keep the drawn faces. */
+  var SEW_V176 = {};
+  function sewSpecV176(N) {
+    try {
+      if (!N || !N.d) return null;
+      var st = N.d.style, F = FACES_V158A[st] || null, t1 = teamCol(0), t2 = teamCol(1), id = (N.id || st || "nf") + "|" + t1 + t2;
+      if (SEW_V176[id]) return SEW_V176[id];
+      var tc = function (c) { return c === "T1" ? t1 : c === "T2" ? t2 : c; };
+      var fill = hexOk(N.d.col) || "#ffffff", trim = hexOk(N.d.stroke) || "#0a0e14", grad = null;
+      if (F) {
+        if (F.fill && F.fill.t === "flat" && F.fill.c) fill = hexOk(tc(F.fill.c)) || fill;
+        if (F.ol && F.ol[0]) trim = hexOk(tc(F.ol[0][0])) || trim;
+        if (F.fill && F.fill.t === "gold") grad = ["#fff3b8", "#c58b17"];
+        else if (F.fill && F.fill.t === "chrome") grad = ["#ffffff", "#7f8ba0"];
+        else if (F.fill && F.fill.t === "camo") grad = ["#9aa35c", "#5d6a33"];
+        if (F.glow) trim = hexOk(F.glow) || trim;
+      }
+      return (SEW_V176[id] = { id: (N.id || st || "nf").replace(/[^a-z0-9]/gi, ""), fill: fill, trim: trim, grad: grad, stencil: !!(F && F.stencil), narrow: !!(F && F.xs && F.xs < 0.8) });
+    } catch (e) { return null; }
+  }
+
+  /* the profile / card figure's chest: the v159 A print was a smooth face at the screen's resolution laid over a pixel
+   * figure. Now the numeral is built at the figure's SOURCE resolution (idle_dn_hi.png's own pixels — the v158 A stroke
+   * faces, which need no web font: Block for the team's numbers, the equipped face's full art otherwise), clipped to
+   * the shirt's own pixels and shaded by them (`mapsV159A`), and drawn through the very same scaling the body was, so
+   * its pixels are the figure's pixels. Placed under the lowest row the facemask reaches, centred on the chest. */
+  function chestPixelV176(cv, res, num, nfId, C) {
+    if (!TUv("v176chest", 1) || !cv || !cv.getContext || !res || !res.geo || num == null || num === "") return null;
+    try {
+      var M = mapsV159A(); if (!M) return null;
+      var g = res.geo, W = M.W, H = M.H, md = M.dataV176 || (M.dataV176 = M.cv.getContext("2d").getImageData(0, 0, W, H).data);
+      var nf = nfOfV157C(nfId), face = nfFaceOfV158A(nf), s = String(num | 0).replace(/[^0-9]/g, "").slice(0, 2); if (!s) return null;
+      var want = Math.max(7, Math.round((C.waist - C.neck) * TUv("sewChestHV176", 0.46))), maxW = C.w * TUv("sewChestWV176", 0.78);
+      // the numeral at the target ink height (one re-cut once its real ink is measured), held inside the chest's width
+      var cut = function (IH) {
+        if (face) { var R = nfRenderV158A(face, s, IH); if (!R) return null; var d = R.cv.getContext("2d").getImageData(0, 0, R.w, R.h).data; return { w: R.w, h: R.h, d: d, ih: R.ih, iw: R.iw, ix: R.ix, iy: R.iy, art: 1 }; }
+        var mk = nfMaskV158A(FACES_V158A.block, s, IH); if (!mk) return null;
+        return { w: mk.w, h: mk.h, m: mk.m, ih: mk.bb[3] - mk.bb[1] + 1, iw: mk.bb[2] - mk.bb[0] + 1, ix: mk.bb[0], iy: mk.bb[1], art: 0 };
+      };
+      var A = cut(want); if (!A || !A.ih) return null;
+      var IH = want * want / A.ih; if (A.iw * (IH / want) > maxW) IH = IH * maxW / (A.iw * IH / want);
+      A = cut(Math.max(6, Math.round(IH))); if (!A) return null;
+      var K = FIG.last || {}, inkT = inkForV159A(K.j, K.p, K.t), fill = rgb(inkT.fill), Lf = lumOf(fill), Lj = lumHexV159A(hexOk(K.j) || "#1f4fd0");
+      var alt = [K.t, K.p].filter(function (h) { return hexOk(h) && Math.abs(lumHexV159A(h) - Lf) > TUv("sewTrimGapV176", 45) && Math.abs(lumHexV159A(h) - Lj) > 30; })[0];
+      var trim = rgb(alt || inkT.stroke), tw = face ? 0 : Math.max(1, Math.round(A.ih * TUv("sewChestTrimV176", 0.08)));
+      // where it goes: centred on the chest; its top under the first row the shirt runs clean across (the facemask's chin)
+      var bw = A.iw + 2 * tw, x0 = Math.round(C.cx + 0.5 - bw / 2) + tw - A.ix, yTop = C.neck;
+      for (var y = C.neck; y < C.waist; y++) { var on = 0; for (var x = x0 + A.ix - tw; x < x0 + A.ix + A.iw + tw; x++) if (md[(y * W + x) * 4 + 3]) on++; if (on >= bw * TUv("sewChestClearV176", 0.85)) { yTop = y; break; } }
+      var top = Math.max(yTop + tw + 1, Math.round(C.neck + (C.waist - C.neck) * TUv("sewChestRiseV176", 0.3)));
+      top = Math.min(top, C.waist - 2 - tw - A.ih);
+      var y0 = top - A.iy;
+      // the layer at the source's size: only the shirt's pixels, each with the fabric's shade
+      var L = document.createElement("canvas"); L.width = W; L.height = H; var lx = L.getContext("2d"), im = lx.createImageData(W, H), o = im.data, kept = 0, hid = 0;
+      var paint = function (X, Y, c) {
+        if (X < 0 || Y < 0 || X >= W || Y >= H) return;
+        var i = (Y * W + X) * 4; if (!md[i + 3]) { hid++; return; }
+        var f = Math.max(0.6, Math.min(1.15, 0.35 + 0.65 * md[i] / 100));
+        o[i] = Math.min(255, c[0] * f); o[i + 1] = Math.min(255, c[1] * f); o[i + 2] = Math.min(255, c[2] * f); o[i + 3] = 255; kept++;
+      };
+      var xx, yy, j;
+      if (A.art) { for (yy = 0; yy < A.h; yy++) for (xx = 0; xx < A.w; xx++) { j = (yy * A.w + xx) * 4; if (A.d[j + 3] >= 128) paint(x0 + xx, y0 + yy, [A.d[j], A.d[j + 1], A.d[j + 2]]); } }
+      else {
+        var isF = function (a, b) { return a >= 0 && b >= 0 && a < A.w && b < A.h && A.m[b * A.w + a]; };
+        for (yy = -tw; yy < A.h + tw; yy++) for (xx = -tw; xx < A.w + tw; xx++) {
+          if (isF(xx, yy)) { paint(x0 + xx, y0 + yy, fill); continue; }
+          var near = 0; for (var dy = -tw; dy <= tw && !near; dy++) for (var dx = -tw; dx <= tw; dx++) if (isF(xx + dx, yy + dy)) { near = 1; break; }
+          if (near) paint(x0 + xx, y0 + yy, trim);
+        }
+      }
+      if (!kept) return null;
+      var x = cv.getContext("2d"), neck = g.neck != null ? g.neck : C.neck, rows = (H - 3) - neck;
+      x.save(); x.setTransform(g.dpr || 1, 0, 0, g.dpr || 1, 0, 0); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+      lx.putImageData(im, 0, 0);
+      x.drawImage(L, 0, neck, W, rows, g.bx, g.by, g.bw, g.bh);   // the body's own mapping: its pixels are the figure's
+      x.restore();
+      var r = { num: s, nf: face || "team", v176: true, ih: A.ih, iw: A.iw, top: top, cx: +(x0 + A.ix + A.iw / 2).toFixed(1), chestCx: +C.cx.toFixed(1), clear: yTop, kept: kept, hid: hid, trim: tw };
+      window.__V176C = r; return r;
+    } catch (e) { return null; }
+  }
+
   var API = {
     version: "v151b", slots: SLOTS.slice(), cats: CATS, achievements: ACH.map(function (a) { return { id: a.id, name: a.name, desc: a.desc }; }),
     member: memberV156C, grandfathered: function (id) { return gfV156C(id); }, superItems: function () { return SUPER_IDS_V156C.slice(); },   // v156 C
