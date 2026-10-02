@@ -351,7 +351,7 @@
   function foldAll(screen) { try { const v = window.S && window.S.view, C = cfg();
     screen.querySelectorAll(".hubv75-sec.on").forEach(b => { if (C && C.nofold && C.nofold.indexOf(b.dataset.sec) >= 0) return; fold(b, v); }); } catch (e) {} }
   function section(screen, C) {
-    const kids = [...screen.children].filter(e => e.nodeType === 1);
+    const kids = [...screen.children].filter(e => e.nodeType === 1 && !e.classList.contains("secbar-v170"));   // v171 B: the section bar stays where it is
     if (!kids.length) return false;
     const view = window.S.view;
     const head = [], bucket = {};

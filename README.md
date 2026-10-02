@@ -51,6 +51,11 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v171 — the matchup call.** Every opponent has a face (a named star, a weak link, a unit to fear and one to
+  attack) and the pregame's plan page opens on the calls against it — shut down their star, load the box, send the
+  house, pick on their weak corner — each with real engine effects, its own line to beat, risk, reward and swing. Your
+  say (trust, chemistry, Field General) opens 2-5 of them; the plan's rating lifts the whole team. Focus cards roll
+  every week, the involvement rung sets how hard you play, specialization is gone. `matchupcheck`.
 - **v170 — the spray menu.** Hold any bottom-bar button and its pages spray out; slide onto one, slide onto its page,
   let go — 43 destinations two slides away. On a phone every page is one page with one scroll, with a section bar you
   can tap or swipe. `src/34-spray.js`; `spraycheck`.

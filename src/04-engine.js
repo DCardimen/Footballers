@@ -3505,7 +3505,8 @@ window.__visionRadiusV96 = visionRadiusV96;
         .sort((p,q)=>(q.aware+q.cov)-(p.aware+p.cov));
       const threat=(target.spdA+target.agi+target.cat)/3, defenseIQ=(coverA.aware+coverA.cov)/2;
       const bracketP=cl(.10+(threat-defenseIQ)*.012+defenseIQ*.004
-        +(dcV165D&&target.player&&target.player.you?TU("dcBracketYouV165D",.3)*dcV165D.keyYou:0),.08,.78);   // v165 D: help over the man who is beating them
+        +(dcV165D&&target.player&&target.player.you?TU("dcBracketYouV165D",.3)*dcV165D.keyYou:0)
+        +(dcV165D&&dcV165D.keyStar&&target.player&&target.player._starV171?dcV165D.keyStar:0),.08,.78);   // v171 A: the matchup call's bracket over their star   // v165 D: help over the man who is beating them
       if(secondLevel.length&&Math.random()<bracketP){coverHelp=secondLevel[0];bracketed=true;emit("doubleCoverage",{target:target.id,helper:coverHelp.id});}
       lbDrops=S.def.filter(a=>a.lb==="LB"&&a!==blitzer).map(a=>({a,readAt:Math.max(120,220+(100-awE(a))*5)+Math.random()*260
         +(dcV165D?TU("dcDropLateMsV165D",160)*(playAction?1.5:1)*Math.max(0,dcV165D.runKey):0),ann:false}));   // v165 D: a run key drops late (later still off a fake)   // v165 B: awE

@@ -10,6 +10,21 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v171 — the matchup call.** (`src/07-career-app.js`, `src/04-engine.js`, `src/11-pregame-v1513.js`,
+  `src/34-spray.js`, `src/22-hub-sections.js`, `src/33-phone.js`, `scripts/matchupcheck.mjs`.) Every opponent has a face
+  now — a named star (+14–24%), a weak link, a unit to fear and a unit to attack, from the scouting report — and page 5
+  of the pregame opens on it with THE MATCHUP CALL: Shut Down their star receiver (a bracket and fewer looks), Spy their
+  back, Rattle their quarterback, Chip their pass rusher, Load the Box against a power line, Send the House against a
+  soft one, Keep It In Front, Run Right At Them, Take the Top Off, Pick On their weak corner, Get It Out Quick… Each
+  moves real engine knobs (the run key, the blitz rate, the shell, the pass mix, the bracket), lifts the units that run
+  it, and is judged on its own line (their star's yards, their rushing, your passing, sacks + takeaways…) with its own
+  risk (trust / hype / chemistry +2…+7 or −1…−4) and swing. Coach trust, chemistry and Field General are your SAY: 2 to 5
+  calls open and how hard the staff runs them. The plan's game rating now lifts every teammate (+0.4% a point). The
+  post-game card says whether the call worked. Also: the focus cards roll their own multiplier every week (×1.04–1.50,
+  and one in five lands on a useless stat); the involvement rung is how hard you play (reckless at the top, safe at the
+  bottom) and an aggressive player gets more out of going hard; the prestige specialization is gone; the section bar
+  can no longer stack; the plan tiles name each plan's own rating instead of one shared variance. Kill switches `v171`,
+  `v171Bspec`, `v171Cfocus`, `v171Dhard`.
 - **v170 — the spray menu: hold, slide, slide.** (`src/34-spray.js` new, `src/22-hub-sections.js`, `src/25-shell.js`,
   `scripts/spraycheck.mjs`, `scripts/v146Echeck.mjs`, `scripts/phonecheck.mjs`.) Pages were split in half on a phone,
   each half scrolling on its own (training had four scroll boxes). Now holding any button on the bottom bar sprays its

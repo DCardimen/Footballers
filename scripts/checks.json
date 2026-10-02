@@ -274,7 +274,8 @@
     "traincheck",
     "simcheck",
     "bootviewcheck",
-    "walk"
+    "walk",
+    "matchupcheck"
    ],
    "variants": [
     "`POS=QB,DL,S` for `v146Dcheck` (default RB,WR,LB)"
@@ -549,7 +550,8 @@
     "scrollcheck",
     "namecheck",
     "splashcheck",
-    "shot"
+    "shot",
+    "matchupcheck"
    ],
    "variants": [
     "`WHEEL=1` for `v112Dcheck`"
@@ -1747,6 +1749,26 @@
     "traincheck",
     "v164Bcheck",
     "bodycheck"
+   ]
+  },
+  "matchup": {
+   "desc": "v171 — the matchup call: the opponent's face, the calls and the say, the engine knobs, the team lift, the booking and the bill; the focus roll, how hard he plays, no specialization, one section bar (07's v171 A-D, 04's bracket, 11's page 5)",
+   "anchors": [
+    "v171 A",
+    "v171 B",
+    "v171 C",
+    "v171 D"
+   ],
+   "files": [],
+   "checks": [
+    "matchupcheck",
+    "v111Acheck",
+    "v111Bcheck",
+    "v146Dcheck",
+    "v136check",
+    "dccheck",
+    "occheck",
+    "spraycheck"
    ]
   }
  },
@@ -4485,6 +4507,20 @@
     "season"
    ],
    "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "matchupcheck": {
+   "file": "scripts/matchupcheck.mjs",
+   "desc": "v171 — every opponent has a deterministic face (a named star and weak link, a strong and a soft unit) on the preview's roster; the open calls differ week to week and SAY opens 2-5 of them; on paired games Load the Box / Send the House / Take the Top Off / Shut Down move their engine numbers; the call lifts its units and the plan's rating lifts every teammate; page 5 shows the face, the say and the calls, a tap is the call, the tiles name each plan's rating; the watched game books the call, the post-game card says so, it pays once; focus cards roll per week (some OFF); the rung sets how hard he plays and aggression pays more; no specialization card; one section bar; TU v171 / v171Bspec / v171Cfocus / v171Dhard 0. No page errors.",
+   "areas": [
+    "plan",
+    "pregame",
+    "season"
+   ],
+   "runtimeSec": 150,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
